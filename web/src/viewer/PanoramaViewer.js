@@ -6,6 +6,7 @@ import {
   directionFromYawPitch,
 } from './controls.js';
 import { planProgressiveLoad } from './progressive.js';
+import { pickTargetLevel, tileUrl, visibleTiles } from './pyramid.js';
 
 const RADIUS = 50;
 const FOV_MIN = 30;
@@ -17,6 +18,7 @@ const FOV_MAX = 110;
  * - 移动端：单指拖拽、双指捏合缩放
  * - 可选陀螺仪沉浸模式、自动旋转、全屏
  * - 渐进加载：低清预览先行出画面，主图静默替换
+ * - 金字塔瓦片：大图按视角加载目标层可见瓦片，base 低层整球垫底，失败自动回退整图
  */
 export class PanoramaViewer {
   constructor(container, { onLoad, onPreviewReady, onProgress, onError } = {}) {
@@ -41,6 +43,14 @@ export class PanoramaViewer {
     this._mesh = null;
     this._loadSeq = 0; // 加载序号，防快速切换场景时旧图覆盖新图
     this._listeners = [];
+    // 金字塔状态
+    this._pyramid = null;
+    this._pyramidTarget = null;
+    this._tileMeshes = [];
+    this._tileCache = new Map();
+    this._tileLoading = new Set();
+    this._pyramidTimer = 0;
+    this._lastView = { yaw: 0, pitch: 0, fov: 75 };
 
     this._initRenderer();
     this._initScene();
@@ -66,8 +76,17 @@ export class PanoramaViewer {
     return this.container.clientWidth / this.container.clientHeight || 1;
   }
 
-  // ---------- 全景图加载（渐进：低清先行 → 主图替换） ----------
-  async load(imagePath, previewPath) {
+  // ---------- 全景图加载 ----------
+  load(imagePath, previewPath, pyramid) {
+    if (pyramid && Array.isArray(pyramid.levels) && pyramid.levels.length) {
+      return this.loadPyramid(imagePath, previewPath, pyramid);
+    }
+    return this.loadFlat(imagePath, previewPath);
+  }
+
+  /** 整图渐进加载（低清先行 → 主图替换） */
+  async loadFlat(imagePath, previewPath) {
+    this._clearPyramid();
     const steps = planProgressiveLoad(previewPath, imagePath);
     const seq = ++this._loadSeq;
     if (!steps.length) {
@@ -98,11 +117,135 @@ export class PanoramaViewer {
     }
   }
 
+  /** 金字塔瓦片加载：base 低层整球先行 → 目标层可见瓦片按需加载 */
+  async loadPyramid(imagePath, previewPath, pyramid) {
+    const seq = ++this._loadSeq;
+    this._clearPyramid();
+    this._pyramid = pyramid;
+    try {
+      // 1. 最低层整球（1 张瓦片铺满球面，秒出画面）
+      const base = pyramid.levels[pyramid.levels.length - 1];
+      const baseTex = await this._loadImageTexture(tileUrl(pyramid.tileUrl, base, 0, 0));
+      if (seq !== this._loadSeq) {
+        baseTex.dispose();
+        return;
+      }
+      this._applyTexture(baseTex);
+      this.onPreviewReady?.();
+
+      // 2. 目标层 + 首屏可见瓦片
+      this._pyramidTarget = pickTargetLevel(pyramid.levels, this.container.clientWidth, window.devicePixelRatio || 1);
+      this._lastView = { yaw: this.yaw, pitch: this.pitch, fov: this.fov };
+      this._refreshTiles();
+      this.onLoad?.();
+    } catch (err) {
+      if (seq !== this._loadSeq) return;
+      console.warn('金字塔加载失败，回退整图模式:', err);
+      this._clearPyramid();
+      await this.loadFlat(imagePath, previewPath);
+    }
+  }
+
+  _clearPyramid() {
+    clearTimeout(this._pyramidTimer);
+    this._pyramidTimer = 0;
+    this._pyramid = null;
+    this._pyramidTarget = null;
+    for (const mesh of [...this._tileMeshes]) this._removeTileMesh(mesh);
+    this._tileMeshes = [];
+    this._tileCache.clear();
+    this._tileLoading.clear();
+  }
+
+  /** 按当前视角刷新可见瓦片：加载缺失、卸载远离视口的 */
+  _refreshTiles() {
+    if (!this._pyramid || !this._pyramidTarget) return;
+    const dir = directionFromYawPitch(this.yaw, this.pitch);
+    const halfFovX = ((this.fov * Math.PI) / 180) * this.aspect() * 0.5;
+    const halfFovY = ((this.fov * Math.PI) / 180) * 0.5;
+    const want = visibleTiles(this._pyramidTarget, dir, halfFovX, halfFovY);
+    const wantKey = new Set(want.map(([c, r]) => `${c}_${r}`));
+
+    // 卸载不在可见集的瓦片（释放 GPU 纹理）
+    for (const mesh of [...this._tileMeshes]) {
+      if (!wantKey.has(mesh.userData.key)) this._removeTileMesh(mesh);
+    }
+    // 加载缺失瓦片：中心优先
+    const sorted = [...want].sort((a, b) => this._tileCenterAngle(a, dir) - this._tileCenterAngle(b, dir));
+    for (const [col, row] of sorted) {
+      const key = `${col}_${row}`;
+      if (this._tileCache.has(key) || this._tileLoading.has(key)) continue;
+      this._loadTile(col, row, key);
+    }
+  }
+
+  _tileCenterAngle([col, row], dir) {
+    const level = this._pyramidTarget;
+    const phi = ((col + 0.5) / level.cols) * 2 * Math.PI;
+    const theta = ((row + 0.5) / level.rows) * Math.PI;
+    const px = -Math.cos(phi) * Math.sin(theta);
+    const py = Math.cos(theta);
+    const pz = Math.sin(phi) * Math.sin(theta);
+    const dot = Math.max(-1, Math.min(1, px * dir.x + py * dir.y + pz * dir.z));
+    return Math.acos(dot);
+  }
+
+  _scheduleRefresh(delay = 300) {
+    clearTimeout(this._pyramidTimer);
+    this._pyramidTimer = setTimeout(() => this._refreshTiles(), delay);
+  }
+
+  async _loadTile(col, row, key) {
+    this._tileLoading.add(key);
+    try {
+      const texture = await this._loadImageTexture(tileUrl(this._pyramid.tileUrl, this._pyramidTarget, col, row));
+      if (!this._pyramid || this._tileCache.has(key)) {
+        texture.dispose();
+        return;
+      }
+      this._tileCache.set(key, texture);
+      this._addTileMesh(this._pyramidTarget, col, row, texture);
+    } catch (err) {
+      console.warn('瓦片加载失败，保留低清画面:', key, err);
+    } finally {
+      this._tileLoading.delete(key);
+    }
+  }
+
+  /** 单张瓦片 mesh：球面参数化片段（phi/theta 区间），纹理即瓦片图 */
+  _addTileMesh(level, col, row, texture) {
+    const phiStart = (col / level.cols) * 2 * Math.PI;
+    const phiLength = (2 * Math.PI) / level.cols;
+    const thetaStart = (row / level.rows) * Math.PI;
+    const thetaLength = Math.PI / level.rows;
+    const geometry = new THREE.SphereGeometry(RADIUS + 0.01, 12, 12, phiStart, phiLength, thetaStart, thetaLength);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.BackSide,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.renderOrder = 1; // 覆盖 base 整球
+    mesh.userData.key = `${col}_${row}`;
+    this.scene.add(mesh);
+    this._tileMeshes.push(mesh);
+  }
+
+  _removeTileMesh(mesh) {
+    this.scene.remove(mesh);
+    mesh.geometry.dispose();
+    const tex = mesh.material.map;
+    mesh.material.dispose();
+    if (tex) tex.dispose();
+    this._tileCache.delete(mesh.userData.key);
+    this._tileMeshes = this._tileMeshes.filter((m) => m !== mesh);
+  }
+
   /** 应用新纹理：首帧创建球体，后续仅替换纹理（避免切换黑屏） */
   _applyTexture(texture) {
     if (!this._mesh) {
       const geometry = new THREE.SphereGeometry(RADIUS, 64, 64);
-      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
+      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, depthWrite: false });
       this._mesh = new THREE.Mesh(geometry, material);
       this.scene.add(this._mesh);
       return;
@@ -148,6 +291,15 @@ export class PanoramaViewer {
       img.onerror = () => reject(new Error('图片解码失败'));
       img.src = src;
     });
+  }
+
+  /** 瓦片/低清 base：直接 Image 加载，无需流式进度 */
+  async _loadImageTexture(url) {
+    const img = await this._loadImageElement(url);
+    const texture = new THREE.Texture(img);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
   }
 
   // ---------- 交互事件 ----------
@@ -261,6 +413,20 @@ export class PanoramaViewer {
       this.camera.updateProjectionMatrix();
       const dir = directionFromYawPitch(this.yaw, this.pitch);
       this.camera.lookAt(dir.x, dir.y, dir.z);
+
+      // 金字塔模式：视角变化后防抖刷新可见瓦片
+      if (this._pyramid && this._pyramidTarget) {
+        const lv = this._lastView;
+        if (
+          Math.abs(this.yaw - lv.yaw) > 0.02 ||
+          Math.abs(this.pitch - lv.pitch) > 0.02 ||
+          Math.abs(this.fov - lv.fov) > 1
+        ) {
+          this._lastView = { yaw: this.yaw, pitch: this.pitch, fov: this.fov };
+          this._scheduleRefresh();
+        }
+      }
+
       this.renderer.render(this.scene, this.camera);
       this._rafId = requestAnimationFrame(loop);
     };
@@ -283,6 +449,7 @@ export class PanoramaViewer {
       target.removeEventListener(event, fn, opts);
     }
     this._listeners = [];
+    this._clearPyramid();
     if (this._mesh) {
       this.scene.remove(this._mesh);
       this._mesh.geometry.dispose();

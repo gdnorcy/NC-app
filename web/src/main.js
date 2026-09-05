@@ -94,7 +94,7 @@ async function selectScene(i) {
   document.querySelectorAll('.scene-item').forEach((el, j) => {
     el.classList.toggle('active', j === i);
   });
-  await viewer.load(scene.imagePath, scene.previewPath);
+  await viewer.load(scene.imagePath, scene.previewPath, scene.pyramid);
 }
 
 // ---- 控制按钮 ----
