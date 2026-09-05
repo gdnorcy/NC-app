@@ -410,6 +410,8 @@ $('customer-grid').addEventListener('click', async (e) => {
   if (e.target.classList.contains('act-login-as')) {
     try {
       const { token } = await impersonateCustomer(id);
+      // 保存原 admin token，用于从客户后台返回
+      localStorage.setItem('admin_token_backup', localStorage.getItem(TOKEN_KEY) || '');
       localStorage.setItem('customer_token', token);
       window.location.href = '/customer.html';
     } catch (err) {
@@ -958,6 +960,7 @@ $('user-tbody').addEventListener('click', async (e) => {
   } else if (e.target.classList.contains('act-login-as')) {
     try {
       const { token } = await impersonateUser(id);
+      localStorage.setItem('admin_token_backup', localStorage.getItem(TOKEN_KEY) || '');
       localStorage.setItem('customer_token', token);
       window.location.href = '/customer.html';
     } catch (err) {
@@ -1423,6 +1426,7 @@ $('btn-log-export')?.addEventListener('click', async () => {
 });
 
 // ---------- 基础设置 ----------
+let siteLogoPath = '';
 async function loadSettingsBasic() {
   try {
     const { settings } = await fetchAdminSettings();
@@ -1432,16 +1436,52 @@ async function loadSettingsBasic() {
     $('set-site-icp').value = settings['site.icp'] || '';
     $('set-site-phone').value = settings['site.phone'] || '';
     $('set-site-email').value = settings['site.email'] || '';
+    siteLogoPath = settings['site.logo'] || '';
+    if (siteLogoPath) {
+      $('set-site-logo-img').src = siteLogoPath;
+      $('set-site-logo-preview').classList.remove('hidden');
+      $('set-site-logo-name').textContent = '已有 Logo，可选择新图替换';
+    } else {
+      $('set-site-logo-preview').classList.add('hidden');
+      $('set-site-logo-name').textContent = '未选择文件';
+    }
     $('set-copyright-owner').value = settings['copyright.owner'] || '';
     $('set-copyright-year').value = settings['copyright.year'] || '';
     $('set-copyright-text').value = settings['copyright.text'] || '';
     $('set-copyright-enabled').checked = settings['copyright.enabled'] !== false;
   } catch (e) { showError(adminError, e.message); }
 }
+
+// 系统 Logo 选择预览
+$('set-site-logo')?.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $('set-site-logo-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = () => {
+    $('set-site-logo-img').src = reader.result;
+    $('set-site-logo-preview').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+});
+$('set-site-logo-remove')?.addEventListener('click', () => {
+  siteLogoPath = '';
+  $('set-site-logo').value = '';
+  $('set-site-logo-name').textContent = '未选择文件';
+  $('set-site-logo-preview').classList.add('hidden');
+});
+
 $('btn-save-basic')?.addEventListener('click', async () => {
   try {
+    let logoToSave = siteLogoPath;
+    const logoFile = $('set-site-logo');
+    if (logoFile.files.length) {
+      const uploaded = await uploadCustomerLogo(logoFile.files[0]);
+      logoToSave = uploaded.logoPath;
+    }
     await saveAdminSettings({
       'site.name': $('set-site-name').value,
+      'site.logo': logoToSave,
       'site.title': $('set-site-title').value,
       'site.subtitle': $('set-site-subtitle').value,
       'site.icp': $('set-site-icp').value,
@@ -1452,6 +1492,7 @@ $('btn-save-basic')?.addEventListener('click', async () => {
       'copyright.text': $('set-copyright-text').value,
       'copyright.enabled': $('set-copyright-enabled').checked,
     });
+    siteLogoPath = logoToSave;
     showError(adminError, '基础设置已保存', false);
   } catch (e) { showError(adminError, e.message); }
 });

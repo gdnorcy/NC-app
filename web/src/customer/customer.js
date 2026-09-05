@@ -77,6 +77,39 @@ function logout() {
 $('logout-btn').addEventListener('click', logout);
 $('dropdown-logout').addEventListener('click', logout);
 
+// ===== 加载公开设置（系统名称、Logo） =====
+async function loadPublicSettings() {
+  try {
+    const res = await fetch('/api/settings/public');
+    const data = await res.json();
+    const settings = data.settings || {};
+    const siteName = settings['site.name'] || '360 全景平台';
+    const siteLogo = settings['site.logo'] || '';
+    // 侧边栏品牌区：系统名称和Logo
+    $('brand-name').textContent = siteName;
+    $('login-title').textContent = siteName;
+    if (siteLogo) {
+      const img = $('brand-logo-img');
+      img.src = siteLogo;
+      img.style.display = 'block';
+      $('brand-logo').style.display = 'none';
+      $('login-logo').style.display = 'none';
+      // 登录页也显示图片Logo
+      const loginLogo = $('login-logo');
+      if (!$('login-logo-img')) {
+        const loginImg = document.createElement('img');
+        loginImg.id = 'login-logo-img';
+        loginImg.src = siteLogo;
+        loginImg.style.cssText = 'width:56px;height:56px;border-radius:14px;object-fit:cover;margin:0 auto 16px;display:block;';
+        loginLogo.parentNode.insertBefore(loginImg, loginLogo);
+      }
+    } else {
+      $('brand-logo').textContent = siteName.substring(0, 2);
+      $('login-logo').textContent = siteName.substring(0, 2);
+    }
+  } catch { /* 忽略设置加载失败 */ }
+}
+
 // ===== 加载租户信息 =====
 async function loadProfile() {
   const data = await api('/profile');
@@ -86,14 +119,10 @@ async function loadProfile() {
   if (data.customer.brandColor) {
     document.documentElement.style.setProperty('--brand', data.customer.brandColor);
   }
-  // 更新企业名称和 Logo
+  // 顶部显示客户企业名称
   $('customer-name').textContent = data.customer.customerName;
-  $('brand-name').textContent = data.customer.customerName;
   const logoText = data.customer.customerName.substring(0, 2);
   $('customer-logo').textContent = logoText;
-  $('brand-logo').textContent = logoText;
-  $('login-logo').textContent = logoText;
-  $('login-title').textContent = data.customer.customerName;
   // 用户信息
   $('user-avatar-btn').textContent = (data.user.username || 'U').substring(0, 1).toUpperCase();
   $('dropdown-username').textContent = data.user.username;
@@ -102,7 +131,22 @@ async function loadProfile() {
   if (data.user.role !== 'tenant_admin') {
     document.querySelectorAll('.admin-only').forEach((el) => el.classList.add('hidden'));
   }
+  // 检测是否从总后台"登录为"进入
+  if (localStorage.getItem('admin_token_backup')) {
+    $('back-to-admin').classList.remove('hidden');
+  }
 }
+
+// 返回总后台
+$('back-to-admin').addEventListener('click', () => {
+  const backup = localStorage.getItem('admin_token_backup');
+  if (backup) {
+    localStorage.setItem('panorama_token', backup);
+  }
+  localStorage.removeItem('admin_token_backup');
+  localStorage.removeItem('customer_token');
+  window.location.href = '/admin';
+});
 
 function showApp() {
   $('login-page').classList.add('hidden');
@@ -352,6 +396,8 @@ $('password-form').addEventListener('submit', async (e) => {
 
 // ===== 初始化 =====
 (async function init() {
+  // 先加载系统设置（名称、Logo），登录页也需要
+  await loadPublicSettings();
   if (state.token) {
     try {
       await loadProfile();

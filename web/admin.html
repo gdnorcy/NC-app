@@ -654,6 +654,19 @@
             <div class="settings-page">
               <h3>站点信息</h3>
               <label class="field"><span>站点名称</span><input id="set-site-name" type="text" placeholder="360 全景平台" /></label>
+              <label class="field">
+                <span>系统 Logo</span>
+                <div class="file-upload-wrap">
+                  <input id="set-site-logo" type="file" accept="image/*" hidden />
+                  <label for="set-site-logo" class="btn btn-ghost btn-sm">选择图片</label>
+                  <span id="set-site-logo-name" class="file-upload-name">未选择文件</span>
+                </div>
+                <div id="set-site-logo-preview" class="preview-wrap hidden">
+                  <img id="set-site-logo-img" alt="Logo预览" />
+                  <button type="button" id="set-site-logo-remove" class="btn btn-ghost btn-sm">移除</button>
+                </div>
+                <span class="field-hint">建议尺寸 200×200px，将显示在客户后台左上角</span>
+              </label>
               <label class="field"><span>前台首页标题</span><input id="set-site-title" type="text" placeholder="360° 全景体验" /></label>
               <label class="field"><span>前台首页副标题</span><input id="set-site-subtitle" type="text" placeholder="沉浸式全景浏览" /></label>
               <label class="field"><span>ICP 备案号</span><input id="set-site-icp" type="text" placeholder="粤ICP备XXXXXXXX号" /></label>
