@@ -209,18 +209,24 @@ document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
 function renderBreadcrumb() {
   const bc = $('breadcrumb');
   const parts = [];
-  parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
-  if (state.currentCustomer) {
+  if (state.view === 'customer-edit') {
+    parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
     parts.push(`<span class="sep">/</span>`);
-    if (state.view === 'customers') {
-      parts.push(`<span class="crumb">${esc(state.currentCustomer.customerName)}</span>`);
-    } else {
-      parts.push(`<span class="crumb clickable" data-customer="${state.currentCustomer.id}">${esc(state.currentCustomer.customerName)}</span>`);
+    parts.push(`<span class="crumb">${editingCustomerId ? '编辑客户项目' : '新建客户项目'}</span>`);
+  } else {
+    parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
+    if (state.currentCustomer) {
+      parts.push(`<span class="sep">/</span>`);
+      if (state.view === 'customers') {
+        parts.push(`<span class="crumb">${esc(state.currentCustomer.customerName)}</span>`);
+      } else {
+        parts.push(`<span class="crumb clickable" data-customer="${state.currentCustomer.id}">${esc(state.currentCustomer.customerName)}</span>`);
+      }
     }
-  }
-  if (state.currentPlan && state.view === 'scenes') {
-    parts.push(`<span class="sep">/</span>`);
-    parts.push(`<span class="crumb">${esc(state.currentPlan.name)}</span>`);
+    if (state.currentPlan && state.view === 'scenes') {
+      parts.push(`<span class="sep">/</span>`);
+      parts.push(`<span class="crumb">${esc(state.currentPlan.name)}</span>`);
+    }
   }
   bc.innerHTML = parts.join('');
   bc.querySelectorAll('.clickable').forEach((el) => {
@@ -242,6 +248,7 @@ function renderBreadcrumb() {
 // ---------- 视图切换 ----------
 function render() {
   $('view-customers').classList.toggle('hidden', state.view !== 'customers');
+  $('view-customer-edit').classList.toggle('hidden', state.view !== 'customer-edit');
   $('view-plans').classList.toggle('hidden', state.view !== 'plans');
   $('view-scenes').classList.toggle('hidden', state.view !== 'scenes');
   $('view-users').classList.toggle('hidden', state.view !== 'users');
@@ -364,14 +371,14 @@ function renderCustomers() {
 }
 
 $('customer-grid').addEventListener('click', async (e) => {
-  const card = e.target.closest('.customer-card');
+  const card = e.target.closest('.c-card');
   if (!card) return;
   const id = Number(card.dataset.id);
   const customer = customers.find((c) => c.id === id);
   if (!customer) return;
 
   if (e.target.classList.contains('act-edit')) {
-    openCustomerDialog(customer);
+    openCustomerEdit(customer);
   } else if (e.target.classList.contains('act-del')) {
     const msg = `确定删除客户项目「${customer.customerName}」？其下 ${customer.planCount ?? 0} 个方案将自动归入默认客户。`;
     if (!window.confirm(msg)) return;
@@ -383,7 +390,7 @@ $('customer-grid').addEventListener('click', async (e) => {
       showError(adminError, err.message);
     }
   } else if (e.target.classList.contains('act-renew')) {
-    openCustomerDialog(customer, true);
+    openCustomerEdit(customer, true);
   } else {
     // 进入该客户的方案列表
     state.view = 'plans';
@@ -408,13 +415,12 @@ $('customer-search')?.addEventListener('input', (e) => {
   renderCustomers();
 });
 
-// ---------- 客户编辑弹窗 ----------
+// ---------- 客户编辑（整页） ----------
 let editingCustomerId = null;
-const customerDialog = $('customer-dialog');
 
-function openCustomerDialog(customer, renewOnly = false) {
+function openCustomerEdit(customer, renewOnly = false) {
   editingCustomerId = customer ? customer.id : null;
-  $('customer-dialog-title').textContent = renewOnly ? '续费 / 修改有效期' : customer ? '编辑客户项目' : '新建客户项目';
+  $('customer-edit-title').textContent = renewOnly ? '续费 / 修改有效期' : customer ? '编辑客户项目' : '新建客户项目';
   $('cf-id').value = customer ? customer.id : '';
   $('cf-name').value = customer ? customer.customerName : '';
   $('cf-desc').value = customer ? customer.description || '' : '';
@@ -432,14 +438,17 @@ function openCustomerDialog(customer, renewOnly = false) {
   } else {
     $('cf-preview-wrap').classList.add('hidden');
   }
-  if (renewOnly) {
-    $('cf-name').focus();
-  }
-  customerDialog.showModal();
+  state.view = 'customer-edit';
+  render();
+  if (renewOnly) $('cf-valid-until').focus();
+  else $('cf-name').focus();
 }
 
-$('btn-add-customer').addEventListener('click', () => openCustomerDialog(null));
-$('customer-dialog-cancel').addEventListener('click', () => customerDialog.close());
+$('btn-add-customer').addEventListener('click', () => openCustomerEdit(null));
+$('customer-edit-cancel').addEventListener('click', () => {
+  state.view = 'customers';
+  render();
+});
 
 $('cf-file').addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -480,7 +489,7 @@ $('customer-form').addEventListener('submit', async (e) => {
     } else {
       await createCustomer(payload);
     }
-    customerDialog.close();
+    state.view = 'customers';
     await loadCustomers();
     render();
   } catch (err) {

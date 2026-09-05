@@ -162,6 +162,78 @@
             <div id="customer-grid" class="customer-grid"></div>
           </section>
 
+          <!-- 客户项目编辑（整页） -->
+          <section id="view-customer-edit" class="hidden">
+            <div class="edit-page">
+              <div class="edit-page-card">
+                <div class="edit-page-header">
+                  <h2 id="customer-edit-title">新建客户项目</h2>
+                </div>
+                <form id="customer-form" class="edit-form">
+                  <input type="hidden" id="cf-id" />
+
+                  <div class="form-grid">
+                    <label class="field form-col-2">
+                      <span>客户名称 *</span>
+                      <input id="cf-name" required maxlength="50" placeholder="如：坡特商贸" />
+                    </label>
+
+                    <label class="field form-col-2">
+                      <span>客户描述 / 备注</span>
+                      <textarea id="cf-desc" rows="2" maxlength="200" placeholder="选填"></textarea>
+                    </label>
+
+                    <label class="field form-col-2">
+                      <span>Logo（JPG / PNG / WebP，自动压缩）</span>
+                      <div class="file-upload-wrap">
+                        <label class="file-upload-btn" for="cf-file">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          选择文件
+                        </label>
+                        <input id="cf-file" type="file" accept="image/jpeg,image/png,image/webp" />
+                        <span id="cf-file-name" class="file-upload-name">未选择文件</span>
+                      </div>
+                      <div id="cf-preview-wrap" class="preview-wrap hidden">
+                        <img id="cf-preview" alt="Logo 预览" />
+                      </div>
+                      <p id="cf-upload-state" class="muted"></p>
+                    </label>
+
+                    <label class="field">
+                      <span>有效期开始</span>
+                      <input id="cf-valid-from" type="date" />
+                    </label>
+
+                    <label class="field">
+                      <span>有效期结束</span>
+                      <input id="cf-valid-until" type="date" />
+                    </label>
+
+                    <div class="field">
+                      <span>置顶</span>
+                      <label class="checkbox-field" style="margin-bottom:0;">
+                        <input id="cf-pinned" type="checkbox" />
+                        <span>设为置顶客户</span>
+                      </label>
+                    </div>
+
+                    <label class="field">
+                      <span>状态</span>
+                      <select id="cf-status">
+                        <option value="active">正常</option>
+                        <option value="disabled">停用</option>
+                      </select>
+                    </label>
+                  </div>
+                </form>
+                <div class="edit-page-footer">
+                  <button type="button" id="customer-edit-cancel" class="btn btn-ghost">取消</button>
+                  <button type="submit" form="customer-form" class="btn btn-primary">保存</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- 方案列表 -->
           <section id="view-plans" class="hidden">
             <div class="toolbar">
@@ -441,70 +513,6 @@
         </main>
       </div>
     </div>
-
-    <!-- 客户项目编辑弹窗 -->
-    <dialog id="customer-dialog">
-      <form id="customer-form" class="dialog-card">
-        <h2 id="customer-dialog-title">新建客户项目</h2>
-        <input type="hidden" id="cf-id" />
-
-        <label class="field">
-          <span>客户名称 *</span>
-          <input id="cf-name" required maxlength="50" placeholder="如：坡特商贸" />
-        </label>
-
-        <label class="field">
-          <span>客户描述 / 备注</span>
-          <textarea id="cf-desc" rows="2" maxlength="200" placeholder="选填"></textarea>
-        </label>
-
-        <label class="field">
-          <span>Logo（JPG / PNG / WebP，自动压缩）</span>
-          <div class="file-upload-wrap">
-            <label class="file-upload-btn" for="cf-file">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              选择文件
-            </label>
-            <input id="cf-file" type="file" accept="image/jpeg,image/png,image/webp" />
-            <span id="cf-file-name" class="file-upload-name">未选择文件</span>
-          </div>
-        </label>
-        <div id="cf-preview-wrap" class="preview-wrap hidden">
-          <img id="cf-preview" alt="Logo 预览" style="max-height:80px;" />
-        </div>
-        <p id="cf-upload-state" class="muted"></p>
-
-        <div class="field-row">
-          <label class="field">
-            <span>有效期开始</span>
-            <input id="cf-valid-from" type="date" />
-          </label>
-          <label class="field">
-            <span>有效期结束</span>
-            <input id="cf-valid-until" type="date" />
-          </label>
-        </div>
-
-        <div class="field-row">
-          <label class="checkbox-field">
-            <input id="cf-pinned" type="checkbox" />
-            <span>置顶</span>
-          </label>
-          <label class="field">
-            <span>状态</span>
-            <select id="cf-status">
-              <option value="active">正常</option>
-              <option value="disabled">停用</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="dialog-actions">
-          <button type="button" id="customer-dialog-cancel" class="btn btn-ghost">取消</button>
-          <button type="submit" class="btn btn-primary">保存</button>
-        </div>
-      </form>
-    </dialog>
 
     <!-- 方案编辑弹窗 -->
     <dialog id="plan-dialog">

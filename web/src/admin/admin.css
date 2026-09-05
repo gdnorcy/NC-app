@@ -973,3 +973,44 @@ dialog::backdrop {
 
 /* 旧类兼容（逐步迁移） */
 .customer-card { display: none; }
+
+/* ===== 整页编辑页 ===== */
+.edit-page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.edit-page-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.edit-page-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-light);
+}
+.edit-page-header h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0;
+}
+.edit-form {
+  padding: 24px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+}
+.form-col-2 {
+  grid-column: 1 / -1;
+}
+.edit-page-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg);
+}
