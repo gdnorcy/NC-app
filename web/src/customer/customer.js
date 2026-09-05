@@ -133,7 +133,27 @@ async function loadProfile() {
   // 普通成员隐藏成员管理
   if (data.user.role !== 'tenant_admin') {
     document.querySelectorAll('.admin-only').forEach((el) => el.classList.add('hidden'));
+    $('settings-storage-card')?.classList.add('hidden');
+    $('settings-sms-card')?.classList.add('hidden');
   }
+  // 加载独立配置
+  const cfg = data.customer.config || {};
+  state.customerConfig = cfg;
+  $('storage-mode').value = cfg.storage?.mode || 'platform';
+  $('storage-provider').value = cfg.storage?.provider || 'qiniu';
+  $('storage-ak').value = cfg.storage?.config?.accessKey || '';
+  $('storage-sk').value = cfg.storage?.config?.secretKey || '';
+  $('storage-bucket').value = cfg.storage?.config?.bucket || '';
+  $('storage-region').value = cfg.storage?.config?.region || '';
+  $('storage-domain').value = cfg.storage?.config?.domain || '';
+  toggleStorageFields();
+  $('sms-mode').value = cfg.sms?.mode || 'platform';
+  $('sms-provider').value = cfg.sms?.provider || 'aliyun';
+  $('sms-ak').value = cfg.sms?.config?.accessKey || '';
+  $('sms-sk').value = cfg.sms?.config?.secretKey || '';
+  $('sms-sign').value = cfg.sms?.config?.signName || '';
+  $('sms-template').value = cfg.sms?.config?.templateCode || '';
+  toggleSmsFields();
   // 检测是否从总后台"登录为"进入
   if (localStorage.getItem('admin_token_backup')) {
     $('back-to-admin').classList.remove('hidden');
@@ -694,6 +714,61 @@ $('password-form').addEventListener('submit', async (e) => {
     });
     $('password-form').reset();
     toast('密码修改成功');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+});
+
+// ===== 存储设置 =====
+function toggleStorageFields() {
+  const mode = $('storage-mode').value;
+  $('storage-independent-fields').classList.toggle('hidden', mode !== 'independent');
+}
+$('storage-mode').addEventListener('change', toggleStorageFields);
+$('storage-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const mode = $('storage-mode').value;
+  const config = mode === 'independent' ? {
+    provider: $('storage-provider').value,
+    accessKey: $('storage-ak').value.trim(),
+    secretKey: $('storage-sk').value.trim(),
+    bucket: $('storage-bucket').value.trim(),
+    region: $('storage-region').value.trim(),
+    domain: $('storage-domain').value.trim(),
+  } : {};
+  try {
+    await api('/config', {
+      method: 'PUT',
+      body: JSON.stringify({ storage: { mode, ...config } }),
+    });
+    toast('存储设置已保存');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+});
+
+// ===== 短信配置 =====
+function toggleSmsFields() {
+  const mode = $('sms-mode').value;
+  $('sms-independent-fields').classList.toggle('hidden', mode !== 'independent');
+}
+$('sms-mode').addEventListener('change', toggleSmsFields);
+$('sms-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const mode = $('sms-mode').value;
+  const config = mode === 'independent' ? {
+    provider: $('sms-provider').value,
+    accessKey: $('sms-ak').value.trim(),
+    secretKey: $('sms-sk').value.trim(),
+    signName: $('sms-sign').value.trim(),
+    templateCode: $('sms-template').value.trim(),
+  } : {};
+  try {
+    await api('/config', {
+      method: 'PUT',
+      body: JSON.stringify({ sms: { mode, ...config } }),
+    });
+    toast('短信配置已保存');
   } catch (err) {
     toast(err.message, 'error');
   }

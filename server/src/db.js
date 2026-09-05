@@ -311,6 +311,11 @@ function migrate(db) {
 
   // —— 角色简化：manager/editor/viewer 合并为 operator ——
   db.exec("UPDATE users SET role = 'operator' WHERE role IN ('manager', 'editor', 'viewer')");
+
+  // —— projects（客户）表加 config 字段（独立配置）——
+  if (!colExists(db, 'projects', 'config')) {
+    db.exec("ALTER TABLE projects ADD COLUMN config TEXT NOT NULL DEFAULT '{}'");
+  }
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
@@ -318,6 +323,8 @@ export function toCustomer(row) {
   if (!row) return null;
   let solutions = ['panorama'];
   try { solutions = JSON.parse(row.solutions || '["panorama"]'); } catch {}
+  let config = {};
+  try { config = JSON.parse(row.config || '{}'); } catch {}
   return {
     id: row.id,
     customerName: row.customer_name,
@@ -329,6 +336,7 @@ export function toCustomer(row) {
     remark: row.remark || '',
     status: row.status || 'active',
     solutions,
+    config,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

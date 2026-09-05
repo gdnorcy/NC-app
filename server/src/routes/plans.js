@@ -4,7 +4,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
 import { config } from '../config.js';
-import { toPlan, toScene, genShareToken, addOperationLog } from '../db.js';
+import { toPlan, toScene, toCustomer, genShareToken, addOperationLog } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 
@@ -92,7 +92,7 @@ export function createPlansRouter(db) {
       .prepare('SELECT * FROM scenes WHERE plan_id = ? AND published = 1 ORDER BY sort_order ASC, id ASC')
       .all(id)
       .map(toScene);
-    res.json({ plan: planWithSceneCount(db, row), scenes });
+    res.json({ plan: planWithSceneCount(db, row), scenes, customer: toCustomer(customer) });
   });
 
   // —— 公开：分享令牌解析（方案级或场景级） ——
@@ -110,7 +110,7 @@ export function createPlansRouter(db) {
         .prepare('SELECT * FROM scenes WHERE plan_id = ? AND published = 1 ORDER BY sort_order ASC, id ASC')
         .all(scene.plan_id)
         .map(toScene);
-      return res.json({ type: 'scene', scene: toScene(scene), plan: toPlan(plan) || null, project: toPlan(plan) || null, scenes });
+      return res.json({ type: 'scene', scene: toScene(scene), plan: toPlan(plan) || null, project: toPlan(plan) || null, scenes, customer: toCustomer(customer) });
     }
 
     // 方案级
@@ -123,7 +123,7 @@ export function createPlansRouter(db) {
       .all(plan.id)
       .map(toScene);
     const planWithCount = planWithSceneCount(db, plan);
-    res.json({ type: 'project', plan: planWithCount, project: planWithCount, scenes });
+    res.json({ type: 'project', plan: planWithCount, project: planWithCount, scenes, customer: toCustomer(customer) });
   });
 
   // —— 公开：分享二维码图片 ——

@@ -31,7 +31,7 @@ export async function fetchProjects() {
 /** 展示端：方案详情（兼容旧函数名，返回 {project, scenes}） */
 export async function fetchProject(id) {
   const data = await request(`/api/plans/${id}`);
-  return { project: data.plan, scenes: data.scenes };
+  return { project: data.plan, scenes: data.scenes, customer: data.customer };
 }
 
 /** 展示端：分享令牌解析（方案级或场景级） */

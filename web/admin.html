@@ -271,6 +271,58 @@
                   </div>
                 </div>
 
+                <!-- 独立配置 -->
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">独立配置</div>
+                  <div class="edit-form-grid">
+                    <label class="field form-col-2">
+                      <span>底部版权文字</span>
+                      <input id="cf-copyright" type="text" placeholder="如：© 2024 客户名称，显示在手机端页面底部" />
+                    </label>
+                    <div class="field">
+                      <span>远程附件</span>
+                      <select id="cf-storage-mode">
+                        <option value="platform">借用平台</option>
+                        <option value="independent">自主接入</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <span>短信配置</span>
+                      <select id="cf-sms-mode">
+                        <option value="platform">借用平台</option>
+                        <option value="independent">自主接入</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <span>微信支付模式</span>
+                      <select id="cf-pay-mode">
+                        <option value="normal">普通商户号</option>
+                        <option value="service_provider">系统服务商</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <span>图片上传大小 (MB)</span>
+                      <input id="cf-limit-image" type="number" value="50" min="1" />
+                    </div>
+                    <div class="field">
+                      <span>视频上传大小 (MB)</span>
+                      <input id="cf-limit-video" type="number" value="200" min="1" />
+                    </div>
+                    <div class="field">
+                      <span>音频上传大小 (MB)</span>
+                      <input id="cf-limit-audio" type="number" value="50" min="1" />
+                    </div>
+                    <label class="field form-col-2">
+                      <span>开放平台 AppID</span>
+                      <input id="cf-open-appid" type="text" placeholder="选填" />
+                    </label>
+                    <label class="field form-col-2">
+                      <span>开放平台 AppSecret</span>
+                      <input id="cf-open-secret" type="text" placeholder="选填" />
+                    </label>
+                  </div>
+                </div>
+
                 <div class="edit-page-footer">
                   <button type="submit" class="btn btn-primary">保存</button>
                   <button type="button" id="customer-edit-cancel" class="btn btn-ghost">取消</button>

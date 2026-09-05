@@ -582,6 +582,17 @@ function openCustomerEdit(customer, renewOnly = false) {
   state.view = 'customer-edit';
   render();
   renderSolutionCheckboxes(customer?.solutions || ['panorama']);
+  // 加载独立配置
+  const cfg = customer?.config || {};
+  $('cf-copyright').value = cfg.copyright || '';
+  $('cf-storage-mode').value = cfg.storage?.mode || 'platform';
+  $('cf-sms-mode').value = cfg.sms?.mode || 'platform';
+  $('cf-pay-mode').value = cfg.payment?.wechat_mode || 'normal';
+  $('cf-limit-image').value = cfg.upload_limits?.image || 50;
+  $('cf-limit-video').value = cfg.upload_limits?.video || 200;
+  $('cf-limit-audio').value = cfg.upload_limits?.audio || 50;
+  $('cf-open-appid').value = cfg.open_platform?.appId || '';
+  $('cf-open-secret').value = cfg.open_platform?.appSecret || '';
   if (renewOnly) $('cf-valid-until').focus();
   else $('cf-name').focus();
 }
@@ -642,6 +653,21 @@ $('customer-form').addEventListener('submit', async (e) => {
       logoPath = uploaded.logoPath;
     }
     const selectedSolutions = Array.from($('cf-solutions').querySelectorAll('input:checked')).map((i) => i.value);
+    const config = {
+      copyright: $('cf-copyright').value.trim(),
+      storage: { mode: $('cf-storage-mode').value },
+      sms: { mode: $('cf-sms-mode').value },
+      payment: { wechat_mode: $('cf-pay-mode').value },
+      upload_limits: {
+        image: Number($('cf-limit-image').value) || 50,
+        video: Number($('cf-limit-video').value) || 200,
+        audio: Number($('cf-limit-audio').value) || 50,
+      },
+      open_platform: {
+        appId: $('cf-open-appid').value.trim(),
+        appSecret: $('cf-open-secret').value.trim(),
+      },
+    };
     const payload = {
       customerName: $('cf-name').value.trim(),
       description: $('cf-desc').value.trim(),
@@ -650,6 +676,7 @@ $('customer-form').addEventListener('submit', async (e) => {
       isPinned: $('cf-pinned').checked,
       status: $('cf-status').value,
       solutions: selectedSolutions.length ? selectedSolutions : ['panorama'],
+      config,
     };
     if (logoPath) payload.logoPath = logoPath;
     if (editingCustomerId) {

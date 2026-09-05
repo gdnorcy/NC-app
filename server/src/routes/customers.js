@@ -25,6 +25,8 @@ const logoUpload = multer({
 function parseCustomerBody(body) {
   let solutions = body.solutions;
   if (!Array.isArray(solutions) || solutions.length === 0) solutions = ['panorama'];
+  let config = body.config;
+  if (typeof config !== 'object' || config === null) config = {};
   return {
     customerName: typeof body.customerName === 'string' ? body.customerName.trim() : '',
     logoPath: typeof body.logoPath === 'string' ? body.logoPath.trim() : '',
@@ -35,6 +37,7 @@ function parseCustomerBody(body) {
     remark: typeof body.remark === 'string' ? body.remark.trim() : '',
     status: body.status === 'disabled' ? 'disabled' : 'active',
     solutions: JSON.stringify(solutions),
+    config: JSON.stringify(config),
   };
 }
 
@@ -72,14 +75,14 @@ export function createCustomersRouter(db) {
   });
 
   router.post('/projects', (req, res) => {
-    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions } = parseCustomerBody(req.body);
+    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config } = parseCustomerBody(req.body);
     if (!customerName) return res.status(400).json({ error: '客户名称不能为空' });
     const info = db
       .prepare(
-        `INSERT INTO projects (customer_name, logo_path, description, valid_from, valid_until, is_pinned, remark, status, solutions)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO projects (customer_name, logo_path, description, valid_from, valid_until, is_pinned, remark, status, solutions, config)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status, solutions);
+      .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status, solutions, config);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_customer', targetType: 'customer', targetId: info.lastInsertRowid, detail: `创建客户: ${customerName}`, ip: req.ip });
     res.status(201).json({ project: toCustomer(row) });
@@ -89,7 +92,7 @@ export function createCustomersRouter(db) {
     const id = Number(req.params.id);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: '客户项目不存在' });
-    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions } = parseCustomerBody(req.body);
+    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config } = parseCustomerBody(req.body);
     const next = {
       customerName: customerName || row.customer_name,
       logoPath: logoPath === '' ? row.logo_path || '' : logoPath,
@@ -100,12 +103,13 @@ export function createCustomersRouter(db) {
       remark: remark === '' ? row.remark || '' : remark,
       status,
       solutions,
+      config,
     };
     db.prepare(
       `UPDATE projects
-       SET customer_name = ?, logo_path = ?, description = ?, valid_from = ?, valid_until = ?, is_pinned = ?, remark = ?, status = ?, solutions = ?, updated_at = datetime('now')
+       SET customer_name = ?, logo_path = ?, description = ?, valid_from = ?, valid_until = ?, is_pinned = ?, remark = ?, status = ?, solutions = ?, config = ?, updated_at = datetime('now')
        WHERE id = ?`
-    ).run(next.customerName, next.logoPath, next.description, next.validFrom, next.validUntil, next.isPinned, next.remark, next.status, next.solutions, id);
+    ).run(next.customerName, next.logoPath, next.description, next.validFrom, next.validUntil, next.isPinned, next.remark, next.status, next.solutions, next.config, id);
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_customer', targetType: 'customer', targetId: id, detail: `更新客户: ${next.customerName}`, ip: req.ip });
     res.json({ project: toCustomer(updated) });

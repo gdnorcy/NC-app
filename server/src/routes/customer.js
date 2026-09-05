@@ -278,6 +278,27 @@ router.put('/profile', requireTenant, (req, res) => {
   res.json({ user: toUser(user) });
 });
 
+// 客户独立配置：部分更新（仅租户管理员）
+router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
+  const customer = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.customerId);
+  if (!customer) return res.status(404).json({ error: '客户不存在' });
+  let config = {};
+  try { config = JSON.parse(customer.config || '{}'); } catch {}
+  // 合并传入的配置（只更新传入的字段）
+  const updates = req.body || {};
+  if (updates.storage) config.storage = { ...(config.storage || {}), ...updates.storage };
+  if (updates.sms) config.sms = { ...(config.sms || {}), ...updates.sms };
+  if (updates.copyright !== undefined) config.copyright = updates.copyright;
+  if (updates.payment) config.payment = { ...(config.payment || {}), ...updates.payment };
+  if (updates.upload_limits) config.upload_limits = { ...(config.upload_limits || {}), ...updates.upload_limits };
+  if (updates.open_platform) config.open_platform = { ...(config.open_platform || {}), ...updates.open_platform };
+  db.prepare("UPDATE projects SET config = ?, updated_at = datetime('now') WHERE id = ?").run(
+    JSON.stringify(config),
+    req.customerId
+  );
+  res.json({ config });
+});
+
 // 图片上传（复用云存储配置）
 router.post('/upload', requireTenant, requireTenantAdmin, (req, res) => {
   upload.single('file')(req, res, async (err) => {

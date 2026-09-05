@@ -139,7 +139,8 @@ async function renderProjects() {
 
 async function openProject(id) {
   try {
-    const { project: p, scenes: s } = await fetchProject(id);
+    const { project: p, scenes: s, customer } = await fetchProject(id);
+    applyCustomerCopyright(customer);
     if (!s.length) {
       enterProjectsView();
       showError('该项目暂无公开场景');
@@ -148,6 +149,16 @@ async function openProject(id) {
     await enterProjectView(p, s, 0);
   } catch (err) {
     showError(err.message || '打开项目失败');
+  }
+}
+
+// 客户自定义版权优先于平台版权
+function applyCustomerCopyright(customer) {
+  const text = customer?.config?.copyright;
+  if (text) {
+    const footer = $('site-footer');
+    footer.textContent = text;
+    footer.classList.remove('hidden');
   }
 }
 
@@ -276,6 +287,7 @@ async function init() {
     try {
       const data = await fetchShare(route.token);
       history.replaceState({ share: true }, '', location.pathname);
+      applyCustomerCopyright(data.customer);
       if (data.type === 'scene') {
         const idx = Math.max(
           0,
