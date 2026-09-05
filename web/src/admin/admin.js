@@ -232,6 +232,20 @@ document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
 function renderBreadcrumb() {
   const bc = $('breadcrumb');
   const parts = [];
+  const viewNames = {
+    dashboard: '工作台',
+    customers: '客户项目',
+    users: '用户管理',
+    solutions: '解决方案',
+    logs: '操作日志',
+    'settings-basic': '基础设置',
+    storage: '存储设置',
+    'settings-sms': '短信接口',
+    'settings-payment': '支付设置',
+    'settings-security': '安全设置',
+    plans: '客户项目',
+    scenes: '客户项目',
+  };
   if (state.view === 'customer-edit') {
     parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
     parts.push(`<span class="sep">/</span>`);
@@ -249,14 +263,11 @@ function renderBreadcrumb() {
     parts.push(`<span class="sep">/</span>`);
     parts.push(`<span class="crumb">${editingUserId ? '编辑用户' : '新建用户'}</span>`);
   } else {
-    parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
-    if (state.currentCustomer) {
+    const currentName = viewNames[state.view] || state.view;
+    parts.push(`<span class="crumb">${currentName}</span>`);
+    if (state.currentCustomer && (state.view === 'plans' || state.view === 'scenes')) {
       parts.push(`<span class="sep">/</span>`);
-      if (state.view === 'customers') {
-        parts.push(`<span class="crumb">${esc(state.currentCustomer.customerName)}</span>`);
-      } else {
-        parts.push(`<span class="crumb clickable" data-customer="${state.currentCustomer.id}">${esc(state.currentCustomer.customerName)}</span>`);
-      }
+      parts.push(`<span class="crumb clickable" data-customer="${state.currentCustomer.id}">${esc(state.currentCustomer.customerName)}</span>`);
     }
     if (state.currentPlan && state.view === 'scenes') {
       parts.push(`<span class="sep">/</span>`);
