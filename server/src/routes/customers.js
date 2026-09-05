@@ -4,7 +4,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { config } from '../config.js';
 import { toCustomer, toPlan, genShareToken, addOperationLog } from '../db.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, issueToken } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -137,6 +137,29 @@ export function createCustomersRouter(db) {
         res.status(400).json({ error: 'Logo 上传失败' });
       }
     });
+  });
+
+  // —— 以客户管理员身份进入客户后台 ——
+  router.post('/projects/:id/impersonate', (req, res) => {
+    const id = Number(req.params.id);
+    const cust = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    if (!cust) return res.status(404).json({ error: '客户不存在' });
+    // 找该客户下第一个可用的租户管理员
+    let user = db.prepare(
+      "SELECT * FROM users WHERE customer_id = ? AND role = 'tenant_admin' AND status = 'active' ORDER BY id ASC LIMIT 1"
+    ).get(id);
+    // 没有管理员则找第一个可用成员
+    if (!user) {
+      user = db.prepare(
+        "SELECT * FROM users WHERE customer_id = ? AND status = 'active' ORDER BY id ASC LIMIT 1"
+      ).get(id);
+    }
+    if (!user) {
+      return res.status(400).json({ error: '该客户下暂无可用账号，请先在用户管理中创建租户账号' });
+    }
+    const token = issueToken(user);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'impersonate', targetType: 'customer', targetId: id, detail: `进入客户后台: ${cust.customer_name} (${user.username})`, ip: req.ip });
+    res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
   });
 
   return router;

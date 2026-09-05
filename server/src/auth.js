@@ -8,16 +8,16 @@ const VALID_ROLES = ['admin', 'manager', 'editor', 'viewer', 'tenant_admin', 'te
 const SMS_CODE_TTL_MINUTES = 5;
 const SMS_SEND_INTERVAL_MS = 60 * 1000; // 同一手机号 60 秒内只能发一次
 
+export function issueToken(user) {
+  return jwt.sign(
+    { uid: user.id, username: user.username, role: user.role, customerId: user.customer_id || null },
+    config.jwtSecret,
+    { expiresIn: '7d' }
+  );
+}
+
 export function createAuthRouter(db) {
   const router = express.Router();
-
-  function issueToken(user) {
-    return jwt.sign(
-      { uid: user.id, username: user.username, role: user.role, customerId: user.customer_id || null },
-      config.jwtSecret,
-      { expiresIn: '7d' }
-    );
-  }
 
   function findUserByIdentifier(identifier) {
     // identifier 可以是 username 或 phone

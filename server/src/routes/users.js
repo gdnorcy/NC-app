@@ -1,6 +1,6 @@
 import express from 'express';
 import { hashPassword, toUser, addOperationLog } from '../db.js';
-import { requireAuth, requireRole, VALID_ROLES } from '../auth.js';
+import { requireAuth, requireRole, VALID_ROLES, issueToken } from '../auth.js';
 
 export function createUsersRouter(db) {
   const router = express.Router();
@@ -106,6 +106,17 @@ export function createUsersRouter(db) {
     db.prepare('UPDATE users SET password_hash = ?, password_salt = ?, updated_at = datetime(\'now\') WHERE id = ?').run(hash, salt, id);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'reset_password', targetType: 'user', targetId: id, detail: `重置密码: ${user.username || user.phone}`, ip: req.ip });
     res.json({ ok: true });
+  });
+
+  // —— 登录为（管理员以指定用户身份获取 token）——
+  router.post('/:id/impersonate', (req, res) => {
+    const id = Number(req.params.id);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+    if (user.status !== 'active') return res.status(400).json({ error: '该账号已停用' });
+    const token = issueToken(user);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'impersonate', targetType: 'user', targetId: id, detail: `登录为: ${user.username || user.phone}`, ip: req.ip });
+    res.json({ token, user: toUser(user) });
   });
 
   // —— 删除用户 ——

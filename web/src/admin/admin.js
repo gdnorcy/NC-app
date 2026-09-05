@@ -15,6 +15,7 @@ import {
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  impersonateCustomer,
   uploadCustomerLogo,
   fetchAdminPlans,
   createPlan,
@@ -26,6 +27,7 @@ import {
   updateAdminUser,
   deleteAdminUser,
   resetUserPassword,
+  impersonateUser,
   fetchAdminSettings,
   saveAdminSettings,
   fetchOperationLogs,
@@ -388,6 +390,7 @@ function renderCustomers() {
         </div>
         <div class="c-card-footer">
           <button class="c-footer-btn act-enter">进入</button>
+          <button class="c-footer-btn act-login-as">进入后台</button>
           <button class="c-footer-btn act-edit">编辑</button>
           <button class="c-footer-btn act-renew">续费</button>
           <button class="c-footer-btn act-del del">删除</button>
@@ -404,7 +407,15 @@ $('customer-grid').addEventListener('click', async (e) => {
   const customer = customers.find((c) => c.id === id);
   if (!customer) return;
 
-  if (e.target.classList.contains('act-edit')) {
+  if (e.target.classList.contains('act-login-as')) {
+    try {
+      const { token } = await impersonateCustomer(id);
+      localStorage.setItem('customer_token', token);
+      window.location.href = '/customer.html';
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  } else if (e.target.classList.contains('act-edit')) {
     openCustomerEdit(customer);
   } else if (e.target.classList.contains('act-del')) {
     const msg = `确定删除客户项目「${customer.customerName}」？其下 ${customer.planCount ?? 0} 个方案将自动归入默认客户。`;
@@ -418,7 +429,7 @@ $('customer-grid').addEventListener('click', async (e) => {
     }
   } else if (e.target.classList.contains('act-renew')) {
     openCustomerEdit(customer, true);
-  } else {
+  } else if (e.target.classList.contains('act-enter') || !e.target.closest('button')) {
     // 进入该客户的方案列表
     state.view = 'plans';
     state.currentCustomer = customer;
@@ -907,7 +918,7 @@ $('scene-form').addEventListener('submit', async (e) => {
 });
 
 // ---------- 用户管理 ----------
-const ROLE_LABELS = { admin: '管理员', manager: '运营', editor: '编辑', viewer: '只读' };
+const ROLE_LABELS = { admin: '管理员', manager: '运营', editor: '编辑', viewer: '只读', tenant_admin: '租户管理员', tenant_member: '租户成员' };
 
 function renderUsers() {
   $('user-count').textContent = `共 ${users.length} 个用户`;
@@ -924,6 +935,7 @@ function renderUsers() {
         <td>
           <div class="op-cell">
             <button class="btn btn-sm btn-ghost act-edit">编辑</button>
+            ${['tenant_admin', 'tenant_member'].includes(u.role) ? '<button class="btn btn-sm btn-primary act-login-as">登录为</button>' : ''}
             <button class="btn btn-sm btn-ghost act-reset">重置密码</button>
             <button class="btn btn-sm btn-ghost act-toggle">${u.status === 'active' ? '停用' : '启用'}</button>
             <button class="btn btn-sm btn-danger act-del">删除</button>
@@ -943,6 +955,14 @@ $('user-tbody').addEventListener('click', async (e) => {
 
   if (e.target.classList.contains('act-edit')) {
     openUserEdit(user);
+  } else if (e.target.classList.contains('act-login-as')) {
+    try {
+      const { token } = await impersonateUser(id);
+      localStorage.setItem('customer_token', token);
+      window.location.href = '/customer.html';
+    } catch (err) {
+      showError(adminError, err.message);
+    }
   } else if (e.target.classList.contains('act-reset')) {
     openResetPasswordDialog(user);
   } else if (e.target.classList.contains('act-toggle')) {

@@ -121,6 +121,13 @@ export function deleteCustomer(id) {
   });
 }
 
+export function impersonateCustomer(id) {
+  return request(`/api/admin/projects/${id}/impersonate`, {
+    method: 'POST',
+    headers: adminHeaders(),
+  });
+}
+
 export async function uploadCustomerLogo(file) {
   const form = new FormData();
   form.append('file', file);
@@ -286,6 +293,13 @@ export function updateAdminUser(id, payload) {
 export function deleteAdminUser(id) {
   return request(`/api/admin/users/${id}`, {
     method: 'DELETE',
+    headers: adminHeaders(),
+  });
+}
+
+export function impersonateUser(id) {
+  return request(`/api/admin/users/${id}/impersonate`, {
+    method: 'POST',
     headers: adminHeaders(),
   });
 }
