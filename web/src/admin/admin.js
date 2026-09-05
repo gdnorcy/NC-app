@@ -238,10 +238,25 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-// ---------- 存储设置 ----------
+// ---------- 存储设置（分厂商页签） ----------
 const storageDialog = $('storage-dialog');
 const storageMsg = $('s-msg');
-const cloudFields = $('s-cloud-fields');
+// 表单字段 id 后缀（kebab）→ API 字段名（camel）
+const FIELD_MAP = {
+  'access-key': 'accessKey',
+  'secret-key': 'secretKey',
+  bucket: 'bucket',
+  region: 'region',
+  zone: 'zone',
+  folder: 'folder',
+  'cdn-domain': 'cdnDomain',
+};
+const PANE_FIELDS = {
+  local: [],
+  oss: ['access-key', 'secret-key', 'region', 'bucket', 'folder', 'cdn-domain'],
+  qiniu: ['access-key', 'secret-key', 'zone', 'bucket', 'folder', 'cdn-domain'],
+};
+let activeProvider = 'local';
 
 function showStorageMsg(msg, isError = true) {
   storageMsg.textContent = msg;
@@ -250,46 +265,68 @@ function showStorageMsg(msg, isError = true) {
   setTimeout(() => storageMsg.classList.add('hidden'), 4000);
 }
 
-function syncCloudFields() {
-  cloudFields.style.display = $('s-provider').value === 'local' ? 'none' : 'block';
+function switchTab(provider) {
+  activeProvider = provider;
+  document.querySelectorAll('.storage-tabs .tab').forEach((t) => {
+    t.classList.toggle('active', t.dataset.provider === provider);
+  });
+  document.querySelectorAll('.storage-pane').forEach((p) => {
+    p.hidden = p.id !== `storage-pane-${provider}`;
+  });
+  storageMsg.classList.add('hidden');
+}
+
+/** 读取当前页签表单配置（拍平字段，供测试/保存） */
+function currentProviderConfig() {
+  const cfg = { provider: activeProvider };
+  for (const kebab of PANE_FIELDS[activeProvider]) {
+    const el = $(`${activeProvider}-${kebab}`);
+    cfg[FIELD_MAP[kebab]] = el ? el.value.trim() : '';
+  }
+  return cfg;
 }
 
 async function openStorageDialog() {
   storageMsg.classList.add('hidden');
   try {
     const { config: cfg } = await fetchStorageConfig();
-    $('s-provider').value = cfg.provider;
-    $('s-access-key').value = cfg.accessKey;
-    $('s-secret-key').value = '';
-    $('s-bucket').value = cfg.bucket;
-    $('s-region').value = cfg.region;
-    $('s-cdn-domain').value = cfg.cdnDomain;
-    $('s-msg').textContent = cfg.hasSecretKey ? '已配置密钥（出于安全不直接展示）' : '';
-    $('s-msg').classList.toggle('hidden', !cfg.hasSecretKey);
-    syncCloudFields();
+    // 填充各厂商已保存配置（kebab id 与 camel 字段映射）
+    for (const provider of ['oss', 'qiniu']) {
+      const saved = cfg.providers[provider] || {};
+      for (const kebab of PANE_FIELDS[provider]) {
+        const el = $(`${provider}-${kebab}`);
+        if (!el) continue;
+        const field = FIELD_MAP[kebab];
+        if (field === 'secretKey') el.value = '';
+        else el.value = saved[field] || '';
+      }
+    }
+    const active = ['local', 'oss', 'qiniu'].includes(cfg.provider) ? cfg.provider : 'local';
+    switchTab(active);
+    const currentSaved = cfg.providers[active] || {};
+    if (currentSaved.hasSecretKey) {
+      storageMsg.textContent = '已配置密钥（出于安全不直接展示），修改后留空保持不变';
+      storageMsg.style.color = 'var(--text-secondary)';
+      storageMsg.classList.remove('hidden');
+    }
     storageDialog.showModal();
   } catch (err) {
     showError(adminError, err.message);
   }
 }
+document.querySelectorAll('.storage-tabs .tab').forEach((t) => {
+  t.addEventListener('click', () => switchTab(t.dataset.provider));
+});
 
 $('btn-storage').addEventListener('click', openStorageDialog);
 $('s-cancel').addEventListener('click', () => storageDialog.close());
-$('s-provider').addEventListener('change', syncCloudFields);
 
 $('s-test').addEventListener('click', async () => {
   const btn = $('s-test');
   btn.disabled = true;
   btn.textContent = '测试中…';
   try {
-    const result = await testStorage({
-      provider: $('s-provider').value,
-      accessKey: $('s-access-key').value.trim(),
-      secretKey: $('s-secret-key').value,
-      bucket: $('s-bucket').value.trim(),
-      region: $('s-region').value.trim(),
-      cdnDomain: $('s-cdn-domain').value.trim(),
-    });
+    const result = await testStorage(currentProviderConfig());
     showStorageMsg(result.ok ? `✓ ${result.message}` : `✗ ${result.message}`, !result.ok);
   } catch (err) {
     showStorageMsg(err.message, true);
@@ -304,16 +341,9 @@ $('storage-form').addEventListener('submit', async (e) => {
   const submitBtn = $('storage-form').querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   try {
-    await saveStorageConfig({
-      provider: $('s-provider').value,
-      accessKey: $('s-access-key').value.trim(),
-      secretKey: $('s-secret-key').value,
-      bucket: $('s-bucket').value.trim(),
-      region: $('s-region').value.trim(),
-      cdnDomain: $('s-cdn-domain').value.trim(),
-    });
+    await saveStorageConfig(currentProviderConfig());
     storageDialog.close();
-    showError(adminError, '存储设置已保存');
+    showError(adminError, `「${$(`.storage-tabs .tab[data-provider="${activeProvider}"]`).textContent}」已保存并启用`);
   } catch (err) {
     showStorageMsg(err.message, true);
   } finally {

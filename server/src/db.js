@@ -18,11 +18,7 @@ CREATE TABLE IF NOT EXISTS scenes (
 CREATE TABLE IF NOT EXISTS storage_config (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   provider TEXT NOT NULL DEFAULT 'local',
-  access_key TEXT NOT NULL DEFAULT '',
-  secret_key TEXT NOT NULL DEFAULT '',
-  bucket TEXT NOT NULL DEFAULT '',
-  region TEXT NOT NULL DEFAULT '',
-  cdn_domain TEXT NOT NULL DEFAULT '',
+  providers TEXT NOT NULL DEFAULT '{}',
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `;
@@ -36,12 +32,48 @@ export function createDb(dbPath = config.dbPath) {
   return db;
 }
 
-/** 存量库迁移：补充新增列 */
+/** 存量库迁移：场景表补 preview_path；存储配置表升级为多厂商结构 */
 function migrate(db) {
-  const columns = db.prepare('PRAGMA table_info(scenes)').all();
-  const names = new Set(columns.map((c) => c.name));
-  if (!names.has('preview_path')) {
+  const sceneCols = db.prepare('PRAGMA table_info(scenes)').all();
+  if (!sceneCols.some((c) => c.name === 'preview_path')) {
     db.exec("ALTER TABLE scenes ADD COLUMN preview_path TEXT NOT NULL DEFAULT ''");
+  }
+
+  const storageCols = db.prepare('PRAGMA table_info(storage_config)').all().map((c) => c.name);
+  // 旧版单厂商结构（access_key 列存在）→ 升级为多厂商 providers JSON
+  if (storageCols.includes('access_key')) {
+    const old = db.prepare('SELECT * FROM storage_config WHERE id = 1').get() || {};
+    const base = { accessKey: '', secretKey: '', bucket: '', region: '', zone: '', folder: '', cdnDomain: '' };
+    const providers = {
+      local: {},
+      oss: { ...base },
+      qiniu: { ...base },
+    };
+    const target = old.provider === 'oss' ? 'oss' : old.provider === 'qiniu' ? 'qiniu' : null;
+    if (target) {
+      providers[target] = {
+        accessKey: old.access_key || '',
+        secretKey: old.secret_key || '',
+        bucket: old.bucket || '',
+        region: old.region || '',
+        zone: '',
+        folder: '',
+        cdnDomain: old.cdn_domain || '',
+      };
+    }
+    db.exec('DROP TABLE storage_config');
+    db.exec(`
+      CREATE TABLE storage_config (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        provider TEXT NOT NULL DEFAULT 'local',
+        providers TEXT NOT NULL DEFAULT '{}',
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+    db.prepare('INSERT INTO storage_config (id, provider, providers) VALUES (1, ?, ?)').run(
+      old.provider || 'local',
+      JSON.stringify(providers)
+    );
   }
 }
 

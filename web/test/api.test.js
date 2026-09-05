@@ -87,13 +87,25 @@ describe('storage API', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/admin/storage', expect.anything());
   });
 
-  it('saveStorageConfig 发送 PUT JSON', async () => {
+  it('saveStorageConfig 发送 PUT JSON（含厂商专属字段）', async () => {
     mockFetchOnce(200, { config: { provider: 'qiniu' } });
-    await saveStorageConfig({ provider: 'qiniu', accessKey: 'ak', secretKey: 'sk', bucket: 'b', region: '', cdnDomain: '' });
+    await saveStorageConfig({ provider: 'qiniu', accessKey: 'ak', secretKey: 'sk', bucket: 'b', zone: 'z2', folder: 'vr360', region: '', cdnDomain: '' });
     const [, options] = global.fetch.mock.calls[0];
     expect(options.method).toBe('PUT');
     expect(options.headers.Authorization).toBe('Bearer tok-1');
-    expect(JSON.parse(options.body)).toMatchObject({ provider: 'qiniu' });
+    expect(JSON.parse(options.body)).toMatchObject({ provider: 'qiniu', zone: 'z2', folder: 'vr360' });
+  });
+
+  it('fetchStorageConfig 返回多厂商配置', async () => {
+    mockFetchOnce(200, {
+      config: {
+        provider: 'qiniu',
+        providers: { local: {}, oss: { hasSecretKey: false }, qiniu: { hasSecretKey: true, zone: 'z2' } },
+      },
+    });
+    const data = await fetchStorageConfig();
+    expect(data.config.providers.qiniu.hasSecretKey).toBe(true);
+    expect(data.config.providers.qiniu.zone).toBe('z2');
   });
 
   it('testStorage 返回测试结果，失败时抛错', async () => {

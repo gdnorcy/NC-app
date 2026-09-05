@@ -86,6 +86,38 @@ body {
   font-size: 13px;
   color: var(--muted);
 }
+.storage-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.storage-tabs .tab {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+}
+.storage-tabs .tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.storage-pane[hidden] {
+  display: none;
+}
+.storage-pane code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 .field input[type='text'],
 .field input[type='password'],
 .field input[type='number'],

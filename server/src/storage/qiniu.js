@@ -1,20 +1,35 @@
 import qiniu from 'qiniu';
 
+/** 七牛所属区域 → SDK Zone（缺省自动探测） */
+export const QINIU_ZONES = {
+  '': undefined,
+  z0: 'Zone_z0', // 华东
+  z1: 'Zone_z1', // 华北
+  z2: 'Zone_z2', // 华南
+  na0: 'Zone_na0', // 北美
+  as0: 'Zone_as0', // 东南亚
+};
+
 /**
- * 七牛云 Kodo 存储：上传后通过 CDN 域名访问
+ * 七牛云 Kodo 存储：支持所属区域与文件夹前缀，上传后通过 CDN 域名访问
  */
 export class QiniuStorage {
   constructor(cfg) {
     this.cfg = cfg;
     this.domain = (cfg.cdnDomain || '').replace(/\/+$/, '');
+    this.folder = String(cfg.folder || '').replace(/^\/+|\/+$/g, '');
+    const zoneName = QINIU_ZONES[cfg.zone] || QINIU_ZONES[''];
     this.mac = new qiniu.auth.digest.Mac(cfg.accessKey, cfg.secretKey);
     this.bucketManager = new qiniu.rs.BucketManager(this.mac, null);
-    this.formUploader = new qiniu.form_up.FormUploader(new qiniu.conf.Config());
+    this.formUploader = new qiniu.form_up.FormUploader(
+      new qiniu.conf.Config({ useHttpsDomain: true, zone: zoneName ? qiniu.zone[zoneName] : undefined })
+    );
     this.putExtra = new qiniu.form_up.PutExtra();
   }
 
   get keyPrefix() {
-    return `scenes/${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    return this.folder ? `${this.folder}/scenes/${date}` : `scenes/${date}`;
   }
 
   _uploadToken(key) {

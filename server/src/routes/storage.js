@@ -1,21 +1,32 @@
 import express from 'express';
 import { encryptSecret } from '../crypto.js';
-import { readStorageConfig, getStorage } from '../storage/index.js';
+import { readAllProviders, readStorageConfig, getStorage, STORAGE_PROVIDERS } from '../storage/index.js';
 import { requireAuth } from '../auth.js';
 
-const PROVIDERS = ['local', 'oss', 'qiniu'];
+const PARAM_FIELDS = ['accessKey', 'bucket', 'region', 'zone', 'folder', 'cdnDomain'];
 
 /** 配置出参：永不回传密钥明文 */
-function toPublicConfig(row) {
-  return {
-    provider: row.provider || 'local',
-    accessKey: row.access_key || '',
-    hasSecretKey: Boolean(row.secret_key),
-    bucket: row.bucket || '',
-    region: row.region || '',
-    cdnDomain: row.cdn_domain || '',
-    updatedAt: row.updated_at || '',
-  };
+function toPublicConfig(db) {
+  const { provider, providers, updatedAt } = readAllProviders(db);
+  const out = {};
+  for (const name of STORAGE_PROVIDERS) {
+    const p = providers[name];
+    const pub = {};
+    for (const f of PARAM_FIELDS) pub[f] = p[f] || '';
+    pub.hasSecretKey = Boolean(p.secretKey);
+    out[name] = pub;
+  }
+  return { provider, providers: out, updatedAt };
+}
+
+function sanitizeConfig(body) {
+  const cfg = {};
+  for (const f of PARAM_FIELDS) {
+    cfg[f] = typeof body[f] === 'string' ? body[f].trim() : '';
+  }
+  cfg.cdnDomain = cfg.cdnDomain.replace(/\/+$/, '');
+  cfg.folder = cfg.folder.replace(/^\/+|\/+$/g, '');
+  return cfg;
 }
 
 export function createStorageRouter(db) {
@@ -23,50 +34,47 @@ export function createStorageRouter(db) {
   router.use(requireAuth);
 
   router.get('/storage', (_req, res) => {
-    const row = db.prepare('SELECT * FROM storage_config WHERE id = 1').get();
-    res.json({ config: toPublicConfig(row || {}) });
+    res.json({ config: toPublicConfig(db) });
   });
 
   router.put('/storage', (req, res) => {
     const body = req.body || {};
-    const provider = PROVIDERS.includes(body.provider) ? body.provider : 'local';
-    const accessKey = typeof body.accessKey === 'string' ? body.accessKey.trim() : '';
-    const bucket = typeof body.bucket === 'string' ? body.bucket.trim() : '';
-    const region = typeof body.region === 'string' ? body.region.trim() : '';
-    const cdnDomain = (typeof body.cdnDomain === 'string' ? body.cdnDomain.trim() : '').replace(/\/+$/, '');
-
-    const current = db.prepare('SELECT * FROM storage_config WHERE id = 1').get();
-    // 密钥留空表示保持原值
+    const provider = STORAGE_PROVIDERS.includes(body.provider) ? body.provider : 'local';
+    const form = sanitizeConfig(body);
+    // 写库用密文版配置（readAllProviders 返回的是解密版，不能直接回写）
+    const rawRow = db.prepare('SELECT providers FROM storage_config WHERE id = 1').get();
+    let raw = {};
+    try {
+      raw = JSON.parse(rawRow.providers || '{}');
+    } catch {
+      raw = {};
+    }
+    const existing = raw[provider] || {};
+    // 密钥留空表示保持原值（按厂商独立保存）
     const secretKey =
       typeof body.secretKey === 'string' && body.secretKey.trim()
         ? encryptSecret(body.secretKey.trim())
-        : (current && current.secret_key) || '';
-
+        : (existing.secretKey || '');
+    raw[provider] = { ...existing, ...form, secretKey };
     db.prepare(
-      `UPDATE storage_config
-       SET provider = ?, access_key = ?, secret_key = ?, bucket = ?, region = ?, cdn_domain = ?, updated_at = datetime('now')
-       WHERE id = 1`
-    ).run(provider, accessKey, secretKey, bucket, region, cdnDomain);
-
-    const updated = db.prepare('SELECT * FROM storage_config WHERE id = 1').get();
-    res.json({ config: toPublicConfig(updated) });
+      "UPDATE storage_config SET provider = ?, providers = ?, updated_at = datetime('now') WHERE id = 1"
+    ).run(provider, JSON.stringify(raw));
+    res.json({ config: toPublicConfig(db) });
   });
 
   router.post('/storage/test', async (req, res) => {
     try {
       const body = req.body || {};
-      // 传入了表单配置则用表单值测试（不落库）；否则测试已保存配置
-      const cfg =
-        body.provider && PROVIDERS.includes(body.provider)
-          ? {
-              provider: body.provider,
-              accessKey: typeof body.accessKey === 'string' ? body.accessKey.trim() : '',
-              secretKey: typeof body.secretKey === 'string' ? body.secretKey.trim() : '',
-              bucket: typeof body.bucket === 'string' ? body.bucket.trim() : '',
-              region: typeof body.region === 'string' ? body.region.trim() : '',
-              cdnDomain: (typeof body.cdnDomain === 'string' ? body.cdnDomain.trim() : '').replace(/\/+$/, ''),
-            }
-          : readStorageConfig(db);
+      const provider = STORAGE_PROVIDERS.includes(body.provider) ? body.provider : null;
+      let cfg;
+      if (provider && typeof body.secretKey === 'string') {
+        // 传入表单配置则用表单值测试（不落库）
+        cfg = { provider, ...sanitizeConfig(body) };
+      } else {
+        // 否则测试已保存配置（读激活厂商或指定厂商）
+        const all = readAllProviders(db);
+        cfg = { provider: provider || all.provider, ...all.providers[provider || all.provider] };
+      }
       const storage = await getStorage(db, cfg);
       // 云厂商 SDK 网络请求可能长时间挂起，统一 10 秒超时兜底
       const result = await Promise.race([

@@ -7,6 +7,7 @@ export class OssStorage {
   constructor(cfg) {
     this.cfg = cfg;
     this.domain = (cfg.cdnDomain || '').replace(/\/+$/, '');
+    this.folder = String(cfg.folder || '').replace(/^\/+|\/+$/g, '');
     this.client = new OSS({
       region: cfg.region,
       accessKeyId: cfg.accessKey,
@@ -17,7 +18,8 @@ export class OssStorage {
   }
 
   get keyPrefix() {
-    return `scenes/${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    return this.folder ? `${this.folder}/scenes/${date}` : `scenes/${date}`;
   }
 
   async put(buffer, key) {
