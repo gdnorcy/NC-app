@@ -167,11 +167,11 @@ function switchView(view) {
   const activeNav = view === 'plans' || view === 'scenes' ? 'apps' : view;
   document.querySelector(`.nav-item[data-nav="${activeNav}"]`)?.classList.add('active');
   // 面包屑
-  const names = { dashboard: '工作台', apps: '应用', plans: '360全景', scenes: '场景管理', orders: '我的账单', members: '成员管理', settings: '账号设置' };
+  const names = { dashboard: '工作台', apps: '应用中心', plans: '360全景', scenes: '场景管理', orders: '我的账单', members: '成员管理', settings: '账号设置' };
   if (view === 'scenes' && state.currentPlan) {
-    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用</span> <span style="color:var(--text-3);">/</span> <span style="color:var(--text-3);cursor:pointer;" onclick="switchView('plans')">360全景</span> <span style="color:var(--text-3);">/</span> <span>${state.currentPlan.name}</span>`;
+    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用中心</span> <span style="color:var(--text-3);">/</span> <span style="color:var(--text-3);cursor:pointer;" onclick="switchView('plans')">360全景</span> <span style="color:var(--text-3);">/</span> <span>${state.currentPlan.name}</span>`;
   } else if (view === 'plans') {
-    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用</span> <span style="color:var(--text-3);">/</span> <span>360全景</span>`;
+    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用中心</span> <span style="color:var(--text-3);">/</span> <span>360全景</span>`;
   } else {
     $('breadcrumb').innerHTML = `<span>${names[view] || view}</span>`;
   }
