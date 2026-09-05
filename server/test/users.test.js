@@ -86,14 +86,14 @@ test('用户管理：创建子账号', async () => {
     const res = await request(app)
       .post('/api/admin/users')
       .set('Authorization', `Bearer ${token}`)
-      .send({ username: 'editor1', password: 'pass123456', role: 'editor' });
+      .send({ username: 'editor1', password: 'pass123456', role: 'operator' });
     assert.equal(res.status, 200);
     assert.equal(res.body.user.username, 'editor1');
-    assert.equal(res.body.user.role, 'editor');
+    assert.equal(res.body.user.role, 'operator');
     // 新用户可登录
     const loginRes = await request(app).post('/api/auth/login').send({ username: 'editor1', password: 'pass123456' });
     assert.equal(loginRes.status, 200);
-    assert.equal(loginRes.body.user.role, 'editor');
+    assert.equal(loginRes.body.user.role, 'operator');
   } finally {
     restoreEnv(prev);
   }
@@ -108,7 +108,7 @@ test('用户管理：editor 不能访问用户管理（403）', async () => {
     await request(app)
       .post('/api/admin/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ username: 'editor2', password: 'pass123456', role: 'editor' });
+      .send({ username: 'editor2', password: 'pass123456', role: 'operator' });
     const editorToken = await login(app, 'editor2', 'pass123456');
     const res = await request(app).get('/api/admin/users').set('Authorization', `Bearer ${editorToken}`);
     assert.equal(res.status, 403);
@@ -138,14 +138,14 @@ test('用户管理：编辑用户角色', async () => {
     const createRes = await request(app)
       .post('/api/admin/users')
       .set('Authorization', `Bearer ${token}`)
-      .send({ username: 'user3', password: 'pass123456', role: 'viewer' });
+      .send({ username: 'user3', password: 'pass123456', role: 'operator' });
     const uid = createRes.body.user.id;
     const res = await request(app)
       .put(`/api/admin/users/${uid}`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ role: 'manager' });
+      .send({ role: 'operator' });
     assert.equal(res.status, 200);
-    assert.equal(res.body.user.role, 'manager');
+    assert.equal(res.body.user.role, 'operator');
   } finally {
     restoreEnv(prev);
   }
@@ -160,7 +160,7 @@ test('用户管理：重置密码', async () => {
     const createRes = await request(app)
       .post('/api/admin/users')
       .set('Authorization', `Bearer ${token}`)
-      .send({ username: 'user4', password: 'oldpass123', role: 'editor' });
+      .send({ username: 'user4', password: 'oldpass123', role: 'operator' });
     const uid = createRes.body.user.id;
     const resetRes = await request(app)
       .post(`/api/admin/users/${uid}/reset-password`)
@@ -187,7 +187,7 @@ test('用户管理：删除用户', async () => {
     const createRes = await request(app)
       .post('/api/admin/users')
       .set('Authorization', `Bearer ${token}`)
-      .send({ username: 'user5', password: 'pass123456', role: 'editor' });
+      .send({ username: 'user5', password: 'pass123456', role: 'operator' });
     const uid = createRes.body.user.id;
     const delRes = await request(app).delete(`/api/admin/users/${uid}`).set('Authorization', `Bearer ${token}`);
     assert.equal(delRes.status, 200);
@@ -261,7 +261,7 @@ test('手机号注册：发送验证码 + 注册 + 登录', async () => {
       .post('/api/auth/register')
       .send({ phone: '13900139000', code: smsRes.body.devCode, password: 'regpass123', username: '注册用户' });
     assert.equal(regRes.status, 200);
-    assert.equal(regRes.body.user.role, 'editor');
+    assert.equal(regRes.body.user.role, 'operator');
     assert.equal(regRes.body.user.phone, '13900139000');
     assert.ok(regRes.body.token);
     // 登录
@@ -357,7 +357,7 @@ test('存储配置：editor 无权限（403）', async () => {
     const db = createDb(dbPath);
     const app = createApp({ db });
     const adminToken = await login(app);
-    await request(app).post('/api/admin/users').set('Authorization', `Bearer ${adminToken}`).send({ username: 'ed', password: 'pass123456', role: 'editor' });
+    await request(app).post('/api/admin/users').set('Authorization', `Bearer ${adminToken}`).send({ username: 'ed', password: 'pass123456', role: 'operator' });
     const edToken = await login(app, 'ed', 'pass123456');
     const res = await request(app).get('/api/admin/storage').set('Authorization', `Bearer ${edToken}`);
     assert.equal(res.status, 403);

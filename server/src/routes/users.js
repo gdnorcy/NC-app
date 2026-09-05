@@ -17,7 +17,7 @@ export function createUsersRouter(db) {
 
   // —— 创建子账号 ——
   router.post('/', (req, res) => {
-    const { username, phone, password, role = 'editor', status = 'active', customerId } = req.body || {};
+    const { username, phone, password, role = 'operator', status = 'active', customerId } = req.body || {};
     if (!username && !phone) {
       return res.status(400).json({ error: '用户名和手机号至少填一个' });
     }

@@ -25,8 +25,8 @@ export function createSettingsRouter(db) {
     res.json({ settings: pub });
   });
 
-  // 管理：全部设置
-  router.get('/admin/settings', requireAuth, (_req, res) => {
+  // 管理：全部设置（仅 admin）
+  router.get('/admin/settings', requireAuth, requireRole('admin'), (_req, res) => {
     res.json({ settings: getAllSettings(db) });
   });
 

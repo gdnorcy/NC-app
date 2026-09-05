@@ -1048,7 +1048,7 @@ $('scene-form').addEventListener('submit', async (e) => {
 });
 
 // ---------- 用户管理 ----------
-const ROLE_LABELS = { admin: '管理员', manager: '运营', editor: '编辑', viewer: '只读', tenant_admin: '租户管理员', tenant_member: '租户成员' };
+const ROLE_LABELS = { admin: '超级管理员', operator: '运营人员', tenant_admin: '客户管理员', tenant_member: '客户成员' };
 
 function renderUsers() {
   $('user-count').textContent = `共 ${users.length} 个用户`;
@@ -1125,7 +1125,7 @@ function openUserEdit(user) {
   $('uf-id').value = user ? user.id : '';
   $('uf-username').value = user ? user.username : '';
   $('uf-phone').value = user ? user.phone : '';
-  $('uf-role').value = user ? user.role : 'editor';
+  $('uf-role').value = user ? user.role : 'operator';
   $('uf-status').value = user ? user.status : 'active';
   $('uf-password').value = '';
   $('uf-password').required = !user;
@@ -1740,7 +1740,7 @@ async function boot() {
   // 用户头像
   $('user-avatar-text').textContent = (currentUser?.username || '?').charAt(0).toUpperCase();
   $('user-dropdown-name').textContent = currentUser?.username || '';
-  const roleMap = { admin: '管理员', manager: '运营经理', editor: '编辑', viewer: '只读' };
+  const roleMap = { admin: '超级管理员', operator: '运营人员', tenant_admin: '客户管理员', tenant_member: '客户成员' };
   $('user-dropdown-role').textContent = roleMap[currentUser?.role] || currentUser?.role || '';
 
   // 仅 admin 可见用户管理、操作日志和系统设置

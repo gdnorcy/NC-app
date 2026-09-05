@@ -4,7 +4,7 @@ import { config } from './config.js';
 import { verifyPassword, hashPassword, toUser, addOperationLog } from './db.js';
 import { getSmsProvider, genSmsCode } from './sms.js';
 
-const VALID_ROLES = ['admin', 'manager', 'editor', 'viewer', 'tenant_admin', 'tenant_member'];
+const VALID_ROLES = ['admin', 'operator', 'tenant_admin', 'tenant_member'];
 const SMS_CODE_TTL_MINUTES = 5;
 const SMS_SEND_INTERVAL_MS = 60 * 1000; // 同一手机号 60 秒内只能发一次
 
@@ -129,7 +129,7 @@ export function createAuthRouter(db) {
       .prepare(
         'INSERT INTO users (username, phone, password_hash, password_salt, role, status) VALUES (?, ?, ?, ?, ?, ?)'
       )
-      .run(uname, phone, hash, salt, 'editor', 'active');
+      .run(uname, phone, hash, salt, 'operator', 'active');
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
     const token = issueToken(user);
     addOperationLog(db, { userId: user.id, username: user.username, action: 'register', targetType: 'auth', detail: `手机号注册: ${phone}`, ip: req.ip });
@@ -186,7 +186,7 @@ export function requireAuth(req, res, next) {
   }
 }
 
-/** 角色校验中间件工厂：requireRole('admin') 或 requireRole(['admin','manager']) */
+/** 角色校验中间件工厂：requireRole('admin') 或 requireRole(['admin','operator']) */
 export function requireRole(roles) {
   const allowed = Array.isArray(roles) ? roles : [roles];
   return (req, res, next) => {

@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT UNIQUE,
   password_hash TEXT NOT NULL,
   password_salt TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'editor',
+  role TEXT NOT NULL DEFAULT 'operator',
   status TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -308,6 +308,9 @@ function migrate(db) {
   if (!colExists(db, 'projects', 'solutions')) {
     db.exec("ALTER TABLE projects ADD COLUMN solutions TEXT NOT NULL DEFAULT '[\"panorama\"]'");
   }
+
+  // —— 角色简化：manager/editor/viewer 合并为 operator ——
+  db.exec("UPDATE users SET role = 'operator' WHERE role IN ('manager', 'editor', 'viewer')");
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
