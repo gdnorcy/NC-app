@@ -30,7 +30,14 @@ export function createApp({ db } = {}) {
   const indexHtml = path.join(config.webDistDir, 'index.html');
   const adminHtml = path.join(config.webDistDir, 'admin.html');
   if (fs.existsSync(indexHtml)) {
-    app.use(express.static(config.webDistDir));
+    app.use(
+      express.static(config.webDistDir, {
+        // HTML 每次校验（内容常变）；带 hash 的 assets 仍走默认长缓存
+        setHeaders(res, filePath) {
+          if (filePath.endsWith('.html')) res.set('Cache-Control', 'no-cache');
+        },
+      })
+    );
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
       if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();

@@ -8,11 +8,14 @@ H5 / Web 同步的 360 全景浏览系统：前台全景查看器 + 管理后台
 - equirectangular 全景图浏览（Three.js）
 - 桌面：鼠标拖拽旋转、滚轮缩放；移动端：单指拖拽、双指捏合
 - 陀螺仪沉浸模式（移动端）、自动旋转、全屏
-- 场景列表切换、加载进度、响应式适配
+- **多项目管理**：首页为项目卡片列表（封面 / 描述 / 场景数），点击进入项目页，项目内场景导航切换、加载进度、响应式适配
+- **分享链接**：项目级与场景级双分享——`/s/{token}` 直达，无需登录；项目分享开启后出现在首页，单场景分享直达该场景并保留项目内切换；关闭分享即失效
 
 **管理后台（/admin）**
 - 登录认证（JWT）
-- 场景新增 / 编辑 / 删除 / 上架下架
+- 场景新增 / 编辑 / 删除 / 上架下架，场景可归属到具体项目、可单独开启分享
+- **项目管理**：项目新建 / 编辑 / 删除（删除后其下场景自动归入默认项目）/ 排序 / 上下架 / 封面压缩上传
+- **分享管理弹窗**：项目级与场景级共用——复制分享链接、生成二维码（手机扫码直达）、刷新令牌（作废旧链接）、一键开启/关闭
 - 全景图上传（JPG / PNG / WebP，≤50MB），**服务端自动转码压缩**：转为两档 WebP（主图默认限长边 4096 + 低清预览默认长边 1024），手机端大幅减载
 - 排序调整（上移 / 下移 / 排序值）
 - **金字塔切片**：宽 >= 2048 的全景图上传时自动生成多层级瓦片（1024×512 WebP，层级逐级减半），展示端按视角只加载可见瓦片——超大图（8192+/16384+）手机端也能秒开、按需加载，配合 CDN 直传效果最佳
@@ -88,8 +91,17 @@ STORAGE_KEY=<至少 32 字节随机字符串> npm start
 |---|---|---|---|
 | POST | `/api/auth/login` | 登录，返回 token | 否 |
 | GET | `/api/scenes` | 上架场景列表 | 否 |
+| GET | `/api/projects` | 公开项目列表（已上架且开启分享） | 否 |
+| GET | `/api/projects/:id` | 项目详情（项目 + 上架场景） | 否 |
+| GET | `/api/s/:token` | 分享令牌解析（项目级 / 场景级） | 否 |
+| GET | `/api/s/:token/qr` | 分享二维码 PNG | 否 |
+| GET | `/api/admin/projects` | 全部项目 | Bearer |
+| POST | `/api/admin/projects` | 新建项目（自动生成分享令牌） | Bearer |
+| PUT | `/api/admin/projects/:id` | 更新项目（`regenerateShareToken:true` 刷新令牌） | Bearer |
+| DELETE | `/api/admin/projects/:id` | 删除项目（场景自动归默认项目） | Bearer |
+| POST | `/api/admin/projects/cover` | 上传项目封面（自动压缩 WebP） | Bearer |
 | GET | `/api/admin/scenes` | 全部场景 | Bearer |
-| POST | `/api/admin/scenes` | 新建场景 | Bearer |
+| POST | `/api/admin/scenes` | 新建场景（支持 projectId / shareEnabled） | Bearer |
 | PUT | `/api/admin/scenes/:id` | 更新场景 | Bearer |
 | DELETE | `/api/admin/scenes/:id` | 删除场景 | Bearer |
 | POST | `/api/admin/upload` | 上传全景图 | Bearer |

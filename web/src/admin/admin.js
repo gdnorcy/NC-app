@@ -59,6 +59,7 @@ $('login-form').addEventListener('submit', async (e) => {
     localStorage.setItem(TOKEN_KEY, token);
     renderAdmin();
     await Promise.all([loadScenes(), loadProjects()]);
+    renderScenes();
   } catch (err) {
     showError(loginError, err.message);
   }
@@ -506,8 +507,16 @@ function openShareDialog(target) {
   const token = target.type === 'project' ? target.project.shareToken : target.scene.shareToken;
   const url = shareUrlOf(token);
   $('share-url').value = url;
-  $('share-qr').src = token ? `/api/s/${token}/qr?size=300` : '';
-  $('share-qr').style.opacity = enabled && token ? '1' : '0.25';
+  $('share-url').placeholder = enabled ? '' : '尚未开启分享，点击下方「开启分享」';
+  if (enabled && token) {
+    $('share-qr').src = `/api/s/${token}/qr?size=300`;
+    $('share-qr').style.opacity = '1';
+    $('share-qr-note').textContent = '手机扫码即可打开';
+  } else {
+    $('share-qr').removeAttribute('src');
+    $('share-qr').style.opacity = '0.15';
+    $('share-qr-note').textContent = '开启分享后可生成二维码';
+  }
   $('share-toggle').textContent = enabled ? '关闭分享' : '开启分享';
   shareDialog.showModal();
 }
@@ -682,9 +691,13 @@ $('storage-form').addEventListener('submit', async (e) => {
 });
 
 // ---------- 启动 ----------
-if (isLoggedIn()) {
+async function boot() {
   renderAdmin();
   await Promise.all([loadScenes(), loadProjects()]);
+  renderScenes(); // 项目映射就绪后重绘场景表（所属项目列）
+}
+if (isLoggedIn()) {
+  boot();
 } else {
   renderLogin();
 }
