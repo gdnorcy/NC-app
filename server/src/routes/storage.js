@@ -68,7 +68,13 @@ export function createStorageRouter(db) {
             }
           : readStorageConfig(db);
       const storage = await getStorage(db, cfg);
-      const result = await storage.testConnection();
+      // 云厂商 SDK 网络请求可能长时间挂起，统一 10 秒超时兜底
+      const result = await Promise.race([
+        storage.testConnection(),
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: false, message: '连接超时（10 秒），请检查网络与云服务状态' }), 10000)
+        ),
+      ]);
       res.json(result);
     } catch (err) {
       res.status(400).json({ ok: false, message: `测试失败：${err.message || err}` });

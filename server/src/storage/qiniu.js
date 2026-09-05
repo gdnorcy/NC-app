@@ -51,11 +51,21 @@ export class QiniuStorage {
   }
 
   async testConnection() {
+    // 真实上传一个测试对象再删除：验证 AK/SK 签名、空间存在与读写权限（走实际上传链路）
+    const key = `.connection-test-${Date.now()}`;
+    const token = this._uploadToken(key);
     try {
       await new Promise((resolve, reject) => {
-        this.bucketManager.listBucket(this.cfg.bucket, { limit: 1 }, (err, _items, _marker, _info) => {
-          err ? reject(err) : resolve();
-        });
+        this.formUploader.put(
+          token,
+          key,
+          Buffer.from('ok'),
+          this.putExtra,
+          (err, _body, _info) => (err ? reject(err) : resolve())
+        );
+      });
+      await new Promise((resolve) => {
+        this.bucketManager.delete(this.cfg.bucket, key, () => resolve());
       });
       return { ok: true, message: '连接成功，空间可读写' };
     } catch (err) {
