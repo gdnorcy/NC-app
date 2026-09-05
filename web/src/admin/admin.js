@@ -50,6 +50,8 @@ let plans = [];
 let scenes = [];
 let users = [];
 let currentUser = null;
+let customerFilter = 'all'; // all | active | expiring | expired | disabled
+let customerSearch = '';
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -277,52 +279,84 @@ function daysUntil(dateStr) {
 }
 
 function renderCustomers() {
-  $('customer-count').textContent = `共 ${customers.length} 个客户项目`;
+  // 计算各 Tab 数量
+  const counts = { all: customers.length, active: 0, expiring: 0, expired: 0, disabled: 0 };
+  for (const c of customers) {
+    const days = daysUntil(c.validUntil);
+    if (c.status === 'disabled') counts.disabled++;
+    else if (days !== null && days < 0) counts.expired++;
+    else if (days !== null && days <= 30) counts.expiring++;
+    else counts.active++;
+  }
+  $('cnt-all').textContent = counts.all;
+  $('cnt-active').textContent = counts.active;
+  $('cnt-expiring').textContent = counts.expiring;
+  $('cnt-expired').textContent = counts.expired;
+  $('cnt-disabled').textContent = counts.disabled;
+
+  // 筛选
+  let list = customers.filter((c) => {
+    const days = daysUntil(c.validUntil);
+    const expired = days !== null && days < 0;
+    if (customerSearch && !c.customerName.toLowerCase().includes(customerSearch.toLowerCase())) return false;
+    if (customerFilter === 'active') return c.status !== 'disabled' && !expired;
+    if (customerFilter === 'expiring') return c.status !== 'disabled' && days !== null && days >= 0 && days <= 30;
+    if (customerFilter === 'expired') return expired;
+    if (customerFilter === 'disabled') return c.status === 'disabled';
+    return true;
+  });
+
   const grid = $('customer-grid');
-  if (!customers.length) {
-    grid.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">暂无客户项目，点击右上角「新建客户项目」开始</p>';
+  if (!list.length) {
+    grid.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">暂无符合条件的客户项目</p>';
     return;
   }
-  grid.innerHTML = customers
+  // 置顶优先，然后按 ID
+  list.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0) || a.id - b.id);
+
+  grid.innerHTML = list
     .map((c) => {
       const days = daysUntil(c.validUntil);
       const expired = days !== null && days < 0;
+      const disabled = c.status === 'disabled';
       const daysBadge = days === null
-        ? ''
-        : `<div class="customer-days-badge ${expired ? '' : 'ok'}">${expired ? '已过期' : `剩${days}天`}</div>`;
-      const statusClass = expired ? 'status-expired' : c.status === 'disabled' ? 'status-disabled' : 'status-active';
-      const statusText = expired ? '已过期' : c.status === 'disabled' ? '已停用' : '正常';
+        ? '<div class="c-days-badge forever">永久</div>'
+        : `<div class="c-days-badge ${expired || disabled ? 'expired' : ''}">${expired ? '已过期' : disabled ? '已停用' : `剩${days}天`}</div>`;
       const initial = c.customerName ? c.customerName.charAt(0) : '?';
       const logoHtml = c.logoPath
         ? `<img src="${esc(c.logoPath)}" alt="" />`
-        : initial;
+        : `<span class="c-logo-initial">${initial}</span>`;
+      const validText = c.validUntil ? `${c.validFrom || '—'} ~ ${c.validUntil}` : '永久有效';
+      const statusText = expired ? '已过期' : disabled ? '已停用' : '使用中';
+      const statusCls = expired || disabled ? 'c-status-bad' : 'c-status-ok';
       return `
-      <div class="customer-card ${expired ? 'expired' : ''}" data-id="${c.id}">
-        <div class="customer-card-head">
-          <div class="customer-logo">${logoHtml}${daysBadge}</div>
-          <div class="customer-info">
-            <div class="customer-name-row">
-              <span class="customer-name">${esc(c.customerName)}</span>
-              ${c.isPinned ? '<span class="customer-pin">置顶</span>' : ''}
+      <div class="c-card ${expired || disabled ? 'c-card-muted' : ''}" data-id="${c.id}">
+        <div class="c-card-head">
+          <div class="c-logo-wrap">${logoHtml}${daysBadge}</div>
+          <div class="c-card-title">
+            <div class="c-name-row">
+              <span class="c-name">${esc(c.customerName)}</span>
+              ${c.isPinned ? '<span class="c-pin-badge">置顶</span>' : ''}
             </div>
-            <div class="customer-meta">ID: ${c.id} &nbsp;|&nbsp; ${c.planCount ?? 0} 个方案</div>
+            <div class="c-sub-meta">ID: ${c.id} &nbsp;|&nbsp; ${c.planCount ?? 0} 个方案 &nbsp;|&nbsp; ${c.sceneCount ?? 0} 个场景</div>
           </div>
         </div>
-        <div class="customer-stats">
-          <div class="stat-col">
-            <div><span class="stat-label">方案数：</span><span class="stat-val">${c.planCount ?? 0}</span></div>
-            <div><span class="stat-label">场景数：</span><span class="stat-val">${c.sceneCount ?? 0}</span></div>
+        <div class="c-card-body">
+          <div class="c-info-col">
+            <div class="c-info-row"><span class="c-info-label">方案数</span><span class="c-info-val">${c.planCount ?? 0}</span></div>
+            <div class="c-info-row"><span class="c-info-label">场景数</span><span class="c-info-val">${c.sceneCount ?? 0}</span></div>
+            <div class="c-info-row"><span class="c-info-label">状态</span><span class="${statusCls}">${statusText}</span></div>
           </div>
-          <div class="stat-col">
-            <div><span class="stat-label">有效期：</span><span class="stat-val">${c.validFrom || '—'} ~ ${c.validUntil || '—'}</span></div>
-            <div><span class="stat-label">状态：</span><span class="${statusClass}">${statusText}</span></div>
+          <div class="c-info-col">
+            <div class="c-info-row"><span class="c-info-label">有效期</span><span class="c-info-val">${validText}</span></div>
+            <div class="c-info-row"><span class="c-info-label">备注</span><span class="c-info-val c-remark">${esc(c.remark || '—')}</span></div>
           </div>
         </div>
-        <div class="customer-actions">
-          <button class="act-enter">进入</button>
-          <button class="act-edit">编辑</button>
-          <button class="act-renew">续费</button>
-          <button class="act-del del">删除</button>
+        <div class="c-card-footer">
+          <button class="c-footer-btn act-enter">进入</button>
+          <button class="c-footer-btn act-edit">编辑</button>
+          <button class="c-footer-btn act-renew">续费</button>
+          <button class="c-footer-btn act-del del">删除</button>
         </div>
       </div>`;
     })
@@ -357,6 +391,21 @@ $('customer-grid').addEventListener('click', async (e) => {
     state.currentPlan = null;
     render();
   }
+});
+
+// 客户 Tab 筛选
+document.querySelectorAll('.c-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.c-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    customerFilter = tab.dataset.filter;
+    renderCustomers();
+  });
+});
+
+// 客户搜索
+$('customer-search')?.addEventListener('input', (e) => {
+  customerSearch = e.target.value.trim();
+  renderCustomers();
 });
 
 // ---------- 客户编辑弹窗 ----------

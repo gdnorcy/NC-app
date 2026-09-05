@@ -85,9 +85,17 @@
         <main class="content">
           <!-- 客户项目（卡片） -->
           <section id="view-customers">
+            <div class="customer-tabs">
+              <button type="button" class="c-tab active" data-filter="all">全部 <span class="c-tab-count" id="cnt-all">0</span></button>
+              <button type="button" class="c-tab" data-filter="active">使用中 <span class="c-tab-count" id="cnt-active">0</span></button>
+              <button type="button" class="c-tab" data-filter="expiring">将过期 <span class="c-tab-count" id="cnt-expiring">0</span></button>
+              <button type="button" class="c-tab" data-filter="expired">已过期 <span class="c-tab-count" id="cnt-expired">0</span></button>
+              <button type="button" class="c-tab" data-filter="disabled">已停用 <span class="c-tab-count" id="cnt-disabled">0</span></button>
+            </div>
             <div class="toolbar">
               <button id="btn-add-customer" class="btn btn-primary">+ 新建客户项目</button>
-              <span id="customer-count" class="muted"></span>
+              <div style="flex:1;"></div>
+              <input type="text" id="customer-search" class="filter-input" placeholder="搜索客户名称..." style="width:220px;" />
             </div>
             <div id="customer-grid" class="customer-grid"></div>
           </section>

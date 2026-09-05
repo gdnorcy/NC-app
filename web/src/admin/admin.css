@@ -940,3 +940,211 @@ dialog::backdrop {
   margin-top: 16px;
   justify-content: flex-end;
 }
+
+/* ===== 客户项目：参考 SaaS 卡片风格 ===== */
+.customer-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 16px;
+}
+.c-tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.c-tab:hover { color: var(--text-color); }
+.c-tab.active {
+  color: #6c5ce7;
+  border-bottom-color: #6c5ce7;
+  font-weight: 600;
+}
+.c-tab-count {
+  background: #eee;
+  color: #666;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.c-tab.active .c-tab-count {
+  background: #6c5ce7;
+  color: #fff;
+}
+
+/* 卡片网格 */
+.customer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+/* 卡片 */
+.c-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.c-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+.c-card-muted {
+  opacity: 0.6;
+}
+
+/* 卡片头部 */
+.c-card-head {
+  display: flex;
+  gap: 14px;
+  padding: 18px 18px 14px;
+  align-items: flex-start;
+}
+.c-logo-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+.c-logo-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.c-logo-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+}
+.c-days-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 10px;
+  text-align: center;
+  padding: 2px 0;
+  font-weight: 600;
+}
+.c-days-badge.forever {
+  background: #27ae60;
+}
+.c-days-badge.expired {
+  background: #95a5a6;
+}
+.c-card-title {
+  flex: 1;
+  min-width: 0;
+}
+.c-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.c-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c-pin-badge {
+  background: #f0f0f0;
+  color: #888;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.c-sub-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* 卡片 body */
+.c-card-body {
+  display: flex;
+  gap: 16px;
+  padding: 0 18px 14px;
+}
+.c-info-col {
+  flex: 1;
+  min-width: 0;
+}
+.c-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.c-info-label {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.c-info-val {
+  color: var(--text-color);
+  font-weight: 500;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+.c-remark {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+.c-status-ok { color: #27ae60; font-weight: 600; }
+.c-status-bad { color: #e74c3c; font-weight: 600; }
+
+/* 卡片底部操作栏 */
+.c-card-footer {
+  display: flex;
+  border-top: 1px solid var(--border);
+}
+.c-footer-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 10px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.c-footer-btn:last-child { border-right: none; }
+.c-footer-btn:hover {
+  background: #f8f8f8;
+  color: var(--text-color);
+}
+.c-footer-btn.del:hover {
+  color: #e74c3c;
+  background: #fdf0ef;
+}
