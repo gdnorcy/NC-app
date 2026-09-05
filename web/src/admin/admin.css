@@ -415,6 +415,58 @@ body {
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
+/* 两列表单行 */
+.field-row {
+  display: flex;
+  gap: 16px;
+}
+.field-row .field { flex: 1; }
+
+/* 文件上传美化 */
+.file-upload-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.file-upload-wrap input[type='file'] {
+  display: none;
+}
+.file-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.file-upload-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-bg);
+}
+.file-upload-name {
+  font-size: 13px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-wrap {
+  margin: 8px 0;
+}
+.preview-wrap img {
+  max-height: 80px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
 .form-error {
   color: var(--danger);
   font-size: 13px;
@@ -463,6 +515,14 @@ dialog {
   border-radius: var(--radius);
   background: transparent;
   max-width: 90vw;
+  margin: auto;
+}
+dialog[open] {
+  animation: dialogFadeIn 0.2s ease-out;
+}
+@keyframes dialogFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 dialog::backdrop {
   background: rgba(0,0,0,0.45);

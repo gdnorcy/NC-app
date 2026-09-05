@@ -423,6 +423,7 @@ function openCustomerDialog(customer, renewOnly = false) {
   $('cf-pinned').checked = customer ? customer.isPinned : false;
   $('cf-status').value = customer ? customer.status : 'active';
   $('cf-file').value = '';
+  $('cf-file-name').textContent = customer && customer.logoPath ? '已有 Logo，可选择新图替换' : '未选择文件';
   $('cf-upload-state').textContent = customer && customer.logoPath ? '已有 Logo，可选择新图替换' : '';
   const prev = $('cf-preview');
   if (customer && customer.logoPath) {
@@ -443,6 +444,7 @@ $('customer-dialog-cancel').addEventListener('click', () => customerDialog.close
 $('cf-file').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  $('cf-file-name').textContent = file.name;
   const reader = new FileReader();
   reader.onload = () => {
     $('cf-preview').src = reader.result;
