@@ -747,3 +747,24 @@ dialog::backdrop {
 .role-manager { background: #dbeafe; color: #1e40af; }
 .role-editor { background: #d1fae5; color: #065f46; }
 .role-viewer { background: #f3f4f6; color: #374151; }
+
+/* 存储设置独立页面 */
+.storage-page {
+  max-width: 640px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 16px;
+}
+.storage-page .storage-tabs {
+  margin-bottom: 20px;
+}
+.storage-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}

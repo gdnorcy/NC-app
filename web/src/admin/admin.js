@@ -169,7 +169,9 @@ document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
       state.view = 'users';
       render();
     } else if (t.dataset.nav === 'storage') {
-      openStorageDialog();
+      state.view = 'storage';
+      render();
+      loadStorageIntoForm();
     }
   });
 });
@@ -214,6 +216,7 @@ function render() {
   $('view-plans').classList.toggle('hidden', state.view !== 'plans');
   $('view-scenes').classList.toggle('hidden', state.view !== 'scenes');
   $('view-users').classList.toggle('hidden', state.view !== 'users');
+  $('view-storage').classList.toggle('hidden', state.view !== 'storage');
   renderBreadcrumb();
   if (state.view === 'customers') renderCustomers();
   else if (state.view === 'plans') renderPlans();
@@ -998,7 +1001,6 @@ $('share-toggle').addEventListener('click', async () => {
 });
 
 // ---------- 存储设置 ----------
-const storageDialog = $('storage-dialog');
 const storageMsg = $('s-msg');
 const FIELD_MAP = {
   'access-key': 'accessKey',
@@ -1043,7 +1045,7 @@ function currentProviderConfig() {
   return cfg;
 }
 
-async function openStorageDialog() {
+async function loadStorageIntoForm() {
   storageMsg.classList.add('hidden');
   try {
     const { config: cfg } = await fetchStorageConfig();
@@ -1059,7 +1061,6 @@ async function openStorageDialog() {
     }
     const active = ['local', 'oss', 'qiniu'].includes(cfg.provider) ? cfg.provider : 'local';
     switchTab(active);
-    storageDialog.showModal();
   } catch (err) {
     showError(adminError, err.message);
   }
@@ -1068,7 +1069,13 @@ async function openStorageDialog() {
 document.querySelectorAll('.storage-tabs .tab').forEach((t) => {
   t.addEventListener('click', () => switchTab(t.dataset.provider));
 });
-$('s-cancel').addEventListener('click', () => storageDialog.close());
+$('s-cancel')?.addEventListener('click', () => storageDialog?.close?.());
+$('btn-back-from-storage').addEventListener('click', () => {
+  state.view = 'customers';
+  state.currentCustomer = null;
+  state.currentPlan = null;
+  render();
+});
 
 $('s-test').addEventListener('click', async () => {
   const btn = $('s-test');
@@ -1091,8 +1098,7 @@ $('storage-form').addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   try {
     await saveStorageConfig(currentProviderConfig());
-    storageDialog.close();
-    showError(adminError, `「${$(`.storage-tabs .tab[data-provider="${activeProvider}"]`).textContent}」已保存并启用`);
+    showError(adminError, `「${$(`.storage-tabs .tab[data-provider="${activeProvider}"]`).textContent}」已保存并启用`, false);
   } catch (err) {
     showStorageMsg(err.message, true);
   } finally {
