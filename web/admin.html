@@ -57,9 +57,16 @@
       <aside class="sidebar">
         <div class="sidebar-logo">360 全景</div>
         <nav class="sidebar-nav">
-          <button type="button" class="nav-item active" data-nav="customers">👤 客户项目</button>
+          <button type="button" class="nav-item active" data-nav="dashboard">📊 工作台</button>
+          <button type="button" class="nav-item" data-nav="customers">👤 客户项目</button>
           <button type="button" class="nav-item" data-nav="users" id="nav-users" style="display:none;">👥 用户管理</button>
-          <button type="button" class="nav-item" data-nav="storage">☁️ 存储设置</button>
+          <button type="button" class="nav-item" data-nav="logs">📋 操作日志</button>
+          <div class="nav-group-title">系统设置</div>
+          <button type="button" class="nav-item nav-sub" data-nav="settings-basic">⚙️ 基础设置</button>
+          <button type="button" class="nav-item nav-sub" data-nav="storage">☁️ 存储设置</button>
+          <button type="button" class="nav-item nav-sub" data-nav="settings-sms">📱 短信接口</button>
+          <button type="button" class="nav-item nav-sub" data-nav="settings-payment">💳 支付设置</button>
+          <button type="button" class="nav-item nav-sub" data-nav="settings-security">🔒 安全设置</button>
         </nav>
         <div class="sidebar-footer">
           <button id="btn-logout" class="nav-item">退出登录</button>
@@ -206,6 +213,157 @@
                   <button type="submit" class="btn btn-primary">保存并启用</button>
                 </div>
               </form>
+            </div>
+          </section>
+
+          <!-- 工作台 -->
+          <section id="view-dashboard" class="hidden">
+            <div class="dashboard-stats">
+              <div class="stat-card"><div class="stat-num" id="stat-customers">0</div><div class="stat-label">客户项目</div></div>
+              <div class="stat-card"><div class="stat-num" id="stat-plans">0</div><div class="stat-label">方案</div></div>
+              <div class="stat-card"><div class="stat-num" id="stat-scenes">0</div><div class="stat-label">场景</div></div>
+              <div class="stat-card"><div class="stat-num" id="stat-users">0</div><div class="stat-label">用户</div></div>
+            </div>
+            <div class="dashboard-panels">
+              <div class="panel">
+                <h3>系统状态</h3>
+                <div class="status-list" id="dashboard-status"></div>
+              </div>
+              <div class="panel">
+                <h3>最近操作</h3>
+                <div class="recent-logs" id="dashboard-logs"><p class="muted">加载中...</p></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 操作日志 -->
+          <section id="view-logs" class="hidden">
+            <div class="toolbar">
+              <select id="log-filter-action" class="filter-select">
+                <option value="">全部操作</option>
+                <option value="login">登录</option>
+                <option value="register">注册</option>
+                <option value="create_customer">创建客户</option>
+                <option value="update_customer">更新客户</option>
+                <option value="delete_customer">删除客户</option>
+                <option value="create_plan">创建方案</option>
+                <option value="update_plan">更新方案</option>
+                <option value="delete_plan">删除方案</option>
+                <option value="create_scene">创建场景</option>
+                <option value="update_scene">更新场景</option>
+                <option value="delete_scene">删除场景</option>
+                <option value="create_user">创建用户</option>
+                <option value="update_user">更新用户</option>
+                <option value="delete_user">删除用户</option>
+                <option value="reset_password">重置密码</option>
+                <option value="update_storage">存储设置</option>
+                <option value="update_settings">系统设置</option>
+              </select>
+              <input type="date" id="log-filter-from" class="filter-input" />
+              <span class="muted">至</span>
+              <input type="date" id="log-filter-to" class="filter-input" />
+              <button id="btn-log-filter" class="btn btn-primary btn-sm">筛选</button>
+              <button id="btn-log-export" class="btn btn-ghost btn-sm">导出 CSV</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>时间</th><th>用户</th><th>操作</th><th>对象</th><th>详情</th><th>IP</th></tr></thead>
+              <tbody id="log-tbody"></tbody>
+            </table>
+            <div class="pagination" id="log-pagination"></div>
+          </section>
+
+          <!-- 基础设置（含平台版权） -->
+          <section id="view-settings-basic" class="hidden">
+            <div class="settings-page">
+              <h3>站点信息</h3>
+              <label class="field"><span>站点名称</span><input id="set-site-name" type="text" placeholder="360 全景平台" /></label>
+              <label class="field"><span>前台首页标题</span><input id="set-site-title" type="text" placeholder="360° 全景体验" /></label>
+              <label class="field"><span>前台首页副标题</span><input id="set-site-subtitle" type="text" placeholder="沉浸式全景浏览" /></label>
+              <label class="field"><span>ICP 备案号</span><input id="set-site-icp" type="text" placeholder="粤ICP备XXXXXXXX号" /></label>
+              <label class="field"><span>联系电话</span><input id="set-site-phone" type="text" /></label>
+              <label class="field"><span>联系邮箱</span><input id="set-site-email" type="text" /></label>
+              <h3 style="margin-top:24px;">平台版权</h3>
+              <label class="field"><span>版权所有者</span><input id="set-copyright-owner" type="text" placeholder="如：XX 科技有限公司" /></label>
+              <label class="field"><span>版权年份</span><input id="set-copyright-year" type="text" placeholder="2024-2026" /></label>
+              <label class="field"><span>自定义版权文字（留空则自动生成）</span><input id="set-copyright-text" type="text" placeholder="© 2026 XX 科技 版权所有" /></label>
+              <label class="checkbox-field"><input type="checkbox" id="set-copyright-enabled" checked /><span>前台页脚显示版权</span></label>
+              <div class="settings-actions">
+                <button id="btn-save-basic" class="btn btn-primary">保存设置</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- 短信接口 -->
+          <section id="view-settings-sms" class="hidden">
+            <div class="settings-page">
+              <h3>短信服务</h3>
+              <p class="muted" style="margin-bottom:16px;">用于手机号注册、登录验证码发送。开发环境可使用 Mock 模式（验证码显示在服务端日志）。</p>
+              <label class="field"><span>短信服务商</span>
+                <select id="set-sms-provider">
+                  <option value="mock">Mock（开发环境，验证码打印到日志）</option>
+                  <option value="aliyun">阿里云短信</option>
+                  <option value="tencent">腾讯云短信</option>
+                </select>
+              </label>
+              <div id="sms-aliyun-fields" class="sms-provider-fields" hidden>
+                <label class="field"><span>AccessKey ID</span><input id="set-sms-aliyun-ak" type="text" /></label>
+                <label class="field"><span>AccessKey Secret</span><input id="set-sms-aliyun-sk" type="password" autocomplete="new-password" /></label>
+                <label class="field"><span>短信签名</span><input id="set-sms-aliyun-sign" type="text" placeholder="如：360全景" /></label>
+                <label class="field"><span>验证码模板 CODE</span><input id="set-sms-aliyun-tpl" type="text" placeholder="如：SMS_123456789" /></label>
+              </div>
+              <div id="sms-tencent-fields" class="sms-provider-fields" hidden>
+                <label class="field"><span>SecretId</span><input id="set-sms-tencent-ak" type="text" /></label>
+                <label class="field"><span>SecretKey</span><input id="set-sms-tencent-sk" type="password" autocomplete="new-password" /></label>
+                <label class="field"><span>SDK AppID</span><input id="set-sms-tencent-appid" type="text" /></label>
+                <label class="field"><span>短信签名</span><input id="set-sms-tencent-sign" type="text" /></label>
+                <label class="field"><span>模板 ID</span><input id="set-sms-tencent-tpl" type="text" /></label>
+              </div>
+              <div class="settings-actions">
+                <button id="btn-save-sms" class="btn btn-primary">保存设置</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- 支付设置 -->
+          <section id="view-settings-payment" class="hidden">
+            <div class="settings-page">
+              <h3>支付方式</h3>
+              <p class="muted" style="margin-bottom:16px;">配置后可用于客户续费、套餐购买等支付场景。</p>
+              <div class="payment-tabs">
+                <button type="button" class="tab active" data-pay="wechat">微信支付</button>
+                <button type="button" class="tab" data-pay="alipay">支付宝</button>
+              </div>
+              <div id="pay-wechat-fields">
+                <label class="field"><span>商户号（mch_id）</span><input id="set-wx-mch" type="text" /></label>
+                <label class="field"><span>API 密钥（v3 Key）</span><input id="set-wx-key" type="password" autocomplete="new-password" /></label>
+                <label class="field"><span>AppID（公众号/小程序）</span><input id="set-wx-appid" type="text" /></label>
+                <label class="field"><span>支付回调 URL</span><input id="set-wx-callback" type="text" placeholder="https://yourdomain.com/api/pay/notify/wechat" /></label>
+                <label class="checkbox-field"><input type="checkbox" id="set-wx-enabled" /><span>启用微信支付</span></label>
+              </div>
+              <div id="pay-alipay-fields" hidden>
+                <label class="field"><span>应用 APPID</span><input id="set-ali-appid" type="text" /></label>
+                <label class="field"><span>应用私钥</span><textarea id="set-ali-privatekey" rows="3" placeholder="-----BEGIN RSA PRIVATE KEY-----..."></textarea></label>
+                <label class="field"><span>支付宝公钥</span><textarea id="set-ali-publickey" rows="3" placeholder="-----BEGIN PUBLIC KEY-----..."></textarea></label>
+                <label class="field"><span>支付回调 URL</span><input id="set-ali-callback" type="text" placeholder="https://yourdomain.com/api/pay/notify/alipay" /></label>
+                <label class="checkbox-field"><input type="checkbox" id="set-ali-enabled" /><span>启用支付宝</span></label>
+              </div>
+              <div class="settings-actions">
+                <button id="btn-save-payment" class="btn btn-primary">保存设置</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- 安全设置 -->
+          <section id="view-settings-security" class="hidden">
+            <div class="settings-page">
+              <h3>登录安全</h3>
+              <label class="field"><span>登录失败锁定次数（0 表示不锁定）</span><input id="set-sec-fail-limit" type="number" min="0" max="20" value="5" /></label>
+              <label class="field"><span>会话超时（分钟，0 表示不超时）</span><input id="set-sec-session" type="number" min="0" max="10080" value="0" /></label>
+              <label class="field"><span>密码最小长度</span><input id="set-sec-pwd-min" type="number" min="4" max="32" value="6" /></label>
+              <label class="checkbox-field"><input type="checkbox" id="set-sec-pwd-complex" /><span>要求密码包含大小写字母+数字</span></label>
+              <div class="settings-actions">
+                <button id="btn-save-security" class="btn btn-primary">保存设置</button>
+              </div>
             </div>
           </section>
 

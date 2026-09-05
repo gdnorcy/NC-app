@@ -1,5 +1,5 @@
 import express from 'express';
-import { hashPassword, toUser } from '../db.js';
+import { hashPassword, toUser, addOperationLog } from '../db.js';
 import { requireAuth, requireRole, VALID_ROLES } from '../auth.js';
 
 export function createUsersRouter(db) {
@@ -40,6 +40,7 @@ export function createUsersRouter(db) {
       )
       .run(username || null, phone || null, hash, salt, role, status);
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_user', targetType: 'user', targetId: info.lastInsertRowid, detail: `创建用户: ${username || phone} (${role})`, ip: req.ip });
     res.json({ user: toUser(user) });
   });
 
@@ -75,6 +76,7 @@ export function createUsersRouter(db) {
       'UPDATE users SET username = COALESCE(?, username), phone = COALESCE(?, phone), role = COALESCE(?, role), status = COALESCE(?, status), updated_at = datetime(\'now\') WHERE id = ?'
     ).run(username ?? null, phone ?? null, role ?? null, status ?? null, id);
     const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_user', targetType: 'user', targetId: id, detail: `更新用户: ${updated.username || updated.phone}`, ip: req.ip });
     res.json({ user: toUser(updated) });
   });
 
@@ -89,6 +91,7 @@ export function createUsersRouter(db) {
     if (!user) return res.status(404).json({ error: '用户不存在' });
     const { hash, salt } = hashPassword(password);
     db.prepare('UPDATE users SET password_hash = ?, password_salt = ?, updated_at = datetime(\'now\') WHERE id = ?').run(hash, salt, id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'reset_password', targetType: 'user', targetId: id, detail: `重置密码: ${user.username || user.phone}`, ip: req.ip });
     res.json({ ok: true });
   });
 
@@ -108,6 +111,7 @@ export function createUsersRouter(db) {
       }
     }
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'delete_user', targetType: 'user', targetId: id, detail: `删除用户: ${user.username || user.phone}`, ip: req.ip });
     res.json({ ok: true });
   });
 

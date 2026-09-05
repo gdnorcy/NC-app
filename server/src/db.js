@@ -88,6 +88,26 @@ CREATE TABLE IF NOT EXISTS sms_codes (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sms_phone ON sms_codes(phone, purpose);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS operation_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  username TEXT,
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id INTEGER,
+  detail TEXT,
+  ip TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_logs_user ON operation_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_logs_created ON operation_logs(created_at);
 `;
 
 /** 生成不可猜的分享令牌（8 字符 base64url） */
@@ -339,4 +359,63 @@ export function toUser(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// ---------- 通用设置（key-value） ----------
+export function getAllSettings(db) {
+  const rows = db.prepare('SELECT key, value FROM settings').all();
+  const out = {};
+  for (const r of rows) {
+    try { out[r.key] = JSON.parse(r.value); } catch { out[r.key] = r.value; }
+  }
+  return out;
+}
+
+export function getSetting(db, key, fallback = null) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  if (!row) return fallback;
+  try { return JSON.parse(row.value); } catch { return row.value; }
+}
+
+export function setSetting(db, key, value) {
+  const v = typeof value === 'string' ? value : JSON.stringify(value);
+  db.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+  ).run(key, v);
+}
+
+export function setSettingsBatch(db, pairs) {
+  const stmt = db.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+  );
+  for (const [k, v] of pairs) {
+    const val = typeof v === 'string' ? v : JSON.stringify(v);
+    stmt.run(k, val);
+  }
+}
+
+// ---------- 操作日志 ----------
+export function addOperationLog(db, { userId, username, action, targetType, targetId, detail, ip }) {
+  db.prepare(
+    `INSERT INTO operation_logs (user_id, username, action, target_type, target_id, detail, ip)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(userId ?? null, username ?? null, action, targetType ?? null, targetId ?? null, detail ?? null, ip ?? null);
+}
+
+export function queryOperationLogs(db, { userId, action, targetType, from, to, limit = 100, offset = 0 } = {}) {
+  const where = [];
+  const params = [];
+  if (userId) { where.push('user_id = ?'); params.push(userId); }
+  if (action) { where.push('action = ?'); params.push(action); }
+  if (targetType) { where.push('target_type = ?'); params.push(targetType); }
+  if (from) { where.push('created_at >= ?'); params.push(from); }
+  if (to) { where.push('created_at <= ?'); params.push(to); }
+  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  const rows = db
+    .prepare(`SELECT * FROM operation_logs ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`)
+    .all(...params, limit, offset);
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM operation_logs ${whereSql}`).get(...params)?.n || 0;
+  return { logs: rows, total };
 }

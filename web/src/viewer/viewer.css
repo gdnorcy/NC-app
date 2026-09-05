@@ -317,3 +317,17 @@ body {
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* 站点页脚 */
+.site-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  padding: 6px;
+  pointer-events: none;
+  z-index: 5;
+}

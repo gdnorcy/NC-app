@@ -2,6 +2,7 @@ import express from 'express';
 import { encryptSecret } from '../crypto.js';
 import { readAllProviders, readStorageConfig, getStorage, STORAGE_PROVIDERS } from '../storage/index.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { addOperationLog } from '../db.js';
 
 const PARAM_FIELDS = ['accessKey', 'bucket', 'region', 'zone', 'folder', 'cdnDomain'];
 
@@ -61,6 +62,7 @@ export function createStorageRouter(db) {
     db.prepare(
       "UPDATE storage_config SET provider = ?, providers = ?, updated_at = datetime('now') WHERE id = 1"
     ).run(provider, JSON.stringify(raw));
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_storage', targetType: 'storage', detail: `切换存储为: ${provider}`, ip: req.ip });
     res.json({ config: toPublicConfig(db) });
   });
 

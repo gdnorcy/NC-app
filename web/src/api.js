@@ -297,3 +297,35 @@ export function resetUserPassword(id, password) {
     body: JSON.stringify({ password }),
   });
 }
+
+// ———————— 系统设置 ————————
+
+export function fetchAdminSettings() {
+  return request('/api/admin/settings', { headers: adminHeaders() });
+}
+
+export function saveAdminSettings(pairs) {
+  return request('/api/admin/settings', {
+    method: 'PUT',
+    headers: adminHeaders(),
+    body: JSON.stringify(pairs),
+  });
+}
+
+export function fetchPublicSettings() {
+  return request('/api/settings/public');
+}
+
+// ———————— 操作日志 ————————
+
+export function fetchOperationLogs({ userId, action, targetType, from, to, limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams();
+  if (userId) params.set('userId', userId);
+  if (action) params.set('action', action);
+  if (targetType) params.set('targetType', targetType);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  params.set('limit', limit);
+  params.set('offset', offset);
+  return request(`/api/admin/logs?${params.toString()}`, { headers: adminHeaders() });
+}

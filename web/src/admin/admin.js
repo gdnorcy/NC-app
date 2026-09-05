@@ -26,6 +26,9 @@ import {
   updateAdminUser,
   deleteAdminUser,
   resetUserPassword,
+  fetchAdminSettings,
+  saveAdminSettings,
+  fetchOperationLogs,
 } from '../api.js';
 
 const $ = (id) => document.getElementById(id);
@@ -172,6 +175,30 @@ document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
       state.view = 'storage';
       render();
       loadStorageIntoForm();
+    } else if (t.dataset.nav === 'dashboard') {
+      state.view = 'dashboard';
+      render();
+      loadDashboard();
+    } else if (t.dataset.nav === 'logs') {
+      state.view = 'logs';
+      render();
+      loadLogs();
+    } else if (t.dataset.nav === 'settings-basic') {
+      state.view = 'settings-basic';
+      render();
+      loadSettingsBasic();
+    } else if (t.dataset.nav === 'settings-sms') {
+      state.view = 'settings-sms';
+      render();
+      loadSettingsSms();
+    } else if (t.dataset.nav === 'settings-payment') {
+      state.view = 'settings-payment';
+      render();
+      loadSettingsPayment();
+    } else if (t.dataset.nav === 'settings-security') {
+      state.view = 'settings-security';
+      render();
+      loadSettingsSecurity();
     }
   });
 });
@@ -217,6 +244,12 @@ function render() {
   $('view-scenes').classList.toggle('hidden', state.view !== 'scenes');
   $('view-users').classList.toggle('hidden', state.view !== 'users');
   $('view-storage').classList.toggle('hidden', state.view !== 'storage');
+  $('view-dashboard').classList.toggle('hidden', state.view !== 'dashboard');
+  $('view-logs').classList.toggle('hidden', state.view !== 'logs');
+  $('view-settings-basic').classList.toggle('hidden', state.view !== 'settings-basic');
+  $('view-settings-sms').classList.toggle('hidden', state.view !== 'settings-sms');
+  $('view-settings-payment').classList.toggle('hidden', state.view !== 'settings-payment');
+  $('view-settings-security').classList.toggle('hidden', state.view !== 'settings-security');
   renderBreadcrumb();
   if (state.view === 'customers') renderCustomers();
   else if (state.view === 'plans') renderPlans();
@@ -1160,19 +1193,260 @@ async function loadUsers() {
 }
 
 // ---------- 启动 ----------
+// ---------- 工作台 ----------
+async function loadDashboard() {
+  try {
+    $('stat-customers').textContent = customers.length;
+    $('stat-plans').textContent = plans.length;
+    $('stat-scenes').textContent = scenes.length;
+    $('stat-users').textContent = users.length;
+    // 系统状态
+    const settings = await fetchAdminSettings().catch(() => ({ settings: {} }));
+    const storageCfg = await fetchStorageConfig().catch(() => ({ config: { provider: 'unknown' } }));
+    const smsProvider = settings.settings['sms.provider'] || 'mock';
+    const wxEnabled = settings.settings['payment.wechat.enabled'] || false;
+    const aliEnabled = settings.settings['payment.alipay.enabled'] || false;
+    $('dashboard-status').innerHTML = `
+      <div class="status-row"><span>存储</span><span class="badge badge-ok">${storageCfg.config.provider === 'local' ? '本地' : storageCfg.config.provider === 'qiniu' ? '七牛云' : '阿里云OSS'}</span></div>
+      <div class="status-row"><span>短信</span><span class="badge ${smsProvider === 'mock' ? 'badge-warn' : 'badge-ok'}">${smsProvider === 'mock' ? 'Mock（开发）' : smsProvider === 'aliyun' ? '阿里云' : '腾讯云'}</span></div>
+      <div class="status-row"><span>微信支付</span><span class="badge ${wxEnabled ? 'badge-ok' : 'badge-muted'}">${wxEnabled ? '已启用' : '未配置'}</span></div>
+      <div class="status-row"><span>支付宝</span><span class="badge ${aliEnabled ? 'badge-ok' : 'badge-muted'}">${aliEnabled ? '已启用' : '未配置'}</span></div>
+    `;
+    // 最近操作
+    const logs = await fetchOperationLogs({ limit: 8 }).catch(() => ({ logs: [] }));
+    if (!logs.logs.length) {
+      $('dashboard-logs').innerHTML = '<p class="muted">暂无操作记录</p>';
+    } else {
+      $('dashboard-logs').innerHTML = logs.logs.map((l) => `
+        <div class="log-item">
+          <span class="log-time">${l.created_at?.slice(5, 16) || ''}</span>
+          <span class="log-user">${l.username || '系统'}</span>
+          <span class="log-action">${l.detail || l.action}</span>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ---------- 操作日志 ----------
+let logState = { offset: 0, total: 0, limit: 50 };
+async function loadLogs() {
+  const action = $('log-filter-action').value;
+  const from = $('log-filter-from').value;
+  const to = $('log-filter-to').value;
+  try {
+    const data = await fetchOperationLogs({ action, from, to, limit: logState.limit, offset: logState.offset });
+    logState.total = data.total;
+    $('log-tbody').innerHTML = data.logs.map((l) => `
+      <tr>
+        <td>${l.created_at || ''}</td>
+        <td>${l.username || '-'}</td>
+        <td><span class="badge badge-muted">${l.action}</span></td>
+        <td>${l.target_type ? `${l.target_type}#${l.target_id || ''}` : '-'}</td>
+        <td>${l.detail || ''}</td>
+        <td>${l.ip || '-'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">暂无记录</td></tr>';
+    renderLogPagination();
+  } catch (e) {
+    showError(adminError, e.message);
+  }
+}
+function renderLogPagination() {
+  const pages = Math.ceil(logState.total / logState.limit);
+  if (pages <= 1) { $('log-pagination').innerHTML = ''; return; }
+  const cur = Math.floor(logState.offset / logState.limit) + 1;
+  let html = `<span class="muted">共 ${logState.total} 条</span>`;
+  if (cur > 1) html += `<button class="btn btn-ghost btn-sm" data-log-page="${cur - 2}">上一页</button>`;
+  html += `<span class="muted">第 ${cur}/${pages} 页</span>`;
+  if (cur < pages) html += `<button class="btn btn-ghost btn-sm" data-log-page="${cur}">下一页</button>`;
+  $('log-pagination').innerHTML = html;
+}
+$('log-pagination')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-log-page]');
+  if (!btn) return;
+  logState.offset = Number(btn.dataset.logPage) * logState.limit;
+  loadLogs();
+});
+$('btn-log-filter')?.addEventListener('click', () => { logState.offset = 0; loadLogs(); });
+$('btn-log-export')?.addEventListener('click', async () => {
+  try {
+    const data = await fetchOperationLogs({ limit: 5000 });
+    const rows = [['时间', '用户', '操作', '对象类型', '对象ID', '详情', 'IP']];
+    for (const l of data.logs) rows.push([l.created_at, l.username, l.action, l.target_type, l.target_id, l.detail, l.ip]);
+    const csv = rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `operation-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  } catch (e) { showError(adminError, e.message); }
+});
+
+// ---------- 基础设置 ----------
+async function loadSettingsBasic() {
+  try {
+    const { settings } = await fetchAdminSettings();
+    $('set-site-name').value = settings['site.name'] || '';
+    $('set-site-title').value = settings['site.title'] || '';
+    $('set-site-subtitle').value = settings['site.subtitle'] || '';
+    $('set-site-icp').value = settings['site.icp'] || '';
+    $('set-site-phone').value = settings['site.phone'] || '';
+    $('set-site-email').value = settings['site.email'] || '';
+    $('set-copyright-owner').value = settings['copyright.owner'] || '';
+    $('set-copyright-year').value = settings['copyright.year'] || '';
+    $('set-copyright-text').value = settings['copyright.text'] || '';
+    $('set-copyright-enabled').checked = settings['copyright.enabled'] !== false;
+  } catch (e) { showError(adminError, e.message); }
+}
+$('btn-save-basic')?.addEventListener('click', async () => {
+  try {
+    await saveAdminSettings({
+      'site.name': $('set-site-name').value,
+      'site.title': $('set-site-title').value,
+      'site.subtitle': $('set-site-subtitle').value,
+      'site.icp': $('set-site-icp').value,
+      'site.phone': $('set-site-phone').value,
+      'site.email': $('set-site-email').value,
+      'copyright.owner': $('set-copyright-owner').value,
+      'copyright.year': $('set-copyright-year').value,
+      'copyright.text': $('set-copyright-text').value,
+      'copyright.enabled': $('set-copyright-enabled').checked,
+    });
+    showError(adminError, '基础设置已保存', false);
+  } catch (e) { showError(adminError, e.message); }
+});
+
+// ---------- 短信接口 ----------
+async function loadSettingsSms() {
+  try {
+    const { settings } = await fetchAdminSettings();
+    $('set-sms-provider').value = settings['sms.provider'] || 'mock';
+    toggleSmsProviderFields();
+    $('set-sms-aliyun-ak').value = settings['sms.aliyun.accessKey'] || '';
+    $('set-sms-aliyun-sk').value = '';
+    $('set-sms-aliyun-sign').value = settings['sms.aliyun.signName'] || '';
+    $('set-sms-aliyun-tpl').value = settings['sms.aliyun.templateCode'] || '';
+    $('set-sms-tencent-ak').value = settings['sms.tencent.secretId'] || '';
+    $('set-sms-tencent-sk').value = '';
+    $('set-sms-tencent-appid').value = settings['sms.tencent.appId'] || '';
+    $('set-sms-tencent-sign').value = settings['sms.tencent.signName'] || '';
+    $('set-sms-tencent-tpl').value = settings['sms.tencent.templateId'] || '';
+  } catch (e) { showError(adminError, e.message); }
+}
+function toggleSmsProviderFields() {
+  const p = $('set-sms-provider').value;
+  $('sms-aliyun-fields').hidden = p !== 'aliyun';
+  $('sms-tencent-fields').hidden = p !== 'tencent';
+}
+$('set-sms-provider')?.addEventListener('change', toggleSmsProviderFields);
+$('btn-save-sms')?.addEventListener('click', async () => {
+  try {
+    const provider = $('set-sms-provider').value;
+    const pairs = { 'sms.provider': provider };
+    if (provider === 'aliyun') {
+      pairs['sms.aliyun.accessKey'] = $('set-sms-aliyun-ak').value;
+      if ($('set-sms-aliyun-sk').value) pairs['sms.aliyun.secretKey'] = $('set-sms-aliyun-sk').value;
+      pairs['sms.aliyun.signName'] = $('set-sms-aliyun-sign').value;
+      pairs['sms.aliyun.templateCode'] = $('set-sms-aliyun-tpl').value;
+    } else if (provider === 'tencent') {
+      pairs['sms.tencent.secretId'] = $('set-sms-tencent-ak').value;
+      if ($('set-sms-tencent-sk').value) pairs['sms.tencent.secretKey'] = $('set-sms-tencent-sk').value;
+      pairs['sms.tencent.appId'] = $('set-sms-tencent-appid').value;
+      pairs['sms.tencent.signName'] = $('set-sms-tencent-sign').value;
+      pairs['sms.tencent.templateId'] = $('set-sms-tencent-tpl').value;
+    }
+    await saveAdminSettings(pairs);
+    showError(adminError, '短信接口已保存', false);
+  } catch (e) { showError(adminError, e.message); }
+});
+
+// ---------- 支付设置 ----------
+let currentPayTab = 'wechat';
+async function loadSettingsPayment() {
+  try {
+    const { settings } = await fetchAdminSettings();
+    $('set-wx-mch').value = settings['payment.wechat.mchId'] || '';
+    $('set-wx-key').value = '';
+    $('set-wx-appid').value = settings['payment.wechat.appId'] || '';
+    $('set-wx-callback').value = settings['payment.wechat.callbackUrl'] || '';
+    $('set-wx-enabled').checked = !!settings['payment.wechat.enabled'];
+    $('set-ali-appid').value = settings['payment.alipay.appId'] || '';
+    $('set-ali-privatekey').value = settings['payment.alipay.privateKey'] || '';
+    $('set-ali-publickey').value = settings['payment.alipay.publicKey'] || '';
+    $('set-ali-callback').value = settings['payment.alipay.callbackUrl'] || '';
+    $('set-ali-enabled').checked = !!settings['payment.alipay.enabled'];
+  } catch (e) { showError(adminError, e.message); }
+}
+document.querySelectorAll('.payment-tabs .tab').forEach((t) => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.payment-tabs .tab').forEach((x) => x.classList.toggle('active', x === t));
+    currentPayTab = t.dataset.pay;
+    $('pay-wechat-fields').hidden = currentPayTab !== 'wechat';
+    $('pay-alipay-fields').hidden = currentPayTab !== 'alipay';
+  });
+});
+$('btn-save-payment')?.addEventListener('click', async () => {
+  try {
+    const pairs = {
+      'payment.wechat.mchId': $('set-wx-mch').value,
+      'payment.wechat.appId': $('set-wx-appid').value,
+      'payment.wechat.callbackUrl': $('set-wx-callback').value,
+      'payment.wechat.enabled': $('set-wx-enabled').checked,
+      'payment.alipay.appId': $('set-ali-appid').value,
+      'payment.alipay.privateKey': $('set-ali-privatekey').value,
+      'payment.alipay.publicKey': $('set-ali-publickey').value,
+      'payment.alipay.callbackUrl': $('set-ali-callback').value,
+      'payment.alipay.enabled': $('set-ali-enabled').checked,
+    };
+    if ($('set-wx-key').value) pairs['payment.wechat.apiKey'] = $('set-wx-key').value;
+    await saveAdminSettings(pairs);
+    showError(adminError, '支付设置已保存', false);
+  } catch (e) { showError(adminError, e.message); }
+});
+
+// ---------- 安全设置 ----------
+async function loadSettingsSecurity() {
+  try {
+    const { settings } = await fetchAdminSettings();
+    $('set-sec-fail-limit').value = settings['security.loginFailLimit'] ?? 5;
+    $('set-sec-session').value = settings['security.sessionTimeout'] ?? 0;
+    $('set-sec-pwd-min').value = settings['security.passwordMinLength'] ?? 6;
+    $('set-sec-pwd-complex').checked = !!settings['security.passwordComplex'];
+  } catch (e) { showError(adminError, e.message); }
+}
+$('btn-save-security')?.addEventListener('click', async () => {
+  try {
+    await saveAdminSettings({
+      'security.loginFailLimit': Number($('set-sec-fail-limit').value),
+      'security.sessionTimeout': Number($('set-sec-session').value),
+      'security.passwordMinLength': Number($('set-sec-pwd-min').value),
+      'security.passwordComplex': $('set-sec-pwd-complex').checked,
+    });
+    showError(adminError, '安全设置已保存', false);
+  } catch (e) { showError(adminError, e.message); }
+});
+
 async function boot() {
   currentUser = getCurrentUser();
-  // 仅 admin 可见用户管理和存储设置
+  // 仅 admin 可见用户管理、操作日志和系统设置
   const isAdmin = currentUser?.role === 'admin';
   $('nav-users').style.display = isAdmin ? '' : 'none';
-  document.querySelector('.sidebar-nav .nav-item[data-nav="storage"]').style.display = isAdmin ? '' : 'none';
+  document.querySelector('.nav-item[data-nav="logs"]').style.display = isAdmin ? '' : 'none';
+  document.querySelector('.nav-group-title').style.display = isAdmin ? '' : 'none';
+  ['storage', 'settings-basic', 'settings-sms', 'settings-payment', 'settings-security'].forEach((n) => {
+    document.querySelector(`.nav-item[data-nav="${n}"]`).style.display = isAdmin ? '' : 'none';
+  });
 
   await Promise.all([loadCustomers(), loadPlans(), loadScenes()]);
   if (isAdmin) await loadUsers();
-  state.view = 'customers';
+  state.view = 'dashboard';
   state.currentCustomer = null;
   state.currentPlan = null;
   render();
+  loadDashboard();
 }
 
 if (isLoggedIn()) {

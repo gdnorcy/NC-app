@@ -1,4 +1,4 @@
-import { fetchProjects, fetchProject, fetchShare } from './api.js';
+import { fetchProjects, fetchProject, fetchShare, fetchPublicSettings } from './api.js';
 import { PanoramaViewer } from './viewer/PanoramaViewer.js';
 import { parseViewPath } from './routing.js';
 
@@ -242,6 +242,28 @@ window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
 
 // ---- 启动 ----
 async function init() {
+  // 加载公开设置（站点名称、版权）
+  try {
+    const { settings } = await fetchPublicSettings();
+    if (settings['site.name']) document.title = settings['site.name'];
+    if (settings['site.title']) {
+      const logo = document.querySelector('.projects-logo');
+      if (logo) logo.textContent = settings['site.title'];
+    }
+    if (settings['site.subtitle']) {
+      const sub = document.querySelector('.projects-subtitle');
+      if (sub) sub.textContent = settings['site.subtitle'];
+    }
+    if (settings['copyright.enabled'] !== false) {
+      const footer = $('site-footer');
+      const year = settings['copyright.year'] || new Date().getFullYear();
+      const owner = settings['copyright.owner'] || '';
+      const text = settings['copyright.text'] || (owner ? `© ${year} ${owner} 版权所有` : `© ${year}`);
+      footer.textContent = text;
+      footer.classList.remove('hidden');
+    }
+  } catch { /* 公开设置加载失败不影响主流程 */ }
+
   // 陀螺仪按钮仅移动端显示
   if (isTouch && typeof DeviceOrientationEvent !== 'undefined') {
     btnGyro.classList.remove('hidden');

@@ -3,7 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { config } from '../config.js';
-import { toCustomer, toPlan, genShareToken } from '../db.js';
+import { toCustomer, toPlan, genShareToken, addOperationLog } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 
@@ -78,6 +78,7 @@ export function createCustomersRouter(db) {
       )
       .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_customer', targetType: 'customer', targetId: info.lastInsertRowid, detail: `创建客户: ${customerName}`, ip: req.ip });
     res.status(201).json({ project: toCustomer(row) });
   });
 
@@ -102,6 +103,7 @@ export function createCustomersRouter(db) {
        WHERE id = ?`
     ).run(next.customerName, next.logoPath, next.description, next.validFrom, next.validUntil, next.isPinned, next.remark, next.status, id);
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_customer', targetType: 'customer', targetId: id, detail: `更新客户: ${next.customerName}`, ip: req.ip });
     res.json({ project: toCustomer(updated) });
   });
 
@@ -116,6 +118,7 @@ export function createCustomersRouter(db) {
     const fallback = db.prepare('SELECT id FROM projects WHERE id != ? ORDER BY id ASC LIMIT 1').get(id)?.id;
     db.prepare('UPDATE plans SET project_id = ? WHERE project_id = ?').run(fallback, id);
     db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'delete_customer', targetType: 'customer', targetId: id, detail: `删除客户: ${row.customer_name}`, ip: req.ip });
     res.json({ ok: true });
   });
 

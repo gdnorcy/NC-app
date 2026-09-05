@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from './config.js';
-import { verifyPassword, hashPassword, toUser } from './db.js';
+import { verifyPassword, hashPassword, toUser, addOperationLog } from './db.js';
 import { getSmsProvider, genSmsCode } from './sms.js';
 
 const VALID_ROLES = ['admin', 'manager', 'editor', 'viewer'];
@@ -36,6 +36,7 @@ export function createAuthRouter(db) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const token = issueToken(user);
+    addOperationLog(db, { userId: user.id, username: user.username, action: 'login', targetType: 'auth', detail: '账号密码登录', ip: req.ip });
     return res.json({ token, user: toUser(user) });
   });
 
@@ -127,6 +128,7 @@ export function createAuthRouter(db) {
       .run(uname, phone, hash, salt, 'editor', 'active');
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
     const token = issueToken(user);
+    addOperationLog(db, { userId: user.id, username: user.username, action: 'register', targetType: 'auth', detail: `手机号注册: ${phone}`, ip: req.ip });
     return res.json({ token, user: toUser(user) });
   });
 
@@ -159,6 +161,7 @@ export function createAuthRouter(db) {
     }
     db.prepare('UPDATE sms_codes SET used = 1 WHERE id = ?').run(record.id);
     const token = issueToken(user);
+    addOperationLog(db, { userId: user.id, username: user.username, action: 'login', targetType: 'auth', detail: '手机号验证码登录', ip: req.ip });
     return res.json({ token, user: toUser(user) });
   });
 

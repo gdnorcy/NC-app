@@ -4,7 +4,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
 import { config } from '../config.js';
-import { toPlan, toScene, genShareToken } from '../db.js';
+import { toPlan, toScene, genShareToken, addOperationLog } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 
@@ -175,6 +175,7 @@ export function createPlansRouter(db) {
       )
       .run(pid, name, description, coverPath, sortOrder, published, genShareToken(), shareEnabled);
     const row = db.prepare('SELECT * FROM plans WHERE id = ?').get(info.lastInsertRowid);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_plan', targetType: 'plan', targetId: info.lastInsertRowid, detail: `创建方案: ${name}`, ip: req.ip });
     res.status(201).json({ plan: toPlan(row) });
   });
 
@@ -199,6 +200,7 @@ export function createPlansRouter(db) {
        WHERE id = ?`
     ).run(next.projectId, next.name, next.description, next.coverPath, next.sortOrder, next.published, next.shareToken, next.shareEnabled, id);
     const updated = db.prepare('SELECT * FROM plans WHERE id = ?').get(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_plan', targetType: 'plan', targetId: id, detail: `更新方案: ${next.name}`, ip: req.ip });
     res.json({ plan: toPlan(updated) });
   });
 
@@ -210,6 +212,7 @@ export function createPlansRouter(db) {
     // 方案内场景归入默认方案，避免孤儿数据
     const fallback = db.prepare('SELECT id FROM plans ORDER BY sort_order ASC, id ASC LIMIT 1').get()?.id;
     db.prepare('UPDATE scenes SET plan_id = ? WHERE plan_id = ?').run(fallback ?? null, id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'delete_plan', targetType: 'plan', targetId: id, detail: `删除方案: ${row.name}`, ip: req.ip });
     res.json({ ok: true });
   });
 

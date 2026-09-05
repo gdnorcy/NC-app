@@ -3,7 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { config } from '../config.js';
-import { toScene, genShareToken } from '../db.js';
+import { toScene, genShareToken, addOperationLog } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 import { generatePyramidTiles, pyramidTileUrls } from '../tiling.js';
@@ -123,6 +123,7 @@ export function createScenesRouter(db) {
       )
       .run(title, description, imagePath, previewPath, pyramid, pid, shareEnabled ? genShareToken() : '', shareEnabled, sortOrder, published);
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_scene', targetType: 'scene', targetId: info.lastInsertRowid, detail: `创建场景: ${title}`, ip: req.ip });
     res.status(201).json({ scene: toScene(row) });
   });
 
@@ -155,6 +156,7 @@ export function createScenesRouter(db) {
     ).run(next.title, next.description, next.imagePath, next.previewPath, next.pyramid, next.sortOrder, next.published, next.planId, next.shareToken, next.shareEnabled, id);
 
     const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_scene', targetType: 'scene', targetId: id, detail: `更新场景: ${next.title}`, ip: req.ip });
     res.json({ scene: toScene(updated) });
   });
 
@@ -184,6 +186,7 @@ export function createScenesRouter(db) {
     } catch (e) {
       console.warn('删除存储文件失败:', e);
     }
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'delete_scene', targetType: 'scene', targetId: id, detail: `删除场景: ${row.title}`, ip: req.ip });
     res.json({ ok: true });
   });
 
