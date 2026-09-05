@@ -208,8 +208,11 @@ form.addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   try {
     if (fileInput.files.length) {
-      uploadState.textContent = '上传中…';
-      const uploaded = await uploadImage(fileInput.files[0]);
+      const file = fileInput.files[0];
+      // 大图（>=3MB 或常见 8K 源）上传会触发金字塔切片，耗时较长，提前告知
+      const willTile = file.size >= 3 * 1024 * 1024;
+      uploadState.textContent = willTile ? '上传中…大图将自动生成金字塔切片，请耐心等待' : '上传中…';
+      const uploaded = await uploadImage(file);
       imagePath = uploaded.path;
       previewPath = uploaded.previewPath;
     }

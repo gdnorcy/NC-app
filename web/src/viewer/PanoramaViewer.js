@@ -6,11 +6,12 @@ import {
   directionFromYawPitch,
 } from './controls.js';
 import { planProgressiveLoad } from './progressive.js';
-import { pickTargetLevel, tileUrl, visibleTiles } from './pyramid.js';
+import { pickTargetLevel, tileUrl, visibleTiles, expandTiles } from './pyramid.js';
 
 const RADIUS = 50;
 const FOV_MIN = 30;
 const FOV_MAX = 110;
+const TILE_CONCURRENCY = 4; // 瓦片同时加载数（防移动端连接风暴）
 
 /**
  * 360 全景查看器（Three.js 实现）：
@@ -49,6 +50,8 @@ export class PanoramaViewer {
     this._tileMeshes = [];
     this._tileCache = new Map();
     this._tileLoading = new Set();
+    this._tileQueue = [];
+    this._activeTileLoads = 0;
     this._pyramidTimer = 0;
     this._lastView = { yaw: 0, pitch: 0, fov: 75 };
 
@@ -155,27 +158,51 @@ export class PanoramaViewer {
     this._tileMeshes = [];
     this._tileCache.clear();
     this._tileLoading.clear();
+    this._tileQueue = [];
+    this._activeTileLoads = 0;
   }
 
-  /** 按当前视角刷新可见瓦片：加载缺失、卸载远离视口的 */
+  /** 按当前视角刷新瓦片：可见集 + 周边一圈预取，并发受限加载，卸载远离视口的 */
   _refreshTiles() {
     if (!this._pyramid || !this._pyramidTarget) return;
+    const level = this._pyramidTarget;
     const dir = directionFromYawPitch(this.yaw, this.pitch);
     const halfFovX = ((this.fov * Math.PI) / 180) * this.aspect() * 0.5;
     const halfFovY = ((this.fov * Math.PI) / 180) * 0.5;
-    const want = visibleTiles(this._pyramidTarget, dir, halfFovX, halfFovY);
-    const wantKey = new Set(want.map(([c, r]) => `${c}_${r}`));
+    const want = expandTiles(visibleTiles(level, dir, halfFovX, halfFovY), level);
+    const keep = new Set(want.map((e) => `${e.col}_${e.row}`));
 
-    // 卸载不在可见集的瓦片（释放 GPU 纹理）
+    // 卸载不在保留集（可见 + 预取）的瓦片（释放 GPU 纹理）
     for (const mesh of [...this._tileMeshes]) {
-      if (!wantKey.has(mesh.userData.key)) this._removeTileMesh(mesh);
+      if (!keep.has(mesh.userData.key)) this._removeTileMesh(mesh);
     }
-    // 加载缺失瓦片：中心优先
-    const sorted = [...want].sort((a, b) => this._tileCenterAngle(a, dir) - this._tileCenterAngle(b, dir));
-    for (const [col, row] of sorted) {
-      const key = `${col}_${row}`;
-      if (this._tileCache.has(key) || this._tileLoading.has(key)) continue;
-      this._loadTile(col, row, key);
+    // 入队：可见优先、其次预取，同优先级按视角中心距离
+    const ordered = [...want].sort((a, b) => {
+      if (a.priority !== b.priority) return b.priority - a.priority;
+      return this._tileCenterAngle([a.col, a.row], dir) - this._tileCenterAngle([b.col, b.row], dir);
+    });
+    for (const e of ordered) {
+      const key = `${e.col}_${e.row}`;
+      if (this._tileCache.has(key) || this._tileLoading.has(key) || this._tileQueue.some((q) => q.key === key)) continue;
+      this._enqueueTile({ col: e.col, row: e.row, key });
+    }
+  }
+
+  _enqueueTile(entry) {
+    this._tileQueue.push(entry);
+    this._drainTileQueue();
+  }
+
+  /** 并发受限调度：最多 TILE_CONCURRENCY 个同时在途 */
+  _drainTileQueue() {
+    while (this._tileQueue.length && this._activeTileLoads < TILE_CONCURRENCY) {
+      const entry = this._tileQueue.shift();
+      if (this._tileCache.has(entry.key) || this._tileLoading.has(entry.key)) continue;
+      this._activeTileLoads++;
+      this._loadTile(entry.col, entry.row, entry.key).finally(() => {
+        this._activeTileLoads--;
+        this._drainTileQueue();
+      });
     }
   }
 

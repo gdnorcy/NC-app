@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickTargetLevel, tileUrl, visibleTiles } from '../src/viewer/pyramid.js';
+import { pickTargetLevel, tileUrl, visibleTiles, expandTiles } from '../src/viewer/pyramid.js';
 
 const LEVELS = [
   { width: 8192, height: 4096, cols: 8, rows: 8 },
@@ -69,5 +69,28 @@ describe('visibleTiles', () => {
     const n = visibleTiles(LEVELS[1], dir, narrow, narrow).length;
     const w = visibleTiles(LEVELS[1], dir, wide, wide).length;
     expect(n).toBeLessThan(w);
+  });
+});
+
+describe('expandTiles', () => {
+  it('可见集四周扩展一圈，可见优先级 1 预取 0', () => {
+    const expanded = expandTiles([[1, 1]], LEVELS[1]); // 4x4 层
+    const byKey = new Map(expanded.map((e) => [`${e.col}_${e.row}`, e.priority]));
+    expect(byKey.get('1_1')).toBe(1); // 原瓦片保持可见优先级
+    expect(byKey.get('0_1')).toBe(0); // 左邻预取
+    expect(byKey.get('2_1')).toBe(0); // 右邻
+    expect(byKey.get('1_0')).toBe(0); // 上邻
+    expect(byKey.get('1_2')).toBe(0); // 下邻
+  });
+
+  it('经度环绕：col-1 在 0 处环绕到最后列', () => {
+    const expanded = expandTiles([[0, 0]], LEVELS[1]);
+    const cols = expanded.filter((e) => e.col === 3 && e.row === 0);
+    expect(cols.length).toBe(1);
+  });
+
+  it('纬度钳制：顶行无越界行', () => {
+    const expanded = expandTiles([[1, 0]], LEVELS[1]);
+    expect(expanded.every((e) => e.row >= 0 && e.row <= 3)).toBe(true);
   });
 });

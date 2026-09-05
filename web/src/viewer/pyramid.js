@@ -39,3 +39,22 @@ export function visibleTiles(level, dir, halfFovX, halfFovY, pad = 0.5) {
   }
   return tiles;
 }
+
+/**
+ * 可见集膨胀：向四周扩展一圈瓦片用于预取（经度环绕，纬度钳制），
+ * 拖动视角时边缘不会露出低清 base。返回 [{col,row,priority}]，可见=1 预取=0。
+ */
+export function expandTiles(visible, level) {
+  if (!level || !Array.isArray(visible)) return [];
+  const map = new Map();
+  for (const [c, r] of visible) {
+    map.set(`${c}_${r}`, { col: c, row: r, priority: 1 });
+    for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const nc = (c + dc + level.cols) % level.cols;
+      const nr = Math.max(0, Math.min(level.rows - 1, r + dr));
+      const k = `${nc}_${nr}`;
+      if (!map.has(k)) map.set(k, { col: nc, row: nr, priority: 0 });
+    }
+  }
+  return [...map.values()];
+}
