@@ -44,9 +44,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           <span>工作台</span>
         </a>
-        <a class="nav-item" data-nav="plans">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          <span>我的方案</span>
+        <a class="nav-item" data-nav="apps">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <span>应用</span>
         </a>
         <a class="nav-item" data-nav="orders">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -126,14 +126,32 @@
           </div>
         </section>
 
-        <!-- 我的方案 -->
+        <!-- 应用中心 -->
+        <section id="view-apps" class="view hidden">
+          <div class="page-header">
+            <div class="page-header-left">
+              <h2>应用</h2>
+              <p class="page-desc">您已开通的解决方案</p>
+            </div>
+          </div>
+          <div id="apps-grid" class="apps-grid"></div>
+          <div class="empty-state hidden" id="apps-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            <p>暂未开通任何应用</p>
+          </div>
+        </section>
+
+        <!-- 360全景 - 方案列表 -->
         <section id="view-plans" class="view hidden">
           <div class="page-header">
             <div class="page-header-left">
-              <h2>我的方案</h2>
+              <h2>360全景</h2>
               <p class="page-desc">管理您名下的所有全景方案</p>
             </div>
-            <button id="btn-add-plan" class="btn-primary admin-only">新建方案</button>
+            <div style="display:flex;gap:10px;">
+              <button id="btn-back-to-apps" class="btn-ghost">返回应用</button>
+              <button id="btn-add-plan" class="btn-primary admin-only">新建方案</button>
+            </div>
           </div>
           <div class="card">
             <div class="card-body">

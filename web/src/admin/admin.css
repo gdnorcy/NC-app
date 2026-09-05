@@ -1060,3 +1060,47 @@ dialog::backdrop {
   gap: 12px;
   padding: 16px 0;
 }
+
+/* 解决方案多选 */
+.solution-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.solution-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--card);
+}
+.solution-checkbox:hover {
+  border-color: var(--primary);
+}
+.solution-checkbox.checked {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.solution-checkbox input {
+  margin: 0;
+}
+.solution-checkbox .sol-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+.solution-checkbox .sol-code {
+  font-size: 11px;
+  color: var(--text-3);
+  font-family: monospace;
+}
+.field-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 6px;
+}

@@ -283,11 +283,38 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
   `);
+
+  // —— solutions 表（解决方案/应用）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS solutions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      code TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL DEFAULT '',
+      icon TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  // 预置360全景解决方案
+  const exists = db.prepare('SELECT id FROM solutions WHERE code = ?').get('panorama');
+  if (!exists) {
+    db.prepare("INSERT INTO solutions (name, code, description, icon, enabled, sort_order) VALUES ('360全景', 'panorama', '沉浸式360度全景展示解决方案', '', 1, 1)").run();
+  }
+
+  // —— projects（客户）表加 solutions 字段 ——
+  if (!colExists(db, 'projects', 'solutions')) {
+    db.exec("ALTER TABLE projects ADD COLUMN solutions TEXT NOT NULL DEFAULT '[\"panorama\"]'");
+  }
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
 export function toCustomer(row) {
   if (!row) return null;
+  let solutions = ['panorama'];
+  try { solutions = JSON.parse(row.solutions || '["panorama"]'); } catch {}
   return {
     id: row.id,
     customerName: row.customer_name,
@@ -298,6 +325,23 @@ export function toCustomer(row) {
     isPinned: Boolean(row.is_pinned),
     remark: row.remark || '',
     status: row.status || 'active',
+    solutions,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** 数据库行 -> 解决方案 API JSON */
+export function toSolution(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    code: row.code,
+    description: row.description || '',
+    icon: row.icon || '',
+    enabled: Boolean(row.enabled),
+    sortOrder: row.sort_order || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

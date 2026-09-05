@@ -31,6 +31,10 @@ import {
   fetchAdminSettings,
   saveAdminSettings,
   fetchOperationLogs,
+  listSolutions,
+  createSolution,
+  updateSolution,
+  deleteSolution,
 } from '../api.js';
 
 const $ = (id) => document.getElementById(id);
@@ -51,6 +55,7 @@ let customers = [];
 let plans = [];
 let scenes = [];
 let users = [];
+let solutions = [];
 let currentUser = null;
 let customerFilter = 'all'; // all | active | expiring | expired | disabled
 let customerSearch = '';
@@ -215,6 +220,10 @@ document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
       state.view = 'settings-security';
       render();
       loadSettingsSecurity();
+    } else if (t.dataset.nav === 'solutions') {
+      state.view = 'solutions';
+      render();
+      loadSolutions();
     }
   });
 });
@@ -288,11 +297,13 @@ function render() {
   $('view-settings-sms').classList.toggle('hidden', state.view !== 'settings-sms');
   $('view-settings-payment').classList.toggle('hidden', state.view !== 'settings-payment');
   $('view-settings-security').classList.toggle('hidden', state.view !== 'settings-security');
+  $('view-solutions').classList.toggle('hidden', state.view !== 'solutions');
   renderBreadcrumb();
   if (state.view === 'customers') renderCustomers();
   else if (state.view === 'plans') renderPlans();
   else if (state.view === 'scenes') renderScenes();
   else if (state.view === 'users') renderUsers();
+  else if (state.view === 'solutions') renderSolutions();
 }
 
 $('btn-back-from-plans').addEventListener('click', () => {
@@ -432,6 +443,93 @@ $('customer-grid').addEventListener('click', async (e) => {
   }
 });
 
+// ---------- 解决方案管理 ----------
+async function loadSolutions() {
+  try {
+    const { solutions: list } = await listSolutions();
+    solutions = list;
+    renderSolutions();
+  } catch (err) {
+    showError(adminError, err.message);
+  }
+}
+
+function renderSolutions() {
+  if (!solutions.length) {
+    $('solutions-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:40px;">暂无解决方案</td></tr>';
+    return;
+  }
+  $('solutions-tbody').innerHTML = solutions.map((s) => `
+    <tr data-id="${s.id}">
+      <td style="font-weight:500;">${esc(s.name)}</td>
+      <td><code style="font-size:12px;color:var(--text-2);">${esc(s.code)}</code></td>
+      <td style="color:var(--text-2);">${esc(s.description || '—')}</td>
+      <td>${s.sortOrder || 0}</td>
+      <td><span class="tag ${s.enabled ? 'tag-success' : 'tag-default'}">${s.enabled ? '已启用' : '已禁用'}</span></td>
+      <td>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-ghost btn-sm act-edit-sol">编辑</button>
+          ${s.code !== 'panorama' ? '<button class="btn-ghost btn-sm act-del-sol" style="color:var(--danger);">删除</button>' : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+let editingSolutionId = null;
+function openSolutionDialog(sol) {
+  editingSolutionId = sol ? sol.id : null;
+  $('solution-dialog-title').textContent = sol ? '编辑解决方案' : '新建解决方案';
+  $('sol-id').value = sol ? sol.id : '';
+  $('sol-name').value = sol ? sol.name : '';
+  $('sol-code').value = sol ? sol.code : '';
+  $('sol-code').disabled = !!sol;
+  $('sol-desc').value = sol ? sol.description || '' : '';
+  $('sol-icon').value = sol ? sol.icon || '' : '';
+  $('sol-sort').value = sol ? sol.sortOrder || 0 : 0;
+  $('sol-enabled').checked = sol ? sol.enabled : true;
+  $('solution-dialog').showModal();
+}
+
+$('btn-add-solution').addEventListener('click', () => openSolutionDialog(null));
+$('solution-cancel').addEventListener('click', () => $('solution-dialog').close());
+
+$('solution-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    const payload = {
+      name: $('sol-name').value.trim(),
+      description: $('sol-desc').value.trim(),
+      icon: $('sol-icon').value.trim(),
+      sortOrder: Number($('sol-sort').value) || 0,
+      enabled: $('sol-enabled').checked,
+    };
+    if (editingSolutionId) {
+      await updateSolution(editingSolutionId, payload);
+    } else {
+      payload.code = $('sol-code').value.trim();
+      await createSolution(payload);
+    }
+    $('solution-dialog').close();
+    loadSolutions();
+  } catch (err) {
+    showError(adminError, err.message);
+  }
+});
+
+$('solutions-tbody').addEventListener('click', (e) => {
+  const id = Number(e.target.closest('tr')?.dataset.id);
+  if (!id) return;
+  const sol = solutions.find((s) => s.id === id);
+  if (!sol) return;
+  if (e.target.classList.contains('act-edit-sol')) {
+    openSolutionDialog(sol);
+  } else if (e.target.classList.contains('act-del-sol')) {
+    if (!window.confirm(`确定删除解决方案「${sol.name}」？`)) return;
+    deleteSolution(id).then(() => loadSolutions()).catch((err) => showError(adminError, err.message));
+  }
+});
+
 // 客户 Tab 筛选
 document.querySelectorAll('.c-tab').forEach((tab) => {
   tab.addEventListener('click', () => {
@@ -472,8 +570,33 @@ function openCustomerEdit(customer, renewOnly = false) {
   }
   state.view = 'customer-edit';
   render();
+  renderSolutionCheckboxes(customer?.solutions || ['panorama']);
   if (renewOnly) $('cf-valid-until').focus();
   else $('cf-name').focus();
+}
+
+async function renderSolutionCheckboxes(selected = []) {
+  if (!solutions.length) {
+    try {
+      const { solutions: list } = await listSolutions();
+      solutions = list;
+    } catch { return; }
+  }
+  $('cf-solutions').innerHTML = solutions.filter((s) => s.enabled).map((s) => `
+    <label class="solution-checkbox ${selected.includes(s.code) ? 'checked' : ''}">
+      <input type="checkbox" value="${s.code}" ${selected.includes(s.code) ? 'checked' : ''} />
+      <span class="sol-name">${esc(s.name)}</span>
+      <span class="sol-code">${esc(s.code)}</span>
+    </label>
+  `).join('');
+  // 点击切换样式
+  $('cf-solutions').querySelectorAll('.solution-checkbox').forEach((el) => {
+    el.addEventListener('click', () => {
+      const input = el.querySelector('input');
+      input.checked = !input.checked;
+      el.classList.toggle('checked', input.checked);
+    });
+  });
 }
 
 $('btn-add-customer').addEventListener('click', () => openCustomerEdit(null));
@@ -507,6 +630,7 @@ $('customer-form').addEventListener('submit', async (e) => {
       const uploaded = await uploadCustomerLogo(fileInput.files[0]);
       logoPath = uploaded.logoPath;
     }
+    const selectedSolutions = Array.from($('cf-solutions').querySelectorAll('input:checked')).map((i) => i.value);
     const payload = {
       customerName: $('cf-name').value.trim(),
       description: $('cf-desc').value.trim(),
@@ -514,6 +638,7 @@ $('customer-form').addEventListener('submit', async (e) => {
       validUntil: $('cf-valid-until').value,
       isPinned: $('cf-pinned').checked,
       status: $('cf-status').value,
+      solutions: selectedSolutions.length ? selectedSolutions : ['panorama'],
     };
     if (logoPath) payload.logoPath = logoPath;
     if (editingCustomerId) {

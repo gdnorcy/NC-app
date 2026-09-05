@@ -128,6 +128,20 @@ export function impersonateCustomer(id) {
   });
 }
 
+// 解决方案
+export function listSolutions() {
+  return request('/api/admin/solutions', { headers: adminHeaders() });
+}
+export function createSolution(data) {
+  return request('/api/admin/solutions', { method: 'POST', headers: adminHeaders(), body: JSON.stringify(data) });
+}
+export function updateSolution(id, data) {
+  return request(`/api/admin/solutions/${id}`, { method: 'PUT', headers: adminHeaders(), body: JSON.stringify(data) });
+}
+export function deleteSolution(id) {
+  return request(`/api/admin/solutions/${id}`, { method: 'DELETE', headers: adminHeaders() });
+}
+
 export async function uploadCustomerLogo(file) {
   const form = new FormData();
   form.append('file', file);

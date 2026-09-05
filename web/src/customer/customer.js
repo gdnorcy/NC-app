@@ -163,18 +163,21 @@ function switchView(view) {
   document.querySelectorAll('.view').forEach((v) => v.classList.add('hidden'));
   $(`view-${view}`).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
-  // 场景管理高亮"我的方案"
-  const activeNav = view === 'scenes' ? 'plans' : view;
+  // 高亮对应侧边栏
+  const activeNav = view === 'plans' || view === 'scenes' ? 'apps' : view;
   document.querySelector(`.nav-item[data-nav="${activeNav}"]`)?.classList.add('active');
   // 面包屑
-  const names = { dashboard: '工作台', plans: '我的方案', scenes: '场景管理', orders: '我的账单', members: '成员管理', settings: '账号设置' };
+  const names = { dashboard: '工作台', apps: '应用', plans: '360全景', scenes: '场景管理', orders: '我的账单', members: '成员管理', settings: '账号设置' };
   if (view === 'scenes' && state.currentPlan) {
-    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('plans')">我的方案</span> <span style="color:var(--text-3);">/</span> <span>${state.currentPlan.name}</span>`;
+    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用</span> <span style="color:var(--text-3);">/</span> <span style="color:var(--text-3);cursor:pointer;" onclick="switchView('plans')">360全景</span> <span style="color:var(--text-3);">/</span> <span>${state.currentPlan.name}</span>`;
+  } else if (view === 'plans') {
+    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用</span> <span style="color:var(--text-3);">/</span> <span>360全景</span>`;
   } else {
     $('breadcrumb').innerHTML = `<span>${names[view] || view}</span>`;
   }
   // 加载数据
   if (view === 'dashboard') loadDashboard();
+  if (view === 'apps') renderApps();
   if (view === 'plans') loadPlans();
   if (view === 'scenes') loadScenes();
   if (view === 'orders') loadOrders();
@@ -238,6 +241,43 @@ async function loadDashboard() {
 }
 
 // ===== 我的方案 =====
+// ===== 应用中心 =====
+const SOLUTION_META = {
+  panorama: {
+    name: '360全景',
+    desc: '沉浸式360度全景展示，支持手机端和Web端浏览',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="10" ry="4"/><path d="M12 2v20"/></svg>',
+    color: '#165DFF',
+    action: () => switchView('plans'),
+  },
+};
+
+function renderApps() {
+  const enabled = state.customer?.solutions || ['panorama'];
+  const apps = enabled.map((code) => SOLUTION_META[code]).filter(Boolean);
+  if (!apps.length) {
+    $('apps-grid').innerHTML = '';
+    $('apps-empty').classList.remove('hidden');
+    return;
+  }
+  $('apps-empty').classList.add('hidden');
+  $('apps-grid').innerHTML = apps.map((app, i) => `
+    <div class="app-card" data-index="${i}" style="--app-color:${app.color}">
+      <div class="app-icon">${app.icon}</div>
+      <div class="app-info">
+        <div class="app-name">${app.name}</div>
+        <div class="app-desc">${app.desc}</div>
+      </div>
+      <button class="app-enter">进入应用</button>
+    </div>
+  `).join('');
+  $('apps-grid').querySelectorAll('.app-card').forEach((card, i) => {
+    card.querySelector('.app-enter').addEventListener('click', () => apps[i].action());
+  });
+}
+
+$('btn-back-to-apps')?.addEventListener('click', () => switchView('apps'));
+
 async function loadPlans() {
   try {
     const { plans } = await api('/plans');

@@ -510,3 +510,65 @@ body {
   .dashboard-row, .settings-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* 应用中心 */
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.app-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.app-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+  border-color: var(--app-color, var(--brand));
+}
+.app-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-color, var(--brand)) 10%, transparent);
+  color: var(--app-color, var(--brand));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-icon svg { width: 24px; height: 24px; }
+.app-info { flex: 1; }
+.app-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+.app-desc {
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.app-enter {
+  align-self: flex-start;
+  padding: 6px 16px;
+  border: 1px solid var(--app-color, var(--brand));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--app-color, var(--brand));
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.app-enter:hover {
+  background: var(--app-color, var(--brand));
+  color: #fff;
+}
