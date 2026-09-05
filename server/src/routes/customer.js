@@ -1,6 +1,6 @@
 // 客户（租户）后台 API —— 数据严格按 customer_id 隔离
 import { Router } from 'express';
-import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, hashPassword } from '../db.js';
+import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword } from '../db.js';
 
 export function createCustomerRouter(db) {
   const router = Router();
@@ -68,7 +68,7 @@ router.get('/dashboard', requireTenant, (req, res) => {
   });
 });
 
-// 我的方案（客户查看自己的方案列表，只读）
+// 我的方案（客户查看自己的方案列表）
 router.get('/plans', requireTenant, (req, res) => {
   const plans = db
     .prepare('SELECT * FROM plans WHERE project_id = ? ORDER BY sort_order ASC, id ASC')
@@ -78,6 +78,122 @@ router.get('/plans', requireTenant, (req, res) => {
       return { ...toPlan(p), sceneCount };
     });
   res.json({ plans });
+});
+
+// 校验方案属于当前租户
+function verifyPlanOwnership(req, res, planId) {
+  const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND project_id = ?').get(planId, req.customerId);
+  if (!plan) {
+    res.status(404).json({ error: '方案不存在' });
+    return null;
+  }
+  return plan;
+}
+
+// 新建方案
+router.post('/plans', requireTenant, requireTenantAdmin, (req, res) => {
+  const { name, description, coverPath } = req.body || {};
+  if (!name || !name.trim()) return res.status(400).json({ error: '方案名称必填' });
+  const info = db
+    .prepare(
+      'INSERT INTO plans (project_id, name, description, cover_path, share_token, share_enabled, sort_order) VALUES (?, ?, ?, ?, ?, 1, (SELECT COALESCE(MAX(sort_order),0)+1 FROM plans WHERE project_id = ?))'
+    )
+    .run(req.customerId, name.trim(), description || '', coverPath || '', genShareToken(), req.customerId);
+  const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(info.lastInsertRowid);
+  res.json({ plan: toPlan(plan) });
+});
+
+// 编辑方案
+router.put('/plans/:id', requireTenant, requireTenantAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const plan = verifyPlanOwnership(req, res, id);
+  if (!plan) return;
+  const { name, description, coverPath, published, shareEnabled } = req.body || {};
+  db.prepare(
+    "UPDATE plans SET name = COALESCE(?, name), description = COALESCE(?, description), cover_path = COALESCE(?, cover_path), published = COALESCE(?, published), share_enabled = COALESCE(?, share_enabled), updated_at = datetime('now') WHERE id = ?"
+  ).run(name ?? null, description ?? null, coverPath ?? null, published ?? null, shareEnabled ?? null, id);
+  const updated = db.prepare('SELECT * FROM plans WHERE id = ?').get(id);
+  res.json({ plan: toPlan(updated) });
+});
+
+// 删除方案
+router.delete('/plans/:id', requireTenant, requireTenantAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const plan = verifyPlanOwnership(req, res, id);
+  if (!plan) return;
+  // 场景归入默认方案
+  const defaultPlan = db.prepare('SELECT id FROM plans WHERE project_id = ? ORDER BY sort_order ASC, id ASC LIMIT 1').get(req.customerId);
+  if (defaultPlan && defaultPlan.id !== id) {
+    db.prepare('UPDATE scenes SET plan_id = ? WHERE plan_id = ?').run(defaultPlan.id, id);
+  }
+  db.prepare('DELETE FROM plans WHERE id = ?').run(id);
+  res.json({ ok: true });
+});
+
+// 方案下的场景列表
+router.get('/plans/:id/scenes', requireTenant, (req, res) => {
+  const id = Number(req.params.id);
+  const plan = verifyPlanOwnership(req, res, id);
+  if (!plan) return;
+  const scenes = db
+    .prepare('SELECT * FROM scenes WHERE plan_id = ? ORDER BY sort_order ASC, id ASC')
+    .all(id)
+    .map(toScene);
+  res.json({ scenes, plan: toPlan(plan) });
+});
+
+// 校验场景属于当前租户
+function verifySceneOwnership(req, res, sceneId) {
+  const scene = db
+    .prepare('SELECT s.* FROM scenes s JOIN plans p ON s.plan_id = p.id WHERE s.id = ? AND p.project_id = ?')
+    .get(sceneId, req.customerId);
+  if (!scene) {
+    res.status(404).json({ error: '场景不存在' });
+    return null;
+  }
+  return scene;
+}
+
+// 新建场景
+router.post('/scenes', requireTenant, requireTenantAdmin, (req, res) => {
+  const { planId, title, description, imagePath, previewPath, sortOrder, published } = req.body || {};
+  if (!planId) return res.status(400).json({ error: '方案ID必填' });
+  const plan = verifyPlanOwnership(req, res, planId);
+  if (!plan) return;
+  const info = db
+    .prepare(
+      'INSERT INTO scenes (plan_id, title, description, image_path, preview_path, sort_order, published) VALUES (?, ?, ?, ?, ?, COALESCE(?, (SELECT COALESCE(MAX(sort_order),0)+1 FROM scenes WHERE plan_id = ?)), ?)'
+    )
+    .run(planId, title || '未命名场景', description || '', imagePath || '', previewPath || '', sortOrder ?? null, planId, published ?? 1);
+  const scene = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
+  res.json({ scene: toScene(scene) });
+});
+
+// 编辑场景
+router.put('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const scene = verifySceneOwnership(req, res, id);
+  if (!scene) return;
+  const { title, description, imagePath, previewPath, planId, sortOrder, published, shareEnabled } = req.body || {};
+  // 如果改了 planId，校验新方案属于当前租户
+  if (planId && planId !== scene.plan_id) {
+    const newPlan = verifyPlanOwnership(req, res, planId);
+    if (!newPlan) return;
+  }
+  db.prepare(
+    "UPDATE scenes SET title = COALESCE(?, title), description = COALESCE(?, description), image_path = COALESCE(?, image_path), preview_path = COALESCE(?, preview_path), plan_id = COALESCE(?, plan_id), sort_order = COALESCE(?, sort_order), published = COALESCE(?, published), share_enabled = COALESCE(?, share_enabled), updated_at = datetime('now') WHERE id = ?"
+  ).run(title ?? null, description ?? null, imagePath ?? null, previewPath ?? null, planId ?? null, sortOrder ?? null, published ?? null, shareEnabled ?? null, id);
+  const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
+  res.json({ scene: toScene(updated) });
+});
+
+// 删除场景
+router.delete('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const scene = verifySceneOwnership(req, res, id);
+  if (!scene) return;
+  db.prepare('DELETE FROM scenes WHERE id = ?').run(id);
+  res.json({ ok: true });
 });
 
 // 我的账单

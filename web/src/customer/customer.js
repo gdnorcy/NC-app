@@ -7,6 +7,9 @@ let state = {
   user: null,
   customer: null,
   view: 'dashboard',
+  currentPlan: null,
+  plans: [],
+  scenes: [],
 };
 
 // ===== API 封装 =====
@@ -160,17 +163,25 @@ function switchView(view) {
   document.querySelectorAll('.view').forEach((v) => v.classList.add('hidden'));
   $(`view-${view}`).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
-  document.querySelector(`.nav-item[data-nav="${view}"]`)?.classList.add('active');
+  // 场景管理高亮"我的方案"
+  const activeNav = view === 'scenes' ? 'plans' : view;
+  document.querySelector(`.nav-item[data-nav="${activeNav}"]`)?.classList.add('active');
   // 面包屑
-  const names = { dashboard: '工作台', plans: '我的方案', orders: '我的账单', members: '成员管理', settings: '账号设置' };
-  $('breadcrumb').innerHTML = `<span>${names[view] || view}</span>`;
+  const names = { dashboard: '工作台', plans: '我的方案', scenes: '场景管理', orders: '我的账单', members: '成员管理', settings: '账号设置' };
+  if (view === 'scenes' && state.currentPlan) {
+    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('plans')">我的方案</span> <span style="color:var(--text-3);">/</span> <span>${state.currentPlan.name}</span>`;
+  } else {
+    $('breadcrumb').innerHTML = `<span>${names[view] || view}</span>`;
+  }
   // 加载数据
   if (view === 'dashboard') loadDashboard();
   if (view === 'plans') loadPlans();
+  if (view === 'scenes') loadScenes();
   if (view === 'orders') loadOrders();
   if (view === 'members') loadMembers();
   if (view === 'settings') loadSettings();
 }
+window.switchView = switchView;
 
 document.querySelectorAll('.nav-item').forEach((item) => {
   item.addEventListener('click', () => switchView(item.dataset.nav));
@@ -230,13 +241,22 @@ async function loadDashboard() {
 async function loadPlans() {
   try {
     const { plans } = await api('/plans');
+    state.plans = plans;
+    const isAdmin = state.user?.role === 'tenant_admin';
     if (plans.length) {
       $('plans-tbody').innerHTML = plans.map((p) => `
-        <tr>
-          <td>${p.name}</td>
+        <tr data-id="${p.id}">
+          <td><a href="javascript:void(0)" class="plan-name-link" data-id="${p.id}" style="color:var(--brand);font-weight:500;">${p.name}</a></td>
           <td>${p.sceneCount || 0}</td>
           <td><span class="tag ${p.shareEnabled ? 'tag-success' : 'tag-default'}">${p.shareEnabled ? '已分享' : '未分享'}</span></td>
           <td style="color:var(--text-3);">${p.createdAt?.substring(0, 10) || ''}</td>
+          <td>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-ghost btn-sm act-enter-scenes" data-id="${p.id}">管理场景</button>
+              ${isAdmin ? `<button class="btn-ghost btn-sm act-edit-plan" data-id="${p.id}">编辑</button>` : ''}
+              ${isAdmin ? `<button class="btn-ghost btn-sm act-del-plan" data-id="${p.id}" style="color:var(--danger);">删除</button>` : ''}
+            </div>
+          </td>
         </tr>
       `).join('');
       $('plans-empty').classList.add('hidden');
@@ -249,7 +269,169 @@ async function loadPlans() {
   }
 }
 
-// ===== 我的账单 =====
+// ===== 方案 CRUD =====
+let editingPlanId = null;
+
+function openPlanDialog(plan) {
+  editingPlanId = plan ? plan.id : null;
+  $('plan-dialog-title').textContent = plan ? '编辑方案' : '新建方案';
+  $('pf-id').value = plan ? plan.id : '';
+  $('pf-name').value = plan ? plan.name : '';
+  $('pf-desc').value = plan ? plan.description || '' : '';
+  $('pf-cover').value = plan ? plan.coverPath || '' : '';
+  $('pf-share').checked = plan ? plan.shareEnabled : true;
+  $('plan-dialog').showModal();
+}
+
+$('btn-add-plan')?.addEventListener('click', () => openPlanDialog(null));
+$('plan-cancel').addEventListener('click', () => $('plan-dialog').close());
+
+$('plan-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    const payload = {
+      name: $('pf-name').value.trim(),
+      description: $('pf-desc').value.trim(),
+      coverPath: $('pf-cover').value.trim(),
+      shareEnabled: $('pf-share').checked,
+    };
+    if (editingPlanId) {
+      await api(`/plans/${editingPlanId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('方案已更新');
+    } else {
+      await api('/plans', { method: 'POST', body: JSON.stringify(payload) });
+      toast('方案已创建');
+    }
+    $('plan-dialog').close();
+    loadPlans();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+});
+
+// 方案列表点击事件
+$('plans-tbody').addEventListener('click', (e) => {
+  const id = Number(e.target.dataset.id || e.target.closest('[data-id]')?.dataset.id);
+  if (!id) return;
+  const plan = state.plans.find((p) => p.id === id);
+  if (!plan) return;
+  if (e.target.classList.contains('act-enter-scenes') || e.target.classList.contains('plan-name-link')) {
+    state.currentPlan = plan;
+    $('scenes-title').textContent = plan.name;
+    $('scenes-desc').textContent = `管理「${plan.name}」下的全景场景`;
+    switchView('scenes');
+  } else if (e.target.classList.contains('act-edit-plan')) {
+    openPlanDialog(plan);
+  } else if (e.target.classList.contains('act-del-plan')) {
+    showConfirm('删除方案', `确定删除方案「${plan.name}」？其下场景将归入默认方案。`, async () => {
+      try {
+        await api(`/plans/${id}`, { method: 'DELETE' });
+        toast('方案已删除');
+        loadPlans();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  }
+});
+
+// ===== 场景管理 =====
+async function loadScenes() {
+  if (!state.currentPlan) return;
+  try {
+    const { scenes } = await api(`/plans/${state.currentPlan.id}/scenes`);
+    state.scenes = scenes;
+    const isAdmin = state.user?.role === 'tenant_admin';
+    if (scenes.length) {
+      $('scenes-tbody').innerHTML = scenes.map((s) => `
+        <tr data-id="${s.id}">
+          <td>${s.title || '未命名场景'}</td>
+          <td>${s.previewPath ? `<img src="${s.previewPath}" style="width:40px;height:24px;object-fit:cover;border-radius:4px;" />` : '<span style="color:var(--text-3);">—</span>'}</td>
+          <td>${s.sortOrder || 0}</td>
+          <td><span class="tag ${s.published ? 'tag-success' : 'tag-default'}">${s.published ? '已上架' : '未上架'}</span></td>
+          <td style="color:var(--text-3);">${s.createdAt?.substring(0, 10) || ''}</td>
+          <td>
+            <div style="display:flex;gap:8px;">
+              ${isAdmin ? `<button class="btn-ghost btn-sm act-edit-scene" data-id="${s.id}">编辑</button>` : ''}
+              ${isAdmin ? `<button class="btn-ghost btn-sm act-del-scene" data-id="${s.id}" style="color:var(--danger);">删除</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      $('scenes-empty').classList.add('hidden');
+    } else {
+      $('scenes-tbody').innerHTML = '';
+      $('scenes-empty').classList.remove('hidden');
+    }
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+$('btn-back-to-plans').addEventListener('click', () => switchView('plans'));
+
+let editingSceneId = null;
+function openSceneDialog(scene) {
+  editingSceneId = scene ? scene.id : null;
+  $('scene-dialog-title').textContent = scene ? '编辑场景' : '新建场景';
+  $('sf-id').value = scene ? scene.id : '';
+  $('sf-title').value = scene ? scene.title : '';
+  $('sf-desc').value = scene ? scene.description || '' : '';
+  $('sf-image').value = scene ? scene.imagePath || '' : '';
+  $('sf-preview').value = scene ? scene.previewPath || '' : '';
+  $('sf-sort').value = scene ? scene.sortOrder || 0 : 0;
+  $('sf-published').checked = scene ? scene.published : true;
+  $('scene-dialog').showModal();
+}
+
+$('btn-add-scene')?.addEventListener('click', () => openSceneDialog(null));
+$('scene-cancel').addEventListener('click', () => $('scene-dialog').close());
+
+$('scene-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    const payload = {
+      planId: state.currentPlan.id,
+      title: $('sf-title').value.trim(),
+      description: $('sf-desc').value.trim(),
+      imagePath: $('sf-image').value.trim(),
+      previewPath: $('sf-preview').value.trim(),
+      sortOrder: Number($('sf-sort').value) || 0,
+      published: $('sf-published').checked,
+    };
+    if (editingSceneId) {
+      await api(`/scenes/${editingSceneId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('场景已更新');
+    } else {
+      await api('/scenes', { method: 'POST', body: JSON.stringify(payload) });
+      toast('场景已创建');
+    }
+    $('scene-dialog').close();
+    loadScenes();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+});
+
+$('scenes-tbody').addEventListener('click', (e) => {
+  const id = Number(e.target.dataset.id);
+  if (!id) return;
+  const scene = state.scenes.find((s) => s.id === id);
+  if (!scene) return;
+  if (e.target.classList.contains('act-edit-scene')) {
+    openSceneDialog(scene);
+  } else if (e.target.classList.contains('act-del-scene')) {
+    showConfirm('删除场景', `确定删除场景「${scene.title || '未命名'}」？此操作不可恢复。`, async () => {
+      try {
+        await api(`/scenes/${id}`, { method: 'DELETE' });
+        toast('场景已删除');
+        loadScenes();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  }
+});
 async function loadOrders() {
   try {
     const { orders } = await api('/orders');

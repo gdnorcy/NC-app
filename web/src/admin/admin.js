@@ -390,7 +390,6 @@ function renderCustomers() {
         </div>
         <div class="c-card-footer">
           <button class="c-footer-btn act-enter">进入</button>
-          <button class="c-footer-btn act-login-as">进入后台</button>
           <button class="c-footer-btn act-edit">编辑</button>
           <button class="c-footer-btn act-renew">续费</button>
           <button class="c-footer-btn act-del del">删除</button>
@@ -407,10 +406,9 @@ $('customer-grid').addEventListener('click', async (e) => {
   const customer = customers.find((c) => c.id === id);
   if (!customer) return;
 
-  if (e.target.classList.contains('act-login-as')) {
+  if (e.target.classList.contains('act-enter')) {
     try {
       const { token } = await impersonateCustomer(id);
-      // 保存原 admin token，用于从客户后台返回
       localStorage.setItem('admin_token_backup', localStorage.getItem(TOKEN_KEY) || '');
       localStorage.setItem('customer_token', token);
       window.location.href = '/customer.html';
@@ -431,12 +429,6 @@ $('customer-grid').addEventListener('click', async (e) => {
     }
   } else if (e.target.classList.contains('act-renew')) {
     openCustomerEdit(customer, true);
-  } else if (e.target.classList.contains('act-enter') || !e.target.closest('button')) {
-    // 进入该客户的方案列表
-    state.view = 'plans';
-    state.currentCustomer = customer;
-    state.currentPlan = null;
-    render();
   }
 });
 
