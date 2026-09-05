@@ -162,6 +162,7 @@ function openDialog(scene) {
   dialogTitle.textContent = scene ? '编辑场景' : '新增场景';
   $('f-id').value = scene ? scene.id : '';
   $('f-image-path').value = scene ? scene.imagePath : '';
+  $('f-preview-path').value = scene ? scene.previewPath || '' : '';
   $('f-title').value = scene ? scene.title : '';
   $('f-desc').value = scene ? scene.description : '';
   $('f-sort').value = scene ? scene.sortOrder : 0;
@@ -169,7 +170,7 @@ function openDialog(scene) {
   $('f-file').value = '';
   const preview = $('f-preview');
   if (scene) {
-    preview.src = scene.imagePath;
+    preview.src = scene.previewPath || scene.imagePath;
     $('f-preview-wrap').classList.remove('hidden');
   } else {
     $('f-preview-wrap').classList.add('hidden');
@@ -198,13 +199,16 @@ form.addEventListener('submit', async (e) => {
   const fileInput = $('f-file');
   const uploadState = $('f-upload-state');
   let imagePath = $('f-image-path').value;
+  let previewPath = $('f-preview-path').value;
 
   const submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   try {
     if (fileInput.files.length) {
       uploadState.textContent = '上传中…';
-      imagePath = await uploadImage(fileInput.files[0]);
+      const uploaded = await uploadImage(fileInput.files[0]);
+      imagePath = uploaded.path;
+      previewPath = uploaded.previewPath;
     }
     if (!imagePath) throw new Error('请先上传全景图');
 
@@ -212,6 +216,7 @@ form.addEventListener('submit', async (e) => {
       title: $('f-title').value.trim(),
       description: $('f-desc').value.trim(),
       imagePath,
+      previewPath,
       sortOrder: Number($('f-sort').value) || 0,
       published: $('f-published').checked,
     };

@@ -61,7 +61,7 @@ export function deleteScene(id) {
   });
 }
 
-/** 后台：上传全景图，返回服务器路径 */
+/** 后台：上传全景图，服务端自动转码，返回 { path, previewPath } */
 export async function uploadImage(file, onProgress) {
   const form = new FormData();
   form.append('file', file);
@@ -72,5 +72,5 @@ export async function uploadImage(file, onProgress) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || '上传失败');
-  return data.path;
+  return data;
 }

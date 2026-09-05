@@ -82,16 +82,17 @@ describe('createScene', () => {
 });
 
 describe('uploadImage', () => {
-  it('FormData 上传并返回路径', async () => {
+  it('FormData 上传并返回 path 与 previewPath', async () => {
     localStorage.setItem('panorama_token', 'tok-1');
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
-      json: async () => ({ path: '/uploads/x.png' }),
+      json: async () => ({ path: '/uploads/x-main.webp', previewPath: '/uploads/x-preview.webp' }),
     });
     const file = new File(['x'], 'x.png', { type: 'image/png' });
-    const path = await uploadImage(file);
-    expect(path).toBe('/uploads/x.png');
+    const data = await uploadImage(file);
+    expect(data.path).toBe('/uploads/x-main.webp');
+    expect(data.previewPath).toBe('/uploads/x-preview.webp');
     const [, options] = global.fetch.mock.calls[0];
     expect(options.body).toBeInstanceOf(FormData);
     expect(options.headers.Authorization).toBe('Bearer tok-1');

@@ -59,7 +59,7 @@ function renderSceneList() {
     const item = document.createElement('div');
     item.className = `scene-item${i === activeIndex ? ' active' : ''}`;
     const img = document.createElement('img');
-    img.src = scene.imagePath;
+    img.src = scene.previewPath || scene.imagePath;
     img.alt = scene.title;
     img.loading = 'lazy';
     const name = document.createElement('div');

@@ -15,4 +15,9 @@ export const config = {
   dbPath: path.join(dataDir, 'panorama.db'),
   webDistDir: path.join(__dirname, '..', '..', 'web', 'dist'),
   maxUploadBytes: 50 * 1024 * 1024,
+  // 上传转码：主图最大长边（像素）与 WebP 质量
+  imageMaxSize: Number(process.env.IMAGE_MAX_SIZE || 4096),
+  imageQuality: Number(process.env.IMAGE_QUALITY || 80),
+  // 低清预览图长边（像素），用于渐进加载与缩略图
+  previewSize: Number(process.env.PREVIEW_SIZE || 1024),
 };

@@ -13,11 +13,11 @@ H5 / Web 同步的 360 全景浏览系统：前台全景查看器 + 管理后台
 **管理后台（/admin）**
 - 登录认证（JWT）
 - 场景新增 / 编辑 / 删除 / 上架下架
-- 全景图上传（JPG / PNG / WebP，≤50MB）
+- 全景图上传（JPG / PNG / WebP，≤50MB），**服务端自动转码压缩**：转为两档 WebP（主图默认限长边 4096 + 低清预览默认长边 1024），手机端大幅减载
 - 排序调整（上移 / 下移 / 排序值）
 
 **后端**
-- Node + Express + SQLite（`node:sqlite`，零原生依赖）
+- Node + Express + SQLite（`node:sqlite`，零原生依赖）+ sharp 图片转码
 - 图片本地存储（`server/data/uploads/`）
 
 ## 目录结构
@@ -55,6 +55,18 @@ npm run build -w web        # 构建前端到 web/dist
 ```bash
 ADMIN_USER=yourname ADMIN_PASS=yourpass JWT_SECRET=<随机长字符串> PORT=3000 npm start
 ```
+
+## 手机端加载优化配置
+
+上传的全景图会在服务端自动转码为两档 WebP，可通过环境变量调整：
+
+```bash
+IMAGE_MAX_SIZE=4096   # 主图最大长边像素（默认 4096，超出则等比缩小）
+IMAGE_QUALITY=80      # 主图 WebP 质量（默认 80）
+PREVIEW_SIZE=1024     # 低清预览图长边像素（默认 1024）
+```
+
+**CDN 加速建议（上线前）**：将 `server/data/uploads/` 目录与 `web/dist` 构建产物同步到对象存储（如阿里云 OSS / 腾讯云 COS）并开启 CDN，静态资源就近分发。代码已按 `/uploads/*` 路径引用图片，CDN 回源到后端或直接换绑域名即可，无需改动前端。
 
 ## API 概览
 
