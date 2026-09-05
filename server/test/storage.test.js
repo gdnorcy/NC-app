@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import request from 'supertest';
+import sharp from 'sharp';
 import { config } from '../src/config.js';
 import { createDb } from '../src/db.js';
 import { createApp } from '../src/app.js';
@@ -16,6 +17,14 @@ const PNG_BYTES = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64'
 );
+
+/** 合成一张大图（>= 金字塔阈值，触发切片） */
+async function makeLargePano() {
+  const svg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="2048"><rect width="100%" height="100%" fill="#4a7fb5"/></svg>`
+  );
+  return sharp(svg).jpeg().toBuffer();
+}
 
 /** 假云存储：记录上传/删除调用，返回 CDN 域名 URL */
 class FakeStorage {
@@ -202,6 +211,51 @@ test('存储测试连接：已保存配置与表单配置两条路径', async ()
     .set('Authorization', `Bearer ${token}`)
     .send({ provider: 'unknown' });
   assert.equal(bad.body.ok, true);
+});
+
+test('金字塔：大图上传生成瓦片并随场景创建、删除清理', async () => {
+  // 切回本地存储（默认）
+  db.prepare("UPDATE storage_config SET provider = 'local' WHERE id = 1").run();
+
+  const up = await request(app)
+    .post('/api/admin/upload')
+    .set('Authorization', `Bearer ${token}`)
+    .attach('file', await makeLargePano(), { filename: 'big.png', contentType: 'image/png' });
+  assert.equal(up.status, 201);
+  assert.ok(up.body.pyramid, '大图应生成金字塔');
+  assert.equal(up.body.pyramid.type, 'pyramid');
+  assert.equal(up.body.pyramid.levels[0].width, 4096);
+  // 本地瓦片落盘
+  const tileRoot = path.join(config.uploadsDir, `${up.body.originalName ? '' : ''}`);
+  const dirName = path.basename(path.dirname(path.dirname(up.body.pyramid.tileUrl)));
+  void tileRoot;
+  const tilesDir = path.join(config.uploadsDir, dirName);
+  assert.ok(fs.existsSync(tilesDir));
+
+  const created = await request(app)
+    .post('/api/admin/scenes')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ title: '金字塔场景', imagePath: up.body.path, previewPath: up.body.previewPath, pyramid: up.body.pyramid, published: true });
+  assert.equal(created.status, 201);
+  const scene = created.body.scene;
+  assert.equal(scene.pyramid.levels.length, 3);
+
+  // 删除场景 → 主图、预览、全部瓦片清理
+  const del = await request(app)
+    .delete(`/api/admin/scenes/${scene.id}`)
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(del.status, 200);
+  assert.ok(!fs.existsSync(path.join(config.uploadsDir, path.basename(up.body.path))));
+  assert.ok(!fs.existsSync(tilesDir), '瓦片目录应被清理');
+});
+
+test('金字塔：小图上传不生成瓦片', async () => {
+  const up = await request(app)
+    .post('/api/admin/upload')
+    .set('Authorization', `Bearer ${token}`)
+    .attach('file', PNG_BYTES, { filename: 'tiny.png', contentType: 'image/png' });
+  assert.equal(up.status, 201);
+  assert.equal(up.body.pyramid, null);
 });
 
 test('存量迁移：旧版单厂商结构升级为多厂商配置', () => {

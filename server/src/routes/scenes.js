@@ -6,6 +6,7 @@ import { config } from '../config.js';
 import { toScene } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getStorage } from '../storage/index.js';
+import { generatePyramidTiles, pyramidTileUrls } from '../tiling.js';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
@@ -23,10 +24,11 @@ const upload = multer({
 });
 
 /**
- * 转码上传图片：生成两档 WebP 并经存储层上传
+ * 转码上传图片：
  * - 主图：限长边 config.imageMaxSize（默认 4096）
  * - 低清预览：限长边 config.previewSize（默认 1024），供缩略图与渐进加载
- * 返回 { path, previewPath }（本地为 /uploads/ 路径，云端为 CDN URL）
+ * - 金字塔切片：原图宽 >= 2048 时生成多层级瓦片（前端按视角按需加载）
+ * 返回 { path, previewPath, pyramid }
  */
 async function transcodeImage(buffer, storage) {
   const base = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
@@ -56,7 +58,8 @@ async function transcodeImage(buffer, storage) {
 
   const path = await storage.put(mainBuffer, `${base}-main.webp`);
   const previewPath = await storage.put(previewBuffer, `${base}-preview.webp`);
-  return { path, previewPath };
+  const pyramid = await generatePyramidTiles(buffer, storage, base);
+  return { path, previewPath, pyramid };
 }
 
 function parseSceneBody(body) {
@@ -64,9 +67,19 @@ function parseSceneBody(body) {
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   const imagePath = typeof body.imagePath === 'string' ? body.imagePath.trim() : '';
   const previewPath = typeof body.previewPath === 'string' ? body.previewPath.trim() : '';
+  let pyramid = '';
+  if (body.pyramid && typeof body.pyramid === 'object') {
+    try {
+      pyramid = JSON.stringify(body.pyramid);
+    } catch {
+      pyramid = '';
+    }
+  } else if (typeof body.pyramid === 'string') {
+    pyramid = body.pyramid;
+  }
   const sortOrder = Number.isInteger(body.sortOrder) ? body.sortOrder : 0;
   const published = body.published === undefined ? 1 : body.published ? 1 : 0;
-  return { title, description, imagePath, previewPath, sortOrder, published };
+  return { title, description, imagePath, previewPath, pyramid, sortOrder, published };
 }
 
 export function createScenesRouter(db) {
@@ -90,14 +103,14 @@ export function createScenesRouter(db) {
   });
 
   router.post('/admin/scenes', (req, res) => {
-    const { title, description, imagePath, previewPath, sortOrder, published } = parseSceneBody(req.body);
+    const { title, description, imagePath, previewPath, pyramid, sortOrder, published } = parseSceneBody(req.body);
     if (!title) return res.status(400).json({ error: '标题不能为空' });
     if (!imagePath) return res.status(400).json({ error: '请先上传全景图' });
     const info = db
       .prepare(
-        'INSERT INTO scenes (title, description, image_path, preview_path, sort_order, published) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO scenes (title, description, image_path, preview_path, pyramid, sort_order, published) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
-      .run(title, description, imagePath, previewPath, sortOrder, published);
+      .run(title, description, imagePath, previewPath, pyramid, sortOrder, published);
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json({ scene: toScene(row) });
   });
@@ -107,20 +120,21 @@ export function createScenesRouter(db) {
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: '场景不存在' });
 
-    const { title, description, imagePath, previewPath, sortOrder, published } = parseSceneBody(req.body);
+    const { title, description, imagePath, previewPath, pyramid, sortOrder, published } = parseSceneBody(req.body);
     const next = {
       title: title || row.title,
       description: description === '' ? row.description : description,
       imagePath: imagePath || row.image_path,
       previewPath: previewPath || row.preview_path || '',
+      pyramid: pyramid || row.pyramid || '',
       sortOrder: Number.isNaN(sortOrder) ? row.sort_order : sortOrder,
       published,
     };
     db.prepare(
       `UPDATE scenes
-       SET title = ?, description = ?, image_path = ?, preview_path = ?, sort_order = ?, published = ?, updated_at = datetime('now')
+       SET title = ?, description = ?, image_path = ?, preview_path = ?, pyramid = ?, sort_order = ?, published = ?, updated_at = datetime('now')
        WHERE id = ?`
-    ).run(next.title, next.description, next.imagePath, next.previewPath, next.sortOrder, next.published, id);
+    ).run(next.title, next.description, next.imagePath, next.previewPath, next.pyramid, next.sortOrder, next.published, id);
 
     const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
     res.json({ scene: toScene(updated) });
@@ -135,6 +149,20 @@ export function createScenesRouter(db) {
       const storage = await getStorage(db);
       await storage.delete(row.image_path);
       await storage.delete(row.preview_path);
+      // 清理金字塔瓦片（云端对象需逐个删除）
+      let pyramid = null;
+      if (row.pyramid) {
+        try {
+          pyramid = JSON.parse(row.pyramid);
+        } catch {
+          pyramid = null;
+        }
+      }
+      if (pyramid) {
+        for (const url of pyramidTileUrls(pyramid)) {
+          await storage.delete(url);
+        }
+      }
     } catch (e) {
       console.warn('删除存储文件失败:', e);
     }

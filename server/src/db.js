@@ -32,11 +32,14 @@ export function createDb(dbPath = config.dbPath) {
   return db;
 }
 
-/** 存量库迁移：场景表补 preview_path；存储配置表升级为多厂商结构 */
+/** 存量库迁移：场景表补 preview_path / pyramid；存储配置表升级为多厂商结构 */
 function migrate(db) {
   const sceneCols = db.prepare('PRAGMA table_info(scenes)').all();
   if (!sceneCols.some((c) => c.name === 'preview_path')) {
     db.exec("ALTER TABLE scenes ADD COLUMN preview_path TEXT NOT NULL DEFAULT ''");
+  }
+  if (!sceneCols.some((c) => c.name === 'pyramid')) {
+    db.exec("ALTER TABLE scenes ADD COLUMN pyramid TEXT NOT NULL DEFAULT ''");
   }
 
   const storageCols = db.prepare('PRAGMA table_info(storage_config)').all().map((c) => c.name);
@@ -80,12 +83,21 @@ function migrate(db) {
 /** 数据库行 -> API JSON（camelCase） */
 export function toScene(row) {
   if (!row) return null;
+  let pyramid = null;
+  if (row.pyramid) {
+    try {
+      pyramid = JSON.parse(row.pyramid);
+    } catch {
+      pyramid = null;
+    }
+  }
   return {
     id: row.id,
     title: row.title,
     description: row.description,
     imagePath: row.image_path,
     previewPath: row.preview_path || '',
+    pyramid,
     sortOrder: row.sort_order,
     published: Boolean(row.published),
     createdAt: row.created_at,

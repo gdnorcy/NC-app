@@ -10,21 +10,32 @@ export class LocalStorage {
     this.config = storageConfig || { provider: 'local' };
   }
 
-  /** @returns {Promise<string>} 可公开访问的 URL */
+  /** @returns {Promise<string>} 可公开访问的 URL（支持子目录 key） */
   async put(buffer, key) {
-    const filename = path.basename(key);
-    fs.mkdirSync(config.uploadsDir, { recursive: true });
-    const target = path.join(config.uploadsDir, filename);
+    const rel = path.posix.normalize(key).replace(/^\/+/, '');
+    if (rel === '.' || rel === '..' || rel.startsWith('../')) throw new Error('非法存储路径');
+    const target = path.resolve(config.uploadsDir, rel);
+    const root = path.resolve(config.uploadsDir);
+    if (target !== root && !target.startsWith(root + path.sep)) throw new Error('非法存储路径');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, buffer);
-    return `/uploads/${filename}`;
+    return `/uploads/${rel}`;
   }
 
   async delete(publicUrl) {
     if (!publicUrl) return;
-    const uploadsRoot = path.resolve(config.uploadsDir);
-    const target = path.resolve(path.join(uploadsRoot, path.basename(publicUrl)));
-    if (target.startsWith(uploadsRoot + path.sep) && fs.existsSync(target)) {
+    const rel = decodeURIComponent(publicUrl.replace(/^\/uploads\//, ''));
+    const root = path.resolve(config.uploadsDir);
+    const target = path.resolve(path.join(root, rel));
+    if (target !== root && !target.startsWith(root + path.sep)) return;
+    if (fs.existsSync(target)) {
       fs.unlinkSync(target);
+      // 顺带清理空的父目录（瓦片层级目录等）
+      let dir = path.dirname(target);
+      while (dir.startsWith(root) && dir !== root && fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
+        fs.rmdirSync(dir);
+        dir = path.dirname(dir);
+      }
     }
   }
 
