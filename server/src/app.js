@@ -22,14 +22,16 @@ export function createApp({ db } = {}) {
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-  // 生产环境：托管 web 构建产物，SPA 路由回退到 index.html
+  // 生产环境：托管 web 构建产物，SPA 路由回退到对应入口页
   const indexHtml = path.join(config.webDistDir, 'index.html');
+  const adminHtml = path.join(config.webDistDir, 'admin.html');
   if (fs.existsSync(indexHtml)) {
     app.use(express.static(config.webDistDir));
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
       if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
-      return res.sendFile(indexHtml);
+      const target = req.path.startsWith('/admin') ? adminHtml : indexHtml;
+      return res.sendFile(target);
     });
   }
 

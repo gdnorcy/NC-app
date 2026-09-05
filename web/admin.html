@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>360 全景管理后台</title>
+    <link rel="stylesheet" href="/src/admin/admin.css" />
+  </head>
+  <body>
+    <!-- 登录视图 -->
+    <div id="login-view" class="view">
+      <form id="login-form" class="login-card">
+        <h1>360 全景管理后台</h1>
+        <p class="login-sub">请登录后管理全景场景</p>
+        <label class="field">
+          <span>用户名</span>
+          <input id="login-username" name="username" autocomplete="username" required />
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">登 录</button>
+        <p id="login-error" class="form-error hidden"></p>
+      </form>
+    </div>
+
+    <!-- 管理视图 -->
+    <div id="admin-view" class="view hidden">
+      <header class="topbar">
+        <h1>360 全景管理后台</h1>
+        <div class="topbar-actions">
+          <a class="btn btn-ghost" href="/" target="_blank">查看前台</a>
+          <button id="btn-logout" class="btn btn-ghost">退出登录</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="toolbar">
+          <button id="btn-add" class="btn btn-primary">+ 新增场景</button>
+          <span id="scene-count" class="muted"></span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="scene-table">
+            <thead>
+              <tr>
+                <th>预览</th>
+                <th>标题 / 描述</th>
+                <th>排序</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="scene-tbody"></tbody>
+          </table>
+        </div>
+        <p id="admin-error" class="form-error hidden"></p>
+      </main>
+    </div>
+
+    <!-- 场景编辑弹窗 -->
+    <dialog id="scene-dialog">
+      <form id="scene-form" class="dialog-card">
+        <h2 id="dialog-title">新增场景</h2>
+        <input type="hidden" id="f-id" />
+        <input type="hidden" id="f-image-path" />
+
+        <label class="field">
+          <span>标题 *</span>
+          <input id="f-title" required maxlength="50" placeholder="如：一楼客厅" />
+        </label>
+
+        <label class="field">
+          <span>描述</span>
+          <textarea id="f-desc" rows="2" maxlength="200" placeholder="选填，场景说明"></textarea>
+        </label>
+
+        <label class="field">
+          <span>全景图（JPG / PNG / WebP，≤50MB）</span>
+          <input id="f-file" type="file" accept="image/jpeg,image/png,image/webp" />
+        </label>
+        <div id="f-preview-wrap" class="preview-wrap hidden">
+          <img id="f-preview" alt="全景图预览" />
+        </div>
+        <p id="f-upload-state" class="muted"></p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>排序值（小在前）</span>
+            <input id="f-sort" type="number" value="0" />
+          </label>
+          <label class="checkbox-field">
+            <input id="f-published" type="checkbox" checked />
+            <span>上架</span>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="dialog-cancel" class="btn btn-ghost">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/admin/admin.js"></script>
+  </body>
+</html>

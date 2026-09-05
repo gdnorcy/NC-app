@@ -54,6 +54,7 @@ export function createScenesRouter(db) {
 
   // —— 公开：展示端获取上架场景列表 ——
   router.get('/scenes', (_req, res) => {
+    res.set('Cache-Control', 'no-store');
     const rows = db
       .prepare('SELECT * FROM scenes WHERE published = 1 ORDER BY sort_order ASC, id ASC')
       .all();

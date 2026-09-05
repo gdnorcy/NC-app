@@ -23,6 +23,11 @@ before(() => {
   config.uploadsDir = path.join(tmpDir, 'uploads');
   config.dbPath = path.join(tmpDir, 'panorama.db');
   fs.mkdirSync(config.uploadsDir, { recursive: true });
+  // 模拟 web 构建产物，用于验证 SPA 托管路由
+  config.webDistDir = path.join(tmpDir, 'dist');
+  fs.mkdirSync(config.webDistDir, { recursive: true });
+  fs.writeFileSync(path.join(config.webDistDir, 'index.html'), '<html>INDEX_ENTRY</html>');
+  fs.writeFileSync(path.join(config.webDistDir, 'admin.html'), '<html>ADMIN_ENTRY</html>');
   app = createApp();
 });
 
@@ -34,6 +39,23 @@ test('健康检查', async () => {
   const res = await request(app).get('/api/health');
   assert.equal(res.status, 200);
   assert.equal(res.body.ok, true);
+});
+
+test('SPA 托管：/ 返回展示端入口页', async () => {
+  const res = await request(app).get('/');
+  assert.equal(res.status, 200);
+  assert.match(res.text, /INDEX_ENTRY/);
+});
+
+test('SPA 托管：/admin 返回管理后台入口页', async () => {
+  const res = await request(app).get('/admin');
+  assert.equal(res.status, 200);
+  assert.match(res.text, /ADMIN_ENTRY/);
+});
+
+test('SPA 托管：未知 API 路径不落入页面回退', async () => {
+  const res = await request(app).get('/api/not-exist');
+  assert.equal(res.status, 404);
 });
 
 test('登录：错误凭据返回 401', async () => {

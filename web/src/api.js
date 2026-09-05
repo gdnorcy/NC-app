@@ -2,8 +2,8 @@
 
 async function request(url, options = {}) {
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -12,9 +12,10 @@ async function request(url, options = {}) {
   return data;
 }
 
-/** 展示端：获取上架场景列表 */
-export function fetchScenes() {
-  return request('/api/scenes');
+/** 展示端：获取上架场景列表（返回场景数组） */
+export async function fetchScenes() {
+  const data = await request('/api/scenes');
+  return data.scenes;
 }
 
 /** 后台：登录 */

@@ -27,10 +27,11 @@ afterEach(() => {
 });
 
 describe('fetchScenes', () => {
-  it('解析上架场景列表', async () => {
+  it('解析上架场景列表并返回数组', async () => {
     mockFetchOnce(200, { scenes: [{ id: 1, title: '客厅' }] });
     const data = await fetchScenes();
-    expect(data.scenes).toHaveLength(1);
+    expect(data).toHaveLength(1);
+    expect(data[0].title).toBe('客厅');
     expect(global.fetch).toHaveBeenCalledWith('/api/scenes', expect.anything());
   });
 
@@ -63,6 +64,20 @@ describe('fetchAdminScenes', () => {
     await fetchAdminScenes();
     const [, options] = global.fetch.mock.calls[0];
     expect(options.headers.Authorization).toBe('Bearer tok-1');
+  });
+});
+
+describe('createScene', () => {
+  it('JSON 请求保留 Content-Type 与 Bearer token', async () => {
+    localStorage.setItem('panorama_token', 'tok-1');
+    mockFetchOnce(201, { scene: { id: 9, title: '客厅' } });
+    const { createScene } = await import('../src/api.js');
+    await createScene({ title: '客厅', imagePath: '/uploads/a.jpg', sortOrder: 0, published: true });
+    const [, options] = global.fetch.mock.calls[0];
+    expect(options.method).toBe('POST');
+    expect(options.headers['Content-Type']).toBe('application/json');
+    expect(options.headers.Authorization).toBe('Bearer tok-1');
+    expect(typeof options.body).toBe('string');
   });
 });
 
