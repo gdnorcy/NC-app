@@ -23,6 +23,11 @@ const viewer = new PanoramaViewer(viewerEl, {
     loadingEl.classList.add('hidden');
     titleEl.classList.remove('hidden');
   },
+  // 低清预览图已渲染，画面可看：提前结束等待
+  onPreviewReady: () => {
+    loadingEl.classList.add('hidden');
+    titleEl.classList.remove('hidden');
+  },
   onProgress: (pct) => {
     loadingEl.classList.remove('hidden');
     loadingFill.style.width = `${pct}%`;
@@ -76,17 +81,13 @@ async function selectScene(i) {
   activeIndex = i;
   const scene = scenes[i];
   titleEl.textContent = scene.title;
-  titleEl.classList.remove('hidden');
   loadingEl.classList.remove('hidden');
   loadingFill.style.width = '0%';
   loadingText.textContent = '加载中 0%';
   document.querySelectorAll('.scene-item').forEach((el, j) => {
     el.classList.toggle('active', j === i);
   });
-  await viewer.load(scene.imagePath);
-  if (viewer.gyroEnabled || viewer.autoRotate) {
-    // 保留当前模式
-  }
+  await viewer.load(scene.imagePath, scene.previewPath);
 }
 
 // ---- 控制按钮 ----

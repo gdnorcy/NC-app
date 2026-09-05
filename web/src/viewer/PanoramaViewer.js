@@ -5,6 +5,7 @@ import {
   clampPitch,
   directionFromYawPitch,
 } from './controls.js';
+import { planProgressiveLoad } from './progressive.js';
 
 const RADIUS = 50;
 const FOV_MIN = 30;
@@ -15,11 +16,13 @@ const FOV_MAX = 110;
  * - 桌面：鼠标拖拽旋转、滚轮缩放
  * - 移动端：单指拖拽、双指捏合缩放
  * - 可选陀螺仪沉浸模式、自动旋转、全屏
+ * - 渐进加载：低清预览先行出画面，主图静默替换
  */
 export class PanoramaViewer {
-  constructor(container, { onLoad, onProgress, onError } = {}) {
+  constructor(container, { onLoad, onPreviewReady, onProgress, onError } = {}) {
     this.container = container;
     this.onLoad = onLoad;
+    this.onPreviewReady = onPreviewReady;
     this.onProgress = onProgress;
     this.onError = onError;
 
@@ -36,6 +39,7 @@ export class PanoramaViewer {
     this._last = 0;
     this._rafId = 0;
     this._mesh = null;
+    this._loadSeq = 0; // 加载序号，防快速切换场景时旧图覆盖新图
     this._listeners = [];
 
     this._initRenderer();
@@ -62,25 +66,51 @@ export class PanoramaViewer {
     return this.container.clientWidth / this.container.clientHeight || 1;
   }
 
-  // ---------- 全景图加载 ----------
-  async load(imagePath) {
-    if (this._mesh) {
-      this.scene.remove(this._mesh);
-      this._mesh.geometry.dispose();
-      this._mesh.material.map?.dispose();
-      this._mesh.material.dispose();
-      this._mesh = null;
+  // ---------- 全景图加载（渐进：低清先行 → 主图替换） ----------
+  async load(imagePath, previewPath) {
+    const steps = planProgressiveLoad(previewPath, imagePath);
+    const seq = ++this._loadSeq;
+    if (!steps.length) {
+      this.onError?.(new Error('缺少图片路径'));
+      return;
     }
     try {
-      const texture = await this._loadTexture(imagePath);
+      for (const step of steps) {
+        const texture = await this._loadTexture(step.url);
+        if (seq !== this._loadSeq) {
+          // 已切换到其他场景，丢弃迟到纹理
+          texture.dispose();
+          return;
+        }
+        this._applyTexture(texture);
+        if (step.kind === 'preview') this.onPreviewReady?.();
+      }
+      this.onLoad?.();
+    } catch (err) {
+      if (seq !== this._loadSeq) return;
+      // 低清已显示时主图失败：保留低清画面，不打断用户
+      if (this._mesh) {
+        console.warn('主图加载失败，保留预览画质:', err);
+        this.onLoad?.();
+        return;
+      }
+      this.onError?.(err);
+    }
+  }
+
+  /** 应用新纹理：首帧创建球体，后续仅替换纹理（避免切换黑屏） */
+  _applyTexture(texture) {
+    if (!this._mesh) {
       const geometry = new THREE.SphereGeometry(RADIUS, 64, 64);
       const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
       this._mesh = new THREE.Mesh(geometry, material);
       this.scene.add(this._mesh);
-      this.onLoad?.();
-    } catch (err) {
-      this.onError?.(err);
+      return;
     }
+    const old = this._mesh.material.map;
+    this._mesh.material.map = texture;
+    this._mesh.material.needsUpdate = true;
+    if (old) old.dispose();
   }
 
   async _loadTexture(imagePath) {
