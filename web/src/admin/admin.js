@@ -264,7 +264,7 @@ function renderCustomers() {
         ? `<img src="${esc(c.logoPath)}" alt="" />`
         : initial;
       return `
-      <div class="customer-card" data-id="${c.id}">
+      <div class="customer-card ${expired ? 'expired' : ''}" data-id="${c.id}">
         <div class="customer-card-head">
           <div class="customer-logo">${logoHtml}${daysBadge}</div>
           <div class="customer-info">

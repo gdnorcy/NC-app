@@ -41,6 +41,21 @@ function shareUrl(req, token) {
   return `${req.protocol}://${req.get('host')}/s/${token}`;
 }
 
+/** 查方案所属客户项目 */
+function getCustomerOfPlan(db, planId) {
+  const plan = db.prepare('SELECT project_id FROM plans WHERE id = ?').get(planId);
+  if (!plan || !plan.project_id) return null;
+  return db.prepare('SELECT * FROM projects WHERE id = ?').get(plan.project_id);
+}
+
+/** 客户项目是否已过期（valid_until 当天仍算有效） */
+function isCustomerExpired(customer) {
+  if (!customer || !customer.valid_until) return false;
+  if (customer.status === 'disabled') return true;
+  const end = new Date(customer.valid_until + 'T23:59:59');
+  return end.getTime() < Date.now();
+}
+
 /** 方案 + 其上架场景数 */
 function planWithSceneCount(db, row) {
   const n = db.prepare('SELECT COUNT(*) AS n FROM scenes WHERE plan_id = ? AND published = 1').get(row.id)?.n || 0;
@@ -54,7 +69,14 @@ export function createPlansRouter(db) {
   router.get('/plans', (_req, res) => {
     res.set('Cache-Control', 'no-store');
     const rows = db
-      .prepare('SELECT * FROM plans WHERE published = 1 AND share_enabled = 1 ORDER BY sort_order ASC, id ASC')
+      .prepare(
+        `SELECT p.* FROM plans p
+         LEFT JOIN projects c ON p.project_id = c.id
+         WHERE p.published = 1 AND p.share_enabled = 1
+           AND (c.valid_until IS NULL OR c.valid_until >= date('now'))
+           AND (c.status IS NULL OR c.status != 'disabled')
+         ORDER BY p.sort_order ASC, p.id ASC`
+      )
       .all();
     res.json({ plans: rows.map((r) => planWithSceneCount(db, r)) });
   });
@@ -64,6 +86,8 @@ export function createPlansRouter(db) {
     const id = Number(req.params.id);
     const row = db.prepare('SELECT * FROM plans WHERE id = ?').get(id);
     if (!row || !row.published || !row.share_enabled) return res.status(404).json({ error: '方案不存在或未公开' });
+    const customer = getCustomerOfPlan(db, id);
+    if (isCustomerExpired(customer)) return res.status(403).json({ error: '该客户项目已过期，分享已关闭' });
     const scenes = db
       .prepare('SELECT * FROM scenes WHERE plan_id = ? AND published = 1 ORDER BY sort_order ASC, id ASC')
       .all(id)
@@ -80,6 +104,8 @@ export function createPlansRouter(db) {
     const scene = db.prepare('SELECT * FROM scenes WHERE share_token = ? AND share_enabled = 1').get(token);
     if (scene) {
       const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(scene.plan_id) || {};
+      const customer = getCustomerOfPlan(db, scene.plan_id);
+      if (isCustomerExpired(customer)) return res.status(403).json({ error: '该客户项目已过期，分享已关闭' });
       const scenes = db
         .prepare('SELECT * FROM scenes WHERE plan_id = ? AND published = 1 ORDER BY sort_order ASC, id ASC')
         .all(scene.plan_id)
@@ -90,6 +116,8 @@ export function createPlansRouter(db) {
     // 方案级
     const plan = db.prepare('SELECT * FROM plans WHERE share_token = ? AND share_enabled = 1').get(token);
     if (!plan) return res.status(404).json({ error: '链接无效或已关闭' });
+    const customer = getCustomerOfPlan(db, plan.id);
+    if (isCustomerExpired(customer)) return res.status(403).json({ error: '该客户项目已过期，分享已关闭' });
     const scenes = db
       .prepare('SELECT * FROM scenes WHERE plan_id = ? AND published = 1 ORDER BY sort_order ASC, id ASC')
       .all(plan.id)
@@ -101,10 +129,19 @@ export function createPlansRouter(db) {
   // —— 公开：分享二维码图片 ——
   router.get('/s/:token/qr', async (req, res) => {
     const token = String(req.params.token || '').trim();
-    const ok =
-      db.prepare('SELECT id FROM plans WHERE share_token = ? AND share_enabled = 1').get(token) ||
-      db.prepare('SELECT id FROM scenes WHERE share_token = ? AND share_enabled = 1').get(token);
-    if (!ok) return res.status(404).json({ error: '链接无效或已关闭' });
+    // 方案级
+    const plan = db.prepare('SELECT id FROM plans WHERE share_token = ? AND share_enabled = 1').get(token);
+    if (plan) {
+      const customer = getCustomerOfPlan(db, plan.id);
+      if (isCustomerExpired(customer)) return res.status(403).json({ error: '该客户项目已过期' });
+    }
+    // 场景级
+    const scene = db.prepare('SELECT plan_id FROM scenes WHERE share_token = ? AND share_enabled = 1').get(token);
+    if (scene) {
+      const customer = getCustomerOfPlan(db, scene.plan_id);
+      if (isCustomerExpired(customer)) return res.status(403).json({ error: '该客户项目已过期' });
+    }
+    if (!plan && !scene) return res.status(404).json({ error: '链接无效或已关闭' });
     const size = Math.min(Math.max(Number(req.query.size) || 320, 128), 1024);
     try {
       const url = shareUrl(req, token);

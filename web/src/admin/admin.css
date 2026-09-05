@@ -768,3 +768,13 @@ dialog::backdrop {
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
+
+/* 已过期客户卡片 */
+.customer-card.expired {
+  opacity: 0.65;
+  border: 1px solid var(--danger);
+  background: linear-gradient(160deg, #fff5f5 0%, #fff 60%);
+}
+.customer-card.expired .customer-name {
+  color: var(--danger);
+}

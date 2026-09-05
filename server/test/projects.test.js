@@ -462,3 +462,113 @@ test('存量库迁移：旧 projects(方案) 表自动 rename 为 plans 并归�
     restoreEnv(prev);
   }
 });
+
+// —— 客户有效期：过期自动禁用分享 ——
+test('客户有效期：未过期客户方案在公开列表可见', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '有效客户', validUntil: '2099-12-31' });
+    const planId = seedPlan(db, custId, { name: '方案A', shareToken: 'tok-valid' });
+    const res = await request(app).get('/api/plans');
+    assert.equal(res.status, 200);
+    assert.ok(res.body.plans.some((p) => p.id === planId));
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
+
+test('客户有效期：已过期客户方案不在公开列表', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '过期客户', validUntil: '2020-01-01' });
+    const planId = seedPlan(db, custId, { name: '过期方案', shareToken: 'tok-expired' });
+    const res = await request(app).get('/api/plans');
+    assert.equal(res.status, 200);
+    assert.ok(!res.body.plans.some((p) => p.id === planId));
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
+
+test('客户有效期：已过期客户方案分享链接返回403', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '过期客户', validUntil: '2020-01-01' });
+    seedPlan(db, custId, { name: '过期方案', shareToken: 'tok-expired2' });
+    const res = await request(app).get('/api/s/tok-expired2');
+    assert.equal(res.status, 403);
+    assert.ok(res.body.error.includes('过期'));
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
+
+test('客户有效期：已过期客户场景分享链接返回403', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '过期客户', validUntil: '2020-01-01' });
+    const planId = seedPlan(db, custId, { name: '过期方案' });
+    seedScene(db, planId, { title: '过期场景', shareToken: 'scene-expired', shareEnabled: 1 });
+    const res = await request(app).get('/api/s/scene-expired');
+    assert.equal(res.status, 403);
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
+
+test('客户有效期：无有效期客户始终可访问', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '永久客户', validUntil: null });
+    seedPlan(db, custId, { name: '永久方案', shareToken: 'tok-forever' });
+    const res = await request(app).get('/api/s/tok-forever');
+    assert.equal(res.status, 200);
+    assert.equal(res.body.type, 'project');
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
+
+test('客户有效期：停用客户分享返回403', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '停用客户', validUntil: '2099-12-31', status: 'disabled' });
+    seedPlan(db, custId, { name: '停用方案', shareToken: 'tok-disabled' });
+    const res = await request(app).get('/api/s/tok-disabled');
+    assert.equal(res.status, 403);
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
+
+test('客户有效期：续费后分享恢复', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '续费客户', validUntil: '2020-01-01' });
+    seedPlan(db, custId, { name: '方案', shareToken: 'tok-renew' });
+    // 过期时403
+    const r1 = await request(app).get('/api/s/tok-renew');
+    assert.equal(r1.status, 403);
+    // 续费到未来
+    db.prepare("UPDATE projects SET valid_until = '2099-12-31' WHERE id = ?").run(custId);
+    // 恢复200
+    const r2 = await request(app).get('/api/s/tok-renew');
+    assert.equal(r2.status, 200);
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
