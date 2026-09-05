@@ -372,20 +372,75 @@ dialog {
   border-radius: 16px;
   padding: 0;
   width: min(480px, calc(100vw - 32px));
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  max-height: 85vh;
+  margin-top: 8vh;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+dialog[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 dialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: backdropIn 0.2s ease;
+}
+@keyframes backdropIn {
+  from { background: rgba(0, 0, 0, 0); }
+  to { background: rgba(0, 0, 0, 0.45); }
 }
 .dialog-card {
-  padding: 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  overflow-y: auto;
 }
 .dialog-card h2 {
-  font-size: 17px;
-  margin-bottom: 18px;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+.dialog-card > .field,
+.dialog-card > .preview-wrap,
+.dialog-card > .muted,
+.dialog-card > .qr-wrap,
+.dialog-card > .share-link-row,
+.dialog-card > label.field {
+  margin-left: 24px;
+  margin-right: 24px;
+}
+.dialog-card > .field:first-of-type,
+.dialog-card > label.field:first-of-type {
+  margin-top: 18px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
 }
 .preview-wrap {
-  margin: 8px 0 4px;
+  margin: 8px 24px 4px;
 }
 .preview-wrap img {
   width: 100%;
@@ -393,12 +448,6 @@ dialog::backdrop {
   object-fit: contain;
   border-radius: 8px;
   background: #1b1e26;
-}
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 18px;
 }
 
 @media (max-width: 640px) {
@@ -408,6 +457,21 @@ dialog::backdrop {
   }
   .topbar {
     padding: 12px 14px;
+  }
+  /* 移动端：底部弹出 sheet */
+  dialog {
+    margin: auto 0 0 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 88vh;
+    border-radius: 20px 20px 0 0;
+    transform: translateY(100%);
+  }
+  dialog[open] {
+    transform: translateY(0);
+  }
+  .dialog-card {
+    max-height: 88vh;
   }
 }
 
