@@ -30,7 +30,7 @@ const upload = multer({
  * - 金字塔切片：原图宽 >= 2048 时生成多层级瓦片（前端按视角按需加载）
  * 返回 { path, previewPath, pyramid }
  */
-async function transcodeImage(buffer, storage) {
+export async function transcodeImage(buffer, storage) {
   const base = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 
   const image = sharp(buffer).rotate();

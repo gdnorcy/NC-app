@@ -411,6 +411,82 @@ async function loadScenes() {
 $('btn-back-to-plans').addEventListener('click', () => switchView('plans'));
 
 let editingSceneId = null;
+
+// ===== 图片上传 =====
+async function uploadSceneImage(file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE}/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${state.token}` },
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '上传失败');
+  return data;
+}
+
+function resetUploadArea() {
+  $('sf-upload-area').querySelector('.upload-placeholder').classList.remove('hidden');
+  $('sf-upload-area').querySelector('.upload-progress').classList.add('hidden');
+  $('sf-upload-area').querySelector('.upload-preview').classList.add('hidden');
+  $('sf-file').value = '';
+}
+
+function showUploadPreview(url) {
+  $('sf-upload-area').querySelector('.upload-placeholder').classList.add('hidden');
+  $('sf-upload-area').querySelector('.upload-progress').classList.add('hidden');
+  const preview = $('sf-upload-area').querySelector('.upload-preview');
+  preview.classList.remove('hidden');
+  $('sf-preview-img').src = url;
+}
+
+async function handleImageFile(file) {
+  if (!file) return;
+  if (file.size > 50 * 1024 * 1024) {
+    toast('图片大小不能超过 50MB', 'error');
+    return;
+  }
+  $('sf-upload-area').querySelector('.upload-placeholder').classList.add('hidden');
+  $('sf-upload-area').querySelector('.upload-progress').classList.remove('hidden');
+  $('sf-progress-fill').style.width = '10%';
+  $('sf-progress-text').textContent = '上传中...';
+  try {
+    const result = await uploadSceneImage(file);
+    $('sf-image').value = result.imagePath || result.url || '';
+    if (result.previewPath) $('sf-preview').value = result.previewPath;
+    showUploadPreview(result.imagePath || result.url);
+    toast('上传成功');
+  } catch (err) {
+    toast(err.message, 'error');
+    resetUploadArea();
+  }
+}
+
+// 上传区域事件
+$('sf-upload-area').addEventListener('click', (e) => {
+  if (e.target.closest('.upload-remove')) return;
+  $('sf-file').click();
+});
+$('sf-file').addEventListener('change', (e) => handleImageFile(e.target.files[0]));
+$('sf-upload-area').addEventListener('dragover', (e) => {
+  e.preventDefault();
+  $('sf-upload-area').classList.add('dragover');
+});
+$('sf-upload-area').addEventListener('dragleave', () => {
+  $('sf-upload-area').classList.remove('dragover');
+});
+$('sf-upload-area').addEventListener('drop', (e) => {
+  e.preventDefault();
+  $('sf-upload-area').classList.remove('dragover');
+  handleImageFile(e.dataTransfer.files[0]);
+});
+$('sf-remove-img').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('sf-image').value = '';
+  resetUploadArea();
+});
+
 function openSceneDialog(scene) {
   editingSceneId = scene ? scene.id : null;
   $('scene-dialog-title').textContent = scene ? '编辑场景' : '新建场景';
@@ -421,6 +497,8 @@ function openSceneDialog(scene) {
   $('sf-preview').value = scene ? scene.previewPath || '' : '';
   $('sf-sort').value = scene ? scene.sortOrder || 0 : 0;
   $('sf-published').checked = scene ? scene.published : true;
+  resetUploadArea();
+  if (scene?.imagePath) showUploadPreview(scene.imagePath);
   $('scene-dialog').showModal();
 }
 
@@ -429,12 +507,17 @@ $('scene-cancel').addEventListener('click', () => $('scene-dialog').close());
 
 $('scene-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const imagePath = $('sf-image').value.trim();
+  if (!imagePath) {
+    toast('请上传或输入全景图', 'error');
+    return;
+  }
   try {
     const payload = {
       planId: state.currentPlan.id,
       title: $('sf-title').value.trim(),
       description: $('sf-desc').value.trim(),
-      imagePath: $('sf-image').value.trim(),
+      imagePath,
       previewPath: $('sf-preview').value.trim(),
       sortOrder: Number($('sf-sort').value) || 0,
       published: $('sf-published').checked,

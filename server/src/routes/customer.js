@@ -1,6 +1,14 @@
 // 客户（租户）后台 API —— 数据严格按 customer_id 隔离
 import { Router } from 'express';
+import multer from 'multer';
 import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword } from '../db.js';
+import { getStorage } from '../storage/index.js';
+import { transcodeImage } from './scenes.js';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 export function createCustomerRouter(db) {
   const router = Router();
@@ -268,6 +276,25 @@ router.put('/profile', requireTenant, (req, res) => {
   );
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   res.json({ user: toUser(user) });
+});
+
+// 图片上传（复用云存储配置）
+router.post('/upload', requireTenant, requireTenantAdmin, (req, res) => {
+  upload.single('file')(req, res, async (err) => {
+    if (err) {
+      const message = err.code === 'LIMIT_FILE_SIZE' ? '图片大小不能超过 50MB' : err.message;
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) return res.status(400).json({ error: '未收到文件' });
+    try {
+      const storage = await getStorage(db);
+      const result = await transcodeImage(req.file.buffer, storage);
+      res.status(201).json({ ...result, originalName: req.file.originalname });
+    } catch (e) {
+      console.error('图片转码或上传失败:', e);
+      res.status(400).json({ error: '图片处理失败，请确认文件为有效的全景图' });
+    }
+  });
 });
 
   return router;

@@ -339,13 +339,28 @@
           <textarea id="sf-desc" rows="2" placeholder="选填"></textarea>
         </div>
         <div class="form-field">
-          <label>全景图 URL *</label>
-          <input id="sf-image" type="text" placeholder="全景图片链接" required />
-          <span class="field-hint">支持等距圆柱投影的全景图</span>
+          <label>全景图 *</label>
+          <div id="sf-upload-area" class="upload-area">
+            <input type="file" id="sf-file" accept="image/*" hidden />
+            <div class="upload-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <p>点击或拖拽图片到此处上传</p>
+              <p class="upload-hint">支持 JPG/PNG，最大 50MB，等距圆柱投影全景图</p>
+            </div>
+            <div class="upload-progress hidden">
+              <div class="progress-bar"><div class="progress-fill" id="sf-progress-fill"></div></div>
+              <p id="sf-progress-text">上传中...</p>
+            </div>
+            <div class="upload-preview hidden">
+              <img id="sf-preview-img" alt="预览" />
+              <button type="button" id="sf-remove-img" class="upload-remove">×</button>
+            </div>
+          </div>
+          <input id="sf-image" type="text" placeholder="或手动输入全景图链接" class="mt8" />
         </div>
         <div class="form-field">
           <label>预览图 URL</label>
-          <input id="sf-preview" type="text" placeholder="选填，列表预览图" />
+          <input id="sf-preview" type="text" placeholder="选填，留空自动生成" />
         </div>
         <div class="form-field">
           <label>排序</label>
