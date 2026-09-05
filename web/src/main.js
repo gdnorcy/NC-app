@@ -50,6 +50,22 @@ const viewer = new PanoramaViewer(viewerEl, {
     showError(err.message || '加载失败');
   },
 });
+window.panoramaViewer = viewer; // 暴露到window方便调试
+
+// 热点点击回调
+viewer.onHotspotClick = (hs) => {
+  if (hs.type === 'scene' && hs.targetSceneId) {
+    const idx = scenes.findIndex((s) => s.id === hs.targetSceneId);
+    if (idx >= 0) selectScene(idx, { force: true });
+  } else if (hs.type === 'info') {
+    $('hotspot-title').textContent = hs.title || '信息';
+    $('hotspot-content').textContent = hs.content || '';
+    $('hotspot-popup').classList.remove('hidden');
+  }
+};
+$('hotspot-close').addEventListener('click', () => {
+  $('hotspot-popup').classList.add('hidden');
+});
 
 let scenes = [];
 let activeIndex = -1;
@@ -199,14 +215,48 @@ async function selectScene(i, { force = false } = {}) {
     el.classList.toggle('active', j === i);
   });
   await viewer.load(scene.imagePath, scene.previewPath, scene.pyramid);
+  // 加载热点
+  viewer.setHotspots(scene.hotspots || []);
 }
 
 // ---- 控制按钮 ----
 btnRotate.addEventListener('click', () => {
-  viewer.autoRotate = !viewer.autoRotate;
+  viewer.setAutoRotate(!viewer.autoRotate);
   btnRotate.setAttribute('aria-pressed', String(viewer.autoRotate));
   btnRotate.textContent = viewer.autoRotate ? '停止旋转' : '自动旋转';
 });
+
+// 小行星视角
+const btnPlanet = $('btn-planet');
+btnPlanet?.addEventListener('click', () => {
+  const enabled = !viewer._littlePlanet;
+  viewer.setLittlePlanet(enabled);
+  btnPlanet.setAttribute('aria-pressed', String(enabled));
+  btnPlanet.textContent = enabled ? '退出小行星' : '小行星';
+});
+
+// VR模式
+const btnVR = $('btn-vr');
+btnVR?.addEventListener('click', () => {
+  const enabled = !viewer._vrMode;
+  viewer.setVRMode(enabled);
+  btnVR.setAttribute('aria-pressed', String(enabled));
+  btnVR.textContent = enabled ? '退出VR' : 'VR';
+});
+
+// 罗盘显示
+const compassEl = $('compass');
+const compassNeedle = $('compass-needle');
+if (compassEl) compassEl.classList.remove('hidden');
+// 罗盘更新（用requestAnimationFrame节流）
+let _compassRaf = 0;
+function updateCompass() {
+  const dir = viewer.getDirection();
+  const deg = ((dir.yaw * 180 / Math.PI) % 360 + 360) % 360;
+  if (compassNeedle) compassNeedle.style.transform = `translate(-50%, -100%) rotate(${deg}deg)`;
+  _compassRaf = requestAnimationFrame(updateCompass);
+}
+updateCompass();
 
 btnGyro.addEventListener('click', async () => {
   if (viewer.gyroEnabled) {

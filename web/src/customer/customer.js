@@ -513,6 +513,9 @@ function openSceneDialog(scene) {
   $('sf-published').checked = scene ? scene.published : true;
   resetUploadArea();
   if (scene?.imagePath) showUploadPreview(scene.imagePath);
+  // 加载热点
+  state.editingHotspots = scene?.hotspots ? [...scene.hotspots] : [];
+  renderHotspotList();
   $('scene-dialog').showModal();
 }
 
@@ -535,6 +538,7 @@ $('scene-form').addEventListener('submit', async (e) => {
       previewPath: $('sf-preview').value.trim(),
       sortOrder: Number($('sf-sort').value) || 0,
       published: $('sf-published').checked,
+      hotspots: state.editingHotspots || [],
     };
     if (editingSceneId) {
       await api(`/scenes/${editingSceneId}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -548,6 +552,92 @@ $('scene-form').addEventListener('submit', async (e) => {
   } catch (err) {
     toast(err.message, 'error');
   }
+});
+
+// ===== 热点管理 =====
+let editingHotspotIndex = -1;
+
+function renderHotspotList() {
+  const list = $('hotspot-list');
+  const hotspots = state.editingHotspots || [];
+  if (!hotspots.length) {
+    list.innerHTML = '<p class="field-hint" style="margin:8px 0;">暂无热点，点击"添加热点"在全景中添加可点击的标注点</p>';
+    return;
+  }
+  list.innerHTML = hotspots.map((hs, i) => {
+    const typeLabel = hs.type === 'scene' ? '跳转场景' : '信息弹窗';
+    const target = hs.type === 'scene' ? (state.scenes.find(s => s.id === hs.targetSceneId)?.title || '未知') : '';
+    return `<div class="hotspot-item">
+      <div class="hotspot-item-info">
+        <div class="hotspot-item-title">${hs.title || '未命名热点'}</div>
+        <div class="hotspot-item-meta">${typeLabel}${target ? ' → ' + target : ''} · ${hs.yaw}°, ${hs.pitch}°</div>
+      </div>
+      <div class="hotspot-item-actions">
+        <button type="button" class="btn-ghost btn-sm" data-hs-edit="${i}">编辑</button>
+        <button type="button" class="btn-ghost btn-sm" data-hs-del="${i}" style="color:var(--danger)">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+$('hotspot-list').addEventListener('click', (e) => {
+  const editIdx = e.target.dataset.hsEdit;
+  const delIdx = e.target.dataset.hsDel;
+  if (editIdx !== undefined) {
+    openHotspotDialog(Number(editIdx));
+  } else if (delIdx !== undefined) {
+    state.editingHotspots.splice(Number(delIdx), 1);
+    renderHotspotList();
+  }
+});
+
+$('btn-add-hotspot').addEventListener('click', () => openHotspotDialog(-1));
+
+function openHotspotDialog(index) {
+  editingHotspotIndex = index;
+  const hs = index >= 0 ? state.editingHotspots[index] : null;
+  $('hotspot-dialog-title').textContent = hs ? '编辑热点' : '添加热点';
+  $('hs-type').value = hs?.type || 'scene';
+  $('hs-title').value = hs?.title || '';
+  $('hs-yaw').value = hs?.yaw ?? 0;
+  $('hs-pitch').value = hs?.pitch ?? 0;
+  $('hs-content').value = hs?.content || '';
+  // 填充目标场景下拉
+  const sceneSelect = $('hs-target-scene');
+  sceneSelect.innerHTML = state.scenes.map(s => `<option value="${s.id}" ${hs?.targetSceneId === s.id ? 'selected' : ''}>${s.title}</option>`).join('');
+  toggleHotspotType();
+  $('hotspot-dialog').showModal();
+}
+
+function toggleHotspotType() {
+  const type = $('hs-type').value;
+  $('hs-target-field').classList.toggle('hidden', type !== 'scene');
+  $('hs-content-field').classList.toggle('hidden', type !== 'info');
+}
+$('hs-type').addEventListener('change', toggleHotspotType);
+
+$('hotspot-cancel').addEventListener('click', () => $('hotspot-dialog').close());
+$('hotspot-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const hs = {
+    id: 'hs_' + Date.now(),
+    type: $('hs-type').value,
+    title: $('hs-title').value.trim(),
+    yaw: Number($('hs-yaw').value) || 0,
+    pitch: Number($('hs-pitch').value) || 0,
+  };
+  if (hs.type === 'scene') {
+    hs.targetSceneId = Number($('hs-target-scene').value);
+  } else {
+    hs.content = $('hs-content').value.trim();
+  }
+  if (editingHotspotIndex >= 0) {
+    state.editingHotspots[editingHotspotIndex] = hs;
+  } else {
+    state.editingHotspots.push(hs);
+  }
+  renderHotspotList();
+  $('hotspot-dialog').close();
 });
 
 $('scenes-tbody').addEventListener('click', (e) => {

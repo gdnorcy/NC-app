@@ -54,6 +54,18 @@ export class PanoramaViewer {
     this._activeTileLoads = 0;
     this._pyramidTimer = 0;
     this._lastView = { yaw: 0, pitch: 0, fov: 75 };
+    // 热点
+    this._hotspots = [];
+    this._hotspotSprites = [];
+    this._raycaster = new THREE.Raycaster();
+    this._pointerDown = null;
+    this.onHotspotClick = null;
+    // 小行星
+    this._littlePlanet = false;
+    this._savedFov = 75;
+    this._savedPitch = 0;
+    // VR
+    this._vrMode = false;
 
     this._initRenderer();
     this._initScene();
@@ -340,6 +352,7 @@ export class PanoramaViewer {
 
     this._on('pointerdown', el, (e) => {
       this._drag = { x: e.clientX, y: e.clientY };
+      this._pointerDown = { x: e.clientX, y: e.clientY };
       el.setPointerCapture?.(e.pointerId);
     });
     this._on('pointermove', el, (e) => {
@@ -351,7 +364,19 @@ export class PanoramaViewer {
       this.yaw = next.yaw;
       this.pitch = next.pitch;
     });
-    this._on('pointerup', el, () => {
+    this._on('pointerup', el, (e) => {
+      // 检测点击热点（移动距离小于5px才算点击）
+      if (this._pointerDown) {
+        const dx = Math.abs(e.clientX - this._pointerDown.x);
+        const dy = Math.abs(e.clientY - this._pointerDown.y);
+        if (dx < 5 && dy < 5) {
+          const hs = this._pickHotspot(e.clientX, e.clientY);
+          if (hs && this.onHotspotClick) {
+            this.onHotspotClick(hs);
+          }
+        }
+        this._pointerDown = null;
+      }
       this._drag = null;
     });
     this._on('pointercancel', el, () => {
@@ -422,6 +447,121 @@ export class PanoramaViewer {
     }
   }
 
+  // ---------- 热点 ----------
+  setHotspots(hotspots = []) {
+    this._clearHotspots();
+    this._hotspots = hotspots;
+    for (const hs of hotspots) {
+      const sprite = this._createHotspotSprite(hs);
+      if (sprite) {
+        this.scene.add(sprite);
+        this._hotspotSprites.push(sprite);
+      }
+    }
+  }
+
+  _createHotspotSprite(hs) {
+    const yaw = (hs.yaw || 0) * Math.PI / 180;
+    const pitch = (hs.pitch || 0) * Math.PI / 180;
+    const dir = directionFromYawPitch(yaw, pitch);
+    const dist = RADIUS * 0.92;
+    // 创建热点图标（圆形+箭头）
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    // 外圈
+    ctx.beginPath();
+    ctx.arc(64, 64, 48, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(22, 93, 255, 0.85)';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    // 内圈
+    ctx.beginPath();
+    ctx.arc(64, 64, 24, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    // 箭头
+    ctx.beginPath();
+    ctx.moveTo(64, 48);
+    ctx.lineTo(78, 64);
+    ctx.lineTo(64, 80);
+    ctx.lineTo(64, 70);
+    ctx.lineTo(50, 70);
+    ctx.lineTo(50, 58);
+    ctx.lineTo(64, 58);
+    ctx.closePath();
+    ctx.fillStyle = '#165DFF';
+    ctx.fill();
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(material);
+    sprite.position.set(dir.x * dist, dir.y * dist, dir.z * dist);
+    sprite.scale.set(8, 8, 1);
+    sprite.userData = { hotspot: hs };
+    return sprite;
+  }
+
+  _clearHotspots() {
+    for (const sprite of this._hotspotSprites) {
+      this.scene.remove(sprite);
+      sprite.material.map?.dispose();
+      sprite.material.dispose();
+    }
+    this._hotspotSprites = [];
+    this._hotspots = [];
+  }
+
+  _pickHotspot(clientX, clientY) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+    this._raycaster.setFromCamera(mouse, this.camera);
+    const hits = this._raycaster.intersectObjects(this._hotspotSprites);
+    return hits.length ? hits[0].object.userData.hotspot : null;
+  }
+
+  // ---------- 自动旋转 ----------
+  setAutoRotate(enabled, speed = 0.04) {
+    this.autoRotate = enabled;
+    this.autoRotateSpeed = speed;
+  }
+
+  // ---------- 小行星视角 ----------
+  setLittlePlanet(enabled) {
+    if (enabled === this._littlePlanet) return;
+    this._littlePlanet = enabled;
+    if (enabled) {
+      this._savedFov = this.fov;
+      this._savedPitch = this.pitch;
+      this.fov = FOV_MAX;
+      this.pitch = -Math.PI / 2 + 0.01;
+    } else {
+      this.fov = this._savedFov;
+      this.pitch = this._savedPitch;
+    }
+  }
+
+  // ---------- VR 模式 ----------
+  setVRMode(enabled) {
+    this._vrMode = enabled;
+    if (enabled) {
+      this.renderer.setScissorTest(true);
+    } else {
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, this.container.clientWidth, this.container.clientHeight);
+    }
+  }
+
+  // ---------- 获取当前朝向（用于罗盘） ----------
+  getDirection() {
+    return { yaw: this.yaw, pitch: this.pitch };
+  }
+
   // ---------- 渲染循环 ----------
   _startLoop() {
     const loop = (now) => {
@@ -454,7 +594,26 @@ export class PanoramaViewer {
         }
       }
 
-      this.renderer.render(this.scene, this.camera);
+      // VR分屏渲染
+      if (this._vrMode) {
+        const w = this.container.clientWidth / 2;
+        const h = this.container.clientHeight;
+        // 左眼
+        this.renderer.setViewport(0, 0, w, h);
+        this.renderer.setScissor(0, 0, w, h);
+        this.camera.position.x = -0.03;
+        this.camera.updateProjectionMatrix();
+        this.renderer.render(this.scene, this.camera);
+        // 右眼
+        this.renderer.setViewport(w, 0, w, h);
+        this.renderer.setScissor(w, 0, w, h);
+        this.camera.position.x = 0.03;
+        this.camera.updateProjectionMatrix();
+        this.renderer.render(this.scene, this.camera);
+        this.camera.position.x = 0;
+      } else {
+        this.renderer.render(this.scene, this.camera);
+      }
       this._rafId = requestAnimationFrame(loop);
     };
     this._rafId = requestAnimationFrame(loop);

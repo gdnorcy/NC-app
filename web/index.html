@@ -37,8 +37,25 @@
 
     <div id="controls" class="controls">
       <button id="btn-rotate" class="ctl-btn" title="自动旋转" aria-pressed="false">自动旋转</button>
+      <button id="btn-planet" class="ctl-btn" title="小行星视角" aria-pressed="false">小行星</button>
+      <button id="btn-vr" class="ctl-btn" title="VR模式" aria-pressed="false">VR</button>
       <button id="btn-gyro" class="ctl-btn hidden" title="陀螺仪" aria-pressed="false">陀螺仪</button>
       <button id="btn-fullscreen" class="ctl-btn" title="全屏">全屏</button>
+    </div>
+    <!-- 导航罗盘 -->
+    <div id="compass" class="compass hidden">
+      <div class="compass-ring">
+        <div class="compass-needle" id="compass-needle"></div>
+        <span class="compass-n">N</span>
+      </div>
+    </div>
+    <!-- 热点信息弹窗 -->
+    <div id="hotspot-popup" class="hotspot-popup hidden">
+      <div class="hotspot-popup-content">
+        <h3 id="hotspot-title"></h3>
+        <p id="hotspot-content"></p>
+        <button id="hotspot-close" class="btn-primary">关闭</button>
+      </div>
     </div>
 
     <div id="error" class="error hidden"></div>
