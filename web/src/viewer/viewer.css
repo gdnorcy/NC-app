@@ -27,6 +27,125 @@ body {
   height: 100%;
 }
 
+/* 项目列表首页 */
+.projects-view {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  background: linear-gradient(160deg, #10131a 0%, #171b24 55%, #10131a 100%);
+  -webkit-overflow-scrolling: touch;
+}
+.projects-header {
+  padding: calc(28px + env(safe-area-inset-top)) 22px 6px;
+}
+.projects-logo {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, #6ea8ff, #8f7bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.projects-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(232, 234, 237, 0.55);
+}
+.projects-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 18px 22px calc(30px + env(safe-area-inset-bottom));
+}
+.project-card {
+  flex: 1 1 150px;
+  min-width: 140px;
+  max-width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.project-card:active {
+  transform: scale(0.98);
+  border-color: #4c8dff;
+}
+.project-cover {
+  height: 92px;
+  background: linear-gradient(135deg, #232a38, #1a1f2b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.35);
+}
+.project-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.project-meta {
+  padding: 10px 12px 12px;
+}
+.project-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f2f4f7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.project-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(232, 234, 237, 0.55);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.project-count {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #6ea8ff;
+}
+.projects-empty {
+  width: 100%;
+  padding: 60px 24px;
+  text-align: center;
+  font-size: 14px;
+  color: rgba(232, 234, 237, 0.5);
+}
+
+/* 项目栏（返回 + 项目名） */
+.project-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent);
+}
+.project-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
 .hidden {
   display: none !important;
 }

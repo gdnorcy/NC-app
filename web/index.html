@@ -11,7 +11,20 @@
     <link rel="stylesheet" href="/src/viewer/viewer.css" />
   </head>
   <body>
-    <div id="viewer" class="viewer"></div>
+    <div id="projects-view" class="projects-view hidden">
+      <div class="projects-header">
+        <div class="projects-logo">360 全景</div>
+        <div class="projects-subtitle">全景场景项目</div>
+      </div>
+      <div id="projects-grid" class="projects-grid"></div>
+    </div>
+
+    <div id="viewer" class="viewer hidden"></div>
+
+    <div id="project-bar" class="project-bar hidden">
+      <button id="btn-back" class="ctl-btn" title="返回项目列表">← 项目</button>
+      <span id="project-name" class="project-name"></span>
+    </div>
 
     <div id="loading" class="loading hidden">
       <div class="loading-bar"><div id="loading-fill" class="loading-fill"></div></div>

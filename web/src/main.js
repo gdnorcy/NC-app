@@ -1,5 +1,6 @@
-import { fetchScenes } from './api.js';
+import { fetchProjects, fetchProject, fetchShare } from './api.js';
 import { PanoramaViewer } from './viewer/PanoramaViewer.js';
+import { parseViewPath } from './routing.js';
 
 // 生产模式注册 Service Worker：全景图/静态资源缓存，秒开与离线可用
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -22,8 +23,12 @@ const btnRotate = $('btn-rotate');
 const btnGyro = $('btn-gyro');
 const btnFullscreen = $('btn-fullscreen');
 
-let scenes = [];
-let activeIndex = -1;
+// 项目视图元素
+const projectsViewEl = $('projects-view');
+const projectsGridEl = $('projects-grid');
+const projectBarEl = $('project-bar');
+const projectNameEl = $('project-name');
+const btnBack = $('btn-back');
 
 const viewer = new PanoramaViewer(viewerEl, {
   onLoad: () => {
@@ -46,6 +51,10 @@ const viewer = new PanoramaViewer(viewerEl, {
   },
 });
 
+let scenes = [];
+let activeIndex = -1;
+let project = null; // 当前项目（展示端上下文）
+
 function showError(msg) {
   errorEl.textContent = msg;
   errorEl.classList.remove('hidden');
@@ -60,6 +69,89 @@ function showHint(text) {
   setTimeout(() => hint.remove(), 4200);
 }
 
+// ---- 视图切换 ----
+function enterProjectsView() {
+  projectsViewEl.classList.remove('hidden');
+  viewerEl.classList.add('hidden');
+  projectBarEl.classList.add('hidden');
+  listEl.classList.add('hidden');
+  titleEl.classList.add('hidden');
+}
+
+function enterProjectView(projectData, scenesData, initialIndex = 0) {
+  project = projectData;
+  scenes = scenesData;
+  projectsViewEl.classList.add('hidden');
+  viewerEl.classList.remove('hidden');
+  projectBarEl.classList.remove('hidden');
+  projectNameEl.textContent = project.name;
+  viewer.onResize(); // 从隐藏态变为可见后校正渲染尺寸
+  renderSceneList();
+  return selectScene(initialIndex, { force: true });
+}
+
+// ---- 项目列表 ----
+async function renderProjects() {
+  projectsGridEl.innerHTML = '';
+  let projects;
+  try {
+    projects = await fetchProjects();
+  } catch (err) {
+    enterProjectsView();
+    showError(err.message || '加载项目失败');
+    return;
+  }
+  if (!projects.length) {
+    projectsGridEl.innerHTML = `<div class="projects-empty">暂无公开项目，请先到管理后台创建并开启分享</div>`;
+    return;
+  }
+  for (const p of projects) {
+    const card = document.createElement('div');
+    card.className = 'project-card';
+    const cover = document.createElement('div');
+    cover.className = 'project-cover';
+    if (p.coverPath) {
+      const img = document.createElement('img');
+      img.src = p.coverPath;
+      img.alt = p.name;
+      img.loading = 'lazy';
+      cover.appendChild(img);
+    } else {
+      cover.textContent = p.name.slice(0, 1);
+    }
+    const meta = document.createElement('div');
+    meta.className = 'project-meta';
+    const name = document.createElement('div');
+    name.className = 'project-name';
+    name.textContent = p.name;
+    const desc = document.createElement('div');
+    desc.className = 'project-desc';
+    desc.textContent = p.description || `${p.sceneCount} 个全景场景`;
+    const count = document.createElement('div');
+    count.className = 'project-count';
+    count.textContent = `${p.sceneCount} 场景`;
+    meta.append(name, desc, count);
+    card.append(cover, meta);
+    card.addEventListener('click', () => openProject(p.id));
+    projectsGridEl.appendChild(card);
+  }
+}
+
+async function openProject(id) {
+  try {
+    const { project: p, scenes: s } = await fetchProject(id);
+    if (!s.length) {
+      enterProjectsView();
+      showError('该项目暂无公开场景');
+      return;
+    }
+    await enterProjectView(p, s, 0);
+  } catch (err) {
+    showError(err.message || '打开项目失败');
+  }
+}
+
+// ---- 场景列表 ----
 function renderSceneList() {
   listEl.innerHTML = '';
   if (scenes.length <= 1) {
@@ -83,10 +175,11 @@ function renderSceneList() {
   });
 }
 
-async function selectScene(i) {
-  if (i === activeIndex && viewer._mesh) return;
+async function selectScene(i, { force = false } = {}) {
+  if (!force && i === activeIndex && viewer._mesh) return;
   activeIndex = i;
   const scene = scenes[i];
+  if (!scene) return;
   titleEl.textContent = scene.title;
   loadingEl.classList.remove('hidden');
   loadingFill.style.width = '0%';
@@ -129,6 +222,17 @@ btnFullscreen.addEventListener('click', () => {
   }
 });
 
+btnBack.addEventListener('click', async () => {
+  if (history.state && history.state.share) {
+    // 分享直达的入口：返回浏览器上一个页面
+    history.back();
+    return;
+  }
+  await renderProjects();
+  enterProjectsView();
+  viewer.reset?.();
+});
+
 // ---- 自适应 ----
 function onResize() {
   viewer.onResize();
@@ -143,17 +247,32 @@ async function init() {
     btnGyro.classList.remove('hidden');
   }
   showHint(isTouch ? '拖动或双指缩放查看全景' : '拖动查看全景，滚轮缩放');
-  try {
-    scenes = await fetchScenes();
-    if (!scenes.length) {
-      showError('暂无全景内容，请先到管理后台添加场景');
-      return;
+
+  const route = parseViewPath(location.pathname);
+  if (route.type === 'share') {
+    // 分享链接直达：项目级或场景级
+    try {
+      const data = await fetchShare(route.token);
+      history.replaceState({ share: true }, '', location.pathname);
+      if (data.type === 'scene') {
+        const idx = Math.max(
+          0,
+          data.scenes.findIndex((s) => s.id === data.scene.id)
+        );
+        await enterProjectView(data.project, data.scenes, idx);
+      } else {
+        await enterProjectView(data.project, data.scenes, 0);
+      }
+    } catch (err) {
+      enterProjectsView();
+      showError(err.message || '链接无效或已关闭');
     }
-    renderSceneList();
-    await selectScene(0);
-  } catch (err) {
-    showError(err.message);
+    return;
   }
+
+  // 默认：项目列表首页
+  enterProjectsView();
+  await renderProjects();
 }
 
 init();

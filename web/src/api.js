@@ -18,6 +18,22 @@ export async function fetchScenes() {
   return data.scenes;
 }
 
+/** 展示端：公开项目列表（仅已上架且开启分享的项目） */
+export async function fetchProjects() {
+  const data = await request('/api/projects');
+  return data.projects;
+}
+
+/** 展示端：项目详情（项目 + 上架场景） */
+export async function fetchProject(id) {
+  return request(`/api/projects/${id}`);
+}
+
+/** 展示端：分享令牌解析（项目级或场景级） */
+export async function fetchShare(token) {
+  return request(`/api/s/${encodeURIComponent(token)}`);
+}
+
 /** 后台：登录 */
 export function login(username, password) {
   return request('/api/auth/login', {
