@@ -92,9 +92,9 @@ $('login-form').addEventListener('submit', async (e) => {
 });
 
 // 登录 tab 切换
-document.querySelectorAll('.login-tab').forEach((tab) => {
+document.querySelectorAll('.login-tabs .tab').forEach((tab) => {
   tab.addEventListener('click', () => {
-    document.querySelectorAll('.login-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.login-tabs .tab').forEach((t) => t.classList.toggle('active', t === tab));
     const isPhone = tab.dataset.tab === 'phone';
     $('login-form').classList.toggle('hidden', isPhone);
     $('login-phone-form').classList.toggle('hidden', !isPhone);
@@ -1480,6 +1480,12 @@ $('btn-save-security')?.addEventListener('click', async () => {
 
 async function boot() {
   currentUser = getCurrentUser();
+  // 用户头像
+  $('user-avatar-text').textContent = (currentUser?.username || '?').charAt(0).toUpperCase();
+  $('user-dropdown-name').textContent = currentUser?.username || '';
+  const roleMap = { admin: '管理员', manager: '运营经理', editor: '编辑', viewer: '只读' };
+  $('user-dropdown-role').textContent = roleMap[currentUser?.role] || currentUser?.role || '';
+
   // 仅 admin 可见用户管理、操作日志和系统设置
   const isAdmin = currentUser?.role === 'admin';
   $('nav-users').style.display = isAdmin ? '' : 'none';
@@ -1497,6 +1503,26 @@ async function boot() {
   render();
   loadDashboard();
 }
+
+// 侧边栏折叠
+$('btn-collapse')?.addEventListener('click', () => {
+  $('sidebar').classList.toggle('collapsed');
+});
+
+// 用户头像下拉
+$('btn-user-menu')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('user-dropdown').classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.user-menu-wrap')) {
+    $('user-dropdown')?.classList.add('hidden');
+  }
+});
+$('btn-user-logout')?.addEventListener('click', () => {
+  $('user-dropdown').classList.add('hidden');
+  logout();
+});
 
 if (isLoggedIn()) {
   renderAdmin();
