@@ -11,6 +11,7 @@ import { createCustomersRouter } from './routes/customers.js';
 import { createUsersRouter } from './routes/users.js';
 import { createSettingsRouter } from './routes/settings.js';
 import { createLogsRouter } from './routes/logs.js';
+import { createCustomerRouter } from './routes/customer.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -30,6 +31,7 @@ export function createApp({ db } = {}) {
   app.use('/api/admin/users', createUsersRouter(database));
   app.use('/api', createSettingsRouter(database));
   app.use('/api', createLogsRouter(database));
+  app.use('/api/customer', requireAuth, createCustomerRouter(database));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));

@@ -82,7 +82,13 @@ $('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   loginError.classList.add('hidden');
   try {
-    const { token } = await login($('login-username').value, $('login-password').value);
+    const { token, user } = await login($('login-username').value, $('login-password').value);
+    // 租户角色跳转到客户后台
+    if (['tenant_admin', 'tenant_member'].includes(user.role)) {
+      localStorage.setItem('customer_token', token);
+      window.location.href = '/customer.html';
+      return;
+    }
     localStorage.setItem(TOKEN_KEY, token);
     renderAdmin();
     await boot();
@@ -141,7 +147,13 @@ $('login-phone-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   loginError.classList.add('hidden');
   try {
-    const { token } = await loginByPhone($('login-phone').value.trim(), $('login-code').value.trim());
+    const { token, user } = await loginByPhone($('login-phone').value.trim(), $('login-code').value.trim());
+    // 租户角色跳转到客户后台
+    if (user && ['tenant_admin', 'tenant_member'].includes(user.role)) {
+      localStorage.setItem('customer_token', token);
+      window.location.href = '/customer.html';
+      return;
+    }
     localStorage.setItem(TOKEN_KEY, token);
     renderAdmin();
     await boot();
@@ -967,6 +979,17 @@ function openUserEdit(user) {
   $('uf-password').value = '';
   $('uf-password').required = !user;
   $('uf-password-field').style.opacity = user ? '0.6' : '1';
+  // 加载客户列表
+  const custSel = $('uf-customer-id');
+  custSel.innerHTML = customers.map((c) => `<option value="${c.id}">${c.customerName}</option>`).join('');
+  if (user && user.customerId) custSel.value = user.customerId;
+  // 角色切换显示客户选择
+  const toggleCustomerField = () => {
+    const isTenant = ['tenant_admin', 'tenant_member'].includes($('uf-role').value);
+    $('uf-customer-field').style.display = isTenant ? '' : 'none';
+  };
+  $('uf-role').onchange = toggleCustomerField;
+  toggleCustomerField();
   state.view = 'user-edit';
   render();
   $('uf-username').focus();
@@ -988,6 +1011,9 @@ $('user-form').addEventListener('submit', async (e) => {
       phone: $('uf-phone').value.trim() || null,
       role: $('uf-role').value,
       status: $('uf-status').value,
+      customerId: ['tenant_admin', 'tenant_member'].includes($('uf-role').value)
+        ? Number($('uf-customer-id').value)
+        : null,
     };
     const password = $('uf-password').value;
     if (editingUserId) {

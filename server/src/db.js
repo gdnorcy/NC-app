@@ -260,6 +260,29 @@ function migrate(db) {
       'INSERT INTO users (username, phone, password_hash, password_salt, role, status) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(config.adminUser, null, hash, salt, 'admin', 'active');
   }
+
+  // —— users 表加 customer_id（租户关联）——
+  if (!colExists(db, 'users', 'customer_id')) {
+    db.exec('ALTER TABLE users ADD COLUMN customer_id INTEGER');
+  }
+
+  // —— orders 表（客户账单/订单）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      order_no TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      amount REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      payment_method TEXT,
+      paid_at TEXT,
+      remark TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
+  `);
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
@@ -356,9 +379,34 @@ export function toUser(row) {
     phone: row.phone || '',
     role: row.role,
     status: row.status,
+    customerId: row.customer_id || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// ---------- 订单 ----------
+export function toOrder(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    orderNo: row.order_no,
+    title: row.title,
+    amount: row.amount,
+    status: row.status,
+    paymentMethod: row.payment_method,
+    paidAt: row.paid_at,
+    remark: row.remark,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function genOrderNo() {
+  const ts = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `ORD${ts}${rand}`;
 }
 
 // ---------- 通用设置（key-value） ----------

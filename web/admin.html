@@ -436,11 +436,21 @@
                     <label class="field">
                       <span>角色</span>
                       <select id="uf-role">
-                        <option value="admin">管理员（全部权限）</option>
-                        <option value="manager">运营（管理客户/方案/场景）</option>
-                        <option value="editor">编辑（仅编辑场景）</option>
-                        <option value="viewer">只读（仅查看）</option>
+                        <optgroup label="平台后台">
+                          <option value="admin">管理员（全部权限）</option>
+                          <option value="manager">运营（管理客户/方案/场景）</option>
+                          <option value="editor">编辑（仅编辑场景）</option>
+                          <option value="viewer">只读（仅查看）</option>
+                        </optgroup>
+                        <optgroup label="客户后台">
+                          <option value="tenant_admin">租户管理员</option>
+                          <option value="tenant_member">租户普通成员</option>
+                        </optgroup>
                       </select>
+                    </label>
+                    <label class="field" id="uf-customer-field" style="display:none;">
+                      <span>关联客户 *</span>
+                      <select id="uf-customer-id"></select>
                     </label>
                     <label class="field">
                       <span>状态</span>

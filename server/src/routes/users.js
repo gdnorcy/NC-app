@@ -17,7 +17,7 @@ export function createUsersRouter(db) {
 
   // —— 创建子账号 ——
   router.post('/', (req, res) => {
-    const { username, phone, password, role = 'editor', status = 'active' } = req.body || {};
+    const { username, phone, password, role = 'editor', status = 'active', customerId } = req.body || {};
     if (!username && !phone) {
       return res.status(400).json({ error: '用户名和手机号至少填一个' });
     }
@@ -33,12 +33,17 @@ export function createUsersRouter(db) {
     if (phone && db.prepare('SELECT id FROM users WHERE phone = ?').get(phone)) {
       return res.status(409).json({ error: '手机号已存在' });
     }
+    // 租户角色必须关联客户
+    const cid = ['tenant_admin', 'tenant_member'].includes(role) ? customerId : null;
+    if (['tenant_admin', 'tenant_member'].includes(role) && !cid) {
+      return res.status(400).json({ error: '租户账号必须关联客户项目' });
+    }
     const { hash, salt } = hashPassword(password);
     const info = db
       .prepare(
-        'INSERT INTO users (username, phone, password_hash, password_salt, role, status) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
-      .run(username || null, phone || null, hash, salt, role, status);
+      .run(username || null, phone || null, hash, salt, role, status, cid);
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_user', targetType: 'user', targetId: info.lastInsertRowid, detail: `创建用户: ${username || phone} (${role})`, ip: req.ip });
     res.json({ user: toUser(user) });
@@ -50,7 +55,7 @@ export function createUsersRouter(db) {
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
     if (!user) return res.status(404).json({ error: '用户不存在' });
 
-    const { username, phone, role, status } = req.body || {};
+    const { username, phone, role, status, customerId } = req.body || {};
     if (role && !VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: '无效的角色' });
     }
@@ -72,9 +77,17 @@ export function createUsersRouter(db) {
         return res.status(409).json({ error: '手机号已存在' });
       }
     }
+    // 租户角色必须关联客户
+    const finalRole = role || user.role;
+    const finalCid = ['tenant_admin', 'tenant_member'].includes(finalRole)
+      ? customerId ?? user.customer_id
+      : null;
+    if (['tenant_admin', 'tenant_member'].includes(finalRole) && !finalCid) {
+      return res.status(400).json({ error: '租户账号必须关联客户项目' });
+    }
     db.prepare(
-      'UPDATE users SET username = COALESCE(?, username), phone = COALESCE(?, phone), role = COALESCE(?, role), status = COALESCE(?, status), updated_at = datetime(\'now\') WHERE id = ?'
-    ).run(username ?? null, phone ?? null, role ?? null, status ?? null, id);
+      'UPDATE users SET username = COALESCE(?, username), phone = COALESCE(?, phone), role = COALESCE(?, role), status = COALESCE(?, status), customer_id = ?, updated_at = datetime(\'now\') WHERE id = ?'
+    ).run(username ?? null, phone ?? null, role ?? null, status ?? null, finalCid, id);
     const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_user', targetType: 'user', targetId: id, detail: `更新用户: ${updated.username || updated.phone}`, ip: req.ip });
     res.json({ user: toUser(updated) });

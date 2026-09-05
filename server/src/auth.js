@@ -4,7 +4,7 @@ import { config } from './config.js';
 import { verifyPassword, hashPassword, toUser, addOperationLog } from './db.js';
 import { getSmsProvider, genSmsCode } from './sms.js';
 
-const VALID_ROLES = ['admin', 'manager', 'editor', 'viewer'];
+const VALID_ROLES = ['admin', 'manager', 'editor', 'viewer', 'tenant_admin', 'tenant_member'];
 const SMS_CODE_TTL_MINUTES = 5;
 const SMS_SEND_INTERVAL_MS = 60 * 1000; // 同一手机号 60 秒内只能发一次
 
@@ -12,7 +12,11 @@ export function createAuthRouter(db) {
   const router = express.Router();
 
   function issueToken(user) {
-    return jwt.sign({ uid: user.id, username: user.username, role: user.role }, config.jwtSecret, { expiresIn: '7d' });
+    return jwt.sign(
+      { uid: user.id, username: user.username, role: user.role, customerId: user.customer_id || null },
+      config.jwtSecret,
+      { expiresIn: '7d' }
+    );
   }
 
   function findUserByIdentifier(identifier) {
@@ -175,7 +179,7 @@ export function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: '未登录' });
   try {
     const payload = jwt.verify(token, config.jwtSecret);
-    req.user = { id: payload.uid, username: payload.username, role: payload.role };
+    req.user = { id: payload.uid, username: payload.username, role: payload.role, customerId: payload.customerId || null };
     return next();
   } catch {
     return res.status(401).json({ error: '登录已过期' });
