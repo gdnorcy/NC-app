@@ -299,6 +299,32 @@ router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
   res.json({ config });
 });
 
+// 存储测试连接（仅租户管理员）
+router.post('/storage/test', requireTenant, requireTenantAdmin, async (req, res) => {
+  try {
+    const { provider, ...cfg } = req.body || {};
+    if (!provider || provider === 'local') return res.json({ message: '本地存储无需测试', ok: true });
+    const storage = await getStorage(db);
+    // 用传入的配置创建临时存储实例测试
+    let testStorage;
+    if (provider === 'qiniu') {
+      const { QiniuStorage } = await import('../storage/qiniu.js');
+      testStorage = new QiniuStorage(cfg);
+    } else if (provider === 'aliyun') {
+      const { OssStorage } = await import('../storage/oss.js');
+      testStorage = new OssStorage(cfg);
+    } else {
+      return res.status(400).json({ error: '不支持的存储服务商' });
+    }
+    const ok = await testStorage.testConnection();
+    if (ok) res.json({ message: '连接成功', ok: true });
+    else res.status(400).json({ error: '连接失败，请检查配置' });
+  } catch (e) {
+    console.error('存储测试连接失败:', e);
+    res.status(400).json({ error: e.message || '连接失败' });
+  }
+});
+
 // 图片上传（复用云存储配置）
 router.post('/upload', requireTenant, requireTenantAdmin, (req, res) => {
   upload.single('file')(req, res, async (err) => {
