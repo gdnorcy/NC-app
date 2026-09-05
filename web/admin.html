@@ -26,80 +26,205 @@
     </div>
 
     <!-- 管理视图 -->
-    <div id="admin-view" class="view hidden">
-      <header class="topbar">
-        <h1>360 全景管理后台</h1>
-        <div class="topbar-actions">
-          <a class="btn btn-ghost" href="/" target="_blank">查看前台</a>
-          <button id="btn-storage" class="btn btn-ghost">存储设置</button>
-          <button id="btn-logout" class="btn btn-ghost">退出登录</button>
+    <div id="admin-view" class="admin-layout hidden">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <div class="sidebar-logo">360 全景</div>
+        <nav class="sidebar-nav">
+          <button type="button" class="nav-item active" data-nav="customers">👤 客户项目</button>
+          <button type="button" class="nav-item" data-nav="storage">☁️ 存储设置</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="btn-logout" class="nav-item">退出登录</button>
         </div>
-      </header>
+      </aside>
 
-      <nav class="view-tabs" role="tablist">
-        <button type="button" class="tab active" data-view="scenes">场景管理</button>
-        <button type="button" class="tab" data-view="projects">项目管理</button>
-      </nav>
-
-      <main class="content">
-        <!-- 场景管理 -->
-        <section id="view-scenes">
-          <div class="toolbar">
-            <button id="btn-add" class="btn btn-primary">+ 新增场景</button>
-            <span id="scene-count" class="muted"></span>
+      <!-- 主区域 -->
+      <div class="main-area">
+        <header class="topbar">
+          <div id="breadcrumb" class="breadcrumb"></div>
+          <div class="topbar-actions">
+            <a class="btn btn-ghost" href="/" target="_blank">查看前台</a>
           </div>
+        </header>
 
-          <div class="table-wrap">
-            <table class="scene-table">
-              <thead>
-                <tr>
-                  <th>预览</th>
-                  <th>标题 / 描述</th>
-                  <th>所属项目</th>
-                  <th>分享</th>
-                  <th>排序</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="scene-tbody"></tbody>
-            </table>
-          </div>
-        </section>
+        <main class="content">
+          <!-- 客户项目（卡片） -->
+          <section id="view-customers">
+            <div class="toolbar">
+              <button id="btn-add-customer" class="btn btn-primary">+ 新建客户项目</button>
+              <span id="customer-count" class="muted"></span>
+            </div>
+            <div id="customer-grid" class="customer-grid"></div>
+          </section>
 
-        <!-- 项目管理 -->
-        <section id="view-projects" class="hidden">
-          <div class="toolbar">
-            <button id="btn-add-project" class="btn btn-primary">+ 新建项目</button>
-            <span id="project-count" class="muted"></span>
-          </div>
+          <!-- 方案列表 -->
+          <section id="view-plans" class="hidden">
+            <div class="toolbar">
+              <button id="btn-back-from-plans" class="btn btn-ghost">← 返回客户</button>
+              <button id="btn-add-plan" class="btn btn-primary">+ 新建方案</button>
+              <span id="plan-count" class="muted"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="scene-table">
+                <thead>
+                  <tr>
+                    <th>封面</th>
+                    <th>名称 / 描述</th>
+                    <th>场景数</th>
+                    <th>分享</th>
+                    <th>排序</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="plan-tbody"></tbody>
+              </table>
+            </div>
+          </section>
 
-          <div class="project-table-wrap">
-            <table class="scene-table">
-              <thead>
-                <tr>
-                  <th>封面</th>
-                  <th>名称 / 描述</th>
-                  <th>场景数</th>
-                  <th>分享</th>
-                  <th>排序</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="project-tbody"></tbody>
-            </table>
-          </div>
-        </section>
+          <!-- 场景列表 -->
+          <section id="view-scenes" class="hidden">
+            <div class="toolbar">
+              <button id="btn-back-from-scenes" class="btn btn-ghost">← 返回方案</button>
+              <button id="btn-add-scene" class="btn btn-primary">+ 新增场景</button>
+              <span id="scene-count" class="muted"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="scene-table">
+                <thead>
+                  <tr>
+                    <th>预览</th>
+                    <th>标题 / 描述</th>
+                    <th>分享</th>
+                    <th>排序</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="scene-tbody"></tbody>
+              </table>
+            </div>
+          </section>
 
-        <p id="admin-error" class="form-error hidden"></p>
-      </main>
+          <p id="admin-error" class="form-error hidden"></p>
+        </main>
+      </div>
     </div>
+
+    <!-- 客户项目编辑弹窗 -->
+    <dialog id="customer-dialog">
+      <form id="customer-form" class="dialog-card">
+        <h2 id="customer-dialog-title">新建客户项目</h2>
+        <input type="hidden" id="cf-id" />
+
+        <label class="field">
+          <span>客户名称 *</span>
+          <input id="cf-name" required maxlength="50" placeholder="如：坡特商贸" />
+        </label>
+
+        <label class="field">
+          <span>客户描述 / 备注</span>
+          <textarea id="cf-desc" rows="2" maxlength="200" placeholder="选填"></textarea>
+        </label>
+
+        <label class="field">
+          <span>Logo（JPG / PNG / WebP，自动压缩）</span>
+          <input id="cf-file" type="file" accept="image/jpeg,image/png,image/webp" />
+        </label>
+        <div id="cf-preview-wrap" class="preview-wrap hidden">
+          <img id="cf-preview" alt="Logo 预览" style="max-height:80px;" />
+        </div>
+        <p id="cf-upload-state" class="muted"></p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>有效期开始</span>
+            <input id="cf-valid-from" type="date" />
+          </label>
+          <label class="field">
+            <span>有效期结束</span>
+            <input id="cf-valid-until" type="date" />
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label class="checkbox-field">
+            <input id="cf-pinned" type="checkbox" />
+            <span>置顶</span>
+          </label>
+          <label class="field">
+            <span>状态</span>
+            <select id="cf-status">
+              <option value="active">正常</option>
+              <option value="disabled">停用</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="customer-dialog-cancel" class="btn btn-ghost">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 方案编辑弹窗 -->
+    <dialog id="plan-dialog">
+      <form id="plan-form" class="dialog-card">
+        <h2 id="plan-dialog-title">新建方案</h2>
+        <input type="hidden" id="plf-id" />
+
+        <label class="field">
+          <span>方案名称 *</span>
+          <input id="plf-name" required maxlength="50" placeholder="如：XX 楼盘全景" />
+        </label>
+
+        <label class="field">
+          <span>方案描述</span>
+          <textarea id="plf-desc" rows="2" maxlength="200" placeholder="选填，展示在前台方案卡片上"></textarea>
+        </label>
+
+        <label class="field">
+          <span>所属客户</span>
+          <select id="plf-customer"></select>
+        </label>
+
+        <label class="field">
+          <span>封面图（JPG / PNG / WebP，自动压缩）</span>
+          <input id="plf-file" type="file" accept="image/jpeg,image/png,image/webp" />
+        </label>
+        <div id="plf-preview-wrap" class="preview-wrap hidden">
+          <img id="plf-preview" alt="封面预览" />
+        </div>
+        <p id="plf-upload-state" class="muted"></p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>排序值（小在前）</span>
+            <input id="plf-sort" type="number" value="0" />
+          </label>
+          <label class="checkbox-field">
+            <input id="plf-published" type="checkbox" checked />
+            <span>上架</span>
+          </label>
+          <label class="checkbox-field">
+            <input id="plf-share" type="checkbox" checked />
+            <span>开启分享</span>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="plan-dialog-cancel" class="btn btn-ghost">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </dialog>
 
     <!-- 场景编辑弹窗 -->
     <dialog id="scene-dialog">
       <form id="scene-form" class="dialog-card">
-        <h2 id="dialog-title">新增场景</h2>
+        <h2 id="scene-dialog-title">新增场景</h2>
         <input type="hidden" id="f-id" />
         <input type="hidden" id="f-image-path" />
         <input type="hidden" id="f-preview-path" />
@@ -124,10 +249,8 @@
         <p id="f-upload-state" class="muted"></p>
 
         <label class="field">
-          <span>所属项目</span>
-          <select id="f-project">
-            <option value="">默认项目（未归属时）</option>
-          </select>
+          <span>所属方案</span>
+          <select id="f-plan"></select>
         </label>
 
         <div class="field-row">
@@ -150,7 +273,7 @@
         </div>
 
         <div class="dialog-actions">
-          <button type="button" id="dialog-cancel" class="btn btn-ghost">取消</button>
+          <button type="button" id="scene-dialog-cancel" class="btn btn-ghost">取消</button>
           <button type="submit" class="btn btn-primary">保存</button>
         </div>
       </form>
@@ -168,12 +291,10 @@
           <button type="button" class="tab" data-provider="qiniu" role="tab">七牛云</button>
         </div>
 
-        <!-- 本地存储 -->
         <div id="storage-pane-local" class="storage-pane">
           <p class="muted" style="padding:14px 0 4px;">图片保存在服务器磁盘（<code>server/data/uploads/</code>），无需额外配置，适合开发与内网环境。</p>
         </div>
 
-        <!-- 阿里云 OSS -->
         <div id="storage-pane-oss" class="storage-pane" hidden>
           <label class="field">
             <span>AccessKey ID</span>
@@ -201,7 +322,6 @@
           </label>
         </div>
 
-        <!-- 七牛云 -->
         <div id="storage-pane-qiniu" class="storage-pane" hidden>
           <label class="field">
             <span>AccessKey</span>
@@ -246,54 +366,7 @@
       </form>
     </dialog>
 
-    <!-- 项目编辑弹窗 -->
-    <dialog id="project-dialog">
-      <form id="project-form" class="dialog-card">
-        <h2 id="project-dialog-title">新建项目</h2>
-        <input type="hidden" id="pf-id" />
-
-        <label class="field">
-          <span>项目名称 *</span>
-          <input id="pf-name" required maxlength="50" placeholder="如：XX 楼盘全景" />
-        </label>
-
-        <label class="field">
-          <span>项目描述</span>
-          <textarea id="pf-desc" rows="2" maxlength="200" placeholder="选填，展示在前台项目卡片上"></textarea>
-        </label>
-
-        <label class="field">
-          <span>封面图（JPG / PNG / WebP，自动压缩）</span>
-          <input id="pf-file" type="file" accept="image/jpeg,image/png,image/webp" />
-        </label>
-        <div id="pf-preview-wrap" class="preview-wrap hidden">
-          <img id="pf-preview" alt="封面预览" />
-        </div>
-        <p id="pf-upload-state" class="muted"></p>
-
-        <div class="field-row">
-          <label class="field">
-            <span>排序值（小在前）</span>
-            <input id="pf-sort" type="number" value="0" />
-          </label>
-          <label class="checkbox-field">
-            <input id="pf-published" type="checkbox" checked />
-            <span>上架</span>
-          </label>
-          <label class="checkbox-field">
-            <input id="pf-share" type="checkbox" checked />
-            <span>开启分享</span>
-          </label>
-        </div>
-
-        <div class="dialog-actions">
-          <button type="button" id="project-dialog-cancel" class="btn btn-ghost">取消</button>
-          <button type="submit" class="btn btn-primary">保存</button>
-        </div>
-      </form>
-    </dialog>
-
-    <!-- 分享管理弹窗（项目级 / 场景级共用） -->
+    <!-- 分享管理弹窗（方案级 / 场景级共用） -->
     <dialog id="share-dialog">
       <form id="share-form" class="dialog-card" onsubmit="return false;">
         <h2 id="share-title">分享链接</h2>

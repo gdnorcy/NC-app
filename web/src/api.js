@@ -1,4 +1,6 @@
-/** API 客户端：展示端与管理后台共用 */
+/** API 客户端：展示端与管理后台共用
+ *  三层模型：客户项目(projects) → 方案(plans) → 场景(scenes)
+ */
 
 async function request(url, options = {}) {
   const res = await fetch(url, {
@@ -12,29 +14,33 @@ async function request(url, options = {}) {
   return data;
 }
 
-/** 展示端：获取上架场景列表（返回场景数组） */
+// ———————— 展示端（公开） ————————
+
+/** 展示端：获取上架场景列表 */
 export async function fetchScenes() {
   const data = await request('/api/scenes');
   return data.scenes;
 }
 
-/** 展示端：公开项目列表（仅已上架且开启分享的项目） */
+/** 展示端：公开方案列表（兼容旧函数名，内部调 /api/plans） */
 export async function fetchProjects() {
-  const data = await request('/api/projects');
-  return data.projects;
+  const data = await request('/api/plans');
+  return data.plans;
 }
 
-/** 展示端：项目详情（项目 + 上架场景） */
+/** 展示端：方案详情（兼容旧函数名，返回 {project, scenes}） */
 export async function fetchProject(id) {
-  return request(`/api/projects/${id}`);
+  const data = await request(`/api/plans/${id}`);
+  return { project: data.plan, scenes: data.scenes };
 }
 
-/** 展示端：分享令牌解析（项目级或场景级） */
+/** 展示端：分享令牌解析（方案级或场景级） */
 export async function fetchShare(token) {
   return request(`/api/s/${encodeURIComponent(token)}`);
 }
 
-/** 后台：登录 */
+// ———————— 认证 ————————
+
 export function login(username, password) {
   return request('/api/auth/login', {
     method: 'POST',
@@ -46,44 +52,17 @@ function adminHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('panorama_token') || ''}` };
 }
 
-/** 后台：全部场景 */
-export function fetchAdminScenes() {
-  return request('/api/admin/scenes', { headers: adminHeaders() });
-}
+// ———————— 后台：客户项目 ————————
 
-/** 后台：新建场景 */
-export function createScene(payload) {
-  return request('/api/admin/scenes', {
-    method: 'POST',
-    headers: adminHeaders(),
-    body: JSON.stringify(payload),
-  });
-}
-
-/** 后台：更新场景 */
-export function updateScene(id, payload) {
-  return request(`/api/admin/scenes/${id}`, {
-    method: 'PUT',
-    headers: adminHeaders(),
-    body: JSON.stringify(payload),
-  });
-}
-
-/** 后台：删除场景 */
-export function deleteScene(id) {
-  return request(`/api/admin/scenes/${id}`, {
-    method: 'DELETE',
-    headers: adminHeaders(),
-  });
-}
-
-/** 后台：全部项目 */
-export function fetchAdminProjects() {
+export function fetchAdminCustomers() {
   return request('/api/admin/projects', { headers: adminHeaders() });
 }
 
-/** 后台：新建项目 */
-export function createProject(payload) {
+export function fetchAdminCustomer(id) {
+  return request(`/api/admin/projects/${id}`, { headers: adminHeaders() });
+}
+
+export function createCustomer(payload) {
   return request('/api/admin/projects', {
     method: 'POST',
     headers: adminHeaders(),
@@ -91,8 +70,7 @@ export function createProject(payload) {
   });
 }
 
-/** 后台：更新项目（regenerateShareToken 为 true 时刷新分享令牌） */
-export function updateProject(id, payload) {
+export function updateCustomer(id, payload) {
   return request(`/api/admin/projects/${id}`, {
     method: 'PUT',
     headers: adminHeaders(),
@@ -100,19 +78,59 @@ export function updateProject(id, payload) {
   });
 }
 
-/** 后台：删除项目（项目内场景自动归入默认项目） */
-export function deleteProject(id) {
+export function deleteCustomer(id) {
   return request(`/api/admin/projects/${id}`, {
     method: 'DELETE',
     headers: adminHeaders(),
   });
 }
 
-/** 后台：上传项目封面（自动压缩为 WebP） */
-export async function uploadCover(file) {
+export async function uploadCustomerLogo(file) {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch('/api/admin/projects/cover', {
+  const res = await fetch('/api/admin/projects/logo', {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Logo 上传失败');
+  return data;
+}
+
+// ———————— 后台：方案 ————————
+
+export function fetchAdminPlans() {
+  return request('/api/admin/plans', { headers: adminHeaders() });
+}
+
+export function createPlan(payload) {
+  return request('/api/admin/plans', {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePlan(id, payload) {
+  return request(`/api/admin/plans/${id}`, {
+    method: 'PUT',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deletePlan(id) {
+  return request(`/api/admin/plans/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
+}
+
+export async function uploadPlanCover(file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch('/api/admin/plans/cover', {
     method: 'POST',
     headers: adminHeaders(),
     body: form,
@@ -122,7 +140,43 @@ export async function uploadCover(file) {
   return data;
 }
 
-/** 后台：上传全景图，服务端自动转码，返回 { path, previewPath } */
+// 兼容旧后台函数名
+export const fetchAdminProjects = fetchAdminPlans;
+export const createProject = createPlan;
+export const updateProject = updatePlan;
+export const deleteProject = deletePlan;
+export const uploadCover = uploadPlanCover;
+
+// ———————— 后台：场景 ————————
+
+export function fetchAdminScenes() {
+  return request('/api/admin/scenes', { headers: adminHeaders() });
+}
+
+export function createScene(payload) {
+  return request('/api/admin/scenes', {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateScene(id, payload) {
+  return request(`/api/admin/scenes/${id}`, {
+    method: 'PUT',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteScene(id) {
+  return request(`/api/admin/scenes/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
+}
+
+/** 后台：上传全景图，服务端自动转码 */
 export async function uploadImage(file, onProgress) {
   const form = new FormData();
   form.append('file', file);
@@ -136,12 +190,12 @@ export async function uploadImage(file, onProgress) {
   return data;
 }
 
-/** 后台：读取存储配置 */
+// ———————— 后台：存储设置 ————————
+
 export function fetchStorageConfig() {
   return request('/api/admin/storage', { headers: adminHeaders() });
 }
 
-/** 后台：保存存储配置 */
 export function saveStorageConfig(payload) {
   return request('/api/admin/storage', {
     method: 'PUT',
@@ -150,7 +204,6 @@ export function saveStorageConfig(payload) {
   });
 }
 
-/** 后台：测试存储连接（可传表单配置；不传则测试已保存配置）。15 秒超时防止网络挂起 */
 export async function testStorage(payload) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);

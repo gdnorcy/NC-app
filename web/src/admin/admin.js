@@ -8,11 +8,16 @@ import {
   fetchStorageConfig,
   saveStorageConfig,
   testStorage,
-  fetchAdminProjects,
-  createProject,
-  updateProject,
-  deleteProject,
-  uploadCover,
+  fetchAdminCustomers,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+  uploadCustomerLogo,
+  fetchAdminPlans,
+  createPlan,
+  updatePlan,
+  deletePlan,
+  uploadPlanCover,
 } from '../api.js';
 
 const $ = (id) => document.getElementById(id);
@@ -20,15 +25,22 @@ const TOKEN_KEY = 'panorama_token';
 
 const loginView = $('login-view');
 const adminView = $('admin-view');
-const tbody = $('scene-tbody');
-const dialog = $('scene-dialog');
-const dialogTitle = $('dialog-title');
-const form = $('scene-form');
 const adminError = $('admin-error');
 const loginError = $('login-error');
 
+// 三层状态
+const state = {
+  view: 'customers', // 'customers' | 'plans' | 'scenes'
+  currentCustomer: null,
+  currentPlan: null,
+};
+let customers = [];
+let plans = [];
 let scenes = [];
-let projects = [];
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 function showError(el, msg) {
   el.textContent = msg;
@@ -58,8 +70,7 @@ $('login-form').addEventListener('submit', async (e) => {
     const { token } = await login($('login-username').value, $('login-password').value);
     localStorage.setItem(TOKEN_KEY, token);
     renderAdmin();
-    await Promise.all([loadScenes(), loadProjects()]);
-    renderScenes();
+    await boot();
   } catch (err) {
     showError(loginError, err.message);
   }
@@ -70,243 +81,241 @@ $('btn-logout').addEventListener('click', () => {
   renderLogin();
 });
 
-// ---------- 视图切换（场景 / 项目） ----------
-function switchView(name) {
-  document.querySelectorAll('.view-tabs .tab').forEach((t) => {
-    t.classList.toggle('active', t.dataset.view === name);
-  });
-  $('view-scenes').classList.toggle('hidden', name !== 'scenes');
-  $('view-projects').classList.toggle('hidden', name !== 'projects');
-}
-document.querySelectorAll('.view-tabs .tab').forEach((t) => {
+// ---------- 侧边栏导航 ----------
+document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
   t.addEventListener('click', () => {
-    switchView(t.dataset.view);
-    if (t.dataset.view === 'projects') loadProjects();
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach((x) => x.classList.toggle('active', x === t));
+    if (t.dataset.nav === 'customers') {
+      state.view = 'customers';
+      state.currentCustomer = null;
+      state.currentPlan = null;
+      render();
+    } else if (t.dataset.nav === 'storage') {
+      openStorageDialog();
+    }
   });
 });
 
-// ---------- 场景列表 ----------
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// ---------- 面包屑 ----------
+function renderBreadcrumb() {
+  const bc = $('breadcrumb');
+  const parts = [];
+  parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
+  if (state.currentCustomer) {
+    parts.push(`<span class="sep">/</span>`);
+    if (state.view === 'customers') {
+      parts.push(`<span class="crumb">${esc(state.currentCustomer.customerName)}</span>`);
+    } else {
+      parts.push(`<span class="crumb clickable" data-customer="${state.currentCustomer.id}">${esc(state.currentCustomer.customerName)}</span>`);
+    }
+  }
+  if (state.currentPlan && state.view === 'scenes') {
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(`<span class="crumb">${esc(state.currentPlan.name)}</span>`);
+  }
+  bc.innerHTML = parts.join('');
+  bc.querySelectorAll('.clickable').forEach((el) => {
+    el.addEventListener('click', () => {
+      if (el.dataset.nav === 'customers') {
+        state.view = 'customers';
+        state.currentCustomer = null;
+        state.currentPlan = null;
+      } else if (el.dataset.customer) {
+        state.view = 'plans';
+        state.currentCustomer = customers.find((c) => c.id === Number(el.dataset.customer)) || state.currentCustomer;
+        state.currentPlan = null;
+      }
+      render();
+    });
+  });
 }
 
-function projectNameOf(pid) {
-  const p = projects.find((x) => x.id === pid);
-  return p ? p.name : '—';
+// ---------- 视图切换 ----------
+function render() {
+  $('view-customers').classList.toggle('hidden', state.view !== 'customers');
+  $('view-plans').classList.toggle('hidden', state.view !== 'plans');
+  $('view-scenes').classList.toggle('hidden', state.view !== 'scenes');
+  renderBreadcrumb();
+  if (state.view === 'customers') renderCustomers();
+  else if (state.view === 'plans') renderPlans();
+  else renderScenes();
 }
 
-function renderScenes() {
-  $('scene-count').textContent = `共 ${scenes.length} 个场景`;
-  tbody.innerHTML = scenes
-    .map(
-      (s, i) => `
-      <tr data-id="${s.id}">
-        <td><img class="thumb" src="${esc(s.imagePath)}" alt="" loading="lazy" /></td>
-        <td>
-          <div class="title-cell">${esc(s.title)}</div>
-          ${s.description ? `<div class="desc-cell">${esc(s.description)}</div>` : ''}
-        </td>
-        <td>${esc(projectNameOf(s.projectId))}</td>
-        <td>${s.shareEnabled ? '<span class="badge badge-on">已开启</span>' : '<span class="badge badge-off">关闭</span>'}</td>
-        <td>${s.sortOrder}</td>
-        <td><span class="badge ${s.published ? 'badge-on' : 'badge-off'}">${s.published ? '已上架' : '已下架'}</span></td>
-        <td>
-          <div class="op-cell">
-            <button class="btn btn-sm btn-ghost act-edit">编辑</button>
-            <button class="btn btn-sm btn-ghost act-share">${s.shareEnabled ? '分享' : '分享'}</button>
-            <button class="btn btn-sm btn-ghost act-toggle">${s.published ? '下架' : '上架'}</button>
-            <button class="btn btn-sm btn-ghost act-up" ${i === 0 ? 'disabled' : ''}>上移</button>
-            <button class="btn btn-sm btn-ghost act-down" ${i === scenes.length - 1 ? 'disabled' : ''}>下移</button>
-            <button class="btn btn-sm btn-danger act-del">删除</button>
+$('btn-back-from-plans').addEventListener('click', () => {
+  state.view = 'customers';
+  state.currentCustomer = null;
+  render();
+});
+$('btn-back-from-scenes').addEventListener('click', () => {
+  state.view = 'plans';
+  state.currentPlan = null;
+  render();
+});
+
+// ---------- 客户项目卡片 ----------
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const end = new Date(dateStr + 'T23:59:59');
+  const now = new Date();
+  return Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+}
+
+function renderCustomers() {
+  $('customer-count').textContent = `共 ${customers.length} 个客户项目`;
+  const grid = $('customer-grid');
+  if (!customers.length) {
+    grid.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">暂无客户项目，点击右上角「新建客户项目」开始</p>';
+    return;
+  }
+  grid.innerHTML = customers
+    .map((c) => {
+      const days = daysUntil(c.validUntil);
+      const expired = days !== null && days < 0;
+      const daysBadge = days === null
+        ? ''
+        : `<div class="customer-days-badge ${expired ? '' : 'ok'}">${expired ? '已过期' : `剩${days}天`}</div>`;
+      const statusClass = expired ? 'status-expired' : c.status === 'disabled' ? 'status-disabled' : 'status-active';
+      const statusText = expired ? '已过期' : c.status === 'disabled' ? '已停用' : '正常';
+      const initial = c.customerName ? c.customerName.charAt(0) : '?';
+      const logoHtml = c.logoPath
+        ? `<img src="${esc(c.logoPath)}" alt="" />`
+        : initial;
+      return `
+      <div class="customer-card" data-id="${c.id}">
+        <div class="customer-card-head">
+          <div class="customer-logo">${logoHtml}${daysBadge}</div>
+          <div class="customer-info">
+            <div class="customer-name-row">
+              <span class="customer-name">${esc(c.customerName)}</span>
+              ${c.isPinned ? '<span class="customer-pin">置顶</span>' : ''}
+            </div>
+            <div class="customer-meta">ID: ${c.id} &nbsp;|&nbsp; ${c.planCount ?? 0} 个方案</div>
           </div>
-        </td>
-      </tr>`
-    )
+        </div>
+        <div class="customer-stats">
+          <div class="stat-col">
+            <div><span class="stat-label">方案数：</span><span class="stat-val">${c.planCount ?? 0}</span></div>
+            <div><span class="stat-label">场景数：</span><span class="stat-val">${c.sceneCount ?? 0}</span></div>
+          </div>
+          <div class="stat-col">
+            <div><span class="stat-label">有效期：</span><span class="stat-val">${c.validFrom || '—'} ~ ${c.validUntil || '—'}</span></div>
+            <div><span class="stat-label">状态：</span><span class="${statusClass}">${statusText}</span></div>
+          </div>
+        </div>
+        <div class="customer-actions">
+          <button class="act-enter">进入</button>
+          <button class="act-edit">编辑</button>
+          <button class="act-renew">续费</button>
+          <button class="act-del del">删除</button>
+        </div>
+      </div>`;
+    })
     .join('');
 }
 
-async function loadScenes() {
-  try {
-    scenes = (await fetchAdminScenes()).scenes;
-    renderScenes();
-  } catch (err) {
-    if (err.message.includes('登录')) {
-      localStorage.removeItem(TOKEN_KEY);
-      renderLogin();
-    } else {
-      showError(adminError, err.message);
-    }
-  }
-}
-
-async function swapSort(i, j) {
-  const a = scenes[i];
-  const b = scenes[j];
-  await updateScene(a.id, { ...a, sortOrder: b.sortOrder });
-  await updateScene(b.id, { ...b, sortOrder: a.sortOrder });
-  await loadScenes();
-}
-
-tbody.addEventListener('click', async (e) => {
-  const row = e.target.closest('tr');
-  if (!row) return;
-  const id = Number(row.dataset.id);
-  const scene = scenes.find((s) => s.id === id);
-  if (!scene) return;
-  const idx = scenes.indexOf(scene);
+$('customer-grid').addEventListener('click', async (e) => {
+  const card = e.target.closest('.customer-card');
+  if (!card) return;
+  const id = Number(card.dataset.id);
+  const customer = customers.find((c) => c.id === id);
+  if (!customer) return;
 
   if (e.target.classList.contains('act-edit')) {
-    openDialog(scene);
-  } else if (e.target.classList.contains('act-share')) {
-    openShareDialog({ type: 'scene', scene });
-  } else if (e.target.classList.contains('act-toggle')) {
-    try {
-      await updateScene(id, { ...scene, published: !scene.published });
-      await loadScenes();
-    } catch (err) {
-      showError(adminError, err.message);
-    }
-  } else if (e.target.classList.contains('act-up')) {
-    try {
-      await swapSort(idx, idx - 1);
-    } catch (err) {
-      showError(adminError, err.message);
-    }
-  } else if (e.target.classList.contains('act-down')) {
-    try {
-      await swapSort(idx, idx + 1);
-    } catch (err) {
-      showError(adminError, err.message);
-    }
+    openCustomerDialog(customer);
   } else if (e.target.classList.contains('act-del')) {
-    if (!window.confirm(`确定删除场景「${scene.title}」？该操作不可恢复。`)) return;
+    const msg = `确定删除客户项目「${customer.customerName}」？其下 ${customer.planCount ?? 0} 个方案将自动归入默认客户。`;
+    if (!window.confirm(msg)) return;
     try {
-      await deleteScene(id);
-      await loadScenes();
+      await deleteCustomer(id);
+      await loadCustomers();
+      render();
     } catch (err) {
       showError(adminError, err.message);
     }
+  } else if (e.target.classList.contains('act-renew')) {
+    openCustomerDialog(customer, true);
+  } else {
+    // 进入该客户的方案列表
+    state.view = 'plans';
+    state.currentCustomer = customer;
+    state.currentPlan = null;
+    render();
   }
 });
 
-// ---------- 新增 / 编辑弹窗 ----------
-let editingId = null;
+// ---------- 客户编辑弹窗 ----------
+let editingCustomerId = null;
+const customerDialog = $('customer-dialog');
 
-/** 填充「所属项目」下拉选项 */
-function fillProjectOptions(selectedId) {
-  const sel = $('f-project');
-  sel.innerHTML = '';
-  if (!projects.length) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = '默认项目';
-    sel.appendChild(opt);
-    return;
+function openCustomerDialog(customer, renewOnly = false) {
+  editingCustomerId = customer ? customer.id : null;
+  $('customer-dialog-title').textContent = renewOnly ? '续费 / 修改有效期' : customer ? '编辑客户项目' : '新建客户项目';
+  $('cf-id').value = customer ? customer.id : '';
+  $('cf-name').value = customer ? customer.customerName : '';
+  $('cf-desc').value = customer ? customer.description || '' : '';
+  $('cf-valid-from').value = customer ? customer.validFrom || '' : '';
+  $('cf-valid-until').value = customer ? customer.validUntil || '' : '';
+  $('cf-pinned').checked = customer ? customer.isPinned : false;
+  $('cf-status').value = customer ? customer.status : 'active';
+  $('cf-file').value = '';
+  $('cf-upload-state').textContent = customer && customer.logoPath ? '已有 Logo，可选择新图替换' : '';
+  const prev = $('cf-preview');
+  if (customer && customer.logoPath) {
+    prev.src = customer.logoPath;
+    $('cf-preview-wrap').classList.remove('hidden');
+  } else {
+    $('cf-preview-wrap').classList.add('hidden');
   }
-  for (const p of projects) {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.name;
-    if (p.id === selectedId) opt.selected = true;
-    sel.appendChild(opt);
+  if (renewOnly) {
+    $('cf-name').focus();
   }
+  customerDialog.showModal();
 }
 
-function openDialog(scene) {
-  editingId = scene ? scene.id : null;
-  dialogTitle.textContent = scene ? '编辑场景' : '新增场景';
-  $('f-id').value = scene ? scene.id : '';
-  $('f-image-path').value = scene ? scene.imagePath : '';
-  $('f-preview-path').value = scene ? scene.previewPath || '' : '';
-  $('f-title').value = scene ? scene.title : '';
-  $('f-desc').value = scene ? scene.description : '';
-  $('f-sort').value = scene ? scene.sortOrder : 0;
-  $('f-published').checked = scene ? scene.published : true;
-  $('f-file').value = '';
-  fillProjectOptions(scene ? scene.projectId : null);
-  $('f-share').checked = scene ? scene.shareEnabled : false;
-  const shareLinkEl = $('f-share-link');
-  if (scene && scene.shareEnabled && scene.shareToken) {
-    shareLinkEl.textContent = `分享链接：${location.origin}/s/${scene.shareToken}`;
-    shareLinkEl.classList.remove('hidden');
-  } else {
-    shareLinkEl.classList.add('hidden');
-  }
-  const preview = $('f-preview');
-  if (scene) {
-    preview.src = scene.previewPath || scene.imagePath;
-    $('f-preview-wrap').classList.remove('hidden');
-  } else {
-    $('f-preview-wrap').classList.add('hidden');
-  }
-  $('f-upload-state').textContent = scene ? '已有一张全景图，可选择新图替换' : '';
-  dialog.showModal();
-}
+$('btn-add-customer').addEventListener('click', () => openCustomerDialog(null));
+$('customer-dialog-cancel').addEventListener('click', () => customerDialog.close());
 
-$('f-share').addEventListener('change', (e) => {
-  const el = $('f-share-link');
-  if (e.target.checked) {
-    el.textContent = '保存后将生成独立分享链接';
-    el.classList.remove('hidden');
-  } else {
-    el.classList.add('hidden');
-  }
-});
-
-$('btn-add').addEventListener('click', () => openDialog(null));
-$('dialog-cancel').addEventListener('click', () => dialog.close());
-
-$('f-file').addEventListener('change', (e) => {
+$('cf-file').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
-    $('f-preview').src = reader.result;
-    $('f-preview-wrap').classList.remove('hidden');
-    $('f-upload-state').textContent = `已选择：${file.name}`;
+    $('cf-preview').src = reader.result;
+    $('cf-preview-wrap').classList.remove('hidden');
+    $('cf-upload-state').textContent = `已选择：${file.name}`;
   };
   reader.readAsDataURL(file);
 });
 
-form.addEventListener('submit', async (e) => {
+$('customer-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const fileInput = $('f-file');
-  const uploadState = $('f-upload-state');
-  let imagePath = $('f-image-path').value;
-  let previewPath = $('f-preview-path').value;
-
-  const submitBtn = form.querySelector('button[type="submit"]');
+  const submitBtn = $('customer-form').querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   try {
+    let logoPath = '';
+    const fileInput = $('cf-file');
     if (fileInput.files.length) {
-      const file = fileInput.files[0];
-      // 大图（>=3MB 或常见 8K 源）上传会触发金字塔切片，耗时较长，提前告知
-      const willTile = file.size >= 3 * 1024 * 1024;
-      uploadState.textContent = willTile ? '上传中…大图将自动生成金字塔切片，请耐心等待' : '上传中…';
-      const uploaded = await uploadImage(file);
-      imagePath = uploaded.path;
-      previewPath = uploaded.previewPath;
+      $('cf-upload-state').textContent = 'Logo 上传中…';
+      const uploaded = await uploadCustomerLogo(fileInput.files[0]);
+      logoPath = uploaded.logoPath;
     }
-    if (!imagePath) throw new Error('请先上传全景图');
-
     const payload = {
-      title: $('f-title').value.trim(),
-      description: $('f-desc').value.trim(),
-      imagePath,
-      previewPath,
-      sortOrder: Number($('f-sort').value) || 0,
-      published: $('f-published').checked,
-      projectId: $('f-project').value ? Number($('f-project').value) : null,
-      shareEnabled: $('f-share').checked,
+      customerName: $('cf-name').value.trim(),
+      description: $('cf-desc').value.trim(),
+      validFrom: $('cf-valid-from').value,
+      validUntil: $('cf-valid-until').value,
+      isPinned: $('cf-pinned').checked,
+      status: $('cf-status').value,
     };
-
-    if (editingId) {
-      await updateScene(editingId, payload);
+    if (logoPath) payload.logoPath = logoPath;
+    if (editingCustomerId) {
+      await updateCustomer(editingCustomerId, payload);
     } else {
-      await createScene(payload);
+      await createCustomer(payload);
     }
-    dialog.close();
-    await loadScenes();
+    customerDialog.close();
+    await loadCustomers();
+    render();
   } catch (err) {
     showError(adminError, err.message);
   } finally {
@@ -314,12 +323,13 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-// ---------- 项目管理 ----------
-const projectTbody = $('project-tbody');
-
-function renderProjects() {
-  $('project-count').textContent = `共 ${projects.length} 个项目`;
-  projectTbody.innerHTML = projects
+// ---------- 方案列表 ----------
+function renderPlans() {
+  const list = state.currentCustomer
+    ? plans.filter((p) => p.projectId === state.currentCustomer.id)
+    : plans;
+  $('plan-count').textContent = `共 ${list.length} 个方案`;
+  $('plan-tbody').innerHTML = list
     .map(
       (p, i) => `
       <tr data-id="${p.id}">
@@ -336,11 +346,10 @@ function renderProjects() {
         <td><span class="badge ${p.published ? 'badge-on' : 'badge-off'}">${p.published ? '已上架' : '已下架'}</span></td>
         <td>
           <div class="op-cell">
+            <button class="btn btn-sm btn-primary act-enter">管理场景</button>
             <button class="btn btn-sm btn-ghost act-edit">编辑</button>
             <button class="btn btn-sm btn-ghost act-share">分享</button>
             <button class="btn btn-sm btn-ghost act-toggle">${p.published ? '下架' : '上架'}</button>
-            <button class="btn btn-sm btn-ghost act-up" ${i === 0 ? 'disabled' : ''}>上移</button>
-            <button class="btn btn-sm btn-ghost act-down" ${i === projects.length - 1 ? 'disabled' : ''}>下移</button>
             <button class="btn btn-sm btn-danger act-del">删除</button>
           </div>
         </td>
@@ -349,141 +358,126 @@ function renderProjects() {
     .join('');
 }
 
-async function loadProjects() {
-  try {
-    projects = (await fetchAdminProjects()).projects;
-    renderProjects();
-  } catch (err) {
-    if (err.message.includes('登录')) {
-      localStorage.removeItem(TOKEN_KEY);
-      renderLogin();
-    } else {
-      showError(adminError, err.message);
-    }
-  }
-}
-
-async function swapProjectSort(i, j) {
-  const a = projects[i];
-  const b = projects[j];
-  await updateProject(a.id, { ...a, sortOrder: b.sortOrder });
-  await updateProject(b.id, { ...b, sortOrder: a.sortOrder });
-  await loadProjects();
-}
-
-projectTbody.addEventListener('click', async (e) => {
+$('plan-tbody').addEventListener('click', async (e) => {
   const row = e.target.closest('tr');
   if (!row) return;
   const id = Number(row.dataset.id);
-  const project = projects.find((p) => p.id === id);
-  if (!project) return;
-  const idx = projects.indexOf(project);
+  const plan = plans.find((p) => p.id === id);
+  if (!plan) return;
 
-  if (e.target.classList.contains('act-edit')) {
-    openProjectDialog(project);
+  if (e.target.classList.contains('act-enter')) {
+    state.view = 'scenes';
+    state.currentPlan = plan;
+    render();
+  } else if (e.target.classList.contains('act-edit')) {
+    openPlanDialog(plan);
   } else if (e.target.classList.contains('act-share')) {
-    openShareDialog({ type: 'project', project });
+    openShareDialog({ type: 'project', project: plan });
   } else if (e.target.classList.contains('act-toggle')) {
     try {
-      await updateProject(id, { ...project, published: !project.published });
-      await loadProjects();
-    } catch (err) {
-      showError(adminError, err.message);
-    }
-  } else if (e.target.classList.contains('act-up')) {
-    try {
-      await swapProjectSort(idx, idx - 1);
-    } catch (err) {
-      showError(adminError, err.message);
-    }
-  } else if (e.target.classList.contains('act-down')) {
-    try {
-      await swapProjectSort(idx, idx + 1);
+      await updatePlan(id, { ...plan, published: !plan.published });
+      await loadPlans();
+      render();
     } catch (err) {
       showError(adminError, err.message);
     }
   } else if (e.target.classList.contains('act-del')) {
-    const sceneInProject = (project.sceneCount ?? 0) > 0;
-    const msg = sceneInProject
-      ? `确定删除项目「${project.name}」？其下 ${project.sceneCount} 个场景将自动归入默认项目。`
-      : `确定删除项目「${project.name}」？`;
+    const msg = (plan.sceneCount ?? 0) > 0
+      ? `确定删除方案「${plan.name}」？其下 ${plan.sceneCount} 个场景将自动归入默认方案。`
+      : `确定删除方案「${plan.name}」？`;
     if (!window.confirm(msg)) return;
     try {
-      await deleteProject(id);
-      await loadProjects();
+      await deletePlan(id);
+      await loadPlans();
+      render();
     } catch (err) {
       showError(adminError, err.message);
     }
   }
 });
 
-// ---------- 项目编辑弹窗 ----------
-let editingProjectId = null;
-const projectDialog = $('project-dialog');
+// ---------- 方案编辑弹窗 ----------
+let editingPlanId = null;
+const planDialog = $('plan-dialog');
 
-function openProjectDialog(project) {
-  editingProjectId = project ? project.id : null;
-  $('project-dialog-title').textContent = project ? '编辑项目' : '新建项目';
-  $('pf-id').value = project ? project.id : '';
-  $('pf-name').value = project ? project.name : '';
-  $('pf-desc').value = project ? project.description : '';
-  $('pf-sort').value = project ? project.sortOrder : 0;
-  $('pf-published').checked = project ? project.published : true;
-  $('pf-share').checked = project ? project.shareEnabled : true;
-  $('pf-file').value = '';
-  $('pf-upload-state').textContent = project && project.coverPath ? '已有一张封面，可选择新图替换' : '';
-  const prev = $('pf-preview');
-  if (project && project.coverPath) {
-    prev.src = project.coverPath;
-    $('pf-preview-wrap').classList.remove('hidden');
-  } else {
-    $('pf-preview-wrap').classList.add('hidden');
+function fillCustomerOptions(selectedId) {
+  const sel = $('plf-customer');
+  sel.innerHTML = '';
+  for (const c of customers) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.customerName;
+    if (c.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
   }
-  projectDialog.showModal();
 }
 
-$('btn-add-project').addEventListener('click', () => openProjectDialog(null));
-$('project-dialog-cancel').addEventListener('click', () => projectDialog.close());
+function openPlanDialog(plan) {
+  editingPlanId = plan ? plan.id : null;
+  $('plan-dialog-title').textContent = plan ? '编辑方案' : '新建方案';
+  $('plf-id').value = plan ? plan.id : '';
+  $('plf-name').value = plan ? plan.name : '';
+  $('plf-desc').value = plan ? plan.description : '';
+  $('plf-sort').value = plan ? plan.sortOrder : 0;
+  $('plf-published').checked = plan ? plan.published : true;
+  $('plf-share').checked = plan ? plan.shareEnabled : true;
+  $('plf-file').value = '';
+  fillCustomerOptions(plan ? plan.projectId : (state.currentCustomer ? state.currentCustomer.id : null));
+  $('plf-upload-state').textContent = plan && plan.coverPath ? '已有一张封面，可选择新图替换' : '';
+  const prev = $('plf-preview');
+  if (plan && plan.coverPath) {
+    prev.src = plan.coverPath;
+    $('plf-preview-wrap').classList.remove('hidden');
+  } else {
+    $('plf-preview-wrap').classList.add('hidden');
+  }
+  planDialog.showModal();
+}
 
-$('pf-file').addEventListener('change', (e) => {
+$('btn-add-plan').addEventListener('click', () => openPlanDialog(null));
+$('plan-dialog-cancel').addEventListener('click', () => planDialog.close());
+
+$('plf-file').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
-    $('pf-preview').src = reader.result;
-    $('pf-preview-wrap').classList.remove('hidden');
-    $('pf-upload-state').textContent = `已选择：${file.name}`;
+    $('plf-preview').src = reader.result;
+    $('plf-preview-wrap').classList.remove('hidden');
+    $('plf-upload-state').textContent = `已选择：${file.name}`;
   };
   reader.readAsDataURL(file);
 });
 
-$('project-form').addEventListener('submit', async (e) => {
+$('plan-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const submitBtn = $('project-form').querySelector('button[type="submit"]');
+  const submitBtn = $('plan-form').querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   try {
     let coverPath = '';
-    const fileInput = $('pf-file');
+    const fileInput = $('plf-file');
     if (fileInput.files.length) {
-      $('pf-upload-state').textContent = '封面上传中…';
-      const uploaded = await uploadCover(fileInput.files[0]);
+      $('plf-upload-state').textContent = '封面上传中…';
+      const uploaded = await uploadPlanCover(fileInput.files[0]);
       coverPath = uploaded.coverPath;
     }
     const payload = {
-      name: $('pf-name').value.trim(),
-      description: $('pf-desc').value.trim(),
-      sortOrder: Number($('pf-sort').value) || 0,
-      published: $('pf-published').checked,
-      shareEnabled: $('pf-share').checked,
+      name: $('plf-name').value.trim(),
+      description: $('plf-desc').value.trim(),
+      projectId: Number($('plf-customer').value),
+      sortOrder: Number($('plf-sort').value) || 0,
+      published: $('plf-published').checked,
+      shareEnabled: $('plf-share').checked,
     };
     if (coverPath) payload.coverPath = coverPath;
-    if (editingProjectId) {
-      await updateProject(editingProjectId, payload);
+    if (editingPlanId) {
+      await updatePlan(editingPlanId, payload);
     } else {
-      await createProject(payload);
+      await createPlan(payload);
     }
-    projectDialog.close();
-    await loadProjects();
+    planDialog.close();
+    await loadPlans();
+    render();
   } catch (err) {
     showError(adminError, err.message);
   } finally {
@@ -491,9 +485,215 @@ $('project-form').addEventListener('submit', async (e) => {
   }
 });
 
-// ---------- 分享弹窗（项目级 / 场景级共用） ----------
+// ---------- 场景列表 ----------
+function renderScenes() {
+  const list = state.currentPlan
+    ? scenes.filter((s) => s.planId === state.currentPlan.id)
+    : scenes;
+  $('scene-count').textContent = `共 ${list.length} 个场景`;
+  $('scene-tbody').innerHTML = list
+    .map(
+      (s, i) => `
+      <tr data-id="${s.id}">
+        <td><img class="thumb" src="${esc(s.imagePath)}" alt="" loading="lazy" /></td>
+        <td>
+          <div class="title-cell">${esc(s.title)}</div>
+          ${s.description ? `<div class="desc-cell">${esc(s.description)}</div>` : ''}
+        </td>
+        <td>${s.shareEnabled ? '<span class="badge badge-on">已开启</span>' : '<span class="badge badge-off">关闭</span>'}</td>
+        <td>${s.sortOrder}</td>
+        <td><span class="badge ${s.published ? 'badge-on' : 'badge-off'}">${s.published ? '已上架' : '已下架'}</span></td>
+        <td>
+          <div class="op-cell">
+            <button class="btn btn-sm btn-ghost act-edit">编辑</button>
+            <button class="btn btn-sm btn-ghost act-share">分享</button>
+            <button class="btn btn-sm btn-ghost act-toggle">${s.published ? '下架' : '上架'}</button>
+            <button class="btn btn-sm btn-ghost act-up" ${i === 0 ? 'disabled' : ''}>上移</button>
+            <button class="btn btn-sm btn-ghost act-down" ${i === list.length - 1 ? 'disabled' : ''}>下移</button>
+            <button class="btn btn-sm btn-danger act-del">删除</button>
+          </div>
+        </td>
+      </tr>`
+    )
+    .join('');
+}
+
+async function swapSceneSort(i, j) {
+  const list = state.currentPlan ? scenes.filter((s) => s.planId === state.currentPlan.id) : scenes;
+  const a = list[i];
+  const b = list[j];
+  await updateScene(a.id, { ...a, sortOrder: b.sortOrder });
+  await updateScene(b.id, { ...b, sortOrder: a.sortOrder });
+  await loadScenes();
+  render();
+}
+
+$('scene-tbody').addEventListener('click', async (e) => {
+  const row = e.target.closest('tr');
+  if (!row) return;
+  const id = Number(row.dataset.id);
+  const scene = scenes.find((s) => s.id === id);
+  if (!scene) return;
+  const list = state.currentPlan ? scenes.filter((s) => s.planId === state.currentPlan.id) : scenes;
+  const idx = list.indexOf(scene);
+
+  if (e.target.classList.contains('act-edit')) {
+    openSceneDialog(scene);
+  } else if (e.target.classList.contains('act-share')) {
+    openShareDialog({ type: 'scene', scene });
+  } else if (e.target.classList.contains('act-toggle')) {
+    try {
+      await updateScene(id, { ...scene, published: !scene.published });
+      await loadScenes();
+      render();
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  } else if (e.target.classList.contains('act-up')) {
+    try { await swapSceneSort(idx, idx - 1); } catch (err) { showError(adminError, err.message); }
+  } else if (e.target.classList.contains('act-down')) {
+    try { await swapSceneSort(idx, idx + 1); } catch (err) { showError(adminError, err.message); }
+  } else if (e.target.classList.contains('act-del')) {
+    if (!window.confirm(`确定删除场景「${scene.title}」？该操作不可恢复。`)) return;
+    try {
+      await deleteScene(id);
+      await loadScenes();
+      render();
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  }
+});
+
+// ---------- 场景编辑弹窗 ----------
+let editingSceneId = null;
+const sceneDialog = $('scene-dialog');
+
+function fillPlanOptions(selectedId) {
+  const sel = $('f-plan');
+  sel.innerHTML = '';
+  const list = state.currentCustomer ? plans.filter((p) => p.projectId === state.currentCustomer.id) : plans;
+  if (!list.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '默认方案';
+    sel.appendChild(opt);
+    return;
+  }
+  for (const p of list) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    if (p.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function openSceneDialog(scene) {
+  editingSceneId = scene ? scene.id : null;
+  $('scene-dialog-title').textContent = scene ? '编辑场景' : '新增场景';
+  $('f-id').value = scene ? scene.id : '';
+  $('f-image-path').value = scene ? scene.imagePath : '';
+  $('f-preview-path').value = scene ? scene.previewPath || '' : '';
+  $('f-title').value = scene ? scene.title : '';
+  $('f-desc').value = scene ? scene.description : '';
+  $('f-sort').value = scene ? scene.sortOrder : 0;
+  $('f-published').checked = scene ? scene.published : true;
+  $('f-file').value = '';
+  fillPlanOptions(scene ? scene.planId : (state.currentPlan ? state.currentPlan.id : null));
+  $('f-share').checked = scene ? scene.shareEnabled : false;
+  const shareLinkEl = $('f-share-link');
+  if (scene && scene.shareEnabled && scene.shareToken) {
+    shareLinkEl.textContent = `分享链接：${location.origin}/s/${scene.shareToken}`;
+    shareLinkEl.classList.remove('hidden');
+  } else {
+    shareLinkEl.classList.add('hidden');
+  }
+  const preview = $('f-preview');
+  if (scene) {
+    preview.src = scene.previewPath || scene.imagePath;
+    $('f-preview-wrap').classList.remove('hidden');
+  } else {
+    $('f-preview-wrap').classList.add('hidden');
+  }
+  $('f-upload-state').textContent = scene ? '已有一张全景图，可选择新图替换' : '';
+  sceneDialog.showModal();
+}
+
+$('btn-add-scene').addEventListener('click', () => openSceneDialog(null));
+$('scene-dialog-cancel').addEventListener('click', () => sceneDialog.close());
+
+$('f-share').addEventListener('change', (e) => {
+  const el = $('f-share-link');
+  if (e.target.checked) {
+    el.textContent = '保存后将生成独立分享链接';
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+});
+
+$('f-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    $('f-preview').src = reader.result;
+    $('f-preview-wrap').classList.remove('hidden');
+    $('f-upload-state').textContent = `已选择：${file.name}`;
+  };
+  reader.readAsDataURL(file);
+});
+
+$('scene-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fileInput = $('f-file');
+  const uploadState = $('f-upload-state');
+  let imagePath = $('f-image-path').value;
+  let previewPath = $('f-preview-path').value;
+
+  const submitBtn = $('scene-form').querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    if (fileInput.files.length) {
+      const file = fileInput.files[0];
+      const willTile = file.size >= 3 * 1024 * 1024;
+      uploadState.textContent = willTile ? '上传中…大图将自动生成金字塔切片，请耐心等待' : '上传中…';
+      const uploaded = await uploadImage(file);
+      imagePath = uploaded.path;
+      previewPath = uploaded.previewPath;
+    }
+    if (!imagePath) throw new Error('请先上传全景图');
+
+    const payload = {
+      title: $('f-title').value.trim(),
+      description: $('f-desc').value.trim(),
+      imagePath,
+      previewPath,
+      sortOrder: Number($('f-sort').value) || 0,
+      published: $('f-published').checked,
+      planId: $('f-plan').value ? Number($('f-plan').value) : null,
+      shareEnabled: $('f-share').checked,
+    };
+
+    if (editingSceneId) {
+      await updateScene(editingSceneId, payload);
+    } else {
+      await createScene(payload);
+    }
+    sceneDialog.close();
+    await loadScenes();
+    render();
+  } catch (err) {
+    showError(adminError, err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+// ---------- 分享弹窗（方案级 / 场景级共用） ----------
 const shareDialog = $('share-dialog');
-let shareTarget = null; // { type:'project'|'scene', project?, scene? }
+let shareTarget = null;
 
 function shareUrlOf(token) {
   return token ? `${location.origin}/s/${token}` : '';
@@ -502,7 +702,7 @@ function shareUrlOf(token) {
 function openShareDialog(target) {
   shareTarget = target;
   const kind = target.type === 'project' ? target.project : target.scene;
-  $('share-title').textContent = target.type === 'project' ? `分享项目「${kind.name}」` : `分享场景「${kind.title}」`;
+  $('share-title').textContent = target.type === 'project' ? `分享方案「${kind.name}」` : `分享场景「${kind.title}」`;
   const enabled = target.type === 'project' ? target.project.shareEnabled : target.scene.shareEnabled;
   const token = target.type === 'project' ? target.project.shareToken : target.scene.shareToken;
   const url = shareUrlOf(token);
@@ -541,15 +741,18 @@ $('share-refresh').addEventListener('click', async () => {
   if (!window.confirm('刷新令牌后，旧链接将立即失效，确定继续？')) return;
   try {
     if (shareTarget.type === 'project') {
-      const { project } = await updateProject(shareTarget.project.id, { regenerateShareToken: true });
-      shareTarget.project = project;
+      const { plan } = await updatePlan(shareTarget.project.id, { regenerateShareToken: true });
+      shareTarget.project = plan;
+      const idx = plans.findIndex((p) => p.id === plan.id);
+      if (idx >= 0) plans[idx] = plan;
     } else {
       const { scene } = await updateScene(shareTarget.scene.id, { regenerateShareToken: true });
       shareTarget.scene = scene;
+      const idx = scenes.findIndex((s) => s.id === scene.id);
+      if (idx >= 0) scenes[idx] = scene;
     }
     openShareDialog(shareTarget);
-    await loadProjects();
-    await loadScenes();
+    render();
   } catch (err) {
     showError(adminError, err.message);
   }
@@ -559,28 +762,26 @@ $('share-toggle').addEventListener('click', async () => {
   if (!shareTarget) return;
   try {
     if (shareTarget.type === 'project') {
-      const { project } = await updateProject(shareTarget.project.id, {
-        shareEnabled: !shareTarget.project.shareEnabled,
-      });
-      shareTarget.project = project;
+      const { plan } = await updatePlan(shareTarget.project.id, { shareEnabled: !shareTarget.project.shareEnabled });
+      shareTarget.project = plan;
+      const idx = plans.findIndex((p) => p.id === plan.id);
+      if (idx >= 0) plans[idx] = plan;
     } else {
-      const { scene } = await updateScene(shareTarget.scene.id, {
-        shareEnabled: !shareTarget.scene.shareEnabled,
-      });
+      const { scene } = await updateScene(shareTarget.scene.id, { shareEnabled: !shareTarget.scene.shareEnabled });
       shareTarget.scene = scene;
+      const idx = scenes.findIndex((s) => s.id === scene.id);
+      if (idx >= 0) scenes[idx] = scene;
     }
     openShareDialog(shareTarget);
-    await loadProjects();
-    await loadScenes();
+    render();
   } catch (err) {
     showError(adminError, err.message);
   }
 });
 
-// ---------- 存储设置（分厂商页签） ----------
+// ---------- 存储设置 ----------
 const storageDialog = $('storage-dialog');
 const storageMsg = $('s-msg');
-// 表单字段 id 后缀（kebab）→ API 字段名（camel）
 const FIELD_MAP = {
   'access-key': 'accessKey',
   'secret-key': 'secretKey',
@@ -615,7 +816,6 @@ function switchTab(provider) {
   storageMsg.classList.add('hidden');
 }
 
-/** 读取当前页签表单配置（拍平字段，供测试/保存） */
 function currentProviderConfig() {
   const cfg = { provider: activeProvider };
   for (const kebab of PANE_FIELDS[activeProvider]) {
@@ -629,7 +829,6 @@ async function openStorageDialog() {
   storageMsg.classList.add('hidden');
   try {
     const { config: cfg } = await fetchStorageConfig();
-    // 填充各厂商已保存配置（kebab id 与 camel 字段映射）
     for (const provider of ['oss', 'qiniu']) {
       const saved = cfg.providers[provider] || {};
       for (const kebab of PANE_FIELDS[provider]) {
@@ -642,22 +841,15 @@ async function openStorageDialog() {
     }
     const active = ['local', 'oss', 'qiniu'].includes(cfg.provider) ? cfg.provider : 'local';
     switchTab(active);
-    const currentSaved = cfg.providers[active] || {};
-    if (currentSaved.hasSecretKey) {
-      storageMsg.textContent = '已配置密钥（出于安全不直接展示），修改后留空保持不变';
-      storageMsg.style.color = 'var(--text-secondary)';
-      storageMsg.classList.remove('hidden');
-    }
     storageDialog.showModal();
   } catch (err) {
     showError(adminError, err.message);
   }
 }
+
 document.querySelectorAll('.storage-tabs .tab').forEach((t) => {
   t.addEventListener('click', () => switchTab(t.dataset.provider));
 });
-
-$('btn-storage').addEventListener('click', openStorageDialog);
 $('s-cancel').addEventListener('click', () => storageDialog.close());
 
 $('s-test').addEventListener('click', async () => {
@@ -690,13 +882,57 @@ $('storage-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- 数据加载 ----------
+async function loadCustomers() {
+  try {
+    customers = (await fetchAdminCustomers()).projects;
+  } catch (err) {
+    if (err.message.includes('登录') || err.message.includes('401')) {
+      localStorage.removeItem(TOKEN_KEY);
+      renderLogin();
+    } else {
+      showError(adminError, err.message);
+    }
+  }
+}
+
+async function loadPlans() {
+  try {
+    plans = (await fetchAdminPlans()).plans;
+  } catch (err) {
+    if (err.message.includes('登录') || err.message.includes('401')) {
+      localStorage.removeItem(TOKEN_KEY);
+      renderLogin();
+    } else {
+      showError(adminError, err.message);
+    }
+  }
+}
+
+async function loadScenes() {
+  try {
+    scenes = (await fetchAdminScenes()).scenes;
+  } catch (err) {
+    if (err.message.includes('登录') || err.message.includes('401')) {
+      localStorage.removeItem(TOKEN_KEY);
+      renderLogin();
+    } else {
+      showError(adminError, err.message);
+    }
+  }
+}
+
 // ---------- 启动 ----------
 async function boot() {
-  renderAdmin();
-  await Promise.all([loadScenes(), loadProjects()]);
-  renderScenes(); // 项目映射就绪后重绘场景表（所属项目列）
+  await Promise.all([loadCustomers(), loadPlans(), loadScenes()]);
+  state.view = 'customers';
+  state.currentCustomer = null;
+  state.currentPlan = null;
+  render();
 }
+
 if (isLoggedIn()) {
+  renderAdmin();
   boot();
 } else {
   renderLogin();
