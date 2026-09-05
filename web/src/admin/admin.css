@@ -560,6 +560,78 @@ dialog::backdrop {
   background: var(--bg);
 }
 
+/* ===== 弹窗通用表单样式（所有弹窗共用） ===== */
+.dialog-card .form-field {
+  display: block;
+  margin-bottom: 16px;
+}
+.dialog-card .form-field:last-child {
+  margin-bottom: 0;
+}
+.dialog-card .form-field > label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.dialog-card .form-field input[type='text'],
+.dialog-card .form-field input[type='password'],
+.dialog-card .form-field input[type='date'],
+.dialog-card .form-field input[type='tel'],
+.dialog-card .form-field input[type='email'],
+.dialog-card .form-field input[type='number'],
+.dialog-card .form-field input:not([type]),
+.dialog-card .form-field select,
+.dialog-card .form-field textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--text-1);
+  background: var(--card);
+  transition: all var(--transition);
+  outline: none;
+  box-sizing: border-box;
+}
+.dialog-card .form-field input:focus,
+.dialog-card .form-field select:focus,
+.dialog-card .form-field textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.dialog-card .form-field input::placeholder { color: var(--text-3); }
+.dialog-card .form-field textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+.dialog-card .form-field .field-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 6px;
+}
+.dialog-card .form-row {
+  display: flex;
+  gap: 16px;
+}
+.dialog-card .form-row .form-field {
+  flex: 1;
+}
+/* 弹窗内 checkbox */
+.dialog-card .form-field label:has(input[type='checkbox']) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+.dialog-card .form-field input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 /* 分享链接行 */
 .share-link-row {
   display: flex;
