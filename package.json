@@ -1,0 +1,16 @@
+{
+  "name": "panorama-360",
+  "version": "0.1.0",
+  "private": true,
+  "description": "360全景浏览器：H5/Web 展示端 + 管理后台",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w server",
+    "build": "npm run build -w web",
+    "start": "npm run start -w server",
+    "test": "npm run test -w server && npm run test -w web"
+  }
+}
