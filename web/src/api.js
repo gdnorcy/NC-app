@@ -74,3 +74,39 @@ export async function uploadImage(file, onProgress) {
   if (!res.ok) throw new Error(data.error || '上传失败');
   return data;
 }
+
+/** 后台：读取存储配置 */
+export function fetchStorageConfig() {
+  return request('/api/admin/storage', { headers: adminHeaders() });
+}
+
+/** 后台：保存存储配置 */
+export function saveStorageConfig(payload) {
+  return request('/api/admin/storage', {
+    method: 'PUT',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+/** 后台：测试存储连接（可传表单配置；不传则测试已保存配置）。15 秒超时防止网络挂起 */
+export async function testStorage(payload) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch('/api/admin/storage/test', {
+      method: 'POST',
+      headers: payload ? { ...adminHeaders(), 'Content-Type': 'application/json' } : adminHeaders(),
+      body: payload ? JSON.stringify(payload) : undefined,
+      signal: controller.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || '测试失败');
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('连接超时，请检查网络或配置');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}

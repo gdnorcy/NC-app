@@ -89,6 +89,7 @@ body {
 .field input[type='text'],
 .field input[type='password'],
 .field input[type='number'],
+.field select,
 .field textarea {
   width: 100%;
   padding: 9px 12px;
@@ -98,8 +99,11 @@ body {
   font-family: inherit;
   outline: none;
   transition: border-color 0.15s;
+  background: #fff;
+  color: var(--text);
 }
 .field input:focus,
+.field select:focus,
 .field textarea:focus {
   border-color: var(--primary);
 }

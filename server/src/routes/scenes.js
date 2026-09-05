@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
 import multer from 'multer';
@@ -6,6 +5,7 @@ import sharp from 'sharp';
 import { config } from '../config.js';
 import { toScene } from '../db.js';
 import { requireAuth } from '../auth.js';
+import { getStorage } from '../storage/index.js';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
@@ -23,20 +23,16 @@ const upload = multer({
 });
 
 /**
- * 转码上传图片：生成两档 WebP
+ * 转码上传图片：生成两档 WebP 并经存储层上传
  * - 主图：限长边 config.imageMaxSize（默认 4096）
  * - 低清预览：限长边 config.previewSize（默认 1024），供缩略图与渐进加载
- * 返回 { path, previewPath }（均为 /uploads/ 下的访问路径）
+ * 返回 { path, previewPath }（本地为 /uploads/ 路径，云端为 CDN URL）
  */
-async function transcodeImage(buffer) {
+async function transcodeImage(buffer, storage) {
   const base = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-  fs.mkdirSync(config.uploadsDir, { recursive: true });
 
   const image = sharp(buffer).rotate();
-  const mainName = `${base}-main.webp`;
-  const previewName = `${base}-preview.webp`;
-
-  await image
+  const mainBuffer = await image
     .clone()
     .resize({
       width: config.imageMaxSize,
@@ -45,9 +41,9 @@ async function transcodeImage(buffer) {
       withoutEnlargement: true,
     })
     .webp({ quality: config.imageQuality })
-    .toFile(path.join(config.uploadsDir, mainName));
+    .toBuffer();
 
-  await image
+  const previewBuffer = await image
     .clone()
     .resize({
       width: config.previewSize,
@@ -56,12 +52,11 @@ async function transcodeImage(buffer) {
       withoutEnlargement: true,
     })
     .webp({ quality: Math.min(config.imageQuality - 10, 70) })
-    .toFile(path.join(config.uploadsDir, previewName));
+    .toBuffer();
 
-  return {
-    path: `/uploads/${mainName}`,
-    previewPath: `/uploads/${previewName}`,
-  };
+  const path = await storage.put(mainBuffer, `${base}-main.webp`);
+  const previewPath = await storage.put(previewBuffer, `${base}-preview.webp`);
+  return { path, previewPath };
 }
 
 function parseSceneBody(body) {
@@ -72,16 +67,6 @@ function parseSceneBody(body) {
   const sortOrder = Number.isInteger(body.sortOrder) ? body.sortOrder : 0;
   const published = body.published === undefined ? 1 : body.published ? 1 : 0;
   return { title, description, imagePath, previewPath, sortOrder, published };
-}
-
-/** 仅删除 uploads 目录内的文件，防止路径穿越 */
-function removeUploadedFile(filePath) {
-  if (!filePath) return;
-  const uploadsRoot = path.resolve(config.uploadsDir);
-  const target = path.resolve(path.join(uploadsRoot, path.basename(filePath)));
-  if (target.startsWith(uploadsRoot + path.sep) && fs.existsSync(target)) {
-    fs.unlinkSync(target);
-  }
 }
 
 export function createScenesRouter(db) {
@@ -141,17 +126,22 @@ export function createScenesRouter(db) {
     res.json({ scene: toScene(updated) });
   });
 
-  router.delete('/admin/scenes/:id', (req, res) => {
+  router.delete('/admin/scenes/:id', async (req, res) => {
     const id = Number(req.params.id);
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: '场景不存在' });
     db.prepare('DELETE FROM scenes WHERE id = ?').run(id);
-    removeUploadedFile(row.image_path);
-    removeUploadedFile(row.preview_path);
+    try {
+      const storage = await getStorage(db);
+      await storage.delete(row.image_path);
+      await storage.delete(row.preview_path);
+    } catch (e) {
+      console.warn('删除存储文件失败:', e);
+    }
     res.json({ ok: true });
   });
 
-  // —— 管理：上传全景图（自动转码为两档 WebP） ——
+  // —— 管理：上传全景图（自动转码为两档 WebP 并经存储层上传） ——
   router.post('/admin/upload', (req, res) => {
     upload.single('file')(req, res, async (err) => {
       if (err) {
@@ -160,10 +150,11 @@ export function createScenesRouter(db) {
       }
       if (!req.file) return res.status(400).json({ error: '未收到文件' });
       try {
-        const result = await transcodeImage(req.file.buffer);
+        const storage = await getStorage(db);
+        const result = await transcodeImage(req.file.buffer, storage);
         res.status(201).json({ ...result, originalName: req.file.originalname });
       } catch (e) {
-        console.error('图片转码失败:', e);
+        console.error('图片转码或上传失败:', e);
         res.status(400).json({ error: '图片处理失败，请确认文件为有效的全景图' });
       }
     });

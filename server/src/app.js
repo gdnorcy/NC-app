@@ -5,6 +5,7 @@ import { config } from './config.js';
 import { createDb } from './db.js';
 import { createAuthRouter, requireAuth } from './auth.js';
 import { createScenesRouter } from './routes/scenes.js';
+import { createStorageRouter } from './routes/storage.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -18,6 +19,7 @@ export function createApp({ db } = {}) {
   // 登录 / 场景 API
   app.use('/api/auth', createAuthRouter());
   app.use('/api', createScenesRouter(database));
+  app.use('/api/admin', createStorageRouter(database));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));

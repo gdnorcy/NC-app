@@ -15,10 +15,11 @@ H5 / Web 同步的 360 全景浏览系统：前台全景查看器 + 管理后台
 - 场景新增 / 编辑 / 删除 / 上架下架
 - 全景图上传（JPG / PNG / WebP，≤50MB），**服务端自动转码压缩**：转为两档 WebP（主图默认限长边 4096 + 低清预览默认长边 1024），手机端大幅减载
 - 排序调整（上移 / 下移 / 排序值）
+- **存储设置**：本地 / 阿里云 OSS / 七牛云切换，密钥加密存储，一键测试连接，云端可绑定 CDN 域名
 
 **后端**
 - Node + Express + SQLite（`node:sqlite`，零原生依赖）+ sharp 图片转码
-- 图片本地存储（`server/data/uploads/`）
+- 存储抽象层：本地存储（`server/data/uploads/`）、阿里云 OSS、七牛云 Kodo 可插拔
 
 ## 目录结构
 
@@ -66,7 +67,13 @@ IMAGE_QUALITY=80      # 主图 WebP 质量（默认 80）
 PREVIEW_SIZE=1024     # 低清预览图长边像素（默认 1024）
 ```
 
-**CDN 加速建议（上线前）**：将 `server/data/uploads/` 目录与 `web/dist` 构建产物同步到对象存储（如阿里云 OSS / 腾讯云 COS）并开启 CDN，静态资源就近分发。代码已按 `/uploads/*` 路径引用图片，CDN 回源到后端或直接换绑域名即可，无需改动前端。
+**CDN 加速（后台一键配置）**：进入管理后台 →「存储设置」→ 选择阿里云 OSS 或七牛云，填入子账号 AK/SK、Bucket/空间名、CDN 域名并「测试连接」后保存。此后上传的图片将转码后直传云端，前台通过 CDN 域名加载；未配置云端时自动使用本地存储。建议给云账号开通**最小权限子账号**（仅该 Bucket 读写）。
+
+密钥以 AES-256-GCM 加密后入库，生产环境必须设置主密钥：
+
+```bash
+STORAGE_KEY=<至少 32 字节随机字符串> npm start
+```
 
 ## API 概览
 
@@ -79,9 +86,12 @@ PREVIEW_SIZE=1024     # 低清预览图长边像素（默认 1024）
 | PUT | `/api/admin/scenes/:id` | 更新场景 | Bearer |
 | DELETE | `/api/admin/scenes/:id` | 删除场景 | Bearer |
 | POST | `/api/admin/upload` | 上传全景图 | Bearer |
+| GET | `/api/admin/storage` | 读取存储配置（不回传密钥） | Bearer |
+| PUT | `/api/admin/storage` | 保存存储配置（密钥留空保持不变） | Bearer |
+| POST | `/api/admin/storage/test` | 测试存储连接（可传表单配置） | Bearer |
 
 ## 数据与存储
 
 - 数据库：`server/data/panorama.db`（SQLite，自动创建）
-- 图片：`server/data/uploads/`（删除场景时同步清理对应文件）
+- 图片：本地模式存于 `server/data/uploads/`，云端模式直传对象存储（删除场景时同步清理对应对象）
 - 以上目录已被 gitignore，不进入版本库

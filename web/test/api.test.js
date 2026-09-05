@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { fetchScenes, login, fetchAdminScenes, uploadImage } from '../src/api.js';
+import {
+  fetchScenes,
+  login,
+  fetchAdminScenes,
+  uploadImage,
+  fetchStorageConfig,
+  saveStorageConfig,
+  testStorage,
+} from '../src/api.js';
 
 function mockFetchOnce(status, body) {
   global.fetch = vi.fn().mockResolvedValue({
@@ -64,6 +72,78 @@ describe('fetchAdminScenes', () => {
     await fetchAdminScenes();
     const [, options] = global.fetch.mock.calls[0];
     expect(options.headers.Authorization).toBe('Bearer tok-1');
+  });
+});
+
+describe('storage API', () => {
+  beforeEach(() => {
+    localStorage.setItem('panorama_token', 'tok-1');
+  });
+
+  it('fetchStorageConfig 携带 token', async () => {
+    mockFetchOnce(200, { config: { provider: 'oss' } });
+    const data = await fetchStorageConfig();
+    expect(data.config.provider).toBe('oss');
+    expect(global.fetch).toHaveBeenCalledWith('/api/admin/storage', expect.anything());
+  });
+
+  it('saveStorageConfig 发送 PUT JSON', async () => {
+    mockFetchOnce(200, { config: { provider: 'qiniu' } });
+    await saveStorageConfig({ provider: 'qiniu', accessKey: 'ak', secretKey: 'sk', bucket: 'b', region: '', cdnDomain: '' });
+    const [, options] = global.fetch.mock.calls[0];
+    expect(options.method).toBe('PUT');
+    expect(options.headers.Authorization).toBe('Bearer tok-1');
+    expect(JSON.parse(options.body)).toMatchObject({ provider: 'qiniu' });
+  });
+
+  it('testStorage 返回测试结果，失败时抛错', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, message: '连接成功' }),
+    });
+    const result = await testStorage();
+    expect(result.ok).toBe(true);
+    expect(global.fetch.mock.calls[0][1].body).toBeUndefined();
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ ok: false, message: '连接失败：鉴权错误' }),
+    });
+    await expect(testStorage()).rejects.toThrow('连接失败：鉴权错误');
+  });
+
+  it('testStorage 携带表单配置测试', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, message: '空间可读写' }),
+    });
+    await testStorage({ provider: 'oss', accessKey: 'ak', secretKey: 'sk', bucket: 'b', region: 'r', cdnDomain: '' });
+    const [, options] = global.fetch.mock.calls[0];
+    expect(options.headers['Content-Type']).toBe('application/json');
+    expect(JSON.parse(options.body)).toMatchObject({ provider: 'oss', bucket: 'b' });
+  });
+
+  it('testStorage 超时转为超时错误', async () => {
+    vi.useFakeTimers();
+    try {
+      global.fetch = vi.fn().mockImplementation((_url, options) => {
+        return new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => {
+            const err = new Error('aborted');
+            err.name = 'AbortError';
+            reject(err);
+          });
+        });
+      });
+      const promise = testStorage();
+      vi.advanceTimersByTime(15000);
+      await expect(promise).rejects.toThrow('连接超时');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

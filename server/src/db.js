@@ -15,12 +15,23 @@ CREATE TABLE IF NOT EXISTS scenes (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS storage_config (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  provider TEXT NOT NULL DEFAULT 'local',
+  access_key TEXT NOT NULL DEFAULT '',
+  secret_key TEXT NOT NULL DEFAULT '',
+  bucket TEXT NOT NULL DEFAULT '',
+  region TEXT NOT NULL DEFAULT '',
+  cdn_domain TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;
 
 export function createDb(dbPath = config.dbPath) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
   db.exec(SCHEMA);
+  db.exec("INSERT OR IGNORE INTO storage_config (id, provider) VALUES (1, 'local')");
   migrate(db);
   return db;
 }

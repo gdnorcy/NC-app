@@ -31,6 +31,7 @@
         <h1>360 全景管理后台</h1>
         <div class="topbar-actions">
           <a class="btn btn-ghost" href="/" target="_blank">查看前台</a>
+          <button id="btn-storage" class="btn btn-ghost">存储设置</button>
           <button id="btn-logout" class="btn btn-ghost">退出登录</button>
         </div>
       </header>
@@ -99,6 +100,54 @@
 
         <div class="dialog-actions">
           <button type="button" id="dialog-cancel" class="btn btn-ghost">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 存储设置弹窗 -->
+    <dialog id="storage-dialog">
+      <form id="storage-form" class="dialog-card">
+        <h2>存储设置</h2>
+        <p class="muted" style="margin-bottom:14px;">全景图上传后存储到本地或云存储，云端可配合 CDN 加速访问。</p>
+
+        <label class="field">
+          <span>存储类型</span>
+          <select id="s-provider">
+            <option value="local">本地存储（服务器磁盘）</option>
+            <option value="oss">阿里云 OSS</option>
+            <option value="qiniu">七牛云 Kodo</option>
+          </select>
+        </label>
+
+        <div id="s-cloud-fields">
+          <label class="field">
+            <span>AccessKey ID</span>
+            <input id="s-access-key" type="text" autocomplete="off" placeholder="子账号 AK，仅需该 Bucket 读写权限" />
+          </label>
+          <label class="field">
+            <span>SecretKey（保存时留空表示保持不变）</span>
+            <input id="s-secret-key" type="password" autocomplete="new-password" placeholder="已加密存储，不直接展示" />
+          </label>
+          <label class="field">
+            <span>Bucket / 空间名</span>
+            <input id="s-bucket" type="text" autocomplete="off" placeholder="如 panorama-360" />
+          </label>
+          <label class="field">
+            <span>Region（仅 OSS 需要，如 oss-cn-shenzhen）</span>
+            <input id="s-region" type="text" autocomplete="off" placeholder="oss-cn-shenzhen" />
+          </label>
+          <label class="field">
+            <span>CDN 域名（https:// 开头，不含结尾斜杠）</span>
+            <input id="s-cdn-domain" type="text" autocomplete="off" placeholder="https://img.yourdomain.com" />
+          </label>
+        </div>
+
+        <p id="s-msg" class="form-error hidden"></p>
+
+        <div class="dialog-actions">
+          <button type="button" id="s-test" class="btn btn-ghost">测试连接</button>
+          <button type="button" id="s-cancel" class="btn btn-ghost">取消</button>
           <button type="submit" class="btn btn-primary">保存</button>
         </div>
       </form>

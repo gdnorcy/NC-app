@@ -5,6 +5,9 @@ import {
   updateScene,
   deleteScene,
   uploadImage,
+  fetchStorageConfig,
+  saveStorageConfig,
+  testStorage,
 } from '../api.js';
 
 const $ = (id) => document.getElementById(id);
@@ -230,6 +233,89 @@ form.addEventListener('submit', async (e) => {
     await loadScenes();
   } catch (err) {
     showError(adminError, err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+// ---------- 存储设置 ----------
+const storageDialog = $('storage-dialog');
+const storageMsg = $('s-msg');
+const cloudFields = $('s-cloud-fields');
+
+function showStorageMsg(msg, isError = true) {
+  storageMsg.textContent = msg;
+  storageMsg.style.color = isError ? 'var(--danger)' : '#189a56';
+  storageMsg.classList.remove('hidden');
+  setTimeout(() => storageMsg.classList.add('hidden'), 4000);
+}
+
+function syncCloudFields() {
+  cloudFields.style.display = $('s-provider').value === 'local' ? 'none' : 'block';
+}
+
+async function openStorageDialog() {
+  storageMsg.classList.add('hidden');
+  try {
+    const { config: cfg } = await fetchStorageConfig();
+    $('s-provider').value = cfg.provider;
+    $('s-access-key').value = cfg.accessKey;
+    $('s-secret-key').value = '';
+    $('s-bucket').value = cfg.bucket;
+    $('s-region').value = cfg.region;
+    $('s-cdn-domain').value = cfg.cdnDomain;
+    $('s-msg').textContent = cfg.hasSecretKey ? '已配置密钥（出于安全不直接展示）' : '';
+    $('s-msg').classList.toggle('hidden', !cfg.hasSecretKey);
+    syncCloudFields();
+    storageDialog.showModal();
+  } catch (err) {
+    showError(adminError, err.message);
+  }
+}
+
+$('btn-storage').addEventListener('click', openStorageDialog);
+$('s-cancel').addEventListener('click', () => storageDialog.close());
+$('s-provider').addEventListener('change', syncCloudFields);
+
+$('s-test').addEventListener('click', async () => {
+  const btn = $('s-test');
+  btn.disabled = true;
+  btn.textContent = '测试中…';
+  try {
+    const result = await testStorage({
+      provider: $('s-provider').value,
+      accessKey: $('s-access-key').value.trim(),
+      secretKey: $('s-secret-key').value,
+      bucket: $('s-bucket').value.trim(),
+      region: $('s-region').value.trim(),
+      cdnDomain: $('s-cdn-domain').value.trim(),
+    });
+    showStorageMsg(result.ok ? `✓ ${result.message}` : `✗ ${result.message}`, !result.ok);
+  } catch (err) {
+    showStorageMsg(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '测试连接';
+  }
+});
+
+$('storage-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const submitBtn = $('storage-form').querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    await saveStorageConfig({
+      provider: $('s-provider').value,
+      accessKey: $('s-access-key').value.trim(),
+      secretKey: $('s-secret-key').value,
+      bucket: $('s-bucket').value.trim(),
+      region: $('s-region').value.trim(),
+      cdnDomain: $('s-cdn-domain').value.trim(),
+    });
+    storageDialog.close();
+    showError(adminError, '存储设置已保存');
+  } catch (err) {
+    showStorageMsg(err.message, true);
   } finally {
     submitBtn.disabled = false;
   }
