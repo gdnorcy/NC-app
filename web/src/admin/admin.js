@@ -220,6 +220,10 @@ document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
       state.view = 'settings-security';
       render();
       loadSettingsSecurity();
+    } else if (t.dataset.nav === 'settings-open') {
+      state.view = 'settings-open';
+      render();
+      loadSettingsOpen();
     } else if (t.dataset.nav === 'solutions') {
       state.view = 'solutions';
       render();
@@ -243,6 +247,7 @@ function renderBreadcrumb() {
     'settings-sms': '短信接口',
     'settings-payment': '支付设置',
     'settings-security': '安全设置',
+    'settings-open': '开放平台',
     plans: '客户项目',
     scenes: '客户项目',
   };
@@ -308,6 +313,7 @@ function render() {
   $('view-settings-sms').classList.toggle('hidden', state.view !== 'settings-sms');
   $('view-settings-payment').classList.toggle('hidden', state.view !== 'settings-payment');
   $('view-settings-security').classList.toggle('hidden', state.view !== 'settings-security');
+  $('view-settings-open').classList.toggle('hidden', state.view !== 'settings-open');
   $('view-solutions').classList.toggle('hidden', state.view !== 'solutions');
   renderBreadcrumb();
   if (state.view === 'customers') renderCustomers();
@@ -1759,6 +1765,28 @@ $('btn-save-security')?.addEventListener('click', async () => {
       'security.passwordComplex': $('set-sec-pwd-complex').checked,
     });
     showError(adminError, '安全设置已保存', false);
+  } catch (e) { showError(adminError, e.message); }
+});
+
+// ---------- 开放平台 ----------
+async function loadSettingsOpen() {
+  try {
+    const { settings } = await fetchAdminSettings();
+    $('set-open-appid').value = settings['openPlatform.appId'] || '';
+    $('set-open-secret').value = settings['openPlatform.appSecret'] || '';
+    $('set-open-redirect').value = settings['openPlatform.redirectUri'] || '';
+    $('set-open-enabled').checked = !!settings['openPlatform.enabled'];
+  } catch (e) { showError(adminError, e.message); }
+}
+$('btn-save-open')?.addEventListener('click', async () => {
+  try {
+    await saveAdminSettings({
+      'openPlatform.appId': $('set-open-appid').value.trim(),
+      'openPlatform.appSecret': $('set-open-secret').value.trim(),
+      'openPlatform.redirectUri': $('set-open-redirect').value.trim(),
+      'openPlatform.enabled': $('set-open-enabled').checked,
+    });
+    showError(adminError, '开放平台设置已保存', false);
   } catch (e) { showError(adminError, e.message); }
 });
 
