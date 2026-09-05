@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { config } from './config.js';
 
@@ -10,6 +11,7 @@ CREATE TABLE IF NOT EXISTS scenes (
   description TEXT NOT NULL DEFAULT '',
   image_path TEXT NOT NULL,
   preview_path TEXT NOT NULL DEFAULT '',
+  pyramid TEXT NOT NULL DEFAULT '',
   sort_order INTEGER NOT NULL DEFAULT 0,
   published INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -21,7 +23,24 @@ CREATE TABLE IF NOT EXISTS storage_config (
   providers TEXT NOT NULL DEFAULT '{}',
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  cover_path TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  published INTEGER NOT NULL DEFAULT 1,
+  share_token TEXT NOT NULL DEFAULT '',
+  share_enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;
+
+/** 生成不可猜的分享令牌（8 字符 base64url） */
+export function genShareToken() {
+  return randomBytes(6).toString('base64url');
+}
 
 export function createDb(dbPath = config.dbPath) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -32,7 +51,7 @@ export function createDb(dbPath = config.dbPath) {
   return db;
 }
 
-/** 存量库迁移：场景表补 preview_path / pyramid；存储配置表升级为多厂商结构 */
+/** 存量库迁移：场景表补字段；建默认项目收纳旧场景；存储配置升级为多厂商 */
 function migrate(db) {
   const sceneCols = db.prepare('PRAGMA table_info(scenes)').all();
   if (!sceneCols.some((c) => c.name === 'preview_path')) {
@@ -40,6 +59,28 @@ function migrate(db) {
   }
   if (!sceneCols.some((c) => c.name === 'pyramid')) {
     db.exec("ALTER TABLE scenes ADD COLUMN pyramid TEXT NOT NULL DEFAULT ''");
+  }
+  const addCol = (name, ddl) => {
+    const cols = db.prepare('PRAGMA table_info(scenes)').all();
+    if (!cols.some((c) => c.name === name)) db.exec(`ALTER TABLE scenes ADD COLUMN ${ddl}`);
+  };
+  addCol('project_id', 'project_id INTEGER');
+  addCol('share_token', "share_token TEXT NOT NULL DEFAULT ''");
+  addCol('share_enabled', 'share_enabled INTEGER NOT NULL DEFAULT 0');
+
+  // 默认项目：收纳所有未归属（含存量）场景
+  const projectCount = db.prepare('SELECT COUNT(*) AS n FROM projects').get().n;
+  let defaultId = null;
+  if (projectCount === 0) {
+    const info = db
+      .prepare('INSERT INTO projects (name, description, share_token, share_enabled) VALUES (?, ?, ?, 1)')
+      .run('默认项目', '自动创建的默认项目，收纳全部存量场景', genShareToken());
+    defaultId = info.lastInsertRowid;
+  } else {
+    defaultId = db.prepare('SELECT id FROM projects ORDER BY sort_order ASC, id ASC LIMIT 1').get()?.id || null;
+  }
+  if (defaultId !== null) {
+    db.prepare('UPDATE scenes SET project_id = ? WHERE project_id IS NULL OR project_id = 0').run(defaultId);
   }
 
   const storageCols = db.prepare('PRAGMA table_info(storage_config)').all().map((c) => c.name);
@@ -80,6 +121,23 @@ function migrate(db) {
   }
 }
 
+/** 数据库行 -> 项目 API JSON（camelCase） */
+export function toProject(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    coverPath: row.cover_path || '',
+    sortOrder: row.sort_order,
+    published: Boolean(row.published),
+    shareToken: row.share_token || '',
+    shareEnabled: Boolean(row.share_enabled),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 /** 数据库行 -> API JSON（camelCase） */
 export function toScene(row) {
   if (!row) return null;
@@ -98,6 +156,9 @@ export function toScene(row) {
     imagePath: row.image_path,
     previewPath: row.preview_path || '',
     pyramid,
+    projectId: row.project_id || null,
+    shareToken: row.share_token || '',
+    shareEnabled: Boolean(row.share_enabled),
     sortOrder: row.sort_order,
     published: Boolean(row.published),
     createdAt: row.created_at,

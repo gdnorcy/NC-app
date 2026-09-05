@@ -3,7 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { config } from '../config.js';
-import { toScene } from '../db.js';
+import { toScene, genShareToken } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 import { generatePyramidTiles, pyramidTileUrls } from '../tiling.js';
@@ -79,7 +79,10 @@ function parseSceneBody(body) {
   }
   const sortOrder = Number.isInteger(body.sortOrder) ? body.sortOrder : 0;
   const published = body.published === undefined ? 1 : body.published ? 1 : 0;
-  return { title, description, imagePath, previewPath, pyramid, sortOrder, published };
+  const projectId = body.projectId === undefined || body.projectId === null ? null : Number(body.projectId) || null;
+  const shareEnabled = body.shareEnabled === undefined ? 0 : body.shareEnabled ? 1 : 0;
+  const regenerateShareToken = body.regenerateShareToken === true;
+  return { title, description, imagePath, previewPath, pyramid, sortOrder, published, projectId, shareEnabled, regenerateShareToken };
 }
 
 export function createScenesRouter(db) {
@@ -103,14 +106,20 @@ export function createScenesRouter(db) {
   });
 
   router.post('/admin/scenes', (req, res) => {
-    const { title, description, imagePath, previewPath, pyramid, sortOrder, published } = parseSceneBody(req.body);
+    const { title, description, imagePath, previewPath, pyramid, sortOrder, published, projectId, shareEnabled } = parseSceneBody(req.body);
     if (!title) return res.status(400).json({ error: '标题不能为空' });
     if (!imagePath) return res.status(400).json({ error: '请先上传全景图' });
+    // 归属项目：缺省归入默认项目
+    let pid = projectId;
+    if (pid === null) {
+      pid = db.prepare('SELECT id FROM projects ORDER BY sort_order ASC, id ASC LIMIT 1').get()?.id || null;
+    }
     const info = db
       .prepare(
-        'INSERT INTO scenes (title, description, image_path, preview_path, pyramid, sort_order, published) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        `INSERT INTO scenes (title, description, image_path, preview_path, pyramid, project_id, share_token, share_enabled, sort_order, published)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(title, description, imagePath, previewPath, pyramid, sortOrder, published);
+      .run(title, description, imagePath, previewPath, pyramid, pid, shareEnabled ? genShareToken() : '', shareEnabled, sortOrder, published);
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json({ scene: toScene(row) });
   });
@@ -120,7 +129,7 @@ export function createScenesRouter(db) {
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: '场景不存在' });
 
-    const { title, description, imagePath, previewPath, pyramid, sortOrder, published } = parseSceneBody(req.body);
+    const { title, description, imagePath, previewPath, pyramid, sortOrder, published, projectId, shareEnabled, regenerateShareToken } = parseSceneBody(req.body);
     const next = {
       title: title || row.title,
       description: description === '' ? row.description : description,
@@ -129,12 +138,20 @@ export function createScenesRouter(db) {
       pyramid: pyramid || row.pyramid || '',
       sortOrder: Number.isNaN(sortOrder) ? row.sort_order : sortOrder,
       published,
+      projectId: projectId === null ? row.project_id : projectId,
+      shareEnabled,
+      // 开启分享但缺 token / 主动刷新 → 生成新令牌
+      shareToken:
+        regenerateShareToken || (shareEnabled && !row.share_token)
+          ? genShareToken()
+          : row.share_token,
     };
     db.prepare(
       `UPDATE scenes
-       SET title = ?, description = ?, image_path = ?, preview_path = ?, pyramid = ?, sort_order = ?, published = ?, updated_at = datetime('now')
+       SET title = ?, description = ?, image_path = ?, preview_path = ?, pyramid = ?, sort_order = ?, published = ?,
+           project_id = ?, share_token = ?, share_enabled = ?, updated_at = datetime('now')
        WHERE id = ?`
-    ).run(next.title, next.description, next.imagePath, next.previewPath, next.pyramid, next.sortOrder, next.published, id);
+    ).run(next.title, next.description, next.imagePath, next.previewPath, next.pyramid, next.sortOrder, next.published, next.projectId, next.shareToken, next.shareEnabled, id);
 
     const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
     res.json({ scene: toScene(updated) });
