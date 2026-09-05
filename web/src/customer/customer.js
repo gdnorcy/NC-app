@@ -141,12 +141,22 @@ async function loadProfile() {
   state.customerConfig = cfg;
   $('storage-mode').value = cfg.storage?.mode || 'platform';
   $('storage-provider').value = cfg.storage?.provider || 'qiniu';
-  $('storage-ak').value = cfg.storage?.config?.accessKey || '';
-  $('storage-sk').value = cfg.storage?.config?.secretKey || '';
-  $('storage-bucket').value = cfg.storage?.config?.bucket || '';
-  $('storage-region').value = cfg.storage?.config?.region || '';
-  $('storage-domain').value = cfg.storage?.config?.domain || '';
+  // 七牛配置
+  $('storage-qiniu-ak').value = cfg.storage?.qiniu?.accessKey || cfg.storage?.accessKey || '';
+  $('storage-qiniu-sk').value = cfg.storage?.qiniu?.secretKey || cfg.storage?.secretKey || '';
+  $('storage-qiniu-zone').value = cfg.storage?.qiniu?.zone || cfg.storage?.region || '';
+  $('storage-qiniu-bucket').value = cfg.storage?.qiniu?.bucket || cfg.storage?.bucket || '';
+  $('storage-qiniu-folder').value = cfg.storage?.qiniu?.folder || '';
+  $('storage-qiniu-domain').value = cfg.storage?.qiniu?.cdnDomain || cfg.storage?.domain || '';
+  // 阿里云配置
+  $('storage-aliyun-ak').value = cfg.storage?.aliyun?.accessKeyId || '';
+  $('storage-aliyun-sk').value = cfg.storage?.aliyun?.accessKeySecret || '';
+  $('storage-aliyun-region').value = cfg.storage?.aliyun?.region || '';
+  $('storage-aliyun-bucket').value = cfg.storage?.aliyun?.bucket || '';
+  $('storage-aliyun-folder').value = cfg.storage?.aliyun?.folder || '';
+  $('storage-aliyun-domain').value = cfg.storage?.aliyun?.cdnDomain || '';
   toggleStorageFields();
+  toggleStorageProvider();
   $('sms-mode').value = cfg.sms?.mode || 'platform';
   $('sms-provider').value = cfg.sms?.provider || 'aliyun';
   $('sms-ak').value = cfg.sms?.config?.accessKey || '';
@@ -724,22 +734,43 @@ function toggleStorageFields() {
   const mode = $('storage-mode').value;
   $('storage-independent-fields').classList.toggle('hidden', mode !== 'independent');
 }
+function toggleStorageProvider() {
+  const provider = $('storage-provider').value;
+  $('storage-qiniu-fields').classList.toggle('hidden', provider !== 'qiniu');
+  $('storage-aliyun-fields').classList.toggle('hidden', provider !== 'aliyun');
+}
 $('storage-mode').addEventListener('change', toggleStorageFields);
+$('storage-provider').addEventListener('change', toggleStorageProvider);
 $('storage-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const mode = $('storage-mode').value;
-  const config = mode === 'independent' ? {
-    provider: $('storage-provider').value,
-    accessKey: $('storage-ak').value.trim(),
-    secretKey: $('storage-sk').value.trim(),
-    bucket: $('storage-bucket').value.trim(),
-    region: $('storage-region').value.trim(),
-    domain: $('storage-domain').value.trim(),
-  } : {};
+  const provider = $('storage-provider').value;
+  let storageConfig = { mode, provider };
+  if (mode === 'independent') {
+    if (provider === 'qiniu') {
+      storageConfig.qiniu = {
+        accessKey: $('storage-qiniu-ak').value.trim(),
+        secretKey: $('storage-qiniu-sk').value.trim(),
+        zone: $('storage-qiniu-zone').value,
+        bucket: $('storage-qiniu-bucket').value.trim(),
+        folder: $('storage-qiniu-folder').value.trim(),
+        cdnDomain: $('storage-qiniu-domain').value.trim(),
+      };
+    } else {
+      storageConfig.aliyun = {
+        accessKeyId: $('storage-aliyun-ak').value.trim(),
+        accessKeySecret: $('storage-aliyun-sk').value.trim(),
+        region: $('storage-aliyun-region').value.trim(),
+        bucket: $('storage-aliyun-bucket').value.trim(),
+        folder: $('storage-aliyun-folder').value.trim(),
+        cdnDomain: $('storage-aliyun-domain').value.trim(),
+      };
+    }
+  }
   try {
     await api('/config', {
       method: 'PUT',
-      body: JSON.stringify({ storage: { mode, ...config } }),
+      body: JSON.stringify({ storage: storageConfig }),
     });
     toast('存储设置已保存');
   } catch (err) {

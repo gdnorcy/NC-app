@@ -309,25 +309,66 @@
                         <option value="aliyun">阿里云 OSS</option>
                       </select>
                     </div>
-                    <div class="form-field">
-                      <label>AccessKey</label>
-                      <input id="storage-ak" type="text" placeholder="AccessKey ID" />
+                    <!-- 七牛云配置 -->
+                    <div id="storage-qiniu-fields">
+                      <div class="form-field">
+                        <label>AccessKey</label>
+                        <input id="storage-qiniu-ak" type="text" placeholder="子账号 AK，仅需该空间读写权限" />
+                      </div>
+                      <div class="form-field">
+                        <label>SecretKey</label>
+                        <input id="storage-qiniu-sk" type="password" placeholder="SecretKey" />
+                      </div>
+                      <div class="form-field">
+                        <label>所属区域</label>
+                        <select id="storage-qiniu-zone">
+                          <option value="">自动探测（推荐）</option>
+                          <option value="z0">华东（z0）</option>
+                          <option value="z1">华北（z1）</option>
+                          <option value="z2">华南（z2）</option>
+                          <option value="na0">北美（na0）</option>
+                          <option value="as0">东南亚（as0）</option>
+                        </select>
+                      </div>
+                      <div class="form-field">
+                        <label>空间名（Bucket）</label>
+                        <input id="storage-qiniu-bucket" type="text" placeholder="如 panorama-360" />
+                      </div>
+                      <div class="form-field">
+                        <label>文件夹前缀（可选）</label>
+                        <input id="storage-qiniu-folder" type="text" placeholder="如 panorama，上传到该目录下" />
+                      </div>
+                      <div class="form-field">
+                        <label>CDN 域名</label>
+                        <input id="storage-qiniu-domain" type="text" placeholder="https://img.yourdomain.com" />
+                      </div>
                     </div>
-                    <div class="form-field">
-                      <label>SecretKey</label>
-                      <input id="storage-sk" type="password" placeholder="SecretKey" />
-                    </div>
-                    <div class="form-field">
-                      <label>Bucket（存储空间）</label>
-                      <input id="storage-bucket" type="text" placeholder="存储空间名称" />
-                    </div>
-                    <div class="form-field">
-                      <label>区域</label>
-                      <input id="storage-region" type="text" placeholder="如：z0 / cn-hangzhou" />
-                    </div>
-                    <div class="form-field">
-                      <label>访问域名</label>
-                      <input id="storage-domain" type="text" placeholder="https://cdn.example.com" />
+                    <!-- 阿里云 OSS 配置 -->
+                    <div id="storage-aliyun-fields" class="hidden">
+                      <div class="form-field">
+                        <label>AccessKey ID</label>
+                        <input id="storage-aliyun-ak" type="text" placeholder="子账号 AK，仅需该 Bucket 读写权限" />
+                      </div>
+                      <div class="form-field">
+                        <label>AccessKey Secret</label>
+                        <input id="storage-aliyun-sk" type="password" placeholder="AccessKey Secret" />
+                      </div>
+                      <div class="form-field">
+                        <label>Region 区域</label>
+                        <input id="storage-aliyun-region" type="text" placeholder="如 oss-cn-shenzhen" />
+                      </div>
+                      <div class="form-field">
+                        <label>Bucket</label>
+                        <input id="storage-aliyun-bucket" type="text" placeholder="如 panorama-360" />
+                      </div>
+                      <div class="form-field">
+                        <label>文件夹前缀（可选）</label>
+                        <input id="storage-aliyun-folder" type="text" placeholder="如 panorama，上传到该目录下" />
+                      </div>
+                      <div class="form-field">
+                        <label>CDN 域名</label>
+                        <input id="storage-aliyun-domain" type="text" placeholder="https://img.yourdomain.com" />
+                      </div>
                     </div>
                   </div>
                   <button type="submit" class="btn-primary">保存设置</button>
