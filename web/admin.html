@@ -165,24 +165,62 @@
           <!-- 客户项目编辑（整页） -->
           <section id="view-customer-edit" class="hidden">
             <div class="edit-page">
-              <div class="edit-page-card">
-                <div class="edit-page-header">
-                  <h2 id="customer-edit-title">新建客户项目</h2>
-                </div>
-                <form id="customer-form" class="edit-form">
-                  <input type="hidden" id="cf-id" />
+              <div class="edit-page-title">
+                <h2 id="customer-edit-title">新建客户项目</h2>
+                <p>管理客户的基本信息、有效期和状态设置</p>
+              </div>
 
-                  <div class="form-grid">
+              <form id="customer-form">
+                <input type="hidden" id="cf-id" />
+
+                <!-- 基本信息 -->
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">基本信息</div>
+                  <div class="edit-form-grid">
                     <label class="field form-col-2">
                       <span>客户名称 *</span>
                       <input id="cf-name" required maxlength="50" placeholder="如：坡特商贸" />
                     </label>
-
                     <label class="field form-col-2">
                       <span>客户描述 / 备注</span>
                       <textarea id="cf-desc" rows="2" maxlength="200" placeholder="选填"></textarea>
                     </label>
+                  </div>
+                </div>
 
+                <!-- 有效期与状态 -->
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">有效期与状态</div>
+                  <div class="edit-form-grid">
+                    <label class="field">
+                      <span>有效期开始</span>
+                      <input id="cf-valid-from" type="date" />
+                    </label>
+                    <label class="field">
+                      <span>有效期结束</span>
+                      <input id="cf-valid-until" type="date" />
+                    </label>
+                    <div class="field">
+                      <span>置顶</span>
+                      <label class="checkbox-field" style="margin-bottom:0;">
+                        <input id="cf-pinned" type="checkbox" />
+                        <span>设为置顶客户</span>
+                      </label>
+                    </div>
+                    <label class="field">
+                      <span>状态</span>
+                      <select id="cf-status">
+                        <option value="active">正常</option>
+                        <option value="disabled">停用</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Logo 上传 -->
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">Logo 设置</div>
+                  <div class="edit-form-grid">
                     <label class="field form-col-2">
                       <span>Logo（JPG / PNG / WebP，自动压缩）</span>
                       <div class="file-upload-wrap">
@@ -198,39 +236,14 @@
                       </div>
                       <p id="cf-upload-state" class="muted"></p>
                     </label>
-
-                    <label class="field">
-                      <span>有效期开始</span>
-                      <input id="cf-valid-from" type="date" />
-                    </label>
-
-                    <label class="field">
-                      <span>有效期结束</span>
-                      <input id="cf-valid-until" type="date" />
-                    </label>
-
-                    <div class="field">
-                      <span>置顶</span>
-                      <label class="checkbox-field" style="margin-bottom:0;">
-                        <input id="cf-pinned" type="checkbox" />
-                        <span>设为置顶客户</span>
-                      </label>
-                    </div>
-
-                    <label class="field">
-                      <span>状态</span>
-                      <select id="cf-status">
-                        <option value="active">正常</option>
-                        <option value="disabled">停用</option>
-                      </select>
-                    </label>
                   </div>
-                </form>
-                <div class="edit-page-footer">
-                  <button type="button" id="customer-edit-cancel" class="btn btn-ghost">取消</button>
-                  <button type="submit" form="customer-form" class="btn btn-primary">保存</button>
                 </div>
-              </div>
+
+                <div class="edit-page-footer">
+                  <button type="submit" class="btn btn-primary">保存</button>
+                  <button type="button" id="customer-edit-cancel" class="btn btn-ghost">取消</button>
+                </div>
+              </form>
             </div>
           </section>
 
