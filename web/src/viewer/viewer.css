@@ -401,3 +401,47 @@ body {
   color: #6b7280;
   line-height: 1.6;
 }
+
+/* 场景介绍文字 */
+.scene-intro {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: 80vw;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: #fff;
+  animation: fadeInUp 0.3s ease;
+}
+.scene-intro-text {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.scene-intro-close {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  font-size: 18px;
+  cursor: pointer;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* 场景切换过渡 */
+.viewer-transition {
+  animation: sceneFade 0.5s ease;
+}
+@keyframes sceneFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

@@ -184,6 +184,8 @@ function switchView(view) {
   const names = { dashboard: '工作台', apps: '应用中心', plans: '360全景', scenes: '场景管理', orders: '我的账单', members: '成员管理', settings: '账号设置' };
   if (view === 'scenes' && state.currentPlan) {
     $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用中心</span> <span style="color:var(--text-3);">/</span> <span style="color:var(--text-3);cursor:pointer;" onclick="switchView('plans')">360全景</span> <span style="color:var(--text-3);">/</span> <span>${state.currentPlan.name}</span>`;
+  } else if (view === 'scene-edit') {
+    $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用中心</span> <span style="color:var(--text-3);">/</span> <span style="color:var(--text-3);cursor:pointer;" onclick="switchView('plans')">360全景</span> <span style="color:var(--text-3);">/</span> <span style="color:var(--text-3);cursor:pointer;" onclick="switchView('scenes')">场景管理</span> <span style="color:var(--text-3);">/</span> <span>编辑场景</span>`;
   } else if (view === 'plans') {
     $('breadcrumb').innerHTML = `<span style="color:var(--text-3);cursor:pointer;" onclick="switchView('apps')">应用中心</span> <span style="color:var(--text-3);">/</span> <span>360全景</span>`;
   } else {
@@ -640,13 +642,198 @@ $('hotspot-form').addEventListener('submit', (e) => {
   $('hotspot-dialog').close();
 });
 
+// ===== 场景编辑整页 =====
+let editingScenePageId = null;
+
+function openSceneEditPage(scene) {
+  editingScenePageId = scene?.id || null;
+  $('scene-edit-title').textContent = scene ? `编辑场景：${scene.title}` : '新建场景';
+  // 填充基础信息
+  $('se-title').value = scene?.title || '';
+  $('se-desc').value = scene?.description || '';
+  $('se-image-path').value = scene?.imagePath || '';
+  $('se-preview-path').value = scene?.previewPath || '';
+  $('se-sort').value = scene?.sortOrder ?? 0;
+  $('se-published').checked = scene?.published !== false;
+  // 内容增强
+  const meta = scene?.meta || {};
+  $('se-bg-music').value = meta.bgMusic || '';
+  $('se-voiceover').value = meta.voiceover || '';
+  $('se-intro-text').value = meta.introText || '';
+  $('se-transition').value = meta.transition || 'fade';
+  $('se-initial-view').value = meta.initialView || 'default';
+  // 热点
+  state.editingHotspots = scene?.hotspots ? [...scene.hotspots] : [];
+  renderSeHotspotList();
+  // 预览图
+  if (scene?.imagePath) {
+    showSePreview(scene.imagePath);
+  } else {
+    resetSeUpload();
+  }
+  switchView('scene-edit');
+}
+
+function renderSeHotspotList() {
+  const list = $('se-hotspot-list');
+  const hotspots = state.editingHotspots || [];
+  if (!hotspots.length) {
+    list.innerHTML = '<p class="field-hint" style="margin:8px 0;">暂无热点，点击"添加热点"在全景中添加可点击的标注点</p>';
+    return;
+  }
+  list.innerHTML = hotspots.map((hs, i) => {
+    const typeLabel = hs.type === 'scene' ? '跳转场景' : '信息弹窗';
+    const target = hs.type === 'scene' ? (state.scenes.find(s => s.id === hs.targetSceneId)?.title || '未知') : '';
+    return `<div class="hotspot-item">
+      <div class="hotspot-item-info">
+        <div class="hotspot-item-title">${hs.title || '未命名热点'}</div>
+        <div class="hotspot-item-meta">${typeLabel}${target ? ' → ' + target : ''} · ${hs.yaw}°, ${hs.pitch}°</div>
+      </div>
+      <div class="hotspot-item-actions">
+        <button type="button" class="btn-ghost btn-sm" data-se-hs-edit="${i}">编辑</button>
+        <button type="button" class="btn-ghost btn-sm" data-se-hs-del="${i}" style="color:var(--danger)">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+$('se-hotspot-list')?.addEventListener('click', (e) => {
+  const editIdx = e.target.dataset.seHsEdit;
+  const delIdx = e.target.dataset.seHsDel;
+  if (editIdx !== undefined) {
+    openHotspotDialog(Number(editIdx));
+  } else if (delIdx !== undefined) {
+    state.editingHotspots.splice(Number(delIdx), 1);
+    renderSeHotspotList();
+  }
+});
+
+$('se-add-hotspot')?.addEventListener('click', () => openHotspotDialog(-1));
+
+// 覆盖原热点弹窗保存后的渲染
+const _origRenderHotspotList = renderHotspotList;
+renderHotspotList = function() {
+  _origRenderHotspotList();
+  if (!$('view-scene-edit').classList.contains('hidden')) {
+    renderSeHotspotList();
+  }
+};
+
+// 整页上传
+function resetSeUpload() {
+  $('se-upload-area').querySelector('.upload-placeholder').classList.remove('hidden');
+  $('se-upload-progress').classList.add('hidden');
+  $('se-preview-wrap').classList.add('hidden');
+}
+function showSePreview(url) {
+  $('se-upload-area').querySelector('.upload-placeholder').classList.add('hidden');
+  $('se-upload-progress').classList.add('hidden');
+  $('se-preview-wrap').classList.remove('hidden');
+  $('se-preview-img').src = url;
+  $('se-preview-canvas').innerHTML = `<img src="${url}" alt="预览" />`;
+}
+
+$('se-upload-area')?.addEventListener('click', () => $('se-file-input').click());
+$('se-file-input')?.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  $('se-upload-area').querySelector('.upload-placeholder').classList.add('hidden');
+  $('se-upload-progress').classList.remove('hidden');
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/customer/upload');
+    xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('customer_token')}`);
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        const pct = Math.round((ev.loaded / ev.total) * 100);
+        $('se-progress-fill').style.width = `${pct}%`;
+        $('se-progress-text').textContent = `上传中 ${pct}%`;
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const result = JSON.parse(xhr.responseText);
+        $('se-image-path').value = result.path;
+        showSePreview(result.path);
+        toast('上传成功');
+      } else {
+        toast('上传失败', 'error');
+        resetSeUpload();
+      }
+    };
+    xhr.send(formData);
+  } catch (err) {
+    toast(err.message, 'error');
+    resetSeUpload();
+  }
+});
+
+$('se-remove-img')?.addEventListener('click', () => {
+  $('se-image-path').value = '';
+  resetSeUpload();
+  $('se-preview-canvas').innerHTML = '<p class="field-hint">保存后可预览全景效果</p>';
+});
+
+// 保存场景
+$('btn-scene-edit-save')?.addEventListener('click', async () => {
+  const title = $('se-title').value.trim();
+  const imagePath = $('se-image-path').value.trim();
+  if (!title) { toast('请输入场景名称', 'error'); return; }
+  if (!imagePath) { toast('请上传全景图', 'error'); return; }
+  const payload = {
+    planId: state.currentPlan.id,
+    title,
+    description: $('se-desc').value.trim(),
+    imagePath,
+    previewPath: $('se-preview-path').value.trim(),
+    sortOrder: Number($('se-sort').value) || 0,
+    published: $('se-published').checked,
+    hotspots: state.editingHotspots || [],
+    meta: {
+      bgMusic: $('se-bg-music').value.trim(),
+      voiceover: $('se-voiceover').value.trim(),
+      introText: $('se-intro-text').value.trim(),
+      transition: $('se-transition').value,
+      initialView: $('se-initial-view').value,
+    },
+  };
+  try {
+    if (editingScenePageId) {
+      await api(`/scenes/${editingScenePageId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('场景已更新');
+    } else {
+      await api('/scenes', { method: 'POST', body: JSON.stringify(payload) });
+      toast('场景已创建');
+    }
+    switchView('scenes');
+    loadScenes();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+});
+
+$('btn-back-from-scene-edit')?.addEventListener('click', () => {
+  switchView('scenes');
+  loadScenes();
+});
+
+$('btn-scene-edit-preview')?.addEventListener('click', () => {
+  if (editingScenePageId) {
+    window.open(`/?scene=${editingScenePageId}`, '_blank');
+  } else {
+    toast('请先保存场景', 'error');
+  }
+});
+
 $('scenes-tbody').addEventListener('click', (e) => {
   const id = Number(e.target.dataset.id);
   if (!id) return;
   const scene = state.scenes.find((s) => s.id === id);
   if (!scene) return;
   if (e.target.classList.contains('act-edit-scene')) {
-    openSceneDialog(scene);
+    openSceneEditPage(scene);
   } else if (e.target.classList.contains('act-del-scene')) {
     showConfirm('删除场景', `确定删除场景「${scene.title || '未命名'}」？此操作不可恢复。`, async () => {
       try {

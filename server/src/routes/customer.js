@@ -164,16 +164,18 @@ function verifySceneOwnership(req, res, sceneId) {
 
 // 新建场景
 router.post('/scenes', requireTenant, requireTenantAdmin, (req, res) => {
-  const { planId, title, description, imagePath, previewPath, sortOrder, published, hotspots } = req.body || {};
+  const { planId, title, description, imagePath, previewPath, sortOrder, published, hotspots, meta } = req.body || {};
   if (!planId) return res.status(400).json({ error: '方案ID必填' });
   const plan = verifyPlanOwnership(req, res, planId);
   if (!plan) return;
   const hotspotsJson = Array.isArray(hotspots) ? JSON.stringify(hotspots) : '[]';
+  const metaJson = meta && typeof meta === 'object' ? JSON.stringify(meta) : '{}';
+  const pubVal = published === undefined ? 1 : (published ? 1 : 0);
   const info = db
     .prepare(
-      'INSERT INTO scenes (plan_id, title, description, image_path, preview_path, sort_order, published, hotspots) VALUES (?, ?, ?, ?, ?, COALESCE(?, (SELECT COALESCE(MAX(sort_order),0)+1 FROM scenes WHERE plan_id = ?)), ?, ?)'
+      'INSERT INTO scenes (plan_id, title, description, image_path, preview_path, sort_order, published, hotspots, meta) VALUES (?, ?, ?, ?, ?, COALESCE(?, (SELECT COALESCE(MAX(sort_order),0)+1 FROM scenes WHERE plan_id = ?)), ?, ?, ?)'
     )
-    .run(planId, title || '未命名场景', description || '', imagePath || '', previewPath || '', sortOrder ?? null, planId, published ?? 1, hotspotsJson);
+    .run(planId, title || '未命名场景', description || '', imagePath || '', previewPath || '', sortOrder ?? null, planId, pubVal, hotspotsJson, metaJson);
   const scene = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
   res.json({ scene: toScene(scene) });
 });
@@ -183,16 +185,19 @@ router.put('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
   const id = Number(req.params.id);
   const scene = verifySceneOwnership(req, res, id);
   if (!scene) return;
-  const { title, description, imagePath, previewPath, planId, sortOrder, published, shareEnabled, hotspots } = req.body || {};
+  const { title, description, imagePath, previewPath, planId, sortOrder, published, shareEnabled, hotspots, meta } = req.body || {};
   // 如果改了 planId，校验新方案属于当前租户
   if (planId && planId !== scene.plan_id) {
     const newPlan = verifyPlanOwnership(req, res, planId);
     if (!newPlan) return;
   }
   const hotspotsJson = Array.isArray(hotspots) ? JSON.stringify(hotspots) : null;
+  const metaJson = meta && typeof meta === 'object' ? JSON.stringify(meta) : null;
+  const pubVal = published === undefined ? null : (published ? 1 : 0);
+  const shareVal = shareEnabled === undefined ? null : (shareEnabled ? 1 : 0);
   db.prepare(
-    "UPDATE scenes SET title = COALESCE(?, title), description = COALESCE(?, description), image_path = COALESCE(?, image_path), preview_path = COALESCE(?, preview_path), plan_id = COALESCE(?, plan_id), sort_order = COALESCE(?, sort_order), published = COALESCE(?, published), share_enabled = COALESCE(?, share_enabled), hotspots = COALESCE(?, hotspots), updated_at = datetime('now') WHERE id = ?"
-  ).run(title ?? null, description ?? null, imagePath ?? null, previewPath ?? null, planId ?? null, sortOrder ?? null, published ?? null, shareEnabled ?? null, hotspotsJson, id);
+    "UPDATE scenes SET title = COALESCE(?, title), description = COALESCE(?, description), image_path = COALESCE(?, image_path), preview_path = COALESCE(?, preview_path), plan_id = COALESCE(?, plan_id), sort_order = COALESCE(?, sort_order), published = COALESCE(?, published), share_enabled = COALESCE(?, share_enabled), hotspots = COALESCE(?, hotspots), meta = COALESCE(?, meta), updated_at = datetime('now') WHERE id = ?"
+  ).run(title ?? null, description ?? null, imagePath ?? null, previewPath ?? null, planId ?? null, sortOrder ?? null, pubVal, shareVal, hotspotsJson, metaJson, id);
   const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
   res.json({ scene: toScene(updated) });
 });

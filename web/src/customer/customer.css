@@ -735,3 +735,43 @@ body {
   padding: 4px 10px;
   font-size: 12px;
 }
+
+/* 场景编辑整页布局 */
+.scene-edit-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  align-items: start;
+}
+.scene-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.scene-edit-preview {
+  position: sticky;
+  top: 16px;
+}
+.preview-canvas {
+  width: 100%;
+  aspect-ratio: 2/1;
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.preview-canvas img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+@media (max-width: 900px) {
+  .scene-edit-layout {
+    grid-template-columns: 1fr;
+  }
+  .scene-edit-preview {
+    position: static;
+  }
+}

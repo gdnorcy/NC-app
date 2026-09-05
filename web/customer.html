@@ -197,6 +197,136 @@
           </div>
         </section>
 
+        <!-- 场景编辑（整页） -->
+        <section id="view-scene-edit" class="view hidden">
+          <div class="page-header">
+            <div class="page-header-left">
+              <button id="btn-back-from-scene-edit" class="btn-ghost">← 返回场景列表</button>
+              <h2 id="scene-edit-title">编辑场景</h2>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button id="btn-scene-edit-preview" class="btn-ghost">预览</button>
+              <button id="btn-scene-edit-save" class="btn-primary">保存</button>
+            </div>
+          </div>
+          <div class="scene-edit-layout">
+            <div class="scene-edit-form">
+              <!-- 基础信息 -->
+              <div class="card">
+                <div class="card-header"><h3>基础信息</h3></div>
+                <div class="card-body">
+                  <div class="form-field">
+                    <label>场景名称 *</label>
+                    <input id="se-title" type="text" placeholder="如：客厅" />
+                  </div>
+                  <div class="form-field">
+                    <label>场景描述</label>
+                    <textarea id="se-desc" rows="2" placeholder="简短描述这个场景"></textarea>
+                  </div>
+                  <div class="form-field">
+                    <label>全景图 *</label>
+                    <div id="se-upload-area" class="upload-area">
+                      <div class="upload-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <p>点击或拖拽上传全景图</p>
+                        <p class="upload-hint">支持 JPG/PNG，建议 2:1 等距柱状投影</p>
+                      </div>
+                      <input type="file" id="se-file-input" accept="image/*" hidden />
+                    </div>
+                    <div id="se-upload-progress" class="upload-progress hidden">
+                      <div class="progress-bar"><div class="progress-fill" id="se-progress-fill"></div></div>
+                      <span id="se-progress-text">上传中 0%</span>
+                    </div>
+                    <div id="se-preview-wrap" class="upload-preview hidden">
+                      <img id="se-preview-img" alt="预览" />
+                      <button type="button" id="se-remove-img" class="remove-btn">×</button>
+                    </div>
+                    <input id="se-image-path" type="hidden" />
+                  </div>
+                  <div class="form-field">
+                    <label>预览图 URL（低清，可选）</label>
+                    <input id="se-preview-path" type="text" placeholder="自动生成，可手动指定" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label>排序</label>
+                      <input id="se-sort" type="number" value="0" min="0" />
+                    </div>
+                    <div class="form-field">
+                      <label><input type="checkbox" id="se-published" checked /> 上架显示</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 热点标注 -->
+              <div class="card">
+                <div class="card-header">
+                  <h3>热点标注</h3>
+                  <button type="button" id="se-add-hotspot" class="btn-ghost btn-sm">+ 添加热点</button>
+                </div>
+                <div class="card-body">
+                  <div id="se-hotspot-list" class="hotspot-list">
+                    <p class="field-hint" style="margin:8px 0;">暂无热点，点击"添加热点"在全景中添加可点击的标注点</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 内容增强 -->
+              <div class="card">
+                <div class="card-header"><h3>内容增强</h3></div>
+                <div class="card-body">
+                  <div class="form-field">
+                    <label>背景音乐 URL（可选）</label>
+                    <input id="se-bg-music" type="text" placeholder="如 https://example.com/music.mp3" />
+                    <span class="field-hint">进入场景时自动播放，支持 MP3</span>
+                  </div>
+                  <div class="form-field">
+                    <label>场景解说音频 URL（可选）</label>
+                    <input id="se-voiceover" type="text" placeholder="如 https://example.com/intro.mp3" />
+                    <span class="field-hint">点击播放按钮收听场景介绍</span>
+                  </div>
+                  <div class="form-field">
+                    <label>场景介绍文字（可选）</label>
+                    <textarea id="se-intro-text" rows="3" placeholder="进入场景时显示的介绍文字，支持换行"></textarea>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label>切换过渡效果</label>
+                      <select id="se-transition">
+                        <option value="fade">淡入淡出</option>
+                        <option value="none">无（直接切换）</option>
+                        <option value="slide">滑动</option>
+                      </select>
+                    </div>
+                    <div class="form-field">
+                      <label>初始视角</label>
+                      <select id="se-initial-view">
+                        <option value="default">默认（居中）</option>
+                        <option value="north">朝北</option>
+                        <option value="south">朝南</option>
+                        <option value="east">朝东</option>
+                        <option value="west">朝西</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 右侧预览 -->
+            <div class="scene-edit-preview">
+              <div class="card">
+                <div class="card-header"><h3>全景预览</h3></div>
+                <div class="card-body">
+                  <div id="se-preview-canvas" class="preview-canvas">
+                    <p class="field-hint">保存后可预览全景效果</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- 我的账单 -->
         <section id="view-orders" class="view hidden">
           <div class="page-header">

@@ -321,6 +321,10 @@ function migrate(db) {
   if (!colExists(db, 'scenes', 'hotspots')) {
     db.exec("ALTER TABLE scenes ADD COLUMN hotspots TEXT NOT NULL DEFAULT '[]'");
   }
+  // —— scenes 表加 meta 字段（内容增强：背景音乐/解说/介绍文字等）——
+  if (!colExists(db, 'scenes', 'meta')) {
+    db.exec("ALTER TABLE scenes ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'");
+  }
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
@@ -399,6 +403,10 @@ export function toScene(row) {
   if (row.hotspots) {
     try { hotspots = JSON.parse(row.hotspots); } catch { hotspots = []; }
   }
+  let meta = {};
+  if (row.meta) {
+    try { meta = JSON.parse(row.meta); } catch { meta = {}; }
+  }
   return {
     id: row.id,
     title: row.title,
@@ -407,6 +415,7 @@ export function toScene(row) {
     previewPath: row.preview_path || '',
     pyramid,
     hotspots,
+    meta,
     planId: row.plan_id || null,
     projectId: row.plan_id || null, // 兼容旧前端字段
     shareToken: row.share_token || '',

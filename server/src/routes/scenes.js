@@ -90,7 +90,13 @@ function parseSceneBody(body) {
   } else if (typeof body.hotspots === 'string') {
     hotspots = body.hotspots;
   }
-  return { title, description, imagePath, previewPath, pyramid, sortOrder, published, planId, shareEnabled, regenerateShareToken, hotspots };
+  let meta = '{}';
+  if (body.meta && typeof body.meta === 'object') {
+    try { meta = JSON.stringify(body.meta); } catch { meta = '{}'; }
+  } else if (typeof body.meta === 'string') {
+    meta = body.meta;
+  }
+  return { title, description, imagePath, previewPath, pyramid, sortOrder, published, planId, shareEnabled, regenerateShareToken, hotspots, meta };
 }
 
 export function createScenesRouter(db) {
@@ -114,7 +120,7 @@ export function createScenesRouter(db) {
   });
 
   router.post('/admin/scenes', (req, res) => {
-    const { title, description, imagePath, previewPath, pyramid, hotspots, sortOrder, published, planId, shareEnabled } = parseSceneBody(req.body);
+    const { title, description, imagePath, previewPath, pyramid, hotspots, meta, sortOrder, published, planId, shareEnabled } = parseSceneBody(req.body);
     if (!title) return res.status(400).json({ error: '标题不能为空' });
     if (!imagePath) return res.status(400).json({ error: '请先上传全景图' });
     // 归属方案：缺省归入默认方案
@@ -124,10 +130,10 @@ export function createScenesRouter(db) {
     }
     const info = db
       .prepare(
-        `INSERT INTO scenes (title, description, image_path, preview_path, pyramid, hotspots, plan_id, share_token, share_enabled, sort_order, published)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO scenes (title, description, image_path, preview_path, pyramid, hotspots, meta, plan_id, share_token, share_enabled, sort_order, published)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(title, description, imagePath, previewPath, pyramid, hotspots, pid, shareEnabled ? genShareToken() : '', shareEnabled, sortOrder, published);
+      .run(title, description, imagePath, previewPath, pyramid, hotspots, meta, pid, shareEnabled ? genShareToken() : '', shareEnabled, sortOrder, published);
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_scene', targetType: 'scene', targetId: info.lastInsertRowid, detail: `创建场景: ${title}`, ip: req.ip });
     res.status(201).json({ scene: toScene(row) });
@@ -138,7 +144,7 @@ export function createScenesRouter(db) {
     const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: '场景不存在' });
 
-    const { title, description, imagePath, previewPath, pyramid, sortOrder, published, planId, shareEnabled, regenerateShareToken, hotspots } = parseSceneBody(req.body);
+    const { title, description, imagePath, previewPath, pyramid, sortOrder, published, planId, shareEnabled, regenerateShareToken, hotspots, meta } = parseSceneBody(req.body);
     const next = {
       title: title || row.title,
       description: description === '' ? row.description : description,
@@ -146,6 +152,7 @@ export function createScenesRouter(db) {
       previewPath: previewPath || row.preview_path || '',
       pyramid: pyramid || row.pyramid || '',
       hotspots: hotspots || row.hotspots || '[]',
+      meta: meta || row.meta || '{}',
       sortOrder: Number.isNaN(sortOrder) ? row.sort_order : sortOrder,
       published,
       planId: planId === null ? row.plan_id : planId,
@@ -157,10 +164,10 @@ export function createScenesRouter(db) {
     };
     db.prepare(
       `UPDATE scenes
-       SET title = ?, description = ?, image_path = ?, preview_path = ?, pyramid = ?, hotspots = ?, sort_order = ?, published = ?,
+       SET title = ?, description = ?, image_path = ?, preview_path = ?, pyramid = ?, hotspots = ?, meta = ?, sort_order = ?, published = ?,
            plan_id = ?, share_token = ?, share_enabled = ?, updated_at = datetime('now')
        WHERE id = ?`
-    ).run(next.title, next.description, next.imagePath, next.previewPath, next.pyramid, next.hotspots, next.sortOrder, next.published, next.planId, next.shareToken, next.shareEnabled, id);
+    ).run(next.title, next.description, next.imagePath, next.previewPath, next.pyramid, next.hotspots, next.meta, next.sortOrder, next.published, next.planId, next.shareToken, next.shareEnabled, id);
 
     const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_scene', targetType: 'scene', targetId: id, detail: `更新场景: ${next.title}`, ip: req.ip });

@@ -214,10 +214,87 @@ async function selectScene(i, { force = false } = {}) {
   document.querySelectorAll('.scene-item').forEach((el, j) => {
     el.classList.toggle('active', j === i);
   });
-  await viewer.load(scene.imagePath, scene.previewPath, scene.pyramid);
+  // 场景切换过渡
+  const meta = scene.meta || {};
+  if (meta.transition === 'fade') {
+    viewerEl.classList.add('viewer-transition');
+    setTimeout(() => viewerEl.classList.remove('viewer-transition'), 500);
+  }
+  // 停止上一个场景的音频
+  stopSceneAudio();
+  await viewer.load(scene.imagePath, scene.previewPath, scene.pyramid, { initialView: meta.initialView });
   // 加载热点
   viewer.setHotspots(scene.hotspots || []);
+  // 内容增强
+  applySceneMeta(meta);
 }
+
+// 场景内容增强
+let bgmAudio = null;
+let voiceoverAudio = null;
+
+function stopSceneAudio() {
+  if (bgmAudio) { bgmAudio.pause(); bgmAudio = null; }
+  if (voiceoverAudio) { voiceoverAudio.pause(); voiceoverAudio = null; }
+  $('btn-bgm').classList.add('hidden');
+  $('btn-voiceover').classList.add('hidden');
+  $('scene-intro').classList.add('hidden');
+}
+
+function applySceneMeta(meta) {
+  // 背景音乐
+  if (meta.bgMusic) {
+    $('btn-bgm').classList.remove('hidden');
+    bgmAudio = new Audio(meta.bgMusic);
+    bgmAudio.loop = true;
+    bgmAudio.volume = 0.4;
+    // 浏览器自动播放限制：尝试播放，失败则等待用户交互
+    bgmAudio.play().catch(() => {
+      // 自动播放被阻止，显示音乐按钮提示
+    });
+  }
+  // 解说音频
+  if (meta.voiceover) {
+    $('btn-voiceover').classList.remove('hidden');
+    voiceoverAudio = new Audio(meta.voiceover);
+  }
+  // 场景介绍文字
+  if (meta.introText) {
+    $('scene-intro-text').textContent = meta.introText;
+    $('scene-intro').classList.remove('hidden');
+    // 5秒后自动隐藏
+    setTimeout(() => $('scene-intro').classList.add('hidden'), 5000);
+  }
+}
+
+// 背景音乐控制
+$('btn-bgm').addEventListener('click', () => {
+  if (!bgmAudio) return;
+  if (bgmAudio.paused) {
+    bgmAudio.play();
+    $('btn-bgm').textContent = '♪ 音乐开';
+  } else {
+    bgmAudio.pause();
+    $('btn-bgm').textContent = '♪ 音乐关';
+  }
+});
+
+// 解说播放
+$('btn-voiceover').addEventListener('click', () => {
+  if (!voiceoverAudio) return;
+  if (voiceoverAudio.paused) {
+    voiceoverAudio.play();
+    $('btn-voiceover').textContent = '⏸ 解说中';
+  } else {
+    voiceoverAudio.pause();
+    $('btn-voiceover').textContent = '▶ 解说';
+  }
+});
+
+// 关闭介绍文字
+$('scene-intro-close').addEventListener('click', () => {
+  $('scene-intro').classList.add('hidden');
+});
 
 // ---- 控制按钮 ----
 btnRotate.addEventListener('click', () => {

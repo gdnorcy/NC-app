@@ -92,7 +92,15 @@ export class PanoramaViewer {
   }
 
   // ---------- 全景图加载 ----------
-  load(imagePath, previewPath, pyramid) {
+  load(imagePath, previewPath, pyramid, options = {}) {
+    // 设置初始视角
+    if (options.initialView) {
+      const viewMap = { north: 0, east: Math.PI / 2, south: Math.PI, west: -Math.PI / 2 };
+      if (options.initialView !== 'default') {
+        this.yaw = viewMap[options.initialView] || 0;
+        this.pitch = 0;
+      }
+    }
     if (pyramid && Array.isArray(pyramid.levels) && pyramid.levels.length) {
       return this.loadPyramid(imagePath, previewPath, pyramid);
     }
