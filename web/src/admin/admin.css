@@ -121,9 +121,14 @@ body {
 .field input[type='text'],
 .field input[type='password'],
 .field input[type='number'],
+.field input[type='date'],
+.field input[type='tel'],
+.field input[type='email'],
+.field input:not([type]),
 .field select,
 .field textarea {
   width: 100%;
+  box-sizing: border-box;
   padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -154,6 +159,11 @@ body {
 }
 .field-row .field {
   flex: 1;
+}
+.field-row .checkbox-field {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  padding-bottom: 10px;
 }
 .checkbox-field {
   display: flex;
@@ -373,7 +383,7 @@ dialog {
   padding: 0;
   width: min(480px, calc(100vw - 32px));
   max-height: 85vh;
-  margin-top: 8vh;
+  margin: 8vh auto auto auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   opacity: 0;
@@ -414,6 +424,7 @@ dialog::backdrop {
   z-index: 1;
 }
 .dialog-card > .field,
+.dialog-card > .field-row,
 .dialog-card > .preview-wrap,
 .dialog-card > .muted,
 .dialog-card > .qr-wrap,
