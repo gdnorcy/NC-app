@@ -36,26 +36,62 @@
         </div>
       </header>
 
-      <main class="content">
-        <div class="toolbar">
-          <button id="btn-add" class="btn btn-primary">+ 新增场景</button>
-          <span id="scene-count" class="muted"></span>
-        </div>
+      <nav class="view-tabs" role="tablist">
+        <button type="button" class="tab active" data-view="scenes">场景管理</button>
+        <button type="button" class="tab" data-view="projects">项目管理</button>
+      </nav>
 
-        <div class="table-wrap">
-          <table class="scene-table">
-            <thead>
-              <tr>
-                <th>预览</th>
-                <th>标题 / 描述</th>
-                <th>排序</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="scene-tbody"></tbody>
-          </table>
-        </div>
+      <main class="content">
+        <!-- 场景管理 -->
+        <section id="view-scenes">
+          <div class="toolbar">
+            <button id="btn-add" class="btn btn-primary">+ 新增场景</button>
+            <span id="scene-count" class="muted"></span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="scene-table">
+              <thead>
+                <tr>
+                  <th>预览</th>
+                  <th>标题 / 描述</th>
+                  <th>所属项目</th>
+                  <th>分享</th>
+                  <th>排序</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="scene-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 项目管理 -->
+        <section id="view-projects" class="hidden">
+          <div class="toolbar">
+            <button id="btn-add-project" class="btn btn-primary">+ 新建项目</button>
+            <span id="project-count" class="muted"></span>
+          </div>
+
+          <div class="project-table-wrap">
+            <table class="scene-table">
+              <thead>
+                <tr>
+                  <th>封面</th>
+                  <th>名称 / 描述</th>
+                  <th>场景数</th>
+                  <th>分享</th>
+                  <th>排序</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="project-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
         <p id="admin-error" class="form-error hidden"></p>
       </main>
     </div>
@@ -86,6 +122,21 @@
           <img id="f-preview" alt="全景图预览" />
         </div>
         <p id="f-upload-state" class="muted"></p>
+
+        <label class="field">
+          <span>所属项目</span>
+          <select id="f-project">
+            <option value="">默认项目（未归属时）</option>
+          </select>
+        </label>
+
+        <div class="field-row">
+          <label class="checkbox-field">
+            <input id="f-share" type="checkbox" />
+            <span>允许单场景分享（生成独立链接）</span>
+          </label>
+        </div>
+        <p id="f-share-link" class="muted hidden"></p>
 
         <div class="field-row">
           <label class="field">
@@ -191,6 +242,80 @@
           <button type="button" id="s-test" class="btn btn-ghost">测试连接</button>
           <button type="button" id="s-cancel" class="btn btn-ghost">取消</button>
           <button type="submit" class="btn btn-primary">保存并启用</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 项目编辑弹窗 -->
+    <dialog id="project-dialog">
+      <form id="project-form" class="dialog-card">
+        <h2 id="project-dialog-title">新建项目</h2>
+        <input type="hidden" id="pf-id" />
+
+        <label class="field">
+          <span>项目名称 *</span>
+          <input id="pf-name" required maxlength="50" placeholder="如：XX 楼盘全景" />
+        </label>
+
+        <label class="field">
+          <span>项目描述</span>
+          <textarea id="pf-desc" rows="2" maxlength="200" placeholder="选填，展示在前台项目卡片上"></textarea>
+        </label>
+
+        <label class="field">
+          <span>封面图（JPG / PNG / WebP，自动压缩）</span>
+          <input id="pf-file" type="file" accept="image/jpeg,image/png,image/webp" />
+        </label>
+        <div id="pf-preview-wrap" class="preview-wrap hidden">
+          <img id="pf-preview" alt="封面预览" />
+        </div>
+        <p id="pf-upload-state" class="muted"></p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>排序值（小在前）</span>
+            <input id="pf-sort" type="number" value="0" />
+          </label>
+          <label class="checkbox-field">
+            <input id="pf-published" type="checkbox" checked />
+            <span>上架</span>
+          </label>
+          <label class="checkbox-field">
+            <input id="pf-share" type="checkbox" checked />
+            <span>开启分享</span>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="project-dialog-cancel" class="btn btn-ghost">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 分享管理弹窗（项目级 / 场景级共用） -->
+    <dialog id="share-dialog">
+      <form id="share-form" class="dialog-card" onsubmit="return false;">
+        <h2 id="share-title">分享链接</h2>
+        <p class="muted" style="margin-bottom:12px;">打开链接即可直接查看，无需登录。关闭分享后链接立即失效。</p>
+
+        <label class="field">
+          <span>分享链接</span>
+          <div class="share-link-row">
+            <input id="share-url" type="text" readonly />
+            <button type="button" id="share-copy" class="btn btn-ghost">复制</button>
+          </div>
+        </label>
+
+        <div class="qr-wrap">
+          <img id="share-qr" alt="分享二维码" />
+          <p class="muted" style="text-align:center;">手机扫码即可打开</p>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="share-refresh" class="btn btn-ghost">刷新令牌（作废旧链接）</button>
+          <button type="button" id="share-toggle" class="btn btn-ghost">关闭分享</button>
+          <button type="button" id="share-close" class="btn btn-primary">完成</button>
         </div>
       </form>
     </dialog>

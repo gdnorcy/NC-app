@@ -8,6 +8,11 @@ import {
   fetchStorageConfig,
   saveStorageConfig,
   testStorage,
+  fetchAdminProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  uploadCover,
 } from '../api.js';
 
 const $ = (id) => document.getElementById(id);
@@ -23,6 +28,7 @@ const adminError = $('admin-error');
 const loginError = $('login-error');
 
 let scenes = [];
+let projects = [];
 
 function showError(el, msg) {
   el.textContent = msg;
@@ -52,7 +58,7 @@ $('login-form').addEventListener('submit', async (e) => {
     const { token } = await login($('login-username').value, $('login-password').value);
     localStorage.setItem(TOKEN_KEY, token);
     renderAdmin();
-    await loadScenes();
+    await Promise.all([loadScenes(), loadProjects()]);
   } catch (err) {
     showError(loginError, err.message);
   }
@@ -63,9 +69,29 @@ $('btn-logout').addEventListener('click', () => {
   renderLogin();
 });
 
+// ---------- 视图切换（场景 / 项目） ----------
+function switchView(name) {
+  document.querySelectorAll('.view-tabs .tab').forEach((t) => {
+    t.classList.toggle('active', t.dataset.view === name);
+  });
+  $('view-scenes').classList.toggle('hidden', name !== 'scenes');
+  $('view-projects').classList.toggle('hidden', name !== 'projects');
+}
+document.querySelectorAll('.view-tabs .tab').forEach((t) => {
+  t.addEventListener('click', () => {
+    switchView(t.dataset.view);
+    if (t.dataset.view === 'projects') loadProjects();
+  });
+});
+
 // ---------- 场景列表 ----------
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function projectNameOf(pid) {
+  const p = projects.find((x) => x.id === pid);
+  return p ? p.name : '—';
 }
 
 function renderScenes() {
@@ -79,11 +105,14 @@ function renderScenes() {
           <div class="title-cell">${esc(s.title)}</div>
           ${s.description ? `<div class="desc-cell">${esc(s.description)}</div>` : ''}
         </td>
+        <td>${esc(projectNameOf(s.projectId))}</td>
+        <td>${s.shareEnabled ? '<span class="badge badge-on">已开启</span>' : '<span class="badge badge-off">关闭</span>'}</td>
         <td>${s.sortOrder}</td>
         <td><span class="badge ${s.published ? 'badge-on' : 'badge-off'}">${s.published ? '已上架' : '已下架'}</span></td>
         <td>
           <div class="op-cell">
             <button class="btn btn-sm btn-ghost act-edit">编辑</button>
+            <button class="btn btn-sm btn-ghost act-share">${s.shareEnabled ? '分享' : '分享'}</button>
             <button class="btn btn-sm btn-ghost act-toggle">${s.published ? '下架' : '上架'}</button>
             <button class="btn btn-sm btn-ghost act-up" ${i === 0 ? 'disabled' : ''}>上移</button>
             <button class="btn btn-sm btn-ghost act-down" ${i === scenes.length - 1 ? 'disabled' : ''}>下移</button>
@@ -127,6 +156,8 @@ tbody.addEventListener('click', async (e) => {
 
   if (e.target.classList.contains('act-edit')) {
     openDialog(scene);
+  } else if (e.target.classList.contains('act-share')) {
+    openShareDialog({ type: 'scene', scene });
   } else if (e.target.classList.contains('act-toggle')) {
     try {
       await updateScene(id, { ...scene, published: !scene.published });
@@ -160,6 +191,26 @@ tbody.addEventListener('click', async (e) => {
 // ---------- 新增 / 编辑弹窗 ----------
 let editingId = null;
 
+/** 填充「所属项目」下拉选项 */
+function fillProjectOptions(selectedId) {
+  const sel = $('f-project');
+  sel.innerHTML = '';
+  if (!projects.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '默认项目';
+    sel.appendChild(opt);
+    return;
+  }
+  for (const p of projects) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    if (p.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
 function openDialog(scene) {
   editingId = scene ? scene.id : null;
   dialogTitle.textContent = scene ? '编辑场景' : '新增场景';
@@ -171,6 +222,15 @@ function openDialog(scene) {
   $('f-sort').value = scene ? scene.sortOrder : 0;
   $('f-published').checked = scene ? scene.published : true;
   $('f-file').value = '';
+  fillProjectOptions(scene ? scene.projectId : null);
+  $('f-share').checked = scene ? scene.shareEnabled : false;
+  const shareLinkEl = $('f-share-link');
+  if (scene && scene.shareEnabled && scene.shareToken) {
+    shareLinkEl.textContent = `分享链接：${location.origin}/s/${scene.shareToken}`;
+    shareLinkEl.classList.remove('hidden');
+  } else {
+    shareLinkEl.classList.add('hidden');
+  }
   const preview = $('f-preview');
   if (scene) {
     preview.src = scene.previewPath || scene.imagePath;
@@ -181,6 +241,16 @@ function openDialog(scene) {
   $('f-upload-state').textContent = scene ? '已有一张全景图，可选择新图替换' : '';
   dialog.showModal();
 }
+
+$('f-share').addEventListener('change', (e) => {
+  const el = $('f-share-link');
+  if (e.target.checked) {
+    el.textContent = '保存后将生成独立分享链接';
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+});
 
 $('btn-add').addEventListener('click', () => openDialog(null));
 $('dialog-cancel').addEventListener('click', () => dialog.close());
@@ -225,6 +295,8 @@ form.addEventListener('submit', async (e) => {
       previewPath,
       sortOrder: Number($('f-sort').value) || 0,
       published: $('f-published').checked,
+      projectId: $('f-project').value ? Number($('f-project').value) : null,
+      shareEnabled: $('f-share').checked,
     };
 
     if (editingId) {
@@ -238,6 +310,261 @@ form.addEventListener('submit', async (e) => {
     showError(adminError, err.message);
   } finally {
     submitBtn.disabled = false;
+  }
+});
+
+// ---------- 项目管理 ----------
+const projectTbody = $('project-tbody');
+
+function renderProjects() {
+  $('project-count').textContent = `共 ${projects.length} 个项目`;
+  projectTbody.innerHTML = projects
+    .map(
+      (p, i) => `
+      <tr data-id="${p.id}">
+        <td>
+          ${p.coverPath ? `<img class="thumb" src="${esc(p.coverPath)}" alt="" loading="lazy" />` : '<div class="thumb-placeholder">—</div>'}
+        </td>
+        <td>
+          <div class="title-cell">${esc(p.name)}</div>
+          ${p.description ? `<div class="desc-cell">${esc(p.description)}</div>` : ''}
+        </td>
+        <td>${p.sceneCount ?? 0}</td>
+        <td><span class="badge ${p.shareEnabled ? 'badge-on' : 'badge-off'}">${p.shareEnabled ? '已开启' : '关闭'}</span></td>
+        <td>${p.sortOrder}</td>
+        <td><span class="badge ${p.published ? 'badge-on' : 'badge-off'}">${p.published ? '已上架' : '已下架'}</span></td>
+        <td>
+          <div class="op-cell">
+            <button class="btn btn-sm btn-ghost act-edit">编辑</button>
+            <button class="btn btn-sm btn-ghost act-share">分享</button>
+            <button class="btn btn-sm btn-ghost act-toggle">${p.published ? '下架' : '上架'}</button>
+            <button class="btn btn-sm btn-ghost act-up" ${i === 0 ? 'disabled' : ''}>上移</button>
+            <button class="btn btn-sm btn-ghost act-down" ${i === projects.length - 1 ? 'disabled' : ''}>下移</button>
+            <button class="btn btn-sm btn-danger act-del">删除</button>
+          </div>
+        </td>
+      </tr>`
+    )
+    .join('');
+}
+
+async function loadProjects() {
+  try {
+    projects = (await fetchAdminProjects()).projects;
+    renderProjects();
+  } catch (err) {
+    if (err.message.includes('登录')) {
+      localStorage.removeItem(TOKEN_KEY);
+      renderLogin();
+    } else {
+      showError(adminError, err.message);
+    }
+  }
+}
+
+async function swapProjectSort(i, j) {
+  const a = projects[i];
+  const b = projects[j];
+  await updateProject(a.id, { ...a, sortOrder: b.sortOrder });
+  await updateProject(b.id, { ...b, sortOrder: a.sortOrder });
+  await loadProjects();
+}
+
+projectTbody.addEventListener('click', async (e) => {
+  const row = e.target.closest('tr');
+  if (!row) return;
+  const id = Number(row.dataset.id);
+  const project = projects.find((p) => p.id === id);
+  if (!project) return;
+  const idx = projects.indexOf(project);
+
+  if (e.target.classList.contains('act-edit')) {
+    openProjectDialog(project);
+  } else if (e.target.classList.contains('act-share')) {
+    openShareDialog({ type: 'project', project });
+  } else if (e.target.classList.contains('act-toggle')) {
+    try {
+      await updateProject(id, { ...project, published: !project.published });
+      await loadProjects();
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  } else if (e.target.classList.contains('act-up')) {
+    try {
+      await swapProjectSort(idx, idx - 1);
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  } else if (e.target.classList.contains('act-down')) {
+    try {
+      await swapProjectSort(idx, idx + 1);
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  } else if (e.target.classList.contains('act-del')) {
+    const sceneInProject = (project.sceneCount ?? 0) > 0;
+    const msg = sceneInProject
+      ? `确定删除项目「${project.name}」？其下 ${project.sceneCount} 个场景将自动归入默认项目。`
+      : `确定删除项目「${project.name}」？`;
+    if (!window.confirm(msg)) return;
+    try {
+      await deleteProject(id);
+      await loadProjects();
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  }
+});
+
+// ---------- 项目编辑弹窗 ----------
+let editingProjectId = null;
+const projectDialog = $('project-dialog');
+
+function openProjectDialog(project) {
+  editingProjectId = project ? project.id : null;
+  $('project-dialog-title').textContent = project ? '编辑项目' : '新建项目';
+  $('pf-id').value = project ? project.id : '';
+  $('pf-name').value = project ? project.name : '';
+  $('pf-desc').value = project ? project.description : '';
+  $('pf-sort').value = project ? project.sortOrder : 0;
+  $('pf-published').checked = project ? project.published : true;
+  $('pf-share').checked = project ? project.shareEnabled : true;
+  $('pf-file').value = '';
+  $('pf-upload-state').textContent = project && project.coverPath ? '已有一张封面，可选择新图替换' : '';
+  const prev = $('pf-preview');
+  if (project && project.coverPath) {
+    prev.src = project.coverPath;
+    $('pf-preview-wrap').classList.remove('hidden');
+  } else {
+    $('pf-preview-wrap').classList.add('hidden');
+  }
+  projectDialog.showModal();
+}
+
+$('btn-add-project').addEventListener('click', () => openProjectDialog(null));
+$('project-dialog-cancel').addEventListener('click', () => projectDialog.close());
+
+$('pf-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    $('pf-preview').src = reader.result;
+    $('pf-preview-wrap').classList.remove('hidden');
+    $('pf-upload-state').textContent = `已选择：${file.name}`;
+  };
+  reader.readAsDataURL(file);
+});
+
+$('project-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const submitBtn = $('project-form').querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    let coverPath = '';
+    const fileInput = $('pf-file');
+    if (fileInput.files.length) {
+      $('pf-upload-state').textContent = '封面上传中…';
+      const uploaded = await uploadCover(fileInput.files[0]);
+      coverPath = uploaded.coverPath;
+    }
+    const payload = {
+      name: $('pf-name').value.trim(),
+      description: $('pf-desc').value.trim(),
+      sortOrder: Number($('pf-sort').value) || 0,
+      published: $('pf-published').checked,
+      shareEnabled: $('pf-share').checked,
+    };
+    if (coverPath) payload.coverPath = coverPath;
+    if (editingProjectId) {
+      await updateProject(editingProjectId, payload);
+    } else {
+      await createProject(payload);
+    }
+    projectDialog.close();
+    await loadProjects();
+  } catch (err) {
+    showError(adminError, err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+// ---------- 分享弹窗（项目级 / 场景级共用） ----------
+const shareDialog = $('share-dialog');
+let shareTarget = null; // { type:'project'|'scene', project?, scene? }
+
+function shareUrlOf(token) {
+  return token ? `${location.origin}/s/${token}` : '';
+}
+
+function openShareDialog(target) {
+  shareTarget = target;
+  const kind = target.type === 'project' ? target.project : target.scene;
+  $('share-title').textContent = target.type === 'project' ? `分享项目「${kind.name}」` : `分享场景「${kind.title}」`;
+  const enabled = target.type === 'project' ? target.project.shareEnabled : target.scene.shareEnabled;
+  const token = target.type === 'project' ? target.project.shareToken : target.scene.shareToken;
+  const url = shareUrlOf(token);
+  $('share-url').value = url;
+  $('share-qr').src = token ? `/api/s/${token}/qr?size=300` : '';
+  $('share-qr').style.opacity = enabled && token ? '1' : '0.25';
+  $('share-toggle').textContent = enabled ? '关闭分享' : '开启分享';
+  shareDialog.showModal();
+}
+
+$('share-close').addEventListener('click', () => shareDialog.close());
+
+$('share-copy').addEventListener('click', async () => {
+  const url = $('share-url').value;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    showError(adminError, '已复制分享链接');
+  } catch {
+    $('share-url').select();
+    document.execCommand('copy');
+    showError(adminError, '已复制分享链接');
+  }
+});
+
+$('share-refresh').addEventListener('click', async () => {
+  if (!shareTarget) return;
+  if (!window.confirm('刷新令牌后，旧链接将立即失效，确定继续？')) return;
+  try {
+    if (shareTarget.type === 'project') {
+      const { project } = await updateProject(shareTarget.project.id, { regenerateShareToken: true });
+      shareTarget.project = project;
+    } else {
+      const { scene } = await updateScene(shareTarget.scene.id, { regenerateShareToken: true });
+      shareTarget.scene = scene;
+    }
+    openShareDialog(shareTarget);
+    await loadProjects();
+    await loadScenes();
+  } catch (err) {
+    showError(adminError, err.message);
+  }
+});
+
+$('share-toggle').addEventListener('click', async () => {
+  if (!shareTarget) return;
+  try {
+    if (shareTarget.type === 'project') {
+      const { project } = await updateProject(shareTarget.project.id, {
+        shareEnabled: !shareTarget.project.shareEnabled,
+      });
+      shareTarget.project = project;
+    } else {
+      const { scene } = await updateScene(shareTarget.scene.id, {
+        shareEnabled: !shareTarget.scene.shareEnabled,
+      });
+      shareTarget.scene = scene;
+    }
+    openShareDialog(shareTarget);
+    await loadProjects();
+    await loadScenes();
+  } catch (err) {
+    showError(adminError, err.message);
   }
 });
 
@@ -357,7 +684,7 @@ $('storage-form').addEventListener('submit', async (e) => {
 // ---------- 启动 ----------
 if (isLoggedIn()) {
   renderAdmin();
-  loadScenes();
+  await Promise.all([loadScenes(), loadProjects()]);
 } else {
   renderLogin();
 }

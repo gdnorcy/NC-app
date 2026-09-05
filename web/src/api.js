@@ -77,6 +77,51 @@ export function deleteScene(id) {
   });
 }
 
+/** 后台：全部项目 */
+export function fetchAdminProjects() {
+  return request('/api/admin/projects', { headers: adminHeaders() });
+}
+
+/** 后台：新建项目 */
+export function createProject(payload) {
+  return request('/api/admin/projects', {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+/** 后台：更新项目（regenerateShareToken 为 true 时刷新分享令牌） */
+export function updateProject(id, payload) {
+  return request(`/api/admin/projects/${id}`, {
+    method: 'PUT',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+/** 后台：删除项目（项目内场景自动归入默认项目） */
+export function deleteProject(id) {
+  return request(`/api/admin/projects/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
+}
+
+/** 后台：上传项目封面（自动压缩为 WebP） */
+export async function uploadCover(file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch('/api/admin/projects/cover', {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '封面上传失败');
+  return data;
+}
+
 /** 后台：上传全景图，服务端自动转码，返回 { path, previewPath } */
 export async function uploadImage(file, onProgress) {
   const form = new FormData();
