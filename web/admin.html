@@ -9,20 +9,46 @@
   <body>
     <!-- 登录视图 -->
     <div id="login-view" class="view">
-      <form id="login-form" class="login-card">
+      <div class="login-card">
         <h1>360 全景管理后台</h1>
         <p class="login-sub">请登录后管理全景场景</p>
-        <label class="field">
-          <span>用户名</span>
-          <input id="login-username" name="username" autocomplete="username" required />
-        </label>
-        <label class="field">
-          <span>密码</span>
-          <input id="login-password" name="password" type="password" autocomplete="current-password" required />
-        </label>
-        <button type="submit" class="btn btn-primary btn-block">登 录</button>
+        <div class="login-tabs">
+          <button type="button" class="login-tab active" data-tab="password">账号密码</button>
+          <button type="button" class="login-tab" data-tab="phone">手机号验证码</button>
+        </div>
+
+        <!-- 账号密码登录 -->
+        <form id="login-form" class="login-pane">
+          <label class="field">
+            <span>用户名 / 手机号</span>
+            <input id="login-username" name="username" autocomplete="username" required />
+          </label>
+          <label class="field">
+            <span>密码</span>
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="btn btn-primary btn-block">登 录</button>
+        </form>
+
+        <!-- 手机号验证码登录 -->
+        <form id="login-phone-form" class="login-pane hidden">
+          <label class="field">
+            <span>手机号</span>
+            <input id="login-phone" type="tel" placeholder="11 位手机号" required />
+          </label>
+          <label class="field">
+            <span>验证码</span>
+            <div class="sms-row">
+              <input id="login-code" type="text" placeholder="6 位验证码" required />
+              <button type="button" id="btn-send-login-code" class="btn btn-ghost">获取验证码</button>
+            </div>
+          </label>
+          <button type="submit" class="btn btn-primary btn-block">登 录</button>
+          <p class="muted" style="text-align:center;font-size:12px;margin-top:8px;">未注册的手机号将自动创建编辑账号</p>
+        </form>
+
         <p id="login-error" class="form-error hidden"></p>
-      </form>
+      </div>
     </div>
 
     <!-- 管理视图 -->
@@ -32,6 +58,7 @@
         <div class="sidebar-logo">360 全景</div>
         <nav class="sidebar-nav">
           <button type="button" class="nav-item active" data-nav="customers">👤 客户项目</button>
+          <button type="button" class="nav-item" data-nav="users" id="nav-users" style="display:none;">👥 用户管理</button>
           <button type="button" class="nav-item" data-nav="storage">☁️ 存储设置</button>
         </nav>
         <div class="sidebar-footer">
@@ -103,6 +130,30 @@
                   </tr>
                 </thead>
                 <tbody id="scene-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 用户管理 -->
+          <section id="view-users" class="hidden">
+            <div class="toolbar">
+              <button id="btn-add-user" class="btn btn-primary">+ 新建用户</button>
+              <span id="user-count" class="muted"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="scene-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>手机号</th>
+                    <th>角色</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="user-tbody"></tbody>
               </table>
             </div>
           </section>
@@ -389,6 +440,63 @@
           <button type="button" id="share-refresh" class="btn btn-ghost">刷新令牌（作废旧链接）</button>
           <button type="button" id="share-toggle" class="btn btn-ghost">关闭分享</button>
           <button type="button" id="share-close" class="btn btn-primary">完成</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 用户编辑弹窗 -->
+    <dialog id="user-dialog">
+      <form id="user-form" class="dialog-card">
+        <h2 id="user-dialog-title">新建用户</h2>
+        <input type="hidden" id="uf-id" />
+        <label class="field">
+          <span>用户名 <em>*</em></span>
+          <input id="uf-username" type="text" placeholder="登录用户名" required />
+        </label>
+        <label class="field">
+          <span>手机号</span>
+          <input id="uf-phone" type="tel" placeholder="选填，用于手机号登录" />
+        </label>
+        <label class="field" id="uf-password-field">
+          <span>密码 <em>*</em></span>
+          <input id="uf-password" type="password" placeholder="至少 6 位" />
+        </label>
+        <label class="field">
+          <span>角色</span>
+          <select id="uf-role">
+            <option value="admin">管理员（全部权限）</option>
+            <option value="manager">运营（管理客户/方案/场景）</option>
+            <option value="editor">编辑（仅编辑场景）</option>
+            <option value="viewer">只读（仅查看）</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>状态</span>
+          <select id="uf-status">
+            <option value="active">正常</option>
+            <option value="disabled">停用</option>
+          </select>
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="user-dialog-cancel" class="btn btn-ghost">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 重置密码弹窗 -->
+    <dialog id="reset-password-dialog">
+      <form id="reset-password-form" class="dialog-card">
+        <h2>重置密码</h2>
+        <input type="hidden" id="rp-user-id" />
+        <p id="rp-user-name" class="muted" style="margin-bottom:12px;"></p>
+        <label class="field">
+          <span>新密码 <em>*</em></span>
+          <input id="rp-password" type="password" placeholder="至少 6 位" required />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="rp-cancel" class="btn btn-ghost">取消</button>
+          <button type="submit" class="btn btn-primary">确认重置</button>
         </div>
       </form>
     </dialog>

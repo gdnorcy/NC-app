@@ -48,6 +48,42 @@ export function login(username, password) {
   });
 }
 
+/** 发送短信验证码（purpose: register | login） */
+export function sendSmsCode(phone, purpose = 'register') {
+  return request('/api/auth/sms-code', {
+    method: 'POST',
+    body: JSON.stringify({ phone, purpose }),
+  });
+}
+
+/** 手机号 + 验证码注册 */
+export function registerByPhone({ phone, code, password, username }) {
+  return request('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code, password, username }),
+  });
+}
+
+/** 手机号 + 验证码登录 */
+export function loginByPhone(phone, code) {
+  return request('/api/auth/login-phone', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code }),
+  });
+}
+
+/** 当前登录用户信息（从 token 解码，前端不存敏感信息） */
+export function getCurrentUser() {
+  const token = localStorage.getItem('panorama_token');
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return { id: payload.uid, username: payload.username, role: payload.role };
+  } catch {
+    return null;
+  }
+}
+
 function adminHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('panorama_token') || ''}` };
 }
@@ -223,4 +259,41 @@ export async function testStorage(payload) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+// ———————— 后台：用户管理（仅 admin） ————————
+
+export function fetchAdminUsers() {
+  return request('/api/admin/users', { headers: adminHeaders() });
+}
+
+export function createAdminUser(payload) {
+  return request('/api/admin/users', {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminUser(id, payload) {
+  return request(`/api/admin/users/${id}`, {
+    method: 'PUT',
+    headers: adminHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAdminUser(id) {
+  return request(`/api/admin/users/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
+}
+
+export function resetUserPassword(id, password) {
+  return request(`/api/admin/users/${id}/reset-password`, {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify({ password }),
+  });
 }

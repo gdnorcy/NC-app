@@ -1,7 +1,7 @@
 import express from 'express';
 import { encryptSecret } from '../crypto.js';
 import { readAllProviders, readStorageConfig, getStorage, STORAGE_PROVIDERS } from '../storage/index.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, requireRole } from '../auth.js';
 
 const PARAM_FIELDS = ['accessKey', 'bucket', 'region', 'zone', 'folder', 'cdnDomain'];
 
@@ -32,6 +32,8 @@ function sanitizeConfig(body) {
 export function createStorageRouter(db) {
   const router = express.Router();
   router.use(requireAuth);
+  // 存储配置涉及云存储密钥，仅 admin 可操作
+  router.use(requireRole('admin'));
 
   router.get('/storage', (_req, res) => {
     res.json({ config: toPublicConfig(db) });

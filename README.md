@@ -14,7 +14,9 @@ H5 / Web 同步的 360 全景浏览系统：前台全景查看器 + 管理后台
 - **分享链接**：方案级与场景级双分享——`/s/{token}` 直达，无需登录；关闭分享即失效
 
 **管理后台（/admin）**
-- 登录认证（JWT）
+- 登录认证（JWT），支持**账号密码**和**手机号验证码**双模式登录
+- **多用户与角色权限**：4 种角色（admin 管理员 / manager 运营 / editor 编辑 / viewer 只读），admin 可创建/编辑/删除子账号、重置密码、启用停用；非 admin 自动隐藏用户管理和存储设置
+- **手机号注册**：前端发送验证码 → 注册自动创建 editor 角色账号；短信 provider 抽象（开发环境 Mock，预留阿里云/腾讯云接入）
 - **侧边栏布局 + 面包屑**：客户项目（卡片式首页）→ 方案 → 场景，三级导航
 - **客户项目管理**：新建/编辑/删除（方案自动归默认客户）/ 置顶 / 有效期设置 / Logo 上传 / 状态（正常/停用）/ 续费；卡片显示剩余天数、方案数、场景数
 - **方案管理**：新建/编辑/删除（场景自动归默认方案）/ 封面上传 / 上架下架 / 排序 / 分享
@@ -92,7 +94,10 @@ STORAGE_KEY=<至少 32 字节随机字符串> npm start
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |---|---|---|---|
-| POST | `/api/auth/login` | 登录，返回 token | 否 |
+| POST | `/api/auth/login` | 账号密码登录，返回 token + user | 否 |
+| POST | `/api/auth/sms-code` | 发送短信验证码（purpose: register/login），60秒限频 | 否 |
+| POST | `/api/auth/register` | 手机号+验证码注册，默认 editor 角色 | 否 |
+| POST | `/api/auth/login-phone` | 手机号+验证码登录 | 否 |
 | GET | `/api/scenes` | 上架场景列表 | 否 |
 | GET | `/api/plans` | 公开方案列表（已上架且开启分享） | 否 |
 | GET | `/api/plans/:id` | 方案详情（方案 + 上架场景） | 否 |
@@ -104,6 +109,11 @@ STORAGE_KEY=<至少 32 字节随机字符串> npm start
 | PUT | `/api/admin/projects/:id` | 更新客户项目 | Bearer |
 | DELETE | `/api/admin/projects/:id` | 删除客户项目（方案自动归默认客户） | Bearer |
 | POST | `/api/admin/projects/logo` | 上传客户 Logo（自动压缩 WebP） | Bearer |
+| GET | `/api/admin/users` | 用户列表（仅 admin） | Bearer |
+| POST | `/api/admin/users` | 创建子账号（仅 admin） | Bearer |
+| PUT | `/api/admin/users/:id` | 编辑用户（角色/状态/用户名/手机号） | Bearer |
+| DELETE | `/api/admin/users/:id` | 删除用户（不能删自己、不能删最后一个 admin） | Bearer |
+| POST | `/api/admin/users/:id/reset-password` | 重置密码 | Bearer |
 | GET | `/api/admin/plans` | 全部方案 | Bearer |
 | POST | `/api/admin/plans` | 新建方案（自动生成分享令牌） | Bearer |
 | PUT | `/api/admin/plans/:id` | 更新方案（`regenerateShareToken:true` 刷新令牌） | Bearer |

@@ -1,5 +1,8 @@
 import {
   login,
+  sendSmsCode,
+  loginByPhone,
+  getCurrentUser,
   fetchAdminScenes,
   createScene,
   updateScene,
@@ -18,6 +21,11 @@ import {
   updatePlan,
   deletePlan,
   uploadPlanCover,
+  fetchAdminUsers,
+  createAdminUser,
+  updateAdminUser,
+  deleteAdminUser,
+  resetUserPassword,
 } from '../api.js';
 
 const $ = (id) => document.getElementById(id);
@@ -37,6 +45,8 @@ const state = {
 let customers = [];
 let plans = [];
 let scenes = [];
+let users = [];
+let currentUser = null;
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -76,6 +86,70 @@ $('login-form').addEventListener('submit', async (e) => {
   }
 });
 
+// 登录 tab 切换
+document.querySelectorAll('.login-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.login-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    const isPhone = tab.dataset.tab === 'phone';
+    $('login-form').classList.toggle('hidden', isPhone);
+    $('login-phone-form').classList.toggle('hidden', !isPhone);
+    loginError.classList.add('hidden');
+  });
+});
+
+// 发送登录验证码（60秒倒计时）
+let smsCountdown = 0;
+$('btn-send-login-code').addEventListener('click', async () => {
+  const phone = $('login-phone').value.trim();
+  if (!/^1\d{10}$/.test(phone)) {
+    showError(loginError, '请输入正确的手机号');
+    return;
+  }
+  const btn = $('btn-send-login-code');
+  btn.disabled = true;
+  try {
+    const result = await sendSmsCode(phone, 'login');
+    if (result.devCode) {
+      showError(loginError, `开发环境验证码：${result.devCode}`, false);
+    } else {
+      showError(loginError, '验证码已发送', false);
+    }
+    smsCountdown = 60;
+    const timer = setInterval(() => {
+      smsCountdown--;
+      if (smsCountdown <= 0) {
+        clearInterval(timer);
+        btn.textContent = '获取验证码';
+        btn.disabled = false;
+      } else {
+        btn.textContent = `${smsCountdown}s 后重发`;
+      }
+    }, 1000);
+  } catch (err) {
+    showError(loginError, err.message);
+    btn.disabled = false;
+  }
+});
+
+// 手机号验证码登录
+$('login-phone-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginError.classList.add('hidden');
+  try {
+    const { token } = await loginByPhone($('login-phone').value.trim(), $('login-code').value.trim());
+    localStorage.setItem(TOKEN_KEY, token);
+    renderAdmin();
+    await boot();
+  } catch (err) {
+    // 未注册时提示自动注册
+    if (err.message.includes('尚未注册')) {
+      showError(loginError, '该手机号未注册，请先在账号密码页注册或联系管理员');
+    } else {
+      showError(loginError, err.message);
+    }
+  }
+});
+
 $('btn-logout').addEventListener('click', () => {
   localStorage.removeItem(TOKEN_KEY);
   renderLogin();
@@ -84,11 +158,15 @@ $('btn-logout').addEventListener('click', () => {
 // ---------- 侧边栏导航 ----------
 document.querySelectorAll('.sidebar-nav .nav-item').forEach((t) => {
   t.addEventListener('click', () => {
+    if (t.id === 'btn-logout') return;
     document.querySelectorAll('.sidebar-nav .nav-item').forEach((x) => x.classList.toggle('active', x === t));
     if (t.dataset.nav === 'customers') {
       state.view = 'customers';
       state.currentCustomer = null;
       state.currentPlan = null;
+      render();
+    } else if (t.dataset.nav === 'users') {
+      state.view = 'users';
       render();
     } else if (t.dataset.nav === 'storage') {
       openStorageDialog();
@@ -135,10 +213,12 @@ function render() {
   $('view-customers').classList.toggle('hidden', state.view !== 'customers');
   $('view-plans').classList.toggle('hidden', state.view !== 'plans');
   $('view-scenes').classList.toggle('hidden', state.view !== 'scenes');
+  $('view-users').classList.toggle('hidden', state.view !== 'users');
   renderBreadcrumb();
   if (state.view === 'customers') renderCustomers();
   else if (state.view === 'plans') renderPlans();
-  else renderScenes();
+  else if (state.view === 'scenes') renderScenes();
+  else if (state.view === 'users') renderUsers();
 }
 
 $('btn-back-from-plans').addEventListener('click', () => {
@@ -691,6 +771,144 @@ $('scene-form').addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- 用户管理 ----------
+const ROLE_LABELS = { admin: '管理员', manager: '运营', editor: '编辑', viewer: '只读' };
+
+function renderUsers() {
+  $('user-count').textContent = `共 ${users.length} 个用户`;
+  $('user-tbody').innerHTML = users
+    .map(
+      (u) => `
+      <tr data-id="${u.id}">
+        <td>${u.id}</td>
+        <td>${esc(u.username)}${u.id === currentUser?.id ? ' <span class="muted">(我)</span>' : ''}</td>
+        <td>${esc(u.phone || '—')}</td>
+        <td><span class="role-badge role-${u.role}">${ROLE_LABELS[u.role] || u.role}</span></td>
+        <td><span class="badge ${u.status === 'active' ? 'badge-on' : 'badge-off'}">${u.status === 'active' ? '正常' : '停用'}</span></td>
+        <td>${u.createdAt}</td>
+        <td>
+          <div class="op-cell">
+            <button class="btn btn-sm btn-ghost act-edit">编辑</button>
+            <button class="btn btn-sm btn-ghost act-reset">重置密码</button>
+            <button class="btn btn-sm btn-ghost act-toggle">${u.status === 'active' ? '停用' : '启用'}</button>
+            <button class="btn btn-sm btn-danger act-del">删除</button>
+          </div>
+        </td>
+      </tr>`
+    )
+    .join('');
+}
+
+$('user-tbody').addEventListener('click', async (e) => {
+  const row = e.target.closest('tr');
+  if (!row) return;
+  const id = Number(row.dataset.id);
+  const user = users.find((u) => u.id === id);
+  if (!user) return;
+
+  if (e.target.classList.contains('act-edit')) {
+    openUserDialog(user);
+  } else if (e.target.classList.contains('act-reset')) {
+    openResetPasswordDialog(user);
+  } else if (e.target.classList.contains('act-toggle')) {
+    try {
+      await updateAdminUser(id, { status: user.status === 'active' ? 'disabled' : 'active' });
+      await loadUsers();
+      render();
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  } else if (e.target.classList.contains('act-del')) {
+    if (!window.confirm(`确定删除用户「${user.username}」？`)) return;
+    try {
+      await deleteAdminUser(id);
+      await loadUsers();
+      render();
+    } catch (err) {
+      showError(adminError, err.message);
+    }
+  }
+});
+
+// 用户编辑弹窗
+let editingUserId = null;
+const userDialog = $('user-dialog');
+
+function openUserDialog(user) {
+  editingUserId = user ? user.id : null;
+  $('user-dialog-title').textContent = user ? '编辑用户' : '新建用户';
+  $('uf-id').value = user ? user.id : '';
+  $('uf-username').value = user ? user.username : '';
+  $('uf-phone').value = user ? user.phone : '';
+  $('uf-role').value = user ? user.role : 'editor';
+  $('uf-status').value = user ? user.status : 'active';
+  $('uf-password').value = '';
+  $('uf-password').required = !user;
+  $('uf-password-field').style.opacity = user ? '0.6' : '1';
+  userDialog.showModal();
+}
+
+$('btn-add-user').addEventListener('click', () => openUserDialog(null));
+$('user-dialog-cancel').addEventListener('click', () => userDialog.close());
+
+$('user-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const submitBtn = $('user-form').querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    const payload = {
+      username: $('uf-username').value.trim(),
+      phone: $('uf-phone').value.trim() || null,
+      role: $('uf-role').value,
+      status: $('uf-status').value,
+    };
+    const password = $('uf-password').value;
+    if (editingUserId) {
+      if (password) payload.password = password;
+      await updateAdminUser(editingUserId, payload);
+    } else {
+      if (!password || password.length < 6) throw new Error('密码至少 6 位');
+      payload.password = password;
+      await createAdminUser(payload);
+    }
+    userDialog.close();
+    await loadUsers();
+    render();
+  } catch (err) {
+    showError(adminError, err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+// 重置密码弹窗
+const resetPasswordDialog = $('reset-password-dialog');
+let resetUserId = null;
+
+function openResetPasswordDialog(user) {
+  resetUserId = user.id;
+  $('rp-user-name').textContent = `为用户「${user.username}」设置新密码`;
+  $('rp-password').value = '';
+  resetPasswordDialog.showModal();
+}
+
+$('rp-cancel').addEventListener('click', () => resetPasswordDialog.close());
+
+$('reset-password-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const submitBtn = $('reset-password-form').querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    await resetUserPassword(resetUserId, $('rp-password').value);
+    resetPasswordDialog.close();
+    showError(adminError, '密码已重置', false);
+  } catch (err) {
+    showError(adminError, err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
 // ---------- 分享弹窗（方案级 / 场景级共用） ----------
 const shareDialog = $('share-dialog');
 let shareTarget = null;
@@ -922,9 +1140,29 @@ async function loadScenes() {
   }
 }
 
+async function loadUsers() {
+  try {
+    users = (await fetchAdminUsers()).users;
+  } catch (err) {
+    if (err.message.includes('登录') || err.message.includes('401')) {
+      localStorage.removeItem(TOKEN_KEY);
+      renderLogin();
+    } else {
+      showError(adminError, err.message);
+    }
+  }
+}
+
 // ---------- 启动 ----------
 async function boot() {
+  currentUser = getCurrentUser();
+  // 仅 admin 可见用户管理和存储设置
+  const isAdmin = currentUser?.role === 'admin';
+  $('nav-users').style.display = isAdmin ? '' : 'none';
+  document.querySelector('.sidebar-nav .nav-item[data-nav="storage"]').style.display = isAdmin ? '' : 'none';
+
   await Promise.all([loadCustomers(), loadPlans(), loadScenes()]);
+  if (isAdmin) await loadUsers();
   state.view = 'customers';
   state.currentCustomer = null;
   state.currentPlan = null;

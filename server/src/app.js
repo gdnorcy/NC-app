@@ -8,6 +8,7 @@ import { createScenesRouter } from './routes/scenes.js';
 import { createStorageRouter } from './routes/storage.js';
 import { createPlansRouter } from './routes/plans.js';
 import { createCustomersRouter } from './routes/customers.js';
+import { createUsersRouter } from './routes/users.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -18,12 +19,13 @@ export function createApp({ db } = {}) {
   // 全景图静态服务
   app.use('/uploads', express.static(config.uploadsDir, { fallthrough: true }));
 
-  // 登录 / 方案 / 场景 / 客户项目 API
-  app.use('/api/auth', createAuthRouter());
+  // 登录 / 方案 / 场景 / 客户项目 / 用户 API
+  app.use('/api/auth', createAuthRouter(database));
   app.use('/api', createPlansRouter(database));
   app.use('/api', createScenesRouter(database));
   app.use('/api/admin', createCustomersRouter(database));
   app.use('/api/admin', createStorageRouter(database));
+  app.use('/api/admin/users', createUsersRouter(database));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));

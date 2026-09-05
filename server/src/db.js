@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { config } from './config.js';
 
@@ -61,6 +61,33 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+`;
+
+const USERS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE,
+  phone TEXT UNIQUE,
+  password_hash TEXT NOT NULL,
+  password_salt TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'editor',
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
+const SMS_CODES_SCHEMA = `
+CREATE TABLE IF NOT EXISTS sms_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone TEXT NOT NULL,
+  code TEXT NOT NULL,
+  purpose TEXT NOT NULL DEFAULT 'register',
+  expires_at TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sms_phone ON sms_codes(phone, purpose);
 `;
 
 /** 生成不可猜的分享令牌（8 字符 base64url） */
@@ -202,6 +229,17 @@ function migrate(db) {
       JSON.stringify(providers)
     );
   }
+
+  // —— users 表 + 默认 admin ——
+  db.exec(USERS_SCHEMA);
+  db.exec(SMS_CODES_SCHEMA);
+  const adminCount = db.prepare("SELECT COUNT(*) AS n FROM users WHERE role='admin'").get().n;
+  if (adminCount === 0) {
+    const { hash, salt } = hashPassword(config.adminPass);
+    db.prepare(
+      'INSERT INTO users (username, phone, password_hash, password_salt, role, status) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(config.adminUser, null, hash, salt, 'admin', 'active');
+  }
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
@@ -267,6 +305,37 @@ export function toScene(row) {
     shareEnabled: Boolean(row.share_enabled),
     sortOrder: row.sort_order,
     published: Boolean(row.published),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ---------- 密码哈希（scrypt） ----------
+export function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(String(password), salt, 64).toString('hex');
+  return { hash, salt };
+}
+
+export function verifyPassword(password, hash, salt) {
+  try {
+    const derived = scryptSync(String(password), salt, 64);
+    const expected = Buffer.from(hash, 'hex');
+    return derived.length === expected.length && timingSafeEqual(derived, expected);
+  } catch {
+    return false;
+  }
+}
+
+/** 数据库行 -> 用户 API JSON（camelCase，不含密码哈希） */
+export function toUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    username: row.username || '',
+    phone: row.phone || '',
+    role: row.role,
+    status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
