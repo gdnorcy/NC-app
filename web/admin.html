@@ -247,6 +247,218 @@
             </div>
           </section>
 
+          <!-- 方案编辑（整页） -->
+          <section id="view-plan-edit" class="hidden">
+            <div class="edit-page">
+              <div class="edit-page-title">
+                <h2 id="plan-edit-title">新建方案</h2>
+                <p>管理方案的基本信息、封面和分享设置</p>
+              </div>
+              <form id="plan-form">
+                <input type="hidden" id="plf-id" />
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">基本信息</div>
+                  <div class="edit-form-grid">
+                    <label class="field form-col-2">
+                      <span>方案名称 *</span>
+                      <input id="plf-name" required maxlength="50" placeholder="如：XX 楼盘全景" />
+                    </label>
+                    <label class="field form-col-2">
+                      <span>方案描述</span>
+                      <textarea id="plf-desc" rows="2" maxlength="200" placeholder="选填，展示在前台方案卡片上"></textarea>
+                    </label>
+                    <label class="field">
+                      <span>所属客户</span>
+                      <select id="plf-customer"></select>
+                    </label>
+                    <label class="field">
+                      <span>排序值（小在前）</span>
+                      <input id="plf-sort" type="number" value="0" />
+                    </label>
+                  </div>
+                </div>
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">发布与分享</div>
+                  <div class="edit-form-grid">
+                    <div class="field">
+                      <span>上架状态</span>
+                      <label class="checkbox-field" style="margin-bottom:0;">
+                        <input id="plf-published" type="checkbox" checked />
+                        <span>上架展示</span>
+                      </label>
+                    </div>
+                    <div class="field">
+                      <span>分享设置</span>
+                      <label class="checkbox-field" style="margin-bottom:0;">
+                        <input id="plf-share" type="checkbox" checked />
+                        <span>开启分享链接</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">封面设置</div>
+                  <div class="edit-form-grid">
+                    <label class="field form-col-2">
+                      <span>封面图（JPG / PNG / WebP，自动压缩）</span>
+                      <div class="file-upload-wrap">
+                        <label class="file-upload-btn" for="plf-file">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          选择文件
+                        </label>
+                        <input id="plf-file" type="file" accept="image/jpeg,image/png,image/webp" />
+                        <span id="plf-file-name" class="file-upload-name">未选择文件</span>
+                      </div>
+                      <div id="plf-preview-wrap" class="preview-wrap hidden">
+                        <img id="plf-preview" alt="封面预览" />
+                      </div>
+                      <p id="plf-upload-state" class="muted"></p>
+                    </label>
+                  </div>
+                </div>
+                <div class="edit-page-footer">
+                  <button type="submit" class="btn btn-primary">保存</button>
+                  <button type="button" id="plan-edit-cancel" class="btn btn-ghost">取消</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <!-- 场景编辑（整页） -->
+          <section id="view-scene-edit" class="hidden">
+            <div class="edit-page">
+              <div class="edit-page-title">
+                <h2 id="scene-edit-title">新增场景</h2>
+                <p>管理场景的全景图、描述和分享设置</p>
+              </div>
+              <form id="scene-form">
+                <input type="hidden" id="f-id" />
+                <input type="hidden" id="f-image-path" />
+                <input type="hidden" id="f-preview-path" />
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">基本信息</div>
+                  <div class="edit-form-grid">
+                    <label class="field form-col-2">
+                      <span>标题 *</span>
+                      <input id="f-title" required maxlength="50" placeholder="如：一楼客厅" />
+                    </label>
+                    <label class="field form-col-2">
+                      <span>描述</span>
+                      <textarea id="f-desc" rows="2" maxlength="200" placeholder="选填，场景说明"></textarea>
+                    </label>
+                    <label class="field">
+                      <span>所属方案</span>
+                      <select id="f-plan"></select>
+                    </label>
+                    <label class="field">
+                      <span>排序值（小在前）</span>
+                      <input id="f-sort" type="number" value="0" />
+                    </label>
+                  </div>
+                </div>
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">发布与分享</div>
+                  <div class="edit-form-grid">
+                    <div class="field">
+                      <span>上架状态</span>
+                      <label class="checkbox-field" style="margin-bottom:0;">
+                        <input id="f-published" type="checkbox" checked />
+                        <span>上架展示</span>
+                      </label>
+                    </div>
+                    <div class="field">
+                      <span>单场景分享</span>
+                      <label class="checkbox-field" style="margin-bottom:0;">
+                        <input id="f-share" type="checkbox" />
+                        <span>允许独立分享链接</span>
+                      </label>
+                    </div>
+                  </div>
+                  <p id="f-share-link" class="muted hidden" style="margin-top:12px;"></p>
+                </div>
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">全景图</div>
+                  <div class="edit-form-grid">
+                    <label class="field form-col-2">
+                      <span>全景图（JPG / PNG / WebP，≤50MB）</span>
+                      <div class="file-upload-wrap">
+                        <label class="file-upload-btn" for="f-file">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          选择文件
+                        </label>
+                        <input id="f-file" type="file" accept="image/jpeg,image/png,image/webp" />
+                        <span id="f-file-name" class="file-upload-name">未选择文件</span>
+                      </div>
+                      <div id="f-preview-wrap" class="preview-wrap hidden">
+                        <img id="f-preview" alt="全景图预览" />
+                      </div>
+                      <p id="f-upload-state" class="muted"></p>
+                    </label>
+                  </div>
+                </div>
+                <div class="edit-page-footer">
+                  <button type="submit" class="btn btn-primary">保存</button>
+                  <button type="button" id="scene-edit-cancel" class="btn btn-ghost">取消</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <!-- 用户编辑（整页） -->
+          <section id="view-user-edit" class="hidden">
+            <div class="edit-page">
+              <div class="edit-page-title">
+                <h2 id="user-edit-title">新建用户</h2>
+                <p>管理用户账号、角色和状态</p>
+              </div>
+              <form id="user-form">
+                <input type="hidden" id="uf-id" />
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">账号信息</div>
+                  <div class="edit-form-grid">
+                    <label class="field">
+                      <span>用户名 *</span>
+                      <input id="uf-username" type="text" placeholder="登录用户名" required />
+                    </label>
+                    <label class="field">
+                      <span>手机号</span>
+                      <input id="uf-phone" type="tel" placeholder="选填，用于手机号登录" />
+                    </label>
+                    <label class="field form-col-2" id="uf-password-field">
+                      <span>密码 *</span>
+                      <input id="uf-password" type="password" placeholder="至少 6 位" />
+                    </label>
+                  </div>
+                </div>
+                <div class="edit-form-group">
+                  <div class="edit-form-group-title">权限与状态</div>
+                  <div class="edit-form-grid">
+                    <label class="field">
+                      <span>角色</span>
+                      <select id="uf-role">
+                        <option value="admin">管理员（全部权限）</option>
+                        <option value="manager">运营（管理客户/方案/场景）</option>
+                        <option value="editor">编辑（仅编辑场景）</option>
+                        <option value="viewer">只读（仅查看）</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>状态</span>
+                      <select id="uf-status">
+                        <option value="active">正常</option>
+                        <option value="disabled">停用</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+                <div class="edit-page-footer">
+                  <button type="submit" class="btn btn-primary">保存</button>
+                  <button type="button" id="user-edit-cancel" class="btn btn-ghost">取消</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
           <!-- 方案列表 -->
           <section id="view-plans" class="hidden">
             <div class="toolbar">
@@ -527,116 +739,6 @@
       </div>
     </div>
 
-    <!-- 方案编辑弹窗 -->
-    <dialog id="plan-dialog">
-      <form id="plan-form" class="dialog-card">
-        <h2 id="plan-dialog-title">新建方案</h2>
-        <input type="hidden" id="plf-id" />
-
-        <label class="field">
-          <span>方案名称 *</span>
-          <input id="plf-name" required maxlength="50" placeholder="如：XX 楼盘全景" />
-        </label>
-
-        <label class="field">
-          <span>方案描述</span>
-          <textarea id="plf-desc" rows="2" maxlength="200" placeholder="选填，展示在前台方案卡片上"></textarea>
-        </label>
-
-        <label class="field">
-          <span>所属客户</span>
-          <select id="plf-customer"></select>
-        </label>
-
-        <label class="field">
-          <span>封面图（JPG / PNG / WebP，自动压缩）</span>
-          <input id="plf-file" type="file" accept="image/jpeg,image/png,image/webp" />
-        </label>
-        <div id="plf-preview-wrap" class="preview-wrap hidden">
-          <img id="plf-preview" alt="封面预览" />
-        </div>
-        <p id="plf-upload-state" class="muted"></p>
-
-        <div class="field-row">
-          <label class="field">
-            <span>排序值（小在前）</span>
-            <input id="plf-sort" type="number" value="0" />
-          </label>
-          <label class="checkbox-field">
-            <input id="plf-published" type="checkbox" checked />
-            <span>上架</span>
-          </label>
-          <label class="checkbox-field">
-            <input id="plf-share" type="checkbox" checked />
-            <span>开启分享</span>
-          </label>
-        </div>
-
-        <div class="dialog-actions">
-          <button type="button" id="plan-dialog-cancel" class="btn btn-ghost">取消</button>
-          <button type="submit" class="btn btn-primary">保存</button>
-        </div>
-      </form>
-    </dialog>
-
-    <!-- 场景编辑弹窗 -->
-    <dialog id="scene-dialog">
-      <form id="scene-form" class="dialog-card">
-        <h2 id="scene-dialog-title">新增场景</h2>
-        <input type="hidden" id="f-id" />
-        <input type="hidden" id="f-image-path" />
-        <input type="hidden" id="f-preview-path" />
-
-        <label class="field">
-          <span>标题 *</span>
-          <input id="f-title" required maxlength="50" placeholder="如：一楼客厅" />
-        </label>
-
-        <label class="field">
-          <span>描述</span>
-          <textarea id="f-desc" rows="2" maxlength="200" placeholder="选填，场景说明"></textarea>
-        </label>
-
-        <label class="field">
-          <span>全景图（JPG / PNG / WebP，≤50MB）</span>
-          <input id="f-file" type="file" accept="image/jpeg,image/png,image/webp" />
-        </label>
-        <div id="f-preview-wrap" class="preview-wrap hidden">
-          <img id="f-preview" alt="全景图预览" />
-        </div>
-        <p id="f-upload-state" class="muted"></p>
-
-        <label class="field">
-          <span>所属方案</span>
-          <select id="f-plan"></select>
-        </label>
-
-        <div class="field-row">
-          <label class="checkbox-field">
-            <input id="f-share" type="checkbox" />
-            <span>允许单场景分享（生成独立链接）</span>
-          </label>
-        </div>
-        <p id="f-share-link" class="muted hidden"></p>
-
-        <div class="field-row">
-          <label class="field">
-            <span>排序值（小在前）</span>
-            <input id="f-sort" type="number" value="0" />
-          </label>
-          <label class="checkbox-field">
-            <input id="f-published" type="checkbox" checked />
-            <span>上架</span>
-          </label>
-        </div>
-
-        <div class="dialog-actions">
-          <button type="button" id="scene-dialog-cancel" class="btn btn-ghost">取消</button>
-          <button type="submit" class="btn btn-primary">保存</button>
-        </div>
-      </form>
-    </dialog>
-
     <!-- 分享管理弹窗（方案级 / 场景级共用） -->
     <dialog id="share-dialog">
       <form id="share-form" class="dialog-card" onsubmit="return false;">
@@ -660,46 +762,6 @@
           <button type="button" id="share-refresh" class="btn btn-ghost">刷新令牌（作废旧链接）</button>
           <button type="button" id="share-toggle" class="btn btn-ghost">关闭分享</button>
           <button type="button" id="share-close" class="btn btn-primary">完成</button>
-        </div>
-      </form>
-    </dialog>
-
-    <!-- 用户编辑弹窗 -->
-    <dialog id="user-dialog">
-      <form id="user-form" class="dialog-card">
-        <h2 id="user-dialog-title">新建用户</h2>
-        <input type="hidden" id="uf-id" />
-        <label class="field">
-          <span>用户名 <em>*</em></span>
-          <input id="uf-username" type="text" placeholder="登录用户名" required />
-        </label>
-        <label class="field">
-          <span>手机号</span>
-          <input id="uf-phone" type="tel" placeholder="选填，用于手机号登录" />
-        </label>
-        <label class="field" id="uf-password-field">
-          <span>密码 <em>*</em></span>
-          <input id="uf-password" type="password" placeholder="至少 6 位" />
-        </label>
-        <label class="field">
-          <span>角色</span>
-          <select id="uf-role">
-            <option value="admin">管理员（全部权限）</option>
-            <option value="manager">运营（管理客户/方案/场景）</option>
-            <option value="editor">编辑（仅编辑场景）</option>
-            <option value="viewer">只读（仅查看）</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>状态</span>
-          <select id="uf-status">
-            <option value="active">正常</option>
-            <option value="disabled">停用</option>
-          </select>
-        </label>
-        <div class="dialog-actions">
-          <button type="button" id="user-dialog-cancel" class="btn btn-ghost">取消</button>
-          <button type="submit" class="btn btn-primary">保存</button>
         </div>
       </form>
     </dialog>

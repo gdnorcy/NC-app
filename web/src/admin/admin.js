@@ -213,6 +213,18 @@ function renderBreadcrumb() {
     parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
     parts.push(`<span class="sep">/</span>`);
     parts.push(`<span class="crumb">${editingCustomerId ? '编辑客户项目' : '新建客户项目'}</span>`);
+  } else if (state.view === 'plan-edit') {
+    parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(`<span class="crumb">${editingPlanId ? '编辑方案' : '新建方案'}</span>`);
+  } else if (state.view === 'scene-edit') {
+    parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(`<span class="crumb">${editingSceneId ? '编辑场景' : '新增场景'}</span>`);
+  } else if (state.view === 'user-edit') {
+    parts.push(`<span class="crumb clickable" data-nav="users">用户管理</span>`);
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(`<span class="crumb">${editingUserId ? '编辑用户' : '新建用户'}</span>`);
   } else {
     parts.push(`<span class="crumb clickable" data-nav="customers">客户项目</span>`);
     if (state.currentCustomer) {
@@ -249,6 +261,9 @@ function renderBreadcrumb() {
 function render() {
   $('view-customers').classList.toggle('hidden', state.view !== 'customers');
   $('view-customer-edit').classList.toggle('hidden', state.view !== 'customer-edit');
+  $('view-plan-edit').classList.toggle('hidden', state.view !== 'plan-edit');
+  $('view-scene-edit').classList.toggle('hidden', state.view !== 'scene-edit');
+  $('view-user-edit').classList.toggle('hidden', state.view !== 'user-edit');
   $('view-plans').classList.toggle('hidden', state.view !== 'plans');
   $('view-scenes').classList.toggle('hidden', state.view !== 'scenes');
   $('view-users').classList.toggle('hidden', state.view !== 'users');
@@ -546,7 +561,7 @@ $('plan-tbody').addEventListener('click', async (e) => {
     state.currentPlan = plan;
     render();
   } else if (e.target.classList.contains('act-edit')) {
-    openPlanDialog(plan);
+    openPlanEdit(plan);
   } else if (e.target.classList.contains('act-share')) {
     openShareDialog({ type: 'project', project: plan });
   } else if (e.target.classList.contains('act-toggle')) {
@@ -574,7 +589,6 @@ $('plan-tbody').addEventListener('click', async (e) => {
 
 // ---------- 方案编辑弹窗 ----------
 let editingPlanId = null;
-const planDialog = $('plan-dialog');
 
 function fillCustomerOptions(selectedId) {
   const sel = $('plf-customer');
@@ -588,9 +602,9 @@ function fillCustomerOptions(selectedId) {
   }
 }
 
-function openPlanDialog(plan) {
+function openPlanEdit(plan) {
   editingPlanId = plan ? plan.id : null;
-  $('plan-dialog-title').textContent = plan ? '编辑方案' : '新建方案';
+  $('plan-edit-title').textContent = plan ? '编辑方案' : '新建方案';
   $('plf-id').value = plan ? plan.id : '';
   $('plf-name').value = plan ? plan.name : '';
   $('plf-desc').value = plan ? plan.description : '';
@@ -598,6 +612,7 @@ function openPlanDialog(plan) {
   $('plf-published').checked = plan ? plan.published : true;
   $('plf-share').checked = plan ? plan.shareEnabled : true;
   $('plf-file').value = '';
+  $('plf-file-name').textContent = plan && plan.coverPath ? '已有封面，可选择新图替换' : '未选择文件';
   fillCustomerOptions(plan ? plan.projectId : (state.currentCustomer ? state.currentCustomer.id : null));
   $('plf-upload-state').textContent = plan && plan.coverPath ? '已有一张封面，可选择新图替换' : '';
   const prev = $('plf-preview');
@@ -607,15 +622,21 @@ function openPlanDialog(plan) {
   } else {
     $('plf-preview-wrap').classList.add('hidden');
   }
-  planDialog.showModal();
+  state.view = 'plan-edit';
+  render();
+  $('plf-name').focus();
 }
 
-$('btn-add-plan').addEventListener('click', () => openPlanDialog(null));
-$('plan-dialog-cancel').addEventListener('click', () => planDialog.close());
+$('btn-add-plan').addEventListener('click', () => openPlanEdit(null));
+$('plan-edit-cancel').addEventListener('click', () => {
+  state.view = state.currentCustomer ? 'plans' : 'customers';
+  render();
+});
 
 $('plf-file').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  $('plf-file-name').textContent = file.name;
   const reader = new FileReader();
   reader.onload = () => {
     $('plf-preview').src = reader.result;
@@ -651,7 +672,7 @@ $('plan-form').addEventListener('submit', async (e) => {
     } else {
       await createPlan(payload);
     }
-    planDialog.close();
+    state.view = state.currentCustomer ? 'plans' : 'customers';
     await loadPlans();
     render();
   } catch (err) {
@@ -714,7 +735,7 @@ $('scene-tbody').addEventListener('click', async (e) => {
   const idx = list.indexOf(scene);
 
   if (e.target.classList.contains('act-edit')) {
-    openSceneDialog(scene);
+    openSceneEdit(scene);
   } else if (e.target.classList.contains('act-share')) {
     openShareDialog({ type: 'scene', scene });
   } else if (e.target.classList.contains('act-toggle')) {
@@ -741,9 +762,8 @@ $('scene-tbody').addEventListener('click', async (e) => {
   }
 });
 
-// ---------- 场景编辑弹窗 ----------
+// ---------- 场景编辑（整页） ----------
 let editingSceneId = null;
-const sceneDialog = $('scene-dialog');
 
 function fillPlanOptions(selectedId) {
   const sel = $('f-plan');
@@ -765,9 +785,9 @@ function fillPlanOptions(selectedId) {
   }
 }
 
-function openSceneDialog(scene) {
+function openSceneEdit(scene) {
   editingSceneId = scene ? scene.id : null;
-  $('scene-dialog-title').textContent = scene ? '编辑场景' : '新增场景';
+  $('scene-edit-title').textContent = scene ? '编辑场景' : '新增场景';
   $('f-id').value = scene ? scene.id : '';
   $('f-image-path').value = scene ? scene.imagePath : '';
   $('f-preview-path').value = scene ? scene.previewPath || '' : '';
@@ -776,6 +796,7 @@ function openSceneDialog(scene) {
   $('f-sort').value = scene ? scene.sortOrder : 0;
   $('f-published').checked = scene ? scene.published : true;
   $('f-file').value = '';
+  $('f-file-name').textContent = scene ? '已有全景图，可选择新图替换' : '未选择文件';
   fillPlanOptions(scene ? scene.planId : (state.currentPlan ? state.currentPlan.id : null));
   $('f-share').checked = scene ? scene.shareEnabled : false;
   const shareLinkEl = $('f-share-link');
@@ -793,11 +814,16 @@ function openSceneDialog(scene) {
     $('f-preview-wrap').classList.add('hidden');
   }
   $('f-upload-state').textContent = scene ? '已有一张全景图，可选择新图替换' : '';
-  sceneDialog.showModal();
+  state.view = 'scene-edit';
+  render();
+  $('f-title').focus();
 }
 
-$('btn-add-scene').addEventListener('click', () => openSceneDialog(null));
-$('scene-dialog-cancel').addEventListener('click', () => sceneDialog.close());
+$('btn-add-scene').addEventListener('click', () => openSceneEdit(null));
+$('scene-edit-cancel').addEventListener('click', () => {
+  state.view = state.currentPlan ? 'scenes' : 'plans';
+  render();
+});
 
 $('f-share').addEventListener('change', (e) => {
   const el = $('f-share-link');
@@ -812,6 +838,7 @@ $('f-share').addEventListener('change', (e) => {
 $('f-file').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  $('f-file-name').textContent = file.name;
   const reader = new FileReader();
   reader.onload = () => {
     $('f-preview').src = reader.result;
@@ -857,7 +884,7 @@ $('scene-form').addEventListener('submit', async (e) => {
     } else {
       await createScene(payload);
     }
-    sceneDialog.close();
+    state.view = state.currentPlan ? 'scenes' : 'plans';
     await loadScenes();
     render();
   } catch (err) {
@@ -903,7 +930,7 @@ $('user-tbody').addEventListener('click', async (e) => {
   if (!user) return;
 
   if (e.target.classList.contains('act-edit')) {
-    openUserDialog(user);
+    openUserEdit(user);
   } else if (e.target.classList.contains('act-reset')) {
     openResetPasswordDialog(user);
   } else if (e.target.classList.contains('act-toggle')) {
@@ -926,13 +953,12 @@ $('user-tbody').addEventListener('click', async (e) => {
   }
 });
 
-// 用户编辑弹窗
+// 用户编辑（整页）
 let editingUserId = null;
-const userDialog = $('user-dialog');
 
-function openUserDialog(user) {
+function openUserEdit(user) {
   editingUserId = user ? user.id : null;
-  $('user-dialog-title').textContent = user ? '编辑用户' : '新建用户';
+  $('user-edit-title').textContent = user ? '编辑用户' : '新建用户';
   $('uf-id').value = user ? user.id : '';
   $('uf-username').value = user ? user.username : '';
   $('uf-phone').value = user ? user.phone : '';
@@ -941,11 +967,16 @@ function openUserDialog(user) {
   $('uf-password').value = '';
   $('uf-password').required = !user;
   $('uf-password-field').style.opacity = user ? '0.6' : '1';
-  userDialog.showModal();
+  state.view = 'user-edit';
+  render();
+  $('uf-username').focus();
 }
 
-$('btn-add-user').addEventListener('click', () => openUserDialog(null));
-$('user-dialog-cancel').addEventListener('click', () => userDialog.close());
+$('btn-add-user').addEventListener('click', () => openUserEdit(null));
+$('user-edit-cancel').addEventListener('click', () => {
+  state.view = 'users';
+  render();
+});
 
 $('user-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -967,7 +998,7 @@ $('user-form').addEventListener('submit', async (e) => {
       payload.password = password;
       await createAdminUser(payload);
     }
-    userDialog.close();
+    state.view = 'users';
     await loadUsers();
     render();
   } catch (err) {
