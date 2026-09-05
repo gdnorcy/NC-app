@@ -59,7 +59,13 @@ ADMIN_USER=yourname ADMIN_PASS=yourpass JWT_SECRET=<随机长字符串> PORT=300
 
 ## 手机端加载优化配置
 
-上传的全景图会在服务端自动转码为两档 WebP，可通过环境变量调整：
+**已内置的加载优化（生产构建自动生效）**
+- **两档 WebP 转码**：上传时自动转为 4096 主图 + 1024 低清预览
+- **渐进加载**：先渲染低清秒出画面，主图后台静默替换，快速切换不串场
+- **Service Worker 缓存**（`/sw.js`）：全景图 cache-first（二次访问零网络）、场景 API network-first（离线可用）、页面/JS/CSS 缓存秒开；升级自动清理旧缓存
+- **three.js 独立分包**：vendor 与业务代码分离，首屏只加载必要部分
+
+可通过环境变量调整转码参数：
 
 ```bash
 IMAGE_MAX_SIZE=4096   # 主图最大长边像素（默认 4096，超出则等比缩小）

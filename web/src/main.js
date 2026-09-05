@@ -1,6 +1,13 @@
 import { fetchScenes } from './api.js';
 import { PanoramaViewer } from './viewer/PanoramaViewer.js';
 
+// 生产模式注册 Service Worker：全景图/静态资源缓存，秒开与离线可用
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 const $ = (id) => document.getElementById(id);
 const isTouch = matchMedia('(pointer: coarse)').matches;
 
