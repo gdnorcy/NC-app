@@ -557,6 +557,46 @@ dialog::backdrop {
   gap: 10px;
   padding: 16px 24px;
   border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* 分享链接行 */
+.share-link-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.share-link-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--bg);
+  outline: none;
+  min-width: 0;
+}
+
+/* 二维码 */
+.qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0;
+}
+.qr-wrap img {
+  width: 180px;
+  height: 180px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 8px;
+  background: #fff;
+}
+.qr-wrap .muted {
+  font-size: 12px;
+  margin: 0;
 }
 
 /* ===== 客户项目 Tab ===== */

@@ -743,23 +743,24 @@
     <dialog id="share-dialog">
       <form id="share-form" class="dialog-card" onsubmit="return false;">
         <h2 id="share-title">分享链接</h2>
-        <p class="muted" style="margin-bottom:12px;">打开链接即可直接查看，无需登录。关闭分享后链接立即失效。</p>
+        <div class="dialog-body">
+          <p class="muted" style="margin:0 0 16px;">打开链接即可直接查看，无需登录。关闭分享后链接立即失效。</p>
 
-        <label class="field">
-          <span>分享链接</span>
-          <div class="share-link-row">
-            <input id="share-url" type="text" readonly />
-            <button type="button" id="share-copy" class="btn btn-ghost">复制</button>
+          <label class="field">
+            <span>分享链接</span>
+            <div class="share-link-row">
+              <input id="share-url" type="text" readonly />
+              <button type="button" id="share-copy" class="btn btn-ghost btn-sm">复制</button>
+            </div>
+          </label>
+
+          <div class="qr-wrap">
+            <img id="share-qr" alt="分享二维码" />
+            <p id="share-qr-note" class="muted">手机扫码即可打开</p>
           </div>
-        </label>
-
-        <div class="qr-wrap">
-          <img id="share-qr" alt="分享二维码" />
-          <p id="share-qr-note" class="muted" style="text-align:center;">手机扫码即可打开</p>
         </div>
-
         <div class="dialog-actions">
-          <button type="button" id="share-refresh" class="btn btn-ghost">刷新令牌（作废旧链接）</button>
+          <button type="button" id="share-refresh" class="btn btn-ghost">刷新令牌</button>
           <button type="button" id="share-toggle" class="btn btn-ghost">关闭分享</button>
           <button type="button" id="share-close" class="btn btn-primary">完成</button>
         </div>
@@ -770,12 +771,14 @@
     <dialog id="reset-password-dialog">
       <form id="reset-password-form" class="dialog-card">
         <h2>重置密码</h2>
-        <input type="hidden" id="rp-user-id" />
-        <p id="rp-user-name" class="muted" style="margin-bottom:12px;"></p>
-        <label class="field">
-          <span>新密码 <em>*</em></span>
-          <input id="rp-password" type="password" placeholder="至少 6 位" required />
-        </label>
+        <div class="dialog-body">
+          <p id="rp-user-name" class="muted" style="margin:0 0 16px;"></p>
+          <input type="hidden" id="rp-user-id" />
+          <label class="field">
+            <span>新密码 *</span>
+            <input id="rp-password" type="password" placeholder="至少 6 位" required />
+          </label>
+        </div>
         <div class="dialog-actions">
           <button type="button" id="rp-cancel" class="btn btn-ghost">取消</button>
           <button type="submit" class="btn btn-primary">确认重置</button>
