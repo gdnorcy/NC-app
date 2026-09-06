@@ -123,16 +123,51 @@ npm test
 
 ## 图标规范
 
+### 基础标准
+
 - **图标库**：统一使用项目专属SVG图标库（`web-admin/src/assets/icons/svg/`）
 - **画布**：24×24px，2px安全边距
 - **描边**：统一2px，禁止粗细不一
 - **圆角**：统一3px，圆角端点，禁止直角端点
 - **色彩**：全部使用 `currentColor`，禁止硬编码色值
-- **状态**：常态（线性灰色）/ 激活态（同源填充主色）/ 禁用态（40%透明度）
-- **PC端组件**：`SIcon.vue`，尺寸：small 16px / default 18px / large 20px
-- **小程序端组件**：`SIcon.vue`，base64 SVG支持动态变色
+- **状态**：常态（线性灰色）/ 激活态（主色）/ 禁用态（40%透明度）
+- **PC端组件**：`SIcon.vue`，尺寸：small 16px / default 18px / large 20px / xlarge 32px
+- **小程序端组件**：`SIcon.vue`，base64 SVG支持动态变色，尺寸：small 18 / default 20 / large 24 / xlarge 32
 - **双端统一**：同一业务语义必须使用同一图标，禁止PC和小程序用不同图标
 - **禁止**：emoji当图标、混用多个图标库、彩色/渐变/立体图标
+
+### 场景使用标准
+
+| 场景 | 尺寸 | 背景块 | 颜色 | 示例 |
+|------|------|--------|------|------|
+| 侧边栏菜单 | 18px (default) | 无 | 默认`#4E5969`，选中`#165DFF` | 工作台、应用中心 |
+| 应用卡片（应用中心/解决方案） | 32px (xlarge) | 56×56px，14px圆角，主色6% | 默认`#4E5969`，hover`#165DFF` | 360全景、智能名片 |
+| 渠道卡片（全端渠道） | 32px (xlarge) | 56×56px，14px圆角，主色6% | 默认`#4E5969`，hover`#165DFF` | 微信小程序、H5 |
+| 统计卡片（工作台） | 18px (default) | 44×44px，10px圆角，语义色10% | 对应语义色 | 成员(绿)、消费(橙) |
+| 列表/表格行内 | 16px (small) | 无 | `#86909C`或主色 | 操作按钮、状态 |
+| 按钮内图标 | 16px (small) | 无 | 继承按钮文字色 | 新建、编辑 |
+| 弹窗/表单图标选择器 | 18px (default) | 40×40px，8px圆角 | 默认`#4E5969`，选中`#165DFF` | 解决方案图标选择 |
+
+### 背景块规范
+
+- **应用/渠道卡片**：56×56px，14px圆角，背景`rgba(22,93,255,0.06)`，hover时`rgba(22,93,255,0.12)`
+- **统计卡片**：44×44px，10px圆角，背景为语义色10%透明度（蓝/紫/绿/橙）
+- **列表项**：28×28px，6px圆角，背景`rgba(22,93,255,0.06)`
+- **hover交互**：背景块加深 + 图标颜色切换为主色，过渡0.2s
+
+### 已有图标库（36个）
+
+**业务语义（14个）**：user入驻个人、building入驻企业、team员工团队、market人脉集市、exchange名片交换、pool公海客户、radar访客雷达、customer客户管理、audit审核管理、key绑定口令、chart数据统计、settings系统设置、template模板管理、dynamic内容动态
+
+**功能图标（22个）**：dashboard工作台、apps应用中心、orders账单、wallet钱包、storage存储、sms短信、panorama全景、card名片、channel渠道、devices多设备、solutions方案、users用户、logs日志、crown皇冠、no-ads无广告、badge徽章、analytics分析、palette调色板、wechat微信、mobile手机、official公众号、pc电脑
+
+### 新增图标流程
+
+1. 在`web-admin/src/assets/icons/svg/`创建SVG文件（24×24画布，2px描边，3px圆角，currentColor）
+2. 复制到`web-app/src/static/icons/`
+3. 在小程序端`SIcon.vue`的`svgMap`中添加path映射
+4. 在上方"已有图标库"清单中登记
+5. 构建验证：`npm run build:admin` + `npm run build:h5`
 
 ## 弹窗/表单规范
 
