@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from './config.js';
 import { verifyPassword, hashPassword, toUser, addOperationLog } from './db.js';
+import { tenantState } from './tenant.js';
 import { getSmsProvider, genSmsCode } from './sms.js';
 
 const VALID_ROLES = ['admin', 'operator', 'tenant_admin', 'tenant_member'];
@@ -39,14 +40,14 @@ export function createAuthRouter(db) {
     if (!verifyPassword(password, user.password_hash, user.password_salt)) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
-    // 租户账号需校验所属客户状态
+    // 租户账号需校验所属客户生命周期（存在/启用/未到期）
     if (['tenant_admin', 'tenant_member'].includes(user.role) && user.customer_id) {
-      const customer = db.prepare('SELECT status, customer_name FROM projects WHERE id = ?').get(user.customer_id);
-      if (!customer || customer.status === 'trashed') {
-        return res.status(401).json({ error: '所属客户不存在或已删除' });
-      }
-      if (customer.status === 'disabled') {
-        return res.status(401).json({ error: `客户「${customer.customer_name}」已被禁用，请联系管理员` });
+      const state = tenantState(db, user.customer_id);
+      if (!state.active) {
+        const name = state.project?.customer_name || '客户';
+        if (state.missing) return res.status(401).json({ error: '所属客户不存在或已删除' });
+        if (state.expired) return res.status(401).json({ error: `客户「${name}」服务已到期，请联系平台续费` });
+        return res.status(401).json({ error: `客户「${name}」已被禁用，请联系管理员` });
       }
     }
     const token = issueToken(user);
@@ -173,14 +174,14 @@ export function createAuthRouter(db) {
     if (user.status !== 'active') {
       return res.status(403).json({ error: '账号已停用' });
     }
-    // 租户账号需校验所属客户状态
+    // 租户账号需校验所属客户生命周期（存在/启用/未到期）
     if (['tenant_admin', 'tenant_member'].includes(user.role) && user.customer_id) {
-      const customer = db.prepare('SELECT status, customer_name FROM projects WHERE id = ?').get(user.customer_id);
-      if (!customer || customer.status === 'trashed') {
-        return res.status(401).json({ error: '所属客户不存在或已删除' });
-      }
-      if (customer.status === 'disabled') {
-        return res.status(401).json({ error: `客户「${customer.customer_name}」已被禁用，请联系管理员` });
+      const state = tenantState(db, user.customer_id);
+      if (!state.active) {
+        const name = state.project?.customer_name || '客户';
+        if (state.missing) return res.status(401).json({ error: '所属客户不存在或已删除' });
+        if (state.expired) return res.status(401).json({ error: `客户「${name}」服务已到期，请联系平台续费` });
+        return res.status(401).json({ error: `客户「${name}」已被禁用，请联系管理员` });
       }
     }
     db.prepare('UPDATE sms_codes SET used = 1 WHERE id = ?').run(record.id);

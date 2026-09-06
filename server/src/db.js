@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS projects (
   remark TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active',
   invite_code TEXT NOT NULL DEFAULT '',
+  solutions TEXT NOT NULL DEFAULT '["panorama"]', -- 已开通解决方案（code 数组）
   quota TEXT NOT NULL DEFAULT '{}', -- 套餐额度: max_individuals, max_enterprises, max_employees等
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -195,8 +196,9 @@ function migrate(db) {
   let defaultCustId = null;
   if (custCount === 0) {
     const info = db
-      .prepare('INSERT INTO projects (customer_name, description, status, invite_code) VALUES (?, ?, ?, ?)')
-      .run('默认客户', '自动创建的默认客户，收纳全部存量方案', 'active', '1001');
+      .prepare(`INSERT INTO projects (customer_name, description, status, invite_code, solutions)
+        VALUES (?, ?, ?, ?, ?)`)
+      .run('默认客户', '自动创建的默认客户，收纳全部存量方案', 'active', '1001', '["panorama","card"]');
     defaultCustId = info.lastInsertRowid;
   } else {
     defaultCustId = db.prepare('SELECT id FROM projects ORDER BY id ASC LIMIT 1').get()?.id || null;
@@ -328,6 +330,18 @@ function migrate(db) {
       ],
     });
     db.prepare("INSERT INTO solutions (name, code, description, icon, enabled, sort_order, app_config) VALUES ('360全景', 'panorama', '沉浸式360度全景展示解决方案', '🌐', 1, 1, ?)").run(panoramaConfig);
+  }
+
+  // —— 默认项目补开 card 解决方案（存量老库兼容，保证演示/测试链路可用）——
+  const firstProj = db.prepare('SELECT id, solutions FROM projects ORDER BY id ASC LIMIT 1').get();
+  if (firstProj) {
+    try {
+      const arr = JSON.parse(firstProj.solutions || '[]');
+      if (Array.isArray(arr) && !arr.includes('card')) {
+        arr.push('card');
+        db.prepare("UPDATE projects SET solutions = ?, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(arr), firstProj.id);
+      }
+    } catch {}
   }
 
   // —— projects（客户）表加 solutions 字段 ——

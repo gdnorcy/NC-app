@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { checkTenantAccess } from '../tenant.js';
 
 /**
  * 智能名片 SaaS 租户域 API（人脉集市/入驻主体/双公海/表单）
@@ -26,6 +27,9 @@ export function createCardMarketRouter(db) {
   function tenant(req, res, next) {
     const customerId = req.customerId || req.user?.customerId;
     if (!customerId) return res.status(403).json({ error: '未入驻任何租户，禁止访问' });
+    // 租户生命周期 + 智能名片解决方案授权（P2-10/P2-11）
+    const blocked = checkTenantAccess(db, customerId, 'card');
+    if (blocked) return res.status(blocked.status).json({ error: blocked.error });
     req.customerId = customerId;
     next();
   }
@@ -154,6 +158,9 @@ export function createCardMarketRouter(db) {
   // 更新集市配置（仅租户管理员）
   router.put('/market/settings', tenant, requireTenantAdmin, (req, res) => {
     const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible } = req.body;
+    // SQLite 无法绑定 JS boolean/undefined：统一规范化为 0/1/null
+    const B = (v) => (v === undefined ? null : (v ? 1 : 0));
+    const S = (v) => (v === undefined ? null : v);
     db.prepare(`UPDATE card_market_settings SET
       enabled = COALESCE(?, enabled),
       audit_mode = COALESCE(?, audit_mode),
@@ -166,7 +173,7 @@ export function createCardMarketRouter(db) {
       contact_visible = COALESCE(?, contact_visible),
       updated_at = datetime('now')
       WHERE customer_id = ?`).run(
-      enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, req.customerId
+      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), B(contactVisible), req.customerId
     );
     res.json({ success: true });
   });

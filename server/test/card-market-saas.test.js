@@ -44,8 +44,8 @@ before(() => {
   app = createApp({ db });
 
   // 预置租户2（租户1由迁移默认创建，id=1, invite_code='1001'）
-  db.prepare(`INSERT INTO projects (customer_name, description, status, invite_code)
-    VALUES ('租户B', '', 'active', '2002')`).run();
+  db.prepare(`INSERT INTO projects (customer_name, description, status, invite_code, solutions)
+    VALUES ('租户B', '', 'active', '2002', '["panorama","card"]')`).run();
 
   // 预置两个租户的管理员账号（JWT 走 comboAuth 的 requireAuth 分支）
   for (const [uname, phone, cid] of [['saas_adm1', '13800000001', 1], ['saas_adm2', '13800000002', 2]]) {

@@ -4,6 +4,7 @@
  */
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
+import { checkTenantAccess } from '../tenant.js';
 
 export function createCardRouter(db, wxService) {
   const router = Router();
@@ -91,6 +92,9 @@ export function createCardRouter(db, wxService) {
   // 租户上下文中间件：必须已绑定租户
   function requireTenant(req, res, next) {
     if (!req.customerId) return res.status(403).json({ error: '未入驻任何租户，禁止访问' });
+    // 租户生命周期 + 智能名片解决方案授权（P2-10/P2-11）
+    const blocked = checkTenantAccess(db, req.customerId, 'card');
+    if (blocked) return res.status(blocked.status).json({ error: blocked.error });
     next();
   }
 

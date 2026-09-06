@@ -5,6 +5,7 @@ import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
+import { checkTenantAccess } from '../tenant.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -23,6 +24,9 @@ function requireTenant(req, res, next) {
   if (!user.customerId) {
     return res.status(403).json({ error: '账号未关联租户' });
   }
+  // 租户生命周期：存在/启用/未到期
+  const blocked = checkTenantAccess(db, user.customerId);
+  if (blocked) return res.status(blocked.status).json({ error: blocked.error });
   req.customerId = user.customerId;
   next();
 }
