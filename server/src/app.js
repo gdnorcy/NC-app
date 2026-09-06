@@ -76,6 +76,11 @@ export function createApp({ db } = {}) {
         if (user && user.status === 'active') {
           req.user = { ...user, id: user.id, role: 'personal_user', customerId: user.customer_id || null };
           req.userId = user.id;
+          // 未直接绑定租户时回退到所属企业映射的租户（与 card.js auth 保持一致）
+          if (!req.user.customerId && user.enterprise_id) {
+            const ent = database.prepare('SELECT customer_id FROM tenant_enterprises WHERE id = ?').get(user.enterprise_id);
+            if (ent) req.user.customerId = ent.customer_id;
+          }
           return next();
         }
       }

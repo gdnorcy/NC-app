@@ -221,6 +221,11 @@ function migrate(db) {
     db.prepare('UPDATE scenes SET plan_id = ? WHERE plan_id IS NULL OR plan_id = 0').run(defaultPlanId);
   }
 
+  // —— card_market_items 补 view_count（旧库缺列导致集市统计 500） ——
+  if (tableExists(db, 'card_market_items') && !colExists(db, 'card_market_items', 'view_count')) {
+    db.exec('ALTER TABLE card_market_items ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0');
+  }
+
   // —— storage_config 多厂商升级 ——
   const storageCols = db.prepare('PRAGMA table_info(storage_config)').all().map((c) => c.name);
   if (storageCols.includes('access_key')) {

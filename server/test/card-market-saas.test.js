@@ -395,3 +395,21 @@ test('P2-13 租户视角跟进记录：仅本租户客户可见，跨租户404�
   db.prepare('DELETE FROM card_customer_follow WHERE customer_id IN (?,?)').run(c1, c2);
   db.prepare('DELETE FROM card_customer WHERE id IN (?,?)').run(c1, c2);
 });
+
+test('P2-14 comboAuth 企业回退：仅绑定企业（无customer_id）的C端用户可访问集市', async () => {
+  // 构造：用户仅 enterprise_id（企业已激活、属于租户1），customer_id 为空
+  const code = 'combo_ent_fallback_' + Date.now();
+  const login = await request(app).post('/api/card/auth/wx-login').send({ code });
+  assert.equal(login.status, 200);
+  const u = db.prepare('SELECT id FROM platform_user WHERE openid = ?').get('mock_' + code);
+  const userId = u.id;
+  // 先建一个激活的企业（租户1）
+  const entId = db.prepare("INSERT INTO tenant_enterprises (customer_id, name, admin_user_id, status) VALUES (1, '回退测试企业', ?, 'active')").run(userId).lastInsertRowid;
+  db.prepare("UPDATE platform_user SET enterprise_id = ?, customer_id = NULL WHERE id = ?").run(entId, userId);
+
+  const res = await request(app).get('/api/card-market/market/list').set(bearer(login.body.token));
+  assert.equal(res.status, 200, '仅绑定企业应通过租户回退访问集市');
+
+  db.prepare('DELETE FROM tenant_enterprises WHERE id = ?').run(entId);
+  db.prepare("UPDATE platform_user SET enterprise_id = NULL, customer_id = NULL WHERE id = ?").run(userId);
+});
