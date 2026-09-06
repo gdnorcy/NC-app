@@ -1,15 +1,33 @@
 import axios from 'axios';
 
-const adminApi = axios.create({ baseURL: '/api/admin' });
-const publicApi = axios.create({ baseURL: '/api' });
+export const adminApi = axios.create({ baseURL: '/api/admin' });
+export const publicApi = axios.create({ baseURL: '/api' });
 // 渠道API挂载在 /api/channel（非 /api/admin/channel），需要单独的带认证实例
-const channelApi = axios.create({ baseURL: '/api' });
+export const channelApi = axios.create({ baseURL: '/api' });
+// 支付API挂载在 /api/payment，使用带认证的通用实例
+export const paymentApi = axios.create({ baseURL: '/api' });
 channelApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('panorama_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 channelApi.interceptors.response.use(
+  (res) => res.data,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('panorama_token');
+      window.location.href = '/admin.html#/login';
+    }
+    return Promise.reject(err.response?.data?.error || '请求失败');
+  }
+);
+
+paymentApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('panorama_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+paymentApi.interceptors.response.use(
   (res) => res.data,
   (err) => {
     if (err.response?.status === 401) {

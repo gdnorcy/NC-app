@@ -80,6 +80,11 @@
         <el-form-item><el-button type="primary" @click="saveSms">保存设置</el-button></el-form-item>
       </el-form>
     </div>
+    <div class="page-card">
+      <h3 style="margin-bottom:16px;">支付设置</h3>
+      <p style="color:#909399;margin-bottom:16px;">配置租户独立支付体系，支持借用平台支付或自主接入微信支付/支付宝</p>
+      <el-button type="primary" @click="$router.push('/settings/payment')">前往配置</el-button>
+    </div>
   </div>
 </template>
 

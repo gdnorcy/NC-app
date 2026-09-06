@@ -17,6 +17,7 @@ const routes = [
       { path: 'customers/:id/plans/:planId/scenes/:sceneId/edit', component: () => import('../views/admin/SceneEdit.vue'), meta: { title: '编辑场景', breadcrumbs: ['客户项目', '方案管理', '场景管理', '编辑场景'] } },
       { path: 'users', component: () => import('../views/admin/Users.vue'), meta: { title: '用户管理', breadcrumbs: ['用户管理'] } },
       { path: 'solutions', component: () => import('../views/admin/Solutions.vue'), meta: { title: '解决方案', breadcrumbs: ['解决方案'] } },
+      { path: 'payment', component: () => import('../views/admin/PaymentAdmin.vue'), meta: { title: '支付管理', breadcrumbs: ['支付管理'] } },
       { path: 'logs', component: () => import('../views/admin/Logs.vue'), meta: { title: '操作日志', breadcrumbs: ['操作日志'] } },
       { path: 'settings/basic', component: () => import('../views/admin/settings/Basic.vue'), meta: { title: '基础设置', breadcrumbs: ['系统设置', '基础设置'] } },
       { path: 'settings/storage', component: () => import('../views/admin/settings/Storage.vue'), meta: { title: '存储设置', breadcrumbs: ['系统设置', '存储设置'] } },

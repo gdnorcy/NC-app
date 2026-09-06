@@ -27,6 +27,10 @@
           <el-icon><Grid /></el-icon>
           <span>解决方案</span>
         </el-menu-item>
+        <el-menu-item index="/payment">
+          <el-icon><Wallet /></el-icon>
+          <span>支付管理</span>
+        </el-menu-item>
         <el-menu-item index="/channel">
           <el-icon><Share /></el-icon>
           <span>全端渠道</span>

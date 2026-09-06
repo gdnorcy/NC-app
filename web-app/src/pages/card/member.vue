@@ -55,13 +55,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { cardApi } from '../../utils/cardApi.js';
+import { cardApi, paymentApi } from '../../utils/cardApi.js';
 
 const packages = ref([]);
 const selectedPackage = ref('gold');
 const isMember = ref(false);
 const memberLevel = ref('free');
 const memberExpire = ref('');
+const paying = ref(false);
 
 const currentLevelText = computed(() => ({ free: '免费用户', silver: '白银会员', gold: '黄金会员', diamond: '钻石会员' }[memberLevel.value]));
 
@@ -109,8 +110,71 @@ function getPackageName(level) {
   return { free: '免费版', silver: '白银会员', gold: '黄金会员', diamond: '钻石会员' }[level] || '';
 }
 
-function openMember() {
-  uni.showToast({ title: '支付功能开发中', icon: 'none' });
+async function openMember() {
+  if (selectedPackage.value === 'free') return;
+  if (paying.value) return;
+
+  const pkg = packages.value.find(p => p.level === selectedPackage.value);
+  if (!pkg) return;
+
+  paying.value = true;
+  uni.showLoading({ title: '创建订单...' });
+
+  try {
+    // 获取当前用户信息（用于获取user_id和customer_id）
+    const userInfo = uni.getStorageSync('card_user') || {};
+
+    // 创建支付订单
+    const orderRes = await paymentApi.createOrder({
+      payerType: 'tenant',
+      customerId: userInfo.enterpriseId || 1,
+      userId: userInfo.id || 0,
+      solution: 'card',
+      productType: 'member',
+      productId: String(pkg.id),
+      productName: pkg.name,
+      amount: Math.round(pkg.price * 100), // 元转分
+      channel: 'wechat',
+      remark: `智能名片-${pkg.name}`,
+    });
+
+    const order = orderRes.order;
+    uni.hideLoading();
+
+    // 调起支付（当前为模拟支付模式，直接调用mock-pay）
+    uni.showModal({
+      title: '确认支付',
+      content: `确认支付 ¥${pkg.price} 开通${pkg.name}？`,
+      success: async (res) => {
+        if (res.confirm) {
+          uni.showLoading({ title: '支付中...' });
+          try {
+            // 模拟支付成功（接入真实微信支付后，这里调用微信支付API）
+            await paymentApi.mockPay(order.orderNo);
+
+            uni.hideLoading();
+            uni.showToast({ title: '支付成功', icon: 'success' });
+
+            // 刷新会员状态
+            setTimeout(async () => {
+              const memberRes = await cardApi.getMemberStatus();
+              isMember.value = memberRes.isMember;
+              memberLevel.value = memberRes.level;
+              memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
+            }, 500);
+          } catch (e) {
+            uni.hideLoading();
+            uni.showToast({ title: e.message || '支付失败', icon: 'none' });
+          }
+        }
+      },
+    });
+  } catch (e) {
+    uni.hideLoading();
+    uni.showToast({ title: e.message || '创建订单失败', icon: 'none' });
+  } finally {
+    paying.value = false;
+  }
 }
 </script>
 

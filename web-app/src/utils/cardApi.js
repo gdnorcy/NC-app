@@ -1,5 +1,6 @@
 // 智能名片 API 封装
 const BASE_URL = 'http://localhost:3000/api/card';
+const PAYMENT_BASE_URL = 'http://localhost:3000/api/payment';
 
 function request(url, method = 'GET', data = {}) {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,30 @@ function request(url, method = 'GET', data = {}) {
           reject(new Error('未登录'));
           return;
         }
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data);
+        } else {
+          reject(new Error(res.data?.error || '请求失败'));
+        }
+      },
+      fail: (err) => reject(err),
+    });
+  });
+}
+
+// 支付API请求（使用card_token认证）
+function paymentRequest(url, method = 'GET', data = {}) {
+  return new Promise((resolve, reject) => {
+    const token = uni.getStorageSync('card_token');
+    uni.request({
+      url: PAYMENT_BASE_URL + url,
+      method,
+      data,
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data);
         } else {
@@ -78,4 +103,16 @@ export const cardApi = {
   // 动态
   getDynamics: () => request('/dynamics'),
   createDynamic: (data) => request('/dynamics', 'POST', data),
+};
+
+// 支付API
+export const paymentApi = {
+  // 创建支付订单
+  createOrder: (data) => paymentRequest('/create', 'POST', data),
+  // 模拟支付成功（开发环境）
+  mockPay: (orderNo) => paymentRequest('/mock-pay', 'POST', { orderNo }),
+  // 查询订单
+  getOrder: (orderNo) => paymentRequest(`/orders/${orderNo}`),
+  // 我的订单
+  getMyOrders: (params) => paymentRequest('/my-orders' + (params ? '?' + new URLSearchParams(params).toString() : '')),
 };

@@ -20,6 +20,7 @@ const routes = [
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
       { path: 'settings', component: () => import('../views/customer/Settings.vue'), meta: { title: '账号设置', breadcrumbs: ['账号设置'] } },
+      { path: 'settings/payment', component: () => import('../views/customer/PaymentConfig.vue'), meta: { title: '支付设置', breadcrumbs: ['账号设置', '支付设置'] } },
     ],
   },
 ];

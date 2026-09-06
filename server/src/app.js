@@ -23,6 +23,7 @@ import { createOpenApiRouter } from './routes/openapi.js';
 import { createOAuthAppsRouter } from './routes/oauth-apps.js';
 import { createChannelRouter } from './routes/channel.js';
 import { createCardRouter } from './routes/card.js';
+import { createPaymentRouter } from './routes/payment.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -60,6 +61,27 @@ export function createApp({ db } = {}) {
       return { openid: 'mock_' + code, unionid: '' };
     },
   }));
+  // 支付回调不需要认证（第三方支付平台调用）
+  app.use('/api/payment/notify', createPaymentRouter(database));
+  // 支付API使用组合认证：支持JWT（租户/平台）和card_token（个人用户）
+  const comboAuth = (req, res, next) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: '未登录' });
+    // 尝试card_token格式
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString());
+      if (payload.uid) {
+        const user = database.prepare('SELECT * FROM platform_user WHERE id = ?').get(payload.uid);
+        if (user && user.status === 'active') {
+          req.user = { ...user, id: user.id, role: 'personal_user', customerId: user.enterprise_id };
+          return next();
+        }
+      }
+    } catch {}
+    // 回退到JWT认证
+    requireAuth(req, res, next);
+  };
+  app.use('/api/payment', comboAuth, createPaymentRouter(database));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));

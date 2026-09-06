@@ -702,6 +702,51 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_commission_user ON distribution_commission(user_id);
     CREATE INDEX IF NOT EXISTS idx_commission_order ON distribution_commission(order_id);
+
+    -- 支付订单表（双层支付：平台级+租户级）
+    CREATE TABLE IF NOT EXISTS payment_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_no TEXT NOT NULL UNIQUE,
+      payer_type TEXT NOT NULL DEFAULT 'tenant',  -- platform=租户向平台付费, tenant=租户客户向租户付费
+      customer_id INTEGER NOT NULL DEFAULT 0,      -- 租户ID
+      user_id INTEGER NOT NULL DEFAULT 0,          -- 付费用户ID（租户级支付时）
+      solution TEXT NOT NULL DEFAULT '',           -- 解决方案标识
+      product_type TEXT NOT NULL DEFAULT '',       -- subscription/member/value_added
+      product_id TEXT NOT NULL DEFAULT '',         -- 产品ID
+      product_name TEXT NOT NULL DEFAULT '',       -- 产品名称
+      amount INTEGER NOT NULL DEFAULT 0,           -- 金额（分）
+      platform_fee INTEGER NOT NULL DEFAULT 0,     -- 平台手续费（分）
+      pay_channel TEXT NOT NULL DEFAULT 'wechat',  -- wechat/alipay
+      pay_mode TEXT NOT NULL DEFAULT 'platform',   -- platform=借用平台, independent=自主接入
+      status TEXT NOT NULL DEFAULT 'pending',      -- pending/paid/refunded/closed
+      transaction_id TEXT NOT NULL DEFAULT '',     -- 第三方支付流水号
+      paid_at TEXT,                                -- 支付时间
+      remark TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_customer ON payment_orders(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_user ON payment_orders(user_id);
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_status ON payment_orders(status);
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_payer ON payment_orders(payer_type);
+
+    -- 结算记录表（借用平台模式下，平台代收后结算给租户）
+    CREATE TABLE IF NOT EXISTS settlement_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      settlement_no TEXT NOT NULL UNIQUE,
+      customer_id INTEGER NOT NULL,
+      order_ids TEXT NOT NULL DEFAULT '[]',        -- 关联订单ID列表
+      total_amount INTEGER NOT NULL DEFAULT 0,     -- 订单总金额（分）
+      platform_fee INTEGER NOT NULL DEFAULT 0,     -- 平台手续费（分）
+      settle_amount INTEGER NOT NULL DEFAULT 0,    -- 结算金额（分）
+      status TEXT NOT NULL DEFAULT 'pending',      -- pending/settled/rejected
+      settled_at TEXT,
+      remark TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_settlement_customer ON settlement_records(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_settlement_status ON settlement_records(status);
   `);
 
   // —— 预置智能名片解决方案 ——
