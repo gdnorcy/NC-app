@@ -48,7 +48,7 @@
       </view>
 
       <view class="empty-state" v-else>
-        <view class="empty-icon">📊</view>
+        <view class="empty-icon"><SIcon name="analytics" size="xlarge" color="#c9cdd4" /></view>
         <view class="empty-text">暂无访客记录</view>
         <view class="empty-hint">分享名片后，访客行为将在这里展示</view>
       </view>
@@ -59,6 +59,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const summary = ref({ today: 0, week: 0, total: 0 });
 const visitors = ref([]);

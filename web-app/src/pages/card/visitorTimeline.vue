@@ -18,7 +18,7 @@
     </view>
 
     <view class="empty-state" v-else>
-      <view class="empty-icon">📋</view>
+      <view class="empty-icon"><SIcon name="radar" size="xlarge" color="#c9cdd4" /></view>
       <view class="empty-text">暂无行为记录</view>
     </view>
   </view>
@@ -27,6 +27,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const actions = ref([]);
 const visitorOpenid = ref('');

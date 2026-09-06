@@ -32,7 +32,7 @@
     <!-- 推广海报 -->
     <view class="poster-section">
       <view class="poster-card" @click="showPoster = true">
-        <view class="poster-icon">📱</view>
+        <view class="poster-icon"><SIcon name="mobile" size="xlarge" color="#165dff" /></view>
         <view class="poster-info">
           <view class="poster-title">生成推广海报</view>
           <view class="poster-desc">分享给好友，好友注册后你将获得佣金</view>
@@ -54,7 +54,7 @@
         </view>
       </view>
       <view class="empty-state" v-else>
-        <view class="empty-icon">💰</view>
+        <view class="empty-icon"><SIcon name="wallet" size="xlarge" color="#c9cdd4" /></view>
         <view class="empty-text">暂无佣金记录</view>
         <view class="empty-hint">分享海报邀请好友注册即可获得佣金</view>
       </view>
@@ -74,7 +74,7 @@
       <view class="poster-modal" @click.stop>
         <view class="poster-preview">
           <view class="poster-placeholder">
-            <view class="poster-logo">💼</view>
+            <view class="poster-logo"><SIcon name="card" size="xlarge" color="#fff" /></view>
             <view class="poster-slogan">智能名片</view>
             <view class="poster-desc">让每一次相遇都成为商机</view>
             <view class="qrcode">
@@ -95,6 +95,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const summary = ref({});
 const commissions = ref([]);

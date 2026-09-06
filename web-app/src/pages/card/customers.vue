@@ -8,7 +8,7 @@
     <!-- 搜索和筛选 -->
     <view class="toolbar">
       <view class="search-box">
-        <text class="search-icon">🔍</text>
+        <SIcon name="dynamic" size="small" color="#86909c" />
         <input class="search-input" v-model="keyword" placeholder="搜索客户姓名/公司" placeholder-class="ph" @confirm="loadCustomers"/>
       </view>
     </view>
@@ -48,7 +48,7 @@
     </view>
 
     <view class="empty-state" v-else>
-      <view class="empty-icon">👥</view>
+      <view class="empty-icon"><SIcon name="customer" size="xlarge" color="#c9cdd4" /></view>
       <view class="empty-text">暂无客户</view>
       <view class="empty-hint">交换名片后，客户将自动添加到这里</view>
     </view>
@@ -94,6 +94,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const customers = ref([]);
 const keyword = ref('');

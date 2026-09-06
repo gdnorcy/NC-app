@@ -6,7 +6,7 @@
         <view class="avatar">{{ user.nickname?.[0] || '用' }}</view>
         <view class="info">
           <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
-          <view class="member-tag" v-if="isMember">👑 {{ memberLevelText }}</view>
+          <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#faad14" /> {{ memberLevelText }}</view>
         </view>
         <view class="edit-btn" @click="goEdit">编辑</view>
       </view>
@@ -36,17 +36,17 @@
     <view class="menu-section">
       <view class="menu-group">
         <view class="menu-item" @click="goPage('/pages/card/myCard')">
-          <view class="menu-icon">💳</view>
+          <view class="menu-icon"><SIcon name="card" size="default" color="#4e5969" /></view>
           <view class="menu-label">我的名片</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="goPage('/pages/card/create')">
-          <view class="menu-icon">✏️</view>
+          <view class="menu-icon"><SIcon name="template" size="default" color="#4e5969" /></view>
           <view class="menu-label">编辑名片</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="goPage('/pages/card/distribution')">
-          <view class="menu-icon">💰</view>
+          <view class="menu-icon"><SIcon name="wallet" size="default" color="#4e5969" /></view>
           <view class="menu-label">分销中心</view>
           <view class="menu-arrow">›</view>
         </view>
@@ -54,13 +54,13 @@
 
       <view class="menu-group">
         <view class="menu-item" @click="goPage('/pages/card/member')">
-          <view class="menu-icon">👑</view>
+          <view class="menu-icon"><SIcon name="crown" size="default" color="#4e5969" /></view>
           <view class="menu-label">会员中心</view>
           <view class="menu-value" v-if="isMember">{{ memberLevelText }}</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="goPage('/pages/card/dynamic')">
-          <view class="menu-icon">📝</view>
+          <view class="menu-icon"><SIcon name="dynamic" size="default" color="#4e5969" /></view>
           <view class="menu-label">我的动态</view>
           <view class="menu-arrow">›</view>
         </view>
@@ -68,17 +68,17 @@
 
       <view class="menu-group">
         <view class="menu-item" @click="showSettings">
-          <view class="menu-icon">⚙️</view>
+          <view class="menu-icon"><SIcon name="settings" size="default" color="#4e5969" /></view>
           <view class="menu-label">设置</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="showAbout">
-          <view class="menu-icon">ℹ️</view>
+          <view class="menu-icon"><SIcon name="audit" size="default" color="#4e5969" /></view>
           <view class="menu-label">关于我们</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item logout" @click="logout">
-          <view class="menu-icon">🚪</view>
+          <view class="menu-icon"><SIcon name="key" size="default" color="#f53f3f" /></view>
           <view class="menu-label">退出登录</view>
         </view>
       </view>
@@ -89,6 +89,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const user = ref({});
 const isMember = ref(false);

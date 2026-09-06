@@ -3,28 +3,28 @@
     <!-- 统计卡片 -->
     <div class="stats-row">
       <div class="stat-card">
-        <div class="stat-icon blue">👥</div>
+        <div class="stat-icon-wrap icon-blue"><SIcon name="team" size="default" color="#165dff" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ overview.employeeCount || 0 }}</div>
           <div class="stat-label">企业成员</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon green">💳</div>
+        <div class="stat-icon-wrap icon-green"><SIcon name="card" size="default" color="#00b42a" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ overview.cardCount || 0 }}</div>
           <div class="stat-label">名片总数</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon orange">👁️</div>
+        <div class="stat-icon-wrap icon-orange"><SIcon name="analytics" size="default" color="#ff7d00" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ overview.totalViews || 0 }}</div>
           <div class="stat-label">总访问量</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon purple">🤝</div>
+        <div class="stat-icon-wrap icon-purple"><SIcon name="customer" size="default" color="#722ed1" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ overview.customerCount || 0 }}</div>
           <div class="stat-label">企业客户</div>
@@ -144,6 +144,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { customerApiCall } from '../../../api';
+import SIcon from '../../../components/SIcon.vue';
 
 const overview = ref({});
 const employees = ref([]);
@@ -198,11 +199,11 @@ onMounted(() => {
 .card-admin { padding: 0; }
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
 .stat-card { background: #fff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-.stat-icon.blue { background: rgba(22,93,255,0.1); }
-.stat-icon.green { background: rgba(0,180,42,0.1); }
-.stat-icon.orange { background: rgba(255,125,0,0.1); }
-.stat-icon.purple { background: rgba(114,46,209,0.1); }
+.stat-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.stat-icon-wrap.icon-blue { background: rgba(22,93,255,0.1); }
+.stat-icon-wrap.icon-green { background: rgba(0,180,42,0.1); }
+.stat-icon-wrap.icon-orange { background: rgba(255,125,0,0.1); }
+.stat-icon-wrap.icon-purple { background: rgba(114,46,209,0.1); }
 .stat-value { font-size: 24px; font-weight: 600; color: #1d2129; }
 .stat-label { font-size: 13px; color: #86909c; margin-top: 2px; }
 .content-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }

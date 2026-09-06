@@ -18,11 +18,11 @@
           <view class="info-value">{{ customer.phone }}</view>
         </view>
         <view class="info-row" v-if="customer.wechat" @click="copyWechat">
-          <view class="info-label">💬 微信</view>
+          <view class="info-label"><SIcon name="wechat" size="small" color="#00b42a" /> 微信</view>
           <view class="info-value">{{ customer.wechat }}</view>
         </view>
         <view class="info-row" v-if="customer.tags?.length">
-          <view class="info-label">🏷️ 标签</view>
+          <view class="info-label"><SIcon name="template" size="small" color="#ff7d00" /> 标签</view>
           <view class="info-value tags">
             <text class="tag" v-for="t in customer.tags" :key="t">{{ t }}</text>
           </view>
@@ -84,6 +84,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const customer = ref({});
 const follows = ref([]);

@@ -23,7 +23,7 @@
     </view>
 
     <view class="empty-state" v-else>
-      <view class="empty-icon">📝</view>
+      <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
       <view class="empty-text">暂无动态</view>
       <view class="empty-hint">发布第一条动态吧</view>
     </view>
@@ -56,6 +56,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const dynamics = ref([]);
 const user = ref({});

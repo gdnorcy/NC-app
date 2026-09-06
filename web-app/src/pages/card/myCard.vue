@@ -7,7 +7,7 @@
         <view class="avatar">{{ card.avatar ? '' : card.name?.[0] || '名' }}</view>
         <view class="name-row">
           <text class="name">{{ card.name }}</text>
-          <view class="member-tag" v-if="memberLevel !== 'free'">👑 {{ memberLevelText }}</view>
+          <view class="member-tag" v-if="memberLevel !== 'free'"><SIcon name="crown" size="small" color="#faad14" /> {{ memberLevelText }}</view>
         </view>
         <view class="position">{{ card.position }}</view>
         <view class="company">{{ card.company }}</view>
@@ -54,7 +54,7 @@
       <!-- 作品案例 -->
       <view v-if="activeTab === 'works'" class="tab-content">
         <view class="empty-state">
-          <view class="empty-icon">🖼️</view>
+          <view class="empty-icon"><SIcon name="template" size="xlarge" color="#c9cdd4" /></view>
           <view class="empty-text">暂无作品案例</view>
         </view>
       </view>
@@ -62,7 +62,7 @@
       <!-- 个人动态 -->
       <view v-if="activeTab === 'dynamic'" class="tab-content">
         <view class="empty-state">
-          <view class="empty-icon">📝</view>
+          <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
           <view class="empty-text">暂无动态</view>
         </view>
       </view>
@@ -74,7 +74,7 @@
           <view class="empty-text">未绑定视频号</view>
         </view>
         <view class="video-card" v-else @click="openVideo">
-          <view class="video-cover">▶️</view>
+          <view class="video-cover"><SIcon name="dynamic" size="large" color="#fff" /></view>
           <view class="video-info">
             <view class="video-title">{{ card.videoChannel }}</view>
             <view class="video-desc">点击跳转视频号</view>
@@ -90,7 +90,7 @@
         <view class="action-label">拨号</view>
       </view>
       <view class="action-btn" @click="copyWechat" v-if="card.wechat">
-        <view class="action-icon">💬</view>
+        <view class="action-icon"><SIcon name="exchange" size="default" color="#fff" /></view>
         <view class="action-label">微信</view>
       </view>
       <view class="action-btn" @click="showExchange = true">
@@ -98,7 +98,7 @@
         <view class="action-label">交换名片</view>
       </view>
       <view class="action-btn primary" @click="shareCard">
-        <view class="action-icon">📤</view>
+        <view class="action-icon"><SIcon name="dynamic" size="default" color="#fff" /></view>
         <view class="action-label">分享</view>
       </view>
     </view>
@@ -124,6 +124,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const card = ref({});
 const activeTab = ref('intro');
