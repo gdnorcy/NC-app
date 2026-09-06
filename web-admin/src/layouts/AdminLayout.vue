@@ -168,10 +168,27 @@ function logout() {
   color: #165DFF;
 }
 .logo-img { width: 32px; height: 32px; border-radius: 6px; }
-.side-menu { border-right: none; flex: 1; }
+.side-menu { border-right: none; flex: 1; padding: 8px 12px; }
 .side-menu :deep(.s-icon) { margin-right: 10px; }
+/* 图2风格：圆角背景块菜单 */
+.side-menu :deep(.el-menu-item) {
+  border-radius: 8px;
+  margin-bottom: 4px;
+  height: 44px;
+  line-height: 44px;
+  color: #4e5969;
+}
+.side-menu :deep(.el-menu-item:hover) {
+  background-color: #f2f3f5;
+  color: #1d2129;
+}
+.side-menu :deep(.el-menu-item.is-active) {
+  background-color: #e8f3ff;
+  color: #165dff;
+  font-weight: 500;
+}
 .menu-group-title {
-  padding: 10px 20px 6px;
+  padding: 12px 12px 6px;
   font-size: 11px;
   color: #909399;
   text-transform: uppercase;

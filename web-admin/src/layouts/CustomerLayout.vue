@@ -153,8 +153,45 @@ function backToAdmin() {
   color: #165DFF;
 }
 .logo-img { width: 30px; height: 30px; border-radius: 6px; }
-.side-menu { border-right: none; flex: 1; }
+.side-menu { border-right: none; flex: 1; padding: 8px 12px; }
 .side-menu :deep(.s-icon) { margin-right: 10px; }
+/* 图2风格：圆角背景块菜单 */
+.side-menu :deep(.el-menu-item) {
+  border-radius: 8px;
+  margin-bottom: 4px;
+  height: 44px;
+  line-height: 44px;
+  color: #4e5969;
+}
+.side-menu :deep(.el-menu-item:hover) {
+  background-color: #f2f3f5;
+  color: #1d2129;
+}
+.side-menu :deep(.el-menu-item.is-active) {
+  background-color: #e8f3ff;
+  color: #165dff;
+  font-weight: 500;
+}
+.side-menu :deep(.el-sub-menu__title) {
+  border-radius: 8px;
+  margin-bottom: 4px;
+  height: 44px;
+  line-height: 44px;
+  color: #4e5969;
+}
+.side-menu :deep(.el-sub-menu__title:hover) {
+  background-color: #f2f3f5;
+  color: #1d2129;
+}
+.side-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
+  color: #165dff;
+}
+.side-menu :deep(.el-menu--inline .el-menu-item) {
+  height: 40px;
+  line-height: 40px;
+  padding-left: 48px !important;
+  font-size: 13px;
+}
 .sidebar-footer { padding: 12px; border-top: 1px solid #f0f0f0; }
 .header {
   background: #fff;
