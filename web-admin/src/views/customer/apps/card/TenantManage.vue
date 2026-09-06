@@ -287,7 +287,7 @@ async function viewEmployees(row) {
 </script>
 
 <style scoped>
-.tenant-manage-page { padding: 20px; }
+.tenant-manage-page { padding: 0; }
 .page-header { margin-bottom: 16px; }
 .page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
 .page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }

@@ -241,11 +241,11 @@ async function forceRemove(row) {
 </script>
 
 <style scoped>
-.market-manage-page { padding: 20px; }
+.market-manage-page { padding: 0; }
 
 /* 数据统计 */
-.stats-row { display: flex; gap: 16px; margin-bottom: 16px; }
-.stat-card { flex: 1; background: #fff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.stat-card { background: #fff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .stat-icon-wrap { width: 44px; height: 44px; border-radius: 10px; background: rgba(22,93,255,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-info { flex: 1; }
 .stat-num { font-size: 24px; font-weight: 700; color: #1d2129; }

@@ -156,7 +156,7 @@ function routePathValid(p) {
 .page-header { margin-bottom: 16px; }
 .page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
 .page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 16px; }
 .stat-card { background: #fff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .stat-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
 .stat-icon-wrap.icon-blue { background: rgba(22,93,255,0.1); }

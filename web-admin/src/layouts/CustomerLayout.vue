@@ -38,6 +38,13 @@
           <el-menu-item index="/settings/payment">支付配置</el-menu-item>
         </el-sub-menu>
       </el-menu>
+      <div class="sidebar-extras">
+        <el-button text class="extra-help" @click="showHelp">
+          <el-icon><QuestionFilled /></el-icon>
+          <span v-if="!collapsed">帮助中心</span>
+        </el-button>
+        <span v-if="!collapsed" class="extra-version">零壹系统云 v1.0.0</span>
+      </div>
       <div class="sidebar-footer">
         <el-button text @click="logout">
           <el-icon><SwitchButton /></el-icon>
@@ -113,7 +120,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import {
-  SwitchButton, Fold, Expand, ArrowDown, Back,
+  SwitchButton, Fold, Expand, ArrowDown, Back, QuestionFilled,
 } from '@element-plus/icons-vue';
 import SIcon from '../components/SIcon.vue';
 
@@ -159,6 +166,9 @@ onMounted(async () => {
 function handleCommand(cmd) {
   if (cmd === 'logout') logout();
 }
+function showHelp() {
+  ElMessage.info('帮助文档建设中，如有疑问请联系平台客服。');
+}
 function logout() {
   localStorage.removeItem('customer_token');
   localStorage.removeItem('customer_user');
@@ -193,7 +203,7 @@ function backToAdmin() {
   color: #165DFF;
 }
 .logo-img { width: 30px; height: 30px; border-radius: 6px; }
-.side-menu { border-right: none; flex: 1; padding: 8px 12px; }
+.side-menu { border-right: none; padding: 8px 12px; }
 .side-menu :deep(.s-icon) { margin-right: 10px; }
 /* 图2风格：圆角背景块菜单 */
 .side-menu :deep(.el-menu-item) {
@@ -232,6 +242,17 @@ function backToAdmin() {
   padding-left: 48px !important;
   font-size: 13px;
 }
+.sidebar-extras {
+  margin-top: auto;
+  padding: 12px 12px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.extra-help { color: #4e5969; font-size: 13px; padding: 4px 8px; height: auto; }
+.extra-help:hover { color: #165dff; background: #f2f3f5; }
+.extra-version { font-size: 11px; color: #c0c4cc; padding: 0 8px; user-select: none; }
 .sidebar-footer { padding: 12px; border-top: 1px solid #f0f0f0; }
 .header {
   background: #fff;
@@ -247,6 +268,6 @@ function backToAdmin() {
 .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .user-avatar { background: #165DFF; color: #fff; font-size: 14px; }
 .user-name { font-size: 13px; color: #303133; }
-.main-content { background: #f7f8fa; padding: 20px; }
+.el-main.main-content { background: #f7f8fa; padding: 20px; }
 .expire-alert { margin-bottom: 16px; border-radius: 8px; }
 </style>
