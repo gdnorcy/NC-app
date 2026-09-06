@@ -45,6 +45,12 @@ const svgMap = {
   solutions: '<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.5 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
   users: '<circle cx="12" cy="7" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/><path d="M2 12c.5-2 2-3.5 4-3.5"/><path d="M22 12c-.5-2-2-3.5-4-3.5"/>',
   logs: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/><path d="M8 3v2M16 3v2"/>',
+  crown: '<path d="M3 7l4 4 5-7 5 7 4-4-2 12H5L3 7z"/><path d="M5 19h14"/>',
+  'no-ads': '<circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/>',
+  badge: '<circle cx="12" cy="9" r="5"/><path d="M8.5 13.5L7 21l5-3 5 3-1.5-7.5"/>',
+  analytics: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="12" y="8" width="3" height="10" rx="1"/><rect x="17" y="5" width="3" height="13" rx="1"/>',
+  palette: '<path d="M12 2a10 10 0 000 20c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-1.5 2-1.5h2a4 4 0 004-4c0-5-4-10-9-10z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/>',
+  devices: '<rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M2 17h10"/><rect x="16" y="9" width="6" height="11" rx="1.5"/><path d="M18 18h2"/>',
 };
 
 // 生成带颜色的SVG base64

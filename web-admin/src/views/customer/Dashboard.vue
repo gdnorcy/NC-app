@@ -8,18 +8,22 @@
       </div>
       <div class="global-cards">
         <div class="global-card" @click="$router.push('/apps')">
+          <div class="global-icon" style="background:rgba(22,93,255,0.1);color:#165dff;"><SIcon name="template" size="default" /></div>
           <div class="global-value">{{ stats.planCount || 0 }}</div>
           <div class="global-label-text">方案总数</div>
         </div>
         <div class="global-card">
+          <div class="global-icon" style="background:rgba(114,46,209,0.1);color:#722ed1;"><SIcon name="panorama" size="default" /></div>
           <div class="global-value">{{ stats.sceneCount || 0 }}</div>
           <div class="global-label-text">场景总数</div>
         </div>
         <div class="global-card" @click="$router.push('/members')">
+          <div class="global-icon" style="background:rgba(0,180,42,0.1);color:#00b42a;"><SIcon name="team" size="default" /></div>
           <div class="global-value">{{ stats.memberCount || 0 }}</div>
           <div class="global-label-text">团队成员</div>
         </div>
         <div class="global-card" @click="$router.push('/orders')">
+          <div class="global-icon" style="background:rgba(255,125,0,0.1);color:#ff7d00;"><SIcon name="wallet" size="default" /></div>
           <div class="global-value">¥{{ formatAmount(stats.totalAmount) }}</div>
           <div class="global-label-text">累计消费</div>
         </div>
@@ -34,7 +38,7 @@
     <div class="app-stats">
       <div class="app-stat-card" v-for="app in byApp" :key="app.appId" @click="goApp(app)">
         <div class="app-stat-header">
-          <span class="app-stat-icon">{{ app.appIcon || '🧩' }}</span>
+          <span class="app-stat-icon"><SIcon :name="getAppIcon(app.appCode)" size="default" /></span>
           <div class="app-stat-info">
             <div class="app-stat-name">{{ app.appName }}</div>
             <el-tag type="success" size="small">已开通</el-tag>
@@ -91,6 +95,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { customerApiCall } from '../../api';
+import SIcon from '../../components/SIcon.vue';
 
 const router = useRouter();
 const stats = ref({});
@@ -98,6 +103,11 @@ const byApp = ref([]);
 const recentScenes = ref([]);
 const recentOrders = ref([]);
 const customerName = ref('我的工作台');
+
+function getAppIcon(code) {
+  const map = { panorama: 'panorama', card: 'card', channel: 'devices' };
+  return map[code] || 'apps';
+}
 
 onMounted(async () => {
   try {
@@ -164,6 +174,15 @@ function goApp(app) {
 .global-card:hover {
   background: rgba(255,255,255,0.25);
 }
+.global-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+}
 .global-value {
   font-size: 24px;
   font-weight: 700;
@@ -215,14 +234,15 @@ function goApp(app) {
   margin-bottom: 16px;
 }
 .app-stat-icon {
-  font-size: 28px;
   width: 44px;
   height: 44px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  background: rgba(22,93,255,0.08);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #165dff;
+  flex-shrink: 0;
 }
 .app-stat-name {
   font-size: 15px;

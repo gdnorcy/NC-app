@@ -3,7 +3,7 @@
     <div class="page-header"><h2 class="page-title">应用中心</h2></div>
     <div class="app-grid">
       <div v-for="app in apps" :key="app.code" class="app-card" @click="enterApp(app)">
-        <div class="app-icon">{{ app.icon }}</div>
+        <SIcon :name="app.icon" size="large" class="app-icon" />
         <div class="app-name">{{ app.name }}</div>
         <div class="app-desc">{{ app.description }}</div>
         <el-button type="primary" size="small">进入应用</el-button>
@@ -16,16 +16,17 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { customerApiCall } from '../../api';
+import SIcon from '../../components/SIcon.vue';
 
 const router = useRouter();
 // 平台内置应用
 const builtinApps = [
-  { code: 'channel', name: '全端渠道', icon: '📱', description: '管理H5、小程序、公众号、PC网站各端渠道配置与发布', builtin: true },
+  { code: 'channel', name: '全端渠道', icon: 'devices', description: '管理H5、小程序、公众号、PC网站各端渠道配置与发布', builtin: true },
 ];
 // 解决方案应用映射（code -> 显示信息）
 const solutionMap = {
-  panorama: { code: 'panorama', name: '360°全景', icon: '🌐', description: '沉浸式360全景展示，支持热点、音乐、解说' },
-  card: { code: 'card', name: '智能名片', icon: '💼', description: '平台型智能名片，个人自主创建+企业统一管理' },
+  panorama: { code: 'panorama', name: '360°全景', icon: 'panorama', description: '沉浸式360全景展示，支持热点、音乐、解说' },
+  card: { code: 'card', name: '智能名片', icon: 'card', description: '平台型智能名片，个人自主创建+企业统一管理' },
 };
 const apps = ref([]);
 
@@ -35,10 +36,9 @@ onMounted(async () => {
     const data = await customerApiCall.get('/profile');
     const solutions = data.customer?.solutions || [];
     solutions.forEach(s => {
-      // 兼容字符串和对象两种格式，过滤掉数字ID等非法值
       const code = typeof s === 'string' ? s : (s.code || s.name);
       if (!code || typeof code !== 'string') return;
-      const app = solutionMap[code] || { code, name: s.name || code, icon: s.icon || '📦', description: s.description || '' };
+      const app = solutionMap[code] || { code, name: s.name || code, icon: 'template', description: s.description || '' };
       list.push(app);
     });
   } catch (e) {}
@@ -55,8 +55,9 @@ function enterApp(app) {
 <style scoped>
 .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 .app-card { background: #fff; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); cursor: pointer; transition: all 0.2s; }
-.app-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-.app-icon { font-size: 48px; margin-bottom: 12px; }
-.app-name { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-.app-desc { font-size: 13px; color: #909399; margin-bottom: 16px; min-height: 40px; }
+.app-card:hover { box-shadow: 0 4px 16px rgba(22,93,255,0.12); }
+.app-card:hover :deep(.app-icon) { color: #165dff; }
+.app-icon { color: #4e5969; margin-bottom: 12px; transition: color 0.2s; }
+.app-name { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
+.app-desc { font-size: 13px; color: #86909c; margin-bottom: 16px; min-height: 40px; line-height: 1.5; }
 </style>

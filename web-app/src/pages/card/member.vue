@@ -2,7 +2,7 @@
   <view class="member-page">
     <view class="header">
       <view class="member-status">
-        <view class="member-icon">👑</view>
+        <view class="member-icon"><SIcon name="crown" size="xlarge" color="#faad14" /></view>
         <view class="member-info">
           <view class="member-level">{{ currentLevelText }}</view>
           <view class="member-expire" v-if="isMember">有效期至 {{ memberExpire }}</view>
@@ -16,7 +16,7 @@
       <view class="section-title">会员专属权益</view>
       <view class="benefits-grid">
         <view class="benefit-item" v-for="b in benefits" :key="b.title">
-          <view class="benefit-icon">{{ b.icon }}</view>
+          <view class="benefit-icon"><SIcon :name="b.icon" size="large" color="#165dff" /></view>
           <view class="benefit-title">{{ b.title }}</view>
           <view class="benefit-desc">{{ b.desc }}</view>
         </view>
@@ -56,6 +56,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const packages = ref([]);
 const selectedPackage = ref('gold');
@@ -67,12 +68,12 @@ const paying = ref(false);
 const currentLevelText = computed(() => ({ free: '免费用户', silver: '白银会员', gold: '黄金会员', diamond: '钻石会员' }[memberLevel.value]));
 
 const benefits = [
-  { icon: '🎨', title: '高级模板', desc: '解锁全部精美名片模板' },
-  { icon: '📊', title: '详细访客分析', desc: '访客行为时间线、深度分析' },
-  { icon: '🌐', title: '人脉集市', desc: '高级筛选、精准搜索' },
-  { icon: '🚫', title: '无广告', desc: '纯净使用体验' },
-  { icon: '🏅', title: '专属标识', desc: '会员徽章、尊贵展示' },
-  { icon: '📈', title: '高级数据统计', desc: '多维度商机数据分析' },
+  { icon: 'palette', title: '高级模板', desc: '解锁全部精美名片模板' },
+  { icon: 'radar', title: '详细访客分析', desc: '访客行为时间线、深度分析' },
+  { icon: 'market', title: '人脉集市', desc: '高级筛选、精准搜索' },
+  { icon: 'no-ads', title: '无广告', desc: '纯净使用体验' },
+  { icon: 'badge', title: '专属标识', desc: '会员徽章、尊贵展示' },
+  { icon: 'analytics', title: '高级数据统计', desc: '多维度商机数据分析' },
 ];
 
 onMounted(async () => {
