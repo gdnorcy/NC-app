@@ -28,14 +28,19 @@
 
     <!-- 人脉列表 -->
     <view class="list" v-if="activeTab === 'connections'">
-      <view class="contact-card" v-for="conn in connections" :key="conn.id" @click="viewContact(conn)">
-        <view class="contact-avatar">{{ conn.contactName?.[0] || '名' }}</view>
-        <view class="contact-info">
-          <view class="contact-name">{{ conn.contactName }}</view>
-          <view class="contact-position">{{ conn.contactPosition || '未设置职位' }}</view>
-          <view class="contact-time">交换于 {{ formatTime(conn.exchangedAt) }}</view>
+      <view class="contact-card" v-for="conn in connections" :key="conn.id">
+        <view class="contact-main" @click="viewContact(conn)">
+          <view class="contact-avatar">{{ conn.contactName?.[0] || '名' }}</view>
+          <view class="contact-info">
+            <view class="contact-name">{{ conn.contactName }}</view>
+            <view class="contact-position">{{ conn.contactPosition || '未设置职位' }}</view>
+            <view class="contact-time">交换于 {{ formatTime(conn.exchangedAt) }}</view>
+          </view>
+          <SIcon name="customer" size="small" color="#c9cdd4" />
         </view>
-        <SIcon name="customer" size="small" color="#c9cdd4" />
+        <view class="contact-actions">
+          <view class="action-btn convert" @click="convertToCustomer(conn)">转为客户</view>
+        </view>
       </view>
       <view class="empty" v-if="!connections.length">
         <SIcon name="exchange" size="xlarge" color="#c9cdd4" />
@@ -113,6 +118,23 @@ function viewContact(conn) {
   // 查看联系人详情
 }
 
+async function convertToCustomer(conn) {
+  try {
+    uni.showModal({
+      title: '转为客户',
+      content: `确定将「${conn.contactName}」转为您的客户吗？`,
+      success: async (res) => {
+        if (res.confirm) {
+          await cardApi.convertConnectionToCustomer(conn.id);
+          uni.showToast({ title: '已转为客户', icon: 'success' });
+        }
+      }
+    });
+  } catch (e) {
+    uni.showToast({ title: e.message || '转换失败', icon: 'none' });
+  }
+}
+
 function formatTime(time) {
   if (!time) return '';
   return time.replace('T', ' ').substring(0, 16);
@@ -136,7 +158,10 @@ function formatTime(time) {
 .tab-badge { position: absolute; top: 4px; right: 20px; background: #f53f3f; color: #fff; font-size: 10px; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 
 .list { padding: 0 16px; }
-.contact-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+.contact-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+.contact-main { display: flex; align-items: center; gap: 12px; }
+.contact-actions { display: flex; justify-content: flex-end; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f2f3f5; }
+.action-btn.convert { background: rgba(22,93,255,0.08); color: #165dff; padding: 6px 16px; border-radius: 14px; font-size: 12px; }
 .contact-avatar { width: 44px; height: 44px; border-radius: 22px; background: linear-gradient(135deg, #165dff, #4080ff); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; }
 .contact-info { flex: 1; }
 .contact-name { font-size: 15px; font-weight: 600; color: #1d2129; }

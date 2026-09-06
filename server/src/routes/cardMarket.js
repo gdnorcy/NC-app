@@ -201,6 +201,33 @@ router.get('/connections', (req, res) => {
   res.json({ connections });
 });
 
+// 人脉转客户（手动转换，不会自动转换）
+router.post('/connections/:id/convert-customer', (req, res) => {
+  const { id } = req.params;
+  const userId = req.userId || req.user?.id;
+  const customerId = req.customerId || req.user?.customerId;
+  if (!userId || !customerId) return res.status(400).json({ error: '缺少参数' });
+  //
+  const connection = db.prepare('SELECT * FROM card_connections WHERE id = ? AND status = \'accepted\'').get(id);
+  if (!connection) return res.status(404).json({ error: '人脉不存在' });
+
+  const contactUserId = connection.from_user_id === userId ? connection.to_user_id : connection.from_user_id;
+  const profile = db.prepare('SELECT * FROM card_profile WHERE user_id = ? LIMIT 1').get(contactUserId);
+  if (!profile) return res.status(404).json({ error: '对方未创建名片' });
+
+  // 检查是否已转为客户
+  const existing = db.prepare('SELECT id FROM card_customer WHERE owner_user_id = ? AND source_user_id = ?').get(userId, contactUserId);
+  if (existing) return res.status(400).json({ error: '已转为客户' });
+
+  // 添加到客户列表
+  db.prepare(`INSERT INTO card_customer (customer_id, owner_user_id, owner_type, name, phone, company, position, source, source_user_id)
+    VALUES (?, ?, 'individual', ?, ?, ?, ?, 'connection', ?)`).run(
+    customerId, userId, profile.name, profile.phone, profile.company, profile.position, contactUserId
+  );
+
+  res.json({ success: true });
+});
+
 // ===== 入驻管理 =====
 // 提交入驻申请（个人/企业）
 router.post('/apply', (req, res) => {
@@ -360,6 +387,45 @@ router.post('/public-pool/:id/claim', (req, res) => {
   db.prepare(`INSERT INTO card_customer (customer_id, owner_id, owner_type, name, phone, company, position, source)
     VALUES (?, ?, 'individual', ?, ?, ?, ?, 'public_pool')`).run(item.customer_id, userId, item.name, item.phone, item.company, item.position);
 
+  res.json({ success: true });
+});
+
+// ===== 企业公海池 =====
+// 企业公海池列表（企业管理员视角）
+router.get('/enterprise-public-pool', (req, res) => {
+  const userId = req.user?.id || req.userId;
+  if (!userId) return res.status(401).json({ error: '未登录' });
+  //
+  const employee = db.prepare('SELECT * FROM tenant_enterprise_employees WHERE user_id = ? AND status = \'active\'').get(userId);
+  if (!employee) return res.status(403).json({ error: '不是企业员工' });
+  const pool = db.prepare('SELECT * FROM enterprise_public_pool WHERE enterprise_id = ? ORDER BY recycled_at DESC').all(employee.enterprise_id);
+  res.json({ pool });
+});
+
+// 领取企业公海客户
+router.post('/enterprise-public-pool/:id/claim', (req, res) => {
+  const { id } = req.params;
+  const userId = req.userId || req.user?.id;
+  if (!userId) return res.status(400).json({ error: '缺少用户ID' });
+  //
+  const item = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND status = \'available\'').get(id);
+  if (!item) return res.status(404).json({ error: '客户已被领取' });
+
+  db.prepare('UPDATE enterprise_public_pool SET status = \'claimed\', claimed_by = ?, claimed_at = datetime(\'now\') WHERE id = ?').run(userId, id);
+
+  // 添加到个人客户
+  db.prepare(`INSERT INTO card_customer (customer_id, owner_id, owner_type, name, phone, company, position, source)
+    VALUES (?, ?, 'employee', ?, ?, ?, ?, 'enterprise_pool')`).run(item.customer_id, userId, item.name, item.phone, item.company, item.position);
+
+  res.json({ success: true });
+});
+
+// 更新企业配置（auto_recycle等）
+router.put('/enterprises/:id/config', (req, res) => {
+  const { id } = req.params;
+  const { config } = req.body;
+  //
+  db.prepare('UPDATE tenant_enterprises SET config = ?, updated_at = datetime(\'now\') WHERE id = ?').run(JSON.stringify(config || {}), id);
   res.json({ success: true });
 });
 

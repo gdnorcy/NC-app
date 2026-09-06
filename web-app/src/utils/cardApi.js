@@ -96,6 +96,7 @@ export const cardApi = {
   exchangeHandle: (data) => request('/card-market/exchange/handle', 'POST', data),
   getExchangeList: () => request('/card-market/exchange/list'),
   getConnections: () => request('/card-market/connections'),
+  convertConnectionToCustomer: (id) => request(`/card-market/connections/${id}/convert-customer`, 'POST'),
 
   // 入驻管理
   getIndividuals: () => request('/card-market/individuals'),

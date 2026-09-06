@@ -776,6 +776,7 @@ function migrate(db) {
       scale TEXT,
       description TEXT,
       admin_user_id INTEGER,
+      config TEXT DEFAULT '{}', -- 企业配置: auto_recycle等
       status TEXT DEFAULT 'active', -- active/disabled
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -819,6 +820,27 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_pool_customer ON tenant_public_pool(customer_id);
     CREATE INDEX IF NOT EXISTS idx_pool_status ON tenant_public_pool(status);
+
+    -- 企业自有公海池
+    CREATE TABLE IF NOT EXISTS enterprise_public_pool (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      enterprise_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      source_type TEXT NOT NULL, -- employee/enterprise
+      source_id INTEGER,
+      name TEXT,
+      phone TEXT,
+      company TEXT,
+      position TEXT,
+      remark TEXT,
+      status TEXT DEFAULT 'available', -- available/claimed/recycled
+      claimed_by INTEGER,
+      claimed_at TEXT,
+      recycled_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_ent_pool_enterprise ON enterprise_public_pool(enterprise_id);
+    CREATE INDEX IF NOT EXISTS idx_ent_pool_status ON enterprise_public_pool(status);
 
     -- 集市配置
     CREATE TABLE IF NOT EXISTS card_market_settings (
@@ -890,6 +912,11 @@ function migrate(db) {
   // —— 企业员工表加 role 字段（企业管理员/普通员工）——
   if (!colExists(db, 'tenant_enterprise_employees', 'role')) {
     db.exec("ALTER TABLE tenant_enterprise_employees ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
+  }
+
+  // —— 企业表加 config 字段 ——
+  if (!colExists(db, 'tenant_enterprises', 'config')) {
+    db.exec("ALTER TABLE tenant_enterprises ADD COLUMN config TEXT NOT NULL DEFAULT '{}'");
   }
 }
 
