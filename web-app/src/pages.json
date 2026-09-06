@@ -1,6 +1,20 @@
 {
   "pages": [
     {
+      "path": "pages/cardMain/login",
+      "style": {
+        "navigationBarTitleText": "智能名片",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/cardMain/home",
+      "style": {
+        "navigationBarTitleText": "智能名片",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "360全景",
@@ -22,11 +36,95 @@
       }
     }
   ],
+  "subPackages": [
+    {
+      "root": "pages/card",
+      "pages": [
+        {
+          "path": "create",
+          "style": {
+            "navigationBarTitleText": "创建名片",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "myCard",
+          "style": {
+            "navigationBarTitleText": "名片详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "visitors",
+          "style": {
+            "navigationBarTitleText": "访客雷达",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "visitorTimeline",
+          "style": {
+            "navigationBarTitleText": "访客行为",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "customers",
+          "style": {
+            "navigationBarTitleText": "客户管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "customerDetail",
+          "style": {
+            "navigationBarTitleText": "客户详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "market",
+          "style": {
+            "navigationBarTitleText": "人脉集市",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "member",
+          "style": {
+            "navigationBarTitleText": "会员中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "profile",
+          "style": {
+            "navigationBarTitleText": "个人中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "distribution",
+          "style": {
+            "navigationBarTitleText": "分销中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "dynamic",
+          "style": {
+            "navigationBarTitleText": "我的动态",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    }
+  ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "360全景",
+    "navigationBarTitleText": "智能名片",
     "navigationBarBackgroundColor": "#F8F8F8",
-    "backgroundColor": "#F8F8F8"
+    "backgroundColor": "#F2F3F5"
   },
   "mp-weixin": {
     "appid": "",
@@ -44,7 +142,7 @@
     }
   },
   "h5": {
-    "title": "360全景",
+    "title": "智能名片",
     "router": {
       "mode": "hash"
     }

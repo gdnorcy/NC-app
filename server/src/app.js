@@ -22,6 +22,7 @@ import { createOAuthRouter } from './routes/oauth.js';
 import { createOpenApiRouter } from './routes/openapi.js';
 import { createOAuthAppsRouter } from './routes/oauth-apps.js';
 import { createChannelRouter } from './routes/channel.js';
+import { createCardRouter } from './routes/card.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -53,6 +54,12 @@ export function createApp({ db } = {}) {
   app.use('/openapi', createOpenApiRouter(database));
   app.use('/api/admin/oauth', createOAuthAppsRouter(database));
   app.use('/api/channel', createChannelRouter(database));
+  app.use('/api/card', createCardRouter(database, {
+    code2Session: async (code) => {
+      // TODO: 接入微信code2session，暂时返回mock数据
+      return { openid: 'mock_' + code, unionid: '' };
+    },
+  }));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
@@ -93,6 +100,20 @@ export function createApp({ db } = {}) {
     });
   }
 
+  // 智能名片H5构建产物
+  const cardDist = path.join(config.publicDir, 'card');
+  if (fs.existsSync(cardDist)) {
+    app.use('/card/assets', express.static(path.join(cardDist, 'assets'), { maxAge: '1y' }));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET') return next();
+      if (req.path === '/card' || req.path.startsWith('/card/')) {
+        res.set('Cache-Control', 'no-cache');
+        return res.sendFile(path.join(cardDist, 'index.html'));
+      }
+      next();
+    });
+  }
+
   // 生产环境：托管 web 构建产物，SPA 路由回退到对应入口页
   const indexHtml = path.join(config.webDistDir, 'index.html');
   const oldAdminHtml = path.join(config.webDistDir, 'admin.html');
@@ -108,6 +129,7 @@ export function createApp({ db } = {}) {
       if (req.method !== 'GET') return next();
       if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
       if (req.path.startsWith('/admin') || req.path.startsWith('/customer')) return next();
+      if (req.path.startsWith('/card')) return next();
       return res.sendFile(indexHtml);
     });
   }

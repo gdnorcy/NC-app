@@ -482,6 +482,244 @@ function migrate(db) {
     );
   `);
   db.exec('CREATE INDEX IF NOT EXISTS idx_deploy_logs_channel ON channel_deploy_logs(channel_app_id)');
+
+  // ============================================================
+  // 智能名片解决方案（card）
+  // ============================================================
+
+  // —— 平台个人用户表（C端用户，微信授权注册）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS platform_user (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      openid TEXT UNIQUE,
+      unionid TEXT,
+      nickname TEXT NOT NULL DEFAULT '',
+      avatar TEXT NOT NULL DEFAULT '',
+      phone TEXT,
+      member_level TEXT NOT NULL DEFAULT 'free',
+      member_expire_at TEXT,
+      enterprise_id INTEGER,
+      enterprise_role TEXT DEFAULT 'none',
+      parent_id INTEGER,
+      grandparent_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_puser_openid ON platform_user(openid);
+    CREATE INDEX IF NOT EXISTS idx_puser_enterprise ON platform_user(enterprise_id);
+    CREATE INDEX IF NOT EXISTS idx_puser_parent ON platform_user(parent_id);
+  `);
+
+  // —— 名片表（个人/企业名片）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_profile (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      enterprise_id INTEGER,
+      card_type TEXT NOT NULL DEFAULT 'personal',
+      name TEXT NOT NULL,
+      position TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      wechat TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      company TEXT NOT NULL DEFAULT '',
+      bio TEXT NOT NULL DEFAULT '',
+      business_field TEXT NOT NULL DEFAULT '',
+      avatar TEXT NOT NULL DEFAULT '',
+      template_id INTEGER,
+      video_channel TEXT NOT NULL DEFAULT '',
+      is_public INTEGER NOT NULL DEFAULT 1,
+      view_count INTEGER NOT NULL DEFAULT 0,
+      exchange_count INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_user ON card_profile(user_id);
+    CREATE INDEX IF NOT EXISTS idx_card_enterprise ON card_profile(enterprise_id);
+    CREATE INDEX IF NOT EXISTS idx_card_public ON card_profile(is_public, status);
+  `);
+
+  // —— 访客行为记录表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_visitor (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      visitor_openid TEXT,
+      visitor_user_id INTEGER,
+      visit_date TEXT NOT NULL,
+      visit_count INTEGER NOT NULL DEFAULT 1,
+      duration INTEGER NOT NULL DEFAULT 0,
+      pages TEXT NOT NULL DEFAULT '[]',
+      last_visit_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_visitor_card ON card_visitor(card_id);
+    CREATE INDEX IF NOT EXISTS idx_visitor_date ON card_visitor(card_id, visit_date);
+    CREATE INDEX IF NOT EXISTS idx_visitor_openid ON card_visitor(visitor_openid);
+  `);
+
+  // —— 访客行为详情（时间线）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_visitor_action (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      visitor_openid TEXT,
+      action_type TEXT NOT NULL,
+      action_detail TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_visitor_action_card ON card_visitor_action(card_id);
+    CREATE INDEX IF NOT EXISTS idx_visitor_action_openid ON card_visitor_action(visitor_openid);
+  `);
+
+  // —— 名片交换记录表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_exchange (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_user_id INTEGER NOT NULL,
+      to_user_id INTEGER NOT NULL,
+      from_card_id INTEGER,
+      to_card_id INTEGER,
+      phone_shared INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'completed',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_exchange_from ON card_exchange(from_user_id);
+    CREATE INDEX IF NOT EXISTS idx_exchange_to ON card_exchange(to_user_id);
+  `);
+
+  // —— 用户动态表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_dynamic (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      card_id INTEGER,
+      content TEXT NOT NULL,
+      images TEXT NOT NULL DEFAULT '[]',
+      visibility TEXT NOT NULL DEFAULT 'public',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_dynamic_user ON card_dynamic(user_id);
+    CREATE INDEX IF NOT EXISTS idx_dynamic_visibility ON card_dynamic(visibility, status);
+  `);
+
+  // —— 客户资源表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_customer (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_user_id INTEGER NOT NULL,
+      enterprise_id INTEGER,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL DEFAULT '',
+      wechat TEXT NOT NULL DEFAULT '',
+      company TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '[]',
+      source TEXT NOT NULL DEFAULT 'exchange',
+      source_card_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'pending',
+      last_follow_at TEXT,
+      next_follow_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_ccustomer_owner ON card_customer(owner_user_id);
+    CREATE INDEX IF NOT EXISTS idx_ccustomer_enterprise ON card_customer(enterprise_id);
+  `);
+
+  // —— 客户跟进记录表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_customer_follow (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      next_follow_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_follow_customer ON card_customer_follow(customer_id);
+  `);
+
+  // —— 会员套餐配置表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS member_package (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      level TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      price REAL NOT NULL DEFAULT 0,
+      duration_days INTEGER NOT NULL DEFAULT 30,
+      description TEXT NOT NULL DEFAULT '',
+      features TEXT NOT NULL DEFAULT '[]',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  // 预置会员套餐
+  const packages = [
+    { level: 'free', name: '免费版', price: 0, duration: 0, desc: '基础功能', features: '["basic_card","basic_visitor","basic_customer","free_template"]' },
+    { level: 'silver', name: '白银会员', price: 29.9, duration: 30, desc: '高级模板+详细访客分析', features: '["basic_card","advanced_visitor","basic_customer","all_template","no_ads"]' },
+    { level: 'gold', name: '黄金会员', price: 99, duration: 365, desc: '全部功能+人脉集市', features: '["basic_card","advanced_visitor","advanced_customer","all_template","market_full","no_ads","badge"]' },
+    { level: 'diamond', name: '钻石会员', price: 299, duration: 365, desc: '专属服务+高级数据', features: '["basic_card","advanced_visitor","advanced_customer","all_template","market_full","no_ads","badge","priority_support","advanced_stats"]' },
+  ];
+  for (const p of packages) {
+    const exists = db.prepare('SELECT id FROM member_package WHERE level = ?').get(p.level);
+    if (!exists) {
+      db.prepare('INSERT INTO member_package (level, name, price, duration_days, description, features, sort_order, enabled) VALUES (?,?,?,?,?,?,?,1)').run(p.level, p.name, p.price, p.duration, p.desc, p.features, ['free','silver','gold','diamond'].indexOf(p.level));
+    }
+  }
+
+  // —— 名片模板表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_template (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      cover TEXT NOT NULL DEFAULT '',
+      member_level TEXT NOT NULL DEFAULT 'free',
+      config TEXT NOT NULL DEFAULT '{}',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // —— 分销佣金记录表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS distribution_commission (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      from_user_id INTEGER NOT NULL,
+      level INTEGER NOT NULL,
+      amount REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      settled_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_commission_user ON distribution_commission(user_id);
+    CREATE INDEX IF NOT EXISTS idx_commission_order ON distribution_commission(order_id);
+  `);
+
+  // —— 预置智能名片解决方案 ——
+  const cardExists = db.prepare('SELECT id FROM solutions WHERE code = ?').get('card');
+  if (!cardExists) {
+    const cardConfig = JSON.stringify({
+      routes: { customer: '/apps/card', mini: '/pages/card/index' },
+      menu: [
+        { key: 'cards', label: '名片管理', path: '/apps/card/profiles', icon: 'User' },
+        { key: 'visitors', label: '访客分析', path: '/apps/card/visitors', icon: 'DataAnalysis' },
+        { key: 'customers', label: '客户管理', path: '/apps/card/customers', icon: 'Connection' },
+      ],
+      permissions: ['card:view', 'card:edit', 'visitor:view', 'customer:view', 'customer:edit'],
+      channels: ['mini', 'h5', 'mp'],
+      configSchema: [],
+    });
+    db.prepare("INSERT INTO solutions (name, code, description, icon, enabled, sort_order, app_config) VALUES ('智能名片', 'card', '平台型智能名片系统，支持个人自主创建+企业租户管理', '💼', 1, 2, ?)").run(cardConfig);
+  }
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
