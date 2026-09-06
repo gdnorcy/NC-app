@@ -152,7 +152,20 @@ export function createCardMarketRouter(db) {
       db.prepare('INSERT INTO card_market_settings (customer_id) VALUES (?)').run(req.customerId);
       settings = db.prepare('SELECT * FROM card_market_settings WHERE customer_id = ?').get(req.customerId);
     }
-    res.json({ settings });
+    // 统一返回 camelCase 字段（与 PUT 入参契约一致，前端直接绑定使用）
+    res.json({
+      settings: {
+        enabled: settings.enabled,
+        auditMode: settings.audit_mode,
+        title: settings.title,
+        cover: settings.cover,
+        showCompany: settings.show_company,
+        showIndustry: settings.show_industry,
+        showLocation: settings.show_location,
+        allowExchange: settings.allow_exchange,
+        contactVisible: settings.contact_visible,
+      },
+    });
   });
 
   // 更新集市配置（仅租户管理员）
@@ -173,7 +186,7 @@ export function createCardMarketRouter(db) {
       contact_visible = COALESCE(?, contact_visible),
       updated_at = datetime('now')
       WHERE customer_id = ?`).run(
-      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), B(contactVisible), req.customerId
+      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), req.customerId
     );
     res.json({ success: true });
   });

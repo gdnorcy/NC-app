@@ -326,3 +326,50 @@ test('P2-1 双身份：个人入驻后仍可企业入驻，identity 返回双身
   assert.ok(idr.body.identity.employee, '应有员工身份');
   assert.equal(idr.body.identity.isTenantAdmin, false);
 });
+
+test('P2-12 集市配置契约：PUT全字段后GET返回camelCase且持久化生效', async () => {
+  const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
+  const token = issueToken(adm1);
+  const headers = bearer(token);
+
+  // 初始 GET：返回 camelCase 契约
+  const init = await request(app).get('/api/card-market/market/settings').set(headers);
+  assert.equal(init.status, 200);
+  assert.equal(init.body.settings.auditMode, 'auto', 'GET应返回camelCase auditMode');
+  assert.ok('showCompany' in init.body.settings, 'GET应返回camelCase showCompany');
+
+  // PUT 全字段（含非默认值）→ 全部应生效
+  const put = await request(app).put('/api/card-market/market/settings').set(headers).send({
+    enabled: 1,
+    auditMode: 'manual',
+    title: '测试集市',
+    showCompany: 0,
+    showIndustry: 1,
+    showLocation: 0,
+    allowExchange: 0,
+    contactVisible: 'direct',
+  });
+  assert.equal(put.status, 200);
+
+  // GET 验证 camelCase 且值持久化
+  const after = await request(app).get('/api/card-market/market/settings').set(headers);
+  assert.equal(after.status, 200);
+  assert.equal(after.body.settings.auditMode, 'manual', 'auditMode应持久化为manual');
+  assert.equal(after.body.settings.title, '测试集市', 'title应持久化');
+  assert.equal(after.body.settings.showCompany, 0, 'showCompany应持久化为0');
+  assert.equal(after.body.settings.allowExchange, 0, 'allowExchange应持久化为0');
+  assert.equal(after.body.settings.contactVisible, 'direct', 'contactVisible应持久化为direct');
+  assert.equal('audit_mode' in after.body.settings, false, 'GET不应返回snake_case字段');
+
+  // 数据库直查：落库正确
+  const row = db.prepare('SELECT * FROM card_market_settings WHERE customer_id = 1').get();
+  assert.equal(row.audit_mode, 'manual');
+  assert.equal(row.title, '测试集市');
+  assert.equal(row.allow_exchange, 0);
+
+  // 还原配置，避免影响其它用例
+  await request(app).put('/api/card-market/market/settings').set(headers).send({
+    enabled: 1, auditMode: 'auto', title: '人脉集市',
+    showCompany: 1, showIndustry: 1, showLocation: 1, allowExchange: 1, contactVisible: 'after_exchange',
+  });
+});
