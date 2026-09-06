@@ -1,126 +1,146 @@
 <template>
   <view class="profile-page">
-    <!-- 沉浸式头部 -->
-    <view class="header">
-      <view class="header-bg"></view>
-      <view class="header-content">
-        <view class="avatar">{{ card.avatar ? '' : card.name?.[0] || '名' }}</view>
-        <view class="name-row">
-          <text class="name">{{ card.name }}</text>
-          <view class="member-tag" v-if="memberLevel !== 'free'"><SIcon name="crown" size="small" color="#faad14" /> {{ memberLevelText }}</view>
+    <!-- 沉浸式hero（demo g4 橙色渐变） -->
+    <view class="hero">
+      <view class="row1">
+        <view class="hero-avatar">
+          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <view v-else class="avatar-txt">{{ card.name?.[0] || '名' }}</view>
         </view>
-        <view class="position">{{ card.position }}</view>
-        <view class="company">{{ card.city ? card.city + ' · ' : '' }}{{ card.businessField || card.company }}</view>
+        <view class="hero-id">
+          <view class="nm">{{ card.name || '您的姓名' }}</view>
+          <view class="pos">{{ card.position || '—' }}</view>
+          <view class="co">{{ cityLine }}</view>
+        </view>
+        <view class="hero-badge" v-if="memberLevel !== 'free'"><SIcon name="crown" size="small" color="#fff" /> {{ memberLevelText }}</view>
       </view>
-    </view>
-
-    <!-- Tab切换 -->
-    <view class="tabs">
-      <view class="tab" :class="{ active: activeTab === 'intro' }" @click="activeTab='intro'">简介</view>
-      <view class="tab" :class="{ active: activeTab === 'works' }" @click="activeTab='works'">作品</view>
-      <view class="tab" :class="{ active: activeTab === 'dynamic' }" @click="activeTab='dynamic'">动态</view>
-      <view class="tab" :class="{ active: activeTab === 'video' }" @click="activeTab='video'">视频号</view>
-      <view class="tab-indicator" :style="{ left: indicatorLeft }"></view>
-    </view>
-
-    <!-- 内容区 -->
-    <view class="content">
-      <!-- 个人简介 -->
-      <view v-if="activeTab === 'intro'" class="tab-content">
-        <view class="info-card">
-          <view class="info-item" v-if="card.position">
-            <view class="info-label">身份</view>
-            <view class="info-value">{{ card.position }}</view>
-          </view>
-          <view class="info-item" v-if="card.bio">
-            <view class="info-label">个人简介</view>
-            <view class="info-value">{{ card.bio }}</view>
-          </view>
-          <view class="info-item" v-if="card.businessField">
-            <view class="info-label">专注</view>
-            <view class="info-value">{{ card.businessField }}</view>
-          </view>
-          <view class="info-item" v-if="tagList.length">
-            <view class="info-label">标签</view>
-            <view class="skill-tags">
-              <view class="skill-tag" v-for="(tag, i) in tagList" :key="i">{{ tag }}</view>
-            </view>
-          </view>
-          <view class="info-item" v-if="card.phone">
-            <view class="info-label">联系电话</view>
-            <view class="info-value link" @click="callPhone">{{ card.phone }}</view>
-          </view>
-          <view class="info-item" v-if="card.wechat">
-            <view class="info-label">微信号</view>
-            <view class="info-value" @click="copyWechat">{{ card.wechat }}</view>
-          </view>
-          <view class="info-item" v-if="card.email">
-            <view class="info-label">邮箱</view>
-            <view class="info-value">{{ card.email }}</view>
-          </view>
+      <!-- quickbar（demo四键） -->
+      <view class="quickbar">
+        <view class="qb" @click="callPhone" v-if="card.phone">
+          <SIcon name="mobile" size="default" color="#ffffff" />
+          <text>拨号</text>
         </view>
-      </view>
-
-      <!-- 作品案例 -->
-      <view v-if="activeTab === 'works'" class="tab-content">
-        <view class="works-head">
-          <view class="sec-title">我的作品</view>
-          <view class="sec-sub">品牌案例</view>
+        <view class="qb" @click="copyWechat" v-if="card.wechat">
+          <SIcon name="exchange" size="default" color="#ffffff" />
+          <text>复制微信</text>
         </view>
-        <view class="works-grid" v-if="works.length">
-          <view class="work-item" v-for="w in works" :key="w.id" @click="previewWork(w)">
-            <image class="work-img" :src="w.imageUrl" mode="aspectFill" />
-            <view class="work-title" v-if="w.title">{{ w.title }}</view>
-          </view>
+        <view class="qb" @click="navigateTo">
+          <SIcon name="location" size="default" color="#ffffff" />
+          <text>导航</text>
         </view>
-        <view class="empty-state" v-else>
-          <view class="empty-icon"><SIcon name="template" size="xlarge" color="#c9cdd4" /></view>
-          <view class="empty-text">暂无作品案例</view>
-          <view class="empty-hint">作品上传功能即将上线</view>
-        </view>
-      </view>
-
-      <!-- 个人动态 -->
-      <view v-if="activeTab === 'dynamic'" class="tab-content">
-        <view class="empty-state">
-          <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
-          <view class="empty-text">暂无动态</view>
-        </view>
-      </view>
-
-      <!-- 视频号 -->
-      <view v-if="activeTab === 'video'" class="tab-content">
-        <view class="empty-state" v-if="!card.videoChannel">
-          <view class="empty-icon">📹</view>
-          <view class="empty-text">未绑定视频号</view>
-        </view>
-        <view class="video-card" v-else @click="openVideo">
-          <view class="video-cover"><SIcon name="dynamic" size="large" color="#fff" /></view>
-          <view class="video-info">
-            <view class="video-title">{{ card.videoChannel }}</view>
-            <view class="video-desc">点击跳转视频号</view>
-          </view>
+        <view class="qb" @click="shareCard">
+          <SIcon name="channel" size="default" color="#ffffff" />
+          <text>分享</text>
         </view>
       </view>
     </view>
 
-    <!-- 底部操作栏 -->
-    <view class="action-bar">
-      <view class="action-btn" @click="callPhone" v-if="card.phone">
-        <view class="action-icon"><SIcon name="mobile" size="default" color="#4e5969" /></view>
-        <view class="action-label">拨号</view>
+    <!-- Tab切换（demo mp-tabs） -->
+    <view class="mp-tabs">
+      <view class="mp-tab" :class="{ on: activeTab === 'intro' }" @click="activeTab='intro'">简介<span class="bar"></span></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'works' }" @click="activeTab='works'">作品<span class="bar"></span></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'dynamic' }" @click="activeTab='dynamic'">动态<span class="bar"></span></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'video' }" @click="activeTab='video'">视频<span class="bar"></span></view>
+    </view>
+
+    <!-- 简介面板 -->
+    <view class="tab-panel" v-if="activeTab === 'intro'">
+      <view class="sec-t">个人简介</view>
+      <view class="card-row">
+        <view class="intro-line" v-if="card.position">
+          <SIcon name="user" size="small" color="#86909c" />
+          <text class="lb">身份</text>
+          <text class="vl">{{ card.position }}</text>
+        </view>
+        <view class="intro-line" v-if="card.bio">
+          <SIcon name="doc" size="small" color="#86909c" />
+          <text class="lb">简介</text>
+          <text class="vl">{{ card.bio }}</text>
+        </view>
+        <view class="intro-line" v-if="card.businessField">
+          <SIcon name="radar" size="small" color="#86909c" />
+          <text class="lb">专注</text>
+          <text class="vl">{{ card.businessField }}</text>
+        </view>
+        <view class="intro-line" v-if="tagList.length">
+          <SIcon name="star" size="small" color="#86909c" />
+          <text class="lb">标签</text>
+          <view class="skill-tags">
+            <view class="skill-tag" v-for="(tag, i) in tagList" :key="i">{{ tag }}</view>
+          </view>
+        </view>
+        <view class="intro-line" v-if="card.phone">
+          <SIcon name="mobile" size="small" color="#86909c" />
+          <text class="lb">电话</text>
+          <text class="vl link" @click="callPhone">{{ card.phone }}</text>
+        </view>
+        <view class="intro-line" v-if="card.wechat">
+          <SIcon name="exchange" size="small" color="#86909c" />
+          <text class="lb">微信</text>
+          <text class="vl link" @click="copyWechat">{{ card.wechat }}</text>
+        </view>
+        <view class="intro-line" v-if="card.email">
+          <SIcon name="mail" size="small" color="#86909c" />
+          <text class="lb">邮箱</text>
+          <text class="vl">{{ card.email }}</text>
+        </view>
       </view>
-      <view class="action-btn" @click="copyWechat" v-if="card.wechat">
-        <view class="action-icon"><SIcon name="exchange" size="default" color="#4e5969" /></view>
-        <view class="action-label">微信</view>
+    </view>
+
+    <!-- 作品面板 -->
+    <view class="tab-panel" v-if="activeTab === 'works'">
+      <view class="sec-t">我的作品<small>品牌案例</small></view>
+      <view class="gall" v-if="works.length">
+        <image v-for="w in works" :key="w.id" class="gall-img" :src="w.imageUrl" mode="aspectFill" @click="previewWork(w)" />
       </view>
-      <view class="action-btn" @click="navigateTo">
-        <view class="action-icon"><SIcon name="location" size="default" color="#4e5969" /></view>
-        <view class="action-label">导航</view>
+      <view class="empty-state" v-else>
+        <view class="empty-icon"><SIcon name="template" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-text">暂无作品案例</view>
       </view>
-      <view class="action-btn primary" @click="shareCard">
-        <view class="action-icon"><SIcon name="channel" size="default" color="#165dff" /></view>
-        <view class="action-label">分享</view>
+    </view>
+
+    <!-- 动态面板 -->
+    <view class="tab-panel" v-if="activeTab === 'dynamic'">
+      <view class="sec-t">最新动态</view>
+      <view class="empty-state">
+        <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-text">暂无动态</view>
+      </view>
+    </view>
+
+    <!-- 视频面板 -->
+    <view class="tab-panel" v-if="activeTab === 'video'">
+      <view class="sec-t">视频</view>
+      <view class="empty-state" v-if="!card.videoChannel">
+        <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-text">未绑定视频号</view>
+      </view>
+      <view class="video-card" v-else @click="openVideo">
+        <view class="video-cover"><SIcon name="dynamic" size="large" color="#fff" /></view>
+        <view class="video-info">
+          <view class="video-title">{{ card.videoChannel }}</view>
+          <view class="video-desc">点击跳转视频号</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部TabBar（demo：名片/雷达/集市/会员） -->
+    <view class="mp-tabbar">
+      <view class="mtb on" @click="goCard">
+        <SIcon name="card" size="default" color="#07c160" />
+        <text>名片</text>
+      </view>
+      <view class="mtb" @click="goPage('/pages/card/visitors')">
+        <SIcon name="radar" size="default" color="#9a9a9a" />
+        <text>雷达</text>
+      </view>
+      <view class="mtb" @click="goPage('/pages/card/market')">
+        <SIcon name="market" size="default" color="#9a9a9a" />
+        <text>集市</text>
+      </view>
+      <view class="mtb" @click="goPage('/pages/card/member')">
+        <SIcon name="crown" size="default" color="#9a9a9a" />
+        <text>会员</text>
       </view>
     </view>
   </view>
@@ -137,11 +157,13 @@ const activeTab = ref('intro');
 const memberLevel = ref('free');
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
-const indicatorLeft = computed(() => {
-  const tabs = ['intro', 'works', 'dynamic', 'video'];
-  return (tabs.indexOf(activeTab.value) * 25 + 12.5) + '%';
+// demo: 东莞 · 约拍·商业摄影（城市 · 业务领域）
+const cityLine = computed(() => {
+  const city = card.value.city || '';
+  const biz = card.value.businessField || card.value.company || '';
+  return [city, biz].filter(Boolean).join(' · ') || '—';
 });
-// 业务领域按 / 拆分成标签
+// 业务领域按分隔符拆标签
 const tagList = computed(() => {
   if (!card.value.businessField) return [];
   return card.value.businessField.split(/[/,，、]/).map((s) => s.trim()).filter(Boolean).slice(0, 6);
@@ -165,6 +187,14 @@ onMounted(async () => {
   }
 });
 
+function callPhone() {
+  if (card.value.phone) uni.makePhoneCall({ phoneNumber: card.value.phone });
+}
+function copyWechat() {
+  if (card.value.wechat) {
+    uni.setClipboardData({ data: card.value.wechat, success: () => uni.showToast({ title: '微信号已复制', icon: 'success' }) });
+  }
+}
 function navigateTo() {
   const addr = [card.value.city, card.value.businessField || card.value.company].filter(Boolean).join(' · ');
   if (!addr) {
@@ -179,217 +209,256 @@ function navigateTo() {
 function previewWork(w) {
   if (w.imageUrl) uni.previewImage({ urls: works.value.map((x) => x.imageUrl), current: w.imageUrl });
 }
-
-function callPhone() {
-  if (card.value.phone) uni.makePhoneCall({ phoneNumber: card.value.phone });
-}
-function copyWechat() {
-  if (card.value.wechat) {
-    uni.setClipboardData({ data: card.value.wechat, success: () => uni.showToast({ title: '微信号已复制', icon: 'success' }) });
-  }
-}
 function openVideo() {
   uni.showToast({ title: '跳转视频号', icon: 'none' });
 }
 function shareCard() {
   uni.showToast({ title: '请点击右上角分享', icon: 'none' });
 }
+function goCard() {
+  // 当前已在名片页
+  uni.showToast({ title: '当前为我的名片', icon: 'none' });
+}
+function goPage(path) {
+  uni.navigateTo({ url: path });
+}
 </script>
 
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background: #f2f3f5;
+  background: #f5f6f7;
   padding-bottom: 140rpx;
 }
-.header {
+
+/* ===== hero（demo g4 橙色渐变）===== */
+.hero {
   position: relative;
-  padding-top: 88px;
-  padding-bottom: 40rpx;
+  padding: calc(88rpx + 30rpx) 40rpx 52rpx;
+  color: #fff;
+  background: linear-gradient(155deg, #b45309, #f59e0b);
+  overflow: hidden;
 }
-.header-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 320rpx;
-  background: linear-gradient(155deg, #0e2a4e, #1d4e8f 55%, #3b7bd4);
-}
-.header-content {
+.row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   position: relative;
   z-index: 1;
-  text-align: center;
-  padding: 0 32rpx;
 }
-.avatar {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  background: #fff;
-  margin: 0 auto 20rpx;
+.hero-avatar {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 36rpx;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.35);
+  box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.25);
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 64rpx;
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+}
+.avatar-txt {
+  font-size: 48rpx;
   font-weight: 700;
-  color: #165dff;
-  border: 6rpx solid rgba(255,255,255,0.3);
+  color: #fff;
 }
-.name-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  margin-bottom: 8rpx;
+.hero-id {
+  flex: 1;
+  margin-left: 28rpx;
 }
-.name {
+.nm {
   font-size: 40rpx;
   font-weight: 700;
-  color: #fff;
 }
-.member-tag {
-  background: linear-gradient(135deg, #ffd700, #ffaa00);
-  color: #fff;
-  padding: 4rpx 16rpx;
-  border-radius: 20rpx;
-  font-size: 20rpx;
+.pos {
+  font-size: 25rpx;
+  opacity: 0.88;
+  margin-top: 6rpx;
 }
-.position {
-  font-size: 28rpx;
-  color: rgba(255,255,255,0.9);
-  margin-bottom: 6rpx;
-}
-.company {
-  font-size: 24rpx;
-  color: rgba(255,255,255,0.7);
-}
-.tabs {
-  background: #fff;
+.co {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
   display: flex;
-  position: relative;
-  padding: 0 16rpx;
-  border-bottom: 1px solid #f2f3f5;
+  align-items: center;
+  gap: 10rpx;
 }
-.tab {
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  font-size: 21rpx;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== quickbar（demo四键）===== */
+.quickbar {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+  margin-top: 36rpx;
+}
+.qb {
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 26rpx;
+  padding: 18rpx 0 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  color: #fff;
+  font-size: 22rpx;
+}
+
+/* ===== mp-tabs（demo）===== */
+.mp-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  background: #f5f6f7;
+  border-bottom: 1px solid #eeeeee;
+  padding: 0 12rpx;
+}
+.mp-tab {
   flex: 1;
   text-align: center;
-  padding: 28rpx 0;
+  padding: 26rpx 0 22rpx;
   font-size: 28rpx;
-  color: #86909c;
+  color: #9a9a9a;
+  font-weight: 500;
   position: relative;
+  transition: color 0.2s;
 }
-.tab.active {
-  color: #165dff;
+.mp-tab.on {
+  color: #07c160;
   font-weight: 600;
 }
-.tab-indicator {
+.bar {
   position: absolute;
+  left: 50%;
   bottom: 0;
-  width: 48rpx;
+  width: 44rpx;
   height: 6rpx;
-  background: #165dff;
-  border-radius: 3rpx;
-  transform: translateX(-50%);
-  transition: left 0.3s;
+  border-radius: 6rpx;
+  background: #07c160;
+  transform: translateX(-50%) scaleX(0);
+  transition: transform 0.28s;
 }
-.content {
-  padding: 24rpx;
+.mp-tab.on .bar {
+  transform: translateX(-50%) scaleX(1);
 }
-.info-card {
+
+/* ===== 内容面板 ===== */
+.tab-panel {
+  padding-bottom: 24rpx;
+}
+.sec-t {
+  margin: 36rpx 32rpx 20rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #1a1a1a;
+}
+.sec-t small {
+  font-size: 22rpx;
+  color: #9a9a9a;
+  font-weight: 400;
+}
+.card-row {
+  margin: 0 28rpx;
   background: #fff;
-  border-radius: 20px;
-  padding: 28rpx 24rpx;
+  border-radius: 20rpx;
+  padding: 8rpx 24rpx;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
 }
-.info-item {
-  padding: 20rpx 0;
-  border-bottom: 1px solid #f7f8fa;
+.intro-line {
+  display: flex;
+  gap: 16rpx;
+  align-items: flex-start;
+  padding: 22rpx 0;
+  border-bottom: 1px dashed #eeeeee;
+  font-size: 26rpx;
 }
-.info-item:last-child {
+.intro-line:last-child {
   border-bottom: none;
 }
-.info-label {
-  font-size: 24rpx;
-  color: #86909c;
-  margin-bottom: 8rpx;
+.lb {
+  color: #9a9a9a;
+  flex-shrink: 0;
+  width: 72rpx;
 }
-.info-value {
-  font-size: 28rpx;
-  color: #1d2129;
+.vl {
+  color: #1a1a1a;
+  flex: 1;
   line-height: 1.6;
 }
-.info-value.link {
+.vl.link {
   color: #165dff;
 }
 .skill-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
-  margin-top: 8rpx;
+  gap: 14rpx;
+  margin-top: 4rpx;
 }
 .skill-tag {
-  background: rgba(22,93,255,0.08);
-  color: #165dff;
+  background: rgba(7,193,96,0.1);
+  color: #07c160;
   font-size: 22rpx;
-  padding: 8rpx 20rpx;
+  padding: 6rpx 18rpx;
   border-radius: 24rpx;
 }
-.works-head {
-  display: flex;
-  align-items: baseline;
-  gap: 12rpx;
-  margin-bottom: 20rpx;
-}
-.sec-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #1d2129;
-}
-.sec-sub {
-  font-size: 22rpx;
-  color: #86909c;
-}
-.works-grid {
+
+/* ===== 作品网格（demo gall）===== */
+.gall {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16rpx;
+  gap: 18rpx;
+  margin: 0 28rpx;
 }
-.work-item {
-  background: #fff;
-  border-radius: 16rpx;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-}
-.work-img {
+.gall-img {
   width: 100%;
-  height: 240rpx;
+  height: 184rpx;
+  object-fit: cover;
+  border-radius: 24rpx;
   display: block;
 }
-.work-title {
-  font-size: 24rpx;
-  color: #4e5969;
-  padding: 12rpx 16rpx;
-}
-.empty-hint {
-  font-size: 22rpx;
-  color: #c9cdd4;
-  margin-top: 8rpx;
-}
+
+/* ===== 空状态 ===== */
 .empty-state {
   text-align: center;
-  padding: 120rpx 0;
+  padding: 100rpx 0;
 }
 .empty-icon {
-  font-size: 80rpx;
   margin-bottom: 20rpx;
 }
 .empty-text {
-  font-size: 28rpx;
-  color: #86909c;
+  font-size: 26rpx;
+  color: #9a9a9a;
 }
+
+/* ===== 视频 ===== */
 .video-card {
+  margin: 0 28rpx;
   background: #fff;
-  border-radius: 20px;
+  border-radius: 20rpx;
   padding: 24rpx;
   display: flex;
   align-items: center;
@@ -400,121 +469,47 @@ function shareCard() {
   width: 120rpx;
   height: 120rpx;
   background: #000;
-  border-radius: 12px;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40rpx;
-  color: #fff;
 }
 .video-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: #1a1a1a;
   margin-bottom: 8rpx;
 }
 .video-desc {
   font-size: 24rpx;
-  color: #86909c;
+  color: #9a9a9a;
 }
-.action-bar {
+
+/* ===== 底部TabBar（demo mtb）===== */
+.mp-tabbar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: #fff;
-  display: flex;
-  padding: 20rpx 24rpx 36px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 14rpx 0 calc(14rpx + env(safe-area-inset-bottom));
   border-top: 1px solid #f2f3f5;
-  gap: 16rpx;
+  z-index: 50;
 }
-.action-btn {
-  flex: 1;
+.mtb {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6rpx;
+  font-size: 22rpx;
+  color: #9a9a9a;
+  background: none;
+  border: none;
+  padding: 0;
 }
-.action-icon {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 16rpx;
-  background: rgba(22,93,255,0.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36rpx;
-}
-.action-label {
-  font-size: 20rpx;
-  color: #4e5969;
-}
-.action-btn.primary .action-label {
-  color: #165dff;
-  font-weight: 600;
-}
-.modal-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-}
-.modal {
-  width: 600rpx;
-  background: #fff;
-  border-radius: 20px;
-  padding: 40rpx 32rpx 32rpx;
-}
-.modal-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #1d2129;
-  text-align: center;
-  margin-bottom: 12rpx;
-}
-.modal-desc {
-  font-size: 24rpx;
-  color: #86909c;
-  text-align: center;
-  margin-bottom: 32rpx;
-}
-.exchange-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx;
-  background: #f7f8fa;
-  border-radius: 12px;
-  margin-bottom: 32rpx;
-}
-.option-label {
-  font-size: 26rpx;
-  color: #4e5969;
-}
-.modal-actions {
-  display: flex;
-  gap: 20rpx;
-}
-.modal-btn {
-  flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  text-align: center;
-}
-.modal-btn.cancel {
-  background: #f2f3f5;
-  color: #4e5969;
-}
-.modal-btn.confirm {
-  background: #165dff;
-  color: #fff;
+.mtb.on {
+  color: #07c160;
 }
 </style>
