@@ -26,29 +26,36 @@
 import { cardApi } from '../../utils/cardApi.js';
 
 function handleWxLogin() {
+  // #ifdef H5
+  // H5端不支持微信登录，使用模拟code直接登录
+  doLogin('h5_mock_' + Date.now());
+  // #endif
+  // #ifndef H5
   uni.login({
     provider: 'weixin',
-    success: async (res) => {
-      try {
-        // 获取分销参数
-        const parentId = uni.getStorageSync('share_parent_id') || '';
-        const result = await cardApi.wxLogin(res.code, parentId);
-        uni.setStorageSync('card_token', result.token);
-        uni.setStorageSync('card_user', result.user);
-        
-        if (result.isNew || !result.hasCard) {
-          uni.reLaunch({ url: '/pages/card/create' });
-        } else {
-          uni.reLaunch({ url: '/pages/cardMain/home' });
-        }
-      } catch (e) {
-        uni.showToast({ title: e.message || '登录失败', icon: 'none' });
-      }
-    },
+    success: (res) => doLogin(res.code),
     fail: () => {
       uni.showToast({ title: '微信登录失败', icon: 'none' });
     },
   });
+  // #endif
+}
+
+async function doLogin(code) {
+  try {
+    const parentId = uni.getStorageSync('share_parent_id') || '';
+    const result = await cardApi.wxLogin(code, parentId);
+    uni.setStorageSync('card_token', result.token);
+    uni.setStorageSync('card_user', result.user);
+    
+    if (result.isNew || !result.hasCard) {
+      uni.reLaunch({ url: '/pages/card/create' });
+    } else {
+      uni.reLaunch({ url: '/pages/cardMain/home' });
+    }
+  } catch (e) {
+    uni.showToast({ title: e.message || '登录失败', icon: 'none' });
+  }
 }
 </script>
 

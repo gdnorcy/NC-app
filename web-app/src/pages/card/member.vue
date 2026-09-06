@@ -90,6 +90,7 @@ onMounted(async () => {
 function getFeatureTexts(features) {
   const map = {
     basic_card: '基础名片功能',
+    basic_visitor: '基础访客分析',
     advanced_visitor: '详细访客分析',
     basic_customer: '基础客户管理',
     advanced_customer: '高级客户管理',

@@ -132,7 +132,7 @@ export function createCardRouter(db, wxService) {
   router.delete('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    db.prepare('UPDATE card_profile SET status="deleted", updated_at=datetime("now") WHERE id=?').run(card.id);
+    db.prepare("UPDATE card_profile SET status='deleted', updated_at=datetime('now') WHERE id=?").run(card.id);
     res.json({ ok: true });
   });
 
@@ -288,14 +288,14 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   router.get('/market', auth, (req, res) => {
     const { keyword, businessField, page = 1, pageSize = 20 } = req.query;
-    let sql = 'SELECT * FROM card_profile WHERE is_public=1 AND status="active"';
+    let sql = "SELECT * FROM card_profile WHERE is_public=1 AND status='active'";
     const params = [];
     if (keyword) { sql += ' AND (name LIKE ? OR company LIKE ? OR position LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`); }
     if (businessField) { sql += ' AND business_field LIKE ?'; params.push(`%${businessField}%`); }
     sql += ' ORDER BY view_count DESC LIMIT ? OFFSET ?';
     params.push(Number(pageSize), (Number(page) - 1) * Number(pageSize));
     const cards = db.prepare(sql).all(...params);
-    const total = db.prepare('SELECT COUNT(*) as c FROM card_profile WHERE is_public=1 AND status="active"').get().c;
+    const total = db.prepare("SELECT COUNT(*) as c FROM card_profile WHERE is_public=1 AND status='active'").get().c;
     res.json({ cards: cards.map(toCard), total, page: Number(page), pageSize: Number(pageSize) });
   });
 
@@ -320,8 +320,8 @@ export function createCardRouter(db, wxService) {
   // 分销
   // ============================================================
   router.get('/distribution/summary', auth, (req, res) => {
-    const totalCommission = db.prepare('SELECT COALESCE(SUM(amount),0) as s FROM distribution_commission WHERE user_id=? AND status="settled"').get(req.user.id).s;
-    const pendingCommission = db.prepare('SELECT COALESCE(SUM(amount),0) as s FROM distribution_commission WHERE user_id=? AND status="pending"').get(req.user.id).s;
+    const totalCommission = db.prepare("SELECT COALESCE(SUM(amount),0) as s FROM distribution_commission WHERE user_id=? AND status='settled'").get(req.user.id).s;
+    const pendingCommission = db.prepare("SELECT COALESCE(SUM(amount),0) as s FROM distribution_commission WHERE user_id=? AND status='pending'").get(req.user.id).s;
     const firstLevel = db.prepare('SELECT COUNT(*) as c FROM platform_user WHERE parent_id=?').get(req.user.id).c;
     const secondLevel = db.prepare('SELECT COUNT(*) as c FROM platform_user WHERE grandparent_id=?').get(req.user.id).c;
     res.json({ totalCommission, pendingCommission, firstLevel, secondLevel });
