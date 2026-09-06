@@ -102,3 +102,29 @@ test('个人入驻+企业入驻', async () => {
   assert.equal(noEntName.status, 400);
   assert.match(noEntName.body.error, /企业名称/);
 });
+
+test('名片作品集API', async () => {
+  const token = await wxLogin('merge_works_1');
+  // 先创建名片
+  const created = await request(app)
+    .post('/api/card/cards')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: '作品测试', position: '设计师' });
+  assert.equal(created.status, 200);
+  const cardId = created.body.card.id;
+
+  // 空作品列表
+  const empty = await request(app).get(`/api/card/cards/${cardId}/works`);
+  assert.equal(empty.status, 200);
+  assert.deepEqual(empty.body.works, []);
+
+  // 插入一条作品后列表返回该作品（验证表与API连通）
+  const { createDb } = await import('../src/db.js');
+  const db = createDb(config.dbPath);
+  db.prepare('INSERT INTO card_works (card_id, image_url, title) VALUES (?, ?, ?)').run(cardId, 'https://example.com/w1.jpg', '作品一');
+  const filled = await request(app).get(`/api/card/cards/${cardId}/works`);
+  assert.equal(filled.status, 200);
+  assert.equal(filled.body.works.length, 1);
+  assert.equal(filled.body.works[0].title, '作品一');
+  assert.equal(filled.body.works[0].imageUrl, 'https://example.com/w1.jpg');
+});

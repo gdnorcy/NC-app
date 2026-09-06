@@ -71,6 +71,7 @@ export const cardApi = {
   createCardWithApply: (data) => request('/cards/create-with-apply', 'POST', data),
   updateCard: (id, data) => request(`/cards/${id}`, 'PUT', data),
   deleteCard: (id) => request(`/cards/${id}`, 'DELETE'),
+  getCardWorks: (id) => request(`/cards/${id}/works`),
 
   // 访客采集
   trackVisitor: (data) => request('/visitor/track', 'POST', data),

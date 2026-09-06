@@ -10,7 +10,7 @@
           <view class="member-tag" v-if="memberLevel !== 'free'"><SIcon name="crown" size="small" color="#faad14" /> {{ memberLevelText }}</view>
         </view>
         <view class="position">{{ card.position }}</view>
-        <view class="company">{{ card.company }}</view>
+        <view class="company">{{ card.city ? card.city + ' · ' : '' }}{{ card.businessField || card.company }}</view>
       </view>
     </view>
 
@@ -28,13 +28,23 @@
       <!-- 个人简介 -->
       <view v-if="activeTab === 'intro'" class="tab-content">
         <view class="info-card">
+          <view class="info-item" v-if="card.position">
+            <view class="info-label">身份</view>
+            <view class="info-value">{{ card.position }}</view>
+          </view>
           <view class="info-item" v-if="card.bio">
             <view class="info-label">个人简介</view>
             <view class="info-value">{{ card.bio }}</view>
           </view>
           <view class="info-item" v-if="card.businessField">
-            <view class="info-label">业务领域</view>
+            <view class="info-label">专注</view>
             <view class="info-value">{{ card.businessField }}</view>
+          </view>
+          <view class="info-item" v-if="tagList.length">
+            <view class="info-label">标签</view>
+            <view class="skill-tags">
+              <view class="skill-tag" v-for="(tag, i) in tagList" :key="i">{{ tag }}</view>
+            </view>
           </view>
           <view class="info-item" v-if="card.phone">
             <view class="info-label">联系电话</view>
@@ -53,9 +63,20 @@
 
       <!-- 作品案例 -->
       <view v-if="activeTab === 'works'" class="tab-content">
-        <view class="empty-state">
+        <view class="works-head">
+          <view class="sec-title">我的作品</view>
+          <view class="sec-sub">品牌案例</view>
+        </view>
+        <view class="works-grid" v-if="works.length">
+          <view class="work-item" v-for="w in works" :key="w.id" @click="previewWork(w)">
+            <image class="work-img" :src="w.imageUrl" mode="aspectFill" />
+            <view class="work-title" v-if="w.title">{{ w.title }}</view>
+          </view>
+        </view>
+        <view class="empty-state" v-else>
           <view class="empty-icon"><SIcon name="template" size="xlarge" color="#c9cdd4" /></view>
           <view class="empty-text">暂无作品案例</view>
+          <view class="empty-hint">作品上传功能即将上线</view>
         </view>
       </view>
 
@@ -86,36 +107,20 @@
     <!-- 底部操作栏 -->
     <view class="action-bar">
       <view class="action-btn" @click="callPhone" v-if="card.phone">
-        <view class="action-icon">📞</view>
+        <view class="action-icon"><SIcon name="mobile" size="default" color="#4e5969" /></view>
         <view class="action-label">拨号</view>
       </view>
       <view class="action-btn" @click="copyWechat" v-if="card.wechat">
-        <view class="action-icon"><SIcon name="exchange" size="default" color="#fff" /></view>
+        <view class="action-icon"><SIcon name="exchange" size="default" color="#4e5969" /></view>
         <view class="action-label">微信</view>
       </view>
-      <view class="action-btn" @click="showExchange = true">
-        <view class="action-icon">🔄</view>
-        <view class="action-label">交换名片</view>
+      <view class="action-btn" @click="navigateTo">
+        <view class="action-icon"><SIcon name="location" size="default" color="#4e5969" /></view>
+        <view class="action-label">导航</view>
       </view>
       <view class="action-btn primary" @click="shareCard">
-        <view class="action-icon"><SIcon name="dynamic" size="default" color="#fff" /></view>
+        <view class="action-icon"><SIcon name="channel" size="default" color="#165dff" /></view>
         <view class="action-label">分享</view>
-      </view>
-    </view>
-
-    <!-- 交换名片弹窗 -->
-    <view class="modal-mask" v-if="showExchange" @click="showExchange=false">
-      <view class="modal" @click.stop>
-        <view class="modal-title">交换名片</view>
-        <view class="modal-desc">交换后双方均可查看对方名片信息</view>
-        <view class="exchange-option">
-          <view class="option-label">同时授权我的手机号</view>
-          <switch :checked="sharePhone" @change="sharePhone=$event.detail.value" color="#165dff"/>
-        </view>
-        <view class="modal-actions">
-          <button class="modal-btn cancel" @click="showExchange=false">取消</button>
-          <button class="modal-btn confirm" @click="doExchange">确认交换</button>
-        </view>
       </view>
     </view>
   </view>
@@ -127,15 +132,19 @@ import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
 
 const card = ref({});
+const works = ref([]);
 const activeTab = ref('intro');
-const showExchange = ref(false);
-const sharePhone = ref(false);
 const memberLevel = ref('free');
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
 const indicatorLeft = computed(() => {
   const tabs = ['intro', 'works', 'dynamic', 'video'];
   return (tabs.indexOf(activeTab.value) * 25 + 12.5) + '%';
+});
+// 业务领域按 / 拆分成标签
+const tagList = computed(() => {
+  if (!card.value.businessField) return [];
+  return card.value.businessField.split(/[/,，、]/).map((s) => s.trim()).filter(Boolean).slice(0, 6);
 });
 
 onMounted(async () => {
@@ -147,13 +156,29 @@ onMounted(async () => {
       card.value = res.card;
       // 采集访客行为
       cardApi.trackVisitor({ cardId: id, actionType: 'view', page: 'profile' });
+      // 加载作品集
+      try {
+        const w = await cardApi.getCardWorks(id);
+        works.value = w.works || [];
+      } catch (e) {}
     } catch (e) {}
   }
-  // 1.5秒后自动弹出交换名片
-  setTimeout(() => {
-    if (!showExchange.value) showExchange.value = true;
-  }, 1500);
 });
+
+function navigateTo() {
+  const addr = [card.value.city, card.value.businessField || card.value.company].filter(Boolean).join(' · ');
+  if (!addr) {
+    uni.showToast({ title: '名片未设置位置', icon: 'none' });
+    return;
+  }
+  uni.setClipboardData({
+    data: addr,
+    success: () => uni.showToast({ title: '地址已复制，可粘贴到地图导航', icon: 'none' }),
+  });
+}
+function previewWork(w) {
+  if (w.imageUrl) uni.previewImage({ urls: works.value.map((x) => x.imageUrl), current: w.imageUrl });
+}
 
 function callPhone() {
   if (card.value.phone) uni.makePhoneCall({ phoneNumber: card.value.phone });
@@ -165,15 +190,6 @@ function copyWechat() {
 }
 function openVideo() {
   uni.showToast({ title: '跳转视频号', icon: 'none' });
-}
-async function doExchange() {
-  try {
-    await cardApi.exchangeCard({ toCardId: card.value.id, sharePhone: sharePhone.value });
-    uni.showToast({ title: '交换成功', icon: 'success' });
-    showExchange.value = false;
-  } catch (e) {
-    uni.showToast({ title: e.message || '交换失败', icon: 'none' });
-  }
 }
 function shareCard() {
   uni.showToast({ title: '请点击右上角分享', icon: 'none' });
@@ -197,7 +213,7 @@ function shareCard() {
   left: 0;
   right: 0;
   height: 320rpx;
-  background: linear-gradient(135deg, #165dff 0%, #4080ff 100%);
+  background: linear-gradient(155deg, #0e2a4e, #1d4e8f 55%, #3b7bd4);
 }
 .header-content {
   position: relative;
@@ -305,6 +321,60 @@ function shareCard() {
 .info-value.link {
   color: #165dff;
 }
+.skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 8rpx;
+}
+.skill-tag {
+  background: rgba(22,93,255,0.08);
+  color: #165dff;
+  font-size: 22rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
+}
+.works-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+.sec-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1d2129;
+}
+.sec-sub {
+  font-size: 22rpx;
+  color: #86909c;
+}
+.works-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+.work-item {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.work-img {
+  width: 100%;
+  height: 240rpx;
+  display: block;
+}
+.work-title {
+  font-size: 24rpx;
+  color: #4e5969;
+  padding: 12rpx 16rpx;
+}
+.empty-hint {
+  font-size: 22rpx;
+  color: #c9cdd4;
+  margin-top: 8rpx;
+}
 .empty-state {
   text-align: center;
   padding: 120rpx 0;
@@ -366,6 +436,13 @@ function shareCard() {
   gap: 6rpx;
 }
 .action-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 16rpx;
+  background: rgba(22,93,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 36rpx;
 }
 .action-label {

@@ -576,6 +576,19 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_visitor_action_openid ON card_visitor_action(visitor_openid);
   `);
 
+  // —— 名片作品集表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_works (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      image_url TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_works_card ON card_works(card_id);
+  `);
+
   // —— 名片交换记录表 ——
   db.exec(`
     CREATE TABLE IF NOT EXISTS card_exchange (

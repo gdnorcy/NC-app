@@ -183,6 +183,12 @@ export function createCardRouter(db, wxService) {
     res.json({ ok: true });
   });
 
+  // 名片作品集列表（公开）
+  router.get('/cards/:id/works', (req, res) => {
+    const works = db.prepare('SELECT id, card_id, image_url, title, sort_order FROM card_works WHERE card_id = ? ORDER BY sort_order ASC, id ASC').all(req.params.id);
+    res.json({ works: works.map((w) => ({ id: w.id, cardId: w.card_id, imageUrl: w.image_url, title: w.title, sortOrder: w.sort_order })) });
+  });
+
   // ============================================================
   // 访客行为采集
   // ============================================================
