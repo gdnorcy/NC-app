@@ -40,13 +40,14 @@ const svgContent = computed(() => {
 <style scoped>
 .s-icon {
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: -2px;
   flex-shrink: 0;
   transition: color 0.2s;
+  margin-right: 0;
 }
 .s-icon--small { width: 16px; height: 16px; }
-.s-icon--default { width: 20px; height: 20px; }
-.s-icon--large { width: 24px; height: 24px; }
+.s-icon--default { width: 18px; height: 18px; }
+.s-icon--large { width: 20px; height: 20px; }
 .s-icon--disabled { opacity: 0.4; }
 .s-icon--active { color: var(--color-primary, #165dff); }
 </style>

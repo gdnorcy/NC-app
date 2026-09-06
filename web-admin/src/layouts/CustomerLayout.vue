@@ -12,24 +12,24 @@
         class="side-menu"
       >
         <el-menu-item index="/dashboard">
-          <SIcon name="dashboard" size="large" />
+          <SIcon name="dashboard" size="default" />
           <span>工作台</span>
         </el-menu-item>
         <el-menu-item index="/apps">
-          <SIcon name="apps" size="large" />
+          <SIcon name="apps" size="default" />
           <span>应用中心</span>
         </el-menu-item>
         <el-menu-item index="/orders">
-          <SIcon name="orders" size="large" />
+          <SIcon name="orders" size="default" />
           <span>我的账单</span>
         </el-menu-item>
         <el-menu-item v-if="isTenantAdmin" index="/members">
-          <SIcon name="team" size="large" />
+          <SIcon name="team" size="default" />
           <span>成员管理</span>
         </el-menu-item>
         <el-sub-menu index="/settings">
           <template #title>
-            <SIcon name="settings" size="large" />
+            <SIcon name="settings" size="default" />
             <span>系统设置</span>
           </template>
           <el-menu-item index="/settings/account">账号设置</el-menu-item>
@@ -154,6 +154,7 @@ function backToAdmin() {
 }
 .logo-img { width: 30px; height: 30px; border-radius: 6px; }
 .side-menu { border-right: none; flex: 1; }
+.side-menu :deep(.s-icon) { margin-right: 10px; }
 .sidebar-footer { padding: 12px; border-top: 1px solid #f0f0f0; }
 .header {
   background: #fff;

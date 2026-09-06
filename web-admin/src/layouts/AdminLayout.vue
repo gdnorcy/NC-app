@@ -12,57 +12,57 @@
         class="side-menu"
       >
         <el-menu-item index="/dashboard">
-          <SIcon name="dashboard" size="large" />
+          <SIcon name="dashboard" size="default" />
           <span>工作台</span>
         </el-menu-item>
         <el-menu-item index="/customers">
-          <SIcon name="building" size="large" />
+          <SIcon name="building" size="default" />
           <span>客户项目</span>
         </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/users">
-          <SIcon name="users" size="large" />
+          <SIcon name="users" size="default" />
           <span>用户管理</span>
         </el-menu-item>
         <el-menu-item index="/solutions">
-          <SIcon name="solutions" size="large" />
+          <SIcon name="solutions" size="default" />
           <span>解决方案</span>
         </el-menu-item>
         <el-menu-item index="/payment">
-          <SIcon name="wallet" size="large" />
+          <SIcon name="wallet" size="default" />
           <span>支付管理</span>
         </el-menu-item>
         <el-menu-item index="/channel">
-          <SIcon name="channel" size="large" />
+          <SIcon name="channel" size="default" />
           <span>全端渠道</span>
         </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/logs">
-          <SIcon name="logs" size="large" />
+          <SIcon name="logs" size="default" />
           <span>操作日志</span>
         </el-menu-item>
         <template v-if="isAdmin">
           <div class="menu-group-title">系统设置</div>
           <el-menu-item index="/settings/basic">
-            <SIcon name="settings" size="large" />
+            <SIcon name="settings" size="default" />
             <span>基础设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/storage">
-            <SIcon name="storage" size="large" />
+            <SIcon name="storage" size="default" />
             <span>存储设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/sms">
-            <SIcon name="sms" size="large" />
+            <SIcon name="sms" size="default" />
             <span>短信接口</span>
           </el-menu-item>
           <el-menu-item index="/settings/payment">
-            <SIcon name="wallet" size="large" />
+            <SIcon name="wallet" size="default" />
             <span>支付设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/security">
-            <SIcon name="key" size="large" />
+            <SIcon name="key" size="default" />
             <span>安全设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/open">
-            <SIcon name="channel" size="large" />
+            <SIcon name="channel" size="default" />
             <span>开放平台</span>
           </el-menu-item>
         </template>
@@ -169,6 +169,7 @@ function logout() {
 }
 .logo-img { width: 32px; height: 32px; border-radius: 6px; }
 .side-menu { border-right: none; flex: 1; }
+.side-menu :deep(.s-icon) { margin-right: 10px; }
 .menu-group-title {
   padding: 10px 20px 6px;
   font-size: 11px;
