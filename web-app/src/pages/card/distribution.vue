@@ -48,7 +48,7 @@
         <view class="commission-item" v-for="c in commissions" :key="c.id">
           <view class="commission-info">
             <view class="commission-title">{{ c.level === 1 ? '一级' : '二级' }}佣金</view>
-            <view class="commission-time">{{ c.created_at?.slice(0, 16) }}</view>
+            <view class="commission-time">{{ c.createdAt?.slice(0, 16) }}</view>
           </view>
           <view class="commission-amount" :class="c.status">+¥{{ c.amount?.toFixed(2) }}</view>
         </view>

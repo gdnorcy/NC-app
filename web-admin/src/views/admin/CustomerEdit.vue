@@ -33,7 +33,7 @@
             </el-form-item>
             <el-form-item label="开通解决方案">
               <el-checkbox-group v-model="form.solutions">
-                <el-checkbox v-for="s in solutions" :key="s.id" :label="s.id">{{ s.name }}</el-checkbox>
+                <el-checkbox v-for="s in solutions" :key="s.id" :label="s.code">{{ s.name }}</el-checkbox>
               </el-checkbox-group>
             </el-form-item>
           </el-form>

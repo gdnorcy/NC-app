@@ -25,6 +25,8 @@ const logoUpload = multer({
 function parseCustomerBody(body) {
   let solutions = body.solutions;
   if (!Array.isArray(solutions) || solutions.length === 0) solutions = ['panorama'];
+  // 只保留字符串类型的solution code，过滤掉数字ID等非法值
+  solutions = solutions.filter(s => typeof s === 'string' && s.trim());
   let config = body.config;
   if (typeof config !== 'object' || config === null) config = {};
   return {

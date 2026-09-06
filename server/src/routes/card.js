@@ -204,7 +204,7 @@ export function createCardRouter(db, wxService) {
     const actions = db.prepare(
       'SELECT * FROM card_visitor_action WHERE card_id=? AND visitor_openid=? ORDER BY created_at DESC LIMIT 100'
     ).all(card.id, req.params.visitorOpenid);
-    res.json({ actions });
+    res.json({ actions: actions.map(toVisitorAction) });
   });
 
   // ============================================================
@@ -253,7 +253,7 @@ export function createCardRouter(db, wxService) {
 
   router.get('/customers/:id/follows', auth, (req, res) => {
     const follows = db.prepare('SELECT * FROM card_customer_follow WHERE customer_id=? ORDER BY created_at DESC').all(req.params.id);
-    res.json({ follows });
+    res.json({ follows: follows.map(toFollow) });
   });
 
   // ============================================================
@@ -329,13 +329,16 @@ export function createCardRouter(db, wxService) {
 
   router.get('/distribution/commissions', auth, (req, res) => {
     const commissions = db.prepare('SELECT * FROM distribution_commission WHERE user_id=? ORDER BY created_at DESC LIMIT 50').all(req.user.id);
-    res.json({ commissions });
+    res.json({ commissions: commissions.map(toCommission) });
   });
 
   router.get('/distribution/team', auth, (req, res) => {
     const firstLevel = db.prepare('SELECT id, nickname, avatar, created_at FROM platform_user WHERE parent_id=? ORDER BY created_at DESC').all(req.user.id);
     const secondLevel = db.prepare('SELECT id, nickname, avatar, created_at FROM platform_user WHERE grandparent_id=? ORDER BY created_at DESC').all(req.user.id);
-    res.json({ firstLevel, secondLevel });
+    res.json({
+      firstLevel: firstLevel.map(u => ({ id: u.id, nickname: u.nickname, avatar: u.avatar, createdAt: u.created_at })),
+      secondLevel: secondLevel.map(u => ({ id: u.id, nickname: u.nickname, avatar: u.avatar, createdAt: u.created_at })),
+    });
   });
 
   // ============================================================
@@ -343,7 +346,7 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   router.get('/dynamics', auth, (req, res) => {
     const dynamics = db.prepare('SELECT * FROM card_dynamic WHERE user_id=? ORDER BY created_at DESC').all(req.user.id);
-    res.json({ dynamics: dynamics.map(d => ({ ...d, images: JSON.parse(d.images || '[]') })) });
+    res.json({ dynamics: dynamics.map(toDynamic) });
   });
 
   router.post('/dynamics', auth, (req, res) => {
@@ -351,7 +354,8 @@ export function createCardRouter(db, wxService) {
     if (!content) return res.status(400).json({ error: '内容不能为空' });
     const result = db.prepare('INSERT INTO card_dynamic (user_id, content, images, visibility) VALUES (?,?,?,?)')
       .run(req.user.id, content, JSON.stringify(images || []), visibility || 'public');
-    res.json({ id: result.lastInsertRowid });
+    const dynamic = db.prepare('SELECT * FROM card_dynamic WHERE id = ?').get(result.lastInsertRowid);
+    res.json({ dynamic: toDynamic(dynamic) });
   });
 
   // ============================================================
@@ -395,6 +399,40 @@ export function createCardRouter(db, wxService) {
       tags: JSON.parse(row.tags || '[]'), source: row.source, status: row.status,
       lastFollowAt: row.last_follow_at, nextFollowAt: row.next_follow_at,
       createdAt: row.created_at, updatedAt: row.updated_at,
+    };
+  }
+
+  function toDynamic(row) {
+    if (!row) return null;
+    return {
+      id: row.id, userId: row.user_id, cardId: row.card_id, content: row.content,
+      images: JSON.parse(row.images || '[]'), visibility: row.visibility,
+      status: row.status, createdAt: row.created_at, updatedAt: row.updated_at,
+    };
+  }
+
+  function toVisitorAction(row) {
+    if (!row) return null;
+    return {
+      id: row.id, cardId: row.card_id, visitorOpenid: row.visitor_openid,
+      actionType: row.action_type, duration: row.duration, createdAt: row.created_at,
+    };
+  }
+
+  function toFollow(row) {
+    if (!row) return null;
+    return {
+      id: row.id, customerId: row.customer_id, userId: row.user_id,
+      content: row.content, nextFollowAt: row.next_follow_at, createdAt: row.created_at,
+    };
+  }
+
+  function toCommission(row) {
+    if (!row) return null;
+    return {
+      id: row.id, userId: row.user_id, fromUserId: row.from_user_id,
+      level: row.level, amount: row.amount, orderId: row.order_id,
+      status: row.status, createdAt: row.created_at, settledAt: row.settled_at,
     };
   }
 

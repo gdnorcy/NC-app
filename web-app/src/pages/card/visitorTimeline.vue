@@ -12,7 +12,7 @@
         <view class="timeline-content">
           <view class="action-title">{{ actionText(a.action_type) }}</view>
           <view class="action-detail" v-if="a.action_detail">{{ a.action_detail }}</view>
-          <view class="action-time">{{ formatTime(a.created_at) }}</view>
+          <view class="action-time">{{ formatTime(a.createdAt) }}</view>
         </view>
       </view>
     </view>

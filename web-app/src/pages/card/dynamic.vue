@@ -11,7 +11,7 @@
           <view class="dynamic-avatar">{{ user.nickname?.[0] || '我' }}</view>
           <view class="dynamic-info">
             <view class="dynamic-name">{{ user.nickname || '我' }}</view>
-            <view class="dynamic-time">{{ d.created_at?.slice(0, 16) }}</view>
+            <view class="dynamic-time">{{ d.createdAt?.slice(0, 16) }}</view>
           </view>
           <view class="visibility-tag">{{ d.visibility === 'public' ? '公开' : '仅自己' }}</view>
         </view>

@@ -35,8 +35,9 @@ onMounted(async () => {
     const data = await customerApiCall.get('/profile');
     const solutions = data.customer?.solutions || [];
     solutions.forEach(s => {
-      // 兼容字符串和对象两种格式
+      // 兼容字符串和对象两种格式，过滤掉数字ID等非法值
       const code = typeof s === 'string' ? s : (s.code || s.name);
+      if (!code || typeof code !== 'string') return;
       const app = solutionMap[code] || { code, name: s.name || code, icon: s.icon || '📦', description: s.description || '' };
       list.push(app);
     });

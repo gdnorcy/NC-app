@@ -45,7 +45,7 @@
           <view class="follow-dot"></view>
           <view class="follow-content">
             <view class="follow-text">{{ f.content }}</view>
-            <view class="follow-time">{{ f.created_at?.slice(0, 16) }}</view>
+            <view class="follow-time">{{ f.createdAt?.slice(0, 16) }}</view>
           </view>
         </view>
       </view>
