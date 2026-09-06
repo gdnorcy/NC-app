@@ -276,6 +276,7 @@ async function openMember(pkg) {
 }
 .btn {
   width: 100%;
+  box-sizing: border-box;
   margin-top: 24rpx;
   padding: 22rpx;
   border-radius: 20rpx;

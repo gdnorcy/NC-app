@@ -530,6 +530,7 @@ async function saveConvert() {
 /* ===== 按钮（demo btn-main / btn-ghost）===== */
 .btn-main {
   width: 100%;
+  box-sizing: border-box;
   background: #07c160;
   color: #fff;
   font-size: 30rpx;
@@ -548,6 +549,7 @@ async function saveConvert() {
 }
 .btn-ghost {
   width: 100%;
+  box-sizing: border-box;
   background: #f5f6f7;
   color: #5b5b5b;
   font-size: 28rpx;
