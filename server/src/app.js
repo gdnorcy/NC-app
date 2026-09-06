@@ -64,9 +64,11 @@ export function createApp({ db } = {}) {
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
       if (req.path === '/admin' || req.path.startsWith('/admin/')) {
+        res.set('Cache-Control', 'no-cache');
         return res.sendFile(path.join(adminDist, 'admin.html'));
       }
       if (req.path === '/customer' || req.path.startsWith('/customer/')) {
+        res.set('Cache-Control', 'no-cache');
         return res.sendFile(path.join(adminDist, 'customer.html'));
       }
       next();
@@ -80,6 +82,7 @@ export function createApp({ db } = {}) {
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
       if (req.path === '/mobile' || req.path.startsWith('/mobile/')) {
+        res.set('Cache-Control', 'no-cache');
         return res.sendFile(path.join(mobileDist, 'index.html'));
       }
       next();
