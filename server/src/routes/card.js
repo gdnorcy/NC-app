@@ -196,39 +196,50 @@ export function createCardRouter(db, wxService) {
         return res.status(400).json({ error: '企业名称不能为空' });
       }
 
-      // 重复入驻校验：仅拒绝同类型重复入驻（双身份：个人+企业员工 允许并存）
+      // 重复/重新申请校验（rejected 允许重新申请；双身份：个人+企业 允许并存）
       const already = applyType === 'enterprise'
-        ? db.prepare('SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ?').get(customerId, req.user.id)
-        : db.prepare('SELECT id FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, req.user.id);
-      if (already) {
-        return res.status(400).json({ error: '已入驻该客户项目，请勿重复入驻' });
+        ? db.prepare('SELECT id, status FROM tenant_enterprises WHERE customer_id = ? AND admin_user_id = ?').get(customerId, req.user.id)
+        : db.prepare('SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, req.user.id);
+      if (already && already.status !== 'rejected') {
+        return res.status(400).json({
+          error: already.status === 'pending' ? '申请审核中，请耐心等待管理员审核' : '已入驻该客户项目，请勿重复入驻'
+        });
+      }
+      let applyStatus = 'pending';
+      if (already && already.status === 'rejected') {
+        // 拒绝后重新申请
+        if (applyType === 'individual') {
+          db.prepare("UPDATE tenant_individuals SET status = 'pending', name = ?, phone = ?, position = ?, company = ?, updated_at = datetime('now') WHERE id = ?")
+            .run(name, phone || '', position || '', city || '', already.id);
+        } else {
+          db.prepare("UPDATE tenant_enterprises SET status = 'pending', name = ?, industry = ?, updated_at = datetime('now') WHERE id = ?")
+            .run(enterpriseName, industry || '', already.id);
+          db.prepare("UPDATE tenant_enterprise_employees SET name = ?, position = ?, status = 'pending', updated_at = datetime('now') WHERE enterprise_id = ? AND user_id = ?")
+            .run(name, position || '', already.id, req.user.id);
+        }
+        db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), req.user.id);
+        const card0 = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(cardId);
+        return res.json({ card: toCard(card0), applyStatus });
       }
 
       // 口令使用审计
       db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), req.user.id);
-      // 绑定用户租户归属
-      db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = ?, updated_at = datetime('now') WHERE id = ?")
-        .run(customerId, applyType === 'enterprise' ? 'employee' : 'individual', req.user.id);
+      // 审核流：创建 pending，不绑定租户、不关联名片（审核通过后由 card-market/apply/audit 完成）
 
       if (applyType === 'enterprise') {
         const entResult = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
-          VALUES (?, ?, ?, ?, 'active')`).run(customerId, enterpriseName, industry || '', req.user.id);
+          VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', req.user.id);
         const enterpriseId = entResult.lastInsertRowid;
         db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
-          VALUES (?, ?, ?, ?, ?, 'admin', 'active')`).run(enterpriseId, customerId, req.user.id, name, position || '');
-        // 关联名片到企业
-        db.prepare('UPDATE card_profile SET enterprise_id = ?, customer_id = ? WHERE id = ?').run(enterpriseId, customerId, cardId);
-        // 企业管理员身份标记
-        db.prepare('UPDATE platform_user SET identity_type = ? WHERE id = ?').run('employee', req.user.id);
+          VALUES (?, ?, ?, ?, ?, 'admin', 'pending')`).run(enterpriseId, customerId, req.user.id, name, position || '');
       } else {
         db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
-          VALUES (?, ?, ?, ?, ?, ?, 'active')`).run(customerId, req.user.id, name, phone || '', position || '', city || '');
-        db.prepare('UPDATE card_profile SET customer_id = ? WHERE id = ?').run(customerId, cardId);
+          VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, req.user.id, name, phone || '', position || '', city || '');
       }
     }
 
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(cardId);
-    res.json({ card: toCard(card) });
+    res.json({ card: toCard(card), applyStatus: bindCode ? 'pending' : undefined });
   });
 
   router.put('/cards/:id', auth, (req, res) => {

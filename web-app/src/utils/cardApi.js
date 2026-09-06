@@ -108,6 +108,17 @@ export const cardApi = {
   getEnterprises: () => request('/card-market/enterprises'),
   getEnterpriseEmployees: (id) => request(`/card-market/enterprises/${id}/employees`),
   submitApply: (data) => request('/card-market/apply', 'POST', data),
+  // 本人入驻申请状态（独立 URL：/api/card-market 域，未绑定租户也可查询）
+  getApplyStatus: () => new Promise((resolve, reject) => {
+    const token = uni.getStorageSync('card_token');
+    uni.request({
+      url: 'http://localhost:3000/api/card-market/apply/status',
+      method: 'GET',
+      header: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
+      success: (res) => (res.statusCode === 200 ? resolve(res.data) : reject(new Error(res.data?.error || '请求失败'))),
+      fail: (err) => reject(err),
+    });
+  }),
   getMyEnterprise: () => request('/card-market/enterprise/my-data'),
 
   // 公海池

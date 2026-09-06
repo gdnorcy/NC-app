@@ -36,6 +36,9 @@ npm run build:admin
 
 # 构建移动端H5
 npm run build:mobile
+# 注意：智能名片H5产物需同步到 server/public/card（uni-app 构建输出在 web-app/dist/build/h5）：
+#   cp web-app/dist/build/h5/index.html server/public/card/index.html
+#   cp -R web-app/dist/build/h5/assets/* server/public/card/assets/
 
 # 构建全部
 npm run build:all

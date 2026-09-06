@@ -92,7 +92,7 @@ test('个人入驻+企业入驻', async () => {
     });
   assert.equal(enterprise.status, 200);
   assert.equal(enterprise.body.card.cardType, 'company');
-  assert.ok(enterprise.body.card.enterpriseId, '企业名片应关联enterpriseId');
+  assert.equal(enterprise.body.applyStatus, 'pending', '企业入驻申请应为审核中（审核通过后关联企业）');
 
   // 企业缺少企业名称：400
   const noEntName = await request(app)

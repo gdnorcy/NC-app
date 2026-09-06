@@ -45,15 +45,20 @@
           <el-table-column prop="phone" label="手机号" width="140" />
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'active' ? 'success' : 'danger'" size="small">
-                {{ row.status === 'active' ? '正常' : '已停用' }}
-              </el-tag>
+              <el-tag v-if="row.status === 'active'" type="success" size="small">正常</el-tag>
+              <el-tag v-else-if="row.status === 'pending'" type="warning" size="small">待审核</el-tag>
+              <el-tag v-else-if="row.status === 'rejected'" type="info" size="small">已拒绝</el-tag>
+              <el-tag v-else type="danger" size="small">已停用</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="created_at" label="入驻时间" width="180" />
-          <el-table-column label="操作" width="150" fixed="right">
+          <el-table-column label="操作" width="170" fixed="right">
             <template #default="{ row }">
-              <el-button v-if="row.status === 'active'" type="danger" size="small" link @click="disableIndividual(row)">停用</el-button>
+              <template v-if="row.status === 'pending'">
+                <el-button type="success" size="small" link @click="auditIndividual(row, 'approve')">通过</el-button>
+                <el-button type="danger" size="small" link @click="auditIndividual(row, 'reject')">拒绝</el-button>
+              </template>
+              <el-button v-else-if="row.status === 'active'" type="danger" size="small" link @click="disableIndividual(row)">停用</el-button>
               <el-button v-else type="success" size="small" link @click="enableIndividual(row)">启用</el-button>
             </template>
           </el-table-column>
@@ -88,16 +93,23 @@
           <el-table-column prop="employee_count" label="员工数" width="100" align="center" />
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'active' ? 'success' : 'danger'" size="small">
-                {{ row.status === 'active' ? '正常' : '已停用' }}
-              </el-tag>
+              <el-tag v-if="row.status === 'active'" type="success" size="small">正常</el-tag>
+              <el-tag v-else-if="row.status === 'pending'" type="warning" size="small">待审核</el-tag>
+              <el-tag v-else-if="row.status === 'rejected'" type="info" size="small">已拒绝</el-tag>
+              <el-tag v-else type="danger" size="small">已停用</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="240" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" size="small" link @click="viewEmployees(row)">员工管理</el-button>
-              <el-button v-if="row.status === 'active'" type="danger" size="small" link @click="disableEnterprise(row)">停用</el-button>
-              <el-button v-else type="success" size="small" link @click="enableEnterprise(row)">启用</el-button>
+              <template v-if="row.status === 'pending'">
+                <el-button type="success" size="small" link @click="auditEnterprise(row, 'approve')">通过</el-button>
+                <el-button type="danger" size="small" link @click="auditEnterprise(row, 'reject')">拒绝</el-button>
+              </template>
+              <template v-else>
+                <el-button type="primary" size="small" link @click="viewEmployees(row)">员工管理</el-button>
+                <el-button v-if="row.status === 'active'" type="danger" size="small" link @click="disableEnterprise(row)">停用</el-button>
+                <el-button v-else-if="row.status !== 'pending' && row.status !== 'rejected'" type="success" size="small" link @click="enableEnterprise(row)">启用</el-button>
+              </template>
             </template>
           </el-table-column>
         </el-table>
@@ -190,6 +202,36 @@ async function loadEnterprises() {
   } catch (e) {
     console.error('加载入驻企业失败', e);
   }
+}
+
+function auditIndividual(row, action) {
+  const t = action === 'approve' ? '通过' : '拒绝';
+  ElMessageBox.confirm(`确定${t}「${row.name}」的入驻申请吗？${action === 'approve' ? '通过后该用户立即获得租户内个人身份与名片权限。' : '拒绝后对方可修改资料重新申请。'}`, `${t}入驻申请`, {
+    type: action === 'approve' ? 'success' : 'warning',
+  }).then(async () => {
+    try {
+      await publicApi.post('/card-market/apply/audit', { type: 'individual', id: row.id, action });
+      ElMessage.success(`已${t}`);
+      loadIndividuals();
+    } catch (e) {
+      ElMessage.error(e.message || '操作失败');
+    }
+  }).catch(() => {});
+}
+
+function auditEnterprise(row, action) {
+  const t = action === 'approve' ? '通过' : '拒绝';
+  ElMessageBox.confirm(`确定${t}「${row.name}」的入驻申请吗？${action === 'approve' ? '通过后企业主体及其管理员立即获得租户内权限。' : '拒绝后对方可修改资料重新申请。'}`, `${t}入驻申请`, {
+    type: action === 'approve' ? 'success' : 'warning',
+  }).then(async () => {
+    try {
+      await publicApi.post('/card-market/apply/audit', { type: 'enterprise', id: row.id, action });
+      ElMessage.success(`已${t}`);
+      loadEnterprises();
+    } catch (e) {
+      ElMessage.error(e.message || '操作失败');
+    }
+  }).catch(() => {});
 }
 
 async function disableIndividual(row) {

@@ -1,5 +1,8 @@
 <template>
   <view class="create-page">
+    <view v-if="applyMsg" class="apply-banner" :class="{ 'apply-banner--reject': applyStatus === 'rejected' }">
+      {{ applyMsg }}
+    </view>
     <!-- 顶部标题 -->
     <view class="header">
       <view class="row1">
@@ -215,6 +218,8 @@ import SIcon from '../../components/SIcon.vue';
 
 const isEdit = ref(false);
 const submitting = ref(false);
+const applyStatus = ref('');
+const applyMsg = ref('');
 const currentStep = ref(0);
 const cardType = ref('individual');
 const showBind = ref(false);
@@ -237,6 +242,19 @@ onMounted(async () => {
     try {
       const res = await cardApi.getCard(id);
       Object.assign(form, res.card);
+    } catch (e) {}
+  } else {
+    // 新建时展示本人入驻申请审核状态
+    try {
+      const res = await cardApi.getApplyStatus();
+      const st = res.apply?.status;
+      if (st === 'pending') {
+        applyStatus.value = 'pending';
+        applyMsg.value = `入驻申请审核中（${res.apply.customerName || ''}），审核通过后可正常使用租户内功能`;
+      } else if (st === 'rejected') {
+        applyStatus.value = 'rejected';
+        applyMsg.value = '上次入驻申请未通过，可修改资料后重新提交';
+      }
     } catch (e) {}
   }
 });
@@ -315,6 +333,19 @@ async function submit() {
 </script>
 
 <style scoped>
+.apply-banner {
+  margin: 16px 16px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #165DFF;
+  background: #E8F3FF;
+}
+.apply-banner--reject {
+  color: #D25F00;
+  background: #FFF3E8;
+}
 .create-page {
   min-height: 100vh;
   background: #f5f7fa;

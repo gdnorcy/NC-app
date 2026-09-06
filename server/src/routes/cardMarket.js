@@ -435,6 +435,30 @@ export function createCardMarketRouter(db) {
     res.json({ success: true });
   });
 
+  // 本人入驻申请状态（comboAuth 认证即可；未绑定租户时也可查询）
+  function applyStatusOf(db, userId) {
+    const ind = db.prepare(`SELECT i.status, i.customer_id, i.updated_at, p.customer_name, p.status AS project_status
+      FROM tenant_individuals i JOIN projects p ON p.id = i.customer_id
+      WHERE i.user_id = ? ORDER BY i.id DESC LIMIT 1`).get(userId);
+    if (ind) {
+      return { status: ind.status, type: 'individual', customerId: ind.customer_id, customerName: ind.customer_name, projectStatus: ind.project_status, updatedAt: ind.updated_at };
+    }
+    const ent = db.prepare(`SELECT e.status, e.customer_id, e.updated_at, p.customer_name, p.status AS project_status
+      FROM tenant_enterprises e JOIN projects p ON p.id = e.customer_id
+      WHERE e.admin_user_id = ? ORDER BY e.id DESC LIMIT 1`).get(userId);
+    if (ent) {
+      return { status: ent.status, type: 'enterprise', customerId: ent.customer_id, customerName: ent.customer_name, projectStatus: ent.project_status, updatedAt: ent.updated_at };
+    }
+    return { status: 'none' };
+  }
+
+  // 本人入驻申请状态查询（供 H5 展示"未入驻/审核中/已通过/已拒绝"）
+  router.get('/apply/status', (req, res) => {
+    const userId = req.user?.id || req.userId;
+    if (!userId) return res.status(401).json({ error: '未登录' });
+    res.json({ apply: applyStatusOf(db, userId) });
+  });
+
   // ===== 入驻管理 =====
   router.post('/apply', (req, res) => {
     const { type, bindCode, name, phone, position, company, enterpriseName, industry } = req.body;
@@ -458,11 +482,29 @@ export function createCardMarketRouter(db) {
       return res.status(400).json({ error: '企业名称不能为空' });
     }
 
-    // 重复入驻校验（仅拒绝同类型重复入驻；双身份：个人+企业员工 允许并存）
+    // 重复/重新申请校验（双身份：个人+企业 允许并存；rejected 允许重新申请）
     const already = type === 'enterprise'
-      ? db.prepare('SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ?').get(customerId, userId)
-      : db.prepare('SELECT id FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, userId);
-    if (already) return res.status(400).json({ error: '已入驻该客户项目，请勿重复入驻' });
+      ? db.prepare('SELECT id, status FROM tenant_enterprises WHERE customer_id = ? AND admin_user_id = ?').get(customerId, userId)
+      : db.prepare('SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, userId);
+    if (already && already.status !== 'rejected') {
+      return res.status(400).json({
+        error: already.status === 'pending' ? '申请审核中，请耐心等待管理员审核' : '已入驻该客户项目，请勿重复入驻'
+      });
+    }
+    if (already && already.status === 'rejected') {
+      // 拒绝后重新申请：更新为待审 + 更新资料
+      if (type === 'individual') {
+        db.prepare("UPDATE tenant_individuals SET status = 'pending', name = ?, phone = ?, position = ?, company = ?, updated_at = datetime('now') WHERE id = ?")
+          .run(name, phone, position || '', company || '', already.id);
+      } else {
+        db.prepare("UPDATE tenant_enterprises SET status = 'pending', name = ?, industry = ?, updated_at = datetime('now') WHERE id = ?")
+          .run(enterpriseName, industry || '', already.id);
+        db.prepare("UPDATE tenant_enterprise_employees SET name = ?, position = ?, status = 'pending', updated_at = datetime('now') WHERE enterprise_id = ? AND user_id = ?")
+          .run(name, position || '', already.id, userId);
+      }
+      db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
+      return res.json({ success: true, message: '申请已重新提交，请等待租户管理员审核' });
+    }
 
     // 配额校验
     let quota = {};
@@ -478,35 +520,52 @@ export function createCardMarketRouter(db) {
 
     // 口令使用审计
     db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
-    // 绑定租户
-    db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = ?, updated_at = datetime('now') WHERE id = ?")
-      .run(customerId, type === 'enterprise' ? 'employee' : 'individual', userId);
+    // 审核流：创建 pending，不绑定租户（审核通过后由 apply/audit 完成绑定）
 
     if (type === 'individual') {
       db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'active')`).run(customerId, userId, name, phone, position || '', company || '');
+        VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, userId, name, phone, position || '', company || '');
     } else {
       const result = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
-        VALUES (?, ?, ?, ?, 'active')`).run(customerId, enterpriseName, industry || '', userId);
+        VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', userId);
       const enterpriseId = result.lastInsertRowid;
       db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
-        VALUES (?, ?, ?, ?, ?, 'admin', 'active')`).run(enterpriseId, customerId, userId, name, position || '');
+        VALUES (?, ?, ?, ?, ?, 'admin', 'pending')`).run(enterpriseId, customerId, userId, name, position || '');
     }
-    res.json({ success: true, message: type === 'individual' ? '入驻成功' : '企业入驻成功' });
+    res.json({ success: true, message: '申请已提交，请等待租户管理员审核' });
   });
 
-  // 入驻申请审核（租户管理员）：approve/reject
+  // 入驻申请审核（租户管理员）：approve→active+绑定租户；reject→rejected
   router.post('/apply/audit', tenant, requireTenantAdmin, (req, res) => {
-    const { type, id, action } = req.body; // type: individual/enterprise
+    const { type, id, action } = req.body; // type: individual/enterprise, action: approve/reject
+    if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: '无效操作' });
     const status = action === 'approve' ? 'active' : 'rejected';
     if (type === 'individual') {
       const row = belongsToTenant('tenant_individuals', id, req.customerId);
       if (!row || row.__crossTenant) return res.status(404).json({ error: '申请不存在' });
+      if (row.status !== 'pending') return res.status(400).json({ error: '该申请不在待审状态' });
       db.prepare("UPDATE tenant_individuals SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
+      if (action === 'approve') {
+        // 绑定租户 + 关联名下未关联名片
+        db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = 'individual', updated_at = datetime('now') WHERE id = ?")
+          .run(req.customerId, row.user_id);
+        db.prepare("UPDATE card_profile SET customer_id = ? WHERE user_id = ? AND (customer_id IS NULL OR customer_id = '')").run(req.customerId, row.user_id);
+      }
     } else {
       const row = belongsToTenant('tenant_enterprises', id, req.customerId);
       if (!row || row.__crossTenant) return res.status(404).json({ error: '申请不存在' });
+      if (row.status !== 'pending') return res.status(400).json({ error: '该申请不在待审状态' });
       db.prepare("UPDATE tenant_enterprises SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
+      db.prepare("UPDATE tenant_enterprise_employees SET status = ?, updated_at = datetime('now') WHERE enterprise_id = ? AND role = 'admin'").run(status, id);
+      if (action === 'approve') {
+        const admin = db.prepare("SELECT user_id FROM tenant_enterprise_employees WHERE enterprise_id = ? AND role = 'admin'").get(id);
+        if (admin) {
+          db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = 'employee', updated_at = datetime('now') WHERE id = ?")
+            .run(req.customerId, admin.user_id);
+          db.prepare("UPDATE card_profile SET enterprise_id = ?, customer_id = ? WHERE user_id = ? AND card_type = 'company' AND (customer_id IS NULL OR customer_id = '')")
+            .run(id, req.customerId, admin.user_id);
+        }
+      }
     }
     res.json({ success: true });
   });
