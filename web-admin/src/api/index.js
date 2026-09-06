@@ -91,6 +91,23 @@ export const toggleOAuthApp = (id) => adminApi.post(`/oauth/apps/${id}/toggle`);
 export const fetchOAuthStats = () => adminApi.get('/oauth/stats');
 export const fetchApiLogs = (params) => adminApi.get('/oauth/api-logs', { params });
 
+// 全端渠道
+export const fetchChannelComponent = () => adminApi.get('/channel/component');
+export const updateChannelComponent = (data) => adminApi.put('/channel/component', data);
+export const refreshChannelToken = () => adminApi.post('/channel/component/refresh-token');
+export const fetchChannelStats = () => adminApi.get('/channel/stats');
+export const fetchChannelTemplates = () => adminApi.get('/channel/templates');
+export const fetchTenantChannels = (customerId) => adminApi.get(`/channel/tenants/${customerId}`);
+export const updateTenantChannel = (customerId, channelType, data) => adminApi.put(`/channel/tenants/${customerId}/${channelType}`, data);
+export const unbindTenantChannel = (customerId, channelType) => adminApi.delete(`/channel/tenants/${customerId}/${channelType}`);
+export const getChannelAuthUrl = (params) => adminApi.get('/channel/auth-url', { params });
+export const channelUploadCode = (id, data) => adminApi.post(`/channel/tenants/${id}/upload`, data);
+export const channelSubmitAudit = (id) => adminApi.post(`/channel/tenants/${id}/submit-audit`);
+export const channelAuditStatus = (id) => adminApi.get(`/channel/tenants/${id}/audit-status`);
+export const channelRelease = (id) => adminApi.post(`/channel/tenants/${id}/release`);
+export const channelRollback = (id) => adminApi.post(`/channel/tenants/${id}/rollback`);
+export const fetchChannelDeployLogs = (id) => adminApi.get(`/channel/tenants/${id}/deploy-logs`);
+
 // 客户后台API
 const customerApi = axios.create({ baseURL: '/api/customer' });
 customerApi.interceptors.request.use((config) => {

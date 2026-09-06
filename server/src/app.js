@@ -21,10 +21,15 @@ import { createAppRegistryRouter } from './routes/app-registry.js';
 import { createOAuthRouter } from './routes/oauth.js';
 import { createOpenApiRouter } from './routes/openapi.js';
 import { createOAuthAppsRouter } from './routes/oauth-apps.js';
+import { createChannelRouter } from './routes/channel.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
   const app = express();
+
+  // 微信回调需要原始XML文本，必须在express.json之前
+  app.use('/api/channel/wx-callback', express.text({ type: '*/xml' }));
+  app.use('/api/channel/wx-message', express.text({ type: '*/xml' }));
 
   app.use(express.json({ limit: '1mb' }));
 
@@ -47,6 +52,7 @@ export function createApp({ db } = {}) {
   app.use('/oauth', createOAuthRouter(database));
   app.use('/openapi', createOpenApiRouter(database));
   app.use('/api/admin/oauth', createOAuthAppsRouter(database));
+  app.use('/api/channel', createChannelRouter(database));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));

@@ -27,6 +27,10 @@
           <el-icon><Grid /></el-icon>
           <span>解决方案</span>
         </el-menu-item>
+        <el-menu-item index="/channel">
+          <el-icon><Share /></el-icon>
+          <span>全端渠道</span>
+        </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/logs">
           <el-icon><Document /></el-icon>
           <span>操作日志</span>
@@ -111,7 +115,7 @@ import { useAuthStore } from '../stores/auth';
 import { ElMessage } from 'element-plus';
 import {
   DataAnalysis, OfficeBuilding, User, Grid, Document, Setting,
-  Folder, Message, Wallet, Lock, Connection, SwitchButton,
+  Folder, Message, Wallet, Lock, Connection, SwitchButton, Share,
   Fold, Expand, Search, ArrowDown,
 } from '@element-plus/icons-vue';
 

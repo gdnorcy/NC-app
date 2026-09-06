@@ -417,6 +417,71 @@ function migrate(db) {
   `);
   db.exec('CREATE INDEX IF NOT EXISTS idx_api_logs_app_id ON api_logs(app_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_api_logs_created_at ON api_logs(created_at)');
+
+  // —— 全端渠道：第三方平台凭证 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS channel_component (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      component_appid TEXT NOT NULL DEFAULT '',
+      component_appsecret TEXT NOT NULL DEFAULT '',
+      message_token TEXT NOT NULL DEFAULT '',
+      encoding_aes_key TEXT NOT NULL DEFAULT '',
+      component_access_token TEXT NOT NULL DEFAULT '',
+      component_verify_ticket TEXT NOT NULL DEFAULT '',
+      token_expires_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec("INSERT OR IGNORE INTO channel_component (id) VALUES (1)");
+  // 幂等添加 verify_ticket 字段
+  if (!colExists(db, 'channel_component', 'component_verify_ticket')) {
+    db.exec("ALTER TABLE channel_component ADD COLUMN component_verify_ticket TEXT NOT NULL DEFAULT ''");
+  }
+
+  // —— 全端渠道：租户渠道配置 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS channel_apps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      channel_type TEXT NOT NULL,
+      appid TEXT NOT NULL DEFAULT '',
+      app_secret TEXT NOT NULL DEFAULT '',
+      auth_status TEXT NOT NULL DEFAULT 'none',
+      authorizer_access_token TEXT NOT NULL DEFAULT '',
+      authorizer_refresh_token TEXT NOT NULL DEFAULT '',
+      token_expires_at TEXT,
+      version TEXT NOT NULL DEFAULT '',
+      template_id TEXT NOT NULL DEFAULT '',
+      draft_id INTEGER,
+      audit_status TEXT NOT NULL DEFAULT 'none',
+      brand_name TEXT NOT NULL DEFAULT '',
+      brand_logo TEXT NOT NULL DEFAULT '',
+      primary_color TEXT NOT NULL DEFAULT '#165DFF',
+      custom_domain TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_channel_apps_customer ON channel_apps(customer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_channel_apps_appid ON channel_apps(appid)');
+
+  // —— 全端渠道：发布日志 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS channel_deploy_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_app_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      template_id TEXT NOT NULL DEFAULT '',
+      version TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      error_message TEXT,
+      operator_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_deploy_logs_channel ON channel_deploy_logs(channel_app_id)');
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
