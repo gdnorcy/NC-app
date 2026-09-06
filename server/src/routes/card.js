@@ -101,10 +101,31 @@ export function createCardRouter(db, wxService) {
   });
 
   router.get('/cards/:id', (req, res) => {
-    const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(req.params.id);
+    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level
+      FROM card_profile cp LEFT JOIN platform_user pu ON cp.user_id = pu.id
+      WHERE cp.id = ?`).get(req.params.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
     if (card.status !== 'active') return res.status(404).json({ error: '名片不可用' });
     res.json({ card: toCard(card) });
+  });
+
+  // 名片动态列表（公开，展示名片所有者的动态）
+  router.get('/cards/:id/dynamics', (req, res) => {
+    const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(req.params.id);
+    if (!card) return res.status(404).json({ error: '名片不存在' });
+    const rows = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d
+      LEFT JOIN platform_user u ON d.user_id = u.id
+      WHERE d.card_id = ? AND d.status='active' AND d.visibility='public'
+      ORDER BY d.created_at DESC LIMIT 20`).all(card.id);
+    res.json({ dynamics: rows.map(toDynamic) });
+  });
+
+  // 名片视频列表（公开）
+  router.get('/cards/:id/videos', (req, res) => {
+    const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(req.params.id);
+    if (!card) return res.status(404).json({ error: '名片不存在' });
+    const videos = db.prepare('SELECT id, card_id, title, cover_url, duration, sort_order FROM card_videos WHERE card_id = ? ORDER BY sort_order ASC, id ASC').all(card.id);
+    res.json({ videos: videos.map((v) => ({ id: v.id, cardId: v.card_id, title: v.title, coverUrl: v.cover_url, duration: v.duration, sortOrder: v.sort_order })) });
   });
 
   router.post('/cards', auth, (req, res) => {
@@ -121,15 +142,16 @@ export function createCardRouter(db, wxService) {
   // 创建名片+入驻申请（合并流程）
   router.post('/cards/create-with-apply', auth, (req, res) => {
     const { name, position, city, phone, wechat, email, bio, businessField, avatar, isPublic, videoChannel,
+            slogan, tags,
             bindCode, applyType, enterpriseName, industry } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
 
     // 1. 创建名片
     const cardType = applyType === 'enterprise' ? 'company' : 'personal';
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType);
+      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '');
     const cardId = result.lastInsertRowid;
 
     // 2. 处理入驻申请（填了口令才入驻）
@@ -168,10 +190,10 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel } = req.body;
+    const { name, position, city, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel, slogan, tags } = req.body;
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, updated_at=datetime("now") WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, updated_at=datetime("now") WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, card.id);
     const updated = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(card.id);
     res.json({ card: toCard(updated) });
   });
@@ -403,11 +425,12 @@ export function createCardRouter(db, wxService) {
   });
 
   router.post('/dynamics', auth, (req, res) => {
-    const { content, images, visibility } = req.body;
+    const { content, images, visibility, title, cardId } = req.body;
     if (!content) return res.status(400).json({ error: '内容不能为空' });
-    const result = db.prepare('INSERT INTO card_dynamic (user_id, content, images, visibility) VALUES (?,?,?,?)')
-      .run(req.user.id, content, JSON.stringify(images || []), visibility || 'public');
-    const dynamic = db.prepare('SELECT * FROM card_dynamic WHERE id = ?').get(result.lastInsertRowid);
+    const result = db.prepare('INSERT INTO card_dynamic (user_id, card_id, title, content, images, visibility) VALUES (?,?,?,?,?,?)')
+      .run(req.user.id, cardId || null, title || '', content, JSON.stringify(images || []), visibility || 'public');
+    const dynamic = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d
+      LEFT JOIN platform_user u ON d.user_id = u.id WHERE d.id = ?`).get(result.lastInsertRowid);
     res.json({ dynamic: toDynamic(dynamic) });
   });
 
@@ -426,13 +449,29 @@ export function createCardRouter(db, wxService) {
 
   function toCard(row) {
     if (!row) return null;
+    let ownerMemberLevel = 'free';
+    if (row.owner_member_level !== undefined) ownerMemberLevel = row.owner_member_level || 'free';
     return {
       id: row.id, userId: row.user_id, enterpriseId: row.enterprise_id, cardType: row.card_type,
       name: row.name, position: row.position, city: row.city, phone: row.phone, wechat: row.wechat, email: row.email,
       company: row.company, bio: row.bio, businessField: row.business_field, avatar: row.avatar,
+      slogan: row.slogan || '', tags: row.tags || '',
       templateId: row.template_id, videoChannel: row.video_channel, isPublic: !!row.is_public,
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
+      ownerMemberLevel,
       createdAt: row.created_at, updatedAt: row.updated_at,
+    };
+  }
+
+  function toDynamic(row) {
+    if (!row) return null;
+    let images = [];
+    try { images = JSON.parse(row.images || '[]'); } catch {}
+    return {
+      id: row.id, userId: row.user_id, cardId: row.card_id, title: row.title || '',
+      content: row.content, images, likeCount: row.like_count || 0, commentCount: row.comment_count || 0,
+      authorName: row.nickname || '', authorAvatar: row.avatar || '',
+      createdAt: row.created_at,
     };
   }
 
@@ -452,15 +491,6 @@ export function createCardRouter(db, wxService) {
       tags: JSON.parse(row.tags || '[]'), source: row.source, status: row.status,
       lastFollowAt: row.last_follow_at, nextFollowAt: row.next_follow_at,
       createdAt: row.created_at, updatedAt: row.updated_at,
-    };
-  }
-
-  function toDynamic(row) {
-    if (!row) return null;
-    return {
-      id: row.id, userId: row.user_id, cardId: row.card_id, content: row.content,
-      images: JSON.parse(row.images || '[]'), visibility: row.visibility,
-      status: row.status, createdAt: row.created_at, updatedAt: row.updated_at,
     };
   }
 

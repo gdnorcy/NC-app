@@ -69,21 +69,6 @@
             <view class="skill-tag" v-for="(tag, i) in tagList" :key="i">{{ tag }}</view>
           </view>
         </view>
-        <view class="intro-line" v-if="card.phone">
-          <SIcon name="mobile" size="small" color="#86909c" />
-          <text class="lb">电话</text>
-          <text class="vl link" @click="callPhone">{{ card.phone }}</text>
-        </view>
-        <view class="intro-line" v-if="card.wechat">
-          <SIcon name="exchange" size="small" color="#86909c" />
-          <text class="lb">微信</text>
-          <text class="vl link" @click="copyWechat">{{ card.wechat }}</text>
-        </view>
-        <view class="intro-line" v-if="card.email">
-          <SIcon name="mail" size="small" color="#86909c" />
-          <text class="lb">邮箱</text>
-          <text class="vl">{{ card.email }}</text>
-        </view>
       </view>
     </view>
 
@@ -102,7 +87,30 @@
     <!-- 动态面板 -->
     <view class="tab-panel" v-if="activeTab === 'dynamic'">
       <view class="sec-t">最新动态</view>
-      <view class="empty-state">
+      <view class="dyn-list" v-if="dynamics.length">
+        <view class="dyn-card" v-for="d in dynamics" :key="d.id">
+          <view class="dyn-head">
+            <view class="dyn-av">
+              <image v-if="d.authorAvatar" :src="d.authorAvatar" mode="aspectFill" />
+              <view v-else>{{ (d.authorName || card.name || '名')[0] }}</view>
+            </view>
+            <view class="dyn-who">
+              <b>{{ d.authorName || card.name }}</b>
+              <span>{{ timeText(d.createdAt) }}</span>
+            </view>
+          </view>
+          <view class="dyn-body">
+            <h4 v-if="d.title">{{ d.title }}</h4>
+            <p>{{ d.content }}</p>
+          </view>
+          <image v-if="d.images && d.images.length" class="dyn-img" :src="d.images[0]" mode="aspectFill" @click="previewDyn(d)" />
+          <view class="dyn-meta">
+            <span><SIcon name="analytics" size="small" color="#9a9a9a" /> {{ d.likeCount }}</span>
+            <span><SIcon name="exchange" size="small" color="#9a9a9a" /> {{ d.commentCount }}</span>
+          </view>
+        </view>
+      </view>
+      <view class="empty-state" v-else>
         <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
         <view class="empty-text">暂无动态</view>
       </view>
@@ -110,10 +118,18 @@
 
     <!-- 视频面板 -->
     <view class="tab-panel" v-if="activeTab === 'video'">
-      <view class="sec-t">视频</view>
-      <view class="empty-state" v-if="!card.videoChannel">
+      <view class="sec-t">视频作品<small>对接视频号</small></view>
+      <view class="vids-row" v-if="videos.length">
+        <view class="vid-card" v-for="v in videos" :key="v.id" @click="openVideo">
+          <image class="vid-cover" :src="v.coverUrl" mode="aspectFill" />
+          <view class="vid-play"><SIcon name="dynamic" size="large" color="#ffffff" /></view>
+          <view class="vid-title">{{ v.title }}</view>
+          <view class="vid-dur" v-if="v.duration">{{ v.duration }}</view>
+        </view>
+      </view>
+      <view class="empty-state" v-else-if="!card.videoChannel">
         <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
-        <view class="empty-text">未绑定视频号</view>
+        <view class="empty-text">暂无视频作品</view>
       </view>
       <view class="video-card" v-else @click="openVideo">
         <view class="video-cover"><SIcon name="dynamic" size="large" color="#fff" /></view>
@@ -153,18 +169,21 @@ import SIcon from '../../components/SIcon.vue';
 
 const card = ref({});
 const works = ref([]);
+const dynamics = ref([]);
+const videos = ref([]);
 const activeTab = ref('intro');
 const memberLevel = ref('free');
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
-// demo: 东莞 · 约拍·商业摄影（城市 · 业务领域）
+// demo: 东莞 · 约拍·商业摄影（城市 · slogan/业务）
 const cityLine = computed(() => {
   const city = card.value.city || '';
-  const biz = card.value.businessField || card.value.company || '';
+  const biz = card.value.slogan || card.value.businessField || card.value.company || '';
   return [city, biz].filter(Boolean).join(' · ') || '—';
 });
-// 业务领域按分隔符拆标签
+// 标签：优先独立tags字段，回退业务领域拆分
 const tagList = computed(() => {
+  if (card.value.tags) return card.value.tags.split(/[,，、\/]/).map((s) => s.trim()).filter(Boolean).slice(0, 6);
   if (!card.value.businessField) return [];
   return card.value.businessField.split(/[/,，、]/).map((s) => s.trim()).filter(Boolean).slice(0, 6);
 });
@@ -176,12 +195,23 @@ onMounted(async () => {
     try {
       const res = await cardApi.getCard(id);
       card.value = res.card;
+      memberLevel.value = res.card.ownerMemberLevel || 'free';
       // 采集访客行为
       cardApi.trackVisitor({ cardId: id, actionType: 'view', page: 'profile' });
       // 加载作品集
       try {
         const w = await cardApi.getCardWorks(id);
         works.value = w.works || [];
+      } catch (e) {}
+      // 加载动态
+      try {
+        const d = await cardApi.getCardDynamics(id);
+        dynamics.value = d.dynamics || [];
+      } catch (e) {}
+      // 加载视频
+      try {
+        const v = await cardApi.getCardVideos(id);
+        videos.value = v.videos || [];
       } catch (e) {}
     } catch (e) {}
   }
@@ -208,6 +238,17 @@ function navigateTo() {
 }
 function previewWork(w) {
   if (w.imageUrl) uni.previewImage({ urls: works.value.map((x) => x.imageUrl), current: w.imageUrl });
+}
+function previewDyn(d) {
+  if (d.images && d.images.length) uni.previewImage({ urls: d.images, current: d.images[0] });
+}
+function timeText(t) {
+  if (!t) return '';
+  const diff = (Date.now() - new Date(t.replace(' ', 'T')).getTime()) / 1000;
+  if (diff < 3600) return `${Math.max(1, Math.floor(diff / 60))}分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+  if (diff < 172800) return '昨天';
+  return new Date(t).toLocaleDateString('zh-CN');
 }
 function openVideo() {
   uni.showToast({ title: '跳转视频号', icon: 'none' });
@@ -483,6 +524,134 @@ function goPage(path) {
 .video-desc {
   font-size: 24rpx;
   color: #9a9a9a;
+}
+
+/* ===== 动态（demo dyn-card）===== */
+.dyn-list {
+  padding: 0 28rpx;
+}
+.dyn-card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.dyn-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.dyn-av {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9a9a9a;
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+.dyn-av image {
+  width: 100%;
+  height: 100%;
+}
+.dyn-who {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.dyn-who b {
+  font-size: 27rpx;
+  color: #1a1a1a;
+}
+.dyn-who span {
+  font-size: 22rpx;
+  color: #9a9a9a;
+}
+.dyn-body {
+  margin-top: 16rpx;
+}
+.dyn-body h4 {
+  font-size: 28rpx;
+  color: #1a1a1a;
+  margin-bottom: 8rpx;
+  font-weight: 600;
+}
+.dyn-body p {
+  font-size: 25rpx;
+  color: #4e5969;
+  line-height: 1.6;
+}
+.dyn-img {
+  width: 100%;
+  height: 320rpx;
+  border-radius: 16rpx;
+  margin-top: 16rpx;
+  display: block;
+}
+.dyn-meta {
+  display: flex;
+  gap: 32rpx;
+  margin-top: 16rpx;
+  font-size: 23rpx;
+  color: #9a9a9a;
+}
+.dyn-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+/* ===== 视频（demo vids 横滑卡片）===== */
+.vids-row {
+  display: flex;
+  gap: 20rpx;
+  padding: 4rpx 28rpx;
+  overflow-x: auto;
+}
+.vid-card {
+  flex: 0 0 300rpx;
+  border-radius: 26rpx;
+  overflow: hidden;
+  position: relative;
+  background: #000;
+}
+.vid-cover {
+  width: 100%;
+  height: 300rpx;
+  object-fit: cover;
+  display: block;
+}
+.vid-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.1);
+}
+.vid-title {
+  position: absolute;
+  left: 16rpx;
+  right: 16rpx;
+  bottom: 16rpx;
+  color: #fff;
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+.vid-dur {
+  position: absolute;
+  right: 10rpx;
+  top: 10rpx;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 20rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
 }
 
 /* ===== 底部TabBar（demo mtb）===== */

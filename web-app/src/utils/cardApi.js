@@ -72,6 +72,8 @@ export const cardApi = {
   updateCard: (id, data) => request(`/cards/${id}`, 'PUT', data),
   deleteCard: (id) => request(`/cards/${id}`, 'DELETE'),
   getCardWorks: (id) => request(`/cards/${id}/works`),
+  getCardDynamics: (id) => request(`/cards/${id}/dynamics`),
+  getCardVideos: (id) => request(`/cards/${id}/videos`),
 
   // 访客采集
   trackVisitor: (data) => request('/visitor/track', 'POST', data),

@@ -611,8 +611,11 @@ function migrate(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       card_id INTEGER,
+      title TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL,
       images TEXT NOT NULL DEFAULT '[]',
+      like_count INTEGER NOT NULL DEFAULT 0,
+      comment_count INTEGER NOT NULL DEFAULT 0,
       visibility TEXT NOT NULL DEFAULT 'public',
       status TEXT NOT NULL DEFAULT 'active',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -620,6 +623,20 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_dynamic_user ON card_dynamic(user_id);
     CREATE INDEX IF NOT EXISTS idx_dynamic_visibility ON card_dynamic(visibility, status);
+  `);
+
+  // —— 名片视频表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_videos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      cover_url TEXT NOT NULL DEFAULT '',
+      duration TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_videos_card ON card_videos(card_id);
   `);
 
   // —— 客户资源表 ——
@@ -968,6 +985,23 @@ function migrate(db) {
   // —— card_profile表加 city 字段 ——
   if (!colExists(db, 'card_profile', 'city')) {
     db.exec("ALTER TABLE card_profile ADD COLUMN city TEXT NOT NULL DEFAULT ''");
+  }
+  // —— card_profile表加 slogan/tags 字段 ——
+  if (!colExists(db, 'card_profile', 'slogan')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN slogan TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_profile', 'tags')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN tags TEXT NOT NULL DEFAULT ''");
+  }
+  // —— card_dynamic表加 title/like_count/comment_count 字段 ——
+  if (!colExists(db, 'card_dynamic', 'title')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN title TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_dynamic', 'like_count')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN like_count INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!colExists(db, 'card_dynamic', 'comment_count')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN comment_count INTEGER NOT NULL DEFAULT 0");
   }
 
   // —— tenant_individuals表加 position/company 字段（入驻申请）——

@@ -128,3 +128,51 @@ test('名片作品集API', async () => {
   assert.equal(filled.body.works[0].title, '作品一');
   assert.equal(filled.body.works[0].imageUrl, 'https://example.com/w1.jpg');
 });
+
+test('名片动态/视频API+ownerMemberLevel', async () => {
+  const token = await wxLogin('merge_dyn_1');
+  const created = await request(app)
+    .post('/api/card/cards')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: '动态测试', position: '运营' });
+  const cardId = created.body.card.id;
+
+  // 空动态/视频
+  const emptyDyn = await request(app).get(`/api/card/cards/${cardId}/dynamics`);
+  assert.equal(emptyDyn.status, 200);
+  assert.deepEqual(emptyDyn.body.dynamics, []);
+  const emptyVid = await request(app).get(`/api/card/cards/${cardId}/videos`);
+  assert.equal(emptyVid.status, 200);
+  assert.deepEqual(emptyVid.body.videos, []);
+
+  const { createDb } = await import('../src/db.js');
+  const db = createDb(config.dbPath);
+  // 动态（含title/like/comment）
+  db.prepare(`INSERT INTO card_dynamic (user_id, card_id, title, content, images, like_count, comment_count, visibility, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'public', 'active')`)
+    .run(created.body.card.userId, cardId, '测试动态标题', '测试动态内容', '[]', 3, 1);
+  const dyn = await request(app).get(`/api/card/cards/${cardId}/dynamics`);
+  assert.equal(dyn.status, 200);
+  assert.equal(dyn.body.dynamics.length, 1);
+  assert.equal(dyn.body.dynamics[0].title, '测试动态标题');
+  assert.equal(dyn.body.dynamics[0].likeCount, 3);
+  assert.equal(dyn.body.dynamics[0].commentCount, 1);
+
+  // 视频
+  db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration) VALUES (?,?,?,?)')
+    .run(cardId, '测试视频', 'https://example.com/v1.jpg', '00:30');
+  const vid = await request(app).get(`/api/card/cards/${cardId}/videos`);
+  assert.equal(vid.status, 200);
+  assert.equal(vid.body.videos.length, 1);
+  assert.equal(vid.body.videos[0].title, '测试视频');
+  assert.equal(vid.body.videos[0].duration, '00:30');
+
+  // ownerMemberLevel: 新用户默认free
+  const detail = await request(app).get(`/api/card/cards/${cardId}`);
+  assert.equal(detail.status, 200);
+  assert.equal(detail.body.card.ownerMemberLevel, 'free');
+  // 设为gold后返回gold
+  db.prepare("UPDATE platform_user SET member_level='gold', member_expire_at='2030-01-01 00:00:00' WHERE id=?").run(created.body.card.userId);
+  const detail2 = await request(app).get(`/api/card/cards/${cardId}`);
+  assert.equal(detail2.body.card.ownerMemberLevel, 'gold');
+});
