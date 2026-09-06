@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { config } from './config.js';
 import { createDb } from './db.js';
 import { createAuthRouter, requireAuth } from './auth.js';
@@ -13,6 +16,8 @@ import { createSettingsRouter } from './routes/settings.js';
 import { createLogsRouter } from './routes/logs.js';
 import { createCustomerRouter } from './routes/customer.js';
 import { createSolutionsRouter } from './routes/solutions.js';
+import { createMultiAuthRouter } from './routes/multi-auth.js';
+import { createAppRegistryRouter } from './routes/app-registry.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -34,17 +39,47 @@ export function createApp({ db } = {}) {
   app.use('/api', createLogsRouter(database));
   app.use('/api/customer', requireAuth, createCustomerRouter(database));
   app.use('/api/admin/solutions', requireAuth, createSolutionsRouter(database));
+  app.use('/api/auth', createMultiAuthRouter(database));
+  app.use('/api', createAppRegistryRouter(database));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+  // Vue管理后台构建产物
+  const adminDist = path.join(config.publicDir, 'admin');
+  if (fs.existsSync(adminDist)) {
+    app.use('/admin-assets', express.static(adminDist, { maxAge: '1y' }));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET') return next();
+      if (req.path === '/admin' || req.path.startsWith('/admin/')) {
+        return res.sendFile(path.join(adminDist, 'admin.html'));
+      }
+      if (req.path === '/customer' || req.path.startsWith('/customer/')) {
+        return res.sendFile(path.join(adminDist, 'customer.html'));
+      }
+      next();
+    });
+  }
+
+  // uni-app H5构建产物（移动端）
+  const mobileDist = path.join(__dirname, '..', '..', 'web-app', 'dist', 'build', 'h5');
+  if (fs.existsSync(mobileDist)) {
+    app.use('/mobile-assets', express.static(path.join(mobileDist, 'assets'), { maxAge: '1y' }));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET') return next();
+      if (req.path === '/mobile' || req.path.startsWith('/mobile/')) {
+        return res.sendFile(path.join(mobileDist, 'index.html'));
+      }
+      next();
+    });
+  }
+
   // 生产环境：托管 web 构建产物，SPA 路由回退到对应入口页
   const indexHtml = path.join(config.webDistDir, 'index.html');
-  const adminHtml = path.join(config.webDistDir, 'admin.html');
+  const oldAdminHtml = path.join(config.webDistDir, 'admin.html');
   if (fs.existsSync(indexHtml)) {
     app.use(
       express.static(config.webDistDir, {
-        // HTML 每次校验（内容常变）；带 hash 的 assets 仍走默认长缓存
         setHeaders(res, filePath) {
           if (filePath.endsWith('.html')) res.set('Cache-Control', 'no-cache');
         },
@@ -53,8 +88,8 @@ export function createApp({ db } = {}) {
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
       if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
-      const target = req.path.startsWith('/admin') ? adminHtml : indexHtml;
-      return res.sendFile(target);
+      if (req.path.startsWith('/admin') || req.path.startsWith('/customer')) return next();
+      return res.sendFile(indexHtml);
     });
   }
 

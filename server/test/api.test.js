@@ -29,6 +29,12 @@ before(() => {
   fs.mkdirSync(config.webDistDir, { recursive: true });
   fs.writeFileSync(path.join(config.webDistDir, 'index.html'), '<html>INDEX_ENTRY</html>');
   fs.writeFileSync(path.join(config.webDistDir, 'admin.html'), '<html>ADMIN_ENTRY</html>');
+  // 模拟 Vue 管理后台构建产物
+  config.publicDir = path.join(tmpDir, 'public');
+  const adminDist = path.join(config.publicDir, 'admin');
+  fs.mkdirSync(adminDist, { recursive: true });
+  fs.writeFileSync(path.join(adminDist, 'admin.html'), '<html>VUE_ADMIN_ENTRY</html>');
+  fs.writeFileSync(path.join(adminDist, 'customer.html'), '<html>VUE_CUSTOMER_ENTRY</html>');
   app = createApp();
 });
 
@@ -51,7 +57,7 @@ test('SPA 托管：/ 返回展示端入口页', async () => {
 test('SPA 托管：/admin 返回管理后台入口页', async () => {
   const res = await request(app).get('/admin');
   assert.equal(res.status, 200);
-  assert.match(res.text, /ADMIN_ENTRY/);
+  assert.match(res.text, /VUE_ADMIN_ENTRY/);
 });
 
 test('SPA 托管：未知 API 路径不落入页面回退', async () => {

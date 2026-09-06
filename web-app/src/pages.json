@@ -1,0 +1,52 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "360全景",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/viewer/viewer",
+      "style": {
+        "navigationBarTitleText": "全景浏览",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/share/share",
+      "style": {
+        "navigationBarTitleText": "分享",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "360全景",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true
+    },
+    "usingComponents": true,
+    "requiredPrivateInfos": ["getLocation"],
+    "permission": {
+      "scope.userLocation": {
+        "desc": "用于全景场景定位"
+      }
+    }
+  },
+  "h5": {
+    "title": "360全景",
+    "router": {
+      "mode": "hash"
+    }
+  }
+}

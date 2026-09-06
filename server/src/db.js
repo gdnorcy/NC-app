@@ -266,6 +266,13 @@ function migrate(db) {
     db.exec('ALTER TABLE users ADD COLUMN customer_id INTEGER');
   }
 
+  // —— users 表加微信多端字段 ——
+  ['wx_openid', 'mp_openid', 'wx_unionid', 'nickname', 'avatar'].forEach(col => {
+    if (!colExists(db, 'users', col)) {
+      db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT`);
+    }
+  });
+
   // —— orders 表（客户账单/订单）——
   db.exec(`
     CREATE TABLE IF NOT EXISTS orders (
@@ -298,10 +305,27 @@ function migrate(db) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  // —— solutions 表加 app_config 字段（应用注册中心）——
+  if (!colExists(db, 'solutions', 'app_config')) {
+    db.exec('ALTER TABLE solutions ADD COLUMN app_config TEXT');
+  }
   // 预置360全景解决方案
   const exists = db.prepare('SELECT id FROM solutions WHERE code = ?').get('panorama');
   if (!exists) {
-    db.prepare("INSERT INTO solutions (name, code, description, icon, enabled, sort_order) VALUES ('360全景', 'panorama', '沉浸式360度全景展示解决方案', '', 1, 1)").run();
+    const panoramaConfig = JSON.stringify({
+      routes: { customer: '/apps/panorama/plans', admin: '/customers' },
+      menu: [
+        { key: 'plans', label: '方案管理', path: '/apps/panorama/plans', icon: 'Folder' },
+        { key: 'scenes', label: '场景管理', path: '/apps/panorama/scenes', icon: 'Picture' },
+      ],
+      permissions: ['plan:view', 'plan:edit', 'scene:view', 'scene:edit', 'scene:delete'],
+      channels: ['h5', 'pc', 'mini', 'mp'],
+      configSchema: [
+        { key: 'defaultTransition', label: '默认切换过渡', type: 'select', options: ['none', 'fade', 'slide'], default: 'fade' },
+        { key: 'enableVR', label: '启用VR模式', type: 'boolean', default: true },
+      ],
+    });
+    db.prepare("INSERT INTO solutions (name, code, description, icon, enabled, sort_order, app_config) VALUES ('360全景', 'panorama', '沉浸式360度全景展示解决方案', '🌐', 1, 1, ?)").run(panoramaConfig);
   }
 
   // —— projects（客户）表加 solutions 字段 ——

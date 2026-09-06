@@ -14,6 +14,7 @@ export const config = {
   uploadsDir: path.join(dataDir, 'uploads'),
   dbPath: path.join(dataDir, 'panorama.db'),
   webDistDir: path.join(__dirname, '..', '..', 'web', 'dist'),
+  publicDir: path.join(__dirname, '..', 'public'),
   maxUploadBytes: 50 * 1024 * 1024,
   // 上传转码：主图最大长边（像素）与 WebP 质量
   imageMaxSize: Number(process.env.IMAGE_MAX_SIZE || 4096),
