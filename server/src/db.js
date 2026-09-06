@@ -555,12 +555,16 @@ function migrate(db) {
       duration INTEGER NOT NULL DEFAULT 0,
       pages TEXT NOT NULL DEFAULT '[]',
       last_visit_at TEXT NOT NULL DEFAULT (datetime('now')),
+      read_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_visitor_card ON card_visitor(card_id);
     CREATE INDEX IF NOT EXISTS idx_visitor_date ON card_visitor(card_id, visit_date);
     CREATE INDEX IF NOT EXISTS idx_visitor_openid ON card_visitor(visitor_openid);
   `);
+
+  // 老库迁移：card_visitor 补 read_at 列（已读标记）
+  try { db.exec('ALTER TABLE card_visitor ADD COLUMN read_at TEXT'); } catch (e) { /* 已存在则忽略 */ }
 
   // —— 访客行为详情（时间线）——
   db.exec(`

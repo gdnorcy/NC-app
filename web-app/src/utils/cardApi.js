@@ -81,6 +81,7 @@ export const cardApi = {
   // 访客雷达
   getVisitorSummary: () => request('/visitors/summary'),
   getVisitorTimeline: (openid) => request(`/visitors/${openid}/timeline`),
+  markVisitorRead: (openid) => request(`/visitors/${openid}/read`, 'POST'),
 
   // 客户管理
   getCustomers: (params) => request('/customers' + (params ? '?' + new URLSearchParams(params).toString() : '')),

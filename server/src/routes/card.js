@@ -303,11 +303,20 @@ export function createCardRouter(db, wxService) {
         id: v.id, cardId: v.card_id, visitorOpenid: v.visitor_openid, visitorUserId: v.visitor_user_id,
         nickname: nickname || (v.visitor_openid === 'anonymous' ? '匿名访客' : '访客'), avatar,
         visitCount: v.visit_count, duration: v.duration, lastVisitAt: v.last_visit_at,
-        tag, tagColor, actionType, behavior, timeAgo, unread: true,
+        tag, tagColor, actionType, behavior, timeAgo, unread: !v.read_at,
       };
     });
 
     res.json({ today: todayCount, week: weekCount, total, diff, visitors: enriched });
+  });
+
+  // 访客已读标记（红点消失）
+  router.post('/visitors/:visitorOpenid/read', auth, (req, res) => {
+    const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
+    if (!card) return res.status(404).json({ error: '名片不存在' });
+    db.prepare('UPDATE card_visitor SET read_at = datetime(\'now\') WHERE card_id=? AND visitor_openid=?')
+      .run(card.id, req.params.visitorOpenid);
+    res.json({ ok: true });
   });
 
   function timeAgoText(time) {

@@ -148,6 +148,11 @@ async function viewTimeline(v) {
     uni.showToast({ title: '匿名访客暂无轨迹', icon: 'none' });
     return;
   }
+  // 标记已读（红点消失）
+  if (v.unread) {
+    v.unread = false;
+    try { await cardApi.markVisitorRead(v.visitorOpenid); } catch (e) {}
+  }
   timelineName.value = v.nickname;
   timelineItems.value = buildDefaultTimeline(v);
   showTimeline.value = true;
@@ -321,13 +326,13 @@ async function saveConvert() {
 }
 .v-av .red {
   position: absolute;
-  top: -2rpx;
-  right: -2rpx;
-  width: 18rpx;
-  height: 18rpx;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: #ff4d4f;
-  border: 4rpx solid #fff;
+  border: 2px solid #fff;
   animation: blink 1.6s infinite;
 }
 @keyframes blink {

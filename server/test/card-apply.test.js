@@ -254,3 +254,32 @@ test('访客标签按最近动作推断(video→观看视频, visit2次→高意
   assert.equal(v2.tag, '已交换名片');
   assert.equal(v3.tag, '高意向');
 });
+
+test('访客已读标记：summary未读→标记已读→红点消失', async () => {
+  const token = await wxLogin('merge_radar_3');
+  const created = await request(app)
+    .post('/api/card/cards')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: '已读测试', position: '顾问' });
+  const cardId = created.body.card.id;
+  const { createDb } = await import('../src/db.js');
+  const db = createDb(config.dbPath);
+  const u = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
+    .run('mock_read_v1', '周先生', new Date().toISOString(), new Date().toISOString());
+  const today = new Date().toISOString().slice(0, 10);
+  db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visitor_user_id, visit_date, visit_count, duration, pages, last_visit_at)
+    VALUES (?,?,?,?,?,?,?,datetime('now'))`)
+    .run(cardId, 'mock_read_v1', Number(u.lastInsertRowid), today, 1, 10, '[]');
+
+  const before = await request(app).get('/api/card/visitors/summary').set('Authorization', `Bearer ${token}`);
+  const v = before.body.visitors.find((x) => x.visitorOpenid === 'mock_read_v1');
+  assert.equal(v.unread, true, '初始应未读');
+
+  const mark = await request(app).post('/api/card/visitors/mock_read_v1/read').set('Authorization', `Bearer ${token}`);
+  assert.equal(mark.status, 200);
+  assert.equal(mark.body.ok, true);
+
+  const after = await request(app).get('/api/card/visitors/summary').set('Authorization', `Bearer ${token}`);
+  const v2 = after.body.visitors.find((x) => x.visitorOpenid === 'mock_read_v1');
+  assert.equal(v2.unread, false, '标记后应已读');
+});
