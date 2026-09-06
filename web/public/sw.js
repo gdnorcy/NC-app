@@ -7,7 +7,7 @@
  */
 importScripts('/sw-strategy.js');
 
-const VERSION = 'p2-v1';
+const VERSION = 'p3-v1';
 const SHELL_CACHE = `panorama-shell-${VERSION}`;
 const IMAGE_CACHE = `panorama-images-${VERSION}`;
 const API_CACHE = `panorama-api-${VERSION}`;

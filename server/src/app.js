@@ -57,6 +57,10 @@ export function createApp({ db } = {}) {
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+  // 旧URL重定向到新URL
+  app.get('/admin.html', (_req, res) => res.redirect(301, '/admin'));
+  app.get('/customer.html', (_req, res) => res.redirect(301, '/customer'));
+
   // Vue管理后台构建产物
   const adminDist = path.join(config.publicDir, 'admin');
   if (fs.existsSync(adminDist)) {

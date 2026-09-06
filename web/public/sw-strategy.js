@@ -17,6 +17,8 @@
       return { strategy: 'skip' };
     }
     if (!u.origin || u.origin !== new URL(base).origin) return { strategy: 'skip' };
+    // 管理后台不缓存，确保每次加载最新版本
+    if (u.pathname.indexOf('/admin') === 0 || u.pathname.indexOf('/customer') === 0) return { strategy: 'skip' };
     if (u.pathname.indexOf('/api/') === 0) return { strategy: 'network-first' };
     if (u.pathname.indexOf('/uploads/') === 0 || /\.(webp|jpe?g|png|avif)$/i.test(u.pathname)) {
       return { strategy: 'cache-first' };

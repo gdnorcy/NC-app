@@ -6,8 +6,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: 'index.html',
-        admin: 'admin.html',
-        customer: 'customer.html',
       },
       output: {
         // 将 three.js 拆分为独立 chunk，配合 Service Worker 预缓存，降低首屏 JS 体积
