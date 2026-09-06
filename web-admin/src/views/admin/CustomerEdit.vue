@@ -101,6 +101,11 @@
                 <span>未授权独立小程序，使用平台统一小程序</span>
                 <el-button size="small" type="primary" @click="goAuthMini">去授权</el-button>
               </div>
+              <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+                <span style="font-size:13px;color:#606266;">启用渠道</span>
+                <el-switch v-model="ch.enabled" @change="saveChannel(ch)" />
+                <span style="font-size:12px;color:#909399;">{{ ch.enabled ? '已启用，客户可通过小程序访问' : '已禁用，小程序将无法访问' }}</span>
+              </div>
             </div>
             <div class="channel-item-body" v-else>
               <el-form :model="ch.config" label-width="100px" size="small" inline>

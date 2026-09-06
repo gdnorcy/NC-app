@@ -4,7 +4,7 @@
       <el-button @click="$router.back()"><el-icon><ArrowLeft /></el-icon>返回</el-button>
       <h2 class="page-title">微信小程序管理</h2>
       <div style="margin-left:auto;display:flex;gap:8px;">
-        <el-button @click="loadTemplates">同步模板</el-button>
+        <el-button @click="loadTemplates(true)">同步模板</el-button>
         <el-button type="primary" @click="showAuth = true">授权新租户</el-button>
       </div>
     </div>
@@ -132,15 +132,18 @@ async function loadData() {
   } catch (e) { ElMessage.error(e); }
 }
 
-async function loadTemplates() {
+async function loadTemplates(showMsg = false) {
   try {
     const res = await fetchChannelTemplates();
     templates.value = res.templates || [];
     if (templates.value.length && !selectedTemplate.value) {
       selectedTemplate.value = templates.value[0].template_id;
     }
-    ElMessage.success(`已同步 ${templates.value.length} 个模板`);
-  } catch (e) { ElMessage.error(e); }
+    if (showMsg) ElMessage.success(`已同步 ${templates.value.length} 个模板`);
+  } catch (e) {
+    if (showMsg) ElMessage.error(e);
+    // 页面加载时静默失败（可能未配置第三方平台）
+  }
 }
 
 function onTemplateChange() {
