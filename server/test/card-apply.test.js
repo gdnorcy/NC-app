@@ -176,3 +176,38 @@ test('名片动态/视频API+ownerMemberLevel', async () => {
   const detail2 = await request(app).get(`/api/card/cards/${cardId}`);
   assert.equal(detail2.body.card.ownerMemberLevel, 'gold');
 });
+
+test('访客雷达summary增强（昵称/标签/行为/对比）', async () => {
+  const token = await wxLogin('merge_radar_1');
+  const created = await request(app)
+    .post('/api/card/cards')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: '雷达测试', position: '老板' });
+  const cardId = created.body.card.id;
+
+  const { createDb } = await import('../src/db.js');
+  const db = createDb(config.dbPath);
+
+  // 造一条访客记录（昵称张三 + 2次访问 + exchange动作）
+  const u = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
+    .run('mock_radar_visitor1', '张三', new Date().toISOString(), new Date().toISOString());
+  const vUserId = Number(u.lastInsertRowid);
+  const today = new Date().toISOString().slice(0, 10);
+  db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visitor_user_id, visit_date, visit_count, duration, pages, last_visit_at)
+    VALUES (?,?,?,?,?,?,?,datetime('now'))`)
+    .run(cardId, 'mock_radar_v1', vUserId, today, 2, 35, '[]');
+  db.prepare("INSERT INTO card_visitor_action (card_id, visitor_openid, action_type, action_detail) VALUES (?,?,?,?)")
+    .run(cardId, 'mock_radar_v1', 'exchange', '交换电子名片');
+
+  const res = await request(app).get('/api/card/visitors/summary').set('Authorization', `Bearer ${token}`);
+  assert.equal(res.status, 200);
+  assert.ok(res.body.today >= 1);
+  const v = res.body.visitors.find((x) => x.visitorOpenid === 'mock_radar_v1');
+  assert.ok(v, '访客应返回');
+  assert.equal(v.nickname, '张三');
+  assert.equal(v.tag, '已交换名片');
+  assert.equal(v.behavior, '访问2次 · 停留35秒');
+  assert.ok(v.timeAgo);
+  // 较昨日对比字段存在
+  assert.ok(typeof res.body.diff === 'number');
+});

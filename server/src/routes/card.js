@@ -257,21 +257,71 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   router.get('/visitors/summary', auth, (req, res) => {
     const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
-    if (!card) return res.json({ today: 0, week: 0, total: 0, visitors: [] });
+    if (!card) return res.json({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
 
     const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
     const todayCount = db.prepare('SELECT COALESCE(SUM(visit_count),0) as c FROM card_visitor WHERE card_id=? AND visit_date=?').get(card.id, today).c;
+    const yesterdayCount = db.prepare('SELECT COALESCE(SUM(visit_count),0) as c FROM card_visitor WHERE card_id=? AND visit_date=?').get(card.id, yesterday).c;
     const weekCount = db.prepare('SELECT COALESCE(SUM(visit_count),0) as c FROM card_visitor WHERE card_id=? AND visit_date>=?').get(card.id, weekAgo).c;
     const total = db.prepare('SELECT view_count FROM card_profile WHERE id=?').get(card.id).view_count;
+
+    // 较昨日增幅
+    let diff = 0;
+    if (yesterdayCount > 0) diff = Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100);
 
     const visitors = db.prepare(
       'SELECT * FROM card_visitor WHERE card_id=? ORDER BY last_visit_at DESC LIMIT 50'
     ).all(card.id);
 
-    res.json({ today: todayCount, week: weekCount, total, visitors: visitors.map(toVisitor) });
+    const enriched = visitors.map((v) => {
+      // 关联昵称/头像
+      let nickname = '', avatar = '';
+      if (v.visitor_user_id) {
+        const u = db.prepare('SELECT nickname, avatar FROM platform_user WHERE id=?').get(v.visitor_user_id);
+        if (u) { nickname = u.nickname; avatar = u.avatar; }
+      }
+      // 最近动作
+      const lastAction = db.prepare('SELECT action_type, action_detail FROM card_visitor_action WHERE card_id=? AND visitor_openid=? ORDER BY created_at DESC LIMIT 1').get(card.id, v.visitor_openid);
+      const actionType = lastAction ? lastAction.action_type : '';
+      const actionDetail = lastAction ? lastAction.action_detail : '';
+
+      // 标签推断：已交换名片 > 高意向 > 观看视频 > 新访客
+      let tag = '新访客', tagColor = '#9a9a9a';
+      const exchangeCount = db.prepare("SELECT COUNT(*) as c FROM card_visitor_action WHERE card_id=? AND visitor_openid=? AND action_type='exchange'").get(card.id, v.visitor_openid).c;
+      if (exchangeCount > 0) { tag = '已交换名片'; tagColor = '#07c160'; }
+      else if (v.visit_count >= 2) { tag = '高意向'; tagColor = '#07c160'; }
+      else if (actionType === 'video' || (actionDetail || '').includes('视频')) { tag = '观看视频'; tagColor = '#1d4e8f'; }
+
+      // 行为描述
+      const durText = v.duration > 0 ? ` · 停留${v.duration >= 60 ? Math.floor(v.duration / 60) + '分' + (v.duration % 60) + '秒' : v.duration + '秒'}` : '';
+      const behavior = `访问${v.visit_count}次${durText}`;
+      const timeAgo = timeAgoText(v.last_visit_at);
+
+      return {
+        id: v.id, cardId: v.card_id, visitorOpenid: v.visitor_openid, visitorUserId: v.visitor_user_id,
+        nickname: nickname || (v.visitor_openid === 'anonymous' ? '匿名访客' : '访客'), avatar,
+        visitCount: v.visit_count, duration: v.duration, lastVisitAt: v.last_visit_at,
+        tag, tagColor, actionType, behavior, timeAgo, unread: true,
+      };
+    });
+
+    res.json({ today: todayCount, week: weekCount, total, diff, visitors: enriched });
   });
+
+  function timeAgoText(time) {
+    if (!time) return '';
+    const d = new Date(String(time).replace(' ', 'T'));
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+    if (diff < 172800000) return '昨天';
+    return String(time).slice(5, 16);
+  }
 
   router.get('/visitors/:visitorOpenid/timeline', auth, (req, res) => {
     const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
