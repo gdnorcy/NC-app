@@ -147,7 +147,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
@@ -176,6 +178,9 @@ onMounted(async () => {
   const pages = getCurrentPages();
   const id = pages[pages.length - 1].options.id;
   if (id) {
+    // 记住最近查看的名片，供底部"名片"Tab切回时使用
+    uni.setStorageSync('cardLastViewId', id);
+    restoreScrollTop('myCard');
     try {
       const res = await cardApi.getCard(id);
       card.value = res.card;
@@ -199,6 +204,11 @@ onMounted(async () => {
       } catch (e) {}
     } catch (e) {}
   }
+});
+
+// 离开时保存滚动位置，切Tab返回后恢复
+onUnload(() => {
+  saveCardTabState('myCard', { scrollTop: h5ScrollTop() });
 });
 
 function callPhone() {

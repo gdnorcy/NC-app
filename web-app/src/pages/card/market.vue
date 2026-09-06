@@ -92,7 +92,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { saveCardTabState, loadCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
@@ -100,7 +102,27 @@ const items = ref([]);
 const keyword = ref('');
 const filterType = ref('all');
 
-onMounted(() => loadMarket());
+onMounted(() => {
+  // 恢复上次筛选与已加载列表，避免切换Tab回来空白/重载闪烁
+  const cached = loadCardTabState('market');
+  if (cached) {
+    if (cached.keyword) keyword.value = cached.keyword;
+    if (cached.filterType) filterType.value = cached.filterType;
+    if (Array.isArray(cached.items) && cached.items.length) items.value = cached.items;
+  }
+  loadMarket();
+  restoreScrollTop('market');
+});
+
+// 离开时保存筛选与列表，切Tab返回后恢复
+onUnload(() => {
+  saveCardTabState('market', {
+    scrollTop: h5ScrollTop(),
+    keyword: keyword.value,
+    filterType: filterType.value,
+    items: items.value,
+  });
+});
 
 async function loadMarket() {
   try {

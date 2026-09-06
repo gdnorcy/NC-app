@@ -90,7 +90,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
@@ -115,6 +117,7 @@ const diffText = computed(() => {
 });
 
 onMounted(async () => {
+  restoreScrollTop('visitors');
   try {
     const res = await cardApi.getVisitorSummary();
     summary.value = res;
@@ -123,6 +126,11 @@ onMounted(async () => {
     animateNumber('week', res.week);
     animateNumber('total', res.total);
   } catch (e) {}
+});
+
+// 离开时保存滚动位置，切Tab返回后恢复
+onUnload(() => {
+  saveCardTabState('visitors', { scrollTop: h5ScrollTop() });
 });
 
 function animateNumber(key, target) {

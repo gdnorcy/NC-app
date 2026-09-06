@@ -1,5 +1,11 @@
 <template>
   <div class="market-manage-page">
+    <!-- 统一Tab导航（5个管理功能共用） -->
+    <CardTabs />
+
+    <!-- 统一Tab导航（5个管理功能共用） -->
+    <CardTabs />
+
     <!-- 页面标题 -->
     <div class="page-header">
       <div>
@@ -143,6 +149,7 @@ import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
 import { publicApi } from '../../../../api';
+import CardTabs from './CardTabs.vue';
 
 const settings = ref({
   enabled: 1,

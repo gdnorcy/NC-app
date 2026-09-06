@@ -307,6 +307,7 @@ async function submit() {
     return;
   }
   submitting.value = true;
+  let newCardId = null;
   try {
     if (isEdit.value) {
       await cardApi.updateCard(form.id, form);
@@ -316,14 +317,23 @@ async function submit() {
       // 入驻绑定：填了口令才同时入驻
       if (payload.bindCode) {
         payload.applyType = cardType.value;
-        await cardApi.createCardWithApply(payload);
+        const res = await cardApi.createCardWithApply(payload);
+        newCardId = res && res.card && res.card.id;
         uni.showToast({ title: '名片创建成功，入驻申请已提交', icon: 'success' });
       } else {
-        await cardApi.createCard(payload);
+        const res = await cardApi.createCard(payload);
+        newCardId = res && res.card && res.card.id;
         uni.showToast({ title: '名片创建成功', icon: 'success' });
       }
     }
-    setTimeout(() => uni.navigateBack(), 1200);
+    setTimeout(() => {
+      if (newCardId) {
+        // 创建成功直达名片详情；登录页reLaunch进入本页时无返回栈，不能navigateBack
+        uni.reLaunch({ url: `/pages/card/myCard?id=${newCardId}` });
+      } else {
+        uni.navigateBack();
+      }
+    }, 1200);
   } catch (e) {
     uni.showToast({ title: e.message || '操作失败', icon: 'none' });
   } finally {

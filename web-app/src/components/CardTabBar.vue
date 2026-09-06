@@ -40,7 +40,11 @@ onMounted(async () => {
 
 function goCard() {
   if (props.active === 'card') return;
-  if (myCardId.value) {
+  // 优先回到最近查看的名片，避免多张名片时固定跳第一张
+  const lastId = uni.getStorageSync('cardLastViewId');
+  if (lastId) {
+    uni.reLaunch({ url: `/pages/card/myCard?id=${lastId}` });
+  } else if (myCardId.value) {
     uni.reLaunch({ url: `/pages/card/myCard?id=${myCardId.value}` });
   } else {
     uni.navigateTo({ url: '/pages/card/create' });

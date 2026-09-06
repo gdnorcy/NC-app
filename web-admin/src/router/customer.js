@@ -17,6 +17,7 @@ const routes = [
       { path: 'apps/channel/mini', component: () => import('../views/customer/channel/ChannelMini.vue'), meta: { title: '微信小程序', breadcrumbs: ['应用中心', '全端渠道', '微信小程序'] } },
       { path: 'apps/channel/config', component: () => import('../views/customer/channel/ChannelConfig.vue'), meta: { title: '渠道配置', breadcrumbs: ['应用中心', '全端渠道', '渠道配置'] } },
       { path: 'apps/card', component: () => import('../views/customer/card/CardAdmin.vue'), meta: { title: '智能名片', breadcrumbs: ['应用中心', '智能名片'] } },
+      { path: 'apps/card/customers', component: () => import('../views/customer/apps/card/CustomersManage.vue'), meta: { title: '企业客户', breadcrumbs: ['应用中心', '智能名片', '企业客户'] } },
       { path: 'apps/card/market', component: () => import('../views/customer/apps/card/MarketManage.vue'), meta: { title: '集市管理', breadcrumbs: ['应用中心', '智能名片', '集市管理'] } },
       { path: 'apps/card/tenant', component: () => import('../views/customer/apps/card/TenantManage.vue'), meta: { title: '入驻管理', breadcrumbs: ['应用中心', '智能名片', '入驻管理'] } },
       { path: 'apps/card/pool', component: () => import('../views/customer/apps/card/PublicPool.vue'), meta: { title: '公海池', breadcrumbs: ['应用中心', '智能名片', '公海池'] } },

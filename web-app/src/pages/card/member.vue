@@ -40,7 +40,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onUnload } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
@@ -53,6 +55,7 @@ const paying = ref(false);
 const currentLevelText = computed(() => ({ free: '免费版', silver: '白银会员', gold: '黄金会员', diamond: '钻石会员' }[memberLevel.value] || ''));
 
 onMounted(async () => {
+  restoreScrollTop('member');
   try {
     const [pkgRes, memberRes] = await Promise.all([
       cardApi.getPackages(),
@@ -63,6 +66,11 @@ onMounted(async () => {
     memberLevel.value = memberRes.level;
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
   } catch (e) {}
+});
+
+// 离开时保存滚动位置，切Tab返回后恢复
+onUnload(() => {
+  saveCardTabState('member', { scrollTop: h5ScrollTop() });
 });
 
 function isCurrent(level) {
