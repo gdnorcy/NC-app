@@ -5,3 +5,4 @@ server/public/admin/
 web-app/dist/
 *.log
 .DS_Store
+data/
