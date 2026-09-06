@@ -50,6 +50,9 @@
         {{ selectedPackage === 'free' ? '当前为免费版' : `立即开通${getPackageName(selectedPackage)}` }}
       </button>
     </view>
+
+    <!-- 底部TabBar（公共组件） -->
+    <CardTabBar active="member" />
   </view>
 </template>
 
@@ -57,6 +60,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 
 const packages = ref([]);
 const selectedPackage = ref('gold');

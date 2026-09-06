@@ -84,6 +84,9 @@
       <view class="empty-text">暂无公开名片</view>
       <view class="empty-hint">成为第一个公开名片的人吧</view>
     </view>
+
+    <!-- 底部TabBar（公共组件） -->
+    <CardTabBar active="market" />
   </view>
 </template>
 
@@ -91,6 +94,7 @@
 import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 
 const items = ref([]);
 const keyword = ref('');
@@ -130,7 +134,7 @@ function quickExchange(item) {
 </script>
 
 <style scoped>
-.market-page { min-height: 100vh; background: #f5f7fa; padding-bottom: 40px; }
+.market-page { min-height: 100vh; background: #f5f7fa; padding-bottom: 160rpx; }
 
 /* 顶部导航栏 */
 .nav-bar {

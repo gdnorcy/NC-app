@@ -74,6 +74,9 @@
       <view class="btn-main" @click="saveConvert">保存并转为客户</view>
       <view class="btn-ghost" @click="closeConvert">取消</view>
     </view>
+
+    <!-- 底部TabBar（公共组件：名片/雷达/集市/会员） -->
+    <CardTabBar active="radar" />
   </view>
 </template>
 
@@ -81,6 +84,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 
 const summary = ref({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
 const visitors = ref([]);

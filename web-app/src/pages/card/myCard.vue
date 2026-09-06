@@ -140,25 +140,8 @@
       </view>
     </view>
 
-    <!-- 底部TabBar（demo：名片/雷达/集市/会员） -->
-    <view class="mp-tabbar">
-      <view class="mtb on" @click="goCard">
-        <SIcon name="card" size="default" color="#07c160" />
-        <text>名片</text>
-      </view>
-      <view class="mtb" @click="goPage('/pages/card/visitors')">
-        <SIcon name="radar" size="default" color="#9a9a9a" />
-        <text>雷达</text>
-      </view>
-      <view class="mtb" @click="goPage('/pages/card/market')">
-        <SIcon name="market" size="default" color="#9a9a9a" />
-        <text>集市</text>
-      </view>
-      <view class="mtb" @click="goPage('/pages/card/member')">
-        <SIcon name="crown" size="default" color="#9a9a9a" />
-        <text>会员</text>
-      </view>
-    </view>
+    <!-- 底部TabBar（公共组件：名片/雷达/集市/会员） -->
+    <CardTabBar active="card" />
   </view>
 </template>
 
@@ -166,6 +149,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 
 const card = ref({});
 const works = ref([]);
@@ -255,13 +239,6 @@ function openVideo() {
 }
 function shareCard() {
   uni.showToast({ title: '请点击右上角分享', icon: 'none' });
-}
-function goCard() {
-  // 当前已在名片页
-  uni.showToast({ title: '当前为我的名片', icon: 'none' });
-}
-function goPage(path) {
-  uni.navigateTo({ url: path });
 }
 </script>
 
@@ -652,33 +629,5 @@ function goPage(path) {
   font-size: 20rpx;
   padding: 2rpx 10rpx;
   border-radius: 8rpx;
-}
-
-/* ===== 底部TabBar（demo mtb）===== */
-.mp-tabbar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #fff;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  padding: 14rpx 0 calc(14rpx + env(safe-area-inset-bottom));
-  border-top: 1px solid #f2f3f5;
-  z-index: 50;
-}
-.mtb {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6rpx;
-  font-size: 22rpx;
-  color: #9a9a9a;
-  background: none;
-  border: none;
-  padding: 0;
-}
-.mtb.on {
-  color: #07c160;
 }
 </style>

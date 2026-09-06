@@ -70,6 +70,9 @@
         <view class="empty-text">暂无待处理请求</view>
       </view>
     </view>
+
+    <!-- 底部TabBar（公共组件） -->
+    <CardTabBar active="card" />
   </view>
 </template>
 
@@ -77,6 +80,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 
 const connections = ref([]);
 const requests = ref([]);
@@ -142,7 +146,7 @@ function formatTime(time) {
 </script>
 
 <style scoped>
-.connections-page { min-height: 100vh; background: #f5f7fa; padding-bottom: 40px; }
+.connections-page { min-height: 100vh; background: #f5f7fa; padding-bottom: 160rpx; }
 .header { background: linear-gradient(135deg, #165dff, #4080ff); padding: 40px 20px 30px; }
 .title { font-size: 22px; font-weight: 600; color: #fff; }
 .subtitle { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 4px; }
