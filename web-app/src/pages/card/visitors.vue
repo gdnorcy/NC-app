@@ -1,22 +1,29 @@
 <template>
   <view class="visitors-page">
-    <view class="header">
-      <view class="title">访客雷达</view>
-      <view class="subtitle">实时掌握商机动态</view>
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-back" @click="goBack">
+        <SIcon name="dynamic" size="default" color="#1d2129" />
+      </view>
+      <view class="nav-title">访客雷达</view>
+      <view class="nav-right"></view>
     </view>
 
     <!-- 统计卡片 -->
     <view class="stats-row">
       <view class="stat-card">
-        <view class="stat-num" :data-num="summary.today">{{ displayToday }}</view>
+        <view class="stat-icon-wrap"><SIcon name="analytics" size="default" color="#165dff" /></view>
+        <view class="stat-num">{{ summary.today || 0 }}</view>
         <view class="stat-label">今日访问</view>
       </view>
       <view class="stat-card">
-        <view class="stat-num" :data-num="summary.week">{{ displayWeek }}</view>
+        <view class="stat-icon-wrap"><SIcon name="chart" size="default" color="#00b42a" /></view>
+        <view class="stat-num">{{ summary.week || 0 }}</view>
         <view class="stat-label">本周访问</view>
       </view>
       <view class="stat-card">
-        <view class="stat-num" :data-num="summary.total">{{ displayTotal }}</view>
+        <view class="stat-icon-wrap"><SIcon name="radar" size="default" color="#ff7d00" /></view>
+        <view class="stat-num">{{ summary.total || 0 }}</view>
         <view class="stat-label">累计访问</view>
       </view>
     </view>
@@ -114,57 +121,86 @@ function formatTime(time) {
 function viewTimeline(v) {
   uni.navigateTo({ url: `/pages/card/visitorTimeline?openid=${v.visitorOpenid}` });
 }
+
+function goBack() {
+  uni.navigateBack();
+}
 </script>
 
 <style scoped>
 .visitors-page {
   min-height: 100vh;
-  background: #f2f3f5;
+  background: #f5f7fa;
   padding-bottom: 40rpx;
 }
-.header {
-  background: linear-gradient(135deg, #00b42a, #23c343);
-  padding: 88px 32rpx 40rpx;
+
+/* 顶部导航栏 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 88rpx 32rpx 0;
+  background: #fff;
 }
-.title {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 8rpx;
+.nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.subtitle {
-  font-size: 24rpx;
-  color: rgba(255,255,255,0.8);
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1d2129;
 }
+.nav-right {
+  width: 64rpx;
+}
+
+/* 统计卡片 */
 .stats-row {
   display: flex;
   gap: 16rpx;
-  margin: -20rpx 24rpx 24rpx;
+  margin: 24rpx;
 }
 .stat-card {
   flex: 1;
   background: #fff;
-  border-radius: 20px;
+  border-radius: 16rpx;
   padding: 28rpx 16rpx;
   text-align: center;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.stat-icon-wrap {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
+  background: rgba(22,93,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12rpx;
 }
 .stat-num {
-  font-size: 44rpx;
+  font-size: 40rpx;
   font-weight: 700;
-  color: #00b42a;
-  margin-bottom: 8rpx;
+  color: #1d2129;
+  margin-bottom: 4rpx;
 }
 .stat-label {
   font-size: 22rpx;
   color: #86909c;
 }
+
+/* 访客列表 */
 .list-section {
   margin: 0 24rpx;
   background: #fff;
-  border-radius: 20px;
+  border-radius: 16rpx;
   padding: 28rpx 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .section-header {
   display: flex;

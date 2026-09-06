@@ -1,8 +1,12 @@
 <template>
   <view class="market-page">
-    <view class="header">
-      <view class="title">人脉集市</view>
-      <view class="subtitle">发现优质人脉，拓展商业机会</view>
+    <!-- 顶部导航栏 -->
+    <view class="nav-bar">
+      <view class="nav-back" @click="goBack">
+        <SIcon name="dynamic" size="default" color="#1d2129" />
+      </view>
+      <view class="nav-title">人脉集市</view>
+      <view class="nav-right"></view>
     </view>
 
     <!-- 搜索 -->
@@ -112,6 +116,10 @@ function search() {
   loadMarket();
 }
 
+function goBack() {
+  uni.navigateBack();
+}
+
 function viewCard(item) {
   // 查看名片详情
 }
@@ -123,11 +131,33 @@ function quickExchange(item) {
 
 <style scoped>
 .market-page { min-height: 100vh; background: #f5f7fa; padding-bottom: 40px; }
-.header { background: linear-gradient(135deg, #165dff, #4080ff); padding: 40px 20px 30px; }
-.title { font-size: 22px; font-weight: 600; color: #fff; }
-.subtitle { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 4px; }
 
-.search-bar { padding: 12px 16px; margin-top: -20px; }
+/* 顶部导航栏 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 88rpx;
+  padding: 88rpx 32rpx 0;
+  background: #fff;
+}
+.nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1d2129;
+}
+.nav-right {
+  width: 64rpx;
+}
+
+.search-bar { padding: 16rpx 24rpx; background: #fff; }
 .search-box { background: #fff; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .search-input { flex: 1; font-size: 14px; }
 .ph { color: #c9cdd4; }
