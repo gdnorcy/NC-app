@@ -83,9 +83,9 @@
             </el-radio-group>
           </el-form-item>
           <el-form-item label="展示字段">
-            <el-checkbox v-model="settings.showCompany">企业名称</el-checkbox>
-            <el-checkbox v-model="settings.showIndustry">行业标签</el-checkbox>
-            <el-checkbox v-model="settings.showLocation">地区标签</el-checkbox>
+            <el-checkbox v-model="settings.showCompany" :true-value="1" :false-value="0">企业名称</el-checkbox>
+            <el-checkbox v-model="settings.showIndustry" :true-value="1" :false-value="0">行业标签</el-checkbox>
+            <el-checkbox v-model="settings.showLocation" :true-value="1" :false-value="0">地区标签</el-checkbox>
           </el-form-item>
           <el-form-item label="允许名片交换">
             <el-switch v-model="settings.allowExchange" :active-value="1" :inactive-value="0" />
