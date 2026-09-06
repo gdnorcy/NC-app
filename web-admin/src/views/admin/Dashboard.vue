@@ -11,17 +11,9 @@
           <div class="global-value">{{ global.customers }}</div>
           <div class="global-label-text">客户项目</div>
         </div>
-        <div class="global-card">
-          <div class="global-value">{{ global.plans }}</div>
-          <div class="global-label-text">方案总数</div>
-        </div>
-        <div class="global-card">
-          <div class="global-value">{{ global.scenes }}</div>
-          <div class="global-label-text">场景总数</div>
-        </div>
-        <div class="global-card" @click="$router.push('/users')">
-          <div class="global-value">{{ global.users }}</div>
-          <div class="global-label-text">用户总数</div>
+        <div class="global-card" @click="$router.push('/solutions')">
+          <div class="global-value">{{ global.solutions }}</div>
+          <div class="global-label-text">解决方案</div>
         </div>
         <div class="global-card" @click="$router.push('/channel')">
           <div class="global-value">{{ global.channels }}</div>
@@ -144,7 +136,7 @@ import {
 } from '../../api';
 
 const router = useRouter();
-const global = ref({ customers: 0, plans: 0, scenes: 0, users: 0, channels: 0, apiCalls: 0, oauthApps: 0 });
+const global = ref({ customers: 0, solutions: 0, channels: 0, apiCalls: 0, oauthApps: 0 });
 const bySolution = ref([]);
 const recentLogs = ref([]);
 const channelStats = ref([]);
@@ -156,9 +148,7 @@ onMounted(async () => {
     // 工作台核心统计（全局+按解决方案）
     fetchDashboardStats().then(r => {
       global.value.customers = r.global?.customers || 0;
-      global.value.plans = r.global?.plans || 0;
-      global.value.scenes = r.global?.scenes || 0;
-      global.value.users = r.global?.users || 0;
+      global.value.solutions = (r.bySolution || []).filter(s => s.enabled).length;
       bySolution.value = r.bySolution || [];
     }).catch(() => {}),
     // 渠道统计
@@ -228,7 +218,7 @@ function goSolution(sol) {
 }
 .global-cards {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 .global-card {
