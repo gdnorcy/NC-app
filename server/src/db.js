@@ -749,6 +749,126 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_settlement_status ON settlement_records(status);
   `);
 
+  // —— 租户级人脉集市相关表 ——
+  db.exec(`
+    -- 入驻个人
+    CREATE TABLE IF NOT EXISTS tenant_individuals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      name TEXT,
+      phone TEXT,
+      status TEXT DEFAULT 'active', -- active/disabled
+      joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_individual_customer ON tenant_individuals(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_individual_user ON tenant_individuals(user_id);
+
+    -- 入驻企业单位
+    CREATE TABLE IF NOT EXISTS tenant_enterprises (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      logo TEXT,
+      industry TEXT,
+      scale TEXT,
+      description TEXT,
+      admin_user_id INTEGER,
+      status TEXT DEFAULT 'active', -- active/disabled
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_enterprise_customer ON tenant_enterprises(customer_id);
+
+    -- 企业员工
+    CREATE TABLE IF NOT EXISTS tenant_enterprise_employees (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      enterprise_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      name TEXT,
+      position TEXT,
+      department TEXT,
+      status TEXT DEFAULT 'active', -- active/left
+      joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_employee_enterprise ON tenant_enterprise_employees(enterprise_id);
+    CREATE INDEX IF NOT EXISTS idx_employee_user ON tenant_enterprise_employees(user_id);
+
+    -- 租户全局公海池
+    CREATE TABLE IF NOT EXISTS tenant_public_pool (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      source_type TEXT NOT NULL, -- individual/enterprise/employee
+      source_id INTEGER,
+      name TEXT,
+      phone TEXT,
+      company TEXT,
+      position TEXT,
+      remark TEXT,
+      status TEXT DEFAULT 'available', -- available/claimed
+      claimed_by INTEGER,
+      claimed_at TEXT,
+      recycled_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_pool_customer ON tenant_public_pool(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_pool_status ON tenant_public_pool(status);
+
+    -- 集市配置
+    CREATE TABLE IF NOT EXISTS card_market_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL UNIQUE,
+      enabled INTEGER DEFAULT 1,
+      audit_mode TEXT DEFAULT 'auto', -- auto/manual
+      title TEXT DEFAULT '人脉集市',
+      cover TEXT,
+      show_company INTEGER DEFAULT 1,
+      show_industry INTEGER DEFAULT 1,
+      show_location INTEGER DEFAULT 1,
+      allow_exchange INTEGER DEFAULT 1,
+      contact_visible TEXT DEFAULT 'after_exchange', -- after_exchange/direct
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- 集市上架记录
+    CREATE TABLE IF NOT EXISTS card_market_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      subject_type TEXT NOT NULL, -- individual/enterprise/employee
+      subject_id INTEGER NOT NULL,
+      user_id INTEGER,
+      enterprise_id INTEGER,
+      audit_status TEXT DEFAULT 'approved', -- pending/approved/rejected
+      is_top INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_market_customer ON card_market_items(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_market_status ON card_market_items(audit_status);
+
+    -- 人脉关系（名片交换）
+    CREATE TABLE IF NOT EXISTS card_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      from_user_id INTEGER NOT NULL,
+      to_user_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending', -- pending/accepted/rejected
+      message TEXT,
+      exchanged_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_connection_customer ON card_connections(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_connection_from ON card_connections(from_user_id);
+    CREATE INDEX IF NOT EXISTS idx_connection_to ON card_connections(to_user_id);
+  `);
+
   // —— 预置智能名片解决方案 ——
   const cardExists = db.prepare('SELECT id FROM solutions WHERE code = ?').get('card');
   if (!cardExists) {

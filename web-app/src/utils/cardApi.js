@@ -85,11 +85,26 @@ export const cardApi = {
   addFollow: (id, data) => request(`/customers/${id}/follow`, 'POST', data),
   getFollows: (id) => request(`/customers/${id}/follows`),
 
-  // 名片交换
-  exchangeCard: (data) => request('/exchange', 'POST', data),
+  // 人脉集市（租户级）
+  getMarketList: (params) => request('/card-market/market/list' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  getMarketSettings: () => request('/card-market/market/settings'),
+  toggleMarket: (data) => request('/card-market/market/toggle', 'POST', data),
+  checkMarket: (params) => request('/card-market/market/check' + (params ? '?' + new URLSearchParams(params).toString() : '')),
 
-  // 人脉集市
-  getMarket: (params) => request('/market' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  // 名片交换
+  exchangeRequest: (data) => request('/card-market/exchange/request', 'POST', data),
+  exchangeHandle: (data) => request('/card-market/exchange/handle', 'POST', data),
+  getExchangeList: () => request('/card-market/exchange/list'),
+  getConnections: () => request('/card-market/connections'),
+
+  // 入驻管理
+  getIndividuals: () => request('/card-market/individuals'),
+  getEnterprises: () => request('/card-market/enterprises'),
+  getEnterpriseEmployees: (id) => request(`/card-market/enterprises/${id}/employees`),
+
+  // 公海池
+  getPublicPool: () => request('/card-market/public-pool'),
+  claimPoolCustomer: (id) => request(`/card-market/public-pool/${id}/claim`, 'POST'),
 
   // 会员
   getPackages: () => request('/member/packages'),

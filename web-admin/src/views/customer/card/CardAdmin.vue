@@ -41,6 +41,9 @@
         <div class="tab" :class="{ active: activeTab === 'customers' }" @click="activeTab = 'customers'">
           企业客户
         </div>
+        <div class="tab" @click="$router.push('/apps/card/market')">
+          集市管理
+        </div>
       </div>
 
       <!-- 员工名片列表 -->
