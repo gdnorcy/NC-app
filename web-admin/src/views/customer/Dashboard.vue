@@ -128,11 +128,12 @@ function formatAmount(amount) {
 
 function goApp(app) {
   // 跳转到对应应用
-  if (app.appCode === 'panorama') {
-    router.push('/apps/panorama');
-  } else {
-    router.push('/apps');
-  }
+  const routeMap = {
+    panorama: '/apps/panorama/plans',
+    card: '/apps/card',
+    channel: '/apps/channel',
+  };
+  router.push(routeMap[app.appCode] || '/apps');
 }
 </script>
 
