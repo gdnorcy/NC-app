@@ -34,7 +34,7 @@
     <div class="solution-stats">
       <div class="solution-stat-card" v-for="sol in bySolution" :key="sol.solutionId" @click="goSolution(sol)">
         <div class="solution-stat-header">
-          <span class="solution-stat-icon">{{ sol.solutionIcon || '🧩' }}</span>
+          <span class="solution-stat-icon"><SIcon :name="getSolutionIcon(sol.solutionCode)" size="default" /></span>
           <div class="solution-stat-info">
             <div class="solution-stat-name">{{ sol.solutionName }}</div>
             <el-tag :type="sol.enabled ? 'success' : 'info'" size="small">{{ sol.enabled ? '已启用' : '已禁用' }}</el-tag>
@@ -72,7 +72,7 @@
         </div>
         <div class="channel-stats">
           <div class="channel-stat-item" v-for="ch in channelStats" :key="ch.type">
-            <span class="channel-stat-icon">{{ ch.icon }}</span>
+            <span class="channel-stat-icon"><SIcon :name="ch.icon" size="default" /></span>
             <span class="channel-stat-name">{{ ch.name }}</span>
             <span class="channel-stat-count">{{ ch.count }}</span>
             <el-progress :percentage="ch.percent" :stroke-width="6" :show-text="false" style="flex:1;margin-left:12px;" />
@@ -134,8 +134,14 @@ import {
   fetchChannelStats, fetchChannelComponent,
   fetchOAuthStats, fetchSettings, fetchStorageConfig,
 } from '../../api';
+import SIcon from '../../components/SIcon.vue';
 
 const router = useRouter();
+
+function getSolutionIcon(code) {
+  const map = { panorama: 'panorama', card: 'card', channel: 'devices' };
+  return map[code] || 'template';
+}
 const global = ref({ customers: 0, solutions: 0, channels: 0, apiCalls: 0, oauthApps: 0 });
 const bySolution = ref([]);
 const recentLogs = ref([]);
@@ -156,7 +162,7 @@ onMounted(async () => {
       const byType = r.byType || [];
       global.value.channels = byType.reduce((sum, b) => sum + (b.count || 0), 0);
       const max = Math.max(...byType.map(b => b.count || 0), 1);
-      const iconMap = { mini: '💬', h5: '📱', mp: '📢', pc: '💻' };
+      const iconMap = { mini: 'wechat', h5: 'mobile', mp: 'official', pc: 'pc' };
       const nameMap = { mini: '微信小程序', h5: 'H5手机端', mp: '微信公众号', pc: 'PC网站' };
       channelStats.value = ['mini', 'h5', 'mp', 'pc'].map(type => {
         const found = byType.find(b => b.channelType === type);
@@ -283,14 +289,15 @@ function goSolution(sol) {
   margin-bottom: 16px;
 }
 .solution-stat-icon {
-  font-size: 28px;
   width: 44px;
   height: 44px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  background: rgba(22,93,255,0.08);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #165dff;
+  flex-shrink: 0;
 }
 .solution-stat-name {
   font-size: 15px;
@@ -351,9 +358,15 @@ function goSolution(sol) {
   gap: 8px;
 }
 .channel-stat-icon {
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(22,93,255,0.06);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4e5969;
+  flex-shrink: 0;
 }
 .channel-stat-name {
   font-size: 13px;

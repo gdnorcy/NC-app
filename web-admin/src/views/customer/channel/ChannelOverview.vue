@@ -20,7 +20,7 @@
     <!-- 四渠道卡片 -->
     <div class="channel-grid">
       <div class="channel-card" v-for="ch in channels" :key="ch.type" @click="goChannel(ch.type)">
-        <div class="channel-icon">{{ ch.icon }}</div>
+        <div class="channel-icon"><SIcon :name="ch.icon" size="xlarge" /></div>
         <div class="channel-name">{{ ch.name }}</div>
         <div class="channel-desc">{{ ch.desc }}</div>
         <div class="channel-status">
@@ -38,16 +38,17 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { fetchCustomerChannels } from '../../../api';
+import SIcon from '../../../components/SIcon.vue';
 
 const router = useRouter();
 const channelList = ref([]);
 
 const channels = computed(() => {
   const base = [
-    { type: 'mini', name: '微信小程序', icon: '💬', desc: '独立小程序，自主发布', enabled: false },
-    { type: 'h5', name: 'H5手机端', icon: '📱', desc: '移动端网页，支持自定义域名', enabled: false },
-    { type: 'mp', name: '微信公众号', icon: '📢', desc: '公众号内嵌H5', enabled: false },
-    { type: 'pc', name: 'PC网站', icon: '💻', desc: '桌面端网站，支持自定义域名', enabled: false },
+    { type: 'mini', name: '微信小程序', icon: 'wechat', desc: '独立小程序，自主发布', enabled: false },
+    { type: 'h5', name: 'H5手机端', icon: 'mobile', desc: '移动端网页，支持自定义域名', enabled: false },
+    { type: 'mp', name: '微信公众号', icon: 'official', desc: '公众号内嵌H5', enabled: false },
+    { type: 'pc', name: 'PC网站', icon: 'pc', desc: '桌面端网站，支持自定义域名', enabled: false },
   ];
   base.forEach(ch => {
     const found = channelList.value.find(c => c.channel_type === ch.type);
@@ -134,8 +135,20 @@ function goChannel(type) {
   transform: translateY(-2px);
 }
 .channel-icon {
-  font-size: 36px;
-  margin-bottom: 12px;
+  width: 56px;
+  height: 56px;
+  background: rgba(22,93,255,0.06);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4e5969;
+  margin: 0 auto 12px;
+  transition: all 0.2s;
+}
+.channel-card:hover .channel-icon {
+  background: rgba(22,93,255,0.12);
+  color: #165dff;
 }
 .channel-name {
   font-size: 15px;

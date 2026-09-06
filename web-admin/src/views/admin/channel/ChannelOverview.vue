@@ -21,7 +21,7 @@
       <!-- H5 -->
       <div class="channel-card" v-for="ch in channels" :key="ch.type">
         <div class="channel-header">
-          <span class="channel-icon">{{ ch.icon }}</span>
+          <span class="channel-icon"><SIcon :name="ch.icon" size="large" /></span>
           <div>
             <div class="channel-name">{{ ch.name }}</div>
             <div class="channel-desc">{{ ch.desc }}</div>
@@ -99,6 +99,7 @@ import {
   fetchChannelComponent, updateChannelComponent, fetchChannelStats,
 } from '../../../api';
 import { ElMessage } from 'element-plus';
+import SIcon from '../../../components/SIcon.vue';
 
 const router = useRouter();
 const showComponent = ref(false);
@@ -110,10 +111,10 @@ const callbackUrl = `${location.origin}/api/channel/wx-callback`;
 const messageUrl = `${location.origin}/api/channel/wx-message/$APPID$`;
 
 const channels = [
-  { type: 'mini', name: '微信小程序', icon: '💬', desc: '租户独立AppID，第三方平台代开发', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
-  { type: 'h5', name: 'H5手机端', icon: '📱', desc: '/mobile路径，支持独立域名', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
-  { type: 'mp', name: '微信公众号', icon: '📢', desc: 'OAuth授权 + H5嵌入', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
-  { type: 'pc', name: 'PC网站', icon: '💻', desc: '独立域名，PC适配', statusText: '待开通', statusType: 'info', count: 0, appid: '' },
+  { type: 'mini', name: '微信小程序', icon: 'wechat', desc: '租户独立AppID，第三方平台代开发', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
+  { type: 'h5', name: 'H5手机端', icon: 'mobile', desc: '/mobile路径，支持独立域名', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
+  { type: 'mp', name: '微信公众号', icon: 'official', desc: 'OAuth授权 + H5嵌入', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
+  { type: 'pc', name: 'PC网站', icon: 'pc', desc: '独立域名，PC适配', statusText: '待开通', statusType: 'info', count: 0, appid: '' },
 ];
 
 async function loadData() {
@@ -159,7 +160,17 @@ onMounted(loadData);
 .channel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .channel-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .channel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.channel-icon { font-size: 32px; }
+.channel-icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(22,93,255,0.08);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #165dff;
+  flex-shrink: 0;
+}
 .channel-name { font-size: 15px; font-weight: 600; color: #1a1b1c; }
 .channel-desc { font-size: 12px; color: #909399; margin-top: 2px; }
 .channel-header .el-tag { margin-left: auto; }
