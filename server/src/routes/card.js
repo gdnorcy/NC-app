@@ -55,13 +55,18 @@ export function createCardRouter(db, wxService) {
         user: toUser(user),
         isNew,
         hasCard: !!db.prepare('SELECT id FROM card_profile WHERE user_id = ?').get(user.id),
+        identity: {
+          customerId: user.customer_id || null,
+          enterpriseId: user.enterprise_id || null,
+          identityType: user.identity_type || '',
+        },
       });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  // 认证中间件
+  // 认证中间件（注入租户上下文 customerId）
   function auth(req, res, next) {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: '未登录' });
@@ -70,10 +75,23 @@ export function createCardRouter(db, wxService) {
       const user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(payload.uid);
       if (!user || user.status !== 'active') return res.status(401).json({ error: '账号异常' });
       req.user = user;
+      req.userId = user.id;
+      // 租户上下文：优先用户绑定的租户，其次所属企业映射的租户
+      req.customerId = user.customer_id || null;
+      if (!req.customerId && user.enterprise_id) {
+        const ent = db.prepare('SELECT customer_id FROM tenant_enterprises WHERE id = ?').get(user.enterprise_id);
+        if (ent) req.customerId = ent.customer_id;
+      }
       next();
     } catch {
       res.status(401).json({ error: 'token无效' });
     }
+  }
+
+  // 租户上下文中间件：必须已绑定租户
+  function requireTenant(req, res, next) {
+    if (!req.customerId) return res.status(403).json({ error: '未入驻任何租户，禁止访问' });
+    next();
   }
 
   // ============================================================
@@ -86,7 +104,7 @@ export function createCardRouter(db, wxService) {
 
   router.put('/user/profile', auth, (req, res) => {
     const { nickname, avatar, phone } = req.body;
-    db.prepare('UPDATE platform_user SET nickname=?, avatar=?, phone=?, updated_at=datetime("now") WHERE id=?')
+    db.prepare("UPDATE platform_user SET nickname=?, avatar=?, phone=?, updated_at=datetime('now') WHERE id=?")
       .run(nickname || req.user.nickname, avatar || req.user.avatar, phone || req.user.phone, req.user.id);
     const user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(req.user.id);
     res.json({ user: toUser(user) });
@@ -156,30 +174,52 @@ export function createCardRouter(db, wxService) {
 
     // 2. 处理入驻申请（填了口令才入驻）
     if (bindCode) {
-      let customerId = null;
-      if (/^\d+$/.test(bindCode)) {
-        // 数字口令：必须校验项目真实存在
-        const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(parseInt(bindCode));
-        if (project) customerId = project.id;
-      } else {
-        const project = db.prepare('SELECT id FROM projects WHERE invite_code = ?').get(bindCode);
-        if (project) customerId = project.id;
-      }
-      if (!customerId) {
+      // 安全口令：只按 invite_code 匹配（含纯数字口令），禁止直接用 project id 猜测入驻
+      const project = db.prepare('SELECT * FROM projects WHERE invite_code = ?').get(String(bindCode).trim());
+      if (!project) {
         return res.status(400).json({ error: '入驻口令无效' });
       }
+      if (project.status !== 'active') {
+        return res.status(400).json({ error: '该客户项目已停用，无法入驻' });
+      }
+      if (project.valid_until && project.valid_until < new Date().toISOString().slice(0, 10)) {
+        return res.status(400).json({ error: '该客户项目已过期，无法入驻' });
+      }
+      const customerId = project.id;
+
+      // 企业入驻必须提供企业名称（前置校验，先于重复入驻校验给出明确错误）
+      if (applyType === 'enterprise' && !enterpriseName) {
+        return res.status(400).json({ error: '企业名称不能为空' });
+      }
+
+      // 重复入驻校验：仅拒绝同类型重复入驻（双身份：个人+企业员工 允许并存）
+      const already = applyType === 'enterprise'
+        ? db.prepare('SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ?').get(customerId, req.user.id)
+        : db.prepare('SELECT id FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, req.user.id);
+      if (already) {
+        return res.status(400).json({ error: '已入驻该客户项目，请勿重复入驻' });
+      }
+
+      // 口令使用审计
+      db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), req.user.id);
+      // 绑定用户租户归属
+      db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = ?, updated_at = datetime('now') WHERE id = ?")
+        .run(customerId, applyType === 'enterprise' ? 'employee' : 'individual', req.user.id);
+
       if (applyType === 'enterprise') {
-        if (!enterpriseName) return res.status(400).json({ error: '企业名称不能为空' });
         const entResult = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
-          VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', req.user.id);
+          VALUES (?, ?, ?, ?, 'active')`).run(customerId, enterpriseName, industry || '', req.user.id);
         const enterpriseId = entResult.lastInsertRowid;
         db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
           VALUES (?, ?, ?, ?, ?, 'admin', 'active')`).run(enterpriseId, customerId, req.user.id, name, position || '');
         // 关联名片到企业
-        db.prepare('UPDATE card_profile SET enterprise_id = ? WHERE id = ?').run(enterpriseId, cardId);
+        db.prepare('UPDATE card_profile SET enterprise_id = ?, customer_id = ? WHERE id = ?').run(enterpriseId, customerId, cardId);
+        // 企业管理员身份标记
+        db.prepare('UPDATE platform_user SET identity_type = ? WHERE id = ?').run('employee', req.user.id);
       } else {
         db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
-          VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, req.user.id, name, phone || '', position || '', city || '');
+          VALUES (?, ?, ?, ?, ?, ?, 'active')`).run(customerId, req.user.id, name, phone || '', position || '', city || '');
+        db.prepare('UPDATE card_profile SET customer_id = ? WHERE id = ?').run(customerId, cardId);
       }
     }
 
@@ -192,7 +232,7 @@ export function createCardRouter(db, wxService) {
     if (!card) return res.status(404).json({ error: '名片不存在' });
     const { name, position, city, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel, slogan, tags } = req.body;
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, updated_at=datetime("now") WHERE id=?`
+      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, updated_at=datetime('now') WHERE id=?`
     ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, card.id);
     const updated = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(card.id);
     res.json({ card: toCard(updated) });
@@ -228,7 +268,7 @@ export function createCardRouter(db, wxService) {
 
       if (visitor) {
         db.prepare(
-          'UPDATE card_visitor SET visit_count=visit_count+1, duration=duration+?, last_visit_at=datetime("now") WHERE id=?'
+          "UPDATE card_visitor SET visit_count=visit_count+1, duration=duration+?, last_visit_at=datetime('now') WHERE id=?"
         ).run(duration || 0, visitor.id);
       } else {
         db.prepare(
@@ -368,7 +408,7 @@ export function createCardRouter(db, wxService) {
     if (!customer) return res.status(404).json({ error: '客户不存在' });
     const { name, phone, wechat, company, tags, status, nextFollowAt } = req.body;
     db.prepare(
-      'UPDATE card_customer SET name=?, phone=?, wechat=?, company=?, tags=?, status=?, next_follow_at=?, updated_at=datetime("now") WHERE id=?'
+      "UPDATE card_customer SET name=?, phone=?, wechat=?, company=?, tags=?, status=?, next_follow_at=?, updated_at=datetime('now') WHERE id=?"
     ).run(name || customer.name, phone ?? customer.phone, wechat ?? customer.wechat, company ?? customer.company, tags ? JSON.stringify(tags) : customer.tags, status || customer.status, nextFollowAt || null, customer.id);
     const updated = db.prepare('SELECT * FROM card_customer WHERE id=?').get(customer.id);
     res.json({ customer: toCustomer(updated) });
@@ -379,7 +419,7 @@ export function createCardRouter(db, wxService) {
     if (!content) return res.status(400).json({ error: '跟进内容不能为空' });
     db.prepare('INSERT INTO card_customer_follow (customer_id, user_id, content, next_follow_at) VALUES (?,?,?,?)')
       .run(req.params.id, req.user.id, content, nextFollowAt || null);
-    db.prepare('UPDATE card_customer SET last_follow_at=datetime("now"), next_follow_at=?, updated_at=datetime("now") WHERE id=?')
+    db.prepare("UPDATE card_customer SET last_follow_at=datetime('now'), next_follow_at=?, updated_at=datetime('now') WHERE id=?")
       .run(nextFollowAt || null, req.params.id);
     res.json({ ok: true });
   });

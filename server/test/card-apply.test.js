@@ -77,7 +77,7 @@ test('个人入驻+企业入驻', async () => {
   const individual = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: '个人甲', position: '产品经理', phone: '13800138000', bindCode: '1', applyType: 'individual', isPublic: true });
+    .send({ name: '个人甲', position: '产品经理', phone: '13800138000', bindCode: '1001', applyType: 'individual', isPublic: true });
   assert.equal(individual.status, 200);
   assert.equal(individual.body.card.cardType, 'personal');
 
@@ -87,7 +87,7 @@ test('个人入驻+企业入驻', async () => {
     .set('Authorization', `Bearer ${token}`)
     .send({
       name: '企业主', position: 'CEO', city: '深圳',
-      bindCode: '1', applyType: 'enterprise',
+      bindCode: '1001', applyType: 'enterprise',
       enterpriseName: '测试企业有限公司', industry: '互联网', isPublic: true,
     });
   assert.equal(enterprise.status, 200);
@@ -98,7 +98,7 @@ test('个人入驻+企业入驻', async () => {
   const noEntName = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: '企业主2', bindCode: '1', applyType: 'enterprise' });
+    .send({ name: '企业主2', bindCode: '1001', applyType: 'enterprise' });
   assert.equal(noEntName.status, 400);
   assert.match(noEntName.body.error, /企业名称/);
 });

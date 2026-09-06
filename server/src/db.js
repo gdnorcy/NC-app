@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS projects (
   is_pinned INTEGER NOT NULL DEFAULT 0,
   remark TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active',
+  invite_code TEXT NOT NULL DEFAULT '',
   quota TEXT NOT NULL DEFAULT '{}', -- 套餐额度: max_individuals, max_enterprises, max_employees等
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -194,8 +195,8 @@ function migrate(db) {
   let defaultCustId = null;
   if (custCount === 0) {
     const info = db
-      .prepare('INSERT INTO projects (customer_name, description, status) VALUES (?, ?, ?)')
-      .run('默认客户', '自动创建的默认客户，收纳全部存量方案', 'active');
+      .prepare('INSERT INTO projects (customer_name, description, status, invite_code) VALUES (?, ?, ?, ?)')
+      .run('默认客户', '自动创建的默认客户，收纳全部存量方案', 'active', '1001');
     defaultCustId = info.lastInsertRowid;
   } else {
     defaultCustId = db.prepare('SELECT id FROM projects ORDER BY id ASC LIMIT 1').get()?.id || null;
@@ -1026,6 +1027,67 @@ function migrate(db) {
       db.prepare('UPDATE projects SET invite_code = ? WHERE id = ?').run(code, r.id);
     }
   }
+
+  // —— 租户隔离：platform_user 绑定所属客户项目（租户ID）——
+  if (!colExists(db, 'platform_user', 'customer_id')) {
+    db.exec('ALTER TABLE platform_user ADD COLUMN customer_id INTEGER');
+  }
+  if (!colExists(db, 'platform_user', 'identity_type')) {
+    // individual/employee/both —— 双身份标记
+    db.exec("ALTER TABLE platform_user ADD COLUMN identity_type TEXT NOT NULL DEFAULT ''");
+  }
+
+  // —— 名片交换快照：accepted 时固化对方名片，人脉库离线保留 ——
+  if (!colExists(db, 'card_connections', 'snapshot')) {
+    db.exec('ALTER TABLE card_connections ADD COLUMN snapshot TEXT');
+  }
+
+  // —— 名片归属租户 ——
+  if (!colExists(db, 'card_profile', 'customer_id')) {
+    db.exec('ALTER TABLE card_profile ADD COLUMN customer_id INTEGER');
+  }
+
+  // —— 客户表租户化与归属模型（owner_type/source_user_id 等）——
+  if (!colExists(db, 'card_customer', 'customer_id')) {
+    db.exec('ALTER TABLE card_customer ADD COLUMN customer_id INTEGER');
+  }
+  if (!colExists(db, 'card_customer', 'owner_type')) {
+    db.exec("ALTER TABLE card_customer ADD COLUMN owner_type TEXT NOT NULL DEFAULT 'individual'");
+  }
+  if (!colExists(db, 'card_customer', 'position')) {
+    db.exec("ALTER TABLE card_customer ADD COLUMN position TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_customer', 'source_type')) {
+    db.exec('ALTER TABLE card_customer ADD COLUMN source_type TEXT');
+  }
+  if (!colExists(db, 'card_customer', 'source_id')) {
+    db.exec('ALTER TABLE card_customer ADD COLUMN source_id INTEGER');
+  }
+  if (!colExists(db, 'card_customer', 'source_user_id')) {
+    db.exec('ALTER TABLE card_customer ADD COLUMN source_user_id INTEGER');
+  }
+
+  // —— 公海超时回收：记录领取后的最近跟进时间 ——
+  if (!colExists(db, 'tenant_public_pool', 'last_follow_at')) {
+    db.exec('ALTER TABLE tenant_public_pool ADD COLUMN last_follow_at TEXT');
+  }
+  if (!colExists(db, 'enterprise_public_pool', 'last_follow_at')) {
+    db.exec('ALTER TABLE enterprise_public_pool ADD COLUMN last_follow_at TEXT');
+  }
+
+  // —— 入驻口令使用审计 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_invite_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      invite_code TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      action TEXT NOT NULL DEFAULT 'join',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_invite_log_customer ON tenant_invite_log(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_invite_log_user ON tenant_invite_log(user_id);
+  `);
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */

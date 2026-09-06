@@ -74,7 +74,8 @@ export function createApp({ db } = {}) {
       if (payload.uid) {
         const user = database.prepare('SELECT * FROM platform_user WHERE id = ?').get(payload.uid);
         if (user && user.status === 'active') {
-          req.user = { ...user, id: user.id, role: 'personal_user', customerId: user.enterprise_id };
+          req.user = { ...user, id: user.id, role: 'personal_user', customerId: user.customer_id || null };
+          req.userId = user.id;
           return next();
         }
       }
@@ -158,6 +159,16 @@ export function createApp({ db } = {}) {
       return res.sendFile(indexHtml);
     });
   }
+
+  // 统一错误处理：记录堆栈（生产诊断必需），返回安全错误信息
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, next) => {
+    console.error('[api-error]', req.method, req.path, err?.message || err);
+    if (err?.stack) console.error(err.stack);
+    const status = err?.status || 500;
+    const message = err?.expose ? err.message : (status >= 500 ? '服务器内部错误' : (err?.message || '请求失败'));
+    if (!res.headersSent) res.status(status).json({ error: message });
+  });
 
   return app;
 }
