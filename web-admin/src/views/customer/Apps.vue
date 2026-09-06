@@ -47,7 +47,7 @@ onMounted(async () => {
 function enterApp(app) {
   if (app.code === 'panorama') router.push('/apps/panorama/plans');
   else if (app.code === 'channel') router.push('/apps/channel');
-  else if (app.code === 'card') window.open('/card/', '_blank');
+  else if (app.code === 'card') router.push('/apps/card');
 }
 </script>
 

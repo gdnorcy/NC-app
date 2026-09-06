@@ -16,6 +16,7 @@ const routes = [
       { path: 'apps/channel', component: () => import('../views/customer/channel/ChannelOverview.vue'), meta: { title: '全端渠道', breadcrumbs: ['应用中心', '全端渠道'] } },
       { path: 'apps/channel/mini', component: () => import('../views/customer/channel/ChannelMini.vue'), meta: { title: '微信小程序', breadcrumbs: ['应用中心', '全端渠道', '微信小程序'] } },
       { path: 'apps/channel/config', component: () => import('../views/customer/channel/ChannelConfig.vue'), meta: { title: '渠道配置', breadcrumbs: ['应用中心', '全端渠道', '渠道配置'] } },
+      { path: 'apps/card', component: () => import('../views/customer/card/CardAdmin.vue'), meta: { title: '智能名片', breadcrumbs: ['应用中心', '智能名片'] } },
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
       { path: 'settings', component: () => import('../views/customer/Settings.vue'), meta: { title: '账号设置', breadcrumbs: ['账号设置'] } },

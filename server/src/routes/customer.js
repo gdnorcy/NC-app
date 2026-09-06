@@ -517,5 +517,87 @@ router.get('/channels/mini/deploy-logs', requireTenant, (req, res) => {
   res.json({ logs });
 });
 
+// ============================================================
+// 智能名片 - 企业管理
+// ============================================================
+
+// 企业概览统计
+router.get('/card/overview', requireTenant, (req, res) => {
+  const eid = req.customerId;
+  const employeeCount = db.prepare('SELECT COUNT(*) AS n FROM platform_user WHERE enterprise_id = ?').get(eid).n;
+  const cardCount = db.prepare('SELECT COUNT(*) AS n FROM card_profile WHERE enterprise_id = ? AND status = ?').get(eid, 'active').n;
+  const totalViews = db.prepare('SELECT COALESCE(SUM(view_count),0) AS s FROM card_profile WHERE enterprise_id = ?').get(eid).s;
+  const customerCount = db.prepare('SELECT COUNT(*) AS n FROM card_customer WHERE enterprise_id = ?').get(eid).n;
+  const exchangeCount = db.prepare('SELECT COALESCE(SUM(exchange_count),0) AS s FROM card_profile WHERE enterprise_id = ?').get(eid).s;
+  res.json({ employeeCount, cardCount, totalViews, customerCount, exchangeCount });
+});
+
+// 员工名片列表
+router.get('/card/employees', requireTenant, (req, res) => {
+  const eid = req.customerId;
+  const { page = 1, pageSize = 20, keyword = '' } = req.query;
+  const offset = (page - 1) * pageSize;
+  let where = 'WHERE c.enterprise_id = ? AND c.status = ?';
+  const params = [eid, 'active'];
+  if (keyword) {
+    where += ' AND (c.name LIKE ? OR c.position LIKE ? OR c.company LIKE ?)';
+    params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+  }
+  const cards = db.prepare(`
+    SELECT c.*, u.nickname, u.avatar as user_avatar, u.member_level
+    FROM card_profile c
+    LEFT JOIN platform_user u ON c.user_id = u.id
+    ${where}
+    ORDER BY c.created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset);
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM card_profile c ${where}`).get(...params).n;
+  res.json({ cards: cards.map(c => ({
+    id: c.id, userId: c.user_id, name: c.name, position: c.position, company: c.company,
+    phone: c.phone, avatar: c.avatar, viewCount: c.view_count, exchangeCount: c.exchange_count,
+    isPublic: c.is_public, memberLevel: c.member_level, createdAt: c.created_at,
+  })), total, page: Number(page), pageSize: Number(pageSize) });
+});
+
+// 企业客户列表
+router.get('/card/customers', requireTenant, (req, res) => {
+  const eid = req.customerId;
+  const { page = 1, pageSize = 20, keyword = '', status = '' } = req.query;
+  const offset = (page - 1) * pageSize;
+  let where = 'WHERE enterprise_id = ?';
+  const params = [eid];
+  if (keyword) {
+    where += ' AND (name LIKE ? OR company LIKE ? OR phone LIKE ?)';
+    params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+  }
+  if (status) {
+    where += ' AND status = ?';
+    params.push(status);
+  }
+  const customers = db.prepare(`
+    SELECT * FROM card_customer ${where}
+    ORDER BY created_at DESC LIMIT ? OFFSET ?
+  `).all(...params, Number(pageSize), offset);
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM card_customer ${where}`).get(...params).n;
+  res.json({ customers: customers.map(c => ({
+    id: c.id, name: c.name, phone: c.phone, company: c.company, tags: JSON.parse(c.tags || '[]'),
+    source: c.source, status: c.status, lastFollowAt: c.last_follow_at, createdAt: c.created_at,
+  })), total, page: Number(page), pageSize: Number(pageSize) });
+});
+
+// 企业名片访问趋势（近7天）
+router.get('/card/trends', requireTenant, (req, res) => {
+  const eid = req.customerId;
+  const rows = db.prepare(`
+    SELECT visit_date, SUM(visit_count) as views
+    FROM card_visitor
+    WHERE card_id IN (SELECT id FROM card_profile WHERE enterprise_id = ?)
+    AND visit_date >= date('now', '-7 days')
+    GROUP BY visit_date
+    ORDER BY visit_date
+  `).all(eid);
+  res.json({ trends: rows });
+});
+
   return router;
 }
