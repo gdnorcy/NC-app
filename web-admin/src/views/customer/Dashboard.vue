@@ -1,21 +1,82 @@
 <template>
   <div>
-    <div class="stat-cards">
-      <div class="stat-card"><div class="stat-value">{{ stats.planCount || 0 }}</div><div class="stat-label">方案总数</div></div>
-      <div class="stat-card"><div class="stat-value">{{ stats.sceneCount || 0 }}</div><div class="stat-label">场景总数</div></div>
-      <div class="stat-card"><div class="stat-value">{{ stats.memberCount || 0 }}</div><div class="stat-label">团队成员</div></div>
-      <div class="stat-card"><div class="stat-value">¥{{ stats.totalAmount || '0.00' }}</div><div class="stat-label">累计消费</div></div>
+    <!-- 客户全局概览 -->
+    <div class="global-overview">
+      <div class="global-title">
+        <span class="global-label">{{ customerName }}</span>
+        <span class="global-desc">已开通 {{ stats.appCount || 0 }} 个应用</span>
+      </div>
+      <div class="global-cards">
+        <div class="global-card" @click="$router.push('/apps')">
+          <div class="global-value">{{ stats.planCount || 0 }}</div>
+          <div class="global-label-text">方案总数</div>
+        </div>
+        <div class="global-card">
+          <div class="global-value">{{ stats.sceneCount || 0 }}</div>
+          <div class="global-label-text">场景总数</div>
+        </div>
+        <div class="global-card" @click="$router.push('/members')">
+          <div class="global-value">{{ stats.memberCount || 0 }}</div>
+          <div class="global-label-text">团队成员</div>
+        </div>
+        <div class="global-card" @click="$router.push('/orders')">
+          <div class="global-value">¥{{ formatAmount(stats.totalAmount) }}</div>
+          <div class="global-label-text">累计消费</div>
+        </div>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+    <!-- 按应用统计 -->
+    <div class="section-header">
+      <h3>我的应用</h3>
+      <span class="section-desc">各应用独立数据，点击进入应用</span>
+    </div>
+    <div class="app-stats">
+      <div class="app-stat-card" v-for="app in byApp" :key="app.appId" @click="goApp(app)">
+        <div class="app-stat-header">
+          <span class="app-stat-icon">{{ app.appIcon || '🧩' }}</span>
+          <div class="app-stat-info">
+            <div class="app-stat-name">{{ app.appName }}</div>
+            <el-tag type="success" size="small">已开通</el-tag>
+          </div>
+        </div>
+        <div class="app-stat-metrics">
+          <div class="metric">
+            <div class="metric-value">{{ app.plans }}</div>
+            <div class="metric-label">方案</div>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric">
+            <div class="metric-value">{{ app.scenes }}</div>
+            <div class="metric-label">场景</div>
+          </div>
+        </div>
+        <div class="app-stat-action">
+          <el-button type="primary" size="small" plain>进入应用</el-button>
+        </div>
+      </div>
+      <el-empty v-if="!byApp.length" description="暂未开通任何应用" :image-size="80" />
+    </div>
+
+    <!-- 最近场景 + 最近订单 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
       <div class="page-card">
-        <h3 style="margin-bottom:12px;">最近场景</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="margin:0;">最近场景</h3>
+          <el-button text type="primary" @click="$router.push('/apps/panorama/scenes')">全部场景</el-button>
+        </div>
         <el-table :data="recentScenes" size="small">
           <el-table-column prop="title" label="场景名称" />
           <el-table-column prop="createdAt" label="创建时间" width="160" />
         </el-table>
+        <el-empty v-if="!recentScenes.length" description="暂无场景" :image-size="60" />
       </div>
+
       <div class="page-card">
-        <h3 style="margin-bottom:12px;">最近订单</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="margin:0;">最近订单</h3>
+          <el-button text type="primary" @click="$router.push('/orders')">全部订单</el-button>
+        </div>
         <el-table :data="recentOrders" size="small">
           <el-table-column prop="description" label="订单" />
           <el-table-column prop="amount" label="金额" width="100" />
@@ -28,18 +89,174 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { customerApiCall } from '../../api';
 
+const router = useRouter();
 const stats = ref({});
+const byApp = ref([]);
 const recentScenes = ref([]);
 const recentOrders = ref([]);
+const customerName = ref('我的工作台');
 
 onMounted(async () => {
   try {
     const data = await customerApiCall.get('/dashboard');
-    stats.value = data;
+    stats.value = data.stats || {};
+    byApp.value = data.byApp || [];
     recentScenes.value = data.recentScenes || [];
     recentOrders.value = data.recentOrders || [];
+    // 从localStorage获取客户名称
+    customerName.value = localStorage.getItem('customer_name') || '我的工作台';
   } catch (e) {}
 });
+
+function formatAmount(amount) {
+  if (!amount) return '0.00';
+  return Number(amount).toFixed(2);
+}
+
+function goApp(app) {
+  // 跳转到对应应用
+  if (app.appCode === 'panorama') {
+    router.push('/apps/panorama');
+  } else {
+    router.push('/apps');
+  }
+}
 </script>
+
+<style scoped>
+.global-overview {
+  background: linear-gradient(135deg, #165DFF 0%, #4080FF 100%);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  color: #fff;
+}
+.global-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.global-label {
+  font-size: 16px;
+  font-weight: 600;
+}
+.global-desc {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.global-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.global-card {
+  background: rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.global-card:hover {
+  background: rgba(255,255,255,0.25);
+}
+.global-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.global-label-text {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.section-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1b1c;
+}
+.section-desc {
+  font-size: 12px;
+  color: #909399;
+}
+.app-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.app-stat-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid #165DFF;
+}
+.app-stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+.app-stat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.app-stat-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-stat-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1b1c;
+  margin-bottom: 4px;
+}
+.app-stat-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-bottom: 12px;
+}
+.metric {
+  text-align: center;
+}
+.metric-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1b1c;
+}
+.metric-label {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+.metric-divider {
+  width: 1px;
+  height: 24px;
+  background: #e4e7ed;
+}
+.app-stat-action {
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid #f5f7fa;
+}
+</style>

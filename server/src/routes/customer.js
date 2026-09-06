@@ -54,6 +54,25 @@ router.get('/dashboard', requireTenant, (req, res) => {
     .prepare("SELECT COALESCE(SUM(amount),0) AS s FROM orders WHERE customer_id = ? AND status='paid'")
     .get(cid).s;
 
+  // 客户已开通的应用（解决方案）
+  const project = db.prepare('SELECT solutions FROM projects WHERE id = ?').get(cid);
+  let appCodes = [];
+  try { appCodes = JSON.parse(project?.solutions || '[]'); } catch { appCodes = []; }
+  const apps = db
+    .prepare(`SELECT * FROM solutions WHERE code IN (${appCodes.map(() => '?').join(',')}) OR id IN (${appCodes.map(() => '?').join(',')})`)
+    .all(...appCodes, ...appCodes);
+
+  // 按应用统计（目前方案和场景都属于客户，暂按应用分组展示，后续方案可关联应用）
+  const byApp = apps.map((app) => ({
+    appId: app.id,
+    appName: app.name,
+    appCode: app.code,
+    appIcon: app.icon,
+    enabled: true,
+    plans: planCount,  // 目前所有方案都属于360全景应用
+    scenes: sceneCount,
+  }));
+
   // 最近 5 个场景
   const recentScenes = db
     .prepare(
@@ -70,7 +89,8 @@ router.get('/dashboard', requireTenant, (req, res) => {
     .map(toOrder);
 
   res.json({
-    stats: { planCount, sceneCount, memberCount, orderCount, totalAmount },
+    stats: { planCount, sceneCount, memberCount, orderCount, totalAmount, appCount: apps.length },
+    byApp,
     recentScenes,
     recentOrders,
   });
