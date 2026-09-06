@@ -602,6 +602,17 @@ router.get('/card/customers', requireTenant, (req, res) => {
   })), total, page: Number(page), pageSize: Number(pageSize) });
 });
 
+// 企业客户跟进记录（租户视角，仅本租户客户可见）
+router.get('/card/customers/:id/follows', requireTenant, (req, res) => {
+  const eid = req.customerId;
+  const customer = db.prepare('SELECT id FROM card_customer WHERE id = ? AND enterprise_id = ?').get(req.params.id, eid);
+  if (!customer) return res.status(404).json({ error: '客户不存在' });
+  const follows = db.prepare('SELECT * FROM card_customer_follow WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50').all(req.params.id);
+  res.json({ follows: follows.map(f => ({
+    id: f.id, content: f.content, nextFollowAt: f.next_follow_at, createdAt: f.created_at,
+  })) });
+});
+
 // 企业名片访问趋势（近7天）
 router.get('/card/trends', requireTenant, (req, res) => {
   const eid = req.customerId;

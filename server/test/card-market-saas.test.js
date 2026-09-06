@@ -373,3 +373,25 @@ test('P2-12 集市配置契约：PUT全字段后GET返回camelCase且持久化�
     showCompany: 1, showIndustry: 1, showLocation: 1, allowExchange: 1, contactVisible: 'after_exchange',
   });
 });
+
+test('P2-13 租户视角跟进记录：仅本租户客户可见，跨租户404隔离', async () => {
+  const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
+  const headers = bearer(issueToken(adm1));
+  // 造数据：本租户客户+跟进；他租户客户
+  const c1 = db.prepare("INSERT INTO card_customer (enterprise_id, owner_user_id, name) VALUES (1, 999888, '租户一客户')").run().lastInsertRowid;
+  const c2 = db.prepare("INSERT INTO card_customer (enterprise_id, owner_user_id, name) VALUES (2, 999887, '租户二客户')").run().lastInsertRowid;
+  db.prepare('INSERT INTO card_customer_follow (customer_id, user_id, content) VALUES (?, 999888, ?)').run(c1, '首次电话跟进');
+  db.prepare('INSERT INTO card_customer_follow (customer_id, user_id, content) VALUES (?, 999887, ?)').run(c2, '他人租户跟进');
+
+  const ok = await request(app).get(`/api/customer/card/customers/${c1}/follows`).set(headers);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.follows.length, 1);
+  assert.equal(ok.body.follows[0].content, '首次电话跟进');
+  assert.equal(ok.body.follows[0].nextFollowAt, null);
+
+  const forbidden = await request(app).get(`/api/customer/card/customers/${c2}/follows`).set(headers);
+  assert.equal(forbidden.status, 404, '跨租户客户跟进记录应404');
+
+  db.prepare('DELETE FROM card_customer_follow WHERE customer_id IN (?,?)').run(c1, c2);
+  db.prepare('DELETE FROM card_customer WHERE id IN (?,?)').run(c1, c2);
+});

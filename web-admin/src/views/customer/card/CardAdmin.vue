@@ -35,6 +35,14 @@
     <!-- 统一Tab导航（5个管理功能共用） -->
     <CardTabs />
 
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">员工名片</h2>
+        <p class="page-desc">员工通过小程序/H5 创建名片后自动展示，可查看名片公开状态与访问数据</p>
+      </div>
+    </div>
+
     <!-- 员工名片列表 -->
     <div class="content-card">
       <div class="tab-content">
@@ -53,6 +61,7 @@
               <th>交换数</th>
               <th>公开状态</th>
               <th>创建时间</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -74,9 +83,12 @@
                 </span>
               </td>
               <td>{{ formatDate(emp.createdAt) }}</td>
+              <td>
+                <button class="link-btn" @click="previewCard(emp)">预览名片</button>
+              </td>
             </tr>
             <tr v-if="employees.length === 0">
-              <td colspan="8" class="empty-cell">暂无员工名片，员工通过小程序/H5创建名片后将自动展示</td>
+              <td colspan="9" class="empty-cell">暂无员工名片，员工通过小程序/H5创建名片后将自动展示</td>
             </tr>
           </tbody>
         </table>
@@ -116,6 +128,12 @@ function formatDate(d) {
   return d.substring(0, 10);
 }
 
+function previewCard(emp) {
+  // 新窗口打开 H5 名片预览
+  const base = window.location.origin;
+  window.open(`${base}/card/#/pages/card/myCard?id=${emp.id}`, '_blank');
+}
+
 onMounted(() => {
   // 记住上次所在的管理Tab：从其它Tab返回时自动回到上次位置
   let last = null;
@@ -135,6 +153,9 @@ function routePathValid(p) {
 
 <style scoped>
 .card-admin { padding: 0; }
+.page-header { margin-bottom: 16px; }
+.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
+.page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
 .stat-card { background: #fff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .stat-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
@@ -164,5 +185,7 @@ function routePathValid(p) {
 .badge.info { background: rgba(22,93,255,0.1); color: #165dff; }
 .badge.danger { background: rgba(245,63,63,0.1); color: #f53f3f; }
 .tag { display: inline-block; padding: 2px 8px; background: #f2f3f5; border-radius: 4px; font-size: 12px; color: #4e5969; margin-right: 4px; }
+.link-btn { background: none; border: none; color: #165dff; font-size: 13px; cursor: pointer; padding: 0; }
+.link-btn:hover { text-decoration: underline; }
 .empty-cell { text-align: center; color: #86909c; padding: 40px !important; }
 </style>
