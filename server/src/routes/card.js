@@ -118,13 +118,60 @@ export function createCardRouter(db, wxService) {
     res.json({ card: toCard(card) });
   });
 
+  // 创建名片+入驻申请（合并流程）
+  router.post('/cards/create-with-apply', auth, (req, res) => {
+    const { name, position, city, phone, wechat, email, bio, businessField, avatar, isPublic, videoChannel,
+            bindCode, applyType, enterpriseName, industry } = req.body;
+    if (!name) return res.status(400).json({ error: '姓名不能为空' });
+
+    // 1. 创建名片
+    const cardType = applyType === 'enterprise' ? 'company' : 'personal';
+    const result = db.prepare(
+      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType);
+    const cardId = result.lastInsertRowid;
+
+    // 2. 处理入驻申请（填了口令才入驻）
+    if (bindCode) {
+      let customerId = null;
+      if (/^\d+$/.test(bindCode)) {
+        // 数字口令：必须校验项目真实存在
+        const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(parseInt(bindCode));
+        if (project) customerId = project.id;
+      } else {
+        const project = db.prepare('SELECT id FROM projects WHERE invite_code = ?').get(bindCode);
+        if (project) customerId = project.id;
+      }
+      if (!customerId) {
+        return res.status(400).json({ error: '入驻口令无效' });
+      }
+      if (applyType === 'enterprise') {
+        if (!enterpriseName) return res.status(400).json({ error: '企业名称不能为空' });
+        const entResult = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
+          VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', req.user.id);
+        const enterpriseId = entResult.lastInsertRowid;
+        db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
+          VALUES (?, ?, ?, ?, ?, 'admin', 'active')`).run(enterpriseId, customerId, req.user.id, name, position || '');
+        // 关联名片到企业
+        db.prepare('UPDATE card_profile SET enterprise_id = ? WHERE id = ?').run(enterpriseId, cardId);
+      } else {
+        db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, req.user.id, name, phone || '', position || '', city || '');
+      }
+    }
+
+    const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(cardId);
+    res.json({ card: toCard(card) });
+  });
+
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel } = req.body;
+    const { name, position, city, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel } = req.body;
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, updated_at=datetime("now") WHERE id=?`
-    ).run(name || card.name, position ?? card.position, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, updated_at=datetime("now") WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, card.id);
     const updated = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(card.id);
     res.json({ card: toCard(updated) });
   });
@@ -375,7 +422,7 @@ export function createCardRouter(db, wxService) {
     if (!row) return null;
     return {
       id: row.id, userId: row.user_id, enterpriseId: row.enterprise_id, cardType: row.card_type,
-      name: row.name, position: row.position, phone: row.phone, wechat: row.wechat, email: row.email,
+      name: row.name, position: row.position, city: row.city, phone: row.phone, wechat: row.wechat, email: row.email,
       company: row.company, bio: row.bio, businessField: row.business_field, avatar: row.avatar,
       templateId: row.template_id, videoChannel: row.video_channel, isPublic: !!row.is_public,
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,

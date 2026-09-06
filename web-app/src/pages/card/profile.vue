@@ -50,11 +50,6 @@
           <view class="menu-label">分销中心</view>
           <view class="menu-arrow">›</view>
         </view>
-        <view class="menu-item" @click="goPage('/pages/card/apply')">
-          <view class="menu-icon"><SIcon name="key" size="default" color="#4e5969" /></view>
-          <view class="menu-label">入驻申请</view>
-          <view class="menu-arrow">›</view>
-        </view>
       </view>
 
       <view class="menu-group">

@@ -68,6 +68,7 @@ export const cardApi = {
   getCards: () => request('/cards'),
   getCard: (id) => request(`/cards/${id}`),
   createCard: (data) => request('/cards', 'POST', data),
+  createCardWithApply: (data) => request('/cards/create-with-apply', 'POST', data),
   updateCard: (id, data) => request(`/cards/${id}`, 'PUT', data),
   deleteCard: (id) => request(`/cards/${id}`, 'DELETE'),
 

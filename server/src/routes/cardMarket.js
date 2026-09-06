@@ -240,7 +240,9 @@ router.post('/apply', (req, res) => {
   //
   let customerId = null;
   if (/^\d+$/.test(bindCode)) {
-    customerId = parseInt(bindCode);
+    // 数字口令：必须校验项目真实存在
+    const project = db.prepare('SELECT id FROM projects WHERE id = ?').get(parseInt(bindCode));
+    if (project) customerId = project.id;
   } else {
     const project = db.prepare('SELECT id FROM projects WHERE invite_code = ?').get(bindCode);
     if (project) customerId = project.id;

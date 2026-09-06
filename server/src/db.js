@@ -521,6 +521,7 @@ function migrate(db) {
       card_type TEXT NOT NULL DEFAULT 'personal',
       name TEXT NOT NULL,
       position TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
       phone TEXT NOT NULL DEFAULT '',
       wechat TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL DEFAULT '',
@@ -950,6 +951,30 @@ function migrate(db) {
   if (!colExists(db, 'projects', 'quota')) {
     db.exec("ALTER TABLE projects ADD COLUMN quota TEXT NOT NULL DEFAULT '{}'");
   }
+
+  // —— card_profile表加 city 字段 ——
+  if (!colExists(db, 'card_profile', 'city')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN city TEXT NOT NULL DEFAULT ''");
+  }
+
+  // —— tenant_individuals表加 position/company 字段（入驻申请）——
+  if (!colExists(db, 'tenant_individuals', 'position')) {
+    db.exec("ALTER TABLE tenant_individuals ADD COLUMN position TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'tenant_individuals', 'company')) {
+    db.exec("ALTER TABLE tenant_individuals ADD COLUMN company TEXT NOT NULL DEFAULT ''");
+  }
+
+  // —— projects表加 invite_code 字段（入驻口令）——
+  if (!colExists(db, 'projects', 'invite_code')) {
+    db.exec("ALTER TABLE projects ADD COLUMN invite_code TEXT NOT NULL DEFAULT ''");
+    // 存量项目补齐随机口令
+    const rows = db.prepare("SELECT id FROM projects WHERE invite_code = ''").all();
+    for (const r of rows) {
+      const code = 'P' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      db.prepare('UPDATE projects SET invite_code = ? WHERE id = ?').run(code, r.id);
+    }
+  }
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
@@ -971,6 +996,7 @@ export function toCustomer(row) {
     status: row.status || 'active',
     solutions,
     config,
+    inviteCode: row.invite_code || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -2,8 +2,14 @@
   <view class="create-page">
     <!-- 顶部标题 -->
     <view class="header">
-      <view class="title">{{ isEdit ? '编辑名片' : '创建名片' }}</view>
-      <view class="subtitle">三步完成，快速创建专属名片</view>
+      <view class="row1">
+        <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
+        <view class="hero-badge">
+          <SIcon name="shield" size="small" color="#07c160" />
+          微信授权登录
+        </view>
+      </view>
+      <view class="subtitle">{{ isEdit ? '完善信息，让别人更了解你' : '个人也可以创建，无需企业账号 · 2 分钟完成' }}</view>
     </view>
 
     <!-- 进度指示器 -->
@@ -22,48 +28,108 @@
 
     <!-- 卡片容器 -->
     <view class="cards-container">
-      <!-- 卡片1：基本信息 -->
+      <!-- 卡片1：选择类型+基本信息 -->
       <view class="card" :class="{ active: currentStep === 0, prev: currentStep > 0 }">
-        <view class="card-title">基本信息</view>
-        <view class="card-desc">填写您的核心联系信息</view>
+        <view v-if="!isEdit" class="card-title">选择名片类型</view>
+        <view v-if="!isEdit" class="card-desc">个人也可以创建，无需企业账号</view>
 
-        <view class="form-item avatar-item">
-          <view class="form-label">头像</view>
-          <view class="avatar-upload" @click="chooseAvatar">
-            <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill" />
-            <view v-else class="avatar-placeholder">
-              <text class="avatar-plus">+</text>
+        <!-- 类型选择（仅新建时） -->
+        <view v-if="!isEdit" class="type-cards">
+          <view class="type-card" :class="{ active: cardType === 'individual' }" @click="cardType = 'individual'">
+            <view class="type-icon" style="background: linear-gradient(135deg,#07c160,#1edc87);">
+              <SIcon name="user" size="xlarge" color="#ffffff" />
             </view>
+            <view class="type-info">
+              <view class="type-name">个人名片</view>
+              <view class="type-desc">自由职业者 / 个体从业者 / 普通人</view>
+            </view>
+            <view class="type-check" v-if="cardType === 'individual'">✓</view>
+          </view>
+          <view class="type-card" :class="{ active: cardType === 'enterprise' }" @click="cardType = 'enterprise'">
+            <view class="type-icon" style="background: linear-gradient(135deg,#1d4e8f,#3b7bd4);">
+              <SIcon name="building" size="xlarge" color="#ffffff" />
+            </view>
+            <view class="type-info">
+              <view class="type-name">企业名片</view>
+              <view class="type-desc">企业主体 / 团队 / 门店</view>
+            </view>
+            <view class="type-check" v-if="cardType === 'enterprise'">✓</view>
           </view>
         </view>
 
-        <view class="form-item" :class="{ error: errors.name }">
+        <!-- 入驻绑定（仅新建时，可折叠） -->
+        <view v-if="!isEdit" class="bind-section">
+          <view class="bind-header" @click="showBind = !showBind">
+            <view class="bind-title">
+              <SIcon name="key" size="small" color="#165dff" />
+              入驻绑定（选填）
+            </view>
+            <view class="bind-arrow">{{ showBind ? '收起' : '展开' }}</view>
+          </view>
+          <view v-if="showBind" class="bind-body">
+            <view class="form-item">
+              <view class="form-label">入驻口令</view>
+              <input class="form-input" v-model="form.bindCode" placeholder="填入口令同时完成入驻，不填则仅创建名片" placeholder-class="ph" />
+            </view>
+            <view class="form-item" v-if="cardType === 'enterprise'">
+              <view class="form-label">企业名称</view>
+              <input class="form-input" v-model="form.enterpriseName" placeholder="请输入企业全称" placeholder-class="ph" />
+            </view>
+            <view class="form-item" v-if="cardType === 'enterprise'">
+              <view class="form-label">所属行业</view>
+              <input class="form-input" v-model="form.industry" placeholder="如：互联网/制造/服务" placeholder-class="ph" />
+            </view>
+            <view class="bind-hint">口令由租户管理员提供，用于绑定到指定客户项目</view>
+          </view>
+        </view>
+
+        <view class="card-title" style="margin-top: 20rpx;">填写基本信息</view>
+
+        <view class="form-item">
           <view class="form-label">姓名 <text class="required">*</text></view>
-          <input class="form-input" v-model="form.name" placeholder="请输入姓名" placeholder-class="ph" />
+          <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
           <view class="error-tip" v-if="errors.name">请输入姓名</view>
         </view>
 
         <view class="form-item">
-          <view class="form-label">职位</view>
-          <input class="form-input" v-model="form.position" placeholder="如：产品经理" placeholder-class="ph" />
+          <view class="form-label">职位/头衔</view>
+          <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
         </view>
 
         <view class="form-item">
-          <view class="form-label">公司</view>
-          <input class="form-input" v-model="form.company" placeholder="请输入公司名称" placeholder-class="ph" />
+          <view class="form-label">所在城市</view>
+          <input class="form-input" v-model="form.city" placeholder="如：东莞" placeholder-class="ph" />
         </view>
 
-        <view class="form-item" :class="{ error: errors.phone }">
-          <view class="form-label">手机号</view>
-          <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.phone">请输入手机号</view>
+        <view class="form-item">
+          <view class="form-label">一句话介绍</view>
+          <input class="form-input" v-model="form.bio" placeholder="你专注什么、能提供什么" placeholder-class="ph" />
+        </view>
+
+        <!-- 头像上传 -->
+        <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
+        <view class="avatar-row">
+          <view class="avatar-upload" @click="chooseAvatar">
+            <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill" />
+            <view v-else class="avatar-placeholder">
+              <text class="avatar-plus">+</text>
+              <text class="avatar-text">上传</text>
+            </view>
+          </view>
+          <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
         </view>
       </view>
 
-      <!-- 卡片2：详细信息 -->
+      <!-- 卡片2：联系方式 -->
       <view class="card" :class="{ active: currentStep === 1, prev: currentStep > 1 }">
-        <view class="card-title">详细信息</view>
-        <view class="card-desc">丰富您的名片内容（可选）</view>
+        <view class="card-title">联系方式</view>
+        <view class="card-desc">方便客户找到你</view>
+
+        <view class="form-item" :class="{ error: errors.phone }">
+          <view class="form-label">手机号 <text class="required">*</text></view>
+          <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
+          <view class="error-tip" v-if="errors.phone">请输入手机号</view>
+        </view>
 
         <view class="form-item">
           <view class="form-label">微信号</view>
@@ -78,11 +144,6 @@
         <view class="form-item">
           <view class="form-label">业务领域</view>
           <input class="form-input" v-model="form.businessField" placeholder="如：互联网/教育/医疗" placeholder-class="ph" />
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">个人简介</view>
-          <textarea class="form-textarea" v-model="form.bio" placeholder="介绍一下自己吧..." placeholder-class="ph" :maxlength="200" />
         </view>
       </view>
 
@@ -109,8 +170,8 @@
               <view class="preview-avatar">{{ form.name?.[0] || '名' }}</view>
               <view class="preview-info">
                 <view class="preview-name">{{ form.name || '您的姓名' }}</view>
-                <view class="preview-position">{{ form.position || '职位' }}</view>
-                <view class="preview-company">{{ form.company || '公司名称' }}</view>
+                <view class="preview-position">{{ form.position || '职位/头衔' }}</view>
+                <view class="preview-company">{{ form.city || '所在城市' }}</view>
               </view>
             </view>
             <view class="preview-divider"></view>
@@ -140,7 +201,7 @@
         <button v-if="currentStep === 1" class="btn-skip" @click="skipDetail">跳过</button>
         <button v-if="currentStep < 2" class="btn-primary" @click="nextStep">下一步</button>
         <button v-if="currentStep === 2" class="btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? '提交中...' : (isEdit ? '保存修改' : '发布名片') }}
+          {{ submitting ? '提交中...' : (isEdit ? '保存修改' : '创建名片') }}
         </button>
       </view>
     </view>
@@ -150,16 +211,20 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const isEdit = ref(false);
 const submitting = ref(false);
 const currentStep = ref(0);
-const steps = ['基本信息', '详细信息', '发布设置'];
+const cardType = ref('individual');
+const showBind = ref(false);
+const steps = ['基本信息', '联系方式', '发布设置'];
 
 const form = reactive({
   id: null,
-  name: '', position: '', company: '', phone: '', wechat: '',
-  email: '', businessField: '', bio: '', videoChannel: '', isPublic: true, avatar: '',
+  name: '', position: '', city: '', bio: '', avatar: '',
+  phone: '', wechat: '', email: '', businessField: '', videoChannel: '', isPublic: true,
+  bindCode: '', enterpriseName: '', industry: '',
 });
 
 const errors = reactive({ name: false, phone: false });
@@ -188,8 +253,11 @@ function chooseAvatar() {
 function validateStep(step) {
   if (step === 0) {
     errors.name = !form.name.trim();
+    return !errors.name;
+  }
+  if (step === 1) {
     errors.phone = !form.phone.trim();
-    return !errors.name && !errors.phone;
+    return !errors.phone;
   }
   return true;
 }
@@ -215,7 +283,7 @@ function skipDetail() {
 }
 
 async function submit() {
-  if (!validateStep(0)) {
+  if (!validateStep(0) || !validateStep(1)) {
     currentStep.value = 0;
     uni.showToast({ title: '请完善必填信息', icon: 'none' });
     return;
@@ -226,10 +294,18 @@ async function submit() {
       await cardApi.updateCard(form.id, form);
       uni.showToast({ title: '保存成功', icon: 'success' });
     } else {
-      await cardApi.createCard(form);
-      uni.showToast({ title: '创建成功', icon: 'success' });
+      const payload = { ...form };
+      // 入驻绑定：填了口令才同时入驻
+      if (payload.bindCode) {
+        payload.applyType = cardType.value;
+        await cardApi.createCardWithApply(payload);
+        uni.showToast({ title: '名片创建成功，入驻申请已提交', icon: 'success' });
+      } else {
+        await cardApi.createCard(payload);
+        uni.showToast({ title: '名片创建成功', icon: 'success' });
+      }
     }
-    setTimeout(() => uni.navigateBack(), 1000);
+    setTimeout(() => uni.navigateBack(), 1200);
   } catch (e) {
     uni.showToast({ title: e.message || '操作失败', icon: 'none' });
   } finally {
@@ -250,15 +326,30 @@ async function submit() {
   background: linear-gradient(135deg, #165dff, #4080ff);
   padding: 88rpx 32rpx 32rpx;
 }
+.row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 .title {
   font-size: 40rpx;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 8rpx;
+}
+.hero-badge {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  background: rgba(255,255,255,0.2);
+  padding: 8rpx 16rpx;
+  border-radius: 24rpx;
+  font-size: 22rpx;
+  color: #fff;
 }
 .subtitle {
   font-size: 24rpx;
   color: rgba(255,255,255,0.8);
+  margin-top: 8rpx;
 }
 
 /* 进度指示器 */
@@ -304,184 +395,241 @@ async function submit() {
 }
 .step-label.active {
   color: #165dff;
-  font-weight: 500;
+  font-weight: 600;
 }
 .progress-line {
   position: absolute;
-  top: 56rpx;
-  left: 80rpx;
-  right: 80rpx;
+  top: 52rpx;
+  left: 15%;
+  right: 15%;
   height: 4rpx;
   background: #e5e6eb;
-  border-radius: 2rpx;
 }
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #165dff, #4080ff);
-  border-radius: 2rpx;
-  transition: width 0.3s;
+  background: #165dff;
+  transition: width 0.4s;
 }
 
 /* 卡片容器 */
 .cards-container {
-  padding: 16rpx 24rpx;
+  padding: 0 24rpx;
   position: relative;
-  min-height: 600rpx;
+  min-height: 560rpx;
 }
 .card {
   background: #fff;
-  border-radius: 20rpx;
-  padding: 40rpx 32rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
-  position: absolute;
-  left: 24rpx;
-  right: 24rpx;
-  opacity: 0;
-  transform: translateX(60rpx);
+  border-radius: 16rpx;
+  padding: 28rpx;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
 }
-.card.active {
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
-  position: relative;
-}
-.card.prev {
-  opacity: 0;
-  transform: translateX(-60rpx);
+.card:not(.active) {
+  display: none;
 }
 .card-title {
-  font-size: 34rpx;
-  font-weight: 700;
+  font-size: 30rpx;
+  font-weight: 600;
   color: #1d2129;
-  margin-bottom: 8rpx;
 }
 .card-desc {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: #86909c;
-  margin-bottom: 32rpx;
+  margin-top: 4rpx;
+}
+
+/* 类型选择 */
+.type-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+.type-card {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  border: 2rpx solid #e5e6eb;
+  border-radius: 14rpx;
+  padding: 20rpx;
+  transition: all 0.2s;
+}
+.type-card.active {
+  border-color: #165dff;
+  background: rgba(22,93,255,0.04);
+}
+.type-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.type-info {
+  flex: 1;
+}
+.type-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1d2129;
+}
+.type-desc {
+  font-size: 22rpx;
+  color: #86909c;
+  margin-top: 4rpx;
+}
+.type-check {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 20rpx;
+  background: #165dff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  flex-shrink: 0;
+}
+
+/* 入驻绑定 */
+.bind-section {
+  margin-top: 20rpx;
+  border: 2rpx dashed #c9cdd4;
+  border-radius: 14rpx;
+  padding: 16rpx 20rpx;
+}
+.bind-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.bind-title {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1d2129;
+}
+.bind-arrow {
+  font-size: 22rpx;
+  color: #86909c;
+}
+.bind-body {
+  margin-top: 16rpx;
+}
+.bind-hint {
+  font-size: 20rpx;
+  color: #86909c;
+  margin-top: 8rpx;
 }
 
 /* 表单 */
 .form-item {
-  margin-bottom: 28rpx;
+  margin-top: 20rpx;
 }
-.form-item.error .form-input {
-  border-color: #f53f3f;
-}
-.error-tip {
-  font-size: 22rpx;
-  color: #f53f3f;
-  margin-top: 8rpx;
+.form-item:first-child {
+  margin-top: 0;
 }
 .form-label {
   font-size: 26rpx;
   color: #4e5969;
-  margin-bottom: 16rpx;
+  margin-bottom: 10rpx;
 }
 .required {
   color: #f53f3f;
 }
 .form-input {
-  width: 100%;
-  height: 80rpx;
+  height: 84rpx;
   background: #f7f8fa;
-  border: 2rpx solid transparent;
   border-radius: 12rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
   color: #1d2129;
-  box-sizing: border-box;
-  transition: all 0.2s;
 }
-.form-input:focus {
-  border-color: #165dff;
-  background: #fff;
+.error-tip {
+  font-size: 22rpx;
+  color: #f53f3f;
+  margin-top: 6rpx;
 }
-.form-textarea {
-  width: 100%;
-  height: 160rpx;
-  background: #f7f8fa;
-  border: 2rpx solid transparent;
-  border-radius: 12rpx;
-  padding: 20rpx 24rpx;
-  font-size: 28rpx;
-  color: #1d2129;
-  box-sizing: border-box;
+.form-item.error .form-input {
+  border: 2rpx solid #f53f3f;
 }
-.ph {
-  color: #c9cdd4;
+.switch-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24rpx;
 }
 
-/* 头像上传 */
-.avatar-item {
+/* 头像 */
+.avatar-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 16rpx;
 }
 .avatar-upload {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 60rpx;
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 24rpx;
+  background: #f7f8fa;
+  border: 2rpx dashed #c9cdd4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+}
+.avatar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+.avatar-plus {
+  font-size: 40rpx;
+  color: #86909c;
+}
+.avatar-text {
+  font-size: 20rpx;
+  color: #86909c;
 }
 .avatar-img {
   width: 100%;
   height: 100%;
 }
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: #f2f3f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2rpx dashed #c9cdd4;
-  border-radius: 60rpx;
-}
-.avatar-plus {
-  font-size: 48rpx;
-  color: #c9cdd4;
+.avatar-hint {
+  font-size: 22rpx;
+  color: #86909c;
 }
 
-/* 开关项 */
-.switch-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.switch-item .form-label {
-  margin-bottom: 0;
-}
-
-/* 名片预览 */
+/* 预览 */
 .preview-section {
   margin-top: 32rpx;
-  padding-top: 32rpx;
-  border-top: 2rpx solid #f2f3f5;
 }
 .preview-title {
   font-size: 26rpx;
-  color: #86909c;
-  margin-bottom: 20rpx;
+  font-weight: 600;
+  color: #4e5969;
+  margin-bottom: 12rpx;
 }
 .preview-card {
   background: linear-gradient(135deg, #165dff, #4080ff);
   border-radius: 16rpx;
-  padding: 32rpx;
-  color: #fff;
+  padding: 24rpx;
 }
 .preview-header {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 .preview-avatar {
   width: 80rpx;
   height: 80rpx;
   border-radius: 40rpx;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.25);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -489,39 +637,42 @@ async function submit() {
   font-weight: 600;
 }
 .preview-name {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 600;
+  color: #fff;
 }
 .preview-position {
   font-size: 24rpx;
-  opacity: 0.9;
+  color: rgba(255,255,255,0.85);
   margin-top: 4rpx;
 }
 .preview-company {
   font-size: 22rpx;
-  opacity: 0.7;
-  margin-top: 4rpx;
+  color: rgba(255,255,255,0.65);
+  margin-top: 2rpx;
 }
 .preview-divider {
   height: 2rpx;
   background: rgba(255,255,255,0.2);
-  margin: 24rpx 0;
+  margin: 20rpx 0;
 }
 .preview-contact {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 10rpx;
 }
 .contact-item {
   display: flex;
-  font-size: 24rpx;
+  gap: 16rpx;
 }
 .contact-label {
-  width: 80rpx;
-  opacity: 0.7;
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.7);
+  width: 72rpx;
 }
 .contact-value {
-  flex: 1;
+  font-size: 22rpx;
+  color: #fff;
 }
 
 /* 底部操作栏 */
@@ -531,19 +682,18 @@ async function submit() {
   left: 0;
   right: 0;
   background: #fff;
-  padding: 24rpx 32rpx;
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
   box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.06);
 }
 .footer-btns {
   display: flex;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 .btn-primary {
   flex: 1;
   height: 88rpx;
-  line-height: 88rpx;
-  background: linear-gradient(135deg, #165dff, #4080ff);
+  background: #165dff;
   color: #fff;
   font-size: 30rpx;
   font-weight: 600;
@@ -554,20 +704,18 @@ async function submit() {
   opacity: 0.6;
 }
 .btn-secondary {
-  flex: 1;
+  width: 160rpx;
   height: 88rpx;
-  line-height: 88rpx;
   background: #f2f3f5;
   color: #4e5969;
-  font-size: 30rpx;
+  font-size: 28rpx;
   border-radius: 44rpx;
   border: none;
 }
 .btn-skip {
   width: 160rpx;
   height: 88rpx;
-  line-height: 88rpx;
-  background: transparent;
+  background: #fff;
   color: #86909c;
   font-size: 28rpx;
   border-radius: 44rpx;

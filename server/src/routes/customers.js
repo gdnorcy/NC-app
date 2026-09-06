@@ -130,12 +130,13 @@ export function createCustomersRouter(db) {
   router.post('/projects', (req, res) => {
     const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config } = parseCustomerBody(req.body);
     if (!customerName) return res.status(400).json({ error: '客户名称不能为空' });
+    const inviteCode = 'P' + Math.random().toString(36).slice(2, 8).toUpperCase();
     const info = db
       .prepare(
-        `INSERT INTO projects (customer_name, logo_path, description, valid_from, valid_until, is_pinned, remark, status, solutions, config)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO projects (customer_name, logo_path, description, valid_from, valid_until, is_pinned, remark, status, solutions, config, invite_code)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status, solutions, config);
+      .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status, solutions, config, inviteCode);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_customer', targetType: 'customer', targetId: info.lastInsertRowid, detail: `创建客户: ${customerName}`, ip: req.ip });
     res.status(201).json({ project: toCustomer(row) });
