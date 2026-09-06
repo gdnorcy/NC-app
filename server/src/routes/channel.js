@@ -334,6 +334,28 @@ export function createChannelRouter(db) {
     }
   });
 
+  // ========== 平台级渠道默认配置 ==========
+
+  // 获取平台级默认配置
+  router.get('/defaults', requireAuth, (req, res) => {
+    try {
+      const row = db.prepare("SELECT value FROM settings WHERE key = 'channel_defaults'").get();
+      const defaults = row ? JSON.parse(row.value) : {};
+      res.json({ defaults });
+    } catch (e) {
+      res.json({ defaults: {} });
+    }
+  });
+
+  // 保存平台级默认配置
+  router.put('/defaults', requireAuth, (req, res) => {
+    const defaults = req.body || {};
+    db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('channel_defaults', ?, datetime('now'))")
+      .run(JSON.stringify(defaults));
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'update_channel_defaults', targetType: 'system', targetId: 1, detail: '更新平台级渠道默认配置', ip: req.ip });
+    res.json({ success: true });
+  });
+
   // ========== 渠道统计 ==========
 
   router.get('/stats', requireAuth, (req, res) => {

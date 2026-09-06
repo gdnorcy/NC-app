@@ -107,6 +107,8 @@ export const channelAuditStatus = (id) => adminApi.get(`/channel/tenants/${id}/a
 export const channelRelease = (id) => adminApi.post(`/channel/tenants/${id}/release`);
 export const channelRollback = (id) => adminApi.post(`/channel/tenants/${id}/rollback`);
 export const fetchChannelDeployLogs = (id) => adminApi.get(`/channel/tenants/${id}/deploy-logs`);
+export const fetchChannelDefaults = () => adminApi.get('/channel/defaults');
+export const updateChannelDefaults = (data) => adminApi.put('/channel/defaults', data);
 
 // 客户后台API
 const customerApi = axios.create({ baseURL: '/api/customer' });
