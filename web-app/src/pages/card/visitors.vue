@@ -1,30 +1,21 @@
 <template>
   <view class="radar-page">
-    <!-- 顶部导航栏 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <SIcon name="dynamic" size="default" color="#1d2129" />
-      </view>
-      <view class="nav-title">访客雷达</view>
-      <view class="nav-right"></view>
-    </view>
-
     <!-- 统计卡片（demo radar-stats） -->
     <view class="radar-stats">
       <view class="rstat up">
         <view class="lbl">今日访问</view>
         <view class="num"><text class="n">{{ displayToday }}</text><i>人</i></view>
         <view class="sub">
-          <SIcon name="chart" size="small" :color="diffColor" />
-          <text :style="{ color: diffColor }">较昨日 {{ diffText }}</text>
+          <SIcon name="chart" size="small" color="#07c160" />
+          <text>较昨日 {{ diffText }}</text>
         </view>
       </view>
       <view class="rstat blue">
         <view class="lbl">本周访问</view>
         <view class="num"><text class="n">{{ displayWeek }}</text><i>人</i></view>
         <view class="sub">
-          <SIcon name="radar" size="small" color="#1d4e8f" />
-          <text style="color: #1d4e8f">累计访问 {{ displayTotal }} 人</text>
+          <SIcon name="radar" size="small" color="#07c160" />
+          <text>累计访问 {{ displayTotal }} 人</text>
         </view>
       </view>
     </view>
@@ -40,7 +31,7 @@
         <view class="v-info">
           <view class="v-name">
             {{ v.nickname }}
-            <text class="v-tag" :class="{ gray: v.tag === '新访客' }" :style="{ color: v.tagColor, background: v.tagColor + '1a' }">{{ v.tag }}</text>
+            <text class="v-tag" :class="tagCls(v.tag)">{{ v.tag }}</text>
           </view>
           <view class="v-behav">{{ v.behavior }} · {{ v.timeAgo }}</view>
         </view>
@@ -55,27 +46,44 @@
       <view class="empty-hint">分享名片后，访客行为将在这里展示</view>
     </view>
 
-    <!-- 转为客户弹层（demo sheet） -->
-    <view class="sheet-mask" v-if="showConvert" @click="closeConvert"></view>
-    <view class="sheet" v-if="showConvert">
+    <!-- 行为时间线弹层（demo openVisitor） -->
+    <view class="sheet-mask" :class="{ on: showTimeline }" @click="closeTimeline"></view>
+    <view class="sheet" :class="{ on: showTimeline }">
+      <view class="grip"></view>
+      <view class="sheet-title">{{ timelineName }} · 行为轨迹</view>
+      <view class="sheet-sub">访客来源：微信名片分享</view>
+      <view class="tline">
+        <view class="tl-item" v-for="(t, i) in timelineItems" :key="i">
+          <view class="tl-dot" :class="t.cls"><SIcon :name="t.icon" size="small" color="#ffffff" /></view>
+          <view class="tl-t">{{ t.t }}</view>
+          <view class="tl-s">{{ t.s }}</view>
+        </view>
+      </view>
+      <view class="btn-main blue" @click="timelineToConvert">转为客户</view>
+      <view class="btn-ghost" @click="closeTimeline">关闭</view>
+    </view>
+
+    <!-- 转为客户弹层（demo openConvert） -->
+    <view class="sheet-mask" :class="{ on: showConvert }" @click="closeConvert"></view>
+    <view class="sheet" :class="{ on: showConvert }">
       <view class="grip"></view>
       <view class="sheet-title">转为客户</view>
       <view class="sheet-sub">已自动回填访客来源与访问信息</view>
-      <view class="sheet-person">
+      <view class="card-row" style="display: flex; align-items: center; gap: 20rpx; margin: 24rpx 0">
         <view class="v-av" :style="{ background: current.tagColor + '22', color: current.tagColor }">{{ current.nickname[0] }}</view>
-        <view class="sheet-info">
+        <view style="flex: 1">
           <view class="sheet-name">{{ current.nickname }}</view>
           <view class="sheet-src">来源：名片访问 · {{ current.behavior }}</view>
         </view>
       </view>
-      <input class="sheet-input" v-model="convName" placeholder="姓名" />
-      <input class="sheet-input" v-model="convPhone" type="number" placeholder="联系电话" />
-      <textarea class="sheet-textarea" v-model="convRemark" placeholder="备注（可选）" rows="2" />
+      <view class="sheet-input-wrap"><input class="sheet-input" v-model="convName" placeholder="姓名" /></view>
+      <view class="sheet-input-wrap"><input class="sheet-input" v-model="convPhone" type="number" placeholder="联系电话" /></view>
+      <view class="sheet-input-wrap"><textarea class="sheet-textarea" v-model="convRemark" placeholder="备注（可选）" rows="2" /></view>
       <view class="btn-main" @click="saveConvert">保存并转为客户</view>
       <view class="btn-ghost" @click="closeConvert">取消</view>
     </view>
 
-    <!-- 底部TabBar（公共组件：名片/雷达/集市/会员） -->
+    <!-- 底部TabBar（公共组件） -->
     <CardTabBar active="radar" />
   </view>
 </template>
@@ -93,18 +101,17 @@ const displayWeek = ref(0);
 const displayTotal = ref(0);
 
 const showConvert = ref(false);
+const showTimeline = ref(false);
 const current = ref({});
 const convName = ref('');
 const convPhone = ref('');
 const convRemark = ref('');
+const timelineName = ref('');
+const timelineItems = ref([]);
 
 const diffText = computed(() => {
   const d = summary.value.diff || 0;
   return d > 0 ? `+${d}%` : d < 0 ? `${d}%` : '持平';
-});
-const diffColor = computed(() => {
-  const d = summary.value.diff || 0;
-  return d > 0 ? '#07c160' : d < 0 ? '#f53f3f' : '#9a9a9a';
 });
 
 onMounted(async () => {
@@ -132,17 +139,61 @@ function animateNumber(key, target) {
   step();
 }
 
-function viewTimeline(v) {
-  if (v.visitorOpenid === 'anonymous') return;
-  uni.navigateTo({ url: `/pages/card/visitorTimeline?openid=${v.visitorOpenid}` });
+function tagCls(tag) {
+  return { '高意向': 'green', '已交换名片': 'green', '观看视频': 'blue', '新访客': 'gray' }[tag] || 'gray';
+}
+
+async function viewTimeline(v) {
+  if (v.visitorOpenid === 'anonymous') {
+    uni.showToast({ title: '匿名访客暂无轨迹', icon: 'none' });
+    return;
+  }
+  timelineName.value = v.nickname;
+  timelineItems.value = buildDefaultTimeline(v);
+  showTimeline.value = true;
+  try {
+    const res = await cardApi.getVisitorTimeline(v.visitorOpenid);
+    if (res.actions && res.actions.length) {
+      timelineItems.value = res.actions.map(mapAction);
+    }
+  } catch (e) {}
+}
+
+function mapAction(a) {
+  const map = {
+    exchange: { t: a.actionDetail || '交换电子名片', s: '已获取联系方式', cls: 'green', icon: 'card' },
+    video: { t: a.actionDetail || '观看视频', s: a.duration ? `观看 ${a.duration} 秒` : '', cls: 'blue', icon: 'doc' },
+    doc: { t: a.actionDetail || '浏览作品 / 简介', s: '来源：微信分享', cls: 'blue', icon: 'doc' },
+    visit: { t: a.actionDetail || '访问了你的名片', s: '来源：微信分享', cls: 'gray', icon: 'analytics' },
+  };
+  return map[a.actionType] || { t: '访问了你的名片', s: '来源：微信分享', cls: 'gray', icon: 'analytics' };
+}
+
+function buildDefaultTimeline(v) {
+  return [
+    { t: '访问了你的名片', s: v.timeAgo, cls: 'gray', icon: 'analytics' },
+    { t: v.behavior, s: '来源：微信分享', cls: 'blue', icon: 'doc' },
+    { t: `停留 ${v.duration || 0} 秒`, s: '行为：浏览内容', cls: 'gray', icon: 'chart' },
+    { t: '交换电子名片', s: '已获取联系方式', cls: 'green', icon: 'card' },
+  ];
+}
+
+function timelineToConvert() {
+  const v = visitors.value.find((x) => x.nickname === timelineName.value) || {};
+  closeTimeline();
+  setTimeout(() => convert(v), 250);
 }
 
 function convert(v) {
   current.value = v;
-  convName.value = v.nickname === '匿名访客' ? '' : v.nickname;
+  convName.value = v.nickname && v.nickname !== '匿名访客' ? v.nickname : '';
   convPhone.value = '';
   convRemark.value = '';
   showConvert.value = true;
+}
+
+function closeTimeline() {
+  showTimeline.value = false;
 }
 
 function closeConvert() {
@@ -168,95 +219,64 @@ async function saveConvert() {
     uni.showToast({ title: e.message || '转化失败', icon: 'none' });
   }
 }
-
-function goBack() {
-  uni.navigateBack();
-}
 </script>
 
 <style scoped>
 .radar-page {
   min-height: 100vh;
   background: #f5f6f7;
-  padding-bottom: 60rpx;
-}
-
-/* 顶部导航栏 */
-.nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 88rpx;
-  padding: 88rpx 32rpx 0;
-  background: #fff;
-}
-.nav-back {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.nav-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #1d2129;
-}
-.nav-right {
-  width: 64rpx;
+  padding-bottom: 160rpx;
 }
 
 /* ===== 统计卡片（demo radar-stats）===== */
 .radar-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20rpx;
-  padding: 24rpx 28rpx;
+  gap: 22rpx;
+  margin: 24rpx 28rpx 8rpx;
 }
 .rstat {
   background: #fff;
-  border-radius: 24rpx;
-  padding: 28rpx 28rpx 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  border-radius: 32rpx;
+  padding: 30rpx;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
 }
-.rstat.up {
-  background: linear-gradient(155deg, #e8f8ef, #ffffff);
-}
-.rstat.blue {
-  background: linear-gradient(155deg, #e6f0fb, #ffffff);
-}
-.lbl {
-  font-size: 24rpx;
-  color: #4e5969;
-}
-.num {
-  display: flex;
-  align-items: baseline;
-  gap: 6rpx;
-  margin-top: 10rpx;
-}
-.num .n {
-  font-size: 56rpx;
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1;
-}
-.num i {
-  font-style: normal;
+.rstat .lbl {
   font-size: 24rpx;
   color: #9a9a9a;
 }
-.sub {
+.rstat .num {
+  font-size: 52rpx;
+  font-weight: 700;
+  margin-top: 8rpx;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+}
+.rstat .num .n {
+  color: #1a1a1a;
+  line-height: 1;
+}
+.rstat .num i {
+  font-style: normal;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #9a9a9a;
+  margin-left: 4rpx;
+}
+.rstat .sub {
+  font-size: 22rpx;
+  color: #07c160;
+  margin-top: 10rpx;
   display: flex;
   align-items: center;
-  gap: 6rpx;
-  margin-top: 14rpx;
-  font-size: 22rpx;
+  gap: 8rpx;
 }
 
 /* ===== 访客记录（demo card-row visitor）===== */
 .sec-t {
-  margin: 16rpx 32rpx 20rpx;
+  margin: 28rpx 32rpx 20rpx;
   font-size: 28rpx;
   font-weight: 600;
   display: flex;
@@ -272,9 +292,9 @@ function goBack() {
 .visitor-list {
   margin: 0 28rpx;
   background: #fff;
-  border-radius: 24rpx;
+  border-radius: 32rpx;
   padding: 8rpx 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
 }
 .card-row.visitor {
   display: flex;
@@ -286,26 +306,33 @@ function goBack() {
   border-bottom: none;
 }
 .v-av {
-  width: 76rpx;
-  height: 76rpx;
+  width: 84rpx;
+  height: 84rpx;
   border-radius: 50%;
+  background: #e7f7ee;
+  color: #07c160;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30rpx;
-  font-weight: 600;
-  position: relative;
+  font-weight: 700;
+  font-size: 28rpx;
   flex-shrink: 0;
+  position: relative;
 }
 .v-av .red {
   position: absolute;
-  right: 2rpx;
-  top: 2rpx;
-  width: 16rpx;
-  height: 16rpx;
-  background: #f53f3f;
+  top: -2rpx;
+  right: -2rpx;
+  width: 18rpx;
+  height: 18rpx;
   border-radius: 50%;
-  border: 2rpx solid #fff;
+  background: #ff4d4f;
+  border: 4rpx solid #fff;
+  animation: blink 1.6s infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 .v-info {
   flex: 1;
@@ -319,29 +346,42 @@ function goBack() {
   display: flex;
   align-items: center;
   gap: 12rpx;
+  flex-wrap: wrap;
 }
 .v-tag {
   font-size: 20rpx;
-  font-weight: 400;
-  padding: 0 12rpx;
-  border-radius: 8rpx;
-  line-height: 32rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.v-tag.green {
+  background: #e7f7ee;
+  color: #0b8f4a;
+}
+.v-tag.blue {
+  background: #e9f1fb;
+  color: #2e6bb8;
+}
+.v-tag.gray {
+  background: #f0f0f0;
+  color: #9a9a9a;
 }
 .v-behav {
   font-size: 22rpx;
   color: #9a9a9a;
-  margin-top: 8rpx;
+  margin-top: 6rpx;
 }
 .v-act {
   flex-shrink: 0;
 }
-.btn {
-  font-size: 22rpx;
-  color: #165dff;
-  border: 1px solid #165dff;
-  border-radius: 14rpx;
-  padding: 8rpx 20rpx;
-  background: #fff;
+.v-act .btn {
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 14rpx 26rpx;
+  border-radius: 18rpx;
+  background: #e7f7ee;
+  color: #07c160;
 }
 
 /* ===== 空状态 ===== */
@@ -362,13 +402,19 @@ function goBack() {
   color: #9a9a9a;
 }
 
-/* ===== 转为客户弹层（demo sheet）===== */
+/* ===== 弹层（demo sheet-mask / sheet）===== */
 .sheet-mask {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.45);
   z-index: 90;
-  animation: fadeIn 0.2s;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+.sheet-mask.on {
+  opacity: 1;
+  pointer-events: auto;
 }
 .sheet {
   position: fixed;
@@ -376,47 +422,34 @@ function goBack() {
   right: 0;
   bottom: 0;
   background: #fff;
-  border-radius: 28rpx 28rpx 0 0;
-  padding: 20rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  border-radius: 56rpx 56rpx 0 0;
+  padding: 40rpx 64rpx calc(40rpx + env(safe-area-inset-bottom));
   z-index: 91;
-  animation: slideUp 0.25s;
+  transform: translateY(100%);
+  transition: transform 0.25s ease-out;
 }
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes slideUp {
-  from { transform: translateY(60rpx); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+.sheet.on {
+  transform: translateY(0);
 }
 .grip {
-  width: 72rpx;
+  width: 76rpx;
   height: 8rpx;
-  border-radius: 8rpx;
-  background: #e5e6eb;
-  margin: 8rpx auto 24rpx;
+  border-radius: 4rpx;
+  background: #e2e2e2;
+  margin: 0 auto 28rpx;
 }
 .sheet-title {
   font-size: 32rpx;
-  font-weight: 600;
+  font-weight: 700;
+  text-align: center;
   color: #1a1a1a;
 }
 .sheet-sub {
-  font-size: 23rpx;
+  font-size: 24rpx;
   color: #9a9a9a;
-  margin-top: 8rpx;
-}
-.sheet-person {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  background: #f7f8fa;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin: 24rpx 0;
-}
-.sheet-info {
-  flex: 1;
+  text-align: center;
+  margin-top: 10rpx;
+  line-height: 1.6;
 }
 .sheet-name {
   font-size: 28rpx;
@@ -428,14 +461,60 @@ function goBack() {
   color: #9a9a9a;
   margin-top: 4rpx;
 }
+
+/* ===== 时间线（demo tline）===== */
+.tline {
+  margin: 28rpx 0 0;
+}
+.tl-item {
+  position: relative;
+  padding: 0 0 40rpx 52rpx;
+}
+.tl-item:last-child {
+  padding-bottom: 8rpx;
+}
+.tl-dot {
+  position: absolute;
+  left: 0;
+  top: 4rpx;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tl-dot.gray {
+  background: #c9cdd3;
+}
+.tl-dot.blue {
+  background: #2e6bb8;
+}
+.tl-dot.green {
+  background: #07c160;
+}
+.tl-t {
+  font-size: 26rpx;
+  color: #5b5b5b;
+}
+.tl-s {
+  font-size: 22rpx;
+  color: #9a9a9a;
+  margin-top: 4rpx;
+}
+
+/* ===== 表单 ===== */
+.sheet-input-wrap {
+  margin-bottom: 20rpx;
+}
 .sheet-input {
   border: 1px solid #e5e6eb;
   border-radius: 22rpx;
   padding: 24rpx 26rpx;
   font-size: 28rpx;
-  margin-bottom: 20rpx;
   background: #fff;
   color: #1a1a1a;
+  width: auto;
 }
 .sheet-textarea {
   border: 1px solid #e5e6eb;
@@ -444,25 +523,38 @@ function goBack() {
   font-size: 28rpx;
   width: auto;
   min-height: 120rpx;
-  margin-bottom: 24rpx;
   background: #fff;
   color: #1a1a1a;
+  resize: none;
 }
+
+/* ===== 按钮（demo btn-main / btn-ghost）===== */
 .btn-main {
+  width: 100%;
   background: #07c160;
   color: #fff;
-  text-align: center;
-  border-radius: 22rpx;
-  padding: 26rpx 0;
   font-size: 30rpx;
-  font-weight: 500;
+  font-weight: 600;
+  padding: 28rpx;
+  border-radius: 26rpx;
+  margin-top: 32rpx;
+  text-align: center;
+  transition: opacity 0.15s;
+}
+.btn-main.blue {
+  background: #2e6bb8;
+}
+.btn-main:active {
+  opacity: 0.75;
 }
 .btn-ghost {
-  text-align: center;
-  border-radius: 22rpx;
-  padding: 24rpx 0;
+  width: 100%;
+  background: #f5f6f7;
+  color: #5b5b5b;
   font-size: 28rpx;
-  color: #4e5969;
-  margin-top: 16rpx;
+  padding: 26rpx;
+  border-radius: 26rpx;
+  margin-top: 20rpx;
+  text-align: center;
 }
 </style>

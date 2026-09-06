@@ -120,5 +120,58 @@ if (demoVisitorCount === 0) {
   console.log('+ 演示访客 5人');
 }
 
+// 6b. 补齐演示访客行为时间线（demo tl 4条，按最近动作区分标签）
+const tlPlans = {
+  mock_demo_visitor1: { last: 'visit', rows: [
+    { type: 'visit', detail: '访问了你的名片', h: 1 },
+    { type: 'doc', detail: '浏览作品《品牌案例》', h: 2 },
+    { type: 'video', detail: '观看视频 · 停留42秒', h: 3 },
+    { type: 'exchange', detail: '交换电子名片', h: 4 },
+  ] },
+  mock_demo_visitor2: { last: 'exchange', rows: [
+    { type: 'exchange', detail: '交换电子名片', h: 1 },
+    { type: 'video', detail: '观看视频 · 停留18秒', h: 2 },
+    { type: 'doc', detail: '浏览作品《品牌案例》', h: 3 },
+    { type: 'visit', detail: '访问了你的名片', h: 4 },
+  ] },
+  mock_demo_visitor3: { last: 'video', rows: [
+    { type: 'video', detail: '观看视频《作品集》·56秒', h: 1 },
+    { type: 'doc', detail: '浏览作品《品牌案例》', h: 2 },
+    { type: 'visit', detail: '访问了你的名片', h: 3 },
+    { type: 'exchange', detail: '交换电子名片', h: 4 },
+  ] },
+  mock_demo_visitor4: { last: 'visit', rows: [
+    { type: 'visit', detail: '查看简介 · 浏览作品', h: 1 },
+    { type: 'doc', detail: '查看简介', h: 2 },
+    { type: 'video', detail: '观看视频 · 停留28秒', h: 3 },
+    { type: 'exchange', detail: '交换电子名片', h: 4 },
+  ] },
+  mock_demo_visitor5: { last: 'visit', rows: [
+    { type: 'visit', detail: '查看简介', h: 1 },
+    { type: 'doc', detail: '浏览作品《品牌案例》', h: 2 },
+    { type: 'video', detail: '观看视频 · 停留12秒', h: 3 },
+    { type: 'exchange', detail: '交换电子名片', h: 4 },
+  ] },
+};
+const demoVisitors = db.prepare("SELECT id, card_id, visitor_openid FROM card_visitor WHERE card_id=? AND visitor_openid LIKE 'mock_demo_visitor%'").all(cardId);
+let tlAdded = 0;
+for (const v of demoVisitors) {
+  const plan = tlPlans[v.visitor_openid];
+  if (!plan) continue;
+  const existing = db.prepare('SELECT action_type, action_detail, created_at FROM card_visitor_action WHERE card_id=? AND visitor_openid=? ORDER BY created_at DESC LIMIT 4').all(cardId, v.visitor_openid);
+  const oneHourAgo = new Date(Date.now() - 3600000).toISOString().replace('T', ' ').slice(0, 16);
+  const firstIsNew = existing.length > 0 && existing[0].created_at.startsWith(oneHourAgo);
+  const matches = firstIsNew && existing.length === plan.rows.length && existing.every((a, i) => a.action_type === plan.rows[i].type);
+  if (matches) continue;
+  db.prepare('DELETE FROM card_visitor_action WHERE card_id=? AND visitor_openid=?').run(cardId, v.visitor_openid);
+  for (const r of plan.rows) {
+    db.prepare(`INSERT INTO card_visitor_action (card_id, visitor_openid, action_type, action_detail, created_at)
+      VALUES (?,?,?,?,datetime('now', ?))`)
+      .run(cardId, v.visitor_openid, r.type, r.detail, `-${r.h} hour`);
+  }
+  tlAdded += plan.rows.length;
+}
+if (tlAdded) console.log('+ 重种时间线 ' + tlAdded + '条');
+
 console.log('演示资料检查完成: 名片#' + cardId);
 db.close();

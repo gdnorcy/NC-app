@@ -211,3 +211,46 @@ test('访客雷达summary增强（昵称/标签/行为/对比）', async () => {
   // 较昨日对比字段存在
   assert.ok(typeof res.body.diff === 'number');
 });
+
+test('访客标签按最近动作推断(video→观看视频, visit2次→高意向)', async () => {
+  const token = await wxLogin('merge_radar_2');
+  const created = await request(app)
+    .post('/api/card/cards')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: '标签测试', position: '顾问' });
+  const cardId = created.body.card.id;
+  const { createDb } = await import('../src/db.js');
+  const db = createDb(config.dbPath);
+
+  // 访客A：最近动作video
+  const u1 = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
+    .run('mock_tag_v1', '王总', new Date().toISOString(), new Date().toISOString());
+  const today = new Date().toISOString().slice(0, 10);
+  db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visitor_user_id, visit_date, visit_count, duration, pages, last_visit_at)
+    VALUES (?,?,?,?,?,?,?,datetime('now'))`)
+    .run(cardId, 'mock_tag_v1', Number(u1.lastInsertRowid), today, 1, 56, '[]');
+  db.prepare("INSERT INTO card_visitor_action (card_id, visitor_openid, action_type, action_detail, created_at) VALUES (?,?,?,?,datetime('now','-1 hour'))")
+    .run(cardId, 'mock_tag_v1', 'video', '观看视频');
+  // 访客B：最近动作exchange
+  const u2 = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
+    .run('mock_tag_v2', '李女士', new Date().toISOString(), new Date().toISOString());
+  db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visitor_user_id, visit_date, visit_count, duration, pages, last_visit_at)
+    VALUES (?,?,?,?,?,?,?,datetime('now'))`)
+    .run(cardId, 'mock_tag_v2', Number(u2.lastInsertRowid), today, 1, 18, '[]');
+  db.prepare("INSERT INTO card_visitor_action (card_id, visitor_openid, action_type, action_detail, created_at) VALUES (?,?,?,?,datetime('now','-2 hour'))")
+    .run(cardId, 'mock_tag_v2', 'exchange', '交换电子名片');
+  // 访客C：无动作但2次访问 → 高意向
+  const u3 = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
+    .run('mock_tag_v3', '张先生', new Date().toISOString(), new Date().toISOString());
+  db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visitor_user_id, visit_date, visit_count, duration, pages, last_visit_at)
+    VALUES (?,?,?,?,?,?,?,datetime('now'))`)
+    .run(cardId, 'mock_tag_v3', Number(u3.lastInsertRowid), today, 2, 42, '[]');
+
+  const res = await request(app).get('/api/card/visitors/summary').set('Authorization', `Bearer ${token}`);
+  const v1 = res.body.visitors.find((x) => x.visitorOpenid === 'mock_tag_v1');
+  const v2 = res.body.visitors.find((x) => x.visitorOpenid === 'mock_tag_v2');
+  const v3 = res.body.visitors.find((x) => x.visitorOpenid === 'mock_tag_v3');
+  assert.equal(v1.tag, '观看视频');
+  assert.equal(v2.tag, '已交换名片');
+  assert.equal(v3.tag, '高意向');
+});

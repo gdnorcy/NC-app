@@ -288,12 +288,11 @@ export function createCardRouter(db, wxService) {
       const actionType = lastAction ? lastAction.action_type : '';
       const actionDetail = lastAction ? lastAction.action_detail : '';
 
-      // 标签推断：已交换名片 > 高意向 > 观看视频 > 新访客
+      // 标签推断（按最近动作优先）：已交换名片 > 观看视频 > 高意向 > 新访客
       let tag = '新访客', tagColor = '#9a9a9a';
-      const exchangeCount = db.prepare("SELECT COUNT(*) as c FROM card_visitor_action WHERE card_id=? AND visitor_openid=? AND action_type='exchange'").get(card.id, v.visitor_openid).c;
-      if (exchangeCount > 0) { tag = '已交换名片'; tagColor = '#07c160'; }
-      else if (v.visit_count >= 2) { tag = '高意向'; tagColor = '#07c160'; }
+      if (actionType === 'exchange') { tag = '已交换名片'; tagColor = '#07c160'; }
       else if (actionType === 'video' || (actionDetail || '').includes('视频')) { tag = '观看视频'; tagColor = '#1d4e8f'; }
+      else if (v.visit_count >= 2) { tag = '高意向'; tagColor = '#07c160'; }
 
       // 行为描述
       const durText = v.duration > 0 ? ` · 停留${v.duration >= 60 ? Math.floor(v.duration / 60) + '分' + (v.duration % 60) + '秒' : v.duration + '秒'}` : '';
@@ -548,7 +547,7 @@ export function createCardRouter(db, wxService) {
     if (!row) return null;
     return {
       id: row.id, cardId: row.card_id, visitorOpenid: row.visitor_openid,
-      actionType: row.action_type, duration: row.duration, createdAt: row.created_at,
+      actionType: row.action_type, actionDetail: row.action_detail, duration: row.duration, createdAt: row.created_at,
     };
   }
 
