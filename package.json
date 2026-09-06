@@ -5,12 +5,18 @@
   "description": "360全景浏览器：H5/Web 展示端 + 管理后台",
   "workspaces": [
     "server",
-    "web"
+    "web",
+    "web-admin"
   ],
   "scripts": {
     "dev": "npm run dev -w server",
-    "build": "npm run build -w web",
+    "build": "npm run build:admin",
+    "build:admin": "rm -rf server/public/admin/assets server/public/admin/admin.html server/public/admin/customer.html && npm run build -w web-admin",
+    "build:mobile": "npm run build:h5 -w web-app",
+    "build:all": "npm run build:admin && npm run build:mobile",
     "start": "npm run start -w server",
-    "test": "npm run test -w server && npm run test -w web"
+    "restart": "pkill -f 'node server/src/index.js'; sleep 1; PORT=3000 node server/src/index.js > /tmp/panorama-server.log 2>&1 &",
+    "test": "npm run test -w server",
+    "verify": "node scripts/verify-build.js"
   }
 }
