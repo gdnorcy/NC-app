@@ -2,7 +2,7 @@
   <div class="payment-config">
     <div class="page-header">
       <h2 class="page-title">支付设置</h2>
-      <p class="page-desc">配置租户独立支付体系，会员费等收入可直接进入您的账户</p>
+      <p class="page-desc">配置客户独立支付体系，会员费等收入可直接进入您的账户</p>
     </div>
 
     <!-- 支付模式 -->

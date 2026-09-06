@@ -2,7 +2,7 @@
   <div class="payment-admin">
     <div class="page-header">
       <h2 class="page-title">支付管理</h2>
-      <p class="page-desc">双层支付架构：平台级支付 + 租户级支付，交易统计与结算管理</p>
+      <p class="page-desc">双层支付架构：平台级支付 + 客户级支付，交易统计与结算管理</p>
     </div>
 
     <!-- 统计卡片 -->
@@ -46,7 +46,7 @@
         <div class="stat-icon pink">👥</div>
         <div class="stat-info">
           <div class="stat-value">¥{{ formatMoney(stats.tenantAmount) }}</div>
-          <div class="stat-label">租户级交易</div>
+          <div class="stat-label">客户级交易</div>
         </div>
       </div>
     </div>
@@ -72,7 +72,7 @@
           <select v-model="filter.payerType" class="filter-select" @change="loadOrders">
             <option value="">全部类型</option>
             <option value="platform">平台级支付</option>
-            <option value="tenant">租户级支付</option>
+            <option value="tenant">客户级支付</option>
           </select>
           <input v-model="filter.keyword" class="search-input" placeholder="搜索订单号/产品名称" @keyup.enter="loadOrders" />
           <button class="btn-primary" @click="loadOrders">搜索</button>
@@ -82,7 +82,7 @@
             <tr>
               <th>订单号</th>
               <th>类型</th>
-              <th>租户ID</th>
+              <th>客户ID</th>
               <th>产品</th>
               <th>金额</th>
               <th>平台手续费</th>
@@ -97,7 +97,7 @@
               <td class="order-no">{{ order.orderNo }}</td>
               <td>
                 <span class="badge" :class="order.payerType === 'platform' ? 'info' : 'warning'">
-                  {{ order.payerType === 'platform' ? '平台级' : '租户级' }}
+                  {{ order.payerType === 'platform' ? '平台级' : '客户级' }}
                 </span>
               </td>
               <td>{{ order.customerId }}</td>
@@ -133,7 +133,7 @@
           <thead>
             <tr>
               <th>结算单号</th>
-              <th>租户ID</th>
+              <th>客户ID</th>
               <th>订单总数</th>
               <th>订单总额</th>
               <th>平台手续费</th>

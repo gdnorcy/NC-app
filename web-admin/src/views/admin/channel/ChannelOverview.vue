@@ -31,7 +31,7 @@
         <div class="channel-body">
           <div class="channel-info">
             <span class="info-label">已开通</span>
-            <span class="info-value">{{ ch.count }} 个租户</span>
+            <span class="info-value">{{ ch.count }} 个客户</span>
           </div>
           <div class="channel-info" v-if="ch.appid">
             <span class="info-label">AppID</span>
@@ -49,7 +49,7 @@
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
         <div style="flex:1;min-width:200px;">
           <div style="font-size:14px;font-weight:600;color:#1a1b1c;">平台默认配置</div>
-          <div style="font-size:12px;color:#909399;margin-top:4px;">配置未开通独立渠道的租户使用的默认参数</div>
+          <div style="font-size:12px;color:#909399;margin-top:4px;">配置未开通独立渠道的客户使用的默认参数</div>
         </div>
         <el-button type="primary" @click="$router.push('/channel/defaults')">去配置</el-button>
       </div>
@@ -111,7 +111,7 @@ const callbackUrl = `${location.origin}/api/channel/wx-callback`;
 const messageUrl = `${location.origin}/api/channel/wx-message/$APPID$`;
 
 const channels = [
-  { type: 'mini', name: '微信小程序', icon: 'wechat', desc: '租户独立AppID，第三方平台代开发', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
+  { type: 'mini', name: '微信小程序', icon: 'wechat', desc: '客户独立AppID，第三方平台代开发', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
   { type: 'h5', name: 'H5手机端', icon: 'mobile', desc: '/mobile路径，支持独立域名', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
   { type: 'mp', name: '微信公众号', icon: 'official', desc: 'OAuth授权 + H5嵌入', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
   { type: 'pc', name: 'PC网站', icon: 'pc', desc: '独立域名，PC适配', statusText: '待开通', statusType: 'info', count: 0, appid: '' },

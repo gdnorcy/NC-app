@@ -156,7 +156,7 @@ const form = reactive({
 });
 
 const channelList = reactive([
-  { type: 'mini', name: '微信小程序', icon: '💬', desc: '租户独立AppID，第三方平台代开发', enabled: false, appid: '', version: '', auditStatus: 'none', config: {} },
+  { type: 'mini', name: '微信小程序', icon: '💬', desc: '客户独立AppID，第三方平台代开发', enabled: false, appid: '', version: '', auditStatus: 'none', config: {} },
   { type: 'h5', name: 'H5手机端', icon: '📱', desc: '/mobile路径，支持独立域名', enabled: false, config: { brandName: '', primaryColor: '#165DFF', customDomain: '' } },
   { type: 'mp', name: '微信公众号', icon: '📢', desc: 'OAuth授权 + H5嵌入', enabled: false, config: { brandName: '', primaryColor: '#165DFF' } },
   { type: 'pc', name: 'PC网站', icon: '💻', desc: '独立域名，PC适配', enabled: false, config: { brandName: '', primaryColor: '#165DFF', customDomain: '' } },

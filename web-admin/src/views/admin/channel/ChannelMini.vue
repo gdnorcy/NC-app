@@ -5,7 +5,7 @@
       <h2 class="page-title">微信小程序管理</h2>
       <div style="margin-left:auto;display:flex;gap:8px;">
         <el-button @click="loadTemplates(true)">同步模板</el-button>
-        <el-button type="primary" @click="showAuth = true">授权新租户</el-button>
+        <el-button type="primary" @click="showAuth = true">授权新客户</el-button>
       </div>
     </div>
 
@@ -20,10 +20,10 @@
       </div>
     </div>
 
-    <!-- 已授权租户列表 -->
+    <!-- 已授权客户列表 -->
     <div class="page-card">
       <el-table :data="miniChannels" stripe>
-        <el-table-column label="租户" width="200">
+        <el-table-column label="客户" width="200">
           <template #default="{ row }">
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:20px;">🏢</span>
@@ -58,7 +58,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!miniChannels.length" description="暂无已授权的小程序，点击右上角授权新租户" />
+      <el-empty v-if="!miniChannels.length" description="暂无已授权的小程序，点击右上角授权新客户" />
     </div>
 
     <!-- 授权弹窗 -->

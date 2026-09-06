@@ -7,14 +7,14 @@
     </div>
 
     <el-alert type="info" :closable="false" style="margin-bottom:16px;">
-      平台级默认配置用于未开通独立渠道的租户。开通独立渠道的租户使用自己的配置。
+      平台级默认配置用于未开通独立渠道的客户。开通独立渠道的客户使用自己的配置。
     </el-alert>
 
     <div class="page-card">
       <h3 style="margin-bottom:16px;">微信小程序（平台统一）</h3>
       <el-form :model="defaultsForm.mini" label-width="160px">
         <el-form-item label="平台小程序AppID">
-          <el-input v-model="defaultsForm.mini.appid" placeholder="未开通独立小程序的租户共用" />
+          <el-input v-model="defaultsForm.mini.appid" placeholder="未开通独立小程序的客户共用" />
         </el-form-item>
         <el-form-item label="平台小程序路径">
           <el-input v-model="defaultsForm.mini.page" placeholder="默认首页路径，如 pages/index/index" />
@@ -41,7 +41,7 @@
       <h3 style="margin-bottom:16px;">微信公众号（平台统一）</h3>
       <el-form :model="defaultsForm.mp" label-width="160px">
         <el-form-item label="平台公众号AppID">
-          <el-input v-model="defaultsForm.mp.appid" placeholder="未开通独立公众号的租户共用" />
+          <el-input v-model="defaultsForm.mp.appid" placeholder="未开通独立公众号的客户共用" />
         </el-form-item>
         <el-form-item label="平台公众号AppSecret">
           <el-input v-model="defaultsForm.mp.appsecret" type="password" show-password />
