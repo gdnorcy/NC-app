@@ -175,6 +175,25 @@ customerApi.interceptors.response.use(
 
 export const customerApiCall = customerApi;
 
+// 客户后台 - 支付（接口挂在 /api/payment，需带 customer_token 的独立实例）
+const customerPaymentApi = axios.create({ baseURL: '/api' });
+customerPaymentApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('customer_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+customerPaymentApi.interceptors.response.use(
+  (res) => res.data,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('customer_token');
+      window.location.href = '/customer.html#/login';
+    }
+    return Promise.reject(err.response?.data?.error || '请求失败');
+  }
+);
+export const customerPaymentCall = customerPaymentApi;
+
 // 客户后台 - 全端渠道
 export const fetchCustomerChannels = () => customerApi.get('/channels');
 export const updateCustomerChannel = (type, data) => customerApi.put(`/channels/${type}`, data);

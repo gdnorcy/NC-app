@@ -10,13 +10,17 @@
       <div class="card-title">收款模式</div>
       <div class="mode-cards">
         <div class="mode-card" :class="{ active: form.mode === 'platform' }" @click="form.mode = 'platform'">
-          <div class="mode-icon">🏦</div>
+          <div class="mode-icon">
+            <SIcon name="wallet" size="xlarge" :color="form.mode === 'platform' ? '#165dff' : '#4e5969'" />
+          </div>
           <div class="mode-name">借用平台支付</div>
           <div class="mode-desc">使用平台商户号代收，平台扣除手续费后定期结算给您</div>
           <div class="mode-tag" v-if="form.mode === 'platform'">当前选择</div>
         </div>
         <div class="mode-card" :class="{ active: form.mode === 'independent' }" @click="form.mode = 'independent'">
-          <div class="mode-icon">💳</div>
+          <div class="mode-icon">
+            <SIcon name="card" size="xlarge" :color="form.mode === 'independent' ? '#165dff' : '#4e5969'" />
+          </div>
           <div class="mode-name">自主接入</div>
           <div class="mode-desc">使用您自己的微信支付/支付宝商户号，资金直接进入您的账户</div>
           <div class="mode-tag" v-if="form.mode === 'independent'">当前选择</div>
@@ -53,7 +57,7 @@
       <!-- 微信支付 -->
       <div class="card">
         <div class="card-title">
-          <span>微信支付</span>
+          <span class="title-with-icon"><SIcon name="wechat" size="default" color="#4e5969" />微信支付</span>
           <el-switch v-model="form.wechat.enabled" active-text="启用" />
         </div>
         <el-form :model="form.wechat" label-width="140px" size="default" v-if="form.wechat.enabled">
@@ -87,7 +91,7 @@
       <!-- 支付宝 -->
       <div class="card">
         <div class="card-title">
-          <span>支付宝</span>
+          <span class="title-with-icon"><SIcon name="alipay" size="default" color="#4e5969" />支付宝</span>
           <el-switch v-model="form.alipay.enabled" active-text="启用" />
         </div>
         <el-form :model="form.alipay" label-width="140px" size="default" v-if="form.alipay.enabled">
@@ -120,7 +124,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { customerApiCall } from '../../../api';
+import { customerPaymentCall } from '../../../api';
+import SIcon from '../../../components/SIcon.vue';
 
 const saving = ref(false);
 const form = ref({
@@ -133,7 +138,7 @@ const form = ref({
 
 async function loadConfig() {
   try {
-    const res = await customerApiCall.get('/payment/tenant-config');
+    const res = await customerPaymentCall.get('/payment/tenant-config');
     if (res.config) {
       form.value = { ...form.value, ...res.config };
     }
@@ -145,7 +150,7 @@ async function loadConfig() {
 async function saveConfig() {
   saving.value = true;
   try {
-    await customerApiCall.put('/payment/tenant-config', form.value);
+    await customerPaymentCall.put('/payment/tenant-config', form.value);
     ElMessage.success('保存成功');
   } catch (e) {
     ElMessage.error(e.message || '保存失败');
@@ -170,11 +175,12 @@ onMounted(() => {
 .page-desc { font-size: 13px; color: #86909c; margin: 0; }
 .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .card-title { font-size: 15px; font-weight: 600; color: #1d2129; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.title-with-icon { display: inline-flex; align-items: center; gap: 8px; }
 .mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .mode-card { border: 2px solid #e5e6eb; border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; }
 .mode-card:hover { border-color: #165dff; }
 .mode-card.active { border-color: #165dff; background: rgba(22,93,255,0.03); }
-.mode-icon { font-size: 32px; margin-bottom: 12px; }
+.mode-icon { margin-bottom: 12px; }
 .mode-name { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
 .mode-desc { font-size: 13px; color: #86909c; line-height: 1.6; }
 .mode-tag { position: absolute; top: 12px; right: 12px; background: #165dff; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 4px; }
