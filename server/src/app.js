@@ -18,6 +18,9 @@ import { createCustomerRouter } from './routes/customer.js';
 import { createSolutionsRouter } from './routes/solutions.js';
 import { createMultiAuthRouter } from './routes/multi-auth.js';
 import { createAppRegistryRouter } from './routes/app-registry.js';
+import { createOAuthRouter } from './routes/oauth.js';
+import { createOpenApiRouter } from './routes/openapi.js';
+import { createOAuthAppsRouter } from './routes/oauth-apps.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -41,6 +44,9 @@ export function createApp({ db } = {}) {
   app.use('/api/admin/solutions', requireAuth, createSolutionsRouter(database));
   app.use('/api/auth', createMultiAuthRouter(database));
   app.use('/api', createAppRegistryRouter(database));
+  app.use('/oauth', createOAuthRouter(database));
+  app.use('/openapi', createOpenApiRouter(database));
+  app.use('/api/admin/oauth', createOAuthAppsRouter(database));
 
   // 健康检查
   app.get('/api/health', (_req, res) => res.json({ ok: true }));

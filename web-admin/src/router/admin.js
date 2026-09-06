@@ -3,6 +3,7 @@ import AdminLayout from '../layouts/AdminLayout.vue';
 
 const routes = [
   { path: '/login', component: () => import('../views/admin/Login.vue'), meta: { title: '登录' } },
+  { path: '/oauth/authorize', component: () => import('../views/admin/OAuthAuthorize.vue'), meta: { title: '授权' } },
   {
     path: '/',
     component: AdminLayout,

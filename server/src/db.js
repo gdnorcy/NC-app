@@ -349,6 +349,74 @@ function migrate(db) {
   if (!colExists(db, 'scenes', 'meta')) {
     db.exec("ALTER TABLE scenes ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'");
   }
+
+  // —— 开放平台：第三方应用 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS oauth_apps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      app_id TEXT NOT NULL UNIQUE,
+      app_secret TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      icon TEXT NOT NULL DEFAULT '',
+      owner_user_id INTEGER,
+      redirect_uris TEXT NOT NULL DEFAULT '[]',
+      ip_whitelist TEXT NOT NULL DEFAULT '[]',
+      scopes TEXT NOT NULL DEFAULT '["read"]',
+      status TEXT NOT NULL DEFAULT 'active',
+      rate_limit INTEGER NOT NULL DEFAULT 100,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // —— 开放平台：授权码 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS oauth_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      app_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      scopes TEXT NOT NULL DEFAULT '["read"]',
+      redirect_uri TEXT,
+      expires_at TEXT NOT NULL,
+      used INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // —— 开放平台：访问令牌 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS oauth_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      access_token TEXT NOT NULL UNIQUE,
+      refresh_token TEXT NOT NULL UNIQUE,
+      app_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      scopes TEXT NOT NULL DEFAULT '["read"]',
+      expires_at TEXT NOT NULL,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // —— 开放平台：API调用日志 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS api_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      app_id TEXT,
+      user_id INTEGER,
+      endpoint TEXT NOT NULL,
+      method TEXT NOT NULL,
+      status_code INTEGER NOT NULL,
+      ip TEXT,
+      response_time INTEGER,
+      error_message TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_api_logs_app_id ON api_logs(app_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_api_logs_created_at ON api_logs(created_at)');
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */

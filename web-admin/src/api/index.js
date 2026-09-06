@@ -82,6 +82,15 @@ export const testStorage = (data) => adminApi.post('/storage/test', data);
 // 日志
 export const fetchLogs = (params) => adminApi.get('/logs', { params });
 
+// 开放平台
+export const fetchOAuthApps = () => adminApi.get('/oauth/apps');
+export const createOAuthApp = (data) => adminApi.post('/oauth/apps', data);
+export const updateOAuthApp = (id, data) => adminApi.put(`/oauth/apps/${id}`, data);
+export const resetOAuthSecret = (id) => adminApi.post(`/oauth/apps/${id}/reset-secret`);
+export const toggleOAuthApp = (id) => adminApi.post(`/oauth/apps/${id}/toggle`);
+export const fetchOAuthStats = () => adminApi.get('/oauth/stats');
+export const fetchApiLogs = (params) => adminApi.get('/oauth/api-logs', { params });
+
 // 客户后台API
 const customerApi = axios.create({ baseURL: '/api/customer' });
 customerApi.interceptors.request.use((config) => {
