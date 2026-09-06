@@ -18,21 +18,28 @@ import { useRouter } from 'vue-router';
 import { customerApiCall } from '../../api';
 
 const router = useRouter();
-const apps = ref([{ code: 'panorama', name: '360°全景', icon: '🌐', description: '沉浸式360全景展示，支持热点、音乐、解说' }]);
+// 平台内置应用
+const builtinApps = [
+  { code: 'channel', name: '全端渠道', icon: '📱', description: '管理H5、小程序、公众号、PC网站各端渠道配置与发布', builtin: true },
+];
+const apps = ref([]);
 
 onMounted(async () => {
+  const list = [...builtinApps];
   try {
     const data = await customerApiCall.get('/profile');
     if (data.customer?.solutions) {
-      apps.value = data.customer.solutions.map(s => ({
-        code: s.code || s.name, name: s.name, icon: s.icon || '📦', description: s.description || '',
-      }));
+      data.customer.solutions.forEach(s => {
+        list.push({ code: s.code || s.name, name: s.name, icon: s.icon || '📦', description: s.description || '' });
+      });
     }
   } catch (e) {}
+  apps.value = list;
 });
 
 function enterApp(app) {
   if (app.code === 'panorama') router.push('/apps/panorama/plans');
+  else if (app.code === 'channel') router.push('/apps/channel');
 }
 </script>
 

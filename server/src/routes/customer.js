@@ -4,6 +4,7 @@ import multer from 'multer';
 import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword } from '../db.js';
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
+import { WxComponentService } from '../services/wx-component.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -369,6 +370,151 @@ router.post('/upload', requireTenant, requireTenantAdmin, (req, res) => {
       res.status(400).json({ error: '图片处理失败，请确认文件为有效的全景图' });
     }
   });
+});
+
+// —— 全端渠道管理（客户自主管理自己的渠道） ——
+
+// 获取客户的所有渠道配置
+router.get('/channels', requireTenant, (req, res) => {
+  const cid = req.customerId;
+  const channels = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ?').all(cid);
+  res.json({ channels });
+});
+
+// 更新渠道配置
+router.put('/channels/:type', requireTenant, requireTenantAdmin, (req, res) => {
+  const cid = req.customerId;
+  const type = req.params.type;
+  const { brandName, primaryColor, customDomain, enabled, page } = req.body || {};
+  const existing = db.prepare('SELECT id FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, type);
+  if (existing) {
+    db.prepare(`UPDATE channel_apps SET brand_name=?, primary_color=?, custom_domain=?, enabled=?, page=?, updated_at=datetime('now') WHERE id=?`)
+      .run(brandName || null, primaryColor || null, customDomain || null, enabled ? 1 : 0, page || null, existing.id);
+  } else {
+    db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, brand_name, primary_color, custom_domain, enabled, page) VALUES (?,?,?,?,?,?,?)`)
+      .run(cid, type, brandName || null, primaryColor || null, customDomain || null, enabled ? 1 : 0, page || null);
+  }
+  res.json({ message: '配置已保存' });
+});
+
+// 小程序：获取模板列表
+router.get('/channels/mini/templates', requireTenant, async (req, res) => {
+  try {
+    const wxService = new WxComponentService(db);
+    const templates = await wxService.getTemplateList();
+    res.json({ templates });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 小程序：生成授权链接
+router.post('/channels/mini/auth-url', requireTenant, requireTenantAdmin, async (req, res) => {
+  try {
+    const { redirectUri } = req.body || {};
+    const wxService = new WxComponentService(db);
+    const result = await wxService.getAuthUrl({
+      redirectUri: redirectUri || `${req.protocol}://${req.get('host')}/customer`,
+      customerId: req.customerId,
+      authType: 2,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 小程序：从模板上传代码（创建草稿）
+router.post('/channels/mini/upload', requireTenant, requireTenantAdmin, async (req, res) => {
+  try {
+    const { templateId, userVersion, userDesc } = req.body || {};
+    const cid = req.customerId;
+    const channel = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, 'mini');
+    if (!channel?.authorizer_appid) return res.status(400).json({ error: '小程序未授权' });
+    const wxService = new WxComponentService(db);
+    await wxService.uploadCode(channel.authorizer_appid, { templateId, userVersion, userDesc });
+    db.prepare(`UPDATE channel_apps SET audit_status='draft', version=?, updated_at=datetime('now') WHERE id=?`).run(userVersion, channel.id);
+    // 记录发布日志
+    db.prepare(`INSERT INTO channel_deploy_logs (customer_id, channel_type, action, version, status, created_at) VALUES (?,?,?,?,?,datetime('now'))`)
+      .run(cid, 'mini', 'upload', userVersion, 'success');
+    res.json({ message: '代码上传成功' });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 小程序：提交审核
+router.post('/channels/mini/submit-audit', requireTenant, requireTenantAdmin, async (req, res) => {
+  try {
+    const cid = req.customerId;
+    const channel = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, 'mini');
+    if (!channel?.authorizer_appid) return res.status(400).json({ error: '小程序未授权' });
+    const wxService = new WxComponentService(db);
+    await wxService.submitAudit(channel.authorizer_appid);
+    db.prepare(`UPDATE channel_apps SET audit_status='auditing', updated_at=datetime('now') WHERE id=?`).run(channel.id);
+    db.prepare(`INSERT INTO channel_deploy_logs (customer_id, channel_type, action, version, status, created_at) VALUES (?,?,?,?,?,datetime('now'))`)
+      .run(cid, 'mini', 'submit_audit', channel.version, 'success');
+    res.json({ message: '已提交审核' });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 小程序：查询审核状态
+router.get('/channels/mini/audit-status', requireTenant, async (req, res) => {
+  try {
+    const cid = req.customerId;
+    const channel = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, 'mini');
+    if (!channel?.authorizer_appid) return res.status(400).json({ error: '小程序未授权' });
+    const wxService = new WxComponentService(db);
+    const status = await wxService.getAuditStatus(channel.authorizer_appid);
+    if (status) {
+      db.prepare(`UPDATE channel_apps SET audit_status=?, updated_at=datetime('now') WHERE id=?`).run(status, channel.id);
+    }
+    res.json({ auditStatus: status || channel.audit_status });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 小程序：发布
+router.post('/channels/mini/release', requireTenant, requireTenantAdmin, async (req, res) => {
+  try {
+    const cid = req.customerId;
+    const channel = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, 'mini');
+    if (!channel?.authorizer_appid) return res.status(400).json({ error: '小程序未授权' });
+    const wxService = new WxComponentService(db);
+    await wxService.release(channel.authorizer_appid);
+    db.prepare(`UPDATE channel_apps SET audit_status='released', updated_at=datetime('now') WHERE id=?`).run(channel.id);
+    db.prepare(`INSERT INTO channel_deploy_logs (customer_id, channel_type, action, version, status, created_at) VALUES (?,?,?,?,?,datetime('now'))`)
+      .run(cid, 'mini', 'release', channel.version, 'success');
+    res.json({ message: '发布成功' });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 小程序：版本回退
+router.post('/channels/mini/rollback', requireTenant, requireTenantAdmin, async (req, res) => {
+  try {
+    const cid = req.customerId;
+    const channel = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, 'mini');
+    if (!channel?.authorizer_appid) return res.status(400).json({ error: '小程序未授权' });
+    const wxService = new WxComponentService(db);
+    await wxService.rollback(channel.authorizer_appid);
+    db.prepare(`INSERT INTO channel_deploy_logs (customer_id, channel_type, action, version, status, created_at) VALUES (?,?,?,?,?,datetime('now'))`)
+      .run(cid, 'mini', 'rollback', channel.version, 'success');
+    res.json({ message: '回退成功' });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// 小程序：发布日志
+router.get('/channels/mini/deploy-logs', requireTenant, (req, res) => {
+  const cid = req.customerId;
+  const logs = db.prepare('SELECT * FROM channel_deploy_logs WHERE customer_id = ? AND channel_type = ? ORDER BY created_at DESC LIMIT 20').all(cid, 'mini');
+  res.json({ logs });
 });
 
   return router;

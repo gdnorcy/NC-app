@@ -149,4 +149,17 @@ customerApi.interceptors.response.use(
 );
 
 export const customerApiCall = customerApi;
+
+// 客户后台 - 全端渠道
+export const fetchCustomerChannels = () => customerApi.get('/channels');
+export const updateCustomerChannel = (type, data) => customerApi.put(`/channels/${type}`, data);
+export const fetchCustomerMiniTemplates = () => customerApi.get('/channels/mini/templates');
+export const getCustomerMiniAuthUrl = (data) => customerApi.post('/channels/mini/auth-url', data);
+export const customerMiniUpload = (data) => customerApi.post('/channels/mini/upload', data);
+export const customerMiniSubmitAudit = () => customerApi.post('/channels/mini/submit-audit');
+export const customerMiniAuditStatus = () => customerApi.get('/channels/mini/audit-status');
+export const customerMiniRelease = () => customerApi.post('/channels/mini/release');
+export const customerMiniRollback = () => customerApi.post('/channels/mini/rollback');
+export const fetchCustomerMiniDeployLogs = () => customerApi.get('/channels/mini/deploy-logs');
+
 export default { adminApi, publicApi, customerApi };
