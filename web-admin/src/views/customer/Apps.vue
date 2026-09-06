@@ -22,17 +22,23 @@ const router = useRouter();
 const builtinApps = [
   { code: 'channel', name: '全端渠道', icon: '📱', description: '管理H5、小程序、公众号、PC网站各端渠道配置与发布', builtin: true },
 ];
+// 解决方案应用映射（code -> 显示信息）
+const solutionMap = {
+  panorama: { code: 'panorama', name: '360°全景', icon: '🌐', description: '沉浸式360全景展示，支持热点、音乐、解说' },
+};
 const apps = ref([]);
 
 onMounted(async () => {
   const list = [...builtinApps];
   try {
     const data = await customerApiCall.get('/profile');
-    if (data.customer?.solutions) {
-      data.customer.solutions.forEach(s => {
-        list.push({ code: s.code || s.name, name: s.name, icon: s.icon || '📦', description: s.description || '' });
-      });
-    }
+    const solutions = data.customer?.solutions || [];
+    solutions.forEach(s => {
+      // 兼容字符串和对象两种格式
+      const code = typeof s === 'string' ? s : (s.code || s.name);
+      const app = solutionMap[code] || { code, name: s.name || code, icon: s.icon || '📦', description: s.description || '' };
+      list.push(app);
+    });
   } catch (e) {}
   apps.value = list;
 });
