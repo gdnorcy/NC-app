@@ -5,7 +5,7 @@ import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
-import { checkTenantAccess } from '../tenant.js';
+import { checkTenantAccess, tenantState } from '../tenant.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -27,6 +27,19 @@ function requireTenant(req, res, next) {
   // 租户生命周期：存在/启用/未到期
   const blocked = checkTenantAccess(db, user.customerId);
   if (blocked) return res.status(blocked.status).json({ error: blocked.error });
+  req.customerId = user.customerId;
+  next();
+}
+
+// 软校验：仅确认租户身份，不拦截生命周期（供 /tenant/status 在到期时仍能返回状态）
+function requireTenantSoft(req, res, next) {
+  const user = req.user;
+  if (!user || !['tenant_admin', 'tenant_member'].includes(user.role)) {
+    return res.status(403).json({ error: '无权访问客户后台' });
+  }
+  if (!user.customerId) {
+    return res.status(403).json({ error: '账号未关联租户' });
+  }
   req.customerId = user.customerId;
   next();
 }
@@ -602,6 +615,24 @@ router.get('/card/trends', requireTenant, (req, res) => {
   `).all(eid);
   res.json({ trends: rows });
 });
+
+  // 租户生命周期状态（供后台到期提示/续费引导）
+  router.get('/tenant/status', requireTenantSoft, (req, res) => {
+    const state = tenantState(db, req.customerId);
+    const project = state.project || {};
+    let daysLeft = null;
+    if (project.valid_until) {
+      const diff = new Date(project.valid_until + 'T23:59:59') - new Date();
+      daysLeft = Math.max(0, Math.ceil(diff / 86400000));
+    }
+    res.json({
+      customerName: project.customer_name || '',
+      status: state.active ? 'active' : (state.expired ? 'expired' : (state.missing ? 'missing' : 'disabled')),
+      expired: !state.active,
+      validUntil: project.valid_until || null,
+      daysLeft
+    });
+  });
 
   return router;
 }

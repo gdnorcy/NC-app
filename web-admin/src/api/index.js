@@ -55,6 +55,13 @@ adminApi.interceptors.response.use(
   }
 );
 
+publicApi.interceptors.request.use((config) => {
+  // 兼容总后台(panorama_token)与客户后台(customer_token)两套登录态
+  const token = localStorage.getItem('customer_token') || localStorage.getItem('panorama_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 publicApi.interceptors.response.use(
   (res) => res.data,
   (err) => Promise.reject(err.response?.data?.error || '请求失败')

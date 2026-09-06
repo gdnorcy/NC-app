@@ -50,7 +50,7 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="joinedAt" label="入驻时间" width="180" />
+          <el-table-column prop="created_at" label="入驻时间" width="180" />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <el-button v-if="row.status === 'active'" type="danger" size="small" link @click="disableIndividual(row)">停用</el-button>
@@ -85,7 +85,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="industry" label="行业" width="120" />
-          <el-table-column prop="employeeCount" label="员工数" width="100" align="center" />
+          <el-table-column prop="employee_count" label="员工数" width="100" align="center" />
           <el-table-column label="状态" width="100">
             <template #default="{ row }">
               <el-tag :type="row.status === 'active' ? 'success' : 'danger'" size="small">
@@ -201,8 +201,13 @@ async function disableIndividual(row) {
   } catch {}
 }
 
-function enableIndividual(row) {
-  ElMessage.info('启用功能开发中');
+async function enableIndividual(row) {
+  try {
+    await ElMessageBox.confirm(`确定启用「${row.name}」吗？启用后该个人恢复名片与客户管理权限。`, '启用确认', { type: 'info' });
+    await publicApi.post(`/card-market/individuals/${row.id}/enable`);
+    ElMessage.success('已启用');
+    loadIndividuals();
+  } catch {}
 }
 
 async function disableEnterprise(row) {
@@ -214,8 +219,13 @@ async function disableEnterprise(row) {
   } catch {}
 }
 
-function enableEnterprise(row) {
-  ElMessage.info('启用功能开发中');
+async function enableEnterprise(row) {
+  try {
+    await ElMessageBox.confirm(`确定启用「${row.name}」吗？启用后恢复企业主体，企业员工需重新加入。`, '启用确认', { type: 'info' });
+    await publicApi.post(`/card-market/enterprises/${row.id}/enable`);
+    ElMessage.success('已启用');
+    loadEnterprises();
+  } catch {}
 }
 
 async function viewEmployees(row) {

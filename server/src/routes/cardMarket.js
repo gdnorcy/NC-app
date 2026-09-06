@@ -189,10 +189,12 @@ export function createCardMarketRouter(db) {
 
   // ===== 集市列表 =====
   router.get('/market/list', tenant, (req, res) => {
-    const { type, keyword } = req.query;
+    const { type, keyword, scope } = req.query;
     const sw = marketEnabled(req.customerId);
     if (!sw.enabled) return res.json({ items: [], message: '集市未开启' });
 
+    // scope=admin：租户管理员管理视图，返回全部状态（含 pending/rejected）
+    const isAdminView = scope === 'admin' && isPlatformOrTenantAdmin(req);
     let sql = `SELECT mi.*,
       CASE mi.subject_type
         WHEN 'individual' THEN (SELECT name FROM tenant_individuals WHERE id = mi.subject_id)
@@ -209,7 +211,7 @@ export function createCardMarketRouter(db) {
         ELSE NULL
       END as position
     FROM card_market_items mi
-    WHERE mi.customer_id = ? AND mi.audit_status = 'approved'`;
+    WHERE mi.customer_id = ?${isAdminView ? '' : " AND mi.audit_status = 'approved'"}`;
 
     const params = [req.customerId];
     if (type && type !== 'all') {
@@ -490,7 +492,7 @@ export function createCardMarketRouter(db) {
       db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
         VALUES (?, ?, ?, ?, ?, 'admin', 'active')`).run(enterpriseId, customerId, userId, name, position || '');
     }
-    res.json({ success: true, message: '申请已提交，等待审核' });
+    res.json({ success: true, message: type === 'individual' ? '入驻成功' : '企业入驻成功' });
   });
 
   // 入驻申请审核（租户管理员）：approve/reject
@@ -586,6 +588,38 @@ export function createCardMarketRouter(db) {
   });
 
   // ===== 停用与回收闭环 =====
+  // 启用入驻个人（租户管理员）：恢复 active + 重新绑定租户
+  router.post('/individuals/:id/enable', tenant, requireTenantAdmin, (req, res) => {
+    const { id } = req.params;
+    const individual = belongsToTenant('tenant_individuals', id, req.customerId);
+    if (!individual) return res.status(404).json({ error: '不存在' });
+    if (individual.__crossTenant) return res.status(403).json({ error: '无权操作' });
+    if (individual.status === 'active') return res.json({ success: true, message: '已是正常状态' });
+    db.prepare("UPDATE tenant_individuals SET status = 'active', updated_at = datetime('now') WHERE id = ?").run(id);
+    // 重新绑定租户（双身份：若已是企业员工则保留 employee 身份）
+    const emp = db.prepare('SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ? AND status = ?').get(req.customerId, individual.user_id, 'active');
+    db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(req.customerId, emp ? 'employee' : 'individual', individual.user_id);
+    res.json({ success: true });
+  });
+
+  // 启用入驻企业（租户管理员）：仅恢复企业主体，员工需重新加入（员工停用已回收客户）
+  router.post('/enterprises/:id/enable', tenant, requireTenantAdmin, (req, res) => {
+    const { id } = req.params;
+    const enterprise = belongsToTenant('tenant_enterprises', id, req.customerId);
+    if (!enterprise) return res.status(404).json({ error: '不存在' });
+    if (enterprise.__crossTenant) return res.status(403).json({ error: '无权操作' });
+    if (enterprise.status === 'active') return res.json({ success: true, message: '已是正常状态' });
+    db.prepare("UPDATE tenant_enterprises SET status = 'active', updated_at = datetime('now') WHERE id = ?").run(id);
+    // 企业管理员重新绑定租户
+    if (enterprise.admin_user_id) {
+      const adm = db.prepare('SELECT id FROM platform_user WHERE id = ?').get(enterprise.admin_user_id);
+      if (adm) db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = ?, updated_at = datetime('now') WHERE id = ?")
+        .run(req.customerId, 'employee', enterprise.admin_user_id);
+    }
+    res.json({ success: true });
+  });
+
   // 停用入驻个人（回收客户到租户公海）
   router.post('/individuals/:id/disable', tenant, requireTenantAdmin, (req, res) => {
     const { id } = req.params;

@@ -109,26 +109,26 @@
         <el-table :data="marketItems" style="width: 100%" size="default">
           <el-table-column label="类型" width="100">
             <template #default="{ row }">
-              <el-tag :type="getTypeTag(row.subjectType)" size="small">{{ getTypeName(row.subjectType) }}</el-tag>
+              <el-tag :type="getTypeTag(row.subject_type)" size="small">{{ getTypeName(row.subject_type) }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="name" label="名称" />
           <el-table-column label="审核状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.auditStatus === 'approved' ? 'success' : row.auditStatus === 'pending' ? 'warning' : 'danger'" size="small">
-                {{ row.auditStatus === 'approved' ? '已通过' : row.auditStatus === 'pending' ? '待审核' : '已拒绝' }}
+              <el-tag :type="row.audit_status === 'approved' ? 'success' : row.audit_status === 'pending' ? 'warning' : 'danger'" size="small">
+                {{ row.audit_status === 'approved' ? '已通过' : row.audit_status === 'pending' ? '待审核' : '已拒绝' }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="置顶" width="80">
             <template #default="{ row }">
-              <el-switch v-model="row.isTop" :active-value="1" :inactive-value="0" @change="toggleTop(row)" />
+              <el-switch :model-value="row.is_top" :active-value="1" :inactive-value="0" @change="toggleTop(row)" />
             </template>
           </el-table-column>
           <el-table-column label="操作" width="150">
             <template #default="{ row }">
-              <el-button v-if="row.auditStatus === 'pending'" type="success" size="small" link @click="auditItem(row, 'approved')">通过</el-button>
-              <el-button v-if="row.auditStatus === 'pending'" type="danger" size="small" link @click="auditItem(row, 'rejected')">拒绝</el-button>
+              <el-button v-if="row.audit_status === 'pending'" type="success" size="small" link @click="auditItem(row, 'approved')">通过</el-button>
+              <el-button v-if="row.audit_status === 'pending'" type="danger" size="small" link @click="auditItem(row, 'rejected')">拒绝</el-button>
               <el-button type="danger" size="small" link @click="forceRemove(row)">强制下架</el-button>
             </template>
           </el-table-column>
@@ -190,7 +190,8 @@ async function saveSettings() {
 
 async function loadMarketItems() {
   try {
-    const res = await publicApi.get('/card-market/market/list');
+    // 管理视图：scope=admin 返回全部状态（含待审核/已拒绝），供管理员审核/置顶/强制下架
+    const res = await publicApi.get('/card-market/market/list?scope=admin');
     marketItems.value = res.items || [];
   } catch (e) {
     console.error('加载上架列表失败', e);
@@ -206,19 +207,29 @@ function getTypeTag(type) {
 }
 
 async function toggleTop(row) {
-  // 简化：直接更新
-  ElMessage.success(row.isTop ? '已置顶' : '已取消置顶');
+  try {
+    await publicApi.post('/card-market/market/top', { itemId: row.id, isTop: row.is_top ? 0 : 1 });
+    ElMessage.success(row.is_top ? '已取消置顶' : '已置顶');
+    loadMarketItems();
+  } catch (e) {
+    ElMessage.error('操作失败');
+  }
 }
 
-async function auditItem(row, status) {
-  ElMessage.success(status === 'approved' ? '已通过' : '已拒绝');
-  loadMarketItems();
+async function auditItem(row, action) {
+  try {
+    await publicApi.post('/card-market/market/audit', { itemId: row.id, action });
+    ElMessage.success(action === 'approve' ? '已通过' : '已拒绝');
+    loadMarketItems();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.error || '审核失败');
+  }
 }
 
 async function forceRemove(row) {
   try {
     await ElMessageBox.confirm(`确定强制下架「${row.name}」吗？下架后将不在集市展示。`, '强制下架', { type: 'warning' });
-    // 调用删除API
+    await publicApi.post('/card-market/market/force-remove', { itemId: row.id });
     ElMessage.success('已强制下架');
     loadMarketItems();
   } catch {}

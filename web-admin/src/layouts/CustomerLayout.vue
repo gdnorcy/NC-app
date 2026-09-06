@@ -78,6 +78,30 @@
         </div>
       </el-header>
       <el-main class="main-content">
+        <el-alert
+          v-if="tenantExpired"
+          title="服务已到期"
+          type="error"
+          show-icon
+          :closable="false"
+          class="expire-alert"
+        >
+          <template #default>
+            <span>当前租户服务已于 {{ tenantValidUntil || '到期日' }} 到期，业务功能已暂停。请联系平台管理员续费后恢复使用。</span>
+          </template>
+        </el-alert>
+        <el-alert
+          v-else-if="tenantDaysLeft !== null && tenantDaysLeft <= 7"
+          :title="`服务将于 ${tenantDaysLeft} 天后到期（${tenantValidUntil || ''}）`"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="expire-alert"
+        >
+          <template #default>
+            <span>为避免业务中断，请尽快联系平台管理员办理续费。</span>
+          </template>
+        </el-alert>
         <router-view />
       </el-main>
     </el-container>
@@ -100,6 +124,9 @@ const collapsed = ref(false);
 const systemName = ref('零壹系统云');
 const systemLogo = ref('');
 const customerName = ref('');
+const tenantExpired = ref(false);
+const tenantValidUntil = ref('');
+const tenantDaysLeft = ref(null);
 
 const authStore = { user: JSON.parse(localStorage.getItem('customer_user') || 'null') };
 const isTenantAdmin = computed(() => authStore.user?.role === 'tenant_admin');
@@ -113,6 +140,19 @@ onMounted(async () => {
     const res = await fetch('/api/settings/public').then(r => r.json());
     systemName.value = res.siteName || '零壹系统云';
     systemLogo.value = res.logo || '';
+  } catch (e) {}
+  // 租户生命周期状态（到期提示/续费引导）
+  try {
+    const token = localStorage.getItem('customer_token');
+    const st = await fetch('/api/customer/tenant/status', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(r => r.json());
+    if (st && typeof st.expired === 'boolean') {
+      tenantExpired.value = st.expired;
+      tenantValidUntil.value = st.validUntil || '';
+      tenantDaysLeft.value = st.daysLeft ?? null;
+      if (!st.expired && st.customerName) customerName.value = st.customerName;
+    }
   } catch (e) {}
 });
 
@@ -208,4 +248,5 @@ function backToAdmin() {
 .user-avatar { background: #165DFF; color: #fff; font-size: 14px; }
 .user-name { font-size: 13px; color: #303133; }
 .main-content { background: #f7f8fa; padding: 20px; }
+.expire-alert { margin-bottom: 16px; border-radius: 8px; }
 </style>

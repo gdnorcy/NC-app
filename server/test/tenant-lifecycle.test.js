@@ -121,3 +121,97 @@ test('P2-10 集市关闭后：列表清空、交换拒绝、统计与上架禁�
   const on = await request(app).get('/api/card-market/market/list').set(headers);
   assert.equal(on.status, 200);
 });
+
+test('管理视图：scope=admin 返回待审条目，普通视图隐藏；审核/置顶/强制下架闭环', async () => {
+  // 租户2 造一条 pending 集市条目（employee 类型，无需真实主体，仅测列表与审核流）
+  db.prepare(`INSERT INTO card_market_items (customer_id, subject_type, subject_id, user_id, enterprise_id, audit_status)
+    VALUES (2, 'employee', 999001, 999001, 999001, 'pending')`).run();
+  const itemId = db.prepare('SELECT id FROM card_market_items WHERE subject_id = 999001').get().id;
+
+  const token = issueToken(adm2);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // 普通视图：不返回 pending
+  const normal = await request(app).get('/api/card-market/market/list').set(headers);
+  assert.ok(!normal.body.items.some(i => i.id === itemId), '普通视图不应包含 pending 条目');
+
+  // 管理视图：返回 pending
+  const admin = await request(app).get('/api/card-market/market/list?scope=admin').set(headers);
+  const item = admin.body.items.find(i => i.id === itemId);
+  assert.ok(item, '管理视图应包含 pending 条目');
+  assert.equal(item.audit_status, 'pending');
+
+  // 审核通过
+  const audit = await request(app).post('/api/card-market/market/audit').set(headers).send({ itemId, action: 'approve' });
+  assert.equal(audit.status, 200);
+
+  // 置顶
+  const top = await request(app).post('/api/card-market/market/top').set(headers).send({ itemId, isTop: 1 });
+  assert.equal(top.status, 200);
+  assert.equal(db.prepare('SELECT is_top FROM card_market_items WHERE id = ?').get(itemId).is_top, 1);
+
+  // 强制下架
+  const rm = await request(app).post('/api/card-market/market/force-remove').set(headers).send({ itemId });
+  assert.equal(rm.status, 200);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE id = ?').get(itemId).n, 0);
+
+  // 清理
+  db.prepare('DELETE FROM card_market_items WHERE subject_id = 999001').run();
+});
+
+test('停用后启用：个人/企业恢复 active 并重新绑定租户', async () => {
+  // 造一个已停用的入驻个人（用户 999002）
+  db.prepare(`INSERT INTO platform_user (openid, nickname, customer_id, identity_type, status) VALUES ('u_disable_1','停用用户',2,'individual','active')`).run();
+  const uid = db.prepare("SELECT id FROM platform_user WHERE openid = 'u_disable_1'").get().id;
+  db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, status) VALUES (2, ?, '测试个人', '13900000001', 'disabled')`).run(uid);
+  const indId = db.prepare("SELECT id FROM tenant_individuals WHERE user_id = ?").get(uid).id;
+
+  const token = issueToken(adm2);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // 启用个人
+  const en1 = await request(app).post(`/api/card-market/individuals/${indId}/enable`).set(headers);
+  assert.equal(en1.status, 200);
+  const ind = db.prepare('SELECT status FROM tenant_individuals WHERE id = ?').get(indId);
+  assert.equal(ind.status, 'active');
+  const pu = db.prepare('SELECT customer_id, identity_type FROM platform_user WHERE id = ?').get(uid);
+  assert.equal(pu.customer_id, 2);
+  assert.equal(pu.identity_type, 'individual');
+
+  // 造已停用企业并启用
+  db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status) VALUES (2, '测试企业', '', ?, 'disabled')`).run(uid);
+  const entId = db.prepare("SELECT id FROM tenant_enterprises WHERE name = '测试企业'").get().id;
+  const en2 = await request(app).post(`/api/card-market/enterprises/${entId}/enable`).set(headers);
+  assert.equal(en2.status, 200);
+  assert.equal(db.prepare('SELECT status FROM tenant_enterprises WHERE id = ?').get(entId).status, 'active');
+
+  // 清理
+  db.prepare('DELETE FROM tenant_enterprises WHERE id = ?').run(entId);
+  db.prepare('DELETE FROM tenant_individuals WHERE id = ?').run(indId);
+  db.prepare('DELETE FROM platform_user WHERE id = ?').run(uid);
+});
+
+test('租户状态接口：到期时仍可返回状态供前端提示，续费后恢复', async () => {
+  const token = issueToken(adm2);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // 正常
+  const ok = await request(app).get('/api/customer/tenant/status').set(headers);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.expired, false);
+  assert.ok(ok.body.daysLeft > 0);
+
+  // 到期（requireTenantSoft 不拦截，仍返回 expired=true）
+  db.prepare(`UPDATE projects SET valid_until = date('now', '-1 day') WHERE id = 2`).run();
+  const expired = await request(app).get('/api/customer/tenant/status').set(headers);
+  assert.equal(expired.status, 200);
+  assert.equal(expired.body.expired, true);
+  assert.equal(expired.body.daysLeft, 0);
+
+  // 其余业务接口仍被拦截
+  const blocked = await request(app).get('/api/customer/profile').set(headers);
+  assert.equal(blocked.status, 403);
+
+  // 恢复
+  db.prepare(`UPDATE projects SET valid_until = date('now', '+365 day') WHERE id = 2`).run();
+});
