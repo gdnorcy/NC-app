@@ -202,6 +202,39 @@ router.get('/connections', (req, res) => {
 });
 
 // ===== 入驻管理 =====
+// 提交入驻申请（个人/企业）
+router.post('/apply', (req, res) => {
+  const { type, bindCode, name, phone, position, company, enterpriseName, industry } = req.body;
+  const userId = req.user?.id || req.userId;
+  if (!userId) return res.status(401).json({ error: '未登录' });
+  if (!type || !bindCode || !name || !phone) {
+    return res.status(400).json({ error: '缺少必填项' });
+  }
+  //
+  let customerId = null;
+  if (/^\d+$/.test(bindCode)) {
+    customerId = parseInt(bindCode);
+  } else {
+    const project = db.prepare('SELECT id FROM projects WHERE invite_code = ?').get(bindCode);
+    if (project) customerId = project.id;
+  }
+  if (!customerId) {
+    return res.status(400).json({ error: '入驻口令无效' });
+  }
+
+  if (type === 'individual') {
+    db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, userId, name, phone, position || '', company || '');
+  } else {
+    const result = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
+      VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', userId);
+    const enterpriseId = result.lastInsertRowid;
+    db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
+      VALUES (?, ?, ?, ?, ?, 'admin', 'active')`).run(enterpriseId, customerId, userId, name, position || '');
+  }
+  res.json({ success: true, message: '申请已提交，等待审核' });
+});
+
 // 入驻个人列表
 router.get('/individuals', (req, res) => {
   const customerId = req.customerId || req.user?.customerId;
@@ -235,6 +268,34 @@ router.get('/enterprises/:id/employees', (req, res) => {
     LEFT JOIN platform_user u ON u.id = emp.user_id
     WHERE emp.enterprise_id = ? ORDER BY emp.created_at DESC`).all(id);
   res.json({ employees });
+});
+
+// 设置企业管理员
+router.post('/enterprises/:enterpriseId/employees/:empId/set-admin', (req, res) => {
+  const { enterpriseId, empId } = req.params;
+  //
+  db.prepare("UPDATE tenant_enterprise_employees SET role = 'admin', updated_at = datetime('now') WHERE id = ? AND enterprise_id = ?").run(empId, enterpriseId);
+  res.json({ success: true });
+});
+
+// 取消企业管理员
+router.post('/enterprises/:enterpriseId/employees/:empId/remove-admin', (req, res) => {
+  const { enterpriseId, empId } = req.params;
+  //
+  db.prepare("UPDATE tenant_enterprise_employees SET role = 'member', updated_at = datetime('now') WHERE id = ? AND enterprise_id = ?").run(empId, enterpriseId);
+  res.json({ success: true });
+});
+
+// 企业管理员视角：获取本企业数据（企业级隔离）
+router.get('/enterprise/my-data', (req, res) => {
+  const userId = req.user?.id || req.userId;
+  if (!userId) return res.status(401).json({ error: '未登录' });
+  //
+  const employee = db.prepare('SELECT * FROM tenant_enterprise_employees WHERE user_id = ? AND status = \'active\'').get(userId);
+  if (!employee) return res.status(403).json({ error: '不是企业员工' });
+  const enterprise = db.prepare('SELECT * FROM tenant_enterprises WHERE id = ?').get(employee.enterprise_id);
+  const employees = db.prepare('SELECT * FROM tenant_enterprise_employees WHERE enterprise_id = ? AND status = \'active\'').all(employee.enterprise_id);
+  res.json({ enterprise, employee, employees, isAdmin: employee.role === 'admin' });
 });
 
 // 停用入驻个人（回收客户到公海）

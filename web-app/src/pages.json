@@ -48,6 +48,13 @@
           }
         },
         {
+          "path": "apply",
+          "style": {
+            "navigationBarTitleText": "入驻申请",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "myCard",
           "style": {
             "navigationBarTitleText": "名片详情",

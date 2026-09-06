@@ -791,6 +791,7 @@ function migrate(db) {
       name TEXT,
       position TEXT,
       department TEXT,
+      role TEXT DEFAULT 'member', -- admin/member 企业管理员/普通员工
       status TEXT DEFAULT 'active', -- active/left
       joined_at TEXT NOT NULL DEFAULT (datetime('now')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -884,6 +885,11 @@ function migrate(db) {
       configSchema: [],
     });
     db.prepare("INSERT INTO solutions (name, code, description, icon, enabled, sort_order, app_config) VALUES ('智能名片', 'card', '平台型智能名片系统，支持个人自主创建+企业租户管理', '💼', 1, 2, ?)").run(cardConfig);
+  }
+
+  // —— 企业员工表加 role 字段（企业管理员/普通员工）——
+  if (!colExists(db, 'tenant_enterprise_employees', 'role')) {
+    db.exec("ALTER TABLE tenant_enterprise_employees ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
   }
 }
 

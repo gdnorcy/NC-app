@@ -101,6 +101,8 @@ export const cardApi = {
   getIndividuals: () => request('/card-market/individuals'),
   getEnterprises: () => request('/card-market/enterprises'),
   getEnterpriseEmployees: (id) => request(`/card-market/enterprises/${id}/employees`),
+  submitApply: (data) => request('/card-market/apply', 'POST', data),
+  getMyEnterprise: () => request('/card-market/enterprise/my-data'),
 
   // 公海池
   getPublicPool: () => request('/card-market/public-pool'),
