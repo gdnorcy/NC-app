@@ -18,7 +18,7 @@ import { computed } from 'vue';
 
 const props = defineProps({
   name: { type: String, required: true },
-  size: { type: String, default: 'default' }, // small(16px) / default(20px) / large(24px)
+  size: { type: String, default: 'default' }, // small(16px) / default(18px) / large(20px) / xlarge(32px)
   color: { type: String, default: '' },
   disabled: { type: Boolean, default: false },
   active: { type: Boolean, default: false },
@@ -48,6 +48,7 @@ const svgContent = computed(() => {
 .s-icon--small { width: 16px; height: 16px; }
 .s-icon--default { width: 18px; height: 18px; }
 .s-icon--large { width: 20px; height: 20px; }
+.s-icon--xlarge { width: 32px; height: 32px; }
 .s-icon--disabled { opacity: 0.4; }
 .s-icon--active { color: var(--color-primary, #165dff); }
 </style>
