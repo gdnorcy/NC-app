@@ -25,6 +25,7 @@ const builtinApps = [
 // 解决方案应用映射（code -> 显示信息）
 const solutionMap = {
   panorama: { code: 'panorama', name: '360°全景', icon: '🌐', description: '沉浸式360全景展示，支持热点、音乐、解说' },
+  card: { code: 'card', name: '智能名片', icon: '💼', description: '平台型智能名片，个人自主创建+企业统一管理' },
 };
 const apps = ref([]);
 
@@ -46,6 +47,7 @@ onMounted(async () => {
 function enterApp(app) {
   if (app.code === 'panorama') router.push('/apps/panorama/plans');
   else if (app.code === 'channel') router.push('/apps/channel');
+  else if (app.code === 'card') window.open('/card/', '_blank');
 }
 </script>
 
