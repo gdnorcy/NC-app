@@ -35,7 +35,7 @@ function parseCustomerBody(body) {
     validUntil: typeof body.validUntil === 'string' ? body.validUntil.trim() : '',
     isPinned: body.isPinned === true ? 1 : 0,
     remark: typeof body.remark === 'string' ? body.remark.trim() : '',
-    status: body.status === 'disabled' ? 'disabled' : 'active',
+    status: ['disabled', 'trashed'].includes(body.status) ? body.status : 'active',
     solutions: JSON.stringify(solutions),
     config: JSON.stringify(config),
   };
@@ -152,6 +152,8 @@ export function createCustomersRouter(db) {
     const id = Number(req.params.id);
     const cust = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     if (!cust) return res.status(404).json({ error: '客户不存在' });
+    if (cust.status === 'disabled') return res.status(400).json({ error: '该客户已被禁用，无法进入' });
+    if (cust.status === 'trashed') return res.status(400).json({ error: '该客户已在回收站，请先恢复' });
     // 找该客户下第一个可用的租户管理员
     let user = db.prepare(
       "SELECT * FROM users WHERE customer_id = ? AND role = 'tenant_admin' AND status = 'active' ORDER BY id ASC LIMIT 1"

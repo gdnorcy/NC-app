@@ -39,6 +39,16 @@ export function createAuthRouter(db) {
     if (!verifyPassword(password, user.password_hash, user.password_salt)) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
+    // 租户账号需校验所属客户状态
+    if (['tenant_admin', 'tenant_member'].includes(user.role) && user.customer_id) {
+      const customer = db.prepare('SELECT status, customer_name FROM projects WHERE id = ?').get(user.customer_id);
+      if (!customer || customer.status === 'trashed') {
+        return res.status(401).json({ error: '所属客户不存在或已删除' });
+      }
+      if (customer.status === 'disabled') {
+        return res.status(401).json({ error: `客户「${customer.customer_name}」已被禁用，请联系管理员` });
+      }
+    }
     const token = issueToken(user);
     addOperationLog(db, { userId: user.id, username: user.username, action: 'login', targetType: 'auth', detail: '账号密码登录', ip: req.ip });
     return res.json({ token, user: toUser(user) });
@@ -162,6 +172,16 @@ export function createAuthRouter(db) {
     }
     if (user.status !== 'active') {
       return res.status(403).json({ error: '账号已停用' });
+    }
+    // 租户账号需校验所属客户状态
+    if (['tenant_admin', 'tenant_member'].includes(user.role) && user.customer_id) {
+      const customer = db.prepare('SELECT status, customer_name FROM projects WHERE id = ?').get(user.customer_id);
+      if (!customer || customer.status === 'trashed') {
+        return res.status(401).json({ error: '所属客户不存在或已删除' });
+      }
+      if (customer.status === 'disabled') {
+        return res.status(401).json({ error: `客户「${customer.customer_name}」已被禁用，请联系管理员` });
+      }
     }
     db.prepare('UPDATE sms_codes SET used = 1 WHERE id = ?').run(record.id);
     const token = issueToken(user);
