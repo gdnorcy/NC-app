@@ -25,6 +25,7 @@ const routes = [
       { path: 'settings/security', component: () => import('../views/admin/settings/Security.vue'), meta: { title: '安全设置', breadcrumbs: ['系统设置', '安全设置'] } },
       { path: 'settings/open', component: () => import('../views/admin/settings/OpenPlatform.vue'), meta: { title: '开放平台', breadcrumbs: ['系统设置', '开放平台'] } },
       { path: 'channel', component: () => import('../views/admin/channel/ChannelOverview.vue'), meta: { title: '全端渠道', breadcrumbs: ['全端渠道'] } },
+      { path: 'channel/defaults', component: () => import('../views/admin/channel/ChannelDefaults.vue'), meta: { title: '平台默认配置', breadcrumbs: ['全端渠道', '平台默认配置'] } },
       { path: 'channel/mini', component: () => import('../views/admin/channel/ChannelMini.vue'), meta: { title: '小程序管理', breadcrumbs: ['全端渠道', '小程序管理'] } },
       { path: 'channel/h5', component: () => import('../views/admin/channel/ChannelH5.vue'), meta: { title: 'H5管理', breadcrumbs: ['全端渠道', 'H5管理'] } },
       { path: 'channel/mp', component: () => import('../views/admin/channel/ChannelH5.vue'), meta: { title: '公众号管理', breadcrumbs: ['全端渠道', '公众号管理'] } },
