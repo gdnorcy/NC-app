@@ -8,6 +8,38 @@
       </div>
     </div>
 
+    <!-- 数据统计 -->
+    <div class="stats-row" v-if="settings.enabled">
+      <div class="stat-card">
+        <div class="stat-icon-wrap"><SIcon name="analytics" size="default" color="#165dff" /></div>
+        <div class="stat-info">
+          <div class="stat-num">{{ stats.visitCount || 0 }}</div>
+          <div class="stat-label">集市访问量</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap"><SIcon name="exchange" size="default" color="#00b42a" /></div>
+        <div class="stat-info">
+          <div class="stat-num">{{ stats.exchangeCount || 0 }}</div>
+          <div class="stat-label">名片交换次数</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap"><SIcon name="user" size="default" color="#ff7d00" /></div>
+        <div class="stat-info">
+          <div class="stat-num">{{ stats.itemCount || 0 }}</div>
+          <div class="stat-label">上架名片数</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap"><SIcon name="audit" size="default" color="#722ed1" /></div>
+        <div class="stat-info">
+          <div class="stat-num">{{ stats.pendingCount || 0 }}</div>
+          <div class="stat-label">待审核</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 集市开关卡片 -->
     <div class="card">
       <div class="card-header">
@@ -123,11 +155,20 @@ const settings = ref({
   contactVisible: 'after_exchange'
 });
 const marketItems = ref([]);
+const stats = ref({ visitCount: 0, exchangeCount: 0, itemCount: 0, pendingCount: 0 });
 
 onMounted(() => {
   loadSettings();
   loadMarketItems();
+  loadStats();
 });
+
+async function loadStats() {
+  try {
+    const res = await publicApi.get('/card-market/market/stats');
+    if (res.stats) stats.value = res.stats;
+  } catch (e) {}
+}
 
 async function loadSettings() {
   try {
@@ -186,6 +227,15 @@ async function forceRemove(row) {
 
 <style scoped>
 .market-manage-page { padding: 20px; }
+
+/* 数据统计 */
+.stats-row { display: flex; gap: 16px; margin-bottom: 16px; }
+.stat-card { flex: 1; background: #fff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.stat-icon-wrap { width: 44px; height: 44px; border-radius: 10px; background: rgba(22,93,255,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-info { flex: 1; }
+.stat-num { font-size: 24px; font-weight: 700; color: #1d2129; }
+.stat-label { font-size: 12px; color: #86909c; margin-top: 2px; }
+
 .page-header { margin-bottom: 16px; }
 .page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
 .page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }

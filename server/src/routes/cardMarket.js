@@ -40,6 +40,19 @@ router.put('/market/settings', (req, res) => {
   res.json({ success: true });
 });
 
+// 集市数据统计
+router.get('/market/stats', (req, res) => {
+  const customerId = req.customerId || req.user?.customerId;
+  if (!customerId) return res.status(400).json({ error: '缺少客户ID' });
+  //
+  const itemCount = db.prepare('SELECT COUNT(*) as cnt FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(customerId, 'approved')?.cnt || 0;
+  const pendingCount = db.prepare('SELECT COUNT(*) as cnt FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(customerId, 'pending')?.cnt || 0;
+  const exchangeCount = db.prepare('SELECT COUNT(*) as cnt FROM card_connections WHERE customer_id = ? AND status = ?').get(customerId, 'accepted')?.cnt || 0;
+  // 访问量暂用名片查看次数估算
+  const visitCount = db.prepare('SELECT COALESCE(SUM(view_count), 0) as total FROM card_market_items WHERE customer_id = ?').get(customerId)?.total || 0;
+  res.json({ stats: { visitCount, exchangeCount, itemCount, pendingCount } });
+});
+
 // ===== 集市列表 =====
 // 获取集市列表（仅本租户已审核通过的）
 router.get('/market/list', (req, res) => {

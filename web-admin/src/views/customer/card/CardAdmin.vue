@@ -44,6 +44,12 @@
         <div class="tab" @click="$router.push('/apps/card/market')">
           集市管理
         </div>
+        <div class="tab" @click="$router.push('/apps/card/tenant')">
+          入驻管理
+        </div>
+        <div class="tab" @click="$router.push('/apps/card/pool')">
+          公海池
+        </div>
       </div>
 
       <!-- 员工名片列表 -->
