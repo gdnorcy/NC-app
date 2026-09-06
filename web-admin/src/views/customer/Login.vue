@@ -2,9 +2,9 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-logo">
-        <div class="logo-icon">全景</div>
+        <div class="logo-icon">零壹</div>
         <h1>{{ systemName }}</h1>
-        <p>企业级360全景管理平台</p>
+        <p>企业级零壹系统云管理平台</p>
       </div>
       <el-form @submit.prevent="handleLogin">
         <el-form-item>
@@ -28,13 +28,13 @@ import { ElMessage } from 'element-plus';
 const router = useRouter();
 const loading = ref(false);
 const error = ref('');
-const systemName = ref('全景云平台');
+const systemName = ref('零壹系统云');
 const form = reactive({ username: '', password: '' });
 
 onMounted(async () => {
   try {
     const res = await fetch('/api/settings/public').then(r => r.json());
-    systemName.value = res.siteName || '全景云平台';
+    systemName.value = res.siteName || '零壹系统云';
   } catch (e) {}
 });
 

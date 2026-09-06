@@ -97,7 +97,7 @@ const route = useRoute();
 const router = useRouter();
 
 const collapsed = ref(false);
-const systemName = ref('全景云平台');
+const systemName = ref('零壹系统云');
 const systemLogo = ref('');
 const customerName = ref('');
 
@@ -111,7 +111,7 @@ const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title
 onMounted(async () => {
   try {
     const res = await fetch('/api/settings/public').then(r => r.json());
-    systemName.value = res.siteName || '全景云平台';
+    systemName.value = res.siteName || '零壹系统云';
     systemLogo.value = res.logo || '';
   } catch (e) {}
 });

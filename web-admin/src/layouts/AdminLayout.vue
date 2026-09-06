@@ -3,7 +3,7 @@
     <el-aside :width="collapsed ? '64px' : '220px'" class="sidebar">
       <div class="logo">
         <img v-if="logo" :src="logo" alt="logo" class="logo-img" />
-        <span v-else class="logo-text">360全景</span>
+        <span v-else class="logo-text">零壹系统云</span>
       </div>
       <el-menu
         :default-active="activeMenu"

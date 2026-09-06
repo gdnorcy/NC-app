@@ -2,9 +2,9 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-logo">
-        <div class="logo-icon">全景</div>
-        <h1>360全景管理后台</h1>
-        <p>企业级360全景管理平台</p>
+        <div class="logo-icon">零壹</div>
+        <h1>零壹系统云管理后台</h1>
+        <p>企业级零壹系统云管理平台</p>
       </div>
       <el-tabs v-model="loginType" class="login-tabs">
         <el-tab-pane label="账号登录" name="account">
