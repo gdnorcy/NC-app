@@ -429,6 +429,52 @@ router.put('/enterprises/:id/config', (req, res) => {
   res.json({ success: true });
 });
 
+// ===== 表单管理 =====
+// 表单模板列表
+router.get('/forms', (req, res) => {
+  const customerId = req.customerId || req.user?.customerId;
+  if (!customerId) return res.status(400).json({ error: '缺少客户ID' });
+  //
+  const forms = db.prepare('SELECT * FROM card_form_template WHERE customer_id = ? ORDER BY created_at DESC').all(customerId);
+  res.json({ forms });
+});
+
+// 创建表单模板
+router.post('/forms', (req, res) => {
+  const customerId = req.customerId || req.user?.customerId;
+  const userId = req.user?.id || req.userId;
+  if (!customerId) return res.status(400).json({ error: '缺少客户ID' });
+  const { title, description, fields } = req.body;
+  if (!title) return res.status(400).json({ error: '缺少标题' });
+  //
+  const result = db.prepare(`INSERT INTO card_form_template (customer_id, title, description, fields, created_by)
+    VALUES (?, ?, ?, ?, ?)`).run(customerId, title, description || '', JSON.stringify(fields || []), userId);
+  res.json({ id: result.lastInsertRowid, success: true });
+});
+
+// 提交表单
+router.post('/forms/:id/submit', (req, res) => {
+  const { id } = req.params;
+  const customerId = req.customerId || req.user?.customerId;
+  const userId = req.user?.id || req.userId;
+  const { data } = req.body;
+  //
+  const form = db.prepare('SELECT * FROM card_form_template WHERE id = ?').get(id);
+  if (!form) return res.status(404).json({ error: '表单不存在' });
+
+  db.prepare(`INSERT INTO card_form_submission (form_id, customer_id, user_id, data)
+    VALUES (?, ?, ?, ?)`).run(id, form.customer_id, userId, JSON.stringify(data || {}));
+  res.json({ success: true });
+});
+
+// 表单提交记录
+router.get('/forms/:id/submissions', (req, res) => {
+  const { id } = req.params;
+  //
+  const submissions = db.prepare('SELECT * FROM card_form_submission WHERE form_id = ? ORDER BY submitted_at DESC').all(id);
+  res.json({ submissions });
+});
+
 
   return router;
 }

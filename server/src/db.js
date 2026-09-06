@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS projects (
   is_pinned INTEGER NOT NULL DEFAULT 0,
   remark TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active',
+  quota TEXT NOT NULL DEFAULT '{}', -- 套餐额度: max_individuals, max_enterprises, max_employees等
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -890,6 +891,32 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_connection_customer ON card_connections(customer_id);
     CREATE INDEX IF NOT EXISTS idx_connection_from ON card_connections(from_user_id);
     CREATE INDEX IF NOT EXISTS idx_connection_to ON card_connections(to_user_id);
+
+    -- 表单模板
+    CREATE TABLE IF NOT EXISTS card_form_template (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      fields TEXT NOT NULL DEFAULT '[]', -- JSON: [{name,label,type,required,options}]
+      status TEXT DEFAULT 'active', -- active/disabled
+      created_by INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_form_customer ON card_form_template(customer_id);
+
+    -- 表单提交记录
+    CREATE TABLE IF NOT EXISTS card_form_submission (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      form_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      user_id INTEGER,
+      data TEXT NOT NULL DEFAULT '{}', -- JSON: {field_name: value}
+      submitted_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_submission_form ON card_form_submission(form_id);
+    CREATE INDEX IF NOT EXISTS idx_submission_customer ON card_form_submission(customer_id);
   `);
 
   // —— 预置智能名片解决方案 ——
@@ -917,6 +944,11 @@ function migrate(db) {
   // —— 企业表加 config 字段 ——
   if (!colExists(db, 'tenant_enterprises', 'config')) {
     db.exec("ALTER TABLE tenant_enterprises ADD COLUMN config TEXT NOT NULL DEFAULT '{}'");
+  }
+
+  // —— projects表加 quota 字段（套餐额度）——
+  if (!colExists(db, 'projects', 'quota')) {
+    db.exec("ALTER TABLE projects ADD COLUMN quota TEXT NOT NULL DEFAULT '{}'");
   }
 }
 
