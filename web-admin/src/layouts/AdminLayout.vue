@@ -12,57 +12,57 @@
         class="side-menu"
       >
         <el-menu-item index="/dashboard">
-          <el-icon><DataAnalysis /></el-icon>
+          <SIcon name="dashboard" size="large" />
           <span>工作台</span>
         </el-menu-item>
         <el-menu-item index="/customers">
-          <el-icon><OfficeBuilding /></el-icon>
+          <SIcon name="building" size="large" />
           <span>客户项目</span>
         </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/users">
-          <el-icon><User /></el-icon>
+          <SIcon name="users" size="large" />
           <span>用户管理</span>
         </el-menu-item>
         <el-menu-item index="/solutions">
-          <el-icon><Grid /></el-icon>
+          <SIcon name="solutions" size="large" />
           <span>解决方案</span>
         </el-menu-item>
         <el-menu-item index="/payment">
-          <el-icon><Wallet /></el-icon>
+          <SIcon name="wallet" size="large" />
           <span>支付管理</span>
         </el-menu-item>
         <el-menu-item index="/channel">
-          <el-icon><Share /></el-icon>
+          <SIcon name="channel" size="large" />
           <span>全端渠道</span>
         </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/logs">
-          <el-icon><Document /></el-icon>
+          <SIcon name="logs" size="large" />
           <span>操作日志</span>
         </el-menu-item>
         <template v-if="isAdmin">
           <div class="menu-group-title">系统设置</div>
           <el-menu-item index="/settings/basic">
-            <el-icon><Setting /></el-icon>
+            <SIcon name="settings" size="large" />
             <span>基础设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/storage">
-            <el-icon><Folder /></el-icon>
+            <SIcon name="storage" size="large" />
             <span>存储设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/sms">
-            <el-icon><Message /></el-icon>
+            <SIcon name="sms" size="large" />
             <span>短信接口</span>
           </el-menu-item>
           <el-menu-item index="/settings/payment">
-            <el-icon><Wallet /></el-icon>
+            <SIcon name="wallet" size="large" />
             <span>支付设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/security">
-            <el-icon><Lock /></el-icon>
+            <SIcon name="key" size="large" />
             <span>安全设置</span>
           </el-menu-item>
           <el-menu-item index="/settings/open">
-            <el-icon><Connection /></el-icon>
+            <SIcon name="channel" size="large" />
             <span>开放平台</span>
           </el-menu-item>
         </template>
@@ -118,10 +118,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { ElMessage } from 'element-plus';
 import {
-  DataAnalysis, OfficeBuilding, User, Grid, Document, Setting,
-  Folder, Message, Wallet, Lock, Connection, SwitchButton, Share,
-  Fold, Expand, Search, ArrowDown,
+  SwitchButton, Fold, Expand, Search, ArrowDown,
 } from '@element-plus/icons-vue';
+import SIcon from '../components/SIcon.vue';
 
 const route = useRoute();
 const router = useRouter();

@@ -12,24 +12,24 @@
         class="side-menu"
       >
         <el-menu-item index="/dashboard">
-          <el-icon><DataAnalysis /></el-icon>
+          <SIcon name="dashboard" size="large" />
           <span>工作台</span>
         </el-menu-item>
         <el-menu-item index="/apps">
-          <el-icon><Grid /></el-icon>
+          <SIcon name="apps" size="large" />
           <span>应用中心</span>
         </el-menu-item>
         <el-menu-item index="/orders">
-          <el-icon><Tickets /></el-icon>
+          <SIcon name="orders" size="large" />
           <span>我的账单</span>
         </el-menu-item>
         <el-menu-item v-if="isTenantAdmin" index="/members">
-          <el-icon><User /></el-icon>
+          <SIcon name="team" size="large" />
           <span>成员管理</span>
         </el-menu-item>
         <el-sub-menu index="/settings">
           <template #title>
-            <el-icon><Setting /></el-icon>
+            <SIcon name="settings" size="large" />
             <span>系统设置</span>
           </template>
           <el-menu-item index="/settings/account">账号设置</el-menu-item>
@@ -89,9 +89,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import {
-  DataAnalysis, Grid, Tickets, User, Setting, SwitchButton,
-  Fold, Expand, ArrowDown, Back,
+  SwitchButton, Fold, Expand, ArrowDown, Back,
 } from '@element-plus/icons-vue';
+import SIcon from '../components/SIcon.vue';
 
 const route = useRoute();
 const router = useRouter();

@@ -7,7 +7,7 @@
         <view class="slogan">让每一次相遇都成为商机</view>
       </view>
       <view class="member-badge" v-if="isMember">
-        <text class="member-icon">👑</text>
+        <SIcon name="solutions" size="small" color="#fadb14" />
         <text>{{ memberLevelText }}</text>
       </view>
     </view>
@@ -33,7 +33,7 @@
     </view>
 
     <view class="card-entry create-card" v-else @click="goCreate">
-      <view class="create-icon">➕</view>
+      <view class="create-icon"><SIcon name="card" size="xlarge" color="#165dff" /></view>
       <view class="create-text">创建我的名片</view>
     </view>
 
@@ -42,7 +42,9 @@
       <view class="section-title">功能中心</view>
       <view class="grid">
         <view class="grid-item" v-for="item in features" :key="item.key" @click="goPage(item.path)">
-          <view class="grid-icon" :style="{ background: item.bg }">{{ item.icon }}</view>
+          <view class="grid-icon" :style="{ background: item.bg }">
+            <SIcon :name="item.icon" size="large" color="#ffffff" />
+          </view>
           <view class="grid-label">{{ item.label }}</view>
           <view class="grid-dot" v-if="item.dot"></view>
         </view>
@@ -52,19 +54,19 @@
     <!-- 底部Tab -->
     <view class="tabbar">
       <view class="tab-item active">
-        <view class="tab-icon">🏠</view>
+        <SIcon name="dashboard" size="default" color="#165dff" />
         <view class="tab-label">首页</view>
       </view>
       <view class="tab-item" @click="goPage('/pages/card/market')">
-        <view class="tab-icon">🌐</view>
+        <SIcon name="market" size="default" color="#86909c" />
         <view class="tab-label">集市</view>
       </view>
       <view class="tab-item" @click="goPage('/pages/card/member')">
-        <view class="tab-icon">👑</view>
+        <SIcon name="solutions" size="default" color="#86909c" />
         <view class="tab-label">会员</view>
       </view>
       <view class="tab-item" @click="goPage('/pages/card/profile')">
-        <view class="tab-icon">👤</view>
+        <SIcon name="user" size="default" color="#86909c" />
         <view class="tab-label">我的</view>
       </view>
     </view>
@@ -74,6 +76,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+import SIcon from '../../components/SIcon.vue';
 
 const user = ref({});
 const myCard = ref(null);
@@ -81,14 +84,14 @@ const isMember = ref(false);
 const memberLevelText = ref('');
 
 const features = [
-  { key: 'card', icon: '💳', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },
-  { key: 'visitors', icon: '📊', label: '访客雷达', path: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b42a,#23c343)', dot: true },
-  { key: 'customers', icon: '👥', label: '客户管理', path: '/pages/card/customers', bg: 'linear-gradient(135deg,#ff7d00,#ff9a2e)' },
-  { key: 'market', icon: '🌐', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#722ed1,#9254de)' },
-  { key: 'exchange', icon: '🔄', label: '名片交换', path: '/pages/card/exchange', bg: 'linear-gradient(135deg,#13c2c2,#36cfc9)' },
-  { key: 'distribution', icon: '💰', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#f5222d,#ff4d4f)' },
-  { key: 'dynamic', icon: '📝', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#eb2f96,#f759ab)' },
-  { key: 'settings', icon: '⚙️', label: '设置', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#86909c,#a9aeb8)' },
+  { key: 'card', icon: 'card', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },
+  { key: 'visitors', icon: 'radar', label: '访客雷达', path: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b42a,#23c343)', dot: true },
+  { key: 'customers', icon: 'customer', label: '客户管理', path: '/pages/card/customers', bg: 'linear-gradient(135deg,#ff7d00,#ff9a2e)' },
+  { key: 'market', icon: 'market', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#722ed1,#9254de)' },
+  { key: 'exchange', icon: 'exchange', label: '名片交换', path: '/pages/card/exchange', bg: 'linear-gradient(135deg,#13c2c2,#36cfc9)' },
+  { key: 'distribution', icon: 'wallet', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#f5222d,#ff4d4f)' },
+  { key: 'dynamic', icon: 'dynamic', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#eb2f96,#f759ab)' },
+  { key: 'settings', icon: 'settings', label: '设置', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#86909c,#a9aeb8)' },
 ];
 
 onMounted(async () => {
