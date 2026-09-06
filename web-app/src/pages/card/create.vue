@@ -61,7 +61,7 @@
         <view v-if="!isEdit" class="bind-section">
           <view class="bind-header" @click="showBind = !showBind">
             <view class="bind-title">
-              <SIcon name="key" size="small" color="#165dff" />
+              <SIcon name="key" size="small" color="#07c160" />
               入驻绑定（选填）
             </view>
             <view class="bind-arrow">{{ showBind ? '收起' : '展开' }}</view>
@@ -323,7 +323,7 @@ async function submit() {
 
 /* 顶部标题 */
 .header {
-  background: linear-gradient(135deg, #165dff, #4080ff);
+  background: linear-gradient(155deg, #0e2a4e, #1d4e8f 55%, #3b7bd4);
   padding: 88rpx 32rpx 32rpx;
 }
 .row1 {
@@ -340,9 +340,10 @@ async function submit() {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.25);
   padding: 8rpx 16rpx;
-  border-radius: 24rpx;
+  border-radius: 999px;
   font-size: 22rpx;
   color: #fff;
 }
@@ -380,9 +381,9 @@ async function submit() {
   transition: all 0.3s;
 }
 .step-dot.active {
-  background: #165dff;
+  background: #07c160;
   color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(22,93,255,0.3);
+  box-shadow: 0 4rpx 12rpx rgba(7,193,96,0.3);
 }
 .step-dot.done {
   background: #00b42a;
@@ -394,7 +395,7 @@ async function submit() {
   margin-top: 8rpx;
 }
 .step-label.active {
-  color: #165dff;
+  color: #07c160;
   font-weight: 600;
 }
 .progress-line {
@@ -407,7 +408,7 @@ async function submit() {
 }
 .progress-fill {
   height: 100%;
-  background: #165dff;
+  background: #07c160;
   transition: width 0.4s;
 }
 
@@ -454,8 +455,8 @@ async function submit() {
   transition: all 0.2s;
 }
 .type-card.active {
-  border-color: #165dff;
-  background: rgba(22,93,255,0.04);
+  border-color: #07c160;
+  background: rgba(7,193,96,0.05);
 }
 .type-icon {
   width: 72rpx;
@@ -483,7 +484,7 @@ async function submit() {
   width: 40rpx;
   height: 40rpx;
   border-radius: 20rpx;
-  background: #165dff;
+  background: #07c160;
   color: #fff;
   display: flex;
   align-items: center;
@@ -615,7 +616,7 @@ async function submit() {
   margin-bottom: 12rpx;
 }
 .preview-card {
-  background: linear-gradient(135deg, #165dff, #4080ff);
+  background: linear-gradient(155deg, #0e2a4e, #1d4e8f 55%, #3b7bd4);
   border-radius: 16rpx;
   padding: 24rpx;
 }
@@ -693,12 +694,13 @@ async function submit() {
 .btn-primary {
   flex: 1;
   height: 88rpx;
-  background: #165dff;
+  background: #07c160;
   color: #fff;
   font-size: 30rpx;
   font-weight: 600;
   border-radius: 44rpx;
   border: none;
+  box-shadow: 0 4rpx 12rpx rgba(7,193,96,0.3);
 }
 .btn-primary[disabled] {
   opacity: 0.6;
