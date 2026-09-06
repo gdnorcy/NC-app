@@ -3,9 +3,6 @@
     <!-- 统一Tab导航（5个管理功能共用） -->
     <CardTabs />
 
-    <!-- 统一Tab导航（5个管理功能共用） -->
-    <CardTabs />
-
     <!-- 页面标题 -->
     <div class="page-header">
       <div>
