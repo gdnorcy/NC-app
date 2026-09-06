@@ -19,8 +19,11 @@ const routes = [
       { path: 'apps/card', component: () => import('../views/customer/card/CardAdmin.vue'), meta: { title: '智能名片', breadcrumbs: ['应用中心', '智能名片'] } },
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
-      { path: 'settings', component: () => import('../views/customer/Settings.vue'), meta: { title: '账号设置', breadcrumbs: ['账号设置'] } },
-      { path: 'settings/payment', component: () => import('../views/customer/PaymentConfig.vue'), meta: { title: '支付设置', breadcrumbs: ['账号设置', '支付设置'] } },
+      { path: 'settings', redirect: '/settings/account', meta: { title: '系统设置', breadcrumbs: ['系统设置'] } },
+      { path: 'settings/account', component: () => import('../views/customer/settings/AccountSettings.vue'), meta: { title: '账号设置', breadcrumbs: ['系统设置', '账号设置'] } },
+      { path: 'settings/storage', component: () => import('../views/customer/settings/StorageSettings.vue'), meta: { title: '远程附件', breadcrumbs: ['系统设置', '远程附件'] } },
+      { path: 'settings/sms', component: () => import('../views/customer/settings/SmsSettings.vue'), meta: { title: '短信配置', breadcrumbs: ['系统设置', '短信配置'] } },
+      { path: 'settings/payment', component: () => import('../views/customer/settings/PaymentConfig.vue'), meta: { title: '支付配置', breadcrumbs: ['系统设置', '支付配置'] } },
     ],
   },
 ];

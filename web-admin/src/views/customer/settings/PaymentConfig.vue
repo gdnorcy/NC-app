@@ -120,7 +120,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { customerApiCall } from '../../api';
+import { customerApiCall } from '../../../api';
 
 const saving = ref(false);
 const form = ref({

@@ -27,10 +27,16 @@
           <el-icon><User /></el-icon>
           <span>成员管理</span>
         </el-menu-item>
-        <el-menu-item index="/settings">
-          <el-icon><Setting /></el-icon>
-          <span>账号设置</span>
-        </el-menu-item>
+        <el-sub-menu index="/settings">
+          <template #title>
+            <el-icon><Setting /></el-icon>
+            <span>系统设置</span>
+          </template>
+          <el-menu-item index="/settings/account">账号设置</el-menu-item>
+          <el-menu-item index="/settings/storage">远程附件</el-menu-item>
+          <el-menu-item index="/settings/sms">短信配置</el-menu-item>
+          <el-menu-item index="/settings/payment">支付配置</el-menu-item>
+        </el-sub-menu>
       </el-menu>
       <div class="sidebar-footer">
         <el-button text @click="logout">
