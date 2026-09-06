@@ -279,9 +279,9 @@ async function saveConvert() {
   gap: 8rpx;
 }
 
-/* ===== 访客记录（demo card-row visitor）===== */
+/* ===== 访客记录（demo card-row 独立卡片）===== */
 .sec-t {
-  margin: 28rpx 32rpx 20rpx;
+  margin: 36rpx 28rpx 20rpx;
   font-size: 28rpx;
   font-weight: 600;
   display: flex;
@@ -294,21 +294,15 @@ async function saveConvert() {
   color: #9a9a9a;
   font-weight: 400;
 }
-.visitor-list {
-  margin: 0 28rpx;
-  background: #fff;
-  border-radius: 32rpx;
-  padding: 8rpx 24rpx;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-}
 .card-row.visitor {
   display: flex;
   align-items: center;
-  padding: 26rpx 0;
-  border-bottom: 1px dashed #f0f0f0;
-}
-.card-row.visitor:last-child {
-  border-bottom: none;
+  background: #fff;
+  margin: 0 28rpx 24rpx;
+  border-radius: 32rpx;
+  padding: 30rpx;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  border: 1px solid #e5e6eb;
 }
 .v-av {
   width: 84rpx;
