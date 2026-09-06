@@ -54,6 +54,57 @@ export function createCustomersRouter(db) {
   const router = express.Router();
   router.use(requireAuth);
 
+  // —— 工作台统计（全局 + 按解决方案分组） ——
+  router.get('/dashboard/stats', (_req, res) => {
+    // 全局统计
+    const global = {
+      customers: db.prepare('SELECT COUNT(*) AS n FROM projects WHERE status != ?').get('trashed')?.n || 0,
+      plans: db.prepare('SELECT COUNT(*) AS n FROM plans').get()?.n || 0,
+      scenes: db.prepare('SELECT COUNT(*) AS n FROM scenes').get()?.n || 0,
+      users: db.prepare('SELECT COUNT(*) AS n FROM users').get()?.n || 0,
+    };
+
+    // 所有解决方案
+    const solutions = db.prepare('SELECT * FROM solutions ORDER BY sort_order ASC, id ASC').all();
+
+    // 按解决方案分组统计
+    const bySolution = solutions.map((sol) => {
+      // 开通该解决方案的客户数
+      const allProjects = db.prepare('SELECT id, solutions FROM projects WHERE status != ?').all('trashed');
+      const customerIds = allProjects
+        .filter((p) => {
+          try {
+            const arr = JSON.parse(p.solutions || '[]');
+            return arr.includes(sol.code) || arr.includes(String(sol.id));
+          } catch { return false; }
+        })
+        .map((p) => p.id);
+
+      // 这些客户下的方案数
+      const planCount = customerIds.length
+        ? db.prepare(`SELECT COUNT(*) AS n FROM plans WHERE project_id IN (${customerIds.map(() => '?').join(',')})`).get(...customerIds)?.n || 0
+        : 0;
+
+      // 这些方案下的场景数
+      const sceneCount = planCount
+        ? db.prepare(`SELECT COUNT(*) AS n FROM scenes WHERE plan_id IN (SELECT id FROM plans WHERE project_id IN (${customerIds.map(() => '?').join(',')}))`).get(...customerIds)?.n || 0
+        : 0;
+
+      return {
+        solutionId: sol.id,
+        solutionName: sol.name,
+        solutionCode: sol.code,
+        solutionIcon: sol.icon,
+        enabled: !!sol.enabled,
+        customers: customerIds.length,
+        plans: planCount,
+        scenes: sceneCount,
+      };
+    });
+
+    res.json({ global, bySolution });
+  });
+
   // —— 客户项目列表（置顶优先，再按 id） ——
   router.get('/projects', (_req, res) => {
     const rows = db.prepare('SELECT * FROM projects ORDER BY is_pinned DESC, id ASC').all();

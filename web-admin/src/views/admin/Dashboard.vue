@@ -1,62 +1,73 @@
 <template>
   <div>
-    <!-- 核心统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card" @click="$router.push('/customers')">
-        <div class="stat-icon" style="background:rgba(22,93,255,0.1);color:#165DFF;">🏢</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.customers }}</div>
-          <div class="stat-label">客户项目</div>
+    <!-- 平台全局概览 -->
+    <div class="global-overview">
+      <div class="global-title">
+        <span class="global-label">平台全局</span>
+        <span class="global-desc">所有解决方案汇总数据</span>
+      </div>
+      <div class="global-cards">
+        <div class="global-card" @click="$router.push('/customers')">
+          <div class="global-value">{{ global.customers }}</div>
+          <div class="global-label-text">客户项目</div>
+        </div>
+        <div class="global-card">
+          <div class="global-value">{{ global.plans }}</div>
+          <div class="global-label-text">方案总数</div>
+        </div>
+        <div class="global-card">
+          <div class="global-value">{{ global.scenes }}</div>
+          <div class="global-label-text">场景总数</div>
+        </div>
+        <div class="global-card" @click="$router.push('/users')">
+          <div class="global-value">{{ global.users }}</div>
+          <div class="global-label-text">用户总数</div>
+        </div>
+        <div class="global-card" @click="$router.push('/channel')">
+          <div class="global-value">{{ global.channels }}</div>
+          <div class="global-label-text">已开通渠道</div>
+        </div>
+        <div class="global-card" @click="$router.push('/settings/open')">
+          <div class="global-value">{{ global.apiCalls }}</div>
+          <div class="global-label-text">API调用(今日)</div>
         </div>
       </div>
-      <div class="stat-card" @click="$router.push('/solutions')">
-        <div class="stat-icon" style="background:rgba(82,196,26,0.1);color:#52C41A;">🧩</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.solutions }}</div>
-          <div class="stat-label">解决方案</div>
+    </div>
+
+    <!-- 按解决方案分组统计 -->
+    <div class="section-header">
+      <h3>按解决方案统计</h3>
+      <span class="section-desc">各解决方案独立数据，点击查看详情</span>
+    </div>
+    <div class="solution-stats">
+      <div class="solution-stat-card" v-for="sol in bySolution" :key="sol.solutionId" @click="goSolution(sol)">
+        <div class="solution-stat-header">
+          <span class="solution-stat-icon">{{ sol.solutionIcon || '🧩' }}</span>
+          <div class="solution-stat-info">
+            <div class="solution-stat-name">{{ sol.solutionName }}</div>
+            <el-tag :type="sol.enabled ? 'success' : 'info'" size="small">{{ sol.enabled ? '已启用' : '已禁用' }}</el-tag>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(250,173,20,0.1);color:#FAAD14;">📋</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.plans }}</div>
-          <div class="stat-label">方案数</div>
+        <div class="solution-stat-metrics">
+          <div class="metric">
+            <div class="metric-value">{{ sol.customers }}</div>
+            <div class="metric-label">客户</div>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric">
+            <div class="metric-value">{{ sol.plans }}</div>
+            <div class="metric-label">方案</div>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric">
+            <div class="metric-value">{{ sol.scenes }}</div>
+            <div class="metric-label">场景</div>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(114,46,209,0.1);color:#722ED1;">🌐</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.scenes }}</div>
-          <div class="stat-label">场景数</div>
+        <div class="solution-stat-bar">
+          <div class="bar-fill" :style="{ width: getSolutionPercent(sol) + '%' }"></div>
         </div>
-      </div>
-      <div class="stat-card" @click="$router.push('/users')">
-        <div class="stat-icon" style="background:rgba(24,144,255,0.1);color:#1890FF;">👥</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.users }}</div>
-          <div class="stat-label">用户数</div>
-        </div>
-      </div>
-      <div class="stat-card" @click="$router.push('/channel')">
-        <div class="stat-icon" style="background:rgba(235,47,150,0.1);color:#EB2F96;">📱</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.channels }}</div>
-          <div class="stat-label">已开通渠道</div>
-        </div>
-      </div>
-      <div class="stat-card" @click="$router.push('/settings/open')">
-        <div class="stat-icon" style="background:rgba(19,194,194,0.1);color:#13C2C2;">🔌</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.oauthApps }}</div>
-          <div class="stat-label">开放平台应用</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(250,84,28,0.1);color:#FA541C;">📊</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.apiCalls }}</div>
-          <div class="stat-label">API调用(今日)</div>
-        </div>
+        <div class="solution-stat-percent">占平台 {{ getSolutionPercent(sol) }}% 客户</div>
       </div>
     </div>
 
@@ -96,82 +107,64 @@
             <el-tag :type="configStatus.wechatPay ? 'success' : 'info'" size="small">{{ configStatus.wechatPay ? '已配置' : '未配置' }}</el-tag>
           </div>
           <div class="config-item">
-            <span>支付宝</span>
-            <el-tag :type="configStatus.alipay ? 'success' : 'info'" size="small">{{ configStatus.alipay ? '已配置' : '未配置' }}</el-tag>
-          </div>
-          <div class="config-item">
             <span>微信第三方平台</span>
             <el-tag :type="configStatus.wxComponent ? 'success' : 'warning'" size="small">{{ configStatus.wxComponent ? '已配置' : '未配置' }}</el-tag>
           </div>
           <div class="config-item">
             <span>开放平台</span>
-            <el-tag :type="stats.oauthApps > 0 ? 'success' : 'info'" size="small">{{ stats.oauthApps > 0 ? '已启用' : '未启用' }}</el-tag>
+            <el-tag :type="global.oauthApps > 0 ? 'success' : 'info'" size="small">{{ global.oauthApps > 0 ? '已启用' : '未启用' }}</el-tag>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 最近操作 + 解决方案 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
-      <div class="page-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <h3 style="margin:0;">最近操作</h3>
-          <el-button text type="primary" @click="$router.push('/logs')">全部日志</el-button>
-        </div>
-        <el-table :data="recentLogs" size="small" :show-header="true">
-          <el-table-column prop="createdAt" label="时间" width="150" />
-          <el-table-column prop="username" label="用户" width="100" />
-          <el-table-column prop="action" label="操作" />
-        </el-table>
-        <el-empty v-if="!recentLogs.length" description="暂无操作记录" :image-size="60" />
+    <!-- 最近操作 -->
+    <div class="page-card" style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h3 style="margin:0;">最近操作</h3>
+        <el-button text type="primary" @click="$router.push('/logs')">全部日志</el-button>
       </div>
-
-      <div class="page-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <h3 style="margin:0;">解决方案</h3>
-          <el-button text type="primary" @click="$router.push('/solutions')">管理</el-button>
-        </div>
-        <div class="solution-list">
-          <div class="solution-item" v-for="s in solutions" :key="s.id">
-            <span class="solution-name">{{ s.name }}</span>
-            <el-tag :type="s.enabled ? 'success' : 'info'" size="small">{{ s.enabled ? '已启用' : '已禁用' }}</el-tag>
-          </div>
-        </div>
-        <el-empty v-if="!solutions.length" description="暂无解决方案" :image-size="60" />
-      </div>
+      <el-table :data="recentLogs" size="small">
+        <el-table-column prop="createdAt" label="时间" width="160" />
+        <el-table-column prop="username" label="用户" width="120" />
+        <el-table-column prop="action" label="操作" />
+      </el-table>
+      <el-empty v-if="!recentLogs.length" description="暂无操作记录" :image-size="60" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import {
-  fetchCustomers, fetchPlans, fetchScenes, fetchUsers, fetchLogs,
-  fetchSolutions, fetchChannelStats, fetchChannelComponent,
-  fetchOAuthApps, fetchOAuthStats, fetchSettings, fetchStorageConfig,
+  fetchDashboardStats, fetchLogs,
+  fetchChannelStats, fetchChannelComponent,
+  fetchOAuthStats, fetchSettings, fetchStorageConfig,
 } from '../../api';
 
-const stats = ref({ customers: 0, solutions: 0, plans: 0, scenes: 0, users: 0, channels: 0, oauthApps: 0, apiCalls: 0 });
+const router = useRouter();
+const global = ref({ customers: 0, plans: 0, scenes: 0, users: 0, channels: 0, apiCalls: 0, oauthApps: 0 });
+const bySolution = ref([]);
 const recentLogs = ref([]);
-const solutions = ref([]);
 const channelStats = ref([]);
-const configStatus = reactive({ storage: false, sms: false, wechatPay: false, alipay: false, wxComponent: false });
+const configStatus = reactive({ storage: false, sms: false, wechatPay: false, wxComponent: false });
 
 onMounted(async () => {
-  // 并行加载所有统计数据
-  const promises = [
-    fetchCustomers().then(r => { stats.value.customers = r.projects?.length || 0; }).catch(() => {}),
-    fetchSolutions().then(r => {
-      solutions.value = r.solutions || [];
-      stats.value.solutions = solutions.value.filter(s => s.enabled).length;
+  // 并行加载所有数据
+  await Promise.all([
+    // 工作台核心统计（全局+按解决方案）
+    fetchDashboardStats().then(r => {
+      global.value.customers = r.global?.customers || 0;
+      global.value.plans = r.global?.plans || 0;
+      global.value.scenes = r.global?.scenes || 0;
+      global.value.users = r.global?.users || 0;
+      bySolution.value = r.bySolution || [];
     }).catch(() => {}),
-    fetchPlans().then(r => { stats.value.plans = r.plans?.length || 0; }).catch(() => {}),
-    fetchScenes().then(r => { stats.value.scenes = r.scenes?.length || 0; }).catch(() => {}),
-    fetchUsers().then(r => { stats.value.users = r.users?.length || 0; }).catch(() => {}),
+    // 渠道统计
     fetchChannelStats().then(r => {
       const byType = r.byType || [];
-      const total = byType.reduce((sum, b) => sum + (b.count || 0), 0);
-      stats.value.channels = total;
+      global.value.channels = byType.reduce((sum, b) => sum + (b.count || 0), 0);
       const max = Math.max(...byType.map(b => b.count || 0), 1);
       const iconMap = { mini: '💬', h5: '📱', mp: '📢', pc: '💻' };
       const nameMap = { mini: '微信小程序', h5: 'H5手机端', mp: '微信公众号', pc: 'PC网站' };
@@ -181,67 +174,181 @@ onMounted(async () => {
         return { type, icon: iconMap[type], name: nameMap[type], count, percent: Math.round(count / max * 100) };
       });
     }).catch(() => {}),
-    fetchChannelComponent().then(r => {
-      configStatus.wxComponent = !!r.config?.hasAppSecret;
+    // 系统配置状态
+    fetchChannelComponent().then(r => { configStatus.wxComponent = !!r.config?.hasAppSecret; }).catch(() => {}),
+    fetchOAuthStats().then(r => {
+      global.value.apiCalls = r.todayCalls || 0;
+      global.value.oauthApps = r.totalApps || 0;
     }).catch(() => {}),
-    fetchOAuthApps().then(r => { stats.value.oauthApps = r.apps?.length || 0; }).catch(() => {}),
-    fetchOAuthStats().then(r => { stats.value.apiCalls = r.todayCalls || 0; }).catch(() => {}),
     fetchSettings().then(r => {
       const s = r.settings || {};
       configStatus.sms = !!s.smsProvider && s.smsProvider !== 'mock';
       configStatus.wechatPay = !!s.wechatPayMode;
-      configStatus.alipay = !!s.alipayEnabled;
     }).catch(() => {}),
     fetchStorageConfig().then(r => {
       configStatus.storage = r.config?.provider && r.config.provider !== 'local';
     }).catch(() => {}),
-    fetchLogs({ limit: 5 }).then(r => { recentLogs.value = r.logs || []; }).catch(() => {}),
-  ];
-  await Promise.all(promises);
+    // 最近操作
+    fetchLogs({ limit: 8 }).then(r => { recentLogs.value = r.logs || []; }).catch(() => {}),
+  ]);
 });
+
+function getSolutionPercent(sol) {
+  const total = global.value.customers || 1;
+  return Math.round((sol.customers / total) * 100);
+}
+
+function goSolution(sol) {
+  // 跳转到客户项目页，可按解决方案筛选（后续扩展）
+  router.push('/customers');
+}
 </script>
 
 <style scoped>
-.stat-cards {
+.global-overview {
+  background: linear-gradient(135deg, #165DFF 0%, #4080FF 100%);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  color: #fff;
+}
+.global-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.global-label {
+  font-size: 16px;
+  font-weight: 600;
+}
+.global-desc {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.global-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+.global-card {
+  background: rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.global-card:hover {
+  background: rgba(255,255,255,0.25);
+}
+.global-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.global-label-text {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.section-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1b1c;
+}
+.section-desc {
+  font-size: 12px;
+  color: #909399;
+}
+.solution-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
-.stat-card {
+.solution-stat-card {
   background: #fff;
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  display: flex;
-  align-items: center;
-  gap: 16px;
   cursor: pointer;
   transition: all 0.2s;
+  border-left: 3px solid #165DFF;
 }
-.stat-card:hover {
+.solution-stat-card:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   transform: translateY(-2px);
 }
-.stat-icon {
-  width: 48px;
-  height: 48px;
+.solution-stat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.solution-stat-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  background: #f5f7fa;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
 }
-.stat-value {
-  font-size: 24px;
+.solution-stat-name {
+  font-size: 15px;
   font-weight: 600;
   color: #1a1b1c;
-  line-height: 1.2;
+  margin-bottom: 4px;
 }
-.stat-label {
-  font-size: 13px;
+.solution-stat-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-bottom: 12px;
+}
+.metric {
+  text-align: center;
+}
+.metric-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1b1c;
+}
+.metric-label {
+  font-size: 12px;
   color: #909399;
-  margin-top: 4px;
+  margin-top: 2px;
+}
+.metric-divider {
+  width: 1px;
+  height: 24px;
+  background: #e4e7ed;
+}
+.solution-stat-bar {
+  height: 4px;
+  background: #f0f2f5;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #165DFF, #4080FF);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.solution-stat-percent {
+  font-size: 11px;
+  color: #909399;
+  text-align: right;
 }
 .channel-stats {
   display: flex;
@@ -286,23 +393,5 @@ onMounted(async () => {
 }
 .config-item:last-child {
   border-bottom: none;
-}
-.solution-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.solution-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  font-size: 13px;
-}
-.solution-name {
-  font-weight: 500;
-  color: #1a1b1c;
 }
 </style>

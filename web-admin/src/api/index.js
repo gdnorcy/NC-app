@@ -47,6 +47,9 @@ export const login = (data) => publicApi.post('/auth/login', data);
 export const loginByPhone = (data) => publicApi.post('/auth/login-phone', data);
 export const sendSmsCode = (phone) => publicApi.post('/auth/sms-code', { phone });
 
+// 工作台统计
+export const fetchDashboardStats = () => adminApi.get('/dashboard/stats');
+
 // 客户项目
 export const fetchCustomers = () => adminApi.get('/projects');
 export const createCustomer = (data) => adminApi.post('/projects', data);
