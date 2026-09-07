@@ -8,42 +8,42 @@
     <!-- 统计卡片 -->
     <div class="stats-row">
       <div class="stat-card">
-        <div class="stat-icon blue">📋</div>
+        <div class="stat-icon blue"><SIcon name="orders" color="#165DFF" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.totalOrders || 0 }}</div>
           <div class="stat-label">总订单数</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon green">✅</div>
+        <div class="stat-icon green"><SIcon name="badge" color="#00B42A" /></div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.paidOrders || 0 }}</div>
           <div class="stat-label">已支付订单</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon orange">💰</div>
+        <div class="stat-icon orange"><SIcon name="wallet" color="#FF7D00" /></div>
         <div class="stat-info">
           <div class="stat-value">¥{{ formatMoney(stats.totalAmount) }}</div>
           <div class="stat-label">交易总额</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon purple">🏦</div>
+        <div class="stat-icon purple"><SIcon name="analytics" color="#722ED1" /></div>
         <div class="stat-info">
           <div class="stat-value">¥{{ formatMoney(stats.platformFee) }}</div>
           <div class="stat-label">平台手续费</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon cyan">🏢</div>
+        <div class="stat-icon cyan"><SIcon name="building" color="#00A4AE" /></div>
         <div class="stat-info">
           <div class="stat-value">¥{{ formatMoney(stats.platformAmount) }}</div>
           <div class="stat-label">平台级收入</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon pink">👥</div>
+        <div class="stat-icon pink"><SIcon name="team" color="#F53F3F" /></div>
         <div class="stat-info">
           <div class="stat-value">¥{{ formatMoney(stats.tenantAmount) }}</div>
           <div class="stat-label">客户级交易</div>
@@ -220,6 +220,7 @@
 </template>
 
 <script setup>
+import SIcon from '../../components/SIcon.vue';
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { paymentApi } from '../../api';
@@ -317,7 +318,7 @@ onMounted(() => {
 .page-desc { font-size: 13px; color: #86909c; margin: 0; }
 .stats-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
 .stat-card { background: #fff; border-radius: 8px; padding: 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
 .stat-icon.blue { background: rgba(22,93,255,0.1); }
 .stat-icon.green { background: rgba(0,180,42,0.1); }
 .stat-icon.orange { background: rgba(255,125,0,0.1); }
