@@ -219,7 +219,7 @@ function goMessages() {
   uni.showToast({ title: '消息中心开发中', icon: 'none' });
 }
 function viewMarketCard(item) {
-  uni.navigateTo({ url: `/pages/card/myCard?id=${item.userId || item.id}` });
+  uni.navigateTo({ url: `/pages/card/cardDetail?id=${item.userId || item.id}` });
 }
 </script>
 

@@ -422,7 +422,7 @@ function isExchanged(item) {
 function viewCard(item) {
   // 详情页保持原有逻辑：跳转名片展示页（展示对方公开名片）
   const cardId = item.cardId || item.id;
-  uni.navigateTo({ url: `/pages/card/myCard?id=${cardId}` });
+  uni.navigateTo({ url: `/pages/card/cardDetail?id=${cardId}` });
 }
 
 async function quickExchange(item) {

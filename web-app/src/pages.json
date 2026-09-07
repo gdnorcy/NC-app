@@ -50,6 +50,13 @@
         {
           "path": "myCard",
           "style": {
+            "navigationBarTitleText": "我的名片",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cardDetail",
+          "style": {
             "navigationBarTitleText": "名片详情",
             "navigationStyle": "custom"
           }
