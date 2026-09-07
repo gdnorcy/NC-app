@@ -31,7 +31,7 @@
         <view class="section-more" @click="goMyCard">查看详情 ›</view>
       </view>
       <view class="my-card" v-if="myCard" @click="goMyCard">
-        <view class="card-avatar">
+        <view class="card-avatar" :style="avatarStyle">
           <image v-if="myCard.avatar" :src="myCard.avatar" class="avatar-img" mode="aspectFill" />
           <text v-else>{{ myCard.name?.[0] || '名' }}</text>
         </view>
@@ -141,7 +141,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
 
@@ -171,6 +172,12 @@ onMounted(async () => {
     myCard.value = res.card;
   } catch (e) {}
 
+  // 消息未读红点
+  try {
+    const unread = await cardApi.getMessageUnread();
+    unreadCount.value = unread.count || 0;
+  } catch (e) {}
+
   // 加载访客统计
   try {
     const summary = await cardApi.getVisitorSummary();
@@ -186,6 +193,14 @@ onMounted(async () => {
     const market = await cardApi.getMarketList({ type: 'all' });
     marketList.value = (market.items || []).slice(0, 6);
   } catch (e) {}
+});
+
+// 我的名片头像/卡片品牌色渐变（租户 brandColor，无则默认蓝）
+const avatarStyle = computed(() => {
+  const c = myCard.value?.brandColor;
+  if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
+  const dark = shadeHex(c, -0.3);
+  return { background: `linear-gradient(135deg, ${dark}, ${c})` };
 });
 
 function goPage(path) {
@@ -216,7 +231,7 @@ function goSearch() {
   uni.showToast({ title: '搜索功能开发中', icon: 'none' });
 }
 function goMessages() {
-  uni.showToast({ title: '消息中心开发中', icon: 'none' });
+  uni.navigateTo({ url: '/pages/card/messages' });
 }
 function viewMarketCard(item) {
   uni.navigateTo({ url: `/pages/card/cardDetail?id=${item.userId || item.id}` });

@@ -1,7 +1,23 @@
 <template>
   <view class="radar-page">
+    <!-- 付费解锁引导（免费/过期用户） -->
+    <view class="radar-locked" v-if="locked">
+      <view class="lock-card">
+        <view class="lock-icon"><SIcon name="radar" size="xlarge" color="#07c160" /></view>
+        <view class="lock-title">访客雷达</view>
+        <view class="lock-desc">解锁后查看谁看过你的名片</view>
+        <view class="lock-benefits">
+          <view class="lb-item"><SIcon name="chart" size="small" color="#07c160" /><text>今日/本周访问统计</text></view>
+          <view class="lb-item"><SIcon name="customer" size="small" color="#07c160" /><text>访客行为轨迹追踪</text></view>
+          <view class="lb-item"><SIcon name="exchange" size="small" color="#07c160" /><text>高意向访客识别</text></view>
+        </view>
+        <view class="btn-main" @click="goMember">立即解锁</view>
+        <view class="lock-foot">开通黄金会员 · 全部功能畅享</view>
+      </view>
+    </view>
+
     <!-- 统计卡片（demo radar-stats） -->
-    <view class="radar-stats">
+    <view class="radar-stats" v-else>
       <view class="rstat up">
         <view class="lbl">今日访问</view>
         <view class="num"><text class="n">{{ displayToday }}</text><i>人</i></view>
@@ -103,6 +119,7 @@ const visitors = ref([]);
 const displayToday = ref(0);
 const displayWeek = ref(0);
 const displayTotal = ref(0);
+const locked = ref(false);
 
 const showConvert = ref(false);
 const showTimeline = ref(false);
@@ -124,6 +141,7 @@ onMounted(async () => {
   restoreScrollTop('visitors');
   try {
     const res = await cardApi.getVisitorSummary();
+    if (res && res.locked) { locked.value = true; return; }
     summary.value = res;
     visitors.value = res.visitors || [];
     animateNumber('today', res.today);
@@ -131,6 +149,10 @@ onMounted(async () => {
     animateNumber('total', res.total);
   } catch (e) {}
 });
+
+function goMember() {
+  uni.navigateTo({ url: '/pages/card/member' });
+}
 
 // 离开时保存滚动位置，切Tab返回后恢复
 onUnload(() => {
@@ -243,6 +265,62 @@ async function saveConvert() {
   min-height: 100vh;
   background: #f5f6f7;
   padding-bottom: 160rpx;
+}
+
+/* ===== 付费解锁引导 ===== */
+.radar-locked {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx 40rpx;
+  box-sizing: border-box;
+}
+.lock-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 64rpx 40rpx 48rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.06);
+}
+.lock-icon {
+  width: 128rpx;
+  height: 128rpx;
+  margin: 0 auto 28rpx;
+  background: rgba(7, 193, 96, 0.08);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lock-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #1d2129;
+}
+.lock-desc {
+  font-size: 26rpx;
+  color: #86909c;
+  margin-top: 12rpx;
+}
+.lock-benefits {
+  margin: 40rpx 0 48rpx;
+  text-align: left;
+}
+.lb-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  font-size: 28rpx;
+  color: #4e5969;
+  padding: 16rpx 8rpx;
+}
+.lb-item text { flex: 1; }
+.lock-foot {
+  font-size: 24rpx;
+  color: #86909c;
+  margin-top: 24rpx;
 }
 
 /* ===== 统计卡片（demo radar-stats）===== */

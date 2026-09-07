@@ -1081,6 +1081,19 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_connection_from ON card_connections(from_user_id);
     CREATE INDEX IF NOT EXISTS idx_connection_to ON card_connections(to_user_id);
 
+    CREATE TABLE IF NOT EXISTS card_message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,            -- 接收者
+      type TEXT NOT NULL DEFAULT 'system', -- exchange/visitor/system
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      link TEXT NOT NULL DEFAULT '',       -- 跳转路径，如 /pages/card/exchangeRequests
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_message_user ON card_message(customer_id, user_id, is_read);
+
     -- 表单模板
     CREATE TABLE IF NOT EXISTS card_form_template (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

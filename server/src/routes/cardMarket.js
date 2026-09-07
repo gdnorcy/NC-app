@@ -16,6 +16,20 @@ function audit(db, req, action, targetType, targetId, detail) {
   });
 }
 
+// 消息通知落库（exchange/visitor/system）
+function insertMessage(db, customerId, userId, type, title, content, link) {
+  if (!userId || !customerId) return;
+  try {
+    db.prepare('INSERT INTO card_message (customer_id, user_id, type, title, content, link) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(customerId, userId, type, title, content, link || '');
+  } catch (e) {}
+}
+// 平台用户昵称（消息文案用）
+function fromName(db, userId) {
+  const u = db.prepare('SELECT nickname FROM platform_user WHERE id = ?').get(userId);
+  return u?.nickname || '对方';
+}
+
 /**
  * 智能名片 SaaS 租户域 API（人脉集市/入驻主体/双公海/表单）
  *
@@ -471,11 +485,13 @@ export function createCardMarketRouter(db) {
       if (existing.status === 'rejected') {
         // 被拒后可重新发起：重置为 pending
         db.prepare("UPDATE card_connections SET status = 'pending', message = ?, updated_at = datetime('now') WHERE id = ?").run(message || '', existing.id);
+        insertMessage(db, req.customerId, toUserId, 'exchange', '新的名片交换申请', '有人再次向你发起名片交换', '/pages/card/exchangeRequests');
         return res.json({ success: true, retry: true });
       }
     }
 
     db.prepare('INSERT INTO card_connections (customer_id, from_user_id, to_user_id, message) VALUES (?, ?, ?, ?)').run(req.customerId, fromUserId, toUserId, message || '');
+    insertMessage(db, req.customerId, toUserId, 'exchange', '新的名片交换申请', `${fromName(db, fromUserId)} 想与你交换名片`, '/pages/card/exchangeRequests');
     res.json({ success: true });
   });
 
@@ -501,8 +517,10 @@ export function createCardMarketRouter(db) {
         at: new Date().toISOString(),
       });
       db.prepare("UPDATE card_connections SET status = 'accepted', snapshot = ?, exchanged_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(snapshot, connectionId);
+      insertMessage(db, req.customerId, conn.from_user_id, 'exchange', '交换申请已通过', `${fromName(db, userId)} 接受了你的名片交换`, '/pages/card/connections');
     } else {
       db.prepare("UPDATE card_connections SET status = 'rejected', updated_at = datetime('now') WHERE id = ?").run(connectionId);
+      insertMessage(db, req.customerId, conn.from_user_id, 'exchange', '交换申请未通过', `${fromName(db, userId)} 拒绝了你的名片交换`, '/pages/card/exchangeRequests');
     }
     res.json({ success: true });
   });
@@ -525,6 +543,67 @@ export function createCardMarketRouter(db) {
     const row = db.prepare(`SELECT COUNT(*) as cnt FROM card_connections
       WHERE customer_id = ? AND to_user_id = ? AND status = 'pending'`).get(req.customerId, userId);
     res.json({ count: row?.cnt || 0 });
+  });
+
+  // 交换记录（租户管理员）：本租户全部交换往来，含双方信息
+  router.get('/exchange/records', tenant, requireTenantAdmin, (req, res) => {
+    const status = req.query.status || '';
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(50, Math.max(1, parseInt(req.query.pageSize) || 20));
+    const where = ['c.customer_id = ?'];
+    const args = [req.customerId];
+    if (['pending', 'accepted', 'rejected'].includes(status)) { where.push('c.status = ?'); args.push(status); }
+    const whereSql = where.join(' AND ');
+    const total = db.prepare(`SELECT COUNT(*) as cnt FROM card_connections c WHERE ${whereSql}`).get(...args).cnt;
+    const records = db.prepare(`
+      SELECT c.id, c.status, c.message, c.exchanged_at, c.created_at,
+        f.nickname as from_name, f.avatar as from_avatar,
+        t.nickname as to_name, t.avatar as to_avatar,
+        (SELECT name FROM card_profile WHERE user_id = c.from_user_id ORDER BY id LIMIT 1) as from_card_name,
+        (SELECT position FROM card_profile WHERE user_id = c.from_user_id ORDER BY id LIMIT 1) as from_position,
+        (SELECT name FROM card_profile WHERE user_id = c.to_user_id ORDER BY id LIMIT 1) as to_card_name,
+        (SELECT position FROM card_profile WHERE user_id = c.to_user_id ORDER BY id LIMIT 1) as to_position
+      FROM card_connections c
+      LEFT JOIN platform_user f ON f.id = c.from_user_id
+      LEFT JOIN platform_user t ON t.id = c.to_user_id
+      WHERE ${whereSql}
+      ORDER BY c.created_at DESC
+      LIMIT ? OFFSET ?`).all(...args, pageSize, (page - 1) * pageSize);
+    res.json({ records, total, page, pageSize });
+  });
+
+  // ===== 消息通知 =====
+  // 消息列表（本租户内，我收到的）
+  router.get('/messages', tenant, (req, res) => {
+    const userId = currentUserId(req);
+    const type = req.query.type || '';
+    const sql = `SELECT * FROM card_message WHERE customer_id = ? AND user_id = ?
+      ${type ? 'AND type = ?' : ''} ORDER BY created_at DESC LIMIT 100`;
+    const args = type ? [req.customerId, userId, type] : [req.customerId, userId];
+    const messages = db.prepare(sql).all(...args);
+    res.json({ messages: messages.map((m) => ({ ...m, link: m.link || '' })) });
+  });
+
+  // 未读消息数（红点）
+  router.get('/messages/unread', tenant, (req, res) => {
+    const userId = currentUserId(req);
+    const row = db.prepare(`SELECT COUNT(*) as cnt FROM card_message
+      WHERE customer_id = ? AND user_id = ? AND is_read = 0`).get(req.customerId, userId);
+    res.json({ count: row?.cnt || 0 });
+  });
+
+  // 标记已读（全部或指定 id）
+  router.post('/messages/read', tenant, (req, res) => {
+    const userId = currentUserId(req);
+    const { ids } = req.body || {};
+    if (Array.isArray(ids) && ids.length) {
+      const ph = ids.map(() => '?').join(',');
+      db.prepare(`UPDATE card_message SET is_read = 1 WHERE customer_id = ? AND user_id = ? AND id IN (${ph})`)
+        .run(req.customerId, userId, ...ids);
+    } else {
+      db.prepare('UPDATE card_message SET is_read = 1 WHERE customer_id = ? AND user_id = ?').run(req.customerId, userId);
+    }
+    res.json({ success: true });
   });
 
   // ===== 人脉库 =====

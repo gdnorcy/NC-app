@@ -187,6 +187,8 @@ test('访客雷达summary增强（昵称/标签/行为/对比）', async () => {
 
   const { createDb } = await import('../src/db.js');
   const db = createDb(config.dbPath);
+  // 访客雷达为付费功能：测试用户设为黄金会员解锁
+  db.prepare("UPDATE platform_user SET member_level='gold', member_expire_at='2030-01-01 00:00:00' WHERE id=?").run(created.body.card.userId);
 
   // 造一条访客记录（昵称张三 + 2次访问 + exchange动作）
   const u = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
@@ -221,6 +223,7 @@ test('访客标签按最近动作推断(video→观看视频, visit2次→高意
   const cardId = created.body.card.id;
   const { createDb } = await import('../src/db.js');
   const db = createDb(config.dbPath);
+  db.prepare("UPDATE platform_user SET member_level='gold', member_expire_at='2030-01-01 00:00:00' WHERE id=?").run(created.body.card.userId);
 
   // 访客A：最近动作video
   const u1 = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
@@ -264,6 +267,7 @@ test('访客已读标记：summary未读→标记已读→红点消失', async (
   const cardId = created.body.card.id;
   const { createDb } = await import('../src/db.js');
   const db = createDb(config.dbPath);
+  db.prepare("UPDATE platform_user SET member_level='gold', member_expire_at='2030-01-01 00:00:00' WHERE id=?").run(created.body.card.userId);
   const u = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
     .run('mock_read_v1', '周先生', new Date().toISOString(), new Date().toISOString());
   const today = new Date().toISOString().slice(0, 10);

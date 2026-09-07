@@ -21,7 +21,7 @@
     <!-- 名片头部卡片 -->
     <view class="owner-card">
       <view class="oc-head">
-        <view class="oc-avatar">
+        <view class="oc-avatar" :style="avatarStyle">
           <image v-if="card.avatar" :src="card.avatar" class="oc-avatar-img" mode="aspectFill" />
           <view v-else>{{ card.name?.[0] || '名' }}</view>
         </view>
@@ -109,6 +109,12 @@
         <view class="osr-main"><view class="osr-name">我的人脉库</view><view class="osr-desc">管理交换得来的人脉，可转为客户线索</view></view>
         <text class="osr-arrow">›</text>
       </view>
+      <view class="os-row" @click="goMessages">
+        <view class="osr-icon"><SIcon name="dynamic" size="default" color="#1d4e8f" /></view>
+        <view class="osr-main"><view class="osr-name">消息中心</view><view class="osr-desc">交换申请、访客动态等通知</view></view>
+        <text class="osr-badge" v-if="msgUnread > 0">{{ msgUnread > 99 ? '99+' : msgUnread }}</text>
+        <text class="osr-arrow">›</text>
+      </view>
       <view class="os-row" @click="saveCardInfo">
         <view class="osr-icon"><SIcon name="storage" size="default" color="#1d4e8f" /></view>
         <view class="osr-main"><view class="osr-name">保存名片</view><view class="osr-desc">复制名片信息，可保存到手机通讯录</view></view>
@@ -135,15 +141,24 @@ import { ref, computed, onMounted } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
+import { shadeHex } from '../../utils/color.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
 const card = ref({});
+// 品牌色：头像背景用品牌色渐变（无配置回退默认蓝）
+const avatarStyle = computed(() => {
+  const c = card.value.brandColor;
+  if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
+  const dark = shadeHex(c, -0.3);
+  return { brand: 1, background: `linear-gradient(135deg, ${dark}, ${c})` };
+});
 const currentUserId = ref(null);
 const myStatus = ref(null);   // { items, subjects }
 const stats = ref({});
 const visitorTop = ref([]);
+const msgUnread = ref(0);
 const activeSubject = ref(null);
 const pageCardId = ref(null);
 
@@ -207,13 +222,15 @@ async function loadOwnerData() {
   currentUserId.value = decodeTokenUid();
   if (!currentUserId.value) return;
   try {
-    const [st, mk] = await Promise.allSettled([
+    const [st, mk, unread] = await Promise.allSettled([
       cardApi.getVisitorSummary(),
       cardApi.getMarketMyStats(),
       cardApi.getMarketMyStatus(),
+      cardApi.getMessageUnread(),
     ]);
     if (st.status === 'fulfilled') visitorTop.value = (st.value.visitors || []).slice(0, 3);
     if (mk.status === 'fulfilled') stats.value = mk.value.stats || mk.value;
+    if (unread.status === 'fulfilled') msgUnread.value = unread.value.count || 0;
   } catch (e) {}
   try {
     const mst = await cardApi.getMarketMyStatus();
@@ -313,6 +330,7 @@ function exportData() {
   uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '名片与访客数据已复制', icon: 'none' }) });
 }
 const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
+const goMessages = () => uni.navigateTo({ url: '/pages/card/messages' });
 function leaveTenant() {
   uni.showModal({
     title: '退出租户',
@@ -379,6 +397,19 @@ function leaveTenant() {
 .osr-name { font-size: 28rpx; color: #1a1a1a; }
 .osr-desc { font-size: 22rpx; color: #9a9a9a; margin-top: 4rpx; }
 .osr-arrow { font-size: 32rpx; color: #c9cdd4; }
+.osr-badge {
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  border-radius: 16rpx;
+  background: #f53f3f;
+  color: #fff;
+  font-size: 20rpx;
+  text-align: center;
+  padding: 0 8rpx;
+  margin-right: 8rpx;
+  box-sizing: border-box;
+}
 
 .ov-list { padding: 8rpx 0; }
 .ov-item { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; }

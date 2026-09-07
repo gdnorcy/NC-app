@@ -26,6 +26,7 @@ const tabs = [
   { label: '入驻管理', path: '/apps/card/tenant', icon: 'audit' },
   { label: '公海池', path: '/apps/card/pool', icon: 'pool' },
   { label: '模板市场', path: '/apps/card/templates', icon: 'template' },
+  { label: '交换记录', path: '/apps/card/exchanges', icon: 'exchange' },
 ];
 
 const route = useRoute();

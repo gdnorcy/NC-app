@@ -255,3 +255,59 @@ test('D5 待处理交换请求红点 unread', async () => {
   const unreadAfter = await request(app).get('/api/card-market/exchange/unread').set('Authorization', cardTok(103));
   assert.equal(unreadAfter.body.count, 0, '处理后红点清零');
 });
+
+// ================= E 组：消息通知 + 管理员交换记录 =================
+// E1 发起交换 → 接收方落 exchange 消息 + unread 计数
+// E2 接受交换 → 发起方收到"已通过"消息；标记已读后 unread 清零
+// E3 租户管理员 exchange/records 返回本租户全部交换记录 + 状态筛选
+let eMsgId = null;
+
+test('E1 发起交换后接收方收到消息', async () => {
+  // 前置清理：保证 E 组消息独立（D5 曾向 103 发起过）
+  db.prepare('DELETE FROM card_message WHERE user_id IN (101, 103)').run();
+  // 林平(101) → 黄志明(103) 发起
+  const r = await request(app).post('/api/card-market/exchange/request')
+    .set('Authorization', cardTok(101)).send({ toUserId: 103, message: '供需合作' });
+  assert.equal(r.status, 200);
+  const msg = db.prepare("SELECT * FROM card_message WHERE customer_id = 1 AND user_id = 103 AND type = 'exchange' ORDER BY id DESC LIMIT 1").get();
+  assert.ok(msg, '103 收到 exchange 消息');
+  assert.equal(msg.is_read, 0, '默认未读');
+  eMsgId = msg.id;
+  assert.ok(msg.content.length > 0, '消息内容非空');
+  const unread = await request(app).get('/api/card-market/messages/unread').set('Authorization', cardTok(103));
+  assert.equal(unread.body.count, 1, '103 未读消息=1');
+});
+
+test('E2 接受后发起方收到消息且已读生效', async () => {
+  const pending = db.prepare("SELECT id FROM card_connections WHERE from_user_id = 101 AND to_user_id = 103 AND status = 'pending'").get();
+  await request(app).post('/api/card-market/exchange/handle')
+    .set('Authorization', cardTok(103)).send({ connectionId: pending.id, action: 'accept' });
+  const fromMsg = db.prepare("SELECT * FROM card_message WHERE customer_id = 1 AND user_id = 101 AND type = 'exchange' ORDER BY id DESC LIMIT 1").get();
+  assert.ok(fromMsg, '101 收到已通过消息');
+  assert.ok(fromMsg.content.includes('接受'), '消息内容为已通过');
+
+  // 标记已读
+  const rd = await request(app).post('/api/card-market/messages/read')
+    .set('Authorization', cardTok(103)).send({ ids: [eMsgId] });
+  assert.equal(rd.status, 200);
+  const unread = await request(app).get('/api/card-market/messages/unread').set('Authorization', cardTok(103));
+  assert.equal(unread.body.count, 0, '已读后未读=0');
+  // 消息列表可见
+  const list = await request(app).get('/api/card-market/messages').set('Authorization', cardTok(103));
+  assert.ok(list.body.messages.some((m) => m.id === eMsgId && m.is_read === 1), '列表中已读状态更新');
+});
+
+test('E3 租户管理员交换记录', async () => {
+  const r = await request(app).get('/api/card-market/exchange/records').set(authT(t1Token));
+  assert.equal(r.status, 200);
+  assert.ok(r.body.records.length >= 1, '至少包含 101→103 一笔');
+  assert.ok(r.body.records.every((x) => x.from_name && x.to_name), '双方昵称已返回');
+  const accepted = r.body.records.filter((x) => x.status === 'accepted');
+  assert.ok(accepted.some((x) => x.from_name === '林平' && x.to_name === '黄志明'), '101→103 已接受记录在列');
+  // 状态筛选
+  const onlyPending = await request(app).get('/api/card-market/exchange/records?status=pending').set(authT(t1Token));
+  assert.ok(onlyPending.body.records.every((x) => x.status === 'pending'), 'pending 筛选生效');
+  // 非管理员不可访问
+  const denied = await request(app).get('/api/card-market/exchange/records').set('Authorization', cardTok(102));
+  assert.equal(denied.status, 403, '普通成员无权查看记录');
+});

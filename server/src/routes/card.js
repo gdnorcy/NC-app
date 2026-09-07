@@ -103,7 +103,17 @@ export function createCardRouter(db, wxService) {
   // 用户信息
   // ============================================================
   router.get('/user/profile', auth, (req, res) => {
-    const card = db.prepare('SELECT * FROM card_profile WHERE user_id = ?').get(req.user.id);
+    // 与 /cards 一致：join 租户配置，使 brandColor 可用
+    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config
+      FROM card_profile cp
+      LEFT JOIN platform_user pu ON cp.user_id = pu.id
+      LEFT JOIN projects pj ON pj.id = (
+        SELECT COALESCE(
+          (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
+          (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
+          0)
+      )
+      WHERE cp.user_id = ?`).get(req.user.id);
     res.json({ user: toUser(req.user), card: card ? toCard(card) : null });
   });
 
@@ -119,13 +129,30 @@ export function createCardRouter(db, wxService) {
   // 名片 CRUD
   // ============================================================
   router.get('/cards', auth, (req, res) => {
-    const cards = db.prepare('SELECT * FROM card_profile WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
+    // 与 /cards/:id 一致：join 租户配置，使列表也携带 brandColor
+    const cards = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config
+      FROM card_profile cp
+      LEFT JOIN platform_user pu ON cp.user_id = pu.id
+      LEFT JOIN projects pj ON pj.id = (
+        SELECT COALESCE(
+          (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
+          (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
+          0)
+      )
+      WHERE cp.user_id = ? ORDER BY cp.created_at DESC`).all(req.user.id);
     res.json({ cards: cards.map(toCard) });
   });
 
   router.get('/cards/:id', (req, res) => {
-    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level
-      FROM card_profile cp LEFT JOIN platform_user pu ON cp.user_id = pu.id
+    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config
+      FROM card_profile cp
+      LEFT JOIN platform_user pu ON cp.user_id = pu.id
+      LEFT JOIN projects pj ON pj.id = (
+        SELECT COALESCE(
+          (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
+          (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1)
+        )
+      )
       WHERE cp.id = ?`).get(req.params.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
     if (card.status !== 'active') return res.status(404).json({ error: '名片不可用' });
@@ -312,6 +339,17 @@ export function createCardRouter(db, wxService) {
   // 访客雷达
   // ============================================================
   router.get('/visitors/summary', auth, (req, res) => {
+    // 访客雷达为付费功能：free 或会员已过期 → 锁定
+    const isMember = req.user.member_level !== 'free' && req.user.member_expire_at && new Date(req.user.member_expire_at) > new Date();
+    if (!isMember) {
+      return res.json({
+        locked: true,
+        memberLevel: req.user.member_level || 'free',
+        memberExpireAt: req.user.member_expire_at || null,
+        today: 0, week: 0, total: 0, diff: 0, visitors: []
+      });
+    }
+
     const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
     if (!card) return res.json({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
 
@@ -565,6 +603,11 @@ export function createCardRouter(db, wxService) {
     if (!row) return null;
     let ownerMemberLevel = 'free';
     if (row.owner_member_level !== undefined) ownerMemberLevel = row.owner_member_level || 'free';
+    // 租户品牌色（projects.config.brand_color）
+    let brandColor = '';
+    if (row.tenant_config) {
+      try { const cfg = JSON.parse(row.tenant_config); brandColor = cfg.brand_color || ''; } catch {}
+    }
     return {
       id: row.id, userId: row.user_id, enterpriseId: row.enterprise_id, cardType: row.card_type,
       name: row.name, position: row.position, city: row.city, phone: row.phone, wechat: row.wechat, email: row.email,
@@ -573,6 +616,7 @@ export function createCardRouter(db, wxService) {
       templateId: row.template_id, videoChannel: row.video_channel, isPublic: !!row.is_public,
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
       ownerMemberLevel,
+      brandColor,
       createdAt: row.created_at, updatedAt: row.updated_at,
     };
   }

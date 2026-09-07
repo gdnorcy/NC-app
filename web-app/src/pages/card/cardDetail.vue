@@ -2,8 +2,8 @@
   <!-- ===== 名片详情页（全局对外展示落地页｜所有人可见） =====
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
   <view class="profile-page">
-    <!-- 沉浸式hero（demo g4 橙色渐变） -->
-    <view class="hero">
+    <!-- 沉浸式hero（demo g4 品牌色渐变，默认橙色） -->
+    <view class="hero" :style="heroStyle">
       <view class="row1">
         <view class="hero-avatar">
           <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
@@ -159,11 +159,14 @@ import { ref, computed, onMounted } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
+import { heroGradient } from '../../utils/color.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
 const card = ref({});
+// 品牌色 hero：租户配置了 brand_color 则用品牌渐变，否则回退默认橙色
+const heroStyle = computed(() => ({ background: heroGradient(card.value.brandColor) }));
 const works = ref([]);
 const dynamics = ref([]);
 const videos = ref([]);

@@ -76,6 +76,13 @@
           }
         },
         {
+          "path": "messages",
+          "style": {
+            "navigationBarTitleText": "消息中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "visitors",
           "style": {
             "navigationBarTitleText": "访客雷达",

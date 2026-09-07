@@ -1,7 +1,7 @@
 <template>
   <view class="member-page">
     <!-- hero（demo g3 青绿渐变） -->
-    <view class="hero g3">
+    <view class="hero g3" :style="heroStyle">
       <view class="row1">
         <view class="hero-left">
           <view class="hero-title">会员中心</view>
@@ -43,6 +43,7 @@ import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { heroGradient } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
@@ -52,6 +53,9 @@ const packages = ref([]);
 const isMember = ref(false);
 const memberLevel = ref('free');
 const memberExpire = ref('');
+// 品牌色 hero：租户配置 brandColor，无则回退 demo g3 青绿渐变（对象形式，与 cardDetail 一致）
+const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
+const brandColor = ref('');
 const paying = ref(false);
 
 const currentLevelText = computed(() => ({ free: '免费版', silver: '白银会员', gold: '黄金会员', diamond: '钻石会员' }[memberLevel.value] || ''));
@@ -61,10 +65,13 @@ onShow(() => { trackPageView('/pages/card/member'); });
 onMounted(async () => {
   restoreScrollTop('member');
   try {
-    const [pkgRes, memberRes] = await Promise.all([
+    const [pkgRes, memberRes, cardsRes] = await Promise.all([
       cardApi.getPackages(),
       cardApi.getMemberStatus(),
+      cardApi.getCards(),
     ]);
+    const myCard0 = (cardsRes.cards || [])[0];
+    if (myCard0?.brandColor) brandColor.value = myCard0.brandColor;
     packages.value = (pkgRes.packages || []).filter((p) => p.enabled !== 0);
     isMember.value = memberRes.isMember;
     memberLevel.value = memberRes.level;

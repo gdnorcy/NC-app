@@ -377,6 +377,15 @@ router.put('/profile', requireTenant, (req, res) => {
   res.json({ user: toUser(user) });
 });
 
+// 客户独立配置：读取（仅租户管理员）
+router.get('/config', requireTenant, requireTenantAdmin, (req, res) => {
+  const customer = db.prepare('SELECT config FROM projects WHERE id = ?').get(req.customerId);
+  if (!customer) return res.status(404).json({ error: '客户不存在' });
+  let config = {};
+  try { config = JSON.parse(customer.config || '{}'); } catch {}
+  res.json({ config });
+});
+
 // 客户独立配置：部分更新（仅租户管理员）
 router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
   const customer = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.customerId);
@@ -388,6 +397,7 @@ router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
   if (updates.storage) config.storage = { ...(config.storage || {}), ...updates.storage };
   if (updates.sms) config.sms = { ...(config.sms || {}), ...updates.sms };
   if (updates.copyright !== undefined) config.copyright = updates.copyright;
+  if (updates.brand_color !== undefined) config.brand_color = String(updates.brand_color).trim();
   if (updates.payment) config.payment = { ...(config.payment || {}), ...updates.payment };
   if (updates.upload_limits) config.upload_limits = { ...(config.upload_limits || {}), ...updates.upload_limits };
   if (updates.open_platform) config.open_platform = { ...(config.open_platform || {}), ...updates.open_platform };

@@ -109,6 +109,11 @@ export const cardApi = {
   convertConnectionToCustomer: (id) => request(MARKET_BASE_URL + `/connections/${id}/convert-customer`, 'POST'),
   getExchangeUnread: () => request(MARKET_BASE_URL + '/exchange/unread'),
 
+  // 消息通知
+  getMessages: (type) => request(MARKET_BASE_URL + '/messages' + (type ? `?type=${type}` : '')),
+  getMessageUnread: () => request(MARKET_BASE_URL + '/messages/unread'),
+  markMessagesRead: (ids) => request(MARKET_BASE_URL + '/messages/read', 'POST', { ids }),
+
   // 入驻管理
   getIndividuals: () => request(MARKET_BASE_URL + '/individuals'),
   getEnterprises: () => request(MARKET_BASE_URL + '/enterprises'),
