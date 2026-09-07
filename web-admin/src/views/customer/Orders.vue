@@ -4,7 +4,7 @@
     <div class="page-card">
       <el-table :data="orders" stripe>
         <el-table-column prop="orderNo" label="订单号" width="200" />
-        <el-table-column prop="description" label="商品" />
+        <el-table-column prop="productName" label="商品" />
         <el-table-column prop="amount" label="金额" width="120">
           <template #default="{ row }">¥{{ row.amount }}</template>
         </el-table-column>

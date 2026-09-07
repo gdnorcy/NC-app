@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { PaymentService } from '../services/payment.js';
 import { addOperationLog } from '../db.js';
+import { applySubscription } from '../services/billing.js';
 
 export function createPaymentRouter(db) {
   const router = Router();
@@ -64,7 +65,17 @@ export function createPaymentRouter(db) {
     const order = payment.markPaid(orderNo, 'MOCK_' + Date.now());
     if (!order) return res.status(404).json({ error: '订单不存在' });
 
-    res.json({ order, message: '模拟支付成功' });
+    // 订阅订单：支付成功后自动开通/续期/升级套餐
+    let subscription = null;
+    if (order.productType === 'subscription' || order.productType === 'subscription_renew' || order.productType === 'subscription_upgrade') {
+      try {
+        subscription = applySubscription(db, order);
+      } catch (e) {
+        console.error('[billing] 订阅开通失败', e?.message || e);
+      }
+    }
+
+    res.json({ order, subscription, message: '模拟支付成功' });
   });
 
   // ============================================================
@@ -80,7 +91,10 @@ export function createPaymentRouter(db) {
       // mock处理：从body中取订单号
       const orderNo = req.body?.orderNo || req.body?.out_trade_no;
       if (orderNo) {
-        payment.markPaid(orderNo, req.body?.transaction_id || '');
+        const order = payment.markPaid(orderNo, req.body?.transaction_id || '');
+        if (order && (order.productType === 'subscription' || order.productType === 'subscription_renew' || order.productType === 'subscription_upgrade')) {
+          try { applySubscription(db, order); } catch (e) { console.error('[billing] 订阅开通失败', e?.message || e); }
+        }
       }
 
       if (channel === 'wechat') {

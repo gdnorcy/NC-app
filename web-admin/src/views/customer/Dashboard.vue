@@ -82,7 +82,7 @@
           <el-button text type="primary" @click="$router.push('/orders')">全部订单</el-button>
         </div>
         <el-table :data="recentOrders" size="small">
-          <el-table-column prop="description" label="订单" />
+          <el-table-column prop="productName" label="订单" />
           <el-table-column prop="amount" label="金额" width="100" />
         </el-table>
         <el-empty v-if="!recentOrders.length" description="暂无订单" :image-size="60" />

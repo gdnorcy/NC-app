@@ -314,6 +314,73 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
   `);
 
+  // —— billing_plans 表（计费套餐：版本×配额×价格）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS billing_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      price REAL NOT NULL DEFAULT 0,          -- 周期价格（元）
+      cycle TEXT NOT NULL DEFAULT 'year',     -- year/month
+      quotas TEXT NOT NULL DEFAULT '{}',      -- JSON: max_individuals/max_enterprises/max_employees/max_scenes/max_storage_mb/max_sms/max_market_items
+      features TEXT NOT NULL DEFAULT '{}',    -- JSON: market_enabled/panorama_enabled/card_enabled/distribution_enabled
+      enabled INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // —— invoices 表（发票申请与记录）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_no TEXT NOT NULL UNIQUE,
+      customer_id INTEGER NOT NULL,
+      order_id INTEGER NOT NULL,
+      order_no TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',          -- 发票抬头
+      tax_no TEXT NOT NULL DEFAULT '',         -- 税号
+      address TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      bank TEXT NOT NULL DEFAULT '',
+      amount REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',  -- pending/issued/rejected
+      remark TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      issued_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_invoices_customer ON invoices(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+  `);
+
+  // —— projects 表加计费字段（套餐ID/周期）——
+  if (!colExists(db, 'projects', 'billing_plan_id')) {
+    db.exec('ALTER TABLE projects ADD COLUMN billing_plan_id INTEGER DEFAULT 1');
+  }
+  if (!colExists(db, 'projects', 'billing_cycle')) {
+    db.exec("ALTER TABLE projects ADD COLUMN billing_cycle TEXT DEFAULT 'year'");
+  }
+
+  // —— 种子计费套餐（幂等：仅当表空时插入）——
+  const planCount = db.prepare('SELECT COUNT(*) AS n FROM billing_plans').get().n;
+  if (planCount === 0) {
+    const seedPlans = [
+      ['free', '免费版', '体验基础能力，适合个人试用', 0, 'year',
+        JSON.stringify({ max_individuals: 5, max_enterprises: 1, max_employees: 10, max_scenes: 5, max_storage_mb: 512, max_sms: 0, max_market_items: 10 }),
+        JSON.stringify({ market_enabled: false, panorama_enabled: true, card_enabled: true, distribution_enabled: false }), 1, 10],
+      ['pro', '专业版', '适合中小商户，解锁人脉集市与分销', 999, 'year',
+        JSON.stringify({ max_individuals: 50, max_enterprises: 5, max_employees: 100, max_scenes: 50, max_storage_mb: 5120, max_sms: 1000, max_market_items: 200 }),
+        JSON.stringify({ market_enabled: true, panorama_enabled: true, card_enabled: true, distribution_enabled: true }), 1, 20],
+      ['flagship', '旗舰版', '全功能开放，企业级配额', 2999, 'year',
+        JSON.stringify({ max_individuals: 500, max_enterprises: 50, max_employees: 1000, max_scenes: 500, max_storage_mb: 51200, max_sms: 10000, max_market_items: 2000 }),
+        JSON.stringify({ market_enabled: true, panorama_enabled: true, card_enabled: true, distribution_enabled: true }), 1, 30],
+    ];
+    const ins = db.prepare('INSERT INTO billing_plans (code, name, description, price, cycle, quotas, features, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const p of seedPlans) ins.run(...p);
+  }
+
   // —— solutions 表（解决方案/应用）——
   db.exec(`
     CREATE TABLE IF NOT EXISTS solutions (

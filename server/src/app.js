@@ -26,6 +26,7 @@ import { createChannelRouter } from './routes/channel.js';
 import { createCardRouter } from './routes/card.js';
 import { createPaymentRouter } from './routes/payment.js';
 import { createCardMarketRouter } from './routes/cardMarket.js';
+import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 
 export function createApp({ db } = {}) {
   const database = db || createDb();
@@ -103,6 +104,9 @@ export function createApp({ db } = {}) {
   app.use('/api/payment', comboAuth, createPaymentRouter(database));
   // 人脉集市API（组合认证：支持JWT和card_token）
   app.use('/api/card-market', comboAuth, createCardMarketRouter(database));
+  // 计费API（总后台套餐/发票管理 + 客户后台套餐/发票）
+  app.use('/api', createBillingRouter(database));
+  app.use('/api/customer', requireAuth, createCustomerBillingRouter(database));
 
   // 健康检查（含依赖探测：数据库连通性）
   app.get('/api/health', (_req, res) => {

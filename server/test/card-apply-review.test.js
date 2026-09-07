@@ -37,6 +37,8 @@ before(() => {
   fs.mkdirSync(config.webDistDir, { recursive: true });
   fs.writeFileSync(path.join(config.webDistDir, 'index.html'), '<html>INDEX_ENTRY</html>');
   db = createDb(config.dbPath);
+  // 测试租户使用旗舰版配额（避免免费版上限拦截多主体审核流）
+  db.prepare("UPDATE projects SET billing_plan_id = (SELECT id FROM billing_plans WHERE code = 'flagship') WHERE id = 1").run();
   app = createApp({ db });
 
   // 租户2（租户1由迁移默认创建 id=1, invite_code='1001'）

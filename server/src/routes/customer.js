@@ -110,9 +110,9 @@ router.get('/dashboard', requireTenant, (req, res) => {
     .prepare('SELECT COUNT(*) AS n FROM scenes s JOIN plans p ON s.plan_id = p.id WHERE p.project_id = ?')
     .get(cid).n;
   const memberCount = db.prepare('SELECT COUNT(*) AS n FROM users WHERE customer_id = ?').get(cid).n;
-  const orderCount = db.prepare("SELECT COUNT(*) AS n FROM orders WHERE customer_id = ? AND status='paid'").get(cid).n;
+  const orderCount = db.prepare("SELECT COUNT(*) AS n FROM payment_orders WHERE customer_id = ? AND payer_type='platform' AND status='paid'").get(cid).n;
   const totalAmount = db
-    .prepare("SELECT COALESCE(SUM(amount),0) AS s FROM orders WHERE customer_id = ? AND status='paid'")
+    .prepare("SELECT COALESCE(SUM(amount),0) AS s FROM payment_orders WHERE customer_id = ? AND payer_type='platform' AND status='paid'")
     .get(cid).s;
 
   // 客户已开通的应用（解决方案）
@@ -145,9 +145,9 @@ router.get('/dashboard', requireTenant, (req, res) => {
 
   // 最近 3 个订单
   const recentOrders = db
-    .prepare('SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT 3')
+    .prepare("SELECT * FROM payment_orders WHERE customer_id = ? AND payer_type='platform' ORDER BY id DESC LIMIT 3")
     .all(cid)
-    .map(toOrder);
+    .map((r) => ({ id: r.id, orderNo: r.order_no, productName: r.product_name, amount: r.amount, status: r.status, createdAt: r.created_at }));
 
   res.json({
     stats: { planCount, sceneCount, memberCount, orderCount, totalAmount, appCount: apps.length },
@@ -251,6 +251,8 @@ router.post('/scenes', requireTenant, requireTenantAdmin, (req, res) => {
   if (!planId) return res.status(400).json({ error: '方案ID必填' });
   const plan = verifyPlanOwnership(req, res, planId);
   if (!plan) return;
+  const quota = checkTenantQuota(db, plan.project_id, 'max_scenes');
+  if (!quota.ok) return res.status(403).json({ error: `场景数量已达上限（${quota.used}/${quota.limit}），请升级套餐后再创建` });
   const hotspotsJson = Array.isArray(hotspots) ? JSON.stringify(hotspots) : '[]';
   const metaJson = meta && typeof meta === 'object' ? JSON.stringify(meta) : '{}';
   const pubVal = published === undefined ? 1 : (published ? 1 : 0);
@@ -300,9 +302,9 @@ router.delete('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
 // 我的账单
 router.get('/orders', requireTenant, (req, res) => {
   const orders = db
-    .prepare('SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC')
+    .prepare("SELECT * FROM payment_orders WHERE customer_id = ? AND payer_type='platform' ORDER BY id DESC")
     .all(req.customerId)
-    .map(toOrder);
+    .map((r) => ({ id: r.id, orderNo: r.order_no, productName: r.product_name, amount: r.amount, status: r.status, paidAt: r.paid_at, createdAt: r.created_at }));
   res.json({ orders });
 });
 

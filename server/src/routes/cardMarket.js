@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { checkTenantAccess } from '../tenant.js';
 import { addOperationLog } from '../db.js';
+import { checkTenantQuota } from '../services/billing.js';
 
 /** 审计日志 helper：租户域操作统一带租户ID前缀，actor 兼容管理端 JWT 与 C 端 card_token */
 function audit(db, req, action, targetType, targetId, detail) {
@@ -288,6 +289,8 @@ export function createCardMarketRouter(db) {
       db.prepare('DELETE FROM card_market_items WHERE id = ?').run(existing.id);
       res.json({ success: true, inMarket: false });
     } else {
+      const q = checkTenantQuota(db, req.customerId, 'max_market_items');
+      if (!q.ok) return res.status(403).json({ error: `集市上架数量已达上限（${q.used}/${q.limit}），请升级套餐后再上架` });
       const settings = db.prepare('SELECT audit_mode FROM card_market_settings WHERE customer_id = ?').get(req.customerId);
       const auditStatus = settings?.audit_mode === 'manual' ? 'pending' : 'approved';
       // 企业主体上架需要企业id
@@ -576,6 +579,10 @@ export function createCardMarketRouter(db) {
       const row = belongsToTenant('tenant_individuals', id, req.customerId);
       if (!row || row.__crossTenant) return res.status(404).json({ error: '申请不存在' });
       if (row.status !== 'pending') return res.status(400).json({ error: '该申请不在待审状态' });
+      if (action === 'approve') {
+        const q = checkTenantQuota(db, req.customerId, 'max_individuals');
+        if (!q.ok) return res.status(403).json({ error: `入驻个人数量已达上限（${q.used}/${q.limit}），请升级套餐后再审核` });
+      }
       db.prepare("UPDATE tenant_individuals SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
       if (action === 'approve') {
         // 绑定租户 + 关联名下未关联名片
@@ -587,6 +594,10 @@ export function createCardMarketRouter(db) {
       const row = belongsToTenant('tenant_enterprises', id, req.customerId);
       if (!row || row.__crossTenant) return res.status(404).json({ error: '申请不存在' });
       if (row.status !== 'pending') return res.status(400).json({ error: '该申请不在待审状态' });
+      if (action === 'approve') {
+        const q = checkTenantQuota(db, req.customerId, 'max_enterprises');
+        if (!q.ok) return res.status(403).json({ error: `入驻企业数量已达上限（${q.used}/${q.limit}），请升级套餐后再审核` });
+      }
       db.prepare("UPDATE tenant_enterprises SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
       db.prepare("UPDATE tenant_enterprise_employees SET status = ?, updated_at = datetime('now') WHERE enterprise_id = ? AND role = 'admin'").run(status, id);
       if (action === 'approve') {

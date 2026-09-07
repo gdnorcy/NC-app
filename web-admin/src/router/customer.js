@@ -22,6 +22,7 @@ const routes = [
       { path: 'apps/card/tenant', component: () => import('../views/customer/apps/card/TenantManage.vue'), meta: { title: '入驻管理', breadcrumbs: ['应用中心', '智能名片', '入驻管理'] } },
       { path: 'apps/card/pool', component: () => import('../views/customer/apps/card/PublicPool.vue'), meta: { title: '公海池', breadcrumbs: ['应用中心', '智能名片', '公海池'] } },
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
+      { path: 'billing', component: () => import('../views/customer/Billing.vue'), meta: { title: '套餐与续费', breadcrumbs: ['套餐与续费'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
       { path: 'settings', redirect: '/settings/account', meta: { title: '系统设置', breadcrumbs: ['系统设置'] } },
       { path: 'settings/account', component: () => import('../views/customer/settings/AccountSettings.vue'), meta: { title: '账号设置', breadcrumbs: ['系统设置', '账号设置'] } },

@@ -27,9 +27,17 @@
           <SIcon name="solutions" size="default" />
           <span>解决方案</span>
         </el-menu-item>
+        <el-menu-item index="/billing-plans">
+          <SIcon name="crown" size="default" />
+          <span>计费套餐</span>
+        </el-menu-item>
         <el-menu-item index="/payment">
           <SIcon name="wallet" size="default" />
           <span>支付管理</span>
+        </el-menu-item>
+        <el-menu-item index="/invoices">
+          <SIcon name="orders" size="default" />
+          <span>发票管理</span>
         </el-menu-item>
         <el-menu-item index="/channel">
           <SIcon name="channel" size="default" />
