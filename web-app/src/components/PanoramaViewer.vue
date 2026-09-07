@@ -1,14 +1,13 @@
 <template>
   <view class="panorama-container">
-    <!-- H5端：使用canvas + Three.js -->
-    <canvas
+    <!-- H5端：普通容器 + 动态创建原生canvas（绕开 uni-canvas 组件对 WebGL 的 2D 代理冲突） -->
+    <view
       v-if="platform === 'h5'"
-      id="panorama-canvas"
-      class="panorama-canvas"
+      class="canvas-host"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
-    ></canvas>
+    ></view>
     <!-- 小程序端：使用type="webgl"的canvas -->
     <canvas
       v-else
@@ -85,22 +84,41 @@ export default {
       }
     },
     async initH5Viewer() {
-      // H5端动态加载Three.js
+      // H5端动态加载Three.js：本地副本优先，CDN兜底（国内网络 jsdelivr 不稳定）
       if (typeof window.THREE === 'undefined') {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
+        const srcs = [
+          './static/three/three.min.js',
+          'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
+        ];
+        for (const src of srcs) {
+          try {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = src;
+              script.onload = resolve;
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+            break;
+          } catch (e) { /* 尝试下一个源 */ }
+        }
+        if (typeof window.THREE === 'undefined') {
+          throw new Error('Three.js 加载失败（本地与CDN均不可用）');
+        }
       }
       const THREE = window.THREE;
-      const canvas = document.getElementById('panorama-canvas');
+      // H5端：动态创建原生 canvas，绕开 uni-canvas 组件的 2D context 代理
+      const host = document.querySelector('.canvas-host');
+      if (!host) throw new Error('全景画布容器不存在');
+      const canvas = document.createElement('canvas');
+      canvas.className = 'panorama-canvas';
+      host.appendChild(canvas);
+      const w = host.clientWidth || 300;
+      const h = host.clientHeight || 300;
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+      const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      renderer.setSize(w, h);
 
       // 加载全景纹理
       const loader = new THREE.TextureLoader();
@@ -208,6 +226,11 @@ export default {
 .panorama-canvas {
   width: 100%;
   height: 100%;
+}
+.canvas-host {
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 .loading-overlay {
   position: absolute;

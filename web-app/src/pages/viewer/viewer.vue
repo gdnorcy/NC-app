@@ -2,6 +2,7 @@
   <view class="viewer-page">
     <PanoramaViewer
       v-if="currentScene"
+      :key="currentSceneId"
       :imageUrl="currentScene.imagePath"
       :hotspots="currentScene.hotspots || []"
       :autoRotate="autoRotate"
@@ -53,13 +54,16 @@ export default {
   methods: {
     async loadScenes() {
       try {
+        // 匿名公开接口：GET /api/plans/:id 返回 { plan, scenes, customer }
         const res = await uni.request({
-          url: `/api/plans/${this.planId}/scenes`,
+          url: `/api/plans/${this.planId}`,
           method: 'GET',
         });
         this.scenes = res.data?.scenes || [];
         if (this.scenes.length) {
           this.currentSceneId = this.scenes[0].id;
+          // 首屏后预热第二张场景图
+          this.preloadNextScene(this.scenes[0]);
         }
       } catch (e) {
         console.error('加载场景失败:', e);
@@ -67,6 +71,18 @@ export default {
     },
     switchScene(scene) {
       this.currentSceneId = scene.id;
+      this.preloadNextScene(scene);
+    },
+    // 预加载目标场景全景图（浏览器缓存预热，切场景秒开）
+    preloadSceneImage(url) {
+      if (!url || typeof Image === 'undefined') return;
+      const img = new Image();
+      img.src = url;
+    },
+    preloadNextScene(scene) {
+      const idx = this.scenes.findIndex(s => s.id === scene.id);
+      const next = this.scenes[idx + 1] || this.scenes[idx - 1];
+      if (next) this.preloadSceneImage(next.imagePath);
     },
     goBack() {
       uni.navigateBack();

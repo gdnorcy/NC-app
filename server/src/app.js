@@ -192,6 +192,7 @@ export function createApp({ db } = {}) {
   const cardDist = path.join(config.publicDir, 'card');
   if (fs.existsSync(cardDist)) {
     app.use('/card/assets', express.static(path.join(cardDist, 'assets'), { maxAge: '1y' }));
+    app.use('/card/static', express.static(path.join(cardDist, 'static'), { maxAge: '1y' }));
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
       if (req.path === '/card' || req.path.startsWith('/card/')) {
