@@ -75,6 +75,12 @@ export const cardApi = {
   getCardWorks: (id) => request(`/cards/${id}/works`),
   getCardDynamics: (id) => request(`/cards/${id}/dynamics`),
   getCardVideos: (id) => request(`/cards/${id}/videos`),
+  // 名片模板（平台公共 + 本租户私有）
+  getTemplates: () => request('/templates'),
+  // 动态互动（点赞/评论）
+  likeDynamic: (id) => request(`/dynamics/${id}/like`, 'POST', {}),
+  getComments: (id) => request(`/dynamics/${id}/comments`),
+  addComment: (id, content) => request(`/dynamics/${id}/comments`, 'POST', { content }),
 
   // 访客采集
   trackVisitor: (data) => request('/visitor/track', 'POST', data),

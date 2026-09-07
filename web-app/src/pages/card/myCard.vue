@@ -149,7 +149,8 @@ import CardTabBar from '../../components/CardTabBar.vue';
 const card = ref({});
 // 品牌色：头像背景用品牌色渐变（无配置回退默认蓝）
 const avatarStyle = computed(() => {
-  const c = card.value.brandColor;
+  // 模板主题 primary 优先，其次租户品牌色
+  const c = card.value.templateTheme?.primary || card.value.brandColor;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
   const dark = shadeHex(c, -0.3);
   return { brand: 1, background: `linear-gradient(135deg, ${dark}, ${c})` };

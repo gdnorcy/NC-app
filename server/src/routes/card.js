@@ -104,7 +104,8 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   router.get('/user/profile', auth, (req, res) => {
     // 与 /cards 一致：join 租户配置，使 brandColor 可用
-    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config
+    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config,
+      ct.theme_config as template_theme
       FROM card_profile cp
       LEFT JOIN platform_user pu ON cp.user_id = pu.id
       LEFT JOIN projects pj ON pj.id = (
@@ -113,6 +114,7 @@ export function createCardRouter(db, wxService) {
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
           0)
       )
+      LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.user_id = ?`).get(req.user.id);
     res.json({ user: toUser(req.user), card: card ? toCard(card) : null });
   });
@@ -123,6 +125,18 @@ export function createCardRouter(db, wxService) {
       .run(nickname || req.user.nickname, avatar || req.user.avatar, phone || req.user.phone, req.user.id);
     const user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(req.user.id);
     res.json({ user: toUser(user) });
+  });
+
+  // ============================================================
+  // 名片模板（C 端套用：平台公共 enabled + 本租户私有）
+  // ============================================================
+  router.get('/templates', auth, (req, res) => {
+    try {
+      const rows = db.prepare(
+        'SELECT * FROM card_templates WHERE (tenant_id = 0 AND enabled = 1) OR tenant_id = ? ORDER BY tenant_id, sort_order, id DESC'
+      ).all(req.customerId || 0);
+      res.json({ templates: rows.map((t) => ({ id: t.id, name: t.name, cover: t.cover, description: t.description, themeConfig: (() => { try { return JSON.parse(t.theme_config); } catch { return {}; } })(), tenantId: t.tenant_id })) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ============================================================
@@ -139,12 +153,14 @@ export function createCardRouter(db, wxService) {
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
           0)
       )
+      LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.user_id = ? ORDER BY cp.created_at DESC`).all(req.user.id);
     res.json({ cards: cards.map(toCard) });
   });
 
   router.get('/cards/:id', (req, res) => {
-    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config
+    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config,
+      ct.theme_config as template_theme
       FROM card_profile cp
       LEFT JOIN platform_user pu ON cp.user_id = pu.id
       LEFT JOIN projects pj ON pj.id = (
@@ -153,6 +169,7 @@ export function createCardRouter(db, wxService) {
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1)
         )
       )
+      LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.id = ?`).get(req.params.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
     if (card.status !== 'active') return res.status(404).json({ error: '名片不可用' });
@@ -163,11 +180,20 @@ export function createCardRouter(db, wxService) {
   router.get('/cards/:id/dynamics', (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(req.params.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
+    // 可选登录态：带当前用户点赞标记
+    let myUid = null;
+    try {
+      if (req.headers.authorization) {
+        const payload = JSON.parse(Buffer.from(req.headers.authorization.split(' ')[1].split('.')[0], 'base64').toString());
+        myUid = payload.uid || null;
+      }
+    } catch {}
     const rows = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d
       LEFT JOIN platform_user u ON d.user_id = u.id
       WHERE d.card_id = ? AND d.status='active' AND d.visibility='public'
       ORDER BY d.created_at DESC LIMIT 20`).all(card.id);
-    res.json({ dynamics: rows.map(toDynamic) });
+    const liked = myUid ? new Set(db.prepare('SELECT dynamic_id FROM card_dynamic_like WHERE user_id = ?').all(myUid).map(r => r.dynamic_id)) : new Set();
+    res.json({ dynamics: rows.map((d) => toDynamic(d, liked.has(d.id))) });
   });
 
   // 名片视频列表（公开）
@@ -179,12 +205,12 @@ export function createCardRouter(db, wxService) {
   });
 
   router.post('/cards', auth, (req, res) => {
-    const { name, position, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic } = req.body;
+    const { name, position, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, templateId } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', needTags || '', avatar || '', isPublic ? 1 : 0);
+      `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public, template_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', needTags || '', avatar || '', isPublic ? 1 : 0, templateId || '');
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(result.lastInsertRowid);
     res.json({ card: toCard(card) });
   });
@@ -192,16 +218,16 @@ export function createCardRouter(db, wxService) {
   // 创建名片+入驻申请（合并流程）
   router.post('/cards/create-with-apply', auth, (req, res) => {
     const { name, position, city, phone, wechat, email, bio, businessField, avatar, isPublic, videoChannel,
-            slogan, tags,
+            slogan, tags, templateId,
             bindCode, applyType, enterpriseName, industry } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
 
     // 1. 创建名片
     const cardType = applyType === 'enterprise' ? 'company' : 'personal';
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '');
+      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags, template_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '', templateId || '');
     const cardId = result.lastInsertRowid;
 
     // 2. 处理入驻申请（填了口令才入驻）
@@ -273,11 +299,17 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel, slogan, tags } = req.body;
+    const { name, position, city, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel, slogan, tags, templateId } = req.body;
+    // 模板存在性校验（公共或本租户）
+    if (templateId !== undefined && templateId) {
+      const tpl = db.prepare('SELECT id FROM card_templates WHERE id = ? AND ((tenant_id = 0 AND enabled = 1) OR tenant_id = ?)').get(templateId, req.customerId || 0);
+      if (!tpl) return res.status(400).json({ error: '模板不存在或不可用' });
+    }
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, card.id);
-    const updated = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, updated_at=datetime('now') WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, card.id);
+    const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
+      FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });
   });
 
@@ -586,6 +618,43 @@ export function createCardRouter(db, wxService) {
     res.json({ dynamic: toDynamic(dynamic) });
   });
 
+  // ============ 动态点赞/取消点赞 ============
+  router.post('/dynamics/:id/like', auth, (req, res) => {
+    const dyn = db.prepare("SELECT * FROM card_dynamic WHERE id = ? AND status = 'active'").get(req.params.id);
+    if (!dyn) return res.status(404).json({ error: '动态不存在' });
+    const exist = db.prepare('SELECT id FROM card_dynamic_like WHERE dynamic_id = ? AND user_id = ?').get(dyn.id, req.user.id);
+    if (exist) {
+      db.prepare('DELETE FROM card_dynamic_like WHERE id = ?').run(exist.id);
+      db.prepare('UPDATE card_dynamic SET like_count = MAX(0, like_count - 1) WHERE id = ?').run(dyn.id);
+      return res.json({ liked: false, likeCount: Math.max(0, (dyn.like_count || 0) - 1) });
+    }
+    db.prepare('INSERT INTO card_dynamic_like (dynamic_id, user_id) VALUES (?, ?)').run(dyn.id, req.user.id);
+    db.prepare('UPDATE card_dynamic SET like_count = like_count + 1 WHERE id = ?').run(dyn.id);
+    res.json({ liked: true, likeCount: (dyn.like_count || 0) + 1 });
+  });
+
+  // ============ 动态评论 ============
+  router.post('/dynamics/:id/comments', auth, (req, res) => {
+    const { content } = req.body;
+    if (!content || !content.trim()) return res.status(400).json({ error: '评论内容不能为空' });
+    const dyn = db.prepare("SELECT * FROM card_dynamic WHERE id = ? AND status = 'active'").get(req.params.id);
+    if (!dyn) return res.status(404).json({ error: '动态不存在' });
+    const r = db.prepare('INSERT INTO card_dynamic_comment (dynamic_id, user_id, content) VALUES (?, ?, ?)')
+      .run(dyn.id, req.user.id, content.trim().slice(0, 200));
+    db.prepare('UPDATE card_dynamic SET comment_count = comment_count + 1 WHERE id = ?').run(dyn.id);
+    const c = db.prepare(`SELECT c.*, u.nickname, u.avatar FROM card_dynamic_comment c
+      LEFT JOIN platform_user u ON c.user_id = u.id WHERE c.id = ?`).get(r.lastInsertRowid);
+    res.json({ comment: { id: c.id, dynamicId: c.dynamic_id, userId: c.user_id, nickname: c.nickname || '访客', avatar: c.avatar || '', content: c.content, createdAt: c.created_at } });
+  });
+
+  // 动态评论列表（公开只读）
+  router.get('/dynamics/:id/comments', (req, res) => {
+    const rows = db.prepare(`SELECT c.*, u.nickname, u.avatar FROM card_dynamic_comment c
+      LEFT JOIN platform_user u ON c.user_id = u.id
+      WHERE c.dynamic_id = ? AND c.status = 'active' ORDER BY c.created_at ASC LIMIT 50`).all(req.params.id);
+    res.json({ comments: rows.map((c) => ({ id: c.id, dynamicId: c.dynamic_id, userId: c.user_id, nickname: c.nickname || '访客', avatar: c.avatar || '', content: c.content, createdAt: c.created_at })) });
+  });
+
   // ============================================================
   // 工具函数
   // ============================================================
@@ -608,12 +677,17 @@ export function createCardRouter(db, wxService) {
     if (row.tenant_config) {
       try { const cfg = JSON.parse(row.tenant_config); brandColor = cfg.brand_color || ''; } catch {}
     }
+    // 模板主题（card_templates.theme_config）
+    let templateTheme = null;
+    if (row.template_theme) {
+      try { templateTheme = JSON.parse(row.template_theme); } catch {}
+    }
     return {
       id: row.id, userId: row.user_id, enterpriseId: row.enterprise_id, cardType: row.card_type,
       name: row.name, position: row.position, city: row.city, phone: row.phone, wechat: row.wechat, email: row.email,
       company: row.company, bio: row.bio, businessField: row.business_field, avatar: row.avatar,
       slogan: row.slogan || '', tags: row.tags || '', needTags: row.need_tags || '',
-      templateId: row.template_id, videoChannel: row.video_channel, isPublic: !!row.is_public,
+      templateId: row.template_id, templateTheme, videoChannel: row.video_channel, isPublic: !!row.is_public,
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
       ownerMemberLevel,
       brandColor,
@@ -621,11 +695,12 @@ export function createCardRouter(db, wxService) {
     };
   }
 
-  function toDynamic(row) {
+  function toDynamic(row, likedByMe = false) {
     if (!row) return null;
     let images = [];
     try { images = JSON.parse(row.images || '[]'); } catch {}
     return {
+      likedByMe: !!likedByMe,
       id: row.id, userId: row.user_id, cardId: row.card_id, title: row.title || '',
       content: row.content, images, likeCount: row.like_count || 0, commentCount: row.comment_count || 0,
       authorName: row.nickname || '', authorAvatar: row.avatar || '',

@@ -737,6 +737,26 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_dynamic_user ON card_dynamic(user_id);
     CREATE INDEX IF NOT EXISTS idx_dynamic_visibility ON card_dynamic(visibility, status);
+
+    -- 动态点赞（防重复）
+    CREATE TABLE IF NOT EXISTS card_dynamic_like (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dynamic_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_dynamic_like_uniq ON card_dynamic_like(dynamic_id, user_id);
+
+    -- 动态评论
+    CREATE TABLE IF NOT EXISTS card_dynamic_comment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dynamic_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_dynamic_comment_dyn ON card_dynamic_comment(dynamic_id, status);
   `);
 
   // —— 行为埋点事件表（第三批：漏斗/健康分/增长分析）——

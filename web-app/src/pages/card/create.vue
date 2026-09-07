@@ -60,6 +60,27 @@
           </view>
         </view>
 
+        <!-- 选择模板（公共模板 + 租户私有模板） -->
+        <view class="card-title" style="margin-top: 20rpx;">选择模板</view>
+        <view class="card-desc">套用模板主题，保存后可在名片详情实时预览</view>
+        <scroll-view class="tpl-scroll" scroll-x :show-scrollbar="false">
+          <view class="tpl-list">
+            <view
+              v-for="t in templates" :key="t.id"
+              class="tpl-item" :class="{ active: form.templateId === t.id }"
+              @click="selectTemplate(t)"
+            >
+              <view class="tpl-cover" :style="{ background: (t.themeConfig && t.themeConfig.primary) || '#07c160' }">
+                <image v-if="t.cover" :src="t.cover" class="tpl-cover-img" mode="aspectFill" />
+                <text v-else class="tpl-cover-text">{{ t.name.slice(0, 2) }}</text>
+                <view class="tpl-check" v-if="form.templateId === t.id">✓</view>
+              </view>
+              <text class="tpl-name">{{ t.name }}</text>
+            </view>
+          </view>
+        </scroll-view>
+        <view class="bind-hint">未选择时使用默认名片样式</view>
+
         <!-- 入驻绑定（仅新建时，可折叠） -->
         <view v-if="!isEdit" class="bind-section">
           <view class="bind-header" @click="showBind = !showBind">
@@ -213,7 +234,9 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { track, trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
 const isEdit = ref(false);
@@ -234,11 +257,33 @@ const form = reactive({
 
 const errors = reactive({ name: false, phone: false });
 
+const templates = ref([]);
+const templatesLoaded = ref(false);
+async function loadTemplates() {
+  if (templatesLoaded.value) return;
+  try {
+    const res = await cardApi.getTemplates();
+    templates.value = res.templates || [];
+    // 默认选中第一个模板（若有）
+    if (templates.value.length && !form.templateId) {
+      form.templateId = templates.value[0].id;
+    }
+    templatesLoaded.value = true;
+  } catch (e) {
+    console.warn('模板加载失败', e);
+  }
+}
+function selectTemplate(t) {
+  form.templateId = form.templateId === t.id ? '' : t.id;
+}
+
 onShow(() => {
   trackPageView('/pages/card/create');
 });
 
 onMounted(async () => {
+  // 加载模板列表（新建/编辑均可用，编辑时默认选中当前模板）
+  loadTemplates();
   const pages = getCurrentPages();
   const id = pages[pages.length - 1].options.id;
   if (id) {
@@ -771,4 +816,15 @@ async function submit() {
   border-radius: 44rpx;
   border: 2rpx solid #e5e6eb;
 }
+
+/* ===== 模板选择 ===== */
+.tpl-scroll { width: 100%; white-space: nowrap; margin-top: 16rpx; }
+.tpl-list { display: inline-flex; gap: 20rpx; padding: 4rpx 2rpx 12rpx; }
+.tpl-item { width: 200rpx; flex-shrink: 0; border-radius: 16rpx; border: 3rpx solid transparent; overflow: hidden; background: #f7f8fa; }
+.tpl-item.active { border-color: #07c160; background: #f0faf5; }
+.tpl-cover { position: relative; height: 150rpx; display: flex; align-items: center; justify-content: center; }
+.tpl-cover-img { width: 100%; height: 100%; }
+.tpl-cover-text { color: #fff; font-size: 44rpx; font-weight: 600; }
+.tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #07c160; color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
+.tpl-name { display: block; padding: 12rpx 10rpx 14rpx; font-size: 24rpx; color: #1d2129; text-align: center; white-space: normal; word-break: break-all; }
 </style>

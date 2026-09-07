@@ -114,14 +114,42 @@
           </view>
           <image v-if="d.images && d.images.length" class="dyn-img" :src="d.images[0]" mode="aspectFill" @click="previewDyn(d)" />
           <view class="dyn-meta">
-            <span><SIcon name="analytics" size="small" color="#9a9a9a" /> {{ d.likeCount }}</span>
-            <span><SIcon name="exchange" size="small" color="#9a9a9a" /> {{ d.commentCount }}</span>
+            <span class="dyn-act" :class="{ liked: d.likedByMe }" @click.stop="toggleLike(d)">
+              <SIcon name="like" size="small" :color="d.likedByMe ? '#165dff' : '#9a9a9a'" /> {{ d.likeCount || 0 }}
+            </span>
+            <span class="dyn-act" @click.stop="openComments(d)">
+              <SIcon name="comment" size="small" color="#9a9a9a" /> {{ d.commentCount || 0 }}
+            </span>
           </view>
         </view>
       </view>
       <view class="empty-state" v-else>
         <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
         <view class="empty-text">暂无动态</view>
+      </view>
+    </view>
+
+    <!-- 动态评论面板 -->
+    <view class="cmt-mask" v-if="commentPanel.show" @click="commentPanel.show = false"></view>
+    <view class="cmt-panel" v-if="commentPanel.show">
+      <view class="cmt-head">
+        <text>评论（{{ commentPanel.count }}）</text>
+        <text class="cmt-close" @click="commentPanel.show = false">✕</text>
+      </view>
+      <scroll-view scroll-y class="cmt-list">
+        <view v-if="commentPanel.list.length === 0" class="cmt-empty">还没有评论，快来抢沙发</view>
+        <view class="cmt-item" v-for="c in commentPanel.list" :key="c.id">
+          <view class="cmt-av"><image v-if="c.avatar" :src="c.avatar" mode="aspectFill" /><text v-else>{{ (c.nickname || '客')[0] }}</text></view>
+          <view class="cmt-body">
+            <view class="cmt-name">{{ c.nickname || '访客' }}</view>
+            <view class="cmt-text">{{ c.content }}</view>
+            <view class="cmt-time">{{ timeText(c.createdAt) }}</view>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="cmt-input-row">
+        <input class="cmt-input" v-model="commentPanel.text" placeholder="说点什么…" placeholder-class="ph" confirm-type="send" @confirm="submitComment" />
+        <button class="cmt-send" :disabled="commentPanel.sending || !commentPanel.text.trim()" @click="submitComment">发送</button>
       </view>
     </view>
 
@@ -155,7 +183,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
@@ -166,7 +194,7 @@ import CardTabBar from '../../components/CardTabBar.vue';
 
 const card = ref({});
 // 品牌色 hero：租户配置了 brand_color 则用品牌渐变，否则回退默认橙色
-const heroStyle = computed(() => ({ background: heroGradient(card.value.brandColor) }));
+const heroStyle = computed(() => ({ background: heroGradient(card.value.templateTheme?.primary || card.value.brandColor) }));
 const works = ref([]);
 const dynamics = ref([]);
 const videos = ref([]);
@@ -258,6 +286,64 @@ function previewWork(w) {
 }
 function previewDyn(d) {
   if (d.images && d.images.length) uni.previewImage({ urls: d.images, current: d.images[0] });
+}
+
+// ===== 动态互动：点赞 =====
+async function toggleLike(d) {
+  if (!ensureLogin()) return;
+  const prevLiked = d.likedByMe;
+  const prevCount = d.likeCount || 0;
+  d.likedByMe = !prevLiked;
+  d.likeCount = Math.max(0, prevCount + (prevLiked ? -1 : 1));
+  try {
+    const r = await cardApi.likeDynamic(d.id);
+    d.likedByMe = r.liked;
+    d.likeCount = r.likeCount;
+  } catch (e) {
+    d.likedByMe = prevLiked;
+    d.likeCount = prevCount;
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' });
+  }
+}
+
+// ===== 动态互动：评论 =====
+const commentPanel = reactive({ show: false, dynamicId: null, list: [], count: 0, text: '', sending: false });
+async function openComments(d) {
+  if (!ensureLogin()) return;
+  commentPanel.dynamicId = d.id;
+  commentPanel.count = d.commentCount || 0;
+  commentPanel.show = true;
+  try {
+    const r = await cardApi.getComments(d.id);
+    commentPanel.list = r.comments || [];
+    commentPanel.count = commentPanel.list.length;
+  } catch (e) {}
+}
+async function submitComment() {
+  const text = commentPanel.text.trim();
+  if (!text || commentPanel.sending) return;
+  commentPanel.sending = true;
+  try {
+    const r = await cardApi.addComment(commentPanel.dynamicId, text);
+    commentPanel.list.push(r.comment);
+    commentPanel.count++;
+    commentPanel.text = '';
+    // 同步卡片上的评论数
+    const dyn = dynamics.value.find((x) => x.id === commentPanel.dynamicId);
+    if (dyn) dyn.commentCount = commentPanel.count;
+    uni.showToast({ title: '评论成功', icon: 'success' });
+  } catch (e) {
+    uni.showToast({ title: e.message || '评论失败', icon: 'none' });
+  } finally {
+    commentPanel.sending = false;
+  }
+}
+function ensureLogin() {
+  if (!uni.getStorageSync('card_token')) {
+    uni.showToast({ title: '请先登录', icon: 'none' });
+    return false;
+  }
+  return true;
 }
 function timeText(t) {
   if (!t) return '';
@@ -664,4 +750,26 @@ function shareCard() {
   padding: 2rpx 10rpx;
   border-radius: 8rpx;
 }
+
+/* ===== 动态评论面板 ===== */
+.cmt-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 900; }
+.cmt-panel { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 24rpx 24rpx 0 0; z-index: 901; display: flex; flex-direction: column; max-height: 60vh; }
+.cmt-head { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 32rpx; border-bottom: 1rpx solid #f0f0f0; font-size: 30rpx; font-weight: 600; color: #1d2129; }
+.cmt-close { color: #86909c; font-size: 32rpx; font-weight: 400; padding: 4rpx 12rpx; }
+.cmt-list { flex: 1; overflow: hidden; padding: 8rpx 32rpx; }
+.cmt-empty { text-align: center; color: #86909c; font-size: 26rpx; padding: 48rpx 0; }
+.cmt-item { display: flex; gap: 18rpx; padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; }
+.cmt-av { width: 64rpx; height: 64rpx; border-radius: 50%; background: linear-gradient(135deg,#07c160,#1edc87); color: #fff; font-size: 28rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.cmt-av image { width: 100%; height: 100%; }
+.cmt-body { flex: 1; min-width: 0; }
+.cmt-name { font-size: 26rpx; color: #4e5969; font-weight: 500; }
+.cmt-text { font-size: 28rpx; color: #1d2129; margin-top: 4rpx; word-break: break-all; }
+.cmt-time { font-size: 22rpx; color: #c9cdd4; margin-top: 6rpx; }
+.cmt-input-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f0f0f0; background: #fff; }
+.cmt-input { flex: 1; height: 72rpx; background: #f7f8fa; border-radius: 36rpx; padding: 0 28rpx; font-size: 28rpx; }
+.cmt-send { width: 140rpx; height: 72rpx; line-height: 72rpx; background: #07c160; color: #fff; font-size: 28rpx; border-radius: 36rpx; padding: 0; margin: 0; }
+.cmt-send[disabled] { opacity: 0.5; }
+.dyn-act { display: inline-flex; align-items: center; gap: 6rpx; padding: 8rpx 14rpx; border-radius: 24rpx; }
+.dyn-act.liked { color: #165dff; font-weight: 600; background: rgba(22,93,255,0.06); }
+
 </style>
