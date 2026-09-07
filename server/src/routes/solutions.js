@@ -179,7 +179,7 @@ export function createSolutionsRouter(db) {
       { key: 'enterpriseCount', label: '入驻企业数', value: 0 },
       { key: 'employeeCount', label: '企业员工人数', value: 0 },
     ] },
-    { appCode: 'panorama', appName: '零壹系统云', items: [
+    { appCode: 'panorama', appName: '360全景', items: [
       { key: 'planCount', label: '方案数', value: 5 },
       { key: 'sceneCount', label: '场景数', value: 50 },
     ] },

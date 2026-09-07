@@ -157,6 +157,7 @@ test('Q6 解决方案资产接口：废弃项移除、企业员工人数在列',
   assert.equal(emp.label, '企业员工人数');
 
   const pano = res.body.assets.quotas.find((g) => g.appCode === 'panorama');
-  assert.ok(pano, '零壹系统云配额组应存在');
-  assert.ok(!pano.items.some((i) => i.key === 'storageMb'), '零壹系统云不应包含存储空间');
+  assert.ok(pano, '360全景配额组应存在');
+  assert.equal(pano.appName, '360全景', '应用名应为 360全景，不得写为平台名');
+  assert.ok(!pano.items.some((i) => i.key === 'storageMb'), '360全景不应包含存储空间');
 });
