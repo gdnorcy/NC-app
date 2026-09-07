@@ -210,7 +210,7 @@ export function createCardRouter(db, wxService) {
     const result = db.prepare(
       `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public, template_id)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', needTags || '', avatar || '', isPublic ? 1 : 0, templateId || '');
+    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', Array.isArray(needTags) ? JSON.stringify(needTags) : (needTags || ''), avatar || '', isPublic ? 1 : 0, templateId || '');
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(result.lastInsertRowid);
     res.json({ card: toCard(card) });
   });
@@ -299,15 +299,15 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, phone, wechat, email, company, bio, businessField, avatar, isPublic, videoChannel, slogan, tags, templateId } = req.body;
+    const { name, position, city, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId } = req.body;
     // 模板存在性校验（公共或本租户）
     if (templateId !== undefined && templateId) {
       const tpl = db.prepare('SELECT id FROM card_templates WHERE id = ? AND ((tenant_id = 0 AND enabled = 1) OR tenant_id = ?)').get(templateId, req.customerId || 0);
       if (!tpl) return res.status(400).json({ error: '模板不存在或不可用' });
     }
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, updated_at=datetime('now') WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, card.id);
     const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
       FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });

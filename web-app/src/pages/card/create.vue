@@ -81,6 +81,19 @@
         </scroll-view>
         <view class="bind-hint">未选择时使用默认名片样式</view>
 
+        <!-- 供需标签（多选≤3） -->
+        <view class="card-title" style="margin-top: 20rpx;">供需标签</view>
+        <view class="need-row">
+          <view
+            class="need-item"
+            v-for="t in NEED_OPTIONS"
+            :key="t"
+            :class="{ on: form.needTags.includes(t) }"
+            @click="toggleNeed(t)"
+          >{{ t }}</view>
+        </view>
+        <view class="bind-hint">最多选 3 个，展示在名片详情页，帮助别人快速了解你的需求</view>
+
         <!-- 入驻绑定（仅新建时，可折叠） -->
         <view v-if="!isEdit" class="bind-section">
           <view class="bind-header" @click="showBind = !showBind">
@@ -251,9 +264,22 @@ const steps = ['基本信息', '联系方式', '发布设置'];
 const form = reactive({
   id: null,
   name: '', position: '', city: '', bio: '', avatar: '',
-  phone: '', wechat: '', email: '', businessField: '', videoChannel: '', isPublic: true,
+  phone: '', wechat: '', email: '', businessField: '', videoChannel: '', isPublic: true, needTags: [],
   bindCode: '', enterpriseName: '', industry: '',
 });
+
+const NEED_OPTIONS = ['找渠道', '求合作', '招合伙人', '寻资源', '招代理', '找投资'];
+function parseNeedTags(v) {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (!v) return [];
+  try { const arr = JSON.parse(v); return Array.isArray(arr) ? arr.filter(Boolean) : []; } catch (e) { return []; }
+}
+function toggleNeed(t) {
+  const i = form.needTags.indexOf(t);
+  if (i >= 0) form.needTags.splice(i, 1);
+  else if (form.needTags.length < 3) form.needTags.push(t);
+  else uni.showToast({ title: '最多选择 3 个', icon: 'none' });
+}
 
 const errors = reactive({ name: false, phone: false });
 
@@ -291,6 +317,7 @@ onMounted(async () => {
     try {
       const res = await cardApi.getCard(id);
       Object.assign(form, res.card);
+      form.needTags = parseNeedTags(form.needTags);
     } catch (e) {}
   } else {
     // 新建时展示本人入驻申请审核状态
@@ -359,11 +386,11 @@ async function submit() {
   let newCardId = null;
   try {
     if (isEdit.value) {
-      await cardApi.updateCard(form.id, form);
+      await cardApi.updateCard(form.id, { ...form, needTags: JSON.stringify(form.needTags) });
       uni.showToast({ title: '保存成功', icon: 'success' });
       track('form_submit', { cardId: form.id || newCardId || 0, page: '/pages/card/create', extra: { isEdit: isEdit.value } });
     } else {
-      const payload = { ...form };
+      const payload = { ...form, needTags: JSON.stringify(form.needTags) };
       // 入驻绑定：填了口令才同时入驻
       if (payload.bindCode) {
         payload.applyType = cardType.value;
@@ -614,6 +641,10 @@ async function submit() {
   margin-top: 16rpx;
 }
 .bind-hint {
+
+.need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
+.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: #f7f8fa; color: #4e5969; font-size: 26rpx; border: 2rpx solid transparent; }
+.need-item.on { background: rgba(22,93,255,0.08); color: #165dff; border-color: #165dff; font-weight: 500; }
   font-size: 20rpx;
   color: #86909c;
   margin-top: 8rpx;
