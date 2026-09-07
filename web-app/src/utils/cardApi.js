@@ -104,7 +104,10 @@ export const cardApi = {
   exchangeHandle: (data) => request(MARKET_BASE_URL + '/exchange/handle', 'POST', data),
   getExchangeList: () => request(MARKET_BASE_URL + '/exchange/list'),
   getConnections: () => request(MARKET_BASE_URL + '/connections'),
-  convertConnectionToCustomer: (id) => request(`/card-market/connections/${id}/convert-customer`, 'POST'),
+  updateConnection: (id, data) => request(MARKET_BASE_URL + `/connections/${id}`, 'PUT', data),
+  deleteConnection: (id) => request(MARKET_BASE_URL + `/connections/${id}`, 'DELETE'),
+  convertConnectionToCustomer: (id) => request(MARKET_BASE_URL + `/connections/${id}/convert-customer`, 'POST'),
+  getExchangeUnread: () => request(MARKET_BASE_URL + '/exchange/unread'),
 
   // 入驻管理
   getIndividuals: () => request(MARKET_BASE_URL + '/individuals'),

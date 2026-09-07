@@ -51,6 +51,17 @@ before(async () => {
   // 集市设置：默认 A
   db.prepare("INSERT OR IGNORE INTO card_market_settings (customer_id, enabled, style, notice) VALUES (1, 1, 'A', '')").run();
 
+  // D 组：真实 platform_user + card_token 链路（与 C 端一致）
+  db.prepare("INSERT OR IGNORE INTO platform_user (id, customer_id, nickname, avatar, status) VALUES (101, 1, '林平', '', 'active')").run();
+  db.prepare("INSERT OR IGNORE INTO platform_user (id, customer_id, nickname, avatar, status) VALUES (102, 1, '陈志强', '', 'active')").run();
+  db.prepare("INSERT OR IGNORE INTO platform_user (id, customer_id, nickname, avatar, status) VALUES (103, 1, '黄志明', '', 'active')").run();
+  db.prepare("INSERT OR IGNORE INTO tenant_individuals (id, customer_id, user_id, name, phone) VALUES (101, 1, 101, '林平', '13811111111')").run();
+  db.prepare("INSERT OR IGNORE INTO tenant_individuals (id, customer_id, user_id, name, phone) VALUES (102, 1, 102, '陈志强', '13822222222')").run();
+  db.prepare("INSERT OR IGNORE INTO tenant_individuals (id, customer_id, user_id, name, phone) VALUES (103, 1, 103, '黄志明', '13833333333')").run();
+  db.prepare("INSERT OR IGNORE INTO card_profile (id, user_id, name, position, company, business_field) VALUES (101, 101, '林平', '副会长/秘书长', '东莞市揭阳商会', '商会服务')").run();
+  db.prepare("INSERT OR IGNORE INTO card_profile (id, user_id, name, position, company, business_field) VALUES (102, 102, '陈志强', '董事长', '东莞XX机械', '精密机械')").run();
+  db.prepare("INSERT OR IGNORE INTO card_profile (id, user_id, name, position, company, business_field) VALUES (103, 103, '黄志明', '经理', '东莞XX贸易', '外贸')").run();
+
   const l1 = await request(app).post('/api/auth/login').send({ username: 'tenant1', password: 'admin123' });
   t1Token = l1.body.token;
   const l3 = await request(app).post('/api/auth/login').send({ username: 'member1', password: 'admin123' });
@@ -138,4 +149,109 @@ test('C4 总后台 config.market 授权同步（类似模板）', async () => {
     customerName: '一号客户', status: 'active', solutions: ['card'],
     config: { market: { enabled: true, style: 'A', notice: '' } },
   });
+});
+
+// ================= D 组：交换闭环（人脉库/交换申请/转客户） =================
+// 说明：走真实 platform_user + card_token 链路（comboAuth 只解 base64 payload 不验签）
+// D1 交换请求→接受→双方 connections 快照各自取到对方（from/to 双向修复）
+// D2 人脉分组/备注编辑 PUT /connections/:id
+// D3 人脉转客户：双方视角各自转出的客户姓名正确（快照方向修复）
+// D4 重复转客户拦截 / 删除人脉
+// D5 待处理交换请求红点 unread
+const cardTok = (uid) => 'Bearer ' + Buffer.from(JSON.stringify({ uid })).toString('base64') + '.sig';
+let dConnId = null;
+
+test('D1 交换请求-接受-双向人脉快照', async () => {
+  // 林平(101) → 陈志强(102) 发起交换
+  const req = await request(app).post('/api/card-market/exchange/request')
+    .set('Authorization', cardTok(101)).send({ toUserId: 102, message: '商会合作' });
+  assert.equal(req.status, 200, '101→102 发起交换');
+  const conn = db.prepare('SELECT * FROM card_connections WHERE from_user_id = 101 AND to_user_id = 102').get();
+  assert.ok(conn, '连接已创建');
+  dConnId = conn.id;
+
+  // 陈志强(102) 接受
+  const h = await request(app).post('/api/card-market/exchange/handle')
+    .set('Authorization', cardTok(102)).send({ connectionId: conn.id, action: 'accept' });
+  assert.equal(h.status, 200, '102 接受交换');
+
+  // 双方 connections 快照：101 视角对方=陈志强(to.name)；102 视角对方=林平(from.name) ← 修复核心
+  const a = await request(app).get('/api/card-market/connections').set('Authorization', cardTok(101));
+  assert.equal(a.status, 200);
+  const mine = a.body.connections.find((c) => c.id === conn.id);
+  assert.ok(mine, '101 人脉中可见');
+  assert.equal(mine.contact_name, '陈志强', '101 视角对方=陈志强（快照 to）');
+  assert.equal(mine.contact_position, '董事长');
+  assert.equal(mine.contact_company, '东莞XX机械');
+
+  const b = await request(app).get('/api/card-market/connections').set('Authorization', cardTok(102));
+  const lin = b.body.connections.find((c) => c.id === conn.id);
+  assert.ok(lin, '102 人脉中可见');
+  assert.equal(lin.contact_name, '林平', '102 视角对方=林平（快照 from 修复）');
+  assert.equal(lin.contact_position, '副会长/秘书长');
+  assert.equal(lin.contact_company, '东莞市揭阳商会');
+});
+
+test('D2 人脉分组/备注编辑', async () => {
+  const u = await request(app).put(`/api/card-market/connections/${dConnId}`)
+    .set('Authorization', cardTok(102)).send({ groupName: '商会老乡', remark: '揭阳商会副会长' });
+  assert.equal(u.status, 200);
+  const row = db.prepare('SELECT group_name, remark FROM card_connections WHERE id = ?').get(dConnId);
+  assert.equal(row.group_name, '商会老乡');
+  assert.equal(row.remark, '揭阳商会副会长');
+  // 非当事人无权编辑
+  const forbid = await request(app).put(`/api/card-market/connections/${dConnId}`)
+    .set('Authorization', cardTok(103)).send({ groupName: 'x' });
+  assert.equal(forbid.status, 403, '第三方不可编辑他人人脉');
+});
+
+test('D3 人脉转客户（快照方向修复）', async () => {
+  // 102 视角转（对方=林平，快照在 from —— 验证修复）
+  const r1 = await request(app).post(`/api/card-market/connections/${dConnId}/convert-customer`)
+    .set('Authorization', cardTok(102));
+  assert.equal(r1.status, 200, '102 转林平为客户');
+  let cust = db.prepare('SELECT * FROM card_customer WHERE owner_user_id = 102 AND source_user_id = 101').get();
+  assert.ok(cust, '客户已落库');
+  assert.equal(cust.name, '林平', '102 视角转出的客户名=林平（from 快照修复）');
+  assert.equal(cust.company, '东莞市揭阳商会');
+  // 101 视角转（对方=陈志强，快照在 to）
+  const r2 = await request(app).post(`/api/card-market/connections/${dConnId}/convert-customer`)
+    .set('Authorization', cardTok(101));
+  assert.equal(r2.status, 200, '101 转陈志强为客户');
+  cust = db.prepare('SELECT * FROM card_customer WHERE owner_user_id = 101 AND source_user_id = 102').get();
+  assert.ok(cust, '101 客户已落库');
+  assert.equal(cust.name, '陈志强', '101 视角转出的客户名=陈志强（to 快照）');
+  // 重复转拦截
+  const r3 = await request(app).post(`/api/card-market/connections/${dConnId}/convert-customer`)
+    .set('Authorization', cardTok(102));
+  assert.equal(r3.status, 400, '重复转客户被拦截');
+});
+
+test('D4 删除人脉', async () => {
+  const d = await request(app).delete(`/api/card-market/connections/${dConnId}`).set('Authorization', cardTok(101));
+  assert.equal(d.status, 200, '101 删除人脉');
+  const gone = db.prepare('SELECT id FROM card_connections WHERE id = ?').get(dConnId);
+  assert.equal(gone, undefined, '人脉已删除');
+  // 已转客户不受影响
+  const cust = db.prepare('SELECT id FROM card_customer WHERE owner_user_id = 102 AND source_user_id = 101').get();
+  assert.ok(cust, '已转客户保留');
+});
+
+test('D5 待处理交换请求红点 unread', async () => {
+  // 林平(101) → 黄志明(103) 发起待处理
+  await request(app).post('/api/card-market/exchange/request')
+    .set('Authorization', cardTok(101)).send({ toUserId: 103, message: '老乡好' });
+  const after = await request(app).get('/api/card-market/exchange/unread').set('Authorization', cardTok(103));
+  assert.equal(after.status, 200);
+  assert.equal(after.body.count, 1, '103 收到1条待处理');
+  // 列表可见
+  const list = await request(app).get('/api/card-market/exchange/list').set('Authorization', cardTok(103));
+  assert.equal(list.status, 200);
+  assert.ok(list.body.requests.some((r) => r.from_user_id === 101 && r.to_user_id === 103 && r.status === 'pending'), '待处理请求在列表中');
+  // 清理：103 拒绝
+  const pending = db.prepare("SELECT id FROM card_connections WHERE from_user_id = 101 AND to_user_id = 103 AND status = 'pending'").get();
+  await request(app).post('/api/card-market/exchange/handle')
+    .set('Authorization', cardTok(103)).send({ connectionId: pending.id, action: 'reject' });
+  const unreadAfter = await request(app).get('/api/card-market/exchange/unread').set('Authorization', cardTok(103));
+  assert.equal(unreadAfter.body.count, 0, '处理后红点清零');
 });

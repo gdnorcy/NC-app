@@ -62,6 +62,20 @@
           }
         },
         {
+          "path": "connections",
+          "style": {
+            "navigationBarTitleText": "我的人脉库",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "exchangeRequests",
+          "style": {
+            "navigationBarTitleText": "交换申请",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "visitors",
           "style": {
             "navigationBarTitleText": "访客雷达",

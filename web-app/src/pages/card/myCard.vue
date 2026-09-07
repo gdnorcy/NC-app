@@ -104,6 +104,11 @@
     <!-- 高级工具 -->
     <view class="owner-section">
       <view class="os-t">高级工具</view>
+      <view class="os-row" @click="goConnections">
+        <view class="osr-icon"><SIcon name="market" size="default" color="#1d4e8f" /></view>
+        <view class="osr-main"><view class="osr-name">我的人脉库</view><view class="osr-desc">管理交换得来的人脉，可转为客户线索</view></view>
+        <text class="osr-arrow">›</text>
+      </view>
       <view class="os-row" @click="saveCardInfo">
         <view class="osr-icon"><SIcon name="storage" size="default" color="#1d4e8f" /></view>
         <view class="osr-main"><view class="osr-name">保存名片</view><view class="osr-desc">复制名片信息，可保存到手机通讯录</view></view>
@@ -307,6 +312,7 @@ function exportData() {
   ].join('\n');
   uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '名片与访客数据已复制', icon: 'none' }) });
 }
+const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 function leaveTenant() {
   uni.showModal({
     title: '退出租户',

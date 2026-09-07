@@ -7,7 +7,15 @@
       </view>
       <view class="nav-title">{{ settings.title || '人脉集市' }}</view>
       <view class="nav-tag" v-if="tenantName">{{ tenantName }}</view>
-      <view class="nav-right"></view>
+      <view class="nav-right">
+        <view class="nav-icon" @click="goRequests">
+          <SIcon name="exchange" size="default" color="#1a1a1a" />
+          <view v-if="unreadCount > 0" class="red-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+        </view>
+        <view class="nav-icon" @click="goConnections">
+          <SIcon name="market" size="default" color="#1a1a1a" />
+        </view>
+      </view>
     </view>
 
     <!-- 搜索 -->
@@ -275,6 +283,7 @@ const foldOpen = ref(false);
 const cTab = ref('all');
 const myStatus = ref(null); // { items, subjects }
 const exchangedUserIds = ref([]);
+const unreadCount = ref(0);
 
 const mySubject = computed(() => (myStatus.value?.subjects || []).find((s) => s.status === 'active'));
 const myOn = computed(() => {
@@ -362,6 +371,10 @@ async function loadAll() {
         .filter((c) => c.status === 'accepted')
         .map((c) => c.otherUserId || c.toUserId || c.fromUserId);
     }
+    try {
+      const un = await cardApi.getExchangeUnread();
+      unreadCount.value = un.count || 0;
+    } catch (e) {}
   } catch (e) { console.error('加载集市配置失败', e); }
   await loadMarket();
   loading.value = false;
@@ -440,6 +453,8 @@ async function quickExchange(item) {
 }
 
 function goBack() { uni.navigateBack(); }
+const goRequests = () => uni.navigateTo({ url: '/pages/card/exchangeRequests' });
+const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 </script>
 
 <style scoped>
@@ -447,6 +462,9 @@ function goBack() { uni.navigateBack(); }
 
 /* 顶部导航栏 */
 .nav-bar { display: flex; align-items: center; height: 88rpx; padding: 88rpx 32rpx 0; background: #fff; position: sticky; top: 0; z-index: 10; }
+.nav-right { display: flex; align-items: center; gap: 20rpx; }
+.nav-icon { position: relative; width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.red-dot { position: absolute; top: -4rpx; right: -8rpx; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: 999rpx; background: #ff4d4f; color: #fff; font-size: 20rpx; text-align: center; padding: 0 6rpx; box-sizing: border-box; }
 .nav-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
 .nav-tag { margin-left: 12rpx; font-size: 20rpx; color: #1d4e8f; background: #e9f1fb; padding: 4rpx 12rpx; border-radius: 8rpx; }

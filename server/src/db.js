@@ -240,6 +240,14 @@ function migrate(db) {
     db.exec('ALTER TABLE card_market_items ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0');
   }
 
+  // —— card_connections 人脉库扩展（分组/备注） ——
+  if (tableExists(db, 'card_connections') && !colExists(db, 'card_connections', 'group_name')) {
+    db.exec("ALTER TABLE card_connections ADD COLUMN group_name TEXT NOT NULL DEFAULT ''");
+  }
+  if (tableExists(db, 'card_connections') && !colExists(db, 'card_connections', 'remark')) {
+    db.exec("ALTER TABLE card_connections ADD COLUMN remark TEXT NOT NULL DEFAULT ''");
+  }
+
   // —— storage_config 多厂商升级 ——
   const storageCols = db.prepare('PRAGMA table_info(storage_config)').all().map((c) => c.name);
   if (storageCols.includes('access_key')) {
@@ -1064,7 +1072,10 @@ function migrate(db) {
       message TEXT,
       exchanged_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      snapshot TEXT,
+      group_name TEXT NOT NULL DEFAULT '',
+      remark TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_connection_customer ON card_connections(customer_id);
     CREATE INDEX IF NOT EXISTS idx_connection_from ON card_connections(from_user_id);

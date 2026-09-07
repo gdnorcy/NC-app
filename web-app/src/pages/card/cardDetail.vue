@@ -64,6 +64,13 @@
           <text class="lb">专注</text>
           <text class="vl">{{ card.businessField }}</text>
         </view>
+        <view class="intro-line" v-if="needTagList.length">
+          <SIcon name="exchange" size="small" color="#86909c" />
+          <text class="lb">供需</text>
+          <view class="skill-tags">
+            <view class="skill-tag need" v-for="(tag, i) in needTagList" :key="i">{{ tag }}</view>
+          </view>
+        </view>
         <view class="intro-line" v-if="tagList.length">
           <SIcon name="star" size="small" color="#86909c" />
           <text class="lb">标签</text>
@@ -175,6 +182,13 @@ const tagList = computed(() => {
   if (card.value.tags) return card.value.tags.split(/[,，、\/]/).map((s) => s.trim()).filter(Boolean).slice(0, 6);
   if (!card.value.businessField) return [];
   return card.value.businessField.split(/[/,，、]/).map((s) => s.trim()).filter(Boolean).slice(0, 6);
+});
+const needTagList = computed(() => {
+  try {
+    const raw = card.value.needTags || '[]';
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(arr) ? arr.filter(Boolean).slice(0, 6) : [];
+  } catch (e) { return []; }
 });
 
 onMounted(async () => {
@@ -452,6 +466,7 @@ function shareCard() {
   gap: 14rpx;
   margin-top: 4rpx;
 }
+.skill-tag.need { background: rgba(245, 158, 11, 0.12); color: #b45309; }
 .skill-tag {
   background: rgba(7,193,96,0.1);
   color: #07c160;

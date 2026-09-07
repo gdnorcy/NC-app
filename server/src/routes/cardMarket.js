@@ -519,27 +519,69 @@ export function createCardMarketRouter(db) {
     res.json({ requests });
   });
 
+  // 待处理交换请求数（红点）
+  router.get('/exchange/unread', tenant, (req, res) => {
+    const userId = currentUserId(req);
+    const row = db.prepare(`SELECT COUNT(*) as cnt FROM card_connections
+      WHERE customer_id = ? AND to_user_id = ? AND status = 'pending'`).get(req.customerId, userId);
+    res.json({ count: row?.cnt || 0 });
+  });
+
   // ===== 人脉库 =====
   router.get('/connections', tenant, (req, res) => {
     const userId = currentUserId(req);
     const connections = db.prepare(`SELECT c.*,
       CASE WHEN c.from_user_id = ? THEN c.to_user_id ELSE c.from_user_id END as contact_user_id,
-      COALESCE(
-        json_extract(c.snapshot, '$.to.name'),
-        (SELECT nickname FROM platform_user WHERE id = CASE WHEN c.from_user_id = ? THEN c.to_user_id ELSE c.from_user_id END)
-      ) as contact_name,
-      COALESCE(
-        json_extract(c.snapshot, '$.to.position'),
-        (SELECT position FROM card_profile WHERE user_id = CASE WHEN c.from_user_id = ? THEN c.to_user_id ELSE c.from_user_id END LIMIT 1)
-      ) as contact_position,
-      COALESCE(
-        json_extract(c.snapshot, '$.to.avatar'),
-        (SELECT avatar FROM platform_user WHERE id = CASE WHEN c.from_user_id = ? THEN c.to_user_id ELSE c.from_user_id END)
-      ) as contact_avatar
+      CASE WHEN c.from_user_id = ? THEN
+        COALESCE(json_extract(c.snapshot, '$.to.name'), (SELECT nickname FROM platform_user WHERE id = c.to_user_id))
+      ELSE
+        COALESCE(json_extract(c.snapshot, '$.from.name'), (SELECT nickname FROM platform_user WHERE id = c.from_user_id))
+      END as contact_name,
+      CASE WHEN c.from_user_id = ? THEN
+        COALESCE(json_extract(c.snapshot, '$.to.position'), (SELECT position FROM card_profile WHERE user_id = c.to_user_id LIMIT 1))
+      ELSE
+        COALESCE(json_extract(c.snapshot, '$.from.position'), (SELECT position FROM card_profile WHERE user_id = c.from_user_id LIMIT 1))
+      END as contact_position,
+      CASE WHEN c.from_user_id = ? THEN
+        COALESCE(json_extract(c.snapshot, '$.to.company'), (SELECT company FROM card_profile WHERE user_id = c.to_user_id LIMIT 1))
+      ELSE
+        COALESCE(json_extract(c.snapshot, '$.from.company'), (SELECT company FROM card_profile WHERE user_id = c.from_user_id LIMIT 1))
+      END as contact_company,
+      CASE WHEN c.from_user_id = ? THEN
+        COALESCE(json_extract(c.snapshot, '$.to.avatar'), (SELECT avatar FROM platform_user WHERE id = c.to_user_id))
+      ELSE
+        COALESCE(json_extract(c.snapshot, '$.from.avatar'), (SELECT avatar FROM platform_user WHERE id = c.from_user_id))
+      END as contact_avatar
       FROM card_connections c
       WHERE c.customer_id = ? AND (c.from_user_id = ? OR c.to_user_id = ?) AND c.status = 'accepted'
-      ORDER BY c.exchanged_at DESC`).all(userId, userId, userId, userId, req.customerId, userId, userId);
+      ORDER BY c.exchanged_at DESC`).all(userId, userId, userId, userId, userId, req.customerId, userId, userId);
     res.json({ connections });
+  });
+
+  // 更新人脉（分组/备注）
+  router.put('/connections/:id', tenant, (req, res) => {
+    const { id } = req.params;
+    const userId = currentUserId(req);
+    const conn = belongsToTenant('card_connections', id, req.customerId);
+    if (!conn || conn.__crossTenant) return res.status(404).json({ error: '人脉不存在' });
+    if (conn.from_user_id !== userId && conn.to_user_id !== userId) return res.status(403).json({ error: '无权操作' });
+    if (conn.status !== 'accepted') return res.status(400).json({ error: '仅已建立的人脉可编辑' });
+    const { groupName, remark } = req.body || {};
+    db.prepare("UPDATE card_connections SET group_name = COALESCE(?, group_name), remark = COALESCE(?, remark), updated_at = datetime('now') WHERE id = ?")
+      .run(groupName ?? null, remark ?? null, id);
+    res.json({ success: true });
+  });
+
+  // 删除人脉（不影响已转客户）
+  router.delete('/connections/:id', tenant, (req, res) => {
+    const { id } = req.params;
+    const userId = currentUserId(req);
+    const conn = belongsToTenant('card_connections', id, req.customerId);
+    if (!conn || conn.__crossTenant) return res.status(404).json({ error: '人脉不存在' });
+    if (conn.from_user_id !== userId && conn.to_user_id !== userId) return res.status(403).json({ error: '无权操作' });
+    db.prepare('DELETE FROM card_connections WHERE id = ?').run(id);
+    audit(db, req, 'delete_connection', 'connection', id, '删除人脉');
+    res.json({ success: true });
   });
 
   // 人脉转客户（手动转换，快照优先）
@@ -556,10 +598,9 @@ export function createCardMarketRouter(db) {
     let name = '', phone = '', company = '', position = '', avatar = '';
     try {
       const snap = JSON.parse(connection.snapshot || '{}');
-      const mine = snap.from?.user_id === userId ? snap.from : null;
-      const theirs = snap.to || null;
+      // 快照 from=发起方名片、to=接收方名片；我是发起方时对方快照在 to，否则在 from
+      const theirs = connection.from_user_id === userId ? (snap.to || null) : (snap.from || null);
       if (theirs) { name = theirs.name || ''; position = theirs.position || ''; company = theirs.company || ''; phone = theirs.phone || ''; avatar = theirs.avatar || ''; }
-      else if (mine) { name = mine.name || ''; position = mine.position || ''; company = mine.company || ''; phone = mine.phone || ''; }
     } catch {}
     if (!name) {
       const profile = db.prepare('SELECT * FROM card_profile WHERE user_id = ? LIMIT 1').get(contactUserId);
