@@ -1,9 +1,10 @@
 <template>
   <div>
+    <PanoramaTabs />
     <div class="page-header">
       <div>
-        <el-button text @click="$router.push('/apps')"><el-icon><ArrowLeft /></el-icon>返回</el-button>
-        <h2 class="page-title" style="display:inline;margin-left:8px;">360°全景 - 方案管理</h2>
+        <h2 class="page-title">方案管理</h2>
+        <p class="page-desc">为每个客户项目创建全景方案，方案下可添加多个场景</p>
       </div>
       <el-button type="primary" @click="showEdit = true"><el-icon><Plus /></el-icon>新建方案</el-button>
     </div>
@@ -38,6 +39,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { customerApiCall } from '../../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import PanoramaTabs from '../apps/panorama/PanoramaTabs.vue';
 
 const plans = ref([]);
 const showEdit = ref(false);

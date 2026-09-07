@@ -63,16 +63,25 @@ export function trackEvents(db, tenantId, solution, events = []) {
  * 另有辅助转化：card_view → form_submit 表单留资
  * 同一访客（visitor_key）跨步骤去重。
  */
-const FUNNEL_STEPS = [
-  { key: 'page_view', label: '页面曝光' },
-  { key: 'card_view', label: '浏览名片' },
-  { key: 'exchange_init', label: '发起交换' },
-  { key: 'exchange_success', label: '交换成功' },
-];
+const FUNNEL_STEPS_BY_SOLUTION = {
+  card: [
+    { key: 'page_view', label: '页面曝光' },
+    { key: 'card_view', label: '浏览名片' },
+    { key: 'exchange_init', label: '发起交换' },
+    { key: 'exchange_success', label: '交换成功' },
+  ],
+  panorama: [
+    { key: 'page_view', label: '页面曝光' },
+    { key: 'panorama_view', label: '浏览方案' },
+    { key: 'scene_view', label: '浏览场景' },
+    { key: 'form_submit', label: '表单提交' },
+  ],
+};
 
-export function calcFunnel(db, tenantId, { start = '', end = '', steps = FUNNEL_STEPS } = {}) {
-  const where = ['tenant_id = ?'];
-  const params = [tenantId];
+export function calcFunnel(db, tenantId, { start = '', end = '', solution = 'card' } = {}) {
+  const steps = FUNNEL_STEPS_BY_SOLUTION[solution] || FUNNEL_STEPS_BY_SOLUTION.card;
+  const where = ['tenant_id = ?', 'solution = ?'];
+  const params = [tenantId, solution];
   if (start) { where.push("event_date >= date(?)"); params.push(start); }
   if (end) { where.push("event_date <= date(?)"); params.push(end); }
   const whereSql = where.join(' AND ');
@@ -104,7 +113,7 @@ export function calcFunnel(db, tenantId, { start = '', end = '', steps = FUNNEL_
 // ============ 趋势 ============
 
 /** 分日趋势：近 N 天 事件量 / 独立访客 / 独立名片。 */
-export function trendSeries(db, tenantId, { days = 14, solution = '' } = {}) {
+export function trendSeries(db, tenantId, { days = 14, solution = 'card' } = {}) {
   const params = [tenantId, Number(days)];
   let solutionSql = '';
   if (solution) { solutionSql = ' AND solution = ?'; params.push(solution); }
@@ -121,9 +130,9 @@ export function trendSeries(db, tenantId, { days = 14, solution = '' } = {}) {
 }
 
 /** 事件分布：按 event_type 汇总。 */
-export function eventDistribution(db, tenantId, { start = '', end = '' } = {}) {
-  const where = ['tenant_id = ?'];
-  const params = [tenantId];
+export function eventDistribution(db, tenantId, { start = '', end = '', solution = 'card' } = {}) {
+  const where = ['tenant_id = ?', 'solution = ?'];
+  const params = [tenantId, solution];
   if (start) { where.push("event_date >= date(?)"); params.push(start); }
   if (end) { where.push("event_date <= date(?)"); params.push(end); }
   return db.prepare(
@@ -132,18 +141,46 @@ export function eventDistribution(db, tenantId, { start = '', end = '' } = {}) {
   ).all(...params);
 }
 
-/** 名片 TOP：按 card_id 聚合浏览/表单/交换。 */
-export function topCards(db, tenantId, { limit = 5, start = '', end = '' } = {}) {
-  const where = ['tenant_id = ?', 'card_id > 0'];
-  const params = [tenantId];
+/** TOP 目标：按 solution 聚合浏览/转化。
+ *  card:     按 card_id（名片）
+ *  panorama: 按 scene_id（场景）
+ */
+export function topTargets(db, tenantId, { limit = 5, start = '', end = '', solution = 'card' } = {}) {
+  const where = ['tenant_id = ?', 'solution = ?'];
+  const params = [tenantId, solution];
   if (start) { where.push("event_date >= date(?)"); params.push(start); }
   if (end) { where.push("event_date <= date(?)"); params.push(end); }
+  const whereSql = where.join(' AND ');
+
+  if (solution === 'panorama') {
+    const rows = db.prepare(
+      `SELECT scene_id AS id,
+              SUM(CASE WHEN event_type='scene_view' THEN 1 ELSE 0 END) AS views,
+              SUM(CASE WHEN event_type='form_submit' THEN 1 ELSE 0 END) AS leads,
+              SUM(CASE WHEN event_type='panorama_view' THEN 1 ELSE 0 END) AS planViews
+       FROM analytics_events WHERE ${whereSql} AND scene_id > 0
+       GROUP BY scene_id ORDER BY views DESC LIMIT ?`
+    ).all(...params, Number(limit));
+    const names = db.prepare(
+      `SELECT id, title FROM scenes WHERE id IN (${rows.map(() => '?').join(',') || 'NULL'})`
+    ).all(...rows.map((r) => r.id));
+    const nameMap = new Map(names.map((n) => [n.id, n.title]));
+    return rows.map((r) => ({
+      sceneId: r.id,
+      name: nameMap.get(r.id) || `场景#${r.id}`,
+      views: r.views,
+      leads: r.leads,
+      planViews: r.planViews,
+    }));
+  }
+
+  // card：按 card_id 聚合
   const rows = db.prepare(
     `SELECT card_id AS id,
             SUM(CASE WHEN event_type='card_view' THEN 1 ELSE 0 END) AS views,
             SUM(CASE WHEN event_type='form_submit' THEN 1 ELSE 0 END) AS leads,
             SUM(CASE WHEN event_type='exchange_init' THEN 1 ELSE 0 END) AS exchanges
-     FROM analytics_events WHERE ${where.join(' AND ')}
+     FROM analytics_events WHERE ${whereSql} AND card_id > 0
      GROUP BY card_id ORDER BY views DESC LIMIT ?`
   ).all(...params, Number(limit));
   const names = db.prepare(
@@ -151,8 +188,8 @@ export function topCards(db, tenantId, { limit = 5, start = '', end = '' } = {})
   ).all(...rows.map((r) => r.id));
   const nameMap = new Map(names.map((n) => [n.id, n]));
   return rows.map((r) => {
-    const p = nameMap.get(r.id) || {};
-    return { cardId: r.id, name: p.name || `名片#${r.id}`, company: p.company || '', position: p.position || '', views: r.views, leads: r.leads, exchanges: r.exchanges };
+    const pp = nameMap.get(r.id) || {};
+    return { cardId: r.id, name: pp.name || `名片#${r.id}`, company: pp.company || '', position: pp.position || '', views: r.views, leads: r.leads, exchanges: r.exchanges };
   });
 }
 
@@ -170,10 +207,77 @@ export function topCards(db, tenantId, { limit = 5, start = '', end = '' } = {})
  */
 const CARD_FIELDS = ['name', 'company', 'position', 'phone', 'wechat', 'avatar', 'address'];
 
-export function calcHealthScore(db, tenantId) {
+export function calcHealthScore(db, tenantId, solution = 'card') {
   const dims = [];
   const advice = [];
+  const solWhere = solution === 'panorama' ? "AND solution = 'panorama'" : "AND solution = 'card'";
 
+  // ---------- 全景（panorama）：方案/场景资产 + 访客 + 转化 + 互动 ----------
+  if (solution === 'panorama') {
+    // 1. 方案完整度（published 方案数，满分5个）
+    const plans = db.prepare(
+      "SELECT COUNT(*) AS n FROM plans WHERE project_id = ? AND published = 1"
+    ).get(tenantId).n || 0;
+    dims.push(Math.min(20, plans * 4));
+    if (plans === 0) advice.push('还没有发布方案：先在「方案管理」创建并发布方案，让访客看到全景内容。');
+
+    // 2. 场景完整度（published 场景数，经 plans 归属租户，满分20个）
+    const scenes = db.prepare(
+      `SELECT COUNT(*) AS n FROM scenes sc JOIN plans p ON sc.plan_id = p.id
+       WHERE p.project_id = ? AND sc.published = 1`
+    ).get(tenantId).n || 0;
+    dims.push(Math.min(20, scenes));
+    if (scenes === 0) advice.push('方案下还没有场景：为每个方案添加全景场景，丰富展示内容。');
+
+    // 3. 访客活跃度（近7天独立访客 / 方案数）
+    const recentVisitors = db.prepare(
+      `SELECT COUNT(DISTINCT visitor_key) AS n FROM analytics_events
+       WHERE tenant_id = ? ${solWhere} AND event_type = 'scene_view' AND visitor_key != ''
+         AND event_date >= date('now','-7 days')`
+    ).get(tenantId).n || 0;
+    dims.push(Math.min(20, Math.round((recentVisitors / Math.max(plans, 1)) * 20 * 10) / 10));
+    if (recentVisitors === 0) advice.push('近 7 天没有场景浏览：分享方案链接或开通全端渠道扩大曝光。');
+
+    // 4. 转化表现（form_submit / scene_view）
+    const views = db.prepare(
+      `SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere}
+         AND event_type = 'scene_view' AND visitor_key != '' AND event_date >= date('now','-7 days')`
+    ).get(tenantId).n || 0;
+    const leads = db.prepare(
+      `SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere}
+         AND event_type = 'form_submit' AND event_date >= date('now','-7 days')`
+    ).get(tenantId).n || 0;
+    const conv = views > 0 ? leads / views : 0;
+    dims.push(Math.min(20, Math.round(conv * 200 * 10) / 10));
+    if (views > 0 && conv < 0.02) advice.push('场景浏览转化为表单线索的比例偏低：可在场景中增加「在线预约 / 留言」入口。');
+
+    // 5. 互动参与（scene_view / panorama_view 深度浏览）
+    const planViews = db.prepare(
+      `SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere}
+         AND event_type = 'panorama_view' AND event_date >= date('now','-7 days')`
+    ).get(tenantId).n || 0;
+    const deepRate = planViews > 0 ? Math.min(1, views / planViews) : 0;
+    dims.push(Math.round(deepRate * 20 * 10) / 10);
+    if (planViews > 0 && deepRate < 0.3) advice.push('访客浏览方案后进入场景的比例偏低：优化场景封面与首屏引导，提升点击率。');
+
+    const total = Math.round(dims.reduce((a, b) => a + b, 0) * 10) / 10;
+    const level = total >= 80 ? '优秀' : total >= 60 ? '良好' : total >= 40 ? '一般' : '待提升';
+    return {
+      score: total,
+      level,
+      dimensions: [
+        { key: 'plan', label: '方案完整度', score: dims[0], max: 20 },
+        { key: 'scene', label: '场景完整度', score: dims[1], max: 20 },
+        { key: 'visitor', label: '访客活跃度', score: dims[2], max: 20 },
+        { key: 'conversion', label: '转化表现', score: dims[3], max: 20 },
+        { key: 'interact', label: '互动参与', score: dims[4], max: 20 },
+      ],
+      advice,
+      updatedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    };
+  }
+
+  // ---------- 智能名片（card）：资料/内容/访客/转化/集市 ----------
   // 1. 资料完整度（名片经 platform_user 归属租户）
   const profiles = db.prepare(
     `SELECT cp.* FROM card_profile cp JOIN platform_user u ON cp.user_id = u.id
@@ -198,22 +302,22 @@ export function calcHealthScore(db, tenantId) {
 
   // 3. 访客活跃度（近7天独立访客 / 名片数）
   const recentVisitors = db.prepare(
-    "SELECT COUNT(DISTINCT visitor_key) AS n FROM analytics_events WHERE tenant_id = ? AND event_type='card_view' AND visitor_key != '' AND event_date >= date('now','-7 days')"
+    `SELECT COUNT(DISTINCT visitor_key) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere} AND event_type='card_view' AND visitor_key != '' AND event_date >= date('now','-7 days')`
   ).get(tenantId).n || 0;
   const visitorScore = Math.min(20, Math.round((recentVisitors / Math.max(profiles.length, 1)) * 20 * 10) / 10);
   dims.push(visitorScore);
   if (recentVisitors === 0) advice.push('近 7 天没有名片浏览：建议分享名片链接或开通全端渠道扩大曝光。');
 
   // 4. 转化表现（form_submit / card_view）
-  const views = db.prepare("SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? AND event_type='card_view' AND visitor_key != '' AND event_date >= date('now','-7 days')").get(tenantId).n || 0;
-  const leads = db.prepare("SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? AND event_type='form_submit' AND event_date >= date('now','-7 days')").get(tenantId).n || 0;
+  const views = db.prepare(`SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere} AND event_type='card_view' AND visitor_key != '' AND event_date >= date('now','-7 days')`).get(tenantId).n || 0;
+  const leads = db.prepare(`SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere} AND event_type='form_submit' AND event_date >= date('now','-7 days')`).get(tenantId).n || 0;
   const conv = views > 0 ? leads / views : 0;
   dims.push(Math.min(20, Math.round(conv * 200 * 10) / 10)); // 10% 转化=满分
   if (views > 0 && conv < 0.02) advice.push('名片浏览转化为线索的比例偏低：可在名片上增加「一键留资」表单入口。');
 
   // 5. 集市参与
   const marketItems = db.prepare("SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status='approved'").get(tenantId).n || 0;
-  const exchanges = db.prepare("SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? AND event_type='exchange_success'").get(tenantId).n || 0;
+  const exchanges = db.prepare(`SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere} AND event_type='exchange_success'`).get(tenantId).n || 0;
   const marketScore = Math.min(20, marketItems * 2 + exchanges);
   dims.push(marketScore);
   if (marketItems === 0) advice.push('人脉集市尚未上架任何名片：开启集合并引导成员上架，扩大租户内人脉网络。');

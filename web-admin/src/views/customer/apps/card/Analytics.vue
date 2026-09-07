@@ -1,7 +1,8 @@
 <template>
   <div class="analytics-page">
     <!-- 统一Tab导航 -->
-    <CardTabs />
+    <CardTabs v-if="solution === 'card'" />
+    <PanoramaTabs v-else />
 
     <!-- 页头 -->
     <div class="page-header">
@@ -121,11 +122,12 @@
 
       <!-- 名片TOP -->
       <div class="card">
-        <div class="card-title">热门名片</div>
-        <p class="card-sub">按浏览量排序 TOP5</p>
+        <div class="card-title">{{ topTitle }}</div>
+        <p class="card-sub">{{ topSub }}</p>
         <table class="simple-table" v-if="topCards.length">
           <thead>
-            <tr><th>名片</th><th>浏览</th><th>留资</th><th>交换</th></tr>
+            <tr v-if="solution !== 'panorama'"><th>名片</th><th>浏览</th><th>留资</th><th>交换</th></tr>
+            <tr v-else><th>场景</th><th>浏览</th><th>留资</th><th>方案浏览</th></tr>
           </thead>
           <tbody>
             <tr v-for="c in topCards" :key="c.cardId">
@@ -135,11 +137,12 @@
               </td>
               <td>{{ c.views }}</td>
               <td>{{ c.leads }}</td>
-              <td>{{ c.exchanges }}</td>
+              <td v-if="solution !== 'panorama'">{{ c.exchanges }}</td>
+              <td v-else>{{ c.planViews }}</td>
             </tr>
           </tbody>
         </table>
-        <div class="empty" v-else>暂无名片数据</div>
+        <div class="empty" v-else>{{ topEmpty }}</div>
       </div>
     </div>
   </div>
@@ -147,8 +150,17 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { customerApiCall } from '../../../../api';
 import CardTabs from './CardTabs.vue';
+import PanoramaTabs from '../panorama/PanoramaTabs.vue';
+
+// 解决方案上下文：card=智能名片 / panorama=全景（由路由 meta 指定）
+const route = useRoute();
+const solution = route.meta.solution || 'card';
+const topTitle = solution === 'panorama' ? '热门场景' : '热门名片';
+const topSub = solution === 'panorama' ? '按场景浏览排序 TOP5' : '按浏览量排序 TOP5';
+const topEmpty = solution === 'panorama' ? '暂无场景数据' : '暂无名片数据';
 
 const days = ref(14);
 const health = ref({});
@@ -166,12 +178,13 @@ const levelClass = () => {
 };
 const pct = (v, max) => `${max > 0 ? Math.min(100, Math.round((v / max) * 100)) : 0}%`;
 const pctH = (v, max) => `${max > 0 ? Math.max(4, Math.round((v / max) * 100)) : 4}%`;
-const dimColor = (key) => ({ profile: '#165dff', content: '#722ed1', visitor: '#00b42a', conversion: '#ff7d00', market: '#00a4ae' }[key] || '#165dff');
+const dimColor = (key) => ({ profile: '#165dff', content: '#722ed1', visitor: '#00b42a', conversion: '#ff7d00', market: '#00a4ae', plan: '#165dff', scene: '#722ed1', interact: '#00a4ae' }[key] || '#165dff');
 const funnelColor = (i) => ['#165dff', '#4080ff', '#6ba0ff', '#94bdff'][i] || '#165dff';
 const barWidth = (step, first) => (first && first.visitors > 0 ? Math.max(12, Math.round((step.visitors / first.visitors) * 100)) : 12);
 const eventLabel = (t) => ({
   page_view: '页面曝光', card_view: '浏览名片', form_submit: '表单留资',
   exchange_init: '发起交换', exchange_success: '交换成功', share_click: '分享点击', dynamic_view: '动态浏览',
+  panorama_view: '浏览方案', scene_view: '浏览场景', hotspot_click: '热点点击',
 }[t] || t);
 const shortDate = (d, i) => {
   if (i === 0 || i === trend.value.length - 1 || trend.value.length <= 7) return d.slice(5);
@@ -185,11 +198,11 @@ const maxDist = () => Math.max(...distribution.value.map((d) => d.count), 1);
 async function loadAll() {
   try {
     const [h, f, t, d, top] = await Promise.all([
-      customerApiCall.get('/analytics/health'),
-      customerApiCall.get('/analytics/funnel'),
-      customerApiCall.get(`/analytics/trend?days=${days.value}`),
-      customerApiCall.get('/analytics/distribution'),
-      customerApiCall.get('/analytics/top'),
+      customerApiCall.get(`/analytics/health?solution=${solution}`),
+      customerApiCall.get(`/analytics/funnel?solution=${solution}`),
+      customerApiCall.get(`/analytics/trend?days=${days.value}&solution=${solution}`),
+      customerApiCall.get(`/analytics/distribution?solution=${solution}`),
+      customerApiCall.get(`/analytics/top?solution=${solution}`),
     ]);
     health.value = h.health || {};
     funnel.value = f.funnel || [];

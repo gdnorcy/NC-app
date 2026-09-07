@@ -1,9 +1,10 @@
 <template>
   <div>
+    <PanoramaTabs />
     <div class="page-header">
       <div>
-        <el-button text @click="$router.back()"><el-icon><ArrowLeft /></el-icon>返回</el-button>
-        <h2 class="page-title" style="display:inline;margin-left:8px;">{{ isEdit ? '编辑场景' : '新建场景' }}</h2>
+        <h2 class="page-title">{{ isEdit ? '编辑场景' : '新建场景' }}</h2>
+        <p class="page-desc">配置场景主图、预览图与金字塔切片，保存后自动构建预览</p>
       </div>
       <div style="display:flex;gap:8px;">
         <el-button @click="preview">预览</el-button>
@@ -105,6 +106,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { customerApiCall } from '../../../api';
+import PanoramaTabs from '../apps/panorama/PanoramaTabs.vue';
 import { ElMessage } from 'element-plus';
 
 const route = useRoute();

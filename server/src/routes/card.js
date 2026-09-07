@@ -643,14 +643,25 @@ export function createCardRouter(db, wxService) {
       const { events = [] } = req.body || {};
       if (!Array.isArray(events) || !events.length) return res.json({ ok: true, written: 0 });
 
-      // 可选认证：若带 card_token 则解析用户租户（游客事件无 token）
+      // 可选认证：兼容三类 token 解析租户
+      //  - 客户后台 token（auth.js）：payload { uid(users.id), customerId }
+      //  - C端 token（multi-auth.js）：payload { id(platform_user.id) }
+      //  - 游客：无 token / 解析失败 → 走 cardId 反查
       let tenantId = 0;
       const token = req.headers.authorization?.replace('Bearer ', '');
       if (token) {
         try {
-          const payload = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString());
-          const u = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(payload.uid);
-          if (u) tenantId = u.customer_id || 0;
+          const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+          if (payload.customerId) {
+            tenantId = payload.customerId;
+          } else if (payload.uid != null) {
+            const cu = db.prepare('SELECT customer_id FROM users WHERE id = ?').get(payload.uid);
+            if (cu && cu.customer_id) tenantId = cu.customer_id;
+          }
+          if (!tenantId && payload.id != null) {
+            const u = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(payload.id);
+            if (u) tenantId = u.customer_id || 0;
+          }
         } catch { /* 无效 token 忽略，走游客逻辑 */ }
       }
       const anyCard = events.find((e) => e.cardId);
@@ -660,7 +671,9 @@ export function createCardRouter(db, wxService) {
         ).get(Number(anyCard.cardId));
         if (owner) tenantId = owner.customer_id || 0;
       }
-      const result = trackEvents(db, tenantId, 'card', events);
+      // solution 白名单：card（名片）/ panorama（全景），默认 card
+      const solution = ['card', 'panorama'].includes(req.body?.solution) ? req.body.solution : 'card';
+      const result = trackEvents(db, tenantId, solution, events);
       res.json(result);
     } catch (e) {
       res.status(500).json({ error: e.message });

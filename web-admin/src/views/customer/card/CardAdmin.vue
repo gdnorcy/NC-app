@@ -1,5 +1,16 @@
 <template>
   <div class="card-admin">
+    <!-- 统一Tab导航（智能名片管理功能共用） -->
+    <CardTabs />
+
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">员工名片</h2>
+        <p class="page-desc">员工通过小程序/H5 创建名片后自动展示，可查看名片公开状态与访问数据</p>
+      </div>
+    </div>
+
     <!-- 统计卡片 -->
     <div class="stats-row">
       <div class="stat-card">
@@ -29,17 +40,6 @@
           <div class="stat-value">{{ overview.customerCount || 0 }}</div>
           <div class="stat-label">企业客户</div>
         </div>
-      </div>
-    </div>
-
-    <!-- 统一Tab导航（5个管理功能共用） -->
-    <CardTabs />
-
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">员工名片</h2>
-        <p class="page-desc">员工通过小程序/H5 创建名片后自动展示，可查看名片公开状态与访问数据</p>
       </div>
     </div>
 

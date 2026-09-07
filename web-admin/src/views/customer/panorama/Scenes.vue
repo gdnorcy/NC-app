@@ -1,9 +1,10 @@
 <template>
   <div>
+    <PanoramaTabs />
     <div class="page-header">
       <div>
-        <el-button text @click="$router.back()"><el-icon><ArrowLeft /></el-icon>返回</el-button>
-        <h2 class="page-title" style="display:inline;margin-left:8px;">场景管理</h2>
+        <h2 class="page-title">场景管理</h2>
+        <p class="page-desc">{{ planName }}</p>
       </div>
       <el-button type="primary" @click="$router.push(`/apps/panorama/plans/${planId}/scenes/new/edit`)">
         <el-icon><Plus /></el-icon>新建场景
@@ -40,15 +41,24 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { customerApiCall } from '../../../api';
+import PanoramaTabs from '../apps/panorama/PanoramaTabs.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const route = useRoute();
 const planId = route.params.id;
+const planName = ref('');
 const scenes = ref([]);
 
 async function load() {
-  try { scenes.value = (await customerApiCall.get(`/plans/${planId}/scenes`)).scenes || []; }
-  catch (e) { ElMessage.error(e); }
+  try {
+    const [ps, sc] = await Promise.all([
+      customerApiCall.get('/plans'),
+      customerApiCall.get(`/plans/${planId}/scenes`),
+    ]);
+    const plan = (ps.plans || []).find((x) => String(x.id) === String(planId));
+    planName.value = plan ? `方案：${plan.name}` : '';
+    scenes.value = sc.scenes || [];
+  } catch (e) { ElMessage.error(e); }
 }
 async function remove(row) {
   try {

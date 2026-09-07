@@ -6,7 +6,7 @@ import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
-import { calcFunnel, trendSeries, eventDistribution, topCards, calcHealthScore } from '../services/analytics.js';
+import { calcFunnel, trendSeries, eventDistribution, topTargets, calcHealthScore } from '../services/analytics.js';
 import { encryptSecret, decryptSecret } from '../crypto.js';
 
 const upload = multer({
@@ -717,33 +717,33 @@ router.get('/card/trends', requireTenant, (req, res) => {
   // ============================================================
   router.get('/analytics/funnel', requireTenant, (req, res) => {
     try {
-      const { start = '', end = '' } = req.query;
-      res.json({ funnel: calcFunnel(db, req.customerId, { start, end }) });
+      const { start = '', end = '', solution = 'card' } = req.query;
+      res.json({ funnel: calcFunnel(db, req.customerId, { start, end, solution }) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   router.get('/analytics/trend', requireTenant, (req, res) => {
     try {
       const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
-      res.json({ trend: trendSeries(db, req.customerId, { days }) });
+      res.json({ trend: trendSeries(db, req.customerId, { days, solution: req.query.solution || 'card' }) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   router.get('/analytics/distribution', requireTenant, (req, res) => {
     try {
-      res.json({ distribution: eventDistribution(db, req.customerId, { start: req.query.start || '', end: req.query.end || '' }) });
+      res.json({ distribution: eventDistribution(db, req.customerId, { start: req.query.start || '', end: req.query.end || '', solution: req.query.solution || 'card' }) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   router.get('/analytics/top', requireTenant, (req, res) => {
     try {
-      res.json({ top: topCards(db, req.customerId, { limit: Number(req.query.limit) || 5, start: req.query.start || '', end: req.query.end || '' }) });
+      res.json({ top: topTargets(db, req.customerId, { limit: Number(req.query.limit) || 5, start: req.query.start || '', end: req.query.end || '', solution: req.query.solution || 'card' }) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   router.get('/analytics/health', requireTenant, (req, res) => {
     try {
-      res.json({ health: calcHealthScore(db, req.customerId) });
+      res.json({ health: calcHealthScore(db, req.customerId, req.query.solution || 'card') });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
