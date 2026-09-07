@@ -172,7 +172,23 @@ export function createSolutionsRouter(db) {
     res.json({ solution: solutionDetail(db, id) });
   });
 
-  // 方案资产：集市风格 + 名片模板（归入解决方案的可售资产）
+  // 方案配额默认定义（按应用分组；value 为默认配额，price 为加购单价）
+  const QUOTA_DEFS = [
+    { appCode: 'card', appName: '智能名片', items: [
+      { key: 'cardCount', label: '名片创建数', value: 0 },
+      { key: 'memberCount', label: '入驻个人数', value: 0 },
+      { key: 'enterpriseCount', label: '入驻企业数', value: 0 },
+      { key: 'storageMb', label: '存储空间(MB)', value: 50 },
+      { key: 'aiCredits', label: 'AI生成次数', value: 0 },
+    ] },
+    { appCode: 'panorama', appName: '零壹系统云', items: [
+      { key: 'planCount', label: '方案数', value: 5 },
+      { key: 'sceneCount', label: '场景数', value: 50 },
+      { key: 'storageMb', label: '存储空间(MB)', value: 50 },
+    ] },
+  ];
+
+  // 方案资产：集市风格 + 名片模板 + 方案配额（归入解决方案的可售资产）
   router.get('/:id/assets', (req, res) => {
     const id = Number(req.params.id);
     const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
@@ -180,33 +196,58 @@ export function createSolutionsRouter(db) {
     const styles = db.prepare('SELECT * FROM market_styles ORDER BY sort_order ASC, id ASC').all().map((s) => ({
       key: s.key, name: s.name, description: s.description, price: s.price, isDefault: !!s.is_default, enabled: !!s.enabled, sortOrder: s.sort_order,
     }));
-    const templates = db.prepare('SELECT id, name, price, enabled, sort_order FROM card_templates WHERE tenant_id = 0 ORDER BY sort_order ASC, id DESC').all().map((t) => ({
-      id: t.id, name: t.name, price: t.price, enabled: !!t.enabled, sortOrder: t.sort_order,
+    const templates = db.prepare('SELECT id, name, price, enabled, is_default, sort_order FROM card_templates WHERE tenant_id = 0 ORDER BY sort_order ASC, id DESC').all().map((t) => ({
+      id: t.id, name: t.name, price: t.price, enabled: !!t.enabled, isDefault: !!t.is_default, sortOrder: t.sort_order,
     }));
-    res.json({ assets: { styles, templates } });
+    // 方案配额：默认定义 + 已存值合并
+    const stored = db.prepare('SELECT app_code, key, value, price, enabled FROM solution_quotas WHERE solution_id = ?').all(id);
+    const storedMap = {};
+    stored.forEach((q) => { (storedMap[q.app_code] = storedMap[q.app_code] || {})[q.key] = q; });
+    const quotas = QUOTA_DEFS.map((g) => ({
+      appCode: g.appCode,
+      appName: g.appName,
+      items: g.items.map((it) => {
+        const s = (storedMap[g.appCode] || {})[it.key];
+        return {
+          key: it.key, label: it.label,
+          value: s ? s.value : it.value,
+          price: s ? s.price : 0,
+          enabled: s ? !!s.enabled : true,
+        };
+      }),
+    }));
+    res.json({ assets: { styles, templates, quotas } });
   });
 
-  // 保存方案资产（整体替换风格价格/启用 + 模板价格/启用）
+  // 保存方案资产（整体替换风格/模板价格与默认 + 方案配额）
   router.put('/:id/assets', (req, res) => {
     const id = Number(req.params.id);
     const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
     if (!solution) return res.status(404).json({ error: '解决方案不存在' });
-    const { styles, templates } = req.body || {};
+    const { styles, templates, quotas } = req.body || {};
     if (Array.isArray(styles)) {
-      const up = db.prepare('UPDATE market_styles SET price = ?, enabled = ?, updated_at = datetime(\'now\') WHERE key = ?');
-      const def = db.prepare('UPDATE market_styles SET is_default = 0 WHERE is_default = 1');
+      const up = db.prepare('UPDATE market_styles SET price = ?, enabled = ?, is_default = ?, updated_at = datetime(\'now\') WHERE key = ?');
       styles.forEach((s) => {
         if (!s || !s.key) return;
-        up.run(Number(s.price) || 0, s.enabled === false ? 0 : 1, s.key);
-        if (s.isDefault) def.run();
-        if (s.isDefault) db.prepare('UPDATE market_styles SET is_default = 1 WHERE key = ?').run(s.key);
+        up.run(Number(s.price) || 0, s.enabled === false ? 0 : 1, s.isDefault ? 1 : 0, s.key);
       });
     }
     if (Array.isArray(templates)) {
-      const up = db.prepare('UPDATE card_templates SET price = ?, enabled = ?, updated_at = datetime(\'now\') WHERE id = ? AND tenant_id = 0');
+      const up = db.prepare('UPDATE card_templates SET price = ?, enabled = ?, is_default = ?, updated_at = datetime(\'now\') WHERE id = ? AND tenant_id = 0');
       templates.forEach((t) => {
         if (!t || !t.id) return;
-        up.run(Number(t.price) || 0, t.enabled === false ? 0 : 1, Number(t.id));
+        up.run(Number(t.price) || 0, t.enabled === false ? 0 : 1, t.isDefault ? 1 : 0, Number(t.id));
+      });
+    }
+    if (Array.isArray(quotas)) {
+      db.prepare('DELETE FROM solution_quotas WHERE solution_id = ?').run(id);
+      const ins = db.prepare('INSERT INTO solution_quotas (solution_id, app_code, key, label, value, price, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      quotas.forEach((g) => {
+        if (!g || !Array.isArray(g.items)) return;
+        g.items.forEach((it) => {
+          if (!it || !it.key) return;
+          ins.run(id, g.appCode, it.key, it.label || it.key, Number(it.value) || 0, Number(it.price) || 0, it.enabled === false ? 0 : 1);
+        });
       });
     }
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_solution_assets', targetType: 'solution', targetId: id, detail: `更新方案资产: ${solution.name}`, ip: req.ip });

@@ -127,16 +127,61 @@ export function createCustomerBillingRouter(db) {
   });
   const payment = new PaymentService(db);
 
-  // 当前套餐 + 用量
+  // 当前套餐 + 用量（兼容保留；新体系见 /billing/solution-plan）
   router.get('/billing/plan', (req, res) => {
     const bind = getTenantBillingPlan(db, req.customerId);
     const usage = getTenantUsage(db, req.customerId);
     res.json({ ...bind, usage });
   });
 
-  // 可选套餐列表
+  // 可选套餐列表（兼容保留；新体系见 /billing/solution-plan）
   router.get('/billing/plans', (_req, res) => {
     res.json({ plans: listBillingPlans(db) });
+  });
+
+  // 当前开通方案 + 各方案价格档（同步总平台解决方案的价格设置与时长；billing_plan 作废）
+  router.get('/billing/solution-plan', (req, res) => {
+    const p = db.prepare('SELECT id, customer_name, valid_until, status, solutions FROM projects WHERE id = ?').get(req.customerId);
+    if (!p) return res.status(404).json({ error: '租户项目不存在' });
+    let codes = [];
+    try { codes = JSON.parse(p.solutions || '[]'); } catch (e) {}
+    const solutions = codes.map((code) => {
+      const sol = db.prepare('SELECT * FROM solutions WHERE code = ? AND status = \'on\'').get(code);
+      if (!sol) return null;
+      const pricing = db.prepare('SELECT duration_months, agent_price, user_price, renew_price FROM solution_pricing WHERE solution_id = ? ORDER BY duration_months ASC')
+        .all(sol.id)
+        .map((x) => ({ durationMonths: x.duration_months, agentPrice: x.agent_price, userPrice: x.user_price, renewPrice: x.renew_price }));
+      return { id: sol.id, code: sol.code, name: sol.name, icon: sol.icon, pricing };
+    }).filter(Boolean);
+    res.json({ project: { name: p.customer_name, validUntil: p.valid_until, status: p.status }, solutions });
+  });
+
+  // 按方案时长购买/续费（金额取自 solution_pricing，含永久档 durationMonths=0）
+  router.post('/billing/solution-purchase', (req, res) => {
+    const { solutionId, durationMonths, action } = req.body || {};
+    if (!solutionId) return res.status(400).json({ error: '方案必填' });
+    if (!['subscribe', 'renew'].includes(action)) return res.status(400).json({ error: '无效操作' });
+    const sol = db.prepare('SELECT * FROM solutions WHERE id = ?').get(Number(solutionId));
+    if (!sol) return res.status(404).json({ error: '方案不存在' });
+    const price = db.prepare('SELECT duration_months, agent_price, user_price, renew_price FROM solution_pricing WHERE solution_id = ? AND duration_months = ?')
+      .get(sol.id, Number(durationMonths) || 0);
+    if (!price) return res.status(404).json({ error: '该方案不存在对应时长价格' });
+    const amount = action === 'renew' ? price.renew_price : price.user_price;
+    const durationLabel = Number(durationMonths) === 0 ? '永久' : `${Number(durationMonths)}个月`;
+    const order = payment.createOrder({
+      payerType: 'platform',
+      customerId: req.customerId,
+      userId: req.user.id,
+      solution: sol.code,
+      productType: action === 'renew' ? 'subscription_renew' : 'subscription',
+      productId: String(sol.id),
+      productName: `${sol.name}（${durationLabel}${action === 'renew' ? '续费' : '开通'}）`,
+      amount,
+      channel: 'wechat',
+      remark: `solution:${sol.code}:${Number(durationMonths) || 0}`,
+    });
+    audit(db, req, 'create_subscription_order', 'payment_order', order.id, `创建方案订单：${sol.name} ${durationLabel} ${action} ¥${amount}`);
+    res.json({ order });
   });
 
   // 购买/续费/升级套餐 → 创建订阅订单（走统一支付）

@@ -29,18 +29,10 @@
             <SIcon name="solutions" size="default" />
             <span>解决方案</span>
           </el-menu-item>
-          <el-menu-item index="/solution-categories">
-            <SIcon name="palette" size="default" />
-            <span>方案分类</span>
-          </el-menu-item>
         </template>
         <el-menu-item v-if="!isAdmin" index="/solutions">
           <SIcon name="solutions" size="default" />
           <span>解决方案</span>
-        </el-menu-item>
-        <el-menu-item index="/templates">
-          <SIcon name="template" size="default" />
-          <span>名片模板</span>
         </el-menu-item>
         <el-menu-item index="/billing-plans">
           <SIcon name="crown" size="default" />

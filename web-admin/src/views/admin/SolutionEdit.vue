@@ -46,17 +46,21 @@
               </el-radio-group>
             </el-form-item>
             <el-form-item label="默认平台">
-              <div class="platform-multi">
-                <el-checkbox
+              <div class="platform-cards">
+                <div
                   v-for="p in platforms"
                   :key="p.value"
-                  :model-value="form.defaultPlatform.includes(p.value)"
-                  :disabled="p.developing"
-                  @change="(v) => togglePlatform(p.value, v)"
+                  class="platform-card"
+                  :class="{ selected: form.defaultPlatform.includes(p.value), disabled: p.developing }"
+                  @click="!p.developing && togglePlatform(p.value, !form.defaultPlatform.includes(p.value))"
                 >
-                  {{ p.label }}
+                  <div class="platform-card-icon">
+                    <SIcon :name="p.icon" size="18" />
+                    <span v-if="form.defaultPlatform.includes(p.value)" class="platform-check">✓</span>
+                  </div>
+                  <div class="platform-card-name">{{ p.label }}</div>
                   <el-tag v-if="p.developing" size="small" type="info" effect="plain" class="dev-tag">开发中</el-tag>
-                </el-checkbox>
+                </div>
               </div>
               <div class="form-help">可多选：勾选方案默认上线的展示渠道；未开通渠道不可勾选</div>
             </el-form-item>
@@ -202,8 +206,9 @@
         <!-- ============ 资产设置 ============ -->
         <el-tab-pane label="资产设置" name="assets">
           <div class="assets-panel">
-            <div class="assets-title">集市风格</div>
-            <div class="form-help">归入本方案的可售集市风格，租户默认风格（标记「默认」）开箱即用，其余风格租户可按需购买</div>
+            <!-- 智能名片 · 集市风格 -->
+            <div class="assets-title"><span class="app-chip">智能名片</span>·集市风格</div>
+            <div class="form-help">归入本方案的可售集市风格；「默认」可多选（默认风格租户开箱即用），其余风格租户可按需购买</div>
             <div class="assets-table">
               <div class="assets-row assets-head">
                 <span class="col-key">标识</span>
@@ -218,26 +223,50 @@
                 <span class="col-name">{{ s.name }}</span>
                 <span class="col-desc">{{ s.description }}</span>
                 <span class="col-price"><el-input-number v-model="s.price" :min="0" :precision="2" controls-position="right" size="small" style="width: 110px" /></span>
-                <span class="col-default"><el-switch v-model="s.isDefault" @change="onStyleDefaultChange(s)" /></span>
+                <span class="col-default"><el-switch v-model="s.isDefault" /></span>
                 <span class="col-enabled"><el-switch v-model="s.enabled" /></span>
               </div>
             </div>
 
-            <div class="assets-title" style="margin-top: 28px;">名片模板</div>
-            <div class="form-help">本方案下的平台公共名片模板，设置价格后租户端模板市场按需购买；0 元为免费</div>
+            <!-- 智能名片 · 名片模板 -->
+            <div class="assets-title" style="margin-top: 28px;"><span class="app-chip">智能名片</span>·名片模板</div>
+            <div class="form-help">本方案下的平台公共名片模板，设置价格后租户端模板市场按需购买；0 元为免费；「默认」可多选</div>
             <div class="assets-table" v-if="assets.templates.length">
               <div class="assets-row assets-head">
                 <span class="col-name">模板名称</span>
                 <span class="col-price">价格（元）</span>
+                <span class="col-default">默认</span>
                 <span class="col-enabled">上架</span>
               </div>
               <div v-for="t in assets.templates" :key="t.id" class="assets-row">
                 <span class="col-name">{{ t.name }}</span>
                 <span class="col-price"><el-input-number v-model="t.price" :min="0" :precision="2" controls-position="right" size="small" style="width: 110px" /></span>
+                <span class="col-default"><el-switch v-model="t.isDefault" /></span>
                 <span class="col-enabled"><el-switch v-model="t.enabled" /></span>
               </div>
             </div>
             <el-empty v-else description="暂无平台公共模板，可在「名片模板」菜单中创建" :image-size="60" />
+
+            <!-- 方案配额：按应用分设 + 加购价格 -->
+            <div class="assets-title" style="margin-top: 28px;">方案配额</div>
+            <div class="form-help">按应用分别配置默认配额与加购单价；租户超出基础配额后按加购价购买</div>
+            <div v-for="g in assets.quotas" :key="g.appCode" class="quota-group">
+              <div class="quota-group-title"><span class="app-chip">{{ g.appName }}</span></div>
+              <div class="assets-table">
+                <div class="assets-row assets-head">
+                  <span class="col-name">配额项</span>
+                  <span class="col-price">默认配额</span>
+                  <span class="col-price">加购单价（元）</span>
+                  <span class="col-enabled">启用</span>
+                </div>
+                <div v-for="it in g.items" :key="it.key" class="assets-row">
+                  <span class="col-name">{{ it.label }}</span>
+                  <span class="col-price"><el-input-number v-model="it.value" :min="0" controls-position="right" size="small" style="width: 130px" /></span>
+                  <span class="col-price"><el-input-number v-model="it.price" :min="0" :precision="2" controls-position="right" size="small" style="width: 110px" /></span>
+                  <span class="col-enabled"><el-switch v-model="it.enabled" /></span>
+                </div>
+              </div>
+            </div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -254,14 +283,14 @@ import SIcon from '../../components/SIcon.vue';
 import { fetchSolutions, createSolution, updateSolution, saveSolutionPricing, saveSolutionPermissions, fetchSolutionCategories, fetchSolutionAssets, saveSolutionAssets, uploadImage } from '../../api';
 
 const platforms = [
-  { value: 'mini', label: '微信小程序', developing: false },
-  { value: 'baidu', label: '百度小程序', developing: true },
-  { value: 'ali', label: '支付宝小程序', developing: true },
-  { value: 'qq', label: 'QQ小程序', developing: true },
-  { value: 'pc', label: 'PC网站', developing: false },
-  { value: 'h5', label: 'H5应用', developing: false },
-  { value: 'tt', label: '字节跳动小程序', developing: true },
-  { value: 'mp', label: '公众号', developing: false },
+  { value: 'mini', label: '微信小程序', icon: 'wechat', developing: false },
+  { value: 'baidu', label: '百度小程序', icon: 'mobile', developing: true },
+  { value: 'ali', label: '支付宝小程序', icon: 'mobile', developing: true },
+  { value: 'qq', label: 'QQ小程序', icon: 'mobile', developing: true },
+  { value: 'pc', label: 'PC网站', icon: 'pc', developing: false },
+  { value: 'h5', label: 'H5应用', icon: 'mobile', developing: false },
+  { value: 'tt', label: '字节跳动小程序', icon: 'mobile', developing: true },
+  { value: 'mp', label: '公众号', icon: 'official', developing: false },
 ];
 
 const iconOptions = [
@@ -299,7 +328,7 @@ export default {
     const perpetual = reactive({ agentPrice: 0, userPrice: 0, renewPrice: 0 });
     const allPermissions = ref(false);
     const appPerms = ref([]); // [{ code, name, icon, enabled, menuGroups:[{module,label,items:[{key,label,enabled}]}] }]
-    const assets = ref({ styles: [], templates: [] });
+    const assets = ref({ styles: [], templates: [], quotas: [] });
 
     const buildMenuGroups = (menus) => {
       const map = {};
@@ -391,11 +420,7 @@ export default {
       });
     };
 
-    // —— 资产 ——
-    const onStyleDefaultChange = (s) => {
-      // 同一方案内默认风格唯一
-      assets.value.styles.forEach((x) => { if (x !== s) x.isDefault = false; });
-    };
+    // —— 资产（默认项支持多选） ——
 
     // —— 预览图 ——
     const doUpload = async (opt) => {
@@ -458,11 +483,12 @@ export default {
           }));
         });
         await saveSolutionPermissions(id, { apps, menus, allPermissions: allPermissions.value });
-        // 资产（集市风格价格/默认/上架 + 模板价格/上架）
-        if (assets.value.styles.length || assets.value.templates.length) {
+        // 资产（集市风格价格/默认/上架 + 模板价格/默认/上架 + 方案配额）
+        if (assets.value.styles.length || assets.value.templates.length || assets.value.quotas.length) {
           await saveSolutionAssets(id, {
             styles: assets.value.styles.map((s) => ({ key: s.key, price: s.price, enabled: s.enabled, isDefault: s.isDefault })),
-            templates: assets.value.templates.map((t) => ({ id: t.id, price: t.price, enabled: t.enabled })),
+            templates: assets.value.templates.map((t) => ({ id: t.id, price: t.price, enabled: t.enabled, isDefault: t.isDefault })),
+            quotas: assets.value.quotas.map((g) => ({ appCode: g.appCode, items: g.items.map((it) => ({ key: it.key, label: it.label, value: it.value, price: it.price, enabled: it.enabled })) })),
           });
         }
         ElMessage.success('保存成功');
@@ -480,7 +506,7 @@ export default {
       pricing, perpetualEnabled, perpetual, allPermissions, appPerms, assets, getAppIcon,
       permissionGroups, allChecked, someChecked, platforms, iconOptions,
       addPricingRow, removePricingRow, onPerpetualChange, onModeChange, onAppToggle, toggleAllChecked, togglePlatform,
-      onStyleDefaultChange, doUpload, onPreviewRemove, saveAll,
+      doUpload, onPreviewRemove, saveAll,
     };
   },
 };
@@ -498,8 +524,23 @@ export default {
 .form-help { font-size: 12px; color: #86909C; line-height: 1.5; margin-top: 4px; }
 .platform-group { display: flex; flex-wrap: wrap; }
 .platform-group :deep(.el-radio) { margin-right: 16px; margin-bottom: 8px; }
-.platform-multi { display: flex; flex-wrap: wrap; gap: 4px 20px; max-width: 860px; }
-.platform-multi :deep(.el-checkbox) { margin-right: 0; }
+.platform-cards { display: flex; flex-wrap: wrap; gap: 12px; max-width: 860px; }
+.platform-card {
+  width: 108px; border: 1px solid #E5E6EB; border-radius: 8px; padding: 12px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer;
+  transition: border-color .2s, box-shadow .2s; position: relative; background: #fff;
+}
+.platform-card:hover { border-color: #165DFF; }
+.platform-card.selected { border-color: #165DFF; background: #F7FBFF; box-shadow: 0 2px 8px rgba(22,93,255,0.12); }
+.platform-card.disabled { opacity: 0.55; cursor: not-allowed; background: #FAFAFA; }
+.platform-card-icon { position: relative; width: 40px; height: 40px; border-radius: 10px; background: rgba(22,93,255,0.06); color: #4E5969; display: flex; align-items: center; justify-content: center; }
+.platform-card.selected .platform-card-icon { color: #165DFF; background: rgba(22,93,255,0.1); }
+.platform-check {
+  position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; border-radius: 50%;
+  background: #165DFF; color: #fff; font-size: 12px; line-height: 18px; text-align: center;
+}
+.platform-card-name { font-size: 13px; color: #1D2129; }
+.platform-card .dev-tag { position: absolute; top: 6px; right: 6px; margin: 0; }
 .dev-tag { margin-left: 2px; transform: scale(0.85); transform-origin: left center; }
 .icon-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .icon-option { width: 40px; height: 40px; border: 1px solid #E5E6EB; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4E5969; transition: all 0.2s; }
@@ -543,12 +584,15 @@ export default {
 .perm-items :deep(.el-checkbox) { margin-right: 0; }
 
 /* 资产 */
-.assets-panel { max-width: 960px; }
+.assets-panel { max-width: 1080px; }
 .assets-title { font-size: 15px; font-weight: 600; color: #1D2129; }
+.app-chip { display:inline-block; padding: 2px 8px; border-radius: 6px; background: rgba(22,93,255,0.08); color: #165DFF; font-size: 12px; font-weight: 500; margin-right: 4px; }
 .assets-table { border: 1px solid #E5E6EB; border-radius: 8px; overflow: hidden; margin-top: 12px; }
 .assets-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #F2F3F5; }
 .assets-row:last-child { border-bottom: none; }
 .assets-head { background: #F7F8FA; font-size: 12px; color: #4E5969; font-weight: 500; }
+.quota-group { margin-top: 16px; }
+.quota-group-title { font-size: 14px; font-weight: 600; color: #1D2129; margin-bottom: 4px; }
 .col-key { flex: 0 0 70px; }
 .col-name { flex: 1 1 160px; min-width: 0; font-size: 13px; color: #1D2129; }
 .col-desc { flex: 2 1 240px; min-width: 0; font-size: 12px; color: #86909C; }

@@ -2,25 +2,31 @@
   <div>
     <div class="page-header"><h2 class="page-title">套餐与续费</h2></div>
 
-    <!-- 当前套餐卡片 -->
+    <!-- 当前方案卡片 -->
     <div class="page-card current-plan">
       <div class="cp-left">
-        <div class="cp-badge">{{ plan.plan?.name || '体验套餐' }}</div>
-        <div class="cp-desc">{{ plan.plan?.description || '体验基础能力' }}</div>
+        <div class="cp-badge">{{ planData.project?.name || '我的项目' }}</div>
+        <div class="cp-desc">
+          <template v-for="s in planData.solutions || []" :key="s.code">
+            <el-tag size="small" effect="light" type="primary" style="margin-right:6px;">{{ s.name }}</el-tag>
+          </template>
+        </div>
       </div>
       <div class="cp-right">
         <div class="cp-item">
           <span class="cp-label">到期时间</span>
-          <span class="cp-value">{{ plan.validUntil || '未开通（默认体验套餐）' }}</span>
+          <span class="cp-value">{{ planData.project?.validUntil || '长期有效' }}</span>
         </div>
         <div class="cp-item">
-          <span class="cp-label">计费周期</span>
-          <span class="cp-value">{{ plan.cycle === 'month' ? '按月' : '按年' }}</span>
+          <span class="cp-label">项目状态</span>
+          <el-tag :type="planData.project?.status === 'active' ? 'success' : 'danger'" size="small">
+            {{ planData.project?.status === 'active' ? '使用中' : '已停用' }}
+          </el-tag>
         </div>
       </div>
     </div>
 
-    <!-- 用量进度 -->
+    <!-- 用量概览 -->
     <div class="page-card">
       <h3 class="section-title">用量概览</h3>
       <div class="usage-grid">
@@ -35,31 +41,42 @@
       <div class="usage-note">存储用量仅统计本地存储场景（含瓦片估算）；远程存储场景不计入。短信用量按条计。</div>
     </div>
 
-    <!-- 套餐选择 -->
-    <div class="page-card">
-      <h3 class="section-title">选择套餐</h3>
-      <div class="plan-grid">
-        <div v-for="p in plans" :key="p.id" class="plan-card" :class="{ current: p.id === plan.plan?.id }">
-          <div class="plan-name">{{ p.name }}</div>
-          <div class="plan-price">¥{{ p.price }}<span class="plan-cycle">/{{ p.cycle === 'month' ? '月' : '年' }}</span></div>
-          <div class="plan-desc">{{ p.description }}</div>
-          <ul class="plan-quota">
-            <li>入驻个人 {{ p.quotas.max_individuals ?? '∞' }} 个</li>
-            <li>入驻企业 {{ p.quotas.max_enterprises ?? '∞' }} 家</li>
-            <li>全景场景 {{ p.quotas.max_scenes ?? '∞' }} 个</li>
-            <li v-if="p.features.market_enabled">人脉集市（{{ p.quotas.max_market_items ?? '∞' }} 上架）</li>
-            <li v-else>人脉集市未开通</li>
-            <li v-if="p.features.distribution_enabled">二级分销已开通</li>
-          </ul>
-          <el-button
-            :type="p.id === plan.plan?.id ? 'info' : 'primary'"
-            :disabled="p.id === plan.plan?.id"
-            style="width:100%"
-            @click="purchase(p, 'subscribe')"
-          >{{ p.id === plan.plan?.id ? '当前套餐' : '立即开通' }}</el-button>
-          <el-button v-if="p.id === plan.plan?.id" text type="primary" style="width:100%;margin-top:6px" @click="purchase(p, 'renew')">续费一年</el-button>
+    <!-- 方案续费（价格/时长同步总后台解决方案设置） -->
+    <div class="page-card" v-if="(planData.solutions || []).length">
+      <h3 class="section-title">方案续费</h3>
+      <div class="sol-renew-grid">
+        <div v-for="s in planData.solutions" :key="s.id" class="sol-renew">
+          <div class="sol-renew-head">
+            <SIcon :name="getAppIcon(s.icon)" size="18" />
+            <span class="sol-renew-name">{{ s.name }}</span>
+          </div>
+          <div v-if="s.pricing.length" class="price-cards">
+            <div v-for="p in s.pricing" :key="p.durationMonths" class="price-card">
+              <div class="price-duration">{{ p.durationMonths === 0 ? '永久' : p.durationMonths + '个月' }}</div>
+              <div class="price-main">
+                <template v-if="p.durationMonths === 0">
+                  <div class="price-num">¥{{ fmt(p.userPrice) }}</div>
+                  <div class="price-sub">永久买断</div>
+                </template>
+                <template v-else>
+                  <div class="price-num">¥{{ fmt(p.userPrice) }}</div>
+                  <div class="price-sub">续费 ¥{{ fmt(p.renewPrice) }}</div>
+                </template>
+              </div>
+              <el-button size="small" type="primary" plain style="width:100%;" @click="purchase(s, p, 'subscribe')">
+                {{ p.durationMonths === 0 ? '开通' : '开通' }}
+              </el-button>
+              <el-button v-if="p.durationMonths !== 0" size="small" text type="primary" style="width:100%;margin-top:4px" @click="purchase(s, p, 'renew')">续费</el-button>
+            </div>
+          </div>
+          <div v-else class="price-empty">该方案暂未配置价格，如需开通请联系平台</div>
         </div>
       </div>
+      <div class="usage-note">价格为总后台「解决方案 → 价格设置」中配置的用户价/续费价；支付完成后服务期自动顺延。</div>
+    </div>
+    <div class="page-card" v-else>
+      <h3 class="section-title">方案续费</h3>
+      <el-empty description="当前项目未开通任何解决方案，请联系平台开通" :image-size="80" />
     </div>
 
     <!-- 发票 -->
@@ -95,28 +112,33 @@
 import { ref, computed, onMounted } from 'vue';
 import { customerApiCall, customerPaymentCall } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import SIcon from '../../components/SIcon.vue';
 
-const plan = ref({});
-const plans = ref([]);
+const planData = ref({ project: {}, solutions: [] });
+const usagePlan = ref({});
 const invoices = ref([]);
 
 async function load() {
   try {
-    const [planRes, listRes, invRes] = await Promise.all([
+    const [solRes, useRes, invRes] = await Promise.all([
+      customerApiCall.get('/billing/solution-plan'),
       customerApiCall.get('/billing/plan'),
-      customerApiCall.get('/billing/plans'),
       customerApiCall.get('/billing/invoices'),
     ]);
-    plan.value = planRes;
-    plans.value = listRes.plans || [];
+    planData.value = solRes;
+    usagePlan.value = useRes;
     invoices.value = invRes.invoices || [];
   } catch (e) { ElMessage.error(typeof e === 'string' ? e : '加载套餐信息失败'); }
 }
 onMounted(load);
 
+const iconMap = { panorama: 'panorama', card: 'card', devices: 'devices', template: 'template', market: 'market', chart: 'chart', building: 'building', dynamic: 'dynamic', apps: 'apps' };
+function getAppIcon(icon) { return iconMap[icon] || 'apps'; }
+function fmt(v) { return Number(v || 0).toLocaleString(); }
+
 const usageItems = computed(() => {
-  const q = plan.value.plan?.quotas || {};
-  const u = plan.value.usage || {};
+  const q = usagePlan.value.plan?.quotas || {};
+  const u = usagePlan.value.usage || {};
   const items = [
     { key: 'individuals', label: '入驻个人', used: u.individuals || 0, limit: q.max_individuals },
     { key: 'enterprises', label: '入驻企业', used: u.enterprises || 0, limit: q.max_enterprises },
@@ -133,13 +155,15 @@ const usageItems = computed(() => {
   });
 });
 
-async function purchase(p, action) {
-  const tip = action === 'renew' ? `确认续费「${p.name}」一年，支付 ¥${p.price}？` : `确认开通「${p.name}」，支付 ¥${p.price}？`;
+async function purchase(sol, p, action) {
+  const durationLabel = p.durationMonths === 0 ? '永久' : `${p.durationMonths}个月`;
+  const amount = action === 'renew' ? p.renewPrice : p.userPrice;
   try {
-    await ElMessageBox.confirm(tip, '支付确认', { type: 'warning' });
-    const res = await customerApiCall.post('/billing/purchase', { planId: p.id, action });
+    await ElMessageBox.confirm(`确认${action === 'renew' ? '续费' : '开通'}「${sol.name}」${durationLabel}，支付 ¥${fmt(amount)}？`, '支付确认', { type: 'warning' });
+    const res = await customerApiCall.post('/billing/solution-purchase', {
+      solutionId: sol.id, durationMonths: p.durationMonths, action,
+    });
     ElMessage.info('订单已创建，正在拉起支付…');
-    // 当前环境为模拟支付：直接调用 mock-pay（真实接入后改为拉起收银台）
     const pay = await customerPaymentCall.post('/payment/mock-pay', { orderNo: res.order.orderNo });
     if (pay.order?.status === 'paid') {
       ElMessage.success(action === 'renew' ? '续费成功，服务期已顺延' : '开通成功');
@@ -158,11 +182,10 @@ async function applyInvoice(row) {
       inputPlaceholder: '如：东莞市某某科技有限公司', type: 'info',
     });
     if (!value || !value.trim()) { ElMessage.warning('抬头不能为空'); return; }
-    const { data } = await customerApiCall.post('/billing/invoices', {
+    await customerApiCall.post('/billing/invoices', {
       orderId: row.order_id ?? row.id ?? undefined,
       title: value.trim(),
     });
-    // 若该发票申请已存在则用其 id 重提（幂等场景由后端保证），成功即刷新
     ElMessage.success('开票申请已提交');
     load();
   } catch (e) {
@@ -179,7 +202,7 @@ async function applyInvoice(row) {
 
 .current-plan { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
 .cp-left { display: flex; flex-direction: column; gap: 8px; }
-.cp-badge { display: inline-block; font-size: 20px; font-weight: 600; color: #165DFF; }
+.cp-badge { font-size: 20px; font-weight: 600; color: #165DFF; }
 .cp-desc { color: #86909C; font-size: 13px; }
 .cp-right { display: flex; gap: 32px; }
 .cp-item { display: flex; flex-direction: column; gap: 4px; }
@@ -194,13 +217,15 @@ async function applyInvoice(row) {
 .usage-num.over { color: #F53F3F; }
 .usage-note { margin-top: 12px; font-size: 12px; color: #86909C; }
 
-.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-.plan-card { border: 1px solid #E5E6EB; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 8px; transition: all .2s; }
-.plan-card:hover { box-shadow: 0 4px 16px rgba(22,93,255,0.08); }
-.plan-card.current { border-color: #165DFF; background: rgba(22,93,255,0.03); }
-.plan-name { font-size: 16px; font-weight: 600; color: #1D2129; }
-.plan-price { font-size: 24px; font-weight: 600; color: #165DFF; }
-.plan-cycle { font-size: 12px; color: #86909C; font-weight: 400; }
-.plan-desc { font-size: 13px; color: #86909C; min-height: 18px; }
-.plan-quota { list-style: none; margin: 4px 0; padding: 0; font-size: 13px; color: #4E5969; line-height: 24px; flex: 1; }
+.sol-renew-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
+.sol-renew { border: 1px solid #E5E6EB; border-radius: 8px; padding: 16px; }
+.sol-renew-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.sol-renew-name { font-size: 14px; font-weight: 600; color: #1D2129; }
+.price-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.price-card { border: 1px solid #F2F3F5; border-radius: 8px; padding: 12px; text-align: center; }
+.price-duration { font-size: 13px; font-weight: 500; color: #4E5969; }
+.price-main { margin: 8px 0 10px; }
+.price-num { font-size: 20px; font-weight: 600; color: #165DFF; }
+.price-sub { font-size: 12px; color: #86909C; margin-top: 2px; }
+.price-empty { font-size: 13px; color: #86909C; padding: 12px 0; }
 </style>

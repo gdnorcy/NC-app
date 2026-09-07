@@ -1602,9 +1602,25 @@ function migrate(db) {
       UNIQUE(tenant_id, asset_type, asset_key)
     );
     CREATE INDEX IF NOT EXISTS idx_asset_purchases_tenant ON tenant_asset_purchases(tenant_id, asset_type);
+    CREATE TABLE IF NOT EXISTS solution_quotas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      solution_id INTEGER NOT NULL,
+      app_code TEXT NOT NULL,
+      key TEXT NOT NULL,
+      label TEXT NOT NULL DEFAULT '',
+      value INTEGER NOT NULL DEFAULT 0,
+      price REAL NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(solution_id, app_code, key)
+    );
   `);
   if (colExists(db, 'card_templates', 'id') && !colExists(db, 'card_templates', 'price')) {
     db.exec('ALTER TABLE card_templates ADD COLUMN price REAL NOT NULL DEFAULT 0');
+  }
+  if (colExists(db, 'card_templates', 'id') && !colExists(db, 'card_templates', 'is_default')) {
+    db.exec("ALTER TABLE card_templates ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0");
   }
   seedMarketStyles(db);
 
