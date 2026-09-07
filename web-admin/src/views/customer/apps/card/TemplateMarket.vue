@@ -96,7 +96,7 @@ const saving = ref(false);
 const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0 });
 
 async function load() {
-  const res = await customerApiCall.get('/api/customer/card/templates');
+  const res = await customerApiCall.get('/card/templates');
   templates.value = res.templates || [];
 }
 
@@ -120,13 +120,13 @@ async function save() {
   saving.value = true;
   try {
     const payload = { ...form.value, themeConfig: form.value.themeConfig || {} };
-    if (isEdit.value) await customerApiCall.put(`/api/customer/card/templates/${form.value.id}`, payload);
-    else await customerApiCall.post('/api/customer/card/templates', payload);
+    if (isEdit.value) await customerApiCall.put(`/card/templates/${form.value.id}`, payload);
+    else await customerApiCall.post('/card/templates', payload);
     ElMessage.success('保存成功');
     dialogVisible.value = false;
     load();
   } catch (e) {
-    ElMessage.error(e.response?.data?.error || '保存失败');
+    ElMessage.error(e || '保存失败');
   } finally {
     saving.value = false;
   }
@@ -140,11 +140,11 @@ async function remove(t) {
     });
   } catch { return; }
   try {
-    await customerApiCall.delete(`/api/customer/card/templates/${t.id}`);
+    await customerApiCall.delete(`/card/templates/${t.id}`);
     ElMessage.success('已删除');
     load();
   } catch (e) {
-    ElMessage.error(e.response?.data?.error || '删除失败');
+    ElMessage.error(e || '删除失败');
   }
 }
 

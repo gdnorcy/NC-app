@@ -87,8 +87,8 @@ const saving = ref(false);
 const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0 });
 
 async function load() {
-  const res = await adminApi.get('/api/admin/card/templates');
-  templates.value = res.data?.templates || [];
+  const res = await adminApi.get('/card/templates');
+  templates.value = res.templates || [];
 }
 
 const coverStyle = (t) => {
@@ -121,24 +121,24 @@ async function save() {
   saving.value = true;
   try {
     const payload = { ...form.value, themeConfig: form.value.themeConfig || {} };
-    if (isEdit.value) await adminApi.put(`/api/admin/card/templates/${form.value.id}`, payload);
-    else await adminApi.post('/api/admin/card/templates', payload);
+    if (isEdit.value) await adminApi.put(`/card/templates/${form.value.id}`, payload);
+    else await adminApi.post('/card/templates', payload);
     ElMessage.success('保存成功');
     dialogVisible.value = false;
     load();
   } catch (e) {
-    ElMessage.error(e.response?.data?.error || '保存失败');
+    ElMessage.error(e || '保存失败');
   } finally {
     saving.value = false;
   }
 }
 async function toggleEnable(t) {
   try {
-    await adminApi.put(`/api/admin/card/templates/${t.id}`, { enabled: !t.enabled });
+    await adminApi.put(`/card/templates/${t.id}`, { enabled: !t.enabled });
     ElMessage.success(t.enabled ? '已停用' : '已启用');
     load();
   } catch (e) {
-    ElMessage.error(e.response?.data?.error || '操作失败');
+    ElMessage.error(e || '操作失败');
   }
 }
 
