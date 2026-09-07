@@ -111,6 +111,20 @@ CREATE TABLE IF NOT EXISTS operation_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_logs_user ON operation_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_logs_created ON operation_logs(created_at);
+
+CREATE TABLE IF NOT EXISTS bg_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT NOT NULL,
+  payload TEXT NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  run_at TEXT NOT NULL DEFAULT (datetime('now')),
+  started_at TEXT,
+  finished_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON bg_jobs(status, run_at);
 `;
 
 /** 生成不可猜的分享令牌（8 字符 base64url） */

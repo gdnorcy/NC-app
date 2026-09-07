@@ -5,6 +5,7 @@
  */
 import { Router } from 'express';
 import { PaymentService } from '../services/payment.js';
+import { addOperationLog } from '../db.js';
 
 export function createPaymentRouter(db) {
   const router = Router();
@@ -41,6 +42,12 @@ export function createPaymentRouter(db) {
       });
 
       const payParams = await payment.createPayment(order);
+      addOperationLog(db, {
+        userId: req.user?.uid ?? req.user?.id ?? null,
+        username: req.user?.username ?? req.user?.phone ?? 'api-user',
+        action: 'create_order', targetType: 'order', targetId: order.id,
+        detail: `创建支付订单 #${order.order_no} ${productName} ¥${amount}（${channel}）`, ip: req.ip,
+      });
       res.json({ order, payParams });
     } catch (e) {
       res.status(400).json({ error: e.message });

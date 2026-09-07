@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from './config.js';
 import { verifyPassword, hashPassword, toUser, addOperationLog } from './db.js';
+import { rateLimitMiddleware } from './rate-limit.js';
 import { tenantState } from './tenant.js';
 import { getSmsProvider, genSmsCode } from './sms.js';
 
@@ -27,8 +28,8 @@ export function createAuthRouter(db) {
       .get(identifier, identifier);
   }
 
-  // —— 账号密码登录 ——
-  router.post('/login', (req, res) => {
+  // —— 账号密码登录（IP 防刷：每 60s 最多 20 次尝试） ——
+  router.post('/login', rateLimitMiddleware({ keyFn: (req) => `login:${req.ip}`, limit: 20, windowMs: 60_000 }), (req, res) => {
     const { username, password } = req.body || {};
     if (!username || !password) {
       return res.status(400).json({ error: '请输入账号和密码' });
@@ -55,8 +56,8 @@ export function createAuthRouter(db) {
     return res.json({ token, user: toUser(user) });
   });
 
-  // —— 发送短信验证码 ——
-  router.post('/sms-code', (req, res) => {
+  // —— 发送短信验证码（IP 防刷：每 60s 最多 10 条；另按手机号有 60s 1 条的库级限频） ——
+  router.post('/sms-code', rateLimitMiddleware({ keyFn: (req) => `sms:${req.ip}`, limit: 10, windowMs: 60_000 }), (req, res) => {
     const { phone, purpose = 'register' } = req.body || {};
     if (!phone || !/^1\d{10}$/.test(String(phone))) {
       return res.status(400).json({ error: '请输入正确的手机号' });

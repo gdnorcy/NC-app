@@ -1,5 +1,19 @@
 import { Router } from 'express';
 import { checkTenantAccess } from '../tenant.js';
+import { addOperationLog } from '../db.js';
+
+/** 审计日志 helper：租户域操作统一带租户ID前缀，actor 兼容管理端 JWT 与 C 端 card_token */
+function audit(db, req, action, targetType, targetId, detail) {
+  addOperationLog(db, {
+    userId: req.user?.uid ?? null,
+    username: req.user?.username ?? req.user?.openid ?? 'card-user',
+    action,
+    targetType,
+    targetId,
+    detail: `[租户#${req.customerId}] ${detail}`,
+    ip: req.ip,
+  });
+}
 
 /**
  * 智能名片 SaaS 租户域 API（人脉集市/入驻主体/双公海/表单）
@@ -188,6 +202,7 @@ export function createCardMarketRouter(db) {
       WHERE customer_id = ?`).run(
       B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), req.customerId
     );
+    audit(db, req, 'update_market_settings', 'market_settings', req.customerId, '更新人脉集市配置');
     res.json({ success: true });
   });
 
@@ -280,6 +295,7 @@ export function createCardMarketRouter(db) {
       db.prepare(`INSERT INTO card_market_items (customer_id, subject_type, subject_id, user_id, enterprise_id, audit_status)
         VALUES (?, ?, ?, ?, ?, ?)`).run(req.customerId, subjectType, subjectId, userId, enterpriseId, auditStatus);
       res.json({ success: true, inMarket: true, auditStatus });
+      audit(db, req, 'toggle_market_item', 'market_item', existing?.id ?? null, `${subjectType}#${subjectId} 上架集市，审核=${auditStatus}`);
     }
   });
 
@@ -299,6 +315,7 @@ export function createCardMarketRouter(db) {
     if (item.audit_status !== 'pending') return res.status(400).json({ error: '该记录不在待审状态' });
     db.prepare("UPDATE card_market_items SET audit_status = ?, updated_at = datetime('now') WHERE id = ?")
       .run(action === 'approve' ? 'approved' : 'rejected', itemId);
+    audit(db, req, 'audit_market_item', 'market_item', itemId, `集市审核 ${action === 'approve' ? '通过' : '拒绝'}`);
     res.json({ success: true });
   });
 
@@ -308,6 +325,7 @@ export function createCardMarketRouter(db) {
     const item = belongsToTenant('card_market_items', itemId, req.customerId);
     if (!item || item.__crossTenant) return res.status(403).json({ error: '无权操作' });
     db.prepare("UPDATE card_market_items SET is_top = ?, updated_at = datetime('now') WHERE id = ?").run(isTop ? 1 : 0, itemId);
+    audit(db, req, 'top_market_item', 'market_item', itemId, `集市置顶=${isTop ? '是' : '否'}`);
     res.json({ success: true });
   });
 
@@ -317,6 +335,7 @@ export function createCardMarketRouter(db) {
     const item = belongsToTenant('card_market_items', itemId, req.customerId);
     if (!item || item.__crossTenant) return res.status(403).json({ error: '无权操作' });
     db.prepare('DELETE FROM card_market_items WHERE id = ?').run(itemId);
+    audit(db, req, 'force_remove_market_item', 'market_item', itemId, '强制下架集市名片');
     res.json({ success: true });
   });
 
@@ -580,6 +599,7 @@ export function createCardMarketRouter(db) {
         }
       }
     }
+    audit(db, req, 'audit_apply', type === 'individual' ? 'tenant_individual' : 'tenant_enterprise', id, `入驻申请${action === 'approve' ? '通过' : '拒绝'}`);
     res.json({ success: true });
   });
 
@@ -628,6 +648,7 @@ export function createCardMarketRouter(db) {
     const isAdmin = isPlatformOrTenantAdmin(req) || (emp.user_id === userId && enterprise.admin_user_id === userId && emp.role === 'admin');
     if (!isAdmin) return res.status(403).json({ error: '仅管理员可操作' });
     db.prepare("UPDATE tenant_enterprise_employees SET role = 'admin', updated_at = datetime('now') WHERE id = ? AND enterprise_id = ?").run(empId, enterpriseId);
+    audit(db, req, 'set_enterprise_admin', 'tenant_enterprise_employee', empId, `设置企业#${enterpriseId}管理员`);
     res.json({ success: true });
   });
 
@@ -645,6 +666,7 @@ export function createCardMarketRouter(db) {
       return res.status(400).json({ error: '企业至少保留一名管理员' });
     }
     db.prepare("UPDATE tenant_enterprise_employees SET role = 'member', updated_at = datetime('now') WHERE id = ? AND enterprise_id = ?").run(empId, enterpriseId);
+    audit(db, req, 'remove_enterprise_admin', 'tenant_enterprise_employee', empId, `取消企业#${enterpriseId}管理员`);
     res.json({ success: true });
   });
 
@@ -672,6 +694,7 @@ export function createCardMarketRouter(db) {
     const emp = db.prepare('SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ? AND status = ?').get(req.customerId, individual.user_id, 'active');
     db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = ?, updated_at = datetime('now') WHERE id = ?")
       .run(req.customerId, emp ? 'employee' : 'individual', individual.user_id);
+    audit(db, req, 'enable_individual', 'tenant_individual', id, `启用入驻个人#${id}`);
     res.json({ success: true });
   });
 
@@ -689,6 +712,7 @@ export function createCardMarketRouter(db) {
       if (adm) db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = ?, updated_at = datetime('now') WHERE id = ?")
         .run(req.customerId, 'employee', enterprise.admin_user_id);
     }
+    audit(db, req, 'enable_enterprise', 'tenant_enterprise', id, `启用入驻企业#${id}`);
     res.json({ success: true });
   });
 
@@ -710,6 +734,7 @@ export function createCardMarketRouter(db) {
     // 解除租户绑定
     const other = db.prepare('SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ?').get(req.customerId, individual.user_id);
     if (!other) db.prepare('UPDATE platform_user SET customer_id = NULL, identity_type = ? WHERE id = ?').run('', individual.user_id);
+    audit(db, req, 'disable_individual', 'tenant_individual', id, `停用入驻个人#${id}，回收客户 ${customers.length} 条到租户公海`);
     res.json({ success: true, recycled: customers.length });
   });
 
@@ -751,6 +776,7 @@ export function createCardMarketRouter(db) {
       db.prepare("DELETE FROM enterprise_public_pool WHERE enterprise_id = ?").run(id);
     }
 
+    audit(db, req, 'disable_enterprise', 'tenant_enterprise', id, `停用入驻企业#${id}，回收员工 ${employees.length} 人客户到租户公海（auto_recycle=${autoRecycle}）`);
     res.json({ success: true, recycledEmployees: employees.length });
   });
 
@@ -777,6 +803,7 @@ export function createCardMarketRouter(db) {
     // 若员工同时也是入驻个人，保留租户绑定；否则解绑
     const ind = db.prepare("SELECT id FROM tenant_individuals WHERE customer_id = ? AND user_id = ? AND status = 'active'").get(req.customerId, emp.user_id);
     if (!ind) db.prepare('UPDATE platform_user SET customer_id = NULL, identity_type = ? WHERE id = ?').run('', emp.user_id);
+    audit(db, req, 'disable_employee', 'tenant_enterprise_employee', id, `停用企业员工#${id}，回收客户 ${custs.length} 条到企业公海`);
     res.json({ success: true, recycled: custs.length });
   });
 
@@ -864,6 +891,7 @@ export function createCardMarketRouter(db) {
     }
     const { config } = req.body;
     db.prepare("UPDATE tenant_enterprises SET config = ?, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(config || {}), id);
+    audit(db, req, 'update_enterprise_config', 'tenant_enterprise', id, '更新企业配置');
     res.json({ success: true });
   });
 
@@ -898,6 +926,7 @@ export function createCardMarketRouter(db) {
       db.prepare(`UPDATE tenant_public_pool SET last_follow_at = datetime('now') WHERE customer_id = ? AND phone = ? AND status = 'claimed'`).run(req.customerId, cust.phone || '');
       db.prepare(`UPDATE enterprise_public_pool SET last_follow_at = datetime('now') WHERE customer_id = ? AND phone = ? AND status = 'claimed'`).run(req.customerId, cust.phone || '');
     }
+    audit(db, req, 'update_customer_status', 'card_customer', id, `客户状态 ${from} → ${status}`);
     res.json({ success: true, from, to: status });
   });
 

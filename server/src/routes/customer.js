@@ -1,16 +1,57 @@
 // 客户（租户）后台 API —— 数据严格按 customer_id 隔离
 import { Router } from 'express';
 import multer from 'multer';
-import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword } from '../db.js';
+import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword, addOperationLog } from '../db.js';
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
+import { encryptSecret, decryptSecret } from '../crypto.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
 });
+
+// 租户配置中的敏感字段（云存储/短信/支付的密钥类字段）：落库加密、回显解密
+const CONFIG_SECRET_FIELDS = ['secretKey', 'accessKeySecret', 'mchKey', 'apiKey', 'secret', 'appSecret'];
+const CONFIG_SECRET_SECTIONS = ['sms', 'storage', 'payment'];
+
+export function encryptConfigSecrets(cfg) {
+  for (const section of CONFIG_SECRET_SECTIONS) {
+    const s = cfg[section];
+    if (!s || typeof s !== 'object') continue;
+    for (const k of Object.keys(s)) {
+      if (CONFIG_SECRET_FIELDS.includes(k) && typeof s[k] === 'string' && s[k]) {
+        s[k] = encryptSecret(s[k]);
+      }
+    }
+  }
+  return cfg;
+}
+
+export function decryptConfigSecrets(cfg) {
+  for (const section of CONFIG_SECRET_SECTIONS) {
+    const s = cfg[section];
+    if (!s || typeof s !== 'object') continue;
+    for (const k of Object.keys(s)) {
+      if (CONFIG_SECRET_FIELDS.includes(k) && typeof s[k] === 'string' && s[k]) {
+        try { s[k] = decryptSecret(s[k]); } catch { /* 非密文（明文历史数据）原样保留 */ }
+      }
+    }
+  }
+  return cfg;
+}
+
+function auditCust(db, req, action, targetType, targetId, detail) {
+  addOperationLog(db, {
+    userId: req.user?.uid ?? req.user?.id ?? null,
+    username: req.user?.username ?? req.user?.phone ?? 'tenant-user',
+    action, targetType, targetId,
+    detail: `[租户#${req.customerId}] ${detail}`,
+    ip: req.ip,
+  });
+}
 
 export function createCustomerRouter(db) {
   const router = Router();
@@ -56,7 +97,9 @@ function requireTenantAdmin(req, res, next) {
 router.get('/profile', requireTenant, (req, res) => {
   const cust = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.customerId);
   if (!cust) return res.status(404).json({ error: '租户不存在' });
-  res.json({ customer: toCustomer(cust), user: toUser(req.user) });
+  const customer = toCustomer(cust);
+  if (customer.config) decryptConfigSecrets(customer.config);
+  res.json({ customer, user: toUser(req.user) });
 });
 
 // 仪表盘：客户自身业务数据
@@ -146,6 +189,7 @@ router.post('/plans', requireTenant, requireTenantAdmin, (req, res) => {
     )
     .run(req.customerId, name.trim(), description || '', coverPath || '', genShareToken(), req.customerId);
   const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(info.lastInsertRowid);
+  auditCust(db, req, 'create_plan', 'plan', plan.id, `创建方案: ${plan.name}`);
   res.json({ plan: toPlan(plan) });
 });
 
@@ -159,6 +203,7 @@ router.put('/plans/:id', requireTenant, requireTenantAdmin, (req, res) => {
     "UPDATE plans SET name = COALESCE(?, name), description = COALESCE(?, description), cover_path = COALESCE(?, cover_path), published = COALESCE(?, published), share_enabled = COALESCE(?, share_enabled), updated_at = datetime('now') WHERE id = ?"
   ).run(name ?? null, description ?? null, coverPath ?? null, published ?? null, shareEnabled ?? null, id);
   const updated = db.prepare('SELECT * FROM plans WHERE id = ?').get(id);
+  auditCust(db, req, 'update_plan', 'plan', id, `编辑方案: ${updated.name}`);
   res.json({ plan: toPlan(updated) });
 });
 
@@ -215,6 +260,7 @@ router.post('/scenes', requireTenant, requireTenantAdmin, (req, res) => {
     )
     .run(planId, title || '未命名场景', description || '', imagePath || '', previewPath || '', sortOrder ?? null, planId, pubVal, hotspotsJson, metaJson);
   const scene = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
+  auditCust(db, req, 'create_scene', 'scene', scene.id, `创建场景: ${scene.title}`);
   res.json({ scene: toScene(scene) });
 });
 
@@ -237,6 +283,7 @@ router.put('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
     "UPDATE scenes SET title = COALESCE(?, title), description = COALESCE(?, description), image_path = COALESCE(?, image_path), preview_path = COALESCE(?, preview_path), plan_id = COALESCE(?, plan_id), sort_order = COALESCE(?, sort_order), published = COALESCE(?, published), share_enabled = COALESCE(?, share_enabled), hotspots = COALESCE(?, hotspots), meta = COALESCE(?, meta), updated_at = datetime('now') WHERE id = ?"
   ).run(title ?? null, description ?? null, imagePath ?? null, previewPath ?? null, planId ?? null, sortOrder ?? null, pubVal, shareVal, hotspotsJson, metaJson, id);
   const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
+  auditCust(db, req, 'update_scene', 'scene', id, `编辑场景: ${updated.title}`);
   res.json({ scene: toScene(updated) });
 });
 
@@ -246,6 +293,7 @@ router.delete('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
   const scene = verifySceneOwnership(req, res, id);
   if (!scene) return;
   db.prepare('DELETE FROM scenes WHERE id = ?').run(id);
+  auditCust(db, req, 'delete_scene', 'scene', id, `删除场景: ${scene.title}`);
   res.json({ ok: true });
 });
 
@@ -282,6 +330,7 @@ router.post('/members', requireTenant, requireTenantAdmin, (req, res) => {
     )
     .run(username, phone || null, hash, salt, memberRole, 'active', req.customerId);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  auditCust(db, req, 'create_member', 'user', user.id, `新增成员: ${username}`);
   res.json({ user: toUser(user) });
 });
 
@@ -292,6 +341,7 @@ router.delete('/members/:id', requireTenant, requireTenantAdmin, (req, res) => {
   const member = db.prepare('SELECT * FROM users WHERE id = ? AND customer_id = ?').get(id, req.customerId);
   if (!member) return res.status(404).json({ error: '成员不存在' });
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  auditCust(db, req, 'delete_member', 'user', id, `删除成员: ${member.username}`);
   res.json({ ok: true });
 });
 
@@ -309,6 +359,7 @@ router.post('/change-password', requireTenant, (req, res) => {
     newSalt,
     req.user.id
   );
+  auditCust(db, req, 'change_password', 'user', req.user.id, '修改登录密码');
   res.json({ ok: true });
 });
 
@@ -337,10 +388,21 @@ router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
   if (updates.payment) config.payment = { ...(config.payment || {}), ...updates.payment };
   if (updates.upload_limits) config.upload_limits = { ...(config.upload_limits || {}), ...updates.upload_limits };
   if (updates.open_platform) config.open_platform = { ...(config.open_platform || {}), ...updates.open_platform };
+  // 敏感密钥字段落库前加密（仅加密本次提交的新值，历史密文保持）
+  for (const section of CONFIG_SECRET_SECTIONS) {
+    const sec = updates[section];
+    if (!sec || typeof sec !== 'object') continue;
+    for (const k of Object.keys(sec)) {
+      if (CONFIG_SECRET_FIELDS.includes(k) && typeof sec[k] === 'string' && sec[k]) {
+        config[section][k] = encryptSecret(sec[k]);
+      }
+    }
+  }
   db.prepare("UPDATE projects SET config = ?, updated_at = datetime('now') WHERE id = ?").run(
     JSON.stringify(config),
     req.customerId
   );
+  auditCust(db, req, 'update_tenant_config', 'project', req.customerId, `更新租户独立配置: ${Object.keys(updates).filter(k => updates[k] !== undefined).join(',') || '无'}`);
   res.json({ config });
 });
 
@@ -411,6 +473,7 @@ router.put('/channels/:type', requireTenant, requireTenantAdmin, (req, res) => {
     db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, brand_name, primary_color, custom_domain, enabled, page) VALUES (?,?,?,?,?,?,?)`)
       .run(cid, type, brandName || null, primaryColor || null, customDomain || null, enabled ? 1 : 0, page || null);
   }
+  auditCust(db, req, 'update_channel_config', 'channel_app', req.customerId, `更新渠道配置: ${type}`);
   res.json({ message: '配置已保存' });
 });
 

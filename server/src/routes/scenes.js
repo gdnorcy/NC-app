@@ -5,8 +5,34 @@ import sharp from 'sharp';
 import { config } from '../config.js';
 import { toScene, genShareToken, addOperationLog } from '../db.js';
 import { requireAuth } from '../auth.js';
-import { getStorage } from '../storage/index.js';
+import { getStorage, readStorageFile } from '../storage/index.js';
 import { generatePyramidTiles, pyramidTileUrls } from '../tiling.js';
+import { enqueueJob, queryJobs } from '../jobs.js';
+
+/**
+ * 金字塔切片重建任务处理器（由后台 worker 消费）
+ * payload: { sceneId }
+ * 读取场景主图 → 重新生成金字塔瓦片 → 更新 scenes.pyramid
+ */
+export async function retileSceneHandler(payload, job, db) {
+  const scene = db.prepare('SELECT * FROM scenes WHERE id = ?').get(payload?.sceneId);
+  if (!scene) throw new Error(`场景不存在: ${payload?.sceneId}`);
+  if (!scene.image_path) throw new Error('场景缺少主图，无法重建金字塔');
+  const storage = await getStorage(db);
+  const buffer = await readStorageFile(storage, scene.image_path);
+  if (!buffer || !buffer.length) throw new Error('主图读取失败');
+  const pyramid = await generatePyramidTiles(buffer, storage, `retile-${scene.id}-${Date.now()}`);
+  db.prepare("UPDATE scenes SET pyramid = ?, updated_at = datetime('now') WHERE id = ?").run(
+    JSON.stringify(pyramid),
+    scene.id
+  );
+  return { sceneId: scene.id, levels: pyramid.levels };
+}
+
+/** 重建金字塔任务入队（不阻塞上传/编辑请求，失败自动重试） */
+export function enqueueRetile(db, sceneId) {
+  return enqueueJob(db, 'scene-tiling', { sceneId });
+}
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
@@ -202,6 +228,32 @@ export function createScenesRouter(db) {
     }
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'delete_scene', targetType: 'scene', targetId: id, detail: `删除场景: ${row.title}`, ip: req.ip });
     res.json({ ok: true });
+  });
+
+  // —— 管理：重建场景金字塔（异步任务，失败自动重试，不阻塞请求） ——
+  router.post('/admin/scenes/:id/retile', (req, res) => {
+    const id = Number(req.params.id);
+    const row = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
+    if (!row) return res.status(404).json({ error: '场景不存在' });
+    const jobId = enqueueRetile(db, id);
+    addOperationLog(db, {
+      userId: req.user?.uid, username: req.user?.username,
+      action: 'retile_scene', targetType: 'scene', targetId: id,
+      detail: `重建场景金字塔: ${row.title} (job#${jobId})`, ip: req.ip,
+    });
+    res.json({ ok: true, jobId, message: '金字塔重建任务已提交，处理完成后自动生效' });
+  });
+
+  // —— 管理：查询后台任务（队列状态追踪） ——
+  router.get('/admin/jobs', (req, res) => {
+    const { status, type, limit, offset } = req.query;
+    const result = queryJobs(db, {
+      status: status || undefined,
+      type: type || undefined,
+      limit: Math.min(Math.max(Number(limit) || 50, 1), 200),
+      offset: Math.max(Number(offset) || 0, 0),
+    });
+    res.json(result);
   });
 
   // —— 管理：上传全景图（自动转码为两档 WebP 并经存储层上传） ——

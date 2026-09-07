@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 
@@ -35,6 +36,17 @@ export function createApp({ db } = {}) {
   app.use('/api/channel/wx-message', express.text({ type: '*/xml' }));
 
   app.use(express.json({ limit: '1mb' }));
+
+  // —— 统一请求日志 + requestId（仅记录 API，静态资源不刷屏） ——
+  app.use((req, res, next) => {
+    req.id = crypto.randomUUID().slice(0, 8);
+    if (!req.path.startsWith('/api/')) return next();
+    const start = Date.now();
+    res.on('finish', () => {
+      console.log(`[api] ${req.id} ${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`);
+    });
+    next();
+  });
 
   // 全景图静态服务
   app.use('/uploads', express.static(config.uploadsDir, { fallthrough: true }));
@@ -92,8 +104,22 @@ export function createApp({ db } = {}) {
   // 人脉集市API（组合认证：支持JWT和card_token）
   app.use('/api/card-market', comboAuth, createCardMarketRouter(database));
 
-  // 健康检查
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  // 健康检查（含依赖探测：数据库连通性）
+  app.get('/api/health', (_req, res) => {
+    let dbOk = true;
+    try {
+      database.prepare('SELECT 1').get();
+    } catch {
+      dbOk = false;
+    }
+    res.json({
+      ok: dbOk,
+      uptime: Math.round(process.uptime()),
+      version: config.version || '1.0.0',
+      db: dbOk ? 'ok' : 'error',
+      ts: Date.now(),
+    });
+  });
 
   // 旧URL重定向到新URL
   app.get('/admin.html', (_req, res) => res.redirect(301, '/admin'));
@@ -168,7 +194,7 @@ export function createApp({ db } = {}) {
   // 统一错误处理：记录堆栈（生产诊断必需），返回安全错误信息
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
-    console.error('[api-error]', req.method, req.path, err?.message || err);
+    console.error(`[api-error] ${req.id || '-'} ${req.method} ${req.path}`, err?.message || err);
     if (err?.stack) console.error(err.stack);
     const status = err?.status || 500;
     const message = err?.expose ? err.message : (status >= 500 ? '服务器内部错误' : (err?.message || '请求失败'));

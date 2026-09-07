@@ -21,4 +21,5 @@ export const config = {
   imageQuality: Number(process.env.IMAGE_QUALITY || 80),
   // 低清预览图长边（像素），用于渐进加载与缩略图
   previewSize: Number(process.env.PREVIEW_SIZE || 1024),
+  version: '1.0.0',
 };

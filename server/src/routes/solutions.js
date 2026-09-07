@@ -1,6 +1,6 @@
 // 解决方案（应用）管理
 import { Router } from 'express';
-import { toSolution } from '../db.js';
+import { toSolution, addOperationLog } from '../db.js';
 
 export function createSolutionsRouter(db) {
   const router = Router();
@@ -25,6 +25,7 @@ export function createSolutionsRouter(db) {
       .prepare('INSERT INTO solutions (name, code, description, icon, sort_order) VALUES (?, ?, ?, ?, ?)')
       .run(name.trim(), code.trim(), description || '', icon || '', sortOrder || 0);
     const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(info.lastInsertRowid);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_solution', targetType: 'solution', targetId: solution.id, detail: `新建解决方案: ${solution.name} (${solution.code})`, ip: req.ip });
     res.json({ solution: toSolution(solution) });
   });
 
@@ -38,6 +39,7 @@ export function createSolutionsRouter(db) {
       "UPDATE solutions SET name = COALESCE(?, name), description = COALESCE(?, description), icon = COALESCE(?, icon), enabled = COALESCE(?, enabled), sort_order = COALESCE(?, sort_order), updated_at = datetime('now') WHERE id = ?"
     ).run(name ?? null, description ?? null, icon ?? null, enabled ?? null, sortOrder ?? null, id);
     const updated = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_solution', targetType: 'solution', targetId: id, detail: `编辑解决方案: ${updated.name}`, ip: req.ip });
     res.json({ solution: toSolution(updated) });
   });
 
@@ -48,6 +50,7 @@ export function createSolutionsRouter(db) {
     if (!solution) return res.status(404).json({ error: '解决方案不存在' });
     if (solution.code === 'panorama') return res.status(400).json({ error: '360全景为系统内置解决方案，不可删除' });
     db.prepare('DELETE FROM solutions WHERE id = ?').run(id);
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'delete_solution', targetType: 'solution', targetId: id, detail: `删除解决方案: ${solution.name}`, ip: req.ip });
     res.json({ ok: true });
   });
 

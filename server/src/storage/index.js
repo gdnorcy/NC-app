@@ -1,4 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { decryptSecret } from '../crypto.js';
+import { config } from '../config.js';
 import { LocalStorage } from './local.js';
 import { OssStorage } from './oss.js';
 import { QiniuStorage } from './qiniu.js';
@@ -12,6 +15,25 @@ const registry = new Map([
 
 export function registerStorageProvider(name, cls) {
   registry.set(name, cls);
+}
+
+/**
+ * 从任意存储读取文件内容（供金字塔重建等异步任务回读素材）
+ * - /uploads/ 开头：本地磁盘读取
+ * - 其余：按 URL 拉取（OSS/Qiniu 外链）
+ */
+export async function readStorageFile(storage, publicUrl) {
+  if (!publicUrl) return null;
+  if (publicUrl.startsWith('/uploads/')) {
+    const rel = decodeURIComponent(publicUrl.replace(/^\/uploads\//, ''));
+    const root = path.resolve(config.uploadsDir);
+    const target = path.resolve(path.join(root, rel));
+    if (target !== root && !target.startsWith(root + path.sep)) throw new Error('非法存储路径');
+    return fs.readFileSync(target);
+  }
+  const resp = await fetch(publicUrl);
+  if (!resp.ok) throw new Error(`远程文件读取失败: HTTP ${resp.status}`);
+  return Buffer.from(await resp.arrayBuffer());
 }
 
 export const STORAGE_PROVIDERS = ['local', 'oss', 'qiniu'];
