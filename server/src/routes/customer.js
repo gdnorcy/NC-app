@@ -194,6 +194,9 @@ function verifyPlanOwnership(req, res, planId) {
 router.post('/plans', requireTenant, requireTenantAdmin, (req, res) => {
   const { name, description, coverPath } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: '方案名称必填' });
+  // 方案配额（新体系 solution_quotas：panorama.planCount）
+  const pq = checkTenantSolutionQuota(db, req.customerId, 'panorama', 'planCount');
+  if (!pq.ok) return res.status(403).json({ error: `方案数量已达上限（${pq.used}/${pq.limit}），请升级方案后再创建` });
   const info = db
     .prepare(
       'INSERT INTO plans (project_id, name, description, cover_path, share_token, share_enabled, sort_order) VALUES (?, ?, ?, ?, ?, 1, (SELECT COALESCE(MAX(sort_order),0)+1 FROM plans WHERE project_id = ?))'

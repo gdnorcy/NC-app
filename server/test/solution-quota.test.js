@@ -15,7 +15,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { createDb, hashPassword } from '../src/db.js';
-import { checkTenantSolutionQuota } from '../src/services/billing.js';
+import { checkTenantSolutionQuota, applySolutionSubscription } from '../src/services/billing.js';
 
 let tmpDir, dbPath, db, app, server;
 let adminToken, tenantToken;
@@ -182,4 +182,77 @@ test('Q6 解决方案资产接口：废弃项移除、企业员工人数在列',
   assert.ok(pano, '360全景配额组应存在');
   assert.equal(pano.appName, '360全景', '应用名应为 360全景，不得写为平台名');
   assert.ok(!pano.items.some((i) => i.key === 'storageMb'), '360全景不应包含存储空间');
+});
+
+test('Q7 方案购买支付成功回调 applySolutionSubscription', () => {
+  // 构造方案订阅订单（simulate billing.js solution-purchase 产物）
+  const demo = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
+  // 准备一个干净租户
+  const r = db.prepare("INSERT INTO projects (customer_name, status, solutions) VALUES ('配额测试租户', 'active', '[]')").run();
+  const cid = r.lastInsertRowid;
+
+  // subscribe 12 个月：写入 solutions + 延长有效期
+  let sub = applySolutionSubscription(db, {
+    customerId: cid, productType: 'subscription',
+    solution: 'demo', remark: 'solution:demo:12',
+  });
+  assert.ok(sub, 'subscribe 应返回结果');
+  assert.equal(sub.solutionCode, 'demo');
+  let proj = db.prepare('SELECT solutions, valid_until FROM projects WHERE id = ?').get(cid);
+  assert.deepEqual(JSON.parse(proj.solutions), ['demo'], '方案 code 应写入 solutions');
+  assert.ok(proj.valid_until && proj.valid_until > new Date().toISOString().slice(0, 10), '有效期应延长到未来');
+
+  // renew 幂等：不重复写入 code
+  const before = proj.valid_until;
+  sub = applySolutionSubscription(db, {
+    customerId: cid, productType: 'subscription_renew',
+    solution: 'demo', remark: 'solution:demo:12',
+  });
+  proj = db.prepare('SELECT solutions, valid_until FROM projects WHERE id = ?').get(cid);
+  assert.deepEqual(JSON.parse(proj.solutions), ['demo'], '重复开通不应重复写入');
+  assert.ok(proj.valid_until > before, 'renew 应从到期日继续延长');
+
+  // 永久档（months=0）：valid_until 清空
+  applySolutionSubscription(db, {
+    customerId: cid, productType: 'subscription',
+    solution: 'demo', remark: 'solution:demo:0',
+  });
+  proj = db.prepare('SELECT valid_until FROM projects WHERE id = ?').get(cid);
+  assert.equal(proj.valid_until, null, '永久档应清空有效期');
+
+  // 非法 remark / 不存在方案 → null（不报错）
+  assert.equal(applySolutionSubscription(db, { customerId: cid, remark: 'foo' }), null);
+});
+
+test('Q8 新增配额项校验接入点：memberCount / planCount', async () => {
+  bindSolutions(1, ['demo']);
+  upsertQuota(3, 'card', 'memberCount', '入驻个人数', 2);
+  upsertQuota(3, 'panorama', 'planCount', '方案数', 1);
+
+  // 函数级：memberCount 已用 0，限 2 → 通过
+  let q = checkTenantSolutionQuota(db, 1, 'card', 'memberCount');
+  assert.equal(q.ok, true);
+  assert.equal(q.limit, 2);
+
+  // planCount：现有方案数 >= 1 时创建第 2 个被拦（used 来自 plans 表）
+  q = checkTenantSolutionQuota(db, 1, 'panorama', 'planCount');
+  assert.equal(q.limit, 1);
+  assert.equal(q.ok, false, '方案数已达 1，创建第 2 个方案应被拦');
+
+  // 清理
+  db.prepare("DELETE FROM solution_quotas WHERE solution_id = 3 AND key = 'memberCount'").run();
+  db.prepare("DELETE FROM solution_quotas WHERE solution_id = 3 AND key = 'planCount'").run();
+});
+
+test('Q9 方案下架（status=off）后已购租户配额仍生效', () => {
+  bindSolutions(1, ['demo']);
+  // 模拟方案被下架
+  db.prepare("UPDATE solutions SET status = 'off', updated_at = datetime('now') WHERE code = 'demo'").run();
+  upsertQuota(3, 'card', 'employeeCount', '企业员工人数', 3);
+  const q = checkTenantSolutionQuota(db, 1, 'card', 'employeeCount');
+  assert.equal(q.ok, true, '方案下架后已购租户权益应保留（限制仍生效）');
+  assert.equal(q.limit, 3);
+  // 还原
+  db.prepare("UPDATE solutions SET status = 'on', updated_at = datetime('now') WHERE code = 'demo'").run();
+  db.prepare("DELETE FROM solution_quotas WHERE solution_id = 3 AND key = 'employeeCount'").run();
 });

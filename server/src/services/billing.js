@@ -60,6 +60,7 @@ export function getTenantUsage(db, customerId) {
   const enterprises = count("SELECT COUNT(*) AS n FROM tenant_enterprises WHERE customer_id = ? AND status IN ('active','pending')", cid);
   const employees = count("SELECT COUNT(*) AS n FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active'", cid);
   const scenes = count('SELECT COUNT(*) AS n FROM scenes s JOIN plans p ON s.plan_id = p.id WHERE p.project_id = ?', cid);
+  const planCount = count('SELECT COUNT(*) AS n FROM plans WHERE project_id = ?', cid);
   const marketItems = count("SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = 'approved'", cid);
   const customers = count("SELECT COUNT(*) AS n FROM card_customer WHERE customer_id = ?", cid);
 
@@ -89,7 +90,7 @@ export function getTenantUsage(db, customerId) {
     }
   } catch { /* 存储统计失败不影响主流程 */ }
 
-  return { individuals, enterprises, employees, scenes, marketItems, customers, storageMb: Math.round(storageMb * 10) / 10 };
+  return { individuals, enterprises, employees, scenes, planCount, marketItems, customers, storageMb: Math.round(storageMb * 10) / 10 };
 }
 
 /** 配额校验：usage[key] + delta <= quota[key]，超限返回 { ok:false, limit, used } */
@@ -128,7 +129,8 @@ export function checkTenantSolutionQuota(db, customerId, appCode, key, delta = 1
   if (!Array.isArray(codes)) codes = [];
   let limit = null;
   for (const code of codes) {
-    const sol = db.prepare("SELECT id FROM solutions WHERE code = ? AND status = 'on'").get(code);
+    // 不按 status 过滤：方案下架只影响新售卖，已购租户权益保留到期
+    const sol = db.prepare('SELECT id FROM solutions WHERE code = ?').get(code);
     if (!sol) continue;
     const q = db.prepare('SELECT value, enabled FROM solution_quotas WHERE solution_id = ? AND app_code = ? AND key = ?').get(sol.id, appCode, key);
     if (q && q.enabled && Number(q.value) > 0) {
@@ -138,12 +140,52 @@ export function checkTenantSolutionQuota(db, customerId, appCode, key, delta = 1
   if (limit === null) return { ok: true }; // 未配置=不限
   const usage = getTenantUsage(db, customerId);
   // 配额 key → usage 字段映射（与 QUOTA_DEFS key 对齐）
-  const USAGE_KEY = { memberCount: 'individuals', enterpriseCount: 'enterprises', employeeCount: 'employees', sceneCount: 'scenes' };
+  const USAGE_KEY = { memberCount: 'individuals', enterpriseCount: 'enterprises', employeeCount: 'employees', sceneCount: 'scenes', planCount: 'planCount' };
   const used = usage[USAGE_KEY[key] ?? key] ?? 0;
   if (used + delta > limit) {
     return { ok: false, limit, used };
   }
   return { ok: true, limit, used };
+}
+
+/**
+ * 方案购买/续费支付成功回调（新体系 solution_pricing）：
+ * - 解析 order.remark `solution:<code>:<months>`（months=0 为永久）
+ * - 把方案 code 追加写入 projects.solutions（幂等去重）
+ * - 有效期：subscribe 从今天起算；renew 从 max(到期,今天) 起算；永久档清空 valid_until
+ * - 到期/停用租户购买后恢复 active
+ * 返回 { solutionCode, validUntil } 或 null（解析失败）
+ */
+export function applySolutionSubscription(db, order) {
+  const m = /^solution:(.+):(\d+)$/.exec(order.remark || '');
+  const code = m ? m[1] : (order.solution || null);
+  const months = m ? Number(m[2]) : 0;
+  if (!code) return null;
+  const sol = db.prepare('SELECT * FROM solutions WHERE code = ?').get(code);
+  if (!sol) return null;
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(order.customerId ?? order.customer_id);
+  if (!project) return null;
+
+  let codes = [];
+  try { codes = JSON.parse(project.solutions || '[]'); } catch {}
+  if (!Array.isArray(codes)) codes = [];
+  if (!codes.includes(code)) codes.push(code);
+  db.prepare("UPDATE projects SET solutions = ?, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(codes), project.id);
+
+  const today = () => new Date().toISOString().slice(0, 10);
+  const action = order.productType === 'subscription_renew' ? 'renew' : 'subscribe';
+  let validUntil = project.valid_until || null;
+  if (months > 0) {
+    const baseStr = action === 'renew' && validUntil && validUntil >= today() ? validUntil : today();
+    const base = new Date(baseStr + 'T00:00:00');
+    const end = new Date(base.getTime() + months * 30 * 24 * 3600 * 1000);
+    validUntil = end.toISOString().slice(0, 10);
+    db.prepare("UPDATE projects SET valid_until = ?, status = 'active', updated_at = datetime('now') WHERE id = ?").run(validUntil, project.id);
+  } else {
+    validUntil = null; // 永久档
+    db.prepare("UPDATE projects SET valid_until = NULL, status = 'active', updated_at = datetime('now') WHERE id = ?").run(project.id);
+  }
+  return { solutionCode: code, validUntil };
 }
 
 // ============ 订阅联动（支付成功回调） ============

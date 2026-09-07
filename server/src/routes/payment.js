@@ -6,7 +6,7 @@
 import { Router } from 'express';
 import { PaymentService } from '../services/payment.js';
 import { addOperationLog } from '../db.js';
-import { applySubscription } from '../services/billing.js';
+import { applySubscription, applySolutionSubscription } from '../services/billing.js';
 
 export function createPaymentRouter(db) {
   const router = Router();
@@ -65,11 +65,11 @@ export function createPaymentRouter(db) {
     const order = payment.markPaid(orderNo, 'MOCK_' + Date.now());
     if (!order) return res.status(404).json({ error: '订单不存在' });
 
-    // 订阅订单：支付成功后自动开通/续期/升级套餐
+    // 订阅订单：支付成功后自动开通/续期（方案订单走方案体系，套餐订单走旧套餐体系）
     let subscription = null;
     if (order.productType === 'subscription' || order.productType === 'subscription_renew' || order.productType === 'subscription_upgrade') {
       try {
-        subscription = applySubscription(db, order);
+        subscription = order.solution ? applySolutionSubscription(db, order) : applySubscription(db, order);
       } catch (e) {
         console.error('[billing] 订阅开通失败', e?.message || e);
       }
@@ -93,7 +93,10 @@ export function createPaymentRouter(db) {
       if (orderNo) {
         const order = payment.markPaid(orderNo, req.body?.transaction_id || '');
         if (order && (order.productType === 'subscription' || order.productType === 'subscription_renew' || order.productType === 'subscription_upgrade')) {
-          try { applySubscription(db, order); } catch (e) { console.error('[billing] 订阅开通失败', e?.message || e); }
+          try {
+            if (order.solution) applySolutionSubscription(db, order);
+            else applySubscription(db, order);
+          } catch (e) { console.error('[billing] 订阅开通失败', e?.message || e); }
         }
       }
 

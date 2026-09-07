@@ -859,6 +859,9 @@ export function createCardMarketRouter(db) {
       if (action === 'approve') {
         const q = checkTenantQuota(db, req.customerId, 'max_individuals');
         if (!q.ok) return res.status(403).json({ error: `入驻个人数量已达上限（${q.used}/${q.limit}），请升级套餐后再审核` });
+        // 方案配额（新体系 solution_quotas：card.memberCount）
+        const iq = checkTenantSolutionQuota(db, req.customerId, 'card', 'memberCount');
+        if (!iq.ok) return res.status(403).json({ error: `入驻个人数已达上限（${iq.used}/${iq.limit}），请升级方案后再审核` });
       }
       db.prepare("UPDATE tenant_individuals SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
       if (action === 'approve') {
