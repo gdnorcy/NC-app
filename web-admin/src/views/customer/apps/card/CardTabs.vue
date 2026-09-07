@@ -19,7 +19,8 @@ import SIcon from '../../../../components/SIcon.vue';
 
 // 智能名片5个管理功能的统一Tab导航：所有页共用，切换行为一致
 const tabs = [
-  { label: '员工名片', path: '/apps/card', icon: 'team' },
+  { label: '数据洞察', path: '/apps/card', icon: 'analytics' },
+  { label: '员工名片', path: '/apps/card/employees', icon: 'team' },
   { label: '企业客户', path: '/apps/card/customers', icon: 'customer' },
   { label: '集市管理', path: '/apps/card/market', icon: 'market' },
   { label: '入驻管理', path: '/apps/card/tenant', icon: 'audit' },

@@ -1,5 +1,8 @@
 <template>
   <div class="analytics-page">
+    <!-- 统一Tab导航 -->
+    <CardTabs />
+
     <!-- 页头 -->
     <div class="page-header">
       <div>
@@ -144,7 +147,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { customerApiCall } from '../../api';
+import { customerApiCall } from '../../../../api';
+import CardTabs from './CardTabs.vue';
 
 const days = ref(14);
 const health = ref({});

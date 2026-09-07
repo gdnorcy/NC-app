@@ -9,7 +9,7 @@ const routes = [
     redirect: '/dashboard',
     children: [
       { path: 'dashboard', component: () => import('../views/customer/Dashboard.vue'), meta: { title: '工作台', breadcrumbs: ['工作台'] } },
-      { path: 'analytics', component: () => import('../views/customer/Analytics.vue'), meta: { title: '数据洞察', breadcrumbs: ['数据洞察'] } },
+      { path: 'analytics', redirect: '/apps/card' },
       { path: 'apps', component: () => import('../views/customer/Apps.vue'), meta: { title: '应用中心', breadcrumbs: ['应用中心'] } },
       { path: 'apps/panorama/plans', component: () => import('../views/customer/panorama/Plans.vue'), meta: { title: '360全景', breadcrumbs: ['应用中心', '360全景'] } },
       { path: 'apps/panorama/plans/:id/scenes', component: () => import('../views/customer/panorama/Scenes.vue'), meta: { title: '场景管理', breadcrumbs: ['应用中心', '360全景', '场景管理'] } },
@@ -17,7 +17,8 @@ const routes = [
       { path: 'apps/channel', component: () => import('../views/customer/channel/ChannelOverview.vue'), meta: { title: '全端渠道', breadcrumbs: ['应用中心', '全端渠道'] } },
       { path: 'apps/channel/mini', component: () => import('../views/customer/channel/ChannelMini.vue'), meta: { title: '微信小程序', breadcrumbs: ['应用中心', '全端渠道', '微信小程序'] } },
       { path: 'apps/channel/config', component: () => import('../views/customer/channel/ChannelConfig.vue'), meta: { title: '渠道配置', breadcrumbs: ['应用中心', '全端渠道', '渠道配置'] } },
-      { path: 'apps/card', component: () => import('../views/customer/card/CardAdmin.vue'), meta: { title: '智能名片', breadcrumbs: ['应用中心', '智能名片'] } },
+      { path: 'apps/card', component: () => import('../views/customer/apps/card/Analytics.vue'), meta: { title: '数据洞察', breadcrumbs: ['应用中心', '智能名片', '数据洞察'] } },
+      { path: 'apps/card/employees', component: () => import('../views/customer/card/CardAdmin.vue'), meta: { title: '员工名片', breadcrumbs: ['应用中心', '智能名片', '员工名片'] } },
       { path: 'apps/card/customers', component: () => import('../views/customer/apps/card/CustomersManage.vue'), meta: { title: '企业客户', breadcrumbs: ['应用中心', '智能名片', '企业客户'] } },
       { path: 'apps/card/market', component: () => import('../views/customer/apps/card/MarketManage.vue'), meta: { title: '集市管理', breadcrumbs: ['应用中心', '智能名片', '集市管理'] } },
       { path: 'apps/card/tenant', component: () => import('../views/customer/apps/card/TenantManage.vue'), meta: { title: '入驻管理', breadcrumbs: ['应用中心', '智能名片', '入驻管理'] } },
