@@ -428,11 +428,30 @@ export function createCardRouter(db, wxService) {
       const actionType = lastAction ? lastAction.action_type : '';
       const actionDetail = lastAction ? lastAction.action_detail : '';
 
+      // 全部行为（用于意向评分）
+      const actions = db.prepare('SELECT action_type, action_detail FROM card_visitor_action WHERE card_id=? AND visitor_openid=?').all(card.id, v.visitor_openid);
+      const actionTypes = new Set(actions.map(a => a.action_type));
+
       // 标签推断（按最近动作优先）：已交换名片 > 观看视频 > 高意向 > 新访客
       let tag = '新访客', tagColor = '#9a9a9a';
       if (actionType === 'exchange') { tag = '已交换名片'; tagColor = '#07c160'; }
       else if (actionType === 'video' || (actionDetail || '').includes('视频')) { tag = '观看视频'; tagColor = '#1d4e8f'; }
       else if (v.visit_count >= 2) { tag = '高意向'; tagColor = '#07c160'; }
+
+      // ===== AI 意向评分（本地规则引擎，0-100） =====
+      let score = 0;
+      score += Math.min(45, (v.visit_count || 1) * 15);            // 访问频次（封顶45）
+      if (v.duration > 60) score += 10;
+      if (v.duration > 180) score += 5;                            // 深度停留（封顶15）
+      if (actionTypes.has('exchange')) score += 20;                // 交换名片（强意向）
+      if (actionTypes.has('video') || actionTypes.has('share') || actionTypes.has('form')) score += 10;
+      if (actionTypes.has('comment') || actionTypes.has('like')) score += 5;
+      const firstVisit = db.prepare('SELECT MIN(visit_date) as d FROM card_visitor WHERE card_id=? AND visitor_openid=?').get(card.id, v.visitor_openid).d;
+      const isReturning = firstVisit && firstVisit < v.visit_date;
+      if (isReturning) score += 10;                                // 回访加分
+      score = Math.min(100, score);
+      const level = score >= 70 ? '高意向' : (score >= 40 ? '中意向' : '低意向');
+      const levelColor = score >= 70 ? '#07c160' : (score >= 40 ? '#FF7D00' : '#9a9a9a');
 
       // 行为描述
       const durText = v.duration > 0 ? ` · 停留${v.duration >= 60 ? Math.floor(v.duration / 60) + '分' + (v.duration % 60) + '秒' : v.duration + '秒'}` : '';
@@ -444,10 +463,11 @@ export function createCardRouter(db, wxService) {
         nickname: nickname || (v.visitor_openid === 'anonymous' ? '匿名访客' : '访客'), avatar,
         visitCount: v.visit_count, duration: v.duration, lastVisitAt: v.last_visit_at,
         tag, tagColor, actionType, behavior, timeAgo, unread: !v.read_at,
+        score, level, levelColor, firstVisitAt: firstVisit || null, isReturning,
       };
     });
 
-    res.json({ today: todayCount, week: weekCount, total, diff, visitors: enriched });
+    res.json({ today: todayCount, week: weekCount, total, diff, visitors: enriched, trend: buildVisitorTrend(db, card.id) });
   });
 
   // 访客已读标记（红点消失）
@@ -459,8 +479,18 @@ export function createCardRouter(db, wxService) {
     res.json({ ok: true });
   });
 
-  function timeAgoText(time) {
-    if (!time) return '';
+  // 近7日访问趋势（按日聚合，缺日补0）
+  function buildVisitorTrend(db, cardId) {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      const c = db.prepare('SELECT COALESCE(SUM(visit_count),0) as c FROM card_visitor WHERE card_id=? AND visit_date=?').get(cardId, d).c;
+      days.push({ date: d.slice(5), count: c });
+    }
+    return days;
+  }
+
+  function timeAgoText(time) {    if (!time) return '';
     const d = new Date(String(time).replace(' ', 'T'));
     const now = new Date();
     const diff = now - d;

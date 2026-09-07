@@ -36,6 +36,27 @@
       </view>
     </view>
 
+    <!-- 近7日访问趋势（AI雷达） -->
+    <view class="trend-card" v-if="!locked && trend.length">
+      <view class="trend-head">
+        <text class="trend-t">近7日访问趋势</text>
+        <text class="trend-peak">峰值 {{ trendPeak }} 次</text>
+      </view>
+      <view class="trend-bars">
+        <view class="tbar" v-for="(d, i) in trend" :key="i" @click="trendTip = d">
+          <view class="tbar-col">
+            <view class="tbar-val" v-if="d.count">{{ d.count }}</view>
+            <view
+              class="tbar-fill"
+              :class="{ hot: d.count === trendPeak && d.count > 0 }"
+              :style="{ height: barHeight(d.count) }"
+            ></view>
+          </view>
+          <text class="tbar-lbl">{{ d.date }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 访客记录（demo card-row visitor） -->
     <view class="sec-t">访客记录 <small>{{ visitors.length }} 条</small></view>
     <view class="visitor-list" v-if="visitors.length">
@@ -48,6 +69,7 @@
           <view class="v-name">
             {{ v.nickname }}
             <text class="v-tag" :class="tagCls(v.tag)">{{ v.tag }}</text>
+            <text class="v-score" v-if="v.score !== undefined" :style="{ color: v.levelColor }">{{ v.level }} {{ v.score }}分</text>
           </view>
           <view class="v-behav">{{ v.behavior }} · {{ v.timeAgo }}</view>
         </view>
@@ -116,6 +138,7 @@ import CardTabBar from '../../components/CardTabBar.vue';
 
 const summary = ref({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
 const visitors = ref([]);
+const trend = ref([]);
 const displayToday = ref(0);
 const displayWeek = ref(0);
 const displayTotal = ref(0);
@@ -135,6 +158,14 @@ const diffText = computed(() => {
   return d > 0 ? `+${d}%` : d < 0 ? `${d}%` : '持平';
 });
 
+// 7日趋势峰值与柱高
+const trendPeak = computed(() => Math.max(1, ...(trend.value.map(d => d.count || 0))));
+function barHeight(count) {
+  const max = trendPeak.value;
+  const h = max > 0 ? Math.round(((count || 0) / max) * 72) : 2;
+  return Math.max(2, h) + 'rpx';
+}
+
 onShow(() => { trackPageView('/pages/card/visitors'); });
 
 onMounted(async () => {
@@ -144,6 +175,7 @@ onMounted(async () => {
     if (res && res.locked) { locked.value = true; return; }
     summary.value = res;
     visitors.value = res.visitors || [];
+    trend.value = res.trend || [];
     animateNumber('today', res.today);
     animateNumber('week', res.week);
     animateNumber('total', res.total);
@@ -369,6 +401,58 @@ async function saveConvert() {
   gap: 8rpx;
 }
 
+/* ===== 近7日访问趋势 ===== */
+.trend-card {
+  margin: 24rpx 28rpx 0;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx 24rpx 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(31, 42, 68, 0.05);
+}
+.trend-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.trend-t { font-size: 28rpx; font-weight: 600; color: #1D2129; }
+.trend-peak { font-size: 22rpx; color: #86909C; }
+.trend-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 110rpx;
+}
+.tbar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6rpx;
+}
+.tbar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 88rpx;
+}
+.tbar-val {
+  font-size: 18rpx;
+  color: #4E5969;
+  margin-bottom: 4rpx;
+}
+.tbar-fill {
+  width: 24rpx;
+  border-radius: 6rpx 6rpx 2rpx 2rpx;
+  background: rgba(22, 93, 255, 0.25);
+  min-height: 2rpx;
+  transition: height 0.3s ease;
+}
+.tbar-fill.hot { background: #165DFF; }
+.tbar-lbl { font-size: 20rpx; color: #86909C; }
+
 /* ===== 访客记录（demo card-row 独立卡片）===== */
 .sec-t {
   margin: 36rpx 28rpx 20rpx;
@@ -442,6 +526,12 @@ async function saveConvert() {
   padding: 4rpx 14rpx;
   border-radius: 999rpx;
   font-weight: 500;
+  white-space: nowrap;
+}
+.v-score {
+  font-size: 20rpx;
+  font-weight: 600;
+  margin-left: 8rpx;
   white-space: nowrap;
 }
 .v-tag.green {
