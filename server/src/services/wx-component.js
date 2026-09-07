@@ -4,6 +4,12 @@ import crypto from 'node:crypto';
  * 微信第三方平台服务
  * 处理 component_access_token 管理、租户授权、代码发布等
  */
+/** 小程序审核标题：优先租户品牌名，空则回退默认（纯函数，便于单测） */
+export function resolveAuditTitle(brandName) {
+  const name = String(brandName || '').trim();
+  return name || '360全景展示';
+}
+
 export class WxComponentService {
   constructor(db) {
     this.db = db;
@@ -204,6 +210,8 @@ export class WxComponentService {
   // —— 提交审核 ——
   async submitAudit(channelAppId) {
     const token = await this.getAuthorizerAccessToken(channelAppId);
+    const app = this.db.prepare('SELECT brand_name FROM channel_apps WHERE id = ?').get(channelAppId) || {};
+    const title = resolveAuditTitle(app.brand_name);
     // 先获取草稿列表，找到最新的draft_id
     const draftRes = await fetch(`https://api.weixin.qq.com/wxa/gettemplatedraftlist?access_token=${token}`, {
       method: 'POST', body: JSON.stringify({ offset: 0, count: 1 }),
@@ -221,7 +229,7 @@ export class WxComponentService {
           tag: '全景展示',
           first_class: '工具',
           second_class: '效率',
-          title: '360全景展示',
+          title,
         }],
       }),
     });
