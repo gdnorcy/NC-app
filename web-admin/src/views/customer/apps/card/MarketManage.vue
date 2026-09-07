@@ -279,10 +279,10 @@ async function forceRemove(row) {
 .card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f2f3f5; }
 .card-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #1d2129; }
 .card-body { padding: 20px; }
-style-picker { display: flex; gap: 12px; flex-wrap: wrap; }
-.style-option { flex: 1 1 180px; max-width: 240px; padding: 14px 16px; border: 1px solid #e5e6eb; border-radius: 8px; cursor: pointer; transition: all .2s; }
+.style-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; max-width: 860px; }
+.style-option { padding: 14px 16px; border: 1px solid #e5e6eb; border-radius: 8px; cursor: pointer; transition: all .2s; }
 .style-option:hover { border-color: #165dff; }
-.style-option.active { border-color: #165dff; background: #e8f3ff; }
+.style-option.active { border-color: #165dff; background: #e8f3ff; box-shadow: 0 2px 8px rgba(22,93,255,0.08); }
 .style-name { font-size: 14px; font-weight: 600; color: #1d2129; }
 .style-desc { font-size: 12px; color: #86909c; margin-top: 4px; line-height: 1.5; }
 .hint-text { font-size: 13px; color: #86909c; margin: 0; }

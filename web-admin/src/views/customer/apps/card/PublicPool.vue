@@ -65,10 +65,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="recycledAt" label="回收时间" width="180" />
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.status === 'available'" type="primary" size="small" link @click="claimCustomer(row)">领取</el-button>
-            <span v-else class="claimed-by">领取人: {{ row.claimedBy || '—' }}</span>
+            <el-button v-if="row.status === 'available' && isManager" type="primary" size="small" link @click="openAssign(row)">分配</el-button>
+            <el-button v-else-if="row.status === 'available'" type="primary" size="small" link @click="claimCustomer(row)">领取</el-button>
+            <span v-else class="claimed-by">领取人: {{ row.claimedByName || row.claimedBy || '—' }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -79,6 +80,23 @@
         <div class="empty-hint">停用入驻个人/企业时，其客户将自动回收至公海池</div>
       </div>
     </div>
+
+    <!-- 分配弹窗（管理员） -->
+    <el-dialog v-model="assignVisible" title="分配公海客户" width="480px" align-center>
+      <div class="assign-tip">将「{{ assignRow?.name || '该客户' }}」分配给以下成员：</div>
+      <el-select v-model="assigneeUserId" placeholder="请选择入驻个人 / 企业员工" style="width: 100%;" filterable>
+        <el-option
+          v-for="m in assignMembers"
+          :key="m.userId"
+          :value="m.userId"
+          :label="`${m.displayName || m.nickname || '未命名'}（${m.type === 'individual' ? '入驻个人' : '企业员工'}）`"
+        />
+      </el-select>
+      <template #footer>
+        <el-button @click="assignVisible = false">取消</el-button>
+        <el-button type="primary" :loading="assigning" @click="confirmAssign">确认分配</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -87,11 +105,21 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
 import { publicApi } from '../../../../api';
+import { isTenantAdmin, isEnterpriseAdmin } from '../../../../utils/menuPermissions';
 import CardTabs from './CardTabs.vue';
 
 const pool = ref([]);
 const keyword = ref('');
 const filterStatus = ref('');
+// 管理员身份（租户管理员 / 入驻企业管理员）：显示「分配」，成员显示「领取」
+const curUser = JSON.parse(localStorage.getItem('customer_user') || 'null');
+const isManager = computed(() => isTenantAdmin(curUser) || isEnterpriseAdmin(curUser));
+// 分配弹窗
+const assignVisible = ref(false);
+const assignRow = ref(null);
+const assignMembers = ref([]);
+const assigneeUserId = ref(null);
+const assigning = ref(false);
 
 const availableCount = computed(() => pool.value.filter(p => p.status === 'available').length);
 
@@ -130,6 +158,40 @@ async function claimCustomer(row) {
     loadPool();
   } catch {}
 }
+
+// 管理员：打开分配弹窗并加载可分配成员
+async function openAssign(row) {
+  assignRow.value = row;
+  assigneeUserId.value = null;
+  assignVisible.value = true;
+  try {
+    const res = await publicApi.get('/card-market/public-pool/members');
+    assignMembers.value = res.members || [];
+    if (!assignMembers.value.length) {
+      ElMessage.warning('暂无活跃的入驻个人或企业员工可分配');
+    }
+  } catch (e) {
+    console.error('加载分配成员失败', e);
+  }
+}
+
+async function confirmAssign() {
+  if (!assigneeUserId.value) {
+    ElMessage.warning('请选择分配对象');
+    return;
+  }
+  assigning.value = true;
+  try {
+    await publicApi.post(`/card-market/public-pool/${assignRow.value.id}/assign`, { assigneeUserId: assigneeUserId.value });
+    ElMessage.success('分配成功');
+    assignVisible.value = false;
+    loadPool();
+  } catch (e) {
+    ElMessage.error(e?.message || '分配失败');
+  } finally {
+    assigning.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -152,6 +214,8 @@ async function claimCustomer(row) {
 .cell-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
 
 .claimed-by { font-size: 12px; color: #86909c; }
+
+.assign-tip { font-size: 13px; color: #4e5969; margin-bottom: 12px; }
 
 .empty-state { display: flex; flex-direction: column; align-items: center; padding: 60px 0; }
 .empty-text { font-size: 14px; color: #4e5969; margin-top: 12px; }

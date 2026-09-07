@@ -1053,8 +1053,71 @@ export function createCardMarketRouter(db) {
     const proj = db.prepare('SELECT quota FROM projects WHERE id = ?').get(req.customerId);
     try { cfg = JSON.parse(proj?.quota || '{}'); } catch {}
     checkTimeoutRecycle(req.customerId, cfg.pool_recycle_days || 30);
-    const pool = db.prepare("SELECT * FROM tenant_public_pool WHERE customer_id = ? AND status = 'available' ORDER BY recycled_at DESC").all(req.customerId);
+    // 全量状态返回（含已领取），并 JOIN 领取人昵称便于列表展示
+    const pool = db.prepare(`SELECT p.*, u.nickname AS claimedByName
+      FROM tenant_public_pool p LEFT JOIN platform_user u ON u.id = p.claimed_by
+      WHERE p.customer_id = ? ORDER BY p.recycled_at DESC`).all(req.customerId);
     res.json({ pool });
+  });
+
+  // 公海可分配成员列表（管理员分配用）：本租户活跃入驻个人 + 企业员工
+  router.get('/public-pool/members', tenant, (req, res) => {
+    const members = db.prepare(`
+      SELECT u.id AS userId, u.nickname AS nickname, u.phone AS phone,
+             'individual' AS type, ind.id AS subjectId, ind.name AS displayName
+        FROM tenant_individuals ind JOIN platform_user u ON u.id = ind.user_id
+       WHERE ind.customer_id = ? AND ind.status = 'active'
+      UNION ALL
+      SELECT u.id AS userId, u.nickname AS nickname, u.phone AS phone,
+             'employee' AS type, emp.id AS subjectId, emp.name AS displayName
+        FROM tenant_enterprise_employees emp JOIN platform_user u ON u.id = emp.user_id
+       WHERE emp.customer_id = ? AND emp.status = 'active'
+      ORDER BY type ASC, displayName ASC`).all(req.customerId, req.customerId);
+    res.json({ members });
+  });
+
+  // 管理员分配公海客户给指定成员（原子更新防并发重复分配）
+  router.post('/public-pool/:id/assign', tenant, (req, res) => {
+    const { id } = req.params;
+    const assigneeUserId = Number(req.body?.assigneeUserId);
+    const operatorId = currentUserId(req);
+    if (!operatorId) return res.status(401).json({ error: '未登录' });
+    if (!assigneeUserId) return res.status(400).json({ error: '请选择分配对象' });
+
+    // 操作者须为管理员：平台/租户管理员，入驻企业管理员（员工表 role=admin），
+    // 或后台账号声明企业身份（users.enterprise_id，企业属于本租户且激活）
+    const entRole = currentEnterpriseRole(operatorId);
+    const claimEntId = req.user?.enterpriseId;
+    const isEntAdminByClaim = !!claimEntId && !!db.prepare(
+      "SELECT id FROM tenant_enterprises WHERE id = ? AND customer_id = ? AND status = 'active'"
+    ).get(claimEntId, req.customerId);
+    const isAdmin = isPlatformOrTenantAdmin(req) || (entRole && entRole.role === 'admin') || isEntAdminByClaim;
+    if (!isAdmin) return res.status(403).json({ error: '仅管理员可分配公海客户' });
+
+    // 被分配人必须是本租户活跃成员（入驻个人/企业员工）
+    const target = db.prepare(`SELECT id, type FROM (
+        SELECT id, 'individual' AS type FROM tenant_individuals
+         WHERE customer_id = ? AND user_id = ? AND status = 'active'
+        UNION ALL
+        SELECT id, 'employee' AS type FROM tenant_enterprise_employees
+         WHERE customer_id = ? AND user_id = ? AND status = 'active'
+      ) LIMIT 1`).get(req.customerId, assigneeUserId, req.customerId, assigneeUserId);
+    if (!target) return res.status(400).json({ error: '分配对象不是本租户活跃成员' });
+
+    const item = db.prepare('SELECT * FROM tenant_public_pool WHERE id = ? AND customer_id = ?').get(id, req.customerId);
+    if (!item) return res.status(404).json({ error: '客户不存在' });
+    if (item.status !== 'available') return res.status(400).json({ error: '客户已被领取或分配' });
+
+    // 原子更新：仅 available→claimed 成功才归属
+    const upd = db.prepare("UPDATE tenant_public_pool SET status = 'claimed', claimed_by = ?, claimed_at = datetime('now'), last_follow_at = datetime('now') WHERE id = ? AND status = 'available'").run(assigneeUserId, id);
+    if (upd.changes === 0) return res.status(400).json({ error: '客户已被领取或分配' });
+
+    const ownerType = target.type === 'employee' ? 'employee' : 'individual';
+    const cid = db.prepare(`INSERT INTO card_customer (customer_id, owner_user_id, owner_type, name, phone, company, position, source, source_type, source_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'public_pool', ?, ?)`).run(
+      req.customerId, assigneeUserId, ownerType, item.name, item.phone || '', item.company || '', item.position || '', item.source_type || '', item.source_id || null
+    );
+    res.json({ success: true, customerId: cid.lastInsertRowid, assigneeUserId });
   });
 
   // 领取公海客户（本租户成员；原子更新防并发重复领取）

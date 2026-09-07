@@ -270,6 +270,69 @@ test('P1-4 企业停用完整回收链：企业公海+员工客户上浮租户�
   assert.equal(ent2.status, 'disabled');
 });
 
+test('P1-6 管理员分配公海客户：指定成员归属 + 非管理员被拒', async () => {
+  // 租1公海插入一条客户
+  db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position)
+    VALUES (1, 'individual', 99, '分配客户', '13900002222', '分配公司', '总监')`).run();
+
+  // 租1两个活跃成员：甲（被分配人）、乙（普通成员）
+  const a = await wxLogin('assign_a');
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(a)).send({ name: '甲', bindCode: '1001', applyType: 'individual' });
+  approveApply('assign_a', 1);
+  const b = await wxLogin('assign_b');
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(b)).send({ name: '乙', bindCode: '1001', applyType: 'individual' });
+  approveApply('assign_b', 1);
+  const ua = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_assign_a'").get();
+  const ub = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_assign_b'").get();
+
+  const poolRow = db.prepare("SELECT id FROM tenant_public_pool WHERE customer_id = 1 AND phone = '13900002222'").get();
+
+  // 1) 非管理员（成员乙）分配 → 403
+  const denied = await request(app).post(`/api/card-market/public-pool/${poolRow.id}/assign`).set(bearer(b)).send({ assigneeUserId: ua.id });
+  assert.equal(denied.status, 403, '普通成员不可分配公海客户');
+
+  // 2) 管理员（租1 tenant_admin）分配给成员甲 → 200，客户归属甲
+  const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
+  const ok = await request(app).post(`/api/card-market/public-pool/${poolRow.id}/assign`)
+    .set(bearer(issueToken(adm1))).send({ assigneeUserId: ua.id });
+  assert.equal(ok.status, 200, '管理员分配应成功');
+  assert.equal(ok.body.assigneeUserId, ua.id);
+
+  const afterRow = db.prepare('SELECT status, claimed_by FROM tenant_public_pool WHERE id = ?').get(poolRow.id);
+  assert.equal(afterRow.status, 'claimed');
+  assert.equal(afterRow.claimed_by, ua.id, '归属被分配人');
+  const cust = db.prepare('SELECT owner_user_id, owner_type, source FROM card_customer WHERE source = ? ORDER BY id DESC LIMIT 1').get('public_pool');
+  assert.equal(cust.owner_user_id, ua.id, '客户进入被分配人客户列表');
+
+  // 3) 重复分配同一条 → 400
+  const dup = await request(app).post(`/api/card-market/public-pool/${poolRow.id}/assign`)
+    .set(bearer(issueToken(adm1))).send({ assigneeUserId: ub.id });
+  assert.equal(dup.status, 400, '已分配客户不可重复分配');
+
+  // 4) 后台账号（users 表企业管理员，token 声明 enterpriseId）可分配
+  const entId = db.prepare("INSERT INTO tenant_enterprises (customer_id, name, admin_user_id, status) VALUES (1, '分配测试企业', NULL, 'active')").run().lastInsertRowid;
+  db.prepare(`INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id, enterprise_id)
+    VALUES ('pool_ent_adm', '13800000003', 'x', 'y', 'tenant_member', 'active', 1, ?)`).run(entId);
+  const entAdm = db.prepare("SELECT * FROM users WHERE username = 'pool_ent_adm'").get();
+  db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position)
+    VALUES (1, 'individual', 100, '分配客户2', '13900003333', '分配公司2', '总监')`).run();
+  const poolRow2 = db.prepare("SELECT id FROM tenant_public_pool WHERE customer_id = 1 AND phone = '13900003333'").get();
+  const entOk = await request(app).post(`/api/card-market/public-pool/${poolRow2.id}/assign`)
+    .set(bearer(issueToken(entAdm))).send({ assigneeUserId: ua.id });
+  assert.equal(entOk.status, 200, '后台账号企业管理员应可分配');
+  db.prepare('DELETE FROM tenant_public_pool WHERE id = ?').run(poolRow2.id);
+  db.prepare('DELETE FROM card_customer WHERE owner_user_id = ? AND source = ?').run(ua.id, 'public_pool');
+  db.prepare('DELETE FROM users WHERE id = ?').run(entAdm.id);
+  db.prepare('DELETE FROM tenant_enterprises WHERE id = ?').run(entId);
+
+  // 清理
+  db.prepare('DELETE FROM card_customer WHERE owner_user_id = ? AND source = ?').run(ua.id, 'public_pool');
+  db.prepare('DELETE FROM tenant_public_pool WHERE id = ?').run(poolRow.id);
+  db.prepare("DELETE FROM card_profile WHERE user_id IN (?,?)").run(ua.id, ub.id);
+  db.prepare("DELETE FROM tenant_individuals WHERE customer_id = 1 AND user_id IN (?,?)").run(ua.id, ub.id);
+  db.prepare("DELETE FROM platform_user WHERE id IN (?,?)").run(ua.id, ub.id);
+});
+
 test('P1-5 交换快照：accept 后固化双方名片快照，人脉与客户线索分离', async () => {
   // 同租户两个个人
   const x = await wxLogin('swap_x');
