@@ -5,13 +5,13 @@
     <!-- 当前套餐卡片 -->
     <div class="page-card current-plan">
       <div class="cp-left">
-        <div class="cp-badge">{{ plan.plan?.name || '免费版' }}</div>
+        <div class="cp-badge">{{ plan.plan?.name || '体验套餐' }}</div>
         <div class="cp-desc">{{ plan.plan?.description || '体验基础能力' }}</div>
       </div>
       <div class="cp-right">
         <div class="cp-item">
           <span class="cp-label">到期时间</span>
-          <span class="cp-value">{{ plan.validUntil || '未开通（默认免费版）' }}</span>
+          <span class="cp-value">{{ plan.validUntil || '未开通（默认体验套餐）' }}</span>
         </div>
         <div class="cp-item">
           <span class="cp-label">计费周期</span>

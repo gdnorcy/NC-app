@@ -93,8 +93,8 @@ const form = ref({
 onMounted(async () => {
   if (isEdit.value) {
     try {
-      const { data } = await adminApi.get('/billing-plans');
-      const p = (data.plans || []).find((x) => String(x.id) === String(route.params.id));
+      const res = await adminApi.get('/billing-plans');
+      const p = (res.plans || []).find((x) => String(x.id) === String(route.params.id));
       if (p) {
         form.value = {
           code: p.code, name: p.name, description: p.description, price: p.price,

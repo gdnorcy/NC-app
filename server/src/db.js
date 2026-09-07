@@ -380,7 +380,7 @@ function migrate(db) {
   const planCount = db.prepare('SELECT COUNT(*) AS n FROM billing_plans').get().n;
   if (planCount === 0) {
     const seedPlans = [
-      ['free', '免费版', '体验基础能力，适合个人试用', 0, 'year',
+      ['free', '体验套餐', '体验基础能力，适合个人试用', 0, 'year',
         JSON.stringify({ max_individuals: 5, max_enterprises: 1, max_employees: 10, max_scenes: 5, max_storage_mb: 512, max_sms: 0, max_market_items: 10 }),
         JSON.stringify({ market_enabled: false, panorama_enabled: true, card_enabled: true, distribution_enabled: false }), 1, 10],
       ['pro', '专业版', '适合中小商户，解锁人脉集市与分销', 999, 'year',

@@ -170,7 +170,7 @@ test('A2 上浮租户公海：手动上浮 + 幂等拦截', { concurrency: false
   assert.equal(dup.status, 400);
 });
 
-test('A2 领取/释放闭环', { concurrency: false }, async () => {
+test('A2 领取/释放闭环：客户同步进列表、释放清理归属', { concurrency: false }, async () => {
   const token = issueToken(entMgr);
   // 再造一条可用
   db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
@@ -183,10 +183,50 @@ test('A2 领取/释放闭环', { concurrency: false }, async () => {
   const claimed = db.prepare('SELECT status, claimed_by FROM enterprise_public_pool WHERE id = ?').get(item.id);
   assert.equal(claimed.status, 'claimed');
   assert.equal(claimed.claimed_by, entMgr.id);
+  // 领取后必须写入领取人客户列表（source=enterprise_pool）
+  const cust = db.prepare("SELECT id, owner_user_id FROM card_customer WHERE source = 'enterprise_pool' AND phone = '13900002003'").get();
+  assert.ok(cust, '领取后客户应进入领取人客户列表');
+  assert.equal(cust.owner_user_id, entMgr.id);
 
   const release = await request(app).post(`/api/customer/enterprise/pool/${item.id}/release`)
     .set('Authorization', `Bearer ${token}`);
   assert.equal(release.status, 200);
   const rel = db.prepare('SELECT status FROM enterprise_public_pool WHERE id = ?').get(item.id);
   assert.equal(rel.status, 'available');
+  // 释放后客户列表归属应清理（防重复进入列表）
+  const gone = db.prepare("SELECT id FROM card_customer WHERE source = 'enterprise_pool' AND phone = '13900002003'").get();
+  assert.equal(gone, undefined, '释放回公海后客户列表应删除该归属记录');
+});
+
+test('A2 分配指定员工：管理员可指定本企业员工领取（归属被分配人）', { concurrency: false }, async () => {
+  const token = issueToken(entMgr);
+  const pu = db.prepare("SELECT * FROM platform_user WHERE openid = 'ent_openid_1'").get();
+  // 员工绑定到企业（platform_user.enterprise_id）
+  db.prepare('UPDATE platform_user SET enterprise_id = 1 WHERE id = ?').run(pu.id);
+  db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
+    VALUES (1, 1, 'employee', '派单客户', '13900002004', '派单公司')`).run();
+  const item = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002004'").get();
+
+  const claim = await request(app).post(`/api/customer/enterprise/pool/${item.id}/claim`)
+    .set('Authorization', `Bearer ${token}`).send({ userId: pu.id });
+  assert.equal(claim.status, 200, '企业管理员应可指定员工领取');
+  const claimed = db.prepare('SELECT claimed_by FROM enterprise_public_pool WHERE id = ?').get(item.id);
+  assert.equal(claimed.claimed_by, pu.id, '客户应归属被指定员工');
+  const cust = db.prepare("SELECT owner_user_id FROM card_customer WHERE source = 'enterprise_pool' AND phone = '13900002004'").get();
+  assert.equal(cust.owner_user_id, pu.id, '客户列表归属应为被指定员工');
+
+  // 指定非本企业员工 → 400
+  const outsider = db.prepare("SELECT * FROM platform_user WHERE openid = 'ent_openid_1'").get();
+  db.prepare('UPDATE platform_user SET enterprise_id = NULL WHERE id = ?').run(pu.id);
+  db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
+    VALUES (1, 1, 'employee', '越权客户', '13900002005', '越权公司')`).run();
+  const item2 = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002005'").get();
+  const bad = await request(app).post(`/api/customer/enterprise/pool/${item2.id}/claim`)
+    .set('Authorization', `Bearer ${token}`).send({ userId: pu.id });
+  assert.equal(bad.status, 400, '非本企业员工不可被指定领取');
+  // 清理越权数据
+  db.prepare('DELETE FROM enterprise_public_pool WHERE id = ?').run(item2.id);
+  db.prepare('DELETE FROM enterprise_public_pool WHERE id = ?').run(item.id);
+  db.prepare("DELETE FROM card_customer WHERE source = 'enterprise_pool'").run();
+  db.prepare('UPDATE platform_user SET enterprise_id = NULL WHERE id = ?').run(pu.id);
 });

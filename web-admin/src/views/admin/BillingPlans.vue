@@ -69,7 +69,7 @@ onMounted(load);
 async function togglePlan(row) {
   try {
     await ElMessageBox.confirm(`确认${row.enabled ? '停用' : '启用'}套餐「${row.name}」？`, '提示', { type: 'warning' });
-    const { data } = await adminApi.put(`/billing-plans/${row.id}`, { enabled: !row.enabled });
+    await adminApi.put(`/billing-plans/${row.id}`, { enabled: !row.enabled });
     ElMessage.success('操作成功');
     load();
   } catch (e) {

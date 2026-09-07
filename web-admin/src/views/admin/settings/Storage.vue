@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h2 class="page-title">存储设置</h2></div>
+    <div class="page-header"><h2 class="page-title" style="display:flex;align-items:center;gap:8px;"><SIcon name="storage" size="default" color="#4E5969" />存储设置</h2></div>
     <div class="page-card">
       <el-tabs v-model="activeTab">
         <el-tab-pane label="本地存储" name="local">
@@ -52,6 +52,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { fetchStorageConfig, saveStorageConfig, testStorage } from '../../../api';
 import { ElMessage } from 'element-plus';
+import SIcon from '../../../components/SIcon.vue';
 
 const activeTab = ref('local');
 const form = reactive({

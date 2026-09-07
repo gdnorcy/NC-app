@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h2 class="page-title">基础设置</h2></div>
+    <div class="page-header"><h2 class="page-title" style="display:flex;align-items:center;gap:8px;"><SIcon name="settings" size="default" color="#4E5969" />基础设置</h2></div>
     <div class="page-card">
       <h3 style="margin-bottom:16px;">站点信息</h3>
       <el-form :model="form" label-width="120px">
@@ -34,6 +34,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { fetchSettings, saveSettings, uploadCustomerLogo } from '../../../api';
 import { ElMessage } from 'element-plus';
+import SIcon from '../../../components/SIcon.vue';
 
 const saving = ref(false);
 const form = reactive({ siteName: '', logo: '', homeTitle: '', homeSubtitle: '', icp: '', contactPhone: '', contactEmail: '', copyrightOwner: '', copyrightYear: '', customCopyright: '' });

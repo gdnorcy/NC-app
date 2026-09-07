@@ -943,19 +943,25 @@ router.get('/card/trends', requireTenant, (req, res) => {
     })) });
   });
 
-  // 领取企业公海客户
+  // 领取/分配企业公海客户（本企业员工可领取自己；可指定本企业员工为领取人）
   router.post('/enterprise/pool/:id/claim', requireTenant, requireEnterpriseAdmin, (req, res) => {
     const { userId } = req.body || {};
-    const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ? AND status = ?')
-      .get(Number(req.params.id), req.enterpriseId, 'available');
-    if (!row) return res.status(404).json({ error: '客户不存在或已被领取' });
+    const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ?')
+      .get(Number(req.params.id), req.enterpriseId);
+    if (!row) return res.status(404).json({ error: '客户不存在' });
+    if (row.status !== 'available') return res.status(400).json({ error: '客户已被领取或上浮' });
     const targetId = userId ? Number(userId) : req.user.id;
     if (userId) {
       const pu = db.prepare('SELECT id FROM platform_user WHERE id = ? AND enterprise_id = ?').get(targetId, req.enterpriseId);
       if (!pu) return res.status(400).json({ error: '领取人不在本企业' });
     }
-    db.prepare("UPDATE enterprise_public_pool SET status = 'claimed', claimed_by = ?, claimed_at = datetime('now') WHERE id = ?")
+    const upd = db.prepare("UPDATE enterprise_public_pool SET status = 'claimed', claimed_by = ?, claimed_at = datetime('now'), last_follow_at = datetime('now') WHERE id = ? AND status = 'available'")
       .run(targetId, row.id);
+    if (upd.changes === 0) return res.status(400).json({ error: '客户已被领取或上浮' });
+    // 同步写入领取人客户列表（与自动回收/释放的删除逻辑对应，防重复）
+    db.prepare(`INSERT INTO card_customer (customer_id, owner_user_id, enterprise_id, owner_type, name, phone, company, position, source, source_type, source_id)
+      VALUES (?, ?, ?, 'employee', ?, ?, ?, ?, 'enterprise_pool', ?, ?)`)
+      .run(row.customer_id, targetId, row.enterprise_id, row.name, row.phone || '', row.company || '', row.position || '', row.source_type || '', row.source_id || null);
     auditCust(db, req, 'enterprise_pool_claim', 'enterprise', req.enterpriseId, `领取公海客户「${row.name || row.phone}」`);
     res.json({ ok: true });
   });
@@ -965,6 +971,9 @@ router.get('/card/trends', requireTenant, (req, res) => {
     const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ? AND status = ?')
       .get(Number(req.params.id), req.enterpriseId, 'claimed');
     if (!row) return res.status(404).json({ error: '客户不存在或未领取' });
+    // 释放 = 放弃归属：删除领取人客户列表中该公海来源客户（防重复）
+    db.prepare(`DELETE FROM card_customer WHERE customer_id = ? AND owner_user_id = ? AND source = 'enterprise_pool' AND phone = ?`)
+      .run(row.customer_id, row.claimed_by, row.phone || '');
     db.prepare("UPDATE enterprise_public_pool SET status = 'available', claimed_by = NULL, claimed_at = NULL, recycled_at = datetime('now') WHERE id = ?").run(row.id);
     res.json({ ok: true });
   });

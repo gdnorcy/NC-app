@@ -68,7 +68,7 @@ export function createBillingRouter(db) {
     const id = Number(req.params.id);
     const plan = db.prepare('SELECT * FROM billing_plans WHERE id = ?').get(id);
     if (!plan) return res.status(404).json({ error: '套餐不存在' });
-    if (plan.code === 'free') return res.status(400).json({ error: '免费版为系统内置套餐，不可删除（可停用）' });
+    if (plan.code === 'free') return res.status(400).json({ error: '体验套餐为系统内置套餐，不可删除（可停用）' });
     const used = db.prepare('SELECT COUNT(*) AS n FROM projects WHERE billing_plan_id = ?').get(id).n;
     if (used > 0) return res.status(400).json({ error: `有 ${used} 个客户正在使用该套餐，请先切换后删除` });
     db.prepare('DELETE FROM billing_plans WHERE id = ?').run(id);

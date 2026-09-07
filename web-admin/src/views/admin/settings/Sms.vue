@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h2 class="page-title">短信接口</h2></div>
+    <div class="page-header"><h2 class="page-title" style="display:flex;align-items:center;gap:8px;"><SIcon name="sms" size="default" color="#4E5969" />短信接口</h2></div>
     <div class="page-card">
       <el-form :model="form" label-width="140px">
         <el-form-item label="短信服务商">
@@ -24,6 +24,7 @@
 import { reactive, onMounted } from 'vue';
 import { fetchSettings, saveSettings } from '../../../api';
 import { ElMessage } from 'element-plus';
+import SIcon from '../../../components/SIcon.vue';
 
 const form = reactive({ provider: 'mock', accessKeyId: '', accessKeySecret: '', signName: '', loginTemplate: '' });
 onMounted(async () => {
