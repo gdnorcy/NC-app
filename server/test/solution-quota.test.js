@@ -256,3 +256,59 @@ test('Q9 方案下架（status=off）后已购租户配额仍生效', () => {
   db.prepare("UPDATE solutions SET status = 'on', updated_at = datetime('now') WHERE code = 'demo'").run();
   db.prepare("DELETE FROM solution_quotas WHERE solution_id = 3 AND key = 'employeeCount'").run();
 });
+
+test('Q10 到期策略：adminExpireMode=allow 只读放行（GET过/POST拦），deny 拦截', async () => {
+  // 新租户 + 租户管理员账号
+  const r = db.prepare("INSERT INTO projects (customer_name, status, valid_until, config) VALUES ('到期策略租户', 'active', '2000-01-01', '{}')").run();
+  const cid = r.lastInsertRowid;
+  db.prepare("UPDATE projects SET config = ? WHERE id = ?").run(JSON.stringify({ adminExpireMode: 'allow', miniExpireMode: 'prompt', selfRenew: true }), cid);
+  const uname = `exp_${Date.now()}`;
+  const { hash, salt } = hashPassword('x123456');
+  const up = db.prepare('INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id) VALUES (?,?,?,?,?,?,?)')
+    .run(uname, '139' + String(Date.now()).slice(-8), hash, salt, 'tenant_admin', 'active', cid);
+  const token = await login(uname, 'x123456');
+
+  // allow：GET /tenant/status 放行且 readonly=true
+  const st = await request(app).get('/api/customer/tenant/status').set('Authorization', `Bearer ${token}`);
+  assert.equal(st.status, 200);
+  assert.equal(st.body.expired, true);
+  assert.equal(st.body.readonly, true, 'allow 模式应标记只读');
+  assert.equal(st.body.selfRenew, true);
+
+  // GET 业务接口放行
+  const plans = await request(app).get('/api/customer/plans').set('Authorization', `Bearer ${token}`);
+  assert.equal(plans.status, 200, '只读模式 GET 应放行');
+
+  // POST 写操作被拦
+  const create = await request(app).post('/api/customer/plans').set('Authorization', `Bearer ${token}`).send({ name: '只读测试方案' });
+  assert.equal(create.status, 403, '只读模式写操作应拒绝');
+  assert.match(create.body.error, /只读/, '错误应提示只读');
+
+  // deny：管理后台拦截
+  db.prepare("UPDATE projects SET config = ? WHERE id = ?").run(JSON.stringify({ adminExpireMode: 'deny', miniExpireMode: 'prompt', selfRenew: true }), cid);
+  const st2 = await request(app).get('/api/customer/tenant/status').set('Authorization', `Bearer ${token}`);
+  assert.equal(st2.status, 200);
+  assert.equal(st2.body.readonly, false, 'deny 模式非只读（直接拦截）');
+  const blocked = await request(app).get('/api/customer/plans').set('Authorization', `Bearer ${token}`);
+  assert.equal(blocked.status, 403, 'deny 模式 GET 也应拦截');
+  assert.match(blocked.body.error, /到期/);
+});
+
+test('Q11 到期策略：miniExpireMode=prompt C端只读放行 / deny 拦截', async () => {
+  const r = db.prepare("INSERT INTO projects (customer_name, status, valid_until, config) VALUES ('C端到期租户', 'active', '2000-01-01', ?)").run(JSON.stringify({ adminExpireMode: 'deny', miniExpireMode: 'prompt', selfRenew: false }));
+  const cid = r.lastInsertRowid;
+  const pu = db.prepare("INSERT INTO platform_user (openid, nickname, status, customer_id, identity_type) VALUES (?, ?, 'active', ?, 'individual')").run(`wx_${Date.now()}`, '到期测试用户', cid);
+  const pToken = Buffer.from(JSON.stringify({ uid: pu.lastInsertRowid })).toString('base64') + '.sig';
+  // C端 GET（集市，走 tenant 中间件）：prompt 放行
+  const get = await request(app).get('/api/card-market/market/my-status').set('Authorization', `Bearer ${pToken}`);
+  assert.equal(get.status, 200, 'prompt 模式 C端 GET 应放行');
+  // C端写（集市上架开关）：拒绝（只读）
+  const post = await request(app).post('/api/card-market/market/toggle').set('Authorization', `Bearer ${pToken}`).send({ subjectType: 'individual', subjectId: 1 });
+  assert.equal(post.status, 403, 'prompt 模式 C端写操作应拒绝');
+  assert.match(post.body.error, /只读/);
+
+  // deny：C端也拦截（GET 也拒绝）
+  db.prepare("UPDATE projects SET config = ? WHERE id = ?").run(JSON.stringify({ adminExpireMode: 'deny', miniExpireMode: 'deny', selfRenew: false }), cid);
+  const get2 = await request(app).get('/api/card-market/market/my-status').set('Authorization', `Bearer ${pToken}`);
+  assert.equal(get2.status, 403, 'deny 模式 C端 GET 应拦截');
+});

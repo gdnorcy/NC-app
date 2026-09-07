@@ -42,7 +42,7 @@
     </div>
 
     <!-- 方案续费（价格/时长同步总后台解决方案设置） -->
-    <div class="page-card" v-if="(planData.solutions || []).length">
+    <div class="page-card" v-if="(planData.solutions || []).length && planData.selfRenew !== false">
       <h3 class="section-title">方案续费</h3>
       <div class="sol-renew-grid">
         <div v-for="s in planData.solutions" :key="s.id" class="sol-renew">
@@ -73,6 +73,15 @@
         </div>
       </div>
       <div class="usage-note">价格为总后台「解决方案 → 价格设置」中配置的用户价/续费价；支付完成后服务期自动顺延。</div>
+    </div>
+    <!-- 未开通自助续费提示（selfRenew=false：不显示续费购买入口） -->
+    <div class="page-card" v-if="(planData.solutions || []).length && planData.selfRenew === false">
+      <h3 class="section-title">续费服务</h3>
+      <el-alert type="info" show-icon :closable="false" style="border-radius:8px;">
+        <template #title>
+          <span>当前项目未开通自助续费，续费请<strong>联系平台管理员</strong>办理。</span>
+        </template>
+      </el-alert>
     </div>
     <div class="page-card" v-else>
       <h3 class="section-title">方案续费</h3>

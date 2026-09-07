@@ -94,8 +94,12 @@ export function createCardRouter(db, wxService) {
   function requireTenant(req, res, next) {
     if (!req.customerId) return res.status(403).json({ error: '未入驻任何租户，禁止访问' });
     // 租户生命周期 + 智能名片解决方案授权（P2-10/P2-11）
-    const blocked = checkTenantAccess(db, req.customerId, 'card');
-    if (blocked) return res.status(blocked.status).json({ error: blocked.error });
+    // 到期且 miniExpireMode=prompt → 只读放行（仅GET）；写操作拒绝
+    const blocked = checkTenantAccess(db, req.customerId, 'card', 'mini');
+    if (blocked) {
+      if (blocked.readonly && req.method === 'GET') { req.customerId = req.customerId || customerId; req.tenantReadonly = true; return next(); }
+      return res.status(blocked.status).json({ error: blocked.error });
+    }
     next();
   }
 

@@ -42,18 +42,24 @@ export function createAuthRouter(db) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     // 租户账号需校验所属客户生命周期（存在/启用/未到期）
+    // 到期策略：adminExpireMode=allow → 放行只读登录（前端只读横幅）；否则拦截
+    let readonly = false;
     if (['tenant_admin', 'tenant_member'].includes(user.role) && user.customer_id) {
-      const state = tenantState(db, user.customer_id);
+      const state = tenantState(db, user.customer_id, { ctx: 'admin' });
       if (!state.active) {
         const name = state.project?.customer_name || '客户';
         if (state.missing) return res.status(401).json({ error: '所属客户不存在或已删除' });
-        if (state.expired) return res.status(401).json({ error: `客户「${name}」服务已到期，请联系平台续费` });
-        return res.status(401).json({ error: `客户「${name}」已被禁用，请联系管理员` });
+        if (state.expired) {
+          if (state.readonly) readonly = true;
+          else return res.status(401).json({ error: `客户「${name}」服务已到期，请联系平台续费` });
+        } else {
+          return res.status(401).json({ error: `客户「${name}」已被禁用，请联系管理员` });
+        }
       }
     }
     const token = issueToken(user);
     addOperationLog(db, { userId: user.id, username: user.username, action: 'login', targetType: 'auth', detail: '账号密码登录', ip: req.ip });
-    return res.json({ token, user: toUser(user) });
+    return res.json({ token, user: toUser(user), ...(readonly ? { readonly: true } : {}) });
   });
 
   // —— 发送短信验证码（IP 防刷：每 60s 最多 10 条；另按手机号有 60s 1 条的库级限频） ——
@@ -176,19 +182,25 @@ export function createAuthRouter(db) {
       return res.status(403).json({ error: '账号已停用' });
     }
     // 租户账号需校验所属客户生命周期（存在/启用/未到期）
+    // 到期策略：adminExpireMode=allow → 放行只读登录（前端只读横幅）；否则拦截
+    let smsReadonly = false;
     if (['tenant_admin', 'tenant_member'].includes(user.role) && user.customer_id) {
-      const state = tenantState(db, user.customer_id);
+      const state = tenantState(db, user.customer_id, { ctx: 'admin' });
       if (!state.active) {
         const name = state.project?.customer_name || '客户';
         if (state.missing) return res.status(401).json({ error: '所属客户不存在或已删除' });
-        if (state.expired) return res.status(401).json({ error: `客户「${name}」服务已到期，请联系平台续费` });
-        return res.status(401).json({ error: `客户「${name}」已被禁用，请联系管理员` });
+        if (state.expired) {
+          if (state.readonly) smsReadonly = true;
+          else return res.status(401).json({ error: `客户「${name}」服务已到期，请联系平台续费` });
+        } else {
+          return res.status(401).json({ error: `客户「${name}」已被禁用，请联系管理员` });
+        }
       }
     }
     db.prepare('UPDATE sms_codes SET used = 1 WHERE id = ?').run(record.id);
     const token = issueToken(user);
     addOperationLog(db, { userId: user.id, username: user.username, action: 'login', targetType: 'auth', detail: '手机号验证码登录', ip: req.ip });
-    return res.json({ token, user: toUser(user) });
+    return res.json({ token, user: toUser(user), ...(smsReadonly ? { readonly: true } : {}) });
   });
 
   return router;

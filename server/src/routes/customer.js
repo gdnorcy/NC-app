@@ -67,9 +67,18 @@ function requireTenant(req, res, next) {
   if (!user.customerId) {
     return res.status(403).json({ error: '账号未关联租户' });
   }
-  // 租户生命周期：存在/启用/未到期
-  const blocked = checkTenantAccess(db, user.customerId);
-  if (blocked) return res.status(blocked.status).json({ error: blocked.error });
+  // 租户生命周期：存在/启用/未到期；到期但 adminExpireMode=allow → 只读放行（仅GET）
+  const state = tenantState(db, user.customerId, { ctx: 'admin' });
+  if (state.missing) return res.status(404).json({ error: '租户不存在' });
+  if (!state.active) {
+    if (state.readonly && req.method === 'GET') {
+      req.customerId = user.customerId;
+      req.enterpriseId = user.enterpriseId || user.enterprise_id || null;
+      req.tenantReadonly = true; // 前端只读横幅标记
+      return next();
+    }
+    return res.status(403).json({ error: state.reason });
+  }
   req.customerId = user.customerId;
   req.enterpriseId = user.enterpriseId || user.enterprise_id || null;
   next();
@@ -728,8 +737,9 @@ router.get('/card/trends', requireTenant, (req, res) => {
 
   // 租户生命周期状态（供后台到期提示/续费引导）
   router.get('/tenant/status', requireTenantSoft, (req, res) => {
-    const state = tenantState(db, req.customerId);
+    const state = tenantState(db, req.customerId, { ctx: 'admin' });
     const project = state.project || {};
+    const cfg = (() => { try { return JSON.parse(project.config || '{}'); } catch { return {}; } })();
     let daysLeft = null;
     if (project.valid_until) {
       const diff = new Date(project.valid_until + 'T23:59:59') - new Date();
@@ -739,8 +749,15 @@ router.get('/card/trends', requireTenant, (req, res) => {
       customerName: project.customer_name || '',
       status: state.active ? 'active' : (state.expired ? 'expired' : (state.missing ? 'missing' : 'disabled')),
       expired: !state.active,
+      readonly: !!state.readonly,
       validUntil: project.valid_until || null,
-      daysLeft
+      daysLeft,
+      selfRenew: cfg.selfRenew !== false,
+      config: {
+        adminExpireMode: cfg.adminExpireMode || 'deny',
+        miniExpireMode: cfg.miniExpireMode || 'prompt',
+        selfRenew: cfg.selfRenew !== false
+      }
     });
   });
 

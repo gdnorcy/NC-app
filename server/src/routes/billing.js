@@ -120,8 +120,16 @@ export function createCustomerBillingRouter(db) {
       return res.status(403).json({ error: '无权访问客户后台' });
     }
     if (!user.customerId) return res.status(403).json({ error: '账号未关联租户' });
-    const blocked = checkTenantAccess(db, user.customerId);
-    if (blocked) return res.status(blocked.status).json({ error: blocked.error });
+    // 到期策略（与 customer.js requireTenant 同语义）：adminExpireMode=allow → 只读 GET 放行
+    const blocked = checkTenantAccess(db, user.customerId, null, 'admin');
+    if (blocked) {
+      if (blocked.readonly && req.method === 'GET') {
+        req.customerId = user.customerId;
+        req.tenantReadonly = true;
+        return next();
+      }
+      return res.status(blocked.status).json({ error: blocked.error });
+    }
     req.customerId = user.customerId;
     next();
   });
@@ -141,19 +149,21 @@ export function createCustomerBillingRouter(db) {
 
   // 当前开通方案 + 各方案价格档（同步总平台解决方案的价格设置与时长；billing_plan 作废）
   router.get('/billing/solution-plan', (req, res) => {
-    const p = db.prepare('SELECT id, customer_name, valid_until, status, solutions FROM projects WHERE id = ?').get(req.customerId);
+    const p = db.prepare('SELECT id, customer_name, valid_until, status, solutions, config FROM projects WHERE id = ?').get(req.customerId);
     if (!p) return res.status(404).json({ error: '租户项目不存在' });
+    const cfg = (() => { try { return JSON.parse(p.config || '{}'); } catch (e) { return {}; } })();
     let codes = [];
     try { codes = JSON.parse(p.solutions || '[]'); } catch (e) {}
     const solutions = codes.map((code) => {
-      const sol = db.prepare('SELECT * FROM solutions WHERE code = ? AND status = \'on\'').get(code);
+      // 不按 status 过滤：方案下架只影响新售卖，已购租户权益保留展示与续费
+      const sol = db.prepare('SELECT * FROM solutions WHERE code = ?').get(code);
       if (!sol) return null;
       const pricing = db.prepare('SELECT duration_months, agent_price, user_price, renew_price FROM solution_pricing WHERE solution_id = ? ORDER BY duration_months ASC')
         .all(sol.id)
         .map((x) => ({ durationMonths: x.duration_months, agentPrice: x.agent_price, userPrice: x.user_price, renewPrice: x.renew_price }));
       return { id: sol.id, code: sol.code, name: sol.name, icon: sol.icon, pricing };
     }).filter(Boolean);
-    res.json({ project: { name: p.customer_name, validUntil: p.valid_until, status: p.status }, solutions });
+    res.json({ project: { name: p.customer_name, validUntil: p.valid_until, status: p.status }, solutions, selfRenew: cfg.selfRenew !== false });
   });
 
   // 按方案时长购买/续费（金额取自 solution_pricing，含永久档 durationMonths=0）

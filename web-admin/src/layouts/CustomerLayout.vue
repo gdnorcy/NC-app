@@ -113,7 +113,19 @@
       </el-header>
       <el-main class="main-content">
         <el-alert
-          v-if="tenantExpired"
+          v-if="tenantExpired && tenantReadonly"
+          title="服务已到期（只读模式）"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="expire-alert"
+        >
+          <template #default>
+            <span>当前租户服务已于 {{ tenantValidUntil || '到期日' }} 到期。当前为<strong>只读模式</strong>：仅可查看数据，无法进行新增 / 编辑 / 删除等操作，请及时续费恢复完整功能。</span>
+          </template>
+        </el-alert>
+        <el-alert
+          v-else-if="tenantExpired"
           title="服务已到期"
           type="error"
           show-icon
@@ -160,6 +172,7 @@ const systemName = ref('零壹系统云');
 const systemLogo = ref('');
 const customerName = ref('');
 const tenantExpired = ref(false);
+const tenantReadonly = ref(false);
 const tenantValidUntil = ref('');
 const tenantDaysLeft = ref(null);
 
@@ -185,6 +198,7 @@ onMounted(async () => {
     }).then(r => r.json());
     if (st && typeof st.expired === 'boolean') {
       tenantExpired.value = st.expired;
+      tenantReadonly.value = !!st.readonly;
       tenantValidUntil.value = st.validUntil || '';
       tenantDaysLeft.value = st.daysLeft ?? null;
       if (!st.expired && st.customerName) customerName.value = st.customerName;
