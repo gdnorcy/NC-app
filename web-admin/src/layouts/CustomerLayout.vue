@@ -11,37 +11,59 @@
         router
         class="side-menu"
       >
-        <el-menu-item index="/dashboard">
-          <SIcon name="dashboard" size="default" />
-          <span>工作台</span>
-        </el-menu-item>
-        <el-menu-item index="/apps">
-          <SIcon name="apps" size="default" />
-          <span>应用中心</span>
-        </el-menu-item>
-
-        <el-menu-item index="/billing">
-          <SIcon name="wallet" size="default" />
-          <span>套餐与续费</span>
-        </el-menu-item>
-        <el-menu-item index="/orders">
-          <SIcon name="orders" size="default" />
-          <span>我的账单</span>
-        </el-menu-item>
-        <el-menu-item v-if="isTenantAdmin" index="/members">
-          <SIcon name="team" size="default" />
-          <span>成员管理</span>
-        </el-menu-item>
-        <el-sub-menu index="/settings">
-          <template #title>
+        <!-- 企业管理员端：精简企业菜单 -->
+        <template v-if="isEnterpriseAdmin">
+          <el-menu-item index="/enterprise">
+            <SIcon name="dashboard" size="default" />
+            <span>企业工作台</span>
+          </el-menu-item>
+          <el-menu-item index="/enterprise/employees">
+            <SIcon name="team" size="default" />
+            <span>企业员工</span>
+          </el-menu-item>
+          <el-menu-item index="/enterprise/pool">
+            <SIcon name="pool" size="default" />
+            <span>企业公海</span>
+          </el-menu-item>
+          <el-menu-item index="/enterprise/settings">
             <SIcon name="settings" size="default" />
-            <span>系统设置</span>
-          </template>
-          <el-menu-item index="/settings/account">账号设置</el-menu-item>
-          <el-menu-item index="/settings/storage">远程附件</el-menu-item>
-          <el-menu-item index="/settings/sms">短信配置</el-menu-item>
-          <el-menu-item index="/settings/payment">支付配置</el-menu-item>
-        </el-sub-menu>
+            <span>企业设置</span>
+          </el-menu-item>
+        </template>
+        <!-- 租户管理员/成员：完整租户菜单 -->
+        <template v-else>
+          <el-menu-item index="/dashboard">
+            <SIcon name="dashboard" size="default" />
+            <span>工作台</span>
+          </el-menu-item>
+          <el-menu-item index="/apps">
+            <SIcon name="apps" size="default" />
+            <span>应用中心</span>
+          </el-menu-item>
+
+          <el-menu-item index="/billing">
+            <SIcon name="wallet" size="default" />
+            <span>套餐与续费</span>
+          </el-menu-item>
+          <el-menu-item index="/orders">
+            <SIcon name="orders" size="default" />
+            <span>我的账单</span>
+          </el-menu-item>
+          <el-menu-item v-if="isTenantAdmin" index="/members">
+            <SIcon name="team" size="default" />
+            <span>成员管理</span>
+          </el-menu-item>
+          <el-sub-menu index="/settings">
+            <template #title>
+              <SIcon name="settings" size="default" />
+              <span>系统设置</span>
+            </template>
+            <el-menu-item index="/settings/account">账号设置</el-menu-item>
+            <el-menu-item index="/settings/storage">远程附件</el-menu-item>
+            <el-menu-item index="/settings/sms">短信配置</el-menu-item>
+            <el-menu-item index="/settings/payment">支付配置</el-menu-item>
+          </el-sub-menu>
+        </template>
       </el-menu>
       <div class="sidebar-extras">
         <el-button text class="extra-help" @click="showHelp">
@@ -142,6 +164,7 @@ const tenantDaysLeft = ref(null);
 
 const authStore = { user: JSON.parse(localStorage.getItem('customer_user') || 'null') };
 const isTenantAdmin = computed(() => authStore.user?.role === 'tenant_admin');
+const isEnterpriseAdmin = computed(() => !!authStore.user?.enterpriseId && authStore.user?.role !== 'tenant_admin');
 const isImpersonate = computed(() => !!localStorage.getItem('admin_token_backup'));
 const activeMenu = computed(() => route.path);
 const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() || 'U');

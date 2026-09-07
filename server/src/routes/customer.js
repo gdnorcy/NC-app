@@ -70,6 +70,15 @@ function requireTenant(req, res, next) {
   const blocked = checkTenantAccess(db, user.customerId);
   if (blocked) return res.status(blocked.status).json({ error: blocked.error });
   req.customerId = user.customerId;
+  req.enterpriseId = user.enterpriseId || user.enterprise_id || null;
+  next();
+}
+
+// 中间件：仅企业管理员（租户后台账号绑定企业）
+function requireEnterpriseAdmin(req, res, next) {
+  if (!req.enterpriseId) {
+    return res.status(403).json({ error: '当前账号未绑定企业，仅企业管理员可操作' });
+  }
   next();
 }
 
@@ -324,16 +333,23 @@ router.post('/members', requireTenant, requireTenantAdmin, (req, res) => {
   if (!username || !password) return res.status(400).json({ error: '用户名和密码必填' });
   if (password.length < 6) return res.status(400).json({ error: '密码至少 6 位' });
   const memberRole = role === 'tenant_member' ? 'tenant_member' : 'tenant_member';
+  const { enterpriseId } = req.body || {};
+  let entId = null;
+  if (enterpriseId) {
+    const ent = db.prepare('SELECT id FROM tenant_enterprises WHERE id = ? AND customer_id = ?').get(Number(enterpriseId), req.customerId);
+    if (!ent) return res.status(400).json({ error: '绑定企业不存在' });
+    entId = ent.id;
+  }
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (exists) return res.status(400).json({ error: '用户名已存在' });
   const { hash, salt } = hashPassword(password);
   const info = db
     .prepare(
-      'INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id, enterprise_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     )
-    .run(username, phone || null, hash, salt, memberRole, 'active', req.customerId);
+    .run(username, phone || null, hash, salt, memberRole, 'active', req.customerId, entId);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
-  auditCust(db, req, 'create_member', 'user', user.id, `新增成员: ${username}`);
+  auditCust(db, req, 'create_member', 'user', user.id, `新增成员: ${username}${entId ? '(企业管理员)' : ''}`);
   res.json({ user: toUser(user) });
 });
 
@@ -755,6 +771,244 @@ router.get('/card/trends', requireTenant, (req, res) => {
     try {
       res.json({ health: calcHealthScore(db, req.customerId, req.query.solution || 'card') });
     } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ============================================================
+  // 企业管理员端（企业角色化子面板）
+  // ============================================================
+
+  // 企业列表（租户管理员：成员绑定企业用）
+  router.get('/enterprises', requireTenant, requireTenantAdmin, (req, res) => {
+    const rows = db.prepare(`
+      SELECT e.id, e.name, e.logo, e.industry, e.status,
+        (SELECT COUNT(*) FROM platform_user p WHERE p.enterprise_id = e.id) AS employee_count
+      FROM tenant_enterprises e WHERE e.customer_id = ? ORDER BY e.created_at DESC
+    `).all(req.customerId);
+    res.json({ enterprises: rows });
+  });
+
+  // 企业信息 + 统计（企业管理员工作台）
+  router.get('/enterprise/me', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const eid = req.enterpriseId;
+    const ent = db.prepare('SELECT * FROM tenant_enterprises WHERE id = ? AND customer_id = ?').get(eid, req.customerId);
+    if (!ent) return res.status(404).json({ error: '企业不存在或已停用' });
+    let config = {};
+    try { config = JSON.parse(ent.config || '{}'); } catch (e) {}
+    const employeeCount = db.prepare('SELECT COUNT(*) AS n FROM platform_user WHERE enterprise_id = ? AND status = ?').get(eid, 'active').n;
+    const cardCount = db.prepare('SELECT COUNT(*) AS n FROM card_profile WHERE user_id IN (SELECT id FROM platform_user WHERE enterprise_id = ?) AND status = ?').get(eid, 'active').n;
+    const customerCount = db.prepare('SELECT COUNT(*) AS n FROM card_customer WHERE enterprise_id = ?').get(eid).n;
+    const poolAvailable = db.prepare('SELECT COUNT(*) AS n FROM enterprise_public_pool WHERE enterprise_id = ? AND status = ?').get(eid, 'available').n;
+    const poolClaimed = db.prepare('SELECT COUNT(*) AS n FROM enterprise_public_pool WHERE enterprise_id = ? AND status = ?').get(eid, 'claimed').n;
+    const totalViews = db.prepare('SELECT COALESCE(SUM(view_count),0) AS s FROM card_profile WHERE user_id IN (SELECT id FROM platform_user WHERE enterprise_id = ?)').get(eid).s;
+    res.json({
+      enterprise: {
+        id: ent.id, name: ent.name, logo: ent.logo, industry: ent.industry,
+        scale: ent.scale, description: ent.description, status: ent.status,
+        autoRecycle: !!config.auto_recycle,
+        inviteCode: config.invite_code || '',
+      },
+      stats: { employeeCount, cardCount, customerCount, poolAvailable, poolClaimed, totalViews },
+    });
+  });
+
+  // 企业员工列表
+  router.get('/enterprise/employees', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const eid = req.enterpriseId;
+    const { keyword = '' } = req.query;
+    let where = 'WHERE p.enterprise_id = ?';
+    const params = [eid];
+    if (keyword) {
+      where += ' AND (p.nickname LIKE ? OR cp.name LIKE ? OR cp.position LIKE ?)';
+      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+    }
+    const rows = db.prepare(`
+      SELECT p.id AS user_id, p.nickname, p.avatar, p.enterprise_role, p.status AS user_status,
+        cp.id AS card_id, cp.name, cp.position, cp.phone, cp.view_count, cp.exchange_count,
+        cp.created_at
+      FROM platform_user p
+      LEFT JOIN card_profile cp ON cp.id = (
+        SELECT id FROM card_profile WHERE user_id = p.id AND status = 'active' ORDER BY id DESC LIMIT 1
+      )
+      ${where} ORDER BY p.created_at DESC
+    `).all(...params);
+    res.json({ employees: rows.map(r => ({
+      userId: r.user_id, nickname: r.nickname || '', avatar: r.avatar || '', role: r.enterprise_role || 'member',
+      status: r.user_status, cardId: r.card_id, name: r.name || '', position: r.position || '',
+      phone: r.phone || '', viewCount: r.view_count || 0, exchangeCount: r.exchange_count || 0, createdAt: r.created_at,
+    })) });
+  });
+
+  // 候选员工（本租户已入驻、未绑定企业）
+  router.get('/enterprise/candidates', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const rows = db.prepare(`
+      SELECT p.id AS user_id, p.nickname, p.avatar, cp.id AS card_id, cp.name, cp.position, cp.phone
+      FROM platform_user p
+      LEFT JOIN card_profile cp ON cp.user_id = p.id AND cp.status = 'active'
+      WHERE p.customer_id = ? AND (p.enterprise_id IS NULL OR p.enterprise_id = 0)
+      ORDER BY p.created_at DESC LIMIT 100
+    `).all(req.customerId);
+    res.json({ candidates: rows.map(r => ({
+      userId: r.user_id, nickname: r.nickname || '', avatar: r.avatar || '',
+      cardId: r.card_id, name: r.name || '', position: r.position || '', phone: r.phone || '',
+    })) });
+  });
+
+  // 添加员工到企业
+  router.post('/enterprise/employees', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const { userId, role = 'member' } = req.body || {};
+    if (!userId) return res.status(400).json({ error: '请选择员工' });
+    const uid = Number(userId);
+    const pu = db.prepare('SELECT * FROM platform_user WHERE id = ? AND customer_id = ?').get(uid, req.customerId);
+    if (!pu) return res.status(404).json({ error: '员工不存在' });
+    if (pu.enterprise_id) return res.status(400).json({ error: '该员工已属于其他企业' });
+    const ent = db.prepare('SELECT id, name FROM tenant_enterprises WHERE id = ? AND customer_id = ? AND status = ?').get(req.enterpriseId, req.customerId, 'active');
+    if (!ent) return res.status(404).json({ error: '企业不存在或已停用' });
+    db.prepare("UPDATE platform_user SET enterprise_id = ?, enterprise_role = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(req.enterpriseId, role === 'admin' ? 'admin' : 'member', uid);
+    auditCust(db, req, 'enterprise_add_employee', 'enterprise', req.enterpriseId, `企业「${ent.name}」添加员工`);
+    res.json({ ok: true });
+  });
+
+  // 修改员工角色 / 移除出企业
+  router.put('/enterprise/employees/:userId', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const uid = Number(req.params.userId);
+    const { role, action, recycle } = req.body || {};
+    const pu = db.prepare('SELECT * FROM platform_user WHERE id = ? AND enterprise_id = ?').get(uid, req.enterpriseId);
+    if (!pu) return res.status(404).json({ error: '员工不在本企业' });
+    if (action === 'remove') {
+      // 回收该员工名下客户到企业公海（幂等查重）
+      let recycled = 0;
+      if (recycle !== false) {
+        const custs = db.prepare('SELECT * FROM card_customer WHERE customer_id = ? AND owner_user_id = ?')
+          .all(req.customerId, uid);
+        for (const c of custs) {
+          const dup = db.prepare("SELECT id FROM enterprise_public_pool WHERE enterprise_id = ? AND phone = ? AND status = 'available'")
+            .get(req.enterpriseId, c.phone || '');
+          if (dup) continue;
+          db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, source_id, name, phone, company, position, remark)
+            VALUES (?, ?, 'employee', ?, ?, ?, ?, ?, ?)`)
+            .run(req.enterpriseId, req.customerId, c.id, c.name, c.phone || '', c.company || '', '', '移出企业回收');
+          recycled++;
+        }
+      }
+      // 同步 C 端员工记录为离职
+      db.prepare("UPDATE tenant_enterprise_employees SET status = 'left', updated_at = datetime('now') WHERE enterprise_id = ? AND user_id = ? AND status = 'active'")
+        .run(req.enterpriseId, uid);
+      db.prepare("UPDATE platform_user SET enterprise_id = NULL, enterprise_role = 'none', updated_at = datetime('now') WHERE id = ?").run(uid);
+      auditCust(db, req, 'enterprise_remove_employee', 'enterprise', req.enterpriseId, `移出企业员工，回收客户 ${recycled} 条到企业公海`);
+      return res.json({ ok: true, recycled });
+    }
+    const newRole = role === 'admin' ? 'admin' : 'member';
+    db.prepare("UPDATE platform_user SET enterprise_role = ?, updated_at = datetime('now') WHERE id = ?").run(newRole, uid);
+    res.json({ ok: true });
+  });
+
+  // 企业公海客户手动上浮到租户全局公海
+  router.post('/enterprise/pool/:id/float-up', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ?')
+      .get(Number(req.params.id), req.enterpriseId);
+    if (!row) return res.status(404).json({ error: '客户不存在' });
+    if (row.status !== 'available') return res.status(400).json({ error: '该客户已上浮或已被领取' });
+    const dup = db.prepare("SELECT id FROM tenant_public_pool WHERE customer_id = ? AND phone = ? AND status = 'available'")
+      .get(req.customerId, row.phone || '');
+    if (dup) return res.status(400).json({ error: '租户公海已存在该客户，无需重复上浮' });
+    db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position, remark)
+      VALUES (?, 'enterprise', ?, ?, ?, ?, ?, ?)`)
+      .run(req.customerId, row.source_id || null, row.name, row.phone || '', row.company || '', row.position || '', row.remark || '');
+    db.prepare("UPDATE enterprise_public_pool SET status = 'recycled', recycled_at = datetime('now') WHERE id = ?").run(row.id);
+    auditCust(db, req, 'enterprise_pool_float_up', 'enterprise', req.enterpriseId, `公海客户「${row.name || row.phone}」上浮租户公海`);
+    res.json({ ok: true });
+  });
+
+  // 企业公海列表
+  router.get('/enterprise/pool', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const eid = req.enterpriseId;
+    const { status = 'available', keyword = '' } = req.query;
+    let where = 'WHERE pool.enterprise_id = ? AND pool.status = ?';
+    const params = [eid, status];
+    if (keyword) {
+      where += ' AND (pool.name LIKE ? OR pool.phone LIKE ? OR pool.company LIKE ?)';
+      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+    }
+    const rows = db.prepare(`
+      SELECT pool.*, p.nickname AS claimer_name
+      FROM enterprise_public_pool pool
+      LEFT JOIN platform_user p ON p.id = pool.claimed_by
+      ${where} ORDER BY pool.created_at DESC LIMIT 200
+    `).all(...params);
+    res.json({ items: rows.map(r => ({
+      id: r.id, sourceType: r.source_type, name: r.name, phone: r.phone, company: r.company,
+      position: r.position, remark: r.remark, status: r.status, claimedBy: r.claimed_by,
+      claimerName: r.claimer_name || '', claimedAt: r.claimed_at, recycledAt: r.recycled_at, createdAt: r.created_at,
+    })) });
+  });
+
+  // 领取企业公海客户
+  router.post('/enterprise/pool/:id/claim', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const { userId } = req.body || {};
+    const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ? AND status = ?')
+      .get(Number(req.params.id), req.enterpriseId, 'available');
+    if (!row) return res.status(404).json({ error: '客户不存在或已被领取' });
+    const targetId = userId ? Number(userId) : req.user.id;
+    if (userId) {
+      const pu = db.prepare('SELECT id FROM platform_user WHERE id = ? AND enterprise_id = ?').get(targetId, req.enterpriseId);
+      if (!pu) return res.status(400).json({ error: '领取人不在本企业' });
+    }
+    db.prepare("UPDATE enterprise_public_pool SET status = 'claimed', claimed_by = ?, claimed_at = datetime('now') WHERE id = ?")
+      .run(targetId, row.id);
+    auditCust(db, req, 'enterprise_pool_claim', 'enterprise', req.enterpriseId, `领取公海客户「${row.name || row.phone}」`);
+    res.json({ ok: true });
+  });
+
+  // 释放回企业公海
+  router.post('/enterprise/pool/:id/release', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ? AND status = ?')
+      .get(Number(req.params.id), req.enterpriseId, 'claimed');
+    if (!row) return res.status(404).json({ error: '客户不存在或未领取' });
+    db.prepare("UPDATE enterprise_public_pool SET status = 'available', claimed_by = NULL, claimed_at = NULL, recycled_at = datetime('now') WHERE id = ?").run(row.id);
+    res.json({ ok: true });
+  });
+
+  // 企业配置（品牌 + 回流开关 + 口令）
+  router.get('/enterprise/config', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const ent = db.prepare('SELECT * FROM tenant_enterprises WHERE id = ? AND customer_id = ?').get(req.enterpriseId, req.customerId);
+    if (!ent) return res.status(404).json({ error: '企业不存在' });
+    let config = {};
+    try { config = JSON.parse(ent.config || '{}'); } catch (e) {}
+    res.json({ config: {
+      name: ent.name, logo: ent.logo, industry: ent.industry, scale: ent.scale,
+      description: ent.description, autoRecycle: !!config.auto_recycle, inviteCode: config.invite_code || '',
+    } });
+  });
+
+  router.put('/enterprise/config', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const ent = db.prepare('SELECT config FROM tenant_enterprises WHERE id = ? AND customer_id = ?').get(req.enterpriseId, req.customerId);
+    if (!ent) return res.status(404).json({ error: '企业不存在' });
+    let config = {};
+    try { config = JSON.parse(ent.config || '{}'); } catch (e) {}
+    const { name, logo, industry, scale, description, autoRecycle } = req.body || {};
+    if (name != null) config.name = String(name).slice(0, 64);
+    if (autoRecycle != null) config.auto_recycle = !!autoRecycle;
+    db.prepare('UPDATE tenant_enterprises SET name = COALESCE(?, name), logo = COALESCE(?, logo), industry = COALESCE(?, industry), scale = COALESCE(?, scale), description = COALESCE(?, description), config = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .run(name != null ? String(name).slice(0, 64) : null,
+           logo != null ? String(logo).slice(0, 512) : null,
+           industry != null ? String(industry).slice(0, 64) : null,
+           scale != null ? String(scale).slice(0, 64) : null,
+           description != null ? String(description).slice(0, 512) : null,
+           JSON.stringify(config), req.enterpriseId);
+    auditCust(db, req, 'enterprise_update_config', 'enterprise', req.enterpriseId, '更新企业配置');
+    res.json({ ok: true });
+  });
+
+  // 生成/重置企业口令
+  router.post('/enterprise/invite-code', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const ent = db.prepare('SELECT config FROM tenant_enterprises WHERE id = ? AND customer_id = ?').get(req.enterpriseId, req.customerId);
+    if (!ent) return res.status(404).json({ error: '企业不存在' });
+    let config = {};
+    try { config = JSON.parse(ent.config || '{}'); } catch (e) {}
+    config.invite_code = 'ENT' + String(Math.floor(100000 + Math.random() * 900000));
+    db.prepare('UPDATE tenant_enterprises SET config = ?, updated_at = datetime(\'now\') WHERE id = ?').run(JSON.stringify(config), req.enterpriseId);
+    res.json({ inviteCode: config.invite_code });
   });
 
   return router;

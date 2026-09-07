@@ -297,6 +297,11 @@ function migrate(db) {
     db.exec('ALTER TABLE users ADD COLUMN customer_id INTEGER');
   }
 
+  // —— users 表加企业绑定（企业管理员后台账号）——
+  if (!colExists(db, 'users', 'enterprise_id')) {
+    db.exec('ALTER TABLE users ADD COLUMN enterprise_id INTEGER');
+  }
+
   // —— users 表加微信多端字段 ——
   ['wx_openid', 'mp_openid', 'wx_unionid', 'nickname', 'avatar'].forEach(col => {
     if (!colExists(db, 'users', col)) {
@@ -1418,6 +1423,7 @@ export function toUser(row) {
     role: row.role,
     status: row.status,
     customerId: row.customer_id || null,
+    enterpriseId: row.enterprise_id || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

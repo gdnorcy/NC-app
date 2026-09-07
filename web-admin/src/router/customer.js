@@ -29,6 +29,11 @@ const routes = [
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
       { path: 'billing', component: () => import('../views/customer/Billing.vue'), meta: { title: '套餐与续费', breadcrumbs: ['套餐与续费'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
+      // 企业管理员端（企业角色化子面板）
+      { path: 'enterprise', component: () => import('../views/customer/enterprise/EnterpriseDashboard.vue'), meta: { title: '企业工作台', breadcrumbs: ['企业工作台'] } },
+      { path: 'enterprise/employees', component: () => import('../views/customer/enterprise/EnterpriseEmployees.vue'), meta: { title: '企业员工', breadcrumbs: ['企业工作台', '企业员工'] } },
+      { path: 'enterprise/pool', component: () => import('../views/customer/enterprise/EnterprisePool.vue'), meta: { title: '企业公海', breadcrumbs: ['企业工作台', '企业公海'] } },
+      { path: 'enterprise/settings', component: () => import('../views/customer/enterprise/EnterpriseSettings.vue'), meta: { title: '企业设置', breadcrumbs: ['企业工作台', '企业设置'] } },
       { path: 'settings', redirect: '/settings/account', meta: { title: '系统设置', breadcrumbs: ['系统设置'] } },
       { path: 'settings/account', component: () => import('../views/customer/settings/AccountSettings.vue'), meta: { title: '账号设置', breadcrumbs: ['系统设置', '账号设置'] } },
       { path: 'settings/storage', component: () => import('../views/customer/settings/StorageSettings.vue'), meta: { title: '远程附件', breadcrumbs: ['系统设置', '远程附件'] } },
@@ -43,7 +48,13 @@ const router = createRouter({ history: createWebHashHistory(), routes });
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('customer_token');
   if (to.path !== '/login' && !token) next('/login');
-  else next();
+  else {
+    // 企业管理员默认落地企业工作台，不进租户工作台
+    const user = JSON.parse(localStorage.getItem('customer_user') || 'null');
+    if (user?.enterpriseId && user?.role !== 'tenant_admin' && to.path === '/dashboard') {
+      next('/enterprise');
+    } else next();
+  }
 });
 
 export default router;

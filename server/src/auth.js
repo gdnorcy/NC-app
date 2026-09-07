@@ -12,7 +12,7 @@ const SMS_SEND_INTERVAL_MS = 60 * 1000; // 同一手机号 60 秒内只能发一
 
 export function issueToken(user) {
   return jwt.sign(
-    { uid: user.id, username: user.username, role: user.role, customerId: user.customer_id || null },
+    { uid: user.id, username: user.username, role: user.role, customerId: user.customer_id || null, enterpriseId: user.enterprise_id || null },
     config.jwtSecret,
     { expiresIn: '7d' }
   );
@@ -201,7 +201,7 @@ export function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: '未登录' });
   try {
     const payload = jwt.verify(token, config.jwtSecret);
-    req.user = { id: payload.uid, username: payload.username, role: payload.role, customerId: payload.customerId || null };
+    req.user = { id: payload.uid, username: payload.username, role: payload.role, customerId: payload.customerId || null, enterpriseId: payload.enterpriseId || null };
     return next();
   } catch {
     return res.status(401).json({ error: '登录已过期' });
