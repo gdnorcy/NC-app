@@ -178,6 +178,7 @@ export function createSolutionsRouter(db) {
       { key: 'memberCount', label: '入驻个人数', value: 0 },
       { key: 'enterpriseCount', label: '入驻企业数', value: 0 },
       { key: 'employeeCount', label: '企业员工人数', value: 0 },
+      { key: 'marketItems', label: '集市上架', value: 0 },
     ] },
     { appCode: 'panorama', appName: '360全景', items: [
       { key: 'planCount', label: '方案数', value: 5 },

@@ -264,6 +264,9 @@ router.post('/scenes', requireTenant, requireTenantAdmin, (req, res) => {
   if (!plan) return;
   const quota = checkTenantQuota(db, plan.project_id, 'max_scenes');
   if (!quota.ok) return res.status(403).json({ error: `场景数量已达上限（${quota.used}/${quota.limit}），请升级套餐后再创建` });
+  // 方案配额（新体系 solution_quotas：panorama.sceneCount）
+  const sq = checkTenantSolutionQuota(db, plan.project_id, 'panorama', 'sceneCount');
+  if (!sq.ok) return res.status(403).json({ error: `场景数量已达上限（${sq.used}/${sq.limit}），请升级方案后再创建` });
   const hotspotsJson = Array.isArray(hotspots) ? JSON.stringify(hotspots) : '[]';
   const metaJson = meta && typeof meta === 'object' ? JSON.stringify(meta) : '{}';
   const pubVal = published === undefined ? 1 : (published ? 1 : 0);

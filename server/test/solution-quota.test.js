@@ -73,10 +73,32 @@ test('Q1 未绑定方案 → 不限', () => {
 });
 
 test('Q2 绑定方案但未配置配额项 → 不限', () => {
-  // demo 方案（code=demo）不配置 employeeCount
+  // demo 方案（code=demo）种子未配置 planCount（零壹系统云·方案数）
   bindSolutions(1, ['demo']);
-  const q = checkTenantSolutionQuota(db, 1, 'card', 'employeeCount');
+  const q = checkTenantSolutionQuota(db, 1, 'panorama', 'planCount');
   assert.equal(q.ok, true);
+});
+
+test('Q2.5 演示方案默认配额种子：企业1/员工10/集市10/场景3', async () => {
+  const demo = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
+  assert.ok(demo, 'demo 方案应存在');
+  const res = await request(app)
+    .get(`/api/admin/solutions/${demo.id}/assets`)
+    .set('Authorization', `Bearer ${adminToken}`);
+  assert.equal(res.status, 200);
+  const get = (appCode, key) => res.body.assets.quotas.find((g) => g.appCode === appCode).items.find((i) => i.key === key);
+  assert.equal(get('card', 'enterpriseCount').value, 1, '入驻企业数默认 1');
+  assert.equal(get('card', 'employeeCount').value, 10, '企业员工人数默认 10');
+  assert.equal(get('card', 'marketItems').value, 10, '集市上架默认 10');
+  assert.equal(get('card', 'marketItems').label, '集市上架');
+  assert.equal(get('panorama', 'sceneCount').value, 3, '场景数默认 3');
+
+  bindSolutions(1, ['demo']);
+  const mq = checkTenantSolutionQuota(db, 1, 'card', 'marketItems');
+  assert.equal(mq.limit, 10, '集市上架限制应读取为 10');
+  assert.equal(mq.ok, true);
+  const sq = checkTenantSolutionQuota(db, 1, 'panorama', 'sceneCount');
+  assert.equal(sq.limit, 3, '场景数限制应读取为 3');
 });
 
 test('Q3 配置 employeeCount=3：未满放行、满员拦截', async () => {

@@ -172,6 +172,23 @@ function ensureDemoSolution(db) {
 
 function migrateSolutionApps(db) {
   const demoSolutionId = ensureDemoSolution(db);
+  // 演示方案默认配额（2026-09-08 确认）：员工10 / 入驻企业1 / 场景3 / 集市上架10
+  // 幂等：仅当该项当前为 0（未设置）时写入默认值，管理员已配置的非 0 值不被覆盖
+  if (demoSolutionId) {
+    const demoQuotas = [
+      ['card', 'enterpriseCount', '入驻企业数', 1],
+      ['card', 'employeeCount', '企业员工人数', 10],
+      ['card', 'marketItems', '集市上架', 10],
+      ['panorama', 'sceneCount', '场景数', 3],
+    ];
+    for (const [appCode, key, label, value] of demoQuotas) {
+      db.prepare(`INSERT INTO solution_quotas (solution_id, app_code, key, label, value, enabled) VALUES (?, ?, ?, ?, ?, 1)
+        ON CONFLICT(solution_id, app_code, key) DO UPDATE SET
+          value = CASE WHEN solution_quotas.value = 0 THEN excluded.value ELSE solution_quotas.value END,
+          enabled = 1`)
+        .run(demoSolutionId, appCode, key, label, value);
+    }
+  }
   // 内置方案降为应用：不再作为可售方案（下架），由「演示试用方案」承接售卖入口
   if (demoSolutionId) {
     const builtin = db.prepare("SELECT id FROM solutions WHERE code IN ('panorama','card') AND status = 'on'").all();

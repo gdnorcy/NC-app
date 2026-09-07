@@ -455,6 +455,9 @@ export function createCardMarketRouter(db) {
     } else {
       const q = checkTenantQuota(db, req.customerId, 'max_market_items');
       if (!q.ok) return res.status(403).json({ error: `集市上架数量已达上限（${q.used}/${q.limit}），请升级套餐后再上架` });
+      // 方案配额（新体系 solution_quotas：card.marketItems）
+      const mq = checkTenantSolutionQuota(db, req.customerId, 'card', 'marketItems');
+      if (!mq.ok) return res.status(403).json({ error: `集市上架数量已达上限（${mq.used}/${mq.limit}），请升级方案后再上架` });
       const settings = db.prepare('SELECT audit_mode FROM card_market_settings WHERE customer_id = ?').get(req.customerId);
       const auditStatus = settings?.audit_mode === 'manual' ? 'pending' : 'approved';
       // 企业主体上架需要企业id
@@ -480,6 +483,10 @@ export function createCardMarketRouter(db) {
     if (!item) return res.status(404).json({ error: '上架记录不存在' });
     if (item.__crossTenant) return res.status(403).json({ error: '无权操作' });
     if (item.audit_status !== 'pending') return res.status(400).json({ error: '该记录不在待审状态' });
+    if (action === 'approve') {
+      const mq = checkTenantSolutionQuota(db, req.customerId, 'card', 'marketItems');
+      if (!mq.ok) return res.status(403).json({ error: `集市上架数量已达上限（${mq.used}/${mq.limit}），请升级方案后再审核` });
+    }
     db.prepare("UPDATE card_market_items SET audit_status = ?, updated_at = datetime('now') WHERE id = ?")
       .run(action === 'approve' ? 'approved' : 'rejected', itemId);
     audit(db, req, 'audit_market_item', 'market_item', itemId, `集市审核 ${action === 'approve' ? '通过' : '拒绝'}`);
@@ -867,7 +874,9 @@ export function createCardMarketRouter(db) {
       if (action === 'approve') {
         const q = checkTenantQuota(db, req.customerId, 'max_enterprises');
         if (!q.ok) return res.status(403).json({ error: `入驻企业数量已达上限（${q.used}/${q.limit}），请升级套餐后再审核` });
-        // 企业员工人数配额（新体系 solution_quotas：card.employeeCount）
+        // 方案配额（新体系 solution_quotas）：入驻企业数 + 企业员工人数
+        const eq2 = checkTenantSolutionQuota(db, req.customerId, 'card', 'enterpriseCount');
+        if (!eq2.ok) return res.status(403).json({ error: `入驻企业数已达上限（${eq2.used}/${eq2.limit}），请升级方案后再审核` });
         const eq = checkTenantSolutionQuota(db, req.customerId, 'card', 'employeeCount');
         if (!eq.ok) return res.status(403).json({ error: `企业员工人数已达上限（${eq.used}/${eq.limit}），请升级方案后再审核` });
       }
