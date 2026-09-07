@@ -59,3 +59,14 @@ export function buildSidebarMenus(user) {
 export function visibleMenuCodes(user) {
   return buildSidebarMenus(user).map((m) => m.code);
 }
+
+/**
+ * 应用中心内的应用路由是否放行。
+ * 应用中心（/apps）对全部角色可见，其子路由（/apps/panorama、/apps/card 等）
+ * 由应用卡片跳转进入，不属于侧边菜单，路由守卫需按 /apps 前缀放行。
+ */
+export function isAppRouteAllowed(user, path) {
+  if (!user || typeof path !== 'string' || !path.startsWith('/apps/')) return false;
+  const menus = buildSidebarMenus(user);
+  return menus.some((m) => m.path === '/apps');
+}

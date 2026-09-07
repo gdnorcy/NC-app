@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import { buildSidebarMenus } from '../utils/menuPermissions';
+import { buildSidebarMenus, isAppRouteAllowed } from '../utils/menuPermissions';
 import CustomerLayout from '../layouts/CustomerLayout.vue';
 
 const routes = [
@@ -66,8 +66,11 @@ router.beforeEach((to, from, next) => {
     if (user?.enterpriseId && user?.role !== 'tenant_admin' && to.path === '/dashboard') {
       next('/enterprise');
     } else if (token && to.path !== '/login' && !allowedPaths(user).has(to.path)) {
-      // 越权拦截：普通成员访问成员管理/企业面板等 → 回工作台
-      next('/dashboard');
+      // 应用中心内的应用路由：应用中心对全员开放，子路由按前缀放行
+      if (!isAppRouteAllowed(user, to.path)) {
+        // 越权拦截：普通成员访问成员管理/企业面板等 → 回工作台
+        next('/dashboard');
+      } else next();
     } else next();
   }
 });

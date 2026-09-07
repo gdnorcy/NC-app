@@ -4,6 +4,7 @@ import {
   isEnterpriseAdmin,
   isMember,
   buildSidebarMenus,
+  isAppRouteAllowed,
 } from './menuPermissions.js';
 
 // ============================================================
@@ -74,5 +75,37 @@ describe('buildSidebarMenus 权限矩阵', () => {
   it('异常入参不抛错', () => {
     expect(() => buildSidebarMenus(null)).not.toThrow();
     expect(() => buildSidebarMenus({})).not.toThrow();
+  });
+});
+
+describe('isAppRouteAllowed 应用路由守卫', () => {
+  const tenantAdmin = { role: 'tenant_admin' };
+  const entAdmin = { role: 'enterprise_admin', enterpriseId: 2 };
+  const member = { role: 'member' };
+
+  it('应用中心子路由对租户管理员放行', () => {
+    expect(isAppRouteAllowed(tenantAdmin, '/apps/panorama')).toBe(true);
+    expect(isAppRouteAllowed(tenantAdmin, '/apps/card/employees')).toBe(true);
+  });
+
+  it('应用中心子路由对入驻企业管理员放行', () => {
+    expect(isAppRouteAllowed(entAdmin, '/apps/card/market')).toBe(true);
+    expect(isAppRouteAllowed(entAdmin, '/apps/channel/mini')).toBe(true);
+  });
+
+  it('应用中心子路由对普通成员放行（应用中心全员可见）', () => {
+    expect(isAppRouteAllowed(member, '/apps/card')).toBe(true);
+  });
+
+  it('非应用中心路由不放行', () => {
+    expect(isAppRouteAllowed(tenantAdmin, '/enterprise')).toBe(false);
+    expect(isAppRouteAllowed(tenantAdmin, '/dashboard')).toBe(false);
+    expect(isAppRouteAllowed(tenantAdmin, '/apps')).toBe(false); // 顶层菜单走 allowedPaths
+  });
+
+  it('异常入参不抛错', () => {
+    expect(isAppRouteAllowed(null, '/apps/panorama')).toBe(false);
+    expect(isAppRouteAllowed(tenantAdmin, '')).toBe(false);
+    expect(isAppRouteAllowed(tenantAdmin, null)).toBe(false);
   });
 });
