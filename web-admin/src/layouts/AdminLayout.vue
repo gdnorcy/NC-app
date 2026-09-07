@@ -189,6 +189,12 @@ function logout() {
 }
 .side-menu { border-right: none; flex: 1; padding: 8px 12px; }
 .side-menu :deep(.s-icon) { margin-right: 10px; }
+/* 折叠态：菜单项图标水平居中，去除展开态遗留的图标右间距 */
+.side-menu.el-menu--collapse :deep(.el-menu-item) {
+  padding: 0 !important;
+  justify-content: center;
+}
+.side-menu.el-menu--collapse :deep(.s-icon) { margin-right: 0; }
 /* 图2风格：圆角背景块菜单 */
 .side-menu :deep(.el-menu-item) {
   border-radius: 8px;
