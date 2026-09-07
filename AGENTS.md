@@ -51,13 +51,24 @@ npm run restart
 
 # 运行测试
 npm test
+# 前端单元测试（web-admin 权限矩阵 + web-app 工具/API 层）
+npm run test:frontend
 ```
+
+## 前端测试规范（2026-09-07 新增）
+
+- **范围**：web-admin（`web-admin/src/**/*.test.js`）、web-app（`web-app/src/utils/**/*.test.js`）
+- **工具**：vitest@3（node 环境，兼容 vite5）；web-app 测试通过 `vi.stubGlobal('uni', ...)` mock uni 全局
+- **高价值测试对象**：多租户权限矩阵（menuPermissions）、品牌色渐变（color）、C 端 API 封装（cardApi：URL 前缀/鉴权头/响应解包/错误 reject/401 跳转）
+- **新增纯函数/工具必须配测试**；新增组件逻辑若可提取为纯函数，优先提取并配测试
+- **交付前**：`npm run test:frontend` 必须全部通过（当前 23 项基线）
 
 ## 交付前检查清单
 
 - [ ] 前端代码已重新构建（`npm run build:admin`）
 - [ ] 构建产物验证通过（`npm run verify`）
 - [ ] 后端测试通过（`npm test`）
+- [ ] 前端单元测试通过（`npm run test:frontend`）
 - [ ] 服务器已重启（如有后端修改）
 - [ ] 浏览器端功能验证通过（无痕模式）
 - [ ] 已创建 git commit
