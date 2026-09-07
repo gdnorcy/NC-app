@@ -169,6 +169,11 @@ export function createCustomersRouter(db) {
       const parsedCfg = typeof config === 'string' ? JSON.parse(config) : (config || {});
       const marketCfg = (parsedCfg && typeof parsedCfg === 'object' && parsedCfg.market) || null;
       if (marketCfg) {
+        // 总后台指定的风格 = 免费授权（写资产授权记录，租户端无需再购买）
+        if (marketCfg.style) {
+          db.prepare("INSERT OR IGNORE INTO tenant_asset_purchases (tenant_id, asset_type, asset_key, price) VALUES (?, 'market_style', ?, 0)")
+            .run(id, String(marketCfg.style));
+        }
         const exist = db.prepare('SELECT id FROM card_market_settings WHERE customer_id = ?').get(id);
         if (exist) {
           db.prepare(`UPDATE card_market_settings SET

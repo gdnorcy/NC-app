@@ -21,6 +21,10 @@
         <div class="tpl-body">
           <div class="tpl-title">{{ t.name }}</div>
           <div class="tpl-desc">{{ t.description || '—' }}</div>
+          <div class="tpl-price" :class="Number(t.price || 0) > 0 ? 'paid' : 'free'">
+            {{ Number(t.price || 0) > 0 ? `¥${Number(t.price)}` : '免费' }}
+            <span v-if="Number(t.price || 0) > 0" class="paid-hint">租户需购买</span>
+          </div>
           <div class="tpl-theme" v-if="Object.keys(t.themeConfig || {}).length">
             <span class="theme-item" v-for="(v, k) in t.themeConfig" :key="k">
               <i class="color-dot" :style="{ background: isColor(v) ? v : '#e5e6eb' }"></i>{{ k }}
@@ -63,6 +67,10 @@
             <span class="color-label">圆角 radius</span>
           </div>
         </el-form-item>
+        <el-form-item label="价格">
+          <el-input-number v-model="form.price" :min="0" :precision="2" size="small" style="width: 160px" />
+          <span class="color-label" style="margin-left:8px;">0 元为免费模板，>0 元租户端按需购买</span>
+        </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" />
         </el-form-item>
@@ -84,7 +92,7 @@ const templates = ref([]);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const saving = ref(false);
-const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0 });
+const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, price: 0, sortOrder: 0 });
 
 async function load() {
   const res = await adminApi.get('/card/templates');

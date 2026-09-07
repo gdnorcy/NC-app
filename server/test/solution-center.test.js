@@ -77,16 +77,23 @@ test('P0-3 方案列表返回扩展字段与聚合价格/权限', async () => {
   const card = res.body.solutions.find((s) => s.code === 'card');
   assert.ok(card);
   assert.equal(card.categoryId, 1);
-  assert.equal(card.status, 'on');
+  assert.equal(card.status, 'off', '内置方案已降为应用（下架），由演示试用方案承接');
   assert.equal(typeof card.isHot, 'boolean');
   assert.ok(typeof card.defaultPlatform === 'string');
   assert.ok(Array.isArray(card.previewImages));
   assert.equal(typeof card.virtualUseCount, 'number');
   assert.equal(typeof card.allPermissions, 'boolean');
-  // 预置价格与权限
+  // 预置价格与两级权限（应用级 + 菜单级）
   assert.ok(Array.isArray(card.pricing) && card.pricing.length > 0);
-  assert.ok(Array.isArray(card.permissions) && card.permissions.length > 0);
-  assert.ok(card.permissions.some((p) => p.key === 'card:view'));
+  assert.ok(Array.isArray(card.appPermissions) && card.appPermissions.length > 0);
+  const cardApp = card.appPermissions.find((a) => a.code === 'card');
+  assert.ok(cardApp, '智能名片应用应存在');
+  assert.equal(cardApp.enabled, true, '智能名片方案应勾选自身应用');
+  assert.ok(Array.isArray(cardApp.menus) && cardApp.menus.some((m) => m.key === 'card:view' && m.enabled), '菜单级授权应含 card:view');
+  // 动态补齐：未勾选的应用也返回、默认不选
+  const panoApp = card.appPermissions.find((a) => a.code === 'panorama');
+  assert.ok(panoApp, '未勾选应用也应返回（动态补齐）');
+  assert.equal(panoApp.enabled, false, '未勾选应用默认不选');
 
   // 分类/状态筛选
   const filtered = await request(app).get('/api/admin/solutions?categoryId=1').set(auth(adminToken));
@@ -127,7 +134,7 @@ test('P0-5 价格设置：整体替换含永久行（durationMonths=0）', async
     ],
   });
   assert.equal(res.status, 200);
-  console.log('P0-5 PRICING:', JSON.stringify(res.body.solution.pricing)); assert.equal(res.body.solution.pricing.length, 3);
+  assert.equal(res.body.solution.pricing.length, 3);
   const perm = res.body.solution.pricing.find((p) => p.durationMonths === 0);
   assert.equal(perm.agentPrice, 4999);
   const six = res.body.solution.pricing.find((p) => p.durationMonths === 6);
@@ -138,25 +145,75 @@ test('P0-5 价格设置：整体替换含永久行（durationMonths=0）', async
   assert.equal(bad.status, 400);
 });
 
-test('P0-6 权限设置：整体替换 + allPermissions 模式', async () => {
+test('P0-6 权限设置（两级）：应用勾选 + 菜单授权 + allPermissions 模式', async () => {
   const card = db.prepare("SELECT id FROM solutions WHERE code = 'card'").get();
   const res = await request(app).put(`/api/admin/solutions/${card.id}/permissions`).set(auth(adminToken)).send({
-    permissions: [
-      { module: '总览', moduleLabel: '总览', key: 'card:overview', label: '数据洞察', enabled: true },
-      { module: '名片管理', moduleLabel: '名片管理', key: 'card:edit', label: '名片编辑', enabled: false },
+    apps: [{ code: 'card', enabled: true }, { code: 'panorama', enabled: false }],
+    menus: [
+      { appCode: 'card', key: 'card:overview', enabled: true },
+      { appCode: 'card', key: 'card:edit', enabled: false },
     ],
     allPermissions: true,
   });
   assert.equal(res.status, 200);
-  assert.equal(res.body.solution.permissions.length, 2);
-  assert.equal(res.body.solution.allPermissions, true);
-  assert.equal(res.body.solution.permissions.find((p) => p.key === 'card:edit').enabled, false);
+  const sol = res.body.solution;
+  assert.equal(sol.allPermissions, true);
+  const cardApp = sol.appPermissions.find((a) => a.code === 'card');
+  assert.equal(cardApp.enabled, true);
+  const editMenu = cardApp.menus.find((m) => m.key === 'card:edit');
+  assert.equal(editMenu.enabled, false, '未授权菜单应为 false');
+  const overviewMenu = cardApp.menus.find((m) => m.key === 'card:overview');
+  assert.equal(overviewMenu.enabled, true);
 
-  // 恢复 seed 默认（清空后由 seed 补齐：权限表清空 + allPermissions 关）
-  await request(app).put(`/api/admin/solutions/${card.id}/permissions`).set(auth(adminToken)).send({ permissions: [], allPermissions: false });
+  // 恢复（显式勾回 card 应用；allPermissions 关）
+  await request(app).put(`/api/admin/solutions/${card.id}/permissions`).set(auth(adminToken)).send({ apps: [{ code: 'card', enabled: true }], menus: [], allPermissions: false });
   const restored = await request(app).get('/api/admin/solutions').set(auth(adminToken));
-  const cardAfter = restored.body.solutions.find((s) => s.code === 'card'); console.log('P0-6 cardAfter.allPermissions:', cardAfter.allPermissions, typeof cardAfter.allPermissions);
+  const cardAfter = restored.body.solutions.find((s) => s.code === 'card');
   assert.equal(cardAfter.allPermissions, false);
+  assert.equal(cardAfter.appPermissions.find((a) => a.code === 'card').enabled, true, '恢复 card 应用勾选');
+});
+
+test('P0-6b 演示试用方案：自动纳入全部应用且菜单全量授权；新增应用动态补齐默认不选', async () => {
+  // 演示试用方案存在、状态上架
+  const demo = db.prepare("SELECT id FROM solutions WHERE is_demo = 1").get();
+  assert.ok(demo, '演示试用方案应预置');
+  const res = await request(app).get('/api/admin/solutions').set(auth(adminToken));
+  const demoSol = res.body.solutions.find((s) => s.id === demo.id);
+  assert.ok(demoSol, '演示方案应在列表中');
+  assert.equal(demoSol.status, 'on');
+  assert.equal(demoSol.isDemo, true);
+  // 包含全部应用且全量授权
+  const apps = demoSol.appPermissions;
+  assert.ok(apps.length >= 2, '演示方案应包含全部应用');
+  assert.ok(apps.every((a) => a.enabled === true), '演示方案所有应用默认勾选');
+  assert.ok(apps.every((a) => a.menus.length > 0 && a.menus.every((m) => m.enabled === true)), '演示方案菜单全量授权');
+
+  // 模拟新增应用：INSERT apps 后，普通方案动态补齐且默认不选；演示方案自动勾选
+  const r = db.prepare("INSERT INTO apps (code, name, icon, sort_order) VALUES ('future_app', '未来应用', 'devices', 99)").run();
+  const newAppId = r.lastInsertRowid;
+  const list2 = await request(app).get('/api/admin/solutions').set(auth(adminToken));
+  const cardSol = list2.body.solutions.find((s) => s.code === 'card');
+  const futureInCard = cardSol.appPermissions.find((a) => a.code === 'future_app');
+  assert.ok(futureInCard, '新应用应自动出现在普通方案');
+  assert.equal(futureInCard.enabled, false, '普通方案新应用默认不选');
+  const demo2 = list2.body.solutions.find((s) => s.id === demo.id);
+  assert.equal(demo2.appPermissions.find((a) => a.code === 'future_app').enabled, true, '演示方案新应用默认勾选');
+  // 清理测试应用
+  db.prepare('DELETE FROM apps WHERE id = ?').run(newAppId);
+});
+
+test('P0-6c 组合包租户授权：开通演示方案可访问其包含的应用', async () => {
+  const project = db.prepare("SELECT id, solutions FROM projects WHERE id = 1").get();
+  if (!project) return; // 无项目则跳过
+  const orig = project.solutions;
+  // 开通 demo 方案
+  db.prepare("UPDATE projects SET solutions = '[\"demo\"]' WHERE id = 1").run();
+  const { hasSolution } = await import('../src/tenant.js');
+  assert.equal(hasSolution(db, 1, 'card'), true, 'demo 方案应授权 card 应用');
+  assert.equal(hasSolution(db, 1, 'panorama'), true, 'demo 方案应授权 panorama 应用');
+  assert.equal(hasSolution(db, 1, 'future_app'), false, '未勾选应用不授权');
+  // 还原
+  db.prepare('UPDATE projects SET solutions = ? WHERE id = 1').run(orig);
 });
 
 test('P0-7 新建解决方案：基础字段 + 唯一标识冲突校验', async () => {
@@ -174,4 +231,50 @@ test('P0-7 新建解决方案：基础字段 + 唯一标识冲突校验', async 
   const dup = await request(app).post('/api/admin/solutions').set(auth(adminToken)).send({ name: '重复', code: 'test_app' });
   assert.equal(dup.status, 400);
   assert.match(dup.body.error, /已存在/);
+});
+
+test('P1-1 方案资产：读取集市风格 + 平台模板（含价格/默认标记）', async () => {
+  const card = db.prepare("SELECT id FROM solutions WHERE code = 'card'").get();
+  const res = await request(app).get(`/api/admin/solutions/${card.id}/assets`).set(auth(adminToken));
+  assert.equal(res.status, 200);
+  assert.ok(Array.isArray(res.body.assets.styles), 'styles 应为数组');
+  assert.ok(Array.isArray(res.body.assets.templates), 'templates 应为数组');
+  const styleA = res.body.assets.styles.find((s) => s.key === 'A');
+  assert.ok(styleA, '应预置风格 A');
+  assert.equal(styleA.isDefault, true, 'A 应为默认风格');
+  assert.equal(styleA.price, 0, 'A 应免费');
+  assert.ok(res.body.assets.styles.some((s) => s.key === 'B'), '应预置风格 B');
+});
+
+test('P1-2 保存方案资产：调整风格价格/启用与模板价格', async () => {
+  const card = db.prepare("SELECT id FROM solutions WHERE code = 'card'").get();
+  const before = await request(app).get(`/api/admin/solutions/${card.id}/assets`).set(auth(adminToken));
+  const tpl = before.body.assets.templates[0];
+  const res = await request(app).put(`/api/admin/solutions/${card.id}/assets`).set(auth(adminToken)).send({
+    styles: [
+      { key: 'A', price: 0, enabled: true, isDefault: true },
+      { key: 'B', price: 168, enabled: true },
+      { key: 'C', price: 288, enabled: false },
+    ],
+    templates: tpl ? [{ id: tpl.id, price: 66, enabled: true }] : [],
+  });
+  assert.equal(res.status, 200);
+  const after = await request(app).get(`/api/admin/solutions/${card.id}/assets`).set(auth(adminToken));
+  const styleB = after.body.assets.styles.find((s) => s.key === 'B');
+  assert.equal(styleB.price, 168, 'B 价格应更新为 168');
+  const styleC = after.body.assets.styles.find((s) => s.key === 'C');
+  assert.equal(styleC.enabled, false, 'C 应被下架');
+  if (tpl) {
+    const tplAfter = after.body.assets.templates.find((t) => t.id === tpl.id);
+    assert.equal(tplAfter.price, 66, '模板价格应更新为 66');
+  }
+  // 恢复默认
+  await request(app).put(`/api/admin/solutions/${card.id}/assets`).set(auth(adminToken)).send({
+    styles: [
+      { key: 'A', price: 0, enabled: true, isDefault: true },
+      { key: 'B', price: 199, enabled: true },
+      { key: 'C', price: 299, enabled: true },
+    ],
+    templates: tpl ? [{ id: tpl.id, price: 0, enabled: true }] : [],
+  });
 });

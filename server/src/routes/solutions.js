@@ -128,22 +128,75 @@ export function createSolutionsRouter(db) {
     res.json({ solution: solutionDetail(db, id) });
   });
 
-  // 权限设置：整体替换 + allPermissions 模式
+  // 权限设置：两级授权（应用级勾选 + 应用内菜单级授权）+ allPermissions 模式
   router.put('/:id/permissions', (req, res) => {
     const id = Number(req.params.id);
     const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
     if (!solution) return res.status(404).json({ error: '解决方案不存在' });
-    const { permissions, allPermissions } = req.body || {};
-    if (!Array.isArray(permissions)) return res.status(400).json({ error: '权限数据格式错误' });
+    const { apps, menus, allPermissions } = req.body || {};
+    if (!Array.isArray(apps) || !Array.isArray(menus)) return res.status(400).json({ error: '权限数据格式错误，需包含 apps 与 menus' });
+    // 应用级授权：整体替换 solution_apps
+    db.prepare('DELETE FROM solution_apps WHERE solution_id = ?').run(id);
+    const insApp = db.prepare('INSERT OR REPLACE INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, ?)');
+    apps.forEach((a) => {
+      if (!a || !a.code) return;
+      const app = db.prepare('SELECT id FROM apps WHERE code = ?').get(a.code);
+      if (app) insApp.run(id, app.id, a.enabled === false ? 0 : 1);
+    });
+    // 菜单级授权：整体替换 solution_permissions（按 app_id + key 落库）
     db.prepare('DELETE FROM solution_permissions WHERE solution_id = ?').run(id);
-    const ins = db.prepare('INSERT INTO solution_permissions (solution_id, module, module_label, key, label, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    permissions.forEach((p, idx) => {
-      if (!p || !p.key) return;
-      ins.run(id, p.module || '', p.moduleLabel || p.module || '', p.key, p.label || p.key, p.enabled ? 1 : 0, idx);
+    const insPerm = db.prepare('INSERT INTO solution_permissions (solution_id, app_id, module, module_label, key, label, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    menus.forEach((m, idx) => {
+      if (!m || !m.key) return;
+      const app = m.appCode ? db.prepare('SELECT id FROM apps WHERE code = ?').get(m.appCode) : null;
+      const menuDef = app ? db.prepare('SELECT module, module_label, label FROM app_menus WHERE app_id = ? AND key = ?').get(app.id, m.key) : null;
+      if (!app || !menuDef) return;
+      insPerm.run(id, app.id, menuDef.module, menuDef.module_label, m.key, menuDef.label, m.enabled === false ? 0 : 1, idx);
     });
     db.prepare("UPDATE solutions SET all_permissions = ?, updated_at = datetime('now') WHERE id = ?").run(allPermissions ? 1 : 0, id);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_solution_permissions', targetType: 'solution', targetId: id, detail: `更新方案权限: ${solution.name}`, ip: req.ip });
     res.json({ solution: solutionDetail(db, id) });
+  });
+
+  // 方案资产：集市风格 + 名片模板（归入解决方案的可售资产）
+  router.get('/:id/assets', (req, res) => {
+    const id = Number(req.params.id);
+    const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
+    if (!solution) return res.status(404).json({ error: '解决方案不存在' });
+    const styles = db.prepare('SELECT * FROM market_styles ORDER BY sort_order ASC, id ASC').all().map((s) => ({
+      key: s.key, name: s.name, description: s.description, price: s.price, isDefault: !!s.is_default, enabled: !!s.enabled, sortOrder: s.sort_order,
+    }));
+    const templates = db.prepare('SELECT id, name, price, enabled, sort_order FROM card_templates WHERE tenant_id = 0 ORDER BY sort_order ASC, id DESC').all().map((t) => ({
+      id: t.id, name: t.name, price: t.price, enabled: !!t.enabled, sortOrder: t.sort_order,
+    }));
+    res.json({ assets: { styles, templates } });
+  });
+
+  // 保存方案资产（整体替换风格价格/启用 + 模板价格/启用）
+  router.put('/:id/assets', (req, res) => {
+    const id = Number(req.params.id);
+    const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
+    if (!solution) return res.status(404).json({ error: '解决方案不存在' });
+    const { styles, templates } = req.body || {};
+    if (Array.isArray(styles)) {
+      const up = db.prepare('UPDATE market_styles SET price = ?, enabled = ?, updated_at = datetime(\'now\') WHERE key = ?');
+      const def = db.prepare('UPDATE market_styles SET is_default = 0 WHERE is_default = 1');
+      styles.forEach((s) => {
+        if (!s || !s.key) return;
+        up.run(Number(s.price) || 0, s.enabled === false ? 0 : 1, s.key);
+        if (s.isDefault) def.run();
+        if (s.isDefault) db.prepare('UPDATE market_styles SET is_default = 1 WHERE key = ?').run(s.key);
+      });
+    }
+    if (Array.isArray(templates)) {
+      const up = db.prepare('UPDATE card_templates SET price = ?, enabled = ?, updated_at = datetime(\'now\') WHERE id = ? AND tenant_id = 0');
+      templates.forEach((t) => {
+        if (!t || !t.id) return;
+        up.run(Number(t.price) || 0, t.enabled === false ? 0 : 1, Number(t.id));
+      });
+    }
+    addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_solution_assets', targetType: 'solution', targetId: id, detail: `更新方案资产: ${solution.name}`, ip: req.ip });
+    res.json({ ok: true });
   });
 
   // 删除（仅非内置方案；内置方案建议禁用）

@@ -18,23 +18,49 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
         const rows = db.prepare('SELECT * FROM card_templates WHERE tenant_id = 0 ORDER BY sort_order, id DESC').all();
         return res.json({ templates: rows.map(toTemplate) });
       }
-      // 租户后台：平台启用模板 + 本租户全部私有模板
+      // 租户后台：平台启用模板 + 本租户全部私有模板（平台付费模板附加 purchased 状态）
       const rows = db.prepare(
         'SELECT * FROM card_templates WHERE (tenant_id = 0 AND enabled = 1) OR tenant_id = ? ORDER BY tenant_id, sort_order, id DESC'
       ).all(req.user.customerId);
-      res.json({ templates: rows.map(toTemplate) });
+      const bought = new Set(
+        db.prepare("SELECT asset_key FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'card_template'").all(req.user.customerId).map((r) => String(r.asset_key))
+      );
+      res.json({
+        templates: rows.map((row) => {
+          const t = toTemplate(row);
+          if (row.tenant_id === 0) t.purchased = bought.has(String(row.id)) || Number(row.price || 0) === 0;
+          return t;
+        }),
+      });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ============ 租户购买平台付费模板 ============
+  router.post('/templates/:id/purchase', (req, res) => {
+    try {
+      if (isAdmin) return res.status(403).json({ error: '总后台无需购买' });
+      const id = Number(req.params.id);
+      const row = db.prepare('SELECT * FROM card_templates WHERE id = ? AND tenant_id = 0').get(id);
+      if (!row) return res.status(404).json({ error: '模板不存在' });
+      if (!row.enabled) return res.status(400).json({ error: '该模板已下架' });
+      const price = Number(row.price || 0);
+      if (price === 0) return res.status(400).json({ error: '免费模板无需购买' });
+      const exist = db.prepare("SELECT id FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'card_template' AND asset_key = ?").get(req.user.customerId, String(id));
+      if (exist) return res.json({ ok: true, purchased: true, template: { ...toTemplate(row), purchased: true } });
+      db.prepare("INSERT INTO tenant_asset_purchases (tenant_id, asset_type, asset_key, price) VALUES (?, 'card_template', ?, ?)").run(req.user.customerId, String(id), price);
+      res.json({ ok: true, purchased: true, template: { ...toTemplate(row), purchased: true } });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ============ 新建 ============
   router.post('/templates', (req, res) => {
     try {
-      const { name, cover = '', themeConfig = {}, description = '', sortOrder = 0, enabled = true } = req.body || {};
+      const { name, cover = '', themeConfig = {}, description = '', sortOrder = 0, enabled = true, price = 0 } = req.body || {};
       if (!name) return res.status(400).json({ error: '模板名称必填' });
       const tenantId = isAdmin ? 0 : req.user.customerId;
       const r = db.prepare(
-        'INSERT INTO card_templates (tenant_id, name, cover, theme_config, description, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), enabled ? 1 : 0, Number(sortOrder) || 0);
+        'INSERT INTO card_templates (tenant_id, name, cover, theme_config, description, enabled, sort_order, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), enabled ? 1 : 0, Number(sortOrder) || 0, isAdmin ? (Number(price) || 0) : 0);
       const row = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(r.lastInsertRowid);
       res.json({ template: toTemplate(row) });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -49,7 +75,7 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
       // 权限：总后台仅平台模板；租户仅本租户私有模板
       if (isAdmin && exist.tenant_id !== 0) return res.status(403).json({ error: '无权操作租户模板' });
       if (!isAdmin && exist.tenant_id !== req.user.customerId) return res.status(403).json({ error: '无权操作该模板' });
-      const { name, cover, themeConfig, description, enabled, sortOrder } = req.body || {};
+      const { name, cover, themeConfig, description, enabled, sortOrder, price } = req.body || {};
       db.prepare(`UPDATE card_templates SET
         name = COALESCE(?, name),
         cover = COALESCE(?, cover),
@@ -57,6 +83,7 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
         description = COALESCE(?, description),
         enabled = COALESCE(?, enabled),
         sort_order = COALESCE(?, sort_order),
+        price = CASE WHEN ? IS NULL THEN price ELSE ? END,
         updated_at = datetime('now')
         WHERE id = ?`)
         .run(name != null ? String(name).slice(0, 64) : null,
@@ -65,6 +92,8 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
              description != null ? String(description).slice(0, 256) : null,
              enabled != null ? (enabled ? 1 : 0) : null,
              sortOrder != null ? Number(sortOrder) : null,
+             isAdmin ? Number(price) : null,
+             isAdmin ? Number(price) : null,
              id);
       const row = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(id);
       res.json({ template: toTemplate(row) });
@@ -103,6 +132,7 @@ function toTemplate(row) {
     themeConfig: theme,
     description: row.description,
     enabled: !!row.enabled,
+    price: Number(row.price || 0),
     sortOrder: row.sort_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

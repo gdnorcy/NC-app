@@ -118,6 +118,8 @@ export const updateSolution = (id, data) => adminApi.put(`/solutions/${id}`, dat
 export const deleteSolution = (id) => adminApi.delete(`/solutions/${id}`);
 export const saveSolutionPricing = (id, data) => adminApi.put(`/solutions/${id}/pricing`, data);
 export const saveSolutionPermissions = (id, data) => adminApi.put(`/solutions/${id}/permissions`, data);
+export const fetchSolutionAssets = (id) => adminApi.get(`/solutions/${id}/assets`);
+export const saveSolutionAssets = (id, data) => adminApi.put(`/solutions/${id}/assets`, data);
 
 // 方案分类
 export const fetchSolutionCategories = () => adminApi.get('/solutions/categories');

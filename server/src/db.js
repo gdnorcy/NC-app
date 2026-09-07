@@ -150,6 +150,78 @@ function colExists(db, table, col) {
 }
 
 /** 方案中心 P0：补齐分类归属 + 默认价格 + 默认权限点（幂等） */
+/**
+ * 方案化迁移（幂等）：现有解决方案 → 应用清单 + 应用菜单 + 方案-应用关联
+ * - apps：从 solutions 沉淀（panorama/card…），此后新增应用直接 INSERT apps
+ * - app_menus：从现有 solution_permissions 去重提取（按方案 code 归属应用）
+ * - solution_apps：预置方案自动关联自身应用；「演示试用方案」(is_demo) 自动纳入全部应用（含新增）
+ * - solution_permissions.app_id：按方案 code 回填归属应用
+ */
+function ensureDemoSolution(db) {
+  const demo = db.prepare("SELECT id, is_demo FROM solutions WHERE code = 'demo' OR is_demo = 1 ORDER BY is_demo DESC LIMIT 1").get();
+  if (demo) {
+    if (!demo.is_demo) db.prepare("UPDATE solutions SET is_demo = 1, updated_at = datetime('now') WHERE id = ?").run(demo.id);
+    return demo.id;
+  }
+  const r = db.prepare(
+    "INSERT INTO solutions (name, code, description, icon, status, sort_order, is_demo) VALUES ('演示试用方案', 'demo', '预置演示方案：包含平台全部应用，新增应用自动纳入', 'apps', 'on', 0, 1)"
+  ).run();
+  return r.lastInsertRowid;
+}
+
+function migrateSolutionApps(db) {
+  const demoSolutionId = ensureDemoSolution(db);
+  // 内置方案降为应用：不再作为可售方案（下架），由「演示试用方案」承接售卖入口
+  if (demoSolutionId) {
+    const builtin = db.prepare("SELECT id FROM solutions WHERE code IN ('panorama','card') AND status = 'on'").all();
+    for (const b of builtin) {
+      db.prepare("UPDATE solutions SET status = 'off', updated_at = datetime('now') WHERE id = ?").run(b.id);
+    }
+  }
+  const solutions = db.prepare('SELECT * FROM solutions ORDER BY id ASC').all();
+  const appIdByCode = {};
+  for (const s of solutions) {
+    if (!s.code || s.is_demo) continue; // 演示试用方案是组合包，不沉淀为应用
+    let app = db.prepare('SELECT id FROM apps WHERE code = ?').get(s.code);
+    if (!app) {
+      const r = db.prepare('INSERT INTO apps (code, name, description, icon, sort_order) VALUES (?, ?, ?, ?, ?)')
+        .run(s.code, s.name || s.code, s.description || '', s.icon || '', s.sort_order || 0);
+      app = { id: r.lastInsertRowid };
+    }
+    appIdByCode[s.code] = app.id;
+    // 方案-应用关联（预置方案自动勾选自身应用；演示方案自动纳入全部应用）
+    const targetIds = [s.id];
+    if (demoSolutionId && demoSolutionId !== s.id) targetIds.push(demoSolutionId);
+    for (const sid of targetIds) {
+      if (!db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(sid, app.id)) {
+        db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(sid, app.id);
+      }
+    }
+  }
+  // 演示方案确保覆盖全部应用（含手动新增 apps 但无对应 solution 的情况）
+  if (demoSolutionId) {
+    const allApps = db.prepare('SELECT id FROM apps ORDER BY id ASC').all();
+    for (const a of allApps) {
+      if (!db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoSolutionId, a.id)) {
+        db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoSolutionId, a.id);
+      }
+    }
+  }
+  // 应用菜单：现有 solution_permissions（app_id=0 的存量行）→ app_menus 去重
+  const legacyPerms = db.prepare('SELECT * FROM solution_permissions WHERE app_id = 0 ORDER BY id ASC').all();
+  for (const p of legacyPerms) {
+    const solution = db.prepare('SELECT code FROM solutions WHERE id = ?').get(p.solution_id);
+    const appId = (solution && appIdByCode[solution.code]) || 0;
+    if (!appId || !p.key) continue;
+    if (!db.prepare('SELECT id FROM app_menus WHERE app_id = ? AND key = ?').get(appId, p.key)) {
+      db.prepare('INSERT INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(appId, p.module || '', p.module_label || p.module || '', p.key, p.label || p.key, p.sort_order || 0);
+    }
+    // 回填 app_id
+    db.prepare('UPDATE solution_permissions SET app_id = ? WHERE id = ?').run(appId, p.id);
+  }
+}
+
 function seedSolutionDefaults(db) {
   const solutions = db.prepare('SELECT * FROM solutions').all();
   const catByName = (name) => db.prepare('SELECT id FROM solution_categories WHERE name = ?').get(name)?.id || null;
@@ -181,7 +253,8 @@ function seedSolutionDefaults(db) {
   };
 
   const insPrice = db.prepare('INSERT INTO solution_pricing (solution_id, duration_months, agent_price, user_price, renew_price) VALUES (?, ?, ?, ?, ?)');
-  const insPerm = db.prepare('INSERT INTO solution_permissions (solution_id, module, module_label, key, label, enabled, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?)');
+  const insMenu = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+  const insAppPerm = db.prepare('INSERT OR IGNORE INTO solution_permissions (solution_id, app_id, module, module_label, key, label, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, 1, ?)');
 
   solutions.forEach((s) => {
     // 分类归属
@@ -194,14 +267,33 @@ function seedSolutionDefaults(db) {
     if (priceCount === 0 && defaultPricing[s.code]) {
       defaultPricing[s.code].forEach((p) => insPrice.run(s.id, p.duration_months, p.agent_price, p.user_price, p.renew_price));
     }
-    // 默认权限点
-    const permCount = db.prepare('SELECT COUNT(*) AS n FROM solution_permissions WHERE solution_id = ?').get(s.id).n;
-    if (permCount === 0 && defaultPermissions[s.code]) {
+    // 默认权限：应用菜单定义（app_menus）+ 预置方案授权记录（solution_permissions）
+    const app = db.prepare('SELECT id FROM apps WHERE code = ?').get(s.code);
+    if (app && defaultPermissions[s.code]) {
       defaultPermissions[s.code].forEach(([module, label, key], idx) => {
-        insPerm.run(s.id, module, module, key, label, idx);
+        insMenu.run(app.id, module, module, key, label, idx);
       });
+      const permCount = db.prepare('SELECT COUNT(*) AS n FROM solution_permissions WHERE solution_id = ?').get(s.id).n;
+      if (permCount === 0) {
+        defaultPermissions[s.code].forEach(([module, label, key], idx) => {
+          insAppPerm.run(s.id, app.id, module, module, key, label, idx);
+        });
+      }
     }
   });
+  // 演示试用方案：已勾选应用的全量菜单授权（装进去即可用；未来新增菜单默认不选）
+  const demoSolutions = db.prepare('SELECT id FROM solutions WHERE is_demo = 1').all();
+  for (const d of demoSolutions) {
+    const demoApps = db.prepare('SELECT app_id FROM solution_apps WHERE solution_id = ? AND enabled = 1').all(d.id);
+    for (const a of demoApps) {
+      const menus = db.prepare('SELECT * FROM app_menus WHERE app_id = ?').all(a.app_id);
+      for (const m of menus) {
+        if (!db.prepare('SELECT id FROM solution_permissions WHERE solution_id = ? AND app_id = ? AND key = ?').get(d.id, a.app_id, m.key)) {
+          insAppPerm.run(d.id, a.app_id, m.module, m.module_label, m.key, m.label, m.sort_order);
+        }
+      }
+    }
+  }
 }
 
 /** 存量库迁移（幂等） */
@@ -518,6 +610,7 @@ function migrate(db) {
     CREATE TABLE IF NOT EXISTS solution_permissions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       solution_id INTEGER NOT NULL,
+      app_id INTEGER NOT NULL DEFAULT 0,
       module TEXT NOT NULL DEFAULT '',
       module_label TEXT NOT NULL DEFAULT '',
       key TEXT NOT NULL DEFAULT '',
@@ -526,6 +619,48 @@ function migrate(db) {
       sort_order INTEGER NOT NULL DEFAULT 0
     );
   `);
+
+  // —— 方案化：应用清单 + 应用功能菜单 + 方案-应用授权（两级权限模型）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS apps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      icon TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS app_menus (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      app_id INTEGER NOT NULL,
+      module TEXT NOT NULL DEFAULT '',
+      module_label TEXT NOT NULL DEFAULT '',
+      key TEXT NOT NULL DEFAULT '',
+      label TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(app_id, key)
+    );
+    CREATE TABLE IF NOT EXISTS solution_apps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      solution_id INTEGER NOT NULL,
+      app_id INTEGER NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      UNIQUE(solution_id, app_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_solution_apps ON solution_apps(solution_id);
+  `);
+  if (colExists(db, 'solution_permissions', 'id') && !colExists(db, 'solution_permissions', 'app_id')) {
+    db.exec('ALTER TABLE solution_permissions ADD COLUMN app_id INTEGER NOT NULL DEFAULT 0');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_solution_perm ON solution_permissions(solution_id, app_id)');
+  if (!colExists(db, 'solutions', 'is_demo')) {
+    db.exec('ALTER TABLE solutions ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // —— 迁移：现有解决方案沉淀为「应用」（须在预置解决方案之后执行，见文末） ——
   // —— 预置方案分类 ——
   const catCount = db.prepare('SELECT COUNT(*) AS n FROM solution_categories').get().n;
   if (catCount === 0) {
@@ -1420,8 +1555,56 @@ function migrate(db) {
     db.exec("ALTER TABLE card_profile ADD COLUMN need_tags TEXT NOT NULL DEFAULT ''");
   }
 
+  // —— 方案资产 P1：集市风格库 + 租户资产购买记录 + 模板价格 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS market_styles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      price REAL NOT NULL DEFAULT 0,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      preview TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS tenant_asset_purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      asset_type TEXT NOT NULL,
+      asset_key TEXT NOT NULL,
+      price REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, asset_type, asset_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_asset_purchases_tenant ON tenant_asset_purchases(tenant_id, asset_type);
+  `);
+  if (colExists(db, 'card_templates', 'id') && !colExists(db, 'card_templates', 'price')) {
+    db.exec('ALTER TABLE card_templates ADD COLUMN price REAL NOT NULL DEFAULT 0');
+  }
+  seedMarketStyles(db);
+
+  // —— 方案化迁移：现有解决方案沉淀为应用 + 演示试用方案 + 方案-应用关联 ——
+  // （必须在全部解决方案预置之后执行，保证全新库/存量库一致）
+  migrateSolutionApps(db);
+
   // —— 方案中心 P0：补齐分类归属 + 默认价格/权限（放在全部方案预置之后，幂等） ——
   seedSolutionDefaults(db);
+}
+
+/** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */
+function seedMarketStyles(db) {
+  const styles = [
+    { key: 'A', name: '方案A · 角标权重', description: '置顶/新入驻角标融入双列卡片流，默认推荐', price: 0, isDefault: 1, sortOrder: 1 },
+    { key: 'B', name: '方案B · 重点会员', description: '顶部横向重点会员专区 + 双列普通列表', price: 199, isDefault: 0, sortOrder: 2 },
+    { key: 'C', name: '方案C · 分类页签', description: '全部/置顶/新入驻三 Tab，适合大租户', price: 299, isDefault: 0, sortOrder: 3 },
+  ];
+  const exist = db.prepare('SELECT COUNT(*) AS c FROM market_styles').get();
+  if (exist.c > 0) return;
+  const ins = db.prepare('INSERT INTO market_styles (key, name, description, price, is_default, enabled, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?)');
+  for (const s of styles) ins.run(s.key, s.name, s.description, s.price, s.isDefault, s.sortOrder);
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
@@ -1474,6 +1657,7 @@ export function toSolution(row) {
     previewImages,
     virtualUseCount: row.virtual_use_count || 0,
     allPermissions: Boolean(row.all_permissions),
+    isDemo: Boolean(row.is_demo),
     sortOrder: row.sort_order || 0,
     appConfig,
     createdAt: row.created_at,
@@ -1489,11 +1673,26 @@ export function solutionDetail(db, id) {
     .prepare('SELECT id, duration_months, agent_price, user_price, renew_price FROM solution_pricing WHERE solution_id = ? ORDER BY duration_months ASC')
     .all(id)
     .map((p) => ({ id: p.id, durationMonths: p.duration_months, agentPrice: p.agent_price, userPrice: p.user_price, renewPrice: p.renew_price }));
-  const permissions = db
-    .prepare('SELECT id, module, module_label, key, label, enabled, sort_order FROM solution_permissions WHERE solution_id = ? ORDER BY sort_order ASC, id ASC')
-    .all(id)
-    .map((p) => ({ ...p, enabled: Boolean(p.enabled) }));
-  return { ...toSolution(row), pricing, permissions };
+  // 两级权限：应用级勾选（solution_apps）+ 应用内菜单级授权（solution_permissions）
+  // 动态补齐：平台全部应用/菜单都返回；未勾选/未授权默认 false（新增应用/菜单自动出现、默认不选）
+  const appAuth = {};
+  db.prepare('SELECT app_id, enabled FROM solution_apps WHERE solution_id = ?').all(id)
+    .forEach((a) => { appAuth[a.app_id] = Boolean(a.enabled); });
+  const permAuth = {};
+  db.prepare('SELECT app_id, key, enabled FROM solution_permissions WHERE solution_id = ?').all(id)
+    .forEach((p) => { permAuth[`${p.app_id}:${p.key}`] = Boolean(p.enabled); });
+  const appPermissions = db.prepare('SELECT * FROM apps ORDER BY sort_order ASC, id ASC').all()
+    .filter((a) => a.enabled !== 0)
+    .map((a) => {
+      const menus = db.prepare('SELECT module, module_label, key, label, sort_order FROM app_menus WHERE app_id = ? ORDER BY sort_order ASC, id ASC').all(a.id)
+        .map((m) => ({ module: m.module, moduleLabel: m.module_label, key: m.key, label: m.label, enabled: !!permAuth[`${a.id}:${m.key}`] }));
+      // 演示试用方案：动态纳入全部应用 + 菜单全量授权（新增应用/菜单自动生效，无需落库）
+      if (row.is_demo) {
+        return { code: a.code, name: a.name, icon: a.icon, description: a.description, enabled: true, menus: menus.map((m) => ({ ...m, enabled: true })) };
+      }
+      return { code: a.code, name: a.name, icon: a.icon, description: a.description, enabled: !!appAuth[a.id], menus };
+    });
+  return { ...toSolution(row), pricing, allPermissions: Boolean(row.all_permissions), appPermissions };
 }
 
 /** 数据库行 -> 方案 API JSON（camelCase，原 toProject） */

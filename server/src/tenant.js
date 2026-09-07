@@ -31,16 +31,30 @@ export function tenantState(db, customerId) {
   return { project, active: true, missing: false, expired: false };
 }
 
-/** 解决方案是否已开通给该租户 */
+/** 解决方案是否已开通给该租户（兼容：直接开通应用 code / 开通包含该应用的组合包方案） */
 export function hasSolution(db, customerId, code) {
   const project = db.prepare('SELECT solutions FROM projects WHERE id = ?').get(customerId);
   if (!project) return false;
+  let arr;
   try {
-    const arr = JSON.parse(project.solutions || '[]');
-    return Array.isArray(arr) && arr.includes(code);
+    arr = JSON.parse(project.solutions || '[]');
   } catch {
     return false;
   }
+  if (!Array.isArray(arr)) return false;
+  // 直接开通
+  if (arr.includes(code)) return true;
+  // 组合包：开通的方案（solution code）→ solution_apps 是否授权该应用
+  for (const solCode of arr) {
+    const hit = db.prepare(`
+      SELECT sa.id FROM solution_apps sa
+      JOIN solutions s ON s.id = sa.solution_id
+      JOIN apps a ON a.id = sa.app_id
+      WHERE s.code = ? AND a.code = ? AND sa.enabled = 1
+    `).get(solCode, code);
+    if (hit) return true;
+  }
+  return false;
 }
 
 /**

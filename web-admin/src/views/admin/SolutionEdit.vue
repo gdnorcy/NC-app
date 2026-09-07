@@ -141,42 +141,93 @@
           </div>
         </el-tab-pane>
 
-        <!-- ============ 权限设置 ============ -->
+        <!-- ============ 权限设置（两级：应用勾选 + 应用内菜单授权） ============ -->
         <el-tab-pane label="权限设置" name="permissions">
           <div class="perm-panel">
             <div class="perm-header">
               <div>
                 <div class="perm-title">权限设置</div>
-                <div class="form-help">设置解决方案对应的功能权限</div>
+                <div class="form-help">按应用勾选纳入方案，再对每个应用下的功能菜单逐项授权；新增应用/菜单会自动出现在下方，默认不选择</div>
               </div>
               <div class="perm-mode">
                 <el-radio-group v-model="allPermissions" @change="onModeChange">
                   <el-radio :value="false">自定义</el-radio>
                   <el-radio :value="true">全部</el-radio>
                 </el-radio-group>
-                <div class="form-help" v-if="allPermissions">选择全部则默认以后新出的功能也全部勾选</div>
+                <div class="form-help" v-if="allPermissions">选择全部则当前与未来所有应用、功能菜单全部开放</div>
               </div>
             </div>
 
             <template v-if="!allPermissions">
-              <div class="perm-tools">
-                <el-checkbox :model-value="allChecked" :indeterminate="someChecked" @change="toggleAllChecked">
-                  全部勾选（勾选指当前所有功能全部勾选，不包含以后新出的功能）
-                </el-checkbox>
-              </div>
-              <div v-for="group in permissionGroups" :key="group.module" class="perm-group">
-                <div class="perm-group-title">{{ group.label }}</div>
-                <div class="perm-items">
-                  <el-checkbox
-                    v-for="p in group.items"
-                    :key="p.key"
-                    v-model="p.enabled"
-                  >{{ p.label }}</el-checkbox>
+              <div v-for="app in appPerms" :key="app.code" class="app-perm-block" :class="{ 'not-enabled': !app.enabled }">
+                <div class="app-perm-head">
+                  <el-checkbox v-model="app.enabled" @change="onAppToggle(app)">
+                    <span class="app-perm-name">
+                      <SIcon :name="getAppIcon(app.icon)" size="18" />
+                      {{ app.name }}
+                    </span>
+                  </el-checkbox>
+                  <span class="app-perm-tip">{{ app.enabled ? '已纳入方案' : '未纳入（点击勾选后配置菜单）' }}</span>
+                </div>
+                <div v-if="app.enabled" class="app-perm-body">
+                  <div v-for="group in app.menuGroups" :key="group.module" class="perm-group">
+                    <div class="perm-group-title">{{ group.label }}</div>
+                    <div class="perm-items">
+                      <el-checkbox
+                        v-for="p in group.items"
+                        :key="p.key"
+                        v-model="p.enabled"
+                      >{{ p.label }}</el-checkbox>
+                    </div>
+                  </div>
+                  <el-empty v-if="!app.menuGroups.length" description="该应用暂无功能菜单" :image-size="48" />
                 </div>
               </div>
-              <el-empty v-if="!permissionGroups.length" description="暂无可配置的权限点" :image-size="60" />
+              <el-empty v-if="!appPerms.length" description="暂无可配置的应用" :image-size="60" />
             </template>
-            <el-alert v-else type="info" :closable="false" show-icon title="已启用「全部」模式：当前与未来新增功能权限全部开放给使用该方案的租户" />
+            <el-alert v-else type="info" :closable="false" show-icon title="已启用「全部」模式：当前与未来新增应用、功能菜单全部开放给使用该方案的租户" />
+          </div>
+        </el-tab-pane>
+
+        <!-- ============ 资产设置 ============ -->
+        <el-tab-pane label="资产设置" name="assets">
+          <div class="assets-panel">
+            <div class="assets-title">集市风格</div>
+            <div class="form-help">归入本方案的可售集市风格，租户默认风格（标记「默认」）开箱即用，其余风格租户可按需购买</div>
+            <div class="assets-table">
+              <div class="assets-row assets-head">
+                <span class="col-key">标识</span>
+                <span class="col-name">名称</span>
+                <span class="col-desc">说明</span>
+                <span class="col-price">价格（元）</span>
+                <span class="col-default">默认</span>
+                <span class="col-enabled">上架</span>
+              </div>
+              <div v-for="s in assets.styles" :key="s.key" class="assets-row">
+                <span class="col-key"><el-tag size="small">{{ s.key }}</el-tag></span>
+                <span class="col-name">{{ s.name }}</span>
+                <span class="col-desc">{{ s.description }}</span>
+                <span class="col-price"><el-input-number v-model="s.price" :min="0" :precision="2" controls-position="right" size="small" style="width: 110px" /></span>
+                <span class="col-default"><el-switch v-model="s.isDefault" @change="onStyleDefaultChange(s)" /></span>
+                <span class="col-enabled"><el-switch v-model="s.enabled" /></span>
+              </div>
+            </div>
+
+            <div class="assets-title" style="margin-top: 28px;">名片模板</div>
+            <div class="form-help">本方案下的平台公共名片模板，设置价格后租户端模板市场按需购买；0 元为免费</div>
+            <div class="assets-table" v-if="assets.templates.length">
+              <div class="assets-row assets-head">
+                <span class="col-name">模板名称</span>
+                <span class="col-price">价格（元）</span>
+                <span class="col-enabled">上架</span>
+              </div>
+              <div v-for="t in assets.templates" :key="t.id" class="assets-row">
+                <span class="col-name">{{ t.name }}</span>
+                <span class="col-price"><el-input-number v-model="t.price" :min="0" :precision="2" controls-position="right" size="small" style="width: 110px" /></span>
+                <span class="col-enabled"><el-switch v-model="t.enabled" /></span>
+              </div>
+            </div>
+            <el-empty v-else description="暂无平台公共模板，可在「名片模板」菜单中创建" :image-size="60" />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -190,7 +241,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue';
 import SIcon from '../../components/SIcon.vue';
-import { fetchSolutions, createSolution, updateSolution, saveSolutionPricing, saveSolutionPermissions, fetchSolutionCategories, uploadImage } from '../../api';
+import { fetchSolutions, createSolution, updateSolution, saveSolutionPricing, saveSolutionPermissions, fetchSolutionCategories, fetchSolutionAssets, saveSolutionAssets, uploadImage } from '../../api';
 
 const platforms = [
   { value: 'mini', label: '微信小程序' },
@@ -237,18 +288,33 @@ export default {
     const perpetualEnabled = ref(false);
     const perpetual = reactive({ agentPrice: 0, userPrice: 0, renewPrice: 0 });
     const allPermissions = ref(false);
-    const permissions = ref([]);
+    const appPerms = ref([]); // [{ code, name, icon, enabled, menuGroups:[{module,label,items:[{key,label,enabled}]}] }]
+    const assets = ref({ styles: [], templates: [] });
+
+    const buildMenuGroups = (menus) => {
+      const map = {};
+      (menus || []).forEach((m) => {
+        if (!map[m.module]) map[m.module] = { module: m.module, label: m.moduleLabel || m.module, items: [] };
+        map[m.module].items.push({ key: m.key, label: m.label, enabled: !!m.enabled });
+      });
+      return Object.values(map);
+    };
+    const getAppIcon = (icon) => {
+      const map = { panorama: 'panorama', card: 'card', devices: 'devices', template: 'template', market: 'market', chart: 'chart', building: 'building', dynamic: 'dynamic', apps: 'apps' };
+      return map[icon] || 'apps';
+    };
 
     const permissionGroups = computed(() => {
       const map = {};
-      permissions.value.forEach((p) => {
-        if (!map[p.module]) map[p.module] = { module: p.module, label: p.moduleLabel || p.module, items: [] };
-        map[p.module].items.push(p);
+      appPerms.value.forEach((app) => {
+        app.menuGroups.forEach((g) => g.items.forEach((p) => {
+          if (!map[p.key]) map[p.key] = p;
+        }));
       });
       return Object.values(map);
     });
-    const allChecked = computed(() => permissions.value.length > 0 && permissions.value.every((p) => p.enabled));
-    const someChecked = computed(() => permissions.value.some((p) => p.enabled));
+    const allChecked = computed(() => appPerms.value.length > 0 && appPerms.value.every((app) => app.enabled && app.menuGroups.every((g) => g.items.every((p) => p.enabled))));
+    const someChecked = computed(() => appPerms.value.some((app) => app.enabled) || appPerms.value.some((app) => app.menuGroups.some((g) => g.items.some((p) => p.enabled))));
 
     const load = async () => {
       try {
@@ -269,8 +335,16 @@ export default {
           Object.assign(perpetual, { agentPrice: permRow.agentPrice, userPrice: permRow.userPrice, renewPrice: permRow.renewPrice });
         }
         allPermissions.value = !!s.allPermissions;
-        permissions.value = (s.permissions || []).map((p) => ({ module: p.module, moduleLabel: p.module_label, key: p.key, label: p.label, enabled: !!p.enabled }));
+        appPerms.value = (s.appPermissions || []).map((a) => ({
+          code: a.code, name: a.name, icon: a.icon, enabled: !!a.enabled,
+          menuGroups: buildMenuGroups(a.menus),
+        }));
         previewFileList.value = (s.previewImages || []).map((url, i) => ({ name: `预览${i + 1}`, url }));
+        // 方案资产（集市风格 + 名片模板）
+        try {
+          const assetsRes = await fetchSolutionAssets(solutionId.value);
+          if (assetsRes.assets) assets.value = assetsRes.assets;
+        } catch (e) { /* 资产加载失败不阻断基础页签 */ }
       } catch (e) {
         ElMessage.error(e);
       }
@@ -285,14 +359,32 @@ export default {
       if (!val) perpetualEnabled.value = false;
     };
 
-    // —— 权限 ——
+    // —— 权限（两级）——
     const onModeChange = (val) => {
       if (val) {
-        permissions.value.forEach((p) => { p.enabled = true; });
+        appPerms.value.forEach((app) => {
+          app.enabled = true;
+          app.menuGroups.forEach((g) => g.items.forEach((p) => { p.enabled = true; }));
+        });
+      }
+    };
+    const onAppToggle = (app) => {
+      // 勾选应用时默认全选其菜单；取消时不清菜单（保留选择，重新勾选后恢复）
+      if (app.enabled) {
+        app.menuGroups.forEach((g) => g.items.forEach((p) => { p.enabled = true; }));
       }
     };
     const toggleAllChecked = (val) => {
-      permissions.value.forEach((p) => { p.enabled = !!val; });
+      appPerms.value.forEach((app) => {
+        app.enabled = !!val;
+        app.menuGroups.forEach((g) => g.items.forEach((p) => { p.enabled = !!val; }));
+      });
+    };
+
+    // —— 资产 ——
+    const onStyleDefaultChange = (s) => {
+      // 同一方案内默认风格唯一
+      assets.value.styles.forEach((x) => { if (x !== s) x.isDefault = false; });
     };
 
     // —— 预览图 ——
@@ -338,8 +430,22 @@ export default {
           allPricing.push({ durationMonths: 0, agentPrice: perpetual.agentPrice, userPrice: perpetual.userPrice, renewPrice: perpetual.renewPrice });
         }
         await saveSolutionPricing(id, { pricing: allPricing });
-        // 权限
-        await saveSolutionPermissions(id, { permissions: permissions.value, allPermissions: allPermissions.value });
+        // 权限（两级：应用勾选 + 菜单授权）
+        const apps = appPerms.value.map((a) => ({ code: a.code, enabled: a.enabled }));
+        const menus = [];
+        appPerms.value.forEach((a) => {
+          a.menuGroups.forEach((g) => g.items.forEach((p) => {
+            menus.push({ appCode: a.code, key: p.key, enabled: p.enabled });
+          }));
+        });
+        await saveSolutionPermissions(id, { apps, menus, allPermissions: allPermissions.value });
+        // 资产（集市风格价格/默认/上架 + 模板价格/上架）
+        if (assets.value.styles.length || assets.value.templates.length) {
+          await saveSolutionAssets(id, {
+            styles: assets.value.styles.map((s) => ({ key: s.key, price: s.price, enabled: s.enabled, isDefault: s.isDefault })),
+            templates: assets.value.templates.map((t) => ({ id: t.id, price: t.price, enabled: t.enabled })),
+          });
+        }
         ElMessage.success('保存成功');
         if (isNew.value) router.replace(`/solutions/${id}/edit`);
       } catch (e) {
@@ -352,10 +458,10 @@ export default {
     onMounted(load);
     return {
       isNew, solutionId, categories, activeTab, saving, contentType, previewFileList, form,
-      pricing, perpetualEnabled, perpetual, allPermissions, permissions,
+      pricing, perpetualEnabled, perpetual, allPermissions, appPerms, assets, getAppIcon,
       permissionGroups, allChecked, someChecked, platforms, iconOptions,
-      addPricingRow, removePricingRow, onPerpetualChange, onModeChange, toggleAllChecked,
-      doUpload, onPreviewRemove, saveAll,
+      addPricingRow, removePricingRow, onPerpetualChange, onModeChange, onAppToggle, toggleAllChecked,
+      onStyleDefaultChange, doUpload, onPreviewRemove, saveAll,
     };
   },
 };
@@ -402,8 +508,29 @@ export default {
 .perm-title { font-size: 15px; font-weight: 600; color: #1D2129; }
 .perm-mode { text-align: right; }
 .perm-tools { padding: 10px 12px; background: #F7F8FA; border-radius: 8px; margin-bottom: 16px; }
-.perm-group { margin-bottom: 18px; }
+.app-perm-block { border: 1px solid #E5E6EB; border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+.app-perm-block.not-enabled { background: #FAFAFC; }
+.app-perm-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #F7F8FA; border-bottom: 1px solid #F2F3F5; }
+.app-perm-block.not-enabled .app-perm-head { background: transparent; border-bottom: none; }
+.app-perm-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #1D2129; }
+.app-perm-tip { font-size: 12px; color: #86909C; }
+.app-perm-body { padding: 14px 16px 4px; }
+.perm-group { margin-bottom: 14px; }
 .perm-group-title { font-size: 13px; font-weight: 600; color: #1D2129; padding-bottom: 8px; border-bottom: 1px solid #F2F3F5; margin-bottom: 10px; }
 .perm-items { display: flex; flex-wrap: wrap; gap: 4px 24px; }
 .perm-items :deep(.el-checkbox) { margin-right: 0; }
+
+/* 资产 */
+.assets-panel { max-width: 960px; }
+.assets-title { font-size: 15px; font-weight: 600; color: #1D2129; }
+.assets-table { border: 1px solid #E5E6EB; border-radius: 8px; overflow: hidden; margin-top: 12px; }
+.assets-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #F2F3F5; }
+.assets-row:last-child { border-bottom: none; }
+.assets-head { background: #F7F8FA; font-size: 12px; color: #4E5969; font-weight: 500; }
+.col-key { flex: 0 0 70px; }
+.col-name { flex: 1 1 160px; min-width: 0; font-size: 13px; color: #1D2129; }
+.col-desc { flex: 2 1 240px; min-width: 0; font-size: 12px; color: #86909C; }
+.col-price { flex: 0 0 140px; display: flex; align-items: center; gap: 6px; }
+.col-default { flex: 0 0 70px; }
+.col-enabled { flex: 0 0 70px; }
 </style>

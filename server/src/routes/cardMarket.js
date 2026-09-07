@@ -175,6 +175,22 @@ export function createCardMarketRouter(db) {
   }
 
   // ===== 集市配置 =====
+  // 集市风格资产（含租户购买状态）
+  function styleAssets(customerId) {
+    const bought = new Set(
+      db.prepare("SELECT asset_key FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'market_style'").all(customerId).map((r) => String(r.asset_key))
+    );
+    return db.prepare('SELECT * FROM market_styles ORDER BY sort_order ASC, id ASC').all().map((s) => ({
+      key: s.key,
+      name: s.name,
+      description: s.description,
+      price: Number(s.price || 0),
+      isDefault: !!s.is_default,
+      enabled: !!s.enabled,
+      purchased: !!s.is_default || bought.has(String(s.key)),
+    }));
+  }
+
   router.get('/market/settings', tenant, (req, res) => {
     let settings = db.prepare('SELECT * FROM card_market_settings WHERE customer_id = ?').get(req.customerId);
     if (!settings) {
@@ -196,12 +212,38 @@ export function createCardMarketRouter(db) {
         style: settings.style || 'A',
         notice: settings.notice || '',
       },
+      styles: styleAssets(req.customerId),
     });
+  });
+
+  // 集市风格资产购买（租户管理员；默认风格/免费无需购买）
+  router.post('/market/assets/purchase', tenant, requireTenantAdmin, (req, res) => {
+    const { style } = req.body || {};
+    if (!style) return res.status(400).json({ error: '请选择要购买的风格' });
+    const s = db.prepare('SELECT * FROM market_styles WHERE key = ?').get(style);
+    if (!s) return res.status(404).json({ error: '风格不存在' });
+    if (!s.enabled) return res.status(400).json({ error: '该风格已下架' });
+    if (s.is_default || Number(s.price || 0) === 0) return res.status(400).json({ error: '默认风格无需购买' });
+    const exist = db.prepare("SELECT id FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'market_style' AND asset_key = ?").get(req.customerId, style);
+    if (!exist) {
+      db.prepare("INSERT INTO tenant_asset_purchases (tenant_id, asset_type, asset_key, price) VALUES (?, 'market_style', ?, ?)").run(req.customerId, style, Number(s.price) || 0);
+    }
+    audit(db, req, 'purchase_market_style', 'market_style', req.customerId, `购买集市风格: ${s.name}`);
+    res.json({ ok: true, styles: styleAssets(req.customerId) });
   });
 
   // 更新集市配置（仅租户管理员）
   router.put('/market/settings', tenant, requireTenantAdmin, (req, res) => {
     const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice } = req.body;
+    // 风格校验：启用且（默认风格 或 已购买/免费），未购付费风格禁止切换
+    if (style !== undefined && style !== null) {
+      const s = db.prepare('SELECT * FROM market_styles WHERE key = ?').get(style);
+      if (!s || !s.enabled) return res.status(400).json({ error: '所选风格不可用' });
+      if (!s.is_default && Number(s.price || 0) > 0) {
+        const bought = db.prepare("SELECT id FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'market_style' AND asset_key = ?").get(req.customerId, style);
+        if (!bought) return res.status(403).json({ error: '该风格未购买，请先购买后再切换' });
+      }
+    }
     // SQLite 无法绑定 JS boolean/undefined：统一规范化为 0/1/null
     const B = (v) => (v === undefined ? null : (v ? 1 : 0));
     const S = (v) => (v === undefined ? null : v);
@@ -222,7 +264,7 @@ export function createCardMarketRouter(db) {
       B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), req.customerId
     );
     audit(db, req, 'update_market_settings', 'market_settings', req.customerId, '更新人脉集市配置');
-    res.json({ success: true });
+    res.json({ success: true, styles: styleAssets(req.customerId) });
   });
 
   // 集市数据统计（租户管理员）

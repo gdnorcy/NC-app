@@ -78,10 +78,23 @@ after(() => {
 
 const authT = (token) => ({ Authorization: `Bearer ${token}` });
 
-test('C1 集市设置支持 style/notice 读写', async () => {
+test('C1 集市设置支持 style/notice 读写（付费风格需先购买）', async () => {
   const r = await request(app).get('/api/card-market/market/settings').set(authT(t1Token));
   assert.equal(r.status, 200);
   assert.equal(r.body.settings.style, 'A');
+  assert.ok(Array.isArray(r.body.styles), '返回风格资产列表');
+  const styleA = r.body.styles.find((s) => s.key === 'A');
+  assert.equal(styleA.isDefault, true, 'A 默认风格');
+  assert.equal(styleA.purchased, true, '默认风格视为已授权');
+
+  // 未购买 B → 切换 403
+  const denied = await request(app).put('/api/card-market/market/settings').set(authT(t1Token)).send({ style: 'B' });
+  assert.equal(denied.status, 403, '未购买风格切换应被拒绝');
+
+  // 购买 B → 切换成功
+  const buy = await request(app).post('/api/card-market/market/assets/purchase').set(authT(t1Token)).send({ style: 'B' });
+  assert.equal(buy.status, 200);
+  assert.equal(buy.body.styles.find((s) => s.key === 'B').purchased, true, '购买后 purchased=true');
 
   const u = await request(app).put('/api/card-market/market/settings').set(authT(t1Token)).send({ style: 'B', notice: '欢迎入驻集市' });
   assert.equal(u.status, 200);
