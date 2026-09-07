@@ -90,8 +90,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -115,6 +117,8 @@ const diffText = computed(() => {
   const d = summary.value.diff || 0;
   return d > 0 ? `+${d}%` : d < 0 ? `${d}%` : '持平';
 });
+
+onShow(() => { trackPageView('/pages/card/visitors'); });
 
 onMounted(async () => {
   restoreScrollTop('visitors');

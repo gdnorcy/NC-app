@@ -17,6 +17,7 @@ const routes = [
       { path: 'customers/:id/plans/:planId/scenes/:sceneId/edit', component: () => import('../views/admin/SceneEdit.vue'), meta: { title: '编辑场景', breadcrumbs: ['客户项目', '方案管理', '场景管理', '编辑场景'] } },
       { path: 'users', component: () => import('../views/admin/Users.vue'), meta: { title: '用户管理', breadcrumbs: ['用户管理'] } },
       { path: 'solutions', component: () => import('../views/admin/Solutions.vue'), meta: { title: '解决方案', breadcrumbs: ['解决方案'] } },
+      { path: 'templates', component: () => import('../views/admin/TemplateLibrary.vue'), meta: { title: '名片模板', breadcrumbs: ['名片模板'] } },
       { path: 'billing-plans', component: () => import('../views/admin/BillingPlans.vue'), meta: { title: '计费套餐', breadcrumbs: ['计费套餐'] } },
       { path: 'billing-plans/new', component: () => import('../views/admin/BillingPlanEdit.vue'), meta: { title: '新建套餐', breadcrumbs: ['计费套餐', '新建套餐'] } },
       { path: 'billing-plans/:id/edit', component: () => import('../views/admin/BillingPlanEdit.vue'), meta: { title: '编辑套餐', breadcrumbs: ['计费套餐', '编辑套餐'] } },

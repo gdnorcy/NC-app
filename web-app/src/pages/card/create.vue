@@ -234,6 +234,10 @@ const form = reactive({
 
 const errors = reactive({ name: false, phone: false });
 
+onShow(() => {
+  trackPageView('/pages/card/create');
+});
+
 onMounted(async () => {
   const pages = getCurrentPages();
   const id = pages[pages.length - 1].options.id;
@@ -312,6 +316,7 @@ async function submit() {
     if (isEdit.value) {
       await cardApi.updateCard(form.id, form);
       uni.showToast({ title: '保存成功', icon: 'success' });
+      track('form_submit', { cardId: form.id || newCardId || 0, page: '/pages/card/create', extra: { isEdit: isEdit.value } });
     } else {
       const payload = { ...form };
       // 入驻绑定：填了口令才同时入驻
@@ -320,10 +325,12 @@ async function submit() {
         const res = await cardApi.createCardWithApply(payload);
         newCardId = res && res.card && res.card.id;
         uni.showToast({ title: '名片创建成功，入驻申请已提交', icon: 'success' });
+        track('form_submit', { cardId: newCardId || 0, page: '/pages/card/create', extra: { isEdit: false, withApply: true } });
       } else {
         const res = await cardApi.createCard(payload);
         newCardId = res && res.card && res.card.id;
         uni.showToast({ title: '名片创建成功', icon: 'success' });
+        track('form_submit', { cardId: newCardId || 0, page: '/pages/card/create', extra: { isEdit: false } });
       }
     }
     setTimeout(() => {

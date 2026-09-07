@@ -6,6 +6,7 @@ import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
+import { calcFunnel, trendSeries, eventDistribution, topCards, calcHealthScore } from '../services/analytics.js';
 import { encryptSecret, decryptSecret } from '../crypto.js';
 
 const upload = multer({
@@ -708,6 +709,42 @@ router.get('/card/trends', requireTenant, (req, res) => {
       validUntil: project.valid_until || null,
       daysLeft
     });
+  });
+
+
+  // ============================================================
+  // 数据洞察（第三批）：漏斗/趋势/事件分布/名片TOP/健康分
+  // ============================================================
+  router.get('/analytics/funnel', requireTenant, (req, res) => {
+    try {
+      const { start = '', end = '' } = req.query;
+      res.json({ funnel: calcFunnel(db, req.customerId, { start, end }) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.get('/analytics/trend', requireTenant, (req, res) => {
+    try {
+      const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
+      res.json({ trend: trendSeries(db, req.customerId, { days }) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.get('/analytics/distribution', requireTenant, (req, res) => {
+    try {
+      res.json({ distribution: eventDistribution(db, req.customerId, { start: req.query.start || '', end: req.query.end || '' }) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.get('/analytics/top', requireTenant, (req, res) => {
+    try {
+      res.json({ top: topCards(db, req.customerId, { limit: Number(req.query.limit) || 5, start: req.query.start || '', end: req.query.end || '' }) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.get('/analytics/health', requireTenant, (req, res) => {
+    try {
+      res.json({ health: calcHealthScore(db, req.customerId) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   return router;

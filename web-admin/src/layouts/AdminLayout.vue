@@ -27,6 +27,10 @@
           <SIcon name="solutions" size="default" />
           <span>解决方案</span>
         </el-menu-item>
+        <el-menu-item index="/templates">
+          <SIcon name="template" size="default" />
+          <span>名片模板</span>
+        </el-menu-item>
         <el-menu-item index="/billing-plans">
           <SIcon name="crown" size="default" />
           <span>计费套餐</span>

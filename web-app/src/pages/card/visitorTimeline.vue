@@ -26,11 +26,15 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
 const actions = ref([]);
 const visitorOpenid = ref('');
+
+onShow(() => { trackPageView('/pages/card/visitorTimeline'); });
 
 onMounted(async () => {
   const pages = getCurrentPages();

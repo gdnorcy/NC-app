@@ -94,12 +94,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
 const summary = ref({});
 const commissions = ref([]);
 const showPoster = ref(false);
+
+onShow(() => { trackPageView('/pages/card/distribution'); });
 
 onMounted(async () => {
   try {

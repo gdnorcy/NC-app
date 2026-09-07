@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { checkTenantAccess } from '../tenant.js';
+import { trackEvents } from '../services/analytics.js';
 
 export function createCardRouter(db, wxService) {
   const router = Router();
@@ -631,6 +632,40 @@ export function createCardRouter(db, wxService) {
       status: row.status, createdAt: row.created_at, settledAt: row.settled_at,
     };
   }
+
+
+  // ============================================================
+  // 行为埋点（第三批）
+  // 游客事件：cardId 反查租户；登录事件：使用用户绑定的租户
+  // ============================================================
+  router.post('/analytics/events', (req, res) => {
+    try {
+      const { events = [] } = req.body || {};
+      if (!Array.isArray(events) || !events.length) return res.json({ ok: true, written: 0 });
+
+      // 可选认证：若带 card_token 则解析用户租户（游客事件无 token）
+      let tenantId = 0;
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      if (token) {
+        try {
+          const payload = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString());
+          const u = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(payload.uid);
+          if (u) tenantId = u.customer_id || 0;
+        } catch { /* 无效 token 忽略，走游客逻辑 */ }
+      }
+      const anyCard = events.find((e) => e.cardId);
+      if (!tenantId && anyCard) {
+        const owner = db.prepare(
+          'SELECT u.customer_id FROM card_profile cp JOIN platform_user u ON cp.user_id = u.id WHERE cp.id = ?'
+        ).get(Number(anyCard.cardId));
+        if (owner) tenantId = owner.customer_id || 0;
+      }
+      const result = trackEvents(db, tenantId, 'card', events);
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
   return router;
 }

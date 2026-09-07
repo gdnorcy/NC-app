@@ -19,6 +19,8 @@ import { createCustomerRouter } from './routes/customer.js';
 import { createSolutionsRouter } from './routes/solutions.js';
 import { createMultiAuthRouter } from './routes/multi-auth.js';
 import { createAppRegistryRouter } from './routes/app-registry.js';
+import { createCardTemplateRouter } from './routes/cardTemplates.js';
+import { adminOverview } from './services/analytics.js';
 import { createOAuthRouter } from './routes/oauth.js';
 import { createOpenApiRouter } from './routes/openapi.js';
 import { createOAuthAppsRouter } from './routes/oauth-apps.js';
@@ -63,6 +65,20 @@ export function createApp({ db } = {}) {
   app.use('/api', createLogsRouter(database));
   app.use('/api/customer', requireAuth, createCustomerRouter(database));
   app.use('/api/admin/solutions', requireAuth, createSolutionsRouter(database));
+  // 名片模板库：平台公共（总后台）+ 租户私有（客户后台）
+  app.use('/api/admin/card', requireAuth, createCardTemplateRouter(database, { mode: 'admin' }));
+  app.use('/api/customer/card', requireAuth, createCardTemplateRouter(database, { mode: 'tenant' }));
+  // 总后台：行为分析概览（按解决方案）
+  app.use('/api/admin/analytics', requireAuth, (req, res) => {
+    if (req.method === 'GET') {
+      try {
+        const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
+        res.json(adminOverview(database, { days }));
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    } else {
+      res.status(405).json({ error: 'Method Not Allowed' });
+    }
+  });
   app.use('/api/auth', createMultiAuthRouter(database));
   app.use('/api', createAppRegistryRouter(database));
   app.use('/oauth', createOAuthRouter(database));

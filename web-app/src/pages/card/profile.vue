@@ -88,7 +88,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
 const user = ref({});
@@ -97,6 +99,8 @@ const memberLevel = ref('free');
 const stats = ref({ cardCount: 0, visitorCount: 0, customerCount: 0, exchangeCount: 0 });
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
+
+onShow(() => { trackPageView('/pages/card/profile'); });
 
 onMounted(async () => {
   try {

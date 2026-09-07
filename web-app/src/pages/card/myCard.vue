@@ -149,6 +149,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { track, trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -187,6 +188,9 @@ onMounted(async () => {
       memberLevel.value = res.card.ownerMemberLevel || 'free';
       // 采集访客行为
       cardApi.trackVisitor({ cardId: id, actionType: 'view', page: 'profile' });
+      // 行为埋点：浏览名片
+      trackPageView('/pages/card/myCard');
+      track('card_view', { cardId: Number(id), page: '/pages/card/myCard', extra: { name: card.value.name } });
       // 加载作品集
       try {
         const w = await cardApi.getCardWorks(id);

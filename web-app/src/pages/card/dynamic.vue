@@ -55,13 +55,17 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
 const dynamics = ref([]);
 const user = ref({});
 const showPublish = ref(false);
 const newDynamic = ref({ content: '', visibility: 'public' });
+
+onShow(() => { trackPageView('/pages/card/dynamic'); });
 
 onMounted(async () => {
   try {

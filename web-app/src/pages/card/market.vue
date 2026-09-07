@@ -92,8 +92,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, loadCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -101,6 +103,8 @@ import CardTabBar from '../../components/CardTabBar.vue';
 const items = ref([]);
 const keyword = ref('');
 const filterType = ref('all');
+
+onShow(() => { trackPageView('/pages/card/market'); });
 
 onMounted(() => {
   // 恢复上次筛选与已加载列表，避免切换Tab回来空白/重载闪烁

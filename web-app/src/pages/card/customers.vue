@@ -93,7 +93,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
 const customers = ref([]);
@@ -102,6 +104,8 @@ const statusFilter = ref('');
 const showAdd = ref(false);
 const newCustomer = ref({ name: '', phone: '', company: '' });
 const tagInput = ref('');
+
+onShow(() => { trackPageView('/pages/card/customers'); });
 
 onMounted(() => loadCustomers());
 

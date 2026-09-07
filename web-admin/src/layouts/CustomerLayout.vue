@@ -19,6 +19,10 @@
           <SIcon name="apps" size="default" />
           <span>应用中心</span>
         </el-menu-item>
+        <el-menu-item index="/analytics">
+          <SIcon name="analytics" size="default" />
+          <span>数据洞察</span>
+        </el-menu-item>
         <el-menu-item index="/billing">
           <SIcon name="wallet" size="default" />
           <span>套餐与续费</span>

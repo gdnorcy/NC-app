@@ -78,7 +78,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
@@ -89,6 +91,8 @@ const activeTab = ref('connections');
 const pendingRequests = computed(() => requests.value.filter(r => r.status === 'pending' && r.toUserId === currentUserId));
 const pendingCount = computed(() => pendingRequests.value.length);
 const currentUserId = ref(0);
+
+onShow(() => { trackPageView('/pages/card/connections'); });
 
 onMounted(async () => {
   const profile = await cardApi.getProfile().catch(() => ({}));

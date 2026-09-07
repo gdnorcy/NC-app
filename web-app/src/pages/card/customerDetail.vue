@@ -83,7 +83,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
 const customer = ref({});
@@ -94,6 +96,8 @@ const nextFollow = ref('');
 
 const statusText = computed(() => ({ pending: '待跟进', following: '跟进中', converted: '已成交', lost: '已流失' }[customer.value.status] || ''));
 const sourceText = computed(() => ({ exchange: '名片交换', manual: '手动添加', market: '人脉集市' }[customer.value.source] || customer.value.source || ''));
+
+onShow(() => { trackPageView('/pages/card/customerDetail'); });
 
 onMounted(async () => {
   const pages = getCurrentPages();

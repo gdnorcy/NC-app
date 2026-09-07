@@ -730,6 +730,44 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_dynamic_visibility ON card_dynamic(visibility, status);
   `);
 
+  // —— 行为埋点事件表（第三批：漏斗/健康分/增长分析）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      solution TEXT NOT NULL DEFAULT 'card',
+      event_type TEXT NOT NULL,
+      page TEXT NOT NULL DEFAULT '',
+      card_id INTEGER NOT NULL DEFAULT 0,
+      scene_id INTEGER NOT NULL DEFAULT 0,
+      visitor_key TEXT NOT NULL DEFAULT '',
+      user_id INTEGER NOT NULL DEFAULT 0,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      extra TEXT NOT NULL DEFAULT '{}',
+      event_date TEXT NOT NULL DEFAULT (date('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_analytics_tenant_date ON analytics_events(tenant_id, event_date);
+    CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics_events(event_type, event_date);
+  `);
+
+  // —— 名片模板库（第四批：平台公共 + 租户私有）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,        -- 0=平台公共模板
+      name TEXT NOT NULL,
+      cover TEXT NOT NULL DEFAULT '',
+      theme_config TEXT NOT NULL DEFAULT '{}',     -- JSON: {primary, secondary, background, radius...}
+      description TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_templates_tenant ON card_templates(tenant_id, enabled);
+  `);
+
   // —— 名片视频表 ——
   db.exec(`
     CREATE TABLE IF NOT EXISTS card_videos (
