@@ -58,7 +58,7 @@
             @click="toggleSolution(s.code)"
           >
             <div class="solution-card-head">
-              <SIcon :name="getAppIcon(s.icon)" size="18" />
+              <SIcon :name="getAppIcon(s.icon)" size="default" />
               <span class="solution-card-name">{{ s.name }}</span>
               <el-checkbox :model-value="form.solutions.includes(s.code)" @click.stop />
             </div>
@@ -78,7 +78,7 @@
         <div v-else class="app-perm-list">
           <div v-for="app in appPermissions" :key="app.code" class="app-perm-item">
             <div class="app-perm-head">
-              <SIcon :name="getAppIcon(app.icon)" size="16" />
+              <SIcon :name="getAppIcon(app.icon)" size="small" />
               <span class="app-perm-name">{{ app.name }}</span>
               <el-switch v-model="app.enabled" size="small" />
               <span class="form-help">{{ app.enabled ? '已开通' : '未开通' }}</span>

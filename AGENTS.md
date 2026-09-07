@@ -255,19 +255,21 @@ npm run test:frontend
 - **右侧操作区**：flex 水平排列，gap 12px，垂直居中
 - **新页面必须使用**：新增应用内二级页面时，直接引入 AppPageHeader，不得新建页面级页头样式；CardTabs 只放应用内 Tab 导航，页头由页面组件承载
 
-## 平台默认渠道卡片规范（2026-09-08 确认）
+## 平台默认渠道卡片规范（2026-09-08 更新）
 
-方案/项目「默认平台」渠道选择统一为**图标卡片网格**：
+方案/项目「默认平台」渠道选择统一为**图标卡片横排**（参考图2 样式）：
 
-- **布局**：`display: grid; grid-template-columns: repeat(4, 108px); gap: 12px`（8 个渠道固定两行 4+4）
-- **卡片**：108px 宽，1px `#E5E6EB` 边框，8px 圆角，内边距 12px 10px，flex 纵向居中
-- **图标块**：40×40px，10px 圆角，`rgba(22,93,255,0.06)` 背景，默认灰 `#4E5969`，选中主色
+- **布局**：`display: flex; flex-wrap: wrap; gap: 12px`（宽屏单行横排，窄屏自动换行）
+- **卡片**：`flex: 1 1 100px; max-width: 112px`，1px `#E5E6EB` 边框，8px 圆角，内边距 14px 10px 12px，flex 纵向居中
+- **图标块**：48×48px，12px 圆角，`rgba(22,93,255,0.06)` 背景，图标 `SIcon size="xlarge"`（32px），默认灰 `#4E5969`，选中主色
+- **排序**：已开通渠道在前、未开通（开发中）渠道在后
 - **选中态**：主色边框 + `#F7FBFF` 背景 + 右上角 18px 圆形主色 ✓ 角标
 - **禁用态**：opacity 0.55，灰底，右上角「开发中」el-tag，不可点击
-- **说明文字**：卡片区下方独立一行（form-help），不与卡片同行
+- **说明文字**：`.platform-help` 独立一行在卡片区正下方（margin-top 10px），不与卡片同行、不放在右侧
 
-## 财务菜单规范（2026-09-08 确认）
+## 财务菜单规范（2026-09-08 更新）
 
-- 总后台侧边栏统一为「财务管理」单一菜单（`/finance`），页内 el-tabs 页签承载「支付管理」「发票管理」；组件 `web-admin/src/views/admin/FinanceAdmin.vue`
+- 总后台侧边栏统一为「财务管理」单一菜单（`/finance`），页内 el-tabs 页签承载「支付管理」「发票管理」「平台支付配置」；组件 `web-admin/src/views/admin/FinanceAdmin.vue`，平台支付配置独立组件 `PlatformPayConfig.vue`
 - 旧路径 `/payment`、`/invoices` 保留兼容（重定向到 FinanceAdmin 对应页签），侧边栏不再出现单独菜单
 - 新增财务类子页面时，一律并入 FinanceAdmin 页签，不得新增侧边栏菜单项
+- 计费套餐（billing_plans）菜单/路由/页面已删除（2026-09-08）；租户续费走解决方案价格体系（/billing/solution-plan、/billing/solution-purchase），billing_plans 后端 API 兼容保留不参与新流程

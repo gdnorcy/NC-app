@@ -47,7 +47,7 @@
       <div class="sol-renew-grid">
         <div v-for="s in planData.solutions" :key="s.id" class="sol-renew">
           <div class="sol-renew-head">
-            <SIcon :name="getAppIcon(s.icon)" size="18" />
+            <SIcon :name="getAppIcon(s.icon)" size="default" />
             <span class="sol-renew-name">{{ s.name }}</span>
           </div>
           <div v-if="s.pricing.length" class="price-cards">

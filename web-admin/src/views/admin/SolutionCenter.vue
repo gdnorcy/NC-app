@@ -15,28 +15,28 @@
     <div v-if="activeTab === 'overview'" class="overview">
       <div class="stat-grid">
         <div class="stat-card">
-          <div class="stat-icon"><SIcon name="solutions" size="18" /></div>
+          <div class="stat-icon"><SIcon name="solutions" size="default" /></div>
           <div>
             <div class="stat-value">{{ stats.total }}</div>
             <div class="stat-label">方案总数</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon success"><SIcon name="badge" size="18" /></div>
+          <div class="stat-icon success"><SIcon name="badge" size="default" /></div>
           <div>
             <div class="stat-value">{{ stats.on }}</div>
             <div class="stat-label">上架中</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon warn"><SIcon name="no-ads" size="18" /></div>
+          <div class="stat-icon warn"><SIcon name="no-ads" size="default" /></div>
           <div>
             <div class="stat-value">{{ stats.off }}</div>
             <div class="stat-label">已下架</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon purple"><SIcon name="chart" size="18" /></div>
+          <div class="stat-icon purple"><SIcon name="chart" size="default" /></div>
           <div>
             <div class="stat-value">{{ stats.usage }}</div>
             <div class="stat-label">使用项目总数</div>
@@ -51,7 +51,7 @@
       <div class="sol-grid">
         <div v-for="s in solutions" :key="s.id" class="sol-card">
           <div class="sol-card-head">
-            <span class="sol-icon"><SIcon :name="getAppIcon(s.icon)" size="18" /></span>
+            <span class="sol-icon"><SIcon :name="getAppIcon(s.icon)" size="default" /></span>
             <span class="sol-name">{{ s.name }}</span>
             <el-tag v-if="s.isHot" type="danger" size="small" effect="light">热门</el-tag>
           </div>
@@ -91,7 +91,7 @@
       <div class="sol-grid">
         <div v-for="s in solutions" :key="s.id" class="sol-card">
           <div class="sol-card-head">
-            <span class="sol-icon"><SIcon :name="getAppIcon(s.icon)" size="18" /></span>
+            <span class="sol-icon"><SIcon :name="getAppIcon(s.icon)" size="default" /></span>
             <span class="sol-name">{{ s.name }}</span>
             <el-tag v-if="s.isHot" type="danger" size="small" effect="light">热门</el-tag>
             <el-tag v-if="s.code === 'demo'" type="warning" size="small" effect="light">演示</el-tag>

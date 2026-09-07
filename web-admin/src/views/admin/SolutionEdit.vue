@@ -55,14 +55,14 @@
                   @click="!p.developing && togglePlatform(p.value, !form.defaultPlatform.includes(p.value))"
                 >
                   <div class="platform-card-icon">
-                    <SIcon :name="p.icon" size="18" />
+                    <SIcon :name="p.icon" size="xlarge" />
                     <span v-if="form.defaultPlatform.includes(p.value)" class="platform-check">✓</span>
                   </div>
                   <div class="platform-card-name">{{ p.label }}</div>
                   <el-tag v-if="p.developing" size="small" type="info" effect="plain" class="dev-tag">开发中</el-tag>
                 </div>
               </div>
-              <div class="form-help">可多选：勾选方案默认上线的展示渠道；未开通渠道不可勾选</div>
+              <div class="platform-help">可多选：勾选方案默认上线的展示渠道；未开通渠道不可勾选</div>
             </el-form-item>
             <el-form-item label="图标">
               <div class="icon-picker">
@@ -177,7 +177,7 @@
                 <div class="app-perm-head">
                   <el-checkbox v-model="app.enabled" @change="onAppToggle(app)">
                     <span class="app-perm-name">
-                      <SIcon :name="getAppIcon(app.icon)" size="16" />
+                      <SIcon :name="getAppIcon(app.icon)" size="small" />
                       {{ app.name }}
                     </span>
                   </el-checkbox>
@@ -247,7 +247,13 @@
             </div>
             <el-empty v-else description="暂无平台公共模板，可在「名片模板」菜单中创建" :image-size="60" />
 
-            <!-- 方案配额：按应用分设 + 加购价格 -->
+          </div>
+        </el-tab-pane>
+
+        <!-- ============ 方案配额 ============ -->
+        <el-tab-pane label="方案配额" name="quotas">
+          <div class="assets-panel">
+            <div class="form-help" style="margin-bottom: 16px;">按应用分别配置默认配额与加购单价；租户超出基础配额后按加购价购买</div>
             <div class="assets-title" style="margin-top: 28px;">方案配额</div>
             <div class="form-help">按应用分别配置默认配额与加购单价；租户超出基础配额后按加购价购买</div>
             <div v-for="g in assets.quotas" :key="g.appCode" class="quota-group">
@@ -283,14 +289,15 @@ import SIcon from '../../components/SIcon.vue';
 import { fetchSolutions, createSolution, updateSolution, saveSolutionPricing, saveSolutionPermissions, fetchSolutionCategories, fetchSolutionAssets, saveSolutionAssets, uploadImage } from '../../api';
 
 const platforms = [
+  // 已开通渠道在前，未开通（开发中）渠道在后
   { value: 'mini', label: '微信小程序', icon: 'wechat', developing: false },
+  { value: 'pc', label: 'PC网站', icon: 'pc', developing: false },
+  { value: 'h5', label: 'H5应用', icon: 'mobile', developing: false },
+  { value: 'mp', label: '公众号', icon: 'official', developing: false },
   { value: 'baidu', label: '百度小程序', icon: 'mobile', developing: true },
   { value: 'ali', label: '支付宝小程序', icon: 'mobile', developing: true },
   { value: 'qq', label: 'QQ小程序', icon: 'mobile', developing: true },
-  { value: 'pc', label: 'PC网站', icon: 'pc', developing: false },
-  { value: 'h5', label: 'H5应用', icon: 'mobile', developing: false },
   { value: 'tt', label: '字节跳动小程序', icon: 'mobile', developing: true },
-  { value: 'mp', label: '公众号', icon: 'official', developing: false },
 ];
 
 const iconOptions = [
@@ -524,16 +531,16 @@ export default {
 .form-help { font-size: 12px; color: #86909C; line-height: 1.5; margin-top: 4px; }
 .platform-group { display: flex; flex-wrap: wrap; }
 .platform-group :deep(.el-radio) { margin-right: 16px; margin-bottom: 8px; }
-.platform-cards { display: grid; grid-template-columns: repeat(4, 108px); gap: 12px; }
+.platform-cards { display: flex; flex-wrap: wrap; gap: 12px; }
 .platform-card {
-  width: 108px; border: 1px solid #E5E6EB; border-radius: 8px; padding: 12px 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer;
+  flex: 1 1 100px; max-width: 112px; border: 1px solid #E5E6EB; border-radius: 8px; padding: 14px 10px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer;
   transition: border-color .2s, box-shadow .2s; position: relative; background: #fff;
 }
 .platform-card:hover { border-color: #165DFF; }
 .platform-card.selected { border-color: #165DFF; background: #F7FBFF; box-shadow: 0 2px 8px rgba(22,93,255,0.12); }
 .platform-card.disabled { opacity: 0.55; cursor: not-allowed; background: #FAFAFA; }
-.platform-card-icon { position: relative; width: 40px; height: 40px; border-radius: 10px; background: rgba(22,93,255,0.06); color: #4E5969; display: flex; align-items: center; justify-content: center; }
+.platform-card-icon { position: relative; width: 48px; height: 48px; border-radius: 12px; background: rgba(22,93,255,0.06); color: #4E5969; display: flex; align-items: center; justify-content: center; }
 .platform-card.selected .platform-card-icon { color: #165DFF; background: rgba(22,93,255,0.1); }
 .platform-check {
   position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; border-radius: 50%;
@@ -541,6 +548,7 @@ export default {
 }
 .platform-card-name { font-size: 13px; color: #1D2129; }
 .platform-card .dev-tag { position: absolute; top: 6px; right: 6px; margin: 0; }
+.platform-help { margin-top: 10px; font-size: 12px; color: #86909C; line-height: 1.5; }
 .dev-tag { margin-left: 2px; transform: scale(0.85); transform-origin: left center; }
 .icon-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .icon-option { width: 40px; height: 40px; border: 1px solid #E5E6EB; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4E5969; transition: all 0.2s; }
