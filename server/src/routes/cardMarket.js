@@ -179,13 +179,15 @@ export function createCardMarketRouter(db) {
         showLocation: settings.show_location,
         allowExchange: settings.allow_exchange,
         contactVisible: settings.contact_visible,
+        style: settings.style || 'A',
+        notice: settings.notice || '',
       },
     });
   });
 
   // 更新集市配置（仅租户管理员）
   router.put('/market/settings', tenant, requireTenantAdmin, (req, res) => {
-    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible } = req.body;
+    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice } = req.body;
     // SQLite 无法绑定 JS boolean/undefined：统一规范化为 0/1/null
     const B = (v) => (v === undefined ? null : (v ? 1 : 0));
     const S = (v) => (v === undefined ? null : v);
@@ -199,9 +201,11 @@ export function createCardMarketRouter(db) {
       show_location = COALESCE(?, show_location),
       allow_exchange = COALESCE(?, allow_exchange),
       contact_visible = COALESCE(?, contact_visible),
+      style = COALESCE(?, style),
+      notice = COALESCE(?, notice),
       updated_at = datetime('now')
       WHERE customer_id = ?`).run(
-      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), req.customerId
+      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), req.customerId
     );
     audit(db, req, 'update_market_settings', 'market_settings', req.customerId, '更新人脉集市配置');
     res.json({ success: true });
@@ -218,7 +222,7 @@ export function createCardMarketRouter(db) {
 
   // ===== 集市列表 =====
   router.get('/market/list', tenant, (req, res) => {
-    const { type, keyword, scope } = req.query;
+    const { type, keyword, scope, need, industry, sort } = req.query;
     const sw = marketEnabled(req.customerId);
     if (!sw.enabled) return res.json({ items: [], message: '集市未开启' });
 
@@ -238,7 +242,19 @@ export function createCardMarketRouter(db) {
         WHEN 'individual' THEN (SELECT position FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
         WHEN 'employee' THEN (SELECT position FROM tenant_enterprise_employees WHERE id = mi.subject_id)
         ELSE NULL
-      END as position
+      END as position,
+      CASE mi.subject_type
+        WHEN 'individual' THEN (SELECT business_field FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+        WHEN 'enterprise' THEN (SELECT industry FROM tenant_enterprises WHERE id = mi.subject_id)
+        WHEN 'employee' THEN (SELECT business_field FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+        ELSE NULL
+      END as industry,
+      CASE mi.subject_type
+        WHEN 'individual' THEN (SELECT need_tags FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+        WHEN 'employee' THEN (SELECT need_tags FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+        ELSE NULL
+      END as need_tags,
+      CASE WHEN mi.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END as is_new
     FROM card_market_items mi
     WHERE mi.customer_id = ?${isAdminView ? '' : " AND mi.audit_status = 'approved'"}`;
 
@@ -257,8 +273,92 @@ export function createCardMarketRouter(db) {
       )`;
       params.push(`%${keyword}%`);
     }
-    sql += ' ORDER BY mi.is_top DESC, mi.created_at DESC';
-    res.json({ items: db.prepare(sql).all(...params) });
+    if (need) {
+      // 供需标签筛选：need_tags JSON 内包含目标标签
+      sql += ` AND (
+        CASE mi.subject_type
+          WHEN 'individual' THEN (SELECT need_tags FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+          WHEN 'employee' THEN (SELECT need_tags FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+          ELSE NULL
+        END LIKE ?
+      )`;
+      params.push(`%"${need}"%`);
+    }
+    if (industry && industry !== 'all') {
+      sql += ` AND (
+        CASE mi.subject_type
+          WHEN 'individual' THEN (SELECT business_field FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+          WHEN 'enterprise' THEN (SELECT industry FROM tenant_enterprises WHERE id = mi.subject_id)
+          WHEN 'employee' THEN (SELECT business_field FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
+          ELSE NULL
+        END LIKE ?
+      )`;
+      params.push(`%${industry}%`);
+    }
+    if (sort === 'newest') {
+      sql += ' ORDER BY mi.created_at DESC, mi.is_top DESC';
+    } else if (sort === 'exchanged') {
+      sql += ' ORDER BY mi.view_count DESC, mi.is_top DESC';
+    } else {
+      sql += ' ORDER BY mi.is_top DESC, mi.created_at DESC';
+    }
+    const rows = db.prepare(sql).all(...params);
+    res.json({ items: rows.map((r) => ({
+      id: r.id,
+      customerId: r.customer_id,
+      subjectType: r.subject_type,
+      subjectId: r.subject_id,
+      userId: r.user_id,
+      enterpriseId: r.enterprise_id,
+      auditStatus: r.audit_status,
+      isTop: !!r.is_top,
+      viewCount: r.view_count || 0,
+      name: r.name || '',
+      companyName: r.company_name || '',
+      position: r.position || '',
+      industry: r.industry || '',
+      needTags: r.need_tags || '',
+      isNew: !!r.is_new,
+      createdAt: r.created_at,
+    })) });
+  });
+
+  // 我的名片数据看板：总访问 / 被交换 / 集市曝光（本人名下全部名片聚合）
+  router.get('/market/my-stats', tenant, (req, res) => {
+    const cards = db.prepare('SELECT view_count, exchange_count FROM card_profile WHERE user_id = ?').all(req.user.id);
+    const marketViews = db.prepare(
+      'SELECT COALESCE(SUM(view_count), 0) AS total FROM card_market_items WHERE customer_id = ? AND user_id = ?'
+    ).get(req.customerId, req.user.id)?.total || 0;
+    res.json({
+      stats: {
+        totalViews: cards.reduce((a, c) => a + (c.view_count || 0), 0),
+        totalExchanges: cards.reduce((a, c) => a + (c.exchange_count || 0), 0),
+        marketViews,
+      },
+    });
+  });
+
+  // 我的名片：集市状态 + 位置定位（上架状态/审核态/置顶/NEW/集市内位置）
+  router.get('/market/my-status', tenant, (req, res) => {
+    const userId = req.user.id;
+    const items = db.prepare(
+      `SELECT mi.*, mi.is_top, mi.audit_status,
+        CASE WHEN mi.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END as is_new
+       FROM card_market_items mi
+       JOIN (SELECT DISTINCT user_id, customer_id FROM tenant_individuals
+             UNION SELECT user_id, customer_id FROM tenant_enterprise_employees) u
+         ON u.user_id = mi.user_id AND u.customer_id = mi.customer_id
+       WHERE mi.customer_id = ? AND mi.user_id = ?`
+    ).all(req.customerId, userId);
+    res.json({ items: items.map((it) => ({
+      id: it.id,
+      subjectType: it.subject_type,
+      subjectId: it.subject_id,
+      auditStatus: it.audit_status,
+      isTop: !!it.is_top,
+      isNew: !!it.is_new,
+      createdAt: it.created_at,
+    })) });
   });
 
   // 上架/下架集市（仅本人或租户管理员）

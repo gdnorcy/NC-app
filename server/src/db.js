@@ -629,6 +629,7 @@ function migrate(db) {
       company TEXT NOT NULL DEFAULT '',
       bio TEXT NOT NULL DEFAULT '',
       business_field TEXT NOT NULL DEFAULT '',
+      need_tags TEXT NOT NULL DEFAULT '', -- 供需标签 JSON: ["找渠道","求合作",...]
       avatar TEXT NOT NULL DEFAULT '',
       template_id INTEGER,
       video_channel TEXT NOT NULL DEFAULT '',
@@ -1030,6 +1031,8 @@ function migrate(db) {
       show_location INTEGER DEFAULT 1,
       allow_exchange INTEGER DEFAULT 1,
       contact_visible TEXT DEFAULT 'after_exchange', -- after_exchange/direct
+      style TEXT NOT NULL DEFAULT 'A', -- A/B/C 集市风格（A角标/B单横滚/C Tab）
+      notice TEXT NOT NULL DEFAULT '', -- 租户公告
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -1044,6 +1047,7 @@ function migrate(db) {
       enterprise_id INTEGER,
       audit_status TEXT DEFAULT 'approved', -- pending/approved/rejected
       is_top INTEGER DEFAULT 0,
+      view_count INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -1226,6 +1230,20 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_invite_log_customer ON tenant_invite_log(customer_id);
     CREATE INDEX IF NOT EXISTS idx_invite_log_user ON tenant_invite_log(user_id);
   `);
+
+  // —— 人脉集市三方案：风格/公告 + 名片供需标签（存量迁移，幂等） ——
+  if (tableExists(db, 'card_market_items') && !colExists(db, 'card_market_items', 'view_count')) {
+    db.exec('ALTER TABLE card_market_items ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0');
+  }
+  if (colExists(db, 'card_market_settings', 'id') && !colExists(db, 'card_market_settings', 'style')) {
+    db.exec("ALTER TABLE card_market_settings ADD COLUMN style TEXT NOT NULL DEFAULT 'A'");
+  }
+  if (colExists(db, 'card_market_settings', 'id') && !colExists(db, 'card_market_settings', 'notice')) {
+    db.exec("ALTER TABLE card_market_settings ADD COLUMN notice TEXT NOT NULL DEFAULT ''");
+  }
+  if (colExists(db, 'card_profile', 'id') && !colExists(db, 'card_profile', 'need_tags')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN need_tags TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */

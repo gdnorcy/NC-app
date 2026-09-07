@@ -152,12 +152,12 @@ export function createCardRouter(db, wxService) {
   });
 
   router.post('/cards', auth, (req, res) => {
-    const { name, position, phone, wechat, email, company, bio, businessField, avatar, isPublic } = req.body;
+    const { name, position, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, avatar, is_public)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0);
+      `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', needTags || '', avatar || '', isPublic ? 1 : 0);
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(result.lastInsertRowid);
     res.json({ card: toCard(card) });
   });
@@ -569,7 +569,7 @@ export function createCardRouter(db, wxService) {
       id: row.id, userId: row.user_id, enterpriseId: row.enterprise_id, cardType: row.card_type,
       name: row.name, position: row.position, city: row.city, phone: row.phone, wechat: row.wechat, email: row.email,
       company: row.company, bio: row.bio, businessField: row.business_field, avatar: row.avatar,
-      slogan: row.slogan || '', tags: row.tags || '',
+      slogan: row.slogan || '', tags: row.tags || '', needTags: row.need_tags || '',
       templateId: row.template_id, videoChannel: row.video_channel, isPublic: !!row.is_public,
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
       ownerMemberLevel,

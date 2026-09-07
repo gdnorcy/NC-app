@@ -139,7 +139,7 @@ test('管理视图：scope=admin 返回待审条目，普通视图隐藏；审�
   const admin = await request(app).get('/api/card-market/market/list?scope=admin').set(headers);
   const item = admin.body.items.find(i => i.id === itemId);
   assert.ok(item, '管理视图应包含 pending 条目');
-  assert.equal(item.audit_status, 'pending');
+  assert.equal(item.auditStatus, 'pending');
 
   // 审核通过
   const audit = await request(app).post('/api/card-market/market/audit').set(headers).send({ itemId, action: 'approve' });

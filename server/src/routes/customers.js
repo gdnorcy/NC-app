@@ -164,6 +164,29 @@ export function createCustomersRouter(db) {
        SET customer_name = ?, logo_path = ?, description = ?, valid_from = ?, valid_until = ?, is_pinned = ?, remark = ?, status = ?, solutions = ?, config = ?, updated_at = datetime('now')
        WHERE id = ?`
     ).run(next.customerName, next.logoPath, next.description, next.validFrom, next.validUntil, next.isPinned, next.remark, next.status, next.solutions, next.config, id);
+    // 总后台授权人脉集市（类似模板）：config.market 存在时同步初始化/覆盖租户集市配置
+    try {
+      const parsedCfg = typeof config === 'string' ? JSON.parse(config) : (config || {});
+      const marketCfg = (parsedCfg && typeof parsedCfg === 'object' && parsedCfg.market) || null;
+      if (marketCfg) {
+        const exist = db.prepare('SELECT id FROM card_market_settings WHERE customer_id = ?').get(id);
+        if (exist) {
+          db.prepare(`UPDATE card_market_settings SET
+            enabled = COALESCE(?, enabled),
+            style = COALESCE(?, style),
+            notice = COALESCE(?, notice),
+            updated_at = datetime('now') WHERE customer_id = ?`).run(
+            marketCfg.enabled === undefined ? null : (marketCfg.enabled ? 1 : 0),
+            marketCfg.style || null,
+            marketCfg.notice === undefined ? null : String(marketCfg.notice),
+            id
+          );
+        } else {
+          db.prepare(`INSERT INTO card_market_settings (customer_id, enabled, style, notice) VALUES (?, ?, ?, ?)`)
+            .run(id, marketCfg.enabled === false ? 0 : 1, marketCfg.style || 'A', marketCfg.notice || '');
+        }
+      }
+    } catch (e) { /* 同步失败不阻断项目保存 */ }
     const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'update_customer', targetType: 'customer', targetId: id, detail: `更新客户: ${next.customerName}`, ip: req.ip });
     res.json({ project: toCustomer(updated) });
