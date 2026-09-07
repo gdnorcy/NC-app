@@ -48,7 +48,7 @@
 
       <!-- ② 解决方案 + 应用及功能 -->
       <section id="sec-solution" :ref="setSecEls" class="page-card" data-sec="solution">
-        <div class="section-title">解决方案（单选，方案多时可横向滑动）</div>
+        <div class="section-title">解决方案</div>
         <div class="solution-list">
           <div
             v-for="s in solutionOptions"

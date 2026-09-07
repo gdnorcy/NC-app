@@ -1,9 +1,10 @@
 <template>
   <el-container class="admin-layout">
     <el-aside :width="collapsed ? '64px' : '220px'" class="sidebar">
-      <div class="logo">
+      <div class="logo" :class="{ collapsed: collapsed }">
         <img v-if="logo" :src="logo" alt="logo" class="logo-img" />
-        <span v-else class="logo-text">零壹系统云</span>
+        <span v-else-if="!collapsed" class="logo-text">零壹系统云</span>
+        <span v-else class="logo-text-mini">云</span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -24,7 +25,7 @@
           <span>用户管理</span>
         </el-menu-item>
         <template v-if="isAdmin">
-          <div class="menu-group-title">方案中心</div>
+          <div v-if="!collapsed" class="menu-group-title">方案中心</div>
           <el-menu-item index="/solutions">
             <SIcon name="solutions" size="default" />
             <span>解决方案</span>
@@ -47,7 +48,7 @@
           <span>操作日志</span>
         </el-menu-item>
         <template v-if="isAdmin">
-          <div class="menu-group-title">系统设置</div>
+          <div v-if="!collapsed" class="menu-group-title">系统设置</div>
           <el-menu-item index="/settings/basic">
             <SIcon name="settings" size="default" />
             <span>基础设置</span>
@@ -75,16 +76,18 @@
         </template>
       </el-menu>
       <div class="sidebar-footer">
-        <el-button text @click="logout">
-          <el-icon><SwitchButton /></el-icon>
-          <span v-if="!collapsed">退出登录</span>
-        </el-button>
+        <el-tooltip :disabled="!collapsed" content="退出登录" placement="right" :show-after="200">
+          <el-button text @click="logout">
+            <el-icon><SwitchButton /></el-icon>
+            <span v-if="!collapsed">退出登录</span>
+          </el-button>
+        </el-tooltip>
       </div>
     </el-aside>
     <el-container>
       <el-header class="header">
         <div class="header-left">
-          <el-button text @click="collapsed = !collapsed">
+          <el-button text @click="toggleCollapsed">
             <el-icon :size="18"><Fold v-if="!collapsed" /><Expand v-else /></el-icon>
           </el-button>
           <el-breadcrumb separator="/">
@@ -133,7 +136,11 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
-const collapsed = ref(false);
+const collapsed = ref(localStorage.getItem('admin-sidebar-collapsed') === '1');
+function toggleCollapsed() {
+  collapsed.value = !collapsed.value;
+  localStorage.setItem('admin-sidebar-collapsed', collapsed.value ? '1' : '0');
+}
 const search = ref('');
 const logo = ref('');
 
@@ -175,6 +182,11 @@ function logout() {
   color: #165DFF;
 }
 .logo-img { width: 32px; height: 32px; border-radius: 6px; }
+.logo.collapsed { padding: 0; }
+.logo-text-mini {
+  width: 32px; height: 32px; border-radius: 6px; background: #165DFF; color: #fff;
+  font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
 .side-menu { border-right: none; flex: 1; padding: 8px 12px; }
 .side-menu :deep(.s-icon) { margin-right: 10px; }
 /* 图2风格：圆角背景块菜单 */
