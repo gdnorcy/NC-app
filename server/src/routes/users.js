@@ -11,8 +11,18 @@ export function createUsersRouter(db) {
 
   // —— 用户列表 ——
   router.get('/', (req, res) => {
-    const rows = db.prepare('SELECT * FROM users ORDER BY id ASC').all();
-    res.json({ users: rows.map(toUser) });
+    // 关联客户项目：客户名称 + 到期时间 + 自主续费开关（供总后台用户管理展示/跳转）
+    const rows = db
+      .prepare(`SELECT u.*, p.customer_name AS customer_name, p.valid_until AS customer_valid_until, p.config AS customer_config
+        FROM users u LEFT JOIN projects p ON p.id = u.customer_id ORDER BY u.id ASC`)
+      .all();
+    res.json({
+      users: rows.map((r) => {
+        let selfRenew = false;
+        try { selfRenew = JSON.parse(r.customer_config || '{}').selfRenew === true; } catch {}
+        return { ...toUser(r), customerName: r.customer_name || '', customerValidUntil: r.customer_valid_until || null, customerSelfRenew: selfRenew };
+      }),
+    });
   });
 
   // —— 创建子账号 ——

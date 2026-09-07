@@ -48,25 +48,25 @@
 
       <!-- ② 解决方案 + 应用及功能 -->
       <section id="sec-solution" :ref="setSecEls" class="page-card" data-sec="solution">
-        <div class="section-title">解决方案（组合包，可多选）</div>
-        <div class="solution-grid">
+        <div class="section-title">解决方案（单选，方案多时可横向滑动）</div>
+        <div class="solution-list">
           <div
             v-for="s in solutionOptions"
             :key="s.code"
             class="solution-card"
-            :class="{ selected: form.solutions.includes(s.code) }"
-            @click="toggleSolution(s.code)"
+            :class="{ selected: form.solutions[0] === s.code }"
+            @click="selectSolution(s.code)"
           >
             <div class="solution-card-head">
+              <span class="radio-dot" :class="{ checked: form.solutions[0] === s.code }" />
               <SIcon :name="getAppIcon(s.icon)" size="default" />
               <span class="solution-card-name">{{ s.name }}</span>
-              <el-checkbox :model-value="form.solutions.includes(s.code)" @click.stop />
             </div>
             <div class="solution-card-desc">{{ s.description || '暂无描述' }}</div>
             <el-tag size="small" type="success" effect="light">上架中</el-tag>
           </div>
         </div>
-        <div class="form-help" style="margin-top:8px;">勾选方案后自动纳入方案包含的应用；下方可对应用及其功能逐项调整（项目级覆盖，仅影响本项目）</div>
+        <div class="form-help" style="margin-top:8px;">选择方案后自动纳入方案包含的应用；下方可对应用及其功能逐项调整（项目级覆盖，仅影响本项目）</div>
 
         <div class="perm-toolbar" style="margin-top:24px;">
           <div class="section-title" style="margin:0;">应用及其功能</div>
@@ -327,12 +327,15 @@ onMounted(async () => {
         Object.assign(form, {
           customerName: c.customerName, remark: c.remark, validUntil: c.validUntil || '',
           status: c.status, adminUserId: c.adminUserId || null,
-          solutions: Array.isArray(c.solutions) ? [...c.solutions] : [],
+          solutions: Array.isArray(c.solutions) && c.solutions.length ? [c.solutions[0]] : [],
           config: { ...form.config, ...(c.config || {}) },
         });
       }
       adminUsers.value = res.adminUsers || [];
       if (Array.isArray(res.appPermissions)) appPermissions.value = res.appPermissions;
+      if (!appPermissions.value.length && form.solutions[0]) {
+        mergeSolutionDefault(form.solutions[0]);
+      }
       loadChannels();
     } catch (e) { ElMessage.error(e); }
   }
@@ -342,14 +345,11 @@ onUnmounted(() => {
   sc.removeEventListener('scroll', onScroll);
 });
 
-function toggleSolution(code) {
-  const idx = form.solutions.indexOf(code);
-  if (idx >= 0) {
-    form.solutions.splice(idx, 1);
-    return;
-  }
-  form.solutions.push(code);
-  mergeSolutionDefault(code);
+async function selectSolution(code) {
+  if (form.solutions[0] === code) return;
+  form.solutions = [code];
+  appPermissions.value = [];
+  await mergeSolutionDefault(code);
 }
 
 async function mergeSolutionDefault(code) {
@@ -382,9 +382,7 @@ async function resetFromSolutions() {
   }).catch(() => false);
   if (!confirmed) return;
   appPermissions.value = [];
-  for (const code of form.solutions) {
-    await mergeSolutionDefault(code);
-  }
+  await mergeSolutionDefault(form.solutions[0]);
   ElMessage.success('已重置为方案默认权限');
 }
 
@@ -484,15 +482,22 @@ async function save() {
 
 .edit-body { display:flex; flex-direction:column; gap:16px; }
 
-.solution-grid { display:flex; flex-wrap:wrap; gap:16px; }
+.solution-list { display:flex; gap:16px; overflow-x:auto; padding-bottom:6px; }
+.solution-list::-webkit-scrollbar { height:6px; }
+.solution-list::-webkit-scrollbar-thumb { background:#E5E6EB; border-radius:3px; }
 .solution-card {
-  flex:0 0 240px; border:1px solid #E5E6EB; border-radius:8px; padding:16px; cursor:pointer;
+  flex:0 0 260px; border:1px solid #E5E6EB; border-radius:8px; padding:16px; cursor:pointer;
   transition:border-color .2s, box-shadow .2s; background:#fff;
 }
+.radio-dot {
+  width:14px; height:14px; border-radius:50%; border:1px solid #C9CDD4; box-sizing:border-box;
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.radio-dot.checked { border-color:#165DFF; }
+.radio-dot.checked::after { content:''; width:8px; height:8px; border-radius:50%; background:#165DFF; }
 .solution-card:hover { border-color:#165DFF; box-shadow:0 4px 12px rgba(22,93,255,0.1); }
 .solution-card.selected { border-color:#165DFF; background:#F7FBFF; }
-.solution-card-head { display:flex; align-items:center; gap:8px; }
-.solution-card-head .el-checkbox { margin-left:auto; }
+.solution-card-head { display:flex; align-items:center; gap:10px; }
 .solution-card-name { font-size:14px; font-weight:600; color:#1D2129; }
 .solution-card-desc { font-size:12px; color:#86909C; margin:8px 0 10px; min-height:32px; line-height:1.5; }
 

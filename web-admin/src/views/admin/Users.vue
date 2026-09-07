@@ -6,12 +6,28 @@
     </div>
     <div class="page-card">
       <el-table :data="users" stripe>
-        <el-table-column prop="username" label="账号" />
-        <el-table-column prop="role" label="角色" width="120">
+        <el-table-column prop="username" label="账号" min-width="140" />
+        <el-table-column prop="role" label="角色" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : row.role === 'operator' ? 'warning' : 'info'" size="small">
+            <el-tag :type="roleTagType(row.role)" size="small">
               {{ roleMap[row.role] || row.role }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="所属客户" min-width="180">
+          <template #default="{ row }">
+            <template v-if="row.customerId">
+              <el-link type="primary" :underline="false" @click="goCustomer(row)">
+                {{ row.customerName || `客户 #${row.customerId}` }}
+              </el-link>
+              <div style="margin-top:4px;display:flex;align-items:center;gap:6px;">
+                <el-tag :type="customerStatusType(row)" size="small">
+                  {{ customerStatusText(row) }}
+                </el-tag>
+                <span v-if="row.customerSelfRenew" class="renew-tag">自主续费开</span>
+              </div>
+            </template>
+            <span v-else class="form-help">—</span>
           </template>
         </el-table-column>
         <el-table-column prop="phone" label="手机号" width="140" />
@@ -26,14 +42,22 @@
       </el-table>
     </div>
     <el-dialog v-model="showEdit" :title="editing ? '编辑用户' : '新建用户'" width="500px">
-      <el-form :model="form" label-width="80px">
+      <el-form :model="form" label-width="90px">
         <el-form-item label="账号" required><el-input v-model="form.username" :disabled="!!editing" /></el-form-item>
         <el-form-item label="密码" v-if="!editing" required><el-input v-model="form.password" type="password" /></el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="form.role" style="width:100%;">
+          <el-select v-model="form.role" style="width:100%;" @change="onRoleChange">
             <el-option label="超级管理员" value="admin" />
             <el-option label="运营人员" value="operator" />
+            <el-option label="客户管理员" value="tenant_admin" />
+            <el-option label="客户成员" value="tenant_member" />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="isTenantRole(form.role)" label="关联客户项目" required>
+          <el-select v-model="form.customerId" filterable placeholder="选择该用户所属的客户项目" style="width:100%;">
+            <el-option v-for="c in customers" :key="c.id" :label="`${c.customerName}（${c.customerName}）`" :value="c.id" />
+          </el-select>
+          <div class="form-help">客户管理员/客户成员必须关联一个客户项目，登录后进入该客户的租户后台</div>
         </el-form-item>
         <el-form-item label="手机号"><el-input v-model="form.phone" /></el-form-item>
       </el-form>
@@ -47,20 +71,54 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { fetchUsers, createUser, updateUser, deleteUser, resetUserPassword } from '../../api';
+import { useRouter } from 'vue-router';
+import { fetchUsers, createUser, updateUser, deleteUser, resetUserPassword, fetchCustomers } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
+const router = useRouter();
 const roleMap = { admin: '超级管理员', operator: '运营人员', tenant_admin: '客户管理员', tenant_member: '客户成员' };
 const users = ref([]);
+const customers = ref([]);
 const showEdit = ref(false);
 const editing = ref(null);
-const form = reactive({ username: '', password: '', role: 'operator', phone: '' });
+const form = reactive({ username: '', password: '', role: 'operator', phone: '', customerId: null });
+
+function isTenantRole(role) { return role === 'tenant_admin' || role === 'tenant_member'; }
+function roleTagType(role) {
+  return role === 'admin' ? 'danger' : role === 'operator' ? 'warning' : role === 'tenant_admin' ? 'primary' : 'info';
+}
+function customerStatusText(row) {
+  if (!row.customerValidUntil) return '长期有效';
+  return row.customerValidUntil < new Date().toISOString().slice(0, 10) ? '已到期' : `至 ${row.customerValidUntil}`;
+}
+function customerStatusType(row) {
+  if (!row.customerValidUntil) return 'success';
+  return row.customerValidUntil < new Date().toISOString().slice(0, 10) ? 'danger' : 'success';
+}
+function onRoleChange() {
+  if (!isTenantRole(form.role)) form.customerId = null;
+}
+function goCustomer(row) {
+  if (row.customerId) router.push(`/customers/${row.customerId}/edit`);
+}
 
 async function load() {
-  try { users.value = (await fetchUsers()).users || []; } catch (e) { ElMessage.error(e); }
+  try {
+    users.value = (await fetchUsers()).users || [];
+    const cRes = await fetchCustomers();
+    customers.value = cRes.projects || [];
+  } catch (e) { ElMessage.error(e); }
 }
-function editUser(row) { editing.value = row; Object.assign(form, row); showEdit.value = true; }
+function editUser(row) {
+  editing.value = row;
+  Object.assign(form, {
+    username: row.username, password: '', role: row.role, phone: row.phone,
+    customerId: row.customerId || null,
+  });
+  showEdit.value = true;
+}
 async function save() {
+  if (isTenantRole(form.role) && !form.customerId) { ElMessage.error('客户管理员/客户成员必须关联客户项目'); return; }
   try {
     if (editing.value) await updateUser(editing.value.id, form);
     else await createUser(form);
@@ -82,3 +140,8 @@ async function remove(row) {
 }
 onMounted(load);
 </script>
+
+<style scoped>
+.form-help { font-size:12px; color:#86909C; line-height:1.6; margin-top:4px; }
+.renew-tag { font-size:12px; color:#00B42A; }
+</style>
