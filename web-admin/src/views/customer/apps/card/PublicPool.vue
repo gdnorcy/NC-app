@@ -4,12 +4,8 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">公海池</h2>
-        <p class="page-desc">收纳停用个人/企业回收的客户，可重新分配</p>
-      </div>
-      <div class="header-stats">
+<AppPageHeader title="公海池" desc="收纳停用个人/企业回收的客户，可重新分配">
+<div class="header-stats">
         <div class="stat-item">
           <div class="stat-num">{{ pool.length }}</div>
           <div class="stat-label">公海客户</div>
@@ -19,7 +15,7 @@
           <div class="stat-label">可领取</div>
         </div>
       </div>
-    </div>
+</AppPageHeader>
 
     <!-- 客户列表 -->
     <div class="content-card">
@@ -101,6 +97,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
@@ -196,9 +193,6 @@ async function confirmAssign() {
 
 <style scoped>
 .pool-page { padding: 0; }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
 
 .header-stats { display: flex; gap: 24px; }
 .stat-item { text-align: center; }

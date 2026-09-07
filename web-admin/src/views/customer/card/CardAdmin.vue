@@ -4,12 +4,7 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">员工名片</h2>
-        <p class="page-desc">员工通过小程序/H5 创建名片后自动展示，可查看名片公开状态与访问数据</p>
-      </div>
-    </div>
+    <AppPageHeader title="员工名片" desc="员工通过小程序/H5 创建名片后自动展示，可查看名片公开状态与访问数据" />
 
     <!-- 统计卡片 -->
     <div class="stats-row">
@@ -98,6 +93,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../components/AppPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { customerApiCall } from '../../../api';
@@ -153,9 +149,6 @@ function routePathValid(p) {
 
 <style scoped>
 .card-admin { padding: 0; }
-.page-header { margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
 .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 16px; }
 .stat-card { background: #fff; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .stat-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }

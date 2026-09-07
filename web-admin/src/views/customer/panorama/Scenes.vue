@@ -1,15 +1,11 @@
 <template>
   <div>
     <PanoramaTabs />
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">场景管理</h2>
-        <p class="page-desc">{{ planName }}</p>
-      </div>
-      <el-button type="primary" @click="$router.push(`/apps/panorama/plans/${planId}/scenes/new/edit`)">
+<AppPageHeader title="场景管理" desc="{{ planName }}">
+<el-button type="primary" @click="$router.push(`/apps/panorama/plans/${planId}/scenes/new/edit`)">
         <el-icon><Plus /></el-icon>新建场景
       </el-button>
-    </div>
+</AppPageHeader>
     <div class="page-card">
       <el-table :data="scenes" stripe>
         <el-table-column prop="title" label="场景名称" />
@@ -38,6 +34,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../components/AppPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { customerApiCall } from '../../../api';

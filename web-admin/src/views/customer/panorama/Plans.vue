@@ -1,13 +1,9 @@
 <template>
   <div>
     <PanoramaTabs />
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">方案管理</h2>
-        <p class="page-desc">为每个客户项目创建全景方案，方案下可添加多个场景</p>
-      </div>
-      <el-button type="primary" @click="showEdit = true"><el-icon><Plus /></el-icon>新建方案</el-button>
-    </div>
+<AppPageHeader title="方案管理" desc="为每个客户项目创建全景方案，方案下可添加多个场景">
+<el-button type="primary" @click="showEdit = true"><el-icon><Plus /></el-icon>新建方案</el-button>
+</AppPageHeader>
     <div class="page-card">
       <el-table :data="plans" stripe>
         <el-table-column prop="name" label="方案名称" />
@@ -36,6 +32,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../components/AppPageHeader.vue';
 import { ref, reactive, onMounted } from 'vue';
 import { customerApiCall } from '../../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';

@@ -4,12 +4,7 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">企业客户</h2>
-        <p class="page-desc">名片交换、访客转化与公海分配而来的客户线索，可查看跟进记录</p>
-      </div>
-    </div>
+    <AppPageHeader title="企业客户" desc="名片交换、访客转化与公海分配而来的客户线索，可查看跟进记录" />
 
     <!-- 企业客户列表 -->
     <div class="content-card">
@@ -81,6 +76,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { customerApiCall } from '../../../../api';
 import CardTabs from './CardTabs.vue';
@@ -132,9 +128,6 @@ onMounted(loadCustomers);
 
 <style scoped>
 .customers-manage { padding: 0; }
-.page-header { margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
 .content-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .tab-content { padding: 20px; }
 .toolbar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }

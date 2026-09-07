@@ -4,12 +4,7 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">人脉集市管理</h2>
-        <p class="page-desc">管理租户内人脉集市的开启、配置和内容管控</p>
-      </div>
-    </div>
+    <AppPageHeader title="人脉集市管理" desc="管理租户内人脉集市的开启、配置和内容管控" />
 
     <!-- 数据统计 -->
     <div class="stats-row" v-if="settings.enabled">
@@ -170,6 +165,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
@@ -305,9 +301,6 @@ async function forceRemove(row) {
 .stat-num { font-size: 24px; font-weight: 700; color: #1d2129; }
 .stat-label { font-size: 12px; color: #86909c; margin-top: 2px; }
 
-.page-header { margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
 .card { background: #fff; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f2f3f5; }
 .card-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #1d2129; }

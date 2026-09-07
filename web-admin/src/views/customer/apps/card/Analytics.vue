@@ -5,11 +5,7 @@
     <PanoramaTabs v-else />
 
     <!-- 页头 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">数据洞察</h2>
-        <p class="page-desc">行为漏斗 · 转化趋势 · 租户健康分，驱动业务增长</p>
-      </div>
+    <AppPageHeader title="数据洞察" desc="行为漏斗 · 转化趋势 · 租户健康分，驱动业务增长">
       <div class="days-switch">
         <span class="days-label">趋势周期</span>
         <span
@@ -20,7 +16,7 @@
           @click="loadTrend(d)"
         >{{ d }}天</span>
       </div>
-    </div>
+    </AppPageHeader>
 
     <!-- 健康分 -->
     <div class="health-card">
@@ -149,6 +145,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { customerApiCall } from '../../../../api';
@@ -224,10 +221,8 @@ onMounted(loadAll);
 
 <style scoped>
 .analytics-page { display: flex; flex-direction: column; gap: 16px; }
+.analytics-page :deep(.card-tabs) { margin-bottom: 0; }
 
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin: 4px 0 0; }
 .days-switch { display: flex; align-items: center; gap: 4px; background: #fff; border-radius: 8px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .days-label { font-size: 12px; color: #86909c; padding: 0 8px; }
 .days-btn { font-size: 13px; color: #4e5969; padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }

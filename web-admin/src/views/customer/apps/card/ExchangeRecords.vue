@@ -3,12 +3,7 @@
     <!-- 统一Tab导航 -->
     <CardTabs />
 
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">交换记录</h2>
-        <p class="page-desc">查看租户内所有名片交换往来</p>
-      </div>
-    </div>
+    <AppPageHeader title="交换记录" desc="查看租户内所有名片交换往来" />
 
     <div class="card">
       <div class="filter-bar">
@@ -81,6 +76,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { publicApi } from '../../../../api';
 import SIcon from '../../../../components/SIcon.vue';
@@ -121,9 +117,6 @@ function statusTag(s) {
 
 <style scoped>
 .exchange-records-page { padding: 0; }
-.page-header { margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0 0 4px; }
-.page-desc { font-size: 13px; color: #86909c; margin: 0; }
 .card {
   background: #fff;
   border-radius: 8px;

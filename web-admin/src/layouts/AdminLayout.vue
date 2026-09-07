@@ -38,13 +38,9 @@
           <SIcon name="crown" size="default" />
           <span>计费套餐</span>
         </el-menu-item>
-        <el-menu-item index="/payment">
+        <el-menu-item index="/finance">
           <SIcon name="wallet" size="default" />
-          <span>支付管理</span>
-        </el-menu-item>
-        <el-menu-item index="/invoices">
-          <SIcon name="orders" size="default" />
-          <span>发票管理</span>
+          <span>财务管理</span>
         </el-menu-item>
         <el-menu-item index="/channel">
           <SIcon name="channel" size="default" />

@@ -524,7 +524,7 @@ export default {
 .form-help { font-size: 12px; color: #86909C; line-height: 1.5; margin-top: 4px; }
 .platform-group { display: flex; flex-wrap: wrap; }
 .platform-group :deep(.el-radio) { margin-right: 16px; margin-bottom: 8px; }
-.platform-cards { display: flex; flex-wrap: wrap; gap: 12px; max-width: 860px; }
+.platform-cards { display: grid; grid-template-columns: repeat(4, 108px); gap: 12px; }
 .platform-card {
   width: 108px; border: 1px solid #E5E6EB; border-radius: 8px; padding: 12px 10px;
   display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer;

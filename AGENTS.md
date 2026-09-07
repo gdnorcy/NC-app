@@ -243,3 +243,31 @@ npm run test:frontend
 - **表格**：细边框，行高48px，hover底色 `#F7F8FA`
 - **空状态**：友好提示文字 + 引导操作按钮
 - **动效**：仅保留hover、弹窗淡入过渡，禁止花哨动画
+
+## 应用内二级页页头规范（2026-09-08 确认）
+
+所有应用（智能名片、零壹系统云等）的二级 Tab 页面，页头**必须统一**使用共享组件 `web-admin/src/components/AppPageHeader.vue`（图1 标准），禁止各页面自行写 `.page-header/.page-title/.page-desc`：
+
+- **结构**：`<AppPageHeader title="XX" desc="XX">`，右侧操作（筛选/按钮/统计）放默认插槽
+- **间距**：页头与上方 CardTabs 间距 16px（margin-bottom: 16px）
+- **标题**：20px / font-weight 600 / `#1D2129`，行高 1.4
+- **描述**：13px / `#86909C`，与标题间距 4px，行高 1.5
+- **右侧操作区**：flex 水平排列，gap 12px，垂直居中
+- **新页面必须使用**：新增应用内二级页面时，直接引入 AppPageHeader，不得新建页面级页头样式；CardTabs 只放应用内 Tab 导航，页头由页面组件承载
+
+## 平台默认渠道卡片规范（2026-09-08 确认）
+
+方案/项目「默认平台」渠道选择统一为**图标卡片网格**：
+
+- **布局**：`display: grid; grid-template-columns: repeat(4, 108px); gap: 12px`（8 个渠道固定两行 4+4）
+- **卡片**：108px 宽，1px `#E5E6EB` 边框，8px 圆角，内边距 12px 10px，flex 纵向居中
+- **图标块**：40×40px，10px 圆角，`rgba(22,93,255,0.06)` 背景，默认灰 `#4E5969`，选中主色
+- **选中态**：主色边框 + `#F7FBFF` 背景 + 右上角 18px 圆形主色 ✓ 角标
+- **禁用态**：opacity 0.55，灰底，右上角「开发中」el-tag，不可点击
+- **说明文字**：卡片区下方独立一行（form-help），不与卡片同行
+
+## 财务菜单规范（2026-09-08 确认）
+
+- 总后台侧边栏统一为「财务管理」单一菜单（`/finance`），页内 el-tabs 页签承载「支付管理」「发票管理」；组件 `web-admin/src/views/admin/FinanceAdmin.vue`
+- 旧路径 `/payment`、`/invoices` 保留兼容（重定向到 FinanceAdmin 对应页签），侧边栏不再出现单独菜单
+- 新增财务类子页面时，一律并入 FinanceAdmin 页签，不得新增侧边栏菜单项

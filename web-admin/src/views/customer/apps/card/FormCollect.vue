@@ -4,16 +4,12 @@
 
     <!-- 列表视图 -->
     <template v-if="!editing">
-      <div class="page-header">
-        <div>
-          <h2 class="page-title">表单收集</h2>
-          <p class="page-desc">名片页展示的表单，访客填写后线索自动回流到客户列表</p>
-        </div>
-        <el-button type="primary" @click="startCreate">
+<AppPageHeader title="表单收集" desc="名片页展示的表单，访客填写后线索自动回流到客户列表">
+<el-button type="primary" @click="startCreate">
           <SIcon name="template" size="small" color="#fff" />
           新建表单
         </el-button>
-      </div>
+</AppPageHeader>
 
       <div class="content-card">
         <div v-if="forms.length === 0" class="empty-state">
@@ -57,16 +53,12 @@
 
     <!-- 新建/编辑整页表单 -->
     <template v-else>
-      <div class="page-header">
-        <div>
-          <h2 class="page-title">{{ editId ? '编辑表单' : '新建表单' }}</h2>
-          <p class="page-desc">配置表单标题与字段，保存后名片页即时展示</p>
-        </div>
-        <div>
+<AppPageHeader :title="editId ? '编辑表单' : '新建表单'" desc="配置表单标题与字段，保存后名片页即时展示">
+<div>
           <el-button @click="editing = false">取消</el-button>
           <el-button type="primary" :loading="saving" @click="saveForm">保存</el-button>
         </div>
-      </div>
+</AppPageHeader>
 
       <div class="content-card form-edit">
         <el-form label-width="110px">
@@ -127,6 +119,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
@@ -233,9 +226,6 @@ onMounted(load);
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.page-title { font-size: 18px; font-weight: 600; color: #1d2129; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
 .content-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); }
 .f-title { font-size: 14px; font-weight: 500; color: #1d2129; }
 .f-desc { font-size: 12px; color: #86909c; margin-top: 4px; }

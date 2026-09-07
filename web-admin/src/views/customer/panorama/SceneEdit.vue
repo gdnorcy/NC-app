@@ -1,16 +1,12 @@
 <template>
   <div>
     <PanoramaTabs />
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">{{ isEdit ? '编辑场景' : '新建场景' }}</h2>
-        <p class="page-desc">配置场景主图、预览图与金字塔切片，保存后自动构建预览</p>
-      </div>
-      <div style="display:flex;gap:8px;">
+<AppPageHeader title="{{ isEdit ? '编辑场景' : '新建场景' }}" desc="配置场景主图、预览图与金字塔切片，保存后自动构建预览">
+<div style="display:flex;gap:8px;">
         <el-button @click="preview">预览</el-button>
         <el-button type="primary" @click="save" :loading="saving">保存</el-button>
       </div>
-    </div>
+</AppPageHeader>
     <div style="display:grid;grid-template-columns:1fr 400px;gap:16px;">
       <div>
         <div class="page-card">
@@ -103,6 +99,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../components/AppPageHeader.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { customerApiCall } from '../../../api';

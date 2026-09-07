@@ -4,12 +4,7 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">入驻管理</h2>
-        <p class="page-desc">管理租户内入驻个人和入驻企业单位</p>
-      </div>
-    </div>
+    <AppPageHeader title="入驻管理" desc="管理租户内入驻个人和入驻企业单位" />
 
     <!-- Tab切换 -->
     <div class="content-card">
@@ -157,6 +152,7 @@
 </template>
 
 <script setup>
+import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
@@ -288,9 +284,6 @@ async function viewEmployees(row) {
 
 <style scoped>
 .tenant-manage-page { padding: 0; }
-.page-header { margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
-.page-desc { font-size: 13px; color: #86909c; margin-top: 4px; }
 
 .content-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .tab-bar { display: flex; border-bottom: 1px solid #f2f3f5; padding: 0 20px; }
