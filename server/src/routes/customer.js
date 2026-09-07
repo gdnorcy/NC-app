@@ -6,6 +6,7 @@ import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
+import { checkTenantSolutionQuota } from '../services/billing.js';
 import { calcFunnel, trendSeries, eventDistribution, topTargets, calcHealthScore } from '../services/analytics.js';
 import { encryptSecret, decryptSecret } from '../crypto.js';
 
@@ -863,6 +864,9 @@ router.get('/card/trends', requireTenant, (req, res) => {
     if (pu.enterprise_id) return res.status(400).json({ error: '该员工已属于其他企业' });
     const ent = db.prepare('SELECT id, name FROM tenant_enterprises WHERE id = ? AND customer_id = ? AND status = ?').get(req.enterpriseId, req.customerId, 'active');
     if (!ent) return res.status(404).json({ error: '企业不存在或已停用' });
+    // 企业员工人数配额（新体系 solution_quotas：card.employeeCount）
+    const eq = checkTenantSolutionQuota(db, req.customerId, 'card', 'employeeCount');
+    if (!eq.ok) return res.status(403).json({ error: `企业员工人数已达上限（${eq.used}/${eq.limit}），请升级方案后再添加` });
     db.prepare("UPDATE platform_user SET enterprise_id = ?, enterprise_role = ?, updated_at = datetime('now') WHERE id = ?")
       .run(req.enterpriseId, role === 'admin' ? 'admin' : 'member', uid);
     auditCust(db, req, 'enterprise_add_employee', 'enterprise', req.enterpriseId, `企业「${ent.name}」添加员工`);

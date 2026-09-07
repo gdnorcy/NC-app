@@ -114,6 +114,38 @@ export function checkTenantQuota(db, customerId, key, delta = 1) {
   return { ok: true, limit, used };
 }
 
+/**
+ * 方案配额校验（新体系 solution_quotas）：
+ * 读取租户已绑定方案（projects.solutions code 数组）中 appCode+key 的配额项，
+ * 仅当 enabled 且 value>0 时生效，多方案取最大限制；未配置返回不限。
+ * used 复用 getTenantUsage 统计口径。
+ */
+export function checkTenantSolutionQuota(db, customerId, appCode, key, delta = 1) {
+  const proj = db.prepare('SELECT solutions FROM projects WHERE id = ?').get(customerId);
+  if (!proj) return { ok: true };
+  let codes = [];
+  try { codes = JSON.parse(proj.solutions || '[]'); } catch {}
+  if (!Array.isArray(codes)) codes = [];
+  let limit = null;
+  for (const code of codes) {
+    const sol = db.prepare("SELECT id FROM solutions WHERE code = ? AND status = 'on'").get(code);
+    if (!sol) continue;
+    const q = db.prepare('SELECT value, enabled FROM solution_quotas WHERE solution_id = ? AND app_code = ? AND key = ?').get(sol.id, appCode, key);
+    if (q && q.enabled && Number(q.value) > 0) {
+      limit = limit === null ? Number(q.value) : Math.max(limit, Number(q.value));
+    }
+  }
+  if (limit === null) return { ok: true }; // 未配置=不限
+  const usage = getTenantUsage(db, customerId);
+  // 配额 key → usage 字段映射（与 QUOTA_DEFS key 对齐）
+  const USAGE_KEY = { memberCount: 'individuals', enterpriseCount: 'enterprises', employeeCount: 'employees', sceneCount: 'scenes' };
+  const used = usage[USAGE_KEY[key] ?? key] ?? 0;
+  if (used + delta > limit) {
+    return { ok: false, limit, used };
+  }
+  return { ok: true, limit, used };
+}
+
 // ============ 订阅联动（支付成功回调） ============
 const CYCLE_MS = { year: 365 * 24 * 3600 * 1000, month: 30 * 24 * 3600 * 1000 };
 

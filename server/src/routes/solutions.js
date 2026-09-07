@@ -175,16 +175,13 @@ export function createSolutionsRouter(db) {
   // 方案配额默认定义（按应用分组；value 为默认配额，price 为加购单价）
   const QUOTA_DEFS = [
     { appCode: 'card', appName: '智能名片', items: [
-      { key: 'cardCount', label: '名片创建数', value: 0 },
       { key: 'memberCount', label: '入驻个人数', value: 0 },
       { key: 'enterpriseCount', label: '入驻企业数', value: 0 },
-      { key: 'storageMb', label: '存储空间(MB)', value: 50 },
-      { key: 'aiCredits', label: 'AI生成次数', value: 0 },
+      { key: 'employeeCount', label: '企业员工人数', value: 0 },
     ] },
     { appCode: 'panorama', appName: '零壹系统云', items: [
       { key: 'planCount', label: '方案数', value: 5 },
       { key: 'sceneCount', label: '场景数', value: 50 },
-      { key: 'storageMb', label: '存储空间(MB)', value: 50 },
     ] },
   ];
 

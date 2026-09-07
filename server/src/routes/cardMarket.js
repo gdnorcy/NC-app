@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { checkTenantAccess } from '../tenant.js';
 import { addOperationLog } from '../db.js';
-import { checkTenantQuota } from '../services/billing.js';
+import { checkTenantQuota, checkTenantSolutionQuota } from '../services/billing.js';
 
 /** 审计日志 helper：租户域操作统一带租户ID前缀，actor 兼容管理端 JWT 与 C 端 card_token */
 function audit(db, req, action, targetType, targetId, detail) {
@@ -867,6 +867,9 @@ export function createCardMarketRouter(db) {
       if (action === 'approve') {
         const q = checkTenantQuota(db, req.customerId, 'max_enterprises');
         if (!q.ok) return res.status(403).json({ error: `入驻企业数量已达上限（${q.used}/${q.limit}），请升级套餐后再审核` });
+        // 企业员工人数配额（新体系 solution_quotas：card.employeeCount）
+        const eq = checkTenantSolutionQuota(db, req.customerId, 'card', 'employeeCount');
+        if (!eq.ok) return res.status(403).json({ error: `企业员工人数已达上限（${eq.used}/${eq.limit}），请升级方案后再审核` });
       }
       db.prepare("UPDATE tenant_enterprises SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
       db.prepare("UPDATE tenant_enterprise_employees SET status = ?, updated_at = datetime('now') WHERE enterprise_id = ? AND role = 'admin'").run(status, id);

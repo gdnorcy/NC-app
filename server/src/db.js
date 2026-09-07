@@ -1616,6 +1616,10 @@ function migrate(db) {
       UNIQUE(solution_id, app_code, key)
     );
   `);
+  // 方案配额废弃项清理（2026-09-08：cardCount 名片创建数 / aiCredits AI生成次数 / storageMb 存储空间 已从配额体系移除）
+  try {
+    db.exec("DELETE FROM solution_quotas WHERE key IN ('cardCount','aiCredits') OR (key = 'storageMb' AND app_code IN ('card','panorama'))");
+  } catch {}
   if (colExists(db, 'card_templates', 'id') && !colExists(db, 'card_templates', 'price')) {
     db.exec('ALTER TABLE card_templates ADD COLUMN price REAL NOT NULL DEFAULT 0');
   }
