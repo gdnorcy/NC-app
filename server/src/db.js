@@ -149,6 +149,61 @@ function colExists(db, table, col) {
   return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
 }
 
+/** 方案中心 P0：补齐分类归属 + 默认价格 + 默认权限点（幂等） */
+function seedSolutionDefaults(db) {
+  const solutions = db.prepare('SELECT * FROM solutions').all();
+  const catByName = (name) => db.prepare('SELECT id FROM solution_categories WHERE name = ?').get(name)?.id || null;
+  const catId = { '名片营销': catByName('名片营销'), '空间展示': catByName('空间展示') };
+
+  const defaultPricing = {
+    card: [{ duration_months: 12, agent_price: 999, user_price: 1999, renew_price: 1999 }, { duration_months: 0, agent_price: 9999, user_price: 19999, renew_price: 9999 }],
+    panorama: [{ duration_months: 12, agent_price: 499, user_price: 999, renew_price: 999 }, { duration_months: 0, agent_price: 4999, user_price: 9999, renew_price: 4999 }],
+  };
+  const defaultPermissions = {
+    card: [
+      ['总览', '数据洞察', 'card:overview'],
+      ['名片管理', '名片查看', 'card:view'], ['名片管理', '名片编辑', 'card:edit'], ['名片管理', '名片删除', 'card:delete'],
+      ['访客雷达', '访客记录', 'visitor:view'], ['访客雷达', '访客导出', 'visitor:export'],
+      ['客户管理', '客户查看', 'customer:view'], ['客户管理', '客户编辑', 'customer:edit'], ['客户管理', '客户分配', 'customer:assign'],
+      ['人脉集市', '集市查看', 'market:view'], ['人脉集市', '集市管理', 'market:manage'], ['人脉集市', '名片交换', 'market:exchange'],
+      ['公海客户', '公海查看', 'pool:view'], ['公海客户', '公海领取', 'pool:claim'],
+      ['模板管理', '模板查看', 'template:view'], ['模板管理', '模板使用', 'template:use'],
+      ['成员管理', '成员查看', 'member:view'], ['成员管理', '成员管理', 'member:manage'],
+      ['系统设置', '设置查看', 'setting:view'], ['系统设置', '设置编辑', 'setting:edit'],
+    ],
+    panorama: [
+      ['总览', '数据洞察', 'pano:overview'],
+      ['方案管理', '方案查看', 'plan:view'], ['方案管理', '方案编辑', 'plan:edit'],
+      ['场景管理', '场景查看', 'scene:view'], ['场景管理', '场景编辑', 'scene:edit'], ['场景管理', '场景删除', 'scene:delete'],
+      ['分享渠道', '分享查看', 'share:view'], ['分享渠道', '分享配置', 'share:edit'],
+      ['系统设置', '设置查看', 'setting:view'], ['系统设置', '设置编辑', 'setting:edit'],
+    ],
+  };
+
+  const insPrice = db.prepare('INSERT INTO solution_pricing (solution_id, duration_months, agent_price, user_price, renew_price) VALUES (?, ?, ?, ?, ?)');
+  const insPerm = db.prepare('INSERT INTO solution_permissions (solution_id, module, module_label, key, label, enabled, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?)');
+
+  solutions.forEach((s) => {
+    // 分类归属
+    const cat = s.code === 'card' ? catId['名片营销'] : s.code === 'panorama' ? catId['空间展示'] : null;
+    if (cat && !db.prepare('SELECT id FROM solutions WHERE id = ? AND category_id IS NOT NULL').get(s.id)) {
+      db.prepare('UPDATE solutions SET category_id = ?, updated_at = datetime(\'now\') WHERE id = ?').run(cat, s.id);
+    }
+    // 默认价格
+    const priceCount = db.prepare('SELECT COUNT(*) AS n FROM solution_pricing WHERE solution_id = ?').get(s.id).n;
+    if (priceCount === 0 && defaultPricing[s.code]) {
+      defaultPricing[s.code].forEach((p) => insPrice.run(s.id, p.duration_months, p.agent_price, p.user_price, p.renew_price));
+    }
+    // 默认权限点
+    const permCount = db.prepare('SELECT COUNT(*) AS n FROM solution_permissions WHERE solution_id = ?').get(s.id).n;
+    if (permCount === 0 && defaultPermissions[s.code]) {
+      defaultPermissions[s.code].forEach(([module, label, key], idx) => {
+        insPerm.run(s.id, module, module, key, label, idx);
+      });
+    }
+  });
+}
+
 /** 存量库迁移（幂等） */
 function migrate(db) {
   // —— scenes 表：补字段 + project_id → plan_id ——
@@ -411,6 +466,72 @@ function migrate(db) {
   // —— solutions 表加 app_config 字段（应用注册中心）——
   if (!colExists(db, 'solutions', 'app_config')) {
     db.exec('ALTER TABLE solutions ADD COLUMN app_config TEXT');
+  }
+  // —— 方案中心：分类 / 基础设置扩展列（P0）——
+  if (!colExists(db, 'solutions', 'category_id')) {
+    db.exec('ALTER TABLE solutions ADD COLUMN category_id INTEGER');
+  }
+  if (!colExists(db, 'solutions', 'is_hot')) {
+    db.exec('ALTER TABLE solutions ADD COLUMN is_hot INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!colExists(db, 'solutions', 'status')) {
+    db.exec("ALTER TABLE solutions ADD COLUMN status TEXT NOT NULL DEFAULT 'on'");
+  }
+  if (!colExists(db, 'solutions', 'default_platform')) {
+    db.exec("ALTER TABLE solutions ADD COLUMN default_platform TEXT NOT NULL DEFAULT 'h5'");
+  }
+  if (!colExists(db, 'solutions', 'preview_images')) {
+    db.exec("ALTER TABLE solutions ADD COLUMN preview_images TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!colExists(db, 'solutions', 'virtual_use_count')) {
+    db.exec('ALTER TABLE solutions ADD COLUMN virtual_use_count INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!colExists(db, 'solutions', 'all_permissions')) {
+    db.exec('ALTER TABLE solutions ADD COLUMN all_permissions INTEGER NOT NULL DEFAULT 0');
+  }
+  // —— 方案分类表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS solution_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  // —— 方案价格表（0 表示永久）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS solution_pricing (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      solution_id INTEGER NOT NULL,
+      duration_months INTEGER NOT NULL DEFAULT 12,
+      agent_price REAL NOT NULL DEFAULT 0,
+      user_price REAL NOT NULL DEFAULT 0,
+      renew_price REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  // —— 方案权限点表 ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS solution_permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      solution_id INTEGER NOT NULL,
+      module TEXT NOT NULL DEFAULT '',
+      module_label TEXT NOT NULL DEFAULT '',
+      key TEXT NOT NULL DEFAULT '',
+      label TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  // —— 预置方案分类 ——
+  const catCount = db.prepare('SELECT COUNT(*) AS n FROM solution_categories').get().n;
+  if (catCount === 0) {
+    const insertCat = db.prepare('INSERT INTO solution_categories (name, icon, sort_order) VALUES (?, ?, ?)');
+    insertCat.run('名片营销', 'card', 1);
+    insertCat.run('空间展示', 'panorama', 2);
   }
   // 预置360全景解决方案
   const exists = db.prepare('SELECT id FROM solutions WHERE code = ?').get('panorama');
@@ -1298,6 +1419,9 @@ function migrate(db) {
   if (colExists(db, 'card_profile', 'id') && !colExists(db, 'card_profile', 'need_tags')) {
     db.exec("ALTER TABLE card_profile ADD COLUMN need_tags TEXT NOT NULL DEFAULT ''");
   }
+
+  // —— 方案中心 P0：补齐分类归属 + 默认价格/权限（放在全部方案预置之后，幂等） ——
+  seedSolutionDefaults(db);
 }
 
 /** 数据库行 -> 客户项目 API JSON（camelCase） */
@@ -1328,6 +1452,14 @@ export function toCustomer(row) {
 /** 数据库行 -> 解决方案 API JSON */
 export function toSolution(row) {
   if (!row) return null;
+  let appConfig = {};
+  if (row.app_config) {
+    try { appConfig = JSON.parse(row.app_config); } catch { appConfig = {}; }
+  }
+  let previewImages = [];
+  if (row.preview_images) {
+    try { previewImages = JSON.parse(row.preview_images); } catch { previewImages = []; }
+  }
   return {
     id: row.id,
     name: row.name,
@@ -1335,10 +1467,33 @@ export function toSolution(row) {
     description: row.description || '',
     icon: row.icon || '',
     enabled: Boolean(row.enabled),
+    status: row.status || 'on',
+    isHot: Boolean(row.is_hot),
+    categoryId: row.category_id || null,
+    defaultPlatform: row.default_platform || 'h5',
+    previewImages,
+    virtualUseCount: row.virtual_use_count || 0,
+    allPermissions: Boolean(row.all_permissions),
     sortOrder: row.sort_order || 0,
+    appConfig,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/** 方案中心：聚合价格与权限点（P0） */
+export function solutionDetail(db, id) {
+  const row = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
+  if (!row) return null;
+  const pricing = db
+    .prepare('SELECT id, duration_months, agent_price, user_price, renew_price FROM solution_pricing WHERE solution_id = ? ORDER BY duration_months ASC')
+    .all(id)
+    .map((p) => ({ id: p.id, durationMonths: p.duration_months, agentPrice: p.agent_price, userPrice: p.user_price, renewPrice: p.renew_price }));
+  const permissions = db
+    .prepare('SELECT id, module, module_label, key, label, enabled, sort_order FROM solution_permissions WHERE solution_id = ? ORDER BY sort_order ASC, id ASC')
+    .all(id)
+    .map((p) => ({ ...p, enabled: Boolean(p.enabled) }));
+  return { ...toSolution(row), pricing, permissions };
 }
 
 /** 数据库行 -> 方案 API JSON（camelCase，原 toProject） */

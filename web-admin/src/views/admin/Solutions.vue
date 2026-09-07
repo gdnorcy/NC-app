@@ -1,144 +1,145 @@
 <template>
-  <div>
-    <div class="page-header">
-      <h2 class="page-title">解决方案</h2>
-      <el-button type="primary" @click="showEdit = true"><el-icon><Plus /></el-icon>新建解决方案</el-button>
-    </div>
+  <div class="page">
     <div class="page-card">
-      <div class="solution-grid">
-        <div v-for="s in solutions" :key="s.id" class="solution-card" :class="{ disabled: !s.enabled }">
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">解决方案</h2>
+          <p class="page-desc">方案中心：管理可售卖的解决方案（基础设置 / 价格设置 / 权限设置）</p>
+        </div>
+        <div class="header-actions">
+          <el-select v-model="filterCategory" placeholder="全部分类" clearable style="width: 160px" @change="load">
+            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+          <el-select v-model="filterStatus" placeholder="全部状态" clearable style="width: 140px" @change="load">
+            <el-option label="上架中" value="on" />
+            <el-option label="已下架" value="off" />
+          </el-select>
+          <el-button type="primary" @click="$router.push('/solutions/new')">
+            <el-icon style="margin-right: 4px"><Plus /></el-icon>新建解决方案
+          </el-button>
+        </div>
+      </div>
+
+      <div class="solution-grid" v-loading="loading">
+        <div v-for="s in solutions" :key="s.id" class="solution-card" :class="{ off: s.status === 'off' }">
           <div class="solution-icon-wrap">
             <SIcon :name="getIconName(s)" size="xlarge" class="solution-icon" />
           </div>
-          <div class="solution-name">{{ s.name }}</div>
+          <div class="solution-name">
+            {{ s.name }}
+            <el-tag v-if="s.isHot" type="danger" size="small" class="hot-tag">热门</el-tag>
+          </div>
+          <div class="solution-cat">{{ categoryName(s.categoryId) }}</div>
           <div class="solution-desc">{{ s.description }}</div>
           <div class="solution-status">
-            <el-tag :type="s.enabled ? 'success' : 'info'" size="small">{{ s.enabled ? '已启用' : '已禁用' }}</el-tag>
+            <el-tag :type="s.status === 'on' ? 'success' : 'info'" size="small">
+              {{ s.status === 'on' ? '上架中' : '已下架' }}
+            </el-tag>
+            <el-tag type="info" size="small" effect="plain" class="use-tag">使用 {{ s.virtualUseCount + actualUseCount(s) }} 项目</el-tag>
           </div>
           <div class="solution-actions">
-            <el-button size="small" @click="edit(s)">编辑</el-button>
-            <el-button size="small" :type="s.enabled ? 'warning' : 'success'" @click="toggle(s)">
-              {{ s.enabled ? '禁用' : '启用' }}
+            <el-button size="small" type="primary" plain @click="$router.push(`/solutions/${s.id}/edit`)">编辑</el-button>
+            <el-button size="small" :type="s.status === 'on' ? 'warning' : 'success'" @click="toggleStatus(s)">
+              {{ s.status === 'on' ? '下架' : '上架' }}
             </el-button>
           </div>
         </div>
+        <el-empty v-if="!loading && !solutions.length" description="暂无解决方案" style="grid-column: 1 / -1" />
       </div>
     </div>
-    <el-dialog v-model="showEdit" :title="editing ? '编辑解决方案' : '新建解决方案'" width="500px">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="标识" required><el-input v-model="form.code" placeholder="如：panorama" /></el-form-item>
-        <el-form-item label="图标">
-          <div class="icon-picker">
-            <div v-for="ic in iconOptions" :key="ic.value"
-                 class="icon-option"
-                 :class="{ active: form.icon === ic.value }"
-                 @click="form.icon = ic.value">
-              <SIcon :name="ic.value" size="default" />
-            </div>
-          </div>
-        </el-form-item>
-        <el-form-item label="描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
-        <el-form-item label="排序"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
-        <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showEdit = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { fetchSolutions, createSolution, updateSolution } from '../../api';
+import { ref, onMounted } from 'vue';
+import { fetchSolutions, fetchSolutionCategories } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
 import SIcon from '../../components/SIcon.vue';
+import { updateSolution } from '../../api';
 
 const solutions = ref([]);
-const showEdit = ref(false);
-const editing = ref(null);
-const form = reactive({ name: '', code: '', icon: 'template', description: '', sortOrder: 0, enabled: true });
-
-// 可选图标列表
-const iconOptions = [
-  { value: 'panorama', label: '全景' },
-  { value: 'card', label: '名片' },
-  { value: 'devices', label: '多端' },
-  { value: 'template', label: '模板' },
-  { value: 'market', label: '集市' },
-  { value: 'chart', label: '数据' },
-  { value: 'building', label: '企业' },
-  { value: 'dynamic', label: '动态' },
-];
+const categories = ref([]);
+const loading = ref(false);
+const filterCategory = ref(null);
+const filterStatus = ref(null);
 
 function getIconName(s) {
-  // 优先用code映射，其次用保存的icon，最后默认template
   const codeMap = { panorama: 'panorama', card: 'card', channel: 'devices' };
   return codeMap[s.code] || s.icon || 'template';
 }
+function categoryName(id) {
+  const c = categories.value.find((x) => x.id === id);
+  return c ? c.name : '';
+}
+function actualUseCount(s) {
+  // 实际使用项目数 = 已开通该方案的客户项目数（由虚拟+实际展示，实际数前端近似取 app_config 或 0）
+  return 0;
+}
 
 async function load() {
-  try { solutions.value = (await fetchSolutions()).solutions || []; } catch (e) { ElMessage.error(e); }
-}
-function edit(row) { editing.value = row; Object.assign(form, row); showEdit.value = true; }
-async function save() {
+  loading.value = true;
   try {
-    if (editing.value) await updateSolution(editing.value.id, form);
-    else await createSolution(form);
-    ElMessage.success('保存成功'); showEdit.value = false; load();
-  } catch (e) { ElMessage.error(e); }
+    const params = {};
+    if (filterCategory.value) params.categoryId = filterCategory.value;
+    if (filterStatus.value) params.status = filterStatus.value;
+    solutions.value = (await fetchSolutions(params)).solutions || [];
+  } catch (e) {
+    ElMessage.error(e);
+  } finally {
+    loading.value = false;
+  }
 }
-async function toggle(row) {
-  const action = row.enabled ? '禁用' : '启用';
+
+async function loadCategories() {
   try {
-    await ElMessageBox.confirm(`确定${action}「${row.name}」？${row.enabled ? '禁用后新客户不可选择，已开通的客户不受影响。' : ''}`, '确认', { type: 'warning' });
-    await updateSolution(row.id, { ...row, enabled: !row.enabled });
+    categories.value = (await fetchSolutionCategories()).categories || [];
+  } catch (e) { /* 分类加载失败不阻塞 */ }
+}
+
+async function toggleStatus(s) {
+  const action = s.status === 'on' ? '下架' : '上架';
+  try {
+    await ElMessageBox.confirm(
+      `确定${action}「${s.name}」？${s.status === 'on' ? '下架后租户应用中心不再展示，已开通客户不受影响。' : ''}`,
+      '确认',
+      { type: 'warning' }
+    );
+    await updateSolution(s.id, { status: s.status === 'on' ? 'off' : 'on' });
     ElMessage.success(`${action}成功`);
     load();
-  } catch (e) {}
+  } catch (e) { /* 取消或失败 */ }
 }
-onMounted(load);
+
+onMounted(() => {
+  loadCategories();
+  load();
+});
 </script>
 
 <style scoped>
-.solution-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-.solution-card { background: #fff; border-radius: 10px; padding: 28px 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: all 0.2s; }
-.solution-card:hover { box-shadow: 0 4px 16px rgba(22,93,255,0.12); }
+.page { padding: 20px; }
+.page-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.page-title { font-size: 18px; font-weight: 600; color: #1D2129; margin: 0; }
+.page-desc { font-size: 13px; color: #86909C; margin: 6px 0 0; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.solution-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.solution-card { background: #fff; border: 1px solid #E5E6EB; border-radius: 10px; padding: 24px; text-align: center; transition: all 0.2s; }
+.solution-card:hover { box-shadow: 0 4px 16px rgba(22,93,255,0.10); border-color: rgba(22,93,255,0.2); }
 .solution-card:hover .solution-icon-wrap { background: rgba(22,93,255,0.12); }
-.solution-card:hover .solution-icon { color: #165dff; }
-.solution-card.disabled { opacity: 0.5; }
+.solution-card:hover .solution-icon { color: #165DFF; }
+.solution-card.off { opacity: 0.6; background: #FAFAFA; }
 .solution-icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: rgba(22,93,255,0.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  transition: all 0.2s;
+  width: 56px; height: 56px; border-radius: 14px; background: rgba(22,93,255,0.06);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; transition: all 0.2s;
 }
-.solution-icon { color: #4e5969; transition: color 0.2s; }
-.solution-name { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
-.solution-desc { font-size: 13px; color: #86909c; margin-bottom: 12px; min-height: 40px; line-height: 1.5; }
-.solution-status { margin-bottom: 12px; }
+.solution-icon { color: #4E5969; transition: color 0.2s; }
+.solution-name { font-size: 16px; font-weight: 600; color: #1D2129; margin-bottom: 4px; }
+.hot-tag { margin-left: 6px; }
+.solution-cat { font-size: 12px; color: #86909C; margin-bottom: 8px; }
+.solution-desc { font-size: 13px; color: #86909C; margin-bottom: 12px; min-height: 40px; line-height: 1.5; }
+.solution-status { margin-bottom: 14px; display: flex; gap: 6px; justify-content: center; align-items: center; }
+.use-tag { font-weight: 400; }
 .solution-actions { display: flex; gap: 8px; justify-content: center; }
-.icon-picker { display: flex; flex-wrap: wrap; gap: 8px; }
-.icon-option {
-  width: 40px;
-  height: 40px;
-  border: 1px solid #e5e6eb;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #4e5969;
-  transition: all 0.2s;
-}
-.icon-option:hover { border-color: #165dff; color: #165dff; }
-.icon-option.active { border-color: #165dff; background: rgba(22,93,255,0.08); color: #165dff; }
 </style>

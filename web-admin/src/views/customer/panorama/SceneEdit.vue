@@ -137,7 +137,7 @@ onMounted(async () => {
 async function handleUpload(file) {
   try {
     const fd = new FormData();
-    fd.append('image', file.raw);
+    fd.append('file', file.raw);
     const res = await customerApiCall.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     form.imagePath = res.path; form.previewPath = res.previewPath;
     ElMessage.success('上传成功');

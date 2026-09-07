@@ -23,7 +23,18 @@
           <SIcon name="users" size="default" />
           <span>用户管理</span>
         </el-menu-item>
-        <el-menu-item index="/solutions">
+        <template v-if="isAdmin">
+          <div class="menu-group-title">方案中心</div>
+          <el-menu-item index="/solutions">
+            <SIcon name="solutions" size="default" />
+            <span>解决方案</span>
+          </el-menu-item>
+          <el-menu-item index="/solution-categories">
+            <SIcon name="palette" size="default" />
+            <span>方案分类</span>
+          </el-menu-item>
+        </template>
+        <el-menu-item v-if="!isAdmin" index="/solutions">
           <SIcon name="solutions" size="default" />
           <span>解决方案</span>
         </el-menu-item>

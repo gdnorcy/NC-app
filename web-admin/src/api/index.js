@@ -100,7 +100,7 @@ export const updateScene = (id, data) => adminApi.put(`/scenes/${id}`, data);
 export const deleteScene = (id) => adminApi.delete(`/scenes/${id}`);
 export const uploadImage = (file) => {
   const fd = new FormData();
-  fd.append('image', file);
+  fd.append('file', file);
   return adminApi.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
 };
 
@@ -112,10 +112,18 @@ export const deleteUser = (id) => adminApi.delete(`/users/${id}`);
 export const resetUserPassword = (id) => adminApi.post(`/users/${id}/reset-password`);
 
 // 解决方案
-export const fetchSolutions = () => adminApi.get('/solutions');
+export const fetchSolutions = (params) => adminApi.get('/solutions', { params });
 export const createSolution = (data) => adminApi.post('/solutions', data);
 export const updateSolution = (id, data) => adminApi.put(`/solutions/${id}`, data);
 export const deleteSolution = (id) => adminApi.delete(`/solutions/${id}`);
+export const saveSolutionPricing = (id, data) => adminApi.put(`/solutions/${id}/pricing`, data);
+export const saveSolutionPermissions = (id, data) => adminApi.put(`/solutions/${id}/permissions`, data);
+
+// 方案分类
+export const fetchSolutionCategories = () => adminApi.get('/solutions/categories');
+export const createSolutionCategory = (data) => adminApi.post('/solutions/categories', data);
+export const updateSolutionCategory = (id, data) => adminApi.put(`/solutions/categories/${id}`, data);
+export const deleteSolutionCategory = (id) => adminApi.delete(`/solutions/categories/${id}`);
 
 // 设置
 export const fetchSettings = () => adminApi.get('/settings');
