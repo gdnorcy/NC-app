@@ -31,6 +31,12 @@
         <div class="tpl-body">
           <div class="tpl-title">{{ t.name }}</div>
           <div class="tpl-desc">{{ t.description || (t.tenantId === 0 ? '平台提供 · 全员可用' : '本租户私有模板') }}</div>
+          <div class="tpl-price-line">
+            <span v-if="t.tenantId === 0" class="tpl-price" :class="Number(t.price || 0) > 0 ? 'paid' : 'free'">
+              {{ Number(t.price || 0) > 0 ? `¥${Number(t.price)}` : '免费' }}
+            </span>
+            <el-tag v-if="t.tenantId === 0 && Number(t.price || 0) > 0 && t.purchased" size="small" type="success" effect="plain">已购买</el-tag>
+          </div>
           <div class="tpl-status" :class="t.enabled ? 'on' : 'off'">{{ t.enabled ? '已启用' : '已停用' }}</div>
         </div>
         <div class="tpl-actions" v-if="t.tenantId !== 0">
@@ -39,7 +45,10 @@
           <button class="btn-text danger" @click="remove(t)">删除</button>
         </div>
         <div class="tpl-actions disabled-note" v-else>
-          <span class="use-hint">租户全员可用</span>
+          <span v-if="Number(t.price || 0) > 0 && !t.purchased" class="buy-wrap">
+            <button class="btn-buy" :disabled="buyingId === t.id" @click="buyTemplate(t)">{{ buyingId === t.id ? '购买中…' : '购买使用' }}</button>
+          </span>
+          <span v-else class="use-hint">{{ Number(t.price || 0) > 0 ? '已购买 · 全员可用' : '免费 · 租户全员可用' }}</span>
         </div>
       </div>
     </div>
@@ -96,6 +105,7 @@ import { customerApiCall } from '../../../../api';
 import CardTabs from './CardTabs.vue';
 
 const templates = ref([]);
+const buyingId = ref(null);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const saving = ref(false);
@@ -104,6 +114,20 @@ const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff',
 async function load() {
   const res = await customerApiCall.get('/card/templates');
   templates.value = res.templates || [];
+}
+
+async function buyTemplate(t) {
+  if (buyingId.value) return;
+  buyingId.value = t.id;
+  try {
+    await customerApiCall.post(`/card/templates/${t.id}/purchase`);
+    ElMessage.success(`已购买「${t.name}」，租户全员可用`);
+    await load();
+  } catch (e) {
+    ElMessage.error(e || '购买失败');
+  } finally {
+    buyingId.value = null;
+  }
 }
 
 const coverStyle = (t) => {
@@ -192,8 +216,15 @@ onMounted(load);
 .tpl-status.off { background: rgba(134,144,156,0.1); color: #86909c; }
 .enable-hint { margin-left: 10px; font-size: 12px; color: #86909c; }
 .tpl-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid #f2f3f5; }
+.tpl-price-line { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.tpl-price { display: inline-block; font-size: 13px; font-weight: 600; }
+.tpl-price.free { color: #00b42a; }
+.tpl-price.paid { color: #ff7d00; }
 .tpl-actions.disabled-note { justify-content: center; }
 .use-hint { font-size: 12px; color: #86909c; }
+.btn-buy { background: #165dff; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; transition: opacity 0.2s; }
+.btn-buy:hover { opacity: 0.85; }
+.btn-buy:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-text { background: none; border: none; color: #165dff; font-size: 13px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .btn-text:hover { background: #f2f3f5; }
 .btn-text.danger { color: #f53f3f; }

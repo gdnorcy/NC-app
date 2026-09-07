@@ -72,17 +72,25 @@
           </el-form-item>
           <el-form-item label="集市风格">
             <div class="style-picker">
-              <div class="style-option" :class="{ active: settings.style === 'A' }" @click="settings.style = 'A'">
-                <div class="style-name">方案A · 角标权重</div>
-                <div class="style-desc">置顶/新入驻角标融入双列卡片流，默认推荐</div>
-              </div>
-              <div class="style-option" :class="{ active: settings.style === 'B' }" @click="settings.style = 'B'">
-                <div class="style-name">方案B · 重点会员</div>
-                <div class="style-desc">顶部横向重点会员专区 + 双列普通列表</div>
-              </div>
-              <div class="style-option" :class="{ active: settings.style === 'C' }" @click="settings.style = 'C'">
-                <div class="style-name">方案C · 分类页签</div>
-                <div class="style-desc">全部/置顶/新入驻三 Tab，适合大租户</div>
+              <div
+                v-for="s in styles"
+                :key="s.key"
+                class="style-option"
+                :class="{ active: settings.style === s.key, locked: !s.purchased }"
+                @click="s.purchased && (settings.style = s.key)"
+              >
+                <div class="style-head">
+                  <span class="style-name">{{ s.name }}</span>
+                  <el-tag v-if="s.isDefault" size="small" type="success" effect="plain">默认</el-tag>
+                  <el-tag v-else-if="s.purchased" size="small" type="primary" effect="plain">已购买</el-tag>
+                  <el-tag v-else size="small" effect="plain">{{ formatPrice(s.price) }}</el-tag>
+                </div>
+                <div class="style-desc">{{ s.description }}</div>
+                <div v-if="!s.purchased" class="style-buy">
+                  <el-button type="primary" size="small" :loading="buyingKey === s.key" @click.stop="buyStyle(s)">
+                    购买使用
+                  </el-button>
+                </div>
               </div>
             </div>
           </el-form-item>
@@ -179,6 +187,8 @@ const settings = ref({
   style: 'A',
   notice: ''
 });
+const styles = ref([]);
+const buyingKey = ref('');
 const marketItems = ref([]);
 const stats = ref({ visitCount: 0, exchangeCount: 0, itemCount: 0, pendingCount: 0 });
 
@@ -187,6 +197,25 @@ onMounted(() => {
   loadMarketItems();
   loadStats();
 });
+
+function formatPrice(v) {
+  const n = Number(v || 0);
+  return n > 0 ? `¥${n}` : '免费';
+}
+
+async function buyStyle(s) {
+  if (buyingKey.value) return;
+  buyingKey.value = s.key;
+  try {
+    await publicApi.post('/card-market/market/assets/purchase', { style: s.key });
+    ElMessage.success(`已购买「${s.name}」，可立即切换使用`);
+    await loadSettings();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.error || '购买失败');
+  } finally {
+    buyingKey.value = '';
+  }
+}
 
 async function loadStats() {
   try {
@@ -199,6 +228,7 @@ async function loadSettings() {
   try {
     const res = await publicApi.get('/card-market/market/settings');
     if (res.settings) settings.value = res.settings;
+    if (Array.isArray(res.styles)) styles.value = res.styles;
   } catch (e) {
     console.error('加载配置失败', e);
   }
@@ -279,11 +309,14 @@ async function forceRemove(row) {
 .card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f2f3f5; }
 .card-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #1d2129; }
 .card-body { padding: 20px; }
-.style-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; max-width: 860px; }
-.style-option { padding: 14px 16px; border: 1px solid #e5e6eb; border-radius: 8px; cursor: pointer; transition: all .2s; }
+.style-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; max-width: 860px; }
+.style-option { padding: 14px 16px; border: 1px solid #e5e6eb; border-radius: 8px; cursor: pointer; transition: all .2s; position: relative; }
 .style-option:hover { border-color: #165dff; }
 .style-option.active { border-color: #165dff; background: #e8f3ff; box-shadow: 0 2px 8px rgba(22,93,255,0.08); }
+.style-option.locked { cursor: default; background: #fafafc; }
+.style-head { display: flex; align-items: center; gap: 8px; }
 .style-name { font-size: 14px; font-weight: 600; color: #1d2129; }
 .style-desc { font-size: 12px; color: #86909c; margin-top: 4px; line-height: 1.5; }
+.style-buy { margin-top: 10px; }
 .hint-text { font-size: 13px; color: #86909c; margin: 0; }
 </style>
