@@ -133,7 +133,7 @@ export function createCardRouter(db, wxService) {
   router.get('/templates', auth, (req, res) => {
     try {
       const rows = db.prepare(
-        'SELECT * FROM card_templates WHERE (tenant_id = 0 AND enabled = 1) OR tenant_id = ? ORDER BY tenant_id, sort_order, id DESC'
+        'SELECT * FROM card_templates WHERE (tenant_id = 0 AND enabled = 1) OR (tenant_id = ? AND enabled = 1) ORDER BY tenant_id, sort_order, id DESC'
       ).all(req.customerId || 0);
       res.json({ templates: rows.map((t) => ({ id: t.id, name: t.name, cover: t.cover, description: t.description, themeConfig: (() => { try { return JSON.parse(t.theme_config); } catch { return {}; } })(), tenantId: t.tenant_id })) });
     } catch (e) { res.status(500).json({ error: e.message }); }

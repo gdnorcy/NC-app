@@ -31,8 +31,10 @@
         <div class="tpl-body">
           <div class="tpl-title">{{ t.name }}</div>
           <div class="tpl-desc">{{ t.description || (t.tenantId === 0 ? '平台提供 · 全员可用' : '本租户私有模板') }}</div>
+          <div class="tpl-status" :class="t.enabled ? 'on' : 'off'">{{ t.enabled ? '已启用' : '已停用' }}</div>
         </div>
         <div class="tpl-actions" v-if="t.tenantId !== 0">
+          <button class="btn-text" @click="toggleEnable(t)">{{ t.enabled ? '停用' : '启用' }}</button>
           <button class="btn-text" @click="openEdit(t)">编辑</button>
           <button class="btn-text danger" @click="remove(t)">删除</button>
         </div>
@@ -74,6 +76,10 @@
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" />
         </el-form-item>
+        <el-form-item label="启用状态">
+          <el-switch v-model="form.enabled" />
+          <span class="enable-hint">{{ form.enabled ? '员工创建名片时可选' : '停用后员工不可选用' }}</span>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -93,7 +99,7 @@ const templates = ref([]);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const saving = ref(false);
-const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0 });
+const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true });
 
 async function load() {
   const res = await customerApiCall.get('/card/templates');
@@ -107,12 +113,12 @@ const coverStyle = (t) => {
 
 function openCreate() {
   isEdit.value = false;
-  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0 };
+  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true };
   dialogVisible.value = true;
 }
 function openEdit(t) {
   isEdit.value = true;
-  form.value = { id: t.id, name: t.name, description: t.description, themeConfig: { ...t.themeConfig }, sortOrder: t.sortOrder };
+  form.value = { id: t.id, name: t.name, description: t.description, themeConfig: { ...t.themeConfig }, sortOrder: t.sortOrder, enabled: !!t.enabled };
   dialogVisible.value = true;
 }
 async function save() {
@@ -129,6 +135,15 @@ async function save() {
     ElMessage.error(e || '保存失败');
   } finally {
     saving.value = false;
+  }
+}
+async function toggleEnable(t) {
+  try {
+    await customerApiCall.put(`/card/templates/${t.id}`, { enabled: !t.enabled });
+    ElMessage.success(t.enabled ? '已停用' : '已启用');
+    load();
+  } catch (e) {
+    ElMessage.error(e || '操作失败');
   }
 }
 async function remove(t) {
@@ -172,6 +187,10 @@ onMounted(load);
 .tpl-body { padding: 12px 16px; flex: 1; }
 .tpl-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .tpl-desc { font-size: 12px; color: #86909c; margin-top: 4px; }
+.tpl-status { display: inline-block; margin-top: 8px; font-size: 11px; padding: 2px 10px; border-radius: 999px; }
+.tpl-status.on { background: rgba(0,180,42,0.1); color: #00b42a; }
+.tpl-status.off { background: rgba(134,144,156,0.1); color: #86909c; }
+.enable-hint { margin-left: 10px; font-size: 12px; color: #86909c; }
 .tpl-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid #f2f3f5; }
 .tpl-actions.disabled-note { justify-content: center; }
 .use-hint { font-size: 12px; color: #86909c; }

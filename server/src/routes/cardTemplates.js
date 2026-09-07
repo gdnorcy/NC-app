@@ -29,12 +29,12 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
   // ============ 新建 ============
   router.post('/templates', (req, res) => {
     try {
-      const { name, cover = '', themeConfig = {}, description = '', sortOrder = 0 } = req.body || {};
+      const { name, cover = '', themeConfig = {}, description = '', sortOrder = 0, enabled = true } = req.body || {};
       if (!name) return res.status(400).json({ error: '模板名称必填' });
       const tenantId = isAdmin ? 0 : req.user.customerId;
       const r = db.prepare(
-        'INSERT INTO card_templates (tenant_id, name, cover, theme_config, description, enabled, sort_order) VALUES (?, ?, ?, ?, ?, 1, ?)'
-      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), Number(sortOrder) || 0);
+        'INSERT INTO card_templates (tenant_id, name, cover, theme_config, description, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), enabled ? 1 : 0, Number(sortOrder) || 0);
       const row = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(r.lastInsertRowid);
       res.json({ template: toTemplate(row) });
     } catch (e) { res.status(500).json({ error: e.message }); }
