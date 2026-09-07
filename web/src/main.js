@@ -1,6 +1,7 @@
 import { fetchProjects, fetchProject, fetchShare, fetchPublicSettings } from './api.js';
 import { PanoramaViewer } from './viewer/PanoramaViewer.js';
 import { parseViewPath } from './routing.js';
+import { track } from './analytics.js';
 
 // 生产模式注册 Service Worker：全景图/静态资源缓存，秒开与离线可用
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -54,6 +55,7 @@ window.panoramaViewer = viewer; // 暴露到window方便调试
 
 // 热点点击回调
 viewer.onHotspotClick = (hs) => {
+  track('hotspot_click', { sceneId: activeIndex >= 0 ? scenes[activeIndex].id : 0, targetSceneId: hs.targetSceneId || null, hotspotType: hs.type || '' });
   if (hs.type === 'scene' && hs.targetSceneId) {
     const idx = scenes.findIndex((s) => s.id === hs.targetSceneId);
     if (idx >= 0) selectScene(idx, { force: true });
@@ -103,6 +105,7 @@ function enterProjectView(projectData, scenesData, initialIndex = 0) {
   projectNameEl.textContent = project.name;
   viewer.onResize(); // 从隐藏态变为可见后校正渲染尺寸
   renderSceneList();
+  track('panorama_view', { planId: project.id, sceneCount: scenes.length });
   return selectScene(initialIndex, { force: true });
 }
 
@@ -223,6 +226,7 @@ async function selectScene(i, { force = false } = {}) {
   // 停止上一个场景的音频
   stopSceneAudio();
   await viewer.load(scene.imagePath, scene.previewPath, scene.pyramid, { initialView: meta.initialView });
+  track('scene_view', { sceneId: scene.id, planId: project ? project.id : 0 });
   // 加载热点
   viewer.setHotspots(scene.hotspots || []);
   // 内容增强
@@ -380,6 +384,7 @@ window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
 
 // ---- 启动 ----
 async function init() {
+  track('page_view');
   // 加载公开设置（站点名称、版权）
   try {
     const { settings } = await fetchPublicSettings();

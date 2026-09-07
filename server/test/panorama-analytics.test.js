@@ -119,6 +119,22 @@ test('B4 全景健康分：方案/场景资产 + 访客 + 转化 + 互动', asyn
   assert.ok(h.score > 0 && h.advice.length >= 0);
 });
 
+test('B6 游客全景事件：sceneId 反查租户归属', async () => {
+  // 无 token 游客，事件只带 sceneId（scene1 属于 plans.project_id=1）
+  const r = await request(app).post('/api/card/analytics/events')
+    .send({ solution: 'panorama', events: [{ eventType: 'scene_view', sceneId: 1, visitorKey: 'guest-xyz' }] });
+  assert.equal(r.status, 200);
+  const row = db.prepare("SELECT tenant_id FROM analytics_events WHERE visitor_key = 'guest-xyz'").get();
+  assert.equal(row.tenant_id, 1, '游客 sceneId 反查归属租户1');
+
+  // 不存在的场景：tenant_id 保持 0（不入租户账）
+  const r2 = await request(app).post('/api/card/analytics/events')
+    .send({ solution: 'panorama', events: [{ eventType: 'scene_view', sceneId: 99999, visitorKey: 'guest-null' }] });
+  assert.equal(r2.status, 200);
+  const row2 = db.prepare("SELECT tenant_id FROM analytics_events WHERE visitor_key = 'guest-null'").get();
+  assert.equal(row2.tenant_id, 0);
+});
+
 test('B5 solution 隔离：card 事件不进入全景洞察', async () => {
   // 写入 card 事件（默认 card solution）
   await postEvents([

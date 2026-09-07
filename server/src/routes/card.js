@@ -671,6 +671,14 @@ export function createCardRouter(db, wxService) {
         ).get(Number(anyCard.cardId));
         if (owner) tenantId = owner.customer_id || 0;
       }
+      // 全景游客事件：sceneId → scenes → plans → project_id 反查租户
+      const anyScene = events.find((e) => e.sceneId);
+      if (!tenantId && anyScene) {
+        const owner = db.prepare(
+          'SELECT p.project_id AS cid FROM scenes sc JOIN plans p ON sc.plan_id = p.id WHERE sc.id = ?'
+        ).get(Number(anyScene.sceneId));
+        if (owner) tenantId = owner.cid || 0;
+      }
       // solution 白名单：card（名片）/ panorama（全景），默认 card
       const solution = ['card', 'panorama'].includes(req.body?.solution) ? req.body.solution : 'card';
       const result = trackEvents(db, tenantId, solution, events);
