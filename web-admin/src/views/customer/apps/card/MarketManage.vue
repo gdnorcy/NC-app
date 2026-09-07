@@ -87,9 +87,10 @@
                 </div>
                 <div class="style-desc">{{ s.description }}</div>
                 <div v-if="!s.purchased" class="style-buy">
-                  <el-button type="primary" size="small" :loading="buyingKey === s.key" @click.stop="buyStyle(s)">
+                  <el-button v-if="isTenantAdmin" type="primary" size="small" :loading="buyingKey === s.key" @click.stop="buyStyle(s)">
                     购买使用
                   </el-button>
+                  <span v-else class="buy-tip">需租户管理员购买</span>
                 </div>
               </div>
             </div>
@@ -169,11 +170,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
 import { publicApi } from '../../../../api';
 import CardTabs from './CardTabs.vue';
+
+const isTenantAdmin = computed(() => ['tenant_admin', 'admin'].includes(JSON.parse(localStorage.getItem('customer_user') || 'null')?.role));
 
 const settings = ref({
   enabled: 1,
@@ -318,5 +321,6 @@ async function forceRemove(row) {
 .style-name { font-size: 14px; font-weight: 600; color: #1d2129; }
 .style-desc { font-size: 12px; color: #86909c; margin-top: 4px; line-height: 1.5; }
 .style-buy { margin-top: 10px; }
+.buy-tip { font-size: 12px; color: #86909c; }
 .hint-text { font-size: 13px; color: #86909c; margin: 0; }
 </style>

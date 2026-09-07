@@ -46,7 +46,8 @@
         </div>
         <div class="tpl-actions disabled-note" v-else>
           <span v-if="Number(t.price || 0) > 0 && !t.purchased" class="buy-wrap">
-            <button class="btn-buy" :disabled="buyingId === t.id" @click="buyTemplate(t)">{{ buyingId === t.id ? '购买中…' : '购买使用' }}</button>
+            <button v-if="isTenantAdmin" class="btn-buy" :disabled="buyingId === t.id" @click="buyTemplate(t)">{{ buyingId === t.id ? '购买中…' : '购买使用' }}</button>
+            <span v-else class="use-hint">需租户管理员购买</span>
           </span>
           <span v-else class="use-hint">{{ Number(t.price || 0) > 0 ? '已购买 · 全员可用' : '免费 · 租户全员可用' }}</span>
         </div>
@@ -99,10 +100,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { customerApiCall } from '../../../../api';
 import CardTabs from './CardTabs.vue';
+
+const isTenantAdmin = computed(() => ['tenant_admin', 'admin'].includes(JSON.parse(localStorage.getItem('customer_user') || 'null')?.role));
 
 const templates = ref([]);
 const buyingId = ref(null);
