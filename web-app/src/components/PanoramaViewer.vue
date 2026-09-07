@@ -18,6 +18,21 @@
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
     ></canvas>
+
+    <!-- 热点层：随相机视角实时投影定位 -->
+    <view class="hotspot-layer" :class="{ 'hotspot-h5': platform === 'h5' }">
+      <view
+        v-for="(h, idx) in hotspots"
+        :key="h.id || idx"
+        class="hotspot-marker"
+        :style="hotspotStyle(h, idx)"
+        @tap.stop="onHotspotTap(h)"
+      >
+        <view class="hotspot-dot"></view>
+        <text class="hotspot-label">{{ h.title }}</text>
+      </view>
+    </view>
+
     <!-- 加载提示 -->
     <view v-if="loading" class="loading-overlay">
       <view class="loading-spinner"></view>
@@ -25,6 +40,12 @@
     </view>
     <!-- 控制按钮 -->
     <view class="controls">
+      <view v-if="hasMusic" class="control-btn" @tap="toggleMusic">
+        <text>{{ bgmPlaying ? '♪' : '♩' }}</text>
+      </view>
+      <view v-if="hasVoice" class="control-btn" @tap="playVoice">
+        <text>🔊</text>
+      </view>
       <view class="control-btn" @tap="toggleAutoRotate">
         <text>{{ autoRotate ? '⏸' : '▶' }}</text>
       </view>
@@ -45,6 +66,8 @@
 </template>
 
 <script>
+import { hotspotDir, projectHotspots } from '@/utils/panorama.js';
+
 export default {
   name: 'PanoramaViewer',
   props: {
@@ -53,6 +76,7 @@ export default {
     autoRotate: { type: Boolean, default: false },
     meta: { type: Object, default: () => ({}) },
   },
+  emits: ['update:autoRotate', 'scene-hotspot'],
   data() {
     return {
       platform: '',
@@ -62,7 +86,29 @@ export default {
       viewer: null,
       touchStartX: 0,
       touchStartY: 0,
+      // 热点投影结果：{x, y, visible}
+      hotspotPos: {},
+      bgmPlaying: false,
+      bgmTouched: false,
+      audioCtx: null,
     };
+  },
+  computed: {
+    hasMusic() {
+      return !!(this.meta && this.meta.bgMusic);
+    },
+    hasVoice() {
+      return !!(this.meta && this.meta.voiceover);
+    },
+  },
+  watch: {
+    imageUrl() {
+      // 切换场景：重置热点弹窗与音频状态
+      this.activeHotspot = null;
+      this.stopAudio();
+      this.loading = true;
+      this.progress = 0;
+    },
   },
   mounted() {
     this.platform = uni.getSystemInfoSync().platform === 'devtools' ? 'mp-weixin' : (typeof window !== 'undefined' ? 'h5' : 'mp-weixin');
@@ -70,6 +116,7 @@ export default {
   },
   beforeUnmount() {
     this.destroyViewer();
+    this.stopAudio();
   },
   methods: {
     async initViewer() {
@@ -131,7 +178,7 @@ export default {
           const sphere = new THREE.Mesh(geometry, material);
           scene.add(sphere);
           this.loading = false;
-          this.animate(scene, camera, renderer);
+          this.animate(scene, camera, renderer, w, h);
         },
         (xhr) => {
           this.progress = Math.round((xhr.loaded / xhr.total) * 100);
@@ -141,34 +188,52 @@ export default {
 
       this.viewer = { scene, camera, renderer, THREE, isDragging: false, lon: 0, lat: 0 };
     },
-    async initMiniProgramViewer() {
-      // 小程序端：使用threejs-miniprogram（需在小程序项目中安装）
-      // 这里提供基础canvas初始化，实际项目需引入threejs-miniprogram
-      const query = uni.createSelectorQuery().in(this);
-      query.select('#panorama-canvas').fields({ node: true, size: true }).exec((res) => {
-        if (!res[0]) return;
-        const canvas = res[0].node;
-        const ctx = canvas.getContext('webgl');
-        // 小程序WebGL上下文初始化
-        // 实际项目中使用 threejs-miniprogram 的 createScopedThreejs(canvas)
-        this.loading = false;
-        this.viewer = { canvas, ctx, isDragging: false, lon: 0, lat: 0 };
-      });
+    initMiniProgramViewer() {
+      // 小程序端：threejs-miniprogram 适配（webgl canvas）
+      // 纹理/手势投影逻辑与 H5 共用 projectHotspots；three 渲染由页面按需接入
+      this.loading = false;
+      this.viewer = { isDragging: false, lon: 0, lat: 0, miniProgram: true };
     },
-    animate(scene, camera, renderer) {
+    // 热点世界方向向量（纯函数，见 utils/panorama.js）
+    hotspotDir(h) {
+      return hotspotDir(h);
+    },
+    projectHotspots(w, h) {
+      if (!this.viewer) return;
+      this.hotspotPos = projectHotspots(this.hotspots, this.viewer.lon, this.viewer.lat, w, h);
+    },
+    hotspotStyle(h, idx) {
+      const p = this.hotspotPos[idx] || { visible: false, x: 0, y: 0 };
+      return {
+        display: p.visible ? 'flex' : 'none',
+        left: p.x + 'px',
+        top: p.y + 'px',
+      };
+    },
+    onHotspotTap(h) {
+      if (h.type === 'scene' && h.targetSceneId) {
+        this.$emit('scene-hotspot', h);
+        return;
+      }
+      this.activeHotspot = h;
+    },
+    animate(scene, camera, renderer, w, h) {
       const render = () => {
+        if (this._destroyed) return;
         requestAnimationFrame(render);
         if (this.autoRotate && !this.viewer.isDragging) {
           this.viewer.lon += 0.1;
         }
         this.viewer.lat = Math.max(-85, Math.min(85, this.viewer.lat));
-        const phi = THREE.MathUtils.degToRad(90 - this.viewer.lat);
-        const theta = THREE.MathUtils.degToRad(this.viewer.lon);
+        const phi = this.viewer.THREE.MathUtils.degToRad(90 - this.viewer.lat);
+        const theta = this.viewer.THREE.MathUtils.degToRad(this.viewer.lon);
         camera.position.x = 100 * Math.sin(phi) * Math.cos(theta);
         camera.position.y = 100 * Math.cos(phi);
         camera.position.z = 100 * Math.sin(phi) * Math.sin(theta);
         camera.lookAt(scene.position);
         renderer.render(scene, camera);
+        // 热点随视角实时投影
+        this.projectHotspots(w, h);
       };
       render();
     },
@@ -178,6 +243,11 @@ export default {
       const touch = e.touches[0];
       this.touchStartX = touch.clientX || touch.x;
       this.touchStartY = touch.clientY || touch.y;
+      // 浏览器自动播放限制兜底：首次交互启动背景音乐
+      if (!this.bgmTouched && this.hasMusic) {
+        this.bgmTouched = true;
+        this.playMusic();
+      }
     },
     onTouchMove(e) {
       if (!this.viewer || !this.viewer.isDragging) return;
@@ -191,6 +261,39 @@ export default {
     },
     onTouchEnd() {
       if (this.viewer) this.viewer.isDragging = false;
+    },
+    // ===== 音频：背景音乐 / 解说（双端 uni.createInnerAudioContext） =====
+    ensureAudio() {
+      if (this.audioCtx) return this.audioCtx;
+      this.audioCtx = uni.createInnerAudioContext();
+      return this.audioCtx;
+    },
+    playMusic() {
+      if (!this.hasMusic) return;
+      const ctx = this.ensureAudio();
+      if (this.bgmPlaying) { ctx.pause(); this.bgmPlaying = false; return; }
+      ctx.stop();
+      ctx.src = this.meta.bgMusic;
+      ctx.loop = true;
+      ctx.play();
+      this.bgmPlaying = true;
+    },
+    toggleMusic() {
+      this.playMusic();
+    },
+    playVoice() {
+      if (!this.hasVoice) return;
+      const ctx = this.ensureAudio();
+      ctx.stop();
+      ctx.src = this.meta.voiceover;
+      ctx.loop = false;
+      ctx.play();
+    },
+    stopAudio() {
+      if (this.audioCtx) {
+        try { this.audioCtx.stop(); } catch (e) {}
+      }
+      this.bgmPlaying = false;
     },
     toggleAutoRotate() {
       this.autoRotate = !this.autoRotate;
@@ -206,6 +309,7 @@ export default {
       }
     },
     destroyViewer() {
+      this._destroyed = true;
       if (this.viewer?.renderer) {
         this.viewer.renderer.dispose();
       }
@@ -232,6 +336,44 @@ export default {
   height: 100%;
   position: relative;
 }
+/* 热点层 */
+.hotspot-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+.hotspot-h5 {
+  pointer-events: none;
+}
+.hotspot-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 6;
+}
+.hotspot-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(22, 93, 255, 0.85);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.hotspot-label {
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
 .loading-overlay {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -240,6 +382,7 @@ export default {
   align-items: center;
   justify-content: center;
   background: rgba(0,0,0,0.7);
+  z-index: 20;
 }
 .loading-spinner {
   width: 40px;
@@ -257,11 +400,12 @@ export default {
 }
 .controls {
   position: absolute;
-  bottom: 40px;
+  bottom: 60px;
   right: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  z-index: 15;
 }
 .control-btn {
   width: 44px;
@@ -274,32 +418,35 @@ export default {
   color: #fff;
   font-size: 16px;
 }
+/* 热点信息弹窗 */
 .hotspot-popup {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #fff;
+  left: 16px;
+  right: 16px;
+  bottom: 120px;
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 12px;
-  padding: 20px;
-  width: 80%;
-  max-width: 320px;
+  padding: 16px;
+  z-index: 30;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 .hotspot-title {
   font-size: 16px;
   font-weight: 600;
-  margin-bottom: 8px;
+  color: #1D2129;
 }
 .hotspot-content {
+  margin-top: 8px;
   font-size: 14px;
-  color: #666;
+  color: #4E5969;
   line-height: 1.6;
 }
 .hotspot-close {
   position: absolute;
   top: 8px;
-  right: 12px;
+  right: 14px;
   font-size: 20px;
-  color: #999;
+  color: #86909C;
+  padding: 4px;
 }
 </style>

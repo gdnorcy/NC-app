@@ -7,6 +7,7 @@
       :hotspots="currentScene.hotspots || []"
       :autoRotate="autoRotate"
       :meta="currentScene.meta || {}"
+      @scene-hotspot="onSceneHotspot"
     />
     <!-- 场景切换 -->
     <view class="scene-tabs" v-if="scenes.length > 1">
@@ -72,6 +73,15 @@ export default {
     switchScene(scene) {
       this.currentSceneId = scene.id;
       this.preloadNextScene(scene);
+    },
+    // 热点跳转场景：按 targetSceneId 找到场景并切换
+    onSceneHotspot(h) {
+      const target = this.scenes.find(s => String(s.id) === String(h.targetSceneId));
+      if (!target) {
+        uni.showToast({ title: '目标场景不存在', icon: 'none' });
+        return;
+      }
+      this.switchScene(target);
     },
     // 预加载目标场景全景图（浏览器缓存预热，切场景秒开）
     preloadSceneImage(url) {
