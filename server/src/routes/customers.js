@@ -25,7 +25,7 @@ const logoUpload = multer({
 function parseCustomerBody(body) {
   let solutions = body.solutions;
   if (!Array.isArray(solutions) || solutions.length === 0) solutions = ['panorama'];
-  // 只保留字符串类型的solution code，过滤掉数字ID等非法值
+  // 只保留字符串类型的solution code（方案 code 或兼容旧应用 code），过滤掉数字ID等非法值
   solutions = solutions.filter(s => typeof s === 'string' && s.trim());
   let config = body.config;
   if (typeof config !== 'object' || config === null) config = {};
@@ -38,9 +38,82 @@ function parseCustomerBody(body) {
     isPinned: body.isPinned === true ? 1 : 0,
     remark: typeof body.remark === 'string' ? body.remark.trim() : '',
     status: ['disabled', 'trashed'].includes(body.status) ? body.status : 'active',
+    adminUserId: body.adminUserId ? Number(body.adminUserId) : null,
     solutions: JSON.stringify(solutions),
     config: JSON.stringify(config),
   };
+}
+
+/** 项目级权限：所选方案（组合包）应用/菜单授权并集 + 项目覆盖（project_apps/project_permissions） */
+export function projectPermissions(db, project) {
+  let solCodes = [];
+  try { solCodes = JSON.parse(project.solutions || '[]'); } catch {}
+  if (!Array.isArray(solCodes)) solCodes = [];
+  const appAuth = {};   // appCode -> enabled
+  const permAuth = {};  // appCode:menuKey -> enabled
+  const apps = db.prepare('SELECT * FROM apps ORDER BY sort_order ASC, id ASC').all();
+  const appById = {};
+  const appByCode = {};
+  apps.forEach((a) => { appById[a.id] = a; appByCode[a.code] = a; });
+  // 1) 旧数据：直接开通的应用 code
+  solCodes.forEach((code) => { if (appByCode[code]) appAuth[code] = true; });
+  // 2) 方案 code → solution_apps / solution_permissions 并集
+  const placeholders = solCodes.map(() => '?').join(',');
+  const solRows = placeholders
+    ? db.prepare(`SELECT * FROM solutions WHERE code IN (${placeholders})`).all(...solCodes)
+    : [];
+  solRows.forEach((s) => {
+    db.prepare('SELECT app_id, enabled FROM solution_apps WHERE solution_id = ? AND enabled = 1').all(s.id)
+      .forEach((sa) => { const app = appById[sa.app_id]; if (app) appAuth[app.code] = true; });
+    db.prepare('SELECT app_id, key, enabled FROM solution_permissions WHERE solution_id = ? AND enabled = 1').all(s.id)
+      .forEach((p) => { const app = appById[p.app_id]; if (app) permAuth[`${app.code}:${p.key}`] = true; });
+    // 演示方案：动态纳入全部应用 + 全菜单授权
+    if (s.is_demo) {
+      apps.forEach((a) => { appAuth[a.code] = true; });
+      db.prepare('SELECT a.code AS app_code, m.key FROM app_menus m JOIN apps a ON a.id = m.app_id').all()
+        .forEach((m) => { permAuth[`${m.app_code}:${m.key}`] = true; });
+    }
+  });
+  // 3) 项目级覆盖
+  db.prepare('SELECT * FROM project_apps WHERE project_id = ?').all(project.id)
+    .forEach((a) => { appAuth[a.app_code] = Boolean(a.enabled); });
+  db.prepare('SELECT * FROM project_permissions WHERE project_id = ?').all(project.id)
+    .forEach((p) => { permAuth[`${p.app_code}:${p.menu_key}`] = Boolean(p.enabled); });
+  return apps
+    .filter((a) => a.enabled !== 0)
+    .map((a) => ({
+      code: a.code, name: a.name, icon: a.icon, description: a.description, enabled: !!appAuth[a.code],
+      menus: db.prepare('SELECT module, module_label, key, label, sort_order FROM app_menus WHERE app_id = ? ORDER BY sort_order ASC, id ASC').all(a.id)
+        .map((m) => ({ module: m.module, moduleLabel: m.module_label, key: m.key, label: m.label, enabled: !!permAuth[`${a.code}:${m.key}`] })),
+    }));
+}
+
+/** 保存项目级权限覆盖（整体替换：project_apps + project_permissions） */
+export function saveProjectPermissions(db, projectId, body) {
+  if (Array.isArray(body.apps)) {
+    db.prepare('DELETE FROM project_apps WHERE project_id = ?').run(projectId);
+    const ins = db.prepare('INSERT OR REPLACE INTO project_apps (project_id, app_code, enabled) VALUES (?, ?, ?)');
+    body.apps.forEach((a) => {
+      if (!a || !a.code) return;
+      ins.run(projectId, String(a.code), a.enabled === false ? 0 : 1);
+    });
+  }
+  if (Array.isArray(body.menus)) {
+    db.prepare('DELETE FROM project_permissions WHERE project_id = ?').run(projectId);
+    const ins = db.prepare('INSERT OR REPLACE INTO project_permissions (project_id, app_code, menu_key, enabled) VALUES (?, ?, ?, ?)');
+    body.menus.forEach((m) => {
+      if (!m || !m.appCode || !m.key) return;
+      ins.run(projectId, String(m.appCode), String(m.key), m.enabled === false ? 0 : 1);
+    });
+  }
+}
+
+/** 客户项目下可选管理员账号 */
+function adminCandidates(db, projectId) {
+  return db
+    .prepare("SELECT id, username, nickname, phone, role FROM users WHERE customer_id = ? AND role IN ('tenant_admin','tenant_member') AND status = 'active' ORDER BY id ASC")
+    .all(projectId)
+    .map((u) => ({ id: u.id, username: u.username, nickname: u.nickname || '', phone: u.phone || '', role: u.role }));
 }
 
 /** 客户项目 + 方案数 + 场景数 */
@@ -124,20 +197,28 @@ export function createCustomersRouter(db) {
         const n = db.prepare('SELECT COUNT(*) AS n FROM scenes WHERE plan_id = ? AND published = 1').get(p.id)?.n || 0;
         return { ...toPlan(p), sceneCount: n };
       });
-    res.json({ project: customerWithCounts(db, row), plans });
+    const solRows = db.prepare("SELECT * FROM solutions WHERE status = 'on' ORDER BY sort_order ASC, id ASC").all();
+    res.json({
+      project: customerWithCounts(db, row),
+      plans,
+      adminUsers: adminCandidates(db, id),
+      solutions: solRows.map((s) => ({ id: s.id, code: s.code, name: s.name, description: s.description, icon: s.icon, status: s.status })),
+      appPermissions: projectPermissions(db, row),
+    });
   });
 
   router.post('/projects', (req, res) => {
-    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config } = parseCustomerBody(req.body);
+    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config, adminUserId } = parseCustomerBody(req.body);
     if (!customerName) return res.status(400).json({ error: '客户名称不能为空' });
     const inviteCode = 'P' + Math.random().toString(36).slice(2, 8).toUpperCase();
     const info = db
       .prepare(
-        `INSERT INTO projects (customer_name, logo_path, description, valid_from, valid_until, is_pinned, remark, status, solutions, config, invite_code)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO projects (customer_name, logo_path, description, valid_from, valid_until, is_pinned, remark, status, solutions, config, invite_code, admin_user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status, solutions, config, inviteCode);
+      .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status, solutions, config, inviteCode, adminUserId);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
+    saveProjectPermissions(db, info.lastInsertRowid, req.body);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_customer', targetType: 'customer', targetId: info.lastInsertRowid, detail: `创建客户: ${customerName}`, ip: req.ip });
     res.status(201).json({ project: toCustomer(row) });
   });
@@ -146,7 +227,7 @@ export function createCustomersRouter(db) {
     const id = Number(req.params.id);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: '客户项目不存在' });
-    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config } = parseCustomerBody(req.body);
+    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config, adminUserId } = parseCustomerBody(req.body);
     const next = {
       customerName: customerName || row.customer_name,
       logoPath: logoPath === '' ? row.logo_path || '' : logoPath,
@@ -158,12 +239,17 @@ export function createCustomersRouter(db) {
       status,
       solutions,
       config,
+      adminUserId: req.body.adminUserId === undefined ? row.admin_user_id : adminUserId,
     };
     db.prepare(
       `UPDATE projects
-       SET customer_name = ?, logo_path = ?, description = ?, valid_from = ?, valid_until = ?, is_pinned = ?, remark = ?, status = ?, solutions = ?, config = ?, updated_at = datetime('now')
+       SET customer_name = ?, logo_path = ?, description = ?, valid_from = ?, valid_until = ?, is_pinned = ?, remark = ?, status = ?, solutions = ?, config = ?, admin_user_id = ?, updated_at = datetime('now')
        WHERE id = ?`
-    ).run(next.customerName, next.logoPath, next.description, next.validFrom, next.validUntil, next.isPinned, next.remark, next.status, next.solutions, next.config, id);
+    ).run(next.customerName, next.logoPath, next.description, next.validFrom, next.validUntil, next.isPinned, next.remark, next.status, next.solutions, next.config, next.adminUserId, id);
+    // 项目级权限覆盖：整体替换（apps + menus）
+    if (Array.isArray(req.body.apps) || Array.isArray(req.body.menus)) {
+      saveProjectPermissions(db, id, req.body);
+    }
     // 总后台授权人脉集市（类似模板）：config.market 存在时同步初始化/覆盖租户集市配置
     try {
       const parsedCfg = typeof config === 'string' ? JSON.parse(config) : (config || {});

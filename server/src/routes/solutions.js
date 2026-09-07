@@ -63,6 +63,14 @@ export function createSolutionsRouter(db) {
     res.json({ solutions });
   });
 
+  // 方案详情（含价格/权限 appPermissions，供客户项目编辑引用）
+  router.get('/:id', (req, res) => {
+    const id = Number(req.params.id);
+    const detail = solutionDetail(db, id);
+    if (!detail) return res.status(404).json({ error: '解决方案不存在' });
+    res.json({ solution: detail });
+  });
+
   // 新建（含分类/热门/状态/平台/预览图 + 默认价格权限由 seed 补齐）
   router.post('/', (req, res) => {
     const { name, code, description, icon, sortOrder, categoryId, isHot, status, defaultPlatform, previewImages, virtualUseCount } = req.body || {};

@@ -79,6 +79,7 @@ export const fetchDashboardStats = () => adminApi.get('/dashboard/stats');
 export const fetchCustomers = () => adminApi.get('/projects');
 export const createCustomer = (data) => adminApi.post('/projects', data);
 export const updateCustomer = (id, data) => adminApi.put(`/projects/${id}`, data);
+export const fetchCustomerDetail = (id) => adminApi.get(`/projects/${id}`);
 export const deleteCustomer = (id) => adminApi.delete(`/projects/${id}`);
 export const impersonateCustomer = (id) => adminApi.post(`/projects/${id}/impersonate`);
 export const uploadCustomerLogo = (file) => {
@@ -120,6 +121,7 @@ export const saveSolutionPricing = (id, data) => adminApi.put(`/solutions/${id}/
 export const saveSolutionPermissions = (id, data) => adminApi.put(`/solutions/${id}/permissions`, data);
 export const fetchSolutionAssets = (id) => adminApi.get(`/solutions/${id}/assets`);
 export const saveSolutionAssets = (id, data) => adminApi.put(`/solutions/${id}/assets`, data);
+export const fetchSolutionDetail = (id) => adminApi.get(`/solutions/${id}`);
 
 // 方案分类
 export const fetchSolutionCategories = () => adminApi.get('/solutions/categories');

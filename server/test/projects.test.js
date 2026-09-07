@@ -572,3 +572,52 @@ test('客户有效期：续费后分享恢复', async () => {
     db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
   }
 });
+
+test('客户项目编辑：管理员指定 + 方案权限保存 + 详情返回', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const custId = seedCustomer(db, { customerName: '权限客户' });
+    // 准备一个租户管理员账号
+    const salt = 's';
+    db.prepare("INSERT INTO users (username, password_hash, password_salt, role, status, customer_id) VALUES (?, ?, ?, 'tenant_admin', 'active', ?)")
+      .run('tmgr1', 'h', salt, custId);
+    const user = db.prepare("SELECT id FROM users WHERE username = 'tmgr1'").get();
+    const login = await request(app).post('/api/auth/login').send({ username: 'admin', password: 'admin123' }).expect(200);
+    const auth = { Authorization: `Bearer ${login.body.token}` };
+    // 保存：方案 + 管理员 + 项目级权限（仅开 panorama 数据洞察）
+    const res = await request(app).put(`/api/admin/projects/${custId}`).set(auth).send({
+      customerName: '权限客户',
+      solutions: ['demo'],
+      adminUserId: user.id,
+      config: { miniExpireMode: 'prompt', adminExpireMode: 'deny', selfRenew: true, giftStorageMb: 128, maxCards: 500, aiCredits: 10 },
+      apps: [{ code: 'panorama', enabled: true }],
+      menus: [
+        { appCode: 'panorama', key: 'pano:overview', enabled: true },
+        { appCode: 'panorama', key: 'plan:view', enabled: false },
+      ],
+    });
+    assert.equal(res.status, 200);
+    const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(custId);
+    assert.equal(row.admin_user_id, user.id);
+    const cfg = JSON.parse(row.config);
+    assert.equal(cfg.giftStorageMb, 128);
+    assert.equal(cfg.maxCards, 500);
+    // 详情返回管理员与权限
+    const detail = await request(app).get(`/api/admin/projects/${custId}`).set(auth);
+    assert.equal(detail.status, 200);
+    assert.ok(detail.body.adminUsers.some((u) => u.username === 'tmgr1'));
+    const apps = detail.body.appPermissions;
+    assert.ok(Array.isArray(apps) && apps.length > 0);
+    const pano = apps.find((a) => a.code === 'panorama');
+    assert.ok(pano && pano.enabled === true);
+    // 菜单级：pano:overview 显式开启；plan:view 被项目覆盖显式关闭（压制演示方案全量授权）
+    const view = pano.menus.find((m) => m.key === 'pano:overview');
+    assert.ok(view && view.enabled === true);
+    const closed = pano.menus.find((m) => m.key === 'plan:view');
+    assert.ok(closed && closed.enabled === false, '项目级菜单可覆盖方案默认授权');
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});

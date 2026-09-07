@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS projects (
   invite_code TEXT NOT NULL DEFAULT '',
   solutions TEXT NOT NULL DEFAULT '["panorama"]', -- 已开通解决方案（code 数组）
   quota TEXT NOT NULL DEFAULT '{}', -- 套餐额度: max_individuals, max_enterprises, max_employees等
+  admin_user_id INTEGER, -- 客户管理员账号（users.id）
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -349,6 +350,7 @@ function migrate(db) {
       if (!cols.includes('is_pinned')) db.exec('ALTER TABLE projects ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0');
       if (!cols.includes('remark')) db.exec("ALTER TABLE projects ADD COLUMN remark TEXT NOT NULL DEFAULT ''");
       if (!cols.includes('status')) db.exec("ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+      if (!cols.includes('admin_user_id')) db.exec('ALTER TABLE projects ADD COLUMN admin_user_id INTEGER');
     }
   }
 
@@ -651,6 +653,26 @@ function migrate(db) {
       UNIQUE(solution_id, app_id)
     );
     CREATE INDEX IF NOT EXISTS idx_solution_apps ON solution_apps(solution_id);
+  `);
+  // 项目级权限覆盖（总后台客户编辑：应用勾选 + 菜单授权，覆盖方案默认权限）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS project_apps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      app_code TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      UNIQUE(project_id, app_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_project_apps ON project_apps(project_id);
+    CREATE TABLE IF NOT EXISTS project_permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      app_code TEXT NOT NULL,
+      menu_key TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      UNIQUE(project_id, app_code, menu_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_project_permissions ON project_permissions(project_id, app_code);
   `);
   if (colExists(db, 'solution_permissions', 'id') && !colExists(db, 'solution_permissions', 'app_id')) {
     db.exec('ALTER TABLE solution_permissions ADD COLUMN app_id INTEGER NOT NULL DEFAULT 0');
@@ -1626,6 +1648,7 @@ export function toCustomer(row) {
     status: row.status || 'active',
     solutions,
     config,
+    adminUserId: row.admin_user_id || null,
     inviteCode: row.invite_code || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,

@@ -3,82 +3,177 @@
     <div class="page-header">
       <div>
         <el-button text @click="$router.back()"><el-icon><ArrowLeft /></el-icon>返回</el-button>
-        <h2 class="page-title" style="display:inline;margin-left:8px;">{{ isEdit ? '编辑客户' : '新建客户' }}</h2>
+        <h2 class="page-title" style="display:inline;margin-left:8px;">{{ isEdit ? '编辑客户项目' : '新建客户项目' }}</h2>
       </div>
       <el-button type="primary" @click="save" :loading="saving">保存</el-button>
     </div>
 
     <el-tabs v-model="activeTab" class="customer-tabs">
-      <!-- 基本信息 -->
-      <el-tab-pane label="基本信息" name="basic">
+      <!-- ① 项目信息 -->
+      <el-tab-pane label="项目信息" name="basic">
         <div class="page-card">
-          <el-form :model="form" label-width="100px">
-            <el-form-item label="客户名称" required>
-              <el-input v-model="form.customerName" placeholder="如：某某科技有限公司" />
+          <el-form :model="form" label-width="110px">
+            <el-form-item label="项目名称" required>
+              <el-input v-model="form.customerName" placeholder="如：某某科技有限公司" maxlength="50" show-word-limit />
             </el-form-item>
-            <el-form-item label="联系人">
-              <el-input v-model="form.contactName" />
-            </el-form-item>
-            <el-form-item label="联系电话">
-              <el-input v-model="form.contactPhone" />
-            </el-form-item>
-            <el-form-item label="联系邮箱">
-              <el-input v-model="form.contactEmail" />
+            <el-form-item label="备注">
+              <el-input v-model="form.remark" placeholder="选填，内部备注" maxlength="200" show-word-limit />
             </el-form-item>
             <el-form-item label="有效期至">
-              <el-date-picker v-model="form.validUntil" type="date" value-format="YYYY-MM-DD" style="width:100%;" />
+              <el-date-picker v-model="form.validUntil" type="date" value-format="YYYY-MM-DD" style="width:100%;" placeholder="不填表示长期有效" />
             </el-form-item>
-            <el-form-item label="状态">
+            <el-form-item label="项目状态">
               <el-switch v-model="form.status" active-value="active" inactive-value="disabled" />
+              <span class="form-help">{{ form.status === 'active' ? '启用：客户可正常登录使用' : '停用：客户无法访问' }}</span>
             </el-form-item>
-            <el-form-item label="开通解决方案">
-              <el-checkbox-group v-model="form.solutions">
-                <el-checkbox v-for="s in solutions" :key="s.id" :label="s.code">{{ s.name }}</el-checkbox>
-              </el-checkbox-group>
+            <el-form-item label="选择管理员">
+              <el-select v-model="form.adminUserId" placeholder="选择该客户的管理员账号" clearable style="width:100%;">
+                <el-option v-for="u in adminUsers" :key="u.id" :label="`${u.nickname || u.username}（${u.username}）`" :value="u.id" />
+              </el-select>
+              <div class="form-help">管理员从该客户已创建的账号中选择；无账号时请先在「用户管理」创建</div>
             </el-form-item>
           </el-form>
         </div>
       </el-tab-pane>
 
-      <!-- 独立配置 -->
-      <el-tab-pane label="独立配置" name="config" v-if="isEdit">
+      <!-- ② 解决方案 + ③ 应用及功能 -->
+      <el-tab-pane label="解决方案与权限" name="solution">
         <div class="page-card">
-          <el-form :model="form.config" label-width="120px">
+          <div class="section-title">解决方案（组合包，可多选）</div>
+          <div class="solution-grid">
+            <div
+              v-for="s in solutionOptions"
+              :key="s.code"
+              class="solution-card"
+              :class="{ selected: form.solutions.includes(s.code) }"
+              @click="toggleSolution(s.code)"
+            >
+              <div class="solution-card-head">
+                <SIcon :name="getAppIcon(s.icon)" size="18" />
+                <span class="solution-card-name">{{ s.name }}</span>
+                <el-checkbox :model-value="form.solutions.includes(s.code)" @click.stop />
+              </div>
+              <div class="solution-card-desc">{{ s.description || '暂无描述' }}</div>
+              <el-tag size="small" type="success" effect="light">上架中</el-tag>
+            </div>
+          </div>
+          <div class="form-help" style="margin-top:8px;">勾选方案后自动纳入方案包含的应用；下方可对应用及其功能逐项调整（项目级覆盖，仅影响本项目）</div>
+        </div>
+
+        <div class="page-card" style="margin-top:16px;">
+          <div class="perm-toolbar">
+            <div class="section-title" style="margin:0;">应用及其功能</div>
+            <el-button size="small" text type="primary" :disabled="!form.solutions.length" @click="resetFromSolutions">重置为方案默认权限</el-button>
+          </div>
+          <div v-if="!form.solutions.length" class="perm-empty">
+            <el-empty description="请先在上方选择解决方案" :image-size="80" />
+          </div>
+          <div v-else class="app-perm-list">
+            <div v-for="app in appPermissions" :key="app.code" class="app-perm-item">
+              <div class="app-perm-head">
+                <SIcon :name="getAppIcon(app.icon)" size="16" />
+                <span class="app-perm-name">{{ app.name }}</span>
+                <el-switch v-model="app.enabled" size="small" />
+                <span class="form-help">{{ app.enabled ? '已开通' : '未开通' }}</span>
+              </div>
+              <div v-if="app.enabled && app.menus.length" class="app-perm-menus">
+                <el-checkbox
+                  v-for="m in app.menus"
+                  :key="m.key"
+                  v-model="m.enabled"
+                  size="small"
+                >{{ m.label }}</el-checkbox>
+              </div>
+              <div v-else-if="app.enabled && !app.menus.length" class="form-help">该应用暂无功能菜单</div>
+            </div>
+          </div>
+        </div>
+      </el-tab-pane>
+
+      <!-- ④ 独立配置 -->
+      <el-tab-pane label="独立配置" name="config">
+        <div class="page-card">
+          <div class="section-title">基础独立配置</div>
+          <el-form :model="form.config" label-width="130px">
             <el-form-item label="底部版权文字">
-              <el-input v-model="form.config.footerCopyright" placeholder="留空则使用平台版权" />
+              <el-input v-model="form.config.footerCopyright" placeholder="留空则使用平台版权；自定义文字显示在手机端页面底部" maxlength="60" />
             </el-form-item>
             <el-form-item label="远程附件">
               <el-radio-group v-model="form.config.storageMode">
                 <el-radio label="platform">借用平台</el-radio>
                 <el-radio label="independent">自主接入</el-radio>
               </el-radio-group>
+              <div class="form-help">借用平台：文件存储于平台云存储；自主接入：客户自行配置七牛云/阿里云等</div>
             </el-form-item>
             <el-form-item label="短信配置">
               <el-radio-group v-model="form.config.smsMode">
                 <el-radio label="platform">借用平台</el-radio>
                 <el-radio label="independent">自主接入</el-radio>
+                <el-radio label="both">平台+自主</el-radio>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="微信支付模式">
+            <el-form-item label="微信支付">
               <el-radio-group v-model="form.config.wechatPayMode">
                 <el-radio label="normal">普通商户号</el-radio>
                 <el-radio label="service">系统服务商</el-radio>
+                <el-radio label="independent">独立服务商</el-radio>
               </el-radio-group>
             </el-form-item>
+          </el-form>
+        </div>
+
+        <div class="page-card" style="margin-top:16px;">
+          <div class="section-title">素材与容量</div>
+          <el-form :model="form.config" label-width="130px">
             <el-form-item label="图片上传大小(MB)">
               <el-input-number v-model="form.config.maxImageSize" :min="1" :max="500" />
+              <div class="form-help">上传的单张图片大小上限，默认 2MB</div>
             </el-form-item>
             <el-form-item label="视频上传大小(MB)">
               <el-input-number v-model="form.config.maxVideoSize" :min="1" :max="2048" />
+              <div class="form-help">上传的单个视频大小上限，默认 50MB</div>
             </el-form-item>
             <el-form-item label="音频上传大小(MB)">
               <el-input-number v-model="form.config.maxAudioSize" :min="1" :max="500" />
+              <div class="form-help">上传的单个音频大小上限，默认 2MB</div>
+            </el-form-item>
+            <el-form-item label="赠送存储空间(MB)">
+              <el-input-number v-model="form.config.giftStorageMb" :min="0" :max="102400" />
+              <div class="form-help">客户可用的存储空间大小，默认 50MB</div>
+            </el-form-item>
+            <el-form-item label="存储位置">
+              <el-radio-group v-model="form.config.storageLocation">
+                <el-radio label="server">系统服务器</el-radio>
+                <el-radio label="remote">远程附件</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="创建名片数量">
+              <el-input-number v-model="form.config.maxCards" :min="0" :max="100000" />
+              <div class="form-help">智能名片创建数量上限，0 表示不限制</div>
+            </el-form-item>
+            <el-form-item label="AI生成次数">
+              <el-input-number v-model="form.config.aiCredits" :min="0" :max="1000000" />
+              <div class="form-help">AI 生成可用次数，请确保总平台有足够余额</div>
+            </el-form-item>
+            <el-form-item label="未开通端口">
+              <el-radio-group v-model="form.config.showUnopenedChannel">
+                <el-radio label="hide">不显示</el-radio>
+                <el-radio label="show">显示</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="未开通应用">
+              <el-radio-group v-model="form.config.showUnopenedApp">
+                <el-radio label="hide">不显示</el-radio>
+                <el-radio label="show">显示</el-radio>
+              </el-radio-group>
             </el-form-item>
           </el-form>
-          <div style="border-top:1px solid #f2f3f5;margin:20px 0 0;"></div>
-          <el-form :model="form.config.market" label-width="120px" style="margin-top:20px;">
-            <div style="font-size:14px;font-weight:600;color:#1d2129;margin-bottom:8px;">人脉集市（智能名片）</div>
-            <div style="font-size:12px;color:#86909c;margin-bottom:16px;">总后台授权租户使用，作为租户集市的默认模板；租户后台可自行覆盖</div>
+        </div>
+
+        <div class="page-card" style="margin-top:16px;">
+          <div class="section-title">人脉集市（智能名片）</div>
+          <el-form :model="form.config.market" label-width="130px">
+            <div class="form-help" style="margin:0 0 12px;">总后台授权租户使用，作为租户集市的默认模板；租户后台可自行覆盖</div>
             <el-form-item label="启用授权">
               <el-switch v-model="form.config.market.enabled" />
             </el-form-item>
@@ -90,14 +185,40 @@
               </el-radio-group>
             </el-form-item>
             <el-form-item label="默认公告">
-              <el-input v-model="form.config.market.notice" placeholder="例如：欢迎各位会员，对接商务资源，共建人脉网络" style="max-width:420px;" />
+              <el-input v-model="form.config.market.notice" placeholder="例如：欢迎各位会员，对接商务资源，共建人脉网络" />
             </el-form-item>
           </el-form>
         </div>
       </el-tab-pane>
 
-      <!-- 渠道管理 -->
-      <el-tab-pane label="渠道管理" name="channel" v-if="isEdit">
+      <!-- ⑤ 注册续费 -->
+      <el-tab-pane label="注册续费" name="renew">
+        <div class="page-card">
+          <div class="section-title">到期行为（仅总后台可配置）</div>
+          <el-form :model="form.config" label-width="150px">
+            <el-form-item label="小程序端到期">
+              <el-radio-group v-model="form.config.miniExpireMode">
+                <el-radio label="prompt">提示到期</el-radio>
+                <el-radio label="allow">正常访问</el-radio>
+              </el-radio-group>
+              <div class="form-help">提示到期：访问时提示已到期，可继续浏览；正常访问：不拦截</div>
+            </el-form-item>
+            <el-form-item label="管理员端到期">
+              <el-radio-group v-model="form.config.adminExpireMode">
+                <el-radio label="deny">提示到期，且无法使用</el-radio>
+                <el-radio label="allow">提示到期，可继续使用</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="自主续费">
+              <el-switch v-model="form.config.selfRenew" />
+              <div class="form-help">开启后客户可在租户后台自助完成续费</div>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-tab-pane>
+
+      <!-- ⑥ 选择平台（渠道） -->
+      <el-tab-pane label="选择平台" name="channel">
         <div class="channel-list">
           <div class="channel-item" v-for="ch in channelList" :key="ch.type">
             <div class="channel-item-header">
@@ -147,30 +268,54 @@
           </div>
         </div>
       </el-tab-pane>
+
+      <!-- ⑦ 增值服务 -->
+      <el-tab-pane label="增值服务" name="addons">
+        <div class="page-card">
+          <div class="section-title">增值服务</div>
+          <div v-if="!addonOptions.length" class="addon-empty">
+            <el-empty description="暂无增值服务，后续版本开放" :image-size="80" />
+          </div>
+          <el-checkbox-group v-else v-model="form.config.addons">
+            <el-checkbox v-for="a in addonOptions" :key="a" :label="a">{{ a }}</el-checkbox>
+          </el-checkbox-group>
+        </div>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
-  fetchCustomers, createCustomer, updateCustomer, fetchSolutions,
+  fetchCustomerDetail, createCustomer, updateCustomer, fetchSolutions, fetchSolutionDetail,
   fetchTenantChannels, updateTenantChannel, getChannelAuthUrl,
 } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import SIcon from '../../components/SIcon.vue';
 
 const route = useRoute();
 const router = useRouter();
 const isEdit = computed(() => !!route.params.id && route.params.id !== 'new');
 const saving = ref(false);
-const solutions = ref([]);
 const activeTab = ref('basic');
+const solutionOptions = ref([]);
+const adminUsers = ref([]);
+const appPermissions = ref([]);
+const addonOptions = ref([]);
 
 const form = reactive({
-  customerName: '', contactName: '', contactPhone: '', contactEmail: '',
-  validUntil: '', status: 'active', solutions: [],
-  config: { footerCopyright: '', storageMode: 'platform', smsMode: 'platform', wechatPayMode: 'normal', maxImageSize: 50, maxVideoSize: 200, maxAudioSize: 50, market: { enabled: true, style: 'A', notice: '' } },
+  customerName: '', remark: '', validUntil: '', status: 'active', adminUserId: null,
+  solutions: [],
+  config: {
+    footerCopyright: '', storageMode: 'platform', smsMode: 'platform', wechatPayMode: 'normal',
+    maxImageSize: 2, maxVideoSize: 50, maxAudioSize: 2,
+    giftStorageMb: 50, storageLocation: 'server', maxCards: 0, aiCredits: 0,
+    showUnopenedChannel: 'hide', showUnopenedApp: 'hide',
+    miniExpireMode: 'prompt', adminExpireMode: 'deny', selfRenew: true,
+    market: { enabled: true, style: 'A', notice: '' }, addons: [],
+  },
 });
 
 const channelList = reactive([
@@ -180,25 +325,92 @@ const channelList = reactive([
   { type: 'pc', name: 'PC网站', icon: '💻', desc: '独立域名，PC适配', enabled: false, config: { brandName: '', primaryColor: '#165DFF', customDomain: '' } },
 ]);
 
+const iconMap = {
+  panorama: 'panorama', card: 'card', devices: 'devices', template: 'template',
+  market: 'market', chart: 'chart', building: 'building', dynamic: 'dynamic', apps: 'apps',
+};
+function getAppIcon(icon) { return iconMap[icon] || 'apps'; }
+
 onMounted(async () => {
-  try { solutions.value = (await fetchSolutions()).solutions || []; } catch (e) {}
+  try {
+    const list = await fetchSolutions();
+    solutionOptions.value = (list.solutions || []).filter((s) => s.status === 'on');
+  } catch (e) {}
   if (isEdit.value) {
     try {
-      const res = await fetchCustomers();
-      const c = (res.projects || []).find(p => p.id === Number(route.params.id));
-      if (c) Object.assign(form, c, { config: { ...form.config, ...(c.config || {}) } });
-      // 加载渠道配置
+      const res = await fetchCustomerDetail(route.params.id);
+      const c = res.project;
+      if (c) {
+        Object.assign(form, {
+          customerName: c.customerName, remark: c.remark, validUntil: c.validUntil || '',
+          status: c.status, adminUserId: c.adminUserId || null,
+          solutions: Array.isArray(c.solutions) ? [...c.solutions] : [],
+          config: { ...form.config, ...(c.config || {}) },
+        });
+        form.config.market = { ...form.config.market, ...((c.config || {}).market || {}) };
+      }
+      adminUsers.value = res.adminUsers || [];
+      if (Array.isArray(res.appPermissions)) appPermissions.value = res.appPermissions;
       loadChannels();
     } catch (e) { ElMessage.error(e); }
   }
 });
 
+function toggleSolution(code) {
+  const idx = form.solutions.indexOf(code);
+  if (idx >= 0) {
+    form.solutions.splice(idx, 1);
+    return;
+  }
+  form.solutions.push(code);
+  // 首次勾选方案时，将其默认权限并入当前权限（并集）
+  mergeSolutionDefault(code);
+}
+
+/** 将单个方案的默认权限并入 appPermissions（并集：应用/菜单 enabled 取或） */
+async function mergeSolutionDefault(code) {
+  try {
+    const sol = solutionOptions.value.find((s) => s.code === code);
+    if (!sol) return;
+    const detail = await fetchSolutionDetail(sol.id);
+    const perms = (detail.solution && detail.solution.appPermissions) || [];
+    perms.forEach((app) => {
+      if (!app.enabled) return;
+      const target = appPermissions.value.find((a) => a.code === app.code);
+      if (!target) {
+        appPermissions.value.push({ code: app.code, name: app.name, icon: app.icon, description: app.description, enabled: true, menus: app.menus.map((m) => ({ ...m })) });
+        return;
+      }
+      if (!target.enabled) target.enabled = true;
+      app.menus.forEach((m) => {
+        if (!m.enabled) return;
+        const tm = target.menus.find((x) => x.key === m.key);
+        if (tm) tm.enabled = true;
+      });
+    });
+  } catch (e) {}
+}
+
+/** 重置权限为当前所选方案的并集（忽略已有项目覆盖） */
+async function resetFromSolutions() {
+  if (!form.solutions.length) return;
+  const confirmed = await ElMessageBox.confirm('将按当前勾选的解决方案重新计算应用及功能权限，覆盖当前调整。确认重置？', '重置权限', {
+    confirmButtonText: '重置', cancelButtonText: '取消', type: 'warning',
+  }).catch(() => false);
+  if (!confirmed) return;
+  appPermissions.value = [];
+  for (const code of form.solutions) {
+    await mergeSolutionDefault(code);
+  }
+  ElMessage.success('已重置为方案默认权限');
+}
+
 async function loadChannels() {
   try {
     const res = await fetchTenantChannels(route.params.id);
     const channels = res.channels || [];
-    channelList.forEach(ch => {
-      const found = channels.find(c => c.channelType === ch.type);
+    channelList.forEach((ch) => {
+      const found = channels.find((c) => c.channelType === ch.type);
       if (found) {
         ch.enabled = found.enabled;
         ch.appid = found.appid;
@@ -246,11 +458,22 @@ function auditStatusType(s) {
 }
 
 async function save() {
-  if (!form.customerName) { ElMessage.error('请输入客户名称'); return; }
+  if (!form.customerName) { ElMessage.error('请输入项目名称'); return; }
   saving.value = true;
   try {
-    if (isEdit.value) await updateCustomer(route.params.id, form);
-    else await createCustomer(form);
+    const baseData = {
+      customerName: form.customerName,
+      remark: form.remark,
+      validUntil: form.validUntil,
+      status: form.status,
+      adminUserId: form.adminUserId,
+      solutions: form.solutions,
+      config: form.config,
+      apps: appPermissions.value.map((a) => ({ code: a.code, enabled: a.enabled })),
+      menus: appPermissions.value.flatMap((a) => a.menus.map((m) => ({ appCode: a.code, key: m.key, enabled: m.enabled }))),
+    };
+    if (isEdit.value) await updateCustomer(route.params.id, baseData);
+    else await createCustomer(baseData);
     ElMessage.success('保存成功');
     router.push('/customers');
   } catch (e) { ElMessage.error(e); }
@@ -261,6 +484,31 @@ async function save() {
 <style scoped>
 .customer-tabs { margin-top: 0; }
 .customer-tabs :deep(.el-tabs__content) { padding: 0; }
+.page-card { background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.section-title { font-size:15px; font-weight:600; color:#1D2129; margin-bottom:16px; }
+.form-help { font-size:12px; color:#86909C; margin-left:8px; display:inline-block; vertical-align:middle; }
+
+.solution-grid { display:flex; flex-wrap:wrap; gap:16px; }
+.solution-card {
+  flex:0 0 240px; border:1px solid #E5E6EB; border-radius:8px; padding:16px; cursor:pointer;
+  transition:border-color .2s, box-shadow .2s; background:#fff;
+}
+.solution-card:hover { border-color:#165DFF; box-shadow:0 4px 12px rgba(22,93,255,0.1); }
+.solution-card.selected { border-color:#165DFF; background:#F7FBFF; }
+.solution-card-head { display:flex; align-items:center; gap:8px; }
+.solution-card-head .el-checkbox { margin-left:auto; }
+.solution-card-name { font-size:14px; font-weight:600; color:#1D2129; }
+.solution-card-desc { font-size:12px; color:#86909C; margin:8px 0 10px; min-height:32px; line-height:1.5; }
+
+.perm-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.perm-empty { padding:16px 0; }
+.app-perm-list { display:flex; flex-direction:column; gap:12px; }
+.app-perm-item { border:1px solid #E5E6EB; border-radius:8px; padding:12px 16px; }
+.app-perm-head { display:flex; align-items:center; gap:8px; }
+.app-perm-name { font-size:14px; font-weight:600; color:#1D2129; }
+.app-perm-head .el-switch { margin-left:auto; }
+.app-perm-menus { display:flex; flex-wrap:wrap; gap:4px 20px; padding:10px 0 0 24px; margin-top:10px; border-top:1px dashed #F2F3F5; }
+
 .channel-list { display: flex; flex-direction: column; gap: 16px; }
 .channel-item { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .channel-item-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -273,4 +521,5 @@ async function save() {
 .channel-detail code { font-size: 12px; background: #f5f7fa; padding: 2px 6px; border-radius: 4px; }
 .detail-label { color: #909399; }
 .channel-empty { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #909399; }
+.addon-empty { padding: 8px 0; }
 </style>
