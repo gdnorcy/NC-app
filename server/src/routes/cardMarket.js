@@ -1171,20 +1171,31 @@ export function createCardMarketRouter(db) {
 
   // ===== 表单管理 =====
   router.get('/forms', tenant, requireTenantAdmin, (req, res) => {
-    const forms = db.prepare('SELECT * FROM card_form_template WHERE customer_id = ? ORDER BY created_at DESC').all(req.customerId);
-    res.json({ forms });
+    const rows = db.prepare(`SELECT f.*, (SELECT COUNT(*) FROM card_form_submission s WHERE s.form_id = f.id) AS submission_count
+      FROM card_form_template f WHERE f.customer_id = ? ORDER BY f.created_at DESC`).all(req.customerId);
+    res.json({ forms: rows.map((r) => ({ ...r, cardId: r.card_id || null, submissionCount: r.submission_count, fields: JSON.parse(r.fields || '[]') })) });
   });
 
   router.post('/forms', tenant, requireTenantAdmin, (req, res) => {
     const userId = currentUserId(req);
-    const { title, description, fields } = req.body;
+    const { title, description, fields, cardId } = req.body;
     if (!title) return res.status(400).json({ error: '缺少标题' });
-    const result = db.prepare(`INSERT INTO card_form_template (customer_id, title, description, fields, created_by)
-      VALUES (?, ?, ?, ?, ?)`).run(req.customerId, title, description || '', JSON.stringify(fields || []), userId);
+    if (cardId) {
+      const card = db.prepare('SELECT id, user_id, customer_id FROM card_profile WHERE id = ?').get(cardId);
+      if (!card) return res.status(400).json({ error: '所选名片不存在' });
+      const cardCust = card.customer_id || (() => {
+        const t = db.prepare('SELECT customer_id FROM tenant_individuals WHERE user_id = ? AND status = ? LIMIT 1').get(card.user_id, 'active')
+          || db.prepare('SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = ? AND status = ? LIMIT 1').get(card.user_id, 'active');
+        return t?.customer_id || null;
+      })();
+      if (cardCust && cardCust !== req.customerId) return res.status(400).json({ error: '所选名片不属于当前租户' });
+    }
+    const result = db.prepare(`INSERT INTO card_form_template (customer_id, title, description, fields, card_id, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)`).run(req.customerId, title, description || '', JSON.stringify(fields || []), cardId || null, userId);
     res.json({ id: result.lastInsertRowid, success: true });
   });
 
-  // 提交表单（访客公开提交；仅 active 表单可提交）
+  // 提交表单（访客公开提交；仅 active 表单可提交；挂载名片时线索回流到名片主人客户列表）
   router.post('/forms/:id/submit', (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id || req.userId || null;
@@ -1193,7 +1204,24 @@ export function createCardMarketRouter(db) {
     if (!form) return res.status(404).json({ error: '表单不存在或已停用' });
     db.prepare(`INSERT INTO card_form_submission (form_id, customer_id, user_id, data)
       VALUES (?, ?, ?, ?)`).run(id, form.customer_id, userId, JSON.stringify(data || {}));
-    res.json({ success: true });
+    // 线索回流：表单挂载名片 → 写入名片主人客户列表（同手机号已存在则跳过）
+    let leadRecycled = false;
+    if (form.card_id) {
+      const card = db.prepare('SELECT id, user_id, customer_id FROM card_profile WHERE id = ?').get(form.card_id);
+      if (card) {
+        const d = data || {};
+        const phone = String(d.phone || d.tel || d.mobile || '').trim();
+        const name = String(d.name || d.contact || '').trim() || '表单线索';
+        const dup = db.prepare('SELECT id FROM card_customer WHERE customer_id = ? AND owner_user_id = ? AND phone = ?')
+          .get(form.customer_id, card.user_id, phone);
+        if (!dup) {
+          db.prepare(`INSERT INTO card_customer (owner_user_id, customer_id, owner_type, name, phone, company, source, source_type, source_id)
+            VALUES (?, ?, 'individual', ?, ?, '', 'form', 'form', ?)`).run(card.user_id, form.customer_id, name, phone, form.id);
+          leadRecycled = true;
+        }
+      }
+    }
+    res.json({ success: true, leadRecycled });
   });
 
   // 表单提交记录（租户管理员，且仅本租户表单）
@@ -1203,6 +1231,45 @@ export function createCardMarketRouter(db) {
     if (!form || form.__crossTenant) return res.status(404).json({ error: '表单不存在' });
     const submissions = db.prepare('SELECT * FROM card_form_submission WHERE form_id = ? ORDER BY submitted_at DESC').all(id);
     res.json({ submissions });
+  });
+
+  // 更新表单（标题/说明/字段/状态；已有提交记录的表单仅允许改状态）
+  router.put('/forms/:id', tenant, requireTenantAdmin, (req, res) => {
+    const { id } = req.params;
+    const form = belongsToTenant('card_form_template', id, req.customerId);
+    if (!form || form.__crossTenant) return res.status(404).json({ error: '表单不存在' });
+    const { title, description, fields, status } = req.body;
+    const hasSub = db.prepare('SELECT COUNT(*) AS c FROM card_form_submission WHERE form_id = ?').get(id).c > 0;
+    if (hasSub && (title !== undefined || fields !== undefined)) {
+      return res.status(400).json({ error: '已有提交记录的表单不可修改内容，仅可停用' });
+    }
+    if (status !== undefined) {
+      if (!['active', 'disabled'].includes(status)) return res.status(400).json({ error: '非法状态' });
+      db.prepare("UPDATE card_form_template SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
+      return res.json({ success: true });
+    }
+    if (!title) return res.status(400).json({ error: '缺少标题' });
+    db.prepare(`UPDATE card_form_template SET title = ?, description = ?, fields = ?, updated_at = datetime('now') WHERE id = ?`)
+      .run(title, description || '', JSON.stringify(fields || []), id);
+    res.json({ success: true });
+  });
+
+  // 删除表单（级联删除提交记录）
+  router.delete('/forms/:id', tenant, requireTenantAdmin, (req, res) => {
+    const { id } = req.params;
+    const form = belongsToTenant('card_form_template', id, req.customerId);
+    if (!form || form.__crossTenant) return res.status(404).json({ error: '表单不存在' });
+    db.prepare('DELETE FROM card_form_submission WHERE form_id = ?').run(id);
+    db.prepare('DELETE FROM card_form_template WHERE id = ?').run(id);
+    audit(db, req, 'delete_form', 'card_form_template', id, `删除表单「${form.title}」及提交记录`);
+    res.json({ success: true });
+  });
+
+  // 租户名片列表（表单挂载选择）
+  router.get('/cards', tenant, (req, res) => {
+    const rows = db.prepare(`SELECT cp.id, cp.name, cp.position FROM card_profile cp
+      WHERE cp.customer_id = ? AND cp.status = 'active' ORDER BY cp.id DESC`).all(req.customerId);
+    res.json({ cards: rows });
   });
 
   // ===== 身份上下文（双身份）=====

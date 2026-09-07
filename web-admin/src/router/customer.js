@@ -26,6 +26,7 @@ const routes = [
       { path: 'apps/card/pool', component: () => import('../views/customer/apps/card/PublicPool.vue'), meta: { title: '公海池', breadcrumbs: ['应用中心', '智能名片', '公海池'] } },
       { path: 'apps/card/templates', component: () => import('../views/customer/apps/card/TemplateMarket.vue'), meta: { title: '模板市场', breadcrumbs: ['应用中心', '智能名片', '模板市场'] } },
       { path: 'apps/card/exchanges', component: () => import('../views/customer/apps/card/ExchangeRecords.vue'), meta: { title: '交换记录', breadcrumbs: ['应用中心', '智能名片', '交换记录'] } },
+      { path: 'apps/card/forms', component: () => import('../views/customer/apps/card/FormCollect.vue'), meta: { title: '表单收集', breadcrumbs: ['应用中心', '智能名片', '表单收集'] } },
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
       { path: 'billing', component: () => import('../views/customer/Billing.vue'), meta: { title: '套餐与续费', breadcrumbs: ['套餐与续费'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },

@@ -95,6 +95,11 @@ export function createApp({ db } = {}) {
   app.use('/api/payment/notify', createPaymentRouter(database));
   // 支付API使用组合认证：支持JWT（租户/平台）和card_token（个人用户）
   const comboAuth = (req, res, next) => {
+    // 公开路径白名单（访客免认证）：表单提交
+    if (/^\/forms\/\d+\/submit$/.test(req.path)) {
+      req.user = null;
+      return next();
+    }
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: '未登录' });
     // 尝试card_token格式

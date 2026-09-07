@@ -27,6 +27,7 @@ const tabs = [
   { label: '公海池', path: '/apps/card/pool', icon: 'pool' },
   { label: '模板市场', path: '/apps/card/templates', icon: 'template' },
   { label: '交换记录', path: '/apps/card/exchanges', icon: 'exchange' },
+  { label: '表单收集', path: '/apps/card/forms', icon: 'template' },
 ];
 
 const route = useRoute();

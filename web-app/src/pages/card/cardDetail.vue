@@ -177,6 +177,40 @@
       </view>
     </view>
 
+    <!-- 访客表单（租户启用时展示；线索回流） -->
+    <view class="form-entry" v-if="activeForm" @click="openForm">
+      <view class="fe-icon"><SIcon name="template" size="large" color="#165dff" /></view>
+      <view class="fe-body">
+        <view class="fe-title">{{ activeForm.title || '填写表单' }}</view>
+        <view class="fe-desc">{{ activeForm.description || '填写信息，方便与对方进一步沟通' }}</view>
+      </view>
+      <view class="fe-btn">去填写</view>
+    </view>
+
+    <!-- 表单弹层 -->
+    <view class="form-mask" v-if="formShow" @click="closeForm"></view>
+    <view class="form-panel" v-if="formShow">
+      <view class="fp-head">
+        <text class="fp-title">{{ activeForm.title || '填写表单' }}</text>
+        <text class="fp-close" @click="closeForm">✕</text>
+      </view>
+      <scroll-view scroll-y class="fp-body">
+        <view class="fp-desc" v-if="activeForm.description">{{ activeForm.description }}</view>
+        <view class="fp-field" v-for="f in (activeForm.fields || [])" :key="f.name">
+          <view class="fp-label">{{ f.label || f.name }}<text class="fp-req" v-if="f.required"> *</text></view>
+          <picker v-if="f.type === 'select'" :range="f.options || []" @change="(e) => { formData[f.name] = (f.options || [])[Number(e.detail.value)]; }">
+            <view class="fp-select">{{ formData[f.name] || '请选择' }}</view>
+          </picker>
+          <textarea v-else-if="f.type === 'textarea'" class="fp-input fp-area" v-model="formData[f.name]" :placeholder="(f.placeholder || '请输入') + (f.required ? '（必填）' : '')" placeholder-class="ph" />
+          <input v-else class="fp-input" v-model="formData[f.name]" :type="f.type === 'tel' ? 'number' : 'text'" :placeholder="(f.placeholder || '请输入') + (f.required ? '（必填）' : '')" placeholder-class="ph" />
+        </view>
+      </scroll-view>
+      <view class="fp-foot">
+        <button class="fp-cancel" @click="closeForm">取消</button>
+        <button class="fp-submit" :disabled="formSending" @click="submitForm">{{ formSending ? '提交中…' : '提交' }}</button>
+      </view>
+    </view>
+
     <!-- 底部TabBar（公共组件：名片/雷达/集市/会员） -->
     <CardTabBar active="card" />
   </view>
@@ -200,6 +234,42 @@ const dynamics = ref([]);
 const videos = ref([]);
 const activeTab = ref('intro');
 const memberLevel = ref('free');
+const activeForm = ref(null);
+const formShow = ref(false);
+const formData = ref({});
+const formSending = ref(false);
+
+// 访客填写表单提交（线索回流）
+function openForm() {
+  formData.value = {};
+  formShow.value = true;
+}
+function closeForm() {
+  if (formSending.value) return;
+  formShow.value = false;
+}
+function formValid() {
+  const fields = activeForm.value?.fields || [];
+  for (const f of fields) {
+    if (f.required && !String(formData.value[f.name] || '').trim()) return f.label || f.name;
+  }
+  return '';
+}
+async function submitForm() {
+  if (!activeForm.value || formSending.value) return;
+  const miss = formValid();
+  if (miss) { uni.showToast({ title: `请填写${miss}`, icon: 'none' }); return; }
+  formSending.value = true;
+  try {
+    await cardApi.submitForm(activeForm.value.id, formData.value);
+    uni.showToast({ title: '提交成功', icon: 'success' });
+    closeForm();
+  } catch (e) {
+    uni.showToast({ title: e.message || '提交失败', icon: 'none' });
+  } finally {
+    formSending.value = false;
+  }
+}
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
 // demo: 东莞 · 约拍·商业摄影（城市 · slogan/业务）
@@ -233,6 +303,7 @@ onMounted(async () => {
       const res = await cardApi.getCard(id);
       card.value = res.card;
       memberLevel.value = res.card.ownerMemberLevel || 'free';
+      activeForm.value = res.activeForm || null;
       // 采集访客行为
       cardApi.trackVisitor({ cardId: id, actionType: 'view', page: 'profile' });
       // 行为埋点：浏览名片
@@ -771,5 +842,31 @@ function shareCard() {
 .cmt-send[disabled] { opacity: 0.5; }
 .dyn-act { display: inline-flex; align-items: center; gap: 6rpx; padding: 8rpx 14rpx; border-radius: 24rpx; }
 .dyn-act.liked { color: #165dff; font-weight: 600; background: rgba(22,93,255,0.06); }
+
+
+/* ===== 访客表单 ===== */
+.form-entry { display: flex; align-items: center; gap: 16rpx; margin: 24rpx 24rpx 8rpx; padding: 24rpx; background: #fff; border-radius: 16rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
+.fe-icon { width: 72rpx; height: 72rpx; border-radius: 14rpx; background: rgba(22,93,255,0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fe-body { flex: 1; min-width: 0; }
+.fe-title { font-size: 28rpx; font-weight: 600; color: #1d2129; }
+.fe-desc { font-size: 22rpx; color: #86909c; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-btn { flex-shrink: 0; font-size: 24rpx; color: #165dff; border: 1rpx solid #165dff; border-radius: 28rpx; padding: 8rpx 24rpx; }
+.form-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 920; }
+.form-panel { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 24rpx 24rpx 0 0; z-index: 921; display: flex; flex-direction: column; max-height: 72vh; }
+.fp-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 28rpx 16rpx; border-bottom: 1rpx solid #f2f3f5; }
+.fp-title { font-size: 30rpx; font-weight: 600; color: #1d2129; }
+.fp-close { font-size: 28rpx; color: #86909c; padding: 4rpx 8rpx; }
+.fp-body { flex: 1; padding: 24rpx 28rpx; box-sizing: border-box; }
+.fp-desc { font-size: 24rpx; color: #86909c; margin-bottom: 20rpx; }
+.fp-field { margin-bottom: 24rpx; }
+.fp-label { font-size: 26rpx; color: #1d2129; margin-bottom: 10rpx; }
+.fp-req { color: #f53f3f; }
+.fp-input { background: #f7f8fa; border-radius: 12rpx; padding: 18rpx 20rpx; font-size: 26rpx; color: #1d2129; }
+.fp-area { width: 100%; box-sizing: border-box; height: 140rpx; }
+.fp-select { background: #f7f8fa; border-radius: 12rpx; padding: 18rpx 20rpx; font-size: 26rpx; color: #4e5969; }
+.fp-foot { display: flex; gap: 16rpx; padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f2f3f5; }
+.fp-cancel { flex: 1; background: #f2f3f5; color: #4e5969; font-size: 28rpx; border-radius: 12rpx; }
+.fp-submit { flex: 1; background: #165dff; color: #fff; font-size: 28rpx; border-radius: 12rpx; }
+.fp-submit[disabled] { opacity: 0.6; }
 
 </style>

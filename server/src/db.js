@@ -1233,6 +1233,11 @@ function migrate(db) {
     db.exec('ALTER TABLE card_connections ADD COLUMN snapshot TEXT');
   }
 
+  // —— 表单模板挂载名片（可空=全租户展示）——
+  if (!colExists(db, 'card_form_template', 'card_id')) {
+    db.exec('ALTER TABLE card_form_template ADD COLUMN card_id INTEGER');
+  }
+
   // —— 名片归属租户 ——
   if (!colExists(db, 'card_profile', 'customer_id')) {
     db.exec('ALTER TABLE card_profile ADD COLUMN customer_id INTEGER');

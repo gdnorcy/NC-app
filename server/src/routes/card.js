@@ -173,7 +173,21 @@ export function createCardRouter(db, wxService) {
       WHERE cp.id = ?`).get(req.params.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
     if (card.status !== 'active') return res.status(404).json({ error: '名片不可用' });
-    res.json({ card: toCard(card) });
+    // 附加租户启用的表单（优先挂载到本名片，否则取租户第一个 active 表单）
+    let activeForm = null;
+    const tenantId = card.customer_id || (() => {
+      const t = db.prepare('SELECT customer_id FROM tenant_individuals WHERE user_id = ? AND status = ? LIMIT 1').get(card.user_id, 'active')
+        || db.prepare('SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = ? AND status = ? LIMIT 1').get(card.user_id, 'active');
+      return t?.customer_id || null;
+    })();
+    if (tenantId) {
+      const bound = db.prepare("SELECT id, title, description, fields FROM card_form_template WHERE customer_id = ? AND status = 'active' AND card_id = ? LIMIT 1")
+        .get(tenantId, card.id);
+      const any = bound || db.prepare("SELECT id, title, description, fields FROM card_form_template WHERE customer_id = ? AND status = 'active' AND (card_id IS NULL OR card_id = 0) ORDER BY id DESC LIMIT 1")
+        .get(tenantId);
+      if (any) activeForm = { id: any.id, title: any.title, description: any.description, fields: JSON.parse(any.fields || '[]') };
+    }
+    res.json({ card: toCard(card), activeForm });
   });
 
   // 名片动态列表（公开，展示名片所有者的动态）
