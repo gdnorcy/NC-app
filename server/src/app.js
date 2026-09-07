@@ -110,6 +110,12 @@ export function createApp({ db } = {}) {
             const ent = database.prepare('SELECT customer_id FROM tenant_enterprises WHERE id = ?').get(user.enterprise_id);
             if (ent) req.user.customerId = ent.customer_id;
           }
+          // 最后兜底：按入驻记录（个体/员工）反查租户，防止 enterprise_id 脏数据导致无法访问
+          if (!req.user.customerId) {
+            const member = database.prepare("SELECT customer_id FROM tenant_individuals WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1").get(user.id)
+              || database.prepare("SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1").get(user.id);
+            if (member) req.user.customerId = member.customer_id;
+          }
           return next();
         }
       }

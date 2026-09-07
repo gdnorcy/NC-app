@@ -254,7 +254,8 @@ export function createCardMarketRouter(db) {
         WHEN 'employee' THEN (SELECT need_tags FROM card_profile WHERE user_id = mi.user_id LIMIT 1)
         ELSE NULL
       END as need_tags,
-      CASE WHEN mi.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END as is_new
+      CASE WHEN mi.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END as is_new,
+      (SELECT cp.id FROM card_profile cp WHERE cp.user_id = mi.user_id AND cp.status = 'active' ORDER BY cp.id DESC LIMIT 1) as card_id
     FROM card_market_items mi
     WHERE mi.customer_id = ?${isAdminView ? '' : " AND mi.audit_status = 'approved'"}`;
 
@@ -319,6 +320,7 @@ export function createCardMarketRouter(db) {
       industry: r.industry || '',
       needTags: r.need_tags || '',
       isNew: !!r.is_new,
+      cardId: r.card_id || null,
       createdAt: r.created_at,
     })) });
   });
@@ -341,6 +343,12 @@ export function createCardMarketRouter(db) {
   // 我的名片：集市状态 + 位置定位（上架状态/审核态/置顶/NEW/集市内位置）
   router.get('/market/my-status', tenant, (req, res) => {
     const userId = req.user.id;
+    const individuals = db.prepare("SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ?").all(req.customerId, userId);
+    const employees = db.prepare("SELECT emp.id, emp.status FROM tenant_enterprise_employees emp WHERE emp.customer_id = ? AND emp.user_id = ?").all(req.customerId, userId);
+    const subjects = [
+      ...individuals.map((i) => ({ subjectType: 'individual', subjectId: i.id, status: i.status })),
+      ...employees.map((e) => ({ subjectType: 'employee', subjectId: e.id, status: e.status })),
+    ];
     const items = db.prepare(
       `SELECT mi.*, mi.is_top, mi.audit_status,
         CASE WHEN mi.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END as is_new
@@ -358,7 +366,7 @@ export function createCardMarketRouter(db) {
       isTop: !!it.is_top,
       isNew: !!it.is_new,
       createdAt: it.created_at,
-    })) });
+    })), subjects });
   });
 
   // 上架/下架集市（仅本人或租户管理员）

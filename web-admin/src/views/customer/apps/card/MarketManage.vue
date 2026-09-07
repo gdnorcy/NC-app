@@ -70,6 +70,25 @@
           <el-form-item label="集市标题">
             <el-input v-model="settings.title" placeholder="人脉集市" style="max-width: 300px;" />
           </el-form-item>
+          <el-form-item label="集市风格">
+            <div class="style-picker">
+              <div class="style-option" :class="{ active: settings.style === 'A' }" @click="settings.style = 'A'">
+                <div class="style-name">方案A · 角标权重</div>
+                <div class="style-desc">置顶/新入驻角标融入双列卡片流，默认推荐</div>
+              </div>
+              <div class="style-option" :class="{ active: settings.style === 'B' }" @click="settings.style = 'B'">
+                <div class="style-name">方案B · 重点会员</div>
+                <div class="style-desc">顶部横向重点会员专区 + 双列普通列表</div>
+              </div>
+              <div class="style-option" :class="{ active: settings.style === 'C' }" @click="settings.style = 'C'">
+                <div class="style-name">方案C · 分类页签</div>
+                <div class="style-desc">全部/置顶/新入驻三 Tab，适合大租户</div>
+              </div>
+            </div>
+          </el-form-item>
+          <el-form-item label="集市公告">
+            <el-input v-model="settings.notice" placeholder="例如：欢迎各位会员，对接商务资源，共建人脉网络" style="max-width: 420px;" />
+          </el-form-item>
           <el-form-item label="上架审核模式">
             <el-radio-group v-model="settings.auditMode">
               <el-radio value="auto">默认上架（个人可手动下架）</el-radio>
@@ -112,26 +131,26 @@
         <el-table :data="marketItems" style="width: 100%" size="default">
           <el-table-column label="类型" width="100">
             <template #default="{ row }">
-              <el-tag :type="getTypeTag(row.subject_type)" size="small">{{ getTypeName(row.subject_type) }}</el-tag>
+              <el-tag :type="getTypeTag(row.subjectType)" size="small">{{ getTypeName(row.subjectType) }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="name" label="名称" />
           <el-table-column label="审核状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.audit_status === 'approved' ? 'success' : row.audit_status === 'pending' ? 'warning' : 'danger'" size="small">
-                {{ row.audit_status === 'approved' ? '已通过' : row.audit_status === 'pending' ? '待审核' : '已拒绝' }}
+              <el-tag :type="row.auditStatus === 'approved' ? 'success' : row.auditStatus === 'pending' ? 'warning' : 'danger'" size="small">
+                {{ row.auditStatus === 'approved' ? '已通过' : row.auditStatus === 'pending' ? '待审核' : '已拒绝' }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="置顶" width="80">
             <template #default="{ row }">
-              <el-switch :model-value="row.is_top" :active-value="1" :inactive-value="0" @change="toggleTop(row)" />
+              <el-switch :model-value="row.isTop ? 1 : 0" :active-value="1" :inactive-value="0" @change="toggleTop(row)" />
             </template>
           </el-table-column>
           <el-table-column label="操作" width="150">
             <template #default="{ row }">
-              <el-button v-if="row.audit_status === 'pending'" type="success" size="small" link @click="auditItem(row, 'approved')">通过</el-button>
-              <el-button v-if="row.audit_status === 'pending'" type="danger" size="small" link @click="auditItem(row, 'rejected')">拒绝</el-button>
+              <el-button v-if="row.auditStatus === 'pending'" type="success" size="small" link @click="auditItem(row, 'approved')">通过</el-button>
+              <el-button v-if="row.auditStatus === 'pending'" type="danger" size="small" link @click="auditItem(row, 'rejected')">拒绝</el-button>
               <el-button type="danger" size="small" link @click="forceRemove(row)">强制下架</el-button>
             </template>
           </el-table-column>
@@ -156,7 +175,9 @@ const settings = ref({
   showIndustry: 1,
   showLocation: 1,
   allowExchange: 1,
-  contactVisible: 'after_exchange'
+  contactVisible: 'after_exchange',
+  style: 'A',
+  notice: ''
 });
 const marketItems = ref([]);
 const stats = ref({ visitCount: 0, exchangeCount: 0, itemCount: 0, pendingCount: 0 });
@@ -212,8 +233,8 @@ function getTypeTag(type) {
 
 async function toggleTop(row) {
   try {
-    await publicApi.post('/card-market/market/top', { itemId: row.id, isTop: row.is_top ? 0 : 1 });
-    ElMessage.success(row.is_top ? '已取消置顶' : '已置顶');
+    await publicApi.post('/card-market/market/top', { itemId: row.id, isTop: row.isTop ? 0 : 1 });
+    ElMessage.success(row.isTop ? '已取消置顶' : '已置顶');
     loadMarketItems();
   } catch (e) {
     ElMessage.error('操作失败');
@@ -258,5 +279,11 @@ async function forceRemove(row) {
 .card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f2f3f5; }
 .card-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #1d2129; }
 .card-body { padding: 20px; }
+style-picker { display: flex; gap: 12px; flex-wrap: wrap; }
+.style-option { flex: 1 1 180px; max-width: 240px; padding: 14px 16px; border: 1px solid #e5e6eb; border-radius: 8px; cursor: pointer; transition: all .2s; }
+.style-option:hover { border-color: #165dff; }
+.style-option.active { border-color: #165dff; background: #e8f3ff; }
+.style-name { font-size: 14px; font-weight: 600; color: #1d2129; }
+.style-desc { font-size: 12px; color: #86909c; margin-top: 4px; line-height: 1.5; }
 .hint-text { font-size: 13px; color: #86909c; margin: 0; }
 </style>

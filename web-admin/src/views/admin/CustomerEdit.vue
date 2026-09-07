@@ -75,6 +75,24 @@
               <el-input-number v-model="form.config.maxAudioSize" :min="1" :max="500" />
             </el-form-item>
           </el-form>
+          <div style="border-top:1px solid #f2f3f5;margin:20px 0 0;"></div>
+          <el-form :model="form.config.market" label-width="120px" style="margin-top:20px;">
+            <div style="font-size:14px;font-weight:600;color:#1d2129;margin-bottom:8px;">人脉集市（智能名片）</div>
+            <div style="font-size:12px;color:#86909c;margin-bottom:16px;">总后台授权租户使用，作为租户集市的默认模板；租户后台可自行覆盖</div>
+            <el-form-item label="启用授权">
+              <el-switch v-model="form.config.market.enabled" />
+            </el-form-item>
+            <el-form-item label="默认风格">
+              <el-radio-group v-model="form.config.market.style">
+                <el-radio value="A">方案A · 角标权重（推荐）</el-radio>
+                <el-radio value="B">方案B · 重点会员</el-radio>
+                <el-radio value="C">方案C · 分类页签</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="默认公告">
+              <el-input v-model="form.config.market.notice" placeholder="例如：欢迎各位会员，对接商务资源，共建人脉网络" style="max-width:420px;" />
+            </el-form-item>
+          </el-form>
         </div>
       </el-tab-pane>
 
@@ -152,7 +170,7 @@ const activeTab = ref('basic');
 const form = reactive({
   customerName: '', contactName: '', contactPhone: '', contactEmail: '',
   validUntil: '', status: 'active', solutions: [],
-  config: { footerCopyright: '', storageMode: 'platform', smsMode: 'platform', wechatPayMode: 'normal', maxImageSize: 50, maxVideoSize: 200, maxAudioSize: 50 },
+  config: { footerCopyright: '', storageMode: 'platform', smsMode: 'platform', wechatPayMode: 'normal', maxImageSize: 50, maxVideoSize: 200, maxAudioSize: 50, market: { enabled: true, style: 'A', notice: '' } },
 });
 
 const channelList = reactive([

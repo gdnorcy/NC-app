@@ -1,12 +1,13 @@
 // 智能名片 API 封装
 const BASE_URL = 'http://localhost:3000/api/card';
+const MARKET_BASE_URL = 'http://localhost:3000/api/card-market';
 const PAYMENT_BASE_URL = 'http://localhost:3000/api/payment';
 
 function request(url, method = 'GET', data = {}) {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('card_token');
     uni.request({
-      url: BASE_URL + url,
+      url: url.startsWith('http') ? url : BASE_URL + url,
       method,
       data,
       header: {
@@ -91,23 +92,25 @@ export const cardApi = {
   getFollows: (id) => request(`/customers/${id}/follows`),
 
   // 人脉集市（租户级）
-  getMarketList: (params) => request('/card-market/market/list' + (params ? '?' + new URLSearchParams(params).toString() : '')),
-  getMarketSettings: () => request('/card-market/market/settings'),
-  toggleMarket: (data) => request('/card-market/market/toggle', 'POST', data),
-  checkMarket: (params) => request('/card-market/market/check' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  getMarketList: (params) => request(MARKET_BASE_URL + '/market/list' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  getMarketSettings: () => request(MARKET_BASE_URL + '/market/settings'),
+  toggleMarket: (data) => request(MARKET_BASE_URL + '/market/toggle', 'POST', data),
+  checkMarket: (params) => request(MARKET_BASE_URL + '/market/check' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  getMarketMyStatus: () => request(MARKET_BASE_URL + '/market/my-status'),
+  getMarketMyStats: () => request(MARKET_BASE_URL + '/market/my-stats'),
 
   // 名片交换
-  exchangeRequest: (data) => request('/card-market/exchange/request', 'POST', data),
-  exchangeHandle: (data) => request('/card-market/exchange/handle', 'POST', data),
-  getExchangeList: () => request('/card-market/exchange/list'),
-  getConnections: () => request('/card-market/connections'),
+  exchangeRequest: (data) => request(MARKET_BASE_URL + '/exchange/request', 'POST', data),
+  exchangeHandle: (data) => request(MARKET_BASE_URL + '/exchange/handle', 'POST', data),
+  getExchangeList: () => request(MARKET_BASE_URL + '/exchange/list'),
+  getConnections: () => request(MARKET_BASE_URL + '/connections'),
   convertConnectionToCustomer: (id) => request(`/card-market/connections/${id}/convert-customer`, 'POST'),
 
   // 入驻管理
-  getIndividuals: () => request('/card-market/individuals'),
-  getEnterprises: () => request('/card-market/enterprises'),
+  getIndividuals: () => request(MARKET_BASE_URL + '/individuals'),
+  getEnterprises: () => request(MARKET_BASE_URL + '/enterprises'),
   getEnterpriseEmployees: (id) => request(`/card-market/enterprises/${id}/employees`),
-  submitApply: (data) => request('/card-market/apply', 'POST', data),
+  submitApply: (data) => request(MARKET_BASE_URL + '/apply', 'POST', data),
   // 本人入驻申请状态（独立 URL：/api/card-market 域，未绑定租户也可查询）
   getApplyStatus: () => new Promise((resolve, reject) => {
     const token = uni.getStorageSync('card_token');
@@ -119,10 +122,10 @@ export const cardApi = {
       fail: (err) => reject(err),
     });
   }),
-  getMyEnterprise: () => request('/card-market/enterprise/my-data'),
+  getMyEnterprise: () => request(MARKET_BASE_URL + '/enterprise/my-data'),
 
   // 公海池
-  getPublicPool: () => request('/card-market/public-pool'),
+  getPublicPool: () => request(MARKET_BASE_URL + '/public-pool'),
   claimPoolCustomer: (id) => request(`/card-market/public-pool/${id}/claim`, 'POST'),
 
   // 会员
