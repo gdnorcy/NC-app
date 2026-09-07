@@ -75,7 +75,7 @@ export function createSolutionsRouter(db) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(
         name.trim(), code.trim(), description || '', icon || '', sortOrder || 0,
-        categoryId || null, isHot ? 1 : 0, status === 'off' ? 'off' : 'on', defaultPlatform || 'h5',
+        categoryId || null, isHot ? 1 : 0, status === 'off' ? 'off' : 'on', JSON.stringify(Array.isArray(defaultPlatform) ? defaultPlatform : [defaultPlatform || 'h5']),
         JSON.stringify(previewImages || []), virtualUseCount || 0
       );
     const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(info.lastInsertRowid);
@@ -89,6 +89,12 @@ export function createSolutionsRouter(db) {
     const solution = db.prepare('SELECT * FROM solutions WHERE id = ?').get(id);
     if (!solution) return res.status(404).json({ error: '解决方案不存在' });
     const { name, description, icon, enabled, sortOrder, categoryId, isHot, status, defaultPlatform, previewImages, virtualUseCount } = req.body || {};
+    // defaultPlatform 支持多选数组；兼容旧单值字符串
+    let defaultPlatformJson = null;
+    if (defaultPlatform !== undefined && defaultPlatform !== null) {
+      const arr = Array.isArray(defaultPlatform) ? defaultPlatform : [defaultPlatform];
+      defaultPlatformJson = JSON.stringify(arr.filter(Boolean));
+    }
     db.prepare(
       `UPDATE solutions SET
         name = COALESCE(?, name), description = COALESCE(?, description), icon = COALESCE(?, icon),
@@ -100,7 +106,7 @@ export function createSolutionsRouter(db) {
     ).run(
       name ?? null, description ?? null, icon ?? null, enabled ?? null, sortOrder ?? null,
       categoryId ?? null, isHot === undefined ? null : (isHot ? 1 : 0),
-      status ?? null, defaultPlatform ?? null,
+      status ?? null, defaultPlatformJson,
       previewImages === undefined ? null : JSON.stringify(previewImages),
       virtualUseCount ?? null, id
     );

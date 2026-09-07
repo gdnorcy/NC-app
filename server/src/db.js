@@ -1643,6 +1643,17 @@ export function toSolution(row) {
   if (row.preview_images) {
     try { previewImages = JSON.parse(row.preview_images); } catch { previewImages = []; }
   }
+  // defaultPlatform：多选数组（JSON 存储），兼容旧单值字符串
+  let defaultPlatform = ['h5'];
+  if (row.default_platform) {
+    const v = row.default_platform;
+    try {
+      const arr = JSON.parse(v);
+      if (Array.isArray(arr)) defaultPlatform = arr.length ? arr : ['h5'];
+    } catch {
+      defaultPlatform = [v];
+    }
+  }
   return {
     id: row.id,
     name: row.name,
@@ -1653,7 +1664,7 @@ export function toSolution(row) {
     status: row.status || 'on',
     isHot: Boolean(row.is_hot),
     categoryId: row.category_id || null,
-    defaultPlatform: row.default_platform || 'h5',
+    defaultPlatform,
     previewImages,
     virtualUseCount: row.virtual_use_count || 0,
     allPermissions: Boolean(row.all_permissions),

@@ -79,7 +79,7 @@ test('P0-3 方案列表返回扩展字段与聚合价格/权限', async () => {
   assert.equal(card.categoryId, 1);
   assert.equal(card.status, 'off', '内置方案已降为应用（下架），由演示试用方案承接');
   assert.equal(typeof card.isHot, 'boolean');
-  assert.ok(typeof card.defaultPlatform === 'string');
+  assert.ok(Array.isArray(card.defaultPlatform) && card.defaultPlatform.length > 0, '默认平台为多选数组');
   assert.ok(Array.isArray(card.previewImages));
   assert.equal(typeof card.virtualUseCount, 'number');
   assert.equal(typeof card.allPermissions, 'boolean');
@@ -107,7 +107,7 @@ test('P0-4 基础设置编辑：上架状态/热门/平台/预览图/虚拟数',
   const res = await request(app).put(`/api/admin/solutions/${card.id}`).set(auth(adminToken)).send({
     status: 'off',
     isHot: true,
-    defaultPlatform: 'mini',
+    defaultPlatform: ['mini', 'h5'],
     previewImages: ['/uploads/a.webp', '/uploads/b.webp'],
     virtualUseCount: 88,
     description: '新简介',
@@ -115,7 +115,7 @@ test('P0-4 基础设置编辑：上架状态/热门/平台/预览图/虚拟数',
   assert.equal(res.status, 200);
   assert.equal(res.body.solution.status, 'off');
   assert.equal(res.body.solution.isHot, true);
-  assert.equal(res.body.solution.defaultPlatform, 'mini');
+  assert.deepEqual(res.body.solution.defaultPlatform, ['mini', 'h5'], '默认平台支持多选');
   assert.deepEqual(res.body.solution.previewImages, ['/uploads/a.webp', '/uploads/b.webp']);
   assert.equal(res.body.solution.virtualUseCount, 88);
   assert.equal(res.body.solution.description, '新简介');
@@ -219,10 +219,11 @@ test('P0-6c 组合包租户授权：开通演示方案可访问其包含的应�
 test('P0-7 新建解决方案：基础字段 + 唯一标识冲突校验', async () => {
   const res = await request(app).post('/api/admin/solutions').set(auth(adminToken)).send({
     name: '测试方案', code: 'test_app', description: '描述', icon: 'chart',
-    categoryId: 2, status: 'off', isHot: true, defaultPlatform: 'h5', virtualUseCount: 3,
+    categoryId: 2, status: 'off', isHot: true, defaultPlatform: ['h5', 'mini'], virtualUseCount: 3,
     previewImages: ['/uploads/x.webp'],
   });
   assert.equal(res.status, 200);
+  assert.deepEqual(res.body.solution.defaultPlatform, ['h5', 'mini'], '新建方案默认平台多选');
   assert.equal(res.body.solution.name, '测试方案');
   assert.equal(res.body.solution.categoryId, 2);
   assert.equal(res.body.solution.status, 'off');

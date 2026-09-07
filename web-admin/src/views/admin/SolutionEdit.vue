@@ -46,9 +46,19 @@
               </el-radio-group>
             </el-form-item>
             <el-form-item label="默认平台">
-              <el-radio-group v-model="form.defaultPlatform" class="platform-group">
-                <el-radio v-for="p in platforms" :key="p.value" :value="p.value">{{ p.label }}</el-radio>
-              </el-radio-group>
+              <div class="platform-multi">
+                <el-checkbox
+                  v-for="p in platforms"
+                  :key="p.value"
+                  :model-value="form.defaultPlatform.includes(p.value)"
+                  :disabled="p.developing"
+                  @change="(v) => togglePlatform(p.value, v)"
+                >
+                  {{ p.label }}
+                  <el-tag v-if="p.developing" size="small" type="info" effect="plain" class="dev-tag">开发中</el-tag>
+                </el-checkbox>
+              </div>
+              <div class="form-help">可多选：勾选方案默认上线的展示渠道；未开通渠道不可勾选</div>
             </el-form-item>
             <el-form-item label="图标">
               <div class="icon-picker">
@@ -163,7 +173,7 @@
                 <div class="app-perm-head">
                   <el-checkbox v-model="app.enabled" @change="onAppToggle(app)">
                     <span class="app-perm-name">
-                      <SIcon :name="getAppIcon(app.icon)" size="18" />
+                      <SIcon :name="getAppIcon(app.icon)" size="16" />
                       {{ app.name }}
                     </span>
                   </el-checkbox>
@@ -244,14 +254,14 @@ import SIcon from '../../components/SIcon.vue';
 import { fetchSolutions, createSolution, updateSolution, saveSolutionPricing, saveSolutionPermissions, fetchSolutionCategories, fetchSolutionAssets, saveSolutionAssets, uploadImage } from '../../api';
 
 const platforms = [
-  { value: 'mini', label: '微信小程序' },
-  { value: 'baidu', label: '百度小程序' },
-  { value: 'ali', label: '支付宝小程序' },
-  { value: 'qq', label: 'QQ小程序' },
-  { value: 'pc', label: 'PC网站' },
-  { value: 'h5', label: 'H5应用' },
-  { value: 'tt', label: '字节跳动小程序' },
-  { value: 'mp', label: '公众号' },
+  { value: 'mini', label: '微信小程序', developing: false },
+  { value: 'baidu', label: '百度小程序', developing: true },
+  { value: 'ali', label: '支付宝小程序', developing: true },
+  { value: 'qq', label: 'QQ小程序', developing: true },
+  { value: 'pc', label: 'PC网站', developing: false },
+  { value: 'h5', label: 'H5应用', developing: false },
+  { value: 'tt', label: '字节跳动小程序', developing: true },
+  { value: 'mp', label: '公众号', developing: false },
 ];
 
 const iconOptions = [
@@ -281,7 +291,7 @@ export default {
 
     const form = reactive({
       name: '', code: '', categoryId: null, status: 'on', isHot: false,
-      defaultPlatform: 'h5', icon: 'template', description: '', virtualUseCount: 0,
+      defaultPlatform: ['h5'], icon: 'template', description: '', virtualUseCount: 0,
       previewImages: [],
     });
     const pricing = ref([]);
@@ -325,7 +335,7 @@ export default {
         if (!s) { ElMessage.error('解决方案不存在'); return; }
         Object.assign(form, {
           name: s.name, code: s.code, categoryId: s.categoryId, status: s.status, isHot: s.isHot,
-          defaultPlatform: s.defaultPlatform, icon: s.icon, description: s.description,
+          defaultPlatform: Array.isArray(s.defaultPlatform) ? [...s.defaultPlatform] : [s.defaultPlatform || 'h5'], icon: s.icon, description: s.description,
           virtualUseCount: s.virtualUseCount, previewImages: s.previewImages || [],
         });
         pricing.value = (s.pricing || []).filter((p) => p.durationMonths > 0).map((p) => ({ ...p }));
@@ -404,6 +414,15 @@ export default {
       form.previewImages = form.previewImages.filter((u) => u !== file.url);
     };
 
+    // 默认平台多选切换（开发中渠道不可选）
+    const togglePlatform = (value, checked) => {
+      if (checked) {
+        if (!form.defaultPlatform.includes(value)) form.defaultPlatform.push(value);
+      } else {
+        form.defaultPlatform = form.defaultPlatform.filter((v) => v !== value);
+      }
+    };
+
     // —— 保存 ——
     const saveAll = async () => {
       if (!form.name.trim()) return ElMessage.warning('请输入解决方案名称');
@@ -460,7 +479,7 @@ export default {
       isNew, solutionId, categories, activeTab, saving, contentType, previewFileList, form,
       pricing, perpetualEnabled, perpetual, allPermissions, appPerms, assets, getAppIcon,
       permissionGroups, allChecked, someChecked, platforms, iconOptions,
-      addPricingRow, removePricingRow, onPerpetualChange, onModeChange, onAppToggle, toggleAllChecked,
+      addPricingRow, removePricingRow, onPerpetualChange, onModeChange, onAppToggle, toggleAllChecked, togglePlatform,
       onStyleDefaultChange, doUpload, onPreviewRemove, saveAll,
     };
   },
@@ -479,6 +498,9 @@ export default {
 .form-help { font-size: 12px; color: #86909C; line-height: 1.5; margin-top: 4px; }
 .platform-group { display: flex; flex-wrap: wrap; }
 .platform-group :deep(.el-radio) { margin-right: 16px; margin-bottom: 8px; }
+.platform-multi { display: flex; flex-wrap: wrap; gap: 4px 20px; max-width: 860px; }
+.platform-multi :deep(.el-checkbox) { margin-right: 0; }
+.dev-tag { margin-left: 2px; transform: scale(0.85); transform-origin: left center; }
 .icon-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .icon-option { width: 40px; height: 40px; border: 1px solid #E5E6EB; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4E5969; transition: all 0.2s; }
 .icon-option:hover { border-color: #165DFF; color: #165DFF; }
@@ -512,7 +534,7 @@ export default {
 .app-perm-block.not-enabled { background: #FAFAFC; }
 .app-perm-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #F7F8FA; border-bottom: 1px solid #F2F3F5; }
 .app-perm-block.not-enabled .app-perm-head { background: transparent; border-bottom: none; }
-.app-perm-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #1D2129; }
+.app-perm-name { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: #1D2129; }
 .app-perm-tip { font-size: 12px; color: #86909C; }
 .app-perm-body { padding: 14px 16px 4px; }
 .perm-group { margin-bottom: 14px; }
