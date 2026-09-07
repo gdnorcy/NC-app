@@ -1,0 +1,61 @@
+/**
+ * 租户端菜单权限纯函数（核心多租户权限逻辑）
+ * 所有角色判定集中于此，供 CustomerLayout 侧边栏、路由守卫复用
+ * 角色模型：tenant_admin（租户管理员）/ enterprise_admin（入驻企业管理-员）/ member（普通成员）
+ */
+export function isTenantAdmin(user) {
+  return user?.role === 'tenant_admin';
+}
+
+export function isEnterpriseAdmin(user) {
+  return !!user?.enterpriseId && user?.role !== 'tenant_admin';
+}
+
+export function isMember(user) {
+  return !!user && user?.role !== 'tenant_admin' && !isEnterpriseAdmin(user);
+}
+
+/** 侧边栏菜单结构：code 用于断言，label/path 用于渲染 */
+export function buildSidebarMenus(user) {
+  const menus = [
+    { code: 'dashboard', label: '工作台', path: '/dashboard' },
+    { code: 'apps', label: '应用中心', path: '/apps' },
+    { code: 'billing', label: '套餐与续费', path: '/billing' },
+    { code: 'orders', label: '我的账单', path: '/orders' },
+  ];
+  // 入驻企业管理员：企业子面板（工作台/员工/公海/设置）
+  if (isEnterpriseAdmin(user)) {
+    menus.push({
+      code: 'enterprise',
+      label: '企业管理',
+      path: '/enterprise',
+      children: [
+        { code: 'ent-dashboard', label: '企业工作台', path: '/enterprise' },
+        { code: 'ent-employees', label: '企业员工', path: '/enterprise/employees' },
+        { code: 'ent-pool', label: '企业公海', path: '/enterprise/pool' },
+        { code: 'ent-settings', label: '企业设置', path: '/enterprise/settings' },
+      ],
+    });
+  }
+  // 租户管理员：成员管理
+  if (isTenantAdmin(user)) {
+    menus.push({ code: 'members', label: '成员管理', path: '/members' });
+  }
+  menus.push({
+    code: 'settings',
+    label: '系统设置',
+    path: '/settings',
+    children: [
+      { code: 'set-account', label: '账号设置', path: '/settings/account' },
+      { code: 'set-storage', label: '远程附件', path: '/settings/storage' },
+      { code: 'set-sms', label: '短信配置', path: '/settings/sms' },
+      { code: 'set-payment', label: '支付配置', path: '/settings/payment' },
+    ],
+  });
+  return menus;
+}
+
+/** 断言用：返回某角色可见的顶层菜单 code 集合 */
+export function visibleMenuCodes(user) {
+  return buildSidebarMenus(user).map((m) => m.code);
+}

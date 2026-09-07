@@ -146,6 +146,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { isTenantAdmin as isTenantAdminFn, isEnterpriseAdmin as isEnterpriseAdminFn } from '../utils/menuPermissions';
 import {
   SwitchButton, Fold, Expand, ArrowDown, Back, QuestionFilled,
 } from '@element-plus/icons-vue';
@@ -163,8 +164,8 @@ const tenantValidUntil = ref('');
 const tenantDaysLeft = ref(null);
 
 const authStore = { user: JSON.parse(localStorage.getItem('customer_user') || 'null') };
-const isTenantAdmin = computed(() => authStore.user?.role === 'tenant_admin');
-const isEnterpriseAdmin = computed(() => !!authStore.user?.enterpriseId && authStore.user?.role !== 'tenant_admin');
+const isTenantAdmin = computed(() => isTenantAdminFn(authStore.user));
+const isEnterpriseAdmin = computed(() => isEnterpriseAdminFn(authStore.user));
 const isImpersonate = computed(() => !!localStorage.getItem('admin_token_backup'));
 const activeMenu = computed(() => route.path);
 const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() || 'U');

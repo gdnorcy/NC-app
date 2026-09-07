@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import { buildSidebarMenus } from '../utils/menuPermissions';
 import CustomerLayout from '../layouts/CustomerLayout.vue';
 
 const routes = [
@@ -44,6 +45,16 @@ const routes = [
   },
 ];
 
+/** 角色可访问路径集（含子菜单） */
+function allowedPaths(user) {
+  const set = new Set(['/login', '/dashboard']);
+  for (const m of buildSidebarMenus(user)) {
+    set.add(m.path);
+    for (const c of m.children || []) set.add(c.path);
+  }
+  return set;
+}
+
 const router = createRouter({ history: createWebHashHistory(), routes });
 
 router.beforeEach((to, from, next) => {
@@ -54,6 +65,9 @@ router.beforeEach((to, from, next) => {
     const user = JSON.parse(localStorage.getItem('customer_user') || 'null');
     if (user?.enterpriseId && user?.role !== 'tenant_admin' && to.path === '/dashboard') {
       next('/enterprise');
+    } else if (token && to.path !== '/login' && !allowedPaths(user).has(to.path)) {
+      // 越权拦截：普通成员访问成员管理/企业面板等 → 回工作台
+      next('/dashboard');
     } else next();
   }
 });
