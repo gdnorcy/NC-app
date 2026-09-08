@@ -131,33 +131,45 @@
     <view class="grid-box">
       <view class="grid-item" @click="scrollTo('subs')">
         <view class="grid-ic ic-blue"><SIcon name="team" size="large" /></view>
-        <view class="grid-name">我的下线</view>
-        <view class="grid-sub">{{ summary.directCount + summary.indirectCount }}人</view>
+        <view class="grid-txt">
+          <view class="grid-name">我的下线</view>
+          <view class="grid-sub">{{ summary.directCount + summary.indirectCount }}人</view>
+        </view>
       </view>
       <view class="grid-item" @click="scrollTo('logs')">
         <view class="grid-ic ic-green"><SIcon name="wallet" size="large" /></view>
-        <view class="grid-name">推广佣金</view>
-        <view class="grid-sub">本月 ¥{{ fen(summary.monthCommission) }}</view>
+        <view class="grid-txt">
+          <view class="grid-name">推广佣金</view>
+          <view class="grid-sub">本月 ¥{{ fen(summary.monthCommission) }}</view>
+        </view>
       </view>
       <view class="grid-item" @click="scrollTo('partner')">
         <view class="grid-ic ic-orange"><SIcon name="crown" size="large" /></view>
-        <view class="grid-name">合伙人分红</view>
-        <view class="grid-sub">待分 ¥{{ fen(summary.partnerPending) }}</view>
+        <view class="grid-txt">
+          <view class="grid-name">合伙人分红</view>
+          <view class="grid-sub">待分 ¥{{ fen(summary.partnerPending) }}</view>
+        </view>
       </view>
       <view class="grid-item" @click="scrollTo('share')">
         <view class="grid-ic ic-purple"><SIcon name="badge" size="large" /></view>
-        <view class="grid-name">股东分红</view>
-        <view class="grid-sub">待分 ¥{{ fen(summary.sharePending) }}</view>
+        <view class="grid-txt">
+          <view class="grid-name">股东分红</view>
+          <view class="grid-sub">待分 ¥{{ fen(summary.sharePending) }}</view>
+        </view>
       </view>
       <view class="grid-item" @click="scrollTo('withdraw')">
         <view class="grid-ic ic-cyan"><SIcon name="orders" size="large" /></view>
-        <view class="grid-name">提现记录</view>
-        <view class="grid-sub">提现中 ¥{{ fen(summary.withdrawing) }}</view>
+        <view class="grid-txt">
+          <view class="grid-name">提现记录</view>
+          <view class="grid-sub">提现中 ¥{{ fen(summary.withdrawing) }}</view>
+        </view>
       </view>
       <view class="grid-item" @click="scrollTo('logs')">
         <view class="grid-ic ic-gray"><SIcon name="chart" size="large" /></view>
-        <view class="grid-name">收益明细</view>
-        <view class="grid-sub">全部收益</view>
+        <view class="grid-txt">
+          <view class="grid-name">收益明细</view>
+          <view class="grid-sub">全部收益</view>
+        </view>
       </view>
     </view>
 
@@ -707,18 +719,19 @@ button::after { border: none; }
 .deco-qr { width: 74px; height: 74px; background: #fff; border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 3px; box-sizing: border-box; }
 .dqr-cell { width: calc((74px - 12px - 18px) / 7); height: calc((74px - 12px - 18px) / 7); border-radius: 1px; background: rgba(22,93,255,0.08); }
 .dqr-cell.on { background: #165dff; }
-/* 功能宫格 */
+/* 功能宫格：图标左、文字右两行（左右分布） */
 .grid-box { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px; }
-.grid-item { flex: 1 1 30%; min-width: 100px; background: #fff; border-radius: 12px; padding: 14px 6px 12px; text-align: center; }
-.grid-ic { width: 44px; height: 44px; border-radius: 10px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; }
+.grid-item { flex: 1 1 46%; min-width: 130px; display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 12px; padding: 12px; }
+.grid-ic { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .ic-blue { background: rgba(22,93,255,0.1); color: #165dff; }
 .ic-green { background: rgba(0,180,42,0.1); color: #00b42a; }
 .ic-orange { background: rgba(255,125,0,0.1); color: #ff7d00; }
 .ic-purple { background: rgba(114,46,209,0.1); color: #722ed1; }
 .ic-cyan { background: rgba(18,194,233,0.1); color: #12c2e9; }
 .ic-gray { background: rgba(78,89,105,0.1); color: #4e5969; }
-.grid-name { font-size: 13px; color: #1d2129; font-weight: 500; }
-.grid-sub { font-size: 11px; color: #86909c; margin-top: 3px; }
+.grid-txt { flex: 1; min-width: 0; }
+.grid-name { font-size: 14px; color: #1d2129; font-weight: 500; }
+.grid-sub { font-size: 12px; color: #86909c; margin-top: 3px; }
 .stat-cards { display: flex; gap: 10px; margin: 0 20px; }
 .s-card { flex: 1; background: #fff; border-radius: 10px; padding: 14px 0; text-align: center; }
 .s-num { font-size: 20px; font-weight: 700; color: #165dff; }
