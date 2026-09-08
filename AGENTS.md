@@ -370,3 +370,10 @@ npm run test:frontend
 - `renderer.setPixelRatio(min(dpr, 1.5))`；纹理宽超 2048 必须 `limitTextureSize` canvas 缩放后上传；球面几何/material 复用（只换 map + needsUpdate）。
 - 场景切换（imageUrl/previewUrl 变化）必须 watch 重载纹理，不得只加载首次。
 - 验收基准：编辑页从进入页面到可交互（loading 遮罩消失）应 <1s（此前 8.6s）。
+
+## 全景热点编辑所见即所得规范（2026-09-08 更新）
+
+- **编辑器相机必须与 H5 查看端逐字段一致**：相机在球心 (0,0,0) + `lookAt(dir(lon,lat))` + `SphereGeometry(50,64,48)` + `MeshBasicMaterial({side: THREE.BackSide})` + fov 75 + far 200；热点标记位于 `dir * (RADIUS*0.92) = dir*46`，标记球体 info 3.2 / scene 3.6。
+- **禁止**编辑器相机置于球面偏移位置（曾用半径 100 绕行 + 球 500 scale(-1,1,1)），与 H5 球心相机存在视差 → 标注"所见非所得"。
+- 拖拽旋转：向右拖 lon 增大（视野右转）、向下拖 lat 减小（视野下转），与 H5 applyDrag 一致；lat 语义 = 视线俯仰（正=向上看）。
+- 编辑页布局 `grid-template-columns:minmax(0,1fr) 520px`，防止 520px 列把 3D 画布挤出视口。
