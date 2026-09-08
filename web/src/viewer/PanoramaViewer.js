@@ -499,19 +499,19 @@ export class PanoramaViewer {
     const title = (hs.title || '').slice(0, 14);
 
     // ---- 主标记：气泡(标题) + 圆 + 白描边 ----
-    const W = 256, H = 180;
-    const cx = 128, cy = 124, r = 46;
+    const W = 256, H = 176;
+    const cx = 128, cy = 118, r = 42;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
     if (title) {
-      ctx.font = 'bold 24px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.font = 'bold 22px "PingFang SC", "Microsoft YaHei", sans-serif';
       const tw = ctx.measureText(title).width;
-      const bw = Math.min(tw + 36, W - 32);
+      const bw = Math.min(tw + 32, W - 28);
       const bx = cx - bw / 2;
-      const by = 4, bh = 42;
-      this._roundRect(ctx, bx, by, bw, bh, 12);
+      const by = 4, bh = 32;
+      this._roundRect(ctx, bx, by, bw, bh, 10);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
       ctx.fill();
       ctx.strokeStyle = color;
@@ -519,9 +519,9 @@ export class PanoramaViewer {
       ctx.stroke();
       // 小三角指向标记
       ctx.beginPath();
-      ctx.moveTo(cx - 9, by + bh - 1);
-      ctx.lineTo(cx + 9, by + bh - 1);
-      ctx.lineTo(cx, by + bh + 10);
+      ctx.moveTo(cx - 8, by + bh - 1);
+      ctx.lineTo(cx + 8, by + bh - 1);
+      ctx.lineTo(cx, by + bh + 9);
       ctx.closePath();
       ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
       ctx.fill();
@@ -539,20 +539,20 @@ export class PanoramaViewer {
     ctx.fillStyle = grad;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 4.5;
     ctx.stroke();
     // 类型内标：scene=白箭头 / info=白 i
     ctx.fillStyle = '#fff';
     if (isScene) {
       ctx.beginPath();
-      ctx.moveTo(cx, cy - 26);
-      ctx.lineTo(cx + 18, cy + 4);
-      ctx.lineTo(cx, cy - 6);
-      ctx.lineTo(cx - 18, cy + 4);
+      ctx.moveTo(cx, cy - 23);
+      ctx.lineTo(cx + 16, cy + 4);
+      ctx.lineTo(cx, cy - 5);
+      ctx.lineTo(cx - 16, cy + 4);
       ctx.closePath();
       ctx.fill();
     } else {
-      ctx.font = 'bold 56px sans-serif';
+      ctx.font = 'bold 50px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('i', cx, cy + 4);
@@ -561,7 +561,7 @@ export class PanoramaViewer {
     const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
     sprite.position.set(dir.x * dist, dir.y * dist, dir.z * dist);
-    sprite.scale.set(16, 11.25, 1);
+    sprite.scale.set(13.5, 9.28, 1);
     // dir 为普通对象，这里包装为 Vector3 供每帧方位计算使用
     const dirV = new THREE.Vector3(dir.x, dir.y, dir.z);
     const userData = { hotspot: hs, dir: dirV };
@@ -572,10 +572,10 @@ export class PanoramaViewer {
       ac.width = 128; ac.height = 128;
       const actx = ac.getContext('2d');
       actx.beginPath();
-      actx.moveTo(64, 20);
-      actx.lineTo(84, 52);
-      actx.lineTo(64, 40);
-      actx.lineTo(44, 52);
+      actx.moveTo(64, 26);
+      actx.lineTo(80, 54);
+      actx.lineTo(64, 43);
+      actx.lineTo(48, 54);
       actx.closePath();
       actx.fillStyle = '#FFFFFF';
       actx.fill();
@@ -586,8 +586,8 @@ export class PanoramaViewer {
       });
       const arrow = new THREE.Sprite(arrowMat);
       arrow.position.copy(sprite.position);
-      arrow.scale.set(5.2, 5.2, 1);
-      arrow.position.addScaledVector(dir, 5.4);
+      arrow.scale.set(4.5, 4.5, 1);
+      arrow.position.addScaledVector(dir, 4.6);
       this.scene.add(arrow);
       this._hotspotExtras.push(arrow);
       userData.arrow = arrow;
@@ -621,7 +621,7 @@ export class PanoramaViewer {
       map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, opacity: 0.5,
     });
     const s = new THREE.Sprite(mat);
-    s.scale.set(effect === 'pulse' ? 9.6 : 8, effect === 'pulse' ? 9.6 : 8, 1);
+    s.scale.set(8.2, 8.2, 1);
     return s;
   }
 
@@ -650,12 +650,12 @@ export class PanoramaViewer {
         const fx = ud.fx;
         if (style.effect === 'pulse') {
           const k = 0.5 + 0.5 * Math.sin(t * 2.8);
-          const sc = 9.2 + k * 1.6;
+          const sc = 7.8 + k * 1.4;
           fx.scale.set(sc, sc, 1);
           fx.material.opacity = 0.18 + k * 0.4;
         } else if (style.effect === 'ripple') {
           const cycle = (t % 1.8) / 1.8;
-          const sc = 7.6 + cycle * 9;
+          const sc = 6.6 + cycle * 7.8;
           fx.scale.set(sc, sc, 1);
           fx.material.opacity = 0.55 * (1 - cycle);
         }

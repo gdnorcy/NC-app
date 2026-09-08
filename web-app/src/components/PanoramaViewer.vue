@@ -386,8 +386,8 @@ export default {
 }
 .hotspot-dot {
   position: relative;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: rgba(22, 93, 255, 0.85);
   border: 2px solid #fff;
@@ -398,32 +398,32 @@ export default {
 }
 .dot-i {
   color: #fff;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
 }
 .hotspot-arrow {
   position: absolute;
   left: 50%;
-  top: -8px;
+  top: -7px;
   width: 0;
   height: 0;
-  margin-left: -7px;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-bottom: 13px solid #ffffff;
-  transform-origin: 7px 21px;
+  margin-left: -6px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 11px solid #ffffff;
+  transform-origin: 6px 18px;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
   z-index: 2;
 }
 .hs-ring {
   position: absolute;
   left: 50%;
-  top: 13px;
-  width: 30px;
-  height: 30px;
-  margin-left: -15px;
-  margin-top: -15px;
+  top: 11px;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  margin-top: -13px;
   border-radius: 50%;
   border: 2px solid #165dff;
   opacity: 0;
@@ -444,12 +444,12 @@ export default {
   100% { transform: scale(1.9); opacity: 0; }
 }
 .hotspot-label {
-  margin-top: 4px;
-  padding: 2px 8px;
+  margin-top: 3px;
+  padding: 1px 7px;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 12px;
-  border-radius: 10px;
+  font-size: 11px;
+  border-radius: 8px;
   white-space: nowrap;
 }
 .loading-overlay {
