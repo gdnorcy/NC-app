@@ -715,10 +715,10 @@ button::after { border: none; }
 .mini-btn.invite-btn.solid { background: #fff; color: #165dff; border-color: #fff; font-weight: 600; }
 .mini-btn.invite-btn.ghost { background: transparent; color: #fff; }
 .invite-right { background: rgba(255,255,255,0.16); border-radius: 12px; padding: 8px; }
-/* 装饰二维码：白底圆角框 + 主色信息块，纯示意美观 */
+/* 装饰二维码：白底圆角框 + 青绿色信息块（与页面背景色系一致），纯示意美观 */
 .deco-qr { width: 74px; height: 74px; background: #fff; border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 3px; box-sizing: border-box; }
-.dqr-cell { width: calc((74px - 12px - 18px) / 7); height: calc((74px - 12px - 18px) / 7); border-radius: 1px; background: rgba(22,93,255,0.08); }
-.dqr-cell.on { background: #165dff; }
+.dqr-cell { width: calc((74px - 12px - 18px) / 7); height: calc((74px - 12px - 18px) / 7); border-radius: 1px; background: rgba(20,184,166,0.12); }
+.dqr-cell.on { background: #14b8a6; }
 /* 功能宫格：两列排列，图标左、文字右两行 */
 .grid-box { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px; }
 .grid-item { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 12px; padding: 12px; min-width: 0; }
