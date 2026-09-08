@@ -159,8 +159,15 @@ export function createDistributionService(db) {
 
     let pid1 = null, pid2 = null;
     if (pid) {
-      const parentUser = db.prepare('SELECT id FROM platform_user WHERE id = ?').get(pid);
+      const parentUser = db.prepare('SELECT id, customer_id, enterprise_id FROM platform_user WHERE id = ?').get(pid);
       if (!parentUser) return { ok: false, error: '上级不存在' };
+      // 上级必须属于同一客户项目（防跨租户绑定：未入驻用户/其它租户用户不能成为本租户上级）
+      let parentTenant = parentUser.customer_id || null;
+      if (!parentTenant && parentUser.enterprise_id) {
+        const ent = db.prepare('SELECT customer_id FROM tenant_enterprises WHERE id = ?').get(parentUser.enterprise_id);
+        parentTenant = ent ? ent.customer_id : null;
+      }
+      if (parentTenant !== tenantId) return { ok: false, error: '上级不在当前客户项目内' };
       const parentRel = svc.getRelation(tenantId, pid, identityType);
       pid1 = pid;
       pid2 = parentRel ? parentRel.pid1 : null;
@@ -410,18 +417,18 @@ export function createDistributionService(db) {
       return !!r;
     }
     if (g === 3) {
-      const r = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM payment_orders WHERE user_id = ? AND status = 'paid'").get(userId);
+      const r = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM payment_orders WHERE user_id = ? AND customer_id = ? AND status = 'paid'").get(userId, tenantId);
       const min = Number(cfg.become_amount || 0);
       return (r && r.s >= min) || false;
     }
     if (g === 4) {
-      const r = db.prepare("SELECT COUNT(*) n FROM payment_orders WHERE user_id = ? AND status = 'paid'").get(userId);
+      const r = db.prepare("SELECT COUNT(*) n FROM payment_orders WHERE user_id = ? AND customer_id = ? AND status = 'paid'").get(userId, tenantId);
       return (r && r.n > 0) || false;
     }
     if (g === 5) {
       const products = String(cfg.become_products || '').split(',').map((s) => s.trim()).filter(Boolean);
       if (!products.length) return false;
-      const list = db.prepare("SELECT product_name FROM payment_orders WHERE user_id = ? AND status = 'paid'").all(userId);
+      const list = db.prepare("SELECT product_name FROM payment_orders WHERE user_id = ? AND customer_id = ? AND status = 'paid'").all(userId, tenantId);
       return list.some((o) => products.some((p) => (o.product_name || '').includes(p)));
     }
     return true;
@@ -585,10 +592,6 @@ export function createDistributionService(db) {
       if (rel && config.is_open_level2 && rel.pid2 && distributorQualified(tenantId, rel.pid2, buyerIdentity, gate)) {
         col.c2 = Math.floor(base * config.ratio2);
         if (col.c2 > 0) logRows.push({ userId: rel.pid2, identityType: buyerIdentity, type: 'level2', amount: col.c2, remark: '二级推广佣金' });
-      }
-      if (config.is_self_buy && rel) {
-        col.self = Math.floor(base * config.ratio1);
-        if (col.self > 0) logRows.push({ userId: order.userId, identityType: buyerIdentity, type: 'level1', amount: col.self, remark: '自购返佣' });
       }
     }
 

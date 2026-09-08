@@ -12,12 +12,13 @@ import { createDistributionService, buildShareUrl, buildWithdrawCsv, buildLogCsv
 describe('分销体系（分销裂变底座）', () => {
   let db, dist;
   const DB_PATH = path.join(os.tmpdir(), `dist-test-${Date.now()}.db`);
+  const TENANT = 99901;
 
   before(() => {
     db = createDb(DB_PATH);
     dist = createDistributionService(db);
-    // 种子：平台用户（上级/中间/买家/企业上级）
-    const ins = db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, identity_type) VALUES (?, ?, ?, ?)");
+    // 种子：平台用户（上级/中间/买家/企业上级）；customer_id 统一为本测试租户（贴合「上级须同租户」语义）
+    const ins = db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, identity_type, customer_id) VALUES (?, ?, ?, ?, ?)");
     for (const [id, openid, name, idt] of [
       [1000, 'dist-u1000', '上级A', 'individual'],
       [1001, 'dist-u1001', '中间B', 'individual'],
@@ -28,15 +29,13 @@ describe('分销体系（分销裂变底座）', () => {
       [1004, 'dist-u1004', '买家E', 'individual'],
       [1005, 'dist-u1005', '待删F', 'individual'],
     ]) {
-      ins.run(id, openid, name, idt);
+      ins.run(id, openid, name, idt, TENANT);
     }
   });
   after(() => {
     try { db.close(); } catch {}
     try { fs.rmSync(DB_PATH, { force: true }); } catch {}
   });
-
-  const TENANT = 99901;
 
   function makeOrder(overrides = {}) {
     return {
@@ -761,5 +760,57 @@ describe('分销体系（分销裂变底座）', () => {
     assert.equal(s.applyAgreement, '<p>协议</p>', 'summary 透传 applyAgreement');
     // 还原
     dist.saveConfig(TENANT, { become_rule: 0, share_title: '', dist_notice: '', apply_agreement: '' });
+  });
+
+  it('P5 自购返佣不重复入账（有上级绑定 + 自购返佣开启 → 仅一条自购流水）', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.saveConfig(TENANT, { become_rule: 0, is_self_buy: 1, ratio1: 0.2, max_total_ratio: 0.3, is_open_level2: 1 });
+    const uid = 1012;
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, ?, ?, 'individual')")
+      .run(uid, 'dist-u1012', '自购复测用户', TENANT);
+    // 上级：同租户用户 1001（已入驻）
+    const r = dist.bindRelation(TENANT, uid, 'individual', 1001, 'qrcode');
+    assert.ok(r.ok, '绑定上级成功');
+    const split = dist.computeOrderSplit(makeOrder({ id: 90230, orderNo: 'T90230', userId: uid }));
+    assert.ok(split, '分账生成');
+    const logs = db.prepare('SELECT type, amount, remark FROM dist_user_log WHERE split_id = ?').all(split.id);
+    const selfLogs = logs.filter((l) => l.remark === '自购返佣');
+    assert.equal(selfLogs.length, 1, '自购返佣只入账一条');
+    assert.equal(split.commission1, selfLogs.reduce((s, l) => s + l.amount, 0), '快照 commission1 与自购流水一致');
+    // 清理
+    db.prepare('DELETE FROM dist_user_log WHERE split_id = ?').run(split.id);
+    db.prepare('DELETE FROM dist_order_split WHERE id = ?').run(split.id);
+    db.prepare('DELETE FROM dist_user_relation WHERE user_id = ?').run(uid);
+    db.prepare('DELETE FROM dist_wallet WHERE user_id = ? AND tenant_id = ?').run(uid, TENANT);
+    db.prepare('DELETE FROM platform_user WHERE id = ?').run(uid);
+    dist.saveConfig(TENANT, { is_self_buy: 0 });
+  });
+
+  it('P5 跨租户绑定拦截：未入驻用户/其它租户用户不能成为上级，同租户可绑定', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    const buyer = 1013;
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, ?, ?, 'individual')")
+      .run(buyer, 'dist-u1013', '绑定买家', TENANT);
+    // 未入驻用户（customer_id NULL）
+    const stranger = 1014;
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id) VALUES (?, ?, ?, NULL)").run(stranger, 'dist-u1014', '未入驻路人');
+    let r = dist.bindRelation(TENANT, buyer, 'individual', stranger, 'qrcode');
+    assert.equal(r.ok, false, '未入驻用户不能成为上级');
+    assert.match(r.error || '', /客户项目/, '报错提示上级不在当前客户项目');
+    // 其它租户用户
+    const other = 1015;
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id) VALUES (?, ?, ?, 9999)").run(other, 'dist-u1015', '其它租户用户');
+    r = dist.bindRelation(TENANT, buyer, 'individual', other, 'qrcode');
+    assert.equal(r.ok, false, '其它租户用户不能成为上级');
+    // 同租户用户可绑定
+    const same = 1016;
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, ?, ?, 'individual')")
+      .run(same, 'dist-u1016', '同租户上级', TENANT);
+    r = dist.bindRelation(TENANT, buyer, 'individual', same, 'qrcode');
+    assert.ok(r.ok, '同租户用户可绑定');
+    assert.equal(r.relation.pid1, same, 'pid1 落库正确');
+    // 清理
+    db.prepare('DELETE FROM dist_user_relation WHERE user_id IN (?, ?)').run(buyer, same);
+    db.prepare('DELETE FROM platform_user WHERE id IN (?, ?, ?, ?)').run(buyer, stranger, other, same);
   });
 });

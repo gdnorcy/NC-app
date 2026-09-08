@@ -672,10 +672,10 @@ const cfgCats = [
 ];
 const cfgCat = ref('base');
 const cfg = reactive({
-  ratio1: 0.2, ratio2: 0.05, isOpenLevel2: 1, isSelfBuy: 0,
+  ratio1: 0.2, ratio2: 0.05, isOpenLevel2: true, isSelfBuy: false,
   calcType: 1, settleDay: 7, minWithdraw: 10, withdrawFeeRate: 0, maxTotalRatio: 0.3,
   distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '',
-  zeroOrder: 0, showParent: 0, showPhone: 0, defaultLevel: '默认等级', posterBadge: 1,
+  zeroOrder: false, showParent: false, showPhone: false, defaultLevel: '默认等级', posterBadge: true,
   bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '',
   shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '',
 });
@@ -686,16 +686,16 @@ async function loadConfig() {
     const c = res.config || {};
     Object.assign(cfg, {
       ratio1: c.ratio1 ?? 0.2, ratio2: c.ratio2 ?? 0.05,
-      isOpenLevel2: c.is_open_level2 ?? 1, isSelfBuy: c.is_self_buy ?? 0,
+      isOpenLevel2: c.is_open_level2 ? true : false, isSelfBuy: c.is_self_buy ? true : false,
       calcType: c.calc_type ?? 1, settleDay: c.settle_day ?? 7,
       minWithdraw: c.min_withdraw ?? 10, withdrawFeeRate: c.withdraw_fee_rate ?? 0,
       maxTotalRatio: c.max_total_ratio ?? 0.3,
       // 基本设置 + 分销参数
       distName: c.dist_name || '推广员', subName: c.sub_name || '下级',
       applyTopImg: c.apply_top_img || '', promoteImg: c.promote_img || '', applyTip: c.apply_tip || '',
-      zeroOrder: c.zero_order ? 1 : 0, showParent: c.show_parent ? 1 : 0, showPhone: c.show_phone ? 1 : 0,
+      zeroOrder: c.zero_order ? true : false, showParent: c.show_parent ? true : false, showPhone: c.show_phone ? true : false,
       defaultLevel: c.default_level || '默认等级',
-      posterBadge: c.poster_badge !== undefined ? (c.poster_badge ? 1 : 0) : 1,
+      posterBadge: c.poster_badge !== undefined ? (c.poster_badge ? true : false) : true,
       // 关系设置 / 分享设置 / 申请协议 / 分销须知
       bindRule: [0, 1, 2].includes(Number(c.bind_rule)) ? Number(c.bind_rule) : 0,
       becomeRule: [0, 1, 2, 3, 4, 5].includes(Number(c.become_rule)) ? Number(c.become_rule) : Number(c.distributor_gate || 0),
