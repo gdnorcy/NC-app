@@ -512,3 +512,10 @@ npm run test:frontend
 - **建表**：dist_distributor_apply（tenant_id/user_id/identity_type/status/reject_reason/created_at/reviewed_at）在 db.js 迁移区 5 幂等创建；服务层 getApplyStatus/applyDistributor/getApplies/reviewApply。
 - **测试**：distribution.test.js 36 用例（含申请通过自动入白名单、驳回带原因可重提、重复提交拒绝）；cardApi.test.js 29 用例（distApply URL/POST）。
 - **前端**：DistHome 申请卡片（通过/驳回，驳回 ElMessageBox.prompt 原因）+ Tab 角标；C 端 apply-box 样式（蓝底申请区 + 申请按钮 + 等待审核/驳回原因态）。
+
+## .gitignore 精确匹配规范（2026-09-08 新增）
+
+- **禁止**在 .gitignore 使用无斜杠前缀的泛化目录名（如 `dist/`、`data/`）——git 的模式会匹配**任意层级**同名目录，曾误伤 `web-admin/src/views/customer/apps/dist/` 源码目录（6 个分销管理页面从未入库，仅存在于工作区）。
+- 构建产物目录必须写根级精确路径：`/web/dist/`、`/web-app/dist/`、`/server/public/admin/`、`/server/data/`；根级数据目录 `/data/` 也加斜杠。
+- 交付前检查：`git status --short --ignored | grep '^!!'` 列表只能出现 node_modules/构建产物/数据/日志/.DS_Store；发现任何 `src/` 下源码目录被忽略立即修复并 `git add -f` 补录。
+- 新增源码目录时用 `git check-ignore <path>` 确认未被误伤。
