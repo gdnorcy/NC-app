@@ -934,6 +934,21 @@ export function createDistributionService(db) {
     const monthNew = db.prepare(
       "SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND (pid1 = ? OR pid2 = ?) AND status = 'bound' AND substr(bind_time,1,10) >= ?"
     ).get(tenantId, userId, userId, monthKey).n;
+    // —— 今日业绩（借鉴推广中心布局）：今日佣金 / 今日分账订单 / 今日新增下线 ——
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayCommission = db.prepare(
+      "SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('level1','level2') AND substr(created_at,1,10) = ?"
+    ).get(tenantId, userId, identityType, todayKey).s;
+    const todayOrder = db.prepare(
+      "SELECT COUNT(*) n FROM dist_order_split WHERE tenant_id = ? AND substr(created_at,1,10) = ?"
+    ).get(tenantId, todayKey).n;
+    const todayNew = db.prepare(
+      "SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND (pid1 = ? OR pid2 = ?) AND status = 'bound' AND substr(bind_time,1,10) = ?"
+    ).get(tenantId, userId, userId, todayKey).n;
+    // 提现中金额（待审核 + 待打款，参考图「提现中」栏）
+    const withdrawing = db.prepare(
+      "SELECT COALESCE(SUM(amount),0) s FROM dist_withdraw WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND status IN ('pending','approved')"
+    ).get(tenantId, userId, identityType).s;
 
     // 身份标签（小程序分销中心聚合）
     const tags = [];
@@ -959,6 +974,8 @@ export function createDistributionService(db) {
     // 基本设置 + 分销参数（C 端文案/申请页/展示开关）
     const cfg = svc.getConfig(tenantId);
     const myParent = svc.getRelation(tenantId, userId, identityType);
+    // 当前用户信息（顶部用户卡头像/昵称）
+    const self = db.prepare('SELECT nickname, avatar FROM platform_user WHERE id = ?').get(userId);
 
     return {
       wallet,
@@ -966,6 +983,10 @@ export function createDistributionService(db) {
       indirectCount: indirect,
       monthCommission,
       monthNew,
+      todayCommission,
+      todayOrder,
+      todayNew,
+      withdrawing,
       isPartner: !!partner,
       shareTags: tags,
       partnerPending,
@@ -982,6 +1003,8 @@ export function createDistributionService(db) {
       showParent: !!cfg.show_parent,
       showPhone: !!cfg.show_phone,
       defaultLevel: cfg.default_level || '默认等级',
+      selfName: self ? (self.nickname || '我') : '我',
+      selfAvatar: self ? (self.avatar || '') : '',
       // —— 2026-09-09 关系设置 / 分享设置 / 申请协议 / 分销须知 ——
       bindRule: cfg.bind_rule || 0,
       becomeRule: cfg.become_rule !== undefined ? cfg.become_rule : (cfg.distributor_gate || 0),

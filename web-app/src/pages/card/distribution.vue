@@ -1,28 +1,61 @@
 <template>
   <view class="dist-page">
-    <!-- 顶部身份切换 + 收益汇总 -->
+    <!-- 顶部主视觉大卡：用户信息 + 我的名片二维码 + 业绩双栏 + 佣金区 -->
     <view class="hero g3" :style="heroStyle">
-      <view class="row1">
-        <view class="hero-left">
-          <view class="hero-title">分销中心</view>
-          <view class="hero-sub">{{ identityLabel }} · 收益数据完全隔离</view>
-        </view>
-        <view class="id-switch" @click="switchIdentity">
-          <SIcon name="exchange" size="small" color="#ffffff" />
-          <text>{{ identityLabel }}</text>
+      <!-- 右上：身份切换 / 规则 -->
+      <view class="hero-top">
+        <view class="hero-title">分销中心</view>
+        <view class="hero-top-r">
+          <view class="rule-link" @click="showRules = true"><SIcon name="audit" size="small" color="#ffffff" /><text>规则</text></view>
+          <view class="id-switch" @click="switchIdentity"><SIcon name="exchange" size="small" color="#ffffff" /><text>{{ identityLabel }}</text></view>
         </view>
       </view>
-      <view class="row-rules">
-        <view class="rule-link" @click="showRules = true">
-          <SIcon name="audit" size="small" color="#ffffff" />
-          <text>规则</text>
+      <!-- 用户信息 + 我的名片二维码 -->
+      <view class="user-row">
+        <view class="user-left">
+          <view class="user-line">
+            <image v-if="summary.selfAvatar" class="user-avatar" :src="summary.selfAvatar" mode="aspectFill" />
+            <view v-else class="user-avatar placeholder">{{ (summary.selfName || '我')[0] }}</view>
+            <view class="user-name">{{ summary.selfName || '我' }}</view>
+            <view class="user-level">{{ summary.defaultLevel || '默认等级' }}</view>
+          </view>
+          <view v-if="summary.showParent && summary.parent" class="user-parent">上级推广员：{{ summary.parent.nickname || '-' }}</view>
+          <view class="user-invited" @click="scrollTo('subs')">已邀请成功：{{ summary.directCount }}人 ›</view>
+        </view>
+        <view class="my-card-qr" @click="openQr">
+          <image v-if="qr.dataUrl" class="qr-mini" :src="qr.dataUrl" mode="aspectFit" />
+          <view v-else class="qr-mini qr-mini-ph">二维码</view>
+          <view class="qr-mini-txt">我的名片</view>
         </view>
       </view>
-      <view class="wallet-grid">
-        <view class="w-cell"><view class="w-label">可提现(元)</view><view class="w-val">{{ fen(summary.wallet?.available) }}</view></view>
-        <view class="w-cell"><view class="w-label">待结算(元)</view><view class="w-val">{{ fen(summary.wallet?.waitSettle) }}</view></view>
-        <view class="w-cell"><view class="w-label">累计收益(元)</view><view class="w-val">{{ fen(summary.wallet?.totalIncome) }}</view></view>
-        <view class="w-cell"><view class="w-label">累计提现(元)</view><view class="w-val">{{ fen(summary.wallet?.totalWithdraw) }}</view></view>
+      <!-- 业绩双栏：今日 / 累计 -->
+      <view class="perf-row">
+        <view class="perf-col">
+          <view class="perf-title">今日业绩</view>
+          <view class="perf-num">{{ fen(summary.todayCommission) }}</view>
+          <view class="perf-sub">{{ summary.todayOrder }}单 · 新增{{ summary.todayNew }}人</view>
+        </view>
+        <view class="perf-divider"></view>
+        <view class="perf-col">
+          <view class="perf-title">累计业绩</view>
+          <view class="perf-num">{{ fen(summary.wallet?.totalIncome) }}</view>
+          <view class="perf-sub">直推{{ summary.directCount }} · 间推{{ summary.indirectCount }}</view>
+        </view>
+      </view>
+      <!-- 佣金区：可提现大字 + 提现中/待入账 + 提现 -->
+      <view class="money-row">
+        <view class="money-left">
+          <view class="money-label">可提现佣金（元）</view>
+          <view class="money-val">{{ fen(summary.wallet?.available) }}</view>
+          <view class="money-sub">
+            <text class="m-sub-item">提现中 {{ fen(summary.withdrawing) }}</text>
+            <text class="m-sub-item">待入账 {{ fen(summary.wallet?.waitSettle) }}</text>
+          </view>
+        </view>
+        <view class="money-right">
+          <view class="wd-detail-link" @click="scrollTo('withdraw')">提现明细 ›</view>
+          <view class="withdraw-btn" @click="scrollTo('withdraw')">提现</view>
+        </view>
       </view>
     </view>
 
@@ -81,19 +114,64 @@
       <view class="parent-tag">{{ summary.defaultLevel || '默认等级' }}</view>
     </view>
 
-    <!-- 推广模块 -->
-    <view class="sec-t">我的推广</view>
+    <!-- 生成专属邀请码（渐变模块） -->
+    <view class="invite-box g3" :style="heroStyle">
+      <view class="invite-left">
+        <view class="invite-title">生成专属邀请码</view>
+        <view class="invite-desc">分享名片给客户，绑定后付费即可获得佣金</view>
+        <view class="invite-btns">
+          <button class="mini-btn invite-btn" @click="openQr">推广二维码</button>
+          <button class="mini-btn invite-btn solid" @click="openPoster">生成海报</button>
+          <button class="mini-btn invite-btn ghost" @click="copyShareUrl">复制链接</button>
+        </view>
+      </view>
+      <view class="invite-right" @click="openQr">
+        <image v-if="qr.dataUrl" class="invite-qr" :src="qr.dataUrl" mode="aspectFit" />
+        <view v-else class="invite-qr invite-qr-ph">二维码</view>
+      </view>
+    </view>
+
+    <!-- 功能宫格（锚点滚动到对应区块） -->
+    <view class="grid-box">
+      <view class="grid-item" @click="scrollTo('subs')">
+        <view class="grid-ic ic-blue"><SIcon name="team" size="large" /></view>
+        <view class="grid-name">我的下线</view>
+        <view class="grid-sub">{{ summary.directCount + summary.indirectCount }}人</view>
+      </view>
+      <view class="grid-item" @click="scrollTo('logs')">
+        <view class="grid-ic ic-green"><SIcon name="wallet" size="large" /></view>
+        <view class="grid-name">推广佣金</view>
+        <view class="grid-sub">本月 ¥{{ fen(summary.monthCommission) }}</view>
+      </view>
+      <view class="grid-item" @click="scrollTo('partner')">
+        <view class="grid-ic ic-orange"><SIcon name="crown" size="large" /></view>
+        <view class="grid-name">合伙人分红</view>
+        <view class="grid-sub">待分 ¥{{ fen(summary.partnerPending) }}</view>
+      </view>
+      <view class="grid-item" @click="scrollTo('share')">
+        <view class="grid-ic ic-purple"><SIcon name="badge" size="large" /></view>
+        <view class="grid-name">股东分红</view>
+        <view class="grid-sub">待分 ¥{{ fen(summary.sharePending) }}</view>
+      </view>
+      <view class="grid-item" @click="scrollTo('withdraw')">
+        <view class="grid-ic ic-cyan"><SIcon name="orders" size="large" /></view>
+        <view class="grid-name">提现记录</view>
+        <view class="grid-sub">提现中 ¥{{ fen(summary.withdrawing) }}</view>
+      </view>
+      <view class="grid-item" @click="scrollTo('logs')">
+        <view class="grid-ic ic-gray"><SIcon name="chart" size="large" /></view>
+        <view class="grid-name">收益明细</view>
+        <view class="grid-sub">全部收益</view>
+      </view>
+    </view>
+
+    <!-- 直推/间推统计卡（保留，作为我的下线区块头部） -->
+    <view id="anchor-subs" class="sec-t">我的下线</view>
     <view class="stat-cards">
       <view class="s-card"><view class="s-num">{{ summary.directCount }}</view><view class="s-lb">直推{{ summary.subName || '下级' }}</view></view>
       <view class="s-card"><view class="s-num">{{ summary.indirectCount }}</view><view class="s-lb">间推{{ summary.subName || '下级' }}</view></view>
       <view class="s-card"><view class="s-num">{{ summary.monthNew }}</view><view class="s-lb">本月新增</view></view>
       <view class="s-card"><view class="s-num">{{ fen(summary.monthCommission) }}</view><view class="s-lb">本月佣金(元)</view></view>
-    </view>
-    <view class="qrcode-box">
-      <button class="mini-btn" @click="openQr">推广二维码</button>
-      <button class="mini-btn primary" @click="openPoster">生成海报</button>
-      <button class="mini-btn ghost" @click="copyShareUrl">复制推广链接</button>
-      <text class="qrcode-tip">把名片分享给客户，客户扫码进入后自动绑定上下级，付费即可获取推广佣金</text>
     </view>
 
     <!-- 下级客户列表（直推/间推） -->
@@ -162,7 +240,7 @@
 
     <!-- 合伙人模块（插件启用 + 本人为合伙人才显示） -->
     <template v-if="summary.isPartner">
-      <view class="sec-t">合伙人收益</view>
+      <view id="anchor-partner" class="sec-t">合伙人收益</view>
       <view class="stat-cards">
         <view class="s-card"><view class="s-num">{{ fen(summary.partnerPending) }}</view><view class="s-lb">待分红(元)</view></view>
         <view class="s-card"><view class="s-num">{{ fen(summary.partnerTotal) }}</view><view class="s-lb">累计分红(元)</view></view>
@@ -171,7 +249,7 @@
     </template>
 
     <!-- 股东中心模块（任意股东插件启用即渲染） -->
-    <view class="sec-t">股东中心</view>
+    <view id="anchor-share" class="sec-t">股东中心</view>
     <view v-if="summary.shareTags.length" class="tag-list">
       <view v-for="t in summary.shareTags" :key="t" class="tag">{{ t }}</view>
     </view>
@@ -182,7 +260,7 @@
     </view>
 
     <!-- 收益明细 -->
-    <view class="sec-t">收益明细</view>
+    <view id="anchor-logs" class="sec-t">收益明细</view>
     <view class="tabs">
       <view v-for="t in logTabs" :key="t.key" class="tab" :class="{ on: logType === t.key }" @click="switchLog(t.key)">{{ t.label }}</view>
     </view>
@@ -205,7 +283,7 @@
     </view>
 
     <!-- 提现中心 -->
-    <view class="sec-t">提现中心</view>
+    <view id="anchor-withdraw" class="sec-t">提现中心</view>
     <view class="withdraw-box">
       <view class="wd-row">
         <text class="wd-label">可提现余额</text>
@@ -246,7 +324,12 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', posterBadge: true, ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0 });
+const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', posterBadge: true, ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0 });
+
+/** 功能宫格锚点滚动到对应区块 */
+function scrollTo(anchor) {
+  uni.pageScrollTo({ selector: `#anchor-${anchor}`, duration: 300 });
+}
 const applying = ref(false);
 const agreed = ref(false);
 const showRules = ref(false);
@@ -287,7 +370,7 @@ async function loadAll() {
   try {
     summary.value = await cardApi.distSummary(identity.value);
   } catch (e) {
-    summary.value = { wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: true };
+    summary.value = { wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: true };
   }
   loadLogs();
   loadWithdraws();
@@ -572,16 +655,64 @@ onShow(() => {
 
 <style scoped>
 .dist-page { min-height: 100vh; background: #f7f8fa; padding-bottom: 40px; }
-.hero { padding: 24px 20px 16px; }
-.row1 { display: flex; justify-content: space-between; align-items: center; }
+button::after { border: none; }
+.hero { padding: 16px 20px 18px; }
+.hero-top { display: flex; justify-content: space-between; align-items: center; }
 .hero-title { font-size: 22px; font-weight: 700; color: #fff; }
-.hero-sub { font-size: 12px; color: rgba(255,255,255,0.85); margin-top: 4px; }
+.hero-top-r { display: flex; align-items: center; gap: 10px; }
 .id-switch { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.18); border-radius: 20px; padding: 6px 12px; color: #fff; font-size: 12px; }
-.wallet-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.w-cell { flex: 1 1 45%; background: rgba(255,255,255,0.14); border-radius: 10px; padding: 10px 12px; }
-.w-label { font-size: 11px; color: rgba(255,255,255,0.8); }
-.w-val { font-size: 18px; font-weight: 600; color: #fff; margin-top: 2px; }
-.sec-t { font-size: 15px; font-weight: 600; color: #1d2129; margin: 16px 20px 10px; }
+/* 用户信息行 */
+.user-row { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+.user-line { display: flex; align-items: center; gap: 8px; }
+.user-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.25); flex-shrink: 0; }
+.user-avatar.placeholder { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; font-weight: 600; }
+.user-name { font-size: 17px; font-weight: 600; color: #fff; }
+.user-level { font-size: 10px; color: #165dff; background: #fff; border-radius: 6px; padding: 2px 7px; }
+.user-parent { font-size: 11px; color: rgba(255,255,255,0.85); margin-top: 8px; }
+.user-invited { font-size: 11px; color: rgba(255,255,255,0.92); margin-top: 4px; }
+.my-card-qr { text-align: center; background: rgba(255,255,255,0.16); border-radius: 12px; padding: 8px 10px 6px; }
+.qr-mini { width: 52px; height: 52px; background: #fff; border-radius: 6px; }
+.qr-mini-ph { display: flex; align-items: center; justify-content: center; font-size: 10px; color: #165dff; }
+.qr-mini-txt { font-size: 10px; color: #fff; margin-top: 4px; }
+/* 业绩双栏 */
+.perf-row { display: flex; align-items: stretch; margin-top: 18px; background: rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 0; }
+.perf-col { flex: 1; text-align: center; }
+.perf-divider { width: 1px; background: rgba(255,255,255,0.22); margin: 2px 0; }
+.perf-title { font-size: 11px; color: rgba(255,255,255,0.8); }
+.perf-num { font-size: 22px; font-weight: 700; color: #fff; margin-top: 4px; }
+.perf-sub { font-size: 10px; color: rgba(255,255,255,0.8); margin-top: 3px; }
+/* 佣金区 */
+.money-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 18px; }
+.money-label { font-size: 11px; color: rgba(255,255,255,0.8); }
+.money-val { font-size: 30px; font-weight: 700; color: #fff; margin-top: 2px; }
+.money-sub { display: flex; gap: 12px; margin-top: 4px; }
+.m-sub-item { font-size: 10px; color: rgba(255,255,255,0.82); }
+.money-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.wd-detail-link { font-size: 11px; color: rgba(255,255,255,0.85); }
+.withdraw-btn { background: #fff; color: #165dff; font-size: 15px; font-weight: 600; border-radius: 20px; padding: 8px 30px; }
+/* 生成专属邀请码模块 */
+.invite-box { margin: 12px 12px 0; border-radius: 14px; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+.invite-title { font-size: 16px; font-weight: 600; color: #fff; }
+.invite-desc { font-size: 11px; color: rgba(255,255,255,0.85); margin-top: 4px; }
+.invite-btns { display: flex; gap: 8px; margin-top: 12px; }
+.mini-btn.invite-btn { width: auto; height: 30px; line-height: 30px; font-size: 12px; padding: 0 12px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); margin: 0; }
+.mini-btn.invite-btn.solid { background: #fff; color: #165dff; border-color: #fff; font-weight: 600; }
+.mini-btn.invite-btn.ghost { background: transparent; color: #fff; }
+.invite-right { background: rgba(255,255,255,0.16); border-radius: 12px; padding: 8px; }
+.invite-qr { width: 72px; height: 72px; background: #fff; border-radius: 8px; }
+.invite-qr-ph { display: flex; align-items: center; justify-content: center; font-size: 11px; color: #165dff; }
+/* 功能宫格 */
+.grid-box { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px; }
+.grid-item { flex: 1 1 30%; min-width: 100px; background: #fff; border-radius: 12px; padding: 14px 6px 12px; text-align: center; }
+.grid-ic { width: 44px; height: 44px; border-radius: 10px; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; }
+.ic-blue { background: rgba(22,93,255,0.1); color: #165dff; }
+.ic-green { background: rgba(0,180,42,0.1); color: #00b42a; }
+.ic-orange { background: rgba(255,125,0,0.1); color: #ff7d00; }
+.ic-purple { background: rgba(114,46,209,0.1); color: #722ed1; }
+.ic-cyan { background: rgba(18,194,233,0.1); color: #12c2e9; }
+.ic-gray { background: rgba(78,89,105,0.1); color: #4e5969; }
+.grid-name { font-size: 13px; color: #1d2129; font-weight: 500; }
+.grid-sub { font-size: 11px; color: #86909c; margin-top: 3px; }
 .stat-cards { display: flex; gap: 10px; margin: 0 20px; }
 .s-card { flex: 1; background: #fff; border-radius: 10px; padding: 14px 0; text-align: center; }
 .s-num { font-size: 20px; font-weight: 700; color: #165dff; }
@@ -589,6 +720,7 @@ onShow(() => {
 .qrcode-box { margin: 12px 20px 0; background: #fff; border-radius: 10px; padding: 14px; }
 .mini-btn { background: #165dff; color: #fff; border-radius: 8px; font-size: 14px; height: 40px; line-height: 40px; }
 .mini-btn.ghost { background: #f2f3f5; color: #1d2129; margin-left: 10px; }
+.sec-t { font-size: 15px; font-weight: 600; color: #1d2129; margin: 16px 20px 10px; }
 .qrcode-tip { display: block; font-size: 11px; color: #86909c; margin-top: 8px; }
 .sub-box { background: #fff; border-radius: 10px; padding: 12px; margin-top: 12px; }
 .sub-tabs { display: flex; align-items: center; gap: 16px; }
@@ -613,7 +745,6 @@ onShow(() => {
 .qr-img { width: 220px; height: 220px; margin: 0 auto; }
 .qr-loading { height: 220px; line-height: 220px; color: #86909c; font-size: 13px; }
 .qr-hint { font-size: 12px; color: #86909c; margin: 10px 0 14px; }
-.row-rules { display: flex; justify-content: flex-end; margin: -6px 20px 0 0; }
 .rule-link { display: flex; align-items: center; gap: 4px; color: rgba(255,255,255,0.92); font-size: 12px; padding: 4px 6px; }
 .rules-panel { max-height: 80vh; display: flex; flex-direction: column; }
 .rules-scroll { max-height: 52vh; margin-bottom: 4px; text-align: left; }
