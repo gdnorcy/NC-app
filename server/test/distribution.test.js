@@ -498,6 +498,62 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(!settled.list.some((s) => s.orderNo === 'DEMO-SPLIT-SNAP'), '未结算不出现在已结算筛选');
   });
 
+  it('P4 分销商开通门槛：付费用户门槛 / 指定名单门槛', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.setPlugin(TENANT, 'partner', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-all', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-cat', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-area', { install: false, enable: false });
+    const buyerId = 1001; // 1001 已绑定 pid1=1000（1002 的 pid1 是 1001）
+    // 造已支付订单的辅助
+    const paid = (uid) => db.prepare("INSERT INTO payment_orders (order_no, payer_type, customer_id, user_id, solution, product_type, amount, status) VALUES (?, 'tenant', ?, ?, 'card', 'member', 3000, 'paid')")
+      .run(`PAID-GATE-${Date.now()}-${uid}`, TENANT, uid);
+    dist.saveConfig(TENANT, { distributor_gate: 1 }); // 付费用户门槛
+    const cfg = dist.getConfig(TENANT);
+    assert.equal(cfg.distributor_gate, 1, '门槛落库');
+    // 1000 无付费订单 → 不返佣（无收益不产生快照）
+    let r = dist.computeOrderSplit(makeOrder({ id: 92001, userId: buyerId }));
+    assert.equal(r, null, 'gate=1 无付费订单不返佣');
+    // 给 1000 造一笔已支付订单 → 恢复返佣
+    paid(1000);
+    r = dist.computeOrderSplit(makeOrder({ id: 92002, userId: buyerId }));
+    assert.ok(r.commission1 >= 600, 'gate=1 付费后返佣');
+    // 指定名单门槛：不在名单不返佣；加入名单恢复
+    dist.saveConfig(TENANT, { distributor_gate: 2 });
+    r = dist.computeOrderSplit(makeOrder({ id: 92003, userId: buyerId }));
+    assert.equal(r, null, 'gate=2 名单外不返佣');
+    const add = dist.addDistributor(TENANT, 1000, 'individual');
+    assert.ok(add.ok, '白名单添加成功');
+    assert.ok(!dist.addDistributor(TENANT, 1000, 'individual').ok, '重复添加拒绝');
+    r = dist.computeOrderSplit(makeOrder({ id: 92004, userId: buyerId }));
+    assert.ok(r.commission1 >= 600, 'gate=2 名单内返佣');
+    dist.removeDistributor(TENANT, 1000, 'individual');
+    dist.saveConfig(TENANT, { distributor_gate: 0 }); // 还原无门槛
+  });
+
+  it('P4 提现审核通知：审核/驳回/打款写站内消息', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.saveConfig(TENANT, { min_withdraw: 1 });
+    // 1000 有余额（前面用例已恢复 500 分）
+    const w = dist.applyWithdraw(TENANT, 1000, 'individual', 2);
+    assert.ok(w.ok, '提现申请成功');
+    const row = db.prepare("SELECT * FROM dist_withdraw WHERE tenant_id = ? AND user_id = 1000 ORDER BY id DESC LIMIT 1").get(TENANT);
+    const approved = dist.reviewWithdraw(row.id, 'approve');
+    assert.ok(approved.ok, '审核通过');
+    let msgs = db.prepare('SELECT * FROM card_message WHERE customer_id = ? AND user_id = ? ORDER BY id DESC').all(TENANT, 1000);
+    assert.ok(msgs.some((m) => m.title === '提现审核通过'), '审核通过通知已写入');
+    const done = dist.reviewWithdraw(row.id, 'done', '', 'ALIPAY-TEST-001');
+    assert.ok(done.ok, '打款完成');
+    msgs = db.prepare('SELECT * FROM card_message WHERE customer_id = ? AND user_id = ? ORDER BY id DESC').all(TENANT, 1000);
+    assert.ok(msgs.some((m) => m.title === '提现打款完成' && m.content.includes('ALIPAY-TEST-001')), '打款完成通知含流水号');
+    const w2 = dist.applyWithdraw(TENANT, 1000, 'individual', 1);
+    assert.ok(w2.ok, '第二笔提现申请成功');
+    const row2 = db.prepare("SELECT * FROM dist_withdraw WHERE tenant_id = ? AND user_id = 1000 ORDER BY id DESC LIMIT 1").get(TENANT);
+    dist.reviewWithdraw(row2.id, 'reject', '资料不完整');
+    msgs = db.prepare('SELECT * FROM card_message WHERE customer_id = ? AND user_id = ? ORDER BY id DESC').all(TENANT, 1000);
+    assert.ok(msgs.some((m) => m.title === '提现审核驳回' && m.content.includes('资料不完整')), '驳回通知含原因');
+  });
+
   it('P4 分销商排行：按累计收益降序 + 直推人数 + 身份标签', () => {
     // user1000 已有收益（前面用例累计入账），user1002 无收益
     const list = dist.ranking(TENANT, 10);

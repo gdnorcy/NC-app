@@ -485,3 +485,11 @@ npm run test:frontend
 - `GET /api/customer/distribution/splits?page=&pageSize=&settleStatus=pending|settled|refunded`：逐笔订单完整分账明细（对账与退款回滚唯一数据源）——join platform_user 取买家昵称；字段 order_no/order_amount/commission1/commission2/partner_bonus/share_all_bonus/share_cat_bonus/share_area_bonus/total_bonus/settle_status/created_at；fmt 后下划线转驼峰。
 - 租户后台 DistHome 新增「分账快照」Tab（Tab 顺序：分销配置/分销商/佣金明细/分账快照/溯源记录/钱包提现/数据大盘）：13 列表格（订单号/买家/金额/五类分成/总分成/状态/时间）+ 结算状态筛选 + 分页。
 - 测试：getSplits（快照存在/金额分/初始 pending/按状态筛选，注意分账前置校验 buyer 必须存在于 platform_user——不存在的用户 computeOrderSplit 直接 return null），distribution.test.js 32 用例。
+
+## 分销商开通门槛 + 提现审核通知（2026-09-08 新增）
+
+- **门槛**：dist_config 加 `distributor_gate`（0 无门槛 / 1 付费用户 / 2 指定名单）；旧库迁移 `ALTER TABLE ... ADD COLUMN distributor_gate INTEGER NOT NULL DEFAULT 0` **必须放在 seedDistribution 建表块之后**（colExists 查不存在的表会报 `no such table`）。
+- **资格判定** `distributorQualified(tenantId, userId, identityType, gate)`：gate=1 查 payment_orders 存在 status='paid'；gate=2 查 dist_distributor（tenant_id+user_id+identity_type 唯一，status=1）。computeOrderSplit 的 dist 分支对自购返佣（自己）、pid1、pid2 都校验资格；**无收益订单 total<=0 直接 return null 不写快照**（测试断言 r===null 而非 commission1===0）。
+- **白名单**：dist_distributor 表 + `GET/POST/DELETE /distribution/distributors`（addDistributor 重复添加拒绝 / 移除只置 status=0）；DistHome 配置表单「分销商开通门槛」radio + 分销商 Tab gate=2 时显示白名单管理卡片（用户ID+身份添加 / 表格移除）。
+- **审核通知**：reviewWithdraw 的 approve/reject/done 三分支写 card_message（type='system'，title 提现审核通过/驳回/打款完成，content 含金额与驳回原因/流水号，link /pages/card/distribution）；写入失败 try/catch 不阻断审核主流程；C 端消息中心 iconOf 未知类型兜底 'dynamic'。
+- 测试：gate 三态（付费门槛无订单不返佣→付费后返佣；名单外不返佣→名单内返佣→移除）+ 审核通知三态（通过/打款含流水号/驳回含原因），distribution.test.js 34 用例。

@@ -314,6 +314,19 @@ export function createDistributionRouter(db) {
   // ============================================================
   // 数据大盘
   // ============================================================
+  // 分销商白名单（distributor_gate=2 指定名单门槛）
+  router.get('/distributors', tenant, (req, res) => {
+    res.json({ list: dist.getDistributors(req.customerId) });
+  });
+  router.post('/distributors', tenant, (req, res) => {
+    const { userId, identityType } = req.body || {};
+    res.json(dist.addDistributor(req.customerId, userId, identityType || 'individual'));
+  });
+  router.delete('/distributors/:userId', tenant, (req, res) => {
+    const { identityType } = req.query;
+    res.json(dist.removeDistributor(req.customerId, req.params.userId, identityType || 'individual'));
+  });
+
   // 分账快照列表（对账明细，?settleStatus=pending|settled|refunded）
   router.get('/splits', tenant, (req, res) => {
     const { page = 1, pageSize = 20, settleStatus = '' } = req.query;

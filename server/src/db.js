@@ -1771,8 +1771,20 @@ function seedDistribution(db) {
       min_withdraw REAL NOT NULL DEFAULT 10,  -- 最低提现（元）
       withdraw_fee_rate REAL NOT NULL DEFAULT 0, -- 提现手续费比例
       max_total_ratio REAL NOT NULL DEFAULT 0.30,-- 订单总让利上限
+      distributor_gate INTEGER NOT NULL DEFAULT 0, -- 分销商开通门槛：0无门槛 1付费用户 2指定名单
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- 分销商白名单（distributor_gate=2 时有效）
+    CREATE TABLE IF NOT EXISTS dist_distributor (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      identity_type TEXT NOT NULL DEFAULT 'individual',
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, user_id, identity_type)
     );
 
     -- 用户分销关系（租户维度永久绑定，双身份隔离）
@@ -1987,6 +1999,22 @@ function seedDistribution(db) {
       }
     }
   } catch {}
+
+  // —— 5. 分销迁移（建表之后执行）：dist_config 门槛列 + 分销商白名单表（旧运行库补齐）——
+  if (!colExists(db, 'dist_config', 'distributor_gate')) {
+    db.exec('ALTER TABLE dist_config ADD COLUMN distributor_gate INTEGER NOT NULL DEFAULT 0');
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS dist_distributor (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      identity_type TEXT NOT NULL DEFAULT 'individual',
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, user_id, identity_type)
+    )
+  `);
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

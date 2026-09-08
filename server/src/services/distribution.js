@@ -82,13 +82,14 @@ export function createDistributionService(db) {
       min_withdraw: Math.max(0, Number(patch.min_withdraw ?? cur.min_withdraw) || 0),
       withdraw_fee_rate: Math.max(0, Math.min(1, Number(patch.withdraw_fee_rate ?? cur.withdraw_fee_rate) || 0)),
       max_total_ratio: Math.max(0, Math.min(1, Number(patch.max_total_ratio ?? cur.max_total_ratio) || 0)),
+      distributor_gate: [0, 1, 2].includes(Number(patch.distributor_gate ?? cur.distributor_gate)) ? Number(patch.distributor_gate ?? cur.distributor_gate) : 0,
     };
     db.prepare(`
       UPDATE dist_config SET ratio1=?, ratio2=?, is_open_level2=?, is_self_buy=?, calc_type=?,
-        settle_day=?, min_withdraw=?, withdraw_fee_rate=?, max_total_ratio=?, updated_at=datetime('now')
+        settle_day=?, min_withdraw=?, withdraw_fee_rate=?, max_total_ratio=?, distributor_gate=?, updated_at=datetime('now')
       WHERE tenant_id=?
     `).run(next.ratio1, next.ratio2, next.is_open_level2, next.is_self_buy, next.calc_type,
-      next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, tenantId);
+      next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate, tenantId);
     return svc.getConfig(tenantId);
   };
 
@@ -328,6 +329,65 @@ export function createDistributionService(db) {
   }
 
   /**
+   * 分销商资格判定（PRD 3.1 开通门槛）：
+   * gate=0 无门槛；gate=1 付费用户（存在 status='paid' 订单）；gate=2 指定白名单（dist_distributor status=1）
+   */
+  function distributorQualified(tenantId, userId, identityType, gate) {
+    const g = gate === undefined ? svc.getConfig(tenantId).distributor_gate : gate;
+    if (!userId) return false;
+    if (g === 0) return true;
+    if (g === 1) {
+      const r = db.prepare("SELECT COUNT(*) n FROM payment_orders WHERE user_id = ? AND status = 'paid'").get(userId);
+      return (r && r.n > 0) || false;
+    }
+    if (g === 2) {
+      const r = db.prepare('SELECT id FROM dist_distributor WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND status = 1')
+        .get(tenantId, userId, identityType);
+      return !!r;
+    }
+    return true;
+  }
+
+  /** 分销商白名单（指定名单门槛维护） */
+  svc.getDistributors = (tenantId) => db.prepare(`
+    SELECT d.user_id AS userId, d.identity_type AS identityType, d.status, d.created_at,
+           u.nickname, u.avatar
+    FROM dist_distributor d LEFT JOIN platform_user u ON u.id = d.user_id
+    WHERE d.tenant_id = ? ORDER BY d.id DESC
+  `).all(tenantId);
+
+  svc.addDistributor = (tenantId, userId, identityType = 'individual') => {
+    const uid = Number(userId);
+    if (!uid || uid <= 0) return { ok: false, error: '请填写有效的用户ID' };
+    if (!db.prepare('SELECT id FROM platform_user WHERE id = ?').get(uid)) return { ok: false, error: '用户不存在' };
+    const exist = db.prepare('SELECT id, status FROM dist_distributor WHERE tenant_id = ? AND user_id = ? AND identity_type = ?')
+      .get(tenantId, uid, identityType);
+    if (exist) {
+      if (exist.status === 1) return { ok: false, error: '该用户已在分销商白名单' };
+      db.prepare("UPDATE dist_distributor SET status = 1 WHERE id = ?").run(exist.id);
+      return { ok: true };
+    }
+    db.prepare('INSERT INTO dist_distributor (tenant_id, user_id, identity_type) VALUES (?, ?, ?)')
+      .run(tenantId, uid, identityType);
+    return { ok: true };
+  };
+
+  svc.removeDistributor = (tenantId, userId, identityType = 'individual') => {
+    db.prepare("UPDATE dist_distributor SET status = 0 WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
+      .run(tenantId, Number(userId), identityType);
+    return { ok: true };
+  };
+
+  /** 提现审核站内通知（C 端消息中心） */
+  function notifyWithdraw(row, title, content, link = '/pages/card/distribution') {
+    try {
+      db.prepare('INSERT INTO card_message (customer_id, user_id, type, title, content, link) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(row.tenant_id, row.user_id, 'system', title, content, link);
+    } catch (e) { /* 消息写入失败不阻断审核主流程 */ }
+  }
+  const yuan = (fen) => (Number(fen) / 100).toFixed(2);
+
+  /**
    * 对已支付订单做分账（幂等：每租户每订单一条快照）
    * 调度器：任一已启用插件（dist/partner/share-all/share-cat/share-area）都会参与计算；
    * 各类收益统一受 dist_config.max_total_ratio 总让利上限约束。
@@ -370,11 +430,17 @@ export function createDistributionService(db) {
 
     // —— 插件一：二级推广分销 ——
     if (active.includes('dist')) {
-      if (rel && rel.pid1) {
+      const gate = config.distributor_gate;
+      // 自购返佣（自己需具备分销商资格）
+      if (config.is_self_buy && distributorQualified(tenantId, order.userId, buyerIdentity, gate)) {
+        col.self = Math.floor(base * config.ratio1);
+        if (col.self > 0) logRows.push({ userId: order.userId, identityType: buyerIdentity, type: 'level1', amount: col.self, remark: '自购返佣' });
+      }
+      if (rel && rel.pid1 && distributorQualified(tenantId, rel.pid1, buyerIdentity, gate)) {
         col.c1 = Math.floor(base * config.ratio1);
         if (col.c1 > 0) logRows.push({ userId: rel.pid1, identityType: buyerIdentity, type: 'level1', amount: col.c1, remark: '一级推广佣金' });
       }
-      if (rel && config.is_open_level2 && rel.pid2) {
+      if (rel && config.is_open_level2 && rel.pid2 && distributorQualified(tenantId, rel.pid2, buyerIdentity, gate)) {
         col.c2 = Math.floor(base * config.ratio2);
         if (col.c2 > 0) logRows.push({ userId: rel.pid2, identityType: buyerIdentity, type: 'level2', amount: col.c2, remark: '二级推广佣金' });
       }
@@ -612,10 +678,12 @@ export function createDistributionService(db) {
     if (!row) return { ok: false, error: '提现记录不存在' };
     if (action === 'reject') {
       if (row.status !== 'pending') return { ok: false, error: '仅待审核可驳回' };
+      const rsn = reason || '审核不通过';
       const doReject = () => {
-        db.prepare("UPDATE dist_withdraw SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?").run(reason || '审核不通过', withdrawId);
+        db.prepare("UPDATE dist_withdraw SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?").run(rsn, withdrawId);
         db.prepare("UPDATE dist_wallet SET available = available + ?, total_withdraw = MAX(0, total_withdraw - ?), updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
           .run(row.amount, row.amount, row.tenant_id, row.user_id, row.identity_type);
+        notifyWithdraw(row, '提现审核驳回', `你的提现申请 ¥${yuan(row.amount)} 未通过：${rsn}。资金已退回可提现余额。`);
       };
       tx(doReject);
       return { ok: true };
@@ -623,6 +691,7 @@ export function createDistributionService(db) {
     if (action === 'approve') {
       if (row.status !== 'pending') return { ok: false, error: '仅待审核可通过' };
       db.prepare("UPDATE dist_withdraw SET status = 'approved', updated_at = datetime('now') WHERE id = ?").run(withdrawId);
+      notifyWithdraw(row, '提现审核通过', `你的提现申请 ¥${yuan(row.amount)} 已审核通过，等待打款到账。`);
       return { ok: true };
     }
     if (action === 'done') {
@@ -631,6 +700,7 @@ export function createDistributionService(db) {
       if (!no) return { ok: false, error: '请填写打款流水号' };
       db.prepare("UPDATE dist_withdraw SET status = 'done', pay_no = ?, pay_remark = ?, paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
         .run(no, String(payRemark || '').trim(), withdrawId);
+      notifyWithdraw(row, '提现打款完成', `你的提现 ¥${yuan(row.actual_amount)} 已打款完成（流水号 ${no}），请注意查收。`);
       return { ok: true };
     }
     return { ok: false, error: '未知操作' };
