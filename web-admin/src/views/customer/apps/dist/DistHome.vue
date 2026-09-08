@@ -11,7 +11,7 @@
 
     <!-- 配置 -->
     <section v-if="activeTab === 'config'">
-      <AppPageHeader title="分销配置" desc="二级推广分销全局配置（佣金比例 / 结算周期 / 提现门槛）">
+      <AppPageHeader title="分销配置" desc="分销裂变全局配置（佣金比例 / 结算周期 / 提现门槛）">
         <div class="hd-actions">
           <el-button type="primary" :loading="saving" @click="saveConfig">保存配置</el-button>
         </div>

@@ -1,5 +1,5 @@
 /**
- * 分销体系核心服务（插件化二级推广分销底座）
+ * 分销体系核心服务（插件化分销裂变底座）
  * - 金额统一「分」整数，与 payment_orders 一致
  * - 全表 tenant_id 租户隔离；钱包三键隔离 (tenant_id, user_id, identity_type)
  * - 核心对账：dist_order_split 快照唯一数据源，退款/插件关闭均不删除
@@ -485,7 +485,7 @@ export function createDistributionService(db) {
     const logRows = []; // {userId, identityType, type, amount, remark}
     const col = { c1: 0, c2: 0, self: 0, partner: 0, shareAll: 0, shareCat: 0, shareArea: 0 };
 
-    // —— 插件一：二级推广分销 ——
+    // —— 插件一：分销裂变 ——
     if (active.includes('dist')) {
       const gate = config.distributor_gate;
       // 自购返佣（自己需具备分销商资格）

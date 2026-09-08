@@ -91,7 +91,8 @@
           </el-button>
           <el-breadcrumb separator="/">
             <el-breadcrumb-item v-for="(item, i) in breadcrumbs" :key="i">
-              {{ item }}
+              <router-link v-if="i < breadcrumbs.length - 1 && crumbHref(item)" :to="crumbHref(item)">{{ item }}</router-link>
+              <span v-else>{{ item }}</span>
             </el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -184,6 +185,15 @@ const isImpersonate = computed(() => !!localStorage.getItem('admin_token_backup'
 const activeMenu = computed(() => route.path);
 const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() || 'U');
 const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title || '']);
+// 面包屑链接映射：可点击项跳对应顶层入口（当前页/无映射项不可点）
+const CRUMB_LINKS = {
+  '应用中心': '/customer/apps',
+  '工作台': '/customer/dashboard',
+  '分销体系': '/customer/apps',
+  '360全景': '/customer/apps',
+  '智能名片': '/customer/apps',
+};
+function crumbHref(label) { return CRUMB_LINKS[label] || ''; }
 
 onMounted(async () => {
   try {

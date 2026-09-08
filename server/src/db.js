@@ -1940,7 +1940,7 @@ function seedDistribution(db) {
   // —— 2. 应用注册：分销体系分类 + 5 个独立应用 ——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('分销体系', 'dist', 9)");
   const distApps = [
-    ['dist', '二级推广分销', '上下级链式推广佣金（一级/二级比例可配），并承载钱包提现与分销数据大盘', 'dist', 1],
+    ['dist', '分销裂变', '上下级链式推广佣金（一级/二级比例可配），并承载钱包提现与分销数据大盘', 'dist', 1],
     ['partner', '合伙人分红', '顶层运营/会长/秘书长团队分红，支持团队流水与租户全局流水两种模式', 'partner', 2],
     ['share-all', '全民股东', '全站付费订单池式分红，均等或按权重分配', 'share', 3],
     ['share-cat', '类目股东', '按行业类目分红，各行业独立比例与股东列表', 'category', 4],

@@ -9,7 +9,7 @@ import os from 'node:os';
 import { createDb } from '../src/db.js';
 import { createDistributionService, buildShareUrl, buildWithdrawCsv, buildLogCsv, buildMonthlyCsv, buildRelationTree } from '../src/services/distribution.js';
 
-describe('分销体系（二级推广分销底座）', () => {
+describe('分销体系（分销裂变底座）', () => {
   let db, dist;
   const DB_PATH = path.join(os.tmpdir(), `dist-test-${Date.now()}.db`);
 
