@@ -22,11 +22,21 @@ const logoUpload = multer({
   },
 });
 
-function parseCustomerBody(body) {
+function parseCustomerBody(body, db) {
   let solutions = body.solutions;
   if (!Array.isArray(solutions) || solutions.length === 0) solutions = ['panorama'];
   // 只保留字符串类型的solution code（方案 code 或兼容旧应用 code），过滤掉数字ID等非法值
   solutions = solutions.filter(s => typeof s === 'string' && s.trim());
+  // 规范化：移除已降级为应用的 code 与已下架旧方案 code，保留在售方案；空则回填「演示试用方案」
+  if (db) {
+    try {
+      const appCodes = new Set(db.prepare('SELECT code FROM apps').all().map((r) => r.code));
+      const offCodes = new Set(db.prepare("SELECT code FROM solutions WHERE status = 'off'").all().map((r) => r.code));
+      const onCodes = db.prepare("SELECT code FROM solutions WHERE status = 'on'").all().map((r) => r.code);
+      const cleaned = [...new Set(solutions.filter((s) => s && !appCodes.has(s) && !offCodes.has(s) && onCodes.includes(s)))];
+      solutions = cleaned.length ? cleaned : (onCodes.includes('demo') ? ['demo'] : cleaned);
+    } catch {}
+  }
   let config = body.config;
   if (typeof config !== 'object' || config === null) config = {};
   return {
@@ -208,7 +218,7 @@ export function createCustomersRouter(db) {
   });
 
   router.post('/projects', (req, res) => {
-    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config, adminUserId } = parseCustomerBody(req.body);
+    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config, adminUserId } = parseCustomerBody(req.body, db);
     if (!customerName) return res.status(400).json({ error: '客户名称不能为空' });
     const inviteCode = 'P' + Math.random().toString(36).slice(2, 8).toUpperCase();
     const info = db
@@ -227,7 +237,7 @@ export function createCustomersRouter(db) {
     const id = Number(req.params.id);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
     if (!row) return res.status(404).json({ error: '客户项目不存在' });
-    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config, adminUserId } = parseCustomerBody(req.body);
+    const { customerName, logoPath, description, validFrom, validUntil, isPinned, remark, status, solutions, config, adminUserId } = parseCustomerBody(req.body, db);
     const next = {
       customerName: customerName || row.customer_name,
       logoPath: logoPath === '' ? row.logo_path || '' : logoPath,

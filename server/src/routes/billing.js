@@ -155,8 +155,8 @@ export function createCustomerBillingRouter(db) {
     let codes = [];
     try { codes = JSON.parse(p.solutions || '[]'); } catch (e) {}
     const solutions = codes.map((code) => {
-      // 不按 status 过滤：方案下架只影响新售卖，已购租户权益保留展示与续费
-      const sol = db.prepare('SELECT * FROM solutions WHERE code = ?').get(code);
+      // 仅展示在售方案；已下架旧方案（panorama/card 等已降级为应用）由「演示试用方案」承接，不再展示幽灵方案卡
+      const sol = db.prepare("SELECT * FROM solutions WHERE code = ? AND status = 'on'").get(code);
       if (!sol) return null;
       const pricing = db.prepare('SELECT duration_months, agent_price, user_price, renew_price FROM solution_pricing WHERE solution_id = ? ORDER BY duration_months ASC')
         .all(sol.id)

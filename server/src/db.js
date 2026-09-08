@@ -1733,6 +1733,38 @@ function migrate(db) {
 
   // —— 方案中心 P0：补齐分类归属 + 默认价格/权限（放在全部方案预置之后，幂等） ——
   seedSolutionDefaults(db);
+
+  // —— 存量租户 solutions 规范化（幂等）：清理已下架旧方案/应用 code 残留 ——
+  // 背景：panorama/card 等旧方案已降级为应用（solutions.status='off'），部分租户 projects.solutions
+  // 仍残留 ['demo','card'] 之类组合，导致 Billing 方案续费出现「智能名片」幽灵方案卡。
+  // 规则：移除应用 code 与已下架方案 code；保留在售方案；清理后为空回填「演示试用方案」(demo)。
+  normalizeProjectSolutions(db);
+}
+
+/** 存量租户 solutions 规范化（见 createDb 调用处注释） */
+function normalizeProjectSolutions(db) {
+  const projects = db.prepare("SELECT id, solutions FROM projects WHERE status != 'trashed'").all();
+  if (!projects.length) return;
+  const appCodes = new Set(db.prepare('SELECT code FROM apps').all().map((r) => r.code));
+  const offCodes = new Set(db.prepare("SELECT code FROM solutions WHERE status = 'off'").all().map((r) => r.code));
+  const onCodes = db.prepare("SELECT code FROM solutions WHERE status = 'on'").all().map((r) => r.code);
+  const demoExists = onCodes.includes('demo');
+  let changed = 0;
+  for (const p of projects) {
+    let codes = [];
+    try { codes = JSON.parse(p.solutions || '[]'); } catch { codes = []; }
+    if (!Array.isArray(codes)) codes = [];
+    const cleaned = [...new Set(
+      codes.filter((c) => typeof c === 'string' && c.trim() && !appCodes.has(c) && !offCodes.has(c) && onCodes.includes(c))
+    )];
+    const normalized = cleaned.length ? cleaned : (demoExists ? ['demo'] : cleaned);
+    const json = JSON.stringify(normalized);
+    if (json !== p.solutions) {
+      db.prepare('UPDATE projects SET solutions = ? WHERE id = ?').run(json, p.id);
+      changed++;
+    }
+  }
+  if (changed) console.log(`[migrate] solutions 规范化 ${changed} 个客户项目（清理已下架旧方案/应用 code 残留）`);
 }
 
 /**
