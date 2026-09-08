@@ -361,7 +361,8 @@ function backToAdmin() {
 .header-left { display: flex; align-items: center; gap: 12px; }
 .header-right { display: flex; align-items: center; gap: 16px; }
 .customer-name { font-size: 13px; color: #606266; }
-.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; outline: none; }
+.user-info:focus, .user-info:focus-visible, .user-info:hover { outline: none; }
 .user-avatar { background: #165DFF; color: #fff; font-size: 14px; }
 .user-name { font-size: 13px; color: #303133; }
 .el-main.main-content { background: #f7f8fa; padding: 20px; }

@@ -7,20 +7,20 @@
         <span class="global-desc">已开通 {{ stats.appCount || 0 }} 个应用</span>
       </div>
       <div class="global-cards">
-        <div class="global-card" @click="$router.push('/apps')">
-          <div class="global-icon"><SIcon name="template" size="default" /></div>
-          <div class="global-value">{{ stats.planCount || 0 }}</div>
-          <div class="global-label-text">方案总数</div>
-        </div>
-        <div class="global-card">
-          <div class="global-icon"><SIcon name="panorama" size="default" /></div>
-          <div class="global-value">{{ stats.sceneCount || 0 }}</div>
-          <div class="global-label-text">场景总数</div>
-        </div>
         <div class="global-card" @click="$router.push('/members')">
           <div class="global-icon"><SIcon name="team" size="default" /></div>
           <div class="global-value">{{ stats.memberCount || 0 }}</div>
           <div class="global-label-text">团队成员</div>
+        </div>
+        <div class="global-card">
+          <div class="global-icon"><SIcon name="building" size="default" /></div>
+          <div class="global-value">{{ stats.enterpriseCount || 0 }}</div>
+          <div class="global-label-text">入驻企业</div>
+        </div>
+        <div class="global-card" @click="$router.push('/apps/card')">
+          <div class="global-icon"><SIcon name="card" size="default" /></div>
+          <div class="global-value">{{ stats.cardCount || 0 }}</div>
+          <div class="global-label-text">名片总数</div>
         </div>
         <div class="global-card" @click="$router.push('/orders')">
           <div class="global-icon"><SIcon name="wallet" size="default" /></div>

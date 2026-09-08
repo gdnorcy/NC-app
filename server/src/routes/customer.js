@@ -199,6 +199,12 @@ router.get('/dashboard', requireTenant, (req, res) => {
     .prepare('SELECT COUNT(*) AS n FROM scenes s JOIN plans p ON s.plan_id = p.id WHERE p.project_id = ?')
     .get(cid).n;
   const memberCount = db.prepare('SELECT COUNT(*) AS n FROM users WHERE customer_id = ?').get(cid).n;
+  const enterpriseCount = db
+    .prepare("SELECT COUNT(*) AS n FROM tenant_enterprises WHERE customer_id = ? AND status = 'active'")
+    .get(cid).n;
+  const cardCount = db
+    .prepare('SELECT COUNT(*) AS n FROM card_profile cp JOIN users u ON cp.user_id = u.id WHERE u.customer_id = ?')
+    .get(cid).n;
   const orderCount = db.prepare("SELECT COUNT(*) AS n FROM payment_orders WHERE customer_id = ? AND payer_type='platform' AND status='paid'").get(cid).n;
   const totalAmount = db
     .prepare("SELECT COALESCE(SUM(amount),0) AS s FROM payment_orders WHERE customer_id = ? AND payer_type='platform' AND status='paid'")
@@ -291,7 +297,7 @@ router.get('/dashboard', requireTenant, (req, res) => {
     .map((r) => ({ id: r.id, orderNo: r.order_no, productName: r.product_name, amount: r.amount, status: r.status, createdAt: r.created_at }));
 
   res.json({
-    stats: { planCount, sceneCount, memberCount, orderCount, totalAmount, appCount: apps.length },
+    stats: { planCount, sceneCount, memberCount, enterpriseCount, cardCount, orderCount, totalAmount, appCount: apps.length },
     byApp,
     recentScenes,
     recentOrders,

@@ -45,6 +45,23 @@ if (!card) {
 }
 const cardId = card.id;
 
+// ============ 2.1 租户成员名片（工作台「名片总数」指标口径）============
+// 为租户后台账号（users.customer_id 非空）补建名片档案，customer_id 直挂租户；
+// 幂等：已存在名片档案的账号跳过。
+const tenantUsers = db
+  .prepare('SELECT u.id, u.username, u.customer_id FROM users u WHERE u.customer_id IS NOT NULL AND u.customer_id != 0')
+  .all();
+for (const tu of tenantUsers) {
+  const hasCard = db.prepare('SELECT id FROM card_profile WHERE user_id = ? AND customer_id = ?').get(tu.id, tu.customer_id);
+  if (!hasCard) {
+    const r = db.prepare(
+      `INSERT INTO card_profile (user_id, customer_id, card_type, name, position, city, phone, wechat, email, bio, business_field, slogan, tags, is_public, status)
+       VALUES (?, ?, 'personal', ?, '成员', '', '', '', '', '', '智能名片成员', '', '', 1, 'active')`
+    ).run(tu.id, tu.customer_id, tu.username || ('成员#' + tu.id));
+    console.log('+ 租户成员名片 #' + r.lastInsertRowid + '（' + (tu.username || tu.id) + '，租户#' + tu.customer_id + '）');
+  }
+}
+
 // ============ 3. 作品集（demo gall 5张）============
 const workCount = db.prepare('SELECT COUNT(*) as c FROM card_works WHERE card_id=?').get(cardId).c;
 if (workCount === 0) {
