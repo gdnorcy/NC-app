@@ -10,7 +10,7 @@
           <view class="id-switch" @click="switchIdentity"><SIcon name="exchange" size="small" color="#ffffff" /><text>{{ identityLabel }}</text></view>
         </view>
       </view>
-      <!-- 用户信息 + 我的名片二维码 -->
+      <!-- 用户信息 -->
       <view class="user-row">
         <view class="user-left">
           <view class="user-line">
@@ -21,11 +21,6 @@
           </view>
           <view v-if="summary.showParent && summary.parent" class="user-parent">上级推广员：{{ summary.parent.nickname || '-' }}</view>
           <view class="user-invited" @click="scrollTo('subs')">已邀请成功：{{ summary.directCount }}人 ›</view>
-        </view>
-        <view class="my-card-qr" @click="openQr">
-          <image v-if="qr.dataUrl" class="qr-mini" :src="qr.dataUrl" mode="aspectFit" />
-          <view v-else class="qr-mini qr-mini-ph">二维码</view>
-          <view class="qr-mini-txt">我的名片</view>
         </view>
       </view>
       <!-- 业绩双栏：今日 / 累计 -->
@@ -126,8 +121,9 @@
         </view>
       </view>
       <view class="invite-right" @click="openQr">
-        <image v-if="qr.dataUrl" class="invite-qr" :src="qr.dataUrl" mode="aspectFit" />
-        <view v-else class="invite-qr invite-qr-ph">二维码</view>
+        <view class="deco-qr">
+          <view v-for="n in 49" :key="n" class="dqr-cell" :class="qrCellCls(n)" />
+        </view>
       </view>
     </view>
 
@@ -330,6 +326,18 @@ const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommi
 function scrollTo(anchor) {
   uni.pageScrollTo({ selector: `#anchor-${anchor}`, duration: 300 });
 }
+
+/** 装饰二维码图案（7x7 固定矩阵：三个定位角 + 随机信息块，纯示意美观，不可扫描） */
+const QR_PATTERN = [
+  1,1,1,0,1,1,1,
+  1,0,1,0,1,0,1,
+  1,1,1,0,1,1,1,
+  0,0,0,1,0,0,0,
+  1,0,1,1,1,0,1,
+  1,1,0,0,1,1,0,
+  0,1,1,0,0,1,1,
+];
+function qrCellCls(n) { return QR_PATTERN[n - 1] ? 'on' : ''; }
 const applying = ref(false);
 const agreed = ref(false);
 const showRules = ref(false);
@@ -670,10 +678,6 @@ button::after { border: none; }
 .user-level { font-size: 10px; color: #165dff; background: #fff; border-radius: 6px; padding: 2px 7px; }
 .user-parent { font-size: 11px; color: rgba(255,255,255,0.85); margin-top: 8px; }
 .user-invited { font-size: 11px; color: rgba(255,255,255,0.92); margin-top: 4px; }
-.my-card-qr { text-align: center; background: rgba(255,255,255,0.16); border-radius: 12px; padding: 8px 10px 6px; }
-.qr-mini { width: 52px; height: 52px; background: #fff; border-radius: 6px; }
-.qr-mini-ph { display: flex; align-items: center; justify-content: center; font-size: 10px; color: #165dff; }
-.qr-mini-txt { font-size: 10px; color: #fff; margin-top: 4px; }
 /* 业绩双栏 */
 .perf-row { display: flex; align-items: stretch; margin-top: 18px; background: rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 0; }
 .perf-col { flex: 1; text-align: center; }
@@ -699,8 +703,10 @@ button::after { border: none; }
 .mini-btn.invite-btn.solid { background: #fff; color: #165dff; border-color: #fff; font-weight: 600; }
 .mini-btn.invite-btn.ghost { background: transparent; color: #fff; }
 .invite-right { background: rgba(255,255,255,0.16); border-radius: 12px; padding: 8px; }
-.invite-qr { width: 72px; height: 72px; background: #fff; border-radius: 8px; }
-.invite-qr-ph { display: flex; align-items: center; justify-content: center; font-size: 11px; color: #165dff; }
+/* 装饰二维码：白底圆角框 + 主色信息块，纯示意美观 */
+.deco-qr { width: 74px; height: 74px; background: #fff; border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 3px; box-sizing: border-box; }
+.dqr-cell { width: calc((74px - 12px - 18px) / 7); height: calc((74px - 12px - 18px) / 7); border-radius: 1px; background: rgba(22,93,255,0.08); }
+.dqr-cell.on { background: #165dff; }
 /* 功能宫格 */
 .grid-box { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px; }
 .grid-item { flex: 1 1 30%; min-width: 100px; background: #fff; border-radius: 12px; padding: 14px 6px 12px; text-align: center; }
