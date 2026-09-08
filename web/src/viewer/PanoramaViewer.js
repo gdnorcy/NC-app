@@ -441,8 +441,9 @@ export class PanoramaViewer {
     this._onDeviceOrientation = (e) => {
       if (e.gamma == null || e.beta == null) return;
       this._gyroTarget = {
-        yaw: (-e.gamma * Math.PI) / 180,
-        pitch: clampPitch(((e.beta - 90) * Math.PI) / 180),
+        // -X 模型：gamma 正（右侧上抬）→ 视野右转（yaw+）；前倾（beta>90）→ 向下看（pitch-）
+        yaw: (e.gamma * Math.PI) / 180,
+        pitch: clampPitch(((90 - e.beta) * Math.PI) / 180),
       };
     };
     this._on('deviceorientation', window, this._onDeviceOrientation);

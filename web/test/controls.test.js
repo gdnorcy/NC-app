@@ -33,23 +33,37 @@ describe('clampFov', () => {
 });
 
 describe('directionFromYawPitch', () => {
-  it('yaw=0 pitch=0 看向 -Z', () => {
+  it('yaw=0 pitch=0 看向 -X（统一模型）', () => {
     const d = directionFromYawPitch(0, 0);
-    expect(d.x).toBeCloseTo(0);
+    expect(d.x).toBeCloseTo(-1);
     expect(d.y).toBeCloseTo(0);
+    expect(d.z).toBeCloseTo(0);
+  });
+
+  it('yaw=90° 看向 -Z（右转 90°）', () => {
+    const d = directionFromYawPitch(90 * DEG, 0);
+    expect(d.x).toBeCloseTo(0);
     expect(d.z).toBeCloseTo(-1);
   });
 
-  it('yaw=90° 看向 -X（左转 90°）', () => {
-    const d = directionFromYawPitch(90 * DEG, 0);
-    expect(d.x).toBeCloseTo(-1);
-    expect(d.z).toBeCloseTo(0);
+  it('yaw=-90° 看向 +Z（左转 90°）', () => {
+    const d = directionFromYawPitch(-90 * DEG, 0);
+    expect(d.x).toBeCloseTo(0);
+    expect(d.z).toBeCloseTo(1);
   });
 
   it('pitch=90° 仰视正上方', () => {
     const d = directionFromYawPitch(0, 90 * DEG);
     expect(d.y).toBeCloseTo(1);
     expect(d.x).toBeCloseTo(0);
+  });
+
+  it('与编辑器/小程序 hotspotDir 公式一致（-cp*cos, sin, -cp*sin）', () => {
+    const d = directionFromYawPitch(35 * DEG, 5 * DEG);
+    const cp = Math.cos(5 * DEG);
+    expect(d.x).toBeCloseTo(-cp * Math.cos(35 * DEG));
+    expect(d.y).toBeCloseTo(Math.sin(5 * DEG));
+    expect(d.z).toBeCloseTo(-cp * Math.sin(35 * DEG));
   });
 
   it('方向向量为单位长度', () => {
@@ -62,19 +76,19 @@ describe('directionFromYawPitch', () => {
 });
 
 describe('applyDrag', () => {
-  it('向右拖（dx>0）yaw 减小（视野右转）', () => {
+  it('向右拖（dx>0）yaw 增大（视野右转）', () => {
     const next = applyDrag(0, 0, 100, 0);
-    expect(next.yaw).toBeLessThan(0);
+    expect(next.yaw).toBeGreaterThan(0);
   });
 
-  it('向下拖（dy>0）pitch 增大（视野上转）', () => {
+  it('向下拖（dy>0）pitch 减小（视野下转）', () => {
     const next = applyDrag(0, 0, 0, 100);
-    expect(next.pitch).toBeGreaterThan(0);
+    expect(next.pitch).toBeLessThan(0);
   });
 
   it('pitch 被钳制不越界', () => {
-    const next = applyDrag(0, 88 * DEG, 0, 10000);
-    expect(next.pitch).toBeLessThanOrEqual(89 * DEG);
+    const next = applyDrag(0, -88 * DEG, 0, 10000);
+    expect(next.pitch).toBeGreaterThanOrEqual(-89 * DEG);
   });
 
   it('灵敏度可配置', () => {

@@ -33,6 +33,7 @@ import * as THREE from 'three';
 
 const props = defineProps({
   imageUrl: { type: String, default: '' },
+  previewUrl: { type: String, default: '' },
   modelValue: { type: Array, default: () => [] },
 });
 const emit = defineEmits(['update:modelValue', 'add-at', 'select']);
@@ -75,36 +76,82 @@ function initThree() {
   const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1200);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // 编辑预览不需要 2x 像素比：460px 画布按 1.5x 渲染，首帧/交互明显更流畅
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   el.appendChild(renderer.domElement);
 
-  const loader = new THREE.TextureLoader();
-  loader.load(
-    props.imageUrl,
-    (texture) => {
-      const geometry = new THREE.SphereGeometry(500, 60, 40);
-      geometry.scale(-1, 1, 1);
-      const material = new THREE.MeshBasicMaterial({ map: texture });
-      const sphere = new THREE.Mesh(geometry, material);
-      scene.add(sphere);
-      viewer = { scene, camera, renderer, sphere, marks: new Map(), raycaster: new THREE.Raycaster(), THREE };
-      loading.value = false;
-      renderMarks();
-      animate();
-    },
-    (xhr) => { progress.value = xhr.total ? Math.round((xhr.loaded / xhr.total) * 100) : 0; },
-    (err) => {
-      console.error('全景图加载失败:', err);
-      loading.value = false;
-      el.innerHTML = '<div class="he-error">全景图加载失败，请检查图片地址</div>';
-    }
-  );
+  // 球面几何可复用：先铺预览图（秒出），大图就绪后仅替换贴图
+  const geometry = new THREE.SphereGeometry(500, 60, 40);
+  geometry.scale(-1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({ map: null });
+  const sphere = new THREE.Mesh(geometry, material);
+  scene.add(sphere);
+  viewer = { scene, camera, renderer, sphere, material, marks: new Map(), raycaster: new THREE.Raycaster(), THREE };
+  animate();
+  loadSceneTextures();
 
   // 事件
   el.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
   el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+/** 渐进加载：预览小图先行（秒出可编辑）→ 大图后台替换；场景切换（URL 变化）时重新加载 */
+function loadSceneTextures() {
+  if (!viewer) return;
+  const material = viewer.material;
+  const applyTexture = (tex) => {
+    if (!viewer) return;
+    material.map = tex;
+    material.needsUpdate = true;
+    loading.value = false;
+    renderMarks();
+  };
+  const loader = new THREE.TextureLoader();
+  // 1) 预览小图先行（通常 <60KB，瞬间出画面）
+  const previewSrc = props.previewUrl || props.imageUrl;
+  if (previewSrc) {
+    loader.load(
+      previewSrc,
+      (texture) => {
+        const t = limitTextureSize(texture);
+        if (t !== texture) texture.dispose();
+        applyTexture(t);
+        progress.value = 100;
+      },
+      (xhr) => { progress.value = xhr.total ? Math.round((xhr.loaded / xhr.total) * 100) : 0; },
+      () => { loading.value = false; }
+    );
+  }
+  // 2) 大图后台替换（与预览图不同源时才加载；同源则已显示无需重复）
+  if (props.previewUrl && props.imageUrl && props.previewUrl !== props.imageUrl) {
+    loader.load(
+      props.imageUrl,
+      (texture) => {
+        const t = limitTextureSize(texture);
+        if (t !== texture) texture.dispose();
+        applyTexture(t);
+      },
+      undefined,
+      () => { /* 大图失败保留预览画质 */ }
+    );
+  }
+}
+
+/** 纹理尺寸上限：超 2048 的图用 canvas 缩放后再上传，避免超大图解码/上传卡死编辑预览 */
+function limitTextureSize(texture) {
+  const img = texture.image;
+  if (!img || !img.width || img.width <= 2048) return texture;
+  const scale = 2048 / img.width;
+  const c = document.createElement('canvas');
+  c.width = 2048;
+  c.height = Math.max(1, Math.round(img.height * scale));
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = texture.colorSpace;
+  return t;
 }
 
 function renderMarks() {
@@ -245,6 +292,11 @@ function syncLat() { /* 同上 */ }
 watch(() => props.modelValue, () => {
   if (viewer) renderMarks();
 }, { deep: true });
+
+// 场景切换：图片 URL 变化时重新渐进加载纹理
+watch(() => [props.imageUrl, props.previewUrl], () => {
+  if (viewer) loadSceneTextures();
+});
 
 onMounted(() => {
   if (props.imageUrl) {

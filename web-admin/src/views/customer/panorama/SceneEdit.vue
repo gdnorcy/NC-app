@@ -82,7 +82,7 @@
         <div class="page-card">
           <h3 style="margin-bottom:16px;">全景图</h3>
           <template v-if="form.imagePath">
-            <HotspotEditor :image-url="panoramaUrl" v-model="form.hotspots" @add-at="onAddHotspotAt" @select="onSelectHotspot" />
+            <HotspotEditor :image-url="panoramaUrl" :preview-url="previewUrl" v-model="form.hotspots" @add-at="onAddHotspotAt" @select="onSelectHotspot" />
             <el-upload class="upload-area" style="margin-top:12px;" :auto-upload="false" :show-file-list="false" accept="image/*" @change="handleUpload">
               <el-button size="small">更换图片</el-button>
             </el-upload>
@@ -139,6 +139,10 @@ const isEdit = computed(() => !!route.params.sceneId && route.params.sceneId !==
 const panoramaUrl = computed(() => {
   if (!form.imagePath) return '';
   return form.imagePath.startsWith('http') ? form.imagePath : (location.origin + form.imagePath);
+});
+const previewUrl = computed(() => {
+  if (!form.previewPath) return '';
+  return form.previewPath.startsWith('http') ? form.previewPath : (location.origin + form.previewPath);
 });
 const saving = ref(false);
 const scenes = ref([]);
