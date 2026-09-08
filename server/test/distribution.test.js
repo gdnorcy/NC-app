@@ -441,4 +441,31 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(csv.includes('"用户","一级佣金(元)"'), '表头含类型列');
     assert.ok(csv.includes('合计') && csv.includes('10.00'), '末行合计与类型金额');
   });
+
+  it('P4 累计收益：分账入账即计入 total_income（待结算也算累计）', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.setPlugin(TENANT, 'partner', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-all', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-cat', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-area', { install: false, enable: false });
+    const buyerId = 1002;
+    dist.bindRelation(TENANT, buyerId, 'individual', 1000);
+    db.prepare("UPDATE dist_wallet SET total_income = 0 WHERE tenant_id = ? AND user_id = 1000 AND identity_type = 'individual'").run(TENANT);
+    const order = { id: 88881, orderNo: 'DEMO-INCOME-1', payerType: 'tenant', customerId: TENANT, userId: buyerId, buyerIdentityType: 'individual', amount: 10000, status: 'paid' };
+    dist.computeOrderSplit(order);
+    const w = db.prepare("SELECT wait_settle, total_income, available FROM dist_wallet WHERE tenant_id = ? AND user_id = 1000 AND identity_type = 'individual'").get(TENANT);
+    assert.equal(w.total_income, 1000, `分账入账即累计收益（实际 ${w.total_income / 100} 元）`);
+    assert.ok(w.wait_settle >= w.total_income, '待结算期间：累计收益不超过待结算总额（历史待结算留存）');
+  });
+
+  it('P4 分销商排行：按累计收益降序 + 直推人数 + 身份标签', () => {
+    // user1000 已有收益（前面用例累计入账），user1002 无收益
+    const list = dist.ranking(TENANT, 10);
+    assert.ok(Array.isArray(list) && list.length >= 1, '有排行数据');
+    // 降序校验
+    for (let i = 1; i < list.length; i++) assert.ok(list[i - 1].totalIncome >= list[i].totalIncome, '按累计收益降序');
+    assert.ok(list[0].rank === 1 && list[0].nickname, 'rank 与昵称');
+    assert.ok(typeof list[0].directCount === 'number', '直推人数');
+    assert.ok(Array.isArray(list[0].tags), '身份标签数组');
+  });
 });

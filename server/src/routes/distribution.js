@@ -314,6 +314,11 @@ export function createDistributionRouter(db) {
   // ============================================================
   // 数据大盘
   // ============================================================
+  // 分销商排行（数据大盘 Top 榜）
+  router.get('/ranking', tenant, (req, res) => {
+    res.json({ list: dist.ranking(req.customerId, req.query.limit || 10) });
+  });
+
   router.get('/stats', tenant, (req, res) => {
     const tenantId = req.customerId;
     const totalCommission = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND type IN ('level1','level2')").get(tenantId).s;

@@ -464,3 +464,10 @@ npm run test:frontend
 - `GET /distribution/logs/summary?month=YYYY-MM&export=csv`：月度佣金/分红汇总（按用户+类型分组 + byType/total/settled/pending）；CSV 纯函数 `buildMonthlyCsv(summary)`——8 列（用户 + 6 类收益 + 合计），末行「合计」；月份取 `substr(created_at,1,7)`。
 - 前端 DistHome：溯源记录 Tab 加「绑定列表 / 关系树」切换（el-radio-group + el-tree 默认全展开，节点 = 昵称 + 企业员工/身份标签 + ID）；佣金明细 Tab 加月份选择器 + 「月度汇总」导出按钮（`佣金月度汇总-YYYY-MM.csv`）。
 - 测试：buildRelationTree（多层展开/根判定/标签/自环防环）+ monthlySummary（byType/分组/合计）+ buildMonthlyCsv（BOM/表头/末行合计），distribution.test.js 28 用例。
+
+## 分销商排行 + 累计收益修复（2026-09-08 新增）
+
+- `GET /distribution/ranking?limit=N`：分销商 Top 榜——按 dist_wallet.total_income 降序（仅 total_income>0），附可提现 available、直推人数（pid1=userId 计数）、身份标签（合伙人/全民/行业/区域股东，status=1）；纯服务层 svc.ranking，前端数据大盘 Tab「分销商排行」表格（TOP N，前三名蓝色圆标）。
+- **累计收益 total_income 语义修复**：分账入账即 `total_income += amount`（累计收益含待结算，与 PRD「包含已提现、待结算、已扣减」一致）；结算只转移 wait_settle→available；退款回滚 `total_income = MAX(0, total_income - deduct)` 才匹配入账。此前入账只加 wait_settle 未加 total_income，导致：①待结算期累计收益显示不全（排行/分销中心）；②待结算期间退款回滚扣减未入账的累计收益（负数语义错误）。
+- 演示数据补账（历史待结算同步累计）：`UPDATE dist_wallet SET total_income = total_income + wait_settle WHERE wait_settle > 0`。
+- 测试：ranking 降序/标签/直推人数 + 累计收益入账语义（total_income=分账金额、待结算期 wait_settle>=total_income），distribution.test.js 30 用例。

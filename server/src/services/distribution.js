@@ -477,7 +477,7 @@ export function createDistributionService(db) {
       `);
       const walletAdd = db.prepare(`
         INSERT INTO dist_wallet (tenant_id, user_id, identity_type, wait_settle, available, total_income, total_withdraw)
-        VALUES (?, ?, ?, ?, 0, 0, 0)
+        VALUES (?, ?, ?, ?, 0, ?, 0)
         ON CONFLICT(tenant_id, user_id, identity_type) DO UPDATE SET
           wait_settle = dist_wallet.wait_settle + excluded.wait_settle,
           total_income = dist_wallet.total_income + excluded.total_income,
@@ -485,7 +485,7 @@ export function createDistributionService(db) {
       `);
       for (const row of logRows) {
         logIns.run(tenantId, row.userId, row.identityType, order.id, order.orderNo, splitId, row.type, row.amount, row.remark);
-        walletAdd.run(tenantId, row.userId, row.identityType, row.amount);
+        walletAdd.run(tenantId, row.userId, row.identityType, row.amount, row.amount);
       }
       return splitId;
     };
@@ -679,6 +679,32 @@ export function createDistributionService(db) {
       u.total += r.amount;
     }
     return { month: key, byType, total, settled, pending, byUser: [...byUser.values()] };
+  };
+
+  /** 分销商排行：累计收益 / 直推人数 / 团队人数 / 身份标签；Top N */
+  svc.ranking = (tenantId, limit = 10) => {
+    const rows = db.prepare(`
+      SELECT w.user_id AS userId, u.nickname,
+        COALESCE(w.total_income, 0) AS totalIncome,
+        COALESCE(w.available, 0) AS available,
+        (SELECT COUNT(*) FROM dist_user_relation r2 WHERE r2.tenant_id = ? AND r2.pid1 = w.user_id) AS directCount
+      FROM dist_wallet w
+      LEFT JOIN platform_user u ON u.id = w.user_id
+      WHERE w.tenant_id = ? AND w.total_income > 0
+      GROUP BY w.user_id
+      ORDER BY w.total_income DESC LIMIT ?
+    `).all(tenantId, tenantId, Math.min(Number(limit) || 10, 50));
+    const tagMap = new Map();
+    const tag = (uid, t) => { if (!tagMap.has(uid)) tagMap.set(uid, []); tagMap.get(uid).push(t); };
+    for (const p of db.prepare("SELECT user_id FROM dist_partner WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, '合伙人');
+    for (const p of db.prepare("SELECT user_id FROM dist_share_all WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, '全民股东');
+    for (const p of db.prepare("SELECT user_id FROM dist_share_cat WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, '行业股东');
+    for (const p of db.prepare("SELECT user_id FROM dist_share_area WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, '区域股东');
+    return rows.map((r, i) => ({
+      rank: i + 1, userId: r.userId, nickname: r.nickname || '微信用户',
+      totalIncome: r.totalIncome, available: r.available,
+      directCount: r.directCount, tags: tagMap.get(r.userId) || [],
+    }));
   };
 
   /** 用户收益汇总（钱包 + 直推/间推人数 + 本月佣金 + 身份标签） */
