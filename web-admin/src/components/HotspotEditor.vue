@@ -115,7 +115,9 @@ function renderMarks() {
   viewer.marks.clear();
   (props.modelValue || []).forEach((h, idx) => {
     const dir = hotspotDir(h).multiplyScalar(485);
-    const geo = new THREE.SphereGeometry(h.type === 'jump' ? 6 : 5, 16, 16);
+    // 标记球体：info 14 / scene 16（在 460px 画布上视觉约 20px+，便于点选与拖拽）
+    const r = h.type === 'scene' ? 16 : 14;
+    const geo = new THREE.SphereGeometry(r, 24, 24);
     const mat = new THREE.MeshBasicMaterial({
       color: h.type === 'scene' ? 0x165dff : 0xff7d00,
       transparent: true,
@@ -169,12 +171,11 @@ function onPointerDown(e) {
   if (!viewer || loading.value) return;
   const px = e.clientX, py = e.clientY;
   downX = px; downY = py; downTime = Date.now();
-  // 先判定是否点到热点标记
+  // 先判定是否点到热点标记：进入拖拽模式（不立即弹编辑框）
   const markIdx = raycastMarks(px, py);
   if (markIdx !== null && markIdx !== undefined) {
     dragMode = 'mark';
     hitMarkIdx = markIdx;
-    emit('select', props.modelValue[markIdx], markIdx);
     return;
   }
   dragMode = 'rotate';
@@ -208,7 +209,19 @@ function onPointerMove(e) {
 }
 
 function onPointerUp(e) {
-  // 判定点击（无位移、短时间）→ 添加热点
+  // 标记模式：位移小 = 点击 → 打开编辑；位移大 = 拖动完成（位置已实时更新）
+  if (dragMode === 'mark' && hitMarkIdx !== null) {
+    const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+    if (moved < 6) {
+      const h = props.modelValue[hitMarkIdx];
+      if (h) emit('select', h, hitMarkIdx);
+    }
+    dragMode = null;
+    isDragging = false;
+    hitMarkIdx = null;
+    return;
+  }
+  // 旋转模式：判定点击（无位移、短时间）→ 添加热点
   if (dragMode === 'rotate' && hitMarkIdx === null) {
     const moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
     const dt = Date.now() - downTime;
@@ -260,7 +273,7 @@ onBeforeUnmount(() => {
 .he-canvas {
   position: relative;
   width: 100%;
-  height: 360px;
+  height: 460px;
   border-radius: 8px;
   overflow: hidden;
   background: #000;
