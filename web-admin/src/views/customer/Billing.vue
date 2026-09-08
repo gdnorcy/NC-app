@@ -64,8 +64,8 @@
                 </template>
               </div>
               <div class="price-actions">
-                <el-button size="small" type="primary" plain style="width:100%;margin:0;" @click="purchase(s, p, 'subscribe')">开通</el-button>
-                <el-button size="small" text type="primary" style="width:100%;margin:0;" :style="{ visibility: p.durationMonths === 0 ? 'hidden' : 'visible' }" @click="purchase(s, p, 'renew')">续费</el-button>
+                <el-button size="small" type="primary" style="width:100%;margin:0;" @click="purchase(s, p, 'subscribe')">开通</el-button>
+                <el-button size="small" plain style="width:100%;margin:0;color:#0e42d2;border-color:#165dff;" :style="{ visibility: p.durationMonths === 0 ? 'hidden' : 'visible' }" @click="purchase(s, p, 'renew')">续费</el-button>
               </div>
             </div>
           </div>

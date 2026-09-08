@@ -83,7 +83,7 @@
     <el-container>
       <el-header class="header">
         <div class="header-left">
-          <el-button v-if="isImpersonate" type="primary" plain size="small" @click="backToAdmin">
+          <el-button v-if="isImpersonate" type="primary" plain size="small" style="color:#0e42d2;border-color:#165dff;" @click="backToAdmin">
             <el-icon><Back /></el-icon>返回总后台
           </el-button>
           <el-button text @click="toggleCollapse">

@@ -55,9 +55,6 @@
             <div class="metric-label">{{ app.metricLabel2 || '场景' }}</div>
           </div>
         </div>
-        <div class="app-stat-action">
-          <el-button type="primary" size="small" plain>进入应用</el-button>
-        </div>
       </div>
       <el-empty v-if="!byApp.length" description="暂未开通任何应用" :image-size="80" />
     </div>
@@ -127,9 +124,9 @@ function formatAmount(amount) {
 }
 
 function goApp(app) {
-  // 跳转到对应应用（分销体系 5 应用独立路由；channel 回应用中心渠道分类）
+  // 跳转到对应应用首页（360 全景默认「数据洞察」、智能名片默认 Tab 首项）
   const routeMap = {
-    panorama: '/apps/panorama/plans',
+    panorama: '/apps/panorama',
     card: '/apps/card',
     channel: '/apps?cat=全端渠道',
     dist: '/apps/dist',
@@ -230,10 +227,13 @@ function goApp(app) {
   cursor: pointer;
   transition: all 0.2s;
   border-left: 3px solid #165DFF;
+  display: flex;
+  flex-direction: column;
 }
 .app-stat-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(22,93,255,0.14);
   transform: translateY(-2px);
+  border-left-color: #165DFF;
 }
 .app-stat-header {
   display: flex;
@@ -262,7 +262,7 @@ function goApp(app) {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  margin-bottom: 12px;
+  flex: 1 1 auto;
 }
 .metric {
   text-align: center;
@@ -281,10 +281,5 @@ function goApp(app) {
   width: 1px;
   height: 24px;
   background: #e4e7ed;
-}
-.app-stat-action {
-  text-align: center;
-  padding-top: 8px;
-  border-top: 1px solid #f5f7fa;
 }
 </style>
