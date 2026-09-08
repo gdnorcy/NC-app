@@ -345,3 +345,14 @@ npm run test:frontend
 - **规范**：SW 对 **HTML/页面导航一律 network-first（永不缓存）**；只有带内容哈希的静态资源（/assets/*）可用 stale-while-revalidate；图片 /uploads 用 cache-first；/api 用 network-first。
 - sw.js install **禁止** `cache.addAll(['/', '/index.html'])` 预缓存 HTML；每次改 sw 策略必须升级 VERSION 触发旧缓存清理。
 - 交付前验证：浏览器清 SW 后访问 `/?plan=1&scene=N` 直达正常 + 二次刷新正常。
+
+## 360全景热点指向样式规范（2026-09-08 新增）
+
+- **场景级配置**：场景 meta.hotspotStyle = `{ effect: 'pulse'|'ripple'|'none', theme: 'blue'|'gold'|'orange'|'green', jumpColor, infoColor }`；主题提供双色预设，自定义色值优先。
+- **跳转点**（type=scene）：主色渐变圆 + 白描边 + 白色箭头 + 标题气泡（常显，canvas 纹理内置，sprite 16x11.25）；**信息点**（type=info）：主色圆 + 白描边 + 白色「i」+ 标题气泡。
+- **方位感知箭头**：跳转点带独立箭头 sprite，每帧 rotation = hotspotArrowAngle(dx,dy)（指向画面中心 v=(-dx,-dy)，`Math.atan2(-dy,-dx)-π/2`）；越靠近视角中心越透明（opacity = clamp(1-dist/0.45, 0.15, 1)）。
+- **动效外圈**：独立 fx sprite（canvas 128 圆环，主色描边）：pulse=scale/opacity sin 呼吸（9.2±1.6，2.8Hz）；ripple=scale 7.6→16.6 扩散 + opacity 递减（1.8s 周期）；none=不创建。
+- **纯函数三端同构**：`web/src/viewer/hotspot-style.js`、`web-app/src/utils/hotspot-style.js`、`web-admin/src/utils/hotspot-style.js` 必须保持一致（HOTSPOT_THEMES / normalizeHotspotStyle / hotspotColor / themeColors / hotspotArrowAngle），任一改动需同步三处并配测试。
+- **拾取隔离**：箭头/fx sprite 归 `_hotspotExtras`，不参与射线拾取（`_hotspotSprites` 只存主 sprite）。
+- **dir 必须包装 Vector3**：directionFromYawPitch 返回普通对象，存入 userData 前必须 `new THREE.Vector3(dir.x,dir.y,dir.z)`，否则 `.dot()` 崩溃。
+- **小程序端**：DOM 层热点（hotspot-marker + dot + arrow + ring + label），动效用 CSS keyframes（hsPulse/hsRipple），方位角由投影像素计算（`atan2(-dy,-dx)` 转度），`_vpW/_vpH` 在 projectHotspots 记录。
