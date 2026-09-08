@@ -8,22 +8,22 @@
       </div>
       <div class="global-cards">
         <div class="global-card" @click="$router.push('/apps')">
-          <div class="global-icon" style="background:rgba(22,93,255,0.1);color:#165dff;"><SIcon name="template" size="default" /></div>
+          <div class="global-icon"><SIcon name="template" size="default" /></div>
           <div class="global-value">{{ stats.planCount || 0 }}</div>
           <div class="global-label-text">方案总数</div>
         </div>
         <div class="global-card">
-          <div class="global-icon" style="background:rgba(114,46,209,0.1);color:#722ed1;"><SIcon name="panorama" size="default" /></div>
+          <div class="global-icon"><SIcon name="panorama" size="default" /></div>
           <div class="global-value">{{ stats.sceneCount || 0 }}</div>
           <div class="global-label-text">场景总数</div>
         </div>
         <div class="global-card" @click="$router.push('/members')">
-          <div class="global-icon" style="background:rgba(0,180,42,0.1);color:#00b42a;"><SIcon name="team" size="default" /></div>
+          <div class="global-icon"><SIcon name="team" size="default" /></div>
           <div class="global-value">{{ stats.memberCount || 0 }}</div>
           <div class="global-label-text">团队成员</div>
         </div>
         <div class="global-card" @click="$router.push('/orders')">
-          <div class="global-icon" style="background:rgba(255,125,0,0.1);color:#ff7d00;"><SIcon name="wallet" size="default" /></div>
+          <div class="global-icon"><SIcon name="wallet" size="default" /></div>
           <div class="global-value">¥{{ formatAmount(stats.totalAmount) }}</div>
           <div class="global-label-text">累计消费</div>
         </div>
@@ -127,11 +127,16 @@ function formatAmount(amount) {
 }
 
 function goApp(app) {
-  // 跳转到对应应用
+  // 跳转到对应应用（分销体系 5 应用独立路由；channel 回应用中心渠道分类）
   const routeMap = {
     panorama: '/apps/panorama/plans',
     card: '/apps/card',
-    channel: '/apps/channel',
+    channel: '/apps?cat=全端渠道',
+    dist: '/apps/dist',
+    partner: '/apps/partner',
+    'share-all': '/apps/share-all',
+    'share-cat': '/apps/share-cat',
+    'share-area': '/apps/share-area',
   };
   router.push(routeMap[app.appCode] || '/apps');
 }
@@ -183,6 +188,8 @@ function goApp(app) {
   align-items: center;
   justify-content: center;
   margin: 0 auto 8px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 .global-value {
   font-size: 24px;

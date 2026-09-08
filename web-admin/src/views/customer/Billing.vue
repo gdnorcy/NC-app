@@ -63,10 +63,10 @@
                   <div class="price-sub">续费 ¥{{ fmt(p.renewPrice) }}</div>
                 </template>
               </div>
-              <el-button size="small" type="primary" plain style="width:100%;" @click="purchase(s, p, 'subscribe')">
-                {{ p.durationMonths === 0 ? '开通' : '开通' }}
-              </el-button>
-              <el-button v-if="p.durationMonths !== 0" size="small" text type="primary" style="width:100%;margin-top:4px" @click="purchase(s, p, 'renew')">续费</el-button>
+              <div class="price-actions">
+                <el-button size="small" type="primary" plain style="width:100%;margin:0;" @click="purchase(s, p, 'subscribe')">开通</el-button>
+                <el-button size="small" text type="primary" style="width:100%;margin:0;" :style="{ visibility: p.durationMonths === 0 ? 'hidden' : 'visible' }" @click="purchase(s, p, 'renew')">续费</el-button>
+              </div>
             </div>
           </div>
           <div v-else class="price-empty">该方案暂未配置价格，如需开通请联系平台</div>
@@ -227,14 +227,16 @@ async function applyInvoice(row) {
 .usage-note { margin-top: 12px; font-size: 12px; color: #86909C; }
 
 .sol-renew-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
-.sol-renew { border: 1px solid #E5E6EB; border-radius: 8px; padding: 16px; }
+.sol-renew { border: 1px solid #E5E6EB; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; }
 .sol-renew-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .sol-renew-name { font-size: 14px; font-weight: 600; color: #1D2129; }
-.price-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-.price-card { border: 1px solid #F2F3F5; border-radius: 8px; padding: 12px; text-align: center; }
+.sol-renew .price-cards { flex: 1 1 auto; }
+.price-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; align-items: stretch; }
+.price-card { border: 1px solid #F2F3F5; border-radius: 8px; padding: 12px; text-align: center; display: flex; flex-direction: column; }
 .price-duration { font-size: 13px; font-weight: 500; color: #4E5969; }
-.price-main { margin: 8px 0 10px; }
+.price-main { margin: 8px 0 10px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
 .price-num { font-size: 20px; font-weight: 600; color: #165DFF; }
 .price-sub { font-size: 12px; color: #86909C; margin-top: 2px; }
+.price-actions { display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
 .price-empty { font-size: 13px; color: #86909C; padding: 12px 0; }
 </style>
