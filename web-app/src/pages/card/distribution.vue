@@ -90,7 +90,8 @@
       <view class="s-card"><view class="s-num">{{ fen(summary.monthCommission) }}</view><view class="s-lb">本月佣金(元)</view></view>
     </view>
     <view class="qrcode-box">
-      <button class="mini-btn" @click="openQr">我的推广二维码</button>
+      <button class="mini-btn" @click="openQr">推广二维码</button>
+      <button class="mini-btn primary" @click="openPoster">生成海报</button>
       <button class="mini-btn ghost" @click="copyShareUrl">复制推广链接</button>
       <text class="qrcode-tip">把名片分享给客户，客户扫码进入后自动绑定上下级，付费即可获取推广佣金</text>
     </view>
@@ -144,6 +145,18 @@
           </view>
         </scroll-view>
         <button class="mini-btn ghost" @click="showRules = false">关闭</button>
+      </view>
+    </view>
+
+    <!-- 分享海报（海报装修：推广图 + 昵称 + 二维码，可保存相册/下载） -->
+    <view v-if="poster.show" class="qr-mask" @click="poster.show = false">
+      <view class="qr-panel poster-panel" @click.stop>
+        <view class="qr-title">分享海报</view>
+        <view class="poster-canvas-box">
+          <canvas canvas-id="dist-poster" id="dist-poster" class="poster-canvas" />
+        </view>
+        <button class="mini-btn" :disabled="poster.saving" @click="savePoster">{{ poster.saving ? '生成中…' : '保存海报' }}</button>
+        <button class="mini-btn ghost" @click="poster.show = false">关闭</button>
       </view>
     </view>
 
@@ -346,14 +359,91 @@ function shareCard() {
 }
 
 const qr = ref({ show: false, dataUrl: '', shareUrl: '' });
+const poster = ref({ show: false, saving: false, tempPath: '' });
+
 async function openQr() {
-  if (qr.dataUrl) { qr.show = true; return; }
-  try {
-    const res = await cardApi.distQrcode();
-    qr.value = { show: true, dataUrl: res.qrDataUrl, shareUrl: res.shareUrl };
-  } catch (e) {
-    uni.showToast({ title: e.message || '二维码生成失败', icon: 'none' });
+  if (!qr.value.shareUrl) {
+    try {
+      const res = await cardApi.distQrcode();
+      if (res && res.qrDataUrl) qr.value = { show: true, dataUrl: res.qrDataUrl, shareUrl: res.shareUrl };
+    } catch (e) { uni.showToast({ title: e || '二维码生成失败', icon: 'none' }); }
+  } else {
+    qr.value = { ...qr.value, show: true };
   }
+}
+
+/** 海报装修：推广图 + 昵称 + 二维码合成，双端统一 uni canvas 绘制 */
+async function openPoster() {
+  if (!qr.value.dataUrl) {
+    try {
+      const res = await cardApi.distQrcode();
+      if (res && res.qrDataUrl) { qr.value.dataUrl = res.qrDataUrl; qr.value.shareUrl = res.shareUrl; }
+      else { uni.showToast({ title: '二维码生成失败', icon: 'none' }); return; }
+    } catch (e) { uni.showToast({ title: e || '二维码生成失败', icon: 'none' }); return; }
+  }
+  poster.value = { show: true, saving: false, tempPath: '' };
+  poster.value.saving = true;
+  // 等待弹层 canvas 挂载完成再绘制（H5/小程序均需）
+  await new Promise((r) => setTimeout(r, 400));
+  await drawPoster();
+  poster.value.saving = false;
+}
+
+/** uni canvas 绘制（H5/小程序同构）：canvasId=dist-poster → 临时文件/Blob */
+function drawPoster() {
+  return new Promise((resolve) => {
+    const W = 600, H = 900;
+    const ctx = uni.createCanvasContext('dist-poster');
+    const paint = (bgPath) => {
+      if (bgPath) { ctx.drawImage(bgPath, 0, 0, W, H); }
+      else {
+        ctx.setFillStyle('#165DFF'); ctx.fillRect(0, 0, W, H);
+      }
+      ctx.setFillStyle('rgba(0,0,0,0.28)'); ctx.fillRect(0, 0, W, H);
+      ctx.setFillStyle('#ffffff');
+      ctx.setFontSize(44); ctx.setTextAlign('center');
+      ctx.fillText(summary.value.distName || '分销中心', W / 2, 110);
+      ctx.setFontSize(64);
+      ctx.fillText((summary.value.parent && summary.value.parent.nickname) || '我的名片', W / 2, 210);
+      ctx.setFontSize(28); ctx.setFillStyle('rgba(255,255,255,0.92)');
+      ctx.fillText('扫码进入我的名片，绑定后获取推广佣金', W / 2, 270);
+      const qs = 320, qx = (W - qs) / 2, qy = 320;
+      ctx.setFillStyle('#ffffff'); ctx.fillRect(qx, qy, qs, qs);
+      ctx.drawImage(qr.value.dataUrl, qx + 24, qy + 24, qs - 48, qs - 48);
+      ctx.setFillStyle('rgba(255,255,255,0.92)'); ctx.setFontSize(26);
+      ctx.fillText('长按识别二维码 · 保存海报到相册', W / 2, H - 60);
+      ctx.draw(false, () => {
+        setTimeout(() => {
+          uni.canvasToTempFilePath({ canvasId: 'dist-poster', width: W, height: H, destWidth: W * 2, destHeight: H * 2, success: (r) => { poster.value.tempPath = r.tempFilePath; resolve(); }, fail: () => resolve() });
+        }, 400);
+      });
+    };
+    if (summary.value.promoteImg) {
+      uni.getImageInfo({ src: summary.value.promoteImg, success: (info) => paint(info.path), fail: () => paint(null) });
+    } else paint(null);
+  });
+}
+
+/** 保存海报：H5 下载（Blob URL）；小程序保存相册（含授权） */
+function savePoster() {
+  if (!poster.value.tempPath) { uni.showToast({ title: '海报生成中，请稍候', icon: 'none' }); return; }
+  // #ifdef H5
+  const a = document.createElement('a');
+  a.href = poster.value.tempPath; a.download = `分销海报-${Date.now()}.png`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  uni.showToast({ title: '海报已下载', icon: 'none' });
+  // #endif
+  // #ifndef H5
+  uni.saveImageToPhotosAlbum({
+    filePath: poster.value.tempPath,
+    success: () => uni.showToast({ title: '已保存到相册', icon: 'none' }),
+    fail: (e) => {
+      if (e && (e.errMsg || '').includes('auth')) {
+        uni.showModal({ title: '需要相册权限', content: '请在设置中开启保存到相册权限后重试', showCancel: false });
+      } else uni.showToast({ title: '保存失败', icon: 'none' });
+    },
+  });
+  // #endif
 }
 async function copyShareUrl() {
   if (!qr.value.shareUrl) {
@@ -434,6 +524,10 @@ onShow(() => {
 .apply-agreement { margin: 12px 2px 0; border-top: 1px solid #f2f3f5; padding-top: 10px; }
 .agreement-box { max-height: 140px; overflow-y: auto; background: #f7f8fa; border-radius: 8px; padding: 10px; font-size: 12px; color: #4e5969; line-height: 1.7; }
 .agreement-check { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 12px; color: #4e5969; }
+.poster-panel { width: 340px; }
+.poster-canvas-box { display: flex; justify-content: center; margin-bottom: 12px; }
+.poster-canvas { width: 300px; height: 450px; border-radius: 10px; background: #165dff; }
+.mini-btn.primary { background: #165dff; color: #fff; border-color: #165dff; }
 .tabs { display: flex; gap: 8px; margin: 0 20px 10px; }
 .tab { padding: 6px 14px; border-radius: 16px; background: #fff; color: #4e5969; font-size: 13px; }
 .tab.on { background: #165dff; color: #fff; }
