@@ -52,6 +52,29 @@
                 <el-option label="西" value="west" />
               </el-select>
             </el-form-item>
+            <el-divider content-position="left">热点外观</el-divider>
+            <el-form-item label="热点动效">
+              <el-select v-model="form.meta.hotspotStyle.effect" style="width:100%;">
+                <el-option label="呼吸脉冲" value="pulse" />
+                <el-option label="波纹扩散" value="ripple" />
+                <el-option label="无动效" value="none" />
+              </el-select>
+              <div class="hs-tip">跳转点显示方位箭头（指向画面中心），信息点显示 i 图标</div>
+            </el-form-item>
+            <el-form-item label="预设主题">
+              <el-select v-model="form.meta.hotspotStyle.theme" style="width:100%;" @change="onThemeChange">
+                <el-option label="默认蓝" value="blue" />
+                <el-option label="商务金" value="gold" />
+                <el-option label="活力橙" value="orange" />
+                <el-option label="生态绿" value="green" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="跳转点颜色">
+              <el-color-picker v-model="form.meta.hotspotStyle.jumpColor" />
+            </el-form-item>
+            <el-form-item label="信息点颜色">
+              <el-color-picker v-model="form.meta.hotspotStyle.infoColor" />
+            </el-form-item>
           </el-form>
         </div>
       </div>
@@ -107,6 +130,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { customerApiCall } from '../../../api';
 import PanoramaTabs from '../apps/panorama/PanoramaTabs.vue';
+import { themeColors, normalizeHotspotStyle } from '../../../utils/hotspot-style';
 import { ElMessage } from 'element-plus';
 
 const route = useRoute();
@@ -125,7 +149,7 @@ const hotspotForm = reactive({ type: 'info', title: '', content: '', targetScene
 const form = reactive({
   title: '', description: '', imagePath: '', previewPath: '',
   sortOrder: 0, published: true, shareEnabled: false,
-  hotspots: [], meta: { bgMusic: '', voiceover: '', introText: '', transition: 'fade', initialView: 'default' },
+  hotspots: [], meta: { bgMusic: '', voiceover: '', introText: '', transition: 'fade', initialView: 'default', hotspotStyle: { effect: 'pulse', theme: 'blue', jumpColor: '#165DFF', infoColor: '#FF7D00' } },
 });
 
 onMounted(async () => {
@@ -133,7 +157,10 @@ onMounted(async () => {
   if (isEdit.value) {
     try {
       const s = scenes.value.find(x => x.id === Number(route.params.sceneId));
-      if (s) Object.assign(form, s, { meta: { ...form.meta, ...(s.meta || {}) }, hotspots: s.hotspots || [] });
+      if (s) {
+        Object.assign(form, s, { meta: { ...form.meta, ...(s.meta || {}) }, hotspots: s.hotspots || [] });
+        form.meta.hotspotStyle = normalizeHotspotStyle(form.meta.hotspotStyle);
+      }
     } catch (e) { ElMessage.error(e); }
   }
 });
@@ -158,6 +185,12 @@ function onAddHotspotAt({ yaw, pitch }) {
   hotspotIndex.value = -1;
   Object.assign(hotspotForm, { type: 'info', title: '', content: '', targetSceneId: null, yaw, pitch });
   showHotspot.value = true;
+}
+// 预设主题切换：自动填充跳转/信息点颜色
+function onThemeChange(theme) {
+  const c = themeColors(theme);
+  form.meta.hotspotStyle.jumpColor = c.jump;
+  form.meta.hotspotStyle.infoColor = c.info;
 }
 // 点击热点标记编辑
 function onSelectHotspot(h, idx) {
@@ -196,6 +229,7 @@ async function save() {
 
 <style scoped>
 .upload-area { width: 100%; }
+.hs-tip { font-size: 12px; color: #86909C; line-height: 1.6; margin-top: 4px; }
 .upload-placeholder { border: 2px dashed #dcdfe6; border-radius: 8px; padding: 40px 20px; text-align: center; color: #909399; cursor: pointer; }
 .upload-placeholder:hover { border-color: #165DFF; color: #165DFF; }
 .hotspot-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }

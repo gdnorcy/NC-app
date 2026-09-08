@@ -228,7 +228,7 @@ async function selectScene(i, { force = false } = {}) {
   await viewer.load(scene.imagePath, scene.previewPath, scene.pyramid, { initialView: meta.initialView });
   track('scene_view', { sceneId: scene.id, planId: project ? project.id : 0 });
   // 加载热点
-  viewer.setHotspots(scene.hotspots || []);
+  viewer.setHotspots(scene.hotspots || [], scene.meta?.hotspotStyle);
   // 内容增强
   applySceneMeta(meta);
 }

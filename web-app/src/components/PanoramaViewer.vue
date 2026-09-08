@@ -25,11 +25,16 @@
         v-for="(h, idx) in hotspots"
         :key="h.id || idx"
         class="hotspot-marker"
+        :class="'hs-' + hsStyle.effect"
         :style="hotspotStyle(h, idx)"
         @tap.stop="onHotspotTap(h)"
       >
-        <view class="hotspot-dot"></view>
-        <text class="hotspot-label">{{ h.title }}</text>
+        <view v-if="h.type === 'scene'" class="hotspot-arrow" :style="arrowStyle(idx)"></view>
+        <view class="hotspot-dot" :style="{ background: dotColor(h) }">
+          <text v-if="h.type !== 'scene'" class="dot-i">i</text>
+        </view>
+        <view class="hs-ring" :style="{ borderColor: dotColor(h) }"></view>
+        <text class="hotspot-label" :style="{ color: dotColor(h) }">{{ h.title }}</text>
       </view>
     </view>
 
@@ -67,6 +72,7 @@
 
 <script>
 import { hotspotDir, projectHotspots } from '@/utils/panorama.js';
+import { normalizeHotspotStyle, hotspotColor } from '@/utils/hotspot-style.js';
 
 export default {
   name: 'PanoramaViewer',
@@ -83,6 +89,8 @@ export default {
       loading: true,
       progress: 0,
       activeHotspot: null,
+      _vpW: 0,
+      _vpH: 0,
       viewer: null,
       touchStartX: 0,
       touchStartY: 0,
@@ -94,6 +102,9 @@ export default {
     };
   },
   computed: {
+    hsStyle() {
+      return normalizeHotspotStyle(this.meta.hotspotStyle);
+    },
     hasMusic() {
       return !!(this.meta && this.meta.bgMusic);
     },
@@ -200,6 +211,8 @@ export default {
     },
     projectHotspots(w, h) {
       if (!this.viewer) return;
+      this._vpW = w;
+      this._vpH = h;
       this.hotspotPos = projectHotspots(this.hotspots, this.viewer.lon, this.viewer.lat, w, h);
     },
     hotspotStyle(h, idx) {
@@ -209,6 +222,20 @@ export default {
         left: p.x + 'px',
         top: p.y + 'px',
       };
+    },
+    dotColor(h) {
+      return hotspotColor(this.hsStyle, h.type);
+    },
+    arrowStyle(idx) {
+      const p = this.hotspotPos[idx] || { visible: false, x: 0, y: 0 };
+      if (!p.visible || !this._vpW || !this._vpH) return { opacity: 0 };
+      // 方位感知：箭头指向画面中心；越靠近中心越透明
+      const dx = p.x - this._vpW / 2;
+      const dy = p.y - this._vpH / 2;
+      const angle = (Math.atan2(-dy, -dx) * 180) / Math.PI;
+      const dist = Math.sqrt(dx * dx + dy * dy) / Math.max(this._vpW, this._vpH);
+      const op = Math.max(0.2, Math.min(1, 1 - dist / 0.5));
+      return { transform: 'rotate(' + angle + 'deg)', opacity: op };
     },
     onHotspotTap(h) {
       if (h.type === 'scene' && h.targetSceneId) {
@@ -358,12 +385,63 @@ export default {
   z-index: 6;
 }
 .hotspot-dot {
+  position: relative;
   width: 26px;
   height: 26px;
   border-radius: 50%;
   background: rgba(22, 93, 255, 0.85);
   border: 2px solid #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dot-i {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+.hotspot-arrow {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 0;
+  height: 0;
+  margin-left: -7px;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 13px solid #ffffff;
+  transform-origin: 7px 21px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  z-index: 2;
+}
+.hs-ring {
+  position: absolute;
+  left: 50%;
+  top: 13px;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  margin-top: -15px;
+  border-radius: 50%;
+  border: 2px solid #165dff;
+  opacity: 0;
+  pointer-events: none;
+}
+.hs-pulse .hs-ring {
+  animation: hsPulse 2.2s ease-in-out infinite;
+}
+.hs-ripple .hs-ring {
+  animation: hsRipple 1.8s ease-out infinite;
+}
+@keyframes hsPulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.5; }
+  50% { transform: scale(1.35); opacity: 0.15; }
+}
+@keyframes hsRipple {
+  0% { transform: scale(0.6); opacity: 0.55; }
+  100% { transform: scale(1.9); opacity: 0; }
 }
 .hotspot-label {
   margin-top: 4px;

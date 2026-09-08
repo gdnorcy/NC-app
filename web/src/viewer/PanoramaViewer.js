@@ -7,6 +7,7 @@ import {
 } from './controls.js';
 import { planProgressiveLoad } from './progressive.js';
 import { pickTargetLevel, tileUrl, visibleTiles, expandTiles } from './pyramid.js';
+import { normalizeHotspotStyle, hotspotArrowAngle } from './hotspot-style.js';
 
 const RADIUS = 50;
 const FOV_MIN = 30;
@@ -57,6 +58,8 @@ export class PanoramaViewer {
     // 热点
     this._hotspots = [];
     this._hotspotSprites = [];
+    this._hotspotExtras = [];
+    this._hotspotStyle = { effect: 'pulse', theme: 'blue', jumpColor: '#165DFF', infoColor: '#FF7D00' };
     this._raycaster = new THREE.Raycaster();
     this._pointerDown = null;
     this.onHotspotClick = null;
@@ -456,9 +459,10 @@ export class PanoramaViewer {
   }
 
   // ---------- 热点 ----------
-  setHotspots(hotspots = []) {
+  setHotspots(hotspots = [], style) {
     this._clearHotspots();
     this._hotspots = hotspots;
+    this._hotspotStyle = normalizeHotspotStyle(style);
     for (const hs of hotspots) {
       const sprite = this._createHotspotSprite(hs);
       if (sprite) {
@@ -468,48 +472,195 @@ export class PanoramaViewer {
     }
   }
 
+  /** 绘制圆角矩形路径（canvas） */
+  _roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  /** 十六进制 → rgba 字符串 */
+  _hexToRgba(hex, alpha) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+  }
+
   _createHotspotSprite(hs) {
     const yaw = (hs.yaw || 0) * Math.PI / 180;
     const pitch = (hs.pitch || 0) * Math.PI / 180;
     const dir = directionFromYawPitch(yaw, pitch);
     const dist = RADIUS * 0.92;
-    // 创建热点图标（圆形+箭头）
+    const isScene = hs.type === 'scene';
+    const color = isScene ? this._hotspotStyle.jumpColor : this._hotspotStyle.infoColor;
+    const title = (hs.title || '').slice(0, 14);
+
+    // ---- 主标记：气泡(标题) + 圆 + 白描边 ----
+    const W = 256, H = 180;
+    const cx = 128, cy = 124, r = 46;
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = W;
+    canvas.height = H;
     const ctx = canvas.getContext('2d');
-    // 外圈
+    if (title) {
+      ctx.font = 'bold 24px "PingFang SC", "Microsoft YaHei", sans-serif';
+      const tw = ctx.measureText(title).width;
+      const bw = Math.min(tw + 36, W - 32);
+      const bx = cx - bw / 2;
+      const by = 4, bh = 42;
+      this._roundRect(ctx, bx, by, bw, bh, 12);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      // 小三角指向标记
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, by + bh - 1);
+      ctx.lineTo(cx + 9, by + bh - 1);
+      ctx.lineTo(cx, by + bh + 10);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(title, cx, by + bh / 2);
+    }
+    // 圆形底（渐变）
+    const grad = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, this._hexToRgba(color, 0.72));
     ctx.beginPath();
-    ctx.arc(64, 64, 48, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(22, 93, 255, 0.85)';
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 5;
     ctx.stroke();
-    // 内圈
-    ctx.beginPath();
-    ctx.arc(64, 64, 24, 0, Math.PI * 2);
+    // 类型内标：scene=白箭头 / info=白 i
     ctx.fillStyle = '#fff';
-    ctx.fill();
-    // 箭头
-    ctx.beginPath();
-    ctx.moveTo(64, 48);
-    ctx.lineTo(78, 64);
-    ctx.lineTo(64, 80);
-    ctx.lineTo(64, 70);
-    ctx.lineTo(50, 70);
-    ctx.lineTo(50, 58);
-    ctx.lineTo(64, 58);
-    ctx.closePath();
-    ctx.fillStyle = '#165DFF';
-    ctx.fill();
+    if (isScene) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 26);
+      ctx.lineTo(cx + 18, cy + 4);
+      ctx.lineTo(cx, cy - 6);
+      ctx.lineTo(cx - 18, cy + 4);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.font = 'bold 56px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('i', cx, cy + 4);
+    }
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(material);
     sprite.position.set(dir.x * dist, dir.y * dist, dir.z * dist);
-    sprite.scale.set(8, 8, 1);
-    sprite.userData = { hotspot: hs };
+    sprite.scale.set(16, 11.25, 1);
+    // dir 为普通对象，这里包装为 Vector3 供每帧方位计算使用
+    const dirV = new THREE.Vector3(dir.x, dir.y, dir.z);
+    const userData = { hotspot: hs, dir: dirV };
+
+    // ---- 方位箭头（独立 sprite，每帧旋转指向画面中心） ----
+    if (isScene) {
+      const ac = document.createElement('canvas');
+      ac.width = 128; ac.height = 128;
+      const actx = ac.getContext('2d');
+      actx.beginPath();
+      actx.moveTo(64, 20);
+      actx.lineTo(84, 52);
+      actx.lineTo(64, 40);
+      actx.lineTo(44, 52);
+      actx.closePath();
+      actx.fillStyle = '#FFFFFF';
+      actx.fill();
+      actx.shadowColor = 'rgba(0,0,0,0.45)';
+      actx.shadowBlur = 10;
+      const arrowMat = new THREE.SpriteMaterial({
+        map: new THREE.CanvasTexture(ac), transparent: true, depthTest: false, opacity: 0.9,
+      });
+      const arrow = new THREE.Sprite(arrowMat);
+      arrow.position.copy(sprite.position);
+      arrow.scale.set(5.2, 5.2, 1);
+      arrow.position.addScaledVector(dir, 5.4);
+      this.scene.add(arrow);
+      this._hotspotExtras.push(arrow);
+      userData.arrow = arrow;
+    }
+
+    // ---- 动效外圈（pulse 呼吸 / ripple 波纹 / none 无） ----
+    const fx = this._createHotspotFx(color);
+    if (fx) {
+      fx.position.copy(sprite.position);
+      this.scene.add(fx);
+      this._hotspotExtras.push(fx);
+      userData.fx = fx;
+    }
+
+    sprite.userData = userData;
     return sprite;
+  }
+
+  _createHotspotFx(color) {
+    const effect = this._hotspotStyle.effect;
+    if (!effect || effect === 'none') return null;
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.beginPath();
+    ctx.arc(64, 64, 58, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 7;
+    ctx.stroke();
+    const mat = new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, opacity: 0.5,
+    });
+    const s = new THREE.Sprite(mat);
+    s.scale.set(effect === 'pulse' ? 9.6 : 8, effect === 'pulse' ? 9.6 : 8, 1);
+    return s;
+  }
+
+  /** 每帧：方位感知箭头 + 动效 */
+  _updateHotspots(now) {
+    if (!this._hotspotSprites.length) return;
+    const t = now / 1000;
+    const forward = directionFromYawPitch(this.yaw, this.pitch);
+    const up = new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+    const upV = new THREE.Vector3().crossVectors(right, forward).normalize();
+    const style = this._hotspotStyle;
+
+    for (const sprite of this._hotspotSprites) {
+      const ud = sprite.userData;
+      // 方位感知：箭头指向画面中心，靠近中心渐隐
+      if (ud.arrow) {
+        const dx = ud.dir.dot(right);
+        const dy = ud.dir.dot(upV);
+        ud.arrow.material.rotation = hotspotArrowAngle(dx, dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        ud.arrow.material.opacity = THREE.MathUtils.clamp(1 - dist / 0.45, 0.15, 1);
+      }
+      // 动效
+      if (ud.fx) {
+        const fx = ud.fx;
+        if (style.effect === 'pulse') {
+          const k = 0.5 + 0.5 * Math.sin(t * 2.8);
+          const sc = 9.2 + k * 1.6;
+          fx.scale.set(sc, sc, 1);
+          fx.material.opacity = 0.18 + k * 0.4;
+        } else if (style.effect === 'ripple') {
+          const cycle = (t % 1.8) / 1.8;
+          const sc = 7.6 + cycle * 9;
+          fx.scale.set(sc, sc, 1);
+          fx.material.opacity = 0.55 * (1 - cycle);
+        }
+      }
+    }
   }
 
   _clearHotspots() {
@@ -518,7 +669,13 @@ export class PanoramaViewer {
       sprite.material.map?.dispose();
       sprite.material.dispose();
     }
+    for (const extra of this._hotspotExtras) {
+      this.scene.remove(extra);
+      extra.material.map?.dispose();
+      extra.material.dispose();
+    }
     this._hotspotSprites = [];
+    this._hotspotExtras = [];
     this._hotspots = [];
   }
 
@@ -588,6 +745,9 @@ export class PanoramaViewer {
       this.camera.updateProjectionMatrix();
       const dir = directionFromYawPitch(this.yaw, this.pitch);
       this.camera.lookAt(dir.x, dir.y, dir.z);
+
+      // 热点：方位感知箭头 + 动效（每帧）
+      this._updateHotspots(now);
 
       // 金字塔模式：视角变化后防抖刷新可见瓦片
       if (this._pyramid && this._pyramidTarget) {
