@@ -228,15 +228,37 @@ router.get('/dashboard', requireTenant, (req, res) => {
     });
   });
 
-  // 按应用统计：全景→方案/场景；智能名片→企业员工/企业客户；全端渠道→渠道配置数
+  // 按应用统计：全景→方案/场景；智能名片→企业员工/企业客户；全端渠道→渠道配置数；分销五应用→成员/分组指标
   const employeeCount = db.prepare('SELECT COUNT(*) AS n FROM users WHERE customer_id = ? AND enterprise_id IS NOT NULL').get(cid).n;
   const cardCustomerCount = db.prepare('SELECT COUNT(*) AS n FROM card_customer WHERE customer_id = ?').get(cid).n;
   const channelCount = db.prepare('SELECT COUNT(*) AS n FROM channel_apps WHERE customer_id = ?').get(cid).n;
+  const cnt = (sql) => { try { return db.prepare(sql).get(cid).n || 0; } catch { return 0; } };
+  const distCount = cnt("SELECT COUNT(*) AS n FROM dist_distributor WHERE tenant_id = ? AND status = 1");
+  const distPending = cnt("SELECT COUNT(*) AS n FROM dist_withdraw WHERE tenant_id = ? AND status = 'pending'");
+  const partnerCount = cnt("SELECT COUNT(*) AS n FROM dist_partner WHERE tenant_id = ? AND status = 1");
+  const shareAllCount = cnt("SELECT COUNT(*) AS n FROM dist_share_all WHERE tenant_id = ? AND status = 1");
+  const shareCatGroups = cnt("SELECT COUNT(DISTINCT category_id) AS n FROM dist_share_cat WHERE tenant_id = ? AND status = 1");
+  const shareCatCount = cnt("SELECT COUNT(*) AS n FROM dist_share_cat WHERE tenant_id = ? AND status = 1");
+  const shareAreaGroups = cnt("SELECT COUNT(DISTINCT area_code) AS n FROM dist_share_area WHERE tenant_id = ? AND status = 1");
+  const shareAreaCount = cnt("SELECT COUNT(*) AS n FROM dist_share_area WHERE tenant_id = ? AND status = 1");
+  const pluginMode = (code) => {
+    try {
+      const p = db.prepare('SELECT config FROM sys_tenant_plugin WHERE tenant_id = ? AND plugin_code = ?').get(cid, code);
+      if (!p?.config) return '';
+      const c = JSON.parse(p.config);
+      return c.mode;
+    } catch { return ''; }
+  };
   const statFor = (code) => {
     if (code === 'panorama') return { plans: planCount, scenes: sceneCount, metricLabel: '方案', metricLabel2: '场景' };
     if (code === 'card') return { plans: employeeCount, scenes: cardCustomerCount, metricLabel: '企业员工', metricLabel2: '企业客户' };
     if (code === 'channel') return { plans: channelCount, scenes: 0, metricLabel: '渠道配置', metricLabel2: '场景' };
-    return { plans: 0, scenes: 0, metricLabel: '方案', metricLabel2: '场景' };
+    if (code === 'dist') return { plans: distCount, scenes: distPending, metricLabel: '分销商', metricLabel2: '提现待审' };
+    if (code === 'partner') return { plans: partnerCount, scenes: pluginMode('partner') === 2 ? '全局' : '团队', metricLabel: '合伙人', metricLabel2: '分红模式' };
+    if (code === 'share-all') return { plans: shareAllCount, scenes: pluginMode('share-all') === 2 ? '权重' : '均等', metricLabel: '股东', metricLabel2: '分配方式' };
+    if (code === 'share-cat') return { plans: shareCatGroups, scenes: shareCatCount, metricLabel: '类目数', metricLabel2: '股东数' };
+    if (code === 'share-area') return { plans: shareAreaGroups, scenes: shareAreaCount, metricLabel: '地区数', metricLabel2: '股东数' };
+    return { plans: 0, scenes: 0, metricLabel: '', metricLabel2: '' };
   };
   const byApp = apps.map((app) => {
     const st = statFor(app.code);

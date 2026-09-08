@@ -24,7 +24,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column prop="createdAt" label="加入时间" width="180" />
+        <el-table-column prop="createdAt" label="加入时间" width="200" />
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
             <el-button size="small" type="danger" @click="remove(row)">移除</el-button>

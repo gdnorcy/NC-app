@@ -519,3 +519,16 @@ npm run test:frontend
 - 构建产物目录必须写根级精确路径：`/web/dist/`、`/web-app/dist/`、`/server/public/admin/`、`/server/data/`；根级数据目录 `/data/` 也加斜杠。
 - 交付前检查：`git status --short --ignored | grep '^!!'` 列表只能出现 node_modules/构建产物/数据/日志/.DS_Store；发现任何 `src/` 下源码目录被忽略立即修复并 `git add -f` 补录。
 - 新增源码目录时用 `git check-ignore <path>` 确认未被误伤。
+
+## 转化漏斗逐步去重规范（2026-09-08 新增）
+
+- 漏斗各层**禁止**独立 COUNT(DISTINCT visitor_key)——直接分享链接进入的访客无曝光事件会导致「浏览方案 3 人 > 页面曝光 2 人」150% 倒挂。
+- 正确实现：第 2 层起仅统计「完成过起点至上一环节**全部**事件」的访客（`visitor_key IN (SELECT visitor_key FROM analytics_events WHERE ... AND event_type IN (...) GROUP BY visitor_key HAVING COUNT(DISTINCT event_type)=N)`），漏斗严格单调不增。
+- 踩坑：子查询 IN 的条件需补全租户/方案/[日期]+全部事件类型参数（`stepParams.push(...params, ...prevKeys)`），只 push 事件类型会剩 `?` 绑 NULL 查空（表现为全层 0）。
+- 验收：浏览器实测漏斗每层 ≤ 上一层（panorama 2→2→2→1、card 1→1→0→0 单调）。
+
+## 工作台应用卡指标映射（2026-09-08 新增）
+
+- 租户工作台「我的应用」卡片指标按应用区分，**禁止 fallback 到全景的「方案/场景」**（曾导致分销应用显示 0方案/0场景）。
+- 映射表：panorama=方案/场景；card=企业员工/企业客户；channel=渠道配置/场景；dist=分销商/提现待审；partner=合伙人/分红模式(团队|全局)；share-all=股东/分配方式(均等|权重)；share-cat=类目数/股东数；share-area=地区数/股东数。
+- 分销类计数表 status=1（dist_distributor/dist_partner/dist_share_all/dist_share_cat/dist_share_area），提现待审取 dist_withdraw status='pending'；分红模式从 sys_tenant_plugin.config JSON 的 mode 读取。
