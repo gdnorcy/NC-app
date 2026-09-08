@@ -73,7 +73,8 @@ function initThree() {
   const w = el.clientWidth || 640;
   const h = el.clientHeight || 360;
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1200);
+  // 与 H5 查看端完全一致的相机模型：相机在球心(0,0,0)，lookAt(dir(lon,lat))，球面半径50 BackSide 内视
+  const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 200);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(w, h);
   // 编辑预览不需要 2x 像素比：460px 画布按 1.5x 渲染，首帧/交互明显更流畅
@@ -81,9 +82,8 @@ function initThree() {
   el.appendChild(renderer.domElement);
 
   // 球面几何可复用：先铺预览图（秒出），大图就绪后仅替换贴图
-  const geometry = new THREE.SphereGeometry(500, 60, 40);
-  geometry.scale(-1, 1, 1);
-  const material = new THREE.MeshBasicMaterial({ map: null });
+  const geometry = new THREE.SphereGeometry(50, 64, 48);
+  const material = new THREE.MeshBasicMaterial({ map: null, side: THREE.BackSide });
   const sphere = new THREE.Mesh(geometry, material);
   scene.add(sphere);
   viewer = { scene, camera, renderer, sphere, material, marks: new Map(), raycaster: new THREE.Raycaster(), THREE };
@@ -161,9 +161,10 @@ function renderMarks() {
   viewer.marks.forEach((m) => scene.remove(m));
   viewer.marks.clear();
   (props.modelValue || []).forEach((h, idx) => {
-    const dir = hotspotDir(h).multiplyScalar(485);
-    // 标记球体：info 14 / scene 16（在 460px 画布上视觉约 20px+，便于点选与拖拽）
-    const r = h.type === 'scene' ? 16 : 14;
+    // 与 H5 查看端一致：热点位于 dir * (RADIUS*0.92) = dir*46
+    const dir = hotspotDir(h).multiplyScalar(46);
+    // 标记球体：info 3.2 / scene 3.6（球半径50尺度，460px画布上视觉约20px+，便于点选与拖拽）
+    const r = h.type === 'scene' ? 3.6 : 3.2;
     const geo = new THREE.SphereGeometry(r, 24, 24);
     const mat = new THREE.MeshBasicMaterial({
       color: h.type === 'scene' ? 0x165dff : 0xff7d00,
@@ -181,14 +182,10 @@ function renderMarks() {
 function animate() {
   rafId = requestAnimationFrame(animate);
   if (!viewer) return;
-  const phi = THREE.MathUtils.degToRad(90 - viewLat.value);
-  const theta = THREE.MathUtils.degToRad(viewLon.value);
-  viewer.camera.position.set(
-    100 * Math.sin(phi) * Math.cos(theta),
-    100 * Math.cos(phi),
-    100 * Math.sin(phi) * Math.sin(theta)
-  );
-  viewer.camera.lookAt(0, 0, 0);
+  // 球心相机：位置固定原点，朝向 = dir(lon,lat)（与 H5 查看端 directionFromYawPitch 同模型）
+  viewer.camera.position.set(0, 0, 0);
+  const dir = hotspotDir({ yaw: viewLon.value, pitch: viewLat.value });
+  viewer.camera.lookAt(dir);
   viewer.renderer.render(viewer.scene, viewer.camera);
 }
 
@@ -249,8 +246,9 @@ function onPointerMove(e) {
   }
   if (dragMode === 'rotate' && isDragging) {
     const dx = px - lastX, dy = py - lastY;
-    viewLon.value = (viewLon.value - dx * 0.25 + 360) % 360;
-    viewLat.value = Math.max(-85, Math.min(85, viewLat.value + dy * 0.25));
+    // 与 H5 applyDrag 一致：向右拖 lon 增大（视野右转）；向下拖 lat 减小（视野下转）
+    viewLon.value = (viewLon.value + dx * 0.25 + 360) % 360;
+    viewLat.value = Math.max(-85, Math.min(85, viewLat.value - dy * 0.25));
     lastX = px; lastY = py;
   }
 }

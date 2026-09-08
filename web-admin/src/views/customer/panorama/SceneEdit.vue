@@ -7,7 +7,7 @@
         <el-button type="primary" @click="save" :loading="saving">保存</el-button>
       </div>
 </AppPageHeader>
-    <div style="display:grid;grid-template-columns:1fr 520px;gap:16px;">
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 520px;gap:16px;align-items:start;">
       <div>
         <div class="page-card">
           <h3 style="margin-bottom:16px;">基本信息</h3>
