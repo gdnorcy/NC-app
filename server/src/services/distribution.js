@@ -603,8 +603,8 @@ export function createDistributionService(db) {
     return { ok: true, withdrawNo: no };
   };
 
-  /** 提现审核：reject（驳回退款） / approve（通过待打款） / done（完成打款） */
-  svc.reviewWithdraw = (withdrawId, action, reason = '') => {
+  /** 提现审核：reject（驳回退款） / approve（通过待打款） / done（打款完成，需登记流水号） */
+  svc.reviewWithdraw = (withdrawId, action, reason = '', payNo = '', payRemark = '') => {
     const row = db.prepare('SELECT * FROM dist_withdraw WHERE id = ?').get(withdrawId);
     if (!row) return { ok: false, error: '提现记录不存在' };
     if (action === 'reject') {
@@ -624,7 +624,10 @@ export function createDistributionService(db) {
     }
     if (action === 'done') {
       if (row.status !== 'approved') return { ok: false, error: '仅审核通过可打款完成' };
-      db.prepare("UPDATE dist_withdraw SET status = 'done', paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(withdrawId);
+      const no = String(payNo || '').trim();
+      if (!no) return { ok: false, error: '请填写打款流水号' };
+      db.prepare("UPDATE dist_withdraw SET status = 'done', pay_no = ?, pay_remark = ?, paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
+        .run(no, String(payRemark || '').trim(), withdrawId);
       return { ok: true };
     }
     return { ok: false, error: '未知操作' };

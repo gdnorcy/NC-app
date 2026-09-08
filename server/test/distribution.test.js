@@ -168,6 +168,31 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.equal(wFinal.available, 500);
   });
 
+  it('P2 打款登记：approved→done 记录流水号，缺流水号拒绝', () => {
+    dist.saveConfig(TENANT, { min_withdraw: 1 });
+    const ok = dist.applyWithdraw(TENANT, 1000, 'individual', 2);
+    assert.ok(ok.ok);
+    const wd = db.prepare("SELECT * FROM dist_withdraw WHERE tenant_id = ? AND user_id = 1000 ORDER BY id DESC LIMIT 1").get(TENANT);
+    assert.equal(wd.status, 'pending');
+    // 通过待打款
+    const ap = dist.reviewWithdraw(wd.id, 'approve');
+    assert.ok(ap.ok);
+    // 缺流水号拒绝
+    const noPay = dist.reviewWithdraw(wd.id, 'done');
+    assert.equal(noPay.ok, false);
+    // 登记打款完成
+    const done = dist.reviewWithdraw(wd.id, 'done', '', 'ALIPAY-20260908-001', '对公转账');
+    assert.ok(done.ok);
+    const final = db.prepare('SELECT * FROM dist_withdraw WHERE id = ?').get(wd.id);
+    assert.equal(final.status, 'done');
+    assert.equal(final.pay_no, 'ALIPAY-20260908-001');
+    assert.equal(final.pay_remark, '对公转账');
+    assert.ok(final.paid_at);
+    // 已完成后不可重复打款
+    const again = dist.reviewWithdraw(wd.id, 'done', '', 'XXX');
+    assert.equal(again.ok, false);
+  });
+
   it('双身份隔离：employee 身份钱包独立', () => {
     dist.bindRelation(TENANT, 1001, 'employee', 2000, 'card');
     const rel = dist.getRelation(TENANT, 1001, 'employee');

@@ -247,12 +247,12 @@ export function createDistributionRouter(db) {
     res.json({ total, list: db.prepare(sql).all(...params) });
   });
 
-  // 提现审核动作：reject（驳回退余额）/ approve（通过待打款）/ done（打款完成）
+  // 提现审核动作：reject（驳回退余额）/ approve（通过待打款）/ done（打款完成，登记流水号）
   router.post('/withdraws/:id/review', tenant, (req, res) => {
-    const { action, reason } = req.body || {};
+    const { action, reason, payNo, payRemark } = req.body || {};
     const row = db.prepare('SELECT * FROM dist_withdraw WHERE id = ? AND tenant_id = ?').get(req.params.id, req.customerId);
     if (!row) return res.status(404).json({ error: '提现记录不存在' });
-    const r = dist.reviewWithdraw(row.id, action, reason || '');
+    const r = dist.reviewWithdraw(row.id, action, reason || '', payNo || '', payRemark || '');
     if (!r.ok) return res.status(400).json({ error: r.error });
     res.json({ ok: true });
   });

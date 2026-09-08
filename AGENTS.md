@@ -434,3 +434,11 @@ npm run test:frontend
 - 扫码落地静默绑定：cardDetail.vue onMounted 读 `options.inviter`，已登录且非本人 → distBind；未登录 → 暂存 `pendingInviter`，myCard.vue onMounted 登录态补绑（绑定后即删）。
 - 小程序分销中心：推广模块改为「我的推广二维码」弹层（qr-mask 遮罩 + qr-img 二维码 + 复制推广链接 + 关闭）+「复制推广链接」按钮；uni-button 在 H5 端 bu.click ref 可能不触发，浏览器实测用 JS dispatchEvent(MouseEvent('click'))。
 - cardApi 新增 `distQrcode: () => request('/distribution/qrcode','GET')`。
+
+## 提现打款登记 P2（2026-09-08 新增）
+
+- dist_withdraw 增 pay_no/pay_remark 列（幂等迁移：**必须放在 db.exec(\`...\`) SQL 模板字符串之外**，用 colExists 检查后单独 ALTER TABLE；误插入 exec 内会报 `near "/": syntax error`）。
+- `reviewWithdraw(id, action, reason, payNo, payRemark)`：done 分支必填 payNo（缺流水号返回 `{ok:false,error:'请填写打款流水号'}`），落库 pay_no/pay_remark/paid_at；已 done 不可重复打款。
+- 路由 `POST /withdraws/:id/review` body 透传 payNo/payRemark。
+- 租户后台 DistHome 钱包提现 Tab：表格加「打款信息」列（done 显示 流水号·备注）；approved 行操作「登记打款」弹窗（流水号必填 + 备注选填）→ submitPay 调 review(done)；payBox reactive 状态管理。
+- 测试用例：P2 打款登记（approve→done 落库、缺流水号拒绝、重复打款拒绝），distribution.test.js 23 用例。

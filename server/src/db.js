@@ -1917,6 +1917,14 @@ function seedDistribution(db) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_share_area_tenant_area_user ON dist_share_area(tenant_id, area_code, user_id);
   `);
 
+  // 打款登记字段（幂等迁移，兼容存量库；必须放在 exec 之外）
+  if (!colExists(db, 'dist_withdraw', 'pay_no')) {
+    db.exec("ALTER TABLE dist_withdraw ADD COLUMN pay_no TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'dist_withdraw', 'pay_remark')) {
+    db.exec("ALTER TABLE dist_withdraw ADD COLUMN pay_remark TEXT NOT NULL DEFAULT ''");
+  }
+
   // —— 2. 应用注册：分销体系分类 + 5 个独立应用 ——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('分销体系', 'dist', 9)");
   const distApps = [
