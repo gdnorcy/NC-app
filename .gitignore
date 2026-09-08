@@ -1,8 +1,8 @@
 node_modules/
-dist/
-server/data/
-server/public/admin/
-web-app/dist/
+/web/dist/
+/web-app/dist/
+/server/data/
+/server/public/admin/
 *.log
 .DS_Store
-data/
+/data/
