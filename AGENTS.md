@@ -532,3 +532,14 @@ npm run test:frontend
 - 租户工作台「我的应用」卡片指标按应用区分，**禁止 fallback 到全景的「方案/场景」**（曾导致分销应用显示 0方案/0场景）。
 - 映射表：panorama=方案/场景；card=企业员工/企业客户；channel=渠道配置/场景；dist=分销商/提现待审；partner=合伙人/分红模式(团队|全局)；share-all=股东/分配方式(均等|权重)；share-cat=类目数/股东数；share-area=地区数/股东数。
 - 分销类计数表 status=1（dist_distributor/dist_partner/dist_share_all/dist_share_cat/dist_share_area），提现待审取 dist_withdraw status='pending'；分红模式从 sys_tenant_plugin.config JSON 的 mode 读取。
+
+## 表单控件程序赋值触发 change 规范（2026-09-08 新增）
+
+- **Element Plus 的 el-switch / el-radio-group / el-input-number 在 modelValue 程序赋值变化时也会 emit change**（el-switch 源码 `watch(checked)` 内 emit CHANGE_EVENT），不是仅用户交互触发。任何 `@change="saveXxx"` 绑定，如果对应 modelValue 在 load() 里被赋值，进入页面就会自动调用保存并弹「已保存」通知（曾导致分销 4 插件页进页弹两条通知、updated_at 被刷写）。
+- **禁止**用 `:model-value` 单向绑定规避（el-switch 同样触发）；`@click` 方案对 el-input-number 键盘输入不生效。
+- **正确方案**：`const loaded = ref(false)` + 保存函数首行 `if (!loaded.value) return;` + load() 内**所有赋值完成后** `setTimeout(() => { loaded.value = true; }, 0);`——watcher 是微任务先于宏任务执行，加载期赋值触发的保存全部跳过，用户后续操作正常保存。
+- 排查特征：进入页面自动弹「XX已保存」通知、列表页/配置页 updated_at 被刷写、`@change="save"` 绑定的控件 modelValue 在加载时被赋值。
+
+## 面包屑链接路径规范（2026-09-08 更新）
+
+- 两 Layout 的 CRUMB_LINKS 映射值必须用 **hash 路由内部路径**（router 顶层 path 是 `/`），如 `/apps`、`/dashboard`、`/apps-center`、`/customers`、`/solutions`、`/settings`、`/finance`、`/channel`；**禁止**写成 `/customer/apps`、`/admin/customers` 等带前端挂载前缀的完整路径（会生成 `#/customer/apps` 无匹配路由，被守卫拦截回工作台）。

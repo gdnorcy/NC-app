@@ -108,6 +108,7 @@ const members = ref([]);
 const currentGroup = ref('');
 const addVisible = ref(false);
 const saving = ref(false);
+const loaded = ref(false);
 const addForm = ref({ areaCode: '', fromGroup: '', userId: '', ratio: 0.03, weight: 1 });
 
 async function load() {
@@ -117,6 +118,7 @@ async function load() {
   const d = await customerApiCall.get('/distribution/share-area');
   groups.value = d.groups || [];
   if (currentGroup.value) await loadMembers(currentGroup.value);
+  setTimeout(() => { loaded.value = true; }, 0);
 }
 async function loadMembers(areaCode) {
   currentGroup.value = areaCode;
@@ -124,6 +126,7 @@ async function loadMembers(areaCode) {
   members.value = d.list || [];
 }
 async function savePlugin() {
+  if (!loaded.value) return;
   await customerApiCall.put('/distribution/plugins/share-area', {
     install: plugin.value.is_install, enable: plugin.value.is_enable,
   });

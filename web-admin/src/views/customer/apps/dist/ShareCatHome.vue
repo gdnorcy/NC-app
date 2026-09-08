@@ -108,6 +108,7 @@ const members = ref([]);
 const currentGroup = ref('');
 const addVisible = ref(false);
 const saving = ref(false);
+const loaded = ref(false);
 const addForm = ref({ categoryId: '', fromGroup: '', userId: '', ratio: 0.05, weight: 1 });
 
 async function load() {
@@ -117,6 +118,7 @@ async function load() {
   const d = await customerApiCall.get('/distribution/share-cat');
   groups.value = d.groups || [];
   if (currentGroup.value) await loadMembers(currentGroup.value);
+  setTimeout(() => { loaded.value = true; }, 0);
 }
 async function loadMembers(categoryId) {
   currentGroup.value = categoryId;
@@ -124,6 +126,7 @@ async function loadMembers(categoryId) {
   members.value = d.list || [];
 }
 async function savePlugin() {
+  if (!loaded.value) return;
   await customerApiCall.put('/distribution/plugins/share-cat', {
     install: plugin.value.is_install, enable: plugin.value.is_enable,
   });

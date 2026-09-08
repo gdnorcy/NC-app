@@ -187,11 +187,11 @@ const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() 
 const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title || '']);
 // 面包屑链接映射：可点击项跳对应顶层入口（当前页/无映射项不可点）
 const CRUMB_LINKS = {
-  '应用中心': '/customer/apps',
-  '工作台': '/customer/dashboard',
-  '分销体系': '/customer/apps',
-  '360全景': '/customer/apps',
-  '智能名片': '/customer/apps',
+  '应用中心': '/apps',
+  '工作台': '/dashboard',
+  '分销体系': '/apps',
+  '360全景': '/apps',
+  '智能名片': '/apps',
 };
 function crumbHref(label) { return CRUMB_LINKS[label] || ''; }
 

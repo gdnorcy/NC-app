@@ -103,6 +103,7 @@ const config = ref({ mode: 1, poolRatio: 0.02, requireDist: 0 });
 const list = ref([]);
 const addVisible = ref(false);
 const saving = ref(false);
+const loaded = ref(false);
 const addForm = ref({ userId: '', weight: 1 });
 
 async function load() {
@@ -112,14 +113,17 @@ async function load() {
   try { config.value = { ...config.value, ...JSON.parse(p.config || '{}') }; } catch {}
   const m = await customerApiCall.get('/distribution/share-all');
   list.value = m.list || [];
+  setTimeout(() => { loaded.value = true; }, 0);
 }
 async function savePlugin() {
+  if (!loaded.value) return;
   await customerApiCall.put('/distribution/plugins/share-all', {
     install: plugin.value.is_install, enable: plugin.value.is_enable,
   });
   ElMessage.success('插件状态已保存');
 }
 async function saveConfig() {
+  if (!loaded.value) return;
   await customerApiCall.put('/distribution/plugins/share-all/config', config.value);
   ElMessage.success('配置已保存');
 }

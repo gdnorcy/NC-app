@@ -131,13 +131,13 @@ const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() 
 const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title || '']);
 // 面包屑链接映射：可点击项跳对应顶层入口（当前页/无映射项不可点）
 const CRUMB_LINKS = {
-  '工作台': '/admin/dashboard',
-  '客户项目': '/admin/customers',
-  '解决方案': '/admin/solutions',
-  '应用中心': '/admin/apps-center',
-  '系统设置': '/admin/settings',
-  '财务管理': '/admin/finance',
-  '全端渠道': '/admin/channel',
+  '工作台': '/dashboard',
+  '客户项目': '/customers',
+  '解决方案': '/solutions',
+  '应用中心': '/apps-center',
+  '系统设置': '/settings',
+  '财务管理': '/finance',
+  '全端渠道': '/channel',
 };
 function crumbHref(label) { return CRUMB_LINKS[label] || ''; }
 
