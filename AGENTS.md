@@ -563,3 +563,14 @@ npm run test:frontend
 - 分类计数：含 channel 应用时显示「共 N 个渠道」，否则「共 N 个应用」（computed catCountText）。
 - 面包屑进入应用中心可带分类参数：`/apps?cat=分类名`（CustomerLayout CRUMB_LINKS：分销体系→cat=分销体系、360全景/智能名片→cat=行业应用），Apps.vue onMounted 读 route.query.cat 定位分类。
 - 应用卡片描述区垂直居中：`.app-desc { display:flex; align-items:center; justify-content:center; flex:1 1 auto; }`，配合卡片 flex column 保证多列时「进入应用」按钮底部对齐。
+
+## projects.solutions 规范化规范（2026-09-09 新增）
+
+- **solutions 只允许存「在售方案 code」**（solutions.status='on'）：应用 code（apps 表）与已下架旧方案 code（status='off'，如 panorama/card 降级前遗留）一律不得写入 projects.solutions，否则 Billing 方案续费/标签会渲染出「智能名片」等幽灵方案卡（同应用两套价格混淆）。
+- **数据迁移兜底**：`db.js normalizeProjectSolutions(db)`（createDb 幂等执行）——移除应用 code + off 方案 code，保留 on 方案；清空回填「演示试用方案」(demo)。**新增任何迁移/接口不得绕过**。
+- **三处强制过滤**（缺一不可）：
+  1. `billing.js solution-plan` 查询 `SELECT * FROM solutions WHERE code = ? AND status = 'on'`（只展示在售方案）；
+  2. `customers.js parseCustomerBody(body, db)` 保存时规范化（应用 code/off code 剔除、空回填 demo）——**必须传 db 参数**；
+  3. `normalizeProjectSolutions` 存量清理。
+- **配额联动**：租户 solutions 含 demo 方案后，checkTenantSolutionQuota 会按 demo 默认配额（入驻企业1/员工10/场景3/集市上架10）拦截超限操作；**测试夹具**（如 card-apply-review）需放开 demo 配额（`UPDATE solution_quotas SET value=100 WHERE solution_id=demo.id AND key IN ('enterpriseCount','employeeCount','memberCount')`）模拟旗舰配额，否则多主体审核流 403。
+- 任何新功能若涉及方案/应用授权判定，先确认已过上述三处过滤，禁止在 solutions 里塞非方案 code 作为权宜标记。
