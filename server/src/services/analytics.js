@@ -87,10 +87,21 @@ export function calcFunnel(db, tenantId, { start = '', end = '', solution = 'car
   const whereSql = where.join(' AND ');
 
   const result = steps.map((step, i) => {
-    const row = db.prepare(
-      `SELECT COUNT(DISTINCT CASE WHEN visitor_key != '' THEN visitor_key END) AS visitors, COUNT(*) AS events
-       FROM analytics_events WHERE ${whereSql} AND event_type = ? AND visitor_key != ''`
-    ).get(...params, step.key);
+    let sql = `SELECT COUNT(DISTINCT visitor_key) AS visitors, COUNT(*) AS events
+               FROM analytics_events WHERE ${whereSql} AND event_type = ? AND visitor_key != ''`;
+    const stepParams = [...params, step.key];
+    // 漏斗逐步去重：第 2 层起仅统计「完成过起点至上一环节全部事件」的访客（严格流失漏斗，单调不增）
+    if (i > 0) {
+      const prevKeys = steps.slice(0, i).map((s) => s.key);
+      sql += ` AND visitor_key IN (
+        SELECT visitor_key FROM analytics_events
+        WHERE ${whereSql} AND visitor_key != '' AND event_type IN (${prevKeys.map(() => '?').join(',')})
+        GROUP BY visitor_key HAVING COUNT(DISTINCT event_type) = ${prevKeys.length}
+      )`;
+      // 子查询参数：租户/方案/[日期] + 全部前置环节事件类型
+      stepParams.push(...params, ...prevKeys);
+    }
+    const row = db.prepare(sql).get(...stepParams);
     return {
       key: step.key,
       label: step.label,
