@@ -69,11 +69,11 @@ export function createAppsAdminRouter(db) {
       const { name, icon } = req.body || {};
       const cat = db.prepare('SELECT * FROM app_categories WHERE id = ?').get(Number(req.params.id));
       if (!cat) return res.status(404).json({ error: '分类不存在' });
-      db.prepare('UPDATE app_categories SET name = ?, icon = ?, updated_at = datetime("now") WHERE id = ?')
+      db.prepare("UPDATE app_categories SET name = ?, icon = ?, updated_at = datetime('now') WHERE id = ?")
         .run(name || cat.name, icon || cat.icon, cat.id);
       // 分类改名时同步更新应用的 category 归属
       if (name && name !== cat.name) {
-        db.prepare('UPDATE apps SET category = ?, updated_at = datetime("now") WHERE category = ?').run(name, cat.name);
+        db.prepare("UPDATE apps SET category = ?, updated_at = datetime('now') WHERE category = ?").run(name, cat.name);
       }
       res.json({ success: true });
     } catch (e) {
@@ -101,7 +101,7 @@ export function createAppsAdminRouter(db) {
       const app = db.prepare('SELECT * FROM apps WHERE id = ?').get(Number(req.params.id));
       if (!app) return res.status(404).json({ error: '应用不存在' });
       const { name, description, icon } = req.body || {};
-      db.prepare('UPDATE apps SET name = ?, description = ?, icon = ?, updated_at = datetime("now") WHERE id = ?')
+      db.prepare("UPDATE apps SET name = ?, description = ?, icon = ?, updated_at = datetime('now') WHERE id = ?")
         .run(name || app.name, description !== undefined ? description : app.description, icon || app.icon, app.id);
       res.json({ success: true });
     } catch (e) {
@@ -139,7 +139,7 @@ export function createAppsAdminRouter(db) {
       const { category } = req.body || {};
       const cat = db.prepare('SELECT id FROM app_categories WHERE name = ?').get(category);
       if (!category || !cat) return res.status(400).json({ error: '目标分类不存在' });
-      db.prepare('UPDATE apps SET category = ?, updated_at = datetime("now") WHERE id = ?').run(category, app.id);
+      db.prepare("UPDATE apps SET category = ?, updated_at = datetime('now') WHERE id = ?").run(category, app.id);
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -151,7 +151,7 @@ export function createAppsAdminRouter(db) {
     try {
       const { category, ids } = req.body || {};
       if (!category || !Array.isArray(ids) || !ids.length) return res.status(400).json({ error: '参数不完整' });
-      const stmt = db.prepare('UPDATE apps SET sort_order = ?, updated_at = datetime("now") WHERE id = ? AND category = ?');
+      const stmt = db.prepare("UPDATE apps SET sort_order = ?, updated_at = datetime('now') WHERE id = ? AND category = ?");
       ids.forEach((id, idx) => stmt.run(idx + 1, Number(id), category));
       res.json({ success: true });
     } catch (e) {

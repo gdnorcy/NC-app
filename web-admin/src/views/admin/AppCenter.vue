@@ -46,7 +46,7 @@
           v-for="(app, idx) in activeCat?.apps || []"
           :key="app.id"
           class="app-card"
-          :draggable="draggingApp !== null"
+          :draggable="true"
           @dragstart="onDragStart(app, idx, $event)"
           @dragover.prevent
           @drop="onDrop(app, idx, $event)"
@@ -65,7 +65,7 @@
             <el-button v-if="app.code === 'channel'" size="small" type="primary" plain @click="enterApp(app)">进入管理</el-button>
             <el-button size="small" @click="openMoveDialog(app)">修改分类</el-button>
             <el-button size="small" @click="openAppDialog(app)">编辑应用</el-button>
-            <el-button size="small" text class="drag-handle">拖拽位置</el-button>
+            <el-button size="small" text class="drag-handle" @click="onHintDrag">拖拽位置</el-button>
           </div>
         </div>
       </div>
@@ -241,6 +241,9 @@ async function saveMove() {
 function onDragStart(app, idx, e) {
   draggingApp.value = { app, fromIdx: idx, fromCat: activeCat.value?.name };
   e.dataTransfer.effectAllowed = 'move';
+}
+function onHintDrag() {
+  ElMessage.info('直接按住卡片拖动到目标位置释放，即可调整顺序');
 }
 function onDrop(app, idx, e) {
   e.preventDefault();

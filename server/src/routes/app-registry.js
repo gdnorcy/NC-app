@@ -81,7 +81,7 @@ export function createAppRegistryRouter(db) {
 
       const config = customer.config ? JSON.parse(customer.config) : {};
       config[req.params.code] = req.body;
-      db.prepare('UPDATE projects SET config = ?, updated_at = datetime("now") WHERE id = ?')
+      db.prepare("UPDATE projects SET config = ?, updated_at = datetime('now') WHERE id = ?")
         .run(JSON.stringify(config), req.user.customer_id);
       res.json({ success: true });
     } catch (err) {
