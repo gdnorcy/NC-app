@@ -4,7 +4,7 @@
  * 能力：插件开关、二级分销配置、分销商列表、佣金明细、钱包提现审核、数据大盘
  */
 import { Router } from 'express';
-import { createDistributionService, buildWithdrawCsv } from '../services/distribution.js';
+import { createDistributionService, buildWithdrawCsv, buildLogCsv } from '../services/distribution.js';
 import { tenantState } from '../tenant.js';
 
 export function createDistributionRouter(db) {
@@ -179,7 +179,7 @@ export function createDistributionRouter(db) {
   // 佣金明细（全租户，可筛类型/状态）
   // ============================================================
   router.get('/logs', tenant, (req, res) => {
-    const { page = 1, pageSize = 20, type = '', status = '', keyword = '' } = req.query;
+    const { page = 1, pageSize = 20, type = '', status = '', keyword = '', export: isExport } = req.query;
     let sql = `
       SELECT l.*, u.nickname, u.phone FROM dist_user_log l
       LEFT JOIN platform_user u ON u.id = l.user_id
@@ -189,6 +189,15 @@ export function createDistributionRouter(db) {
     if (type) { sql += ' AND l.type = ?'; params.push(type); }
     if (status) { sql += ' AND l.status = ?'; params.push(status); }
     if (keyword) { sql += ' AND (u.nickname LIKE ? OR u.phone LIKE ?)'; params.push(`%${keyword}%`, `%${keyword}%`); }
+
+    if (isExport === 'csv') {
+      sql += ' ORDER BY l.id DESC LIMIT 5000';
+      const rows = db.prepare(sql).all(...params);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="commission-logs.csv"');
+      return res.send(buildLogCsv(rows));
+    }
+
     const total = db.prepare(sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM')).get(...params).n;
     sql += ' ORDER BY l.id DESC LIMIT ? OFFSET ?';
     params.push(Number(pageSize), (Number(page) - 1) * Number(pageSize));
@@ -264,6 +273,25 @@ export function createDistributionRouter(db) {
     const r = dist.reviewWithdraw(row.id, action, reason || '', payNo || '', payRemark || '');
     if (!r.ok) return res.status(400).json({ error: r.error });
     res.json({ ok: true });
+  });
+
+  // 提现批量审核：approve（批量通过）/ reject（批量驳回，需 reason）
+  router.post('/withdraws/batch-review', tenant, (req, res) => {
+    const { ids = [], action, reason = '' } = req.body || {};
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: '请选择提现记录' });
+    if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: '仅支持批量通过或驳回' });
+    if (action === 'reject' && !reason.trim()) return res.status(400).json({ error: '批量驳回需填写原因' });
+    const rows = db.prepare(
+      `SELECT * FROM dist_withdraw WHERE id IN (${ids.map(() => '?').join(',')}) AND tenant_id = ?`
+    ).all(...ids, req.customerId);
+    if (!rows.length) return res.status(404).json({ error: '未找到有效提现记录' });
+    let okCount = 0; const errors = [];
+    for (const row of rows) {
+      const r = dist.reviewWithdraw(row.id, action, reason || '');
+      if (r.ok) okCount++;
+      else errors.push(`#${row.withdraw_no}: ${r.error}`);
+    }
+    res.json({ ok: true, okCount, failCount: errors.length, errors });
   });
 
   // ============================================================

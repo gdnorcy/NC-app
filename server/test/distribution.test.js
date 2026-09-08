@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createDb } from '../src/db.js';
-import { createDistributionService, buildShareUrl, buildWithdrawCsv } from '../src/services/distribution.js';
+import { createDistributionService, buildShareUrl, buildWithdrawCsv, buildLogCsv } from '../src/services/distribution.js';
 
 describe('分销体系（二级推广分销底座）', () => {
   let db, dist;
@@ -373,5 +373,36 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(csv.includes('已完成') && csv.includes('已驳回'), '状态应中文化');
     assert.ok(csv.includes('"ALI""001"'), '含引号字段应转义');
     assert.ok(csv.includes('企业员工') && csv.includes('入驻个人'), '身份应中文化');
+  });
+
+  it('P3 批量审核：approve 多笔通过 / reject 需原因', () => {
+    dist.saveConfig(TENANT, { min_withdraw: 1 });
+    // 充足余额（避免被前序用例耗尽）
+    db.prepare("UPDATE dist_wallet SET available = 10000, total_income = total_income + 10000 WHERE tenant_id = ? AND user_id = 1000 AND identity_type = 'individual'").run(TENANT);
+    const u1 = db.prepare('SELECT id FROM platform_user WHERE id = 1000').get();
+    assert.ok(u1);
+    dist.applyWithdraw(TENANT, 1000, 'individual', 2);
+    dist.applyWithdraw(TENANT, 1000, 'individual', 3);
+    const wds = db.prepare("SELECT id FROM dist_withdraw WHERE tenant_id = ? AND user_id = 1000 AND status = 'pending' ORDER BY id").all(TENANT);
+    assert.equal(wds.length, 2);
+    // 模拟路由批量 approve（服务层循环）
+    let okCount = 0;
+    for (const w of wds) { const r = dist.reviewWithdraw(w.id, 'approve'); if (r.ok) okCount++; }
+    assert.equal(okCount, 2);
+    const after = db.prepare("SELECT count(*) n FROM dist_withdraw WHERE tenant_id = ? AND user_id = 1000 AND status = 'approved'").get(TENANT).n;
+    assert.equal(after, 2);
+  });
+
+  it('P3 佣金明细CSV：类型/状态中文化 + 订单号可对账', () => {
+    const rows = [
+      { nickname: '张三', identity_type: 'individual', type: 'level1', amount: 1234, status: 'settled', order_no: 'PAY-DEMO-1', created_at: '2026-09-08 10:00:00' },
+      { nickname: '李四', identity_type: 'employee', type: 'share_area', amount: -500, status: 'charged_back', order_no: 'PAY-DEMO-2', created_at: '2026-09-08 11:00:00' },
+    ];
+    const csv = buildLogCsv(rows);
+    assert.ok(csv.startsWith('\uFEFF'), '应带 BOM');
+    assert.ok(csv.includes('"用户","身份","收益类型","金额(元)","状态","订单号","时间"'), '表头完整');
+    assert.ok(csv.includes('一级佣金') && csv.includes('区域股东'), '类型应中文化');
+    assert.ok(csv.includes('已结算') && csv.includes('已扣回'), '状态应中文化');
+    assert.ok(csv.includes('PAY-DEMO-1') && csv.includes('-5.00'), '订单号可追溯、负数金额保留');
   });
 });

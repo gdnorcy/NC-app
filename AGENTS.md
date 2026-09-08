@@ -450,3 +450,10 @@ npm run test:frontend
 - **分账入参必须是 toOrder 映射后的 camelCase 对象**（order.payerType/customerId/userId...），直接传 DB snake_case 行会因 `order.payerType` undefined 静默 return null 不产生分账——演示脚本踩坑。
 - 端到端演示：`node scripts/dist-demo-seed.mjs`（幂等）——启用 5 插件 + 配 4 类成员（合伙人 user3 ratio0.3 团队 / 全民 user4 / 类目 user5 互联网/SaaS / 区域 user6 东莞）+ 买家 user2 绑 pid1=3 + 造 100 元订单触发全插件分账；验证 dist_order_split/dist_user_log/dist_wallet 三表闭环。
 - 测试：buildWithdrawCsv 用例（BOM/表头/分转元/引号转义/状态中文化），distribution.test.js 24 用例。
+
+## 提现批量审核 + 佣金明细导出（2026-09-08 新增）
+
+- `POST /distribution/withdraws/batch-review` body `{ids:[], action:'approve'|'reject', reason}`：租户后台批量审核；reject 必须带 reason；服务层逐笔 reviewWithdraw 循环（部分失败返回 `{okCount, failCount, errors}`）；仅 pending 行可勾选。
+- `GET /distribution/logs?export=csv`：佣金/分红明细全量导出（BOM + 7 列：用户/身份/收益类型/金额/状态/订单号/时间；类型与状态中文化 LOG_TYPE_ZH/LOG_STATUS_ZH；负数扣回保留）；纯函数 `buildLogCsv(rows)` 模块级导出。
+- 前端 DistHome：钱包提现 Tab 表格加 selection 列（`selectable` 仅 pending）+ 批量操作条（批量通过/批量驳回，驳回用 ElMessageBox.prompt 填原因）；佣金明细 Tab 页头加「导出明细」按钮（Blob 下载 `佣金明细-YYYY-MM-DD.csv`）。
+- 测试：批量审核（两笔 approve）+ buildLogCsv（BOM/表头/中文化/负数），distribution.test.js 26 用例。

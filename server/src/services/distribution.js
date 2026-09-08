@@ -731,3 +731,21 @@ export function buildWithdrawCsv(rows) {
   }
   return '\uFEFF' + lines.join('\n');
 }
+
+const LOG_TYPE_ZH = { level1: '一级佣金', level2: '二级佣金', partner: '合伙人分红', share_all: '全民股东', share_cat: '类目股东', share_area: '区域股东' };
+const LOG_STATUS_ZH = { pending: '待结算', settled: '已结算', charged_back: '已扣回' };
+
+/** 佣金/分红明细 CSV（BOM；金额分转元；类型/状态中文化；含订单号可对账） */
+export function buildLogCsv(rows) {
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const head = ['用户', '身份', '收益类型', '金额(元)', '状态', '订单号', '时间'];
+  const lines = [head.map(esc).join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.nickname || '微信用户', r.identity_type === 'employee' ? '企业员工' : '入驻个人',
+      LOG_TYPE_ZH[r.type] || r.type, (r.amount / 100).toFixed(2),
+      LOG_STATUS_ZH[r.status] || r.status, r.order_no || '', r.created_at || ''
+    ].map(esc).join(','));
+  }
+  return '\uFEFF' + lines.join('\n');
+}
