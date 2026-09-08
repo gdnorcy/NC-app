@@ -327,6 +327,15 @@ npm run test:frontend
 - 标记球体：info 14 / scene 16（460px 画布上视觉约 20px+，便于点选拖拽）；拖动标记实时 raycast 球面更新 yaw/pitch 并重建标记。
 - 编辑页右侧栏 520px（grid 1fr 520px），3D 画布 460px 高。
 
+## 全景热点留资表单与线索管理（2026-09-08 新增，P0）
+
+- **热点可挂表单**：info 热点 `hs.form = { enabled, title, fields:[{key,label,required}] }`（key ∈ name/phone/message，自定义字段进 extra）；编辑端 SceneEdit 弹窗「留资表单」开关 + 表单标题 + 收集字段勾选（el-checkbox-group），scene 类型热点暂不挂表单（点击即跳转）。
+- **C 端渲染**：`web/index.html` `#hotspot-form`（三个 .hotspot-form-field 按 data-key 渲染，未配置字段加 .hidden）；`web/src/main.js` onHotspotClick info 分支按 hs.form 渲染必填/占位，提交 POST `/api/card/panorama/leads`（body `{sceneId, hotspotTitle, fields}`），成功后 `track('form_submit', {sceneId, hotspotTitle})` 打通全景漏斗第4步。
+- **后端链路**：公开提交 `server/src/routes/card.js` POST `/panorama/leads`——sceneId→scenes→plans.project_id 反查租户落库 `panorama_leads`（tenant_id/plan_id/scene_id/hotspot_title/name/phone/message/extra/created_at）；租户端 `server/src/routes/customer.js` GET `/panorama/leads`（requireTenant，join plan/scene 取名，`?planId=` 筛选，`?export=csv` 带 BOM UTF-8，esc 双引号转义）。
+- **前端线索页**：全景应用内 Tab「线索管理」（`Leads.vue`，PanoramaTabs 顺序：数据洞察/方案管理/线索管理），列表 + 方案筛选 + 导出 CSV；租户隔离（WHERE tenant_id）。
+- **建表在 db.js 迁移**：`panorama_leads` 建表语句必须放 createDb 迁移（幂等），不能只在运行库手动建，否则测试临时库无表报 `no such table`。
+- **关键纠正**：`web/` 查看端是 **vite 构建产物部署**（HTML 引用 `/assets/main-*.js` 哈希），**不是源码直出**！改 `web/src/**` 后必须 `npm run build -w web` 重新构建（产物 web/dist 被 gitignore，不入库），否则浏览器加载旧 chunk 看不到新功能（排查特征：`document.querySelectorAll('script')` 的 src 不带新代码、功能缺失但服务端文件已含新代码）。
+
 ## SQLite datetime 写法规范（2026-09-08 新增）
 
 - SQLite 时间函数必须写 `datetime('now')`（**单引号**）；`datetime("now")` 双引号会被 SQLite 解析为列名，报 `no such column: "now"` 导致接口 500。
