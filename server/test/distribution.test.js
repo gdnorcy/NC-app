@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createDb } from '../src/db.js';
-import { createDistributionService, buildShareUrl } from '../src/services/distribution.js';
+import { createDistributionService, buildShareUrl, buildWithdrawCsv } from '../src/services/distribution.js';
 
 describe('分销体系（二级推广分销底座）', () => {
   let db, dist;
@@ -359,5 +359,19 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(url.includes('id=7&inviter=7'), `链接应带 id/inviter: ${url}`);
     assert.ok(!url.includes('3000//card'), 'origin 尾部斜杠应去除');
     assert.ok(url.includes('/card/#/pages/card/cardDetail'), '落地页应为名片详情');
+  });
+
+  it('P3 提现对账CSV：BOM/表头/金额分转元/引号转义/状态中文化', () => {
+    const rows = [
+      { withdraw_no: 'WD1', nickname: '张三', identity_type: 'individual', amount: 1234, service_fee: 34, actual_amount: 1200, status: 'done', created_at: '2026-09-08 09:00:00', paid_at: '2026-09-08 10:00:00', pay_no: 'ALI"001', pay_remark: '对公', reject_reason: '' },
+      { withdraw_no: 'WD2', nickname: '李四', identity_type: 'employee', amount: 500, service_fee: 0, actual_amount: 500, status: 'rejected', created_at: '2026-09-08 11:00:00', paid_at: null, pay_no: '', pay_remark: '', reject_reason: '信息有误' },
+    ];
+    const csv = buildWithdrawCsv(rows);
+    assert.ok(csv.startsWith('\uFEFF'), '应带 BOM');
+    assert.ok(csv.includes('"提现单号","用户","身份","提现金额(元)","手续费(元)","实际到账(元)"'), '表头完整');
+    assert.ok(csv.includes('12.34') && csv.includes('12.00'), '金额应分转元两位小数');
+    assert.ok(csv.includes('已完成') && csv.includes('已驳回'), '状态应中文化');
+    assert.ok(csv.includes('"ALI""001"'), '含引号字段应转义');
+    assert.ok(csv.includes('企业员工') && csv.includes('入驻个人'), '身份应中文化');
   });
 });

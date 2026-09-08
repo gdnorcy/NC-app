@@ -4,7 +4,7 @@
  * 能力：插件开关、二级分销配置、分销商列表、佣金明细、钱包提现审核、数据大盘
  */
 import { Router } from 'express';
-import { createDistributionService } from '../services/distribution.js';
+import { createDistributionService, buildWithdrawCsv } from '../services/distribution.js';
 import { tenantState } from '../tenant.js';
 
 export function createDistributionRouter(db) {
@@ -231,9 +231,9 @@ export function createDistributionRouter(db) {
     res.json({ total, list: db.prepare(sql).all(...params) });
   });
 
-  // 提现审核列表
+  // 提现审核列表（支持 ?export=csv 对账导出）
   router.get('/withdraws', tenant, (req, res) => {
-    const { page = 1, pageSize = 20, status = '' } = req.query;
+    const { page = 1, pageSize = 20, status = '', export: isExport } = req.query;
     let sql = `
       SELECT w.*, u.nickname, u.phone FROM dist_withdraw w
       LEFT JOIN platform_user u ON u.id = w.user_id
@@ -241,6 +241,15 @@ export function createDistributionRouter(db) {
     `;
     const params = [req.customerId];
     if (status) { sql += ' AND w.status = ?'; params.push(status); }
+
+    if (isExport === 'csv') {
+      sql += ' ORDER BY w.id DESC';
+      const rows = db.prepare(sql).all(...params);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="withdraws.csv"');
+      return res.send(buildWithdrawCsv(rows));
+    }
+
     const total = db.prepare(sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM')).get(...params).n;
     sql += ' ORDER BY w.id DESC LIMIT ? OFFSET ?';
     params.push(Number(pageSize), (Number(page) - 1) * Number(pageSize));

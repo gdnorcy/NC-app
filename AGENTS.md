@@ -442,3 +442,11 @@ npm run test:frontend
 - 路由 `POST /withdraws/:id/review` body 透传 payNo/payRemark。
 - 租户后台 DistHome 钱包提现 Tab：表格加「打款信息」列（done 显示 流水号·备注）；approved 行操作「登记打款」弹窗（流水号必填 + 备注选填）→ submitPay 调 review(done)；payBox reactive 状态管理。
 - 测试用例：P2 打款登记（approve→done 落库、缺流水号拒绝、重复打款拒绝），distribution.test.js 23 用例。
+
+## 提现对账导出 + 端到端演示数据（2026-09-08 新增）
+
+- `GET /distribution/withdraws?export=csv`：租户后台提现对账导出（BOM UTF-8 + 12 列：单号/用户/身份/金额/手续费/实到/状态/提交时间/打款时间/流水号/备注/驳回原因）；CSV 生成抽为模块级纯函数 `buildWithdrawCsv(rows)`（services/distribution.js），路由 import 后 `res.send(buildWithdrawCsv(rows))`；金额分转元两位小数、含引号字段 `""` 转义、状态中文化。
+- 前端 DistHome 钱包提现 Tab 头部「导出对账」按钮：`customerApiCall.get('/distribution/withdraws', { params:{export:'csv'}, responseType:'blob' })` → Blob 下载 `提现对账-YYYY-MM-DD.csv`。
+- **分账入参必须是 toOrder 映射后的 camelCase 对象**（order.payerType/customerId/userId...），直接传 DB snake_case 行会因 `order.payerType` undefined 静默 return null 不产生分账——演示脚本踩坑。
+- 端到端演示：`node scripts/dist-demo-seed.mjs`（幂等）——启用 5 插件 + 配 4 类成员（合伙人 user3 ratio0.3 团队 / 全民 user4 / 类目 user5 互联网/SaaS / 区域 user6 东莞）+ 买家 user2 绑 pid1=3 + 造 100 元订单触发全插件分账；验证 dist_order_split/dist_user_log/dist_wallet 三表闭环。
+- 测试：buildWithdrawCsv 用例（BOM/表头/分转元/引号转义/状态中文化），distribution.test.js 24 用例。

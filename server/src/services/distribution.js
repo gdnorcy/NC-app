@@ -714,3 +714,20 @@ export function buildShareUrl(userId, origin) {
   const base = origin.replace(/\/$/, '');
   return `${base}/card/#/pages/card/cardDetail?id=${Number(userId)}&inviter=${Number(userId)}`;
 }
+
+const WITHDRAW_STATUS_ZH = { pending: '待审核', approved: '待打款', rejected: '已驳回', done: '已完成' };
+
+/** 提现对账 CSV（带 BOM；金额分转元两位小数；字段含流水号/打款备注，可完整对账） */
+export function buildWithdrawCsv(rows) {
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const head = ['提现单号', '用户', '身份', '提现金额(元)', '手续费(元)', '实际到账(元)', '状态', '提交时间', '打款时间', '打款流水号', '打款备注', '驳回原因'];
+  const lines = [head.map(esc).join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.withdraw_no, r.nickname || '微信用户', r.identity_type === 'employee' ? '企业员工' : '入驻个人',
+      (r.amount / 100).toFixed(2), (r.service_fee / 100).toFixed(2), (r.actual_amount / 100).toFixed(2),
+      WITHDRAW_STATUS_ZH[r.status] || r.status, r.created_at, r.paid_at || '', r.pay_no || '', r.pay_remark || '', r.reject_reason || ''
+    ].map(esc).join(','));
+  }
+  return '\uFEFF' + lines.join('\n');
+}
