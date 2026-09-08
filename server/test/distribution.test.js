@@ -458,6 +458,23 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(w.wait_settle >= w.total_income, '待结算期间：累计收益不超过待结算总额（历史待结算留存）');
   });
 
+  it('P4 下级客户列表：直推/间推 + 是否付费标记', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.setPlugin(TENANT, 'partner', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-all', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-cat', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-area', { install: false, enable: false });
+    // user1005 新用户（此前未被绑定），直推绑定 1002
+    dist.bindRelation(TENANT, 1005, 'individual', 1002, 'qrcode');
+    const direct = dist.getSubs(TENANT, 1002, 'individual', { level: 1 });
+    assert.ok(direct.list.some((r) => r.userId === 1005), '直推列表含 user1005');
+    assert.ok(direct.list.every((r) => typeof r.paid === 'boolean'), 'paid 布尔标记');
+    assert.ok(typeof direct.total === 'number', '总数');
+    // user1005 的 pid2 = 1002 的 pid1 = 1001 → 1001 间推含 1005
+    const indirect = dist.getSubs(TENANT, 1001, 'individual', { level: 2 });
+    assert.ok(indirect.list.some((r) => r.userId === 1005), '1001 的间推列表含 user1005（1005 的 pid2=1001）');
+  });
+
   it('P4 分销商排行：按累计收益降序 + 直推人数 + 身份标签', () => {
     // user1000 已有收益（前面用例累计入账），user1002 无收益
     const list = dist.ranking(TENANT, 10);

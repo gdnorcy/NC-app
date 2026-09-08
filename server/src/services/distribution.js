@@ -718,6 +718,10 @@ export function createDistributionService(db) {
     const monthCommission = db.prepare(
       "SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('level1','level2') AND substr(created_at,1,10) >= ?"
     ).get(tenantId, userId, identityType, monthKey).s;
+    // 本月新增推广用户（本月通过我新绑定的下级）
+    const monthNew = db.prepare(
+      "SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND (pid1 = ? OR pid2 = ?) AND substr(bind_time,1,10) >= ?"
+    ).get(tenantId, userId, userId, monthKey).n;
 
     // 身份标签（小程序分销中心聚合）
     const tags = [];
@@ -745,12 +749,36 @@ export function createDistributionService(db) {
       directCount: direct,
       indirectCount: indirect,
       monthCommission,
+      monthNew,
       isPartner: !!partner,
       shareTags: tags,
       partnerPending,
       partnerTotal,
       sharePending,
       shareTotal,
+    };
+  };
+
+  /** 我的下级客户列表（PRD 5.2：直推 pid1=me / 间推 pid2=me；含是否付费） */
+  svc.getSubs = (tenantId, userId, identityType, { level = 1, page = 1, pageSize = 20 } = {}) => {
+    const pidCol = level === 2 ? 'pid2' : 'pid1';
+    const where = `r.tenant_id = ? AND r.${pidCol} = ? AND r.identity_type = ?`;
+    const total = db.prepare(`SELECT COUNT(*) n FROM dist_user_relation r WHERE ${where}`).get(tenantId, userId, identityType).n;
+    const list = db.prepare(`
+      SELECT r.user_id AS userId, r.bind_time, r.source_type,
+        u.nickname, u.avatar,
+        (SELECT COUNT(*) FROM payment_orders o WHERE o.user_id = r.user_id AND o.status = 'paid') AS paidCount
+      FROM dist_user_relation r
+      LEFT JOIN platform_user u ON u.id = r.user_id
+      WHERE ${where}
+      ORDER BY r.id DESC LIMIT ? OFFSET ?
+    `).all(tenantId, userId, identityType, pageSize, (page - 1) * pageSize);
+    return {
+      total,
+      list: list.map((r) => ({
+        userId: r.userId, nickname: r.nickname || '微信用户', avatar: r.avatar || '',
+        bindTime: r.bind_time, sourceType: r.source_type, paid: r.paidCount > 0,
+      })),
     };
   };
 

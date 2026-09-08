@@ -662,6 +662,7 @@ export function createCardRouter(db, wxService) {
       directCount: s.directCount,
       indirectCount: s.indirectCount,
       monthCommission: s.monthCommission,
+      monthNew: s.monthNew,
       isPartner: s.isPartner,
       shareTags: s.shareTags,
       partnerPending: s.partnerPending,
@@ -669,6 +670,14 @@ export function createCardRouter(db, wxService) {
       sharePending: s.sharePending,
       shareTotal: s.shareTotal,
     });
+  });
+
+  // 我的下级客户列表（直推 level=1 / 间推 level=2）
+  router.get('/distribution/subs', auth, (req, res) => {
+    if (!req.customerId) return res.json({ total: 0, list: [] });
+    const idt = req.query.identityType || req.user.identity_type || 'individual';
+    const { level = 1, page = 1, pageSize = 20 } = req.query;
+    res.json(distribution.getSubs(req.customerId, req.user.id, idt, { level: Number(level), page: Number(page), pageSize: Number(pageSize) }));
   });
 
   // 收益明细（type 过滤：level1/level2/partner/share_all/share_cat/share_area）

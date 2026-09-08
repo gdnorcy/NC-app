@@ -30,12 +30,35 @@
     <view class="stat-cards">
       <view class="s-card"><view class="s-num">{{ summary.directCount }}</view><view class="s-lb">直推下级</view></view>
       <view class="s-card"><view class="s-num">{{ summary.indirectCount }}</view><view class="s-lb">间推下级</view></view>
+      <view class="s-card"><view class="s-num">{{ summary.monthNew }}</view><view class="s-lb">本月新增</view></view>
       <view class="s-card"><view class="s-num">{{ fen(summary.monthCommission) }}</view><view class="s-lb">本月佣金(元)</view></view>
     </view>
     <view class="qrcode-box">
       <button class="mini-btn" @click="openQr">我的推广二维码</button>
       <button class="mini-btn ghost" @click="copyShareUrl">复制推广链接</button>
       <text class="qrcode-tip">把名片分享给客户，客户扫码进入后自动绑定上下级，付费即可获取推广佣金</text>
+    </view>
+
+    <!-- 下级客户列表（直推/间推） -->
+    <view class="sub-box">
+      <view class="sub-tabs">
+        <view class="sub-tab" :class="subLevel === 1 ? 'on' : ''" @click="switchSubLevel(1)">直推客户</view>
+        <view class="sub-tab" :class="subLevel === 2 ? 'on' : ''" @click="switchSubLevel(2)">间推客户</view>
+        <view class="sub-count">{{ subTotal }}</view>
+      </view>
+      <view v-if="subLoading" class="sub-empty">加载中…</view>
+      <view v-else-if="!subs.length" class="sub-empty">还没有通过你的名片带来的客户，多多分享名片即可获得客户</view>
+      <view v-else class="sub-list">
+        <view v-for="s in subs" :key="s.userId" class="sub-item" @click="goSubCard(s.userId)">
+          <image v-if="s.avatar" class="sub-avatar" :src="s.avatar" mode="aspectFill" />
+          <view v-else class="sub-avatar placeholder">{{ (s.nickname || '客')[0] }}</view>
+          <view class="sub-info">
+            <view class="sub-name">{{ s.nickname }}<text v-if="s.paid" class="sub-paid">已付费</text></view>
+            <view class="sub-time">绑定 {{ s.bindTime }}</view>
+          </view>
+          <view class="sub-arrow">›</view>
+        </view>
+      </view>
     </view>
 
     <!-- 推广二维码弹层 -->
@@ -136,9 +159,14 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0 });
+const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0 });
 const logs = ref([]);
 const withdraws = ref([]);
+const subs = ref([]);
+const subLevel = ref(1);
+const subTotal = ref(0);
+const subPage = ref(1);
+const subLoading = ref(false);
 const logType = ref('');
 const logTabs = [
   { key: '', label: '全部' },
@@ -153,10 +181,30 @@ async function loadAll() {
   try {
     summary.value = await cardApi.distSummary(identity.value);
   } catch (e) {
-    summary.value = { wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: true };
+    summary.value = { wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: true };
   }
   loadLogs();
   loadWithdraws();
+  loadSubs();
+}
+
+async function loadSubs() {
+  if (summary.value.unbound) return;
+  subLoading.value = true;
+  try {
+    const res = await cardApi.distSubs(subLevel.value, subPage.value);
+    subs.value = res.list || [];
+    subTotal.value = res.total || 0;
+  } catch (e) { subs.value = []; } finally { subLoading.value = false; }
+}
+function switchSubLevel(lv) {
+  if (subLevel.value === lv) return;
+  subLevel.value = lv;
+  subPage.value = 1;
+  loadSubs();
+}
+function goSubCard(uid) {
+  uni.navigateTo({ url: `/pages/card/cardDetail?id=${uid}` });
 }
 
 async function loadLogs() {
@@ -260,6 +308,23 @@ onShow(() => {
 .mini-btn { background: #165dff; color: #fff; border-radius: 8px; font-size: 14px; height: 40px; line-height: 40px; }
 .mini-btn.ghost { background: #f2f3f5; color: #1d2129; margin-left: 10px; }
 .qrcode-tip { display: block; font-size: 11px; color: #86909c; margin-top: 8px; }
+.sub-box { background: #fff; border-radius: 10px; padding: 12px; margin-top: 12px; }
+.sub-tabs { display: flex; align-items: center; gap: 16px; }
+.sub-tab { font-size: 14px; color: #86909c; padding: 4px 0; position: relative; }
+.sub-tab.on { color: #165dff; font-weight: 600; }
+.sub-tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: #165dff; border-radius: 1px; }
+.sub-count { margin-left: auto; font-size: 12px; color: #86909c; }
+.sub-empty { padding: 24px 0; text-align: center; font-size: 12px; color: #86909c; }
+.sub-list { margin-top: 8px; }
+.sub-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f2f3f5; }
+.sub-item:last-child { border-bottom: none; }
+.sub-avatar { width: 38px; height: 38px; border-radius: 50%; background: #e8f3ff; flex-shrink: 0; }
+.sub-avatar.placeholder { display: flex; align-items: center; justify-content: center; color: #165dff; font-size: 16px; font-weight: 600; }
+.sub-info { flex: 1; min-width: 0; }
+.sub-name { font-size: 14px; color: #1d2129; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.sub-paid { font-size: 10px; color: #fff; background: #00b42a; border-radius: 4px; padding: 1px 5px; }
+.sub-time { font-size: 11px; color: #86909c; margin-top: 3px; }
+.sub-arrow { color: #c9cdd4; font-size: 18px; }
 .qr-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; display: flex; align-items: center; justify-content: center; }
 .qr-panel { width: 300px; background: #fff; border-radius: 14px; padding: 24px 20px 20px; text-align: center; }
 .qr-title { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 14px; }

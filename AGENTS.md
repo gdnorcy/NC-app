@@ -471,3 +471,11 @@ npm run test:frontend
 - **累计收益 total_income 语义修复**：分账入账即 `total_income += amount`（累计收益含待结算，与 PRD「包含已提现、待结算、已扣减」一致）；结算只转移 wait_settle→available；退款回滚 `total_income = MAX(0, total_income - deduct)` 才匹配入账。此前入账只加 wait_settle 未加 total_income，导致：①待结算期累计收益显示不全（排行/分销中心）；②待结算期间退款回滚扣减未入账的累计收益（负数语义错误）。
 - 演示数据补账（历史待结算同步累计）：`UPDATE dist_wallet SET total_income = total_income + wait_settle WHERE wait_settle > 0`。
 - 测试：ranking 降序/标签/直推人数 + 累计收益入账语义（total_income=分账金额、待结算期 wait_settle>=total_income），distribution.test.js 30 用例。
+
+## 本月新增推广用户 + 下级客户列表（2026-09-08 新增）
+
+- `GET /api/card/distribution/subs?level=1|2&page=`：我的下级客户列表（PRD 5.2）——level=1 直推（pid1=me）/ level=2 间推（pid2=me），join platform_user 取昵称/头像，paid 标记 = 该用户存在 status='paid' 的 payment_orders；cardApi 新增 distSubs(level, page)。
+- getSummary 新增 monthNew（本月新增推广用户：`(pid1=me OR pid2=me) AND substr(bind_time,1,10) >= 本月1日`）；C 端 summary 路由透传。
+- **dist_user_relation 无 created_at 列（只有 bind_time）**——按月统计必须 `substr(bind_time,1,10)`，写 created_at 报 `no such column`。
+- 小程序分销中心 distribution.vue：推广统计卡改 4 个（直推/间推/本月新增/本月佣金）；新增「下级客户」区块（直推/间推 Tab + 头像/昵称/已付费标签/绑定时间/点击跳转名片 + 空态文案「还没有通过你的名片带来的客户，多多分享名片即可获得客户」）。
+- 测试：getSubs（直推/间推/paid 布尔/总数，注意测试用户可能已被前面用例永久绑定——用全新 user_id 绑定），distribution.test.js 31 用例。
