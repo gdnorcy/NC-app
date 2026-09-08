@@ -6,9 +6,11 @@ import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
+import { createDistributionService } from '../services/distribution.js';
 
 export function createCardRouter(db, wxService) {
   const router = Router();
+  const distribution = createDistributionService(db);
 
   // ============================================================
   // 微信授权登录/注册
@@ -34,18 +36,11 @@ export function createCardRouter(db, wxService) {
 
       if (!user) {
         isNew = true;
-        // 分销关系绑定
-        let pid = null, gpid = null;
-        if (parentId) {
-          const parent = db.prepare('SELECT id, parent_id FROM platform_user WHERE id = ?').get(parentId);
-          if (parent) {
-            pid = parent.id;
-            gpid = parent.parent_id || null;
-          }
-        }
+        // 溯源绑定已迁移到租户维度（dist_user_relation）：扫码静默绑定由 POST /distribution/bind 负责
+        // （老 platform_user.parent_id 字段保留兼容存量读取，新绑定不再写入）
         const result = db.prepare(
-          'INSERT INTO platform_user (openid, unionid, nickname, avatar, parent_id, grandparent_id) VALUES (?,?,?,?,?,?)'
-        ).run(openid, unionid, '微信用户', '', pid, gpid);
+          'INSERT INTO platform_user (openid, unionid, nickname, avatar) VALUES (?,?,?,?)'
+        ).run(openid, unionid, '微信用户', '');
         user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(result.lastInsertRowid);
       }
 
@@ -624,27 +619,85 @@ export function createCardRouter(db, wxService) {
   });
 
   // ============================================================
-  // 分销
+  // 分销（租户维度 dist_* 表；未入驻租户返回空态，不再读老 distribution_commission）
   // ============================================================
+
+  // 扫码静默溯源绑定（首次进入租户绑定，永久锁定，不弹窗）
+  router.post('/distribution/bind', auth, requireTenant, (req, res) => {
+    const { parentId, identityType } = req.body;
+    if (!parentId) return res.json({ ok: true, message: '无绑定来源' });
+    const idt = identityType || req.user.identity_type || 'individual';
+    const result = distribution.bindRelation(req.customerId, req.user.id, idt, Number(parentId), 'qrcode');
+    if (!result.ok) return res.json({ ok: false, error: result.error });
+    res.json({ ok: true, relation: result.relation });
+  });
+
+  // 我的分销中心汇总（钱包三键隔离 + 直推/间推 + 本月佣金）
   router.get('/distribution/summary', auth, (req, res) => {
-    const totalCommission = db.prepare("SELECT COALESCE(SUM(amount),0) as s FROM distribution_commission WHERE user_id=? AND status='settled'").get(req.user.id).s;
-    const pendingCommission = db.prepare("SELECT COALESCE(SUM(amount),0) as s FROM distribution_commission WHERE user_id=? AND status='pending'").get(req.user.id).s;
-    const firstLevel = db.prepare('SELECT COUNT(*) as c FROM platform_user WHERE parent_id=?').get(req.user.id).c;
-    const secondLevel = db.prepare('SELECT COUNT(*) as c FROM platform_user WHERE grandparent_id=?').get(req.user.id).c;
-    res.json({ totalCommission, pendingCommission, firstLevel, secondLevel });
-  });
-
-  router.get('/distribution/commissions', auth, (req, res) => {
-    const commissions = db.prepare('SELECT * FROM distribution_commission WHERE user_id=? ORDER BY created_at DESC LIMIT 50').all(req.user.id);
-    res.json({ commissions: commissions.map(toCommission) });
-  });
-
-  router.get('/distribution/team', auth, (req, res) => {
-    const firstLevel = db.prepare('SELECT id, nickname, avatar, created_at FROM platform_user WHERE parent_id=? ORDER BY created_at DESC').all(req.user.id);
-    const secondLevel = db.prepare('SELECT id, nickname, avatar, created_at FROM platform_user WHERE grandparent_id=? ORDER BY created_at DESC').all(req.user.id);
+    if (!req.customerId) return res.json({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: true });
+    const idt = req.query.identityType || req.user.identity_type || 'individual';
+    const s = distribution.getSummary(req.customerId, req.user.id, idt);
     res.json({
-      firstLevel: firstLevel.map(u => ({ id: u.id, nickname: u.nickname, avatar: u.avatar, createdAt: u.created_at })),
-      secondLevel: secondLevel.map(u => ({ id: u.id, nickname: u.nickname, avatar: u.avatar, createdAt: u.created_at })),
+      wallet: {
+        waitSettle: s.wallet.wait_settle,
+        available: s.wallet.available,
+        totalIncome: s.wallet.total_income,
+        totalWithdraw: s.wallet.total_withdraw,
+      },
+      directCount: s.directCount,
+      indirectCount: s.indirectCount,
+      monthCommission: s.monthCommission,
+    });
+  });
+
+  // 收益明细（type 过滤：level1/level2/partner/share_all/share_cat/share_area）
+  router.get('/distribution/logs', auth, (req, res) => {
+    if (!req.customerId) return res.json({ total: 0, list: [] });
+    const idt = req.query.identityType || req.user.identity_type || 'individual';
+    const { page = 1, pageSize = 20, type = '' } = req.query;
+    const r = distribution.getLogs(req.customerId, req.user.id, idt, { page: Number(page), pageSize: Number(pageSize), type });
+    res.json(r);
+  });
+
+  // 钱包
+  router.get('/distribution/wallet', auth, (req, res) => {
+    if (!req.customerId) return res.json(null);
+    const idt = req.query.identityType || req.user.identity_type || 'individual';
+    const w = distribution.getWallet(req.customerId, req.user.id, idt);
+    res.json({ waitSettle: w.wait_settle, available: w.available, totalIncome: w.total_income, totalWithdraw: w.total_withdraw });
+  });
+
+  // 申请提现
+  router.post('/distribution/withdraw', auth, requireTenant, (req, res) => {
+    const { amount, identityType } = req.body;
+    if (!amount || Number(amount) <= 0) return res.status(400).json({ error: '提现金额无效' });
+    const idt = identityType || req.user.identity_type || 'individual';
+    const r = distribution.applyWithdraw(req.customerId, req.user.id, idt, Number(amount));
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json({ ok: true, withdrawNo: r.withdrawNo });
+  });
+
+  // 提现记录
+  router.get('/distribution/withdraws', auth, (req, res) => {
+    if (!req.customerId) return res.json({ total: 0, list: [] });
+    const idt = req.query.identityType || req.user.identity_type || 'individual';
+    const { page = 1, pageSize = 20, status = '' } = req.query;
+    res.json(distribution.getWithdraws(req.customerId, req.user.id, idt, { page: Number(page), pageSize: Number(pageSize), status }));
+  });
+
+  // 我的下级列表（直推/间推）
+  router.get('/distribution/team', auth, (req, res) => {
+    if (!req.customerId) return res.json({ firstLevel: [], secondLevel: [] });
+    const idt = req.query.identityType || req.user.identity_type || 'individual';
+    const firstLevel = db.prepare(
+      'SELECT r.user_id as id, u.nickname, u.avatar, r.bind_time as createdAt FROM dist_user_relation r LEFT JOIN platform_user u ON u.id = r.user_id WHERE r.tenant_id = ? AND r.pid1 = ? AND r.identity_type = ? ORDER BY r.id DESC'
+    ).all(req.customerId, req.user.id, idt);
+    const secondLevel = db.prepare(
+      'SELECT r.user_id as id, u.nickname, u.avatar, r.bind_time as createdAt FROM dist_user_relation r LEFT JOIN platform_user u ON u.id = r.user_id WHERE r.tenant_id = ? AND r.pid2 = ? AND r.identity_type = ? ORDER BY r.id DESC'
+    ).all(req.customerId, req.user.id, idt);
+    res.json({
+      firstLevel: firstLevel.map(u => ({ id: u.id, nickname: u.nickname || '微信用户', avatar: u.avatar, createdAt: u.createdAt })),
+      secondLevel: secondLevel.map(u => ({ id: u.id, nickname: u.nickname || '微信用户', avatar: u.avatar, createdAt: u.createdAt })),
     });
   });
 
@@ -790,16 +843,6 @@ export function createCardRouter(db, wxService) {
       content: row.content, nextFollowAt: row.next_follow_at, createdAt: row.created_at,
     };
   }
-
-  function toCommission(row) {
-    if (!row) return null;
-    return {
-      id: row.id, userId: row.user_id, fromUserId: row.from_user_id,
-      level: row.level, amount: row.amount, orderId: row.order_id,
-      status: row.status, createdAt: row.created_at, settledAt: row.settled_at,
-    };
-  }
-
 
   // 全景热点表单留资（公开）：sceneId 反查租户，沉淀为客户线索
   router.post('/panorama/leads', (req, res) => {

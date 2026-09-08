@@ -7,10 +7,12 @@
  *   - 借用平台模式：使用平台商户号代收，扣除手续费后结算
  */
 import { randomBytes } from 'node:crypto';
+import { createDistributionService } from './distribution.js';
 
 export class PaymentService {
   constructor(db) {
     this.db = db;
+    this.distribution = createDistributionService(db);
   }
 
   // ============================================================
@@ -88,7 +90,7 @@ export class PaymentService {
   }
 
   /** 创建支付订单 */
-  createOrder({ payerType, customerId, userId = 0, solution = '', productType = '', productId = '', productName = '', amount, channel = 'wechat', remark = '' }) {
+  createOrder({ payerType, customerId, userId = 0, solution = '', productType = '', productId = '', productName = '', amount, channel = 'wechat', remark = '', identityType = '' }) {
     const orderNo = this.genOrderNo();
     const resolved = this.resolveConfig(payerType, customerId, channel);
     const platformFee = resolved.mode === 'platform' && payerType === 'tenant'
@@ -96,9 +98,9 @@ export class PaymentService {
       : 0;
 
     const result = this.db.prepare(`
-      INSERT INTO payment_orders (order_no, payer_type, customer_id, user_id, solution, product_type, product_id, product_name, amount, platform_fee, pay_channel, pay_mode, status, remark)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-    `).run(orderNo, payerType, customerId, userId, solution, productType, productId, productName, amount, platformFee, channel, resolved.mode, remark);
+      INSERT INTO payment_orders (order_no, payer_type, customer_id, user_id, buyer_identity_type, solution, product_type, product_id, product_name, amount, platform_fee, pay_channel, pay_mode, status, remark)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+    `).run(orderNo, payerType, customerId, userId, identityType || '', solution, productType, productId, productName, amount, platformFee, channel, resolved.mode, remark);
 
     return this.getOrderById(result.lastInsertRowid);
   }
@@ -141,6 +143,27 @@ export class PaymentService {
     if (order.solution === 'card' && order.productType === 'member') {
       this.activateCardMember(order);
     }
+
+    // 分销分账调度器：租户级已支付订单触发（插件开关/幂等由调度器内部处理）
+    try {
+      this.distribution.computeOrderSplit(order);
+    } catch (e) {
+      console.error('分销分账失败:', e?.message || e);
+    }
+  }
+
+  /** 订单退款回滚（全额/部分退款通用，供退款业务调用） */
+  refundOrder(orderNo, refundAmount = null) {
+    const order = this.getOrderByNo(orderNo);
+    if (!order || order.status === 'refunded') return null;
+    this.db.prepare("UPDATE payment_orders SET status = 'refunded', updated_at = datetime('now') WHERE order_no = ?").run(orderNo);
+    // 分销回滚（快照为准，即使插件已关闭也执行）
+    try {
+      this.distribution.rollbackOrderSplit(order, refundAmount);
+    } catch (e) {
+      console.error('分销回滚失败:', e?.message || e);
+    }
+    return this.getOrderByNo(orderNo);
   }
 
   /** 开通智能名片会员 */
@@ -173,40 +196,9 @@ export class PaymentService {
         WHERE id = ?
       `).run(pkg.level, expireAt.toISOString().slice(0, 19).replace('T', ' '), order.userId);
 
-      // 生成二级分销佣金
-      this.generateDistributionCommission(order, user);
+      // 分销分账已由 handlePaymentSuccess 统一调度（老简版 generateDistributionCommission 已废弃）
     } catch (e) {
       console.error('开通会员失败:', e);
-    }
-  }
-
-  /** 生成分销佣金 */
-  generateDistributionCommission(order, user) {
-    try {
-      // 一级佣金
-      if (user.parent_id) {
-        const rate = 0.20; // 一级20%
-        const amount = Math.floor(order.amount * rate);
-        if (amount > 0) {
-          this.db.prepare(`
-            INSERT INTO distribution_commission (order_id, user_id, from_user_id, level, amount, status)
-            VALUES (?, ?, ?, 1, ?, 'pending')
-          `).run(order.orderNo, user.parent_id, user.id, amount);
-        }
-      }
-      // 二级佣金
-      if (user.grandparent_id) {
-        const rate = 0.05; // 二级5%
-        const amount = Math.floor(order.amount * rate);
-        if (amount > 0) {
-          this.db.prepare(`
-            INSERT INTO distribution_commission (order_id, user_id, from_user_id, level, amount, status)
-            VALUES (?, ?, ?, 2, ?, 'pending')
-          `).run(order.orderNo, user.grandparent_id, user.id, amount);
-        }
-      }
-    } catch (e) {
-      console.error('生成分销佣金失败:', e);
     }
   }
 

@@ -88,6 +88,15 @@ export const cardApi = {
   // 访客雷达
   getVisitorSummary: () => request('/visitors/summary'),
   getVisitorTimeline: (openid) => request(`/visitors/${openid}/timeline`),
+
+  // ===== 分销中心（租户维度，双身份隔离）=====
+  distBind: (parentId, identityType) => request('/distribution/bind', 'POST', { parentId, identityType }),
+  distSummary: (identityType) => request(`/distribution/summary?identityType=${identityType || ''}`),
+  distLogs: (params = {}) => request(`/distribution/logs?page=${params.page || 1}&pageSize=${params.pageSize || 20}&type=${params.type || ''}&identityType=${params.identityType || ''}`),
+  distWallet: (identityType) => request(`/distribution/wallet?identityType=${identityType || ''}`),
+  distWithdraw: (amount, identityType) => request('/distribution/withdraw', 'POST', { amount, identityType }),
+  distWithdraws: (params = {}) => request(`/distribution/withdraws?page=${params.page || 1}&pageSize=${params.pageSize || 20}&status=${params.status || ''}&identityType=${params.identityType || ''}`),
+  distTeam: (identityType) => request(`/distribution/team?identityType=${identityType || ''}`),
   markVisitorRead: (openid) => request(`/visitors/${openid}/read`, 'POST'),
 
   // 客户管理

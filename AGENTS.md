@@ -394,3 +394,23 @@ npm run test:frontend
 - **禁止**编辑器相机置于球面偏移位置（曾用半径 100 绕行 + 球 500 scale(-1,1,1)），与 H5 球心相机存在视差 → 标注"所见非所得"。
 - 拖拽旋转：向右拖 lon 增大（视野右转）、向下拖 lat 减小（视野下转），与 H5 applyDrag 一致；lat 语义 = 视线俯仰（正=向上看）。
 - 编辑页布局 `grid-template-columns:minmax(0,1fr) 520px`，防止 520px 列把 3D 画布挤出视口。
+
+# 分销体系规范（2026-09-08 新增）
+
+## 插件化分销五应用（方案A）
+
+- 5 个分销能力都是**独立应用**（apps 表，分类「分销体系」）：`dist` 二级推广分销（底座必装）/ `partner` 合伙人分红 / `share-all` 全民股东 / `share-cat` 类目股东 / `share-area` 区域股东；演示方案自动全勾（solution_apps），普通方案经方案配置勾选。
+- **方案A**：钱包/提现/数据大盘放 `dist` 应用内 Tab（`/apps/dist`，页面内 el-tabs：分销配置/分销商/佣金明细/溯源记录/钱包提现/数据大盘）；其它 4 个应用各管各的配置与成员（P0 为占位页 `/apps/partner|share-all|share-cat|share-area`，P1 实现）；小程序「分销中心」做全量聚合展示。
+- 老简版 distribution_commission 佣金逻辑已废弃删除（不再写入），新绑定走 `POST /api/customer/card/distribution/bind`（静默绑定，parentId + identityType）。
+- 溯源绑定从 platform_user.parent_id 无租户维度改为 **(tenant_id + user_id)** 维度（dist_user_relation，首次进入永久锁定、防环向上查 20 层）；钱包 **dist_wallet 三键隔离 (tenant_id, user_id, identity_type)**，identity_type = individual / employee，双身份收益完全隔离。
+
+## P0 落库 7 张表（金额统一「分」整数）
+
+- sys_tenant_plugin / dist_config / dist_user_relation / dist_order_split / dist_user_log / dist_wallet / dist_withdraw（PRD 中 dist_partner/dist_share_all/dist_share_cat/dist_share_area 4 张成员表属 P1，未建）。
+- **dist_user_log 无 updated_at 列**（只 created_at）——UPDATE 语句禁止带 updated_at。
+- **node:sqlite DatabaseSync 无 .transaction()**——distribution.js 用 `tx(fn)` 手写 BEGIN/COMMIT/ROLLBACK。
+- 分账以订单支付成功触发（payment.js handlePaymentSuccess → computeOrderSplit，幂等 tenant_id+order_id 唯一）；退款 refundOrder → rollbackOrderSplit（不删原记录，流水置 charged_back + 负数扣回，余额不足记欠款文案）；T+N 结算 settleDueOrders 由 index.js 每 10 分钟定时 + 管理端手动触发。
+- 提现状态机：pending →(approve)→ approved →(done)→ done；reject 退余额带原因。二次回滚/幂等返回必须带 split（return split 而非 undefined，否则调用方解构崩溃）。
+- 租户后台路由 `/api/customer/distribution`（本地 tenant 中间件，adminExpireMode=allow 时只读放行）；C 端 `/api/customer/card/distribution/*`。
+- 管理端页面 `web-admin/src/views/customer/apps/dist/DistHome.vue`；纯函数抽到 `web-admin/src/utils/distFormat.js`（fen 分转元/来源/类型/状态映射），改动必须同步测试 `distFormat.test.js`。
+- 5 个图标：dist/partner/share/category/area.svg（web-admin/src/assets/icons/svg + web-app/src/static/icons + 小程序 SIcon svgMap 三处同步，24 画布/2px 描边/3px 圆角/currentColor）。

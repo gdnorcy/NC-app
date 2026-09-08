@@ -28,6 +28,7 @@ import { createOAuthAppsRouter } from './routes/oauth-apps.js';
 import { createChannelRouter } from './routes/channel.js';
 import { createCardRouter } from './routes/card.js';
 import { createPaymentRouter } from './routes/payment.js';
+import { createDistributionRouter } from './routes/distribution.js';
 import { createCardMarketRouter } from './routes/cardMarket.js';
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 
@@ -65,6 +66,7 @@ export function createApp({ db } = {}) {
   app.use('/api', createSettingsRouter(database));
   app.use('/api', createLogsRouter(database));
   app.use('/api/customer', requireAuth, createCustomerRouter(database));
+  app.use('/api/customer/distribution', requireAuth, createDistributionRouter(database));
   app.use('/api/admin/solutions', requireAuth, createSolutionsRouter(database));
   // 总后台 · 应用中心（应用分类/卡片管理）
   app.use('/api/admin/apps-center', requireAuth, createAppsAdminRouter(database));

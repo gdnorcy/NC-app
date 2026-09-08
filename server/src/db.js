@@ -1719,12 +1719,217 @@ function migrate(db) {
   }
   seedMarketStyles(db);
 
+  // —— 分销体系：建表 + 应用注册 + 存量迁移（在 migrateSolutionApps 前执行，保证演示方案覆盖新应用）——
+  seedDistribution(db);
+
+  // —— 支付订单补买家身份（分销分账按双身份隔离）——
+  if (tableExists(db, 'payment_orders') && !colExists(db, 'payment_orders', 'buyer_identity_type')) {
+    db.exec("ALTER TABLE payment_orders ADD COLUMN buyer_identity_type TEXT NOT NULL DEFAULT ''");
+  }
+
   // —— 方案化迁移：现有解决方案沉淀为应用 + 演示试用方案 + 方案-应用关联 ——
   // （必须在全部解决方案预置之后执行，保证全新库/存量库一致）
   migrateSolutionApps(db);
 
   // —— 方案中心 P0：补齐分类归属 + 默认价格/权限（放在全部方案预置之后，幂等） ——
   seedSolutionDefaults(db);
+}
+
+/**
+ * 分销体系：建表 + 应用注册 + 存量迁移（幂等，全新库/存量库一致）
+ * - 7 张核心表：sys_tenant_plugin / dist_config / dist_user_relation / dist_order_split / dist_user_log / dist_wallet / dist_withdraw
+ * - 应用注册：分销体系分类 + 5 个独立应用（dist/partner/share-all/share-cat/share-area）+ app_menus
+ * - 存量迁移：platform_user.parent_id/grandparent_id → dist_user_relation（补租户维度，修复跨租户串号）
+ */
+function seedDistribution(db) {
+  // —— 1. 分销核心表（金额统一用「分」整数，与 payment_orders 一致）——
+  db.exec(`
+    -- 租户插件安装/启用表
+    CREATE TABLE IF NOT EXISTS sys_tenant_plugin (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      plugin_code TEXT NOT NULL,             -- dist/partner/share_all/share_cat/share_area
+      is_install INTEGER NOT NULL DEFAULT 0,
+      is_enable INTEGER NOT NULL DEFAULT 0,
+      config TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, plugin_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_plugin_tenant ON sys_tenant_plugin(tenant_id);
+
+    -- 二级分销全局配置（每租户一条）
+    CREATE TABLE IF NOT EXISTS dist_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL UNIQUE,
+      ratio1 REAL NOT NULL DEFAULT 0.20,      -- 一级比例
+      ratio2 REAL NOT NULL DEFAULT 0.05,      -- 二级比例
+      is_open_level2 INTEGER NOT NULL DEFAULT 1,
+      is_self_buy INTEGER NOT NULL DEFAULT 0, -- 自购返佣
+      calc_type INTEGER NOT NULL DEFAULT 1,   -- 1实付 2原价
+      settle_day INTEGER NOT NULL DEFAULT 7,  -- T+7
+      min_withdraw REAL NOT NULL DEFAULT 10,  -- 最低提现（元）
+      withdraw_fee_rate REAL NOT NULL DEFAULT 0, -- 提现手续费比例
+      max_total_ratio REAL NOT NULL DEFAULT 0.30,-- 订单总让利上限
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- 用户分销关系（租户维度永久绑定，双身份隔离）
+    CREATE TABLE IF NOT EXISTS dist_user_relation (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      identity_type TEXT NOT NULL DEFAULT 'individual', -- individual/employee
+      pid1 INTEGER,
+      pid2 INTEGER,
+      source_type TEXT NOT NULL DEFAULT 'card',  -- card/market/qrcode
+      bind_time TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, user_id, identity_type)
+    );
+    CREATE INDEX IF NOT EXISTS idx_relation_tenant ON dist_user_relation(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_relation_pid1 ON dist_user_relation(tenant_id, pid1);
+    CREATE INDEX IF NOT EXISTS idx_relation_pid2 ON dist_user_relation(tenant_id, pid2);
+
+    -- 分账快照（核心对账表，退款/插件关闭均不删除）
+    CREATE TABLE IF NOT EXISTS dist_order_split (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      order_id INTEGER NOT NULL,
+      order_no TEXT NOT NULL DEFAULT '',
+      order_amount INTEGER NOT NULL DEFAULT 0,
+      buyer_user_id INTEGER NOT NULL DEFAULT 0,
+      buyer_identity_type TEXT NOT NULL DEFAULT 'individual',
+      category_id INTEGER,
+      area_code TEXT,
+      commission1 INTEGER NOT NULL DEFAULT 0,
+      commission2 INTEGER NOT NULL DEFAULT 0,
+      partner_bonus INTEGER NOT NULL DEFAULT 0,
+      share_all_bonus INTEGER NOT NULL DEFAULT 0,
+      share_cat_bonus INTEGER NOT NULL DEFAULT 0,
+      share_area_bonus INTEGER NOT NULL DEFAULT 0,
+      total_bonus INTEGER NOT NULL DEFAULT 0,
+      settle_status TEXT NOT NULL DEFAULT 'pending', -- pending/settled/refunded
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_split_order ON dist_order_split(tenant_id, order_id);
+
+    -- 用户收益流水（单一类型一条）
+    CREATE TABLE IF NOT EXISTS dist_user_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      identity_type TEXT NOT NULL DEFAULT 'individual',
+      order_id INTEGER NOT NULL DEFAULT 0,
+      order_no TEXT NOT NULL DEFAULT '',
+      split_id INTEGER NOT NULL DEFAULT 0,
+      type TEXT NOT NULL DEFAULT '',  -- level1/level2/partner/share_all/share_cat/share_area
+      amount INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending', -- pending/settled/charged_back
+      remark TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_log_user ON dist_user_log(tenant_id, user_id, identity_type);
+    CREATE INDEX IF NOT EXISTS idx_log_order ON dist_user_log(tenant_id, order_id);
+    CREATE INDEX IF NOT EXISTS idx_log_status ON dist_user_log(tenant_id, status);
+
+    -- 用户钱包（三键隔离：租户+用户+身份）
+    CREATE TABLE IF NOT EXISTS dist_wallet (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      identity_type TEXT NOT NULL DEFAULT 'individual',
+      wait_settle INTEGER NOT NULL DEFAULT 0,
+      available INTEGER NOT NULL DEFAULT 0,
+      total_income INTEGER NOT NULL DEFAULT 0,
+      total_withdraw INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, user_id, identity_type)
+    );
+
+    -- 提现申请表
+    CREATE TABLE IF NOT EXISTS dist_withdraw (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      withdraw_no TEXT NOT NULL UNIQUE,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      identity_type TEXT NOT NULL DEFAULT 'individual',
+      amount INTEGER NOT NULL DEFAULT 0,
+      service_fee INTEGER NOT NULL DEFAULT 0,
+      actual_amount INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending', -- pending/approved/rejected/done
+      reject_reason TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      paid_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_withdraw_tenant ON dist_withdraw(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_withdraw_user ON dist_withdraw(tenant_id, user_id);
+  `);
+
+  // —— 2. 应用注册：分销体系分类 + 5 个独立应用 ——
+  db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('分销体系', 'dist', 9)");
+  const distApps = [
+    ['dist', '二级推广分销', '上下级链式推广佣金（一级/二级比例可配），并承载钱包提现与分销数据大盘', 'dist', 1],
+    ['partner', '合伙人分红', '顶层运营/会长/秘书长团队分红，支持团队流水与租户全局流水两种模式', 'partner', 2],
+    ['share-all', '全民股东', '全站付费订单池式分红，均等或按权重分配', 'share', 3],
+    ['share-cat', '类目股东', '按行业类目分红，各行业独立比例与股东列表', 'category', 4],
+    ['share-area', '区域股东', '按地域分红，各地区独立比例与股东列表', 'area', 5],
+  ];
+  const distAppIns = db.prepare('INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
+  for (const [code, name, desc, icon, order] of distApps) {
+    distAppIns.run(code, name, desc, icon, '分销体系', order);
+    const app = db.prepare('SELECT id FROM apps WHERE code = ?').get(code);
+    if (!app) continue;
+    const menus = {
+      dist: [
+        ['配置', 'dist:config', '分销配置'], ['分销商', 'dist:members', '分销商管理'], ['佣金明细', 'dist:commissions', '佣金明细'],
+        ['钱包提现', 'dist:wallet', '钱包提现'], ['数据大盘', 'dist:stats', '数据大盘'], ['溯源记录', 'dist:relations', '溯源记录'],
+      ],
+      partner: [
+        ['配置', 'partner:config', '分红配置'], ['合伙人', 'partner:members', '合伙人管理'], ['分红明细', 'partner:logs', '分红明细'],
+      ],
+      'share-all': [
+        ['配置', 'share-all:config', '分红配置'], ['股东', 'share-all:members', '股东管理'], ['分红明细', 'share-all:logs', '分红明细'],
+      ],
+      'share-cat': [
+        ['配置', 'share-cat:config', '类目分红配置'], ['股东', 'share-cat:members', '股东管理'], ['分红明细', 'share-cat:logs', '分红明细'],
+      ],
+      'share-area': [
+        ['配置', 'share-area:config', '区域分红配置'], ['股东', 'share-area:members', '股东管理'], ['分红明细', 'share-area:logs', '分红明细'],
+      ],
+    }[code] || [];
+    const menuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+    menus.forEach(([mod, key, label], idx) => menuIns.run(app.id, mod, mod, key, label, idx + 1));
+  }
+
+  // —— 3. 存量迁移：platform_user.parent_id/grandparent_id → dist_user_relation（补租户维度）——
+  try {
+    const legacy = db.prepare("SELECT id, customer_id, identity_type, parent_id, grandparent_id FROM platform_user WHERE parent_id IS NOT NULL OR grandparent_id IS NOT NULL").all();
+    const relIns = db.prepare(
+      'INSERT OR IGNORE INTO dist_user_relation (tenant_id, user_id, identity_type, pid1, pid2, source_type) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    for (const u of legacy) {
+      const tenantId = u.customer_id || 0;
+      if (!tenantId) continue; // 未绑定租户的存量用户不迁移（避免污染）
+      const idt = u.identity_type || 'individual';
+      relIns.run(tenantId, u.id, idt, u.parent_id || null, u.grandparent_id || null, 'card');
+    }
+  } catch {}
+
+  // —— 4. 演示方案纳入（migrateSolutionApps 会全量覆盖，此处补一次保证一致性）——
+  try {
+    const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
+    if (demoRow) {
+      const allApps = db.prepare("SELECT id FROM apps WHERE code IN ('dist','partner','share-all','share-cat','share-area')").all();
+      for (const a of allApps) {
+        if (!db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, a.id)) {
+          db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, a.id);
+        }
+      }
+    }
+  } catch {}
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

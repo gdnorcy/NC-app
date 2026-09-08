@@ -11,6 +11,18 @@
       </view>
     </view>
 
+    <!-- 分销中心入口 -->
+    <view class="dist-entry" @click="goDistribution">
+      <view class="de-left">
+        <view class="de-icon"><SIcon name="dist" size="large" color="#165dff" /></view>
+        <view>
+          <view class="de-title">分销中心</view>
+          <view class="de-sub">推广赚佣金 · 查看收益与提现</view>
+        </view>
+      </view>
+      <view class="de-arrow">›</view>
+    </view>
+
     <!-- 选择套餐 -->
     <view class="sec-t">选择套餐<small>解锁更多能力</small></view>
     <view class="plan-grid">
@@ -57,6 +69,10 @@ const memberExpire = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const brandColor = ref('');
 const paying = ref(false);
+
+function goDistribution() {
+  uni.navigateTo({ url: '/pages/card/distribution' });
+}
 
 const currentLevelText = computed(() => ({ free: '免费版', silver: '白银会员', gold: '黄金会员', diamond: '钻石会员' }[memberLevel.value] || ''));
 
@@ -315,4 +331,15 @@ async function openMember(pkg) {
 .btn:active {
   opacity: 0.75;
 }
+
+.dist-entry {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: 12px 20px 0; background: linear-gradient(90deg, #e8f3ff, #fff);
+  border: 1px solid #d3e5ff; border-radius: 12px; padding: 14px 16px;
+}
+.de-left { display: flex; align-items: center; gap: 12px; }
+.de-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(22,93,255,0.08); display: flex; align-items: center; justify-content: center; }
+.de-title { font-size: 15px; font-weight: 600; color: #1d2129; }
+.de-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
+.de-arrow { font-size: 22px; color: #c9cdd4; }
 </style>

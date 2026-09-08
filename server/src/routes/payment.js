@@ -17,7 +17,7 @@ export function createPaymentRouter(db) {
   // ============================================================
   router.post('/create', async (req, res) => {
     try {
-      const { payerType, customerId, userId, solution, productType, productId, productName, amount, channel, remark } = req.body;
+      const { payerType, customerId, userId, identityType, solution, productType, productId, productName, amount, channel, remark } = req.body;
 
       if (!amount || amount <= 0) return res.status(400).json({ error: '金额不能为空' });
       if (!productName) return res.status(400).json({ error: '产品名称不能为空' });
@@ -33,6 +33,7 @@ export function createPaymentRouter(db) {
         payerType: payerType || 'tenant',
         customerId: customerId || req.user?.customerId || 0,
         userId: userId || req.user?.id || 0,
+        identityType: identityType || '',
         solution: solution || '',
         productType: productType || '',
         productId: productId || '',

@@ -29,6 +29,12 @@ const routes = [
       { path: 'apps/card/templates', component: () => import('../views/customer/apps/card/TemplateMarket.vue'), meta: { title: '模板市场', breadcrumbs: ['应用中心', '智能名片', '模板市场'] } },
       { path: 'apps/card/exchanges', component: () => import('../views/customer/apps/card/ExchangeRecords.vue'), meta: { title: '交换记录', breadcrumbs: ['应用中心', '智能名片', '交换记录'] } },
       { path: 'apps/card/forms', component: () => import('../views/customer/apps/card/FormCollect.vue'), meta: { title: '表单收集', breadcrumbs: ['应用中心', '智能名片', '表单收集'] } },
+      // 分销体系（5 个独立应用；P0 已实现 dist 底座，其余 4 个为占位）
+      { path: 'apps/dist', component: () => import('../views/customer/apps/dist/DistHome.vue'), meta: { title: '二级推广分销', breadcrumbs: ['应用中心', '分销体系', '二级推广分销'] } },
+      { path: 'apps/partner', component: () => import('../views/customer/apps/dist/PartnerHome.vue'), meta: { title: '合伙人分红', breadcrumbs: ['应用中心', '分销体系', '合伙人分红'] } },
+      { path: 'apps/share-all', component: () => import('../views/customer/apps/dist/ShareAllHome.vue'), meta: { title: '全民股东', breadcrumbs: ['应用中心', '分销体系', '全民股东'] } },
+      { path: 'apps/share-cat', component: () => import('../views/customer/apps/dist/ShareCatHome.vue'), meta: { title: '类目股东', breadcrumbs: ['应用中心', '分销体系', '类目股东'] } },
+      { path: 'apps/share-area', component: () => import('../views/customer/apps/dist/ShareAreaHome.vue'), meta: { title: '区域股东', breadcrumbs: ['应用中心', '分销体系', '区域股东'] } },
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
       { path: 'billing', component: () => import('../views/customer/Billing.vue'), meta: { title: '套餐与续费', breadcrumbs: ['套餐与续费'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
