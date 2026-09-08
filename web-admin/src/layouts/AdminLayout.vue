@@ -30,6 +30,10 @@
             <SIcon name="solutions" size="default" />
             <span>解决方案</span>
           </el-menu-item>
+          <el-menu-item index="/apps-center">
+            <SIcon name="apps" size="default" />
+            <span>应用中心</span>
+          </el-menu-item>
         </template>
         <el-menu-item v-if="!isAdmin" index="/solutions">
           <SIcon name="solutions" size="default" />
@@ -39,39 +43,15 @@
           <SIcon name="wallet" size="default" />
           <span>财务管理</span>
         </el-menu-item>
-        <el-menu-item index="/channel">
-          <SIcon name="channel" size="default" />
-          <span>全端渠道</span>
-        </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/logs">
           <SIcon name="logs" size="default" />
           <span>操作日志</span>
         </el-menu-item>
         <template v-if="isAdmin">
           <div v-if="!collapsed" class="menu-group-title">系统设置</div>
-          <el-menu-item index="/settings/basic">
+          <el-menu-item index="/settings">
             <SIcon name="settings" size="default" />
-            <span>基础设置</span>
-          </el-menu-item>
-          <el-menu-item index="/settings/storage">
-            <SIcon name="storage" size="default" />
-            <span>存储设置</span>
-          </el-menu-item>
-          <el-menu-item index="/settings/sms">
-            <SIcon name="sms" size="default" />
-            <span>短信接口</span>
-          </el-menu-item>
-          <el-menu-item index="/settings/payment">
-            <SIcon name="wallet" size="default" />
-            <span>支付设置</span>
-          </el-menu-item>
-          <el-menu-item index="/settings/security">
-            <SIcon name="key" size="default" />
-            <span>安全设置</span>
-          </el-menu-item>
-          <el-menu-item index="/settings/open">
-            <SIcon name="channel" size="default" />
-            <span>开放平台</span>
+            <span>系统设置</span>
           </el-menu-item>
         </template>
       </el-menu>

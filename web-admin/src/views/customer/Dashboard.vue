@@ -47,12 +47,12 @@
         <div class="app-stat-metrics">
           <div class="metric">
             <div class="metric-value">{{ app.plans }}</div>
-            <div class="metric-label">方案</div>
+            <div class="metric-label">{{ app.metricLabel || '方案' }}</div>
           </div>
           <div class="metric-divider"></div>
           <div class="metric">
             <div class="metric-value">{{ app.scenes }}</div>
-            <div class="metric-label">场景</div>
+            <div class="metric-label">{{ app.metricLabel2 || '场景' }}</div>
           </div>
         </div>
         <div class="app-stat-action">

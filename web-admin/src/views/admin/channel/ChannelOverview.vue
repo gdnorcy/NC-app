@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h2 class="page-title">全端渠道</h2>
-      <el-button type="primary" @click="showComponent = true">第三方平台配置</el-button>
+      <span style="font-size:12px;color:#909399;">第三方平台配置与平台默认配置已迁至「系统设置」</span>
     </div>
 
     <!-- 统计卡片 -->
@@ -11,8 +11,8 @@
       <div class="stat-card"><div class="stat-value">{{ stats.authorized || 0 }}</div><div class="stat-label">已授权</div></div>
       <div class="stat-card"><div class="stat-value">{{ stats.released || 0 }}</div><div class="stat-label">已发布上线</div></div>
       <div class="stat-card">
-        <div class="stat-value" :class="{ warning: !componentConfig.hasVerifyTicket }">{{ componentConfig.hasVerifyTicket ? '正常' : '待配置' }}</div>
-        <div class="stat-label">第三方平台状态</div>
+        <div class="stat-value">{{ stats.byType?.length || 0 }}</div>
+        <div class="stat-label">渠道类型覆盖</div>
       </div>
     </div>
 
@@ -44,71 +44,18 @@
       </div>
     </div>
 
-    <!-- 快捷操作 -->
-    <div class="page-card" style="margin-top:16px;">
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:200px;">
-          <div style="font-size:14px;font-weight:600;color:#1a1b1c;">平台默认配置</div>
-          <div style="font-size:12px;color:#909399;margin-top:4px;">配置未开通独立渠道的客户使用的默认参数</div>
-        </div>
-        <el-button type="primary" @click="$router.push('/channel/defaults')">去配置</el-button>
-      </div>
-    </div>
-
-    <!-- 第三方平台配置弹窗 -->
-    <el-dialog v-model="showComponent" title="微信第三方平台配置" width="560px">
-      <el-form :model="componentForm" label-width="140px">
-        <el-form-item label="第三方平台AppID">
-          <el-input v-model="componentForm.component_appid" placeholder="wx开头的AppID" />
-        </el-form-item>
-        <el-form-item label="第三方平台AppSecret">
-          <el-input v-model="componentForm.component_appsecret" type="password" show-password placeholder="AppSecret" />
-        </el-form-item>
-        <el-form-item label="消息校验Token">
-          <el-input v-model="componentForm.message_token" placeholder="与微信开放平台配置一致" />
-        </el-form-item>
-        <el-form-item label="消息加解密Key">
-          <el-input v-model="componentForm.encoding_aes_key" placeholder="43位EncodingAESKey" />
-        </el-form-item>
-        <el-form-item label="授权事件接收URL">
-          <el-input :value="callbackUrl" readonly>
-            <template #append><el-button text @click="copy(callbackUrl)">复制</el-button></template>
-          </el-input>
-        </el-form-item>
-        <el-form-item label="消息接收URL">
-          <el-input :value="messageUrl" readonly>
-            <template #append><el-button text @click="copy(messageUrl)">复制</el-button></template>
-          </el-input>
-        </el-form-item>
-        <el-alert v-if="!componentConfig.hasVerifyTicket" type="warning" :closable="false" style="margin-bottom:12px;">
-          保存配置后，请确保微信开放平台的授权事件接收URL能正常访问。微信会每10分钟推送一次component_verify_ticket，收到后状态会变为"正常"。
-        </el-alert>
-      </el-form>
-      <template #footer>
-        <el-button @click="showComponent = false">取消</el-button>
-        <el-button type="primary" @click="saveComponent">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import {
-  fetchChannelComponent, updateChannelComponent, fetchChannelStats,
-} from '../../../api';
+import { fetchChannelStats } from '../../../api';
 import { ElMessage } from 'element-plus';
 import SIcon from '../../../components/SIcon.vue';
 
 const router = useRouter();
-const showComponent = ref(false);
 const stats = ref({});
-const componentConfig = ref({});
-const componentForm = reactive({ component_appid: '', component_appsecret: '', message_token: '', encoding_aes_key: '' });
-
-const callbackUrl = `${location.origin}/api/channel/wx-callback`;
-const messageUrl = `${location.origin}/api/channel/wx-message/$APPID$`;
 
 const channels = [
   { type: 'mini', name: '微信小程序', icon: 'wechat', desc: '客户独立AppID，第三方平台代开发', statusText: '运行中', statusType: 'success', count: 0, appid: '' },
@@ -120,7 +67,6 @@ const channels = [
 async function loadData() {
   try {
     stats.value = await fetchChannelStats();
-    componentConfig.value = (await fetchChannelComponent()).config;
     // 更新各渠道的已开通数量
     const byType = stats.value.byType || [];
     channels.forEach(ch => {
@@ -130,22 +76,8 @@ async function loadData() {
   } catch (e) { ElMessage.error(e); }
 }
 
-async function saveComponent() {
-  try {
-    await updateChannelComponent(componentForm);
-    ElMessage.success('保存成功');
-    showComponent.value = false;
-    loadData();
-  } catch (e) { ElMessage.error(e); }
-}
-
 function goDetail(type) {
   router.push(`/channel/${type}`);
-}
-
-function copy(text) {
-  navigator.clipboard.writeText(text);
-  ElMessage.success('已复制');
 }
 
 onMounted(loadData);

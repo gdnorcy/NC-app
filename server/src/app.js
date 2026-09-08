@@ -19,6 +19,7 @@ import { createCustomerRouter } from './routes/customer.js';
 import { createSolutionsRouter } from './routes/solutions.js';
 import { createMultiAuthRouter } from './routes/multi-auth.js';
 import { createAppRegistryRouter } from './routes/app-registry.js';
+import { createAppsAdminRouter } from './routes/appsAdmin.js';
 import { createCardTemplateRouter } from './routes/cardTemplates.js';
 import { adminOverview } from './services/analytics.js';
 import { createOAuthRouter } from './routes/oauth.js';
@@ -65,6 +66,8 @@ export function createApp({ db } = {}) {
   app.use('/api', createLogsRouter(database));
   app.use('/api/customer', requireAuth, createCustomerRouter(database));
   app.use('/api/admin/solutions', requireAuth, createSolutionsRouter(database));
+  // 总后台 · 应用中心（应用分类/卡片管理）
+  app.use('/api/admin/apps-center', requireAuth, createAppsAdminRouter(database));
   // 名片模板库：平台公共（总后台）+ 租户私有（客户后台）
   app.use('/api/admin/card', requireAuth, createCardTemplateRouter(database, { mode: 'admin' }));
   app.use('/api/customer/card', requireAuth, createCardTemplateRouter(database, { mode: 'tenant' }));

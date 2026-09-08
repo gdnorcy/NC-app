@@ -123,6 +123,41 @@ router.get('/profile', requireTenant, (req, res) => {
 });
 
 // 仪表盘：客户自身业务数据
+// 租户已开通应用（解决方案展开为应用清单，过滤演示方案本身）
+router.get('/apps', requireTenant, (req, res) => {
+  try {
+    const cid = req.customerId;
+    const project = db.prepare('SELECT solutions FROM projects WHERE id = ?').get(cid);
+    let solutionCodes = [];
+    try { solutionCodes = JSON.parse(project?.solutions || '[]'); } catch { solutionCodes = []; }
+    const appBySolution = (code) => {
+      const sol = db.prepare('SELECT * FROM solutions WHERE code = ?').get(code);
+      if (!sol) return [];
+      if (sol.is_demo) {
+        return db.prepare('SELECT * FROM apps WHERE enabled = 1 ORDER BY sort_order, id').all();
+      }
+      return db.prepare(
+        `SELECT a.* FROM apps a JOIN solution_apps sa ON sa.app_id = a.id
+         WHERE sa.solution_id = ? AND sa.enabled = 1 AND a.enabled = 1 ORDER BY a.sort_order, a.id`
+      ).all(sol.id);
+    };
+    const apps = [];
+    const seen = new Set();
+    solutionCodes.forEach((code) => {
+      appBySolution(code).forEach((a) => {
+        if (!seen.has(a.code)) { seen.add(a.code); apps.push(a); }
+      });
+    });
+    res.json({
+      apps: apps.map((a) => ({
+        id: a.id, code: a.code, name: a.name, description: a.description, icon: a.icon,
+      })),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/dashboard', requireTenant, (req, res) => {
   const cid = req.customerId;
   const planCount = db.prepare('SELECT COUNT(*) AS n FROM plans WHERE project_id = ?').get(cid).n;
@@ -135,24 +170,54 @@ router.get('/dashboard', requireTenant, (req, res) => {
     .prepare("SELECT COALESCE(SUM(amount),0) AS s FROM payment_orders WHERE customer_id = ? AND payer_type='platform' AND status='paid'")
     .get(cid).s;
 
-  // 客户已开通的应用（解决方案）
+  // 客户已开通的应用：解决方案(组合包) → 展开为应用清单，过滤演示方案
   const project = db.prepare('SELECT solutions FROM projects WHERE id = ?').get(cid);
-  let appCodes = [];
-  try { appCodes = JSON.parse(project?.solutions || '[]'); } catch { appCodes = []; }
-  const apps = db
-    .prepare(`SELECT * FROM solutions WHERE code IN (${appCodes.map(() => '?').join(',')}) OR id IN (${appCodes.map(() => '?').join(',')})`)
-    .all(...appCodes, ...appCodes);
+  let solutionCodes = [];
+  try { solutionCodes = JSON.parse(project?.solutions || '[]'); } catch { solutionCodes = []; }
+  const appBySolution = (code) => {
+    const sol = db.prepare('SELECT * FROM solutions WHERE code = ?').get(code);
+    if (!sol) return [];
+    if (sol.is_demo) {
+      // 演示方案动态纳入全部应用
+      return db.prepare('SELECT * FROM apps WHERE enabled = 1 ORDER BY sort_order, id').all();
+    }
+    return db.prepare(
+      `SELECT a.* FROM apps a JOIN solution_apps sa ON sa.app_id = a.id
+       WHERE sa.solution_id = ? AND sa.enabled = 1 AND a.enabled = 1 ORDER BY a.sort_order, a.id`
+    ).all(sol.id);
+  };
+  const apps = [];
+  const seen = new Set();
+  solutionCodes.forEach((code) => {
+    appBySolution(code).forEach((a) => {
+      if (!seen.has(a.code)) { seen.add(a.code); apps.push(a); }
+    });
+  });
 
-  // 按应用统计（目前方案和场景都属于客户，暂按应用分组展示，后续方案可关联应用）
-  const byApp = apps.map((app) => ({
-    appId: app.id,
-    appName: app.name,
-    appCode: app.code,
-    appIcon: app.icon,
-    enabled: true,
-    plans: planCount,  // 目前所有方案都属于360全景应用
-    scenes: sceneCount,
-  }));
+  // 按应用统计：全景→方案/场景；智能名片→企业员工/企业客户；全端渠道→渠道配置数
+  const employeeCount = db.prepare('SELECT COUNT(*) AS n FROM users WHERE customer_id = ? AND enterprise_id IS NOT NULL').get(cid).n;
+  const cardCustomerCount = db.prepare('SELECT COUNT(*) AS n FROM card_customer WHERE customer_id = ?').get(cid).n;
+  const channelCount = db.prepare('SELECT COUNT(*) AS n FROM channel_apps WHERE customer_id = ?').get(cid).n;
+  const statFor = (code) => {
+    if (code === 'panorama') return { plans: planCount, scenes: sceneCount, metricLabel: '方案', metricLabel2: '场景' };
+    if (code === 'card') return { plans: employeeCount, scenes: cardCustomerCount, metricLabel: '企业员工', metricLabel2: '企业客户' };
+    if (code === 'channel') return { plans: channelCount, scenes: 0, metricLabel: '渠道配置', metricLabel2: '场景' };
+    return { plans: 0, scenes: 0, metricLabel: '方案', metricLabel2: '场景' };
+  };
+  const byApp = apps.map((app) => {
+    const st = statFor(app.code);
+    return {
+      appId: app.id,
+      appName: app.name,
+      appCode: app.code,
+      appIcon: app.icon,
+      enabled: true,
+      plans: st.plans,
+      scenes: st.scenes,
+      metricLabel: st.metricLabel,
+      metricLabel2: st.metricLabel2,
+    };
+  });
 
   // 最近 5 个场景
   const recentScenes = db

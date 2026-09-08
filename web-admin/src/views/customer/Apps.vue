@@ -23,7 +23,7 @@ import SIcon from '../../components/SIcon.vue';
 const router = useRouter();
 // 平台内置应用
 const builtinApps = [
-  { code: 'channel', name: '全端渠道', icon: 'devices', description: '管理H5、小程序、公众号、PC网站各端渠道配置与发布', builtin: true },
+  { code: 'channel', name: '全端渠道', icon: 'channel', description: '管理H5、小程序、公众号、PC网站各端渠道配置与发布', builtin: true },
 ];
 // 解决方案应用映射（code -> 显示信息）
 const solutionMap = {
@@ -33,18 +33,15 @@ const solutionMap = {
 const apps = ref([]);
 
 onMounted(async () => {
-  const list = [...builtinApps];
+  // 已开通应用：后端将解决方案（组合包）展开为应用清单，演示方案本身不展示
+  let list = [];
   try {
-    const data = await customerApiCall.get('/profile');
-    const solutions = data.customer?.solutions || [];
-    solutions.forEach(s => {
-      const code = typeof s === 'string' ? s : (s.code || s.name);
-      if (!code || typeof code !== 'string') return;
-      const app = solutionMap[code] || { code, name: s.name || code, icon: 'template', description: s.description || '' };
-      list.push(app);
-    });
+    const data = await customerApiCall.get('/apps');
+    list = (data.apps || []).map(a => solutionMap[a.code] || a);
   } catch (e) {}
-  apps.value = list;
+  if (!list.length) list = [...builtinApps]; // 接口异常时兜底
+  const seen = new Set();
+  apps.value = list.filter(a => { if (seen.has(a.code)) return false; seen.add(a.code); return true; });
 });
 
 function enterApp(app) {

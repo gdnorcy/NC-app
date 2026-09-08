@@ -1,9 +1,9 @@
 <template>
   <el-container class="customer-layout">
     <el-aside :width="collapsed ? '64px' : '220px'" class="sidebar">
-      <div class="logo">
+      <div class="logo" :class="{ collapsed }">
         <img v-if="systemLogo" :src="systemLogo" alt="logo" class="logo-img" />
-        <span v-else class="logo-text">{{ systemName }}</span>
+        <span v-else-if="!collapsed" class="logo-text">{{ systemName }}</span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -248,6 +248,20 @@ function backToAdmin() {
 .logo-img { width: 30px; height: 30px; border-radius: 6px; }
 .side-menu { border-right: none; padding: 8px 12px; }
 .side-menu :deep(.s-icon) { margin-right: 10px; }
+/* 折叠态：图标居中（与总后台一致） */
+.side-menu.el-menu--collapse { padding: 8px; }
+.side-menu.el-menu--collapse :deep(.el-menu-item) {
+  padding: 0 !important;
+  justify-content: center;
+}
+.side-menu.el-menu--collapse :deep(.s-icon) { margin-right: 0; }
+.side-menu.el-menu--collapse :deep(.el-sub-menu__title) {
+  padding: 0 !important;
+  justify-content: center;
+}
+.side-menu.el-menu--collapse :deep(.el-sub-menu__title .s-icon) { margin-right: 0; }
+.side-menu.el-menu--collapse :deep(.el-sub-menu .el-menu) { display: none; }
+.logo.collapsed .logo-text { display: none; }
 /* 图2风格：圆角背景块菜单 */
 .side-menu :deep(.el-menu-item) {
   border-radius: 8px;

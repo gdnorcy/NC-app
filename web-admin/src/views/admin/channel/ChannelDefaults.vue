@@ -1,9 +1,12 @@
 <template>
   <div>
-    <div class="page-header">
+    <div v-if="!embedded" class="page-header">
       <el-button @click="$router.back()"><el-icon><ArrowLeft /></el-icon>返回</el-button>
       <h2 class="page-title">平台默认配置</h2>
       <el-button type="primary" @click="save" :loading="saving" style="margin-left:auto;">保存配置</el-button>
+    </div>
+    <div v-else style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+      <el-button type="primary" @click="save" :loading="saving">保存配置</el-button>
     </div>
 
     <el-alert type="info" :closable="false" style="margin-bottom:16px;">
@@ -71,6 +74,7 @@ import { reactive, ref, onMounted } from 'vue';
 import { fetchChannelDefaults, updateChannelDefaults } from '../../../api';
 import { ElMessage } from 'element-plus';
 
+const props = defineProps({ embedded: { type: Boolean, default: false } });
 const saving = ref(false);
 const defaultsForm = reactive({
   mini: { appid: '', page: 'pages/index/index' },

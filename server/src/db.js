@@ -662,6 +662,15 @@ function migrate(db) {
       sort_order INTEGER NOT NULL DEFAULT 0,
       UNIQUE(app_id, key)
     );
+    CREATE TABLE IF NOT EXISTS app_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      icon TEXT NOT NULL DEFAULT 'apps',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS solution_apps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       solution_id INTEGER NOT NULL,
@@ -1568,6 +1577,40 @@ function migrate(db) {
   }
   if (!colExists(db, 'enterprise_public_pool', 'floated_at')) {
     db.exec('ALTER TABLE enterprise_public_pool ADD COLUMN floated_at TEXT');
+  }
+
+  // —— 应用中心：应用分类 + 应用归分类 + channel 应用 ——
+  if (!colExists(db, 'apps', 'category')) {
+    db.exec("ALTER TABLE apps ADD COLUMN category TEXT NOT NULL DEFAULT 'industry'");
+  }
+  const presetCats = [
+    ['默认分类', 'apps'], ['基础功能', 'settings'], ['全端渠道', 'channel'], ['营销引流', 'analytics'],
+    ['客群维护', 'customer'], ['行业应用', 'apps'], ['高级功能', 'badge'], ['管理工具', 'logs'],
+  ];
+  const catIns = db.prepare('INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES (?, ?, ?)');
+  presetCats.forEach(([n, ic], idx) => catIns.run(n, ic, idx + 1));
+  // 应用归分类 + 图标规范化（SVG 图标名，符合 SIcon 体系）
+  db.exec("UPDATE apps SET category = '行业应用', icon = 'panorama', updated_at = datetime('now') WHERE code = 'panorama'");
+  db.exec("UPDATE apps SET category = '行业应用', icon = 'card', updated_at = datetime('now') WHERE code = 'card'");
+  db.exec("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('channel', '全端渠道', '管理H5、小程序、公众号、PC网站各端渠道配置与发布', 'channel', '全端渠道', 3, 1)");
+  // 兼容历史错误归属（英文 code 写回分类中文名）
+  db.exec("UPDATE apps SET category = '行业应用', updated_at = datetime('now') WHERE category IN ('industry','panorama','card')");
+  db.exec("UPDATE apps SET category = '全端渠道', updated_at = datetime('now') WHERE category IN ('channel') AND code = 'channel'");
+  // channel 应用功能菜单（方案权限模型要求每个应用登记菜单）
+  const channelMenu = [
+    ['总览', 'channel:overview', '数据洞察'], ['渠道管理', 'channel:view', '渠道查看'], ['渠道管理', 'channel:edit', '渠道配置'],
+    ['发布管理', 'channel:publish', '发布管理'], ['系统设置', 'channel:setting', '设置查看'],
+  ];
+  const chRow = db.prepare("SELECT id FROM apps WHERE code = 'channel'").get();
+  if (chRow) {
+    const chMenuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+    channelMenu.forEach(([mod, key, label], idx) => chMenuIns.run(chRow.id, mod, mod, key, label, idx + 1));
+  }
+  // 演示方案自动纳入 channel 应用（demo 动态全量，此处补 solution_apps 保证一致性）
+  const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
+  const chApp = db.prepare("SELECT id FROM apps WHERE code = 'channel'").get();
+  if (demoRow && chApp && !db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, chApp.id)) {
+    db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, chApp.id);
   }
 
   // —— 入驻口令使用审计 ——
