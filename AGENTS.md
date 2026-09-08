@@ -336,6 +336,14 @@ npm run test:frontend
 - **建表在 db.js 迁移**：`panorama_leads` 建表语句必须放 createDb 迁移（幂等），不能只在运行库手动建，否则测试临时库无表报 `no such table`。
 - **关键纠正**：`web/` 查看端是 **vite 构建产物部署**（HTML 引用 `/assets/main-*.js` 哈希），**不是源码直出**！改 `web/src/**` 后必须 `npm run build -w web` 重新构建（产物 web/dist 被 gitignore，不入库），否则浏览器加载旧 chunk 看不到新功能（排查特征：`document.querySelectorAll('script')` 的 src 不带新代码、功能缺失但服务端文件已含新代码）。
 
+## 全景跳转点挂表单 + 线索统一汇总 + 小程序表单（2026-09-08 P0 补充）
+
+- **scene 跳转点可挂表单**：编辑端 scene 热点同样显示「留资表单」开关（文案「开启后访客提交线索才可跳转目标场景」）；saveHotspot 组装时 `formEnabled` 为 true 即存 form（**不要求 formFields 非空**，空时默认 `['name','phone']`，否则开关开启但字段未勾选会判空丢表单）。
+- **C 端（web）**：`openHotspotPopup(hs, afterSubmit)` 统一渲染标题/内容/表单；scene 分支 `hs.form.enabled` → 弹表单，提交成功后 `afterSubmit()` 调 `jumpScene(targetSceneId)` 跳转；无 form 直接跳转。提交 handler 通过 `formBox._hs.afterSubmit` 回调。
+- **小程序端（mp-weixin）**：`web-app/src/components/PanoramaViewer.vue` 热点弹窗内渲染表单（v-for fields + v-model formValues + 提交按钮），`submitHotspotForm` POST `/api/card/panorama/leads` + `track('form_submit')`；scene 热点 `h.form.enabled` 时先弹表单，提交成功 setTimeout 800ms 后 `$emit('scene-hotspot', h)` 跳转；组件新增 `sceneId` prop（viewer.vue 传 `:sceneId="currentScene.id"`），提交 sceneId 用 `h.sceneId || this.sceneId`。
+- **线索统一汇总（租户后台）**：card「表单收集」页（`FormCollect.vue`，CardTabs label 已改「线索收集」）页内 el-tabs「名片表单 / 全景留资」——名片表单为原 CRUD，全景留资复用线索表格（customerApiCall `/plans` + `/panorama/leads?planId=` + 导出 CSV），AppPageHeader title「线索收集」desc「名片页表单与全景热点留资的统一线索汇总」；全景应用内「线索管理」Tab 保留（同一数据源）。
+- **管理后台构建陷阱**：build:admin 清理旧 chunk 后，**浏览器 Service Worker 可能缓存旧 customer-*.js**（全景老站 sw.js scope 覆盖 /customer），导致「代码改了但页面行为不变」。排查/验证前先清 SW：`navigator.serviceWorker.getRegistrations() → unregister` + `caches.keys() → delete`，再加载；生产排查特征：页面 script src 是旧哈希名（服务端 assets 目录已无该文件）。
+
 ## SQLite datetime 写法规范（2026-09-08 新增）
 
 - SQLite 时间函数必须写 `datetime('now')`（**单引号**）；`datetime("now")` 双引号会被 SQLite 解析为列名，报 `no such column: "now"` 导致接口 500。

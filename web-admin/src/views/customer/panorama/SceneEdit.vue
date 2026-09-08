@@ -107,12 +107,12 @@
         </el-form-item>
         <el-form-item label="标题"><el-input v-model="hotspotForm.title" /></el-form-item>
         <el-form-item label="内容" v-if="hotspotForm.type === 'info'"><el-input v-model="hotspotForm.content" type="textarea" /></el-form-item>
-        <el-form-item v-if="hotspotForm.type === 'info'">
+        <el-form-item>
           <template #label>留资表单</template>
           <el-switch v-model="hotspotForm.formEnabled" />
-          <span style="font-size:12px;color:#86909C;margin-left:8px;">开启后访客可在弹窗提交线索</span>
+          <span style="font-size:12px;color:#86909C;margin-left:8px;">{{ hotspotForm.type === 'scene' ? '开启后访客提交线索才可跳转目标场景' : '开启后访客可在弹窗提交线索' }}</span>
         </el-form-item>
-        <template v-if="hotspotForm.type === 'info' && hotspotForm.formEnabled">
+        <template v-if="hotspotForm.formEnabled">
           <el-form-item label="表单标题"><el-input v-model="hotspotForm.formTitle" placeholder="留资表单" maxlength="24" /></el-form-item>
           <el-form-item label="收集字段">
             <el-checkbox-group v-model="hotspotForm.formFields">
@@ -229,14 +229,15 @@ function editHotspot(i) {
   showHotspot.value = true;
 }
 function saveHotspot() {
-  // 组装留资表单配置（仅 info 热点且启用时落 form 字段）
+  // 组装留资表单配置（info/scene 热点均可挂表单；scene 开启后访客提交线索才跳转）
   const payload = { ...hotspotForm };
-  if (hotspotForm.type === 'info' && hotspotForm.formEnabled && hotspotForm.formFields.length) {
+  if (hotspotForm.formEnabled) {
+    const keys = hotspotForm.formFields && hotspotForm.formFields.length ? hotspotForm.formFields : ['name', 'phone'];
     const fieldLabels = { name: '姓名', phone: '手机号', message: '留言' };
     payload.form = {
       enabled: true,
       title: hotspotForm.formTitle || '留资表单',
-      fields: hotspotForm.formFields.map((key) => ({ key, label: fieldLabels[key] || key, required: key !== 'message' })),
+      fields: keys.map((key) => ({ key, label: fieldLabels[key] || key, required: key !== 'message' })),
     };
   } else {
     payload.form = null;

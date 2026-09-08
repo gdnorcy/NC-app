@@ -7,6 +7,7 @@
       :hotspots="currentScene.hotspots || []"
       :autoRotate="autoRotate"
       :meta="currentScene.meta || {}"
+      :sceneId="currentScene.id"
       @scene-hotspot="onSceneHotspot"
     />
     <!-- 场景切换 -->

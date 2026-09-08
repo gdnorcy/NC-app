@@ -64,8 +64,32 @@
     <!-- 热点弹窗 -->
     <view v-if="activeHotspot" class="hotspot-popup">
       <view class="hotspot-title">{{ activeHotspot.title }}</view>
-      <view class="hotspot-content">{{ activeHotspot.content }}</view>
-      <view class="hotspot-close" @tap="activeHotspot = null">×</view>
+      <view v-if="activeHotspot.content" class="hotspot-content">{{ activeHotspot.content }}</view>
+      <view v-else-if="activeHotspot.type === 'scene'" class="hotspot-content">提交后将进入目标场景</view>
+      <!-- 留资表单 -->
+      <block v-if="activeForm">
+        <view v-for="(f, fi) in activeForm.fields" :key="f.key" class="hotspot-form-field">
+          <text class="hotspot-form-label">{{ f.label }}{{ f.required ? ' *' : '' }}</text>
+          <textarea
+            v-if="f.key === 'message'"
+            class="hotspot-form-input"
+            :value="formValues[f.key] || ''"
+            placeholder="请输入留言"
+            @input="onFormInput(f.key, $event)"
+          />
+          <input
+            v-else
+            class="hotspot-form-input"
+            :type="f.key === 'phone' ? 'number' : 'text'"
+            :value="formValues[f.key] || ''"
+            :placeholder="'请输入' + f.label"
+            @input="onFormInput(f.key, $event)"
+          />
+        </view>
+        <view class="hotspot-form-msg" :style="{ color: formMsgColor }">{{ formMsg }}</view>
+        <view class="hotspot-form-submit" :class="{ disabled: formSubmitting }" @tap="submitHotspotForm">提交</view>
+      </block>
+      <view class="hotspot-close" @tap="closeHotspot">×</view>
     </view>
   </view>
 </template>
@@ -73,6 +97,7 @@
 <script>
 import { hotspotDir, projectHotspots } from '@/utils/panorama.js';
 import { normalizeHotspotStyle, hotspotColor } from '@/utils/hotspot-style.js';
+import { track } from '@/utils/analytics';
 
 export default {
   name: 'PanoramaViewer',
@@ -81,6 +106,7 @@ export default {
     hotspots: { type: Array, default: () => [] },
     autoRotate: { type: Boolean, default: false },
     meta: { type: Object, default: () => ({}) },
+    sceneId: { type: [Number, String], default: 0 },
   },
   emits: ['update:autoRotate', 'scene-hotspot'],
   data() {
@@ -89,6 +115,10 @@ export default {
       loading: true,
       progress: 0,
       activeHotspot: null,
+      formValues: {},
+      formMsg: '',
+      formMsgColor: '#f53f3f',
+      formSubmitting: false,
       _vpW: 0,
       _vpH: 0,
       viewer: null,
@@ -104,6 +134,9 @@ export default {
   computed: {
     hsStyle() {
       return normalizeHotspotStyle(this.meta.hotspotStyle);
+    },
+    activeForm() {
+      return this.activeHotspot && this.activeHotspot.form && this.activeHotspot.form.enabled ? this.activeHotspot.form : null;
     },
     hasMusic() {
       return !!(this.meta && this.meta.bgMusic);
@@ -238,11 +271,76 @@ export default {
       return { transform: 'rotate(' + angle + 'deg)', opacity: op };
     },
     onHotspotTap(h) {
+      // scene 跳转点：开启留资表单时先弹表单，提交成功后跳转；否则直接跳转
       if (h.type === 'scene' && h.targetSceneId) {
-        this.$emit('scene-hotspot', h);
+        if (h.form && h.form.enabled) {
+          this.openHotspot(h);
+        } else {
+          this.$emit('scene-hotspot', h);
+        }
         return;
       }
+      this.openHotspot(h);
+    },
+    openHotspot(h) {
       this.activeHotspot = h;
+      this.formValues = {};
+      this.formMsg = '';
+      this.formMsgColor = '#f53f3f';
+      this.formSubmitting = false;
+    },
+    closeHotspot() {
+      this.activeHotspot = null;
+      this.formValues = {};
+      this.formMsg = '';
+    },
+    onFormInput(key, e) {
+      this.formValues[key] = e.detail.value;
+    },
+    async submitHotspotForm() {
+      if (this.formSubmitting) return;
+      const h = this.activeHotspot;
+      const form = h.form;
+      if (!form || !form.fields) return;
+      const fields = {};
+      for (const f of form.fields) {
+        const val = (this.formValues[f.key] || '').trim();
+        if (f.required && !val) {
+          this.formMsg = `请填写${f.label}`;
+          this.formMsgColor = '#f53f3f';
+          return;
+        }
+        if (val) fields[f.key] = val;
+      }
+      this.formSubmitting = true;
+      this.formMsg = '提交中…';
+      this.formMsgColor = '#86909c';
+      try {
+        const res = await uni.request({
+          url: '/api/card/panorama/leads',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          data: { sceneId: h.sceneId || this.sceneId, hotspotTitle: h.title || '', fields },
+        });
+        const data = res.data || {};
+        if (res.statusCode !== 200) throw new Error(data.error || '提交失败');
+        this.formMsg = data.message || '提交成功';
+        this.formMsgColor = '#00b42a';
+        this.formValues = {};
+        track('form_submit', { sceneId: h.sceneId || this.sceneId, hotspotTitle: h.title || '' });
+        // 跳转点挂表单：提交成功后跳转目标场景
+        if (h.type === 'scene' && h.targetSceneId) {
+          setTimeout(() => {
+            this.closeHotspot();
+            this.$emit('scene-hotspot', h);
+          }, 800);
+        }
+      } catch (e) {
+        this.formMsg = (e && e.message) || '提交失败，请稍后重试';
+        this.formMsgColor = '#f53f3f';
+      } finally {
+        this.formSubmitting = false;
+      }
     },
     animate(scene, camera, renderer, w, h) {
       const render = () => {
@@ -526,5 +624,48 @@ export default {
   font-size: 20px;
   color: #86909C;
   padding: 4px;
+}
+.hotspot-form-field {
+  margin-top: 12px;
+}
+.hotspot-form-label {
+  display: block;
+  font-size: 13px;
+  color: #4E5969;
+  margin-bottom: 4px;
+}
+.hotspot-form-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  border: 1px solid #E5E6EB;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+  background: #fff;
+}
+.hotspot-form-field textarea.hotspot-form-input {
+  height: 72px;
+  padding: 8px 12px;
+}
+.hotspot-form-msg {
+  margin-top: 8px;
+  font-size: 12px;
+  min-height: 16px;
+}
+.hotspot-form-submit {
+  margin-top: 8px;
+  height: 40px;
+  border-radius: 8px;
+  background: #165DFF;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hotspot-form-submit.disabled {
+  opacity: 0.6;
 }
 </style>

@@ -4,51 +4,87 @@
 
     <!-- 列表视图 -->
     <template v-if="!editing">
-<AppPageHeader title="表单收集" desc="名片页展示的表单，访客填写后线索自动回流到客户列表">
-<el-button type="primary" @click="startCreate">
-          <SIcon name="template" size="small" color="#fff" />
-          新建表单
-        </el-button>
-</AppPageHeader>
-
-      <div class="content-card">
-        <div v-if="forms.length === 0" class="empty-state">
-          <SIcon name="template" size="xlarge" color="#c9cdd4" />
-          <p>还没有表单，点击右上角「新建表单」创建第一个线索收集表单</p>
-        </div>
-        <el-table v-else :data="forms" style="width: 100%">
-          <el-table-column label="表单" min-width="220">
-            <template #default="{ row }">
-              <div class="f-title">{{ row.title }}</div>
-              <div class="f-desc">{{ row.description || '—' }}</div>
-            </template>
-          </el-table-column>
-          <el-table-column label="字段" width="90">
-            <template #default="{ row }">{{ (row.fields || []).length }} 个</template>
-          </el-table-column>
-          <el-table-column label="挂载" width="120">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.cardId ? '' : 'info'">{{ row.cardId ? '指定名片' : '全平台' }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="提交数" width="90">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="viewSubmissions(row)">{{ row.submissionCount ?? 0 }}</el-button>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-switch :model-value="row.status === 'active'" @change="(v) => toggleForm(row, v)" />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="140">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="startEdit(row)">编辑</el-button>
-              <el-button link type="danger" @click="removeForm(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+<AppPageHeader title="线索收集" desc="名片页表单与全景热点留资的统一线索汇总" />
+      <el-tabs v-model="tab" class="lead-tabs">
+        <el-tab-pane label="名片表单" name="forms">
+          <div class="tab-toolbar">
+            <span class="tab-desc">名片页展示的表单，访客填写后线索自动回流到客户列表</span>
+            <el-button type="primary" @click="startCreate">
+              <SIcon name="template" size="small" color="#fff" />
+              新建表单
+            </el-button>
+          </div>
+          <div class="content-card">
+            <div v-if="forms.length === 0" class="empty-state">
+              <SIcon name="template" size="xlarge" color="#c9cdd4" />
+              <p>还没有表单，点击右上角「新建表单」创建第一个线索收集表单</p>
+            </div>
+            <el-table v-else :data="forms" style="width: 100%">
+              <el-table-column label="表单" min-width="220">
+                <template #default="{ row }">
+                  <div class="f-title">{{ row.title }}</div>
+                  <div class="f-desc">{{ row.description || '—' }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column label="字段" width="90">
+                <template #default="{ row }">{{ (row.fields || []).length }} 个</template>
+              </el-table-column>
+              <el-table-column label="挂载" width="120">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.cardId ? '' : 'info'">{{ row.cardId ? '指定名片' : '全平台' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="提交数" width="90">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="viewSubmissions(row)">{{ row.submissionCount ?? 0 }}</el-button>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <el-switch :model-value="row.status === 'active'" @change="(v) => toggleForm(row, v)" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="140">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="startEdit(row)">编辑</el-button>
+                  <el-button link type="danger" @click="removeForm(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="全景留资" name="panorama">
+          <div class="tab-toolbar">
+            <span class="tab-desc">访客通过全景热点留资表单提交的线索，可筛选方案并导出 CSV</span>
+            <el-select v-model="panoPlanId" placeholder="全部方案" clearable style="width:180px;" @change="loadPano">
+              <el-option v-for="p in panoPlans" :key="p.id" :label="p.name" :value="p.id" />
+            </el-select>
+            <el-button @click="exportCsv">导出 CSV</el-button>
+          </div>
+          <div class="content-card">
+            <el-table :data="panoLeads" stripe>
+              <el-table-column prop="id" label="ID" width="70" />
+              <el-table-column prop="plan_name" label="方案" width="140" show-overflow-tooltip />
+              <el-table-column prop="scene_name" label="场景" width="140" show-overflow-tooltip />
+              <el-table-column prop="hotspot_title" label="热点" width="140" show-overflow-tooltip />
+              <el-table-column prop="name" label="姓名" width="120" />
+              <el-table-column prop="phone" label="手机号" width="140" />
+              <el-table-column prop="message" label="留言" show-overflow-tooltip />
+              <el-table-column label="自定义字段" width="140">
+                <template #default="{ row }">
+                  <span v-if="extraList(row).length">{{ extraList(row).map(([k, v]) => `${k}:${v}`).join('; ') }}</span>
+                  <span v-else style="color:#86909C;">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="created_at" label="提交时间" width="170" />
+            </el-table>
+            <div v-if="!panoLeads.length" class="empty-state">
+              <SIcon name="template" size="xlarge" color="#c9cdd4" />
+              <p>暂无留资线索。请在 360全景 → 场景编辑中为热点开启「留资表单」后，访客提交即可在这里查看。</p>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </template>
 
     <!-- 新建/编辑整页表单 -->
@@ -123,7 +159,7 @@ import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
-import { publicApi } from '../../../../api';
+import { publicApi, customerApiCall } from '../../../../api';
 import CardTabs from './CardTabs.vue';
 
 const forms = ref([]);
@@ -133,6 +169,31 @@ const editId = ref(null);
 const saving = ref(false);
 const draft = ref({ title: '', description: '', cardId: null, fields: [] });
 const drawer = ref({ show: false, form: null, items: [] });
+const tab = ref('forms');
+// 全景留资线索
+const panoPlans = ref([]);
+const panoPlanId = ref('');
+const panoLeads = ref([]);
+
+const extraList = (row) => {
+  try { return Object.entries(JSON.parse(row.extra || '{}')); } catch { return []; }
+};
+
+async function loadPano() {
+  try {
+    const q = panoPlanId.value ? `?planId=${panoPlanId.value}` : '';
+    const [ps, ls] = await Promise.all([
+      customerApiCall.get('/plans'),
+      customerApiCall.get(`/panorama/leads${q}`),
+    ]);
+    panoPlans.value = ps.plans || [];
+    panoLeads.value = ls.leads || [];
+  } catch (e) { ElMessage.error(e); }
+}
+
+function exportCsv() {
+  window.open(`/api/customer/panorama/leads?export=csv${panoPlanId.value ? `&planId=${panoPlanId.value}` : ''}`, '_blank');
+}
 
 async function load() {
   try {
@@ -222,10 +283,13 @@ async function viewSubmissions(row) {
   } catch (e) { ElMessage.error(e || '加载失败'); }
 }
 
-onMounted(load);
+onMounted(() => { load(); loadPano(); });
 </script>
 
 <style scoped>
+.lead-tabs { margin-top: 16px; }
+.tab-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab-desc { font-size: 13px; color: #86909c; }
 .content-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); }
 .f-title { font-size: 14px; font-weight: 500; color: #1d2129; }
 .f-desc { font-size: 12px; color: #86909c; margin-top: 4px; }
