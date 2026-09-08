@@ -719,9 +719,9 @@ button::after { border: none; }
 .deco-qr { width: 74px; height: 74px; background: #fff; border-radius: 8px; padding: 6px; display: flex; flex-wrap: wrap; gap: 3px; box-sizing: border-box; }
 .dqr-cell { width: calc((74px - 12px - 18px) / 7); height: calc((74px - 12px - 18px) / 7); border-radius: 1px; background: rgba(22,93,255,0.08); }
 .dqr-cell.on { background: #165dff; }
-/* 功能宫格：图标左、文字右两行（左右分布） */
-.grid-box { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px; }
-.grid-item { flex: 1 1 46%; min-width: 130px; display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 12px; padding: 12px; }
+/* 功能宫格：两列排列，图标左、文字右两行 */
+.grid-box { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px; }
+.grid-item { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 12px; padding: 12px; min-width: 0; }
 .grid-ic { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .ic-blue { background: rgba(22,93,255,0.1); color: #165dff; }
 .ic-green { background: rgba(0,180,42,0.1); color: #00b42a; }
