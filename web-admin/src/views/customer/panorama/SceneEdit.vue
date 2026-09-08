@@ -58,12 +58,14 @@
       <div>
         <div class="page-card">
           <h3 style="margin-bottom:16px;">全景图</h3>
-          <el-upload class="upload-area" :auto-upload="false" :show-file-list="false" accept="image/*" @change="handleUpload">
-            <div v-if="form.imagePath" class="preview-wrap">
-              <img :src="form.previewPath || form.imagePath" style="width:100%;border-radius:8px;" />
-              <p style="text-align:center;margin-top:8px;color:#909399;font-size:12px;">点击更换图片</p>
-            </div>
-            <div v-else class="upload-placeholder">
+          <template v-if="form.imagePath">
+            <HotspotEditor :image-url="panoramaUrl" v-model="form.hotspots" @add-at="onAddHotspotAt" @select="onSelectHotspot" />
+            <el-upload class="upload-area" style="margin-top:12px;" :auto-upload="false" :show-file-list="false" accept="image/*" @change="handleUpload">
+              <el-button size="small">更换图片</el-button>
+            </el-upload>
+          </template>
+          <el-upload v-else class="upload-area" :auto-upload="false" :show-file-list="false" accept="image/*" @change="handleUpload">
+            <div class="upload-placeholder">
               <el-icon :size="40"><Upload /></el-icon>
               <p>点击或拖拽上传全景图</p>
               <p style="font-size:12px;color:#909399;">JPG/PNG/WebP，≤50MB</p>
@@ -72,7 +74,7 @@
         </div>
       </div>
     </div>
-    <el-dialog v-model="showHotspot" title="编辑热点" width="500px">
+    <el-dialog v-model="showHotspot" :title="hotspotIndex >= 0 ? '编辑热点' : '添加热点'" width="500px">
       <el-form :model="hotspotForm" label-width="100px">
         <el-form-item label="热点类型">
           <el-radio-group v-model="hotspotForm.type">
@@ -100,6 +102,7 @@
 
 <script setup>
 import AppPageHeader from '../../../components/AppPageHeader.vue';
+import HotspotEditor from '../../../components/HotspotEditor.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { customerApiCall } from '../../../api';
@@ -109,6 +112,10 @@ import { ElMessage } from 'element-plus';
 const route = useRoute();
 const router = useRouter();
 const isEdit = computed(() => !!route.params.sceneId && route.params.sceneId !== 'new');
+const panoramaUrl = computed(() => {
+  if (!form.imagePath) return '';
+  return form.imagePath.startsWith('http') ? form.imagePath : (location.origin + form.imagePath);
+});
 const saving = ref(false);
 const scenes = ref([]);
 const showHotspot = ref(false);
@@ -145,6 +152,16 @@ function addHotspot() {
   hotspotIndex.value = -1;
   Object.assign(hotspotForm, { type: 'info', title: '', content: '', targetSceneId: null, yaw: 0, pitch: 0 });
   showHotspot.value = true;
+}
+// 画面点击添加：角度由 3D 编辑器自动计算
+function onAddHotspotAt({ yaw, pitch }) {
+  hotspotIndex.value = -1;
+  Object.assign(hotspotForm, { type: 'info', title: '', content: '', targetSceneId: null, yaw, pitch });
+  showHotspot.value = true;
+}
+// 点击热点标记编辑
+function onSelectHotspot(h, idx) {
+  editHotspot(idx);
 }
 function editHotspot(i) {
   hotspotIndex.value = i;
