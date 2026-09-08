@@ -493,3 +493,13 @@ npm run test:frontend
 - **白名单**：dist_distributor 表 + `GET/POST/DELETE /distribution/distributors`（addDistributor 重复添加拒绝 / 移除只置 status=0）；DistHome 配置表单「分销商开通门槛」radio + 分销商 Tab gate=2 时显示白名单管理卡片（用户ID+身份添加 / 表格移除）。
 - **审核通知**：reviewWithdraw 的 approve/reject/done 三分支写 card_message（type='system'，title 提现审核通过/驳回/打款完成，content 含金额与驳回原因/流水号，link /pages/card/distribution）；写入失败 try/catch 不阻断审核主流程；C 端消息中心 iconOf 未知类型兜底 'dynamic'。
 - 测试：gate 三态（付费门槛无订单不返佣→付费后返佣；名单外不返佣→名单内返佣→移除）+ 审核通知三态（通过/打款含流水号/驳回含原因），distribution.test.js 34 用例。
+
+## 全景小程序端 three 渲染接入（2026-09-08 新增）
+
+- **底座**：`threejs-miniprogram@0.0.8`（dist/index.js 自包含 three r125 bundle，导出 `createScopedThreejs(canvas)`）+ `three@0.125.2` 装在 web-app（workspace 下直接 cd web-app && npm i，根 npm -w 在沙箱报 No workspaces found）。
+- **条件编译隔离**：PanoramaViewer.vue script 顶部 `// #ifdef MP-WEIXIN` import createScopedThreejs，H5 构建自动排除（产物不含小程序代码）；H5 继续动态加载 static/three r160，互不影响。
+- **小程序渲染链路**：`uni.createSelectorQuery().in(this).select('#panorama-canvas-' + sceneId).fields({node:true,size:true})` 拿 canvas node → createScopedThreejs → WebGLRenderer({canvas}) → SphereGeometry(50,64,48) + MeshBasicMaterial({side:BackSide}) → 纹理用 `canvas.createImage()`（小程序原生，src 必须完整 https URL）→ `canvas.requestAnimationFrame` 循环，相机公式与 H5 animate 完全一致（radius 100，lon/lat，lookAt 原点）。
+- **相对路径补全**：cardApi.js 导出 `API_DOMAIN`（BASE_URL 去掉 /api 段）；resolveImageUrl 对非 http 开头路径拼 API_DOMAIN（小程序 createImage 不能解析相对路径）。
+- **canvas id 带 sceneId 后缀**：页面多场景实例时 selector 不冲突；canvas type="webgl" 同层渲染，.hotspot-layer z-index 5 覆盖其上。
+- **构建**：`cd web-app && npm run build:h5` + `npm run build:mp-weixin`（根 npm -w 沙箱不可用）；H5 产物同步 server/public/card 必须**先 rm -rf assets 再 cp -R**（uni build 不清理 server 侧旧 chunk，残留多个 pages-viewer-viewer 旧哈希会让浏览器加载旧代码）。
+- **验收**：H5 `/?plan=1&scene=1` 全景渲染/热点/场景切换正常（回归）；小程序产物 components/PanoramaViewer.js 含 createScopedThreejs、vendor.js 731KB（three 打包）；小程序真机/开发者工具需实机验证。

@@ -179,3 +179,6 @@ export const paymentApi = {
   // 我的订单
   getMyOrders: (params) => paymentRequest('/my-orders' + (params ? '?' + new URLSearchParams(params).toString() : '')),
 };
+
+// 接口域名（不含 /api 路径段）：用于相对路径资源（如全景图 /uploads/xxx）拼接完整 URL
+export const API_DOMAIN = BASE_URL.replace(/\/api\/[^/]*$/, '');

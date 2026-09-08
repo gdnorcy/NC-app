@@ -12,7 +12,7 @@
     <canvas
       v-else
       type="webgl"
-      id="panorama-canvas"
+      :id="'panorama-canvas-' + sceneId"
       class="panorama-canvas"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
@@ -98,6 +98,10 @@
 import { hotspotDir, projectHotspots } from '@/utils/panorama.js';
 import { normalizeHotspotStyle, hotspotColor } from '@/utils/hotspot-style.js';
 import { track } from '@/utils/analytics';
+import { API_DOMAIN } from '@/utils/cardApi';
+// #ifdef MP-WEIXIN
+import { createScopedThreejs } from 'threejs-miniprogram';
+// #endif
 
 export default {
   name: 'PanoramaViewer',
@@ -233,10 +237,81 @@ export default {
       this.viewer = { scene, camera, renderer, THREE, isDragging: false, lon: 0, lat: 0 };
     },
     initMiniProgramViewer() {
-      // 小程序端：threejs-miniprogram 适配（webgl canvas）
-      // 纹理/手势投影逻辑与 H5 共用 projectHotspots；three 渲染由页面按需接入
-      this.loading = false;
-      this.viewer = { isDragging: false, lon: 0, lat: 0, miniProgram: true };
+      return new Promise((resolve, reject) => {
+        // #ifdef MP-WEIXIN
+        try {
+          const query = uni.createSelectorQuery().in(this);
+          query.select('#panorama-canvas-' + this.sceneId).fields({ node: true, size: true }).exec((res) => {
+            try {
+              const info = res && res[0];
+              if (!info || !info.node) throw new Error('canvas node 获取失败');
+              const canvas = info.node;
+              const w = info.width || 300;
+              const h = info.height || 400;
+              const THREE = createScopedThreejs(canvas);
+              const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+              const sysInfo = wx.getSystemInfoSync();
+              renderer.setPixelRatio(Math.min(sysInfo.pixelRatio || 2, 2));
+              renderer.setSize(w, h);
+              const scene = new THREE.Scene();
+              const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 200);
+              const geometry = new THREE.SphereGeometry(50, 64, 48);
+              const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
+              const sphere = new THREE.Mesh(geometry, material);
+              scene.add(sphere);
+              const finish = () => {
+                this.loading = false;
+                this.viewer = { scene, camera, renderer, THREE, canvas, sphere, isDragging: false, lon: 0, lat: 0, miniProgram: true };
+                this.animateMiniProgram(w, h);
+                resolve();
+              };
+              // 纹理：小程序 canvas.createImage 加载全景图
+              const img = canvas.createImage();
+              img.onload = () => {
+                const tex = new THREE.Texture(img);
+                tex.needsUpdate = true;
+                material.map = tex;
+                material.needsUpdate = true;
+                finish();
+              };
+              img.onerror = () => { console.error('全景图加载失败:', this.imageUrl); finish(); };
+              img.src = this.resolveImageUrl(this.imageUrl);
+            } catch (e) { console.error('小程序全景初始化失败:', e); this.loading = false; reject(e); }
+          });
+        } catch (e) { console.error('小程序全景初始化失败:', e); this.loading = false; reject(e); }
+        // #endif
+        // #ifndef MP-WEIXIN
+        this.loading = false;
+        this.viewer = { isDragging: false, lon: 0, lat: 0, miniProgram: true };
+        resolve();
+        // #endif
+      });
+    },
+    // 相对路径资源拼完整域名（小程序端 canvas.createImage 必须完整 https URL）
+    resolveImageUrl(url) {
+      if (!url) return '';
+      if (/^https?:\/\//.test(url)) return url;
+      return url.startsWith('/') ? API_DOMAIN + url : API_DOMAIN + '/' + url;
+    },
+    // 小程序端渲染循环：canvas.requestAnimationFrame + 与 H5 一致的相机公式
+    animateMiniProgram(w, h) {
+      if (!this.viewer || !this.viewer.canvas) return;
+      const { scene, camera, renderer, THREE, canvas } = this.viewer;
+      const render = () => {
+        if (this._destroyed || !this.viewer || !this.viewer.renderer) return;
+        canvas.requestAnimationFrame(render);
+        if (this.autoRotate && !this.viewer.isDragging) this.viewer.lon += 0.1;
+        this.viewer.lat = Math.max(-85, Math.min(85, this.viewer.lat));
+        const phi = THREE.MathUtils.degToRad(90 - this.viewer.lat);
+        const theta = THREE.MathUtils.degToRad(this.viewer.lon);
+        camera.position.x = 100 * Math.sin(phi) * Math.cos(theta);
+        camera.position.y = 100 * Math.cos(phi);
+        camera.position.z = 100 * Math.sin(phi) * Math.sin(theta);
+        camera.lookAt(scene.position);
+        renderer.render(scene, camera);
+        this.projectHotspots(w, h);
+      };
+      render();
     },
     // 热点世界方向向量（纯函数，见 utils/panorama.js）
     hotspotDir(h) {
