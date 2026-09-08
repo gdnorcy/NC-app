@@ -543,3 +543,14 @@ npm run test:frontend
 ## 面包屑链接路径规范（2026-09-08 更新）
 
 - 两 Layout 的 CRUMB_LINKS 映射值必须用 **hash 路由内部路径**（router 顶层 path 是 `/`），如 `/apps`、`/dashboard`、`/apps-center`、`/customers`、`/solutions`、`/settings`、`/finance`、`/channel`；**禁止**写成 `/customer/apps`、`/admin/customers` 等带前端挂载前缀的完整路径（会生成 `#/customer/apps` 无匹配路由，被守卫拦截回工作台）。
+
+## 条件渲染链配对规范（2026-09-08 新增）
+
+- 多分支互斥显示必须用 `v-if → v-else-if → v-else` **串联**；两个独立 `v-if` + 一个 `v-else` 时，`v-else` 只配对**最近的前一个兄弟 v-if**，会造成「正常分支 + 空态分支同时渲染」（曾导致套餐与续费页出现两个「方案续费」区块：有方案且自助续费开启时，方案卡正常显示 + 空态「未开通任何解决方案」同时出现）。
+- 排查特征：页面同一标题/区块出现两次、一个正常一个空态/提示；改动后 grep 确认 v-if/v-else-if/v-else 数量配平（v-if+v-else-if 总数 = v-else 数+1）。
+
+## 应用卡片样式规范（2026-09-08 更新）
+
+- **卡片必须 flex column**：`.app-card { display:flex; flex-direction:column; align-items:center; }`，描述区 `flex: 1 1 auto` 撑开剩余空间，按钮 `margin-top:16px` 贴卡底——否则描述行数不同导致宽屏多列时按钮不在同一水平线。
+- 应用 code（panorama/card/channel 等）颜色**禁止**用 `#c0c4cc`（白底对比度不足、默认态不可读），统一辅助文字色 `#86909C`。
+- 总后台 AppCenter 卡片已用 `-webkit-line-clamp: 2` 固定描述 2 行高，无需 flex；租户端 Apps.vue 用 flex column 方案。

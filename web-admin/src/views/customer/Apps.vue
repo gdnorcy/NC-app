@@ -40,7 +40,7 @@
           <div class="app-name">{{ app.name }}</div>
           <div class="app-code">{{ app.code }}</div>
           <div class="app-desc">{{ app.description }}</div>
-          <el-button type="primary" size="small" @click="enterApp(app)">进入应用</el-button>
+          <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
         </div>
       </div>
     </main>
@@ -221,6 +221,9 @@ async function persistSort() {
   text-align: center;
   transition: all 0.2s;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .app-card:hover {
   border-color: rgba(22, 93, 255, 0.4);
@@ -243,6 +246,7 @@ async function persistSort() {
 .app-card:hover .app-icon { color: #165dff; }
 .app-icon { color: #4e5969; transition: color 0.2s; }
 .app-name { font-size: 16px; font-weight: 600; color: #1d2129; }
-.app-code { font-size: 11px; color: #c0c4cc; margin-top: 2px; font-family: monospace; }
-.app-desc { font-size: 13px; color: #86909c; margin: 8px 0 16px; min-height: 38px; line-height: 1.5; }
+.app-code { font-size: 11px; color: #86909c; margin-top: 2px; font-family: monospace; }
+.app-desc { font-size: 13px; color: #86909c; margin: 8px 0 0; min-height: 38px; line-height: 1.5; flex: 1 1 auto; width: 100%; }
+.enter-btn { margin-top: 16px; }
 </style>

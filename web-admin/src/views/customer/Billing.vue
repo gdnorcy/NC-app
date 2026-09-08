@@ -75,7 +75,7 @@
       <div class="usage-note">价格为总后台「解决方案 → 价格设置」中配置的用户价/续费价；支付完成后服务期自动顺延。</div>
     </div>
     <!-- 未开通自助续费提示（selfRenew=false：不显示续费购买入口） -->
-    <div class="page-card" v-if="(planData.solutions || []).length && planData.selfRenew === false">
+    <div class="page-card" v-else-if="(planData.solutions || []).length && planData.selfRenew === false">
       <h3 class="section-title">续费服务</h3>
       <el-alert type="info" show-icon :closable="false" style="border-radius:8px;">
         <template #title>
