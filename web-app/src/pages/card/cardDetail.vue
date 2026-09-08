@@ -294,7 +294,21 @@ const needTagList = computed(() => {
 
 onMounted(async () => {
   const pages = getCurrentPages();
-  const id = pages[pages.length - 1].options.id;
+  const options = pages[pages.length - 1].options || {};
+  const id = options.id;
+  // 推广二维码扫码进入：静默绑定上下级（首次进入永久锁定，不弹窗）
+  const inviter = Number(options.inviter || '');
+  if (inviter && inviter !== Number(uni.getStorageSync('card_user')?.id || 0)) {
+    if (uni.getStorageSync('card_token')) {
+      try {
+        await cardApi.distBind(inviter, 'individual');
+      } catch (e) {}
+    } else {
+      // 未登录先暂存，登录后由 myCard 页补绑
+      const prev = uni.getStorageSync('pendingInviter');
+      if (prev !== String(inviter)) uni.setStorageSync('pendingInviter', String(inviter));
+    }
+  }
   if (id) {
     // 记住最近查看的名片，供底部"名片"Tab切回时使用
     uni.setStorageSync('cardLastViewId', id);

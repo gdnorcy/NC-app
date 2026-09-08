@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createDb } from '../src/db.js';
-import { createDistributionService } from '../src/services/distribution.js';
+import { createDistributionService, buildShareUrl } from '../src/services/distribution.js';
 
 describe('分销体系（二级推广分销底座）', () => {
   let db, dist;
@@ -327,5 +327,12 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.equal(back.settle_status, 'refunded');
     const logs = db.prepare("SELECT COUNT(*) n FROM dist_user_log WHERE split_id = ? AND status = 'charged_back'").get(r.id).n;
     assert.equal(logs, 5, '全民2+类目2+区域1 共5条分红流水全部回滚');
+  });
+
+  it('P2 推广分享链接：含名片ID与推广人参数，去尾斜杠', () => {
+    const url = buildShareUrl(7, 'http://localhost:3000/');
+    assert.ok(url.includes('id=7&inviter=7'), `链接应带 id/inviter: ${url}`);
+    assert.ok(!url.includes('3000//card'), 'origin 尾部斜杠应去除');
+    assert.ok(url.includes('/card/#/pages/card/cardDetail'), '落地页应为名片详情');
   });
 });

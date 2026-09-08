@@ -33,8 +33,21 @@
       <view class="s-card"><view class="s-num">{{ fen(summary.monthCommission) }}</view><view class="s-lb">本月佣金(元)</view></view>
     </view>
     <view class="qrcode-box">
-      <button class="mini-btn" @click="shareCard">分享名片赚佣金</button>
-      <text class="qrcode-tip">把名片分享给客户，客户付费后自动绑定并产生推广佣金</text>
+      <button class="mini-btn" @click="openQr">我的推广二维码</button>
+      <button class="mini-btn ghost" @click="copyShareUrl">复制推广链接</button>
+      <text class="qrcode-tip">把名片分享给客户，客户扫码进入后自动绑定上下级，付费即可获取推广佣金</text>
+    </view>
+
+    <!-- 推广二维码弹层 -->
+    <view v-if="qr.show" class="qr-mask" @click="qr.show = false">
+      <view class="qr-panel" @click.stop>
+        <view class="qr-title">我的推广二维码</view>
+        <image v-if="qr.dataUrl" class="qr-img" :src="qr.dataUrl" mode="aspectFit" />
+        <view v-else class="qr-loading">二维码生成中…</view>
+        <view class="qr-hint">客户扫码进入我的名片，首次进入自动绑定为我的下级</view>
+        <button class="mini-btn" @click="copyShareUrl">复制推广链接</button>
+        <button class="mini-btn ghost" @click="qr.show = false">关闭</button>
+      </view>
     </view>
 
     <!-- 合伙人模块（插件启用 + 本人为合伙人才显示） -->
@@ -191,6 +204,29 @@ function shareCard() {
   });
 }
 
+const qr = ref({ show: false, dataUrl: '', shareUrl: '' });
+async function openQr() {
+  if (qr.dataUrl) { qr.show = true; return; }
+  try {
+    const res = await cardApi.distQrcode();
+    qr.value = { show: true, dataUrl: res.qrDataUrl, shareUrl: res.shareUrl };
+  } catch (e) {
+    uni.showToast({ title: e.message || '二维码生成失败', icon: 'none' });
+  }
+}
+async function copyShareUrl() {
+  if (!qr.value.shareUrl) {
+    try {
+      const res = await cardApi.distQrcode();
+      qr.value = { show: qr.value.show, dataUrl: res.qrDataUrl, shareUrl: res.shareUrl };
+    } catch (e) { uni.showToast({ title: e.message || '生成失败', icon: 'none' }); return; }
+  }
+  try {
+    await uni.setClipboardData({ data: qr.value.shareUrl });
+    uni.showToast({ title: '推广链接已复制', icon: 'success' });
+  } catch (e) {}
+}
+
 function fen(v) { return ((Number(v) || 0) / 100).toFixed(2); }
 function logTypeLabel(t) { return { level1: '推广佣金', level2: '推广佣金', partner: '合伙人分红', share_all: '全民股东', share_cat: '类目股东', share_area: '区域股东' }[t] || t || '-'; }
 function statusLabel(s) { return { pending: '待结算', settled: '已结算', charged_back: '已扣回' }[s] || s; }
@@ -222,7 +258,14 @@ onShow(() => {
 .s-lb { font-size: 11px; color: #86909c; margin-top: 2px; }
 .qrcode-box { margin: 12px 20px 0; background: #fff; border-radius: 10px; padding: 14px; }
 .mini-btn { background: #165dff; color: #fff; border-radius: 8px; font-size: 14px; height: 40px; line-height: 40px; }
+.mini-btn.ghost { background: #f2f3f5; color: #1d2129; margin-left: 10px; }
 .qrcode-tip { display: block; font-size: 11px; color: #86909c; margin-top: 8px; }
+.qr-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; display: flex; align-items: center; justify-content: center; }
+.qr-panel { width: 300px; background: #fff; border-radius: 14px; padding: 24px 20px 20px; text-align: center; }
+.qr-title { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 14px; }
+.qr-img { width: 220px; height: 220px; margin: 0 auto; }
+.qr-loading { height: 220px; line-height: 220px; color: #86909c; font-size: 13px; }
+.qr-hint { font-size: 12px; color: #86909c; margin: 10px 0 14px; }
 .tabs { display: flex; gap: 8px; margin: 0 20px 10px; }
 .tab { padding: 6px 14px; border-radius: 16px; background: #fff; color: #4e5969; font-size: 13px; }
 .tab.on { background: #165dff; color: #fff; }

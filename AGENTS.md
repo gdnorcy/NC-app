@@ -426,3 +426,11 @@ npm run test:frontend
 - C 端 `GET /api/card/distribution/summary` 必须返回 isPartner/shareTags/partnerPending/partnerTotal/sharePending/shareTotal（shareTags 由 getSummary 生成：全局合伙人/团队合伙人/全民股东/行业-XX股东/地区-XX股东）——漏字段会导致小程序分销中心模板 `summary.shareTags.length` 白屏。
 - 前端 4 个配置页：web-admin/src/views/customer/apps/dist/{PartnerHome,ShareAllHome,ShareCatHome,ShareAreaHome}.vue（AppPageHeader + 插件开关 + 配置表单 + 成员表格/分组）；数据大盘 stats 新增 bonusByType（partner/share_all/share_cat/share_area）+ 各成员计数卡片。
 - 小程序分销中心 distribution.vue：合伙人模块（isPartner 才显示）+ 股东中心（shareTags 标签组 / 无身份提示 + 待分红/累计），收益明细 Tab 已含 partner/share_all/share_cat/share_area。
+
+## 推广二维码 P2（2026-09-08 新增）
+
+- 后端 `GET /api/card/distribution/qrcode`（auth；未入驻返回 `{ok:false, error:'未入驻任何租户，暂无法生成推广码'}` 而非 403）：用 `qrcode` 库（server 已有依赖）生成 dataURL（margin1/320px/M），shareUrl = `buildShareUrl(userId, origin)` = `{origin}/card/#/pages/card/cardDetail?id={userId}&inviter={userId}`；纯函数 `buildShareUrl` 在 services/distribution.js 模块级导出（routes 里要用模块导出，不要用服务实例 svc 访问——曾导致 500）。
+- C 端绑定入口不变：`POST /distribution/bind`（sourceType='qrcode'，首次永久锁定/防环/双身份已覆盖）。
+- 扫码落地静默绑定：cardDetail.vue onMounted 读 `options.inviter`，已登录且非本人 → distBind；未登录 → 暂存 `pendingInviter`，myCard.vue onMounted 登录态补绑（绑定后即删）。
+- 小程序分销中心：推广模块改为「我的推广二维码」弹层（qr-mask 遮罩 + qr-img 二维码 + 复制推广链接 + 关闭）+「复制推广链接」按钮；uni-button 在 H5 端 bu.click ref 可能不触发，浏览器实测用 JS dispatchEvent(MouseEvent('click'))。
+- cardApi 新增 `distQrcode: () => request('/distribution/qrcode','GET')`。

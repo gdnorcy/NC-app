@@ -705,3 +705,9 @@ export function createDistributionService(db) {
 
   return svc;
 }
+
+/** 推广分享链接（PRD：名片ID + 租户归属，扫码跳名片自动绑定上下级） */
+export function buildShareUrl(userId, origin) {
+  const base = origin.replace(/\/$/, '');
+  return `${base}/card/#/pages/card/cardDetail?id=${Number(userId)}&inviter=${Number(userId)}`;
+}

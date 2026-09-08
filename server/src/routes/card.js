@@ -6,7 +6,7 @@ import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
-import { createDistributionService } from '../services/distribution.js';
+import { createDistributionService, buildShareUrl } from '../services/distribution.js';
 
 export function createCardRouter(db, wxService) {
   const router = Router();
@@ -630,6 +630,21 @@ export function createCardRouter(db, wxService) {
     const result = distribution.bindRelation(req.customerId, req.user.id, idt, Number(parentId), 'qrcode');
     if (!result.ok) return res.json({ ok: false, error: result.error });
     res.json({ ok: true, relation: result.relation });
+  });
+
+  // 我的推广二维码（PRD：名片ID + 租户归属，扫码跳名片自动绑定上下级）
+  router.get('/distribution/qrcode', auth, async (req, res) => {
+    try {
+      if (!req.customerId) return res.json({ ok: false, error: '未入驻任何租户，暂无法生成推广码' });
+      const host = req.get('host') || `localhost:${process.env.PORT || 3000}`;
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      const shareUrl = buildShareUrl(req.user.id, `${proto}://${host}`);
+      const QRCode = (await import('qrcode')).default;
+      const qrDataUrl = await QRCode.toDataURL(shareUrl, { margin: 1, width: 320, errorCorrectionLevel: 'M' });
+      res.json({ ok: true, qrDataUrl, shareUrl, inviterId: req.user.id });
+    } catch (e) {
+      res.status(500).json({ error: '二维码生成失败' });
+    }
   });
 
   // 我的分销中心汇总（钱包三键隔离 + 直推/间推 + 本月佣金）

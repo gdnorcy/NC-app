@@ -244,6 +244,19 @@ async function loadOwnerData() {
 }
 
 onMounted(async () => {
+  // 未登录时扫码暂存的推广人：登录后静默补绑（首次绑定永久锁定）
+  if (uni.getStorageSync('card_token')) {
+    const pending = uni.getStorageSync('pendingInviter');
+    if (pending) {
+      uni.removeStorageSync('pendingInviter');
+      try {
+        const me = uni.getStorageSync('card_user');
+        if (!me || Number(pending) !== Number(me?.id)) {
+          await cardApi.distBind(Number(pending), 'individual');
+        }
+      } catch (e) {}
+    }
+  }
   const pages = getCurrentPages();
   const id = pages[pages.length - 1].options.id;
   const opts = pages[pages.length - 1].options;
