@@ -662,6 +662,13 @@ function migrate(db) {
       sort_order INTEGER NOT NULL DEFAULT 0,
       UNIQUE(app_id, key)
     );
+    CREATE TABLE IF NOT EXISTS customer_app_sorts (
+      customer_id INTEGER NOT NULL,
+      app_code TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0,
+      updated_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (customer_id, app_code)
+    );
     CREATE TABLE IF NOT EXISTS app_categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,

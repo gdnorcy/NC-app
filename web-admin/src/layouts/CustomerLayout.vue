@@ -4,6 +4,7 @@
       <div class="logo" :class="{ collapsed }">
         <img v-if="systemLogo" :src="systemLogo" alt="logo" class="logo-img" />
         <span v-else-if="!collapsed" class="logo-text">{{ systemName }}</span>
+        <span v-else class="logo-text-mini">{{ (systemName || '云').charAt(0) }}</span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -65,14 +66,14 @@
           </el-sub-menu>
         </template>
       </el-menu>
-      <div class="sidebar-extras">
+      <div class="sidebar-extras" :class="{ 'collapsed-extras': collapsed }">
         <el-button text class="extra-help" @click="showHelp">
           <el-icon><QuestionFilled /></el-icon>
           <span v-if="!collapsed">帮助中心</span>
         </el-button>
         <span v-if="!collapsed" class="extra-version">零壹系统云 v1.0.0</span>
       </div>
-      <div class="sidebar-footer">
+      <div class="sidebar-footer" :class="{ 'collapsed-footer': collapsed }">
         <el-button text @click="logout">
           <el-icon><SwitchButton /></el-icon>
           <span v-if="!collapsed">退出登录</span>
@@ -85,7 +86,7 @@
           <el-button v-if="isImpersonate" type="primary" plain size="small" @click="backToAdmin">
             <el-icon><Back /></el-icon>返回总后台
           </el-button>
-          <el-button text @click="collapsed = !collapsed">
+          <el-button text @click="toggleCollapse">
             <el-icon :size="18"><Fold v-if="!collapsed" /><Expand v-else /></el-icon>
           </el-button>
           <el-breadcrumb separator="/">
@@ -167,7 +168,7 @@ import SIcon from '../components/SIcon.vue';
 const route = useRoute();
 const router = useRouter();
 
-const collapsed = ref(false);
+const collapsed = ref(localStorage.getItem('customer-sidebar-collapsed') === '1');
 const systemName = ref('零壹系统云');
 const systemLogo = ref('');
 const customerName = ref('');
@@ -212,6 +213,10 @@ function handleCommand(cmd) {
 function showHelp() {
   ElMessage.info('帮助文档建设中，如有疑问请联系平台客服。');
 }
+function toggleCollapse() {
+  collapsed.value = !collapsed.value;
+  localStorage.setItem('customer-sidebar-collapsed', collapsed.value ? '1' : '0');
+}
 function logout() {
   localStorage.removeItem('customer_token');
   localStorage.removeItem('customer_user');
@@ -246,6 +251,14 @@ function backToAdmin() {
   color: #165DFF;
 }
 .logo-img { width: 30px; height: 30px; border-radius: 6px; }
+.logo-text-mini {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  background: rgba(22, 93, 255, 0.06);
+  color: #165dff;
+  font-size: 14px; font-weight: 600;
+}
 .side-menu { border-right: none; padding: 8px 12px; }
 .side-menu :deep(.s-icon) { margin-right: 10px; }
 /* 折叠态：图标居中（与总后台一致） */
@@ -262,6 +275,21 @@ function backToAdmin() {
 .side-menu.el-menu--collapse :deep(.el-sub-menu__title .s-icon) { margin-right: 0; }
 .side-menu.el-menu--collapse :deep(.el-sub-menu .el-menu) { display: none; }
 .logo.collapsed .logo-text { display: none; }
+.logo.collapsed { padding: 0; }
+/* 折叠态底部区域居中 */
+.sidebar-extras.collapsed-extras {
+  align-items: center;
+  padding: 12px 4px;
+}
+.sidebar-extras.collapsed-extras .extra-help {
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-footer.collapsed-footer { padding: 12px 0; display: flex; justify-content: center; }
 /* 图2风格：圆角背景块菜单 */
 .side-menu :deep(.el-menu-item) {
   border-radius: 8px;

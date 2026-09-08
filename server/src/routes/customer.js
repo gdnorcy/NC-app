@@ -124,6 +124,29 @@ router.get('/profile', requireTenant, (req, res) => {
 
 // 仪表盘：客户自身业务数据
 // 租户已开通应用（解决方案展开为应用清单，过滤演示方案本身）
+// 保存租户应用自定义排序（整体覆盖）
+router.put('/apps/sort', requireTenant, (req, res) => {
+  try {
+    const cid = req.customerId;
+    const { codes } = req.body || {};
+    if (!Array.isArray(codes)) return res.status(400).json({ error: 'codes 必须为数组' });
+    const del = db.prepare('DELETE FROM customer_app_sorts WHERE customer_id = ?');
+    const ins = db.prepare('INSERT OR REPLACE INTO customer_app_sorts (customer_id, app_code, sort_order, updated_at) VALUES (?, ?, ?, datetime(\'now\'))');
+    db.exec('BEGIN');
+    try {
+      del.run(cid);
+      codes.forEach((code, idx) => ins.run(cid, code, idx));
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/apps', requireTenant, (req, res) => {
   try {
     const cid = req.customerId;
@@ -148,9 +171,18 @@ router.get('/apps', requireTenant, (req, res) => {
         if (!seen.has(a.code)) { seen.add(a.code); apps.push(a); }
       });
     });
+    // 租户自定义排序优先，未自定义的按平台默认排序
+    const sortRows = db.prepare('SELECT app_code, sort_order FROM customer_app_sorts WHERE customer_id = ?').all(cid);
+    const sortMap = new Map(sortRows.map((r) => [r.app_code, r.sort_order]));
+    apps.sort((a, b) => {
+      const sa = sortMap.has(a.code) ? sortMap.get(a.code) : 9999;
+      const sb = sortMap.has(b.code) ? sortMap.get(b.code) : 9999;
+      if (sa !== sb) return sa - sb;
+      return (a.sort_order || 0) - (b.sort_order || 0) || a.id - b.id;
+    });
     res.json({
       apps: apps.map((a) => ({
-        id: a.id, code: a.code, name: a.name, description: a.description, icon: a.icon,
+        id: a.id, code: a.code, name: a.name, description: a.description, icon: a.icon, category: a.category,
       })),
     });
   } catch (e) {
