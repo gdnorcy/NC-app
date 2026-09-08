@@ -12,7 +12,7 @@
       >
         <SIcon :name="cat.icon || 'apps'" size="default" />
         <span class="cat-name">{{ cat.name }}</span>
-        <span class="cat-count">{{ cat.apps.length }}</span>
+        <span class="cat-count">{{ catDisplayCount(cat) }}</span>
       </div>
     </aside>
 
@@ -87,6 +87,11 @@ const catCountText = computed(() => {
   if (list.some(a => a.code === 'channel')) return `共 ${CUST_CHANNELS.length} 个渠道`;
   return `共 ${list.length} 个应用`;
 });
+function catDisplayCount(cat) {
+  if (!cat) return 0;
+  if ((cat.apps || []).some(a => a.code === 'channel')) return CUST_CHANNELS.length;
+  return cat.apps.length;
+}
 
 // 分类图标映射（与总后台预置分类一致）
 const catIconMap = {

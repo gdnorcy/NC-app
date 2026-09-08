@@ -137,7 +137,7 @@ const CRUMB_LINKS = {
   '应用中心': '/apps-center',
   '系统设置': '/settings',
   '财务管理': '/finance',
-  '全端渠道': '/channel',
+  '全端渠道': '/apps-center?cat=全端渠道',
 };
 function crumbHref(label) { return CRUMB_LINKS[label] || ''; }
 

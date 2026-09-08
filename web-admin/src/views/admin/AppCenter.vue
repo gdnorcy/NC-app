@@ -17,7 +17,7 @@
       >
         <span class="cat-icon"><SIcon :name="cat.icon" size="small" /></span>
         <span class="cat-name">{{ cat.name }}</span>
-        <span class="cat-count">{{ cat.apps.length }}</span>
+        <span class="cat-count">{{ catDisplayCount(cat) }}</span>
         <span class="cat-ops" @click.stop>
           <el-button text size="small" @click="openCatDialog(cat)"><el-icon :size="13"><Edit /></el-icon></el-button>
           <el-button text size="small" type="danger" @click="removeCat(cat)"><el-icon :size="13"><Delete /></el-icon></el-button>
@@ -33,7 +33,7 @@
           <span class="app-main-sub">{{ catCountText }}</span>
         </div>
         <div class="app-main-actions">
-          <el-button type="primary" size="small" @click="openAppDialog()">
+          <el-button v-if="!isChannelCat" type="primary" size="small" @click="openAppDialog()">
             <el-icon :size="14"><Plus /></el-icon>新建应用
           </el-button>
         </div>
@@ -162,13 +162,14 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { adminApi } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete } from '@element-plus/icons-vue';
 import SIcon from '../../components/SIcon.vue';
 
 const router = useRouter();
+const route = useRoute();
 
 // 平台各端渠道（已开通在前、未开发在后；未开发渠道标注「未开发」不可进入）
 const PLATFORM_CHANNELS = [
@@ -187,6 +188,12 @@ const catCountText = computed(() => {
   if (list.some(a => a.code === 'channel')) return `共 ${PLATFORM_CHANNELS.length} 个渠道`;
   return `共 ${list.length} 个应用`;
 });
+const isChannelCat = computed(() => (activeCat.value?.apps || []).some(a => a.code === 'channel'));
+function catDisplayCount(cat) {
+  if (!cat) return 0;
+  if ((cat.apps || []).some(a => a.code === 'channel')) return PLATFORM_CHANNELS.length;
+  return cat.apps.length;
+}
 const categories = ref([]);
 const activeCat = ref(null);
 const draggingApp = ref(null);
@@ -315,7 +322,15 @@ async function persistSort() {
   } catch (e) { ElMessage.error(e); }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  // 支持 /apps-center?cat=分类名 直接定位分类（面包屑/旧 /channel 重定向入口）
+  const q = route.query.cat;
+  if (q && categories.value.length) {
+    const hit = categories.value.find(c => c.name === String(q));
+    if (hit) activeCat.value = hit;
+  }
+});
 </script>
 
 <style scoped>

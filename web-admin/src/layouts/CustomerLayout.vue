@@ -192,6 +192,7 @@ const CRUMB_LINKS = {
   '分销体系': '/apps?cat=分销体系',
   '360全景': '/apps?cat=行业应用',
   '智能名片': '/apps?cat=行业应用',
+  '全端渠道': '/apps?cat=全端渠道',
 };
 function crumbHref(label) { return CRUMB_LINKS[label] || ''; }
 
