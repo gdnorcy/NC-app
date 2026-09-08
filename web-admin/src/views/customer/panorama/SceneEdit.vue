@@ -107,6 +107,21 @@
         </el-form-item>
         <el-form-item label="标题"><el-input v-model="hotspotForm.title" /></el-form-item>
         <el-form-item label="内容" v-if="hotspotForm.type === 'info'"><el-input v-model="hotspotForm.content" type="textarea" /></el-form-item>
+        <el-form-item v-if="hotspotForm.type === 'info'">
+          <template #label>留资表单</template>
+          <el-switch v-model="hotspotForm.formEnabled" />
+          <span style="font-size:12px;color:#86909C;margin-left:8px;">开启后访客可在弹窗提交线索</span>
+        </el-form-item>
+        <template v-if="hotspotForm.type === 'info' && hotspotForm.formEnabled">
+          <el-form-item label="表单标题"><el-input v-model="hotspotForm.formTitle" placeholder="留资表单" maxlength="24" /></el-form-item>
+          <el-form-item label="收集字段">
+            <el-checkbox-group v-model="hotspotForm.formFields">
+              <el-checkbox label="name">姓名</el-checkbox>
+              <el-checkbox label="phone">手机号</el-checkbox>
+              <el-checkbox label="message">留言</el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+        </template>
         <el-form-item label="目标场景" v-if="hotspotForm.type === 'scene'">
           <el-select v-model="hotspotForm.targetSceneId" style="width:100%;">
             <el-option v-for="s in scenes" :key="s.id" :label="s.title" :value="s.id" />
@@ -148,7 +163,10 @@ const saving = ref(false);
 const scenes = ref([]);
 const showHotspot = ref(false);
 const hotspotIndex = ref(-1);
-const hotspotForm = reactive({ type: 'info', title: '', content: '', targetSceneId: null, yaw: 0, pitch: 0 });
+const hotspotForm = reactive({
+  type: 'info', title: '', content: '', targetSceneId: null, yaw: 0, pitch: 0,
+  formEnabled: false, formTitle: '留资表单', formFields: ['name', 'phone'],
+});
 
 const form = reactive({
   title: '', description: '', imagePath: '', previewPath: '',
@@ -181,13 +199,13 @@ async function handleUpload(file) {
 
 function addHotspot() {
   hotspotIndex.value = -1;
-  Object.assign(hotspotForm, { type: 'info', title: '', content: '', targetSceneId: null, yaw: 0, pitch: 0 });
+  Object.assign(hotspotForm, { type: 'info', title: '', content: '', targetSceneId: null, yaw: 0, pitch: 0, formEnabled: false, formTitle: '留资表单', formFields: ['name', 'phone'] });
   showHotspot.value = true;
 }
 // 画面点击添加：角度由 3D 编辑器自动计算
 function onAddHotspotAt({ yaw, pitch }) {
   hotspotIndex.value = -1;
-  Object.assign(hotspotForm, { type: 'info', title: '', content: '', targetSceneId: null, yaw, pitch });
+  Object.assign(hotspotForm, { type: 'info', title: '', content: '', targetSceneId: null, yaw, pitch, formEnabled: false, formTitle: '留资表单', formFields: ['name', 'phone'] });
   showHotspot.value = true;
 }
 // 预设主题切换：自动填充跳转/信息点颜色
@@ -202,12 +220,29 @@ function onSelectHotspot(h, idx) {
 }
 function editHotspot(i) {
   hotspotIndex.value = i;
-  Object.assign(hotspotForm, form.hotspots[i]);
+  const h = form.hotspots[i];
+  Object.assign(hotspotForm, h, {
+    formEnabled: Boolean(h.form && h.form.enabled),
+    formTitle: (h.form && h.form.title) || '留资表单',
+    formFields: (h.form && Array.isArray(h.form.fields)) ? h.form.fields.map((f) => f.key) : [],
+  });
   showHotspot.value = true;
 }
 function saveHotspot() {
-  if (hotspotIndex.value >= 0) Object.assign(form.hotspots[hotspotIndex.value], hotspotForm);
-  else form.hotspots.push({ ...hotspotForm, id: Date.now() });
+  // 组装留资表单配置（仅 info 热点且启用时落 form 字段）
+  const payload = { ...hotspotForm };
+  if (hotspotForm.type === 'info' && hotspotForm.formEnabled && hotspotForm.formFields.length) {
+    const fieldLabels = { name: '姓名', phone: '手机号', message: '留言' };
+    payload.form = {
+      enabled: true,
+      title: hotspotForm.formTitle || '留资表单',
+      fields: hotspotForm.formFields.map((key) => ({ key, label: fieldLabels[key] || key, required: key !== 'message' })),
+    };
+  } else {
+    payload.form = null;
+  }
+  if (hotspotIndex.value >= 0) Object.assign(form.hotspots[hotspotIndex.value], payload);
+  else form.hotspots.push({ ...payload, id: Date.now() });
   showHotspot.value = false;
 }
 

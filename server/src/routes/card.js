@@ -801,7 +801,43 @@ export function createCardRouter(db, wxService) {
   }
 
 
-  // ============================================================
+  // 全景热点表单留资（公开）：sceneId 反查租户，沉淀为客户线索
+  router.post('/panorama/leads', (req, res) => {
+    try {
+      const { sceneId, hotspotTitle, fields = {} } = req.body || {};
+      if (!sceneId) return res.status(400).json({ error: 'sceneId 必填' });
+      const scene = db.prepare('SELECT id, plan_id FROM scenes WHERE id = ?').get(Number(sceneId));
+      if (!scene) return res.status(404).json({ error: '场景不存在' });
+      const plan = db.prepare('SELECT id, project_id FROM plans WHERE id = ?').get(scene.plan_id);
+      if (!plan) return res.status(404).json({ error: '方案不存在' });
+      const name = String(fields.name || '').trim().slice(0, 64);
+      const phone = String(fields.phone || '').trim().slice(0, 32);
+      const message = String(fields.message || '').trim().slice(0, 500);
+      if (!name && !phone && !message) return res.status(400).json({ error: '请至少填写一项内容' });
+      // 自定义字段（除 name/phone/message 外的键）存入 extra
+      const extra = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (!['name', 'phone', 'message'].includes(k) && v !== undefined && v !== null && v !== '') extra[k] = String(v).slice(0, 200);
+      }
+      db.prepare(
+        `INSERT INTO panorama_leads (tenant_id, plan_id, scene_id, hotspot_title, name, phone, message, extra)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        plan.project_id || 0,
+        plan.id,
+        scene.id,
+        String(hotspotTitle || '').slice(0, 128),
+        name,
+        phone,
+        message,
+        JSON.stringify(extra)
+      );
+      res.json({ ok: true, message: '提交成功，我们会尽快与您联系' });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // 行为埋点（第三批）
   // 游客事件：cardId 反查租户；登录事件：使用用户绑定的租户
   // ============================================================

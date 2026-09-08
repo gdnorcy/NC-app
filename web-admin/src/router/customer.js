@@ -13,6 +13,7 @@ const routes = [
       { path: 'analytics', redirect: '/apps/card' },
       { path: 'apps', component: () => import('../views/customer/Apps.vue'), meta: { title: '应用中心', breadcrumbs: ['应用中心'] } },
       { path: 'apps/panorama', component: () => import('../views/customer/apps/card/Analytics.vue'), meta: { title: '数据洞察', breadcrumbs: ['应用中心', '360全景', '数据洞察'], solution: 'panorama' } },
+      { path: 'apps/panorama/leads', component: () => import('../views/customer/panorama/Leads.vue'), meta: { title: '线索管理', breadcrumbs: ['应用中心', '360全景', '线索管理'] } },
       { path: 'apps/panorama/plans', component: () => import('../views/customer/panorama/Plans.vue'), meta: { title: '方案管理', breadcrumbs: ['应用中心', '360全景', '方案管理'] } },
       { path: 'apps/panorama/plans/:id/scenes', component: () => import('../views/customer/panorama/Scenes.vue'), meta: { title: '场景管理', breadcrumbs: ['应用中心', '360全景', '场景管理'] } },
       { path: 'apps/panorama/plans/:id/scenes/:sceneId/edit', component: () => import('../views/customer/panorama/SceneEdit.vue'), meta: { title: '编辑场景', breadcrumbs: ['应用中心', '360全景', '场景管理', '编辑场景'] } },

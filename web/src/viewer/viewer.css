@@ -401,6 +401,26 @@ body {
   color: #6b7280;
   line-height: 1.6;
 }
+/* 热点留资表单 */
+.hotspot-form { margin-top: 4px; text-align: left; }
+.hotspot-form-field { margin-bottom: 12px; }
+.hotspot-form-field label { display: block; font-size: 13px; color: #4e5969; margin-bottom: 6px; }
+.hotspot-form-field input,
+.hotspot-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: #1d2129;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.hotspot-form-field textarea { min-height: 72px; resize: vertical; }
+.hotspot-form-field input:focus,
+.hotspot-form-field textarea:focus { border-color: #165dff; }
+.hotspot-form-msg { margin: 10px 0 0 !important; font-size: 13px; color: #f53f3f; min-height: 18px; }
 
 /* 场景介绍文字 */
 .scene-intro {

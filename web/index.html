@@ -63,6 +63,13 @@
       <div class="hotspot-popup-content">
         <h3 id="hotspot-title"></h3>
         <p id="hotspot-content"></p>
+        <div id="hotspot-form" class="hotspot-form hidden">
+          <div class="hotspot-form-field" data-key="name"><label>姓名</label><input type="text" maxlength="64" placeholder="请输入姓名" /></div>
+          <div class="hotspot-form-field hidden" data-key="phone"><label>手机号</label><input type="tel" maxlength="32" placeholder="请输入手机号" /></div>
+          <div class="hotspot-form-field hidden" data-key="message"><label>留言</label><textarea maxlength="500" placeholder="请输入留言内容"></textarea></div>
+          <button id="hotspot-form-submit" class="btn-primary">提交</button>
+          <p id="hotspot-form-msg" class="hotspot-form-msg"></p>
+        </div>
         <button id="hotspot-close" class="btn-primary">关闭</button>
       </div>
     </div>

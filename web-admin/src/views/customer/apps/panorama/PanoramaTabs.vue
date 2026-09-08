@@ -21,6 +21,7 @@ import SIcon from '../../../../components/SIcon.vue';
 const tabs = [
   { label: '数据洞察', path: '/apps/panorama', icon: 'analytics' },
   { label: '方案管理', path: '/apps/panorama/plans', icon: 'panorama' },
+  { label: '线索管理', path: '/apps/panorama/leads', icon: 'customer' },
 ];
 
 const route = useRoute();

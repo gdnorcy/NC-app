@@ -1096,6 +1096,23 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics_events(event_type, event_date);
   `);
 
+  // —— 全景热点留资线索（P0：热点挂表单收集）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS panorama_leads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      plan_id INTEGER NOT NULL DEFAULT 0,
+      scene_id INTEGER NOT NULL DEFAULT 0,
+      hotspot_title TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      message TEXT NOT NULL DEFAULT '',
+      extra TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_pano_leads_tenant ON panorama_leads(tenant_id, id);
+  `);
+
   // —— 名片模板库（第四批：平台公共 + 租户私有）——
   db.exec(`
     CREATE TABLE IF NOT EXISTS card_templates (

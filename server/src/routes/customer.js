@@ -522,7 +522,37 @@ router.delete('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// 我的账单
+  // 全景热点表单线索（租户端）：列表 + CSV 导出
+  router.get('/panorama/leads', requireTenant, (req, res) => {
+    try {
+      const tenantId = req.customerId;
+      const { planId = '', export: doExport = '' } = req.query;
+      const where = ['l.tenant_id = ?'];
+      const params = [tenantId];
+      if (planId) { where.push('l.plan_id = ?'); params.push(Number(planId)); }
+      const whereSql = where.join(' AND ');
+      const rows = db.prepare(
+        `SELECT l.id, l.plan_id, l.scene_id, l.hotspot_title, l.name, l.phone, l.message, l.extra, l.created_at,
+                p.name AS plan_name, s.title AS scene_name
+         FROM panorama_leads l
+         LEFT JOIN plans p ON l.plan_id = p.id
+         LEFT JOIN scenes s ON l.scene_id = s.id
+         WHERE ${whereSql}
+         ORDER BY l.id DESC LIMIT 500`
+      ).all(...params);
+      if (doExport === 'csv') {
+        const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const head = ['ID', '方案', '场景', '热点', '姓名', '手机', '留言', '自定义字段', '提交时间'];
+        const lines = rows.map((r) => [r.id, r.plan_name, r.scene_name, r.hotspot_title, r.name, r.phone, r.message, r.extra, r.created_at].map(esc).join(','));
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="panorama-leads-${Date.now()}.csv"`);
+        return res.send('\uFEFF' + [head.join(','), ...lines].join('\n'));
+      }
+      res.json({ leads: rows });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 我的账单
 router.get('/orders', requireTenant, (req, res) => {
   const orders = db
     .prepare("SELECT * FROM payment_orders WHERE customer_id = ? AND payer_type='platform' ORDER BY id DESC")

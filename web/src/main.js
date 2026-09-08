@@ -62,9 +62,66 @@ viewer.onHotspotClick = (hs) => {
   } else if (hs.type === 'info') {
     $('hotspot-title').textContent = hs.title || '信息';
     $('hotspot-content').textContent = hs.content || '';
+    // 关联表单：按 hs.form 配置渲染留资字段
+    const formBox = $('hotspot-form');
+    const formCfg = hs.form && hs.form.enabled ? hs.form : null;
+    formBox.classList.toggle('hidden', !formCfg);
+    $('hotspot-form-msg').textContent = '';
+    if (formCfg) {
+      const fields = Array.isArray(formCfg.fields) ? formCfg.fields : [{ key: 'name', label: '姓名' }, { key: 'phone', label: '手机号' }, { key: 'message', label: '留言' }];
+      const fieldEls = formBox.querySelectorAll('.hotspot-form-field');
+      fieldEls.forEach((el) => {
+        const key = el.dataset.key;
+        const cfg = fields.find((f) => f.key === key);
+        el.classList.toggle('hidden', !cfg);
+        if (cfg) {
+          const label = el.querySelector('label');
+          const input = el.querySelector('input, textarea');
+          label.textContent = cfg.label || key;
+          input.placeholder = `请输入${cfg.label || key}`;
+          input.required = Boolean(cfg.required);
+          input.value = '';
+        }
+      });
+      formBox._hs = { sceneId: activeIndex >= 0 ? scenes[activeIndex].id : 0, hotspotTitle: hs.title || '' };
+    }
     $('hotspot-popup').classList.remove('hidden');
   }
 };
+// 热点表单提交
+$('hotspot-form-submit').addEventListener('click', async () => {
+  const formBox = $('hotspot-form');
+  const hs = formBox._hs;
+  if (!hs) return;
+  const fields = {};
+  let ok = true;
+  formBox.querySelectorAll('.hotspot-form-field:not(.hidden)').forEach((el) => {
+    const input = el.querySelector('input, textarea');
+    const key = el.dataset.key;
+    const val = (input.value || '').trim();
+    if (input.required && !val) { ok = false; input.style.borderColor = '#f53f3f'; }
+    else { input.style.borderColor = ''; if (val) fields[key] = val; }
+  });
+  if (!ok) { $('hotspot-form-msg').textContent = '请填写必填项'; return; }
+  const msg = $('hotspot-form-msg');
+  msg.textContent = '提交中…';
+  try {
+    const r = await fetch('/api/card/panorama/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sceneId: hs.sceneId, hotspotTitle: hs.hotspotTitle, fields }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || '提交失败');
+    msg.textContent = data.message || '提交成功';
+    msg.style.color = '#00b42a';
+    formBox.querySelectorAll('input, textarea').forEach((el) => { el.value = ''; });
+    track('form_submit', { sceneId: hs.sceneId, hotspotTitle: hs.hotspotTitle });
+  } catch (e) {
+    msg.textContent = e.message || '提交失败，请稍后重试';
+    msg.style.color = '#f53f3f';
+  }
+});
 $('hotspot-close').addEventListener('click', () => {
   $('hotspot-popup').classList.add('hidden');
 });
