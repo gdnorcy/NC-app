@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createDb } from '../src/db.js';
-import { createDistributionService, buildShareUrl, buildWithdrawCsv, buildLogCsv } from '../src/services/distribution.js';
+import { createDistributionService, buildShareUrl, buildWithdrawCsv, buildLogCsv, buildMonthlyCsv, buildRelationTree } from '../src/services/distribution.js';
 
 describe('分销体系（二级推广分销底座）', () => {
   let db, dist;
@@ -404,5 +404,41 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(csv.includes('一级佣金') && csv.includes('区域股东'), '类型应中文化');
     assert.ok(csv.includes('已结算') && csv.includes('已扣回'), '状态应中文化');
     assert.ok(csv.includes('PAY-DEMO-1') && csv.includes('-5.00'), '订单号可追溯、负数金额保留');
+  });
+
+  it('P4 关系树：按 pid1 展开层级 + 根节点判定 + 身份标签', () => {
+    // 根 user1000 无上级；user1001 上级=1000；user1002 上级=1001（两层）
+    const relations = [
+      { userId: 1000, pid1: null, nickname: '上级A', identity_type: 'individual' },
+      { userId: 1001, pid1: 1000, nickname: '中间B', identity_type: 'individual' },
+      { userId: 1002, pid1: 1001, nickname: '买家C', identity_type: 'individual' },
+    ];
+    const tagMap = new Map([[1000, ['合伙人']]]);
+    const tree = buildRelationTree(relations, tagMap);
+    assert.equal(tree.length, 1, '只有 1 个根');
+    assert.equal(tree[0].userId, 1000);
+    assert.deepEqual(tree[0].tags, ['合伙人'], '根带合伙人标签');
+    assert.equal(tree[0].children[0].userId, 1001, '第二层');
+    assert.equal(tree[0].children[0].children[0].userId, 1002, '第三层');
+    // 防环：pid1 指向自己形成环，不无限递归
+    const cyclic = buildRelationTree([{ userId: 1000, pid1: 1000, nickname: '环', identity_type: 'individual' }]);
+    assert.equal(cyclic.length, 0, '自环应被防环剪枝');
+  });
+
+  it('P4 月度汇总：byType/合计/结算状态 + 汇总CSV', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.bindRelation(TENANT, 1000, 'individual', null);
+    dist.bindRelation(TENANT, 1001, 'individual', 1000);
+    // 造一笔 100 元订单走分账（佣金入账）
+    const order = { id: 99999, orderNo: 'DEMO-MONTH-1', payerType: 'tenant', customerId: TENANT, userId: 1001, buyerIdentityType: 'individual', amount: 10000, status: 'paid' };
+    dist.computeOrderSplit(order);
+    const summary = dist.monthlySummary(TENANT, new Date().toISOString().slice(0, 7));
+    assert.ok(summary.total >= 1000, `当月佣金总额 >= 10元（实际 ${summary.total / 100}）`);
+    assert.ok(summary.byType.level1 >= 1000, '一级佣金入账');
+    assert.ok(summary.byUser.length >= 1, '按用户分组有数据');
+    const csv = buildMonthlyCsv(summary);
+    assert.ok(csv.startsWith('\uFEFF'), '带 BOM');
+    assert.ok(csv.includes('"用户","一级佣金(元)"'), '表头含类型列');
+    assert.ok(csv.includes('合计') && csv.includes('10.00'), '末行合计与类型金额');
   });
 });

@@ -4,7 +4,7 @@
  * 能力：插件开关、二级分销配置、分销商列表、佣金明细、钱包提现审核、数据大盘
  */
 import { Router } from 'express';
-import { createDistributionService, buildWithdrawCsv, buildLogCsv } from '../services/distribution.js';
+import { createDistributionService, buildWithdrawCsv, buildLogCsv, buildMonthlyCsv } from '../services/distribution.js';
 import { tenantState } from '../tenant.js';
 
 export function createDistributionRouter(db) {
@@ -220,6 +220,23 @@ export function createDistributionRouter(db) {
     sql += ' ORDER BY r.id DESC LIMIT ? OFFSET ?';
     params.push(Number(pageSize), (Number(page) - 1) * Number(pageSize));
     res.json({ total, list: db.prepare(sql).all(...params) });
+  });
+
+  // 分销关系树（树形团队层级）
+  router.get('/tree', tenant, (req, res) => {
+    res.json({ list: dist.relationTree(req.customerId) });
+  });
+
+  // 月度佣金/分红汇总（?month=YYYY-MM，?export=csv 导出）
+  router.get('/logs/summary', tenant, (req, res) => {
+    const { month, export: isExport } = req.query;
+    const summary = dist.monthlySummary(req.customerId, month);
+    if (isExport === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="monthly-summary.csv"');
+      return res.send(buildMonthlyCsv(summary));
+    }
+    res.json(summary);
   });
 
   // ============================================================

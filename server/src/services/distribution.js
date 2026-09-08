@@ -5,6 +5,9 @@
  * - 核心对账：dist_order_split 快照唯一数据源，退款/插件关闭均不删除
  */
 export function createDistributionService(db) {
+  // ============================================================
+  // 配置（租户维度）
+  // ============================================================
   const svc = {};
 
   /** 手动事务（node:sqlite DatabaseSync 无 .transaction） */
@@ -637,6 +640,47 @@ export function createDistributionService(db) {
   // 查询（租户后台/小程序端）
   // ============================================================
 
+  /** 分销关系树（租户维度）：节点带身份标签（合伙人/股东），供租户后台树形查看团队层级 */
+  svc.relationTree = (tenantId) => {
+    const relations = db.prepare(`
+      SELECT r.user_id AS userId, r.pid1, r.pid2, r.identity_type AS identityType, u.nickname
+      FROM dist_user_relation r LEFT JOIN platform_user u ON u.id = r.user_id
+      WHERE r.tenant_id = ?
+    `).all(tenantId);
+    if (!relations.length) return [];
+    const tagMap = new Map();
+    const tag = (uid, t) => { if (!tagMap.has(uid)) tagMap.set(uid, []); tagMap.get(uid).push(t); };
+    for (const p of db.prepare("SELECT user_id FROM dist_partner WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, '合伙人');
+    for (const p of db.prepare("SELECT user_id FROM dist_share_all WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, '全民股东');
+    for (const p of db.prepare("SELECT user_id, category_id FROM dist_share_cat WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, `行业股东`);
+    for (const p of db.prepare("SELECT user_id, area_code FROM dist_share_area WHERE tenant_id = ? AND status = 1").all(tenantId)) tag(p.user_id, `区域股东`);
+    return buildRelationTree(relations, tagMap);
+  };
+
+  /** 月度佣金/分红汇总：month='YYYY-MM'；返回 { month, byType, total, settled, pending, byUser } */
+  svc.monthlySummary = (tenantId, month) => {
+    const key = String(month || '').trim() || new Date().toISOString().slice(0, 7);
+    const rows = db.prepare(`
+      SELECT l.type, l.status, l.amount, l.user_id AS userId, u.nickname
+      FROM dist_user_log l LEFT JOIN platform_user u ON u.id = l.user_id
+      WHERE l.tenant_id = ? AND substr(l.created_at, 1, 7) = ?
+    `).all(tenantId, key);
+    const byType = { level1: 0, level2: 0, partner: 0, share_all: 0, share_cat: 0, share_area: 0 };
+    let total = 0, settled = 0, pending = 0;
+    const byUser = new Map();
+    for (const r of rows) {
+      byType[r.type] = (byType[r.type] || 0) + r.amount;
+      total += r.amount;
+      if (r.status === 'settled') settled += r.amount;
+      if (r.status === 'pending') pending += r.amount;
+      if (!byUser.has(r.userId)) byUser.set(r.userId, { userId: r.userId, nickname: r.nickname || '微信用户', level1: 0, level2: 0, partner: 0, share_all: 0, share_cat: 0, share_area: 0, total: 0 });
+      const u = byUser.get(r.userId);
+      u[r.type] = (u[r.type] || 0) + r.amount;
+      u.total += r.amount;
+    }
+    return { month: key, byType, total, settled, pending, byUser: [...byUser.values()] };
+  };
+
   /** 用户收益汇总（钱包 + 直推/间推人数 + 本月佣金 + 身份标签） */
   svc.getSummary = (tenantId, userId, identityType) => {
     const wallet = svc.getWallet(tenantId, userId, identityType);
@@ -715,6 +759,41 @@ export function buildShareUrl(userId, origin) {
   return `${base}/card/#/pages/card/cardDetail?id=${Number(userId)}&inviter=${Number(userId)}`;
 }
 
+/** 构建分销关系树：根 = 无 pid1 或 pid1 不在本租户关系集的节点；防环 guard 20 层 */
+export function buildRelationTree(relations, tagMap = new Map()) {
+  const byUser = new Map();
+  for (const r of relations) byUser.set(r.userId, r);
+  const roots = [];
+  const visited = new Set();
+  const build = (userId, depth = 0) => {
+    if (depth > 20 || visited.has(userId)) return null; // 防环
+    visited.add(userId);
+    const rel = byUser.get(userId);
+    const node = {
+      userId,
+      nickname: rel ? rel.nickname || `用户${userId}` : `用户${userId}`,
+      identityType: rel ? rel.identity_type : 'individual',
+      tags: tagMap.get(userId) || [],
+      children: [],
+    };
+    for (const [id, r] of byUser) {
+      if (r.pid1 === userId) {
+        const child = build(id, depth + 1);
+        if (child) node.children.push(child);
+      }
+    }
+    return node;
+  };
+  for (const [id, r] of byUser) {
+    const isRoot = !r.pid1 || !byUser.has(r.pid1);
+    if (isRoot) {
+      const n = build(id);
+      if (n) roots.push(n);
+    }
+  }
+  return roots;
+}
+
 const WITHDRAW_STATUS_ZH = { pending: '待审核', approved: '待打款', rejected: '已驳回', done: '已完成' };
 
 /** 提现对账 CSV（带 BOM；金额分转元两位小数；字段含流水号/打款备注，可完整对账） */
@@ -732,6 +811,25 @@ export function buildWithdrawCsv(rows) {
   return '\uFEFF' + lines.join('\n');
 }
 
+/** 月度汇总 CSV：按用户 + 收益类型汇总（BOM；金额分转元；类型中文化） */
+export function buildMonthlyCsv(summary) {
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const TYPES = [['level1', '一级佣金'], ['level2', '二级佣金'], ['partner', '合伙人分红'], ['share_all', '全民股东'], ['share_cat', '类目股东'], ['share_area', '区域股东']];
+  const head = ['用户', ...TYPES.map((t) => t[1] + '(元)'), '合计(元)'];
+  const lines = [head.map(esc).join(',')];
+  for (const u of summary.byUser) {
+    const cells = [u.nickname];
+    for (const [k] of TYPES) cells.push((u[k] / 100).toFixed(2));
+    cells.push((u.total / 100).toFixed(2));
+    lines.push(cells.map(esc).join(','));
+  }
+  // 末行合计
+  const totalCells = ['合计'];
+  for (const [k] of TYPES) totalCells.push((summary.byType[k] / 100).toFixed(2));
+  totalCells.push((summary.total / 100).toFixed(2));
+  lines.push(totalCells.map(esc).join(','));
+  return '\uFEFF' + lines.join('\n');
+}
 const LOG_TYPE_ZH = { level1: '一级佣金', level2: '二级佣金', partner: '合伙人分红', share_all: '全民股东', share_cat: '类目股东', share_area: '区域股东' };
 const LOG_STATUS_ZH = { pending: '待结算', settled: '已结算', charged_back: '已扣回' };
 
