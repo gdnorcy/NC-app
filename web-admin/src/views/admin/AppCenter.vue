@@ -30,7 +30,7 @@
       <div class="app-main-header">
         <div class="app-main-title">
           {{ activeCat?.name || '应用中心' }}
-          <span class="app-main-sub">共 {{ activeCat?.apps.length || 0 }} 个应用</span>
+          <span class="app-main-sub">{{ catCountText }}</span>
         </div>
         <div class="app-main-actions">
           <el-button type="primary" size="small" @click="openAppDialog()">
@@ -42,32 +42,56 @@
       <el-empty v-if="!activeCat?.apps.length" description="该分类下暂无应用" :image-size="90" />
 
       <div class="app-grid">
-        <div
-          v-for="(app, idx) in activeCat?.apps || []"
-          :key="app.id"
-          class="app-card"
-          :draggable="true"
-          @dragstart="onDragStart(app, idx, $event)"
-          @dragover.prevent
-          @drop="onDrop(app, idx, $event)"
-          @dragend="onDragEnd"
-        >
-          <div class="app-card-top">
-            <span class="app-icon-block"><SIcon :name="app.icon" size="xlarge" /></span>
-            <div class="app-card-title">
-              <div class="app-name">{{ app.name }}</div>
-              <div class="app-code">{{ app.code }}</div>
+        <template v-for="(app, idx) in activeCat?.apps || []" :key="app.id">
+          <!-- 全端渠道分类：直接展示各端渠道卡片（未开发渠道标注「未开发」） -->
+          <template v-if="app.code === 'channel'">
+            <div
+              v-for="ch in PLATFORM_CHANNELS"
+              :key="'ch-' + ch.value"
+              class="app-card channel-card"
+              :class="{ 'channel-disabled': ch.developing }"
+              @click="enterChannel(ch)"
+            >
+              <div class="app-card-top">
+                <span class="app-icon-block"><SIcon :name="ch.icon" size="xlarge" /></span>
+                <div class="app-card-title">
+                  <div class="app-name">{{ ch.label }}</div>
+                  <div class="app-code">{{ ch.value }}</div>
+                </div>
+              </div>
+              <div class="app-desc">{{ ch.desc }}</div>
+              <div class="app-card-ops">
+                <el-button v-if="!ch.developing" size="small" type="primary" plain @click.stop="enterChannel(ch)">进入管理</el-button>
+                <el-tag v-else size="small" type="info" effect="plain">未开发</el-tag>
+              </div>
             </div>
-            <el-tag v-if="app.code === 'channel'" size="small" type="info">渠道</el-tag>
+          </template>
+          <div
+            v-else
+            class="app-card"
+            :draggable="true"
+            @dragstart="onDragStart(app, idx, $event)"
+            @dragover.prevent
+            @drop="onDrop(app, idx, $event)"
+            @dragend="onDragEnd"
+          >
+            <div class="app-card-top">
+              <span class="app-icon-block"><SIcon :name="app.icon" size="xlarge" /></span>
+              <div class="app-card-title">
+                <div class="app-name">{{ app.name }}</div>
+                <div class="app-code">{{ app.code }}</div>
+              </div>
+              <el-tag v-if="app.code === 'channel'" size="small" type="info">渠道</el-tag>
+            </div>
+            <div class="app-desc">{{ app.description || '暂无描述' }}</div>
+            <div class="app-card-ops">
+              <el-button v-if="app.code === 'channel'" size="small" type="primary" plain @click="enterApp(app)">进入管理</el-button>
+              <el-button size="small" @click="openMoveDialog(app)">修改分类</el-button>
+              <el-button size="small" @click="openAppDialog(app)">编辑应用</el-button>
+              <el-button size="small" text class="drag-handle" @click="onHintDrag">拖拽位置</el-button>
+            </div>
           </div>
-          <div class="app-desc">{{ app.description || '暂无描述' }}</div>
-          <div class="app-card-ops">
-            <el-button v-if="app.code === 'channel'" size="small" type="primary" plain @click="enterApp(app)">进入管理</el-button>
-            <el-button size="small" @click="openMoveDialog(app)">修改分类</el-button>
-            <el-button size="small" @click="openAppDialog(app)">编辑应用</el-button>
-            <el-button size="small" text class="drag-handle" @click="onHintDrag">拖拽位置</el-button>
-          </div>
-        </div>
+        </template>
       </div>
       <div v-if="draggingApp" class="drag-tip">拖拽卡片到目标位置释放，可调整应用顺序</div>
     </div>
@@ -145,6 +169,24 @@ import { Plus, Edit, Delete } from '@element-plus/icons-vue';
 import SIcon from '../../components/SIcon.vue';
 
 const router = useRouter();
+
+// 平台各端渠道（已开通在前、未开发在后；未开发渠道标注「未开发」不可进入）
+const PLATFORM_CHANNELS = [
+  { value: 'mini', label: '微信小程序', icon: 'wechat', desc: '客户独立AppID，第三方平台代开发', developing: false },
+  { value: 'h5', label: 'H5手机端', icon: 'mobile', desc: '/mobile路径，支持独立域名', developing: false },
+  { value: 'mp', label: '微信公众号', icon: 'official', desc: 'OAuth授权 + H5嵌入', developing: false },
+  { value: 'pc', label: 'PC网站', icon: 'pc', desc: '独立域名，PC适配', developing: false },
+  { value: 'baidu', label: '百度小程序', icon: 'mobile', desc: '百度智能小程序，开发中', developing: true },
+  { value: 'ali', label: '支付宝小程序', icon: 'mobile', desc: '支付宝小程序，开发中', developing: true },
+  { value: 'qq', label: 'QQ小程序', icon: 'mobile', desc: 'QQ小程序，开发中', developing: true },
+  { value: 'tt', label: '字节跳动小程序', icon: 'mobile', desc: '抖音/头条小程序，开发中', developing: true },
+];
+
+const catCountText = computed(() => {
+  const list = activeCat.value?.apps || [];
+  if (list.some(a => a.code === 'channel')) return `共 ${PLATFORM_CHANNELS.length} 个渠道`;
+  return `共 ${list.length} 个应用`;
+});
 const categories = ref([]);
 const activeCat = ref(null);
 const draggingApp = ref(null);
@@ -222,6 +264,10 @@ async function saveApp() {
 function enterApp(app) {
   const map = { channel: '/channel' };
   if (map[app.code]) router.push(map[app.code]);
+}
+function enterChannel(ch) {
+  if (ch.developing) return;
+  router.push(`/channel/${ch.value}`);
 }
 function openMoveDialog(app) {
   moveDialog.app = app;
@@ -318,7 +364,12 @@ onMounted(load);
 .app-desc {
   font-size: 12px; color: #86909c; line-height: 1.5; min-height: 36px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  align-items: center;
 }
+.channel-card { cursor: pointer; }
+.channel-card:hover { border-color: rgba(22, 93, 255, 0.4); box-shadow: 0 4px 16px rgba(22, 93, 255, 0.08); }
+.channel-disabled { cursor: not-allowed; opacity: 0.6; }
+.channel-disabled:hover { border-color: #e5e6eb; box-shadow: none; }
 .app-card-ops {
   display: flex; gap: 4px; border-top: 1px solid #f0f0f0; padding-top: 10px; margin-top: 10px;
 }

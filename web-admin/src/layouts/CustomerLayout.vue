@@ -189,9 +189,9 @@ const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title
 const CRUMB_LINKS = {
   '应用中心': '/apps',
   '工作台': '/dashboard',
-  '分销体系': '/apps',
-  '360全景': '/apps',
-  '智能名片': '/apps',
+  '分销体系': '/apps?cat=分销体系',
+  '360全景': '/apps?cat=行业应用',
+  '智能名片': '/apps?cat=行业应用',
 };
 function crumbHref(label) { return CRUMB_LINKS[label] || ''; }
 

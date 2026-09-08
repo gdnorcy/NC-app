@@ -554,3 +554,12 @@ npm run test:frontend
 - **卡片必须 flex column**：`.app-card { display:flex; flex-direction:column; align-items:center; }`，描述区 `flex: 1 1 auto` 撑开剩余空间，按钮 `margin-top:16px` 贴卡底——否则描述行数不同导致宽屏多列时按钮不在同一水平线。
 - 应用 code（panorama/card/channel 等）颜色**禁止**用 `#c0c4cc`（白底对比度不足、默认态不可读），统一辅助文字色 `#86909C`。
 - 总后台 AppCenter 卡片已用 `-webkit-line-clamp: 2` 固定描述 2 行高，无需 flex；租户端 Apps.vue 用 flex column 方案。
+
+## 应用中心全端渠道直开规范（2026-09-08 新增）
+
+- 应用中心（总后台 /apps-center 与租户端 /apps）「全端渠道」分类**不再渲染 channel 应用卡**：分类下含 code='channel' 应用时，直接渲染各端渠道卡片（总后台 8 渠道、租户端 4 渠道），点击卡片直达对应渠道配置页，去掉「进入应用 → 渠道列表」中间层。
+- 总后台渠道全集（PLATFORM_CHANNELS）：已开发 mini 微信小程序/h5 H5手机端/mp 微信公众号/pc PC网站（跳 `/channel/{value}`）；未开发 baidu 百度小程序/ali 支付宝小程序/qq QQ小程序/tt 字节跳动小程序（卡片禁用 + 「未开发」el-tag，不可进入）。
+- 租户端渠道（CUST_CHANNELS）：mini 跳 `/apps/channel/mini`，其余跳 `/apps/channel/config?type=`。
+- 分类计数：含 channel 应用时显示「共 N 个渠道」，否则「共 N 个应用」（computed catCountText）。
+- 面包屑进入应用中心可带分类参数：`/apps?cat=分类名`（CustomerLayout CRUMB_LINKS：分销体系→cat=分销体系、360全景/智能名片→cat=行业应用），Apps.vue onMounted 读 route.query.cat 定位分类。
+- 应用卡片描述区垂直居中：`.app-desc { display:flex; align-items:center; justify-content:center; flex:1 1 auto; }`，配合卡片 flex column 保证多列时「进入应用」按钮底部对齐。

@@ -19,29 +19,42 @@
     <!-- 右侧应用卡片区 -->
     <main class="cat-content">
       <div class="content-head">
-        <div class="content-title">{{ activeCat?.name || '' }} <span class="content-sub">共 {{ activeCat?.apps.length || 0 }} 个应用</span></div>
+        <div class="content-title">{{ activeCat?.name || '' }} <span class="content-sub">{{ catCountText }}</span></div>
         <div class="drag-tip" v-if="draggingApp">拖拽卡片到目标位置释放，可调整应用顺序</div>
       </div>
       <div v-if="!activeCat?.apps.length" class="empty">该分类下暂无应用</div>
       <div class="app-grid">
-        <div
-          v-for="(app, idx) in activeCat?.apps || []"
-          :key="app.code"
-          class="app-card"
-          :draggable="true"
-          @dragstart="onDragStart(app, idx, $event)"
-          @dragover.prevent
-          @drop="onDrop(app, idx, $event)"
-          @dragend="onDragEnd"
-        >
-          <div class="app-icon-wrap">
-            <SIcon :name="app.icon" size="xlarge" class="app-icon" />
+        <template v-for="(app, idx) in activeCat?.apps || []" :key="app.code">
+          <!-- 全端渠道分类：直接展示各端渠道卡片，进入即到对应渠道配置 -->
+          <template v-if="app.code === 'channel'">
+            <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card">
+              <div class="app-icon-wrap">
+                <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
+              </div>
+              <div class="app-name">{{ ch.name }}</div>
+              <div class="app-code">{{ ch.type }}</div>
+              <div class="app-desc">{{ ch.desc }}</div>
+              <el-button type="primary" size="small" class="enter-btn" @click="enterChannel(ch)">进入应用</el-button>
+            </div>
+          </template>
+          <div
+            v-else
+            class="app-card"
+            :draggable="true"
+            @dragstart="onDragStart(app, idx, $event)"
+            @dragover.prevent
+            @drop="onDrop(app, idx, $event)"
+            @dragend="onDragEnd"
+          >
+            <div class="app-icon-wrap">
+              <SIcon :name="app.icon" size="xlarge" class="app-icon" />
+            </div>
+            <div class="app-name">{{ app.name }}</div>
+            <div class="app-code">{{ app.code }}</div>
+            <div class="app-desc">{{ app.description }}</div>
+            <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
           </div>
-          <div class="app-name">{{ app.name }}</div>
-          <div class="app-code">{{ app.code }}</div>
-          <div class="app-desc">{{ app.description }}</div>
-          <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
-        </div>
+        </template>
       </div>
     </main>
   </div>
@@ -49,16 +62,31 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { customerApiCall } from '../../api';
 import SIcon from '../../components/SIcon.vue';
 import { ElMessage } from 'element-plus';
 
 const router = useRouter();
+const route = useRoute();
 const apps = ref([]);
 const categories = ref([]);
 const activeCat = ref(null);
 const draggingApp = ref(null);
+
+// 租户端各端渠道（已开通/已开发渠道直开，不再经「全端渠道 → 进入应用」中间层）
+const CUST_CHANNELS = [
+  { type: 'mini', name: '微信小程序', icon: 'wechat', desc: '独立小程序，自主发布' },
+  { type: 'h5', name: 'H5手机端', icon: 'mobile', desc: '移动端网页，支持自定义域名' },
+  { type: 'mp', name: '微信公众号', icon: 'official', desc: '公众号内嵌H5' },
+  { type: 'pc', name: 'PC网站', icon: 'pc', desc: '桌面端网站，支持自定义域名' },
+];
+
+const catCountText = computed(() => {
+  const list = activeCat.value?.apps || [];
+  if (list.some(a => a.code === 'channel')) return `共 ${CUST_CHANNELS.length} 个渠道`;
+  return `共 ${list.length} 个应用`;
+});
 
 // 分类图标映射（与总后台预置分类一致）
 const catIconMap = {
@@ -106,14 +134,20 @@ onMounted(async () => {
     if (!cats.some(c => c.name === name)) cats.push({ name, icon: 'apps', apps: byCat[name] });
   });
   categories.value = cats;
-  activeCat.value = cats[0] || null;
+  // 面包屑带分类参数（如 /apps?cat=分销体系）时直接定位到对应分类
+  const q = route.query.cat;
+  activeCat.value = (q ? cats.find(c => c.name === String(q)) : null) || cats[0] || null;
 });
 
 function enterApp(app) {
   if (app.code === 'panorama') router.push('/apps/panorama');
-  else if (app.code === 'channel') router.push('/apps/channel');
   else if (app.code === 'card') router.push('/apps/card');
   else router.push('/apps/' + app.code);
+}
+
+function enterChannel(ch) {
+  if (ch.type === 'mini') router.push('/apps/channel/mini');
+  else router.push(`/apps/channel/config?type=${ch.type}`);
 }
 
 function onDragStart(app, idx, e) {
@@ -247,6 +281,13 @@ async function persistSort() {
 .app-icon { color: #4e5969; transition: color 0.2s; }
 .app-name { font-size: 16px; font-weight: 600; color: #1d2129; }
 .app-code { font-size: 11px; color: #86909c; margin-top: 2px; font-family: monospace; }
-.app-desc { font-size: 13px; color: #86909c; margin: 8px 0 0; min-height: 38px; line-height: 1.5; flex: 1 1 auto; width: 100%; }
+.app-desc {
+  font-size: 13px; color: #86909c; margin: 8px 0 0; min-height: 38px; line-height: 1.5;
+  flex: 1 1 auto; width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
 .enter-btn { margin-top: 16px; }
+.channel-card { cursor: pointer; }
+.channel-card:hover .app-icon-wrap { background: rgba(22, 93, 255, 0.12); }
+.channel-card:hover .app-icon { color: #165dff; }
 </style>
