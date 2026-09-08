@@ -110,6 +110,7 @@ export function createDistributionService(db) {
       share_img: strE(patch.share_img, cur.share_img, 512),
       apply_agreement: strE(patch.apply_agreement, cur.apply_agreement, 20000),
       dist_notice: strE(patch.dist_notice, cur.dist_notice, 20000),
+      poster_badge: bool(patch.poster_badge, cur.poster_badge !== undefined ? cur.poster_badge : 1),
     };
     db.prepare(`
       UPDATE dist_config SET ratio1=?, ratio2=?, is_open_level2=?, is_self_buy=?, calc_type=?,
@@ -117,14 +118,14 @@ export function createDistributionService(db) {
         dist_name=?, sub_name=?, apply_top_img=?, promote_img=?, apply_tip=?,
         zero_order=?, show_parent=?, show_phone=?, default_level=?,
         bind_rule=?, become_rule=?, become_amount=?, become_products=?, share_title=?, share_img=?,
-        apply_agreement=?, dist_notice=?, updated_at=datetime('now')
+        apply_agreement=?, dist_notice=?, poster_badge=?, updated_at=datetime('now')
       WHERE tenant_id=?
     `).run(next.ratio1, next.ratio2, next.is_open_level2, next.is_self_buy, next.calc_type,
       next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate,
       next.dist_name, next.sub_name, next.apply_top_img, next.promote_img, next.apply_tip,
       next.zero_order, next.show_parent, next.show_phone, next.default_level,
       next.bind_rule, next.become_rule, next.become_amount, next.become_products, next.share_title, next.share_img,
-      next.apply_agreement, next.dist_notice, tenantId);
+      next.apply_agreement, next.dist_notice, next.poster_badge, tenantId);
     return svc.getConfig(tenantId);
   };
 
@@ -990,6 +991,7 @@ export function createDistributionService(db) {
       shareImg: cfg.share_img || '',
       applyAgreement: cfg.apply_agreement || '',
       distNotice: cfg.dist_notice || '',
+      posterBadge: cfg.poster_badge !== undefined ? !!cfg.poster_badge : true,
       // 显示上级：我的上级推荐人（仅 show_parent 开启时前端展示）
       parent: myParent && myParent.pid1
         ? (() => { const pu = db.prepare('SELECT id, nickname, avatar FROM platform_user WHERE id = ?').get(myParent.pid1); return pu ? { userId: pu.id, nickname: pu.nickname || '微信用户', avatar: pu.avatar || '' } : null; })()

@@ -649,7 +649,7 @@ export function createCardRouter(db, wxService) {
 
   // 我的分销中心汇总（钱包三键隔离 + 直推/间推 + 本月佣金 + 分销商申请状态 + 基本设置/关系设置透传）
   router.get('/distribution/summary', auth, (req, res) => {
-    if (!req.customerId) return res.json({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: true, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, applyStatus: null, canApply: false, distName: '推广员', subName: '下级', bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', zeroOrder: false, showParent: false, showPhone: false, defaultLevel: '默认等级', parent: null });
+    if (!req.customerId) return res.json({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: true, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, applyStatus: null, canApply: false, distName: '推广员', subName: '下级', bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', posterBadge: true, zeroOrder: false, showParent: false, showPhone: false, defaultLevel: '默认等级', parent: null });
     const idt = req.query.identityType || req.user.identity_type || 'individual';
     const s = distribution.getSummary(req.customerId, req.user.id, idt);
     const apply = distribution.getApplyStatus(req.customerId, req.user.id, idt);
@@ -683,6 +683,7 @@ export function createCardRouter(db, wxService) {
       bindRule: s.bindRule, becomeRule: s.becomeRule, becomeAmount: s.becomeAmount, becomeProducts: s.becomeProducts,
       shareTitle: s.shareTitle, shareImg: s.shareImg,
       applyAgreement: s.applyAgreement, distNotice: s.distNotice,
+      posterBadge: s.posterBadge !== undefined ? s.posterBadge : true,
       parent: s.parent,
     });
   });

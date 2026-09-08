@@ -148,6 +148,13 @@
                 </el-radio-group>
                 <span class="form-tip">分销中心下级客户是否显示客户联系电话</span>
               </el-form-item>
+              <el-form-item label="海报角标">
+                <el-radio-group v-model="cfg.posterBadge">
+                  <el-radio :value="1">显示</el-radio>
+                  <el-radio :value="0">隐藏</el-radio>
+                </el-radio-group>
+                <span class="form-tip">分享海报左上角展示「分销商名称 + 等级」徽标</span>
+              </el-form-item>
               <el-form-item label="申请页顶图">
                 <el-input v-model="cfg.applyTopImg" placeholder="图片 URL（建议 710×280，≤100KB）" clearable class="w480">
                   <template #prepend>URL</template>
@@ -668,7 +675,7 @@ const cfg = reactive({
   ratio1: 0.2, ratio2: 0.05, isOpenLevel2: 1, isSelfBuy: 0,
   calcType: 1, settleDay: 7, minWithdraw: 10, withdrawFeeRate: 0, maxTotalRatio: 0.3,
   distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '',
-  zeroOrder: 0, showParent: 0, showPhone: 0, defaultLevel: '默认等级',
+  zeroOrder: 0, showParent: 0, showPhone: 0, defaultLevel: '默认等级', posterBadge: 1,
   bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '',
   shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '',
 });
@@ -688,6 +695,7 @@ async function loadConfig() {
       applyTopImg: c.apply_top_img || '', promoteImg: c.promote_img || '', applyTip: c.apply_tip || '',
       zeroOrder: c.zero_order ? 1 : 0, showParent: c.show_parent ? 1 : 0, showPhone: c.show_phone ? 1 : 0,
       defaultLevel: c.default_level || '默认等级',
+      posterBadge: c.poster_badge !== undefined ? (c.poster_badge ? 1 : 0) : 1,
       // 关系设置 / 分享设置 / 申请协议 / 分销须知
       bindRule: [0, 1, 2].includes(Number(c.bind_rule)) ? Number(c.bind_rule) : 0,
       becomeRule: [0, 1, 2, 3, 4, 5].includes(Number(c.become_rule)) ? Number(c.become_rule) : Number(c.distributor_gate || 0),
@@ -726,6 +734,7 @@ async function saveConfig() {
       bind_rule: cfg.bindRule, become_rule: cfg.becomeRule, become_amount: cfg.becomeAmount,
       become_products: cfg.becomeProducts, share_title: cfg.shareTitle, share_img: cfg.shareImg,
       apply_agreement: cfg.applyAgreement, dist_notice: cfg.distNotice,
+      poster_badge: cfg.posterBadge ? 1 : 0,
     });
     ElMessage.success('配置已保存');
   } catch (e) { ElMessage.error(e || '保存失败'); } finally { saving.value = false; }

@@ -246,7 +246,7 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0 });
+const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', posterBadge: true, ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0 });
 const applying = ref(false);
 const agreed = ref(false);
 const showRules = ref(false);
@@ -389,32 +389,50 @@ async function openPoster() {
   poster.value.saving = false;
 }
 
-/** uni canvas 绘制（H5/小程序同构）：canvasId=dist-poster → 临时文件/Blob */
-function drawPoster() {
+/** uni canvas 绘制（小程序）：CSS 300x450 坐标系，导出放大到 1200x1800 */
+function drawPosterUni() {
   return new Promise((resolve) => {
-    const W = 600, H = 900;
+    const W = 300, H = 450;
     const ctx = uni.createCanvasContext('dist-poster');
+    const TITLE = summary.value.distName || '分销中心';
+    const NICK = (summary.value.parent && summary.value.parent.nickname) || '我的名片';
+    const LEVEL = summary.value.defaultLevel || '默认等级';
+    const showBadge = summary.value.posterBadge !== false && TITLE && LEVEL;
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
     const paint = (bgPath) => {
       if (bgPath) { ctx.drawImage(bgPath, 0, 0, W, H); }
-      else {
-        ctx.setFillStyle('#165DFF'); ctx.fillRect(0, 0, W, H);
+      else { ctx.setFillStyle('#165DFF'); ctx.fillRect(0, 0, W, H); }
+      ctx.setFillStyle('rgba(0,0,0,0.30)'); ctx.fillRect(0, 0, W, H);
+      if (showBadge) {
+        const bw = 64 * (TITLE.length + LEVEL.length + 1), bh = 28, bx = 22, by = 22;
+        ctx.setFillStyle('rgba(255,255,255,0.92)');
+        roundRect(bx, by, bw, bh, 14); ctx.fill();
+        ctx.setFillStyle('#165DFF');
+        ctx.setFontSize(12); ctx.setTextAlign('left');
+        ctx.fillText(`${TITLE} · ${LEVEL}`, bx + 11, by + 18);
       }
-      ctx.setFillStyle('rgba(0,0,0,0.28)'); ctx.fillRect(0, 0, W, H);
       ctx.setFillStyle('#ffffff');
-      ctx.setFontSize(44); ctx.setTextAlign('center');
-      ctx.fillText(summary.value.distName || '分销中心', W / 2, 110);
-      ctx.setFontSize(64);
-      ctx.fillText((summary.value.parent && summary.value.parent.nickname) || '我的名片', W / 2, 210);
-      ctx.setFontSize(28); ctx.setFillStyle('rgba(255,255,255,0.92)');
-      ctx.fillText('扫码进入我的名片，绑定后获取推广佣金', W / 2, 270);
-      const qs = 320, qx = (W - qs) / 2, qy = 320;
-      ctx.setFillStyle('#ffffff'); ctx.fillRect(qx, qy, qs, qs);
-      ctx.drawImage(qr.value.dataUrl, qx + 24, qy + 24, qs - 48, qs - 48);
-      ctx.setFillStyle('rgba(255,255,255,0.92)'); ctx.setFontSize(26);
-      ctx.fillText('长按识别二维码 · 保存海报到相册', W / 2, H - 60);
+      ctx.setFontSize(32); ctx.setTextAlign('center');
+      ctx.fillText(TITLE, W / 2, 95);
+      ctx.setFontSize(48);
+      ctx.fillText(NICK, W / 2, 165);
+      ctx.setFontSize(15); ctx.setFillStyle('rgba(255,255,255,0.92)');
+      ctx.fillText('扫码进入我的名片，绑定后获取推广佣金', W / 2, 210);
+      const qs = 170, qx = (W - qs) / 2, qy = 240;
+      ctx.setFillStyle('#ffffff');
+      roundRect(qx, qy, qs, qs, 16); ctx.fill();
+      ctx.drawImage(qr.value.dataUrl, qx + 12, qy + 12, qs - 24, qs - 24);
+      ctx.setFillStyle('rgba(255,255,255,0.92)'); ctx.setFontSize(13); ctx.setTextAlign('center');
+      ctx.fillText('长按识别二维码 · 保存海报到相册', W / 2, H - 35);
       ctx.draw(false, () => {
         setTimeout(() => {
-          uni.canvasToTempFilePath({ canvasId: 'dist-poster', width: W, height: H, destWidth: W * 2, destHeight: H * 2, success: (r) => { poster.value.tempPath = r.tempFilePath; resolve(); }, fail: () => resolve() });
+          uni.canvasToTempFilePath({ canvasId: 'dist-poster', width: W, height: H, destWidth: 1200, destHeight: 1800, success: (r) => { poster.value.tempPath = r.tempFilePath; resolve(); }, fail: () => resolve() });
         }, 400);
       });
     };
@@ -422,6 +440,87 @@ function drawPoster() {
       uni.getImageInfo({ src: summary.value.promoteImg, success: (info) => paint(info.path), fail: () => paint(null) });
     } else paint(null);
   });
+}
+
+/** H5：原生 canvas 2D，600x900 逻辑坐标 + dpr 高清缓冲区，toBlob 导出 */
+function drawPosterH5() {
+  return new Promise((resolve) => {
+    const c = document.querySelector('uni-canvas canvas, canvas#dist-poster');
+    if (!c) return resolve();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = 600, H = 900;
+    c.width = W * dpr; c.height = H * dpr;
+    c.style.width = '300px'; c.style.height = '450px';
+    const ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const TITLE = summary.value.distName || '分销中心';
+    const NICK = (summary.value.parent && summary.value.parent.nickname) || '我的名片';
+    const LEVEL = summary.value.defaultLevel || '默认等级';
+    const showBadge = summary.value.posterBadge !== false && TITLE && LEVEL;
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+    const paint = (bg) => {
+      if (bg) ctx.drawImage(bg, 0, 0, W, H);
+      else {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#165DFF'); g.addColorStop(1, '#0B3A8C');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(0, 0, W, H);
+      if (showBadge) {
+        const bw = 64 * (TITLE.length + LEVEL.length + 1), bh = 56, bx = 44, by = 44;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        roundRect(bx, by, bw, bh, 28); ctx.fill();
+        ctx.fillStyle = '#165DFF';
+        ctx.font = '600 24px "PingFang SC", sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(`${TITLE} · ${LEVEL}`, bx + 22, by + 36);
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 64px "PingFang SC", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(TITLE, W / 2, 190);
+      ctx.font = '600 96px "PingFang SC", sans-serif';
+      ctx.fillText(NICK, W / 2, 330);
+      ctx.font = '30px "PingFang SC", sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillText('扫码进入我的名片，绑定后获取推广佣金', W / 2, 420);
+      const qs = 340, qx = (W - qs) / 2, qy = 480;
+      ctx.fillStyle = '#ffffff';
+      roundRect(qx, qy, qs, qs, 32); ctx.fill();
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, qx + 24, qy + 24, qs - 48, qs - 48);
+        ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = '26px "PingFang SC", sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('长按识别二维码 · 保存海报到相册', W / 2, H - 70);
+        c.toBlob((blob) => {
+          if (blob) poster.value.tempPath = URL.createObjectURL(blob);
+          resolve();
+        }, 'image/png');
+      };
+      img.onerror = () => resolve();
+      img.src = qr.value.dataUrl;
+    };
+    if (summary.value.promoteImg) {
+      const bg = new Image();
+      bg.crossOrigin = 'anonymous';
+      bg.onload = () => paint(bg);
+      bg.onerror = () => paint(null);
+      bg.src = summary.value.promoteImg;
+    } else paint(null);
+  });
+}
+
+/** 海报绘制入口：H5 原生 canvas / 小程序 uni canvas */
+function drawPoster() {
+  // #ifdef H5
+  return drawPosterH5();
+  // #endif
+  // #ifndef H5
+  return drawPosterUni();
+  // #endif
 }
 
 /** 保存海报：H5 下载（Blob URL）；小程序保存相册（含授权） */
