@@ -659,4 +659,107 @@ describe('分销体系（分销裂变底座）', () => {
     assert.ok(dist.applyDistributor(TENANT, uid, 'individual').ok, '驳回后重新提交成功');
     dist.saveConfig(TENANT, { distributor_gate: 0 }); // 还原无门槛
   });
+
+  it('P5 关系设置+分享设置+申请协议+分销须知：保存/读取/默认值/清空', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    let c = dist.saveConfig(TENANT, {
+      bind_rule: 1, become_rule: 5, become_amount: 0, become_products: '会员套餐,增值包',
+      share_title: '来我的名片看看', share_img: 'https://x.com/share.png',
+      apply_agreement: '<p>分销协议内容</p>', dist_notice: '<p>分销须知内容</p>',
+    });
+    assert.equal(c.bind_rule, 1, '成为下线=首次下单');
+    assert.equal(c.become_rule, 5, '成为分销商=指定商品');
+    assert.equal(c.become_products, '会员套餐,增值包', '指定商品落库');
+    assert.equal(c.share_title, '来我的名片看看', '分享标题');
+    assert.equal(c.share_img, 'https://x.com/share.png', '分享图');
+    assert.equal(c.apply_agreement, '<p>分销协议内容</p>', '申请协议');
+    assert.equal(c.dist_notice, '<p>分销须知内容</p>', '分销须知');
+    // 非法值回退
+    c = dist.saveConfig(TENANT, { bind_rule: 9, become_rule: -1 });
+    assert.equal(c.bind_rule, 1, '非法 bind_rule 保留旧值');
+    assert.equal(c.become_rule, 5, '非法 become_rule 保留旧值');
+    // 允许清空（富文本/标题）
+    c = dist.saveConfig(TENANT, { share_title: '', apply_agreement: '', dist_notice: '' });
+    assert.equal(c.share_title, '', '分享标题可清空');
+    assert.equal(c.apply_agreement, '', '申请协议可清空');
+    assert.equal(c.dist_notice, '', '分销须知可清空');
+    // 还原
+    dist.saveConfig(TENANT, { bind_rule: 0, become_rule: 0, become_amount: 0, become_products: '', share_title: '', share_img: '', apply_agreement: '', dist_notice: '' });
+  });
+
+  it('P5 成为分销商资格判定：无条件/申请制/总消费/购买商品/指定商品', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    // 用全新用户验证（无上级绑定、初始不在白名单），开启自购返佣便于验证资格开关
+    const uid = 1011;
+    db.prepare("INSERT INTO platform_user (id, openid, nickname, identity_type) VALUES (?, ?, ?, 'individual')").run(uid, 'dist-u1011', '资格判定用户');
+    // 无条件
+    dist.saveConfig(TENANT, { become_rule: 0, is_self_buy: 1 });
+    assert.ok(dist.computeOrderSplit(makeOrder({ id: 90220, orderNo: 'T90220', userId: uid })), '无条件直接分账');
+    // 申请制（白名单）
+    dist.saveConfig(TENANT, { become_rule: 2 });
+    assert.equal(dist.computeOrderSplit(makeOrder({ id: 90221, orderNo: 'T90221', userId: uid })), null, '申请制名单外不分账');
+    dist.addDistributor(TENANT, uid, 'individual');
+    assert.ok(dist.computeOrderSplit(makeOrder({ id: 90222, orderNo: 'T90222', userId: uid })), '名单内自购返佣分账');
+    dist.removeDistributor(TENANT, uid, 'individual');
+    // 总消费金额（100 元 = 10000 分）：买家累计 0 → 不分账；造一笔 paid 订单后再分账
+    dist.saveConfig(TENANT, { become_rule: 3, become_amount: 100 });
+    assert.equal(dist.computeOrderSplit(makeOrder({ id: 90223, orderNo: 'T90223', userId: uid })), null, '累计消费不足不分账');
+    db.prepare("INSERT INTO payment_orders (order_no, payer_type, customer_id, user_id, solution, product_type, product_name, amount, status) VALUES ('T90224', 'tenant', ?, ?, 'card', 'member', '会员套餐', 12000, 'paid')").run(TENANT, uid);
+    assert.ok(dist.computeOrderSplit(makeOrder({ id: 90225, orderNo: 'T90225', userId: uid })), '累计消费达标分账');
+    // 购买商品（有 paid 订单即可）
+    dist.saveConfig(TENANT, { become_rule: 4, become_amount: 0 });
+    assert.ok(dist.computeOrderSplit(makeOrder({ id: 90226, orderNo: 'T90226', userId: uid })), '购买商品=有付费订单分账');
+    // 指定商品：订单含「会员套餐」→ 分账；含「其他商品」→ 不分账
+    dist.saveConfig(TENANT, { become_rule: 5, become_amount: 0, become_products: '会员套餐' });
+    assert.ok(dist.computeOrderSplit(makeOrder({ id: 90227, orderNo: 'T90227', userId: uid })), '指定商品命中分账');
+    dist.saveConfig(TENANT, { become_rule: 5, become_products: '不存在的商品' });
+    assert.equal(dist.computeOrderSplit(makeOrder({ id: 90228, orderNo: 'T90228', userId: uid })), null, '指定商品未命中不分账');
+    // 还原
+    dist.saveConfig(TENANT, { become_rule: 0, become_amount: 0, become_products: '', is_self_buy: 0 });
+  });
+
+  it('P5 成为下线规则：首次下单 pending→支付结算 / 仅分销商海报限制来源', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    // 首次下单：未付费 → pending；付费后绑定 → bound；支付成功后 pending 结算
+    dist.saveConfig(TENANT, { bind_rule: 1 });
+    let r = dist.bindRelation(TENANT, 1008, 'individual', 1001, 'qrcode');
+    assert.ok(r.ok, '首次下单规则：先写意向');
+    assert.equal(r.relation.status, 'pending', '未付费写 pending');
+    assert.equal(dist.getSummary(TENANT, 1008, 'individual').directCount, 0, 'pending 不计入直推');
+    // 造一笔 paid 订单触发结算
+    db.prepare("INSERT INTO payment_orders (order_no, payer_type, customer_id, user_id, solution, product_type, product_name, amount, status) VALUES ('T90229', 'tenant', ?, 1008, 'card', 'member', '会员套餐', 10000, 'paid')").run(TENANT);
+    dist.settlePendingRelations({ customerId: TENANT, userId: 1008 });
+    r = dist.getRelation(TENANT, 1008, 'individual');
+    assert.equal(r.status, 'bound', '支付后结算为 bound');
+    assert.equal(dist.getSummary(TENANT, 1001, 'individual').directCount >= 1, true, '结算后计入直推');
+    // 仅分销商海报：card 来源忽略，qrcode 来源绑定
+    dist.saveConfig(TENANT, { bind_rule: 2 });
+    const u2 = 1009;
+    r = dist.bindRelation(TENANT, u2, 'individual', 1001, 'card');
+    assert.ok(r.ok && r.ignored === true, '非海报来源静默忽略');
+    assert.equal(dist.getRelation(TENANT, u2, 'individual'), null, '未建立关系');
+    r = dist.bindRelation(TENANT, u2, 'individual', 1001, 'qrcode');
+    assert.ok(r.ok && r.relation.status === 'bound', '海报来源正常绑定');
+    // 还原
+    dist.saveConfig(TENANT, { bind_rule: 0 });
+  });
+
+  it('P5 申请即通过（become_rule=1）：提交自动入白名单 + getSummary 透传新字段', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.saveConfig(TENANT, { become_rule: 1, share_title: '来名片', dist_notice: '<p>须知</p>', apply_agreement: '<p>协议</p>' });
+    const uid = 1010;
+    assert.ok(dist.applyDistributor(TENANT, uid, 'individual').ok, '申请即通过：提交成功');
+    const st = dist.getApplyStatus(TENANT, uid, 'individual');
+    assert.equal(st.applyStatus, 'approved', '自动通过');
+    assert.equal(st.inWhitelist, true, '自动入白名单');
+    assert.equal(st.canApply, false, '已通过不可再申请');
+    const s = dist.getSummary(TENANT, 1001, 'individual');
+    assert.equal(s.bindRule, 0, 'summary 透传 bindRule');
+    assert.equal(s.becomeRule, 1, 'summary 透传 becomeRule');
+    assert.equal(s.shareTitle, '来名片', 'summary 透传 shareTitle');
+    assert.equal(s.distNotice, '<p>须知</p>', 'summary 透传 distNotice');
+    assert.equal(s.applyAgreement, '<p>协议</p>', 'summary 透传 applyAgreement');
+    // 还原
+    dist.saveConfig(TENANT, { become_rule: 0, share_title: '', dist_notice: '', apply_agreement: '' });
+  });
 });

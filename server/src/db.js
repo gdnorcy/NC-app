@@ -1735,10 +1735,25 @@ function migrate(db) {
       ["show_parent", "INTEGER NOT NULL DEFAULT 0"],
       ["show_phone", "INTEGER NOT NULL DEFAULT 0"],
       ["default_level", "TEXT NOT NULL DEFAULT '默认等级'"],
+      // —— 关系设置 / 分享设置 / 申请协议 / 分销须知（2026-09-09 第二批）——
+      ["bind_rule", "INTEGER NOT NULL DEFAULT 0"],        // 成为下线：0首次点击 1首次下单 2仅分销商海报
+      ["become_rule", "INTEGER NOT NULL DEFAULT 0"],      // 成为分销商：0无条件 1申请即通过 2申请需审核 3总消费金额 4购买商品 5指定商品
+      ["become_amount", "REAL NOT NULL DEFAULT 0"],       // 成为分销商-总消费金额门槛（元）
+      ["become_products", "TEXT NOT NULL DEFAULT ''"],    // 成为分销商-指定商品（逗号分隔 product_name）
+      ["share_title", "TEXT NOT NULL DEFAULT ''"],        // 分享标题
+      ["share_img", "TEXT NOT NULL DEFAULT ''"],          // 分享图（5:4 ≤100KB）
+      ["apply_agreement", "TEXT NOT NULL DEFAULT ''"],    // 申请协议（富文本 HTML）
+      ["dist_notice", "TEXT NOT NULL DEFAULT ''"],        // 分销须知（富文本 HTML）
     ];
     for (const [col, def] of DIST_CFG_COLS) {
       if (!colExists(db, 'dist_config', col)) db.exec(`ALTER TABLE dist_config ADD COLUMN ${col} ${def}`);
     }
+    // 旧「分销商开通门槛」distributor_gate → become_rule 映射（0无门槛→0无条件；1付费用户→4购买商品；2指定名单→2申请需审核）
+    db.exec("UPDATE dist_config SET become_rule = CASE distributor_gate WHEN 1 THEN 4 WHEN 2 THEN 2 ELSE become_rule END WHERE become_rule = 0 AND distributor_gate > 0");
+  }
+  // dist_user_relation.status：成为下线=首次下单模式下的意向绑定（pending → 支付成功结算 bound）
+  if (tableExists(db, 'dist_user_relation') && !colExists(db, 'dist_user_relation', 'status')) {
+    db.exec("ALTER TABLE dist_user_relation ADD COLUMN status TEXT NOT NULL DEFAULT 'bound'");
   }
 
   // —— 支付订单补买家身份（分销分账按双身份隔离）——

@@ -12,6 +12,12 @@
           <text>{{ identityLabel }}</text>
         </view>
       </view>
+      <view class="row-rules">
+        <view class="rule-link" @click="showRules = true">
+          <SIcon name="audit" size="small" color="#ffffff" />
+          <text>规则</text>
+        </view>
+      </view>
       <view class="wallet-grid">
         <view class="w-cell"><view class="w-label">可提现(元)</view><view class="w-val">{{ fen(summary.wallet?.available) }}</view></view>
         <view class="w-cell"><view class="w-label">待结算(元)</view><view class="w-val">{{ fen(summary.wallet?.waitSettle) }}</view></view>
@@ -25,8 +31,8 @@
       当前暂无分销/分红权限，入驻租户并绑定推广关系后可查看收益
     </view>
 
-    <!-- 分销资格申请（门槛=2 指定名单：申请 → 租户后台审核） -->
-    <view v-else-if="summary.gate === 2 && !summary.inWhitelist" class="apply-box">
+    <!-- 分销资格申请（申请制：成为分销商=申请即通过 / 申请需审核） -->
+    <view v-else-if="(summary.gate === 1 || summary.gate === 2) && !summary.inWhitelist" class="apply-box">
       <image v-if="summary.applyTopImg" class="apply-img" :src="summary.applyTopImg" mode="widthFix" />
       <view class="apply-row">
         <view class="apply-txt">
@@ -34,24 +40,36 @@
           <text v-else-if="summary.applyStatus === 'rejected'" class="apply-title">申请被驳回</text>
           <text v-else class="apply-title">成为{{ summary.distName || '分销商' }}</text>
           <view class="apply-desc">
-            <text v-if="summary.applyStatus === 'pending'">租户审核通过后自动获得推广佣金资格</text>
+            <text v-if="summary.applyStatus === 'pending'">{{ summary.gate === 1 ? '申请已自动通过，可开始推广' : '租户审核通过后自动获得推广佣金资格' }}</text>
             <text v-else-if="summary.applyStatus === 'rejected'">驳回原因：{{ summary.rejectReason || '未填写' }}</text>
-            <text v-else>{{ summary.applyTip || '当前为指定名单门槛，需申请通过后才能获得推广佣金' }}</text>
+            <text v-else>{{ summary.applyTip || (summary.gate === 1 ? '提交申请后自动成为分销商' : '当前为申请制，需通过后才能获得推广佣金') }}</text>
           </view>
         </view>
         <button
           v-if="summary.canApply"
           class="apply-btn"
-          :disabled="applying"
+          :disabled="applying || (!!summary.applyAgreement && !agreed)"
           @click="submitApply"
         >{{ summary.applyStatus === 'rejected' ? '重新申请' : '申请成为' + (summary.distName || '分销商') }}</button>
         <text v-else-if="summary.applyStatus === 'pending'" class="apply-wait">等待审核</text>
       </view>
+      <!-- 申请协议（勾选后才可提交） -->
+      <view v-if="summary.applyAgreement" class="apply-agreement">
+        <view class="agreement-box">
+          <rich-text :nodes="summary.applyAgreement" />
+        </view>
+        <label class="agreement-check" @click="agreed = !agreed">
+          <radio :checked="agreed" color="#165DFF" style="transform: scale(0.75)" />
+          <text>我已阅读并同意以上协议</text>
+        </label>
+      </view>
     </view>
 
-    <!-- 门槛=1 付费用户：未付费提示 -->
-    <view v-else-if="summary.gate === 1 && !summary.inWhitelist" class="tip-box">
-      当前为付费门槛：完成任意付费订单后自动获得分销资格
+    <!-- 自动资格门槛提示（总消费金额 / 购买商品 / 指定商品） -->
+    <view v-else-if="(summary.gate === 3 || summary.gate === 4 || summary.gate === 5) && !summary.inWhitelist" class="tip-box">
+      <text v-if="summary.gate === 3">当前为消费门槛：累计实付满 {{ fen(summary.becomeAmount * 100) }} 元后自动获得分销资格</text>
+      <text v-else-if="summary.gate === 4">当前为购买门槛：完成任意付费订单后自动获得分销资格</text>
+      <text v-else>当前为指定商品门槛：购买指定商品并支付完成后自动获得分销资格</text>
     </view>
 
     <!-- 显示上级（分销参数 show_parent 开启） -->
@@ -102,12 +120,30 @@
     <!-- 推广二维码弹层 -->
     <view v-if="qr.show" class="qr-mask" @click="qr.show = false">
       <view class="qr-panel" @click.stop>
-        <view class="qr-title">我的推广二维码</view>
+        <image v-if="summary.shareImg" class="qr-shareimg" :src="summary.shareImg" mode="aspectFill" />
+        <view class="qr-title">{{ summary.shareTitle || '我的推广二维码' }}</view>
         <image v-if="qr.dataUrl" class="qr-img" :src="qr.dataUrl" mode="aspectFit" />
         <view v-else class="qr-loading">二维码生成中…</view>
         <view class="qr-hint">客户扫码进入我的名片，首次进入自动绑定为我的下级</view>
         <button class="mini-btn" @click="copyShareUrl">复制推广链接</button>
         <button class="mini-btn ghost" @click="qr.show = false">关闭</button>
+      </view>
+    </view>
+
+    <!-- 分销须知（dist_notice 优先，否则默认规则拼接） -->
+    <view v-if="showRules" class="qr-mask" @click="showRules = false">
+      <view class="qr-panel rules-panel" @click.stop>
+        <view class="qr-title">业务规则</view>
+        <scroll-view scroll-y class="rules-scroll">
+          <rich-text v-if="summary.distNotice" :nodes="summary.distNotice" />
+          <view v-else class="rules-text">
+            <view class="rule-p">· 一级{{ summary.subName || '下级' }}付费订单产生一级推广佣金，比例为 {{ fmtRatio(summary.ratio1) }}</view>
+            <view class="rule-p">· 二级{{ summary.subName || '下级' }}付费订单产生二级推广佣金，比例为 {{ fmtRatio(summary.ratio2) }}</view>
+            <view class="rule-p">· 收益按订单实付金额计算，订单售后退款会扣回对应收益</view>
+            <view class="rule-p">· 订单完成后进入 {{ summary.settleDay || 7 }} 天结算周期，期满后可提现</view>
+          </view>
+        </scroll-view>
+        <button class="mini-btn ghost" @click="showRules = false">关闭</button>
       </view>
     </view>
 
@@ -197,17 +233,24 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '' });
+const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0 });
 const applying = ref(false);
+const agreed = ref(false);
+const showRules = ref(false);
+const fmtRatio = (v) => (Math.round((Number(v) || 0) * 1000) / 10) + '%';
 
 async function submitApply() {
   if (applying.value) return;
+  if (summary.value.applyAgreement && !agreed.value) {
+    uni.showToast({ title: '请先阅读并勾选申请协议', icon: 'none' });
+    return;
+  }
   applying.value = true;
   try {
     const res = await cardApi.distApply();
     if (!res || res.ok === false) { uni.showToast({ title: (res && res.error) || '申请失败', icon: 'none' }); return; }
     await loadSummary();
-    uni.showToast({ title: '申请已提交，等待审核', icon: 'none' });
+    uni.showToast({ title: summary.value.gate === 1 ? '申请成功，已自动通过' : '申请已提交，等待审核', icon: 'none' });
   } catch (e) { uni.showToast({ title: e || '申请失败', icon: 'none' }); } finally { applying.value = false; }
 }
 const logs = ref([]);
@@ -381,6 +424,16 @@ onShow(() => {
 .qr-img { width: 220px; height: 220px; margin: 0 auto; }
 .qr-loading { height: 220px; line-height: 220px; color: #86909c; font-size: 13px; }
 .qr-hint { font-size: 12px; color: #86909c; margin: 10px 0 14px; }
+.row-rules { display: flex; justify-content: flex-end; margin: -6px 20px 0 0; }
+.rule-link { display: flex; align-items: center; gap: 4px; color: rgba(255,255,255,0.92); font-size: 12px; padding: 4px 6px; }
+.rules-panel { max-height: 80vh; display: flex; flex-direction: column; }
+.rules-scroll { max-height: 52vh; margin-bottom: 4px; text-align: left; }
+.rules-text { font-size: 13px; color: #4e5969; line-height: 1.8; }
+.rule-p { margin-bottom: 6px; }
+.qr-shareimg { width: 260px; height: 208px; border-radius: 8px; margin: -4px 0 10px; }
+.apply-agreement { margin: 12px 2px 0; border-top: 1px solid #f2f3f5; padding-top: 10px; }
+.agreement-box { max-height: 140px; overflow-y: auto; background: #f7f8fa; border-radius: 8px; padding: 10px; font-size: 12px; color: #4e5969; line-height: 1.7; }
+.agreement-check { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 12px; color: #4e5969; }
 .tabs { display: flex; gap: 8px; margin: 0 20px 10px; }
 .tab { padding: 6px 14px; border-radius: 16px; background: #fff; color: #4e5969; font-size: 13px; }
 .tab.on { background: #165dff; color: #fff; }

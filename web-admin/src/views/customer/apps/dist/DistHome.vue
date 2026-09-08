@@ -11,119 +11,185 @@
 
     <!-- 配置 -->
     <section v-if="activeTab === 'config'">
-      <AppPageHeader title="分销配置" desc="分销裂变全局配置（佣金比例 / 结算周期 / 提现门槛 / 基本设置 / 分销参数）">
+      <AppPageHeader title="分销配置" desc="分销裂变全局配置（基础 / 关系 / 佣金 / 提现 / 显示 / 申请与协议）">
         <div class="hd-actions">
           <el-button type="primary" :loading="saving" @click="saveConfig">保存配置</el-button>
         </div>
       </AppPageHeader>
-      <el-card shadow="never" class="mb16">
-        <el-form label-width="140px" label-position="right" class="cfg-form">
-          <el-form-item label="插件开关">
-            <el-switch v-model="pluginOn" @change="onPluginChange" />
-            <span class="form-tip">关闭后新订单不再产生佣金，历史收益与钱包保留</span>
-          </el-form-item>
-          <el-divider content-position="left">佣金比例</el-divider>
-          <el-form-item label="一级佣金比例">
-            <el-input-number v-model="cfg.ratio1" :min="0" :max="0.9" :step="0.05" :precision="2" />
-            <span class="form-tip">一级下线付费订单的佣金比例</span>
-          </el-form-item>
-          <el-form-item label="二级佣金比例">
-            <el-input-number v-model="cfg.ratio2" :min="0" :max="0.9" :step="0.05" :precision="2" />
-            <span class="form-tip">二级下线付费订单的佣金比例</span>
-          </el-form-item>
-          <el-form-item label="开启二级分销">
-            <el-switch v-model="cfg.isOpenLevel2" />
-          </el-form-item>
-          <el-form-item label="分销内购">
-            <el-switch v-model="cfg.isSelfBuy" />
-            <span class="form-tip">开启后分销商自己购买商品，享受直推佣金，上级享受间推佣金</span>
-          </el-form-item>
-          <el-form-item label="分销商开通门槛">
-            <el-radio-group v-model="cfg.distributorGate">
-              <el-radio :value="0">无门槛</el-radio>
-              <el-radio :value="1">付费用户</el-radio>
-              <el-radio :value="2">指定名单</el-radio>
-            </el-radio-group>
-            <span class="form-tip">付费用户：有已支付订单才可获推广佣金；指定名单：仅白名单成员可获佣金</span>
-          </el-form-item>
-          <el-divider content-position="left">结算与提现</el-divider>
-          <el-form-item label="佣金计算值">
-            <el-radio-group v-model="cfg.calcType">
-              <el-radio :value="1">实付金额</el-radio>
-              <el-radio :value="2">商品利润</el-radio>
-            </el-radio-group>
-            <span class="form-tip">实付金额：商品实付金额（扣除积分/优惠券等）；商品利润：实付金额-商品成本价（当前订单无成本价概念，选择后按实付金额计佣）</span>
-          </el-form-item>
-          <el-form-item label="结算周期（T+N）">
-            <el-input-number v-model="cfg.settleDay" :min="1" :max="90" />
-            <span class="form-tip">订单完成后 N 天进入可提现余额</span>
-          </el-form-item>
-          <el-form-item label="订单总让利上限">
-            <el-input-number v-model="cfg.maxTotalRatio" :min="0" :max="1" :step="0.05" :precision="2" />
-            <span class="form-tip">佣金+分红总和不超过订单金额的比例，防止超支</span>
-          </el-form-item>
-          <el-form-item label="最低提现金额">
-            <el-input-number v-model="cfg.minWithdraw" :min="0" :step="10" />
-            <span class="form-tip">元</span>
-          </el-form-item>
-          <el-form-item label="提现手续费比例">
-            <el-input-number v-model="cfg.withdrawFeeRate" :min="0" :max="1" :step="0.01" :precision="2" />
-            <span class="form-tip">0~1（如 0.05 表示 5%）</span>
-          </el-form-item>
-          <el-divider content-position="left">基本设置</el-divider>
-          <el-form-item label="分销商名称" required>
-            <el-input v-model="cfg.distName" maxlength="32" placeholder="如：推广员" class="w320" />
-            <span class="form-tip">C 端分销中心对推广用户的称呼</span>
-          </el-form-item>
-          <el-form-item label="下级名称">
-            <el-input v-model="cfg.subName" maxlength="32" placeholder="如：下级" class="w320" />
-            <span class="form-tip">C 端对下级的称呼</span>
-          </el-form-item>
-          <el-form-item label="申请页顶图">
-            <el-input v-model="cfg.applyTopImg" placeholder="图片 URL（建议 710×280，≤100KB）" clearable class="w480">
-              <template #prepend>URL</template>
-            </el-input>
-            <div v-if="cfg.applyTopImg" class="img-preview"><el-image :src="cfg.applyTopImg" fit="cover" style="width:160px;height:64px;border-radius:6px" /></div>
-            <span class="form-tip">C 端「申请成为分销商」页顶部展示图</span>
-          </el-form-item>
-          <el-form-item label="分销推广图">
-            <el-input v-model="cfg.promoteImg" placeholder="图片 URL（建议 750×750 正方形，≤200KB）" clearable class="w480">
-              <template #prepend>URL</template>
-            </el-input>
-            <div v-if="cfg.promoteImg" class="img-preview"><el-image :src="cfg.promoteImg" fit="cover" style="width:64px;height:64px;border-radius:6px" /></div>
-            <span class="form-tip">推广/分享卡片配图；开启「海报装修」后此处不生效</span>
-          </el-form-item>
-          <el-form-item label="申请页提示">
-            <el-input v-model="cfg.applyTip" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="分销商的商品销售统一由厂家直接收款、直接发货…" class="w480" />
-          </el-form-item>
-          <el-form-item label="0元订单">
-            <el-radio-group v-model="cfg.zeroOrder">
-              <el-radio :value="1">产生佣金</el-radio>
-              <el-radio :value="0">不产生佣金</el-radio>
-            </el-radio-group>
-            <span class="form-tip">订单在优惠券、积分等折扣下实付金额为 0 时是否计佣（当前分账按实付金额计算，0 元订单无佣金收益）</span>
-          </el-form-item>
-          <el-divider content-position="left">分销参数</el-divider>
-          <el-form-item label="显示上级">
-            <el-radio-group v-model="cfg.showParent">
-              <el-radio :value="1">启用</el-radio>
-              <el-radio :value="0">禁用</el-radio>
-            </el-radio-group>
-            <span class="form-tip">分销中心是否显示上级推荐人</span>
-          </el-form-item>
-          <el-form-item label="显示电话">
-            <el-radio-group v-model="cfg.showPhone">
-              <el-radio :value="1">显示</el-radio>
-              <el-radio :value="0">隐藏</el-radio>
-            </el-radio-group>
-            <span class="form-tip">分销中心下级客户是否显示客户联系电话</span>
-          </el-form-item>
-          <el-form-item label="默认等级">
-            <el-input v-model="cfg.defaultLevel" maxlength="32" placeholder="不填即为「默认等级」" class="w320" />
-            <span class="form-tip">分销商默认等级名称</span>
-          </el-form-item>
-        </el-form>
-      </el-card>
+      <div class="cfg-layout">
+        <!-- 左侧竖排分类导航（应用中心「功能分类」样式，无数量角标） -->
+        <div class="cfg-side">
+          <div v-for="cat in cfgCats" :key="cat.key" class="cfg-cat" :class="{ on: cfgCat === cat.key }" @click="cfgCat = cat.key">
+            <SIcon :name="cat.icon" size="default" :color="cfgCat === cat.key ? '#165dff' : '#4e5969'" />
+            <span>{{ cat.label }}</span>
+          </div>
+        </div>
+        <!-- 右侧内容区 -->
+        <el-card shadow="never" class="cfg-main">
+          <el-form label-width="140px" label-position="right" class="cfg-form">
+
+            <!-- ===== 基础设置 ===== -->
+            <template v-if="cfgCat === 'base'">
+              <el-form-item label="插件开关">
+                <el-switch v-model="pluginOn" @change="onPluginChange" />
+                <span class="form-tip">关闭后新订单不再产生佣金，历史收益与钱包保留</span>
+              </el-form-item>
+              <el-form-item label="分销商名称" required>
+                <el-input v-model="cfg.distName" maxlength="32" placeholder="如：推广员" class="w320" />
+                <span class="form-tip">C 端分销中心对推广用户的称呼</span>
+              </el-form-item>
+              <el-form-item label="下级名称">
+                <el-input v-model="cfg.subName" maxlength="32" placeholder="如：下级" class="w320" />
+                <span class="form-tip">C 端对下级的称呼</span>
+              </el-form-item>
+              <el-form-item label="默认等级">
+                <el-input v-model="cfg.defaultLevel" maxlength="32" placeholder="不填即为「默认等级」" class="w320" />
+                <span class="form-tip">分销商默认等级名称</span>
+              </el-form-item>
+              <el-form-item label="0元订单">
+                <el-radio-group v-model="cfg.zeroOrder">
+                  <el-radio :value="1">产生佣金</el-radio>
+                  <el-radio :value="0">不产生佣金</el-radio>
+                </el-radio-group>
+                <span class="form-tip">订单在优惠券、积分等折扣下实付金额为 0 时是否计佣（当前分账按实付金额计算，0 元订单无佣金收益）</span>
+              </el-form-item>
+            </template>
+
+            <!-- ===== 关系设置 ===== -->
+            <template v-if="cfgCat === 'relation'">
+              <el-form-item label="成为下线">
+                <el-radio-group v-model="cfg.bindRule">
+                  <el-radio :value="0">首次点击</el-radio>
+                  <el-radio :value="1">首次下单</el-radio>
+                  <el-radio :value="2">仅分销商海报</el-radio>
+                </el-radio-group>
+                <span class="form-tip">首次点击：扫码/点链接首次进入即绑定；首次下单：首次支付成功后绑定；仅分销商海报：仅通过推广二维码/海报进入才绑定</span>
+              </el-form-item>
+              <el-form-item label="成为分销商">
+                <el-radio-group v-model="cfg.becomeRule">
+                  <el-radio :value="0">无条件</el-radio>
+                  <el-radio :value="1">申请即通过</el-radio>
+                  <el-radio :value="2">申请需审核</el-radio>
+                  <el-radio :value="3">总消费金额</el-radio>
+                  <el-radio :value="4">购买商品</el-radio>
+                  <el-radio :value="5">指定商品</el-radio>
+                </el-radio-group>
+                <span class="form-tip">无条件：所有人都是分销商；申请即通过/申请需审核：走申请制（自动通过/管理员审核）；购买指定商品下单支付完成即成为分销商</span>
+              </el-form-item>
+              <el-form-item v-if="cfg.becomeRule === 3" label="总消费金额" required>
+                <el-input-number v-model="cfg.becomeAmount" :min="0" :step="100" />
+                <span class="form-tip">元，累计实付达到该金额自动成为分销商</span>
+              </el-form-item>
+              <el-form-item v-if="cfg.becomeRule === 5" label="指定商品" required>
+                <el-input v-model="cfg.becomeProducts" placeholder="商品名称，多个用英文逗号分隔" class="w480" />
+                <span class="form-tip">购买以下任一商品（下单支付完成）即成为分销商</span>
+              </el-form-item>
+              <el-form-item label="分销内购">
+                <el-switch v-model="cfg.isSelfBuy" />
+                <span class="form-tip">开启后分销商自己购买商品，享受直推佣金，上级享受间推佣金</span>
+              </el-form-item>
+            </template>
+
+            <!-- ===== 佣金结算 ===== -->
+            <template v-if="cfgCat === 'commission'">
+              <el-form-item label="一级佣金比例">
+                <el-input-number v-model="cfg.ratio1" :min="0" :max="0.9" :step="0.05" :precision="2" />
+                <span class="form-tip">一级下线付费订单的佣金比例</span>
+              </el-form-item>
+              <el-form-item label="二级佣金比例">
+                <el-input-number v-model="cfg.ratio2" :min="0" :max="0.9" :step="0.05" :precision="2" />
+                <span class="form-tip">二级下线付费订单的佣金比例</span>
+              </el-form-item>
+              <el-form-item label="开启二级分销">
+                <el-switch v-model="cfg.isOpenLevel2" />
+              </el-form-item>
+              <el-form-item label="佣金计算值">
+                <el-radio-group v-model="cfg.calcType">
+                  <el-radio :value="1">实付金额</el-radio>
+                  <el-radio :value="2">商品利润</el-radio>
+                </el-radio-group>
+                <span class="form-tip">实付金额：商品实付金额（扣除积分/优惠券等）；商品利润：实付金额-商品成本价（当前订单无成本价概念，选择后按实付金额计佣）</span>
+              </el-form-item>
+              <el-form-item label="结算周期（T+N）">
+                <el-input-number v-model="cfg.settleDay" :min="1" :max="90" />
+                <span class="form-tip">订单完成后 N 天进入可提现余额</span>
+              </el-form-item>
+              <el-form-item label="订单总让利上限">
+                <el-input-number v-model="cfg.maxTotalRatio" :min="0" :max="1" :step="0.05" :precision="2" />
+                <span class="form-tip">佣金+分红总和不超过订单金额的比例，防止超支</span>
+              </el-form-item>
+            </template>
+
+            <!-- ===== 提现设置 ===== -->
+            <template v-if="cfgCat === 'withdraw'">
+              <el-form-item label="最低提现金额">
+                <el-input-number v-model="cfg.minWithdraw" :min="0" :step="10" />
+                <span class="form-tip">元</span>
+              </el-form-item>
+              <el-form-item label="提现手续费比例">
+                <el-input-number v-model="cfg.withdrawFeeRate" :min="0" :max="1" :step="0.01" :precision="2" />
+                <span class="form-tip">0~1（如 0.05 表示 5%）</span>
+              </el-form-item>
+            </template>
+
+            <!-- ===== 显示设置 ===== -->
+            <template v-if="cfgCat === 'display'">
+              <el-form-item label="显示上级">
+                <el-radio-group v-model="cfg.showParent">
+                  <el-radio :value="1">启用</el-radio>
+                  <el-radio :value="0">禁用</el-radio>
+                </el-radio-group>
+                <span class="form-tip">分销中心是否显示上级推荐人</span>
+              </el-form-item>
+              <el-form-item label="显示电话">
+                <el-radio-group v-model="cfg.showPhone">
+                  <el-radio :value="1">显示</el-radio>
+                  <el-radio :value="0">隐藏</el-radio>
+                </el-radio-group>
+                <span class="form-tip">分销中心下级客户是否显示客户联系电话</span>
+              </el-form-item>
+              <el-form-item label="申请页顶图">
+                <el-input v-model="cfg.applyTopImg" placeholder="图片 URL（建议 710×280，≤100KB）" clearable class="w480">
+                  <template #prepend>URL</template>
+                </el-input>
+                <div v-if="cfg.applyTopImg" class="img-preview"><el-image :src="cfg.applyTopImg" fit="cover" style="width:160px;height:64px;border-radius:6px" /></div>
+                <span class="form-tip">C 端「申请成为分销商」页顶部展示图</span>
+              </el-form-item>
+              <el-form-item label="分销推广图">
+                <el-input v-model="cfg.promoteImg" placeholder="图片 URL（建议 750×750 正方形，≤200KB）" clearable class="w480">
+                  <template #prepend>URL</template>
+                </el-input>
+                <div v-if="cfg.promoteImg" class="img-preview"><el-image :src="cfg.promoteImg" fit="cover" style="width:64px;height:64px;border-radius:6px" /></div>
+                <span class="form-tip">推广/分享卡片配图；开启「海报装修」后此处不生效</span>
+              </el-form-item>
+              <el-form-item label="分享标题">
+                <el-input v-model="cfg.shareTitle" maxlength="64" placeholder="分享给客户时的标题文案" class="w480" />
+              </el-form-item>
+              <el-form-item label="分享图">
+                <el-input v-model="cfg.shareImg" placeholder="图片 URL（建议 5:4，≤100KB）" clearable class="w480">
+                  <template #prepend>URL</template>
+                </el-input>
+                <div v-if="cfg.shareImg" class="img-preview"><el-image :src="cfg.shareImg" fit="cover" style="width:120px;height:96px;border-radius:6px" /></div>
+              </el-form-item>
+            </template>
+
+            <!-- ===== 申请与协议 ===== -->
+            <template v-if="cfgCat === 'agreement'">
+              <el-form-item label="申请页提示">
+                <el-input v-model="cfg.applyTip" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="分销商的商品销售统一由厂家直接收款、直接发货…" class="w480" />
+              </el-form-item>
+              <el-form-item label="申请协议">
+                <el-input v-model="cfg.applyAgreement" type="textarea" :rows="8" maxlength="20000" show-word-limit placeholder="C 端申请分销时需勾选的协议内容（支持 HTML 富文本）" class="w680" />
+                <span class="form-tip">C 端申请页展示协议文本，勾选后才能提交申请</span>
+              </el-form-item>
+              <el-form-item label="分销须知">
+                <el-input v-model="cfg.distNotice" type="textarea" :rows="8" maxlength="20000" show-word-limit placeholder="C 端分销中心「规则」弹窗展示的须知内容（支持 HTML 富文本，为空时显示默认规则）" class="w680" />
+              </el-form-item>
+            </template>
+
+          </el-form>
+        </el-card>
+      </div>
     </section>
 
     <!-- 分销商管理 -->
@@ -589,11 +655,22 @@ const activeTab = ref('config');
 const saving = ref(false);
 const loading = ref(false);
 const pluginOn = ref(false);
+const cfgCats = [
+  { key: 'base', label: '基础设置', icon: 'settings' },
+  { key: 'relation', label: '关系设置', icon: 'team' },
+  { key: 'commission', label: '佣金结算', icon: 'chart' },
+  { key: 'withdraw', label: '提现设置', icon: 'wallet' },
+  { key: 'display', label: '显示设置', icon: 'palette' },
+  { key: 'agreement', label: '申请与协议', icon: 'audit' },
+];
+const cfgCat = ref('base');
 const cfg = reactive({
   ratio1: 0.2, ratio2: 0.05, isOpenLevel2: 1, isSelfBuy: 0,
-  calcType: 1, settleDay: 7, minWithdraw: 10, withdrawFeeRate: 0, maxTotalRatio: 0.3, distributorGate: 0,
+  calcType: 1, settleDay: 7, minWithdraw: 10, withdrawFeeRate: 0, maxTotalRatio: 0.3,
   distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '',
   zeroOrder: 0, showParent: 0, showPhone: 0, defaultLevel: '默认等级',
+  bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '',
+  shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '',
 });
 
 async function loadConfig() {
@@ -606,12 +683,17 @@ async function loadConfig() {
       calcType: c.calc_type ?? 1, settleDay: c.settle_day ?? 7,
       minWithdraw: c.min_withdraw ?? 10, withdrawFeeRate: c.withdraw_fee_rate ?? 0,
       maxTotalRatio: c.max_total_ratio ?? 0.3,
-      distributorGate: [0, 1, 2].includes(Number(c.distributor_gate)) ? Number(c.distributor_gate) : 0,
       // 基本设置 + 分销参数
       distName: c.dist_name || '推广员', subName: c.sub_name || '下级',
       applyTopImg: c.apply_top_img || '', promoteImg: c.promote_img || '', applyTip: c.apply_tip || '',
       zeroOrder: c.zero_order ? 1 : 0, showParent: c.show_parent ? 1 : 0, showPhone: c.show_phone ? 1 : 0,
       defaultLevel: c.default_level || '默认等级',
+      // 关系设置 / 分享设置 / 申请协议 / 分销须知
+      bindRule: [0, 1, 2].includes(Number(c.bind_rule)) ? Number(c.bind_rule) : 0,
+      becomeRule: [0, 1, 2, 3, 4, 5].includes(Number(c.become_rule)) ? Number(c.become_rule) : Number(c.distributor_gate || 0),
+      becomeAmount: Number(c.become_amount || 0), becomeProducts: c.become_products || '',
+      shareTitle: c.share_title || '', shareImg: c.share_img || '',
+      applyAgreement: c.apply_agreement || '', distNotice: c.dist_notice || '',
     });
   } catch (e) { ElMessage.error(e || '加载配置失败'); }
   try {
@@ -638,10 +720,12 @@ async function saveConfig() {
       ratio1: cfg.ratio1, ratio2: cfg.ratio2, is_open_level2: cfg.isOpenLevel2 ? 1 : 0,
       is_self_buy: cfg.isSelfBuy ? 1 : 0, calc_type: cfg.calcType, settle_day: cfg.settleDay,
       min_withdraw: cfg.minWithdraw, withdraw_fee_rate: cfg.withdrawFeeRate, max_total_ratio: cfg.maxTotalRatio,
-      distributor_gate: cfg.distributorGate,
       dist_name: cfg.distName, sub_name: cfg.subName, apply_top_img: cfg.applyTopImg,
       promote_img: cfg.promoteImg, apply_tip: cfg.applyTip, zero_order: cfg.zeroOrder ? 1 : 0,
       show_parent: cfg.showParent ? 1 : 0, show_phone: cfg.showPhone ? 1 : 0, default_level: cfg.defaultLevel,
+      bind_rule: cfg.bindRule, become_rule: cfg.becomeRule, become_amount: cfg.becomeAmount,
+      become_products: cfg.becomeProducts, share_title: cfg.shareTitle, share_img: cfg.shareImg,
+      apply_agreement: cfg.applyAgreement, dist_notice: cfg.distNotice,
     });
     ElMessage.success('配置已保存');
   } catch (e) { ElMessage.error(e || '保存失败'); } finally { saving.value = false; }
@@ -929,6 +1013,14 @@ onMounted(() => {
 .w140 { width: 140px; }
 .form-tip { margin-left: 12px; color: #86909c; font-size: 12px; }
 .img-preview { margin-top: 8px; }
+/* 分销配置：左侧竖排分类 + 右侧内容区（应用中心「功能分类」样式，无数量角标） */
+.cfg-layout { display: flex; align-items: flex-start; gap: 16px; }
+.cfg-side { width: 176px; flex-shrink: 0; background: #fff; border-radius: 8px; padding: 8px 12px; }
+.cfg-cat { display: flex; align-items: center; gap: 10px; height: 44px; line-height: 44px; padding: 0 12px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; font-size: 14px; color: #4e5969; transition: background-color 0.2s, color 0.2s; }
+.cfg-cat:hover { background: #f2f3f5; color: #1d2129; }
+.cfg-cat.on { background: #e8f3ff; color: #165dff; font-weight: 500; }
+.cfg-main { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+@media (max-width: 900px) { .cfg-layout { flex-direction: column; } .cfg-side { width: 100%; display: flex; flex-wrap: wrap; gap: 4px; } .cfg-cat { margin-bottom: 0; } }
 .sub-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 12px; }
 .stat-cell { text-align: center; }
 .stat-label { font-size: 12px; color: #86909c; margin-bottom: 6px; }

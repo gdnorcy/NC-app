@@ -72,7 +72,13 @@ export function createDistributionService(db) {
   /** 保存租户二级分销配置（数值白名单校验 + 基本设置/分销参数字符串白名单） */
   svc.saveConfig = (tenantId, patch = {}) => {
     const cur = svc.getConfig(tenantId);
+    // 兼容旧「分销商开通门槛」：未显式传 become_rule 时，按 distributor_gate 映射（1付费用户→4购买商品；2指定名单→2申请需审核）
+    if (patch.distributor_gate !== undefined && patch.become_rule === undefined) {
+      const g = Number(patch.distributor_gate);
+      patch.become_rule = g === 1 ? 4 : (g === 2 ? 2 : 0);
+    }
     const str = (v, def, max = 128) => (v !== undefined && v !== null && String(v).trim() !== '' ? String(v).trim().slice(0, max) : def);
+    const strE = (v, def, max = 128) => (v !== undefined && v !== null ? String(v).trim().slice(0, max) : def); // 允许清空
     const bool = (v, def) => (v !== undefined ? (v ? 1 : 0) : def);
     const next = {
       ratio1: Number(patch.ratio1 ?? cur.ratio1),
@@ -95,17 +101,30 @@ export function createDistributionService(db) {
       show_parent: bool(patch.show_parent, cur.show_parent),
       show_phone: bool(patch.show_phone, cur.show_phone),
       default_level: str(patch.default_level, cur.default_level, 32),
+      // —— 关系设置 / 分享设置 / 申请协议 / 分销须知 ——
+      bind_rule: [0, 1, 2].includes(Number(patch.bind_rule ?? cur.bind_rule)) ? Number(patch.bind_rule ?? cur.bind_rule) : Number(cur.bind_rule || 0),
+      become_rule: [0, 1, 2, 3, 4, 5].includes(Number(patch.become_rule ?? cur.become_rule)) ? Number(patch.become_rule ?? cur.become_rule) : Number(cur.become_rule !== undefined ? cur.become_rule : (cur.distributor_gate || 0)),
+      become_amount: Math.max(0, Number(patch.become_amount ?? cur.become_amount) || 0),
+      become_products: strE(patch.become_products, cur.become_products, 512),
+      share_title: strE(patch.share_title, cur.share_title, 64),
+      share_img: strE(patch.share_img, cur.share_img, 512),
+      apply_agreement: strE(patch.apply_agreement, cur.apply_agreement, 20000),
+      dist_notice: strE(patch.dist_notice, cur.dist_notice, 20000),
     };
     db.prepare(`
       UPDATE dist_config SET ratio1=?, ratio2=?, is_open_level2=?, is_self_buy=?, calc_type=?,
         settle_day=?, min_withdraw=?, withdraw_fee_rate=?, max_total_ratio=?, distributor_gate=?,
         dist_name=?, sub_name=?, apply_top_img=?, promote_img=?, apply_tip=?,
-        zero_order=?, show_parent=?, show_phone=?, default_level=?, updated_at=datetime('now')
+        zero_order=?, show_parent=?, show_phone=?, default_level=?,
+        bind_rule=?, become_rule=?, become_amount=?, become_products=?, share_title=?, share_img=?,
+        apply_agreement=?, dist_notice=?, updated_at=datetime('now')
       WHERE tenant_id=?
     `).run(next.ratio1, next.ratio2, next.is_open_level2, next.is_self_buy, next.calc_type,
       next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate,
       next.dist_name, next.sub_name, next.apply_top_img, next.promote_img, next.apply_tip,
-      next.zero_order, next.show_parent, next.show_phone, next.default_level, tenantId);
+      next.zero_order, next.show_parent, next.show_phone, next.default_level,
+      next.bind_rule, next.become_rule, next.become_amount, next.become_products, next.share_title, next.share_img,
+      next.apply_agreement, next.dist_notice, tenantId);
     return svc.getConfig(tenantId);
   };
 
@@ -121,13 +140,21 @@ export function createDistributionService(db) {
 
   /**
    * 绑定上下级：已绑定永久锁定；pid 需为有效用户、非自己、且沿上级链无环
+   * 成为下线规则（dist_config.bind_rule）：
+   *   0 首次点击（默认）：立即绑定 bound
+   *   1 首次下单：写 pending 意向（支付成功后结算 bound；已有 paid 订单直接 bound）
+   *   2 仅分销商海报：仅 qrcode/海报来源才绑定，其它来源静默忽略
    * 返回 { ok, error?, relation? }
    */
   svc.bindRelation = (tenantId, userId, identityType, pid, sourceType = 'card') => {
     if (!tenantId || !userId) return { ok: false, error: '参数缺失' };
     if (pid === userId) return { ok: false, error: '不能绑定自己' };
+    const cfg = svc.getConfig(tenantId);
+    const bindRule = cfg.bind_rule || 0;
+    // 仅分销商海报：非海报来源不建立任何关系
+    if (bindRule === 2 && sourceType !== 'qrcode') return { ok: true, relation: null, ignored: true };
     const exist = svc.getRelation(tenantId, userId, identityType);
-    if (exist) return { ok: true, relation: exist }; // 永久锁定
+    if (exist) return { ok: true, relation: exist }; // 永久锁定（pending 也算，防重复）
 
     let pid1 = null, pid2 = null;
     if (pid) {
@@ -145,9 +172,30 @@ export function createDistributionService(db) {
         cursor = r ? r.pid1 : null;
       }
     }
-    const r = db.prepare('INSERT INTO dist_user_relation (tenant_id, user_id, identity_type, pid1, pid2, source_type) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(tenantId, userId, identityType, pid1, pid2, sourceType);
+    // 首次下单规则：已有 paid 订单直接 bound；否则写 pending 意向，支付成功后结算
+    let status = 'bound';
+    if (bindRule === 1) {
+      const paid = db.prepare("SELECT COUNT(*) n FROM payment_orders WHERE user_id = ? AND status = 'paid'").get(userId);
+      status = (paid && paid.n > 0) ? 'bound' : 'pending';
+    }
+    db.prepare('INSERT INTO dist_user_relation (tenant_id, user_id, identity_type, pid1, pid2, source_type, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(tenantId, userId, identityType, pid1, pid2, sourceType, status);
     return { ok: true, relation: svc.getRelation(tenantId, userId, identityType) };
+  };
+
+  /** 首次下单规则：支付成功后把买家的 pending 意向绑定结算为 bound（幂等） */
+  svc.settlePendingRelations = (order) => {
+    if (!order || !order.userId || !order.customerId) return;
+    try {
+      const cfg = svc.getConfig(order.customerId);
+      if ((cfg.bind_rule || 0) !== 1) return;
+      const pendings = db.prepare(
+        "SELECT id FROM dist_user_relation WHERE tenant_id = ? AND user_id = ? AND status = 'pending'"
+      ).all(order.customerId, order.userId);
+      for (const p of pendings) {
+        db.prepare("UPDATE dist_user_relation SET status = 'bound' WHERE id = ?").run(p.id);
+      }
+    } catch (e) { /* 意向结算失败不阻断支付 */ }
   };
 
   // ============================================================
@@ -345,21 +393,35 @@ export function createDistributionService(db) {
   }
 
   /**
-   * 分销商资格判定（PRD 3.1 开通门槛）：
-   * gate=0 无门槛；gate=1 付费用户（存在 status='paid' 订单）；gate=2 指定白名单（dist_distributor status=1）
+   * 分销商资格判定（PRD 3.1 开通门槛，扩展为「成为分销商」become_rule）：
+   * 0 无条件；1 申请即通过（申请自动入白名单）；2 申请需审核（白名单 status=1）；
+   * 3 总消费金额（paid 订单累计实付 ≥ become_amount）；4 购买商品（存在 paid 订单）；
+   * 5 指定商品（paid 订单含 become_products 中任一商品名）
    */
   function distributorQualified(tenantId, userId, identityType, gate) {
-    const g = gate === undefined ? svc.getConfig(tenantId).distributor_gate : gate;
     if (!userId) return false;
+    const cfg = svc.getConfig(tenantId);
+    const g = gate === undefined ? (cfg.become_rule !== undefined ? cfg.become_rule : cfg.distributor_gate) : gate;
     if (g === 0) return true;
-    if (g === 1) {
-      const r = db.prepare("SELECT COUNT(*) n FROM payment_orders WHERE user_id = ? AND status = 'paid'").get(userId);
-      return (r && r.n > 0) || false;
-    }
-    if (g === 2) {
+    if (g === 1 || g === 2) {
       const r = db.prepare('SELECT id FROM dist_distributor WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND status = 1')
         .get(tenantId, userId, identityType);
       return !!r;
+    }
+    if (g === 3) {
+      const r = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM payment_orders WHERE user_id = ? AND status = 'paid'").get(userId);
+      const min = Number(cfg.become_amount || 0);
+      return (r && r.s >= min) || false;
+    }
+    if (g === 4) {
+      const r = db.prepare("SELECT COUNT(*) n FROM payment_orders WHERE user_id = ? AND status = 'paid'").get(userId);
+      return (r && r.n > 0) || false;
+    }
+    if (g === 5) {
+      const products = String(cfg.become_products || '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (!products.length) return false;
+      const list = db.prepare("SELECT product_name FROM payment_orders WHERE user_id = ? AND status = 'paid'").all(userId);
+      return list.some((o) => products.some((p) => (o.product_name || '').includes(p)));
     }
     return true;
   }
@@ -394,32 +456,38 @@ export function createDistributionService(db) {
     return { ok: true };
   };
 
-  /** 分销商申请状态（C 端分销中心）：门槛 / 是否白名单 / 最新申请状态 */
+  /** 分销商申请状态（C 端分销中心）：门槛 / 是否白名单 / 最新申请状态（become_rule 1申请即通过 / 2申请需审核 走申请制） */
   svc.getApplyStatus = (tenantId, userId, identityType = 'individual') => {
-    const gate = svc.getConfig(tenantId).distributor_gate;
+    const cfg = svc.getConfig(tenantId);
+    const becomeRule = cfg.become_rule !== undefined ? cfg.become_rule : cfg.distributor_gate;
     const inWhitelist = !!db.prepare('SELECT id FROM dist_distributor WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND status = 1')
       .get(tenantId, userId, identityType);
     const apply = db.prepare('SELECT status, reject_reason FROM dist_distributor_apply WHERE tenant_id = ? AND user_id = ? AND identity_type = ? ORDER BY id DESC LIMIT 1')
       .get(tenantId, userId, identityType);
     const applyStatus = apply ? apply.status : null;
     return {
-      gate,
+      gate: becomeRule,
       inWhitelist,
       applyStatus,
       rejectReason: apply && apply.status === 'rejected' ? apply.reject_reason : '',
-      canApply: gate === 2 && !inWhitelist && applyStatus !== 'pending' && applyStatus !== 'approved',
+      canApply: (becomeRule === 1 || becomeRule === 2) && !inWhitelist && applyStatus !== 'pending' && applyStatus !== 'approved',
     };
   };
 
-  /** 提交分销商申请（门槛=2 指定名单时开放；已有 pending / 已在白名单拒绝） */
+  /** 提交分销商申请（become_rule=1 申请即通过自动入白名单；=2 申请需审核待管理员审批） */
   svc.applyDistributor = (tenantId, userId, identityType = 'individual') => {
     const st = svc.getApplyStatus(tenantId, userId, identityType);
-    if (st.gate !== 2) return { ok: false, error: '当前门槛无需申请' };
+    if (st.gate !== 1 && st.gate !== 2) return { ok: false, error: '当前门槛无需申请' };
     if (st.inWhitelist) return { ok: false, error: '你已是分销商' };
     if (st.applyStatus === 'pending') return { ok: false, error: '申请审核中，请耐心等待' };
     if (st.applyStatus === 'approved') return { ok: false, error: '你已是分销商' };
-    db.prepare("INSERT INTO dist_distributor_apply (tenant_id, user_id, identity_type, status) VALUES (?, ?, ?, 'pending')")
-      .run(tenantId, userId, identityType);
+    db.prepare("INSERT INTO dist_distributor_apply (tenant_id, user_id, identity_type, status) VALUES (?, ?, ?, ?)")
+      .run(tenantId, userId, identityType, st.gate === 1 ? 'approved' : 'pending');
+    if (st.gate === 1) {
+      // 申请即通过：自动入白名单
+      db.prepare('INSERT OR IGNORE INTO dist_distributor (tenant_id, user_id, identity_type, status) VALUES (?, ?, ?, 1)')
+        .run(tenantId, userId, identityType);
+    }
     return { ok: true };
   };
 
@@ -503,7 +571,7 @@ export function createDistributionService(db) {
 
     // —— 插件一：分销裂变 ——
     if (active.includes('dist')) {
-      const gate = config.distributor_gate;
+      const gate = config.become_rule !== undefined ? config.become_rule : config.distributor_gate;
       // 自购返佣（自己需具备分销商资格）
       if (config.is_self_buy && distributorQualified(tenantId, order.userId, buyerIdentity, gate)) {
         col.self = Math.floor(base * config.ratio1);
@@ -788,7 +856,7 @@ export function createDistributionService(db) {
     const relations = db.prepare(`
       SELECT r.user_id AS userId, r.pid1, r.pid2, r.identity_type AS identityType, u.nickname
       FROM dist_user_relation r LEFT JOIN platform_user u ON u.id = r.user_id
-      WHERE r.tenant_id = ?
+      WHERE r.tenant_id = ? AND r.status = 'bound'
     `).all(tenantId);
     if (!relations.length) return [];
     const tagMap = new Map();
@@ -830,7 +898,7 @@ export function createDistributionService(db) {
       SELECT w.user_id AS userId, u.nickname,
         COALESCE(w.total_income, 0) AS totalIncome,
         COALESCE(w.available, 0) AS available,
-        (SELECT COUNT(*) FROM dist_user_relation r2 WHERE r2.tenant_id = ? AND r2.pid1 = w.user_id) AS directCount
+        (SELECT COUNT(*) FROM dist_user_relation r2 WHERE r2.tenant_id = ? AND r2.pid1 = w.user_id AND r2.status = 'bound') AS directCount
       FROM dist_wallet w
       LEFT JOIN platform_user u ON u.id = w.user_id
       WHERE w.tenant_id = ? AND w.total_income > 0
@@ -853,8 +921,8 @@ export function createDistributionService(db) {
   /** 用户收益汇总（钱包 + 直推/间推人数 + 本月佣金 + 身份标签） */
   svc.getSummary = (tenantId, userId, identityType) => {
     const wallet = svc.getWallet(tenantId, userId, identityType);
-    const direct = db.prepare('SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND pid1 = ?').get(tenantId, userId).n;
-    const indirect = db.prepare('SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND pid2 = ?').get(tenantId, userId).n;
+    const direct = db.prepare("SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND pid1 = ? AND status = 'bound'").get(tenantId, userId).n;
+    const indirect = db.prepare("SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND pid2 = ? AND status = 'bound'").get(tenantId, userId).n;
     const monthStart = new Date();
     monthStart.setDate(1);
     const monthKey = monthStart.toISOString().slice(0, 10);
@@ -863,7 +931,7 @@ export function createDistributionService(db) {
     ).get(tenantId, userId, identityType, monthKey).s;
     // 本月新增推广用户（本月通过我新绑定的下级）
     const monthNew = db.prepare(
-      "SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND (pid1 = ? OR pid2 = ?) AND substr(bind_time,1,10) >= ?"
+      "SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND (pid1 = ? OR pid2 = ?) AND status = 'bound' AND substr(bind_time,1,10) >= ?"
     ).get(tenantId, userId, userId, monthKey).n;
 
     // 身份标签（小程序分销中心聚合）
@@ -913,6 +981,15 @@ export function createDistributionService(db) {
       showParent: !!cfg.show_parent,
       showPhone: !!cfg.show_phone,
       defaultLevel: cfg.default_level || '默认等级',
+      // —— 2026-09-09 关系设置 / 分享设置 / 申请协议 / 分销须知 ——
+      bindRule: cfg.bind_rule || 0,
+      becomeRule: cfg.become_rule !== undefined ? cfg.become_rule : (cfg.distributor_gate || 0),
+      becomeAmount: Number(cfg.become_amount || 0),
+      becomeProducts: cfg.become_products || '',
+      shareTitle: cfg.share_title || '',
+      shareImg: cfg.share_img || '',
+      applyAgreement: cfg.apply_agreement || '',
+      distNotice: cfg.dist_notice || '',
       // 显示上级：我的上级推荐人（仅 show_parent 开启时前端展示）
       parent: myParent && myParent.pid1
         ? (() => { const pu = db.prepare('SELECT id, nickname, avatar FROM platform_user WHERE id = ?').get(myParent.pid1); return pu ? { userId: pu.id, nickname: pu.nickname || '微信用户', avatar: pu.avatar || '' } : null; })()
@@ -923,7 +1000,7 @@ export function createDistributionService(db) {
   /** 我的下级客户列表（PRD 5.2：直推 pid1=me / 间推 pid2=me；含是否付费） */
   svc.getSubs = (tenantId, userId, identityType, { level = 1, page = 1, pageSize = 20 } = {}) => {
     const pidCol = level === 2 ? 'pid2' : 'pid1';
-    const where = `r.tenant_id = ? AND r.${pidCol} = ? AND r.identity_type = ?`;
+    const where = `r.tenant_id = ? AND r.${pidCol} = ? AND r.identity_type = ? AND r.status = 'bound'`;
     const total = db.prepare(`SELECT COUNT(*) n FROM dist_user_relation r WHERE ${where}`).get(tenantId, userId, identityType).n;
     const list = db.prepare(`
       SELECT r.user_id AS userId, r.bind_time, r.source_type,

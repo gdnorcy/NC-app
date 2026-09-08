@@ -146,6 +146,10 @@ export class PaymentService {
 
     // 分销分账调度器：租户级已支付订单触发（插件开关/幂等由调度器内部处理）
     try {
+      // 成为下线=首次下单：结算 pending 意向绑定
+      if (this.distribution && this.distribution.settlePendingRelations) {
+        this.distribution.settlePendingRelations(order);
+      }
       this.distribution.computeOrderSplit(order);
     } catch (e) {
       console.error('分销分账失败:', e?.message || e);
