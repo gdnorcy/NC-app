@@ -356,3 +356,17 @@ npm run test:frontend
 - **拾取隔离**：箭头/fx sprite 归 `_hotspotExtras`，不参与射线拾取（`_hotspotSprites` 只存主 sprite）。
 - **dir 必须包装 Vector3**：directionFromYawPitch 返回普通对象，存入 userData 前必须 `new THREE.Vector3(dir.x,dir.y,dir.z)`，否则 `.dot()` 崩溃。
 - **小程序端**：DOM 层热点（hotspot-marker + dot + arrow + ring + label），动效用 CSS keyframes（hsPulse/hsRipple），方位角由投影像素计算（`atan2(-dy,-dx)` 转度），`_vpW/_vpH` 在 projectHotspots 记录。
+
+## 全景坐标模型强制规范（2026-09-08 修复确认）
+
+- **唯一权威模型**：yaw 0° = 初始视线 **-X**，绕 Y 轴右旋（yaw 增大 = 视野右转）；pitch 向上为正；dir = `[-cp·cos(yaw), sin(pitch), -cp·sin(yaw)]`。
+- **四端必须一致**：web 老站 `controls.js directionFromYawPitch` / applyDrag / gyro、uni-app `panorama.js hotspotDir`、编辑器 HotspotEditor `hotspotDir/dirToAngles`、H5 查看端——任何一端改动必须同步其余端并跑测试。
+- **拖拽语义**：向右拖 → yaw 增大（视野右转）；向下拖 → pitch 减小（视野下转）。gyro：gamma 正 → yaw 正；前倾 beta>90 → pitch 负。
+- 判断热点位置不对时，第一排查项：目标端是否用了 -Z 旧模型（差 90°）。
+
+## 全景场景编辑页性能规范（2026-09-08 新增）
+
+- 编辑页 3D 预览（HotspotEditor）**禁止直接加载大图**：必须渐进加载——预览图（previewPath，<100KB）秒出可编辑 → 大图后台替换贴图（`loadSceneTextures`）。
+- `renderer.setPixelRatio(min(dpr, 1.5))`；纹理宽超 2048 必须 `limitTextureSize` canvas 缩放后上传；球面几何/material 复用（只换 map + needsUpdate）。
+- 场景切换（imageUrl/previewUrl 变化）必须 watch 重载纹理，不得只加载首次。
+- 验收基准：编辑页从进入页面到可交互（loading 遮罩消失）应 <1s（此前 8.6s）。
