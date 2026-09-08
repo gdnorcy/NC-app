@@ -378,6 +378,63 @@ export function createDistributionService(db) {
     return { ok: true };
   };
 
+  /** 分销商申请状态（C 端分销中心）：门槛 / 是否白名单 / 最新申请状态 */
+  svc.getApplyStatus = (tenantId, userId, identityType = 'individual') => {
+    const gate = svc.getConfig(tenantId).distributor_gate;
+    const inWhitelist = !!db.prepare('SELECT id FROM dist_distributor WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND status = 1')
+      .get(tenantId, userId, identityType);
+    const apply = db.prepare('SELECT status, reject_reason FROM dist_distributor_apply WHERE tenant_id = ? AND user_id = ? AND identity_type = ? ORDER BY id DESC LIMIT 1')
+      .get(tenantId, userId, identityType);
+    const applyStatus = apply ? apply.status : null;
+    return {
+      gate,
+      inWhitelist,
+      applyStatus,
+      rejectReason: apply && apply.status === 'rejected' ? apply.reject_reason : '',
+      canApply: gate === 2 && !inWhitelist && applyStatus !== 'pending' && applyStatus !== 'approved',
+    };
+  };
+
+  /** 提交分销商申请（门槛=2 指定名单时开放；已有 pending / 已在白名单拒绝） */
+  svc.applyDistributor = (tenantId, userId, identityType = 'individual') => {
+    const st = svc.getApplyStatus(tenantId, userId, identityType);
+    if (st.gate !== 2) return { ok: false, error: '当前门槛无需申请' };
+    if (st.inWhitelist) return { ok: false, error: '你已是分销商' };
+    if (st.applyStatus === 'pending') return { ok: false, error: '申请审核中，请耐心等待' };
+    if (st.applyStatus === 'approved') return { ok: false, error: '你已是分销商' };
+    db.prepare("INSERT INTO dist_distributor_apply (tenant_id, user_id, identity_type, status) VALUES (?, ?, ?, 'pending')")
+      .run(tenantId, userId, identityType);
+    return { ok: true };
+  };
+
+  /** 租户后台：申请列表（join 用户昵称头像） */
+  svc.getApplies = (tenantId, status = 'pending') => db.prepare(`
+    SELECT a.id, a.user_id, a.identity_type, a.status, a.reject_reason, a.created_at,
+           u.nickname, u.avatar, u.phone
+    FROM dist_distributor_apply a
+    LEFT JOIN platform_user u ON u.id = a.user_id
+    WHERE a.tenant_id = ? AND a.status = ?
+    ORDER BY a.id DESC
+  `).all(tenantId, status);
+
+  /** 租户后台：审核申请（approve 自动入白名单 / reject 带原因） */
+  svc.reviewApply = (tenantId, id, action = 'approve', reason = '') => {
+    const row = db.prepare('SELECT * FROM dist_distributor_apply WHERE id = ? AND tenant_id = ?').get(id, tenantId);
+    if (!row) return { ok: false, error: '申请不存在' };
+    if (row.status !== 'pending') return { ok: false, error: '该申请已处理' };
+    if (action === 'approve') {
+      tx(() => {
+        db.prepare("UPDATE dist_distributor_apply SET status = 'approved', reviewed_at = datetime('now') WHERE id = ?").run(id);
+        db.prepare('INSERT OR IGNORE INTO dist_distributor (tenant_id, user_id, identity_type, status) VALUES (?, ?, ?, 1)')
+          .run(tenantId, row.user_id, row.identity_type);
+      });
+      return { ok: true };
+    }
+    db.prepare("UPDATE dist_distributor_apply SET status = 'rejected', reject_reason = ?, reviewed_at = datetime('now') WHERE id = ?")
+      .run(reason || '', id);
+    return { ok: true };
+  };
+
   /** 提现审核站内通知（C 端消息中心） */
   function notifyWithdraw(row, title, content, link = '/pages/card/distribution') {
     try {

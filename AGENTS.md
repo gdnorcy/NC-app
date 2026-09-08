@@ -503,3 +503,12 @@ npm run test:frontend
 - **canvas id 带 sceneId 后缀**：页面多场景实例时 selector 不冲突；canvas type="webgl" 同层渲染，.hotspot-layer z-index 5 覆盖其上。
 - **构建**：`cd web-app && npm run build:h5` + `npm run build:mp-weixin`（根 npm -w 沙箱不可用）；H5 产物同步 server/public/card 必须**先 rm -rf assets 再 cp -R**（uni build 不清理 server 侧旧 chunk，残留多个 pages-viewer-viewer 旧哈希会让浏览器加载旧代码）。
 - **验收**：H5 `/?plan=1&scene=1` 全景渲染/热点/场景切换正常（回归）；小程序产物 components/PanoramaViewer.js 含 createScopedThreejs、vendor.js 731KB（three 打包）；小程序真机/开发者工具需实机验证。
+
+## 分销商申请链路 + 提现待办角标（2026-09-08 新增）
+
+- **申请链路**：门槛=2（指定名单）时 C 端分销中心显示「申请成为分销商」区块（canApply/applyStatus/rejectReason 由 summary 返回）→ `POST /api/card/distribution/apply` 写 dist_distributor_apply（pending 唯一校验：已有 pending/已通过/已在白名单拒绝）→ 租户后台分销商 Tab「分销商申请」卡片（`GET /applies?status=pending` + `POST /applies/:id/review`，approve 自动 INSERT OR IGNORE 入 dist_distributor 白名单，reject 必填原因落 reject_reason）→ C 端刷新显示 审核中/已通过/已驳回（驳回可重新申请）。
+- **门槛=1 提示**：C 端显示「完成任意付费订单后自动获得分销资格」，不提供申请按钮；门槛=0 无提示。
+- **提现待办角标**：DistHome Tab `wallet` label 右侧红色角标显示 `stats.withdrawPending`（待审核提现数），有 pending 才显示；`/stats` 已有该字段，前端 loadStats 后自动更新。
+- **建表**：dist_distributor_apply（tenant_id/user_id/identity_type/status/reject_reason/created_at/reviewed_at）在 db.js 迁移区 5 幂等创建；服务层 getApplyStatus/applyDistributor/getApplies/reviewApply。
+- **测试**：distribution.test.js 36 用例（含申请通过自动入白名单、驳回带原因可重提、重复提交拒绝）；cardApi.test.js 29 用例（distApply URL/POST）。
+- **前端**：DistHome 申请卡片（通过/驳回，驳回 ElMessageBox.prompt 原因）+ Tab 角标；C 端 apply-box 样式（蓝底申请区 + 申请按钮 + 等待审核/驳回原因态）。

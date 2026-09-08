@@ -93,6 +93,7 @@ export const cardApi = {
   distBind: (parentId, identityType) => request('/distribution/bind', 'POST', { parentId, identityType }),
   distQrcode: () => request('/distribution/qrcode', 'GET'),
   distSummary: (identityType) => request(`/distribution/summary?identityType=${identityType || ''}`),
+  distApply: () => request('/distribution/apply', 'POST'),
   distSubs: (level, page) => request(`/distribution/subs?level=${level}&page=${page || 1}&pageSize=20`),
   distLogs: (params = {}) => request(`/distribution/logs?page=${params.page || 1}&pageSize=${params.pageSize || 20}&type=${params.type || ''}&identityType=${params.identityType || ''}`),
   distWallet: (identityType) => request(`/distribution/wallet?identityType=${identityType || ''}`),

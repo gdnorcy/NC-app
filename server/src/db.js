@@ -2015,6 +2015,18 @@ function seedDistribution(db) {
       UNIQUE(tenant_id, user_id, identity_type)
     )
   `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS dist_distributor_apply (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      identity_type TEXT NOT NULL DEFAULT 'individual',
+      status TEXT NOT NULL DEFAULT 'pending',
+      reject_reason TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      reviewed_at TEXT
+    )
+  `);
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

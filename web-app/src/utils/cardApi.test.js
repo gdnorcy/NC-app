@@ -73,4 +73,12 @@ describe('cardApi 请求封装', () => {
     expect(args.method).toBe('POST');
     expect(args.data).toEqual({ name: '张三' });
   });
+
+  it('distApply 提交分销商申请（POST /distribution/apply）', async () => {
+    mockResponse(200, { ok: true });
+    await cardApi.distApply();
+    const args = uniMock.request.mock.calls[0][0];
+    expect(args.url).toBe('http://localhost:3000/api/card/distribution/apply');
+    expect(args.method).toBe('POST');
+  });
 });

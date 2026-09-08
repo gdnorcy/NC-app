@@ -25,6 +25,34 @@
       当前暂无分销/分红权限，入驻租户并绑定推广关系后可查看收益
     </view>
 
+    <!-- 分销资格申请（门槛=2 指定名单：申请 → 租户后台审核） -->
+    <view v-else-if="summary.gate === 2 && !summary.inWhitelist" class="apply-box">
+      <view class="apply-row">
+        <view class="apply-txt">
+          <text v-if="summary.applyStatus === 'pending'" class="apply-title">申请审核中</text>
+          <text v-else-if="summary.applyStatus === 'rejected'" class="apply-title">申请被驳回</text>
+          <text v-else class="apply-title">成为分销商</text>
+          <view class="apply-desc">
+            <text v-if="summary.applyStatus === 'pending'">租户审核通过后自动获得推广佣金资格</text>
+            <text v-else-if="summary.applyStatus === 'rejected'">驳回原因：{{ summary.rejectReason || '未填写' }}</text>
+            <text v-else>当前为指定名单门槛，需申请通过后才能获得推广佣金</text>
+          </view>
+        </view>
+        <button
+          v-if="summary.canApply"
+          class="apply-btn"
+          :disabled="applying"
+          @click="submitApply"
+        >{{ summary.applyStatus === 'rejected' ? '重新申请' : '申请成为分销商' }}</button>
+        <text v-else-if="summary.applyStatus === 'pending'" class="apply-wait">等待审核</text>
+      </view>
+    </view>
+
+    <!-- 门槛=1 付费用户：未付费提示 -->
+    <view v-else-if="summary.gate === 1 && !summary.inWhitelist" class="tip-box">
+      当前为付费门槛：完成任意付费订单后自动获得分销资格
+    </view>
+
     <!-- 推广模块 -->
     <view class="sec-t">我的推广</view>
     <view class="stat-cards">
@@ -159,7 +187,19 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0 });
+const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '' });
+const applying = ref(false);
+
+async function submitApply() {
+  if (applying.value) return;
+  applying.value = true;
+  try {
+    const res = await cardApi.distApply();
+    if (!res || res.ok === false) { uni.showToast({ title: (res && res.error) || '申请失败', icon: 'none' }); return; }
+    await loadSummary();
+    uni.showToast({ title: '申请已提交，等待审核', icon: 'none' });
+  } catch (e) { uni.showToast({ title: e || '申请失败', icon: 'none' }); } finally { applying.value = false; }
+}
 const logs = ref([]);
 const withdraws = ref([]);
 const subs = ref([]);
@@ -348,6 +388,14 @@ onShow(() => {
 .log-rm { margin-top: 2px; color: #ff7d00; }
 .empty { padding: 24px 0; text-align: center; font-size: 12px; color: #86909c; }
 .tip-box { margin: 12px 20px 0; background: #fff7e8; border: 1px solid #ffd666; color: #ad6800; border-radius: 10px; padding: 12px; font-size: 13px; }
+.apply-box { margin: 12px 20px 0; background: #f0f7ff; border: 1px solid #b3d6ff; border-radius: 10px; padding: 12px 14px; }
+.apply-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.apply-txt { flex: 1; min-width: 0; }
+.apply-title { font-size: 14px; font-weight: 600; color: #165dff; }
+.apply-desc { font-size: 12px; color: #4e5969; margin-top: 4px; line-height: 1.5; }
+.apply-btn { background: #165dff; color: #fff; border-radius: 8px; font-size: 13px; height: 36px; line-height: 36px; padding: 0 14px; flex-shrink: 0; }
+.apply-btn[disabled] { opacity: 0.6; }
+.apply-wait { font-size: 12px; color: #86909c; flex-shrink: 0; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px 0; }
 .tag { background: rgba(22, 93, 255, 0.08); color: #165dff; border: 1px solid rgba(22, 93, 255, 0.2); border-radius: 999px; padding: 4px 12px; font-size: 12px; }
 .withdraw-box { margin: 0 20px; background: #fff; border-radius: 10px; padding: 14px; }

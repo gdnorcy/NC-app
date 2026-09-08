@@ -327,6 +327,16 @@ export function createDistributionRouter(db) {
     res.json(dist.removeDistributor(req.customerId, req.params.userId, identityType || 'individual'));
   });
 
+  // 分销商申请（门槛=2 时 C 端可提交；租户后台审核）
+  router.get('/applies', tenant, (req, res) => {
+    const { status = 'pending' } = req.query;
+    res.json({ list: dist.getApplies(req.customerId, status) });
+  });
+  router.post('/applies/:id/review', tenant, (req, res) => {
+    const { action = 'approve', reason = '' } = req.body || {};
+    res.json(dist.reviewApply(req.customerId, Number(req.params.id), action, reason));
+  });
+
   // 分账快照列表（对账明细，?settleStatus=pending|settled|refunded）
   router.get('/splits', tenant, (req, res) => {
     const { page = 1, pageSize = 20, settleStatus = '' } = req.query;

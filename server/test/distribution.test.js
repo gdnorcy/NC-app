@@ -564,4 +564,56 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(typeof list[0].directCount === 'number', '直推人数');
     assert.ok(Array.isArray(list[0].tags), '身份标签数组');
   });
+
+  it('P4 分销商申请链路：提交申请 → 租户后台审核通过 → 自动入白名单', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.saveConfig(TENANT, { distributor_gate: 2 }); // 指定名单门槛
+    // 新用户（前面用例未占用）：1006
+    const uid = 1006;
+    // 未申请前：可申请
+    let st = dist.getApplyStatus(TENANT, uid, 'individual');
+    assert.equal(st.gate, 2, '门槛=2');
+    assert.equal(st.inWhitelist, false, '非白名单');
+    assert.equal(st.canApply, true, '可申请');
+    // 提交申请
+    const apply = dist.applyDistributor(TENANT, uid, 'individual');
+    assert.ok(apply.ok, '提交申请成功');
+    // 重复提交拒绝
+    const again = dist.applyDistributor(TENANT, uid, 'individual');
+    assert.ok(!again.ok, '重复提交拒绝');
+    // 后台申请列表
+    let list = dist.getApplies(TENANT, 'pending');
+    const row = list.find((a) => a.user_id === uid);
+    assert.ok(row && row.status === 'pending', '申请出现在待审核列表');
+    // 审核通过 → 自动入白名单
+    const rv = dist.reviewApply(TENANT, row.id, 'approve');
+    assert.ok(rv.ok, '审核通过');
+    st = dist.getApplyStatus(TENANT, uid, 'individual');
+    assert.equal(st.inWhitelist, true, '自动入白名单');
+    assert.equal(st.applyStatus, 'approved', '申请状态=已通过');
+    assert.equal(st.canApply, false, '已通过不可再申请');
+    // 已入白名单再提交 → 拒绝
+    assert.ok(!dist.applyDistributor(TENANT, uid, 'individual').ok, '已是分销商不可再申请');
+    // 已处理申请不可重复审核
+    assert.ok(!dist.reviewApply(TENANT, row.id, 'approve').ok, '已处理不可重复审核');
+    dist.saveConfig(TENANT, { distributor_gate: 0 }); // 还原无门槛
+  });
+
+  it('P4 分销商申请驳回：带原因落库 + 可重新申请', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.saveConfig(TENANT, { distributor_gate: 2 });
+    const uid = 1007; // 新用户
+    dist.applyDistributor(TENANT, uid, 'individual');
+    const row = dist.getApplies(TENANT, 'pending').find((a) => a.user_id === uid);
+    assert.ok(row, '申请存在');
+    const rv = dist.reviewApply(TENANT, row.id, 'reject', '行业不符合');
+    assert.ok(rv.ok, '驳回成功');
+    const st = dist.getApplyStatus(TENANT, uid, 'individual');
+    assert.equal(st.applyStatus, 'rejected', '申请状态=已驳回');
+    assert.equal(st.rejectReason, '行业不符合', '驳回原因落库');
+    assert.equal(st.canApply, true, '驳回后可重新申请');
+    // 重新申请成功
+    assert.ok(dist.applyDistributor(TENANT, uid, 'individual').ok, '驳回后重新提交成功');
+    dist.saveConfig(TENANT, { distributor_gate: 0 }); // 还原无门槛
+  });
 });
