@@ -1,7 +1,7 @@
 <template>
   <div>
     <PanoramaTabs />
-<AppPageHeader title="场景管理" desc="{{ planName }}">
+<AppPageHeader title="场景管理" :desc="planName">
 <el-button type="primary" @click="$router.push(`/apps/panorama/plans/${planId}/scenes/new/edit`)">
         <el-icon><Plus /></el-icon>新建场景
       </el-button>

@@ -1,7 +1,7 @@
 <template>
   <div>
     <PanoramaTabs />
-<AppPageHeader title="{{ isEdit ? '编辑场景' : '新建场景' }}" desc="配置场景主图、预览图与金字塔切片，保存后自动构建预览">
+<AppPageHeader :title="isEdit ? '编辑场景' : '新建场景'" desc="配置场景主图、预览图与金字塔切片，保存后自动构建预览">
 <div style="display:flex;gap:8px;">
         <el-button @click="preview">预览</el-button>
         <el-button type="primary" @click="save" :loading="saving">保存</el-button>
