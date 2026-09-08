@@ -27,15 +27,16 @@
 
     <!-- 分销资格申请（门槛=2 指定名单：申请 → 租户后台审核） -->
     <view v-else-if="summary.gate === 2 && !summary.inWhitelist" class="apply-box">
+      <image v-if="summary.applyTopImg" class="apply-img" :src="summary.applyTopImg" mode="widthFix" />
       <view class="apply-row">
         <view class="apply-txt">
           <text v-if="summary.applyStatus === 'pending'" class="apply-title">申请审核中</text>
           <text v-else-if="summary.applyStatus === 'rejected'" class="apply-title">申请被驳回</text>
-          <text v-else class="apply-title">成为分销商</text>
+          <text v-else class="apply-title">成为{{ summary.distName || '分销商' }}</text>
           <view class="apply-desc">
             <text v-if="summary.applyStatus === 'pending'">租户审核通过后自动获得推广佣金资格</text>
             <text v-else-if="summary.applyStatus === 'rejected'">驳回原因：{{ summary.rejectReason || '未填写' }}</text>
-            <text v-else>当前为指定名单门槛，需申请通过后才能获得推广佣金</text>
+            <text v-else>{{ summary.applyTip || '当前为指定名单门槛，需申请通过后才能获得推广佣金' }}</text>
           </view>
         </view>
         <button
@@ -43,7 +44,7 @@
           class="apply-btn"
           :disabled="applying"
           @click="submitApply"
-        >{{ summary.applyStatus === 'rejected' ? '重新申请' : '申请成为分销商' }}</button>
+        >{{ summary.applyStatus === 'rejected' ? '重新申请' : '申请成为' + (summary.distName || '分销商') }}</button>
         <text v-else-if="summary.applyStatus === 'pending'" class="apply-wait">等待审核</text>
       </view>
     </view>
@@ -53,11 +54,20 @@
       当前为付费门槛：完成任意付费订单后自动获得分销资格
     </view>
 
+    <!-- 显示上级（分销参数 show_parent 开启） -->
+    <view v-if="summary.showParent && summary.parent" class="parent-box">
+      <view class="parent-lb">我的上级推荐人</view>
+      <image v-if="summary.parent.avatar" class="parent-avatar" :src="summary.parent.avatar" mode="aspectFill" />
+      <view v-else class="parent-avatar placeholder">{{ (summary.parent.nickname || '上')[0] }}</view>
+      <view class="parent-name">{{ summary.parent.nickname }}</view>
+      <view class="parent-tag">{{ summary.defaultLevel || '默认等级' }}</view>
+    </view>
+
     <!-- 推广模块 -->
     <view class="sec-t">我的推广</view>
     <view class="stat-cards">
-      <view class="s-card"><view class="s-num">{{ summary.directCount }}</view><view class="s-lb">直推下级</view></view>
-      <view class="s-card"><view class="s-num">{{ summary.indirectCount }}</view><view class="s-lb">间推下级</view></view>
+      <view class="s-card"><view class="s-num">{{ summary.directCount }}</view><view class="s-lb">直推{{ summary.subName || '下级' }}</view></view>
+      <view class="s-card"><view class="s-num">{{ summary.indirectCount }}</view><view class="s-lb">间推{{ summary.subName || '下级' }}</view></view>
       <view class="s-card"><view class="s-num">{{ summary.monthNew }}</view><view class="s-lb">本月新增</view></view>
       <view class="s-card"><view class="s-num">{{ fen(summary.monthCommission) }}</view><view class="s-lb">本月佣金(元)</view></view>
     </view>
@@ -70,8 +80,8 @@
     <!-- 下级客户列表（直推/间推） -->
     <view class="sub-box">
       <view class="sub-tabs">
-        <view class="sub-tab" :class="subLevel === 1 ? 'on' : ''" @click="switchSubLevel(1)">直推客户</view>
-        <view class="sub-tab" :class="subLevel === 2 ? 'on' : ''" @click="switchSubLevel(2)">间推客户</view>
+        <view class="sub-tab" :class="subLevel === 1 ? 'on' : ''" @click="switchSubLevel(1)">直推{{ summary.subName || '下级' }}</view>
+        <view class="sub-tab" :class="subLevel === 2 ? 'on' : ''" @click="switchSubLevel(2)">间推{{ summary.subName || '下级' }}</view>
         <view class="sub-count">{{ subTotal }}</view>
       </view>
       <view v-if="subLoading" class="sub-empty">加载中…</view>
@@ -82,7 +92,7 @@
           <view v-else class="sub-avatar placeholder">{{ (s.nickname || '客')[0] }}</view>
           <view class="sub-info">
             <view class="sub-name">{{ s.nickname }}<text v-if="s.paid" class="sub-paid">已付费</text></view>
-            <view class="sub-time">绑定 {{ s.bindTime }}</view>
+            <view class="sub-time">绑定 {{ s.bindTime }}<text v-if="summary.showPhone && s.phone" class="sub-phone"> · {{ s.phone }}</text></view>
           </view>
           <view class="sub-arrow">›</view>
         </view>
@@ -388,8 +398,16 @@ onShow(() => {
 .log-rm { margin-top: 2px; color: #ff7d00; }
 .empty { padding: 24px 0; text-align: center; font-size: 12px; color: #86909c; }
 .tip-box { margin: 12px 20px 0; background: #fff7e8; border: 1px solid #ffd666; color: #ad6800; border-radius: 10px; padding: 12px; font-size: 13px; }
-.apply-box { margin: 12px 20px 0; background: #f0f7ff; border: 1px solid #b3d6ff; border-radius: 10px; padding: 12px 14px; }
+.apply-box { margin: 12px 20px 0; background: #f0f7ff; border: 1px solid #b3d6ff; border-radius: 10px; padding: 12px 14px; overflow: hidden; }
+.apply-img { width: 100%; max-height: 150rpx; border-radius: 8px; margin-bottom: 10px; }
 .apply-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.parent-box { margin: 12px 20px 0; background: #fff; border: 1px solid #e5e6eb; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+.parent-lb { font-size: 13px; color: #86909c; flex-shrink: 0; }
+.parent-avatar { width: 36px; height: 36px; border-radius: 50%; background: #f2f3f5; }
+.parent-avatar.placeholder { display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 15px; }
+.parent-name { font-size: 14px; color: #1d2129; font-weight: 500; }
+.parent-tag { font-size: 12px; color: #165dff; background: #e8f3ff; border-radius: 6px; padding: 2px 8px; }
+.sub-phone { color: #86909c; font-size: 12px; }
 .apply-txt { flex: 1; min-width: 0; }
 .apply-title { font-size: 14px; font-weight: 600; color: #165dff; }
 .apply-desc { font-size: 12px; color: #4e5969; margin-top: 4px; line-height: 1.5; }

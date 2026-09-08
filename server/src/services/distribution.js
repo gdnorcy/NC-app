@@ -69,9 +69,11 @@ export function createDistributionService(db) {
     return row;
   };
 
-  /** 保存租户二级分销配置（数值白名单校验） */
+  /** 保存租户二级分销配置（数值白名单校验 + 基本设置/分销参数字符串白名单） */
   svc.saveConfig = (tenantId, patch = {}) => {
     const cur = svc.getConfig(tenantId);
+    const str = (v, def, max = 128) => (v !== undefined && v !== null && String(v).trim() !== '' ? String(v).trim().slice(0, max) : def);
+    const bool = (v, def) => (v !== undefined ? (v ? 1 : 0) : def);
     const next = {
       ratio1: Number(patch.ratio1 ?? cur.ratio1),
       ratio2: Number(patch.ratio2 ?? cur.ratio2),
@@ -83,13 +85,27 @@ export function createDistributionService(db) {
       withdraw_fee_rate: Math.max(0, Math.min(1, Number(patch.withdraw_fee_rate ?? cur.withdraw_fee_rate) || 0)),
       max_total_ratio: Math.max(0, Math.min(1, Number(patch.max_total_ratio ?? cur.max_total_ratio) || 0)),
       distributor_gate: [0, 1, 2].includes(Number(patch.distributor_gate ?? cur.distributor_gate)) ? Number(patch.distributor_gate ?? cur.distributor_gate) : 0,
+      // —— 基本设置 + 分销参数 ——
+      dist_name: str(patch.dist_name, cur.dist_name, 32),
+      sub_name: str(patch.sub_name, cur.sub_name, 32),
+      apply_top_img: str(patch.apply_top_img, cur.apply_top_img, 512),
+      promote_img: str(patch.promote_img, cur.promote_img, 512),
+      apply_tip: str(patch.apply_tip, cur.apply_tip, 1000),
+      zero_order: bool(patch.zero_order, cur.zero_order),
+      show_parent: bool(patch.show_parent, cur.show_parent),
+      show_phone: bool(patch.show_phone, cur.show_phone),
+      default_level: str(patch.default_level, cur.default_level, 32),
     };
     db.prepare(`
       UPDATE dist_config SET ratio1=?, ratio2=?, is_open_level2=?, is_self_buy=?, calc_type=?,
-        settle_day=?, min_withdraw=?, withdraw_fee_rate=?, max_total_ratio=?, distributor_gate=?, updated_at=datetime('now')
+        settle_day=?, min_withdraw=?, withdraw_fee_rate=?, max_total_ratio=?, distributor_gate=?,
+        dist_name=?, sub_name=?, apply_top_img=?, promote_img=?, apply_tip=?,
+        zero_order=?, show_parent=?, show_phone=?, default_level=?, updated_at=datetime('now')
       WHERE tenant_id=?
     `).run(next.ratio1, next.ratio2, next.is_open_level2, next.is_self_buy, next.calc_type,
-      next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate, tenantId);
+      next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate,
+      next.dist_name, next.sub_name, next.apply_top_img, next.promote_img, next.apply_tip,
+      next.zero_order, next.show_parent, next.show_phone, next.default_level, tenantId);
     return svc.getConfig(tenantId);
   };
 
@@ -871,6 +887,10 @@ export function createDistributionService(db) {
     const sharePending = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('share_all','share_cat','share_area') AND status = 'pending'").get(tenantId, userId, identityType).s;
     const shareTotal = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('share_all','share_cat','share_area')").get(tenantId, userId, identityType).s;
 
+    // 基本设置 + 分销参数（C 端文案/申请页/展示开关）
+    const cfg = svc.getConfig(tenantId);
+    const myParent = svc.getRelation(tenantId, userId, identityType);
+
     return {
       wallet,
       directCount: direct,
@@ -883,6 +903,20 @@ export function createDistributionService(db) {
       partnerTotal,
       sharePending,
       shareTotal,
+      // —— 2026-09-09 基本设置 / 分销参数透传 ——
+      distName: cfg.dist_name || '推广员',
+      subName: cfg.sub_name || '下级',
+      applyTopImg: cfg.apply_top_img || '',
+      promoteImg: cfg.promote_img || '',
+      applyTip: cfg.apply_tip || '',
+      zeroOrder: !!cfg.zero_order,
+      showParent: !!cfg.show_parent,
+      showPhone: !!cfg.show_phone,
+      defaultLevel: cfg.default_level || '默认等级',
+      // 显示上级：我的上级推荐人（仅 show_parent 开启时前端展示）
+      parent: myParent && myParent.pid1
+        ? (() => { const pu = db.prepare('SELECT id, nickname, avatar FROM platform_user WHERE id = ?').get(myParent.pid1); return pu ? { userId: pu.id, nickname: pu.nickname || '微信用户', avatar: pu.avatar || '' } : null; })()
+        : null,
     };
   };
 
@@ -893,7 +927,7 @@ export function createDistributionService(db) {
     const total = db.prepare(`SELECT COUNT(*) n FROM dist_user_relation r WHERE ${where}`).get(tenantId, userId, identityType).n;
     const list = db.prepare(`
       SELECT r.user_id AS userId, r.bind_time, r.source_type,
-        u.nickname, u.avatar,
+        u.nickname, u.avatar, u.phone,
         (SELECT COUNT(*) FROM payment_orders o WHERE o.user_id = r.user_id AND o.status = 'paid') AS paidCount
       FROM dist_user_relation r
       LEFT JOIN platform_user u ON u.id = r.user_id
@@ -905,6 +939,7 @@ export function createDistributionService(db) {
       list: list.map((r) => ({
         userId: r.userId, nickname: r.nickname || '微信用户', avatar: r.avatar || '',
         bindTime: r.bind_time, sourceType: r.source_type, paid: r.paidCount > 0,
+        phone: r.phone || '',
       })),
     };
   };

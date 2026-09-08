@@ -214,6 +214,49 @@ describe('分销体系（分销裂变底座）', () => {
     assert.equal(read.ratio1, 0.3);
   });
 
+  it('基本设置与分销参数保存/读取/默认值', () => {
+    // 默认值
+    let c = dist.getConfig(TENANT);
+    assert.equal(c.dist_name, '推广员');
+    assert.equal(c.sub_name, '下级');
+    assert.equal(c.default_level, '默认等级');
+    assert.equal(c.zero_order, 0);
+    assert.equal(c.show_parent, 0);
+    assert.equal(c.show_phone, 0);
+    // 保存新字段
+    c = dist.saveConfig(TENANT, {
+      dist_name: '推广大使', sub_name: '伙伴', apply_top_img: '/u/a.png', promote_img: '/u/b.png',
+      apply_tip: '欢迎加入推广', zero_order: 1, show_parent: 1, show_phone: 1, default_level: '黄金',
+    });
+    assert.equal(c.dist_name, '推广大使');
+    assert.equal(c.sub_name, '伙伴');
+    assert.equal(c.apply_top_img, '/u/a.png');
+    assert.equal(c.promote_img, '/u/b.png');
+    assert.equal(c.apply_tip, '欢迎加入推广');
+    assert.equal(c.zero_order, 1);
+    assert.equal(c.show_parent, 1);
+    assert.equal(c.show_phone, 1);
+    assert.equal(c.default_level, '黄金');
+    // 空白字符串回退默认；布尔 false 关闭
+    c = dist.saveConfig(TENANT, { dist_name: '  ', show_parent: 0, zero_order: 0 });
+    assert.equal(c.dist_name, '推广大使');
+    assert.equal(c.show_parent, 0);
+    assert.equal(c.zero_order, 0);
+    // 恢复默认，避免影响后续用例
+    dist.saveConfig(TENANT, { dist_name: '推广员', sub_name: '下级', default_level: '默认等级', zero_order: 0, show_parent: 0, show_phone: 0 });
+  });
+
+  it('getSummary 透传基本设置/分销参数 + 上级信息', () => {
+    dist.saveConfig(TENANT, { dist_name: '推广大使', sub_name: '伙伴', show_parent: 1 });
+    const s = dist.getSummary(TENANT, 1002, 'individual');
+    assert.equal(s.distName, '推广大使');
+    assert.equal(s.subName, '伙伴');
+    assert.equal(s.showParent, true);
+    assert.equal(s.defaultLevel, '默认等级');
+    assert.equal(typeof s.parent, 'object'); // 1002 有 pid1 上级
+    dist.saveConfig(TENANT, { dist_name: '推广员', sub_name: '下级', show_parent: 0 });
+  });
+
   it('插件开关停用后新订单不再分账', () => {
     dist.setPlugin(TENANT, 'dist', { enable: false });
     const r = dist.computeOrderSplit(makeOrder({ id: 90004, userId: 1002 }));

@@ -1722,6 +1722,25 @@ function migrate(db) {
   // —— 分销体系：建表 + 应用注册 + 存量迁移（在 migrateSolutionApps 前执行，保证演示方案覆盖新应用）——
   seedDistribution(db);
 
+  // —— dist_config 扩展字段（分销基本设置 + 分销参数，2026-09-09 新增）——
+  // 分销商名称/下级名称/申请页顶图/分销推广图/申请页提示/0元订单/显示上级/显示电话/默认等级
+  if (tableExists(db, 'dist_config')) {
+    const DIST_CFG_COLS = [
+      ["dist_name", "TEXT NOT NULL DEFAULT '推广员'"],
+      ["sub_name", "TEXT NOT NULL DEFAULT '下级'"],
+      ["apply_top_img", "TEXT NOT NULL DEFAULT ''"],
+      ["promote_img", "TEXT NOT NULL DEFAULT ''"],
+      ["apply_tip", "TEXT NOT NULL DEFAULT ''"],
+      ["zero_order", "INTEGER NOT NULL DEFAULT 0"],
+      ["show_parent", "INTEGER NOT NULL DEFAULT 0"],
+      ["show_phone", "INTEGER NOT NULL DEFAULT 0"],
+      ["default_level", "TEXT NOT NULL DEFAULT '默认等级'"],
+    ];
+    for (const [col, def] of DIST_CFG_COLS) {
+      if (!colExists(db, 'dist_config', col)) db.exec(`ALTER TABLE dist_config ADD COLUMN ${col} ${def}`);
+    }
+  }
+
   // —— 支付订单补买家身份（分销分账按双身份隔离）——
   if (tableExists(db, 'payment_orders') && !colExists(db, 'payment_orders', 'buyer_identity_type')) {
     db.exec("ALTER TABLE payment_orders ADD COLUMN buyer_identity_type TEXT NOT NULL DEFAULT ''");
