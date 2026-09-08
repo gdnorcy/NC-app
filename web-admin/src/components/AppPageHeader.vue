@@ -26,12 +26,17 @@ defineProps({
   gap: 16px;
   margin-bottom: 16px;
 }
+.app-page-header-left {
+  flex: 0 0 auto;
+  min-width: 0;
+}
 .app-page-title {
   font-size: 20px;
   font-weight: 600;
   color: #1D2129;
   margin: 0;
   line-height: 1.4;
+  white-space: nowrap;
 }
 .app-page-desc {
   font-size: 13px;
@@ -40,9 +45,13 @@ defineProps({
   line-height: 1.5;
 }
 .app-page-header-extra {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 </style>
