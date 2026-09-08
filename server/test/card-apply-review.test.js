@@ -39,6 +39,10 @@ before(() => {
   db = createDb(config.dbPath);
   // 测试租户使用旗舰版配额（避免免费版上限拦截多主体审核流）
   db.prepare("UPDATE projects SET billing_plan_id = (SELECT id FROM billing_plans WHERE code = 'flagship') WHERE id = 1").run();
+  // 新体系：演示方案默认配额（入驻企业1/员工10）会拦截多主体审核流，测试库放开为 100（等效旗舰配额）
+  db.prepare(
+    "UPDATE solution_quotas SET value = 100 WHERE key IN ('enterpriseCount','employeeCount','memberCount') AND solution_id = (SELECT id FROM solutions WHERE code = 'demo')"
+  ).run();
   app = createApp({ db });
 
   // 租户2（租户1由迁移默认创建 id=1, invite_code='1001'）
