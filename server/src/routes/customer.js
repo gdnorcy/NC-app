@@ -1,6 +1,8 @@
 // 客户（租户）后台 API —— 数据严格按 customer_id 隔离
 import { Router } from 'express';
 import multer from 'multer';
+import QRCode from 'qrcode';
+import sharp from 'sharp';
 import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword, addOperationLog } from '../db.js';
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
@@ -342,6 +344,60 @@ router.delete('/plans/:id', requireTenant, requireTenantAdmin, (req, res) => {
 });
 
 // 方案下的场景列表
+// 分享海报（方案级）：封面 + 方案名 + 二维码，生成后返回图片 URL
+router.post('/plans/:id/poster', requireTenant, requireTenantAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const plan = verifyPlanOwnership(req, res, id);
+    if (!plan) return;
+    if (!plan.share_enabled || !plan.share_token) return res.status(400).json({ error: '请先在方案中开启「分享」后再生成海报' });
+    const host = `${req.protocol}://${req.get('host')}`;
+    const sceneCount = db.prepare('SELECT COUNT(*) AS n FROM scenes WHERE plan_id = ? AND published = 1').get(id).n || 0;
+    // 封面：本地 /uploads 转绝对地址拉取；拉取失败降级品牌底色
+    let coverBuf = null;
+    if (plan.cover_path) {
+      try {
+        const coverUrl = plan.cover_path.startsWith('http') ? plan.cover_path : host + plan.cover_path;
+        const r = await fetch(coverUrl, { signal: AbortSignal.timeout(8000) });
+        if (r.ok) coverBuf = Buffer.from(await r.arrayBuffer());
+      } catch { /* 封面拉取失败降级 */ }
+    }
+    const qrBuf = await QRCode.toBuffer(`${host}/s/${plan.share_token}`, { width: 260, margin: 1 });
+    const W = 750, H = 1000;
+    const top = coverBuf
+      ? await sharp(coverBuf).resize(W, 640, { fit: 'cover' }).jpeg({ quality: 82 }).toBuffer()
+      : await sharp({ create: { width: W, height: 640, channels: 3, background: { r: 22, g: 93, b: 255 } } }).jpeg({ quality: 82 }).toBuffer();
+    const name = escapeXml(String(plan.name || '全景漫游').slice(0, 24));
+    const desc = escapeXml(String(plan.description || `共 ${sceneCount} 个全景场景`).slice(0, 40));
+    const svgText = `
+      <svg width="${W}" height="360" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="#ffffff"/>
+        <text x="40" y="78" font-size="36" font-weight="700" fill="#1D2129" font-family="PingFang SC, Microsoft YaHei, sans-serif">${name}</text>
+        <text x="40" y="120" font-size="21" fill="#86909C" font-family="PingFang SC, Microsoft YaHei, sans-serif">${desc}</text>
+        <text x="40" y="328" font-size="22" fill="#4E5969" font-family="PingFang SC, Microsoft YaHei, sans-serif">长按识别二维码 · 进入全景漫游</text>
+      </svg>`;
+    const svgBuf = await sharp(Buffer.from(svgText)).png().toBuffer();
+    const qr = await sharp(qrBuf).resize(240, 240).png().toBuffer();
+    const poster = await sharp({ create: { width: W, height: H, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+      .composite([
+        { input: top, top: 0, left: 0 },
+        { input: svgBuf, top: 640, left: 0 },
+        { input: qr, top: 684, left: W - 280 },
+      ])
+      .jpeg({ quality: 86 }).toBuffer();
+    const storage = await getStorage(db);
+    const url = await storage.put(poster, `poster-${id}-${Date.now()}.jpg`);
+    res.json({ url });
+  } catch (e) {
+    console.error('海报生成失败:', e);
+    res.status(500).json({ error: '海报生成失败: ' + (e.message || '未知错误') });
+  }
+});
+
+function escapeXml(s) {
+  return String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+}
+
 router.get('/plans/:id/scenes', requireTenant, (req, res) => {
   const id = Number(req.params.id);
   const plan = verifyPlanOwnership(req, res, id);
@@ -400,6 +456,19 @@ router.put('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
     const newPlan = verifyPlanOwnership(req, res, planId);
     if (!newPlan) return;
   }
+  // 跳转点目标校验：type=scene 的 targetSceneId 必须存在且属于本方案，且不能跳转自身
+  if (Array.isArray(hotspots) && hotspots.length) {
+    const jumps = hotspots.filter((h) => h && h.type === 'scene' && h.targetSceneId);
+    if (jumps.length) {
+      const targets = new Set(
+        db.prepare('SELECT id FROM scenes WHERE plan_id = ?').all(scene.plan_id).map((s) => s.id)
+      );
+      for (const j of jumps) {
+        if (Number(j.targetSceneId) === id) return res.status(400).json({ error: `跳转点「${j.title || '未命名'}」不能跳转到当前场景自身` });
+        if (!targets.has(Number(j.targetSceneId))) return res.status(400).json({ error: `跳转点「${j.title || '未命名'}」指向的场景不存在或不属于本方案，请先修正` });
+      }
+    }
+  }
   const hotspotsJson = Array.isArray(hotspots) ? JSON.stringify(hotspots) : null;
   const metaJson = meta && typeof meta === 'object' ? JSON.stringify(meta) : null;
   const pubVal = published === undefined ? null : (published ? 1 : 0);
@@ -410,6 +479,37 @@ router.put('/scenes/:id', requireTenant, requireTenantAdmin, (req, res) => {
   const updated = db.prepare('SELECT * FROM scenes WHERE id = ?').get(id);
   auditCust(db, req, 'update_scene', 'scene', id, `编辑场景: ${updated.title}`);
   res.json({ scene: toScene(updated) });
+});
+
+// 复制场景（含热点坐标与内容增强配置，重置分享令牌，排到方案末尾）
+router.post('/scenes/:id/copy', requireTenant, requireTenantAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const scene = verifySceneOwnership(req, res, id);
+  if (!scene) return;
+  const plan = verifyPlanOwnership(req, res, scene.plan_id);
+  if (!plan) return;
+  // 场景配额（新体系 solution_quotas）
+  const sq = checkTenantSolutionQuota(db, plan.project_id, 'panorama', 'sceneCount');
+  if (!sq.ok) return res.status(403).json({ error: `场景数量已达上限（${sq.used}/${sq.limit}），请升级方案后再创建` });
+  const maxOrder = db.prepare('SELECT COALESCE(MAX(sort_order),0) AS m FROM scenes WHERE plan_id = ?').get(scene.plan_id).m;
+  const info = db
+    .prepare(
+      'INSERT INTO scenes (plan_id, title, description, image_path, preview_path, sort_order, published, share_enabled, hotspots, meta) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)'
+    )
+    .run(
+      scene.plan_id,
+      `${scene.title} 副本`,
+      scene.description || '',
+      scene.image_path || '',
+      scene.preview_path || '',
+      maxOrder + 1,
+      scene.published || 0,
+      scene.hotspots || '[]',
+      scene.meta || '{}'
+    );
+  const copy = db.prepare('SELECT * FROM scenes WHERE id = ?').get(info.lastInsertRowid);
+  auditCust(db, req, 'copy_scene', 'scene', copy.id, `复制场景: ${scene.title} → ${copy.title}`);
+  res.json({ scene: toScene(copy) });
 });
 
 // 删除场景

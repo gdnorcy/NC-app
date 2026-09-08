@@ -22,9 +22,10 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200">
+        <el-table-column label="操作" width="280">
           <template #default="{ row }">
             <el-button size="small" type="primary" @click="$router.push(`/apps/panorama/plans/${planId}/scenes/${row.id}/edit`)">编辑</el-button>
+            <el-button size="small" @click="copy(row)">复制</el-button>
             <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -55,6 +56,13 @@ async function load() {
     const plan = (ps.plans || []).find((x) => String(x.id) === String(planId));
     planName.value = plan ? `方案：${plan.name}` : '';
     scenes.value = sc.scenes || [];
+  } catch (e) { ElMessage.error(e); }
+}
+async function copy(row) {
+  try {
+    await ElMessageBox.confirm(`复制场景「${row.title}」？将保留热点与内容增强配置，复制到方案末尾。`, '确认复制', { type: 'info' });
+    const { scene } = await customerApiCall.post(`/scenes/${row.id}/copy`);
+    ElMessage.success(`已复制为「${scene.title}」`); load();
   } catch (e) { ElMessage.error(e); }
 }
 async function remove(row) {

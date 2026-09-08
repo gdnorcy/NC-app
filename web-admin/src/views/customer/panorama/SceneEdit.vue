@@ -219,6 +219,15 @@ function preview() {
 async function save() {
   if (!form.title) { ElMessage.error('请输入场景名称'); return; }
   if (!form.imagePath) { ElMessage.error('请上传全景图'); return; }
+  // 跳转点目标预校验：目标必须是本方案已存在场景，且不能跳转自身
+  const jumps = (form.hotspots || []).filter((h) => h && h.type === 'scene' && h.targetSceneId);
+  if (jumps.length) {
+    const ids = new Set((scenes.value || []).map((s) => Number(s.id)));
+    for (const j of jumps) {
+      if (Number(j.targetSceneId) === Number(route.params.sceneId)) { ElMessage.error(`跳转点「${j.title || '未命名'}」不能跳转到当前场景自身`); return; }
+      if (!ids.has(Number(j.targetSceneId))) { ElMessage.error(`跳转点「${j.title || '未命名'}」指向的场景不存在或不属于本方案，请先修正`); return; }
+    }
+  }
   saving.value = true;
   try {
     const payload = { ...form, planId: Number(route.params.id) };
