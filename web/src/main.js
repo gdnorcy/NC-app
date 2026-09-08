@@ -55,7 +55,7 @@ window.panoramaViewer = viewer; // 暴露到window方便调试
 
 // 热点点击回调
 viewer.onHotspotClick = (hs) => {
-  track('hotspot_click', { sceneId: activeIndex >= 0 ? scenes[activeIndex].id : 0, targetSceneId: hs.targetSceneId || null, hotspotType: hs.type || '' });
+  track('hotspot_click', { sceneId: activeIndex >= 0 ? scenes[activeIndex].id : 0, targetSceneId: hs.targetSceneId || null, hotspotType: hs.type || '', hotspotTitle: hs.title || '' });
   if (hs.type === 'scene' && hs.targetSceneId) {
     const idx = scenes.findIndex((s) => s.id === hs.targetSceneId);
     if (idx >= 0) selectScene(idx, { force: true });
@@ -227,6 +227,8 @@ async function selectScene(i, { force = false } = {}) {
   stopSceneAudio();
   await viewer.load(scene.imagePath, scene.previewPath, scene.pyramid, { initialView: meta.initialView });
   track('scene_view', { sceneId: scene.id, planId: project ? project.id : 0 });
+  // 记录场景停留起点，页面隐藏/卸载时补发 scene_leave（含停留时长）
+  window.__panoSceneStay = { sceneId: scene.id, at: Date.now() };
   // 加载热点
   viewer.setHotspots(scene.hotspots || [], scene.meta?.hotspotStyle);
   // 内容增强

@@ -988,6 +988,35 @@ router.get('/card/trends', requireTenant, (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  router.get('/analytics/hotspots', requireTenant, (req, res) => {
+    try {
+      const tenantId = req.customerId;
+      const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 8));
+      const solution = req.query.solution || 'panorama';
+      const where = ['tenant_id = ?', 'solution = ?', "event_type = 'hotspot_click'"];
+      const params = [tenantId, solution];
+      const whereSql = where.join(' AND ');
+      const rows = db.prepare(
+        `SELECT scene_id AS sceneId,
+                json_extract(extra, '$.hotspotTitle') AS title,
+                json_extract(extra, '$.hotspotType') AS type,
+                COUNT(*) AS clicks
+         FROM analytics_events
+         WHERE ${whereSql} AND scene_id > 0
+         GROUP BY scene_id, json_extract(extra, '$.hotspotTitle')
+         ORDER BY clicks DESC LIMIT ?`
+      ).all(...params, limit);
+      const ids = [...new Set(rows.map((r) => r.sceneId))];
+      const nameMap = new Map();
+      if (ids.length) {
+        db.prepare(`SELECT id, title FROM scenes WHERE id IN (${ids.map(() => '?').join(',')})`)
+          .all(...ids)
+          .forEach((s) => nameMap.set(s.id, s.title));
+      }
+      res.json({ hotspots: rows.map((r) => ({ ...r, sceneName: nameMap.get(r.sceneId) || `场景#${r.sceneId}`, clicks: Number(r.clicks) })) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   router.get('/analytics/health', requireTenant, (req, res) => {
     try {
       res.json({ health: calcHealthScore(db, req.customerId, req.query.solution || 'card') });

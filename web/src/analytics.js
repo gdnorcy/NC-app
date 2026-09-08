@@ -17,6 +17,7 @@ export function getVisitorKey() {
 let pending = [];
 
 function flush() {
+  flushStay();
   if (!pending.length) return;
   const events = pending;
   pending = [];
@@ -60,10 +61,20 @@ export function track(eventType, extra = {}) {
   scheduleFlush();
 }
 
-// 页面卸载/隐藏时立即上报
+// 页面卸载/隐藏时立即上报（含场景停留时长）
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush();
   });
   window.addEventListener('pagehide', flush);
+}
+
+function flushStay() {
+  // 同一次 flush 只补发一次 scene_leave，避免重复
+  if (!window.__panoSceneStay || window.__panoSceneStay.reported) return;
+  const stay = window.__panoSceneStay;
+  const durationMs = Date.now() - stay.at;
+  if (durationMs < 3000) { window.__panoSceneStay = null; return; }
+  stay.reported = true;
+  pending.push({ eventType: 'scene_leave', page: location.pathname, visitorKey: getVisitorKey(), sceneId: stay.sceneId, durationMs });
 }

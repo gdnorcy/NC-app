@@ -140,6 +140,25 @@
         </table>
         <div class="empty" v-else>{{ topEmpty }}</div>
       </div>
+      <!-- 热点点击TOP（仅全景） -->
+      <div class="card" v-if="solution === 'panorama'">
+        <div class="card-title">热点点击 TOP</div>
+        <p class="card-sub">按热点标题点击排序</p>
+        <table class="simple-table" v-if="hotspots.length">
+          <thead>
+            <tr><th>热点</th><th>所属场景</th><th>类型</th><th>点击</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="(h, i) in hotspots" :key="i">
+              <td><div class="cell-name">{{ h.title || '未命名热点' }}</div></td>
+              <td class="cell-sub">{{ h.sceneName }}</td>
+              <td><el-tag size="small" :type="h.type === 'scene' ? 'primary' : 'warning'">{{ h.type === 'scene' ? '跳转' : '信息' }}</el-tag></td>
+              <td>{{ h.clicks }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="empty" v-else>暂无热点点击数据</div>
+      </div>
     </div>
   </div>
 </template>
@@ -165,6 +184,7 @@ const funnel = ref([]);
 const trend = ref([]);
 const distribution = ref([]);
 const topCards = ref([]);
+const hotspots = ref([]);
 
 const levelClass = () => {
   const s = health.value.score || 0;
@@ -194,18 +214,21 @@ const maxDist = () => Math.max(...distribution.value.map((d) => d.count), 1);
 
 async function loadAll() {
   try {
-    const [h, f, t, d, top] = await Promise.all([
+    const reqs = [
       customerApiCall.get(`/analytics/health?solution=${solution}`),
       customerApiCall.get(`/analytics/funnel?solution=${solution}`),
       customerApiCall.get(`/analytics/trend?days=${days.value}&solution=${solution}`),
       customerApiCall.get(`/analytics/distribution?solution=${solution}`),
       customerApiCall.get(`/analytics/top?solution=${solution}`),
-    ]);
+    ];
+    if (solution === 'panorama') reqs.push(customerApiCall.get(`/analytics/hotspots?solution=${solution}`));
+    const [h, f, t, d, top, hs] = await Promise.all(reqs);
     health.value = h.health || {};
     funnel.value = f.funnel || [];
     trend.value = t.trend || [];
     distribution.value = d.distribution || [];
     topCards.value = top.top || [];
+    if (hs) hotspots.value = hs.hotspots || [];
   } catch (e) {
     console.error('数据洞察加载失败', e);
   }
