@@ -23,7 +23,10 @@ describe('分销体系（二级推广分销底座）', () => {
       [1001, 'dist-u1001', '中间B', 'individual'],
       [1002, 'dist-u1002', '买家C', 'individual'],
       [2000, 'dist-e2000', '企业上级', 'employee'],
+      [2001, 'dist-e2001', '股东乙', 'individual'],
       [1003, 'dist-u1003', '待绑定D', 'individual'],
+      [1004, 'dist-u1004', '买家E', 'individual'],
+      [1005, 'dist-u1005', '待删F', 'individual'],
     ]) {
       ins.run(id, openid, name, idt);
     }
@@ -196,5 +199,133 @@ describe('分销体系（二级推广分销底座）', () => {
     // stats 由路由层提供，这里验证核心计数查询可用
     const cnt = db.prepare('SELECT COUNT(*) n FROM dist_order_split WHERE tenant_id = ?').get(TENANT).n;
     assert.ok(cnt >= 1);
+  });
+
+  // ============================================================
+  // P1：池式分红（合伙人/全民/类目/区域）
+  // ============================================================
+
+  it('P1 合伙人团队分红：全局模式按权重分配', () => {
+    // 启用 partner 插件（dist 可停用，互不耦合）
+    dist.setPlugin(TENANT, 'partner', { install: true, enable: true });
+    dist.setPluginConfig(TENANT, 'partner', { mode: 2, poolRatio: 0.05 });
+    dist.addPartner(TENANT, 2000, { ratio: 2, mode: 2 });
+    dist.addPartner(TENANT, 2001, { ratio: 1, mode: 2 });
+    const r = dist.computeOrderSplit(makeOrder({ id: 91001, userId: 1002 }));
+    assert.ok(r, 'partner 插件启用即可分账');
+    assert.ok(r.partner_bonus > 0, '合伙人分红 > 0');
+    // 权重 2:1，2000 分得 2/3，2001 分得 1/3
+    const logs = db.prepare("SELECT user_id, amount FROM dist_user_log WHERE split_id = ? AND type = 'partner' ORDER BY user_id").all(r.id);
+    assert.equal(logs.length, 2);
+    const w2000 = logs.find((l) => l.user_id === 2000);
+    const w2001 = logs.find((l) => l.user_id === 2001);
+    assert.ok(Math.abs(w2000.amount - w2001.amount * 2) <= 2, '权重分配近似 2:1');
+  });
+
+  it('P1 合伙人团队流水模式：仅团队订单参与', () => {
+    dist.setPluginConfig(TENANT, 'partner', { mode: 1, poolRatio: 0.05 });
+    // 1003 绑定 2000 为上级 → 属于 2000 团队；1004 无绑定 → 不属于任何团队
+    dist.bindRelation(TENANT, 1003, 'individual', 2000, 'card');
+    const rIn = dist.computeOrderSplit(makeOrder({ id: 91002, userId: 1003 }));
+    assert.ok(rIn.partner_bonus > 0, '团队成员订单产生合伙人分红');
+    const rOut = dist.computeOrderSplit(makeOrder({ id: 91003, userId: 1004 }));
+    assert.ok(!rOut || rOut.partner_bonus === 0, '非团队成员订单不分（无任何收益时不分账）');
+  });
+
+  it('P1 全民股东：均等/权重分配', () => {
+    dist.setPlugin(TENANT, 'share-all', { install: true, enable: true });
+    dist.setPluginConfig(TENANT, 'share-all', { mode: 1, poolRatio: 0.02 });
+    dist.addShareAll(TENANT, 2000, { weight: 1 });
+    dist.addShareAll(TENANT, 2001, { weight: 3 });
+    const rEq = dist.computeOrderSplit(makeOrder({ id: 91004, userId: 1004 }));
+    assert.ok(rEq.share_all_bonus > 0);
+    const logsEq = db.prepare("SELECT user_id, amount FROM dist_user_log WHERE split_id = ? AND type = 'share_all'").all(rEq.id);
+    assert.equal(logsEq.length, 2);
+    assert.equal(logsEq[0].amount, logsEq[1].amount, '均等模式两人等额');
+    // 切权重模式
+    dist.setPluginConfig(TENANT, 'share-all', { mode: 2 });
+    const rW = dist.computeOrderSplit(makeOrder({ id: 91005, userId: 1004 }));
+    const logsW = db.prepare("SELECT user_id, amount FROM dist_user_log WHERE split_id = ? AND type = 'share_all' ORDER BY user_id").all(rW.id);
+    const w0 = logsW.find((l) => l.user_id === 2000).amount;
+    const w1 = logsW.find((l) => l.user_id === 2001).amount;
+    assert.ok(w1 > w0 && w1 >= w0 * 2, '权重模式按 1:3 分配');
+  });
+
+  it('P1 类目股东：按买家行业匹配', () => {
+    dist.setPlugin(TENANT, 'share-cat', { install: true, enable: true });
+    dist.addShareCat(TENANT, '制造业', 2000, { ratio: 0.04, weight: 1 });
+    dist.addShareCat(TENANT, '制造业', 2001, { ratio: 0.04, weight: 1 });
+    dist.addShareCat(TENANT, '服务业', 2000, { ratio: 0.04, weight: 1 });
+    // 给 1004 建 card_profile 行业=制造业
+    db.prepare("INSERT OR REPLACE INTO card_profile (user_id, name, business_field, city) VALUES (?, ?, ?, ?)").run(1004, '买家E', '制造业', '东莞');
+    const r = dist.computeOrderSplit(makeOrder({ id: 91006, userId: 1004 }));
+    assert.ok(r.share_cat_bonus > 0, '制造业股东分到红利');
+    const logs = db.prepare("SELECT user_id FROM dist_user_log WHERE split_id = ? AND type = 'share_cat'").all(r.id);
+    assert.equal(logs.length, 2, '仅制造业类目两名股东');
+  });
+
+  it('P1 区域股东：按买家地区匹配', () => {
+    dist.setPlugin(TENANT, 'share-area', { install: true, enable: true });
+    dist.addShareArea(TENANT, '东莞', 2000, { ratio: 0.03, weight: 1 });
+    dist.addShareArea(TENANT, '广州', 2001, { ratio: 0.03, weight: 1 });
+    const r = dist.computeOrderSplit(makeOrder({ id: 91007, userId: 1004 })); // city=东莞
+    assert.ok(r.share_area_bonus > 0, '东莞区域股东分到红利');
+    const logs = db.prepare("SELECT user_id FROM dist_user_log WHERE split_id = ? AND type = 'share_area'").all(r.id);
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0].user_id, 2000, '仅东莞股东');
+  });
+
+  it('P1 五重收益叠加 + 总让利上限裁剪', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.setPluginConfig(TENANT, 'dist', {});
+    dist.saveConfig(TENANT, { ratio1: 0.2, ratio2: 0.1, max_total_ratio: 0.1 }); // 上限 10%
+    const r = dist.computeOrderSplit(makeOrder({ id: 91008, userId: 1004 }));
+    assert.ok(r, '可分账');
+    // 1004 有绑定（1003 绑定 2000，但 1004 自身无 rel → 无佣金；总让利只约束实际收益）
+    const bonusTotal = r.commission1 + r.commission2 + r.partner_bonus + r.share_all_bonus + r.share_cat_bonus + r.share_area_bonus;
+    assert.ok(bonusTotal <= Math.floor(10000 * 0.1) + 4, '总收益不超过让利上限（+4 允许裁剪取整误差）');
+    dist.saveConfig(TENANT, { max_total_ratio: 0.3 }); // 恢复
+  });
+
+  it('P1 成员管理：增删合伙人/股东', () => {
+    const rAdd = dist.addPartner(TENANT, 1005, { ratio: 1, mode: 1 });
+    assert.equal(rAdd.ok, true);
+    const dup = dist.addPartner(TENANT, 1005, { ratio: 1, mode: 1 });
+    assert.equal(dup.ok, false, '重复添加拒绝');
+    dist.removePartner(TENANT, 1005);
+    const list = dist.listPartners(TENANT);
+    assert.ok(!list.some((p) => p.user_id === 1005), '移除后不在列表');
+
+    const sa = dist.addShareCat(TENANT, '农业', 1005, { ratio: 0.05, weight: 1 });
+    assert.equal(sa.ok, true);
+    dist.removeShareCat(TENANT, '农业', 1005);
+    assert.ok(!dist.listShareCat(TENANT, '农业').some((m) => m.user_id === 1005));
+
+    const ar = dist.addShareArea(TENANT, '深圳', 1005, { ratio: 0.05, weight: 1 });
+    assert.equal(ar.ok, true);
+    dist.removeShareArea(TENANT, '深圳', 1005);
+    assert.ok(!dist.listShareArea(TENANT, '深圳').some((m) => m.user_id === 1005));
+  });
+
+  it('P1 身份标签：getSummary 返回合伙人/股东标签', () => {
+    dist.addPartner(TENANT, 2000, { ratio: 1, mode: 2 });
+    dist.addShareAll(TENANT, 2000, { weight: 1 });
+    dist.addShareCat(TENANT, '制造业', 2000, { ratio: 0.04, weight: 1 });
+    dist.addShareArea(TENANT, '东莞', 2000, { ratio: 0.03, weight: 1 });
+    const s = dist.getSummary(TENANT, 2000, 'individual');
+    assert.equal(s.isPartner, true);
+    assert.ok(s.shareTags.includes('全民股东'));
+    assert.ok(s.shareTags.includes('行业-制造业股东'));
+    assert.ok(s.shareTags.includes('地区-东莞股东'));
+    assert.ok(s.shareTags.includes('全局合伙人'));
+  });
+
+  it('P1 退款回滚覆盖分红流水', () => {
+    const r = dist.computeOrderSplit(makeOrder({ id: 91009, userId: 1004 }));
+    assert.ok(r.share_all_bonus > 0, '含全民分红');
+    const back = dist.rollbackOrderSplit(makeOrder({ id: 91009, userId: 1004 }));
+    assert.equal(back.settle_status, 'refunded');
+    const logs = db.prepare("SELECT COUNT(*) n FROM dist_user_log WHERE split_id = ? AND status = 'charged_back'").get(r.id).n;
+    assert.equal(logs, 5, '全民2+类目2+区域1 共5条分红流水全部回滚');
   });
 });

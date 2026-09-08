@@ -414,3 +414,15 @@ npm run test:frontend
 - 租户后台路由 `/api/customer/distribution`（本地 tenant 中间件，adminExpireMode=allow 时只读放行）；C 端 `/api/customer/card/distribution/*`。
 - 管理端页面 `web-admin/src/views/customer/apps/dist/DistHome.vue`；纯函数抽到 `web-admin/src/utils/distFormat.js`（fen 分转元/来源/类型/状态映射），改动必须同步测试 `distFormat.test.js`。
 - 5 个图标：dist/partner/share/category/area.svg（web-admin/src/assets/icons/svg + web-app/src/static/icons + 小程序 SIcon svgMap 三处同步，24 画布/2px 描边/3px 圆角/currentColor）。
+
+## 池式分红 P1（2026-09-08 新增）
+
+- 4 张成员表（均在 db.js seedDistribution 内建，tenant_id 隔离）：dist_partner（ratio 权重 + mode 1团队/2全局）、dist_share_all（weight）、dist_share_cat（category_id 存 card_profile.business_field + ratio + weight）、dist_share_area（area_code 存 card_profile.city + ratio + weight）；同类成员唯一索引 (tenant_id, +维度, user_id)。
+- **computeOrderSplit 调度器**：任一插件启用即参与分账（不再以 dist 为总开关）；顺序 dist→partner→share-all→share-cat→share-area；订单买家行业/地区取 `card_profile.business_field / city`；全部收益统一受 dist_config.max_total_ratio 裁剪。
+- 合伙人团队判定 `isInTeam`：沿 buyer 的 dist_user_relation.pid1 链向上查 20 层是否命中合伙人。
+- **权重分配注意**：partner 表权重列是 `ratio`（非 weight），分配器 allocatePool 须传 weightKey='ratio'；share-* 用 'weight'。
+- 插件专属配置存 sys_tenant_plugin.config JSON：partner {mode, poolRatio}、share-all {mode 1均等2权重, poolRatio, requireDist}；setPluginConfig 白名单合并不覆盖。
+- 成员管理接口 `/api/customer/distribution/{partners|share-all|share-cat|share-area}`（GET 列表 / POST 添加 / DELETE 移除；share-cat 与 share-area 支持 ?categoryId= / ?areaCode= 过滤，DELETE 路径带维度+userId）；添加校验用户存在、重复拒绝；移除只置 status=0（历史流水与快照保留）。
+- C 端 `GET /api/card/distribution/summary` 必须返回 isPartner/shareTags/partnerPending/partnerTotal/sharePending/shareTotal（shareTags 由 getSummary 生成：全局合伙人/团队合伙人/全民股东/行业-XX股东/地区-XX股东）——漏字段会导致小程序分销中心模板 `summary.shareTags.length` 白屏。
+- 前端 4 个配置页：web-admin/src/views/customer/apps/dist/{PartnerHome,ShareAllHome,ShareCatHome,ShareAreaHome}.vue（AppPageHeader + 插件开关 + 配置表单 + 成员表格/分组）；数据大盘 stats 新增 bonusByType（partner/share_all/share_cat/share_area）+ 各成员计数卡片。
+- 小程序分销中心 distribution.vue：合伙人模块（isPartner 才显示）+ 股东中心（shareTags 标签组 / 无身份提示 + 待分红/累计），收益明细 Tab 已含 partner/share_all/share_cat/share_area。

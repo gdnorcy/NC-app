@@ -1866,6 +1866,55 @@ function seedDistribution(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_withdraw_tenant ON dist_withdraw(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_withdraw_user ON dist_withdraw(tenant_id, user_id);
+
+    -- 合伙人配置表（P1）
+    CREATE TABLE IF NOT EXISTS dist_partner (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      ratio REAL NOT NULL DEFAULT 1,        -- 分红权重比例
+      mode INTEGER NOT NULL DEFAULT 1,       -- 1 团队流水 2 租户全局流水
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_partner_tenant_user ON dist_partner(tenant_id, user_id);
+
+    -- 全民股东表（P1）
+    CREATE TABLE IF NOT EXISTS dist_share_all (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      weight REAL NOT NULL DEFAULT 1,        -- 权重（均等模式忽略）
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_share_all_tenant_user ON dist_share_all(tenant_id, user_id);
+
+    -- 类目股东表（P1）：每个行业独立比例 + 独立股东列表
+    CREATE TABLE IF NOT EXISTS dist_share_cat (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      category_id TEXT NOT NULL,             -- 行业类目（card_profile.business_field）
+      user_id INTEGER NOT NULL,
+      ratio REAL NOT NULL DEFAULT 0.05,      -- 该类目分红池抽取比例
+      weight REAL NOT NULL DEFAULT 1,
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_share_cat_tenant_cat_user ON dist_share_cat(tenant_id, category_id, user_id);
+
+    -- 区域股东表（P1）：每个地区独立比例 + 独立股东列表
+    CREATE TABLE IF NOT EXISTS dist_share_area (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      area_code TEXT NOT NULL,               -- 地区（card_profile.city）
+      user_id INTEGER NOT NULL,
+      ratio REAL NOT NULL DEFAULT 0.05,      -- 该地区分红池抽取比例
+      weight REAL NOT NULL DEFAULT 1,
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_share_area_tenant_area_user ON dist_share_area(tenant_id, area_code, user_id);
   `);
 
   // —— 2. 应用注册：分销体系分类 + 5 个独立应用 ——

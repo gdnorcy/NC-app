@@ -634,7 +634,7 @@ export function createCardRouter(db, wxService) {
 
   // 我的分销中心汇总（钱包三键隔离 + 直推/间推 + 本月佣金）
   router.get('/distribution/summary', auth, (req, res) => {
-    if (!req.customerId) return res.json({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: true });
+    if (!req.customerId) return res.json({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: true, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0 });
     const idt = req.query.identityType || req.user.identity_type || 'individual';
     const s = distribution.getSummary(req.customerId, req.user.id, idt);
     res.json({
@@ -647,6 +647,12 @@ export function createCardRouter(db, wxService) {
       directCount: s.directCount,
       indirectCount: s.indirectCount,
       monthCommission: s.monthCommission,
+      isPartner: s.isPartner,
+      shareTags: s.shareTags,
+      partnerPending: s.partnerPending,
+      partnerTotal: s.partnerTotal,
+      sharePending: s.sharePending,
+      shareTotal: s.shareTotal,
     });
   });
 

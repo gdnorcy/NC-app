@@ -53,6 +53,92 @@ export function createDistributionRouter(db) {
     res.json({ plugin });
   });
 
+  /** 插件配置（JSON，仅白名单字段可写） */
+  router.put('/plugins/:code/config', tenant, (req, res) => {
+    const { code } = req.params;
+    if (!['dist', 'partner', 'share-all', 'share-cat', 'share-area'].includes(code)) {
+      return res.status(400).json({ error: '未知插件' });
+    }
+    const body = req.body || {};
+    let patch = {};
+    if (code === 'partner') {
+      patch = {
+        mode: Number(body.mode) === 2 ? 2 : 1,
+        poolRatio: Math.max(0, Math.min(1, Number(body.poolRatio) || 0)),
+      };
+    } else if (code === 'share-all') {
+      patch = {
+        mode: Number(body.mode) === 2 ? 2 : 1, // 1均等 2权重
+        poolRatio: Math.max(0, Math.min(1, Number(body.poolRatio) || 0)),
+        requireDist: body.requireDist ? 1 : 0,
+      };
+    }
+    const cfg = dist.setPluginConfig(req.customerId, code, patch);
+    res.json({ config: cfg });
+  });
+
+  // ============================================================
+  // 池式分红成员管理（P1）
+  // ============================================================
+
+  // 合伙人
+  router.get('/partners', tenant, (req, res) => res.json({ list: dist.listPartners(req.customerId) }));
+  router.post('/partners', tenant, (req, res) => {
+    const { userId, ratio, mode } = req.body || {};
+    const r = dist.addPartner(req.customerId, Number(userId), { ratio, mode });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json({ ok: true });
+  });
+  router.delete('/partners/:userId', tenant, (req, res) => {
+    dist.removePartner(req.customerId, Number(req.params.userId));
+    res.json({ ok: true });
+  });
+
+  // 全民股东
+  router.get('/share-all', tenant, (req, res) => res.json({ list: dist.listShareAll(req.customerId) }));
+  router.post('/share-all', tenant, (req, res) => {
+    const { userId, weight } = req.body || {};
+    const r = dist.addShareAll(req.customerId, Number(userId), { weight });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json({ ok: true });
+  });
+  router.delete('/share-all/:userId', tenant, (req, res) => {
+    dist.removeShareAll(req.customerId, Number(req.params.userId));
+    res.json({ ok: true });
+  });
+
+  // 类目股东
+  router.get('/share-cat', tenant, (req, res) => {
+    const { categoryId = '' } = req.query;
+    res.json({ groups: dist.listShareCatGroups(req.customerId), list: dist.listShareCat(req.customerId, categoryId) });
+  });
+  router.post('/share-cat', tenant, (req, res) => {
+    const { categoryId, userId, ratio, weight } = req.body || {};
+    const r = dist.addShareCat(req.customerId, String(categoryId || '').trim(), Number(userId), { ratio, weight });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json({ ok: true });
+  });
+  router.delete('/share-cat/:categoryId/:userId', tenant, (req, res) => {
+    dist.removeShareCat(req.customerId, String(req.params.categoryId), Number(req.params.userId));
+    res.json({ ok: true });
+  });
+
+  // 区域股东
+  router.get('/share-area', tenant, (req, res) => {
+    const { areaCode = '' } = req.query;
+    res.json({ groups: dist.listShareAreaGroups(req.customerId), list: dist.listShareArea(req.customerId, areaCode) });
+  });
+  router.post('/share-area', tenant, (req, res) => {
+    const { areaCode, userId, ratio, weight } = req.body || {};
+    const r = dist.addShareArea(req.customerId, String(areaCode || '').trim(), Number(userId), { ratio, weight });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json({ ok: true });
+  });
+  router.delete('/share-area/:areaCode/:userId', tenant, (req, res) => {
+    dist.removeShareArea(req.customerId, String(req.params.areaCode), Number(req.params.userId));
+    res.json({ ok: true });
+  });
+
   // ============================================================
   // 二级分销配置
   // ============================================================
@@ -183,6 +269,15 @@ export function createDistributionRouter(db) {
     const memberCount = db.prepare('SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ?').get(tenantId).n;
     const withdrawPending = db.prepare("SELECT COUNT(*) n FROM dist_withdraw WHERE tenant_id = ? AND status = 'pending'").get(tenantId).n;
     const withdrawTotal = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_withdraw WHERE tenant_id = ?").get(tenantId).s;
+    // 各类分红支出（P1）
+    const bonusByType = {};
+    for (const type of ['partner', 'share_all', 'share_cat', 'share_area']) {
+      bonusByType[type] = db.prepare('SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND type = ?').get(tenantId, type).s;
+    }
+    const partnerCount = db.prepare('SELECT COUNT(*) n FROM dist_partner WHERE tenant_id = ? AND status = 1').get(tenantId).n;
+    const shareAllCount = db.prepare('SELECT COUNT(*) n FROM dist_share_all WHERE tenant_id = ? AND status = 1').get(tenantId).n;
+    const shareCatCount = db.prepare('SELECT COUNT(*) n FROM dist_share_cat WHERE tenant_id = ? AND status = 1').get(tenantId).n;
+    const shareAreaCount = db.prepare('SELECT COUNT(*) n FROM dist_share_area WHERE tenant_id = ? AND status = 1').get(tenantId).n;
     // 近7日订单分账趋势
     const trend = db.prepare(`
       SELECT substr(created_at,1,10) d, COUNT(*) n, COALESCE(SUM(total_bonus),0) s
@@ -192,6 +287,7 @@ export function createDistributionRouter(db) {
     res.json({
       totalCommission, settledCommission, splitCount, splitAmount, memberCount,
       withdrawPending, withdrawTotal, trend,
+      bonusByType, partnerCount, shareAllCount, shareCatCount, shareAreaCount,
     });
   });
 

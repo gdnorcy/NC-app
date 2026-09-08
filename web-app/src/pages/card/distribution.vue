@@ -37,6 +37,27 @@
       <text class="qrcode-tip">把名片分享给客户，客户付费后自动绑定并产生推广佣金</text>
     </view>
 
+    <!-- 合伙人模块（插件启用 + 本人为合伙人才显示） -->
+    <template v-if="summary.isPartner">
+      <view class="sec-t">合伙人收益</view>
+      <view class="stat-cards">
+        <view class="s-card"><view class="s-num">{{ fen(summary.partnerPending) }}</view><view class="s-lb">待分红(元)</view></view>
+        <view class="s-card"><view class="s-num">{{ fen(summary.partnerTotal) }}</view><view class="s-lb">累计分红(元)</view></view>
+        <view class="s-card"><view class="s-num">{{ summary.shareTags.filter((t) => t.includes('合伙人')).length ? '是' : '-' }}</view><view class="s-lb">合伙人身份</view></view>
+      </view>
+    </template>
+
+    <!-- 股东中心模块（任意股东插件启用即渲染） -->
+    <view class="sec-t">股东中心</view>
+    <view v-if="summary.shareTags.length" class="tag-list">
+      <view v-for="t in summary.shareTags" :key="t" class="tag">{{ t }}</view>
+    </view>
+    <view v-else class="tip-box">暂未获得股东身份，可以向租户管理员申请开通</view>
+    <view class="stat-cards">
+      <view class="s-card"><view class="s-num">{{ fen(summary.sharePending) }}</view><view class="s-lb">股东待分红(元)</view></view>
+      <view class="s-card"><view class="s-num">{{ fen(summary.shareTotal) }}</view><view class="s-lb">股东累计分红(元)</view></view>
+    </view>
+
     <!-- 收益明细 -->
     <view class="sec-t">收益明细</view>
     <view class="tabs">
@@ -102,7 +123,7 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: false });
+const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, unbound: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0 });
 const logs = ref([]);
 const withdraws = ref([]);
 const logType = ref('');
@@ -219,6 +240,8 @@ onShow(() => {
 .log-rm { margin-top: 2px; color: #ff7d00; }
 .empty { padding: 24px 0; text-align: center; font-size: 12px; color: #86909c; }
 .tip-box { margin: 12px 20px 0; background: #fff7e8; border: 1px solid #ffd666; color: #ad6800; border-radius: 10px; padding: 12px; font-size: 13px; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px 0; }
+.tag { background: rgba(22, 93, 255, 0.08); color: #165dff; border: 1px solid rgba(22, 93, 255, 0.2); border-radius: 999px; padding: 4px 12px; font-size: 12px; }
 .withdraw-box { margin: 0 20px; background: #fff; border-radius: 10px; padding: 14px; }
 .wd-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
 .wd-label { font-size: 13px; color: #4e5969; }
