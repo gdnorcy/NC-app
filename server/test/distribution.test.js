@@ -475,6 +475,29 @@ describe('分销体系（二级推广分销底座）', () => {
     assert.ok(indirect.list.some((r) => r.userId === 1005), '1001 的间推列表含 user1005（1005 的 pid2=1001）');
   });
 
+  it('P4 分账快照：逐笔订单分账明细 + 结算状态筛选', () => {
+    dist.setPlugin(TENANT, 'dist', { install: true, enable: true });
+    dist.setPlugin(TENANT, 'partner', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-all', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-cat', { install: false, enable: false });
+    dist.setPlugin(TENANT, 'share-area', { install: false, enable: false });
+    // user1004 已存在且未被绑定，直推绑定 1000
+    const buyerId = 1004;
+    dist.bindRelation(TENANT, buyerId, 'individual', 1000);
+    const order = { id: 88882, orderNo: 'DEMO-SPLIT-SNAP', payerType: 'tenant', customerId: TENANT, userId: buyerId, buyerIdentityType: 'individual', amount: 10000, status: 'paid' };
+    dist.computeOrderSplit(order);
+    const all = dist.getSplits(TENANT, { page: 1, pageSize: 50 });
+    const snap = all.list.find((s) => s.orderNo === 'DEMO-SPLIT-SNAP');
+    assert.ok(snap, '快照存在');
+    assert.equal(snap.orderAmount, 10000, '订单金额（分）');
+    assert.equal(snap.settleStatus, 'pending', '初始待结算');
+    assert.ok(snap.commission1 >= 1000, '一级佣金分账');
+    const pend = dist.getSplits(TENANT, { settleStatus: 'pending' });
+    assert.ok(pend.list.some((s) => s.orderNo === 'DEMO-SPLIT-SNAP'), '按状态筛选命中');
+    const settled = dist.getSplits(TENANT, { settleStatus: 'settled' });
+    assert.ok(!settled.list.some((s) => s.orderNo === 'DEMO-SPLIT-SNAP'), '未结算不出现在已结算筛选');
+  });
+
   it('P4 分销商排行：按累计收益降序 + 直推人数 + 身份标签', () => {
     // user1000 已有收益（前面用例累计入账），user1002 无收益
     const list = dist.ranking(TENANT, 10);

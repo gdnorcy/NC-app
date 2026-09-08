@@ -479,3 +479,9 @@ npm run test:frontend
 - **dist_user_relation 无 created_at 列（只有 bind_time）**——按月统计必须 `substr(bind_time,1,10)`，写 created_at 报 `no such column`。
 - 小程序分销中心 distribution.vue：推广统计卡改 4 个（直推/间推/本月新增/本月佣金）；新增「下级客户」区块（直推/间推 Tab + 头像/昵称/已付费标签/绑定时间/点击跳转名片 + 空态文案「还没有通过你的名片带来的客户，多多分享名片即可获得客户」）。
 - 测试：getSubs（直推/间推/paid 布尔/总数，注意测试用户可能已被前面用例永久绑定——用全新 user_id 绑定），distribution.test.js 31 用例。
+
+## 分账快照 Tab（2026-09-08 新增）
+
+- `GET /api/customer/distribution/splits?page=&pageSize=&settleStatus=pending|settled|refunded`：逐笔订单完整分账明细（对账与退款回滚唯一数据源）——join platform_user 取买家昵称；字段 order_no/order_amount/commission1/commission2/partner_bonus/share_all_bonus/share_cat_bonus/share_area_bonus/total_bonus/settle_status/created_at；fmt 后下划线转驼峰。
+- 租户后台 DistHome 新增「分账快照」Tab（Tab 顺序：分销配置/分销商/佣金明细/分账快照/溯源记录/钱包提现/数据大盘）：13 列表格（订单号/买家/金额/五类分成/总分成/状态/时间）+ 结算状态筛选 + 分页。
+- 测试：getSplits（快照存在/金额分/初始 pending/按状态筛选，注意分账前置校验 buyer 必须存在于 platform_user——不存在的用户 computeOrderSplit 直接 return null），distribution.test.js 32 用例。

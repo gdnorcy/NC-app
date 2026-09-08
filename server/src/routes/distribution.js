@@ -314,6 +314,12 @@ export function createDistributionRouter(db) {
   // ============================================================
   // 数据大盘
   // ============================================================
+  // 分账快照列表（对账明细，?settleStatus=pending|settled|refunded）
+  router.get('/splits', tenant, (req, res) => {
+    const { page = 1, pageSize = 20, settleStatus = '' } = req.query;
+    res.json(dist.getSplits(req.customerId, { page: Number(page), pageSize: Number(pageSize), settleStatus }));
+  });
+
   // 分销商排行（数据大盘 Top 榜）
   router.get('/ranking', tenant, (req, res) => {
     res.json({ list: dist.ranking(req.customerId, req.query.limit || 10) });

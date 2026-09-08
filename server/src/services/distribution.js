@@ -783,6 +783,29 @@ export function createDistributionService(db) {
   };
 
   /** 收益流水（分页） */
+  /** 分账快照列表（租户对账：逐笔订单完整分账明细） */
+  svc.getSplits = (tenantId, { page = 1, pageSize = 20, settleStatus = '' } = {}) => {
+    let where = 'WHERE s.tenant_id = ?';
+    const params = [tenantId];
+    if (settleStatus) { where += ' AND s.settle_status = ?'; params.push(settleStatus); }
+    const total = db.prepare(`SELECT COUNT(*) n FROM dist_order_split s ${where}`).get(...params).n;
+    const list = db.prepare(`
+      SELECT s.*, u.nickname
+      FROM dist_order_split s LEFT JOIN platform_user u ON u.id = s.buyer_user_id
+      ${where} ORDER BY s.id DESC LIMIT ? OFFSET ?
+    `).all(...params, pageSize, (page - 1) * pageSize);
+    const fmt = (row) => ({
+      id: row.id, orderNo: row.order_no, orderAmount: row.order_amount,
+      buyerUserId: row.buyer_user_id, buyerIdentityType: row.buyer_identity_type,
+      nickname: row.nickname || '微信用户',
+      categoryId: row.category_id, areaCode: row.area_code,
+      commission1: row.commission1, commission2: row.commission2,
+      partner: row.partner_bonus, shareAll: row.share_all_bonus, shareCat: row.share_cat_bonus, shareArea: row.share_area_bonus,
+      totalBonus: row.total_bonus, settleStatus: row.settle_status, createdAt: row.created_at,
+    });
+    return { total, list: list.map(fmt) };
+  };
+
   svc.getLogs = (tenantId, userId, identityType, { page = 1, pageSize = 20, type = '' } = {}) => {
     let sql = "SELECT * FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ?";
     const params = [tenantId, userId, identityType];
