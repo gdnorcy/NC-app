@@ -413,17 +413,17 @@ async function init() {
   }
   showHint(isTouch ? '拖动或双指缩放查看全景' : '拖动查看全景，滚轮缩放');
 
-  const route = parseViewPath(location.pathname);
+  const route = parseViewPath(location.pathname, Object.fromEntries(new URLSearchParams(location.search)));
   if (route.type === 'share') {
     // 分享链接直达：项目级或场景级
     try {
       const data = await fetchShare(route.token);
       history.replaceState({ share: true }, '', location.pathname);
       applyCustomerCopyright(data.customer);
-      if (data.type === 'scene') {
+      if (data.type === 'scene' || route.sceneId) {
         const idx = Math.max(
           0,
-          data.scenes.findIndex((s) => s.id === data.scene.id)
+          data.scenes.findIndex((s) => String(s.id) === String(route.sceneId || data.scene?.id))
         );
         await enterProjectView(data.project, data.scenes, idx);
       } else {
@@ -432,6 +432,24 @@ async function init() {
     } catch (err) {
       enterProjectsView();
       showError(err.message || '链接无效或已关闭');
+    }
+    return;
+  }
+
+  if (route.type === 'project') {
+    // 场景编辑「预览」直达：?plan=X&scene=Y（无 scene 则进方案第一个场景）
+    try {
+      const data = await fetchProject(route.planId);
+      if (!data || !data.project) throw new Error('项目不存在或未公开');
+      applyCustomerCopyright(data.customer);
+      let idx = 0;
+      if (route.sceneId) {
+        idx = Math.max(0, data.scenes.findIndex((s) => String(s.id) === String(route.sceneId)));
+      }
+      await enterProjectView(data.project, data.scenes, idx);
+    } catch (err) {
+      enterProjectsView();
+      showError(err.message || '项目不存在或未公开');
     }
     return;
   }

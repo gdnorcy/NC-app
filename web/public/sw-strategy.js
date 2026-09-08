@@ -4,11 +4,13 @@
  * 规则：
  * - /api/*            → network-first（在线拿最新，离线回退缓存）
  * - /uploads/* 及图片 → cache-first（文件名唯一，内容不可变）
+ * - 页面（navigation）/ *.html → network-first（永不缓存 HTML，部署后必须拿到新版本，
+ *   否则旧 HTML 引用的旧哈希 JS 已被构建清理 → 404 → 模块加载失败 → 页面卡死）
  * - 其余同源 GET      → stale-while-revalidate（缓存秒开 + 后台更新）
  * - 跨源 / 非 GET     → skip（不拦截；method 判断由 SW fetch 层负责）
  */
 (function (root) {
-  function planRequest(url, origin) {
+  function planRequest(url, origin, isNavigate) {
     var base = origin || (typeof location !== 'undefined' ? location.origin : 'http://localhost');
     var u;
     try {
@@ -23,6 +25,8 @@
     if (u.pathname.indexOf('/uploads/') === 0 || /\.(webp|jpe?g|png|avif)$/i.test(u.pathname)) {
       return { strategy: 'cache-first' };
     }
+    // HTML / 页面导航：network-first，绝不缓存 HTML
+    if (isNavigate || /\.html?$/i.test(u.pathname)) return { strategy: 'network-first' };
     return { strategy: 'stale-while-revalidate' };
   }
 

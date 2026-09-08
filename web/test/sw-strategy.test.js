@@ -25,10 +25,15 @@ describe('planRequest 缓存策略', () => {
     expect(planRequest(`${ORIGIN}/uploads/a/123-preview.jpg`, ORIGIN).strategy).toBe('cache-first');
   });
 
-  it('页面与静态资源走 SWR', () => {
-    expect(planRequest(`${ORIGIN}/`, ORIGIN).strategy).toBe('stale-while-revalidate');
-    expect(planRequest(`${ORIGIN}/index.html`, ORIGIN).strategy).toBe('stale-while-revalidate');
+  it('页面（导航）与 HTML 走网络优先，绝不缓存旧版页面', () => {
+    expect(planRequest(`${ORIGIN}/`, ORIGIN, true).strategy).toBe('network-first');
+    expect(planRequest(`${ORIGIN}/index.html`, ORIGIN).strategy).toBe('network-first');
+    expect(planRequest(`${ORIGIN}/?plan=1&scene=5`, ORIGIN, true).strategy).toBe('network-first');
+  });
+
+  it('静态资源（带内容哈希）走 SWR', () => {
     expect(planRequest(`${ORIGIN}/assets/main-abc123.js`, ORIGIN).strategy).toBe('stale-while-revalidate');
+    expect(planRequest(`${ORIGIN}/assets/main-abc123.css`, ORIGIN).strategy).toBe('stale-while-revalidate');
   });
 
   it('跨源请求不拦截（CDN 交由浏览器/CDN 缓存）', () => {

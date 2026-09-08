@@ -175,7 +175,7 @@ function saveHotspot() {
 }
 
 function preview() {
-  if (form.imagePath) window.open(`/?scene=${form.id || ''}`, '_blank');
+  if (form.imagePath) window.open(`/?plan=${route.params.id}&scene=${form.id || ''}`, '_blank');
   else ElMessage.warning('请先上传全景图');
 }
 

@@ -2,24 +2,20 @@
  * 360 全景浏览 Service Worker：秒开 + 离线可用（module 类型）
  * - 全景图（/uploads/*）→ cache-first，二次访问直接本地
  * - 场景 API（/api/scenes）→ network-first，离线回退上次列表
- * - 页面 / JS / CSS → stale-while-revalidate
+ * - HTML / 页面 → network-first（部署后必须拿到新版本，防止旧 HTML 引用已清理的旧哈希 JS）
+ * - JS / CSS（文件名带内容哈希）→ stale-while-revalidate
  * 升级：install 时 skipWaiting，activate 时清理旧版本缓存。
  */
 importScripts('/sw-strategy.js');
 
-const VERSION = 'p3-v1';
+const VERSION = 'p3-v2';
 const SHELL_CACHE = `panorama-shell-${VERSION}`;
 const IMAGE_CACHE = `panorama-images-${VERSION}`;
 const API_CACHE = `panorama-api-${VERSION}`;
 
 self.addEventListener('install', (event) => {
+  // 不预缓存 HTML（HTML 永远 network-first）；预缓存可能后续离线的 shell 资源不需要，直接跳过
   self.skipWaiting();
-  event.waitUntil(
-    caches
-      .open(SHELL_CACHE)
-      .then((cache) => cache.addAll(['/', '/index.html']).catch(() => {}))
-      .catch(() => {})
-  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -73,7 +69,8 @@ async function staleWhileRevalidate(request) {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  const { strategy } = planRequest(event.request.url, location.origin);
+  const isNavigate = event.request.mode === 'navigate';
+  const { strategy } = planRequest(event.request.url, location.origin, isNavigate);
   if (strategy === 'network-first') event.respondWith(networkFirst(event.request));
   else if (strategy === 'cache-first') event.respondWith(cacheFirst(event.request));
   else if (strategy === 'stale-while-revalidate') event.respondWith(staleWhileRevalidate(event.request));
