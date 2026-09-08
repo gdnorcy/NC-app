@@ -127,7 +127,7 @@
       </view>
       <view class="os-row danger" @click="leaveTenant">
         <view class="osr-icon"><SIcon name="logs" size="default" color="#f53f3f" /></view>
-        <view class="osr-main"><view class="osr-name">退出租户</view><view class="osr-desc">退出当前客户项目空间</view></view>
+        <view class="osr-main"><view class="osr-name">退出平台</view><view class="osr-desc">退出当前客户项目空间</view></view>
         <text class="osr-arrow">›</text>
       </view>
     </view>
@@ -187,8 +187,8 @@ const marketStatusClass = computed(() => {
 });
 const marketStatusDesc = computed(() => {
   const it = myMarketItem.value;
-  if (!it) return '开启后将你的名片展示给租户内所有人，可在集市页一键上架';
-  if (it.auditStatus === 'pending') return '已提交上架申请，等待租户管理员审核';
+  if (!it) return '开启后将你的名片展示给平台所有人，可在集市页一键上架';
+  if (it.auditStatus === 'pending') return '已提交上架申请，等待管理员审核';
   if (it.auditStatus === 'rejected') return '上架申请未通过，可联系管理员或修改名片后重新申请';
   return '你的名片正在集市展示' + (it.isNew ? '（新入驻7天角标）' : '');
 });
@@ -334,7 +334,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 const goMessages = () => uni.navigateTo({ url: '/pages/card/messages' });
 function leaveTenant() {
   uni.showModal({
-    title: '退出租户',
+    title: '退出平台',
     content: '退出后将无法查看本客户项目空间内的名片与人脉，确定退出吗？',
     confirmColor: '#f53f3f',
     success: (r) => {

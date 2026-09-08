@@ -116,7 +116,7 @@
               <view class="form-label">所属行业</view>
               <input class="form-input" v-model="form.industry" placeholder="如：互联网/制造/服务" placeholder-class="ph" />
             </view>
-            <view class="bind-hint">口令由租户管理员提供，用于绑定到指定客户项目</view>
+            <view class="bind-hint">口令由管理员提供，用于绑定到指定客户项目</view>
           </view>
         </view>
 
@@ -326,7 +326,7 @@ onMounted(async () => {
       const st = res.apply?.status;
       if (st === 'pending') {
         applyStatus.value = 'pending';
-        applyMsg.value = `入驻申请审核中（${res.apply.customerName || ''}），审核通过后可正常使用租户内功能`;
+        applyMsg.value = `入驻申请审核中（${res.apply.customerName || ''}），审核通过后可正常使用平台内功能`;
       } else if (st === 'rejected') {
         applyStatus.value = 'rejected';
         applyMsg.value = '上次入驻申请未通过，可修改资料后重新提交';

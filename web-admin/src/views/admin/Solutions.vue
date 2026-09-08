@@ -101,7 +101,7 @@ async function toggleStatus(s) {
   const action = s.status === 'on' ? '下架' : '上架';
   try {
     await ElMessageBox.confirm(
-      `确定${action}「${s.name}」？${s.status === 'on' ? '下架后租户应用中心不再展示，已开通客户不受影响。' : ''}`,
+      `确定${action}「${s.name}」？${s.status === 'on' ? '下架后客户应用中心不再展示，已开通客户不受影响。' : ''}`,
       '确认',
       { type: 'warning' }
     );

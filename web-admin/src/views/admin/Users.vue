@@ -57,7 +57,7 @@
           <el-select v-model="form.customerId" filterable placeholder="选择该用户所属的客户项目" style="width:100%;">
             <el-option v-for="c in customers" :key="c.id" :label="`${c.customerName}（${c.customerName}）`" :value="c.id" />
           </el-select>
-          <div class="form-help">客户管理员/客户成员必须关联一个客户项目，登录后进入该客户的租户后台</div>
+          <div class="form-help">客户管理员/客户成员必须关联一个客户项目，登录后进入该客户的管理后台</div>
         </el-form-item>
         <el-form-item label="手机号"><el-input v-model="form.phone" /></el-form-item>
       </el-form>

@@ -55,7 +55,7 @@ export function createCardMarketRouter(db) {
   // 租户上下文：customerId 只来自认证上下文（app.js comboAuth 注入）
   function tenant(req, res, next) {
     const customerId = req.customerId || req.user?.customerId;
-    if (!customerId) return res.status(403).json({ error: '未入驻任何租户，禁止访问' });
+    if (!customerId) return res.status(403).json({ error: '未入驻任何客户，禁止访问' });
     // 租户生命周期 + 智能名片解决方案授权（P2-10/P2-11）
     // 到期且 miniExpireMode=prompt → 只读放行（仅GET）；写操作拒绝
     const blocked = checkTenantAccess(db, customerId, 'card', 'mini');
@@ -74,7 +74,7 @@ export function createCardMarketRouter(db) {
   }
 
   function requireTenantAdmin(req, res, next) {
-    if (!isPlatformOrTenantAdmin(req)) return res.status(403).json({ error: '仅租户管理员可操作' });
+    if (!isPlatformOrTenantAdmin(req)) return res.status(403).json({ error: '仅管理员可操作' });
     next();
   }
 
@@ -215,6 +215,7 @@ export function createCardMarketRouter(db) {
         contactVisible: settings.contact_visible,
         style: settings.style || 'A',
         notice: settings.notice || '',
+        poolFloatMode: settings.pool_float_mode || 'soft',
       },
       styles: styleAssets(req.customerId),
     });
@@ -238,7 +239,10 @@ export function createCardMarketRouter(db) {
 
   // 更新集市配置（仅租户管理员）
   router.put('/market/settings', tenant, requireTenantAdmin, (req, res) => {
-    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice } = req.body;
+    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice, poolFloatMode } = req.body;
+    if (poolFloatMode !== undefined && !['soft', 'recover', 'hard'].includes(poolFloatMode)) {
+      return res.status(400).json({ error: '无效的上浮方式' });
+    }
     // 风格校验：启用且（默认风格 或 已购买/免费），未购付费风格禁止切换
     if (style !== undefined && style !== null) {
       const s = db.prepare('SELECT * FROM market_styles WHERE key = ?').get(style);
@@ -263,9 +267,10 @@ export function createCardMarketRouter(db) {
       contact_visible = COALESCE(?, contact_visible),
       style = COALESCE(?, style),
       notice = COALESCE(?, notice),
+      pool_float_mode = COALESCE(?, pool_float_mode),
       updated_at = datetime('now')
       WHERE customer_id = ?`).run(
-      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), req.customerId
+      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), S(poolFloatMode), req.customerId
     );
     audit(db, req, 'update_market_settings', 'market_settings', req.customerId, '更新人脉集市配置');
     res.json({ success: true, styles: styleAssets(req.customerId) });
@@ -529,7 +534,7 @@ export function createCardMarketRouter(db) {
     // 对方必须是本租户成员
     const targetMember = db.prepare(`SELECT id FROM tenant_individuals WHERE customer_id = ? AND user_id = ? AND status = 'active'`).get(req.customerId, toUserId)
       || db.prepare(`SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ? AND status = 'active'`).get(req.customerId, toUserId);
-    if (!targetMember) return res.status(403).json({ error: '对方不在本租户内' });
+    if (!targetMember) return res.status(403).json({ error: '对方不在本客户项目内' });
 
     const existing = db.prepare('SELECT id, status FROM card_connections WHERE customer_id = ? AND ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))').get(req.customerId, fromUserId, toUserId, toUserId, fromUserId);
     if (existing) {
@@ -819,7 +824,7 @@ export function createCardMarketRouter(db) {
           .run(name, position || '', already.id, userId);
       }
       db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
-      return res.json({ success: true, message: '申请已重新提交，请等待租户管理员审核' });
+      return res.json({ success: true, message: '申请已重新提交，请等待管理员审核' });
     }
 
     // 配额校验
@@ -848,7 +853,7 @@ export function createCardMarketRouter(db) {
       db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
         VALUES (?, ?, ?, ?, ?, 'admin', 'pending')`).run(enterpriseId, customerId, userId, name, position || '');
     }
-    res.json({ success: true, message: '申请已提交，请等待租户管理员审核' });
+    res.json({ success: true, message: '申请已提交，请等待管理员审核' });
   });
 
   // 入驻申请审核（租户管理员）：approve→active+绑定租户；reject→rejected
@@ -974,7 +979,7 @@ export function createCardMarketRouter(db) {
   router.get('/enterprise/my-data', tenant, (req, res) => {
     const userId = currentUserId(req);
     const employee = db.prepare(`SELECT * FROM tenant_enterprise_employees WHERE user_id = ? AND status = 'active' AND customer_id = ?`).get(userId, req.customerId);
-    if (!employee) return res.status(403).json({ error: '不是本租户企业员工' });
+    if (!employee) return res.status(403).json({ error: '不是本客户项目企业员工' });
     const enterprise = db.prepare('SELECT * FROM tenant_enterprises WHERE id = ? AND customer_id = ?').get(employee.enterprise_id, req.customerId);
     if (!enterprise) return res.status(403).json({ error: '企业不存在' });
     const employees = db.prepare("SELECT * FROM tenant_enterprise_employees WHERE enterprise_id = ? AND status = 'active'").all(employee.enterprise_id);
@@ -1115,8 +1120,10 @@ export function createCardMarketRouter(db) {
     try { cfg = JSON.parse(proj?.quota || '{}'); } catch {}
     checkTimeoutRecycle(req.customerId, cfg.pool_recycle_days || 30);
     // 全量状态返回（含已领取），并 JOIN 领取人昵称便于列表展示
-    const pool = db.prepare(`SELECT p.*, u.nickname AS claimedByName
-      FROM tenant_public_pool p LEFT JOIN platform_user u ON u.id = p.claimed_by
+    const pool = db.prepare(`SELECT p.*, u.nickname AS claimedByName, e.name AS sourceEnterpriseName
+      FROM tenant_public_pool p
+      LEFT JOIN platform_user u ON u.id = p.claimed_by
+      LEFT JOIN tenant_enterprises e ON e.id = p.source_id AND p.source_type = 'enterprise'
       WHERE p.customer_id = ? ORDER BY p.recycled_at DESC`).all(req.customerId);
     res.json({ pool });
   });
@@ -1163,7 +1170,7 @@ export function createCardMarketRouter(db) {
         SELECT id, 'employee' AS type FROM tenant_enterprise_employees
          WHERE customer_id = ? AND user_id = ? AND status = 'active'
       ) LIMIT 1`).get(req.customerId, assigneeUserId, req.customerId, assigneeUserId);
-    if (!target) return res.status(400).json({ error: '分配对象不是本租户活跃成员' });
+    if (!target) return res.status(400).json({ error: '分配对象不是本客户项目活跃成员' });
 
     const item = db.prepare('SELECT * FROM tenant_public_pool WHERE id = ? AND customer_id = ?').get(id, req.customerId);
     if (!item) return res.status(404).json({ error: '客户不存在' });
@@ -1190,7 +1197,7 @@ export function createCardMarketRouter(db) {
     // 领取人必须是本租户活跃成员（个人/员工）
     const member = db.prepare("SELECT id FROM tenant_individuals WHERE customer_id = ? AND user_id = ? AND status = 'active'").get(req.customerId, userId)
       || db.prepare("SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ? AND status = 'active'").get(req.customerId, userId);
-    if (!member) return res.status(403).json({ error: '仅本租户成员可领取' });
+    if (!member) return res.status(403).json({ error: '仅本项目客户成员可领取' });
 
     const item = db.prepare('SELECT * FROM tenant_public_pool WHERE id = ? AND customer_id = ?').get(id, req.customerId);
     if (!item) return res.status(404).json({ error: '客户不存在' });
@@ -1312,7 +1319,7 @@ export function createCardMarketRouter(db) {
           || db.prepare('SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = ? AND status = ? LIMIT 1').get(card.user_id, 'active');
         return t?.customer_id || null;
       })();
-      if (cardCust && cardCust !== req.customerId) return res.status(400).json({ error: '所选名片不属于当前租户' });
+      if (cardCust && cardCust !== req.customerId) return res.status(400).json({ error: '所选名片不属于当前客户项目' });
     }
     const result = db.prepare(`INSERT INTO card_form_template (customer_id, title, description, fields, card_id, created_by)
       VALUES (?, ?, ?, ?, ?, ?)`).run(req.customerId, title, description || '', JSON.stringify(fields || []), cardId || null, userId);

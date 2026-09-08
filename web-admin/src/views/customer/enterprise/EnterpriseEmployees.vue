@@ -68,12 +68,12 @@
           </template>
         </el-table-column>
       </el-table>
-      <div v-if="!employees.length" class="empty">暂无员工，点击右上角「添加员工」从本租户已入驻人员中选择</div>
+      <div v-if="!employees.length" class="empty">暂无员工，点击右上角「添加员工」从已入驻人员中选择</div>
     </div>
 
     <!-- 添加员工 -->
     <el-dialog v-model="dialogVisible" title="添加员工" width="560px" :close-on-click-modal="false">
-      <p class="dialog-tip">从本租户已入驻的个人中，选择加入本企业（每人只能属于一个企业）</p>
+      <p class="dialog-tip">从已入驻的个人中，选择加入本企业（每人只能属于一个企业）</p>
       <el-input v-model="candKeyword" placeholder="搜索姓名 / 手机号" clearable class="cand-search" @input="filterCands" />
       <div class="cand-list">
         <div
@@ -90,7 +90,7 @@
           </div>
           <el-radio :model-value="picked" :value="c.userId" class="cand-radio" />
         </div>
-        <div v-if="!filteredCands.length" class="empty small">暂无可添加人员（本租户未入驻个人，或均已加入企业）</div>
+        <div v-if="!filteredCands.length" class="empty small">暂无可添加人员（未入驻个人，或均已加入企业）</div>
       </div>
       <div class="role-row">
         <span class="role-label">加入身份：</span>

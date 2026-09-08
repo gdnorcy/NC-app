@@ -199,7 +199,7 @@
               </div>
               <el-empty v-if="!appPerms.length" description="暂无可配置的应用" :image-size="60" />
             </template>
-            <el-alert v-else type="info" :closable="false" show-icon title="已启用「全部」模式：当前与未来新增应用、功能菜单全部开放给使用该方案的租户" />
+            <el-alert v-else type="info" :closable="false" show-icon title="已启用「全部」模式：当前与未来新增应用、功能菜单全部开放给使用该方案的客户" />
           </div>
         </el-tab-pane>
 
@@ -208,7 +208,7 @@
           <div class="assets-panel">
             <!-- 智能名片 · 集市风格 -->
             <div class="assets-title"><span class="app-chip">智能名片</span>·集市风格</div>
-            <div class="form-help">归入本方案的可售集市风格；「默认」可多选（默认风格租户开箱即用），其余风格租户可按需购买</div>
+            <div class="form-help">归入本方案的可售集市风格；「默认」可多选（默认风格客户开箱即用），其余风格客户可按需购买</div>
             <div class="assets-table">
               <div class="assets-row assets-head">
                 <span class="col-key">标识</span>
@@ -230,7 +230,7 @@
 
             <!-- 智能名片 · 名片模板 -->
             <div class="assets-title" style="margin-top: 28px;"><span class="app-chip">智能名片</span>·名片模板</div>
-            <div class="form-help">本方案下的平台公共名片模板，设置价格后租户端模板市场按需购买；0 元为免费；「默认」可多选</div>
+            <div class="form-help">本方案下的平台公共名片模板，设置价格后客户端模板市场按需购买；0 元为免费；「默认」可多选</div>
             <div class="assets-table" v-if="assets.templates.length">
               <div class="assets-row assets-head">
                 <span class="col-name">模板名称</span>
@@ -253,9 +253,9 @@
         <!-- ============ 方案配额 ============ -->
         <el-tab-pane label="方案配额" name="quotas">
           <div class="assets-panel">
-            <div class="form-help" style="margin-bottom: 16px;">按应用分别配置默认配额与加购单价；租户超出基础配额后按加购价购买</div>
+            <div class="form-help" style="margin-bottom: 16px;">按应用分别配置默认配额与加购单价；客户超出基础配额后按加购价购买</div>
             <div class="assets-title" style="margin-top: 28px;">方案配额</div>
-            <div class="form-help">按应用分别配置默认配额与加购单价；租户超出基础配额后按加购价购买</div>
+            <div class="form-help">按应用分别配置默认配额与加购单价；客户超出基础配额后按加购价购买</div>
             <div v-for="g in assets.quotas" :key="g.appCode" class="quota-group">
               <div class="quota-group-title"><span class="app-chip">{{ g.appName }}</span></div>
               <div class="assets-table">

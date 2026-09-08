@@ -1361,6 +1361,7 @@ function migrate(db) {
       contact_visible TEXT DEFAULT 'after_exchange', -- after_exchange/direct
       style TEXT NOT NULL DEFAULT 'A', -- A/B/C 集市风格（A角标/B单横滚/C Tab）
       notice TEXT NOT NULL DEFAULT '', -- 租户公告
+      pool_float_mode TEXT NOT NULL DEFAULT 'soft', -- 公海上浮方式：soft软上浮(可随时收回)/recover限时收回(7天)/hard直接移交(不可逆)
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -1565,6 +1566,9 @@ function migrate(db) {
   if (!colExists(db, 'enterprise_public_pool', 'last_follow_at')) {
     db.exec('ALTER TABLE enterprise_public_pool ADD COLUMN last_follow_at TEXT');
   }
+  if (!colExists(db, 'enterprise_public_pool', 'floated_at')) {
+    db.exec('ALTER TABLE enterprise_public_pool ADD COLUMN floated_at TEXT');
+  }
 
   // —— 入驻口令使用审计 ——
   db.exec(`
@@ -1589,6 +1593,9 @@ function migrate(db) {
   }
   if (colExists(db, 'card_market_settings', 'id') && !colExists(db, 'card_market_settings', 'notice')) {
     db.exec("ALTER TABLE card_market_settings ADD COLUMN notice TEXT NOT NULL DEFAULT ''");
+  }
+  if (colExists(db, 'card_market_settings', 'id') && !colExists(db, 'card_market_settings', 'pool_float_mode')) {
+    db.exec("ALTER TABLE card_market_settings ADD COLUMN pool_float_mode TEXT NOT NULL DEFAULT 'soft'");
   }
   if (colExists(db, 'card_profile', 'id') && !colExists(db, 'card_profile', 'need_tags')) {
     db.exec("ALTER TABLE card_profile ADD COLUMN need_tags TEXT NOT NULL DEFAULT ''");

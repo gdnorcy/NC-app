@@ -121,7 +121,7 @@
           class="expire-alert"
         >
           <template #default>
-            <span>当前租户服务已于 {{ tenantValidUntil || '到期日' }} 到期。当前为<strong>只读模式</strong>：仅可查看数据，无法进行新增 / 编辑 / 删除等操作，请及时续费恢复完整功能。</span>
+            <span>当前服务已于 {{ tenantValidUntil || '到期日' }} 到期。当前为<strong>只读模式</strong>：仅可查看数据，无法进行新增 / 编辑 / 删除等操作，请及时续费恢复完整功能。</span>
           </template>
         </el-alert>
         <el-alert
@@ -133,7 +133,7 @@
           class="expire-alert"
         >
           <template #default>
-            <span>当前租户服务已于 {{ tenantValidUntil || '到期日' }} 到期，业务功能已暂停。请联系平台管理员续费后恢复使用。</span>
+            <span>当前服务已于 {{ tenantValidUntil || '到期日' }} 到期，业务功能已暂停。请联系平台管理员续费后恢复使用。</span>
           </template>
         </el-alert>
         <el-alert

@@ -4,7 +4,7 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <AppPageHeader title="入驻管理" desc="管理租户内入驻个人和入驻企业单位" />
+    <AppPageHeader title="入驻管理" desc="管理入驻个人和入驻企业单位" />
 
     <!-- Tab切换 -->
     <div class="content-card">
@@ -206,7 +206,7 @@ async function loadEnterprises() {
 
 function auditIndividual(row, action) {
   const t = action === 'approve' ? '通过' : '拒绝';
-  ElMessageBox.confirm(`确定${t}「${row.name}」的入驻申请吗？${action === 'approve' ? '通过后该用户立即获得租户内个人身份与名片权限。' : '拒绝后对方可修改资料重新申请。'}`, `${t}入驻申请`, {
+  ElMessageBox.confirm(`确定${t}「${row.name}」的入驻申请吗？${action === 'approve' ? '通过后该用户立即获得平台内个人身份与名片权限。' : '拒绝后对方可修改资料重新申请。'}`, `${t}入驻申请`, {
     type: action === 'approve' ? 'success' : 'warning',
   }).then(async () => {
     try {
@@ -221,7 +221,7 @@ function auditIndividual(row, action) {
 
 function auditEnterprise(row, action) {
   const t = action === 'approve' ? '通过' : '拒绝';
-  ElMessageBox.confirm(`确定${t}「${row.name}」的入驻申请吗？${action === 'approve' ? '通过后企业主体及其管理员立即获得租户内权限。' : '拒绝后对方可修改资料重新申请。'}`, `${t}入驻申请`, {
+  ElMessageBox.confirm(`确定${t}「${row.name}」的入驻申请吗？${action === 'approve' ? '通过后企业主体及其管理员立即获得平台内权限。' : '拒绝后对方可修改资料重新申请。'}`, `${t}入驻申请`, {
     type: action === 'approve' ? 'success' : 'warning',
   }).then(async () => {
     try {

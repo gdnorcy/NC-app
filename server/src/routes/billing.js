@@ -119,7 +119,7 @@ export function createCustomerBillingRouter(db) {
     if (!user || !['tenant_admin', 'tenant_member'].includes(user.role)) {
       return res.status(403).json({ error: '无权访问客户后台' });
     }
-    if (!user.customerId) return res.status(403).json({ error: '账号未关联租户' });
+    if (!user.customerId) return res.status(403).json({ error: '账号未关联客户项目' });
     // 到期策略（与 customer.js requireTenant 同语义）：adminExpireMode=allow → 只读 GET 放行
     const blocked = checkTenantAccess(db, user.customerId, null, 'admin');
     if (blocked) {
@@ -150,7 +150,7 @@ export function createCustomerBillingRouter(db) {
   // 当前开通方案 + 各方案价格档（同步总平台解决方案的价格设置与时长；billing_plan 作废）
   router.get('/billing/solution-plan', (req, res) => {
     const p = db.prepare('SELECT id, customer_name, valid_until, status, solutions, config FROM projects WHERE id = ?').get(req.customerId);
-    if (!p) return res.status(404).json({ error: '租户项目不存在' });
+    if (!p) return res.status(404).json({ error: '客户项目不存在' });
     const cfg = (() => { try { return JSON.parse(p.config || '{}'); } catch (e) { return {}; } })();
     let codes = [];
     try { codes = JSON.parse(p.solutions || '[]'); } catch (e) {}

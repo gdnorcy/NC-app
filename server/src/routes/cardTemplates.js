@@ -73,7 +73,7 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
       const exist = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(id);
       if (!exist) return res.status(404).json({ error: '模板不存在' });
       // 权限：总后台仅平台模板；租户仅本租户私有模板
-      if (isAdmin && exist.tenant_id !== 0) return res.status(403).json({ error: '无权操作租户模板' });
+      if (isAdmin && exist.tenant_id !== 0) return res.status(403).json({ error: '无权操作客户项目私有模板' });
       if (!isAdmin && exist.tenant_id !== req.user.customerId) return res.status(403).json({ error: '无权操作该模板' });
       const { name, cover, themeConfig, description, enabled, sortOrder, price } = req.body || {};
       db.prepare(`UPDATE card_templates SET
@@ -107,7 +107,7 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
       const exist = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(id);
       if (!exist) return res.status(404).json({ error: '模板不存在' });
       if (isAdmin) {
-        if (exist.tenant_id !== 0) return res.status(403).json({ error: '无权操作租户模板' });
+        if (exist.tenant_id !== 0) return res.status(403).json({ error: '无权操作客户项目私有模板' });
         db.prepare("UPDATE card_templates SET enabled = 0, updated_at = datetime('now') WHERE id = ?").run(id);
       } else {
         if (exist.tenant_id !== req.user.customerId) return res.status(403).json({ error: '无权操作该模板' });

@@ -293,7 +293,7 @@ const myOn = computed(() => {
 const switchDesc = computed(() => {
   if (!mySubject.value) return '';
   const mine = (myStatus.value?.items || []).find((it) => it.subjectType === mySubject.value.subjectType && it.subjectId === mySubject.value.subjectId);
-  if (!mine) return '开启后你的名片将对租户内所有人可见';
+  if (!mine) return '开启后你的名片将对平台所有人可见';
   if (mine.auditStatus === 'pending') return '已提交申请，等待管理员审核';
   if (mine.auditStatus === 'rejected') return '上架申请未通过，请联系管理员';
   return '你的名片正在集市展示' + (mine.isTop ? '（已置顶）' : '') + (mine.isNew ? '（NEW 7天）' : '');

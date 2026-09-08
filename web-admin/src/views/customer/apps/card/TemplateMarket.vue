@@ -43,9 +43,9 @@
         <div class="tpl-actions disabled-note" v-else>
           <span v-if="Number(t.price || 0) > 0 && !t.purchased" class="buy-wrap">
             <button v-if="isTenantAdmin" class="btn-buy" :disabled="buyingId === t.id" @click="buyTemplate(t)">{{ buyingId === t.id ? '购买中…' : '购买使用' }}</button>
-            <span v-else class="use-hint">需租户管理员购买</span>
+            <span v-else class="use-hint">需管理员购买</span>
           </span>
-          <span v-else class="use-hint">{{ Number(t.price || 0) > 0 ? '已购买 · 全员可用' : '免费 · 租户全员可用' }}</span>
+          <span v-else class="use-hint">{{ Number(t.price || 0) > 0 ? '已购买 · 全员可用' : '免费 · 平台全员可用' }}</span>
         </div>
       </div>
     </div>
@@ -121,7 +121,7 @@ async function buyTemplate(t) {
   buyingId.value = t.id;
   try {
     await customerApiCall.post(`/card/templates/${t.id}/purchase`);
-    ElMessage.success(`已购买「${t.name}」，租户全员可用`);
+    ElMessage.success(`已购买「${t.name}」，平台全员可用`);
     await load();
   } catch (e) {
     ElMessage.error(e || '购买失败');

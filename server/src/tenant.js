@@ -24,13 +24,13 @@ export function getProjectConfig(db, customerId) {
  */
 export function tenantState(db, customerId, opts = {}) {
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(customerId);
-  if (!project) return { active: false, missing: true, expired: false, reason: '租户不存在' };
+  if (!project) return { active: false, missing: true, expired: false, reason: '客户项目不存在' };
 
   if (project.status === 'trashed') {
-    return { project, active: false, missing: false, expired: false, reason: '租户已删除' };
+    return { project, active: false, missing: false, expired: false, reason: '客户项目已删除' };
   }
   if (project.status !== 'active') {
-    return { project, active: false, missing: false, expired: false, reason: '租户已停用' };
+    return { project, active: false, missing: false, expired: false, reason: '客户项目已停用' };
   }
   if (project.valid_until && project.valid_until < today()) {
     // 到期策略（读 projects.config，注册续费配置）：
@@ -43,9 +43,9 @@ export function tenantState(db, customerId, opts = {}) {
       ? cfg.adminExpireMode === 'allow'
       : cfg.miniExpireMode === 'prompt';
     if (allow) {
-      return { project, active: false, missing: false, expired: true, readonly: true, reason: '租户服务已到期，当前为只读模式，请及时续费' };
+      return { project, active: false, missing: false, expired: true, readonly: true, reason: '服务已到期，当前为只读模式，请及时续费' };
     }
-    return { project, active: false, missing: false, expired: true, reason: '租户服务已到期，请联系平台续费' };
+    return { project, active: false, missing: false, expired: true, reason: '服务已到期，请联系平台续费' };
   }
   return { project, active: true, missing: false, expired: false };
 }
@@ -81,7 +81,7 @@ export function hasSolution(db, customerId, code) {
  * 供 express 中间件复用：返回 null 表示通过，否则返回 { status, error }
  */
 export function checkTenantAccess(db, customerId, solutionCode, ctx = 'mini') {
-  if (!customerId) return { status: 403, error: '未关联租户' };
+  if (!customerId) return { status: 403, error: '未关联客户项目' };
   const state = tenantState(db, customerId, { ctx });
   if (!state.active) {
     // 只读模式：调用方（路由中间件）据此对 GET 放行、写请求拒绝

@@ -5,7 +5,7 @@
     <PanoramaTabs v-else />
 
     <!-- 页头 -->
-    <AppPageHeader title="数据洞察" desc="行为漏斗 · 转化趋势 · 租户健康分，驱动业务增长">
+    <AppPageHeader title="数据洞察" desc="行为漏斗 · 转化趋势 · 客户项目健康分，驱动业务增长">
       <div class="days-switch">
         <span class="days-label">趋势周期</span>
         <span

@@ -3,7 +3,7 @@
     <!-- 统一Tab导航 -->
     <CardTabs />
 
-    <AppPageHeader title="交换记录" desc="查看租户内所有名片交换往来" />
+    <AppPageHeader title="交换记录" desc="查看平台内所有名片交换往来" />
 
     <div class="card">
       <div class="filter-bar">

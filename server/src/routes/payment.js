@@ -162,7 +162,7 @@ export function createPaymentRouter(db) {
 
   router.put('/tenant-config', (req, res) => {
     if (!req.user || !req.user.customerId) return res.status(403).json({ error: '无权访问' });
-    if (req.user.role !== 'tenant_admin') return res.status(403).json({ error: '仅租户管理员可操作' });
+    if (req.user.role !== 'tenant_admin') return res.status(403).json({ error: '仅管理员可操作' });
 
     const { mode, wechat, alipay, platformFeeRate, settlementCycle } = req.body;
     const row = db.prepare('SELECT config FROM projects WHERE id = ?').get(req.user.customerId);

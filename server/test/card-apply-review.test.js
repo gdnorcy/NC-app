@@ -129,7 +129,7 @@ test('审核流-5 拒绝后可重新提交申请', async () => {
     .set(bearer(token))
     .send({ type: 'individual', bindCode: '1001', name: '待拒个人', phone: '13811110002', position: '销售' });
   assert.equal(apply.status, 200);
-  assert.match(apply.body.message, /等待租户管理员审核/);
+  assert.match(apply.body.message, /等待管理员审核/);
 
   const uid = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_rev_p2'").get().id;
   const indId = db.prepare('SELECT id FROM tenant_individuals WHERE user_id = ? AND customer_id = 1').get(uid).id;

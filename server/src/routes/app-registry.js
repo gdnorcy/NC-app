@@ -43,7 +43,7 @@ export function createAppRegistryRouter(db) {
   router.get('/tenant/apps', requireAuth, (req, res) => {
     try {
       const customer = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.user.customer_id);
-      if (!customer) return res.status(404).json({ error: '租户不存在' });
+      if (!customer) return res.status(404).json({ error: '客户项目不存在' });
 
       const enabledCodes = customer.solutions ? JSON.parse(customer.solutions) : [];
       const apps = db.prepare('SELECT * FROM solutions WHERE enabled = 1 AND code IN (' + enabledCodes.map(() => '?').join(',') + ') ORDER BY sort_order')
@@ -64,7 +64,7 @@ export function createAppRegistryRouter(db) {
   router.get('/tenant/apps/:code/config', requireAuth, (req, res) => {
     try {
       const customer = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.user.customer_id);
-      if (!customer) return res.status(404).json({ error: '租户不存在' });
+      if (!customer) return res.status(404).json({ error: '客户项目不存在' });
 
       const appConfig = customer.config ? JSON.parse(customer.config) : {};
       res.json({ config: appConfig[req.params.code] || {} });
@@ -77,7 +77,7 @@ export function createAppRegistryRouter(db) {
   router.put('/tenant/apps/:code/config', requireAuth, (req, res) => {
     try {
       const customer = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.user.customer_id);
-      if (!customer) return res.status(404).json({ error: '租户不存在' });
+      if (!customer) return res.status(404).json({ error: '客户项目不存在' });
 
       const config = customer.config ? JSON.parse(customer.config) : {};
       config[req.params.code] = req.body;

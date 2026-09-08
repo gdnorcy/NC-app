@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2 class="page-title">成员管理</h2>
-        <p class="page-desc">创建租户后台账号；绑定企业的成员登录后进入「企业工作台」，仅管理本企业数据</p>
+        <p class="page-desc">创建后台账号；绑定企业的成员登录后进入「企业工作台」，仅管理本企业数据</p>
       </div>
       <el-button type="primary" @click="openCreate"><el-icon><Plus /></el-icon>添加成员</el-button>
     </div>
@@ -13,7 +13,7 @@
         <el-table-column prop="role" label="角色" width="120">
           <template #default="{ row }">
             <el-tag :type="row.role === 'tenant_admin' ? 'danger' : 'info'" size="small" effect="light">
-              {{ row.role === 'tenant_admin' ? '租户管理员' : '租户成员' }}
+              {{ row.role === 'tenant_admin' ? '管理员' : '成员' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -38,12 +38,12 @@
         <el-form-item label="密码" required><el-input v-model="form.password" type="password" placeholder="至少 6 位" /></el-form-item>
         <el-form-item label="角色">
           <el-radio-group v-model="form.role">
-            <el-radio label="tenant_admin">租户管理员</el-radio>
-            <el-radio label="tenant_member">租户成员</el-radio>
+            <el-radio label="tenant_admin">管理员</el-radio>
+            <el-radio label="tenant_member">成员</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="绑定企业">
-          <el-select v-model="form.enterpriseId" placeholder="不绑定（普通租户成员）" clearable style="width: 100%;">
+          <el-select v-model="form.enterpriseId" placeholder="不绑定（普通成员）" clearable style="width: 100%;">
             <el-option v-for="e in enterprises" :key="e.id" :label="`${e.name}（${e.employeeCount} 员工）`" :value="e.id" />
           </el-select>
           <p class="field-tip">绑定企业后，该成员登录仅见本企业数据，成为「企业管理员」</p>

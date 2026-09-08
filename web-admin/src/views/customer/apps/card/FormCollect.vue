@@ -28,7 +28,7 @@
           </el-table-column>
           <el-table-column label="挂载" width="120">
             <template #default="{ row }">
-              <el-tag size="small" :type="row.cardId ? '' : 'info'">{{ row.cardId ? '指定名片' : '全租户' }}</el-tag>
+              <el-tag size="small" :type="row.cardId ? '' : 'info'">{{ row.cardId ? '指定名片' : '全平台' }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="提交数" width="90">
@@ -69,7 +69,7 @@
             <el-input v-model="draft.description" type="textarea" :rows="2" placeholder="展示在表单顶部，引导访客填写" />
           </el-form-item>
           <el-form-item label="挂载名片">
-            <el-select v-model="draft.cardId" clearable placeholder="默认全租户展示（选择名片则仅该名片展示）" style="width: 320px">
+            <el-select v-model="draft.cardId" clearable placeholder="默认全平台展示（选择名片则仅该名片展示）" style="width: 320px">
               <el-option v-for="c in cards" :key="c.id" :label="`${c.name}（${c.position || '—'}）`" :value="c.id" />
             </el-select>
           </el-form-item>

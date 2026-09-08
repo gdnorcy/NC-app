@@ -4,7 +4,7 @@
       <div class="page-header">
         <div>
           <h2 class="page-title">方案分类</h2>
-          <p class="page-desc">对解决方案进行归类，便于租户在应用中心按分类浏览与选购</p>
+          <p class="page-desc">对解决方案进行归类，便于客户在应用中心按分类浏览与选购</p>
         </div>
         <el-button type="primary" @click="openCreate">
           <el-icon style="margin-right: 4px"><Plus /></el-icon>新建分类

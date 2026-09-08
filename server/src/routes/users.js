@@ -46,7 +46,7 @@ export function createUsersRouter(db) {
     // 租户角色必须关联客户
     const cid = ['tenant_admin', 'tenant_member'].includes(role) ? customerId : null;
     if (['tenant_admin', 'tenant_member'].includes(role) && !cid) {
-      return res.status(400).json({ error: '租户账号必须关联客户项目' });
+      return res.status(400).json({ error: '账号必须关联客户项目' });
     }
     const { hash, salt } = hashPassword(password);
     const info = db
@@ -93,7 +93,7 @@ export function createUsersRouter(db) {
       ? customerId ?? user.customer_id
       : null;
     if (['tenant_admin', 'tenant_member'].includes(finalRole) && !finalCid) {
-      return res.status(400).json({ error: '租户账号必须关联客户项目' });
+      return res.status(400).json({ error: '账号必须关联客户项目' });
     }
     db.prepare(
       'UPDATE users SET username = COALESCE(?, username), phone = COALESCE(?, phone), role = COALESCE(?, role), status = COALESCE(?, status), customer_id = ?, updated_at = datetime(\'now\') WHERE id = ?'

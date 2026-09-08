@@ -65,11 +65,11 @@ function requireTenant(req, res, next) {
     return res.status(403).json({ error: '无权访问客户后台' });
   }
   if (!user.customerId) {
-    return res.status(403).json({ error: '账号未关联租户' });
+    return res.status(403).json({ error: '账号未关联客户项目' });
   }
   // 租户生命周期：存在/启用/未到期；到期但 adminExpireMode=allow → 只读放行（仅GET）
   const state = tenantState(db, user.customerId, { ctx: 'admin' });
-  if (state.missing) return res.status(404).json({ error: '租户不存在' });
+  if (state.missing) return res.status(404).json({ error: '客户项目不存在' });
   if (!state.active) {
     if (state.readonly && req.method === 'GET') {
       req.customerId = user.customerId;
@@ -99,7 +99,7 @@ function requireTenantSoft(req, res, next) {
     return res.status(403).json({ error: '无权访问客户后台' });
   }
   if (!user.customerId) {
-    return res.status(403).json({ error: '账号未关联租户' });
+    return res.status(403).json({ error: '账号未关联客户项目' });
   }
   req.customerId = user.customerId;
   next();
@@ -108,7 +108,7 @@ function requireTenantSoft(req, res, next) {
 // 中间件：仅租户管理员
 function requireTenantAdmin(req, res, next) {
   if (req.user.role !== 'tenant_admin') {
-    return res.status(403).json({ error: '仅租户管理员可操作' });
+    return res.status(403).json({ error: '仅管理员可操作' });
   }
   next();
 }
@@ -116,7 +116,7 @@ function requireTenantAdmin(req, res, next) {
 // 获取当前租户信息
 router.get('/profile', requireTenant, (req, res) => {
   const cust = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.customerId);
-  if (!cust) return res.status(404).json({ error: '租户不存在' });
+  if (!cust) return res.status(404).json({ error: '客户项目不存在' });
   const customer = toCustomer(cust);
   if (customer.config) decryptConfigSecrets(customer.config);
   res.json({ customer, user: toUser(req.user) });
@@ -823,6 +823,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
     const customerCount = db.prepare('SELECT COUNT(*) AS n FROM card_customer WHERE enterprise_id = ?').get(eid).n;
     const poolAvailable = db.prepare('SELECT COUNT(*) AS n FROM enterprise_public_pool WHERE enterprise_id = ? AND status = ?').get(eid, 'available').n;
     const poolClaimed = db.prepare('SELECT COUNT(*) AS n FROM enterprise_public_pool WHERE enterprise_id = ? AND status = ?').get(eid, 'claimed').n;
+    const poolFloated = db.prepare("SELECT COUNT(*) AS n FROM enterprise_public_pool WHERE enterprise_id = ? AND status IN ('floated', 'recycled')").get(eid).n;
     const totalViews = db.prepare('SELECT COALESCE(SUM(view_count),0) AS s FROM card_profile WHERE user_id IN (SELECT id FROM platform_user WHERE enterprise_id = ?)').get(eid).s;
     res.json({
       enterprise: {
@@ -831,7 +832,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
         autoRecycle: !!config.auto_recycle,
         inviteCode: config.invite_code || '',
       },
-      stats: { employeeCount, cardCount, customerCount, poolAvailable, poolClaimed, totalViews },
+      stats: { employeeCount, cardCount, customerCount, poolAvailable, poolClaimed, poolFloated, totalViews },
     });
   });
 
@@ -930,20 +931,74 @@ router.get('/card/trends', requireTenant, (req, res) => {
     res.json({ ok: true });
   });
 
-  // 企业公海客户手动上浮到租户全局公海
+  // ===== 企业公海客户上浮到平台公海（手动） =====
+  // 上浮方式（projects 集市配置 poolFloatMode，来自集市管理「公海上浮方式」）：
+  // - soft：软上浮（企业记录保留为 floated，可随时收回；平台公海未领取时）
+  // - recover：限时收回（同软上浮，仅平台公海记录创建后 7 天内可收回）
+  // - hard：直接移交（企业记录置 recycled，不可逆，历史默认行为）
+  // 查重：同客户项目同手机号在平台公海已存在（任何状态）则拒绝，防止客户资产重复
+  function floatUpOne(db, row, customerId, enterpriseId, audit, req) {
+    const dup = db.prepare('SELECT id FROM tenant_public_pool WHERE customer_id = ? AND phone = ?').get(customerId, row.phone || '');
+    if (dup) return { ok: false, reason: '项目客户公海已存在该客户，无需重复上浮' };
+    db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position, remark)
+      VALUES (?, 'enterprise', ?, ?, ?, ?, ?, ?)`)
+      .run(customerId, row.source_id || null, row.name, row.phone || '', row.company || '', row.position || '', row.remark || '');
+    const market = db.prepare('SELECT pool_float_mode FROM card_market_settings WHERE customer_id = ?').get(customerId);
+    const mode = market?.pool_float_mode || 'soft';
+    if (mode === 'hard') {
+      db.prepare("UPDATE enterprise_public_pool SET status = 'recycled', recycled_at = datetime('now') WHERE id = ?").run(row.id);
+    } else {
+      db.prepare("UPDATE enterprise_public_pool SET status = 'floated', floated_at = datetime('now') WHERE id = ?").run(row.id);
+    }
+    audit(db, req, 'enterprise_pool_float_up', 'enterprise', enterpriseId, `公海客户「${row.name || row.phone}」上浮平台公海（${mode}）`);
+    return { ok: true };
+  }
+
   router.post('/enterprise/pool/:id/float-up', requireTenant, requireEnterpriseAdmin, (req, res) => {
     const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ?')
       .get(Number(req.params.id), req.enterpriseId);
     if (!row) return res.status(404).json({ error: '客户不存在' });
     if (row.status !== 'available') return res.status(400).json({ error: '该客户已上浮或已被领取' });
-    const dup = db.prepare("SELECT id FROM tenant_public_pool WHERE customer_id = ? AND phone = ? AND status = 'available'")
-      .get(req.customerId, row.phone || '');
-    if (dup) return res.status(400).json({ error: '租户公海已存在该客户，无需重复上浮' });
-    db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position, remark)
-      VALUES (?, 'enterprise', ?, ?, ?, ?, ?, ?)`)
-      .run(req.customerId, row.source_id || null, row.name, row.phone || '', row.company || '', row.position || '', row.remark || '');
-    db.prepare("UPDATE enterprise_public_pool SET status = 'recycled', recycled_at = datetime('now') WHERE id = ?").run(row.id);
-    auditCust(db, req, 'enterprise_pool_float_up', 'enterprise', req.enterpriseId, `公海客户「${row.name || row.phone}」上浮租户公海`);
+    const r = floatUpOne(db, row, req.customerId, req.enterpriseId, auditCust, req);
+    if (!r.ok) return res.status(400).json({ error: r.reason });
+    res.json({ ok: true });
+  });
+
+  // 批量上浮（逐条幂等：已上浮/已领取/重复 自动跳过）
+  router.post('/enterprise/pool/batch-float-up', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : [];
+    if (!ids.length) return res.status(400).json({ error: '请选择要上浮的客户' });
+    let floated = 0, skipped = 0;
+    for (const id of ids) {
+      const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ?').get(id, req.enterpriseId);
+      if (!row || row.status !== 'available') { skipped++; continue; }
+      const r = floatUpOne(db, row, req.customerId, req.enterpriseId, auditCust, req);
+      if (r.ok) floated++; else skipped++;
+    }
+    res.json({ ok: true, floated, skipped });
+  });
+
+  // 收回平台公海（仅软上浮/限时收回模式的企业记录；平台公海该客户未领取时）
+  router.post('/enterprise/pool/:id/recover', requireTenant, requireEnterpriseAdmin, (req, res) => {
+    const row = db.prepare('SELECT * FROM enterprise_public_pool WHERE id = ? AND enterprise_id = ?')
+      .get(Number(req.params.id), req.enterpriseId);
+    if (!row) return res.status(404).json({ error: '客户不存在' });
+    if (row.status !== 'floated') return res.status(400).json({ error: '仅软上浮/限时收回的客户可收回' });
+    const market = db.prepare('SELECT pool_float_mode FROM card_market_settings WHERE customer_id = ?').get(req.customerId);
+    const mode = market?.pool_float_mode || 'soft';
+    const up = db.prepare("SELECT * FROM tenant_public_pool WHERE customer_id = ? AND phone = ?").get(req.customerId, row.phone || '');
+    if (up) {
+      if (up.status !== 'available') return res.status(400).json({ error: '该客户已在平台公海被领取，无法收回' });
+      if (mode === 'recover' && up.created_at) {
+        const created = new Date(String(up.created_at).replace(' ', 'T') + 'Z').getTime();
+        if (Number.isFinite(created) && Date.now() - created > 7 * 24 * 3600 * 1000) {
+          return res.status(400).json({ error: '已超过可收回期限（7 天），无法收回' });
+        }
+      }
+      db.prepare('DELETE FROM tenant_public_pool WHERE id = ?').run(up.id);
+    }
+    db.prepare("UPDATE enterprise_public_pool SET status = 'available', floated_at = NULL WHERE id = ?").run(row.id);
+    auditCust(db, req, 'enterprise_pool_recover', 'enterprise', req.enterpriseId, `收回平台公海客户「${row.name || row.phone}」`);
     res.json({ ok: true });
   });
 
@@ -951,8 +1006,13 @@ router.get('/card/trends', requireTenant, (req, res) => {
   router.get('/enterprise/pool', requireTenant, requireEnterpriseAdmin, (req, res) => {
     const eid = req.enterpriseId;
     const { status = 'available', keyword = '' } = req.query;
+    // status=floated 表示「已上浮」视图：软上浮记录(floated) + 直接移交记录(recycled) 合并展示
     let where = 'WHERE pool.enterprise_id = ? AND pool.status = ?';
     const params = [eid, status];
+    if (status === 'floated') {
+      where = 'WHERE pool.enterprise_id = ? AND pool.status IN (?, ?)';
+      params.splice(1, 1, 'floated', 'recycled');
+    }
     if (keyword) {
       where += ' AND (pool.name LIKE ? OR pool.phone LIKE ? OR pool.company LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
@@ -966,7 +1026,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
     res.json({ items: rows.map(r => ({
       id: r.id, sourceType: r.source_type, name: r.name, phone: r.phone, company: r.company,
       position: r.position, remark: r.remark, status: r.status, claimedBy: r.claimed_by,
-      claimerName: r.claimer_name || '', claimedAt: r.claimed_at, recycledAt: r.recycled_at, createdAt: r.created_at,
+      claimerName: r.claimer_name || '', claimedAt: r.claimed_at, recycledAt: r.recycled_at, floatedAt: r.floated_at, createdAt: r.created_at,
     })) });
   });
 

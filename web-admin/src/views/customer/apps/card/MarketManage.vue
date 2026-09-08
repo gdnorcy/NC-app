@@ -4,7 +4,7 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <AppPageHeader title="人脉集市管理" desc="管理租户内人脉集市的开启、配置和内容管控" />
+    <AppPageHeader title="人脉集市管理" desc="管理人脉集市的开启、配置和内容管控" />
 
     <!-- 数据统计 -->
     <div class="stats-row" v-if="settings.enabled">
@@ -48,7 +48,7 @@
         <el-switch v-model="settings.enabled" :active-value="1" :inactive-value="0" @change="saveSettings" />
       </div>
       <div class="card-body">
-        <p class="hint-text">开启后，租户内入驻个人、企业、员工可将名片上架到人脉集市。关闭后所有人无法进入集市页面。</p>
+        <p class="hint-text">开启后，入驻个人、企业、员工可将名片上架到人脉集市。关闭后所有人无法进入集市页面。</p>
       </div>
     </div>
 
@@ -85,7 +85,7 @@
                   <el-button v-if="isTenantAdmin" type="primary" size="small" :loading="buyingKey === s.key" @click.stop="buyStyle(s)">
                     购买使用
                   </el-button>
-                  <span v-else class="buy-tip">需租户管理员购买</span>
+                  <span v-else class="buy-tip">需管理员购买</span>
                 </div>
               </div>
             </div>
@@ -112,6 +112,14 @@
           </el-form-item>
           <el-form-item label="允许名片交换">
             <el-switch v-model="settings.allowExchange" :active-value="1" :inactive-value="0" />
+          </el-form-item>
+          <el-form-item label="公海上浮方式">
+            <el-radio-group v-model="settings.poolFloatMode">
+              <el-radio value="soft">软上浮（保留企业记录，可随时收回）</el-radio>
+              <el-radio value="recover">限时收回（上浮后 7 天内可收回）</el-radio>
+              <el-radio value="hard">直接移交（不可逆）</el-radio>
+            </el-radio-group>
+            <div class="form-tip">企业公海客户上浮到平台公海的方式：软上浮/限时收回在企业公海保留记录，平台公海未领取时可收回；直接移交后不可撤销。</div>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="saveSettings">保存配置</el-button>
@@ -184,7 +192,8 @@ const settings = ref({
   allowExchange: 1,
   contactVisible: 'after_exchange',
   style: 'A',
-  notice: ''
+  notice: '',
+  poolFloatMode: 'soft'
 });
 const styles = ref([]);
 const buyingKey = ref('');
@@ -316,4 +325,5 @@ async function forceRemove(row) {
 .style-buy { margin-top: 10px; }
 .buy-tip { font-size: 12px; color: #86909c; }
 .hint-text { font-size: 13px; color: #86909c; margin: 0; }
+.form-tip { font-size: 12px; color: #86909c; line-height: 1.6; margin-top: 6px; width: 100%; }
 </style>

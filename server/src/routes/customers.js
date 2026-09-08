@@ -333,7 +333,7 @@ export function createCustomersRouter(db) {
       ).get(id);
     }
     if (!user) {
-      return res.status(400).json({ error: '该客户下暂无可用账号，请先在用户管理中创建租户账号' });
+      return res.status(400).json({ error: '该客户下暂无可用账号，请先在用户管理中创建客户项目账号' });
     }
     const token = issueToken(user);
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'impersonate', targetType: 'customer', targetId: id, detail: `进入客户后台: ${cust.customer_name} (${user.username})`, ip: req.ip });

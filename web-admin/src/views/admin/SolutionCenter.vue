@@ -164,7 +164,7 @@ async function load() {
 
 async function toggleStatus(s) {
   const action = s.status === 'on' ? '下架' : '上架';
-  const confirmed = await ElMessageBox.confirm(`确认${action}「${s.name}」？${s.status === 'on' ? '下架后不再向新租户开放。' : ''}`, '提示', {
+  const confirmed = await ElMessageBox.confirm(`确认${action}「${s.name}」？${s.status === 'on' ? '下架后不再向新客户开放。' : ''}`, '提示', {
     confirmButtonText: action, cancelButtonText: '取消', type: 'warning',
   }).catch(() => false);
   if (!confirmed) return;

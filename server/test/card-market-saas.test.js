@@ -136,7 +136,7 @@ test('P0-3 租户隔离：跨租户交换请求被拒，各自列表互不可见
     .set(bearer(p1))
     .send({ toUserId: p2user.id, message: 'hi' });
   assert.equal(cross.status, 403);
-  assert.match(cross.body.error, /不在本租户/);
+  assert.match(cross.body.error, /不在本客户项目/);
 
   // 租1管理员列表看不到租2成员
   const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();

@@ -70,6 +70,9 @@ before(() => {
   // 员工名下客户（card_customer）
   db.prepare(`INSERT INTO card_customer (owner_user_id, customer_id, owner_type, name, phone, company, source)
     VALUES (?, 1, 'employee', '回收客户X', '13900002002', '客户公司', 'exchange')`).run(pu.id);
+
+  // 集市配置默认行（公海上浮方式测试用；无记录时后端回退 soft）
+  db.prepare(`INSERT INTO card_market_settings (customer_id, pool_float_mode) VALUES (1, 'soft')`).run();
 });
 
 after(() => {
@@ -162,12 +165,107 @@ test('A2 上浮租户公海：手动上浮 + 幂等拦截', { concurrency: false
   assert.equal(ten.source_type, 'enterprise');
 
   const ent = db.prepare('SELECT status FROM enterprise_public_pool WHERE id = ?').get(item.id);
-  assert.equal(ent.status, 'recycled');
+  // 默认集市配置为软上浮（soft）：企业记录保留为 floated，可收回
+  assert.equal(ent.status, 'floated');
 
-  // 重复上浮 → 400
+  // 重复上浮 → 400（已上浮）
   const dup = await request(app).post(`/api/customer/enterprise/pool/${item.id}/float-up`)
     .set('Authorization', `Bearer ${token}`);
   assert.equal(dup.status, 400);
+});
+
+test('A2 软上浮收回：平台公海未领取时可收回企业公海', { concurrency: false }, async () => {
+  const token = issueToken(entMgr);
+  db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
+    VALUES (1, 1, 'employee', '收回客户', '13900002006', '收回公司')`).run();
+  const item = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002006'").get();
+
+  const up = await request(app).post(`/api/customer/enterprise/pool/${item.id}/float-up`)
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(up.status, 200);
+  assert.equal(db.prepare('SELECT status FROM enterprise_public_pool WHERE id = ?').get(item.id).status, 'floated');
+  assert.ok(db.prepare("SELECT id FROM tenant_public_pool WHERE phone = '13900002006' AND customer_id = 1 AND status = 'available'").get());
+
+  // 收回：平台公海记录删除 + 企业记录回 available
+  const rec = await request(app).post(`/api/customer/enterprise/pool/${item.id}/recover`)
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(rec.status, 200);
+  assert.equal(db.prepare('SELECT status FROM enterprise_public_pool WHERE id = ?').get(item.id).status, 'available');
+  assert.equal(db.prepare("SELECT id FROM tenant_public_pool WHERE phone = '13900002006' AND customer_id = 1").get(), undefined);
+
+  // 收回后可再次上浮（不触发查重）
+  const up2 = await request(app).post(`/api/customer/enterprise/pool/${item.id}/float-up`)
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(up2.status, 200);
+  // 清理：直接移交掉，避免影响后续
+  db.prepare("UPDATE card_market_settings SET pool_float_mode = 'hard' WHERE customer_id = 1").run();
+  await request(app).post(`/api/customer/enterprise/pool/${item.id}/float-up`).set('Authorization', `Bearer ${token}`);
+  db.prepare("UPDATE card_market_settings SET pool_float_mode = 'soft' WHERE customer_id = 1").run();
+});
+
+test('A2 限时收回：超 7 天不可收回；hard 模式不可逆', { concurrency: false }, async () => {
+  const token = issueToken(entMgr);
+  // recover 模式：上浮后把平台公海记录时间改回 8 天前 → 收回拒绝
+  db.prepare("UPDATE card_market_settings SET pool_float_mode = 'recover' WHERE customer_id = 1").run();
+  db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
+    VALUES (1, 1, 'employee', '限时客户', '13900002007', '限时公司')`).run();
+  const item = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002007'").get();
+  await request(app).post(`/api/customer/enterprise/pool/${item.id}/float-up`).set('Authorization', `Bearer ${token}`);
+  db.prepare("UPDATE tenant_public_pool SET created_at = datetime('now', '-8 days') WHERE phone = '13900002007' AND customer_id = 1").run();
+  const rec = await request(app).post(`/api/customer/enterprise/pool/${item.id}/recover`)
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(rec.status, 400);
+  assert.match(rec.body.error, /7 天/);
+  db.prepare('DELETE FROM enterprise_public_pool WHERE id = ?').run(item.id);
+  db.prepare("DELETE FROM tenant_public_pool WHERE phone = '13900002007' AND customer_id = 1").run();
+
+  // hard 模式：上浮即 recycled，不可收回
+  db.prepare("UPDATE card_market_settings SET pool_float_mode = 'hard' WHERE customer_id = 1").run();
+  db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
+    VALUES (1, 1, 'employee', '移交客户', '13900002008', '移交公司')`).run();
+  const item2 = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002008'").get();
+  await request(app).post(`/api/customer/enterprise/pool/${item2.id}/float-up`).set('Authorization', `Bearer ${token}`);
+  assert.equal(db.prepare('SELECT status FROM enterprise_public_pool WHERE id = ?').get(item2.id).status, 'recycled');
+  const rec2 = await request(app).post(`/api/customer/enterprise/pool/${item2.id}/recover`)
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(rec2.status, 400);
+  db.prepare('DELETE FROM enterprise_public_pool WHERE id = ?').run(item2.id);
+  db.prepare("DELETE FROM tenant_public_pool WHERE phone = '13900002008' AND customer_id = 1").run();
+  db.prepare("UPDATE card_market_settings SET pool_float_mode = 'soft' WHERE customer_id = 1").run();
+});
+
+test('A2 批量上浮：多选幂等批量移交平台公海', { concurrency: false }, async () => {
+  const token = issueToken(entMgr);
+  db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
+    VALUES (1, 1, 'employee', '批量一', '13900002009', '批量公司'),
+           (1, 1, 'employee', '批量二', '13900002010', '批量公司')`).run();
+  const a = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002009'").get();
+  const b = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002010'").get();
+  const res = await request(app).post('/api/customer/enterprise/pool/batch-float-up')
+    .set('Authorization', `Bearer ${token}`).send({ ids: [a.id, b.id] });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.floated, 2);
+  assert.equal(db.prepare('SELECT status FROM enterprise_public_pool WHERE id = ?').get(a.id).status, 'floated');
+  assert.equal(db.prepare('SELECT status FROM enterprise_public_pool WHERE id = ?').get(b.id).status, 'floated');
+  // 清理
+  db.prepare('DELETE FROM enterprise_public_pool WHERE id IN (?, ?)').run(a.id, b.id);
+  db.prepare("DELETE FROM tenant_public_pool WHERE phone IN ('13900002009','13900002010') AND customer_id = 1").run();
+});
+
+test('A2 查重加固：平台公海已存在（含已领取状态）即拒绝', { concurrency: false }, async () => {
+  const token = issueToken(entMgr);
+  // 平台公海已有 claimed 记录（同手机号）
+  db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, name, phone, company, status, claimed_by)
+    VALUES (1, 'individual', '已领客户', '13900002011', '某公司', 'claimed', 1)`).run();
+  db.prepare(`INSERT INTO enterprise_public_pool (enterprise_id, customer_id, source_type, name, phone, company)
+    VALUES (1, 1, 'employee', '重复客户', '13900002011', '重复公司')`).run();
+  const item = db.prepare("SELECT id FROM enterprise_public_pool WHERE phone = '13900002011'").get();
+  const up = await request(app).post(`/api/customer/enterprise/pool/${item.id}/float-up`)
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(up.status, 400);
+  assert.match(up.body.error, /项目客户公海已存在/);
+  db.prepare('DELETE FROM enterprise_public_pool WHERE id = ?').run(item.id);
+  db.prepare("DELETE FROM tenant_public_pool WHERE phone = '13900002011' AND customer_id = 1").run();
 });
 
 test('A2 领取/释放闭环：客户同步进列表、释放清理归属', { concurrency: false }, async () => {

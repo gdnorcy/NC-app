@@ -174,7 +174,7 @@
           </el-form-item>
           <el-form-item label="自主续费">
             <el-switch v-model="form.config.selfRenew" />
-            <div class="form-help">开启后客户可在租户后台自助完成续费</div>
+            <div class="form-help">开启后客户可在客户后台自助完成续费</div>
           </el-form-item>
         </el-form>
       </section>
