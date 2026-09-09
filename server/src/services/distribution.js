@@ -993,6 +993,13 @@ export function createDistributionService(db) {
     // 股东待分红/累计
     const sharePending = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('share_all','share_cat','share_area') AND status = 'pending'").get(tenantId, userId, identityType).s;
     const shareTotal = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('share_all','share_cat','share_area')").get(tenantId, userId, identityType).s;
+    // 分类型股东待分红/累计（壳页应用卡独立展示，避免汇总误导）
+    const shareAllPending = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type = 'share_all' AND status = 'pending'").get(tenantId, userId, identityType).s;
+    const shareAllTotal = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type = 'share_all'").get(tenantId, userId, identityType).s;
+    const shareCatPending = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type = 'share_cat' AND status = 'pending'").get(tenantId, userId, identityType).s;
+    const shareCatTotal = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type = 'share_cat'").get(tenantId, userId, identityType).s;
+    const shareAreaPending = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type = 'share_area' AND status = 'pending'").get(tenantId, userId, identityType).s;
+    const shareAreaTotal = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type = 'share_area'").get(tenantId, userId, identityType).s;
 
     // 基本设置 + 分销参数（C 端文案/申请页/展示开关）
     const cfg = svc.getConfig(tenantId);
@@ -1025,6 +1032,12 @@ export function createDistributionService(db) {
       partnerTotal,
       sharePending,
       shareTotal,
+      shareAllPending,
+      shareAllTotal,
+      shareCatPending,
+      shareCatTotal,
+      shareAreaPending,
+      shareAreaTotal,
       // —— 2026-09-09 基本设置 / 分销参数透传 ——
       distName: cfg.dist_name || '推广员',
       subName: cfg.sub_name || '下级',
