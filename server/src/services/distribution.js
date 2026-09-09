@@ -1124,6 +1124,75 @@ export function createDistributionService(db) {
     return { month: key, byType, total, settled, pending, chargedBack, debtAmount, withdrawTotal, byUser: byUserArr };
   };
 
+  /** 分销趋势：近 N 天 每日 佣金/分红/新增绑定（折线图数据源） */
+  svc.getTrend = (tenantId, days = 30) => {
+    const n = Math.min(Math.max(parseInt(days, 10) || 30, 7), 90);
+    const from = `date('now', '-${n - 1} days')`;
+    const logRows = db.prepare(`
+      SELECT substr(created_at, 1, 10) d,
+        SUM(CASE WHEN type IN ('level1','level2') THEN amount ELSE 0 END) comm,
+        SUM(CASE WHEN type IN ('partner','share_all','share_cat','share_area') THEN amount ELSE 0 END) bonus,
+        COUNT(*) n
+      FROM dist_user_log
+      WHERE tenant_id = ? AND substr(created_at,1,10) >= ${from}
+      GROUP BY d
+    `).all(tenantId);
+    const bindRows = db.prepare(`
+      SELECT substr(bind_time, 1, 10) d, COUNT(*) n
+      FROM dist_user_relation
+      WHERE tenant_id = ? AND status = 'bound' AND substr(bind_time,1,10) >= ${from}
+      GROUP BY d
+    `).all(tenantId);
+    const logMap = new Map(logRows.map((r) => [r.d, r]));
+    const bindMap = new Map(bindRows.map((r) => [r.d, r.n]));
+    const list = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+      const l = logMap.get(d) || { comm: 0, bonus: 0, n: 0 };
+      list.push({ d, comm: l.comm, bonus: l.bonus, logs: l.n, bind: bindMap.get(d) || 0 });
+    }
+    return { days: n, list };
+  };
+
+  /** 预警中心：绑定爆发 / 退款集中 / 提现积压 / 让利逼近上限 */
+  svc.getAlerts = (tenantId) => {
+    const alerts = [];
+    const push = (level, type, title, desc, action) => alerts.push({ level, type, title, desc, action });
+    // 1. 绑定集中爆发：近7天单日绑定 ≥5 且 > 近30天日均×3
+    const binds = db.prepare("SELECT substr(bind_time,1,10) d, COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND substr(bind_time,1,10) >= date('now','-29 days') GROUP BY d").all(tenantId);
+    if (binds.length) {
+      const avg30 = binds.reduce((s, r) => s + r.n, 0) / 30;
+      const hot = binds.filter((r) => r.n >= 5 && r.n > avg30 * 3).sort((a, b) => b.n - a.n);
+      if (hot.length) {
+        const r = hot[0];
+        push('high', 'bind_spike', `疑似批量绑定（${r.d} 单日 ${r.n} 人）`, `单日绑定 ${r.n} 人，为近30天日均 ${avg30.toFixed(1)} 人的 ${(r.n / Math.max(avg30, 0.1)).toFixed(1)} 倍，建议核实推广来源真实性`, '前往溯源记录');
+      }
+    }
+    // 2. 退款回滚集中：近7天扣回 ≥3 笔
+    const back = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(ABS(amount)),0) amt FROM dist_user_log WHERE tenant_id = ? AND status = 'charged_back' AND substr(created_at,1,10) >= date('now','-6 days')").get(tenantId);
+    if (back.n >= 3) {
+      push('high', 'refund_spike', `退款回滚集中（近7天 ${back.n} 笔）`, `近7天退款触发佣金/分红回滚 ${back.n} 笔、合计 ${fen(back.amt)} 元，退款率偏高，建议核查商品/服务质量`, '前往佣金明细');
+    }
+    // 3. 提现待审积压：≥5 笔且最早待审超3天
+    const wd = db.prepare("SELECT COUNT(*) n, MIN(created_at) oldest FROM dist_withdraw WHERE tenant_id = ? AND status = 'pending'").get(tenantId);
+    if (wd.n >= 5) {
+      const ageDays = wd.oldest ? (Date.now() - new Date(wd.oldest.replace(' ', 'T')).getTime()) / 864e5 : 0;
+      if (ageDays > 3) {
+        push('mid', 'withdraw_backlog', `提现审核积压（${wd.n} 笔待审）`, `已有 ${wd.n} 笔提现待审核，最早 ${ageDays.toFixed(0)} 天前提交，建议尽快处理避免体验投诉`, '前往钱包提现');
+      }
+    }
+    // 4. 让利逼近上限：近7天平均让利比例 > 配置上限×0.9
+    const cfg = db.prepare('SELECT max_total_ratio FROM dist_config WHERE tenant_id = ?').get(tenantId);
+    const cap = cfg && cfg.max_total_ratio ? cfg.max_total_ratio : null;
+    if (cap && cap > 0) {
+      const split = db.prepare("SELECT AVG(total_bonus * 1.0 / order_amount) r FROM dist_order_split WHERE tenant_id = ? AND order_amount > 0 AND substr(created_at,1,10) >= date('now','-6 days')").get(tenantId);
+      if (split.r != null && split.r > cap * 0.9) {
+        push('low', 'ratio_high', `订单让利逼近上限（近7天 ${(split.r * 100).toFixed(0)}%）`, `近7天平均让利比例已接近配置上限 ${(cap * 100).toFixed(0)}%，继续提高比例可能导致超支亏损`, '前往分销配置');
+      }
+    }
+    return { alerts };
+  };
+
   /** 分销商健康度：活跃/转化/流失评分 + 预警列表（score 升序，最需关注在前） */
   svc.getHealth = (tenantId) => {
     // 推广人集合：有直推下级 / 发过分享 / 白名单分销商
@@ -1667,6 +1736,9 @@ export function buildRelationTree(relations, tagMap = new Map()) {
 }
 
 const WITHDRAW_STATUS_ZH = { pending: '待审核', approved: '待打款', rejected: '已驳回', done: '已完成' };
+
+/** 分转元两位小数（展示文案用） */
+export function fen(v) { return (Number(v || 0) / 100).toFixed(2); }
 
 /** 提现对账 CSV（带 BOM；金额分转元两位小数；字段含流水号/打款备注，可完整对账） */
 export function buildWithdrawCsv(rows) {

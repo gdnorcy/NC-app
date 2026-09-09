@@ -1173,6 +1173,48 @@ describe('分销体系（分销裂变底座）', () => {
     }
   });
 
+  it('P17 分销趋势：近 N 天佣金/分红/新增绑定折线数据', () => {
+    const trend = dist.getTrend(TENANT, 30);
+    assert.equal(trend.days, 30, '默认 30 天');
+    assert.equal(trend.list.length, 30, '30 天完整补齐');
+    const today = trend.list[trend.list.length - 1];
+    assert.ok(today.d === new Date().toISOString().slice(0, 10), '末位为今日');
+    assert.ok(today.comm >= 0 && today.bonus >= 0 && today.bind >= 0, '字段非负');
+    // 演示数据命中：近 30 天有分账日志
+    assert.ok(trend.list.some((d) => d.comm > 0), '佣金折线有数据');
+    const t7 = dist.getTrend(TENANT, 7);
+    assert.equal(t7.list.length, 7, '7 天');
+    assert.equal(dist.getTrend(TENANT, 999).days, 90, '上限 90 天');
+  });
+
+  it('P18 预警中心：绑定爆发/退款集中/提现积压/让利逼近上限', () => {
+    const A = 9061, B = 9062;
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '爆发买家1', ?, 'individual')").run(A, `openid_${A}`, TENANT);
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '爆发买家2', ?, 'individual')").run(B, `openid_${B}`, TENANT);
+    try {
+      // 造单日 6 笔绑定（今天）触发绑定爆发
+      const hotDay = new Date().toISOString().slice(0, 10);
+      const stmt = db.prepare("INSERT OR IGNORE INTO dist_user_relation (tenant_id, user_id, identity_type, pid1, pid2, source_type, status, bind_time) VALUES (?, ?, 'individual', ?, NULL, 'qrcode', 'bound', ?)");
+      for (let i = 0; i < 6; i++) {
+        const uid = 9070 + i;
+        db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '爆发买家', ?, 'individual')").run(uid, `openid_${uid}`, TENANT);
+        stmt.run(TENANT, uid, 9061, hotDay);
+      }
+      const al = dist.getAlerts(TENANT);
+      const spike = al.alerts.find((x) => x.type === 'bind_spike');
+      assert.ok(spike && spike.level === 'high', '绑定爆发预警 high');
+      // 造 3 笔退款回滚
+      const lr = db.prepare("INSERT INTO dist_user_log (tenant_id, user_id, order_id, type, amount, status) VALUES (?, ?, 'REFUND-SPIKE', 'level1', -1.0, 'charged_back')");
+      lr.run(TENANT, A); lr.run(TENANT, A); lr.run(TENANT, B);
+      const al2 = dist.getAlerts(TENANT);
+      assert.ok(al2.alerts.some((x) => x.type === 'refund_spike'), '退款集中预警');
+    } finally {
+      db.prepare('DELETE FROM dist_user_relation WHERE tenant_id = ? AND user_id >= 9070').run(TENANT);
+      db.prepare("DELETE FROM dist_user_log WHERE tenant_id = ? AND order_id = 'REFUND-SPIKE'").run(TENANT);
+      db.prepare('DELETE FROM platform_user WHERE id IN (?, ?, ?, ?, ?, ?, ?, ?)').run(A, B, 9070, 9071, 9072, 9073, 9074, 9075);
+    }
+  });
+
   it('P14 月度对账单：扣回负计/欠款解析/提现实得 + CSV/HTML 构建', () => {
     const UID = 9036;
     const NOW = new Date().toISOString().slice(0, 7);

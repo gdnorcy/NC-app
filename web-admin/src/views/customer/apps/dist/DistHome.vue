@@ -823,6 +823,57 @@
         <div class="health-empty" v-if="!healthList.length">暂无分销商数据，绑定推广关系后展示</div>
       </el-card>
       <el-card shadow="never">
+        <div class="sub-title">预警中心
+          <span class="sub-desc">绑定爆发 / 退款集中 / 提现积压 / 让利逼近上限（自动检测）</span>
+        </div>
+        <template v-if="alerts.length">
+          <div class="alert-list">
+            <div v-for="a in alerts" :key="a.type" class="alert-item" :class="'alert-' + a.level">
+              <span class="alert-dot"></span>
+              <div class="alert-body">
+                <div class="alert-title">{{ a.title }}</div>
+                <div class="alert-desc">{{ a.desc }}</div>
+              </div>
+              <el-button size="small" text type="primary" @click="goAlertTab(a.action)">{{ a.action }}</el-button>
+            </div>
+          </div>
+        </template>
+        <div v-else class="health-empty">当前无预警，各项指标运行正常</div>
+      </el-card>
+      <el-card shadow="never">
+        <div class="sub-title">近 {{ trend.days || 30 }} 天分销趋势
+          <span class="sub-desc">折线 = 佣金/分红(元) · 柱 = 新增绑定(人)</span>
+        </div>
+        <div class="trend-chart" ref="trendBox" v-show="trend.list.length">
+          <svg :viewBox="'0 0 ' + tW + ' 220'" class="trend-svg">
+            <g v-for="(g, i) in tGrid" :key="'g' + i">
+              <line :x1="tPadL" :x2="tW - tPadR" :y1="g.y" :y2="g.y" stroke="#f0f2f5" stroke-width="1" />
+              <text :x="tPadL - 6" :y="g.y + 4" text-anchor="end" class="t-axis">{{ g.v }}</text>
+            </g>
+            <g v-for="(d, i) in trend.list" :key="d.d">
+              <rect :x="tX(i) - 2.5" :y="tY(d.bind, 'bind')" width="5" :height="tH - tY(d.bind, 'bind')" fill="rgba(22,93,255,0.15)" rx="2">
+                <title>{{ d.d }} 绑定 {{ d.bind }} 人</title>
+              </rect>
+            </g>
+            <polyline :points="tPts('comm')" fill="none" stroke="#165DFF" stroke-width="2" />
+            <polyline :points="tPts('bonus')" fill="none" stroke="#FF7D00" stroke-width="2" stroke-dasharray="5 3" />
+            <circle v-for="(d, i) in trend.list" :key="'c' + i" :cx="tX(i)" :cy="tY(d.comm, 'comm')" r="2.5" fill="#165DFF">
+              <title>{{ d.d }} 佣金 {{ fen(d.comm) }} 元</title>
+            </circle>
+            <circle v-for="(d, i) in trend.list" :key="'b' + i" :cx="tX(i)" :cy="tY(d.bonus, 'bonus')" r="2.5" fill="#FF7D00">
+              <title>{{ d.d }} 分红 {{ fen(d.bonus) }} 元</title>
+            </circle>
+            <text v-if="trend.list.length" :x="tPadL + (tW - tPadL - tPadR) / 2" :y="212" text-anchor="middle" class="t-axis">{{ trend.list[0].d }} → {{ trend.list[trend.list.length - 1].d }}</text>
+          </svg>
+          <div class="trend-legend">
+            <span class="lg"><i class="lg-line lg-blue"></i>佣金(元)</span>
+            <span class="lg"><i class="lg-line lg-orange"></i>分红(元)</span>
+            <span class="lg"><i class="lg-bar"></i>新增绑定(人)</span>
+          </div>
+        </div>
+        <div v-if="!trend.list.length" class="health-empty">暂无趋势数据</div>
+      </el-card>
+      <el-card shadow="never">
         <div class="sub-title">分销商排行 TOP {{ ranking.length }}</div>
         <el-table :data="ranking" v-loading="loading" stripe>
           <el-table-column label="排名" width="80">
@@ -1279,6 +1330,36 @@ function acctLabel(acct) {
 const stats = reactive({ totalCommission: 0, settledCommission: 0, splitCount: 0, splitAmount: 0, memberCount: 0, withdrawPending: 0, withdrawTotal: 0, trend: [], bonusByType: {}, partnerCount: 0, shareAllCount: 0, shareCatCount: 0, shareAreaCount: 0, promo: {} });
 const ranking = ref([]);
 const healthList = ref([]);
+const alerts = ref([]);
+const trend = reactive({ days: 30, list: [] });
+const trendBox = ref(null);
+const tW = 860, tPadL = 46, tPadR = 12, tH = 168;
+const tMax = computed(() => {
+  let m = 0;
+  for (const d of trend.list) m = Math.max(m, d.comm / 100, d.bonus / 100, d.bind * 20);
+  return m || 1;
+});
+const tGrid = computed(() => Array.from({ length: 5 }, (_, i) => ({ v: Math.round(((tMax.value * (4 - i)) / 4) * 100) / 100, y: tPadL + ((tH * i) / 4) })));
+function tX(i) { return tPadL + (trend.list.length > 1 ? ((tW - tPadL - tPadR) * i) / (trend.list.length - 1) : 0); }
+function tY(v, k) { const val = k === 'bind' ? v * 20 : v / 100; return tPadL + tH - (val / tMax.value) * tH; }
+function tPts(k) { return trend.list.map((d, i) => `${tX(i)},${tY(d[k], k)}`).join(' '); }
+function goAlertTab(action) {
+  const map = { '前往溯源记录': 'trace', '前往佣金明细': 'logs', '前往钱包提现': 'wallet', '前往分销配置': 'config' };
+  activeTab.value = map[action] || 'dashboard';
+}
+async function loadAlerts() {
+  try {
+    const res = await customerApiCall.get('/distribution/alerts');
+    alerts.value = res.alerts || [];
+  } catch (e) { /* 预警失败不阻塞大盘 */ }
+}
+async function loadTrend() {
+  try {
+    const res = await customerApiCall.get('/distribution/trend', { params: { days: 30 } });
+    trend.days = res.days || 30;
+    trend.list = res.list || [];
+  } catch (e) { /* 趋势失败不阻塞大盘 */ }
+}
 async function loadHealth() {
   try {
     const res = await customerApiCall.get('/distribution/health');
@@ -1327,6 +1408,8 @@ onMounted(() => {
   loadRelations();
   loadFunnel();
   loadHealth();
+  loadAlerts();
+  loadTrend();
   loadWithdraws();
   loadStats();
   loadRanking();
@@ -1367,6 +1450,27 @@ onMounted(() => {
 .hs-watch { color: #ff7d00; }
 .hs-churn { color: #f53f3f; }
 .health-empty { text-align: center; color: #86909c; padding: 24px 0; font-size: 13px; }
+.alert-list { display: flex; flex-direction: column; gap: 10px; }
+.alert-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 8px; }
+.alert-high { background: #ffece8; border: 1px solid #ffd0c7; }
+.alert-mid { background: #fff7e8; border: 1px solid #ffd9ad; }
+.alert-low { background: #e8f3ff; border: 1px solid #c8e0ff; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: none; }
+.alert-high .alert-dot { background: #f53f3f; }
+.alert-mid .alert-dot { background: #ff7d00; }
+.alert-low .alert-dot { background: #165dff; }
+.alert-body { flex: 1; min-width: 0; }
+.alert-title { font-size: 13px; font-weight: 600; color: #1d2129; }
+.alert-desc { font-size: 12px; color: #4e5969; margin-top: 2px; line-height: 1.5; }
+.trend-chart { padding: 4px 0 0; }
+.trend-svg { width: 100%; height: auto; display: block; }
+.t-axis { font-size: 10px; fill: #86909c; }
+.trend-legend { display: flex; gap: 18px; justify-content: flex-end; margin-top: 6px; font-size: 12px; color: #4e5969; }
+.lg { display: inline-flex; align-items: center; gap: 5px; }
+.lg-line { width: 18px; height: 2px; border-radius: 1px; display: inline-block; }
+.lg-blue { background: #165dff; }
+.lg-orange { background: #ff7d00; }
+.lg-bar { width: 8px; height: 8px; border-radius: 2px; background: rgba(22, 93, 255, 0.25); display: inline-block; }
 .batch-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 8px; }
 .text-muted { color: #86909c; font-size: 12px; }
 .tree-node { display: inline-flex; align-items: center; gap: 8px; }

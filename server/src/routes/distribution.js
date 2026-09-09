@@ -376,6 +376,16 @@ export function createDistributionRouter(db) {
     res.json(dist.getHealth(req.customerId));
   });
 
+  // 分销趋势（近 N 天 佣金/分红/新增绑定）
+  router.get('/trend', tenant, (req, res) => {
+    res.json(dist.getTrend(req.customerId, req.query.days));
+  });
+
+  // 预警中心（绑定爆发/退款集中/提现积压/让利逼近上限）
+  router.get('/alerts', tenant, (req, res) => {
+    res.json(dist.getAlerts(req.customerId));
+  });
+
   router.get('/stats', tenant, (req, res) => {
     const tenantId = req.customerId;
     const totalCommission = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND type IN ('level1','level2')").get(tenantId).s;
