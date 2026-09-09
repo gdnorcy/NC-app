@@ -945,6 +945,17 @@ export function createDistributionService(db) {
     const monthNew = db.prepare(
       "SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND (pid1 = ? OR pid2 = ?) AND status = 'bound' AND substr(bind_time,1,10) >= ?"
     ).get(tenantId, userId, userId, monthKey).n;
+    // 累计推广业绩：累计佣金（level1/level2 全量）+ 累计带来订单（去重订单数，供「累计业绩」卡）
+    const totalCommission = db.prepare(
+      "SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('level1','level2')"
+    ).get(tenantId, userId, identityType).s;
+    const totalOrders = db.prepare(
+      "SELECT COUNT(DISTINCT order_id) n FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('level1','level2') AND order_id > 0"
+    ).get(tenantId, userId, identityType).n;
+    // 插件启用状态（壳页卡片区渲染依据：租户开通哪个应用，C 端显示对应卡片）
+    const pluginRows = db.prepare('SELECT plugin_code, is_install, is_enable FROM sys_tenant_plugin WHERE tenant_id = ?').all(tenantId);
+    const pMap = {};
+    for (const p of pluginRows) pMap[p.plugin_code] = !!(p.is_install && p.is_enable);
     // —— 今日业绩（借鉴推广中心布局）：今日佣金 / 今日分账订单 / 今日新增下线 ——
     const todayKey = new Date().toISOString().slice(0, 10);
     const todayCommission = db.prepare(
@@ -964,6 +975,7 @@ export function createDistributionService(db) {
     // 身份标签（小程序分销中心聚合）
     const tags = [];
     const partner = db.prepare('SELECT id, mode FROM dist_partner WHERE tenant_id = ? AND user_id = ? AND status = 1').get(tenantId, userId);
+    const partnerMode = partner ? partner.mode : 0;
     if (partner) tags.push(partner.mode === 2 ? '全局合伙人' : '团队合伙人');
     const shareAll = db.prepare('SELECT id FROM dist_share_all WHERE tenant_id = ? AND user_id = ? AND status = 1').get(tenantId, userId);
     if (shareAll) tags.push('全民股东');
@@ -998,7 +1010,16 @@ export function createDistributionService(db) {
       todayOrder,
       todayNew,
       withdrawing,
+      totalCommission,
+      totalOrders,
+      // 壳页卡片渲染依据：租户已开通的分销应用
+      isEnableDist: !!pMap.dist,
+      isEnablePartner: !!pMap.partner,
+      isEnableShareAll: !!pMap['share-all'],
+      isEnableShareCat: !!pMap['share-cat'],
+      isEnableShareArea: !!pMap['share-area'],
       isPartner: !!partner,
+      partnerMode,
       shareTags: tags,
       partnerPending,
       partnerTotal,
@@ -1082,13 +1103,33 @@ export function createDistributionService(db) {
   };
 
   svc.getLogs = (tenantId, userId, identityType, { page = 1, pageSize = 20, type = '' } = {}) => {
-    let sql = "SELECT * FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ?";
+    let sql = "SELECT l.*, s.order_no, s.category_id, s.area_code FROM dist_user_log l LEFT JOIN dist_order_split s ON s.order_id = l.order_id AND s.tenant_id = l.tenant_id WHERE l.tenant_id = ? AND l.user_id = ? AND l.identity_type = ?";
     const params = [tenantId, userId, identityType];
-    if (type) { sql += ' AND type = ?'; params.push(type); }
-    const total = db.prepare(sql.replace('SELECT *', 'SELECT COUNT(*) n')).get(...params).n;
-    sql += ' ORDER BY id DESC LIMIT ? OFFSET ?';
+    if (type) { sql += ' AND l.type = ?'; params.push(type); }
+    const total = db.prepare(sql.replace('SELECT l.*, s.order_no, s.category_id, s.area_code', 'SELECT COUNT(*) n')).get(...params).n;
+    sql += ' ORDER BY l.id DESC LIMIT ? OFFSET ?';
     params.push(pageSize, (page - 1) * pageSize);
-    return { total, list: db.prepare(sql).all(...params) };
+    const rows = db.prepare(sql).all(...params);
+    // 驼峰化 + 类型/状态中文化（供 C 端直接渲染）
+    const typeZh = { level1: '一级佣金', level2: '二级佣金', self: '自购返佣', partner: '合伙人分红', share_all: '全民股东分红', share_cat: '类目股东分红', share_area: '区域股东分红' };
+    const statusZh = { pending: '待结算', settled: '已结算', charged_back: '已扣回' };
+    return {
+      total,
+      list: rows.map((r) => ({
+        id: r.id,
+        type: r.type,
+        typeLabel: typeZh[r.type] || r.type,
+        amount: r.amount,
+        status: r.status,
+        statusLabel: statusZh[r.status] || r.status,
+        orderNo: r.order_no || '',
+        orderId: r.order_id,
+        sourceCategory: r.category_id || '',
+        sourceArea: r.area_code || '',
+        remark: r.remark || '',
+        createdAt: r.created_at,
+      })),
+    };
   };
 
   /** 提现记录（分页） */

@@ -403,10 +403,51 @@ describe('分销体系（分销裂变底座）', () => {
     dist.addShareArea(TENANT, '东莞', 2000, { ratio: 0.03, weight: 1 });
     const s = dist.getSummary(TENANT, 2000, 'individual');
     assert.equal(s.isPartner, true);
+    assert.equal(s.partnerMode, 2, '合伙人模式透传（全局流水）');
     assert.ok(s.shareTags.includes('全民股东'));
     assert.ok(s.shareTags.includes('行业-制造业股东'));
     assert.ok(s.shareTags.includes('地区-东莞股东'));
     assert.ok(s.shareTags.includes('全局合伙人'));
+  });
+
+  it('P5 壳页字段：插件启用开关 + 累计业绩', () => {
+    // 显式关停 dist → 开关反映 false
+    dist.setPlugin(TENANT, 'dist', { enable: false });
+    const s = dist.getSummary(TENANT, 2000, 'individual');
+    assert.equal(s.isEnableDist, false, 'dist 停用');
+    assert.equal(s.isEnablePartner, true, 'partner 插件开启');
+    assert.equal(s.isEnableShareAll, true, '全民股东开启');
+    assert.equal(s.isEnableShareCat, true, '类目股东开启');
+    assert.equal(s.isEnableShareArea, true, '区域股东开启');
+    // 恢复 dist；给 1001（1002 的上级）造一笔带佣金订单 → 累计佣金/订单
+    dist.setPlugin(TENANT, 'dist', { enable: true });
+    const sp = dist.computeOrderSplit(makeOrder({ id: 91098, orderNo: 'T91098', userId: 1002 }));
+    assert.ok(sp && sp.commission1 > 0, '1001 获得一级佣金');
+    const s2 = dist.getSummary(TENANT, 1001, 'individual');
+    assert.equal(s2.isEnableDist, true, 'dist 恢复启用');
+    assert.ok(s2.totalCommission > 0, '累计佣金 > 0');
+    assert.ok(s2.totalOrders > 0, '累计带来订单 > 0');
+  });
+
+  it('P5 getLogs 来源字段：订单号 + 来源行业/地区（类目/区域股东明细标注）', () => {
+    // 自造订单：买家1004（profile 制造业/东莞）+ 2000 已为类目/区域股东 → 生成带来源的流水
+    // 注意：分红流水身份 = 股东自身身份（platform_user.identity_type），2000 为 employee
+    const split = dist.computeOrderSplit(makeOrder({ id: 91099, orderNo: 'T91099', userId: 1004 }));
+    assert.ok(split, '分账生成');
+    const cat = dist.getLogs(TENANT, 2000, 'employee', { type: 'share_cat', pageSize: 50 });
+    const row = cat.list.find((l) => l.orderId === 91099);
+    assert.ok(row, '类目分红明细存在');
+    assert.equal(row.typeLabel, '类目股东分红');
+    assert.ok(row.orderNo, '带订单号');
+    assert.equal(row.sourceCategory, '制造业', '来源行业标注');
+    const area = dist.getLogs(TENANT, 2000, 'employee', { type: 'share_area', pageSize: 50 });
+    const row2 = area.list.find((l) => l.orderId === 91099);
+    assert.ok(row2, '区域分红明细存在');
+    assert.equal(row2.sourceArea, '东莞', '来源地区标注');
+    assert.equal(row2.statusLabel, '待结算');
+    // 清理
+    db.prepare('DELETE FROM dist_user_log WHERE split_id = ?').run(split.id);
+    db.prepare('DELETE FROM dist_order_split WHERE id = ?').run(split.id);
   });
 
   it('P1 退款回滚覆盖分红流水', () => {

@@ -139,6 +139,48 @@
           }
         },
         {
+          "path": "distPromo",
+          "style": {
+            "navigationBarTitleText": "推广中心",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "distPartner",
+          "style": {
+            "navigationBarTitleText": "合伙人分红",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "distShareAll",
+          "style": {
+            "navigationBarTitleText": "全民股东",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "distShareCat",
+          "style": {
+            "navigationBarTitleText": "类目股东",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "distShareArea",
+          "style": {
+            "navigationBarTitleText": "区域股东",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "distWallet",
+          "style": {
+            "navigationBarTitleText": "我的钱包",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "dynamic",
           "style": {
             "navigationBarTitleText": "我的动态",
