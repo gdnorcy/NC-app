@@ -103,7 +103,7 @@
           <view class="invite-btns">
             <button class="mini-btn invite-btn" @click="openQr">推广二维码</button>
             <button class="mini-btn invite-btn solid" @click="openPoster">生成海报</button>
-            <button class="mini-btn invite-btn ghost" @click="copyShareUrl">复制链接</button>
+            <button class="mini-btn invite-btn ghost wide" @click="copyShareUrl">复制链接</button>
           </view>
         </view>
         <view class="invite-right" @click="openQr">
@@ -618,11 +618,12 @@ onShow(() => {
 .invite-left { flex: 1; min-width: 0; }
 .invite-title { font-size: 32rpx; font-weight: 700; }
 .invite-desc { margin-top: 24rpx; font-size: 24rpx; opacity: 0.9; }
-.invite-btns { margin-top: 24rpx; display: flex; gap: 16rpx; flex-wrap: wrap; }
-.mini-btn { font-size: 26rpx; border-radius: 999rpx; line-height: 2.3; padding: 0 28rpx; }
+.invite-btns { margin-top: 24rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.mini-btn { font-size: 26rpx; border-radius: 999rpx; line-height: 2.3; padding: 0 20rpx; }
 .invite-btn { background: rgba(255,255,255,0.2); color: #fff; border: 1rpx solid rgba(255,255,255,0.5); }
 .invite-btn.solid { background: #fff; color: #0f766e; font-weight: 600; border: none; }
 .invite-btn.ghost { background: transparent; }
+.invite-btn.wide { grid-column: span 2; }
 .invite-right { flex-shrink: 0; }
 .deco-qr { width: 150rpx; height: 150rpx; border-radius: 16rpx; background: #fff; padding: 14rpx; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr); gap: 3rpx; }
 .dqr-cell { background: transparent; }
