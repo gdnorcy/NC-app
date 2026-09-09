@@ -633,7 +633,7 @@ onMounted(() => {
 .w220 { width: 220px; }
 .flex-1 { flex: 1; }
 .text-muted { color: #86909c; font-size: 12px; }
-.hd-actions { display: flex; gap: 12px; align-items: center; }
+.hd-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .form-card { max-width: 720px; }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 12px; }
 .bg-picker { display: flex; align-items: center; gap: 12px; }

@@ -23,57 +23,64 @@
           @dragstart="onLibDragStart($event, c.type)"
           @click="addComponent(c.type)"
         >
-          <SIcon :name="c.icon" size="small" />
-          <span>{{ c.name }}</span>
+          <span class="pe-lib-icon"><SIcon :name="c.icon" size="small" /></span>
+          <span class="pe-lib-name">{{ c.name }}</span>
         </div>
         <div class="pe-lib-tip">点击或拖拽到画布</div>
       </div>
 
-      <!-- 画布 -->
+      <!-- 画布（手机预览壳） -->
       <div class="pe-canvas-wrap">
-        <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop="onCanvasDrop">
-          <div
-            v-for="(comp, i) in components" :key="comp.id"
-            class="pe-comp" :class="{ active: selected === comp.id }"
-            draggable="true"
-            @click.stop="selectComp(comp)"
-            @dragstart="onCompDragStart($event, i)"
-            @dragover.prevent="onCompDragOver(i)"
-            @drop.stop="onCompDrop(i)"
-          >
-            <div class="pe-comp-tools">
-              <span class="pe-comp-idx">{{ i + 1 }}</span>
-              <span class="pe-comp-type">{{ compName(comp.type) }}</span>
-              <el-button size="small" text type="danger" @click.stop="removeComp(comp.id)">删除</el-button>
+        <div class="pe-phone">
+          <div class="pe-phone-bar"></div>
+          <div class="pe-phone-nav">{{ pageName }}</div>
+          <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop="onCanvasDrop">
+            <div
+              v-for="(comp, i) in components" :key="comp.id"
+              class="pe-comp" :class="{ active: selected === comp.id }"
+              draggable="true"
+              @click.stop="selectComp(comp)"
+              @dragstart="onCompDragStart($event, i)"
+              @dragover.prevent="onCompDragOver(i)"
+              @drop.stop="onCompDrop(i)"
+            >
+              <div class="pe-comp-tools">
+                <span class="pe-comp-idx">{{ i + 1 }}</span>
+                <span class="pe-comp-type">{{ compName(comp.type) }}</span>
+                <el-button size="small" text type="danger" @click.stop="removeComp(comp.id)">删除</el-button>
+              </div>
+              <!-- 组件渲染 -->
+              <div class="pe-render" :style="compStyle(comp)">
+                <template v-if="comp.type === 'title'">
+                  <div class="r-title" :style="{ color: comp.props.color, textAlign: comp.props.align }">{{ comp.props.text || '标题文字' }}</div>
+                </template>
+                <template v-else-if="comp.type === 'text'">
+                  <div class="r-text" :style="{ color: comp.props.color, textAlign: comp.props.align, fontSize: comp.props.size + 'px' }">{{ comp.props.text || '文本内容' }}</div>
+                </template>
+                <template v-else-if="comp.type === 'image'">
+                  <div class="r-image">
+                    <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
+                    <div v-else class="r-image-empty"><SIcon name="storage" size="default" />图片组件（右侧选择素材）</div>
+                  </div>
+                </template>
+                <template v-else-if="comp.type === 'button'">
+                  <div class="r-btn" :style="{ color: comp.props.textColor, background: comp.props.bgColor, borderRadius: comp.props.radius + 'px' }">{{ comp.props.text || '按钮' }}</div>
+                </template>
+                <template v-else-if="comp.type === 'divider'">
+                  <div class="r-divider"><span v-if="comp.props.text">{{ comp.props.text }}</span></div>
+                </template>
+                <template v-else-if="comp.type === 'notice'">
+                  <div class="r-notice" :style="{ background: comp.props.bgColor, color: comp.props.color }">
+                    <span class="r-notice-tag">公告</span>{{ comp.props.text || '公告内容' }}
+                  </div>
+                </template>
+              </div>
             </div>
-            <!-- 组件渲染 -->
-            <div class="pe-render" :style="compStyle(comp)">
-              <template v-if="comp.type === 'title'">
-                <div class="r-title" :style="{ color: comp.props.color, textAlign: comp.props.align }">{{ comp.props.text || '标题文字' }}</div>
-              </template>
-              <template v-else-if="comp.type === 'text'">
-                <div class="r-text" :style="{ color: comp.props.color, textAlign: comp.props.align, fontSize: comp.props.size + 'px' }">{{ comp.props.text || '文本内容' }}</div>
-              </template>
-              <template v-else-if="comp.type === 'image'">
-                <div class="r-image">
-                  <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
-                  <div v-else class="r-image-empty">图片（点击右侧选择素材）</div>
-                </div>
-              </template>
-              <template v-else-if="comp.type === 'button'">
-                <div class="r-btn" :style="{ color: comp.props.textColor, background: comp.props.bgColor, borderRadius: comp.props.radius + 'px' }">{{ comp.props.text || '按钮' }}</div>
-              </template>
-              <template v-else-if="comp.type === 'divider'">
-                <div class="r-divider"><span v-if="comp.props.text">{{ comp.props.text }}</span></div>
-              </template>
-              <template v-else-if="comp.type === 'notice'">
-                <div class="r-notice" :style="{ background: comp.props.bgColor, color: comp.props.color }">
-                  <span class="r-notice-tag">公告</span>{{ comp.props.text || '公告内容' }}
-                </div>
-              </template>
+            <div v-if="!components.length" class="pe-empty">
+              <SIcon name="dynamic" size="xlarge" />
+              <span>从左侧拖拽组件到此处，或点击组件库添加</span>
             </div>
           </div>
-          <div v-if="!components.length" class="pe-empty">从左侧拖拽组件到此处，或点击组件库添加</div>
         </div>
       </div>
 
@@ -122,7 +129,10 @@
             </el-form-item>
           </el-form>
         </div>
-        <div v-else class="pe-prop-empty">选中画布中的组件后在此编辑属性</div>
+        <div v-else class="pe-prop-empty">
+          <SIcon name="palette" size="xlarge" />
+          <span>选中画布中的组件后在此编辑属性</span>
+        </div>
       </div>
     </div>
 
@@ -339,37 +349,69 @@ onMounted(load);
 
 <style scoped>
 .page-editor { display: flex; flex-direction: column; gap: 12px; }
-.pe-toolbar { display: flex; justify-content: space-between; align-items: center; }
+.pe-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
-.pe-actions { display: flex; gap: 8px; }
-.pe-body { display: grid; grid-template-columns: 150px 1fr 260px; gap: 12px; align-items: start; }
-.pe-lib, .pe-prop { background: #fff; border-radius: 8px; padding: 12px; }
-.pe-lib-title, .pe-prop-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
-.pe-lib-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e5e6eb; border-radius: 6px; margin-bottom: 8px; cursor: grab; font-size: 13px; color: #4e5969; }
-.pe-lib-item:hover { border-color: #165dff; color: #165dff; }
-.pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 4px; }
-.pe-canvas-wrap { background: #f2f3f5; border-radius: 8px; padding: 16px; min-height: 480px; }
-.pe-canvas { background: #fff; border-radius: 8px; min-height: 440px; padding: 12px; max-width: 375px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-.pe-comp { position: relative; border: 1px solid transparent; border-radius: 6px; margin-bottom: 8px; padding: 4px; }
-.pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.2); }
-.pe-comp-tools { display: none; position: absolute; top: -18px; right: 4px; background: #165dff; color: #fff; border-radius: 4px; font-size: 11px; padding: 1px 8px; z-index: 2; align-items: center; gap: 8px; }
+.pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pe-body { display: grid; grid-template-columns: 168px minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
+
+/* 组件库：卡片化 */
+.pe-lib { background: #fff; border-radius: 8px; padding: 12px; }
+.pe-lib-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.pe-lib-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
+.pe-lib-item {
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px;
+  border-radius: 8px; margin-bottom: 4px; cursor: grab;
+  font-size: 13px; color: #4e5969; transition: background .2s, color .2s;
+}
+.pe-lib-item:hover { background: #f2f3f5; color: #1d2129; }
+.pe-lib-item:active { cursor: grabbing; }
+.pe-lib-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(22,93,255,.06); color: #165dff; flex-shrink: 0; }
+.pe-lib-item:hover .pe-lib-icon { background: rgba(22,93,255,.12); }
+.pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 8px; text-align: center; }
+
+/* 画布：手机预览壳 */
+.pe-canvas-wrap { background: #f2f3f5; border-radius: 8px; padding: 20px 16px; min-height: 520px; }
+.pe-phone {
+  background: #fff; border-radius: 16px; max-width: 375px; margin: 0 auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb;
+  overflow: hidden;
+}
+.pe-phone-bar { height: 24px; background: #f7f8fa; border-bottom: 1px solid #f0f1f3; }
+.pe-phone-nav { height: 40px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; border-bottom: 1px solid #f0f1f3; }
+.pe-canvas { min-height: 420px; padding: 14px; background: #fff; }
+.pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 10px; padding: 6px; transition: border-color .15s; }
+.pe-comp:hover { border-color: #c9cdd4; }
+.pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }
+.pe-comp-tools { display: none; position: absolute; top: -20px; right: 4px; background: #165dff; color: #fff; border-radius: 6px; font-size: 11px; padding: 2px 10px; z-index: 2; align-items: center; gap: 8px; }
 .pe-comp.active .pe-comp-tools { display: flex; }
+.pe-comp-idx { background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 6px; }
 .pe-comp-type { color: #fff; }
 .pe-comp-tools :deep(.el-button) { color: #fff; }
 .pe-render { pointer-events: none; }
-.r-title { font-size: 20px; font-weight: 700; }
+.r-title { font-size: 22px; font-weight: 700; line-height: 1.4; }
 .r-text { line-height: 1.6; }
-.r-image img { width: 100%; border-radius: 6px; }
-.r-image-empty { height: 80px; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 6px; }
+.r-image img { width: 100%; border-radius: 8px; display: block; }
+.r-image-empty { height: 88px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; }
 .r-btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; }
-.r-divider { height: 1px; background: #e5e6eb; margin: 12px 0; position: relative; }
+.r-divider { height: 1px; background: #e5e6eb; margin: 14px 0; position: relative; }
 .r-divider span { position: absolute; left: 50%; top: -8px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
-.r-notice { padding: 8px 12px; border-radius: 6px; font-size: 13px; display: flex; gap: 8px; }
-.r-notice-tag { flex-shrink: 0; }
-.pe-empty { color: #86909c; text-align: center; padding: 60px 0; font-size: 13px; }
+.r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; }
+.r-notice-tag { flex-shrink: 0; font-weight: 600; }
+
+/* 空态 */
+.pe-empty { color: #86909c; text-align: center; padding: 80px 0; font-size: 13px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.pe-empty :deep(svg), .pe-empty :deep(img) { opacity: .4; }
+
+/* 属性面板 */
+.pe-prop { background: #fff; border-radius: 8px; padding: 12px; }
+.pe-prop-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.pe-prop-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
-.pe-prop-empty { color: #86909c; font-size: 12px; padding: 20px 0; text-align: center; }
+.pe-prop-empty { color: #86909c; font-size: 12px; padding: 40px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.pe-prop-empty :deep(svg), .pe-prop-empty :deep(img) { opacity: .4; }
+
+/* 素材选择 */
 .pe-sel { max-height: 360px; overflow-y: auto; }
 .sel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; }
 .sel-item { position: relative; border: 1px solid #e5e6eb; border-radius: 6px; overflow: hidden; cursor: pointer; aspect-ratio: 1; }
