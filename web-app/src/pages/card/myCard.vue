@@ -1,9 +1,12 @@
 <template>
   <!-- ===== 我的名片·商务增强版（本人视角管理控制台｜仅本人可见） =====
        对外展示统一走 /pages/card/cardDetail -->
-  <!-- 加载骨架（小程序/H5 通用） -->
+  <!-- 加载骨架（小程序/H5 通用）：带返回按钮，弱网时不至于无路可退 -->
   <view class="page-loading" v-if="loading">
-    <view class="sk-nav"></view>
+    <view class="sk-nav">
+      <view class="sk-back" @click="goBack"><SIcon name="dynamic" size="default" color="#1a1a1a" /></view>
+      <view class="sk-title"></view>
+    </view>
     <view class="sk-card">
       <view class="sk-avatar"></view>
       <view class="sk-lines">
@@ -17,8 +20,14 @@
   <!-- 加载失败（弱网/接口异常） -->
   <view class="page-error" v-else-if="loadFailed">
     <view class="pe-icon"><SIcon name="logs" size="xlarge" color="#c9cdd4" /></view>
-    <view class="pe-text">名片加载失败，请检查网络后重试</view>
+    <view class="pe-text">{{ loadFailedMsg }}</view>
     <view class="pe-btn" @click="reloadPage">重新加载</view>
+  </view>
+  <!-- 未登录引导 -->
+  <view class="page-error" v-else-if="notLogin">
+    <view class="pe-icon"><SIcon name="user" size="xlarge" color="#c9cdd4" /></view>
+    <view class="pe-text">登录后即可查看和管理你的名片</view>
+    <view class="pe-btn" @click="goApply">去登录</view>
   </view>
 
   <view class="owner-page" v-else>
@@ -169,6 +178,8 @@ import CardTabBar from '../../components/CardTabBar.vue';
 const card = ref({});
 const loading = ref(true);
 const loadFailed = ref(false);
+const loadFailedMsg = ref('名片加载失败，请检查网络后重试');
+const notLogin = ref(false);
 // 品牌色：头像背景用品牌色渐变（无配置回退默认蓝）
 const avatarStyle = computed(() => {
   // 模板主题 primary 优先，其次租户品牌色
@@ -245,7 +256,7 @@ async function loadOwnerData() {
   currentUserId.value = decodeTokenUid();
   if (!currentUserId.value) return;
   try {
-    const [st, mk, unread] = await Promise.allSettled([
+    const [st, mk, mst, unread] = await Promise.allSettled([
       cardApi.getVisitorSummary(),
       cardApi.getMarketMyStats(),
       cardApi.getMarketMyStatus(),
@@ -253,16 +264,24 @@ async function loadOwnerData() {
     ]);
     if (st.status === 'fulfilled') visitorTop.value = (st.value.visitors || []).slice(0, 3);
     if (mk.status === 'fulfilled') stats.value = mk.value.stats || mk.value;
+    if (mst.status === 'fulfilled') myStatus.value = mst.value;
     if (unread.status === 'fulfilled') msgUnread.value = unread.value.count || 0;
   } catch (e) {}
-  try {
-    const mst = await cardApi.getMarketMyStatus();
-    myStatus.value = mst;
+  const mst = myStatus.value;
+  if (mst) {
     const subs = (mst.subjects || []).filter((s) => s.status === 'active');
     if (subs.length && !activeSubject.value) {
       activeSubject.value = subs.find((s) => s.subjectType === 'individual') || subs[0];
     }
-  } catch (e) {}
+  }
+}
+
+// 请求超时兜底：弱网/接口卡死时骨架屏不无限转圈，8s 后进入失败态
+function withTimeout(promise, ms = 8000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
 }
 
 onMounted(async () => {
@@ -293,8 +312,14 @@ onMounted(async () => {
     restoreScrollTop('myCard');
     loading.value = true;
     loadFailed.value = false;
+    // 未登录：不进入加载流程，直接引导登录（避免白页）
+    if (!decodeTokenUid()) {
+      loading.value = false;
+      notLogin.value = true;
+      return;
+    }
     try {
-      const res = await cardApi.getCard(id);
+      const res = await withTimeout(cardApi.getCard(id), 8000);
       card.value = res.card;
       // 非本人名片：直接转对外展示页
       currentUserId.value = decodeTokenUid();
@@ -311,6 +336,9 @@ onMounted(async () => {
       await loadOwnerData();
     } catch (e) {
       loadFailed.value = true;
+      loadFailedMsg.value = e && e.message === 'timeout'
+        ? '名片加载超时，网络较慢请稍后重试'
+        : '名片加载失败，请检查网络后重试';
       console.error('我的名片加载失败:', e);
     } finally {
       loading.value = false;
@@ -325,6 +353,9 @@ function reloadPage() {
   const pages = getCurrentPages();
   const id = pages[pages.length - 1].options.id;
   if (id) uni.redirectTo({ url: `/pages/card/myCard?id=${id}` });
+}
+function goApply() {
+  uni.reLaunch({ url: '/pages/card/apply' });
 }
 
 // 离开时保存滚动位置，切Tab返回后恢复
@@ -405,7 +436,9 @@ function leaveTenant() {
 
 /* 加载骨架（小程序/H5 通用） */
 .page-loading { min-height: 100vh; background: #f5f6f7; padding: 0 24rpx; }
-.sk-nav { height: 88rpx; }
+.sk-nav { height: 88rpx; display: flex; align-items: center; gap: 24rpx; padding-top: 88rpx; }
+.sk-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; flex-shrink: 0; }
+.sk-title { width: 200rpx; height: 36rpx; border-radius: 8rpx; background: linear-gradient(90deg,#f0f1f3 25%,#e8eaed 37%,#f0f1f3 63%); background-size: 400% 100%; animation: sk-loading 1.4s ease infinite; }
 .sk-card {
   display: flex; align-items: center; gap: 24rpx;
   background: #fff; border-radius: 16rpx; padding: 32rpx 24rpx; margin-top: 8rpx;

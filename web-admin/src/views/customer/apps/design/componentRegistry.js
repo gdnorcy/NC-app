@@ -28,9 +28,9 @@ import iconChannelLive from '../../../../assets/comp-icons/wxlive.png';
 import iconSearch from '../../../../assets/comp-icons/search.png';
 import iconFloat from '../../../../assets/comp-icons/float.png';
 import iconCustomer from '../../../../assets/icons/svg/customer.svg';
-import iconDoc from '../../../../assets/icons/svg/doc.svg';
-import iconPc from '../../../../assets/icons/svg/pc.svg';
-import iconOfficial from '../../../../assets/icons/svg/official.svg';
+import iconArticle from '../../../../assets/comp-icons/article.png';
+import iconWeb from '../../../../assets/comp-icons/web.png';
+import iconFollow from '../../../../assets/comp-icons/follow.png';
 
 export const componentGroups = [
   { key: 'basic', name: '基础组件' },
@@ -67,10 +67,10 @@ export const COMP_ICONS = {
   'form-pro': iconForm,
   contact: iconCustomer,
   'float-btn': iconFloat,
-  'article-list': iconDoc,
-  'web-container': iconPc,
+  'article-list': iconArticle,
+  'web-container': iconWeb,
   spacer: iconDivider,
-  'follow-official': iconOfficial,
+  'follow-official': iconFollow,
   'video-feed': iconVideo,
 };
 

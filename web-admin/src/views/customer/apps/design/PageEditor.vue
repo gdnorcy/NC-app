@@ -460,7 +460,7 @@ onMounted(load);
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pe-body { display: grid; grid-template-columns: 168px minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
+.pe-body { display: grid; grid-template-columns: 220px minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
 
 /* 组件库：分组 + 搜索 + 彩色图标 */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; }
@@ -497,7 +497,11 @@ onMounted(load);
 .pe-lib-card:active { cursor: grabbing; }
 .pe-lib-ico { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; }
 .pe-lib-ico img { width: 40px; height: 40px; object-fit: contain; display: block; }
-.pe-lib-card .pe-lib-name { font-size: 12px; color: #1d2129; max-width: 100%; }
+.pe-lib-card .pe-lib-name {
+  font-size: 12px; color: #1d2129; max-width: 100%; line-height: 1.35; text-align: center;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  word-break: break-all; white-space: normal;
+}
 .pe-lib-tag { position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; color: #f53f3f; background: rgba(245,63,63,.08); border-radius: 4px; padding: 2px 4px; }
 .pe-lib-tag-new { color: #165dff; background: rgba(22,93,255,.08); }
 .pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 8px; text-align: center; }
