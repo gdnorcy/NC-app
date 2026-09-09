@@ -37,6 +37,10 @@
             <SIcon name="dashboard" size="default" />
             <span>工作台</span>
           </el-menu-item>
+          <el-menu-item index="/design">
+            <SIcon name="palette" size="default" />
+            <span>设计中心</span>
+          </el-menu-item>
           <el-menu-item index="/apps">
             <SIcon name="apps" size="default" />
             <span>应用中心</span>
@@ -189,6 +193,7 @@ const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title
 const CRUMB_LINKS = {
   '应用中心': '/apps',
   '工作台': '/dashboard',
+  '设计中心': '/design',
   '分销体系': '/apps?cat=分销体系',
   '360全景': '/apps?cat=行业应用',
   '智能名片': '/apps?cat=行业应用',

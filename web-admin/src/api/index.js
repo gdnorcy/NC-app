@@ -206,6 +206,25 @@ customerPaymentApi.interceptors.response.use(
 );
 export const customerPaymentCall = customerPaymentApi;
 
+// 设计中心（接口挂顶层 /api/design + /api/material，需带 customer_token 的独立实例）
+const designApi = axios.create({ baseURL: '/api' });
+designApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('customer_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+designApi.interceptors.response.use(
+  (res) => res.data,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('customer_token');
+      window.location.href = '/customer.html#/login';
+    }
+    return Promise.reject(err.response?.data?.error || '请求失败');
+  }
+);
+export const designCall = designApi;
+
 // 客户后台 - 全端渠道
 export const fetchCustomerChannels = () => customerApi.get('/channels');
 export const updateCustomerChannel = (type, data) => customerApi.put(`/channels/${type}`, data);

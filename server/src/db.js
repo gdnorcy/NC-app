@@ -1722,6 +1722,9 @@ function migrate(db) {
   // —— 分销体系：建表 + 应用注册 + 存量迁移（在 migrateSolutionApps 前执行，保证演示方案覆盖新应用）——
   seedDistribution(db);
 
+  // —— 设计中心：建表 + 应用注册（素材中心/系统风格/底部导航/系统模板/首页跳转/页面装修）——
+  seedDesign(db);
+
   // —— dist_config 扩展字段（分销基本设置 + 分销参数，2026-09-09 新增）——
   // 分销商名称/下级名称/申请页顶图/分销推广图/申请页提示/0元订单/显示上级/显示电话/默认等级
   if (tableExists(db, 'dist_config')) {
@@ -1810,7 +1813,6 @@ function normalizeProjectSolutions(db) {
  * - 存量迁移：platform_user.parent_id/grandparent_id → dist_user_relation（补租户维度，修复跨租户串号）
  */
 function seedDistribution(db) {
-  // —— 1. 分销核心表（金额统一用「分」整数，与 payment_orders 一致）——
   db.exec(`
     -- 租户插件安装/启用表
     CREATE TABLE IF NOT EXISTS sys_tenant_plugin (
@@ -2155,6 +2157,105 @@ function seedDistribution(db) {
       insLv.run(0, 3, '黄金推广员', 500000, 30, '专属黄金徽标与高级海报模板；更高的佣金结算优先级；新品与活动优先内测资格');   // 累计收益 ¥5000 或直推 30 人
     }
   } catch {}
+}
+
+/** 设计中心：素材中心/系统风格/底部导航/系统模板/首页跳转/页面装修 建表 + 应用注册（幂等） */
+function seedDesign(db) {
+  // —— 1. 建表（全部 tenant_id 租户隔离）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS material_category (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      category_name TEXT NOT NULL,
+      sort INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_material_category_tenant ON material_category (tenant_id);
+
+    CREATE TABLE IF NOT EXISTS material (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      category_id INTEGER,
+      file_name TEXT NOT NULL,
+      file_url TEXT NOT NULL,
+      file_size INTEGER NOT NULL DEFAULT 0,
+      file_type TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_material_tenant_cat ON material (tenant_id, category_id);
+
+    CREATE TABLE IF NOT EXISTS material_ref (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      material_id INTEGER NOT NULL,
+      ref_type TEXT NOT NULL,
+      ref_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE (material_id, ref_type, ref_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_material_ref_tenant ON material_ref (tenant_id, material_id);
+
+    CREATE TABLE IF NOT EXISTS tenant_style_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL UNIQUE,
+      style_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS tenant_tab_scheme (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      scheme_name TEXT NOT NULL,
+      tab_json TEXT NOT NULL DEFAULT '[]',
+      is_default INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_tenant_tab_tenant ON tenant_tab_scheme (tenant_id);
+
+    CREATE TABLE IF NOT EXISTS tenant_home_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL UNIQUE,
+      home_page TEXT NOT NULL DEFAULT 'card',
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS tenant_template (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      template_name TEXT NOT NULL,
+      cover_url TEXT,
+      template_json TEXT NOT NULL DEFAULT '{}',
+      is_public INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_tenant_template ON tenant_template (tenant_id);
+
+    CREATE TABLE IF NOT EXISTS tenant_page_design (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      page_type TEXT NOT NULL,
+      page_name TEXT NOT NULL,
+      design_json TEXT NOT NULL DEFAULT '{}',
+      version INTEGER NOT NULL DEFAULT 1,
+      status INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_tenant_page ON tenant_page_design (tenant_id, page_type, status);
+
+    CREATE TABLE IF NOT EXISTS tenant_page_version (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      page_type TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      design_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_tenant_page_version ON tenant_page_version (tenant_id, page_type, version);
+  `);
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

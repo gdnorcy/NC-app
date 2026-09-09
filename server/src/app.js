@@ -29,7 +29,7 @@ import { createChannelRouter } from './routes/channel.js';
 import { createCardRouter } from './routes/card.js';
 import { createPaymentRouter } from './routes/payment.js';
 import { createDistributionRouter } from './routes/distribution.js';
-import { createCardMarketRouter } from './routes/cardMarket.js';
+import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 
 export function createApp({ db } = {}) {
@@ -67,6 +67,12 @@ export function createApp({ db } = {}) {
   app.use('/api', createLogsRouter(database));
   app.use('/api/customer', requireAuth, createCustomerRouter(database));
   app.use('/api/customer/distribution', requireAuth, createDistributionRouter(database));
+
+  // 设计中心：素材中心 /api/material + 装修配置 /api/design（顶层前缀，租户中间件内部校验）
+  const designRouters = createDesignRouter(database);
+  app.use('/api/material', requireAuth, designRouters.material);
+  app.use('/api/design', requireAuth, designRouters.design);
+
   app.use('/api/admin/solutions', requireAuth, createSolutionsRouter(database));
   // 总后台 · 应用中心（应用分类/卡片管理）
   app.use('/api/admin/apps-center', requireAuth, createAppsAdminRouter(database));

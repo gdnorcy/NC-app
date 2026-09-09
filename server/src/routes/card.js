@@ -1055,5 +1055,19 @@ export function createCardRouter(db, wxService) {
     }
   });
 
+  // 设计中心：C 端读取租户发布配置（最新风格/底部导航/首页跳转，供小程序/H5 按配置渲染）
+  router.get('/design/config', auth, requireTenant, (req, res) => {
+    const tenantId = req.customerId;
+    const style = db.prepare('SELECT style_json FROM tenant_style_config WHERE tenant_id = ?').get(tenantId);
+    const tab = db.prepare("SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND is_default = 1 AND enabled = 1").get(tenantId);
+    const home = db.prepare('SELECT home_page FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
+    res.json({
+      tenantId,
+      style: style ? JSON.parse(style.style_json || '{}') : null,
+      tab: tab ? { name: tab.scheme_name, items: JSON.parse(tab.tab_json || '[]') } : null,
+      homePage: home?.home_page || 'card',
+    });
+  });
+
   return router;
 }
