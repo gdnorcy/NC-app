@@ -587,8 +587,8 @@ onShow(() => {
 .user-name { font-size: 34rpx; font-weight: 600; }
 .user-level { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); }
 .user-parent { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }
-.user-invited { margin-top: 10rpx; font-size: 24rpx; opacity: 0.92; }
-.money-row { margin-top: 28rpx; display: flex; align-items: flex-end; justify-content: space-between; }
+.user-invited { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }
+.money-row { margin-top: 40rpx; display: flex; align-items: flex-end; justify-content: space-between; }
 .money-label { font-size: 24rpx; opacity: 0.85; }
 .money-val { font-size: 56rpx; font-weight: 700; line-height: 1.2; }
 .money-sub { display: flex; gap: 20rpx; margin-top: 8rpx; font-size: 22rpx; opacity: 0.9; }
@@ -617,7 +617,7 @@ onShow(() => {
 .invite-box { margin: 32rpx; border-radius: 24rpx; padding: 32rpx; display: flex; align-items: center; gap: 24rpx; color: #fff; }
 .invite-left { flex: 1; min-width: 0; }
 .invite-title { font-size: 32rpx; font-weight: 700; }
-.invite-desc { margin-top: 10rpx; font-size: 24rpx; opacity: 0.9; }
+.invite-desc { margin-top: 24rpx; font-size: 24rpx; opacity: 0.9; }
 .invite-btns { margin-top: 24rpx; display: flex; gap: 16rpx; flex-wrap: wrap; }
 .mini-btn { font-size: 26rpx; border-radius: 999rpx; line-height: 2.3; padding: 0 28rpx; }
 .invite-btn { background: rgba(255,255,255,0.2); color: #fff; border: 1rpx solid rgba(255,255,255,0.5); }
@@ -627,12 +627,12 @@ onShow(() => {
 .deco-qr { width: 150rpx; height: 150rpx; border-radius: 16rpx; background: #fff; padding: 14rpx; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr); gap: 3rpx; }
 .dqr-cell { background: transparent; }
 .dqr-cell.on { background: #0f766e; border-radius: 2rpx; }
-.sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
+.sec-t { margin: 40rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
 .stat-cards { margin: 0 32rpx; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; }
 .s-card { background: #fff; border-radius: 16rpx; padding: 24rpx 12rpx; text-align: center; }
 .s-num { font-size: 36rpx; font-weight: 700; color: #1d2129; }
 .s-lb { margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
-.sub-box, .log-list { margin: 0 32rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
+.sub-box, .log-list { margin: 16rpx 32rpx 0; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
 .sub-tabs { display: flex; align-items: center; gap: 8rpx; padding: 20rpx 0 12rpx; }
 .sub-tab { font-size: 28rpx; color: #86909c; padding: 8rpx 20rpx; border-radius: 999rpx; }
 .sub-tab.on { color: #165dff; background: #e8f3ff; font-weight: 600; }
@@ -647,7 +647,7 @@ onShow(() => {
 .sub-paid { font-size: 20rpx; color: #fff; background: #00b42a; padding: 2rpx 12rpx; border-radius: 999rpx; }
 .sub-time { margin-top: 6rpx; font-size: 22rpx; color: #86909c; }
 .sub-arrow { color: #c9cdd4; font-size: 32rpx; }
-.tabs { margin: 0 32rpx 16rpx; display: flex; gap: 12rpx; overflow-x: auto; }
+.tabs { margin: 0 32rpx; display: flex; gap: 12rpx; overflow-x: auto; }
 .tab { flex-shrink: 0; font-size: 26rpx; color: #4e5969; background: #fff; border-radius: 999rpx; padding: 10rpx 28rpx; }
 .tab.on { color: #165dff; background: #e8f3ff; font-weight: 600; }
 .log-item { padding: 24rpx 0; border-top: 1rpx solid #f2f3f5; }
@@ -662,9 +662,9 @@ onShow(() => {
 .st-p { color: #ff7d00; } .st-s { color: #00b42a; } .st-c { color: #f53f3f; }
 .log-bot { margin-top: 8rpx; font-size: 22rpx; color: #c9cdd4; display: flex; gap: 16rpx; }
 .empty { padding: 40rpx 0; text-align: center; color: #86909c; font-size: 26rpx; }
-.app-grid { margin: 0 32rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
-.app-card { background: #fff; border-radius: 20rpx; padding: 28rpx 24rpx; display: flex; flex-direction: column; align-items: flex-start; gap: 4rpx; }
-.app-ic { width: 84rpx; height: 84rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; }
+.app-grid { margin: 16rpx 32rpx 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
+.app-card { background: #fff; border-radius: 20rpx; padding: 30rpx 24rpx; display: flex; flex-direction: column; align-items: flex-start; gap: 16rpx; }
+.app-ic { width: 84rpx; height: 84rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 20rpx; }
 .ic-orange { background: rgba(255,125,0,0.10); } .ic-purple { background: rgba(114,46,209,0.10); }
 .ic-green { background: rgba(0,180,42,0.10); } .ic-cyan { background: rgba(14,165,190,0.10); }
 .app-ic :deep(.s-icon) { color: #4e5969; }
