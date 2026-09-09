@@ -14,19 +14,39 @@
     </div>
 
     <div class="pe-body">
-      <!-- 组件库 -->
+      <!-- 组件库：分组折叠 + 模糊搜索 + 3列网格卡片（图标上/名称下，仿 eweishop） -->
       <div class="pe-lib">
-        <div class="pe-lib-title">组件库</div>
-        <div
-          v-for="c in componentLib" :key="c.type"
-          class="pe-lib-item" draggable="true"
-          @dragstart="onLibDragStart($event, c.type)"
-          @click="addComponent(c.type)"
-        >
-          <span class="pe-lib-icon"><SIcon :name="c.icon" size="small" /></span>
-          <span class="pe-lib-name">{{ c.name }}</span>
+        <div class="pe-lib-head">
+          <div class="pe-lib-title">组件库</div>
+          <div class="pe-lib-search">
+            <el-input v-model="kw" size="small" placeholder="搜索组件" clearable>
+              <template #prefix><span class="pe-search-ico">⌕</span></template>
+            </el-input>
+          </div>
         </div>
-        <div class="pe-lib-tip">点击或拖拽到画布</div>
+        <div v-for="g in visibleGroups" :key="g.key" class="pe-group">
+          <div class="pe-group-head" @click="toggleGroup(g.key)">
+            <span class="pe-group-caret" :class="{ open: expanded[g.key] !== false }">▸</span>
+            <span class="pe-group-name">{{ g.name }}</span>
+            <span class="pe-group-n">({{ filteredCount(g.key) }})</span>
+          </div>
+          <div v-show="expanded[g.key] !== false" class="pe-group-body">
+            <div class="pe-lib-grid">
+              <div
+                v-for="c in filteredComps(g.key)" :key="c.type"
+                class="pe-lib-card" draggable="true"
+                @dragstart="onLibDragStart($event, c.type)"
+                @click="addComponent(c.type)"
+              >
+                <span v-if="c.pro" class="pe-lib-tag">高级</span>
+                <span class="pe-lib-ico"><img :src="COMP_ICONS[c.icon]" :alt="c.name" /></span>
+                <span class="pe-lib-name">{{ c.name }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="!visibleGroups.length" class="pe-lib-tip">未找到匹配组件</div>
+        <div v-else class="pe-lib-tip">点击或拖拽到画布</div>
       </div>
 
       <!-- 画布（手机预览壳） -->
@@ -47,90 +67,45 @@
               <div class="pe-comp-tools">
                 <span class="pe-comp-idx">{{ i + 1 }}</span>
                 <span class="pe-comp-type">{{ compName(comp.type) }}</span>
-                <el-button size="small" text type="danger" @click.stop="removeComp(comp.id)">删除</el-button>
+                <span class="pe-tool" title="上移" @click.stop="moveComp(i, -1)">↑</span>
+                <span class="pe-tool" title="下移" @click.stop="moveComp(i, 1)">↓</span>
+                <span class="pe-tool" title="复制" @click.stop="dupComp(comp)">⧉</span>
+                <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(comp.id)">✕</span>
               </div>
-              <!-- 组件渲染 -->
-              <div class="pe-render" :style="compStyle(comp)">
-                <template v-if="comp.type === 'title'">
-                  <div class="r-title" :style="{ color: comp.props.color, textAlign: comp.props.align }">{{ comp.props.text || '标题文字' }}</div>
-                </template>
-                <template v-else-if="comp.type === 'text'">
-                  <div class="r-text" :style="{ color: comp.props.color, textAlign: comp.props.align, fontSize: comp.props.size + 'px' }">{{ comp.props.text || '文本内容' }}</div>
-                </template>
-                <template v-else-if="comp.type === 'image'">
-                  <div class="r-image">
-                    <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
-                    <div v-else class="r-image-empty"><SIcon name="storage" size="default" />图片组件（右侧选择素材）</div>
-                  </div>
-                </template>
-                <template v-else-if="comp.type === 'button'">
-                  <div class="r-btn" :style="{ color: comp.props.textColor, background: comp.props.bgColor, borderRadius: comp.props.radius + 'px' }">{{ comp.props.text || '按钮' }}</div>
-                </template>
-                <template v-else-if="comp.type === 'divider'">
-                  <div class="r-divider"><span v-if="comp.props.text">{{ comp.props.text }}</span></div>
-                </template>
-                <template v-else-if="comp.type === 'notice'">
-                  <div class="r-notice" :style="{ background: comp.props.bgColor, color: comp.props.color }">
-                    <span class="r-notice-tag">公告</span>{{ comp.props.text || '公告内容' }}
-                  </div>
-                </template>
-              </div>
+              <ComponentRender :comp="comp" />
             </div>
             <div v-if="!components.length" class="pe-empty">
-              <SIcon name="dynamic" size="xlarge" />
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
               <span>从左侧拖拽组件到此处，或点击组件库添加</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 属性面板 -->
+      <!-- 属性面板：schema 驱动自动渲染 -->
       <div class="pe-prop">
-        <div class="pe-prop-title">属性</div>
-        <div v-if="selectedComp" class="pe-prop-body">
+        <div class="pe-prop-title">{{ selectedComp ? selectedComp.name : '属性' }}</div>
+        <div v-if="selectedComp && selectedSchema.length" class="pe-prop-body">
           <el-form label-width="70px" size="small">
-            <el-form-item label="文字">
-              <el-input v-model="selectedComp.props.text" />
-            </el-form-item>
-            <template v-if="selectedComp.type === 'title' || selectedComp.type === 'text' || selectedComp.type === 'notice'">
-              <el-form-item label="颜色">
-                <el-color-picker v-model="selectedComp.props.color" />
-              </el-form-item>
-              <el-form-item v-if="selectedComp.type !== 'notice'" label="对齐">
-                <el-radio-group v-model="selectedComp.props.align">
-                  <el-radio value="left">左</el-radio>
-                  <el-radio value="center">中</el-radio>
-                  <el-radio value="right">右</el-radio>
+            <template v-for="f in selectedSchema" :key="f.key">
+              <el-form-item :label="f.label">
+                <el-input v-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
+                <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
+                <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
+                  <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                 </el-radio-group>
+                <el-slider v-else-if="f.control === 'slider'" v-model="selectedComp.props[f.key]" :min="f.min" :max="f.max" show-input />
+                <div v-else-if="f.control === 'image'" class="pe-img-field">
+                  <el-button size="small" @click="openImgSel">选择素材</el-button>
+                  <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
+                </div>
+                <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'" />
               </el-form-item>
             </template>
-            <el-form-item v-if="selectedComp.type === 'text'" label="字号">
-              <el-slider v-model="selectedComp.props.size" :min="12" :max="32" show-input />
-            </el-form-item>
-            <template v-if="selectedComp.type === 'image'">
-              <el-form-item label="图片">
-                <el-button size="small" @click="openImgSel">选择素材</el-button>
-                <el-button v-if="selectedComp.props.url" size="small" text type="danger" @click="selectedComp.props.url = ''; selectedComp.props.materialId = null">清除</el-button>
-              </el-form-item>
-            </template>
-            <template v-if="selectedComp.type === 'button'">
-              <el-form-item label="文字色">
-                <el-color-picker v-model="selectedComp.props.textColor" />
-              </el-form-item>
-              <el-form-item label="背景色">
-                <el-color-picker v-model="selectedComp.props.bgColor" />
-              </el-form-item>
-              <el-form-item label="圆角">
-                <el-slider v-model="selectedComp.props.radius" :min="0" :max="24" show-input />
-              </el-form-item>
-            </template>
-            <el-form-item v-if="selectedComp.type === 'button' || selectedComp.type === 'image' || selectedComp.type === 'notice'" label="跳转">
-              <el-input v-model="selectedComp.props.url" placeholder="如 /pages/card/market" />
-            </el-form-item>
           </el-form>
         </div>
         <div v-else class="pe-prop-empty">
-          <SIcon name="palette" size="xlarge" />
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 9.5h8M8 13h5"/></svg>
           <span>选中画布中的组件后在此编辑属性</span>
         </div>
       </div>
@@ -174,8 +149,9 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import SIcon from '../../../../components/SIcon.vue';
 import { designCall } from '../../../../api';
+import { componentRegistry, componentGroups, COMP_ICONS, findComponent } from './componentRegistry';
+import ComponentRender from './ComponentRender.vue';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
@@ -192,38 +168,42 @@ const versions = ref([]);
 const selMats = ref([]);
 const selLoading = ref(false);
 const imgSel = reactive({ show: false, pick: null });
+const kw = ref('');
+const expanded = reactive({});
 
-const componentLib = [
-  { type: 'title', name: '标题', icon: 'template' },
-  { type: 'text', name: '文本', icon: 'dynamic' },
-  { type: 'image', name: '图片', icon: 'storage' },
-  { type: 'button', name: '按钮', icon: 'apps' },
-  { type: 'divider', name: '分割线', icon: 'palette' },
-  { type: 'notice', name: '公告', icon: 'dashboard' },
-];
 let uid = 1;
-const selectedComp = computed(() => components.value.find((c) => c.id === selected.value) || null);
+const selectedComp = computed(() => {
+  const c = components.value.find((c) => c.id === selected.value) || null;
+  return c ? { ...c, name: findComponent(c.type)?.name || c.type } : null;
+});
+const selectedSchema = computed(() => (selectedComp.value ? findComponent(selectedComp.value.type)?.schema || [] : []));
+
+// 组件库：搜索 + 分组
+const visibleGroups = computed(() => {
+  if (!kw.value) return componentGroups.filter((g) => groupCount(g.key) > 0);
+  return componentGroups.filter((g) => filteredCount(g.key) > 0);
+});
+function groupCount(key) {
+  return componentRegistry.filter((c) => c.group === key).length;
+}
+function filteredComps(key) {
+  const list = componentRegistry.filter((c) => c.group === key);
+  if (!kw.value) return list;
+  return list.filter((c) => c.name.includes(kw.value));
+}
+function filteredCount(key) { return filteredComps(key).length; }
+function toggleGroup(key) { expanded[key] = expanded[key] === false ? true : false; }
 
 function resolveUrl(u) {
   if (!u) return '';
   if (/^https?:|^data:|^blob:/.test(u)) return u;
   return u.startsWith('/') ? u : `/${u}`;
 }
-function compName(t) {
-  return componentLib.find((c) => c.type === t)?.name || t;
-}
-function defaultProps(type) {
-  const base = { text: '', color: '#1d2129', align: 'center', url: '' };
-  if (type === 'title') return { ...base, text: '页面标题', size: 22 };
-  if (type === 'text') return { ...base, text: '这里填写文本内容', size: 14 };
-  if (type === 'image') return { url: '', materialId: null };
-  if (type === 'button') return { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '' };
-  if (type === 'divider') return { text: '' };
-  if (type === 'notice') return { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '' };
-  return { ...base };
-}
+function compName(t) { return findComponent(t)?.name || t; }
+
 function newComp(type) {
-  return { id: `c${Date.now()}-${uid++}`, type, props: defaultProps(type) };
+  const def = findComponent(type);
+  return { id: `c${Date.now()}-${uid++}`, type, props: { ...(def?.defaultProps || {}) } };
 }
 function addComponent(type) {
   const c = newComp(type);
@@ -234,12 +214,25 @@ function removeComp(id) {
   components.value = components.value.filter((c) => c.id !== id);
   if (selected.value === id) selected.value = null;
 }
+function moveComp(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= components.value.length) return;
+  const arr = [...components.value];
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  components.value = arr;
+}
+function dupComp(comp) {
+  const c = { ...newComp(comp.type), props: JSON.parse(JSON.stringify(comp.props)), id: `c${Date.now()}-${uid++}` };
+  const idx = components.value.findIndex((x) => x.id === comp.id);
+  components.value.splice(idx + 1, 0, c);
+  selected.value = c.id;
+}
 function selectComp(comp) { selected.value = comp.id; }
 function onLibDragStart(e, type) { e.dataTransfer.setData('text/plain', type); }
 function onCanvasDragOver() {}
 function onCanvasDrop(e) {
   const type = e.dataTransfer.getData('text/plain');
-  if (type && componentLib.some((c) => c.type === type)) addComponent(type);
+  if (type && findComponent(type)) addComponent(type);
 }
 let dragIdx = -1;
 function onCompDragStart(e, i) { dragIdx = i; e.dataTransfer.effectAllowed = 'move'; }
@@ -254,12 +247,6 @@ function onCompDragOver(i) {
 }
 function onCompDrop() { dragIdx = -1; }
 
-function compStyle(comp) {
-  const s = {};
-  if (comp.type === 'image') s.padding = '8px';
-  return s;
-}
-
 async function load() {
   try {
     const [pubRes, draftRes] = await Promise.all([
@@ -271,7 +258,10 @@ async function load() {
     const src = draft.value || published.value;
     if (src) {
       pageName.value = src.page_name || '页面';
-      components.value = (src.design_json?.components || []).map((c) => ({ ...c, props: { ...defaultProps(c.type), ...(c.props || {}) } }));
+      components.value = (src.design_json?.components || []).map((c) => {
+        const def = findComponent(c.type);
+        return { ...c, props: { ...(def?.defaultProps || {}), ...(c.props || {}) } };
+      });
     }
   } catch (e) { ElMessage.error(e); }
 }
@@ -355,19 +345,43 @@ onMounted(load);
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .pe-body { display: grid; grid-template-columns: 168px minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
 
-/* 组件库：卡片化 */
+/* 组件库：分组 + 搜索 + 彩色图标 */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; }
-.pe-lib-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.pe-lib-head { margin-bottom: 8px; }
+.pe-lib-title { font-size: 13px; font-weight: 600; color: #1d2129; display: flex; align-items: center; gap: 6px; }
 .pe-lib-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
+.pe-lib-search { margin-top: 8px; }
+.pe-search-ico { color: #86909c; font-size: 14px; }
+.pe-group { margin-bottom: 4px; }
+.pe-group-head { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #4e5969; }
+.pe-group-head:hover { background: #f2f3f5; }
+.pe-group-caret { font-size: 10px; transition: transform .2s; color: #86909c; }
+.pe-group-caret.open { transform: rotate(90deg); }
+.pe-group-name { font-weight: 600; }
+.pe-group-n { margin-left: auto; font-size: 11px; color: #86909c; background: #f2f3f5; border-radius: 10px; padding: 0 8px; line-height: 18px; }
+.pe-group-body { padding: 2px 0; }
 .pe-lib-item {
-  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px;
-  border-radius: 8px; margin-bottom: 4px; cursor: grab;
-  font-size: 13px; color: #4e5969; transition: background .2s, color .2s;
+  display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px;
+  border-radius: 8px; margin-bottom: 2px; cursor: grab;
+  font-size: 13px; color: #1d2129; transition: background .2s;
 }
-.pe-lib-item:hover { background: #f2f3f5; color: #1d2129; }
+.pe-lib-item:hover { background: #f2f3f5; }
 .pe-lib-item:active { cursor: grabbing; }
-.pe-lib-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(22,93,255,.06); color: #165dff; flex-shrink: 0; }
-.pe-lib-item:hover .pe-lib-icon { background: rgba(22,93,255,.12); }
+.pe-lib-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; }
+.pe-lib-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 组件库 3 列网格卡片（仿 eweishop：图标上、名称下） */
+.pe-lib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 2px 0; }
+.pe-lib-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 4px 8px; border-radius: 8px; cursor: grab;
+  border: 1px solid transparent; transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
+.pe-lib-card:active { cursor: grabbing; }
+.pe-lib-ico { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+.pe-lib-ico img { width: 32px; height: 32px; object-fit: contain; display: block; }
+.pe-lib-card .pe-lib-name { font-size: 12px; color: #1d2129; max-width: 100%; }
+.pe-lib-tag { position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; color: #f53f3f; background: rgba(245,63,63,.08); border-radius: 4px; padding: 2px 4px; }
 .pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 8px; text-align: center; }
 
 /* 画布：手机预览壳 */
@@ -383,21 +397,18 @@ onMounted(load);
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 10px; padding: 6px; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
 .pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }
-.pe-comp-tools { display: none; position: absolute; top: -20px; right: 4px; background: #165dff; color: #fff; border-radius: 6px; font-size: 11px; padding: 2px 10px; z-index: 2; align-items: center; gap: 8px; }
-.pe-comp.active .pe-comp-tools { display: flex; }
-.pe-comp-idx { background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 6px; }
+/* hover / 选中即显工具条（仿 eweishop/nshop） */
+.pe-comp-tools {
+  display: none; position: absolute; top: -22px; right: 4px; background: #165dff; color: #fff;
+  border-radius: 6px; font-size: 11px; padding: 2px 8px; z-index: 2; align-items: center; gap: 6px;
+  box-shadow: 0 2px 6px rgba(22,93,255,.3); white-space: nowrap;
+}
+.pe-comp:hover .pe-comp-tools, .pe-comp.active .pe-comp-tools { display: flex; }
+.pe-comp-idx { background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 5px; }
 .pe-comp-type { color: #fff; }
-.pe-comp-tools :deep(.el-button) { color: #fff; }
-.pe-render { pointer-events: none; }
-.r-title { font-size: 22px; font-weight: 700; line-height: 1.4; }
-.r-text { line-height: 1.6; }
-.r-image img { width: 100%; border-radius: 8px; display: block; }
-.r-image-empty { height: 88px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; }
-.r-btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; }
-.r-divider { height: 1px; background: #e5e6eb; margin: 14px 0; position: relative; }
-.r-divider span { position: absolute; left: 50%; top: -8px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
-.r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; }
-.r-notice-tag { flex-shrink: 0; font-weight: 600; }
+.pe-tool { cursor: pointer; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background .15s; font-size: 12px; line-height: 1; }
+.pe-tool:hover { background: rgba(255,255,255,.25); }
+.pe-tool-del:hover { background: #f53f3f; }
 
 /* 空态 */
 .pe-empty { color: #86909c; text-align: center; padding: 80px 0; font-size: 13px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
@@ -410,6 +421,7 @@ onMounted(load);
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
 .pe-prop-empty { color: #86909c; font-size: 12px; padding: 40px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .pe-prop-empty :deep(svg), .pe-prop-empty :deep(img) { opacity: .4; }
+.pe-img-field { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* 素材选择 */
 .pe-sel { max-height: 360px; overflow-y: auto; }
