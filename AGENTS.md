@@ -587,3 +587,14 @@ npm run test:frontend
 - **必踩坑**：cardApi.js `request(url, method='GET', data={})` 的 data 直接进 uni.request data（GET 时序列化成 query），**禁止传 options 对象**（`request('/x', {params})` 会变成 `?params[preview]=1` 后端取不到 → 401 静默空态）；拼接 query string：`request('/x' + '?' + new URLSearchParams(params).toString())`。
 - **构建**：H5 改动后 `cd web-app && npm run build:h5` + 同步（rm -rf assets 再 cp）；uni-app H5 有构建缓存（node_modules/.vite），产物与源不符时清缓存重建；压缩产物字符串引号会统一（grep 用双引号查）。
 - **交付截图**：用户手机端看不到 localhost/本地路径，截图必须 FileBatchUpload 成 aka.doubaocdn.com 链接再 present_files。
+
+## P3 组件库扩展（+6 组件）与 schema 控件
+
+- **新增 6 组件**（commit f0fbbbb）：基础「图文卡片 image-text / 轮播图 swiper」、功能「名片卡 my-card / 宫格导航 grid-nav / 数据统计 stats / 全景方案 panorama」；图标继续照抄 eweishop 原版（bannerGoods/banner/member_inviter/cube/goodsRanking/storeLocation.png → comp-icons/）。**新增组件流程**：componentRegistry.js 加一条（type/name/group/icon/defaultProps/schema）→ ComponentRender.vue（管理端画布）+ DesignPage.vue（C 端）补渲染分支 → 构建/测试/提交。
+- **schema 新控件**（PageEditor.vue 属性面板）：
+  - `control:'list'`：数组编辑（轮播图 items/宫格 items），`itemFields:[{key,label,control}]` 定义每项字段（input/link/select/image）；支持 ↑↓ 移动、删除、「+ 添加一项」（按 itemFields 生成空项，select 取 options[0]）；列表项图片选择走 openImgSel(idx, si, f)（imgSelListField 记录字段定义，确认时回写 items[listIdx][key]）。
+  - `control:'select'`：下拉（宫格项图标，options 来自 ICON_OPTIONS 系统 SVG 图标清单）。
+  - `control:'switch'`：布尔开关（数据统计显示项）。
+- **数据统计（stats）**：三项语义固定「今日访客/累计访客/名片交换」，C 端数值来自 home.vue 传入的 visitorStats（getVisitorSummary），DesignPage 接收 `stats` prop；管理端画布预览占位 0。**禁止改字段语义**（两端标签必须一致）。
+- **宫格导航（grid-nav）**：默认 4 项（我的名片/访客雷达/客户管理/人脉集市），图标必须用 ICON_OPTIONS 里的系统 SVG 图标名（SIcon 双端渲染），禁止 emoji/自定义字符。
+- **C 端渲染注意**：swiper 用 uni 原生组件（indicator-dots + circular + autoplay）；全景方案默认跳 `/?plan=1&scene=1`（外部 H5 全景，DesignPage onJump 的 http 分支处理）；名片卡跳 `/pages/card/myCard`。
