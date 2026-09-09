@@ -258,7 +258,13 @@ function newComp(type) {
 }
 function addComponent(type) {
   const c = newComp(type);
-  components.value.push(c);
+  // 有选中组件时插入到其之后，否则追加到末尾
+  const selIdx = components.value.findIndex((x) => x.id === selected.value);
+  if (selIdx >= 0) {
+    components.value.splice(selIdx + 1, 0, c);
+  } else {
+    components.value.push(c);
+  }
   selected.value = c.id;
 }
 function removeComp(id) {
@@ -460,7 +466,7 @@ onMounted(load);
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pe-body { display: grid; grid-template-columns: 220px minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
+.pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 220px; gap: 12px; align-items: start; }
 
 /* 组件库：分组 + 搜索 + 彩色图标 */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; }
@@ -490,7 +496,7 @@ onMounted(load);
 .pe-lib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 2px 0; }
 .pe-lib-card {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
-  padding: 12px 4px 10px; border-radius: 8px; cursor: grab;
+  padding: 12px 6px 10px; border-radius: 8px; cursor: grab;
   border: 1px solid transparent; transition: border-color .15s, background .15s, box-shadow .15s;
 }
 .pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
