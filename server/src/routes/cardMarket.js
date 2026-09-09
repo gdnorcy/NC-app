@@ -1286,15 +1286,25 @@ export function createCardMarketRouter(db) {
     if (!isOwner && !isEntAdmin) return res.status(403).json({ error: '无权操作该客户' });
 
     const from = cust.status;
-    // 状态迁移合法性：deal/invalid 为终态，不可再改
-    if ((from === 'deal' || from === 'invalid') && status !== from) {
-      return res.status(400).json({ error: '终态客户不可变更状态' });
+    // 状态迁移合法性：显式迁移表，仅放行合法迁移；deal/invalid 为终态（不在迁移表内，拒绝一切改动）
+    const ALLOWED_TRANSITIONS = {
+      pending: ['following', 'deal', 'invalid'],
+      following: ['deal', 'invalid', 'pending'],
+    };
+    const allowed = ALLOWED_TRANSITIONS[from];
+    if (!allowed || !allowed.includes(status)) {
+      return res.status(400).json({ error: '非法状态迁移' });
     }
     db.prepare("UPDATE card_customer SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
     // 跟进时间戳联动公海超时
     if (status === 'following') {
       db.prepare(`UPDATE tenant_public_pool SET last_follow_at = datetime('now') WHERE customer_id = ? AND phone = ? AND status = 'claimed'`).run(req.customerId, cust.phone || '');
       db.prepare(`UPDATE enterprise_public_pool SET last_follow_at = datetime('now') WHERE customer_id = ? AND phone = ? AND status = 'claimed'`).run(req.customerId, cust.phone || '');
+    }
+    // following → pending 回退：清空跟进时间戳，超时回收回落到领取时刻重新计算，保证状态与公海一致
+    if (from === 'following' && status === 'pending') {
+      db.prepare(`UPDATE tenant_public_pool SET last_follow_at = NULL WHERE customer_id = ? AND phone = ? AND status = 'claimed'`).run(req.customerId, cust.phone || '');
+      db.prepare(`UPDATE enterprise_public_pool SET last_follow_at = NULL WHERE customer_id = ? AND phone = ? AND status = 'claimed'`).run(req.customerId, cust.phone || '');
     }
     audit(db, req, 'update_customer_status', 'card_customer', id, `客户状态 ${from} → ${status}`);
     res.json({ success: true, from, to: status });

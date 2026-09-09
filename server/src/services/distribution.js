@@ -808,8 +808,9 @@ export function createDistributionService(db) {
     const actual = amount - fee;
     const no = 'WD' + Date.now() + String(userId).slice(-4);
     const doApply = () => {
-      db.prepare("UPDATE dist_wallet SET available = available - ?, total_withdraw = total_withdraw + ?, updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
-        .run(amount, amount, tenantId, userId, identityType);
+      // 申请时仅冻结余额；累计提现（total_withdraw）在打款完成（done）时才累加，口径=历史成功打款
+      db.prepare("UPDATE dist_wallet SET available = available - ?, updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
+        .run(amount, tenantId, userId, identityType);
       db.prepare('INSERT INTO dist_withdraw (withdraw_no, tenant_id, user_id, identity_type, amount, service_fee, actual_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
         .run(no, tenantId, userId, identityType, amount, fee, actual, 'pending');
     };
@@ -826,8 +827,9 @@ export function createDistributionService(db) {
       const rsn = reason || '审核不通过';
       const doReject = () => {
         db.prepare("UPDATE dist_withdraw SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?").run(rsn, withdrawId);
-        db.prepare("UPDATE dist_wallet SET available = available + ?, total_withdraw = MAX(0, total_withdraw - ?), updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
-          .run(row.amount, row.amount, row.tenant_id, row.user_id, row.identity_type);
+        // 驳回仅解冻余额；未打款不计入累计提现
+        db.prepare("UPDATE dist_wallet SET available = available + ?, updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
+          .run(row.amount, row.tenant_id, row.user_id, row.identity_type);
         notifyWithdraw(row, '提现审核驳回', `你的提现申请 ¥${yuan(row.amount)} 未通过：${rsn}。资金已退回可提现余额。`);
       };
       tx(doReject);
@@ -843,9 +845,15 @@ export function createDistributionService(db) {
       if (row.status !== 'approved') return { ok: false, error: '仅审核通过可打款完成' };
       const no = String(payNo || '').trim();
       if (!no) return { ok: false, error: '请填写打款流水号' };
-      db.prepare("UPDATE dist_withdraw SET status = 'done', pay_no = ?, pay_remark = ?, paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
-        .run(no, String(payRemark || '').trim(), withdrawId);
-      notifyWithdraw(row, '提现打款完成', `你的提现 ¥${yuan(row.actual_amount)} 已打款完成（流水号 ${no}），请注意查收。`);
+      const doDone = () => {
+        db.prepare("UPDATE dist_withdraw SET status = 'done', pay_no = ?, pay_remark = ?, paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
+          .run(no, String(payRemark || '').trim(), withdrawId);
+        // 打款完成才累计提现（口径：实际到账金额），与「累计已提现=历史成功打款」一致
+        db.prepare("UPDATE dist_wallet SET total_withdraw = total_withdraw + ?, updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
+          .run(row.actual_amount, row.tenant_id, row.user_id, row.identity_type);
+        notifyWithdraw(row, '提现打款完成', `你的提现 ¥${yuan(row.actual_amount)} 已打款完成（流水号 ${no}），请注意查收。`);
+      };
+      tx(doDone);
       return { ok: true };
     }
     return { ok: false, error: '未知操作' };

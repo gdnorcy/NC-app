@@ -476,3 +476,59 @@ test('P2-14 comboAuth 企业回退：仅绑定企业（无customer_id）的C端�
   db.prepare('DELETE FROM tenant_enterprises WHERE id = ?').run(entId);
   db.prepare("UPDATE platform_user SET enterprise_id = NULL, customer_id = NULL WHERE id = ?").run(userId);
 });
+
+test('P5 客户状态机：显式迁移表放行合法迁移，终态锁定，following→pending 联动清空公海跟进时间', async () => {
+  const code = 'stm_' + Date.now();
+  const login = await request(app).post('/api/card/auth/wx-login').send({ code });
+  assert.equal(login.status, 200);
+  const u = db.prepare('SELECT id FROM platform_user WHERE openid = ?').get('mock_' + code);
+  const uid = u.id;
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(login.body.token))
+    .send({ name: '状态机用户', bindCode: '1001', applyType: 'individual' });
+  approveApply(code, 1);
+
+  // 造客户 + 公海 claimed 记录（模拟已领取且跟进中）
+  const phone = '1390' + String(Date.now()).slice(-8);
+  const custId = db.prepare(`INSERT INTO card_customer (customer_id, owner_user_id, owner_type, name, phone, source, status)
+    VALUES (1, ?, 'individual', '状态机客户', ?, 'manual', 'pending')`).run(uid, phone).lastInsertRowid;
+  const poolId = db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position, status, claimed_by, claimed_at, last_follow_at)
+    VALUES (1, 'manual', ?, '状态机客户', ?, '', '', 'claimed', ?, datetime('now'), datetime('now'))`).run(custId, phone, uid).lastInsertRowid;
+
+  const st = (s) => request(app).post(`/api/card-market/customers/${custId}/status`).set(bearer(login.body.token)).send({ status: s });
+
+  // pending → following 合法
+  let r = await st('following');
+  assert.equal(r.status, 200, 'pending→following 应放行');
+  let pool = db.prepare('SELECT last_follow_at FROM tenant_public_pool WHERE id = ?').get(poolId);
+  assert.ok(pool.last_follow_at, '进入 following 应刷新公海跟进时间');
+
+  // following → pending 回退合法 + 公海跟进时间清空（超时回落到领取时刻）
+  r = await st('pending');
+  assert.equal(r.status, 200, 'following→pending 应放行（合法回退）');
+  pool = db.prepare('SELECT last_follow_at FROM tenant_public_pool WHERE id = ?').get(poolId);
+  assert.equal(pool.last_follow_at, null, '回退后公海 last_follow_at 应清空');
+
+  // pending → deal 合法
+  r = await st('deal');
+  assert.equal(r.status, 200, 'pending→deal 应放行');
+
+  // 终态 deal 不可再改（迁移表外一律拒绝）
+  r = await st('following');
+  assert.equal(r.status, 400, 'deal 终态不可迁移');
+  r = await st('invalid');
+  assert.equal(r.status, 400, 'deal 终态不可迁移');
+
+  // 同态迁移拒绝
+  const cust2 = db.prepare(`INSERT INTO card_customer (customer_id, owner_user_id, owner_type, name, phone, source, status)
+    VALUES (1, ?, 'individual', '状态机客户2', '1399' + ?, 'manual', 'pending')`).run(uid, String(Date.now()).slice(-8)).lastInsertRowid;
+  r = await request(app).post(`/api/card-market/customers/${cust2}/status`).set(bearer(login.body.token)).send({ status: 'pending' });
+  assert.equal(r.status, 400, '同态迁移应拒绝');
+
+  // 清理
+  db.prepare('DELETE FROM card_customer WHERE id IN (?, ?)').run(custId, cust2);
+  db.prepare('DELETE FROM tenant_public_pool WHERE id = ?').run(poolId);
+  db.prepare('DELETE FROM card_customer WHERE owner_user_id = ?').run(uid);
+  db.prepare('DELETE FROM tenant_individuals WHERE user_id = ?').run(uid);
+  db.prepare('DELETE FROM card_profile WHERE user_id = ?').run(uid);
+  db.prepare('DELETE FROM platform_user WHERE id = ?').run(uid);
+});

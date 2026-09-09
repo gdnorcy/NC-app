@@ -192,6 +192,28 @@ describe('分销体系（分销裂变底座）', () => {
     assert.equal(again.ok, false);
   });
 
+  it('P5 累计提现口径：申请/驳回不累计，打款完成按实际到账累计', () => {
+    dist.saveConfig(TENANT, { min_withdraw: 1 });
+    const base = dist.getWallet(TENANT, 1000, 'individual').total_withdraw;
+    // 申请 3 元：仅冻结，不累计
+    const ok = dist.applyWithdraw(TENANT, 1000, 'individual', 3);
+    assert.ok(ok.ok);
+    let w = dist.getWallet(TENANT, 1000, 'individual');
+    assert.equal(w.total_withdraw, base, '申请阶段不累计提现');
+    const wd = db.prepare("SELECT * FROM dist_withdraw WHERE tenant_id = ? AND user_id = 1000 ORDER BY id DESC LIMIT 1").get(TENANT);
+    // 驳回：解冻余额，不累计
+    assert.ok(dist.reviewWithdraw(wd.id, 'reject', '测试驳回').ok);
+    w = dist.getWallet(TENANT, 1000, 'individual');
+    assert.equal(w.total_withdraw, base, '驳回不累计提现');
+    // 通过并打款：按实际到账金额累计
+    assert.ok(dist.applyWithdraw(TENANT, 1000, 'individual', 3).ok);
+    const wd2 = db.prepare("SELECT * FROM dist_withdraw WHERE tenant_id = ? AND user_id = 1000 ORDER BY id DESC LIMIT 1").get(TENANT);
+    assert.ok(dist.reviewWithdraw(wd2.id, 'approve').ok);
+    assert.ok(dist.reviewWithdraw(wd2.id, 'done', '', 'PAY-20260909-001').ok);
+    w = dist.getWallet(TENANT, 1000, 'individual');
+    assert.equal(w.total_withdraw, base + wd2.actual_amount, '打款完成按实际到账累计');
+  });
+
   it('双身份隔离：employee 身份钱包独立', () => {
     dist.bindRelation(TENANT, 1001, 'employee', 2000, 'card');
     const rel = dist.getRelation(TENANT, 1001, 'employee');
