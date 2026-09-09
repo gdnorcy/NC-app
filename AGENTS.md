@@ -574,3 +574,16 @@ npm run test:frontend
   3. `normalizeProjectSolutions` 存量清理。
 - **配额联动**：租户 solutions 含 demo 方案后，checkTenantSolutionQuota 会按 demo 默认配额（入驻企业1/员工10/场景3/集市上架10）拦截超限操作；**测试夹具**（如 card-apply-review）需放开 demo 配额（`UPDATE solution_quotas SET value=100 WHERE solution_id=demo.id AND key IN ('enterpriseCount','employeeCount','memberCount')`）模拟旗舰配额，否则多主体审核流 403。
 - 任何新功能若涉及方案/应用授权判定，先确认已过上述三处过滤，禁止在 solutions 里塞非方案 code 作为权宜标记。
+
+# 设计中心·页面装修编辑器规范（2026-09-09 新增）
+
+## P2 营销组件扩展 + 保存并预览
+
+- **营销组件组**：componentRegistry.js `group:'marketing'` 倒计时/表单/视频（badge:'new' 蓝色角标；pro=「高级」红色角标）；图标直接照抄 eweishop 原版 PNG（`web-admin/src/assets/comp-icons/{title,richtext,picture,menu,line,notice,countdown,form,video}.png`，源 `https://vipuser3.eweishop.com/static/dist/shop/image/decorate/icon/{name}.png`，76×76，用户反复强调不接受自绘）。
+- **保存并预览（免登录签名预览）**：
+  - 管理端 `GET /api/design/previewUrl`（tenant 中间件）→ `{url:'/card/?nc=preview#/pages/cardMain/home?preview=1&tid={tid}&exp={exp}&sig={sig}'}`，sig = sha256(`${tid}:${exp}:${PREVIEW_SECRET}`) 前 32 位，exp = now+1800s；PREVIEW_SECRET 常量在 `server/src/routes/card.js` 与 `design.js` 两处保持一致（'nuok-design-preview-secret-2026'，上线前改环境变量）。
+  - 查看端 `GET /api/card/design/config` 改 `authOptional` 中间件：无 token 时校验 `verifyPreviewSig(req.query)`（tid 存在 + exp 未过期 + sig 匹配）放行，返回该租户首页草稿（`?preview=1` 时查 status=0 最新版 design_json 的 components）。
+  - **C 端渲染器** `web-app/src/components/DesignPage.vue`：9 种组件渲染（title/text/image/button/divider/notice/countdown/form/video）+ 通用容器样式（padding/radius/bgColor）+ 跳转（http 复制/H5 新窗，页面路径 uni.navigateTo）；home.vue 顶部插入 `<DesignPage :comps>`，preview 模式（isPreviewMode：onLoad options 优先，H5 兜底读 `location.hash.split('?')[1]`）加载草稿、跳过首页跳转（onShow reLaunch 逻辑）。
+- **必踩坑**：cardApi.js `request(url, method='GET', data={})` 的 data 直接进 uni.request data（GET 时序列化成 query），**禁止传 options 对象**（`request('/x', {params})` 会变成 `?params[preview]=1` 后端取不到 → 401 静默空态）；拼接 query string：`request('/x' + '?' + new URLSearchParams(params).toString())`。
+- **构建**：H5 改动后 `cd web-app && npm run build:h5` + 同步（rm -rf assets 再 cp）；uni-app H5 有构建缓存（node_modules/.vite），产物与源不符时清缓存重建；压缩产物字符串引号会统一（grep 用双引号查）。
+- **交付截图**：用户手机端看不到 localhost/本地路径，截图必须 FileBatchUpload 成 aka.doubaocdn.com 链接再 present_files。
