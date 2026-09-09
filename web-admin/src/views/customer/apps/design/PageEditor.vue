@@ -466,7 +466,7 @@ onMounted(load);
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 220px; gap: 12px; align-items: start; }
+.pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
 
 /* 组件库：分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; position: sticky; top: 12px; max-height: calc(100vh - 28px); overflow-y: auto; }
