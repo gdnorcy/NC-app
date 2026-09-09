@@ -4,6 +4,8 @@
  * - 全表 tenant_id 租户隔离；钱包三键隔离 (tenant_id, user_id, identity_type)
  * - 核心对账：dist_order_split 快照唯一数据源，退款/插件关闭均不删除
  */
+import { WxComponentService } from './wx-component.js';
+
 export function createDistributionService(db) {
   // ============================================================
   // 配置（租户维度）
@@ -615,6 +617,66 @@ export function createDistributionService(db) {
   }
   const yuan = (fen) => (Number(fen) / 100).toFixed(2);
 
+  // ============================================================
+  // 微信订阅消息（提现审核/打款完成/结算到账；未配置自动跳过，失败不阻断主流程）
+  // 配置：sys_tenant_plugin.config(code='dist').subscribe =
+  //   { enabled: true, tmplReview, tmplSettle, tmplDone }（模板字段固定 thing1/amount2/thing3/date4）
+  // ============================================================
+
+  /** 订阅消息 payload 构造（模块级纯函数，可测试） */
+  svc.buildSubscribePayload = (type, extra = {}) => {
+    const now = extra.time || new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const amt = (v) => (v !== undefined && v !== null ? `¥${Number(v) / 100}` : '¥0.00');
+    switch (type) {
+      case 'withdraw_review':
+        return { thing1: extra.result || '提现审核结果', amount2: amt(extra.amount), thing3: extra.reason || '审核通过', date4: now };
+      case 'withdraw_done':
+        return { thing1: '提现打款完成', amount2: amt(extra.amount), thing3: extra.payNo ? `流水号 ${extra.payNo}` : '已打款', date4: now };
+      case 'settle':
+        return { thing1: '分销收益到账', amount2: amt(extra.amount), thing3: extra.note || '已结算，可申请提现', date4: now };
+      default:
+        return {};
+    }
+  };
+
+  /** 发送订阅消息（同步判定是否可发，实际发送异步执行；返回 {ok}|{skipped:原因}） */
+  svc.sendSubscribe = (tenantId, userId, type, extra = {}) => {
+    try {
+      const plug = db.prepare("SELECT config FROM sys_tenant_plugin WHERE tenant_id = ? AND plugin_code = 'dist'").get(tenantId);
+      let sub = {};
+      try { sub = JSON.parse(plug?.config || '{}').subscribe || {}; } catch {}
+      if (!sub.enabled) return { skipped: 'not-enabled' };
+      const tmplMap = { withdraw_review: sub.tmplReview, withdraw_done: sub.tmplDone, settle: sub.tmplSettle };
+      const tmpl = tmplMap[type];
+      if (!tmpl || !String(tmpl).trim()) return { skipped: 'no-template' };
+      const u = db.prepare('SELECT openid FROM platform_user WHERE id = ?').get(userId);
+      if (!u || !u.openid) return { skipped: 'no-openid' };
+      const ch = db.prepare("SELECT id, appid FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp' AND appid != '' ORDER BY id DESC LIMIT 1").get(tenantId);
+      if (!ch) return { skipped: 'no-mp-channel' };
+      const payload = svc.buildSubscribePayload(type, extra);
+      const page = '/pages/card/distribution';
+      svc._sendSub({ templateId: tmpl, openid: u.openid, channelAppId: ch.id, data: payload, page }).catch((e) => {
+        console.warn('[subscribe] send fail', e?.message || e);
+      });
+      return { ok: true };
+    } catch (e) {
+      return { skipped: 'error' };
+    }
+  };
+
+  /** 实际调用微信接口（测试可整体替换 _sendSub 规避外呼） */
+  svc._sendSub = async ({ templateId, openid, channelAppId, data, page }) => {
+    const wx = new WxComponentService(db);
+    const token = await wx.getAuthorizerAccessToken(channelAppId);
+    const res = await fetch(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ touser: openid, template_id: templateId, page, data, miniprogram_state: 'formal' }),
+    });
+    const j = await res.json();
+    if (j && j.errcode) console.warn('[subscribe] wx err', j.errcode, j.errmsg);
+  };
+
   /**
    * 对已支付订单做分账（幂等：每租户每订单一条快照）
    * 调度器：任一已启用插件（dist/partner/share-all/share-cat/share-area）都会参与计算；
@@ -844,7 +906,7 @@ export function createDistributionService(db) {
   svc.settleDueOrders = () => {
     // 按租户的 settle_day 扫描到期快照
     const tenants = db.prepare('SELECT tenant_id, settle_day FROM dist_config').all();
-    let settledLogs = 0;
+    const settledLogs = []; // 收集本次结算明细（用于订阅消息聚合）
     const doSettle = (tenantId, settleDay) => {
       const due = db.prepare(`
         SELECT s.id FROM dist_order_split s
@@ -860,12 +922,52 @@ export function createDistributionService(db) {
             UPDATE dist_wallet SET wait_settle = MAX(0, wait_settle - ?), available = available + ?, updated_at = datetime('now')
             WHERE tenant_id = ? AND user_id = ? AND identity_type = ?
           `).run(log.amount, log.amount, tenantId, log.user_id, log.identity_type);
-          settledLogs++;
+          settledLogs.push({ tenant_id: tenantId, user_id: log.user_id, identity_type: log.identity_type, amount: Number(log.amount) });
         }
       }
     };
     for (const t of tenants) tx(() => doSettle(t.tenant_id, t.settle_day));
-    return settledLogs;
+    svc.notifySettled(settledLogs);
+    return settledLogs.length;
+  };
+
+  /** 结算后按用户聚合发送「收益到账」订阅消息（各租户各用户一条） */
+  svc.notifySettled = (settledLogs) => {
+    if (!settledLogs || !settledLogs.length) return;
+    const byTenant = new Map();
+    for (const l of settledLogs) {
+      if (!byTenant.has(l.tenant_id)) byTenant.set(l.tenant_id, new Map());
+      const um = byTenant.get(l.tenant_id);
+      const key = `${l.user_id}|${l.identity_type}`;
+      const cur = um.get(key) || { user_id: l.user_id, identity_type: l.identity_type, amount: 0, count: 0 };
+      cur.amount += Number(l.amount);
+      cur.count += 1;
+      um.set(key, cur);
+    }
+    for (const [tenantId, um] of byTenant) {
+      for (const it of um.values()) {
+        svc.sendSubscribe(tenantId, it.user_id, 'settle', { amount: it.amount, note: `共 ${it.count} 笔收益已结算` });
+      }
+    }
+  };
+
+  /** 结算后按用户聚合发送「收益到账」订阅消息（各租户各用户一条） */
+  svc.notifySettled = (settledLogs) => {
+    if (!settledLogs || !settledLogs.length) return;
+    const byTenant = new Map();
+    for (const l of settledLogs) {
+      if (!byTenant.has(l.tenant_id)) byTenant.set(l.tenant_id, new Map());
+      const um = byTenant.get(l.tenant_id);
+      const key = `${l.user_id}|${l.identity_type}`;
+      const cur = um.get(key) || { user_id: l.user_id, amount: 0 };
+      cur.amount += Number(l.amount);
+      um.set(key, cur);
+    }
+    for (const [tenantId, um] of byTenant) {
+      for (const it of um.values()) {
+        svc.sendSubscribe(tenantId, it.user_id, 'settle', { amount: it.amount, note: `共 ${settledLogs.filter((l) => l.tenant_id === tenantId && l.user_id === it.user_id).length} 笔收益已结算` });
+      }
+    }
   };
 
   // ============================================================
@@ -912,12 +1014,14 @@ export function createDistributionService(db) {
         notifyWithdraw(row, '提现审核驳回', `你的提现申请 ¥${yuan(row.amount)} 未通过：${rsn}。资金已退回可提现余额。`);
       };
       tx(doReject);
+      svc.sendSubscribe(row.tenant_id, row.user_id, 'withdraw_review', { result: '提现审核驳回', amount: row.amount, reason: rsn });
       return { ok: true };
     }
     if (action === 'approve') {
       if (row.status !== 'pending') return { ok: false, error: '仅待审核可通过' };
       db.prepare("UPDATE dist_withdraw SET status = 'approved', updated_at = datetime('now') WHERE id = ?").run(withdrawId);
       notifyWithdraw(row, '提现审核通过', `你的提现申请 ¥${yuan(row.amount)} 已审核通过，等待打款到账。`);
+      svc.sendSubscribe(row.tenant_id, row.user_id, 'withdraw_review', { result: '提现审核通过', amount: row.amount, reason: '等待打款到账' });
       return { ok: true };
     }
     if (action === 'done') {
@@ -933,6 +1037,7 @@ export function createDistributionService(db) {
         notifyWithdraw(row, '提现打款完成', `你的提现 ¥${yuan(row.actual_amount)} 已打款完成（流水号 ${no}），请注意查收。`);
       };
       tx(doDone);
+      svc.sendSubscribe(row.tenant_id, row.user_id, 'withdraw_done', { amount: row.actual_amount, payNo: no });
       return { ok: true };
     }
     return { ok: false, error: '未知操作' };
@@ -1087,6 +1192,10 @@ export function createDistributionService(db) {
     const self = db.prepare('SELECT nickname, avatar FROM platform_user WHERE id = ?').get(userId);
     // 分销等级判定（累计收益 + 直推人数 → 当前/下一等级）
     const lv = svc.resolveLevel(tenantId, (wallet && wallet.total_income) || 0, direct);
+    // 微信订阅模板 ID（小程序端 requestSubscribeMessage 用）
+    const distPlugRow = db.prepare("SELECT config FROM sys_tenant_plugin WHERE tenant_id = ? AND plugin_code = 'dist'").get(tenantId);
+    let distSub = {};
+    try { distSub = JSON.parse(distPlugRow?.config || '{}').subscribe || {}; } catch {}
 
     return {
       wallet,
@@ -1104,6 +1213,9 @@ export function createDistributionService(db) {
       currentLevelName: lv.currentLevel.name,
       currentLevelNo: lv.currentLevel.no,
       nextLevel: lv.nextLevel,
+      // 微信订阅模板 ID（小程序端 requestSubscribeMessage 用）
+      subTmplReview: distSub.tmplReview || '',
+      subTmplDone: distSub.tmplDone || '',
       // 壳页卡片渲染依据：租户已开通的分销应用
       isEnableDist: !!pMap.dist,
       isEnablePartner: !!pMap.partner,

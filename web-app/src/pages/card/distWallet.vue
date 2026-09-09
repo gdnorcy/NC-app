@@ -103,6 +103,14 @@ async function applyWithdraw() {
   if (!amt || amt <= 0) { uni.showToast({ title: '请输入提现金额', icon: 'none' }); return; }
   withdrawing.value = true;
   try {
+    // 小程序端先请求微信订阅授权（提现审核/打款通知；用户拒绝不阻断提现）
+    // #ifdef MP-WEIXIN
+    try {
+      await uni.requestSubscribeMessage({
+        tmplIds: [summary.value.subTmplReview, summary.value.subTmplDone].filter(Boolean),
+      });
+    } catch (e) { /* 用户拒绝订阅不阻断提现 */ }
+    // #endif
     await cardApi.distWithdraw(amt, identity.value);
     uni.showToast({ title: '提现申请已提交', icon: 'success' });
     withdrawAmount.value = '';

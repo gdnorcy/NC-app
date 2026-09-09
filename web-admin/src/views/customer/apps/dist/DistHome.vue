@@ -229,6 +229,30 @@
               </el-table>
             </template>
 
+            <!-- ===== 消息通知（微信订阅消息） ===== -->
+            <template v-if="cfgCat === 'notice'">
+              <el-form-item label="订阅消息">
+                <el-switch v-model="subForm.enabled" />
+                <span class="form-tip">开启后提现审核/打款、收益结算将向用户微信发送订阅消息</span>
+              </el-form-item>
+              <el-form-item label="提现审核模板" required>
+                <el-input v-model="subForm.tmplReview" placeholder="微信订阅消息模板 ID（审核通过/驳回共用）" class="w480" />
+                <span class="form-tip">字段：thing1 结果 / amount2 金额 / thing3 状态 / date4 时间</span>
+              </el-form-item>
+              <el-form-item label="打款完成模板">
+                <el-input v-model="subForm.tmplDone" placeholder="微信订阅消息模板 ID（打款完成）" class="w480" />
+                <span class="form-tip">字段：thing1 内容 / amount2 金额 / thing3 流水号 / date4 时间</span>
+              </el-form-item>
+              <el-form-item label="结算到账模板">
+                <el-input v-model="subForm.tmplSettle" placeholder="微信订阅消息模板 ID（收益结算到账）" class="w480" />
+                <span class="form-tip">字段：thing1 内容 / amount2 金额 / thing3 说明 / date4 时间</span>
+              </el-form-item>
+              <el-form-item label=" ">
+                <el-button type="primary" :loading="subSaving" @click="saveSubConfig">保存订阅配置</el-button>
+                <span class="form-tip">模板字段名需在微信公众平台选用 thing1/amount2/thing3/date4 命名；未填模板 ID 的分类不发消息</span>
+              </el-form-item>
+            </template>
+
           </el-form>
         </el-card>
       </div>
@@ -730,8 +754,11 @@ const cfgCats = [
   { key: 'display', label: '显示设置', icon: 'palette' },
   { key: 'agreement', label: '申请与协议', icon: 'audit' },
   { key: 'level', label: '等级设置', icon: 'crown' },
+  { key: 'notice', label: '消息通知', icon: 'dynamic' },
 ];
 const cfgCat = ref('base');
+const subForm = reactive({ enabled: false, tmplReview: '', tmplDone: '', tmplSettle: '' });
+const subSaving = ref(false);
 const cfg = reactive({
   ratio1: 0.2, ratio2: 0.05, isOpenLevel2: true, isSelfBuy: false,
   calcType: 1, settleDay: 7, minWithdraw: 10, withdrawFeeRate: 0, maxTotalRatio: 0.3,
@@ -769,7 +796,20 @@ async function loadConfig() {
     const p = await customerApiCall.get('/distribution/plugins');
     const dp = (p.list || []).find((x) => x.plugin_code === 'dist');
     pluginOn.value = !!(dp && dp.is_install && dp.is_enable);
+    let sub = {};
+    try { sub = (dp && dp.config && JSON.parse(dp.config)) || {}; sub = sub.subscribe || {}; } catch {}
+    Object.assign(subForm, {
+      enabled: !!sub.enabled, tmplReview: sub.tmplReview || '', tmplDone: sub.tmplDone || '', tmplSettle: sub.tmplSettle || '',
+    });
   } catch (e) { /* 忽略 */ }
+}
+
+async function saveSubConfig() {
+  subSaving.value = true;
+  try {
+    await customerApiCall.put('/distribution/plugins/dist/config', { subscribe: { ...subForm } });
+    ElMessage.success('订阅配置已保存');
+  } catch (e) { ElMessage.error(e || '保存失败'); } finally { subSaving.value = false; }
 }
 
 async function onPluginChange(v) {
