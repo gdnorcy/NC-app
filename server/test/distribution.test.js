@@ -876,4 +876,144 @@ describe('分销体系（分销裂变底座）', () => {
     db.prepare('DELETE FROM dist_user_relation WHERE user_id IN (?, ?)').run(buyer, same);
     db.prepare('DELETE FROM platform_user WHERE id IN (?, ?, ?, ?)').run(buyer, stranger, other, same);
   });
+
+  it('P6 分销等级：门槛判定 + 默认种子 + CRUD 幂等', () => {
+    // 租户无等级配置时回退默认模板（tenant 0 种子）
+    const levels = dist.getLevels(TENANT);
+    assert.ok(levels.length >= 3, '默认等级种子 ≥3');
+    assert.equal(levels[0].name, '默认等级');
+    // 判定：0 收益 → 1 级
+    let r = dist.resolveLevel(TENANT, 0, 0);
+    assert.equal(r.currentLevel.no, 1);
+    assert.equal(r.currentLevel.name, '默认等级');
+    assert.ok(r.nextLevel && r.nextLevel.no > 1, '有下一等级');
+    // 判定：累计收益 200000 分（¥2000）且直推 20 人 → 命中白银（≥10 万/≥10 人）
+    r = dist.resolveLevel(TENANT, 200000, 20);
+    assert.equal(r.currentLevel.no, 2);
+    assert.equal(r.currentLevel.name, '白银推广员');
+    // 判定：累计收益 600000（¥6000）→ 黄金
+    r = dist.resolveLevel(TENANT, 600000, 0);
+    assert.equal(r.currentLevel.no, 3);
+    assert.equal(r.currentLevel.name, '黄金推广员');
+    // 保存新等级（upsert 按 level_no）
+    const lv = dist.saveLevel(TENANT, { levelNo: 2, name: '青铜推广员', minTotalIncome: 50000, minDirect: 5 });
+    assert.equal(lv.name, '青铜推广员');
+    // 同名 level_no 再保存 = 更新不重复插入
+    const lv2 = dist.saveLevel(TENANT, { levelNo: 2, name: '青铜推广员V2', minTotalIncome: 80000, minDirect: 8 });
+    assert.equal(lv2.id, lv.id, '同 level_no 更新不新增');
+    const after = dist.getLevels(TENANT);
+    assert.equal(after.filter((x) => x.level_no === 2).length, 1);
+    // 删除：至少保留一级（删除后序号顺延补位）
+    const del = dist.deleteLevel(TENANT, lv.id);
+    assert.ok(del.ok);
+    const afterDel = dist.getLevels(TENANT);
+    assert.equal(afterDel.filter((x) => x.name === '青铜推广员V2').length, 0, '被删等级已移除');
+    assert.ok(afterDel.length >= 2, '删除后等级仍 ≥2');
+    // 等级判定与 getSummary 联动
+    const g = dist.getSummary(TENANT, 1001, 'individual');
+    assert.ok(g.currentLevelName && g.currentLevelNo >= 1, 'summary 返回等级');
+    // 恢复白银默认名，避免影响其它用例
+    dist.saveLevel(TENANT, { levelNo: 2, name: '白银推广员', minTotalIncome: 100000, minDirect: 10 });
+  });
+
+  it('P7 微信订阅消息：payload 构造 + 未配置跳过 + 可发分支（注入 _sendSub）+ 结算聚合', () => {
+    // payload 构造（模块级 svc.buildSubscribePayload）
+    const p1 = dist.buildSubscribePayload('withdraw_review', { result: '提现审核通过', amount: 12345, reason: '等待打款' });
+    assert.equal(p1.thing1, '提现审核通过');
+    assert.equal(p1.amount2, '¥123.45');
+    const p2 = dist.buildSubscribePayload('withdraw_done', { amount: 10000, payNo: 'WX2026' });
+    assert.match(p2.thing3, /WX2026/);
+    const p3 = dist.buildSubscribePayload('settle', { amount: 5000, note: '共 2 笔收益已结算' });
+    assert.equal(p3.thing1, '分销收益到账');
+    // 未配置 → skipped
+    let r = dist.sendSubscribe(TENANT, 1001, 'settle', { amount: 100 });
+    assert.ok(r.skipped, '未配置订阅模板时跳过');
+    // 配置 + openid + mp 渠道 → 走发送（stub _sendSub 收集）
+    const sent = [];
+    dist.setPluginConfig(TENANT, 'dist', { subscribe: { enabled: true, tmplReview: 'TMPL_REV', tmplSettle: 'TMPL_SET', tmplDone: 'TMPL_DONE' } });
+    db.prepare("INSERT OR IGNORE INTO channel_apps (customer_id, channel_type, appid, auth_status) VALUES (?, 'mp', 'wx-test-appid', 'authorized')")
+      .run(TENANT);
+    const orig = dist._sendSub;
+    dist._sendSub = async (payload) => { sent.push(payload); };
+    try {
+      r = dist.sendSubscribe(TENANT, 1001, 'settle', { amount: 8888 });
+      assert.ok(r.ok, '配置齐备应可发送');
+      r = dist.sendSubscribe(TENANT, 1001, 'withdraw_done', { amount: 2000, payNo: 'NO1' });
+      assert.ok(r.ok);
+      // 无 openid 用户 → skipped
+      db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, '', ?, ?, 'individual')")
+        .run(9017, '无openid用户', TENANT);
+      r = dist.sendSubscribe(TENANT, 9017, 'settle', { amount: 100 });
+      assert.equal(r.skipped, 'no-openid');
+    } finally {
+      dist._sendSub = orig;
+      db.prepare("DELETE FROM channel_apps WHERE customer_id = ? AND channel_type = 'mp' AND appid = 'wx-test-appid'").run(TENANT);
+      db.prepare('DELETE FROM platform_user WHERE id = ?').run(9017);
+    }
+    assert.equal(sent.length, 2, '两次发送均被捕获');
+    assert.equal(sent[0].templateId, 'TMPL_SET');
+    assert.equal(sent[0].openid.length > 0, true);
+    assert.equal(sent[0].data.amount2, '¥88.88');
+    // 结算聚合：notifySettled 按租户+用户聚合（stub sendSubscribe）
+    const calls = [];
+    const orig2 = dist.sendSubscribe;
+    dist.sendSubscribe = (tenantId, userId, type, extra) => { calls.push({ tenantId, userId, type, extra }); return { ok: true }; };
+    try {
+      dist.notifySettled([
+        { tenant_id: TENANT, user_id: 1001, identity_type: 'individual', amount: 1000 },
+        { tenant_id: TENANT, user_id: 1001, identity_type: 'individual', amount: 2000 },
+        { tenant_id: TENANT, user_id: 1002, identity_type: 'individual', amount: 5000 },
+      ]);
+    } finally {
+      dist.sendSubscribe = orig2;
+    }
+    assert.equal(calls.length, 2, '两个用户各一条聚合消息');
+    assert.equal(calls[0].extra.amount, 3000, '同用户金额聚合');
+    assert.match(calls[0].extra.note, /2 笔/);
+  });
+
+  it('P8 合伙人团队递归（buildTeam 防环/层级）+ summary 类目/区域分组字段', () => {
+    // 造链：9018 → 9019 → 9020（三层）
+    const uid = (id) => db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, ?, ?, 'individual')")
+      .run(id, `openid_${id}`, `用户${id}`, TENANT);
+    [9018, 9019, 9020].forEach(uid);
+    db.prepare("INSERT OR IGNORE INTO dist_user_relation (tenant_id, user_id, pid1, pid2, identity_type, source_type, status, bind_time) VALUES (?, ?, ?, NULL, 'individual', 'qrcode', 'bound', datetime('now'))")
+      .run(TENANT, 9019, 9018);
+    db.prepare("INSERT OR IGNORE INTO dist_user_relation (tenant_id, user_id, pid1, pid2, identity_type, source_type, status, bind_time) VALUES (?, ?, ?, ?, 'individual', 'qrcode', 'bound', datetime('now'))")
+      .run(TENANT, 9020, 9019, 9018);
+    try {
+      const t = dist.buildTeam(TENANT, 9018, 'individual');
+      assert.equal(t.total, 2, '团队含两层下级');
+      assert.equal(t.team[0].level, 1);
+      assert.equal(t.team[1].level, 2);
+      assert.ok(t.team.find((m) => m.id === 9019));
+      assert.ok(t.team.find((m) => m.id === 9020));
+      // 无团队用户返回空
+      const empty = dist.buildTeam(TENANT, 9020, 'individual');
+      assert.equal(empty.total, 0);
+      // summary 分组字段（空数组存在，避免前端 undefined）
+      const s = dist.getSummary(TENANT, 9018, 'individual');
+      assert.ok(Array.isArray(s.shareCatGroups));
+      assert.ok(Array.isArray(s.shareAreaGroups));
+    } finally {
+      db.prepare('DELETE FROM dist_user_relation WHERE tenant_id = ? AND user_id IN (9018,9019,9020)').run(TENANT);
+      db.prepare('DELETE FROM platform_user WHERE id IN (9018,9019,9020)').run();
+    }
+  });
+
+  it('P9 海报模板库：数组存 JSON、空 URL 过滤、getSummary 透传', () => {
+    try {
+      dist.saveConfig(TENANT, { poster_templates: [{ id: 'a', url: 'https://img.example/a.png' }, { id: 'b', url: '' }, { id: 'c', url: 'https://img.example/c.png' }] });
+      const cfg = dist.getConfig(TENANT);
+      const arr = JSON.parse(cfg.poster_templates || '[]');
+      assert.equal(arr.length, 2, '空 URL 模板被过滤');
+      assert.equal(arr[0].url, 'https://img.example/a.png');
+      const s = dist.getSummary(TENANT, 1001, 'individual');
+      assert.ok(Array.isArray(s.posterTemplates));
+      assert.equal(s.posterTemplates.length, 2);
+      assert.equal(s.posterTemplates[1].id, 'c');
+    } finally {
+      dist.saveConfig(TENANT, { poster_templates: [] });
+    }
+  });
 });
