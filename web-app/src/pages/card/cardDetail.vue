@@ -309,6 +309,17 @@ onMounted(async () => {
       if (prev !== String(inviter)) uni.setStorageSync('pendingInviter', String(inviter));
     }
   }
+  // 分销漏斗：带邀请链接访问即记一次曝光（访客维度去重，静默失败）
+  if (inviter) {
+    try {
+      let vk = uni.getStorageSync('dist_vk');
+      if (!vk) {
+        vk = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        uni.setStorageSync('dist_vk', vk);
+      }
+      await cardApi.distFunnel({ eventType: 'view', inviter, visitorKey: vk });
+    } catch (e) {}
+  }
   if (id) {
     // 记住最近查看的名片，供底部"名片"Tab切回时使用
     uni.setStorageSync('cardLastViewId', id);

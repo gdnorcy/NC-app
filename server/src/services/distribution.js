@@ -1187,6 +1187,65 @@ export function createDistributionService(db) {
     }));
   };
 
+  /** 分销漏斗：分享/曝光埋点（share 需推广人；view 按 (租户,推广人,访客) 去重） */
+  svc.trackFunnel = (tenantId, userId, eventType, visitorKey) => {
+    if (!tenantId || !eventType) return false;
+    if (eventType === 'share') {
+      if (!userId) return false;
+      db.prepare("INSERT INTO dist_funnel_events (tenant_id, user_id, event_type) VALUES (?, ?, 'share')").run(tenantId, userId);
+      return true;
+    }
+    if (eventType === 'view') {
+      if (!userId || !visitorKey) return false;
+      try {
+        const r = db.prepare("INSERT OR IGNORE INTO dist_funnel_events (tenant_id, user_id, visitor_key, event_type) VALUES (?, ?, ?, 'view')").run(tenantId, userId, visitorKey);
+        return r.changes > 0;
+      } catch { return false; }
+    }
+    return false;
+  };
+
+  /** 分销漏斗统计：分享→曝光→绑定→付费（bind/pay 由业务表派生，逐层去重单调不增） */
+  svc.getFunnel = (tenantId, month) => {
+    const key = String(month || '').trim() || new Date().toISOString().slice(0, 7);
+    const shareCount = db.prepare("SELECT COUNT(*) n FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'share' AND substr(created_at,1,7) = ?").get(tenantId, key).n;
+    const viewCount = db.prepare("SELECT COUNT(DISTINCT visitor_key) n FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'view' AND visitor_key != '' AND substr(created_at,1,7) = ?").get(tenantId, key).n;
+    const bindCount = db.prepare("SELECT COUNT(DISTINCT user_id) n FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND substr(bind_time,1,7) = ?").get(tenantId, key).n;
+    // 付费：绑定用户中本月完成付费的去重用户数（paid_at 非空）
+    const payRow = db.prepare(`
+      SELECT COUNT(DISTINCT o.user_id) n, COALESCE(SUM(o.amount),0) amt
+      FROM payment_orders o
+      WHERE o.customer_id = ? AND o.status = 'paid' AND o.paid_at IS NOT NULL AND substr(o.paid_at,1,7) = ?
+        AND o.user_id IN (SELECT user_id FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound')
+    `).get(tenantId, key, tenantId);
+    // 近 6 个月趋势（含当月，顺序排列）
+    const trend = [];
+    const d = new Date(`${key}-01T00:00:00`);
+    for (let i = 5; i >= 0; i--) {
+      const m = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      const mk = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
+      const s = db.prepare("SELECT COUNT(*) n FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'share' AND substr(created_at,1,7) = ?").get(tenantId, mk).n;
+      const v = db.prepare("SELECT COUNT(DISTINCT visitor_key) n FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'view' AND visitor_key != '' AND substr(created_at,1,7) = ?").get(tenantId, mk).n;
+      const b = db.prepare("SELECT COUNT(DISTINCT user_id) n FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND substr(bind_time,1,7) = ?").get(tenantId, mk).n;
+      const p = db.prepare(`
+        SELECT COUNT(DISTINCT user_id) n FROM payment_orders o
+        WHERE o.customer_id = ? AND o.status = 'paid' AND o.paid_at IS NOT NULL AND substr(o.paid_at,1,7) = ?
+          AND o.user_id IN (SELECT user_id FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound')
+      `).get(tenantId, mk, tenantId).n;
+      trend.push({ month: mk, share: s, view: v, bind: b, pay: p });
+    }
+    const rate = (a, b) => (a > 0 ? +((b / a) * 100).toFixed(1) : 0);
+    return {
+      month: key,
+      shareCount, viewCount, bindCount,
+      payCount: payRow.n, paidAmount: payRow.amt,
+      viewToBind: rate(viewCount, bindCount),
+      bindToPay: rate(bindCount, payRow.n),
+      viewToPay: rate(viewCount, payRow.n),
+      trend,
+    };
+  };
+
   /** 用户收益汇总（钱包 + 直推/间推人数 + 本月佣金 + 身份标签） */
   svc.getSummary = (tenantId, userId, identityType) => {
     const wallet = svc.getWallet(tenantId, userId, identityType);

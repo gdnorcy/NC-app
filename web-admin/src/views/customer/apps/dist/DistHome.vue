@@ -743,6 +743,37 @@
           </el-table-column>
         </el-table>
       </el-card>
+      <el-card shadow="never" class="mb16">
+        <div class="sub-title">
+          分销漏斗
+          <span class="sub-desc">分享 / 曝光 / 绑定 / 付费（按月，逐层去重单调不增）</span>
+          <el-date-picker v-model="funnelMonth" type="month" placeholder="选择月份" value-format="YYYY-MM" class="w160 pull-right" @change="loadFunnel" />
+        </div>
+        <el-row :gutter="16">
+          <el-col :span="5"><el-card shadow="never"><div class="funnel-cell">
+            <div class="funnel-step">① 分享</div><div class="funnel-num">{{ funnel.shareCount }}</div><div class="funnel-sub">分享人次</div>
+          </div></el-card></el-col>
+          <el-col :span="5"><el-card shadow="never"><div class="funnel-cell">
+            <div class="funnel-step">② 曝光</div><div class="funnel-num">{{ funnel.viewCount }}</div><div class="funnel-sub">去重访客 · 曝光→绑定 {{ funnel.viewToBind }}%</div>
+          </div></el-card></el-col>
+          <el-col :span="5"><el-card shadow="never"><div class="funnel-cell">
+            <div class="funnel-step">③ 绑定</div><div class="funnel-num">{{ funnel.bindCount }}</div><div class="funnel-sub">绑定用户 · 绑定→付费 {{ funnel.bindToPay }}%</div>
+          </div></el-card></el-col>
+          <el-col :span="5"><el-card shadow="never"><div class="funnel-cell">
+            <div class="funnel-step">④ 付费</div><div class="funnel-num">{{ funnel.payCount }}</div><div class="funnel-sub">付费用户 · 总转化 {{ funnel.viewToPay }}%</div>
+          </div></el-card></el-col>
+          <el-col :span="4"><el-card shadow="never"><div class="funnel-cell">
+            <div class="funnel-step">付费金额</div><div class="funnel-num">{{ fen(funnel.paidAmount) }}</div><div class="funnel-sub">绑定用户付费合计</div>
+          </div></el-card></el-col>
+        </el-row>
+        <el-table :data="funnel.trend" v-loading="loading" stripe class="mt16">
+          <el-table-column prop="month" label="月份" width="140" />
+          <el-table-column prop="share" label="分享" width="120" />
+          <el-table-column prop="view" label="曝光访客" width="120" />
+          <el-table-column prop="bind" label="绑定" width="120" />
+          <el-table-column prop="pay" label="付费" />
+        </el-table>
+      </el-card>
       <el-card shadow="never">
         <div class="sub-title">近 7 日订单分账趋势</div>
         <el-table :data="stats.trend" v-loading="loading" stripe>
@@ -1209,6 +1240,14 @@ function acctLabel(acct) {
 }
 const stats = reactive({ totalCommission: 0, settledCommission: 0, splitCount: 0, splitAmount: 0, memberCount: 0, withdrawPending: 0, withdrawTotal: 0, trend: [], bonusByType: {}, partnerCount: 0, shareAllCount: 0, shareCatCount: 0, shareAreaCount: 0, promo: {} });
 const ranking = ref([]);
+const funnelMonth = ref(new Date().toISOString().slice(0, 7));
+const funnel = reactive({ shareCount: 0, viewCount: 0, bindCount: 0, payCount: 0, paidAmount: 0, viewToBind: 0, bindToPay: 0, viewToPay: 0, trend: [] });
+async function loadFunnel() {
+  try {
+    const res = await customerApiCall.get('/distribution/funnel', { params: { month: funnelMonth.value } });
+    Object.assign(funnel, res);
+  } catch (e) { /* 漏斗加载失败不阻塞大盘 */ }
+}
 async function loadStats() {
   loading.value = true;
   try {
@@ -1241,6 +1280,7 @@ onMounted(() => {
   loadLevels();
   loadSplits();
   loadRelations();
+  loadFunnel();
   loadWithdraws();
   loadStats();
   loadRanking();
@@ -1268,6 +1308,12 @@ onMounted(() => {
 .mb12 { margin-bottom: 12px; }
 .mt16 { margin-top: 16px; }
 .statement-frame { width: 100%; height: 66vh; border: 1px solid var(--color-border, #e5e6eb); border-radius: 8px; background: #fff; }
+.funnel-cell { text-align: center; padding: 6px 0; }
+.funnel-step { font-size: 13px; color: #165dff; font-weight: 500; }
+.funnel-num { font-size: 26px; font-weight: 600; color: #1d2129; margin: 6px 0 2px; }
+.funnel-sub { font-size: 12px; color: #86909c; }
+.sub-desc { font-size: 12px; color: #86909c; font-weight: 400; margin-left: 8px; }
+.pull-right { float: right; width: 140px; }
 .batch-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 8px; }
 .text-muted { color: #86909c; font-size: 12px; }
 .tree-node { display: inline-flex; align-items: center; gap: 8px; }

@@ -239,6 +239,12 @@ export function createDistributionRouter(db) {
     res.json(summary);
   });
 
+  // 分销漏斗统计（?month=YYYY-MM；分享/曝光/绑定/付费 + 转化率 + 近6月趋势）
+  router.get('/funnel', tenant, (req, res) => {
+    const { month } = req.query;
+    res.json(dist.getFunnel(req.customerId, month));
+  });
+
   // 月度对账单（?month=YYYY-MM&export=csv|html；含扣回/实得/提现/欠款，浏览器打印即存 PDF）
   router.get('/statement', tenant, (req, res) => {
     const { month, export: isExport } = req.query;

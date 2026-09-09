@@ -1947,6 +1947,19 @@ function seedDistribution(db) {
     CREATE INDEX IF NOT EXISTS idx_withdraw_tenant ON dist_withdraw(tenant_id);
     CREATE INDEX IF NOT EXISTS idx_withdraw_user ON dist_withdraw(tenant_id, user_id);
 
+    -- 分销漏斗事件表（分享/曝光埋点；绑定/付费由业务表派生统计）
+    CREATE TABLE IF NOT EXISTS dist_funnel_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      user_id INTEGER NOT NULL DEFAULT 0,     -- 推广人
+      visitor_key TEXT NOT NULL DEFAULT '',   -- 访客唯一键（曝光去重）
+      event_type TEXT NOT NULL DEFAULT '',    -- share / view
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_funnel_tenant_time ON dist_funnel_events(tenant_id, created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_funnel_view_dedup ON dist_funnel_events(tenant_id, user_id, event_type, visitor_key)
+      WHERE event_type = 'view' AND visitor_key != '';
+
     -- 合伙人配置表（P1）
     CREATE TABLE IF NOT EXISTS dist_partner (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -632,6 +632,32 @@ export function createCardRouter(db, wxService) {
     res.json({ ok: true, relation: result.relation });
   });
 
+  // 分销漏斗埋点：share（登录用户主动分享）/ view（带邀请链接访问，可未登录，按访客去重）
+  router.post('/distribution/funnel', (req, res) => {
+    try {
+      const { eventType, inviter, visitorKey } = req.body || {};
+      if (eventType === 'share') {
+        if (!req.user || !req.user.id) return res.json({ ok: false, error: '未登录' });
+        const tenantId = req.customerId || (() => { const u = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(req.user.id); return u ? u.customer_id : 0; })();
+        if (!tenantId) return res.json({ ok: false, error: '未入驻租户' });
+        distribution.trackFunnel(tenantId, req.user.id, 'share', '');
+        return res.json({ ok: true });
+      }
+      if (eventType === 'view') {
+        const pid = Number(inviter || 0);
+        const vk = String(visitorKey || '').slice(0, 64);
+        if (!pid || !vk) return res.json({ ok: false, error: '缺少邀请人或访客标识' });
+        const inv = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(pid);
+        if (!inv || !inv.customer_id) return res.json({ ok: false, error: '邀请人不存在' });
+        distribution.trackFunnel(inv.customer_id, pid, 'view', vk);
+        return res.json({ ok: true });
+      }
+      res.json({ ok: false, error: '未知事件类型' });
+    } catch (e) {
+      res.json({ ok: false, error: '埋点失败' });
+    }
+  });
+
   // 我的推广二维码（PRD：名片ID + 租户归属，扫码跳名片自动绑定上下级）
   router.get('/distribution/qrcode', auth, async (req, res) => {
     try {

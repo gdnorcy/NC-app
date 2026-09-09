@@ -1105,6 +1105,40 @@ describe('分销体系（分销裂变底座）', () => {
     }
   });
 
+  it('P15 分销漏斗：埋点去重 + 统计逐层单调（share/view/bind/pay）', () => {
+    const UID = 9041;   // 推广人
+    const VK = 'visitor-p15-001';
+    const NOW = new Date().toISOString().slice(0, 7);
+    const before = dist.getFunnel(TENANT, NOW);
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '漏斗推广', ?, 'individual')").run(UID, `openid_${UID}`, TENANT);
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '漏斗买家', ?, 'individual')").run(9042, 'openid_9042', TENANT);
+    try {
+      // share 埋点（可重复）
+      assert.equal(dist.trackFunnel(TENANT, UID, 'share', ''), true, 'share 埋点成功');
+      assert.equal(dist.trackFunnel(TENANT, UID, 'share', ''), true, 'share 可重复');
+      // view 埋点（同访客同推广人去重）
+      assert.equal(dist.trackFunnel(TENANT, UID, 'view', VK), true, 'view 首次成功');
+      assert.equal(dist.trackFunnel(TENANT, UID, 'view', VK), false, '同访客重复 view 去重');
+      // 参数校验
+      assert.equal(dist.trackFunnel(0, UID, 'share', ''), false, '无租户拒绝');
+      assert.equal(dist.trackFunnel(TENANT, 0, 'share', ''), false, '无推广人 share 拒绝');
+      assert.equal(dist.trackFunnel(TENANT, UID, 'view', ''), false, '无访客键 view 拒绝');
+      // 绑定（派生）
+      dist.bindRelation(TENANT, 9042, 'individual', UID);
+      // 统计
+      const s = dist.getFunnel(TENANT, NOW);
+      assert.equal(s.shareCount - before.shareCount, 2, '分享 2 次');
+      assert.equal(s.viewCount - before.viewCount, 1, '曝光访客 1（去重）');
+      assert.ok(s.bindCount >= before.bindCount + 1, '绑定 +1（派生自 dist_user_relation）');
+      assert.ok(s.trend.length === 6 && s.trend[s.trend.length - 1].month === NOW, '近 6 月趋势');
+      assert.ok(typeof s.viewToBind === 'number' && typeof s.bindToPay === 'number', '转化率字段');
+    } finally {
+      db.prepare("DELETE FROM dist_funnel_events WHERE tenant_id = ? AND user_id = ?").run(TENANT, UID);
+      db.prepare("DELETE FROM dist_user_relation WHERE tenant_id = ? AND user_id = 9042").run(TENANT);
+      db.prepare('DELETE FROM platform_user WHERE id IN (?, ?)').run(UID, 9042);
+    }
+  });
+
   it('P14 月度对账单：扣回负计/欠款解析/提现实得 + CSV/HTML 构建', () => {
     const UID = 9036;
     const NOW = new Date().toISOString().slice(0, 7);

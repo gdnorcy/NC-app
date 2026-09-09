@@ -91,6 +91,7 @@ export const cardApi = {
 
   // ===== 分销中心（租户维度，双身份隔离）=====
   distBind: (parentId, identityType) => request('/distribution/bind', 'POST', { parentId, identityType }),
+  distFunnel: (data) => request('/distribution/funnel', 'POST', data),
   distQrcode: () => request('/distribution/qrcode', 'GET'),
   distSummary: (identityType) => request(`/distribution/summary?identityType=${identityType || ''}`),
   distApply: () => request('/distribution/apply', 'POST'),

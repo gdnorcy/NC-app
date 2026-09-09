@@ -596,11 +596,12 @@ function savePoster() {
   a.href = poster.value.tempPath; a.download = `分销海报-${Date.now()}.png`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   uni.showToast({ title: '海报已下载', icon: 'none' });
+  trackShare();
   // #endif
   // #ifndef H5
   uni.saveImageToPhotosAlbum({
     filePath: poster.value.tempPath,
-    success: () => uni.showToast({ title: '已保存到相册', icon: 'none' }),
+    success: () => { uni.showToast({ title: '已保存到相册', icon: 'none' }); trackShare(); },
     fail: (e) => {
       if (e && (e.errMsg || '').includes('auth')) {
         uni.showModal({ title: '需要相册权限', content: '请在设置中开启保存到相册权限后重试', showCancel: false });
@@ -620,7 +621,12 @@ async function copyShareUrl() {
   try {
     await uni.setClipboardData({ data: qr.value.shareUrl });
     uni.showToast({ title: '推广链接已复制', icon: 'success' });
+    trackShare();
   } catch (e) {}
+}
+// 分销漏斗：分享埋点（静默失败）
+function trackShare() {
+  try { cardApi.distFunnel({ eventType: 'share' }); } catch (e) {}
 }
 
 function fen(v) { return ((Number(v) || 0) / 100).toFixed(2); }
