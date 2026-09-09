@@ -25,6 +25,9 @@ import iconCube from '../../../../assets/comp-icons/cube.png';
 import iconChannelProfile from '../../../../assets/comp-icons/followaccount.png';
 import iconChannelVideo from '../../../../assets/comp-icons/channelvideo.png';
 import iconChannelLive from '../../../../assets/comp-icons/wxlive.png';
+import iconSearch from '../../../../assets/comp-icons/search.png';
+import iconFloat from '../../../../assets/comp-icons/float.png';
+import iconCustomer from '../../../../assets/icons/svg/customer.svg';
 
 export const componentGroups = [
   { key: 'basic', name: '基础组件' },
@@ -53,6 +56,14 @@ export const COMP_ICONS = {
   'channel-profile': iconChannelProfile,
   'channel-video': iconChannelVideo,
   'channel-live': iconChannelLive,
+  'rich-text': iconText,
+  'image-gallery': iconImage,
+  'title-bar': iconTitle,
+  search: iconSearch,
+  tabs: iconButton,
+  'form-pro': iconForm,
+  contact: iconCustomer,
+  'float-btn': iconFloat,
 };
 
 // 宫格导航图标选择器选项（系统 SVG 图标库，SIcon 双端通用）
@@ -356,6 +367,135 @@ export const componentRegistry = [
       { key: 'title', label: '标题', control: 'input', section: 'content' },
       { key: 'statusText', label: '状态文字', control: 'input', section: 'content' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'rich-text',
+    name: '富文本',
+    group: 'basic',
+    icon: 'rich-text',
+    defaultProps: { html: '<p style="font-size:14px;color:#1d2129;line-height:1.7;">这里是富文本内容，支持图文混排。</p>' },
+    schema: [
+      { key: 'html', label: '内容', control: 'textarea', section: 'content', rows: 6, placeholder: '支持 HTML 富文本（文字/图片/列表等）' },
+    ],
+  },
+  {
+    type: 'image-gallery',
+    name: '组图橱窗',
+    group: 'basic',
+    icon: 'image-gallery',
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], columns: 2, radius: 8 },
+    schema: [
+      {
+        key: 'items', label: '组图', control: 'list', section: 'content',
+        itemFields: [
+          { key: 'url', label: '图片', control: 'image' },
+          { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
+        ],
+      },
+      { key: 'columns', label: '列数', control: 'radio', section: 'style', options: [{ label: '2列', value: 2 }, { label: '3列', value: 3 }, { label: '4列', value: 4 }] },
+      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
+    ],
+  },
+  {
+    type: 'title-bar',
+    name: '标题栏',
+    group: 'basic',
+    icon: 'title-bar',
+    defaultProps: { title: '标题文字', sub: '副标题', moreText: '更多', moreUrl: '', color: '#1d2129' },
+    schema: [
+      { key: 'title', label: '标题', control: 'input', section: 'content', required: true },
+      { key: 'sub', label: '副标题', control: 'input', section: 'content' },
+      { key: 'moreText', label: '更多文字', control: 'input', section: 'content' },
+      { key: 'moreUrl', label: '更多跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'color', label: '文字色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'search',
+    name: '搜索框',
+    group: 'basic',
+    icon: 'search',
+    defaultProps: { placeholder: '搜索名片 / 内容', radius: 16, bgColor: '#F2F3F5', link: '' },
+    schema: [
+      { key: 'placeholder', label: '占位文字', control: 'input', section: 'content' },
+      { key: 'link', label: '搜索跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 24 },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'tabs',
+    name: '选项卡',
+    group: 'basic',
+    icon: 'tabs',
+    defaultProps: { items: [{ text: '选项一', link: '' }, { text: '选项二', link: '' }, { text: '选项三', link: '' }], color: '#165DFF' },
+    schema: [
+      {
+        key: 'items', label: '选项卡', control: 'list', section: 'content',
+        itemFields: [
+          { key: 'text', label: '文字', control: 'input' },
+          { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
+        ],
+      },
+      { key: 'color', label: '主题色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'form-pro',
+    name: '万能表单',
+    group: 'marketing',
+    icon: 'form-pro',
+    badge: 'new',
+    defaultProps: {
+      title: '留资表单',
+      fields: [
+        { label: '姓名', type: 'input', placeholder: '请输入姓名', required: true },
+        { label: '手机号', type: 'phone', placeholder: '请输入手机号', required: true },
+      ],
+      submitText: '提交', btnColor: '#165DFF',
+    },
+    schema: [
+      { key: 'title', label: '表单标题', control: 'input', section: 'content', required: true },
+      {
+        key: 'fields', label: '表单项', control: 'list', section: 'content',
+        itemFields: [
+          { key: 'label', label: '字段名', control: 'input' },
+          { key: 'type', label: '类型', control: 'select', options: [{ value: 'input', label: '文本' }, { value: 'phone', label: '手机号' }, { value: 'number', label: '数字' }, { value: 'date', label: '日期' }, { value: 'radio', label: '单选' }, { value: 'select', label: '下拉' }, { value: 'multi', label: '多选' }] },
+          { key: 'placeholder', label: '占位文字', control: 'input' },
+          { key: 'options', label: '选项(逗号分隔)', control: 'input', placeholder: '单选/下拉/多选时填写，如 男,女' },
+          { key: 'required', label: '必填', control: 'switch' },
+        ],
+      },
+      { key: 'submitText', label: '按钮文字', control: 'input', section: 'content' },
+      { key: 'btnColor', label: '按钮色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'contact',
+    name: '客服联系',
+    group: 'function',
+    icon: 'contact',
+    defaultProps: { title: '联系我们', phone: '', qr: '', address: '', btnText: '拨打电话' },
+    schema: [
+      { key: 'title', label: '标题', control: 'input', section: 'content', required: true },
+      { key: 'phone', label: '电话', control: 'input', section: 'content', placeholder: '手机号或座机' },
+      { key: 'qr', label: '微信二维码', control: 'image', section: 'content' },
+      { key: 'address', label: '地址', control: 'input', section: 'content' },
+      { key: 'btnText', label: '按钮文字', control: 'input', section: 'content' },
+    ],
+  },
+  {
+    type: 'float-btn',
+    name: '悬浮按钮',
+    group: 'function',
+    icon: 'float-btn',
+    defaultProps: { text: '联系我们', link: '', color: '#165DFF', position: 'right' },
+    schema: [
+      { key: 'text', label: '按钮文字', control: 'input', section: 'content' },
+      { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market 或 tel:13800138000' },
+      { key: 'color', label: '背景色', control: 'color', section: 'style' },
+      { key: 'position', label: '位置', control: 'radio', section: 'style', options: [{ label: '右下', value: 'right' }, { label: '左下', value: 'left' }] },
     ],
   },
 ];

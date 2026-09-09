@@ -609,3 +609,15 @@ npm run test:frontend
   - **硬依赖**：租户微信小程序需在 mp 后台「关联视频号」才能唤起成功；H5/APP 端微信生态外无 API，只能复制引导。此边界必须在组件说明中写明。
 - **构建注意**：小程序端 `npm run build:mp-weixin` 必须同时跑（验证条件编译 #ifdef 语法与 wx API 打包）；验证 H5 产物不含 openChannels（grep 应为 0，`#ifdef MP-WEIXIN` 剔除）。
 - **测试踩坑**：保存草稿/预览用 `?nc=xxx` 新参数强制加载；预览新组件排在上次组件下方需滚动验证，勿误判未渲染；后端 `datetime('now')` 存 UTC（比本地慢 8h），查库比对时间要换算。
+
+## P1 竞品级通用组件（8 组件批，2026-09-09 新增）
+
+- **新增 8 组件**（基础 5：富文本 rich-text / 组图橱窗 image-gallery / 标题栏 title-bar / 搜索框 search / 选项卡 tabs；营销 1：万能表单 form-pro；功能 2：客服联系 contact / 悬浮按钮 float-btn）：registry 数据驱动 + ComponentRender/DesignPage 双端渲染分支，schema 驱动属性面板，均带 NEW 角标；图标 eweishop 原版（search.png/float.png 新下载，contact 用系统 customer.svg，其余复用已有 PNG）。
+- **新 schema 控件 textarea**：PageEditor `control==='textarea'` → el-input type=textarea（rows 默认 4，富文本用 rows 6）；**表单 list 项新增 options 字段**（逗号分隔，供 radio/select/multi 使用）。
+- **万能表单（form-pro）**：fields list 编辑器（label/type/placeholder/options/required）；type ∈ input/phone/number/date/radio/select/multi；C 端输入框 input、选择类用 picker（date mode=date、radio/select/multi 用 range + fieldOptions 逗号分隔解析）。
+- **C 端提交链路（P0）**：submitForm 校验必填 → `cardApi.designLead({tenantId, formTitle, fields:[{label,value}]})` → `POST /api/card/design/leads`（card.js，租户校验用 **projects 表**，customers 表不存在）→ design_leads 表（db.js 幂等建表，tenant_id/page_type/form_title/fields JSON）。fields≤50 项、label≤64/value≤500 截断、空值剔除。
+- **formData 初始化坑（必踩）**：C 端万能表单字段渲染 **必须** `v-if="ensureFormData(i)"` 包 v-for（渲染期初始化 formData[i]={}），input 用 `:value + @input`（勿用 v-model）——否则首渲 formData[i] undefined 使 v-model 取值抛 TypeError，字段渲染成 `<!---->` 注释节点（标题/按钮正常但字段消失），报错 `Cannot read properties of undefined (reading '手机号')`。
+- **客服联系（contact）**：title/phone/qr/address/btnText；C 端拨打电话 `uni.makePhoneCall`（phone 空时提示「电话未填写」）。
+- **悬浮按钮（float-btn）**：text/link/color/position(right|left)；C 端 fixed 右下/左下（right:12px/left:12px），onFloatClick 判断 link 是否 http(s) 跳外部 / uni URL 跳页面。
+- **构建验证**：`rm -rf server/public/card/assets` 再 cp（uni build 不清理旧 chunk）；小程序产物 DesignPage.js 查「留资表单/请输入姓名」标记（class 名会被压缩，勿用 dp-* class 名 grep 判定小程序产物）；浏览器验证前清 SW（regs=0 时 reload 即可，旧 chunk 若已加载需 reload 换新哈希文件）。
+- **测试**：cardApi.test.js 新增 designLead 用例（POST /design/leads + data 透传），前端基线 36 passed / 4 files。

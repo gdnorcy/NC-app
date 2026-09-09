@@ -155,6 +155,66 @@
         <div class="r-chl-title">{{ comp.props.title || '直播标题' }}</div>
       </div>
     </template>
+    <!-- 富文本 -->
+    <template v-else-if="comp.type === 'rich-text'">
+      <div class="r-richtext" v-html="comp.props.html || '<p>富文本内容</p>'"></div>
+    </template>
+    <!-- 组图橱窗 -->
+    <template v-else-if="comp.type === 'image-gallery'">
+      <div class="r-gallery" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 2) + ',1fr)', gap: '6px' }">
+        <template v-for="(it, i) in comp.props.items || []" :key="i">
+          <div v-if="it.url" class="r-gallery-cell" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
+          <div v-else class="r-gallery-cell r-gallery-empty" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+        </template>
+      </div>
+    </template>
+    <!-- 标题栏 -->
+    <template v-else-if="comp.type === 'title-bar'">
+      <div class="r-titlebar">
+        <div class="r-tb-left">
+          <div class="r-tb-title" :style="{ color: comp.props.color || '#1d2129' }">{{ comp.props.title || '标题文字' }}</div>
+          <div v-if="comp.props.sub" class="r-tb-sub">{{ comp.props.sub }}</div>
+        </div>
+        <div v-if="comp.props.moreText" class="r-tb-more">{{ comp.props.moreText }} ›</div>
+      </div>
+    </template>
+    <!-- 搜索框 -->
+    <template v-else-if="comp.type === 'search'">
+      <div class="r-search" :style="{ background: comp.props.bgColor || '#F2F3F5', borderRadius: (comp.props.radius ?? 16) + 'px' }">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
+        <span>{{ comp.props.placeholder || '搜索名片 / 内容' }}</span>
+      </div>
+    </template>
+    <!-- 选项卡 -->
+    <template v-else-if="comp.type === 'tabs'">
+      <div class="r-tabs" :style="{ '--tab': comp.props.color || '#165DFF' }">
+        <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-tabs-item" :class="{ active: i === 0 }">{{ it.text || '选项' }}</div>
+      </div>
+    </template>
+    <!-- 万能表单 -->
+    <template v-else-if="comp.type === 'form-pro'">
+      <div class="r-form">
+        <div class="r-form-title">{{ comp.props.title || '留资表单' }}</div>
+        <div v-for="(f, i) in comp.props.fields || []" :key="i" class="r-form-input">{{ f.placeholder || f.label }}{{ f.required ? ' *' : '' }}</div>
+        <div class="r-form-btn" :style="{ background: comp.props.btnColor || '#165DFF' }">{{ comp.props.submitText || '提交' }}</div>
+      </div>
+    </template>
+    <!-- 客服联系 -->
+    <template v-else-if="comp.type === 'contact'">
+      <div class="r-contact">
+        <div class="r-contact-ico"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#165DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5"/></svg></div>
+        <div class="r-contact-body">
+          <div class="r-contact-title">{{ comp.props.title || '联系我们' }}</div>
+          <div class="r-contact-line">{{ comp.props.phone || '电话未填写' }}</div>
+          <div v-if="comp.props.address" class="r-contact-line">{{ comp.props.address }}</div>
+        </div>
+        <div class="r-contact-btn" :style="{ background: '#165DFF' }">{{ comp.props.btnText || '拨打电话' }}</div>
+      </div>
+    </template>
+    <!-- 悬浮按钮 -->
+    <template v-else-if="comp.type === 'float-btn'">
+      <div class="r-float" :style="{ background: comp.props.color || '#165DFF', left: comp.props.position === 'left' ? '12px' : 'auto', right: comp.props.position === 'right' ? '12px' : 'auto' }">{{ comp.props.text || '联系我们' }}</div>
+    </template>
   </div>
 </template>
 
@@ -271,4 +331,34 @@ function resolveUrl(u) {
 .r-chl-empty { opacity: .7; }
 .r-chl-badge { position: absolute; left: 8px; top: 8px; background: #f53f3f; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
 .r-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
+/* 富文本 */
+.r-richtext { font-size: 14px; color: #1d2129; line-height: 1.7; word-break: break-word; }
+.r-richtext :deep(img) { max-width: 100%; border-radius: 8px; }
+/* 组图橱窗 */
+.r-gallery { display: grid; width: 100%; }
+.r-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
+.r-gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.r-gallery-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #e5e6eb; }
+/* 标题栏 */
+.r-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.r-tb-left { display: flex; flex-direction: column; gap: 2px; }
+.r-tb-title { font-size: 17px; font-weight: 600; line-height: 1.4; }
+.r-tb-sub { font-size: 12px; color: #86909c; }
+.r-tb-more { flex-shrink: 0; font-size: 12px; color: #86909c; display: flex; align-items: center; }
+/* 搜索框 */
+.r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; }
+/* 选项卡 */
+.r-tabs { display: flex; gap: 8px; }
+.r-tabs-item { flex: 1; text-align: center; padding: 8px 4px; font-size: 14px; color: #4e5969; border-radius: 8px; background: #f7f8fa; }
+.r-tabs-item.active { color: var(--tab, #165dff); background: rgba(22,93,255,.08); font-weight: 500; }
+/* 客服联系 */
+.r-contact { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; background: #fff; }
+.r-contact-ico { width: 44px; height: 44px; border-radius: 50%; background: rgba(22,93,255,.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.r-contact-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.r-contact-title { font-size: 15px; font-weight: 600; color: #1d2129; }
+.r-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
+/* 悬浮按钮 */
+.r-float { position: absolute; bottom: 12px; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.comp-render { position: relative; }
 </style>

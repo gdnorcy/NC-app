@@ -1,7 +1,7 @@
 <template>
   <view class="home-page">
     <!-- 设计中心装修区（发布/预览的首页组件） -->
-    <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" class="design-section" />
+    <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" class="design-section" />
 
     <!-- 顶部搜索栏 -->
     <view class="top-bar">
@@ -143,6 +143,7 @@ const visitorStats = ref({ today: 0, total: 0, exchange: 0 });
 const visitorList = ref([]);
 const marketList = ref([]);
 const designComps = ref([]);
+const designTenantId = ref(0);
 let pageOptions = {};
 onLoad((o) => { pageOptions = o || {}; });
 
@@ -183,6 +184,7 @@ onMounted(async () => {
     const config = await fetchDesignConfig(preview, preview);
     const comps = config?.pages?.components || [];
     designComps.value = Array.isArray(comps) ? comps : [];
+    designTenantId.value = config?.tenantId || 0;
     if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
     else if (preview) uni.showToast({ title: '草稿预览模式', icon: 'none' });
   } catch (e) {}

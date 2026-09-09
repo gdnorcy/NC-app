@@ -95,6 +95,7 @@
               <el-form label-width="72px" size="small">
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.label" :class="{ required: f.required }">
                   <el-input v-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
+                  <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>

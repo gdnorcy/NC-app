@@ -141,16 +141,129 @@
         </view>
         <view class="dp-chl-title"><text>{{ c.props.title || '直播标题' }}</text></view>
       </view>
+      <!-- 富文本 -->
+      <view v-else-if="c.type === 'rich-text'" class="dp-richtext">
+        <rich-text :nodes="c.props.html || '<p>富文本内容</p>'" />
+      </view>
+      <!-- 组图橱窗 -->
+      <view v-else-if="c.type === 'image-gallery'" class="dp-gallery" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 2) + ',1fr)', gap: '6px' }">
+        <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-gallery-cell" :style="{ borderRadius: (c.props.radius ?? 8) + 'px' }" @click="onJump(it.link)">
+          <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-gallery-img" />
+        </view>
+      </view>
+      <!-- 标题栏 -->
+      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar">
+        <view class="dp-tb-left">
+          <text class="dp-tb-title" :style="{ color: c.props.color || '#1d2129' }">{{ c.props.title || '标题文字' }}</text>
+          <text v-if="c.props.sub" class="dp-tb-sub">{{ c.props.sub }}</text>
+        </view>
+        <view v-if="c.props.moreText" class="dp-tb-more" @click="onJump(c.props.moreUrl)"><text>{{ c.props.moreText }} ›</text></view>
+      </view>
+      <!-- 搜索框 -->
+      <view v-else-if="c.type === 'search'" class="dp-search" :style="{ background: c.props.bgColor || '#F2F3F5', borderRadius: (c.props.radius ?? 16) + 'px' }" @click="onSearch(c.props)">
+        <text class="dp-search-ico">🔍</text>
+        <text class="dp-search-ph">{{ c.props.placeholder || '搜索名片 / 内容' }}</text>
+      </view>
+      <!-- 选项卡 -->
+      <view v-else-if="c.type === 'tabs'" class="dp-tabs" :style="{ '--tab': c.props.color || '#165dff' }">
+        <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-tabs-item" :class="{ active: i === 0 }" @click="onJump(it.link)"><text>{{ it.text || '选项' }}</text></view>
+      </view>
+      <!-- 万能表单 -->
+      <view v-else-if="c.type === 'form-pro'" class="dp-form">
+        <text class="dp-form-title">{{ c.props.title || '留资表单' }}</text>
+        <view v-if="ensureFormData(i)" v-for="(f, fi) in c.props.fields || []" :key="fi" class="dp-fp-field">
+          <picker v-if="f.type === 'date'" mode="date" @change="(e) => { ensureFormData(i); formData[i][f.label] = e.detail.value; }">
+            <view class="dp-fp-select"><text>{{ (formData[i] && formData[i][f.label]) || f.placeholder || f.label }}{{ f.required ? ' *' : '' }}</text><text class="dp-fp-arrow">▾</text></view>
+          </picker>
+          <picker v-else-if="f.type === 'radio' || f.type === 'select'" :range="fieldOptions(f)" @change="(e) => { ensureFormData(i); formData[i][f.label] = fieldOptions(f)[Number(e.detail.value)]; }">
+            <view class="dp-fp-select"><text>{{ (formData[i] && formData[i][f.label]) || f.placeholder || f.label }}{{ f.required ? ' *' : '' }}</text><text class="dp-fp-arrow">▾</text></view>
+          </picker>
+          <input v-else :type="f.type === 'number' ? 'number' : 'text'" :maxlength="f.type === 'phone' ? 11 : -1" :placeholder="(f.placeholder || f.label) + (f.required ? ' *' : '')" class="dp-fp-input" :value="formData[i][f.label] || ''" @input="(e) => { formData[i][f.label] = e.detail.value; }" />
+        </view>
+        <view class="dp-form-btn" :style="{ background: c.props.btnColor || '#165dff' }" @click="submitForm(i, c)"><text>{{ c.props.submitText || '提交' }}</text></view>
+      </view>
+      <!-- 客服联系 -->
+      <view v-else-if="c.type === 'contact'" class="dp-contact">
+        <view class="dp-contact-ico"><text>客</text></view>
+        <view class="dp-contact-body">
+          <text class="dp-contact-title">{{ c.props.title || '联系我们' }}</text>
+          <text class="dp-contact-line">{{ c.props.phone || '电话未填写' }}</text>
+          <text v-if="c.props.address" class="dp-contact-line">{{ c.props.address }}</text>
+        </view>
+        <view class="dp-contact-btn" :style="{ background: '#165dff' }" @click="callPhone(c.props)"><text>{{ c.props.btnText || '拨打电话' }}</text></view>
+      </view>
+      <!-- 悬浮按钮 -->
+      <view v-else-if="c.type === 'float-btn'" class="dp-float" :style="{ background: c.props.color || '#165dff', left: c.props.position === 'left' ? '12px' : 'auto', right: c.props.position === 'right' ? '12px' : 'auto' }" @click="onFloatClick(c.props)">
+        <text>{{ c.props.text || '联系我们' }}</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
+import { reactive } from 'vue';
+import { cardApi } from '../utils/cardApi.js';
 import SIcon from './SIcon.vue';
 const props = defineProps({
   comps: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
+  tenantId: { type: Number, default: 0 },
 });
+
+// 万能表单数据（按组件下标隔离，支持同页多个表单）
+const formData = reactive({});
+function ensureFormData(i) {
+  if (!formData[i]) formData[i] = {};
+  return formData[i];
+}
+function fieldOptions(f) {
+  const raw = f.options || '';
+  const arr = String(raw).split(/[,，]/).map((s) => s.trim()).filter(Boolean);
+  return arr.length ? arr : ['选项一', '选项二'];
+}
+async function submitForm(i, c) {
+  const values = ensureFormData(i);
+  const fields = c.props.fields || [];
+  const missing = fields.find((f) => f.required && !String(values[f.label] || '').trim());
+  if (missing) {
+    uni.showToast({ title: `请填写${missing.label}`, icon: 'none' });
+    return;
+  }
+  const payload = {
+    tenantId: props.tenantId || 0,
+    formTitle: c.props.title || '留资表单',
+    fields: fields.map((f) => ({ label: f.label, value: String(values[f.label] || '').trim() })),
+  };
+  try {
+    await cardApi.designLead(payload);
+    uni.showToast({ title: '提交成功', icon: 'success' });
+    values.__submitted = true;
+  } catch (e) {
+    uni.showToast({ title: e || '提交失败', icon: 'none' });
+  }
+}
+function callPhone(p) {
+  if (!p.phone) {
+    uni.showToast({ title: '未配置电话', icon: 'none' });
+    return;
+  }
+  uni.makePhoneCall({ phoneNumber: p.phone, fail: () => {} });
+}
+function onSearch(p) {
+  if (!p.link) {
+    uni.showToast({ title: '请先配置搜索跳转', icon: 'none' });
+    return;
+  }
+  onJump(p.link);
+}
+function onFloatClick(p) {
+  const link = p.link || '';
+  if (link.indexOf('tel:') === 0) {
+    uni.makePhoneCall({ phoneNumber: link.slice(4), fail: () => {} });
+    return;
+  }
+  onJump(link);
+}
 
 function resolveUrl(u) {
   if (!u) return '';
@@ -318,4 +431,38 @@ function openChannel(kind, p) {
 .dp-chl-empty { color: #86909c; font-size: 24px; }
 .dp-chl-badge { position: absolute; left: 8px; top: 8px; background: #f53f3f; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
 .dp-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
+/* 富文本 */
+.dp-richtext { font-size: 14px; color: #1d2129; line-height: 1.7; word-break: break-word; }
+/* 组图橱窗 */
+.dp-gallery { display: grid; width: 100%; }
+.dp-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
+.dp-gallery-img { width: 100%; height: 100%; }
+/* 标题栏 */
+.dp-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.dp-tb-left { display: flex; flex-direction: column; gap: 2px; }
+.dp-tb-title { font-size: 17px; font-weight: 600; line-height: 1.4; }
+.dp-tb-sub { font-size: 12px; color: #86909c; }
+.dp-tb-more { flex-shrink: 0; font-size: 12px; color: #86909c; }
+/* 搜索框 */
+.dp-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; }
+.dp-search-ico { font-size: 13px; }
+.dp-search-ph { flex: 1; }
+/* 选项卡 */
+.dp-tabs { display: flex; gap: 8px; }
+.dp-tabs-item { flex: 1; text-align: center; padding: 8px 4px; font-size: 14px; color: #4e5969; border-radius: 8px; background: #f7f8fa; }
+.dp-tabs-item.active { color: var(--tab, #165dff); background: rgba(22,93,255,.08); font-weight: 500; }
+/* 万能表单 */
+.dp-fp-field { margin-bottom: 10px; }
+.dp-fp-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 13px; color: #1d2129; }
+.dp-fp-select { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 13px; color: #86909c; }
+.dp-fp-arrow { color: #86909c; }
+/* 客服联系 */
+.dp-contact { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; background: #fff; }
+.dp-contact-ico { width: 44px; height: 44px; border-radius: 50%; background: rgba(22,93,255,.08); color: #165dff; font-size: 17px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dp-contact-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dp-contact-title { font-size: 15px; font-weight: 600; color: #1d2129; }
+.dp-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
+/* 悬浮按钮 */
+.dp-float { position: fixed; bottom: 32px; z-index: 99; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
 </style>

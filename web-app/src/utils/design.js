@@ -30,6 +30,7 @@ export function normalizeDesignConfig(raw) {
   const tabItems = Array.isArray(tab?.items) && tab.items.length ? tab.items : DEFAULT_DESIGN_TABS;
   const homePage = HOME_PAGE_MAP[cfg.homePage] ? cfg.homePage : 'card';
   return {
+    tenantId: cfg.tenantId || 0,
     style: { primaryColor: style.primaryColor || '#165DFF', radius: style.radius ?? 8 },
     tabItems: tabItems.map((it, i) => ({
       text: it.text || `导航${i + 1}`,

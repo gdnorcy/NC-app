@@ -81,4 +81,13 @@ describe('cardApi 请求封装', () => {
     expect(args.url).toBe('http://localhost:3000/api/card/distribution/apply');
     expect(args.method).toBe('POST');
   });
+
+  it('designLead 提交设计中心万能表单线索（POST /design/leads）', async () => {
+    mockResponse(200, { ok: true, message: '提交成功' });
+    await cardApi.designLead({ tenantId: 1, formTitle: '留资表单', fields: [{ label: '姓名', value: '李四' }] });
+    const args = uniMock.request.mock.calls[0][0];
+    expect(args.url).toBe('http://localhost:3000/api/card/design/leads');
+    expect(args.method).toBe('POST');
+    expect(args.data).toEqual({ tenantId: 1, formTitle: '留资表单', fields: [{ label: '姓名', value: '李四' }] });
+  });
 });

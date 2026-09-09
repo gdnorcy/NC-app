@@ -183,6 +183,8 @@ export const cardApi = {
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
     return request('/design/config' + qs);
   },
+  // 设计中心万能表单提交（访客留资，归集设计线索）
+  designLead: (data) => request('/design/leads', 'POST', data),
 };
 
 // 支付API

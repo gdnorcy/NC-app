@@ -1035,6 +1035,34 @@ export function createCardRouter(db, wxService) {
     }
   });
 
+  // 设计中心万能表单提交（访客留资，归集 design_leads）
+  router.post('/design/leads', (req, res) => {
+    try {
+      const { tenantId, formTitle, fields = [] } = req.body || {};
+      if (!tenantId) return res.status(400).json({ error: '租户参数缺失' });
+      const tenant = db.prepare('SELECT id FROM projects WHERE id = ?').get(Number(tenantId));
+      if (!tenant) return res.status(404).json({ error: '租户不存在' });
+      if (!Array.isArray(fields) || !fields.length) return res.status(400).json({ error: '表单内容为空' });
+      if (fields.length > 50) return res.status(400).json({ error: '表单项过多' });
+      const list = fields.slice(0, 50).map((f) => ({
+        label: String(f.label || '').trim().slice(0, 64),
+        value: String(f.value ?? '').trim().slice(0, 500),
+      })).filter((f) => f.label && f.value);
+      if (!list.length) return res.status(400).json({ error: '请至少填写一项内容' });
+      db.prepare(
+        `INSERT INTO design_leads (tenant_id, page_type, form_title, fields)
+         VALUES (?, 'home', ?, ?)`
+      ).run(
+        Number(tenantId),
+        String(formTitle || '留资表单').slice(0, 128),
+        JSON.stringify(list)
+      );
+      res.json({ ok: true, message: '提交成功，我们会尽快与您联系' });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // 行为埋点（第三批）
   // 游客事件：cardId 反查租户；登录事件：使用用户绑定的租户
   // ============================================================
