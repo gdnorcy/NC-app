@@ -37,10 +37,28 @@
       <text v-else>暂未获得类目股东身份，可以向租户管理员申请开通</text>
     </view>
 
+    <!-- 行业分组（类目股东多行业时按维度汇总+筛选） -->
+    <view v-if="catGroups.length" class="grp-wrap">
+      <view class="grp-tabs">
+        <view class="grp-tab" :class="{ on: activeCat === '' }" @click="activeCat = ''">全部</view>
+        <view v-for="g in catGroups" :key="g.category" class="grp-tab" :class="{ on: activeCat === g.category }" @click="activeCat = g.category">{{ g.category }}</view>
+      </view>
+      <view class="grp-cards">
+        <view class="grp-card">
+          <text class="gc-lb">待分红（元）</text>
+          <text class="gc-val">{{ fen(curCatPending) }}</text>
+        </view>
+        <view class="grp-card">
+          <text class="gc-lb">累计分红（元）</text>
+          <text class="gc-val">{{ fen(curCatTotal) }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 分红明细 -->
     <view class="sec-t">分红明细</view>
     <view class="log-list">
-      <view v-for="l in logs" :key="l.id" class="log-item">
+      <view v-for="l in showLogs" :key="l.id" class="log-item">
         <view class="log-top">
           <text class="log-type">{{ l.typeLabel }}</text>
           <text v-if="l.sourceCategory" class="log-src">来源行业：{{ l.sourceCategory }}</text>
@@ -55,7 +73,7 @@
           <text v-if="l.remark" class="log-rm">{{ l.remark }}</text>
         </view>
       </view>
-      <view v-if="!logs.length" class="empty">还没有产生分红，订单完成后分红会在这里展示</view>
+      <view v-if="!showLogs.length" class="empty">还没有产生分红，订单完成后分红会在这里展示</view>
     </view>
 
     <!-- 规则 -->
@@ -91,10 +109,16 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, shareTags: [], sharePending: 0, shareTotal: 0 });
+const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, shareTags: [], sharePending: 0, shareTotal: 0, shareCatGroups: [] });
 const showRules = ref(false);
 const logs = ref([]);
+const activeCat = ref('');
 const catTags = computed(() => summary.value.shareTags.filter((t) => t.startsWith('行业-')));
+const catGroups = computed(() => summary.value.shareCatGroups || []);
+const curCatGroup = computed(() => (activeCat.value ? (catGroups.value.find((g) => g.category === activeCat.value) || null) : null));
+const curCatPending = computed(() => (curCatGroup.value ? curCatGroup.value.pending : summary.value.shareCatPending || 0));
+const curCatTotal = computed(() => (curCatGroup.value ? curCatGroup.value.total : summary.value.shareCatTotal || 0));
+const showLogs = computed(() => (activeCat.value ? logs.value.filter((l) => l.sourceCategory === activeCat.value) : logs.value));
 
 function fen(v) { return ((Number(v) || 0) / 100).toFixed(2); }
 function stCls(s) { return { pending: 'st-p', settled: 'st-s', charged_back: 'st-c' }[s] || ''; }
@@ -107,10 +131,10 @@ async function loadAll() {
   try {
     summary.value = await cardApi.distSummary(identity.value);
   } catch (e) {
-    summary.value = { wallet: null, selfName: '我', selfAvatar: '', unbound: true, shareTags: [], sharePending: 0, shareTotal: 0 };
+    summary.value = { wallet: null, selfName: '我', selfAvatar: '', unbound: true, shareTags: [], sharePending: 0, shareTotal: 0, shareCatGroups: [] };
   }
   try {
-    const res = await cardApi.distLogs({ page: 1, pageSize: 20, type: 'share_cat', identityType: identity.value });
+    const res = await cardApi.distLogs({ page: 1, pageSize: 50, type: 'share_cat', identityType: identity.value });
     logs.value = res.list || [];
   } catch (e) { logs.value = []; }
 }
@@ -144,6 +168,14 @@ onShow(() => {
 .mr-lb { font-size: 22rpx; opacity: 0.85; }
 .mr-val { font-size: 32rpx; font-weight: 600; }
 .tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: 26rpx; border-radius: 16rpx; line-height: 1.6; }
+.grp-wrap { margin: 24rpx 32rpx 0; }
+.grp-tabs { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.grp-tab { font-size: 24rpx; padding: 10rpx 26rpx; border-radius: 999rpx; background: #fff; color: #4e5969; border: 1rpx solid #e5e6eb; }
+.grp-tab.on { background: #e8f3ff; color: #165dff; border-color: #165dff; font-weight: 500; }
+.grp-cards { margin-top: 16rpx; display: flex; gap: 16rpx; }
+.grp-card { flex: 1; background: #fff; border-radius: 16rpx; padding: 20rpx 24rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.gc-lb { font-size: 22rpx; color: #86909c; }
+.gc-val { font-size: 36rpx; font-weight: 700; color: #1d2129; }
 .sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
 .log-list { margin: 0 32rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
 .log-item { padding: 24rpx 0; border-top: 1rpx solid #f2f3f5; }

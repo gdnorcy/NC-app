@@ -39,7 +39,27 @@
       <view class="s-card"><view class="s-num">{{ fen(summary.partnerPending) }}</view><view class="s-lb">待分红(元)</view></view>
       <view class="s-card"><view class="s-num">{{ fen(summary.partnerTotal) }}</view><view class="s-lb">累计分红(元)</view></view>
       <view class="s-card"><view class="s-num">{{ partnerModeLabel }}</view><view class="s-lb">分红模式</view></view>
-      <view class="s-card"><view class="s-num">{{ summary.shareTags.find((t) => t.includes('合伙人')) ? '是' : '-' }}</view><view class="s-lb">合伙人身份</view></view>
+      <view class="s-card"><view class="s-num">{{ team.total }}</view><view class="s-lb">团队人数</view></view>
+    </view>
+
+    <!-- 我的团队（合伙人：沿下级链递归，仅团队流水模式展示） -->
+    <view v-if="summary.isPartner && team.total > 0" class="team-wrap">
+      <view class="sec-t">
+        我的团队
+        <text class="sec-sub">共 {{ team.total }} 人</text>
+      </view>
+      <view class="team-list">
+        <view v-for="m in team.list" :key="m.id" class="team-item">
+          <image v-if="m.avatar" class="team-avatar" :src="m.avatar" mode="aspectFill" />
+          <view v-else class="team-avatar placeholder">{{ (m.nickname || '微')[0] }}</view>
+          <view class="team-info">
+            <view class="team-name">{{ m.nickname || '微信用户' }}</view>
+            <view class="team-time">{{ m.createdAt }}</view>
+          </view>
+          <view class="team-level">第{{ m.level }}层</view>
+        </view>
+        <view v-if="!team.list.length" class="empty">团队还没有成员，快去推广邀请吧</view>
+      </view>
     </view>
 
     <!-- 分红明细 -->
@@ -98,6 +118,7 @@ const identityLabel = computed(() => (identity.value === 'employee' ? '企业员
 const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, isPartner: false, partnerPending: 0, partnerTotal: 0, shareTags: [], partnerMode: 0 });
 const showRules = ref(false);
 const logs = ref([]);
+const team = ref({ list: [], total: 0 });
 const partnerModeLabel = computed(() => {
   const mode = summary.value.partnerMode;
   return mode === 2 ? '全局流水分红' : (mode === 1 ? '团队流水分红' : '默认等级');
@@ -120,6 +141,14 @@ async function loadAll() {
     const res = await cardApi.distLogs({ page: 1, pageSize: 20, type: 'partner', identityType: identity.value });
     logs.value = res.list || [];
   } catch (e) { logs.value = []; }
+  if (summary.value.isPartner) {
+    try {
+      const t = await cardApi.distTeam(identity.value, 'all');
+      team.value = { list: t.team || [], total: t.total || 0 };
+    } catch (e) { team.value = { list: [], total: 0 }; }
+  } else {
+    team.value = { list: [], total: 0 };
+  }
 }
 
 onShow(() => {
@@ -155,6 +184,17 @@ onShow(() => {
 .s-num { font-size: 32rpx; font-weight: 700; color: #1d2129; }
 .s-lb { margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
 .sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
+.sec-sub { margin-left: 12rpx; font-size: 24rpx; color: #86909c; font-weight: 400; }
+.team-wrap { margin-top: 8rpx; }
+.team-list { margin: 0 32rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
+.team-item { display: flex; align-items: center; gap: 16rpx; padding: 20rpx 0; border-top: 1rpx solid #f2f3f5; }
+.team-item:first-child { border-top: none; }
+.team-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #e8f3ff; }
+.team-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #165dff; }
+.team-info { flex: 1; min-width: 0; }
+.team-name { font-size: 28rpx; color: #1d2129; }
+.team-time { margin-top: 6rpx; font-size: 22rpx; color: #c9cdd4; }
+.team-level { font-size: 22rpx; color: #165dff; background: #e8f3ff; padding: 4rpx 14rpx; border-radius: 999rpx; }
 .log-list { margin: 0 32rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
 .log-item { padding: 24rpx 0; border-top: 1rpx solid #f2f3f5; }
 .log-item:first-child { border-top: none; }

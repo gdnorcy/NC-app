@@ -1216,6 +1216,23 @@ export function createDistributionService(db) {
       // 微信订阅模板 ID（小程序端 requestSubscribeMessage 用）
       subTmplReview: distSub.tmplReview || '',
       subTmplDone: distSub.tmplDone || '',
+      // 类目/区域股东按维度分组（行业/地区维度待分红+累计，供 C 端分组展示）
+      shareCatGroups: db.prepare(`
+        SELECT s.category_id AS category,
+          SUM(CASE WHEN l.status = 'pending' THEN l.amount ELSE 0 END) AS pending,
+          SUM(CASE WHEN l.status IN ('pending','settled') THEN l.amount ELSE 0 END) AS total
+        FROM dist_user_log l LEFT JOIN dist_order_split s ON s.order_id = l.order_id AND s.tenant_id = l.tenant_id
+        WHERE l.tenant_id = ? AND l.user_id = ? AND l.identity_type = ? AND l.type = 'share_cat' AND s.category_id != ''
+        GROUP BY s.category_id
+      `).all(tenantId, userId, identityType),
+      shareAreaGroups: db.prepare(`
+        SELECT s.area_code AS area,
+          SUM(CASE WHEN l.status = 'pending' THEN l.amount ELSE 0 END) AS pending,
+          SUM(CASE WHEN l.status IN ('pending','settled') THEN l.amount ELSE 0 END) AS total
+        FROM dist_user_log l LEFT JOIN dist_order_split s ON s.order_id = l.order_id AND s.tenant_id = l.tenant_id
+        WHERE l.tenant_id = ? AND l.user_id = ? AND l.identity_type = ? AND l.type = 'share_area' AND s.area_code != ''
+        GROUP BY s.area_code
+      `).all(tenantId, userId, identityType),
       // 壳页卡片渲染依据：租户已开通的分销应用
       isEnableDist: !!pMap.dist,
       isEnablePartner: !!pMap.partner,
@@ -1262,6 +1279,29 @@ export function createDistributionService(db) {
         ? (() => { const pu = db.prepare('SELECT id, nickname, avatar FROM platform_user WHERE id = ?').get(myParent.pid1); return pu ? { userId: pu.id, nickname: pu.nickname || '微信用户', avatar: pu.avatar || '' } : null; })()
         : null,
     };
+  };
+
+  /** 合伙人「我的团队」：沿 pid1 递归收集全部团队成员（BFS，防环） */
+  svc.buildTeam = (tenantId, rootUserId, identityType) => {
+    const visited = new Set([String(rootUserId)]);
+    const queue = [{ id: rootUserId, depth: 0 }];
+    const team = [];
+    let guard = 0;
+    while (queue.length && guard++ < 5000) {
+      const cur = queue.shift();
+      const rows = db.prepare(`
+        SELECT r.user_id AS userId, r.bind_time AS bindTime, u.nickname, u.avatar
+        FROM dist_user_relation r LEFT JOIN platform_user u ON u.id = r.user_id
+        WHERE r.tenant_id = ? AND r.pid1 = ? AND r.identity_type = ? AND r.status = 'bound'
+      `).all(tenantId, cur.id, identityType);
+      for (const r of rows) {
+        if (visited.has(String(r.userId))) continue;
+        visited.add(String(r.userId));
+        team.push({ id: r.userId, nickname: r.nickname || '微信用户', avatar: r.avatar || '', createdAt: r.bindTime, level: cur.depth + 1 });
+        queue.push({ id: r.userId, depth: cur.depth + 1 });
+      }
+    }
+    return { team, total: team.length };
   };
 
   /** 我的下级客户列表（PRD 5.2：直推 pid1=me / 间推 pid2=me；含是否付费） */

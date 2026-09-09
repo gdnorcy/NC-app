@@ -649,7 +649,7 @@ export function createCardRouter(db, wxService) {
 
   // 我的分销中心汇总（钱包三键隔离 + 直推/间推 + 本月佣金 + 分销商申请状态 + 基本设置/关系设置透传）
   router.get('/distribution/summary', auth, (req, res) => {
-    if (!req.customerId) return res.json({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, unbound: true, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, shareAllPending: 0, shareAllTotal: 0, shareCatPending: 0, shareCatTotal: 0, shareAreaPending: 0, shareAreaTotal: 0, currentLevelName: '默认等级', currentLevelNo: 1, nextLevel: null, subTmplReview: '', subTmplDone: '', gate: 0, applyStatus: null, canApply: false, distName: '推广员', subName: '下级', bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', posterBadge: true, zeroOrder: false, showParent: false, showPhone: false, defaultLevel: '默认等级', parent: null });
+    if (!req.customerId) return res.json({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, unbound: true, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, shareAllPending: 0, shareAllTotal: 0, shareCatPending: 0, shareCatTotal: 0, shareAreaPending: 0, shareAreaTotal: 0, shareCatGroups: [], shareAreaGroups: [], currentLevelName: '默认等级', currentLevelNo: 1, nextLevel: null, subTmplReview: '', subTmplDone: '', gate: 0, applyStatus: null, canApply: false, distName: '推广员', subName: '下级', bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '', applyTopImg: '', promoteImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', posterBadge: true, zeroOrder: false, showParent: false, showPhone: false, defaultLevel: '默认等级', parent: null });
     const idt = req.query.identityType || req.user.identity_type || 'individual';
     const s = distribution.getSummary(req.customerId, req.user.id, idt);
     const apply = distribution.getApplyStatus(req.customerId, req.user.id, idt);
@@ -690,6 +690,8 @@ export function createCardRouter(db, wxService) {
       shareCatTotal: s.shareCatTotal,
       shareAreaPending: s.shareAreaPending,
       shareAreaTotal: s.shareAreaTotal,
+      shareCatGroups: s.shareCatGroups || [],
+      shareAreaGroups: s.shareAreaGroups || [],
       currentLevelName: s.currentLevelName || '默认等级',
       currentLevelNo: s.currentLevelNo || 1,
       nextLevel: s.nextLevel || null,
@@ -766,6 +768,10 @@ export function createCardRouter(db, wxService) {
   router.get('/distribution/team', auth, (req, res) => {
     if (!req.customerId) return res.json({ firstLevel: [], secondLevel: [] });
     const idt = req.query.identityType || req.user.identity_type || 'individual';
+    // 合伙人「我的团队」：沿 pid1 递归收集全部团队成员（BFS，防环）
+    if (req.query.scope === 'all') {
+      return res.json(distribution.buildTeam(req.customerId, req.user.id, idt));
+    }
     const firstLevel = db.prepare(
       'SELECT r.user_id as id, u.nickname, u.avatar, r.bind_time as createdAt FROM dist_user_relation r LEFT JOIN platform_user u ON u.id = r.user_id WHERE r.tenant_id = ? AND r.pid1 = ? AND r.identity_type = ? ORDER BY r.id DESC'
     ).all(req.customerId, req.user.id, idt);
