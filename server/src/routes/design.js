@@ -23,7 +23,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 素材单文件上限 5MB
 });
 
-const IMG_WHITELIST = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const IMG_WHITELIST = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default function createDesignRouter(db, deps = {}) {
   const router = Router();
@@ -86,7 +86,7 @@ export default function createDesignRouter(db, deps = {}) {
       }
       if (!req.file) return res.status(400).json({ error: '未收到文件' });
       if (!IMG_WHITELIST.includes(req.file.mimetype)) {
-        return res.status(400).json({ error: '仅支持 jpg / png / webp / gif 格式' });
+        return res.status(400).json({ error: '仅支持 jpg / png / webp 格式' });
       }
       try {
         const storage = await getStorage(db);
