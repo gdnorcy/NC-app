@@ -268,19 +268,20 @@
       </div>
     </section>
 
-    <!-- ============ 页面装修 ============ -->
+    <!-- ============ 页面装修（入口卡片 → 独立全屏编辑窗口） ============ -->
     <section v-if="activeTab === 'page'">
-      <AppPageHeader title="页面装修" desc="可视化拖拽编辑器：从左侧组件库添加标题/文本/图片/按钮等，支持草稿保存、发布与版本回滚">
-        <div class="hd-actions">
-          <el-select v-model="pageType" size="small" style="width: 150px">
-            <el-option value="home" label="首页" />
-            <el-option value="card" label="名片详情页" />
-            <el-option value="dynamic" label="个人动态页" />
-            <el-option value="mine" label="个人中心" />
-          </el-select>
-        </div>
+      <AppPageHeader title="页面装修" desc="选择要装修的页面，进入独立编辑窗口，支持拖拽组件、草稿保存、发布与版本回滚">
       </AppPageHeader>
-      <PageEditor :page-type="pageType" />
+      <div class="page-cards">
+        <div v-for="p in pageTypes" :key="p.value" class="page-card" @click="goEdit(p.value)">
+          <div class="page-card-top">
+            <span class="page-card-icon">{{ p.icon }}</span>
+            <span class="page-card-name">{{ p.label }}</span>
+          </div>
+          <div class="page-card-desc">{{ p.desc }}</div>
+          <el-button size="small" type="primary" plain class="page-card-btn">进入编辑 →</el-button>
+        </div>
+      </div>
     </section>
 
     <!-- 素材选择弹窗（全局复用：背景图/导航图标等） -->
@@ -311,11 +312,11 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, inject } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { EditPen, Delete, Close } from '@element-plus/icons-vue';
 import SIcon from '../../../../components/SIcon.vue';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
-import PageEditor from './PageEditor.vue';
 import { designCall } from '../../../../api';
 
 const tabs = [
@@ -338,7 +339,17 @@ onUnmounted(() => crumbExtra?.set(''));
 
 const API = '/design';
 const MAT = '/material';
-const pageType = ref('home');
+const router = useRouter();
+// 页面装修：入口卡片 → 独立全屏编辑窗口（/design/edit?pageType=xx）
+const pageTypes = [
+  { value: 'home', label: '首页', icon: '🏠', desc: '访客打开小程序/H5 首屏展示的页面' },
+  { value: 'card', label: '名片详情页', icon: '🪪', desc: '他人查看您名片时的详情展示页面' },
+  { value: 'dynamic', label: '个人动态页', icon: '📰', desc: '展示个人动态、作品与内容更新的页面' },
+  { value: 'mine', label: '个人中心', icon: '👤', desc: '个人中心入口与功能聚合页面' },
+];
+function goEdit(type) {
+  router.push({ path: '/design/edit', query: { pageType: type } });
+}
 function resolveUrl(u) {
   if (!u) return '';
   if (/^https?:|^data:|^blob:/.test(u)) return u;
@@ -605,9 +616,6 @@ async function delTemplate(t) {
   try { await designCall.post(`${API}/template/delete`, { id: t.id }); ElMessage.success('已删除'); loadTemplates(); } catch (e) { ElMessage.error(e); }
 }
 
-// ============ 页面装修（PageEditor 组件承载，页面类型切换） ============
-// pageType 已在脚本顶部声明（页面类型 radio 绑定）
-
 // ============ 素材选择弹窗 ============
 const imgSel = reactive({ show: false, title: '选择素材', cat: '', pick: null, target: null, targetIdx: null });
 const selMats = ref([]);
@@ -638,6 +646,19 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 页面装修：入口卡片 */
+.page-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.page-card {
+  background: #fff; border-radius: 8px; padding: 20px; cursor: pointer;
+  border: 1px solid #e5e6eb; display: flex; flex-direction: column; gap: 10px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.page-card:hover { border-color: #165dff; box-shadow: 0 2px 8px rgba(22,93,255,.12); }
+.page-card-top { display: flex; align-items: center; gap: 10px; }
+.page-card-icon { width: 40px; height: 40px; font-size: 22px; border-radius: 10px; background: rgba(22,93,255,.06); display: flex; align-items: center; justify-content: center; }
+.page-card-name { font-size: 15px; font-weight: 600; color: #1d2129; }
+.page-card-desc { font-size: 12px; color: #86909c; line-height: 1.5; min-height: 36px; }
+.page-card-btn { align-self: flex-start; margin-top: 2px; }
 .design-home { display: flex; flex-direction: column; gap: 16px; }
 /* 应用内 Tab：与 CardTabs.vue 一致的圆角块导航、激活主色、横向滚动 */
 .card-tabs {

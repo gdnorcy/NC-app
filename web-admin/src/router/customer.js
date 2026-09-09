@@ -4,6 +4,8 @@ import CustomerLayout from '../layouts/CustomerLayout.vue';
 
 const routes = [
   { path: '/login', component: () => import('../views/customer/Login.vue'), meta: { title: '登录' } },
+  // 设计中心·独立装修编辑窗口（无后台壳全屏，参考云菜鸟/eweishop）
+  { path: '/design/edit', component: () => import('../views/customer/apps/design/DesignEditorPage.vue'), meta: { title: '页面装修' } },
   {
     path: '/',
     component: CustomerLayout,
@@ -56,7 +58,7 @@ const routes = [
 
 /** 角色可访问路径集（含子菜单） */
 function allowedPaths(user) {
-  const set = new Set(['/login', '/dashboard', '/design']);
+  const set = new Set(['/login', '/dashboard', '/design', '/design/edit']);
   for (const m of buildSidebarMenus(user)) {
     set.add(m.path);
     for (const c of m.children || []) set.add(c.path);
