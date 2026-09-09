@@ -28,6 +28,9 @@ import iconChannelLive from '../../../../assets/comp-icons/wxlive.png';
 import iconSearch from '../../../../assets/comp-icons/search.png';
 import iconFloat from '../../../../assets/comp-icons/float.png';
 import iconCustomer from '../../../../assets/icons/svg/customer.svg';
+import iconDoc from '../../../../assets/icons/svg/doc.svg';
+import iconPc from '../../../../assets/icons/svg/pc.svg';
+import iconOfficial from '../../../../assets/icons/svg/official.svg';
 
 export const componentGroups = [
   { key: 'basic', name: '基础组件' },
@@ -64,6 +67,11 @@ export const COMP_ICONS = {
   'form-pro': iconForm,
   contact: iconCustomer,
   'float-btn': iconFloat,
+  'article-list': iconDoc,
+  'web-container': iconPc,
+  spacer: iconDivider,
+  'follow-official': iconOfficial,
+  'video-feed': iconVideo,
 };
 
 // 宫格导航图标选择器选项（系统 SVG 图标库，SIcon 双端通用）
@@ -496,6 +504,96 @@ export const componentRegistry = [
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market 或 tel:13800138000' },
       { key: 'color', label: '背景色', control: 'color', section: 'style' },
       { key: 'position', label: '位置', control: 'radio', section: 'style', options: [{ label: '右下', value: 'right' }, { label: '左下', value: 'left' }] },
+    ],
+  },
+  {
+    type: 'article-list',
+    name: '文章列表',
+    group: 'marketing',
+    icon: 'article-list',
+    defaultProps: {
+      title: '最新资讯',
+      items: [
+        { title: '文章标题一', desc: '这里是文章摘要内容，可点击查看详情…', date: '2026-09-09', image: '', link: '' },
+        { title: '文章标题二', desc: '这里是文章摘要内容，可点击查看详情…', date: '2026-09-08', image: '', link: '' },
+      ],
+      showDate: true,
+      columns: 1,
+    },
+    schema: [
+      { key: 'title', label: '板块标题', control: 'input', section: 'content' },
+      { key: 'items', label: '文章列表', control: 'list', section: 'content', itemTitleKey: 'title', itemFields: [
+        { key: 'title', label: '标题', control: 'input' },
+        { key: 'desc', label: '摘要', control: 'input' },
+        { key: 'date', label: '日期', control: 'input', placeholder: '如 2026-09-09' },
+        { key: 'image', label: '封面图', control: 'image' },
+        { key: 'link', label: '跳转链接', control: 'link' },
+      ] },
+      { key: 'showDate', label: '显示日期', control: 'switch', section: 'content' },
+      { key: 'columns', label: '每行几个', control: 'radio', section: 'content', options: [{ label: '单列', value: 1 }, { label: '双列', value: 2 }] },
+    ],
+  },
+  {
+    type: 'web-container',
+    name: '网页容器',
+    group: 'function',
+    icon: 'web-container',
+    defaultProps: { url: '', height: 400 },
+    schema: [
+      { key: 'url', label: '网页地址', control: 'input', section: 'content', placeholder: 'https://…' },
+      { key: 'height', label: '容器高度(px)', control: 'slider', section: 'content', min: 100, max: 1200 },
+    ],
+  },
+  {
+    type: 'spacer',
+    name: '辅助间距',
+    group: 'basic',
+    icon: 'spacer',
+    defaultProps: { height: 20, style: 'solid', color: '#E5E6EB', margin: 16 },
+    schema: [
+      { key: 'height', label: '线高(px)', control: 'slider', section: 'content', min: 1, max: 24 },
+      { key: 'style', label: '线型', control: 'radio', section: 'content', options: [{ label: '实线', value: 'solid' }, { label: '虚线', value: 'dashed' }, { label: '无线', value: 'none' }] },
+      { key: 'color', label: '颜色', control: 'color', section: 'style' },
+      { key: 'margin', label: '上下间距(px)', control: 'slider', section: 'style', min: 0, max: 48 },
+    ],
+  },
+  {
+    type: 'follow-official',
+    name: '关注公众号',
+    group: 'function',
+    icon: 'follow-official',
+    defaultProps: { title: '关注公众号', desc: '获取更多行业资讯与会员服务', qr: '', btnText: '长按识别关注' },
+    schema: [
+      { key: 'title', label: '标题', control: 'input', section: 'content' },
+      { key: 'desc', label: '说明文字', control: 'input', section: 'content' },
+      { key: 'qr', label: '二维码图', control: 'image', section: 'content' },
+      { key: 'btnText', label: '提示文字', control: 'input', section: 'content' },
+    ],
+  },
+  {
+    type: 'video-feed',
+    name: '短视频瀑布流',
+    group: 'marketing',
+    icon: 'video-feed',
+    defaultProps: {
+      title: '精彩视频',
+      items: [
+        { title: '视频标题一', cover: '', video: '', link: '' },
+        { title: '视频标题二', cover: '', video: '', link: '' },
+        { title: '视频标题三', cover: '', video: '', link: '' },
+        { title: '视频标题四', cover: '', video: '', link: '' },
+      ],
+      columns: 2,
+    },
+    schema: [
+      { key: 'title', label: '板块标题', control: 'input', section: 'content' },
+      { key: 'items', label: '视频列表', control: 'list', section: 'content', itemTitleKey: 'title', itemFields: [
+        { key: 'title', label: '标题', control: 'input' },
+        { key: 'cover', label: '封面图', control: 'image' },
+        { key: 'video', label: '视频地址', control: 'input', placeholder: 'mp4 链接' },
+        { key: 'link', label: '跳转链接', control: 'link' },
+      ] },
+      { key: 'columns', label: '每行几个', control: 'radio', section: 'content', options: [{ label: '双列', value: 2 }, { label: '三列', value: 3 }] },
     ],
   },
 ];

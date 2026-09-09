@@ -196,12 +196,64 @@
       <view v-else-if="c.type === 'float-btn'" class="dp-float" :style="{ background: c.props.color || '#165dff', left: c.props.position === 'left' ? '12px' : 'auto', right: c.props.position === 'right' ? '12px' : 'auto' }" @click="onFloatClick(c.props)">
         <text>{{ c.props.text || '联系我们' }}</text>
       </view>
+      <!-- 文章列表 -->
+      <view v-else-if="c.type === 'article-list'" class="dp-article">
+        <text v-if="c.props.title" class="dp-article-title">{{ c.props.title }}</text>
+        <view class="dp-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 1) + ', 1fr)' }">
+          <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-article-item" @click="onJump(it.link)">
+            <image v-if="it.image" :src="resolveUrl(it.image)" mode="aspectFill" class="dp-article-img" />
+            <view v-else class="dp-article-img dp-article-img-empty"><text>图</text></view>
+            <view class="dp-article-body">
+              <text class="dp-article-t">{{ it.title || '文章标题' }}</text>
+              <text v-if="it.desc" class="dp-article-d">{{ it.desc }}</text>
+              <text v-if="c.props.showDate" class="dp-article-date">{{ it.date || '2026-01-01' }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <!-- 网页容器 -->
+      <view v-else-if="c.type === 'web-container'" class="dp-web" :style="{ height: (c.props.height || 400) + 'px' }">
+        <!-- #ifdef H5 -->
+        <iframe v-if="c.props.url" :src="c.props.url" class="dp-web-frame" />
+        <view v-else class="dp-web-empty"><text>网页容器</text></view>
+        <!-- #endif -->
+        <!-- #ifndef H5 -->
+        <view class="dp-web-empty" @click="onJump(c.props.url)"><text>网页容器</text><text class="dp-web-tip">小程序端暂不支持内嵌网页，点击打开链接</text></view>
+        <!-- #endif -->
+      </view>
+      <!-- 辅助间距 -->
+      <view v-else-if="c.type === 'spacer'" class="dp-spacer" :style="{ margin: (c.props.margin ?? 16) + 'px 0', borderTop: c.props.style === 'none' ? 'none' : (c.props.height || 20) + 'px ' + (c.props.style || 'solid') + ' ' + (c.props.color || '#E5E6EB') }"></view>
+      <!-- 关注公众号 -->
+      <view v-else-if="c.type === 'follow-official'" class="dp-follow">
+        <view class="dp-follow-body">
+          <text class="dp-follow-title">{{ c.props.title || '关注公众号' }}</text>
+          <text v-if="c.props.desc" class="dp-follow-desc">{{ c.props.desc }}</text>
+        </view>
+        <image v-if="c.props.qr" :src="resolveUrl(c.props.qr)" mode="aspectFill" class="dp-follow-qr" show-menu-by-longpress />
+        <view v-else class="dp-follow-qr dp-follow-qr-empty"><text>二维码</text></view>
+        <view class="dp-follow-btn"><text>{{ c.props.btnText || '长按识别关注' }}</text></view>
+      </view>
+      <!-- 短视频瀑布流 -->
+      <view v-else-if="c.type === 'video-feed'" class="dp-vfeed">
+        <text v-if="c.props.title" class="dp-vfeed-title">{{ c.props.title }}</text>
+        <view class="dp-vfeed-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 2) + ', 1fr)' }">
+          <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-vfeed-item" @click="openFeedItem(it)">
+            <view class="dp-vfeed-cover">
+              <image v-if="it.cover" :src="resolveUrl(it.cover)" mode="aspectFill" class="dp-vfeed-cover-img" />
+              <view v-else class="dp-vfeed-cover-empty"><text>视频</text></view>
+              <view class="dp-vfeed-play"><text>▶</text></view>
+            </view>
+            <text class="dp-vfeed-t">{{ it.title || '视频标题' }}</text>
+          </view>
+        </view>
+        <video v-if="feedVideo" :src="feedVideo" class="dp-vfeed-player" controls autoplay @ended="feedVideo = ''" @error="feedVideo = ''" />
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { cardApi } from '../utils/cardApi.js';
 import SIcon from './SIcon.vue';
 const props = defineProps({
@@ -263,6 +315,15 @@ function onFloatClick(p) {
     return;
   }
   onJump(link);
+}
+// 短视频瀑布流：优先播放 mp4，否则跳转链接
+const feedVideo = ref('');
+function openFeedItem(it) {
+  if (it.video) {
+    feedVideo.value = resolveUrl(it.video);
+    return;
+  }
+  if (it.link) onJump(it.link);
 }
 
 function resolveUrl(u) {
@@ -465,4 +526,35 @@ function openChannel(kind, p) {
 .dp-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
 /* 悬浮按钮 */
 .dp-float { position: fixed; bottom: 32px; z-index: 99; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.dp-article { padding: 2px 0; }
+.dp-article-title { font-size: 15px; font-weight: 600; color: #1d2129; display: block; margin-bottom: 10px; }
+.dp-article-grid { display: grid; gap: 10px; }
+.dp-article-item { border: 1px solid #f0f1f3; border-radius: 10px; padding: 10px; display: flex; gap: 10px; background: #fff; }
+.dp-article-img { width: 92px; height: 66px; border-radius: 8px; flex-shrink: 0; overflow: hidden; }
+.dp-article-img-empty { background: #f7f8fa; display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 12px; }
+.dp-article-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dp-article-t { font-size: 14px; color: #1d2129; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-article-d { font-size: 12px; color: #86909c; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dp-article-date { font-size: 11px; color: #c9cdd4; margin-top: auto; padding-top: 4px; }
+.dp-web { border-radius: 8px; overflow: hidden; background: #f7f8fa; }
+.dp-web-frame { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+.dp-web-empty { height: 100%; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 13px; }
+.dp-web-tip { font-size: 11px; color: #c9cdd4; }
+.dp-spacer { width: 100%; }
+.dp-follow { display: flex; align-items: center; gap: 10px; border: 1px solid #f0f1f3; border-radius: 10px; padding: 12px; background: #fff; }
+.dp-follow-body { flex: 1; min-width: 0; }
+.dp-follow-title { font-size: 14px; font-weight: 600; color: #1d2129; display: block; }
+.dp-follow-desc { font-size: 12px; color: #86909c; margin-top: 3px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-follow-qr { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; }
+.dp-follow-qr-empty { background: #f7f8fa; display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 11px; }
+.dp-follow-btn { font-size: 12px; color: #165dff; border: 1px solid #165dff; border-radius: 8px; padding: 6px 12px; flex-shrink: 0; }
+.dp-vfeed-title { font-size: 15px; font-weight: 600; color: #1d2129; display: block; margin-bottom: 10px; }
+.dp-vfeed-grid { display: grid; gap: 8px; }
+.dp-vfeed-item { border: 1px solid #f0f1f3; border-radius: 10px; overflow: hidden; background: #fff; }
+.dp-vfeed-cover { position: relative; aspect-ratio: 3/4; background: #f7f8fa; }
+.dp-vfeed-cover-img { width: 100%; height: 100%; }
+.dp-vfeed-cover-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 12px; }
+.dp-vfeed-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+.dp-vfeed-t { font-size: 12px; color: #1d2129; padding: 7px 8px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-vfeed-player { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-50%); width: 100%; height: 220px; z-index: 999; background: #000; }
 </style>

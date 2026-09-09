@@ -621,3 +621,16 @@ npm run test:frontend
 - **悬浮按钮（float-btn）**：text/link/color/position(right|left)；C 端 fixed 右下/左下（right:12px/left:12px），onFloatClick 判断 link 是否 http(s) 跳外部 / uni URL 跳页面。
 - **构建验证**：`rm -rf server/public/card/assets` 再 cp（uni build 不清理旧 chunk）；小程序产物 DesignPage.js 查「留资表单/请输入姓名」标记（class 名会被压缩，勿用 dp-* class 名 grep 判定小程序产物）；浏览器验证前清 SW（regs=0 时 reload 即可，旧 chunk 若已加载需 reload 换新哈希文件）。
 - **测试**：cardApi.test.js 新增 designLead 用例（POST /design/leads + data 透传），前端基线 36 passed / 4 files。
+
+## P2 内容展示组件（5 组件批，2026-09-09 新增）
+
+- **新增 5 组件**（营销 2：文章列表 article-list / 短视频瀑布流 video-feed；功能 2：网页容器 web-container / 关注公众号 follow-official；基础 1：辅助间距 spacer）：registry 数据驱动 + ComponentRender/DesignPage 双端渲染分支；图标：doc.svg（文章）/ pc.svg（网页）/ line.png（间距，eweishop 原版）/ official.svg（公众号）/ video.png（短视频复用）。
+- **文章列表**：title + items list（title/desc/date/image/link）+ showDate + columns(1|2)；C 端列表卡片（封面/标题/摘要/日期），点击 onJump(link)。
+- **网页容器**：url + height(100~1200)；**H5 端 iframe 渲染（sandbox allow-scripts/allow-same-origin/allow-forms），小程序端条件编译占位卡片 + 点击 onJump 打开链接**（web-view 在组件内不可用，不硬接）。
+- **辅助间距**：height(1~24) + style(solid|dashed|none) + color + margin(0~48)；C 端 borderTop 内联样式渲染，style=none 时纯空白。
+- **关注公众号**：title/desc/qr(image)/btnText；C 端 image 加 `show-menu-by-longpress`（小程序长按识别二维码，H5 同样支持）。
+- **短视频瀑布流**：title + items list（title/cover/video/link）+ columns(2|3)；C 端双列瀑布流卡片（封面 3:4 + 播放角标），点击 openFeedItem：**有 video 时 ref feedVideo 打开页内 video 播放层（fixed 居中，ended/error 清空），否则 onJump(link)**；feedVideo 用 `ref('')`（DesignPage 已 import ref）。
+- **C 端新增模板函数注意**：openFeedItem 等新函数必须定义在 <script setup> 顶层并 return 到模板（模板调用 `@click="openFeedItem(it)"`），同页多个实例互不干扰。
+- **小程序产物判定**：P2 组件 type 字符串（article-list/web-container/follow-official/video-feed）grep 各 ≥2（模板+逻辑）；spacer 无 class 标记（内联 borderTop），用「辅助间距」文案或无标记均属正常。
+- **构建验证**：admin build+verify、H5 同步（rm -rf assets 再 cp）、mp-weixin 构建；组件库总数 = 32（基础 15/营销 9/功能 8）。
+- **测试**：前端基线保持 36 passed / 4 files（P2 无新纯函数，复用 onJump/resolveUrl，不新增测试）。

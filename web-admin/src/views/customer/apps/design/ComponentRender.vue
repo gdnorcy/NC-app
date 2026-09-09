@@ -215,6 +215,59 @@
     <template v-else-if="comp.type === 'float-btn'">
       <div class="r-float" :style="{ background: comp.props.color || '#165DFF', left: comp.props.position === 'left' ? '12px' : 'auto', right: comp.props.position === 'right' ? '12px' : 'auto' }">{{ comp.props.text || '联系我们' }}</div>
     </template>
+    <!-- 文章列表 -->
+    <template v-else-if="comp.type === 'article-list'">
+      <div class="r-article">
+        <div v-if="comp.props.title" class="r-article-title">{{ comp.props.title }}</div>
+        <div class="r-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 1) + ',1fr)' }">
+          <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-article-item">
+            <div v-if="it.image" class="r-article-img"><img :src="resolveUrl(it.image)" /></div>
+            <div v-else class="r-article-img r-article-img-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+            <div class="r-article-body">
+              <div class="r-article-t">{{ it.title || '文章标题' }}</div>
+              <div v-if="it.desc" class="r-article-d">{{ it.desc }}</div>
+              <div v-if="comp.props.showDate" class="r-article-date">{{ it.date || '2026-01-01' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+    <!-- 网页容器 -->
+    <template v-else-if="comp.type === 'web-container'">
+      <div class="r-web" :style="{ height: (comp.props.height || 400) + 'px' }">
+        <iframe v-if="comp.props.url" :src="comp.props.url" class="r-web-frame" sandbox="allow-scripts allow-same-origin allow-forms" />
+        <div v-else class="r-web-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M7 7h.01"/></svg><span>网页容器（填写地址后展示）</span></div>
+      </div>
+    </template>
+    <!-- 辅助间距 -->
+    <template v-else-if="comp.type === 'spacer'">
+      <div class="r-spacer" :style="{ margin: (comp.props.margin ?? 16) + 'px 0', borderTop: comp.props.style === 'none' ? 'none' : (comp.props.height || 20) + 'px ' + (comp.props.style || 'solid') + ' ' + (comp.props.color || '#E5E6EB') }"></div>
+    </template>
+    <!-- 关注公众号 -->
+    <template v-else-if="comp.type === 'follow-official'">
+      <div class="r-follow">
+        <div class="r-follow-body">
+          <div class="r-follow-title">{{ comp.props.title || '关注公众号' }}</div>
+          <div v-if="comp.props.desc" class="r-follow-desc">{{ comp.props.desc }}</div>
+        </div>
+        <div v-if="comp.props.qr" class="r-follow-qr"><img :src="resolveUrl(comp.props.qr)" /></div>
+        <div v-else class="r-follow-qr r-follow-qr-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><path d="M13 13h3v3h-3zM17 13h3v3h-3z"/></svg></div>
+        <div class="r-follow-btn">{{ comp.props.btnText || '长按识别关注' }}</div>
+      </div>
+    </template>
+    <!-- 短视频瀑布流 -->
+    <template v-else-if="comp.type === 'video-feed'">
+      <div class="r-vfeed">
+        <div v-if="comp.props.title" class="r-vfeed-title">{{ comp.props.title }}</div>
+        <div class="r-vfeed-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 2) + ',1fr)' }">
+          <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-vfeed-item">
+            <div v-if="it.cover" class="r-vfeed-cover"><img :src="resolveUrl(it.cover)" /><span class="r-vfeed-play"><svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" stroke="#fff" stroke-width="2"><path d="M8 5v14l11-7z"/></svg></span></div>
+            <div v-else class="r-vfeed-cover r-vfeed-cover-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></div>
+            <div class="r-vfeed-t">{{ it.title || '视频标题' }}</div>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -360,5 +413,35 @@ function resolveUrl(u) {
 .r-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
 /* 悬浮按钮 */
 .r-float { position: absolute; bottom: 12px; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.r-article-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
+.r-article-grid { display: grid; gap: 10px; }
+.r-article-item { border: 1px solid #f0f1f3; border-radius: 8px; padding: 8px; display: flex; gap: 10px; }
+.r-article-img { width: 84px; height: 60px; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+.r-article-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.r-article-img-empty { background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
+.r-article-body { flex: 1; min-width: 0; }
+.r-article-t { font-size: 13px; color: #1d2129; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-article-d { font-size: 11px; color: #86909c; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.r-article-date { font-size: 10px; color: #c9cdd4; margin-top: 4px; }
+.r-web { border: 1px dashed #e5e6eb; border-radius: 8px; overflow: hidden; position: relative; background: #f7f8fa; }
+.r-web-frame { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+.r-web-empty { height: 100%; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; }
+.r-spacer { width: 100%; }
+.r-follow { display: flex; align-items: center; gap: 10px; border: 1px solid #f0f1f3; border-radius: 8px; padding: 12px; background: #fff; }
+.r-follow-body { flex: 1; min-width: 0; }
+.r-follow-title { font-size: 13px; font-weight: 600; color: #1d2129; }
+.r-follow-desc { font-size: 11px; color: #86909c; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-follow-qr { width: 48px; height: 48px; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+.r-follow-qr img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.r-follow-qr-empty { background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
+.r-follow-btn { font-size: 11px; color: #165dff; border: 1px solid #165dff; border-radius: 6px; padding: 4px 10px; flex-shrink: 0; }
+.r-vfeed-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
+.r-vfeed-grid { display: grid; gap: 8px; }
+.r-vfeed-item { border: 1px solid #f0f1f3; border-radius: 8px; overflow: hidden; }
+.r-vfeed-cover { position: relative; aspect-ratio: 3/4; background: #f7f8fa; }
+.r-vfeed-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.r-vfeed-cover-empty { display: flex; align-items: center; justify-content: center; }
+.r-vfeed-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
+.r-vfeed-t { font-size: 11px; color: #1d2129; padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .comp-render { position: relative; }
 </style>
