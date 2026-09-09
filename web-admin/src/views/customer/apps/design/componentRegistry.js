@@ -27,7 +27,7 @@ import iconChannelVideo from '../../../../assets/comp-icons/channelvideo.png';
 import iconChannelLive from '../../../../assets/comp-icons/wxlive.png';
 import iconSearch from '../../../../assets/comp-icons/search.png';
 import iconFloat from '../../../../assets/comp-icons/float.png';
-import iconCustomer from '../../../../assets/icons/svg/customer.svg';
+import iconContact from '../../../../assets/comp-icons/contact.png';
 import iconArticle from '../../../../assets/comp-icons/article.png';
 import iconWeb from '../../../../assets/comp-icons/web.png';
 import iconFollow from '../../../../assets/comp-icons/follow.png';
@@ -65,7 +65,7 @@ export const COMP_ICONS = {
   search: iconSearch,
   tabs: iconButton,
   'form-pro': iconForm,
-  contact: iconCustomer,
+  contact: iconContact,
   'float-btn': iconFloat,
   'article-list': iconArticle,
   'web-container': iconWeb,
