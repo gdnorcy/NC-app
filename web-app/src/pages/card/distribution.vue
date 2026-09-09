@@ -267,6 +267,7 @@
                 <text class="level-name">{{ lv.name }}</text>
                 <text v-if="lv.level_no === summary.currentLevelNo" class="level-cur">当前等级</text>
               </view>
+              <view v-if="lv.benefits" class="level-benefit">{{ lv.benefits }}</view>
               <view class="level-meta">累计收益 ≥ {{ fen(lv.min_total_income) }} 元 · 直推 ≥ {{ lv.min_direct }} 人</view>
             </view>
           </view>
@@ -653,6 +654,7 @@ onShow(() => {
 .level-name { font-size: 28rpx; font-weight: 600; color: #1d2129; }
 .level-cur { font-size: 20rpx; color: #165dff; background: #e8f3ff; padding: 2rpx 12rpx; border-radius: 999rpx; }
 .level-meta { margin-top: 6rpx; font-size: 22rpx; color: #86909c; }
+.level-benefit { margin-top: 8rpx; padding: 10rpx 14rpx; background: #f7f8fa; border-radius: 10rpx; font-size: 24rpx; color: #4e5969; line-height: 1.6; }
 .level-tip { margin-top: 16rpx; color: #86909c; }
 .user-next { margin-top: 12rpx; font-size: 24rpx; opacity: 0.92; display: inline-flex; align-items: center; gap: 6rpx; }
 .user-parent { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }

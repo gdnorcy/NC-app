@@ -144,33 +144,34 @@ export function createDistributionService(db) {
     if (!rows.length) {
       const base = db.prepare('SELECT * FROM dist_level WHERE tenant_id = 0 ORDER BY level_no ASC').all();
       if (base.length) {
-        const ins = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct) VALUES (?, ?, ?, ?, ?)');
-        for (const b of base) ins.run(tenantId, b.level_no, b.name, b.min_total_income, b.min_direct);
+        const ins = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct, benefits) VALUES (?, ?, ?, ?, ?, ?)');
+        for (const b of base) ins.run(tenantId, b.level_no, b.name, b.min_total_income, b.min_direct, b.benefits || '');
         return db.prepare('SELECT * FROM dist_level WHERE tenant_id = ? ORDER BY level_no ASC').all(tenantId);
       }
-      return [{ id: 0, tenant_id: tenantId, level_no: 1, name: '默认等级', min_total_income: 0, min_direct: 0 }];
+      return [{ id: 0, tenant_id: tenantId, level_no: 1, name: '默认等级', min_total_income: 0, min_direct: 0, benefits: '' }];
     }
     return rows;
   };
 
   /** 保存等级（upsert；id 存在则更新，否则按 level_no 插入；重名/序号冲突自动去重） */
-  svc.saveLevel = (tenantId, { id, levelNo, name, minTotalIncome, minDirect } = {}) => {
+  svc.saveLevel = (tenantId, { id, levelNo, name, minTotalIncome, minDirect, benefits } = {}) => {
     const no = Math.max(1, Math.min(99, Number(levelNo) || 1));
     const nm = String(name || '默认等级').trim().slice(0, 32) || '默认等级';
     const inc = Math.max(0, Number(minTotalIncome) || 0);
     const dir = Math.max(0, Number(minDirect) || 0);
+    const bn = String(benefits || '').trim().slice(0, 500);
     if (id) {
-      db.prepare('UPDATE dist_level SET level_no=?, name=?, min_total_income=?, min_direct=?, updated_at=datetime(\'now\') WHERE id=? AND tenant_id=?')
-        .run(no, nm, inc, dir, id, tenantId);
+      db.prepare('UPDATE dist_level SET level_no=?, name=?, min_total_income=?, min_direct=?, benefits=?, updated_at=datetime(\'now\') WHERE id=? AND tenant_id=?')
+        .run(no, nm, inc, dir, bn, id, tenantId);
       return db.prepare('SELECT * FROM dist_level WHERE id = ?').get(id);
     }
     const exist = db.prepare('SELECT id FROM dist_level WHERE tenant_id = ? AND level_no = ?').get(tenantId, no);
     if (exist) {
-      db.prepare('UPDATE dist_level SET name=?, min_total_income=?, min_direct=?, updated_at=datetime(\'now\') WHERE id=?')
-        .run(nm, inc, dir, exist.id);
+      db.prepare('UPDATE dist_level SET name=?, min_total_income=?, min_direct=?, benefits=?, updated_at=datetime(\'now\') WHERE id=?')
+        .run(nm, inc, dir, bn, exist.id);
       return db.prepare('SELECT * FROM dist_level WHERE id = ?').get(exist.id);
     }
-    const r = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct) VALUES (?, ?, ?, ?, ?)').run(tenantId, no, nm, inc, dir);
+    const r = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct, benefits) VALUES (?, ?, ?, ?, ?, ?)').run(tenantId, no, nm, inc, dir, bn);
     return db.prepare('SELECT * FROM dist_level WHERE id = ?').get(r.lastInsertRowid);
   };
 

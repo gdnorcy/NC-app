@@ -2109,20 +2109,37 @@ function seedDistribution(db) {
       name TEXT NOT NULL DEFAULT '默认等级',          -- 等级名
       min_total_income INTEGER NOT NULL DEFAULT 0,  -- 升级门槛：累计收益（分）
       min_direct INTEGER NOT NULL DEFAULT 0,        -- 升级门槛：直推人数
+      benefits TEXT NOT NULL DEFAULT '',            -- 等级权益描述（自定义文案，C 端等级说明展示）
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(tenant_id, level_no)
     );
     CREATE INDEX IF NOT EXISTS idx_dist_level_tenant ON dist_level(tenant_id);
   `);
+  // dist_level.benefits：等级权益描述（幂等迁移，放在 exec 之外）
+  if (tableExists(db, 'dist_level') && !colExists(db, 'dist_level', 'benefits')) {
+    db.exec("ALTER TABLE dist_level ADD COLUMN benefits TEXT NOT NULL DEFAULT ''");
+  }
+  // 平台模板（tenant 0）等级权益文案补默认值（幂等：仅模板租户且为空时）
+  try {
+    const tpl = db.prepare("SELECT id, level_no, benefits FROM dist_level WHERE tenant_id = 0 AND benefits = ''").all();
+    const tplBenefit = {
+      1: '开通即可参与推广；分享名片或推广码，客户付费后获得推广佣金',
+      2: '解锁专属推广海报角标；佣金比例与结算周期维持标准档；优先获得平台推广活动参与资格',
+      3: '专属黄金徽标与高级海报模板；更高的佣金结算优先级；新品与活动优先内测资格',
+    };
+    for (const lv of tpl) {
+      if (tplBenefit[lv.level_no]) db.prepare("UPDATE dist_level SET benefits = ?, updated_at = datetime('now') WHERE id = ?").run(tplBenefit[lv.level_no], lv.id);
+    }
+  } catch {}
   // 默认等级种子（仅当该租户没有任何等级配置时插入，幂等）
   try {
     const levelCnt = db.prepare('SELECT COUNT(*) AS c FROM dist_level').get();
     if (levelCnt.c === 0) {
-      const insLv = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct) VALUES (?, ?, ?, ?, ?)');
-      insLv.run(0, 1, '默认等级', 0, 0);
-      insLv.run(0, 2, '白银推广员', 100000, 10);   // 累计收益 ¥1000 或直推 10 人
-      insLv.run(0, 3, '黄金推广员', 500000, 30);   // 累计收益 ¥5000 或直推 30 人
+      const insLv = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct, benefits) VALUES (?, ?, ?, ?, ?, ?)');
+      insLv.run(0, 1, '默认等级', 0, 0, '开通即可参与推广；分享名片或推广码，客户付费后获得推广佣金');
+      insLv.run(0, 2, '白银推广员', 100000, 10, '解锁专属推广海报角标；佣金比例与结算周期维持标准档；优先获得平台推广活动参与资格');   // 累计收益 ¥1000 或直推 10 人
+      insLv.run(0, 3, '黄金推广员', 500000, 30, '专属黄金徽标与高级海报模板；更高的佣金结算优先级；新品与活动优先内测资格');   // 累计收益 ¥5000 或直推 30 人
     }
   } catch {}
 }

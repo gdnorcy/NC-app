@@ -1086,4 +1086,22 @@ describe('分销体系（分销裂变底座）', () => {
       db.prepare('DELETE FROM platform_user WHERE id = ?').run(UID);
     }
   });
+
+  it('P13 等级权益描述：benefits 落库 + getLevels/upgrade 透传', () => {
+    try {
+      const lv = dist.saveLevel(TENANT, { levelNo: 9, name: '测试等级', minTotalIncome: 500, minDirect: 2, benefits: '解锁专属海报角标；优先参与活动' });
+      assert.equal(lv.benefits, '解锁专属海报角标；优先参与活动', 'benefits 落库');
+      const levels = dist.getLevels(TENANT);
+      const lv9 = levels.find((l) => l.level_no === 9);
+      assert.ok(lv9 && lv9.benefits.includes('海报角标'), 'getLevels 透传 benefits');
+      // 更新（PUT 路径：带 id）
+      const lv2 = dist.saveLevel(TENANT, { id: lv.id, levelNo: 9, name: '测试等级', minTotalIncome: 500, minDirect: 2, benefits: '新权益文案' });
+      assert.equal(lv2.benefits, '新权益文案', '更新 benefits');
+      // 空字符串兜底
+      const lv3 = dist.saveLevel(TENANT, { id: lv.id, levelNo: 9, name: '测试等级', minTotalIncome: 500, minDirect: 2, benefits: '   ' });
+      assert.equal(lv3.benefits, '', '空白描述存空串');
+    } finally {
+      db.prepare('DELETE FROM dist_level WHERE tenant_id = ? AND level_no = 9').run(TENANT);
+    }
+  });
 });

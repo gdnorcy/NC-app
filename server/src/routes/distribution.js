@@ -400,6 +400,7 @@ export function createDistributionRouter(db) {
       name: req.body.name,
       minTotalIncome: req.body.minTotalIncome,
       minDirect: req.body.minDirect,
+      benefits: req.body.benefits,
     });
     res.json({ ok: true, level: lv });
   });
@@ -410,6 +411,7 @@ export function createDistributionRouter(db) {
       name: req.body.name,
       minTotalIncome: req.body.minTotalIncome,
       minDirect: req.body.minDirect,
+      benefits: req.body.benefits,
     });
     res.json({ ok: true, level: lv });
   });

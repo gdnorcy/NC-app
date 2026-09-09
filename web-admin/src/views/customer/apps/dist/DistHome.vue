@@ -236,6 +236,11 @@
                     <span>{{ row.min_direct > 0 ? row.min_direct + ' 人' : '不设' }}</span>
                   </template>
                 </el-table-column>
+                <el-table-column label="权益描述" min-width="220">
+                  <template #default="{ row }">
+                    <span class="text-muted ellipsis-l2">{{ row.benefits || '—' }}</span>
+                  </template>
+                </el-table-column>
                 <el-table-column label="操作" width="130">
                   <template #default="{ row }">
                     <el-button link type="primary" size="small" @click="openLevelDialog(row)">编辑</el-button>
@@ -290,6 +295,10 @@
           <el-form-item label="直推人数门槛">
             <el-input-number v-model="levelDialog.form.minDirect" :min="0" :step="1" />
             <span class="form-tip">直推人数达到即升级（0 = 不设人数门槛）；任一达标即升级</span>
+          </el-form-item>
+          <el-form-item label="等级权益描述">
+            <el-input v-model="levelDialog.form.benefits" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="如：解锁专属海报角标；优先参与平台活动（展示在 C 端等级说明弹层，可留空）" />
+            <span class="form-tip">C 端「等级说明」弹层展示的权益文案，可留空（留空时显示升级门槛）</span>
           </el-form-item>
         </el-form>
         <template #footer>
@@ -898,7 +907,7 @@ async function saveConfig() {
 const levels = ref([]);
 const levelLoading = ref(false);
 const levelSaving = ref(false);
-const levelDialog = reactive({ show: false, form: { id: null, levelNo: 1, name: '', minTotalIncome: 0, minDirect: 0 } });
+const levelDialog = reactive({ show: false, form: { id: null, levelNo: 1, name: '', minTotalIncome: 0, minDirect: 0, benefits: '' } });
 async function loadLevels() {
   levelLoading.value = true;
   try {
@@ -908,8 +917,8 @@ async function loadLevels() {
 }
 function openLevelDialog(row) {
   levelDialog.form = row
-    ? { id: row.id, levelNo: row.level_no, name: row.name, minTotalIncome: row.min_total_income > 0 ? row.min_total_income / 100 : 0, minDirect: row.min_direct || 0 }
-    : { id: null, levelNo: levels.value.length ? Math.max(...levels.value.map((l) => l.level_no)) + 1 : 1, name: '', minTotalIncome: 0, minDirect: 0 };
+    ? { id: row.id, levelNo: row.level_no, name: row.name, minTotalIncome: row.min_total_income > 0 ? row.min_total_income / 100 : 0, minDirect: row.min_direct || 0, benefits: row.benefits || '' }
+    : { id: null, levelNo: levels.value.length ? Math.max(...levels.value.map((l) => l.level_no)) + 1 : 1, name: '', minTotalIncome: 0, minDirect: 0, benefits: '' };
   levelDialog.show = true;
 }
 async function saveLevel() {
@@ -917,7 +926,7 @@ async function saveLevel() {
   if (!f.name || !String(f.name).trim()) return ElMessage.warning('请填写等级名称');
   levelSaving.value = true;
   try {
-    const payload = { levelNo: f.levelNo, name: f.name.trim(), minTotalIncome: Math.round(Number(f.minTotalIncome || 0) * 100), minDirect: Number(f.minDirect || 0) };
+    const payload = { levelNo: f.levelNo, name: f.name.trim(), minTotalIncome: Math.round(Number(f.minTotalIncome || 0) * 100), minDirect: Number(f.minDirect || 0), benefits: String(f.benefits || '').trim() };
     if (f.id) await customerApiCall.put(`/distribution/levels/${f.id}`, payload);
     else await customerApiCall.post('/distribution/levels', payload);
     ElMessage.success('等级已保存');
