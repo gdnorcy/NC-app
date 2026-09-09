@@ -1124,6 +1124,72 @@ export function createDistributionService(db) {
     return { month: key, byType, total, settled, pending, chargedBack, debtAmount, withdrawTotal, byUser: byUserArr };
   };
 
+  /** 分销商健康度：活跃/转化/流失评分 + 预警列表（score 升序，最需关注在前） */
+  svc.getHealth = (tenantId) => {
+    // 推广人集合：有直推下级 / 发过分享 / 白名单分销商
+    const relUsers = db.prepare("SELECT DISTINCT user_id AS uid FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND pid1 IS NOT NULL").all(tenantId).map((r) => r.uid);
+    const shareUsers = db.prepare("SELECT DISTINCT user_id AS uid FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'share'").all(tenantId).map((r) => r.uid);
+    const wlUsers = db.prepare("SELECT user_id AS uid FROM dist_distributor WHERE tenant_id = ? AND status = 1").all(tenantId).map((r) => r.uid);
+    const ids = [...new Set([...relUsers, ...shareUsers, ...wlUsers])];
+    if (!ids.length) return { list: [] };
+    const marks = ids.map(() => '?').join(',');
+    const now = new Date();
+    const day7 = new Date(now.getTime() - 7 * 864e5).toISOString().slice(0, 10);
+    const day30 = new Date(now.getTime() - 30 * 864e5).toISOString().slice(0, 10);
+    const users = db.prepare(`SELECT id, nickname FROM platform_user WHERE id IN (${marks})`).all(...ids);
+    const nick = new Map(users.map((u) => [u.id, u.nickname || '微信用户']));
+    // 直推/付费
+    const directs = db.prepare(`SELECT pid1 AS uid, COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND pid1 IN (${marks}) GROUP BY pid1`).all(tenantId, ...ids);
+    const directMap = new Map(directs.map((r) => [r.uid, r.n]));
+    const paidMap = new Map();
+    const paidRows = db.prepare(`
+      SELECT r.pid1 AS uid, COUNT(DISTINCT o.user_id) n
+      FROM payment_orders o JOIN dist_user_relation r ON r.user_id = o.user_id AND r.tenant_id = ? AND r.status = 'bound' AND r.pid1 IN (${marks})
+      WHERE o.customer_id = ? AND o.status = 'paid'
+      GROUP BY r.pid1
+    `).all(tenantId, tenantId, ...ids);
+    for (const r of paidRows) paidMap.set(r.uid, r.n);
+    // 近7/30天分享、近30天曝光、近30天新增直推
+    const share7Map = new Map(), share30Map = new Map(), view30Map = new Map(), bind30Map = new Map();
+    for (const r of db.prepare(`SELECT user_id AS uid, COUNT(*) n FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'share' AND user_id IN (${marks}) AND substr(created_at,1,10) >= ? GROUP BY user_id`).all(tenantId, ...ids, day7)) share7Map.set(r.uid, r.n);
+    for (const r of db.prepare(`SELECT user_id AS uid, COUNT(*) n FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'share' AND user_id IN (${marks}) AND substr(created_at,1,10) >= ? GROUP BY user_id`).all(tenantId, ...ids, day30)) share30Map.set(r.uid, r.n);
+    for (const r of db.prepare(`SELECT user_id AS uid, COUNT(DISTINCT visitor_key) n FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'view' AND user_id IN (${marks}) AND substr(created_at,1,10) >= ? GROUP BY user_id`).all(tenantId, ...ids, day30)) view30Map.set(r.uid, r.n);
+    for (const r of db.prepare(`SELECT pid1 AS uid, COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND pid1 IN (${marks}) AND substr(bind_time,1,10) >= ? GROUP BY pid1`).all(tenantId, ...ids, day30)) bind30Map.set(r.uid, r.n);
+    // 最近活跃
+    const lastActMap = new Map();
+    for (const r of db.prepare(`SELECT user_id AS uid, MAX(created_at) m FROM dist_funnel_events WHERE tenant_id = ? AND event_type = 'share' AND user_id IN (${marks}) GROUP BY user_id`).all(tenantId, ...ids)) lastActMap.set(r.uid, r.m);
+    for (const r of db.prepare(`SELECT pid1 AS uid, MAX(bind_time) m FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND pid1 IN (${marks}) GROUP BY pid1`).all(tenantId, ...ids)) {
+      if (!lastActMap.has(r.uid) || r.m > lastActMap.get(r.uid)) lastActMap.set(r.uid, r.m);
+    }
+    const list = ids.map((uid) => {
+      const direct = directMap.get(uid) || 0;
+      const paid = paidMap.get(uid) || 0;
+      const conversion = direct > 0 ? +((paid / direct) * 100).toFixed(1) : 0;
+      const s7 = share7Map.get(uid) || 0, s30 = share30Map.get(uid) || 0;
+      const v30 = view30Map.get(uid) || 0, b30 = bind30Map.get(uid) || 0;
+      // 评分：活跃 0-70 + 转化 0-30
+      let score = 0;
+      if (s7 > 0) score += 40; else if (s30 > 0) score += 20;
+      if (v30 > 0) score += 10;
+      if (b30 > 0) score += 20;
+      if (direct === 0 && score === 0) score = 5;         // 无任何活动的推广人基础分
+      if (conversion >= 50) score += 30;
+      else if (conversion >= 20) score += 20;
+      else if (conversion > 0) score += 10;
+      score = Math.min(100, score);
+      const status = score >= 60 ? 'healthy' : score >= 30 ? 'watch' : 'churn';
+      return {
+        userId: uid, nickname: nick.get(uid) || '微信用户',
+        direct, paid, conversion,
+        share7: s7, share30: s30, view30: v30, bind30: b30,
+        lastActive: lastActMap.get(uid) || '',
+        score, status,
+      };
+    });
+    list.sort((a, b) => a.score - b.score || (b.direct - a.direct));
+    return { list };
+  };
+
   /** 分销商排行：累计收益 / 直推人数 / 团队人数 / 身份标签；Top N */
   /** 推广效果统计：绑定来源分布 / 付费转化 / 带来的佣金（租户后台数据大盘） */
   svc.getPromoStats = (tenantId) => {
@@ -1674,7 +1740,7 @@ export function buildStatementHtml(summary, opts = {}) {
   const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const fmt = (v) => (Number(v) / 100).toFixed(2);
   const rowsHtml = summary.byUser.map((u) => {
-    const tds = [esc(u.nickname), u.identityType === 'employee' ? '企业员工' : '入驻个人']
+    const tds = [`<td>${esc(u.nickname)}</td>`, `<td>${u.identityType === 'employee' ? '企业员工' : '入驻个人'}</td>`]
       .concat(TYPES.map(([k]) => `<td>${fmt(u[k])}</td>`))
       .concat([`<td class="neg">${fmt(u.chargedBack)}</td>`, `<td><b>${fmt(u.total)}</b></td>`, `<td>${fmt(u.withdraw)}</td>`]);
     return `<tr>${tds.join('')}</tr>`;
@@ -1698,9 +1764,10 @@ export function buildStatementHtml(summary, opts = {}) {
   .cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
   .card { flex: 1 1 140px; border: 1px solid #e5e6eb; border-radius: 8px; padding: 12px 16px; }
   .card-label { font-size: 12px; color: #86909c; } .card-val { font-size: 20px; font-weight: 600; margin-top: 4px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { border: 1px solid #e5e6eb; padding: 8px 10px; text-align: right; white-space: nowrap; }
-  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid #e5e6eb; border-radius: 8px; }
+  table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 12px; table-layout: auto; }
+  th, td { border: 1px solid #e5e6eb; padding: 6px 8px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; min-width: 96px; white-space: normal; word-break: break-all; }
   th { background: #f7f8fa; font-weight: 600; }
   tr.total td { background: #f0f7ff; font-weight: 600; }
   .neg { color: #f53f3f; }
@@ -1712,11 +1779,13 @@ export function buildStatementHtml(summary, opts = {}) {
   <div class="sub">租户：${esc(opts.tenantName || `#${opts.tenantId || ''}`)} ｜ 账期：${summary.month} ｜ 生成时间：${new Date().toLocaleString('zh-CN')}</div>
   <div class="cards">${cards}</div>
   ${debtTip}
+  <div class="tbl-wrap">
   <table>
     <thead><tr><th>用户</th><th>身份</th>${TYPES.map((t) => `<th>${t[1]}(元)</th>`).join('')}<th>扣回(元)</th><th>实得(元)</th><th>提现(元)</th></tr></thead>
     <tbody>${rowsHtml || '<tr><td colspan="11" style="text-align:center;color:#86909c;">本月暂无收益记录</td></tr>'}</tbody>
     <tfoot>${totalRow}</tfoot>
   </table>
+  </div>
   <div class="foot">口径说明：实得 = 各类收益净额（扣回按负额计入）；提现 = 提现金额 - 手续费；欠款 = 退款回滚时余额不足产生的待追缴金额。<br>本对账单由系统生成，可浏览器打印（Ctrl/Cmd + P）另存为 PDF。</div>
 </body></html>`;
 }

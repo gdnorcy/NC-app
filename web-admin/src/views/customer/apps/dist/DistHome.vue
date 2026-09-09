@@ -487,7 +487,7 @@
     </section>
 
     <!-- 月度对账单预览（浏览器打印即存 PDF） -->
-    <el-dialog v-model="statementShow" title="分销佣金月度对账单" width="920px" top="5vh" append-to-body @close="statementClose">
+    <el-dialog v-model="statementShow" title="分销佣金月度对账单" width="1120px" top="5vh" append-to-body @close="statementClose">
       <iframe ref="statementIframe" :src="statementUrl" class="statement-frame" />
       <template #footer>
         <el-button @click="statementClose">关闭</el-button>
@@ -783,6 +783,44 @@
             <template #default="{ row }">{{ fen(row.s) }}</template>
           </el-table-column>
         </el-table>
+      </el-card>
+      <el-card shadow="never">
+        <div class="sub-title">分销商健康度
+          <span class="sub-desc">按 活跃(近7天分享/近30天曝光/新增直推) + 转化(直推付费率) 评分；预警 = 健康分最低，建议优先跟进</span>
+        </div>
+        <el-table :data="healthList" v-loading="loading" stripe>
+          <el-table-column label="排名" width="70">
+            <template #default="{ row }">
+              <span class="rank-no" :class="row.score >= 60 ? 'rank-ok' : row.score >= 30 ? 'rank-warn' : 'rank-hot'">{{ row.rank }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="分销商" min-width="130">
+            <template #default="{ row }">
+              <span class="rank-name">{{ row.nickname }}</span>
+              <span class="rank-sub">ID {{ row.userId }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="直推(付费·转化)" min-width="130">
+            <template #default="{ row }">{{ row.direct }} · {{ row.paid }} · {{ row.conversion }}%</template>
+          </el-table-column>
+          <el-table-column label="近7天分享" width="95" prop="share7" />
+          <el-table-column label="近30天曝光" width="100" prop="view30" />
+          <el-table-column label="近30天新增" width="100" prop="bind30" />
+          <el-table-column label="最近活跃" width="130">
+            <template #default="{ row }">{{ row.lastActive ? row.lastActive.slice(0, 10) : '—' }}</template>
+          </el-table-column>
+          <el-table-column label="健康分" width="90">
+            <template #default="{ row }">
+              <span class="health-score" :class="'hs-' + row.status">{{ row.score }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'healthy' ? 'success' : row.status === 'watch' ? 'warning' : 'danger'" size="small">{{ { healthy: '健康', watch: '关注', churn: '流失预警' }[row.status] }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="health-empty" v-if="!healthList.length">暂无分销商数据，绑定推广关系后展示</div>
       </el-card>
       <el-card shadow="never">
         <div class="sub-title">分销商排行 TOP {{ ranking.length }}</div>
@@ -1240,6 +1278,13 @@ function acctLabel(acct) {
 }
 const stats = reactive({ totalCommission: 0, settledCommission: 0, splitCount: 0, splitAmount: 0, memberCount: 0, withdrawPending: 0, withdrawTotal: 0, trend: [], bonusByType: {}, partnerCount: 0, shareAllCount: 0, shareCatCount: 0, shareAreaCount: 0, promo: {} });
 const ranking = ref([]);
+const healthList = ref([]);
+async function loadHealth() {
+  try {
+    const res = await customerApiCall.get('/distribution/health');
+    healthList.value = (res.list || []).map((r, i) => ({ ...r, rank: i + 1 }));
+  } catch (e) { /* 健康度失败不阻塞大盘 */ }
+}
 const funnelMonth = ref(new Date().toISOString().slice(0, 7));
 const funnel = reactive({ shareCount: 0, viewCount: 0, bindCount: 0, payCount: 0, paidAmount: 0, viewToBind: 0, bindToPay: 0, viewToPay: 0, trend: [] });
 async function loadFunnel() {
@@ -1281,6 +1326,7 @@ onMounted(() => {
   loadSplits();
   loadRelations();
   loadFunnel();
+  loadHealth();
   loadWithdraws();
   loadStats();
   loadRanking();
@@ -1314,6 +1360,13 @@ onMounted(() => {
 .funnel-sub { font-size: 12px; color: #86909c; }
 .sub-desc { font-size: 12px; color: #86909c; font-weight: 400; margin-left: 8px; }
 .pull-right { float: right; width: 140px; }
+.rank-ok { color: #00b42a; font-weight: 600; }
+.rank-warn { color: #ff7d00; font-weight: 600; }
+.health-score { font-weight: 700; font-size: 16px; }
+.hs-healthy { color: #00b42a; }
+.hs-watch { color: #ff7d00; }
+.hs-churn { color: #f53f3f; }
+.health-empty { text-align: center; color: #86909c; padding: 24px 0; font-size: 13px; }
 .batch-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 8px; }
 .text-muted { color: #86909c; font-size: 12px; }
 .tree-node { display: inline-flex; align-items: center; gap: 8px; }

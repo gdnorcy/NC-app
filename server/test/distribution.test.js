@@ -1139,6 +1139,40 @@ describe('分销体系（分销裂变底座）', () => {
     }
   });
 
+  it('P16 分销商健康度：活跃/转化评分 + 流失预警排序 + 身份数据', () => {
+    const A = 9051, B = 9052;   // 两个推广人
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '活跃分销', ?, 'individual')").run(A, `openid_${A}`, TENANT);
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '沉默分销', ?, 'individual')").run(B, `openid_${B}`, TENANT);
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '买家甲', ?, 'individual')").run(9053, 'openid_9053', TENANT);
+    try {
+      // A 活跃：近7天分享 + 近30天曝光 + 有直推且付费
+      for (let i = 0; i < 3; i++) dist.trackFunnel(TENANT, A, 'share', '');
+      dist.trackFunnel(TENANT, A, 'view', 'visitor-health-1');
+      dist.bindRelation(TENANT, 9053, 'individual', A);
+      // B 沉默：仅历史 share（30 天前），无直推无曝光
+      db.prepare("INSERT INTO dist_funnel_events (tenant_id, user_id, event_type, created_at) VALUES (?, ?, 'share', datetime('now', '-40 days'))").run(TENANT, B);
+      const h = dist.getHealth(TENANT);
+      const a = h.list.find((x) => x.userId === A);
+      const b = h.list.find((x) => x.userId === B);
+      assert.ok(a, '活跃分销商在列表');
+      assert.equal(a.direct, 1, '直推 1');
+      assert.ok(a.share7 >= 3 && a.view30 >= 1, '近7天分享/近30天曝光统计');
+      assert.ok(a.score >= 60, '活跃分销商评分 >= 60');
+      assert.equal(a.status, 'healthy', '健康状态');
+      if (b) {
+        assert.ok(b.score < 30, '沉默分销商评分 < 30');
+        assert.equal(b.status, 'churn', '流失预警');
+        assert.ok(a.score > b.score, '预警排序：健康分低的在前');
+      }
+      // 空租户
+      assert.deepEqual(dist.getHealth(0).list, [], '无数据租户返回空');
+    } finally {
+      db.prepare('DELETE FROM dist_funnel_events WHERE tenant_id = ? AND user_id IN (?, ?)').run(TENANT, A, B);
+      db.prepare('DELETE FROM dist_user_relation WHERE tenant_id = ? AND user_id = 9053').run(TENANT);
+      db.prepare('DELETE FROM platform_user WHERE id IN (?, ?, ?)').run(A, B, 9053);
+    }
+  });
+
   it('P14 月度对账单：扣回负计/欠款解析/提现实得 + CSV/HTML 构建', () => {
     const UID = 9036;
     const NOW = new Date().toISOString().slice(0, 7);

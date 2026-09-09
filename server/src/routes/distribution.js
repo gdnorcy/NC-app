@@ -371,6 +371,11 @@ export function createDistributionRouter(db) {
     res.json({ list: dist.ranking(req.customerId, req.query.limit || 10) });
   });
 
+  // 分销商健康度（活跃/转化/流失评分 + 预警列表）
+  router.get('/health', tenant, (req, res) => {
+    res.json(dist.getHealth(req.customerId));
+  });
+
   router.get('/stats', tenant, (req, res) => {
     const tenantId = req.customerId;
     const totalCommission = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM dist_user_log WHERE tenant_id = ? AND type IN ('level1','level2')").get(tenantId).s;
