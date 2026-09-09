@@ -161,7 +161,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, provide } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { isTenantAdmin as isTenantAdminFn, isEnterpriseAdmin as isEnterpriseAdminFn } from '../utils/menuPermissions';
@@ -188,7 +188,14 @@ const isEnterpriseAdmin = computed(() => isEnterpriseAdminFn(authStore.user));
 const isImpersonate = computed(() => !!localStorage.getItem('admin_token_backup'));
 const activeMenu = computed(() => route.path);
 const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() || 'U');
-const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title || '']);
+// 应用内子 Tab 面包屑扩展：应用页切换子 Tab 时调用 setCrumbExtra(label) 追加到面包屑末尾
+const crumbExtra = ref('');
+function setCrumbExtra(label) { crumbExtra.value = label || ''; }
+provide('crumbExtra', { value: crumbExtra, set: setCrumbExtra });
+const breadcrumbs = computed(() => {
+  const base = route.meta?.breadcrumbs || [route.meta?.title || ''];
+  return crumbExtra.value ? [...base, crumbExtra.value] : base;
+});
 // 面包屑链接映射：可点击项跳对应顶层入口（当前页/无映射项不可点）
 const CRUMB_LINKS = {
   '应用中心': '/apps',

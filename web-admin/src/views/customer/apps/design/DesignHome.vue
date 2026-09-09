@@ -307,7 +307,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { EditPen, Delete, Close } from '@element-plus/icons-vue';
 import SIcon from '../../../../components/SIcon.vue';
@@ -324,6 +324,14 @@ const tabs = [
   { key: 'home', label: '首页跳转', icon: 'dashboard' },
 ];
 const activeTab = ref('page');
+
+// 子 Tab 联动面包屑：面包屑随当前 Tab 变化（设计中心 / 页面装修）
+const crumbExtra = inject('crumbExtra', null);
+watch(activeTab, (k) => {
+  const t = tabs.find((x) => x.key === k);
+  crumbExtra?.set(t ? t.label : '');
+}, { immediate: true });
+onUnmounted(() => crumbExtra?.set(''));
 
 const API = '/design';
 const MAT = '/material';
