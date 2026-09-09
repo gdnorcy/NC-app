@@ -387,5 +387,36 @@ export function createDistributionRouter(db) {
     res.json({ ok: true, settled: n });
   });
 
+  // ============================================================
+  // 分销等级（dist_level 租户隔离：列表/新增/更新/删除）
+  // ============================================================
+  router.get('/levels', tenant, (req, res) => {
+    res.json({ list: dist.getLevels(req.customerId) });
+  });
+  router.post('/levels', tenant, (req, res) => {
+    const lv = dist.saveLevel(req.customerId, {
+      levelNo: req.body.levelNo,
+      name: req.body.name,
+      minTotalIncome: req.body.minTotalIncome,
+      minDirect: req.body.minDirect,
+    });
+    res.json({ ok: true, level: lv });
+  });
+  router.put('/levels/:id', tenant, (req, res) => {
+    const lv = dist.saveLevel(req.customerId, {
+      id: Number(req.params.id),
+      levelNo: req.body.levelNo,
+      name: req.body.name,
+      minTotalIncome: req.body.minTotalIncome,
+      minDirect: req.body.minDirect,
+    });
+    res.json({ ok: true, level: lv });
+  });
+  router.delete('/levels/:id', tenant, (req, res) => {
+    const r = dist.deleteLevel(req.customerId, Number(req.params.id));
+    if (!r.ok) return res.status(400).json({ ok: false, error: r.error });
+    res.json({ ok: true });
+  });
+
   return router;
 }

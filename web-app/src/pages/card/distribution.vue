@@ -15,8 +15,9 @@
           <image v-if="summary.selfAvatar" class="user-avatar" :src="summary.selfAvatar" mode="aspectFill" />
           <view v-else class="user-avatar placeholder">{{ (summary.selfName || '我')[0] }}</view>
           <view class="user-name">{{ summary.selfName || '我' }}</view>
-          <view class="user-level">{{ summary.defaultLevel || '默认等级' }}</view>
+          <view class="user-level">{{ summary.currentLevelName || summary.defaultLevel || '默认等级' }}</view>
         </view>
+        <view v-if="summary.nextLevel" class="user-next">距「{{ summary.nextLevel.name }}」{{ nextGap }} ›</view>
         <view v-if="summary.isEnableDist && summary.showParent && summary.parent" class="user-parent">上级推广员：{{ summary.parent.nickname || '-' }}</view>
         <view v-if="summary.isEnableDist" class="user-invited" @click="scrollTo('subs')">已邀请成功：{{ summary.directCount }}人 ›</view>
       </view>
@@ -294,6 +295,14 @@ const shareAllTag = computed(() => summary.value.shareTags.includes('全民股�
 const shareCatTag = computed(() => summary.value.shareTags.find((t) => t.startsWith('行业-')));
 const shareAreaTag = computed(() => summary.value.shareTags.find((t) => t.startsWith('地区-')));
 const hasAnyApp = computed(() => summary.value.isEnablePartner || summary.value.isEnableShareAll || summary.value.isEnableShareCat || summary.value.isEnableShareArea);
+const nextGap = computed(() => {
+  const n = summary.value.nextLevel;
+  if (!n) return '已达最高等级';
+  const total = Number(summary.value.wallet?.totalIncome || 0);
+  if (n.minTotalIncome > 0 && total < n.minTotalIncome) return `还差 ¥${((n.minTotalIncome - total) / 100).toFixed(2)}`;
+  if (n.minDirect > 0 && summary.value.directCount < n.minDirect) return `还差 ${n.minDirect - summary.value.directCount} 位直推`;
+  return '即将达成';
+});
 
 const QR_PATTERN = [
   1,1,1,0,1,1,1,
@@ -413,7 +422,7 @@ function drawPosterUni() {
     const ctx = uni.createCanvasContext('dist-poster');
     const TITLE = summary.value.distName || '分销中心';
     const NICK = (summary.value.parent && summary.value.parent.nickname) || '我的名片';
-    const LEVEL = summary.value.defaultLevel || '默认等级';
+    const LEVEL = summary.value.currentLevelName || summary.value.defaultLevel || '默认等级';
     const showBadge = summary.value.posterBadge !== false && TITLE && LEVEL;
     const roundRect = (x, y, w, h, r) => {
       ctx.beginPath();
@@ -472,7 +481,7 @@ function drawPosterH5() {
     ctx.scale(dpr, dpr);
     const TITLE = summary.value.distName || '分销中心';
     const NICK = (summary.value.parent && summary.value.parent.nickname) || '我的名片';
-    const LEVEL = summary.value.defaultLevel || '默认等级';
+    const LEVEL = summary.value.currentLevelName || summary.value.defaultLevel || '默认等级';
     const showBadge = summary.value.posterBadge !== false && TITLE && LEVEL;
     const roundRect = (x, y, w, h, r) => {
       ctx.beginPath();
@@ -598,6 +607,7 @@ onShow(() => {
 .user-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-size: 36rpx; color: #fff; }
 .user-name { font-size: 34rpx; font-weight: 600; }
 .user-level { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); }
+.user-next { margin-top: 12rpx; font-size: 24rpx; opacity: 0.92; display: inline-flex; align-items: center; gap: 6rpx; }
 .user-parent { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }
 .user-invited { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }
 .money-row { margin-top: 40rpx; display: flex; align-items: flex-end; justify-content: space-between; }

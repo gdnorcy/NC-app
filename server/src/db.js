@@ -2094,6 +2094,32 @@ function seedDistribution(db) {
       reviewed_at TEXT
     )
   `);
+
+  // —— 6. 分销等级（dist_level，租户隔离；按累计收益/直推人数自动升级）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS dist_level (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      level_no INTEGER NOT NULL DEFAULT 1,          -- 等级序号（1 起，升序）
+      name TEXT NOT NULL DEFAULT '默认等级',          -- 等级名
+      min_total_income INTEGER NOT NULL DEFAULT 0,  -- 升级门槛：累计收益（分）
+      min_direct INTEGER NOT NULL DEFAULT 0,        -- 升级门槛：直推人数
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, level_no)
+    );
+    CREATE INDEX IF NOT EXISTS idx_dist_level_tenant ON dist_level(tenant_id);
+  `);
+  // 默认等级种子（仅当该租户没有任何等级配置时插入，幂等）
+  try {
+    const levelCnt = db.prepare('SELECT COUNT(*) AS c FROM dist_level').get();
+    if (levelCnt.c === 0) {
+      const insLv = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct) VALUES (?, ?, ?, ?, ?)');
+      insLv.run(0, 1, '默认等级', 0, 0);
+      insLv.run(0, 2, '白银推广员', 100000, 10);   // 累计收益 ¥1000 或直推 10 人
+      insLv.run(0, 3, '黄金推广员', 500000, 30);   // 累计收益 ¥5000 或直推 30 人
+    }
+  } catch {}
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

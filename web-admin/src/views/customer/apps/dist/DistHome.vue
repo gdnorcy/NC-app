@@ -194,9 +194,69 @@
               </el-form-item>
             </template>
 
+            <!-- ===== 等级设置 ===== -->
+            <template v-if="cfgCat === 'level'">
+              <div class="level-head">
+                <div class="level-tip">按「累计收益（元）」或「直推人数」任一达标自动升级；海报角标与 C 端等级展示实时联动。</div>
+                <el-button type="primary" size="small" @click="openLevelDialog()">新增等级</el-button>
+              </div>
+              <el-table :data="levels" v-loading="levelLoading" stripe class="level-table">
+                <template #empty>
+                  <el-empty description="暂无等级配置" :image-size="60" />
+                </template>
+                <el-table-column label="等级" width="90">
+                  <template #default="{ row }">
+                    <el-tag size="small" effect="plain">{{ row.level_no }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="name" label="等级名称" min-width="140" />
+                <el-table-column label="累计收益门槛" width="160">
+                  <template #default="{ row }">
+                    <span>{{ row.min_total_income > 0 ? '¥' + (row.min_total_income / 100).toFixed(2) : '不设' }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="直推人数门槛" width="120">
+                  <template #default="{ row }">
+                    <span>{{ row.min_direct > 0 ? row.min_direct + ' 人' : '不设' }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="130">
+                  <template #default="{ row }">
+                    <el-button link type="primary" size="small" @click="openLevelDialog(row)">编辑</el-button>
+                    <el-button link type="danger" size="small" :disabled="levels.length <= 1" @click="removeLevel(row)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </template>
+
           </el-form>
         </el-card>
       </div>
+
+      <!-- 等级编辑弹窗 -->
+      <el-dialog v-model="levelDialog.show" :title="levelDialog.form.id ? '编辑等级' : '新增等级'" width="460px">
+        <el-form label-width="120px" label-position="right">
+          <el-form-item label="等级名称" required>
+            <el-input v-model="levelDialog.form.name" maxlength="32" placeholder="如：白银推广员" />
+          </el-form-item>
+          <el-form-item label="等级序号" required>
+            <el-input-number v-model="levelDialog.form.levelNo" :min="1" :max="99" />
+            <span class="form-tip">数字越小等级越低（1 为默认等级）</span>
+          </el-form-item>
+          <el-form-item label="累计收益门槛">
+            <el-input-number v-model="levelDialog.form.minTotalIncome" :min="0" :step="100" :precision="2" />
+            <span class="form-tip">元；累计收益达到即升级（0 = 不设收益门槛）</span>
+          </el-form-item>
+          <el-form-item label="直推人数门槛">
+            <el-input-number v-model="levelDialog.form.minDirect" :min="0" :step="1" />
+            <span class="form-tip">直推人数达到即升级（0 = 不设人数门槛）；任一达标即升级</span>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="levelDialog.show = false">取消</el-button>
+          <el-button type="primary" :loading="levelSaving" @click="saveLevel">保存</el-button>
+        </template>
+      </el-dialog>
     </section>
 
     <!-- 分销商管理 -->
@@ -669,6 +729,7 @@ const cfgCats = [
   { key: 'withdraw', label: '提现设置', icon: 'wallet' },
   { key: 'display', label: '显示设置', icon: 'palette' },
   { key: 'agreement', label: '申请与协议', icon: 'audit' },
+  { key: 'level', label: '等级设置', icon: 'crown' },
 ];
 const cfgCat = ref('base');
 const cfg = reactive({
@@ -738,6 +799,49 @@ async function saveConfig() {
     });
     ElMessage.success('配置已保存');
   } catch (e) { ElMessage.error(e || '保存失败'); } finally { saving.value = false; }
+}
+
+// —— 等级设置（dist_level CRUD）——
+const levels = ref([]);
+const levelLoading = ref(false);
+const levelSaving = ref(false);
+const levelDialog = reactive({ show: false, form: { id: null, levelNo: 1, name: '', minTotalIncome: 0, minDirect: 0 } });
+async function loadLevels() {
+  levelLoading.value = true;
+  try {
+    const res = await customerApiCall.get('/distribution/levels');
+    levels.value = res.list || [];
+  } catch (e) { ElMessage.error(e || '加载等级失败'); } finally { levelLoading.value = false; }
+}
+function openLevelDialog(row) {
+  levelDialog.form = row
+    ? { id: row.id, levelNo: row.level_no, name: row.name, minTotalIncome: row.min_total_income > 0 ? row.min_total_income / 100 : 0, minDirect: row.min_direct || 0 }
+    : { id: null, levelNo: levels.value.length ? Math.max(...levels.value.map((l) => l.level_no)) + 1 : 1, name: '', minTotalIncome: 0, minDirect: 0 };
+  levelDialog.show = true;
+}
+async function saveLevel() {
+  const f = levelDialog.form;
+  if (!f.name || !String(f.name).trim()) return ElMessage.warning('请填写等级名称');
+  levelSaving.value = true;
+  try {
+    const payload = { levelNo: f.levelNo, name: f.name.trim(), minTotalIncome: Math.round(Number(f.minTotalIncome || 0) * 100), minDirect: Number(f.minDirect || 0) };
+    if (f.id) await customerApiCall.put(`/distribution/levels/${f.id}`, payload);
+    else await customerApiCall.post('/distribution/levels', payload);
+    ElMessage.success('等级已保存');
+    levelDialog.show = false;
+    await loadLevels();
+  } catch (e) { ElMessage.error(e || '保存失败'); } finally { levelSaving.value = false; }
+}
+async function removeLevel(row) {
+  try {
+    await ElMessageBox.confirm(`确定删除等级「${row.name}」？删除后等级序号自动顺延，历史收益不受影响。`, '删除等级', { type: 'warning' });
+  } catch { return; }
+  try {
+    const res = await customerApiCall.delete(`/distribution/levels/${row.id}`);
+    if (res.ok === false) return ElMessage.error(res.error || '删除失败');
+    ElMessage.success('等级已删除');
+    await loadLevels();
+  } catch (e) { ElMessage.error(e || '删除失败'); }
 }
 
 // ===== 分销商 =====
@@ -979,6 +1083,7 @@ onMounted(() => {
   loadWhitelist();
   loadApplies();
   loadLogs();
+  loadLevels();
   loadSplits();
   loadRelations();
   loadWithdraws();
@@ -1029,6 +1134,9 @@ onMounted(() => {
 .cfg-cat:hover { background: #f2f3f5; color: #1d2129; }
 .cfg-cat.on { background: #e8f3ff; color: #165dff; font-weight: 500; }
 .cfg-main { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+.level-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.level-tip { color: #86909c; font-size: 12px; }
+.level-table { width: 100%; }
 @media (max-width: 900px) { .cfg-layout { flex-direction: column; } .cfg-side { width: 100%; display: flex; flex-wrap: wrap; gap: 4px; } .cfg-cat { margin-bottom: 0; } }
 .sub-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 12px; }
 .stat-cell { text-align: center; }

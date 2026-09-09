@@ -130,7 +130,83 @@ export function createDistributionService(db) {
   };
 
   // ============================================================
-  // 溯源绑定（租户维度永久锁定）
+  // 分销等级体系（dist_level，租户隔离；按累计收益/直推人数自动升级）
+
+  /** 等级列表（按 level_no 升序） */
+  svc.getLevels = (tenantId) => {
+    const rows = db.prepare('SELECT * FROM dist_level WHERE tenant_id = ? ORDER BY level_no ASC').all(tenantId);
+    if (!rows.length) {
+      const base = db.prepare('SELECT * FROM dist_level WHERE tenant_id = 0 ORDER BY level_no ASC').all();
+      if (base.length) {
+        const ins = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct) VALUES (?, ?, ?, ?, ?)');
+        for (const b of base) ins.run(tenantId, b.level_no, b.name, b.min_total_income, b.min_direct);
+        return db.prepare('SELECT * FROM dist_level WHERE tenant_id = ? ORDER BY level_no ASC').all(tenantId);
+      }
+      return [{ id: 0, tenant_id: tenantId, level_no: 1, name: '默认等级', min_total_income: 0, min_direct: 0 }];
+    }
+    return rows;
+  };
+
+  /** 保存等级（upsert；id 存在则更新，否则按 level_no 插入；重名/序号冲突自动去重） */
+  svc.saveLevel = (tenantId, { id, levelNo, name, minTotalIncome, minDirect } = {}) => {
+    const no = Math.max(1, Math.min(99, Number(levelNo) || 1));
+    const nm = String(name || '默认等级').trim().slice(0, 32) || '默认等级';
+    const inc = Math.max(0, Number(minTotalIncome) || 0);
+    const dir = Math.max(0, Number(minDirect) || 0);
+    if (id) {
+      db.prepare('UPDATE dist_level SET level_no=?, name=?, min_total_income=?, min_direct=?, updated_at=datetime(\'now\') WHERE id=? AND tenant_id=?')
+        .run(no, nm, inc, dir, id, tenantId);
+      return db.prepare('SELECT * FROM dist_level WHERE id = ?').get(id);
+    }
+    const exist = db.prepare('SELECT id FROM dist_level WHERE tenant_id = ? AND level_no = ?').get(tenantId, no);
+    if (exist) {
+      db.prepare('UPDATE dist_level SET name=?, min_total_income=?, min_direct=?, updated_at=datetime(\'now\') WHERE id=?')
+        .run(nm, inc, dir, exist.id);
+      return db.prepare('SELECT * FROM dist_level WHERE id = ?').get(exist.id);
+    }
+    const r = db.prepare('INSERT INTO dist_level (tenant_id, level_no, name, min_total_income, min_direct) VALUES (?, ?, ?, ?, ?)').run(tenantId, no, nm, inc, dir);
+    return db.prepare('SELECT * FROM dist_level WHERE id = ?').get(r.lastInsertRowid);
+  };
+
+  /** 删除等级（至少保留一级；删除后自动把低于被删等级的 level_no 顺延补位） */
+  svc.deleteLevel = (tenantId, id) => {
+    const row = db.prepare('SELECT * FROM dist_level WHERE id = ? AND tenant_id = ?').get(id, tenantId);
+    if (!row) return { ok: false, error: '等级不存在' };
+    const all = db.prepare('SELECT * FROM dist_level WHERE tenant_id = ? ORDER BY level_no ASC').all(tenantId);
+    if (all.length <= 1) return { ok: false, error: '至少保留一个等级' };
+    db.prepare('DELETE FROM dist_level WHERE id = ?').run(id);
+    const rest = db.prepare('SELECT * FROM dist_level WHERE tenant_id = ? ORDER BY level_no ASC').all(tenantId);
+    rest.forEach((lv, i) => {
+      const want = i + 1;
+      if (lv.level_no !== want) db.prepare('UPDATE dist_level SET level_no=?, updated_at=datetime(\'now\') WHERE id=?').run(want, lv.id);
+    });
+    return { ok: true };
+  };
+
+  /** 等级判定：累计收益（分）或直推人数任一达标即升级（均未设门槛 = 无条件等级） */
+  svc.resolveLevel = (tenantId, totalIncome = 0, directCount = 0) => {
+    const levels = svc.getLevels(tenantId);
+    let cur = levels[0] || { level_no: 1, name: '默认等级', min_total_income: 0, min_direct: 0 };
+    let next = null;
+    for (const lv of levels) {
+      const hasIncGate = Number(lv.min_total_income) > 0;
+      const hasDirGate = Number(lv.min_direct) > 0;
+      const hit = (hasIncGate && Number(totalIncome) >= Number(lv.min_total_income))
+        || (hasDirGate && Number(directCount) >= Number(lv.min_direct))
+        || (!hasIncGate && !hasDirGate);
+      if (hit) {
+        if (lv.level_no >= cur.level_no) cur = lv;
+      } else if (!next && lv.level_no > cur.level_no) {
+        next = lv;
+      }
+    }
+    return {
+      currentLevel: { no: cur.level_no, name: cur.name || '默认等级' },
+      nextLevel: next ? { no: next.level_no, name: next.name || '', minTotalIncome: next.min_total_income, minDirect: next.min_direct } : null,
+    };
+  };
+
+
   // ============================================================
 
   /** 读取绑定关系（不存在返回 null） */
@@ -138,6 +214,9 @@ export function createDistributionService(db) {
     return db.prepare('SELECT * FROM dist_user_relation WHERE tenant_id = ? AND user_id = ? AND identity_type = ?')
       .get(tenantId, userId, identityType) || null;
   };
+
+  // ============================================================
+  // 溯源绑定（租户维度永久锁定）
 
   /**
    * 绑定上下级：已绑定永久锁定；pid 需为有效用户、非自己、且沿上级链无环
@@ -1006,6 +1085,8 @@ export function createDistributionService(db) {
     const myParent = svc.getRelation(tenantId, userId, identityType);
     // 当前用户信息（顶部用户卡头像/昵称）
     const self = db.prepare('SELECT nickname, avatar FROM platform_user WHERE id = ?').get(userId);
+    // 分销等级判定（累计收益 + 直推人数 → 当前/下一等级）
+    const lv = svc.resolveLevel(tenantId, (wallet && wallet.total_income) || 0, direct);
 
     return {
       wallet,
@@ -1019,6 +1100,10 @@ export function createDistributionService(db) {
       withdrawing,
       totalCommission,
       totalOrders,
+      // 分销等级判定（累计收益 + 直推人数 → 当前/下一等级）
+      currentLevelName: lv.currentLevel.name,
+      currentLevelNo: lv.currentLevel.no,
+      nextLevel: lv.nextLevel,
       // 壳页卡片渲染依据：租户已开通的分销应用
       isEnableDist: !!pMap.dist,
       isEnablePartner: !!pMap.partner,
