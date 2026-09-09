@@ -468,8 +468,8 @@ onMounted(load);
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 220px; gap: 12px; align-items: start; }
 
-/* 组件库：分组 + 搜索 + 彩色图标 */
-.pe-lib { background: #fff; border-radius: 8px; padding: 12px; }
+/* 组件库：分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
+.pe-lib { background: #fff; border-radius: 8px; padding: 12px; position: sticky; top: 12px; max-height: calc(100vh - 28px); overflow-y: auto; }
 .pe-lib-head { margin-bottom: 8px; }
 .pe-lib-title { font-size: 13px; font-weight: 600; color: #1d2129; display: flex; align-items: center; gap: 6px; }
 .pe-lib-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
@@ -495,8 +495,8 @@ onMounted(load);
 /* 组件库 3 列网格卡片（仿 eweishop：图标上、名称下） */
 .pe-lib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 2px 0; }
 .pe-lib-card {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
-  padding: 12px 6px 10px; border-radius: 8px; cursor: grab;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px 8px; border-radius: 8px; cursor: grab;
   border: 1px solid transparent; transition: border-color .15s, background .15s, box-shadow .15s;
 }
 .pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
@@ -542,8 +542,8 @@ onMounted(load);
 .pe-empty { color: #86909c; text-align: center; padding: 80px 0; font-size: 13px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .pe-empty :deep(svg), .pe-empty :deep(img) { opacity: .4; }
 
-/* 属性面板 */
-.pe-prop { background: #fff; border-radius: 8px; padding: 12px; }
+/* 属性面板（sticky：随页面滚动保持可见，内部滚动） */
+.pe-prop { background: #fff; border-radius: 8px; padding: 12px; position: sticky; top: 12px; max-height: calc(100vh - 28px); overflow-y: auto; }
 .pe-prop-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .pe-prop-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
 .pe-sec { margin-bottom: 14px; }
