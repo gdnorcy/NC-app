@@ -627,6 +627,34 @@ onMounted(() => {
 
 <style scoped>
 .design-home { display: flex; flex-direction: column; gap: 16px; }
+/* 应用内 Tab：与 CardTabs.vue 一致的圆角块导航、激活主色、横向滚动 */
+.card-tabs {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  gap: 4px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+.card-tabs::-webkit-scrollbar { display: none; }
+.ctab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #4e5969;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.ctab:hover { background: #f2f3f5; color: #1d2129; }
+.ctab.active { background: #e8f3ff; color: #165dff; font-weight: 500; }
 .hide { display: none; }
 .w100p { width: 100%; }
 .mb16 { margin-bottom: 16px; }
