@@ -172,25 +172,29 @@
       <view v-if="summary.isEnablePartner" class="app-card" @click="go('distPartner')">
         <view class="app-ic ic-orange"><SIcon name="crown" size="large" /></view>
         <view class="app-name">合伙人分红</view>
-        <view class="app-sub" :class="{ warn: !summary.isPartner }">{{ summary.isPartner ? '待分红 ¥' + fen(summary.partnerPending) : '未获身份' }}</view>
+        <view class="app-desc">{{ summary.isPartner ? '待分红 ¥' + fen(summary.partnerPending) : '团队 / 全局流水' }}</view>
+        <view class="app-state" :class="summary.isPartner ? 'ok' : 'warn'">{{ summary.isPartner ? '已获身份' : '未获身份' }}</view>
       </view>
 
       <view v-if="summary.isEnableShareAll" class="app-card" @click="go('distShareAll')">
         <view class="app-ic ic-purple"><SIcon name="badge" size="large" /></view>
         <view class="app-name">全民股东</view>
-        <view class="app-sub" :class="{ warn: !shareAllTag }">{{ shareAllTag ? '待分红 ¥' + fen(summary.sharePending) : '未获身份' }}</view>
+        <view class="app-desc">{{ shareAllTag ? '待分红 ¥' + fen(summary.sharePending) : '全站流水分红' }}</view>
+        <view class="app-state" :class="shareAllTag ? 'ok' : 'warn'">{{ shareAllTag ? '已获身份' : '未获身份' }}</view>
       </view>
 
       <view v-if="summary.isEnableShareCat" class="app-card" @click="go('distShareCat')">
         <view class="app-ic ic-green"><SIcon name="dynamic" size="large" /></view>
         <view class="app-name">类目股东</view>
-        <view class="app-sub" :class="{ warn: !shareCatTag }">{{ shareCatTag ? '待分红 ¥' + fen(summary.sharePending) : '未获身份' }}</view>
+        <view class="app-desc">{{ shareCatTag ? '待分红 ¥' + fen(summary.sharePending) : '按行业维度分红' }}</view>
+        <view class="app-state" :class="shareCatTag ? 'ok' : 'warn'">{{ shareCatTag ? '已获身份' : '未获身份' }}</view>
       </view>
 
       <view v-if="summary.isEnableShareArea" class="app-card" @click="go('distShareArea')">
         <view class="app-ic ic-cyan"><SIcon name="pool" size="large" /></view>
         <view class="app-name">区域股东</view>
-        <view class="app-sub" :class="{ warn: !shareAreaTag }">{{ shareAreaTag ? '待分红 ¥' + fen(summary.sharePending) : '未获身份' }}</view>
+        <view class="app-desc">{{ shareAreaTag ? '待分红 ¥' + fen(summary.sharePending) : '按地区维度分红' }}</view>
+        <view class="app-state" :class="shareAreaTag ? 'ok' : 'warn'">{{ shareAreaTag ? '已获身份' : '未获身份' }}</view>
       </view>
     </view>
     <view v-if="!hasAnyApp" class="empty-box">当前租户未开通分销应用，请先联系租户管理员开通</view>
@@ -670,8 +674,10 @@ onShow(() => {
 .ic-green { background: rgba(0,180,42,0.10); } .ic-cyan { background: rgba(14,165,190,0.10); }
 .app-ic :deep(.s-icon) { color: #4e5969; }
 .app-name { font-size: 30rpx; font-weight: 600; color: #1d2129; }
-.app-sub { font-size: 24rpx; color: #86909c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.app-sub.warn { color: #ff7d00; }
+.app-desc { font-size: 22rpx; color: #86909c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.app-state { font-size: 22rpx; padding: 2rpx 14rpx; border-radius: 999rpx; margin-top: 2rpx; }
+.app-state.ok { color: #00b42a; background: rgba(0,180,42,0.10); }
+.app-state.warn { color: #ff7d00; background: rgba(255,125,0,0.10); }
 .empty-box { margin: 24rpx 32rpx; padding: 60rpx 20rpx; text-align: center; color: #86909c; font-size: 26rpx; background: #fff; border-radius: 20rpx; }
 .qr-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 99; display: flex; align-items: center; justify-content: center; }
 .qr-panel { width: 600rpx; background: #fff; border-radius: 24rpx; padding: 40rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; max-height: 80vh; }
