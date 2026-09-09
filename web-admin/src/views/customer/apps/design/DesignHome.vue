@@ -156,7 +156,8 @@
         <div class="hd-actions"><el-button type="primary" @click="openTabScheme()">新建导航方案</el-button></div>
       </AppPageHeader>
       <div class="card">
-        <el-table :data="tabSchemes" v-loading="tabLoading" stripe>
+        <div class="table-scroll">
+        <el-table :data="tabSchemes" v-loading="tabLoading" stripe style="min-width: 900px">
           <el-table-column label="方案名称" prop="scheme_name" min-width="160" />
           <el-table-column label="Tab 项数" width="100">
             <template #default="{ row }">{{ tabCount(row) }}</template>
@@ -185,6 +186,7 @@
             </template>
           </el-table-column>
         </el-table>
+        </div>
       </div>
 
       <!-- 编辑导航方案 -->
@@ -634,6 +636,7 @@ onMounted(() => {
 .flex-1 { flex: 1; }
 .text-muted { color: #86909c; font-size: 12px; }
 .hd-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.table-scroll { overflow-x: auto; }
 .form-card { max-width: 720px; }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 12px; }
 .bg-picker { display: flex; align-items: center; gap: 12px; }
