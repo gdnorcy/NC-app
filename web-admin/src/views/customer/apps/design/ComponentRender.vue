@@ -110,6 +110,51 @@
         <div class="r-pano-arrow">›</div>
       </div>
     </template>
+    <!-- 魔方 -->
+    <template v-else-if="comp.type === 'cube'">
+      <div class="r-cube" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.cols || 3) + ',1fr)', gap: (comp.props.gap ?? 4) + 'px' }">
+        <template v-for="(it, i) in (comp.props.items || []).slice(0, (comp.props.rows || 2) * (comp.props.cols || 3))" :key="i">
+          <div v-if="it.url" class="r-cube-cell" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
+          <div v-else class="r-cube-cell r-cube-empty" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+        </template>
+      </div>
+    </template>
+    <!-- 视频号主页 -->
+    <template v-else-if="comp.type === 'channel-profile'">
+      <div class="r-channel" :style="{ background: comp.props.bgColor || '#F7F8FA' }">
+        <div class="r-ch-avatar"><img v-if="comp.props.avatar" :src="resolveUrl(comp.props.avatar)" /><svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5"/></svg></div>
+        <div class="r-ch-body">
+          <div class="r-ch-name">{{ comp.props.nickname || '视频号昵称' }}</div>
+          <div class="r-ch-desc">{{ comp.props.desc || '视频号简介' }}</div>
+        </div>
+        <div class="r-ch-btn">视频号</div>
+      </div>
+    </template>
+    <!-- 视频号视频 -->
+    <template v-else-if="comp.type === 'channel-video'">
+      <div class="r-chvideo" :style="{ background: comp.props.bgColor || '#F7F8FA' }">
+        <div class="r-chv-cover">
+          <img v-if="comp.props.cover" :src="resolveUrl(comp.props.cover)" />
+          <div v-else class="r-chv-empty"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
+          <span class="r-chv-tag">视频号</span>
+        </div>
+        <div class="r-chv-body">
+          <div class="r-chv-title">{{ comp.props.title || '视频标题' }}</div>
+          <div class="r-chv-desc">{{ comp.props.desc || '视频描述' }}</div>
+        </div>
+      </div>
+    </template>
+    <!-- 视频号直播 -->
+    <template v-else-if="comp.type === 'channel-live'">
+      <div class="r-chlive" :style="{ background: comp.props.bgColor || '#F7F8FA' }">
+        <div class="r-chl-cover">
+          <img v-if="comp.props.cover" :src="resolveUrl(comp.props.cover)" />
+          <div v-else class="r-chl-empty"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14v11H5zM8 7V4h8v3M10 11l4 2.5-4 2.5z"/></svg></div>
+          <span class="r-chl-badge">● {{ comp.props.statusText || '直播中' }}</span>
+        </div>
+        <div class="r-chl-title">{{ comp.props.title || '直播标题' }}</div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -197,4 +242,33 @@ function resolveUrl(u) {
 .r-pano-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .r-pano-desc { font-size: 12px; color: #86909c; margin-top: 2px; }
 .r-pano-arrow { color: #165dff; font-size: 20px; }
+/* 魔方 */
+.r-cube { display: grid; width: 100%; }
+.r-cube-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
+.r-cube-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.r-cube-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #e5e6eb; }
+/* 视频号主页 */
+.r-channel { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
+.r-ch-avatar { width: 44px; height: 44px; border-radius: 50%; background: #fff; border: 1px solid #e5e6eb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.r-ch-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.r-ch-body { flex: 1; min-width: 0; }
+.r-ch-name { font-size: 15px; font-weight: 600; color: #1d2129; }
+.r-ch-desc { font-size: 12px; color: #86909c; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-ch-btn { flex-shrink: 0; font-size: 12px; color: #165dff; border: 1px solid #165dff; border-radius: 20px; padding: 4px 12px; background: #fff; }
+/* 视频号视频 */
+.r-chvideo { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
+.r-chv-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
+.r-chv-cover img { width: 100%; height: 100%; object-fit: cover; }
+.r-chv-empty { opacity: .7; }
+.r-chv-tag { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.r-chv-body { padding: 10px 12px; background: #fff; }
+.r-chv-title { font-size: 14px; font-weight: 600; color: #1d2129; }
+.r-chv-desc { font-size: 12px; color: #86909c; margin-top: 2px; }
+/* 视频号直播 */
+.r-chlive { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
+.r-chl-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
+.r-chl-cover img { width: 100%; height: 100%; object-fit: cover; }
+.r-chl-empty { opacity: .7; }
+.r-chl-badge { position: absolute; left: 8px; top: 8px; background: #f53f3f; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.r-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
 </style>

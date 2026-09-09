@@ -598,3 +598,14 @@ npm run test:frontend
 - **数据统计（stats）**：三项语义固定「今日访客/累计访客/名片交换」，C 端数值来自 home.vue 传入的 visitorStats（getVisitorSummary），DesignPage 接收 `stats` prop；管理端画布预览占位 0。**禁止改字段语义**（两端标签必须一致）。
 - **宫格导航（grid-nav）**：默认 4 项（我的名片/访客雷达/客户管理/人脉集市），图标必须用 ICON_OPTIONS 里的系统 SVG 图标名（SIcon 双端渲染），禁止 emoji/自定义字符。
 - **C 端渲染注意**：swiper 用 uni 原生组件（indicator-dots + circular + autoplay）；全景方案默认跳 `/?plan=1&scene=1`（外部 H5 全景，DesignPage onJump 的 http 分支处理）；名片卡跳 `/pages/card/myCard`。
+
+## P4 内容展示组件（魔方 + 视频号三件套）
+
+- **新增 4 组件**（基础「魔方 cube」、营销「视频号主页 channel-profile / 视频号视频 channel-video / 视频号直播 channel-live」，均带 NEW 角标）：图标照抄 eweishop 原版（cube/followaccount/channelvideo/wxlive.png → comp-icons/）；**宫格导航图标从 cube 换为 listmenu.png**（cube 语义让给魔方）。
+- **魔方**：等分图片网格（rows 1~3 × cols 2~4、gap 0~8、radius 0~16），每格图片+跳转；items 复用 list 编辑器；C 端 grid 布局，空格子不渲染。
+- **视频号三件套**：
+  - schema 字段：主页=finderUserName(必填)+昵称/头像/简介；视频=finderUserName+feedId(均必填)+封面/标题/描述；直播=finderUserName(必填)+封面/标题/状态文字。
+  - **C 端双端行为（DesignPage.openChannel）**：`// #ifdef MP-WEIXIN` 调微信原生 API（openChannelsUserProfile / openChannelsActivity / openChannelsLive，基础库 2.20.1+，fail 回调提示「请确认小程序已关联视频号」）；`// #ifndef MP-WEIXIN`（H5/APP）复制视频号ID(+视频ID) + modal 提示在微信中搜索。
+  - **硬依赖**：租户微信小程序需在 mp 后台「关联视频号」才能唤起成功；H5/APP 端微信生态外无 API，只能复制引导。此边界必须在组件说明中写明。
+- **构建注意**：小程序端 `npm run build:mp-weixin` 必须同时跑（验证条件编译 #ifdef 语法与 wx API 打包）；验证 H5 产物不含 openChannels（grep 应为 0，`#ifdef MP-WEIXIN` 剔除）。
+- **测试踩坑**：保存草稿/预览用 `?nc=xxx` 新参数强制加载；预览新组件排在上次组件下方需滚动验证，勿误判未渲染；后端 `datetime('now')` 存 UTC（比本地慢 8h），查库比对时间要换算。

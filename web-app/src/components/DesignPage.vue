@@ -105,6 +105,42 @@
         </view>
         <text class="dp-pano-arrow">›</text>
       </view>
+      <!-- 魔方 -->
+      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ gridTemplateColumns: 'repeat(' + (c.props.cols || 3) + ',1fr)', gap: (c.props.gap ?? 4) + 'px' }">
+        <view v-for="(it, i) in (c.props.items || []).slice(0, (c.props.rows || 2) * (c.props.cols || 3))" :key="i" class="dp-cube-cell" :style="{ borderRadius: (c.props.radius ?? 8) + 'px' }" @click="onJump(it.link)">
+          <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-cube-img" />
+        </view>
+      </view>
+      <!-- 视频号主页 -->
+      <view v-else-if="c.type === 'channel-profile'" class="dp-channel" :style="{ background: c.props.bgColor || '#F7F8FA' }" @click="openChannel('profile', c.props)">
+        <view class="dp-ch-avatar"><image v-if="c.props.avatar" :src="resolveUrl(c.props.avatar)" mode="aspectFill" class="dp-ch-avatar-img" /><text v-else>号</text></view>
+        <view class="dp-ch-body">
+          <text class="dp-ch-name">{{ c.props.nickname || '视频号昵称' }}</text>
+          <text class="dp-ch-desc">{{ c.props.desc || '视频号简介' }}</text>
+        </view>
+        <view class="dp-ch-btn"><text>视频号</text></view>
+      </view>
+      <!-- 视频号视频 -->
+      <view v-else-if="c.type === 'channel-video'" class="dp-chvideo" :style="{ background: c.props.bgColor || '#F7F8FA' }" @click="openChannel('video', c.props)">
+        <view class="dp-chv-cover">
+          <image v-if="c.props.cover" :src="resolveUrl(c.props.cover)" mode="aspectFill" class="dp-chv-img" />
+          <view v-else class="dp-chv-empty"><text>▶</text></view>
+          <view class="dp-chv-tag"><text>视频号</text></view>
+        </view>
+        <view class="dp-chv-body">
+          <text class="dp-chv-title">{{ c.props.title || '视频标题' }}</text>
+          <text class="dp-chv-desc">{{ c.props.desc || '视频描述' }}</text>
+        </view>
+      </view>
+      <!-- 视频号直播 -->
+      <view v-else-if="c.type === 'channel-live'" class="dp-chlive" :style="{ background: c.props.bgColor || '#F7F8FA' }" @click="openChannel('live', c.props)">
+        <view class="dp-chl-cover">
+          <image v-if="c.props.cover" :src="resolveUrl(c.props.cover)" mode="aspectFill" class="dp-chl-img" />
+          <view v-else class="dp-chl-empty"><text>▶</text></view>
+          <view class="dp-chl-badge"><text>● {{ c.props.statusText || '直播中' }}</text></view>
+        </view>
+        <view class="dp-chl-title"><text>{{ c.props.title || '直播标题' }}</text></view>
+      </view>
     </view>
   </view>
 </template>
@@ -142,6 +178,30 @@ function onJump(url) {
   }
   const path = url.startsWith('/') ? url : `/${url}`;
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
+}
+
+// 视频号唤起：小程序端调微信原生 API，H5/APP 端复制 ID 引导
+function openChannel(kind, p) {
+  // #ifdef MP-WEIXIN
+  const apiMap = { profile: 'openChannelsUserProfile', video: 'openChannelsActivity', live: 'openChannelsLive' };
+  const api = apiMap[kind];
+  if (typeof wx !== 'undefined' && wx[api]) {
+    const arg = { finderUserName: p.finderUserName };
+    if (kind === 'video') arg.feedId = p.feedId;
+    wx[api]({
+      ...arg,
+      fail: () => uni.showToast({ title: '打开失败，请确认小程序已关联视频号', icon: 'none' }),
+    });
+    return;
+  }
+  // #endif
+  // #ifndef MP-WEIXIN
+  const copyText = kind === 'video' ? `${p.finderUserName} ${p.feedId}` : (p.finderUserName || '');
+  uni.setClipboardData({
+    data: copyText,
+    success: () => uni.showModal({ title: '提示', content: '已复制，请在微信中搜索该视频号查看', showCancel: false }),
+  });
+  // #endif
 }
 </script>
 
@@ -214,4 +274,32 @@ function onJump(url) {
 .dp-pano-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .dp-pano-desc { font-size: 12px; color: #86909c; }
 .dp-pano-arrow { color: #165dff; font-size: 20px; }
+/* 魔方 */
+.dp-cube { display: grid; width: 100%; }
+.dp-cube-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
+.dp-cube-img { width: 100%; height: 100%; }
+/* 视频号主页 */
+.dp-channel { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
+.dp-ch-avatar { width: 44px; height: 44px; border-radius: 50%; background: #fff; border: 1px solid #e5e6eb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; font-size: 16px; color: #86909c; }
+.dp-ch-avatar-img { width: 100%; height: 100%; }
+.dp-ch-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dp-ch-name { font-size: 15px; font-weight: 600; color: #1d2129; }
+.dp-ch-desc { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-ch-btn { flex-shrink: 0; font-size: 12px; color: #165dff; border: 1px solid #165dff; border-radius: 20px; padding: 4px 12px; background: #fff; }
+/* 视频号视频 */
+.dp-chvideo { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
+.dp-chv-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
+.dp-chv-img { width: 100%; height: 100%; }
+.dp-chv-empty { color: #86909c; font-size: 24px; }
+.dp-chv-tag { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.dp-chv-body { padding: 10px 12px; background: #fff; display: flex; flex-direction: column; gap: 2px; }
+.dp-chv-title { font-size: 14px; font-weight: 600; color: #1d2129; }
+.dp-chv-desc { font-size: 12px; color: #86909c; }
+/* 视频号直播 */
+.dp-chlive { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
+.dp-chl-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
+.dp-chl-img { width: 100%; height: 100%; }
+.dp-chl-empty { color: #86909c; font-size: 24px; }
+.dp-chl-badge { position: absolute; left: 8px; top: 8px; background: #f53f3f; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.dp-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
 </style>

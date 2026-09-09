@@ -18,9 +18,13 @@ import iconVideo from '../../../../assets/comp-icons/video.png';
 import iconImageText from '../../../../assets/comp-icons/bannerGoods.png';
 import iconSwiper from '../../../../assets/comp-icons/banner.png';
 import iconMyCard from '../../../../assets/comp-icons/member_inviter.png';
-import iconGridNav from '../../../../assets/comp-icons/cube.png';
+import iconGridNav from '../../../../assets/comp-icons/listmenu.png';
 import iconStats from '../../../../assets/comp-icons/goodsRanking.png';
 import iconPanorama from '../../../../assets/comp-icons/storeLocation.png';
+import iconCube from '../../../../assets/comp-icons/cube.png';
+import iconChannelProfile from '../../../../assets/comp-icons/followaccount.png';
+import iconChannelVideo from '../../../../assets/comp-icons/channelvideo.png';
+import iconChannelLive from '../../../../assets/comp-icons/wxlive.png';
 
 export const componentGroups = [
   { key: 'basic', name: '基础组件' },
@@ -45,6 +49,10 @@ export const COMP_ICONS = {
   'grid-nav': iconGridNav,
   stats: iconStats,
   panorama: iconPanorama,
+  cube: iconCube,
+  'channel-profile': iconChannelProfile,
+  'channel-video': iconChannelVideo,
+  'channel-live': iconChannelLive,
 };
 
 // 宫格导航图标选择器选项（系统 SVG 图标库，SIcon 双端通用）
@@ -280,6 +288,72 @@ export const componentRegistry = [
       { key: 'title', label: '标题', control: 'input', section: 'content', required: true },
       { key: 'desc', label: '描述', control: 'input', section: 'content' },
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /?plan=1&scene=1' },
+    ],
+  },
+  {
+    type: 'cube',
+    name: '魔方',
+    group: 'basic',
+    icon: 'cube',
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], rows: 2, cols: 3, gap: 4, radius: 8 },
+    schema: [
+      {
+        key: 'items', label: '格子图片', control: 'list', section: 'content',
+        itemFields: [
+          { key: 'url', label: '图片', control: 'image' },
+          { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
+        ],
+      },
+      { key: 'rows', label: '行数', control: 'slider', section: 'style', min: 1, max: 3 },
+      { key: 'cols', label: '列数', control: 'slider', section: 'style', min: 2, max: 4 },
+      { key: 'gap', label: '间距', control: 'slider', section: 'style', min: 0, max: 8 },
+      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
+    ],
+  },
+  {
+    type: 'channel-profile',
+    name: '视频号主页',
+    group: 'marketing',
+    icon: 'channel-profile',
+    badge: 'new',
+    defaultProps: { finderUserName: '', nickname: '', avatar: '', desc: '', bgColor: '#F7F8FA' },
+    schema: [
+      { key: 'finderUserName', label: '视频号ID', control: 'input', section: 'content', required: true, placeholder: '如 sPh7vD5...' },
+      { key: 'nickname', label: '昵称', control: 'input', section: 'content' },
+      { key: 'avatar', label: '头像', control: 'image', section: 'content' },
+      { key: 'desc', label: '简介', control: 'input', section: 'content' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'channel-video',
+    name: '视频号视频',
+    group: 'marketing',
+    icon: 'channel-video',
+    badge: 'new',
+    defaultProps: { finderUserName: '', feedId: '', cover: '', title: '', desc: '', bgColor: '#F7F8FA' },
+    schema: [
+      { key: 'finderUserName', label: '视频号ID', control: 'input', section: 'content', required: true, placeholder: '如 sPh7vD5...' },
+      { key: 'feedId', label: '视频ID', control: 'input', section: 'content', required: true, placeholder: '如 106511204134634884' },
+      { key: 'cover', label: '封面图', control: 'image', section: 'content' },
+      { key: 'title', label: '标题', control: 'input', section: 'content' },
+      { key: 'desc', label: '描述', control: 'input', section: 'content' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'channel-live',
+    name: '视频号直播',
+    group: 'marketing',
+    icon: 'channel-live',
+    badge: 'new',
+    defaultProps: { finderUserName: '', cover: '', title: '', statusText: '直播中', bgColor: '#F7F8FA' },
+    schema: [
+      { key: 'finderUserName', label: '视频号ID', control: 'input', section: 'content', required: true, placeholder: '如 sPh7vD5...' },
+      { key: 'cover', label: '封面图', control: 'image', section: 'content' },
+      { key: 'title', label: '标题', control: 'input', section: 'content' },
+      { key: 'statusText', label: '状态文字', control: 'input', section: 'content' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
     ],
   },
 ];
