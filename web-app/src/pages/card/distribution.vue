@@ -17,7 +17,8 @@
           <view class="user-name">{{ summary.selfName || '我' }}</view>
           <view class="user-level">{{ summary.currentLevelName || summary.defaultLevel || '默认等级' }}</view>
         </view>
-        <view v-if="summary.nextLevel" class="user-next">距「{{ summary.nextLevel.name }}」{{ nextGap }} ›</view>
+        <view v-if="summary.nextLevel" class="user-next" @click="showLevels = true">距「{{ summary.nextLevel.name }}」{{ nextGap }} ›</view>
+        <view v-if="summary.isEnableDist" class="user-level-link" @click="showLevels = true">等级说明 ›</view>
         <view v-if="summary.isEnableDist && summary.showParent && summary.parent" class="user-parent">上级推广员：{{ summary.parent.nickname || '-' }}</view>
         <view v-if="summary.isEnableDist" class="user-invited" @click="scrollTo('subs')">已邀请成功：{{ summary.directCount }}人 ›</view>
       </view>
@@ -255,6 +256,26 @@
       </view>
     </view>
 
+    <!-- 等级说明 -->
+    <view v-if="showLevels" class="qr-mask" @click="showLevels = false">
+      <view class="qr-panel rules-panel" @click.stop>
+        <view class="qr-title">分销等级</view>
+        <scroll-view scroll-y class="rules-scroll">
+          <view class="level-list">
+            <view v-for="lv in summary.levels || []" :key="lv.level_no" class="level-item" :class="{ cur: lv.level_no === summary.currentLevelNo }">
+              <view class="level-head">
+                <text class="level-name">{{ lv.name }}</text>
+                <text v-if="lv.level_no === summary.currentLevelNo" class="level-cur">当前等级</text>
+              </view>
+              <view class="level-meta">累计收益 ≥ {{ fen(lv.min_total_income) }} 元 · 直推 ≥ {{ lv.min_direct }} 人</view>
+            </view>
+          </view>
+          <view class="rules-text level-tip">任一条件达标即升级；等级越高，海报角标与身份标识越亮眼</view>
+        </scroll-view>
+        <button class="mini-btn ghost" @click="showLevels = false">关闭</button>
+      </view>
+    </view>
+
     <!-- 业务规则 -->
     <view v-if="showRules" class="qr-mask" @click="showRules = false">
       <view class="qr-panel rules-panel" @click.stop>
@@ -292,6 +313,7 @@ const identityLabel = computed(() => (identity.value === 'employee' ? '企业员
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });
 
 const showRules = ref(false);
+const showLevels = ref(false);
 const showTotal = ref(false);
 const applying = ref(false);
 const agreed = ref(false);
@@ -623,6 +645,15 @@ onShow(() => {
 .user-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-size: 36rpx; color: #fff; }
 .user-name { font-size: 34rpx; font-weight: 600; }
 .user-level { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); }
+.user-level-link { margin-top: 12rpx; font-size: 24rpx; opacity: 0.92; display: inline-flex; align-items: center; }
+.level-list { display: flex; flex-direction: column; gap: 14rpx; }
+.level-item { border: 1rpx solid #e5e6eb; border-radius: 12rpx; padding: 18rpx 20rpx; background: #fff; }
+.level-item.cur { border-color: #165dff; background: #f0f7ff; }
+.level-head { display: flex; align-items: center; gap: 12rpx; }
+.level-name { font-size: 28rpx; font-weight: 600; color: #1d2129; }
+.level-cur { font-size: 20rpx; color: #165dff; background: #e8f3ff; padding: 2rpx 12rpx; border-radius: 999rpx; }
+.level-meta { margin-top: 6rpx; font-size: 22rpx; color: #86909c; }
+.level-tip { margin-top: 16rpx; color: #86909c; }
 .user-next { margin-top: 12rpx; font-size: 24rpx; opacity: 0.92; display: inline-flex; align-items: center; gap: 6rpx; }
 .user-parent { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }
 .user-invited { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }

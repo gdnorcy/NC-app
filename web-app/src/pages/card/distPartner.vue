@@ -62,6 +62,31 @@
       </view>
     </view>
 
+    <!-- 团队流水（团队成员付费订单） -->
+    <view v-if="summary.isPartner && teamOrders.length" class="team-wrap">
+      <view class="sec-t">
+        团队流水
+        <text class="sec-sub">成员订单共 {{ teamOrders.length }} 笔</text>
+      </view>
+      <view class="log-list">
+        <view v-for="o in teamOrders" :key="o.orderNo" class="log-item">
+          <view class="log-top">
+            <text class="log-type">{{ o.nickname }} 的订单</text>
+            <text class="log-amt">{{ fen(o.orderAmount) }}</text>
+          </view>
+          <view class="log-mid">
+            <text class="log-no">{{ o.orderNo }}</text>
+            <text class="log-st" :class="stCls2(o.settleStatus)">{{ o.settleLabel }}</text>
+          </view>
+          <view class="log-bot">
+            <text>{{ o.createdAt }}</text>
+            <text class="log-rm">团队分红 +{{ fen(o.partnerBonus) }}</text>
+          </view>
+        </view>
+        <view v-if="!teamOrders.length" class="empty">团队成员还没有付费订单</view>
+      </view>
+    </view>
+
     <!-- 分红明细 -->
     <view class="sec-t">分红明细</view>
     <view class="log-list">
@@ -119,6 +144,7 @@ const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: fa
 const showRules = ref(false);
 const logs = ref([]);
 const team = ref({ list: [], total: 0 });
+const teamOrders = ref([]);
 const partnerModeLabel = computed(() => {
   const mode = summary.value.partnerMode;
   return mode === 2 ? '全局流水分红' : (mode === 1 ? '团队流水分红' : '默认等级');
@@ -126,6 +152,7 @@ const partnerModeLabel = computed(() => {
 
 function fen(v) { return ((Number(v) || 0) / 100).toFixed(2); }
 function stCls(s) { return { pending: 'st-p', settled: 'st-s', charged_back: 'st-c' }[s] || ''; }
+function stCls2(s) { return { pending: 'st-p', settled: 'st-s', refunded: 'st-c' }[s] || ''; }
 
 function switchIdentity() {
   identity.value = identity.value === 'individual' ? 'employee' : 'individual';
@@ -146,8 +173,13 @@ async function loadAll() {
       const t = await cardApi.distTeam(identity.value, 'all');
       team.value = { list: t.team || [], total: t.total || 0 };
     } catch (e) { team.value = { list: [], total: 0 }; }
+    try {
+      const to = await cardApi.distTeamOrders(1, identity.value);
+      teamOrders.value = to.list || [];
+    } catch (e) { teamOrders.value = []; }
   } else {
     team.value = { list: [], total: 0 };
+    teamOrders.value = [];
   }
 }
 

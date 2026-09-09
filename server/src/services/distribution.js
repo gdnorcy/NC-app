@@ -1217,6 +1217,8 @@ export function createDistributionService(db) {
       currentLevelName: lv.currentLevel.name,
       currentLevelNo: lv.currentLevel.no,
       nextLevel: lv.nextLevel,
+      // 完整等级阶梯（C 端「等级说明」弹层）
+      levels: svc.getLevels(tenantId),
       // 微信订阅模板 ID（小程序端 requestSubscribeMessage 用）
       subTmplReview: distSub.tmplReview || '',
       subTmplDone: distSub.tmplDone || '',
@@ -1307,6 +1309,32 @@ export function createDistributionService(db) {
       }
     }
     return { team, total: team.length };
+  };
+
+  /** 合伙人「团队流水」：团队成员产生的付费订单明细（含该订单给合伙人的分红） */
+  svc.getTeamOrders = (tenantId, partnerUserId, identityType, { page = 1, pageSize = 20 } = {}) => {
+    const { team } = svc.buildTeam(tenantId, partnerUserId, identityType);
+    const ids = team.map((m) => m.id);
+    if (!ids.length) return { total: 0, list: [] };
+    const marks = ids.map(() => '?').join(',');
+    const params = [tenantId, ...ids];
+    const total = db.prepare(`SELECT COUNT(*) n FROM dist_order_split WHERE tenant_id = ? AND buyer_user_id IN (${marks})`).get(...params).n;
+    const rows = db.prepare(`
+      SELECT s.order_no, s.order_amount, s.partner_bonus, s.settle_status, s.created_at, u.nickname
+      FROM dist_order_split s LEFT JOIN platform_user u ON u.id = s.buyer_user_id
+      WHERE s.tenant_id = ? AND s.buyer_user_id IN (${marks})
+      ORDER BY s.id DESC LIMIT ? OFFSET ?
+    `).all(...params, pageSize, (page - 1) * pageSize);
+    const stZh = { pending: '待结算', settled: '已结算', refunded: '已退款回滚' };
+    return {
+      total,
+      list: rows.map((r) => ({
+        orderNo: r.order_no || '', nickname: r.nickname || '微信用户',
+        orderAmount: r.order_amount, partnerBonus: r.partner_bonus,
+        settleStatus: r.settle_status, settleLabel: stZh[r.settle_status] || r.settle_status,
+        createdAt: r.created_at,
+      })),
+    };
   };
 
   /** 我的下级客户列表（PRD 5.2：直推 pid1=me / 间推 pid2=me；含是否付费） */

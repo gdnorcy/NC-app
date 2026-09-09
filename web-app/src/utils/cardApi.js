@@ -100,6 +100,7 @@ export const cardApi = {
   distWithdraw: (amount, identityType) => request('/distribution/withdraw', 'POST', { amount, identityType }),
   distWithdraws: (params = {}) => request(`/distribution/withdraws?page=${params.page || 1}&pageSize=${params.pageSize || 20}&status=${params.status || ''}&identityType=${params.identityType || ''}`),
   distTeam: (identityType, scope) => request(`/distribution/team?identityType=${identityType || ''}${scope ? `&scope=${scope}` : ''}`),
+  distTeamOrders: (page, identityType) => request(`/distribution/team-orders?page=${page || 1}&pageSize=20&identityType=${identityType || ''}`),
   markVisitorRead: (openid) => request(`/visitors/${openid}/read`, 'POST'),
 
   // 客户管理

@@ -1016,4 +1016,28 @@ describe('分销体系（分销裂变底座）', () => {
       dist.saveConfig(TENANT, { poster_templates: [] });
     }
   });
+
+  it('P10 合伙人团队流水：成员订单明细 + 空团队返回空', () => {
+    [9021, 9022].forEach((id) => db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, ?, ?, 'individual')")
+      .run(id, `openid_${id}`, `用户${id}`, TENANT));
+    db.prepare("INSERT OR IGNORE INTO dist_user_relation (tenant_id, user_id, pid1, pid2, identity_type, source_type, status, bind_time) VALUES (?, ?, ?, NULL, 'individual', 'qrcode', 'bound', datetime('now'))")
+      .run(TENANT, 9022, 9021);
+    db.prepare("INSERT OR IGNORE INTO dist_order_split (tenant_id, order_id, order_no, order_amount, buyer_user_id, buyer_identity_type, partner_bonus, total_bonus, settle_status) VALUES (?, ?, 'TEAM-ORDER-1', 10000, 9022, 'individual', 500, 500, 'pending')")
+      .run(TENANT, 99021);
+    try {
+      const t = dist.getTeamOrders(TENANT, 9021, 'individual');
+      assert.equal(t.total, 1);
+      assert.equal(t.list[0].orderNo, 'TEAM-ORDER-1');
+      assert.equal(t.list[0].partnerBonus, 500);
+      assert.equal(t.list[0].nickname, '用户9022');
+      // 无成员 → 空
+      const e = dist.getTeamOrders(TENANT, 9022, 'individual');
+      assert.equal(e.total, 0);
+      assert.deepEqual(e.list, []);
+    } finally {
+      db.prepare('DELETE FROM dist_order_split WHERE tenant_id = ? AND order_id = 99021').run(TENANT);
+      db.prepare('DELETE FROM dist_user_relation WHERE tenant_id = ? AND user_id IN (9021,9022)').run(TENANT);
+      db.prepare('DELETE FROM platform_user WHERE id IN (9021,9022)').run();
+    }
+  });
 });
