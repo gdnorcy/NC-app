@@ -37,6 +37,20 @@
       </view>
     </view>
 
+    <!-- 业绩区：今日 / 累计 -->
+    <view class="perf-cards">
+      <view class="perf-card">
+        <view class="perf-label">今日业绩</view>
+        <view class="perf-val">¥{{ fen(summary.todayCommission) }}</view>
+        <view class="perf-sub">{{ summary.todayOrder }}单 · 新增{{ summary.todayNew }}人</view>
+      </view>
+      <view class="perf-card perf-click" @click="showCum = true">
+        <view class="perf-label">累计业绩 <text class="perf-more">›</text></view>
+        <view class="perf-val">¥{{ fen(summary.totalCommission) }}</view>
+        <view class="perf-sub">直推{{ summary.directCount }} · 间推{{ summary.indirectCount }}</view>
+      </view>
+    </view>
+
     <!-- 无权限提示 -->
     <view v-if="summary.unbound" class="tip-box">
       当前暂无分销/分红权限，入驻租户并绑定推广关系后可查看收益
@@ -98,6 +112,22 @@
       <view v-if="!hasAnyApp" class="empty-box">当前租户未开通分销应用，请先联系租户管理员开通</view>
     </view>
 
+    <!-- 累计业绩弹层 -->
+    <view v-if="showCum" class="qr-mask" @click="showCum = false">
+      <view class="qr-panel cum-panel" @click.stop>
+        <view class="qr-title">累计业绩</view>
+        <view class="cum-grid">
+          <view class="cum-item"><text class="cum-num">¥{{ fen(summary.totalCommission) }}</text><text class="cum-lb">累计佣金(元)</text></view>
+          <view class="cum-item"><text class="cum-num">{{ summary.totalOrders }}</text><text class="cum-lb">累计订单(单)</text></view>
+          <view class="cum-item"><text class="cum-num">{{ summary.directCount }}</text><text class="cum-lb">直推下级(人)</text></view>
+          <view class="cum-item"><text class="cum-num">{{ summary.indirectCount }}</text><text class="cum-lb">间推下级(人)</text></view>
+          <view class="cum-item"><text class="cum-num">{{ summary.monthNew }}</text><text class="cum-lb">本月新增(人)</text></view>
+          <view class="cum-item"><text class="cum-num">¥{{ fen(summary.monthCommission) }}</text><text class="cum-lb">本月佣金(元)</text></view>
+        </view>
+        <button class="mini-btn ghost" @click="showCum = false">关闭</button>
+      </view>
+    </view>
+
     <!-- 分销须知 -->
     <view v-if="showRules" class="qr-mask" @click="showRules = false">
       <view class="qr-panel rules-panel" @click.stop>
@@ -134,6 +164,7 @@ const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, distName: '推广员', subName: '下级', ratio1: 0.2, ratio2: 0.05, settleDay: 7, distNotice: '' });
 const showRules = ref(false);
+const showCum = ref(false);
 const fmtRatio = (v) => (Math.round((Number(v) || 0) * 1000) / 10) + '%';
 
 const shareAllTag = computed(() => summary.value.shareTags.includes('全民股东'));
@@ -193,6 +224,18 @@ onShow(() => {
 .wd-detail-link { font-size: 22rpx; opacity: 0.9; }
 .withdraw-btn { background: #fff; color: #0f766e; font-size: 28rpx; font-weight: 600; padding: 14rpx 44rpx; border-radius: 999rpx; box-shadow: 0 6rpx 16rpx rgba(0,0,0,0.12); }
 .tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: 26rpx; border-radius: 16rpx; line-height: 1.6; }
+.perf-cards { margin: 24rpx 32rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.perf-card { background: #fff; border-radius: 20rpx; padding: 26rpx 24rpx; }
+.perf-card.perf-click { cursor: pointer; }
+.perf-label { font-size: 24rpx; color: #86909c; display: flex; align-items: center; justify-content: space-between; }
+.perf-more { font-size: 28rpx; color: #c9cdd4; }
+.perf-val { margin-top: 12rpx; font-size: 40rpx; font-weight: 700; color: #1d2129; }
+.perf-sub { margin-top: 8rpx; font-size: 22rpx; color: #a9aeb8; }
+.cum-panel .qr-title { margin-bottom: 8rpx; }
+.cum-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; }
+.cum-item { background: #f7f8fa; border-radius: 16rpx; padding: 24rpx 8rpx; text-align: center; display: flex; flex-direction: column; gap: 8rpx; }
+.cum-num { font-size: 32rpx; font-weight: 700; color: #1d2129; }
+.cum-lb { font-size: 22rpx; color: #86909c; }
 .sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
 .app-cards { margin: 0 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .app-card { display: flex; align-items: center; gap: 24rpx; background: #fff; border-radius: 20rpx; padding: 28rpx 28rpx; box-shadow: 0 4rpx 16rpx rgba(31,35,41,0.05); }
