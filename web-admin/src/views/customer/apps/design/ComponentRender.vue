@@ -51,6 +51,65 @@
         <div v-else class="r-video-empty"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
       </div>
     </template>
+    <!-- 图文卡片 -->
+    <template v-else-if="comp.type === 'image-text'">
+      <div class="r-imagetext" :class="{ overlay: comp.props.textPos === 'overlay' }">
+        <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
+        <div v-else class="r-imagetext-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图文卡片</div>
+        <div class="r-imagetext-body">
+          <div class="r-imagetext-title">{{ comp.props.title || '图文标题' }}</div>
+          <div class="r-imagetext-desc">{{ comp.props.desc || '描述文字' }}</div>
+        </div>
+      </div>
+    </template>
+    <!-- 轮播图 -->
+    <template v-else-if="comp.type === 'swiper'">
+      <div class="r-swiper" :style="{ height: (comp.props.height || 150) + 'px' }">
+        <template v-if="(comp.props.items || []).filter((it) => it.url).length">
+          <img v-for="(it, i) in comp.props.items.filter((x) => x.url)" :key="i" :src="resolveUrl(it.url)" />
+        </template>
+        <div v-else class="r-swiper-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>轮播图（至少添加一张图片）</div>
+      </div>
+    </template>
+    <!-- 名片卡 -->
+    <template v-else-if="comp.type === 'my-card'">
+      <div class="r-mycard" :style="{ background: comp.props.bgColor || '#F0F7FF' }">
+        <div class="r-mycard-avatar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#165DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5"/></svg></div>
+        <div class="r-mycard-body">
+          <div class="r-mycard-name">{{ comp.props.name || '我的名片' }}</div>
+          <div class="r-mycard-sub">{{ comp.props.sub || '点击查看我的名片' }}</div>
+        </div>
+        <div class="r-mycard-arrow">›</div>
+      </div>
+    </template>
+    <!-- 宫格导航 -->
+    <template v-else-if="comp.type === 'grid-nav'">
+      <div class="r-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 4) + ',1fr)' }">
+        <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-grid-item">
+          <div class="r-grid-icon">{{ it.icon || 'card' }}</div>
+          <div class="r-grid-text">{{ it.text || '入口' }}</div>
+        </div>
+      </div>
+    </template>
+    <!-- 数据统计 -->
+    <template v-else-if="comp.type === 'stats'">
+      <div class="r-stats" :style="{ '--st': comp.props.color || '#165DFF' }">
+        <div v-if="comp.props.showToday" class="r-stats-item"><b>0</b><span>今日访客</span></div>
+        <div v-if="comp.props.showTotal" class="r-stats-item"><b>0</b><span>累计访客</span></div>
+        <div v-if="comp.props.showExchange" class="r-stats-item"><b>0</b><span>名片交换</span></div>
+      </div>
+    </template>
+    <!-- 全景方案 -->
+    <template v-else-if="comp.type === 'panorama'">
+      <div class="r-pano">
+        <div class="r-pano-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#165DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 8v8c0 1.5 4 3 9 3s9-1.5 9-3V8"/></svg></div>
+        <div class="r-pano-body">
+          <div class="r-pano-title">{{ comp.props.title || '360 全景' }}</div>
+          <div class="r-pano-desc">{{ comp.props.desc || '沉浸式全景展示' }}</div>
+        </div>
+        <div class="r-pano-arrow">›</div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -99,4 +158,43 @@ function resolveUrl(u) {
 .r-video { position: relative; border-radius: 8px; overflow: hidden; background: #000; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
 .r-video img { width: 100%; height: 100%; object-fit: cover; }
 .r-video-empty { opacity: .6; }
+/* 图文卡片 */
+.r-imagetext { position: relative; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #f0f1f3; }
+.r-imagetext img { width: 100%; display: block; }
+.r-imagetext-empty { height: 88px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #86909c; font-size: 12px; background: #f7f8fa; border-bottom: 1px solid #f0f1f3; }
+.r-imagetext-body { padding: 10px 12px; }
+.r-imagetext-title { font-size: 15px; font-weight: 600; color: #1d2129; }
+.r-imagetext-desc { font-size: 12px; color: #86909c; margin-top: 3px; }
+.r-imagetext.overlay .r-imagetext-body { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, rgba(0,0,0,.55)); color: #fff; }
+.r-imagetext.overlay .r-imagetext-title { color: #fff; }
+.r-imagetext.overlay .r-imagetext-desc { color: rgba(255,255,255,.85); }
+/* 轮播图 */
+.r-swiper { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; display: flex; }
+.r-swiper img { width: 100%; height: 100%; object-fit: cover; }
+.r-swiper-empty { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #86909c; font-size: 12px; }
+/* 名片卡 */
+.r-mycard { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
+.r-mycard-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(22,93,255,.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.r-mycard-body { flex: 1; min-width: 0; }
+.r-mycard-name { font-size: 15px; font-weight: 600; color: #1d2129; }
+.r-mycard-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
+.r-mycard-arrow { color: #c9cdd4; font-size: 20px; }
+/* 宫格导航 */
+.r-grid { display: grid; gap: 4px; }
+.r-grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; }
+.r-grid-icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(22,93,255,.08); color: #165dff; display: flex; align-items: center; justify-content: center; font-size: 11px; text-transform: uppercase; }
+.r-grid-text { font-size: 12px; color: #4e5969; }
+/* 数据统计 */
+.r-stats { display: flex; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; padding: 16px 8px; }
+.r-stats-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; border-right: 1px solid #f0f1f3; }
+.r-stats-item:last-child { border-right: none; }
+.r-stats-item b { font-size: 20px; font-weight: 700; color: var(--st, #165dff); }
+.r-stats-item span { font-size: 12px; color: #86909c; }
+/* 全景方案 */
+.r-pano { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, #f0f7ff, #e8f3ff); }
+.r-pano-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(22,93,255,.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.r-pano-body { flex: 1; min-width: 0; }
+.r-pano-title { font-size: 15px; font-weight: 600; color: #1d2129; }
+.r-pano-desc { font-size: 12px; color: #86909c; margin-top: 2px; }
+.r-pano-arrow { color: #165dff; font-size: 20px; }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <view class="home-page">
     <!-- 设计中心装修区（发布/预览的首页组件） -->
-    <DesignPage v-if="designComps.length" :comps="designComps" class="design-section" />
+    <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" class="design-section" />
 
     <!-- 顶部搜索栏 -->
     <view class="top-bar">

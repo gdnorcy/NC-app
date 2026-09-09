@@ -15,6 +15,12 @@ import iconNotice from '../../../../assets/comp-icons/notice.png';
 import iconCountdown from '../../../../assets/comp-icons/countdown.png';
 import iconForm from '../../../../assets/comp-icons/form.png';
 import iconVideo from '../../../../assets/comp-icons/video.png';
+import iconImageText from '../../../../assets/comp-icons/bannerGoods.png';
+import iconSwiper from '../../../../assets/comp-icons/banner.png';
+import iconMyCard from '../../../../assets/comp-icons/member_inviter.png';
+import iconGridNav from '../../../../assets/comp-icons/cube.png';
+import iconStats from '../../../../assets/comp-icons/goodsRanking.png';
+import iconPanorama from '../../../../assets/comp-icons/storeLocation.png';
 
 export const componentGroups = [
   { key: 'basic', name: '基础组件' },
@@ -33,7 +39,37 @@ export const COMP_ICONS = {
   countdown: iconCountdown,
   form: iconForm,
   video: iconVideo,
+  'image-text': iconImageText,
+  swiper: iconSwiper,
+  'my-card': iconMyCard,
+  'grid-nav': iconGridNav,
+  stats: iconStats,
+  panorama: iconPanorama,
 };
+
+// 宫格导航图标选择器选项（系统 SVG 图标库，SIcon 双端通用）
+export const ICON_OPTIONS = [
+  { value: 'card', label: '名片' },
+  { value: 'radar', label: '访客' },
+  { value: 'customer', label: '客户' },
+  { value: 'market', label: '集市' },
+  { value: 'exchange', label: '交换' },
+  { value: 'pool', label: '公海' },
+  { value: 'wallet', label: '钱包' },
+  { value: 'crown', label: '会员' },
+  { value: 'dynamic', label: '动态' },
+  { value: 'team', label: '员工' },
+  { value: 'building', label: '企业' },
+  { value: 'panorama', label: '全景' },
+  { value: 'template', label: '模板' },
+  { value: 'analytics', label: '分析' },
+  { value: 'audit', label: '审核' },
+  { value: 'key', label: '口令' },
+  { value: 'badge', label: '徽章' },
+  { value: 'chart', label: '图表' },
+  { value: 'notice', label: '公告' },
+  { value: 'devices', label: '设备' },
+];
 
 export const componentRegistry = [
   {
@@ -149,6 +185,101 @@ export const componentRegistry = [
     schema: [
       { key: 'url', label: '视频地址', control: 'input', section: 'content', required: true, placeholder: '支持 mp4 链接' },
       { key: 'poster', label: '封面图', control: 'image', section: 'content' },
+    ],
+  },
+  {
+    type: 'image-text',
+    name: '图文卡片',
+    group: 'basic',
+    icon: 'image-text',
+    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below' },
+    schema: [
+      { key: 'url', label: '图片', control: 'image', section: 'content', required: true },
+      { key: 'title', label: '标题', control: 'input', section: 'content' },
+      { key: 'desc', label: '描述', control: 'input', section: 'content' },
+      { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'textPos', label: '文字位置', control: 'radio', section: 'style', options: [{ label: '图下方', value: 'below' }, { label: '图上叠加', value: 'overlay' }] },
+    ],
+  },
+  {
+    type: 'swiper',
+    name: '轮播图',
+    group: 'basic',
+    icon: 'swiper',
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }], height: 150, interval: 4000 },
+    schema: [
+      {
+        key: 'items', label: '轮播图片', control: 'list', section: 'content',
+        itemFields: [
+          { key: 'url', label: '图片', control: 'image' },
+          { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
+        ],
+      },
+      { key: 'height', label: '高度', control: 'slider', section: 'style', min: 80, max: 320 },
+      { key: 'interval', label: '轮播间隔(ms)', control: 'slider', section: 'style', min: 2000, max: 8000, step: 500 },
+    ],
+  },
+  {
+    type: 'my-card',
+    name: '名片卡',
+    group: 'function',
+    icon: 'my-card',
+    defaultProps: { name: '我的名片', sub: '点击查看我的名片', bgColor: '#F0F7FF' },
+    schema: [
+      { key: 'name', label: '标题', control: 'input', section: 'content', required: true },
+      { key: 'sub', label: '副标题', control: 'input', section: 'content' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'grid-nav',
+    name: '宫格导航',
+    group: 'function',
+    icon: 'grid-nav',
+    defaultProps: {
+      columns: 4,
+      items: [
+        { icon: 'card', text: '我的名片', url: '/pages/card/myCard' },
+        { icon: 'radar', text: '访客雷达', url: '/pages/card/visitors' },
+        { icon: 'customer', text: '客户管理', url: '/pages/card/customers' },
+        { icon: 'market', text: '人脉集市', url: '/pages/card/market' },
+      ],
+    },
+    schema: [
+      {
+        key: 'items', label: '导航项', control: 'list', section: 'content',
+        itemFields: [
+          { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS },
+          { key: 'text', label: '文字', control: 'input' },
+          { key: 'url', label: '跳转', control: 'link', placeholder: '如 /pages/card/myCard' },
+        ],
+      },
+      { key: 'columns', label: '列数', control: 'radio', section: 'style', options: [{ label: '3列', value: 3 }, { label: '4列', value: 4 }, { label: '5列', value: 5 }] },
+    ],
+  },
+  {
+    type: 'stats',
+    name: '数据统计',
+    group: 'function',
+    icon: 'stats',
+    defaultProps: { showToday: true, showTotal: true, showExchange: true, color: '#165DFF' },
+    schema: [
+      { key: 'showToday', label: '今日访客', control: 'switch', section: 'content' },
+      { key: 'showTotal', label: '累计访客', control: 'switch', section: 'content' },
+      { key: 'showExchange', label: '名片交换', control: 'switch', section: 'content' },
+      { key: 'color', label: '主题色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'panorama',
+    name: '全景方案',
+    group: 'function',
+    icon: 'panorama',
+    defaultProps: { title: '360 全景', desc: '沉浸式全景展示', link: '/?plan=1&scene=1' },
+    schema: [
+      { key: 'title', label: '标题', control: 'input', section: 'content', required: true },
+      { key: 'desc', label: '描述', control: 'input', section: 'content' },
+      { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /?plan=1&scene=1' },
     ],
   },
 ];

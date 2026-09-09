@@ -105,6 +105,34 @@
                     <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
                   </div>
                   <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'" />
+                  <el-switch v-else-if="f.control === 'switch'" v-model="selectedComp.props[f.key]" />
+                  <el-select v-else-if="f.control === 'select'" v-model="selectedComp.props[f.key]" size="small" style="width:100%">
+                    <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
+                  </el-select>
+                  <div v-else-if="f.control === 'list'" class="pe-list">
+                    <div v-for="(it, idx) in selectedComp.props[f.key] || []" :key="idx" class="pe-list-item">
+                      <div class="pe-list-fields">
+                        <div v-for="(sf, si) in f.itemFields" :key="si" class="pe-list-field">
+                          <div class="pe-list-label">{{ sf.label }}</div>
+                          <el-input v-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
+                          <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'" />
+                          <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:100%">
+                            <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
+                          </el-select>
+                          <div v-else-if="sf.control === 'image'" class="pe-img-field">
+                            <el-button size="small" @click="openImgSel(idx, si, f)">选择</el-button>
+                            <el-button v-if="it[sf.key]" size="small" text type="danger" @click="it[sf.key] = ''">清除</el-button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="pe-list-ops">
+                        <el-button size="small" text @click="moveListItem(selectedComp, f.key, idx, -1)">↑</el-button>
+                        <el-button size="small" text @click="moveListItem(selectedComp, f.key, idx, 1)">↓</el-button>
+                        <el-button size="small" text type="danger" @click="selectedComp.props[f.key].splice(idx, 1)">删除</el-button>
+                      </div>
+                    </div>
+                    <el-button size="small" class="pe-list-add" @click="addListItem(selectedComp, f.key, f.itemFields)">+ 添加一项</el-button>
+                  </div>
                 </el-form-item>
               </el-form>
             </div>
@@ -174,7 +202,8 @@ const versionShow = ref(false);
 const versions = ref([]);
 const selMats = ref([]);
 const selLoading = ref(false);
-const imgSel = reactive({ show: false, pick: null });
+const imgSel = reactive({ show: false, pick: null, target: null });
+let imgSelListField = null; // 当前 list 字段定义（openImgSel 传入，确认时回写对应 key）
 const kw = ref('');
 const expanded = reactive({});
 
@@ -376,8 +405,10 @@ async function saveAsTemplate() {
     if (e !== 'cancel' && e !== 'close') ElMessage.error(e);
   }
 }
-async function openImgSel() {
+async function openImgSel(listIdx, fieldIdx, listField) {
   imgSel.pick = null;
+  imgSel.target = typeof listIdx === 'number' && typeof fieldIdx === 'number' ? { listIdx, fieldIdx } : null;
+  imgSelListField = imgSel.target ? (listField || null) : null;
   imgSel.show = true;
   selLoading.value = true;
   try {
@@ -388,10 +419,32 @@ async function openImgSel() {
 function confirmImgSel() {
   const m = selMats.value.find((x) => x.id === imgSel.pick);
   if (m && selectedComp.value) {
-    selectedComp.value.props.url = m.file_url;
-    selectedComp.value.props.materialId = m.id;
+    if (imgSel.target && imgSelListField) {
+      const items = selectedComp.value.props[imgSelListField.key] || [];
+      if (!items[imgSel.target.listIdx]) items[imgSel.target.listIdx] = {};
+      items[imgSel.target.listIdx][imgSelListField.itemFields[imgSel.target.fieldIdx].key] = m.file_url;
+    } else {
+      selectedComp.value.props.url = m.file_url;
+      selectedComp.value.props.materialId = m.id;
+    }
   }
   imgSel.show = false;
+}
+
+// 列表项操作：新增（按 itemFields 生成默认项）/ 移动
+function addListItem(comp, key, itemFields) {
+  const items = comp.props[key] || [];
+  const blank = {};
+  (itemFields || []).forEach((f) => { blank[f.key] = f.control === 'select' && f.options?.length ? f.options[0].value : ''; });
+  items.push(blank);
+}
+function moveListItem(comp, key, idx, dir) {
+  const items = comp.props[key] || [];
+  const to = idx + dir;
+  if (to < 0 || to >= items.length) return;
+  const t = items[idx];
+  items[idx] = items[to];
+  items[to] = t;
 }
 
 watch(() => props.pageType, () => { selected.value = null; load(); });
@@ -489,6 +542,15 @@ onMounted(load);
 .pe-prop-empty { color: #86909c; font-size: 12px; padding: 40px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .pe-prop-empty :deep(svg), .pe-prop-empty :deep(img) { opacity: .4; }
 .pe-img-field { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* 列表编辑器（轮播图/宫格导航 items） */
+.pe-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.pe-list-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px; display: flex; gap: 6px; align-items: flex-start; background: #fafbfc; }
+.pe-list-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pe-list-field { display: flex; flex-direction: column; gap: 2px; }
+.pe-list-label { font-size: 11px; color: #86909c; }
+.pe-list-ops { display: flex; flex-direction: column; gap: 2px; }
+.pe-list-add { width: 100%; border-style: dashed; }
 
 /* 素材选择 */
 .pe-sel { max-height: 360px; overflow-y: auto; }
