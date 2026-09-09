@@ -1,5 +1,5 @@
 <template>
-  <div class="comp-render">
+  <div class="comp-render" :style="containerStyle">
     <template v-if="comp.type === 'title'">
       <div class="r-title" :style="{ color: comp.props.color, textAlign: comp.props.align }">{{ comp.props.text || '标题文字' }}</div>
     </template>
@@ -27,7 +27,17 @@
 </template>
 
 <script setup>
-defineProps({ comp: { type: Object, required: true } });
+import { computed } from 'vue';
+const props = defineProps({ comp: { type: Object, required: true } });
+
+const containerStyle = computed(() => {
+  const p = props.comp.props || {};
+  const s = {};
+  if (p.padding !== undefined && p.padding !== '') s.padding = `${p.padding}px`;
+  if (p.radius !== undefined && p.radius !== '') s.borderRadius = `${p.radius}px`;
+  if (p.bgColor) s.background = p.bgColor;
+  return s;
+});
 
 function resolveUrl(u) {
   if (!u) return '';

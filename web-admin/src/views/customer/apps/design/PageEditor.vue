@@ -8,6 +8,7 @@
       </div>
       <div class="pe-actions">
         <el-button size="small" @click="loadVersions">历史版本</el-button>
+        <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
         <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
         <el-button size="small" type="success" :loading="publishing" @click="publish">发布</el-button>
       </div>
@@ -82,27 +83,30 @@
         </div>
       </div>
 
-      <!-- 属性面板：schema 驱动自动渲染 -->
+      <!-- 属性面板：schema 驱动，内容/样式分组 + 通用样式 -->
       <div class="pe-prop">
         <div class="pe-prop-title">{{ selectedComp ? selectedComp.name : '属性' }}</div>
-        <div v-if="selectedComp && selectedSchema.length" class="pe-prop-body">
-          <el-form label-width="70px" size="small">
-            <template v-for="f in selectedSchema" :key="f.key">
-              <el-form-item :label="f.label">
-                <el-input v-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
-                <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
-                <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
-                  <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
-                </el-radio-group>
-                <el-slider v-else-if="f.control === 'slider'" v-model="selectedComp.props[f.key]" :min="f.min" :max="f.max" show-input />
-                <div v-else-if="f.control === 'image'" class="pe-img-field">
-                  <el-button size="small" @click="openImgSel">选择素材</el-button>
-                  <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
-                </div>
-                <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'" />
-              </el-form-item>
-            </template>
-          </el-form>
+        <div v-if="selectedComp && schemaSections.length" class="pe-prop-body">
+          <template v-for="sec in schemaSections" :key="sec.key">
+            <div v-if="sec.fields.length" class="pe-sec">
+              <div class="pe-sec-name">{{ sec.label }}</div>
+              <el-form label-width="72px" size="small">
+                <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.label" :class="{ required: f.required }">
+                  <el-input v-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
+                  <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
+                  <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
+                    <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
+                  </el-radio-group>
+                  <el-slider v-else-if="f.control === 'slider'" v-model="selectedComp.props[f.key]" :min="f.min" :max="f.max" show-input />
+                  <div v-else-if="f.control === 'image'" class="pe-img-field">
+                    <el-button size="small" @click="openImgSel">选择素材</el-button>
+                    <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
+                  </div>
+                  <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'" />
+                </el-form-item>
+              </el-form>
+            </div>
+          </template>
         </div>
         <div v-else class="pe-prop-empty">
           <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 9.5h8M8 13h5"/></svg>
@@ -150,7 +154,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall } from '../../../../api';
-import { componentRegistry, componentGroups, COMP_ICONS, findComponent } from './componentRegistry';
+import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
 import ComponentRender from './ComponentRender.vue';
 
 const props = defineProps({
@@ -176,7 +180,19 @@ const selectedComp = computed(() => {
   const c = components.value.find((c) => c.id === selected.value) || null;
   return c ? { ...c, name: findComponent(c.type)?.name || c.type } : null;
 });
-const selectedSchema = computed(() => (selectedComp.value ? findComponent(selectedComp.value.type)?.schema || [] : []));
+// 属性面板分组：内容 / 样式 + 通用样式（跳过组件已有同名 key）
+const schemaSections = computed(() => {
+  if (!selectedComp.value) return [];
+  const def = findComponent(selectedComp.value.type);
+  if (!def) return [];
+  const ownKeys = def.schema.map((f) => f.key);
+  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key));
+  return [
+    { key: 'content', label: '内容', fields: def.schema.filter((f) => f.section !== 'style') },
+    { key: 'style', label: '样式', fields: def.schema.filter((f) => f.section === 'style') },
+    { key: 'common', label: '通用样式', fields: common },
+  ];
+});
 
 // 组件库：搜索 + 分组
 const visibleGroups = computed(() => {
@@ -203,7 +219,7 @@ function compName(t) { return findComponent(t)?.name || t; }
 
 function newComp(type) {
   const def = findComponent(type);
-  return { id: `c${Date.now()}-${uid++}`, type, props: { ...(def?.defaultProps || {}) } };
+  return { id: `c${Date.now()}-${uid++}`, type, props: { ...commonStyleProps, ...(def?.defaultProps || {}) } };
 }
 function addComponent(type) {
   const c = newComp(type);
@@ -260,7 +276,7 @@ async function load() {
       pageName.value = src.page_name || '页面';
       components.value = (src.design_json?.components || []).map((c) => {
         const def = findComponent(c.type);
-        return { ...c, props: { ...(def?.defaultProps || {}), ...(c.props || {}) } };
+        return { ...c, props: { ...commonStyleProps, ...(def?.defaultProps || {}), ...(c.props || {}) } };
       });
     }
   } catch (e) { ElMessage.error(e); }
@@ -314,6 +330,24 @@ async function rollback(row) {
       await load();
     }
   } catch (e) { ElMessage.error(e); }
+}
+async function saveAsTemplate() {
+  if (!components.value.length) { ElMessage.warning('画布为空，请先添加组件'); return; }
+  try {
+    const { value } = await ElMessageBox.prompt('请输入模板名称', '另存为模板', {
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      inputValue: `${pageName.value}模板`,
+      inputValidator: (v) => (v && v.trim() ? true : '模板名称不能为空'),
+    });
+    const res = await designCall.post('/design/template/saveMy', {
+      name: value.trim(),
+      templateJson: { pages: { [props.pageType]: { components: components.value } } },
+    });
+    if (res.ok) ElMessage.success('已另存为私有模板，可在「系统模板」中查看应用');
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e);
+  }
 }
 async function openImgSel() {
   imgSel.pick = null;
@@ -418,6 +452,11 @@ onMounted(load);
 .pe-prop { background: #fff; border-radius: 8px; padding: 12px; }
 .pe-prop-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .pe-prop-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
+.pe-sec { margin-bottom: 14px; }
+.pe-sec-name { font-size: 12px; font-weight: 600; color: #4e5969; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.pe-sec-name::after { content: ''; flex: 1; height: 1px; background: #f0f1f3; }
+.pe-sec .el-form-item :deep(.required label) { color: #f53f3f; }
+.pe-sec :deep(.el-form-item.required .el-form-item__label::before) { content: '*'; color: #f53f3f; margin-right: 4px; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
 .pe-prop-empty { color: #86909c; font-size: 12px; padding: 40px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .pe-prop-empty :deep(svg), .pe-prop-empty :deep(img) { opacity: .4; }

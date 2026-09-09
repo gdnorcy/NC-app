@@ -37,10 +37,10 @@ export const componentRegistry = [
     icon: 'title',
     defaultProps: { text: '页面标题', color: '#1d2129', align: 'center', size: 22 },
     schema: [
-      { key: 'text', label: '文字', control: 'input' },
-      { key: 'color', label: '颜色', control: 'color' },
-      { key: 'align', label: '对齐', control: 'radio', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
-      { key: 'size', label: '字号', control: 'slider', min: 12, max: 32 },
+      { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
+      { key: 'color', label: '颜色', control: 'color', section: 'style' },
+      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
+      { key: 'size', label: '字号', control: 'slider', section: 'style', min: 12, max: 32 },
     ],
   },
   {
@@ -50,10 +50,10 @@ export const componentRegistry = [
     icon: 'text',
     defaultProps: { text: '这里填写文本内容', color: '#1d2129', align: 'center', size: 14 },
     schema: [
-      { key: 'text', label: '文字', control: 'input' },
-      { key: 'color', label: '颜色', control: 'color' },
-      { key: 'align', label: '对齐', control: 'radio', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
-      { key: 'size', label: '字号', control: 'slider', min: 12, max: 32 },
+      { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
+      { key: 'color', label: '颜色', control: 'color', section: 'style' },
+      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
+      { key: 'size', label: '字号', control: 'slider', section: 'style', min: 12, max: 32 },
     ],
   },
   {
@@ -63,8 +63,8 @@ export const componentRegistry = [
     icon: 'image',
     defaultProps: { url: '', link: '' },
     schema: [
-      { key: 'url', label: '图片', control: 'image' },
-      { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
+      { key: 'url', label: '图片', control: 'image', section: 'content', required: true },
+      { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
     ],
   },
   {
@@ -74,11 +74,11 @@ export const componentRegistry = [
     icon: 'button',
     defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '' },
     schema: [
-      { key: 'text', label: '文字', control: 'input' },
-      { key: 'textColor', label: '文字色', control: 'color' },
-      { key: 'bgColor', label: '背景色', control: 'color' },
-      { key: 'radius', label: '圆角', control: 'slider', min: 0, max: 24 },
-      { key: 'url', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
+      { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
+      { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'radius', label: '按钮圆角', control: 'slider', section: 'style', min: 0, max: 24 },
     ],
   },
   {
@@ -87,7 +87,7 @@ export const componentRegistry = [
     group: 'basic',
     icon: 'divider',
     defaultProps: { text: '' },
-    schema: [{ key: 'text', label: '文字', control: 'input', placeholder: '选填，显示在分割线中间' }],
+    schema: [{ key: 'text', label: '文字', control: 'input', section: 'content', placeholder: '选填，显示在分割线中间' }],
   },
   {
     type: 'notice',
@@ -96,13 +96,21 @@ export const componentRegistry = [
     icon: 'notice',
     defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '' },
     schema: [
-      { key: 'text', label: '文字', control: 'input' },
-      { key: 'bgColor', label: '背景色', control: 'color' },
-      { key: 'color', label: '文字色', control: 'color' },
-      { key: 'url', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
+      { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
+      { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'color', label: '文字色', control: 'color', section: 'style' },
     ],
   },
 ];
+
+// 通用样式：自动注入属性面板「通用样式」分组（跳过组件 schema 已有同名 key）
+export const commonStyleSchema = [
+  { key: 'padding', label: '内边距', control: 'slider', min: 0, max: 24 },
+  { key: 'radius', label: '圆角', control: 'slider', min: 0, max: 24 },
+  { key: 'bgColor', label: '背景色', control: 'color' },
+];
+export const commonStyleProps = { padding: 8, radius: 8, bgColor: '' };
 
 export function findComponent(type) {
   return componentRegistry.find((c) => c.type === type) || null;

@@ -269,12 +269,12 @@
     <section v-if="activeTab === 'page'">
       <AppPageHeader title="页面装修" desc="可视化拖拽编辑器：从左侧组件库添加标题/文本/图片/按钮等，支持草稿保存、发布与版本回滚">
         <div class="hd-actions">
-          <el-radio-group v-model="pageType" size="small">
-            <el-radio-button value="home">首页</el-radio-button>
-            <el-radio-button value="card">名片详情页</el-radio-button>
-            <el-radio-button value="dynamic">个人动态页</el-radio-button>
-            <el-radio-button value="mine">个人中心</el-radio-button>
-          </el-radio-group>
+          <el-select v-model="pageType" size="small" style="width: 150px">
+            <el-option value="home" label="首页" />
+            <el-option value="card" label="名片详情页" />
+            <el-option value="dynamic" label="个人动态页" />
+            <el-option value="mine" label="个人中心" />
+          </el-select>
         </div>
       </AppPageHeader>
       <PageEditor :page-type="pageType" />
