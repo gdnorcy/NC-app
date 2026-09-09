@@ -2004,6 +2004,10 @@ function seedDistribution(db) {
   if (!colExists(db, 'dist_withdraw', 'pay_remark')) {
     db.exec("ALTER TABLE dist_withdraw ADD COLUMN pay_remark TEXT NOT NULL DEFAULT ''");
   }
+  // 提现收款账户（申请时填写：JSON {type:'wx'|'alipay'|'bank', value, name?}）
+  if (!colExists(db, 'dist_withdraw', 'pay_account')) {
+    db.exec("ALTER TABLE dist_withdraw ADD COLUMN pay_account TEXT NOT NULL DEFAULT ''");
+  }
 
   // —— 2. 应用注册：分销体系分类 + 5 个独立应用 ——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('分销体系', 'dist', 9)");

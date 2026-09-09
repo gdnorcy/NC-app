@@ -35,6 +35,16 @@
       <text v-else>暂未获得股东身份，可以向租户管理员申请开通</text>
     </view>
 
+    <!-- 权益说明（无身份时展示） -->
+    <view v-if="!shareAllTag" class="benefit-card">
+      <view class="benefit-title">全民股东是什么？</view>
+      <view class="benefit-line">· 抽取本租户<text class="benefit-em">全站所有付费订单</text>进入分红池</view>
+      <view class="benefit-line">· 支持<text class="benefit-em">均等分配</text>或<text class="benefit-em">按权重分配</text>（由租户管理员配置）</view>
+      <view class="benefit-line">· 每笔订单分红按池内权重实时计算，收益入账至钱包</view>
+      <view class="benefit-line">· 退款自动扣回对应分红，历史明细永久保留</view>
+      <view class="benefit-cta">获得身份后，本页将展示你的全民股东收益与明细</view>
+    </view>
+
     <!-- 分红明细 -->
     <view class="sec-t">分红明细</view>
     <view class="log-list">
@@ -140,6 +150,11 @@ onShow(() => {
 .mr-lb { font-size: 22rpx; opacity: 0.85; }
 .mr-val { font-size: 32rpx; font-weight: 600; }
 .tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: 26rpx; border-radius: 16rpx; line-height: 1.6; }
+.benefit-card { margin: 0 32rpx 24rpx; padding: 28rpx; background: #f0f7ff; border: 1rpx solid #c8e0ff; border-radius: 16rpx; }
+.benefit-title { font-size: 28rpx; font-weight: 600; color: #165dff; margin-bottom: 14rpx; }
+.benefit-line { font-size: 25rpx; color: #4e5969; line-height: 1.8; }
+.benefit-em { color: #165dff; font-weight: 500; }
+.benefit-cta { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx dashed #c8e0ff; font-size: 24rpx; color: #86909c; }
 .sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
 .log-list { margin: 0 32rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
 .log-item { padding: 24rpx 0; border-top: 1rpx solid #f2f3f5; }

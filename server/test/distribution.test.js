@@ -1040,4 +1040,50 @@ describe('分销体系（分销裂变底座）', () => {
       db.prepare('DELETE FROM platform_user WHERE id IN (9021,9022)').run();
     }
   });
+
+  it('P11 推广效果统计：来源分布/付费转化/带来的佣金', () => {
+    const beforeStats = dist.getPromoStats(TENANT);
+    [9033, 9034].forEach((id) => db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, ?, ?, 'individual')")
+      .run(id, `openid_${id}`, `用户${id}`, TENANT));
+    db.prepare("INSERT OR IGNORE INTO dist_user_relation (tenant_id, user_id, pid1, pid2, identity_type, source_type, status, bind_time) VALUES (?, ?, NULL, NULL, 'individual', 'qrcode', 'bound', datetime('now'))").run(TENANT, 9033);
+    db.prepare("INSERT OR IGNORE INTO dist_user_relation (tenant_id, user_id, pid1, pid2, identity_type, source_type, status, bind_time) VALUES (?, ?, NULL, NULL, 'individual', 'card', 'bound', datetime('now'))").run(TENANT, 9034);
+    db.prepare("INSERT OR IGNORE INTO payment_orders (order_no, payer_type, customer_id, user_id, product_type, amount, status) VALUES ('PROMO-PAY-1', 'tenant', ?, 9033, 'member', 10000, 'paid')").run(TENANT);
+    db.prepare("INSERT OR IGNORE INTO dist_order_split (tenant_id, order_id, order_no, order_amount, buyer_user_id, buyer_identity_type, total_bonus, settle_status) VALUES (?, 99022, 'PROMO-SPLIT-1', 10000, 9033, 'individual', 300, 'pending')").run(TENANT);
+    try {
+      const p = dist.getPromoStats(TENANT);
+      assert.equal(p.boundTotal, beforeStats.boundTotal + 2, '新增 2 个绑定用户');
+      assert.ok(p.paidTotal >= 1, '至少 1 个付费用户');
+      assert.ok(p.promoOrders >= 1, '至少 1 笔带来的订单');
+      assert.ok(p.commissionByPromo >= 300, '带来的佣金 >= 300 分');
+      const qr = p.srcList.find((s) => s.key === 'qrcode');
+      assert.ok(qr && qr.count >= 1, 'qrcode 来源至少 1 人');
+    } finally {
+      db.prepare('DELETE FROM dist_order_split WHERE tenant_id = ? AND order_id = 99022').run(TENANT);
+      db.prepare("DELETE FROM payment_orders WHERE order_no = 'PROMO-PAY-1'").run();
+      db.prepare('DELETE FROM dist_user_relation WHERE tenant_id = ? AND user_id IN (9033,9034)').run(TENANT);
+      db.prepare('DELETE FROM platform_user WHERE id IN (9033,9034)').run();
+    }
+  });
+
+  it('P12 提现收款账户：JSON 落库 + 对账 CSV 收款列', () => {
+    const UID = 9025;
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '收款测试', ?, 'individual')").run(UID, `openid_${UID}`, TENANT);
+    db.prepare('INSERT OR IGNORE INTO dist_wallet (tenant_id, user_id, identity_type, wait_settle, available, total_income, total_withdraw) VALUES (?, ?, ?, 0, 20000, 20000, 0)')
+      .run(TENANT, UID, 'individual');
+    try {
+      const r = dist.applyWithdraw(TENANT, UID, 'individual', 100, { type: 'bank', value: '6222 0000 1111', name: '张三' });
+      assert.equal(r.ok, true);
+      const row = db.prepare('SELECT * FROM dist_withdraw WHERE withdraw_no = ?').get(r.withdrawNo);
+      const acct = JSON.parse(row.pay_account);
+      assert.equal(acct.type, 'bank');
+      assert.equal(acct.name, '张三');
+      assert.equal(acct.value, '6222 0000 1111');
+      const csv = buildWithdrawCsv([{ ...row, nickname: '收款测试' }]);
+      assert.ok(csv.includes('银行卡·张三:6222 0000 1111'), 'CSV 应含收款方式');
+    } finally {
+      db.prepare("DELETE FROM dist_withdraw WHERE withdraw_no LIKE 'WD%' AND user_id = ?").run(UID);
+      db.prepare('DELETE FROM dist_wallet WHERE tenant_id = ? AND user_id = ?').run(TENANT, UID);
+      db.prepare('DELETE FROM platform_user WHERE id = ?').run(UID);
+    }
+  });
 });

@@ -713,6 +713,8 @@ export function createCardRouter(db, wxService) {
       shareTitle: s.shareTitle, shareImg: s.shareImg,
       applyAgreement: s.applyAgreement, distNotice: s.distNotice,
       posterBadge: s.posterBadge !== undefined ? s.posterBadge : true,
+      withdrawMin: s.withdrawMin || 0,
+      withdrawFeeRate: s.withdrawFeeRate || 0,
       parent: s.parent,
     });
   });
@@ -758,10 +760,10 @@ export function createCardRouter(db, wxService) {
 
   // 申请提现
   router.post('/distribution/withdraw', auth, requireTenant, (req, res) => {
-    const { amount, identityType } = req.body;
+    const { amount, identityType, payAccount } = req.body;
     if (!amount || Number(amount) <= 0) return res.status(400).json({ error: '提现金额无效' });
     const idt = identityType || req.user.identity_type || 'individual';
-    const r = distribution.applyWithdraw(req.customerId, req.user.id, idt, Number(amount));
+    const r = distribution.applyWithdraw(req.customerId, req.user.id, idt, Number(amount), payAccount || '');
     if (!r.ok) return res.status(400).json({ error: r.error });
     res.json({ ok: true, withdrawNo: r.withdrawNo });
   });

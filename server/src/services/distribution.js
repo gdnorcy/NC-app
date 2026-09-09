@@ -981,13 +981,18 @@ export function createDistributionService(db) {
   /**
    * 申请提现：校验余额/最低门槛 → 计算手续费 → 冻结余额 → 生成记录
    */
-  svc.applyWithdraw = (tenantId, userId, identityType, amountYuan) => {
+  svc.applyWithdraw = (tenantId, userId, identityType, amountYuan, payAccount = '') => {
     const config = svc.getConfig(tenantId);
     const wallet = svc.getWallet(tenantId, userId, identityType);
     const amount = Math.round(Number(amountYuan) * 100); // 分
     if (amount <= 0) return { ok: false, error: '提现金额无效' };
     if (wallet.available < amount) return { ok: false, error: '可提现余额不足' };
     if (amount < config.min_withdraw * 100) return { ok: false, error: `可提现余额不足最低提现门槛${config.min_withdraw}元` };
+    let acct = '';
+    try {
+      const obj = typeof payAccount === 'string' ? JSON.parse(payAccount) : payAccount;
+      if (obj && obj.value) acct = JSON.stringify({ type: obj.type || 'wx', value: String(obj.value).slice(0, 200), name: obj.name ? String(obj.name).slice(0, 50) : '' });
+    } catch { acct = String(payAccount || '').slice(0, 200); }
 
     const fee = Math.floor(amount * config.withdraw_fee_rate);
     const actual = amount - fee;
@@ -996,8 +1001,8 @@ export function createDistributionService(db) {
       // 申请时仅冻结余额；累计提现（total_withdraw）在打款完成（done）时才累加，口径=历史成功打款
       db.prepare("UPDATE dist_wallet SET available = available - ?, updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ? AND identity_type = ?")
         .run(amount, tenantId, userId, identityType);
-      db.prepare('INSERT INTO dist_withdraw (withdraw_no, tenant_id, user_id, identity_type, amount, service_fee, actual_amount, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(no, tenantId, userId, identityType, amount, fee, actual, 'pending');
+      db.prepare('INSERT INTO dist_withdraw (withdraw_no, tenant_id, user_id, identity_type, amount, service_fee, actual_amount, status, pay_account) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(no, tenantId, userId, identityType, amount, fee, actual, 'pending', acct);
     };
     tx(doApply);
     return { ok: true, withdrawNo: no };
@@ -1093,6 +1098,43 @@ export function createDistributionService(db) {
   };
 
   /** 分销商排行：累计收益 / 直推人数 / 团队人数 / 身份标签；Top N */
+  /** 推广效果统计：绑定来源分布 / 付费转化 / 带来的佣金（租户后台数据大盘） */
+  svc.getPromoStats = (tenantId) => {
+    const SRC_ZH = { qrcode: '推广二维码', card: '名片', market: '人脉集市', link: '推广链接', agreement: '入驻' };
+    const rows = db.prepare("SELECT user_id AS userId, source_type AS src, bind_time AS bindTime FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound'").all(tenantId);
+    const userIds = [...new Set(rows.map((r) => r.userId))];
+    const srcMap = {};
+    for (const r of rows) srcMap[r.src || 'card'] = (srcMap[r.src || 'card'] || 0) + 1;
+    let paidTotal = 0, paidAmount = 0;
+    if (userIds.length) {
+      const marks = userIds.map(() => '?').join(',');
+      const pays = db.prepare(`SELECT user_id, SUM(amount) amt FROM payment_orders WHERE customer_id = ? AND status = 'paid' AND user_id IN (${marks}) GROUP BY user_id`).all(tenantId, ...userIds);
+      paidTotal = pays.length;
+      paidAmount = pays.reduce((s, p) => s + (p.amt || 0), 0);
+    }
+    let promoOrders = 0, commissionByPromo = 0;
+    if (userIds.length) {
+      const marks = userIds.map(() => '?').join(',');
+      const sp = db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(total_bonus),0) t FROM dist_order_split WHERE tenant_id = ? AND buyer_user_id IN (${marks})`).get(tenantId, ...userIds);
+      promoOrders = sp.n; commissionByPromo = sp.t;
+    }
+    const boundTotal = userIds.length;
+    return {
+      srcList: Object.entries(srcMap).map(([k, v]) => ({
+        key: k, label: SRC_ZH[k] || k, count: v,
+        ratio: boundTotal ? +((v / boundTotal) * 100).toFixed(1) : 0,
+      })),
+      boundTotal,
+      paidTotal,
+      paidAmount,
+      paidRate: boundTotal ? +((paidTotal / boundTotal) * 100).toFixed(1) : 0,
+      todayNew: db.prepare("SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND substr(bind_time,1,10) = date('now','localtime')").get(tenantId).n,
+      monthNew: db.prepare("SELECT COUNT(*) n FROM dist_user_relation WHERE tenant_id = ? AND status = 'bound' AND substr(bind_time,1,10) >= substr(date('now','localtime','start of month'),1,10)").get(tenantId).n,
+      promoOrders,
+      commissionByPromo,
+    };
+  };
+
   svc.ranking = (tenantId, limit = 10) => {
     const rows = db.prepare(`
       SELECT w.user_id AS userId, u.nickname,
@@ -1268,6 +1310,8 @@ export function createDistributionService(db) {
       zeroOrder: !!cfg.zero_order,
       showParent: !!cfg.show_parent,
       showPhone: !!cfg.show_phone,
+      withdrawMin: Number(cfg.min_withdraw || 0),
+      withdrawFeeRate: Number(cfg.withdraw_fee_rate || 0),
       defaultLevel: cfg.default_level || '默认等级',
       selfName: self ? (self.nickname || '我') : '我',
       selfAvatar: self ? (self.avatar || '') : '',
@@ -1475,13 +1519,21 @@ const WITHDRAW_STATUS_ZH = { pending: '待审核', approved: '待打款', reject
 /** 提现对账 CSV（带 BOM；金额分转元两位小数；字段含流水号/打款备注，可完整对账） */
 export function buildWithdrawCsv(rows) {
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const head = ['提现单号', '用户', '身份', '提现金额(元)', '手续费(元)', '实际到账(元)', '状态', '提交时间', '打款时间', '打款流水号', '打款备注', '驳回原因'];
+  const head = ['提现单号', '用户', '身份', '提现金额(元)', '手续费(元)', '实际到账(元)', '状态', '收款方式', '提交时间', '打款时间', '打款流水号', '打款备注', '驳回原因'];
+  const acctLabel = (r) => {
+    if (!r.pay_account) return '';
+    try {
+      const o = JSON.parse(r.pay_account);
+      const typeZh = { wx: '微信', alipay: '支付宝', bank: '银行卡' };
+      return `${typeZh[o.type] || o.type}${o.name ? '·' + o.name : ''}:${o.value}`;
+    } catch { return r.pay_account; }
+  };
   const lines = [head.map(esc).join(',')];
   for (const r of rows) {
     lines.push([
       r.withdraw_no, r.nickname || '微信用户', r.identity_type === 'employee' ? '企业员工' : '入驻个人',
       (r.amount / 100).toFixed(2), (r.service_fee / 100).toFixed(2), (r.actual_amount / 100).toFixed(2),
-      WITHDRAW_STATUS_ZH[r.status] || r.status, r.created_at, r.paid_at || '', r.pay_no || '', r.pay_remark || '', r.reject_reason || ''
+      WITHDRAW_STATUS_ZH[r.status] || r.status, acctLabel(r), r.created_at, r.paid_at || '', r.pay_no || '', r.pay_remark || '', r.reject_reason || ''
     ].map(esc).join(','));
   }
   return '\uFEFF' + lines.join('\n');

@@ -579,6 +579,12 @@
             </template>
           </el-table-column>
           <el-table-column prop="created_at" label="提交时间" width="150" />
+          <el-table-column label="收款信息" min-width="160">
+            <template #default="{ row }">
+              <span v-if="row.pay_account" class="text-muted">{{ acctLabel(row.pay_account) }}</span>
+              <span v-else class="text-muted">—</span>
+            </template>
+          </el-table-column>
           <el-table-column label="打款信息" min-width="160">
             <template #default="{ row }">
               <span v-if="row.status === 'done'" class="text-muted">{{ row.pay_no || '已打款' }}<template v-if="row.pay_remark"> · {{ row.pay_remark }}</template></span>
@@ -700,6 +706,24 @@
         <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">合伙人/全民</div><div class="stat-value">{{ stats.partnerCount || 0 }} / {{ stats.shareAllCount || 0 }}</div></div></el-card></el-col>
         <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">类目/区域</div><div class="stat-value">{{ stats.shareCatCount || 0 }} / {{ stats.shareAreaCount || 0 }}</div></div></el-card></el-col>
       </el-row>
+      <el-card shadow="never" class="mb16">
+        <div class="sub-title">推广效果</div>
+        <el-row :gutter="16" class="mb16">
+          <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">绑定用户</div><div class="stat-value">{{ stats.promo?.boundTotal || 0 }}</div></div></el-card></el-col>
+          <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">其中付费用户</div><div class="stat-value">{{ stats.promo?.paidTotal || 0 }}</div></div></el-card></el-col>
+          <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">付费转化率</div><div class="stat-value">{{ stats.promo?.paidRate || 0 }}%</div></div></el-card></el-col>
+          <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">今日新增推广</div><div class="stat-value">{{ stats.promo?.todayNew || 0 }}</div></div></el-card></el-col>
+          <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">本月新增推广</div><div class="stat-value">{{ stats.promo?.monthNew || 0 }}</div></div></el-card></el-col>
+          <el-col :span="4"><el-card shadow="never"><div class="stat-cell"><div class="stat-label">带来的佣金(元)</div><div class="stat-value">{{ fen(stats.promo?.commissionByPromo || 0) }}</div></div></el-card></el-col>
+        </el-row>
+        <el-table :data="stats.promo?.srcList || []" v-loading="loading" stripe>
+          <el-table-column label="绑定来源" prop="label" min-width="160" />
+          <el-table-column label="绑定人数" prop="count" width="140" />
+          <el-table-column label="占比" width="180">
+            <template #default="{ row }">{{ row.ratio }}%</template>
+          </el-table-column>
+        </el-table>
+      </el-card>
       <el-card shadow="never">
         <div class="sub-title">近 7 日订单分账趋势</div>
         <el-table :data="stats.trend" v-loading="loading" stripe>
@@ -1121,7 +1145,15 @@ async function exportLogs() {
 }
 
 // ===== 数据大盘 =====
-const stats = reactive({ totalCommission: 0, settledCommission: 0, splitCount: 0, splitAmount: 0, memberCount: 0, withdrawPending: 0, withdrawTotal: 0, trend: [], bonusByType: {}, partnerCount: 0, shareAllCount: 0, shareCatCount: 0, shareAreaCount: 0 });
+function acctLabel(acct) {
+  if (!acct) return '—';
+  try {
+    const o = JSON.parse(acct);
+    const zh = { wx: '微信', alipay: '支付宝', bank: '银行卡' };
+    return `${zh[o.type] || o.type}${o.name ? '·' + o.name : ''}:${o.value}`;
+  } catch { return acct; }
+}
+const stats = reactive({ totalCommission: 0, settledCommission: 0, splitCount: 0, splitAmount: 0, memberCount: 0, withdrawPending: 0, withdrawTotal: 0, trend: [], bonusByType: {}, partnerCount: 0, shareAllCount: 0, shareCatCount: 0, shareAreaCount: 0, promo: {} });
 const ranking = ref([]);
 async function loadStats() {
   loading.value = true;

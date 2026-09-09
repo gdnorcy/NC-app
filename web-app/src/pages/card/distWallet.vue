@@ -39,6 +39,21 @@
         <text class="wd-label">提现金额(元)</text>
         <input class="wd-input" type="digit" v-model="withdrawAmount" placeholder="输入提现金额" />
       </view>
+      <view class="wd-input-row">
+        <text class="wd-label">收款方式</text>
+        <picker class="wd-picker" :range="acctTypes" @change="onAcctType">
+          <view class="wd-picker-val">{{ acctTypeLabel }}<text class="wd-caret">▾</text></view>
+        </picker>
+      </view>
+      <view class="wd-input-row">
+        <text class="wd-label">{{ acctType === 'wx' ? '收款码地址' : acctType === 'bank' ? '收款卡号' : '收款账号' }}</text>
+        <input class="wd-input" v-model="payAccountValue" :placeholder="acctType === 'wx' ? '微信收款码图片链接（可上传后粘贴）' : acctType === 'bank' ? '银行卡号' : '支付宝账号'" />
+      </view>
+      <view v-if="acctType === 'bank'" class="wd-input-row">
+        <text class="wd-label">持卡人</text>
+        <input class="wd-input" v-model="payAccountName" placeholder="开户姓名" />
+      </view>
+      <view class="wd-fee-tip">最低提现 {{ fen(summary.withdrawMin || 0) }} 元{{ summary.withdrawFeeRate ? ` · 手续费 ${(summary.withdrawFeeRate * 100).toFixed(0)}%` : '' }}</view>
       <button class="primary-btn" :disabled="withdrawing || summary.unbound" @click="applyWithdraw">申请提现</button>
     </view>
 
@@ -77,6 +92,12 @@ const summary = ref({ wallet: null, withdrawing: 0, selfName: '我', unbound: fa
 const withdraws = ref([]);
 const withdrawAmount = ref('');
 const withdrawing = ref(false);
+const acctTypes = ['wx', 'alipay', 'bank'];
+const acctType = ref('wx');
+const acctTypeLabel = computed(() => ({ wx: '微信收款码', alipay: '支付宝', bank: '银行卡' })[acctType.value]);
+const payAccountValue = ref('');
+const payAccountName = ref('');
+function onAcctType(e) { acctType.value = acctTypes[Number(e.detail.value)] || 'wx'; }
 
 function fen(v) { return ((Number(v) || 0) / 100).toFixed(2); }
 function withdrawLabel(s) { return { pending: '待审核', approved: '待打款', rejected: '已驳回', done: '已完成' }[s] || s; }
@@ -111,9 +132,14 @@ async function applyWithdraw() {
       });
     } catch (e) { /* 用户拒绝订阅不阻断提现 */ }
     // #endif
-    await cardApi.distWithdraw(amt, identity.value);
+    const payAccount = { type: acctType.value, value: payAccountValue.value.trim() };
+    if (acctType.value === 'bank') payAccount.name = payAccountName.value.trim();
+    if (!payAccount.value) { uni.showToast({ title: '请填写收款信息', icon: 'none' }); return; }
+    await cardApi.distWithdraw(amt, identity.value, payAccount);
     uni.showToast({ title: '提现申请已提交', icon: 'success' });
     withdrawAmount.value = '';
+    payAccountValue.value = '';
+    payAccountName.value = '';
     loadAll();
   } catch (e) {
     uni.showToast({ title: e.message || '提现失败', icon: 'none' });

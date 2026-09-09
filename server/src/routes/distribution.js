@@ -376,6 +376,7 @@ export function createDistributionRouter(db) {
       totalCommission, settledCommission, splitCount, splitAmount, memberCount,
       withdrawPending, withdrawTotal, trend,
       bonusByType, partnerCount, shareAllCount, shareCatCount, shareAreaCount,
+      promo: dist.getPromoStats(tenantId),
     });
   });
 

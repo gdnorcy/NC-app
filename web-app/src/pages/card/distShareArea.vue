@@ -37,6 +37,16 @@
       <text v-else>暂未获得区域股东身份，可以向租户管理员申请开通</text>
     </view>
 
+    <!-- 权益说明（无身份时展示） -->
+    <view v-if="!areaTags.length" class="benefit-card">
+      <view class="benefit-title">区域股东是什么？</view>
+      <view class="benefit-line">· 面向<text class="benefit-em">异地商会、各地办事处</text>，按地域分红</view>
+      <view class="benefit-line">· 订单归属地区 = 付费用户名片所在地区</view>
+      <view class="benefit-line">· 每个地区独立比例、独立股东列表，可兼任多地区</view>
+      <view class="benefit-line">· 退款自动扣回对应分红，历史明细永久保留</view>
+      <view class="benefit-cta">获得身份后，本页将按地区分组展示你的分红收益</view>
+    </view>
+
     <!-- 地区分组（区域股东多地区时按维度汇总+筛选） -->
     <view v-if="areaGroups.length" class="grp-wrap">
       <view class="grp-tabs">
@@ -168,6 +178,11 @@ onShow(() => {
 .mr-lb { font-size: 22rpx; opacity: 0.85; }
 .mr-val { font-size: 32rpx; font-weight: 600; }
 .tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: 26rpx; border-radius: 16rpx; line-height: 1.6; }
+.benefit-card { margin: 0 32rpx 24rpx; padding: 28rpx; background: #f0f7ff; border: 1rpx solid #c8e0ff; border-radius: 16rpx; }
+.benefit-title { font-size: 28rpx; font-weight: 600; color: #165dff; margin-bottom: 14rpx; }
+.benefit-line { font-size: 25rpx; color: #4e5969; line-height: 1.8; }
+.benefit-em { color: #165dff; font-weight: 500; }
+.benefit-cta { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx dashed #c8e0ff; font-size: 24rpx; color: #86909c; }
 .grp-wrap { margin: 24rpx 32rpx 0; }
 .grp-tabs { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .grp-tab { font-size: 24rpx; padding: 10rpx 26rpx; border-radius: 999rpx; background: #fff; color: #4e5969; border: 1rpx solid #e5e6eb; }

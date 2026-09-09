@@ -97,7 +97,7 @@ export const cardApi = {
   distSubs: (level, page) => request(`/distribution/subs?level=${level}&page=${page || 1}&pageSize=20`),
   distLogs: (params = {}) => request(`/distribution/logs?page=${params.page || 1}&pageSize=${params.pageSize || 20}&type=${params.type || ''}&identityType=${params.identityType || ''}`),
   distWallet: (identityType) => request(`/distribution/wallet?identityType=${identityType || ''}`),
-  distWithdraw: (amount, identityType) => request('/distribution/withdraw', 'POST', { amount, identityType }),
+  distWithdraw: (amount, identityType, payAccount) => request('/distribution/withdraw', 'POST', { amount, identityType, payAccount }),
   distWithdraws: (params = {}) => request(`/distribution/withdraws?page=${params.page || 1}&pageSize=${params.pageSize || 20}&status=${params.status || ''}&identityType=${params.identityType || ''}`),
   distTeam: (identityType, scope) => request(`/distribution/team?identityType=${identityType || ''}${scope ? `&scope=${scope}` : ''}`),
   distTeamOrders: (page, identityType) => request(`/distribution/team-orders?page=${page || 1}&pageSize=20&identityType=${identityType || ''}`),
