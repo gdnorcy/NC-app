@@ -3,10 +3,13 @@
  * 个人C端用户 + 企业租户 + 平台运营
  */
 import { Router } from 'express';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
 import { createDistributionService, buildShareUrl } from '../services/distribution.js';
+
+// 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
+const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 
 export function createCardRouter(db, wxService) {
   const router = Router();
@@ -62,6 +65,36 @@ export function createCardRouter(db, wxService) {
       res.status(500).json({ error: e.message });
     }
   });
+
+  // 可选认证中间件：无 token 不阻断（用于设计中心预览签名放行）
+  function authOptional(req, res, next) {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return next();
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString());
+      const user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(payload.uid);
+      if (user && user.status === 'active') {
+        req.user = user;
+        req.userId = user.id;
+        req.customerId = user.customer_id || null;
+        if (!req.customerId && user.enterprise_id) {
+          const ent = db.prepare('SELECT customer_id FROM tenant_enterprises WHERE id = ?').get(user.enterprise_id);
+          if (ent) req.customerId = ent.customer_id;
+        }
+      }
+      next();
+    } catch { next(); }
+  }
+
+  // 预览签名校验：sig = sha256(tid:exp:PREVIEW_SECRET) 前 32 位，exp 30 分钟内有效
+  function verifyPreviewSig(q) {
+    if (q.preview !== '1') return 0;
+    const tid = Number(q.tid);
+    const exp = Number(q.exp);
+    if (!tid || !exp || exp < Math.floor(Date.now() / 1000)) return 0;
+    const expect = createHash('sha256').update(`${tid}:${exp}:${PREVIEW_SECRET}`).digest('hex').slice(0, 32);
+    return String(q.sig) === expect ? tid : 0;
+  }
 
   // 认证中间件（注入租户上下文 customerId）
   function auth(req, res, next) {
@@ -1056,16 +1089,26 @@ export function createCardRouter(db, wxService) {
   });
 
   // 设计中心：C 端读取租户发布配置（最新风格/底部导航/首页跳转，供小程序/H5 按配置渲染）
-  router.get('/design/config', auth, requireTenant, (req, res) => {
-    const tenantId = req.customerId;
+  router.get('/design/config', authOptional, (req, res) => {
+    // 租户上下文：正常登录态优先；否则校验设计中心预览签名（免登录）
+    const previewTid = req.customerId ? 0 : verifyPreviewSig(req.query);
+    if (!req.customerId && !previewTid) return res.status(401).json({ error: '未登录' });
+    const tenantId = req.customerId || previewTid;
     const style = db.prepare('SELECT style_json FROM tenant_style_config WHERE tenant_id = ?').get(tenantId);
     const tab = db.prepare("SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND is_default = 1 AND enabled = 1").get(tenantId);
     const home = db.prepare('SELECT home_page FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
+    // 预览模式（?preview=1）：额外返回首页草稿页面组件，供 C 端「保存并预览」
+    let pages = null;
+    if (String(req.query.preview) === '1') {
+      const draft = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'home' AND status = 0 ORDER BY version DESC LIMIT 1").get(tenantId);
+      if (draft) pages = JSON.parse(draft.design_json || '{}');
+    }
     res.json({
       tenantId,
       style: style ? JSON.parse(style.style_json || '{}') : null,
       tab: tab ? { name: tab.scheme_name, items: JSON.parse(tab.tab_json || '[]') } : null,
       homePage: home?.home_page || 'card',
+      pages,
     });
   });
 

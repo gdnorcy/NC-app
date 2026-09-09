@@ -171,7 +171,18 @@ export const cardApi = {
   createDynamic: (data) => request('/dynamics', 'POST', data),
 
   // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）
-  designConfig: () => request('/design/config'),
+  designConfig: (preview) => {
+    const params = preview ? { preview: 1 } : {};
+    // H5 预览模式：透传 hash 中的签名参数（tid/exp/sig），免登录访问草稿
+    if (preview && typeof window !== 'undefined' && window.location && window.location.hash) {
+      try {
+        const hp = new URLSearchParams((window.location.hash.split('?')[1] || ''));
+        ['tid', 'exp', 'sig'].forEach((k) => { if (hp.get(k)) params[k] = hp.get(k); });
+      } catch { /* 忽略解析失败 */ }
+    }
+    const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
+    return request('/design/config' + qs);
+  },
 };
 
 // 支付API

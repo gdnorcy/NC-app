@@ -12,6 +12,9 @@ import iconImage from '../../../../assets/comp-icons/picture.png';
 import iconButton from '../../../../assets/comp-icons/menu.png';
 import iconDivider from '../../../../assets/comp-icons/line.png';
 import iconNotice from '../../../../assets/comp-icons/notice.png';
+import iconCountdown from '../../../../assets/comp-icons/countdown.png';
+import iconForm from '../../../../assets/comp-icons/form.png';
+import iconVideo from '../../../../assets/comp-icons/video.png';
 
 export const componentGroups = [
   { key: 'basic', name: '基础组件' },
@@ -27,6 +30,9 @@ export const COMP_ICONS = {
   button: iconButton,
   divider: iconDivider,
   notice: iconNotice,
+  countdown: iconCountdown,
+  form: iconForm,
+  video: iconVideo,
 };
 
 export const componentRegistry = [
@@ -100,6 +106,49 @@ export const componentRegistry = [
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'color', label: '文字色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'countdown',
+    name: '倒计时',
+    group: 'marketing',
+    icon: 'countdown',
+    badge: 'new',
+    defaultProps: { title: '限时活动', days: '02', hours: '12', minutes: '30', seconds: '00', color: '#165DFF' },
+    schema: [
+      { key: 'title', label: '活动名称', control: 'input', section: 'content', required: true },
+      { key: 'days', label: '天数', control: 'input', section: 'content' },
+      { key: 'hours', label: '小时', control: 'input', section: 'content' },
+      { key: 'minutes', label: '分钟', control: 'input', section: 'content' },
+      { key: 'seconds', label: '秒', control: 'input', section: 'content' },
+      { key: 'color', label: '主题色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'form',
+    name: '表单',
+    group: 'marketing',
+    icon: 'form',
+    badge: 'new',
+    defaultProps: { title: '留资表单', namePlaceholder: '请输入姓名', phonePlaceholder: '请输入手机号', submitText: '提交', btnColor: '#165DFF' },
+    schema: [
+      { key: 'title', label: '表单标题', control: 'input', section: 'content', required: true },
+      { key: 'namePlaceholder', label: '姓名字段', control: 'input', section: 'content' },
+      { key: 'phonePlaceholder', label: '手机字段', control: 'input', section: 'content' },
+      { key: 'submitText', label: '按钮文字', control: 'input', section: 'content' },
+      { key: 'btnColor', label: '按钮色', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'video',
+    name: '视频',
+    group: 'marketing',
+    icon: 'video',
+    badge: 'new',
+    defaultProps: { url: '', poster: '' },
+    schema: [
+      { key: 'url', label: '视频地址', control: 'input', section: 'content', required: true, placeholder: '支持 mp4 链接' },
+      { key: 'poster', label: '封面图', control: 'image', section: 'content' },
     ],
   },
 ];

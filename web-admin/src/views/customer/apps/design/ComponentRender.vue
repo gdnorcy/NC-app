@@ -23,6 +23,34 @@
         <span class="r-notice-tag">公告</span>{{ comp.props.text || '公告内容' }}
       </div>
     </template>
+    <template v-else-if="comp.type === 'countdown'">
+      <div class="r-countdown" :style="{ '--cd': comp.props.color || '#165DFF' }">
+        <div class="r-cd-title">{{ comp.props.title || '限时活动' }}</div>
+        <div class="r-cd-cols">
+          <span class="r-cd-cell"><b>{{ comp.props.days || '00' }}</b><i>天</i></span>
+          <em>:</em>
+          <span class="r-cd-cell"><b>{{ comp.props.hours || '00' }}</b><i>时</i></span>
+          <em>:</em>
+          <span class="r-cd-cell"><b>{{ comp.props.minutes || '00' }}</b><i>分</i></span>
+          <em>:</em>
+          <span class="r-cd-cell"><b>{{ comp.props.seconds || '00' }}</b><i>秒</i></span>
+        </div>
+      </div>
+    </template>
+    <template v-else-if="comp.type === 'form'">
+      <div class="r-form">
+        <div class="r-form-title">{{ comp.props.title || '留资表单' }}</div>
+        <div class="r-form-input">{{ comp.props.namePlaceholder || '请输入姓名' }}</div>
+        <div class="r-form-input">{{ comp.props.phonePlaceholder || '请输入手机号' }}</div>
+        <div class="r-form-btn" :style="{ background: comp.props.btnColor || '#165DFF' }">{{ comp.props.submitText || '提交' }}</div>
+      </div>
+    </template>
+    <template v-else-if="comp.type === 'video'">
+      <div class="r-video">
+        <img v-if="comp.props.poster" :src="resolveUrl(comp.props.poster)" />
+        <div v-else class="r-video-empty"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -57,4 +85,18 @@ function resolveUrl(u) {
 .r-divider span { position: absolute; left: 50%; top: -8px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
+.r-countdown { padding: 14px; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.r-cd-title { font-size: 14px; font-weight: 600; color: #1d2129; }
+.r-cd-cols { display: flex; align-items: center; gap: 6px; }
+.r-cd-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.r-cd-cell b { font-size: 18px; font-weight: 700; color: #fff; background: var(--cd, #165dff); border-radius: 6px; padding: 2px 8px; line-height: 1.4; }
+.r-cd-cell i { font-style: normal; font-size: 11px; color: #86909c; }
+.r-cd-cols em { font-style: normal; color: var(--cd, #165dff); font-weight: 700; font-size: 16px; }
+.r-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+.r-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
+.r-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
+.r-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.r-video { position: relative; border-radius: 8px; overflow: hidden; background: #000; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+.r-video img { width: 100%; height: 100%; object-fit: cover; }
+.r-video-empty { opacity: .6; }
 </style>

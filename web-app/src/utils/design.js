@@ -37,6 +37,7 @@ export function normalizeDesignConfig(raw) {
       url: typeof it.url === 'string' && it.url.startsWith('/') ? it.url : `/pages/cardMain/home`,
     })),
     homePage,
+    pages: cfg.pages || null,
   };
 }
 
@@ -64,11 +65,15 @@ export function readDesignConfig() {
   return null;
 }
 
-/** 拉取并缓存设计配置；force=true 强制刷新（发布后生效） */
-export async function fetchDesignConfig(force = false) {
+/** 拉取并缓存设计配置；force=true 强制刷新（发布后生效）；preview=true 拉取首页草稿用于「保存并预览」 */
+export async function fetchDesignConfig(force = false, preview = false) {
+  if (preview) {
+    const raw = await cardApi.designConfig(true);
+    return normalizeDesignConfig(raw);
+  }
   const cached = readDesignConfig();
   if (cached && !force) return cached;
-  const raw = await cardApi.designConfig();
+  const raw = await cardApi.designConfig(false);
   const config = normalizeDesignConfig(raw);
   try {
     uni.setStorageSync(STORAGE_KEY, { ts: Date.now(), config });

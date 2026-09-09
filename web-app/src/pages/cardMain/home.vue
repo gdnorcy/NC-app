@@ -1,5 +1,8 @@
 <template>
   <view class="home-page">
+    <!-- 设计中心装修区（发布/预览的首页组件） -->
+    <DesignPage v-if="designComps.length" :comps="designComps" class="design-section" />
+
     <!-- 顶部搜索栏 -->
     <view class="top-bar">
       <view class="search-box" @click="goSearch">
@@ -125,12 +128,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onLoad } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import DesignPage from '../../components/DesignPage.vue';
 
 const user = ref({});
 const myCard = ref(null);
@@ -138,6 +142,21 @@ const unreadCount = ref(0);
 const visitorStats = ref({ today: 0, total: 0, exchange: 0 });
 const visitorList = ref([]);
 const marketList = ref([]);
+const designComps = ref([]);
+let pageOptions = {};
+onLoad((o) => { pageOptions = o || {}; });
+
+// 预览标志：优先 onLoad options，H5 端兜底直接读 hash query（避免 onLoad 解析差异）
+function isPreviewMode() {
+  if (pageOptions.preview === '1') return true;
+  // #ifdef H5
+  try {
+    const q = (window.location.hash.split('?')[1] || '');
+    if (new URLSearchParams(q).get('preview') === '1') return true;
+  } catch { /* 忽略 */ }
+  // #endif
+  return false;
+}
 
 const features = [
   { key: 'card', icon: 'card', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },
@@ -156,6 +175,16 @@ onMounted(async () => {
     const res = await cardApi.getProfile();
     user.value = res.user;
     myCard.value = res.card;
+  } catch (e) {}
+
+  // 设计中心首页装修：预览模式（?preview=1）加载草稿组件，否则加载已发布组件
+  try {
+    const preview = isPreviewMode();
+    const config = await fetchDesignConfig(preview, preview);
+    const comps = config?.pages?.components || [];
+    designComps.value = Array.isArray(comps) ? comps : [];
+    if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
+    else if (preview) uni.showToast({ title: '草稿预览模式', icon: 'none' });
   } catch (e) {}
 
   // 消息未读红点
@@ -192,6 +221,7 @@ const avatarStyle = computed(() => {
 // 设计中心首页跳转：配置了非默认首页时，首次进入自动跳转到对应页面
 const homeJumpChecked = ref(false);
 onShow(() => {
+  if (isPreviewMode()) return; // 预览模式不触发首页跳转
   if (homeJumpChecked.value) return;
   homeJumpChecked.value = true;
   (async () => {

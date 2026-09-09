@@ -9,6 +9,7 @@
       <div class="pe-actions">
         <el-button size="small" @click="loadVersions">历史版本</el-button>
         <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
+        <el-button size="small" :loading="previewing" @click="saveAndPreview">保存并预览</el-button>
         <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
         <el-button size="small" type="success" :loading="publishing" @click="publish">发布</el-button>
       </div>
@@ -39,7 +40,8 @@
                 @dragstart="onLibDragStart($event, c.type)"
                 @click="addComponent(c.type)"
               >
-                <span v-if="c.pro" class="pe-lib-tag">高级</span>
+                <span v-if="c.badge === 'new'" class="pe-lib-tag pe-lib-tag-new">NEW</span>
+                <span v-else-if="c.pro" class="pe-lib-tag">高级</span>
                 <span class="pe-lib-ico"><img :src="COMP_ICONS[c.icon]" :alt="c.name" /></span>
                 <span class="pe-lib-name">{{ c.name }}</span>
               </div>
@@ -167,6 +169,7 @@ const draft = ref(null);
 const published = ref(null);
 const saving = ref(false);
 const publishing = ref(false);
+const previewing = ref(false);
 const versionShow = ref(false);
 const versions = ref([]);
 const selMats = ref([]);
@@ -331,6 +334,30 @@ async function rollback(row) {
     }
   } catch (e) { ElMessage.error(e); }
 }
+async function saveAndPreview() {
+  if (!components.value.length) { ElMessage.warning('画布为空，请先添加组件'); return; }
+  previewing.value = true;
+  try {
+    const res = await designCall.post('/design/page/saveDraft', {
+      pageType: props.pageType, pageName: pageName.value,
+      designJson: { components: components.value },
+      baseVersion: draft.value?.version ?? published.value?.version ?? 1,
+    });
+    draft.value = { ...draft.value, version: res.version };
+    // 仅首页装修支持 C 端实时预览（后端生成带签名的一次性预览 URL）
+    if (props.pageType === 'home') {
+      const previewRes = await designCall.get('/design/previewUrl');
+      if (previewRes?.url) window.open(previewRes.url, '_blank');
+      else ElMessage.info('草稿已保存；暂无法打开预览');
+    } else {
+      ElMessage.info('草稿已保存；当前仅首页支持 C 端预览');
+    }
+  } catch (e) {
+    if (typeof e === 'string' && e.includes('已被其他成员修改')) {
+      ElMessage.warning(e + '，请先「保存草稿」处理冲突');
+    } else ElMessage.error(e);
+  } finally { previewing.value = false; }
+}
 async function saveAsTemplate() {
   if (!components.value.length) { ElMessage.warning('画布为空，请先添加组件'); return; }
   try {
@@ -416,6 +443,7 @@ onMounted(load);
 .pe-lib-ico img { width: 40px; height: 40px; object-fit: contain; display: block; }
 .pe-lib-card .pe-lib-name { font-size: 12px; color: #1d2129; max-width: 100%; }
 .pe-lib-tag { position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; color: #f53f3f; background: rgba(245,63,63,.08); border-radius: 4px; padding: 2px 4px; }
+.pe-lib-tag-new { color: #165dff; background: rgba(22,93,255,.08); }
 .pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 8px; text-align: center; }
 
 /* 画布：手机预览壳 */

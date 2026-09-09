@@ -9,10 +9,14 @@
  * 全部要求租户登录；写操作要求租户管理员；统一携带 tenant_id 隔离
  */
 import { Router } from 'express';
+import { createHash } from 'node:crypto';
 import multer from 'multer';
 import { createDesignService } from '../services/design.js';
 import { tenantState } from '../tenant.js';
 import { getStorage } from '../storage/index.js';
+
+// 与 card.js 一致的预览签名密钥
+const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -223,6 +227,14 @@ export default function createDesignRouter(db, deps = {}) {
   design.post('/home/save', tenant, tenantAdmin, (req, res) => {
     const r = svc.saveHomeConfig(req.customerId, req.body?.homePage);
     res.json(r);
+  });
+
+  // ---- 保存并预览：生成带签名的一次性预览 URL（30 分钟内有效） ----
+  design.get('/previewUrl', tenant, (req, res) => {
+    const tid = req.customerId;
+    const exp = Math.floor(Date.now() / 1000) + 1800;
+    const sig = createHash('sha256').update(`${tid}:${exp}:${PREVIEW_SECRET}`).digest('hex').slice(0, 32);
+    res.json({ url: `/card/?nc=preview#/pages/cardMain/home?preview=1&tid=${tid}&exp=${exp}&sig=${sig}` });
   });
 
   return { material, design };
