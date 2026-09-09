@@ -449,7 +449,7 @@ function viewMarketCard(item) {
 .visitor-num {
   font-size: 36rpx;
   font-weight: 700;
-  color: #165dff;
+  color: var(--design-primary, #165dff);
 }
 .visitor-label {
   font-size: 22rpx;
@@ -498,7 +498,7 @@ function viewMarketCard(item) {
 }
 .visitor-action {
   font-size: 24rpx;
-  color: #165dff;
+  color: var(--design-primary, #165dff);
 }
 
 /* 人脉集市 */

@@ -1,7 +1,27 @@
 <template>
   <!-- ===== 我的名片·商务增强版（本人视角管理控制台｜仅本人可见） =====
        对外展示统一走 /pages/card/cardDetail -->
-  <view class="owner-page">
+  <!-- 加载骨架（小程序/H5 通用） -->
+  <view class="page-loading" v-if="loading">
+    <view class="sk-nav"></view>
+    <view class="sk-card">
+      <view class="sk-avatar"></view>
+      <view class="sk-lines">
+        <view class="sk-line w60"></view>
+        <view class="sk-line w40"></view>
+      </view>
+    </view>
+    <view class="sk-block"><view class="sk-line w30"></view></view>
+    <view class="sk-block"><view class="sk-line w30"></view></view>
+  </view>
+  <!-- 加载失败（弱网/接口异常） -->
+  <view class="page-error" v-else-if="loadFailed">
+    <view class="pe-icon"><SIcon name="logs" size="xlarge" color="#c9cdd4" /></view>
+    <view class="pe-text">名片加载失败，请检查网络后重试</view>
+    <view class="pe-btn" @click="reloadPage">重新加载</view>
+  </view>
+
+  <view class="owner-page" v-else>
     <!-- 导航栏 -->
     <view class="owner-nav">
       <view class="on-back" @click="goBack"><SIcon name="dynamic" size="default" color="#1a1a1a" /></view>
@@ -147,6 +167,8 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
 const card = ref({});
+const loading = ref(true);
+const loadFailed = ref(false);
 // 品牌色：头像背景用品牌色渐变（无配置回退默认蓝）
 const avatarStyle = computed(() => {
   // 模板主题 primary 优先，其次租户品牌色
@@ -269,6 +291,8 @@ onMounted(async () => {
   if (id) {
     uni.setStorageSync('cardLastViewId', id);
     restoreScrollTop('myCard');
+    loading.value = true;
+    loadFailed.value = false;
     try {
       const res = await cardApi.getCard(id);
       card.value = res.card;
@@ -285,9 +309,23 @@ onMounted(async () => {
       track('card_view', { cardId: Number(id), page: '/pages/card/myCard', extra: { name: card.value.name } });
       // 商务增强版数据（本人名片）
       await loadOwnerData();
-    } catch (e) {}
+    } catch (e) {
+      loadFailed.value = true;
+      console.error('我的名片加载失败:', e);
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    loading.value = false;
   }
 });
+
+// 失败重试：重进本页触发完整重新加载
+function reloadPage() {
+  const pages = getCurrentPages();
+  const id = pages[pages.length - 1].options.id;
+  if (id) uni.redirectTo({ url: `/pages/card/myCard?id=${id}` });
+}
 
 // 离开时保存滚动位置，切Tab返回后恢复
 onUnload(() => {
@@ -364,6 +402,33 @@ function leaveTenant() {
 <style scoped>
 /* ===== 我的名片·商务增强版 ===== */
 .owner-page { min-height: 100vh; background: #f5f6f7; padding-bottom: 160rpx; }
+
+/* 加载骨架（小程序/H5 通用） */
+.page-loading { min-height: 100vh; background: #f5f6f7; padding: 0 24rpx; }
+.sk-nav { height: 88rpx; }
+.sk-card {
+  display: flex; align-items: center; gap: 24rpx;
+  background: #fff; border-radius: 16rpx; padding: 32rpx 24rpx; margin-top: 8rpx;
+}
+.sk-avatar { width: 112rpx; height: 112rpx; border-radius: 50%; background: linear-gradient(90deg,#f0f1f3 25%,#e8eaed 37%,#f0f1f3 63%); background-size: 400% 100%; animation: sk-loading 1.4s ease infinite; }
+.sk-lines { flex: 1; display: flex; flex-direction: column; gap: 16rpx; }
+.sk-line { height: 28rpx; border-radius: 8rpx; background: linear-gradient(90deg,#f0f1f3 25%,#e8eaed 37%,#f0f1f3 63%); background-size: 400% 100%; animation: sk-loading 1.4s ease infinite; }
+.sk-line.w60 { width: 60%; }
+.sk-line.w40 { width: 40%; }
+.sk-line.w30 { width: 30%; }
+.sk-block { background: #fff; border-radius: 16rpx; padding: 28rpx 24rpx; margin-top: 24rpx; }
+@keyframes sk-loading { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+/* 加载失败态 */
+.page-error {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #f5f6f7; gap: 20rpx; padding-bottom: 120rpx;
+}
+.pe-text { font-size: 26rpx; color: #86909c; }
+.pe-btn {
+  margin-top: 12rpx; padding: 16rpx 56rpx; border-radius: 40rpx;
+  background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx;
+}
 .owner-nav { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 88rpx 32rpx 0; background: #fff; position: sticky; top: 0; z-index: 10; }
 .on-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; }
 .on-title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
