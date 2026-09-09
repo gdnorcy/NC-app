@@ -1078,24 +1078,50 @@ export function createDistributionService(db) {
   svc.monthlySummary = (tenantId, month) => {
     const key = String(month || '').trim() || new Date().toISOString().slice(0, 7);
     const rows = db.prepare(`
-      SELECT l.type, l.status, l.amount, l.user_id AS userId, u.nickname
+      SELECT l.type, l.status, l.amount, l.user_id AS userId, l.identity_type AS identityType, l.remark, u.nickname
       FROM dist_user_log l LEFT JOIN platform_user u ON u.id = l.user_id
       WHERE l.tenant_id = ? AND substr(l.created_at, 1, 7) = ?
     `).all(tenantId, key);
     const byType = { level1: 0, level2: 0, partner: 0, share_all: 0, share_cat: 0, share_area: 0 };
-    let total = 0, settled = 0, pending = 0;
+    let total = 0, settled = 0, pending = 0, chargedBack = 0, debtAmount = 0;
     const byUser = new Map();
     for (const r of rows) {
-      byType[r.type] = (byType[r.type] || 0) + r.amount;
-      total += r.amount;
+      // 扣回记录按负额计入（净额口径），扣回总额单独累计
+      const amt = r.status === 'charged_back' ? -Math.abs(r.amount) : r.amount;
+      byType[r.type] = (byType[r.type] || 0) + amt;
+      total += amt;
       if (r.status === 'settled') settled += r.amount;
       if (r.status === 'pending') pending += r.amount;
-      if (!byUser.has(r.userId)) byUser.set(r.userId, { userId: r.userId, nickname: r.nickname || '微信用户', level1: 0, level2: 0, partner: 0, share_all: 0, share_cat: 0, share_area: 0, total: 0 });
+      if (r.status === 'charged_back') {
+        chargedBack += Math.abs(r.amount);
+        const m = /欠款\s*(\d+)\s*分/.exec(r.remark || '');
+        if (m) debtAmount += Number(m[1]);
+      }
+      if (!byUser.has(r.userId)) byUser.set(r.userId, { userId: r.userId, nickname: r.nickname || '微信用户', identityType: r.identityType || 'individual', level1: 0, level2: 0, partner: 0, share_all: 0, share_cat: 0, share_area: 0, total: 0, chargedBack: 0 });
       const u = byUser.get(r.userId);
-      u[r.type] = (u[r.type] || 0) + r.amount;
-      u.total += r.amount;
+      u[r.type] = (u[r.type] || 0) + amt;
+      u.total += amt;
+      if (r.status === 'charged_back') u.chargedBack += Math.abs(r.amount);
     }
-    return { month: key, byType, total, settled, pending, byUser: [...byUser.values()] };
+    // 该月提现（实得 = 提现金额 - 手续费；done 记录带打款流水）
+    const wrows = db.prepare(`
+      SELECT w.user_id AS userId, w.amount, w.service_fee, w.status, w.pay_no
+      FROM dist_withdraw w WHERE w.tenant_id = ? AND substr(w.created_at, 1, 7) = ?
+    `).all(tenantId, key);
+    const wByUser = new Map();
+    let withdrawTotal = 0;
+    for (const w of wrows) {
+      if (!wByUser.has(w.userId)) wByUser.set(w.userId, { count: 0, amount: 0 });
+      const wu = wByUser.get(w.userId);
+      wu.count += 1;
+      wu.amount += (w.amount - (w.service_fee || 0));
+      withdrawTotal += (w.amount - (w.service_fee || 0));
+    }
+    const byUserArr = [...byUser.values()].map((u) => {
+      const wu = wByUser.get(u.userId) || { count: 0, amount: 0 };
+      return { ...u, withdrawCount: wu.count, withdraw: wu.amount };
+    });
+    return { month: key, byType, total, settled, pending, chargedBack, debtAmount, withdrawTotal, byUser: byUserArr };
   };
 
   /** 分销商排行：累计收益 / 直推人数 / 团队人数 / 身份标签；Top N */
@@ -1558,6 +1584,82 @@ export function buildMonthlyCsv(summary) {
   totalCells.push((summary.total / 100).toFixed(2));
   lines.push(totalCells.map(esc).join(','));
   return '\uFEFF' + lines.join('\n');
+}
+
+/** 月度对账 CSV（升级口径：扣回负计、实得、提现；含合计行） */
+export function buildStatementCsv(summary) {
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const TYPES = [['level1', '一级佣金'], ['level2', '二级佣金'], ['partner', '合伙人分红'], ['share_all', '全民股东'], ['share_cat', '类目股东'], ['share_area', '区域股东']];
+  const head = ['用户', '身份', ...TYPES.map((t) => t[1] + '(元)'), '扣回(元)', '实得(元)', '提现(元)'];
+  const lines = [head.map(esc).join(',')];
+  for (const u of summary.byUser) {
+    const cells = [u.nickname, u.identityType === 'employee' ? '企业员工' : '入驻个人'];
+    for (const [k] of TYPES) cells.push((u[k] / 100).toFixed(2));
+    cells.push((u.chargedBack / 100).toFixed(2));
+    cells.push((u.total / 100).toFixed(2));
+    cells.push((u.withdraw / 100).toFixed(2));
+    lines.push(cells.map(esc).join(','));
+  }
+  const totalCells = ['合计', ''];
+  for (const [k] of TYPES) totalCells.push((summary.byType[k] / 100).toFixed(2));
+  totalCells.push((summary.chargedBack / 100).toFixed(2));
+  totalCells.push((summary.total / 100).toFixed(2));
+  totalCells.push((summary.withdrawTotal / 100).toFixed(2));
+  lines.push(totalCells.map(esc).join(','));
+  return '\uFEFF' + lines.join('\n');
+}
+
+/** 月度对账 HTML（自包含，浏览器打印即存 PDF；含汇总卡/明细表/合计/欠款提示） */
+export function buildStatementHtml(summary, opts = {}) {
+  const TYPES = [['level1', '一级佣金'], ['level2', '二级佣金'], ['partner', '合伙人分红'], ['share_all', '全民股东'], ['share_cat', '类目股东'], ['share_area', '区域股东']];
+  const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const fmt = (v) => (Number(v) / 100).toFixed(2);
+  const rowsHtml = summary.byUser.map((u) => {
+    const tds = [esc(u.nickname), u.identityType === 'employee' ? '企业员工' : '入驻个人']
+      .concat(TYPES.map(([k]) => `<td>${fmt(u[k])}</td>`))
+      .concat([`<td class="neg">${fmt(u.chargedBack)}</td>`, `<td><b>${fmt(u.total)}</b></td>`, `<td>${fmt(u.withdraw)}</td>`]);
+    return `<tr>${tds.join('')}</tr>`;
+  }).join('\n');
+  const totalRow = `<tr class="total">${['<td>合计</td>', '<td></td>'].concat(TYPES.map(([k]) => `<td>${fmt(summary.byType[k])}</td>`)).concat([`<td class="neg">${fmt(summary.chargedBack)}</td>`, `<td><b>${fmt(summary.total)}</b></td>`, `<td>${fmt(summary.withdrawTotal)}</td>`]).join('')}</tr>`;
+  const debtTip = summary.debtAmount > 0
+    ? `<div class="debt-tip">本月扣回产生待追缴欠款 <b>${fmt(summary.debtAmount)} 元</b>（余额不足抵扣），请在后台核实并线下追缴。</div>`
+    : '';
+  const cards = [
+    ['总收益（净）', `${fmt(summary.total)} 元`],
+    ['已结算', `${fmt(summary.settled)} 元`],
+    ['待结算', `${fmt(summary.pending)} 元`],
+    ['扣回', `${fmt(summary.chargedBack)} 元`],
+    ['提现（实得）', `${fmt(summary.withdrawTotal)} 元`],
+    ['欠款', `${fmt(summary.debtAmount)} 元`],
+  ].map(([k, v]) => `<div class="card"><div class="card-label">${k}</div><div class="card-val">${v}</div></div>`).join('');
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>分销佣金月度对账单 - ${summary.month}</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #1d2129; margin: 32px auto; max-width: 1080px; padding: 0 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; } .sub { color: #86909c; font-size: 13px; margin-bottom: 20px; }
+  .cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .card { flex: 1 1 140px; border: 1px solid #e5e6eb; border-radius: 8px; padding: 12px 16px; }
+  .card-label { font-size: 12px; color: #86909c; } .card-val { font-size: 20px; font-weight: 600; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid #e5e6eb; padding: 8px 10px; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+  th { background: #f7f8fa; font-weight: 600; }
+  tr.total td { background: #f0f7ff; font-weight: 600; }
+  .neg { color: #f53f3f; }
+  .debt-tip { margin: 16px 0; padding: 12px 16px; background: #fff7e8; border: 1px solid #ffd24a; border-radius: 8px; font-size: 13px; color: #ad6800; }
+  .foot { margin-top: 24px; color: #86909c; font-size: 12px; }
+  @media print { body { margin: 0; } }
+</style></head><body>
+  <h1>分销佣金月度对账单</h1>
+  <div class="sub">租户：${esc(opts.tenantName || `#${opts.tenantId || ''}`)} ｜ 账期：${summary.month} ｜ 生成时间：${new Date().toLocaleString('zh-CN')}</div>
+  <div class="cards">${cards}</div>
+  ${debtTip}
+  <table>
+    <thead><tr><th>用户</th><th>身份</th>${TYPES.map((t) => `<th>${t[1]}(元)</th>`).join('')}<th>扣回(元)</th><th>实得(元)</th><th>提现(元)</th></tr></thead>
+    <tbody>${rowsHtml || '<tr><td colspan="11" style="text-align:center;color:#86909c;">本月暂无收益记录</td></tr>'}</tbody>
+    <tfoot>${totalRow}</tfoot>
+  </table>
+  <div class="foot">口径说明：实得 = 各类收益净额（扣回按负额计入）；提现 = 提现金额 - 手续费；欠款 = 退款回滚时余额不足产生的待追缴金额。<br>本对账单由系统生成，可浏览器打印（Ctrl/Cmd + P）另存为 PDF。</div>
+</body></html>`;
 }
 const LOG_TYPE_ZH = { level1: '一级佣金', level2: '二级佣金', partner: '合伙人分红', share_all: '全民股东', share_cat: '类目股东', share_area: '区域股东' };
 const LOG_STATUS_ZH = { pending: '待结算', settled: '已结算', charged_back: '已扣回' };

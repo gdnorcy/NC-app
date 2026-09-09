@@ -4,7 +4,7 @@
  * 能力：插件开关、二级分销配置、分销商列表、佣金明细、钱包提现审核、数据大盘
  */
 import { Router } from 'express';
-import { createDistributionService, buildWithdrawCsv, buildLogCsv, buildMonthlyCsv } from '../services/distribution.js';
+import { createDistributionService, buildWithdrawCsv, buildLogCsv, buildMonthlyCsv, buildStatementCsv, buildStatementHtml } from '../services/distribution.js';
 import { tenantState } from '../tenant.js';
 
 export function createDistributionRouter(db) {
@@ -235,6 +235,23 @@ export function createDistributionRouter(db) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="monthly-summary.csv"');
       return res.send(buildMonthlyCsv(summary));
+    }
+    res.json(summary);
+  });
+
+  // 月度对账单（?month=YYYY-MM&export=csv|html；含扣回/实得/提现/欠款，浏览器打印即存 PDF）
+  router.get('/statement', tenant, (req, res) => {
+    const { month, export: isExport } = req.query;
+    const summary = dist.monthlySummary(req.customerId, month);
+    if (isExport === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="statement-${summary.month}.csv"`);
+      return res.send(buildStatementCsv(summary));
+    }
+    if (isExport === 'html') {
+      const cust = db.prepare('SELECT customer_name AS name FROM projects WHERE id = ?').get(req.customerId);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(buildStatementHtml(summary, { tenantName: cust && cust.name, tenantId: req.customerId }));
     }
     res.json(summary);
   });

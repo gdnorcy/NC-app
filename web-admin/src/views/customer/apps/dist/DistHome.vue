@@ -437,7 +437,8 @@
       <AppPageHeader title="佣金明细" desc="本租户全部推广佣金流水（一级 / 二级）">
         <div class="hd-actions">
           <el-date-picker v-model="summaryMonth" type="month" placeholder="选择月份" value-format="YYYY-MM" class="w160" />
-          <el-button type="primary" plain @click="exportMonthly">月度汇总</el-button>
+          <el-button type="primary" plain @click="exportStatement">月度对账</el-button>
+          <el-button type="primary" plain @click="printStatement">打印对账单</el-button>
           <el-button type="primary" plain @click="exportLogs">导出明细</el-button>
           <el-select v-model="logType" placeholder="收益类型" clearable class="w160" @change="loadLogs">
             <el-option label="一级佣金" value="level1" />
@@ -484,6 +485,15 @@
         />
       </el-card>
     </section>
+
+    <!-- 月度对账单预览（浏览器打印即存 PDF） -->
+    <el-dialog v-model="statementShow" title="分销佣金月度对账单" width="920px" top="5vh" append-to-body @close="statementClose">
+      <iframe ref="statementIframe" :src="statementUrl" class="statement-frame" />
+      <template #footer>
+        <el-button @click="statementClose">关闭</el-button>
+        <el-button type="primary" @click="statementPrint">打印 / 存为 PDF</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 溯源记录 -->
     <section v-if="activeTab === 'relations'">
@@ -1125,7 +1135,42 @@ async function batchReview(action) {
 
 const summaryMonth = ref(new Date().toISOString().slice(0, 7));
 
-// 月度汇总导出 CSV
+// 月度对账 CSV（含扣回/实得/提现/合计）
+async function exportStatement() {
+  try {
+    const res = await customerApiCall.get('/distribution/statement', { params: { month: summaryMonth.value, export: 'csv' }, responseType: 'blob' });
+    const blob = res instanceof Blob ? res : new Blob([res], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `分销月度对账-${summaryMonth.value}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    ElMessage.success('月度对账已导出');
+  } catch (e) { ElMessage.error(e || '导出失败'); }
+}
+
+// 打印对账单（弹窗内嵌 HTML 预览，可打印/下载；浏览器打印即存 PDF）
+const statementUrl = ref('');
+const statementShow = ref(false);
+async function printStatement() {
+  try {
+    const res = await customerApiCall.get('/distribution/statement', { params: { month: summaryMonth.value, export: 'html' }, responseType: 'blob' });
+    const blob = res instanceof Blob ? res : new Blob([res], { type: 'text/html;charset=utf-8' });
+    statementUrl.value = URL.createObjectURL(blob);
+    statementShow.value = true;
+  } catch (e) { ElMessage.error(e || '生成对账单失败'); }
+}
+function statementPrint() {
+  const f = statementIframe.value;
+  if (f && f.contentWindow) f.contentWindow.print();
+}
+function statementClose() {
+  statementShow.value = false;
+  if (statementUrl.value) { URL.revokeObjectURL(statementUrl.value); statementUrl.value = ''; }
+}
+const statementIframe = ref(null);
+
+// 月度汇总导出 CSV（旧版兼容入口保留）
 async function exportMonthly() {
   try {
     const res = await customerApiCall.get('/distribution/logs/summary', { params: { month: summaryMonth.value, export: 'csv' }, responseType: 'blob' });
@@ -1222,6 +1267,7 @@ onMounted(() => {
 .mb16 { margin-bottom: 16px; }
 .mb12 { margin-bottom: 12px; }
 .mt16 { margin-top: 16px; }
+.statement-frame { width: 100%; height: 66vh; border: 1px solid var(--color-border, #e5e6eb); border-radius: 8px; background: #fff; }
 .batch-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 8px; }
 .text-muted { color: #86909c; font-size: 12px; }
 .tree-node { display: inline-flex; align-items: center; gap: 8px; }

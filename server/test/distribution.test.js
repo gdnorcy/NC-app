@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createDb } from '../src/db.js';
-import { createDistributionService, buildShareUrl, buildWithdrawCsv, buildLogCsv, buildMonthlyCsv, buildRelationTree } from '../src/services/distribution.js';
+import { createDistributionService, buildShareUrl, buildWithdrawCsv, buildLogCsv, buildMonthlyCsv, buildStatementCsv, buildStatementHtml, buildRelationTree } from '../src/services/distribution.js';
 
 describe('分销体系（分销裂变底座）', () => {
   let db, dist;
@@ -1102,6 +1102,36 @@ describe('分销体系（分销裂变底座）', () => {
       assert.equal(lv3.benefits, '', '空白描述存空串');
     } finally {
       db.prepare('DELETE FROM dist_level WHERE tenant_id = ? AND level_no = 9').run(TENANT);
+    }
+  });
+
+  it('P14 月度对账单：扣回负计/欠款解析/提现实得 + CSV/HTML 构建', () => {
+    const UID = 9036;
+    const NOW = new Date().toISOString().slice(0, 7);
+    const before = dist.monthlySummary(TENANT, NOW);
+    db.prepare("INSERT OR IGNORE INTO platform_user (id, openid, nickname, customer_id, identity_type) VALUES (?, ?, '对账测试', ?, 'individual')").run(UID, `openid_${UID}`, TENANT);
+    db.prepare("INSERT INTO dist_user_log (tenant_id, user_id, identity_type, order_id, split_id, type, amount, status, remark, created_at) VALUES (?, ?, 'individual', 99031, 99031, 'level1', 1000, 'pending', '订单佣金', datetime('now'))").run(TENANT, UID);
+    db.prepare("INSERT INTO dist_user_log (tenant_id, user_id, identity_type, order_id, split_id, type, amount, status, remark, created_at) VALUES (?, ?, 'individual', 99032, 99032, 'level1', 400, 'charged_back', '订单退款回滚（余额不足，欠款 400 分待追缴）', datetime('now'))").run(TENANT, UID);
+    db.prepare("INSERT INTO dist_withdraw (withdraw_no, tenant_id, user_id, identity_type, amount, service_fee, status, pay_no, created_at) VALUES ('WD-STATEMENT-1', ?, ?, 'individual', 600, 20, 'done', 'ALIPAY-STATEMENT', datetime('now'))").run(TENANT, UID);
+    try {
+      const s = dist.monthlySummary(TENANT, NOW);
+      assert.equal(s.total, before.total + 600, '扣回按负计入（增量 +1000-400=+600）');
+      assert.equal(s.chargedBack - before.chargedBack, 400, '扣回总额增量');
+      assert.equal(s.debtAmount - before.debtAmount, 400, '欠款解析增量');
+      const u = s.byUser.find((x) => x.userId === UID);
+      assert.ok(u && u.total === 600 && u.chargedBack === 400, '用户级净额/扣回');
+      assert.equal(u.withdraw, 580, '提现实得 = 600-20');
+      assert.equal(s.withdrawTotal - before.withdrawTotal, 580, '提现合计增量');
+      const csv = buildStatementCsv(s);
+      assert.ok(csv.startsWith('\uFEFF') && csv.includes('扣回(元)') && csv.includes('实得(元)') && csv.includes('提现(元)'), 'CSV 表头');
+      assert.ok(csv.includes('4.00') && csv.includes('5.80'), 'CSV 金额（扣回4/提现5.8）');
+      const html = buildStatementHtml(s, { tenantName: '对账租户' });
+      assert.ok(html.includes('分销佣金月度对账单') && html.includes('对账租户') && html.includes('待追缴欠款'), 'HTML 含标题/租户/欠款提示');
+      assert.ok(html.includes('<table>') && html.includes('合计'), 'HTML 含明细表与合计');
+    } finally {
+      db.prepare("DELETE FROM dist_user_log WHERE tenant_id = ? AND split_id IN (99031, 99032)").run(TENANT);
+      db.prepare("DELETE FROM dist_withdraw WHERE withdraw_no = 'WD-STATEMENT-1'").run();
+      db.prepare('DELETE FROM platform_user WHERE id = ?').run(UID);
     }
   });
 });
