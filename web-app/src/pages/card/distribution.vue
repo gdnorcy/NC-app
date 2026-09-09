@@ -1,6 +1,6 @@
 <template>
   <view class="dist-page">
-    <!-- 顶部主视觉卡：身份切换 + 规则 + 收益总览 -->
+    <!-- 顶部主视觉卡：用户信息 + 上级推广员 + 已邀请 + 收益总览 -->
     <view class="hero g3" :style="heroStyle">
       <view class="hero-top">
         <view class="hero-title">分销中心</view>
@@ -11,14 +11,14 @@
       </view>
       <!-- 用户信息 -->
       <view class="user-row">
-        <view class="user-left">
-          <view class="user-line">
-            <image v-if="summary.selfAvatar" class="user-avatar" :src="summary.selfAvatar" mode="aspectFill" />
-            <view v-else class="user-avatar placeholder">{{ (summary.selfName || '我')[0] }}</view>
-            <view class="user-name">{{ summary.selfName || '我' }}</view>
-            <view class="user-level">{{ summary.defaultLevel || '默认等级' }}</view>
-          </view>
+        <view class="user-line">
+          <image v-if="summary.selfAvatar" class="user-avatar" :src="summary.selfAvatar" mode="aspectFill" />
+          <view v-else class="user-avatar placeholder">{{ (summary.selfName || '我')[0] }}</view>
+          <view class="user-name">{{ summary.selfName || '我' }}</view>
+          <view class="user-level">{{ summary.defaultLevel || '默认等级' }}</view>
         </view>
+        <view v-if="summary.isEnableDist && summary.showParent && summary.parent" class="user-parent">上级推广员：{{ summary.parent.nickname || '-' }}</view>
+        <view v-if="summary.isEnableDist" class="user-invited" @click="scrollTo('subs')">已邀请成功：{{ summary.directCount }}人 ›</view>
       </view>
       <!-- 收益总览 -->
       <view class="money-row">
@@ -44,7 +44,7 @@
         <view class="perf-val">¥{{ fen(summary.todayCommission) }}</view>
         <view class="perf-sub">{{ summary.todayOrder }}单 · 新增{{ summary.todayNew }}人</view>
       </view>
-      <view class="perf-card perf-click" @click="showCum = true">
+      <view class="perf-card perf-click" @click="showTotal = true">
         <view class="perf-label">累计业绩 <text class="perf-more">›</text></view>
         <view class="perf-val">¥{{ fen(summary.totalCommission) }}</view>
         <view class="perf-sub">直推{{ summary.directCount }} · 间推{{ summary.indirectCount }}</view>
@@ -56,79 +56,187 @@
       当前暂无分销/分红权限，入驻租户并绑定推广关系后可查看收益
     </view>
 
-    <!-- 应用卡片区：按租户开通 + 本人身份动态渲染 -->
-    <view class="sec-t">我的分销应用</view>
-    <view class="app-cards">
-      <view v-if="summary.isEnableDist" class="app-card" @click="go('distPromo')">
-        <view class="app-ic ic-blue"><SIcon name="team" size="large" /></view>
-        <view class="app-info">
-          <view class="app-name">二级推广分销</view>
-          <view class="app-sub">今日 ¥{{ fen(summary.todayCommission) }} · 累计 ¥{{ fen(summary.totalCommission) }}</view>
+    <!-- 分销资格申请 / 门槛提示（仅 dist 插件开通） -->
+    <template v-if="summary.isEnableDist">
+      <view v-if="(summary.gate === 1 || summary.gate === 2) && !summary.inWhitelist" class="apply-box">
+        <image v-if="summary.applyTopImg" class="apply-img" :src="summary.applyTopImg" mode="widthFix" />
+        <view class="apply-row">
+          <view class="apply-txt">
+            <text v-if="summary.applyStatus === 'pending'" class="apply-title">申请审核中</text>
+            <text v-else-if="summary.applyStatus === 'rejected'" class="apply-title">申请被驳回</text>
+            <text v-else class="apply-title">成为{{ summary.distName || '分销商' }}</text>
+            <view class="apply-desc">
+              <text v-if="summary.applyStatus === 'pending'">{{ summary.gate === 1 ? '申请已自动通过，可开始推广' : '租户审核通过后自动获得推广佣金资格' }}</text>
+              <text v-else-if="summary.applyStatus === 'rejected'">驳回原因：{{ summary.rejectReason || '未填写' }}</text>
+              <text v-else>{{ summary.applyTip || (summary.gate === 1 ? '提交申请后自动成为分销商' : '当前为申请制，需通过后才能获得推广佣金') }}</text>
+            </view>
+          </view>
+          <button
+            v-if="summary.canApply"
+            class="apply-btn"
+            :disabled="applying || (!!summary.applyAgreement && !agreed)"
+            @click="submitApply"
+          >{{ summary.applyStatus === 'rejected' ? '重新申请' : '申请成为' + (summary.distName || '分销商') }}</button>
+          <text v-else-if="summary.applyStatus === 'pending'" class="apply-wait">等待审核</text>
         </view>
-        <view v-if="!distQualified" class="app-status st-warn">未获资格</view>
-        <view class="app-arrow">›</view>
+        <view v-if="summary.applyAgreement" class="apply-agreement">
+          <view class="agreement-box">
+            <rich-text :nodes="summary.applyAgreement" />
+          </view>
+          <label class="agreement-check" @click="agreed = !agreed">
+            <radio :checked="agreed" color="#165DFF" style="transform: scale(0.75)" />
+            <text>我已阅读并同意以上协议</text>
+          </label>
+        </view>
+      </view>
+      <view v-else-if="(summary.gate === 3 || summary.gate === 4 || summary.gate === 5) && !summary.inWhitelist" class="tip-box">
+        <text v-if="summary.gate === 3">当前为消费门槛：累计实付满 {{ fen(summary.becomeAmount * 100) }} 元后自动获得分销资格</text>
+        <text v-else-if="summary.gate === 4">当前为购买门槛：完成任意付费订单后自动获得分销资格</text>
+        <text v-else>当前为指定商品门槛：购买指定商品并支付完成后自动获得分销资格</text>
       </view>
 
+      <!-- 生成专属邀请码（渐变模块） -->
+      <view class="invite-box g3" :style="heroStyle">
+        <view class="invite-left">
+          <view class="invite-title">生成专属邀请码</view>
+          <view class="invite-desc">分享名片给客户，绑定后付费即可获得佣金</view>
+          <view class="invite-btns">
+            <button class="mini-btn invite-btn" @click="openQr">推广二维码</button>
+            <button class="mini-btn invite-btn solid" @click="openPoster">生成海报</button>
+            <button class="mini-btn invite-btn ghost" @click="copyShareUrl">复制链接</button>
+          </view>
+        </view>
+        <view class="invite-right" @click="openQr">
+          <view class="deco-qr">
+            <view v-for="n in 49" :key="n" class="dqr-cell" :class="qrCellCls(n)" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 我的下线 -->
+      <view id="anchor-subs" class="sec-t">我的下线</view>
+      <view class="stat-cards">
+        <view class="s-card"><view class="s-num">{{ summary.directCount }}</view><view class="s-lb">直推{{ summary.subName || '下级' }}</view></view>
+        <view class="s-card"><view class="s-num">{{ summary.indirectCount }}</view><view class="s-lb">间推{{ summary.subName || '下级' }}</view></view>
+        <view class="s-card"><view class="s-num">{{ summary.monthNew }}</view><view class="s-lb">本月新增</view></view>
+        <view class="s-card"><view class="s-num">{{ fen(summary.monthCommission) }}</view><view class="s-lb">本月佣金(元)</view></view>
+      </view>
+      <view class="sub-box">
+        <view class="sub-tabs">
+          <view class="sub-tab" :class="subLevel === 1 ? 'on' : ''" @click="switchSubLevel(1)">直推{{ summary.subName || '下级' }}</view>
+          <view class="sub-tab" :class="subLevel === 2 ? 'on' : ''" @click="switchSubLevel(2)">间推{{ summary.subName || '下级' }}</view>
+          <view class="sub-count">{{ subTotal }}</view>
+        </view>
+        <view v-if="subLoading" class="sub-empty">加载中…</view>
+        <view v-else-if="!subs.length" class="sub-empty">还没有通过你的名片带来的客户，多多分享名片即可获得客户</view>
+        <view v-else class="sub-list">
+          <view v-for="s in subs" :key="s.userId" class="sub-item" @click="goSubCard(s.userId)">
+            <image v-if="s.avatar" class="sub-avatar" :src="s.avatar" mode="aspectFill" />
+            <view v-else class="sub-avatar placeholder">{{ (s.nickname || '客')[0] }}</view>
+            <view class="sub-info">
+              <view class="sub-name">{{ s.nickname }}<text v-if="s.paid" class="sub-paid">已付费</text></view>
+              <view class="sub-time">绑定 {{ s.bindTime }}<text v-if="summary.showPhone && s.phone" class="sub-phone"> · {{ s.phone }}</text></view>
+            </view>
+            <view class="sub-arrow">›</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 推广佣金明细 -->
+      <view id="anchor-logs" class="sec-t">推广佣金明细</view>
+      <view class="tabs">
+        <view v-for="t in logTabs" :key="t.key" class="tab" :class="{ on: logType === t.key }" @click="switchLog(t.key)">{{ t.label }}</view>
+      </view>
+      <view class="log-list">
+        <view v-for="l in logs" :key="l.id" class="log-item">
+          <view class="log-top">
+            <text class="log-type">{{ l.typeLabel }}</text>
+            <text class="log-amt" :class="{ neg: l.status === 'charged_back' }">{{ l.status === 'charged_back' ? '-' : '+' }}{{ fen(l.amount) }}</text>
+          </view>
+          <view class="log-mid">
+            <text class="log-no">{{ l.orderNo }}</text>
+            <text class="log-st" :class="stCls(l.status)">{{ l.statusLabel }}</text>
+          </view>
+          <view class="log-bot">
+            <text>{{ l.createdAt }}</text>
+            <text v-if="l.remark" class="log-rm">{{ l.remark }}</text>
+          </view>
+        </view>
+        <view v-if="!logs.length" class="empty">还没有产生收益，客户付费升级套餐后收益会在这里展示</view>
+      </view>
+    </template>
+
+    <!-- 我的分销应用：其余 4 个插件应用，两列 -->
+    <view class="sec-t">我的分销应用</view>
+    <view class="app-grid">
       <view v-if="summary.isEnablePartner" class="app-card" @click="go('distPartner')">
         <view class="app-ic ic-orange"><SIcon name="crown" size="large" /></view>
-        <view class="app-info">
-          <view class="app-name">合伙人分红</view>
-          <view class="app-sub">团队/全局流水分红 · 待分红 ¥{{ fen(summary.partnerPending) }}</view>
-        </view>
-        <view v-if="!summary.isPartner" class="app-status st-warn">未获身份</view>
-        <view class="app-arrow">›</view>
+        <view class="app-name">合伙人分红</view>
+        <view class="app-sub" :class="{ warn: !summary.isPartner }">{{ summary.isPartner ? '待分红 ¥' + fen(summary.partnerPending) : '未获身份' }}</view>
       </view>
 
       <view v-if="summary.isEnableShareAll" class="app-card" @click="go('distShareAll')">
         <view class="app-ic ic-purple"><SIcon name="badge" size="large" /></view>
-        <view class="app-info">
-          <view class="app-name">全民股东</view>
-          <view class="app-sub">全站流水分红 · 待分红 ¥{{ fen(summary.sharePending) }}</view>
-        </view>
-        <view v-if="!shareAllTag" class="app-status st-warn">未获身份</view>
-        <view class="app-arrow">›</view>
+        <view class="app-name">全民股东</view>
+        <view class="app-sub" :class="{ warn: !shareAllTag }">{{ shareAllTag ? '待分红 ¥' + fen(summary.sharePending) : '未获身份' }}</view>
       </view>
 
       <view v-if="summary.isEnableShareCat" class="app-card" @click="go('distShareCat')">
-        <view class="app-ic ic-green"><SIcon name="chart" size="large" /></view>
-        <view class="app-info">
-          <view class="app-name">类目股东</view>
-          <view class="app-sub">行业维度分红 · {{ shareCatTag || '未获身份' }}</view>
-        </view>
-        <view v-if="!shareCatTag" class="app-status st-warn">未获身份</view>
-        <view class="app-arrow">›</view>
+        <view class="app-ic ic-green"><SIcon name="dynamic" size="large" /></view>
+        <view class="app-name">类目股东</view>
+        <view class="app-sub" :class="{ warn: !shareCatTag }">{{ shareCatTag ? '待分红 ¥' + fen(summary.sharePending) : '未获身份' }}</view>
       </view>
 
       <view v-if="summary.isEnableShareArea" class="app-card" @click="go('distShareArea')">
-        <view class="app-ic ic-cyan"><SIcon name="orders" size="large" /></view>
-        <view class="app-info">
-          <view class="app-name">区域股东</view>
-          <view class="app-sub">地域维度分红 · {{ shareAreaTag || '未获身份' }}</view>
-        </view>
-        <view v-if="!shareAreaTag" class="app-status st-warn">未获身份</view>
-        <view class="app-arrow">›</view>
+        <view class="app-ic ic-cyan"><SIcon name="pool" size="large" /></view>
+        <view class="app-name">区域股东</view>
+        <view class="app-sub" :class="{ warn: !shareAreaTag }">{{ shareAreaTag ? '待分红 ¥' + fen(summary.sharePending) : '未获身份' }}</view>
       </view>
-
-      <view v-if="!hasAnyApp" class="empty-box">当前租户未开通分销应用，请先联系租户管理员开通</view>
     </view>
+    <view v-if="!hasAnyApp" class="empty-box">当前租户未开通分销应用，请先联系租户管理员开通</view>
 
     <!-- 累计业绩弹层 -->
-    <view v-if="showCum" class="qr-mask" @click="showCum = false">
-      <view class="qr-panel cum-panel" @click.stop>
+    <view v-if="showTotal" class="qr-mask" @click="showTotal = false">
+      <view class="qr-panel" @click.stop>
         <view class="qr-title">累计业绩</view>
-        <view class="cum-grid">
-          <view class="cum-item"><text class="cum-num">¥{{ fen(summary.totalCommission) }}</text><text class="cum-lb">累计佣金(元)</text></view>
-          <view class="cum-item"><text class="cum-num">{{ summary.totalOrders }}</text><text class="cum-lb">累计订单(单)</text></view>
-          <view class="cum-item"><text class="cum-num">{{ summary.directCount }}</text><text class="cum-lb">直推下级(人)</text></view>
-          <view class="cum-item"><text class="cum-num">{{ summary.indirectCount }}</text><text class="cum-lb">间推下级(人)</text></view>
-          <view class="cum-item"><text class="cum-num">{{ summary.monthNew }}</text><text class="cum-lb">本月新增(人)</text></view>
-          <view class="cum-item"><text class="cum-num">¥{{ fen(summary.monthCommission) }}</text><text class="cum-lb">本月佣金(元)</text></view>
+        <view class="total-grid">
+          <view class="t-card"><view class="t-num">{{ fen(summary.totalCommission) }}</view><view class="t-lb">累计佣金(元)</view></view>
+          <view class="t-card"><view class="t-num">{{ summary.totalOrders }}</view><view class="t-lb">累计带来订单</view></view>
+          <view class="t-card"><view class="t-num">{{ summary.directCount }}</view><view class="t-lb">直推{{ summary.subName || '下级' }}</view></view>
+          <view class="t-card"><view class="t-num">{{ summary.indirectCount }}</view><view class="t-lb">间推{{ summary.subName || '下级' }}</view></view>
+          <view class="t-card"><view class="t-num">{{ summary.monthNew }}</view><view class="t-lb">本月新增</view></view>
+          <view class="t-card"><view class="t-num">{{ fen(summary.monthCommission) }}</view><view class="t-lb">本月佣金(元)</view></view>
         </view>
-        <button class="mini-btn ghost" @click="showCum = false">关闭</button>
+        <button class="mini-btn ghost" @click="showTotal = false">关闭</button>
       </view>
     </view>
 
-    <!-- 分销须知 -->
+    <!-- 推广二维码弹层 -->
+    <view v-if="qr.show" class="qr-mask" @click="qr.show = false">
+      <view class="qr-panel" @click.stop>
+        <image v-if="summary.shareImg" class="qr-shareimg" :src="summary.shareImg" mode="aspectFill" />
+        <view class="qr-title">{{ summary.shareTitle || '我的推广二维码' }}</view>
+        <image v-if="qr.dataUrl" class="qr-img" :src="qr.dataUrl" mode="aspectFit" />
+        <view v-else class="qr-loading">二维码生成中…</view>
+        <view class="qr-hint">客户扫码进入我的名片，首次进入自动绑定为我的下级</view>
+        <button class="mini-btn" @click="copyShareUrl">复制推广链接</button>
+        <button class="mini-btn ghost" @click="qr.show = false">关闭</button>
+      </view>
+    </view>
+
+    <!-- 分享海报 -->
+    <view v-if="poster.show" class="qr-mask" @click="poster.show = false">
+      <view class="qr-panel poster-panel" @click.stop>
+        <view class="qr-title">分享海报</view>
+        <view class="poster-canvas-box">
+          <canvas canvas-id="dist-poster" id="dist-poster" class="poster-canvas" />
+        </view>
+        <button class="mini-btn" :disabled="poster.saving" @click="savePoster">{{ poster.saving ? '生成中…' : '保存海报' }}</button>
+        <button class="mini-btn ghost" @click="poster.show = false">关闭</button>
+      </view>
+    </view>
+
+    <!-- 业务规则 -->
     <view v-if="showRules" class="qr-mask" @click="showRules = false">
       <view class="qr-panel rules-panel" @click.stop>
         <view class="qr-title">业务规则</view>
@@ -162,43 +270,305 @@ const brandColor = ref('');
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
-const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, distName: '推广员', subName: '下级', ratio1: 0.2, ratio2: 0.05, settleDay: 7, distNotice: '' });
+const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });
+
 const showRules = ref(false);
-const showCum = ref(false);
+const showTotal = ref(false);
+const applying = ref(false);
+const agreed = ref(false);
 const fmtRatio = (v) => (Math.round((Number(v) || 0) * 1000) / 10) + '%';
 
 const shareAllTag = computed(() => summary.value.shareTags.includes('全民股东'));
 const shareCatTag = computed(() => summary.value.shareTags.find((t) => t.startsWith('行业-')));
 const shareAreaTag = computed(() => summary.value.shareTags.find((t) => t.startsWith('地区-')));
-/** 分销资格：有推广关系（直推/间推数>0）或已入白名单/申请通过，才不算"未获资格" */
-const distQualified = computed(() => {
-  if (!summary.value.unbound && (summary.value.directCount + summary.value.indirectCount > 0)) return true;
-  return summary.value.inWhitelist === true;
-});
-const hasAnyApp = computed(() => summary.value.isEnableDist || summary.value.isEnablePartner || summary.value.isEnableShareAll || summary.value.isEnableShareCat || summary.value.isEnableShareArea);
+const hasAnyApp = computed(() => summary.value.isEnablePartner || summary.value.isEnableShareAll || summary.value.isEnableShareCat || summary.value.isEnableShareArea);
 
-function fen(v) { return ((Number(v) || 0) / 100).toFixed(2); }
-function go(page) {
-  uni.navigateTo({ url: `/pages/card/${page}` });
-}
-function goWallet() {
-  uni.navigateTo({ url: '/pages/card/distWallet' });
-}
-function switchIdentity() {
-  identity.value = identity.value === 'individual' ? 'employee' : 'individual';
-  loadSummary();
-}
-async function loadSummary() {
+const QR_PATTERN = [
+  1,1,1,0,1,1,1,
+  1,0,1,0,1,0,1,
+  1,1,1,0,1,1,1,
+  0,0,0,1,0,0,0,
+  1,0,1,1,1,0,1,
+  1,1,0,0,1,1,0,
+  0,1,1,0,0,1,1,
+];
+function qrCellCls(n) { return QR_PATTERN[n - 1] ? 'on' : ''; }
+function scrollTo(anchor) { uni.pageScrollTo({ selector: `#anchor-${anchor}`, duration: 300 }); }
+
+const logs = ref([]);
+const subs = ref([]);
+const subLevel = ref(1);
+const subTotal = ref(0);
+const subPage = ref(1);
+const subLoading = ref(false);
+const logType = ref('');
+const logTabs = [
+  { key: '', label: '全部' },
+  { key: 'level1', label: '一级佣金' },
+  { key: 'level2', label: '二级佣金' },
+];
+
+async function loadAll() {
   try {
     summary.value = await cardApi.distSummary(identity.value);
   } catch (e) {
-    summary.value = { wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: true, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false };
+    summary.value = { wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: true };
+  }
+  if (summary.value.isEnableDist) { loadLogs(); loadSubs(); }
+}
+
+async function loadSubs() {
+  if (summary.value.unbound) return;
+  subLoading.value = true;
+  try {
+    const res = await cardApi.distSubs(subLevel.value, subPage.value);
+    subs.value = res.list || [];
+    subTotal.value = res.total || 0;
+  } catch (e) { subs.value = []; } finally { subLoading.value = false; }
+}
+function switchSubLevel(lv) {
+  if (subLevel.value === lv) return;
+  subLevel.value = lv;
+  subPage.value = 1;
+  loadSubs();
+}
+function goSubCard(uid) { uni.navigateTo({ url: `/pages/card/cardDetail?id=${uid}` }); }
+
+async function loadLogs() {
+  try {
+    const res = await cardApi.distLogs({ page: 1, pageSize: 20, type: logType.value, identityType: identity.value });
+    logs.value = res.list || [];
+  } catch (e) { logs.value = []; }
+}
+function switchLog(key) { logType.value = key; loadLogs(); }
+
+function go(page) { uni.navigateTo({ url: `/pages/card/${page}` }); }
+function goWallet() { uni.navigateTo({ url: '/pages/card/distWallet' }); }
+function switchIdentity() {
+  identity.value = identity.value === 'individual' ? 'employee' : 'individual';
+  loadAll();
+}
+
+async function submitApply() {
+  if (applying.value) return;
+  if (summary.value.applyAgreement && !agreed.value) {
+    uni.showToast({ title: '请先阅读并勾选申请协议', icon: 'none' });
+    return;
+  }
+  applying.value = true;
+  try {
+    const res = await cardApi.distApply();
+    if (!res || res.ok === false) { uni.showToast({ title: (res && res.error) || '申请失败', icon: 'none' }); return; }
+    await loadAll();
+    uni.showToast({ title: summary.value.gate === 1 ? '申请成功，已自动通过' : '申请已提交，等待审核', icon: 'none' });
+  } catch (e) { uni.showToast({ title: e || '申请失败', icon: 'none' }); } finally { applying.value = false; }
+}
+
+const qr = ref({ show: false, dataUrl: '', shareUrl: '' });
+const poster = ref({ show: false, saving: false, tempPath: '' });
+
+async function openQr() {
+  if (!qr.value.shareUrl) {
+    try {
+      const res = await cardApi.distQrcode();
+      if (res && res.qrDataUrl) qr.value = { show: true, dataUrl: res.qrDataUrl, shareUrl: res.shareUrl };
+    } catch (e) { uni.showToast({ title: e || '二维码生成失败', icon: 'none' }); }
+  } else {
+    qr.value = { ...qr.value, show: true };
   }
 }
 
+/** 海报装修：推广图 + 昵称 + 二维码合成，双端统一 uni canvas 绘制 */
+async function openPoster() {
+  if (!qr.value.dataUrl) {
+    try {
+      const res = await cardApi.distQrcode();
+      if (res && res.qrDataUrl) { qr.value.dataUrl = res.qrDataUrl; qr.value.shareUrl = res.shareUrl; }
+      else { uni.showToast({ title: '二维码生成失败', icon: 'none' }); return; }
+    } catch (e) { uni.showToast({ title: e || '二维码生成失败', icon: 'none' }); return; }
+  }
+  poster.value = { show: true, saving: false, tempPath: '' };
+  poster.value.saving = true;
+  await new Promise((r) => setTimeout(r, 400));
+  await drawPoster();
+  poster.value.saving = false;
+}
+
+/** uni canvas 绘制（小程序）：CSS 300x450 坐标系，导出放大到 1200x1800 */
+function drawPosterUni() {
+  return new Promise((resolve) => {
+    const W = 300, H = 450;
+    const ctx = uni.createCanvasContext('dist-poster');
+    const TITLE = summary.value.distName || '分销中心';
+    const NICK = (summary.value.parent && summary.value.parent.nickname) || '我的名片';
+    const LEVEL = summary.value.defaultLevel || '默认等级';
+    const showBadge = summary.value.posterBadge !== false && TITLE && LEVEL;
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+    const paint = (bgPath) => {
+      if (bgPath) { ctx.drawImage(bgPath, 0, 0, W, H); }
+      else { ctx.setFillStyle('#165DFF'); ctx.fillRect(0, 0, W, H); }
+      ctx.setFillStyle('rgba(0,0,0,0.30)'); ctx.fillRect(0, 0, W, H);
+      if (showBadge) {
+        const bw = 64 * (TITLE.length + LEVEL.length + 1), bh = 28, bx = 22, by = 22;
+        ctx.setFillStyle('rgba(255,255,255,0.92)');
+        roundRect(bx, by, bw, bh, 14); ctx.fill();
+        ctx.setFillStyle('#165DFF');
+        ctx.setFontSize(12); ctx.setTextAlign('left');
+        ctx.fillText(`${TITLE} · ${LEVEL}`, bx + 11, by + 18);
+      }
+      ctx.setFillStyle('#ffffff');
+      ctx.setFontSize(32); ctx.setTextAlign('center');
+      ctx.fillText(TITLE, W / 2, 95);
+      ctx.setFontSize(48);
+      ctx.fillText(NICK, W / 2, 165);
+      ctx.setFontSize(15); ctx.setFillStyle('rgba(255,255,255,0.92)');
+      ctx.fillText('扫码进入我的名片，绑定后获取推广佣金', W / 2, 210);
+      const qs = 170, qx = (W - qs) / 2, qy = 240;
+      ctx.setFillStyle('#ffffff');
+      roundRect(qx, qy, qs, qs, 16); ctx.fill();
+      ctx.drawImage(qr.value.dataUrl, qx + 12, qy + 12, qs - 24, qs - 24);
+      ctx.setFillStyle('rgba(255,255,255,0.92)'); ctx.setFontSize(13); ctx.setTextAlign('center');
+      ctx.fillText('长按识别二维码 · 保存海报到相册', W / 2, H - 35);
+      ctx.draw(false, () => {
+        setTimeout(() => {
+          uni.canvasToTempFilePath({ canvasId: 'dist-poster', width: W, height: H, destWidth: 1200, destHeight: 1800, success: (r) => { poster.value.tempPath = r.tempFilePath; resolve(); }, fail: () => resolve() });
+        }, 400);
+      });
+    };
+    if (summary.value.promoteImg) {
+      uni.getImageInfo({ src: summary.value.promoteImg, success: (info) => paint(info.path), fail: () => paint(null) });
+    } else paint(null);
+  });
+}
+
+/** H5：原生 canvas 2D，600x900 逻辑坐标 + dpr 高清缓冲区，toBlob 导出 */
+function drawPosterH5() {
+  return new Promise((resolve) => {
+    const c = document.querySelector('uni-canvas canvas, canvas#dist-poster');
+    if (!c) return resolve();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = 600, H = 900;
+    c.width = W * dpr; c.height = H * dpr;
+    c.style.width = '300px'; c.style.height = '450px';
+    const ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const TITLE = summary.value.distName || '分销中心';
+    const NICK = (summary.value.parent && summary.value.parent.nickname) || '我的名片';
+    const LEVEL = summary.value.defaultLevel || '默认等级';
+    const showBadge = summary.value.posterBadge !== false && TITLE && LEVEL;
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    };
+    const paint = (bg) => {
+      if (bg) ctx.drawImage(bg, 0, 0, W, H);
+      else {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#165DFF'); g.addColorStop(1, '#0B3A8C');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.30)'; ctx.fillRect(0, 0, W, H);
+      if (showBadge) {
+        const bw = 64 * (TITLE.length + LEVEL.length + 1), bh = 56, bx = 44, by = 44;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        roundRect(bx, by, bw, bh, 28); ctx.fill();
+        ctx.fillStyle = '#165DFF';
+        ctx.font = '600 24px "PingFang SC", sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(`${TITLE} · ${LEVEL}`, bx + 22, by + 36);
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 64px "PingFang SC", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(TITLE, W / 2, 190);
+      ctx.font = '600 96px "PingFang SC", sans-serif';
+      ctx.fillText(NICK, W / 2, 330);
+      ctx.font = '30px "PingFang SC", sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillText('扫码进入我的名片，绑定后获取推广佣金', W / 2, 420);
+      const qs = 340, qx = (W - qs) / 2, qy = 480;
+      ctx.fillStyle = '#ffffff';
+      roundRect(qx, qy, qs, qs, 32); ctx.fill();
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, qx + 24, qy + 24, qs - 48, qs - 48);
+        ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = '26px "PingFang SC", sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('长按识别二维码 · 保存海报到相册', W / 2, H - 70);
+        c.toBlob((blob) => {
+          if (blob) poster.value.tempPath = URL.createObjectURL(blob);
+          resolve();
+        }, 'image/png');
+      };
+      img.onerror = () => resolve();
+      img.src = qr.value.dataUrl;
+    };
+    if (summary.value.promoteImg) {
+      const bg = new Image();
+      bg.crossOrigin = 'anonymous';
+      bg.onload = () => paint(bg);
+      bg.onerror = () => paint(null);
+      bg.src = summary.value.promoteImg;
+    } else paint(null);
+  });
+}
+
+/** 海报绘制入口：H5 原生 canvas / 小程序 uni canvas */
+function drawPoster() {
+  // #ifdef H5
+  return drawPosterH5();
+  // #endif
+  // #ifndef H5
+  return drawPosterUni();
+  // #endif
+}
+
+/** 保存海报：H5 下载（Blob URL）；小程序保存相册（含授权） */
+function savePoster() {
+  if (!poster.value.tempPath) { uni.showToast({ title: '海报生成中，请稍候', icon: 'none' }); return; }
+  // #ifdef H5
+  const a = document.createElement('a');
+  a.href = poster.value.tempPath; a.download = `分销海报-${Date.now()}.png`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  uni.showToast({ title: '海报已下载', icon: 'none' });
+  // #endif
+  // #ifndef H5
+  uni.saveImageToPhotosAlbum({
+    filePath: poster.value.tempPath,
+    success: () => uni.showToast({ title: '已保存到相册', icon: 'none' }),
+    fail: (e) => {
+      if (e && (e.errMsg || '').includes('auth')) {
+        uni.showModal({ title: '需要相册权限', content: '请在设置中开启保存到相册权限后重试', showCancel: false });
+      } else uni.showToast({ title: '保存失败', icon: 'none' });
+    },
+  });
+  // #endif
+}
+
+async function copyShareUrl() {
+  if (!qr.value.shareUrl) {
+    try {
+      const res = await cardApi.distQrcode();
+      qr.value = { show: qr.value.show, dataUrl: res.qrDataUrl, shareUrl: res.shareUrl };
+    } catch (e) { uni.showToast({ title: e.message || '生成失败', icon: 'none' }); return; }
+  }
+  try {
+    await uni.setClipboardData({ data: qr.value.shareUrl });
+    uni.showToast({ title: '推广链接已复制', icon: 'success' });
+  } catch (e) {}
+}
+
+function fen(v) { return ((Number(v) || 0) / 100).toFixed(2); }
+function stCls(s) { return { pending: 'st-p', settled: 'st-s', charged_back: 'st-c' }[s] || ''; }
+
 onShow(() => {
   trackPageView('distribution');
-  loadSummary();
+  loadAll();
 });
 </script>
 
@@ -216,14 +586,15 @@ onShow(() => {
 .user-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-size: 36rpx; color: #fff; }
 .user-name { font-size: 34rpx; font-weight: 600; }
 .user-level { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); }
-.money-row { margin-top: 32rpx; display: flex; align-items: flex-end; justify-content: space-between; }
+.user-parent { margin-top: 14rpx; font-size: 24rpx; opacity: 0.92; }
+.user-invited { margin-top: 10rpx; font-size: 24rpx; opacity: 0.92; }
+.money-row { margin-top: 28rpx; display: flex; align-items: flex-end; justify-content: space-between; }
 .money-label { font-size: 24rpx; opacity: 0.85; }
 .money-val { font-size: 56rpx; font-weight: 700; line-height: 1.2; }
 .money-sub { display: flex; gap: 20rpx; margin-top: 8rpx; font-size: 22rpx; opacity: 0.9; }
 .money-right { display: flex; flex-direction: column; align-items: flex-end; gap: 14rpx; }
 .wd-detail-link { font-size: 22rpx; opacity: 0.9; }
 .withdraw-btn { background: #fff; color: #0f766e; font-size: 28rpx; font-weight: 600; padding: 14rpx 44rpx; border-radius: 999rpx; box-shadow: 0 6rpx 16rpx rgba(0,0,0,0.12); }
-.tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: 26rpx; border-radius: 16rpx; line-height: 1.6; }
 .perf-cards { margin: 24rpx 32rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
 .perf-card { background: #fff; border-radius: 20rpx; padding: 26rpx 24rpx; }
 .perf-card.perf-click { cursor: pointer; }
@@ -231,32 +602,91 @@ onShow(() => {
 .perf-more { font-size: 28rpx; color: #c9cdd4; }
 .perf-val { margin-top: 12rpx; font-size: 40rpx; font-weight: 700; color: #1d2129; }
 .perf-sub { margin-top: 8rpx; font-size: 22rpx; color: #a9aeb8; }
-.cum-panel .qr-title { margin-bottom: 8rpx; }
-.cum-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; }
-.cum-item { background: #f7f8fa; border-radius: 16rpx; padding: 24rpx 8rpx; text-align: center; display: flex; flex-direction: column; gap: 8rpx; }
-.cum-num { font-size: 32rpx; font-weight: 700; color: #1d2129; }
-.cum-lb { font-size: 22rpx; color: #86909c; }
+.tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: 26rpx; border-radius: 16rpx; line-height: 1.6; }
+.apply-box { margin: 24rpx 32rpx; background: #fff; border-radius: 20rpx; padding: 24rpx; }
+.apply-img { width: 100%; border-radius: 16rpx; }
+.apply-row { display: flex; align-items: center; gap: 20rpx; margin-top: 16rpx; }
+.apply-txt { flex: 1; min-width: 0; }
+.apply-title { font-size: 30rpx; font-weight: 600; color: #1d2129; display: block; }
+.apply-desc { margin-top: 8rpx; font-size: 24rpx; color: #86909c; line-height: 1.6; }
+.apply-btn { flex-shrink: 0; background: #165dff; color: #fff; font-size: 26rpx; border-radius: 999rpx; padding: 0 28rpx; line-height: 2.4; }
+.apply-wait { flex-shrink: 0; font-size: 24rpx; color: #86909c; }
+.apply-agreement { margin-top: 20rpx; }
+.agreement-box { background: #f7f8fa; border-radius: 12rpx; padding: 20rpx; font-size: 24rpx; color: #4e5969; max-height: 240rpx; overflow: auto; }
+.agreement-check { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; font-size: 24rpx; color: #4e5969; }
+.invite-box { margin: 32rpx; border-radius: 24rpx; padding: 32rpx; display: flex; align-items: center; gap: 24rpx; color: #fff; }
+.invite-left { flex: 1; min-width: 0; }
+.invite-title { font-size: 32rpx; font-weight: 700; }
+.invite-desc { margin-top: 10rpx; font-size: 24rpx; opacity: 0.9; }
+.invite-btns { margin-top: 24rpx; display: flex; gap: 16rpx; flex-wrap: wrap; }
+.mini-btn { font-size: 26rpx; border-radius: 999rpx; line-height: 2.3; padding: 0 28rpx; }
+.invite-btn { background: rgba(255,255,255,0.2); color: #fff; border: 1rpx solid rgba(255,255,255,0.5); }
+.invite-btn.solid { background: #fff; color: #0f766e; font-weight: 600; border: none; }
+.invite-btn.ghost { background: transparent; }
+.invite-right { flex-shrink: 0; }
+.deco-qr { width: 150rpx; height: 150rpx; border-radius: 16rpx; background: #fff; padding: 14rpx; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr); gap: 3rpx; }
+.dqr-cell { background: transparent; }
+.dqr-cell.on { background: #0f766e; border-radius: 2rpx; }
 .sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
-.app-cards { margin: 0 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.app-card { display: flex; align-items: center; gap: 24rpx; background: #fff; border-radius: 20rpx; padding: 28rpx 28rpx; box-shadow: 0 4rpx 16rpx rgba(31,35,41,0.05); }
-.app-ic { width: 96rpx; height: 96rpx; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.ic-blue { background: rgba(22,93,255,0.10); } .ic-orange { background: rgba(255,125,0,0.10); }
-.ic-purple { background: rgba(114,46,209,0.10); } .ic-green { background: rgba(0,180,42,0.10); }
-.ic-cyan { background: rgba(14,165,190,0.10); }
+.stat-cards { margin: 0 32rpx; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; }
+.s-card { background: #fff; border-radius: 16rpx; padding: 24rpx 12rpx; text-align: center; }
+.s-num { font-size: 36rpx; font-weight: 700; color: #1d2129; }
+.s-lb { margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
+.sub-box, .log-list { margin: 0 32rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
+.sub-tabs { display: flex; align-items: center; gap: 8rpx; padding: 20rpx 0 12rpx; }
+.sub-tab { font-size: 28rpx; color: #86909c; padding: 8rpx 20rpx; border-radius: 999rpx; }
+.sub-tab.on { color: #165dff; background: #e8f3ff; font-weight: 600; }
+.sub-count { margin-left: auto; font-size: 24rpx; color: #c9cdd4; }
+.sub-empty { padding: 40rpx 0; text-align: center; color: #86909c; font-size: 26rpx; }
+.sub-item { display: flex; align-items: center; gap: 20rpx; padding: 22rpx 0; border-top: 1rpx solid #f2f3f5; }
+.sub-item:first-of-type { border-top: none; }
+.sub-avatar { width: 76rpx; height: 76rpx; border-radius: 50%; background: #f2f3f5; }
+.sub-avatar.placeholder { display: flex; align-items: center; justify-content: center; color: #4e5969; font-size: 28rpx; }
+.sub-info { flex: 1; min-width: 0; }
+.sub-name { font-size: 28rpx; color: #1d2129; display: flex; align-items: center; gap: 12rpx; }
+.sub-paid { font-size: 20rpx; color: #fff; background: #00b42a; padding: 2rpx 12rpx; border-radius: 999rpx; }
+.sub-time { margin-top: 6rpx; font-size: 22rpx; color: #86909c; }
+.sub-arrow { color: #c9cdd4; font-size: 32rpx; }
+.tabs { margin: 0 32rpx 16rpx; display: flex; gap: 12rpx; overflow-x: auto; }
+.tab { flex-shrink: 0; font-size: 26rpx; color: #4e5969; background: #fff; border-radius: 999rpx; padding: 10rpx 28rpx; }
+.tab.on { color: #165dff; background: #e8f3ff; font-weight: 600; }
+.log-item { padding: 24rpx 0; border-top: 1rpx solid #f2f3f5; }
+.log-item:first-child { border-top: none; }
+.log-top { display: flex; justify-content: space-between; align-items: center; }
+.log-type { font-size: 28rpx; color: #1d2129; }
+.log-amt { font-size: 30rpx; font-weight: 700; color: #00b42a; }
+.log-amt.neg { color: #f53f3f; }
+.log-mid { margin-top: 8rpx; display: flex; justify-content: space-between; align-items: center; }
+.log-no { font-size: 22rpx; color: #86909c; }
+.log-st { font-size: 22rpx; }
+.st-p { color: #ff7d00; } .st-s { color: #00b42a; } .st-c { color: #f53f3f; }
+.log-bot { margin-top: 8rpx; font-size: 22rpx; color: #c9cdd4; display: flex; gap: 16rpx; }
+.empty { padding: 40rpx 0; text-align: center; color: #86909c; font-size: 26rpx; }
+.app-grid { margin: 0 32rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.app-card { background: #fff; border-radius: 20rpx; padding: 28rpx 24rpx; display: flex; flex-direction: column; align-items: flex-start; gap: 4rpx; }
+.app-ic { width: 84rpx; height: 84rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; }
+.ic-orange { background: rgba(255,125,0,0.10); } .ic-purple { background: rgba(114,46,209,0.10); }
+.ic-green { background: rgba(0,180,42,0.10); } .ic-cyan { background: rgba(14,165,190,0.10); }
 .app-ic :deep(.s-icon) { color: #4e5969; }
-.app-info { flex: 1; min-width: 0; }
 .app-name { font-size: 30rpx; font-weight: 600; color: #1d2129; }
-.app-sub { margin-top: 8rpx; font-size: 24rpx; color: #86909c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-status { flex-shrink: 0; font-size: 22rpx; padding: 6rpx 16rpx; border-radius: 999rpx; }
-.st-warn { background: #fff3e8; color: #ff7d00; }
-.app-arrow { flex-shrink: 0; color: #c9cdd4; font-size: 32rpx; margin-left: 8rpx; }
-.empty-box { padding: 60rpx 20rpx; text-align: center; color: #86909c; font-size: 26rpx; }
+.app-sub { font-size: 24rpx; color: #86909c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.app-sub.warn { color: #ff7d00; }
+.empty-box { margin: 24rpx 32rpx; padding: 60rpx 20rpx; text-align: center; color: #86909c; font-size: 26rpx; background: #fff; border-radius: 20rpx; }
 .qr-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 99; display: flex; align-items: center; justify-content: center; }
 .qr-panel { width: 600rpx; background: #fff; border-radius: 24rpx; padding: 40rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; max-height: 80vh; }
 .qr-title { font-size: 32rpx; font-weight: 600; text-align: center; color: #1d2129; }
+.qr-shareimg { width: 100%; border-radius: 16rpx; }
+.qr-img { width: 400rpx; height: 400rpx; align-self: center; }
+.qr-loading { text-align: center; color: #86909c; padding: 100rpx 0; font-size: 26rpx; }
+.qr-hint { text-align: center; color: #86909c; font-size: 24rpx; }
 .rules-scroll { max-height: 46vh; }
 .rules-text { font-size: 26rpx; color: #4e5969; line-height: 2; }
 .rule-p { padding: 4rpx 0; }
-.mini-btn { font-size: 28rpx; background: #165dff; color: #fff; border-radius: 999rpx; line-height: 2.4; }
+.poster-canvas-box { display: flex; justify-content: center; }
+.poster-canvas { width: 300px; height: 450px; background: #f2f3f5; border-radius: 16rpx; }
 .mini-btn.ghost { background: #fff; color: #4e5969; border: 1rpx solid #e5e6eb; }
+.total-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.t-card { background: #f7f8fa; border-radius: 16rpx; padding: 28rpx 20rpx; text-align: center; }
+.t-num { font-size: 40rpx; font-weight: 700; color: #1d2129; }
+.t-lb { margin-top: 8rpx; font-size: 24rpx; color: #86909c; }
 </style>

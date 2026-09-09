@@ -139,13 +139,6 @@
           }
         },
         {
-          "path": "distPromo",
-          "style": {
-            "navigationBarTitleText": "推广中心",
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "distPartner",
           "style": {
             "navigationBarTitleText": "合伙人分红",
