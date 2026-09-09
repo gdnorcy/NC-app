@@ -93,7 +93,7 @@
             <div v-if="sec.fields.length" class="pe-sec">
               <div class="pe-sec-name">{{ sec.label }}</div>
               <el-form label-width="72px" size="small">
-                <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.label" :class="{ required: f.required }">
+                <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.label" :class="{ required: f.required, 'prop-list': f.control === 'list' }">
                   <el-input v-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
@@ -552,6 +552,10 @@ onMounted(load);
 .pe-sec .el-form-item :deep(.required label) { color: #f53f3f; }
 .pe-sec :deep(.el-form-item.required .el-form-item__label::before) { content: '*'; color: #f53f3f; margin-right: 4px; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
+/* list 类型字段（轮播图/宫格导航 items）：标签置顶一行，内容占整行宽 */
+.pe-prop-body :deep(.el-form-item.prop-list) { flex-direction: column; align-items: stretch; }
+.pe-prop-body :deep(.el-form-item.prop-list .el-form-item__label) { width: auto !important; justify-content: flex-start; height: auto; line-height: 1.4; margin-bottom: 4px; padding-bottom: 0; }
+.pe-prop-body :deep(.el-form-item.prop-list .el-form-item__content) { margin-left: 0 !important; width: 100%; }
 .pe-prop-empty { color: #86909c; font-size: 12px; padding: 40px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .pe-prop-empty :deep(svg), .pe-prop-empty :deep(img) { opacity: .4; }
 .pe-img-field { display: flex; gap: 6px; flex-wrap: wrap; }
