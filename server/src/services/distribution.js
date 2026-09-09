@@ -113,6 +113,10 @@ export function createDistributionService(db) {
       apply_agreement: strE(patch.apply_agreement, cur.apply_agreement, 20000),
       dist_notice: strE(patch.dist_notice, cur.dist_notice, 20000),
       poster_badge: bool(patch.poster_badge, cur.poster_badge !== undefined ? cur.poster_badge : 1),
+      // 海报模板库（数组 [{id,url}] → JSON；保存时若 promote_img 未变但模板含默认，默认以 promote_img 为准）
+      poster_templates: Array.isArray(patch.poster_templates)
+        ? JSON.stringify(patch.poster_templates.map((t) => ({ id: String(t.id || ''), url: String(t.url || '') })).filter((t) => t.url).slice(0, 20))
+        : (cur.poster_templates || '[]'),
     };
     db.prepare(`
       UPDATE dist_config SET ratio1=?, ratio2=?, is_open_level2=?, is_self_buy=?, calc_type=?,
@@ -120,14 +124,14 @@ export function createDistributionService(db) {
         dist_name=?, sub_name=?, apply_top_img=?, promote_img=?, apply_tip=?,
         zero_order=?, show_parent=?, show_phone=?, default_level=?,
         bind_rule=?, become_rule=?, become_amount=?, become_products=?, share_title=?, share_img=?,
-        apply_agreement=?, dist_notice=?, poster_badge=?, updated_at=datetime('now')
+        apply_agreement=?, dist_notice=?, poster_badge=?, poster_templates=?, updated_at=datetime('now')
       WHERE tenant_id=?
     `).run(next.ratio1, next.ratio2, next.is_open_level2, next.is_self_buy, next.calc_type,
       next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate,
       next.dist_name, next.sub_name, next.apply_top_img, next.promote_img, next.apply_tip,
       next.zero_order, next.show_parent, next.show_phone, next.default_level,
       next.bind_rule, next.become_rule, next.become_amount, next.become_products, next.share_title, next.share_img,
-      next.apply_agreement, next.dist_notice, next.poster_badge, tenantId);
+      next.apply_agreement, next.dist_notice, next.poster_badge, next.poster_templates, tenantId);
     return svc.getConfig(tenantId);
   };
 
@@ -1257,6 +1261,7 @@ export function createDistributionService(db) {
       subName: cfg.sub_name || '下级',
       applyTopImg: cfg.apply_top_img || '',
       promoteImg: cfg.promote_img || '',
+      posterTemplates: (() => { try { return JSON.parse(cfg.poster_templates || '[]'); } catch { return []; } })(),
       applyTip: cfg.apply_tip || '',
       zeroOrder: !!cfg.zero_order,
       showParent: !!cfg.show_parent,

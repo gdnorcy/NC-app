@@ -167,7 +167,23 @@
                   <template #prepend>URL</template>
                 </el-input>
                 <div v-if="cfg.promoteImg" class="img-preview"><el-image :src="cfg.promoteImg" fit="cover" style="width:64px;height:64px;border-radius:6px" /></div>
-                <span class="form-tip">推广/分享卡片配图；开启「海报装修」后此处不生效</span>
+                <span class="form-tip">当前生效的海报背景；也可在下方模板库中多模板管理并设默认</span>
+              </el-form-item>
+              <el-form-item label="海报模板库">
+                <div class="poster-lib">
+                  <div v-for="(t, i) in cfg.posterTemplates" :key="t.id" class="poster-item" :class="{ on: cfg.promoteImg === t.url }">
+                    <el-image :src="t.url" fit="cover" class="poster-thumb" />
+                    <div class="poster-ops">
+                      <el-button size="small" link type="primary" :disabled="cfg.promoteImg === t.url" @click="setDefaultPoster(t.url)">设默认</el-button>
+                      <el-button size="small" link type="danger" @click="cfg.posterTemplates.splice(i, 1); if (cfg.promoteImg === t.url) cfg.promoteImg = ''">删除</el-button>
+                    </div>
+                  </div>
+                  <div class="poster-add">
+                    <el-input v-model="newPosterUrl" placeholder="新增模板图片 URL（750×750 推荐）" clearable class="w480" size="small" @keyup.enter="addPoster" />
+                    <el-button size="small" type="primary" @click="addPoster">添加模板</el-button>
+                  </div>
+                </div>
+                <span class="form-tip">保存后 C 端「生成海报」弹层可切换模板；未设默认时使用「分销推广图」</span>
               </el-form-item>
               <el-form-item label="分享标题">
                 <el-input v-model="cfg.shareTitle" maxlength="64" placeholder="分享给客户时的标题文案" class="w480" />
@@ -759,11 +775,22 @@ const cfgCats = [
 const cfgCat = ref('base');
 const subForm = reactive({ enabled: false, tmplReview: '', tmplDone: '', tmplSettle: '' });
 const subSaving = ref(false);
+const newPosterUrl = ref('');
+function addPoster() {
+  const url = newPosterUrl.value.trim();
+  if (!url) { ElMessage.warning('请输入模板图片 URL'); return; }
+  cfg.posterTemplates = cfg.posterTemplates || [];
+  cfg.posterTemplates.push({ id: `t${Date.now()}_${cfg.posterTemplates.length}`, url });
+  if (!cfg.promoteImg) cfg.promoteImg = url;
+  newPosterUrl.value = '';
+}
+function setDefaultPoster(url) { cfg.promoteImg = url; }
 const cfg = reactive({
   ratio1: 0.2, ratio2: 0.05, isOpenLevel2: true, isSelfBuy: false,
   calcType: 1, settleDay: 7, minWithdraw: 10, withdrawFeeRate: 0, maxTotalRatio: 0.3,
   distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '',
   zeroOrder: false, showParent: false, showPhone: false, defaultLevel: '默认等级', posterBadge: true,
+  posterTemplates: [],
   bindRule: 0, becomeRule: 0, becomeAmount: 0, becomeProducts: '',
   shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '',
 });
@@ -790,6 +817,7 @@ async function loadConfig() {
       becomeAmount: Number(c.become_amount || 0), becomeProducts: c.become_products || '',
       shareTitle: c.share_title || '', shareImg: c.share_img || '',
       applyAgreement: c.apply_agreement || '', distNotice: c.dist_notice || '',
+      posterTemplates: (() => { try { return JSON.parse(c.poster_templates || '[]'); } catch { return []; } })(),
     });
   } catch (e) { ElMessage.error(e || '加载配置失败'); }
   try {
@@ -836,6 +864,7 @@ async function saveConfig() {
       become_products: cfg.becomeProducts, share_title: cfg.shareTitle, share_img: cfg.shareImg,
       apply_agreement: cfg.applyAgreement, dist_notice: cfg.distNotice,
       poster_badge: cfg.posterBadge ? 1 : 0,
+      poster_templates: cfg.posterTemplates || [],
     });
     ElMessage.success('配置已保存');
   } catch (e) { ElMessage.error(e || '保存失败'); } finally { saving.value = false; }
@@ -1167,6 +1196,12 @@ onMounted(() => {
 .w140 { width: 140px; }
 .form-tip { margin-left: 12px; color: #86909c; font-size: 12px; }
 .img-preview { margin-top: 8px; }
+.poster-lib { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.poster-item { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid #e5e6eb; border-radius: 8px; background: #fff; }
+.poster-item.on { border-color: #165dff; box-shadow: 0 0 0 1px #165dff; }
+.poster-thumb { width: 88px; height: 88px; border-radius: 6px; }
+.poster-ops { display: flex; gap: 6px; justify-content: center; }
+.poster-add { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 /* 分销配置：左侧竖排分类 + 右侧内容区（应用中心「功能分类」样式，无数量角标） */
 .cfg-layout { display: flex; align-items: flex-start; gap: 16px; }
 .cfg-side { width: 176px; flex-shrink: 0; background: #fff; border-radius: 8px; padding: 8px 12px; }

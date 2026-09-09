@@ -1745,6 +1745,7 @@ function migrate(db) {
       ["apply_agreement", "TEXT NOT NULL DEFAULT ''"],    // 申请协议（富文本 HTML）
       ["dist_notice", "TEXT NOT NULL DEFAULT ''"],        // 分销须知（富文本 HTML）
       ["poster_badge", "INTEGER NOT NULL DEFAULT 1"],     // 分享海报角标（分销商名称+等级）开关
+      ["poster_templates", "TEXT NOT NULL DEFAULT '[]'"], // 分享海报模板库 JSON [{id,url}]（promote_img 为当前生效）
     ];
     for (const [col, def] of DIST_CFG_COLS) {
       if (!colExists(db, 'dist_config', col)) db.exec(`ALTER TABLE dist_config ADD COLUMN ${col} ${def}`);

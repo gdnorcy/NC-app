@@ -241,6 +241,12 @@
     <view v-if="poster.show" class="qr-mask" @click="poster.show = false">
       <view class="qr-panel poster-panel" @click.stop>
         <view class="qr-title">分享海报</view>
+        <!-- 模板选择（多模板时展示） -->
+        <view v-if="posterTemplates.length > 1" class="poster-tpl-row">
+          <view v-for="t in posterTemplates" :key="t.id" class="poster-tpl-item" :class="{ on: posterActiveUrl === t.url }" @click="switchPosterTpl(t.url)">
+            <image class="poster-tpl-thumb" :src="t.url" mode="aspectFill" />
+          </view>
+        </view>
         <view class="poster-canvas-box">
           <canvas canvas-id="dist-poster" id="dist-poster" class="poster-canvas" />
         </view>
@@ -400,6 +406,15 @@ async function openQr() {
 }
 
 /** 海报装修：推广图 + 昵称 + 二维码合成，双端统一 uni canvas 绘制 */
+const posterTemplates = computed(() => summary.value.posterTemplates || []);
+const posterActiveUrl = ref('');
+async function switchPosterTpl(url) {
+  posterActiveUrl.value = url;
+  poster.value.saving = true;
+  await new Promise((r) => setTimeout(r, 120));
+  await drawPoster();
+  poster.value.saving = false;
+}
 async function openPoster() {
   if (!qr.value.dataUrl) {
     try {
@@ -409,6 +424,7 @@ async function openPoster() {
     } catch (e) { uni.showToast({ title: e || '二维码生成失败', icon: 'none' }); return; }
   }
   poster.value = { show: true, saving: false, tempPath: '' };
+  posterActiveUrl.value = summary.value.promoteImg || (posterTemplates.value[0] && posterTemplates.value[0].url) || '';
   poster.value.saving = true;
   await new Promise((r) => setTimeout(r, 400));
   await drawPoster();
@@ -462,8 +478,8 @@ function drawPosterUni() {
         }, 400);
       });
     };
-    if (summary.value.promoteImg) {
-      uni.getImageInfo({ src: summary.value.promoteImg, success: (info) => paint(info.path), fail: () => paint(null) });
+    if (posterActiveUrl.value) {
+      uni.getImageInfo({ src: posterActiveUrl.value, success: (info) => paint(info.path), fail: () => paint(null) });
     } else paint(null);
   });
 }
@@ -529,12 +545,12 @@ function drawPosterH5() {
       img.onerror = () => resolve();
       img.src = qr.value.dataUrl;
     };
-    if (summary.value.promoteImg) {
+    if (posterActiveUrl.value) {
       const bg = new Image();
       bg.crossOrigin = 'anonymous';
       bg.onload = () => paint(bg);
       bg.onerror = () => paint(null);
-      bg.src = summary.value.promoteImg;
+      bg.src = posterActiveUrl.value;
     } else paint(null);
   });
 }
@@ -709,6 +725,10 @@ onShow(() => {
 .rules-text { font-size: 26rpx; color: #4e5969; line-height: 2; }
 .rule-p { padding: 4rpx 0; }
 .poster-canvas-box { display: flex; justify-content: center; }
+.poster-tpl-row { display: flex; gap: 16rpx; overflow-x: auto; padding: 8rpx 0; }
+.poster-tpl-item { flex: 0 0 auto; width: 96rpx; height: 96rpx; border-radius: 12rpx; border: 3rpx solid transparent; overflow: hidden; }
+.poster-tpl-item.on { border-color: #165dff; }
+.poster-tpl-thumb { width: 100%; height: 100%; display: block; }
 .poster-canvas { width: 300px; height: 450px; background: #f2f3f5; border-radius: 16rpx; }
 .mini-btn.ghost { background: #fff; color: #4e5969; border: 1rpx solid #e5e6eb; }
 .total-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
