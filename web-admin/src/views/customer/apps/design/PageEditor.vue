@@ -372,14 +372,14 @@ onMounted(load);
 /* 组件库 3 列网格卡片（仿 eweishop：图标上、名称下） */
 .pe-lib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 2px 0; }
 .pe-lib-card {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 10px 4px 8px; border-radius: 8px; cursor: grab;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 4px 10px; border-radius: 8px; cursor: grab;
   border: 1px solid transparent; transition: border-color .15s, background .15s, box-shadow .15s;
 }
 .pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
 .pe-lib-card:active { cursor: grabbing; }
-.pe-lib-ico { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
-.pe-lib-ico img { width: 32px; height: 32px; object-fit: contain; display: block; }
+.pe-lib-ico { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; }
+.pe-lib-ico img { width: 40px; height: 40px; object-fit: contain; display: block; }
 .pe-lib-card .pe-lib-name { font-size: 12px; color: #1d2129; max-width: 100%; }
 .pe-lib-tag { position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; color: #f53f3f; background: rgba(245,63,63,.08); border-radius: 4px; padding: 2px 4px; }
 .pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 8px; text-align: center; }
