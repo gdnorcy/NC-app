@@ -169,6 +169,9 @@ export const cardApi = {
   // 动态
   getDynamics: () => request('/dynamics'),
   createDynamic: (data) => request('/dynamics', 'POST', data),
+
+  // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）
+  designConfig: () => request('/design/config'),
 };
 
 // 支付API

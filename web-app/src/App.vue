@@ -1,4 +1,6 @@
 <script>
+import { fetchDesignConfig, applyDesignStyle } from './utils/design.js';
+
 export default {
   globalData: {
     channelConfig: null,
@@ -8,6 +10,7 @@ export default {
   onLaunch() {
     console.log('App Launch');
     this.initChannel();
+    this.initDesignConfig();
   },
   onShow() {
     console.log('App Show');
@@ -62,6 +65,20 @@ export default {
         }
       } catch (e) {
         console.error('渠道初始化失败:', e);
+      }
+    },
+    // 设计中心：登录态拉取租户发布配置（风格/导航/首页），H5 注入 CSS 变量
+    async initDesignConfig() {
+      if (!uni.getStorageSync('card_token')) return;
+      try {
+        const config = await fetchDesignConfig(false);
+        if (config) {
+          // #ifdef H5
+          applyDesignStyle(config);
+          // #endif
+        }
+      } catch (e) {
+        console.error('设计配置加载失败:', e);
       }
     },
   },

@@ -118,33 +118,19 @@
     <!-- 底部间距 -->
     <view class="bottom-space"></view>
 
-    <!-- 底部Tab -->
-    <view class="tabbar">
-      <view class="tab-item active">
-        <SIcon name="dashboard" size="default" color="#165dff" />
-        <view class="tab-label">首页</view>
-      </view>
-      <view class="tab-item" @click="goPage('/pages/card/market')">
-        <SIcon name="market" size="default" color="#86909c" />
-        <view class="tab-label">集市</view>
-      </view>
-      <view class="tab-item" @click="goPage('/pages/card/member')">
-        <SIcon name="crown" size="default" color="#86909c" />
-        <view class="tab-label">会员</view>
-      </view>
-      <view class="tab-item" @click="goPage('/pages/card/profile')">
-        <SIcon name="user" size="default" color="#86909c" />
-        <view class="tab-label">我的</view>
-      </view>
-    </view>
+    <!-- 底部Tab：优先渲染设计中心发布的默认导航方案，未发布时兜底默认项 -->
+    <CardTabBar active="home" />
   </view>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
+import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 
 const user = ref({});
 const myCard = ref(null);
@@ -201,6 +187,23 @@ const avatarStyle = computed(() => {
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
   const dark = shadeHex(c, -0.3);
   return { background: `linear-gradient(135deg, ${dark}, ${c})` };
+});
+
+// 设计中心首页跳转：配置了非默认首页时，首次进入自动跳转到对应页面
+const homeJumpChecked = ref(false);
+onShow(() => {
+  if (homeJumpChecked.value) return;
+  homeJumpChecked.value = true;
+  (async () => {
+    try {
+      if (uni.getStorageSync(JUMP_DONE_KEY)) return;
+      const config = await fetchDesignConfig(false);
+      const target = resolveHomePath(config?.homePage);
+      if (!target) return;
+      uni.setStorageSync(JUMP_DONE_KEY, '1');
+      uni.reLaunch({ url: target });
+    } catch (e) { /* 配置拉取失败不阻断首页 */ }
+  })();
 });
 
 function goPage(path) {
@@ -561,33 +564,8 @@ function viewMarketCard(item) {
   padding: 32rpx 0;
 }
 .bottom-space {
-  height: 32rpx;
+  height: 140rpx;
 }
 
-/* 底部Tab */
-.tabbar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  background: #fff;
-  padding: 16rpx 0;
-  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-  box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.06);
-}
-.tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4rpx;
-}
-.tab-label {
-  font-size: 20rpx;
-  color: #86909c;
-}
-.tab-item.active .tab-label {
-  color: #165dff;
-}
+/* 底部Tab：由 CardTabBar 组件承载（设计中心导航方案优先） */
 </style>
