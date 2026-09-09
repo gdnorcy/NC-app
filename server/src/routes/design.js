@@ -20,10 +20,13 @@ const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 素材单文件上限 5MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 单文件上限 50MB（视频）
 });
 
 const IMG_WHITELIST = ['image/jpeg', 'image/png', 'image/webp'];
+const VIDEO_WHITELIST = ['video/mp4'];
+const IMG_MAX = 5 * 1024 * 1024; // 图片 5MB
+const VIDEO_MAX = 50 * 1024 * 1024; // 视频 50MB
 
 export default function createDesignRouter(db, deps = {}) {
   const router = Router();
@@ -81,12 +84,17 @@ export default function createDesignRouter(db, deps = {}) {
   material.post('/upload', tenant, tenantAdmin, (req, res) => {
     upload.single('file')(req, res, async (err) => {
       if (err) {
-        const message = err.code === 'LIMIT_FILE_SIZE' ? '素材大小不能超过 5MB' : err.message;
+        const message = err.code === 'LIMIT_FILE_SIZE' ? '素材大小不能超过 50MB' : err.message;
         return res.status(400).json({ error: message });
       }
       if (!req.file) return res.status(400).json({ error: '未收到文件' });
-      if (!IMG_WHITELIST.includes(req.file.mimetype)) {
-        return res.status(400).json({ error: '仅支持 jpg / png / webp 格式' });
+      const mt = req.file.mimetype;
+      if (IMG_WHITELIST.includes(mt)) {
+        if (req.file.size > IMG_MAX) return res.status(400).json({ error: '图片大小不能超过 5MB' });
+      } else if (VIDEO_WHITELIST.includes(mt)) {
+        if (req.file.size > VIDEO_MAX) return res.status(400).json({ error: '视频大小不能超过 50MB' });
+      } else {
+        return res.status(400).json({ error: '仅支持 jpg / png / webp 图片与 mp4 视频' });
       }
       try {
         const storage = await getStorage(db);

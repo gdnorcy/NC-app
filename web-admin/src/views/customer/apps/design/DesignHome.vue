@@ -18,7 +18,7 @@
           <el-button v-if="batchMode" type="danger" plain :disabled="!batchIds.length" @click="batchDelete">批量删除</el-button>
           <el-button @click="batchMode = !batchMode">{{ batchMode ? '退出批量' : '批量操作' }}</el-button>
         </div>
-        <input ref="fileInput" type="file" accept="image/*" multiple class="hide" @change="onFileChange" />
+        <input ref="fileInput" type="file" accept="image/*,video/mp4" multiple class="hide" @change="onFileChange" />
       </AppPageHeader>
 
       <div class="media-layout">
@@ -47,7 +47,9 @@
           <div v-loading="loading" class="media-grid">
             <div v-for="m in materials" :key="m.id" class="media-card" :class="{ selected: batchIds.includes(m.id) }" @click="toggleBatch(m)">
               <div class="media-thumb">
-                <img :src="resolveUrl(m.file_url)" :alt="m.file_name" loading="lazy" @click.stop="preview(m)" />
+                <video v-if="m.file_type === 'mp4'" :src="resolveUrl(m.file_url)" class="media-video-thumb" preload="metadata" muted @click.stop="preview(m)"></video>
+                <img v-else :src="resolveUrl(m.file_url)" :alt="m.file_name" loading="lazy" @click.stop="preview(m)" />
+                <span v-if="m.file_type === 'mp4'" class="video-tag">视频</span>
                 <span v-if="m.ref_count > 0" class="ref-tag">被引用 {{ m.ref_count }}</span>
                 <span v-else class="free-tag">闲置</span>
               </div>
@@ -74,7 +76,8 @@
 
       <!-- 素材预览 -->
       <el-dialog v-model="previewShow" title="素材预览" width="480px" append-to-body>
-        <img :src="previewUrl" class="preview-img" />
+        <video v-if="previewType === 'mp4'" :src="previewUrl" controls class="preview-video" style="width:100%;max-height:420px;background:#000"></video>
+        <img v-else :src="previewUrl" class="preview-img" />
         <div class="preview-path">{{ previewUrl }}</div>
         <template #footer>
           <el-button @click="copyLink({ file_url: previewUrl })">复制链接</el-button>
@@ -364,6 +367,7 @@ const batchIds = ref([]);
 const fileInput = ref(null);
 const previewShow = ref(false);
 const previewUrl = ref('');
+const previewType = ref('');
 const catDialog = reactive({ show: false, id: null, name: '' });
 const catSaving = ref(false);
 const moveShow = ref(false);
@@ -410,7 +414,7 @@ function toggleBatch(m) {
   const i = batchIds.value.indexOf(m.id);
   if (i >= 0) batchIds.value.splice(i, 1); else batchIds.value.push(m.id);
 }
-function preview(m) { previewUrl.value = resolveUrl(m.file_url); previewShow.value = true; }
+function preview(m) { previewUrl.value = resolveUrl(m.file_url); previewType.value = m.file_type || ''; previewShow.value = true; }
 async function copyLink(m) {
   try { await navigator.clipboard.writeText(resolveUrl(m.file_url)); ElMessage.success('链接已复制'); }
   catch { ElMessage.warning('复制失败，请手动复制地址'); }
@@ -697,6 +701,8 @@ onMounted(() => {
 .media-card.selected { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .media-thumb { position: relative; height: 110px; background: #f7f8fa; }
 .media-thumb img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+.media-thumb .media-video-thumb { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+.video-tag { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 1px 8px; border-radius: 10px; color: #fff; background: rgba(22,93,255,.85); }
 .ref-tag, .free-tag { position: absolute; top: 6px; left: 6px; font-size: 11px; padding: 1px 8px; border-radius: 10px; color: #fff; }
 .ref-tag { background: rgba(245,63,63,.85); }
 .free-tag { background: rgba(134,144,156,.75); }

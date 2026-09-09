@@ -189,10 +189,12 @@ export const componentRegistry = [
     group: 'marketing',
     icon: 'video',
     badge: 'new',
-    defaultProps: { url: '', poster: '' },
+    defaultProps: { url: '', poster: '', autoplay: false, loop: false },
     schema: [
-      { key: 'url', label: '视频地址', control: 'input', section: 'content', required: true, placeholder: '支持 mp4 链接' },
+      { key: 'url', label: '视频地址', control: 'input', section: 'content', required: true, placeholder: 'mp4 链接，可到素材中心上传视频' },
       { key: 'poster', label: '封面图', control: 'image', section: 'content' },
+      { key: 'autoplay', label: '自动播放', control: 'switch', section: 'style' },
+      { key: 'loop', label: '循环播放', control: 'switch', section: 'style' },
     ],
   },
   {

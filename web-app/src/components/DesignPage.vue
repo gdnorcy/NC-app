@@ -50,7 +50,7 @@
       </view>
       <!-- 视频 -->
       <view v-else-if="c.type === 'video'" class="dp-video">
-        <video v-if="c.props.url" :src="resolveUrl(c.props.url)" :poster="resolveUrl(c.props.poster)" class="dp-video-player" controls></video>
+        <video v-if="c.props.url" :src="resolveUrl(c.props.url)" :poster="resolveUrl(c.props.poster)" class="dp-video-player" :autoplay="!!c.props.autoplay" :loop="!!c.props.loop" controls></video>
         <view v-else class="dp-video-empty"><text>视频</text></view>
       </view>
       <!-- 图文卡片 -->
@@ -155,7 +155,13 @@ const props = defineProps({
 function resolveUrl(u) {
   if (!u) return '';
   if (/^https?:|^data:|^blob:/.test(u)) return u;
+  // #ifdef H5
+  // H5 端 uni-app 会把相对路径基于页面 base 解析（/card/），导致 /uploads 变 ./uploads 404，必须拼 origin
+  return (u.startsWith('/') ? window.location.origin + u : window.location.origin + '/' + u);
+  // #endif
+  // #ifndef H5
   return u.startsWith('/') ? u : `/${u}`;
+  // #endif
 }
 function containerStyle(c) {
   const p = c.props || {};
@@ -180,17 +186,27 @@ function onJump(url) {
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
 }
 
-// 视频号唤起：小程序端调微信原生 API，H5/APP 端复制 ID 引导
+// 视频号唤起：小程序端调微信原生 API（带 loading + 失败引导），H5/APP 端复制 ID 引导
 function openChannel(kind, p) {
   // #ifdef MP-WEIXIN
   const apiMap = { profile: 'openChannelsUserProfile', video: 'openChannelsActivity', live: 'openChannelsLive' };
   const api = apiMap[kind];
+  const nameMap = { profile: '视频号主页', video: '视频号视频', live: '视频号直播' };
   if (typeof wx !== 'undefined' && wx[api]) {
+    uni.showLoading({ title: '打开' + (nameMap[kind] || '视频号') + '…' });
     const arg = { finderUserName: p.finderUserName };
     if (kind === 'video') arg.feedId = p.feedId;
     wx[api]({
       ...arg,
-      fail: () => uni.showToast({ title: '打开失败，请确认小程序已关联视频号', icon: 'none' }),
+      success: () => uni.hideLoading(),
+      fail: (err) => {
+        uni.hideLoading();
+        const msg = err && err.errMsg && err.errMsg.indexOf('not exist') > -1
+          ? '视频号不存在，请检查视频号ID是否正确'
+          : '打开失败，请确认小程序已关联视频号';
+        uni.showModal({ title: '提示', content: msg, showCancel: false });
+      },
+      complete: () => uni.hideLoading(),
     });
     return;
   }

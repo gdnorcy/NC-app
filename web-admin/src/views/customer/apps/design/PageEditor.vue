@@ -166,7 +166,9 @@
       <div class="pe-sel">
         <div v-loading="selLoading" class="sel-grid">
           <div v-for="m in selMats" :key="m.id" class="sel-item" :class="{ picked: imgSel.pick === m.id }" @click="imgSel.pick = m.id">
-            <img :src="resolveUrl(m.file_url)" :alt="m.file_name" />
+            <video v-if="m.file_type === 'mp4'" :src="resolveUrl(m.file_url)" preload="metadata" muted></video>
+            <img v-else :src="resolveUrl(m.file_url)" :alt="m.file_name" />
+            <span v-if="m.file_type === 'mp4'" class="sel-video-tag">视频</span>
             <span v-if="imgSel.pick === m.id" class="sel-check">✓</span>
           </div>
           <div v-if="!selMats.length && !selLoading" class="pe-empty">素材库为空，请先到「素材中心」上传</div>
@@ -557,6 +559,8 @@ onMounted(load);
 .sel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; }
 .sel-item { position: relative; border: 1px solid #e5e6eb; border-radius: 6px; overflow: hidden; cursor: pointer; aspect-ratio: 1; }
 .sel-item img { width: 100%; height: 100%; object-fit: cover; }
+.sel-item video { width: 100%; height: 100%; object-fit: cover; }
+.sel-video-tag { position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 0 6px; border-radius: 8px; color: #fff; background: rgba(22,93,255,.85); }
 .sel-item.picked { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .sel-check { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; }
 </style>
