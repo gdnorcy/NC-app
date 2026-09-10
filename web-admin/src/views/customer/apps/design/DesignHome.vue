@@ -276,15 +276,15 @@
         </div>
       </AppPageHeader>
 
-      <div class="page-manage">
-        <!-- 顶部：模板名 + 最近更新 + 正常手机大小真实预览（iframe 可操作） -->
-        <div class="pm-top">
+      <div class="page-manage pm-layout">
+        <!-- 左侧：模板名 + 正常手机大小真实预览（iframe 可操作） -->
+        <div class="pm-left">
           <div class="pm-tpl-head">
             <span class="pm-tpl-name">{{ homeName }}</span>
             <span class="pm-use-tag">使用中</span>
-            <span class="pm-update">最近更新：{{ homeUpdated }}</span>
             <el-button size="small" text type="primary" @click="goEdit('home')">立即装修</el-button>
           </div>
+          <div class="pm-update">最近更新：{{ homeUpdated }}</div>
           <div class="pm-phone">
             <div class="pm-status"><span>10:18</span><span class="pm-ps-icons">▂▄▆ ▂▅▃ ▂▄▆█</span></div>
             <iframe v-if="pagePreviewUrl" :src="pagePreviewUrl" class="pm-iframe" title="首页实时预览" />
@@ -297,21 +297,22 @@
           </div>
         </div>
 
-        <!-- 操作条：搜索 / 重命名模板 / 预览模板 / 立即装修 -->
-        <div class="pm-toolbar">
-          <el-input v-model="pageSearch" placeholder="页面名称搜索" clearable class="w220" @keyup.enter="pageSearch = pageSearch" @clear="pageSearch = ''" />
-          <el-button @click="pageSearch = pageSearch">搜索</el-button>
-          <span class="pm-count">共 {{ filteredPages.length }} 个页面</span>
-          <div class="pm-toolbar-right">
-            <el-button @click="renameTemplate">重命名模板</el-button>
-            <el-button @click="openPreview">预览模板</el-button>
-            <el-button type="primary" @click="goEdit('home')">立即装修</el-button>
+        <!-- 右侧：操作条 + 页面列表（云菜鸟 moban：左右布局） -->
+        <div class="pm-right">
+          <div class="pm-toolbar">
+            <el-input v-model="pageSearch" placeholder="页面名称搜索" clearable class="w220" @keyup.enter="pageSearch = pageSearch" @clear="pageSearch = ''" />
+            <el-button @click="pageSearch = pageSearch">搜索</el-button>
+            <span class="pm-count">共 {{ filteredPages.length }} 个页面</span>
+            <div class="pm-toolbar-right">
+              <el-button @click="renameTemplate">重命名模板</el-button>
+              <el-button @click="openPreview">预览模板</el-button>
+              <el-button type="primary" @click="goEdit('home')">立即装修</el-button>
+            </div>
           </div>
-        </div>
 
-        <!-- 表格：页面名称 / 是否首页 / 头部展示 / 密码访问 / 会员访问 / 操作 -->
-        <div class="table-scroll">
-          <el-table :data="filteredPages" v-loading="pageLoading" stripe style="min-width: 820px">
+          <!-- 表格：页面名称 / 是否首页 / 头部展示 / 密码访问 / 会员访问 / 操作 -->
+          <div class="table-scroll">
+            <el-table :data="filteredPages" v-loading="pageLoading" stripe style="min-width: 820px">
             <el-table-column label="页面名称" min-width="180">
               <template #default="{ row }">
                 <span class="pm-row-name">{{ row.page_name }}</span>
@@ -349,6 +350,7 @@
             </el-table-column>
           </el-table>
           <div v-if="!filteredPages.length && !pageLoading" class="media-empty">暂无页面，点击「新建页面」创建</div>
+          </div>
         </div>
       </div>
     </section>
@@ -801,12 +803,13 @@ onMounted(() => {
 
 <style scoped>
 /* 页面装修（云菜鸟 moban 风格：顶部手机真实预览 + 操作条 + 表格） */
-.page-manage { display: flex; flex-direction: column; gap: 16px; align-items: center; }
-.pm-top { width: 100%; background: #fff; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.page-manage { width: 100%; }
+.pm-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pm-left { background: #fff; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .pm-tpl-head { display: flex; align-items: center; gap: 8px; width: 100%; }
 .pm-use-tag { font-size: 11px; color: #165dff; background: #e8f3ff; border-radius: 10px; padding: 2px 8px; line-height: 16px; flex-shrink: 0; }
 .pm-tpl-name { font-size: 15px; font-weight: 600; color: #1d2129; }
-.pm-update { font-size: 12px; color: #86909c; }
+.pm-update { font-size: 12px; color: #86909c; width: 100%; }
 .pm-phone { width: 270px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb; }
 .pm-status { height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 11px; font-weight: 600; color: #1d2129; }
 .pm-ps-icons { font-size: 10px; letter-spacing: 1px; opacity: .8; }
@@ -814,10 +817,11 @@ onMounted(() => {
 .pm-canvas { min-height: 380px; padding: 10px; background: #fff; }
 .pm-comp { margin-bottom: 8px; }
 .pm-empty { color: #86909c; text-align: center; padding: 60px 0; font-size: 12px; }
-.pm-toolbar { width: 100%; display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 8px; padding: 12px 16px; }
+.pm-right { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.pm-toolbar { width: 100%; display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 8px; padding: 12px 16px; box-sizing: border-box; flex-wrap: wrap; }
 .pm-count { font-size: 12px; color: #86909c; }
 .pm-toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.table-scroll { width: 100%; background: #fff; border-radius: 8px; padding: 16px; }
+.table-scroll { width: 100%; background: #fff; border-radius: 8px; padding: 16px; box-sizing: border-box; }
 .pm-row-name { font-weight: 500; color: #1d2129; margin-right: 6px; }
 .pm-home-tag { margin-right: 4px; }
 

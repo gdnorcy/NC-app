@@ -349,11 +349,10 @@ function onFloatClick(p) {
 const feedVideo = ref('');
 const popVideo = ref('');
 const liveList = ref([]);
-// 云菜鸟视频样式比例：高度 = 宽度 * 反比
+// 云菜鸟视频样式比例：aspect-ratio 真实比例（16:9 / 4:3 / 1:1 / 9:16），容器宽度自适应
 function videoRatioStyle(ratio) {
-  const map = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%', '9:16': '177.78%' };
-  const r = map[ratio] || map['16:9'];
-  return { height: `calc(100vw * ${r})`, maxHeight: '520px' };
+  const map = { '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' };
+  return { width: '100%', aspectRatio: map[ratio] || '16 / 9', maxHeight: '70vh' };
 }
 function openFeedItem(it) {
   if (it.video) {

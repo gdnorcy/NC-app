@@ -46,7 +46,7 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'video'">
-      <div class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ height: (comp.props.ratio === '9:16' ? '160px' : comp.props.ratio === '1:1' ? '120px' : comp.props.ratio === '4:3' ? '100px' : '80px') }">
+      <div class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.ratio] || '16 / 9' }">
         <img v-if="comp.props.poster" :src="resolveUrl(comp.props.poster)" />
         <div v-else class="r-video-empty"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
         <span v-if="comp.props.source === 'channels'" class="r-video-tag">视频号</span>
