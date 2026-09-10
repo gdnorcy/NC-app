@@ -149,6 +149,15 @@
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <PeColorPicker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
+                  <el-date-picker
+                    v-else-if="f.control === 'datetime'"
+                    v-model="selectedComp.props[f.key]"
+                    type="datetime"
+                    size="small"
+                    :placeholder="f.placeholder || '请选择时间'"
+                    value-format="YYYY-MM-DD HH:mm"
+                    style="width: 100%"
+                  />
                   <!-- 图形化单选（选择风格：一列/两列并排，仿 eweishop 图形卡片） -->
                   <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic">
                     <div

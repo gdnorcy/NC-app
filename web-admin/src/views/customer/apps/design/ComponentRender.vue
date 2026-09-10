@@ -54,18 +54,23 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'countdown'">
-      <div class="r-countdown" :class="{ text: comp.props.style === 'text' }" :style="{ '--cd': comp.props.color || '#165DFF', background: comp.props.bgColor || '#fff' }">
-        <div class="r-cd-title">{{ comp.props.title || '限时活动' }}</div>
+      <div
+        class="r-countdown"
+        :class="'r-cd-s' + (comp.props.styleId || 1) + ' ' + (comp.props.style === 'border' ? 'r-cd-border' : 'r-cd-shadow')"
+        :style="cdBoxStyle(comp.props)"
+      >
+        <div v-if="comp.props.cdBgType === 'image' && comp.props.cdBgImage" class="r-cd-bgimg"><img :src="resolveUrl(comp.props.cdBgImage)" /></div>
+        <div class="r-cd-title" :style="{ color: comp.props.cdTitleColor || '#1d2129' }">{{ comp.props.title || '限时活动' }}</div>
         <div class="r-cd-cols">
-          <span class="r-cd-cell"><b>{{ comp.props.days || '00' }}</b><i>天</i></span>
+          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 'd') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">天</i></span>
           <em>:</em>
-          <span class="r-cd-cell"><b>{{ comp.props.hours || '00' }}</b><i>时</i></span>
+          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 'h') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">时</i></span>
           <em>:</em>
-          <span class="r-cd-cell"><b>{{ comp.props.minutes || '00' }}</b><i>分</i></span>
+          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 'm') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">分</i></span>
           <em>:</em>
-          <span class="r-cd-cell"><b>{{ comp.props.seconds || '00' }}</b><i>秒</i></span>
+          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 's') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">秒</i></span>
         </div>
-        <div v-if="comp.props.btnText" class="r-cd-btn" :style="{ background: comp.props.color || '#165DFF' }">{{ comp.props.btnText }}</div>
+        <div v-if="comp.props.btnText" class="r-cd-btn" :style="cdBtnStyle(comp.props)">{{ comp.props.btnText }}</div>
       </div>
     </template>
     <template v-else-if="comp.type === 'form'">
@@ -401,6 +406,49 @@ function panoCategories(p) {
     .slice(0, 6);
 }
 
+// ---- 倒计时（eweishop 1:1 复刻）：动态时间计算 + 风格/样式 + 颜色设置 ----
+function cdPart(p, k) {
+  const v = countdownRemain(p);
+  const map = { d: v.days, h: v.hours, m: v.minutes, s: v.seconds };
+  return String(map[k] || 0).padStart(2, '0');
+}
+function countdownRemain(p) {
+  const now = Date.now();
+  const start = p.startTime ? new Date(String(p.startTime).replace(' ', 'T')).getTime() : 0;
+  const end = p.endTime ? new Date(String(p.endTime).replace(' ', 'T')).getTime() : 0;
+  // 旧数据兼容：未配置起止时间时按原 days/hours/minutes/seconds 静态显示
+  if (!start && !end) return { days: Number(p.days) || 0, hours: Number(p.hours) || 0, minutes: Number(p.minutes) || 0, seconds: Number(p.seconds) || 0 };
+  let diff = 0;
+  if (start && now < start) diff = start - now; // 未开始：距开始
+  else if (end && now < end) diff = end - now; // 进行中：距结束
+  return splitMs(diff);
+}
+function splitMs(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return { days: Math.floor(total / 86400), hours: Math.floor((total % 86400) / 3600), minutes: Math.floor((total % 3600) / 60), seconds: total % 60 };
+}
+function cdNumStyle(p) {
+  const s = {};
+  if (p.cdNumBg) s.background = p.cdNumBg;
+  if (p.cdNumColor) s.color = p.cdNumColor;
+  return s;
+}
+function cdBoxStyle(p) {
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (p.marginLeft) s.padding = '0 ' + p.marginLeft + 'px';
+  if (p.bgColor) s.background = p.bgColor;
+  const rt = p.radiusTop || 0;
+  const rb = p.radiusBottom || 0;
+  if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
+  return s;
+}
+function cdBtnStyle(p) {
+  const s = {};
+  if (p.cdBtnBg) s.background = p.cdBtnBg;
+  if (p.cdBtnText) s.color = p.cdBtnText;
+  return s;
+}
+
 const containerStyle = computed(() => {
   const p = props.comp.props || {};
   const s = {};
@@ -598,15 +646,20 @@ function chRadius(p, i) {
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
 .r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.r-countdown { padding: 14px; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.r-countdown { padding: 14px; background: #fff; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; align-items: center; position: relative; overflow: hidden; }
+.r-countdown .r-cd-bgimg { position: absolute; inset: 0; z-index: 0; }
+.r-countdown .r-cd-bgimg img { width: 100%; height: 100%; object-fit: cover; }
+.r-countdown > .r-cd-title, .r-countdown > .r-cd-cols, .r-countdown > .r-cd-btn { position: relative; z-index: 1; }
 .r-cd-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-cd-cols { display: flex; align-items: center; gap: 6px; }
 .r-cd-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.r-cd-cell b { font-size: 18px; font-weight: 700; color: #fff; background: var(--cd, #165dff); border-radius: 6px; padding: 2px 8px; line-height: 1.4; }
+.r-cd-cell b { font-size: 18px; font-weight: 700; color: #fff; background: #165dff; border-radius: 6px; padding: 2px 8px; line-height: 1.4; min-width: 30px; text-align: center; }
+.r-cd-shadow .r-cd-cell b { box-shadow: 0 2px 6px rgba(22, 93, 255, 0.35); }
+.r-cd-border .r-cd-cell b { box-shadow: none; border: 1px solid rgba(255, 255, 255, 0.6); }
+.r-cd-s2 .r-cd-cell b { background: transparent; color: #165dff; padding: 0; font-size: 20px; box-shadow: none; border: none; min-width: 0; }
+.r-cd-s2 .r-cd-cols em { color: #165dff; }
 .r-cd-cell i { font-style: normal; font-size: 11px; color: #86909c; }
-.r-cd-cols em { font-style: normal; color: var(--cd, #165dff); font-weight: 700; font-size: 16px; }
-.r-countdown.text .r-cd-cell b { background: transparent; color: var(--cd, #165dff); padding: 0; font-size: 20px; }
-.r-countdown.text .r-cd-cols em { color: var(--cd, #165dff); }
+.r-cd-cols em { font-style: normal; color: #165dff; font-weight: 700; font-size: 16px; }
 .r-cd-btn { margin-top: 10px; color: #fff; font-size: 12px; padding: 4px 14px; border-radius: 12px; }
 .r-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-title { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }

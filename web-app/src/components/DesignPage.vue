@@ -57,18 +57,19 @@
         <text v-else class="dp-notice-text">{{ c.props.text || '公告内容' }}</text>
       </view>
       <!-- 倒计时 -->
-      <view v-else-if="c.type === 'countdown'" class="dp-countdown" :class="{ text: c.props.style === 'text' }" :style="{ '--cd': c.props.color || '#165dff', background: c.props.bgColor || '#fff' }">
-        <text class="dp-cd-title">{{ c.props.title || '限时活动' }}</text>
+      <view v-else-if="c.type === 'countdown'" class="dp-countdown" :class="'dp-cd-s' + (c.props.styleId || 1) + ' ' + (c.props.style === 'border' ? 'dp-cd-border' : 'dp-cd-shadow')" :style="cdBoxStyle(c.props)">
+        <image v-if="c.props.cdBgType === 'image' && c.props.cdBgImage" :src="resolveUrl(c.props.cdBgImage)" mode="aspectFill" class="dp-cd-bgimg" />
+        <text class="dp-cd-title" :style="{ color: c.props.cdTitleColor || '#1d2129' }">{{ c.props.title || '限时活动' }}</text>
         <view class="dp-cd-cols">
-          <view class="dp-cd-cell"><text class="dp-cd-num">{{ c.props.days || '00' }}</text><text class="dp-cd-unit">天</text></view>
-          <text class="dp-cd-colon">:</text>
-          <view class="dp-cd-cell"><text class="dp-cd-num">{{ c.props.hours || '00' }}</text><text class="dp-cd-unit">时</text></view>
-          <text class="dp-cd-colon">:</text>
-          <view class="dp-cd-cell"><text class="dp-cd-num">{{ c.props.minutes || '00' }}</text><text class="dp-cd-unit">分</text></view>
-          <text class="dp-cd-colon">:</text>
-          <view class="dp-cd-cell"><text class="dp-cd-num">{{ c.props.seconds || '00' }}</text><text class="dp-cd-unit">秒</text></view>
+          <view class="dp-cd-cell"><text class="dp-cd-num" :style="cdNumStyle(c.props)">{{ cdVal(i).d }}</text><text class="dp-cd-unit" :style="{ color: c.props.cdNumColor || '#86909c' }">天</text></view>
+          <text class="dp-cd-colon" :style="{ color: c.props.cdNumColor || '#165dff' }">:</text>
+          <view class="dp-cd-cell"><text class="dp-cd-num" :style="cdNumStyle(c.props)">{{ cdVal(i).h }}</text><text class="dp-cd-unit" :style="{ color: c.props.cdNumColor || '#86909c' }">时</text></view>
+          <text class="dp-cd-colon" :style="{ color: c.props.cdNumColor || '#165dff' }">:</text>
+          <view class="dp-cd-cell"><text class="dp-cd-num" :style="cdNumStyle(c.props)">{{ cdVal(i).m }}</text><text class="dp-cd-unit" :style="{ color: c.props.cdNumColor || '#86909c' }">分</text></view>
+          <text class="dp-cd-colon" :style="{ color: c.props.cdNumColor || '#165dff' }">:</text>
+          <view class="dp-cd-cell"><text class="dp-cd-num" :style="cdNumStyle(c.props)">{{ cdVal(i).s }}</text><text class="dp-cd-unit" :style="{ color: c.props.cdNumColor || '#86909c' }">秒</text></view>
         </view>
-        <view v-if="c.props.btnText" class="dp-cd-btn" :style="{ background: c.props.color || '#165dff' }" @click="onJump(c.props.btnLink)"><text>{{ c.props.btnText }}</text></view>
+        <view v-if="c.props.btnText" class="dp-cd-btn" :style="cdBtnStyle(c.props)" @click="onJump(c.props.link)"><text :style="{ color: c.props.cdBtnText || '#fff' }">{{ c.props.btnText }}</text></view>
       </view>
       <!-- 表单 -->
       <view v-else-if="c.type === 'form'" class="dp-form">
@@ -371,13 +372,70 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, onUnmounted } from 'vue';
 import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
 import SIcon from './SIcon.vue';
 const props = defineProps({
   comps: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
   tenantId: { type: Number, default: 0 },
+});
+
+// 倒计时动态数据（eweishop 1:1：开始时间/结束时间 → 每秒计算剩余）
+const cdState = reactive({});
+let cdTimer = null;
+function splitMs(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return { days: Math.floor(total / 86400), hours: Math.floor((total % 86400) / 3600), minutes: Math.floor((total % 3600) / 60), seconds: total % 60 };
+}
+function cdRemain(p) {
+  const now = Date.now();
+  const start = p.startTime ? new Date(String(p.startTime).replace(' ', 'T')).getTime() : 0;
+  const end = p.endTime ? new Date(String(p.endTime).replace(' ', 'T')).getTime() : 0;
+  // 旧数据兼容：未配置起止时间时按原 days/hours/minutes/seconds 静态显示
+  if (!start && !end) return { days: Number(p.days) || 0, hours: Number(p.hours) || 0, minutes: Number(p.minutes) || 0, seconds: Number(p.seconds) || 0 };
+  let diff = 0;
+  if (start && now < start) diff = start - now; // 未开始：距开始
+  else if (end && now < end) diff = end - now; // 进行中：距结束
+  return splitMs(diff);
+}
+function tickCountdown() {
+  props.comps.forEach((c, i) => {
+    if (c.type !== 'countdown') return;
+    const r = cdRemain(c.props);
+    cdState[i] = { d: String(r.days).padStart(2, '0'), h: String(r.hours).padStart(2, '0'), m: String(r.minutes).padStart(2, '0'), s: String(r.seconds).padStart(2, '0') };
+  });
+}
+function cdVal(i) {
+  return cdState[i] || { d: '00', h: '00', m: '00', s: '00' };
+}
+function cdNumStyle(p) {
+  const s = {};
+  if (p.cdNumBg) s.background = p.cdNumBg;
+  if (p.cdNumColor) s.color = p.cdNumColor;
+  return s;
+}
+function cdBoxStyle(p) {
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (p.marginLeft) s.padding = '0 ' + p.marginLeft + 'px';
+  if (p.bgColor) s.background = p.bgColor;
+  const rt = p.radiusTop || 0;
+  const rb = p.radiusBottom || 0;
+  if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
+  return s;
+}
+function cdBtnStyle(p) {
+  const s = {};
+  if (p.cdBtnBg) s.background = p.cdBtnBg;
+  if (p.cdBtnText) s.color = p.cdBtnText;
+  return s;
+}
+onMounted(() => {
+  tickCountdown();
+  cdTimer = setInterval(tickCountdown, 1000);
+});
+onUnmounted(() => {
+  if (cdTimer) clearInterval(cdTimer);
 });
 
 // 万能表单数据（按组件下标隔离，支持同页多个表单）
@@ -771,15 +829,20 @@ function openChannel(kind, p) {
 .dp-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .dp-notice-tag { font-weight: 600; flex-shrink: 0; }
 .dp-notice-text { flex: 1; }
-.dp-countdown { padding: 14px; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.dp-countdown { padding: 14px; background: #fff; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; align-items: center; position: relative; overflow: hidden; }
+.dp-countdown .dp-cd-bgimg { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; }
+.dp-countdown > .dp-cd-title, .dp-countdown > .dp-cd-cols, .dp-countdown > .dp-cd-btn { position: relative; z-index: 1; }
 .dp-cd-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-cd-cols { display: flex; align-items: center; gap: 6px; }
 .dp-cd-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.dp-cd-num { font-size: 18px; font-weight: 700; color: #fff; background: var(--cd, #165dff); border-radius: 6px; padding: 2px 8px; line-height: 1.4; }
-.dp-countdown.text .dp-cd-num { background: transparent; color: var(--cd, #165dff); padding: 0; font-size: 20px; }
+.dp-cd-num { font-size: 18px; font-weight: 700; color: #fff; background: #165dff; border-radius: 6px; padding: 2px 8px; line-height: 1.4; min-width: 30px; text-align: center; }
+.dp-cd-shadow .dp-cd-num { box-shadow: 0 2px 6px rgba(22, 93, 255, 0.35); }
+.dp-cd-border .dp-cd-num { box-shadow: none; border: 1px solid rgba(255, 255, 255, 0.6); }
+.dp-cd-s2 .dp-cd-num { background: transparent; color: #165dff; padding: 0; font-size: 20px; box-shadow: none; border: none; min-width: 0; }
+.dp-cd-s2 .dp-cd-colon { color: #165dff; }
 .dp-cd-btn { margin-top: 10px; color: #fff; font-size: 12px; padding: 4px 14px; border-radius: 12px; display: inline-block; }
 .dp-cd-unit { font-size: 11px; color: #86909c; }
-.dp-cd-colon { color: var(--cd, #165dff); font-weight: 700; font-size: 16px; }
+.dp-cd-colon { color: #165dff; font-weight: 700; font-size: 16px; }
 .dp-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .dp-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
