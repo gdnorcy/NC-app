@@ -24,7 +24,16 @@
             />
           </view>
         </template>
-        <!-- 标准模式 -->
+        <!-- 标准模式：单图 / 双图（选择风格） -->
+        <template v-else-if="c.props.style === 'double' && c.props.items && c.props.items.length">
+          <view class="dp-image-row" :style="{ gap: (c.props.gap || 0) + 'px' }">
+            <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-row-item" :style="{ borderRadius: dpImageRadius(c.props) }">
+              <image v-if="it.url" :src="resolveUrl(it.url)" mode="widthFix" class="dp-image-img" @click="onJump(it.link)" />
+              <view v-else class="dp-image-empty"><text>图片</text></view>
+            </view>
+          </view>
+        </template>
+        <!-- 标准模式：单图 -->
         <template v-else>
           <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" :style="{ borderRadius: (c.props.radius || 0) + 'px' }" @click="onJump(c.props.link)" />
           <view v-else class="dp-image-empty"><text>图片</text></view>
@@ -743,6 +752,9 @@ function openChannel(kind, p) {
 .dp-text { line-height: 1.6; }
 .dp-image { width: 100%; }
 .dp-image-img { width: 100%; display: block; border-radius: 8px; }
+.dp-image-row { display: flex; width: 100%; }
+.dp-image-row-item { flex: 1; min-width: 0; overflow: hidden; }
+.dp-image-row .dp-image-img { border-radius: 0; }
 .dp-image-item { position: relative; overflow: hidden; }
 .dp-image-item .dp-image-img { border-radius: 0; }
 .dp-image-hotspot { position: absolute; z-index: 2; }

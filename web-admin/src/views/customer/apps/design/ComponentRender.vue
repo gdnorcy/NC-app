@@ -22,7 +22,16 @@
             </div>
           </div>
         </template>
-        <!-- 标准模式 -->
+        <!-- 标准模式：双图（选择风格） -->
+        <template v-else-if="comp.props.style === 'double' && comp.props.items?.length">
+          <div class="r-image-row" :style="{ gap: (comp.props.gap ?? 0) + 'px' }">
+            <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-row-item" :style="{ borderRadius: imageRadius(comp.props) }">
+              <img v-if="it.url" :src="resolveUrl(it.url)" />
+              <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
+            </div>
+          </div>
+        </template>
+        <!-- 标准模式：单图 -->
         <template v-else>
           <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
           <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
@@ -570,6 +579,9 @@ function chRadius(p, i) {
 .r-title { font-size: 22px; font-weight: 700; line-height: 1.4; }
 .r-text { line-height: 1.6; }
 .r-image img { width: 100%; border-radius: 8px; display: block; }
+.r-image-row { display: flex; width: 100%; }
+.r-image-row-item { flex: 1; min-width: 0; overflow: hidden; }
+.r-image-row .r-image-empty { border-radius: 0; }
 .r-image-item { position: relative; }
 .r-image-item img { width: 100%; display: block; }
 .r-image-item .r-image-empty { border-radius: 8px; }

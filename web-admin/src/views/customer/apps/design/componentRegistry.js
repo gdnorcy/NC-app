@@ -131,17 +131,30 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', items: [{ url: '', link: '', hotspots: [] }], bgColor: '', gap: 0, marginLeft: 0, marginRight: 0, radiusTop: 0, radiusBottom: 0 },
+    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [{ url: '', link: '', hotspots: [] }], bgColor: '', gap: 0, marginLeft: 0, marginRight: 0, radiusTop: 0, radiusBottom: 0 },
     schema: [
+      { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
+        { label: '单图', value: 'single' },
+        { label: '双图', value: 'double' },
+      ] },
       { key: 'mode', label: '图片设置', control: 'radio', section: 'content', options: [{ label: '标准', value: 'standard' }, { label: '高级(热区)', value: 'hotzone' }] },
-      { key: 'url', label: '图片', control: 'image', section: 'content', required: true, when: { mode: 'standard' } },
-      { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market', when: { mode: 'standard' } },
+      { key: 'url', label: '图片', control: 'image', section: 'content', required: true, when: { mode: 'standard', style: 'single' } },
+      { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market', when: { mode: 'standard', style: 'single' } },
       {
-        key: 'items', label: '图片列表', control: 'list', section: 'content', when: { mode: 'hotzone' },
+        key: 'items', label: '图片列表', control: 'list', section: 'content',
+        when: { mode: 'hotzone' },
         itemFields: [
           { key: 'url', label: '图片', control: 'image' },
           { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
           { key: 'hotspots', label: '热区', control: 'hotspots', default: [] },
+        ],
+      },
+      {
+        key: 'items', label: '双图', control: 'list', section: 'content', listMax: 2,
+        when: { mode: 'standard', style: 'double' },
+        itemFields: [
+          { key: 'url', label: '图片', control: 'image' },
+          { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
         ],
       },
       { key: 'widthMode', label: '宽度', control: 'radio', section: 'style', options: [{ label: '全宽', value: 'full' }, { label: '自适应', value: 'auto' }] },
