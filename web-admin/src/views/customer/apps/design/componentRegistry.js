@@ -217,7 +217,7 @@ export const componentRegistry = [
       autoplay: 'auto', muted: false, loop: false,
       videos: [{ finderUserName: '', feedId: '' }],
       bgType: 'color', bgColor: '', bgImage: '',
-      vSpacing: 0, spaceTop: 0, spaceBottom: 0, height: 0, radiusTop: false, radiusBottom: false,
+      vSpacing: 0, spaceTop: 0, spaceBottom: 0, hMargin: 0, height: 0, radiusTop: false, radiusBottom: false,
     },
     schema: [
       { key: 'source', label: '视频来源', control: 'radio', section: 'content', options: [{ label: '本地视频', value: 'local' }, { label: '视频号视频', value: 'channels' }] },
@@ -232,9 +232,9 @@ export const componentRegistry = [
       { key: 'hint', label: '该组件只支持微信小程序', control: 'hint', section: 'content', when: { source: 'channels' } },
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [{ label: '一列', value: 'single' }, { label: '两列并排', value: 'double' }], when: { source: 'channels' } },
       { key: 'sameOwner', label: '相同主体', control: 'radio', section: 'content', options: [{ label: '是', value: true }, { label: '否', value: false }], when: { source: 'channels' } },
-      { key: 'finderUserName', label: '视频号id', control: 'input', section: 'content', placeholder: '微信视频号ID', when: { source: 'channels' } },
-      { key: 'feedId', label: '视频id', control: 'input', section: 'content', placeholder: '视频ID，可留空用上方列表', when: { source: 'channels' } },
-      { key: 'videos', label: '视频列表', control: 'list', section: 'content', when: { source: 'channels' }, itemFields: [
+      { key: 'finderUserName', label: '视频号id', control: 'input', section: 'content', placeholder: '微信视频号ID', when: { source: 'channels', sameOwner: true } },
+      { key: 'feedId', label: '视频id', control: 'input', section: 'content', placeholder: '视频ID，可留空', when: { source: 'channels', sameOwner: true } },
+      { key: 'videos', label: '视频列表', control: 'list', section: 'content', when: { source: 'channels', sameOwner: false }, itemFields: [
         { key: 'finderUserName', label: '视频号id', control: 'input' },
         { key: 'feedId', label: '视频id', control: 'input' },
       ] },
@@ -247,6 +247,7 @@ export const componentRegistry = [
       { key: 'vSpacing', label: '视频间距', control: 'slider', section: 'style', min: 0, max: 40, when: { source: 'channels' } },
       { key: 'spaceTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40, when: { source: 'channels' } },
       { key: 'spaceBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40, when: { source: 'channels' } },
+      { key: 'hMargin', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40, when: { source: 'channels' } },
       { key: 'height', label: '视频高度', control: 'slider', section: 'style', min: 0, max: 600, when: { source: 'channels' } },
       { key: 'radiusTop', label: '上圆角', control: 'switch', section: 'style', when: { source: 'channels' } },
       { key: 'radiusBottom', label: '下圆角', control: 'switch', section: 'style', when: { source: 'channels' } },

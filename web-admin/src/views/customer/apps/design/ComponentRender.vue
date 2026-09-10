@@ -49,9 +49,8 @@
       <!-- 视频号视频（eweishop 复刻）：风格一列/两列（竖屏9:16）、多视频、背景色/图、静音循环、圆角 -->
       <div v-if="comp.props.source === 'channels'" class="r-video-ch" :style="chStyle(comp.props)">
         <div class="r-video-ch-inner" :class="comp.props.style === 'double' ? 'r-video-ch-double' : ''">
-          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :class="{ 'r-video-ch-full': comp.props.style === 'double' && chVideos(comp.props).length === 1 }" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: comp.props.style === 'double' ? '9 / 16' : '16 / 9' }">
+          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :class="{ 'r-video-ch-full': comp.props.style === 'double' && chVideos(comp.props).length === 1 }" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: comp.props.style === 'double' ? '9 / 16' : '16 / 9', height: comp.props.height ? comp.props.height + 'px' : undefined }">
             <div class="r-video-ch-play"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
-            <div class="r-video-ch-id">{{ it.finderUserName || comp.props.finderUserName || '视频号id' }}</div>
             <span class="r-video-tag">视频号</span>
           </div>
         </div>
@@ -329,7 +328,11 @@ function chStyle(p) {
   if (p.bgType === 'color' && p.bgColor) s.background = p.bgColor;
   if (p.bgType === 'image' && p.bgImage) s.backgroundImage = `url(${resolveUrl(p.bgImage)})`;
   if (p.bgType === 'image' && p.bgImage) s.backgroundSize = 'cover';
-  if (p.vSpacing) s.padding = `${p.vSpacing}px`;
+  const v = p.vSpacing || 0;
+  const h = typeof p.hMargin === 'number' ? p.hMargin : v;
+  if (v || h) s.padding = `${v}px ${h}px`;
+  if (p.spaceTop) s.marginTop = p.spaceTop + 'px';
+  if (p.spaceBottom) s.marginBottom = p.spaceBottom + 'px';
   return s;
 }
 function chRadius(p, i) {
@@ -389,7 +392,6 @@ function chRadius(p, i) {
 .r-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .r-video-ch-item::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(transparent, rgba(0,0,0,.5)); }
 .r-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
-.r-video-ch-id { position: absolute; z-index: 2; left: 8px; bottom: 6px; font-size: 11px; color: #fff; max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .r-video-ch-meta { margin-top: 6px; font-size: 11px; color: #86909c; }
 .r-video-ch .r-video-tag { top: 6px; left: 6px; }
 /* 图文卡片 */

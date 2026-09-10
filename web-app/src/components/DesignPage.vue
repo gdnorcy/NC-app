@@ -63,7 +63,6 @@
             >
               <image v-if="c.props.bgType === 'image' && c.props.bgImage" :src="resolveUrl(c.props.bgImage)" mode="aspectFill" class="dp-video-ch-bg" />
               <view class="dp-video-ch-play">▶</view>
-              <view class="dp-video-ch-id">{{ it.finderUserName || '视频号' }}</view>
             </view>
           </view>
           <view v-if="chVideos(c.props).length > 1" class="dp-video-ch-count">共 {{ chVideos(c.props).length }} 个视频</view>
@@ -443,7 +442,11 @@ function chStyle(p) {
   if (p.bgType === 'color' && p.bgColor) s.background = p.bgColor;
   if (p.bgType === 'image' && p.bgImage) s.backgroundImage = `url(${resolveUrl(p.bgImage)})`;
   if (p.bgType === 'image' && p.bgImage) s.backgroundSize = 'cover';
-  s.padding = `${p.vSpacing || 0}px ${p.vSpacing || 0}px`;
+  const v = p.vSpacing || 0;
+  const h = typeof p.hMargin === 'number' ? p.hMargin : v;
+  if (v || h) s.padding = `${v}px ${h}px`;
+  if (p.spaceTop) s.marginTop = p.spaceTop + 'px';
+  if (p.spaceBottom) s.marginBottom = p.spaceBottom + 'px';
   return s;
 }
 function chItemStyle(p, i) {
@@ -537,7 +540,6 @@ function openChannel(kind, p) {
 .dp-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .dp-video-ch-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .dp-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-.dp-video-ch-id { position: absolute; z-index: 2; left: 8px; bottom: 6px; font-size: 11px; color: #fff; max-width: 78%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .dp-video-ch-count { padding: 8px 4px 2px; font-size: 11px; color: #86909c; }
 /* 弹出显示遮罩 */
 .dp-video-popmask { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 3; }
