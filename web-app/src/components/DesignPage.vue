@@ -30,7 +30,7 @@
         <text v-else class="dp-notice-text">{{ c.props.text || '公告内容' }}</text>
       </view>
       <!-- 倒计时 -->
-      <view v-else-if="c.type === 'countdown'" class="dp-countdown" :style="{ '--cd': c.props.color || '#165dff' }">
+      <view v-else-if="c.type === 'countdown'" class="dp-countdown" :class="{ text: c.props.style === 'text' }" :style="{ '--cd': c.props.color || '#165dff', background: c.props.bgColor || '#fff' }">
         <text class="dp-cd-title">{{ c.props.title || '限时活动' }}</text>
         <view class="dp-cd-cols">
           <view class="dp-cd-cell"><text class="dp-cd-num">{{ c.props.days || '00' }}</text><text class="dp-cd-unit">天</text></view>
@@ -41,6 +41,7 @@
           <text class="dp-cd-colon">:</text>
           <view class="dp-cd-cell"><text class="dp-cd-num">{{ c.props.seconds || '00' }}</text><text class="dp-cd-unit">秒</text></view>
         </view>
+        <view v-if="c.props.btnText" class="dp-cd-btn" :style="{ background: c.props.color || '#165dff' }" @click="onJump(c.props.btnLink)"><text>{{ c.props.btnText }}</text></view>
       </view>
       <!-- 表单 -->
       <view v-else-if="c.type === 'form'" class="dp-form">
@@ -77,7 +78,8 @@
         </view>
       </view>
       <!-- 直播列表（云菜鸟：列表样式 / 内容类型 / 排序 / 显示数量 / 下拉加载） -->
-      <view v-else-if="c.type === 'live-list'" class="dp-livelist" :class="'dp-live-style-' + (c.props.listStyle || '1')">
+      <view v-else-if="c.type === 'live-list'" class="dp-livelist" :class="'dp-live-style-' + (c.props.listStyle || '1')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
+        <text v-if="c.props.title" class="dp-live-title-bar">{{ c.props.title }}</text>
         <view v-if="liveList.length" class="dp-live-grid">
           <view v-for="(it, i) in liveList.slice(0, Number(c.props.limit) || 6)" :key="i" class="dp-live-card" @click="openChannel('live', it)">
             <image v-if="it.cover" :src="resolveUrl(it.cover)" mode="aspectFill" class="dp-live-cover" />
@@ -249,7 +251,7 @@
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-tabs-item" :class="{ active: i === 0 }" @click="onJump(it.link)"><text>{{ it.text || '选项' }}</text></view>
       </view>
       <!-- 万能表单 -->
-      <view v-else-if="c.type === 'form-pro'" class="dp-form">
+      <view v-else-if="c.type === 'form-pro'" class="dp-form" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
         <text class="dp-form-title">{{ c.props.title || '留资表单' }}</text>
         <view v-if="ensureFormData(i)" v-for="(f, fi) in c.props.fields || []" :key="fi" class="dp-fp-field">
           <picker v-if="f.type === 'date'" mode="date" @change="(e) => { ensureFormData(i); formData[i][f.label] = e.detail.value; }">
@@ -277,7 +279,7 @@
         <text>{{ c.props.text || '联系我们' }}</text>
       </view>
       <!-- 文章列表 -->
-      <view v-else-if="c.type === 'article-list'" class="dp-article">
+      <view v-else-if="c.type === 'article-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
         <text v-if="c.props.title" class="dp-article-title">{{ c.props.title }}</text>
         <view class="dp-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 1) + ', 1fr)' }">
           <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-article-item" @click="onJump(it.link)">
@@ -731,6 +733,8 @@ function openChannel(kind, p) {
 .dp-cd-cols { display: flex; align-items: center; gap: 6px; }
 .dp-cd-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .dp-cd-num { font-size: 18px; font-weight: 700; color: #fff; background: var(--cd, #165dff); border-radius: 6px; padding: 2px 8px; line-height: 1.4; }
+.dp-countdown.text .dp-cd-num { background: transparent; color: var(--cd, #165dff); padding: 0; font-size: 20px; }
+.dp-cd-btn { margin-top: 10px; color: #fff; font-size: 12px; padding: 4px 14px; border-radius: 12px; display: inline-block; }
 .dp-cd-unit { font-size: 11px; color: #86909c; }
 .dp-cd-colon { color: var(--cd, #165dff); font-weight: 700; font-size: 16px; }
 .dp-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
@@ -762,6 +766,7 @@ function openChannel(kind, p) {
 /* 直播列表（云菜鸟样式一/二/三） */
 .dp-livelist { border-radius: 8px; overflow: hidden; background: #fff; }
 .dp-live-grid { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.dp-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; display: block; padding: 2px 0 8px; }
 .dp-live-card { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; }
 .dp-live-cover { width: 100%; height: 150px; display: block; background: #000; }
 .dp-live-cover-ph { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.5); font-size: 13px; background: linear-gradient(135deg, #2b2b2b, #111); }
@@ -911,6 +916,10 @@ function openChannel(kind, p) {
 .dp-article-title { font-size: 15px; font-weight: 600; color: #1d2129; display: block; margin-bottom: 10px; }
 .dp-article-grid { display: grid; gap: 10px; }
 .dp-article-item { border: 1px solid #f0f1f3; border-radius: 10px; padding: 10px; display: flex; gap: 10px; background: #fff; }
+.dp-article-row .dp-article-item { align-items: flex-start; }
+.dp-article-row .dp-article-img { width: 96px; height: 64px; flex-shrink: 0; }
+.dp-article-card .dp-article-item { flex-direction: column; }
+.dp-article-card .dp-article-img { width: 100%; height: 150px; }
 .dp-article-img { width: 92px; height: 66px; border-radius: 8px; flex-shrink: 0; overflow: hidden; }
 .dp-article-img-empty { background: #f7f8fa; display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 12px; }
 .dp-article-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }

@@ -26,7 +26,7 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'countdown'">
-      <div class="r-countdown" :style="{ '--cd': comp.props.color || '#165DFF' }">
+      <div class="r-countdown" :class="{ text: comp.props.style === 'text' }" :style="{ '--cd': comp.props.color || '#165DFF', background: comp.props.bgColor || '#fff' }">
         <div class="r-cd-title">{{ comp.props.title || '限时活动' }}</div>
         <div class="r-cd-cols">
           <span class="r-cd-cell"><b>{{ comp.props.days || '00' }}</b><i>天</i></span>
@@ -37,6 +37,7 @@
           <em>:</em>
           <span class="r-cd-cell"><b>{{ comp.props.seconds || '00' }}</b><i>秒</i></span>
         </div>
+        <div v-if="comp.props.btnText" class="r-cd-btn" :style="{ background: comp.props.color || '#165DFF' }">{{ comp.props.btnText }}</div>
       </div>
     </template>
     <template v-else-if="comp.type === 'form'">
@@ -68,7 +69,8 @@
     </template>
     <!-- 直播列表 -->
     <template v-else-if="comp.type === 'live-list'">
-      <div class="r-live" :class="'r-live-' + (comp.props.listStyle || '1')">
+      <div class="r-live" :class="'r-live-' + (comp.props.listStyle || '1')" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
+        <div v-if="comp.props.title" class="r-live-title-bar">{{ comp.props.title }}</div>
         <div v-for="(it, i) in Array.from({ length: Math.min(Number(comp.props.limit) || 3, 3) })" :key="i" class="r-live-card">
           <div class="r-live-cover">直播</div>
           <div class="r-live-info">
@@ -256,7 +258,7 @@
     </template>
     <!-- 万能表单 -->
     <template v-else-if="comp.type === 'form-pro'">
-      <div class="r-form">
+      <div class="r-form" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
         <div class="r-form-title">{{ comp.props.title || '留资表单' }}</div>
         <div v-for="(f, i) in comp.props.fields || []" :key="i" class="r-form-input">{{ f.placeholder || f.label }}{{ f.required ? ' *' : '' }}</div>
         <div class="r-form-btn" :style="{ background: comp.props.btnColor || '#165DFF' }">{{ comp.props.submitText || '提交' }}</div>
@@ -280,7 +282,7 @@
     </template>
     <!-- 文章列表 -->
     <template v-else-if="comp.type === 'article-list'">
-      <div class="r-article">
+      <div class="r-article" :class="'r-article-' + (comp.props.listStyle || 'row')" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
         <div v-if="comp.props.title" class="r-article-title">{{ comp.props.title }}</div>
         <div class="r-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 1) + ',1fr)' }">
           <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-article-item">
@@ -553,6 +555,17 @@ function chRadius(p, i) {
 .r-cd-cell b { font-size: 18px; font-weight: 700; color: #fff; background: var(--cd, #165dff); border-radius: 6px; padding: 2px 8px; line-height: 1.4; }
 .r-cd-cell i { font-style: normal; font-size: 11px; color: #86909c; }
 .r-cd-cols em { font-style: normal; color: var(--cd, #165dff); font-weight: 700; font-size: 16px; }
+.r-countdown.text .r-cd-cell b { background: transparent; color: var(--cd, #165dff); padding: 0; font-size: 20px; }
+.r-countdown.text .r-cd-cols em { color: var(--cd, #165dff); }
+.r-cd-btn { margin-top: 10px; color: #fff; font-size: 12px; padding: 4px 14px; border-radius: 12px; }
+.r-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
+.r-article-title { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
+.r-article-row .r-article-item { display: flex; gap: 10px; align-items: flex-start; }
+.r-article-row .r-article-img { width: 96px; height: 64px; flex-shrink: 0; }
+.r-article-card .r-article-item { display: flex; flex-direction: column; gap: 6px; }
+.r-article-card .r-article-img { width: 100%; height: 0; padding-bottom: 66%; position: relative; }
+.r-article-card .r-article-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.r-article-card .r-article-img-empty { position: absolute; inset: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .r-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .r-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
