@@ -635,6 +635,16 @@ npm run test:frontend
 - **构建验证**：admin build+verify、H5 同步（rm -rf assets 再 cp）、mp-weixin 构建；组件库总数 = 32（基础 15/营销 9/功能 8）。
 - **测试**：前端基线保持 36 passed / 4 files（P2 无新纯函数，复用 onJump/resolveUrl，不新增测试）。
 
+## 滑杆/数字参数控件统一规范（2026-09-10 新增，强制）
+
+- **新增组件属性面板若用到数值调节，统一用 `el-slider show-input`**（`f.control === 'slider'`），禁止另写 el-input-number 自绘数值控件（除魔方行内 fontSize/width/radius 既有 70px 例外）。
+- **样式全局继承**（PageEditor.vue 已内置，新增组件自动生效，无需逐个处理）：
+  - 数字输入框 72px（可显示三位数字，余宽留给滑杆）：`.pe-prop :deep(.el-slider__input)`、`.hp-body :deep(.el-slider__input)`、`.form-card :deep(.el-slider__input)` 三处统一 72px；增减按钮 18px、输入内边距 0 4px。
+  - **滑杆必须自适应撑满**：页面设置弹窗内 4 处滑杆（卡片圆角/边距/间距、头部边距）内联 `style="flex:1;min-width:140px"`（禁止固定 px 宽度）；组件属性面板 el-slider 默认 100% 自动撑满。
+  - **label 单行**：`.hp-label` 固定 92px + `white-space:nowrap`（"卡片圆角(px)"等长文案不得换行）；组件属性面板用 el-form-item label 天然 nowrap。
+- **魔方行内数字框**：el-input-number 70px（fontSize 10-22/width 40-600/radius 0-60），保留现状不缩小。
+- **新增组件配置必须用以上控件模板**，交付前浏览器实测：输入框 72px、label 单行、滑杆随面板宽度撑满。
+
 # 复刻开发规范（2026-09-10 新增）
 
 - **复刻链接（功能参考）**：用户指定复刻某链接的功能时，默认 **1:1 还原其交互行为与业务逻辑**（点击/切换/条件联动/状态流转/数据流/校验等），**不承诺复刻外观 UI**——除非用户专门指定"1:1 还原页面 UI"，才按原页面外观复刻。否则界面统一按本系统 UI 规范（设计令牌、组件库、页面布局规范）实现。
