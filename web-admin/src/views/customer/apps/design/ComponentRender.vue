@@ -49,7 +49,7 @@
       <!-- 视频号视频（eweishop 复刻）：风格一列/两列（竖屏9:16）、多视频、背景色/图、静音循环、圆角 -->
       <div v-if="comp.props.source === 'channels'" class="r-video-ch" :style="chStyle(comp.props)">
         <div class="r-video-ch-inner" :class="comp.props.style === 'double' ? 'r-video-ch-double' : ''">
-          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :class="{ 'r-video-ch-full': comp.props.style === 'double' && chVideos(comp.props).length === 1 }" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.chRatio] || (comp.props.style === 'double' ? '9 / 16' : '16 / 9'), height: comp.props.height ? comp.props.height + 'px' : undefined }">
+          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.chRatio] || (comp.props.style === 'double' ? '9 / 16' : '16 / 9'), height: comp.props.height ? comp.props.height + 'px' : undefined }">
             <div class="r-video-ch-play"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
             <span class="r-video-tag">视频号</span>
           </div>
@@ -329,6 +329,8 @@ function chVideos(p) {
   return list.map((it) => ({
     finderUserName: (it && it.finderUserName) || p.finderUserName || '',
     feedId: (it && it.feedId) || p.feedId || '',
+    feedToken: (it && it.feedToken) || p.feedToken || '',
+    sameOwner: !!(it && it.sameOwner),
   }));
 }
 function chStyle(p) {
@@ -396,7 +398,6 @@ function chRadius(p, i) {
 .r-video-ch-double { flex-direction: row; flex-wrap: wrap; }
 .r-video-ch-double .r-video-ch-item { flex: 1 1 46%; max-width: 48%; }
 /* 两列且仅 1 个视频时：占满整行宽度（竖屏全宽） */
-.r-video-ch-double .r-video-ch-item.r-video-ch-full { flex: 1 1 100%; max-width: 100%; }
 .r-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .r-video-ch-empty { padding: 16px 0; text-align: center; color: #86909c; font-size: 12px; }
 .r-video-ch-item::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(transparent, rgba(0,0,0,.5)); }

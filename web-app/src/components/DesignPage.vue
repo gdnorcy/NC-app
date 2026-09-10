@@ -57,7 +57,6 @@
               v-for="(it, i) in chVideos(c.props)"
               :key="i"
               class="dp-video-ch-item"
-              :class="{ 'dp-video-ch-full': c.props.style === 'double' && chVideos(c.props).length === 1 }"
               :style="chItemStyle(c.props, i)"
               @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId })"
             >
@@ -442,6 +441,8 @@ function chVideos(p) {
   return list.map((it) => ({
     finderUserName: (it && it.finderUserName) || p.finderUserName || '',
     feedId: (it && it.feedId) || p.feedId || '',
+    feedToken: (it && it.feedToken) || p.feedToken || '',
+    sameOwner: !!(it && it.sameOwner),
   }));
 }
 function chStyle(p) {
@@ -544,7 +545,6 @@ function openChannel(kind, p) {
 .dp-video-ch-double { flex-direction: row; flex-wrap: wrap; }
 .dp-video-ch-double .dp-video-ch-item { flex: 1 1 46%; max-width: 48%; }
 /* 两列且仅 1 个视频时：占满整行宽度（竖屏全宽） */
-.dp-video-ch-double .dp-video-ch-item.dp-video-ch-full { flex: 1 1 100%; max-width: 100%; }
 .dp-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .dp-video-ch-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .dp-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; }

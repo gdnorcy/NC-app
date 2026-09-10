@@ -215,7 +215,7 @@ export const componentRegistry = [
       // 视频号视频（eweishop 复刻）：风格一列/两列、相同主体、视频号id/视频id、自动播放+静音+循环、多视频、背景色/背景图、间距/高度/上圆角/下圆角
       style: 'single', sameOwner: true, finderUserName: '', feedId: '', videoIds: [{ feedId: '' }],
       autoplay: 'auto', muted: false, loop: false,
-      videos: [{ finderUserName: '', feedId: '' }],
+      videos: [{ sameOwner: true, finderUserName: '', feedId: '', feedToken: '' }],
       chRatio: '16:9',
       bgType: 'color', bgColor: '', bgImage: '',
       vSpacing: 0, spaceTop: 0, spaceBottom: 0, hMargin: 0, height: 0, radiusTop: false, radiusBottom: false,
@@ -238,8 +238,10 @@ export const componentRegistry = [
         { key: 'feedId', label: '视频id', control: 'input', placeholder: '视频ID，可留空' },
       ] },
       { key: 'videos', label: '视频列表', control: 'list', section: 'content', when: { source: 'channels', sameOwner: false }, itemFields: [
+        { key: 'sameOwner', label: '相同主体', control: 'radio', options: [{ label: '是', value: true }, { label: '否', value: false }] },
         { key: 'finderUserName', label: '视频号id', control: 'input' },
-        { key: 'feedId', label: '视频id', control: 'input' },
+        { key: 'feedId', label: '视频id', control: 'input', when: { sameOwner: true } },
+        { key: 'feedToken', label: 'feed-token', control: 'input', placeholder: '非同主体视频标识', when: { sameOwner: false } },
       ] },
       { key: 'chRatio', label: '视频样式', control: 'radio', graphic: true, section: 'style', options: [{ label: '16:9', value: '16:9' }, { label: '4:3', value: '4:3' }, { label: '1:1', value: '1:1' }, { label: '9:16', value: '9:16' }], when: { source: 'channels' } },
       { key: 'autoplay', label: '自动播放', control: 'radio', section: 'style', options: [{ label: '自动', value: 'auto' }, { label: '不自动', value: 'no' }], when: { source: 'channels' } },

@@ -197,9 +197,12 @@
                     >
                       <span class="pe-list-drag" title="按住拖动排序">⠿</span>
                       <div class="pe-list-fields">
-                        <div v-for="(sf, si) in f.itemFields" :key="si" class="pe-list-field">
+                        <div v-for="(sf, si) in visibleItemFields(f, it)" :key="si" class="pe-list-field">
                           <div class="pe-list-label">{{ sf.label }}</div>
-                          <el-input v-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
+                          <el-radio-group v-if="sf.control === 'radio'" v-model="it[sf.key]" size="small">
+                            <el-radio v-for="o in sf.options" :key="o.value" :value="o.value" size="small">{{ o.label }}</el-radio>
+                          </el-radio-group>
+                          <el-input v-else-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
                           <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'">
                             <template #append><el-button @click="openLinkSel(idx, si, sf)">选择</el-button></template>
                           </el-input>
@@ -987,8 +990,23 @@ function confirmLinkSel(link) {
 function addListItem(comp, key, itemFields) {
   const items = comp.props[key] || [];
   const blank = {};
-  (itemFields || []).forEach((f) => { blank[f.key] = f.control === 'select' && f.options?.length ? f.options[0].value : ''; });
+  (itemFields || []).forEach((f) => {
+    if ((f.control === 'select' || f.control === 'radio') && f.options?.length) blank[f.key] = f.options[0].value;
+    else blank[f.key] = '';
+  });
   items.push(blank);
+}
+// 列表项字段条件显示（when 依赖 item 自身值；期望 true 时 undefined 视为 true，兼容旧数据）
+function listFieldVisible(sf, it) {
+  if (!sf.when) return true;
+  return Object.entries(sf.when).every(([k, v]) => {
+    if (v === true) return it[k] === true || it[k] === undefined || String(it[k]) === 'true';
+    return String(it[k]) === String(v);
+  });
+}
+// 列表项可见字段（按 item 值过滤，避免 v-for+v-if 同元素）
+function visibleItemFields(f, it) {
+  return (f.itemFields || []).filter((sf) => listFieldVisible(sf, it));
 }
 let listDrag = null; // { key, from }
 function onListItemDragStart(e, key, idx) {
