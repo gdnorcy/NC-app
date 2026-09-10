@@ -182,8 +182,11 @@
                   </el-radio-group>
                   <el-slider v-else-if="f.control === 'slider'" v-model="selectedComp.props[f.key]" :min="f.min" :max="f.max" show-input />
                   <div v-else-if="f.control === 'image'" class="pe-img-field">
-                    <el-button size="small" @click="openImgSel">选择素材</el-button>
-                    <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
+                    <div class="pe-img-row">
+                      <img v-if="selectedComp.props[f.key]" :src="resolveUrl(selectedComp.props[f.key])" class="pe-img-thumb" />
+                      <el-button size="small" @click="openImgSel">选择素材</el-button>
+                      <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
+                    </div>
                   </div>
                   <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'">
                     <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
@@ -216,8 +219,11 @@
                             <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
                           </el-select>
                           <div v-else-if="sf.control === 'image'" class="pe-img-field">
-                            <el-button size="small" @click="openImgSel(idx, si, f)">选择</el-button>
-                            <el-button v-if="it[sf.key]" size="small" text type="danger" @click="it[sf.key] = ''">清除</el-button>
+                            <div class="pe-img-row">
+                              <img v-if="it[sf.key]" :src="resolveUrl(it[sf.key])" class="pe-img-thumb" />
+                              <el-button size="small" @click="openImgSel(idx, si, f)">选择</el-button>
+                              <el-button v-if="it[sf.key]" size="small" text type="danger" @click="it[sf.key] = ''">清除</el-button>
+                            </div>
                           </div>
                           <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
                             <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
@@ -769,7 +775,7 @@ const schemaSections = computed(() => {
   const def = findComponent(selectedComp.value.type);
   if (!def) return [];
   const ownKeys = def.schema.map((f) => f.key);
-  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key));
+  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight'))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))));
   const props = selectedComp.value.props || {};
   const whenOk = (f) => !f.when || Object.entries(f.when).every(([k, v]) => props[k] === v || String(props[k]) === String(v));
   return [
@@ -1371,6 +1377,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-prop-empty { color: #86909c; font-size: 12px; padding: 40px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .pe-prop-empty :deep(svg), .pe-prop-empty :deep(img) { opacity: .4; }
 .pe-img-field { display: flex; gap: 6px; flex-wrap: wrap; }
+.pe-img-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pe-img-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid #E5E6EB; background: #F7F8FA; flex-shrink: 0; }
 
 /* 列表编辑器（轮播图/宫格导航 items）：拖拽排序 + 删除 */
 .pe-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }

@@ -35,7 +35,9 @@
         </template>
         <!-- 标准模式：单图 -->
         <template v-else>
-          <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" :style="{ borderRadius: (c.props.radius || 0) + 'px' }" @click="onJump(c.props.link)" />
+          <view v-if="c.props.url" class="dp-image-single" :style="{ borderRadius: dpImageRadius(c.props) }" @click="onJump(c.props.link)">
+            <image :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" />
+          </view>
           <view v-else class="dp-image-empty"><text>图片</text></view>
         </template>
       </view>
@@ -490,7 +492,7 @@ function dpImageBoxStyle(p) {
   const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
   if (p.widthMode === 'auto') s.display = 'inline-block';
   if (p.bgColor) s.background = p.bgColor;
-  if (p.marginLeft) s.paddingLeft = p.marginLeft + 'px';
+  if (p.marginLeft) s.padding = `0 ${p.marginLeft}px`;
   if (p.marginRight) s.paddingRight = p.marginRight + 'px';
   return s;
 }
@@ -752,6 +754,8 @@ function openChannel(kind, p) {
 .dp-text { line-height: 1.6; }
 .dp-image { width: 100%; }
 .dp-image-img { width: 100%; display: block; border-radius: 8px; }
+.dp-image-single { overflow: hidden; }
+.dp-image-single .dp-image-img { border-radius: 0; }
 .dp-image-row { display: flex; width: 100%; }
 .dp-image-row-item { flex: 1; min-width: 0; overflow: hidden; }
 .dp-image-row .dp-image-img { border-radius: 0; }

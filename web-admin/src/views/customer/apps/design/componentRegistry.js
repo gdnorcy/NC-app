@@ -145,7 +145,6 @@ export const componentRegistry = [
         when: { mode: 'hotzone' },
         itemFields: [
           { key: 'url', label: '图片', control: 'image' },
-          { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
           { key: 'hotspots', label: '热区', control: 'hotspots', default: [] },
         ],
       },
@@ -165,7 +164,6 @@ export const componentRegistry = [
       { key: 'marginLeft', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
-      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 24 },
     ],
   },
   {

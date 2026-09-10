@@ -33,7 +33,9 @@
         </template>
         <!-- 标准模式：单图 -->
         <template v-else>
-          <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
+          <div v-if="comp.props.url" class="r-image-single" :style="{ borderRadius: imageRadius(comp.props) }">
+            <img :src="resolveUrl(comp.props.url)" />
+          </div>
           <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
         </template>
       </div>
@@ -478,7 +480,7 @@ function imageBoxStyle(p) {
   const s = { borderRadius: (p.radius ?? 0) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
   if (p.widthMode === 'auto') s.display = 'inline-block';
   if (p.bgColor) s.background = p.bgColor;
-  if (p.marginLeft) s.paddingLeft = p.marginLeft + 'px';
+  if (p.marginLeft) s.padding = `0 ${p.marginLeft}px`;
   if (p.marginRight) s.paddingRight = p.marginRight + 'px';
   return s;
 }
@@ -579,6 +581,8 @@ function chRadius(p, i) {
 .r-title { font-size: 22px; font-weight: 700; line-height: 1.4; }
 .r-text { line-height: 1.6; }
 .r-image img { width: 100%; border-radius: 8px; display: block; }
+.r-image-single { overflow: hidden; }
+.r-image-single img { border-radius: 0; }
 .r-image-row { display: flex; width: 100%; }
 .r-image-row-item { flex: 1; min-width: 0; overflow: hidden; }
 .r-image-row .r-image-empty { border-radius: 0; }

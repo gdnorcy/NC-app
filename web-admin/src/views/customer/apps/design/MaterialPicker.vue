@@ -19,7 +19,15 @@
     </div>
 
     <!-- 本地上传 / 网络提取 模式体 -->
-    <div v-if="mode === 'net'" class="mp-net">
+    <div v-if="mode === 'upload'" class="mp-upload">
+      <input ref="uploadRef" type="file" accept="image/*" style="display: none" @change="doUpload" />
+      <div class="mp-upload-box" @click="uploadRef && uploadRef.click()">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#165DFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        <div class="mp-upload-txt">点击选择图片上传</div>
+        <div class="mp-upload-sub">支持 {{ limits.maxImageSize }}M 以内的 jpg / png / webp 图片</div>
+      </div>
+    </div>
+    <div v-else class="mp-net">
       <el-input v-model="netUrl" placeholder="请在此处粘贴图片地址" clearable>
         <template #append>
           <el-button type="primary" :loading="netLoading" @click="doImport">提取</el-button>
@@ -192,6 +200,11 @@ watch(() => props.modelValue, (v) => {
 .mp-tab { padding: 4px 14px; font-size: 13px; color: #4E5969; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
 .mp-tab.active { background: #FFFFFF; color: #165DFF; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .mp-limit { font-size: 12px; color: #86909C; }
+.mp-upload { margin-bottom: 10px; }
+.mp-upload-box { border: 1.5px dashed #C9CDD4; border-radius: 8px; padding: 18px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; background: #FAFBFC; transition: border-color .2s; }
+.mp-upload-box:hover { border-color: #165DFF; }
+.mp-upload-txt { font-size: 13px; color: #4E5969; }
+.mp-upload-sub { font-size: 12px; color: #86909C; }
 .mp-net { margin-bottom: 10px; }
 .mp-net-help { font-size: 12px; color: #86909C; margin-top: 6px; }
 .mp-body { display: flex; gap: 12px; height: 330px; }
