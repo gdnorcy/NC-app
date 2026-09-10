@@ -7,7 +7,7 @@
       <div class="r-text" :style="{ color: comp.props.color, textAlign: comp.props.align, fontSize: comp.props.size + 'px' }">{{ comp.props.text || '文本内容' }}</div>
     </template>
     <template v-else-if="comp.type === 'image'">
-      <div class="r-image" @click.stop>
+      <div class="r-image" @click.stop :style="imageBoxStyle(comp.props)">
         <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
         <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
       </div>
@@ -16,7 +16,7 @@
       <div class="r-btn" :style="btnStyle(comp.props)">{{ comp.props.text || '按钮' }}</div>
     </template>
     <template v-else-if="comp.type === 'divider'">
-      <div class="r-divider"><span v-if="comp.props.text">{{ comp.props.text }}</span></div>
+      <div class="r-divider" :style="dividerStyle(comp.props)"><span v-if="comp.props.text" :style="{ color: comp.props.color || '#86909C' }">{{ comp.props.text }}</span></div>
     </template>
     <template v-else-if="comp.type === 'notice'">
       <div class="r-notice" :style="{ background: comp.props.bgColor, color: comp.props.color, borderRadius: (comp.props.radius ?? 0) + 'px', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px', fontSize: (comp.props.fontSize || 14) + 'px', fontWeight: comp.props.bold ? 600 : 400 }">
@@ -81,9 +81,9 @@
     </template>
     <!-- 图文卡片 -->
     <template v-else-if="comp.type === 'image-text'">
-      <div class="r-imagetext" :class="{ overlay: comp.props.textPos === 'overlay' }">
-        <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
-        <div v-else class="r-imagetext-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图文卡片</div>
+      <div class="r-imagetext" :class="{ overlay: comp.props.textPos === 'overlay', center: comp.props.align === 'center' }" :style="imageTextStyle(comp.props)">
+        <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" :style="imageTextRatio(comp.props)" />
+        <div v-else class="r-imagetext-empty" :style="imageTextRatio(comp.props)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图文卡片</div>
         <div class="r-imagetext-body">
           <div class="r-imagetext-title">{{ comp.props.title || '图文标题' }}</div>
           <div class="r-imagetext-desc">{{ comp.props.desc || '描述文字' }}</div>
@@ -216,11 +216,11 @@
     </template>
     <!-- 富文本 -->
     <template v-else-if="comp.type === 'rich-text'">
-      <div class="r-richtext" v-html="comp.props.html || '<p>富文本内容</p>'"></div>
+      <div class="r-richtext" v-html="comp.props.html || '<p>富文本内容</p>'" :style="richTextStyle(comp.props)"></div>
     </template>
     <!-- 组图橱窗 -->
     <template v-else-if="comp.type === 'image-gallery'">
-      <div class="r-gallery" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 2) + ',1fr)', gap: '6px' }">
+      <div class="r-gallery" :style="galleryStyle(comp.props)">
         <template v-for="(it, i) in comp.props.items || []" :key="i">
           <div v-if="it.url" class="r-gallery-cell" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
           <div v-else class="r-gallery-cell r-gallery-empty" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
@@ -304,7 +304,7 @@
     </template>
     <!-- 辅助间距 -->
     <template v-else-if="comp.type === 'spacer'">
-      <div class="r-spacer" :style="{ margin: (comp.props.margin ?? 16) + 'px 0', borderTop: comp.props.style === 'none' ? 'none' : (comp.props.height || 20) + 'px ' + (comp.props.style || 'solid') + ' ' + (comp.props.color || '#E5E6EB') }"></div>
+      <div class="r-spacer" :style="{ height: (comp.props.height || 20) + 'px', background: comp.props.bgColor || 'transparent' }"></div>
     </template>
     <!-- 关注公众号 -->
     <template v-else-if="comp.type === 'follow-official'">
@@ -440,6 +440,40 @@ function searchStyle(p) {
   if (p.style === 'border') s.border = '1px solid ' + (p.strokeColor || '#165DFF');
   return s;
 }
+// ===== 批2 图文类融合组件辅助 =====
+function imageBoxStyle(p) {
+  const s = { borderRadius: (p.radius ?? 0) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (p.widthMode === 'auto') s.display = 'inline-block';
+  return s;
+}
+function dividerStyle(p) {
+  return {
+    borderTop: (p.thickness ?? 1) + 'px ' + (p.dashed ? 'dashed' : 'solid') + ' ' + (p.color || '#E5E6EB'),
+    marginTop: (p.marginTop ?? 14) + 'px',
+    marginBottom: (p.marginBottom ?? 14) + 'px',
+  };
+}
+function imageTextStyle(p) {
+  return { marginBottom: (p.marginBottom || 0) + 'px' };
+}
+function imageTextRatio(p) {
+  const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
+  return { aspectRatio: map[p.ratio] || '100%', objectFit: 'cover', width: '100%' };
+}
+function richTextStyle(p) {
+  return {
+    background: p.bgColor || 'transparent',
+    padding: (p.padding ?? 12) + 'px',
+    borderRadius: (p.radius ?? 0) + 'px',
+  };
+}
+function galleryStyle(p) {
+  return {
+    gridTemplateColumns: 'repeat(' + (p.columns || 2) + ',1fr)',
+    gap: (p.gap ?? 8) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+  };
+}
 
 // ===== 视频号视频辅助（eweishop 复刻） =====
 function chVideos(p) {
@@ -507,8 +541,8 @@ function chRadius(p, i) {
 .r-image img { width: 100%; border-radius: 8px; display: block; }
 .r-image-empty { height: 88px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; }
 .r-btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; text-align: center; }
-.r-divider { height: 1px; background: #e5e6eb; margin: 14px 0; position: relative; }
-.r-divider span { position: absolute; left: 50%; top: -8px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
+.r-divider { height: 0; margin: 14px 0; position: relative; }
+.r-divider span { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
 .r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -559,6 +593,8 @@ function chRadius(p, i) {
 .r-imagetext.overlay .r-imagetext-body { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, rgba(0,0,0,.55)); color: #fff; }
 .r-imagetext.overlay .r-imagetext-title { color: #fff; }
 .r-imagetext.overlay .r-imagetext-desc { color: rgba(255,255,255,.85); }
+.r-imagetext.center .r-imagetext-body { align-items: center; text-align: center; }
+.r-gallery-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #e5e6eb; min-height: 72px; }
 /* 轮播图 */
 .r-swiper { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; display: flex; }
 .r-swiper img { width: 100%; height: 100%; object-fit: cover; }
@@ -650,7 +686,6 @@ function chRadius(p, i) {
 .r-gallery { display: grid; width: 100%; }
 .r-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .r-gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.r-gallery-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #e5e6eb; }
 /* 标题栏 */
 .r-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
 .r-titlebar.center .r-tb-left { align-items: center; text-align: center; flex: 1; }

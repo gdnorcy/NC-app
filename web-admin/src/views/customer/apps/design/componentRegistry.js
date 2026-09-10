@@ -131,10 +131,14 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: '', link: '' },
+    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0 },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content', required: true },
-      { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'link', label: '跳转(热区)', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'widthMode', label: '宽度', control: 'radio', section: 'style', options: [{ label: '全宽', value: 'full' }, { label: '自适应', value: 'auto' }] },
+      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 24 },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
   },
   {
@@ -159,8 +163,15 @@ export const componentRegistry = [
     name: '分割线',
     group: 'basic',
     icon: 'divider',
-    defaultProps: { text: '' },
-    schema: [{ key: 'text', label: '文字', control: 'input', section: 'content', placeholder: '选填，显示在分割线中间' }],
+    defaultProps: { text: '', color: '#E5E6EB', thickness: 1, dashed: false, marginTop: 14, marginBottom: 14 },
+    schema: [
+      { key: 'text', label: '文字', control: 'input', section: 'content', placeholder: '选填，显示在分割线中间' },
+      { key: 'color', label: '颜色', control: 'color', section: 'style' },
+      { key: 'thickness', label: '线宽', control: 'slider', section: 'style', min: 1, max: 8 },
+      { key: 'dashed', label: '虚线', control: 'switch', section: 'style' },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
   },
   {
     type: 'notice',
@@ -287,13 +298,16 @@ export const componentRegistry = [
     name: '图文卡片',
     group: 'basic',
     icon: 'image-text',
-    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below' },
+    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below', ratio: '1:1', align: 'left', marginBottom: 0 },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content', required: true },
       { key: 'title', label: '标题', control: 'input', section: 'content' },
       { key: 'desc', label: '描述', control: 'input', section: 'content' },
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
       { key: 'textPos', label: '文字位置', control: 'radio', section: 'style', options: [{ label: '图下方', value: 'below' }, { label: '图上叠加', value: 'overlay' }] },
+      { key: 'ratio', label: '图片比例', control: 'radio', section: 'style', options: [{ label: '1:1', value: '1:1' }, { label: '4:3', value: '4:3' }, { label: '3:4', value: '3:4' }, { label: '16:9', value: '16:9' }] },
+      { key: 'align', label: '文字对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }] },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
   },
   {
@@ -477,9 +491,12 @@ export const componentRegistry = [
     name: '富文本',
     group: 'basic',
     icon: 'rich-text',
-    defaultProps: { html: '<p style="font-size:14px;color:#1d2129;line-height:1.7;">这里是富文本内容，支持图文混排。</p>' },
+    defaultProps: { html: '<p style="font-size:14px;color:#1d2129;line-height:1.7;">这里是富文本内容，支持图文混排。</p>', bgColor: '', padding: 12, radius: 0 },
     schema: [
       { key: 'html', label: '内容', control: 'textarea', section: 'content', rows: 6, placeholder: '支持 HTML 富文本（文字/图片/列表等）' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'padding', label: '内边距', control: 'slider', section: 'style', min: 0, max: 32 },
+      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 24 },
     ],
   },
   {
@@ -487,7 +504,7 @@ export const componentRegistry = [
     name: '组图橱窗',
     group: 'basic',
     icon: 'image-gallery',
-    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], columns: 2, radius: 8 },
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], columns: 2, radius: 8, gap: 8, marginBottom: 0 },
     schema: [
       {
         key: 'items', label: '组图', control: 'list', section: 'content',
@@ -498,6 +515,8 @@ export const componentRegistry = [
       },
       { key: 'columns', label: '列数', control: 'radio', section: 'style', options: [{ label: '2列', value: 2 }, { label: '3列', value: 3 }, { label: '4列', value: 4 }] },
       { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
+      { key: 'gap', label: '间距', control: 'slider', section: 'style', min: 0, max: 24 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
   },
   {
@@ -656,12 +675,10 @@ export const componentRegistry = [
     name: '辅助间距',
     group: 'basic',
     icon: 'spacer',
-    defaultProps: { height: 20, style: 'solid', color: '#E5E6EB', margin: 16 },
+    defaultProps: { height: 20, bgColor: '' },
     schema: [
-      { key: 'height', label: '线高(px)', control: 'slider', section: 'content', min: 1, max: 24 },
-      { key: 'style', label: '线型', control: 'radio', section: 'content', options: [{ label: '实线', value: 'solid' }, { label: '虚线', value: 'dashed' }, { label: '无线', value: 'none' }] },
-      { key: 'color', label: '颜色', control: 'color', section: 'style' },
-      { key: 'margin', label: '上下间距(px)', control: 'slider', section: 'style', min: 0, max: 48 },
+      { key: 'height', label: '高度', control: 'slider', section: 'content', min: 4, max: 120 },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
     ],
   },
   {

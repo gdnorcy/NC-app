@@ -10,8 +10,8 @@
         <text>{{ c.props.text || '文本内容' }}</text>
       </view>
       <!-- 图片 -->
-      <view v-else-if="c.type === 'image'" class="dp-image" @click="onJump(c.props.link)">
-        <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" />
+      <view v-else-if="c.type === 'image'" class="dp-image" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpImageBoxStyle(c.props)" @click="onJump(c.props.link)">
+        <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" :style="{ borderRadius: (c.props.radius || 0) + 'px' }" />
         <view v-else class="dp-image-empty"><text>图片</text></view>
       </view>
       <!-- 按钮 -->
@@ -19,9 +19,9 @@
         <text>{{ c.props.text || '按钮' }}</text>
       </view>
       <!-- 分割线 -->
-      <view v-else-if="c.type === 'divider'" class="dp-divider">
+      <view v-else-if="c.type === 'divider'" class="dp-divider" :style="dpDividerStyle(c.props)">
         <view class="dp-divider-line"></view>
-        <text v-if="c.props.text" class="dp-divider-text">{{ c.props.text }}</text>
+        <text v-if="c.props.text" class="dp-divider-text" :style="{ color: c.props.color || '#86909C' }">{{ c.props.text }}</text>
       </view>
       <!-- 公告 -->
       <view v-else-if="c.type === 'notice'" class="dp-notice" :style="dpNoticeStyle(c.props)" @click="onJump(c.props.url)">
@@ -92,9 +92,9 @@
         <view v-else class="dp-live-empty"><text>暂无直播</text></view>
       </view>
       <!-- 图文卡片 -->
-      <view v-else-if="c.type === 'image-text'" class="dp-imagetext" :class="{ overlay: c.props.textPos === 'overlay' }">
-        <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-it-img" @click="onJump(c.props.link)" />
-        <view v-else class="dp-it-empty"><text>图文卡片</text></view>
+      <view v-else-if="c.type === 'image-text'" class="dp-imagetext" :class="{ overlay: c.props.textPos === 'overlay', center: c.props.align === 'center' }" :style="dpImageTextStyle(c.props)">
+        <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="aspectFill" class="dp-it-img" :style="dpImageTextRatio(c.props)" @click="onJump(c.props.link)" />
+        <view v-else class="dp-it-empty" :style="dpImageTextRatio(c.props)"><text>图文卡片</text></view>
         <view class="dp-it-body">
           <text class="dp-it-title">{{ c.props.title || '图文标题' }}</text>
           <text class="dp-it-desc">{{ c.props.desc || '描述文字' }}</text>
@@ -216,11 +216,11 @@
         <view class="dp-chl-title"><text>{{ c.props.title || '直播标题' }}</text></view>
       </view>
       <!-- 富文本 -->
-      <view v-else-if="c.type === 'rich-text'" class="dp-richtext">
+      <view v-else-if="c.type === 'rich-text'" class="dp-richtext" :style="dpRichTextStyle(c.props)">
         <rich-text :nodes="c.props.html || '<p>富文本内容</p>'" />
       </view>
       <!-- 组图橱窗 -->
-      <view v-else-if="c.type === 'image-gallery'" class="dp-gallery" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 2) + ',1fr)', gap: '6px' }">
+      <view v-else-if="c.type === 'image-gallery'" class="dp-gallery" :style="dpGalleryStyle(c.props)">
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-gallery-cell" :style="{ borderRadius: (c.props.radius ?? 8) + 'px' }" @click="onJump(it.link)">
           <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-gallery-img" />
         </view>
@@ -302,7 +302,7 @@
         <!-- #endif -->
       </view>
       <!-- 辅助间距 -->
-      <view v-else-if="c.type === 'spacer'" class="dp-spacer" :style="{ margin: (c.props.margin ?? 16) + 'px 0', borderTop: c.props.style === 'none' ? 'none' : (c.props.height || 20) + 'px ' + (c.props.style || 'solid') + ' ' + (c.props.color || '#E5E6EB') }"></view>
+      <view v-else-if="c.type === 'spacer'" class="dp-spacer" :style="{ height: (c.props.height || 20) + 'px', background: c.props.bgColor || 'transparent' }"></view>
       <!-- 关注公众号 -->
       <view v-else-if="c.type === 'follow-official'" class="dp-follow">
         <view class="dp-follow-body">
@@ -456,6 +456,40 @@ function dpSearchStyle(p) {
 }
 function dpHotWords(p) {
   return String(p.hotWordsText || '').split(/[,，]/).map((s) => s.trim()).filter(Boolean).slice(0, 8);
+}
+// ===== 批2 图文类融合组件辅助 =====
+function dpImageBoxStyle(p) {
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (p.widthMode === 'auto') s.display = 'inline-block';
+  return s;
+}
+function dpDividerStyle(p) {
+  return {
+    borderTop: (p.thickness ?? 1) + 'px ' + (p.dashed ? 'dashed' : 'solid') + ' ' + (p.color || '#E5E6EB'),
+    marginTop: (p.marginTop ?? 14) + 'px',
+    marginBottom: (p.marginBottom ?? 14) + 'px',
+  };
+}
+function dpImageTextStyle(p) {
+  return { marginBottom: (p.marginBottom || 0) + 'px' };
+}
+function dpImageTextRatio(p) {
+  const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
+  return { width: '100%', aspectRatio: map[p.ratio] || '100%' };
+}
+function dpRichTextStyle(p) {
+  return {
+    background: p.bgColor || 'transparent',
+    padding: (p.padding ?? 12) + 'px',
+    borderRadius: (p.radius ?? 0) + 'px',
+  };
+}
+function dpGalleryStyle(p) {
+  return {
+    gridTemplateColumns: 'repeat(' + (p.columns || 2) + ',1fr)',
+    gap: (p.gap ?? 8) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+  };
 }
 function onFloatClick(p) {
   const link = p.link || '';
@@ -686,8 +720,8 @@ function openChannel(kind, p) {
 .dp-image-empty { height: 120px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 13px; }
 .dp-btn { display: inline-block; padding: 10px 24px; font-size: 14px; text-align: center; box-sizing: border-box; }
 .dp-btn.auto { width: auto; }
-.dp-divider { position: relative; height: 1px; background: #e5e6eb; margin: 14px 0; display: flex; align-items: center; justify-content: center; }
-.dp-divider-line { height: 1px; width: 100%; }
+.dp-divider { position: relative; height: 0; margin: 14px 0; display: flex; align-items: center; justify-content: center; }
+.dp-divider-line { display: none; }
 .dp-divider-text { position: absolute; background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
 .dp-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .dp-notice-tag { font-weight: 600; flex-shrink: 0; }
@@ -751,6 +785,7 @@ function openChannel(kind, p) {
 .dp-imagetext.overlay .dp-it-body { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, rgba(0,0,0,.55)); }
 .dp-imagetext.overlay .dp-it-title { color: #fff; }
 .dp-imagetext.overlay .dp-it-desc { color: rgba(255,255,255,.85); }
+.dp-imagetext.center .dp-it-body { align-items: center; text-align: center; }
 /* 轮播图 */
 .dp-swiper { border-radius: 8px; overflow: hidden; background: #f7f8fa; position: relative; }
 .dp-swiper-box { width: 100%; height: 100%; }
