@@ -188,6 +188,7 @@
                     <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
                   </el-select>
                   <div v-else-if="f.control === 'list'" class="pe-list">
+                    <a v-if="f.helpLink" class="pe-list-link" :href="f.helpLink.href" target="_blank" rel="noopener">{{ f.helpLink.text }}</a>
                     <div
                       v-for="(it, idx) in selectedComp.props[f.key] || []" :key="idx"
                       class="pe-list-item" draggable="true"
@@ -216,7 +217,7 @@
                         </div>
                       </div>
                       <div class="pe-list-ops">
-                        <el-button size="small" text type="danger" @click="selectedComp.props[f.key].splice(idx, 1)">删除</el-button>
+                        <el-button size="small" text type="danger" @click="removeListItem(selectedComp, f.key, idx)">删除</el-button>
                       </div>
                     </div>
                     <el-button size="small" class="pe-list-add" @click="addListItem(selectedComp, f.key, f.itemFields)">+ 添加一项</el-button>
@@ -996,6 +997,15 @@ function addListItem(comp, key, itemFields) {
   });
   items.push(blank);
 }
+// 列表项删除（最少保留 1 条）
+function removeListItem(comp, key, idx) {
+  const items = comp.props[key] || [];
+  if (items.length <= 1) {
+    ElMessage.warning('最少保留 1 个');
+    return;
+  }
+  items.splice(idx, 1);
+}
 // 列表项字段条件显示（when 依赖 item 自身值；期望 true 时 undefined 视为 true，兼容旧数据）
 function listFieldVisible(sf, it) {
   if (!sf.when) return true;
@@ -1182,6 +1192,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-list-field { display: flex; flex-direction: column; gap: 2px; }
 .pe-list-label { font-size: 11px; color: #86909c; }
 .pe-list-ops { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }
+.pe-list-link:hover { text-decoration: underline; }
 .pe-list-add { width: 100%; border-style: dashed; }
 
 /* 头部设置面板（主题/全局/头部/底部导航 + 第一行内容） */

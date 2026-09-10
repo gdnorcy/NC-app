@@ -58,7 +58,7 @@
               :key="i"
               class="dp-video-ch-item"
               :style="chItemStyle(c.props, i)"
-              @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId })"
+              @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId, feedToken: it.feedToken })"
             >
               <image v-if="c.props.bgType === 'image' && c.props.bgImage" :src="resolveUrl(c.props.bgImage)" mode="aspectFill" class="dp-video-ch-bg" />
               <view class="dp-video-ch-play">▶</view>
@@ -430,19 +430,34 @@ function openChannelsVideo(p) {
 
 // 视频号视频（eweishop 复刻）辅助：多视频列表 / 背景 / 圆角 / 间距
 function chVideos(p) {
-  if (p.sameOwner) {
-    // 同主体：视频号id 单填 + 视频id列表多视频（官方支持同主体多视频）
+  const vs = p.videos || [];
+  // 新结构：统一「选择视频」列表（条级 相同主体/视频号id/视频id/自动播放/feed-token）
+  if (vs.length) {
+    return vs.map((it) => {
+      const sameOwner = it.sameOwner !== undefined ? !!it.sameOwner : true;
+      return {
+        sameOwner,
+        finderUserName: (it && it.finderUserName) || p.finderUserName || '',
+        feedId: sameOwner ? (it && it.feedId) || '' : '',
+        feedToken: sameOwner ? '' : (it && it.feedToken) || '',
+        autoplayItem: (it && it.autoplayItem) || p.autoplay || 'auto',
+      };
+    });
+  }
+  // 旧结构兼容：组件级 sameOwner + videoIds（同主体多视频）
+  if (p.sameOwner !== false) {
     const ids = (p.videoIds && p.videoIds.length && p.videoIds.some((x) => x && x.feedId))
       ? p.videoIds
       : (p.feedId ? [{ feedId: p.feedId }] : []);
-    return ids.map((it) => ({ finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '' }));
+    return ids.map((it) => ({ sameOwner: true, finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '', feedToken: '', autoplayItem: p.autoplay || 'auto' }));
   }
-  const list = (p.videos && p.videos.length ? p.videos : [p]);
+  const list = (p.videos && p.videos.length ? p.videos : []);
   return list.map((it) => ({
-    finderUserName: (it && it.finderUserName) || p.finderUserName || '',
-    feedId: (it && it.feedId) || p.feedId || '',
-    feedToken: (it && it.feedToken) || p.feedToken || '',
-    sameOwner: !!(it && it.sameOwner),
+    sameOwner: false,
+    finderUserName: (it && it.finderUserName) || '',
+    feedId: '',
+    feedToken: (it && it.feedToken) || '',
+    autoplayItem: (it && it.autoplayItem) || 'auto',
   }));
 }
 function chStyle(p) {
@@ -484,7 +499,10 @@ function openChannel(kind, p) {
   if (typeof wx !== 'undefined' && wx[api]) {
     uni.showLoading({ title: '打开' + (nameMap[kind] || '视频号') + '…' });
     const arg = { finderUserName: p.finderUserName };
-    if (kind === 'video') arg.feedId = p.feedId;
+    if (kind === 'video') {
+      arg.feedId = p.feedId;
+      if (p.feedToken) arg.feedToken = p.feedToken;
+    }
     wx[api]({
       ...arg,
       success: () => uni.hideLoading(),

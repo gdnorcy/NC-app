@@ -213,9 +213,9 @@ export const componentRegistry = [
       // 本地视频
       url: '', poster: '', ratio: '16:9', displayMode: 'direct', autoplayLocal: false, loopLocal: false,
       // 视频号视频（eweishop 复刻）：风格一列/两列、相同主体、视频号id/视频id、自动播放+静音+循环、多视频、背景色/背景图、间距/高度/上圆角/下圆角
-      style: 'single', sameOwner: true, finderUserName: '', feedId: '', videoIds: [{ feedId: '' }],
-      autoplay: 'auto', muted: false, loop: false,
-      videos: [{ sameOwner: true, finderUserName: '', feedId: '', feedToken: '' }],
+      style: 'single',
+      videos: [{ sameOwner: true, finderUserName: '', feedId: '', autoplayItem: 'auto', feedToken: '' }],
+      muted: false, loop: false,
       chRatio: '16:9',
       bgType: 'color', bgColor: '', bgImage: '',
       vSpacing: 0, spaceTop: 0, spaceBottom: 0, hMargin: 0, height: 0, radiusTop: false, radiusBottom: false,
@@ -232,19 +232,14 @@ export const componentRegistry = [
       // ===== 视频号视频（eweishop 复刻） =====
       { key: 'hint', label: '该组件只支持微信小程序', control: 'hint', section: 'content', when: { source: 'channels' } },
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [{ label: '一列', value: 'single' }, { label: '两列并排', value: 'double' }], when: { source: 'channels' } },
-      { key: 'sameOwner', label: '相同主体', control: 'radio', section: 'content', options: [{ label: '是', value: true }, { label: '否', value: false }], when: { source: 'channels' } },
-      { key: 'finderUserName', label: '视频号id', control: 'input', section: 'content', placeholder: '微信视频号ID', when: { source: 'channels', sameOwner: true } },
-      { key: 'videoIds', label: '视频id列表', control: 'list', section: 'content', when: { source: 'channels', sameOwner: true }, itemFields: [
-        { key: 'feedId', label: '视频id', control: 'input', placeholder: '视频ID，可留空' },
-      ] },
-      { key: 'videos', label: '视频列表', control: 'list', section: 'content', when: { source: 'channels', sameOwner: false }, itemFields: [
+      { key: 'videos', label: '选择视频', control: 'list', section: 'content', when: { source: 'channels' }, helpLink: { text: '查看如何获取以下参数', href: 'https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/channels-activity.html#feed-token' }, itemFields: [
         { key: 'sameOwner', label: '相同主体', control: 'radio', options: [{ label: '是', value: true }, { label: '否', value: false }] },
-        { key: 'finderUserName', label: '视频号id', control: 'input' },
-        { key: 'feedId', label: '视频id', control: 'input', when: { sameOwner: true } },
+        { key: 'finderUserName', label: '视频号id', control: 'input', placeholder: '微信视频号ID', when: { sameOwner: true } },
+        { key: 'feedId', label: '视频id', control: 'input', placeholder: '视频ID，可留空', when: { sameOwner: true } },
+        { key: 'autoplayItem', label: '自动播放', control: 'radio', options: [{ label: '自动', value: 'auto' }, { label: '不自动', value: 'no' }], when: { sameOwner: true } },
         { key: 'feedToken', label: 'feed-token', control: 'input', placeholder: '非同主体视频标识', when: { sameOwner: false } },
       ] },
       { key: 'chRatio', label: '视频样式', control: 'radio', graphic: true, section: 'style', options: [{ label: '16:9', value: '16:9' }, { label: '4:3', value: '4:3' }, { label: '1:1', value: '1:1' }, { label: '9:16', value: '9:16' }], when: { source: 'channels' } },
-      { key: 'autoplay', label: '自动播放', control: 'radio', section: 'style', options: [{ label: '自动', value: 'auto' }, { label: '不自动', value: 'no' }], when: { source: 'channels' } },
       { key: 'muted', label: '静音', control: 'switch', section: 'style', when: { source: 'channels' } },
       { key: 'loop', label: '循环', control: 'switch', section: 'style', when: { source: 'channels' } },
       { key: 'bgType', label: '背景', control: 'radio', section: 'style', options: [{ label: '背景色', value: 'color' }, { label: '背景图片', value: 'image' }], when: { source: 'channels' } },

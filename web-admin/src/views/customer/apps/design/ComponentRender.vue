@@ -55,7 +55,7 @@
           </div>
         </div>
         <div v-if="!chVideos(comp.props).length" class="r-video-ch-empty">请填写视频号id</div>
-        <div class="r-video-ch-meta">{{ comp.props.autoplay === 'auto' ? '自动播放' : '手动播放' }}<template v-if="comp.props.muted"> · 静音</template><template v-if="comp.props.loop"> · 循环</template></div>
+        <div class="r-video-ch-meta">{{ (chVideos(comp.props)[0] && chVideos(comp.props)[0].autoplayItem) !== 'no' ? '自动播放' : '手动播放' }}<template v-if="comp.props.muted"> · 静音</template><template v-if="comp.props.loop"> · 循环</template></div>
       </div>
       <!-- 本地视频 -->
       <div v-else class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.ratio] || '16 / 9' }">
@@ -318,19 +318,34 @@ function resolveUrl(u) {
 
 // ===== 视频号视频辅助（eweishop 复刻） =====
 function chVideos(p) {
-  if (p.sameOwner) {
-    // 同主体：视频号id 单填 + 视频id列表多视频（官方支持同主体多视频）
+  const vs = p.videos || [];
+  // 新结构：统一「选择视频」列表（条级 相同主体/视频号id/视频id/自动播放/feed-token）
+  if (vs.length) {
+    return vs.map((it) => {
+      const sameOwner = it.sameOwner !== undefined ? !!it.sameOwner : true;
+      return {
+        sameOwner,
+        finderUserName: (it && it.finderUserName) || p.finderUserName || '',
+        feedId: sameOwner ? (it && it.feedId) || '' : '',
+        feedToken: sameOwner ? '' : (it && it.feedToken) || '',
+        autoplayItem: (it && it.autoplayItem) || p.autoplay || 'auto',
+      };
+    });
+  }
+  // 旧结构兼容：组件级 sameOwner + videoIds（同主体多视频）
+  if (p.sameOwner !== false) {
     const ids = (p.videoIds && p.videoIds.length && p.videoIds.some((x) => x && x.feedId))
       ? p.videoIds
       : (p.feedId ? [{ feedId: p.feedId }] : []);
-    return ids.map((it) => ({ finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '' }));
+    return ids.map((it) => ({ sameOwner: true, finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '', feedToken: '', autoplayItem: p.autoplay || 'auto' }));
   }
-  const list = (p.videos && p.videos.length ? p.videos : [p]);
+  const list = (p.videos && p.videos.length ? p.videos : []);
   return list.map((it) => ({
-    finderUserName: (it && it.finderUserName) || p.finderUserName || '',
-    feedId: (it && it.feedId) || p.feedId || '',
-    feedToken: (it && it.feedToken) || p.feedToken || '',
-    sameOwner: !!(it && it.sameOwner),
+    sameOwner: false,
+    finderUserName: (it && it.finderUserName) || '',
+    feedId: '',
+    feedToken: (it && it.feedToken) || '',
+    autoplayItem: (it && it.autoplayItem) || 'auto',
   }));
 }
 function chStyle(p) {
