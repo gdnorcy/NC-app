@@ -56,21 +56,24 @@
     <template v-else-if="comp.type === 'countdown'">
       <div
         class="r-countdown"
-        :class="'r-cd-s' + (comp.props.styleId || 1) + ' ' + (comp.props.style === 'border' ? 'r-cd-border' : 'r-cd-shadow')"
+        :class="'r-cd-s' + (comp.props.styleId || 1) + ' ' + rCdStyleClass(comp.props)"
         :style="cdBoxStyle(comp.props)"
       >
         <div v-if="comp.props.cdBgType === 'image' && comp.props.cdBgImage" class="r-cd-bgimg"><img :src="resolveUrl(comp.props.cdBgImage)" /></div>
-        <div class="r-cd-title" :style="{ color: comp.props.cdTitleColor || '#1d2129' }">{{ comp.props.title || '限时活动' }}</div>
+        <div class="r-cd-title" :style="{ color: comp.props.cdTitleColor || '#ffffff' }">{{ cdTitle(comp.props) }}</div>
         <div class="r-cd-cols">
-          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 'd') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">天</i></span>
-          <em>:</em>
-          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 'h') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">时</i></span>
-          <em>:</em>
-          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 'm') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">分</i></span>
-          <em>:</em>
-          <span class="r-cd-cell"><b :style="cdNumStyle(comp.props)">{{ cdPart(comp.props, 's') }}</b><i :style="{ color: comp.props.cdNumColor || '#86909c' }">秒</i></span>
+          <template v-if="(comp.props.styleId || 1) === 1">
+            <!-- 风格1：每位数字独立块 + 天/小时/分 -->
+            <template v-for="(ch, ci) in cdDigits(comp.props, 'd')" :key="'d' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
+            <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">天</i>
+            <template v-for="(ch, ci) in cdDigits(comp.props, 'h')" :key="'h' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
+            <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">小时</i>
+            <template v-for="(ch, ci) in cdDigits(comp.props, 'm')" :key="'m' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
+            <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">分</i>
+          </template>
+          <span v-else class="r-cd-inline" :style="cdInlineStyle(comp.props)">{{ cdPart(comp.props, 'd') }}天{{ cdPart(comp.props, 'h') }}小时{{ cdPart(comp.props, 'm') }}分</span>
         </div>
-        <div v-if="comp.props.btnText" class="r-cd-btn" :style="cdBtnStyle(comp.props)">{{ comp.props.btnText }}</div>
+        <div class="r-cd-btn" :style="cdBtnStyle(comp.props)">{{ comp.props.btnText || '抢先查看' }}</div>
       </div>
     </template>
     <template v-else-if="comp.type === 'form'">
@@ -409,8 +412,25 @@ function panoCategories(p) {
 // ---- 倒计时（eweishop 1:1 复刻）：动态时间计算 + 风格/样式 + 颜色设置 ----
 function cdPart(p, k) {
   const v = countdownRemain(p);
-  const map = { d: v.days, h: v.hours, m: v.minutes, s: v.seconds };
+  const map = { d: v.days, h: v.hours, m: v.minutes };
   return String(map[k] || 0).padStart(2, '0');
+}
+function cdDigits(p, k) {
+  return cdPart(p, k).split('');
+}
+function cdTitle(p) {
+  const now = Date.now();
+  const start = p.startTime ? new Date(String(p.startTime).replace(' ', 'T')).getTime() : 0;
+  const end = p.endTime ? new Date(String(p.endTime).replace(' ', 'T')).getTime() : 0;
+  if (start && now < start) return '距活动开始还有';
+  if (end && now < end) return '距活动结束还有';
+  if (end && now >= end) return '活动已结束';
+  return '距活动开始还有';
+}
+function rCdStyleClass(p) {
+  if (p.style === 'border') return 'r-cd-border';
+  if (p.style === 'shadow') return 'r-cd-shadow';
+  return 'r-cd-plain';
 }
 function countdownRemain(p) {
   const now = Date.now();
@@ -431,6 +451,16 @@ function cdNumStyle(p) {
   const s = {};
   if (p.cdNumBg) s.background = p.cdNumBg;
   if (p.cdNumColor) s.color = p.cdNumColor;
+  return s;
+}
+function cdUnitStyle(p) {
+  return { color: p.cdNumColor || '#1d2129' };
+}
+function cdInlineStyle(p) {
+  const s = {};
+  if (p.cdNumColor) s.color = p.cdNumColor;
+  if (p.style === 'shadow') s.textShadow = '0 2px 6px rgba(0,0,0,0.25)';
+  if (p.style === 'border') s.webkitTextStroke = '1px rgba(255,255,255,0.6)';
   return s;
 }
 function cdBoxStyle(p) {
@@ -646,21 +676,19 @@ function chRadius(p, i) {
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
 .r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.r-countdown { padding: 14px; background: #fff; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; align-items: center; position: relative; overflow: hidden; }
+.r-countdown { padding: 14px; background: transparent; display: flex; flex-direction: column; gap: 10px; align-items: center; position: relative; overflow: hidden; }
 .r-countdown .r-cd-bgimg { position: absolute; inset: 0; z-index: 0; }
 .r-countdown .r-cd-bgimg img { width: 100%; height: 100%; object-fit: cover; }
 .r-countdown > .r-cd-title, .r-countdown > .r-cd-cols, .r-countdown > .r-cd-btn { position: relative; z-index: 1; }
-.r-cd-title { font-size: 14px; font-weight: 600; color: #1d2129; }
-.r-cd-cols { display: flex; align-items: center; gap: 6px; }
-.r-cd-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.r-cd-cell b { font-size: 18px; font-weight: 700; color: #fff; background: #165dff; border-radius: 6px; padding: 2px 8px; line-height: 1.4; min-width: 30px; text-align: center; }
-.r-cd-shadow .r-cd-cell b { box-shadow: 0 2px 6px rgba(22, 93, 255, 0.35); }
-.r-cd-border .r-cd-cell b { box-shadow: none; border: 1px solid rgba(255, 255, 255, 0.6); }
-.r-cd-s2 .r-cd-cell b { background: transparent; color: #165dff; padding: 0; font-size: 20px; box-shadow: none; border: none; min-width: 0; }
-.r-cd-s2 .r-cd-cols em { color: #165dff; }
-.r-cd-cell i { font-style: normal; font-size: 11px; color: #86909c; }
-.r-cd-cols em { font-style: normal; color: #165dff; font-weight: 700; font-size: 16px; }
-.r-cd-btn { margin-top: 10px; color: #fff; font-size: 12px; padding: 4px 14px; border-radius: 12px; }
+.r-cd-title { font-size: 14px; font-weight: 600; color: #ffffff; }
+.r-cd-cols { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.r-cd-digit { font-size: 13px; font-weight: 700; color: #FC5917; background: #ffffff; border-radius: 3px; padding: 2px 4px; line-height: 1.4; min-width: 16px; text-align: center; font-style: normal; }
+.r-cd-unit { font-style: normal; font-size: 12px; color: #1d2129; margin: 0 3px 0 1px; }
+.r-cd-inline { font-size: 15px; font-weight: 600; color: #FC5917; }
+.r-cd-plain .r-cd-digit { box-shadow: none; border: none; }
+.r-cd-shadow .r-cd-digit { box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18); }
+.r-cd-border .r-cd-digit { box-shadow: none; border: 1px solid rgba(252, 89, 23, 0.45); }
+.r-cd-btn { margin-top: 10px; color: #FC5917; font-size: 12px; padding: 4px 14px; border-radius: 12px; background: #FEEC22; }
 .r-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-title { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-row .r-article-item { display: flex; gap: 10px; align-items: flex-start; }

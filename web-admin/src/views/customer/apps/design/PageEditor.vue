@@ -186,6 +186,11 @@
                       <span class="pe-graphic-check">✓</span>
                     </div>
                   </div>
+                  <!-- 风格选择器（eweishop 1:1：当前风格 + 修改风格弹窗） -->
+                  <div v-else-if="f.control === 'stylePicker'" class="pe-style-picker">
+                    <span class="pe-style-cur">当前：{{ styleName(f) }}</span>
+                    <el-button size="small" type="primary" plain @click="openStylePicker(f)">修改风格</el-button>
+                  </div>
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
@@ -454,6 +459,30 @@
       </template>
     </el-drawer>
 
+    <!-- 风格选择器（eweishop 1:1：风格1/风格2 缩略图弹窗） -->
+    <el-dialog v-model="stylePickerVisible" title="风格选择器" width="500px" append-to-body>
+      <div class="pe-style-grid">
+        <div
+          v-for="o in (stylePickerField?.options || [])" :key="o.value"
+          class="pe-style-card" :class="{ active: String(selectedComp?.props[stylePickerField?.key]) === String(o.value) }"
+          @click="pickStyle(o)"
+        >
+          <div class="pe-style-thumb" :class="'pe-style-thumb-s' + o.value">
+            <span class="th-cd">
+              <span class="th-cd-title">距离活动开始还有</span>
+              <span v-if="o.value === 1" class="th-cd-row th-s1">
+                <b>01</b><i>天</i><b>22</b><i>小时</i><b>18</b><i>分</i>
+              </span>
+              <span v-else class="th-cd-row th-s2">01天22小时18分</span>
+              <span class="th-cd-btn">抢先查看</span>
+            </span>
+          </div>
+          <span class="pe-style-name">{{ o.label }}</span>
+          <span class="pe-style-check">✓</span>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 历史版本 -->
     <el-dialog v-model="versionShow" title="历史版本（发布保留最近 3 版）" width="560px" append-to-body>
       <el-table :data="versions" size="small" stripe>
@@ -539,6 +568,22 @@ const saving = ref(false);
 const publishing = ref(false);
 const previewing = ref(false);
 const versionShow = ref(false);
+// 风格选择器（eweishop 1:1：修改风格 → 弹窗选择）
+const stylePickerVisible = ref(false);
+const stylePickerField = ref(null);
+function styleName(f) {
+  const o = (f.options || []).find((x) => String(x.value) === String(selectedComp.value?.props?.[f.key]));
+  return o ? o.label : (f.options?.[0]?.label || '');
+}
+function openStylePicker(f) {
+  stylePickerField.value = f;
+  stylePickerVisible.value = true;
+}
+function pickStyle(o) {
+  if (!selectedComp.value || !stylePickerField.value) return;
+  selectedComp.value.props[stylePickerField.value.key] = o.value;
+  stylePickerVisible.value = false;
+}
 const versions = ref([]);
 const imgSel = reactive({ show: false, pick: null, target: null });
 let imgSelListField = null; // 当前 list 字段定义（openImgSel 传入，确认时回写对应 key）
@@ -1369,6 +1414,27 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-graphic-item.active .pe-graphic-name { color: #165dff; font-weight: 500; }
 .pe-graphic-check { position: absolute; top: 4px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
 .pe-graphic-item.active .pe-graphic-check { display: block; }
+/* 风格选择器（eweishop 1:1：修改风格 → 弹窗） */
+.pe-style-picker { display: flex; align-items: center; gap: 8px; width: 100%; }
+.pe-style-cur { font-size: 12px; color: #4e5969; }
+.pe-style-grid { display: flex; gap: 14px; }
+.pe-style-card { position: relative; flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px; cursor: pointer; background: #fff; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pe-style-card:hover { border-color: #c9cdd4; }
+.pe-style-card.active { border-color: #165dff; background: #f7fbff; box-shadow: 0 0 0 1px #165dff; }
+.pe-style-thumb { width: 100%; aspect-ratio: 280/220; border-radius: 6px; background: linear-gradient(160deg, #fff7ec, #ffe4c4); display: flex; align-items: center; justify-content: center; }
+.pe-style-thumb-s2 { background: linear-gradient(160deg, #eef4ff, #d6e6ff); }
+.th-cd { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px; }
+.th-cd-title { font-size: 11px; color: #ff7d00; }
+.pe-style-thumb-s2 .th-cd-title { color: #2f6bff; }
+.th-cd-row { display: flex; align-items: center; gap: 3px; font-size: 12px; }
+.th-s1 b { background: #165dff; color: #fff; font-weight: 700; border-radius: 4px; padding: 2px 5px; font-size: 12px; min-width: 20px; text-align: center; }
+.th-s1 i { font-style: normal; color: #1d2129; font-size: 11px; }
+.th-s2 { color: #165dff; font-weight: 600; }
+.th-cd-btn { background: #fc5917; color: #fff; font-size: 10px; padding: 2px 10px; border-radius: 10px; }
+.pe-style-name { font-size: 12px; color: #4e5969; }
+.pe-style-card.active .pe-style-name { color: #165dff; font-weight: 500; }
+.pe-style-check { position: absolute; top: 5px; right: 7px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
+.pe-style-card.active .pe-style-check { display: block; }
 /* list 类型字段（轮播图/宫格导航 items）：标签置顶一行，内容占整行宽 */
 .pe-prop-body :deep(.el-form-item.prop-list) { flex-direction: column; align-items: stretch; }
 .pe-prop-body :deep(.el-form-item.prop-list .el-form-item__label) { width: auto !important; justify-content: flex-start; height: auto; line-height: 1.4; margin-bottom: 4px; padding-bottom: 0; }
