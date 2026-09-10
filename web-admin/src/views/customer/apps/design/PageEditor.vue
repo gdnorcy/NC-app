@@ -92,11 +92,18 @@
               <svg class="ps-ico" viewBox="0 0 28 14" width="22" height="12"><rect x="0.5" y="0.5" width="23" height="13" rx="3" fill="none" stroke="#1d2129" stroke-width="1.2"/><rect x="2" y="2" width="16" height="10" rx="1.6" fill="#1d2129"/><rect x="25" y="4.5" width="2.5" height="5" rx="1" fill="#1d2129"/></svg>
             </span>
           </div>
-          <!-- 导航栏：按头部设置（类型/背景/内容/第一行内容）渲染 -->
+          <!-- 导航栏：按头部设置（类型/背景/内容/第一行/第二行内容）渲染，点击弹出头部设置 -->
           <div class="pe-phone-nav" :style="navStyle" title="点击设置头部样式" @click.stop="openHeaderPanel">
-            <div class="pn-side pn-left" v-html="navLeftHtml"></div>
-            <div class="pn-title" :style="{ color: navTextColor }">{{ meta.header.titleText || pageName }}</div>
-            <div class="pn-side pn-right" v-html="navRightHtml"></div>
+            <div class="pn-line">
+              <div class="pn-side pn-left" v-html="navLeftHtml"></div>
+              <div class="pn-title" :style="{ color: navTextColor }" v-html="navCenterHtml1"></div>
+              <div class="pn-side pn-right" v-html="navRightHtml"></div>
+            </div>
+            <div v-if="meta.header.lines === 2 && meta.header.type === 'custom'" class="pn-line pn-line2">
+              <div class="pn-side pn-left" v-html="navPosHtml2('left')"></div>
+              <div class="pn-title" :style="{ color: navTextColor }" v-html="navCenterHtml2"></div>
+              <div class="pn-side pn-right" v-html="navPosHtml2('right')"></div>
+            </div>
           </div>
           <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop="onCanvasDrop">
             <div
@@ -310,27 +317,64 @@
           <el-color-picker v-model="meta.header.textColor" />
         </div>
 
-        <!-- 第一行内容：左侧 / 中间 / 右侧（参考云菜鸟） -->
-        <div class="hp-sec">第一行内容</div>
-        <div v-for="pos in ['left', 'center', 'right']" :key="pos" class="hp-row hp-pos">
-          <div class="hp-label">{{ { left: '左侧', center: '中间', right: '右侧' }[pos] }}</div>
-          <el-select v-model="meta.header.content[pos].type" size="small" style="width: 110px">
-            <el-option label="不显示" value="none" />
-            <el-option label="文字" value="text" />
-            <el-option label="图片" value="image" />
-            <el-option label="搜索" value="search" />
-            <el-option label="图标+文字" value="iconText" />
-          </el-select>
-          <template v-if="meta.header.content[pos].type !== 'none'">
-            <el-input v-if="['text','search','iconText'].includes(meta.header.content[pos].type)" v-model="meta.header.content[pos].text" size="small" placeholder="内容文字" style="width: 100px" />
-            <el-button v-if="meta.header.content[pos].type === 'image'" size="small" @click="openHeaderImg('content', pos)">选图</el-button>
-            <el-input v-if="['image','iconText'].includes(meta.header.content[pos].type) && meta.header.content[pos].type === 'image'" :model-value="meta.header.content[pos].image" size="small" placeholder="图片" style="width: 90px" disabled />
-            <el-input v-model="meta.header.content[pos].link" size="small" placeholder="链接" style="width: 110px">
-              <template #append><el-button @click="openHeaderLink(pos)">选择</el-button></template>
-            </el-input>
-            <el-color-picker v-model="meta.header.content[pos].color" />
-          </template>
-        </div>
+        <!-- 第一行 / 第二行内容（云菜鸟：两行内容时出现第二行配置；左侧含文字加粗/大小/链接，中间含背景/边框/宽度/圆角/字体色/大小/对齐） -->
+        <template v-for="(block, bi) in headerBlocks" :key="bi">
+          <div class="hp-sec">{{ block.label }}</div>
+          <div v-for="pos in ['left', 'center', 'right']" :key="pos" class="hp-row hp-pos">
+            <div class="hp-label">{{ { left: '左侧部分', center: '中间部分', right: '右侧部分' }[pos] }}</div>
+            <el-select v-model="block.row[pos].type" size="small" style="width: 96px">
+              <el-option label="不显示" value="none" />
+              <el-option label="文字" value="text" />
+              <el-option label="图片" value="image" />
+              <el-option label="搜索" value="search" />
+              <el-option label="图标" value="iconText" />
+            </el-select>
+            <template v-if="block.row[pos].type !== 'none'">
+              <el-input v-if="['text','search','iconText'].includes(block.row[pos].type)" v-model="block.row[pos].text" size="small" placeholder="内容文字" style="width: 96px" />
+              <el-button v-if="block.row[pos].type === 'image'" size="small" @click="openHeaderImg('content', pos, block.row)">选图</el-button>
+              <el-input v-model="block.row[pos].link" size="small" placeholder="链接" style="width: 96px">
+                <template #append><el-button @click="openHeaderLink(pos, block.row)">选</el-button></template>
+              </el-input>
+              <el-color-picker v-model="block.row[pos].color" />
+              <!-- 文字样式：加粗 + 大小（云菜鸟） -->
+              <template v-if="['text','search','iconText'].includes(block.row[pos].type)">
+                <div class="hp-sub">
+                  <span class="hp-sub-label">加粗</span>
+                  <el-radio-group v-model="block.row[pos].bold" size="small">
+                    <el-radio-button :value="0">不加粗</el-radio-button>
+                    <el-radio-button :value="1">加粗</el-radio-button>
+                  </el-radio-group>
+                </div>
+                <div class="hp-sub">
+                  <span class="hp-sub-label">字号</span>
+                  <el-input-number v-model="block.row[pos].fontSize" :min="10" :max="22" size="small" style="width: 90px" />
+                </div>
+              </template>
+              <!-- 中间部分额外样式（云菜鸟：背景/边框/宽度/圆角/字体色/对齐） -->
+              <template v-if="pos === 'center'">
+                <div class="hp-sub">
+                  <span class="hp-sub-label">背景色</span>
+                  <el-color-picker v-model="block.row[pos].bgColor" />
+                  <span class="hp-sub-label">边框色</span>
+                  <el-color-picker v-model="block.row[pos].borderColor" />
+                </div>
+                <div class="hp-sub">
+                  <span class="hp-sub-label">宽度px</span>
+                  <el-input-number v-model="block.row[pos].width" :min="40" :max="600" size="small" style="width: 90px" />
+                  <span class="hp-sub-label">圆角px</span>
+                  <el-input-number v-model="block.row[pos].radius" :min="0" :max="60" size="small" style="width: 90px" />
+                </div>
+                <div class="hp-sub">
+                  <span class="hp-sub-label">对齐</span>
+                  <el-radio-group v-model="block.row[pos].align" size="small">
+                    <el-radio-button value="left">居左</el-radio-button>
+                    <el-radio-button value="center">居中</el-radio-button>
+                  </el-radio-group>
+                </div>
+              </template>
+            </template>
+          </div>
+        </template>
         </template>
       </div>
 
@@ -426,7 +470,7 @@ const pageList = ref([]);
 const meta = reactive({
   theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
   global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12 },
-  header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: { left: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, center: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, right: { type: 'none', text: '', image: '', link: '', color: '#1d2129' } } },
+  header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
 });
 const tabSchemes = ref([]);
@@ -470,17 +514,66 @@ function navPosHtml(pos) {
   const c = meta.header.content[pos] || {};
   const color = meta.header.type === 'immersive' ? '#ffffff' : (c.color || '#1d2129');
   if (c.type === 'none' || !c.type) return '';
-  if (c.type === 'text') return `<span style="color:${color};font-size:14px;line-height:1">${c.text || ''}</span>`;
+  const weight = c.bold ? 'font-weight:600;' : '';
+  if (c.type === 'text') return `<span style="color:${color};font-size:${c.fontSize || 13}px;${weight}line-height:1">${c.text || ''}</span>`;
+  if (c.type === 'search') return `<span style="display:inline-flex;align-items:center;gap:4px;color:${color};font-size:${c.fontSize || 12}px;background:rgba(0,0,0,.05);border-radius:12px;padding:2px 10px;line-height:1.4">⌕ ${c.text || '搜索'}</span>`;
+  if (c.type === 'image' && c.image) return `<img src="${resolveUrl(c.image)}" style="height:28px;max-width:60px;object-fit:contain" />`;
+  if (c.type === 'iconText') return `<span style="display:inline-flex;align-items:center;gap:3px;color:${color};font-size:${c.fontSize || 12}px;${weight}line-height:1">● ${c.text || ''}</span>`;
+  return '';
+}
+// 中间部分：配置了内容则按配置（背景/边框/宽度/圆角/对齐/字体色）渲染，否则回退标题文字
+function navCenterHtml(rowKey) {
+  if (meta.header.type === 'official') return meta.header.titleText || '首页';
+  if (meta.header.type === 'immersive') return meta.header.titleText || '首页';
+  const c = (meta.header[rowKey] || meta.header.content)['center'] || {};
+  const color = (meta.header.type === 'immersive' ? '#ffffff' : (c.color || meta.header.textColor || '#1d2129'));
+  if (c.type && c.type !== 'none' && (c.text || c.image)) {
+    let inner = '';
+    if (c.type === 'text') inner = `<span style="color:${color};font-size:${c.fontSize || 13}px;${c.bold ? 'font-weight:600;' : ''}line-height:1">${c.text}</span>`;
+    else if (c.type === 'image' && c.image) inner = `<img src="${resolveUrl(c.image)}" style="height:26px;max-width:120px;object-fit:contain;display:block" />`;
+    else if (c.type === 'search') inner = `<span style="color:${color};font-size:${c.fontSize || 12}px;background:rgba(0,0,0,.05);border-radius:12px;padding:2px 10px">⌕ ${c.text || '搜索'}</span>`;
+    const style = [];
+    if (c.bgColor) style.push(`background:${c.bgColor}`);
+    if (c.borderColor) style.push(`border:1px solid ${c.borderColor}`);
+    if (c.width) style.push(`width:${c.width}px`);
+    if (c.radius != null) style.push(`border-radius:${c.radius}px`);
+    style.push('display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 10px;box-sizing:border-box');
+    return `<span style="${style.join(';')}">${inner}</span>`;
+  }
+  const base = meta.header.type === 'immersive' ? '#ffffff' : (meta.header.textColor || '#1d2129');
+  return `<span style="color:${base};font-size:14px;font-weight:600;line-height:1">${meta.header.titleText || '首页'}</span>`;
+}
+const navLeftHtml = computed(() => navPosHtml('left'));
+const navRightHtml = computed(() => navPosHtml('right'));
+const navCenterHtml1 = computed(() => navCenterHtml('content'));
+const navCenterHtml2 = computed(() => (meta.header.lines === 2 ? navCenterHtml('content2') : ''));
+function navPosHtml2(pos) {
+  if (meta.header.type !== 'custom' || meta.header.lines !== 2) return '';
+  const c = (meta.header.content2 || {})[pos] || {};
+  const color = c.color || '#1d2129';
+  if (c.type === 'none' || !c.type) return '';
+  const weight = c.bold ? 'font-weight:600;' : '';
+  if (c.type === 'text') return `<span style="color:${color};font-size:${c.fontSize || 13}px;${weight}line-height:1">${c.text || ''}</span>`;
   if (c.type === 'search') return `<span style="display:inline-flex;align-items:center;gap:4px;color:${color};font-size:12px;background:rgba(0,0,0,.05);border-radius:12px;padding:2px 10px;line-height:1.4">⌕ ${c.text || '搜索'}</span>`;
   if (c.type === 'image' && c.image) return `<img src="${resolveUrl(c.image)}" style="height:28px;max-width:60px;object-fit:contain" />`;
   if (c.type === 'iconText') return `<span style="display:inline-flex;align-items:center;gap:3px;color:${color};font-size:12px;line-height:1">● ${c.text || ''}</span>`;
   return '';
 }
-const navLeftHtml = computed(() => navPosHtml('left'));
-const navRightHtml = computed(() => navPosHtml('right'));
+function mkHeaderRow() {
+  return {
+    left: { type: 'none', text: '', image: '', link: '', color: '#1d2129', bold: 0, fontSize: 13 },
+    center: { type: 'none', text: '', image: '', link: '', color: '#1d2129', bold: 0, fontSize: 13, bgColor: '', borderColor: '', width: 154, radius: 23, align: 'center' },
+    right: { type: 'none', text: '', image: '', link: '', color: '#1d2129', bold: 0, fontSize: 13 },
+  };
+}
+const headerBlocks = computed(() => {
+  const blocks = [{ label: '第一行内容', row: meta.header.content }];
+  if (meta.header.lines === 2) blocks.push({ label: '第二行内容', row: meta.header.content2 });
+  return blocks;
+});
 function openHeaderPanel() { headerPanel.active = 'header'; headerPanel.show = true; }
-function openHeaderImg(target, pos) {
-  imgSel.target = pos ? { target, pos } : { target };
+function openHeaderImg(target, pos, row) {
+  imgSel.target = pos ? { target, pos, row: row || null } : { target };
   imgSel.show = true;
 }
 
@@ -663,7 +756,7 @@ function defaultMeta() {
   return {
     theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
     global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12 },
-    header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: { left: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, center: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, right: { type: 'none', text: '', image: '', link: '', color: '#1d2129' } } },
+    header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow() },
     nav: { mode: 'default', schemeId: null, jumpEnabled: true },
   };
 }
@@ -789,7 +882,8 @@ function confirmImgSel(url, mid) {
       if (!items[imgSel.target.listIdx]) items[imgSel.target.listIdx] = {};
       items[imgSel.target.listIdx][imgSelListField.itemFields[imgSel.target.fieldIdx].key] = url;
     } else if (imgSel.target?.pos) {
-      meta.header.content[imgSel.target.pos].image = url;
+      const row = imgSel.target.row || meta.header.content;
+      row[imgSel.target.pos].image = url;
     } else if (imgSel.target?.target === 'header') {
       meta.header.bgImage = url;
     } else if (imgSel.target?.target === 'global') {
@@ -803,7 +897,7 @@ function confirmImgSel(url, mid) {
 }
 
 // 系统链接选择器：link 字段点「选择」弹窗回填
-const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, current: '' });
+const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '' });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
   if (selectedComp.value) {
@@ -822,20 +916,22 @@ function openLinkSel(listIdx, fieldIdx, listField) {
   linkSel.current = current;
   linkSel.show = true;
 }
-function openHeaderLink(pos) {
+function openHeaderLink(pos, row) {
   linkSel.fieldKey = null;
   linkSel.listField = null;
   linkSel.listIdx = null;
   linkSel.fieldIdx = null;
   linkSel.headerPos = pos;
-  linkSel.current = meta.header.content[pos]?.link || '';
+  linkSel.headerRow = row || null;
+  linkSel.current = (row || meta.header.content)[pos]?.link || '';
   linkSel.show = true;
 }
 function confirmLinkSel(link) {
   if (link) {
     if (linkSel.headerPos) {
-      if (!meta.header.content[linkSel.headerPos]) meta.header.content[linkSel.headerPos] = {};
-      meta.header.content[linkSel.headerPos].link = link;
+      const row = linkSel.headerRow || meta.header.content;
+      if (!row[linkSel.headerPos]) row[linkSel.headerPos] = {};
+      row[linkSel.headerPos].link = link;
     } else if (selectedComp.value) {
       if (linkSel.listField && typeof linkSel.listIdx === 'number' && typeof linkSel.fieldIdx === 'number') {
         const items = selectedComp.value.props[linkSel.listField.key] || [];
@@ -956,12 +1052,13 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .ps-time { font-size: 12px; font-weight: 600; color: #1d2129; }
 .ps-icons { display: flex; align-items: center; gap: 5px; }
 .ps-ico { display: block; }
-/* 导航栏：按头部设置（类型/背景/内容/第一行内容）渲染，点击弹出头部设置 */
+/* 导航栏：按头部设置（类型/背景/内容/第一行/第二行内容）渲染，点击弹出头部设置 */
 .pe-phone-nav {
-  height: 40px; display: flex; align-items: center; justify-content: space-between;
+  display: flex; flex-direction: column;
   padding: 0 12px; font-size: 14px; font-weight: 600; color: #1d2129;
   background: #fff; border-bottom: 1px solid #f0f1f3; cursor: pointer;
 }
+.pn-line { height: 40px; display: flex; align-items: center; justify-content: space-between; width: 100%; }
 .pn-side { min-width: 56px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
 .pn-left { justify-content: flex-start; }
 .pn-right { justify-content: flex-end; }

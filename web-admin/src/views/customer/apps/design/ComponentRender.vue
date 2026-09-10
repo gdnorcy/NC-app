@@ -46,9 +46,24 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'video'">
-      <div class="r-video">
+      <div class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ height: (comp.props.ratio === '9:16' ? '160px' : comp.props.ratio === '1:1' ? '120px' : comp.props.ratio === '4:3' ? '100px' : '80px') }">
         <img v-if="comp.props.poster" :src="resolveUrl(comp.props.poster)" />
         <div v-else class="r-video-empty"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
+        <span v-if="comp.props.source === 'channels'" class="r-video-tag">视频号</span>
+        <span v-if="comp.props.displayMode === 'popup'" class="r-video-tag r-video-tag2">弹出</span>
+      </div>
+    </template>
+    <!-- 直播列表 -->
+    <template v-else-if="comp.type === 'live-list'">
+      <div class="r-live" :class="'r-live-' + (comp.props.listStyle || '1')">
+        <div v-for="(it, i) in Array.from({ length: Math.min(Number(comp.props.limit) || 3, 3) })" :key="i" class="r-live-card">
+          <div class="r-live-cover">直播</div>
+          <div class="r-live-info">
+            <div class="r-live-title">直播标题</div>
+            <div class="r-live-meta">0 人观看</div>
+          </div>
+        </div>
+        <div v-if="!comp.props.limit" class="r-live-empty">暂无直播</div>
       </div>
     </template>
     <!-- 图文卡片 -->
@@ -313,9 +328,20 @@ function resolveUrl(u) {
 .r-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
 .r-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
-.r-video { position: relative; border-radius: 8px; overflow: hidden; background: #000; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+.r-video { position: relative; border-radius: 8px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
 .r-video img { width: 100%; height: 100%; object-fit: cover; }
 .r-video-empty { opacity: .6; }
+.r-video-tag { position: absolute; top: 6px; right: 6px; font-size: 10px; line-height: 1; color: #fff; background: rgba(0,0,0,.55); border-radius: 4px; padding: 3px 5px; }
+.r-video-tag2 { right: auto; left: 6px; }
+/* 直播列表预览 */
+.r-live { display: flex; flex-direction: column; gap: 8px; background: #fff; padding: 10px; }
+.r-live-card { display: flex; gap: 8px; align-items: center; background: #f7f8fa; border-radius: 8px; overflow: hidden; }
+.r-live-cover { width: 72px; height: 48px; background: linear-gradient(135deg, #2b2b2b, #111); color: rgba(255,255,255,.6); font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.r-live-title { font-size: 12px; color: #1d2129; font-weight: 500; }
+.r-live-meta { font-size: 11px; color: #86909c; margin-top: 2px; }
+.r-live-empty { padding: 20px 0; text-align: center; color: #86909c; font-size: 12px; }
+.r-live-2 .r-live-card { flex-direction: column; align-items: stretch; }
+.r-live-2 .r-live-cover { width: 100%; height: 60px; }
 /* 图文卡片 */
 .r-imagetext { position: relative; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #f0f1f3; }
 .r-imagetext img { width: 100%; display: block; }

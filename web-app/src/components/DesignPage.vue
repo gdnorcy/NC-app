@@ -48,10 +48,31 @@
         <view class="dp-form-input"><text>{{ c.props.phonePlaceholder || '请输入手机号' }}</text></view>
         <view class="dp-form-btn" :style="{ background: c.props.btnColor || '#165dff' }"><text>{{ c.props.submitText || '提交' }}</text></view>
       </view>
-      <!-- 视频 -->
-      <view v-else-if="c.type === 'video'" class="dp-video">
-        <video v-if="c.props.url" :src="resolveUrl(c.props.url)" :poster="resolveUrl(c.props.poster)" class="dp-video-player" :autoplay="!!c.props.autoplay" :loop="!!c.props.loop" controls></video>
-        <view v-else class="dp-video-empty"><text>视频</text></view>
+      <!-- 视频（云菜鸟：视频样式比例 / 直接显示 / 弹出显示 / 本地视频 / 视频号视频） -->
+      <view v-else-if="c.type === 'video'" class="dp-video" :class="'dp-video-' + (c.props.ratio || '16:9').replace(':', '-')">
+        <video v-if="c.props.source === 'channels'" class="dp-video-player" :style="videoRatioStyle(c.props.ratio)" :poster="resolveUrl(c.props.poster)" @click="openChannelsVideo(c.props)"></video>
+        <video v-else-if="c.props.url" :src="resolveUrl(c.props.url)" :poster="resolveUrl(c.props.poster)" class="dp-video-player" :style="videoRatioStyle(c.props.ratio)" :autoplay="!!c.props.autoplay" :loop="!!c.props.loop" controls></video>
+        <view v-else class="dp-video-empty" :style="videoRatioStyle(c.props.ratio)"><text>视频</text></view>
+        <!-- 弹出显示：浮层播放 -->
+        <view v-if="c.props.displayMode === 'popup' && c.props.source !== 'channels' && c.props.url" class="dp-video-popmask" @click="popVideo = c.props.url">
+          <image v-if="c.props.poster" :src="resolveUrl(c.props.poster)" mode="aspectFill" class="dp-video-popcover" />
+          <view class="dp-video-playbtn">▶</view>
+        </view>
+      </view>
+      <!-- 直播列表（云菜鸟：列表样式 / 内容类型 / 排序 / 显示数量 / 下拉加载） -->
+      <view v-else-if="c.type === 'live-list'" class="dp-livelist" :class="'dp-live-style-' + (c.props.listStyle || '1')">
+        <view v-if="liveList.length" class="dp-live-grid">
+          <view v-for="(it, i) in liveList.slice(0, Number(c.props.limit) || 6)" :key="i" class="dp-live-card" @click="openChannel('live', it)">
+            <image v-if="it.cover" :src="resolveUrl(it.cover)" mode="aspectFill" class="dp-live-cover" />
+            <view v-else class="dp-live-cover dp-live-cover-ph"><text>直播</text></view>
+            <view class="dp-live-tag">直播中</view>
+            <view class="dp-live-info">
+              <text class="dp-live-title">{{ it.title || '直播标题' }}</text>
+              <text class="dp-live-meta">{{ it.viewer || 0 }} 人观看</text>
+            </view>
+          </view>
+        </view>
+        <view v-else class="dp-live-empty"><text>暂无直播</text></view>
       </view>
       <!-- 图文卡片 -->
       <view v-else-if="c.type === 'image-text'" class="dp-imagetext" :class="{ overlay: c.props.textPos === 'overlay' }">
@@ -249,6 +270,14 @@
         <video v-if="feedVideo" :src="feedVideo" class="dp-vfeed-player" controls autoplay @ended="feedVideo = ''" @error="feedVideo = ''" />
       </view>
     </view>
+
+    <!-- 视频弹出显示浮层 -->
+    <view v-if="popVideo" class="dp-popmask" @click="popVideo = ''">
+      <view class="dp-popbox" @click.stop>
+        <video :src="popVideo" class="dp-pop-player" controls autoplay />
+        <view class="dp-pop-close" @click="popVideo = ''">✕</view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -318,6 +347,14 @@ function onFloatClick(p) {
 }
 // 短视频瀑布流：优先播放 mp4，否则跳转链接
 const feedVideo = ref('');
+const popVideo = ref('');
+const liveList = ref([]);
+// 云菜鸟视频样式比例：高度 = 宽度 * 反比
+function videoRatioStyle(ratio) {
+  const map = { '16:9': '56.25%', '4:3': '75%', '1:1': '100%', '9:16': '177.78%' };
+  const r = map[ratio] || map['16:9'];
+  return { height: `calc(100vw * ${r})`, maxHeight: '520px' };
+}
 function openFeedItem(it) {
   if (it.video) {
     feedVideo.value = resolveUrl(it.video);
@@ -358,6 +395,22 @@ function onJump(url) {
   }
   const path = url.startsWith('/') ? url : `/${url}`;
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
+}
+
+// 视频号视频来源：url 支持 "视频号ID:视频ID" 或纯 feedId；解析后调用 openChannel
+function openChannelsVideo(p) {
+  const src = (p && p.url) || '';
+  const fp = { ...(p || {}), feedId: p?.feedId || src };
+  if (src.includes(':') && !fp.finderUserName) {
+    const idx = src.indexOf(':');
+    fp.finderUserName = src.slice(0, idx);
+    fp.feedId = src.slice(idx + 1) || fp.feedId;
+  }
+  if (!fp.finderUserName) {
+    uni.showToast({ title: '视频号视频需填「视频号ID:视频ID」', icon: 'none' });
+    return;
+  }
+  openChannel('video', fp);
 }
 
 // 视频号唤起：小程序端调微信原生 API（带 loading + 失败引导），H5/APP 端复制 ID 引导
@@ -421,9 +474,34 @@ function openChannel(kind, p) {
 .dp-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
 .dp-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
-.dp-video { border-radius: 8px; overflow: hidden; background: #000; }
+.dp-video { border-radius: 8px; overflow: hidden; background: #000; position: relative; }
 .dp-video-player { width: 100%; height: 200px; display: block; }
 .dp-video-empty { height: 120px; background: #000; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.5); font-size: 13px; }
+/* 弹出显示遮罩 */
+.dp-video-popmask { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 3; }
+.dp-video-popcover { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dp-video-playbtn { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.92); color: #1d2129; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+/* 视频弹出播放浮层 */
+.dp-popmask { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; }
+.dp-popbox { width: 86%; position: relative; }
+.dp-pop-player { width: 100%; height: 420rpx; border-radius: 8px; }
+.dp-pop-close { position: absolute; top: -34px; right: 0; width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.25); color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+/* 直播列表（云菜鸟样式一/二/三） */
+.dp-livelist { border-radius: 8px; overflow: hidden; background: #fff; }
+.dp-live-grid { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.dp-live-card { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; }
+.dp-live-cover { width: 100%; height: 150px; display: block; background: #000; }
+.dp-live-cover-ph { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.5); font-size: 13px; background: linear-gradient(135deg, #2b2b2b, #111); }
+.dp-live-tag { position: absolute; top: 8px; left: 8px; font-size: 10px; color: #fff; background: #f53f3f; border-radius: 4px; padding: 2px 6px; line-height: 1.4; }
+.dp-live-info { padding: 8px 10px; }
+.dp-live-title { display: block; font-size: 13px; color: #1d2129; font-weight: 500; }
+.dp-live-meta { display: block; margin-top: 4px; font-size: 11px; color: #86909c; }
+.dp-live-style-2 .dp-live-card { display: flex; align-items: center; }
+.dp-live-style-2 .dp-live-cover { width: 132px; height: 88px; flex-shrink: 0; }
+.dp-live-style-2 .dp-live-info { flex: 1; }
+.dp-live-style-3 .dp-live-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dp-live-style-3 .dp-live-cover { height: 96px; }
+.dp-live-empty { padding: 36px 0; text-align: center; color: #86909c; font-size: 12px; }
 /* 图文卡片 */
 .dp-imagetext { position: relative; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #f0f1f3; }
 .dp-it-img { width: 100%; display: block; }

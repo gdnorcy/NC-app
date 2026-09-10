@@ -292,7 +292,18 @@ export function createDesignService(db) {
   // ============ 页面装修（草稿/发布/版本回滚，乐观锁） ============
 
   svc.listPageDesigns = (tenantId) =>
-    db.prepare('SELECT id, page_type, page_name, version, status, updated_at FROM tenant_page_design WHERE tenant_id = ? ORDER BY id ASC').all(tenantId);
+    db.prepare('SELECT id, page_type, page_name, version, status, updated_at, design_json FROM tenant_page_design WHERE tenant_id = ? ORDER BY id ASC').all(tenantId)
+      .map((row) => {
+        let meta = {};
+        try { meta = (JSON.parse(row.design_json) || {}).meta || {}; } catch { meta = {}; }
+        return {
+          id: row.id, page_type: row.page_type, page_name: row.page_name,
+          version: row.version, status: row.status, updated_at: row.updated_at,
+          headerType: (meta.header && meta.header.type) || 'official',
+          passwordEnabled: !!(meta.theme && meta.theme.passwordEnabled),
+          memberOnly: !!(meta.theme && meta.theme.memberOnly),
+        };
+      });
 
   /** 获取页面（published=true 返回已发布，否则返回草稿） */
   svc.getPageDesign = (tenantId, pageType, published = false) => {

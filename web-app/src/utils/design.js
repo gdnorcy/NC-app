@@ -58,12 +58,23 @@ export function resolveHomePath(homePage) {
   return HOME_PAGE_MAP[homePage] || null;
 }
 
-/** 规范化头部设置（custom/immersive/official；缺字段兜底） */
+/** 规范化头部设置（custom/immersive/official；缺字段兜底；支持两行内容 content2 与文字加粗/大小/中间样式） */
 export function normalizeHeader(raw) {
   if (!raw) return null;
   const normItem = (it) => {
     const x = it || {};
-    return { type: x.type || 'none', text: x.text || '', image: x.image || '', link: x.link || '', color: x.color || '' };
+    return {
+      type: x.type || 'none', text: x.text || '', image: x.image || '', link: x.link || '', color: x.color || '',
+      bold: x.bold ? 1 : 0, fontSize: typeof x.fontSize === 'number' ? x.fontSize : 13,
+      bgColor: x.bgColor || '', borderColor: x.borderColor || '',
+      width: typeof x.width === 'number' ? x.width : 154,
+      radius: typeof x.radius === 'number' ? x.radius : 23,
+      align: x.align || 'center',
+    };
+  };
+  const normRow = (row) => {
+    const r = row || {};
+    return { left: normItem(r.left), center: normItem(r.center), right: normItem(r.right) };
   };
   return {
     type: ['custom', 'immersive', 'official'].includes(raw.type) ? raw.type : 'custom',
@@ -74,11 +85,8 @@ export function normalizeHeader(raw) {
     lines: raw.lines === 2 ? 2 : 1,
     titleText: raw.titleText || '',
     textColor: raw.textColor || '#1d2129',
-    content: {
-      left: normItem(raw.content?.left),
-      center: normItem(raw.content?.center),
-      right: normItem(raw.content?.right),
-    },
+    content: normRow(raw.content),
+    content2: normRow(raw.content2),
   };
 }
 

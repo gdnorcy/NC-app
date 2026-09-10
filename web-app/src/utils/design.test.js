@@ -88,4 +88,33 @@ describe('设计中心 C 端渲染工具', () => {
     expect(bad.content.left.type).toBe('none');
     expect(bad.bgColor).toBe('#ffffff');
   });
+
+  it('P9 头部两行内容 + 文字加粗/字号 + 中间样式规范化', () => {
+    const h = normalizeHeader({
+      type: 'custom', lines: 2,
+      content: { left: { type: 'text', text: 'A', bold: 1, fontSize: 16 }, center: { type: 'text', text: '标题', bgColor: '#f00', borderColor: '#0f0', width: 200, radius: 12, align: 'left', bold: 1, fontSize: 18 } },
+      content2: { left: { type: 'text', text: 'B' }, center: { type: 'none' }, right: { type: 'iconText', text: '更多', bold: 1 } },
+    });
+    expect(h.lines).toBe(2);
+    expect(h.content.left.bold).toBe(1);
+    expect(h.content.left.fontSize).toBe(16);
+    expect(h.content.center.bgColor).toBe('#f00');
+    expect(h.content.center.borderColor).toBe('#0f0');
+    expect(h.content.center.width).toBe(200);
+    expect(h.content.center.radius).toBe(12);
+    expect(h.content.center.align).toBe('left');
+    // content2 独立规范化
+    expect(h.content2.left.text).toBe('B');
+    expect(h.content2.right.type).toBe('iconText');
+    expect(h.content2.right.bold).toBe(1);
+    // 缺字段兜底
+    expect(h.content2.center.type).toBe('none');
+    expect(h.content.left.fontSize).toBe(16);
+    expect(h.content.center.fontSize).toBe(18);
+    const d = normalizeHeader({ content: { center: { type: 'text', text: 'x' } } });
+    expect(d.content.center.width).toBe(154);
+    expect(d.content.center.radius).toBe(23);
+    expect(d.content.center.align).toBe('center');
+    expect(d.content.center.bold).toBe(0);
+  });
 });
