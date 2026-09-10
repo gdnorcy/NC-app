@@ -269,4 +269,39 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     svc.setHomePage(T1, homePage.id);
     assert.equal(svc.deletePage(T1, created.pageType).ok, true);
   });
+
+  it('P13 页面排序：sortPageDesigns 持久化 + listPageDesigns 按 sort_order 返回', () => {
+    // 建两个自定义页（home 已存在），得到 page_type 集合
+    const p1 = svc.createPage(T1, '排序页A');
+    const p2 = svc.createPage(T1, '排序页B');
+    assert.equal(p1.ok && p2.ok, true);
+    const types = ['home', p1.pageType, p2.pageType];
+
+    // 首页始终最前（is_home DESC 优先），其余按 sort_order
+    const r = svc.sortPageDesigns(T1, types);
+    assert.equal(r.ok, true);
+    let list = svc.listPageDesigns(T1);
+    let seq = [...new Set(list.map((x) => x.page_type))];
+    assert.equal(seq[0], 'home');
+    assert.equal(seq.indexOf(p1.pageType) < seq.indexOf(p2.pageType), true);
+
+    // 倒序再排：p2 应排到 p1 前
+    svc.sortPageDesigns(T1, ['home', p2.pageType, p1.pageType]);
+    list = svc.listPageDesigns(T1);
+    seq = [...new Set(list.map((x) => x.page_type))];
+    assert.equal(seq.indexOf(p2.pageType) < seq.indexOf(p1.pageType), true);
+
+    // 空列表拒绝
+    assert.equal(svc.sortPageDesigns(T1, []).ok, false);
+
+    // 同 page_type 草稿+发布行共享排序位（发布后仍保持一致顺序）
+    const t = svc.savePageDraft(T1, p2.pageType, '排序页B-v2', { components: [] });
+    assert.equal(t.ok, true);
+    const pub = svc.publishPage(T1, p2.pageType);
+    assert.equal(pub.ok, true);
+    list = svc.listPageDesigns(T1);
+    const rows = list.filter((x) => x.page_type === p2.pageType);
+    assert.ok(rows.length >= 1);
+    assert.equal(rows[0].sortOrder > 0, true);
+  });
 });

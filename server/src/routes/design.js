@@ -214,6 +214,11 @@ export default function createDesignRouter(db, deps = {}) {
     if (!r.ok) return res.status(400).json({ error: r.error });
     res.json({ ok: true });
   });
+  design.post('/page/sort', tenant, tenantAdmin, (req, res) => {
+    const r = svc.sortPageDesigns(req.customerId, req.body?.pageTypes);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json({ ok: true });
+  });
   design.post('/page/delete', tenant, tenantAdmin, (req, res) => {
     const r = svc.deletePage(req.customerId, req.body?.pageType);
     if (!r.ok) return res.status(400).json({ error: r.error });

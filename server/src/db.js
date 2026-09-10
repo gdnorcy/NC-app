@@ -2289,6 +2289,11 @@ function seedDesign(db) {
     // 草稿行跟随同页发布行的首页标记（历史脏数据同步）
     db.exec("UPDATE tenant_page_design SET is_home = 1 WHERE status = 0 AND EXISTS (SELECT 1 FROM tenant_page_design t2 WHERE t2.tenant_id = tenant_page_design.tenant_id AND t2.page_type = tenant_page_design.page_type AND t2.status = 1 AND t2.is_home = 1)");
   }
+  // 页面排序字段：sort_order（租户内页面列表拖拽排序用；同 page_type 草稿/发布行共享排序位，按 id 赋初值）
+  if (tableExists(db, 'tenant_page_design') && !colExists(db, 'tenant_page_design', 'sort_order')) {
+    db.exec("ALTER TABLE tenant_page_design ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+    db.exec("UPDATE tenant_page_design SET sort_order = id WHERE sort_order = 0");
+  }
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

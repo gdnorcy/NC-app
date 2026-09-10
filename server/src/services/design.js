@@ -300,19 +300,36 @@ export function createDesignService(db) {
   // ============ 页面装修（草稿/发布/版本回滚，乐观锁） ============
 
   svc.listPageDesigns = (tenantId) =>
-    db.prepare('SELECT id, page_type, page_name, version, status, is_home, updated_at, design_json FROM tenant_page_design WHERE tenant_id = ? ORDER BY is_home DESC, id ASC').all(tenantId)
+    db.prepare('SELECT id, page_type, page_name, version, status, is_home, sort_order, updated_at, design_json FROM tenant_page_design WHERE tenant_id = ? ORDER BY is_home DESC, sort_order ASC, id ASC').all(tenantId)
       .map((row) => {
         let meta = {};
         try { meta = (JSON.parse(row.design_json) || {}).meta || {}; } catch { meta = {}; }
         return {
           id: row.id, page_type: row.page_type, page_name: row.page_name,
           version: row.version, status: row.status, updated_at: row.updated_at,
-          isHome: !!row.is_home,
+          isHome: !!row.is_home, sortOrder: row.sort_order,
           headerType: (meta.header && meta.header.type) || 'official',
           passwordEnabled: !!(meta.theme && meta.theme.passwordEnabled),
           memberOnly: !!(meta.theme && meta.theme.memberOnly),
         };
       });
+
+  /** 页面列表拖拽排序：pageTypes 为合并后的页面顺序（同 page_type 草稿/发布行同步更新 sort_order） */
+  svc.sortPageDesigns = (tenantId, pageTypes) => {
+    const list = Array.isArray(pageTypes) ? pageTypes.filter((t) => typeof t === 'string' && t.trim()) : [];
+    if (!list.length) return { ok: false, error: '排序列表不能为空' };
+    try {
+      db.exec('BEGIN');
+      list.forEach((pageType, i) => {
+        db.prepare('UPDATE tenant_page_design SET sort_order = ? WHERE tenant_id = ? AND page_type = ?').run(i + 1, tenantId, pageType);
+      });
+      db.exec('COMMIT');
+      return { ok: true };
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch { /* noop */ }
+      return { ok: false, error: '保存排序失败：' + e.message };
+    }
+  };
 
   /** 获取页面（published=true 返回已发布，否则返回草稿） */
   svc.getPageDesign = (tenantId, pageType, published = false) => {

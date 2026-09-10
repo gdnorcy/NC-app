@@ -58,11 +58,13 @@
             <el-button size="small" type="primary" class="pe-page-new" @click="createPage">创建新页面</el-button>
             <div class="pe-pages-table">
               <div class="pe-pages-tr pp-th">
+                <span class="pp-drag"></span>
                 <span class="pp-col-name">名称</span>
                 <span class="pp-col-home">首页</span>
                 <span class="pp-col-ops">操作</span>
               </div>
-              <div v-for="p in filteredPages" :key="p.page_type" class="pe-pages-tr" :class="{ current: p.page_type === pageType }">
+              <div v-for="(p, idx) in filteredPages" :key="p.page_type" class="pe-pages-tr" :class="{ current: p.page_type === pageType, dragging: pageDrag && pageDrag.from === idx }" draggable="true" @dragstart="onPageDragStart($event, idx)" @dragover="onPageDragOver($event, idx)" @drop.prevent.stop="onPageDrop" @dragend="onPageDragEnd">
+                <span class="pp-drag" title="按住拖动排序">⠿</span>
                 <span class="pp-col-name pp-name" :title="p.page_name + (p.status === 1 ? '（已发布）' : '')" @click="switchPage(p.page_type)">{{ p.page_name }}</span>
                 <span class="pp-col-home" :class="{ yes: p.isHome }" title="点击切换首页" @click="toggleHome(p)">{{ p.isHome ? '是' : '否' }}</span>
                 <span class="pp-col-ops">
@@ -615,24 +617,51 @@ function openHeaderImg(target, pos, row) {
 }
 
 // 页面列表（模块列表 tab 之外承载页面切换/新建/复制/删除；同 page_type 合并为一行）
-const mergedPages = computed(() => {
+// mergedPages 为响应式数组（loadPageList 时构建），支持拖拽排序直接 splice 重排
+const mergedPages = ref([]);
+function mergePages(list) {
   const map = new Map();
-  for (const p of pageList.value) {
+  for (const p of list || []) {
     const exist = map.get(p.page_type);
     if (!exist || (p.status === 1 && exist.status !== 1)) map.set(p.page_type, p);
   }
   return [...map.values()];
-});
+}
 const filteredPages = computed(() => {
   const kw2 = pageKw.value.trim();
   if (!kw2) return mergedPages.value;
   return mergedPages.value.filter((p) => (p.page_name || '').includes(kw2));
 });
 const homePageType = computed(() => mergedPages.value.find((p) => p.isHome)?.page_type || 'home');
+// 页面列表拖拽排序：dragstart 记起点 → dragover 重排（splice）→ drop 提交后端
+const pageDrag = ref(null);
+function onPageDragStart(e, idx) {
+  pageDrag.value = { from: idx };
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onPageDragOver(e, idx) {
+  e.preventDefault();
+  if (!pageDrag.value || pageDrag.value.from === idx) return;
+  const arr = mergedPages.value;
+  if (idx < 0 || idx >= arr.length) return;
+  const [moved] = arr.splice(pageDrag.value.from, 1);
+  arr.splice(idx, 0, moved);
+  pageDrag.value.from = idx;
+}
+async function onPageDrop() {
+  if (!pageDrag.value) return;
+  pageDrag.value = null;
+  try {
+    await designCall.post('/design/page/sort', { pageTypes: mergedPages.value.map((p) => p.page_type) });
+    ElMessage.success('页面顺序已保存');
+  } catch (e) { ElMessage.error(e); }
+}
+function onPageDragEnd() { pageDrag.value = null; }
 async function loadPageList() {
   try {
     const res = await designCall.get('/design/page/list');
     pageList.value = res.list || [];
+    mergedPages.value = mergePages(pageList.value);
   } catch (e) { /* 页面列表加载失败不阻塞编辑 */ }
 }
 async function toggleHome(p) {
@@ -1077,11 +1106,13 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-pages-search { width: 100%; }
 .pe-page-new { width: 100%; }
 .pe-pages-table { border: 1px solid #f0f1f3; border-radius: 8px; overflow: hidden; }
-.pe-pages-tr { display: flex; align-items: center; padding: 6px 8px; font-size: 12px; transition: background .15s; }
+.pe-pages-tr { display: flex; align-items: center; padding: 6px 8px; font-size: 12px; transition: background .15s; cursor: grab; }
 .pe-pages-tr.pp-th { background: #f7f8fa; color: #86909c; font-weight: 500; border-bottom: 1px solid #f0f1f3; }
 .pe-pages-tr + .pe-pages-tr { border-top: 1px solid #f7f8fa; }
 .pe-pages-tr:hover { background: #f2f3f5; }
 .pe-pages-tr.current { background: #e8f3ff; }
+.pe-pages-tr.dragging { opacity: .6; }
+.pp-drag { flex: 0 0 18px; color: #c9cdd4; cursor: grab; user-select: none; margin-right: 2px; }
 .pp-col-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-col-home { flex: 0 0 32px; text-align: center; color: #86909c; cursor: pointer; user-select: none; }
 .pp-col-home:hover { color: #165dff; font-weight: 500; }

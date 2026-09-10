@@ -318,46 +318,49 @@
           </div>
 
           <!-- 表格：页面名称 / 是否首页 / 头部展示 / 密码访问 / 会员访问 / 操作 -->
-          <div class="table-scroll">
-            <el-table :data="pagedPages" v-loading="pageLoading" stripe style="min-width: 820px">
-            <el-table-column label="页面名称" min-width="180">
-              <template #default="{ row }">
-                <span class="pm-row-name">{{ row.page_name }}</span>
-                <el-tag v-if="row.isHome" size="small" type="success" class="pm-home-tag">首页</el-tag>
-                <el-tag v-if="row.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="是否首页" width="110">
-              <template #default="{ row }">
-                <span class="pm-home-switch" :class="{ 'is-home': row.isHome }" @click="setHome(row)">{{ row.isHome ? '是' : '否' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="头部展示" width="120">
-              <template #default="{ row }">
-                {{ { custom: '自定义头部', immersive: '沉浸式头部', official: '仿官方头部' }[row.headerType] || '仿官方头部' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="密码访问" width="110">
-              <template #default="{ row }">
-                <el-tag :type="row.passwordEnabled ? 'warning' : 'info'" size="small" effect="plain">{{ row.passwordEnabled ? '开' : '关' }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="会员访问" width="110">
-              <template #default="{ row }">
-                <el-tag :type="row.memberOnly ? 'warning' : 'info'" size="small" effect="plain">{{ row.memberOnly ? '开' : '关' }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="250">
-              <template #default="{ row }">
-                <div class="pm-ops">
-                  <el-button size="small" text type="primary" @click="goEdit(row.page_type)">装修</el-button>
-                  <el-button size="small" text @click="copyPage(row)">复制</el-button>
-                  <el-button size="small" text @click="sharePage(row)">推广</el-button>
-                  <el-button size="small" text type="danger" :disabled="builtinPages.includes(row.page_type)" @click="deletePage(row)">删除</el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="table-scroll" @dragstart="onPageRowDragStart" @dragover="onPageRowDragOver" @drop.prevent.stop="onPageRowDrop" @dragend="onPageRowDragEnd">
+            <el-table :data="pagedPages" v-loading="pageLoading" stripe row-key="page_type" :row-class-name="pageRowClassName" style="min-width: 820px">
+              <el-table-column type="index" label="#" width="48" />
+              <el-table-column label="页面名称" min-width="180">
+                <template #default="{ row }">
+                  <span class="pm-row-drag" title="按住拖动排序">⠿</span>
+                  <span class="pm-row-name">{{ row.page_name }}</span>
+                  <el-tag v-if="row.isHome" size="small" type="success" class="pm-home-tag">首页</el-tag>
+                  <el-tag v-if="row.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="是否首页" width="110">
+                <template #default="{ row }">
+                  <span class="pm-home-switch" :class="{ 'is-home': row.isHome }" @click="setHome(row)">{{ row.isHome ? '是' : '否' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="头部展示" width="120">
+                <template #default="{ row }">
+                  {{ { custom: '自定义头部', immersive: '沉浸式头部', official: '仿官方头部' }[row.headerType] || '仿官方头部' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="密码访问" width="110">
+                <template #default="{ row }">
+                  <el-tag :type="row.passwordEnabled ? 'warning' : 'info'" size="small" effect="plain">{{ row.passwordEnabled ? '开' : '关' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="会员访问" width="110">
+                <template #default="{ row }">
+                  <el-tag :type="row.memberOnly ? 'warning' : 'info'" size="small" effect="plain">{{ row.memberOnly ? '开' : '关' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="250">
+                <template #default="{ row }">
+                  <div class="pm-ops">
+                    <el-button size="small" text type="primary" @click="goEdit(row.page_type)">装修</el-button>
+                    <el-button size="small" text @click="copyPage(row)">复制</el-button>
+                    <el-button size="small" text @click="sharePage(row)">推广</el-button>
+                    <el-button size="small" text type="danger" :disabled="builtinPages.includes(row.page_type)" @click="deletePage(row)">删除</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="pm-drag-tip">按住行首 ⠿ 拖动可调整页面顺序</div>
           <div v-if="!filteredPages.length && !pageLoading" class="media-empty">暂无页面，点击「新建页面」创建</div>
           <div v-else-if="filteredPages.length > pmPageSize" class="pm-pager">
             <el-pagination background layout="total, prev, pager, next, jumper" :total="filteredPages.length" :page-size="pmPageSize" :current-page="pageNum" @current-change="pageNum = $event" />
@@ -373,7 +376,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted, inject } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { EditPen, Delete, Close } from '@element-plus/icons-vue';
@@ -419,6 +422,7 @@ async function loadPages() {
   try {
     const res = await designCall.get(`${API}/page/list`);
     pageList.value = res.list || [];
+    mergedPages.value = mergePages(pageList.value);
     await loadHomePreview();
   } catch (e) { ElMessage.error(e); } finally { pageLoading.value = false; }
 }
@@ -475,15 +479,55 @@ async function sharePage(p) {
     }
   } catch (e) { ElMessage.error(e); }
 }
-// 同 page_type 合并为一行（发布态优先），避免草稿+发布显示两行
-const mergedPages = computed(() => {
+// 同 page_type 合并为一行（发布态优先），避免草稿+发布显示两行；合并结果为响应式数组，支持拖拽排序 splice 重排
+const mergedPages = ref([]);
+function mergePages(list) {
   const map = new Map();
-  for (const p of pageList.value) {
+  for (const p of list || []) {
     const exist = map.get(p.page_type);
     if (!exist || (p.status === 1 && exist.status !== 1)) map.set(p.page_type, p);
   }
   return [...map.values()];
-});
+}
+// 页面列表拖拽排序（el-table 行）：容器事件委托 + 行 index→全局索引 → drop 一次性重排提交
+const pageDrag = ref(null);
+function pageGlobalIdx(rowIdx) { return (pageNum.value - 1) * pmPageSize + rowIdx; }
+function pageTrIdx(e) {
+  const tr = e.target.closest('tr');
+  const body = tr && tr.parentElement;
+  if (!body) return -1;
+  return [...body.children].indexOf(tr);
+}
+function onPageRowDragStart(e) {
+  const idx = pageTrIdx(e);
+  if (idx < 0) return;
+  pageDrag.value = { from: pageGlobalIdx(idx), over: pageGlobalIdx(idx) };
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onPageRowDragOver(e) {
+  if (!pageDrag.value) return;
+  const idx = pageTrIdx(e);
+  if (idx < 0) return;
+  pageDrag.value.over = pageGlobalIdx(idx);
+  e.preventDefault();
+}
+function pageRowClassName({ rowIndex }) {
+  const gi = pageGlobalIdx(rowIndex);
+  return pageDrag.value && pageDrag.value.over === gi ? 'pm-drop-target' : '';
+}
+async function onPageRowDrop() {
+  const d = pageDrag.value;
+  pageDrag.value = null;
+  if (!d || d.from === d.over || d.over < 0) return;
+  const arr = mergedPages.value;
+  const [moved] = arr.splice(d.from, 1);
+  arr.splice(d.over, 0, moved);
+  try {
+    await designCall.post(`${API}/page/sort`, { pageTypes: mergedPages.value.map((p) => p.page_type) });
+    ElMessage.success('页面顺序已保存');
+  } catch (e) { ElMessage.error(e); }
+}
+function onPageRowDragEnd() { pageDrag.value = null; }
 const filteredPages = computed(() => {
   const kw2 = pageSearch.value.trim();
   if (!kw2) return mergedPages.value;
@@ -495,6 +539,16 @@ const pagedPages = computed(() => {
   const start = (pageNum.value - 1) * pmPageSize;
   return filteredPages.value.slice(start, start + pmPageSize);
 });
+// el-table 行 draggable 需在渲染后设置；数据变化/首次挂载后重设（必须在 pagedPages 声明之后）
+function setupRowDraggable() {
+  nextTick(() => {
+    const el = document.querySelector('.table-scroll .el-table');
+    if (!el) return;
+    el.querySelectorAll('tbody tr').forEach((tr) => { tr.draggable = true; });
+  });
+}
+watch(pagedPages, setupRowDraggable);
+onMounted(setupRowDraggable);
 function goEdit(type) {
   router.push({ path: '/design/edit', query: { pageType: type || 'home' } });
 }
@@ -857,6 +911,10 @@ onMounted(() => {
 .pm-home-switch:hover { color: #165dff; border-color: #165dff; background: #e8f3ff; }
 .pm-home-switch.is-home { color: #fff; background: #00b42a; border-color: #00b42a; cursor: default; }
 .pm-home-switch.is-home:hover { color: #fff; background: #00b42a; }
+.pm-row-drag { display: inline-block; margin-right: 6px; color: #c9cdd4; cursor: grab; user-select: none; }
+.pm-row-drag:hover { color: #165dff; }
+.pm-drop-target td { background: #e8f3ff !important; box-shadow: inset 0 2px 0 #165dff, inset 0 -2px 0 #165dff; }
+.pm-drag-tip { margin-top: 8px; font-size: 12px; color: #86909c; }
 .pm-pager { display: flex; justify-content: flex-end; margin-top: 12px; }
 
 .design-home { display: flex; flex-direction: column; gap: 16px; }
