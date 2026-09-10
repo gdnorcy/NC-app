@@ -316,6 +316,12 @@ export function createDesignService(db) {
   };
 
   /** 保存草稿（并发锁：baseVersion 不匹配时拒绝） */
+  /** 草稿行首页标记跟随该页发布行（同页 pub+draft 保持 is_home 一致；该页无发布行时不动草稿行） */
+  function syncHomeFlag(tenantId, pageType) {
+    db.prepare("UPDATE tenant_page_design SET is_home = 1 WHERE tenant_id = ? AND page_type = ? AND status = 0 AND EXISTS (SELECT 1 FROM tenant_page_design t2 WHERE t2.tenant_id = ? AND t2.page_type = ? AND t2.status = 1 AND t2.is_home = 1)")
+      .run(tenantId, pageType, tenantId, pageType);
+  }
+
   svc.savePageDraft = (tenantId, pageType, pageName, designJson, baseVersion) => {
     const exist = db.prepare('SELECT * FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = 0').get(tenantId, pageType);
     if (exist && baseVersion !== undefined && Number(baseVersion) !== exist.version) {
@@ -324,11 +330,13 @@ export function createDesignService(db) {
     if (exist) {
       db.prepare("UPDATE tenant_page_design SET design_json = ?, page_name = ?, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(designJson || {}), pageName || pageType, exist.id);
       svc.syncRefs(tenantId, 'page', pageType, designJson || {});
+      syncHomeFlag(tenantId, pageType);
       return { ok: true, id: exist.id, published: false, version: exist.version };
     }
     const r = db.prepare('INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 0, ?)')
       .run(tenantId, pageType, pageName || pageType, JSON.stringify(designJson || {}), pageType === 'home' ? 1 : 0);
     svc.syncRefs(tenantId, 'page', pageType, designJson || {});
+    syncHomeFlag(tenantId, pageType);
     return { ok: true, id: Number(r.lastInsertRowid), published: false, version: 1 };
   };
 
@@ -437,8 +445,9 @@ export function createDesignService(db) {
     if (!exist) return { ok: false, error: '页面不存在' };
     db.exec('BEGIN');
     try {
+      // 页面级首页标记：目标页的全部行（发布+草稿）都置为首页，其余页全部取消
       db.prepare('UPDATE tenant_page_design SET is_home = 0 WHERE tenant_id = ?').run(tenantId);
-      db.prepare("UPDATE tenant_page_design SET is_home = 1, updated_at = datetime('now') WHERE id = ? AND tenant_id = ?").run(id, tenantId);
+      db.prepare("UPDATE tenant_page_design SET is_home = 1, updated_at = datetime('now') WHERE tenant_id = ? AND page_type = (SELECT page_type FROM tenant_page_design WHERE id = ?)").run(tenantId, id);
       db.exec('COMMIT');
     } catch (e) {
       db.exec('ROLLBACK');

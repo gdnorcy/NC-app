@@ -1136,11 +1136,19 @@ export function createCardRouter(db, wxService) {
         header = j.meta?.header || null;
       }
     } else {
-      // 非预览：读取已发布首页的头部设置（custom/immersive/official），供 C 端自定义导航渲染
+      // 非预览：读取已发布首页（is_home=1）组件与头部设置，供 C 端小程序/H5 首页渲染装修；
+      // 未发布时回退到首页草稿（保证装修过的租户实际首页始终是装修内容，与设计中心预览一致）
       const pub = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = 1 ORDER BY version DESC LIMIT 1").get(tenantId);
+      let homeJson = null;
       if (pub) {
-        const j = JSON.parse(pub.design_json || '{}');
-        header = j.meta?.header || null;
+        homeJson = JSON.parse(pub.design_json || '{}');
+      } else {
+        const draft = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = 0 ORDER BY version DESC LIMIT 1").get(tenantId);
+        if (draft) homeJson = JSON.parse(draft.design_json || '{}');
+      }
+      if (homeJson) {
+        pages = homeJson;
+        header = homeJson.meta?.header || null;
       }
     }
     res.json({

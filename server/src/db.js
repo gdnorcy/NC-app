@@ -2282,6 +2282,13 @@ function seedDesign(db) {
     db.exec("ALTER TABLE tenant_page_design ADD COLUMN is_home INTEGER NOT NULL DEFAULT 0");
     db.exec("UPDATE tenant_page_design SET is_home = 1 WHERE page_type = 'home'");
   }
+  // 兜底：租户完全没有首页标记时（迁移后新建的旧 home 草稿行 is_home=0），把其 page_type='home' 行置为首页；
+  // 已切换首页到其它页的租户（已有 is_home=1）不受影响
+  if (tableExists(db, 'tenant_page_design')) {
+    db.exec("UPDATE tenant_page_design SET is_home = 1 WHERE page_type = 'home' AND tenant_id NOT IN (SELECT tenant_id FROM tenant_page_design WHERE is_home = 1)");
+    // 草稿行跟随同页发布行的首页标记（历史脏数据同步）
+    db.exec("UPDATE tenant_page_design SET is_home = 1 WHERE status = 0 AND EXISTS (SELECT 1 FROM tenant_page_design t2 WHERE t2.tenant_id = tenant_page_design.tenant_id AND t2.page_type = tenant_page_design.page_type AND t2.status = 1 AND t2.is_home = 1)");
+  }
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

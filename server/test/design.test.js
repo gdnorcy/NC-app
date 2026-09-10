@@ -237,13 +237,13 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     assert.ok(custom);
     assert.equal(custom.isHome, false);
 
-    // 切首页：目标置 1，原 home 置 0（唯一）
+    // 切首页：目标页全部行置 1，原 home 页全部行置 0（按页面唯一）
     const r = svc.setHomePage(T1, created.id);
     assert.equal(r.ok, true);
     list = svc.listPageDesigns(T1);
-    const homeCount = list.filter((p) => p.isHome).length;
-    assert.equal(homeCount, 1);
-    assert.equal(list.find((p) => p.id === created.id).isHome, true);
+    const homePageTypes = new Set(list.filter((p) => p.isHome).map((p) => p.page_type));
+    assert.equal(homePageTypes.size, 1);
+    assert.equal(homePageTypes.has(created.pageType), true);
     assert.equal(list.find((p) => p.page_type === 'home').isHome, false);
 
     // 切回 home
