@@ -431,6 +431,13 @@ function openChannelsVideo(p) {
 
 // 视频号视频（eweishop 复刻）辅助：多视频列表 / 背景 / 圆角 / 间距
 function chVideos(p) {
+  if (p.sameOwner) {
+    // 同主体：视频号id 单填 + 视频id列表多视频（官方支持同主体多视频）
+    const ids = (p.videoIds && p.videoIds.length && p.videoIds.some((x) => x && x.feedId))
+      ? p.videoIds
+      : (p.feedId ? [{ feedId: p.feedId }] : []);
+    return ids.map((it) => ({ finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '' }));
+  }
   const list = (p.videos && p.videos.length ? p.videos : [p]);
   return list.map((it) => ({
     finderUserName: (it && it.finderUserName) || p.finderUserName || '',

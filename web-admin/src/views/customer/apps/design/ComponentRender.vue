@@ -54,6 +54,7 @@
             <span class="r-video-tag">视频号</span>
           </div>
         </div>
+        <div v-if="!chVideos(comp.props).length" class="r-video-ch-empty">请填写视频号id</div>
         <div class="r-video-ch-meta">{{ comp.props.autoplay === 'auto' ? '自动播放' : '手动播放' }}<template v-if="comp.props.muted"> · 静音</template><template v-if="comp.props.loop"> · 循环</template></div>
       </div>
       <!-- 本地视频 -->
@@ -317,6 +318,13 @@ function resolveUrl(u) {
 
 // ===== 视频号视频辅助（eweishop 复刻） =====
 function chVideos(p) {
+  if (p.sameOwner) {
+    // 同主体：视频号id 单填 + 视频id列表多视频（官方支持同主体多视频）
+    const ids = (p.videoIds && p.videoIds.length && p.videoIds.some((x) => x && x.feedId))
+      ? p.videoIds
+      : (p.feedId ? [{ feedId: p.feedId }] : []);
+    return ids.map((it) => ({ finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '' }));
+  }
   const list = (p.videos && p.videos.length ? p.videos : [p]);
   return list.map((it) => ({
     finderUserName: (it && it.finderUserName) || p.finderUserName || '',
@@ -390,6 +398,7 @@ function chRadius(p, i) {
 /* 两列且仅 1 个视频时：占满整行宽度（竖屏全宽） */
 .r-video-ch-double .r-video-ch-item.r-video-ch-full { flex: 1 1 100%; max-width: 100%; }
 .r-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.r-video-ch-empty { padding: 16px 0; text-align: center; color: #86909c; font-size: 12px; }
 .r-video-ch-item::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(transparent, rgba(0,0,0,.5)); }
 .r-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
 .r-video-ch-meta { margin-top: 6px; font-size: 11px; color: #86909c; }

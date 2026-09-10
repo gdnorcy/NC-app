@@ -1016,7 +1016,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 12px; flex: 1; min-height: 0; overflow: hidden; }
+.pe-body { display: grid; grid-template-columns: 280px minmax(0, 1fr) 300px; gap: 12px; flex: 1; min-height: 0; overflow: hidden; }
 
 /* 组件库：模块/页面列表 Tab + 分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
@@ -1056,16 +1056,16 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-lib-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; }
 .pe-lib-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 组件库 3 列网格卡片（仿 eweishop：图标上、名称下） */
-.pe-lib-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 2px 0; }
+.pe-lib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 2px 0; }
 .pe-lib-card {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 8px 6px 6px; border-radius: 8px; cursor: grab;
+  padding: 8px 4px 6px; border-radius: 8px; cursor: grab;
   border: 1px solid transparent; transition: border-color .15s, background .15s, box-shadow .15s;
 }
 .pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
 .pe-lib-card:active { cursor: grabbing; }
-.pe-lib-ico { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; }
-.pe-lib-ico img { width: 64px; height: 64px; object-fit: contain; display: block; }
+.pe-lib-ico { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+.pe-lib-ico img { width: 56px; height: 56px; object-fit: contain; display: block; }
 .pe-lib-card .pe-lib-name {
   font-size: 12px; color: #1d2129; max-width: 100%; line-height: 1.35; text-align: center;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;

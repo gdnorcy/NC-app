@@ -213,7 +213,7 @@ export const componentRegistry = [
       // 本地视频
       url: '', poster: '', ratio: '16:9', displayMode: 'direct', autoplayLocal: false, loopLocal: false,
       // 视频号视频（eweishop 复刻）：风格一列/两列、相同主体、视频号id/视频id、自动播放+静音+循环、多视频、背景色/背景图、间距/高度/上圆角/下圆角
-      style: 'single', sameOwner: true, finderUserName: '', feedId: '',
+      style: 'single', sameOwner: true, finderUserName: '', feedId: '', videoIds: [{ feedId: '' }],
       autoplay: 'auto', muted: false, loop: false,
       videos: [{ finderUserName: '', feedId: '' }],
       chRatio: '16:9',
@@ -234,7 +234,9 @@ export const componentRegistry = [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [{ label: '一列', value: 'single' }, { label: '两列并排', value: 'double' }], when: { source: 'channels' } },
       { key: 'sameOwner', label: '相同主体', control: 'radio', section: 'content', options: [{ label: '是', value: true }, { label: '否', value: false }], when: { source: 'channels' } },
       { key: 'finderUserName', label: '视频号id', control: 'input', section: 'content', placeholder: '微信视频号ID', when: { source: 'channels', sameOwner: true } },
-      { key: 'feedId', label: '视频id', control: 'input', section: 'content', placeholder: '视频ID，可留空', when: { source: 'channels', sameOwner: true } },
+      { key: 'videoIds', label: '视频id列表', control: 'list', section: 'content', when: { source: 'channels', sameOwner: true }, itemFields: [
+        { key: 'feedId', label: '视频id', control: 'input', placeholder: '视频ID，可留空' },
+      ] },
       { key: 'videos', label: '视频列表', control: 'list', section: 'content', when: { source: 'channels', sameOwner: false }, itemFields: [
         { key: 'finderUserName', label: '视频号id', control: 'input' },
         { key: 'feedId', label: '视频id', control: 'input' },
