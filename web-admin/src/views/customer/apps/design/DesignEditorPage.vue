@@ -100,7 +100,9 @@
               </div>
               <div class="hp-row">
                 <div class="hp-label">设置链接</div>
-                <el-input v-model="splash.link" size="small" placeholder="点击启动页跳转的链接，如 /pages/card/market" style="width: 320px" />
+                <el-input v-model="splash.link" size="small" placeholder="点击启动页跳转的链接，如 /pages/card/market" style="width: 320px">
+                  <template #append><el-button @click="linkSel.show = true">选择</el-button></template>
+                </el-input>
               </div>
             </div>
             <div class="hp-actions">
@@ -121,22 +123,10 @@
       </div>
     </el-dialog>
 
-    <!-- 素材选择（启动页图片） -->
-    <el-dialog v-model="imgSel.show" title="选择素材" width="720px" append-to-body>
-      <div class="pe-sel">
-        <div v-loading="selLoading" class="sel-grid">
-          <div v-for="m in selMats" :key="m.id" class="sel-item" :class="{ picked: imgSel.pick === m.id }" @click="imgSel.pick = m.id">
-            <img :src="resolveUrl(m.file_url)" :alt="m.file_name" />
-            <span v-if="imgSel.pick === m.id" class="sel-check">✓</span>
-          </div>
-          <div v-if="!selMats.length && !selLoading" class="pe-empty">素材库为空，请先到「素材中心」上传</div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="imgSel.show = false">取消</el-button>
-        <el-button type="primary" :disabled="!imgSel.pick" @click="confirmImgSel">确定</el-button>
-      </template>
-    </el-dialog>
+    <!-- 素材选择（启动页图片，照抄 eweishop/资源选择器） -->
+    <MaterialPicker v-model="imgSel.show" @confirm="confirmImgSel" />
+    <!-- 系统链接选择器（启动页跳转） -->
+    <LinkPicker v-model="linkSel.show" :model-link="splash.link" @confirm="confirmSplashLink" />
   </div>
 </template>
 
@@ -147,6 +137,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 import { designCall } from '../../../../api';
 import PageEditor from './PageEditor.vue';
+import MaterialPicker from './MaterialPicker.vue';
+import LinkPicker from './LinkPicker.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -163,8 +155,7 @@ const editorRef = ref(null);
 const splash = reactive({ enabled: false, mode: 'single', image: '', images: [], duration: 2, showType: 'first', link: '' });
 const splashSaving = ref(false);
 const imgSel = reactive({ show: false, pick: null, target: null });
-const selMats = ref([]);
-const selLoading = ref(false);
+const linkSel = reactive({ show: false });
 
 async function loadGlobal() {
   try {
@@ -188,21 +179,18 @@ async function saveSplash() {
 }
 async function openSplashImg(target) {
   imgSel.target = target;
-  imgSel.pick = null;
   imgSel.show = true;
-  selLoading.value = true;
-  try {
-    const res = await designCall.get('/material/list', { params: { page: 1, pageSize: 60 } });
-    selMats.value = res.list || [];
-  } catch (e) { ElMessage.error(e); } finally { selLoading.value = false; }
 }
-function confirmImgSel() {
-  const m = selMats.value.find((x) => x.id === imgSel.pick);
-  if (m) {
-    if (imgSel.target === 'image') splash.image = m.file_url;
-    else if (imgSel.target === 'images') splash.images.push(m.file_url);
+function confirmImgSel(url) {
+  if (url) {
+    if (imgSel.target === 'image') splash.image = url;
+    else if (imgSel.target === 'images') splash.images.push(url);
   }
   imgSel.show = false;
+}
+function confirmSplashLink(link) {
+  if (link) splash.link = link;
+  linkSel.show = false;
 }
 
 function resolveUrl(u) {

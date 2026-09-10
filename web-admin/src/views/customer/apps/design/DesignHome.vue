@@ -336,29 +336,8 @@
       </div>
     </section>
 
-    <!-- 素材选择弹窗（全局复用：背景图/导航图标等） -->
-    <el-dialog v-model="imgSel.show" :title="imgSel.title" width="760px" append-to-body class="img-sel-dialog">
-      <div class="img-sel">
-        <div class="img-sel-side">
-          <div class="media-cat" :class="{ active: imgSel.cat === '' }" @click="imgSel.cat = ''; loadSelMats()">全部素材</div>
-          <div v-for="c in categories" :key="c.id" class="media-cat" :class="{ active: imgSel.cat === String(c.id) }" @click="imgSel.cat = String(c.id); loadSelMats()">{{ c.category_name }}</div>
-          <el-button size="small" type="primary" class="mt16 w100p" @click="uploadPick()">上传素材</el-button>
-        </div>
-        <div class="img-sel-main">
-          <div v-loading="selLoading" class="sel-grid">
-            <div v-for="m in selMats" :key="m.id" class="sel-item" :class="{ picked: imgSel.pick === m.id }" @click="imgSel.pick = m.id">
-              <img :src="resolveUrl(m.file_url)" :alt="m.file_name" />
-              <span v-if="imgSel.pick === m.id" class="sel-check">✓</span>
-            </div>
-            <div v-if="!selMats.length && !selLoading" class="media-empty">暂无素材</div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="imgSel.show = false">取消</el-button>
-        <el-button type="primary" :disabled="!imgSel.pick" @click="confirmImgSel">确定</el-button>
-      </template>
-    </el-dialog>
+    <!-- 素材选择弹窗（统一素材选择器：本地上传/网络提取/搜索/分类/分页） -->
+    <MaterialPicker v-model="imgSel.show" @confirm="confirmImgSel" />
   </div>
 </template>
 
@@ -370,6 +349,7 @@ import { EditPen, Delete, Close } from '@element-plus/icons-vue';
 import SIcon from '../../../../components/SIcon.vue';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import ComponentRender from './ComponentRender.vue';
+import MaterialPicker from './MaterialPicker.vue';
 import { designCall } from '../../../../api';
 
 const tabs = [
@@ -746,25 +726,17 @@ async function delTemplate(t) {
 }
 
 // ============ 素材选择弹窗 ============
-const imgSel = reactive({ show: false, title: '选择素材', cat: '', pick: null, target: null, targetIdx: null });
-const selMats = ref([]);
-const selLoading = ref(false);
+const imgSel = reactive({ show: false, target: null, targetIdx: null });
 function openImageSelect(target, idx) {
-  Object.assign(imgSel, { show: true, cat: '', pick: null, target, targetIdx: idx ?? null });
-  loadSelMats();
+  imgSel.target = target;
+  imgSel.targetIdx = idx ?? null;
+  imgSel.show = true;
 }
-async function loadSelMats() {
-  selLoading.value = true;
-  try {
-    const res = await designCall.get(`${API}/materials`, { params: { categoryId: imgSel.cat || undefined, page: 1, pageSize: 50 } });
-    selMats.value = res.list || [];
-  } catch (e) { ElMessage.error(e); } finally { selLoading.value = false; }
-}
-function confirmImgSel() {
-  const m = selMats.value.find((x) => x.id === imgSel.pick);
-  if (!m) return;
-  if (imgSel.target === 'bg') style.bgImage = m.file_url;
-  if (imgSel.target === 'tab' && imgSel.targetIdx !== null) schemeForm.items[imgSel.targetIdx].icon = m.file_url;
+function confirmImgSel(url) {
+  if (url) {
+    if (imgSel.target === 'bg') style.bgImage = url;
+    if (imgSel.target === 'tab' && imgSel.targetIdx !== null) schemeForm.items[imgSel.targetIdx].icon = url;
+  }
   imgSel.show = false;
 }
 

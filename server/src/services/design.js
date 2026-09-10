@@ -35,6 +35,17 @@ export function createDesignService(db) {
     return { ok: true };
   };
 
+  /** 租户上传限制（总后台客户项目独立配置，默认图片 2MB / 视频 50MB） */
+  svc.getUploadLimits = (tenantId) => {
+    const row = db.prepare('SELECT config FROM projects WHERE id = ?').get(tenantId);
+    let cfg = {};
+    try { cfg = row?.config ? JSON.parse(row.config) : {}; } catch { cfg = {}; }
+    return {
+      maxImageSize: Math.max(1, Number(cfg.maxImageSize) || 2),   // MB
+      maxVideoSize: Math.max(1, Number(cfg.maxVideoSize) || 50),  // MB
+    };
+  };
+
   /** 新增素材（上传后登记） */
   svc.addMaterial = (tenantId, { categoryId, fileName, fileUrl, fileSize, fileType }) => {
     const name = String(fileName || '素材').trim();
@@ -45,11 +56,13 @@ export function createDesignService(db) {
   };
 
   /** 素材列表 */
-  svc.listMaterials = (tenantId, { categoryId, keyword, page, pageSize } = {}) => {
+  svc.listMaterials = (tenantId, { categoryId, keyword, dateFrom, dateTo, page, pageSize } = {}) => {
     const where = ['m.tenant_id = ?'];
     const params = [tenantId];
     if (categoryId) { where.push('m.category_id = ?'); params.push(Number(categoryId)); }
     if (keyword) { where.push('m.file_name LIKE ?'); params.push(`%${keyword}%`); }
+    if (dateFrom) { where.push("substr(m.created_at, 1, 10) >= ?"); params.push(String(dateFrom)); }
+    if (dateTo) { where.push("substr(m.created_at, 1, 10) <= ?"); params.push(String(dateTo)); }
     const total = db.prepare(`SELECT COUNT(*) n FROM material m WHERE ${where.join(' AND ')}`).get(...params).n;
     const p = Math.max(parseInt(page, 10) || 1, 1);
     const ps = Math.min(Math.max(parseInt(pageSize, 10) || 20, 1), 100);

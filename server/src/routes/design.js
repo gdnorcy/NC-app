@@ -23,10 +23,16 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 单文件上限 50MB（视频）
 });
 
-const IMG_WHITELIST = ['image/jpeg', 'image/png', 'image/webp'];
+const IMG_WHITELIST = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const VIDEO_WHITELIST = ['video/mp4'];
-const IMG_MAX = 5 * 1024 * 1024; // 图片 5MB
-const VIDEO_MAX = 50 * 1024 * 1024; // 视频 50MB
+const IMG_EXT_RE = /\.(gif|jpe?g|png|webp)$/i;
+
+/** 校验图片体积（按租户配置，单位 MB） */
+function checkImgSize(buffer, maxMb) {
+  const max = maxMb * 1024 * 1024;
+  if (buffer.length > max) return { ok: false, error: `图片大小不能超过 ${maxMb}MB` };
+  return { ok: true };
+}
 
 export default function createDesignRouter(db, deps = {}) {
   const router = Router();
@@ -75,10 +81,12 @@ export default function createDesignRouter(db, deps = {}) {
   });
 
   material.get('/list', tenant, (req, res) => {
-    res.json(svc.listMaterials(req.customerId, {
+    const data = svc.listMaterials(req.customerId, {
       categoryId: req.query.categoryId, keyword: req.query.keyword,
+      dateFrom: req.query.dateFrom, dateTo: req.query.dateTo,
       page: req.query.page, pageSize: req.query.pageSize,
-    }));
+    });
+    res.json({ ...data, limits: svc.getUploadLimits(req.customerId) });
   });
 
   material.post('/upload', tenant, tenantAdmin, (req, res) => {
@@ -88,13 +96,15 @@ export default function createDesignRouter(db, deps = {}) {
         return res.status(400).json({ error: message });
       }
       if (!req.file) return res.status(400).json({ error: '未收到文件' });
+      const limits = svc.getUploadLimits(req.customerId);
       const mt = req.file.mimetype;
       if (IMG_WHITELIST.includes(mt)) {
-        if (req.file.size > IMG_MAX) return res.status(400).json({ error: '图片大小不能超过 5MB' });
+        const chk = checkImgSize(req.file.buffer, limits.maxImageSize);
+        if (!chk.ok) return res.status(400).json({ error: chk.error });
       } else if (VIDEO_WHITELIST.includes(mt)) {
-        if (req.file.size > VIDEO_MAX) return res.status(400).json({ error: '视频大小不能超过 50MB' });
+        if (req.file.size > limits.maxVideoSize * 1024 * 1024) return res.status(400).json({ error: `视频大小不能超过 ${limits.maxVideoSize}MB` });
       } else {
-        return res.status(400).json({ error: '仅支持 jpg / png / webp 图片与 mp4 视频' });
+        return res.status(400).json({ error: '仅支持 jpg / png / gif / webp 图片与 mp4 视频' });
       }
       try {
         const storage = await getStorage(db);
@@ -112,6 +122,41 @@ export default function createDesignRouter(db, deps = {}) {
         res.status(400).json({ error: '素材上传失败，请检查存储配置' });
       }
     });
+  });
+
+  // 网络提取：粘贴图片 URL 下载入库（大小/格式按租户限制校验）
+  material.post('/import', tenant, tenantAdmin, async (req, res) => {
+    const url = String(req.body?.url || '').trim();
+    if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: '图片地址需以 http:// 或 https:// 开头' });
+    const limits = svc.getUploadLimits(req.customerId);
+    try {
+      const resp = await fetch(url, {
+        redirect: 'follow', signal: AbortSignal.timeout(15000),
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; nuok-designer/1.0)' },
+      });
+      if (!resp.ok) return res.status(400).json({ error: `提取失败：目标地址返回 ${resp.status}` });
+      const ctype = String(resp.headers.get('content-type') || '').toLowerCase().split(';')[0];
+      const buf = Buffer.from(await resp.arrayBuffer());
+      const isImg = IMG_WHITELIST.includes(ctype) || IMG_EXT_RE.test(url);
+      if (!isImg) return res.status(400).json({ error: '仅支持 gif / jpg / png / webp 图片' });
+      const chk = checkImgSize(buf, limits.maxImageSize);
+      if (!chk.ok) return res.status(400).json({ error: chk.error });
+      const storage = await getStorage(db);
+      const name = decodeURIComponent(url.split('/').pop() || '').replace(/[^\w.\-]/g, '_') || `net-${Date.now()}`;
+      const key = `material/${req.customerId}/${Date.now()}-${name}`;
+      const fileUrl = await storage.put(buf, key);
+      const type = ctype.split('/')[1] || (IMG_EXT_RE.exec(url) ? IMG_EXT_RE.exec(url)[1].replace('jpeg', 'jpg') : 'jpg');
+      const r = svc.addMaterial(req.customerId, {
+        categoryId: req.body?.categoryId || null, fileName: name,
+        fileUrl, fileSize: buf.length, fileType: type,
+      });
+      if (!r.ok) return res.status(400).json({ error: r.error });
+      audit(db, req, 'create_material', 'material', r.id, `网络提取素材: ${url}`);
+      res.status(201).json({ ok: true, id: r.id, url: fileUrl });
+    } catch (e) {
+      console.error('网络提取失败:', e);
+      res.status(400).json({ error: '提取失败：地址不可访问或请求超时' });
+    }
   });
 
   material.post('/move', tenant, tenantAdmin, (req, res) => {

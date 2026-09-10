@@ -144,7 +144,9 @@
                     <el-button size="small" @click="openImgSel">选择素材</el-button>
                     <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
                   </div>
-                  <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'" />
+                  <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'">
+                    <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
+                  </el-input>
                   <el-switch v-else-if="f.control === 'switch'" v-model="selectedComp.props[f.key]" />
                   <el-select v-else-if="f.control === 'select'" v-model="selectedComp.props[f.key]" size="small" style="width:100%">
                     <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
@@ -162,7 +164,9 @@
                         <div v-for="(sf, si) in f.itemFields" :key="si" class="pe-list-field">
                           <div class="pe-list-label">{{ sf.label }}</div>
                           <el-input v-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
-                          <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'" />
+                          <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'">
+                            <template #append><el-button @click="openLinkSel(idx, si, sf)">选择</el-button></template>
+                          </el-input>
                           <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:100%">
                             <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
                           </el-select>
@@ -355,24 +359,11 @@
       <div v-if="!versions.length" class="pe-empty">暂无历史版本（发布后自动生成）</div>
     </el-dialog>
 
-    <!-- 素材选择 -->
-    <el-dialog v-model="imgSel.show" title="选择素材" width="720px" append-to-body>
-      <div class="pe-sel">
-        <div v-loading="selLoading" class="sel-grid">
-          <div v-for="m in selMats" :key="m.id" class="sel-item" :class="{ picked: imgSel.pick === m.id }" @click="imgSel.pick = m.id">
-            <video v-if="m.file_type === 'mp4'" :src="resolveUrl(m.file_url)" preload="metadata" muted></video>
-            <img v-else :src="resolveUrl(m.file_url)" :alt="m.file_name" />
-            <span v-if="m.file_type === 'mp4'" class="sel-video-tag">视频</span>
-            <span v-if="imgSel.pick === m.id" class="sel-check">✓</span>
-          </div>
-          <div v-if="!selMats.length && !selLoading" class="pe-empty">素材库为空，请先到「素材中心」上传</div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="imgSel.show = false">取消</el-button>
-        <el-button type="primary" :disabled="!imgSel.pick" @click="confirmImgSel">确定</el-button>
-      </template>
-    </el-dialog>
+    <!-- 素材选择（照抄 eweishop/资源选择器：模式/搜索/分类/分页/上传/网络提取） -->
+    <MaterialPicker v-model="imgSel.show" @confirm="confirmImgSel" />
+
+    <!-- 系统链接选择器（分类配置驱动） -->
+    <LinkPicker v-model="linkSel.show" :model-link="linkSel.current" @confirm="confirmLinkSel" />
   </div>
 </template>
 
@@ -382,6 +373,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall } from '../../../../api';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
 import ComponentRender from './ComponentRender.vue';
+import MaterialPicker from './MaterialPicker.vue';
+import LinkPicker from './LinkPicker.vue';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
@@ -397,8 +390,6 @@ const publishing = ref(false);
 const previewing = ref(false);
 const versionShow = ref(false);
 const versions = ref([]);
-const selMats = ref([]);
-const selLoading = ref(false);
 const imgSel = reactive({ show: false, pick: null, target: null });
 let imgSelListField = null; // 当前 list 字段定义（openImgSel 传入，确认时回写对应 key）
 const kw = ref('');
@@ -458,17 +449,8 @@ const navLeftHtml = computed(() => navPosHtml('left'));
 const navRightHtml = computed(() => navPosHtml('right'));
 function openHeaderPanel() { headerPanel.active = 'header'; headerPanel.show = true; }
 function openHeaderImg(target, pos) {
-  imgSel.pick = null;
   imgSel.target = pos ? { target, pos } : { target };
   imgSel.show = true;
-  loadSelMats();
-}
-async function loadSelMats() {
-  selLoading.value = true;
-  try {
-    const res = await designCall.get('/material/list', { params: { page: 1, pageSize: 60 } });
-    selMats.value = res.list || [];
-  } catch (e) { ElMessage.error(e); } finally { selLoading.value = false; }
 }
 
 // 页面列表（模块列表 tab 之外承载页面切换/新建/复制/删除；同 page_type 合并为一行）
@@ -764,36 +746,61 @@ async function saveAsTemplate() {
     if (e !== 'cancel' && e !== 'close') ElMessage.error(e);
   }
 }
-async function openImgSel(listIdx, fieldIdx, listField) {
-  imgSel.pick = null;
+function openImgSel(listIdx, fieldIdx, listField) {
   imgSel.target = typeof listIdx === 'number' && typeof fieldIdx === 'number' ? { listIdx, fieldIdx } : null;
   imgSelListField = imgSel.target ? (listField || null) : null;
   imgSel.show = true;
-  selLoading.value = true;
-  try {
-    const res = await designCall.get('/material/list', { params: { page: 1, pageSize: 60 } });
-    selMats.value = res.list || [];
-  } catch (e) { ElMessage.error(e); } finally { selLoading.value = false; }
 }
-function confirmImgSel() {
-  const m = selMats.value.find((x) => x.id === imgSel.pick);
-  if (m && selectedComp.value) {
+function confirmImgSel(url, mid) {
+  if (url && selectedComp.value) {
     if (imgSel.target && imgSelListField) {
       const items = selectedComp.value.props[imgSelListField.key] || [];
       if (!items[imgSel.target.listIdx]) items[imgSel.target.listIdx] = {};
-      items[imgSel.target.listIdx][imgSelListField.itemFields[imgSel.target.fieldIdx].key] = m.file_url;
+      items[imgSel.target.listIdx][imgSelListField.itemFields[imgSel.target.fieldIdx].key] = url;
     } else if (imgSel.target?.pos) {
-      meta.header.content[imgSel.target.pos].image = m.file_url;
+      meta.header.content[imgSel.target.pos].image = url;
     } else if (imgSel.target?.target === 'header') {
-      meta.header.bgImage = m.file_url;
+      meta.header.bgImage = url;
     } else if (imgSel.target?.target === 'global') {
-      meta.global.bgImage = m.file_url;
+      meta.global.bgImage = url;
     } else if (selectedComp.value) {
-      selectedComp.value.props.url = m.file_url;
-      selectedComp.value.props.materialId = m.id;
+      selectedComp.value.props.url = url;
+      selectedComp.value.props.materialId = mid ?? null;
     }
   }
   imgSel.show = false;
+}
+
+// 系统链接选择器：link 字段点「选择」弹窗回填
+const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, current: '' });
+function openLinkSel(listIdx, fieldIdx, listField) {
+  let current = '';
+  if (selectedComp.value) {
+    if (typeof listIdx === 'number' && typeof fieldIdx === 'number' && listField) {
+      const items = selectedComp.value.props[listField.key] || [];
+      current = (items[listIdx] || {})[listField.itemFields[fieldIdx].key] || '';
+    } else if (listField) {
+      current = selectedComp.value.props[listField.key] || '';
+    }
+  }
+  linkSel.fieldKey = listField?.key || null;
+  linkSel.listField = listField || null;
+  linkSel.listIdx = typeof listIdx === 'number' ? listIdx : null;
+  linkSel.fieldIdx = typeof fieldIdx === 'number' ? fieldIdx : null;
+  linkSel.current = current;
+  linkSel.show = true;
+}
+function confirmLinkSel(link) {
+  if (link && selectedComp.value) {
+    if (linkSel.listField && typeof linkSel.listIdx === 'number' && typeof linkSel.fieldIdx === 'number') {
+      const items = selectedComp.value.props[linkSel.listField.key] || [];
+      if (!items[linkSel.listIdx]) items[linkSel.listIdx] = {};
+      items[linkSel.listIdx][linkSel.listField.itemFields[linkSel.fieldIdx].key] = link;
+    } else if (linkSel.fieldKey) {
+      selectedComp.value.props[linkSel.fieldKey] = link;
+    }
+  }
+  linkSel.show = false;
 }
 
 // 列表项操作：新增（按 itemFields 生成默认项）/ 拖拽排序（替代原上下箭头）
