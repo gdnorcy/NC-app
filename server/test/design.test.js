@@ -6,8 +6,9 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createHash } from 'node:crypto';
 import { createDb } from '../src/db.js';
-import { createDesignService } from '../src/services/design.js';
+import { createDesignService, buildDesignPreviewUrl, DESIGN_PREVIEW_SECRET } from '../src/services/design.js';
 
 describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
   let db, svc;
@@ -303,5 +304,21 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     const rows = list.filter((x) => x.page_type === p2.pageType);
     assert.ok(rows.length >= 1);
     assert.equal(rows[0].sortOrder > 0, true);
+  });
+
+  it('P14 首页预览 URL：默认与真实首页一致（不带 preview=1），?draft=1 才预览草稿；签名可校验', () => {
+    const url = buildDesignPreviewUrl(T1);
+    assert.ok(url.includes(`tid=${T1}`), '应携带租户 ID');
+    assert.equal(url.includes('preview=1'), false, '默认真实首页模式不应带 preview=1');
+    assert.match(url, /exp=\d+&sig=[0-9a-f]{32}/, '应携带有效签名参数');
+    // 签名可复验
+    const exp = Number(url.match(/exp=(\d+)/)[1]);
+    const sig = url.match(/sig=([0-9a-f]{32})/)[1];
+    const expect = createHash('sha256').update(`${T1}:${exp}:${DESIGN_PREVIEW_SECRET}`).digest('hex').slice(0, 32);
+    assert.equal(sig, expect, '签名应与服务端一致');
+
+    const draftUrl = buildDesignPreviewUrl(T1, true);
+    assert.ok(draftUrl.includes('preview=1'), '草稿预览应带 preview=1');
+    assert.ok(draftUrl.includes(`tid=${T1}`));
   });
 });

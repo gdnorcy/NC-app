@@ -173,8 +173,8 @@ export const cardApi = {
   // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）
   designConfig: (preview) => {
     const params = preview ? { preview: 1 } : {};
-    // H5 预览模式：透传 hash 中的签名参数（tid/exp/sig），免登录访问草稿
-    if (preview && typeof window !== 'undefined' && window.location && window.location.hash) {
+    // H5 带签名访问（设计中心 iframe 免登录）：hash 中存在 tid/exp/sig 即透传，预览模式同样适用
+    if (typeof window !== 'undefined' && window.location && window.location.hash) {
       try {
         const hp = new URLSearchParams((window.location.hash.split('?')[1] || ''));
         ['tid', 'exp', 'sig'].forEach((k) => { if (hp.get(k)) params[k] = hp.get(k); });

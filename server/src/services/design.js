@@ -3,6 +3,21 @@
  * 素材中心 / 系统风格 / 底部导航 / 系统模板 / 首页跳转 / 页面装修（拖拽编辑器+版本回滚）
  * 全部 tenant_id 租户隔离；素材引用追踪（被引用禁止删除）；页面发布乐观锁
  */
+import { createHash } from 'node:crypto';
+
+export const DESIGN_PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
+
+/**
+ * 生成 C 端首页预览 URL（带一次性签名，30 分钟内有效，免登录）。
+ * draft=true 生成草稿预览（preview=1，装修页「保存并预览」）；默认与真实首页一致（读发布版/同一缓存）。
+ */
+export function buildDesignPreviewUrl(tenantId, draft = false) {
+  const exp = Math.floor(Date.now() / 1000) + 1800;
+  const sig = createHash('sha256').update(`${tenantId}:${exp}:${DESIGN_PREVIEW_SECRET}`).digest('hex').slice(0, 32);
+  const previewFlag = draft ? 'preview=1&' : '';
+  return `/card/?nc=preview#/pages/cardMain/home?${previewFlag}tid=${tenantId}&exp=${exp}&sig=${sig}`;
+}
+
 export function createDesignService(db) {
   const svc = {};
 

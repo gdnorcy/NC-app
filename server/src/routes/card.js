@@ -87,8 +87,8 @@ export function createCardRouter(db, wxService) {
   }
 
   // 预览签名校验：sig = sha256(tid:exp:PREVIEW_SECRET) 前 32 位，exp 30 分钟内有效
+  // 签名通过即可免登录访问该租户配置（含发布版首页），preview=1 仅标识「草稿预览」意图，不强求
   function verifyPreviewSig(q) {
-    if (q.preview !== '1') return 0;
     const tid = Number(q.tid);
     const exp = Number(q.exp);
     if (!tid || !exp || exp < Math.floor(Date.now() / 1000)) return 0;

@@ -915,9 +915,9 @@ async function saveAndPreview() {
     baseSnapshot = snapshot();
     dirty = false;
     emit('dirty-change', false);
-    // 仅首页装修支持 C 端实时预览（后端生成带签名的一次性预览 URL）
+    // 仅首页装修支持 C 端实时预览（后端生成带签名的一次性预览 URL；draft=1 预览草稿）
     if (props.pageType === homePageType.value) {
-      const previewRes = await designCall.get('/design/previewUrl');
+      const previewRes = await designCall.get('/design/previewUrl', { params: { draft: 1 } });
       if (previewRes?.url) window.open(previewRes.url, '_blank');
       else ElMessage.info('草稿已保存；暂无法打开预览');
     } else {

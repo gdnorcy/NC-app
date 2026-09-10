@@ -9,14 +9,10 @@
  * 全部要求租户登录；写操作要求租户管理员；统一携带 tenant_id 隔离
  */
 import { Router } from 'express';
-import { createHash } from 'node:crypto';
 import multer from 'multer';
-import { createDesignService } from '../services/design.js';
+import { createDesignService, buildDesignPreviewUrl } from '../services/design.js';
 import { tenantState } from '../tenant.js';
 import { getStorage } from '../storage/index.js';
-
-// 与 card.js 一致的预览签名密钥
-const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -323,12 +319,10 @@ export default function createDesignRouter(db, deps = {}) {
     res.json(r);
   });
 
-  // ---- 保存并预览：生成带签名的一次性预览 URL（30 分钟内有效） ----
+  // ---- 首页预览 URL：默认生成与 C 端真实首页一致的一次性签名 URL（普通模式，读发布版/同缓存）；
+  // ---- ?draft=1 时生成草稿预览 URL（preview=1，装修页「保存并预览」用）----
   design.get('/previewUrl', tenant, (req, res) => {
-    const tid = req.customerId;
-    const exp = Math.floor(Date.now() / 1000) + 1800;
-    const sig = createHash('sha256').update(`${tid}:${exp}:${PREVIEW_SECRET}`).digest('hex').slice(0, 32);
-    res.json({ url: `/card/?nc=preview#/pages/cardMain/home?preview=1&tid=${tid}&exp=${exp}&sig=${sig}` });
+    res.json({ url: buildDesignPreviewUrl(req.customerId, String(req.query.draft) === '1') });
   });
 
   return { material, design };
