@@ -2276,6 +2276,12 @@ function seedDesign(db) {
       updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // 设计中心页面装修：首页可切换标记（幂等迁移；现有 home 页自动置为首页）
+  if (tableExists(db, 'tenant_page_design') && !colExists(db, 'tenant_page_design', 'is_home')) {
+    db.exec("ALTER TABLE tenant_page_design ADD COLUMN is_home INTEGER NOT NULL DEFAULT 0");
+    db.exec("UPDATE tenant_page_design SET is_home = 1 WHERE page_type = 'home'");
+  }
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

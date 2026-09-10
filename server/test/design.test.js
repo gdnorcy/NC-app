@@ -221,4 +221,45 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     assert.ok(cardDraft);
     assert.notEqual(home.page_type, cardDraft.page_type);
   });
+
+  it('P12 首页切换：setHomePage 标记唯一首页 + 列表返回 isHome + 删除首页保护', () => {
+    // 迁移后 home 页自动 is_home=1
+    let list = svc.listPageDesigns(T1);
+    const homePage = list.find((p) => p.page_type === 'home');
+    assert.ok(homePage);
+    assert.equal(homePage.isHome, true);
+
+    // 新建一个自定义页，默认非首页
+    const created = svc.createPage(T1, '活动页');
+    assert.equal(created.ok, true);
+    list = svc.listPageDesigns(T1);
+    const custom = list.find((p) => p.page_type === created.pageType);
+    assert.ok(custom);
+    assert.equal(custom.isHome, false);
+
+    // 切首页：目标置 1，原 home 置 0（唯一）
+    const r = svc.setHomePage(T1, created.id);
+    assert.equal(r.ok, true);
+    list = svc.listPageDesigns(T1);
+    const homeCount = list.filter((p) => p.isHome).length;
+    assert.equal(homeCount, 1);
+    assert.equal(list.find((p) => p.id === created.id).isHome, true);
+    assert.equal(list.find((p) => p.page_type === 'home').isHome, false);
+
+    // 切回 home
+    const back = svc.setHomePage(T1, homePage.id);
+    assert.equal(back.ok, true);
+    list = svc.listPageDesigns(T1);
+    assert.equal(list.find((p) => p.id === homePage.id).isHome, true);
+
+    // 缺失/不存在页面拒绝
+    assert.equal(svc.setHomePage(T1, 0).ok, false);
+    assert.equal(svc.setHomePage(T1, 999999).ok, false);
+
+    // 删除首页保护：把 custom 设为首页后删除应被拒；切回后删除成功
+    svc.setHomePage(T1, created.id);
+    assert.equal(svc.deletePage(T1, created.pageType).ok, false);
+    svc.setHomePage(T1, homePage.id);
+    assert.equal(svc.deletePage(T1, created.pageType).ok, true);
+  });
 });

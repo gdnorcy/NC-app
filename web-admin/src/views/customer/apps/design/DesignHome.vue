@@ -282,7 +282,7 @@
           <div class="pm-tpl-head">
             <span class="pm-tpl-name">{{ homeName }}</span>
             <span class="pm-use-tag">使用中</span>
-            <el-button size="small" text type="primary" @click="goEdit('home')">立即装修</el-button>
+            <el-button size="small" text type="primary" @click="editHome">立即装修</el-button>
           </div>
           <div class="pm-update">最近更新：{{ homeUpdated }}</div>
           <div class="pm-phone">
@@ -319,17 +319,17 @@
 
           <!-- 表格：页面名称 / 是否首页 / 头部展示 / 密码访问 / 会员访问 / 操作 -->
           <div class="table-scroll">
-            <el-table :data="filteredPages" v-loading="pageLoading" stripe style="min-width: 820px">
+            <el-table :data="pagedPages" v-loading="pageLoading" stripe style="min-width: 820px">
             <el-table-column label="页面名称" min-width="180">
               <template #default="{ row }">
                 <span class="pm-row-name">{{ row.page_name }}</span>
-                <el-tag v-if="row.page_type === 'home'" size="small" type="success" class="pm-home-tag">首页</el-tag>
+                <el-tag v-if="row.isHome" size="small" type="success" class="pm-home-tag">首页</el-tag>
                 <el-tag v-if="row.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="是否首页" width="110">
               <template #default="{ row }">
-                <el-switch :model-value="row.page_type === 'home'" :disabled="row.page_type === 'home'" @change="setHome(row)" />
+                <span class="pm-home-switch" :class="{ 'is-home': row.isHome }" @click="setHome(row)">{{ row.isHome ? '是' : '否' }}</span>
               </template>
             </el-table-column>
             <el-table-column label="头部展示" width="120">
@@ -359,6 +359,9 @@
             </el-table-column>
           </el-table>
           <div v-if="!filteredPages.length && !pageLoading" class="media-empty">暂无页面，点击「新建页面」创建</div>
+          <div v-else-if="filteredPages.length > pmPageSize" class="pm-pager">
+            <el-pagination background layout="total, prev, pager, next, jumper" :total="filteredPages.length" :page-size="pmPageSize" :current-page="pageNum" @current-change="pageNum = $event" />
+          </div>
           </div>
         </div>
       </div>
@@ -421,9 +424,11 @@ async function loadPages() {
 }
 async function loadHomePreview() {
   try {
+    const home = pageList.value.find((p) => p.isHome) || pageList.value.find((p) => p.page_type === 'home');
+    const homeType = home?.page_type || 'home';
     const [pubRes, draftRes, pvRes] = await Promise.all([
-      designCall.get(`${API}/page/detail`, { params: { pageType: 'home', published: 1 } }),
-      designCall.get(`${API}/page/detail`, { params: { pageType: 'home', published: 0 } }),
+      designCall.get(`${API}/page/detail`, { params: { pageType: homeType, published: 1 } }),
+      designCall.get(`${API}/page/detail`, { params: { pageType: homeType, published: 0 } }),
       designCall.get(`${API}/previewUrl`),
     ]);
     const src = draftRes.page || pubRes.page;
@@ -438,10 +443,12 @@ async function loadHomePreview() {
     if (pvRes && pvRes.url) pagePreviewUrl.value = pvRes.url;
   } catch (e) { /* 预览加载失败不阻塞 */ }
 }
+const homePageType = computed(() => pageList.value.find((p) => p.isHome)?.page_type || 'home');
+function editHome() { goEdit(homePageType.value); }
 async function renameTemplate() {
   try {
     const { value } = await ElMessageBox.prompt('请输入模板名称（当前首页名称）', '重命名模板', { inputValue: homeName.value, inputPattern: /\S+/, inputErrorMessage: '名称不能为空' });
-    await designCall.post(`${API}/page/rename`, { pageType: 'home', pageName: value });
+    await designCall.post(`${API}/page/rename`, { pageType: homePageType.value, pageName: value });
     ElMessage.success('模板已重命名');
     homeName.value = value;
     loadPages();
@@ -482,6 +489,12 @@ const filteredPages = computed(() => {
   if (!kw2) return mergedPages.value;
   return mergedPages.value.filter((p) => (p.page_name || '').includes(kw2));
 });
+const pageNum = ref(1);
+const pmPageSize = 10;
+const pagedPages = computed(() => {
+  const start = (pageNum.value - 1) * pmPageSize;
+  return filteredPages.value.slice(start, start + pmPageSize);
+});
 function goEdit(type) {
   router.push({ path: '/design/edit', query: { pageType: type || 'home' } });
 }
@@ -519,8 +532,13 @@ async function deletePage(p) {
   } catch (e) { ElMessage.error(e); }
 }
 async function setHome(row) {
-  if (row.page_type === 'home') return;
-  try { await ElMessageBox.confirm('仅支持将「首页」设为默认展示页面，如需新的默认页请编辑首页内容', '提示', { type: 'info' }); } catch { /* 关闭 */ }
+  if (row.isHome) return;
+  try {
+    await designCall.post(`${API}/page/setHome`, { id: row.id });
+    ElMessage.success(`已切换首页为「${row.page_name}」`);
+    pageNum.value = 1;
+    loadPages();
+  } catch (e) { ElMessage.error(e); }
 }
 function resolveUrl(u) {
   if (!u) return '';
@@ -813,7 +831,7 @@ onMounted(() => {
 <style scoped>
 /* 页面装修（云菜鸟 moban 风格：顶部手机真实预览 + 操作条 + 表格） */
 .page-manage { width: 100%; }
-.pm-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pm-layout { display: grid; grid-template-columns: 300px 789px; gap: 16px; align-items: start; justify-content: center; }
 .pm-left { background: #fff; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .pm-tpl-head { display: flex; align-items: center; gap: 8px; width: 100%; }
 .pm-use-tag { font-size: 11px; color: #165dff; background: #e8f3ff; border-radius: 10px; padding: 2px 8px; line-height: 16px; flex-shrink: 0; }
@@ -835,6 +853,11 @@ onMounted(() => {
 .pm-ops { display: flex; align-items: center; white-space: nowrap; }
 .pm-ops .el-button { margin-left: 0; margin-right: 2px; padding: 4px 5px; }
 .pm-home-tag { margin-right: 4px; }
+.pm-home-switch { display: inline-block; min-width: 32px; text-align: center; padding: 2px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; user-select: none; color: #86909c; background: #f2f3f5; border: 1px solid #e5e6eb; }
+.pm-home-switch:hover { color: #165dff; border-color: #165dff; background: #e8f3ff; }
+.pm-home-switch.is-home { color: #fff; background: #00b42a; border-color: #00b42a; cursor: default; }
+.pm-home-switch.is-home:hover { color: #fff; background: #00b42a; }
+.pm-pager { display: flex; justify-content: flex-end; margin-top: 12px; }
 
 .design-home { display: flex; flex-direction: column; gap: 16px; }
 /* 应用内 Tab：与 CardTabs.vue 一致的圆角块导航、激活主色、横向滚动 */

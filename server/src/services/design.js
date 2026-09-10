@@ -280,7 +280,7 @@ export function createDesignService(db) {
       if (exist) {
         db.prepare("UPDATE tenant_page_design SET design_json = ?, version = version + 1, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(design || {}), exist.id);
       } else {
-        db.prepare("INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status) VALUES (?, ?, ?, ?, 1, 1)").run(tenantId, type, name, JSON.stringify(design || {}));
+        db.prepare("INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 1, ?)").run(tenantId, type, name, JSON.stringify(design || {}), type === 'home' ? 1 : 0);
       }
       svc.syncRefs(tenantId, 'page', type, design || {});
     }
@@ -292,13 +292,14 @@ export function createDesignService(db) {
   // ============ 页面装修（草稿/发布/版本回滚，乐观锁） ============
 
   svc.listPageDesigns = (tenantId) =>
-    db.prepare('SELECT id, page_type, page_name, version, status, updated_at, design_json FROM tenant_page_design WHERE tenant_id = ? ORDER BY id ASC').all(tenantId)
+    db.prepare('SELECT id, page_type, page_name, version, status, is_home, updated_at, design_json FROM tenant_page_design WHERE tenant_id = ? ORDER BY is_home DESC, id ASC').all(tenantId)
       .map((row) => {
         let meta = {};
         try { meta = (JSON.parse(row.design_json) || {}).meta || {}; } catch { meta = {}; }
         return {
           id: row.id, page_type: row.page_type, page_name: row.page_name,
           version: row.version, status: row.status, updated_at: row.updated_at,
+          isHome: !!row.is_home,
           headerType: (meta.header && meta.header.type) || 'official',
           passwordEnabled: !!(meta.theme && meta.theme.passwordEnabled),
           memberOnly: !!(meta.theme && meta.theme.memberOnly),
@@ -325,8 +326,8 @@ export function createDesignService(db) {
       svc.syncRefs(tenantId, 'page', pageType, designJson || {});
       return { ok: true, id: exist.id, published: false, version: exist.version };
     }
-    const r = db.prepare('INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status) VALUES (?, ?, ?, ?, 1, 0)')
-      .run(tenantId, pageType, pageName || pageType, JSON.stringify(designJson || {}));
+    const r = db.prepare('INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 0, ?)')
+      .run(tenantId, pageType, pageName || pageType, JSON.stringify(designJson || {}), pageType === 'home' ? 1 : 0);
     svc.syncRefs(tenantId, 'page', pageType, designJson || {});
     return { ok: true, id: Number(r.lastInsertRowid), published: false, version: 1 };
   };
@@ -402,6 +403,8 @@ export function createDesignService(db) {
   svc.deletePage = (tenantId, pageType) => {
     const builtin = ['home', 'card', 'dynamic', 'mine'];
     if (builtin.includes(pageType)) return { ok: false, error: '内置页面（首页/名片详情/个人动态/个人中心）不可删除' };
+    const home = db.prepare('SELECT id FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND is_home = 1').get(tenantId, pageType);
+    if (home) return { ok: false, error: '当前页面为首页，请先切换首页后再删除' };
     db.prepare('DELETE FROM tenant_page_design WHERE tenant_id = ? AND page_type = ?').run(tenantId, pageType);
     db.prepare('DELETE FROM tenant_page_version WHERE tenant_id = ? AND page_type = ?').run(tenantId, pageType);
     return { ok: true };
@@ -424,6 +427,24 @@ export function createDesignService(db) {
     const r = db.prepare('INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status) VALUES (?, ?, ?, ?, 1, 1)')
       .run(tenantId, newType, name, JSON.stringify({ components: [] }));
     return { ok: true, pageType: newType, id: Number(r.lastInsertRowid) };
+  };
+
+  /** 设置首页：本租户全部置 0 → 目标页置 1（与云菜鸟 setindex 逻辑一致） */
+  svc.setHomePage = (tenantId, pageId) => {
+    const id = Number(pageId);
+    if (!id) return { ok: false, error: '缺少页面 ID' };
+    const exist = db.prepare('SELECT id FROM tenant_page_design WHERE tenant_id = ? AND id = ?').get(tenantId, id);
+    if (!exist) return { ok: false, error: '页面不存在' };
+    db.exec('BEGIN');
+    try {
+      db.prepare('UPDATE tenant_page_design SET is_home = 0 WHERE tenant_id = ?').run(tenantId);
+      db.prepare("UPDATE tenant_page_design SET is_home = 1, updated_at = datetime('now') WHERE id = ? AND tenant_id = ?").run(id, tenantId);
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+    return { ok: true, id };
   };
 
   return svc;

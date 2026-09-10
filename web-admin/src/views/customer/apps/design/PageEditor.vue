@@ -68,7 +68,7 @@
               </div>
               <div v-for="p in filteredPages" :key="p.page_type" class="pe-pages-tr" :class="{ current: p.page_type === pageType }">
                 <span class="pp-col-name pp-name" :title="p.page_name + (p.status === 1 ? '（已发布）' : '')" @click="switchPage(p.page_type)">{{ p.page_name }}</span>
-                <span class="pp-col-home" :class="{ yes: p.page_type === 'home' }">{{ p.page_type === 'home' ? '是' : '否' }}</span>
+                <span class="pp-col-home" :class="{ yes: p.isHome }" title="点击切换首页" @click="toggleHome(p)">{{ p.isHome ? '是' : '否' }}</span>
                 <span class="pp-col-ops">
                   <el-button size="small" text @click="renamePage(p)">重命名</el-button>
                   <el-button size="small" text type="primary" @click="copyPage(p)">复制</el-button>
@@ -632,11 +632,20 @@ const filteredPages = computed(() => {
   if (!kw2) return mergedPages.value;
   return mergedPages.value.filter((p) => (p.page_name || '').includes(kw2));
 });
+const homePageType = computed(() => mergedPages.value.find((p) => p.isHome)?.page_type || 'home');
 async function loadPageList() {
   try {
     const res = await designCall.get('/design/page/list');
     pageList.value = res.list || [];
   } catch (e) { /* 页面列表加载失败不阻塞编辑 */ }
+}
+async function toggleHome(p) {
+  if (p.isHome) return;
+  try {
+    await designCall.post('/design/page/setHome', { id: p.id });
+    ElMessage.success(`已切换首页为「${p.page_name}」`);
+    await loadPageList();
+  } catch (e) { ElMessage.error(e); }
 }
 function switchPage(type) {
   if (type === props.pageType) return;
@@ -882,7 +891,7 @@ async function saveAndPreview() {
     dirty = false;
     emit('dirty-change', false);
     // 仅首页装修支持 C 端实时预览（后端生成带签名的一次性预览 URL）
-    if (props.pageType === 'home') {
+    if (props.pageType === homePageType.value) {
       const previewRes = await designCall.get('/design/previewUrl');
       if (previewRes?.url) window.open(previewRes.url, '_blank');
       else ElMessage.info('草稿已保存；暂无法打开预览');
@@ -1078,8 +1087,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-pages-tr:hover { background: #f2f3f5; }
 .pe-pages-tr.current { background: #e8f3ff; }
 .pp-col-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pp-col-home { flex: 0 0 32px; text-align: center; color: #86909c; }
-.pp-col-home.yes { color: #165dff; font-weight: 600; }
+.pp-col-home { flex: 0 0 32px; text-align: center; color: #86909c; cursor: pointer; user-select: none; }
+.pp-col-home:hover { color: #165dff; font-weight: 500; }
+.pp-col-home.yes { color: #165dff; font-weight: 600; cursor: default; }
 .pp-col-ops { flex: 0 0 106px; display: flex; align-items: center; }
 .pp-col-ops .el-button { padding: 0 3px; margin-left: 0; }
 .pp-name { cursor: pointer; color: #1d2129; font-weight: 500; }

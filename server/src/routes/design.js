@@ -231,6 +231,12 @@ export default function createDesignRouter(db, deps = {}) {
     audit(db, req, 'create_page', 'tenant_page_design', r.id, `新建页面: ${req.body?.pageName || '新建页面'}`);
     res.json(r);
   });
+  design.post('/page/setHome', tenant, tenantAdmin, (req, res) => {
+    const r = svc.setHomePage(req.customerId, Number(req.body?.id));
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    audit(db, req, 'set_home_page', 'tenant_page_design', Number(req.body?.id), '切换首页');
+    res.json({ ok: true });
+  });
 
   // ---- 全局配置（启动页广告 / 全局设置） ----
   design.get('/global/get', tenant, (req, res) => res.json(svc.getGlobal(req.customerId)));
