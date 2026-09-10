@@ -46,10 +46,21 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'video'">
-      <div class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.ratio] || '16 / 9' }">
+      <!-- 视频号视频（eweishop 复刻）：风格一列/两列、多视频、背景色/图、静音循环、圆角 -->
+      <div v-if="comp.props.source === 'channels'" class="r-video-ch" :style="chStyle(comp.props)">
+        <div class="r-video-ch-inner" :class="comp.props.style === 'double' ? 'r-video-ch-double' : ''">
+          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: '16 / 9' }">
+            <div class="r-video-ch-play"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
+            <div class="r-video-ch-id">{{ it.finderUserName || comp.props.finderUserName || '视频号id' }}</div>
+            <span class="r-video-tag">视频号</span>
+          </div>
+        </div>
+        <div class="r-video-ch-meta">{{ comp.props.autoplay === 'auto' ? '自动播放' : '手动播放' }}<template v-if="comp.props.muted"> · 静音</template><template v-if="comp.props.loop"> · 循环</template><template v-if="comp.props.memberAccess === 'allow'"> · 会员可看</template><template v-if="comp.props.memberAccess === 'deny'"> · 会员不可看</template></div>
+      </div>
+      <!-- 本地视频 -->
+      <div v-else class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.ratio] || '16 / 9' }">
         <img v-if="comp.props.poster" :src="resolveUrl(comp.props.poster)" />
         <div v-else class="r-video-empty"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
-        <span v-if="comp.props.source === 'channels'" class="r-video-tag">视频号</span>
         <span v-if="comp.props.displayMode === 'popup'" class="r-video-tag r-video-tag2">弹出</span>
       </div>
     </template>
@@ -304,6 +315,32 @@ function resolveUrl(u) {
   if (/^https?:|^data:|^blob:/.test(u)) return u;
   return u.startsWith('/') ? u : `/${u}`;
 }
+
+// ===== 视频号视频辅助（eweishop 复刻） =====
+function chVideos(p) {
+  const list = (p.videos && p.videos.length ? p.videos : [p]);
+  return list.map((it) => ({
+    finderUserName: (it && it.finderUserName) || p.finderUserName || '',
+    feedId: (it && it.feedId) || p.feedId || '',
+  }));
+}
+function chStyle(p) {
+  const s = {};
+  if (p.bgType === 'color' && p.bgColor) s.background = p.bgColor;
+  if (p.bgType === 'image' && p.bgImage) s.backgroundImage = `url(${resolveUrl(p.bgImage)})`;
+  if (p.bgType === 'image' && p.bgImage) s.backgroundSize = 'cover';
+  if (p.vSpacing) s.padding = `${p.vSpacing}px`;
+  return s;
+}
+function chRadius(p, i) {
+  const list = chVideos(p);
+  const first = i === 0;
+  const last = i === list.length - 1;
+  const r = [];
+  if (p.radiusTop && first) r.push('12px');
+  if (p.radiusBottom && last) r.push('12px');
+  return r.length ? r.join(' ') : '';
+}
 </script>
 
 <style scoped>
@@ -342,6 +379,17 @@ function resolveUrl(u) {
 .r-live-empty { padding: 20px 0; text-align: center; color: #86909c; font-size: 12px; }
 .r-live-2 .r-live-card { flex-direction: column; align-items: stretch; }
 .r-live-2 .r-live-cover { width: 100%; height: 60px; }
+/* 视频号视频（eweishop 复刻） */
+.r-video-ch { border-radius: 8px; overflow: hidden; box-sizing: border-box; }
+.r-video-ch-inner { display: flex; flex-direction: column; gap: 8px; }
+.r-video-ch-double { flex-direction: row; flex-wrap: wrap; }
+.r-video-ch-double .r-video-ch-item { flex: 1 1 46%; }
+.r-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.r-video-ch-item::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(transparent, rgba(0,0,0,.5)); }
+.r-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
+.r-video-ch-id { position: absolute; z-index: 2; left: 8px; bottom: 6px; font-size: 11px; color: #fff; max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-video-ch-meta { margin-top: 6px; font-size: 11px; color: #86909c; }
+.r-video-ch .r-video-tag { top: 6px; left: 6px; }
 /* 图文卡片 */
 .r-imagetext { position: relative; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #f0f1f3; }
 .r-imagetext img { width: 100%; display: block; }

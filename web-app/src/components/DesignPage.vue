@@ -48,10 +48,27 @@
         <view class="dp-form-input"><text>{{ c.props.phonePlaceholder || '请输入手机号' }}</text></view>
         <view class="dp-form-btn" :style="{ background: c.props.btnColor || '#165dff' }"><text>{{ c.props.submitText || '提交' }}</text></view>
       </view>
-      <!-- 视频（云菜鸟：视频样式比例 / 直接显示 / 弹出显示 / 本地视频 / 视频号视频） -->
+      <!-- 视频（云菜鸟：视频样式比例 / 直接显示 / 弹出显示 / 本地视频 / 视频号视频 eweishop 复刻） -->
       <view v-else-if="c.type === 'video'" class="dp-video" :class="'dp-video-' + (c.props.ratio || '16:9').replace(':', '-')">
-        <video v-if="c.props.source === 'channels'" class="dp-video-player" :style="videoRatioStyle(c.props.ratio)" :poster="resolveUrl(c.props.poster)" @click="openChannelsVideo(c.props)"></video>
-        <video v-else-if="c.props.url" :src="resolveUrl(c.props.url)" :poster="resolveUrl(c.props.poster)" class="dp-video-player" :style="videoRatioStyle(c.props.ratio)" :autoplay="!!c.props.autoplay" :loop="!!c.props.loop" controls></video>
+        <!-- 视频号视频：风格一列/两列、多视频、背景色/图、自动播放+静音+循环、间距/高度/上圆角/下圆角、会员浏览权限 -->
+        <view v-if="c.props.source === 'channels'" class="dp-video-ch" :style="chStyle(c.props)">
+          <view class="dp-video-ch-inner" :class="{ 'dp-video-ch-double': c.props.style === 'double' }">
+            <view
+              v-for="(it, i) in chVideos(c.props)"
+              :key="i"
+              class="dp-video-ch-item"
+              :style="chItemStyle(c.props, i)"
+              @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId, memberAccess: c.props.memberAccess })"
+            >
+              <image v-if="c.props.bgType === 'image' && c.props.bgImage" :src="resolveUrl(c.props.bgImage)" mode="aspectFill" class="dp-video-ch-bg" />
+              <view class="dp-video-ch-play">▶</view>
+              <view class="dp-video-ch-id">{{ it.finderUserName || '视频号' }}</view>
+            </view>
+          </view>
+          <view v-if="chVideos(c.props).length > 1" class="dp-video-ch-count">共 {{ chVideos(c.props).length }} 个视频</view>
+        </view>
+        <!-- 本地视频 -->
+        <video v-else-if="c.props.url" :src="resolveUrl(c.props.url)" :poster="resolveUrl(c.props.poster)" class="dp-video-player" :style="videoRatioStyle(c.props.ratio)" :autoplay="!!(c.props.autoplayLocal ?? c.props.autoplay)" :loop="!!(c.props.loopLocal ?? c.props.loop)" controls></video>
         <view v-else class="dp-video-empty" :style="videoRatioStyle(c.props.ratio)"><text>视频</text></view>
         <!-- 弹出显示：浮层播放 -->
         <view v-if="c.props.displayMode === 'popup' && c.props.source !== 'channels' && c.props.url" class="dp-video-popmask" @click="popVideo = c.props.url">
@@ -396,20 +413,74 @@ function onJump(url) {
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
 }
 
-// 视频号视频来源：url 支持 "视频号ID:视频ID" 或纯 feedId；解析后调用 openChannel
+// 视频号视频来源：支持新版 {finderUserName, feedId} 与旧版 url "视频号ID:视频ID"；memberAccess 权限拦截
 function openChannelsVideo(p) {
+  const fp = { ...(p || {}) };
   const src = (p && p.url) || '';
-  const fp = { ...(p || {}), feedId: p?.feedId || src };
-  if (src.includes(':') && !fp.finderUserName) {
+  if (!fp.finderUserName && src.includes(':')) {
     const idx = src.indexOf(':');
     fp.finderUserName = src.slice(0, idx);
     fp.feedId = src.slice(idx + 1) || fp.feedId;
+  }
+  // 会员浏览权限：禁止访问 → 拦截
+  if (fp.memberAccess === 'deny') {
+    uni.showToast({ title: '该视频暂无浏览权限', icon: 'none' });
+    return;
+  }
+  if (fp.memberAccess === 'allow' && !isVip()) {
+    uni.showToast({ title: '该视频仅会员可看', icon: 'none' });
+    return;
   }
   if (!fp.finderUserName) {
     uni.showToast({ title: '视频号视频需填「视频号ID:视频ID」', icon: 'none' });
     return;
   }
   openChannel('video', fp);
+}
+
+// 会员等级判断：当前无会员体系，默认非会员（allow 拦截依赖后续会员体系接入）
+function isVip() {
+  // #ifdef H5
+  try {
+    const u = uni.getStorageSync('cardUser') || {};
+    return !!(u && u.isVip);
+  } catch (e) { return false; }
+  // #endif
+  // #ifndef H5
+  return false;
+  // #endif
+}
+
+// 视频号视频（eweishop 复刻）辅助：多视频列表 / 背景 / 圆角 / 间距
+function chVideos(p) {
+  const list = (p.videos && p.videos.length ? p.videos : [p]);
+  return list.map((it) => ({
+    finderUserName: (it && it.finderUserName) || p.finderUserName || '',
+    feedId: (it && it.feedId) || p.feedId || '',
+  }));
+}
+function chStyle(p) {
+  const s = {};
+  if (p.bgType === 'color' && p.bgColor) s.background = p.bgColor;
+  if (p.bgType === 'image' && p.bgImage) s.backgroundImage = `url(${resolveUrl(p.bgImage)})`;
+  if (p.bgType === 'image' && p.bgImage) s.backgroundSize = 'cover';
+  s.padding = `${p.vSpacing || 0}px ${p.vSpacing || 0}px`;
+  return s;
+}
+function chItemStyle(p, i) {
+  const s = {};
+  if (p.height) {
+    s.aspectRatio = 'auto';
+    s.height = p.height + 'px';
+  } else {
+    s.aspectRatio = '16 / 9';
+  }
+  const list = chVideos(p);
+  const r = [];
+  if (p.radiusTop && i === 0) r.push('12px');
+  if (p.radiusBottom && i === list.length - 1) r.push('12px');
+  if (r.length) s.borderRadius = r.join(' ');
+  return s;
 }
 
 // 视频号唤起：小程序端调微信原生 API（带 loading + 失败引导），H5/APP 端复制 ID 引导
@@ -476,6 +547,16 @@ function openChannel(kind, p) {
 .dp-video { border-radius: 8px; overflow: hidden; background: #000; position: relative; }
 .dp-video-player { width: 100%; height: 200px; display: block; }
 .dp-video-empty { height: 120px; background: #000; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.5); font-size: 13px; }
+/* 视频号视频（eweishop 复刻）：一列/两列并排、多视频、背景、圆角 */
+.dp-video-ch { border-radius: 8px; overflow: hidden; box-sizing: border-box; }
+.dp-video-ch-inner { display: flex; flex-direction: column; gap: 8px; }
+.dp-video-ch-double { flex-direction: row; flex-wrap: wrap; }
+.dp-video-ch-double .dp-video-ch-item { flex: 1 1 46%; }
+.dp-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.dp-video-ch-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dp-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.dp-video-ch-id { position: absolute; z-index: 2; left: 8px; bottom: 6px; font-size: 11px; color: #fff; max-width: 78%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.dp-video-ch-count { padding: 8px 4px 2px; font-size: 11px; color: #86909c; }
 /* 弹出显示遮罩 */
 .dp-video-popmask { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 3; }
 .dp-video-popcover { position: absolute; inset: 0; width: 100%; height: 100%; }

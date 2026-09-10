@@ -140,7 +140,8 @@
               <div class="pe-sec-name">{{ sec.label }}</div>
               <el-form label-width="72px" size="small">
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.label" :class="{ required: f.required, 'prop-list': f.control === 'list' }">
-                  <el-input v-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
+                  <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
+                  <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
@@ -649,9 +650,11 @@ const schemaSections = computed(() => {
   if (!def) return [];
   const ownKeys = def.schema.map((f) => f.key);
   const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key));
+  const props = selectedComp.value.props || {};
+  const whenOk = (f) => !f.when || Object.entries(f.when).every(([k, v]) => props[k] === v || String(props[k]) === String(v));
   return [
-    { key: 'content', label: '内容', fields: def.schema.filter((f) => f.section !== 'style') },
-    { key: 'style', label: '样式', fields: def.schema.filter((f) => f.section === 'style') },
+    { key: 'content', label: '内容', fields: def.schema.filter((f) => f.section !== 'style' && whenOk(f)) },
+    { key: 'style', label: '样式', fields: def.schema.filter((f) => f.section === 'style' && whenOk(f)) },
     { key: 'common', label: '通用样式', fields: common },
   ];
 });
@@ -1094,6 +1097,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-sec .el-form-item :deep(.required label) { color: #f53f3f; }
 .pe-sec :deep(.el-form-item.required .el-form-item__label::before) { content: '*'; color: #f53f3f; margin-right: 4px; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
+.pe-prop-body :deep(.pe-hint) { width: 100%; padding: 5px 10px; line-height: 1.5; }
+.pe-prop-body :deep(.pe-hint .el-alert__title) { font-size: 12px; }
 /* list 类型字段（轮播图/宫格导航 items）：标签置顶一行，内容占整行宽 */
 .pe-prop-body :deep(.el-form-item.prop-list) { flex-direction: column; align-items: stretch; }
 .pe-prop-body :deep(.el-form-item.prop-list .el-form-item__label) { width: auto !important; justify-content: flex-start; height: auto; line-height: 1.4; margin-bottom: 4px; padding-bottom: 0; }
