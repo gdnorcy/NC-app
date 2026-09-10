@@ -46,8 +46,7 @@
                   @dragstart="onLibDragStart($event, c.type)"
                   @click="addComponent(c.type)"
                 >
-                  <span v-if="c.badge === 'new'" class="pe-lib-tag pe-lib-tag-new">NEW</span>
-                  <span v-else-if="c.pro" class="pe-lib-tag">高级</span>
+                  <span v-if="c.pro" class="pe-lib-tag">高级</span>
                   <span class="pe-lib-ico"><img :src="COMP_ICONS[c.icon]" :alt="c.name" /></span>
                   <span class="pe-lib-name">{{ c.name }}</span>
                 </div>
@@ -200,7 +199,7 @@
                       <div class="pe-list-fields">
                         <div v-for="(sf, si) in visibleItemFields(f, it)" :key="si" class="pe-list-field">
                           <div class="pe-list-label">{{ sf.label }}</div>
-                          <el-radio-group v-if="sf.control === 'radio'" v-model="it[sf.key]" size="small">
+                          <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
                             <el-radio v-for="o in sf.options" :key="o.value" :value="o.value" size="small">{{ o.label }}</el-radio>
                           </el-radio-group>
                           <el-input v-else-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
@@ -380,7 +379,7 @@
                 </div>
                 <div class="hp-sub">
                   <span class="hp-sub-label">字号</span>
-                  <el-input-number v-model="block.row[pos].fontSize" :min="10" :max="22" size="small" style="width: 90px" />
+                  <el-input-number v-model="block.row[pos].fontSize" :min="10" :max="22" size="small" style="width: 70px" />
                 </div>
               </template>
               <!-- 中间部分额外样式（云菜鸟：背景/边框/宽度/圆角/字体色/对齐） -->
@@ -393,9 +392,9 @@
                 </div>
                 <div class="hp-sub">
                   <span class="hp-sub-label">宽度px</span>
-                  <el-input-number v-model="block.row[pos].width" :min="40" :max="600" size="small" style="width: 90px" />
+                  <el-input-number v-model="block.row[pos].width" :min="40" :max="600" size="small" style="width: 70px" />
                   <span class="hp-sub-label">圆角px</span>
-                  <el-input-number v-model="block.row[pos].radius" :min="0" :max="60" size="small" style="width: 90px" />
+                  <el-input-number v-model="block.row[pos].radius" :min="0" :max="60" size="small" style="width: 70px" />
                 </div>
                 <div class="hp-sub">
                   <span class="hp-sub-label">对齐</span>
@@ -1016,6 +1015,14 @@ function listFieldVisible(sf, it) {
   });
 }
 // 列表项可见字段（按 item 值过滤，避免 v-for+v-if 同元素）
+function listVal(it, sf) {
+  const v = it[sf.key];
+  if (v === undefined || v === null || v === '') {
+    if (sf.default !== undefined) return sf.default;
+    if (sf.control === 'radio' && sf.options?.length) return sf.options[0].value;
+  }
+  return v;
+}
 function visibleItemFields(f, it) {
   return (f.itemFields || []).filter((sf) => listFieldVisible(sf, it));
 }
@@ -1073,7 +1080,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-group-caret { font-size: 10px; transition: transform .2s; color: #86909c; }
 .pe-group-caret.open { transform: rotate(90deg); }
 .pe-group-name { font-weight: 600; }
-.pe-group-n { margin-left: auto; font-size: 11px; color: #86909c; background: #f2f3f5; border-radius: 10px; padding: 0 8px; line-height: 18px; }
+.pe-group-n { margin-left: 2px; font-size: 11px; color: #86909c; background: #f2f3f5; border-radius: 10px; padding: 0 8px; line-height: 18px; }
 .pe-group-body { padding: 2px 0; }
 .pe-lib-item {
   display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px;
@@ -1093,8 +1100,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 }
 .pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
 .pe-lib-card:active { cursor: grabbing; }
-.pe-lib-ico { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
-.pe-lib-ico img { width: 56px; height: 56px; object-fit: contain; display: block; }
+.pe-lib-ico { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.pe-lib-ico img { width: 40px; height: 40px; object-fit: contain; display: block; }
 .pe-lib-card .pe-lib-name {
   font-size: 12px; color: #1d2129; max-width: 100%; line-height: 1.35; text-align: center;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -1196,6 +1203,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }
 .pe-list-link:hover { text-decoration: underline; }
 .pe-list-add { width: 100%; border-style: dashed; }
+.pe-prop :deep(.el-slider__input) { width: 72px; }
+.pe-prop :deep(.el-slider__input .el-input__wrapper) { padding: 0 4px; }
+.pe-prop :deep(.el-slider__input .el-input-number__decrease), .pe-prop :deep(.el-slider__input .el-input-number__increase) { width: 18px; }
 
 /* 头部设置面板（主题/全局/头部/底部导航 + 第一行内容） */
 .hp-tabs { display: flex; gap: 4px; background: #f2f3f5; border-radius: 8px; padding: 3px; margin-bottom: 14px; }
