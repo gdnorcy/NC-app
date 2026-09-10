@@ -268,18 +268,70 @@
       </div>
     </section>
 
-    <!-- ============ 页面装修（入口卡片 → 独立全屏编辑窗口） ============ -->
+    <!-- ============ 页面装修（eweishop 风格：左手机预览「使用中」+ 右页面表格） ============ -->
     <section v-if="activeTab === 'page'">
-      <AppPageHeader title="页面装修" desc="选择要装修的页面，进入独立编辑窗口，支持拖拽组件、草稿保存、发布与版本回滚">
+      <AppPageHeader title="页面装修" desc="左侧实时预览当前使用的首页；右侧管理全部页面，点击「装修」进入独立编辑窗口（拖拽组件、草稿保存、发布与版本回滚）">
+        <div class="hd-actions">
+          <el-button type="primary" @click="createPage">新建页面</el-button>
+        </div>
       </AppPageHeader>
-      <div class="page-cards">
-        <div v-for="p in pageTypes" :key="p.value" class="page-card" @click="goEdit(p.value)">
-          <div class="page-card-top">
-            <span class="page-card-icon">{{ p.icon }}</span>
-            <span class="page-card-name">{{ p.label }}</span>
+
+      <div class="page-manage">
+        <!-- 左：手机实时预览「使用中」首页 -->
+        <div class="pm-preview">
+          <div class="pm-preview-head">
+            <span class="pm-use-tag">使用中</span>
+            <span class="pm-preview-name">{{ homeName }}</span>
+            <el-button size="small" text type="primary" @click="goEdit('home')">立即装修</el-button>
           </div>
-          <div class="page-card-desc">{{ p.desc }}</div>
-          <el-button size="small" type="primary" plain class="page-card-btn">进入编辑 →</el-button>
+          <div class="pm-phone">
+            <div class="pm-status"><span>10:18</span><span class="pm-ps-icons">▂▄▆ ▂▅▃ ▂▄▆█</span></div>
+            <div class="pm-nav">{{ homeName }}</div>
+            <div class="pm-canvas">
+              <div v-for="comp in homePreview" :key="comp.id" class="pm-comp">
+                <ComponentRender :comp="comp" />
+              </div>
+              <div v-if="!homePreview.length" class="pm-empty">
+                首页暂无组件，点击「立即装修」添加内容
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右：页面表格（搜索/新建/名称/首页/复制/删除） -->
+        <div class="pm-table">
+          <div class="pm-toolbar">
+            <el-input v-model="pageSearch" placeholder="搜索页面名称" clearable class="w220" />
+            <span class="pm-count">共 {{ filteredPages.length }} 个页面</span>
+          </div>
+          <div class="table-scroll">
+            <el-table :data="filteredPages" v-loading="pageLoading" stripe style="min-width: 680px">
+              <el-table-column label="页面名称" min-width="160">
+                <template #default="{ row }">
+                  <span class="pm-row-name">{{ row.page_name }}</span>
+                  <el-tag v-if="row.page_type === 'home'" size="small" type="success" class="pm-home-tag">首页</el-tag>
+                  <el-tag v-if="row.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="是否首页" width="100">
+                <template #default="{ row }">
+                  <el-switch :model-value="row.page_type === 'home'" :disabled="row.page_type === 'home'" @change="setHome(row)" />
+                </template>
+              </el-table-column>
+              <el-table-column label="更新时间" width="150">
+                <template #default="{ row }">{{ (row.updated_at || '').slice(0, 16) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="230">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="goEdit(row.page_type)">装修</el-button>
+                  <el-button size="small" text @click="renamePage(row)">重命名</el-button>
+                  <el-button size="small" text @click="copyPage(row)">复制</el-button>
+                  <el-button size="small" text type="danger" :disabled="['home','card','dynamic','mine'].includes(row.page_type)" @click="deletePage(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-if="!filteredPages.length && !pageLoading" class="media-empty">暂无页面，点击「新建页面」创建</div>
+          </div>
         </div>
       </div>
     </section>
@@ -317,6 +369,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { EditPen, Delete, Close } from '@element-plus/icons-vue';
 import SIcon from '../../../../components/SIcon.vue';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
+import ComponentRender from './ComponentRender.vue';
 import { designCall } from '../../../../api';
 
 const tabs = [
@@ -340,15 +393,91 @@ onUnmounted(() => crumbExtra?.set(''));
 const API = '/design';
 const MAT = '/material';
 const router = useRouter();
-// 页面装修：入口卡片 → 独立全屏编辑窗口（/design/edit?pageType=xx）
-const pageTypes = [
-  { value: 'home', label: '首页', icon: '🏠', desc: '访客打开小程序/H5 首屏展示的页面' },
-  { value: 'card', label: '名片详情页', icon: '🪪', desc: '他人查看您名片时的详情展示页面' },
-  { value: 'dynamic', label: '个人动态页', icon: '📰', desc: '展示个人动态、作品与内容更新的页面' },
-  { value: 'mine', label: '个人中心', icon: '👤', desc: '个人中心入口与功能聚合页面' },
-];
+
+// 页面装修（eweishop 风格管理页）：左手机预览「使用中」首页 + 右页面表格
+const pageList = ref([]);
+const pageLoading = ref(false);
+const pageSearch = ref('');
+const homePreview = ref([]);
+const homeName = ref('首页');
+const builtinPages = ['home', 'card', 'dynamic', 'mine'];
+async function loadPages() {
+  pageLoading.value = true;
+  try {
+    const res = await designCall.get(`${API}/page/list`);
+    pageList.value = res.list || [];
+    await loadHomePreview();
+  } catch (e) { ElMessage.error(e); } finally { pageLoading.value = false; }
+}
+async function loadHomePreview() {
+  try {
+    const [pubRes, draftRes] = await Promise.all([
+      designCall.get(`${API}/page/detail`, { params: { pageType: 'home', published: 1 } }),
+      designCall.get(`${API}/page/detail`, { params: { pageType: 'home', published: 0 } }),
+    ]);
+    const src = draftRes.page || pubRes.page;
+    if (src) {
+      homeName.value = src.page_name || '首页';
+      homePreview.value = (src.design_json?.components || []).slice(0, 12);
+    } else {
+      homeName.value = '首页';
+      homePreview.value = [];
+    }
+  } catch (e) { /* 预览加载失败不阻塞 */ }
+}
+// 同 page_type 合并为一行（发布态优先），避免草稿+发布显示两行
+const mergedPages = computed(() => {
+  const map = new Map();
+  for (const p of pageList.value) {
+    const exist = map.get(p.page_type);
+    if (!exist || (p.status === 1 && exist.status !== 1)) map.set(p.page_type, p);
+  }
+  return [...map.values()];
+});
+const filteredPages = computed(() => {
+  const kw2 = pageSearch.value.trim();
+  if (!kw2) return mergedPages.value;
+  return mergedPages.value.filter((p) => (p.page_name || '').includes(kw2));
+});
 function goEdit(type) {
-  router.push({ path: '/design/edit', query: { pageType: type } });
+  router.push({ path: '/design/edit', query: { pageType: type || 'home' } });
+}
+async function createPage() {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入页面名称', '新建页面', { inputValue: `新页面 ${pageList.value.length + 1}`, inputPattern: /\S+/, inputErrorMessage: '页面名称不能为空' });
+    const res = await designCall.post(`${API}/page/create`, { pageName: value });
+    ElMessage.success('页面已创建');
+    loadPages();
+    if (res.pageType) goEdit(res.pageType);
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error(e); }
+}
+async function renamePage(p) {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新页面名称', '重命名页面', { inputValue: p.page_name, inputPattern: /\S+/, inputErrorMessage: '页面名称不能为空' });
+    await designCall.post(`${API}/page/rename`, { pageType: p.page_type, pageName: value });
+    ElMessage.success('已重命名');
+    loadPages();
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error(e); }
+}
+async function copyPage(p) {
+  try {
+    const res = await designCall.post(`${API}/page/copy`, { pageType: p.page_type });
+    ElMessage.success('已复制');
+    loadPages();
+    if (res.pageType) goEdit(res.pageType);
+  } catch (e) { ElMessage.error(e); }
+}
+async function deletePage(p) {
+  try { await ElMessageBox.confirm(`确认删除页面「${p.page_name}」？删除后不可恢复`, '删除确认', { type: 'warning' }); } catch { return; }
+  try {
+    await designCall.post(`${API}/page/delete`, { pageType: p.page_type });
+    ElMessage.success('已删除');
+    loadPages();
+  } catch (e) { ElMessage.error(e); }
+}
+async function setHome(row) {
+  if (row.page_type === 'home') return;
+  try { await ElMessageBox.confirm('仅支持将「首页」设为默认展示页面，如需新的默认页请编辑首页内容', '提示', { type: 'info' }); } catch { /* 关闭 */ }
 }
 function resolveUrl(u) {
   if (!u) return '';
@@ -642,23 +771,30 @@ function confirmImgSel() {
 onMounted(() => {
   loadCategories(); loadMaterials();
   loadStyle(); loadTabSchemes(); loadHome(); loadTemplates();
+  loadPages();
 });
 </script>
 
 <style scoped>
-/* 页面装修：入口卡片 */
-.page-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-.page-card {
-  background: #fff; border-radius: 8px; padding: 20px; cursor: pointer;
-  border: 1px solid #e5e6eb; display: flex; flex-direction: column; gap: 10px;
-  transition: border-color .15s, box-shadow .15s;
-}
-.page-card:hover { border-color: #165dff; box-shadow: 0 2px 8px rgba(22,93,255,.12); }
-.page-card-top { display: flex; align-items: center; gap: 10px; }
-.page-card-icon { width: 40px; height: 40px; font-size: 22px; border-radius: 10px; background: rgba(22,93,255,.06); display: flex; align-items: center; justify-content: center; }
-.page-card-name { font-size: 15px; font-weight: 600; color: #1d2129; }
-.page-card-desc { font-size: 12px; color: #86909c; line-height: 1.5; min-height: 36px; }
-.page-card-btn { align-self: flex-start; margin-top: 2px; }
+/* 页面装修（eweishop 风格：左手机预览 + 右页面表格） */
+.page-manage { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
+.pm-preview { background: #fff; border-radius: 8px; padding: 16px; }
+.pm-preview-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.pm-use-tag { font-size: 11px; color: #165dff; background: #e8f3ff; border-radius: 10px; padding: 2px 8px; line-height: 16px; flex-shrink: 0; }
+.pm-preview-name { flex: 1; font-size: 14px; font-weight: 600; color: #1d2129; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-phone { width: 280px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb; }
+.pm-status { height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 11px; font-weight: 600; color: #1d2129; }
+.pm-ps-icons { font-size: 10px; letter-spacing: 1px; opacity: .8; }
+.pm-nav { height: 36px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #1d2129; border-bottom: 1px solid #f0f1f3; }
+.pm-canvas { min-height: 380px; padding: 10px; background: #fff; }
+.pm-comp { margin-bottom: 8px; }
+.pm-empty { color: #86909c; text-align: center; padding: 60px 0; font-size: 12px; }
+.pm-table { background: #fff; border-radius: 8px; padding: 16px; }
+.pm-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.pm-count { font-size: 12px; color: #86909c; }
+.pm-row-name { font-weight: 500; color: #1d2129; margin-right: 6px; }
+.pm-home-tag { margin-right: 4px; }
+
 .design-home { display: flex; flex-direction: column; gap: 16px; }
 /* 应用内 Tab：与 CardTabs.vue 一致的圆角块导航、激活主色、横向滚动 */
 .card-tabs {

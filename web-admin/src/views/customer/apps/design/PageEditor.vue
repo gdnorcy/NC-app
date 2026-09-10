@@ -9,54 +9,95 @@
       <div class="pe-actions">
         <el-button size="small" @click="loadVersions">历史版本</el-button>
         <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
-        <el-button size="small" :loading="previewing" @click="saveAndPreview">保存并预览</el-button>
-        <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
-        <el-button size="small" type="success" :loading="publishing" @click="publish">发布</el-button>
       </div>
     </div>
 
     <div class="pe-body">
-      <!-- 组件库：分组折叠 + 模糊搜索 + 3列网格卡片（图标上/名称下，仿 eweishop） -->
+      <!-- 组件库：模块列表 / 页面列表 + 分组折叠 + 模糊搜索 + 3列网格卡片（图标上/名称下，仿 eweishop） -->
       <div class="pe-lib">
         <div class="pe-lib-head">
-          <div class="pe-lib-title">组件库</div>
-          <div class="pe-lib-search">
+          <div class="pe-lib-tabs">
+            <div class="pe-lib-tab" :class="{ active: libTab === 'modules' }" @click="libTab = 'modules'">模块列表</div>
+            <div class="pe-lib-tab" :class="{ active: libTab === 'pages' }" @click="libTab = 'pages'">页面列表</div>
+          </div>
+          <div v-if="libTab === 'modules'" class="pe-lib-search">
             <el-input v-model="kw" size="small" placeholder="搜索组件" clearable>
               <template #prefix><span class="pe-search-ico">⌕</span></template>
             </el-input>
           </div>
-        </div>
-        <div v-for="g in visibleGroups" :key="g.key" class="pe-group">
-          <div class="pe-group-head" @click="toggleGroup(g.key)">
-            <span class="pe-group-caret" :class="{ open: expanded[g.key] !== false }">▸</span>
-            <span class="pe-group-name">{{ g.name }}</span>
-            <span class="pe-group-n">({{ filteredCount(g.key) }})</span>
+          <div v-else class="pe-lib-search">
+            <el-input v-model="pageKw" size="small" placeholder="搜索页面" clearable />
           </div>
-          <div v-show="expanded[g.key] !== false" class="pe-group-body">
-            <div class="pe-lib-grid">
-              <div
-                v-for="c in filteredComps(g.key)" :key="c.type"
-                class="pe-lib-card" draggable="true"
-                @dragstart="onLibDragStart($event, c.type)"
-                @click="addComponent(c.type)"
-              >
-                <span v-if="c.badge === 'new'" class="pe-lib-tag pe-lib-tag-new">NEW</span>
-                <span v-else-if="c.pro" class="pe-lib-tag">高级</span>
-                <span class="pe-lib-ico"><img :src="COMP_ICONS[c.icon]" :alt="c.name" /></span>
-                <span class="pe-lib-name">{{ c.name }}</span>
+        </div>
+
+        <!-- 模块列表（组件库） -->
+        <template v-if="libTab === 'modules'">
+          <div v-for="g in visibleGroups" :key="g.key" class="pe-group">
+            <div class="pe-group-head" @click="toggleGroup(g.key)">
+              <span class="pe-group-caret" :class="{ open: expanded[g.key] !== false }">▸</span>
+              <span class="pe-group-name">{{ g.name }}</span>
+              <span class="pe-group-n">({{ filteredCount(g.key) }})</span>
+            </div>
+            <div v-show="expanded[g.key] !== false" class="pe-group-body">
+              <div class="pe-lib-grid">
+                <div
+                  v-for="c in filteredComps(g.key)" :key="c.type"
+                  class="pe-lib-card" draggable="true"
+                  @dragstart="onLibDragStart($event, c.type)"
+                  @click="addComponent(c.type)"
+                >
+                  <span v-if="c.badge === 'new'" class="pe-lib-tag pe-lib-tag-new">NEW</span>
+                  <span v-else-if="c.pro" class="pe-lib-tag">高级</span>
+                  <span class="pe-lib-ico"><img :src="COMP_ICONS[c.icon]" :alt="c.name" /></span>
+                  <span class="pe-lib-name">{{ c.name }}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div v-if="!visibleGroups.length" class="pe-lib-tip">未找到匹配组件</div>
-        <div v-else class="pe-lib-tip">点击或拖拽到画布</div>
+          <div v-if="!visibleGroups.length" class="pe-lib-tip">未找到匹配组件</div>
+          <div v-else class="pe-lib-tip">点击或拖拽到画布</div>
+        </template>
+
+        <!-- 页面列表（承载原右上角页面下拉，参考图6：全部页面+搜索+新建+名称/首页/复制/删除） -->
+        <template v-else>
+          <div class="pe-pages">
+            <el-button size="small" type="primary" class="pe-page-new" @click="createPage">+ 新建页面</el-button>
+            <div v-for="p in filteredPages" :key="p.page_type" class="pe-page-row" :class="{ current: p.page_type === pageType }">
+              <div class="pe-page-info" @click="switchPage(p.page_type)">
+                <span class="pe-page-name2" :title="p.page_name">{{ p.page_name }}</span>
+                <el-tag v-if="p.page_type === 'home'" size="small" type="success" class="pe-page-home-tag">首页</el-tag>
+                <el-tag v-if="p.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
+              </div>
+              <div class="pe-page-ops">
+                <el-button size="small" text type="primary" @click="switchPage(p.page_type)">装修</el-button>
+                <el-button size="small" text @click="renamePage(p)">重命名</el-button>
+                <el-button size="small" text @click="copyPage(p)">复制</el-button>
+                <el-button size="small" text type="danger" :disabled="['home','card','dynamic','mine'].includes(p.page_type)" @click="deletePage(p)">删除</el-button>
+              </div>
+            </div>
+            <div v-if="!filteredPages.length" class="pe-lib-tip">暂无页面，点击「新建页面」创建</div>
+          </div>
+        </template>
       </div>
 
-      <!-- 画布（手机预览壳） -->
+      <!-- 画布（手机预览壳：状态栏固定 + 导航栏按头部设置显示） -->
       <div class="pe-canvas-wrap">
         <div class="pe-phone">
-          <div class="pe-phone-bar"></div>
-          <div class="pe-phone-nav">{{ pageName }}</div>
+          <!-- 顶部状态栏：模拟真实小程序顶部（时间/信号/WiFi/电池固定） -->
+          <div class="pe-status-bar" title="点击设置头部样式" @click.stop="openHeaderPanel">
+            <span class="ps-time">10:18</span>
+            <span class="ps-icons">
+              <svg class="ps-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#1d2129" stroke-width="2" stroke-linecap="round"><path d="M2 14h2v4H2zM6 11h2v7H6zM10 8h2v10h-2zM14 5h2v13h-2z"/></svg>
+              <svg class="ps-ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#1d2129" stroke-width="2" stroke-linecap="round"><path d="M3 9a11 11 0 0 1 18 0M6.5 12.5a6.5 6.5 0 0 1 11 0M9.5 15.5a3 3 0 0 1 5 0"/><circle cx="12" cy="18.5" r="1.2" fill="#1d2129" stroke="none"/></svg>
+              <svg class="ps-ico" viewBox="0 0 28 14" width="22" height="12"><rect x="0.5" y="0.5" width="23" height="13" rx="3" fill="none" stroke="#1d2129" stroke-width="1.2"/><rect x="2" y="2" width="16" height="10" rx="1.6" fill="#1d2129"/><rect x="25" y="4.5" width="2.5" height="5" rx="1" fill="#1d2129"/></svg>
+            </span>
+          </div>
+          <!-- 导航栏：按头部设置（类型/背景/内容/第一行内容）渲染 -->
+          <div class="pe-phone-nav" :style="navStyle" title="点击设置头部样式" @click.stop="openHeaderPanel">
+            <div class="pn-side pn-left" v-html="navLeftHtml"></div>
+            <div class="pn-title" :style="{ color: navTextColor }">{{ meta.header.titleText || pageName }}</div>
+            <div class="pn-side pn-right" v-html="navRightHtml"></div>
+          </div>
           <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop="onCanvasDrop">
             <div
               v-for="(comp, i) in components" :key="comp.id"
@@ -70,8 +111,6 @@
               <div class="pe-comp-tools">
                 <span class="pe-comp-idx">{{ i + 1 }}</span>
                 <span class="pe-comp-type">{{ compName(comp.type) }}</span>
-                <span class="pe-tool" title="上移" @click.stop="moveComp(i, -1)">↑</span>
-                <span class="pe-tool" title="下移" @click.stop="moveComp(i, 1)">↓</span>
                 <span class="pe-tool" title="复制" @click.stop="dupComp(comp)">⧉</span>
                 <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(comp.id)">✕</span>
               </div>
@@ -111,7 +150,14 @@
                     <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
                   </el-select>
                   <div v-else-if="f.control === 'list'" class="pe-list">
-                    <div v-for="(it, idx) in selectedComp.props[f.key] || []" :key="idx" class="pe-list-item">
+                    <div
+                      v-for="(it, idx) in selectedComp.props[f.key] || []" :key="idx"
+                      class="pe-list-item" draggable="true"
+                      @dragstart="onListItemDragStart($event, f.key, idx)"
+                      @dragover.prevent="onListItemDragOver(f.key, idx)"
+                      @drop.stop="onListItemDrop(f.key)"
+                    >
+                      <span class="pe-list-drag" title="按住拖动排序">⠿</span>
                       <div class="pe-list-fields">
                         <div v-for="(sf, si) in f.itemFields" :key="si" class="pe-list-field">
                           <div class="pe-list-label">{{ sf.label }}</div>
@@ -127,8 +173,6 @@
                         </div>
                       </div>
                       <div class="pe-list-ops">
-                        <el-button size="small" text @click="moveListItem(selectedComp, f.key, idx, -1)">↑</el-button>
-                        <el-button size="small" text @click="moveListItem(selectedComp, f.key, idx, 1)">↓</el-button>
                         <el-button size="small" text type="danger" @click="selectedComp.props[f.key].splice(idx, 1)">删除</el-button>
                       </div>
                     </div>
@@ -145,6 +189,155 @@
         </div>
       </div>
     </div>
+
+    <!-- 头部设置面板（点击手机状态栏/导航栏弹出；参考云菜鸟：主题/全局/头部/底部导航/页面跳转 + 第一行内容） -->
+    <el-drawer v-model="headerPanel.show" title="页面设置" size="420px" append-to-body>
+      <div class="hp-tabs">
+        <div v-for="t in headerPanel.tabs" :key="t.key" class="hp-tab" :class="{ active: headerPanel.active === t.key }" @click="headerPanel.active = t.key">{{ t.label }}</div>
+      </div>
+
+      <!-- 主题设置 -->
+      <div v-if="headerPanel.active === 'theme'" class="hp-body">
+        <div class="hp-row">
+          <div class="hp-label">页面名称</div>
+          <el-input v-model="pageName" size="small" style="width: 220px" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">分享标题</div>
+          <el-input v-model="meta.theme.shareTitle" size="small" placeholder="默认取页面名称" style="width: 220px" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">密码访问</div>
+          <el-switch v-model="meta.theme.passwordEnabled" />
+          <el-input v-if="meta.theme.passwordEnabled" v-model="meta.theme.password" size="small" placeholder="访问密码" style="width: 140px; margin-left: 8px" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">会员访问</div>
+          <el-switch v-model="meta.theme.memberOnly" />
+          <span class="hp-hint" v-if="meta.theme.memberOnly">仅登录会员可访问</span>
+        </div>
+      </div>
+
+      <!-- 全局设置 -->
+      <div v-if="headerPanel.active === 'global'" class="hp-body">
+        <div class="hp-row">
+          <div class="hp-label">全局背景色</div>
+          <el-color-picker v-model="meta.global.bgColor" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">全局背景图</div>
+          <el-button size="small" @click="openHeaderImg('global')">选择背景图</el-button>
+          <el-button v-if="meta.global.bgImage" size="small" text type="danger" @click="meta.global.bgImage = ''">清除</el-button>
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">卡片圆角(px)</div>
+          <el-slider v-model="meta.global.cardRadius" :min="0" :max="24" show-input style="width: 200px" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">卡片边距(px)</div>
+          <el-slider v-model="meta.global.cardPadding" :min="0" :max="24" show-input style="width: 200px" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">卡片间距(px)</div>
+          <el-slider v-model="meta.global.cardGap" :min="0" :max="24" show-input style="width: 200px" />
+        </div>
+      </div>
+
+      <!-- 头部设置 -->
+      <div v-if="headerPanel.active === 'header'" class="hp-body">
+        <div class="hp-row">
+          <div class="hp-label">头部类型</div>
+          <el-radio-group v-model="meta.header.type">
+            <el-radio value="custom">自定义</el-radio>
+            <el-radio value="immersive">沉浸式</el-radio>
+            <el-radio value="official">仿官方</el-radio>
+          </el-radio-group>
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">头部背景</div>
+          <el-color-picker v-model="meta.header.bgColor" />
+          <el-button size="small" @click="openHeaderImg('header')">背景图</el-button>
+          <el-button v-if="meta.header.bgImage" size="small" text type="danger" @click="meta.header.bgImage = ''">清除</el-button>
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">头部动态</div>
+          <el-radio-group v-model="meta.header.fixed">
+            <el-radio :value="true">固定</el-radio>
+            <el-radio :value="false">跟随</el-radio>
+          </el-radio-group>
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">头部边距(px)</div>
+          <el-slider v-model="meta.header.padding" :min="0" :max="24" show-input style="width: 200px" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">头部内容</div>
+          <el-radio-group v-model="meta.header.lines">
+            <el-radio :value="1">一行</el-radio>
+            <el-radio :value="2">两行</el-radio>
+          </el-radio-group>
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">标题文字</div>
+          <el-input v-model="meta.header.titleText" size="small" placeholder="默认取页面名称" style="width: 220px" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">文字颜色</div>
+          <el-color-picker v-model="meta.header.textColor" />
+        </div>
+
+        <!-- 第一行内容：左侧 / 中间 / 右侧（参考云菜鸟） -->
+        <div class="hp-sec">第一行内容</div>
+        <div v-for="pos in ['left', 'center', 'right']" :key="pos" class="hp-row hp-pos">
+          <div class="hp-label">{{ { left: '左侧', center: '中间', right: '右侧' }[pos] }}</div>
+          <el-select v-model="meta.header.content[pos].type" size="small" style="width: 110px">
+            <el-option label="不显示" value="none" />
+            <el-option label="文字" value="text" />
+            <el-option label="图片" value="image" />
+            <el-option label="搜索" value="search" />
+            <el-option label="图标+文字" value="iconText" />
+          </el-select>
+          <template v-if="meta.header.content[pos].type !== 'none'">
+            <el-input v-if="['text','search','iconText'].includes(meta.header.content[pos].type)" v-model="meta.header.content[pos].text" size="small" placeholder="内容文字" style="width: 100px" />
+            <el-button v-if="meta.header.content[pos].type === 'image'" size="small" @click="openHeaderImg('content', pos)">选图</el-button>
+            <el-input v-if="['image','iconText'].includes(meta.header.content[pos].type) && meta.header.content[pos].type === 'image'" :model-value="meta.header.content[pos].image" size="small" placeholder="图片" style="width: 90px" disabled />
+            <el-input v-model="meta.header.content[pos].link" size="small" placeholder="链接" style="width: 110px" />
+            <el-color-picker v-model="meta.header.content[pos].color" />
+          </template>
+        </div>
+      </div>
+
+      <!-- 底部导航 -->
+      <div v-if="headerPanel.active === 'nav'" class="hp-body">
+        <div class="hp-row">
+          <div class="hp-label">底部导航</div>
+          <el-radio-group v-model="meta.nav.mode">
+            <el-radio value="default">使用默认</el-radio>
+            <el-radio value="custom">独立导航</el-radio>
+            <el-radio value="none">关闭导航</el-radio>
+          </el-radio-group>
+        </div>
+        <div v-if="meta.nav.mode === 'custom'" class="hp-row">
+          <div class="hp-label">独立导航方案</div>
+          <el-select v-model="meta.nav.schemeId" size="small" style="width: 200px">
+            <el-option v-for="s in tabSchemes" :key="s.id" :label="s.scheme_name" :value="s.id" />
+          </el-select>
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">页面跳转</div>
+          <el-radio-group v-model="meta.nav.jumpEnabled">
+            <el-radio :value="true">开启</el-radio>
+            <el-radio :value="false">关闭</el-radio>
+          </el-radio-group>
+          <span class="hp-hint">开启后点击导航项跳转对应页面</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button size="small" @click="headerPanel.show = false">关闭</el-button>
+        <el-button size="small" type="primary" @click="headerPanel.show = false; saveDraft()">保存</el-button>
+      </template>
+    </el-drawer>
 
     <!-- 历史版本 -->
     <el-dialog v-model="versionShow" title="历史版本（发布保留最近 3 版）" width="560px" append-to-body>
@@ -193,6 +386,7 @@ import ComponentRender from './ComponentRender.vue';
 const props = defineProps({
   pageType: { type: String, default: 'home' },
 });
+const emit = defineEmits(['dirty-change', 'page-switch']);
 const pageName = ref('首页');
 const components = ref([]);
 const selected = ref(null);
@@ -209,6 +403,133 @@ const imgSel = reactive({ show: false, pick: null, target: null });
 let imgSelListField = null; // 当前 list 字段定义（openImgSel 传入，确认时回写对应 key）
 const kw = ref('');
 const expanded = reactive({});
+
+// ---- 组件库：模块列表 / 页面列表 ----
+const libTab = ref('modules');
+const pageKw = ref('');
+const pageList = ref([]);
+// ---- 页面级 meta（主题/全局/头部/底部导航，随草稿一起保存） ----
+const meta = reactive({
+  theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
+  global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12 },
+  header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: { left: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, center: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, right: { type: 'none', text: '', image: '', link: '', color: '#1d2129' } } },
+  nav: { mode: 'default', schemeId: null, jumpEnabled: true },
+});
+const tabSchemes = ref([]);
+const headerPanel = reactive({ show: false, active: 'header', tabs: [
+  { key: 'theme', label: '主题设置' },
+  { key: 'global', label: '全局设置' },
+  { key: 'header', label: '头部设置' },
+  { key: 'nav', label: '底部导航' },
+] });
+// ---- dirty 快照（方案A：保存后快照对比，返回前检测） ----
+let baseSnapshot = '';
+let dirty = false;
+function snapshot() { return JSON.stringify({ components: components.value, meta }); }
+function setDirty() {
+  const now = snapshot();
+  const next = now !== baseSnapshot;
+  if (next !== dirty) { dirty = next; emit('dirty-change', dirty); }
+}
+watch(snapshot, () => setDirty(), { deep: true });
+
+// 导航栏渲染（按头部设置）
+const navStyle = computed(() => {
+  const h = meta.header;
+  const style = {};
+  if (h.type === 'immersive') style.background = 'transparent';
+  else if (h.bgImage) style.background = `url(${resolveUrl(h.bgImage)}) center / cover no-repeat`;
+  else style.background = h.bgColor || '#ffffff';
+  if (h.padding) style.padding = `0 ${h.padding}px`;
+  return style;
+});
+const navTextColor = computed(() => (meta.header.type === 'immersive' ? '#ffffff' : meta.header.textColor || '#1d2129'));
+function navPosHtml(pos) {
+  const c = meta.header.content[pos] || {};
+  const color = meta.header.type === 'immersive' ? '#ffffff' : (c.color || '#1d2129');
+  if (c.type === 'none' || !c.type) return '';
+  if (c.type === 'text') return `<span style="color:${color};font-size:14px;line-height:1">${c.text || ''}</span>`;
+  if (c.type === 'search') return `<span style="display:inline-flex;align-items:center;gap:4px;color:${color};font-size:12px;background:rgba(0,0,0,.05);border-radius:12px;padding:2px 10px;line-height:1.4">⌕ ${c.text || '搜索'}</span>`;
+  if (c.type === 'image' && c.image) return `<img src="${resolveUrl(c.image)}" style="height:28px;max-width:60px;object-fit:contain" />`;
+  if (c.type === 'iconText') return `<span style="display:inline-flex;align-items:center;gap:3px;color:${color};font-size:12px;line-height:1">● ${c.text || ''}</span>`;
+  return '';
+}
+const navLeftHtml = computed(() => navPosHtml('left'));
+const navRightHtml = computed(() => navPosHtml('right'));
+function openHeaderPanel() { headerPanel.active = 'header'; headerPanel.show = true; }
+function openHeaderImg(target, pos) {
+  imgSel.pick = null;
+  imgSel.target = pos ? { target, pos } : { target };
+  imgSel.show = true;
+  loadSelMats();
+}
+async function loadSelMats() {
+  selLoading.value = true;
+  try {
+    const res = await designCall.get('/material/list', { params: { page: 1, pageSize: 60 } });
+    selMats.value = res.list || [];
+  } catch (e) { ElMessage.error(e); } finally { selLoading.value = false; }
+}
+
+// 页面列表（模块列表 tab 之外承载页面切换/新建/复制/删除；同 page_type 合并为一行）
+const mergedPages = computed(() => {
+  const map = new Map();
+  for (const p of pageList.value) {
+    const exist = map.get(p.page_type);
+    if (!exist || (p.status === 1 && exist.status !== 1)) map.set(p.page_type, p);
+  }
+  return [...map.values()];
+});
+const filteredPages = computed(() => {
+  const kw2 = pageKw.value.trim();
+  if (!kw2) return mergedPages.value;
+  return mergedPages.value.filter((p) => (p.page_name || '').includes(kw2));
+});
+async function loadPageList() {
+  try {
+    const res = await designCall.get('/design/page/list');
+    pageList.value = res.list || [];
+  } catch (e) { /* 页面列表加载失败不阻塞编辑 */ }
+}
+function switchPage(type) {
+  if (type === props.pageType) return;
+  emit('page-switch', type);
+}
+async function createPage() {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入页面名称', '新建页面', { inputValue: `新页面 ${pageList.value.length + 1}`, inputPattern: /\S+/, inputErrorMessage: '页面名称不能为空' });
+    const res = await designCall.post('/design/page/create', { pageName: value });
+    ElMessage.success('页面已创建');
+    await loadPageList();
+    emit('page-switch', res.pageType);
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error(e); }
+}
+async function renamePage(p) {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新页面名称', '重命名页面', { inputValue: p.page_name, inputPattern: /\S+/, inputErrorMessage: '页面名称不能为空' });
+    await designCall.post('/design/page/rename', { pageType: p.page_type, pageName: value });
+    ElMessage.success('已重命名');
+    await loadPageList();
+  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error(e); }
+}
+async function copyPage(p) {
+  try {
+    const res = await designCall.post('/design/page/copy', { pageType: p.page_type });
+    ElMessage.success('已复制');
+    await loadPageList();
+    emit('page-switch', res.pageType);
+  } catch (e) { ElMessage.error(e); }
+}
+async function deletePage(p) {
+  try { await ElMessageBox.confirm(`确认删除页面「${p.page_name}」？删除后不可恢复`, '删除确认', { type: 'warning' }); } catch { return; }
+  try {
+    await designCall.post('/design/page/delete', { pageType: p.page_type });
+    ElMessage.success('已删除');
+    await loadPageList();
+    // 删除的是当前正在编辑的页面 → 切回首页
+    if (p.page_type === props.pageType) emit('page-switch', 'home');
+  } catch (e) { ElMessage.error(e); }
+}
 
 let uid = 1;
 const selectedComp = computed(() => {
@@ -271,13 +592,6 @@ function removeComp(id) {
   components.value = components.value.filter((c) => c.id !== id);
   if (selected.value === id) selected.value = null;
 }
-function moveComp(i, dir) {
-  const j = i + dir;
-  if (j < 0 || j >= components.value.length) return;
-  const arr = [...components.value];
-  [arr[i], arr[j]] = [arr[j], arr[i]];
-  components.value = arr;
-}
 function dupComp(comp) {
   const c = { ...newComp(comp.type), props: JSON.parse(JSON.stringify(comp.props)), id: `c${Date.now()}-${uid++}` };
   const idx = components.value.findIndex((x) => x.id === comp.id);
@@ -306,31 +620,64 @@ function onCompDrop() { dragIdx = -1; }
 
 async function load() {
   try {
-    const [pubRes, draftRes] = await Promise.all([
+    const [pubRes, draftRes, tabsRes] = await Promise.all([
       designCall.get('/design/page/detail', { params: { pageType: props.pageType, published: 1 } }),
       designCall.get('/design/page/detail', { params: { pageType: props.pageType, published: 0 } }),
+      designCall.get('/design/tab/list'),
     ]);
     published.value = pubRes.page || null;
     draft.value = draftRes.page || null;
+    tabSchemes.value = tabsRes.list || [];
     const src = draft.value || published.value;
     if (src) {
       pageName.value = src.page_name || '页面';
-      components.value = (src.design_json?.components || []).map((c) => {
+      const json = src.design_json || {};
+      components.value = (json.components || []).map((c) => {
         const def = findComponent(c.type);
         return { ...c, props: { ...commonStyleProps, ...(def?.defaultProps || {}), ...(c.props || {}) } };
       });
+      if (json.meta) Object.assign(meta, deepMerge(defaultMeta(), json.meta));
+      else Object.assign(meta, defaultMeta());
+    } else {
+      Object.assign(meta, defaultMeta());
     }
+    baseSnapshot = snapshot();
+    dirty = false;
+    emit('dirty-change', false);
   } catch (e) { ElMessage.error(e); }
+}
+function defaultMeta() {
+  return {
+    theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
+    global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12 },
+    header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: { left: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, center: { type: 'none', text: '', image: '', link: '', color: '#1d2129' }, right: { type: 'none', text: '', image: '', link: '', color: '#1d2129' } } },
+    nav: { mode: 'default', schemeId: null, jumpEnabled: true },
+  };
+}
+function deepMerge(base, patch) {
+  if (!patch || typeof patch !== 'object') return base;
+  const out = Array.isArray(base) ? [...base] : { ...base };
+  for (const k of Object.keys(patch)) {
+    if (patch[k] && typeof patch[k] === 'object' && !Array.isArray(patch[k]) && base[k] && typeof base[k] === 'object') {
+      out[k] = deepMerge(base[k], patch[k]);
+    } else {
+      out[k] = patch[k];
+    }
+  }
+  return out;
 }
 async function saveDraft() {
   saving.value = true;
   try {
     const res = await designCall.post('/design/page/saveDraft', {
       pageType: props.pageType, pageName: pageName.value,
-      designJson: { components: components.value },
+      designJson: { components: components.value, meta: { ...meta } },
       baseVersion: draft.value?.version ?? published.value?.version ?? 1,
     });
     draft.value = { ...draft.value, version: res.version };
+    baseSnapshot = snapshot();
+    dirty = false;
+    emit('dirty-change', false);
     ElMessage.success('草稿已保存');
   } catch (e) {
     if (typeof e === 'string' && e.includes('已被其他成员修改')) {
@@ -378,10 +725,13 @@ async function saveAndPreview() {
   try {
     const res = await designCall.post('/design/page/saveDraft', {
       pageType: props.pageType, pageName: pageName.value,
-      designJson: { components: components.value },
+      designJson: { components: components.value, meta: { ...meta } },
       baseVersion: draft.value?.version ?? published.value?.version ?? 1,
     });
     draft.value = { ...draft.value, version: res.version };
+    baseSnapshot = snapshot();
+    dirty = false;
+    emit('dirty-change', false);
     // 仅首页装修支持 C 端实时预览（后端生成带签名的一次性预览 URL）
     if (props.pageType === 'home') {
       const previewRes = await designCall.get('/design/previewUrl');
@@ -432,7 +782,13 @@ function confirmImgSel() {
       const items = selectedComp.value.props[imgSelListField.key] || [];
       if (!items[imgSel.target.listIdx]) items[imgSel.target.listIdx] = {};
       items[imgSel.target.listIdx][imgSelListField.itemFields[imgSel.target.fieldIdx].key] = m.file_url;
-    } else {
+    } else if (imgSel.target?.pos) {
+      meta.header.content[imgSel.target.pos].image = m.file_url;
+    } else if (imgSel.target?.target === 'header') {
+      meta.header.bgImage = m.file_url;
+    } else if (imgSel.target?.target === 'global') {
+      meta.global.bgImage = m.file_url;
+    } else if (selectedComp.value) {
       selectedComp.value.props.url = m.file_url;
       selectedComp.value.props.materialId = m.id;
     }
@@ -440,24 +796,31 @@ function confirmImgSel() {
   imgSel.show = false;
 }
 
-// 列表项操作：新增（按 itemFields 生成默认项）/ 移动
+// 列表项操作：新增（按 itemFields 生成默认项）/ 拖拽排序（替代原上下箭头）
 function addListItem(comp, key, itemFields) {
   const items = comp.props[key] || [];
   const blank = {};
   (itemFields || []).forEach((f) => { blank[f.key] = f.control === 'select' && f.options?.length ? f.options[0].value : ''; });
   items.push(blank);
 }
-function moveListItem(comp, key, idx, dir) {
-  const items = comp.props[key] || [];
-  const to = idx + dir;
-  if (to < 0 || to >= items.length) return;
-  const t = items[idx];
-  items[idx] = items[to];
-  items[to] = t;
+let listDrag = null; // { key, from }
+function onListItemDragStart(e, key, idx) {
+  listDrag = { key, from: idx };
+  e.dataTransfer.effectAllowed = 'move';
 }
+function onListItemDragOver(key, idx) {
+  if (!listDrag || listDrag.key !== key || listDrag.from === idx) return;
+  const items = selectedComp.value.props[key] || [];
+  if (idx < 0 || idx >= items.length) return;
+  const [moved] = items.splice(listDrag.from, 1);
+  items.splice(idx, 0, moved);
+  listDrag.from = idx;
+}
+function onListItemDrop() { listDrag = null; }
 
 watch(() => props.pageType, () => { selected.value = null; load(); });
-onMounted(load);
+onMounted(() => { load(); loadPageList(); });
+defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components });
 </script>
 
 <style scoped>
@@ -468,13 +831,26 @@ onMounted(load);
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 12px; height: calc(100vh - 186px); min-height: 420px; overflow: hidden; }
 
-/* 组件库：分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
+/* 组件库：模块/页面列表 Tab + 分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
 .pe-lib-head { margin-bottom: 8px; }
-.pe-lib-title { font-size: 13px; font-weight: 600; color: #1d2129; display: flex; align-items: center; gap: 6px; }
-.pe-lib-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
+.pe-lib-tabs { display: flex; gap: 4px; background: #f2f3f5; border-radius: 8px; padding: 3px; }
+.pe-lib-tab { flex: 1; text-align: center; height: 30px; line-height: 30px; border-radius: 6px; font-size: 13px; color: #4e5969; cursor: pointer; transition: all .2s; }
+.pe-lib-tab.active { background: #fff; color: #165dff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .pe-lib-search { margin-top: 8px; }
 .pe-search-ico { color: #86909c; font-size: 14px; }
+/* 页面列表（承载页面切换/新建/复制/删除） */
+.pe-pages { display: flex; flex-direction: column; gap: 4px; }
+.pe-page-new { width: 100%; border-style: dashed; margin-bottom: 4px; }
+.pe-page-row { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+.pe-page-row:hover { background: #f2f3f5; }
+.pe-page-row.current { background: #e8f3ff; }
+.pe-page-info { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pe-page-name2 { font-size: 13px; color: #1d2129; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pe-page-home-tag { flex-shrink: 0; }
+.pe-page-ops { display: flex; gap: 0; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
+.pe-page-row:hover .pe-page-ops, .pe-page-row.current .pe-page-ops { opacity: 1; }
+.pe-page-ops .el-button { padding: 0 6px; }
 .pe-group { margin-bottom: 4px; }
 .pe-group-head { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #4e5969; }
 .pe-group-head:hover { background: #f2f3f5; }
@@ -519,8 +895,24 @@ onMounted(load);
   box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb;
   overflow: hidden;
 }
-.pe-phone-bar { height: 24px; background: #f7f8fa; border-bottom: 1px solid #f0f1f3; }
-.pe-phone-nav { height: 40px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; border-bottom: 1px solid #f0f1f3; }
+/* 顶部状态栏：模拟真实小程序（时间/信号/WiFi/电池固定，参考图7） */
+.pe-status-bar {
+  height: 26px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; background: #fff; cursor: pointer;
+}
+.ps-time { font-size: 12px; font-weight: 600; color: #1d2129; }
+.ps-icons { display: flex; align-items: center; gap: 5px; }
+.ps-ico { display: block; }
+/* 导航栏：按头部设置（类型/背景/内容/第一行内容）渲染，点击弹出头部设置 */
+.pe-phone-nav {
+  height: 40px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 12px; font-size: 14px; font-weight: 600; color: #1d2129;
+  background: #fff; border-bottom: 1px solid #f0f1f3; cursor: pointer;
+}
+.pn-side { min-width: 56px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+.pn-left { justify-content: flex-start; }
+.pn-right { justify-content: flex-end; }
+.pn-title { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .pe-canvas { min-height: 420px; padding: 14px; background: #fff; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 10px; padding: 6px; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
@@ -560,14 +952,28 @@ onMounted(load);
 .pe-prop-empty :deep(svg), .pe-prop-empty :deep(img) { opacity: .4; }
 .pe-img-field { display: flex; gap: 6px; flex-wrap: wrap; }
 
-/* 列表编辑器（轮播图/宫格导航 items） */
+/* 列表编辑器（轮播图/宫格导航 items）：拖拽排序 + 删除 */
 .pe-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-.pe-list-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px; display: flex; gap: 6px; align-items: flex-start; background: #fafbfc; }
+.pe-list-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px; display: flex; gap: 6px; align-items: flex-start; background: #fafbfc; cursor: grab; }
+.pe-list-item:active { cursor: grabbing; }
+.pe-list-item.drag-over { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); }
+.pe-list-drag { color: #c9cdd4; font-size: 16px; line-height: 1.2; cursor: grab; user-select: none; flex-shrink: 0; }
 .pe-list-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .pe-list-field { display: flex; flex-direction: column; gap: 2px; }
 .pe-list-label { font-size: 11px; color: #86909c; }
-.pe-list-ops { display: flex; flex-direction: column; gap: 2px; }
+.pe-list-ops { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
 .pe-list-add { width: 100%; border-style: dashed; }
+
+/* 头部设置面板（主题/全局/头部/底部导航 + 第一行内容） */
+.hp-tabs { display: flex; gap: 4px; background: #f2f3f5; border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+.hp-tab { flex: 1; text-align: center; height: 30px; line-height: 30px; border-radius: 6px; font-size: 13px; color: #4e5969; cursor: pointer; }
+.hp-tab.active { background: #fff; color: #165dff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.hp-body { display: flex; flex-direction: column; gap: 12px; }
+.hp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hp-label { width: 72px; font-size: 13px; color: #4e5969; flex-shrink: 0; }
+.hp-hint { font-size: 12px; color: #86909c; }
+.hp-sec { font-size: 12px; font-weight: 600; color: #4e5969; border-left: 3px solid #165dff; padding-left: 8px; margin-top: 4px; }
+.hp-pos { padding: 8px; background: #fafbfc; border-radius: 8px; }
 
 /* 素材选择 */
 .pe-sel { max-height: 360px; overflow-y: auto; }

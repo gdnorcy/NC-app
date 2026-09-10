@@ -2268,6 +2268,13 @@ function seedDesign(db) {
       created_at TEXT DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_tenant_page_version ON tenant_page_version (tenant_id, page_type, version);
+
+    CREATE TABLE IF NOT EXISTS tenant_design_global (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL UNIQUE,
+      config_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 

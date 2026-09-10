@@ -347,5 +347,60 @@ export function createDesignService(db) {
     for (const r of rows) del.run(r.id);
   };
 
+  // ============ 全局配置（启动页广告 / 头部设置·全局部分） ============
+
+  svc.getGlobal = (tenantId) => {
+    const row = db.prepare('SELECT config_json FROM tenant_design_global WHERE tenant_id = ?').get(tenantId);
+    if (!row) return { ok: true, config: {} };
+    try { return { ok: true, config: JSON.parse(row.config_json || '{}') }; } catch { return { ok: true, config: {} }; }
+  };
+
+  svc.saveGlobal = (tenantId, config = {}) => {
+    const json = JSON.stringify(config || {});
+    const exist = db.prepare('SELECT id FROM tenant_design_global WHERE tenant_id = ?').get(tenantId);
+    if (exist) db.prepare("UPDATE tenant_design_global SET config_json = ?, updated_at = datetime('now') WHERE id = ?").run(json, exist.id);
+    else db.prepare('INSERT INTO tenant_design_global (tenant_id, config_json) VALUES (?, ?)').run(tenantId, json);
+    return { ok: true };
+  };
+
+  // ============ 页面管理（重命名 / 删除 / 复制 / 新建） ============
+
+  svc.renamePage = (tenantId, pageType, pageName) => {
+    const name = String(pageName || '').trim();
+    if (!name) return { ok: false, error: '页面名称不能为空' };
+    const exist = db.prepare('SELECT id FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = 1').get(tenantId, pageType);
+    if (exist) db.prepare("UPDATE tenant_page_design SET page_name = ?, updated_at = datetime('now') WHERE id = ?").run(name, exist.id);
+    const draft = db.prepare('SELECT id FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = 0').get(tenantId, pageType);
+    if (draft) db.prepare("UPDATE tenant_page_design SET page_name = ?, updated_at = datetime('now') WHERE id = ?").run(name, draft.id);
+    return { ok: true };
+  };
+
+  svc.deletePage = (tenantId, pageType) => {
+    const builtin = ['home', 'card', 'dynamic', 'mine'];
+    if (builtin.includes(pageType)) return { ok: false, error: '内置页面（首页/名片详情/个人动态/个人中心）不可删除' };
+    db.prepare('DELETE FROM tenant_page_design WHERE tenant_id = ? AND page_type = ?').run(tenantId, pageType);
+    db.prepare('DELETE FROM tenant_page_version WHERE tenant_id = ? AND page_type = ?').run(tenantId, pageType);
+    return { ok: true };
+  };
+
+  svc.copyPage = (tenantId, pageType) => {
+    const src = db.prepare("SELECT * FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = 1 ORDER BY version DESC LIMIT 1").get(tenantId, pageType);
+    if (!src) return { ok: false, error: '源页面不存在' };
+    const newType = `custom-${Date.now()}`;
+    const design = JSON.parse(src.design_json || '{}');
+    const r = db.prepare('INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status) VALUES (?, ?, ?, ?, 1, 1)')
+      .run(tenantId, newType, `${src.page_name} 副本`, JSON.stringify(design));
+    svc.syncRefs(tenantId, 'page', newType, design);
+    return { ok: true, pageType: newType, id: Number(r.lastInsertRowid) };
+  };
+
+  svc.createPage = (tenantId, pageName) => {
+    const name = String(pageName || '').trim() || '新建页面';
+    const newType = `custom-${Date.now()}`;
+    const r = db.prepare('INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status) VALUES (?, ?, ?, ?, 1, 1)')
+      .run(tenantId, newType, name, JSON.stringify({ components: [] }));
+    return { ok: true, pageType: newType, id: Number(r.lastInsertRowid) };
+  };
+
   return svc;
 }

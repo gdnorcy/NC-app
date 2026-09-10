@@ -164,6 +164,36 @@ export default function createDesignRouter(db, deps = {}) {
     audit(db, req, 'rollback_page', 'tenant_page_design', req.customerId, `回滚页面 ${req.body?.pageType} 到 v${req.body?.version}`);
     res.json(r);
   });
+  design.post('/page/rename', tenant, tenantAdmin, (req, res) => {
+    const r = svc.renamePage(req.customerId, req.body?.pageType, req.body?.pageName);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json({ ok: true });
+  });
+  design.post('/page/delete', tenant, tenantAdmin, (req, res) => {
+    const r = svc.deletePage(req.customerId, req.body?.pageType);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    audit(db, req, 'delete_page', 'tenant_page_design', req.customerId, `删除页面: ${req.body?.pageType}`);
+    res.json({ ok: true });
+  });
+  design.post('/page/copy', tenant, tenantAdmin, (req, res) => {
+    const r = svc.copyPage(req.customerId, req.body?.pageType);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+  design.post('/page/create', tenant, tenantAdmin, (req, res) => {
+    const r = svc.createPage(req.customerId, req.body?.pageName);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    audit(db, req, 'create_page', 'tenant_page_design', r.id, `新建页面: ${req.body?.pageName || '新建页面'}`);
+    res.json(r);
+  });
+
+  // ---- 全局配置（启动页广告 / 全局设置） ----
+  design.get('/global/get', tenant, (req, res) => res.json(svc.getGlobal(req.customerId)));
+  design.post('/global/save', tenant, tenantAdmin, (req, res) => {
+    const r = svc.saveGlobal(req.customerId, req.body?.config || {});
+    audit(db, req, 'save_design_global', 'tenant_design_global', req.customerId, '保存全局配置（启动页/全局设置）');
+    res.json(r);
+  });
 
   // ---- 系统风格 ----
   design.get('/style/get', tenant, (req, res) => res.json({ style: svc.getStyle(req.customerId) }));
