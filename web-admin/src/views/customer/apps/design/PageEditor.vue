@@ -1139,7 +1139,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 /* 画布：手机预览壳 */
 .pe-canvas-wrap { background: #f2f3f5; border-radius: 8px; padding: 20px 16px; height: 100%; min-height: 0; overflow-y: auto; display: flex; }
 .pe-phone {
-  background: #fff; border-radius: 16px; max-width: 375px; margin: auto;
+  background: #fff; border-radius: 16px; width: 100%; max-width: 375px; margin: auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb;
   overflow: hidden;
   flex-shrink: 0;
