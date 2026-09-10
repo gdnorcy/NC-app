@@ -140,10 +140,10 @@
       <div class="pe-prop">
         <div class="pe-prop-title">{{ selectedComp ? selectedComp.name : '属性' }}</div>
         <div v-if="selectedComp && schemaSections.length" class="pe-prop-body">
-          <template v-for="sec in schemaSections" :key="sec.key">
-            <div v-if="sec.fields.length" class="pe-sec">
-              <div class="pe-sec-name">{{ sec.label }}</div>
-              <el-form label-width="auto" size="small">
+          <el-form label-width="auto" size="small">
+            <template v-for="sec in schemaSections" :key="sec.key">
+              <div v-if="sec.fields.length" class="pe-sec">
+                <div class="pe-sec-name">{{ sec.label }}</div>
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.control === 'hint' ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
@@ -260,10 +260,10 @@
                     </div>
                     <el-button size="small" class="pe-list-add" @click="addListItem(selectedComp, f.key, f.itemFields)">+ 添加一项</el-button>
                   </div>
-                </el-form-item>
-              </el-form>
-            </div>
-          </template>
+                  </el-form-item>
+              </div>
+            </template>
+          </el-form>
         </div>
         <div v-else class="pe-prop-empty">
           <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 9.5h8M8 13h5"/></svg>
