@@ -1127,15 +1127,28 @@ export function createCardRouter(db, wxService) {
     const home = db.prepare('SELECT home_page FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
     // 预览模式（?preview=1）：额外返回首页草稿页面组件，供 C 端「保存并预览」
     let pages = null;
+    let header = null;
     if (String(req.query.preview) === '1') {
       const draft = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'home' AND status = 0 ORDER BY version DESC LIMIT 1").get(tenantId);
-      if (draft) pages = JSON.parse(draft.design_json || '{}');
+      if (draft) {
+        const j = JSON.parse(draft.design_json || '{}');
+        pages = j;
+        header = j.meta?.header || null;
+      }
+    } else {
+      // 非预览：读取已发布首页的头部设置（custom/immersive/official），供 C 端自定义导航渲染
+      const pub = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'home' AND status = 1 ORDER BY version DESC LIMIT 1").get(tenantId);
+      if (pub) {
+        const j = JSON.parse(pub.design_json || '{}');
+        header = j.meta?.header || null;
+      }
     }
     res.json({
       tenantId,
       style: style ? JSON.parse(style.style_json || '{}') : null,
       tab: tab ? { name: tab.scheme_name, items: JSON.parse(tab.tab_json || '[]') } : null,
       homePage: home?.home_page || 'card',
+      header,
       pages,
     });
   });

@@ -1,10 +1,13 @@
 <template>
   <view class="home-page">
+    <!-- 设计中心头部设置（custom/immersive/official 按类型渲染） -->
+    <DesignNav v-if="designHeader" :header="designHeader" page-name="首页" />
+
     <!-- 设计中心装修区（发布/预览的首页组件） -->
     <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" class="design-section" />
 
-    <!-- 顶部搜索栏 -->
-    <view class="top-bar">
+    <!-- 顶部搜索栏（沉浸式头部悬浮时保留顶部安全距，其余类型由设计导航占位） -->
+    <view class="top-bar" :class="{ 'with-design-nav': designHeader && designHeader.type !== 'immersive' }">
       <view class="search-box" @click="goSearch">
         <SIcon name="dynamic" size="small" color="#86909c" />
         <text class="search-placeholder">搜索名片、客户、人脉</text>
@@ -135,6 +138,7 @@ import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY } from '../../utils/d
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
+import DesignNav from '../../components/DesignNav.vue';
 
 const user = ref({});
 const myCard = ref(null);
@@ -144,6 +148,7 @@ const visitorList = ref([]);
 const marketList = ref([]);
 const designComps = ref([]);
 const designTenantId = ref(0);
+const designHeader = ref(null);
 let pageOptions = {};
 onLoad((o) => { pageOptions = o || {}; });
 
@@ -185,6 +190,7 @@ onMounted(async () => {
     const comps = config?.pages?.components || [];
     designComps.value = Array.isArray(comps) ? comps : [];
     designTenantId.value = config?.tenantId || 0;
+    designHeader.value = config?.header || null;
     if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
     else if (preview) uni.showToast({ title: '草稿预览模式', icon: 'none' });
   } catch (e) {}
@@ -287,6 +293,10 @@ function viewMarketCard(item) {
   gap: 20rpx;
   padding: 88rpx 32rpx 24rpx;
   background: #fff;
+}
+/* 有设计导航（custom/official 占文档流）时去掉顶部安全距，由导航占位 */
+.top-bar.with-design-nav {
+  padding-top: 16rpx;
 }
 .search-box {
   flex: 1;

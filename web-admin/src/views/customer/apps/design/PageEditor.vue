@@ -247,7 +247,7 @@
         </div>
       </div>
 
-      <!-- 头部设置 -->
+      <!-- 头部设置（照抄云菜鸟：头部类型决定可配置菜单——自定义=全部子项 / 沉浸式=仅类型 / 仿官方=类型+页面标题） -->
       <div v-if="headerPanel.active === 'header'" class="hp-body">
         <div class="hp-row">
           <div class="hp-label">头部类型</div>
@@ -257,6 +257,26 @@
             <el-radio value="official">仿官方</el-radio>
           </el-radio-group>
         </div>
+
+        <!-- 沉浸式头部：导航栏透明悬浮，无子项配置 -->
+        <div v-if="meta.header.type === 'immersive'" class="hp-tip">
+          沉浸式头部：导航栏透明悬浮于页面内容之上，文字自动适配为白色，无需配置背景与内容
+        </div>
+
+        <!-- 仿官方头部：仅可设置页面标题 -->
+        <template v-if="meta.header.type === 'official'">
+          <div class="hp-row">
+            <div class="hp-label">页面标题</div>
+            <el-input v-model="meta.header.titleText" size="small" placeholder="默认取页面名称" style="width: 220px" />
+          </div>
+          <div class="hp-row">
+            <div class="hp-label">文字颜色</div>
+            <el-color-picker v-model="meta.header.textColor" />
+          </div>
+        </template>
+
+        <!-- 自定义头部：完整子项 -->
+        <template v-if="meta.header.type === 'custom'">
         <div class="hp-row">
           <div class="hp-label">头部背景</div>
           <el-color-picker v-model="meta.header.bgColor" />
@@ -305,10 +325,13 @@
             <el-input v-if="['text','search','iconText'].includes(meta.header.content[pos].type)" v-model="meta.header.content[pos].text" size="small" placeholder="内容文字" style="width: 100px" />
             <el-button v-if="meta.header.content[pos].type === 'image'" size="small" @click="openHeaderImg('content', pos)">选图</el-button>
             <el-input v-if="['image','iconText'].includes(meta.header.content[pos].type) && meta.header.content[pos].type === 'image'" :model-value="meta.header.content[pos].image" size="small" placeholder="图片" style="width: 90px" disabled />
-            <el-input v-model="meta.header.content[pos].link" size="small" placeholder="链接" style="width: 110px" />
+            <el-input v-model="meta.header.content[pos].link" size="small" placeholder="链接" style="width: 110px">
+              <template #append><el-button @click="openHeaderLink(pos)">选择</el-button></template>
+            </el-input>
             <el-color-picker v-model="meta.header.content[pos].color" />
           </template>
         </div>
+        </template>
       </div>
 
       <!-- 底部导航 -->
@@ -424,18 +447,26 @@ function setDirty() {
 }
 watch(snapshot, () => setDirty(), { deep: true });
 
-// 导航栏渲染（按头部设置）
+// 导航栏渲染（按头部设置，照抄云菜鸟：custom=按配置 / immersive=透明悬浮 / official=白底深字固定样式）
 const navStyle = computed(() => {
   const h = meta.header;
   const style = {};
   if (h.type === 'immersive') style.background = 'transparent';
+  else if (h.type === 'official') style.background = '#ffffff';
   else if (h.bgImage) style.background = `url(${resolveUrl(h.bgImage)}) center / cover no-repeat`;
   else style.background = h.bgColor || '#ffffff';
   if (h.padding) style.padding = `0 ${h.padding}px`;
   return style;
 });
-const navTextColor = computed(() => (meta.header.type === 'immersive' ? '#ffffff' : meta.header.textColor || '#1d2129'));
+const navTextColor = computed(() => {
+  const t = meta.header.type;
+  if (t === 'immersive') return '#ffffff';
+  if (t === 'official') return '#1d2129';
+  return meta.header.textColor || '#1d2129';
+});
 function navPosHtml(pos) {
+  // 仿官方 / 沉浸式头部为固定样式，不渲染左右自定义内容（与配置菜单一致）
+  if (meta.header.type === 'official' || meta.header.type === 'immersive') return '';
   const c = meta.header.content[pos] || {};
   const color = meta.header.type === 'immersive' ? '#ffffff' : (c.color || '#1d2129');
   if (c.type === 'none' || !c.type) return '';
@@ -772,7 +803,7 @@ function confirmImgSel(url, mid) {
 }
 
 // 系统链接选择器：link 字段点「选择」弹窗回填
-const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, current: '' });
+const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, current: '' });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
   if (selectedComp.value) {
@@ -787,17 +818,32 @@ function openLinkSel(listIdx, fieldIdx, listField) {
   linkSel.listField = listField || null;
   linkSel.listIdx = typeof listIdx === 'number' ? listIdx : null;
   linkSel.fieldIdx = typeof fieldIdx === 'number' ? fieldIdx : null;
+  linkSel.headerPos = null;
   linkSel.current = current;
   linkSel.show = true;
 }
+function openHeaderLink(pos) {
+  linkSel.fieldKey = null;
+  linkSel.listField = null;
+  linkSel.listIdx = null;
+  linkSel.fieldIdx = null;
+  linkSel.headerPos = pos;
+  linkSel.current = meta.header.content[pos]?.link || '';
+  linkSel.show = true;
+}
 function confirmLinkSel(link) {
-  if (link && selectedComp.value) {
-    if (linkSel.listField && typeof linkSel.listIdx === 'number' && typeof linkSel.fieldIdx === 'number') {
-      const items = selectedComp.value.props[linkSel.listField.key] || [];
-      if (!items[linkSel.listIdx]) items[linkSel.listIdx] = {};
-      items[linkSel.listIdx][linkSel.listField.itemFields[linkSel.fieldIdx].key] = link;
-    } else if (linkSel.fieldKey) {
-      selectedComp.value.props[linkSel.fieldKey] = link;
+  if (link) {
+    if (linkSel.headerPos) {
+      if (!meta.header.content[linkSel.headerPos]) meta.header.content[linkSel.headerPos] = {};
+      meta.header.content[linkSel.headerPos].link = link;
+    } else if (selectedComp.value) {
+      if (linkSel.listField && typeof linkSel.listIdx === 'number' && typeof linkSel.fieldIdx === 'number') {
+        const items = selectedComp.value.props[linkSel.listField.key] || [];
+        if (!items[linkSel.listIdx]) items[linkSel.listIdx] = {};
+        items[linkSel.listIdx][linkSel.listField.itemFields[linkSel.fieldIdx].key] = link;
+      } else if (linkSel.fieldKey) {
+        selectedComp.value.props[linkSel.fieldKey] = link;
+      }
     }
   }
   linkSel.show = false;

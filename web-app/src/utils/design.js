@@ -32,6 +32,7 @@ export function normalizeDesignConfig(raw) {
   return {
     tenantId: cfg.tenantId || 0,
     style: { primaryColor: style.primaryColor || '#165DFF', radius: style.radius ?? 8 },
+    header: normalizeHeader(cfg.header),
     tabItems: tabItems.map((it, i) => ({
       text: it.text || `导航${i + 1}`,
       icon: typeof it.icon === 'string' ? it.icon : '',
@@ -55,6 +56,30 @@ export function fallbackTabIcon(text) {
 export function resolveHomePath(homePage) {
   if (!homePage || homePage === 'card') return null;
   return HOME_PAGE_MAP[homePage] || null;
+}
+
+/** 规范化头部设置（custom/immersive/official；缺字段兜底） */
+export function normalizeHeader(raw) {
+  if (!raw) return null;
+  const normItem = (it) => {
+    const x = it || {};
+    return { type: x.type || 'none', text: x.text || '', image: x.image || '', link: x.link || '', color: x.color || '' };
+  };
+  return {
+    type: ['custom', 'immersive', 'official'].includes(raw.type) ? raw.type : 'custom',
+    bgColor: raw.bgColor || '#ffffff',
+    bgImage: raw.bgImage || '',
+    fixed: !!raw.fixed,
+    padding: typeof raw.padding === 'number' ? raw.padding : 0,
+    lines: raw.lines === 2 ? 2 : 1,
+    titleText: raw.titleText || '',
+    textColor: raw.textColor || '#1d2129',
+    content: {
+      left: normItem(raw.content?.left),
+      center: normItem(raw.content?.center),
+      right: normItem(raw.content?.right),
+    },
+  };
 }
 
 /** 读取本地缓存（未过期才有效） */

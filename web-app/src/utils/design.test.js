@@ -1,6 +1,6 @@
 // 设计中心 C 端渲染工具测试：规范化/兜底图标/首页映射/缓存读取
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { normalizeDesignConfig, fallbackTabIcon, resolveHomePath, readDesignConfig, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
+import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
 
 const store = {};
 const uniMock = {
@@ -61,5 +61,31 @@ describe('设计中心 C 端渲染工具', () => {
   it('P6 常量契约：HOME_PAGE_MAP 覆盖 5 个选项', () => {
     expect(Object.keys(HOME_PAGE_MAP).sort()).toEqual(['card', 'distribution', 'market', 'member', 'radar']);
     expect(DEFAULT_DESIGN_TABS.length).toBe(4);
+  });
+
+  it('P7 头部设置 normalizeHeader：空值返回 null', () => {
+    expect(normalizeHeader(null)).toBeNull();
+    expect(normalizeHeader(undefined)).toBeNull();
+  });
+
+  it('P8 头部设置 normalizeHeader：三类型 + 内容项 + 缺字段兜底', () => {
+    const h = normalizeHeader({
+      type: 'immersive', bgColor: '', bgImage: '', fixed: true, padding: 12, lines: 2,
+      titleText: '我的首页', textColor: '#333333',
+      content: { left: { type: 'text', text: '返回', link: '/pages/card/myCard', color: '#ff0000' }, center: { type: 'none' }, right: { type: 'image', image: '/uploads/x.png' } },
+    });
+    expect(h.type).toBe('immersive');
+    expect(h.lines).toBe(2);
+    expect(h.padding).toBe(12);
+    expect(h.content.left.text).toBe('返回');
+    expect(h.content.left.color).toBe('#ff0000');
+    expect(h.content.center.type).toBe('none');
+    expect(h.content.right.image).toBe('/uploads/x.png');
+    // 非法类型兜底 custom
+    const bad = normalizeHeader({ type: 'hack' });
+    expect(bad.type).toBe('custom');
+    expect(bad.lines).toBe(1);
+    expect(bad.content.left.type).toBe('none');
+    expect(bad.bgColor).toBe('#ffffff');
   });
 });
