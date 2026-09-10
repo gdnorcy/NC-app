@@ -1059,10 +1059,10 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pe-body { display: grid; grid-template-columns: 280px minmax(375px, 1fr) 380px; gap: 12px; flex: 1; min-height: 0; overflow-x: auto; }
+.pe-body { display: grid; grid-template-columns: 280px minmax(375px, 1fr) 380px; gap: 12px; flex: 1; min-height: 0; align-items: start; }
 
 /* 组件库：模块/页面列表 Tab + 分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
-.pe-lib { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
+.pe-lib { background: #fff; border-radius: 8px; padding: 12px; height: calc(100vh - 150px); min-height: 320px; overflow-y: auto; }
 .pe-lib-head { margin-bottom: 8px; }
 .pe-lib-tabs { display: flex; gap: 4px; background: #f2f3f5; border-radius: 8px; padding: 3px; }
 .pe-lib-tab { flex: 1; text-align: center; height: 30px; line-height: 30px; border-radius: 6px; font-size: 13px; color: #4e5969; cursor: pointer; transition: all .2s; }
@@ -1137,7 +1137,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 8px; text-align: center; }
 
 /* 画布：手机预览壳 */
-.pe-canvas-wrap { background: #f2f3f5; border-radius: 8px; padding: 20px 16px; height: 100%; min-height: 0; overflow-y: auto; display: flex; }
+.pe-canvas-wrap { background: #f2f3f5; border-radius: 8px; padding: 20px 16px; min-height: 480px; display: flex; }
 .pe-phone {
   background: #fff; border-radius: 16px; max-width: 375px; margin: auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb;
@@ -1185,7 +1185,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-empty :deep(svg), .pe-empty :deep(img) { opacity: .4; }
 
 /* 属性面板（sticky：随页面滚动保持可见，内部滚动） */
-.pe-prop { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
+.pe-prop { background: #fff; border-radius: 8px; padding: 12px; height: calc(100vh - 150px); min-height: 320px; overflow-y: auto; }
 .pe-prop-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .pe-prop-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
 .pe-sec { margin-bottom: 14px; }
