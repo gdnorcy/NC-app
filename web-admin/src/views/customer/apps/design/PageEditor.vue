@@ -6,10 +6,6 @@
         <el-tag v-if="published" type="success" size="small">已发布 v{{ published.version }}</el-tag>
         <el-tag v-if="draft" type="info" size="small">有草稿</el-tag>
       </div>
-      <div class="pe-actions">
-        <el-button size="small" @click="loadVersions">历史版本</el-button>
-        <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
-      </div>
     </div>
 
     <div class="pe-body">
@@ -1054,7 +1050,7 @@ function onListItemDrop() { listDrag = null; }
 
 watch(() => props.pageType, () => { selected.value = null; load(); });
 onMounted(() => { load(); loadPageList(); });
-defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components });
+defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate, load, pageName, components });
 </script>
 
 <style scoped>

@@ -13,6 +13,8 @@
         <el-button size="small" :loading="previewing" @click="saveAndPreview">保存并预览</el-button>
         <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
         <el-button size="small" type="success" :loading="publishing" @click="publish">发布</el-button>
+        <el-button size="small" @click="loadVersions">历史版本</el-button>
+        <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
       </div>
     </div>
 
@@ -224,6 +226,8 @@ function onPageSwitch(type) {
 async function saveDraft() { await editorRef.value?.saveDraft(); }
 async function publish() { await editorRef.value?.publish(); }
 async function saveAndPreview() { await editorRef.value?.saveAndPreview(); }
+async function loadVersions() { await editorRef.value?.loadVersions(); }
+async function saveAsTemplate() { await editorRef.value?.saveAsTemplate(); }
 
 // 返回：保存状态检测（方案A：快照对比脏标记 → 三选：保存并返回 / 不保存返回 / 取消）
 const backDialog = reactive({ show: false, saving: false });
