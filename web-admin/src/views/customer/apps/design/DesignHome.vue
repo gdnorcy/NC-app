@@ -831,7 +831,7 @@ onMounted(() => {
 <style scoped>
 /* 页面装修（云菜鸟 moban 风格：顶部手机真实预览 + 操作条 + 表格） */
 .page-manage { width: 100%; }
-.pm-layout { display: grid; grid-template-columns: 300px 789px; gap: 16px; align-items: start; justify-content: center; }
+.pm-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
 .pm-left { background: #fff; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .pm-tpl-head { display: flex; align-items: center; gap: 8px; width: 100%; }
 .pm-use-tag { font-size: 11px; color: #165dff; background: #e8f3ff; border-radius: 10px; padding: 2px 8px; line-height: 16px; flex-shrink: 0; }

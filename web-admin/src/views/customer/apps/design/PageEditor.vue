@@ -1063,7 +1063,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pe-body { display: grid; grid-template-columns: 280px minmax(0, 1fr) 300px; gap: 12px; flex: 1; min-height: 0; overflow: hidden; }
+.pe-body { display: grid; grid-template-columns: 280px minmax(375px, 1fr) 789px; gap: 12px; flex: 1; min-height: 0; overflow-x: auto; }
 
 /* 组件库：模块/页面列表 Tab + 分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
