@@ -156,6 +156,10 @@
                         <rect x="12" y="12" width="64" height="32" rx="4" fill="#C9CDD4"/>
                         <circle cx="44" cy="28" r="6" fill="#fff"/>
                       </svg>
+                      <svg v-else-if="ratioShapes[o.value]" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5"/>
+                        <rect :x="(44 - ratioShapes[o.value].w) / 2" :y="(44 - ratioShapes[o.value].h) / 2" :width="ratioShapes[o.value].w" :height="ratioShapes[o.value].h" rx="3" fill="#C9CDD4"/>
+                      </svg>
                       <svg v-else class="pe-graphic-svg" viewBox="0 0 88 56">
                         <rect x="2" y="4" width="40" height="48" rx="6" fill="#F2F3F5"/>
                         <rect x="46" y="4" width="40" height="48" rx="6" fill="#F2F3F5"/>
@@ -516,6 +520,13 @@ function setDirty() {
 }
 watch(snapshot, () => setDirty(), { deep: true });
 
+// 视频样式比例卡片的矩形尺寸（eweishop 原版：16:9 / 4:3 / 1:1 / 9:16）
+const ratioShapes = {
+  '16:9': { w: 38, h: 21.4 },
+  '4:3': { w: 32, h: 24 },
+  '1:1': { w: 27, h: 27 },
+  '9:16': { w: 22, h: 32 },
+};
 // 导航栏渲染（按头部设置，照抄云菜鸟：custom=按配置 / immersive=透明悬浮 / official=白底深字固定样式）
 const navStyle = computed(() => {
   const h = meta.header;

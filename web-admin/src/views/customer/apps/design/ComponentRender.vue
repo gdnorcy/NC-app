@@ -49,7 +49,7 @@
       <!-- 视频号视频（eweishop 复刻）：风格一列/两列（竖屏9:16）、多视频、背景色/图、静音循环、圆角 -->
       <div v-if="comp.props.source === 'channels'" class="r-video-ch" :style="chStyle(comp.props)">
         <div class="r-video-ch-inner" :class="comp.props.style === 'double' ? 'r-video-ch-double' : ''">
-          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :class="{ 'r-video-ch-full': comp.props.style === 'double' && chVideos(comp.props).length === 1 }" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: comp.props.style === 'double' ? '9 / 16' : '16 / 9', height: comp.props.height ? comp.props.height + 'px' : undefined }">
+          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :class="{ 'r-video-ch-full': comp.props.style === 'double' && chVideos(comp.props).length === 1 }" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.chRatio] || (comp.props.style === 'double' ? '9 / 16' : '16 / 9'), height: comp.props.height ? comp.props.height + 'px' : undefined }">
             <div class="r-video-ch-play"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
             <span class="r-video-tag">视频号</span>
           </div>

@@ -451,12 +451,13 @@ function chStyle(p) {
 }
 function chItemStyle(p, i) {
   const s = {};
+  const rMap = { '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' };
   if (p.height) {
     s.aspectRatio = 'auto';
     s.height = p.height + 'px';
   } else {
-    // 两列并排：竖屏 9:16；一列：横屏 16:9
-    s.aspectRatio = p.style === 'double' ? '9 / 16' : '16 / 9';
+    // 比例配置优先（eweishop 原版：16:9/4:3/1:1/9:16）；旧数据无 chRatio 时两列兜底竖屏 9:16、一列横屏 16:9
+    s.aspectRatio = rMap[p.chRatio] || (p.style === 'double' ? '9 / 16' : '16 / 9');
   }
   const list = chVideos(p);
   const r = [];
