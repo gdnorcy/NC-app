@@ -280,15 +280,15 @@
         </div>
         <div class="hp-row">
           <div class="hp-label">卡片圆角(px)</div>
-          <el-slider v-model="meta.global.cardRadius" :min="0" :max="24" show-input style="width: 230px" />
+          <el-slider v-model="meta.global.cardRadius" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
         </div>
         <div class="hp-row">
           <div class="hp-label">卡片边距(px)</div>
-          <el-slider v-model="meta.global.cardPadding" :min="0" :max="24" show-input style="width: 230px" />
+          <el-slider v-model="meta.global.cardPadding" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
         </div>
         <div class="hp-row">
           <div class="hp-label">卡片间距(px)</div>
-          <el-slider v-model="meta.global.cardGap" :min="0" :max="24" show-input style="width: 230px" />
+          <el-slider v-model="meta.global.cardGap" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
         </div>
       </div>
 
@@ -337,7 +337,7 @@
         </div>
         <div class="hp-row">
           <div class="hp-label">头部边距(px)</div>
-          <el-slider v-model="meta.header.padding" :min="0" :max="24" show-input style="width: 230px" />
+          <el-slider v-model="meta.header.padding" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
         </div>
         <div class="hp-row">
           <div class="hp-label">头部内容</div>
@@ -1284,8 +1284,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }
 .pe-list-link:hover { text-decoration: underline; }
 .pe-list-add { width: 100%; border-style: dashed; }
-/* 数字调节框统一窄化（60px 容纳两位数字即可，宽度留给滑杆）：组件属性面板 .pe-prop 与页面设置面板 .hp-body 全覆盖 */
-.pe-prop :deep(.el-slider__input), .hp-body :deep(.el-slider__input) { width: 60px; }
+/* 数字调节框窄化（72px 容纳三位数字，余宽留给滑杆）：组件属性面板 .pe-prop 与页面设置面板 .hp-body 全覆盖 */
+.pe-prop :deep(.el-slider__input), .hp-body :deep(.el-slider__input) { width: 72px; }
 .pe-prop :deep(.el-slider__input .el-input__wrapper), .hp-body :deep(.el-slider__input .el-input__wrapper) { padding: 0 4px; }
 .pe-prop :deep(.el-slider__input .el-input-number__decrease), .pe-prop :deep(.el-slider__input .el-input-number__increase),
 .hp-body :deep(.el-slider__input .el-input-number__decrease), .hp-body :deep(.el-slider__input .el-input-number__increase) { width: 18px; }
@@ -1296,7 +1296,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .hp-tab.active { background: #fff; color: #165dff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .hp-body { display: flex; flex-direction: column; gap: 12px; }
 .hp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.hp-label { width: 72px; font-size: 13px; color: #4e5969; flex-shrink: 0; }
+.hp-label { width: 92px; font-size: 13px; color: #4e5969; flex-shrink: 0; white-space: nowrap; }
 .hp-hint { font-size: 12px; color: #86909c; }
 .hp-sec { font-size: 12px; font-weight: 600; color: #4e5969; border-left: 3px solid #165dff; padding-left: 8px; margin-top: 4px; }
 .hp-pos { padding: 8px; background: #fafbfc; border-radius: 8px; }
