@@ -1080,7 +1080,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pp-col-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-col-home { flex: 0 0 32px; text-align: center; color: #86909c; }
 .pp-col-home.yes { color: #165dff; font-weight: 600; }
-.pp-col-ops { flex: 0 0 auto; display: flex; align-items: center; }
+.pp-col-ops { flex: 0 0 106px; display: flex; align-items: center; }
 .pp-col-ops .el-button { padding: 0 3px; margin-left: 0; }
 .pp-name { cursor: pointer; color: #1d2129; font-weight: 500; }
 .pp-name:hover { color: #165dff; }

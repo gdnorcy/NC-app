@@ -347,12 +347,14 @@
                 <el-tag :type="row.memberOnly ? 'warning' : 'info'" size="small" effect="plain">{{ row.memberOnly ? '开' : '关' }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="240">
+            <el-table-column label="操作" width="250">
               <template #default="{ row }">
-                <el-button size="small" text type="primary" @click="goEdit(row.page_type)">装修</el-button>
-                <el-button size="small" text @click="copyPage(row)">复制</el-button>
-                <el-button size="small" text @click="sharePage(row)">推广</el-button>
-                <el-button size="small" text type="danger" :disabled="builtinPages.includes(row.page_type)" @click="deletePage(row)">删除</el-button>
+                <div class="pm-ops">
+                  <el-button size="small" text type="primary" @click="goEdit(row.page_type)">装修</el-button>
+                  <el-button size="small" text @click="copyPage(row)">复制</el-button>
+                  <el-button size="small" text @click="sharePage(row)">推广</el-button>
+                  <el-button size="small" text type="danger" :disabled="builtinPages.includes(row.page_type)" @click="deletePage(row)">删除</el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -830,6 +832,8 @@ onMounted(() => {
 .pm-toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .table-scroll { width: 100%; background: #fff; border-radius: 8px; padding: 16px; box-sizing: border-box; }
 .pm-row-name { font-weight: 500; color: #1d2129; margin-right: 6px; }
+.pm-ops { display: flex; align-items: center; white-space: nowrap; }
+.pm-ops .el-button { margin-left: 0; margin-right: 2px; padding: 4px 5px; }
 .pm-home-tag { margin-right: 4px; }
 
 .design-home { display: flex; flex-direction: column; gap: 16px; }
