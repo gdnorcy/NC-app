@@ -58,21 +58,23 @@
       </view>
       <!-- 倒计时 -->
       <view v-else-if="c.type === 'countdown'" class="dp-countdown" :class="'dp-cd-s' + (c.props.styleId || 1) + ' ' + dpCdStyleClass(c.props)" :style="cdBoxStyle(c.props)">
-        <image v-if="c.props.cdBgType === 'image' && c.props.cdBgImage" :src="resolveUrl(c.props.cdBgImage)" mode="aspectFill" class="dp-cd-bgimg" />
-        <text class="dp-cd-title" :style="{ color: c.props.cdTitleColor || '#ffffff' }">{{ cdTitle(c.props) }}</text>
-        <view class="dp-cd-cols">
-          <template v-if="(c.props.styleId || 1) === 1">
-            <!-- 风格1：每位数字独立块 + 天/小时/分 -->
-            <template v-for="(ch, ci) in cdVal(i).d.split('')" :key="'d' + ci"><text class="dp-cd-digit" :style="cdNumStyle(c.props)">{{ ch }}</text></template>
-            <text class="dp-cd-unit" :style="cdUnitStyle(c.props)">天</text>
-            <template v-for="(ch, ci) in cdVal(i).h.split('')" :key="'h' + ci"><text class="dp-cd-digit" :style="cdNumStyle(c.props)">{{ ch }}</text></template>
-            <text class="dp-cd-unit" :style="cdUnitStyle(c.props)">小时</text>
-            <template v-for="(ch, ci) in cdVal(i).m.split('')" :key="'m' + ci"><text class="dp-cd-digit" :style="cdNumStyle(c.props)">{{ ch }}</text></template>
-            <text class="dp-cd-unit" :style="cdUnitStyle(c.props)">分</text>
-          </template>
-          <text v-else class="dp-cd-inline" :style="cdInlineStyle(c.props)">{{ cdVal(i).d }}天{{ cdVal(i).h }}小时{{ cdVal(i).m }}分</text>
+        <image v-if="c.props.image" :src="resolveUrl(c.props.image)" mode="widthFix" class="dp-cd-mainimg" />
+        <view class="dp-cd-content" :style="cdContentStyle(c.props)">
+          <text class="dp-cd-title" :style="{ color: c.props.cdTitleColor || '#ffffff' }">{{ cdTitle(c.props) }}</text>
+          <view class="dp-cd-cols">
+            <template v-if="(c.props.styleId || 1) === 1">
+              <!-- 风格1：每位数字独立块 + 天/小时/分 -->
+              <template v-for="(ch, ci) in cdVal(i).d.split('')" :key="'d' + ci"><text class="dp-cd-digit" :style="cdNumStyle(c.props)">{{ ch }}</text></template>
+              <text class="dp-cd-unit" :style="cdUnitStyle(c.props)">天</text>
+              <template v-for="(ch, ci) in cdVal(i).h.split('')" :key="'h' + ci"><text class="dp-cd-digit" :style="cdNumStyle(c.props)">{{ ch }}</text></template>
+              <text class="dp-cd-unit" :style="cdUnitStyle(c.props)">小时</text>
+              <template v-for="(ch, ci) in cdVal(i).m.split('')" :key="'m' + ci"><text class="dp-cd-digit" :style="cdNumStyle(c.props)">{{ ch }}</text></template>
+              <text class="dp-cd-unit" :style="cdUnitStyle(c.props)">分</text>
+            </template>
+            <text v-else class="dp-cd-inline" :style="cdInlineStyle(c.props)">{{ cdVal(i).d }}天{{ cdVal(i).h }}小时{{ cdVal(i).m }}分</text>
+          </view>
+          <view class="dp-cd-btn" :style="cdBtnStyle(c.props)" @click="onJump(c.props.link)"><text :style="{ color: c.props.cdBtnText || '#FC5917' }">{{ c.props.btnText || '抢先查看' }}</text></view>
         </view>
-        <view class="dp-cd-btn" :style="cdBtnStyle(c.props)" @click="onJump(c.props.link)"><text :style="{ color: c.props.cdBtnText || '#FC5917' }">{{ c.props.btnText || '抢先查看' }}</text></view>
       </view>
       <!-- 表单 -->
       <view v-else-if="c.type === 'form'" class="dp-form">
@@ -450,6 +452,18 @@ function cdBoxStyle(p) {
   if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
   return s;
 }
+function cdContentStyle(p) {
+  const s = {};
+  if (p.cdBgType === 'image') {
+    if (p.cdBgImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.cdBgImage)).slice(1, -1)})`;
+    s.backgroundSize = '100% 100%';
+    s.backgroundPosition = '50% 50%';
+    s.backgroundRepeat = 'no-repeat';
+  } else if (p.cdBgColor) {
+    s.background = p.cdBgColor;
+  }
+  return s;
+}
 function cdBtnStyle(p) {
   const s = {};
   if (p.cdBtnBg) s.background = p.cdBtnBg;
@@ -645,7 +659,8 @@ function resolveUrl(u) {
   return (u.startsWith('/') ? window.location.origin + u : window.location.origin + '/' + u);
   // #endif
   // #ifndef H5
-  return u.startsWith('/') ? u : `/${u}`;
+  // 小程序端 createImage/image 不能解析相对路径，必须拼 API_DOMAIN
+  return (u.startsWith('/') ? API_DOMAIN + u : API_DOMAIN + '/' + u);
   // #endif
 }
 function containerStyle(c) {
@@ -855,18 +870,19 @@ function openChannel(kind, p) {
 .dp-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .dp-notice-tag { font-weight: 600; flex-shrink: 0; }
 .dp-notice-text { flex: 1; }
-.dp-countdown { padding: 14px; background: transparent; display: flex; flex-direction: column; gap: 10px; align-items: center; position: relative; overflow: hidden; }
-.dp-countdown .dp-cd-bgimg { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; }
-.dp-countdown > .dp-cd-title, .dp-countdown > .dp-cd-cols, .dp-countdown > .dp-cd-btn { position: relative; z-index: 1; }
-.dp-cd-title { font-size: 14px; font-weight: 600; color: #ffffff; }
-.dp-cd-cols { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
-.dp-cd-digit { font-size: 13px; font-weight: 700; color: #FC5917; background: #ffffff; border-radius: 3px; padding: 2px 4px; line-height: 1.4; min-width: 16px; text-align: center; }
-.dp-cd-unit { font-size: 12px; color: #1d2129; margin: 0 3px 0 1px; }
+.dp-countdown { background: transparent; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.dp-cd-mainimg { display: block; width: 100%; height: auto; }
+.dp-cd-content { position: relative; padding: 9px 62px 9px 14px; }
+.dp-cd-title { font-size: 14px; font-weight: 600; color: #ffffff; display: block; }
+.dp-cd-cols { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+.dp-cd-digit { font-size: 13px; font-weight: 700; color: #FC5917; background: #ffffff; border-radius: 3px; padding: 2px 4px; line-height: 1.4; min-width: 16px; text-align: center; display: inline-block; }
+.dp-cd-unit { font-size: 12px; color: #ffffff; margin: 0 3px 0 1px; }
 .dp-cd-inline { font-size: 15px; font-weight: 600; color: #FC5917; }
 .dp-cd-plain .dp-cd-digit { box-shadow: none; border: none; }
 .dp-cd-shadow .dp-cd-digit { box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18); }
 .dp-cd-border .dp-cd-digit { box-shadow: none; border: 1px solid rgba(252, 89, 23, 0.45); }
-.dp-cd-btn { margin-top: 10px; color: #FC5917; font-size: 12px; padding: 4px 14px; border-radius: 12px; background: #FEEC22; display: inline-block; }
+.dp-cd-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #FC5917; font-size: 12px; line-height: 1.2; width: 48px; height: 48px; border-radius: 50%; background: #FEEC22; display: flex; align-items: center; justify-content: center; text-align: center; }
+.dp-cd-btn text { max-width: 26px; word-break: break-all; }
 .dp-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .dp-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }

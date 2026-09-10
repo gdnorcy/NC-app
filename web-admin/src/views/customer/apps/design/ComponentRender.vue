@@ -59,21 +59,23 @@
         :class="'r-cd-s' + (comp.props.styleId || 1) + ' ' + rCdStyleClass(comp.props)"
         :style="cdBoxStyle(comp.props)"
       >
-        <div v-if="comp.props.cdBgType === 'image' && comp.props.cdBgImage" class="r-cd-bgimg"><img :src="resolveUrl(comp.props.cdBgImage)" /></div>
-        <div class="r-cd-title" :style="{ color: comp.props.cdTitleColor || '#ffffff' }">{{ cdTitle(comp.props) }}</div>
-        <div class="r-cd-cols">
-          <template v-if="(comp.props.styleId || 1) === 1">
-            <!-- 风格1：每位数字独立块 + 天/小时/分 -->
-            <template v-for="(ch, ci) in cdDigits(comp.props, 'd')" :key="'d' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
-            <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">天</i>
-            <template v-for="(ch, ci) in cdDigits(comp.props, 'h')" :key="'h' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
-            <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">小时</i>
-            <template v-for="(ch, ci) in cdDigits(comp.props, 'm')" :key="'m' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
-            <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">分</i>
-          </template>
-          <span v-else class="r-cd-inline" :style="cdInlineStyle(comp.props)">{{ cdPart(comp.props, 'd') }}天{{ cdPart(comp.props, 'h') }}小时{{ cdPart(comp.props, 'm') }}分</span>
+        <img v-if="comp.props.image" :src="resolveUrl(comp.props.image)" class="r-cd-mainimg" />
+        <div class="r-cd-content" :style="cdContentStyle(comp.props)">
+          <div class="r-cd-title" :style="{ color: comp.props.cdTitleColor || '#ffffff' }">{{ cdTitle(comp.props) }}</div>
+          <div class="r-cd-cols">
+            <template v-if="(comp.props.styleId || 1) === 1">
+              <!-- 风格1：每位数字独立块 + 天/小时/分 -->
+              <template v-for="(ch, ci) in cdDigits(comp.props, 'd')" :key="'d' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
+              <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">天</i>
+              <template v-for="(ch, ci) in cdDigits(comp.props, 'h')" :key="'h' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
+              <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">小时</i>
+              <template v-for="(ch, ci) in cdDigits(comp.props, 'm')" :key="'m' + ci"><b class="r-cd-digit" :style="cdNumStyle(comp.props)">{{ ch }}</b></template>
+              <i class="r-cd-unit" :style="cdUnitStyle(comp.props)">分</i>
+            </template>
+            <span v-else class="r-cd-inline" :style="cdInlineStyle(comp.props)">{{ cdPart(comp.props, 'd') }}天{{ cdPart(comp.props, 'h') }}小时{{ cdPart(comp.props, 'm') }}分</span>
+          </div>
+          <div class="r-cd-btn" :style="cdBtnStyle(comp.props)"><b>{{ comp.props.btnText || '抢先查看' }}</b></div>
         </div>
-        <div class="r-cd-btn" :style="cdBtnStyle(comp.props)">{{ comp.props.btnText || '抢先查看' }}</div>
       </div>
     </template>
     <template v-else-if="comp.type === 'form'">
@@ -472,6 +474,18 @@ function cdBoxStyle(p) {
   if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
   return s;
 }
+function cdContentStyle(p) {
+  const s = {};
+  if (p.cdBgType === 'image') {
+    if (p.cdBgImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.cdBgImage)).slice(1, -1)})`;
+    s.backgroundSize = '100% 100%';
+    s.backgroundPosition = '50% 50%';
+    s.backgroundRepeat = 'no-repeat';
+  } else if (p.cdBgColor) {
+    s.background = p.cdBgColor;
+  }
+  return s;
+}
 function cdBtnStyle(p) {
   const s = {};
   if (p.cdBtnBg) s.background = p.cdBtnBg;
@@ -676,19 +690,19 @@ function chRadius(p, i) {
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
 .r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.r-countdown { padding: 14px; background: transparent; display: flex; flex-direction: column; gap: 10px; align-items: center; position: relative; overflow: hidden; }
-.r-countdown .r-cd-bgimg { position: absolute; inset: 0; z-index: 0; }
-.r-countdown .r-cd-bgimg img { width: 100%; height: 100%; object-fit: cover; }
-.r-countdown > .r-cd-title, .r-countdown > .r-cd-cols, .r-countdown > .r-cd-btn { position: relative; z-index: 1; }
+.r-countdown { background: transparent; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.r-cd-mainimg { display: block; width: 100%; height: auto; }
+.r-cd-content { position: relative; padding: 9px 62px 9px 14px; }
 .r-cd-title { font-size: 14px; font-weight: 600; color: #ffffff; }
-.r-cd-cols { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.r-cd-cols { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
 .r-cd-digit { font-size: 13px; font-weight: 700; color: #FC5917; background: #ffffff; border-radius: 3px; padding: 2px 4px; line-height: 1.4; min-width: 16px; text-align: center; font-style: normal; }
-.r-cd-unit { font-style: normal; font-size: 12px; color: #1d2129; margin: 0 3px 0 1px; }
+.r-cd-unit { font-style: normal; font-size: 12px; color: #ffffff; margin: 0 3px 0 1px; }
 .r-cd-inline { font-size: 15px; font-weight: 600; color: #FC5917; }
 .r-cd-plain .r-cd-digit { box-shadow: none; border: none; }
 .r-cd-shadow .r-cd-digit { box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18); }
 .r-cd-border .r-cd-digit { box-shadow: none; border: 1px solid rgba(252, 89, 23, 0.45); }
-.r-cd-btn { margin-top: 10px; color: #FC5917; font-size: 12px; padding: 4px 14px; border-radius: 12px; background: #FEEC22; }
+.r-cd-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #FC5917; font-size: 12px; line-height: 1.2; width: 48px; height: 48px; border-radius: 50%; background: #FEEC22; display: flex; align-items: center; justify-content: center; text-align: center; }
+.r-cd-btn b { max-width: 26px; word-break: break-all; font-weight: 400; }
 .r-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-title { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-row .r-article-item { display: flex; gap: 10px; align-items: flex-start; }
