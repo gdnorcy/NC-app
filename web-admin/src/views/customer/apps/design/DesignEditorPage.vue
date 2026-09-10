@@ -273,7 +273,7 @@ onMounted(loadGlobal);
   background: #f7f8fa;
   padding: 14px 20px 20px;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
 }
 .de-top {
   display: flex;
