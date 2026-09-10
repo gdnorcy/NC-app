@@ -58,7 +58,7 @@
               :key="i"
               class="dp-video-ch-item"
               :style="chItemStyle(c.props, i)"
-              @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId, feedToken: it.feedToken })"
+              @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId, feedToken: it.feedToken, muted: it.mutedItem, loop: it.loopItem })"
             >
               <image v-if="c.props.bgType === 'image' && c.props.bgImage" :src="resolveUrl(c.props.bgImage)" mode="aspectFill" class="dp-video-ch-bg" />
               <view class="dp-video-ch-play">▶</view>
@@ -441,6 +441,8 @@ function chVideos(p) {
         feedId: sameOwner ? (it && it.feedId) || '' : '',
         feedToken: sameOwner ? '' : (it && it.feedToken) || '',
         autoplayItem: (it && it.autoplayItem) || p.autoplay || 'auto',
+        mutedItem: it.mutedItem !== undefined ? !!it.mutedItem : (p.muted !== undefined ? !!p.muted : true),
+        loopItem: it.loopItem !== undefined ? !!it.loopItem : (p.loop !== undefined ? !!p.loop : false),
       };
     });
   }
@@ -449,7 +451,7 @@ function chVideos(p) {
     const ids = (p.videoIds && p.videoIds.length && p.videoIds.some((x) => x && x.feedId))
       ? p.videoIds
       : (p.feedId ? [{ feedId: p.feedId }] : []);
-    return ids.map((it) => ({ sameOwner: true, finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '', feedToken: '', autoplayItem: p.autoplay || 'auto' }));
+    return ids.map((it) => ({ sameOwner: true, finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '', feedToken: '', autoplayItem: p.autoplay || 'auto', mutedItem: p.muted !== undefined ? !!p.muted : true, loopItem: p.loop !== undefined ? !!p.loop : false }));
   }
   const list = (p.videos && p.videos.length ? p.videos : []);
   return list.map((it) => ({
@@ -458,6 +460,8 @@ function chVideos(p) {
     feedId: '',
     feedToken: (it && it.feedToken) || '',
     autoplayItem: (it && it.autoplayItem) || 'auto',
+    mutedItem: true,
+    loopItem: false,
   }));
 }
 function chStyle(p) {
@@ -502,6 +506,8 @@ function openChannel(kind, p) {
     if (kind === 'video') {
       arg.feedId = p.feedId;
       if (p.feedToken) arg.feedToken = p.feedToken;
+      if (p.muted !== undefined) arg.muted = !!p.muted;
+      if (p.loop !== undefined) arg.loop = !!p.loop;
     }
     wx[api]({
       ...arg,

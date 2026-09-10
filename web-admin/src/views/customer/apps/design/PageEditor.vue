@@ -992,7 +992,8 @@ function addListItem(comp, key, itemFields) {
   const items = comp.props[key] || [];
   const blank = {};
   (itemFields || []).forEach((f) => {
-    if ((f.control === 'select' || f.control === 'radio') && f.options?.length) blank[f.key] = f.options[0].value;
+    if (f.default !== undefined) blank[f.key] = f.default;
+    else if ((f.control === 'select' || f.control === 'radio') && f.options?.length) blank[f.key] = f.options[0].value;
     else blank[f.key] = '';
   });
   items.push(blank);

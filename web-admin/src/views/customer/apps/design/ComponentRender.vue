@@ -55,7 +55,7 @@
           </div>
         </div>
         <div v-if="!chVideos(comp.props).length" class="r-video-ch-empty">请填写视频号id</div>
-        <div class="r-video-ch-meta">{{ (chVideos(comp.props)[0] && chVideos(comp.props)[0].autoplayItem) !== 'no' ? '自动播放' : '手动播放' }}<template v-if="comp.props.muted"> · 静音</template><template v-if="comp.props.loop"> · 循环</template></div>
+        <div class="r-video-ch-meta">{{ (chVideos(comp.props)[0] && chVideos(comp.props)[0].autoplayItem) !== 'no' ? '自动播放' : '手动播放' }}<template v-if="chVideos(comp.props)[0] && chVideos(comp.props)[0].mutedItem"> · 静音</template><template v-if="chVideos(comp.props)[0] && chVideos(comp.props)[0].loopItem"> · 循环</template></div>
       </div>
       <!-- 本地视频 -->
       <div v-else class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.ratio] || '16 / 9' }">
@@ -329,6 +329,8 @@ function chVideos(p) {
         feedId: sameOwner ? (it && it.feedId) || '' : '',
         feedToken: sameOwner ? '' : (it && it.feedToken) || '',
         autoplayItem: (it && it.autoplayItem) || p.autoplay || 'auto',
+        mutedItem: it.mutedItem !== undefined ? !!it.mutedItem : (p.muted !== undefined ? !!p.muted : true),
+        loopItem: it.loopItem !== undefined ? !!it.loopItem : (p.loop !== undefined ? !!p.loop : false),
       };
     });
   }
@@ -337,7 +339,7 @@ function chVideos(p) {
     const ids = (p.videoIds && p.videoIds.length && p.videoIds.some((x) => x && x.feedId))
       ? p.videoIds
       : (p.feedId ? [{ feedId: p.feedId }] : []);
-    return ids.map((it) => ({ sameOwner: true, finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '', feedToken: '', autoplayItem: p.autoplay || 'auto' }));
+    return ids.map((it) => ({ sameOwner: true, finderUserName: p.finderUserName || '', feedId: (it && it.feedId) || '', feedToken: '', autoplayItem: p.autoplay || 'auto', mutedItem: p.muted !== undefined ? !!p.muted : true, loopItem: p.loop !== undefined ? !!p.loop : false }));
   }
   const list = (p.videos && p.videos.length ? p.videos : []);
   return list.map((it) => ({
@@ -346,6 +348,8 @@ function chVideos(p) {
     feedId: '',
     feedToken: (it && it.feedToken) || '',
     autoplayItem: (it && it.autoplayItem) || 'auto',
+    mutedItem: true,
+    loopItem: false,
   }));
 }
 function chStyle(p) {
