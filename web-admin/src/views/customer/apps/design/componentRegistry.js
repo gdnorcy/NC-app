@@ -270,7 +270,7 @@ export const componentRegistry = [
       { key: 'style', label: '样式', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'borderColor', label: '描边颜色', control: 'color', section: 'content', when: { style: 'border' } },
       { key: 'cube', label: '主图比例', control: 'radio', graphic: true, section: 'content', options: [{ label: '竖版 346x380', value: 1 }, { label: '横版 340x184', value: 2 }, { label: '横版 340x184', value: 3 }] },
-      { key: 'mainImage', label: '图片', control: 'image', section: 'content', help: '建议图片宽度375，高度375，支持jpg、png。' },
+      { key: 'mainImage', label: '图片', control: 'imageGroup', section: 'content', mainKey: 'mainImage', sub1Key: 'sub1Image', sub2Key: 'sub2Image', mainSize: '346x380', subSize: '340x184' },
       { key: 'mainTitle', label: '主标题', control: 'input', maxlength: 8, section: 'content' },
       { key: 'mainColor', label: '颜色', control: 'color', section: 'content' },
       { key: 'mainSub', label: '副标题', control: 'input', maxlength: 8, section: 'content' },
@@ -285,7 +285,7 @@ export const componentRegistry = [
       { key: 'marginLeft', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
-      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '全部允许', value: 'all' }] },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {

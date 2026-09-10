@@ -83,6 +83,7 @@
       <div class="r-cd2" :class="'r-cd2-' + (comp.props.style || 'default')" :style="cd2BoxStyle(comp.props)">
         <div class="r-cd2-left" :style="cd2MainStyle(comp.props)" @click="onJump(comp.props.mainLink)">
           <div class="r-cd2-title" :style="{ color: comp.props.mainColor || '#333333' }">{{ comp.props.mainTitle || '这里是标题' }}</div>
+          <div v-if="comp.props.mainSub" class="r-cd2-subtitle" :style="{ color: comp.props.mainColor || '#333333' }">{{ comp.props.mainSub }}</div>
           <div class="r-cd2-sub">
             <template v-for="(grp, gi) in cd2Digits(comp.props)" :key="gi">
               <b v-if="gi > 0" class="r-cd2-colon" :style="{ color: comp.props.numColor || '#ffffff' }">:</b>
@@ -545,17 +546,21 @@ function cd2BoxStyle(p) {
   if (p.bgColor) s.background = p.bgColor;
   const rt = p.radiusTop || 0, rb = p.radiusBottom || 0;
   if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
-  if (p.style === 'shadow') s.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
-  if (p.style === 'border') s.border = '1px solid #E5E6EB';
+  return s;
+}
+function cd2ImgEffect(p) {
+  const s = {};
+  if (p.style === 'shadow') s.boxShadow = 'rgba(226,231,244,0.7) 0 0 10px';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#ededed');
   return s;
 }
 function cd2MainStyle(p) {
-  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center', ...cd2ImgEffect(p) };
   if (p.mainImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.mainImage)).slice(1, -1)})`;
   return s;
 }
 function cd2CellStyle(p, img) {
-  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center', ...cd2ImgEffect(p) };
   if (img) s.backgroundImage = `url(${JSON.stringify(resolveUrl(img)).slice(1, -1)})`;
   return s;
 }
@@ -775,19 +780,19 @@ function chRadius(p, i) {
 .r-cd-btn b { max-width: 26px; word-break: break-all; font-weight: 400; }
 
 /* 倒计时02（eweishop 复刻） */
-.r-cd2 { display: flex; overflow: hidden; background: transparent; aspect-ratio: 375 / 188; }
-.r-cd2-left { width: 50%; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 12px 10px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; min-height: 0; overflow: hidden; }
+.r-cd2 { display: flex; gap: 6px; overflow: hidden; background: transparent; aspect-ratio: 375 / 188; }
+.r-cd2-left { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 12px 10px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; min-height: 0; overflow: hidden; border-radius: inherit; }
 .r-cd2-title { font-size: 13px; font-weight: 700; color: #333333; line-height: 1.2; word-break: break-all; }
+.r-cd2-subtitle { font-size: 12px; color: #333333; line-height: 1.3; word-break: break-all; }
 .r-cd2-sub { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; white-space: nowrap; }
 .r-cd2-num { min-width: 15px; height: 15px; border-radius: 50%; background: #fd9d4a; color: #ffffff; font-size: 19px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 3px; overflow: hidden; }
 .r-cd2-colon { font-size: 14px; font-weight: 400; color: #ffffff; }
 .r-cd2-end { font-size: 11px; color: #ffffff; margin-left: 2px; flex-shrink: 0; white-space: nowrap; }
-.r-cd2-right { width: 50%; display: flex; flex-direction: column; min-height: 0; }
-.r-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 3px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; min-height: 0; overflow: hidden; }
+.r-cd2-right { flex: 1; display: flex; flex-direction: column; gap: 5px; min-height: 0; }
+.r-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 3px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; min-height: 0; overflow: hidden; border-radius: inherit; }
 .r-cd2-cell-title { font-size: 13px; font-weight: 700; color: #333333; line-height: 1.3; word-break: break-all; text-align: center; }
 .r-cd2-cell-sub { font-size: 12px; color: #666666; line-height: 1.3; word-break: break-all; text-align: center; }
-.r-cd2-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
-.r-cd2-border { border: 1px solid #E5E6EB; }
+/* 样式效果由图片块（left/cell）承担：投影=rgba(226,231,244,.7) 0 0 10px；描边=1px borderColor(#ededed) */
 .r-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-title { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-row .r-article-item { display: flex; gap: 10px; align-items: flex-start; }

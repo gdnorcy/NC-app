@@ -146,7 +146,7 @@
               <el-form label-width="auto" size="small">
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.control === 'hint' ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
-                  <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
+                  <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <PeColorPicker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
                   <el-date-picker
@@ -165,7 +165,15 @@
                       class="pe-graphic-item" :class="{ active: String(selectedComp.props[f.key]) === String(o.value) }"
                       @click="selectedComp.props[f.key] = o.value"
                     >
-                      <svg v-if="o.value === 'single'" class="pe-graphic-svg" viewBox="0 0 88 56">
+                      <svg v-if="String(o.value) === '1'" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5"/>
+                        <rect x="13" y="3" width="18" height="38" rx="3" fill="#C9CDD4"/>
+                      </svg>
+                      <svg v-else-if="String(o.value) === '2' || String(o.value) === '3'" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5"/>
+                        <rect x="3" y="14" width="38" height="16" rx="3" fill="#C9CDD4"/>
+                      </svg>
+                      <svg v-else-if="o.value === 'single'" class="pe-graphic-svg" viewBox="0 0 88 56">
                         <rect x="4" y="4" width="80" height="48" rx="6" fill="#F2F3F5"/>
                         <rect x="12" y="12" width="64" height="32" rx="4" fill="#C9CDD4"/>
                         <circle cx="44" cy="28" r="6" fill="#fff"/>
@@ -195,6 +203,17 @@
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
                   <el-slider v-else-if="f.control === 'slider'" v-model="selectedComp.props[f.key]" :min="f.min" :max="f.max" show-input />
+                  <PeImageGroup
+                    v-else-if="f.control === 'imageGroup'"
+                    :main-image="selectedComp.props[f.mainKey || 'mainImage']"
+                    :sub1-image="selectedComp.props[f.sub1Key || 'sub1Image']"
+                    :sub2-image="selectedComp.props[f.sub2Key || 'sub2Image']"
+                    :main-size="f.mainSize || '346x380'"
+                    :sub-size="f.subSize || '340x184'"
+                    @update:main-image="selectedComp.props[f.mainKey || 'mainImage'] = $event"
+                    @update:sub1-image="selectedComp.props[f.sub1Key || 'sub1Image'] = $event"
+                    @update:sub2-image="selectedComp.props[f.sub2Key || 'sub2Image'] = $event"
+                  />
                   <PeImagePicker v-else-if="f.control === 'image'" v-model="selectedComp.props[f.key]" :help="f.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                   <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'">
                     <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
@@ -554,6 +573,7 @@ import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
 import PeColorPicker from './PeColorPicker.vue';
 import PeImagePicker from './PeImagePicker.vue';
+import PeImageGroup from './PeImageGroup.vue';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
