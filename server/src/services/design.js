@@ -276,11 +276,19 @@ export function createDesignService(db) {
     for (const [type, design] of Object.entries(pages)) {
       const names = { home: '首页', card: '名片详情页', dynamic: '个人动态页', mine: '个人中心' };
       const name = names[type] || type;
+      const json = JSON.stringify(design || {});
       const exist = db.prepare("SELECT id FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = 1").get(tenantId, type);
       if (exist) {
-        db.prepare("UPDATE tenant_page_design SET design_json = ?, version = version + 1, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(design || {}), exist.id);
+        db.prepare("UPDATE tenant_page_design SET design_json = ?, version = version + 1, updated_at = datetime('now') WHERE id = ?").run(json, exist.id);
       } else {
-        db.prepare("INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 1, ?)").run(tenantId, type, name, JSON.stringify(design || {}), type === 'home' ? 1 : 0);
+        db.prepare("INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 1, ?)").run(tenantId, type, name, json, type === 'home' ? 1 : 0);
+      }
+      // 同步草稿（status=0），保证「保存并预览」与实际启用首页一致（预览读草稿、线上读发布）
+      const draft = db.prepare("SELECT id FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = 0").get(tenantId, type);
+      if (draft) {
+        db.prepare("UPDATE tenant_page_design SET design_json = ?, page_name = ?, updated_at = datetime('now') WHERE id = ?").run(json, name, draft.id);
+      } else {
+        db.prepare("INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 0, ?)").run(tenantId, type, name, json, type === 'home' ? 1 : 0);
       }
       svc.syncRefs(tenantId, 'page', type, design || {});
     }

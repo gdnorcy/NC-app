@@ -125,6 +125,7 @@
             <text v-else>名</text>
           </view>
           <text class="dp-grid-text">{{ it.text || '入口' }}</text>
+          <text v-if="it.desc" class="dp-grid-desc">{{ it.desc }}</text>
         </view>
       </view>
       <!-- 数据统计 -->
@@ -141,6 +142,39 @@
           <text class="dp-pano-desc">{{ c.props.desc || '沉浸式全景展示' }}</text>
         </view>
         <text class="dp-pano-arrow">›</text>
+      </view>
+      <!-- 全景场景（动态拉取租户方案） -->
+      <view v-else-if="c.type === 'pano-scenes'" class="dp-panoscenes">
+        <view v-if="panoPlans[i] === undefined" class="dp-ps-loading">全景场景加载中…</view>
+        <block v-else>
+          <view v-if="c.props.showCategory" class="dp-ps-head">
+            <text class="dp-ps-title">{{ c.props.title || '现有场景' }}</text>
+            <view class="dp-ps-tags">
+              <text v-for="(t, ti) in panoCategories(c.props)" :key="ti" class="dp-ps-tag">{{ t }}</text>
+            </view>
+          </view>
+          <scroll-view v-if="c.props.layout === 'scroll'" scroll-x class="dp-ps-scroll" :show-scrollbar="false">
+            <view class="dp-ps-row">
+              <view v-for="(p, pi) in panoPlans[i] || []" :key="p.id" class="dp-ps-card" @click="onPanoClick(p)">
+                <view class="dp-ps-imgwrap">
+                  <image class="dp-ps-img" :src="resolvePanoImg(p.cover)" mode="aspectFill" />
+                  <text v-if="c.props.showStatus" class="dp-ps-status" :class="p.published ? 'on' : 'off'">{{ p.published ? '已发布' : '编辑中' }}</text>
+                </view>
+                <text class="dp-ps-name">{{ p.name }}</text>
+              </view>
+            </view>
+          </scroll-view>
+          <view v-else class="dp-ps-grid">
+            <view v-for="(p, pi) in panoPlans[i] || []" :key="p.id" class="dp-ps-card" @click="onPanoClick(p)">
+              <view class="dp-ps-imgwrap">
+                <image class="dp-ps-img" :src="resolvePanoImg(p.cover)" mode="aspectFill" />
+                <text v-if="c.props.showStatus" class="dp-ps-status" :class="p.published ? 'on' : 'off'">{{ p.published ? '已发布' : '编辑中' }}</text>
+              </view>
+              <text class="dp-ps-name">{{ p.name }}</text>
+            </view>
+            <view v-if="!(panoPlans[i] || []).length" class="dp-ps-empty">暂无全景场景</view>
+          </view>
+        </block>
       </view>
       <!-- 魔方 -->
       <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ gridTemplateColumns: 'repeat(' + (c.props.cols || 3) + ',1fr)', gap: (c.props.gap ?? 4) + 'px' }">
@@ -298,8 +332,8 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
-import { cardApi } from '../utils/cardApi.js';
+import { reactive, ref, onMounted } from 'vue';
+import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
 import SIcon from './SIcon.vue';
 const props = defineProps({
   comps: { type: Array, default: () => [] },
@@ -397,6 +431,44 @@ function containerStyle(c) {
   if (p.bgColor) s.background = p.bgColor;
   return s;
 }
+// 全景场景组件：按组件下标拉取租户全景方案（避免同页多个实例重复加载）
+const panoPlans = reactive({});
+const panoLoaded = {};
+async function loadPanoScenes(i) {
+  if (panoLoaded[i]) return;
+  panoLoaded[i] = true;
+  try {
+    const res = await cardApi.designPanoramaScenes();
+    panoPlans[i] = Array.isArray(res?.plans) ? res.plans : [];
+  } catch {
+    panoPlans[i] = [];
+  }
+}
+onMounted(() => {
+  (props.comps || []).forEach((c, i) => {
+    if (c.type === 'pano-scenes') loadPanoScenes(i);
+  });
+});
+function panoCategories(p) {
+  return String(p.categories || '')
+    .split(/[,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+function resolvePanoImg(u) {
+  if (!u) return '';
+  if (/^https?:|^data:|^blob:/.test(u)) return u;
+  return (u.startsWith('/') ? API_DOMAIN + u : API_DOMAIN + '/' + u);
+}
+function onPanoClick(p) {
+  if (!p.published) {
+    uni.showToast({ title: '该方案尚未发布', icon: 'none' });
+    return;
+  }
+  uni.navigateTo({ url: '/pages/viewer/viewer?planId=' + p.id, fail: () => uni.showToast({ title: '打开全景失败', icon: 'none' }) });
+}
+
 function onJump(url) {
   if (!url) return;
   if (/^https?:/.test(url)) {
@@ -625,6 +697,7 @@ function openChannel(kind, p) {
 .dp-grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; }
 .dp-grid-icon { width: 42px; height: 42px; border-radius: 12px; background: rgba(22,93,255,.08); display: flex; align-items: center; justify-content: center; }
 .dp-grid-text { font-size: 12px; color: #4e5969; }
+.dp-grid-desc { font-size: 10px; color: #86909c; line-height: 1.4; text-align: center; }
 /* 数据统计 */
 .dp-stats { display: flex; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; padding: 16px 8px; }
 .dp-stats-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; border-right: 1px solid #f0f1f3; }
@@ -638,6 +711,25 @@ function openChannel(kind, p) {
 .dp-pano-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .dp-pano-desc { font-size: 12px; color: #86909c; }
 .dp-pano-arrow { color: #165dff; font-size: 20px; }
+/* 全景场景 */
+.dp-panoscenes { border-radius: 12px; background: #fff; padding: 14px; }
+.dp-ps-loading { padding: 36px 0; text-align: center; color: #86909c; font-size: 12px; }
+.dp-ps-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.dp-ps-title { font-size: 16px; font-weight: 600; color: #1d2129; }
+.dp-ps-tags { display: flex; align-items: center; gap: 6px; }
+.dp-ps-tag { font-size: 11px; color: #86909c; background: #f2f3f5; border-radius: 8px; padding: 2px 8px; }
+.dp-ps-scroll { width: 100%; white-space: nowrap; }
+.dp-ps-row { display: inline-flex; gap: 10px; padding-right: 4px; }
+.dp-ps-card { width: 140px; flex-shrink: 0; border-radius: 12px; overflow: hidden; background: #fff; border: 1px solid #f0f1f3; }
+.dp-ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dp-ps-grid .dp-ps-card { width: auto; }
+.dp-ps-imgwrap { position: relative; }
+.dp-ps-img { width: 100%; height: 92px; display: block; background: #f2f3f5; }
+.dp-ps-status { position: absolute; top: 6px; left: 6px; font-size: 10px; padding: 2px 6px; border-radius: 8px; color: #fff; }
+.dp-ps-status.on { background: rgba(22,93,255,.88); }
+.dp-ps-status.off { background: rgba(255,125,0,.88); }
+.dp-ps-name { display: block; font-size: 13px; color: #1d2129; padding: 8px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-ps-empty { grid-column: 1 / -1; padding: 32px 0; text-align: center; color: #86909c; font-size: 12px; }
 /* 魔方 */
 .dp-cube { display: grid; width: 100%; }
 .dp-cube-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }

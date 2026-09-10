@@ -1161,5 +1161,31 @@ export function createCardRouter(db, wxService) {
     });
   });
 
+  // 设计中心「全景场景」组件：按租户返回全景方案（含发布状态与封面），供小程序/H5 首页渲染
+  router.get('/design/panorama-scenes', authOptional, (req, res) => {
+    const previewTid = req.customerId ? 0 : verifyPreviewSig(req.query);
+    if (!req.customerId && !previewTid) return res.status(401).json({ error: '未登录' });
+    const tenantId = req.customerId || previewTid;
+    const plans = db
+      .prepare('SELECT * FROM plans WHERE project_id = ? ORDER BY sort_order ASC, id ASC')
+      .all(tenantId)
+      .map((p) => {
+        const scene = db
+          .prepare('SELECT preview_path, image_path FROM scenes WHERE plan_id = ? ORDER BY sort_order ASC, id ASC LIMIT 1')
+          .get(p.id);
+        const sceneCount = db
+          .prepare('SELECT COUNT(*) AS n FROM scenes WHERE plan_id = ?')
+          .get(p.id).n || 0;
+        return {
+          id: p.id,
+          name: p.name,
+          cover: p.cover_path || (scene ? scene.preview_path || scene.image_path : '') || '',
+          published: Boolean(p.published),
+          sceneCount,
+        };
+      });
+    res.json({ plans });
+  });
+
   return router;
 }

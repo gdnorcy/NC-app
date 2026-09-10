@@ -153,11 +153,18 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     assert.equal(svc.applyTemplate(T1, t.id).ok, true);
     assert.equal(svc.getStyle(T1).primaryColor, '#123456');
     // 公共模板：平台模板（tenant_id=0）对租户可见可应用
-    const pub = svc.saveTemplate(0, { name: '平台标准', templateJson: { style: { primaryColor: '#0AF' }, homePage: 'market' }, isPublic: true });
+    const pubPages = { mine: { components: [{ id: 'x1', type: 'title', props: { text: '模板首页' } }] } };
+    const pub = svc.saveTemplate(0, { name: '平台标准', templateJson: { style: { primaryColor: '#0AF' }, homePage: 'market', pages: pubPages }, isPublic: true });
     assert.ok(pub.ok);
     assert.equal(svc.listTemplates(T1, 'public').length, 1);
     assert.equal(svc.applyTemplate(T1, pub.id).ok, true);
     assert.equal(svc.getStyle(T1).primaryColor, '#0AF');
+    // 应用模板须同步草稿与发布：预览（读草稿）与实际启用（读发布）一致
+    const draftRow = svc.getPageDesign(T1, 'mine', false);
+    const pubRow = svc.getPageDesign(T1, 'mine', true);
+    assert.ok(draftRow && pubRow, '应用模板后应同时存在草稿与发布');
+    assert.equal(JSON.stringify(draftRow.design_json), JSON.stringify(pubRow.design_json), '草稿与发布内容应一致');
+    assert.ok(JSON.stringify(pubRow.design_json).includes('模板首页'), '发布内容应为模板组件');
     // 平台公共模板租户无权删除
     assert.equal(svc.deleteTemplate(T1, pub.id).ok, false);
   });

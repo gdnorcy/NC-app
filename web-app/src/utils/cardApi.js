@@ -185,6 +185,8 @@ export const cardApi = {
   },
   // 设计中心万能表单提交（访客留资，归集设计线索）
   designLead: (data) => request('/design/leads', 'POST', data),
+  // 设计中心「全景场景」组件：按租户拉取全景方案（封面/发布状态）
+  designPanoramaScenes: () => request('/design/panorama-scenes', 'GET'),
 };
 
 // 支付API

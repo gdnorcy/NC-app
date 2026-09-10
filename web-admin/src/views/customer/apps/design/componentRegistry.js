@@ -55,6 +55,7 @@ export const COMP_ICONS = {
   'grid-nav': iconGridNav,
   stats: iconStats,
   panorama: iconPanorama,
+  'pano-scenes': iconPanorama,
   cube: iconCube,
   'channel-profile': iconChannelProfile,
   'channel-video': iconChannelVideo,
@@ -320,10 +321,10 @@ export const componentRegistry = [
     defaultProps: {
       columns: 4,
       items: [
-        { icon: 'card', text: '我的名片', url: '/pages/card/myCard' },
-        { icon: 'radar', text: '访客雷达', url: '/pages/card/visitors' },
-        { icon: 'customer', text: '客户管理', url: '/pages/card/customers' },
-        { icon: 'market', text: '人脉集市', url: '/pages/card/market' },
+        { icon: 'card', text: '我的名片', desc: '', url: '/pages/card/myCard' },
+        { icon: 'radar', text: '访客雷达', desc: '', url: '/pages/card/visitors' },
+        { icon: 'customer', text: '客户管理', desc: '', url: '/pages/card/customers' },
+        { icon: 'market', text: '人脉集市', desc: '', url: '/pages/card/market' },
       ],
     },
     schema: [
@@ -332,6 +333,7 @@ export const componentRegistry = [
         itemFields: [
           { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS },
           { key: 'text', label: '文字', control: 'input' },
+          { key: 'desc', label: '副标题', control: 'input', placeholder: '选填，如卖点说明' },
           { key: 'url', label: '跳转', control: 'link', placeholder: '如 /pages/card/myCard' },
         ],
       },
@@ -361,6 +363,20 @@ export const componentRegistry = [
       { key: 'title', label: '标题', control: 'input', section: 'content', required: true },
       { key: 'desc', label: '描述', control: 'input', section: 'content' },
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /?plan=1&scene=1' },
+    ],
+  },
+  {
+    type: 'pano-scenes',
+    name: '全景场景',
+    group: 'function',
+    icon: 'panorama',
+    defaultProps: { layout: 'scroll', showCategory: true, categories: '展厅,门店,样板间,景区', showStatus: true, pageSize: 10 },
+    schema: [
+      { key: 'layout', label: '展示方式', control: 'radio', section: 'style', options: [{ label: '横向滑动', value: 'scroll' }, { label: '两列网格', value: 'grid' }] },
+      { key: 'showCategory', label: '分类标签', control: 'switch', section: 'content' },
+      { key: 'categories', label: '分类文案', control: 'input', section: 'content', placeholder: '逗号分隔，如 展厅,门店,样板间,景区', when: { showCategory: true } },
+      { key: 'showStatus', label: '状态标签', control: 'switch', section: 'content' },
+      { key: 'pageSize', label: '显示数量', control: 'slider', section: 'content', min: 2, max: 20 },
     ],
   },
   {

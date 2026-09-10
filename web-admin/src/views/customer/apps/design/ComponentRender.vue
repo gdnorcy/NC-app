@@ -114,6 +114,7 @@
         <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-grid-item">
           <div class="r-grid-icon">{{ it.icon || 'card' }}</div>
           <div class="r-grid-text">{{ it.text || '入口' }}</div>
+          <div v-if="it.desc" class="r-grid-desc">{{ it.desc }}</div>
         </div>
       </div>
     </template>
@@ -134,6 +135,31 @@
           <div class="r-pano-desc">{{ comp.props.desc || '沉浸式全景展示' }}</div>
         </div>
         <div class="r-pano-arrow">›</div>
+      </div>
+    </template>
+    <!-- 全景场景（动态拉取租户方案） -->
+    <template v-else-if="comp.type === 'pano-scenes'">
+      <div class="r-panoscenes">
+        <div v-if="!panoLoaded" class="r-ps-loading">全景场景加载中…</div>
+        <template v-else>
+          <div v-if="comp.props.showCategory" class="r-ps-head">
+            <div class="r-ps-title">{{ comp.props.title || '现有场景' }}</div>
+            <div class="r-ps-tags">
+              <span v-for="(t, ti) in panoCategories(comp.props)" :key="ti" class="r-ps-tag">{{ t }}</span>
+            </div>
+          </div>
+          <div :class="comp.props.layout === 'grid' ? 'r-ps-grid' : 'r-ps-row'">
+            <div v-for="p in panoPlans" :key="p.id" class="r-ps-card">
+              <div class="r-ps-imgwrap">
+                <img v-if="p.cover" :src="resolveUrl(p.cover)" class="r-ps-img" />
+                <div v-else class="r-ps-img r-ps-img-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 8v8c0 1.5 4 3 9 3s9-1.5 9-3V8"/></svg></div>
+                <span v-if="comp.props.showStatus" class="r-ps-status" :class="p.published ? 'on' : 'off'">{{ p.published ? '已发布' : '编辑中' }}</span>
+              </div>
+              <div class="r-ps-name">{{ p.name }}</div>
+            </div>
+            <div v-if="!panoPlans.length" class="r-ps-empty">暂无全景场景</div>
+          </div>
+        </template>
       </div>
     </template>
     <!-- 魔方 -->
@@ -298,8 +324,36 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
+import { customerApiCall } from '../../../../api';
 const props = defineProps({ comp: { type: Object, required: true } });
+
+// 全景场景组件：编辑端预览拉取租户真实方案
+const panoPlans = ref([]);
+const panoLoaded = ref(false);
+onMounted(async () => {
+  if (props.comp.type !== 'pano-scenes') return;
+  try {
+    const res = await customerApiCall.get('/plans');
+    panoPlans.value = (res.plans || []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      cover: p.coverPath || '',
+      published: !!p.published,
+    }));
+  } catch {
+    panoPlans.value = [];
+  } finally {
+    panoLoaded.value = true;
+  }
+});
+function panoCategories(p) {
+  return String(p.categories || '')
+    .split(/[,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
 
 const containerStyle = computed(() => {
   const p = props.comp.props || {};
@@ -449,6 +503,7 @@ function chRadius(p, i) {
 .r-grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; }
 .r-grid-icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(22,93,255,.08); color: #165dff; display: flex; align-items: center; justify-content: center; font-size: 11px; text-transform: uppercase; }
 .r-grid-text { font-size: 12px; color: #4e5969; }
+.r-grid-desc { font-size: 10px; color: #86909c; line-height: 1.4; text-align: center; }
 /* 数据统计 */
 .r-stats { display: flex; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; padding: 16px 8px; }
 .r-stats-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; border-right: 1px solid #f0f1f3; }
@@ -462,6 +517,25 @@ function chRadius(p, i) {
 .r-pano-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .r-pano-desc { font-size: 12px; color: #86909c; margin-top: 2px; }
 .r-pano-arrow { color: #165dff; font-size: 20px; }
+/* 全景场景 */
+.r-panoscenes { border-radius: 12px; background: #fff; padding: 14px; border: 1px solid #f0f1f3; }
+.r-ps-loading { padding: 36px 0; text-align: center; color: #86909c; font-size: 12px; }
+.r-ps-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.r-ps-title { font-size: 16px; font-weight: 600; color: #1d2129; }
+.r-ps-tags { display: flex; align-items: center; gap: 6px; }
+.r-ps-tag { font-size: 11px; color: #86909c; background: #f2f3f5; border-radius: 8px; padding: 2px 8px; }
+.r-ps-row { display: flex; gap: 10px; overflow-x: auto; }
+.r-ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.r-ps-card { width: 140px; flex-shrink: 0; border-radius: 12px; overflow: hidden; background: #fff; border: 1px solid #f0f1f3; }
+.r-ps-grid .r-ps-card { width: auto; }
+.r-ps-imgwrap { position: relative; }
+.r-ps-img { width: 100%; height: 92px; display: block; object-fit: cover; background: #f2f3f5; }
+.r-ps-img-empty { display: flex; align-items: center; justify-content: center; }
+.r-ps-status { position: absolute; top: 6px; left: 6px; font-size: 10px; padding: 2px 6px; border-radius: 8px; color: #fff; }
+.r-ps-status.on { background: rgba(22,93,255,.88); }
+.r-ps-status.off { background: rgba(255,125,0,.88); }
+.r-ps-name { font-size: 13px; color: #1d2129; padding: 8px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-ps-empty { grid-column: 1 / -1; padding: 32px 0; text-align: center; color: #86909c; font-size: 12px; }
 /* 魔方 */
 .r-cube { display: grid; width: 100%; }
 .r-cube-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
