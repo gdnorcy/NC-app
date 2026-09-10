@@ -775,17 +775,17 @@ function chRadius(p, i) {
 .r-cd-btn b { max-width: 26px; word-break: break-all; font-weight: 400; }
 
 /* 倒计时02（eweishop 复刻） */
-.r-cd2 { display: flex; overflow: hidden; background: transparent; }
-.r-cd2-left { width: 50%; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 24px 18px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; }
-.r-cd2-title { font-size: 30px; font-weight: 700; color: #333333; line-height: 1.2; word-break: break-all; }
+.r-cd2 { display: flex; overflow: hidden; background: transparent; aspect-ratio: 375 / 188; }
+.r-cd2-left { width: 50%; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 18px 14px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; min-height: 0; overflow: hidden; }
+.r-cd2-title { font-size: 26px; font-weight: 700; color: #333333; line-height: 1.2; word-break: break-all; }
 .r-cd2-sub { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; }
 .r-cd2-num { min-width: 32px; height: 32px; border-radius: 50%; background: #fd9d4a; color: #ffffff; font-size: 20px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }
 .r-cd2-colon { font-size: 20px; font-weight: 400; color: #ffffff; }
-.r-cd2-end { font-size: 14px; color: #ffffff; margin-left: 2px; flex-shrink: 0; }
-.r-cd2-right { width: 50%; display: flex; flex-direction: column; }
-.r-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; }
-.r-cd2-cell-title { font-size: 26px; font-weight: 700; color: #333333; line-height: 1.3; word-break: break-all; text-align: center; }
-.r-cd2-cell-sub { font-size: 18px; color: #666666; line-height: 1.3; word-break: break-all; text-align: center; }
+.r-cd2-end { font-size: 12px; color: #ffffff; margin-left: 2px; flex-shrink: 0; }
+.r-cd2-right { width: 50%; display: flex; flex-direction: column; min-height: 0; }
+.r-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; padding: 6px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; min-height: 0; overflow: hidden; }
+.r-cd2-cell-title { font-size: 20px; font-weight: 700; color: #333333; line-height: 1.3; word-break: break-all; text-align: center; }
+.r-cd2-cell-sub { font-size: 14px; color: #666666; line-height: 1.3; word-break: break-all; text-align: center; }
 .r-cd2-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
 .r-cd2-border { border: 1px solid #E5E6EB; }
 .r-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
