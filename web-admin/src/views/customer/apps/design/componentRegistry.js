@@ -226,7 +226,7 @@ export const componentRegistry = [
     name: '倒计时',
     group: 'marketing',
     icon: 'countdown',
-    defaultProps: { styleId: 1, style: 'default', image: '/card/static/images/countdown-banner.png', link: '', startTime: '', endTime: '', bgColor: '', cdBgType: 'image', cdBgColor: 'rgba(0,0,0,0.4)', cdBgImage: '/card/static/images/countdown-bar.png', cdTitleColor: '#ffffff', cdNumBg: '#ffffff', cdNumColor: '#FC5917', cdBtnBg: '#FEEC22', cdBtnText: '#FC5917', marginTop: 0, marginBottom: 0, marginLeft: 0, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
+    defaultProps: { styleId: 1, style: 'default', image: '/card/static/images/countdown-banner.png', link: '', startTime: '', endTime: '', bgColor: '', cdBgType: 'image', cdBgColor: 'rgba(0,0,0,0.4)', cdBgImage: '/card/static/images/countdown-bar.png', cdTitleColor: '#ffffff', cdNumBg: '#ffffff', cdNumColor: '#FC5917', cdBtnBg: '#FEEC22', cdBtnText: '#FC5917', marginTop: 0, marginBottom: 0, marginLeft: 0, radiusTop: 0, radiusBottom: 0 },
     schema: [
       { key: 'styleId', label: '选择风格', control: 'stylePicker', section: 'content', options: [{ label: '风格1', value: 1 }, { label: '风格2', value: 2 }] },
       { key: 'style', label: '样式', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
@@ -248,7 +248,6 @@ export const componentRegistry = [
       { key: 'marginLeft', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
-      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
