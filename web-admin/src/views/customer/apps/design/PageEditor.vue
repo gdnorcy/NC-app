@@ -199,6 +199,9 @@
                     <span class="pe-style-cur">当前：{{ styleName(f) }}</span>
                     <el-button size="small" type="primary" plain @click="openStylePicker(f)">修改风格</el-button>
                   </div>
+                  <el-radio-group v-else-if="f.control === 'radioButton'" v-model="selectedComp.props[f.key]" size="default">
+                    <el-radio-button v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio-button>
+                  </el-radio-group>
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>

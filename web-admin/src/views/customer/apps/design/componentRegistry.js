@@ -256,7 +256,7 @@ export const componentRegistry = [
     group: 'marketing',
     icon: 'countdown',
     defaultProps: {
-      style: 'default', borderColor: '#ededed', cube: 1,
+      style: 'default', borderColor: '#ededed',
       mainImage: '/card/static/images/countdown2-main.png',
       mainTitle: '这里是标题', mainColor: '#333333', mainSub: '这里是副标题', mainLink: '',
       startTime: '', endTime: '',
@@ -267,9 +267,8 @@ export const componentRegistry = [
       memberLevel: 'all',
     },
     schema: [
-      { key: 'style', label: '样式', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
+      { key: 'style', label: '样式', control: 'radioButton', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'borderColor', label: '描边颜色', control: 'color', section: 'content', when: { style: 'border' } },
-      { key: 'cube', label: '主图比例', control: 'radio', graphic: true, section: 'content', options: [{ label: '竖版 346x380', value: 1 }, { label: '横版 340x184', value: 2 }, { label: '横版 340x184', value: 3 }] },
       { key: 'mainImage', label: '图片', control: 'imageGroup', section: 'content', mainKey: 'mainImage', sub1Key: 'sub1Image', sub2Key: 'sub2Image', mainSize: '346x380', subSize: '340x184' },
       { key: 'mainTitle', label: '主标题', control: 'input', maxlength: 8, section: 'content' },
       { key: 'mainColor', label: '颜色', control: 'color', section: 'content' },
