@@ -286,7 +286,14 @@
           </div>
           <div class="pm-update">最近更新：{{ homeUpdated }}</div>
           <div class="pm-phone">
-            <div class="pm-status"><span>10:18</span><span class="pm-ps-icons">▂▄▆ ▂▅▃ ▂▄▆█</span></div>
+            <div class="pm-status">
+              <span>10:18</span>
+              <span class="pm-ps-icons">
+                <svg viewBox="0 0 22 12" width="19" height="12" fill="#1d2129"><circle cx="3" cy="9" r="2.6"/><circle cx="8.5" cy="7.5" r="2.2"/><circle cx="13.5" cy="5.5" r="1.8"/><circle cx="18" cy="3.5" r="1.4"/></svg>
+                <svg viewBox="0 0 18 14" width="15" height="13" fill="none" stroke="#1d2129" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 6a9 9 0 0 1 13 0"/><path d="M5.2 9a5.4 5.4 0 0 1 7.6 0"/><path d="M7.8 11.6a2 2 0 0 1 2.4 0"/><circle cx="9" cy="13.2" r="1.1" fill="#1d2129" stroke="none"/></svg>
+                <svg viewBox="0 0 26 13" width="23" height="12" fill="none"><rect x="0.5" y="0.5" width="21" height="12" rx="3.5" stroke="#1d2129" stroke-width="1.1"/><rect x="2.5" y="2.5" width="13" height="8" rx="1.8" fill="#1d2129"/><path d="M23.5 4.5v4a2.2 2.2 0 0 0 0-4z" fill="#1d2129"/></svg>
+              </span>
+            </div>
             <iframe v-if="pagePreviewUrl" :src="pagePreviewUrl" class="pm-iframe" title="首页实时预览" />
             <div v-else class="pm-canvas">
               <div v-for="comp in homePreview" :key="comp.id" class="pm-comp">
@@ -812,8 +819,8 @@ onMounted(() => {
 .pm-update { font-size: 12px; color: #86909c; width: 100%; }
 .pm-phone { width: 270px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb; }
 .pm-status { height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 11px; font-weight: 600; color: #1d2129; }
-.pm-ps-icons { font-size: 10px; letter-spacing: 1px; opacity: .8; }
-.pm-iframe { display: block; width: 100%; height: 452px; border: 0; background: #fff; }
+.pm-ps-icons { display: flex; align-items: center; gap: 4px; }
+.pm-iframe { display: block; width: 100%; height: 480px; border: 0; background: #fff; }
 .pm-canvas { min-height: 380px; padding: 10px; background: #fff; }
 .pm-comp { margin-bottom: 8px; }
 .pm-empty { color: #86909c; text-align: center; padding: 60px 0; font-size: 12px; }

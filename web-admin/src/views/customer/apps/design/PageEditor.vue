@@ -25,9 +25,6 @@
               <template #prefix><span class="pe-search-ico">⌕</span></template>
             </el-input>
           </div>
-          <div v-else class="pe-lib-search">
-            <el-input v-model="pageKw" size="small" placeholder="搜索页面" clearable />
-          </div>
         </div>
 
         <!-- 模块列表（组件库） -->
@@ -60,20 +57,26 @@
         <!-- 页面列表（承载原右上角页面下拉，参考图6：全部页面+搜索+新建+名称/首页/复制/删除） -->
         <template v-else>
           <div class="pe-pages">
-            <el-button size="small" type="primary" class="pe-page-new" @click="createPage">+ 新建页面</el-button>
-            <div v-for="p in filteredPages" :key="p.page_type" class="pe-page-row" :class="{ current: p.page_type === pageType }">
-              <div class="pe-page-info" @click="switchPage(p.page_type)">
-                <span class="pe-page-name2" :title="p.page_name">{{ p.page_name }}</span>
-                <el-tag v-if="p.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
+            <div class="pe-pages-title">全部页面</div>
+            <el-input v-model="pageKw" size="small" placeholder="请输入页面名称搜索" clearable class="pe-pages-search" />
+            <el-button size="small" type="primary" class="pe-page-new" @click="createPage">创建新页面</el-button>
+            <div class="pe-pages-table">
+              <div class="pe-pages-tr pp-th">
+                <span class="pp-col-name">名称</span>
+                <span class="pp-col-home">首页</span>
+                <span class="pp-col-ops">操作</span>
               </div>
-              <div class="pe-page-ops">
-                <el-button size="small" text type="primary" @click="switchPage(p.page_type)">装修</el-button>
-                <el-button size="small" text @click="renamePage(p)">重命名</el-button>
-                <el-button size="small" text @click="copyPage(p)">复制</el-button>
-                <el-button size="small" text type="danger" :disabled="['home','card','dynamic','mine'].includes(p.page_type)" @click="deletePage(p)">删除</el-button>
+              <div v-for="p in filteredPages" :key="p.page_type" class="pe-pages-tr" :class="{ current: p.page_type === pageType }">
+                <span class="pp-col-name pp-name" :title="p.page_name + (p.status === 1 ? '（已发布）' : '')" @click="switchPage(p.page_type)">{{ p.page_name }}</span>
+                <span class="pp-col-home" :class="{ yes: p.page_type === 'home' }">{{ p.page_type === 'home' ? '是' : '否' }}</span>
+                <span class="pp-col-ops">
+                  <el-button size="small" text @click="renamePage(p)">重命名</el-button>
+                  <el-button size="small" text type="primary" @click="copyPage(p)">复制</el-button>
+                  <el-button size="small" text type="danger" :disabled="['home','card','dynamic','mine'].includes(p.page_type)" @click="deletePage(p)">删除</el-button>
+                </span>
               </div>
+              <div v-if="!filteredPages.length" class="pe-lib-tip">暂无页面，点击「创建新页面」创建</div>
             </div>
-            <div v-if="!filteredPages.length" class="pe-lib-tip">暂无页面，点击「新建页面」创建</div>
           </div>
         </template>
       </div>
@@ -136,7 +139,7 @@
           <template v-for="sec in schemaSections" :key="sec.key">
             <div v-if="sec.fields.length" class="pe-sec">
               <div class="pe-sec-name">{{ sec.label }}</div>
-              <el-form label-width="72px" size="small">
+              <el-form label-width="auto" size="small">
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.control === 'hint' ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
@@ -1064,9 +1067,23 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 /* 页面列表（承载页面切换/新建/复制/删除） */
 .pe-pages { display: flex; flex-direction: column; gap: 4px; }
 .pe-page-new { width: 100%; border-style: dashed; margin-bottom: 4px; }
-.pe-page-row { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background .15s; }
-.pe-page-row:hover { background: #f2f3f5; }
-.pe-page-row.current { background: #e8f3ff; }
+.pe-pages { display: flex; flex-direction: column; gap: 8px; }
+.pe-pages-title { font-size: 13px; font-weight: 600; color: #1d2129; }
+.pe-pages-search { width: 100%; }
+.pe-page-new { width: 100%; }
+.pe-pages-table { border: 1px solid #f0f1f3; border-radius: 8px; overflow: hidden; }
+.pe-pages-tr { display: flex; align-items: center; padding: 6px 8px; font-size: 12px; transition: background .15s; }
+.pe-pages-tr.pp-th { background: #f7f8fa; color: #86909c; font-weight: 500; border-bottom: 1px solid #f0f1f3; }
+.pe-pages-tr + .pe-pages-tr { border-top: 1px solid #f7f8fa; }
+.pe-pages-tr:hover { background: #f2f3f5; }
+.pe-pages-tr.current { background: #e8f3ff; }
+.pp-col-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-col-home { flex: 0 0 32px; text-align: center; color: #86909c; }
+.pp-col-home.yes { color: #165dff; font-weight: 600; }
+.pp-col-ops { flex: 0 0 auto; display: flex; align-items: center; }
+.pp-col-ops .el-button { padding: 0 3px; margin-left: 0; }
+.pp-name { cursor: pointer; color: #1d2129; font-weight: 500; }
+.pp-name:hover { color: #165dff; }
 .pe-page-info { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
 .pe-page-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; overflow: hidden; }
 .pe-page-name2 { flex-shrink: 0; max-width: 55%; font-size: 13px; color: #1d2129; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1075,8 +1092,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-page-ops { display: flex; gap: 0; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
 .pe-page-row:hover .pe-page-ops, .pe-page-row.current .pe-page-ops { opacity: 1; }
 .pe-page-ops .el-button { padding: 0 4px; }
-.pe-group { margin-bottom: 4px; }
-.pe-group-head { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #4e5969; }
+.pe-group { margin-bottom: 14px; }
+.pe-group-head { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 4px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #1d2129; }
+.pe-group-head::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; flex-shrink: 0; }
 .pe-group-head:hover { background: #f2f3f5; }
 .pe-group-caret { font-size: 10px; transition: transform .2s; color: #86909c; }
 .pe-group-caret.open { transform: rotate(90deg); }
@@ -1170,6 +1188,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-sec .el-form-item :deep(.required label) { color: #f53f3f; }
 .pe-sec :deep(.el-form-item.required .el-form-item__label::before) { content: '*'; color: #f53f3f; margin-right: 4px; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
+.pe-prop-body :deep(.el-form-item__label) { white-space: nowrap; }
 .pe-prop-body :deep(.pe-hint) { width: 100%; padding: 5px 10px; line-height: 1.5; }
 .pe-prop-body :deep(.pe-hint .el-alert__title) { font-size: 12px; }
 .pe-form-hint :deep(.el-form-item__content) { margin-left: 0 !important; }
