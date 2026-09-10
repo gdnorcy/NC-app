@@ -10,7 +10,7 @@
         <text>{{ c.props.text || '文本内容' }}</text>
       </view>
       <!-- 图片 -->
-      <view v-else-if="c.type === 'image'" class="dp-image" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpImageBoxStyle(c.props)">
+      <view v-else-if="c.type === 'image'" class="dp-image" :class="'dp-card-' + (c.props.cardStyle || 'default')" :style="dpImageBoxStyle(c.props)">
         <!-- 高级(热区)模式：多图 + 热区点击跳转 -->
         <template v-if="c.props.mode === 'hotzone' && c.props.items && c.props.items.length">
           <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-item" :style="{ marginBottom: ii < c.props.items.length - 1 ? (c.props.gap || 0) + 'px' : 0, borderRadius: dpImageRadius(c.props) }">
@@ -52,7 +52,8 @@
       </view>
       <!-- 公告 -->
       <view v-else-if="c.type === 'notice'" class="dp-notice" :style="dpNoticeStyle(c.props)" @click="onJump(c.props.url)">
-        <text v-if="c.props.showIcon" class="dp-notice-tag">公告</text>
+        <image v-if="c.props.iconType === 'custom' && c.props.iconImage" :src="resolveUrl(c.props.iconImage)" mode="aspectFit" class="dp-notice-ico" />
+        <text v-else-if="c.props.iconType !== 'custom'" class="dp-notice-tag">公告</text>
         <text v-if="dpNoticeList(c.props).length" class="dp-notice-text">{{ dpNoticeList(c.props)[0].text }}</text>
         <text v-else class="dp-notice-text">{{ c.props.text || '公告内容' }}</text>
       </view>
@@ -101,10 +102,16 @@
         </view>
       </view>
       <!-- 表单 -->
-      <view v-else-if="c.type === 'form'" class="dp-form">
+      <view v-else-if="c.type === 'form'" class="dp-form" :style="dpFormStyle(c.props)">
         <text class="dp-form-title">{{ c.props.title || '留资表单' }}</text>
-        <view class="dp-form-input"><text>{{ c.props.namePlaceholder || '请输入姓名' }}</text></view>
-        <view class="dp-form-input"><text>{{ c.props.phonePlaceholder || '请输入手机号' }}</text></view>
+        <view v-if="c.props.singleLine !== false" class="dp-form-row">
+          <view class="dp-form-input"><text>{{ c.props.namePlaceholder || '请输入姓名' }}</text></view>
+          <view class="dp-form-input"><text>{{ c.props.phonePlaceholder || '请输入手机号' }}</text></view>
+        </view>
+        <template v-else>
+          <view class="dp-form-input"><text>{{ c.props.namePlaceholder || '请输入姓名' }}</text></view>
+          <view class="dp-form-input"><text>{{ c.props.phonePlaceholder || '请输入手机号' }}</text></view>
+        </template>
         <view class="dp-form-btn" :style="{ background: c.props.btnColor || '#165dff' }"><text>{{ c.props.submitText || '提交' }}</text></view>
       </view>
       <!-- 视频（云菜鸟：视频样式比例 / 直接显示 / 弹出显示 / 本地视频 / 视频号视频 eweishop 复刻） -->
@@ -161,7 +168,7 @@
       </view>
       <!-- 轮播图 -->
       <view v-else-if="c.type === 'swiper'" class="dp-swiper" :style="dpSwiperStyle(c.props)">
-        <swiper v-if="(c.props.items || []).some((it) => it.url)" class="dp-swiper-box" :style="dpSwiperBoxStyle(c.props)" :interval="c.props.interval || 4000" :circular="true" :autoplay="true" :indicator-dots="c.props.indicator === 'dot'" :indicator-active-color="c.props.indicatorColor || '#165dff'">
+        <swiper v-if="(c.props.items || []).some((it) => it.url)" class="dp-swiper-box" :style="dpSwiperBoxStyle(c.props)" :interval="c.props.interval || 4000" :circular="true" :autoplay="true" :indicator-dots="c.props.showDots === false ? false : c.props.indicator === 'dot'" :indicator-active-color="c.props.indicatorColor || '#165dff'">
           <swiper-item v-for="(it, i) in c.props.items.filter((x) => x.url)" :key="i">
             <image :src="resolveUrl(it.url)" mode="aspectFill" class="dp-swiper-img" @click="onJump(it.link)" />
           </swiper-item>
@@ -179,14 +186,14 @@
         <text class="dp-mc-arrow">›</text>
       </view>
       <!-- 宫格导航 -->
-      <view v-else-if="c.type === 'grid-nav'" class="dp-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 4) + ',1fr)', background: c.props.bgColor || 'transparent' }">
+      <view v-else-if="c.type === 'grid-nav'" class="dp-grid" :style="dpGridStyle(c.props)">
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-grid-item" @click="onJump(it.url)">
-          <view class="dp-grid-icon-wrap" :style="dpGridIconStyle(c.props)">
+          <view v-if="c.props.showIcon !== false" class="dp-grid-icon-wrap" :style="dpGridIconStyle(c.props)">
             <SIcon v-if="it.icon" :name="it.icon" size="default" color="#165dff" />
             <text v-else>名</text>
             <view v-if="it.badge" class="dp-grid-badge"><text>{{ it.badge }}</text></view>
           </view>
-          <text class="dp-grid-text">{{ it.text || '入口' }}</text>
+          <text class="dp-grid-text" :style="{ fontSize: (c.props.fontSize || 12) + 'px', fontWeight: c.props.bold ? '600' : '400' }">{{ it.text || '入口' }}</text>
           <text v-if="it.desc" class="dp-grid-desc">{{ it.desc }}</text>
         </view>
       </view>
@@ -280,14 +287,14 @@
       </view>
       <!-- 组图橱窗 -->
       <view v-else-if="c.type === 'image-gallery'" class="dp-gallery" :style="dpGalleryStyle(c.props)">
-        <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-gallery-cell" :style="{ borderRadius: (c.props.radius ?? 8) + 'px' }" @click="onJump(it.link)">
+        <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-gallery-cell" :style="{ borderRadius: (c.props.radiusTop ?? 8) + 'px' }" @click="onJump(it.link)">
           <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-gallery-img" />
         </view>
       </view>
       <!-- 标题栏 -->
-      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="{ center: c.props.align === 'center', bar: c.props.titleStyle === 'bar' }" :style="{ background: c.props.bgColor || 'transparent' }">
+      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="{ center: c.props.align === 'center', bar: c.props.titleStyle === 'bar' }" :style="dpTitleBarStyle(c.props)">
         <view class="dp-tb-left">
-          <text class="dp-tb-title" :style="{ color: c.props.color || '#1d2129' }">{{ c.props.title || '标题文字' }}</text>
+          <text class="dp-tb-title" :style="{ color: c.props.color || '#1d2129', fontSize: (c.props.fontSize || 17) + 'px', fontWeight: c.props.bold ? '600' : '400', fontStyle: c.props.italic ? 'italic' : 'normal' }">{{ c.props.title || '标题文字' }}</text>
           <text v-if="c.props.sub" class="dp-tb-sub">{{ c.props.sub }}</text>
         </view>
         <view v-if="c.props.showMore && c.props.moreText" class="dp-tb-more" @click="onJump(c.props.moreUrl)"><text>{{ c.props.moreText }} ›</text></view>
@@ -296,7 +303,7 @@
       <view v-else-if="c.type === 'search'">
         <view class="dp-search" :class="c.props.style === 'shadow' ? 'shadow' : c.props.style === 'border' ? 'border' : ''" :style="dpSearchStyle(c.props)" @click="onSearch(c.props)">
           <text class="dp-search-ico">🔍</text>
-          <text class="dp-search-ph">{{ c.props.placeholder || '搜索名片 / 内容' }}</text>
+          <text v-if="c.props.showPlaceholder !== false" class="dp-search-ph">{{ c.props.placeholder || '搜索名片 / 内容' }}</text>
           <text v-if="c.props.showBtn" class="dp-search-btn">搜索</text>
         </view>
         <view v-if="c.props.hotWords" class="dp-search-hot">
@@ -304,7 +311,7 @@
         </view>
       </view>
       <!-- 选项卡 -->
-      <view v-else-if="c.type === 'tabs'" class="dp-tabs" :style="{ '--tab': c.props.color || '#165dff', background: c.props.bgColor || '#fff', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
+      <view v-else-if="c.type === 'tabs'" class="dp-tabs" :class="{ pill: c.props.tabStyle === 'pill' }" :style="dpTabsStyle(c.props)">
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-tabs-item" :class="{ active: i === 0 }" @click="onJump(it.link)"><text>{{ it.text || '选项' }}</text></view>
       </view>
       <!-- 万能表单 -->
@@ -332,9 +339,9 @@
         <view class="dp-contact-btn" :style="{ background: '#165dff' }" @click="callPhone(c.props)"><text>{{ c.props.btnText || '拨打电话' }}</text></view>
       </view>
       <!-- 悬浮按钮 -->
-      <view v-else-if="c.type === 'float-btn'" class="dp-float" :class="'dp-float-' + (c.props.style || 'round')" :style="{ background: c.props.color || '#165dff', left: c.props.position === 'left' ? (c.props.distance ?? 12) + 'px' : 'auto', right: c.props.position === 'right' ? (c.props.distance ?? 12) + 'px' : 'auto', bottom: (c.props.distance ?? 12) + 'px' }" @click="onFloatClick(c.props)">
-        <image v-if="c.props.iconType === 'icon' && c.props.icon" :src="resolveUrl(c.props.icon)" mode="aspectFit" class="dp-float-ico" />
-        <text v-else>{{ c.props.text || '联系我们' }}</text>
+      <view v-else-if="c.type === 'float-btn'" class="dp-float" :class="'dp-float-' + (c.props.style || 'round')" :style="dpFloatStyle(c.props)" @click="onFloatClick(c.props)">
+        <image v-if="c.props.iconType === 'image' && c.props.icon" :src="resolveUrl(c.props.icon)" mode="aspectFit" class="dp-float-ico" />
+        <text v-else-if="c.props.iconType === 'icon' || !c.props.iconType">{{ c.props.text || '联系' }}</text>
       </view>
       <!-- 文章列表 -->
       <view v-else-if="c.type === 'article-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
@@ -610,25 +617,35 @@ function dpBtnStyle(p) {
   return s;
 }
 function dpNoticeStyle(p) {
-  const s = { background: p.bgColor, color: p.color, borderRadius: (p.radius ?? 0) + 'px', fontSize: (p.fontSize || 14) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = { background: p.bgColor, color: p.color, fontSize: (p.fontSize || 14) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
   if (p.bold) s.fontWeight = '600';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
 function dpNoticeList(p) {
   return (p.items || []).filter((it) => it && it.text).slice(0, 10);
 }
 function dpSwiperStyle(p) {
-  const s = { borderRadius: (p.radius ?? 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', overflow: 'hidden' };
-  if (p.heightMode === 'full') {
-    s.height = '100vh';
-    s.minHeight = '400px';
-  } else {
-    s.height = (p.height || 150) + 'px';
-  }
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', overflow: 'hidden' };
+  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
+  if (p.immersive) s.borderRadius = '0';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
 function dpSwiperBoxStyle(p) {
   const s = { height: '100%' };
+  return s;
+}
+function dpGridStyle(p) {
+  const s = { gridTemplateColumns: 'repeat(' + (p.columns || 4) + ',1fr)', background: p.bgColor || 'transparent' };
+  s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
 function dpGridIconStyle(p) {
@@ -641,7 +658,7 @@ function dpGridIconStyle(p) {
 function dpSearchStyle(p) {
   const s = {
     background: p.bgColor || '#F2F3F5',
-    borderRadius: (p.radius ?? 16) + 'px',
+    borderRadius: (p.radiusTop ?? 16) + 'px ' + (p.radiusTop ?? 16) + 'px ' + (p.radiusBottom ?? 16) + 'px ' + (p.radiusBottom ?? 16) + 'px',
     height: (p.height || 36) + 'px',
     marginTop: (p.marginTop || 0) + 'px',
     marginBottom: (p.marginBottom || 0) + 'px',
@@ -667,32 +684,81 @@ function dpImageRadius(p) {
   return (p.radius || 0) + 'px';
 }
 function dpDividerStyle(p) {
+  const st = p.lineStyle === 'dashed' ? 'dashed' : p.lineStyle === 'dotted' ? 'dotted' : 'solid';
   return {
-    borderTop: (p.thickness ?? 1) + 'px ' + (p.dashed ? 'dashed' : 'solid') + ' ' + (p.color || '#E5E6EB'),
+    borderTop: (p.thickness ?? 1) + 'px ' + st + ' ' + (p.color || '#E5E6EB'),
     marginTop: (p.marginTop ?? 14) + 'px',
     marginBottom: (p.marginBottom ?? 14) + 'px',
   };
 }
 function dpImageTextStyle(p) {
-  return { marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  if (p.bgColor) s.background = p.bgColor;
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
 }
 function dpImageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
   return { width: '100%', aspectRatio: map[p.ratio] || '100%' };
 }
 function dpRichTextStyle(p) {
-  return {
+  const s = {
     background: p.bgColor || 'transparent',
     padding: (p.padding ?? 12) + 'px',
-    borderRadius: (p.radius ?? 0) + 'px',
-  };
-}
-function dpGalleryStyle(p) {
-  return {
-    gridTemplateColumns: 'repeat(' + (p.columns || 2) + ',1fr)',
-    gap: (p.gap ?? 8) + 'px',
+    borderRadius: (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px',
+    marginTop: (p.marginTop || 0) + 'px',
     marginBottom: (p.marginBottom || 0) + 'px',
   };
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function dpGalleryStyle(p) {
+  const s = {
+    gridTemplateColumns: 'repeat(' + (p.columns || 2) + ',1fr)',
+    gap: (p.gap ?? 8) + 'px',
+    marginTop: (p.marginTop || 0) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+  };
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function dpTitleBarStyle(p) {
+  const s = { background: p.bgColor || 'transparent', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  const r = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  if (p.bgColor) s.borderRadius = r;
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function dpTabsStyle(p) {
+  const s = { '--tab': p.color || '#165dff', background: p.bgColor || '#fff', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  s.borderRadius = (p.radiusTop ?? 8) + 'px ' + (p.radiusTop ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function dpFormStyle(p) {
+  const s = { background: p.bgColor || 'transparent' };
+  s.borderRadius = (p.radiusTop ?? 8) + 'px ' + (p.radiusTop ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px';
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function dpFloatStyle(p) {
+  const s = { background: p.color || '#165dff' };
+  const d = (p.distance ?? 12) + 'px';
+  const pos = p.position || 'bottom-right';
+  if (pos === 'top-left') { s.top = d; s.left = d; }
+  else if (pos === 'top-right') { s.top = d; s.right = d; }
+  else if (pos === 'bottom-left') { s.bottom = d; s.left = d; }
+  else { s.bottom = d; s.right = d; }
+  return s;
 }
 function onFloatClick(p) {
   const link = p.link || '';
@@ -929,7 +995,10 @@ function openChannel(kind, p) {
 .dp-image-item { position: relative; overflow: hidden; }
 .dp-image-item .dp-image-img { border-radius: 0; }
 .dp-image-hotspot { position: absolute; z-index: 2; }
-.dp-image-empty { height: 120px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 13px; }
+
+.dp-card-shadow { box-shadow: 0 2px 8px rgba(31,35,41,0.1); }
+.dp-card-border { border: 1px solid #E5E6EB; }
+.dp-notice-ico { width: 18px; height: 18px; flex: none; }
 .dp-btn { display: inline-block; padding: 10px 24px; font-size: 14px; text-align: center; box-sizing: border-box; }
 .dp-btn.auto { width: auto; }
 .dp-divider { position: relative; height: 0; margin: 14px 0; display: flex; align-items: center; justify-content: center; }

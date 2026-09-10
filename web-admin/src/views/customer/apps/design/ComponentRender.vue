@@ -7,7 +7,7 @@
       <div class="r-text" :style="{ color: comp.props.color, textAlign: comp.props.align, fontSize: comp.props.size + 'px' }">{{ comp.props.text || '文本内容' }}</div>
     </template>
     <template v-else-if="comp.type === 'image'">
-      <div class="r-image" @click.stop :style="imageBoxStyle(comp.props)">
+      <div class="r-image" :class="'r-card-' + (comp.props.cardStyle || 'default')" @click.stop :style="imageBoxStyle(comp.props)">
         <!-- 高级(热区)模式：多图 + 热区框 -->
         <template v-if="comp.props.mode === 'hotzone' && comp.props.items?.length">
           <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
@@ -47,7 +47,7 @@
       <div class="r-divider" :style="dividerStyle(comp.props)"><span v-if="comp.props.text" :style="{ color: comp.props.color || '#86909C' }">{{ comp.props.text }}</span></div>
     </template>
     <template v-else-if="comp.type === 'notice'">
-      <div class="r-notice" :style="{ background: comp.props.bgColor, color: comp.props.color, borderRadius: (comp.props.radius ?? 0) + 'px', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px', fontSize: (comp.props.fontSize || 14) + 'px', fontWeight: comp.props.bold ? 600 : 400 }">
+      <div class="r-notice" :style="noticeStyle(comp.props)">
         <span v-if="comp.props.showIcon" class="r-notice-tag">公告</span>
         <span v-if="noticeList(comp.props).length" class="r-notice-text">{{ noticeList(comp.props)[0].text }}</span>
         <span v-else>{{ comp.props.text || '公告内容' }}</span>
@@ -180,13 +180,13 @@
     </template>
     <!-- 宫格导航 -->
     <template v-else-if="comp.type === 'grid-nav'">
-      <div class="r-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 4) + ',1fr)', background: comp.props.bgColor || 'transparent' }">
+      <div class="r-grid" :style="gridStyle(comp.props)">
         <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-grid-item">
-          <div class="r-grid-icon-wrap" :style="gridIconStyle(comp.props)">
+          <div v-if="comp.props.showIcon !== false" class="r-grid-icon-wrap" :style="gridIconStyle(comp.props)">
             <div class="r-grid-icon">{{ it.icon || 'card' }}</div>
             <span v-if="it.badge" class="r-grid-badge">{{ it.badge }}</span>
           </div>
-          <div class="r-grid-text">{{ it.text || '入口' }}</div>
+          <div class="r-grid-text" :style="{ fontSize: (comp.props.fontSize || 12) + 'px', fontWeight: comp.props.bold ? 600 : 400 }">{{ it.text || '入口' }}</div>
           <div v-if="it.desc" class="r-grid-desc">{{ it.desc }}</div>
         </div>
       </div>
@@ -288,8 +288,8 @@
     <template v-else-if="comp.type === 'image-gallery'">
       <div class="r-gallery" :style="galleryStyle(comp.props)">
         <template v-for="(it, i) in comp.props.items || []" :key="i">
-          <div v-if="it.url" class="r-gallery-cell" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
-          <div v-else class="r-gallery-cell r-gallery-empty" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+          <div v-if="it.url" class="r-gallery-cell" :style="{ borderRadius: (comp.props.radiusTop ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
+          <div v-else class="r-gallery-cell r-gallery-empty" :style="{ borderRadius: (comp.props.radiusTop ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
         </template>
       </div>
     </template>
@@ -307,7 +307,7 @@
     <template v-else-if="comp.type === 'search'">
       <div class="r-search" :class="comp.props.style === 'shadow' ? 'shadow' : comp.props.style === 'border' ? 'border' : ''" :style="searchStyle(comp.props)">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
-        <span class="r-search-ph">{{ comp.props.placeholder || '搜索名片 / 内容' }}</span>
+        <span v-if="comp.props.showPlaceholder !== false" class="r-search-ph">{{ comp.props.placeholder || '搜索名片 / 内容' }}</span>
         <span v-if="comp.props.showBtn" class="r-search-btn">搜索</span>
       </div>
       <div v-if="comp.props.hotWords" class="r-search-hot">
@@ -316,13 +316,13 @@
     </template>
     <!-- 选项卡 -->
     <template v-else-if="comp.type === 'tabs'">
-      <div class="r-tabs" :style="{ '--tab': comp.props.color || '#165DFF', background: comp.props.bgColor || '#fff', borderRadius: (comp.props.radius ?? 8) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
+      <div class="r-tabs" :class="{ pill: comp.props.tabStyle === 'pill' }" :style="tabsStyle(comp.props)">
         <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-tabs-item" :class="{ active: i === 0 }">{{ it.text || '选项' }}</div>
       </div>
     </template>
     <!-- 万能表单 -->
     <template v-else-if="comp.type === 'form-pro'">
-      <div class="r-form" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
+      <div class="r-form" :style="formStyle(comp.props)">
         <div class="r-form-title">{{ comp.props.title || '留资表单' }}</div>
         <div v-for="(f, i) in comp.props.fields || []" :key="i" class="r-form-input">{{ f.placeholder || f.label }}{{ f.required ? ' *' : '' }}</div>
         <div class="r-form-btn" :style="{ background: comp.props.btnColor || '#165DFF' }">{{ comp.props.submitText || '提交' }}</div>
@@ -343,9 +343,9 @@
     <!-- 悬浮按钮 -->
     <template v-else-if="comp.type === 'float-btn'">
       <div class="r-float-wrap" :style="{ height: '64px' }">
-        <div class="r-float" :class="'r-float-' + (comp.props.style || 'round')" :style="{ background: comp.props.color || '#165DFF', left: comp.props.position === 'left' ? (comp.props.distance ?? 12) + 'px' : 'auto', right: comp.props.position === 'right' ? (comp.props.distance ?? 12) + 'px' : 'auto', bottom: (comp.props.distance ?? 12) + 'px' }">
-          <img v-if="comp.props.iconType === 'icon' && comp.props.icon" :src="resolveUrl(comp.props.icon)" />
-          <span v-else>{{ comp.props.text || '联系我们' }}</span>
+        <div class="r-float" :class="'r-float-' + (comp.props.style || 'round')" :style="floatStyle(comp.props)">
+          <img v-if="comp.props.iconType === 'image' && comp.props.icon" :src="resolveUrl(comp.props.icon)" />
+          <span v-else>{{ comp.props.text || '联系' }}</span>
         </div>
       </div>
     </template>
@@ -617,23 +617,54 @@ function hotWordsList(p) {
     .slice(0, 8);
 }
 function swiperStyle(p) {
-  const s = { borderRadius: (p.radius ?? 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', overflow: 'hidden' };
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', overflow: 'hidden' };
+  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
+  if (p.immersive) s.borderRadius = '0';
   if (p.heightMode === 'full') {
     s.height = '100vh';
     s.minHeight = '400px';
   } else {
     s.height = (p.height || 150) + 'px';
   }
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function gridStyle(p) {
+  const s = { gridTemplateColumns: 'repeat(' + (p.columns || 4) + ',1fr)', background: p.bgColor || 'transparent' };
+  s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function floatStyle(p) {
+  const s = { background: p.color || '#165DFF' };
+  const d = (p.distance ?? 12) + 'px';
+  const pos = p.position || 'bottom-right';
+  if (pos === 'top-left') { s.top = d; s.left = d; }
+  else if (pos === 'top-right') { s.top = d; s.right = d; }
+  else if (pos === 'bottom-left') { s.bottom = d; s.left = d; }
+  else { s.bottom = d; s.right = d; }
   return s;
 }
 function gridIconStyle(p) {
   const s = { width: (p.iconSize || 40) + 'px', height: (p.iconSize || 40) + 'px', borderRadius: (p.shape === 'rounded' ? (p.iconRadius ?? 12) : 999) + 'px' };
   return s;
 }
+function noticeStyle(p) {
+  const s = { background: p.bgColor, color: p.color, fontSize: (p.fontSize || 14) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
+  if (p.bold) s.fontWeight = '600';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
 function searchStyle(p) {
   const s = {
     background: p.bgColor || '#F2F3F5',
-    borderRadius: (p.radius ?? 16) + 'px',
+    borderRadius: (p.radiusTop ?? 16) + 'px ' + (p.radiusTop ?? 16) + 'px ' + (p.radiusBottom ?? 16) + 'px ' + (p.radiusBottom ?? 16) + 'px',
     height: (p.height || 36) + 'px',
     marginTop: (p.marginTop || 0) + 'px',
     marginBottom: (p.marginBottom || 0) + 'px',
@@ -656,32 +687,63 @@ function imageRadius(p) {
   return (p.radius ?? 0) + 'px';
 }
 function dividerStyle(p) {
+  const st = p.lineStyle === 'dashed' ? 'dashed' : p.lineStyle === 'dotted' ? 'dotted' : 'solid';
   return {
-    borderTop: (p.thickness ?? 1) + 'px ' + (p.dashed ? 'dashed' : 'solid') + ' ' + (p.color || '#E5E6EB'),
+    borderTop: (p.thickness ?? 1) + 'px ' + st + ' ' + (p.color || '#E5E6EB'),
     marginTop: (p.marginTop ?? 14) + 'px',
     marginBottom: (p.marginBottom ?? 14) + 'px',
   };
 }
 function imageTextStyle(p) {
-  return { marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  if (p.bgColor) s.background = p.bgColor;
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
 }
 function imageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
   return { aspectRatio: map[p.ratio] || '100%', objectFit: 'cover', width: '100%' };
 }
 function richTextStyle(p) {
-  return {
+  const s = {
     background: p.bgColor || 'transparent',
     padding: (p.padding ?? 12) + 'px',
-    borderRadius: (p.radius ?? 0) + 'px',
-  };
-}
-function galleryStyle(p) {
-  return {
-    gridTemplateColumns: 'repeat(' + (p.columns || 2) + ',1fr)',
-    gap: (p.gap ?? 8) + 'px',
+    borderRadius: (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px',
+    marginTop: (p.marginTop || 0) + 'px',
     marginBottom: (p.marginBottom || 0) + 'px',
   };
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function tabsStyle(p) {
+  const s = { '--tab': p.color || '#165DFF', background: p.bgColor || '#fff', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  s.borderRadius = (p.radiusTop ?? 8) + 'px ' + (p.radiusTop ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function formStyle(p) {
+  const s = { background: p.bgColor || 'transparent' };
+  s.borderRadius = (p.radiusTop ?? 8) + 'px ' + (p.radiusTop ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px';
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+function galleryStyle(p) {
+  const s = {
+    gridTemplateColumns: 'repeat(' + (p.columns || 2) + ',1fr)',
+    gap: (p.gap ?? 8) + 'px',
+    marginTop: (p.marginTop || 0) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+  };
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
 }
 
 // ===== 视频号视频辅助（eweishop 复刻） =====
@@ -744,6 +806,8 @@ function chRadius(p, i) {
 </script>
 
 <style scoped>
+.r-card-shadow { box-shadow: 0 2px 8px rgba(31,35,41,0.1); }
+.r-card-border { border: 1px solid #E5E6EB; }
 .comp-render { pointer-events: none; }
 .r-title { font-size: 22px; font-weight: 700; line-height: 1.4; }
 .r-text { line-height: 1.6; }
