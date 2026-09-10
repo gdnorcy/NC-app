@@ -78,6 +78,31 @@
         </div>
       </div>
     </template>
+    <template v-else-if="comp.type === 'countdown2'">
+      <!-- 倒计时02（eweishop 复刻）：左主图+标题+数字倒计时 + 右双副图 -->
+      <div class="r-cd2" :class="'r-cd2-' + (comp.props.style || 'default')" :style="cd2BoxStyle(comp.props)">
+        <div class="r-cd2-left" :style="cd2MainStyle(comp.props)" @click="onJump(comp.props.mainLink)">
+          <div class="r-cd2-title" :style="{ color: comp.props.mainColor || '#333333' }">{{ comp.props.mainTitle || '这里是标题' }}</div>
+          <div class="r-cd2-sub">
+            <template v-for="(grp, gi) in cd2Digits(comp.props)" :key="gi">
+              <b v-if="gi > 0" class="r-cd2-colon" :style="{ color: comp.props.numColor || '#ffffff' }">:</b>
+              <b class="r-cd2-num" :style="{ background: comp.props.numBg || '#fd9d4a', color: comp.props.numColor || '#ffffff' }">{{ grp }}</b>
+            </template>
+            <span class="r-cd2-end" :style="{ color: comp.props.numColor || '#ffffff' }">后结束</span>
+          </div>
+        </div>
+        <div class="r-cd2-right">
+          <div class="r-cd2-cell" :style="cd2CellStyle(comp.props, comp.props.sub1Image)" @click="onJump(comp.props.sub1Link)">
+            <div class="r-cd2-cell-title" :style="{ color: comp.props.sub1Color || '#333333' }">{{ comp.props.sub1Title || '这里是标题' }}</div>
+            <div class="r-cd2-cell-sub" :style="{ color: comp.props.sub1SubColor || '#666666' }">{{ comp.props.sub1Sub || '这里是副标题' }}</div>
+          </div>
+          <div class="r-cd2-cell" :style="cd2CellStyle(comp.props, comp.props.sub2Image)" @click="onJump(comp.props.sub2Link)">
+            <div class="r-cd2-cell-title" :style="{ color: comp.props.sub2Color || '#333333' }">{{ comp.props.sub2Title || '这里是标题' }}</div>
+            <div class="r-cd2-cell-sub" :style="{ color: comp.props.sub2SubColor || '#666666' }">{{ comp.props.sub2Sub || '这里是副标题' }}</div>
+          </div>
+        </div>
+      </div>
+    </template>
     <template v-else-if="comp.type === 'form'">
       <div class="r-form">
         <div class="r-form-title">{{ comp.props.title || '留资表单' }}</div>
@@ -493,6 +518,48 @@ function cdBtnStyle(p) {
   return s;
 }
 
+// ===== 倒计时02（eweishop 复刻：左图文+数字倒计时 + 右双图） =====
+function cd2Val(p) {
+  let h = 0, m = 0, sec = 0;
+  if (p.endTime) {
+    const end = new Date(p.endTime.replace(/-/g, '/')).getTime();
+    const start = p.startTime ? new Date(p.startTime.replace(/-/g, '/')).getTime() : Date.now();
+    let diff = Math.max(0, Math.floor((end - start) / 1000));
+    h = Math.floor(diff / 3600); m = Math.floor((diff % 3600) / 60); sec = diff % 60;
+  } else {
+    h = 3; m = 11; sec = 19;
+  }
+  return {
+    h: String(h).padStart(2, '0'),
+    m: String(m).padStart(2, '0'),
+    s: String(sec).padStart(2, '0'),
+  };
+}
+function cd2Digits(p) {
+  const v = cd2Val(p);
+  return [v.h, v.m, v.s];
+}
+function cd2BoxStyle(p) {
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (p.marginLeft) s.margin = '0 ' + p.marginLeft + 'px';
+  if (p.bgColor) s.background = p.bgColor;
+  const rt = p.radiusTop || 0, rb = p.radiusBottom || 0;
+  if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+  if (p.style === 'border') s.border = '1px solid #E5E6EB';
+  return s;
+}
+function cd2MainStyle(p) {
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  if (p.mainImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.mainImage)).slice(1, -1)})`;
+  return s;
+}
+function cd2CellStyle(p, img) {
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  if (img) s.backgroundImage = `url(${JSON.stringify(resolveUrl(img)).slice(1, -1)})`;
+  return s;
+}
+
 const containerStyle = computed(() => {
   const p = props.comp.props || {};
   const s = {};
@@ -507,6 +574,9 @@ function resolveUrl(u) {
   if (/^https?:|^data:|^blob:/.test(u)) return u;
   return u.startsWith('/') ? u : `/${u}`;
 }
+
+// 管理端画布不实际跳转，仅阻止冒泡
+function onJump() {}
 
 // ===== 批1 融合组件辅助（三系统复刻） =====
 function btnStyle(p) {
@@ -703,6 +773,21 @@ function chRadius(p, i) {
 .r-cd-border .r-cd-digit { box-shadow: none; border: 1px solid rgba(252, 89, 23, 0.45); }
 .r-cd-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #FC5917; font-size: 12px; line-height: 1.2; width: 48px; height: 48px; border-radius: 50%; background: #FEEC22; display: flex; align-items: center; justify-content: center; text-align: center; }
 .r-cd-btn b { max-width: 26px; word-break: break-all; font-weight: 400; }
+
+/* 倒计时02（eweishop 复刻） */
+.r-cd2 { display: flex; overflow: hidden; background: transparent; }
+.r-cd2-left { width: 50%; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 24px 18px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; }
+.r-cd2-title { font-size: 30px; font-weight: 700; color: #333333; line-height: 1.2; word-break: break-all; }
+.r-cd2-sub { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; }
+.r-cd2-num { min-width: 32px; height: 32px; border-radius: 50%; background: #fd9d4a; color: #ffffff; font-size: 20px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }
+.r-cd2-colon { font-size: 20px; font-weight: 400; color: #ffffff; }
+.r-cd2-end { font-size: 14px; color: #ffffff; margin-left: 2px; flex-shrink: 0; }
+.r-cd2-right { width: 50%; display: flex; flex-direction: column; }
+.r-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px; box-sizing: border-box; background-size: cover; background-position: center; cursor: pointer; }
+.r-cd2-cell-title { font-size: 26px; font-weight: 700; color: #333333; line-height: 1.3; word-break: break-all; text-align: center; }
+.r-cd2-cell-sub { font-size: 18px; color: #666666; line-height: 1.3; word-break: break-all; text-align: center; }
+.r-cd2-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.r-cd2-border { border: 1px solid #E5E6EB; }
 .r-live-title-bar { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-title { font-size: 15px; font-weight: 600; color: #1d2129; padding: 2px 0 8px; }
 .r-article-row .r-article-item { display: flex; gap: 10px; align-items: flex-start; }

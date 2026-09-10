@@ -76,6 +76,29 @@
           <view class="dp-cd-btn" :style="cdBtnStyle(c.props)" @click="onJump(c.props.link)"><text :style="{ color: c.props.cdBtnText || '#FC5917' }">{{ c.props.btnText || '抢先查看' }}</text></view>
         </view>
       </view>
+      <!-- 倒计时02（eweishop 复刻：左图文+数字倒计时 + 右双图） -->
+      <view v-else-if="c.type === 'countdown2'" class="dp-cd2" :class="'dp-cd2-' + (c.props.style || 'default')" :style="cd2BoxStyle(c.props)">
+        <view class="dp-cd2-left" :style="cd2MainStyle(c.props)" @click="onJump(c.props.mainLink)">
+          <text class="dp-cd2-title" :style="{ color: c.props.mainColor || '#333333' }">{{ c.props.mainTitle || '这里是标题' }}</text>
+          <view class="dp-cd2-sub">
+            <template v-for="(grp, gi) in cd2Digits(c.props)" :key="gi">
+              <text v-if="gi > 0" class="dp-cd2-colon" :style="{ color: c.props.numColor || '#ffffff' }">:</text>
+              <text class="dp-cd2-num" :style="{ background: c.props.numBg || '#fd9d4a', color: c.props.numColor || '#ffffff' }">{{ grp }}</text>
+            </template>
+            <text class="dp-cd2-end" :style="{ color: c.props.numColor || '#ffffff' }">后结束</text>
+          </view>
+        </view>
+        <view class="dp-cd2-right">
+          <view class="dp-cd2-cell" :style="cd2CellStyle(c.props, c.props.sub1Image)" @click="onJump(c.props.sub1Link)">
+            <text class="dp-cd2-cell-title" :style="{ color: c.props.sub1Color || '#333333' }">{{ c.props.sub1Title || '这里是标题' }}</text>
+            <text class="dp-cd2-cell-sub" :style="{ color: c.props.sub1SubColor || '#666666' }">{{ c.props.sub1Sub || '这里是副标题' }}</text>
+          </view>
+          <view class="dp-cd2-cell" :style="cd2CellStyle(c.props, c.props.sub2Image)" @click="onJump(c.props.sub2Link)">
+            <text class="dp-cd2-cell-title" :style="{ color: c.props.sub2Color || '#333333' }">{{ c.props.sub2Title || '这里是标题' }}</text>
+            <text class="dp-cd2-cell-sub" :style="{ color: c.props.sub2SubColor || '#666666' }">{{ c.props.sub2Sub || '这里是副标题' }}</text>
+          </view>
+        </view>
+      </view>
       <!-- 表单 -->
       <view v-else-if="c.type === 'form'" class="dp-form">
         <text class="dp-form-title">{{ c.props.title || '留资表单' }}</text>
@@ -468,6 +491,46 @@ function cdBtnStyle(p) {
   const s = {};
   if (p.cdBtnBg) s.background = p.cdBtnBg;
   if (p.cdBtnText) s.color = p.cdBtnText;
+  return s;
+}
+function cd2Val(p) {
+  let h = 0, m = 0, sec = 0;
+  if (p.endTime) {
+    const end = new Date(p.endTime.replace(/-/g, '/')).getTime();
+    const start = p.startTime ? new Date(p.startTime.replace(/-/g, '/')).getTime() : Date.now();
+    let diff = Math.max(0, Math.floor((end - start) / 1000));
+    h = Math.floor(diff / 3600); m = Math.floor((diff % 3600) / 60); sec = diff % 60;
+  } else {
+    h = 3; m = 11; sec = 19;
+  }
+  return {
+    h: String(h).padStart(2, '0'),
+    m: String(m).padStart(2, '0'),
+    s: String(sec).padStart(2, '0'),
+  };
+}
+function cd2Digits(p) {
+  const v = cd2Val(p);
+  return [v.h, v.m, v.s];
+}
+function cd2BoxStyle(p) {
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (p.marginLeft) s.margin = '0 ' + p.marginLeft + 'px';
+  if (p.bgColor) s.background = p.bgColor;
+  const rt = p.radiusTop || 0, rb = p.radiusBottom || 0;
+  if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+  if (p.style === 'border') s.border = '1px solid #E5E6EB';
+  return s;
+}
+function cd2MainStyle(p) {
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  if (p.mainImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.mainImage)).slice(1, -1)})`;
+  return s;
+}
+function cd2CellStyle(p, img) {
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  if (img) s.backgroundImage = `url(${JSON.stringify(resolveUrl(img)).slice(1, -1)})`;
   return s;
 }
 onMounted(() => {
@@ -883,6 +946,21 @@ function openChannel(kind, p) {
 .dp-cd-border .dp-cd-digit { box-shadow: none; border: 1px solid rgba(252, 89, 23, 0.45); }
 .dp-cd-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #FC5917; font-size: 12px; line-height: 1.2; width: 48px; height: 48px; border-radius: 50%; background: #FEEC22; display: flex; align-items: center; justify-content: center; text-align: center; }
 .dp-cd-btn text { max-width: 26px; word-break: break-all; }
+
+/* 倒计时02（eweishop 复刻） */
+.dp-cd2 { display: flex; overflow: hidden; background: transparent; }
+.dp-cd2-left { width: 50%; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 24px 18px; box-sizing: border-box; background-size: cover; background-position: center; }
+.dp-cd2-title { font-size: 30px; font-weight: 700; color: #333333; line-height: 1.2; word-break: break-all; }
+.dp-cd2-sub { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; }
+.dp-cd2-num { min-width: 32px; height: 32px; border-radius: 50%; background: #fd9d4a; color: #ffffff; font-size: 20px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }
+.dp-cd2-colon { font-size: 20px; font-weight: 400; color: #ffffff; }
+.dp-cd2-end { font-size: 14px; color: #ffffff; margin-left: 2px; flex-shrink: 0; }
+.dp-cd2-right { width: 50%; display: flex; flex-direction: column; }
+.dp-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px; box-sizing: border-box; background-size: cover; background-position: center; }
+.dp-cd2-cell-title { font-size: 26px; font-weight: 700; color: #333333; line-height: 1.3; word-break: break-all; text-align: center; }
+.dp-cd2-cell-sub { font-size: 18px; color: #666666; line-height: 1.3; word-break: break-all; text-align: center; }
+.dp-cd2-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.dp-cd2-border { border: 1px solid #E5E6EB; }
 .dp-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .dp-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
