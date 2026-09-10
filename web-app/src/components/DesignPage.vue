@@ -80,6 +80,7 @@
       <view v-else-if="c.type === 'countdown2'" class="dp-cd2" :class="'dp-cd2-' + (c.props.style || 'default')" :style="cd2BoxStyle(c.props)">
         <view class="dp-cd2-left" :style="cd2MainStyle(c.props)" @click="onJump(c.props.mainLink)">
           <text class="dp-cd2-title" :style="{ color: c.props.mainColor || '#333333' }">{{ c.props.mainTitle || '这里是标题' }}</text>
+          <text v-if="c.props.mainSub" class="dp-cd2-subtitle" :style="{ color: c.props.mainColor || '#333333' }">{{ c.props.mainSub }}</text>
           <view class="dp-cd2-sub">
             <template v-for="(grp, gi) in cd2Digits(c.props)" :key="gi">
               <text v-if="gi > 0" class="dp-cd2-colon" :style="{ color: c.props.numColor || '#ffffff' }">:</text>
@@ -519,17 +520,21 @@ function cd2BoxStyle(p) {
   if (p.bgColor) s.background = p.bgColor;
   const rt = p.radiusTop || 0, rb = p.radiusBottom || 0;
   if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
-  if (p.style === 'shadow') s.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
-  if (p.style === 'border') s.border = '1px solid #E5E6EB';
+  return s;
+}
+function cd2ImgEffect(p) {
+  const s = {};
+  if (p.style === 'shadow') s.boxShadow = 'rgba(226,231,244,0.7) 0 0 10px';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#ededed');
   return s;
 }
 function cd2MainStyle(p) {
-  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center', ...cd2ImgEffect(p) };
   if (p.mainImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.mainImage)).slice(1, -1)})`;
   return s;
 }
 function cd2CellStyle(p, img) {
-  const s = { backgroundSize: 'cover', backgroundPosition: 'center' };
+  const s = { backgroundSize: 'cover', backgroundPosition: 'center', ...cd2ImgEffect(p) };
   if (img) s.backgroundImage = `url(${JSON.stringify(resolveUrl(img)).slice(1, -1)})`;
   return s;
 }
@@ -948,19 +953,19 @@ function openChannel(kind, p) {
 .dp-cd-btn text { max-width: 26px; word-break: break-all; }
 
 /* 倒计时02（eweishop 复刻） */
-.dp-cd2 { display: flex; overflow: hidden; background: transparent; aspect-ratio: 375 / 188; }
-.dp-cd2-left { width: 50%; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 14px 12px; box-sizing: border-box; background-size: cover; background-position: center; min-height: 0; overflow: hidden; }
+.dp-cd2 { display: flex; gap: 6px; overflow: hidden; background: transparent; aspect-ratio: 375 / 188; }
+.dp-cd2-left { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 12px 10px; box-sizing: border-box; background-size: cover; background-position: center; min-height: 0; overflow: hidden; }
 .dp-cd2-title { font-size: 18px; font-weight: 700; color: #333333; line-height: 1.2; word-break: break-all; }
+.dp-cd2-subtitle { font-size: 16px; color: #333333; line-height: 1.3; word-break: break-all; }
 .dp-cd2-sub { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; white-space: nowrap; }
 .dp-cd2-num { min-width: 20px; height: 20px; border-radius: 50%; background: #fd9d4a; color: #ffffff; font-size: 22px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; overflow: hidden; }
 .dp-cd2-colon { font-size: 16px; font-weight: 400; color: #ffffff; }
 .dp-cd2-end { font-size: 11px; color: #ffffff; margin-left: 2px; flex-shrink: 0; white-space: nowrap; }
-.dp-cd2-right { width: 50%; display: flex; flex-direction: column; min-height: 0; }
-.dp-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 4px; box-sizing: border-box; background-size: cover; background-position: center; min-height: 0; overflow: hidden; }
+.dp-cd2-right { flex: 1; display: flex; flex-direction: column; gap: 5px; min-height: 0; }
+.dp-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 3px; box-sizing: border-box; background-size: cover; background-position: center; min-height: 0; overflow: hidden; }
 .dp-cd2-cell-title { font-size: 18px; font-weight: 700; color: #333333; line-height: 1.3; word-break: break-all; text-align: center; }
 .dp-cd2-cell-sub { font-size: 13px; color: #666666; line-height: 1.3; word-break: break-all; text-align: center; }
-.dp-cd2-shadow { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
-.dp-cd2-border { border: 1px solid #E5E6EB; }
+/* 样式效果由图片块（left/cell）承担 */
 .dp-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .dp-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
