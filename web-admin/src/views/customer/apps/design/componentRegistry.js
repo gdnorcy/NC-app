@@ -225,7 +225,7 @@ export const componentRegistry = [
       // ===== 本地视频 =====
       { key: 'url', label: '视频链接', control: 'input', section: 'content', required: true, placeholder: 'mp4 链接，可到素材中心上传视频', when: { source: 'local' } },
       { key: 'poster', label: '视频封面', control: 'image', section: 'content', when: { source: 'local' } },
-      { key: 'ratio', label: '视频样式', control: 'radio', section: 'style', options: [{ label: '16:9', value: '16:9' }, { label: '4:3', value: '4:3' }, { label: '1:1', value: '1:1' }, { label: '9:16', value: '9:16' }], when: { source: 'local' } },
+      { key: 'ratio', label: '视频样式', control: 'radio', graphic: true, section: 'style', options: [{ label: '16:9', value: '16:9' }, { label: '4:3', value: '4:3' }, { label: '1:1', value: '1:1' }, { label: '9:16', value: '9:16' }], when: { source: 'local' } },
       { key: 'displayMode', label: '视频显示', control: 'radio', section: 'style', options: [{ label: '直接显示', value: 'direct' }, { label: '弹出显示', value: 'popup' }], when: { source: 'local' } },
       { key: 'autoplayLocal', label: '自动播放', control: 'switch', section: 'style', when: { source: 'local' } },
       { key: 'loopLocal', label: '循环播放', control: 'switch', section: 'style', when: { source: 'local' } },
