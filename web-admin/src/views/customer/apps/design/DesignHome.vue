@@ -959,6 +959,10 @@ onMounted(() => {
 .form-card { max-width: 720px; }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 12px; }
 .bg-picker { display: flex; align-items: center; gap: 12px; }
+/* 数字调节框统一窄化（系统风格 Tab 全局圆角滑杆） */
+.form-card :deep(.el-slider__input) { width: 72px; }
+.form-card :deep(.el-slider__input .el-input__wrapper) { padding: 0 4px; }
+.form-card :deep(.el-slider__input .el-input-number__decrease), .form-card :deep(.el-slider__input .el-input-number__increase) { width: 18px; }
 .bg-preview { position: relative; width: 120px; height: 68px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e6eb; }
 .bg-preview img { width: 100%; height: 100%; object-fit: cover; }
 .bg-del { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.5); color: #fff; border-radius: 50%; padding: 2px; cursor: pointer; }

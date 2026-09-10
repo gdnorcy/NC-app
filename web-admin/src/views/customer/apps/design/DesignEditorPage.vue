@@ -76,7 +76,7 @@
                 </div>
                 <div v-if="splash.mode === 'single'" class="hp-row">
                   <div class="hp-label">定时秒数</div>
-                  <el-input-number v-model="splash.duration" :min="1" :max="60" size="small" /> <span class="hp-hint">秒后自动关闭进入首页</span>
+                  <el-input-number v-model="splash.duration" :min="1" :max="60" size="small" style="width: 80px" /> <span class="hp-hint">秒后自动关闭进入首页</span>
                 </div>
               </div>
               <!-- 多图滑动 -->

@@ -1260,9 +1260,11 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }
 .pe-list-link:hover { text-decoration: underline; }
 .pe-list-add { width: 100%; border-style: dashed; }
-.pe-prop :deep(.el-slider__input) { width: 72px; }
-.pe-prop :deep(.el-slider__input .el-input__wrapper) { padding: 0 4px; }
-.pe-prop :deep(.el-slider__input .el-input-number__decrease), .pe-prop :deep(.el-slider__input .el-input-number__increase) { width: 18px; }
+/* 数字调节框统一窄化（能显示两位数字即可，宽度留给滑杆）：组件属性面板 .pe-prop 与页面设置面板 .hp-body 全覆盖 */
+.pe-prop :deep(.el-slider__input), .hp-body :deep(.el-slider__input) { width: 72px; }
+.pe-prop :deep(.el-slider__input .el-input__wrapper), .hp-body :deep(.el-slider__input .el-input__wrapper) { padding: 0 4px; }
+.pe-prop :deep(.el-slider__input .el-input-number__decrease), .pe-prop :deep(.el-slider__input .el-input-number__increase),
+.hp-body :deep(.el-slider__input .el-input-number__decrease), .hp-body :deep(.el-slider__input .el-input-number__increase) { width: 18px; }
 
 /* 头部设置面板（主题/全局/头部/底部导航 + 第一行内容） */
 .hp-tabs { display: flex; gap: 4px; background: #f2f3f5; border-radius: 8px; padding: 3px; margin-bottom: 14px; }
