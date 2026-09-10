@@ -46,16 +46,16 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'video'">
-      <!-- 视频号视频（eweishop 复刻）：风格一列/两列、多视频、背景色/图、静音循环、圆角 -->
+      <!-- 视频号视频（eweishop 复刻）：风格一列/两列（竖屏9:16）、多视频、背景色/图、静音循环、圆角 -->
       <div v-if="comp.props.source === 'channels'" class="r-video-ch" :style="chStyle(comp.props)">
         <div class="r-video-ch-inner" :class="comp.props.style === 'double' ? 'r-video-ch-double' : ''">
-          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: '16 / 9' }">
+          <div v-for="(it, i) in chVideos(comp.props)" :key="i" class="r-video-ch-item" :class="{ 'r-video-ch-full': comp.props.style === 'double' && chVideos(comp.props).length === 1 }" :style="{ borderRadius: chRadius(comp.props, i), aspectRatio: comp.props.style === 'double' ? '9 / 16' : '16 / 9' }">
             <div class="r-video-ch-play"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
             <div class="r-video-ch-id">{{ it.finderUserName || comp.props.finderUserName || '视频号id' }}</div>
             <span class="r-video-tag">视频号</span>
           </div>
         </div>
-        <div class="r-video-ch-meta">{{ comp.props.autoplay === 'auto' ? '自动播放' : '手动播放' }}<template v-if="comp.props.muted"> · 静音</template><template v-if="comp.props.loop"> · 循环</template><template v-if="comp.props.memberAccess === 'allow'"> · 会员可看</template><template v-if="comp.props.memberAccess === 'deny'"> · 会员不可看</template></div>
+        <div class="r-video-ch-meta">{{ comp.props.autoplay === 'auto' ? '自动播放' : '手动播放' }}<template v-if="comp.props.muted"> · 静音</template><template v-if="comp.props.loop"> · 循环</template></div>
       </div>
       <!-- 本地视频 -->
       <div v-else class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.ratio] || '16 / 9' }">
@@ -383,7 +383,9 @@ function chRadius(p, i) {
 .r-video-ch { border-radius: 8px; overflow: hidden; box-sizing: border-box; }
 .r-video-ch-inner { display: flex; flex-direction: column; gap: 8px; }
 .r-video-ch-double { flex-direction: row; flex-wrap: wrap; }
-.r-video-ch-double .r-video-ch-item { flex: 1 1 46%; }
+.r-video-ch-double .r-video-ch-item { flex: 1 1 46%; max-width: 48%; }
+/* 两列且仅 1 个视频时：占满整行宽度（竖屏全宽） */
+.r-video-ch-double .r-video-ch-item.r-video-ch-full { flex: 1 1 100%; max-width: 100%; }
 .r-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .r-video-ch-item::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(transparent, rgba(0,0,0,.5)); }
 .r-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }

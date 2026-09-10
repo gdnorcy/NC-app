@@ -50,15 +50,16 @@
       </view>
       <!-- 视频（云菜鸟：视频样式比例 / 直接显示 / 弹出显示 / 本地视频 / 视频号视频 eweishop 复刻） -->
       <view v-else-if="c.type === 'video'" class="dp-video" :class="'dp-video-' + (c.props.ratio || '16:9').replace(':', '-')">
-        <!-- 视频号视频：风格一列/两列、多视频、背景色/图、自动播放+静音+循环、间距/高度/上圆角/下圆角、会员浏览权限 -->
+        <!-- 视频号视频：风格一列/两列（竖屏9:16）、多视频、背景色/图、自动播放+静音+循环、间距/高度/上圆角/下圆角 -->
         <view v-if="c.props.source === 'channels'" class="dp-video-ch" :style="chStyle(c.props)">
           <view class="dp-video-ch-inner" :class="{ 'dp-video-ch-double': c.props.style === 'double' }">
             <view
               v-for="(it, i) in chVideos(c.props)"
               :key="i"
               class="dp-video-ch-item"
+              :class="{ 'dp-video-ch-full': c.props.style === 'double' && chVideos(c.props).length === 1 }"
               :style="chItemStyle(c.props, i)"
-              @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId, memberAccess: c.props.memberAccess })"
+              @click="openChannelsVideo({ finderUserName: it.finderUserName, feedId: it.feedId })"
             >
               <image v-if="c.props.bgType === 'image' && c.props.bgImage" :src="resolveUrl(c.props.bgImage)" mode="aspectFill" class="dp-video-ch-bg" />
               <view class="dp-video-ch-play">▶</view>
@@ -413,7 +414,7 @@ function onJump(url) {
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
 }
 
-// 视频号视频来源：支持新版 {finderUserName, feedId} 与旧版 url "视频号ID:视频ID"；memberAccess 权限拦截
+// 视频号视频来源：支持新版 {finderUserName, feedId} 与旧版 url "视频号ID:视频ID"
 function openChannelsVideo(p) {
   const fp = { ...(p || {}) };
   const src = (p && p.url) || '';
@@ -422,33 +423,11 @@ function openChannelsVideo(p) {
     fp.finderUserName = src.slice(0, idx);
     fp.feedId = src.slice(idx + 1) || fp.feedId;
   }
-  // 会员浏览权限：禁止访问 → 拦截
-  if (fp.memberAccess === 'deny') {
-    uni.showToast({ title: '该视频暂无浏览权限', icon: 'none' });
-    return;
-  }
-  if (fp.memberAccess === 'allow' && !isVip()) {
-    uni.showToast({ title: '该视频仅会员可看', icon: 'none' });
-    return;
-  }
   if (!fp.finderUserName) {
     uni.showToast({ title: '视频号视频需填「视频号ID:视频ID」', icon: 'none' });
     return;
   }
   openChannel('video', fp);
-}
-
-// 会员等级判断：当前无会员体系，默认非会员（allow 拦截依赖后续会员体系接入）
-function isVip() {
-  // #ifdef H5
-  try {
-    const u = uni.getStorageSync('cardUser') || {};
-    return !!(u && u.isVip);
-  } catch (e) { return false; }
-  // #endif
-  // #ifndef H5
-  return false;
-  // #endif
 }
 
 // 视频号视频（eweishop 复刻）辅助：多视频列表 / 背景 / 圆角 / 间距
@@ -473,7 +452,8 @@ function chItemStyle(p, i) {
     s.aspectRatio = 'auto';
     s.height = p.height + 'px';
   } else {
-    s.aspectRatio = '16 / 9';
+    // 两列并排：竖屏 9:16；一列：横屏 16:9
+    s.aspectRatio = p.style === 'double' ? '9 / 16' : '16 / 9';
   }
   const list = chVideos(p);
   const r = [];
@@ -551,7 +531,9 @@ function openChannel(kind, p) {
 .dp-video-ch { border-radius: 8px; overflow: hidden; box-sizing: border-box; }
 .dp-video-ch-inner { display: flex; flex-direction: column; gap: 8px; }
 .dp-video-ch-double { flex-direction: row; flex-wrap: wrap; }
-.dp-video-ch-double .dp-video-ch-item { flex: 1 1 46%; }
+.dp-video-ch-double .dp-video-ch-item { flex: 1 1 46%; max-width: 48%; }
+/* 两列且仅 1 个视频时：占满整行宽度（竖屏全宽） */
+.dp-video-ch-double .dp-video-ch-item.dp-video-ch-full { flex: 1 1 100%; max-width: 100%; }
 .dp-video-ch-item { position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .dp-video-ch-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .dp-video-ch-play { position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; }

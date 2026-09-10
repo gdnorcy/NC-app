@@ -139,11 +139,35 @@
             <div v-if="sec.fields.length" class="pe-sec">
               <div class="pe-sec-name">{{ sec.label }}</div>
               <el-form label-width="72px" size="small">
-                <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.label" :class="{ required: f.required, 'prop-list': f.control === 'list' }">
+                <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.control === 'hint' ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
+                  <!-- 图形化单选（选择风格：一列/两列并排，仿 eweishop 图形卡片） -->
+                  <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic">
+                    <div
+                      v-for="o in f.options" :key="o.value"
+                      class="pe-graphic-item" :class="{ active: String(selectedComp.props[f.key]) === String(o.value) }"
+                      @click="selectedComp.props[f.key] = o.value"
+                    >
+                      <svg v-if="o.value === 'single'" class="pe-graphic-svg" viewBox="0 0 88 56">
+                        <rect x="4" y="4" width="80" height="48" rx="6" fill="#F2F3F5"/>
+                        <rect x="12" y="12" width="64" height="32" rx="4" fill="#C9CDD4"/>
+                        <circle cx="44" cy="28" r="6" fill="#fff"/>
+                      </svg>
+                      <svg v-else class="pe-graphic-svg" viewBox="0 0 88 56">
+                        <rect x="2" y="4" width="40" height="48" rx="6" fill="#F2F3F5"/>
+                        <rect x="46" y="4" width="40" height="48" rx="6" fill="#F2F3F5"/>
+                        <rect x="7" y="10" width="30" height="36" rx="4" fill="#C9CDD4"/>
+                        <rect x="51" y="10" width="30" height="36" rx="4" fill="#C9CDD4"/>
+                        <circle cx="22" cy="28" r="5" fill="#fff"/>
+                        <circle cx="66" cy="28" r="5" fill="#fff"/>
+                      </svg>
+                      <span class="pe-graphic-name">{{ o.label }}</span>
+                      <span class="pe-graphic-check">✓</span>
+                    </div>
+                  </div>
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
@@ -976,12 +1000,12 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 </script>
 
 <style scoped>
-.page-editor { display: flex; flex-direction: column; gap: 12px; }
+.page-editor { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
 .pe-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .pe-title { display: flex; align-items: center; gap: 10px; }
 .pe-page-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pe-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 12px; height: calc(100vh - 186px); min-height: 420px; overflow: hidden; }
+.pe-body { display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 12px; flex: 1; min-height: 0; overflow: hidden; }
 
 /* 组件库：模块/页面列表 Tab + 分组 + 搜索 + 彩色图标（sticky：随页面滚动保持可见，内部滚动） */
 .pe-lib { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
@@ -1041,11 +1065,12 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-lib-tip { font-size: 11px; color: #86909c; margin-top: 8px; text-align: center; }
 
 /* 画布：手机预览壳 */
-.pe-canvas-wrap { background: #f2f3f5; border-radius: 8px; padding: 20px 16px; height: 100%; min-height: 0; overflow-y: auto; }
+.pe-canvas-wrap { background: #f2f3f5; border-radius: 8px; padding: 20px 16px; height: 100%; min-height: 0; overflow-y: auto; display: flex; }
 .pe-phone {
-  background: #fff; border-radius: 16px; max-width: 375px; margin: 0 auto;
+  background: #fff; border-radius: 16px; max-width: 375px; margin: auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb;
   overflow: hidden;
+  flex-shrink: 0;
 }
 /* 顶部状态栏：模拟真实小程序（时间/信号/WiFi/电池固定，参考图7） */
 .pe-status-bar {
@@ -1099,6 +1124,17 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
 .pe-prop-body :deep(.pe-hint) { width: 100%; padding: 5px 10px; line-height: 1.5; }
 .pe-prop-body :deep(.pe-hint .el-alert__title) { font-size: 12px; }
+.pe-form-hint :deep(.el-form-item__content) { margin-left: 0 !important; }
+/* 图形化单选（选择风格：一列/两列并排，仿 eweishop） */
+.pe-graphic { display: flex; gap: 8px; width: 100%; }
+.pe-graphic-item { position: relative; flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all .2s; background: #fff; }
+.pe-graphic-item:hover { border-color: #c9cdd4; }
+.pe-graphic-item.active { border-color: #165dff; background: #f7fbff; box-shadow: 0 0 0 1px #165dff; }
+.pe-graphic-svg { width: 100%; height: 44px; display: block; }
+.pe-graphic-name { font-size: 12px; color: #4e5969; }
+.pe-graphic-item.active .pe-graphic-name { color: #165dff; font-weight: 500; }
+.pe-graphic-check { position: absolute; top: 4px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
+.pe-graphic-item.active .pe-graphic-check { display: block; }
 /* list 类型字段（轮播图/宫格导航 items）：标签置顶一行，内容占整行宽 */
 .pe-prop-body :deep(.el-form-item.prop-list) { flex-direction: column; align-items: stretch; }
 .pe-prop-body :deep(.el-form-item.prop-list .el-form-item__label) { width: auto !important; justify-content: flex-start; height: auto; line-height: 1.4; margin-bottom: 4px; padding-bottom: 0; }

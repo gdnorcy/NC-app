@@ -263,10 +263,13 @@ onMounted(loadGlobal);
 
 <style scoped>
 .design-editor-page {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f7f8fa;
-  padding: 14px 20px 40px;
+  padding: 14px 20px 20px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 .de-top {
   display: flex;
@@ -281,7 +284,7 @@ onMounted(loadGlobal);
 .de-dirty-tag { font-size: 12px; color: #f53f3f; white-space: nowrap; }
 .de-top-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-.de-body { display: flex; gap: 12px; height: calc(100vh - 100px); min-height: 420px; }
+.de-body { display: flex; gap: 12px; flex: 1; min-height: 0; }
 /* 最左侧垂直导航（装修页面 / 启动页） */
 .de-nav {
   width: 64px; background: #fff; border-radius: 8px; padding: 8px 6px;
