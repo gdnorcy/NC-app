@@ -64,7 +64,6 @@
             <div v-for="p in filteredPages" :key="p.page_type" class="pe-page-row" :class="{ current: p.page_type === pageType }">
               <div class="pe-page-info" @click="switchPage(p.page_type)">
                 <span class="pe-page-name2" :title="p.page_name">{{ p.page_name }}</span>
-                <el-tag v-if="p.page_type === 'home'" size="small" type="success" class="pe-page-home-tag">首页</el-tag>
                 <el-tag v-if="p.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
               </div>
               <div class="pe-page-ops">
@@ -1069,11 +1068,13 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 .pe-page-row:hover { background: #f2f3f5; }
 .pe-page-row.current { background: #e8f3ff; }
 .pe-page-info { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
-.pe-page-name2 { font-size: 13px; color: #1d2129; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pe-page-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; overflow: hidden; }
+.pe-page-name2 { flex-shrink: 0; max-width: 55%; font-size: 13px; color: #1d2129; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pe-page-info .el-tag { flex-shrink: 1; min-width: 0; overflow: hidden; }
 .pe-page-home-tag { flex-shrink: 0; }
 .pe-page-ops { display: flex; gap: 0; flex-shrink: 0; opacity: 0; transition: opacity .15s; }
 .pe-page-row:hover .pe-page-ops, .pe-page-row.current .pe-page-ops { opacity: 1; }
-.pe-page-ops .el-button { padding: 0 6px; }
+.pe-page-ops .el-button { padding: 0 4px; }
 .pe-group { margin-bottom: 4px; }
 .pe-group-head { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #4e5969; }
 .pe-group-head:hover { background: #f2f3f5; }
@@ -1100,8 +1101,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, load, pageName, components })
 }
 .pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
 .pe-lib-card:active { cursor: grabbing; }
-.pe-lib-ico { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
-.pe-lib-ico img { width: 40px; height: 40px; object-fit: contain; display: block; }
+.pe-lib-ico { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.pe-lib-ico img { width: 32px; height: 32px; object-fit: contain; display: block; }
 .pe-lib-card .pe-lib-name {
   font-size: 12px; color: #1d2129; max-width: 100%; line-height: 1.35; text-align: center;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
