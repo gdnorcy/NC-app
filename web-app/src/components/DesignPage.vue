@@ -15,7 +15,7 @@
         <view v-else class="dp-image-empty"><text>图片</text></view>
       </view>
       <!-- 按钮 -->
-      <view v-else-if="c.type === 'button'" class="dp-btn" :style="{ color: c.props.textColor, background: c.props.bgColor, borderRadius: c.props.radius + 'px' }" @click="onJump(c.props.url)">
+      <view v-else-if="c.type === 'button'" class="dp-btn" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpBtnStyle(c.props)" @click="onJump(c.props.url)">
         <text>{{ c.props.text || '按钮' }}</text>
       </view>
       <!-- 分割线 -->
@@ -24,9 +24,10 @@
         <text v-if="c.props.text" class="dp-divider-text">{{ c.props.text }}</text>
       </view>
       <!-- 公告 -->
-      <view v-else-if="c.type === 'notice'" class="dp-notice" :style="{ background: c.props.bgColor, color: c.props.color }" @click="onJump(c.props.url)">
-        <text class="dp-notice-tag">公告</text>
-        <text class="dp-notice-text">{{ c.props.text || '公告内容' }}</text>
+      <view v-else-if="c.type === 'notice'" class="dp-notice" :style="dpNoticeStyle(c.props)" @click="onJump(c.props.url)">
+        <text v-if="c.props.showIcon" class="dp-notice-tag">公告</text>
+        <text v-if="dpNoticeList(c.props).length" class="dp-notice-text">{{ dpNoticeList(c.props)[0].text }}</text>
+        <text v-else class="dp-notice-text">{{ c.props.text || '公告内容' }}</text>
       </view>
       <!-- 倒计时 -->
       <view v-else-if="c.type === 'countdown'" class="dp-countdown" :style="{ '--cd': c.props.color || '#165dff' }">
@@ -100,13 +101,14 @@
         </view>
       </view>
       <!-- 轮播图 -->
-      <view v-else-if="c.type === 'swiper'" class="dp-swiper" :style="{ height: (c.props.height || 150) + 'px' }">
-        <swiper v-if="(c.props.items || []).some((it) => it.url)" class="dp-swiper-box" :interval="c.props.interval || 4000" :circular="true" :autoplay="true" indicator-dots>
+      <view v-else-if="c.type === 'swiper'" class="dp-swiper" :style="dpSwiperStyle(c.props)">
+        <swiper v-if="(c.props.items || []).some((it) => it.url)" class="dp-swiper-box" :style="dpSwiperBoxStyle(c.props)" :interval="c.props.interval || 4000" :circular="true" :autoplay="true" :indicator-dots="c.props.indicator === 'dot'" :indicator-active-color="c.props.indicatorColor || '#165dff'">
           <swiper-item v-for="(it, i) in c.props.items.filter((x) => x.url)" :key="i">
             <image :src="resolveUrl(it.url)" mode="aspectFill" class="dp-swiper-img" @click="onJump(it.link)" />
           </swiper-item>
         </swiper>
-        <view v-else class="dp-swiper-empty"><text>轮播图（请添加图片）</text></view>
+        <view v-if="c.props.indicator === 'number' && (c.props.items || []).some((it) => it.url)" class="dp-swiper-num" :style="{ color: c.props.indicatorColor || '#165dff' }"><text>1/{{ c.props.items.filter((x) => x.url).length }}</text></view>
+        <view v-if="!(c.props.items || []).some((it) => it.url)" class="dp-swiper-empty"><text>轮播图（请添加图片）</text></view>
       </view>
       <!-- 名片卡 -->
       <view v-else-if="c.type === 'my-card'" class="dp-mycard" :style="{ background: c.props.bgColor || '#F0F7FF' }" @click="onJump('/pages/card/myCard')">
@@ -118,11 +120,12 @@
         <text class="dp-mc-arrow">›</text>
       </view>
       <!-- 宫格导航 -->
-      <view v-else-if="c.type === 'grid-nav'" class="dp-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 4) + ',1fr)' }">
+      <view v-else-if="c.type === 'grid-nav'" class="dp-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 4) + ',1fr)', background: c.props.bgColor || 'transparent' }">
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-grid-item" @click="onJump(it.url)">
-          <view class="dp-grid-icon">
+          <view class="dp-grid-icon-wrap" :style="dpGridIconStyle(c.props)">
             <SIcon v-if="it.icon" :name="it.icon" size="default" color="#165dff" />
             <text v-else>名</text>
+            <view v-if="it.badge" class="dp-grid-badge"><text>{{ it.badge }}</text></view>
           </view>
           <text class="dp-grid-text">{{ it.text || '入口' }}</text>
           <text v-if="it.desc" class="dp-grid-desc">{{ it.desc }}</text>
@@ -223,17 +226,23 @@
         </view>
       </view>
       <!-- 标题栏 -->
-      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar">
+      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="{ center: c.props.align === 'center', bar: c.props.titleStyle === 'bar' }" :style="{ background: c.props.bgColor || 'transparent' }">
         <view class="dp-tb-left">
           <text class="dp-tb-title" :style="{ color: c.props.color || '#1d2129' }">{{ c.props.title || '标题文字' }}</text>
           <text v-if="c.props.sub" class="dp-tb-sub">{{ c.props.sub }}</text>
         </view>
-        <view v-if="c.props.moreText" class="dp-tb-more" @click="onJump(c.props.moreUrl)"><text>{{ c.props.moreText }} ›</text></view>
+        <view v-if="c.props.showMore && c.props.moreText" class="dp-tb-more" @click="onJump(c.props.moreUrl)"><text>{{ c.props.moreText }} ›</text></view>
       </view>
       <!-- 搜索框 -->
-      <view v-else-if="c.type === 'search'" class="dp-search" :style="{ background: c.props.bgColor || '#F2F3F5', borderRadius: (c.props.radius ?? 16) + 'px' }" @click="onSearch(c.props)">
-        <text class="dp-search-ico">🔍</text>
-        <text class="dp-search-ph">{{ c.props.placeholder || '搜索名片 / 内容' }}</text>
+      <view v-else-if="c.type === 'search'">
+        <view class="dp-search" :class="c.props.style === 'shadow' ? 'shadow' : c.props.style === 'border' ? 'border' : ''" :style="dpSearchStyle(c.props)" @click="onSearch(c.props)">
+          <text class="dp-search-ico">🔍</text>
+          <text class="dp-search-ph">{{ c.props.placeholder || '搜索名片 / 内容' }}</text>
+          <text v-if="c.props.showBtn" class="dp-search-btn">搜索</text>
+        </view>
+        <view v-if="c.props.hotWords" class="dp-search-hot">
+          <text v-for="(w, wi) in dpHotWords(c.props)" :key="wi" class="dp-search-hot-item">{{ w }}</text>
+        </view>
       </view>
       <!-- 选项卡 -->
       <view v-else-if="c.type === 'tabs'" class="dp-tabs" :style="{ '--tab': c.props.color || '#165dff' }">
@@ -386,6 +395,67 @@ function onSearch(p) {
     return;
   }
   onJump(p.link);
+}
+// ===== 批1 融合组件辅助（三系统复刻） =====
+function dpBtnStyle(p) {
+  const s = { borderRadius: (p.radius ?? 8) + 'px' };
+  if (p.btnStyle === 'outline') {
+    s.color = p.strokeColor || '#165DFF';
+    s.background = 'transparent';
+    s.border = '1px solid ' + (p.strokeColor || '#165DFF');
+  } else {
+    s.color = p.textColor || '#ffffff';
+    s.background = p.bgColor || '#165DFF';
+  }
+  if (p.widthMode !== 'auto') {
+    s.width = '100%';
+    s.textAlign = 'center';
+  }
+  return s;
+}
+function dpNoticeStyle(p) {
+  const s = { background: p.bgColor, color: p.color, borderRadius: (p.radius ?? 0) + 'px', fontSize: (p.fontSize || 14) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (p.bold) s.fontWeight = '600';
+  return s;
+}
+function dpNoticeList(p) {
+  return (p.items || []).filter((it) => it && it.text).slice(0, 10);
+}
+function dpSwiperStyle(p) {
+  const s = { borderRadius: (p.radius ?? 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', overflow: 'hidden' };
+  if (p.heightMode === 'full') {
+    s.height = '100vh';
+    s.minHeight = '400px';
+  } else {
+    s.height = (p.height || 150) + 'px';
+  }
+  return s;
+}
+function dpSwiperBoxStyle(p) {
+  const s = { height: '100%' };
+  return s;
+}
+function dpGridIconStyle(p) {
+  return {
+    width: (p.iconSize || 40) + 'px',
+    height: (p.iconSize || 40) + 'px',
+    borderRadius: (p.shape === 'rounded' ? (p.iconRadius ?? 12) : 999) + 'px',
+  };
+}
+function dpSearchStyle(p) {
+  const s = {
+    background: p.bgColor || '#F2F3F5',
+    borderRadius: (p.radius ?? 16) + 'px',
+    height: (p.height || 36) + 'px',
+    marginTop: (p.marginTop || 0) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+  };
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.strokeColor || '#165DFF');
+  return s;
+}
+function dpHotWords(p) {
+  return String(p.hotWordsText || '').split(/[,，]/).map((s) => s.trim()).filter(Boolean).slice(0, 8);
 }
 function onFloatClick(p) {
   const link = p.link || '';
@@ -614,7 +684,8 @@ function openChannel(kind, p) {
 .dp-image { width: 100%; }
 .dp-image-img { width: 100%; display: block; border-radius: 8px; }
 .dp-image-empty { height: 120px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 13px; }
-.dp-btn { display: inline-block; padding: 10px 24px; font-size: 14px; text-align: center; }
+.dp-btn { display: inline-block; padding: 10px 24px; font-size: 14px; text-align: center; box-sizing: border-box; }
+.dp-btn.auto { width: auto; }
 .dp-divider { position: relative; height: 1px; background: #e5e6eb; margin: 14px 0; display: flex; align-items: center; justify-content: center; }
 .dp-divider-line { height: 1px; width: 100%; }
 .dp-divider-text { position: absolute; background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
@@ -681,10 +752,12 @@ function openChannel(kind, p) {
 .dp-imagetext.overlay .dp-it-title { color: #fff; }
 .dp-imagetext.overlay .dp-it-desc { color: rgba(255,255,255,.85); }
 /* 轮播图 */
-.dp-swiper { border-radius: 8px; overflow: hidden; background: #f7f8fa; }
+.dp-swiper { border-radius: 8px; overflow: hidden; background: #f7f8fa; position: relative; }
 .dp-swiper-box { width: 100%; height: 100%; }
 .dp-swiper-img { width: 100%; height: 100%; }
 .dp-swiper-empty { height: 100%; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 12px; }
+.dp-swiper-num { position: absolute; right: 12px; bottom: 10px; background: rgba(0,0,0,.35); color: #fff; font-size: 11px; padding: 1px 8px; border-radius: 8px; z-index: 5; }
+.dp-swiper-num text { color: inherit; }
 /* 名片卡 */
 .dp-mycard { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
 .dp-mc-avatar { width: 44px; height: 44px; border-radius: 50%; background: #165dff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; flex-shrink: 0; }
@@ -695,7 +768,9 @@ function openChannel(kind, p) {
 /* 宫格导航 */
 .dp-grid { display: grid; gap: 4px; }
 .dp-grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; }
-.dp-grid-icon { width: 42px; height: 42px; border-radius: 12px; background: rgba(22,93,255,.08); display: flex; align-items: center; justify-content: center; }
+.dp-grid-icon-wrap { position: relative; background: rgba(22,93,255,.08); display: flex; align-items: center; justify-content: center; }
+.dp-grid-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.dp-grid-badge { position: absolute; top: -4px; right: -8px; background: #f53f3f; color: #fff; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 8px; }
 .dp-grid-text { font-size: 12px; color: #4e5969; }
 .dp-grid-desc { font-size: 10px; color: #86909c; line-height: 1.4; text-align: center; }
 /* 数据统计 */
@@ -765,15 +840,20 @@ function openChannel(kind, p) {
 .dp-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .dp-gallery-img { width: 100%; height: 100%; }
 /* 标题栏 */
-.dp-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.dp-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.dp-titlebar.center .dp-tb-left { flex: 1; align-items: center; text-align: center; }
+.dp-titlebar.bar .dp-tb-title { background: #165dff; color: #fff; padding: 4px 12px; border-radius: 6px 6px 6px 0; font-size: 14px; }
 .dp-tb-left { display: flex; flex-direction: column; gap: 2px; }
 .dp-tb-title { font-size: 17px; font-weight: 600; line-height: 1.4; }
 .dp-tb-sub { font-size: 12px; color: #86909c; }
 .dp-tb-more { flex-shrink: 0; font-size: 12px; color: #86909c; }
 /* 搜索框 */
-.dp-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; }
+.dp-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; box-sizing: border-box; }
 .dp-search-ico { font-size: 13px; }
-.dp-search-ph { flex: 1; }
+.dp-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 12px; padding: 3px 12px; border-radius: 12px; }
+.dp-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.dp-search-hot-item { font-size: 11px; color: #86909c; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 10px; padding: 2px 8px; }
 /* 选项卡 */
 .dp-tabs { display: flex; gap: 8px; }
 .dp-tabs-item { flex: 1; text-align: center; padding: 8px 4px; font-size: 14px; color: #4e5969; border-radius: 8px; background: #f7f8fa; }

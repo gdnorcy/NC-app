@@ -13,14 +13,16 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'button'">
-      <div class="r-btn" :style="{ color: comp.props.textColor, background: comp.props.bgColor, borderRadius: comp.props.radius + 'px' }">{{ comp.props.text || '按钮' }}</div>
+      <div class="r-btn" :style="btnStyle(comp.props)">{{ comp.props.text || '按钮' }}</div>
     </template>
     <template v-else-if="comp.type === 'divider'">
       <div class="r-divider"><span v-if="comp.props.text">{{ comp.props.text }}</span></div>
     </template>
     <template v-else-if="comp.type === 'notice'">
-      <div class="r-notice" :style="{ background: comp.props.bgColor, color: comp.props.color }">
-        <span class="r-notice-tag">公告</span>{{ comp.props.text || '公告内容' }}
+      <div class="r-notice" :style="{ background: comp.props.bgColor, color: comp.props.color, borderRadius: (comp.props.radius ?? 0) + 'px', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px', fontSize: (comp.props.fontSize || 14) + 'px', fontWeight: comp.props.bold ? 600 : 400 }">
+        <span v-if="comp.props.showIcon" class="r-notice-tag">公告</span>
+        <span v-if="noticeList(comp.props).length" class="r-notice-text">{{ noticeList(comp.props)[0].text }}</span>
+        <span v-else>{{ comp.props.text || '公告内容' }}</span>
       </div>
     </template>
     <template v-else-if="comp.type === 'countdown'">
@@ -90,9 +92,11 @@
     </template>
     <!-- 轮播图 -->
     <template v-else-if="comp.type === 'swiper'">
-      <div class="r-swiper" :style="{ height: (comp.props.height || 150) + 'px' }">
+      <div class="r-swiper" :style="swiperStyle(comp.props)">
         <template v-if="(comp.props.items || []).filter((it) => it.url).length">
           <img v-for="(it, i) in comp.props.items.filter((x) => x.url)" :key="i" :src="resolveUrl(it.url)" />
+          <span v-if="comp.props.indicator === 'dot'" class="r-swiper-dots"><i v-for="(d, di) in comp.props.items.filter((x) => x.url)" :key="di" :style="{ background: comp.props.indicatorColor || '#165DFF' }"></i></span>
+          <span v-else-if="comp.props.indicator === 'number'" class="r-swiper-num" :style="{ color: comp.props.indicatorColor || '#165DFF' }">1/{{ comp.props.items.filter((x) => x.url).length }}</span>
         </template>
         <div v-else class="r-swiper-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>轮播图（至少添加一张图片）</div>
       </div>
@@ -110,9 +114,12 @@
     </template>
     <!-- 宫格导航 -->
     <template v-else-if="comp.type === 'grid-nav'">
-      <div class="r-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 4) + ',1fr)' }">
+      <div class="r-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 4) + ',1fr)', background: comp.props.bgColor || 'transparent' }">
         <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-grid-item">
-          <div class="r-grid-icon">{{ it.icon || 'card' }}</div>
+          <div class="r-grid-icon-wrap" :style="gridIconStyle(comp.props)">
+            <div class="r-grid-icon">{{ it.icon || 'card' }}</div>
+            <span v-if="it.badge" class="r-grid-badge">{{ it.badge }}</span>
+          </div>
           <div class="r-grid-text">{{ it.text || '入口' }}</div>
           <div v-if="it.desc" class="r-grid-desc">{{ it.desc }}</div>
         </div>
@@ -222,19 +229,23 @@
     </template>
     <!-- 标题栏 -->
     <template v-else-if="comp.type === 'title-bar'">
-      <div class="r-titlebar">
+      <div class="r-titlebar" :class="{ center: comp.props.align === 'center', bar: comp.props.titleStyle === 'bar' }" :style="{ background: comp.props.bgColor || 'transparent' }">
         <div class="r-tb-left">
           <div class="r-tb-title" :style="{ color: comp.props.color || '#1d2129' }">{{ comp.props.title || '标题文字' }}</div>
           <div v-if="comp.props.sub" class="r-tb-sub">{{ comp.props.sub }}</div>
         </div>
-        <div v-if="comp.props.moreText" class="r-tb-more">{{ comp.props.moreText }} ›</div>
+        <div v-if="comp.props.showMore && comp.props.moreText" class="r-tb-more">{{ comp.props.moreText }} ›</div>
       </div>
     </template>
     <!-- 搜索框 -->
     <template v-else-if="comp.type === 'search'">
-      <div class="r-search" :style="{ background: comp.props.bgColor || '#F2F3F5', borderRadius: (comp.props.radius ?? 16) + 'px' }">
+      <div class="r-search" :class="comp.props.style === 'shadow' ? 'shadow' : comp.props.style === 'border' ? 'border' : ''" :style="searchStyle(comp.props)">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
-        <span>{{ comp.props.placeholder || '搜索名片 / 内容' }}</span>
+        <span class="r-search-ph">{{ comp.props.placeholder || '搜索名片 / 内容' }}</span>
+        <span v-if="comp.props.showBtn" class="r-search-btn">搜索</span>
+      </div>
+      <div v-if="comp.props.hotWords" class="r-search-hot">
+        <span v-for="(w, wi) in hotWordsList(comp.props)" :key="wi" class="r-search-hot-item">{{ w }}</span>
       </div>
     </template>
     <!-- 选项卡 -->
@@ -370,6 +381,66 @@ function resolveUrl(u) {
   return u.startsWith('/') ? u : `/${u}`;
 }
 
+// ===== 批1 融合组件辅助（三系统复刻） =====
+function btnStyle(p) {
+  const s = { borderRadius: (p.radius ?? 8) + 'px' };
+  if (p.btnStyle === 'outline') {
+    s.color = p.strokeColor || '#165DFF';
+    s.background = 'transparent';
+    s.border = '1px solid ' + (p.strokeColor || '#165DFF');
+  } else {
+    s.color = p.textColor || '#ffffff';
+    s.background = p.bgColor || '#165DFF';
+  }
+  if (p.widthMode === 'auto') {
+    s.display = 'inline-block';
+    s.padding = '0 24px';
+    s.width = 'auto';
+  } else {
+    s.width = '100%';
+    s.boxSizing = 'border-box';
+    s.textAlign = 'center';
+  }
+  return s;
+}
+function noticeList(p) {
+  const arr = (p.items || []).filter((it) => it && it.text);
+  return arr.slice(0, 10);
+}
+function hotWordsList(p) {
+  return String(p.hotWordsText || '')
+    .split(/[,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+function swiperStyle(p) {
+  const s = { borderRadius: (p.radius ?? 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', overflow: 'hidden' };
+  if (p.heightMode === 'full') {
+    s.height = '100vh';
+    s.minHeight = '400px';
+  } else {
+    s.height = (p.height || 150) + 'px';
+  }
+  return s;
+}
+function gridIconStyle(p) {
+  const s = { width: (p.iconSize || 40) + 'px', height: (p.iconSize || 40) + 'px', borderRadius: (p.shape === 'rounded' ? (p.iconRadius ?? 12) : 999) + 'px' };
+  return s;
+}
+function searchStyle(p) {
+  const s = {
+    background: p.bgColor || '#F2F3F5',
+    borderRadius: (p.radius ?? 16) + 'px',
+    height: (p.height || 36) + 'px',
+    marginTop: (p.marginTop || 0) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+  };
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.strokeColor || '#165DFF');
+  return s;
+}
+
 // ===== 视频号视频辅助（eweishop 复刻） =====
 function chVideos(p) {
   const vs = p.videos || [];
@@ -435,11 +506,12 @@ function chRadius(p, i) {
 .r-text { line-height: 1.6; }
 .r-image img { width: 100%; border-radius: 8px; display: block; }
 .r-image-empty { height: 88px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; }
-.r-btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; }
+.r-btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; text-align: center; }
 .r-divider { height: 1px; background: #e5e6eb; margin: 14px 0; position: relative; }
 .r-divider span { position: absolute; left: 50%; top: -8px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
-.r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; }
+.r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
+.r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .r-countdown { padding: 14px; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .r-cd-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-cd-cols { display: flex; align-items: center; gap: 6px; }
@@ -491,6 +563,10 @@ function chRadius(p, i) {
 .r-swiper { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; display: flex; }
 .r-swiper img { width: 100%; height: 100%; object-fit: cover; }
 .r-swiper-empty { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #86909c; font-size: 12px; }
+.r-swiper-dots { position: absolute; bottom: 8px; left: 0; right: 0; display: flex; gap: 4px; justify-content: center; }
+.r-swiper-dots i { width: 5px; height: 5px; border-radius: 50%; background: #fff; opacity: .6; }
+.r-swiper-dots i:first-child { opacity: 1; }
+.r-swiper-num { position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #fff; background: rgba(0,0,0,.35); padding: 1px 6px; border-radius: 8px; }
 /* 名片卡 */
 .r-mycard { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
 .r-mycard-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(22,93,255,.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -501,7 +577,9 @@ function chRadius(p, i) {
 /* 宫格导航 */
 .r-grid { display: grid; gap: 4px; }
 .r-grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; }
-.r-grid-icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(22,93,255,.08); color: #165dff; display: flex; align-items: center; justify-content: center; font-size: 11px; text-transform: uppercase; }
+.r-grid-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; background: rgba(22,93,255,.08); }
+.r-grid-icon { color: #165dff; display: flex; align-items: center; justify-content: center; font-size: 13px; text-transform: uppercase; }
+.r-grid-badge { position: absolute; top: -4px; right: -8px; background: #f53f3f; color: #fff; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 8px; }
 .r-grid-text { font-size: 12px; color: #4e5969; }
 .r-grid-desc { font-size: 10px; color: #86909c; line-height: 1.4; text-align: center; }
 /* 数据统计 */
@@ -574,13 +652,19 @@ function chRadius(p, i) {
 .r-gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .r-gallery-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #e5e6eb; }
 /* 标题栏 */
-.r-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+.r-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.r-titlebar.center .r-tb-left { align-items: center; text-align: center; flex: 1; }
+.r-titlebar.bar .r-tb-title { background: #165dff; color: #fff; padding: 4px 12px; border-radius: 6px 6px 6px 0; font-size: 14px; }
 .r-tb-left { display: flex; flex-direction: column; gap: 2px; }
 .r-tb-title { font-size: 17px; font-weight: 600; line-height: 1.4; }
 .r-tb-sub { font-size: 12px; color: #86909c; }
 .r-tb-more { flex-shrink: 0; font-size: 12px; color: #86909c; display: flex; align-items: center; }
 /* 搜索框 */
 .r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; }
+.r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 12px; padding: 3px 12px; border-radius: 12px; }
+.r-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.r-search-hot-item { font-size: 11px; color: #86909c; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 10px; padding: 2px 8px; }
 /* 选项卡 */
 .r-tabs { display: flex; gap: 8px; }
 .r-tabs-item { flex: 1; text-align: center; padding: 8px 4px; font-size: 14px; color: #4e5969; border-radius: 8px; background: #f7f8fa; }
