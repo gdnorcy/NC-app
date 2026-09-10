@@ -10,9 +10,25 @@
         <text>{{ c.props.text || '文本内容' }}</text>
       </view>
       <!-- 图片 -->
-      <view v-else-if="c.type === 'image'" class="dp-image" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpImageBoxStyle(c.props)" @click="onJump(c.props.link)">
-        <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" :style="{ borderRadius: (c.props.radius || 0) + 'px' }" />
-        <view v-else class="dp-image-empty"><text>图片</text></view>
+      <view v-else-if="c.type === 'image'" class="dp-image" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpImageBoxStyle(c.props)">
+        <!-- 高级(热区)模式：多图 + 热区点击跳转 -->
+        <template v-if="c.props.mode === 'hotzone' && c.props.items && c.props.items.length">
+          <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-item" :style="{ marginBottom: ii < c.props.items.length - 1 ? (c.props.gap || 0) + 'px' : 0, borderRadius: dpImageRadius(c.props) }">
+            <image v-if="it.url" :src="resolveUrl(it.url)" mode="widthFix" class="dp-image-img" />
+            <view v-else class="dp-image-empty"><text>图片</text></view>
+            <view
+              v-for="(h, hi) in it.hotspots || []" :key="hi"
+              class="dp-image-hotspot"
+              :style="{ left: h.x + '%', top: h.y + '%', width: h.w + '%', height: h.h + '%' }"
+              @click.stop="onJump(h.link)"
+            />
+          </view>
+        </template>
+        <!-- 标准模式 -->
+        <template v-else>
+          <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" :style="{ borderRadius: (c.props.radius || 0) + 'px' }" @click="onJump(c.props.link)" />
+          <view v-else class="dp-image-empty"><text>图片</text></view>
+        </template>
       </view>
       <!-- 按钮 -->
       <view v-else-if="c.type === 'button'" class="dp-btn" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpBtnStyle(c.props)" @click="onJump(c.props.url)">
@@ -464,7 +480,14 @@ function dpHotWords(p) {
 function dpImageBoxStyle(p) {
   const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
   if (p.widthMode === 'auto') s.display = 'inline-block';
+  if (p.bgColor) s.background = p.bgColor;
+  if (p.marginLeft) s.paddingLeft = p.marginLeft + 'px';
+  if (p.marginRight) s.paddingRight = p.marginRight + 'px';
   return s;
+}
+function dpImageRadius(p) {
+  if (p.radiusTop || p.radiusBottom) return (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  return (p.radius || 0) + 'px';
 }
 function dpDividerStyle(p) {
   return {
@@ -720,6 +743,9 @@ function openChannel(kind, p) {
 .dp-text { line-height: 1.6; }
 .dp-image { width: 100%; }
 .dp-image-img { width: 100%; display: block; border-radius: 8px; }
+.dp-image-item { position: relative; overflow: hidden; }
+.dp-image-item .dp-image-img { border-radius: 0; }
+.dp-image-hotspot { position: absolute; z-index: 2; }
 .dp-image-empty { height: 120px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 13px; }
 .dp-btn { display: inline-block; padding: 10px 24px; font-size: 14px; text-align: center; box-sizing: border-box; }
 .dp-btn.auto { width: auto; }

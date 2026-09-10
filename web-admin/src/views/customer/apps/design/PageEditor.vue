@@ -219,6 +219,9 @@
                             <el-button size="small" @click="openImgSel(idx, si, f)">选择</el-button>
                             <el-button v-if="it[sf.key]" size="small" text type="danger" @click="it[sf.key] = ''">清除</el-button>
                           </div>
+                          <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
+                            <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
+                          </div>
                         </div>
                       </div>
                       <div class="pe-list-ops">
@@ -469,6 +472,45 @@
 
     <!-- 系统链接选择器（分类配置驱动） -->
     <LinkPicker v-model="linkSel.show" :model-link="linkSel.current" @confirm="confirmLinkSel" />
+
+    <!-- 热区编辑器（eweishop 图片(热区) 高级模式：添加热区→调整大小位置→设置链接） -->
+    <el-dialog v-model="hsSel.show" title="热区编辑器" width="520px" append-to-body :close-on-click-modal="false">
+      <div v-if="hsSel.show">
+        <div class="hs-tip">点击图片空白处添加热区；拖动热区调整位置，拖右下角调整大小；选中热区可在下方设置链接或删除</div>
+        <div
+          class="hs-stage"
+          @mousedown.self="onHsStageDown"
+          @mousemove="onHsMove"
+          @mouseup="onHsUp"
+          @mouseleave="onHsUp"
+        >
+          <img v-if="hsSel.imgUrl" :src="resolveUrl(hsSel.imgUrl)" class="hs-img" />
+          <div v-else class="hs-noimg">请先为该项选择图片</div>
+          <div
+            v-for="(h, hi) in hsSel.hotspots" :key="hi"
+            class="hs-box" :class="{ active: hsSel.active === hi }"
+            :style="{ left: h.x + '%', top: h.y + '%', width: h.w + '%', height: h.h + '%' }"
+            @mousedown.stop.prevent="onHsBoxDown($event, hi)"
+          >
+            <span class="hs-idx">{{ hi + 1 }}</span>
+            <span class="hs-handle" @mousedown.stop.prevent="onHsResize($event, hi)"></span>
+          </div>
+        </div>
+        <div v-if="hsSel.active !== null" class="hs-config">
+          <div class="hs-config-row">
+            <span class="hs-config-label">链接</span>
+            <el-input v-model="hsSel.hotspots[hsSel.active].link" size="small" placeholder="如 /pages/card/market" class="hs-link-input">
+              <template #append><el-button size="small" @click="openLinkSelForHotspot">选择</el-button></template>
+            </el-input>
+            <el-button size="small" type="danger" plain @click="removeHs">删除热区</el-button>
+          </div>
+        </div>
+        <div class="hs-actions">
+          <el-button size="small" @click="hsSel.show = false">取消</el-button>
+          <el-button size="small" type="primary" @click="hsSel.show = false">保存</el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -980,7 +1022,7 @@ function confirmImgSel(url, mid) {
 }
 
 // 系统链接选择器：link 字段点「选择」弹窗回填
-const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '' });
+const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
   if (selectedComp.value) {
@@ -996,6 +1038,7 @@ function openLinkSel(listIdx, fieldIdx, listField) {
   linkSel.listIdx = typeof listIdx === 'number' ? listIdx : null;
   linkSel.fieldIdx = typeof fieldIdx === 'number' ? fieldIdx : null;
   linkSel.headerPos = null;
+  linkSel.hsMode = false;
   linkSel.current = current;
   linkSel.show = true;
 }
@@ -1006,12 +1049,15 @@ function openHeaderLink(pos, row) {
   linkSel.fieldIdx = null;
   linkSel.headerPos = pos;
   linkSel.headerRow = row || null;
+  linkSel.hsMode = false;
   linkSel.current = (row || meta.header.content)[pos]?.link || '';
   linkSel.show = true;
 }
 function confirmLinkSel(link) {
   if (link) {
-    if (linkSel.headerPos) {
+    if (linkSel.hsMode && hsSel.show && hsSel.active !== null) {
+      hsSel.hotspots[hsSel.active].link = link;
+    } else if (linkSel.headerPos) {
       const row = linkSel.headerRow || meta.header.content;
       if (!row[linkSel.headerPos]) row[linkSel.headerPos] = {};
       row[linkSel.headerPos].link = link;
@@ -1026,6 +1072,72 @@ function confirmLinkSel(link) {
     }
   }
   linkSel.show = false;
+}
+
+// ---- 热区编辑器（eweishop 图片(热区) 高级模式）----
+const hsSel = reactive({ show: false, listIdx: null, imgUrl: '', hotspots: [], active: null, dragging: null });
+function openHotspotEditor(listField, listIdx) {
+  const items = selectedComp.value.props[listField.key] || [];
+  const it = items[listIdx] || {};
+  hsSel.listIdx = listIdx;
+  hsSel.imgUrl = it.url || '';
+  hsSel.hotspots = it.hotspots || (it.hotspots = []);
+  hsSel.active = null;
+  hsSel.dragging = null;
+  hsSel.show = true;
+}
+function onHsStageDown(e) {
+  // 点击图片空白处添加热区（默认 18%×12%，居中于点击点）
+  const stage = e.currentTarget;
+  const rect = stage.getBoundingClientRect();
+  const px = ((e.clientX - rect.left) / rect.width) * 100;
+  const py = ((e.clientY - rect.top) / rect.height) * 100;
+  const w = 18, h = 12;
+  const hs = { x: Math.max(0, Math.min(100 - w, px - w / 2)), y: Math.max(0, Math.min(100 - h, py - h / 2)), w, h, link: '' };
+  hsSel.hotspots.push(hs);
+  hsSel.active = hsSel.hotspots.length - 1;
+}
+function onHsBoxDown(e, hi) {
+  hsSel.active = hi;
+  const stage = e.currentTarget.parentElement;
+  const rect = stage.getBoundingClientRect();
+  const h = hsSel.hotspots[hi];
+  hsSel.dragging = { type: 'move', hi, startX: e.clientX, startY: e.clientY, baseX: h.x, baseY: h.y, w: rect.width, hgt: rect.height };
+}
+function onHsResize(e, hi) {
+  hsSel.active = hi;
+  const stage = e.currentTarget.parentElement.parentElement;
+  const rect = stage.getBoundingClientRect();
+  const h = hsSel.hotspots[hi];
+  hsSel.dragging = { type: 'resize', hi, startX: e.clientX, startY: e.clientY, baseX: h.x, baseY: h.y, baseW: h.w, baseH: h.h, w: rect.width, hgt: rect.height };
+}
+function onHsMove(e) {
+  if (!hsSel.dragging) return;
+  const d = hsSel.dragging;
+  const h = hsSel.hotspots[d.hi];
+  const dx = ((e.clientX - d.startX) / d.w) * 100;
+  const dy = ((e.clientY - d.startY) / d.hgt) * 100;
+  if (d.type === 'move') {
+    h.x = Math.max(0, Math.min(100 - h.w, d.baseX + dx));
+    h.y = Math.max(0, Math.min(100 - h.h, d.baseY + dy));
+  } else {
+    h.w = Math.max(5, Math.min(100 - h.x, d.baseW + dx));
+    h.h = Math.max(5, Math.min(100 - h.y, d.baseH + dy));
+  }
+}
+function onHsUp() {
+  hsSel.dragging = null;
+}
+function removeHs() {
+  if (hsSel.active === null) return;
+  hsSel.hotspots.splice(hsSel.active, 1);
+  hsSel.active = null;
+}
+function openLinkSelForHotspot() {
+  if (hsSel.active === null) return;
+  linkSel.current = hsSel.hotspots[hsSel.active].link || '';
+  linkSel.hsMode = true;
+  linkSel.show = true;
 }
 
 // 列表项操作：新增（按 itemFields 生成默认项）/ 拖拽排序（替代原上下箭头）
@@ -1284,6 +1396,21 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }
 .pe-list-link:hover { text-decoration: underline; }
 .pe-list-add { width: 100%; border-style: dashed; }
+/* 热区编辑器 */
+.pe-hs-field { display: flex; gap: 8px; }
+.hs-tip { font-size: 12px; color: #86909C; margin-bottom: 10px; line-height: 1.6; }
+.hs-stage { position: relative; border: 1px solid #E5E6EB; border-radius: 8px; overflow: hidden; background: #F7F8FA; user-select: none; }
+.hs-img { display: block; width: 100%; }
+.hs-noimg { height: 160px; display: flex; align-items: center; justify-content: center; color: #86909C; font-size: 13px; }
+.hs-box { position: absolute; border: 1.5px solid #165DFF; background: rgba(22, 93, 255, 0.18); cursor: move; box-sizing: border-box; }
+.hs-box.active { background: rgba(22, 93, 255, 0.28); box-shadow: 0 0 0 1px #165DFF; }
+.hs-idx { position: absolute; top: -1px; left: -1px; background: #165DFF; color: #fff; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 3px 0 4px 0; }
+.hs-handle { position: absolute; right: -4px; bottom: -4px; width: 12px; height: 12px; background: #fff; border: 1.5px solid #165DFF; border-radius: 3px; cursor: nwse-resize; }
+.hs-config { margin-top: 10px; }
+.hs-config-row { display: flex; align-items: center; gap: 8px; }
+.hs-config-label { font-size: 13px; color: #4E5969; flex-shrink: 0; }
+.hs-link-input { flex: 1; }
+.hs-actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
 /* 数字调节框窄化（72px 容纳三位数字，余宽留给滑杆）：组件属性面板 .pe-prop 与页面设置面板 .hp-body 全覆盖 */
 .pe-prop :deep(.el-slider__input), .hp-body :deep(.el-slider__input) { width: 72px; }
 .pe-prop :deep(.el-slider__input .el-input__wrapper), .hp-body :deep(.el-slider__input .el-input__wrapper) { padding: 0 4px; }

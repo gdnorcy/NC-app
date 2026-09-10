@@ -8,8 +8,25 @@
     </template>
     <template v-else-if="comp.type === 'image'">
       <div class="r-image" @click.stop :style="imageBoxStyle(comp.props)">
-        <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
-        <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
+        <!-- 高级(热区)模式：多图 + 热区框 -->
+        <template v-if="comp.props.mode === 'hotzone' && comp.props.items?.length">
+          <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
+            <img v-if="it.url" :src="resolveUrl(it.url)" />
+            <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
+            <div
+              v-for="(h, hi) in it.hotspots || []" :key="hi"
+              class="r-image-hotspot"
+              :style="{ left: h.x + '%', top: h.y + '%', width: h.w + '%', height: h.h + '%' }"
+            >
+              <span class="r-image-hotspot-idx">{{ hi + 1 }}</span>
+            </div>
+          </div>
+        </template>
+        <!-- 标准模式 -->
+        <template v-else>
+          <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" />
+          <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
+        </template>
       </div>
     </template>
     <template v-else-if="comp.type === 'button'">
@@ -278,9 +295,11 @@
     </template>
     <!-- 悬浮按钮 -->
     <template v-else-if="comp.type === 'float-btn'">
-      <div class="r-float" :class="'r-float-' + (comp.props.style || 'round')" :style="{ background: comp.props.color || '#165DFF', left: comp.props.position === 'left' ? (comp.props.distance ?? 12) + 'px' : 'auto', right: comp.props.position === 'right' ? (comp.props.distance ?? 12) + 'px' : 'auto', bottom: (comp.props.distance ?? 12) + 'px' }">
-        <img v-if="comp.props.iconType === 'icon' && comp.props.icon" :src="resolveUrl(comp.props.icon)" />
-        <span v-else>{{ comp.props.text || '联系我们' }}</span>
+      <div class="r-float-wrap" :style="{ height: '64px' }">
+        <div class="r-float" :class="'r-float-' + (comp.props.style || 'round')" :style="{ background: comp.props.color || '#165DFF', left: comp.props.position === 'left' ? (comp.props.distance ?? 12) + 'px' : 'auto', right: comp.props.position === 'right' ? (comp.props.distance ?? 12) + 'px' : 'auto', bottom: (comp.props.distance ?? 12) + 'px' }">
+          <img v-if="comp.props.iconType === 'icon' && comp.props.icon" :src="resolveUrl(comp.props.icon)" />
+          <span v-else>{{ comp.props.text || '联系我们' }}</span>
+        </div>
       </div>
     </template>
     <!-- 文章列表 -->
@@ -449,7 +468,14 @@ function searchStyle(p) {
 function imageBoxStyle(p) {
   const s = { borderRadius: (p.radius ?? 0) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
   if (p.widthMode === 'auto') s.display = 'inline-block';
+  if (p.bgColor) s.background = p.bgColor;
+  if (p.marginLeft) s.paddingLeft = p.marginLeft + 'px';
+  if (p.marginRight) s.paddingRight = p.marginRight + 'px';
   return s;
+}
+function imageRadius(p) {
+  if (p.radiusTop || p.radiusBottom) return (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  return (p.radius ?? 0) + 'px';
 }
 function dividerStyle(p) {
   return {
@@ -544,6 +570,11 @@ function chRadius(p, i) {
 .r-title { font-size: 22px; font-weight: 700; line-height: 1.4; }
 .r-text { line-height: 1.6; }
 .r-image img { width: 100%; border-radius: 8px; display: block; }
+.r-image-item { position: relative; }
+.r-image-item img { width: 100%; display: block; }
+.r-image-item .r-image-empty { border-radius: 8px; }
+.r-image-hotspot { position: absolute; border: 1.5px solid #165DFF; background: rgba(22, 93, 255, 0.18); box-sizing: border-box; pointer-events: none; }
+.r-image-hotspot-idx { position: absolute; top: 0; left: 0; background: #165DFF; color: #fff; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 0 0 4px 0; }
 .r-image-empty { height: 88px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; }
 .r-btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; text-align: center; }
 .r-divider { height: 0; margin: 14px 0; position: relative; }
@@ -728,6 +759,7 @@ function chRadius(p, i) {
 .r-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
 /* 悬浮按钮 */
+.r-float-wrap { position: relative; width: 100%; box-sizing: border-box; }
 .r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
 .r-float img { width: 22px; height: 22px; object-fit: contain; }
 .r-float-square { border-radius: 10px; padding: 8px 14px; }
