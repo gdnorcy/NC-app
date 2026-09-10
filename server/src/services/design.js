@@ -14,8 +14,8 @@ export const DESIGN_PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 export function buildDesignPreviewUrl(tenantId, draft = false) {
   const exp = Math.floor(Date.now() / 1000) + 1800;
   const sig = createHash('sha256').update(`${tenantId}:${exp}:${DESIGN_PREVIEW_SECRET}`).digest('hex').slice(0, 32);
-  const previewFlag = draft ? 'preview=1&' : '';
-  return `/card/?nc=preview#/pages/cardMain/home?${previewFlag}tid=${tenantId}&exp=${exp}&sig=${sig}`;
+  // 预览统一读草稿(实时最新)：装修中显示最新草稿；发布后草稿=发布，与真实首页自然一致
+  return `/card/?nc=preview#/pages/cardMain/home?preview=1&tid=${tenantId}&exp=${exp}&sig=${sig}`;
 }
 
 export function createDesignService(db) {

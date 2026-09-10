@@ -93,6 +93,12 @@
           </div>
           <!-- 导航栏：按头部设置（类型/背景/内容/第一行/第二行内容）渲染，点击弹出头部设置 -->
           <div class="pe-phone-nav" :style="navStyle" title="点击设置头部样式" @click.stop="openHeaderPanel">
+            <!-- 模拟微信小程序右上角胶囊按钮（仅视觉，不拦截点击） -->
+            <div class="pe-mp-capsule">
+              <span class="pmc-dots"><i></i><i></i><i></i></span>
+              <span class="pmc-div"></span>
+              <span class="pmc-circle"></span>
+            </div>
             <div class="pn-line">
               <div class="pn-side pn-left" v-html="navLeftHtml"></div>
               <div class="pn-title" :style="{ color: navTextColor }" v-html="navCenterHtml1"></div>
@@ -274,15 +280,15 @@
         </div>
         <div class="hp-row">
           <div class="hp-label">卡片圆角(px)</div>
-          <el-slider v-model="meta.global.cardRadius" :min="0" :max="24" show-input style="width: 200px" />
+          <el-slider v-model="meta.global.cardRadius" :min="0" :max="24" show-input style="width: 230px" />
         </div>
         <div class="hp-row">
           <div class="hp-label">卡片边距(px)</div>
-          <el-slider v-model="meta.global.cardPadding" :min="0" :max="24" show-input style="width: 200px" />
+          <el-slider v-model="meta.global.cardPadding" :min="0" :max="24" show-input style="width: 230px" />
         </div>
         <div class="hp-row">
           <div class="hp-label">卡片间距(px)</div>
-          <el-slider v-model="meta.global.cardGap" :min="0" :max="24" show-input style="width: 200px" />
+          <el-slider v-model="meta.global.cardGap" :min="0" :max="24" show-input style="width: 230px" />
         </div>
       </div>
 
@@ -331,7 +337,7 @@
         </div>
         <div class="hp-row">
           <div class="hp-label">头部边距(px)</div>
-          <el-slider v-model="meta.header.padding" :min="0" :max="24" show-input style="width: 200px" />
+          <el-slider v-model="meta.header.padding" :min="0" :max="24" show-input style="width: 230px" />
         </div>
         <div class="hp-row">
           <div class="hp-label">头部内容</div>
@@ -1185,6 +1191,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .ps-ico { display: block; }
 /* 导航栏：按头部设置（类型/背景/内容/第一行/第二行内容）渲染，点击弹出头部设置 */
 .pe-phone-nav {
+  position: relative;
   display: flex; flex-direction: column;
   padding: 0 12px; font-size: 14px; font-weight: 600; color: #1d2129;
   background: #fff; border-bottom: 1px solid #f0f1f3; cursor: pointer;
@@ -1193,7 +1200,24 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pn-side { min-width: 56px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
 .pn-left { justify-content: flex-start; }
 .pn-right { justify-content: flex-end; }
+/* 仅第一行右侧为胶囊让位（第二行无胶囊） */
+.pn-line:not(.pn-line2) .pn-right { margin-right: 34px; }
 .pn-title { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+/* 模拟微信小程序胶囊按钮（右上角：三点菜单 + 关闭圆环，仅视觉） */
+.pe-mp-capsule {
+  position: absolute; top: 20px; right: 8px; transform: translateY(-50%);
+  display: flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 9px;
+  background: rgba(255, 255, 255, .92);
+  border: .5px solid rgba(0, 0, 0, .06);
+  border-radius: 13px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+  z-index: 6; pointer-events: none;
+}
+.pmc-dots { display: flex; gap: 3px; }
+.pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
+.pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
+.pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
 .pe-canvas { min-height: 420px; padding: 14px; background: #fff; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 10px; padding: 6px; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
@@ -1260,8 +1284,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }
 .pe-list-link:hover { text-decoration: underline; }
 .pe-list-add { width: 100%; border-style: dashed; }
-/* 数字调节框统一窄化（能显示两位数字即可，宽度留给滑杆）：组件属性面板 .pe-prop 与页面设置面板 .hp-body 全覆盖 */
-.pe-prop :deep(.el-slider__input), .hp-body :deep(.el-slider__input) { width: 72px; }
+/* 数字调节框统一窄化（60px 容纳两位数字即可，宽度留给滑杆）：组件属性面板 .pe-prop 与页面设置面板 .hp-body 全覆盖 */
+.pe-prop :deep(.el-slider__input), .hp-body :deep(.el-slider__input) { width: 60px; }
 .pe-prop :deep(.el-slider__input .el-input__wrapper), .hp-body :deep(.el-slider__input .el-input__wrapper) { padding: 0 4px; }
 .pe-prop :deep(.el-slider__input .el-input-number__decrease), .pe-prop :deep(.el-slider__input .el-input-number__increase),
 .hp-body :deep(.el-slider__input .el-input-number__decrease), .hp-body :deep(.el-slider__input .el-input-number__increase) { width: 18px; }
