@@ -182,7 +182,7 @@
         </block>
       </view>
       <!-- 魔方 -->
-      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ gridTemplateColumns: 'repeat(' + (c.props.cols || 3) + ',1fr)', gap: (c.props.gap ?? 4) + 'px' }">
+      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ gridTemplateColumns: 'repeat(' + (c.props.cols || 3) + ',1fr)', gap: (c.props.gap ?? 4) + 'px', background: c.props.bgColor || 'transparent', padding: c.props.bgColor ? '6px' : 0, borderRadius: (c.props.radius ?? 8) + 'px' }">
         <view v-for="(it, i) in (c.props.items || []).slice(0, (c.props.rows || 2) * (c.props.cols || 3))" :key="i" class="dp-cube-cell" :style="{ borderRadius: (c.props.radius ?? 8) + 'px' }" @click="onJump(it.link)">
           <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-cube-img" />
         </view>
@@ -247,7 +247,7 @@
         </view>
       </view>
       <!-- 选项卡 -->
-      <view v-else-if="c.type === 'tabs'" class="dp-tabs" :style="{ '--tab': c.props.color || '#165dff' }">
+      <view v-else-if="c.type === 'tabs'" class="dp-tabs" :style="{ '--tab': c.props.color || '#165dff', background: c.props.bgColor || '#fff', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-tabs-item" :class="{ active: i === 0 }" @click="onJump(it.link)"><text>{{ it.text || '选项' }}</text></view>
       </view>
       <!-- 万能表单 -->
@@ -275,8 +275,9 @@
         <view class="dp-contact-btn" :style="{ background: '#165dff' }" @click="callPhone(c.props)"><text>{{ c.props.btnText || '拨打电话' }}</text></view>
       </view>
       <!-- 悬浮按钮 -->
-      <view v-else-if="c.type === 'float-btn'" class="dp-float" :style="{ background: c.props.color || '#165dff', left: c.props.position === 'left' ? '12px' : 'auto', right: c.props.position === 'right' ? '12px' : 'auto' }" @click="onFloatClick(c.props)">
-        <text>{{ c.props.text || '联系我们' }}</text>
+      <view v-else-if="c.type === 'float-btn'" class="dp-float" :class="'dp-float-' + (c.props.style || 'round')" :style="{ background: c.props.color || '#165dff', left: c.props.position === 'left' ? (c.props.distance ?? 12) + 'px' : 'auto', right: c.props.position === 'right' ? (c.props.distance ?? 12) + 'px' : 'auto', bottom: (c.props.distance ?? 12) + 'px' }" @click="onFloatClick(c.props)">
+        <image v-if="c.props.iconType === 'icon' && c.props.icon" :src="resolveUrl(c.props.icon)" mode="aspectFit" class="dp-float-ico" />
+        <text v-else>{{ c.props.text || '联系我们' }}</text>
       </view>
       <!-- 文章列表 -->
       <view v-else-if="c.type === 'article-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
@@ -911,7 +912,10 @@ function openChannel(kind, p) {
 .dp-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
 /* 悬浮按钮 */
-.dp-float { position: fixed; bottom: 32px; z-index: 99; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.dp-float { position: fixed; z-index: 99; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
+.dp-float-ico { width: 22px; height: 22px; }
+.dp-float-round { border-radius: 50%; width: 52px; height: 52px; padding: 0; }
+.dp-float-square { border-radius: 10px; padding: 8px 14px; }
 .dp-article { padding: 2px 0; }
 .dp-article-title { font-size: 15px; font-weight: 600; color: #1d2129; display: block; margin-bottom: 10px; }
 .dp-article-grid { display: grid; gap: 10px; }

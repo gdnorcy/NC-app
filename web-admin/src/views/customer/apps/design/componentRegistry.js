@@ -433,7 +433,7 @@ export const componentRegistry = [
     name: '魔方',
     group: 'basic',
     icon: 'cube',
-    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], rows: 2, cols: 3, gap: 4, radius: 8 },
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], rows: 2, cols: 3, gap: 4, radius: 8, bgColor: '' },
     schema: [
       {
         key: 'items', label: '格子图片', control: 'list', section: 'content',
@@ -446,6 +446,7 @@ export const componentRegistry = [
       { key: 'cols', label: '列数', control: 'slider', section: 'style', min: 2, max: 4 },
       { key: 'gap', label: '间距', control: 'slider', section: 'style', min: 0, max: 8 },
       { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
     ],
   },
   {
@@ -571,7 +572,7 @@ export const componentRegistry = [
     name: '选项卡',
     group: 'basic',
     icon: 'tabs',
-    defaultProps: { items: [{ text: '选项一', link: '' }, { text: '选项二', link: '' }, { text: '选项三', link: '' }], color: '#165DFF' },
+    defaultProps: { items: [{ text: '选项一', link: '' }, { text: '选项二', link: '' }, { text: '选项三', link: '' }], color: '#165DFF', bgColor: '#fff', radius: 8, marginBottom: 0 },
     schema: [
       {
         key: 'items', label: '选项卡', control: 'list', section: 'content',
@@ -580,7 +581,10 @@ export const componentRegistry = [
           { key: 'link', label: '跳转', control: 'link', placeholder: '如 /pages/card/market' },
         ],
       },
-      { key: 'color', label: '主题色', control: 'color', section: 'style' },
+      { key: 'color', label: '选中色', control: 'color', section: 'style' },
+      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
   },
   {
@@ -635,12 +639,16 @@ export const componentRegistry = [
     name: '悬浮按钮',
     group: 'function',
     icon: 'float-btn',
-    defaultProps: { text: '联系我们', link: '', color: '#165DFF', position: 'right' },
+    defaultProps: { text: '联系我们', link: '', color: '#165DFF', position: 'right', style: 'round', iconType: 'text', icon: '', distance: 20 },
     schema: [
-      { key: 'text', label: '按钮文字', control: 'input', section: 'content' },
+      { key: 'iconType', label: '显示内容', control: 'radio', section: 'content', options: [{ label: '文字', value: 'text' }, { label: '图标', value: 'icon' }] },
+      { key: 'text', label: '按钮文字', control: 'input', section: 'content', when: { iconType: 'text' } },
+      { key: 'icon', label: '图标图片', control: 'image', section: 'content', when: { iconType: 'icon' } },
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market 或 tel:13800138000' },
       { key: 'color', label: '背景色', control: 'color', section: 'style' },
       { key: 'position', label: '位置', control: 'radio', section: 'style', options: [{ label: '右下', value: 'right' }, { label: '左下', value: 'left' }] },
+      { key: 'style', label: '形状', control: 'radio', section: 'style', options: [{ label: '圆形', value: 'round' }, { label: '圆角矩形', value: 'square' }] },
+      { key: 'distance', label: '距边距离', control: 'slider', section: 'style', min: 4, max: 60 },
     ],
   },
   {
@@ -705,12 +713,13 @@ export const componentRegistry = [
     name: '关注公众号',
     group: 'function',
     icon: 'follow-official',
-    defaultProps: { title: '关注公众号', desc: '获取更多行业资讯与会员服务', qr: '', btnText: '长按识别关注' },
+    defaultProps: { title: '关注公众号', desc: '获取更多行业资讯与会员服务', qr: '', btnText: '长按识别关注', appId: '' },
     schema: [
       { key: 'title', label: '标题', control: 'input', section: 'content' },
       { key: 'desc', label: '说明文字', control: 'input', section: 'content' },
       { key: 'qr', label: '二维码图', control: 'image', section: 'content' },
       { key: 'btnText', label: '提示文字', control: 'input', section: 'content' },
+      { key: 'appId', label: '公众号AppID', control: 'input', section: 'content', placeholder: '微信关注组件需要，选填' },
     ],
   },
   {

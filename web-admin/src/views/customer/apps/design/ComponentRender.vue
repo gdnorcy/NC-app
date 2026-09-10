@@ -173,7 +173,7 @@
     </template>
     <!-- 魔方 -->
     <template v-else-if="comp.type === 'cube'">
-      <div class="r-cube" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.cols || 3) + ',1fr)', gap: (comp.props.gap ?? 4) + 'px' }">
+      <div class="r-cube" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.cols || 3) + ',1fr)', gap: (comp.props.gap ?? 4) + 'px', background: comp.props.bgColor || 'transparent', padding: comp.props.bgColor ? '6px' : 0, borderRadius: (comp.props.radius ?? 8) + 'px' }">
         <template v-for="(it, i) in (comp.props.items || []).slice(0, (comp.props.rows || 2) * (comp.props.cols || 3))" :key="i">
           <div v-if="it.url" class="r-cube-cell" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
           <div v-else class="r-cube-cell r-cube-empty" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
@@ -252,7 +252,7 @@
     </template>
     <!-- 选项卡 -->
     <template v-else-if="comp.type === 'tabs'">
-      <div class="r-tabs" :style="{ '--tab': comp.props.color || '#165DFF' }">
+      <div class="r-tabs" :style="{ '--tab': comp.props.color || '#165DFF', background: comp.props.bgColor || '#fff', borderRadius: (comp.props.radius ?? 8) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
         <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-tabs-item" :class="{ active: i === 0 }">{{ it.text || '选项' }}</div>
       </div>
     </template>
@@ -278,7 +278,10 @@
     </template>
     <!-- 悬浮按钮 -->
     <template v-else-if="comp.type === 'float-btn'">
-      <div class="r-float" :style="{ background: comp.props.color || '#165DFF', left: comp.props.position === 'left' ? '12px' : 'auto', right: comp.props.position === 'right' ? '12px' : 'auto' }">{{ comp.props.text || '联系我们' }}</div>
+      <div class="r-float" :class="'r-float-' + (comp.props.style || 'round')" :style="{ background: comp.props.color || '#165DFF', left: comp.props.position === 'left' ? (comp.props.distance ?? 12) + 'px' : 'auto', right: comp.props.position === 'right' ? (comp.props.distance ?? 12) + 'px' : 'auto', bottom: (comp.props.distance ?? 12) + 'px' }">
+        <img v-if="comp.props.iconType === 'icon' && comp.props.icon" :src="resolveUrl(comp.props.icon)" />
+        <span v-else>{{ comp.props.text || '联系我们' }}</span>
+      </div>
     </template>
     <!-- 文章列表 -->
     <template v-else-if="comp.type === 'article-list'">
@@ -725,7 +728,10 @@ function chRadius(p, i) {
 .r-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
 /* 悬浮按钮 */
-.r-float { position: absolute; bottom: 12px; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
+.r-float img { width: 22px; height: 22px; object-fit: contain; }
+.r-float-square { border-radius: 10px; padding: 8px 14px; }
+.r-float-round { border-radius: 50%; width: 52px; height: 52px; padding: 0; }
 .r-article-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
 .r-article-grid { display: grid; gap: 10px; }
 .r-article-item { border: 1px solid #f0f1f3; border-radius: 8px; padding: 8px; display: flex; gap: 10px; }
