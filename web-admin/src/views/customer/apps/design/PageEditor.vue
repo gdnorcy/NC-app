@@ -148,7 +148,7 @@
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
-                  <el-color-picker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
+                  <PeColorPicker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
                   <!-- 图形化单选（选择风格：一列/两列并排，仿 eweishop 图形卡片） -->
                   <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic">
                     <div
@@ -181,13 +181,7 @@
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
                   <el-slider v-else-if="f.control === 'slider'" v-model="selectedComp.props[f.key]" :min="f.min" :max="f.max" show-input />
-                  <div v-else-if="f.control === 'image'" class="pe-img-field">
-                    <div class="pe-img-row">
-                      <img v-if="selectedComp.props[f.key]" :src="resolveUrl(selectedComp.props[f.key])" class="pe-img-thumb" />
-                      <el-button size="small" @click="openImgSel">选择素材</el-button>
-                      <el-button v-if="selectedComp.props[f.key]" size="small" text type="danger" @click="selectedComp.props[f.key] = ''; selectedComp.props.materialId = null">清除</el-button>
-                    </div>
-                  </div>
+                  <PeImagePicker v-else-if="f.control === 'image'" v-model="selectedComp.props[f.key]" :help="f.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                   <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'">
                     <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
                   </el-input>
@@ -218,13 +212,7 @@
                           <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:100%">
                             <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
                           </el-select>
-                          <div v-else-if="sf.control === 'image'" class="pe-img-field">
-                            <div class="pe-img-row">
-                              <img v-if="it[sf.key]" :src="resolveUrl(it[sf.key])" class="pe-img-thumb" />
-                              <el-button size="small" @click="openImgSel(idx, si, f)">选择</el-button>
-                              <el-button v-if="it[sf.key]" size="small" text type="danger" @click="it[sf.key] = ''">清除</el-button>
-                            </div>
-                          </div>
+                          <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                           <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
                             <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
                           </div>
@@ -526,6 +514,8 @@ import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonSt
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
+import PeColorPicker from './PeColorPicker.vue';
+import PeImagePicker from './PeImagePicker.vue';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
