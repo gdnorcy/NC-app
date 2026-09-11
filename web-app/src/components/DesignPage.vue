@@ -1,5 +1,5 @@
 <template>
-  <view class="design-page">
+  <view class="design-page" :style="dpPageStyle">
     <view v-for="(c, i) in comps" :key="i" class="dp-item" :style="containerStyle(c)">
       <!-- 标题 -->
       <view v-if="c.type === 'title'" class="dp-title" :style="{ color: c.props.color, textAlign: c.props.align }">
@@ -488,6 +488,20 @@ const props = defineProps({
   comps: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
   tenantId: { type: Number, default: 0 },
+  global: { type: Object, default: () => ({}) },
+});
+
+// 页面背景 = 全局设置（背景色/背景图），与编辑端 phoneStyle 一致
+const dpPageStyle = computed(() => {
+  const s = {};
+  const g = props.global || {};
+  if (g.bgImage) {
+    s.backgroundImage = `url(${resolveUrl(g.bgImage)})`;
+    s.backgroundSize = 'cover';
+    s.backgroundPosition = 'center';
+  }
+  if (g.bgColor) s.backgroundColor = g.bgColor;
+  return s;
 });
 
 // 倒计时动态数据（eweishop 1:1：开始时间/结束时间 → 每秒计算剩余）

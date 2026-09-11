@@ -81,7 +81,7 @@
 
       <!-- 画布（手机预览壳：状态栏固定 + 导航栏按头部设置显示） -->
       <div class="pe-canvas-wrap">
-        <div class="pe-phone">
+        <div class="pe-phone" :style="phoneStyle">
           <!-- 顶部状态栏：模拟真实小程序顶部（时间/信号/WiFi/电池固定） -->
           <div class="pe-status-bar" title="点击设置头部样式" @click.stop="openHeaderPanel">
             <span class="ps-time">10:18</span>
@@ -679,6 +679,19 @@ const meta = reactive({
   global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12 },
   header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
+});
+
+// 手机壳/画布背景 = 全局设置（背景色/背景图），编辑端与 C 端渲染一致
+const phoneStyle = computed(() => {
+  const s = {};
+  const g = meta.global || {};
+  if (g.bgImage) {
+    s.backgroundImage = `url(${resolveUrl(g.bgImage)})`;
+    s.backgroundSize = 'cover';
+    s.backgroundPosition = 'center';
+  }
+  if (g.bgColor) s.backgroundColor = g.bgColor;
+  return s;
 });
 const tabSchemes = ref([]);
 const headerPanel = reactive({ show: false, active: 'header', tabs: [
@@ -1527,7 +1540,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
-.pe-canvas { min-height: 420px; padding: 14px; background: #fff; }
+.pe-canvas { min-height: 420px; padding: 14px; background: transparent; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 10px; padding: 6px; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
 .pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }

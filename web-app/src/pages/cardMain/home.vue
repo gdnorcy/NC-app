@@ -4,7 +4,7 @@
     <DesignNav v-if="designHeader" :header="designHeader" page-name="首页" />
 
     <!-- 设计中心装修区（发布/预览的首页组件） -->
-    <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" class="design-section" />
+    <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" class="design-section" />
 
     <!-- 顶部搜索栏（沉浸式头部悬浮时保留顶部安全距，其余类型由设计导航占位） -->
     <view class="top-bar" :class="{ 'with-design-nav': designHeader && designHeader.type !== 'immersive' }">
@@ -149,6 +149,7 @@ const marketList = ref([]);
 const designComps = ref([]);
 const designTenantId = ref(0);
 const designHeader = ref(null);
+const designGlobal = ref({});
 let pageOptions = {};
 onLoad((o) => { pageOptions = o || {}; });
 
@@ -191,6 +192,7 @@ onMounted(async () => {
     designComps.value = Array.isArray(comps) ? comps : [];
     designTenantId.value = config?.tenantId || 0;
     designHeader.value = config?.header || null;
+    designGlobal.value = config?.pages?.meta?.global || {};
     if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
     else if (preview) uni.showToast({ title: '草稿预览模式', icon: 'none' });
   } catch (e) {}
