@@ -896,7 +896,7 @@ const schemaSections = computed(() => {
   const def = findComponent(selectedComp.value.type);
   if (!def) return [];
   const ownKeys = def.schema.map((f) => f.key);
-  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR'))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))) && !(selectedComp.value.type === 'rich-text' && f.key === 'bgColor'));
+  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))) && !(selectedComp.value.type === 'rich-text' && f.key === 'bgColor'));
   const props = selectedComp.value.props || {};
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;

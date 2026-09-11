@@ -714,10 +714,9 @@ export const componentRegistry = [
       { key: 'compBgType', label: '组件背景', control: 'radio', group: '背景设置', options: [{ label: '背景色', value: 'color' }, { label: '背景图片', value: 'image' }], when: { styleType: 1 } },
       { key: 'compBgColor', label: '背景色', control: 'color', group: '背景设置', when: { styleType: 1, compBgType: 'color' } },
       { key: 'compBgImg', label: '背景图片', control: 'image', group: '背景设置', when: { styleType: 1, compBgType: 'image' } },
-      // 边距
-      { key: 'marginTop', label: '上边距', control: 'slider', group: '边距', min: 0, max: 40 },
-      { key: 'marginBottom', label: '下边距', control: 'slider', group: '边距', min: 0, max: 40 },
-      { key: 'marginLR', label: '左右边距', control: 'slider', group: '边距', min: 0, max: 40, whenStyle: [1, 8, 9] },
+      // 边距（ew 1:1：仅上边距/下边距 slider 0-50，无左右边距；值=背景内 padding）
+      { key: 'marginTop', label: '上边距', control: 'slider', group: '边距', min: 0, max: 50 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', group: '边距', min: 0, max: 50 },
       // 圆角设置（仅风格1）
       { key: 'radiusTop', label: '上圆角', control: 'slider', group: '圆角设置', min: 0, max: 50, when: { styleType: 1 } },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', group: '圆角设置', min: 0, max: 50, when: { styleType: 1 } },

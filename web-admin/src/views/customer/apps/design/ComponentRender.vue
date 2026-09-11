@@ -509,7 +509,7 @@ const tbOuterStyle = (p) => {
   if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
   return s;
 };
-// 标题栏内层（ew 1:1 实测）：组件背景=compBgColor/compBgImg(S1)/bgColor(S2-9)；上/下/左右边距=背景内留白；圆角只在内层(S1)
+// 标题栏内层（ew 1:1 实测 2026-09-11）：组件背景=compBgColor/compBgImg(S1)/bgColor(S2-9)；上/下边距=背景内 padding（slider 值即 padding 值，0 基准）；ew 无左右边距概念；圆角只在内层(S1)
 const tbWrapStyle = (p) => {
   const st = Number(p.styleType) || 1;
   const s = {};
@@ -518,11 +518,9 @@ const tbWrapStyle = (p) => {
   } else if (p.bgColor) {
     s.background = p.bgColor;
   }
-  // 上/下/左右边距均为背景内留白（padding），叠加基础内边距 10px
-  s.paddingTop = ((p.marginTop || 0) + 10) + 'px';
-  s.paddingBottom = ((p.marginBottom || 0) + 10) + 'px';
-  s.paddingLeft = ((p.marginLR || 0) + 12) + 'px';
-  s.paddingRight = ((p.marginLR || 0) + 12) + 'px';
+  // 上/下边距 = 背景内 padding（ew slider 0-50 线性，无基础偏移）；无左右 padding
+  s.paddingTop = (p.marginTop || 0) + 'px';
+  s.paddingBottom = (p.marginBottom || 0) + 'px';
   if (st === 1 && (p.radiusTop || p.radiusBottom)) {
     s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
   }
@@ -1165,30 +1163,30 @@ function chRadius(p, i) {
 .r-chv-body { padding: 10px 12px; background: #fff; }
 .r-chv-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-chv-desc { font-size: 12px; color: #86909c; margin-top: 2px; }
-.r-titlebar { position: relative; display: flex; align-items: center; padding: 10px 12px; box-sizing: border-box; }
+.r-titlebar { position: relative; display: flex; align-items: center; box-sizing: border-box; }
 .r-tb-title { line-height: 1.4; font-size: 16px; }
 .r-tb-more { font-size: 11px; color: #B0B3BF; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
 .r-tb-more .r-tb-more-ico { margin-left: 4px; }
 /* 风格1 es-title3 */
-.r-tb-s1 { height: 60px; align-items: center; }
+.r-tb-s1 { min-height: 60px; align-items: center; }
 .r-tb-s1 .r-tb-deco { width: 40px; height: 40px; object-fit: contain; margin-right: 8px; flex: none; }
 .r-tb-s1 .r-tb-mid { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .r-tb-s1 .r-tb-title { padding: 0 10px; text-align: center; }
 .r-tb-s1 .r-tb-en { font-size: 12px; color: #B7BCD2; text-align: center; width: 100%; letter-spacing: 7px; }
 .r-tb-s1 .r-tb-more { margin-left: 8px; }
 /* 风格2 es-title2 title5 */
-.r-tb-s2 { height: 60px; flex-direction: column; justify-content: center; }
+.r-tb-s2 { min-height: 60px; flex-direction: column; justify-content: center; }
 .r-tb-s2 .r-tb-row { display: flex; align-items: center; justify-content: center; }
 .r-tb-s2 .r-tb-star { color: #333; font-size: 14px; }
 .r-tb-s2 .r-tb-title { padding: 0; }
 .r-tb-s2 .r-tb-en-line { font-size: 12px; color: #333; text-align: center; width: 100%; letter-spacing: 0; margin-top: 0; }
 /* 风格3 es-title2 title4 */
-.r-tb-s3 { height: 60px; justify-content: center; }
+.r-tb-s3 { min-height: 60px; justify-content: center; }
 .r-tb-s3 .r-tb-bub { width: 38.5px; height: auto; margin: 0 6px; flex: none; }
 .r-tb-s3 .r-tb-bub-r { transform: rotateY(180deg); }
 .r-tb-s3 .r-tb-title { padding: 0 8px; }
 /* 风格4-6 es-title2 */
-.r-tb-s4, .r-tb-s5, .r-tb-s6 { height: 60px; flex-direction: column; justify-content: center; padding-left: 12px; padding-right: 12px; }
+.r-tb-s4, .r-tb-s5, .r-tb-s6 { min-height: 60px; flex-direction: column; justify-content: center; }
 .r-tb-s4 .r-tb-top, .r-tb-s5 .r-tb-top, .r-tb-s6 .r-tb-top { display: flex; align-items: center; width: 100%; }
 .r-tb-s4 .r-tb-title-row, .r-tb-s5 .r-tb-title-row { display: flex; align-items: center; justify-content: center; flex: 1; min-width: 0; position: relative; }
 .r-tb-s6 .r-tb-title-row { display: flex; align-items: center; flex: 1; min-width: 0; position: relative; padding-left: 17px; justify-content: flex-start; }
@@ -1254,7 +1252,7 @@ function chRadius(p, i) {
 .r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
 .r-float img { width: 22px; height: 22px; object-fit: contain; }
 .r-float-square { border-radius: 10px; padding: 8px 14px; }
-.r-titlebar { display: flex; align-items: center; padding: 12px; }
+.r-titlebar { display: flex; align-items: center; }
 .r-tb-title { font-size: 16px; line-height: 1.4; }
 .r-tb-sub { font-size: 12px; color: #86909C; margin-left: 8px; }
 .r-tb-more { font-size: 12px; color: #86909C; margin-left: auto; }
