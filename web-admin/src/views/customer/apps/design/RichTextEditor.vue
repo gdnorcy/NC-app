@@ -25,9 +25,9 @@ const selPath = ref('');
 
 const toolbarConfig = {
   excludeKeys: [
-    'group-video', 'group-image', 'fullScreen',
-    'uploadVideo', 'insertVideo', 'codeBlock', 'insertTable', 'deleteTable', 'editTable',
-    'todo', 'emotion', 'divider', 'blockquote', 'headerSelect',
+    'group-video', 'fullScreen',
+    'uploadVideo', 'insertVideo', 'codeBlock',
+    'todo', 'emotion', 'divider', 'blockquote',
   ],
 };
 const editorConfig = {
