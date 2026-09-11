@@ -147,6 +147,7 @@
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.control === 'hint' ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
+                  <div v-if="f.tips" class="pe-field-tips">{{ f.tips }}</div>
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <PeColorPicker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
                   <el-date-picker
@@ -1263,6 +1264,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 </script>
 
 <style scoped>
+.pe-field-tips { font-size: 12px; color: #86909C; line-height: 1.5; margin-top: 4px; }
 .page-editor { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
 .pe-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 .pe-title { display: flex; align-items: center; gap: 10px; }

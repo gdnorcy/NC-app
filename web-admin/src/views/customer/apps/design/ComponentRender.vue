@@ -271,13 +271,14 @@
     </template>
     <!-- 视频号直播 -->
     <template v-else-if="comp.type === 'channel-live'">
-      <div class="r-chlive" :style="{ background: comp.props.bgColor || '#F7F8FA' }">
+      <div class="r-chlive" :class="'r-card-' + (comp.props.style || 'default')" :style="channelLiveStyle(comp.props)">
         <div class="r-chl-cover">
-          <img v-if="comp.props.cover" :src="resolveUrl(comp.props.cover)" />
-          <div v-else class="r-chl-empty"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14v11H5zM8 7V4h8v3M10 11l4 2.5-4 2.5z"/></svg></div>
-          <span class="r-chl-badge">● {{ comp.props.statusText || '直播中' }}</span>
+          <div class="r-chl-empty"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14v11H5zM8 7V4h8v3M10 11l4 2.5-4 2.5z"/></svg></div>
+          <span class="r-chl-badge" :style="{ background: comp.props.statusBg || '#165DFF', color: comp.props.statusColor || '#fff' }">● 直播中</span>
         </div>
-        <div class="r-chl-title">{{ comp.props.title || '直播标题' }}</div>
+        <div class="r-chl-title" :style="{ color: comp.props.titleColor || '#1D2129' }">直播标题</div>
+        <div class="r-chl-time" :style="{ color: comp.props.timeColor || '#86909C' }">今天 20:00 开播</div>
+        <div class="r-chl-btn" :style="{ background: comp.props.btnBg || '#165DFF', color: comp.props.btnColor || '#fff' }">预约直播</div>
       </div>
     </template>
     <!-- 富文本 -->
@@ -647,6 +648,17 @@ function floatStyle(p) {
   else if (pos === 'top-right') { s.top = d; s.right = d; }
   else if (pos === 'bottom-left') { s.bottom = d; s.left = d; }
   else { s.bottom = d; s.right = d; }
+  return s;
+}
+function channelLiveStyle(p) {
+  const s = { background: p.bgColor || '#F7F8FA' };
+  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.marginLR) s.marginLeft = p.marginLR + 'px', s.marginRight = p.marginLR + 'px';
+  if (p.componentBg) s.background = p.componentBg;
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
 function gridIconStyle(p) {
@@ -1028,6 +1040,8 @@ function chRadius(p, i) {
 .r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
 .r-float img { width: 22px; height: 22px; object-fit: contain; }
 .r-float-square { border-radius: 10px; padding: 8px 14px; }
+.r-chl-time { font-size: 12px; margin-top: 4px; }
+.r-chl-btn { display: inline-block; margin-top: 8px; font-size: 12px; padding: 4px 14px; border-radius: 14px; }
 .r-float-round { border-radius: 50%; width: 52px; height: 52px; padding: 0; }
 .r-article-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
 .r-article-grid { display: grid; gap: 10px; }

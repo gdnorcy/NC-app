@@ -273,13 +273,14 @@
         </view>
       </view>
       <!-- 视频号直播 -->
-      <view v-else-if="c.type === 'channel-live'" class="dp-chlive" :style="{ background: c.props.bgColor || '#F7F8FA' }" @click="openChannel('live', c.props)">
+      <view v-else-if="c.type === 'channel-live'" class="dp-chlive" :class="'dp-card-' + (c.props.style || 'default')" :style="dpChannelLiveStyle(c.props)" @click="openChannel('live', c.props)">
         <view class="dp-chl-cover">
-          <image v-if="c.props.cover" :src="resolveUrl(c.props.cover)" mode="aspectFill" class="dp-chl-img" />
-          <view v-else class="dp-chl-empty"><text>▶</text></view>
-          <view class="dp-chl-badge"><text>● {{ c.props.statusText || '直播中' }}</text></view>
+          <view class="dp-chl-empty"><text>▶</text></view>
+          <view class="dp-chl-badge" :style="{ background: c.props.statusBg || '#165DFF', color: c.props.statusColor || '#FFFFFF' }"><text>● 直播中</text></view>
         </view>
-        <view class="dp-chl-title"><text>{{ c.props.title || '直播标题' }}</text></view>
+        <view class="dp-chl-title" :style="{ color: c.props.titleColor || '#1D2129' }"><text>直播标题</text></view>
+        <view class="dp-chl-time" :style="{ color: c.props.timeColor || '#86909C' }"><text>今天 20:00 开播</text></view>
+        <view class="dp-chl-btn" :style="{ background: c.props.btnBg || '#165DFF', color: c.props.btnColor || '#FFFFFF' }"><text>预约直播</text></view>
       </view>
       <!-- 富文本 -->
       <view v-else-if="c.type === 'rich-text'" class="dp-richtext" :style="dpRichTextStyle(c.props)">
@@ -760,6 +761,18 @@ function dpFloatStyle(p) {
   else { s.bottom = d; s.right = d; }
   return s;
 }
+function dpChannelLiveStyle(p) {
+  const s = { background: p.bgColor || '#F7F8FA' };
+  s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+  if (p.componentBg) s.background = p.componentBg;
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+
 function onFloatClick(p) {
   const link = p.link || '';
   if (link.indexOf('tel:') === 0) {
@@ -1170,6 +1183,8 @@ function openChannel(kind, p) {
 .dp-chl-img { width: 100%; height: 100%; }
 .dp-chl-empty { color: #86909c; font-size: 24px; }
 .dp-chl-badge { position: absolute; left: 8px; top: 8px; background: #f53f3f; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.dp-chl-time { font-size: 12px; margin-top: 4px; padding: 0 12px; }
+.dp-chl-btn { display: inline-block; margin: 8px 12px; font-size: 12px; padding: 4px 14px; border-radius: 14px; }
 .dp-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
 /* 富文本 */
 .dp-richtext { font-size: 14px; color: #1d2129; line-height: 1.7; word-break: break-word; }
