@@ -101,20 +101,6 @@ export const ICON_OPTIONS = [
 
 export const componentRegistry = [
   {
-    type: 'title',
-    name: '标题',
-    group: 'basic',
-    icon: 'title',
-    defaultProps: { text: '页面标题', color: '#1d2129', align: 'center', size: 22 },
-    schema: [
-      { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
-      { key: 'color', label: '颜色', control: 'color', section: 'style' },
-      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
-      { key: 'size', label: '字号', control: 'slider', section: 'style', min: 12, max: 32 },
-      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
-    ],
-  },
-  {
     type: 'text',
     name: '文本',
     group: 'basic',
