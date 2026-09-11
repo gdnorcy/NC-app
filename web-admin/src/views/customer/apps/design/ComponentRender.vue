@@ -501,26 +501,30 @@ import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
 import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
 import { customerApiCall } from '../../../../api';
 
-// 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）；左右边距=内层左右内缩
-// 2026-09-11 用户确认：上/下边距改为背景内留白(paddingTop/Bottom)，与左右边距视觉一致，不再作为外层外边距
+// 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
+// 2026-09-11 修复：上/下边距=外层 padding，边距区域露出底部颜色（此前放在内层被背景色覆盖，底部颜色不生效）
 const tbOuterStyle = (p) => {
   const st = Number(p.styleType) || 1;
   const s = {};
-  if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
+  if (st === 1) {
+    if (p.bgColorBottom) s.background = p.bgColorBottom;
+    s.paddingTop = (p.marginTop || 0) + 'px';
+    s.paddingBottom = (p.marginBottom || 0) + 'px';
+  }
   return s;
 };
-// 标题栏内层（ew 1:1 实测 2026-09-11）：组件背景=compBgColor/compBgImg(S1)/bgColor(S2-9)；上/下边距=背景内 padding（slider 值即 padding 值，0 基准）；ew 无左右边距概念；圆角只在内层(S1)
+// 标题栏内层（ew 1:1 实测 2026-09-11）：组件背景=compBgColor/compBgImg(S1)/bgColor(S2-9)；圆角只在内层(S1)
+// S1 上下边距在外层（露出底部颜色），内层不再 padding；S2-9 无外层背景，padding 仍在内层
 const tbWrapStyle = (p) => {
   const st = Number(p.styleType) || 1;
   const s = {};
   if (st === 1) {
     s.background = p.compBgType === 'image' ? (p.compBgImg ? `url(${resolveUrl(p.compBgImg)}) center/cover no-repeat` : 'transparent') : (p.compBgColor || '#ffffff');
-  } else if (p.bgColor) {
-    s.background = p.bgColor;
+  } else {
+    if (p.bgColor) s.background = p.bgColor;
+    s.paddingTop = (p.marginTop || 0) + 'px';
+    s.paddingBottom = (p.marginBottom || 0) + 'px';
   }
-  // 上/下边距 = 背景内 padding（ew slider 0-50 线性，无基础偏移）；无左右 padding
-  s.paddingTop = (p.marginTop || 0) + 'px';
-  s.paddingBottom = (p.marginBottom || 0) + 'px';
   if (st === 1 && (p.radiusTop || p.radiusBottom)) {
     s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
   }

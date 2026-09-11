@@ -813,7 +813,12 @@ function dpTitleBarStyle(p) {
 function dpTbOuterStyle(p) {
   const st = Number(p.styleType) || 1;
   const s = {};
-  if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
+  if (st === 1) {
+    if (p.bgColorBottom) s.background = p.bgColorBottom;
+    // 上/下边距=外层 padding（露出底部颜色，对标 ew：边距区域显示底部颜色而非背景色）
+    s.paddingTop = (p.marginTop || 0) + 'px';
+    s.paddingBottom = (p.marginBottom || 0) + 'px';
+  }
   return s;
 }
 function dpTbWrapStyle(p) {
@@ -825,10 +830,10 @@ function dpTbWrapStyle(p) {
     s.background = 'transparent';
   } else {
     s.background = p.bgColor;
+    // S2-9 无外层背景，padding 仍在内层
+    s.paddingTop = (p.marginTop || 0) + 'px';
+    s.paddingBottom = (p.marginBottom || 0) + 'px';
   }
-  // 上/下边距 = 背景内 padding（ew slider 0-50 线性，无基础偏移）；无左右 padding
-  s.paddingTop = (p.marginTop || 0) + 'px';
-  s.paddingBottom = (p.marginBottom || 0) + 'px';
   if (st === 1 && (p.radiusTop || p.radiusBottom)) {
     s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
   }
