@@ -687,9 +687,9 @@ export const componentRegistry = [
     name: '标题栏',
     group: 'basic',
     icon: 'title-bar',
-    defaultProps: { title: '标题文字', sub: '副标题', moreText: '更多', moreUrl: '', color: '#1d2129', align: 'left', titleStyle: 'default', showMore: true, bgColor: '', fontSize: 17, bold: false, italic: false, marginTop: 0, marginBottom: 0, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
+    defaultProps: { title: '标题文字', sub: '副标题', moreText: '更多', moreUrl: '', color: '#1d2129', align: 'left', titleStyle: 'default', showMore: true, bgColor: '', fontSize: 16, bold: false, italic: false, marginTop: 0, marginBottom: 0, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
     schema: [
-      { key: 'title', label: '标题', control: 'input', section: 'content', required: true },
+      { key: 'title', label: '标题', control: 'input', section: 'content', required: true, maxlength: 8, showWordLimit: true },
       { key: 'sub', label: '副标题', control: 'input', section: 'content' },
       { key: 'showMore', label: '更多按钮', control: 'switch', section: 'content' },
       { key: 'moreText', label: '更多文字', control: 'input', section: 'content', when: { showMore: true } },
