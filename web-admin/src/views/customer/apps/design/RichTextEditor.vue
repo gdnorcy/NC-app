@@ -6,6 +6,8 @@
       <span v-if="selPath" class="rt-path">{{ selPath }}</span>
       <span class="rt-count">字数统计：{{ wordCount }}</span>
     </div>
+    <!-- 素材选择弹窗（ew 同步：图片按钮调系统素材库，非新上传方式） -->
+    <MaterialPicker v-model="imgSel" @confirm="onPickImg" />
   </div>
 </template>
 
@@ -13,7 +15,7 @@
 import { ref, shallowRef, onBeforeUnmount, watch } from 'vue';
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue';
 import '@wangeditor/editor/dist/css/style.css';
-import { designCall } from '../../../../api';
+import MaterialPicker from './MaterialPicker.vue';
 
 const props = defineProps({ modelValue: { type: String, default: '' } });
 const emit = defineEmits(['update:modelValue']);
@@ -22,40 +24,49 @@ const editorRef = shallowRef();
 const html = ref(props.modelValue || '');
 const wordCount = ref(0);
 const selPath = ref('');
+const imgSel = ref(false);
+let pickInsertFn = null;
 
 const toolbarConfig = {
-  // ew 1:1：只保留 ew 富文本工具栏等价项（段落格式/字号/基础格式/文字与背景色/图片/链接/表格），避免溢出
+  // ew 1:1：段落格式/字号/基础格式/文字与背景色/对齐/列表/表情/链接/代码块/图片(素材库)/缩进/行间距/表格
+  // 注意: wangEditor5 的 toolbarKeys 只能用标准菜单 key(字符串), 对象{key,menuKeys}会渲染为工具栏外的孤立按钮
   toolbarKeys: [
     'headerSelect', 'fontSize', 'bold', 'italic', 'underline', 'through',
     'color', 'bgColor',
-    { key: 'group-justify', menuKeys: ['justifyLeft', 'justifyRight', 'justifyCenter', 'justifyJustify'] },
+    'justifyLeft', 'justifyRight', 'justifyCenter', 'justifyJustify',
     'bulletedList', 'numberedList', 'emotion', 'insertLink', 'codeBlock',
-    { key: 'group-image', menuKeys: ['insertImage', 'uploadImage'] },
-    { key: 'group-indent', menuKeys: ['indent', 'delIndent'] },
+    'uploadImage',
+    'indent', 'delIndent',
     'lineHeight', 'insertTable',
   ],
 };
 const editorConfig = {
   placeholder: '请输入内容…',
   MENU_CONF: {
-    insertImage: { onInsertedImage(imageNode) { } },
     uploadImage: {
-      async customUpload(file, insertFn) {
-        try {
-          const fd = new FormData();
-          fd.append('file', file);
-          const res = await designCall.post('/material/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-          const url = res?.url || '';
-          if (url) insertFn(url, file.name, url);
-        } catch (e) {
-          // 上传失败：插入本地预览（保存前不会持久化）
-          const url = URL.createObjectURL(file);
-          insertFn(url, file.name, url);
-        }
+      // ew 同步：点击图片按钮弹出系统素材库选择，不弹 wangEditor 原生上传
+      // 注意: wangEditor5 配置项为 customBrowseAndUpload(customBrowse 不被识别→按钮 disabled)
+      customBrowseAndUpload(insertFn) {
+        pickInsertFn = insertFn;
+        imgSel.value = true;
       },
     },
   },
 };
+
+async function onPickImg(url) {
+  if (pickInsertFn && url) {
+    // 弹窗操作后 wangEditor selection 丢失(isInsertImageMenuDisabled=true 不插入), 需恢复焦点+选区
+    // editor.focus() 内部恢复 slate selection; 再延时让 selectionchange 完成
+    const editor = editorRef.value;
+    if (editor) {
+      editor.focus();
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    pickInsertFn(url, '', url);
+  }
+  imgSel.value = false;
+}
 
 watch(() => props.modelValue, (v) => {
   if (editorRef.value && v !== html.value) {

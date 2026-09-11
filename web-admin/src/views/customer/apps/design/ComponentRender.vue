@@ -495,16 +495,15 @@ import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
 import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
 import { customerApiCall } from '../../../../api';
 
-// 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1），上/下边距在外层；左右边距与圆角在内层
+// 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）；左右边距=内层左右内缩
+// 2026-09-11 用户确认：上/下边距改为背景内留白(paddingTop/Bottom)，与左右边距视觉一致，不再作为外层外边距
 const tbOuterStyle = (p) => {
   const st = Number(p.styleType) || 1;
   const s = {};
   if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
 };
-// 标题栏内层（ew 1:1 实测）：组件背景=compBgColor/compBgImg(S1)/bgColor(S2-9)；左右边距=内层左右内缩；圆角只在内层(S1)
+// 标题栏内层（ew 1:1 实测）：组件背景=compBgColor/compBgImg(S1)/bgColor(S2-9)；上/下/左右边距=背景内留白；圆角只在内层(S1)
 const tbWrapStyle = (p) => {
   const st = Number(p.styleType) || 1;
   const s = {};
@@ -513,7 +512,11 @@ const tbWrapStyle = (p) => {
   } else if (p.bgColor) {
     s.background = p.bgColor;
   }
-  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+  // 上/下/左右边距均为背景内留白（padding），叠加基础内边距 10px
+  s.paddingTop = ((p.marginTop || 0) + 10) + 'px';
+  s.paddingBottom = ((p.marginBottom || 0) + 10) + 'px';
+  s.paddingLeft = ((p.marginLR || 0) + 12) + 'px';
+  s.paddingRight = ((p.marginLR || 0) + 12) + 'px';
   if (st === 1 && (p.radiusTop || p.radiusBottom)) {
     s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
   }

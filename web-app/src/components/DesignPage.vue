@@ -807,8 +807,6 @@ function dpTbOuterStyle(p) {
   const st = Number(p.styleType) || 1;
   const s = {};
   if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
 }
 function dpTbWrapStyle(p) {
@@ -821,7 +819,11 @@ function dpTbWrapStyle(p) {
   } else {
     s.background = p.bgColor;
   }
-  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+  // 上/下/左右边距均为背景内留白（padding），叠加基础内边距 10px/12px
+  s.paddingTop = ((p.marginTop || 0) + 10) + 'px';
+  s.paddingBottom = ((p.marginBottom || 0) + 10) + 'px';
+  s.paddingLeft = ((p.marginLR || 0) + 12) + 'px';
+  s.paddingRight = ((p.marginLR || 0) + 12) + 'px';
   if (st === 1 && (p.radiusTop || p.radiusBottom)) {
     s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
   }
