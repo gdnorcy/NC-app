@@ -293,12 +293,33 @@
         </view>
       </view>
       <!-- 标题栏 -->
-      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="{ center: c.props.align === 'center', bar: c.props.titleStyle === 'bar' }" :style="dpTitleBarStyle(c.props)">
-        <view class="dp-tb-left">
-          <text class="dp-tb-title" :style="{ color: c.props.color || '#1d2129', fontSize: (c.props.fontSize || 17) + 'px', fontWeight: c.props.bold ? '600' : '400', fontStyle: c.props.italic ? 'italic' : 'normal' }">{{ c.props.title || '标题文字' }}</text>
-          <text v-if="c.props.sub" class="dp-tb-sub">{{ c.props.sub }}</text>
-        </view>
-        <view v-if="c.props.showMore && c.props.moreText" class="dp-tb-more" @click="onJump(c.props.moreUrl)"><text>{{ c.props.moreText }} ›</text></view>
+      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 1)" :style="dpTitleBarStyle(c.props)">
+        <block v-if="(c.props.styleType || 1) <= 3">
+          <view v-if="(c.props.styleType || 1) === 3" class="dp-tb-rule"></view>
+          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+          <view v-if="(c.props.styleType || 1) === 2" class="dp-tb-line"></view>
+        </block>
+        <block v-else-if="(c.props.styleType || 1) === 7">
+          <view class="dp-tb-ico dp-tb-ico-grad"></view>
+          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+          <text class="dp-tb-sub">副标题文字</text>
+        </block>
+        <block v-else-if="(c.props.styleType || 1) === 8">
+          <view class="dp-tb-square"></view>
+          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+          <text class="dp-tb-en">RECOMMEND</text>
+        </block>
+        <block v-else-if="(c.props.styleType || 1) === 9">
+          <text class="dp-tb-heart">♥</text>
+          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+          <text class="dp-tb-en">RECOMMEND</text>
+          <text class="dp-tb-more">查看更多 ›</text>
+        </block>
+        <block v-else>
+          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+          <text class="dp-tb-sub">副标题文字</text>
+          <text v-if="(c.props.styleType || 1) === 6" class="dp-tb-more">查看更多 ›</text>
+        </block>
       </view>
       <!-- 搜索框 -->
       <view v-else-if="c.type === 'search'">
@@ -728,12 +749,13 @@ function dpGalleryStyle(p) {
   return s;
 }
 function dpTitleBarStyle(p) {
-  const s = { background: p.bgColor || 'transparent', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
-  const r = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
-  if (p.bgColor) s.borderRadius = r;
-  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
-  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  const s = { background: p.bgColor || '#FFFFFF' };
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
+}
+function dpTbTextStyle(p) {
+  return { color: p.color || '#1D2129', fontSize: (p.fontSize || 16) + 'px', fontWeight: p.bold ? '600' : '400', fontStyle: p.italic ? 'italic' : 'normal' };
 }
 function dpTabsStyle(p) {
   const s = { '--tab': p.color || '#165dff', background: p.bgColor || '#fff', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
@@ -1192,8 +1214,20 @@ function openChannel(kind, p) {
 .dp-gallery { display: grid; width: 100%; }
 .dp-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .dp-gallery-img { width: 100%; height: 100%; }
-/* 标题栏 */
-.dp-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+/* 标题栏 9 风格（eweishop 1:1） */
+.dp-titlebar { display: flex; align-items: center; padding: 12px; }
+.dp-tb-title { font-size: 16px; line-height: 1.4; }
+.dp-tb-sub { font-size: 12px; color: #86909c; margin-left: 8px; }
+.dp-tb-more { font-size: 12px; color: #86909c; margin-left: auto; }
+.dp-tb-line { flex: 1; height: 2px; background: #1d2129; margin-left: 10px; opacity: .2; }
+.dp-tb-rule { width: 4px; height: 18px; background: #165dff; margin-right: 8px; border-radius: 2px; }
+.dp-tb-ico { width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; }
+.dp-tb-ico-grad { background: linear-gradient(135deg, #165dff, #8bc8ea); }
+.dp-tb-square { width: 12px; height: 12px; background: #1d2129; margin-right: 8px; }
+.dp-tb-heart { color: #f53f3f; margin-right: 6px; font-size: 14px; }
+.dp-tb-en { font-size: 10px; color: #86909c; margin-left: 8px; letter-spacing: 1px; }
+.dp-tb-s9 { background: #1d2129 !important; }
+.dp-tb-s9 .dp-tb-title, .dp-tb-s9 .dp-tb-en, .dp-tb-s9 .dp-tb-more { color: #ffffff !important; }
 .dp-titlebar.center .dp-tb-left { flex: 1; align-items: center; text-align: center; }
 .dp-titlebar.bar .dp-tb-title { background: #165dff; color: #fff; padding: 4px 12px; border-radius: 6px 6px 6px 0; font-size: 14px; }
 .dp-tb-left { display: flex; flex-direction: column; gap: 2px; }

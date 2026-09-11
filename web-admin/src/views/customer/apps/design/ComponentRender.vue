@@ -296,12 +296,33 @@
     </template>
     <!-- 标题栏 -->
     <template v-else-if="comp.type === 'title-bar'">
-      <div class="r-titlebar" :class="{ center: comp.props.align === 'center', bar: comp.props.titleStyle === 'bar' }" :style="{ background: comp.props.bgColor || 'transparent' }">
-        <div class="r-tb-left">
-          <div class="r-tb-title" :style="{ color: comp.props.color || '#1d2129' }">{{ comp.props.title || '标题文字' }}</div>
-          <div v-if="comp.props.sub" class="r-tb-sub">{{ comp.props.sub }}</div>
-        </div>
-        <div v-if="comp.props.showMore && comp.props.moreText" class="r-tb-more">{{ comp.props.moreText }} ›</div>
+      <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 1)" :style="{ background: comp.props.bgColor || '#fff', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
+        <template v-if="(comp.props.styleType || 1) <= 3">
+          <span class="r-tb-rule" v-if="(comp.props.styleType || 1) === 3"></span>
+          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
+          <span v-if="(comp.props.styleType || 1) === 2" class="r-tb-line"></span>
+        </template>
+        <template v-else-if="(comp.props.styleType || 1) === 7">
+          <span class="r-tb-ico r-tb-ico-grad"></span>
+          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
+          <span class="r-tb-sub">副标题文字</span>
+        </template>
+        <template v-else-if="(comp.props.styleType || 1) === 8">
+          <span class="r-tb-square"></span>
+          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
+          <span class="r-tb-en">RECOMMEND</span>
+        </template>
+        <template v-else-if="(comp.props.styleType || 1) === 9">
+          <span class="r-tb-heart">♥</span>
+          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
+          <span class="r-tb-en">RECOMMEND</span>
+          <span class="r-tb-more">查看更多 ›</span>
+        </template>
+        <template v-else>
+          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
+          <span class="r-tb-sub">副标题文字</span>
+          <span v-if="(comp.props.styleType || 1) === 6" class="r-tb-more">查看更多 ›</span>
+        </template>
       </div>
     </template>
     <!-- 搜索框 -->
@@ -1040,6 +1061,19 @@ function chRadius(p, i) {
 .r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
 .r-float img { width: 22px; height: 22px; object-fit: contain; }
 .r-float-square { border-radius: 10px; padding: 8px 14px; }
+.r-titlebar { display: flex; align-items: center; padding: 12px; }
+.r-tb-title { font-size: 16px; line-height: 1.4; }
+.r-tb-sub { font-size: 12px; color: #86909C; margin-left: 8px; }
+.r-tb-more { font-size: 12px; color: #86909C; margin-left: auto; }
+.r-tb-line { flex: 1; height: 2px; background: currentColor; margin-left: 10px; opacity: .2; }
+.r-tb-rule { width: 4px; height: 18px; background: #165DFF; margin-right: 8px; border-radius: 2px; }
+.r-tb-ico { width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; }
+.r-tb-ico-grad { background: linear-gradient(135deg, #165DFF, #8BC8EA); }
+.r-tb-square { width: 12px; height: 12px; background: #1D2129; margin-right: 8px; }
+.r-tb-heart { color: #F53F3F; margin-right: 6px; font-size: 14px; }
+.r-tb-en { font-size: 10px; color: #86909C; margin-left: 8px; letter-spacing: 1px; }
+.r-tb-s9 { background: #1D2129 !important; }
+.r-tb-s9 .r-tb-title, .r-tb-s9 .r-tb-en, .r-tb-s9 .r-tb-more { color: #fff !important; }
 .r-chl-time { font-size: 12px; margin-top: 4px; }
 .r-chl-btn { display: inline-block; margin-top: 8px; font-size: 12px; padding: 4px 14px; border-radius: 14px; }
 .r-float-round { border-radius: 50%; width: 52px; height: 52px; padding: 0; }

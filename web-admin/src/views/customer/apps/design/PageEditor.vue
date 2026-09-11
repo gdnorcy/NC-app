@@ -197,7 +197,8 @@
                   </div>
                   <!-- 风格选择器（eweishop 1:1：当前风格 + 修改风格弹窗） -->
                   <div v-else-if="f.control === 'stylePicker'" class="pe-style-picker">
-                    <span class="pe-style-cur">当前：{{ styleName(f) }}</span>
+                    <img v-if="f.styleGroup" :src="styleImg(f, selectedComp.props[f.key])" class="pe-style-thumb-img" />
+                    <span v-else class="pe-style-cur">当前：{{ styleName(f) }}</span>
                     <el-button size="small" type="primary" plain @click="openStylePicker(f)">修改风格</el-button>
                   </div>
                   <el-radio-group v-else-if="f.control === 'radioButton'" v-model="selectedComp.props[f.key]" size="default">
@@ -484,8 +485,20 @@
 
     <!-- 风格选择器（eweishop 1:1：风格1/风格2 缩略图弹窗） -->
     <el-dialog v-model="stylePickerVisible" title="风格选择器" width="500px" append-to-body>
-      <div class="pe-style-grid">
+      <div class="pe-style-grid" :class="{ 'pe-style-grid-img': stylePickerField?.styleGroup }">
+        <template v-if="stylePickerField?.styleGroup">
+          <div
+            v-for="n in stylePickerField.styleCount" :key="n"
+            class="pe-style-card pe-style-card-img" :class="{ active: Number(selectedComp?.props[stylePickerField?.key]) === n }"
+            @click="pickStyleNum(n)"
+          >
+            <img :src="styleImg(stylePickerField, n)" class="pe-style-thumb-img" />
+            <span class="pe-style-name">风格{{ n }}</span>
+            <span class="pe-style-check">✓</span>
+          </div>
+        </template>
         <div
+          v-else
           v-for="o in (stylePickerField?.options || [])" :key="o.value"
           class="pe-style-card" :class="{ active: String(selectedComp?.props[stylePickerField?.key]) === String(o.value) }"
           @click="pickStyle(o)"
@@ -595,6 +608,18 @@ const versionShow = ref(false);
 // 风格选择器（eweishop 1:1：修改风格 → 弹窗选择）
 const stylePickerVisible = ref(false);
 const stylePickerField = ref(null);
+// 风格预览图（eweishop 1:1：design-styles/{group}/style{n}.png）
+const styleImgs = import.meta.glob('/src/assets/design-styles/**/*.png', { eager: true, import: 'default' });
+function styleImg(f, n) {
+  if (!f?.styleGroup) return '';
+  const v = Number(n) || 1;
+  return styleImgs[`/src/assets/design-styles/${f.styleGroup}/style${v}.png`] || '';
+}
+function pickStyleNum(n) {
+  if (!selectedComp.value || !stylePickerField.value) return;
+  selectedComp.value.props[stylePickerField.value.key] = n;
+  stylePickerVisible.value = false;
+}
 function styleName(f) {
   const o = (f.options || []).find((x) => String(x.value) === String(selectedComp.value?.props?.[f.key]));
   return o ? o.label : (f.options?.[0]?.label || '');
@@ -1440,7 +1465,13 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-graphic-check { position: absolute; top: 4px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
 .pe-graphic-item.active .pe-graphic-check { display: block; }
 /* 风格选择器（eweishop 1:1：修改风格 → 弹窗） */
+/* 图片风格选择（eweishop 1:1） */
+.pe-style-grid-img { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pe-style-card-img { flex-direction: column; }
+.pe-style-card-img .pe-style-thumb-img { width: 100%; height: auto; border-radius: 6px; border: 1px solid #E5E6EB; }
+.pe-style-card-img.active .pe-style-thumb-img { border-color: #165DFF; }
 .pe-style-picker { display: flex; align-items: center; gap: 8px; width: 100%; }
+.pe-style-picker .pe-style-thumb-img { width: 84px; height: auto; border-radius: 6px; border: 1px solid #E5E6EB; cursor: pointer; }
 .pe-style-cur { font-size: 12px; color: #4e5969; }
 .pe-style-grid { display: flex; gap: 14px; }
 .pe-style-card { position: relative; flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px; cursor: pointer; background: #fff; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 6px; }
