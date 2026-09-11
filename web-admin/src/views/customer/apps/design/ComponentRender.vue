@@ -296,32 +296,44 @@
     </template>
     <!-- 标题栏 -->
     <template v-else-if="comp.type === 'title-bar'">
-      <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 1)" :style="{ background: comp.props.bgColor || '#fff', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
-        <template v-if="(comp.props.styleType || 1) <= 3">
-          <span class="r-tb-rule" v-if="(comp.props.styleType || 1) === 3"></span>
-          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
-          <span v-if="(comp.props.styleType || 1) === 2" class="r-tb-line"></span>
-        </template>
-        <template v-else-if="(comp.props.styleType || 1) === 7">
-          <span class="r-tb-ico r-tb-ico-grad"></span>
-          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
-          <span class="r-tb-sub">副标题文字</span>
-        </template>
-        <template v-else-if="(comp.props.styleType || 1) === 8">
-          <span class="r-tb-square"></span>
-          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
-          <span class="r-tb-en">RECOMMEND</span>
-        </template>
-        <template v-else-if="(comp.props.styleType || 1) === 9">
-          <span class="r-tb-heart">♥</span>
-          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
-          <span class="r-tb-en">RECOMMEND</span>
+      <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 7)" :style="{ background: comp.props.bgColor || '#fff', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
+        <!-- 风格1：装饰图+标题+RECOMMEND+查看更多（ew es-title3） -->
+        <template v-if="(comp.props.styleType || 7) === 1">
+          <img class="r-tb-deco" :src="tbDecoUrl" alt="" />
+          <div class="r-tb-mid">
+            <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span>
+            <span class="r-tb-en">RECOMMEND</span>
+          </div>
           <span class="r-tb-more">查看更多 ›</span>
         </template>
+        <!-- 风格2：左右星标+标题+RECOMMEND（ew es-title2 title5） -->
+        <template v-else-if="(comp.props.styleType || 7) === 2">
+          <div class="r-tb-row">
+            <span class="r-tb-star">★</span>
+            <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span>
+            <span class="r-tb-star">★</span>
+          </div>
+          <div class="r-tb-en-line">RECOMMEND</div>
+        </template>
+        <!-- 风格3：左右气泡+黄绿标题（ew es-title2 title4） -->
+        <template v-else-if="(comp.props.styleType || 7) === 3">
+          <img class="r-tb-bub" :src="tbBubbleUrl" alt="" />
+          <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#F1FF9A' }">{{ comp.props.text || '标题文字' }}</span>
+          <img class="r-tb-bub r-tb-bub-r" :src="tbBubbleUrl" alt="" />
+        </template>
+        <!-- 风格4-9：线型装饰（ew es-title title4..1） -->
         <template v-else>
-          <span class="r-tb-title" :style="{ fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal', color: comp.props.color || '#1D2129' }">{{ comp.props.text || '标题文字' }}</span>
-          <span class="r-tb-sub">副标题文字</span>
-          <span v-if="(comp.props.styleType || 1) === 6" class="r-tb-more">查看更多 ›</span>
+          <span v-if="(comp.props.styleType || 7) === 8" class="r-tb-vline"></span>
+          <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span>
+          <span v-if="(comp.props.styleType || 7) === 4" class="r-tb-bline"></span>
+          <span v-if="(comp.props.styleType || 7) === 4" class="r-tb-bthick"></span>
+          <span v-if="(comp.props.styleType || 7) === 5" class="r-tb-bline-l"></span>
+          <span v-if="(comp.props.styleType || 7) === 5" class="r-tb-bline-r"></span>
+          <span v-if="(comp.props.styleType || 7) === 5" class="r-tb-diamond"></span>
+          <span v-if="(comp.props.styleType || 7) === 7" class="r-tb-line-l"></span>
+          <span v-if="(comp.props.styleType || 7) === 7" class="r-tb-line-r"></span>
+          <span v-if="(comp.props.styleType || 7) === 6" class="r-tb-frame-line-l"></span>
+          <span v-if="(comp.props.styleType || 7) === 6" class="r-tb-frame-line-r"></span>
         </template>
       </div>
     </template>
@@ -429,7 +441,12 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue';
+
+import tbDecoUrl from '../../../../assets/design-styles/title/title3.png';
+import tbBubbleUrl from '../../../../assets/design-styles/title/bubble.png';
 import { customerApiCall } from '../../../../api';
+
+const tbTextStyle = (comp) => ({ color: comp.props.color || '#1D2129', fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
 const props = defineProps({ comp: { type: Object, required: true } });
 
 // 全景场景组件：编辑端预览拉取租户真实方案
@@ -1017,6 +1034,29 @@ function chRadius(p, i) {
 .r-chv-body { padding: 10px 12px; background: #fff; }
 .r-chv-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-chv-desc { font-size: 12px; color: #86909c; margin-top: 2px; }
+.r-titlebar { display: flex; align-items: center; position: relative; padding: 10px 12px; }
+.r-tb-title { line-height: 1.4; }
+.r-tb-en { font-size: 11px; color: #B7BCD2; display: block; margin-top: 2px; }
+.r-tb-more { font-size: 12px; color: #B0B3BF; margin-left: auto; white-space: nowrap; }
+.r-tb-deco { width: 22px; height: 22px; margin-right: 8px; flex: none; }
+.r-tb-mid { display: flex; flex-direction: column; }
+.r-tb-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.r-tb-star { color: #333; font-size: 12px; }
+.r-tb-en-line { font-size: 11px; color: #333; text-align: center; margin-top: 1px; letter-spacing: 1px; }
+.r-tb-bub { width: 14px; height: 8px; margin: 0 6px; flex: none; }
+.r-tb-bub-r { transform: rotateY(180deg); }
+.r-tb-vline { width: 2px; height: 18px; background: #333; margin-right: 10px; }
+.r-tb-bline { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: #333; opacity: .35; }
+.r-tb-bthick { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 58%; height: 3px; background: #333; }
+.r-tb-bline-l { position: absolute; bottom: 0; left: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
+.r-tb-bline-r { position: absolute; bottom: 0; right: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
+.r-tb-diamond { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; border: 1px solid #333; background: #fff; }
+.r-tb-line-l { width: 30px; height: 1px; background: #333; margin-right: 8px; }
+.r-tb-line-r { width: 30px; height: 1px; background: #333; margin-left: 8px; }
+.r-tb-frame-line-l { width: 34px; height: 1px; background: #333; margin-right: 8px; }
+.r-tb-frame-line-r { width: 34px; height: 1px; background: #333; margin-left: 8px; }
+.r-tb-s4, .r-tb-s5, .r-tb-s9 { padding-bottom: 16px; }
+.r-tb-s6 { padding: 12px; }
 /* 视频号直播 */
 .r-chlive { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
 .r-chl-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }

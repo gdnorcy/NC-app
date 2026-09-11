@@ -293,32 +293,40 @@
         </view>
       </view>
       <!-- 标题栏 -->
-      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 1)" :style="dpTitleBarStyle(c.props)">
-        <block v-if="(c.props.styleType || 1) <= 3">
-          <view v-if="(c.props.styleType || 1) === 3" class="dp-tb-rule"></view>
-          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
-          <view v-if="(c.props.styleType || 1) === 2" class="dp-tb-line"></view>
-        </block>
-        <block v-else-if="(c.props.styleType || 1) === 7">
-          <view class="dp-tb-ico dp-tb-ico-grad"></view>
-          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
-          <text class="dp-tb-sub">副标题文字</text>
-        </block>
-        <block v-else-if="(c.props.styleType || 1) === 8">
-          <view class="dp-tb-square"></view>
-          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
-          <text class="dp-tb-en">RECOMMEND</text>
-        </block>
-        <block v-else-if="(c.props.styleType || 1) === 9">
-          <text class="dp-tb-heart">♥</text>
-          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
-          <text class="dp-tb-en">RECOMMEND</text>
+      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 7)" :style="dpTbWrapStyle(c.props)">
+        <block v-if="(c.props.styleType || 7) === 1">
+          <image class="dp-tb-deco" src="/static/design-styles/title/title3.png" mode="aspectFit"></image>
+          <view class="dp-tb-mid">
+            <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+            <text class="dp-tb-en">RECOMMEND</text>
+          </view>
           <text class="dp-tb-more">查看更多 ›</text>
         </block>
+        <block v-else-if="(c.props.styleType || 7) === 2">
+          <view class="dp-tb-row">
+            <text class="dp-tb-star">★</text>
+            <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+            <text class="dp-tb-star">★</text>
+          </view>
+          <text class="dp-tb-en-line">RECOMMEND</text>
+        </block>
+        <block v-else-if="(c.props.styleType || 7) === 3">
+          <image class="dp-tb-bub" src="/static/design-styles/title/bubble.png" mode="aspectFit"></image>
+          <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#F1FF9A' }">{{ c.props.text || '标题文字' }}</text>
+          <image class="dp-tb-bub dp-tb-bub-r" src="/static/design-styles/title/bubble.png" mode="aspectFit"></image>
+        </block>
         <block v-else>
+          <view v-if="(c.props.styleType || 7) === 8" class="dp-tb-vline"></view>
           <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
-          <text class="dp-tb-sub">副标题文字</text>
-          <text v-if="(c.props.styleType || 1) === 6" class="dp-tb-more">查看更多 ›</text>
+          <view v-if="(c.props.styleType || 7) === 4" class="dp-tb-bline"></view>
+          <view v-if="(c.props.styleType || 7) === 4" class="dp-tb-bthick"></view>
+          <view v-if="(c.props.styleType || 7) === 5" class="dp-tb-bline-l"></view>
+          <view v-if="(c.props.styleType || 7) === 5" class="dp-tb-bline-r"></view>
+          <view v-if="(c.props.styleType || 7) === 5" class="dp-tb-diamond"></view>
+          <view v-if="(c.props.styleType || 7) === 7" class="dp-tb-line-l"></view>
+          <view v-if="(c.props.styleType || 7) === 7" class="dp-tb-line-r"></view>
+          <view v-if="(c.props.styleType || 7) === 6" class="dp-tb-frame-line-l"></view>
+          <view v-if="(c.props.styleType || 7) === 6" class="dp-tb-frame-line-r"></view>
         </block>
       </view>
       <!-- 搜索框 -->
@@ -753,6 +761,9 @@ function dpTitleBarStyle(p) {
   if (p.marginTop) s.marginTop = p.marginTop + 'px';
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
+}
+function dpTbWrapStyle(p) {
+  return dpTitleBarStyle(p);
 }
 function dpTbTextStyle(p) {
   return { color: p.color || '#1D2129', fontSize: (p.fontSize || 16) + 'px', fontWeight: p.bold ? '600' : '400', fontStyle: p.italic ? 'italic' : 'normal' };
@@ -1215,7 +1226,29 @@ function openChannel(kind, p) {
 .dp-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .dp-gallery-img { width: 100%; height: 100%; }
 /* 标题栏 9 风格（eweishop 1:1） */
-.dp-titlebar { display: flex; align-items: center; padding: 12px; }
+.dp-titlebar { display: flex; align-items: center; position: relative; padding: 10px 12px; }
+.dp-tb-title { line-height: 1.4; }
+.dp-tb-en { font-size: 11px; color: #b7bcd2; display: block; margin-top: 2px; }
+.dp-tb-more { font-size: 12px; color: #b0b3bf; margin-left: auto; white-space: nowrap; }
+.dp-tb-deco { width: 22px; height: 22px; margin-right: 8px; flex: none; }
+.dp-tb-mid { display: flex; flex-direction: column; }
+.dp-tb-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.dp-tb-star { color: #333; font-size: 12px; }
+.dp-tb-en-line { font-size: 11px; color: #333; text-align: center; margin-top: 1px; letter-spacing: 1px; }
+.dp-tb-bub { width: 14px; height: 8px; margin: 0 6px; flex: none; }
+.dp-tb-bub-r { transform: rotateY(180deg); }
+.dp-tb-vline { width: 2px; height: 18px; background: #333; margin-right: 10px; }
+.dp-tb-bline { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: #333; opacity: .35; }
+.dp-tb-bthick { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 58%; height: 3px; background: #333; }
+.dp-tb-bline-l { position: absolute; bottom: 0; left: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
+.dp-tb-bline-r { position: absolute; bottom: 0; right: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
+.dp-tb-diamond { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; border: 1px solid #333; background: #fff; }
+.dp-tb-line-l { width: 30px; height: 1px; background: #333; margin-right: 8px; }
+.dp-tb-line-r { width: 30px; height: 1px; background: #333; margin-left: 8px; }
+.dp-tb-frame-line-l { width: 34px; height: 1px; background: #333; margin-right: 8px; }
+.dp-tb-frame-line-r { width: 34px; height: 1px; background: #333; margin-left: 8px; }
+.dp-tb-s4, .dp-tb-s5, .dp-tb-s9 { padding-bottom: 16px; }
+.dp-tb-s6 { padding: 12px; }
 .dp-tb-title { font-size: 16px; line-height: 1.4; }
 .dp-tb-sub { font-size: 12px; color: #86909c; margin-left: 8px; }
 .dp-tb-more { font-size: 12px; color: #86909c; margin-left: auto; }
