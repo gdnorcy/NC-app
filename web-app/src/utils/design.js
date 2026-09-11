@@ -29,10 +29,12 @@ export function normalizeDesignConfig(raw) {
   const tab = cfg.tab;
   const tabItems = Array.isArray(tab?.items) && tab.items.length ? tab.items : DEFAULT_DESIGN_TABS;
   const homePage = HOME_PAGE_MAP[cfg.homePage] ? cfg.homePage : 'card';
+  const pageMeta = cfg.pages?.meta || {};
+  const globalDefault = pageMeta.global?.headerDefault || {};
   return {
     tenantId: cfg.tenantId || 0,
     style: { primaryColor: style.primaryColor || '#165DFF', radius: style.radius ?? 8 },
-    header: normalizeHeader(cfg.header),
+    header: normalizeHeader(cfg.header, globalDefault),
     tabItems: tabItems.map((it, i) => ({
       text: it.text || `导航${i + 1}`,
       icon: typeof it.icon === 'string' ? it.icon : '',
@@ -59,7 +61,31 @@ export function resolveHomePath(homePage) {
 }
 
 /** 规范化头部设置（custom/immersive/official；缺字段兜底；支持两行内容 content2 与文字加粗/大小/中间样式） */
-export function normalizeHeader(raw) {
+export function normalizeHeader(raw, globalDefault) {
+  const gd = globalDefault || {};
+  const scheme = raw?.scheme ?? gd.scheme ?? 1;
+  if (scheme === 2) {
+    // 方案二（ew）：页面 ew 字段覆盖全局默认（全局默认 + 单页覆盖）
+    const gEw = gd.ew || {};
+    const pEw = raw?.ew || {};
+    const mergeLayers = () => {
+      const gl = Array.isArray(gEw.layers) ? gEw.layers : [];
+      const pl = Array.isArray(pEw.layers) ? pEw.layers : [];
+      return [0, 1].map((i) => mergeLayer(gl[i] || {}, pl[i] || {}));
+    };
+    const ew = {
+      bgMode: pEw.bgMode ?? gEw.bgMode ?? 'none',
+      bgColor: pEw.bgColor ?? gEw.bgColor ?? '#ffffff',
+      bgImage: pEw.bgImage ?? gEw.bgImage ?? '',
+      funcModule: pEw.funcModule ?? gEw.funcModule ?? 'none',
+      textColor: pEw.textColor ?? gEw.textColor ?? 'black',
+      headBg: { mode: 'color', color: '#ffffff', image: '', ...(gEw.headBg || {}), ...(pEw.headBg || {}) },
+      scrollBg: { mode: 'color', color: 'transparent', image: '', ...(gEw.scrollBg || {}), ...(pEw.scrollBg || {}) },
+      layers: mergeLayers(),
+      copyright: pEw.copyright ?? gEw.copyright ?? 'default',
+    };
+    return { scheme: 2, ew };
+  }
   if (!raw) return null;
   const normItem = (it) => {
     const x = it || {};
@@ -77,6 +103,7 @@ export function normalizeHeader(raw) {
     return { left: normItem(r.left), center: normItem(r.center), right: normItem(r.right) };
   };
   return {
+    scheme: 1,
     type: ['custom', 'immersive', 'official'].includes(raw.type) ? raw.type : 'custom',
     bgColor: raw.bgColor || '#ffffff',
     bgImage: raw.bgImage || '',
@@ -87,6 +114,28 @@ export function normalizeHeader(raw) {
     textColor: raw.textColor || '#1d2129',
     content: normRow(raw.content),
     content2: normRow(raw.content2),
+  };
+}
+
+/** 方案二（ew）单层 merge：左/中/右三段字段兜底合并 */
+function mergeLayer(g, p) {
+  const gL = g?.left || {}; const pL = p?.left || {};
+  const gM = g?.middle || {}; const pM = p?.middle || {};
+  const gR = g?.right || {}; const pR = p?.right || {};
+  return {
+    left: {
+      type: pL.type ?? gL.type ?? 'none', image: pL.image ?? gL.image ?? '', icon: pL.icon ?? gL.icon ?? '',
+      color: pL.color ?? gL.color ?? '#ffffff', link: pL.link ?? gL.link ?? '',
+      store: { info: '', province: '', city: '', district: '', address: '', name: '', color: '#ffffff', ...(gL.store || {}), ...(pL.store || {}) },
+    },
+    middle: {
+      type: pM.type ?? gM.type ?? 'none', image: pM.image ?? gM.image ?? '', link: pM.link ?? gM.link ?? '',
+      search: { fillBg: '#f2f2f2', borderBg: '#ffffff', iconColor: '#3d404d', textColor: '#ffffff', placeholder: '', placeholderLen: 0, placeholderMax: 10, hotword: false, showBtn: true, ...(gM.search || {}), ...(pM.search || {}) },
+    },
+    right: {
+      type: pR.type ?? gR.type ?? 'none', image: pR.image ?? gR.image ?? '', icon: pR.icon ?? gR.icon ?? '',
+      color: pR.color ?? gR.color ?? '#ffffff', link: pR.link ?? gR.link ?? '',
+    },
   };
 }
 

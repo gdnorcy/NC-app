@@ -117,4 +117,45 @@ describe('设计中心 C 端渲染工具', () => {
     expect(d.content.center.align).toBe('center');
     expect(d.content.center.bold).toBe(0);
   });
+
+  it('P10 头部方案二（ew）：scheme=2 返回 ew 字段块，页面覆盖全局默认', () => {
+    const gd = {
+      scheme: 2,
+      ew: {
+        bgMode: 'custom', bgColor: '#ffffff', funcModule: 'single', textColor: 'black',
+        headBg: { mode: 'color', color: '#ffffff', image: '' },
+        scrollBg: { mode: 'color', color: 'transparent', image: '' },
+        layers: [
+          { left: { type: 'image', image: '/uploads/global-l.png' }, middle: { type: 'search', search: { fillBg: '#eee', placeholder: '全局占位' } }, right: { type: 'none' } },
+          {},
+        ],
+        copyright: 'default',
+      },
+    };
+    const page = {
+      scheme: 2,
+      ew: { funcModule: 'double', layers: [{ left: { type: 'icon', icon: 'user' } }, { middle: { type: 'image', image: '/uploads/p-m.png' } }] },
+    };
+    const h = normalizeHeader(page, gd);
+    expect(h.scheme).toBe(2);
+    expect(h.ew.funcModule).toBe('double');
+    expect(h.ew.bgMode).toBe('custom'); // 页面未覆盖 → 继承全局
+    expect(h.ew.layers[0].left.type).toBe('icon'); // 页面覆盖
+    expect(h.ew.layers[0].left.icon).toBe('user');
+    expect(h.ew.layers[0].middle.type).toBe('search'); // 该层中间未覆盖 → 继承全局
+    expect(h.ew.layers[0].middle.search.fillBg).toBe('#eee');
+    expect(h.ew.layers[0].middle.search.placeholder).toBe('全局占位');
+    expect(h.ew.layers[1].middle.type).toBe('image'); // 第二层页面覆盖
+    expect(h.ew.layers[1].middle.image).toBe('/uploads/p-m.png');
+    expect(h.ew.layers[1].left.type).toBe('none'); // 第二层左侧未覆盖 → 兜底
+  });
+
+  it('P11 头部方案二：全局默认 scheme=2 且页面无 header 时生效', () => {
+    const h = normalizeHeader(null, { scheme: 2, ew: { funcModule: 'none', textColor: 'white' } });
+    expect(h.scheme).toBe(2);
+    expect(h.ew.funcModule).toBe('none');
+    expect(h.ew.textColor).toBe('white');
+    expect(h.ew.layers.length).toBe(2);
+    expect(h.ew.layers[0].left.type).toBe('none');
+  });
 });

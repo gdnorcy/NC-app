@@ -339,10 +339,27 @@
           <div class="hp-label">卡片间距(px)</div>
           <el-slider v-model="meta.global.cardGap" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
         </div>
+        <div class="hp-sec">头部默认值（全局默认，单页可覆盖）</div>
+        <div class="hp-row">
+          <div class="hp-label">默认头部方案</div>
+          <el-radio-group v-model="meta.global.headerDefault.scheme">
+            <el-radio :value="1">方案一（云菜鸟）</el-radio>
+            <el-radio :value="2">方案二（ew）</el-radio>
+          </el-radio-group>
+        </div>
+        <HeaderEwPanel v-model="meta.global.headerDefault.ew" />
       </div>
 
       <!-- 头部设置（照抄云菜鸟：头部类型决定可配置菜单——自定义=全部子项 / 沉浸式=仅类型 / 仿官方=类型+页面标题） -->
       <div v-if="headerPanel.active === 'header'" class="hp-body">
+        <div class="hp-row">
+          <div class="hp-label">头部方案</div>
+          <el-radio-group :model-value="headerScheme" @update:model-value="setHeaderScheme">
+            <el-radio :value="1">方案一（云菜鸟）</el-radio>
+            <el-radio :value="2">方案二（ew）</el-radio>
+          </el-radio-group>
+        </div>
+        <template v-if="headerScheme === 1">
         <div class="hp-row">
           <div class="hp-label">头部类型</div>
           <el-radio-group v-model="meta.header.type">
@@ -462,6 +479,10 @@
             </template>
           </div>
         </template>
+        </template>
+        </template>
+        <template v-else>
+          <HeaderEwPanel v-model="meta.header.ew" />
         </template>
       </div>
 
@@ -604,6 +625,7 @@ import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonSt
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
+import HeaderEwPanel, { mkEwHeader } from './HeaderEwPanel.vue';
 import PeColorPicker from './PeColorPicker.vue';
 import PeImagePicker from './PeImagePicker.vue';
 import PeImageGroup from './PeImageGroup.vue';
@@ -676,10 +698,16 @@ const pageList = ref([]);
 // ---- 页面级 meta（主题/全局/头部/底部导航，随草稿一起保存） ----
 const meta = reactive({
   theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
-  global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12 },
-  header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow() },
+  global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader() } },
+  header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
 });
+
+// 头部方案（页面覆盖全局默认）：header.scheme ?? global.headerDefault.scheme ?? 1
+const headerScheme = computed(() => meta.header.scheme ?? meta.global.headerDefault.scheme ?? 1);
+function setHeaderScheme(v) {
+  meta.header.scheme = v;
+}
 
 // 手机壳/画布背景 = 全局设置（背景色/背景图），编辑端与 C 端渲染一致
 const phoneStyle = computed(() => {
@@ -1096,8 +1124,8 @@ async function load() {
 function defaultMeta() {
   return {
     theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
-    global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12 },
-    header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow() },
+    global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader() } },
+    header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
     nav: { mode: 'default', schemeId: null, jumpEnabled: true },
   };
 }

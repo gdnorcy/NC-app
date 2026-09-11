@@ -1,7 +1,8 @@
 <template>
   <view class="home-page">
-    <!-- 设计中心头部设置（custom/immersive/official 按类型渲染） -->
-    <DesignNav v-if="designHeader" :header="designHeader" page-name="首页" />
+    <!-- 设计中心头部设置（方案一：custom/immersive/official；方案二：ew 风格头部） -->
+    <DesignNav v-if="designHeader && designHeader.scheme !== 2" :header="designHeader" page-name="首页" />
+    <DesignNavEw v-else-if="designHeader" :header="designHeader" page-name="首页" :scrolled="headerScrolled" @search="goSearch" />
 
     <!-- 设计中心装修区（发布/预览的首页组件） -->
     <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" class="design-section" />
@@ -131,7 +132,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { onShow, onLoad } from '@dcloudio/uni-app';
+import { onShow, onLoad, onPageScroll } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY } from '../../utils/design.js';
@@ -139,6 +140,7 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
 import DesignNav from '../../components/DesignNav.vue';
+import DesignNavEw from '../../components/DesignNavEw.vue';
 
 const user = ref({});
 const myCard = ref(null);
@@ -150,6 +152,8 @@ const designComps = ref([]);
 const designTenantId = ref(0);
 const designHeader = ref(null);
 const designGlobal = ref({});
+const headerScrolled = ref(false);
+onPageScroll((e) => { headerScrolled.value = (e?.scrollTop || 0) > 10; });
 let pageOptions = {};
 onLoad((o) => { pageOptions = o || {}; });
 
