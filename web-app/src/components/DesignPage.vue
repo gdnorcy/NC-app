@@ -5,10 +5,6 @@
       <view v-if="c.type === 'title'" class="dp-title" :style="{ color: c.props.color, textAlign: c.props.align }">
         <text>{{ c.props.text || '标题文字' }}</text>
       </view>
-      <!-- 文本 -->
-      <view v-else-if="c.type === 'text'" class="dp-text" :style="{ color: c.props.color, textAlign: c.props.align, fontSize: c.props.size + 'px' }">
-        <text>{{ c.props.text || '文本内容' }}</text>
-      </view>
       <!-- 图片 -->
       <view v-else-if="c.type === 'image'" class="dp-image" :class="'dp-card-' + (c.props.cardStyle || 'default')" :style="dpImageBoxStyle(c.props)">
         <!-- 高级(热区)模式：多图 + 热区点击跳转 -->
@@ -283,8 +279,10 @@
         <view class="dp-chl-btn" :style="{ background: c.props.btnBg || '#165DFF', color: c.props.btnColor || '#FFFFFF' }"><text>预约直播</text></view>
       </view>
       <!-- 富文本 -->
-      <view v-else-if="c.type === 'rich-text'" class="dp-richtext" :style="dpRichTextStyle(c.props)">
-        <rich-text :nodes="c.props.html || '<p>富文本内容</p>'" />
+      <view v-else-if="c.type === 'rich-text'" class="dp-rt-box" :style="dpRtOuterStyle(c.props)">
+        <view class="dp-richtext" :style="dpRichTextStyle(c.props)">
+          <rich-text :nodes="c.props.html || '<p>富文本内容</p>'" />
+        </view>
       </view>
       <!-- 组图橱窗 -->
       <view v-else-if="c.type === 'image-gallery'" class="dp-gallery" :style="dpGalleryStyle(c.props)">
@@ -771,14 +769,19 @@ function dpImageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
   return { width: '100%', aspectRatio: map[p.ratio] || '100%' };
 }
+function dpRtOuterStyle(p) {
+  const s = {};
+  if (p.bottomBg) s.background = p.bottomBg;
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  return s;
+}
 function dpRichTextStyle(p) {
   const s = {
-    background: p.bgColor || 'transparent',
-    padding: (p.padding ?? 12) + 'px',
+    background: p.compBgColor || 'transparent',
     borderRadius: (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px',
-    marginTop: (p.marginTop || 0) + 'px',
-    marginBottom: (p.marginBottom || 0) + 'px',
   };
+  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
@@ -806,11 +809,6 @@ function dpTbOuterStyle(p) {
   if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
   if (p.marginTop) s.marginTop = p.marginTop + 'px';
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
-  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
-  if (st === 1 && (p.radiusTop || p.radiusBottom)) {
-    s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
-    s.overflow = 'hidden';
-  }
   return s;
 }
 function dpTbWrapStyle(p) {
@@ -822,6 +820,10 @@ function dpTbWrapStyle(p) {
     s.background = 'transparent';
   } else {
     s.background = p.bgColor;
+  }
+  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+  if (st === 1 && (p.radiusTop || p.radiusBottom)) {
+    s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
   }
   return s;
 }

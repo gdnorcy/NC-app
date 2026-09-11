@@ -148,6 +148,7 @@
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
+                  <RichTextEditor v-else-if="f.control === 'richtext'" v-model="selectedComp.props[f.key]" />
                   <PeColorPicker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
                   <el-date-picker
                     v-else-if="f.control === 'datetime'"
@@ -592,6 +593,7 @@ import LinkPicker from './LinkPicker.vue';
 import PeColorPicker from './PeColorPicker.vue';
 import PeImagePicker from './PeImagePicker.vue';
 import PeImageGroup from './PeImageGroup.vue';
+import RichTextEditor from './RichTextEditor.vue';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },

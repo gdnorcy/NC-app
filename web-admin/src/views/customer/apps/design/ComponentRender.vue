@@ -3,9 +3,6 @@
     <template v-if="comp.type === 'title'">
       <div class="r-title" :style="{ color: comp.props.color, textAlign: comp.props.align }">{{ comp.props.text || '标题文字' }}</div>
     </template>
-    <template v-else-if="comp.type === 'text'">
-      <div class="r-text" :style="{ color: comp.props.color, textAlign: comp.props.align, fontSize: comp.props.size + 'px' }">{{ comp.props.text || '文本内容' }}</div>
-    </template>
     <template v-else-if="comp.type === 'image'">
       <div class="r-image" :class="'r-card-' + (comp.props.cardStyle || 'default')" @click.stop :style="imageBoxStyle(comp.props)">
         <!-- 高级(热区)模式：多图 + 热区框 -->
@@ -283,7 +280,9 @@
     </template>
     <!-- 富文本 -->
     <template v-else-if="comp.type === 'rich-text'">
-      <div class="r-richtext" v-html="comp.props.html || '<p>富文本内容</p>'" :style="richTextStyle(comp.props)"></div>
+      <div class="r-rt-box" :style="rtOuterStyle(comp.props)">
+        <div class="r-richtext" v-html="comp.props.html || '<p>富文本内容</p>'" :style="richTextStyle(comp.props)"></div>
+      </div>
     </template>
     <!-- 组图橱窗 -->
     <template v-else-if="comp.type === 'image-gallery'">
@@ -300,7 +299,7 @@
       <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 1)" :style="tbWrapStyle(comp.props)">
         <!-- 风格1：es-title3 flex 左装饰图(可换)+主标题+子标题+查看更多(箭头) -->
         <template v-if="(comp.props.styleType || 1) === 1">
-          <img v-if="comp.props.imgEnabled !== false && (comp.props.img || tbDecoUrl)" class="r-tb-deco" :src="comp.props.img ? resolveUrl(comp.props.img) : tbDecoUrl" alt="" />
+          <img v-if="comp.props.imgEnabled !== false && (comp.props.img || tbDecoUrl)" class="r-tb-deco" :src="comp.props.img ? fixDecoImg(comp.props.img) : tbDecoUrl" alt="" />
           <div class="r-tb-mid">
             <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题栏' }}</span>
             <span v-if="comp.props.subEnabled !== false" class="r-tb-en" :style="{ color: comp.props.subColor || '#b7bcd2', fontSize: (comp.props.subFontSize || 12) + 'px' }">{{ comp.props.subText || 'RECOMMEND' }}</span>
@@ -496,30 +495,29 @@ import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
 import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
 import { customerApiCall } from '../../../../api';
 
-// 标题栏外层（ew 1:1）：底部颜色=外层容器背景（仅S1），边距/圆角都在外层（overflow hidden 裁内层背景）
+// 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1），上/下边距在外层；左右边距与圆角在内层
 const tbOuterStyle = (p) => {
   const st = Number(p.styleType) || 1;
   const s = {};
   if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
   if (p.marginTop) s.marginTop = p.marginTop + 'px';
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  return s;
+};
+// 标题栏内层（ew 1:1 实测）：组件背景=compBgColor/compBgImg(S1)/bgColor(S2-9)；左右边距=内层左右内缩；圆角只在内层(S1)
+const tbWrapStyle = (p) => {
+  const st = Number(p.styleType) || 1;
+  const s = {};
+  if (st === 1) {
+    s.background = p.compBgType === 'image' ? (p.compBgImg ? `url(${resolveUrl(p.compBgImg)}) center/cover no-repeat` : 'transparent') : (p.compBgColor || '#ffffff');
+  } else if (p.bgColor) {
+    s.background = p.bgColor;
+  }
   if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
   if (st === 1 && (p.radiusTop || p.radiusBottom)) {
     s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
-    s.overflow = 'hidden';
   }
   return s;
-};
-// 标题栏内层（ew 1:1）：S1 组件背景=compBgColor/compBgImg，S2-9=背景颜色
-const tbWrapStyle = (p) => {
-  const st = Number(p.styleType) || 1;
-  let bg = 'transparent';
-  if (st === 1) {
-    bg = p.compBgType === 'image' ? (p.compBgImg ? `url(${resolveUrl(p.compBgImg)}) center/cover no-repeat` : 'transparent') : (p.compBgColor || '#ffffff');
-  } else if (p.bgColor) {
-    bg = p.bgColor;
-  }
-  return { background: bg };
 };
 // 主标题族（S1-6）
 const tbTextStyle = (comp) => ({ color: comp.props.titleColor || '#333333', fontSize: (comp.props.titleFontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
@@ -699,6 +697,13 @@ function resolveUrl(u) {
   return u.startsWith('/') ? u : `/${u}`;
 }
 
+// 标题栏装饰图：兼容 C 端旧数据路径(/static/...)与上传图，空值由调用方兜底默认图
+function fixDecoImg(u) {
+  if (!u) return '';
+  if (u.startsWith('/static/')) return '/admin-assets' + u;
+  return resolveUrl(u);
+}
+
 // 管理端画布不实际跳转，仅阻止冒泡
 function onJump() {}
 
@@ -836,14 +841,21 @@ function imageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
   return { aspectRatio: map[p.ratio] || '100%', objectFit: 'cover', width: '100%' };
 }
+// 富文本外层（ew 1:1）：底部背景=外层底色，上/下边距在外层
+function rtOuterStyle(p) {
+  const s = {};
+  if (p.bottomBg) s.background = p.bottomBg;
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  return s;
+}
+// 富文本内层（ew 1:1）：组件背景、左右边距内缩、圆角只在内层
 function richTextStyle(p) {
   const s = {
-    background: p.bgColor || 'transparent',
-    padding: (p.padding ?? 12) + 'px',
+    background: p.compBgColor || 'transparent',
     borderRadius: (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px',
-    marginTop: (p.marginTop || 0) + 'px',
-    marginBottom: (p.marginBottom || 0) + 'px',
   };
+  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;

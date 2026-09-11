@@ -779,3 +779,30 @@ npm run test:frontend
 5. **help 与 tips 不叠加**：图片选择器等控件的帮助文案优先取对标原文案（如「建议尺寸：80*80像素」）；同字段 help 与 tips 只保留对标显示的那一处，禁止默认文案与自定义提示双行叠显（PeImagePicker help 优先 `f.help`，未设时不得再叠默认「建议图片宽度750…」）。
 6. **改模板控件链必须全字段回归**：改动表单控件渲染模板（增删 v-if/v-else-if、移动控件位置、加字段）后，必须浏览器实测面板**全部字段控件**渲染存在且可交互（重点复查带 tips/help 字段），不能只验证本次改动的字段。
 
+
+## 七、两层容器渲染语义规范（2026-09-11 标题栏/富文本底层颜色重叠教训，强制）
+
+> 触发场景：对标组件面板同时存在「底部背景/底部颜色」与「组件背景/背景色」两个字段。ew 实测真实语义为**两层容器**，曾因第一版把边距/圆角挂在错误层导致「底部颜色与组件背景区域重叠」返工。
+
+1. **底部颜色=外层容器全宽底色，组件背景=内层容器底色**：外层 `.r-tb-box/.dp-tb-box`（富文本 `.r-rt-box/.dp-rt-box`）只承载底部颜色 + 上下边距；内层 `.r-titlebar/.r-richtext` 承载组件背景（色/图）+ 左右边距（左右内缩，ew 实测 375→343）+ 上/下圆角（ew 实测 elBR=9px 仅内层）。两层禁止合一层。
+2. **验证方法（DOM 断言，非截图）**：设底部颜色 #F53F3F 后断言外层 computed backgroundColor 为 rgb(245,63,63) 且内层为组件背景色（默认 #fff）；设左右边距 16 断言**内层** marginLeft/Right=16px 而外层仍全宽；设上圆角断言内层 borderTopLeftRadius 生效、外层为 0。
+3. **逐层归位检查**：任何「背景/边距/圆角」字段改动后，逐字段确认挂载层（外层 or 内层）与对标一致——边距中「上/下边距」在外层、「左右边距」在内层；圆角只在内层。
+
+## 八、富文本组件复刻规范（2026-09-11 新增，强制）
+
+> 对标 ew「富文本」= **可视化富文本编辑器**（wangEditor 特征：段落格式/字号/加粗/斜体/下划线/删除线/文字颜色/背景色/表格/插图+超链接/元素路径/字数统计），不是 textarea 输 HTML。
+
+1. **编辑器必须可视化**：管理端用 wangEditor5（`@wangeditor/editor` + `@wangeditor/editor-for-vue@next`，web-admin 工作区安装），工具栏默认字体/加粗/斜体/下划线/删除线/文字颜色/背景色/表格/图片/链接；excludeKeys 排除 video/image 组与 fullScreen（保留表格，ew 默认内容含表格）。
+2. **面板字段族（ew 1:1）**：内容(richtext 编辑器) / 底部背景(transparent) / 组件背景(#ffffff) / 样式(默认|投影|描边 + graphic) / 描边颜色(when 描边) / 上边距 / 下边距 / 左右边距 / 上圆角 / 下圆角 / 会员等级浏览权限(允许访问|禁止访问|全部允许)。**无内边距字段**（padding 已废弃，ew 无此项）。
+3. **默认内容=ew 模板**：defaultProps.html 用 ew 默认模板（「点此编辑『富文本』内容 ——>」+ 加粗/斜体/下划线/删除线/文字颜色/背景色说明 + 表格示例 中奖客户/发放奖品/备注 猪猪/内测码/已经发放 大麦/积分/领取地址 + 插图超链接说明）。
+4. **编辑器集成要点**：customUpload 走 `designCall.post('/material/upload', fd)`（baseURL=/api，URL 不带 /api 前缀，拦截器已解包取 res.url）；onChange 同步 html + 字数统计（getText 去空白 length）；onCreated 挂 selectionchange 显示元素路径；卸载必须 editor.destroy()。
+5. **两层渲染与标题栏同构**：外层底部背景+上下边距，内层组件背景+左右边距+圆角+样式(投影 boxShadow/描边 border)；C 端 DesignPage 用 uni-app `<rich-text :nodes>` 同构实现 `.dp-rt-box/.dp-richtext`。
+
+## 九、颜色选择器系统标准（2026-09-11 用户选方案A，强制）
+
+> 用户对比三案后选「方案A = 1:1 复刻 ew（iView ColorPicker 风格）」为全网颜色选择器标准（PeColorPicker.vue）。
+
+1. **形态**：触发器（色块+值文本+小箭头）点开**下拉浮层**（跟随定位，非居中弹窗）；浮层 = SV 饱和度方形面板（白→色相渐变 + 下→上黑渐变，圆点指针可拖）+ 色相横条（红→紫渐变 + 指针）+ hex 可编辑输入 + 「清空」「确定」按钮。
+2. **交互**：SV/色相条 pointerdown+pointermove 拖拽实时更新（pointerup 释放）；hex 输入 Enter 提交；清空=置空（transparent）；确定=emit 提交并关闭；点击外部关闭不提交。transparent/空值保留（显示 transparent、色块透明格纹）。
+3. **纯函数**：hsvToHex/hexToHsv/normalizeHex 内置组件（支持 3 位/6 位 hex）；SV 背景用 `linear-gradient(to top,#000,transparent) + linear-gradient(to right,#fff,hsla(H,100%,50%,0)) + hsl(H,100%,50%)` 组合；色相圆点 background 必须内联 `hsl(h,100%,50%)`（禁止用未设置的 CSS 变量，曾致圆点恒红）。
+4. **应用范围**：所有组件属性面板颜色字段（颜色/描边颜色/底部颜色/组件背景等）统一走 PeColorPicker，禁止混用原生 input[type=color] 或旧弹窗色板。

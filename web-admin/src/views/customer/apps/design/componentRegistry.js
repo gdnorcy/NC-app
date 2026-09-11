@@ -101,20 +101,6 @@ export const ICON_OPTIONS = [
 
 export const componentRegistry = [
   {
-    type: 'text',
-    name: '文本',
-    group: 'basic',
-    icon: 'text',
-    defaultProps: { text: '这里填写文本内容', color: '#1d2129', align: 'center', size: 14 },
-    schema: [
-      { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
-      { key: 'color', label: '颜色', control: 'color', section: 'style' },
-      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
-      { key: 'size', label: '字号', control: 'slider', section: 'style', min: 12, max: 32 },
-      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
-    ],
-  },
-  {
     type: 'image',
     name: '图片',
     group: 'basic',
@@ -628,15 +614,23 @@ export const componentRegistry = [
     name: '富文本',
     group: 'basic',
     icon: 'rich-text',
-    defaultProps: { html: '<p style="font-size:14px;color:#1d2129;line-height:1.7;">这里是富文本内容，支持图文混排。</p>', bgColor: '', padding: 12, style: 'default', borderColor: '#E5E6EB', marginTop: 0, marginBottom: 0, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
+    defaultProps: {
+      // ew 1:1：默认内容=提示文案+表格示例；底部背景=外层底色，组件背景=内容底色
+      html: '<p style="font-size:14px;">点此编辑「富文本」内容 ——></p><p style="font-size:14px;">你可以对文字进行<strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、<s>删除线</s>、<span style="color:#165dff;">文字颜色</span>、<span style="background-color:#fff7e8;">背景色</span>、以及字号大小等简单排版操作。</p><p style="font-size:14px;">还可以在这里加入表格了</p><table border="1" style="border-collapse:collapse;width:100%;font-size:13px;"><tr><td>中奖客户</td><td>发放奖品</td><td>备注</td></tr><tr><td>猪猪</td><td>内测码</td><td>已经发放</td></tr><tr><td>大麦</td><td>积分</td><td>领取地址</td></tr></table><p style="font-size:14px;">也可在这里插入图片、并对图片加上超级链接，方便用户点击。</p>',
+      bottomBg: 'transparent', compBgColor: '#ffffff',
+      style: 'default', borderColor: '#E5E6EB',
+      marginTop: 0, marginBottom: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0,
+      memberLevel: 'all',
+    },
     schema: [
-      { key: 'html', label: '内容', control: 'textarea', section: 'content', rows: 6, placeholder: '支持 HTML 富文本（文字/图片/列表等）' },
-      { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
+      { key: 'html', label: '内容', control: 'richtext', section: 'content' },
+      { key: 'bottomBg', label: '底部背景', control: 'color', section: 'style' },
+      { key: 'compBgColor', label: '组件背景', control: 'color', section: 'style' },
+      { key: 'style', label: '样式', control: 'radio', graphic: true, section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'borderColor', label: '描边颜色', control: 'color', section: 'style', when: { style: 'border' } },
-      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
-      { key: 'padding', label: '内边距', control: 'slider', section: 'style', min: 0, max: 32 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
@@ -683,7 +677,7 @@ export const componentRegistry = [
       // 「更多」按钮（S1/4/5/6）
       moreEnabled: true, moreArrow: true, moreColor: '#b0b3bf', moreText: '查看更多', moreLink: '',
       // 图片（S1 专属：左装饰图；默认图复刻 ew title3.png，禁止留空——ew 面板图片字段默认即显示该图）
-      imgEnabled: true, img: '/static/design-styles/title/title3.png', imgRadius: 0,
+      imgEnabled: true, img: '/admin-assets/static/design-styles/title/title3.png', imgRadius: 0,
       // 背景（S1：底部颜色 + 组件背景；S2-9：背景颜色）
       bgColor: 'transparent', bgColorBottom: 'transparent', compBgType: 'color', compBgColor: '#ffffff', compBgImg: '',
       // 标题文字族（S7-9）
