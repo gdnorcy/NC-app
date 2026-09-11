@@ -111,6 +111,7 @@ export const componentRegistry = [
       { key: 'color', label: '颜色', control: 'color', section: 'style' },
       { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
       { key: 'size', label: '字号', control: 'slider', section: 'style', min: 12, max: 32 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -124,6 +125,7 @@ export const componentRegistry = [
       { key: 'color', label: '颜色', control: 'color', section: 'style' },
       { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
       { key: 'size', label: '字号', control: 'slider', section: 'style', min: 12, max: 32 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -393,6 +395,7 @@ export const componentRegistry = [
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -462,6 +465,7 @@ export const componentRegistry = [
       { key: 'name', label: '标题', control: 'input', section: 'content', required: true },
       { key: 'sub', label: '副标题', control: 'input', section: 'content' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -552,7 +556,7 @@ export const componentRegistry = [
     name: '魔方',
     group: 'basic',
     icon: 'cube',
-    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], rows: 2, cols: 3, gap: 4, radius: 8, bgColor: '' },
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], rows: 2, cols: 3, gap: 4, radius: 8, bgColor: '', style: 'default', borderColor: '#E5E6EB', marginTop: 0, marginBottom: 0, memberLevel: 'all' },
     schema: [
       {
         key: 'items', label: '格子图片', control: 'list', section: 'content',
@@ -565,7 +569,11 @@ export const componentRegistry = [
       { key: 'cols', label: '列数', control: 'slider', section: 'style', min: 2, max: 4 },
       { key: 'gap', label: '间距', control: 'slider', section: 'style', min: 0, max: 8 },
       { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
+      { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
+      { key: 'borderColor', label: '描边色', control: 'color', section: 'style', when: { style: 'border' } },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
   },
   {
@@ -581,6 +589,7 @@ export const componentRegistry = [
       { key: 'avatar', label: '头像', control: 'image', section: 'content' },
       { key: 'desc', label: '简介', control: 'input', section: 'content' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -612,6 +621,7 @@ export const componentRegistry = [
       { key: 'title', label: '标题', control: 'input', section: 'content' },
       { key: 'statusText', label: '状态文字', control: 'input', section: 'content' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -783,6 +793,7 @@ export const componentRegistry = [
       { key: 'qr', label: '微信二维码', control: 'image', section: 'content' },
       { key: 'address', label: '地址', control: 'input', section: 'content' },
       { key: 'btnText', label: '按钮文字', control: 'input', section: 'content' },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -834,6 +845,7 @@ export const componentRegistry = [
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 16 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -845,6 +857,7 @@ export const componentRegistry = [
     schema: [
       { key: 'url', label: '网页地址', control: 'input', section: 'content', placeholder: 'https://…' },
       { key: 'height', label: '容器高度(px)', control: 'slider', section: 'content', min: 100, max: 1200 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -871,6 +884,7 @@ export const componentRegistry = [
       { key: 'qr', label: '二维码图', control: 'image', section: 'content' },
       { key: 'btnText', label: '提示文字', control: 'input', section: 'content' },
       { key: 'appId', label: '公众号AppID', control: 'input', section: 'content', placeholder: '微信关注组件需要，选填' },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {
@@ -897,6 +911,7 @@ export const componentRegistry = [
         { key: 'link', label: '跳转链接', control: 'link' },
       ] },
       { key: 'columns', label: '每行几个', control: 'radio', section: 'content', options: [{ label: '双列', value: 2 }, { label: '三列', value: 3 }] },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
 ];
