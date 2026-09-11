@@ -242,9 +242,16 @@
         </block>
       </view>
       <!-- 魔方 -->
-      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ gridTemplateColumns: 'repeat(' + (c.props.cols || 3) + ',1fr)', gap: (c.props.gap ?? 4) + 'px', background: c.props.bgColor || 'transparent', padding: c.props.bgColor ? '6px' : 0, borderRadius: (c.props.radius ?? 8) + 'px' }">
-        <view v-for="(it, i) in (c.props.items || []).slice(0, (c.props.rows || 2) * (c.props.cols || 3))" :key="i" class="dp-cube-cell" :style="{ borderRadius: (c.props.radius ?? 8) + 'px' }" @click="onJump(it.link)">
-          <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-cube-img" />
+      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ background: c.props.bgColor || 'transparent', padding: c.props.bgColor ? '6px' : 0, marginTop: (c.props.marginTop ?? 0) + 'px', marginBottom: (c.props.marginBottom ?? 0) + 'px', marginLeft: (c.props.marginLR ?? 0) + 'px', marginRight: (c.props.marginLR ?? 0) + 'px' }">
+        <view class="dp-cube-inner" :style="{ gap: (c.props.imgGap ?? 4) + 'px' }">
+          <view
+            v-for="(b, i) in dpCubeBlocks(c)" :key="i"
+            class="dp-cube-block"
+            :style="dpCubeBlockStyle(b)"
+            @click="onJump(b.link)"
+          >
+            <image v-if="b.url" :src="resolveUrl(b.url)" mode="aspectFill" class="dp-cube-img" />
+          </view>
         </view>
       </view>
       <!-- 视频号主页 -->
@@ -901,6 +908,34 @@ function openFeedItem(it) {
   if (it.link) onJump(it.link);
 }
 
+// 魔方区块绝对定位（312 基准等比）
+function dpCubeBlockStyle(b) {
+  return {
+    left: (b.x / 312 * 100) + '%',
+    top: (b.y / 312 * 100) + '%',
+    width: (b.w / 312 * 100) + '%',
+    height: (b.h / 312 * 100) + '%',
+  };
+}
+// 魔方存量兼容：blocks 为空时回退旧 items/rows/cols
+function dpCubeBlocks(c) {
+  const p = c.props || {};
+  if (Array.isArray(p.blocks) && p.blocks.length) return p.blocks;
+  const items = p.items || [];
+  if (!items.length) return [];
+  const cols = p.cols || 3;
+  const rows = p.rows || 2;
+  const cw = 312 / cols;
+  const ch = 312 / rows;
+  return items.map((it, i) => ({
+    x: Math.round((i % cols) * cw),
+    y: Math.round(Math.floor(i / cols) * ch),
+    w: Math.round(cw),
+    h: Math.round(ch),
+    url: it.url || '',
+    link: it.link || '',
+  }));
+}
 function resolveUrl(u) {
   if (!u) return '';
   if (/^https?:|^data:|^blob:/.test(u)) return u;
@@ -1260,8 +1295,9 @@ function openChannel(kind, p) {
 .dp-ps-name { display: block; font-size: 13px; color: #1d2129; padding: 8px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-ps-empty { grid-column: 1 / -1; padding: 32px 0; text-align: center; color: #86909c; font-size: 12px; }
 /* 魔方 */
-.dp-cube { display: grid; width: 100%; }
-.dp-cube-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
+.dp-cube { width: 100%; box-sizing: border-box; border-radius: 8px; }
+.dp-cube-inner { position: relative; width: 100%; aspect-ratio: 1 / 1; }
+.dp-cube-block { position: absolute; overflow: hidden; border-radius: 4px; background: #f7f8fa; }
 .dp-cube-img { width: 100%; height: 100%; }
 /* 视频号主页 */
 .dp-channel { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }

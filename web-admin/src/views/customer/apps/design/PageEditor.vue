@@ -159,6 +159,18 @@
                     value-format="YYYY-MM-DD HH:mm"
                     style="width: 100%"
                   />
+                  <!-- 魔方：风格选择（对标 eweishop 风格选择器） -->
+                  <CubeStylePicker
+                    v-else-if="f.control === 'cube-style'"
+                    :model-value="selectedComp.props[f.key]"
+                    @update:model-value="onCubeStyleChange"
+                  />
+                  <!-- 魔方：布局网格编辑器（对标 eweishop 魔方布局） -->
+                  <CubeLayoutEditor
+                    v-else-if="f.control === 'cube-layout'"
+                    v-model="selectedComp.props[f.key]"
+                    :style-type="selectedComp.props.styleType || 1"
+                  />
                   <!-- 图形化单选（选择风格：一列/两列并排，仿 eweishop 图形卡片） -->
                   <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic">
                     <div
@@ -594,6 +606,9 @@ import PeColorPicker from './PeColorPicker.vue';
 import PeImagePicker from './PeImagePicker.vue';
 import PeImageGroup from './PeImageGroup.vue';
 import RichTextEditor from './RichTextEditor.vue';
+import CubeStylePicker from './CubeStylePicker.vue';
+import CubeLayoutEditor from './CubeLayoutEditor.vue';
+import { cubeBlocksForStyle } from './cubeLayouts';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
@@ -960,8 +975,33 @@ function newComp(type) {
   const base = type === 'rich-text' ? {} : commonStyleProps;
   return { id: `c${Date.now()}-${uid++}`, type, props: { ...base, ...(def?.defaultProps || {}) } };
 }
+// 魔方存量迁移：旧 items/rows/cols 数据 → blocks/styleType
+function migrateCube(c) {
+  if (!c || c.type !== 'cube') return;
+  const p = c.props;
+  if (!p) return;
+  if (!p.styleType) p.styleType = 1;
+  if (Array.isArray(p.blocks) && p.blocks.length) return;
+  if (Array.isArray(p.items) && p.items.length) {
+    const cols = p.cols || 3;
+    const rows = p.rows || 2;
+    const cw = 312 / cols;
+    const ch = 312 / rows;
+    p.blocks = p.items.map((it, i) => ({
+      x: Math.round((i % cols) * cw),
+      y: Math.round(Math.floor(i / cols) * ch),
+      w: Math.round(cw),
+      h: Math.round(ch),
+      url: it.url || '',
+      link: it.link || '',
+    }));
+  } else {
+    p.blocks = cubeBlocksForStyle(p.styleType);
+  }
+}
 function addComponent(type) {
   const c = newComp(type);
+  migrateCube(c);
   // 有选中组件时插入到其之后，否则追加到末尾
   const selIdx = components.value.findIndex((x) => x.id === selected.value);
   if (selIdx >= 0) {
@@ -981,7 +1021,7 @@ function dupComp(comp) {
   components.value.splice(idx + 1, 0, c);
   selected.value = c.id;
 }
-function selectComp(comp) { selected.value = comp.id; }
+function selectComp(comp) { selected.value = comp.id; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); }
 function onLibDragStart(e, type) { e.dataTransfer.setData('text/plain', type); }
 function onCanvasDragOver() {}
 function onCanvasDrop(e) {
@@ -1177,6 +1217,12 @@ function confirmImgSel(url, mid) {
   imgSel.show = false;
 }
 
+// 魔方：切换风格时重置区块为预设布局
+function onCubeStyleChange(v) {
+  if (!selectedComp.value) return;
+  selectedComp.value.props.styleType = v;
+  selectedComp.value.props.blocks = cubeBlocksForStyle(v);
+}
 // 系统链接选择器：link 字段点「选择」弹窗回填
 const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false });
 function openLinkSel(listIdx, fieldIdx, listField) {

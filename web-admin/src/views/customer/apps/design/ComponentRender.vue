@@ -234,11 +234,17 @@
     </template>
     <!-- 魔方 -->
     <template v-else-if="comp.type === 'cube'">
-      <div class="r-cube" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.cols || 3) + ',1fr)', gap: (comp.props.gap ?? 4) + 'px', background: comp.props.bgColor || 'transparent', padding: comp.props.bgColor ? '6px' : 0, borderRadius: (comp.props.radius ?? 8) + 'px' }">
-        <template v-for="(it, i) in (comp.props.items || []).slice(0, (comp.props.rows || 2) * (comp.props.cols || 3))" :key="i">
-          <div v-if="it.url" class="r-cube-cell" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
-          <div v-else class="r-cube-cell r-cube-empty" :style="{ borderRadius: (comp.props.radius ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
-        </template>
+      <div class="r-cube" :style="{ background: comp.props.bgColor || 'transparent', padding: comp.props.bgColor ? '6px' : 0, marginTop: (comp.props.marginTop ?? 0) + 'px', marginBottom: (comp.props.marginBottom ?? 0) + 'px', marginLeft: (comp.props.marginLR ?? 0) + 'px', marginRight: (comp.props.marginLR ?? 0) + 'px' }">
+        <div class="r-cube-inner" :style="{ gap: (comp.props.imgGap ?? 4) + 'px' }">
+          <div
+            v-for="(b, i) in cubeBlocks(comp)" :key="i"
+            class="r-cube-block"
+            :style="cubeBlockStyle(b)"
+          >
+            <img v-if="b.url" :src="resolveUrl(b.url)" class="r-cube-img" />
+            <div v-else class="r-cube-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+          </div>
+        </div>
       </div>
     </template>
     <!-- 视频号主页 -->
@@ -700,6 +706,35 @@ function resolveUrl(u) {
   return u.startsWith('/') ? u : `/${u}`;
 }
 
+// 魔方区块绝对定位（312 基准等比）
+function cubeBlockStyle(b) {
+  return {
+    left: (b.x / 312 * 100) + '%',
+    top: (b.y / 312 * 100) + '%',
+    width: (b.w / 312 * 100) + '%',
+    height: (b.h / 312 * 100) + '%',
+  };
+}
+// 魔方存量兼容：blocks 为空时回退旧 items/rows/cols
+function cubeBlocks(comp) {
+  const p = comp.props || {};
+  if (Array.isArray(p.blocks) && p.blocks.length) return p.blocks;
+  const items = p.items || [];
+  if (!items.length) return [];
+  const cols = p.cols || 3;
+  const rows = p.rows || 2;
+  const cw = 312 / cols;
+  const ch = 312 / rows;
+  return items.map((it, i) => ({
+    x: Math.round((i % cols) * cw),
+    y: Math.round(Math.floor(i / cols) * ch),
+    w: Math.round(cw),
+    h: Math.round(ch),
+    url: it.url || '',
+    link: it.link || '',
+  }));
+}
+
 // 标题栏装饰图：兼容 C 端旧数据路径(/static/...)与上传图，空值由调用方兜底默认图
 function fixDecoImg(u) {
   if (!u) return '';
@@ -1108,10 +1143,11 @@ function chRadius(p, i) {
 .r-ps-name { font-size: 13px; color: #1d2129; padding: 8px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-ps-empty { grid-column: 1 / -1; padding: 32px 0; text-align: center; color: #86909c; font-size: 12px; }
 /* 魔方 */
-.r-cube { display: grid; width: 100%; }
-.r-cube-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
-.r-cube-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.r-cube-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #e5e6eb; }
+.r-cube { width: 100%; box-sizing: border-box; border-radius: 8px; }
+.r-cube-inner { position: relative; width: 100%; aspect-ratio: 1 / 1; }
+.r-cube-block { position: absolute; overflow: hidden; border-radius: 4px; background: #f7f8fa; }
+.r-cube-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.r-cube-empty { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border: 1px dashed #e5e6eb; box-sizing: border-box; }
 /* 视频号主页 */
 .r-channel { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
 .r-ch-avatar { width: 44px; height: 44px; border-radius: 50%; background: #fff; border: 1px solid #e5e6eb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
