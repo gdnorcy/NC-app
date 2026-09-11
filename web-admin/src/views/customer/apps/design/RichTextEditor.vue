@@ -24,10 +24,12 @@ const wordCount = ref(0);
 const selPath = ref('');
 
 const toolbarConfig = {
-  excludeKeys: [
-    'group-video', 'fullScreen',
-    'uploadVideo', 'insertVideo', 'codeBlock',
-    'todo', 'emotion', 'divider', 'blockquote',
+  // ew 1:1：只保留 ew 富文本工具栏等价项（段落格式/字号/基础格式/文字与背景色/图片/链接/表格），避免溢出
+  toolbarKeys: [
+    'headerSelect', 'fontSize', 'bold', 'italic', 'underline', 'through',
+    'color', 'bgColor',
+    { key: 'group-image', menuKeys: ['insertImage', 'uploadImage'] },
+    'insertLink', 'insertTable',
   ],
 };
 const editorConfig = {

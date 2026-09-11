@@ -881,7 +881,7 @@ const schemaSections = computed(() => {
   const def = findComponent(selectedComp.value.type);
   if (!def) return [];
   const ownKeys = def.schema.map((f) => f.key);
-  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR'))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))));
+  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR'))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))) && !(selectedComp.value.type === 'rich-text' && f.key === 'bgColor'));
   const props = selectedComp.value.props || {};
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;
@@ -908,12 +908,28 @@ const schemaSections = computed(() => {
     if (common.length) merged.push({ key: 'common', label: '通用样式', fields: common });
     return merged;
   }
-  return [
-    { key: 'content', label: '内容', fields: def.schema.filter((f) => f.section !== 'style' && whenOk(f)) },
-    { key: 'style', label: '样式', fields: def.schema.filter((f) => f.section === 'style' && whenOk(f)) },
-    { key: 'common', label: '通用样式', fields: common },
-  ];
+  return buildSecs(def, whenOk, common);
 });
+
+// 通用分组：按 schema 物理顺序动态建组（支持自定义 section，如富文本 bg/style/content/margin/radius/member）
+const SEC_LABELS = { content: '内容', style: '样式', bg: '选择颜色', margin: '边距', radius: '圆角设置', member: '' };
+function buildSecs(def, whenOk, common) {
+  const secs = [];
+  const secOrder = [];
+  for (const f of def.schema) {
+    if (!whenOk(f)) continue;
+    const key = f.group || f.section || 'content';
+    let idx = secOrder.indexOf(key);
+    if (idx === -1) {
+      secOrder.push(key);
+      idx = secOrder.length - 1;
+      secs.push({ key, label: f.group || SEC_LABELS[f.section] || '', fields: [] });
+    }
+    secs[idx].fields.push(f);
+  }
+  if (common.length) secs.push({ key: 'common', label: '通用样式', fields: common });
+  return secs;
+}
 
 // 组件库：搜索 + 分组
 const visibleGroups = computed(() => {
@@ -940,7 +956,9 @@ function compName(t) { return findComponent(t)?.name || t; }
 
 function newComp(type) {
   const def = findComponent(type);
-  return { id: `c${Date.now()}-${uid++}`, type, props: { ...commonStyleProps, ...(def?.defaultProps || {}) } };
+  // 富文本使用专属字段(marginLR/radiusTop/radiusBottom/compBgColor/bottomBg)，不合并通用样式字段
+  const base = type === 'rich-text' ? {} : commonStyleProps;
+  return { id: `c${Date.now()}-${uid++}`, type, props: { ...base, ...(def?.defaultProps || {}) } };
 }
 function addComponent(type) {
   const c = newComp(type);
@@ -999,7 +1017,11 @@ async function load() {
       const json = src.design_json || {};
       components.value = (json.components || []).map((c) => {
         const def = findComponent(c.type);
-        return { ...c, props: { ...commonStyleProps, ...(def?.defaultProps || {}), ...(c.props || {}) } };
+        const base = c.type === 'rich-text' ? {} : commonStyleProps;
+        const props = { ...base, ...(def?.defaultProps || {}), ...(c.props || {}) };
+        // 富文本旧通用字段(padding/radius/bgColor)已废弃，加载时清除
+        if (c.type === 'rich-text') { delete props.padding; delete props.radius; delete props.bgColor; }
+        return { ...c, props };
       });
       if (json.meta) Object.assign(meta, deepMerge(defaultMeta(), json.meta));
       else Object.assign(meta, defaultMeta());
