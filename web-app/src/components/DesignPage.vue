@@ -1343,7 +1343,7 @@ function openChannel(kind, p) {
 .dp-tb-title { line-height: 1.4; font-size: 16px; }
 .dp-tb-more { font-size: 11px; color: #b0b3bf; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
 /* 风格1 es-title3 */
-.dp-tb-s1 { min-height: 60px; align-items: center; }
+.dp-tb-s1 { min-height: 60px; align-items: center; padding: 0 12px; }
 .dp-tb-s1 .dp-tb-deco { width: 40px; height: 40px; margin-right: 8px; flex: none; }
 .dp-tb-s1 .dp-tb-mid { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .dp-tb-s1 .dp-tb-title { padding: 0 10px; text-align: center; }

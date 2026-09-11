@@ -1175,8 +1175,8 @@ function chRadius(p, i) {
 .r-tb-title { line-height: 1.4; font-size: 16px; }
 .r-tb-more { font-size: 11px; color: #B0B3BF; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
 .r-tb-more .r-tb-more-ico { margin-left: 4px; }
-/* 风格1 es-title3 */
-.r-tb-s1 { min-height: 60px; align-items: center; }
+/* 风格1 es-title3：内容左右内边距（ew：图片/文字不贴边） */
+.r-tb-s1 { min-height: 60px; align-items: center; padding: 0 12px; }
 .r-tb-s1 .r-tb-deco { width: 40px; height: 40px; object-fit: contain; margin-right: 8px; flex: none; }
 .r-tb-s1 .r-tb-mid { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .r-tb-s1 .r-tb-title { padding: 0 10px; text-align: center; }

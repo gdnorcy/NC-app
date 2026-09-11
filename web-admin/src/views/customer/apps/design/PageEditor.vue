@@ -564,24 +564,26 @@
           <div class="hs-step"><span class="hs-step-n">3</span><span class="hs-step-t">设置热区链接</span></div>
           <div class="hs-step"><span class="hs-step-n">4</span><span class="hs-step-t">保存设置</span></div>
         </div>
-        <div
-          class="hs-stage"
-          @mousedown.self="onHsStageDown"
-          @mousemove="onHsMove"
-          @mouseup="onHsUp"
-          @mouseleave="onHsUp"
-        >
-          <img v-if="hsSel.imgUrl" :src="resolveUrl(hsSel.imgUrl)" class="hs-img" />
-          <div v-else class="hs-noimg">请先为该项选择图片</div>
+        <div class="hs-stage">
           <div
-            v-for="(h, hi) in hsSel.hotspots" :key="hi"
-            class="hs-box" :class="{ selected: hsSel.active === hi }"
-            :style="{ left: h.x + '%', top: h.y + '%', width: h.w + '%', height: h.h + '%' }"
-            @mousedown.stop.prevent="onHsBoxDown($event, hi)"
-            @dblclick.stop.prevent="onHsBoxDbl(hi)"
+            class="hs-inner"
+            @mousedown.self="onHsStageDown"
+            @mousemove="onHsMove"
+            @mouseup="onHsUp"
+            @mouseleave="onHsUp"
           >
-            <span class="hs-box-text">双击添加链接</span>
-            <span class="hs-box-del" title="删除热区" @mousedown.stop.prevent @click.stop="removeHs(hi)">×</span>
+            <img v-if="hsSel.imgUrl" :src="resolveUrl(hsSel.imgUrl)" class="hs-img" />
+            <div v-else class="hs-noimg">请先为该项选择图片</div>
+            <div
+              v-for="(h, hi) in hsSel.hotspots" :key="hi"
+              class="hs-box" :class="{ selected: hsSel.active === hi }"
+              :style="{ left: h.x + '%', top: h.y + '%', width: h.w + '%', height: h.h + '%' }"
+              @mousedown.stop.prevent="onHsBoxDown($event, hi)"
+              @dblclick.stop.prevent="onHsBoxDbl(hi)"
+            >
+              <span class="hs-box-text">双击添加链接</span>
+              <span class="hs-box-del" title="删除热区" @mousedown.stop.prevent @click.stop="removeHs(hi)">×</span>
+            </div>
           </div>
         </div>
         <div class="hs-footer">
@@ -1294,7 +1296,8 @@ function onHsStageDown() {
 }
 function addHs() {
   // eweishop：点「添加热区」新增 200×200 默认热区框（相对图片区域换算百分比，居中）
-  const stage = document.querySelector('.hs-stage');
+  // 2026-09-11：hs-stage 为滚动容器(max-height 480px)，坐标必须相对 hs-inner（图片实际区域）
+  const stage = document.querySelector('.hs-inner');
   const rect = stage ? stage.getBoundingClientRect() : { width: 750, height: 400 };
   const w = Math.min(100, (200 / rect.width) * 100);
   const h = Math.min(100, (200 / rect.height) * 100);
@@ -1628,7 +1631,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .hs-step-n { width: 22px; height: 22px; border-radius: 50%; background: #F2F3F5; color: #86909C; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
 .hs-step.on { color: #165DFF; }
 .hs-step.on .hs-step-n { background: #165DFF; color: #fff; }
-.hs-stage { position: relative; border: 1px solid #E5E6EB; border-radius: 8px; overflow: hidden; background: #F7F8FA; user-select: none; }
+.hs-stage { border: 1px solid #E5E6EB; border-radius: 8px; overflow-y: auto; background: #F7F8FA; user-select: none; max-height: 480px; }
+.hs-inner { position: relative; }
 .hs-img { display: block; width: 100%; }
 .hs-noimg { height: 160px; display: flex; align-items: center; justify-content: center; color: #86909C; font-size: 13px; }
 .hs-box { position: absolute; border: 1.5px solid #FFB800; background: rgba(255, 184, 0, 0.22); cursor: move; box-sizing: border-box; border-radius: 2px; }
