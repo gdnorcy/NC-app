@@ -28,8 +28,11 @@ const toolbarConfig = {
   toolbarKeys: [
     'headerSelect', 'fontSize', 'bold', 'italic', 'underline', 'through',
     'color', 'bgColor',
+    { key: 'group-justify', menuKeys: ['justifyLeft', 'justifyRight', 'justifyCenter', 'justifyJustify'] },
+    'bulletedList', 'numberedList', 'emotion', 'insertLink', 'codeBlock',
     { key: 'group-image', menuKeys: ['insertImage', 'uploadImage'] },
-    'insertLink', 'insertTable',
+    { key: 'group-indent', menuKeys: ['indent', 'delIndent'] },
+    'lineHeight', 'insertTable',
   ],
 };
 const editorConfig = {
