@@ -296,83 +296,83 @@
     </template>
     <!-- 标题栏（ew 1:1 实测版：风格1=es-title3 / 风格2-6=es-title2 / 风格7-9=es-title） -->
     <template v-else-if="comp.type === 'title-bar'">
-      <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 7)" :style="{ background: comp.props.bgColor || 'transparent', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
-        <!-- 风格1：es-title3 flex 左装饰图+标题+RECOMMEND+查看更多 -->
-        <template v-if="(comp.props.styleType || 7) === 1">
-          <img class="r-tb-deco" :src="tbDecoUrl" alt="" />
+      <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 1)" :style="tbWrapStyle(comp.props)">
+        <!-- 风格1：es-title3 flex 左装饰图(可换)+主标题+子标题+查看更多(箭头) -->
+        <template v-if="(comp.props.styleType || 1) === 1">
+          <img v-if="comp.props.imgEnabled !== false && (comp.props.img || tbDecoUrl)" class="r-tb-deco" :src="comp.props.img ? resolveUrl(comp.props.img) : tbDecoUrl" alt="" />
           <div class="r-tb-mid">
-            <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span>
-            <span class="r-tb-en">RECOMMEND</span>
+            <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题栏' }}</span>
+            <span v-if="comp.props.subEnabled !== false" class="r-tb-en" :style="{ color: comp.props.subColor || '#b7bcd2', fontSize: (comp.props.subFontSize || 12) + 'px' }">{{ comp.props.subText || 'RECOMMEND' }}</span>
           </div>
-          <span class="r-tb-more">查看更多 ›</span>
+          <span v-if="comp.props.moreEnabled !== false" class="r-tb-more" :style="{ color: comp.props.moreColor || '#b0b3bf' }" @click="onJump(comp.props.moreLink)">{{ comp.props.moreText || '查看更多' }}<template v-if="comp.props.moreArrow !== false">&nbsp;›</template></span>
         </template>
-        <!-- 风格2：es-title2 title5 ★标题★+底部RECOMMEND -->
-        <template v-else-if="(comp.props.styleType || 7) === 2">
+        <!-- 风格2：es-title2 title5 ★标题★+底部子标题 -->
+        <template v-else-if="(comp.props.styleType || 1) === 2">
           <div class="r-tb-row">
             <span class="r-tb-star">★</span>
-            <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span>
+            <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题栏' }}</span>
             <span class="r-tb-star">★</span>
           </div>
-          <div class="r-tb-en-line">RECOMMEND</div>
+          <div v-if="comp.props.subEnabled !== false" class="r-tb-en-line" :style="{ color: comp.props.subColor || '#333', fontSize: (comp.props.subFontSize || 12) + 'px' }">{{ comp.props.subText || 'RECOMMEND' }}</div>
         </template>
-        <!-- 风格3：es-title2 title4 左右气泡+黄绿标题 -->
-        <template v-else-if="(comp.props.styleType || 7) === 3">
+        <!-- 风格3：es-title2 title4 左右气泡+标题 -->
+        <template v-else-if="(comp.props.styleType || 1) === 3">
           <img class="r-tb-bub" :src="tbBubbleUrl" alt="" />
-          <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#F1FF9A' }">{{ comp.props.text || '标题文字' }}</span>
+          <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题栏' }}</span>
           <img class="r-tb-bub r-tb-bub-r" :src="tbBubbleUrl" alt="" />
         </template>
-        <!-- 风格4：es-title2 title1 左右图+紫标题+副题+查看更多 -->
-        <template v-else-if="(comp.props.styleType || 7) === 4">
+        <!-- 风格4：es-title2 title1 左右图+标题+查看更多+子标题 -->
+        <template v-else-if="(comp.props.styleType || 1) === 4">
           <div class="r-tb-top">
             <div class="r-tb-title-row">
               <img class="r-tb-img" :src="tbS4L" alt="" />
-              <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#3B2BE7' }">{{ comp.props.text || '标题文字' }}</span>
+              <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题栏' }}</span>
               <img class="r-tb-img" :src="tbS4R" alt="" />
             </div>
-            <span class="r-tb-more">查看更多 ›</span>
+            <span v-if="comp.props.moreEnabled !== false" class="r-tb-more" :style="{ color: comp.props.moreColor || '#b0b3bf' }" @click="onJump(comp.props.moreLink)">{{ comp.props.moreText || '查看更多' }}&nbsp;›</span>
           </div>
-          <div class="r-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</div>
+          <div v-if="comp.props.subEnabled !== false" class="r-tb-sub" :style="{ color: comp.props.subColor || '#B7BCD2', fontSize: (comp.props.subFontSize || 12) + 'px' }">{{ comp.props.subText || 'RECOMMEND' }}</div>
         </template>
-        <!-- 风格5：es-title2 title2 左中右图+粉标题+副题+查看更多 -->
-        <template v-else-if="(comp.props.styleType || 7) === 5">
+        <!-- 风格5：es-title2 title2 左中右图+标题+查看更多+子标题 -->
+        <template v-else-if="(comp.props.styleType || 1) === 5">
           <div class="r-tb-top">
             <div class="r-tb-title-row">
               <img class="r-tb-img" :src="tbS5L" alt="" />
-              <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#FF95AC' }">{{ comp.props.text || '标题文字' }}</span>
+              <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题栏' }}</span>
               <img class="r-tb-img" :src="tbS5R" alt="" />
               <img class="r-tb-center" :src="tbS5C" alt="" />
             </div>
-            <span class="r-tb-more">查看更多 ›</span>
+            <span v-if="comp.props.moreEnabled !== false" class="r-tb-more" :style="{ color: comp.props.moreColor || '#b0b3bf' }" @click="onJump(comp.props.moreLink)">{{ comp.props.moreText || '查看更多' }}&nbsp;›</span>
           </div>
-          <div class="r-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</div>
+          <div v-if="comp.props.subEnabled !== false" class="r-tb-sub" :style="{ color: comp.props.subColor || '#B7BCD2', fontSize: (comp.props.subFontSize || 12) + 'px' }">{{ comp.props.subText || 'RECOMMEND' }}</div>
         </template>
-        <!-- 风格6：es-title2 title3 红标题+左右图+副题+查看更多 -->
-        <template v-else-if="(comp.props.styleType || 7) === 6">
+        <!-- 风格6：es-title2 title3 标题+装饰图+查看更多+子标题 -->
+        <template v-else-if="(comp.props.styleType || 1) === 6">
           <div class="r-tb-top">
             <div class="r-tb-title-row">
-              <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#FF3B3B' }">{{ comp.props.text || '标题文字' }}</span>
+              <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题栏' }}</span>
               <img class="r-tb-img r-tb-img-l" :src="tbS6L" alt="" />
               <img class="r-tb-img r-tb-img-r" :src="tbS6R" alt="" />
             </div>
-            <span class="r-tb-more">查看更多 ›</span>
+            <span v-if="comp.props.moreEnabled !== false" class="r-tb-more" :style="{ color: comp.props.moreColor || '#b0b3bf' }" @click="onJump(comp.props.moreLink)">{{ comp.props.moreText || '查看更多' }}&nbsp;›</span>
           </div>
-          <div class="r-tb-sub" :style="{ color: '#FFB2B2' }">夏日清爽出行必备</div>
+          <div v-if="comp.props.subEnabled !== false" class="r-tb-sub" :style="{ color: comp.props.subColor || '#FFB2B2', fontSize: (comp.props.subFontSize || 12) + 'px' }">{{ comp.props.subText || 'RECOMMEND' }}</div>
         </template>
-        <!-- 风格7：es-title title1 两侧短线 -->
-        <template v-else-if="(comp.props.styleType || 7) === 7">
+        <!-- 风格7：es-title title1 两侧短线（标题文字族） -->
+        <template v-else-if="(comp.props.styleType || 1) === 7">
           <span class="r-tb-line-l"></span>
-          <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span>
+          <span class="r-tb-title" :style="tbTextStyle2(comp)">{{ tbTitleText(comp) }}</span>
           <span class="r-tb-line-r"></span>
         </template>
-        <!-- 风格8：es-title title2 左侧竖线 -->
-        <template v-else-if="(comp.props.styleType || 7) === 8">
-          <span class="r-tb-outer"><span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span><span class="r-tb-inner"></span></span>
+        <!-- 风格8：es-title title2 左侧竖线（标题文字族） -->
+        <template v-else-if="(comp.props.styleType || 1) === 8">
+          <span class="r-tb-outer"><span class="r-tb-title" :style="tbTextStyle2(comp)">{{ tbTitleText(comp) }}</span><span class="r-tb-inner"></span></span>
           <span class="r-tb-line"></span>
           <span class="r-tb-leftline"></span>
         </template>
-        <!-- 风格9：es-title title3 底部线+菱形 -->
+        <!-- 风格9：es-title title3 底部线+菱形（标题文字族） -->
         <template v-else>
-          <span class="r-tb-outer"><span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span><span class="r-tb-inner"></span></span>
+          <span class="r-tb-outer"><span class="r-tb-title" :style="tbTextStyle2(comp)">{{ tbTitleText(comp) }}</span><span class="r-tb-inner"></span></span>
           <span class="r-tb-line"></span>
           <span class="r-tb-leftline"></span>
         </template>
@@ -494,10 +494,23 @@ import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
 import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
 import { customerApiCall } from '../../../../api';
 
-const tbTextStyle = (comp) => ({ color: comp.props.color || '#333333', fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
-// ew 风格默认色（切换风格联动更新标题颜色）
-const TB_STYLE_COLOR = { 1: '#333333', 2: '#333333', 3: '#F1FF9A', 4: '#3B2BE7', 5: '#FF95AC', 6: '#FF3B3B', 7: '#333333', 8: '#333333', 9: '#333333' };
-const TB_STYLE_TEXT = { 1: '商品推荐', 2: '商品推荐', 3: '商品推荐', 4: '商品推荐', 5: '商品推荐', 6: '商品推荐', 7: '夏日纳凉精选', 8: '夏日纳凉精选', 9: '夏日纳凉精选' };
+// 标题栏样式（ew 1:1）：S1 组件背景=compBgColor/compBgImg，S2-9=背景颜色；底部颜色为外底色
+const tbWrapStyle = (p) => {
+  const st = Number(p.styleType) || 1;
+  let bg = 'transparent';
+  if (st === 1) {
+    bg = p.compBgType === 'image' ? (p.compBgImg ? `url(${resolveUrl(p.compBgImg)}) center/cover no-repeat` : 'transparent') : (p.compBgColor || '#ffffff');
+  } else if (p.bgColor) {
+    bg = p.bgColor;
+  }
+  return { background: bg, marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', borderRadius: st === 1 ? `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px` : undefined };
+};
+// 主标题族（S1-6）
+const tbTextStyle = (comp) => ({ color: comp.props.titleColor || '#333333', fontSize: (comp.props.titleFontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
+// 标题文字族（S7-9）
+const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fontSize: (comp.props.titleFontSize2 || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
+// 主标题族兜底标题文字族文案（存量组件无 titleText）
+const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
 const props = defineProps({ comp: { type: Object, required: true } });
 
 // 全景场景组件：编辑端预览拉取租户真实方案

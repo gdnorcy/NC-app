@@ -673,18 +673,69 @@ export const componentRegistry = [
     name: '标题栏',
     group: 'basic',
     icon: 'title-bar',
-    defaultProps: { styleType: 7, text: '标题文字', fontSize: 16, bold: false, italic: false, bgColor: 'transparent', color: '#333333', marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    // ew 1:1 实测（2026-09-11）：面板字段分两族——风格1-6「图片/主标题/子标题/更多按钮」族、风格7-9「标题文字」族；默认值按 ew 面板抓取
+    defaultProps: {
+      styleType: 1,
+      // 主标题族（S1-6）
+      text: '标题栏', titleColor: '#333333', titleFontSize: 16, bold: true, italic: false,
+      // 子标题族（S1/2/4/5/6）
+      subEnabled: true, subText: 'RECOMMEND', subColor: '#b7bcd2', subFontSize: 12,
+      // 「更多」按钮（S1/4/5/6）
+      moreEnabled: true, moreArrow: true, moreColor: '#b0b3bf', moreText: '查看更多', moreLink: '',
+      // 图片（S1 专属：左装饰图）
+      imgEnabled: true, img: '', imgRadius: 0,
+      // 背景（S1：底部颜色 + 组件背景；S2-9：背景颜色）
+      bgColor: 'transparent', bgColorBottom: 'transparent', compBgType: 'color', compBgColor: '#ffffff', compBgImg: '',
+      // 标题文字族（S7-9）
+      titleText: '夏日纳凉精选', titleFontSize2: 16, titleColor2: '#333333',
+      // 边距 / 圆角
+      marginTop: 0, marginBottom: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0,
+      memberLevel: 'all',
+    },
     schema: [
-      { key: 'styleType', label: '选择风格', control: 'stylePicker', section: 'content', styleGroup: 'title', styleCount: 9 },
-      { key: 'text', label: '标题', control: 'input', section: 'content', required: true, maxlength: 8, showWordLimit: true },
-      { key: 'fontSize', label: '字号', control: 'slider', section: 'style', min: 12, max: 32 },
-      { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
-      { key: 'italic', label: '倾斜', control: 'switch', section: 'style' },
-      { key: 'bgColor', label: '背景颜色', control: 'color', section: 'style' },
-      { key: 'color', label: '标题颜色', control: 'color', section: 'style' },
-      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
-      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
-      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
+      { key: 'styleType', label: '选择风格', control: 'stylePicker', styleGroup: 'title', styleCount: 9 },
+      // 图片（仅风格1）
+      { key: 'imgEnabled', label: '启用', control: 'radio', group: '图片', options: [{ label: '是', value: true }, { label: '否', value: false }], when: { styleType: 1 } },
+      { key: 'img', label: '图片', control: 'image', group: '图片', tips: '建议尺寸：80*80像素', when: { styleType: 1 } },
+      { key: 'imgRadius', label: '圆角', control: 'slider', group: '图片', min: 0, max: 50, when: { styleType: 1 } },
+      // 主标题（S1-6）顺序与 ew 面板一致：颜色→字号→其他→内容
+      { key: 'titleColor', label: '颜色', control: 'color', group: '主标题', whenStyle: [1, 2, 3, 4, 5, 6] },
+      { key: 'titleFontSize', label: '字号', control: 'slider', group: '主标题', min: 12, max: 32, whenStyle: [1, 3] },
+      { key: 'bold', label: '加粗', control: 'switch', group: '主标题', whenStyle: [1, 2, 3, 4, 5, 6] },
+      { key: 'italic', label: '倾斜', control: 'switch', group: '主标题', whenStyle: [1, 2, 3, 4, 5, 6] },
+      { key: 'text', label: '内容', control: 'input', group: '主标题', maxlength: 8, showWordLimit: true, whenStyle: [1, 2, 3, 4, 5, 6] },
+      // 子标题（S1/2/4/5/6）
+      { key: 'subEnabled', label: '启用', control: 'radio', group: '子标题', options: [{ label: '是', value: true }, { label: '否', value: false }], whenStyle: [1, 2, 4, 5, 6] },
+      { key: 'subColor', label: '颜色', control: 'color', group: '子标题', whenStyle: [1, 2, 4, 5, 6] },
+      { key: 'subFontSize', label: '字号', control: 'slider', group: '子标题', min: 10, max: 24, whenStyle: [1, 2, 4, 5, 6] },
+      { key: 'subText', label: '内容', control: 'input', group: '子标题', whenStyle: [1, 2, 4, 5, 6] },
+      // 「更多」按钮设置（S1/4/5/6；S1 含箭头）
+      { key: 'moreEnabled', label: '启用', control: 'radio', group: '「更多」按钮设置', options: [{ label: '是', value: true }, { label: '否', value: false }], whenStyle: [1, 4, 5, 6] },
+      { key: 'moreArrow', label: '箭头', control: 'radio', group: '「更多」按钮设置', options: [{ label: '是', value: true }, { label: '否', value: false }], when: { styleType: 1 } },
+      { key: 'moreColor', label: '颜色', control: 'color', group: '「更多」按钮设置', whenStyle: [1, 4, 5, 6] },
+      { key: 'moreText', label: '内容', control: 'input', group: '「更多」按钮设置', maxlength: 4, showWordLimit: true, whenStyle: [1, 4, 5, 6] },
+      { key: 'moreLink', label: '链接', control: 'link', group: '「更多」按钮设置', placeholder: '请选择链接', whenStyle: [1, 4, 5, 6] },
+      // 标题文字族（S7-9）——ew 面板：标题文字（内容/字号/其他[加粗/倾斜]）→颜色选择→边距
+      { key: 'titleText', label: '文字', control: 'input', group: '标题文字', maxlength: 8, showWordLimit: true, whenStyle: [7, 8, 9] },
+      { key: 'titleFontSize2', label: '字号', control: 'slider', group: '标题文字', min: 12, max: 32, whenStyle: [7, 8, 9] },
+      { key: 'bold', label: '加粗', control: 'switch', group: '标题文字', whenStyle: [7, 8, 9] },
+      { key: 'italic', label: '倾斜', control: 'switch', group: '标题文字', whenStyle: [7, 8, 9] },
+      // 颜色选择（S2-9：背景颜色；S7-9 追加标题颜色）——ew 面板「颜色选择」组
+      { key: 'bgColor', label: '背景颜色', control: 'color', group: '颜色选择', whenStyle: [2, 3, 4, 5, 6, 7, 8, 9] },
+      { key: 'titleColor2', label: '标题颜色', control: 'color', group: '颜色选择', whenStyle: [7, 8, 9] },
+      // 背景设置（S1：底部颜色 + 组件背景）
+      { key: 'bgColorBottom', label: '底部颜色', control: 'color', group: '背景设置', when: { styleType: 1 } },
+      { key: 'compBgType', label: '组件背景', control: 'radio', group: '背景设置', options: [{ label: '背景色', value: 'color' }, { label: '背景图片', value: 'image' }], when: { styleType: 1 } },
+      { key: 'compBgColor', label: '背景色', control: 'color', group: '背景设置', when: { styleType: 1, compBgType: 'color' } },
+      { key: 'compBgImg', label: '背景图片', control: 'image', group: '背景设置', when: { styleType: 1, compBgType: 'image' } },
+      // 边距
+      { key: 'marginTop', label: '上边距', control: 'slider', group: '边距', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', group: '边距', min: 0, max: 40 },
+      { key: 'marginLR', label: '左右边距', control: 'slider', group: '边距', min: 0, max: 40, whenStyle: [1, 8, 9] },
+      // 圆角设置（仅风格1）
+      { key: 'radiusTop', label: '上圆角', control: 'slider', group: '圆角设置', min: 0, max: 50, when: { styleType: 1 } },
+      { key: 'radiusBottom', label: '下圆角', control: 'slider', group: '圆角设置', min: 0, max: 50, when: { styleType: 1 } },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
   },
   {    type: 'search',

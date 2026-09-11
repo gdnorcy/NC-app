@@ -293,74 +293,74 @@
         </view>
       </view>
       <!-- 标题栏（ew 1:1 实测版） -->
-      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 7)" :style="dpTbWrapStyle(c.props)">
-        <block v-if="(c.props.styleType || 7) === 1">
-          <image class="dp-tb-deco" src="/static/design-styles/title/title3.png" mode="aspectFit"></image>
+      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 1)" :style="dpTbWrapStyle(c.props)">
+        <block v-if="(c.props.styleType || 1) === 1">
+          <image v-if="c.props.imgEnabled !== false" class="dp-tb-deco" :src="c.props.img ? resolveUrl(c.props.img) : '/static/design-styles/title/title3.png'" mode="aspectFit"></image>
           <view class="dp-tb-mid">
-            <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
-            <text class="dp-tb-en">RECOMMEND</text>
+            <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
+            <text v-if="c.props.subEnabled !== false" class="dp-tb-en" :style="{ color: c.props.subColor || '#b7bcd2', fontSize: (c.props.subFontSize || 12) + 'px' }">{{ c.props.subText || 'RECOMMEND' }}</text>
           </view>
-          <text class="dp-tb-more">查看更多 ›</text>
+          <text v-if="c.props.moreEnabled !== false" class="dp-tb-more" :style="{ color: c.props.moreColor || '#b0b3bf' }" @click="onJump(c.props.moreLink)">{{ c.props.moreText || '查看更多' }}<text v-if="c.props.moreArrow !== false">&nbsp;›</text></text>
         </block>
-        <block v-else-if="(c.props.styleType || 7) === 2">
+        <block v-else-if="(c.props.styleType || 1) === 2">
           <view class="dp-tb-row">
             <text class="dp-tb-star">★</text>
-            <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+            <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
             <text class="dp-tb-star">★</text>
           </view>
-          <text class="dp-tb-en-line">RECOMMEND</text>
+          <text v-if="c.props.subEnabled !== false" class="dp-tb-en-line" :style="{ color: c.props.subColor || '#333333', fontSize: (c.props.subFontSize || 12) + 'px' }">{{ c.props.subText || 'RECOMMEND' }}</text>
         </block>
-        <block v-else-if="(c.props.styleType || 7) === 3">
+        <block v-else-if="(c.props.styleType || 1) === 3">
           <image class="dp-tb-bub" src="/static/design-styles/title/bubble.png" mode="aspectFit"></image>
-          <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#F1FF9A' }">{{ c.props.text || '标题文字' }}</text>
+          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
           <image class="dp-tb-bub dp-tb-bub-r" src="/static/design-styles/title/bubble.png" mode="aspectFit"></image>
         </block>
-        <block v-else-if="(c.props.styleType || 7) === 4">
+        <block v-else-if="(c.props.styleType || 1) === 4">
           <view class="dp-tb-top">
             <view class="dp-tb-title-row">
               <image class="dp-tb-img" src="/static/design-styles/title/s4_l.png" mode="aspectFit"></image>
-              <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#3B2BE7' }">{{ c.props.text || '标题文字' }}</text>
+              <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
               <image class="dp-tb-img" src="/static/design-styles/title/s4_r.png" mode="aspectFit"></image>
             </view>
-            <text class="dp-tb-more">查看更多 ›</text>
+            <text v-if="c.props.moreEnabled !== false" class="dp-tb-more" :style="{ color: c.props.moreColor || '#b0b3bf' }" @click="onJump(c.props.moreLink)">{{ c.props.moreText || '查看更多' }}&nbsp;›</text>
           </view>
-          <text class="dp-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</text>
+          <text v-if="c.props.subEnabled !== false" class="dp-tb-sub" :style="{ color: c.props.subColor || '#B7BCD2', fontSize: (c.props.subFontSize || 12) + 'px' }">{{ c.props.subText || 'RECOMMEND' }}</text>
         </block>
-        <block v-else-if="(c.props.styleType || 7) === 5">
+        <block v-else-if="(c.props.styleType || 1) === 5">
           <view class="dp-tb-top">
             <view class="dp-tb-title-row">
               <image class="dp-tb-img" src="/static/design-styles/title/s5_l.png" mode="aspectFit"></image>
-              <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#FF95AC' }">{{ c.props.text || '标题文字' }}</text>
+              <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
               <image class="dp-tb-img" src="/static/design-styles/title/s5_r.png" mode="aspectFit"></image>
               <image class="dp-tb-center" src="/static/design-styles/title/s5_c.png" mode="aspectFit"></image>
             </view>
-            <text class="dp-tb-more">查看更多 ›</text>
+            <text v-if="c.props.moreEnabled !== false" class="dp-tb-more" :style="{ color: c.props.moreColor || '#b0b3bf' }" @click="onJump(c.props.moreLink)">{{ c.props.moreText || '查看更多' }}&nbsp;›</text>
           </view>
-          <text class="dp-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</text>
+          <text v-if="c.props.subEnabled !== false" class="dp-tb-sub" :style="{ color: c.props.subColor || '#B7BCD2', fontSize: (c.props.subFontSize || 12) + 'px' }">{{ c.props.subText || 'RECOMMEND' }}</text>
         </block>
-        <block v-else-if="(c.props.styleType || 7) === 6">
+        <block v-else-if="(c.props.styleType || 1) === 6">
           <view class="dp-tb-top">
             <view class="dp-tb-title-row">
-              <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#FF3B3B' }">{{ c.props.text || '标题文字' }}</text>
+              <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
               <image class="dp-tb-img dp-tb-img-l" src="/static/design-styles/title/s6_l.png" mode="aspectFit"></image>
               <image class="dp-tb-img dp-tb-img-r" src="/static/design-styles/title/s6_r.png" mode="aspectFit"></image>
             </view>
-            <text class="dp-tb-more">查看更多 ›</text>
+            <text v-if="c.props.moreEnabled !== false" class="dp-tb-more" :style="{ color: c.props.moreColor || '#b0b3bf' }" @click="onJump(c.props.moreLink)">{{ c.props.moreText || '查看更多' }}&nbsp;›</text>
           </view>
-          <text class="dp-tb-sub" :style="{ color: '#FFB2B2' }">夏日清爽出行必备</text>
+          <text v-if="c.props.subEnabled !== false" class="dp-tb-sub" :style="{ color: c.props.subColor || '#FFB2B2', fontSize: (c.props.subFontSize || 12) + 'px' }">{{ c.props.subText || 'RECOMMEND' }}</text>
         </block>
-        <block v-else-if="(c.props.styleType || 7) === 7">
+        <block v-else-if="(c.props.styleType || 1) === 7">
           <view class="dp-tb-line-l"></view>
-          <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
+          <text class="dp-tb-title" :style="dpTbTextStyle2(c.props)">{{ dpTbTitleText(c.props) }}</text>
           <view class="dp-tb-line-r"></view>
         </block>
-        <block v-else-if="(c.props.styleType || 7) === 8">
-          <view class="dp-tb-outer"><text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text><view class="dp-tb-inner"></view></view>
+        <block v-else-if="(c.props.styleType || 1) === 8">
+          <view class="dp-tb-outer"><text class="dp-tb-title" :style="dpTbTextStyle2(c.props)">{{ dpTbTitleText(c.props) }}</text><view class="dp-tb-inner"></view></view>
           <view class="dp-tb-line"></view>
           <view class="dp-tb-leftline"></view>
         </block>
         <block v-else>
-          <view class="dp-tb-outer"><text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text><view class="dp-tb-inner"></view></view>
+          <view class="dp-tb-outer"><text class="dp-tb-title" :style="dpTbTextStyle2(c.props)">{{ dpTbTitleText(c.props) }}</text><view class="dp-tb-inner"></view></view>
           <view class="dp-tb-line"></view>
           <view class="dp-tb-leftline"></view>
         </block>
@@ -799,12 +799,26 @@ function dpTitleBarStyle(p) {
   return s;
 }
 function dpTbWrapStyle(p) {
-  const s = dpTitleBarStyle(p);
-  if (p.bgColor === undefined || p.bgColor === '' || p.bgColor === '#FFFFFF' || p.bgColor === '#ffffff') s.background = 'transparent';
+  const st = Number(p.styleType) || 1;
+  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (st === 1) {
+    s.background = p.compBgType === 'image' ? (p.compBgImg ? `url(${resolveUrl(p.compBgImg)})` : 'transparent') : (p.compBgColor || '#ffffff');
+    s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
+  } else if (p.bgColor === undefined || p.bgColor === '' || p.bgColor === '#FFFFFF' || p.bgColor === '#ffffff') {
+    s.background = 'transparent';
+  } else {
+    s.background = p.bgColor;
+  }
   return s;
 }
 function dpTbTextStyle(p) {
-  return { color: p.color || '#333333', fontSize: (p.fontSize || 16) + 'px', fontWeight: p.bold ? '600' : '400', fontStyle: p.italic ? 'italic' : 'normal' };
+  return { color: p.titleColor || '#333333', fontSize: (p.titleFontSize || 16) + 'px', fontWeight: p.bold ? '600' : '400', fontStyle: p.italic ? 'italic' : 'normal' };
+}
+function dpTbTextStyle2(p) {
+  return { color: p.titleColor2 || '#333333', fontSize: (p.titleFontSize2 || 16) + 'px', fontWeight: p.bold ? '600' : '400', fontStyle: p.italic ? 'italic' : 'normal' };
+}
+function dpTbTitleText(p) {
+  return p.titleText || p.text || '标题文字';
 }
 function dpTabsStyle(p) {
   const s = { '--tab': p.color || '#165dff', background: p.bgColor || '#fff', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };

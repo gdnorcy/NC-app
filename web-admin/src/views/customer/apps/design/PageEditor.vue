@@ -143,7 +143,7 @@
           <el-form label-width="auto" size="small">
             <template v-for="sec in schemaSections" :key="sec.key">
               <div v-if="sec.fields.length" class="pe-sec">
-                <div class="pe-sec-name">{{ sec.label }}</div>
+                <div v-if="sec.label" class="pe-sec-name">{{ sec.label }}</div>
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.control === 'hint' ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
@@ -615,16 +615,18 @@ function styleImg(f, n) {
   const v = Number(n) || 1;
   return styleImgs[`/src/assets/design-styles/${f.styleGroup}/style${v}.png`] || '';
 }
-// ew 1:1 实测：标题栏切风格联动（标题颜色 + 标题文案重置为该风格默认值）
+// ew 1:1 实测：标题栏切风格联动（主标题族颜色 / 标题文字族颜色；文案字段独立不重置）
 const TB_STYLE_COLOR = { 1: '#333333', 2: '#333333', 3: '#F1FF9A', 4: '#3B2BE7', 5: '#FF95AC', 6: '#FF3B3B', 7: '#333333', 8: '#333333', 9: '#333333' };
-const TB_STYLE_TEXT = { 1: '商品推荐', 2: '商品推荐', 3: '商品推荐', 4: '商品推荐', 5: '商品推荐', 6: '商品推荐', 7: '夏日纳凉精选', 8: '夏日纳凉精选', 9: '夏日纳凉精选' };
 function pickStyleNum(n) {
   if (!selectedComp.value || !stylePickerField.value) return;
   selectedComp.value.props[stylePickerField.value.key] = n;
-  // 标题栏风格联动：标题颜色/文案按风格默认（ew 实测行为）
+  // 标题栏切风格：主标题族（S1-6）重置 titleColor，标题文字族（S7-9）重置 titleColor2（ew 实测）
   if (selectedComp.value.type === 'title-bar' && stylePickerField.value.key === 'styleType') {
-    selectedComp.value.props.color = TB_STYLE_COLOR[n] || '#333333';
-    selectedComp.value.props.text = TB_STYLE_TEXT[n] || '标题文字';
+    if (n >= 7) {
+      selectedComp.value.props.titleColor2 = TB_STYLE_COLOR[n] || '#333333';
+    } else {
+      selectedComp.value.props.titleColor = TB_STYLE_COLOR[n] || '#333333';
+    }
   }
   stylePickerVisible.value = false;
 }
@@ -870,15 +872,39 @@ const selectedComp = computed(() => {
   const c = components.value.find((c) => c.id === selected.value) || null;
   return c ? { ...c, name: findComponent(c.type)?.name || c.type } : null;
 });
-// 属性面板分组：内容 / 样式 + 通用样式（跳过组件已有同名 key）
+// 属性面板分组：内容 / 样式 + 通用样式（跳过组件已有同名 key）；支持 schema 字段 group（ew 1:1 分组面板）
 const schemaSections = computed(() => {
   if (!selectedComp.value) return [];
   const def = findComponent(selectedComp.value.type);
   if (!def) return [];
   const ownKeys = def.schema.map((f) => f.key);
-  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight'))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))));
+  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR'))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))));
   const props = selectedComp.value.props || {};
-  const whenOk = (f) => !f.when || Object.entries(f.when).every(([k, v]) => props[k] === v || String(props[k]) === String(v));
+  const whenOk = (f) => {
+    if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;
+    if (f.whenNotStyle && f.whenNotStyle.includes(Number(props.styleType))) return false;
+    return !f.when || Object.entries(f.when).every(([k, v]) => props[k] === v || String(props[k]) === String(v));
+  };
+  const grpFields = def.schema.filter((f) => f.group && whenOk(f));
+  if (grpFields.length) {
+    // 按 group 分组（保持 schema 出现顺序），组内字段按 ew 面板顺序
+    const groups = [];
+    const seen = new Set();
+    for (const f of def.schema) {
+      if (!f.group || !whenOk(f)) continue;
+      if (!seen.has(f.group)) { seen.add(f.group); groups.push({ key: 'g' + groups.length, label: f.group, fields: [] }); }
+      groups[groups.length - 1].fields.push(f);
+    }
+    // 顶部字段（选择风格等）置于分组前；无分组的普通字段（会员等级等）置于分组后，与 ew 面板顺序一致
+    const topPlain = def.schema.filter((f) => !f.group && f.control === 'stylePicker' && whenOk(f));
+    const bottomPlain = def.schema.filter((f) => !f.group && f.control !== 'stylePicker' && !f.whenStyle && !f.whenNotStyle && whenOk(f));
+    const merged = [];
+    if (topPlain.length) merged.push({ key: 'plain', label: '', fields: topPlain });
+    merged.push(...groups);
+    if (bottomPlain.length) merged.push({ key: 'plain2', label: '', fields: bottomPlain });
+    if (common.length) merged.push({ key: 'common', label: '通用样式', fields: common });
+    return merged;
+  }
   return [
     { key: 'content', label: '内容', fields: def.schema.filter((f) => f.section !== 'style' && whenOk(f)) },
     { key: 'style', label: '样式', fields: def.schema.filter((f) => f.section === 'style' && whenOk(f)) },
