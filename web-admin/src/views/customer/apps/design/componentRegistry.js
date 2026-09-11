@@ -673,7 +673,7 @@ export const componentRegistry = [
     name: '标题栏',
     group: 'basic',
     icon: 'title-bar',
-    defaultProps: { styleType: 7, text: '标题文字', fontSize: 16, bold: false, italic: false, bgColor: '#FFFFFF', color: '#1D2129', marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { styleType: 7, text: '标题文字', fontSize: 16, bold: false, italic: false, bgColor: 'transparent', color: '#333333', marginTop: 0, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'styleType', label: '选择风格', control: 'stylePicker', section: 'content', styleGroup: 'title', styleCount: 9 },
       { key: 'text', label: '标题', control: 'input', section: 'content', required: true, maxlength: 8, showWordLimit: true },

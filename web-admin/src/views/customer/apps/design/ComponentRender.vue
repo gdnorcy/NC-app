@@ -294,10 +294,10 @@
         </template>
       </div>
     </template>
-    <!-- 标题栏 -->
+    <!-- 标题栏（ew 1:1 实测版：风格1=es-title3 / 风格2-6=es-title2 / 风格7-9=es-title） -->
     <template v-else-if="comp.type === 'title-bar'">
-      <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 7)" :style="{ background: comp.props.bgColor || '#fff', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
-        <!-- 风格1：装饰图+标题+RECOMMEND+查看更多（ew es-title3） -->
+      <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 7)" :style="{ background: comp.props.bgColor || 'transparent', marginTop: (comp.props.marginTop || 0) + 'px', marginBottom: (comp.props.marginBottom || 0) + 'px' }">
+        <!-- 风格1：es-title3 flex 左装饰图+标题+RECOMMEND+查看更多 -->
         <template v-if="(comp.props.styleType || 7) === 1">
           <img class="r-tb-deco" :src="tbDecoUrl" alt="" />
           <div class="r-tb-mid">
@@ -306,7 +306,7 @@
           </div>
           <span class="r-tb-more">查看更多 ›</span>
         </template>
-        <!-- 风格2：左右星标+标题+RECOMMEND（ew es-title2 title5） -->
+        <!-- 风格2：es-title2 title5 ★标题★+底部RECOMMEND -->
         <template v-else-if="(comp.props.styleType || 7) === 2">
           <div class="r-tb-row">
             <span class="r-tb-star">★</span>
@@ -315,25 +315,66 @@
           </div>
           <div class="r-tb-en-line">RECOMMEND</div>
         </template>
-        <!-- 风格3：左右气泡+黄绿标题（ew es-title2 title4） -->
+        <!-- 风格3：es-title2 title4 左右气泡+黄绿标题 -->
         <template v-else-if="(comp.props.styleType || 7) === 3">
           <img class="r-tb-bub" :src="tbBubbleUrl" alt="" />
           <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#F1FF9A' }">{{ comp.props.text || '标题文字' }}</span>
           <img class="r-tb-bub r-tb-bub-r" :src="tbBubbleUrl" alt="" />
         </template>
-        <!-- 风格4-9：线型装饰（ew es-title title4..1） -->
-        <template v-else>
-          <span v-if="(comp.props.styleType || 7) === 8" class="r-tb-vline"></span>
+        <!-- 风格4：es-title2 title1 左右图+紫标题+副题+查看更多 -->
+        <template v-else-if="(comp.props.styleType || 7) === 4">
+          <div class="r-tb-top">
+            <div class="r-tb-title-row">
+              <img class="r-tb-img" :src="tbS4L" alt="" />
+              <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#3B2BE7' }">{{ comp.props.text || '标题文字' }}</span>
+              <img class="r-tb-img" :src="tbS4R" alt="" />
+            </div>
+            <span class="r-tb-more">查看更多 ›</span>
+          </div>
+          <div class="r-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</div>
+        </template>
+        <!-- 风格5：es-title2 title2 左中右图+粉标题+副题+查看更多 -->
+        <template v-else-if="(comp.props.styleType || 7) === 5">
+          <div class="r-tb-top">
+            <div class="r-tb-title-row">
+              <img class="r-tb-img" :src="tbS5L" alt="" />
+              <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#FF95AC' }">{{ comp.props.text || '标题文字' }}</span>
+              <img class="r-tb-img" :src="tbS5R" alt="" />
+              <img class="r-tb-center" :src="tbS5C" alt="" />
+            </div>
+            <span class="r-tb-more">查看更多 ›</span>
+          </div>
+          <div class="r-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</div>
+        </template>
+        <!-- 风格6：es-title2 title3 红标题+左右图+副题+查看更多 -->
+        <template v-else-if="(comp.props.styleType || 7) === 6">
+          <div class="r-tb-top">
+            <div class="r-tb-title-row">
+              <span class="r-tb-title" :style="{ ...tbTextStyle(comp), color: '#FF3B3B' }">{{ comp.props.text || '标题文字' }}</span>
+              <img class="r-tb-img r-tb-img-l" :src="tbS6L" alt="" />
+              <img class="r-tb-img r-tb-img-r" :src="tbS6R" alt="" />
+            </div>
+            <span class="r-tb-more">查看更多 ›</span>
+          </div>
+          <div class="r-tb-sub" :style="{ color: '#FFB2B2' }">夏日清爽出行必备</div>
+        </template>
+        <!-- 风格7：es-title title1 两侧短线 -->
+        <template v-else-if="(comp.props.styleType || 7) === 7">
+          <span class="r-tb-line-l"></span>
           <span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span>
-          <span v-if="(comp.props.styleType || 7) === 4" class="r-tb-bline"></span>
-          <span v-if="(comp.props.styleType || 7) === 4" class="r-tb-bthick"></span>
-          <span v-if="(comp.props.styleType || 7) === 5" class="r-tb-bline-l"></span>
-          <span v-if="(comp.props.styleType || 7) === 5" class="r-tb-bline-r"></span>
-          <span v-if="(comp.props.styleType || 7) === 5" class="r-tb-diamond"></span>
-          <span v-if="(comp.props.styleType || 7) === 7" class="r-tb-line-l"></span>
-          <span v-if="(comp.props.styleType || 7) === 7" class="r-tb-line-r"></span>
-          <span v-if="(comp.props.styleType || 7) === 6" class="r-tb-frame-line-l"></span>
-          <span v-if="(comp.props.styleType || 7) === 6" class="r-tb-frame-line-r"></span>
+          <span class="r-tb-line-r"></span>
+        </template>
+        <!-- 风格8：es-title title2 左侧竖线 -->
+        <template v-else-if="(comp.props.styleType || 7) === 8">
+          <span class="r-tb-outer"><span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span><span class="r-tb-inner"></span></span>
+          <span class="r-tb-line"></span>
+          <span class="r-tb-leftline"></span>
+        </template>
+        <!-- 风格9：es-title title3 底部线+菱形 -->
+        <template v-else>
+          <span class="r-tb-outer"><span class="r-tb-title" :style="tbTextStyle(comp)">{{ comp.props.text || '标题文字' }}</span><span class="r-tb-inner"></span></span>
+          <span class="r-tb-line"></span>
+          <span class="r-tb-leftline"></span>
         </template>
       </div>
     </template>
@@ -444,9 +485,19 @@ import { computed, ref, onMounted } from 'vue';
 
 import tbDecoUrl from '../../../../assets/design-styles/title/title3.png';
 import tbBubbleUrl from '../../../../assets/design-styles/title/bubble.png';
+import tbS4L from '../../../../assets/design-styles/title/s4_l.png';
+import tbS4R from '../../../../assets/design-styles/title/s4_r.png';
+import tbS5L from '../../../../assets/design-styles/title/s5_l.png';
+import tbS5C from '../../../../assets/design-styles/title/s5_c.png';
+import tbS5R from '../../../../assets/design-styles/title/s5_r.png';
+import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
+import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
 import { customerApiCall } from '../../../../api';
 
-const tbTextStyle = (comp) => ({ color: comp.props.color || '#1D2129', fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
+const tbTextStyle = (comp) => ({ color: comp.props.color || '#333333', fontSize: (comp.props.fontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
+// ew 风格默认色（切换风格联动更新标题颜色）
+const TB_STYLE_COLOR = { 1: '#333333', 2: '#333333', 3: '#F1FF9A', 4: '#3B2BE7', 5: '#FF95AC', 6: '#FF3B3B', 7: '#333333', 8: '#333333', 9: '#333333' };
+const TB_STYLE_TEXT = { 1: '商品推荐', 2: '商品推荐', 3: '商品推荐', 4: '商品推荐', 5: '商品推荐', 6: '商品推荐', 7: '夏日纳凉精选', 8: '夏日纳凉精选', 9: '夏日纳凉精选' };
 const props = defineProps({ comp: { type: Object, required: true } });
 
 // 全景场景组件：编辑端预览拉取租户真实方案
@@ -1034,29 +1085,59 @@ function chRadius(p, i) {
 .r-chv-body { padding: 10px 12px; background: #fff; }
 .r-chv-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-chv-desc { font-size: 12px; color: #86909c; margin-top: 2px; }
-.r-titlebar { display: flex; align-items: center; position: relative; padding: 10px 12px; }
-.r-tb-title { line-height: 1.4; }
-.r-tb-en { font-size: 11px; color: #B7BCD2; display: block; margin-top: 2px; }
-.r-tb-more { font-size: 12px; color: #B0B3BF; margin-left: auto; white-space: nowrap; }
-.r-tb-deco { width: 22px; height: 22px; margin-right: 8px; flex: none; }
-.r-tb-mid { display: flex; flex-direction: column; }
-.r-tb-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.r-tb-star { color: #333; font-size: 12px; }
-.r-tb-en-line { font-size: 11px; color: #333; text-align: center; margin-top: 1px; letter-spacing: 1px; }
-.r-tb-bub { width: 14px; height: 8px; margin: 0 6px; flex: none; }
-.r-tb-bub-r { transform: rotateY(180deg); }
-.r-tb-vline { width: 2px; height: 18px; background: #333; margin-right: 10px; }
-.r-tb-bline { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: #333; opacity: .35; }
-.r-tb-bthick { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 58%; height: 3px; background: #333; }
-.r-tb-bline-l { position: absolute; bottom: 0; left: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
-.r-tb-bline-r { position: absolute; bottom: 0; right: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
-.r-tb-diamond { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; border: 1px solid #333; background: #fff; }
-.r-tb-line-l { width: 30px; height: 1px; background: #333; margin-right: 8px; }
-.r-tb-line-r { width: 30px; height: 1px; background: #333; margin-left: 8px; }
-.r-tb-frame-line-l { width: 34px; height: 1px; background: #333; margin-right: 8px; }
-.r-tb-frame-line-r { width: 34px; height: 1px; background: #333; margin-left: 8px; }
-.r-tb-s4, .r-tb-s5, .r-tb-s9 { padding-bottom: 16px; }
-.r-tb-s6 { padding: 12px; }
+.r-titlebar { position: relative; display: flex; align-items: center; padding: 10px 12px; box-sizing: border-box; }
+.r-tb-title { line-height: 1.4; font-size: 16px; }
+.r-tb-more { font-size: 11px; color: #B0B3BF; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
+.r-tb-more .r-tb-more-ico { margin-left: 4px; }
+/* 风格1 es-title3 */
+.r-tb-s1 { height: 60px; align-items: center; }
+.r-tb-s1 .r-tb-deco { width: 40px; height: 40px; object-fit: contain; margin-right: 8px; flex: none; }
+.r-tb-s1 .r-tb-mid { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.r-tb-s1 .r-tb-title { padding: 0 10px; text-align: center; }
+.r-tb-s1 .r-tb-en { font-size: 12px; color: #B7BCD2; text-align: center; width: 100%; letter-spacing: 7px; }
+.r-tb-s1 .r-tb-more { margin-left: 8px; }
+/* 风格2 es-title2 title5 */
+.r-tb-s2 { height: 60px; flex-direction: column; justify-content: center; }
+.r-tb-s2 .r-tb-row { display: flex; align-items: center; justify-content: center; }
+.r-tb-s2 .r-tb-star { color: #333; font-size: 14px; }
+.r-tb-s2 .r-tb-title { padding: 0; }
+.r-tb-s2 .r-tb-en-line { font-size: 12px; color: #333; text-align: center; width: 100%; letter-spacing: 0; margin-top: 0; }
+/* 风格3 es-title2 title4 */
+.r-tb-s3 { height: 60px; justify-content: center; }
+.r-tb-s3 .r-tb-bub { width: 38.5px; height: auto; margin: 0 6px; flex: none; }
+.r-tb-s3 .r-tb-bub-r { transform: rotateY(180deg); }
+.r-tb-s3 .r-tb-title { padding: 0 8px; }
+/* 风格4-6 es-title2 */
+.r-tb-s4, .r-tb-s5, .r-tb-s6 { height: 60px; flex-direction: column; justify-content: center; padding-left: 12px; padding-right: 12px; }
+.r-tb-s4 .r-tb-top, .r-tb-s5 .r-tb-top, .r-tb-s6 .r-tb-top { display: flex; align-items: center; width: 100%; }
+.r-tb-s4 .r-tb-title-row, .r-tb-s5 .r-tb-title-row { display: flex; align-items: center; justify-content: center; flex: 1; min-width: 0; position: relative; }
+.r-tb-s6 .r-tb-title-row { display: flex; align-items: center; flex: 1; min-width: 0; position: relative; padding-left: 17px; justify-content: flex-start; }
+.r-tb-img { width: 20px; height: auto; object-fit: contain; flex: none; }
+.r-tb-s5 .r-tb-img { width: 18.5px; }
+.r-tb-center { position: absolute; bottom: 0; width: 99px; height: auto; right: -30px; object-fit: contain; }
+.r-tb-s6 .r-tb-img-l { width: 30.5px; position: absolute; bottom: -30px; left: -14px; }
+.r-tb-s6 .r-tb-img-r { width: 17.5px; position: absolute; top: -7px; left: 70px; }
+.r-tb-s4 .r-tb-title, .r-tb-s5 .r-tb-title, .r-tb-s6 .r-tb-title { padding: 0 8px; z-index: 1; position: relative; }
+.r-tb-s4 .r-tb-sub, .r-tb-s5 .r-tb-sub { font-size: 12px; text-align: center; width: 100%; letter-spacing: 7px; line-height: 1.5; }
+.r-tb-s6 .r-tb-sub { font-size: 12px; width: 100%; letter-spacing: 0; line-height: 1.5; padding-left: 8px; position: relative; }
+/* 风格7 es-title title1 */
+.r-tb-s7 { justify-content: center; }
+.r-tb-s7 .r-tb-line-l { position: absolute; left: 0; top: 50%; width: 30px; height: 1px; background: #333; margin-left: -30px; }
+.r-tb-s7 .r-tb-line-r { position: absolute; right: 0; top: 50%; width: 30px; height: 1px; background: #333; margin-right: -30px; }
+.r-tb-s7 .r-tb-title { position: relative; z-index: 2; padding: 0 10px; }
+/* 风格8 es-title title2 */
+.r-tb-s8 { position: relative; }
+.r-tb-s8 .r-tb-outer { position: relative; display: inline-block; }
+.r-tb-s8 .r-tb-title { text-align: left; display: block; position: relative; z-index: 2; margin-left: 10px; padding-right: 10px; }
+.r-tb-s8 .r-tb-inner, .r-tb-s8 .r-tb-line { display: none; }
+.r-tb-s8 .r-tb-leftline { position: absolute; content: ''; top: 3px; left: 0; bottom: 3px; width: 2px; background: #333; }
+/* 风格9 es-title title3 */
+.r-tb-s9 { position: relative; height: 32px; justify-content: center; }
+.r-tb-s9 .r-tb-outer { height: 28px; position: relative; width: 100%; z-index: 2; display: inline-block; text-align: center; }
+.r-tb-s9 .r-tb-title { position: relative; z-index: 2; padding: 0 10px; }
+.r-tb-s9 .r-tb-inner { position: absolute; content: ''; bottom: 0; left: 0; width: 100%; height: 1px; background: #333; }
+.r-tb-s9 .r-tb-line { position: absolute; display: inline-block; border-width: 6px; border-style: solid; border-right-color: #333; border-bottom-color: #333; border-left-color: transparent; border-top-color: transparent; left: 50%; top: 22px; margin-left: -6px; transform: rotate(45deg); }
+.r-tb-s9 .r-tb-leftline { display: none; }
 /* 视频号直播 */
 .r-chlive { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
 .r-chl-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
@@ -1071,14 +1152,6 @@ function chRadius(p, i) {
 .r-gallery { display: grid; width: 100%; }
 .r-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .r-gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* 标题栏 */
-.r-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
-.r-titlebar.center .r-tb-left { align-items: center; text-align: center; flex: 1; }
-.r-titlebar.bar .r-tb-title { background: #165dff; color: #fff; padding: 4px 12px; border-radius: 6px 6px 6px 0; font-size: 14px; }
-.r-tb-left { display: flex; flex-direction: column; gap: 2px; }
-.r-tb-title { font-size: 17px; font-weight: 600; line-height: 1.4; }
-.r-tb-sub { font-size: 12px; color: #86909c; }
-.r-tb-more { flex-shrink: 0; font-size: 12px; color: #86909c; display: flex; align-items: center; }
 /* 搜索框 */
 .r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; }
 .r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

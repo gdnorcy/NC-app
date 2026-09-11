@@ -292,7 +292,7 @@
           <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-gallery-img" />
         </view>
       </view>
-      <!-- 标题栏 -->
+      <!-- 标题栏（ew 1:1 实测版） -->
       <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 7)" :style="dpTbWrapStyle(c.props)">
         <block v-if="(c.props.styleType || 7) === 1">
           <image class="dp-tb-deco" src="/static/design-styles/title/title3.png" mode="aspectFit"></image>
@@ -315,18 +315,54 @@
           <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#F1FF9A' }">{{ c.props.text || '标题文字' }}</text>
           <image class="dp-tb-bub dp-tb-bub-r" src="/static/design-styles/title/bubble.png" mode="aspectFit"></image>
         </block>
-        <block v-else>
-          <view v-if="(c.props.styleType || 7) === 8" class="dp-tb-vline"></view>
+        <block v-else-if="(c.props.styleType || 7) === 4">
+          <view class="dp-tb-top">
+            <view class="dp-tb-title-row">
+              <image class="dp-tb-img" src="/static/design-styles/title/s4_l.png" mode="aspectFit"></image>
+              <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#3B2BE7' }">{{ c.props.text || '标题文字' }}</text>
+              <image class="dp-tb-img" src="/static/design-styles/title/s4_r.png" mode="aspectFit"></image>
+            </view>
+            <text class="dp-tb-more">查看更多 ›</text>
+          </view>
+          <text class="dp-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</text>
+        </block>
+        <block v-else-if="(c.props.styleType || 7) === 5">
+          <view class="dp-tb-top">
+            <view class="dp-tb-title-row">
+              <image class="dp-tb-img" src="/static/design-styles/title/s5_l.png" mode="aspectFit"></image>
+              <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#FF95AC' }">{{ c.props.text || '标题文字' }}</text>
+              <image class="dp-tb-img" src="/static/design-styles/title/s5_r.png" mode="aspectFit"></image>
+              <image class="dp-tb-center" src="/static/design-styles/title/s5_c.png" mode="aspectFit"></image>
+            </view>
+            <text class="dp-tb-more">查看更多 ›</text>
+          </view>
+          <text class="dp-tb-sub" :style="{ color: '#B7BCD2' }">夏日清爽出行必备</text>
+        </block>
+        <block v-else-if="(c.props.styleType || 7) === 6">
+          <view class="dp-tb-top">
+            <view class="dp-tb-title-row">
+              <text class="dp-tb-title" :style="{ ...dpTbTextStyle(c.props), color: '#FF3B3B' }">{{ c.props.text || '标题文字' }}</text>
+              <image class="dp-tb-img dp-tb-img-l" src="/static/design-styles/title/s6_l.png" mode="aspectFit"></image>
+              <image class="dp-tb-img dp-tb-img-r" src="/static/design-styles/title/s6_r.png" mode="aspectFit"></image>
+            </view>
+            <text class="dp-tb-more">查看更多 ›</text>
+          </view>
+          <text class="dp-tb-sub" :style="{ color: '#FFB2B2' }">夏日清爽出行必备</text>
+        </block>
+        <block v-else-if="(c.props.styleType || 7) === 7">
+          <view class="dp-tb-line-l"></view>
           <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text>
-          <view v-if="(c.props.styleType || 7) === 4" class="dp-tb-bline"></view>
-          <view v-if="(c.props.styleType || 7) === 4" class="dp-tb-bthick"></view>
-          <view v-if="(c.props.styleType || 7) === 5" class="dp-tb-bline-l"></view>
-          <view v-if="(c.props.styleType || 7) === 5" class="dp-tb-bline-r"></view>
-          <view v-if="(c.props.styleType || 7) === 5" class="dp-tb-diamond"></view>
-          <view v-if="(c.props.styleType || 7) === 7" class="dp-tb-line-l"></view>
-          <view v-if="(c.props.styleType || 7) === 7" class="dp-tb-line-r"></view>
-          <view v-if="(c.props.styleType || 7) === 6" class="dp-tb-frame-line-l"></view>
-          <view v-if="(c.props.styleType || 7) === 6" class="dp-tb-frame-line-r"></view>
+          <view class="dp-tb-line-r"></view>
+        </block>
+        <block v-else-if="(c.props.styleType || 7) === 8">
+          <view class="dp-tb-outer"><text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text><view class="dp-tb-inner"></view></view>
+          <view class="dp-tb-line"></view>
+          <view class="dp-tb-leftline"></view>
+        </block>
+        <block v-else>
+          <view class="dp-tb-outer"><text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题文字' }}</text><view class="dp-tb-inner"></view></view>
+          <view class="dp-tb-line"></view>
+          <view class="dp-tb-leftline"></view>
         </block>
       </view>
       <!-- 搜索框 -->
@@ -763,10 +799,12 @@ function dpTitleBarStyle(p) {
   return s;
 }
 function dpTbWrapStyle(p) {
-  return dpTitleBarStyle(p);
+  const s = dpTitleBarStyle(p);
+  if (p.bgColor === undefined || p.bgColor === '' || p.bgColor === '#FFFFFF' || p.bgColor === '#ffffff') s.background = 'transparent';
+  return s;
 }
 function dpTbTextStyle(p) {
-  return { color: p.color || '#1D2129', fontSize: (p.fontSize || 16) + 'px', fontWeight: p.bold ? '600' : '400', fontStyle: p.italic ? 'italic' : 'normal' };
+  return { color: p.color || '#333333', fontSize: (p.fontSize || 16) + 'px', fontWeight: p.bold ? '600' : '400', fontStyle: p.italic ? 'italic' : 'normal' };
 }
 function dpTabsStyle(p) {
   const s = { '--tab': p.color || '#165dff', background: p.bgColor || '#fff', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
@@ -1226,34 +1264,58 @@ function openChannel(kind, p) {
 .dp-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .dp-gallery-img { width: 100%; height: 100%; }
 /* 标题栏 9 风格（eweishop 1:1） */
-.dp-titlebar { display: flex; align-items: center; position: relative; padding: 10px 12px; }
-.dp-tb-title { line-height: 1.4; }
-.dp-tb-en { font-size: 11px; color: #b7bcd2; display: block; margin-top: 2px; }
-.dp-tb-more { font-size: 12px; color: #b0b3bf; margin-left: auto; white-space: nowrap; }
-.dp-tb-deco { width: 22px; height: 22px; margin-right: 8px; flex: none; }
-.dp-tb-mid { display: flex; flex-direction: column; }
-.dp-tb-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.dp-tb-star { color: #333; font-size: 12px; }
-.dp-tb-en-line { font-size: 11px; color: #333; text-align: center; margin-top: 1px; letter-spacing: 1px; }
-.dp-tb-bub { width: 14px; height: 8px; margin: 0 6px; flex: none; }
-.dp-tb-bub-r { transform: rotateY(180deg); }
-.dp-tb-vline { width: 2px; height: 18px; background: #333; margin-right: 10px; }
-.dp-tb-bline { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: #333; opacity: .35; }
-.dp-tb-bthick { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 58%; height: 3px; background: #333; }
-.dp-tb-bline-l { position: absolute; bottom: 0; left: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
-.dp-tb-bline-r { position: absolute; bottom: 0; right: 0; width: 30%; height: 1px; background: #333; opacity: .35; }
-.dp-tb-diamond { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; border: 1px solid #333; background: #fff; }
-.dp-tb-line-l { width: 30px; height: 1px; background: #333; margin-right: 8px; }
-.dp-tb-line-r { width: 30px; height: 1px; background: #333; margin-left: 8px; }
-.dp-tb-frame-line-l { width: 34px; height: 1px; background: #333; margin-right: 8px; }
-.dp-tb-frame-line-r { width: 34px; height: 1px; background: #333; margin-left: 8px; }
-.dp-tb-s4, .dp-tb-s5, .dp-tb-s9 { padding-bottom: 16px; }
-.dp-tb-s6 { padding: 12px; }
-.dp-tb-title { font-size: 16px; line-height: 1.4; }
-.dp-tb-sub { font-size: 12px; color: #86909c; margin-left: 8px; }
-.dp-tb-more { font-size: 12px; color: #86909c; margin-left: auto; }
-.dp-tb-line { flex: 1; height: 2px; background: #1d2129; margin-left: 10px; opacity: .2; }
-.dp-tb-rule { width: 4px; height: 18px; background: #165dff; margin-right: 8px; border-radius: 2px; }
+.dp-titlebar { position: relative; display: flex; align-items: center; padding: 10px 12px; box-sizing: border-box; }
+.dp-tb-title { line-height: 1.4; font-size: 16px; }
+.dp-tb-more { font-size: 11px; color: #b0b3bf; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
+/* 风格1 es-title3 */
+.dp-tb-s1 { height: 60px; align-items: center; }
+.dp-tb-s1 .dp-tb-deco { width: 40px; height: 40px; margin-right: 8px; flex: none; }
+.dp-tb-s1 .dp-tb-mid { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.dp-tb-s1 .dp-tb-title { padding: 0 10px; text-align: center; }
+.dp-tb-s1 .dp-tb-en { font-size: 12px; color: #b7bcd2; text-align: center; width: 100%; letter-spacing: 7px; }
+.dp-tb-s1 .dp-tb-more { margin-left: 8px; }
+/* 风格2 es-title2 title5 */
+.dp-tb-s2 { height: 60px; flex-direction: column; justify-content: center; }
+.dp-tb-s2 .dp-tb-row { display: flex; align-items: center; justify-content: center; }
+.dp-tb-s2 .dp-tb-star { color: #333; font-size: 14px; }
+.dp-tb-s2 .dp-tb-title { padding: 0; }
+.dp-tb-s2 .dp-tb-en-line { font-size: 12px; color: #333; text-align: center; width: 100%; letter-spacing: 0; }
+/* 风格3 es-title2 title4 */
+.dp-tb-s3 { height: 60px; justify-content: center; }
+.dp-tb-s3 .dp-tb-bub { width: 38.5px; height: auto; margin: 0 6px; flex: none; }
+.dp-tb-s3 .dp-tb-bub-r { transform: rotateY(180deg); }
+.dp-tb-s3 .dp-tb-title { padding: 0 8px; }
+/* 风格4-6 es-title2 */
+.dp-tb-s4, .dp-tb-s5, .dp-tb-s6 { height: 60px; flex-direction: column; justify-content: center; padding-left: 12px; padding-right: 12px; }
+.dp-tb-s4 .dp-tb-top, .dp-tb-s5 .dp-tb-top, .dp-tb-s6 .dp-tb-top { display: flex; align-items: center; width: 100%; }
+.dp-tb-s4 .dp-tb-title-row, .dp-tb-s5 .dp-tb-title-row { display: flex; align-items: center; justify-content: center; flex: 1; min-width: 0; position: relative; }
+.dp-tb-s6 .dp-tb-title-row { display: flex; align-items: center; flex: 1; min-width: 0; position: relative; padding-left: 17px; justify-content: flex-start; }
+.dp-tb-img { width: 20px; height: auto; flex: none; }
+.dp-tb-s5 .dp-tb-img { width: 18.5px; }
+.dp-tb-center { position: absolute; bottom: 0; width: 99px; height: auto; right: -30px; }
+.dp-tb-s6 .dp-tb-img-l { width: 30.5px; position: absolute; bottom: -30px; left: -14px; }
+.dp-tb-s6 .dp-tb-img-r { width: 17.5px; position: absolute; top: -7px; left: 70px; }
+.dp-tb-s4 .dp-tb-title, .dp-tb-s5 .dp-tb-title, .dp-tb-s6 .dp-tb-title { padding: 0 8px; z-index: 1; position: relative; }
+.dp-tb-s4 .dp-tb-sub, .dp-tb-s5 .dp-tb-sub { font-size: 12px; text-align: center; width: 100%; letter-spacing: 7px; line-height: 1.5; }
+.dp-tb-s6 .dp-tb-sub { font-size: 12px; width: 100%; letter-spacing: 0; line-height: 1.5; padding-left: 8px; position: relative; }
+/* 风格7 es-title title1 */
+.dp-tb-s7 { justify-content: center; }
+.dp-tb-s7 .dp-tb-line-l { position: absolute; left: 0; top: 50%; width: 30px; height: 1px; background: #333; margin-left: -30px; }
+.dp-tb-s7 .dp-tb-line-r { position: absolute; right: 0; top: 50%; width: 30px; height: 1px; background: #333; margin-right: -30px; }
+.dp-tb-s7 .dp-tb-title { position: relative; z-index: 2; padding: 0 10px; }
+/* 风格8 es-title title2 */
+.dp-tb-s8 { position: relative; }
+.dp-tb-s8 .dp-tb-outer { position: relative; display: inline-block; }
+.dp-tb-s8 .dp-tb-title { text-align: left; display: block; position: relative; z-index: 2; margin-left: 10px; padding-right: 10px; }
+.dp-tb-s8 .dp-tb-inner, .dp-tb-s8 .dp-tb-line { display: none; }
+.dp-tb-s8 .dp-tb-leftline { position: absolute; top: 3px; left: 0; bottom: 3px; width: 2px; background: #333; }
+/* 风格9 es-title title3 */
+.dp-tb-s9 { position: relative; height: 32px; justify-content: center; }
+.dp-tb-s9 .dp-tb-outer { height: 28px; position: relative; width: 100%; z-index: 2; display: inline-block; text-align: center; }
+.dp-tb-s9 .dp-tb-title { position: relative; z-index: 2; padding: 0 10px; }
+.dp-tb-s9 .dp-tb-inner { position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: #333; }
+.dp-tb-s9 .dp-tb-line { position: absolute; display: inline-block; border-width: 6px; border-style: solid; border-right-color: #333; border-bottom-color: #333; border-left-color: transparent; border-top-color: transparent; left: 50%; top: 22px; margin-left: -6px; transform: rotate(45deg); }
+.dp-tb-s9 .dp-tb-leftline { display: none; }
 .dp-tb-ico { width: 20px; height: 20px; border-radius: 4px; margin-right: 8px; }
 .dp-tb-ico-grad { background: linear-gradient(135deg, #165dff, #8bc8ea); }
 .dp-tb-square { width: 12px; height: 12px; background: #1d2129; margin-right: 8px; }

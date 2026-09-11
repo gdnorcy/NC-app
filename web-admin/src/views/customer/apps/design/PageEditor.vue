@@ -615,9 +615,17 @@ function styleImg(f, n) {
   const v = Number(n) || 1;
   return styleImgs[`/src/assets/design-styles/${f.styleGroup}/style${v}.png`] || '';
 }
+// ew 1:1 实测：标题栏切风格联动（标题颜色 + 标题文案重置为该风格默认值）
+const TB_STYLE_COLOR = { 1: '#333333', 2: '#333333', 3: '#F1FF9A', 4: '#3B2BE7', 5: '#FF95AC', 6: '#FF3B3B', 7: '#333333', 8: '#333333', 9: '#333333' };
+const TB_STYLE_TEXT = { 1: '商品推荐', 2: '商品推荐', 3: '商品推荐', 4: '商品推荐', 5: '商品推荐', 6: '商品推荐', 7: '夏日纳凉精选', 8: '夏日纳凉精选', 9: '夏日纳凉精选' };
 function pickStyleNum(n) {
   if (!selectedComp.value || !stylePickerField.value) return;
   selectedComp.value.props[stylePickerField.value.key] = n;
+  // 标题栏风格联动：标题颜色/文案按风格默认（ew 实测行为）
+  if (selectedComp.value.type === 'title-bar' && stylePickerField.value.key === 'styleType') {
+    selectedComp.value.props.color = TB_STYLE_COLOR[n] || '#333333';
+    selectedComp.value.props.text = TB_STYLE_TEXT[n] || '标题文字';
+  }
   stylePickerVisible.value = false;
 }
 function styleName(f) {
