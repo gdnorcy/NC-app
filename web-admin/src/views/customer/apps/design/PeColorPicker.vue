@@ -263,13 +263,21 @@ function hexToHsv(hex) {
 .pc-sp { flex: 1; }
 .pc-btn {
   height: 28px;
+  line-height: 1;
   padding: 0 12px;
   border: 1px solid #E5E6EB;
   border-radius: 6px;
   background: #fff;
   color: #4E5969;
   font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .pc-btn:hover { border-color: #165DFF; color: #165DFF; }
 .pc-btn-primary { background: #165DFF; border-color: #165DFF; color: #fff; }

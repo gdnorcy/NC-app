@@ -815,9 +815,11 @@ function dpTbOuterStyle(p) {
   const s = {};
   if (st === 1) {
     if (p.bgColorBottom) s.background = p.bgColorBottom;
-    // 上/下边距=外层 padding（露出底部颜色，对标 ew：边距区域显示底部颜色而非背景色）
+    // 上/下/左右边距=外层 padding（四周边距区域露出底部颜色，对标 ew）
     s.paddingTop = (p.marginTop || 0) + 'px';
     s.paddingBottom = (p.marginBottom || 0) + 'px';
+    s.paddingLeft = (p.marginLR || 0) + 'px';
+    s.paddingRight = (p.marginLR || 0) + 'px';
   }
   return s;
 }
@@ -833,6 +835,8 @@ function dpTbWrapStyle(p) {
     // S2-9 无外层背景，padding 仍在内层
     s.paddingTop = (p.marginTop || 0) + 'px';
     s.paddingBottom = (p.marginBottom || 0) + 'px';
+    s.paddingLeft = (p.marginLR || 0) + 'px';
+    s.paddingRight = (p.marginLR || 0) + 'px';
   }
   if (st === 1 && (p.radiusTop || p.radiusBottom)) {
     s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
