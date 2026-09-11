@@ -682,8 +682,8 @@ export const componentRegistry = [
       subEnabled: true, subText: 'RECOMMEND', subColor: '#b7bcd2', subFontSize: 12,
       // 「更多」按钮（S1/4/5/6）
       moreEnabled: true, moreArrow: true, moreColor: '#b0b3bf', moreText: '查看更多', moreLink: '',
-      // 图片（S1 专属：左装饰图）
-      imgEnabled: true, img: '', imgRadius: 0,
+      // 图片（S1 专属：左装饰图；默认图复刻 ew title3.png，禁止留空——ew 面板图片字段默认即显示该图）
+      imgEnabled: true, img: '/static/design-styles/title/title3.png', imgRadius: 0,
       // 背景（S1：底部颜色 + 组件背景；S2-9：背景颜色）
       bgColor: 'transparent', bgColorBottom: 'transparent', compBgType: 'color', compBgColor: '#ffffff', compBgImg: '',
       // 标题文字族（S7-9）
@@ -696,7 +696,7 @@ export const componentRegistry = [
       { key: 'styleType', label: '选择风格', control: 'stylePicker', styleGroup: 'title', styleCount: 9 },
       // 图片（仅风格1）
       { key: 'imgEnabled', label: '启用', control: 'radio', group: '图片', options: [{ label: '是', value: true }, { label: '否', value: false }], when: { styleType: 1 } },
-      { key: 'img', label: '图片', control: 'image', group: '图片', tips: '建议尺寸：80*80像素', when: { styleType: 1 } },
+      { key: 'img', label: '图片', control: 'image', group: '图片', help: '建议尺寸：80*80像素', when: { styleType: 1 } },
       { key: 'imgRadius', label: '圆角', control: 'slider', group: '图片', min: 0, max: 50, when: { styleType: 1 } },
       // 主标题（S1-6）顺序与 ew 面板一致：颜色→字号→其他→内容
       { key: 'titleColor', label: '颜色', control: 'color', group: '主标题', whenStyle: [1, 2, 3, 4, 5, 6] },

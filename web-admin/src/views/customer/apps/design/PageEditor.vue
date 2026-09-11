@@ -147,7 +147,6 @@
                 <el-form-item v-for="f in sec.fields" :key="f.key" :label="f.control === 'hint' ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
-                  <div v-if="f.tips" class="pe-field-tips">{{ f.tips }}</div>
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
                   <PeColorPicker v-else-if="f.control === 'color'" v-model="selectedComp.props[f.key]" />
                   <el-date-picker
@@ -262,6 +261,8 @@
                     </div>
                     <el-button size="small" class="pe-list-add" @click="addListItem(selectedComp, f.key, f.itemFields)">+ 添加一项</el-button>
                   </div>
+                  <!-- 字段提示（独立 v-if，禁止放在控件链中——曾因 v-if 切断 v-else-if 链导致带 tips 的字段控件不渲染，如图片字段只剩提示文字、上传选择器消失） -->
+                  <div v-if="f.tips" class="pe-field-tips">{{ f.tips }}</div>
                   </el-form-item>
               </div>
             </template>
