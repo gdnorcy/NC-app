@@ -199,6 +199,7 @@
 
     <!-- 头部背景 -->
     <div class="hew-sec">头部背景</div>
+    <div class="hew-tip">头部背景只在头部区域生效，优先于全局背景。</div>
     <div class="hew-row">
       <el-radio-group v-model="m.headBg.mode" size="small">
         <el-radio value="color">纯色</el-radio>
