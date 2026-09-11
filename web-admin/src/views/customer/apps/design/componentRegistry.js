@@ -105,7 +105,7 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [{ url: '', link: '', hotspots: [] }], bgColor: '', gap: 0, marginLeft: 0, marginRight: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', memberLevel: 'all' },
+    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [{ url: '', link: '', hotspots: [] }], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', memberLevel: 'all' },
     schema: [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
         { label: '单图', value: 'single' },
@@ -137,7 +137,7 @@ export const componentRegistry = [
       { key: 'gap', label: '图片间距', control: 'slider', section: 'style', min: 0, max: 20 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
-      { key: 'marginLeft', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
@@ -213,7 +213,7 @@ export const componentRegistry = [
     name: '倒计时',
     group: 'marketing',
     icon: 'countdown',
-    defaultProps: { styleId: 1, style: 'default', image: '/card/static/images/countdown-banner.png', link: '', startTime: '', endTime: '', bgColor: '', cdBgType: 'image', cdBgColor: 'rgba(0,0,0,0.4)', cdBgImage: '/card/static/images/countdown-bar.png', cdTitleColor: '#ffffff', cdNumBg: '#ffffff', cdNumColor: '#FC5917', cdBtnBg: '#FEEC22', cdBtnText: '#FC5917', marginTop: 0, marginBottom: 0, marginLeft: 0, radiusTop: 0, radiusBottom: 0 },
+    defaultProps: { styleId: 1, style: 'default', image: '/card/static/images/countdown-banner.png', link: '', startTime: '', endTime: '', bgColor: '', cdBgType: 'image', cdBgColor: 'rgba(0,0,0,0.4)', cdBgImage: '/card/static/images/countdown-bar.png', cdTitleColor: '#ffffff', cdNumBg: '#ffffff', cdNumColor: '#FC5917', cdBtnBg: '#FEEC22', cdBtnText: '#FC5917', marginTop: 0, marginBottom: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0 },
     schema: [
       { key: 'styleId', label: '选择风格', control: 'stylePicker', section: 'content', options: [{ label: '风格1', value: 1 }, { label: '风格2', value: 2 }] },
       { key: 'style', label: '样式', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
@@ -232,7 +232,7 @@ export const componentRegistry = [
       { key: 'cdBtnText', label: '按钮文字', control: 'color', section: 'style' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
-      { key: 'marginLeft', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
     ],
@@ -250,7 +250,7 @@ export const componentRegistry = [
       sub1Image: '/card/static/images/countdown2-sub.jpg', sub1Title: '这里是标题', sub1Color: '#333333', sub1Sub: '这里是副标题', sub1SubColor: '#666666', sub1Link: '',
       sub2Image: '/card/static/images/countdown2-sub.jpg', sub2Title: '这里是标题', sub2Color: '#333333', sub2Sub: '这里是副标题', sub2SubColor: '#666666', sub2Link: '',
       bgColor: '', numColor: '#ffffff', numBg: '#fd9d4a',
-      marginTop: 0, marginBottom: 0, marginLeft: 0, radiusTop: 0, radiusBottom: 0,
+      marginTop: 0, marginBottom: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0,
       memberLevel: 'all',
     },
     schema: [
@@ -268,7 +268,7 @@ export const componentRegistry = [
       { key: 'numBg', label: '时间背景', control: 'color', section: 'style' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
-      { key: 'marginLeft', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
@@ -949,8 +949,11 @@ export const commonStyleSchema = [
   { key: 'padding', label: '内边距', control: 'slider', min: 0, max: 24 },
   { key: 'radius', label: '圆角', control: 'slider', min: 0, max: 24 },
   { key: 'bgColor', label: '背景色', control: 'color' },
+  { key: 'marginTop', label: '上边距', control: 'slider', min: 0, max: 40 },
+  { key: 'marginBottom', label: '下边距', control: 'slider', min: 0, max: 40 },
+  { key: 'marginLR', label: '左右边距', control: 'slider', min: 0, max: 40 },
 ];
-export const commonStyleProps = { padding: 8, radius: 8, bgColor: '' };
+export const commonStyleProps = { padding: 8, radius: 8, bgColor: '', marginTop: 0, marginLR: 0 };
 
 export function findComponent(type) {
   return componentRegistry.find((c) => c.type === type) || null;

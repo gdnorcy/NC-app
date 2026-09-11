@@ -138,7 +138,7 @@
         </view>
       </view>
       <!-- 直播列表（云菜鸟：列表样式 / 内容类型 / 排序 / 显示数量 / 下拉加载） -->
-      <view v-else-if="c.type === 'live-list'" class="dp-livelist" :class="'dp-live-style-' + (c.props.listStyle || '1')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
+      <view v-else-if="c.type === 'live-list'" class="dp-livelist" :class="'dp-live-style-' + (c.props.listStyle || '1')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
         <text v-if="c.props.title" class="dp-live-title-bar">{{ c.props.title }}</text>
         <view v-if="liveList.length" class="dp-live-grid">
           <view v-for="(it, i) in liveList.slice(0, Number(c.props.limit) || 6)" :key="i" class="dp-live-card" @click="openChannel('live', it)">
@@ -157,7 +157,7 @@
       <view v-else-if="c.type === 'image-text'" class="dp-imagetext" :class="{ overlay: c.props.textPos === 'overlay', center: c.props.align === 'center' }" :style="dpImageTextStyle(c.props)">
         <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="aspectFill" class="dp-it-img" :style="dpImageTextRatio(c.props)" @click="onJump(c.props.link)" />
         <view v-else class="dp-it-empty" :style="dpImageTextRatio(c.props)"><text>图文卡片</text></view>
-        <view class="dp-it-body">
+        <view class="dp-it-body" :style="dpItBodyStyle(c.props)">
           <text class="dp-it-title">{{ c.props.title || '图文标题' }}</text>
           <text class="dp-it-desc">{{ c.props.desc || '描述文字' }}</text>
         </view>
@@ -242,7 +242,7 @@
         </block>
       </view>
       <!-- 魔方 -->
-      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ background: c.props.bgColor || 'transparent', padding: c.props.bgColor ? '6px' : 0, marginTop: (c.props.marginTop ?? 0) + 'px', marginBottom: (c.props.marginBottom ?? 0) + 'px', marginLeft: (c.props.marginLR ?? 0) + 'px', marginRight: (c.props.marginLR ?? 0) + 'px' }">
+      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ background: c.props.bgColor || 'transparent', padding: c.props.bgColor ? '6px' : 0 }">
         <view class="dp-cube-inner" :style="{ gap: (c.props.imgGap ?? 4) + 'px' }">
           <view
             v-for="(b, i) in dpCubeBlocks(c)" :key="i"
@@ -388,7 +388,7 @@
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-tabs-item" :class="{ active: i === 0 }" @click="onJump(it.link)"><text>{{ it.text || '选项' }}</text></view>
       </view>
       <!-- 万能表单 -->
-      <view v-else-if="c.type === 'form-pro'" class="dp-form" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
+      <view v-else-if="c.type === 'form-pro'" class="dp-form" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
         <text class="dp-form-title">{{ c.props.title || '留资表单' }}</text>
         <view v-if="ensureFormData(i)" v-for="(f, fi) in c.props.fields || []" :key="fi" class="dp-fp-field">
           <picker v-if="f.type === 'date'" mode="date" @change="(e) => { ensureFormData(i); formData[i][f.label] = e.detail.value; }">
@@ -417,7 +417,7 @@
         <text v-else-if="c.props.iconType === 'icon' || !c.props.iconType">{{ c.props.text || '联系' }}</text>
       </view>
       <!-- 文章列表 -->
-      <view v-else-if="c.type === 'article-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }">
+      <view v-else-if="c.type === 'article-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
         <text v-if="c.props.title" class="dp-article-title">{{ c.props.title }}</text>
         <view class="dp-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 1) + ', 1fr)' }">
           <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-article-item" @click="onJump(it.link)">
@@ -562,8 +562,7 @@ function cdInlineStyle(p) {
   return s;
 }
 function cdBoxStyle(p) {
-  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
-  if (p.marginLeft) s.padding = '0 ' + p.marginLeft + 'px';
+  const s = {};
   if (p.bgColor) s.background = p.bgColor;
   const rt = p.radiusTop || 0;
   const rb = p.radiusBottom || 0;
@@ -609,8 +608,7 @@ function cd2Digits(p) {
   return [v.h, v.m, v.s];
 }
 function cd2BoxStyle(p) {
-  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
-  if (p.marginLeft) s.margin = '0 ' + p.marginLeft + 'px';
+  const s = {};
   if (p.bgColor) s.background = p.bgColor;
   const rt = p.radiusTop || 0, rb = p.radiusBottom || 0;
   if (rt || rb) s.borderRadius = rt + 'px ' + rt + 'px ' + rb + 'px ' + rb + 'px';
@@ -704,7 +702,7 @@ function dpBtnStyle(p) {
   return s;
 }
 function dpNoticeStyle(p) {
-  const s = { background: p.bgColor, color: p.color, fontSize: (p.fontSize || 14) + 'px', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = { background: p.bgColor, color: p.color, fontSize: (p.fontSize || 14) + 'px' };
   s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
   if (p.bold) s.fontWeight = '600';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
@@ -715,7 +713,7 @@ function dpNoticeList(p) {
   return (p.items || []).filter((it) => it && it.text).slice(0, 10);
 }
 function dpSwiperStyle(p) {
-  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', overflow: 'hidden' };
+  const s = { overflow: 'hidden' };
   s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
   if (p.immersive) s.borderRadius = '0';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
@@ -729,8 +727,6 @@ function dpSwiperBoxStyle(p) {
 function dpGridStyle(p) {
   const s = { gridTemplateColumns: 'repeat(' + (p.columns || 4) + ',1fr)', background: p.bgColor || 'transparent' };
   s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
@@ -747,8 +743,6 @@ function dpSearchStyle(p) {
     background: p.bgColor || '#F2F3F5',
     borderRadius: (p.radiusTop ?? 16) + 'px ' + (p.radiusTop ?? 16) + 'px ' + (p.radiusBottom ?? 16) + 'px ' + (p.radiusBottom ?? 16) + 'px',
     height: (p.height || 36) + 'px',
-    marginTop: (p.marginTop || 0) + 'px',
-    marginBottom: (p.marginBottom || 0) + 'px',
   };
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.strokeColor || '#165DFF');
@@ -759,11 +753,10 @@ function dpHotWords(p) {
 }
 // ===== 批2 图文类融合组件辅助 =====
 function dpImageBoxStyle(p) {
-  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = {};
   if (p.widthMode === 'auto') s.display = 'inline-block';
   if (p.bgColor) s.background = p.bgColor;
-  if (p.marginLeft) s.padding = `0 ${p.marginLeft}px`;
-  if (p.marginRight) s.paddingRight = p.marginRight + 'px';
+
   return s;
 }
 function dpImageRadius(p) {
@@ -774,17 +767,21 @@ function dpDividerStyle(p) {
   const st = p.lineStyle === 'dashed' ? 'dashed' : p.lineStyle === 'dotted' ? 'dotted' : 'solid';
   return {
     borderTop: (p.thickness ?? 1) + 'px ' + st + ' ' + (p.color || '#E5E6EB'),
-    marginTop: (p.marginTop ?? 14) + 'px',
-    marginBottom: (p.marginBottom ?? 14) + 'px',
   };
 }
 function dpImageTextStyle(p) {
-  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = {};
   s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
   if (p.bgColor) s.background = p.bgColor;
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
+}
+// 图文卡片内容区（统一基准：内边距 = 全局卡片边距）
+function dpItBodyStyle(p) {
+  const g = props.global || {};
+  const cardPadding = g.cardPadding ?? 12;
+  return { padding: `${p.padding ?? cardPadding}px` };
 }
 function dpImageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
@@ -793,8 +790,6 @@ function dpImageTextRatio(p) {
 function dpRtOuterStyle(p) {
   const s = {};
   if (p.bottomBg) s.background = p.bottomBg;
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
 }
 function dpRichTextStyle(p) {
@@ -802,7 +797,7 @@ function dpRichTextStyle(p) {
     background: p.compBgColor || 'transparent',
     borderRadius: (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px',
   };
-  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
@@ -811,8 +806,6 @@ function dpGalleryStyle(p) {
   const s = {
     gridTemplateColumns: 'repeat(' + (p.columns || 2) + ',1fr)',
     gap: (p.gap ?? 8) + 'px',
-    marginTop: (p.marginTop || 0) + 'px',
-    marginBottom: (p.marginBottom || 0) + 'px',
   };
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
@@ -820,8 +813,6 @@ function dpGalleryStyle(p) {
 }
 function dpTitleBarStyle(p) {
   const s = { background: p.bgColor || '#FFFFFF' };
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
 }
 function dpTbOuterStyle(p) {
@@ -867,7 +858,7 @@ function dpTbTitleText(p) {
   return p.titleText || p.text || '标题文字';
 }
 function dpTabsStyle(p) {
-  const s = { '--tab': p.color || '#165dff', background: p.bgColor || '#fff', marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = { '--tab': p.color || '#165dff', background: p.bgColor || '#fff' };
   s.borderRadius = (p.radiusTop ?? 8) + 'px ' + (p.radiusTop ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
@@ -876,8 +867,6 @@ function dpTabsStyle(p) {
 function dpFormStyle(p) {
   const s = { background: p.bgColor || 'transparent' };
   s.borderRadius = (p.radiusTop ?? 8) + 'px ' + (p.radiusTop ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px ' + (p.radiusBottom ?? 8) + 'px';
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
@@ -895,9 +884,7 @@ function dpFloatStyle(p) {
 function dpChannelLiveStyle(p) {
   const s = { background: p.bgColor || '#F7F8FA' };
   s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
-  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+
   if (p.componentBg) s.background = p.componentBg;
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
@@ -971,10 +958,21 @@ function resolveUrl(u) {
 }
 function containerStyle(c) {
   const p = c.props || {};
+  const g = props.global || {};
+  const cardGap = g.cardGap ?? 12;
+  const cardRadius = g.cardRadius ?? 8;
   const s = {};
   if (p.padding !== undefined && p.padding !== '') s.padding = `${p.padding}px`;
-  if (p.radius !== undefined && p.radius !== '') s.borderRadius = `${p.radius}px`;
+  const r = p.radius ?? cardRadius;
+  if (r !== '') s.borderRadius = `${r}px`;
   if (p.bgColor) s.background = p.bgColor;
+  // 边距统一收敛到容器（标题栏特例：padding 露底部颜色，见 tbOuterStyle）
+  if (c.type !== 'title-bar') {
+    s.marginTop = `${p.marginTop ?? 0}px`;
+    s.marginBottom = `${p.marginBottom ?? cardGap}px`;
+    s.marginLeft = `${p.marginLR ?? p.marginLeft ?? 0}px`;
+    s.marginRight = `${p.marginLR ?? p.marginRight ?? 0}px`;
+  }
   return s;
 }
 // 全景场景组件：按组件下标拉取租户全景方案（避免同页多个实例重复加载）
@@ -1254,7 +1252,7 @@ function openChannel(kind, p) {
 .dp-imagetext { position: relative; border-radius: 8px; overflow: hidden; background: #fff; border: 1px solid #f0f1f3; }
 .dp-it-img { width: 100%; display: block; }
 .dp-it-empty { height: 90px; background: #f7f8fa; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 12px; }
-.dp-it-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+.dp-it-body { box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; }
 .dp-it-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .dp-it-desc { font-size: 12px; color: #86909c; }
 .dp-imagetext.overlay .dp-it-body { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, rgba(0,0,0,.55)); }

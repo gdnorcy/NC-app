@@ -126,7 +126,7 @@
                 <span class="pe-tool" title="复制" @click.stop="dupComp(comp)">⧉</span>
                 <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(comp.id)">✕</span>
               </div>
-              <ComponentRender :comp="comp" />
+              <ComponentRender :comp="comp" :global="meta.global" />
             </div>
             <div v-if="!components.length" class="pe-empty">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
@@ -219,7 +219,7 @@
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
-                  <el-slider v-else-if="f.control === 'slider'" v-model="selectedComp.props[f.key]" :min="f.min" :max="f.max" show-input />
+                  <el-slider v-else-if="f.control === 'slider'" :model-value="selectedComp.props[f.key] ?? 0" @update:model-value="selectedComp.props[f.key] = $event" :min="f.min" :max="f.max" show-input />
                   <PeImageGroup
                     v-else-if="f.control === 'imageGroup'"
                     :main-image="selectedComp.props[f.mainKey || 'mainImage']"
@@ -1076,6 +1076,11 @@ async function load() {
         const props = { ...base, ...(def?.defaultProps || {}), ...(c.props || {}) };
         // 富文本旧通用字段(padding/radius/bgColor)已废弃，加载时清除
         if (c.type === 'rich-text') { delete props.padding; delete props.radius; delete props.bgColor; }
+        // 旧 marginLeft/marginRight → marginLR 迁移（2026-09-11 边距统一）
+        if (props.marginLeft != null || props.marginRight != null) {
+          props.marginLR = Math.max(props.marginLeft ?? 0, props.marginRight ?? 0);
+          delete props.marginLeft; delete props.marginRight;
+        }
         return { ...c, props };
       });
       if (json.meta) Object.assign(meta, deepMerge(defaultMeta(), json.meta));
@@ -1540,8 +1545,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
-.pe-canvas { min-height: 420px; padding: 14px; background: transparent; }
-.pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 10px; padding: 6px; transition: border-color .15s; }
+.pe-canvas { min-height: 420px; padding: 0; background: transparent; }
+.pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 6px; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
 .pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }
 /* hover / 选中即显工具条（仿 eweishop/nshop） */
