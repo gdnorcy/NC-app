@@ -293,7 +293,8 @@
         </view>
       </view>
       <!-- 标题栏（ew 1:1 实测版） -->
-      <view v-else-if="c.type === 'title-bar'" class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 1)" :style="dpTbWrapStyle(c.props)">
+      <view v-else-if="c.type === 'title-bar'" class="dp-tb-box" :style="dpTbOuterStyle(c.props)">
+      <view class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 1)" :style="dpTbWrapStyle(c.props)">
         <block v-if="(c.props.styleType || 1) === 1">
           <image v-if="c.props.imgEnabled !== false" class="dp-tb-deco" :src="c.props.img ? resolveUrl(c.props.img) : '/static/design-styles/title/title3.png'" mode="aspectFit"></image>
           <view class="dp-tb-mid">
@@ -364,6 +365,7 @@
           <view class="dp-tb-line"></view>
           <view class="dp-tb-leftline"></view>
         </block>
+      </view>
       </view>
       <!-- 搜索框 -->
       <view v-else-if="c.type === 'search'">
@@ -798,12 +800,24 @@ function dpTitleBarStyle(p) {
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
 }
+function dpTbOuterStyle(p) {
+  const st = Number(p.styleType) || 1;
+  const s = {};
+  if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+  if (st === 1 && (p.radiusTop || p.radiusBottom)) {
+    s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
+    s.overflow = 'hidden';
+  }
+  return s;
+}
 function dpTbWrapStyle(p) {
   const st = Number(p.styleType) || 1;
-  const s = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  const s = {};
   if (st === 1) {
     s.background = p.compBgType === 'image' ? (p.compBgImg ? `url(${resolveUrl(p.compBgImg)})` : 'transparent') : (p.compBgColor || '#ffffff');
-    s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
   } else if (p.bgColor === undefined || p.bgColor === '' || p.bgColor === '#FFFFFF' || p.bgColor === '#ffffff') {
     s.background = 'transparent';
   } else {

@@ -296,6 +296,7 @@
     </template>
     <!-- 标题栏（ew 1:1 实测版：风格1=es-title3 / 风格2-6=es-title2 / 风格7-9=es-title） -->
     <template v-else-if="comp.type === 'title-bar'">
+      <div class="r-tb-box" :style="tbOuterStyle(comp.props)">
       <div class="r-titlebar" :class="'r-tb-s' + (comp.props.styleType || 1)" :style="tbWrapStyle(comp.props)">
         <!-- 风格1：es-title3 flex 左装饰图(可换)+主标题+子标题+查看更多(箭头) -->
         <template v-if="(comp.props.styleType || 1) === 1">
@@ -376,6 +377,7 @@
           <span class="r-tb-line"></span>
           <span class="r-tb-leftline"></span>
         </template>
+      </div>
       </div>
     </template>
     <!-- 搜索框 -->
@@ -494,7 +496,21 @@ import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
 import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
 import { customerApiCall } from '../../../../api';
 
-// 标题栏样式（ew 1:1）：S1 组件背景=compBgColor/compBgImg，S2-9=背景颜色；底部颜色为外底色
+// 标题栏外层（ew 1:1）：底部颜色=外层容器背景（仅S1），边距/圆角都在外层（overflow hidden 裁内层背景）
+const tbOuterStyle = (p) => {
+  const st = Number(p.styleType) || 1;
+  const s = {};
+  if (st === 1 && p.bgColorBottom) s.background = p.bgColorBottom;
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  if (p.marginLR) { s.marginLeft = p.marginLR + 'px'; s.marginRight = p.marginLR + 'px'; }
+  if (st === 1 && (p.radiusTop || p.radiusBottom)) {
+    s.borderRadius = `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px`;
+    s.overflow = 'hidden';
+  }
+  return s;
+};
+// 标题栏内层（ew 1:1）：S1 组件背景=compBgColor/compBgImg，S2-9=背景颜色
 const tbWrapStyle = (p) => {
   const st = Number(p.styleType) || 1;
   let bg = 'transparent';
@@ -503,7 +519,7 @@ const tbWrapStyle = (p) => {
   } else if (p.bgColor) {
     bg = p.bgColor;
   }
-  return { background: bg, marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px', borderRadius: st === 1 ? `${p.radiusTop || 0}px ${p.radiusTop || 0}px ${p.radiusBottom || 0}px ${p.radiusBottom || 0}px` : undefined };
+  return { background: bg };
 };
 // 主标题族（S1-6）
 const tbTextStyle = (comp) => ({ color: comp.props.titleColor || '#333333', fontSize: (comp.props.titleFontSize || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
