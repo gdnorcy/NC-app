@@ -11,6 +11,7 @@ import { checkTenantAccess, tenantState } from '../tenant.js';
 import { checkTenantSolutionQuota } from '../services/billing.js';
 import { calcFunnel, trendSeries, eventDistribution, topTargets, calcHealthScore } from '../services/analytics.js';
 import { encryptSecret, decryptSecret } from '../crypto.js';
+import { createMemberService } from '../services/member.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1389,6 +1390,109 @@ router.get('/card/trends', requireTenant, (req, res) => {
     config.invite_code = 'ENT' + String(Math.floor(100000 + Math.random() * 900000));
     db.prepare('UPDATE tenant_enterprises SET config = ?, updated_at = datetime(\'now\') WHERE id = ?').run(JSON.stringify(config), req.enterpriseId);
     res.json({ inviteCode: config.invite_code });
+  });
+
+  // ============================================================
+  // 会员体系（租户级会员，1:1 复刻菜鸟云「用户」菜单）
+  // ============================================================
+  const member = createMemberService(db);
+
+  // —— 数据统计 ——
+  router.get('/member/summary', requireTenant, (req, res) => {
+    res.json({ summary: member.summary(req.customerId) });
+  });
+
+  // —— 会员列表（用户管理） ——
+  router.get('/member/users', requireTenant, (req, res) => {
+    const f = req.query;
+    if (f.export === 'csv') {
+      const all = member.listUsers(req.customerId, { ...f, page: 1, pageSize: 1000 });
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename=member-users.csv');
+      return res.send(member.buildUsersCsv(all.users));
+    }
+    res.json(member.listUsers(req.customerId, f));
+  });
+
+  // —— 会员详情（用户信息 + 标签 + 流水概要） ——
+  router.get('/member/users/:id', requireTenant, (req, res) => {
+    const u = db.prepare('SELECT * FROM platform_user WHERE id = ? AND customer_id = ?').get(Number(req.params.id), req.customerId);
+    if (!u) return res.status(404).json({ error: '用户不存在' });
+    const mu = member.getMemberUser(req.customerId, u.id);
+    const level = mu && mu.level_id ? member.getLevel(req.customerId, mu.level_id) : null;
+    const labels = member.userLabels(req.customerId, u.id);
+    const cardCount = db.prepare('SELECT COUNT(*) AS n FROM card_profile WHERE user_id = ?').get(u.id).n;
+    const orderCount = db.prepare('SELECT COUNT(*) AS n FROM payment_orders WHERE customer_id = ? AND user_id = ?').get(req.customerId, u.id).n;
+    res.json({ user: { ...u, labels, member: mu, level, cardCount, orderCount } });
+  });
+
+  // —— 用户标签管理 ——
+  router.get('/member/labels', requireTenant, (req, res) => res.json({ labels: member.listLabels(req.customerId) }));
+  router.post('/member/labels', requireTenant, (req, res) => {
+    const r = member.addLabel(req.customerId, req.body.name);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+  router.delete('/member/labels/:id', requireTenant, (req, res) => res.json(member.deleteLabel(req.customerId, Number(req.params.id))));
+  router.put('/member/users/:id/labels', requireTenant, (req, res) => {
+    res.json({ labels: member.setUserLabels(req.customerId, Number(req.params.id), req.body.labelIds || []) });
+  });
+
+  // —— 会员等级 ——
+  router.get('/member/levels', requireTenant, (req, res) => res.json({ levels: member.listLevels(req.customerId) }));
+  router.post('/member/levels', requireTenant, requireTenantAdmin, (req, res) => {
+    const r = member.addLevel(req.customerId, req.body);
+    if (!r) return res.status(400).json({ error: '等级创建失败' });
+    res.json({ level: r });
+  });
+  router.put('/member/levels/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    const r = member.updateLevel(req.customerId, Number(req.params.id), req.body);
+    if (!r) return res.status(404).json({ error: '等级不存在' });
+    res.json({ level: r });
+  });
+  router.delete('/member/levels/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    const r = member.deleteLevel(req.customerId, Number(req.params.id));
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+
+  // —— 会员设置 ——
+  router.get('/member/settings', requireTenant, (req, res) => res.json({ settings: member.getSettings(req.customerId) }));
+  router.put('/member/settings', requireTenant, requireTenantAdmin, (req, res) => {
+    res.json({ settings: member.saveSettings(req.customerId, req.body) });
+  });
+
+  // —— 申请记录 ——
+  router.get('/member/applies', requireTenant, (req, res) => res.json(member.listApplies(req.customerId, req.query)));
+  router.post('/member/applies/:id/review', requireTenant, requireTenantAdmin, (req, res) => {
+    const r = member.reviewApply(req.customerId, Number(req.params.id), req.body.action, req.body.reason);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+
+  // —— 开卡记录 ——
+  router.get('/member/cards', requireTenant, (req, res) => res.json(member.listCards(req.customerId, req.query)));
+
+  // —— 消费流水 / 积分流水 ——
+  router.get('/member/logs', requireTenant, (req, res) => {
+    const f = req.query;
+    if (f.export === 'csv') {
+      const all = member.listLogs(req.customerId, { ...f, page: 1, pageSize: 1000 });
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename=member-logs.csv');
+      return res.send(member.buildLogsCsv(all.logs));
+    }
+    res.json(member.listLogs(req.customerId, f));
+  });
+  router.get('/member/score-logs', requireTenant, (req, res) => {
+    const f = req.query;
+    if (f.export === 'csv') {
+      const all = member.listScoreLogs(req.customerId, { ...f, page: 1, pageSize: 1000 });
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename=member-score-logs.csv');
+      return res.send(member.buildScoreLogsCsv(all.logs));
+    }
+    res.json(member.listScoreLogs(req.customerId, f));
   });
 
   return router;

@@ -7,6 +7,8 @@ import { randomBytes, createHash } from 'node:crypto';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
 import { createDistributionService, buildShareUrl } from '../services/distribution.js';
+import { createMemberService } from '../services/member.js';
+import { PaymentService } from '../services/payment.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -14,6 +16,7 @@ const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 export function createCardRouter(db, wxService) {
   const router = Router();
   const distribution = createDistributionService(db);
+  const member = createMemberService(db);
 
   // ============================================================
   // 微信授权登录/注册
@@ -649,6 +652,68 @@ export function createCardRouter(db, wxService) {
       expireAt: req.user.member_expire_at,
       isMember,
     });
+  });
+
+  // ============================================================
+  // 租户级会员卡（1:1 复刻菜鸟云：我的会员卡/等级列表/申请/签到/购买）
+  // ============================================================
+
+  // 我的会员卡（等级卡/卡号/到期/积分/余额/设置/申请状态）
+  router.get('/member/my-card', auth, (req, res) => {
+    if (!req.customerId) return res.json({ card: null, levels: [], settings: null, applyStatus: null, unbound: true });
+    res.json(member.myCard(req.customerId, req.user.id));
+  });
+
+  // 会员等级列表（C 端展示/购买/申请用）
+  router.get('/member/levels', auth, (req, res) => {
+    if (!req.customerId) return res.json({ levels: [] });
+    res.json({ levels: member.listLevels(req.customerId) });
+  });
+
+  // 申请会员（申请模式）
+  router.post('/member/apply', auth, (req, res) => {
+    if (!req.customerId) return res.status(403).json({ error: '未入驻任何客户' });
+    const r = member.apply(req.customerId, req.user.id, req.body || {});
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+
+  // 每日签到（积分）
+  router.post('/member/sign', auth, (req, res) => {
+    if (!req.customerId) return res.status(403).json({ error: '未入驻任何客户' });
+    const r = member.sign(req.customerId, req.user.id);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+
+  // 直接购买会员（生成支付单，支付成功后开卡）
+  router.post('/member/buy', auth, (req, res) => {
+    try {
+      if (!req.customerId) return res.status(403).json({ error: '未入驻任何客户' });
+      const levelId = Number(req.body.levelId);
+      const level = member.getLevel(req.customerId, levelId);
+      if (!level) return res.status(404).json({ error: '会员等级不存在' });
+      if (level.upgrade_mode !== 'consume' || !level.buy_price) return res.status(400).json({ error: '该等级不支持直接购买' });
+      const settings = member.getSettings(req.customerId);
+      if (!settings.card_enabled) return res.status(400).json({ error: '会员卡未启用' });
+      const payment = new PaymentService(db);
+      const order = payment.createOrder({
+        payerType: 'tenant',
+        customerId: req.customerId,
+        userId: req.user.id,
+        identityType: req.user.identity_type || 'individual',
+        solution: 'card',
+        productType: 'member_card',
+        productId: String(level.id),
+        productName: level.name || `会员${level.level_no}级`,
+        amount: level.buy_price,
+        channel: req.body.channel || 'wechat',
+        remark: '购买会员卡',
+      });
+      res.json({ orderNo: order.order_no, amount: order.amount, level });
+    } catch (e) {
+      res.status(400).json({ error: e.message || '下单失败' });
+    }
   });
 
   // ============================================================

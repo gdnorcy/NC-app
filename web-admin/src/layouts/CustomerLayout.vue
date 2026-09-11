@@ -54,6 +54,10 @@
             <SIcon name="orders" size="default" />
             <span>我的账单</span>
           </el-menu-item>
+          <el-menu-item index="/member">
+            <SIcon name="crown" size="default" />
+            <span>会员</span>
+          </el-menu-item>
           <el-menu-item v-if="isTenantAdmin" index="/members">
             <SIcon name="team" size="default" />
             <span>成员管理</span>

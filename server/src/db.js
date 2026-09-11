@@ -1738,6 +1738,9 @@ function migrate(db) {
   // —— 设计中心：建表 + 应用注册（素材中心/系统风格/底部导航/系统模板/首页跳转/页面装修）——
   seedDesign(db);
 
+  // —— 会员体系（租户级会员，1:1 复刻菜鸟云：等级/开卡/申请/积分/消费/标签/设置）——
+  seedMember(db);
+
   // —— dist_config 扩展字段（分销基本设置 + 分销参数，2026-09-09 新增）——
   // 分销商名称/下级名称/申请页顶图/分销推广图/申请页提示/0元订单/显示上级/显示电话/默认等级
   if (tableExists(db, 'dist_config')) {
@@ -2294,6 +2297,138 @@ function seedDesign(db) {
     db.exec("ALTER TABLE tenant_page_design ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
     db.exec("UPDATE tenant_page_design SET sort_order = id WHERE sort_order = 0");
   }
+}
+
+/** 会员体系（租户级会员，1:1 复刻菜鸟云「用户」菜单：等级/开卡/申请/积分/消费/标签/设置，幂等） */
+function seedMember(db) {
+  // —— 会员等级（1-50 级，升级模式：consume 消费模式 / apply 申请模式）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS member_levels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      level_no INTEGER NOT NULL DEFAULT 1,
+      name TEXT NOT NULL DEFAULT '',
+      status INTEGER NOT NULL DEFAULT 1,
+      icon TEXT NOT NULL DEFAULT '',           -- 权益等级图（建议 5:3 630x378）
+      bg_color TEXT NOT NULL DEFAULT '',       -- 权益等级图背景颜色
+      text_show INTEGER NOT NULL DEFAULT 1,    -- 等级图文字展示
+      text_color TEXT NOT NULL DEFAULT '#ffffff',
+      upgrade_mode TEXT NOT NULL DEFAULT 'consume', -- consume/apply
+      consume_amount INTEGER NOT NULL DEFAULT 0,    -- 累计消费门槛（分）
+      buy_price INTEGER NOT NULL DEFAULT 0,         -- 直接购买价格（分）
+      buy_product TEXT NOT NULL DEFAULT '',         -- 购买商品（待接入商城）
+      form_id INTEGER DEFAULT 0,                    -- 升级表单（申请模式，预留）
+      benefits TEXT NOT NULL DEFAULT '{}',          -- 会员权益 JSON：{coupon:{...},post_free,discount,score_multiple,point_back,view_levels:[],custom:[]}
+      description TEXT NOT NULL DEFAULT '',         -- 等级说明（最多200字）
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_levels_tenant ON member_levels (tenant_id);
+
+    -- —— 会员设置（每租户一行）——
+    CREATE TABLE IF NOT EXISTS member_settings (
+      tenant_id INTEGER PRIMARY KEY,
+      card_enabled INTEGER NOT NULL DEFAULT 1,      -- 会员卡开关
+      expire_remind_days INTEGER NOT NULL DEFAULT 7,-- 到期提醒天数
+      show_name INTEGER NOT NULL DEFAULT 1,         -- 信息展示-姓名
+      show_expire INTEGER NOT NULL DEFAULT 1,       -- 信息展示-有效期
+      permissions TEXT NOT NULL DEFAULT '{}',       -- 功能权限 JSON {balance_recharge:'all', product:'member', ...}
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- —— 会员身份（租户 x 用户，卡号/等级/余额(分)/积分/到期）——
+    CREATE TABLE IF NOT EXISTS member_user (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      card_no TEXT NOT NULL DEFAULT '',
+      level_id INTEGER DEFAULT 0,
+      expire_at TEXT,
+      balance INTEGER NOT NULL DEFAULT 0,
+      score INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_user_tenant ON member_user (tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_member_user_card ON member_user (card_no);
+
+    -- —— 开卡记录 ——
+    CREATE TABLE IF NOT EXISTS member_cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      card_no TEXT NOT NULL DEFAULT '',
+      level_id INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT 'auto', -- auto/apply/buy
+      opened_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expire_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_cards_tenant ON member_cards (tenant_id, user_id);
+
+    -- —— 申请记录（申请模式审核）——
+    CREATE TABLE IF NOT EXISTS member_apply (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      apply_level_id INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending', -- pending/approved/rejected
+      review_at TEXT,
+      reason TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_apply_tenant ON member_apply (tenant_id, status);
+
+    -- —— 消费流水 ——
+    CREATE TABLE IF NOT EXISTS member_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL DEFAULT 'consume', -- consume消费/recharge充值/get获取
+      amount INTEGER NOT NULL DEFAULT 0,    -- 分（正=获得/充入，负=消费）
+      note TEXT NOT NULL DEFAULT '',
+      order_no TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_logs_tenant ON member_logs (tenant_id, user_id);
+
+    -- —— 积分流水 ——
+    CREATE TABLE IF NOT EXISTS member_score_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL DEFAULT 'get', -- get获得/use使用
+      score INTEGER NOT NULL DEFAULT 0, -- 正=获得/负=使用
+      note TEXT NOT NULL DEFAULT '',
+      order_no TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_score_logs_tenant ON member_score_logs (tenant_id, user_id);
+
+    -- —— 用户标签 ——
+    CREATE TABLE IF NOT EXISTS member_labels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_labels_tenant ON member_labels (tenant_id);
+
+    -- —— 用户 x 标签 ——
+    CREATE TABLE IF NOT EXISTS member_user_labels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      label_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, user_id, label_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_member_user_labels ON member_user_labels (tenant_id, user_id);
+  `);
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

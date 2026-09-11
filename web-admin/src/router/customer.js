@@ -40,6 +40,7 @@ const routes = [
       // 设计中心（侧边栏一级菜单：素材/风格/导航/模板/首页/页面装修）
       { path: 'design', component: () => import('../views/customer/apps/design/DesignHome.vue'), meta: { title: '设计中心', breadcrumbs: ['设计中心'] } },
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
+      { path: 'member', component: () => import('../views/customer/member/MemberHome.vue'), meta: { title: '会员', breadcrumbs: ['会员'] } },
       { path: 'billing', component: () => import('../views/customer/Billing.vue'), meta: { title: '套餐与续费', breadcrumbs: ['套餐与续费'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
       // 企业管理员端（企业角色化子面板）

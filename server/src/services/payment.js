@@ -8,11 +8,13 @@
  */
 import { randomBytes } from 'node:crypto';
 import { createDistributionService } from './distribution.js';
+import { createMemberService } from './member.js';
 
 export class PaymentService {
   constructor(db) {
     this.db = db;
     this.distribution = createDistributionService(db);
+    this.member = createMemberService(db);
   }
 
   // ============================================================
@@ -142,6 +144,11 @@ export class PaymentService {
     // 智能名片会员支付成功
     if (order.solution === 'card' && order.productType === 'member') {
       this.activateCardMember(order);
+    }
+
+    // 租户级会员卡购买支付成功 → 开卡（1:1 复刻菜鸟云「直接购买」）
+    if (order.solution === 'card' && order.productType === 'member_card' && this.member) {
+      this.member.openCardByOrder(order);
     }
 
     // 分销分账调度器：租户级已支付订单触发（插件开关/幂等由调度器内部处理）
