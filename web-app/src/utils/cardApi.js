@@ -160,6 +160,12 @@ export const cardApi = {
   // 会员
   getPackages: () => request('/member/packages'),
   getMemberStatus: () => request('/member/status'),
+  // 租户级会员卡（1:1 复刻菜鸟云会员中心）
+  memberMyCard: () => request('/member/my-card'),
+  memberLevels: () => request('/member/levels'),
+  memberApply: (data) => request('/member/apply', 'POST', data),
+  memberSign: () => request('/member/sign', 'POST', {}),
+  memberBuy: (data) => request('/member/buy', 'POST', data),
 
   // 分销
   getDistributionSummary: () => request('/distribution/summary'),

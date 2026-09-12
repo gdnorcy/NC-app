@@ -23,6 +23,53 @@
       <view class="de-arrow">›</view>
     </view>
 
+    <!-- ===== 租户会员卡（1:1 复刻菜鸟云会员中心） ===== -->
+    <block v-if="showTenantMember">
+      <!-- 会员卡 -->
+      <view v-if="memberCard" class="tcard" :style="cardBg">
+        <view class="tc-top">
+          <view class="tc-level">{{ memberCard.levelName || '普通会员' }}</view>
+          <view class="tc-badge" v-if="memberCard.levelNo">Lv{{ memberCard.levelNo }}</view>
+        </view>
+        <view class="tc-no">卡号：{{ memberCard.cardNo }}</view>
+        <view class="tc-foot">
+          <view class="tc-cell"><text class="tc-label">到期时间</text><text class="tc-val">{{ memberCard.expireAt || '永久有效' }}</text></view>
+          <view class="tc-cell"><text class="tc-label">积分</text><text class="tc-val">{{ memberCard.score }}</text></view>
+          <view class="tc-cell"><text class="tc-label">余额</text><text class="tc-val">¥{{ (memberCard.balance / 100).toFixed(2) }}</text></view>
+        </view>
+      </view>
+
+      <!-- 签到 -->
+      <view v-if="memberCard" class="sign-row">
+        <view class="sign-info">
+          <view class="si-title">每日签到</view>
+          <view class="si-sub">签到 +2 积分，积分可用于会员权益</view>
+        </view>
+        <view class="sign-btn" @click="doSign">签到</view>
+      </view>
+
+      <!-- 等级购买/申请 -->
+      <view class="sec-t">会员等级<small>升级解锁更多权益</small></view>
+      <view class="tlevels">
+        <view class="tlv" v-for="lv in tenantLevels" :key="lv.id" :class="{ cur: memberCard && memberCard.levelId === lv.id }">
+          <view class="tlv-head">
+            <view class="tlv-name">{{ lv.name }}</view>
+            <view class="tlv-no">Lv{{ lv.level_no }}</view>
+          </view>
+          <view class="tlv-desc">{{ lv.description || (lv.upgrade_mode === 'apply' ? '申请模式：提交申请，审核通过后开通' : '消费模式：累计消费满额自动升级') }}</view>
+          <view v-if="memberCard && memberCard.levelId === lv.id" class="tlv-btn on">当前等级</view>
+          <view v-else-if="lv.upgrade_mode === 'consume' && lv.buy_price > 0" class="tlv-btn buy" @click="buyLevel(lv)">¥{{ (lv.buy_price / 100).toFixed(0) }} 购买</view>
+          <view v-else-if="lv.upgrade_mode === 'apply'" class="tlv-btn apply" @click="applyLevel(lv)">申请开通</view>
+          <view v-else class="tlv-btn disabled">满额自动升级</view>
+        </view>
+      </view>
+
+      <!-- 申请状态提示 -->
+      <view v-if="applyStatus" class="apply-tip" :class="'st-' + applyStatus.status">
+        {{ applyTipText }}
+      </view>
+    </block>
+
     <!-- 选择套餐 -->
     <view class="sec-t">选择套餐<small>解锁更多能力</small></view>
     <view class="plan-grid">
@@ -65,10 +112,31 @@ const packages = ref([]);
 const isMember = ref(false);
 const memberLevel = ref('free');
 const memberExpire = ref('');
+// 租户会员卡（1:1 复刻菜鸟云）
+const memberCard = ref(null);
+const tenantLevels = ref([]);
+const signing = ref(false);
+const applyStatus = ref(null);
+const showTenantMember = computed(() => !!memberCard.value || tenantLevels.value.length > 0);
 // 品牌色 hero：租户配置 brandColor，无则回退 demo g3 青绿渐变（对象形式，与 cardDetail 一致）
 const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
 const brandColor = ref('');
 const paying = ref(false);
+
+// 会员卡背景：等级背景色 → 默认蓝渐变
+const cardBg = computed(() => {
+  const c = memberCard.value;
+  if (c && c.levelBgColor) return { background: c.levelBgColor };
+  return { background: 'linear-gradient(135deg, #2f6bff, #5b8cff)' };
+});
+
+const applyTipText = computed(() => {
+  const s = applyStatus.value;
+  if (!s) return '';
+  if (s.status === 'pending') return '你的会员申请正在审核中，请耐心等待';
+  if (s.status === 'approved') return '你的会员申请已通过';
+  return `你的会员申请已被驳回：${s.reason || '未填写原因'}`;
+});
 
 function goDistribution() {
   uni.navigateTo({ url: '/pages/card/distribution' });
@@ -81,10 +149,12 @@ onShow(() => { trackPageView('/pages/card/member'); });
 onMounted(async () => {
   restoreScrollTop('member');
   try {
-    const [pkgRes, memberRes, cardsRes] = await Promise.all([
+    const [pkgRes, memberRes, cardsRes, tCardRes, tLevelsRes] = await Promise.all([
       cardApi.getPackages(),
       cardApi.getMemberStatus(),
       cardApi.getCards(),
+      cardApi.memberMyCard(),
+      cardApi.memberLevels(),
     ]);
     const myCard0 = (cardsRes.cards || [])[0];
     if (myCard0?.brandColor) brandColor.value = myCard0.brandColor;
@@ -92,7 +162,12 @@ onMounted(async () => {
     isMember.value = memberRes.isMember;
     memberLevel.value = memberRes.level;
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
-  } catch (e) {}
+    // 租户会员卡：未入驻租户不展示区块
+    if (tCardRes && !tCardRes.unbound) {
+      memberCard.value = tCardRes.card;
+      tenantLevels.value = tCardRes.levels || [];
+      applyStatus.value = tCardRes.applyStatus || null;
+    }  } catch (e) {}
 });
 
 // 离开时保存滚动位置，切Tab返回后恢复
@@ -102,6 +177,85 @@ onUnload(() => {
 
 function isCurrent(level) {
   return level === memberLevel.value || (level === 'free' && !isMember.value);
+}
+
+// ===== 租户会员卡：购买 / 申请 / 签到 =====
+async function refreshMemberCard() {
+  try {
+    const res = await cardApi.memberMyCard();
+    if (res && !res.unbound) memberCard.value = res.card;
+  } catch (e) {}
+}
+
+async function buyLevel(lv) {
+  if (paying.value) return;
+  const userInfo = uni.getStorageSync('card_user') || {};
+  if (!userInfo.id) return uni.showToast({ title: '请先登录', icon: 'none' });
+  paying.value = true;
+  uni.showLoading({ title: '创建订单...' });
+  try {
+    const res = await cardApi.memberBuy({ levelId: lv.id, channel: 'wechat' });
+    const orderNo = res.orderNo;
+    uni.hideLoading();
+    uni.showModal({
+      title: '确认支付',
+      content: `确认支付 ¥${(res.amount / 100).toFixed(2)} 开通「${lv.name}」？`,
+      success: async (r) => {
+        if (!r.confirm) return;
+        uni.showLoading({ title: '支付中...' });
+        try {
+          await paymentApi.mockPay(orderNo);
+          uni.hideLoading();
+          uni.showToast({ title: '开通成功', icon: 'success' });
+          setTimeout(refreshMemberCard, 600);
+        } catch (e) {
+          uni.hideLoading();
+          uni.showToast({ title: e.message || '支付失败', icon: 'none' });
+        }
+      },
+    });
+  } catch (e) {
+    uni.hideLoading();
+    uni.showToast({ title: e.message || '创建订单失败', icon: 'none' });
+  } finally {
+    paying.value = false;
+  }
+}
+
+async function applyLevel(lv) {
+  const userInfo = uni.getStorageSync('card_user') || {};
+  if (!userInfo.id) return uni.showToast({ title: '请先登录', icon: 'none' });
+  uni.showModal({
+    title: '申请开通',
+    content: `确认申请开通「${lv.name}」会员？审核通过后自动开卡。`,
+    success: async (r) => {
+      if (!r.confirm) return;
+      uni.showLoading({ title: '提交中...' });
+      try {
+        await cardApi.memberApply({ name: userInfo.nickname || '', phone: userInfo.phone || '', levelId: lv.id });
+        uni.hideLoading();
+        uni.showToast({ title: '已提交申请', icon: 'success' });
+        setTimeout(refreshMemberCard, 600);
+      } catch (e) {
+        uni.hideLoading();
+        uni.showToast({ title: e.message || '提交失败', icon: 'none' });
+      }
+    },
+  });
+}
+
+async function doSign() {
+  if (signing.value) return;
+  signing.value = true;
+  try {
+    const res = await cardApi.memberSign();
+    uni.showToast({ title: `签到成功 +${res.score || 2} 积分`, icon: 'success' });
+    setTimeout(refreshMemberCard, 600);
+  } catch (e) {
+    uni.showToast({ title: e.message || '签到失败', icon: 'none' });
+  } finally {
+    signing.value = false;
+  }
 }
 
 function formatPrice(price) {
@@ -342,4 +496,48 @@ async function openMember(pkg) {
 .de-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .de-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
 .de-arrow { font-size: 22px; color: #c9cdd4; }
+
+/* ===== 租户会员卡 ===== */
+.tcard {
+  margin: 28rpx 28rpx 0; border-radius: 24rpx; padding: 36rpx 32rpx;
+  color: #fff; position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(47,107,255,0.18);
+}
+.tcard::after {
+  content: ''; position: absolute; right: -60rpx; top: -60rpx; width: 240rpx; height: 240rpx;
+  border-radius: 50%; background: rgba(255,255,255,0.12);
+}
+.tc-top { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+.tc-level { font-size: 40rpx; font-weight: 700; }
+.tc-badge { font-size: 22rpx; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); padding: 6rpx 18rpx; border-radius: 999rpx; }
+.tc-no { font-size: 24rpx; opacity: 0.9; margin-top: 10rpx; position: relative; z-index: 1; }
+.tc-foot { display: flex; margin-top: 36rpx; position: relative; z-index: 1; }
+.tc-cell { flex: 1; }
+.tc-label { display: block; font-size: 21rpx; opacity: 0.8; }
+.tc-val { display: block; font-size: 28rpx; font-weight: 600; margin-top: 6rpx; }
+.sign-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 24rpx 28rpx 0; background: #fff; border-radius: 20rpx; padding: 26rpx 28rpx;
+  border: 1px solid #e5e6eb;
+}
+.si-title { font-size: 28rpx; font-weight: 600; color: #1a1a1a; }
+.si-sub { font-size: 22rpx; color: #9a9a9a; margin-top: 6rpx; }
+.sign-btn { background: #165dff; color: #fff; font-size: 26rpx; font-weight: 600; padding: 16rpx 44rpx; border-radius: 999rpx; }
+.sign-btn:active { opacity: 0.8; }
+.tlevels { margin: 0 28rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.tlv { background: #fff; border-radius: 20rpx; padding: 28rpx; border: 1.5px solid #e5e6eb; }
+.tlv.cur { border-color: #165dff; background: #f7fbff; }
+.tlv-head { display: flex; align-items: center; justify-content: space-between; }
+.tlv-name { font-size: 30rpx; font-weight: 700; color: #1a1a1a; }
+.tlv-no { font-size: 22rpx; color: #165dff; background: #e8f3ff; padding: 4rpx 16rpx; border-radius: 10rpx; }
+.tlv-desc { font-size: 23rpx; color: #9a9a9a; margin-top: 10rpx; line-height: 1.5; }
+.tlv-btn { margin-top: 20rpx; text-align: center; padding: 18rpx; border-radius: 16rpx; font-size: 27rpx; font-weight: 600; }
+.tlv-btn.buy { background: #165dff; color: #fff; }
+.tlv-btn.apply { background: #ff7d00; color: #fff; }
+.tlv-btn.on { background: #e8f3ff; color: #165dff; }
+.tlv-btn.disabled { background: #f2f3f5; color: #c9cdd4; }
+.tlv-btn:active { opacity: 0.8; }
+.apply-tip { margin: 20rpx 28rpx 0; padding: 20rpx 24rpx; border-radius: 16rpx; font-size: 24rpx; line-height: 1.5; }
+.apply-tip.st-pending { background: #fff7e6; color: #ad6800; border: 1px solid #ffd591; }
+.apply-tip.st-approved { background: #e7f7ee; color: #07893c; border: 1px solid #a9e7c1; }
+.apply-tip.st-rejected { background: #fdecec; color: #b42318; border: 1px solid #f8c4c4; }
 </style>

@@ -8,6 +8,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createDb } from '../src/db.js';
 import { createMemberService } from '../src/services/member.js';
+import { PaymentService } from '../src/services/payment.js';
 
 describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
   let db, member;
@@ -192,5 +193,12 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
     const logs = member.listLogs(TENANT, { keyword: 'PAYM001' });
     assert.equal(logs.total, 1);
     assert.equal(logs.logs[0].amount, -2000);
+  });
+
+  it('C端购买订单 orderNo 为 camelCase（防路由误用 order_no 回归）', () => {
+    const payment = new PaymentService(db);
+    const order = payment.createOrder({ payerType: 'customer', customerId: TENANT, userId: 3000, solution: 'card', productType: 'member_card', productId: 1, productName: '一级会员', amount: 9900, channel: 'wechat' });
+    assert.ok(order && order.orderNo && order.orderNo.startsWith('PAY'));
+    assert.equal(order.order_no, undefined);
   });
 });

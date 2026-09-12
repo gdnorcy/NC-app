@@ -710,7 +710,7 @@ export function createCardRouter(db, wxService) {
         channel: req.body.channel || 'wechat',
         remark: '购买会员卡',
       });
-      res.json({ orderNo: order.order_no, amount: order.amount, level });
+      res.json({ orderNo: order.orderNo, amount: order.amount, level });
     } catch (e) {
       res.status(400).json({ error: e.message || '下单失败' });
     }
