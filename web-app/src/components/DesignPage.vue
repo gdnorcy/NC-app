@@ -250,7 +250,9 @@
             :style="dpCubeBlockStyle(b)"
             @click="onJump(b.link)"
           >
-            <image v-if="b.url" :src="resolveUrl(b.url)" mode="aspectFill" class="dp-cube-img" />
+            <view class="dp-cube-cell" :style="dpCubeCellStyle(b)">
+              <image v-if="b.url" :src="resolveUrl(b.url)" mode="aspectFill" class="dp-cube-img" />
+            </view>
           </view>
         </view>
       </view>
@@ -925,6 +927,20 @@ function dpCubeBlockStyle(b) {
     height: (b.h / 312 * 100) + '%',
   };
 }
+// 魔方每格独立配置：间隔=四周留白（叠加在 imgGap 上）、圆角=该格圆角（存量缺省 4px）
+function dpCubeCellStyle(b) {
+  const gap = b.gap ?? 0;
+  return {
+    position: 'absolute',
+    top: gap + 'px',
+    right: gap + 'px',
+    bottom: gap + 'px',
+    left: gap + 'px',
+    borderRadius: (b.radius ?? 4) + 'px',
+    background: '#f7f8fa',
+    overflow: 'hidden',
+  };
+}
 // 魔方存量兼容：blocks 为空时回退旧 items/rows/cols
 function dpCubeBlocks(c) {
   const p = c.props || {};
@@ -1318,7 +1334,8 @@ function openChannel(kind, p) {
 /* 魔方 */
 .dp-cube { width: 100%; box-sizing: border-box; border-radius: 8px; }
 .dp-cube-inner { position: relative; width: 100%; aspect-ratio: 1 / 1; }
-.dp-cube-block { position: absolute; overflow: hidden; border-radius: 4px; background: #f7f8fa; }
+.dp-cube-block { position: absolute; }
+.dp-cube-cell { position: absolute; }
 .dp-cube-img { width: 100%; height: 100%; }
 /* 视频号主页 */
 .dp-channel { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }

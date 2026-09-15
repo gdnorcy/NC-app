@@ -30,6 +30,16 @@
         <el-input v-model="editing.link" size="small" placeholder="如 /pages/card/market">
           <template #append><el-button @click="linkTarget = 'edit'; linkOpen = true">选择</el-button></template>
         </el-input>
+        <div class="cl-edit-label">圆角</div>
+        <div class="cl-edit-slider">
+          <el-slider v-model="editing.radius" :min="0" :max="20" :show-tooltip="false" />
+          <span class="cl-edit-val">{{ editing.radius ?? 4 }}px</span>
+        </div>
+        <div class="cl-edit-label">间隔</div>
+        <div class="cl-edit-slider">
+          <el-slider v-model="editing.gap" :min="0" :max="20" :show-tooltip="false" />
+          <span class="cl-edit-val">{{ editing.gap ?? 0 }}px</span>
+        </div>
       </div>
       <template #footer>
         <el-button v-if="styleType === 1" type="danger" plain @click="removeEditing">删除区块</el-button>
@@ -57,7 +67,7 @@ const emit = defineEmits(['update:modelValue']);
 const selIdx = ref(-1);
 const editOpen = ref(false);
 const linkOpen = ref(false);
-const editing = ref({ url: '', link: '' });
+const editing = ref({ url: '', link: '', radius: 4, gap: 0 });
 // 拖动框选状态（对标 ew cube-right：click 起点 → mousemove 矩形预览 → click 提交）
 const selActive = ref(false);
 const selStart = ref('');
@@ -171,6 +181,8 @@ function mergeCells(rect) {
     h: Math.round((maxR - minR + 1) * h),
     url: '',
     link: '',
+    radius: 4,
+    gap: 0,
   };
   const next = [...props.modelValue, b];
   emit('update:modelValue', next);
@@ -184,7 +196,7 @@ function mergeCells(rect) {
 
 function selectBlock(i) {
   selIdx.value = i;
-  editing.value = { ...props.modelValue[i] };
+  editing.value = { radius: 4, gap: 0, ...props.modelValue[i] };
   editOpen.value = true;
 }
 function removeBlock(i) {
@@ -198,7 +210,7 @@ function removeEditing() {
 }
 function confirmEdit() {
   if (selIdx.value >= 0) {
-    const next = props.modelValue.map((b, i) => (i === selIdx.value ? { ...b, url: editing.value.url, link: editing.value.link } : b));
+    const next = props.modelValue.map((b, i) => (i === selIdx.value ? { ...b, url: editing.value.url, link: editing.value.link, radius: editing.value.radius ?? 4, gap: editing.value.gap ?? 0 } : b));
     emit('update:modelValue', next);
   }
   editOpen.value = false;
@@ -258,4 +270,7 @@ function confirmEdit() {
 .cl-tip { font-size: 11px; color: #86909c; margin-top: 6px; line-height: 1.5; }
 .cl-edit-label { font-size: 12px; color: #4e5969; margin: 10px 0 6px; }
 .cl-edit-label:first-child { margin-top: 0; }
+.cl-edit-slider { display: flex; align-items: center; gap: 10px; }
+.cl-edit-slider .el-slider { flex: 1; }
+.cl-edit-val { font-size: 12px; color: #1d2129; width: 40px; text-align: right; flex: none; }
 </style>

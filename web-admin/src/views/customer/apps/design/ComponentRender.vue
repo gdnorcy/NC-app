@@ -241,8 +241,10 @@
             class="r-cube-block"
             :style="cubeBlockStyle(b)"
           >
-            <img v-if="b.url" :src="resolveUrl(b.url)" class="r-cube-img" />
-            <div v-else class="r-cube-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+            <div class="r-cube-cell" :style="cubeCellStyle(b)">
+              <img v-if="b.url" :src="resolveUrl(b.url)" class="r-cube-img" />
+              <div v-else class="r-cube-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+            </div>
           </div>
         </div>
       </div>
@@ -732,6 +734,20 @@ function cubeBlockStyle(b) {
     height: (b.h / 312 * 100) + '%',
   };
 }
+// 魔方每格独立配置：间隔=四周留白（叠加在 imgGap 上）、圆角=该格圆角（存量缺省 4px）
+function cubeCellStyle(b) {
+  const gap = b.gap ?? 0;
+  return {
+    position: 'absolute',
+    top: gap + 'px',
+    right: gap + 'px',
+    bottom: gap + 'px',
+    left: gap + 'px',
+    borderRadius: (b.radius ?? 4) + 'px',
+    background: '#f7f8fa',
+    overflow: 'hidden',
+  };
+}
 // 魔方存量兼容：blocks 为空时回退旧 items/rows/cols
 function cubeBlocks(comp) {
   const p = comp.props || {};
@@ -1150,7 +1166,8 @@ function chRadius(p, i) {
 /* 魔方 */
 .r-cube { width: 100%; box-sizing: border-box; border-radius: 8px; }
 .r-cube-inner { position: relative; width: 100%; aspect-ratio: 1 / 1; }
-.r-cube-block { position: absolute; overflow: hidden; border-radius: 4px; background: #f7f8fa; }
+.r-cube-block { position: absolute; }
+.r-cube-cell { position: absolute; }
 .r-cube-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .r-cube-empty { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border: 1px dashed #e5e6eb; box-sizing: border-box; }
 /* 视频号主页 */
