@@ -91,24 +91,55 @@
               <svg class="ps-ico" viewBox="0 0 28 14" width="22" height="12"><rect x="0.5" y="0.5" width="23" height="13" rx="3" fill="none" stroke="#1d2129" stroke-width="1.2"/><rect x="2" y="2" width="16" height="10" rx="1.6" fill="#1d2129"/><rect x="25" y="4.5" width="2.5" height="5" rx="1" fill="#1d2129"/></svg>
             </span>
           </div>
-          <!-- 导航栏：按头部设置（类型/背景/内容/第一行/第二行内容）渲染，点击弹出头部设置 -->
-          <div class="pe-phone-nav" :style="navStyle" title="点击设置头部样式" @click.stop="openHeaderPanel">
+          <!-- 导航栏：方案一（云菜鸟）按头部设置（类型/背景/内容/第一行/第二行内容）渲染；方案二（ew）按 ew 头部结构渲染；点击弹出头部设置 -->
+          <div class="pe-phone-nav" :style="headerScheme === 2 ? ewNavStyle : navStyle" title="点击设置头部样式" @click.stop="openHeaderPanel">
             <!-- 模拟微信小程序右上角胶囊按钮（仅视觉，不拦截点击） -->
             <div class="pe-mp-capsule">
               <span class="pmc-dots"><i></i><i></i><i></i></span>
               <span class="pmc-div"></span>
               <span class="pmc-circle"></span>
             </div>
-            <div class="pn-line">
-              <div class="pn-side pn-left" v-html="navLeftHtml"></div>
-              <div class="pn-title" :style="{ color: navTextColor }" v-html="navCenterHtml1"></div>
-              <div class="pn-side pn-right" v-html="navRightHtml"></div>
-            </div>
-            <div v-if="meta.header.lines === 2 && meta.header.type === 'custom'" class="pn-line pn-line2">
-              <div class="pn-side pn-left" v-html="navPosHtml2('left')"></div>
-              <div class="pn-title" :style="{ color: navTextColor }" v-html="navCenterHtml2"></div>
-              <div class="pn-side pn-right" v-html="navPosHtml2('right')"></div>
-            </div>
+            <template v-if="headerScheme === 2">
+              <!-- 方案二（ew）：功能模块=无 → 仅标题+文字颜色；否则按层渲染左/中/右 -->
+              <div v-if="ewHeader.funcModule === 'none'" class="pn-line" :style="ewLineStyle">
+                <div class="pn-title" :style="{ color: ewTitleColor }">{{ pageName || '首页' }}</div>
+              </div>
+              <template v-else>
+                <div v-for="(layer, li) in ewShownLayers" :key="li" class="pn-line" :class="{ 'pn-line2': ewHeader.funcModule === 'double' && li === 1 }" :style="ewLineStyle">
+                  <div class="pn-side pn-left">
+                    <img v-if="layer.left.type === 'image' && layer.left.image" :src="resolveUrl(layer.left.image)" class="pe-ew-img45" />
+                    <SIcon v-else-if="layer.left.type === 'icon'" :name="layer.left.icon" :color="layer.left.color || '#1d2129'" size="default" />
+                    <span v-else-if="layer.left.type === 'store'" class="pe-ew-store" :style="{ color: layer.left.store.color || '#1d2129' }">📍{{ layer.left.store.name || '门店' }}</span>
+                    <span v-else-if="layer.left.type === 'city'" class="pe-ew-city" :style="{ color: layer.left.color || '#1d2129' }">●{{ pageName || '首页' }}</span>
+                  </div>
+                  <div class="pn-title" :style="{ color: ewTitleColor }">
+                    <img v-if="layer.middle.type === 'image' && layer.middle.image" :src="resolveUrl(layer.middle.image)" class="pe-ew-img96" />
+                    <span v-else-if="layer.middle.type === 'search'" class="pe-ew-search" :style="ewSearchStyle(layer)">
+                      <SIcon name="dynamic" :color="layer.middle.search.iconColor || '#3d404d'" size="small" />
+                      <span class="pe-ew-search-txt" :style="{ color: layer.middle.search.textColor || '#3d404d' }">{{ layer.middle.search.placeholder || '请输入关键字' }}</span>
+                      <span v-if="layer.middle.search.showBtn" class="pe-ew-search-btn" :style="{ background: layer.middle.search.borderBg || '#ffffff', color: layer.middle.search.iconColor || '#3d404d' }">搜索</span>
+                    </span>
+                    <span v-else>{{ pageName || '首页' }}</span>
+                  </div>
+                  <div class="pn-side pn-right">
+                    <img v-if="layer.right.type === 'image' && layer.right.image" :src="resolveUrl(layer.right.image)" class="pe-ew-img45" />
+                    <SIcon v-else-if="layer.right.type === 'icon'" :name="layer.right.icon" :color="layer.right.color || '#1d2129'" size="default" />
+                  </div>
+                </div>
+              </template>
+            </template>
+            <template v-else>
+              <div class="pn-line">
+                <div class="pn-side pn-left" v-html="navLeftHtml"></div>
+                <div class="pn-title" :style="{ color: navTextColor }" v-html="navCenterHtml1"></div>
+                <div class="pn-side pn-right" v-html="navRightHtml"></div>
+              </div>
+              <div v-if="meta.header.lines === 2 && meta.header.type === 'custom'" class="pn-line pn-line2">
+                <div class="pn-side pn-left" v-html="navPosHtml2('left')"></div>
+                <div class="pn-title" :style="{ color: navTextColor }" v-html="navCenterHtml2"></div>
+                <div class="pn-side pn-right" v-html="navPosHtml2('right')"></div>
+              </div>
+            </template>
           </div>
           <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop="onCanvasDrop">
             <div
@@ -632,7 +663,9 @@ import PeImageGroup from './PeImageGroup.vue';
 import RichTextEditor from './RichTextEditor.vue';
 import CubeStylePicker from './CubeStylePicker.vue';
 import CubeLayoutEditor from './CubeLayoutEditor.vue';
+import SIcon from '../../../../components/SIcon.vue';
 import { cubeBlocksForStyle } from './cubeLayouts';
+import { mergeEwHeader } from '../../../../utils/designHeader';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
@@ -757,6 +790,39 @@ const navStyle = computed(() => {
   if (h.padding) style.padding = `0 ${h.padding}px`;
   return style;
 });
+
+// ---- 方案二（ew）头部：全局默认 + 单页覆盖合并，编辑端预览渲染（与 C 端 normalizeHeader scheme===2 逻辑一致，合并逻辑在 utils/designHeader.js） ----
+const ewHeader = computed(() => mergeEwHeader(meta.global.headerDefault?.ew, meta.header.ew));
+const ewShownLayers = computed(() => {
+  const ew = ewHeader.value;
+  const layers = Array.isArray(ew.layers) ? ew.layers : [];
+  if (ew.funcModule === 'none') return [];
+  return ew.funcModule === 'double' ? layers : [layers[0] || {}];
+});
+const ewNavStyle = computed(() => {
+  const ew = ewHeader.value;
+  const bg = ew.headBg || {};
+  if (bg.mode === 'image' && bg.image) {
+    return { backgroundImage: `url(${resolveUrl(bg.image)})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+  }
+  return { background: bg.color || '#ffffff' };
+});
+const ewTitleColor = computed(() => {
+  const ew = ewHeader.value;
+  if (ew.funcModule === 'none') return ew.textColor === 'white' ? '#ffffff' : '#1d2129';
+  return '#1d2129';
+});
+const ewLineStyle = computed(() => {
+  const pad = ewHeader.value.padding || 0;
+  return pad ? { paddingLeft: `${pad}px`, paddingRight: `${pad}px` } : {};
+});
+function ewSearchStyle(layer) {
+  const s = layer.middle?.search || {};
+  const arr = [];
+  if (s.fillBg) arr.push(`background:${s.fillBg}`);
+  if (s.borderBg) arr.push(`border:1px solid ${s.borderBg}`);
+  return arr.join(';');
+}
 const navTextColor = computed(() => {
   const t = meta.header.type;
   if (t === 'immersive') return '#ffffff';
@@ -1558,6 +1624,13 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 /* 仅第一行右侧为胶囊让位（第二行无胶囊） */
 .pn-line:not(.pn-line2) .pn-right { margin-right: 34px; }
 .pn-title { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+/* 方案二（ew）头部预览 */
+.pe-ew-img45 { width: 30px; height: 30px; object-fit: contain; display: block; }
+.pe-ew-img96 { height: 24px; max-width: 110px; object-fit: contain; display: block; }
+.pe-ew-store, .pe-ew-city { font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; max-width: 100%; overflow: hidden; }
+.pe-ew-search { display: inline-flex; align-items: center; gap: 4px; border-radius: 12px; padding: 3px 8px; height: 22px; box-sizing: border-box; max-width: 100%; }
+.pe-ew-search-txt { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; flex: 1; }
+.pe-ew-search-btn { font-size: 9px; line-height: 1; padding: 3px 6px; border-radius: 9px; flex-shrink: 0; }
 /* 模拟微信小程序胶囊按钮（右上角：三点菜单 + 关闭圆环，仅视觉） */
 .pe-mp-capsule {
   position: absolute; top: 20px; right: 8px; transform: translateY(-50%);
