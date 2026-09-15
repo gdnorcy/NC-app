@@ -1434,6 +1434,11 @@ router.get('/card/trends', requireTenant, (req, res) => {
     res.json(r);
   });
   router.delete('/member/labels/:id', requireTenant, (req, res) => res.json(member.deleteLabel(req.customerId, Number(req.params.id))));
+  router.put('/member/labels/:id', requireTenant, (req, res) => {
+    const r = member.renameLabel(req.customerId, Number(req.params.id), req.body.name);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
   router.put('/member/users/:id/labels', requireTenant, (req, res) => {
     res.json({ labels: member.setUserLabels(req.customerId, Number(req.params.id), req.body.labelIds || []) });
   });

@@ -137,8 +137,9 @@
             <template #default="{ row }">{{ row.user_count || 0 }}</template>
           </el-table-column>
           <el-table-column prop="created_at" label="创建时间" width="170" />
-          <el-table-column label="操作" width="90" fixed="right">
+          <el-table-column label="操作" width="140" fixed="right">
             <template #default="{ row }">
+              <el-button link type="primary" @click="renameLabel(row)">编辑</el-button>
               <el-button link type="danger" @click="delLabel(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -619,6 +620,20 @@ async function addNewLabel() {
     ElMessage.error(e || '新建失败');
   } finally {
     saving.value = false;
+  }
+}
+async function renameLabel(row) {
+  const { value } = await ElMessageBox.prompt(`将标签「${row.name}」重命名为：`, '编辑标签', {
+    inputValue: row.name,
+    inputValidator: (v) => (v && v.trim() ? true : '标签名称不能为空'),
+  });
+  try {
+    const r = await customerApiCall.put(`/member/labels/${row.id}`, { name: value.trim() });
+    if (r && r.ok === false) return ElMessage.error(r.error || '修改失败');
+    ElMessage.success('标签已更新');
+    await loadLabels();
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e || '修改失败');
   }
 }
 async function delLabel(row) {

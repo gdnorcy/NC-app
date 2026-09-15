@@ -136,6 +136,14 @@ export function createMemberService(db) {
     db.prepare('DELETE FROM member_user_labels WHERE label_id = ? AND tenant_id = ?').run(id, tenantId);
     return { ok: true };
   }
+  function renameLabel(tenantId, id, name) {
+    const n = String(name || '').trim();
+    if (!n) return { ok: false, error: '标签名称不能为空' };
+    const exists = db.prepare('SELECT id FROM member_labels WHERE tenant_id = ? AND name = ? AND id != ?').get(tenantId, n, Number(id));
+    if (exists) return { ok: false, error: '标签已存在' };
+    db.prepare("UPDATE member_labels SET name = ? WHERE id = ? AND tenant_id = ?").run(n, Number(id), tenantId);
+    return { ok: true };
+  }
   function setUserLabels(tenantId, userId, labelIds) {
     db.prepare('DELETE FROM member_user_labels WHERE tenant_id = ? AND user_id = ?').run(tenantId, userId);
     for (const lid of (labelIds || [])) {
@@ -456,7 +464,7 @@ export function createMemberService(db) {
   return {
     genCardNo, getLevel, listLevels, addLevel, updateLevel, deleteLevel,
     getSettings, saveSettings,
-    listLabels, addLabel, deleteLabel, setUserLabels, userLabels,
+    listLabels, addLabel, deleteLabel, renameLabel, setUserLabels, userLabels,
     getMemberUser, openCard, openCardByOrder,
     myCard, apply, sign,
     listUsers, buildUsersCsv, summary,

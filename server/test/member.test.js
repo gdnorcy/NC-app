@@ -87,6 +87,16 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
     const labels2 = member.listLabels(TENANT);
     assert.equal(labels2[0].user_count, 1);
     assert.ok(labels2[0].created_at);
+    // 编辑改名：成功 / 空名拒绝 / 重名拒绝
+    const ren1 = member.renameLabel(TENANT, r1.id, 'VIP-黄金');
+    assert.ok(ren1.ok);
+    assert.equal(member.listLabels(TENANT)[0].name, 'VIP-黄金');
+    assert.equal(member.renameLabel(TENANT, r1.id, '  ').ok, false);
+    const r4 = member.addLabel(TENANT, '同名');
+    assert.ok(r4.ok);
+    assert.equal(member.renameLabel(TENANT, r1.id, '同名').ok, false);
+    assert.equal(member.renameLabel(TENANT, r1.id, 'VIP-黄金').ok, true); // 改名回原名不冲突
+    member.deleteLabel(TENANT, r4.id);
     member.deleteLabel(TENANT, r1.id);
     assert.equal(member.listLabels(TENANT).length, 0);
     assert.equal(member.userLabels(TENANT, 3000).length, 0);
