@@ -956,13 +956,15 @@ function resolveUrl(u) {
   return (u.startsWith('/') ? API_DOMAIN + u : API_DOMAIN + '/' + u);
   // #endif
 }
+// 有「左右边距」参数、属性面板不注入「内边距」滑块的组件：渲染时忽略容器 p.padding（防止存量冗余 padding 造成左右隐藏间隔）
+const HIDDEN_PADDING_TYPES = ['image', 'countdown', 'countdown2', 'image-text', 'cube', 'title-bar'];
 function containerStyle(c) {
   const p = c.props || {};
   const g = props.global || {};
   const cardGap = g.cardGap ?? 12;
   const cardRadius = g.cardRadius ?? 8;
   const s = {};
-  if (p.padding !== undefined && p.padding !== '') s.padding = `${p.padding}px`;
+  if (p.padding !== undefined && p.padding !== '' && !HIDDEN_PADDING_TYPES.includes(c.type)) s.padding = `${p.padding}px`;
   const r = p.radius ?? cardRadius;
   if (r !== '') s.borderRadius = `${r}px`;
   if (p.bgColor) s.background = p.bgColor;
