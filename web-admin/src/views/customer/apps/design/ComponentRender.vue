@@ -45,7 +45,8 @@
     </template>
     <template v-else-if="comp.type === 'notice'">
       <div class="r-notice" :style="noticeStyle(comp.props)">
-        <span v-if="comp.props.showIcon" class="r-notice-tag">公告</span>
+        <img v-if="comp.props.iconType === 'custom' && comp.props.iconImage" :src="resolveUrl(comp.props.iconImage)" class="r-notice-ico" alt="" />
+        <span v-else-if="comp.props.iconType !== 'custom'" class="r-notice-tag">公告</span>
         <span v-if="noticeList(comp.props).length" class="r-notice-text">{{ noticeList(comp.props)[0].text }}</span>
         <span v-else>{{ comp.props.text || '公告内容' }}</span>
       </div>
@@ -1028,6 +1029,7 @@ function chRadius(p, i) {
 .r-divider { height: 0; margin: 14px 0; position: relative; }
 .r-divider span { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
+.r-notice-ico { width: 18px; height: 18px; object-fit: contain; flex: none; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
 .r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .r-countdown { background: transparent; display: flex; flex-direction: column; position: relative; overflow: hidden; }
