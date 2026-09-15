@@ -777,11 +777,11 @@ function dpImageTextStyle(p) {
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
-// 图文卡片内容区（统一基准：内边距 = 全局卡片边距）
+// 图文卡片内容区（内容边距独立控制：p.contentPadding ?? 全局卡片边距；与「左右边距」解耦，旧数据无该字段时沿用全局）
 function dpItBodyStyle(p) {
   const g = props.global || {};
   const cardPadding = g.cardPadding ?? 12;
-  return { padding: `${p.padding ?? cardPadding}px` };
+  return { padding: `${p.contentPadding ?? cardPadding}px` };
 }
 function dpImageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
@@ -1346,6 +1346,8 @@ function openChannel(kind, p) {
 .dp-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
 /* 富文本 */
 .dp-richtext { font-size: 14px; color: #1d2129; line-height: 1.7; word-break: break-word; }
+/* 富文本内容重置：段落去左右 margin/padding（左右贴边），保留行距与段落间距，与编辑端一致 */
+.dp-richtext :deep(p) { margin: 0 0 0.5em; padding: 0; }
 /* 组图橱窗 */
 .dp-gallery { display: grid; width: 100%; }
 .dp-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }

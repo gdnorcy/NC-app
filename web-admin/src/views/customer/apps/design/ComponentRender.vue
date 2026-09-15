@@ -883,11 +883,11 @@ function imageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
   return { aspectRatio: map[p.ratio] || '100%', objectFit: 'cover', width: '100%' };
 }
-// 图文卡片内容区（统一基准：内边距 = 全局卡片边距，未设置时默认 12）
+// 图文卡片内容区（内容边距独立控制：p.contentPadding ?? 全局卡片边距；与「左右边距」解耦，旧数据无该字段时沿用全局）
 function imageTextBodyStyle(p) {
   const g = props.global || {};
   const cardPadding = g.cardPadding ?? 12;
-  return { padding: `${p.padding ?? cardPadding}px` };
+  return { padding: `${p.contentPadding ?? cardPadding}px` };
 }
 // 富文本外层（ew 1:1）：底部背景=外层底色；边距统一由容器（comp-render）控制
 function rtOuterStyle(p) {
@@ -1230,7 +1230,8 @@ function chRadius(p, i) {
 .r-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
 /* 富文本 */
 .r-richtext { font-size: 14px; color: #1d2129; line-height: 1.7; word-break: break-word; }
-.r-richtext :deep(p) { margin: 0; }
+/* 富文本内容重置：段落去左右 margin/padding（左右贴边），保留行距与段落间距，与 C 端一致 */
+.r-richtext :deep(p) { margin: 0 0 0.5em; padding: 0; }
 .r-richtext :deep(img) { max-width: 100%; border-radius: 8px; }
 /* 组图橱窗 */
 .r-gallery { display: grid; width: 100%; }

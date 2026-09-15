@@ -375,7 +375,7 @@ export const componentRegistry = [
     name: '图文卡片',
     group: 'basic',
     icon: 'image-text',
-    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below', ratio: '1:1', align: 'left', style: 'default', borderColor: '#E5E6EB', bgColor: '', marginTop: 0, marginBottom: 0, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
+    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below', ratio: '1:1', align: 'left', style: 'default', borderColor: '#E5E6EB', bgColor: '', marginTop: 0, marginBottom: 0, marginLR: 0, contentPadding: 12, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content', required: true },
       { key: 'title', label: '标题', control: 'input', section: 'content' },
@@ -389,6 +389,8 @@ export const componentRegistry = [
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'contentPadding', label: '内容边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
@@ -953,7 +955,7 @@ export const commonStyleSchema = [
   { key: 'marginBottom', label: '下边距', control: 'slider', min: 0, max: 40 },
   { key: 'marginLR', label: '左右边距', control: 'slider', min: 0, max: 40 },
 ];
-export const commonStyleProps = { padding: 8, radius: 8, bgColor: '', marginTop: 0, marginLR: 0 };
+export const commonStyleProps = { padding: 0, radius: 8, bgColor: '', marginTop: 0, marginLR: 0 };
 
 export function findComponent(type) {
   return componentRegistry.find((c) => c.type === type) || null;
