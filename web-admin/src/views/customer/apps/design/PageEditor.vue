@@ -157,7 +157,7 @@
                 <span class="pe-tool" title="复制" @click.stop="dupComp(comp)">⧉</span>
                 <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(comp.id)">✕</span>
               </div>
-              <ComponentRender :comp="comp" :global="meta.global" />
+              <ComponentRender :comp="comp" :global="meta.global" :cube-sel="cubeSel" @cell-select="onCubeCellSelect" />
             </div>
             <div v-if="!components.length" class="pe-empty">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
@@ -201,6 +201,7 @@
                     v-else-if="f.control === 'cube-layout'"
                     v-model="selectedComp.props[f.key]"
                     :style-type="selectedComp.props.styleType || 1"
+                    @select-cell="onCubeLayoutSelect"
                   />
                   <!-- 图形化单选（选择风格：一列/两列并排，仿 eweishop 图形卡片） -->
                   <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic">
@@ -250,6 +251,13 @@
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
+                  <!-- 魔方：格子圆角/间隔（属性区编辑，点击格子后样式区显示） -->
+                  <div v-else-if="f.control === 'cube-cell'" class="pe-cube-cell">
+                    <template v-if="cubeCellTarget">
+                      <el-slider :model-value="cubeCellTarget[f.cellKey] ?? (f.cellKey === 'radius' ? 4 : 0)" @update:model-value="cubeCellTarget[f.cellKey] = $event" :min="f.min" :max="f.max" show-input />
+                    </template>
+                    <span v-else class="pe-cube-cell-tip">{{ f.cellTip }}</span>
+                  </div>
                   <el-slider v-else-if="f.control === 'slider'" :model-value="selectedComp.props[f.key] ?? 0" @update:model-value="selectedComp.props[f.key] = $event" :min="f.min" :max="f.max" show-input />
                   <PeImageGroup
                     v-else-if="f.control === 'imageGroup'"
@@ -674,6 +682,22 @@ const emit = defineEmits(['dirty-change', 'page-switch']);
 const pageName = ref('首页');
 const components = ref([]);
 const selected = ref(null);
+// 魔方：当前选中的格子（属性面板样式区编辑该格圆角/间隔）
+const cubeSel = ref(null);
+const cubeCellTarget = computed(() => {
+  if (!cubeSel.value) return null;
+  const comp = components.value.find((c) => c.id === cubeSel.value.compId);
+  if (!comp || comp.type !== 'cube') return null;
+  const blocks = comp.props.blocks || [];
+  const b = blocks[cubeSel.value.index];
+  return b || null;
+});
+function onCubeCellSelect(comp, index) {
+  cubeSel.value = { compId: comp.id, index };
+}
+function onCubeLayoutSelect(index) {
+  if (selected.value) cubeSel.value = { compId: selected.value, index };
+}
 const draft = ref(null);
 const published = ref(null);
 const saving = ref(false);
@@ -1130,7 +1154,7 @@ function dupComp(comp) {
   components.value.splice(idx + 1, 0, c);
   selected.value = c.id;
 }
-function selectComp(comp) { selected.value = comp.id; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); }
+function selectComp(comp) { selected.value = comp.id; cubeSel.value = null; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); }
 function onLibDragStart(e, type) { e.dataTransfer.setData('text/plain', type); }
 function onCanvasDragOver() {}
 function onCanvasDrop(e) {
@@ -1681,6 +1705,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-prop-body :deep(.pe-hint) { width: 100%; padding: 5px 10px; line-height: 1.5; }
 .pe-prop-body :deep(.pe-hint .el-alert__title) { font-size: 12px; }
 .pe-form-hint :deep(.el-form-item__content) { margin-left: 0 !important; }
+.pe-cube-cell-tip { font-size: 12px; color: #86909c; line-height: 1.6; display: block; }
 /* 图形化单选（选择风格：一列/两列并排，仿 eweishop） */
 .pe-graphic { display: flex; gap: 8px; width: 100%; }
 .pe-graphic-item { position: relative; flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all .2s; background: #fff; }

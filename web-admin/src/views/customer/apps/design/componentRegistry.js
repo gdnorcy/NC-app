@@ -536,6 +536,8 @@ export const componentRegistry = [
       { key: 'blocks', label: '魔方布局', control: 'cube-layout', section: 'content' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'imgGap', label: '图片间距', control: 'slider', section: 'style', min: 0, max: 8 },
+      { key: '__cellRadius', label: '格子圆角', control: 'cube-cell', section: 'style', min: 0, max: 20, cellKey: 'radius', cellTip: '点击预览区魔方中的格子后，可在此设置该格圆角' },
+      { key: '__cellGap', label: '格子间隔', control: 'cube-cell', section: 'style', min: 0, max: 20, cellKey: 'gap', cellTip: '点击预览区魔方中的格子后，可在此设置该格四周间隔' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },

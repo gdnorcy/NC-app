@@ -239,8 +239,9 @@
         <div class="r-cube-inner" :style="{ gap: (comp.props.imgGap ?? 4) + 'px' }">
           <div
             v-for="(b, i) in cubeBlocks(comp)" :key="i"
-            class="r-cube-block"
+            class="r-cube-block" :class="{ 'r-cube-block-sel': isCubeCellSel(comp, i) }"
             :style="cubeBlockStyle(b)"
+            @click.stop="emit('cell-select', comp, i)"
           >
             <div class="r-cube-cell" :style="cubeCellStyle(b)">
               <img v-if="b.url" :src="resolveUrl(b.url)" class="r-cube-img" />
@@ -543,7 +544,8 @@ const tbTextStyle = (comp) => ({ color: comp.props.titleColor || '#333333', font
 const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fontSize: (comp.props.titleFontSize2 || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
 // 主标题族兜底标题文字族文案（存量组件无 titleText）
 const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
-const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null } });
+const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null } });
+const emit = defineEmits(['cell-select']);
 
 // 全景场景组件：编辑端预览拉取租户真实方案
 const panoPlans = ref([]);
@@ -748,6 +750,10 @@ function cubeCellStyle(b) {
     background: '#f7f8fa',
     overflow: 'hidden',
   };
+}
+// 魔方：该格是否处于属性面板选中态（点选格子后在样式区编辑圆角/间隔）
+function isCubeCellSel(comp, i) {
+  return props.cubeSel && props.cubeSel.compId === comp.id && props.cubeSel.index === i;
 }
 // 魔方存量兼容：blocks 为空时回退旧 items/rows/cols
 function cubeBlocks(comp) {
@@ -1169,6 +1175,7 @@ function chRadius(p, i) {
 .r-cube { width: 100%; box-sizing: border-box; border-radius: 8px; }
 .r-cube-inner { position: relative; width: 100%; aspect-ratio: 1 / 1; }
 .r-cube-block { position: absolute; }
+.r-cube-block-sel { outline: 2px solid #165dff; outline-offset: 1px; }
 .r-cube-cell { position: absolute; }
 .r-cube-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .r-cube-empty { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border: 1px dashed #e5e6eb; box-sizing: border-box; }
