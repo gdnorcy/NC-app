@@ -252,12 +252,10 @@
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
                   <!-- 魔方：格子圆角/间隔（属性区编辑，点击格子后样式区显示） -->
-                  <div v-else-if="f.control === 'cube-cell'" class="pe-cube-cell">
-                    <template v-if="cubeCellTarget">
-                      <el-slider :model-value="cubeCellTarget[f.cellKey] ?? (f.cellKey === 'radius' ? 4 : 0)" @update:model-value="cubeCellTarget[f.cellKey] = $event" :min="f.min" :max="f.max" show-input />
-                    </template>
+                  <template v-else-if="f.control === 'cube-cell'">
+                    <el-slider v-if="cubeCellTarget" :model-value="cubeCellTarget[f.cellKey] ?? (f.cellKey === 'radius' ? 4 : 0)" @update:model-value="cubeCellTarget[f.cellKey] = $event" :min="f.min" :max="f.max" show-input />
                     <span v-else class="pe-cube-cell-tip">{{ f.cellTip }}</span>
-                  </div>
+                  </template>
                   <el-slider v-else-if="f.control === 'slider'" :model-value="selectedComp.props[f.key] ?? 0" @update:model-value="selectedComp.props[f.key] = $event" :min="f.min" :max="f.max" show-input />
                   <PeImageGroup
                     v-else-if="f.control === 'imageGroup'"
