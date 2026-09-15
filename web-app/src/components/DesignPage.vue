@@ -1367,6 +1367,8 @@ function openChannel(kind, p) {
 .dp-richtext { font-size: 14px; color: #1d2129; line-height: 1.7; word-break: break-word; }
 /* 富文本内容重置：段落去左右 margin/padding（左右贴边），保留行距与段落间距，与编辑端一致 */
 .dp-richtext :deep(p) { margin: 0 0 0.5em; padding: 0; }
+/* 末段不留底部间距：p 的 margin-bottom 溢出容器背景外，会导致下边距=0 时组件下方仍有空隙 */
+.dp-richtext :deep(*:last-child) { margin-bottom: 0; }
 /* 组图橱窗 */
 .dp-gallery { display: grid; width: 100%; }
 .dp-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
