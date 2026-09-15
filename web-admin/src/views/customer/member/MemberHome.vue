@@ -1,6 +1,6 @@
 <template>
   <div class="member-home">
-    <!-- 会员体系 6 Tab：数据统计 / 会员列表 / 会员等级 / 会员设置 / 申请记录 / 开卡记录 -->
+    <!-- 会员体系 9 Tab：数据统计 / 会员列表 / 用户标签 / 消费流水 / 积分流水 / 会员等级 / 会员设置 / 申请记录 / 开卡记录 -->
     <div class="card-tabs">
       <div v-for="t in tabs" :key="t.key" class="ctab" :class="{ active: activeTab === t.key }" @click="activeTab = t.key">
         <SIcon :name="t.icon" size="default" :color="activeTab === t.key ? '#165dff' : '#4e5969'" />
@@ -113,6 +113,125 @@
         </el-table>
         <div class="pager">
           <el-pagination background layout="total, prev, pager, next" :total="userTotal" :page-size="userQuery.pageSize" :current-page="userQuery.page" @current-change="(p) => { userQuery.page = p; loadUsers(); }" />
+        </div>
+      </el-card>
+    </section>
+
+    <!-- ================= 用户标签 ================= -->
+    <section v-if="activeTab === 'tags'">
+      <AppPageHeader title="用户标签" desc="标签管理（新建 / 删除 / 按标签筛选会员）">
+        <div class="hd-actions">
+          <el-input v-model="newLabel" placeholder="输入新标签名称" clearable class="w220" maxlength="16" @keyup.enter="addNewLabel" />
+          <el-button type="primary" :loading="saving" @click="addNewLabel">新建标签</el-button>
+        </div>
+      </AppPageHeader>
+      <el-card shadow="never">
+        <el-table :data="labels" v-loading="loading">
+          <el-table-column prop="id" label="ID" width="80" />
+          <el-table-column prop="name" label="标签名称" min-width="160">
+            <template #default="{ row }">
+              <el-tag effect="plain">{{ row.name }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="user_count" label="使用人数" width="120">
+            <template #default="{ row }">{{ row.user_count || 0 }}</template>
+          </el-table-column>
+          <el-table-column prop="created_at" label="创建时间" width="170" />
+          <el-table-column label="操作" width="90" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="danger" @click="delLabel(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+    </section>
+
+    <!-- ================= 消费流水 ================= -->
+    <section v-if="activeTab === 'logs'">
+      <AppPageHeader title="消费流水" desc="会员余额/购买消费记录（含购买会员开卡扣减）">
+        <div class="hd-actions">
+          <el-select v-model="logQuery.type" class="w120" @change="loadLogs">
+            <el-option label="全部类型" value="all" />
+            <el-option label="消费" value="consume" />
+            <el-option label="充值" value="recharge" />
+          </el-select>
+          <el-input v-model="logQuery.keyword" placeholder="昵称 / 订单号 / 说明" clearable class="w220" @keyup.enter="loadLogs" />
+          <el-button :loading="exporting" @click="exportLogs">导出</el-button>
+        </div>
+      </AppPageHeader>
+      <el-card shadow="never">
+        <el-table :data="logs" v-loading="loading">
+          <el-table-column label="用户" min-width="140">
+            <template #default="{ row }">
+              <div class="user-cell">
+                <el-avatar :size="30" :src="row.avatar">{{ (row.nickname || '?')[0] }}</el-avatar>
+                <span>{{ row.nickname || '未命名' }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="金额" width="110">
+            <template #default="{ row }">
+              <span :class="row.amount < 0 ? 'danger' : 'success'">{{ row.amount > 0 ? '+' : '' }}{{ (row.amount / 100).toFixed(2) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="90">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.type === 'consume' ? 'danger' : row.type === 'recharge' ? 'success' : 'info'">
+                {{ row.type === 'consume' ? '消费' : row.type === 'recharge' ? '充值' : '获取' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="note" label="说明" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="order_no" label="订单号" width="160" show-overflow-tooltip />
+          <el-table-column prop="created_at" label="时间" width="170" />
+        </el-table>
+        <div class="pager">
+          <el-pagination background layout="total, prev, pager, next" :total="logTotal" :page-size="logQuery.pageSize" :current-page="logQuery.page" @current-change="(p) => { logQuery.page = p; loadLogs(); }" />
+        </div>
+      </el-card>
+    </section>
+
+    <!-- ================= 积分流水 ================= -->
+    <section v-if="activeTab === 'scoreLogs'">
+      <AppPageHeader title="积分流水" desc="会员积分获得 / 使用明细（签到、消费、兑换）">
+        <div class="hd-actions">
+          <el-select v-model="scoreQuery.type" class="w120" @change="loadScoreLogs">
+            <el-option label="全部类型" value="all" />
+            <el-option label="获得" value="get" />
+            <el-option label="使用" value="use" />
+          </el-select>
+          <el-input v-model="scoreQuery.keyword" placeholder="昵称 / 说明" clearable class="w220" @keyup.enter="loadScoreLogs" />
+          <el-button :loading="exporting" @click="exportScoreLogs">导出</el-button>
+        </div>
+      </AppPageHeader>
+      <el-card shadow="never">
+        <el-table :data="scoreLogs" v-loading="loading">
+          <el-table-column label="用户" min-width="140">
+            <template #default="{ row }">
+              <div class="user-cell">
+                <el-avatar :size="30" :src="row.avatar">{{ (row.nickname || '?')[0] }}</el-avatar>
+                <span>{{ row.nickname || '未命名' }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="积分" width="100">
+            <template #default="{ row }">
+              <span :class="row.score > 0 ? 'success' : 'danger'">{{ row.score > 0 ? '+' : '' }}{{ row.score }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="90">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.type === 'get' ? 'success' : 'warning'">
+                {{ row.type === 'get' ? '获得' : '使用' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="note" label="说明" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="order_no" label="订单号" width="160" show-overflow-tooltip />
+          <el-table-column prop="created_at" label="时间" width="170" />
+        </el-table>
+        <div class="pager">
+          <el-pagination background layout="total, prev, pager, next" :total="scoreTotal" :page-size="scoreQuery.pageSize" :current-page="scoreQuery.page" @current-change="(p) => { scoreQuery.page = p; loadScoreLogs(); }" />
         </div>
       </el-card>
     </section>
@@ -378,6 +497,9 @@ import { customerApiCall } from '../../../api';
 const tabs = [
   { key: 'stats', label: '数据统计', icon: 'chart' },
   { key: 'users', label: '会员列表', icon: 'users' },
+  { key: 'tags', label: '用户标签', icon: 'badge' },
+  { key: 'logs', label: '消费流水', icon: 'orders' },
+  { key: 'scoreLogs', label: '积分流水', icon: 'logs' },
   { key: 'levels', label: '会员等级', icon: 'crown' },
   { key: 'settings', label: '会员设置', icon: 'settings' },
   { key: 'applies', label: '申请记录', icon: 'audit' },
@@ -478,9 +600,102 @@ async function delLevel(lv) {
 
 // ---------- 标签 ----------
 const labels = ref([]);
+const newLabel = ref('');
 async function loadLabels() {
   const res = await customerApiCall.get('/member/labels');
   labels.value = res.labels || [];
+}
+async function addNewLabel() {
+  const name = newLabel.value.trim();
+  if (!name) return ElMessage.warning('请输入标签名称');
+  saving.value = true;
+  try {
+    const r = await customerApiCall.post('/member/labels', { name });
+    if (r && r.ok === false) return ElMessage.error(r.error || '新建失败');
+    ElMessage.success('标签已创建');
+    newLabel.value = '';
+    await loadLabels();
+  } catch (e) {
+    ElMessage.error(e || '新建失败');
+  } finally {
+    saving.value = false;
+  }
+}
+async function delLabel(row) {
+  await ElMessageBox.confirm(`确定删除标签「${row.name}」？删除后相关会员的该标签将一并移除。`, '删除确认', { type: 'warning' });
+  try {
+    await customerApiCall.delete(`/member/labels/${row.id}`);
+    ElMessage.success('已删除');
+    await loadLabels();
+  } catch (e) {
+    ElMessage.error(e || '删除失败');
+  }
+}
+
+// ---------- 消费流水 ----------
+const logs = ref([]);
+const logTotal = ref(0);
+const logQuery = reactive({ page: 1, pageSize: 20, type: 'all', keyword: '' });
+async function loadLogs() {
+  loading.value = true;
+  try {
+    const res = await customerApiCall.get('/member/logs', { params: logQuery });
+    logs.value = res.logs || [];
+    logTotal.value = res.total || 0;
+  } catch (e) {
+    ElMessage.error(e || '加载失败');
+  } finally {
+    loading.value = false;
+  }
+}
+async function exportLogs() {
+  exporting.value = true;
+  try {
+    const blob = await customerApiCall.get('/member/logs', { params: { ...logQuery, export: 'csv' }, responseType: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `消费流水-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    ElMessage.error(e || '导出失败');
+  } finally {
+    exporting.value = false;
+  }
+}
+
+// ---------- 积分流水 ----------
+const scoreLogs = ref([]);
+const scoreTotal = ref(0);
+const scoreQuery = reactive({ page: 1, pageSize: 20, type: 'all', keyword: '' });
+async function loadScoreLogs() {
+  loading.value = true;
+  try {
+    const res = await customerApiCall.get('/member/score-logs', { params: scoreQuery });
+    scoreLogs.value = res.logs || [];
+    scoreTotal.value = res.total || 0;
+  } catch (e) {
+    ElMessage.error(e || '加载失败');
+  } finally {
+    loading.value = false;
+  }
+}
+async function exportScoreLogs() {
+  exporting.value = true;
+  try {
+    const blob = await customerApiCall.get('/member/score-logs', { params: { ...scoreQuery, export: 'csv' }, responseType: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `积分流水-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    ElMessage.error(e || '导出失败');
+  } finally {
+    exporting.value = false;
+  }
 }
 
 // ---------- 设置 ----------
@@ -602,6 +817,8 @@ onMounted(() => {
   loadUsers();
   loadApplies();
   loadCards();
+  loadLogs();
+  loadScoreLogs();
 });
 </script>
 
@@ -622,6 +839,7 @@ onMounted(() => {
 .w220 { width: 220px; }
 .w160 { width: 160px; }
 .w130 { width: 130px; }
+.w120 { width: 120px; }
 .w720 { max-width: 720px; }
 .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; }
 .pager { display: flex; justify-content: flex-end; margin-top: 14px; }

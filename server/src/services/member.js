@@ -115,7 +115,13 @@ export function createMemberService(db) {
 
   // ---------------- 用户标签 ----------------
   function listLabels(tenantId) {
-    return db.prepare('SELECT * FROM member_labels WHERE tenant_id = ? ORDER BY id DESC').all(tenantId);
+    return db.prepare(
+      `SELECT l.id, l.name, l.created_at, COUNT(ul.user_id) AS user_count
+       FROM member_labels l
+       LEFT JOIN member_user_labels ul ON ul.label_id = l.id AND ul.tenant_id = l.tenant_id
+       WHERE l.tenant_id = ?
+       GROUP BY l.id ORDER BY l.id DESC`
+    ).all(tenantId);
   }
   function addLabel(tenantId, name) {
     const n = String(name || '').trim();

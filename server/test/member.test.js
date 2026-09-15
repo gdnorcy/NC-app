@@ -83,6 +83,10 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
     const ul = member.userLabels(TENANT, 3000);
     assert.equal(ul.length, 1);
     assert.equal(ul[0].name, 'VIP');
+    // 标签列表携带使用人数（标签管理 UI 展示）
+    const labels2 = member.listLabels(TENANT);
+    assert.equal(labels2[0].user_count, 1);
+    assert.ok(labels2[0].created_at);
     member.deleteLabel(TENANT, r1.id);
     assert.equal(member.listLabels(TENANT).length, 0);
     assert.equal(member.userLabels(TENANT, 3000).length, 0);
