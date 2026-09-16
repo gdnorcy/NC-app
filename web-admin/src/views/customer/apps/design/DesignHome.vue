@@ -193,11 +193,9 @@
               <span class="ds-ov" :style="{ top: '135px', right: '8px', width: '33px', height: '280px', background: style.primaryColor }"></span>
             </div>
           </div>
-          <!-- 商品详情 -->
+          <!-- 商品详情（菜鸟云 W2 无 top/head 层：img2 头部自带状态栏） -->
           <div class="ds-preview">
-            <img class="ds-preview-top" :src="headTopImg" alt="" />
             <img class="ds-preview-bg" :src="previewDetail" alt="" />
-            <div class="ds-preview-head" :style="dsHeadStyle()"></div>
             <div class="ds-preview-ov">
               <span class="ds-ov" :style="{ top: '253px', left: '4px', width: '164px', height: '40px', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"></span>
               <span class="ds-ov ds-ov-t" :style="{ top: '253px', right: '8px', width: '78px', height: '40px', color: style.primaryColor, fontSize: '12px', lineHeight: 1, paddingTop: '7px', textAlign: 'center' }">已售300份</span>
@@ -1084,7 +1082,7 @@ onMounted(() => {
 /* 标题条：背景=头部色（跟随主色/白色头部），文字=头部文字色；在背景图之下由透明区透出 */
 .ds-preview-head { position: absolute; left: 0; top: 0; width: 100%; height: 52px; z-index: 1; text-align: center; line-height: 78px; font-size: 12px; }
 /* 动态覆盖层（颜色随主题/渐变/辅助） */
-.ds-preview-ov { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 3; }
+.ds-preview-ov { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 0; }
 .ds-preview-ov .ds-ov { position: absolute; display: block; box-sizing: border-box; }
 .ds-preview-ov .ds-ov-t { display: block; }
 .bg-picker { display: flex; align-items: center; gap: 12px; }
