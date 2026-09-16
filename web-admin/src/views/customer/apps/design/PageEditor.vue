@@ -254,7 +254,7 @@
                   <!-- 魔方：格子填充方式（属性区编辑，图形化：裁剪铺满/完整显示/拉伸填满/原尺寸） -->
                   <div v-else-if="f.control === 'cube-cell-fill'" class="pe-cube-fill">
                     <template v-if="cubeCellTarget">
-                      <div class="pe-graphic">
+                      <div class="pe-graphic pe-graphic-grid">
                         <div
                           v-for="o in [{ v: 'cover', label: '裁剪铺满' }, { v: 'contain', label: '完整显示' }, { v: 'fill', label: '拉伸填满' }, { v: 'none', label: '原尺寸' }]" :key="o.v"
                           class="pe-graphic-item" :class="{ active: (cubeCellTarget.fill || 'cover') === o.v }"
@@ -277,7 +277,7 @@
                   <!-- 魔方：图片位置（属性区编辑，图形化：顶部/居中/底部） -->
                   <div v-else-if="f.control === 'cube-cell-pos'" class="pe-cube-pos">
                     <template v-if="cubeCellTarget">
-                      <div class="pe-graphic">
+                      <div class="pe-graphic pe-graphic-grid-3">
                         <div
                           v-for="o in [{ v: 'top', label: '顶部' }, { v: 'center', label: '居中' }, { v: 'bottom', label: '底部' }]" :key="o.v"
                           class="pe-graphic-item" :class="{ active: (cubeCellTarget.pos || 'center') === o.v }"
@@ -298,7 +298,7 @@
                   </div>
                   <!-- 通用：图片填充（组件级，图形化：裁剪铺满/完整显示/拉伸填满/原尺寸） -->
                   <div v-else-if="f.control === 'fill'" class="pe-cube-fill">
-                    <div class="pe-graphic">
+                    <div class="pe-graphic pe-graphic-grid">
                       <div
                         v-for="o in [{ v: 'cover', label: '裁剪铺满' }, { v: 'contain', label: '完整显示' }, { v: 'fill', label: '拉伸填满' }, { v: 'none', label: '原尺寸' }]" :key="o.v"
                         class="pe-graphic-item" :class="{ active: (selectedComp.props[f.key] || 'cover') === o.v }"
@@ -318,7 +318,7 @@
                   </div>
                   <!-- 通用：图片位置（组件级，图形化：顶部/居中/底部） -->
                   <div v-else-if="f.control === 'pos'" class="pe-cube-pos">
-                    <div class="pe-graphic">
+                    <div class="pe-graphic pe-graphic-grid-3">
                       <div
                         v-for="o in [{ v: 'top', label: '顶部' }, { v: 'center', label: '居中' }, { v: 'bottom', label: '底部' }]" :key="o.v"
                         class="pe-graphic-item" :class="{ active: (selectedComp.props[f.key] || 'center') === o.v }"
@@ -1790,10 +1790,12 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-cube-cell-tip { font-size: 12px; color: #86909c; line-height: 1.6; display: block; }
 /* 图形化单选（选择风格：一列/两列并排，仿 eweishop） */
 .pe-graphic { display: flex; gap: 8px; width: 100%; }
-.pe-graphic-item { position: relative; flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all .2s; background: #fff; }
+.pe-graphic-grid { display: grid !important; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.pe-graphic-grid-3 { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pe-graphic-item { position: relative; flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; padding: 8px 6px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all .2s; background: #fff; }
 .pe-graphic-item:hover { border-color: #c9cdd4; }
 .pe-graphic-item.active { border-color: #165dff; background: #f7fbff; box-shadow: 0 0 0 1px #165dff; }
-.pe-graphic-svg { width: 100%; height: 44px; display: block; }
+.pe-graphic-svg { width: 100%; height: 56px; display: block; }
 .pe-graphic-name { font-size: 12px; color: #4e5969; white-space: nowrap; }
 .pe-graphic-item.active .pe-graphic-name { color: #165dff; font-weight: 500; }
 .pe-graphic-check { position: absolute; top: 4px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
