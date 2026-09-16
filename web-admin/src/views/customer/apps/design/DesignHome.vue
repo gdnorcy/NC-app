@@ -224,7 +224,7 @@
 
     <!-- ============ 系统模板 ============ -->
     <section v-if="activeTab === 'template'">
-      <AppPageHeader title="系统模板" desc="平台公共模板市场 + 租户私有模板；应用模板将覆盖当前风格、导航、首页与页面配置">
+      <AppPageHeader title="系统模板" desc="平台公共模板市场 + 租户私有模板；应用模板将新建页面并载入模板内容，不影响现有页面">
         <div class="hd-actions">
           <el-button @click="importTemplate">导入模板 JSON</el-button>
           <el-button type="primary" @click="saveAsTemplate">存为模板</el-button>
@@ -836,11 +836,12 @@ async function onImport(e) {
   } catch (err) { ElMessage.error('导入失败：' + (err || 'JSON 格式不正确')); }
 }
 async function applyTemplate(t) {
-  try { await ElMessageBox.confirm(`应用模板「${t.template_name}」将覆盖当前风格、导航、首页与页面配置，确认继续？`, '应用模板', { type: 'warning' }); } catch { return; }
+  try { await ElMessageBox.confirm(`基于模板「${t.template_name}」新建页面，不影响现有页面，确认继续？`, '应用模板', { type: 'warning' }); } catch { return; }
   try {
-    await designCall.post(`${API}/template/apply`, { id: t.id });
-    ElMessage.success('模板已应用');
-    loadStyle(); loadHome(); loadTabSchemes();
+    const res = await designCall.post(`${API}/template/applyAsNew`, { id: t.id });
+    ElMessage.success(`已新建页面「${res.pageName || t.template_name}」`);
+    loadPages();
+    if (res.pageType) goEdit(res.pageType);
   } catch (e) { ElMessage.error(e); }
 }
 async function delTemplate(t) {

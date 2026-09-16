@@ -312,6 +312,31 @@ export function createDesignService(db) {
     return { ok: true };
   };
 
+  /** 应用模板 → 新建页面：从模板提取页面内容创建全新页面，不覆盖现有风格/导航/首页/页面；重名自动加后缀 */
+  svc.applyTemplateAsNew = (tenantId, id) => {
+    const t = svc.getTemplate(tenantId, id);
+    if (!t) return { ok: false, error: '模板不存在' };
+    const cfg = t.template_json || {};
+    const pages = cfg.pages || {};
+    const entries = Object.entries(pages);
+    if (!entries.length) return { ok: false, error: '该模板暂无页面内容，无法新建页面' };
+    const [type, design] = entries[0];
+    const baseName = String(t.template_name || '模板页面').trim() || '模板页面';
+    let name = baseName;
+    let suffix = 2;
+    while (db.prepare('SELECT id FROM tenant_page_design WHERE tenant_id = ? AND page_name = ?').get(tenantId, name)) {
+      name = `${baseName}(${suffix++})`;
+    }
+    const newType = `custom-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const json = JSON.stringify(design || {});
+    // 发布 + 草稿双行（草稿供「保存并预览」，发布供线上），is_home=0 不抢占首页
+    const rid = Number(db.prepare("INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 1, 0)").run(tenantId, newType, name, json).lastInsertRowid);
+    db.prepare("INSERT INTO tenant_page_design (tenant_id, page_type, page_name, design_json, version, status, is_home) VALUES (?, ?, ?, ?, 1, 0, 0)").run(tenantId, newType, name, json);
+    svc.syncRefs(tenantId, 'page', newType, design || {});
+    svc.syncRefs(tenantId, 'template', id, cfg);
+    return { ok: true, pageType: newType, id: rid, pageName: name };
+  };
+
   // ============ 页面装修（草稿/发布/版本回滚，乐观锁） ============
 
   svc.listPageDesigns = (tenantId) =>

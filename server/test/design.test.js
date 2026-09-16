@@ -170,6 +170,28 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     assert.equal(svc.deleteTemplate(T1, pub.id).ok, false);
   });
 
+  it('P8.1 应用模板→新建页面：不覆盖现有页面/风格、名称重名后缀、无页面内容拒绝', () => {
+    const before = svc.listPageDesigns(T1).length;
+    const pubPages = { home: { components: [{ id: 'y1', type: 'title', props: { text: '模板新建页' } }] } };
+    const pub = svc.saveTemplate(0, { name: '模板新建A', templateJson: { style: { primaryColor: '#0AF' }, pages: pubPages }, isPublic: true });
+    assert.ok(pub.ok);
+    const r = svc.applyTemplateAsNew(T1, pub.id);
+    assert.ok(r.ok, '应成功基于模板新建页面');
+    assert.equal(r.pageName, '模板新建A');
+    assert.equal(svc.listPageDesigns(T1).length, before + 2, '应新增发布+草稿两条记录（前端按 page_type 合并显示为一个页面）');
+    const created = svc.listPageDesigns(T1).find((p) => p.page_name === '模板新建A');
+    assert.ok(created && !created.isHome, '新页面不应为首页');
+    assert.ok(JSON.stringify(svc.getPageDesign(T1, r.pageType, true).design_json).includes('模板新建页'), '新页面内容应为模板组件');
+    // 全局风格不被覆盖
+    assert.notEqual(svc.getStyle(T1).primaryColor, '#0AF', '应用模板新建页面不应覆盖系统风格');
+    // 重名自动加后缀
+    const r2 = svc.applyTemplateAsNew(T1, pub.id);
+    assert.ok(r2.ok && r2.pageName === '模板新建A(2)', '重名页面应加后缀');
+    // 无页面内容模板拒绝
+    const empty = svc.saveTemplate(0, { name: '空模板', templateJson: { style: {} }, isPublic: true });
+    assert.equal(svc.applyTemplateAsNew(T1, empty.id).ok, false, '无页面内容的模板应拒绝新建');
+  });
+
   // ============ 页面装修：草稿/发布/版本回滚 ============
   it('P9 页面草稿保存（含并发锁）', () => {
     const design1 = { components: [{ type: 'title', text: '欢迎' }] };

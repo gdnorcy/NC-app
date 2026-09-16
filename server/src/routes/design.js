@@ -289,6 +289,12 @@ export default function createDesignRouter(db, deps = {}) {
     audit(db, req, 'apply_template', 'tenant_template', Number(req.body?.id), '应用模板');
     res.json(r);
   });
+  design.post('/template/applyAsNew', tenant, tenantAdmin, (req, res) => {
+    const r = svc.applyTemplateAsNew(req.customerId, Number(req.body?.id));
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    audit(db, req, 'apply_template_as_new', 'tenant_template', Number(req.body?.id), '基于模板新建页面');
+    res.json(r);
+  });
   design.post('/template/saveMy', tenant, tenantAdmin, (req, res) => {
     const r = svc.saveTemplate(req.customerId, req.body || {});
     if (!r.ok) return res.status(400).json({ error: r.error });
