@@ -157,10 +157,10 @@
     <!-- 轮播图 -->
     <template v-else-if="comp.type === 'swiper'">
       <div class="r-swiper" :class="imgFillCls(comp.props)" :style="swiperStyle(comp.props)">
-        <template v-if="(comp.props.items || []).filter((it) => it.url).length">
-          <img v-for="(it, i) in comp.props.items.filter((x) => x.url)" :key="i" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
-          <span v-if="comp.props.indicator === 'dot'" class="r-swiper-dots"><i v-for="(d, di) in comp.props.items.filter((x) => x.url)" :key="di" :style="{ background: comp.props.indicatorColor || '#165DFF' }"></i></span>
-          <span v-else-if="comp.props.indicator === 'number'" class="r-swiper-num" :style="{ color: comp.props.indicatorColor || '#165DFF' }">1/{{ comp.props.items.filter((x) => x.url).length }}</span>
+        <template v-if="swiperItems.length">
+          <img :src="resolveUrl(swiperItems[sIdx].url)" :style="imgFillStyle(comp.props)" />
+          <span v-if="comp.props.indicator === 'dot'" class="r-swiper-dots"><i v-for="(d, di) in swiperItems" :key="di" :class="{ on: di === sIdx }" :style="{ background: comp.props.indicatorColor || '#165DFF' }"></i></span>
+          <span v-else-if="comp.props.indicator === 'number'" class="r-swiper-num" :style="{ color: comp.props.indicatorColor || '#165DFF' }">{{ sIdx + 1 }}/{{ swiperItems.length }}</span>
         </template>
         <div v-else class="r-swiper-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>轮播图（至少添加一张图片）</div>
       </div>
@@ -492,7 +492,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 
 import tbDecoUrl from '../../../../assets/design-styles/title/title3.png';
 import tbBubbleUrl from '../../../../assets/design-styles/title/bubble.png';
@@ -504,6 +504,24 @@ import tbS5R from '../../../../assets/design-styles/title/s5_r.png';
 import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
 import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
 import { customerApiCall } from '../../../../api';
+
+// 轮播图编辑端预览：单张显示 + 定时轮播 + 指示器同步（避免多图并排平铺）
+const swiperItems = computed(() => (props.comp.props.items || []).filter((it) => it.url));
+const sIdx = ref(0);
+let swTimer = null;
+function startSwiper() {
+  if (swTimer) { clearInterval(swTimer); swTimer = null; }
+  if (props.comp.type === 'swiper' && swiperItems.value.length > 1) {
+    swTimer = setInterval(() => { sIdx.value = (sIdx.value + 1) % swiperItems.value.length; }, props.comp.props.interval || 4000);
+  }
+}
+onMounted(startSwiper);
+onBeforeUnmount(() => { if (swTimer) clearInterval(swTimer); });
+watch(() => props.comp.props.items, () => {
+  if (sIdx.value >= swiperItems.value.length) sIdx.value = 0;
+  startSwiper();
+}, { deep: true });
+watch(() => props.comp.props.interval, startSwiper);
 
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
@@ -1147,15 +1165,15 @@ function chRadius(p, i) {
 .r-imagetext.center .r-imagetext-body { align-items: center; text-align: center; }
 .r-gallery-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #e5e6eb; min-height: 72px; }
 /* 轮播图 */
-.r-swiper { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; display: flex; }
-.r-swiper img { width: 100%; height: 100%; object-fit: cover; }
+.r-swiper { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; }
+.r-swiper > img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .r-swiper-empty { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #86909c; font-size: 12px; }
 /* 通用图片填充：原尺寸(none)时容器 flex 居中 */
 .r-img-none { display: flex; justify-content: center; align-items: center; }
 .r-img-none img { flex-shrink: 0; }
 .r-swiper-dots { position: absolute; bottom: 8px; left: 0; right: 0; display: flex; gap: 4px; justify-content: center; }
-.r-swiper-dots i { width: 5px; height: 5px; border-radius: 50%; background: #fff; opacity: .6; }
-.r-swiper-dots i:first-child { opacity: 1; }
+.r-swiper-dots i { width: 5px; height: 5px; border-radius: 50%; background: #fff; opacity: .45; transition: all .2s; }
+.r-swiper-dots i.on { opacity: 1; }
 .r-swiper-num { position: absolute; bottom: 8px; right: 10px; font-size: 11px; color: #fff; background: rgba(0,0,0,.35); padding: 1px 6px; border-radius: 8px; }
 /* 名片卡 */
 .r-mycard { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
