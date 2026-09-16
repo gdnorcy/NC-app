@@ -122,7 +122,7 @@ describe('设计中心 C 端渲染工具', () => {
     const gd = {
       scheme: 2,
       ew: {
-        bgMode: 'custom', bgColor: '#ffffff', funcModule: 'single', textColor: 'black',
+        funcModule: 'single', textColor: 'black',
         headBg: { mode: 'color', color: '#ffffff', image: '' },
         scrollBg: { mode: 'color', color: 'transparent', image: '' },
         layers: [
@@ -139,7 +139,6 @@ describe('设计中心 C 端渲染工具', () => {
     const h = normalizeHeader(page, gd);
     expect(h.scheme).toBe(2);
     expect(h.ew.funcModule).toBe('double');
-    expect(h.ew.bgMode).toBe('custom'); // 页面未覆盖 → 继承全局
     expect(h.ew.layers[0].left.type).toBe('icon'); // 页面覆盖
     expect(h.ew.layers[0].left.icon).toBe('user');
     expect(h.ew.layers[0].middle.type).toBe('search'); // 该层中间未覆盖 → 继承全局

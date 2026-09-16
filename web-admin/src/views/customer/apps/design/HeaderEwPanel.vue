@@ -1,26 +1,5 @@
 <template>
   <div class="hew">
-    <!-- 背景设置：无 / 自定义背景（ew 1:1） -->
-    <div class="hew-sec">背景设置</div>
-    <div class="hew-row">
-      <el-radio-group v-model="m.bgMode" size="small">
-        <el-radio value="none">无</el-radio>
-        <el-radio value="custom">自定义背景</el-radio>
-      </el-radio-group>
-    </div>
-    <template v-if="m.bgMode === 'custom'">
-      <div class="hew-row">
-        <div class="hew-label">背景色</div>
-        <el-color-picker v-model="m.bgColor" size="small" />
-        <el-input v-model="m.bgColor" size="small" class="hew-hex" />
-      </div>
-      <div class="hew-row">
-        <div class="hew-label">背景图</div>
-        <el-button size="small" @click="pickImg('bgImage')">设置</el-button>
-        <el-button v-if="m.bgImage" size="small" text type="danger" @click="m.bgImage = ''">清除</el-button>
-      </div>
-    </template>
-
     <!-- 头部设置 -->
     <div class="hew-sec">头部设置</div>
     <div class="hew-tip">当头部无功能模块时，背景样式设置仅在APP、微信小程序中生效。</div>
@@ -257,9 +236,6 @@
 /** ew 头部方案默认结构（供 PageEditor defaultMeta/全局默认复用） */
 export function mkEwHeader() {
   return {
-    bgMode: 'none',
-    bgColor: '#ffffff',
-    bgImage: '',
     funcModule: 'none',
     textColor: 'black',
     headBg: { mode: 'color', color: '#ffffff', image: '' },

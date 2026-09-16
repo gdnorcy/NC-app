@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { mergeEwHeader, mergeEwLayer } from './designHeader.js';
 
 const mkGlobal = () => ({
-  bgMode: 'custom',
-  bgColor: '#ffffff',
   funcModule: 'single',
   textColor: 'black',
   headBg: { mode: 'color', color: '#ffffff', image: '' },
@@ -19,7 +17,6 @@ describe('mergeEwHeader（头部方案二：全局默认 + 单页覆盖）', () 
   it('仅全局默认 → 返回全局 ew 完整结构', () => {
     const h = mergeEwHeader(mkGlobal(), {});
     expect(h.funcModule).toBe('single');
-    expect(h.bgMode).toBe('custom');
     expect(h.layers.length).toBe(2);
     expect(h.layers[0].left.type).toBe('icon');
     expect(h.layers[0].middle.type).toBe('search');

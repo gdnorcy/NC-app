@@ -74,9 +74,6 @@ export function normalizeHeader(raw, globalDefault) {
       return [0, 1].map((i) => mergeLayer(gl[i] || {}, pl[i] || {}));
     };
     const ew = {
-      bgMode: pEw.bgMode ?? gEw.bgMode ?? 'none',
-      bgColor: pEw.bgColor ?? gEw.bgColor ?? '#ffffff',
-      bgImage: pEw.bgImage ?? gEw.bgImage ?? '',
       funcModule: pEw.funcModule ?? gEw.funcModule ?? 'none',
       textColor: pEw.textColor ?? gEw.textColor ?? 'black',
       headBg: { mode: 'color', color: '#ffffff', image: '', ...(gEw.headBg || {}), ...(pEw.headBg || {}) },

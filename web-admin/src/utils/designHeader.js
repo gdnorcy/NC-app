@@ -32,9 +32,6 @@ export function mergeEwHeader(globalEw, pageEw) {
   const pl = Array.isArray(pEw.layers) ? pEw.layers : [];
   const layers = [0, 1].map((i) => mergeEwLayer(gl[i] || {}, pl[i] || {}));
   return {
-    bgMode: pEw.bgMode ?? gEw.bgMode ?? 'none',
-    bgColor: pEw.bgColor ?? gEw.bgColor ?? '#ffffff',
-    bgImage: pEw.bgImage ?? gEw.bgImage ?? '',
     funcModule: pEw.funcModule ?? gEw.funcModule ?? 'none',
     textColor: pEw.textColor ?? gEw.textColor ?? 'black',
     headBg: { mode: 'color', color: '#ffffff', image: '', ...(gEw.headBg || {}), ...(pEw.headBg || {}) },
