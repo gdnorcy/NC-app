@@ -178,25 +178,46 @@
           </el-form>
         </div>
 
-        <!-- 预览（1:1 菜鸟云：商品列表 / 商品订单） -->
+        <!-- 预览（1:1 菜鸟云：商品列表 / 商品详情 / 商品订单 三窗；头部状态栏+胶囊为素材图，头部底色/覆盖层颜色随主题动态） -->
         <div class="ds-group-title">预览</div>
         <div class="ds-preview-row">
+          <!-- 商品列表 -->
           <div class="ds-preview">
-            <div class="ds-preview-head" :style="dsHeadStyle('商品列表')">商品列表</div>
-            <div class="ds-preview-body">
-              <div class="ds-row ds-row-main" :style="{ background: style.primaryColor }"><span :style="{ color: style.textColor }">主色</span></div>
-              <div class="ds-row ds-row-grad" :style="{ background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"><span :style="{ color: style.textColor }">主色渐变</span></div>
-              <div class="ds-row ds-row-aux" :style="{ background: style.secondaryColor }"><span :style="{ color: style.subTextColor }">辅助色</span></div>
-              <div class="ds-row ds-row-text"><span :style="{ color: style.subTextColor }">文字辅色</span></div>
+            <img class="ds-preview-top" :src="headTopImg" alt="" />
+            <img class="ds-preview-bg" :src="previewList" alt="" />
+            <div class="ds-preview-head" :style="dsHeadStyle()">商品列表</div>
+            <div class="ds-preview-ov">
+              <span class="ds-ov" :style="{ top: '82px', left: '0', width: '15px', height: '40px', background: style.primaryColor }"></span>
+              <span class="ds-ov" :style="{ top: '82px', left: '54px', width: '24px', height: '40px', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"></span>
+              <span class="ds-ov" :style="{ top: '135px', right: '8px', width: '33px', height: '280px', background: style.primaryColor }"></span>
             </div>
           </div>
+          <!-- 商品详情 -->
           <div class="ds-preview">
-            <div class="ds-preview-head" :style="dsHeadStyle('商品订单')">商品订单</div>
-            <div class="ds-preview-body">
-              <div class="ds-row ds-row-main" :style="{ background: style.primaryColor }"><span :style="{ color: style.textColor }">主色</span></div>
-              <div class="ds-row ds-row-grad" :style="{ background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"><span :style="{ color: style.textColor }">主色渐变</span></div>
-              <div class="ds-row ds-row-aux" :style="{ background: style.secondaryColor }"><span :style="{ color: style.subTextColor }">辅助色</span></div>
-              <div class="ds-row ds-row-text"><span :style="{ color: style.subTextColor }">文字辅色</span></div>
+            <img class="ds-preview-top" :src="headTopImg" alt="" />
+            <img class="ds-preview-bg" :src="previewDetail" alt="" />
+            <div class="ds-preview-head" :style="dsHeadStyle()"></div>
+            <div class="ds-preview-ov">
+              <span class="ds-ov" :style="{ top: '253px', left: '4px', width: '164px', height: '40px', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"></span>
+              <span class="ds-ov ds-ov-t" :style="{ top: '253px', right: '8px', width: '78px', height: '40px', color: style.primaryColor, fontSize: '12px', lineHeight: 1, paddingTop: '7px', textAlign: 'center' }">已售300份</span>
+              <span class="ds-ov ds-ov-t" :style="{ bottom: '130px', left: '8px', width: '95px', color: style.primaryColor, fontSize: '18px' }">促销</span>
+              <span class="ds-ov" :style="{ bottom: '43px', left: '5px', width: '240px', height: '50px', background: style.primaryColor }"></span>
+              <span class="ds-ov ds-ov-pill" :style="{ bottom: '52px', right: '14px', width: '95px', height: '20px', borderRadius: '20px', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})`, color: '#fff', fontSize: '12px', lineHeight: '20px', textAlign: 'center' }">邀请好友一起抢</span>
+              <span class="ds-ov" :style="{ bottom: '17px', right: '10px', width: '122px', height: '25px', borderRadius: '24px', display: 'flex', overflow: 'hidden' }">
+                <b :style="{ width: '50%', height: '100%', lineHeight: '25px', fontSize: '12px', textAlign: 'center', fontWeight: 'normal', color: style.primaryColor, background: style.secondaryColor }">加入购物车</b>
+                <b :style="{ width: '50%', height: '100%', lineHeight: '25px', fontSize: '12px', textAlign: 'center', fontWeight: 'normal', color: style.textColor, background: style.primaryColor }">立即购买</b>
+              </span>
+            </div>
+          </div>
+          <!-- 商品订单 -->
+          <div class="ds-preview">
+            <img class="ds-preview-top" :src="headTopImg" alt="" />
+            <img class="ds-preview-bg" :src="previewOrder" alt="" />
+            <div class="ds-preview-head" :style="dsHeadStyle()">商品订单</div>
+            <div class="ds-preview-ov">
+              <span class="ds-ov" :style="{ top: '52px', left: '0', width: '100%', height: '55px', background: style.primaryColor }"></span>
+              <span class="ds-ov ds-ov-t" :style="{ top: '60px', right: '6px', width: '118px', height: '25px', color: style.primaryColor, lineHeight: '27px', fontSize: '13px', textAlign: 'center' }">上门自提</span>
+              <span class="ds-ov ds-ov-pill" :style="{ bottom: '16px', right: '7px', width: '80px', height: '25px', background: style.primaryColor, color: '#fff', borderRadius: '20px', lineHeight: '27px', fontSize: '14px', textAlign: 'center' }">提交订单</span>
             </div>
           </div>
         </div>
@@ -437,6 +458,12 @@ import MaterialPicker from './MaterialPicker.vue';
 import PeColorPicker from './PeColorPicker.vue';
 import { designCall } from '../../../../api';
 import { STYLE_SCHEMES, DEFAULT_STYLE, applyScheme, headPreviewStyle } from '../../../../utils/designStyle.js';
+// 系统风格预览素材（1:1 菜鸟云：商品列表/商品详情/商品订单 三窗 + 头部状态栏图）
+import previewList from '../../../../assets/design-preview/choose_style_img.png';
+import previewDetail from '../../../../assets/design-preview/choose_style_img2.png';
+import previewOrder from '../../../../assets/design-preview/choose_style_img3.png';
+import previewTop1 from '../../../../assets/design-preview/choose_style_top1.png';
+import previewTop2 from '../../../../assets/design-preview/choose_style_top2.png';
 
 const tabs = [
   { key: 'page', label: '页面装修', icon: 'dynamic' },
@@ -775,6 +802,8 @@ function pickScheme(n) {
 function dsHeadStyle() {
   return headPreviewStyle(style);
 }
+// 头部状态栏图：跟随主色+白字 → top1（主题色底）；其余（黑色文字/白色头部）→ top2（白底黑字）——与菜鸟云 choose_style_top 联动一致
+const headTopImg = computed(() => (style.headColor === '1' && style.headText === '#ffffff') ? previewTop1 : previewTop2);
 async function loadStyle() {
   try {
     const res = await designCall.get(`${API}/style/get`);
@@ -1022,7 +1051,7 @@ onMounted(() => {
 .text-muted { color: #86909c; font-size: 12px; }
 .hd-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .table-scroll { overflow-x: auto; }
-.form-card { max-width: 820px; }
+.form-card { max-width: 880px; }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 12px; }
 /* ---- 系统风格（1:1 菜鸟云） ---- */
 .ds-group-title { font-size: 14px; font-weight: 600; color: #1d2129; margin: 20px 0 12px; }
@@ -1037,12 +1066,19 @@ onMounted(() => {
 .ds-custom-swatch { background: #f7f8fa; border-style: dashed; }
 .ds-custom-plus { font-size: 20px; color: #86909c; line-height: 1; }
 .ds-custom-box { margin-top: 16px; padding-top: 4px; border-top: 1px dashed #e5e6eb; }
-.ds-preview-row { display: flex; gap: 16px; flex-wrap: wrap; }
-.ds-preview { width: 240px; border: 1px solid #e5e6eb; border-radius: 10px; overflow: hidden; background: #fff; }
-.ds-preview-head { height: 40px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
-.ds-preview-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
-.ds-row { height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-.ds-row-text { background: #fff; border: 1px dashed #e5e6eb; }
+/* 预览三窗（1:1 菜鸟云 choose_style_single：250×466 / 圆角22 / 紫调阴影） */
+.ds-preview-row { display: flex; gap: 30px; overflow-x: auto; padding: 4px 2px 10px; }
+.ds-preview { position: relative; flex: 0 0 250px; width: 250px; height: 466px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 0 29px rgba(76, 66, 188, 0.26); }
+/* 头部状态栏/胶囊图（透明素材，背景图头部透明处透出） */
+.ds-preview-top { position: absolute; left: 0; top: 0; width: 100%; height: 52px; z-index: 2; display: block; }
+/* 页面静态背景图（头部区域透明，透出 head 底色） */
+.ds-preview-bg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 2; display: block; }
+/* 标题条：背景=头部色（跟随主色/白色头部），文字=头部文字色；在背景图之下由透明区透出 */
+.ds-preview-head { position: absolute; left: 0; top: 0; width: 100%; height: 52px; z-index: 1; text-align: center; line-height: 78px; font-size: 12px; }
+/* 动态覆盖层（颜色随主题/渐变/辅助） */
+.ds-preview-ov { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 3; }
+.ds-preview-ov .ds-ov { position: absolute; display: block; box-sizing: border-box; }
+.ds-preview-ov .ds-ov-t { display: block; }
 .bg-picker { display: flex; align-items: center; gap: 12px; }
 /* 数字调节框窄化（系统风格 Tab 全局圆角滑杆，72px 容纳三位数字） */
 .form-card :deep(.el-slider__input) { width: 72px; }
