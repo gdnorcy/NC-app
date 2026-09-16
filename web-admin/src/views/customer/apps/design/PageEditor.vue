@@ -452,13 +452,13 @@
         <div class="hp-row">
           <div class="hp-label">默认头部方案</div>
           <el-radio-group v-model="meta.global.headerDefault.scheme">
-            <el-radio :value="1">方案一（云菜鸟）</el-radio>
-            <el-radio :value="2">方案二（ew）</el-radio>
+            <el-radio :value="1">方案一</el-radio>
+            <el-radio :value="2">方案二</el-radio>
           </el-radio-group>
         </div>
         <!-- 方案一（云菜鸟）全局默认配置 -->
         <template v-if="meta.global.headerDefault.scheme === 1">
-          <div class="hp-tip">以下为方案一（云菜鸟）的全局默认头部配置，仅当本页头部未单独设置时生效</div>
+          <div class="hp-tip">以下为方案一的全局默认头部配置，仅当本页头部未单独设置时生效</div>
           <div class="hp-row">
             <div class="hp-label">头部类型</div>
             <el-radio-group v-model="meta.global.headerDefault.s1.type">
@@ -500,7 +500,7 @@
         </template>
         <!-- 方案二（ew）全局默认配置 -->
         <template v-else>
-          <div class="hp-tip">以下为方案二（ew）的全局默认头部配置，仅当本页头部未单独设置时生效</div>
+          <div class="hp-tip">以下为方案二的全局默认头部配置，仅当本页头部未单独设置时生效</div>
           <HeaderEwPanel v-model="meta.global.headerDefault.ew" />
         </template>
       </div>
@@ -515,14 +515,14 @@
           </el-radio-group>
         </div>
         <template v-if="meta.header.followGlobal === true">
-          <div class="hp-tip">当前头部跟随全局默认（{{ headerScheme === 2 ? '方案二（ew）' : '方案一（云菜鸟）' }}）：在「全局设置 → 头部默认值」里配置，改动对所有跟随全局的页面生效；本页如需单独配置，请切换为「自定义本页」。</div>
+          <div class="hp-tip">当前头部跟随全局默认（{{ headerScheme === 2 ? '方案二' : '方案一' }}）：在「全局设置 → 头部默认值」里配置，改动对所有跟随全局的页面生效；本页如需单独配置，请切换为「自定义本页」。</div>
         </template>
         <template v-else>
         <div class="hp-row">
           <div class="hp-label">头部方案</div>
           <el-radio-group :model-value="headerScheme" @update:model-value="setHeaderScheme">
-            <el-radio :value="1">方案一（云菜鸟）</el-radio>
-            <el-radio :value="2">方案二（ew）</el-radio>
+            <el-radio :value="1">方案一</el-radio>
+            <el-radio :value="2">方案二</el-radio>
           </el-radio-group>
         </div>
         <template v-if="headerScheme === 1">
