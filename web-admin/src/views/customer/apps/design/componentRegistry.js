@@ -538,6 +538,8 @@ export const componentRegistry = [
       { key: 'imgGap', label: '图片间距', control: 'slider', section: 'style', min: 0, max: 8 },
       { key: '__cellRadius', label: '格子圆角', control: 'cube-cell', section: 'style', min: 0, max: 20, cellKey: 'radius', cellTip: '点击预览区魔方中的格子后，可在此设置该格圆角' },
       { key: '__cellGap', label: '格子间隔', control: 'cube-cell', section: 'style', min: 0, max: 20, cellKey: 'gap', cellTip: '点击预览区魔方中的格子后，可在此设置该格四周间隔' },
+      { key: '__cellFill', label: '格子填充', control: 'cube-cell-fill', section: 'style', cellKey: 'fill', cellTip: '点击预览区魔方中的格子后，可在此设置该格图片填充方式' },
+      { key: '__cellPos', label: '图片位置', control: 'cube-cell-pos', section: 'style', cellKey: 'pos', cellTip: '点击预览区魔方中的格子后，可在此设置该格图片位置' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },

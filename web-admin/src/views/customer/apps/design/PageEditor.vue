@@ -251,8 +251,59 @@
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
                   </el-radio-group>
-                  <!-- 魔方：格子圆角/间隔（属性区编辑，点击格子后样式区显示） -->
-                  <template v-else-if="f.control === 'cube-cell'">
+                  <!-- 魔方：格子填充方式（属性区编辑，图形化：裁剪铺满/完整显示/拉伸填满/原尺寸） -->
+                  <div v-else-if="f.control === 'cube-cell-fill'" class="pe-cube-fill">
+                    <template v-if="cubeCellTarget">
+                      <div class="pe-graphic">
+                        <div
+                          v-for="o in [{ v: 'cover', label: '裁剪铺满' }, { v: 'contain', label: '完整显示' }, { v: 'fill', label: '拉伸填满' }, { v: 'none', label: '原尺寸' }]" :key="o.v"
+                          class="pe-graphic-item" :class="{ active: (cubeCellTarget.fill || 'cover') === o.v }"
+                          @click="cubeCellTarget.fill = o.v"
+                        >
+                          <svg class="pe-graphic-svg" viewBox="0 0 44 44">
+                            <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5" stroke="#E5E6EB"/>
+                            <template v-if="o.v === 'cover'">
+                              <rect x="8" y="-2" width="28" height="48" rx="2" fill="#165DFF" opacity=".75"/>
+                            </template>
+                            <template v-else-if="o.v === 'contain'">
+                              <rect x="14" y="14" width="16" height="16" rx="2" fill="#165DFF" opacity=".75"/>
+                            </template>
+                            <template v-else-if="o.v === 'fill'">
+                              <rect x="8" y="10" width="28" height="24" rx="1" fill="#165DFF" opacity=".75"/>
+                            </template>
+                            <template v-else>
+                              <rect x="18" y="18" width="8" height="8" rx="1" fill="#165DFF" opacity=".75"/>
+                            </template>
+                          </svg>
+                          <span class="pe-graphic-name">{{ o.label }}</span>
+                          <span class="pe-graphic-check">✓</span>
+                        </div>
+                      </div>
+                    </template>
+                    <span v-else class="pe-cube-cell-tip">{{ f.cellTip }}</span>
+                  </div>
+                  <!-- 魔方：图片位置（属性区编辑，图形化：顶部/居中/底部） -->
+                  <div v-else-if="f.control === 'cube-cell-pos'" class="pe-cube-pos">
+                    <template v-if="cubeCellTarget">
+                      <div class="pe-graphic">
+                        <div
+                          v-for="o in [{ v: 'top', label: '顶部' }, { v: 'center', label: '居中' }, { v: 'bottom', label: '底部' }]" :key="o.v"
+                          class="pe-graphic-item" :class="{ active: (cubeCellTarget.pos || 'center') === o.v }"
+                          @click="cubeCellTarget.pos = o.v"
+                        >
+                          <svg class="pe-graphic-svg" viewBox="0 0 44 44">
+                            <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5" stroke="#E5E6EB"/>
+                            <rect v-if="o.v === 'top'" x="14" y="6" width="16" height="16" rx="2" fill="#165DFF" opacity=".75"/>
+                            <rect v-else-if="o.v === 'center'" x="14" y="14" width="16" height="16" rx="2" fill="#165DFF" opacity=".75"/>
+                            <rect v-else x="14" y="22" width="16" height="16" rx="2" fill="#165DFF" opacity=".75"/>
+                          </svg>
+                          <span class="pe-graphic-name">{{ o.label }}</span>
+                          <span class="pe-graphic-check">✓</span>
+                        </div>
+                      </div>
+                    </template>
+                    <span v-else class="pe-cube-cell-tip">{{ f.cellTip }}</span>
+                  </div>
                     <el-slider v-if="cubeCellTarget" :model-value="cubeCellTarget[f.cellKey] ?? (f.cellKey === 'radius' ? 4 : 0)" @update:model-value="cubeCellTarget[f.cellKey] = $event" :min="f.min" :max="f.max" show-input />
                     <span v-else class="pe-cube-cell-tip">{{ f.cellTip }}</span>
                   </template>

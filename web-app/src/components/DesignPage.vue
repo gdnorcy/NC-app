@@ -251,7 +251,7 @@
             @click="onJump(b.link)"
           >
             <view class="dp-cube-cell" :style="dpCubeCellStyle(b)">
-              <image v-if="b.url" :src="resolveUrl(b.url)" mode="aspectFill" class="dp-cube-img" />
+              <image v-if="b.url" :src="resolveUrl(b.url)" :mode="dpCubeImgMode(b)" :style="dpCubeImgStyle(b)" class="dp-cube-img" />
             </view>
           </view>
         </view>
@@ -927,10 +927,10 @@ function dpCubeBlockStyle(b) {
     height: (b.h / 312 * 100) + '%',
   };
 }
-// 魔方每格独立配置：间隔=四周留白（叠加在 imgGap 上）、圆角=该格圆角（存量缺省 4px）
+// 魔方每格独立配置：间隔=四周留白（叠加在 imgGap 上）、圆角=该格圆角（存量缺省 4px）；填充=cover/contain/fill/原尺寸，位置=top/center/bottom
 function dpCubeCellStyle(b) {
   const gap = b.gap ?? 0;
-  return {
+  const s = {
     position: 'absolute',
     top: gap + 'px',
     right: gap + 'px',
@@ -940,6 +940,32 @@ function dpCubeCellStyle(b) {
     background: '#f7f8fa',
     overflow: 'hidden',
   };
+  if ((b.fill || 'cover') === 'none') {
+    s.display = 'flex';
+    s.alignItems = 'center';
+    s.justifyContent = 'center';
+  }
+  return s;
+}
+// 格子图片模式映射：cover→aspectFill / contain→aspectFit / fill→scaleToFill / 原尺寸→aspectFit+样式缩放
+function dpCubeImgMode(b) {
+  const fill = b.fill || 'cover';
+  if (fill === 'contain') return 'aspectFit';
+  if (fill === 'fill') return 'scaleToFill';
+  if (fill === 'none') return 'aspectFit';
+  return 'aspectFill';
+}
+// 格子图片位置与原尺寸约束（H5 生效；小程序 aspectFit/aspectFill 默认居中）
+function dpCubeImgStyle(b) {
+  const fill = b.fill || 'cover';
+  const s = { objectPosition: b.pos || 'center' };
+  if (fill === 'none') {
+    s.width = 'auto';
+    s.height = 'auto';
+    s.maxWidth = '100%';
+    s.maxHeight = '100%';
+  }
+  return s;
 }
 // 魔方存量兼容：blocks 为空时回退旧 items/rows/cols
 function dpCubeBlocks(c) {

@@ -244,7 +244,7 @@
             @click.stop="emit('cell-select', comp, i)"
           >
             <div class="r-cube-cell" :style="cubeCellStyle(b)">
-              <img v-if="b.url" :src="resolveUrl(b.url)" class="r-cube-img" />
+              <img v-if="b.url" :src="resolveUrl(b.url)" class="r-cube-img" :style="cubeImgStyle(b)" />
               <div v-else class="r-cube-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
             </div>
           </div>
@@ -737,10 +737,10 @@ function cubeBlockStyle(b) {
     height: (b.h / 312 * 100) + '%',
   };
 }
-// 魔方每格独立配置：间隔=四周留白（叠加在 imgGap 上）、圆角=该格圆角（存量缺省 4px）
+// 魔方每格独立配置：间隔=四周留白（叠加在 imgGap 上）、圆角=该格圆角（存量缺省 4px）；填充=cover/contain/fill/原尺寸，位置=top/center/bottom
 function cubeCellStyle(b) {
   const gap = b.gap ?? 0;
-  return {
+  const s = {
     position: 'absolute',
     top: gap + 'px',
     right: gap + 'px',
@@ -750,6 +750,24 @@ function cubeCellStyle(b) {
     background: '#f7f8fa',
     overflow: 'hidden',
   };
+  if ((b.fill || 'cover') === 'none') {
+    s.display = 'flex';
+    s.alignItems = 'center';
+    s.justifyContent = 'center';
+  }
+  return s;
+}
+// 格子图片填充样式：cover 裁剪铺满 / contain 完整显示 / fill 拉伸 / none 原尺寸居中
+function cubeImgStyle(b) {
+  const fill = b.fill || 'cover';
+  const s = { objectFit: fill, objectPosition: b.pos || 'center' };
+  if (fill === 'none') {
+    s.width = 'auto';
+    s.height = 'auto';
+    s.maxWidth = '100%';
+    s.maxHeight = '100%';
+  }
+  return s;
 }
 // 魔方：该格是否处于属性面板选中态（点选格子后在样式区编辑圆角/间隔）
 function isCubeCellSel(comp, i) {
