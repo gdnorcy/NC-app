@@ -175,7 +175,7 @@
             <template v-for="sec in schemaSections" :key="sec.key">
               <div v-if="sec.fields.length" class="pe-sec">
                 <div v-if="sec.label" class="pe-sec-name">{{ sec.label }}</div>
-                <el-form-item v-for="f in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list', 'pe-form-hint': f.control === 'hint' }">
+                <el-form-item v-for="f in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
@@ -1755,7 +1755,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-graphic-item:hover { border-color: #c9cdd4; }
 .pe-graphic-item.active { border-color: #165dff; background: #f7fbff; box-shadow: 0 0 0 1px #165dff; }
 .pe-graphic-svg { width: 100%; height: 44px; display: block; }
-.pe-graphic-name { font-size: 12px; color: #4e5969; }
+.pe-graphic-name { font-size: 12px; color: #4e5969; white-space: nowrap; }
 .pe-graphic-item.active .pe-graphic-name { color: #165dff; font-weight: 500; }
 .pe-graphic-check { position: absolute; top: 4px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
 .pe-graphic-item.active .pe-graphic-check { display: block; }

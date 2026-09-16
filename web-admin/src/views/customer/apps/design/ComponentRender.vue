@@ -235,7 +235,7 @@
     </template>
     <!-- 魔方 -->
     <template v-else-if="comp.type === 'cube'">
-      <div class="r-cube" :style="{ background: comp.props.bgColor || 'transparent', padding: comp.props.bgColor ? '6px' : 0 }">
+      <div class="r-cube" :style="{ background: comp.props.bgColor || 'transparent', padding: comp.props.bgColor ? '6px' : 0, borderRadius: (comp.props.radius ?? 8) + 'px' }">
         <div class="r-cube-inner" :style="{ gap: (comp.props.imgGap ?? 4) + 'px' }">
           <div
             v-for="(b, i) in cubeBlocks(comp)" :key="i"

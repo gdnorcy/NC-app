@@ -242,7 +242,7 @@
         </block>
       </view>
       <!-- 魔方 -->
-      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ background: c.props.bgColor || 'transparent', padding: c.props.bgColor ? '6px' : 0 }">
+      <view v-else-if="c.type === 'cube'" class="dp-cube" :style="{ background: c.props.bgColor || 'transparent', padding: c.props.bgColor ? '6px' : 0, borderRadius: (c.props.radius ?? 8) + 'px' }">
         <view class="dp-cube-inner" :style="{ gap: (c.props.imgGap ?? 4) + 'px' }">
           <view
             v-for="(b, i) in dpCubeBlocks(c)" :key="i"
