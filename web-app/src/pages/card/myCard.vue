@@ -460,7 +460,8 @@ function leaveTenant() {
 .pe-text { font-size: 26rpx; color: #86909c; }
 .pe-btn {
   margin-top: 12rpx; padding: 16rpx 56rpx; border-radius: 40rpx;
-  background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx;
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, var(--design-primary, #165dff)));
+  color: var(--design-text, #fff); font-size: 28rpx;
 }
 .owner-nav { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 88rpx 32rpx 0; background: #fff; position: sticky; top: 0; z-index: 10; }
 .on-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; }

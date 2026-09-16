@@ -107,36 +107,99 @@
       </el-dialog>
     </section>
 
-    <!-- ============ 系统风格 ============ -->
+    <!-- ============ 系统风格（1:1 菜鸟云） ============ -->
     <section v-if="activeTab === 'style'">
-      <AppPageHeader title="系统风格" desc="全局主题色、圆角、按钮样式；保存后作用于当前租户全部名片页面">
-        <div class="hd-actions"><el-button type="primary" :loading="styleSaving" @click="saveStyle">保存风格</el-button></div>
+      <AppPageHeader title="系统风格" desc="整体主题配色：头部颜色/头部文字/配色方案/自定配色；保存后作用于当前租户全部页面">
+        <div class="hd-actions"><el-button type="primary" :loading="styleSaving" @click="saveStyle">确定</el-button></div>
       </AppPageHeader>
       <div class="card form-card">
+        <!-- 基础设置 -->
+        <div class="ds-group-title">基础设置</div>
         <el-form label-width="140px">
-          <el-form-item label="主色调">
-            <el-color-picker v-model="style.primaryColor" />
-            <span class="form-hint">主题色，按钮/选中态/链接</span>
-          </el-form-item>
-          <el-form-item label="辅助色">
-            <el-color-picker v-model="style.secondaryColor" />
-          </el-form-item>
-          <el-form-item label="正文文字颜色">
-            <el-color-picker v-model="style.textColor" />
-          </el-form-item>
-          <el-form-item label="次要文字颜色">
-            <el-color-picker v-model="style.subTextColor" />
-          </el-form-item>
-          <el-form-item label="全局圆角(px)">
-            <el-slider v-model="style.radius" :min="0" :max="24" show-input />
-          </el-form-item>
-          <el-form-item label="按钮样式">
-            <el-radio-group v-model="style.buttonStyle">
-              <el-radio value="filled">填充</el-radio>
-              <el-radio value="outline">描边</el-radio>
+          <el-form-item label="头部颜色">
+            <el-radio-group v-model="style.headColor">
+              <el-radio value="1">跟随主色</el-radio>
+              <el-radio value="2">白色头部</el-radio>
             </el-radio-group>
+            <span class="form-hint">顶部背景色，为白色头部时顶部文字颜色固定黑色</span>
+          </el-form-item>
+          <el-form-item v-if="style.headColor === '1'" label="头部文字">
+            <el-radio-group v-model="style.headText">
+              <el-radio value="#ffffff">白色</el-radio>
+              <el-radio value="#000000">黑色</el-radio>
+            </el-radio-group>
+            <span class="form-hint">顶部的文字颜色，建议与背景色相反</span>
           </el-form-item>
         </el-form>
+
+        <!-- 配色方案 -->
+        <div class="ds-group-title">配色方案</div>
+        <div class="ds-scheme-grid">
+          <div
+            v-for="(s, i) in STYLE_SCHEMES"
+            :key="i"
+            class="ds-scheme-item"
+            :class="{ active: style.colorScheme === i + 1 }"
+            @click="pickScheme(i + 1)"
+          >
+            <div class="ds-scheme-swatch" :style="{ background: `linear-gradient(135deg, ${s.primaryColor}, ${s.gradientColor})` }">
+              <span v-if="style.colorScheme === i + 1" class="ds-scheme-check">✓</span>
+            </div>
+            <span class="ds-scheme-name">{{ s.name }}</span>
+          </div>
+          <div class="ds-scheme-item" :class="{ active: style.colorScheme === 0 }" @click="pickScheme(0)">
+            <div class="ds-scheme-swatch ds-custom-swatch"><span class="ds-custom-plus">+</span></div>
+            <span class="ds-scheme-name">自定义</span>
+          </div>
+        </div>
+
+        <!-- 自定配色（自定义时显示） -->
+        <div v-if="style.colorScheme === 0" class="ds-custom-box">
+          <div class="ds-group-title">自定配色</div>
+          <el-form label-width="140px">
+            <el-form-item label="主题颜色">
+              <PeColorPicker v-model="style.primaryColor" />
+              <span class="form-hint">包含头部颜色（头部颜色为跟随主色时生效）</span>
+            </el-form-item>
+            <el-form-item label="渐变颜色">
+              <PeColorPicker v-model="style.gradientColor" />
+              <span class="form-hint">建议与主色颜色相近</span>
+            </el-form-item>
+            <el-form-item label="辅助颜色">
+              <PeColorPicker v-model="style.secondaryColor" />
+              <span class="form-hint">建议与主色搭配色</span>
+            </el-form-item>
+            <el-form-item label="文字颜色">
+              <PeColorPicker v-model="style.textColor" />
+            </el-form-item>
+            <el-form-item label="文字辅色">
+              <PeColorPicker v-model="style.subTextColor" />
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <!-- 预览（1:1 菜鸟云：商品列表 / 商品订单） -->
+        <div class="ds-group-title">预览</div>
+        <div class="ds-preview-row">
+          <div class="ds-preview">
+            <div class="ds-preview-head" :style="dsHeadStyle('商品列表')">商品列表</div>
+            <div class="ds-preview-body">
+              <div class="ds-row ds-row-main" :style="{ background: style.primaryColor }"><span :style="{ color: style.textColor }">主色</span></div>
+              <div class="ds-row ds-row-grad" :style="{ background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"><span :style="{ color: style.textColor }">主色渐变</span></div>
+              <div class="ds-row ds-row-aux" :style="{ background: style.secondaryColor }"><span :style="{ color: style.subTextColor }">辅助色</span></div>
+              <div class="ds-row ds-row-text"><span :style="{ color: style.subTextColor }">文字辅色</span></div>
+            </div>
+          </div>
+          <div class="ds-preview">
+            <div class="ds-preview-head" :style="dsHeadStyle('商品订单')">商品订单</div>
+            <div class="ds-preview-body">
+              <div class="ds-row ds-row-main" :style="{ background: style.primaryColor }"><span :style="{ color: style.textColor }">主色</span></div>
+              <div class="ds-row ds-row-grad" :style="{ background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"><span :style="{ color: style.textColor }">主色渐变</span></div>
+              <div class="ds-row ds-row-aux" :style="{ background: style.secondaryColor }"><span :style="{ color: style.subTextColor }">辅助色</span></div>
+              <div class="ds-row ds-row-text"><span :style="{ color: style.subTextColor }">文字辅色</span></div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -371,7 +434,9 @@ import SIcon from '../../../../components/SIcon.vue';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
+import PeColorPicker from './PeColorPicker.vue';
 import { designCall } from '../../../../api';
+import { STYLE_SCHEMES, DEFAULT_STYLE, applyScheme, headPreviewStyle } from '../../../../utils/designStyle.js';
 
 const tabs = [
   { key: 'page', label: '页面装修', icon: 'dynamic' },
@@ -699,19 +764,32 @@ async function batchDelete() {
   batchIds.value = []; loadMaterials();
 }
 
-// ============ 系统风格 ============
-const style = reactive({ primaryColor: '#165DFF', secondaryColor: '#00B42A', textColor: '#1D2129', subTextColor: '#86909C', radius: 8, buttonStyle: 'filled', bgColor: '#F7F8FA', bgImage: '' });
+// ============ 系统风格（1:1 菜鸟云） ============
+// 14 套预设配色 / 默认玫红 / applyScheme / 头部预览联动 见 utils/designStyle.js（配测试）
+const style = reactive({ ...DEFAULT_STYLE });
 const styleSaving = ref(false);
+function pickScheme(n) {
+  Object.assign(style, applyScheme({ ...style }, n));
+}
+// 预览头部样式：跟随主色→主题色底+头部文字色；白色头部→白底黑字（与菜鸟云 choose_style_head 联动一致）
+function dsHeadStyle() {
+  return headPreviewStyle(style);
+}
 async function loadStyle() {
   try {
     const res = await designCall.get(`${API}/style/get`);
-    Object.assign(style, res.style || {});
+    const s = res.style || {};
+    // 新格式（含配色方案）才合并；旧格式（无 colorScheme）按新默认覆盖（存量覆盖策略）
+    if (s && typeof s.colorScheme !== 'undefined' && s.colorScheme !== null) {
+      const { radius, buttonStyle, bgColor, bgImage, ...rest } = s;
+      Object.assign(style, rest);
+    }
   } catch (e) { /* 风格加载失败不阻塞 */ }
 }
 async function saveStyle() {
   styleSaving.value = true;
   try {
-    const { bgColor, bgImage, ...stylePayload } = style;
+    const { bgColor, bgImage, radius, buttonStyle, ...stylePayload } = style;
     await designCall.post(`${API}/style/save`, { style: { ...stylePayload } });
     ElMessage.success('风格已保存，小程序端将按最新配置渲染');
   } catch (e) { ElMessage.error(e); } finally { styleSaving.value = false; }
@@ -944,8 +1022,27 @@ onMounted(() => {
 .text-muted { color: #86909c; font-size: 12px; }
 .hd-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .table-scroll { overflow-x: auto; }
-.form-card { max-width: 720px; }
+.form-card { max-width: 820px; }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 12px; }
+/* ---- 系统风格（1:1 菜鸟云） ---- */
+.ds-group-title { font-size: 14px; font-weight: 600; color: #1d2129; margin: 20px 0 12px; }
+.ds-group-title:first-child { margin-top: 0; }
+.ds-scheme-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.ds-scheme-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; user-select: none; padding: 6px 4px; border: 1px solid transparent; border-radius: 8px; width: 68px; }
+.ds-scheme-item:hover { border-color: #e5e6eb; }
+.ds-scheme-item.active { border-color: #165dff; background: #f7fbff; }
+.ds-scheme-swatch { position: relative; width: 34px; height: 34px; border-radius: 6px; border: 1px solid rgba(0,0,0,.08); display: flex; align-items: center; justify-content: center; }
+.ds-scheme-check { position: absolute; right: -4px; top: -4px; width: 16px; height: 16px; background: #165dff; color: #fff; border-radius: 50%; font-size: 11px; line-height: 16px; text-align: center; }
+.ds-scheme-name { font-size: 12px; color: #4e5969; }
+.ds-custom-swatch { background: #f7f8fa; border-style: dashed; }
+.ds-custom-plus { font-size: 20px; color: #86909c; line-height: 1; }
+.ds-custom-box { margin-top: 16px; padding-top: 4px; border-top: 1px dashed #e5e6eb; }
+.ds-preview-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.ds-preview { width: 240px; border: 1px solid #e5e6eb; border-radius: 10px; overflow: hidden; background: #fff; }
+.ds-preview-head { height: 40px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+.ds-preview-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.ds-row { height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.ds-row-text { background: #fff; border: 1px dashed #e5e6eb; }
 .bg-picker { display: flex; align-items: center; gap: 12px; }
 /* 数字调节框窄化（系统风格 Tab 全局圆角滑杆，72px 容纳三位数字） */
 .form-card :deep(.el-slider__input) { width: 72px; }

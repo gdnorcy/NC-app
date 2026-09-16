@@ -8,12 +8,19 @@
     <!-- 设计中心头部设置（方案一：custom/immersive/official；方案二：ew 风格头部） -->
     <DesignNav v-if="designHeader && designHeader.scheme !== 2" :header="designHeader" page-name="首页" />
     <DesignNavEw v-else-if="designHeader" :header="designHeader" page-name="首页" :scrolled="headerScrolled" @search="goSearch" />
+    <!-- 无页面头部配置时：系统风格「头部颜色/头部文字」全局默认头部（页面装修头部设置可单页覆盖） -->
+    <view v-else-if="sysHeadStyle" class="sys-head" :style="sysHeadStyle" @click="goPage('/pages/card/profile')">
+      <text class="sys-head-title" :style="{ color: sysHeadText }">{{ designTheme.shareTitle || '首页' }}</text>
+      <view class="sys-head-avatar" :style="{ background: sysHeadText }">
+        <SIcon name="user" size="small" color="#ffffff" />
+      </view>
+    </view>
 
     <!-- 设计中心装修区（发布/预览的首页组件） -->
     <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" class="design-section" />
 
     <!-- 顶部搜索栏（沉浸式头部悬浮时保留顶部安全距，其余类型由设计导航占位） -->
-    <view class="top-bar" :class="{ 'with-design-nav': designHeader && designHeader.type !== 'immersive' }">
+    <view class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }">
       <view class="search-box" @click="goSearch">
         <SIcon name="dynamic" size="small" color="#86909c" />
         <text class="search-placeholder">搜索名片、客户、人脉</text>
@@ -158,8 +165,21 @@ const designTenantId = ref(0);
 const designHeader = ref(null);
 const designGlobal = ref({});
 const designTheme = ref({});
+const designStyle = ref(null);
 const shareBack = ref(false);
 const headerScrolled = ref(false);
+// 系统风格头部（无页面头部配置时全局默认）：headColor 跟随主色→主题色底 / 白色头部→白底；文字色对应
+const sysHeadStyle = computed(() => {
+  const st = designStyle.value;
+  if (!st) return null;
+  const bg = st.headColor === '2' ? '#FFFFFF' : st.primaryColor;
+  return { background: bg, color: st.headColor === '2' ? '#000000' : st.headText };
+});
+const sysHeadText = computed(() => {
+  const st = designStyle.value;
+  if (!st) return '#ffffff';
+  return st.headColor === '2' ? '#000000' : st.headText;
+});
 // 页面背景 = 页面装修「全局设置」的背景色/背景图（C 端真机渲染，编辑端 phoneStyle 同源）
 const pageBgStyle = computed(() => {
   const g = designGlobal.value || {};
@@ -230,6 +250,7 @@ onMounted(async () => {
     designHeader.value = config?.header || null;
     designGlobal.value = config?.pages?.meta?.global || {};
     designTheme.value = config?.pages?.meta?.theme || {};
+    designStyle.value = config?.style || null;
     // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);
     if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
@@ -353,6 +374,14 @@ function viewMarketCard(item) {
   padding: 88rpx 32rpx 24rpx;
   background: #fff;
 }
+/* 系统风格全局默认头部（无页面头部配置时）：背景=头部颜色，文字=头部文字 */
+.sys-head {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 88rpx; padding: 88rpx 32rpx 0;
+  box-sizing: content-box;
+}
+.sys-head-title { font-size: 34rpx; font-weight: 600; }
+.sys-head-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: .2; }
 /* 有设计导航（custom/official 占文档流）时去掉顶部安全距，由导航占位 */
 .top-bar.with-design-nav {
   padding-top: 16rpx;

@@ -1,6 +1,6 @@
 // 设计中心 C 端渲染工具测试：规范化/兜底图标/首页映射/缓存读取
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, resolveAssetUrl, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
+import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, resolveAssetUrl, applyDesignStyle, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
 
 const store = {};
 const uniMock = {
@@ -15,24 +15,61 @@ describe('设计中心 C 端渲染工具', () => {
     Object.keys(store).forEach((k) => delete store[k]);
   });
 
-  it('P1 空配置兜底：默认 Tab 4 项 + 默认主色 + home=card', () => {
+  it('P1 空配置兜底：默认 Tab 4 项 + 默认系统风格（菜鸟云玫红 11）+ home=card', () => {
     const cfg = normalizeDesignConfig(null);
     expect(cfg.tabItems).toHaveLength(4);
-    expect(cfg.style.primaryColor).toBe('#165DFF');
+    expect(cfg.style.primaryColor).toBe('#FE0137');
+    expect(cfg.style.colorScheme).toBe(11);
+    expect(cfg.style.headColor).toBe('1');
+    expect(cfg.style.headText).toBe('#ffffff');
     expect(cfg.homePage).toBe('card');
     expect(cfg.tabItems[0].url).toBe('/pages/cardMain/home');
   });
 
-  it('P2 正常配置：Tab 项/主色/首页透传，非法 url 兜底', () => {
+  it('P2 正常配置：Tab 项/系统风格字段透传，非法 url 兜底', () => {
     const cfg = normalizeDesignConfig({
-      style: { primaryColor: '#00B42A', radius: 12 },
+      style: { primaryColor: '#002FA4', gradientColor: '#1149D2', secondaryColor: '#E5EAF6', textColor: '#FFFFFF', subTextColor: '#002FA4', headColor: '2', headText: '#000000', colorScheme: 2 },
       tab: { items: [{ text: '首页', icon: '/uploads/a.png', url: '/pages/cardMain/home' }, { text: '坏链接', url: 'javascript:alert(1)' }] },
       homePage: 'market',
     });
-    expect(cfg.style.primaryColor).toBe('#00B42A');
+    expect(cfg.style.primaryColor).toBe('#002FA4');
+    expect(cfg.style.gradientColor).toBe('#1149D2');
+    expect(cfg.style.headColor).toBe('2');
+    expect(cfg.style.headText).toBe('#000000');
+    expect(cfg.style.colorScheme).toBe(2);
     expect(cfg.tabItems).toHaveLength(2);
     expect(cfg.tabItems[1].url).toBe('/pages/cardMain/home'); // 非法 url 兜底
     expect(cfg.homePage).toBe('market');
+  });
+
+  it('P2.1 系统风格字段兜底：旧数据（无新字段）回退默认玫红套', () => {
+    const cfg = normalizeDesignConfig({ style: { primaryColor: '#F53F3F' } });
+    expect(cfg.style.primaryColor).toBe('#F53F3F'); // 主色保留
+    expect(cfg.style.gradientColor).toBe('#FF5169'); // 新增字段兜底默认
+    expect(cfg.style.headColor).toBe('1');
+    expect(cfg.style.headText).toBe('#ffffff');
+    expect(cfg.style.colorScheme).toBe(11);
+  });
+
+  it('P2.2 applyDesignStyle：注入 7 个系统风格 CSS 变量（含白色头部联动）', () => {
+    const root = { style: { setProperty: vi.fn() } };
+    applyDesignStyle({ style: { primaryColor: '#0DA29D', gradientColor: '#0FBBB5', secondaryColor: '#CFECEB', textColor: '#FFFFFF', subTextColor: '#0DA29D', headColor: '1', headText: '#000000' } }, root);
+    const set = (name) => root.style.setProperty.mock.calls.find((c) => c[0] === name)?.[1];
+    expect(set('--design-primary')).toBe('#0DA29D');
+    expect(set('--design-gradient')).toBe('#0FBBB5');
+    expect(set('--design-secondary')).toBe('#CFECEB');
+    expect(set('--design-text')).toBe('#FFFFFF');
+    expect(set('--design-subtext')).toBe('#0DA29D');
+    expect(set('--design-headcolor')).toBe('#0DA29D'); // 跟随主色 → 主题色
+    expect(set('--design-headtext')).toBe('#000000');
+  });
+
+  it('P2.3 applyDesignStyle：白色头部 → headcolor 白底黑字', () => {
+    const root = { style: { setProperty: vi.fn() } };
+    applyDesignStyle({ style: { primaryColor: '#FE0137', gradientColor: '#FF5169', secondaryColor: '#FFE5EB', textColor: '#FFFFFF', subTextColor: '#FE0137', headColor: '2', headText: '#ffffff' } }, root);
+    const set = (name) => root.style.setProperty.mock.calls.find((c) => c[0] === name)?.[1];
+    expect(set('--design-headcolor')).toBe('#FFFFFF');
+    expect(set('--design-headtext')).toBe('#000000');
   });
 
   it('P3 文案兜底图标映射', () => {

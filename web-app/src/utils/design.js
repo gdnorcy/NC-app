@@ -33,7 +33,16 @@ export function normalizeDesignConfig(raw) {
   const globalDefault = pageMeta.global?.headerDefault || {};
   return {
     tenantId: cfg.tenantId || 0,
-    style: { primaryColor: style.primaryColor || '#165DFF', radius: style.radius ?? 8 },
+    style: {
+      headColor: style.headColor === '2' ? '2' : '1',
+      headText: style.headText === '#000000' ? '#000000' : '#ffffff',
+      colorScheme: typeof style.colorScheme === 'number' ? style.colorScheme : 11,
+      primaryColor: style.primaryColor || '#FE0137',
+      gradientColor: style.gradientColor || '#FF5169',
+      secondaryColor: style.secondaryColor || '#FFE5EB',
+      textColor: style.textColor || '#FFFFFF',
+      subTextColor: style.subTextColor || '#FE0137',
+    },
     header: normalizeHeader(cfg.header, globalDefault),
     tabItems: tabItems.map((it, i) => ({
       text: it.text || `导航${i + 1}`,
@@ -170,14 +179,19 @@ export async function fetchDesignConfig(force = false, preview = false) {
   return config;
 }
 
-/** H5 端把主题色注入 CSS 变量（--design-primary 等），页面 var() 兜底 */
+/** H5 端把系统风格主题注入 CSS 变量（--design-primary 等），页面 var() 兜底；字段语义与菜鸟云 1:1 */
 export function applyDesignStyle(config, scope) {
   const style = config?.style;
   if (!style) return;
   const root = scope || (typeof document !== 'undefined' ? document.documentElement : null);
   if (!root || !root.style || typeof root.style.setProperty !== 'function') return;
-  root.style.setProperty('--design-primary', style.primaryColor || '#165DFF');
-  root.style.setProperty('--design-radius', `${style.radius ?? 8}px`);
+  root.style.setProperty('--design-primary', style.primaryColor || '#FE0137');
+  root.style.setProperty('--design-gradient', style.gradientColor || '#FF5169');
+  root.style.setProperty('--design-secondary', style.secondaryColor || '#FFE5EB');
+  root.style.setProperty('--design-text', style.textColor || '#FFFFFF');
+  root.style.setProperty('--design-subtext', style.subTextColor || '#FE0137');
+  root.style.setProperty('--design-headcolor', style.headColor === '2' ? '#FFFFFF' : (style.primaryColor || '#FE0137'));
+  root.style.setProperty('--design-headtext', style.headColor === '2' ? '#000000' : (style.headText || '#ffffff'));
 }
 
 /** 小程序分享卡片：标题取分享标题（默认页面名），配图取分享图片（空则微信默认截屏） */
