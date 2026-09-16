@@ -10,7 +10,7 @@
         <!-- 高级(热区)模式：多图 + 热区点击跳转 -->
         <template v-if="c.props.mode === 'hotzone' && c.props.items && c.props.items.length">
           <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-item" :style="{ marginBottom: ii < c.props.items.length - 1 ? (c.props.gap || 0) + 'px' : 0, borderRadius: dpImageRadius(c.props) }">
-            <image v-if="it.url" :src="resolveUrl(it.url)" mode="widthFix" class="dp-image-img" />
+            <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
             <view v-else class="dp-image-empty"><text>图片</text></view>
             <view
               v-for="(h, hi) in it.hotspots || []" :key="hi"
@@ -24,7 +24,7 @@
         <template v-else-if="c.props.style === 'double' && c.props.items && c.props.items.length">
           <view class="dp-image-row" :style="{ gap: (c.props.gap || 0) + 'px' }">
             <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-row-item" :style="{ borderRadius: dpImageRadius(c.props) }">
-              <image v-if="it.url" :src="resolveUrl(it.url)" mode="widthFix" class="dp-image-img" @click="onJump(it.link)" />
+              <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" @click="onJump(it.link)" />
               <view v-else class="dp-image-empty"><text>图片</text></view>
             </view>
           </view>
@@ -32,7 +32,7 @@
         <!-- 标准模式：单图 -->
         <template v-else>
           <view v-if="c.props.url" class="dp-image-single" :style="{ borderRadius: dpImageRadius(c.props) }" @click="onJump(c.props.link)">
-            <image :src="resolveUrl(c.props.url)" mode="widthFix" class="dp-image-img" />
+            <image :src="resolveUrl(c.props.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
           </view>
           <view v-else class="dp-image-empty"><text>图片</text></view>
         </template>
@@ -155,7 +155,7 @@
       </view>
       <!-- 图文卡片 -->
       <view v-else-if="c.type === 'image-text'" class="dp-imagetext" :class="{ overlay: c.props.textPos === 'overlay', center: c.props.align === 'center' }" :style="dpImageTextStyle(c.props)">
-        <image v-if="c.props.url" :src="resolveUrl(c.props.url)" mode="aspectFill" class="dp-it-img" :style="dpImageTextRatio(c.props)" @click="onJump(c.props.link)" />
+        <image v-if="c.props.url" :src="resolveUrl(c.props.url)" :mode="dpImgMode(c.props)" class="dp-it-img" :style="[dpImageTextRatio(c.props), dpImgStyle(c.props)]" @click="onJump(c.props.link)" />
         <view v-else class="dp-it-empty" :style="dpImageTextRatio(c.props)"><text>图文卡片</text></view>
         <view class="dp-it-body" :style="dpItBodyStyle(c.props)">
           <text class="dp-it-title">{{ c.props.title || '图文标题' }}</text>
@@ -166,7 +166,7 @@
       <view v-else-if="c.type === 'swiper'" class="dp-swiper" :style="dpSwiperStyle(c.props)">
         <swiper v-if="(c.props.items || []).some((it) => it.url)" class="dp-swiper-box" :style="dpSwiperBoxStyle(c.props)" :interval="c.props.interval || 4000" :circular="true" :autoplay="true" :indicator-dots="c.props.showDots === false ? false : c.props.indicator === 'dot'" :indicator-active-color="c.props.indicatorColor || '#165dff'">
           <swiper-item v-for="(it, i) in c.props.items.filter((x) => x.url)" :key="i">
-            <image :src="resolveUrl(it.url)" mode="aspectFill" class="dp-swiper-img" @click="onJump(it.link)" />
+            <image :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-swiper-img" :style="dpImgStyle(c.props)" @click="onJump(it.link)" />
           </swiper-item>
         </swiper>
         <view v-if="c.props.indicator === 'number' && (c.props.items || []).some((it) => it.url)" class="dp-swiper-num" :style="{ color: c.props.indicatorColor || '#165dff' }"><text>1/{{ c.props.items.filter((x) => x.url).length }}</text></view>
@@ -296,7 +296,7 @@
       <!-- 组图橱窗 -->
       <view v-else-if="c.type === 'image-gallery'" class="dp-gallery" :style="dpGalleryStyle(c.props)">
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-gallery-cell" :style="{ borderRadius: (c.props.radiusTop ?? 8) + 'px' }" @click="onJump(it.link)">
-          <image v-if="it.url" :src="resolveUrl(it.url)" mode="aspectFill" class="dp-gallery-img" />
+          <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-gallery-img" :style="dpImgStyle(c.props)" />
         </view>
       </view>
       <!-- 标题栏（ew 1:1 实测版） -->
@@ -784,6 +784,20 @@ function dpItBodyStyle(p) {
   const g = props.global || {};
   const cardPadding = g.cardPadding ?? 12;
   return { padding: `${p.contentPadding ?? cardPadding}px` };
+}
+// 通用图片填充（C 端，推广自魔方）：cover→aspectFill / contain→aspectFit / fill→scaleToFill / none→aspectFit+原尺寸；位置仅 H5 生效
+function dpImgMode(p) {
+  const fill = p.imgFill || 'cover';
+  return { cover: 'aspectFill', contain: 'aspectFit', fill: 'scaleToFill', none: 'aspectFit' }[fill] || 'aspectFill';
+}
+function dpImgStyle(p) {
+  const fill = p.imgFill || 'cover';
+  const pos = p.imgPos || 'center';
+  const s = { objectPosition: pos };
+  if (fill === 'none') {
+    s.width = 'auto'; s.height = 'auto'; s.maxWidth = '100%'; s.maxHeight = '100%'; s.margin = '0 auto';
+  }
+  return s;
 }
 function dpImageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };

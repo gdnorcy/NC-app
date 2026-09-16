@@ -105,7 +105,7 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [{ url: '', link: '', hotspots: [] }], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', memberLevel: 'all' },
+    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [{ url: '', link: '', hotspots: [] }], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
         { label: '单图', value: 'single' },
@@ -131,6 +131,8 @@ export const componentRegistry = [
         ],
       },
       { key: 'widthMode', label: '宽度', control: 'radio', section: 'style', options: [{ label: '全宽', value: 'full' }, { label: '自适应', value: 'auto' }] },
+      { key: 'imgFill', label: '图片填充', control: 'fill', section: 'style' },
+      { key: 'imgPos', label: '图片位置', control: 'pos', section: 'style' },
       { key: 'cardStyle', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'borderColor', label: '描边颜色', control: 'color', section: 'style', when: { cardStyle: 'border' } },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
@@ -375,13 +377,15 @@ export const componentRegistry = [
     name: '图文卡片',
     group: 'basic',
     icon: 'image-text',
-    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below', ratio: '1:1', align: 'left', style: 'default', borderColor: '#E5E6EB', bgColor: '', marginTop: 0, marginBottom: 0, marginLR: 0, contentPadding: 12, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
+    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below', ratio: '1:1', align: 'left', style: 'default', borderColor: '#E5E6EB', bgColor: '', marginTop: 0, marginBottom: 0, marginLR: 0, contentPadding: 12, radiusTop: 0, radiusBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content', required: true },
       { key: 'title', label: '标题', control: 'input', section: 'content' },
       { key: 'desc', label: '描述', control: 'input', section: 'content' },
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
       { key: 'textPos', label: '文字位置', control: 'radio', section: 'style', options: [{ label: '图下方', value: 'below' }, { label: '图上叠加', value: 'overlay' }] },
+      { key: 'imgFill', label: '图片填充', control: 'fill', section: 'style' },
+      { key: 'imgPos', label: '图片位置', control: 'pos', section: 'style' },
       { key: 'ratio', label: '图片比例', control: 'radio', section: 'style', options: [{ label: '1:1', value: '1:1' }, { label: '4:3', value: '4:3' }, { label: '3:4', value: '3:4' }, { label: '16:9', value: '16:9' }] },
       { key: 'align', label: '文字对齐', control: 'radio', section: 'style', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }] },
       { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
@@ -401,7 +405,7 @@ export const componentRegistry = [
     name: '轮播图',
     group: 'basic',
     icon: 'swiper',
-    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }], height: 150, interval: 4000, heightMode: 'fixed', indicator: 'dot', indicatorColor: '#165DFF', immersive: false, showDots: true, dotsPos: 'center', bgSync: false, style: 'default', borderColor: '#E5E6EB', bgColor: '', radiusTop: 0, radiusBottom: 0, marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }], height: 150, interval: 4000, heightMode: 'fixed', indicator: 'dot', indicatorColor: '#165DFF', immersive: false, showDots: true, dotsPos: 'center', bgSync: false, style: 'default', borderColor: '#E5E6EB', bgColor: '', radiusTop: 0, radiusBottom: 0, marginTop: 0, marginBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       {
         key: 'items', label: '轮播图片', control: 'list', section: 'content',
@@ -415,6 +419,8 @@ export const componentRegistry = [
       { key: 'dotsPos', label: '轮播点位置', control: 'radio', section: 'content', options: [{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }] },
       { key: 'bgSync', label: '页面背景联动切换', control: 'radio', section: 'content', options: [{ label: '开启', value: true }, { label: '关闭', value: false }] },
       { key: 'heightMode', label: '高度模式', control: 'radio', section: 'style', options: [{ label: '固定高度', value: 'fixed' }, { label: '全屏', value: 'full' }] },
+      { key: 'imgFill', label: '图片填充', control: 'fill', section: 'style' },
+      { key: 'imgPos', label: '图片位置', control: 'pos', section: 'style' },
       { key: 'height', label: '高度', control: 'slider', section: 'style', min: 80, max: 320, when: { heightMode: 'fixed' } },
       { key: 'interval', label: '轮播间隔(ms)', control: 'slider', section: 'style', min: 2000, max: 8000, step: 500 },
       { key: 'indicator', label: '指示器', control: 'radio', section: 'style', options: [{ label: '圆点', value: 'dot' }, { label: '数字', value: 'number' }, { label: '隐藏', value: 'hide' }] },
@@ -639,7 +645,7 @@ export const componentRegistry = [
     name: '组图橱窗',
     group: 'basic',
     icon: 'image-gallery',
-    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], columns: 2, radius: 8, gap: 8, style: 'default', borderColor: '#E5E6EB', slideMode: 'slide', radiusTop: 8, radiusBottom: 8, marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], columns: 2, radius: 8, gap: 8, style: 'default', borderColor: '#E5E6EB', slideMode: 'slide', radiusTop: 8, radiusBottom: 8, marginTop: 0, marginBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       {
         key: 'items', label: '组图', control: 'list', section: 'content',
@@ -651,6 +657,8 @@ export const componentRegistry = [
       { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'borderColor', label: '描边颜色', control: 'color', section: 'style', when: { style: 'border' } },
       { key: 'slideMode', label: '组件风格', control: 'radio', section: 'style', options: [{ label: '单行滑动', value: 'slide' }, { label: '分页滑动', value: 'page' }] },
+      { key: 'imgFill', label: '图片填充', control: 'fill', section: 'style' },
+      { key: 'imgPos', label: '图片位置', control: 'pos', section: 'style' },
       { key: 'columns', label: '列数', control: 'radio', section: 'style', options: [{ label: '2列', value: 2 }, { label: '3列', value: 3 }, { label: '4列', value: 4 }] },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 16 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 16 },

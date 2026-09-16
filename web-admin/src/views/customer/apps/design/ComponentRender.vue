@@ -7,8 +7,8 @@
       <div class="r-image" :class="'r-card-' + (comp.props.cardStyle || 'default')" @click.stop :style="imageBoxStyle(comp.props)">
         <!-- 高级(热区)模式：多图 + 热区框 -->
         <template v-if="comp.props.mode === 'hotzone' && comp.props.items?.length">
-          <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
-            <img v-if="it.url" :src="resolveUrl(it.url)" />
+          <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :class="imgFillCls(comp.props)" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
+            <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
             <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
             <div
               v-for="(h, hi) in it.hotspots || []" :key="hi"
@@ -22,16 +22,16 @@
         <!-- 标准模式：双图（选择风格） -->
         <template v-else-if="comp.props.style === 'double' && comp.props.items?.length">
           <div class="r-image-row" :style="{ gap: (comp.props.gap ?? 0) + 'px' }">
-            <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-row-item" :style="{ borderRadius: imageRadius(comp.props) }">
-              <img v-if="it.url" :src="resolveUrl(it.url)" />
+            <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-row-item" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
+              <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
               <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
             </div>
           </div>
         </template>
         <!-- 标准模式：单图 -->
         <template v-else>
-          <div v-if="comp.props.url" class="r-image-single" :style="{ borderRadius: imageRadius(comp.props) }">
-            <img :src="resolveUrl(comp.props.url)" />
+          <div v-if="comp.props.url" class="r-image-single" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
+            <img :src="resolveUrl(comp.props.url)" :style="imgFillStyle(comp.props)" />
           </div>
           <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
         </template>
@@ -146,7 +146,7 @@
     <!-- 图文卡片 -->
     <template v-else-if="comp.type === 'image-text'">
       <div class="r-imagetext" :class="{ overlay: comp.props.textPos === 'overlay', center: comp.props.align === 'center' }" :style="imageTextStyle(comp.props)">
-        <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" :style="imageTextRatio(comp.props)" />
+        <img v-if="comp.props.url" :src="resolveUrl(comp.props.url)" :style="[imageTextRatio(comp.props), imgFillStyle(comp.props)]" />
         <div v-else class="r-imagetext-empty" :style="imageTextRatio(comp.props)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图文卡片</div>
         <div class="r-imagetext-body" :style="imageTextBodyStyle(comp.props)">
           <div class="r-imagetext-title">{{ comp.props.title || '图文标题' }}</div>
@@ -156,9 +156,9 @@
     </template>
     <!-- 轮播图 -->
     <template v-else-if="comp.type === 'swiper'">
-      <div class="r-swiper" :style="swiperStyle(comp.props)">
+      <div class="r-swiper" :class="imgFillCls(comp.props)" :style="swiperStyle(comp.props)">
         <template v-if="(comp.props.items || []).filter((it) => it.url).length">
-          <img v-for="(it, i) in comp.props.items.filter((x) => x.url)" :key="i" :src="resolveUrl(it.url)" />
+          <img v-for="(it, i) in comp.props.items.filter((x) => x.url)" :key="i" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
           <span v-if="comp.props.indicator === 'dot'" class="r-swiper-dots"><i v-for="(d, di) in comp.props.items.filter((x) => x.url)" :key="di" :style="{ background: comp.props.indicatorColor || '#165DFF' }"></i></span>
           <span v-else-if="comp.props.indicator === 'number'" class="r-swiper-num" :style="{ color: comp.props.indicatorColor || '#165DFF' }">1/{{ comp.props.items.filter((x) => x.url).length }}</span>
         </template>
@@ -298,7 +298,7 @@
     <template v-else-if="comp.type === 'image-gallery'">
       <div class="r-gallery" :style="galleryStyle(comp.props)">
         <template v-for="(it, i) in comp.props.items || []" :key="i">
-          <div v-if="it.url" class="r-gallery-cell" :style="{ borderRadius: (comp.props.radiusTop ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" /></div>
+          <div v-if="it.url" class="r-gallery-cell" :class="imgFillCls(comp.props)" :style="{ borderRadius: (comp.props.radiusTop ?? 8) + 'px' }"><img :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" /></div>
           <div v-else class="r-gallery-cell r-gallery-empty" :style="{ borderRadius: (comp.props.radiusTop ?? 8) + 'px' }"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
         </template>
       </div>
@@ -926,6 +926,18 @@ function imageTextRatio(p) {
   const map = { '1:1': '100%', '4:3': '75%', '3:4': '133.33%', '16:9': '56.25%' };
   return { aspectRatio: map[p.ratio] || '100%', objectFit: 'cover', width: '100%' };
 }
+// 通用图片填充（推广自魔方：cover/contain/fill/none + 位置 top/center/bottom；none=原尺寸居中）
+function imgFillStyle(p) {
+  const fill = p.imgFill || 'cover';
+  const pos = p.imgPos || 'center';
+  if (fill === 'none') {
+    return { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', objectPosition: pos, display: 'block', margin: '0 auto' };
+  }
+  return { objectFit: fill, objectPosition: pos };
+}
+function imgFillCls(p) {
+  return (p.imgFill || 'cover') === 'none' ? 'r-img-none' : '';
+}
 // 图文卡片内容区（内容边距独立控制：p.contentPadding ?? 全局卡片边距；与「左右边距」解耦，旧数据无该字段时沿用全局）
 function imageTextBodyStyle(p) {
   const g = props.global || {};
@@ -1138,6 +1150,9 @@ function chRadius(p, i) {
 .r-swiper { position: relative; border-radius: 8px; overflow: hidden; background: #f7f8fa; display: flex; }
 .r-swiper img { width: 100%; height: 100%; object-fit: cover; }
 .r-swiper-empty { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #86909c; font-size: 12px; }
+/* 通用图片填充：原尺寸(none)时容器 flex 居中 */
+.r-img-none { display: flex; justify-content: center; align-items: center; }
+.r-img-none img { flex-shrink: 0; }
 .r-swiper-dots { position: absolute; bottom: 8px; left: 0; right: 0; display: flex; gap: 4px; justify-content: center; }
 .r-swiper-dots i { width: 5px; height: 5px; border-radius: 50%; background: #fff; opacity: .6; }
 .r-swiper-dots i:first-child { opacity: 1; }
