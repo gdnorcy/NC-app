@@ -296,6 +296,8 @@
                     </template>
                     <span v-else class="pe-cube-cell-tip">{{ f.cellTip }}</span>
                   </div>
+                  <!-- 魔方：格子圆角/间隔（属性区编辑，点击格子后样式区显示） -->
+                  <template v-else-if="f.control === 'cube-cell'">
                     <el-slider v-if="cubeCellTarget" :model-value="cubeCellTarget[f.cellKey] ?? (f.cellKey === 'radius' ? 4 : 0)" @update:model-value="cubeCellTarget[f.cellKey] = $event" :min="f.min" :max="f.max" show-input />
                     <span v-else class="pe-cube-cell-tip">{{ f.cellTip }}</span>
                   </template>
