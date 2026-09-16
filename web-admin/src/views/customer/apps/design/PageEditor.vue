@@ -1788,6 +1788,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-prop-body :deep(.pe-hint .el-alert__title) { font-size: 12px; }
 .pe-form-hint :deep(.el-form-item__content) { margin-left: 0 !important; }
 .pe-cube-cell-tip { font-size: 12px; color: #86909c; line-height: 1.6; display: block; }
+.pe-cube-fill, .pe-cube-pos { width: 100%; flex-shrink: 0; }
 /* 图形化单选（选择风格：一列/两列并排，仿 eweishop） */
 .pe-graphic { display: flex; gap: 8px; width: 100%; }
 .pe-graphic-grid { display: grid !important; grid-template-columns: repeat(2, 1fr); gap: 8px; }
