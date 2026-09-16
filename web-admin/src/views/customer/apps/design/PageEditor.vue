@@ -448,18 +448,6 @@
           <el-button size="small" @click="openHeaderImg('global')">选择背景图</el-button>
           <el-button v-if="meta.global.bgImage" size="small" text type="danger" @click="meta.global.bgImage = ''">清除</el-button>
         </div>
-        <div class="hp-row">
-          <div class="hp-label">卡片圆角(px)</div>
-          <el-slider v-model="meta.global.cardRadius" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
-        </div>
-        <div class="hp-row">
-          <div class="hp-label">卡片边距(px)</div>
-          <el-slider v-model="meta.global.cardPadding" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
-        </div>
-        <div class="hp-row">
-          <div class="hp-label">卡片间距(px)</div>
-          <el-slider v-model="meta.global.cardGap" :min="0" :max="24" show-input style="flex: 1; min-width: 140px" />
-        </div>
         <div class="hp-sec">头部默认值（全局默认，单页可覆盖）</div>
         <div class="hp-row">
           <div class="hp-label">默认头部方案</div>
@@ -883,7 +871,7 @@ const pageList = ref([]);
 // ---- 页面级 meta（主题/全局/头部/底部导航，随草稿一起保存） ----
 const meta = reactive({
   theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
-  global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
+  global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
   header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
 });
@@ -1342,7 +1330,7 @@ async function load() {
 function defaultMeta() {
   return {
     theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
-    global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
+    global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
     header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
     nav: { mode: 'default', schemeId: null, jumpEnabled: true },
   };

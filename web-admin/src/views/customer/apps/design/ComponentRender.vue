@@ -721,8 +721,8 @@ function cd2CellStyle(p, img) {
 const containerStyle = computed(() => {
   const p = props.comp.props || {};
   const g = props.global || {};
-  const cardGap = g.cardGap ?? 12;
-  const cardRadius = g.cardRadius ?? 8;
+  const cardGap = 12;
+  const cardRadius = 8;
   const s = {};
   // 有「左右边距」参数、属性面板不注入「内边距」滑块的组件：忽略容器 p.padding（防止存量冗余 padding 造成左右隐藏间隔）
   const HIDDEN_PADDING_TYPES = ['image', 'countdown', 'countdown2', 'image-text', 'cube', 'title-bar'];
@@ -959,8 +959,7 @@ function imgFillCls(p) {
 // 图文卡片内容区（内容边距独立控制：p.contentPadding ?? 全局卡片边距；与「左右边距」解耦，旧数据无该字段时沿用全局）
 function imageTextBodyStyle(p) {
   const g = props.global || {};
-  const cardPadding = g.cardPadding ?? 12;
-  return { padding: `${p.contentPadding ?? cardPadding}px` };
+  return { padding: `${p.contentPadding ?? 12}px` };
 }
 // 富文本外层（ew 1:1）：底部背景=外层底色；边距统一由容器（comp-render）控制
 function rtOuterStyle(p) {

@@ -782,8 +782,7 @@ function dpImageTextStyle(p) {
 // 图文卡片内容区（内容边距独立控制：p.contentPadding ?? 全局卡片边距；与「左右边距」解耦，旧数据无该字段时沿用全局）
 function dpItBodyStyle(p) {
   const g = props.global || {};
-  const cardPadding = g.cardPadding ?? 12;
-  return { padding: `${p.contentPadding ?? cardPadding}px` };
+  return { padding: `${p.contentPadding ?? 12}px` };
 }
 // 通用图片填充（C 端，推广自魔方）：cover→aspectFill / contain→aspectFit / fill→scaleToFill / none→aspectFit+原尺寸；位置仅 H5 生效
 function dpImgMode(p) {
@@ -1017,8 +1016,8 @@ const HIDDEN_PADDING_TYPES = ['image', 'countdown', 'countdown2', 'image-text', 
 function containerStyle(c) {
   const p = c.props || {};
   const g = props.global || {};
-  const cardGap = g.cardGap ?? 12;
-  const cardRadius = g.cardRadius ?? 8;
+  const cardGap = 12;
+  const cardRadius = 8;
   const s = {};
   if (p.padding !== undefined && p.padding !== '' && !HIDDEN_PADDING_TYPES.includes(c.type)) s.padding = `${p.padding}px`;
   const r = p.radius ?? cardRadius;
