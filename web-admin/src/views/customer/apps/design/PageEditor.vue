@@ -468,7 +468,53 @@
             <el-radio :value="2">方案二（ew）</el-radio>
           </el-radio-group>
         </div>
-        <HeaderEwPanel v-model="meta.global.headerDefault.ew" />
+        <!-- 方案一（云菜鸟）全局默认配置 -->
+        <template v-if="meta.global.headerDefault.scheme === 1">
+          <div class="hp-tip">以下为方案一（云菜鸟）的全局默认头部配置，仅当本页头部未单独设置时生效</div>
+          <div class="hp-row">
+            <div class="hp-label">头部类型</div>
+            <el-radio-group v-model="meta.global.headerDefault.s1.type">
+              <el-radio value="custom">自定义</el-radio>
+              <el-radio value="immersive">沉浸式</el-radio>
+              <el-radio value="official">仿官方</el-radio>
+            </el-radio-group>
+          </div>
+          <template v-if="meta.global.headerDefault.s1.type === 'custom'">
+            <div class="hp-row">
+              <div class="hp-label">头部背景</div>
+              <el-color-picker v-model="meta.global.headerDefault.s1.bgColor" />
+              <el-button size="small" @click="openHeaderImg('hdrDef1')">背景图</el-button>
+              <el-button v-if="meta.global.headerDefault.s1.bgImage" size="small" text type="danger" @click="meta.global.headerDefault.s1.bgImage = ''">清除</el-button>
+            </div>
+            <div class="hp-row">
+              <div class="hp-label">头部动态</div>
+              <el-radio-group v-model="meta.global.headerDefault.s1.fixed">
+                <el-radio :value="true">固定</el-radio>
+                <el-radio :value="false">跟随</el-radio>
+              </el-radio-group>
+            </div>
+            <div class="hp-row">
+              <div class="hp-label">头部内容</div>
+              <el-radio-group v-model="meta.global.headerDefault.s1.lines">
+                <el-radio :value="1">一行</el-radio>
+                <el-radio :value="2">两行</el-radio>
+              </el-radio-group>
+            </div>
+          </template>
+          <div class="hp-row">
+            <div class="hp-label">页面标题</div>
+            <el-input v-model="meta.global.headerDefault.s1.titleText" size="small" placeholder="默认取页面名称" style="width: 220px" />
+          </div>
+          <div class="hp-row">
+            <div class="hp-label">文字颜色</div>
+            <el-color-picker v-model="meta.global.headerDefault.s1.textColor" />
+          </div>
+        </template>
+        <!-- 方案二（ew）全局默认配置 -->
+        <template v-else>
+          <div class="hp-tip">以下为方案二（ew）的全局默认头部配置，仅当本页头部未单独设置时生效</div>
+          <HeaderEwPanel v-model="meta.global.headerDefault.ew" />
+        </template>
       </div>
 
       <!-- 头部设置（照抄云菜鸟：头部类型决定可配置菜单——自定义=全部子项 / 沉浸式=仅类型 / 仿官方=类型+页面标题） -->
@@ -837,7 +883,7 @@ const pageList = ref([]);
 // ---- 页面级 meta（主题/全局/头部/底部导航，随草稿一起保存） ----
 const meta = reactive({
   theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
-  global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader() } },
+  global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
   header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
 });
@@ -1296,7 +1342,7 @@ async function load() {
 function defaultMeta() {
   return {
     theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
-    global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader() } },
+    global: { bgColor: '', bgImage: '', cardRadius: 8, cardPadding: 8, cardGap: 12, headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
     header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
     nav: { mode: 'default', schemeId: null, jumpEnabled: true },
   };
@@ -1427,6 +1473,8 @@ function confirmImgSel(url, mid) {
       row[imgSel.target.pos].image = url;
     } else if (imgSel.target?.target === 'header') {
       meta.header.bgImage = url;
+    } else if (imgSel.target?.target === 'hdrDef1') {
+      meta.global.headerDefault.s1.bgImage = url;
     } else if (imgSel.target?.target === 'global') {
       meta.global.bgImage = url;
     } else if (selectedComp.value) {
