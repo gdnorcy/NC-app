@@ -1,6 +1,6 @@
 // 设计中心 C 端渲染工具测试：规范化/兜底图标/首页映射/缓存读取
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
+import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
 
 const store = {};
 const uniMock = {
@@ -187,5 +187,21 @@ describe('设计中心 C 端渲染工具', () => {
     expect(h.scheme).toBe(1);
     expect(h.bgColor).toBe('#ff0000');
     expect(h.titleText).toBe('本页标题');
+  });
+
+  it('P15 buildShareCard：标题取分享标题（默认页面名）、配图取分享图片、path 可传', () => {
+    expect(buildShareCard({ shareTitle: '商会欢迎您', shareImage: '/uploads/s.png' }, '首页', '/pages/cardMain/home?tid=1'))
+      .toEqual({ title: '商会欢迎您', imageUrl: '/uploads/s.png', path: '/pages/cardMain/home?tid=1' });
+    expect(buildShareCard({}, '首页', '').title).toBe('首页');
+    expect(buildShareCard(null, '', '').title).toBe('智能名片');
+    expect(buildShareCard({}, '', '').imageUrl).toBe('');
+  });
+
+  it('P16 shouldShowShareBack：仅分享进入且开启返回上页时为 true', () => {
+    expect(shouldShowShareBack({ from: 'share' }, { backHome: true })).toBe(true);
+    expect(shouldShowShareBack({ from: 'share' }, { backHome: false })).toBe(false);
+    expect(shouldShowShareBack({ from: 'share' }, {})).toBe(false);
+    expect(shouldShowShareBack({}, { backHome: true })).toBe(false);
+    expect(shouldShowShareBack(null, { backHome: true })).toBe(false);
   });
 });

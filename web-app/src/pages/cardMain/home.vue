@@ -1,5 +1,10 @@
 <template>
   <view class="home-page">
+    <!-- 分享进入 + 主题设置「返回上页」开启：顶部返回首页按钮（小程序端） -->
+    <view v-if="shareBack" class="share-back" @click="goHomeByShare">
+      <text class="share-back-arrow">‹</text>
+      <text class="share-back-text">返回首页</text>
+    </view>
     <!-- 设计中心头部设置（方案一：custom/immersive/official；方案二：ew 风格头部） -->
     <DesignNav v-if="designHeader && designHeader.scheme !== 2" :header="designHeader" page-name="首页" />
     <DesignNavEw v-else-if="designHeader" :header="designHeader" page-name="首页" :scrolled="headerScrolled" @search="goSearch" />
@@ -132,10 +137,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { onShow, onLoad, onPageScroll } from '@dcloudio/uni-app';
+import { onShow, onLoad, onPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
-import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY } from '../../utils/design.js';
+import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
@@ -152,10 +157,25 @@ const designComps = ref([]);
 const designTenantId = ref(0);
 const designHeader = ref(null);
 const designGlobal = ref({});
+const designTheme = ref({});
+const shareBack = ref(false);
 const headerScrolled = ref(false);
 onPageScroll((e) => { headerScrolled.value = (e?.scrollTop || 0) > 10; });
 let pageOptions = {};
 onLoad((o) => { pageOptions = o || {}; });
+
+// 小程序分享卡片：标题/图片取主题设置「分享标题/分享图片」，path 带当前租户 tid
+onShareAppMessage(() => {
+  const tid = pageOptions.tid ? `?tid=${pageOptions.tid}` : '';
+  return buildShareCard(designTheme.value, '首页', `/pages/cardMain/home${tid}`);
+});
+
+// 「返回上页」开启时，分享进入 → 返回首页
+function goHomeByShare() {
+  // #ifdef MP-WEIXIN
+  uni.reLaunch({ url: `/pages/cardMain/home${pageOptions.tid ? `?tid=${pageOptions.tid}` : ''}` });
+  // #endif
+}
 
 // 预览标志：优先 onLoad options，H5 端兜底直接读 hash query（避免 onLoad 解析差异）
 function isPreviewMode() {
@@ -197,6 +217,9 @@ onMounted(async () => {
     designTenantId.value = config?.tenantId || 0;
     designHeader.value = config?.header || null;
     designGlobal.value = config?.pages?.meta?.global || {};
+    designTheme.value = config?.pages?.meta?.theme || {};
+    // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
+    shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);
     if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
     else if (preview) uni.showToast({ title: '草稿预览模式', icon: 'none' });
   } catch (e) {}
@@ -286,6 +309,24 @@ function viewMarketCard(item) {
 </script>
 
 <style scoped>
+/* 分享进入 + 「返回上页」开启：顶部返回首页按钮 */
+.share-back {
+  position: fixed;
+  top: calc(var(--status-bar-height, 0px) + 8px);
+  left: 10px;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 12px 5px 8px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 18px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  color: #1d2129;
+}
+.share-back-arrow { font-size: 18px; line-height: 1; margin-right: 2px; }
+.share-back-text { font-size: 13px; }
 .home-page {
   min-height: 100vh;
   background: #f5f7fa;

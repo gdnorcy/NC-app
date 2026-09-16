@@ -179,3 +179,19 @@ export function applyDesignStyle(config, scope) {
   root.style.setProperty('--design-primary', style.primaryColor || '#165DFF');
   root.style.setProperty('--design-radius', `${style.radius ?? 8}px`);
 }
+
+/** 小程序分享卡片：标题取分享标题（默认页面名），配图取分享图片（空则微信默认截屏） */
+export function buildShareCard(theme, pageName, path) {
+  const t = theme || {};
+  return {
+    title: t.shareTitle || pageName || '智能名片',
+    imageUrl: t.shareImage || '',
+    path: path || '/pages/cardMain/home',
+  };
+}
+
+/** 分享进入且开启「返回上页」→ 显示返回首页语义（供页面渲染返回按钮/行为） */
+export function shouldShowShareBack(options, theme) {
+  if (!options || options.from !== 'share') return false;
+  return !!(theme && theme.backHome);
+}
