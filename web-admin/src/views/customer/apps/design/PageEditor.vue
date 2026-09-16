@@ -262,18 +262,10 @@
                         >
                           <svg class="pe-graphic-svg" viewBox="0 0 44 44">
                             <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5" stroke="#E5E6EB"/>
-                            <template v-if="o.v === 'cover'">
-                              <rect x="8" y="-2" width="28" height="48" rx="2" fill="#165DFF" opacity=".75"/>
-                            </template>
-                            <template v-else-if="o.v === 'contain'">
-                              <rect x="14" y="14" width="16" height="16" rx="2" fill="#165DFF" opacity=".75"/>
-                            </template>
-                            <template v-else-if="o.v === 'fill'">
-                              <rect x="8" y="10" width="28" height="24" rx="1" fill="#165DFF" opacity=".75"/>
-                            </template>
-                            <template v-else>
-                              <rect x="18" y="18" width="8" height="8" rx="1" fill="#165DFF" opacity=".75"/>
-                            </template>
+                            <rect v-if="o.v === 'cover'" x="8" y="-2" width="28" height="48" rx="2" fill="#165DFF" opacity=".75"/>
+                            <rect v-else-if="o.v === 'contain'" x="14" y="14" width="16" height="16" rx="2" fill="#165DFF" opacity=".75"/>
+                            <rect v-else-if="o.v === 'fill'" x="8" y="10" width="28" height="24" rx="1" fill="#165DFF" opacity=".75"/>
+                            <rect v-else x="18" y="18" width="8" height="8" rx="1" fill="#165DFF" opacity=".75"/>
                           </svg>
                           <span class="pe-graphic-name">{{ o.label }}</span>
                           <span class="pe-graphic-check">✓</span>
