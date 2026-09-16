@@ -806,3 +806,19 @@ npm run test:frontend
 2. **交互**：SV/色相条 pointerdown+pointermove 拖拽实时更新（pointerup 释放）；hex 输入 Enter 提交；清空=置空（transparent）；确定=emit 提交并关闭；点击外部关闭不提交。transparent/空值保留（显示 transparent、色块透明格纹）。
 3. **纯函数**：hsvToHex/hexToHsv/normalizeHex 内置组件（支持 3 位/6 位 hex）；SV 背景用 `linear-gradient(to top,#000,transparent) + linear-gradient(to right,#fff,hsla(H,100%,50%,0)) + hsl(H,100%,50%)` 组合；色相圆点 background 必须内联 `hsl(h,100%,50%)`（禁止用未设置的 CSS 变量，曾致圆点恒红）。
 4. **应用范围**：所有组件属性面板颜色字段（颜色/描边颜色/底部颜色/组件背景等）统一走 PeColorPicker，禁止混用原生 input[type=color] 或旧弹窗色板。
+
+# 1:1 复刻外观验证规范（2026-09-17 新增）
+
+## 精细外观对比流程（复刻完成后强制）
+
+1. **截图存档防覆盖**：`mac_computer_use_tool`/`computer_use` 的截图固定写同一 `shot.png` 路径，后续任何截图都会覆盖。每次验证截图后**立即 `cp` 到项目目录存档**，再继续其它操作；diff 用的"我方"样本必须来自当次验证截图，禁止引用旧路径文件（曾因被覆盖成项目列表页导致对比样本全错）。
+2. **截图前确认**：switch_tab 后先 `bu.js` 读目标元素（如 `.ds-preview` rect），确认页面正确且元素**完整可见**（rect 不超出截图高度，超出则 scrollIntoView 后再截，曾因窗底 1057>960 截断导致对比无效）。
+3. **像素对比工具**：`scripts/design-preview-diff.py`（--strip 挖除双方主题色后只比静态背景，消除配色差异干扰；--remap 色映射；--ref-windows/--mine-windows 千分比坐标）。坐标必须用浏览器 rect 或 OCR 校准，**禁止凭猜**（曾按 2x 猜坐标全窗错位）。
+4. **结果判定**：挖主题色后静态背景差异 ≤15% 且差异网格无整块结构性区域 → 结构 1:1；再生成并排大图（菜鸟云/我方逐窗 2x 放大）人工目测逐元素核对（分类栏、按钮、文案、层级）。
+5. **交付物**：并排对比图保存为 `design-preview-compare.png` 交用户自查。
+
+## 透明 PNG 素材机制（菜鸟云系统风格预览）
+
+- 三张背景图是**透明挖空 PNG**：主题色应出现的区域在 PNG 里是透明的（alpha=0），手机壳/页面背景层填充选定配色，**切换配色时透明处透出填充色**（有色的地方是透明的）。
+- 我方等价实现：背景图（透明挖空）+ 动态覆盖层 div 填充当前主题色 → 视觉一致（已实测青蓝/玫红/白色头部联动）。
+- 主题色区域禁止用半透明覆盖层平铺（会盖住背景文字），必须精确挖空或按菜鸟云 CSS 的 con_div 覆盖层几何落位。
