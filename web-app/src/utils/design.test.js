@@ -157,4 +157,35 @@ describe('设计中心 C 端渲染工具', () => {
     expect(h.ew.layers.length).toBe(2);
     expect(h.ew.layers[0].left.type).toBe('none');
   });
+
+  it('P12 方案一跟随全局默认：followGlobal=true 用全局 s1 覆盖头部核心字段', () => {
+    const gd = { scheme: 1, s1: { type: 'custom', bgColor: '#9ce108', bgImage: '', fixed: true, padding: 8, lines: 1, titleText: '全局标题', textColor: '#123456' } };
+    const page = { followGlobal: true, scheme: 1, type: 'custom', bgColor: '#ffffff', titleText: '', textColor: '#1d2129', padding: 0, lines: 1, content: { left: { type: 'none' }, center: { type: 'none' }, right: { type: 'none' } } };
+    const h = normalizeHeader(page, gd);
+    expect(h.scheme).toBe(1);
+    expect(h.bgColor).toBe('#9ce108');
+    expect(h.titleText).toBe('全局标题');
+    expect(h.textColor).toBe('#123456');
+    expect(h.padding).toBe(8);
+    expect(h.content.left.type).toBe('none'); // 内容行保留页面结构
+  });
+
+  it('P13 方案二跟随全局默认：followGlobal=true 以全局 ew 为准，页面 ew 默认不覆盖', () => {
+    const gd = { scheme: 2, ew: { funcModule: 'single', textColor: 'black', layers: [{ left: { type: 'image', image: '/uploads/g.png' }, middle: { type: 'search', search: { placeholder: '全局' } }, right: { type: 'none' } }, {}] } };
+    const page = { followGlobal: true, scheme: 2, ew: { funcModule: 'double', layers: [{ left: { type: 'icon', icon: 'user' } }, { middle: { type: 'image', image: '/uploads/p.png' } }] } };
+    const h = normalizeHeader(page, gd);
+    expect(h.scheme).toBe(2);
+    expect(h.ew.funcModule).toBe('single'); // 跟随全局 → 页面默认不覆盖
+    expect(h.ew.layers[0].left.type).toBe('image');
+    expect(h.ew.layers[0].left.image).toBe('/uploads/g.png');
+  });
+
+  it('P14 存量页面（无 followGlobal）保持页面级优先：全局 s1 不覆盖页面已配置字段', () => {
+    const gd = { scheme: 1, s1: { bgColor: '#9ce108', titleText: '全局标题' } };
+    const page = { scheme: 1, type: 'custom', bgColor: '#ff0000', titleText: '本页标题', textColor: '#1d2129', padding: 0, lines: 1, content: {} };
+    const h = normalizeHeader(page, gd);
+    expect(h.scheme).toBe(1);
+    expect(h.bgColor).toBe('#ff0000');
+    expect(h.titleText).toBe('本页标题');
+  });
 });

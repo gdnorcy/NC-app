@@ -63,11 +63,14 @@ export function resolveHomePath(homePage) {
 /** 规范化头部设置（custom/immersive/official；缺字段兜底；支持两行内容 content2 与文字加粗/大小/中间样式） */
 export function normalizeHeader(raw, globalDefault) {
   const gd = globalDefault || {};
-  const scheme = raw?.scheme ?? gd.scheme ?? 1;
+  // 跟随全局默认（followGlobal=true，新建页面默认）：头部整体采用全局默认配置（方案/背景/标题等）；
+  // 自定义本页：页面配置优先，未设置字段回退全局默认
+  const followGlobal = raw?.followGlobal === true;
+  const scheme = followGlobal ? (gd.scheme ?? 1) : (raw?.scheme ?? gd.scheme ?? 1);
   if (scheme === 2) {
-    // 方案二（ew）：页面 ew 字段覆盖全局默认（全局默认 + 单页覆盖）
+    // 方案二（ew）：跟随全局 → 以全局 ew 为准；自定义本页 → 页面 ew 字段覆盖全局默认（全局默认 + 单页覆盖）
     const gEw = gd.ew || {};
-    const pEw = raw?.ew || {};
+    const pEw = followGlobal ? gEw : (raw?.ew || {});
     const mergeLayers = () => {
       const gl = Array.isArray(gEw.layers) ? gEw.layers : [];
       const pl = Array.isArray(pEw.layers) ? pEw.layers : [];
@@ -99,7 +102,7 @@ export function normalizeHeader(raw, globalDefault) {
     const r = row || {};
     return { left: normItem(r.left), center: normItem(r.center), right: normItem(r.right) };
   };
-  return {
+  const base = {
     scheme: 1,
     type: ['custom', 'immersive', 'official'].includes(raw.type) ? raw.type : 'custom',
     bgColor: raw.bgColor || '#ffffff',
@@ -112,6 +115,12 @@ export function normalizeHeader(raw, globalDefault) {
     content: normRow(raw.content),
     content2: normRow(raw.content2),
   };
+  // 跟随全局默认 → 全局方案一默认（s1）覆盖头部核心字段（背景/标题/类型/固定/边距/行数/文字色）
+  if (followGlobal) {
+    const s1 = gd.s1 || {};
+    return { ...base, ...s1 };
+  }
+  return base;
 }
 
 /** 方案二（ew）单层 merge：左/中/右三段字段兜底合并 */

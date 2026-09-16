@@ -508,6 +508,17 @@
       <!-- 头部设置（照抄云菜鸟：头部类型决定可配置菜单——自定义=全部子项 / 沉浸式=仅类型 / 仿官方=类型+页面标题） -->
       <div v-if="headerPanel.active === 'header'" class="hp-body">
         <div class="hp-row">
+          <div class="hp-label">头部来源</div>
+          <el-radio-group :model-value="meta.header.followGlobal === true" @update:model-value="setFollowGlobal">
+            <el-radio :value="true">跟随全局默认</el-radio>
+            <el-radio :value="false">自定义本页</el-radio>
+          </el-radio-group>
+        </div>
+        <template v-if="meta.header.followGlobal === true">
+          <div class="hp-tip">当前头部跟随全局默认（{{ headerScheme === 2 ? '方案二（ew）' : '方案一（云菜鸟）' }}）：在「全局设置 → 头部默认值」里配置，改动对所有跟随全局的页面生效；本页如需单独配置，请切换为「自定义本页」。</div>
+        </template>
+        <template v-else>
+        <div class="hp-row">
           <div class="hp-label">头部方案</div>
           <el-radio-group :model-value="headerScheme" @update:model-value="setHeaderScheme">
             <el-radio :value="1">方案一（云菜鸟）</el-radio>
@@ -638,6 +649,7 @@
         </template>
         <template v-else>
           <HeaderEwPanel v-model="meta.header.ew" />
+        </template>
         </template>
       </div>
 
@@ -872,14 +884,24 @@ const pageList = ref([]);
 const meta = reactive({
   theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
   global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
-  header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
+  header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, followGlobal: false, ew: mkEwHeader() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
 });
 
 // 头部方案（页面覆盖全局默认）：header.scheme ?? global.headerDefault.scheme ?? 1
-const headerScheme = computed(() => meta.header.scheme ?? meta.global.headerDefault.scheme ?? 1);
+const headerScheme = computed(() => {
+  // 跟随全局默认 → 用全局默认方案；自定义本页 → 用页面方案（未设时回退全局）
+  if (meta.header.followGlobal === true) return meta.global.headerDefault.scheme ?? 1;
+  return meta.header.scheme ?? meta.global.headerDefault.scheme ?? 1;
+});
 function setHeaderScheme(v) {
+  // 主动切方案 = 自定义本页
+  meta.header.followGlobal = false;
   meta.header.scheme = v;
+}
+function setFollowGlobal(v) {
+  meta.header.followGlobal = v;
+  if (!v && meta.header.scheme == null) meta.header.scheme = meta.global.headerDefault.scheme ?? 1;
 }
 
 // 手机壳/画布背景 = 全局设置（背景色/背景图），编辑端与 C 端渲染一致
@@ -920,8 +942,17 @@ const ratioShapes = {
   '9:16': { w: 22, h: 32 },
 };
 // 导航栏渲染（按头部设置，照抄云菜鸟：custom=按配置 / immersive=透明悬浮 / official=白底深字固定样式）
-const navStyle = computed(() => {
+// 方案一头部渲染数据源：跟随全局默认时用全局 s1 覆盖页面对应字段（背景/标题/类型等），自定义本页时用页面 meta.header
+const hdr = computed(() => {
   const h = meta.header;
+  if (h.followGlobal === true) {
+    const g = meta.global.headerDefault?.s1 || {};
+    return { ...h, ...g };
+  }
+  return h;
+});
+const navStyle = computed(() => {
+  const h = hdr.value;
   const style = {};
   if (h.type === 'immersive') style.background = 'transparent';
   else if (h.type === 'official') style.background = '#ffffff';
@@ -932,7 +963,12 @@ const navStyle = computed(() => {
 });
 
 // ---- 方案二（ew）头部：全局默认 + 单页覆盖合并，编辑端预览渲染（与 C 端 normalizeHeader scheme===2 逻辑一致，合并逻辑在 utils/designHeader.js） ----
-const ewHeader = computed(() => mergeEwHeader(meta.global.headerDefault?.ew, meta.header.ew));
+const ewHeader = computed(() => {
+  const gEw = meta.global.headerDefault?.ew || {};
+  // 跟随全局默认 → 以全局 ew 为准；自定义本页 → 全局为底、页面覆盖
+  if (meta.header.followGlobal === true) return mergeEwHeader(gEw, gEw);
+  return mergeEwHeader(gEw, meta.header.ew);
+});
 const ewShownLayers = computed(() => {
   const ew = ewHeader.value;
   const layers = Array.isArray(ew.layers) ? ew.layers : [];
@@ -964,16 +1000,16 @@ function ewSearchStyle(layer) {
   return arr.join(';');
 }
 const navTextColor = computed(() => {
-  const t = meta.header.type;
+  const t = hdr.value.type;
   if (t === 'immersive') return '#ffffff';
   if (t === 'official') return '#1d2129';
-  return meta.header.textColor || '#1d2129';
+  return hdr.value.textColor || '#1d2129';
 });
 function navPosHtml(pos) {
   // 仿官方 / 沉浸式头部为固定样式，不渲染左右自定义内容（与配置菜单一致）
-  if (meta.header.type === 'official' || meta.header.type === 'immersive') return '';
-  const c = meta.header.content[pos] || {};
-  const color = meta.header.type === 'immersive' ? '#ffffff' : (c.color || '#1d2129');
+  if (hdr.value.type === 'official' || hdr.value.type === 'immersive') return '';
+  const c = hdr.value.content[pos] || {};
+  const color = hdr.value.type === 'immersive' ? '#ffffff' : (c.color || '#1d2129');
   if (c.type === 'none' || !c.type) return '';
   const weight = c.bold ? 'font-weight:600;' : '';
   if (c.type === 'text') return `<span style="color:${color};font-size:${c.fontSize || 13}px;${weight}line-height:1">${c.text || ''}</span>`;
@@ -984,10 +1020,10 @@ function navPosHtml(pos) {
 }
 // 中间部分：配置了内容则按配置（背景/边框/宽度/圆角/对齐/字体色）渲染，否则回退标题文字
 function navCenterHtml(rowKey) {
-  if (meta.header.type === 'official') return meta.header.titleText || '首页';
-  if (meta.header.type === 'immersive') return meta.header.titleText || '首页';
-  const c = (meta.header[rowKey] || meta.header.content)['center'] || {};
-  const color = (meta.header.type === 'immersive' ? '#ffffff' : (c.color || meta.header.textColor || '#1d2129'));
+  if (hdr.value.type === 'official') return hdr.value.titleText || '首页';
+  if (hdr.value.type === 'immersive') return hdr.value.titleText || '首页';
+  const c = (hdr.value[rowKey] || hdr.value.content)['center'] || {};
+  const color = (hdr.value.type === 'immersive' ? '#ffffff' : (c.color || hdr.value.textColor || '#1d2129'));
   if (c.type && c.type !== 'none' && (c.text || c.image)) {
     let inner = '';
     if (c.type === 'text') inner = `<span style="color:${color};font-size:${c.fontSize || 13}px;${c.bold ? 'font-weight:600;' : ''}line-height:1">${c.text}</span>`;
@@ -1001,16 +1037,16 @@ function navCenterHtml(rowKey) {
     style.push('display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 10px;box-sizing:border-box');
     return `<span style="${style.join(';')}">${inner}</span>`;
   }
-  const base = meta.header.type === 'immersive' ? '#ffffff' : (meta.header.textColor || '#1d2129');
-  return `<span style="color:${base};font-size:14px;font-weight:600;line-height:1">${meta.header.titleText || '首页'}</span>`;
+  const base = hdr.value.type === 'immersive' ? '#ffffff' : (hdr.value.textColor || '#1d2129');
+  return `<span style="color:${base};font-size:14px;font-weight:600;line-height:1">${hdr.value.titleText || '首页'}</span>`;
 }
 const navLeftHtml = computed(() => navPosHtml('left'));
 const navRightHtml = computed(() => navPosHtml('right'));
 const navCenterHtml1 = computed(() => navCenterHtml('content'));
-const navCenterHtml2 = computed(() => (meta.header.lines === 2 ? navCenterHtml('content2') : ''));
+const navCenterHtml2 = computed(() => (hdr.value.lines === 2 ? navCenterHtml('content2') : ''));
 function navPosHtml2(pos) {
-  if (meta.header.type !== 'custom' || meta.header.lines !== 2) return '';
-  const c = (meta.header.content2 || {})[pos] || {};
+  if (hdr.value.type !== 'custom' || hdr.value.lines !== 2) return '';
+  const c = (hdr.value.content2 || {})[pos] || {};
   const color = c.color || '#1d2129';
   if (c.type === 'none' || !c.type) return '';
   const weight = c.bold ? 'font-weight:600;' : '';
@@ -1317,7 +1353,12 @@ async function load() {
         }
         return { ...c, props };
       });
-      if (json.meta) Object.assign(meta, deepMerge(defaultMeta(), json.meta));
+      if (json.meta) {
+        const m = deepMerge(defaultMeta(), json.meta);
+        // 存量页面（header 无 followGlobal 字段）保持原有"页面级配置优先"语义，不被 defaultMeta 默认值改写成跟随全局
+        if (json.meta.header && !Object.prototype.hasOwnProperty.call(json.meta.header, 'followGlobal')) m.header.followGlobal = false;
+        Object.assign(meta, m);
+      }
       else Object.assign(meta, defaultMeta());
     } else {
       Object.assign(meta, defaultMeta());
@@ -1331,7 +1372,7 @@ function defaultMeta() {
   return {
     theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
     global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
-    header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, ew: mkEwHeader() },
+    header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, followGlobal: true, ew: mkEwHeader() },
     nav: { mode: 'default', schemeId: null, jumpEnabled: true },
   };
 }
