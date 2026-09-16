@@ -426,6 +426,26 @@
           <el-input v-model="meta.theme.shareTitle" size="small" placeholder="默认取页面名称" style="width: 220px" />
         </div>
         <div class="hp-row">
+          <div class="hp-label">分享图片</div>
+          <el-input v-model="meta.theme.shareImage" size="small" placeholder="请输入图片地址或选择图片" style="width: 220px" />
+          <el-button size="small" @click="openHeaderImg('themeShareImg')">选择图片</el-button>
+        </div>
+        <div v-if="meta.theme.shareImage" class="hp-row">
+          <div class="hp-label"></div>
+          <div class="hp-share-preview">
+            <img :src="resolveUrl(meta.theme.shareImage)" class="hp-share-img" />
+            <span class="hp-share-del" @click="meta.theme.shareImage = ''">×</span>
+          </div>
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">返回上页</div>
+          <el-radio-group v-model="meta.theme.backHome">
+            <el-radio :value="false">关闭</el-radio>
+            <el-radio :value="true">开启</el-radio>
+          </el-radio-group>
+        </div>
+        <div v-if="meta.theme.backHome" class="hp-hint">点击分享链接进入页面，顶部返回按钮功能为返回首页</div>
+        <div class="hp-row">
           <div class="hp-label">密码访问</div>
           <el-switch v-model="meta.theme.passwordEnabled" />
           <el-input v-if="meta.theme.passwordEnabled" v-model="meta.theme.password" size="small" placeholder="访问密码" style="width: 140px; margin-left: 8px" />
@@ -882,7 +902,7 @@ const pageKw = ref('');
 const pageList = ref([]);
 // ---- 页面级 meta（主题/全局/头部/底部导航，随草稿一起保存） ----
 const meta = reactive({
-  theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
+  theme: { shareTitle: '', shareImage: '', backHome: false, passwordEnabled: false, password: '', memberOnly: false },
   global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
   header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, followGlobal: false, ew: mkEwHeader() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
@@ -1370,7 +1390,7 @@ async function load() {
 }
 function defaultMeta() {
   return {
-    theme: { shareTitle: '', passwordEnabled: false, password: '', memberOnly: false },
+    theme: { shareTitle: '', shareImage: '', backHome: false, passwordEnabled: false, password: '', memberOnly: false },
     global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
     header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, followGlobal: true, ew: mkEwHeader() },
     nav: { mode: 'default', schemeId: null, jumpEnabled: true },
@@ -1492,7 +1512,15 @@ function openImgSel(listIdx, fieldIdx, listField) {
   imgSel.show = true;
 }
 function confirmImgSel(url, mid) {
-  if (url && selectedComp.value) {
+  // 页面设置里的目标字段选图（不依赖当前选中组件）：头部背景图 / 方案一全局背景图 / 全局背景图 / 分享图片 / 头部内容行图片
+  if (imgSel.target?.target === 'header') meta.header.bgImage = url;
+  else if (imgSel.target?.target === 'hdrDef1') meta.global.headerDefault.s1.bgImage = url;
+  else if (imgSel.target?.target === 'global') meta.global.bgImage = url;
+  else if (imgSel.target?.target === 'themeShareImg') meta.theme.shareImage = url;
+  else if (imgSel.target?.pos) {
+    const row = imgSel.target.row || meta.header.content;
+    row[imgSel.target.pos].image = url;
+  } else if (url && selectedComp.value) {
     if (imgSel.target && imgSelListField) {
       const items = selectedComp.value.props[imgSelListField.key] || [];
       if (!items[imgSel.target.listIdx]) items[imgSel.target.listIdx] = {};
@@ -1500,12 +1528,6 @@ function confirmImgSel(url, mid) {
     } else if (imgSel.target?.pos) {
       const row = imgSel.target.row || meta.header.content;
       row[imgSel.target.pos].image = url;
-    } else if (imgSel.target?.target === 'header') {
-      meta.header.bgImage = url;
-    } else if (imgSel.target?.target === 'hdrDef1') {
-      meta.global.headerDefault.s1.bgImage = url;
-    } else if (imgSel.target?.target === 'global') {
-      meta.global.bgImage = url;
     } else if (selectedComp.value) {
       selectedComp.value.props.url = url;
       selectedComp.value.props.materialId = mid ?? null;
@@ -1960,6 +1982,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .hp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .hp-label { width: 92px; font-size: 13px; color: #4e5969; flex-shrink: 0; white-space: nowrap; }
 .hp-hint { font-size: 12px; color: #86909c; }
+.hp-share-preview { position: relative; display: inline-flex; }
+.hp-share-img { height: 56px; max-width: 160px; object-fit: contain; border: 1px solid #e5e6eb; border-radius: 6px; }
+.hp-share-del { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; line-height: 14px; text-align: center; background: #f53f3f; color: #fff; border-radius: 50%; font-size: 12px; cursor: pointer; }
 .hp-sec { font-size: 12px; font-weight: 600; color: #4e5969; border-left: 3px solid #165dff; padding-left: 8px; margin-top: 4px; }
 .hp-pos { padding: 8px; background: #fafbfc; border-radius: 8px; }
 
