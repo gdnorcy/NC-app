@@ -33,8 +33,13 @@ export function applyScheme(style, n) {
   return { ...style, colorScheme: n, primaryColor: s.primaryColor, gradientColor: s.gradientColor, secondaryColor: s.secondaryColor, textColor: s.textColor, subTextColor: s.subTextColor };
 }
 
-/** 预览头部样式：跟随主色→主题色底+头部文字色；白色头部→白底黑字（与菜鸟云 choose_style_head 联动一致） */
-export function headPreviewStyle(style) {
-  if (style.headColor === '2') return { background: '#FFFFFF', color: '#000000' };
+/**
+ * 预览头部样式（菜鸟云 choose_style_head 实测规则，2026-09-17 定案）：
+ * - 跟随主色：主色底 + 头部文字色（radio 值）
+ * - 白色头部：白底；切到白色头部瞬间文字强制黑（forceBlack=true，radio 值不动）；
+ *   用户点击过文字选项后（forceBlack=false）按 radio 值渲染（白头部+白字可生效）
+ */
+export function headPreviewStyle(style, forceBlack = false) {
+  if (style.headColor === '2') return { background: '#FFFFFF', color: forceBlack ? '#000000' : style.headText };
   return { background: style.primaryColor, color: style.headText };
 }

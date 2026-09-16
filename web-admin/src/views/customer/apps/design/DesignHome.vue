@@ -117,16 +117,17 @@
         <div class="ds-group-title">基础设置</div>
         <el-form label-width="140px">
           <el-form-item label="头部颜色">
-            <el-radio-group v-model="style.headColor">
+            <el-radio-group v-model="style.headColor" @change="onHeadColorChange">
               <el-radio value="1">跟随主色</el-radio>
               <el-radio value="2">白色头部</el-radio>
             </el-radio-group>
             <span class="form-hint">顶部背景色，为白色头部时顶部文字颜色固定黑色</span>
           </el-form-item>
-          <el-form-item v-if="style.headColor === '1'" label="头部文字">
+          <!-- 菜鸟云实测：头部文字选项始终显示；切白色头部瞬间渲染强制黑，点击文字选项后按 radio 值渲染 -->
+          <el-form-item label="头部文字">
             <el-radio-group v-model="style.headText">
-              <el-radio value="#ffffff">白色</el-radio>
-              <el-radio value="#000000">黑色</el-radio>
+              <el-radio value="#ffffff" @click="headTextTouched = true">白色</el-radio>
+              <el-radio value="#000000" @click="headTextTouched = true">黑色</el-radio>
             </el-radio-group>
             <span class="form-hint">顶部的文字颜色，建议与背景色相反</span>
           </el-form-item>
@@ -798,12 +799,19 @@ const styleSaving = ref(false);
 function pickScheme(n) {
   Object.assign(style, applyScheme({ ...style }, n));
 }
-// 预览头部样式：跟随主色→主题色底+头部文字色；白色头部→白底黑字（与菜鸟云 choose_style_head 联动一致）
-function dsHeadStyle() {
-  return headPreviewStyle(style);
+// 预览头部样式：跟随主色→主题色底+头部文字色；白色头部→白底，切过去瞬间强制黑（菜鸟云实测规则，2026-09-17 定案）
+const headTextTouched = ref(false);
+function onHeadColorChange(v) {
+  // 每次切换头部颜色都重置：切白头部瞬间若 radio=白 → 渲染强制黑（radio 值不动）；
+  // 之后用户点击文字选项 → 按 radio 值渲染（白头部+白字可生效）；切回跟随主色同理重置
+  headTextTouched.value = false;
 }
-// 头部状态栏图：跟随主色+白字 → top1（主题色底）；其余（黑色文字/白色头部）→ top2（白底黑字）——与菜鸟云 choose_style_top 联动一致
-const headTopImg = computed(() => (style.headColor === '1' && style.headText === '#ffffff') ? previewTop1 : previewTop2);
+function dsHeadStyle() {
+  const forceBlack = style.headColor === '2' && !headTextTouched.value;
+  return headPreviewStyle(style, forceBlack);
+}
+// 头部状态栏图：按最终渲染的文字颜色切换（黑→top2 白底黑字，白→top1 主题色底）——与菜鸟云 choose_style_top 联动一致
+const headTopImg = computed(() => (dsHeadStyle().color === '#000000' ? previewTop2 : previewTop1));
 async function loadStyle() {
   try {
     const res = await designCall.get(`${API}/style/get`);

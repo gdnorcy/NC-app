@@ -47,10 +47,16 @@ describe('系统风格（1:1 菜鸟云）', () => {
     expect(s.primaryColor).toBe('#FE0137');
   });
 
-  it('headPreviewStyle：跟随主色→主题色底+头部文字色；白色头部→白底黑字', () => {
+  it('headPreviewStyle：跟随主色→主题色底+头部文字色；白色头部→白底，切过去瞬间强制黑、点过文字后按 radio 值（菜鸟云 2026-09-17 实测定案）', () => {
     const follow = headPreviewStyle({ headColor: '1', headText: '#000000', primaryColor: '#0DA29D' });
     expect(follow).toEqual({ background: '#0DA29D', color: '#000000' });
-    const white = headPreviewStyle({ headColor: '2', headText: '#ffffff', primaryColor: '#FE0137' });
-    expect(white).toEqual({ background: '#FFFFFF', color: '#000000' });
+    // 切白色头部瞬间（forceBlack=true）：白底黑字，即使 radio 是白字
+    const whiteForce = headPreviewStyle({ headColor: '2', headText: '#ffffff', primaryColor: '#FE0137' }, true);
+    expect(whiteForce).toEqual({ background: '#FFFFFF', color: '#000000' });
+    // 点击文字选项后（forceBlack=false）：按 radio 值渲染，白头部+白字可生效
+    const whiteTouched = headPreviewStyle({ headColor: '2', headText: '#ffffff', primaryColor: '#FE0137' }, false);
+    expect(whiteTouched).toEqual({ background: '#FFFFFF', color: '#ffffff' });
+    const whiteBlack = headPreviewStyle({ headColor: '2', headText: '#000000', primaryColor: '#FE0137' }, false);
+    expect(whiteBlack).toEqual({ background: '#FFFFFF', color: '#000000' });
   });
 });
