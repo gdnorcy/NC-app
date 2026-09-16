@@ -109,7 +109,7 @@
 
     <!-- ============ 系统风格 ============ -->
     <section v-if="activeTab === 'style'">
-      <AppPageHeader title="系统风格" desc="全局主题色、圆角、按钮样式、页面背景；保存后作用于当前租户全部名片页面">
+      <AppPageHeader title="系统风格" desc="全局主题色、圆角、按钮样式；保存后作用于当前租户全部名片页面">
         <div class="hd-actions"><el-button type="primary" :loading="styleSaving" @click="saveStyle">保存风格</el-button></div>
       </AppPageHeader>
       <div class="card form-card">
@@ -135,19 +135,6 @@
               <el-radio value="filled">填充</el-radio>
               <el-radio value="outline">描边</el-radio>
             </el-radio-group>
-          </el-form-item>
-          <el-form-item label="页面背景色">
-            <el-color-picker v-model="style.bgColor" />
-          </el-form-item>
-          <el-form-item label="页面背景图">
-            <div class="bg-picker">
-              <div v-if="style.bgImage" class="bg-preview">
-                <img :src="resolveUrl(style.bgImage)" />
-                <el-icon class="bg-del" @click="style.bgImage = ''"><Close /></el-icon>
-              </div>
-              <el-button @click="openImageSelect('bg')">选择背景图</el-button>
-            </div>
-            <span class="form-hint">选择后优先于背景色</span>
           </el-form-item>
         </el-form>
       </div>
@@ -724,7 +711,8 @@ async function loadStyle() {
 async function saveStyle() {
   styleSaving.value = true;
   try {
-    await designCall.post(`${API}/style/save`, { style: { ...style } });
+    const { bgColor, bgImage, ...stylePayload } = style;
+    await designCall.post(`${API}/style/save`, { style: { ...stylePayload } });
     ElMessage.success('风格已保存，小程序端将按最新配置渲染');
   } catch (e) { ElMessage.error(e); } finally { styleSaving.value = false; }
 }
@@ -869,7 +857,6 @@ function openImageSelect(target, idx) {
 }
 function confirmImgSel(url) {
   if (url) {
-    if (imgSel.target === 'bg') style.bgImage = url;
     if (imgSel.target === 'tab' && imgSel.targetIdx !== null) schemeForm.items[imgSel.targetIdx].icon = url;
   }
   imgSel.show = false;

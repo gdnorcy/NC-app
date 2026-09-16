@@ -1,6 +1,6 @@
 // 设计中心 C 端渲染工具测试：规范化/兜底图标/首页映射/缓存读取
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
+import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, resolveAssetUrl, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
 
 const store = {};
 const uniMock = {
@@ -203,5 +203,12 @@ describe('设计中心 C 端渲染工具', () => {
     expect(shouldShowShareBack({ from: 'share' }, {})).toBe(false);
     expect(shouldShowShareBack({}, { backHome: true })).toBe(false);
     expect(shouldShowShareBack(null, { backHome: true })).toBe(false);
+  });
+
+  it('P17 resolveAssetUrl：http/data/blob 原样返回，相对路径拼 origin，空值返回空', () => {
+    expect(resolveAssetUrl('https://a.com/x.png')).toBe('https://a.com/x.png');
+    expect(resolveAssetUrl('data:image/png;base64,xx')).toBe('data:image/png;base64,xx');
+    expect(resolveAssetUrl('')).toBe('');
+    expect(resolveAssetUrl(null)).toBe('');
   });
 });

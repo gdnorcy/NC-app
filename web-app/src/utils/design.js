@@ -1,5 +1,5 @@
 // 设计中心 C 端渲染工具：读取租户发布配置（风格/底部导航/首页跳转），带本地缓存与兜底
-import { cardApi } from './cardApi.js';
+import { cardApi, API_DOMAIN } from './cardApi.js';
 
 /** 默认底部导航（无配置/未发布时兜底，与首页硬编码 Tab 一致） */
 export const DEFAULT_DESIGN_TABS = [
@@ -194,4 +194,14 @@ export function buildShareCard(theme, pageName, path) {
 export function shouldShowShareBack(options, theme) {
   if (!options || options.from !== 'share') return false;
   return !!(theme && theme.backHome);
+}
+
+/** 资源路径解析：H5 拼 window.origin / 小程序拼 API_DOMAIN（与 DesignPage.resolveUrl 同构） */
+export function resolveAssetUrl(u) {
+  if (!u) return '';
+  if (/^https?:|^data:|^blob:/.test(u)) return u;
+  // #ifdef H5
+  if (typeof window !== 'undefined') return u.startsWith('/') ? window.location.origin + u : window.location.origin + '/' + u;
+  // #endif
+  return u.startsWith('/') ? API_DOMAIN + u : API_DOMAIN + '/' + u;
 }
