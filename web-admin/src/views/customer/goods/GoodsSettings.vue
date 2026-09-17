@@ -92,6 +92,7 @@
             <el-option label="红包封面" :value="1" />
           </el-select>
           <span class="form-hint">选用超级表单，多个商品一起下单统一调用，单个商品下单不使用表单，请到商品相关处选择为默认设置</span>
+          <span class="form-hint pending-hint">待接入：需开通「超级表单」应用后生效</span>
         </el-form-item>
         <el-form-item label="成功跳转">
           <div class="link-row">
@@ -356,6 +357,7 @@
             <el-option label="小东" :value="1" />
           </el-select>
           <span class="form-hint">除多商户外所有商品详情页微信客服选择，若不选择则使用小程序客服</span>
+          <span class="form-hint pending-hint">待接入：需配置微信客服后生效</span>
         </el-form-item>
         <el-form-item label="开票表单">
           <el-select v-model="cfg.invoiceFormId" style="width: 220px">
@@ -536,6 +538,7 @@ onMounted(load);
   padding-bottom: 8px; border-bottom: 1px solid #f2f3f5;
 }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 10px; }
+.pending-hint { color: #ff7d00; }
 .unit { margin: 0 6px; color: #4e5969; }
 .w300 { width: 300px; }
 .w320 { width: 320px; }
