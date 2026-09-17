@@ -40,24 +40,22 @@
           <div class="app-grid">
             <template v-for="app in g.apps" :key="app.code">
               <template v-if="app.code === 'channel'">
-                <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card">
+                <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card" @click="openChannel(ch)">
                   <div class="app-icon-wrap">
                     <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
                   </div>
                   <div class="app-name">{{ ch.name }}</div>
                   <div class="app-code">{{ ch.type }}</div>
                   <div class="app-desc">{{ ch.desc }}</div>
-                  <el-button type="primary" size="small" class="enter-btn" @click="enterChannel(ch)">进入应用</el-button>
                 </div>
               </template>
-              <div v-else class="app-card">
+              <div v-else class="app-card" @click="openApp(app)">
                 <div class="app-icon-wrap">
                   <SIcon :name="app.icon" size="xlarge" class="app-icon" />
                 </div>
                 <div class="app-name">{{ app.name }}</div>
                 <div class="app-code">{{ app.code }}</div>
                 <div class="app-desc">{{ app.description }}</div>
-                <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
               </div>
             </template>
           </div>
@@ -69,16 +67,15 @@
         <div v-if="!activeCat?.apps.length" class="empty">该分类下暂无应用</div>
         <div class="app-grid">
           <template v-for="(app, idx) in activeCat?.apps || []" :key="app.code">
-            <!-- 全端渠道分类：直接展示各端渠道卡片，进入即到对应渠道配置 -->
+            <!-- 全端渠道分类：直接展示各端渠道卡片，点击卡片进入对应渠道配置 -->
             <template v-if="app.code === 'channel'">
-              <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card">
+              <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card" @click="openChannel(ch)">
                 <div class="app-icon-wrap">
                   <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
                 </div>
                 <div class="app-name">{{ ch.name }}</div>
                 <div class="app-code">{{ ch.type }}</div>
                 <div class="app-desc">{{ ch.desc }}</div>
-                <el-button type="primary" size="small" class="enter-btn" @click="enterChannel(ch)">进入应用</el-button>
               </div>
             </template>
             <div
@@ -89,6 +86,7 @@
               @dragover.prevent
               @drop="onDrop(app, idx, $event)"
               @dragend="onDragEnd"
+              @click="openApp(app)"
             >
               <div class="app-icon-wrap">
                 <SIcon :name="app.icon" size="xlarge" class="app-icon" />
@@ -96,7 +94,6 @@
               <div class="app-name">{{ app.name }}</div>
               <div class="app-code">{{ app.code }}</div>
               <div class="app-desc">{{ app.description }}</div>
-              <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
             </div>
           </template>
         </div>
@@ -118,6 +115,7 @@ const apps = ref([]);
 const categories = ref([]);
 const activeCat = ref(null);
 const draggingApp = ref(null);
+let justDragged = false; // 拖拽结束短暂标记，防止误触发点击进入
 
 // 租户端各端渠道（已开通/已开发渠道直开，不再经「全端渠道 → 进入应用」中间层）
 const CUST_CHANNELS = [
@@ -210,6 +208,16 @@ function enterChannel(ch) {
   else router.push(`/apps/channel/config?type=${ch.type}`);
 }
 
+// 点击卡片直接进入（拖拽排序结束后忽略本次点击，避免误触）
+function openApp(app) {
+  if (justDragged) return;
+  enterApp(app);
+}
+function openChannel(ch) {
+  if (justDragged) return;
+  enterChannel(ch);
+}
+
 function onDragStart(app, idx, e) {
   draggingApp.value = { app, fromIdx: idx };
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
@@ -229,6 +237,8 @@ function onDrop(app, idx, e) {
 }
 function onDragEnd() {
   draggingApp.value = null;
+  justDragged = true;
+  setTimeout(() => { justDragged = false; }, 250);
 }
 async function persistSort() {
   try {
@@ -347,6 +357,8 @@ async function persistSort() {
 }
 .app-card[draggable='true'] { cursor: grab; }
 .app-card[draggable='true']:active { cursor: grabbing; }
+.app-card.channel-card { cursor: pointer; }
+.app-card:not([draggable='true']) { cursor: pointer; }
 .app-icon-wrap {
   width: 56px;
   height: 56px;
@@ -369,7 +381,4 @@ async function persistSort() {
   display: flex; align-items: center; justify-content: center;
 }
 .enter-btn { margin-top: 16px; }
-.channel-card { cursor: pointer; }
-.channel-card:hover .app-icon-wrap { background: rgba(22, 93, 255, 0.12); }
-.channel-card:hover .app-icon { color: #165dff; }
 </style>
