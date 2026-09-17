@@ -1,6 +1,6 @@
 <template>
   <div class="goods-settings">
-    <AppPageHeader title="商城设置" desc="二级分类设置（支付规则 / 下单规则 / 配送设置 / 订单核销 / 展示 / 分享）">
+    <AppPageHeader title="商城设置" desc="二级分类设置（支付规则 / 下单规则 / 配送设置 / 订单核销 / 展示设置 / 分享设置）">
       <div class="hd-actions">
         <el-button type="primary" :loading="saving" @click="save">保存设置</el-button>
       </div>

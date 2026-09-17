@@ -90,8 +90,8 @@ const subDefs = {
     { key: 'orderRule', label: '下单规则', icon: 'settings' },
     { key: 'delivery', label: '配送设置', icon: 'settings' },
     { key: 'verify', label: '订单核销', icon: 'settings' },
-    { key: 'show', label: '展示', icon: 'settings' },
-    { key: 'share', label: '分享', icon: 'settings' },
+    { key: 'show', label: '展示设置', icon: 'settings' },
+    { key: 'share', label: '分享设置', icon: 'settings' },
     { key: 'style', label: '商城风格', icon: 'palette' },
   ],
 };
