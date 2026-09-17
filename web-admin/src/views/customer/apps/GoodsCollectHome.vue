@@ -1,18 +1,18 @@
 <template>
   <div class="collect-home">
-    <!-- 应用内 Tab（商品采集：采集配置 / 接口 / 采集记录） -->
+    <!-- 应用内 Tab（商品采集：采集配置 / 采集记录 / 接口） -->
     <div class="card-tabs">
       <div class="ctab" :class="{ active: activeTab === 'config' }" @click="activeTab = 'config'">
         <SIcon name="dynamic" size="default" :color="activeTab === 'config' ? '#165dff' : '#4e5969'" />
         <span>采集配置</span>
       </div>
-      <div class="ctab" :class="{ active: activeTab === 'api' }" @click="activeTab = 'api'">
-        <SIcon name="key" size="default" :color="activeTab === 'api' ? '#165dff' : '#4e5969'" />
-        <span>接口</span>
-      </div>
       <div class="ctab" :class="{ active: activeTab === 'records' }" @click="activeTab = 'records'">
         <SIcon name="template" size="default" :color="activeTab === 'records' ? '#165dff' : '#4e5969'" />
         <span>采集记录</span>
+      </div>
+      <div class="ctab" :class="{ active: activeTab === 'api' }" @click="activeTab = 'api'">
+        <SIcon name="key" size="default" :color="activeTab === 'api' ? '#165dff' : '#4e5969'" />
+        <span>接口</span>
       </div>
     </div>
 
@@ -46,25 +46,8 @@
       </div>
     </div>
 
-    <!-- ============ 接口（采集 APIKEY，独立菜单项） ============ -->
-    <div v-else-if="activeTab === 'api'" class="panel">
-      <AppPageHeader title="接口" desc="配置第三方数据接口 APIKEY（采集淘宝/天猫/京东商品）" />
-      <div class="card collect-form">
-        <div class="sub-title">采集 APIKEY</div>
-        <el-form label-width="90px" style="max-width: 640px">
-          <el-form-item label="APIKEY">
-            <el-input v-model="apiKey" class="w360" placeholder="数据接口 APIKEY" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="savingKey" @click="saveApiKey">保存</el-button>
-          </el-form-item>
-        </el-form>
-        <div class="collect-tip">采集 APIKEY：点击申请在我的数据接口中添加淘宝、天猫、京东商城接口</div>
-      </div>
-    </div>
-
     <!-- ============ 采集记录 ============ -->
-    <div v-else class="panel">
+    <div v-else-if="activeTab === 'records'" class="panel">
       <AppPageHeader title="采集记录" desc="已提交的采集任务列表" />
       <div class="card">
         <el-table :data="records" v-loading="loading">
@@ -88,6 +71,23 @@
           <el-table-column prop="createdAt" label="提交时间" width="180" />
         </el-table>
         <div v-if="!records.length" class="empty-tip">暂无采集记录</div>
+      </div>
+    </div>
+
+    <!-- ============ 接口（采集 APIKEY，独立菜单项） ============ -->
+    <div v-else class="panel">
+      <AppPageHeader title="接口" desc="配置第三方数据接口 APIKEY（采集淘宝/天猫/京东商品）" />
+      <div class="card collect-form">
+        <div class="sub-title">采集 APIKEY</div>
+        <el-form label-width="90px" style="max-width: 640px">
+          <el-form-item label="APIKEY">
+            <el-input v-model="apiKey" class="w360" placeholder="数据接口 APIKEY" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="savingKey" @click="saveApiKey">保存</el-button>
+          </el-form-item>
+        </el-form>
+        <div class="collect-tip">采集 APIKEY：点击申请在我的数据接口中添加淘宝、天猫、京东商城接口</div>
       </div>
     </div>
   </div>
