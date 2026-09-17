@@ -2019,6 +2019,55 @@ function seedGoods(db) {
     CREATE INDEX IF NOT EXISTS idx_card_key_data_lib ON card_key_data(library_id, status);
   `);
 
+  // 礼品卡券（1:1 复刻菜鸟云 giftcard：卡券分类 + 卡券 CRUD；用户购买后可自己兑用/转赠他人兑用）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS giftcard_category (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      sort INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS giftcard (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      cate_id INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL,                -- 卡券名称
+      price INTEGER NOT NULL DEFAULT 0,  -- 卡券价格（分）
+      stock INTEGER NOT NULL DEFAULT 0,  -- 卡券库存
+      sold INTEGER NOT NULL DEFAULT 0,   -- 已售
+      limit_num INTEGER NOT NULL DEFAULT 0, -- 限购数量（0=不限制）
+      increase INTEGER NOT NULL DEFAULT 0,  -- 开启转赠（0关 1开；开启后才可以转赠）
+      type INTEGER NOT NULL DEFAULT 1,   -- 卡券类型（1充值卡 2实物卡）
+      money INTEGER NOT NULL DEFAULT 0,  -- 卡券面额（分）
+      use_type INTEGER NOT NULL DEFAULT 1,-- 使用限制（0固定时间有效 1购买当日 2购买次日）
+      use_btime TEXT NOT NULL DEFAULT '',-- 固定时间起
+      use_etime TEXT NOT NULL DEFAULT '',-- 固定时间止
+      today_after INTEGER NOT NULL DEFAULT 0, -- 购买当日 N 天有效
+      yes_after INTEGER NOT NULL DEFAULT 0,   -- 购买次日 N 天有效
+      thumb TEXT NOT NULL DEFAULT '',    -- 缩略图
+      carousel TEXT NOT NULL DEFAULT '[]',-- 轮播图（JSON 数组）
+      descs TEXT NOT NULL DEFAULT '',    -- 卡券简介
+      share_title TEXT NOT NULL DEFAULT '',
+      share_img TEXT NOT NULL DEFAULT '',
+      detail TEXT NOT NULL DEFAULT '',   -- 卡券详情（富文本）
+      sort INTEGER NOT NULL DEFAULT 0,   -- 排序（数字越大越靠前）
+      flag INTEGER NOT NULL DEFAULT 1,   -- 状态（1上架 2下架）
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_giftcard_cate ON giftcard(customer_id, cate_id);
+    CREATE TABLE IF NOT EXISTS gift_product (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      product_id INTEGER NOT NULL,       -- goods.id
+      status INTEGER NOT NULL DEFAULT 1, -- 绑定状态（1开启 0关闭）
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(customer_id, product_id)
+    );
+  `);
+
   // 类型差异化字段（2026-09-17 对齐菜鸟云三类型表单差异）：手机号填写（卡密/虚拟）、卡密库（卡密专属，库表二期）
   // 注意：幂等迁移必须放在 db.exec 模板字符串之外，否则 SQLite 报 near "if" syntax error
   if (!colExists(db, 'goods', 'phone_required')) {
