@@ -46,6 +46,13 @@ import GoodsParams from './GoodsParams.vue';
 import GoodsSettings from './GoodsSettings.vue';
 import GoodsOrders from './GoodsOrders.vue';
 import GoodsAfterSale from './GoodsAfterSale.vue';
+import GoodsReturnAddr from './GoodsReturnAddr.vue';
+import GoodsComment from './GoodsComment.vue';
+import GoodsBrandTag from './GoodsBrandTag.vue';
+import GoodsTitleTag from './GoodsTitleTag.vue';
+import GoodsServiceTag from './GoodsServiceTag.vue';
+import GoodsSupplier from './GoodsSupplier.vue';
+import GoodsStyle from './GoodsStyle.vue';
 import GoodsPlaceholder from './GoodsPlaceholder.vue';
 
 const route = useRoute();
@@ -65,23 +72,22 @@ const subDefs = {
     { key: 'list', label: '商品列表', icon: 'template', countKey: 'goods' },
     { key: 'category', label: '商品分类', icon: 'apps', countKey: 'category' },
     { key: 'param', label: '商品参数', icon: 'logs', countKey: 'param' },
-    { key: 'collect', label: '商品采集', icon: 'dynamic', disabled: true },
   ],
   order: [
     { key: 'order', label: '商品订单', icon: 'orders' },
     { key: 'afterSale', label: '售后订单', icon: 'orders' },
-    { key: 'returns', label: '退货地址', icon: 'storage', disabled: true },
+    { key: 'returns', label: '退货地址', icon: 'storage' },
   ],
   marketing: [
-    { key: 'comment', label: '评论管理', icon: 'customer', disabled: true },
-    { key: 'brand', label: '品牌标签', icon: 'badge', disabled: true },
-    { key: 'tag', label: '标题标签', icon: 'template', disabled: true },
-    { key: 'service', label: '服务保障', icon: 'crown', disabled: true },
-    { key: 'supplier', label: '供应厂商', icon: 'building', disabled: true },
+    { key: 'comment', label: '评论管理', icon: 'customer' },
+    { key: 'brand', label: '品牌标签', icon: 'badge' },
+    { key: 'tag', label: '标题标签', icon: 'template' },
+    { key: 'service', label: '服务保障', icon: 'crown' },
+    { key: 'supplier', label: '供应厂商', icon: 'building' },
   ],
   shop: [
     { key: 'settings', label: '商城设置', icon: 'settings' },
-    { key: 'style', label: '商城风格', icon: 'palette', disabled: true },
+    { key: 'style', label: '商城风格', icon: 'palette' },
   ],
 };
 
@@ -105,6 +111,13 @@ const compMap = {
   settings: GoodsSettings,
   order: GoodsOrders,
   afterSale: GoodsAfterSale,
+  returns: GoodsReturnAddr,
+  comment: GoodsComment,
+  brand: GoodsBrandTag,
+  tag: GoodsTitleTag,
+  service: GoodsServiceTag,
+  supplier: GoodsSupplier,
+  style: GoodsStyle,
 };
 const activeComp = computed(() => {
   if (activeTop.value === 'insight') return GoodsInsight;

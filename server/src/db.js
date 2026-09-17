@@ -2270,6 +2270,126 @@ function seedGoods(db) {
       }
     }
   } catch {}
+
+  // —— 商品管理附属表（1:1 复刻菜鸟云「东莞同城通」商品管理二级菜单：退货地址/供应厂商/品牌标签/标题标签/服务保障/评论管理/商城风格）——
+  db.exec(`
+    -- 退货地址（订单配送 > 退货地址：新增地址/批量删除）
+    CREATE TABLE IF NOT EXISTS goods_return_addr (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',        -- 收件人姓名
+      phone TEXT NOT NULL DEFAULT '',       -- 手机号
+      address TEXT NOT NULL DEFAULT '',     -- 详细地址
+      remark TEXT NOT NULL DEFAULT '',      -- 备注
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_return_addr ON goods_return_addr(customer_id);
+
+    -- 供应厂商（营销运营 > 供应厂商：搜索/添加，表格 ID/供应商名称）
+    CREATE TABLE IF NOT EXISTS goods_supplier (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',        -- 供应商名称
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_supplier ON goods_supplier(customer_id);
+
+    -- 品牌标签（营销运营 > 品牌标签：搜索/新增，表格 ID/排序/标签名称/标签内容/启用情况）
+    CREATE TABLE IF NOT EXISTS goods_brand_tag (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL DEFAULT '',        -- 标签名称
+      content TEXT NOT NULL DEFAULT '',     -- 标签内容
+      enabled INTEGER NOT NULL DEFAULT 1,   -- 启用情况 1启用 0禁用
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_brand_tag ON goods_brand_tag(customer_id);
+
+    -- 标题标签（营销运营 > 标题标签：结构同品牌标签）
+    CREATE TABLE IF NOT EXISTS goods_title_tag (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_title_tag ON goods_title_tag(customer_id);
+
+    -- 服务保障（营销运营 > 服务保障：搜索/创建标签，表格 ID/标签名称/图标/启用情况）
+    CREATE TABLE IF NOT EXISTS goods_service_tag (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL DEFAULT '',        -- 标签名称
+      icon TEXT NOT NULL DEFAULT '',        -- 图标
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_service_tag ON goods_service_tag(customer_id);
+
+    -- 评论管理（营销运营 > 评论管理：筛选 全部/好评/中评/差评 + 关键字；添加评论/批量删除）
+    CREATE TABLE IF NOT EXISTS goods_comment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      goods_id INTEGER NOT NULL DEFAULT 0,  -- 产品ID（对应 goods.id）
+      goods_name TEXT NOT NULL DEFAULT '',  -- 商品名称
+      order_no TEXT NOT NULL DEFAULT '',    -- 订单号
+      username TEXT NOT NULL DEFAULT '',    -- 评价人
+      level INTEGER NOT NULL DEFAULT 1,     -- 评价级别 1好评 2中评 3差评
+      content TEXT NOT NULL DEFAULT '',     -- 评价内容
+      images TEXT NOT NULL DEFAULT '[]',    -- 评价图片
+      anonymous INTEGER NOT NULL DEFAULT 0, -- 是否匿名 1是 0否
+      status TEXT NOT NULL DEFAULT 'show',  -- 状态 show显示 hide隐藏
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_comment ON goods_comment(customer_id);
+
+    -- 商城风格（商城设置 > 商城风格：分类风格 1/2 + 详情风格 1/2；每租户一条）
+    CREATE TABLE IF NOT EXISTS goods_cate_style (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL UNIQUE,
+      cate_style INTEGER NOT NULL DEFAULT 1,  -- 分类风格 1 风格1 2 风格2
+      detail_style INTEGER NOT NULL DEFAULT 1,-- 详情风格 1 风格1 2 风格2
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // —— 商品采集独立应用（1:1 复刻菜鸟云 goods_collect：商品链接采集/选择分类/状态；从商品管理二级菜单移出，注册为应用）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS goods_collect (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      link TEXT NOT NULL DEFAULT '',          -- 商品链接（支持 ; 分隔多条）
+      category_id INTEGER NOT NULL DEFAULT 0, -- 采集后归属分类
+      status TEXT NOT NULL DEFAULT 'off',     -- 采集后状态：off暂不上架 / on立即上架
+      state TEXT NOT NULL DEFAULT 'pending',  -- 处理状态：pending待处理 / done已完成 / failed失败
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_collect ON goods_collect(customer_id);
+  `);
+  db.prepare("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('goods-collect', '商品采集', '批量采集淘宝/天猫商品链接到商品库', 'dynamic', '营销引流', 4, 1)").run();
+  {
+    const gcApp = db.prepare("SELECT id FROM apps WHERE code = 'goods-collect'").get();
+    if (gcApp) {
+      const gcMenus = [
+        ['采集配置', 'collect:index', '商品采集配置与记录'],
+      ];
+      const menuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+      gcMenus.forEach(([mod, key, label], idx) => menuIns.run(gcApp.id, mod, mod, key, label, idx + 1));
+    }
+  }
+  try {
+    const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
+    if (demoRow) {
+      const gcApp = db.prepare("SELECT id FROM apps WHERE code = 'goods-collect'").get();
+      if (gcApp && !db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, gcApp.id)) {
+        db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, gcApp.id);
+      }
+    }
+  } catch {}
 }
 
 function seedDistribution(db) {

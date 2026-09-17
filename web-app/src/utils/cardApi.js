@@ -176,9 +176,11 @@ export const cardApi = {
   getDynamics: () => request('/dynamics'),
   createDynamic: (data) => request('/dynamics', 'POST', data),
 
-  // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）
-  designConfig: (preview) => {
-    const params = preview ? { preview: 1 } : {};
+  // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）；pageType 指定 DIY 装修页面（首页跳转选择器）
+  designConfig: (preview, pageType = '') => {
+    const params = {};
+    if (preview) params.preview = 1;
+    if (pageType) params.pageType = pageType;
     // H5 带签名访问（设计中心 iframe 免登录）：hash 中存在 tid/exp/sig 即透传，预览模式同样适用
     if (typeof window !== 'undefined' && window.location && window.location.hash) {
       try {

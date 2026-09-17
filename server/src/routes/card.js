@@ -1253,25 +1253,35 @@ export function createCardRouter(db, wxService) {
     const style = db.prepare('SELECT style_json FROM tenant_style_config WHERE tenant_id = ?').get(tenantId);
     const tab = db.prepare("SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND is_default = 1 AND enabled = 1").get(tenantId);
     const home = db.prepare('SELECT home_page FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
-    // 预览模式（?preview=1）：额外返回首页草稿页面组件，供 C 端「保存并预览」
+    // 预览模式（?preview=1）：额外返回首页草稿页面组件，供 C 端「保存并预览」；
+    // 首页跳转选择器支持指定 DIY 装修页面（?pageType=xxx）：读取该 page_type 的已发布页面（未发布回退草稿），
+    // 与菜鸟云「首页跳转可选 DIY 页面」语义一致；未指定时按 is_home 首页渲染
+    const reqPageType = String(req.query.pageType || '').trim();
     let pages = null;
     let header = null;
+    const pickPage = (status) => {
+      const q = reqPageType
+        ? 'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = ? ORDER BY version DESC LIMIT 1'
+        : 'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = ? ORDER BY version DESC LIMIT 1';
+      const args = reqPageType ? [tenantId, reqPageType, status] : [tenantId, status];
+      return db.prepare(q).get(...args);
+    };
     if (String(req.query.preview) === '1') {
-      const draft = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = 0 ORDER BY version DESC LIMIT 1").get(tenantId);
+      const draft = pickPage(0);
       if (draft) {
         const j = JSON.parse(draft.design_json || '{}');
         pages = j;
         header = j.meta?.header || null;
       }
     } else {
-      // 非预览：读取已发布首页（is_home=1）组件与头部设置，供 C 端小程序/H5 首页渲染装修；
-      // 未发布时回退到首页草稿（保证装修过的租户实际首页始终是装修内容，与设计中心预览一致）
-      const pub = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = 1 ORDER BY version DESC LIMIT 1").get(tenantId);
+      // 非预览：读取已发布页面组件与头部设置，供 C 端小程序/H5 渲染装修；
+      // 未发布时回退到草稿（保证装修过的租户实际页面始终是装修内容，与设计中心预览一致）
+      const pub = pickPage(1);
       let homeJson = null;
       if (pub) {
         homeJson = JSON.parse(pub.design_json || '{}');
       } else {
-        const draft = db.prepare("SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = 0 ORDER BY version DESC LIMIT 1").get(tenantId);
+        const draft = pickPage(0);
         if (draft) homeJson = JSON.parse(draft.design_json || '{}');
       }
       if (homeJson) {

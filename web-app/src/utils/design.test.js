@@ -78,11 +78,14 @@ describe('设计中心 C 端渲染工具', () => {
     expect(fallbackTabIcon('未知')).toBe('apps');
   });
 
-  it('P4 首页跳转路径：card 不跳，其余映射', () => {
+  it('P4 首页跳转路径：card 不跳，其余映射 + 完整路径/DIY 页面直通', () => {
     expect(resolveHomePath('card')).toBeNull();
     expect(resolveHomePath('market')).toBe('/pages/card/market');
     expect(resolveHomePath('radar')).toBe('/pages/card/visitors');
     expect(resolveHomePath('distribution')).toBe('/pages/card/distribution');
+    expect(resolveHomePath('panorama')).toBe('/pages/index/index');
+    expect(resolveHomePath('/pages/cardMain/home?pageType=product')).toBe('/pages/cardMain/home?pageType=product');
+    expect(resolveHomePath('/pages/index/index')).toBe('/pages/index/index');
     expect(resolveHomePath('非法值')).toBeNull();
   });
 
@@ -95,8 +98,11 @@ describe('设计中心 C 端渲染工具', () => {
     expect(readDesignConfig()).toBeNull();
   });
 
-  it('P6 常量契约：HOME_PAGE_MAP 覆盖 5 个选项', () => {
-    expect(Object.keys(HOME_PAGE_MAP).sort()).toEqual(['card', 'distribution', 'market', 'member', 'radar']);
+  it('P6 常量契约：HOME_PAGE_MAP 覆盖 5 个旧 key + 智能名片更多页 + 行业应用', () => {
+    expect(Object.keys(HOME_PAGE_MAP).sort()).toEqual([
+      'card', 'connections', 'customers', 'distribution', 'dynamic', 'market', 'member', 'messages',
+      'mycard', 'panorama', 'panorama-viewer', 'profile', 'radar',
+    ]);
     expect(DEFAULT_DESIGN_TABS.length).toBe(4);
   });
 

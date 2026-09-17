@@ -240,10 +240,12 @@ onMounted(async () => {
     myCard.value = res.card;
   } catch (e) {}
 
-  // 设计中心首页装修：预览模式（?preview=1）加载草稿组件，否则加载已发布组件
+  // 设计中心首页装修：预览模式（?preview=1）加载草稿组件，否则加载已发布组件；
+  // 首页跳转选择器支持指定 DIY 装修页面（?pageType=xxx，如 /pages/cardMain/home?pageType=product）
   try {
     const preview = isPreviewMode();
-    const config = await fetchDesignConfig(preview, preview);
+    const pageType = String(pageOptions.pageType || '').trim();
+    const config = await fetchDesignConfig(preview, preview, pageType);
     const comps = config?.pages?.components || [];
     designComps.value = Array.isArray(comps) ? comps : [];
     designTenantId.value = config?.tenantId || 0;

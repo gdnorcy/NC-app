@@ -313,19 +313,50 @@
 
     <!-- ============ 首页跳转 ============ -->
     <section v-if="activeTab === 'home'">
-      <AppPageHeader title="首页跳转" desc="设置小程序启动后的默认页面">
+      <AppPageHeader title="首页跳转" desc="设置小程序启动后的默认页面（1:1 复刻菜鸟云：选择链接弹窗，支持 DIY 装修页面/应用页面）">
         <div class="hd-actions"><el-button type="primary" :loading="homeSaving" @click="saveHome">保存配置</el-button></div>
       </AppPageHeader>
       <div class="card form-card">
         <el-form label-width="140px">
           <el-form-item label="默认首页">
-            <el-select v-model="homePage" style="width: 320px">
-              <el-option v-for="p in homePages" :key="p.value" :label="p.label" :value="p.value" />
-            </el-select>
-            <span class="form-hint">选择小程序启动后第一个展示的页面</span>
+            <div class="home-link-row">
+              <el-input :model-value="homePageLabel" readonly placeholder="点击右侧「选择链接」设置启动页" style="width: 380px">
+                <template #prepend><span class="link-pre">{{ homePage ? '已选择' : '未设置' }}</span></template>
+              </el-input>
+              <el-button type="primary" plain @click="openHomePicker">选择链接</el-button>
+              <el-button v-if="homePage" text type="danger" @click="homePage = ''">清除</el-button>
+            </div>
+            <span class="form-hint">设置后，小程序启动直达所选页面；未设置时展示 DIY 装修首页（装修页面中「首页」开关生效）</span>
           </el-form-item>
         </el-form>
       </div>
+
+      <!-- 页面选择器弹窗（1:1 复刻菜鸟云：按分类展示可选页面，选中高亮 + 确定） -->
+      <el-dialog v-model="homePicker.show" title="选择首页跳转页面" width="680px" append-to-body>
+        <div class="home-picker">
+          <div v-for="g in homeGroups" :key="g.name" class="picker-group">
+            <div class="picker-group-title">{{ g.name }}</div>
+            <div class="picker-list">
+              <div
+                v-for="p in g.items"
+                :key="p.value"
+                class="picker-item"
+                :class="{ active: homePicker.value === p.value }"
+                @click="homePicker.value = p.value"
+              >
+                <SIcon :name="p.icon || 'apps'" size="default" :color="homePicker.value === p.value ? '#165dff' : '#4e5969'" />
+                <span class="picker-name">{{ p.label }}</span>
+                <span v-if="p.desc" class="picker-desc">{{ p.desc }}</span>
+                <span v-if="homePicker.value === p.value" class="picker-check">✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <template #footer>
+          <el-button @click="homePicker.show = false">取消</el-button>
+          <el-button type="primary" @click="confirmHomePicker">确定</el-button>
+        </template>
+      </el-dialog>
     </section>
 
     <!-- ============ 系统模板 ============ -->
@@ -910,18 +941,85 @@ async function delTabScheme(row) {
   try { await designCall.post(`${API}/tab/delete`, { id: row.id }); ElMessage.success('已删除'); loadTabSchemes(); } catch (e) { ElMessage.error(e); }
 }
 
-// ============ 首页跳转 ============
-const homePage = ref('card');
+// ============ 首页跳转（1:1 复刻菜鸟云：页面选择器弹窗，按分类选 DIY 页面/应用页面） ============
+const homePage = ref('');
 const homeSaving = ref(false);
-const homePages = [
-  { value: 'card', label: '名片（默认）' },
-  { value: 'market', label: '人脉集市' },
-  { value: 'radar', label: '访客雷达' },
-  { value: 'member', label: '会员中心' },
-  { value: 'distribution', label: '分销中心' },
-];
+const homePicker = ref({ show: false, value: '' });
+
+// 可选页面分组：智能名片 / 360全景（行业应用）/ 装修页面（页面装修已建页面，动态）
+const homeGroups = computed(() => [
+  {
+    name: '智能名片',
+    items: [
+      { value: '/pages/cardMain/home', label: '名片首页（默认）', icon: 'card' },
+      { value: '/pages/card/market', label: '人脉集市', icon: 'market' },
+      { value: '/pages/card/visitors', label: '访客雷达', icon: 'radar' },
+      { value: '/pages/card/member', label: '会员中心', icon: 'crown' },
+      { value: '/pages/card/distribution', label: '分销中心', icon: 'wallet' },
+      { value: '/pages/card/customers', label: '客户管理', icon: 'customer' },
+      { value: '/pages/card/connections', label: '名片交换', icon: 'exchange' },
+      { value: '/pages/card/dynamic', label: '我的动态', icon: 'dynamic' },
+      { value: '/pages/card/messages', label: '消息中心', icon: 'sms' },
+      { value: '/pages/card/myCard', label: '我的名片', icon: 'card' },
+      { value: '/pages/card/profile', label: '我的', icon: 'user' },
+    ],
+  },
+  {
+    name: '行业应用',
+    items: [
+      { value: '/pages/index/index', label: '360全景首页', icon: 'panorama', desc: '行业应用入口' },
+      { value: '/pages/viewer/viewer', label: '360全景浏览', icon: 'panorama', desc: '直接进入全景浏览' },
+    ],
+  },
+  {
+    name: '装修页面',
+    items: (pageList.value && pageList.value.length
+      ? pageList.value
+      : []
+    ).map((p) => ({
+      value: `/pages/cardMain/home?pageType=${p.page_type}`,
+      label: p.page_name || p.page_type,
+      icon: 'template',
+      desc: p.is_home ? '当前 DIY 首页' : 'DIY 装修页面',
+    })),
+  },
+]);
+
+const homePageLabel = computed(() => {
+  if (!homePage.value) return '未设置（默认展示 DIY 装修首页）';
+  for (const g of homeGroups.value) {
+    const hit = g.items.find((it) => it.value === homePage.value);
+    if (hit) return `${g.name} / ${hit.label}`;
+  }
+  return homePage.value;
+});
+
+// 旧 key 兼容映射（存量配置 card/market/radar/member/distribution → 新路径）
+const LEGACY_HOME_KEYS = {
+  card: '/pages/cardMain/home',
+  market: '/pages/card/market',
+  radar: '/pages/card/visitors',
+  member: '/pages/card/member',
+  distribution: '/pages/card/distribution',
+};
+
+function openHomePicker() {
+  const cur = LEGACY_HOME_KEYS[homePage.value] || homePage.value || '';
+  homePicker.value = { show: true, value: cur };
+}
+function confirmHomePicker() {
+  homePage.value = homePicker.value.value;
+  homePicker.value.show = false;
+}
 async function loadHome() {
-  try { const res = await designCall.get(`${API}/home/get`); homePage.value = res.homePage || 'card'; } catch (e) { /* 忽略 */ }
+  try {
+    const res = await designCall.get(`${API}/home/get`);
+    const raw = res.homePage || '';
+    // 旧默认值 card = 不跳转（展示 DIY 首页）；旧 key 转新路径；路径原样
+    if (raw === 'card') homePage.value = '';
+    else if (LEGACY_HOME_KEYS[raw]) homePage.value = LEGACY_HOME_KEYS[raw];
+    else homePage.value = raw;
+  } catch (e) { /* 忽略 */ }
 }
 async function saveHome() {
   homeSaving.value = true;
@@ -1217,4 +1315,31 @@ onMounted(() => {
 .sel-item img { width: 100%; height: 100%; object-fit: cover; }
 .sel-item.picked { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .sel-check { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+
+/* 首页跳转页面选择器 */
+.home-link-row { display: flex; align-items: center; gap: 10px; }
+.link-pre { font-size: 12px; color: #165dff; }
+.home-picker { max-height: 480px; overflow-y: auto; }
+.picker-group { margin-bottom: 18px; }
+.picker-group:last-child { margin-bottom: 0; }
+.picker-group-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
+.picker-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.picker-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+}
+.picker-item:hover { border-color: #165dff; }
+.picker-item.active { border-color: #165dff; background: #f7fbff; }
+.picker-name { font-size: 13px; color: #1d2129; }
+.picker-item.active .picker-name { color: #165dff; font-weight: 500; }
+.picker-desc { font-size: 11px; color: #86909c; margin-left: auto; }
+.picker-check { position: absolute; top: -1px; right: -1px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 0 8px 0 8px; font-size: 11px; display: flex; align-items: center; justify-content: center; }
 </style>

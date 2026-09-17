@@ -431,6 +431,253 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
+  // ---------- 退货地址（1:1 复刻菜鸟云 returnadd：新增地址/批量删除，表格 ID/收件人/手机号/详细地址/备注） ----------
+  router.get('/return-addresses', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const list = db.prepare('SELECT * FROM goods_return_addr WHERE customer_id = ? ORDER BY id DESC').all(req.customerId);
+      res.json({ list });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.post('/return-addresses', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const { name = '', phone = '', address = '', remark = '' } = req.body;
+      if (!name.trim() || !phone.trim() || !address.trim()) return res.status(400).json({ error: '收件人、手机号、详细地址为必填' });
+      const r = db.prepare('INSERT INTO goods_return_addr (customer_id, name, phone, address, remark) VALUES (?, ?, ?, ?, ?)')
+        .run(req.customerId, name.trim(), phone.trim(), address.trim(), remark.trim());
+      audit(req, 'create', 'goods_return_addr', r.lastInsertRowid, `新增退货地址 ${name.trim()}`);
+      res.json({ id: r.lastInsertRowid });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.post('/return-addresses/batch-delete', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      if (!ids.length) return res.status(400).json({ error: '请选择要删除的地址' });
+      const st = db.prepare('DELETE FROM goods_return_addr WHERE id = ? AND customer_id = ?');
+      const tx = db.prepare('BEGIN');
+      tx.run();
+      try {
+        for (const id of ids) st.run(Number(id), req.customerId);
+        db.prepare('COMMIT').run();
+      } catch (e) { db.prepare('ROLLBACK').run(); throw e; }
+      audit(req, 'delete', 'goods_return_addr', 0, `批量删除退货地址 ${ids.length} 条`);
+      res.json({ ok: true, count: ids.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.delete('/return-addresses/:id', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      db.prepare('DELETE FROM goods_return_addr WHERE id = ? AND customer_id = ?').run(Number(req.params.id), req.customerId);
+      audit(req, 'delete', 'goods_return_addr', Number(req.params.id), '删除退货地址');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---------- 供应厂商（1:1 复刻菜鸟云 supplier：搜索/添加，表格 ID/供应商名称） ----------
+  router.get('/suppliers', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const kw = String(req.query.keyword || '').trim();
+      const list = kw
+        ? db.prepare('SELECT * FROM goods_supplier WHERE customer_id = ? AND name LIKE ? ORDER BY id DESC').all(req.customerId, `%${kw}%`)
+        : db.prepare('SELECT * FROM goods_supplier WHERE customer_id = ? ORDER BY id DESC').all(req.customerId);
+      res.json({ list });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.post('/suppliers', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const name = String(req.body.name || '').trim();
+      if (!name) return res.status(400).json({ error: '请输入供应商名称' });
+      const r = db.prepare('INSERT INTO goods_supplier (customer_id, name) VALUES (?, ?)').run(req.customerId, name);
+      audit(req, 'create', 'goods_supplier', r.lastInsertRowid, `新增供应厂商 ${name}`);
+      res.json({ id: r.lastInsertRowid });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.delete('/suppliers/:id', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      db.prepare('DELETE FROM goods_supplier WHERE id = ? AND customer_id = ?').run(Number(req.params.id), req.customerId);
+      audit(req, 'delete', 'goods_supplier', Number(req.params.id), '删除供应厂商');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---------- 品牌标签 / 标题标签 / 服务保障（1:1 复刻菜鸟云 productbrandtag/producttiletag/productserviceguar：搜索/新增/编辑/删除，表格 ID/排序/名称/内容或图标/启用） ----------
+  const TAG_TABLES = {
+    'brand-tags': { table: 'goods_brand_tag', label: '品牌标签', hasContent: true },
+    'title-tags': { table: 'goods_title_tag', label: '标题标签', hasContent: true },
+    'service-tags': { table: 'goods_service_tag', label: '服务保障', hasIcon: true },
+  };
+  Object.entries(TAG_TABLES).forEach(([path, cfg]) => {
+    const { table, label, hasContent, hasIcon } = cfg;
+    const rowToJson = (r) => ({ id: r.id, sortOrder: r.sort_order, name: r.name, content: hasContent ? r.content : undefined, icon: hasIcon ? r.icon : undefined, enabled: r.enabled, createdAt: r.created_at });
+    router.get(`/${path}`, requireTenant, requireGoodsApp, (req, res) => {
+      try {
+        const kw = String(req.query.keyword || '').trim();
+        const list = kw
+          ? db.prepare(`SELECT * FROM ${table} WHERE customer_id = ? AND name LIKE ? ORDER BY sort_order DESC, id DESC`).all(req.customerId, `%${kw}%`)
+          : db.prepare(`SELECT * FROM ${table} WHERE customer_id = ? ORDER BY sort_order DESC, id DESC`).all(req.customerId);
+        res.json({ list: list.map(rowToJson) });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    router.post(`/${path}`, requireTenant, requireGoodsApp, (req, res) => {
+      try {
+        if (!assertWritable(req, res)) return;
+        const name = String(req.body.name || '').trim();
+        if (!name) return res.status(400).json({ error: `请输入${label}名称` });
+        const content = hasContent ? String(req.body.content || '') : '';
+        const icon = hasIcon ? String(req.body.icon || '') : '';
+        const sortOrder = Number(req.body.sortOrder || 0);
+        const enabled = req.body.enabled === false || req.body.enabled === 0 ? 0 : 1;
+        const r = db.prepare(`INSERT INTO ${table} (customer_id, sort_order, name, content, icon, enabled) VALUES (?, ?, ?, ?, ?, ?)`)
+          .run(req.customerId, sortOrder, name, content, icon, enabled);
+        audit(req, 'create', table, r.lastInsertRowid, `新增${label} ${name}`);
+        res.json({ id: r.lastInsertRowid });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    router.put(`/${path}/:id`, requireTenant, requireGoodsApp, (req, res) => {
+      try {
+        if (!assertWritable(req, res)) return;
+        const id = Number(req.params.id);
+        const row = db.prepare(`SELECT * FROM ${table} WHERE id = ? AND customer_id = ?`).get(id, req.customerId);
+        if (!row) return res.status(404).json({ error: `${label}不存在` });
+        const name = req.body.name !== undefined ? String(req.body.name).trim() : row.name;
+        if (!name) return res.status(400).json({ error: `请输入${label}名称` });
+        const content = hasContent && req.body.content !== undefined ? String(req.body.content) : row.content;
+        const icon = hasIcon && req.body.icon !== undefined ? String(req.body.icon) : row.icon;
+        const sortOrder = req.body.sortOrder !== undefined ? Number(req.body.sortOrder) : row.sort_order;
+        const enabled = req.body.enabled !== undefined ? (req.body.enabled === false || req.body.enabled === 0 ? 0 : 1) : row.enabled;
+        db.prepare(`UPDATE ${table} SET sort_order = ?, name = ?, content = ?, icon = ?, enabled = ?, updated_at = datetime('now') WHERE id = ?`)
+          .run(sortOrder, name, content, icon, enabled, id);
+        audit(req, 'update', table, id, `编辑${label} ${name}`);
+        res.json({ ok: true });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+    router.delete(`/${path}/:id`, requireTenant, requireGoodsApp, (req, res) => {
+      try {
+        if (!assertWritable(req, res)) return;
+        db.prepare(`DELETE FROM ${table} WHERE id = ? AND customer_id = ?`).run(Number(req.params.id), req.customerId);
+        audit(req, 'delete', table, Number(req.params.id), `删除${label}`);
+        res.json({ ok: true });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+  });
+
+  // ---------- 评论管理（1:1 复刻菜鸟云 evaluate：筛选 全部/好评/中评/差评 + 关键字；添加评论/批量删除，表格 产品ID/商品名称/订单号/评价人/级别/内容/图片/匿名/状态） ----------
+  router.get('/comments', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const { level = '', keyword = '', page = 1, pageSize = 20 } = req.query;
+      const cond = ['customer_id = ?'];
+      const args = [req.customerId];
+      if (String(level) !== '') { cond.push('level = ?'); args.push(Number(level)); }
+      if (String(keyword || '').trim()) {
+        cond.push('(goods_name LIKE ? OR order_no LIKE ? OR username LIKE ?)');
+        const kw = `%${String(keyword).trim()}%`;
+        args.push(kw, kw, kw);
+      }
+      const total = db.prepare(`SELECT COUNT(*) c FROM goods_comment WHERE ${cond.join(' AND ')}`).get(...args).c;
+      const list = db.prepare(`SELECT * FROM goods_comment WHERE ${cond.join(' AND ')} ORDER BY id DESC LIMIT ? OFFSET ?`)
+        .all(...args, Number(pageSize), (Number(page) - 1) * Number(pageSize));
+      const fmt = (r) => ({ id: r.id, goodsId: r.goods_id, goodsName: r.goods_name, orderNo: r.order_no, username: r.username, level: r.level, content: r.content, images: JSON.parse(r.images || '[]'), anonymous: r.anonymous, status: r.status, createdAt: r.created_at });
+      res.json({ total, list: list.map(fmt) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.post('/comments', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const goodsId = Number(req.body.goodsId || 0);
+      const goodsName = String(req.body.goodsName || '').trim();
+      const orderNo = String(req.body.orderNo || '').trim();
+      const username = String(req.body.username || '').trim();
+      const level = Number(req.body.level || 1);
+      const content = String(req.body.content || '').trim();
+      const images = JSON.stringify(Array.isArray(req.body.images) ? req.body.images : []);
+      const anonymous = req.body.anonymous ? 1 : 0;
+      const status = req.body.status === 'hide' ? 'hide' : 'show';
+      if (!goodsName && !username) return res.status(400).json({ error: '商品名称或评价人为必填' });
+      const r = db.prepare('INSERT INTO goods_comment (customer_id, goods_id, goods_name, order_no, username, level, content, images, anonymous, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(req.customerId, goodsId, goodsName, orderNo, username, level, content, images, anonymous, status);
+      audit(req, 'create', 'goods_comment', r.lastInsertRowid, `新增评论（${level}）${goodsName}`);
+      res.json({ id: r.lastInsertRowid });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.put('/comments/:id/status', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      db.prepare('UPDATE goods_comment SET status = ?, updated_at = datetime(\'now\') WHERE id = ? AND customer_id = ?')
+        .run(req.body.status === 'hide' ? 'hide' : 'show', Number(req.params.id), req.customerId);
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.delete('/comments/:id', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      db.prepare('DELETE FROM goods_comment WHERE id = ? AND customer_id = ?').run(Number(req.params.id), req.customerId);
+      audit(req, 'delete', 'goods_comment', Number(req.params.id), '删除评论');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.post('/comments/batch-delete', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      if (!ids.length) return res.status(400).json({ error: '请选择要删除的评论' });
+      const st = db.prepare('DELETE FROM goods_comment WHERE id = ? AND customer_id = ?');
+      db.prepare('BEGIN').run();
+      try {
+        for (const id of ids) st.run(Number(id), req.customerId);
+        db.prepare('COMMIT').run();
+      } catch (e) { db.prepare('ROLLBACK').run(); throw e; }
+      audit(req, 'delete', 'goods_comment', 0, `批量删除评论 ${ids.length} 条`);
+      res.json({ ok: true, count: ids.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---------- 商城风格（1:1 复刻菜鸟云 duoproducts/cateset：分类风格 1/2 + 详情风格 1/2） ----------
+  router.get('/category-style', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const row = db.prepare('SELECT cate_style, detail_style FROM goods_cate_style WHERE customer_id = ?').get(req.customerId);
+      res.json({ cateStyle: row?.cate_style || 1, detailStyle: row?.detail_style || 1 });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.put('/category-style', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const cateStyle = req.body.cateStyle === 2 ? 2 : 1;
+      const detailStyle = req.body.detailStyle === 2 ? 2 : 1;
+      db.prepare('INSERT INTO goods_cate_style (customer_id, cate_style, detail_style, updated_at) VALUES (?, ?, ?, datetime(\'now\')) ON CONFLICT(customer_id) DO UPDATE SET cate_style = excluded.cate_style, detail_style = excluded.detail_style, updated_at = datetime(\'now\')')
+        .run(req.customerId, cateStyle, detailStyle);
+      audit(req, 'update', 'goods_cate_style', req.customerId, `商城风格：分类${cateStyle} 详情${detailStyle}`);
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---------- 商品采集（独立应用 goods-collect：提交采集任务记录；真实抓取需对接第三方采集 APIKEY） ----------
+  router.get('/collects', requireTenant, (req, res) => {
+    try {
+      const list = db.prepare('SELECT * FROM goods_collect WHERE customer_id = ? ORDER BY id DESC LIMIT 100').all(req.customerId);
+      res.json({ list: list.map((r) => ({ id: r.id, link: r.link, categoryId: r.category_id, status: r.status, state: r.state, createdAt: r.created_at })) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.post('/collects', requireTenant, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const links = String(req.body.link || '').split(/[;\n]/).map((s) => s.trim()).filter(Boolean);
+      if (!links.length) return res.status(400).json({ error: '请输入商品链接' });
+      const categoryId = Number(req.body.categoryId || 0);
+      const status = req.body.status === 'on' ? 'on' : 'off';
+      const st = db.prepare('INSERT INTO goods_collect (customer_id, link, category_id, status, state) VALUES (?, ?, ?, ?, \'pending\')');
+      db.prepare('BEGIN').run();
+      try {
+        for (const link of links) st.run(req.customerId, link, categoryId, status);
+        db.prepare('COMMIT').run();
+      } catch (e) { db.prepare('ROLLBACK').run(); throw e; }
+      audit(req, 'create', 'goods_collect', 0, `提交商品采集 ${links.length} 条`);
+      res.json({ ok: true, count: links.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   router.get('/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;

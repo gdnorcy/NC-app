@@ -9,13 +9,24 @@ export const DEFAULT_DESIGN_TABS = [
   { text: '我的', icon: '', url: '/pages/card/profile' },
 ];
 
-/** 首页跳转配置 → C 端页面路径 */
+/** 首页跳转配置 → C 端页面路径；兼容旧 key 与完整路径/DIY 页面（/pages/cardMain/home?pageType=xxx） */
 export const HOME_PAGE_MAP = {
+  // 旧 key（智能名片快捷项，兼容存量配置）
   card: '/pages/cardMain/home', // 默认（名片首页）
   market: '/pages/card/market',
   radar: '/pages/card/visitors',
   member: '/pages/card/member',
   distribution: '/pages/card/distribution',
+  // 智能名片更多应用页（页面选择器可选）
+  customers: '/pages/card/customers',
+  dynamic: '/pages/card/dynamic',
+  messages: '/pages/card/messages',
+  connections: '/pages/card/connections',
+  mycard: '/pages/card/myCard',
+  profile: '/pages/card/profile',
+  // 行业应用
+  panorama: '/pages/index/index', // 360全景首页
+  'panorama-viewer': '/pages/viewer/viewer', // 360全景浏览
 };
 
 export const STORAGE_KEY = 'design_config';
@@ -28,7 +39,7 @@ export function normalizeDesignConfig(raw) {
   const style = cfg.style || {};
   const tab = cfg.tab;
   const tabItems = Array.isArray(tab?.items) && tab.items.length ? tab.items : DEFAULT_DESIGN_TABS;
-  const homePage = HOME_PAGE_MAP[cfg.homePage] ? cfg.homePage : 'card';
+  const homePage = (typeof cfg.homePage === 'string' && (cfg.homePage.startsWith('/') || HOME_PAGE_MAP[cfg.homePage])) ? cfg.homePage : 'card';
   const pageMeta = cfg.pages?.meta || {};
   const globalDefault = pageMeta.global?.headerDefault || {};
   return {
@@ -63,9 +74,10 @@ export function fallbackTabIcon(text) {
   return m[text] || 'apps';
 }
 
-/** 首页配置 → 跳转路径；card（默认）返回 null 表示不跳转 */
+/** 首页配置 → 跳转路径；card（默认）返回 null 表示不跳转；支持：旧 key / 应用页完整路径 / DIY 装修页面（/pages/cardMain/home?pageType=xxx） */
 export function resolveHomePath(homePage) {
   if (!homePage || homePage === 'card') return null;
+  if (typeof homePage === 'string' && homePage.startsWith('/')) return homePage;
   return HOME_PAGE_MAP[homePage] || null;
 }
 
@@ -155,26 +167,28 @@ function mergeLayer(g, p) {
 }
 
 /** 读取本地缓存（未过期才有效） */
-export function readDesignConfig() {
+export function readDesignConfig(key = STORAGE_KEY) {
   try {
-    const cached = uni.getStorageSync(STORAGE_KEY);
+    const cached = uni.getStorageSync(key);
     if (cached && cached.ts && Date.now() - cached.ts < TTL) return cached.config || null;
   } catch { /* 忽略 */ }
   return null;
 }
 
 /** 拉取并缓存设计配置；force=true 强制刷新（发布后生效）；preview=true 拉取首页草稿用于「保存并预览」 */
-export async function fetchDesignConfig(force = false, preview = false) {
+export async function fetchDesignConfig(force = false, preview = false, pageType = '') {
+  const opts = { preview: !!preview, pageType };
   if (preview) {
-    const raw = await cardApi.designConfig(true);
+    const raw = await cardApi.designConfig(true, pageType);
     return normalizeDesignConfig(raw);
   }
-  const cached = readDesignConfig();
+  const cacheKey = pageType ? `${STORAGE_KEY}:${pageType}` : STORAGE_KEY;
+  const cached = readDesignConfig(cacheKey);
   if (cached && !force) return cached;
-  const raw = await cardApi.designConfig(false);
+  const raw = await cardApi.designConfig(false, pageType);
   const config = normalizeDesignConfig(raw);
   try {
-    uni.setStorageSync(STORAGE_KEY, { ts: Date.now(), config });
+    uni.setStorageSync(cacheKey, { ts: Date.now(), config });
   } catch { /* 存储失败不阻塞 */ }
   return config;
 }
