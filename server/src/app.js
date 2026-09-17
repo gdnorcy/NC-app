@@ -179,6 +179,12 @@ export function createApp({ db, deps = {} } = {}) {
   app.get('/admin.html', (_req, res) => res.redirect(301, '/admin'));
   app.get('/customer.html', (_req, res) => res.redirect(301, '/customer'));
 
+  // 送礼物分享样式素材（1:1 复刻菜鸟云 giftForYou 3 张分享图）
+  const giftShareDist = path.join(config.publicDir, 'gift-share');
+  if (fs.existsSync(giftShareDist)) {
+    app.use('/gift-share', express.static(giftShareDist, { maxAge: '1y' }));
+  }
+
   // Vue管理后台构建产物
   const adminDist = path.join(config.publicDir, 'admin');
   if (fs.existsSync(adminDist)) {

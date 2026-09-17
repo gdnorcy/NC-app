@@ -74,8 +74,18 @@
           </el-form-item>
           <el-form-item label="分享样式">
             <div class="style-group">
-              <div v-for="i in [1, 2, 3]" :key="i" class="style-card" :class="{ active: settings.shareStyle === i }" @click="settings.shareStyle = i">
-                <span class="style-num">样式{{ i }}</span>
+              <div
+                v-for="s in shareStyles"
+                :key="s.id"
+                class="style-card"
+                :class="{ active: settings.shareStyle === s.id }"
+                @click="settings.shareStyle = s.id"
+              >
+                <div class="style-thumb">
+                  <img :src="s.img" :alt="s.label" />
+                  <span v-if="settings.shareStyle === s.id" class="style-check">✓</span>
+                </div>
+                <span class="style-num">{{ s.label }}</span>
               </div>
             </div>
           </el-form-item>
@@ -147,6 +157,13 @@ const selection = ref([]);
 const q = reactive({ cateId: null, kw: '' });
 const cates = ref([]);
 const activeTab = ref('products');
+
+// 分享样式（1:1 复刻菜鸟云 giftForYou setView：样式一=深蓝金丝带 / 样式二=橙红礼盒 / 样式三=黑金蝴蝶结）
+const shareStyles = [
+  { id: 1, label: '样式一', img: '/gift-share/gift3.jpg' },
+  { id: 2, label: '样式二', img: '/gift-share/gift2.jpg' },
+  { id: 3, label: '样式三', img: '/gift-share/gift1.jpg' },
+];
 
 // ---------- 基础设置 ----------
 const settings = reactive({ status: 1, shareStyle: 1, expireHour: 0, normDeliveryFee: 0, messages: [] });
@@ -256,9 +273,15 @@ onMounted(() => { loadCates(); loadProducts(); });
 .set-card { max-width: 680px; }
 .unit { margin-left: 8px; color: #4E5969; }
 .form-tip { font-size: 12px; color: #86909C; line-height: 1.5; margin-top: 4px; }
-.style-group { display: flex; gap: 12px; }
-.style-card { width: 96px; height: 64px; border: 1px solid #E5E6EB; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; color: #4E5969; background: #F7F8FA; transition: all 0.2s; }
-.style-card.active { border-color: #165DFF; background: #F7FBFF; color: #165DFF; }
+.style-group { display: flex; gap: 16px; flex-wrap: wrap; }
+.style-card { width: 148px; border: 2px solid #E5E6EB; border-radius: 8px; overflow: hidden; cursor: pointer; background: #fff; transition: all 0.2s; }
+.style-card:hover { border-color: #A9C4FF; }
+.style-card.active { border-color: #165DFF; }
+.style-thumb { position: relative; width: 100%; aspect-ratio: 750 / 1334; overflow: hidden; }
+.style-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.style-check { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%; background: #165DFF; color: #fff; font-size: 12px; line-height: 20px; text-align: center; }
+.style-num { display: block; padding: 6px 0; text-align: center; font-size: 13px; color: #4E5969; border-top: 1px solid #F2F3F5; }
+.style-card.active .style-num { color: #165DFF; font-weight: 500; }
 .msg-list { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .msg-row { display: flex; gap: 8px; align-items: center; }
 </style>
