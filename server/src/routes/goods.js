@@ -634,21 +634,49 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ---------- 商城风格（1:1 复刻菜鸟云 duoproducts/cateset：分类风格 1/2 + 详情风格 1/2） ----------
+  // ---------- 商城风格（1:1 复刻菜鸟云 duoproducts/cateset：分类风格 1/2 + 详情风格 1/2/3 + 卡片/分享/价格全参数） ----------
   router.get('/category-style', requireTenant, requireGoodsApp, (req, res) => {
     try {
-      const row = db.prepare('SELECT cate_style, detail_style FROM goods_cate_style WHERE customer_id = ?').get(req.customerId);
-      res.json({ cateStyle: row?.cate_style || 1, detailStyle: row?.detail_style || 1 });
+      const row = db.prepare('SELECT * FROM goods_cate_style WHERE customer_id = ?').get(req.customerId);
+      res.json({
+        cateStyle: row?.cate_style || 1,
+        detailStyle: row?.detail_style || 1,
+        goodsIscard: row?.goods_iscard ?? 2,
+        shareStyle: row?.share_style || 1,
+        pbgStyle: row?.pbg_style || 1,
+        pbgImg: row?.pbg_img || 1,
+        pbgMode: row?.pbg_mode || 1,
+        pbgTheme: row?.pbg_theme || 1,
+        pbgImgCustom: row?.pbg_img_custom || '',
+        pbgThemeCustom: row?.pbg_theme_custom || '',
+      });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
   router.put('/category-style', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
-      const cateStyle = req.body.cateStyle === 2 ? 2 : 1;
-      const detailStyle = req.body.detailStyle === 2 ? 2 : 1;
-      db.prepare('INSERT INTO goods_cate_style (customer_id, cate_style, detail_style, updated_at) VALUES (?, ?, ?, datetime(\'now\')) ON CONFLICT(customer_id) DO UPDATE SET cate_style = excluded.cate_style, detail_style = excluded.detail_style, updated_at = datetime(\'now\')')
-        .run(req.customerId, cateStyle, detailStyle);
-      audit(req, 'update', 'goods_cate_style', req.customerId, `商城风格：分类${cateStyle} 详情${detailStyle}`);
+      const b = req.body;
+      const cateStyle = b.cateStyle === 2 ? 2 : 1;
+      const detailStyle = [1, 2, 3].includes(Number(b.detailStyle)) ? Number(b.detailStyle) : 1;
+      const goodsIscard = b.goodsIscard === 1 ? 1 : 2;
+      const shareStyle = b.shareStyle === 2 ? 2 : 1;
+      const pbgStyle = b.pbgStyle === 2 ? 2 : 1;
+      const pbgImg = Number(b.pbgImg) >= 0 && Number(b.pbgImg) <= 13 ? Number(b.pbgImg) : 1;
+      const pbgMode = b.pbgMode === 2 ? 2 : 1;
+      const pbgTheme = Number(b.pbgTheme) >= 0 && Number(b.pbgTheme) <= 13 ? Number(b.pbgTheme) : 1;
+      const pbgImgCustom = String(b.pbgImgCustom || '').slice(0, 500);
+      const pbgThemeCustom = String(b.pbgThemeCustom || '').slice(0, 500);
+      db.prepare(`INSERT INTO goods_cate_style (customer_id, cate_style, detail_style, goods_iscard, share_style, pbg_style, pbg_img, pbg_mode, pbg_theme, pbg_img_custom, pbg_theme_custom, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                  ON CONFLICT(customer_id) DO UPDATE SET
+                    cate_style = excluded.cate_style, detail_style = excluded.detail_style,
+                    goods_iscard = excluded.goods_iscard, share_style = excluded.share_style,
+                    pbg_style = excluded.pbg_style, pbg_img = excluded.pbg_img,
+                    pbg_mode = excluded.pbg_mode, pbg_theme = excluded.pbg_theme,
+                    pbg_img_custom = excluded.pbg_img_custom, pbg_theme_custom = excluded.pbg_theme_custom,
+                    updated_at = datetime('now')`)
+        .run(req.customerId, cateStyle, detailStyle, goodsIscard, shareStyle, pbgStyle, pbgImg, pbgMode, pbgTheme, pbgImgCustom, pbgThemeCustom);
+      audit(req, 'update', 'goods_cate_style', req.customerId, `商城风格：分类${cateStyle} 详情${detailStyle} 卡片${goodsIscard} 分享${shareStyle} 价格${pbgStyle} 背景${pbgImg} 模式${pbgMode} 主题${pbgTheme}`);
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

@@ -185,6 +185,12 @@ export function createApp({ db, deps = {} } = {}) {
     app.use('/gift-share', express.static(giftShareDist, { maxAge: '1y' }));
   }
 
+  // 商城风格素材（1:1 复刻菜鸟云 duoproducts/cateset：分类/详情风格缩略图、详情背景、分享图、价格背景、主题图）
+  const goodsStyleDist = path.join(config.publicDir, 'goods-style');
+  if (fs.existsSync(goodsStyleDist)) {
+    app.use('/goods-style', express.static(goodsStyleDist, { maxAge: '1y' }));
+  }
+
   // Vue管理后台构建产物
   const adminDist = path.join(config.publicDir, 'admin');
   if (fs.existsSync(adminDist)) {

@@ -1031,3 +1031,37 @@ npm run test:frontend
 - 分享样式选择 UI 一律用图卡（img 缩略 + 标签 + 选中态），禁止纯文字卡；新增其它带「样式/模板图」选择的组件沿用此形态。
 - 保存字段 shareStyle 1/2/3 后端已支持（gift_config.share_style），前端仅需映射图片 URL，无需改表。
 - 复刻对标图片类功能流程：浏览器抓 img src 与 naturalWidth/Height → curl 下载本地 Read 验证内容与映射 → 入 static → 前端图卡化 → 实测选中与落库。
+
+# 商城风格 1:1 复刻规范（2026-09-17 新增）
+
+## 对标页
+云菜鸟 `https://cloud.xincainiao.cc/index/duoproducts/cateset?appletid=10`（商品模块 → 商城设置 → 商城风格）。
+
+## 页面结构（1:1）
+- 顶部 Tab：**分类风格 / 详情风格**（先选层级，再显示该层级风格）。
+- **分类风格**：2 个真实手机屏截图预览（style1.jpg=左侧一级分类+右侧二级分类；style2.jpg=左侧一级分类+右侧二级分类+商品卡），带说明文字 + 单选。
+- **详情风格**：左侧 250px 手机预览（背景 main_bg_{详情风格}_{卡片样式}.jpg 750×2000 + 价格条 + 分享图叠加）+ 右侧参数区：
+  - 详情风格：风格一/风格二/风格三（radio，无缩略图，联动切换背景）
+  - 卡片样式：开启/关闭（联动背景 main_bg_{s}_{c} 与价格条圆角）
+  - 分享样式：样式一/样式二（联动 share_{分享样式}_{卡片样式}.png，top 位置矩阵：share1_1=453 share1_2=446 share2_1=483 share2_2=474 share3_1=443 share3_2=437）
+  - 价格样式：主题色/主题色+背景图（**详情风格三不显示价格区**；主题色=渐变底白字 base_text=#FFFFFF；主题色+背景图=显示 price_bg{详情风格}_{背景序号}.png 覆盖 + 裁剪/填充模式）
+  - 价格样式=背景图 时嵌套显示「背景图片 样式一~十三+自定义上传」+「背景图样式 裁剪/填充」
+  - 详情风格=风格二 时额外显示「主题样式 样式一~十三+自定义上传」（price_theme_{序号}.png）
+
+## 素材清单（已入库 server/public/goods-style/，静态路由 /goods-style）
+- style1.jpg / style2.jpg / style3.jpg（分类/详情风格手机截图缩略图，213×376）
+- main_bg/main_bg_{1|2|3}_{1|2}.jpg（详情页背景，750×2000，6 张）
+- share/share_{1|2}_{1|2}.png（分享图，4 张）
+- price_bg/price_bg{1|2}_{1..13}.png（价格背景图，26 张）
+- price_theme/price_theme_{1..13}.png（主题图，13 张）
+- price_show.png（详情风格2 底部价格条图）
+
+## 后端字段（goods_cate_style 表扩展）
+cate_style(1/2) / detail_style(1/2/3) / goods_iscard(1开2关) / share_style(1/2) / pbg_style(1主题色2背景图) / pbg_img(0自定义1-13) / pbg_mode(1裁剪2填充) / pbg_theme(0自定义1-13) / pbg_img_custom / pbg_theme_custom。旧库迁移用 colExists+ALTER（TEXT 字段单独类型处理，不能统一 INTEGER）。
+
+## 经验教训（用户批评点）
+1. **图片展示类禁止自绘 CSS 示意**：凡是标的有真实预览图/素材的，必须按「图片类复刻流程」直接复制对标原图（浏览器抓 img src + naturalWidth/Height → curl 下载 → Read 验证 → 入 server/public 子目录 + 挂 express.static 路由 → 前端图卡/背景引用真图）。曾用自绘 mini-cate/mini-detail-img 方块示意被用户否决。
+2. **复刻前必须逐个点开每个风格/子项细读差异与联动**：不能只看结构数量就动手。详情风格有 3 个（我方曾只做 2 个）；且必须点开每个 radio/开关验证 ①预览背景切换 ②嵌套参数区显隐（价格样式=2 显示背景图片区、详情风格=2 显示主题样式区、详情风格=3 隐藏价格区）③图片素材随参数矩阵变化。
+3. **详情风格 radio 对标本身无缩略图**（风格一无图，风格二/三空 img），1:1 复刻时不做缩略图，靠左侧预览联动体现差异。
+4. **Vite 静态资源坑**：img src 直接写 `/goods-style/xxx.png` 会被 Vite 当模块解析报 rollup resolve 失败；必须以 `:src` 绑定变量（const 字符串或 computed）绕过静态分析。
+5. **自定义上传**：pbgImg/pbgTheme=0 时显示上传，调 `POST /api/customer/upload`（FormData file），返回 res.url 存 pbgImgCustom/pbgThemeCustom。

@@ -2352,10 +2352,30 @@ function seedGoods(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       customer_id INTEGER NOT NULL UNIQUE,
       cate_style INTEGER NOT NULL DEFAULT 1,  -- 分类风格 1 风格1 2 风格2
-      detail_style INTEGER NOT NULL DEFAULT 1,-- 详情风格 1 风格1 2 风格2
+      detail_style INTEGER NOT NULL DEFAULT 1,-- 详情风格 1 风格1 2 风格2 3 风格三
+      goods_iscard INTEGER NOT NULL DEFAULT 2,-- 卡片样式 1 开启 2 关闭
+      share_style INTEGER NOT NULL DEFAULT 1, -- 分享样式 1 样式一 2 样式二
+      pbg_style INTEGER NOT NULL DEFAULT 1,   -- 价格样式 1 主题色 2 主题色+背景图
+      pbg_img INTEGER NOT NULL DEFAULT 1,     -- 价格背景图 0 自定义 1-13 样式
+      pbg_mode INTEGER NOT NULL DEFAULT 1,    -- 价格背景图模式 1 裁剪 2 填充
+      pbg_theme INTEGER NOT NULL DEFAULT 1,   -- 主题样式（详情风格2） 0 自定义 1-13 样式
+      pbg_img_custom TEXT NOT NULL DEFAULT '',-- 自定义价格背景图 URL
+      pbg_theme_custom TEXT NOT NULL DEFAULT '',-- 自定义主题图 URL
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  // 旧库迁移：goods_cate_style 补充卡片/分享/价格/主题字段（1:1 复刻菜鸟云 cateset 全参数）
+  ['goods_iscard', 'share_style', 'pbg_style', 'pbg_img', 'pbg_mode', 'pbg_theme', 'pbg_img_custom', 'pbg_theme_custom'].forEach((col) => {
+    if (!colExists(db, 'goods_cate_style', col)) {
+      if (col === 'pbg_img_custom' || col === 'pbg_theme_custom') {
+        db.exec(`ALTER TABLE goods_cate_style ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`);
+      } else if (col === 'goods_iscard') {
+        db.exec('ALTER TABLE goods_cate_style ADD COLUMN goods_iscard INTEGER NOT NULL DEFAULT 2');
+      } else {
+        db.exec(`ALTER TABLE goods_cate_style ADD COLUMN ${col} INTEGER NOT NULL DEFAULT 1`);
+      }
+    }
+  });
 
   // —— 商品采集独立应用（1:1 复刻菜鸟云 goods_collect：商品链接采集/选择分类/状态；从商品管理二级菜单移出，注册为应用）——
   db.exec(`
