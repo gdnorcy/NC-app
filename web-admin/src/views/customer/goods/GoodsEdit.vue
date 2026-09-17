@@ -82,12 +82,13 @@
               <el-radio :value="2">选填</el-radio>
             </el-radio-group>
           </el-form-item>
-          <!-- 卡密库（仅卡密：菜鸟云 type3 专属，选择卡密库 + 去设置；库表二期-C） -->
+          <!-- 卡密库（仅卡密：菜鸟云 type3 专属，选择卡密库；库管理在应用中心-电子卡密） -->
           <el-form-item v-if="topType === 3" label="卡密库">
             <el-select v-model="g.cardKeyId" placeholder="请选择卡密库" clearable style="width: 240px">
-              <el-option v-for="k in cardKeys" :key="k.id" :label="k.name" :value="k.id" />
+              <el-option v-for="k in cardKeys" :key="k.id" :label="`${k.name}（${k.cateName}）`" :value="k.id" />
             </el-select>
-            <span class="form-hint ml12">卡密库管理（二期-C 开放），暂无卡密库可选</span>
+            <el-button v-if="!cardKeys.length" link type="primary" @click="goCarmi">去设置卡密库</el-button>
+            <span v-else class="form-hint ml12">{{ cardKeys.length }} 个卡密库可选</span>
           </el-form-item>
           <el-form-item label="商品详情">
             <RichTextEditor v-model="g.info" class="rich-editor" />
@@ -361,7 +362,7 @@ const isEdit = computed(() => goodsId.value > 0);
 const tab = ref('base');
 const topType = ref(1);
 const licenses = ref([]);
-const cardKeys = ref([]);  // 卡密库（二期-C 接入后填充）
+const cardKeys = ref([]);  // 卡密库（应用中心-电子卡密管理端接入）
 const cateOptions = ref([]);
 const paramTpls = ref([]);
 const saving = ref(false);
@@ -409,7 +410,17 @@ async function loadMeta() {
     cateOptions.value = cates.tree || [];
     paramTpls.value = params.list || [];
     licenses.value = lic.apps || [];
+    // 卡密库下拉（仅开通电子卡密时拉取）
+    if (licenses.value.includes('card-carmi')) {
+      try {
+        cardKeys.value = await customerApiCall.get('/card-key/options');
+      } catch (e) { console.warn('[GoodsEdit] loadCardKeys fail', e); }
+    }
   } catch (e) { console.error('[GoodsEdit] loadMeta fail', e); }
+}
+
+function goCarmi() {
+  router.push('/apps/card-carmi');
 }
 
 async function loadGoods() {

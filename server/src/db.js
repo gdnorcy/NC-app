@@ -1983,6 +1983,40 @@ function seedGoods(db) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_goods_order_log ON goods_order_log(order_id);
+
+    -- 电子卡密（1:1 复刻菜鸟云 card_key：分类/库/数据；租户隔离 customer_id）
+    CREATE TABLE IF NOT EXISTS card_key_category (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      type INTEGER NOT NULL DEFAULT 1,             -- 1 单个卡密（售出减库存：激活码/邮箱/充值卡/账号） 2 通用卡密（客户收到内容一致：网盘/视频/教程）
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(customer_id, name)
+    );
+    CREATE TABLE IF NOT EXISTS card_key_library (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      cate_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      remark TEXT NOT NULL DEFAULT '',             -- 备注（仅后台可见）
+      instruction TEXT NOT NULL DEFAULT '',        -- 使用说明（小程序端购买后订单详情可见）
+      can_repetition INTEGER NOT NULL DEFAULT 0,   -- 是否可重复购买（1 是 / 0 否，默认否）
+      data_content TEXT NOT NULL DEFAULT '',       -- 通用卡密展示内容（如：网盘地址xxx 提取码xxx）
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS card_key_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      library_id INTEGER NOT NULL,
+      code TEXT NOT NULL DEFAULT '',               -- 编号
+      pwd TEXT NOT NULL DEFAULT '',                -- 密码/卡密
+      status INTEGER NOT NULL DEFAULT 0,           -- 0 未使用 1 已使用
+      order_id INTEGER NOT NULL DEFAULT 0,         -- 使用订单（goods_order.id）
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_key_data_lib ON card_key_data(library_id, status);
   `);
 
   // 类型差异化字段（2026-09-17 对齐菜鸟云三类型表单差异）：手机号填写（卡密/虚拟）、卡密库（卡密专属，库表二期）
