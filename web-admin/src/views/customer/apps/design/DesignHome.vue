@@ -1105,7 +1105,7 @@ onMounted(() => {
 .ds-custom-plus { font-size: 20px; color: #86909c; line-height: 1; }
 .ds-custom-box { margin-top: 16px; padding-top: 4px; border-top: 1px dashed #e5e6eb; }
 /* 系统风格页：菜鸟云式左右排版（左侧配置 + 右侧手机预览区；三窗横排，预览区可横向滚动） */
-.ds-layout { display: flex; gap: 16px; align-items: flex-start; }
+.ds-layout { display: flex; gap: 28px; align-items: flex-start; }
 .ds-config { flex: 0 0 460px; min-width: 0; }
 .ds-preview-panel { flex: 1; min-width: 0; }
 @media (max-width: 1100px) {
@@ -1113,8 +1113,9 @@ onMounted(() => {
   .ds-config, .ds-preview-panel { flex: none; width: 100%; }
 }
 /* 预览三窗（1:1 菜鸟云 choose_style_single：250×466 / 圆角22 / 紫调阴影） */
-.ds-preview-row { display: flex; gap: 30px; overflow-x: auto; padding: 4px 2px 10px; }
-.ds-preview { position: relative; flex: 0 0 250px; width: 250px; height: 466px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 0 29px rgba(76, 66, 188, 0.26); }
+.ds-preview-row { display: flex; gap: 40px; overflow-x: auto; padding: 10px 6px 14px; }
+/* 每台手机独立投影（下方为主、模糊收小），三窗并排不连成整体 */
+.ds-preview { position: relative; flex: 0 0 250px; width: 250px; height: 466px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 10px 24px rgba(76, 66, 188, 0.18), 0 2px 6px rgba(76, 66, 188, 0.08); }
 /* 头部状态栏/胶囊图（透明素材，背景图头部透明处透出） */
 .ds-preview-top { position: absolute; left: 0; top: 0; width: 100%; height: 52px; z-index: 2; display: block; }
 /* 页面静态背景图（头部区域透明，透出 head 底色） */
