@@ -12,10 +12,23 @@
       </div>
     </div>
 
-    <!-- ============ 采集配置（1:1 菜鸟云 goods_collect/goodsadd：商品链接/选择分类/状态/确定） ============ -->
+    <!-- ============ 采集配置（1:1 菜鸟云 goods_collect/goodsadd：商品链接/选择分类/状态/确定 + 采集APIKEY） ============ -->
     <div v-if="activeTab === 'config'" class="panel">
       <AppPageHeader title="商品采集" desc="批量采集淘宝/天猫商品链接到商品库（多个链接用 ; 分隔）" />
       <div class="card collect-form">
+        <div class="sub-title">采集 APIKEY</div>
+        <el-form label-width="90px" style="max-width: 640px">
+          <el-form-item label="APIKEY">
+            <el-input v-model="apiKey" class="w360" placeholder="数据接口 APIKEY" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="savingKey" @click="saveApiKey">保存</el-button>
+          </el-form-item>
+        </el-form>
+        <div class="collect-tip">采集 APIKEY：点击申请在我的数据接口中添加淘宝、天猫、京东商城接口</div>
+      </div>
+      <div class="card collect-form">
+        <div class="sub-title">添加采集任务</div>
         <el-form label-width="90px" style="max-width: 640px">
           <el-form-item label="商品链接" required>
             <el-input v-model="form.link" type="textarea" :rows="5" placeholder="请输入商品链接，多个链接用 ; 分隔&#10;例如：https://item.taobao.com/item.htm?id=xxx; https://detail.tmall.com/item.htm?id=xxx" />
@@ -84,6 +97,22 @@ const categories = ref([]);
 const records = ref([]);
 const loading = ref(false);
 const saving = ref(false);
+const apiKey = ref('');
+const savingKey = ref(false);
+
+async function loadApiKey() {
+  try {
+    const res = await customerApiCall.get('/goods/collect-config');
+    apiKey.value = res.nineApiKey || '';
+  } catch (e) { /* 加载失败不阻塞 */ }
+}
+async function saveApiKey() {
+  savingKey.value = true;
+  try {
+    await customerApiCall.put('/goods/collect-config', { nineApiKey: apiKey.value });
+    ElMessage.success('采集 APIKEY 已保存');
+  } catch (e) { ElMessage.error(e); } finally { savingKey.value = false; }
+}
 
 async function loadCategories() {
   try {
@@ -125,7 +154,7 @@ async function loadRecords() {
   } catch (e) { ElMessage.error(e); } finally { loading.value = false; }
 }
 
-onMounted(() => { loadCategories(); loadRecords(); });
+onMounted(() => { loadCategories(); loadRecords(); loadApiKey(); });
 </script>
 
 <style scoped>
@@ -158,6 +187,8 @@ onMounted(() => { loadCategories(); loadRecords(); });
 .panel { display: flex; flex-direction: column; gap: 16px; }
 .card { background: #fff; border-radius: 8px; padding: 20px; }
 .collect-form { max-width: 860px; }
+.sub-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 12px; }
+.w360 { width: 360px; }
 .collect-tip { font-size: 12px; color: #86909c; margin-top: 8px; line-height: 1.6; }
 .empty-tip { color: #86909c; font-size: 13px; padding: 24px 0; text-align: center; }
 </style>

@@ -312,7 +312,7 @@ export function createGoodsRouter(db) {
     showOrderList: 1, showFxMoney: 0, showVipPrice: 0,
     priceShowValue: '', priceShowName: '点击查看', priceShowLink: '提示##非会员无法查看价格！', priceShowLinkType: 'popuptext',
     showCoupon: 1, shoppingCart: 1, cusId: 1, invoiceFormId: 0,
-    goodsRecommend: '', goodsCategories: [], nineApiKey: '', isEvaluate: 1, evaluateAudit: 0,
+    goodsRecommend: '', goodsCategories: [], isEvaluate: 1, evaluateAudit: 0,
     // 分享
     shareTitle: '', shareImg: '',
   };
@@ -330,7 +330,11 @@ export function createGoodsRouter(db) {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
-      const config = { ...GOODS_SETTINGS_DEFAULTS, ...(req.body || {}) };
+      // 保留应用专属字段（商品采集 APIKEY 已移入本应用，商城设置保存不得覆盖）
+      const old = db.prepare('SELECT config FROM goods_setting WHERE customer_id = ?').get(cid);
+      let oldConfig = {};
+      try { oldConfig = JSON.parse(old?.config || '{}'); } catch { oldConfig = {}; }
+      const config = { ...GOODS_SETTINGS_DEFAULTS, ...(req.body || {}), nineApiKey: oldConfig.nineApiKey || '' };
       db.prepare(
         `INSERT INTO goods_setting (customer_id, config, updated_at) VALUES (?, ?, datetime('now'))
          ON CONFLICT(customer_id) DO UPDATE SET config = excluded.config, updated_at = datetime('now')`
@@ -709,6 +713,31 @@ export function createGoodsRouter(db) {
   });
 
   // ---------- 商品采集（独立应用 goods-collect：提交采集任务记录；真实抓取需对接第三方采集 APIKEY） ----------
+  // 采集 APIKEY（自商城设置移入商品采集应用；同存 goods_setting.config.nineApiKey，数据不丢失）
+  router.get('/collect-config', requireTenant, (req, res) => {
+    try {
+      const row = db.prepare('SELECT config FROM goods_setting WHERE customer_id = ?').get(req.customerId);
+      let config = {};
+      try { config = JSON.parse(row?.config || '{}'); } catch { config = {}; }
+      res.json({ nineApiKey: config.nineApiKey || '' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+  router.put('/collect-config', requireTenant, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const cid = req.customerId;
+      const row = db.prepare('SELECT config FROM goods_setting WHERE customer_id = ?').get(cid);
+      let config = {};
+      try { config = JSON.parse(row?.config || '{}'); } catch { config = {}; }
+      config.nineApiKey = String(req.body.nineApiKey || '').trim();
+      db.prepare(
+        `INSERT INTO goods_setting (customer_id, config, updated_at) VALUES (?, ?, datetime('now'))
+         ON CONFLICT(customer_id) DO UPDATE SET config = excluded.config, updated_at = datetime('now')`
+      ).run(cid, JSON.stringify(config));
+      audit(req, 'update', 'goods_collect_config', 0, '保存商品采集 APIKEY');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
   router.get('/collects', requireTenant, (req, res) => {
     try {
       const list = db.prepare('SELECT * FROM goods_collect WHERE customer_id = ? ORDER BY id DESC LIMIT 100').all(req.customerId);

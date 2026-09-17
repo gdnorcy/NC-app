@@ -375,10 +375,6 @@
             <el-option v-for="c in cateOptions" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="商品采集">
-          <el-input v-model="cfg.nineApiKey" class="w360" placeholder="采集应用APIKEY" />
-          <span class="form-hint">点击申请在我的数据接口中添加淘宝、天猫、京东商城接口</span>
-        </el-form-item>
         <el-form-item label="购买评价">
           <el-radio-group v-model="cfg.isEvaluate">
             <el-radio :value="1">开启</el-radio>
@@ -452,7 +448,7 @@ const cfg = reactive({
   showOrderList: 1, showFxMoney: 0, showVipPrice: 0,
   priceShowValue: '', priceShowName: '点击查看', priceShowLink: '提示##非会员无法查看价格！', priceShowLinkType: 'popuptext',
   showCoupon: 1, shoppingCart: 1, cusId: 1, invoiceFormId: 0,
-  goodsRecommend: '', goodsCategories: [], nineApiKey: '', isEvaluate: 1, evaluateAudit: 0,
+  goodsRecommend: '', goodsCategories: [], isEvaluate: 1, evaluateAudit: 0,
   // 分享
   shareTitle: '', shareImg: '',
 });
