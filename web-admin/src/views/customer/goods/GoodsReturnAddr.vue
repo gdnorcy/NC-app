@@ -49,8 +49,11 @@
               <el-select v-model="form.province" placeholder="==省==" class="region-sel" @change="onProvince">
                 <el-option v-for="p in AREA_DATA" :key="p.value" :label="p.label" :value="p.value" />
               </el-select>
-              <el-select v-model="form.city" placeholder="==市==" class="region-sel">
+              <el-select v-model="form.city" placeholder="==市==" class="region-sel" @change="onCity">
                 <el-option v-for="c in cityOptions" :key="c.value" :label="c.label" :value="c.value" />
+              </el-select>
+              <el-select v-model="form.district" placeholder="==区/市/县==" class="region-sel">
+                <el-option v-for="a in districtOptions" :key="a.value" :label="a.label" :value="a.value" />
               </el-select>
             </div>
           </el-form-item>
@@ -81,21 +84,28 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { customerApiCall } from '../../../api';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
-import { AREA_DATA } from './area-data.js';
+import { AREA_DATA_FULL as AREA_DATA } from './area-data-full.js';
 
 const mode = ref('list');
 const list = ref([]);
 const loading = ref(false);
 const saving = ref(false);
 const selected = ref([]);
-const form = ref({ id: null, name: '', phone: '', province: '', city: '', address: '', remark: '' });
+const form = ref({ id: null, name: '', phone: '', province: '', city: '', district: '', address: '', remark: '' });
 
 const cityOptions = computed(() => {
   const p = AREA_DATA.find((x) => x.value === form.value.province);
   return p ? p.children : [];
 });
 
-function onProvince() { form.value.city = ''; }
+const districtOptions = computed(() => {
+  const p = AREA_DATA.find((x) => x.value === form.value.province);
+  const c = p ? p.children.find((x) => x.value === form.value.city) : null;
+  return c ? c.children : [];
+});
+
+function onProvince() { form.value.city = ''; form.value.district = ''; }
+function onCity() { form.value.district = ''; }
 
 async function load() {
   loading.value = true;
@@ -106,21 +116,24 @@ async function load() {
 }
 
 function openAdd() {
-  form.value = { id: null, name: '', phone: '', province: '', city: '', address: '', remark: '' };
+  form.value = { id: null, name: '', phone: '', province: '', city: '', district: '', address: '', remark: '' };
   mode.value = 'form';
 }
 
 function openEdit(row) {
   const parts = String(row.address || '').split(' ');
-  form.value = {
-    id: row.id,
-    name: row.name,
-    phone: row.phone,
-    province: parts[0] || '',
-    city: parts[1] || '',
-    address: parts.slice(2).join(' '),
-    remark: row.remark || '',
-  };
+  // 兼容旧数据（省 市 详细地址）：若第3段能在该市区县列表中匹配，则视为区县
+  let province = parts[0] || '';
+  let city = parts[1] || '';
+  let district = '';
+  let detail = parts.slice(2).join(' ');
+  const p = AREA_DATA.find((x) => x.value === province);
+  const c = p ? p.children.find((x) => x.value === city) : null;
+  if (c && parts[2] && c.children.some((a) => a.value === parts[2])) {
+    district = parts[2];
+    detail = parts.slice(3).join(' ');
+  }
+  form.value = { id: row.id, name: row.name, phone: row.phone, province, city, district, address: detail, remark: row.remark || '' };
   mode.value = 'form';
 }
 
@@ -128,9 +141,9 @@ async function save() {
   const f = form.value;
   if (!f.name.trim()) { ElMessage.warning('请输入收件人名'); return; }
   if (!f.phone.trim()) { ElMessage.warning('请输入收件电话'); return; }
-  if (!f.province || !f.city) { ElMessage.warning('请选择收件地区'); return; }
+  if (!f.province || !f.city || !f.district) { ElMessage.warning('请选择收件地区'); return; }
   if (!f.address.trim()) { ElMessage.warning('请输入收件地址'); return; }
-  const address = `${f.province} ${f.city} ${f.address.trim()}`;
+  const address = `${f.province} ${f.city} ${f.district} ${f.address.trim()}`;
   saving.value = true;
   try {
     const body = { name: f.name.trim(), phone: f.phone.trim(), address, remark: f.remark.trim() };
@@ -174,8 +187,8 @@ onMounted(load);
 .return-form-wrap { display: flex; gap: 32px; align-items: flex-start; background: #fff; border-radius: 8px; padding: 24px; margin-top: 16px; }
 .return-form { flex: 1; min-width: 0; }
 .w360 { width: 360px; }
-.region-row { display: flex; gap: 12px; }
-.region-sel { width: 170px; }
+.region-row { display: flex; gap: 8px; }
+.region-sel { flex: 1; min-width: 0; }
 .form-actions { display: flex; gap: 12px; margin-top: 8px; }
 .return-form-aside { width: 220px; flex-shrink: 0; border-left: 1px solid #f2f3f5; padding-left: 24px; }
 .aside-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
