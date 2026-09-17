@@ -31,6 +31,7 @@ const routes = [
       { path: 'apps/card/templates', component: () => import('../views/customer/apps/card/TemplateMarket.vue'), meta: { title: '模板市场', breadcrumbs: ['应用中心', '智能名片', '模板市场'] } },
       { path: 'apps/card/exchanges', component: () => import('../views/customer/apps/card/ExchangeRecords.vue'), meta: { title: '交换记录', breadcrumbs: ['应用中心', '智能名片', '交换记录'] } },
       { path: 'apps/card/forms', component: () => import('../views/customer/apps/card/FormCollect.vue'), meta: { title: '表单收集', breadcrumbs: ['应用中心', '智能名片', '表单收集'] } },
+      { path: 'apps/card/brand', component: () => import('../views/customer/apps/card/BrandAppearance.vue'), meta: { title: '品牌外观', breadcrumbs: ['应用中心', '智能名片', '品牌外观'] } },
       // 分销体系（5 个独立应用；P0 已实现 dist 底座，其余 4 个为占位）
       { path: 'apps/dist', component: () => import('../views/customer/apps/dist/DistHome.vue'), meta: { title: '分销裂变', breadcrumbs: ['应用中心', '分销体系', '分销裂变'] } },
       { path: 'apps/partner', component: () => import('../views/customer/apps/dist/PartnerHome.vue'), meta: { title: '合伙人分红', breadcrumbs: ['应用中心', '分销体系', '合伙人分红'] } },

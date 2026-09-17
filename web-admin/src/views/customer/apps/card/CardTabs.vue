@@ -28,6 +28,7 @@ const tabs = [
   { label: '模板市场', path: '/apps/card/templates', icon: 'template' },
   { label: '交换记录', path: '/apps/card/exchanges', icon: 'exchange' },
   { label: '线索收集', path: '/apps/card/forms', icon: 'template' },
+  { label: '品牌外观', path: '/apps/card/brand', icon: 'palette' },
 ];
 
 const route = useRoute();
