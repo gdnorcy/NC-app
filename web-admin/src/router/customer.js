@@ -42,6 +42,8 @@ const routes = [
       { path: 'apps/card-carmi', component: () => import('../views/customer/apps/CardCarmiHome.vue'), meta: { title: '电子卡密', breadcrumbs: ['应用中心', '营销引流', '电子卡密'] } },
       { path: 'apps/card-ticket', component: () => import('../views/customer/apps/CardTicketHome.vue'), meta: { title: '礼品卡券', breadcrumbs: ['应用中心', '营销引流', '礼品卡券'] } },
       { path: 'apps/card-gift', component: () => import('../views/customer/apps/CardGiftHome.vue'), meta: { title: '送礼物', breadcrumbs: ['应用中心', '营销引流', '送礼物'] } },
+      // 小程序直播（应用中心「客群维护」：1:1 菜鸟云「微信直播」直播列表/商品同步/商品审核）
+      { path: 'apps/live', component: () => import('../views/customer/live/LiveHome.vue'), meta: { title: '小程序直播', breadcrumbs: ['应用中心', '客群维护', '小程序直播'] } },
       // 设计中心（侧边栏一级菜单：素材/风格/导航/模板/首页/页面装修）
       { path: 'design', component: () => import('../views/customer/apps/design/DesignHome.vue'), meta: { title: '设计中心', breadcrumbs: ['设计中心'] } },
       // 商品管理（侧边栏一级菜单：1:1 菜鸟云「东莞同城通」duoproducts）

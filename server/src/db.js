@@ -2189,6 +2189,87 @@ function seedGoods(db) {
       }
     }
   } catch {}
+
+  // —— 应用注册：小程序直播（1:1 复刻菜鸟云「微信直播」：直播列表/商品同步/商品审核；分类=客群维护；演示方案自动纳入）——
+  db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('客群维护', 'users', 5)");
+  db.prepare("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('live', '小程序直播', '视频直播，手机直播推流直播（菜鸟云微信直播）', 'panorama', '客群维护', 1, 1)").run();
+  {
+    const liveApp = db.prepare("SELECT id FROM apps WHERE code = 'live'").get();
+    if (liveApp) {
+      const liveMenus = [
+        ['直播列表', 'live:list', '直播列表管理'],
+        ['商品同步', 'live:goods', '直播间商品库管理'],
+        ['商品审核', 'live:audit', '本地商品提交直播审核'],
+      ];
+      const menuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+      liveMenus.forEach(([mod, key, label], idx) => menuIns.run(liveApp.id, mod, mod, key, label, idx + 1));
+    }
+  }
+
+  // —— 小程序直播数据表（live_rooms 直播间 / live_goods 直播商品库）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS live_rooms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      room_id INTEGER,                      -- 微信直播间ID（同步/创建后回填）
+      name TEXT NOT NULL DEFAULT '',
+      anchor_name TEXT NOT NULL DEFAULT '',
+      anchor_wechat TEXT NOT NULL DEFAULT '',
+      background_img TEXT NOT NULL DEFAULT '',
+      thumbnail TEXT NOT NULL DEFAULT '',
+      share_img TEXT NOT NULL DEFAULT '',
+      cover_img TEXT NOT NULL DEFAULT '',
+      start_time TEXT NOT NULL DEFAULT '',
+      end_time TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT '未开始',  -- 未开始/直播中/已结束/禁播/暂停中/异常/已过期
+      live_type TEXT NOT NULL DEFAULT 'phone', -- phone手机直播 / push推流
+      list_display INTEGER NOT NULL DEFAULT 1,  -- 列表显示 1显示 0隐藏
+      recommend INTEGER NOT NULL DEFAULT 0,     -- 设为推荐 1开 0关（DIY直播模块区分展示）
+      like_enabled INTEGER NOT NULL DEFAULT 1,
+      shelf_enabled INTEGER NOT NULL DEFAULT 1,
+      comment_enabled INTEGER NOT NULL DEFAULT 1,
+      replay_enabled INTEGER NOT NULL DEFAULT 0,
+      share_enabled INTEGER NOT NULL DEFAULT 1,
+      service_enabled INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT '小程序直播',
+      view_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_live_rooms_customer ON live_rooms(customer_id)');
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS live_goods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      goods_id INTEGER NOT NULL,            -- 我方商品表 goods.id
+      name TEXT NOT NULL DEFAULT '',
+      price INTEGER NOT NULL DEFAULT 0,     -- 分
+      page_path TEXT NOT NULL DEFAULT '',
+      audit_id TEXT NOT NULL DEFAULT '',    -- 微信审核单号（同步审核状态用）
+      audit_status TEXT NOT NULL DEFAULT 'pending', -- pending待审核 / approved审核通过 / failed审核失败
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(customer_id, goods_id)
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_live_goods_customer ON live_goods(customer_id)');
+  // 幂等迁移：live_goods.thumb（微信商品缩略图，1:1 菜鸟云商品同步列表）
+  if (!colExists(db, 'live_goods', 'thumb')) {
+    db.exec("ALTER TABLE live_goods ADD COLUMN thumb TEXT NOT NULL DEFAULT ''");
+  }
+
+  // 演示方案纳入小程序直播
+  try {
+    const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
+    if (demoRow) {
+      const liveApp = db.prepare("SELECT id FROM apps WHERE code = 'live'").get();
+      if (liveApp && !db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, liveApp.id)) {
+        db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, liveApp.id);
+      }
+    }
+  } catch {}
 }
 
 function seedDistribution(db) {
