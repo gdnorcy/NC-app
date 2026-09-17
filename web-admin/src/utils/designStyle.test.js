@@ -1,6 +1,6 @@
-// 系统风格（1:1 菜鸟云）工具测试：14 套预设色值 / applyScheme / 头部预览联动
+// 系统风格（1:1 菜鸟云）工具测试：14 套预设色值 / applyScheme / 头部预览联动 / hexA
 import { describe, it, expect } from 'vitest';
-import { STYLE_SCHEMES, DEFAULT_STYLE, applyScheme, headPreviewStyle } from './designStyle.js';
+import { STYLE_SCHEMES, DEFAULT_STYLE, applyScheme, headPreviewStyle, hexA } from './designStyle.js';
 
 describe('系统风格（1:1 菜鸟云）', () => {
   it('14 套预设全量色值（主题/渐变/辅助/文字/文字辅色，与对标 colors_arr 实测一致）', () => {
@@ -58,5 +58,18 @@ describe('系统风格（1:1 菜鸟云）', () => {
     expect(whiteTouched).toEqual({ background: '#FFFFFF', color: '#ffffff' });
     const whiteBlack = headPreviewStyle({ headColor: '2', headText: '#000000', primaryColor: '#FE0137' }, false);
     expect(whiteBlack).toEqual({ background: '#FFFFFF', color: '#000000' });
+  });
+
+  it('hexA：hex → rgba（覆盖层浅色底，如上门自提浅青背景 = 主色 25% 透明）', () => {
+    expect(hexA('#0DA29D', 0.25)).toBe('rgba(13, 162, 157, 0.25)');
+    expect(hexA('#FE0137', 1)).toBe('rgba(254, 1, 55, 1)');
+    expect(hexA('#FFFFFF', 0.5)).toBe('rgba(255, 255, 255, 0.5)');
+  });
+
+  it('hexA：非法输入回退（非 6 位 hex 返回原值或 #000）', () => {
+    expect(hexA('#0DA29', 0.25)).toBe('#0DA29');
+    expect(hexA('', 0.25)).toBe('#000');
+    expect(hexA(null, 0.25)).toBe('#000');
+    expect(hexA('red', 0.25)).toBe('red');
   });
 });

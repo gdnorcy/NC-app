@@ -43,3 +43,11 @@ export function headPreviewStyle(style, forceBlack = false) {
   if (style.headColor === '2') return { background: '#FFFFFF', color: forceBlack ? '#000000' : style.headText };
   return { background: style.primaryColor, color: style.headText };
 }
+
+/** hex 颜色 → rgba（覆盖层浅色底用，如上门自提浅青背景 = 主色 25% 透明） */
+export function hexA(hex, alpha) {
+  const h = (hex || '').replace('#', '');
+  if (h.length !== 6) return hex || '#000';
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}

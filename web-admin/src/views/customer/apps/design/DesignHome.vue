@@ -192,27 +192,34 @@
               <span class="ds-ov" :style="{ top: '82px', left: '54px', width: '24px', height: '40px', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"></span>
               <span class="ds-ov" :style="{ top: '135px', right: '8px', width: '33px', height: '280px', background: style.primaryColor }"></span>
             </div>
-            <!-- 加购按钮：独立于覆盖层（覆盖层在背景图之下），须置于背景图之上 -->
-            <span class="ds-add" :style="{ top: '308px', left: '218px', width: '27px', height: '27px', background: style.primaryColor }">+</span>
           </div>
           <!-- 商品详情（菜鸟云 W2 无 top/head 层：img2 头部自带状态栏） -->
           <div class="ds-preview">
             <img class="ds-preview-bg" :src="previewDetail" alt="" />
             <div class="ds-preview-ov">
               <span class="ds-ov" :style="{ top: '253px', left: '4px', width: '164px', height: '40px', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }"></span>
-              <span class="ds-ov ds-ov-t" :style="{ top: '253px', right: '8px', width: '78px', height: '40px', color: style.primaryColor, fontSize: '12px', lineHeight: 1, paddingTop: '7px', textAlign: 'center' }">已售300份</span>
-              <span class="ds-ov ds-ov-t" :style="{ bottom: '130px', left: '8px', width: '95px', color: style.primaryColor, fontSize: '18px' }">促销</span>
               <span class="ds-ov" :style="{ bottom: '43px', left: '5px', width: '240px', height: '50px', background: style.primaryColor }"></span>
               <span class="ds-ov ds-ov-pill" :style="{ bottom: '52px', right: '14px', width: '95px', height: '20px', borderRadius: '20px', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})`, color: '#fff', fontSize: '12px', lineHeight: '20px', textAlign: 'center' }">邀请好友一起抢</span>
-              <!-- 邀请区头像组：独立于覆盖层，置于背景图之上（与菜鸟云 1:1） -->
-              <div class="ds-av-row" :style="{ bottom: '52px', left: '10px' }">
-                <img v-for="(a, i) in avatars" :key="i" :src="a" class="ds-av" alt="" />
-              </div>
-              <span class="ds-ov" :style="{ bottom: '17px', right: '10px', width: '122px', height: '25px', borderRadius: '24px', display: 'flex', overflow: 'hidden' }">
-                <b :style="{ width: '50%', height: '100%', lineHeight: '25px', fontSize: '12px', textAlign: 'center', fontWeight: 'normal', color: style.primaryColor, background: style.secondaryColor }">加入购物车</b>
-                <b :style="{ width: '50%', height: '100%', lineHeight: '25px', fontSize: '12px', textAlign: 'center', fontWeight: 'normal', color: style.textColor, background: style.primaryColor }">立即购买</b>
-              </span>
             </div>
+            <!-- 以下动态元素均位于背景图不透明区域，覆盖层(z0)在其之下会被遮住，必须独立 z3 置于背景图之上 -->
+            <!-- 已售300份（浅青标签 + 主色火焰图标，价格条右侧，与菜鸟云 1:1） -->
+            <span class="ds-sale" :style="{ color: style.primaryColor, background: hexA(style.primaryColor, 0.25) }">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M12 2c1.2 4.2-3.6 6.2-3.6 9.8A4.6 4.6 0 0 0 13 16.4a4.6 4.6 0 0 0 4.6-4.6c0-2.2-1-3.6-2-4.8-1.2 1.4-2.4 2-3.4 1.4.8-2.2 1.2-4.4-.2-6.4z"/></svg>
+              已售300份
+            </span>
+            <!-- 标签行（推荐/新品/热卖/促销/限量，白底浅青描边圆角，商品名下方） -->
+            <span class="ds-tag-row">
+              <b v-for="t in tagList" :key="t" class="ds-tag" :style="{ color: style.primaryColor, borderColor: hexA(style.primaryColor, 0.45) }">{{ t }}</b>
+            </span>
+            <!-- 邀请区头像组：独立于覆盖层，置于背景图之上（与菜鸟云 1:1） -->
+            <div class="ds-av-row" :style="{ bottom: '52px', left: '10px' }">
+              <img v-for="(a, i) in avatars" :key="i" :src="a" class="ds-av" alt="" />
+            </div>
+            <!-- 底部操作：加入购物车（浅青）/ 立即购买（主色渐变），与底部导航同行右侧 -->
+            <span class="ds-btns">
+              <b class="ds-btn" :style="{ color: style.primaryColor, background: hexA(style.primaryColor, 0.25) }">加入购物车</b>
+              <b class="ds-btn" :style="{ color: '#fff', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }">立即购买</b>
+            </span>
           </div>
           <!-- 商品订单 -->
           <div class="ds-preview">
@@ -221,9 +228,11 @@
             <div class="ds-preview-head" :style="dsHeadStyle()">商品订单</div>
             <div class="ds-preview-ov">
               <span class="ds-ov" :style="{ top: '52px', left: '0', width: '100%', height: '55px', background: style.primaryColor }"></span>
-              <span class="ds-ov ds-ov-ziti" :style="{ top: '60px', right: '6px', width: '118px', height: '25px', color: style.primaryColor, background: hexA(style.primaryColor, 0.25), borderRadius: '12px', lineHeight: '27px', fontSize: '13px', textAlign: 'center' }">上门自提</span>
-              <span class="ds-ov ds-ov-pill" :style="{ bottom: '16px', right: '7px', width: '80px', height: '25px', background: style.primaryColor, color: '#fff', borderRadius: '20px', lineHeight: '27px', fontSize: '14px', textAlign: 'center' }">提交订单</span>
             </div>
+            <!-- 上门自提 tab（浅青选中态，背景图不透明区，须 z3；菜鸟云快递配送/上门自提双 tab 并排，上门自提为选中态） -->
+            <span class="ds-ziti" :style="{ color: style.primaryColor, background: hexA(style.primaryColor, 0.25) }">上门自提</span>
+            <!-- 提交订单（主色实底圆角按钮，底部右侧） -->
+            <span class="ds-submit" :style="{ background: style.primaryColor, color: '#fff' }">提交订单</span>
           </div>
         </div>
       </div>
@@ -462,7 +471,7 @@ import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
 import PeColorPicker from './PeColorPicker.vue';
 import { designCall } from '../../../../api';
-import { STYLE_SCHEMES, DEFAULT_STYLE, applyScheme, headPreviewStyle } from '../../../../utils/designStyle.js';
+import { STYLE_SCHEMES, DEFAULT_STYLE, applyScheme, headPreviewStyle, hexA } from '../../../../utils/designStyle.js';
 // 系统风格预览素材（1:1 菜鸟云：商品列表/商品详情/商品订单 三窗 + 头部状态栏图）
 import previewList from '../../../../assets/design-preview/choose_style_img.png';
 import previewDetail from '../../../../assets/design-preview/choose_style_img2.png';
@@ -823,13 +832,8 @@ function dsHeadStyle() {
 const headTopImg = computed(() => (dsHeadStyle().color === '#000000' ? previewTop2 : previewTop1));
 // 邀请区头像素材（菜鸟云 stylediy 同款，1:1）
 const avatars = [av0, av1, av2, av3, av4];
-// hex 颜色 → rgba（覆盖层浅色底用，如上门自提浅青背景 = 主色 25% 透明）
-function hexA(hex, alpha) {
-  const h = (hex || '').replace('#', '');
-  if (h.length !== 6) return hex || '#000';
-  const n = parseInt(h, 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-}
+// 商品名下方标签行（菜鸟云 W2 同款：推荐/新品/热卖/促销/限量）
+const tagList = ['推荐', '新品', '热卖', '促销', '限量'];
 async function loadStyle() {
   try {
     const res = await designCall.get(`${API}/style/get`);
@@ -1104,12 +1108,23 @@ onMounted(() => {
 /* 动态覆盖层（颜色随主题/渐变/辅助） */
 .ds-preview-ov { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 0; }
 .ds-preview-ov .ds-ov { position: absolute; display: block; box-sizing: border-box; }
-.ds-preview-ov .ds-ov-t { display: block; }
-/* 加购按钮：覆盖层在背景图之下，加购按钮须在背景图之上（菜鸟云 icon-jiarugouwuche 主色圆+白加号，1:1） */
-.ds-add { position: absolute; z-index: 3; border-radius: 50%; color: #fff; font-size: 18px; line-height: 27px; text-align: center; box-sizing: border-box; }
 /* 邀请区头像组：一排圆形人物头像（菜鸟云 stylediy 同款，1:1） */
 .ds-av-row { position: absolute; z-index: 3; display: flex; gap: 3px; align-items: center; }
 .ds-av { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.9); box-sizing: border-box; display: block; object-fit: cover; }
+/* 背景图不透明区上的动态元素：覆盖层(z0)在其之下会被遮住，一律独立 z3 置于背景图(z2)之上 */
+/* 已售300份：浅青标签 + 主色火焰图标（价格条右侧，菜鸟云 1:1） */
+.ds-sale { position: absolute; z-index: 3; left: 172px; top: 256px; width: 72px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 10px; line-height: 1; box-sizing: border-box; }
+.ds-sale svg { flex: none; }
+/* 标签行：推荐/新品/热卖/促销/限量（白底浅青描边圆角，商品名下方） */
+.ds-tag-row { position: absolute; z-index: 3; top: 313px; left: 19px; display: flex; gap: 4px; }
+.ds-tag { width: 22px; height: 14px; border: 1px solid; border-radius: 7px; font-size: 9px; font-weight: 400; line-height: 12px; text-align: center; background: #fff; box-sizing: border-box; }
+/* 底部操作：加入购物车（浅青）/ 立即购买（主色渐变）圆角矩形，与底部导航同行右侧（菜鸟云距右 ~44px，不贴死右缘） */
+.ds-btns { position: absolute; z-index: 3; bottom: 14px; right: 30px; display: flex; gap: 4px; }
+.ds-btn { width: 59px; height: 24px; border-radius: 6px; font-size: 11px; font-weight: 400; line-height: 24px; text-align: center; box-sizing: border-box; }
+/* 上门自提 tab：浅青选中态圆角标签（头部条下方右部，菜鸟云距右 ~75px 不贴右缘） */
+.ds-ziti { position: absolute; z-index: 3; top: 56px; right: 60px; width: 58px; height: 18px; border-radius: 9px; font-size: 10px; line-height: 18px; text-align: center; box-sizing: border-box; }
+/* 提交订单：主色实底圆角按钮（底部右部，菜鸟云距右 ~39px） */
+.ds-submit { position: absolute; z-index: 3; bottom: 14px; right: 30px; width: 80px; height: 24px; border-radius: 8px; font-size: 12px; line-height: 24px; text-align: center; box-sizing: border-box; }
 .bg-picker { display: flex; align-items: center; gap: 12px; }
 /* 数字调节框窄化（系统风格 Tab 全局圆角滑杆，72px 容纳三位数字） */
 .form-card :deep(.el-slider__input) { width: 72px; }
