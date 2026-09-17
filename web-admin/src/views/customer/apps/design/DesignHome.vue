@@ -112,7 +112,9 @@
       <AppPageHeader title="系统风格" desc="整体主题配色：头部颜色/头部文字/配色方案/自定配色；保存后作用于当前租户全部页面">
         <div class="hd-actions"><el-button type="primary" :loading="styleSaving" @click="saveStyle">确定</el-button></div>
       </AppPageHeader>
-      <div class="card form-card">
+      <!-- 菜鸟云排版：左侧配置 + 右侧手机预览区 -->
+      <div class="ds-layout">
+        <div class="card form-card ds-config">
         <!-- 基础设置 -->
         <div class="ds-group-title">基础设置</div>
         <el-form label-width="140px">
@@ -178,8 +180,10 @@
             </el-form-item>
           </el-form>
         </div>
+        </div>
 
-        <!-- 预览（1:1 菜鸟云：商品列表 / 商品详情 / 商品订单 三窗；头部状态栏+胶囊为素材图，头部底色/覆盖层颜色随主题动态） -->
+        <!-- 右侧预览（1:1 菜鸟云：商品列表 / 商品详情 / 商品订单 三窗；头部状态栏+胶囊为素材图，头部底色/覆盖层颜色随主题动态） -->
+        <div class="ds-preview-panel card">
         <div class="ds-group-title">预览</div>
         <div class="ds-preview-row">
           <!-- 商品列表 -->
@@ -237,6 +241,7 @@
             <!-- 提交订单（主色实底圆角按钮，底部右侧） -->
             <span class="ds-submit" :style="{ background: style.primaryColor, color: '#fff' }">提交订单</span>
           </div>
+        </div>
         </div>
       </div>
     </section>
@@ -1099,6 +1104,14 @@ onMounted(() => {
 .ds-custom-swatch { background: #f7f8fa; border-style: dashed; }
 .ds-custom-plus { font-size: 20px; color: #86909c; line-height: 1; }
 .ds-custom-box { margin-top: 16px; padding-top: 4px; border-top: 1px dashed #e5e6eb; }
+/* 系统风格页：菜鸟云式左右排版（左侧配置 + 右侧手机预览区；三窗横排，预览区可横向滚动） */
+.ds-layout { display: flex; gap: 16px; align-items: flex-start; }
+.ds-config { flex: 0 0 460px; min-width: 0; }
+.ds-preview-panel { flex: 1; min-width: 0; }
+@media (max-width: 1100px) {
+  .ds-layout { flex-direction: column; }
+  .ds-config, .ds-preview-panel { flex: none; width: 100%; }
+}
 /* 预览三窗（1:1 菜鸟云 choose_style_single：250×466 / 圆角22 / 紫调阴影） */
 .ds-preview-row { display: flex; gap: 30px; overflow-x: auto; padding: 4px 2px 10px; }
 .ds-preview { position: relative; flex: 0 0 250px; width: 250px; height: 466px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 0 29px rgba(76, 66, 188, 0.26); }
