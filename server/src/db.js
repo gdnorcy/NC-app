@@ -2140,9 +2140,9 @@ function seedGoods(db) {
   // —— 应用注册：电子卡密（卡密类型授权）/ 礼品卡券（营销应用）/ 送礼物（营销应用）（分类=营销引流；演示方案自动纳入见 migrateSolutionApps）——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('营销引流', 'channel', 4)");
   const goodsApps = [
-    ['card-carmi', '电子卡密', '卡密商品，用户付款自动发货（授权后商品添加页出现「卡密商品」类型）', 'badge', 1],
-    ['card-ticket', '礼品卡券', '虚品实物，自己兑用转人兑用（授权后商品添加页出现「虚拟商品」类型）', 'voucher', 2],
-    ['card-gift', '送礼物', '实物礼品，购买商品转赠好友（营销引流应用，非商品类型开关）', 'crown', 3],
+    ['card-carmi', '电子卡密', '卡密商品，用户付款自动发货', 'badge', 1],
+    ['card-ticket', '礼品卡券', '虚品实物，自己兑用转人兑用', 'voucher', 2],
+    ['card-gift', '送礼物', '实物礼品，购买商品转赠好友', 'crown', 3],
   ];
   const goodsAppIns = db.prepare('INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
   for (const [code, name, desc, icon, order] of goodsApps) {

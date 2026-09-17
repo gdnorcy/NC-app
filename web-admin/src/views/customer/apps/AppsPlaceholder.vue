@@ -30,7 +30,7 @@ const route = useRoute();
 const APPS = {
   'card-carmi': {
     name: '电子卡密',
-    desc: '卡密商品，用户付款自动发货（授权后商品添加页出现「卡密商品」类型）',
+    desc: '卡密商品，用户付款自动发货',
     tabs: [
       { key: 'carmi:list', label: '卡密库' },
       { key: 'carmi:cates', label: '卡密分类' },
@@ -38,12 +38,12 @@ const APPS = {
   },
   'card-ticket': {
     name: '礼品卡券',
-    desc: '虚品实物，自己兑用转人兑用（授权后商品添加页出现「虚拟商品」类型）',
+    desc: '虚品实物，自己兑用转人兑用',
     tabs: [{ key: 'ticket:list', label: '卡券库' }],
   },
   'card-gift': {
     name: '送礼物',
-    desc: '实物礼品，购买商品转赠好友（营销引流应用，非商品类型开关）',
+    desc: '实物礼品，购买商品转赠好友',
     tabs: [{ key: 'gift:list', label: '商品列表' }],
   },
 };
