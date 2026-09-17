@@ -46,3 +46,6 @@ body {
 /* 弹窗/消息框标题强制单行，避免短标题被意外拆行（2026-09-17） */
 .el-dialog__title,
 .el-message-box__title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* 表单参数标签禁止拆行：标签文字不得被强制换行（2026-09-17） */
+.el-form-item__label { white-space: nowrap; }

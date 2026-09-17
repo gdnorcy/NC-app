@@ -28,7 +28,7 @@
     </el-table>
 
     <el-dialog v-model="dialog.show" title="添加供应商" width="440px" append-to-body>
-      <el-form label-width="90px">
+      <el-form label-width="110px">
         <el-form-item label="供应商名称" required>
           <el-input v-model="dialog.name" placeholder="请输入供应商名称" maxlength="30" />
         </el-form-item>
