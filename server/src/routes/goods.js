@@ -372,6 +372,15 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
+  // ---------- 数据洞察（商品首页仪表盘） ----------
+  router.get('/insight', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const { range = '7d' } = req.query;
+      res.json(svc.getInsight({ customerId: req.customerId, range }));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   // ---------- 售后订单（1:1 复刻菜鸟云 duoproducts/service） ----------
   router.get('/after-sales', requireTenant, requireGoodsApp, (req, res) => {
     try {

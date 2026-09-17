@@ -306,5 +306,41 @@ export function createGoodsOrderService(db) {
     return { ...row, amountY: yuan(row.amount), orderPayAmountY: yuan(row.order_pay_amount) };
   };
 
+  /** 数据洞察：核心指标 + 交易趋势 + 商品热销榜 + 用户购买榜（range: today/7d/30d） */
+  svc.getInsight = ({ customerId, range = '7d' }) => {
+    const days = range === 'today' ? 7 : range === '30d' ? 30 : 7;
+    const startDay = db.prepare(`SELECT date('now', ?) d`).get(`-${days - 1} days`).d; // 'YYYY-MM-DD'（UTC，与系统存储口径一致）
+    const paidWhere = "customer_id = ? AND status IN ('paid','shipped','done') AND paid_at >= ?";
+    const paidParams = [customerId, startDay];
+    const m = db.prepare(`SELECT COUNT(*) c, COALESCE(SUM(pay_amount), 0) s FROM goods_order WHERE ${paidWhere}`).get(...paidParams);
+    const metrics = {
+      orders: m.c,
+      amount: m.s,
+      avg: m.c ? Math.round(m.s / m.c) : 0,
+      pendingShip: db.prepare("SELECT COUNT(*) c FROM goods_order WHERE customer_id = ? AND status = 'paid'").get(customerId).c,
+      pendingPickup: db.prepare("SELECT COUNT(*) c FROM goods_order WHERE customer_id = ? AND delivery_mode = 'pickup' AND status IN ('paid','shipped')").get(customerId).c,
+      afterSale: db.prepare("SELECT COUNT(*) c FROM goods_after_sale WHERE customer_id = ? AND status IN ('pending','processing')").get(customerId).c,
+    };
+    const rows = db.prepare(`SELECT substr(paid_at, 1, 10) d, COUNT(*) c, COALESCE(SUM(pay_amount), 0) s FROM goods_order WHERE ${paidWhere} GROUP BY d`).all(...paidParams);
+    const byDay = {};
+    rows.forEach((r) => { byDay[r.d] = r; });
+    const trend = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = db.prepare(`SELECT date('now', ?) d`).get(`-${i} days`).d;
+      trend.push({ date: d, orders: byDay[d]?.c || 0, amount: byDay[d]?.s || 0 });
+    }
+    const hot = db.prepare(`SELECT i.title, COUNT(DISTINCT o.id) orders, COALESCE(SUM(i.price * i.num), 0) s
+      FROM goods_order_item i JOIN goods_order o ON o.id = i.order_id
+      WHERE o.customer_id = ? AND o.status IN ('paid','shipped','done') AND o.paid_at >= ?
+      GROUP BY i.title ORDER BY s DESC, orders DESC LIMIT 10`).all(customerId, startDay);
+    const hotGoods = hot.map((r, idx) => ({ rank: idx + 1, title: r.title || '未命名商品', orders: r.orders, amount: r.s }));
+    const hu = db.prepare(`SELECT o.user_id, COALESCE(p.nickname, '') nickname, COUNT(DISTINCT o.id) orders, COALESCE(SUM(o.pay_amount), 0) s
+      FROM goods_order o LEFT JOIN platform_user p ON p.id = o.user_id
+      WHERE o.customer_id = ? AND o.status IN ('paid','shipped','done') AND o.paid_at >= ?
+      GROUP BY o.user_id ORDER BY s DESC, orders DESC LIMIT 10`).all(customerId, startDay);
+    const hotUsers = hu.map((r, idx) => ({ rank: idx + 1, nickname: r.nickname || `用户${r.user_id}`, orders: r.orders, amount: r.s }));
+    return { range, days, metrics, trend, hotGoods, hotUsers };
+  };
+
   return svc;
 }

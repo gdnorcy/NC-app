@@ -39,6 +39,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SIcon from '../../../components/SIcon.vue';
 import { customerApiCall } from '../../../api';
+import GoodsInsight from './GoodsInsight.vue';
 import GoodsList from './GoodsList.vue';
 import GoodsCategory from './GoodsCategory.vue';
 import GoodsParams from './GoodsParams.vue';
@@ -60,6 +61,7 @@ const topTabs = [
 // 二级菜单（对齐菜鸟云「东莞同城通」duoproducts 12 子项；count=null 不显示角标）
 const subDefs = {
   goods: [
+    { key: 'insight', label: '数据洞察', icon: 'analytics' },
     { key: 'list', label: '商品列表', icon: 'template', countKey: 'goods' },
     { key: 'category', label: '商品分类', icon: 'apps', countKey: 'category' },
     { key: 'param', label: '商品参数', icon: 'logs', countKey: 'param' },
@@ -84,7 +86,7 @@ const subDefs = {
 };
 
 const activeTop = ref('goods');
-const activeSub = ref('list');
+const activeSub = ref('insight');
 const counts = ref({ goods: 0, category: 0, param: 0 });
 
 const activeTopLabel = computed(() => topTabs.find((t) => t.key === activeTop.value)?.label || '');
@@ -96,6 +98,7 @@ const subMenus = computed(() =>
 );
 
 const compMap = {
+  insight: GoodsInsight,
   list: GoodsList,
   category: GoodsCategory,
   param: GoodsParams,
