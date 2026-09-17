@@ -893,6 +893,19 @@ function migrate(db) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_channel_apps_customer ON channel_apps(customer_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_channel_apps_appid ON channel_apps(appid)');
 
+  // —— 全端渠道：租户渠道拖拽排序（customer_id + channel_type 唯一） ——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS channel_sorts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      channel_type TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(customer_id, channel_type)
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_channel_sorts_customer ON channel_sorts(customer_id)');
+
   // —— 全端渠道：发布日志 ——
   db.exec(`
     CREATE TABLE IF NOT EXISTS channel_deploy_logs (

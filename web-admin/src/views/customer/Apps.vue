@@ -40,7 +40,7 @@
           <div class="app-grid">
             <template v-for="app in g.apps" :key="app.code">
               <template v-if="app.code === 'channel'">
-                <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card" @click="openChannel(ch)">
+                <div v-for="ch in channels" :key="'ch-' + ch.type" class="app-card channel-card" @click="openChannel(ch)">
                   <div class="app-icon-wrap">
                     <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
                   </div>
@@ -67,9 +67,18 @@
         <div v-if="!activeCat?.apps.length" class="empty">该分类下暂无应用</div>
         <div class="app-grid">
           <template v-for="(app, idx) in activeCat?.apps || []" :key="app.code">
-            <!-- 全端渠道分类：直接展示各端渠道卡片，点击卡片进入对应渠道配置 -->
+            <!-- 全端渠道分类：渠道卡片支持同分类内拖拽排序（仅全端渠道分类下可拖） -->
             <template v-if="app.code === 'channel'">
-              <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card" @click="openChannel(ch)">
+              <div
+                v-for="(ch, cidx) in channels" :key="'ch-' + ch.type"
+                class="app-card channel-card"
+                :draggable="activeCat?.name === '全端渠道'"
+                @dragstart="onChannelDragStart(ch, cidx, $event)"
+                @dragover.prevent
+                @drop="onChannelDrop(ch, cidx, $event)"
+                @dragend="onChannelDragEnd"
+                @click="openChannel(ch)"
+              >
                 <div class="app-icon-wrap">
                   <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
                 </div>
@@ -118,17 +127,19 @@ const draggingApp = ref(null);
 let justDragged = false; // 拖拽结束短暂标记，防止误触发点击进入
 
 // 租户端各端渠道（已开通/已开发渠道直开，不再经「全端渠道 → 进入应用」中间层）
-const CUST_CHANNELS = [
+const DEFAULT_CHANNELS = [
   { type: 'mini', name: '微信小程序', icon: 'wechat', desc: '独立小程序，自主发布' },
   { type: 'h5', name: 'H5手机端', icon: 'mobile', desc: '移动端网页，支持自定义域名' },
   { type: 'mp', name: '微信公众号', icon: 'official', desc: '公众号内嵌H5' },
   { type: 'pc', name: 'PC网站', icon: 'pc', desc: '桌面端网站，支持自定义域名' },
 ];
+const channels = ref([...DEFAULT_CHANNELS]);
+const draggingChannel = ref(null);
 
 const catCountText = computed(() => {
   const list = activeCat.value?.apps || [];
   if (showAll.value) return `共 ${allCount.value} 个应用`;
-  if (list.some(a => a.code === 'channel')) return `共 ${CUST_CHANNELS.length} 个渠道`;
+  if (list.some(a => a.code === 'channel')) return `共 ${channels.value.length} 个渠道`;
   return `共 ${list.length} 个应用`;
 });
 const showAll = computed(() => activeCat.value?.name === '全部');
@@ -137,7 +148,7 @@ const allCount = computed(() => {
 });
 function catDisplayCount(cat) {
   if (!cat) return 0;
-  if ((cat.apps || []).some(a => a.code === 'channel')) return CUST_CHANNELS.length;
+  if ((cat.apps || []).some(a => a.code === 'channel')) return channels.value.length;
   return cat.apps.length;
 }
 
@@ -157,6 +168,19 @@ const catIconMap = {
 const catOrder = ['默认分类', '基础功能', '全端渠道', '营销引流', '客群维护', '行业应用', '高级功能', '管理工具'];
 
 onMounted(async () => {
+  // 加载渠道拖拽排序（未设置用默认顺序）
+  try {
+    const res = await customerApiCall.get('/channels/sort');
+    if (Array.isArray(res.types) && res.types.length) {
+      const order = res.types.filter(t => DEFAULT_CHANNELS.some(c => c.type === t));
+      if (order.length) {
+        channels.value = [
+          ...order.map(t => DEFAULT_CHANNELS.find(c => c.type === t)),
+          ...DEFAULT_CHANNELS.filter(c => !order.includes(c.type)),
+        ];
+      }
+    }
+  } catch (e) {}
   let list = [];
   try {
     const data = await customerApiCall.get('/apps');
@@ -239,6 +263,36 @@ function onDragEnd() {
   draggingApp.value = null;
   justDragged = true;
   setTimeout(() => { justDragged = false; }, 250);
+}
+
+// —— 渠道卡片拖拽排序（仅全端渠道分类下可拖） ——
+function onChannelDragStart(ch, idx, e) {
+  draggingChannel.value = { type: ch.type, fromIdx: idx };
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+}
+function onChannelDrop(ch, idx, e) {
+  e.preventDefault();
+  if (!draggingChannel.value) return;
+  const from = draggingChannel.value.fromIdx;
+  const to = idx;
+  if (from === to) return;
+  const list = [...channels.value];
+  const [moved] = list.splice(from, 1);
+  list.splice(to, 0, moved);
+  channels.value = list;
+  draggingChannel.value = null;
+  persistChannelSort();
+}
+function onChannelDragEnd() {
+  draggingChannel.value = null;
+  justDragged = true;
+  setTimeout(() => { justDragged = false; }, 250);
+}
+async function persistChannelSort() {
+  try {
+    await customerApiCall.put('/channels/sort', { types: channels.value.map(c => c.type) });
+    ElMessage.success('渠道顺序已保存');
+  } catch (e) { ElMessage.error(e); }
 }
 async function persistSort() {
   try {

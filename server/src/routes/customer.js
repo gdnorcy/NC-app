@@ -761,6 +761,34 @@ router.get('/channels', requireTenant, (req, res) => {
   res.json({ channels });
 });
 
+// 获取渠道拖拽排序（按 sort_order 升序；未设置过返回空数组，前端用默认顺序）
+// 注意：必须注册在 /channels/:type 之前，否则 'sort' 会被当作 :type 匹配
+router.get('/channels/sort', requireTenant, (req, res) => {
+  const cid = req.customerId;
+  const rows = db.prepare('SELECT channel_type FROM channel_sorts WHERE customer_id = ? ORDER BY sort_order ASC, id ASC').all(cid);
+  res.json({ types: rows.map(r => r.channel_type) });
+});
+
+// 保存渠道拖拽排序（整体覆盖）
+router.put('/channels/sort', requireTenant, requireTenantAdmin, (req, res) => {
+  const cid = req.customerId;
+  const types = Array.isArray(req.body?.types) ? req.body.types.filter(t => typeof t === 'string') : [];
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM channel_sorts WHERE customer_id = ?').run(cid);
+    types.forEach((t, i) => {
+      db.prepare("INSERT OR REPLACE INTO channel_sorts (customer_id, channel_type, sort_order, updated_at) VALUES (?,?,?,datetime('now'))")
+        .run(cid, t, i);
+    });
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    return res.status(500).json({ error: '保存排序失败' });
+  }
+  auditCust(db, req, 'update_channel_sort', 'channel_sort', req.customerId, '保存渠道排序');
+  res.json({ message: '排序已保存' });
+});
+
 // 更新渠道配置
 router.put('/channels/:type', requireTenant, requireTenantAdmin, (req, res) => {
   const cid = req.customerId;

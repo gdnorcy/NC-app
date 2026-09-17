@@ -101,3 +101,44 @@ test('租户应用排序：非法参数返回 400，未登录返回 401', async 
   const noauth = await request(app).get('/api/customer/apps');
   assert.equal(noauth.status, 401);
 });
+
+test('渠道排序：保存后按新顺序返回，按租户隔离', async () => {
+  // 初始无记录返回空数组
+  const init = await request(app).get('/api/customer/channels/sort').set('Authorization', `Bearer ${tenant1Token}`);
+  assert.equal(init.status, 200);
+  assert.deepEqual(init.body.types, []);
+
+  const types = ['h5', 'pc', 'mp', 'mini'];
+  const save = await request(app)
+    .put('/api/customer/channels/sort')
+    .set('Authorization', `Bearer ${tenant1Token}`)
+    .send({ types });
+  assert.equal(save.status, 200);
+
+  const after = await request(app).get('/api/customer/channels/sort').set('Authorization', `Bearer ${tenant1Token}`);
+  assert.deepEqual(after.body.types, types);
+
+  // 重新整体覆盖
+  const reversed = [...types].reverse();
+  await request(app).put('/api/customer/channels/sort').set('Authorization', `Bearer ${tenant1Token}`).send({ types: reversed });
+  const after2 = await request(app).get('/api/customer/channels/sort').set('Authorization', `Bearer ${tenant1Token}`);
+  assert.deepEqual(after2.body.types, reversed);
+
+  // 租户隔离：tenant2 不受影响
+  const login2 = await request(app).post('/api/auth/login').send({ username: 'tenant2', password: 'admin123' });
+  const r2 = await request(app).get('/api/customer/channels/sort').set('Authorization', `Bearer ${login2.body.token}`);
+  assert.deepEqual(r2.body.types, []);
+});
+
+test('渠道排序：非法参数不报错（过滤非字符串），未登录返回 401', async () => {
+  const bad = await request(app)
+    .put('/api/customer/channels/sort')
+    .set('Authorization', `Bearer ${tenant1Token}`)
+    .send({ types: ['mini', 123, null, 'pc'] });
+  assert.equal(bad.status, 200);
+  const after = await request(app).get('/api/customer/channels/sort').set('Authorization', `Bearer ${tenant1Token}`);
+  assert.deepEqual(after.body.types, ['mini', 'pc']);
+
+  const noauth = await request(app).get('/api/customer/channels/sort');
+  assert.equal(noauth.status, 401);
+});
