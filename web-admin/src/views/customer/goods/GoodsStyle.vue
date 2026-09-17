@@ -19,11 +19,12 @@
           >
             <div class="img-phone">
               <img :src="c.img" :alt="c.label" />
-              <span v-if="form.cateStyle === c.value" class="style-check">✓</span>
             </div>
             <p class="style-desc">{{ c.desc }}</p>
             <div class="style-radio">
-              <el-radio :model-value="form.cateStyle === c.value" @click.stop="form.cateStyle = c.value">{{ c.label }}</el-radio>
+              <el-radio-group v-model="form.cateStyle">
+                <el-radio :value="c.value">{{ c.label }}</el-radio>
+              </el-radio-group>
             </div>
           </div>
         </div>
@@ -271,7 +272,6 @@ onMounted(load);
 .style-card.active { border-color: #165DFF; }
 .img-phone { position: relative; width: 100%; aspect-ratio: 213 / 376; background: #F7F8FA; }
 .img-phone img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.style-check { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: #165DFF; color: #fff; font-size: 13px; line-height: 22px; text-align: center; }
 .style-desc { margin: 10px 12px 0; font-size: 13px; color: #4E5969; text-align: center; }
 .style-radio { padding: 6px 0 10px; text-align: center; }
 .style-radio :deep(.el-radio__label) { font-size: 13px; }
