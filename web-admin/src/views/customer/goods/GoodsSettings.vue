@@ -6,12 +6,8 @@
       </div>
     </AppPageHeader>
 
-    <!-- 二级菜单 + 内容区 -->
-    <div class="settings-layout">
-      <div class="side-menu">
-        <div v-for="m in menus" :key="m.key" class="side-menu-item" :class="{ active: activeMenu === m.key }" @click="activeMenu = m.key">{{ m.label }}</div>
-      </div>
-      <div class="side-content">
+    <!-- 分类内容区（按左侧二级菜单切换显示） -->
+    <div class="settings-content">
         <!-- 支付规则 -->
         <div v-show="activeMenu === 'pay'" class="set-card">
           <div class="set-group-title">支付规则</div>
@@ -70,7 +66,7 @@
         </div>
 
         <!-- 下单规则 -->
-        <div v-show="activeMenu === 'order'" class="set-card">
+        <div v-show="activeMenu === 'orderRule'" class="set-card">
           <div class="set-group-title">下单规则</div>
           <el-form label-width="150px" label-position="left">
             <el-form-item label="满额起购">
@@ -412,7 +408,6 @@
             </el-form-item>
           </el-form>
         </div>
-      </div>
     </div>
 
     <!-- 链接选择弹窗 -->
@@ -429,16 +424,8 @@ import AppPageHeader from '../../../components/AppPageHeader.vue';
 import LinkPicker from '../apps/design/LinkPicker.vue';
 import { AREA_DATA } from './area-data.js';
 
-// 二级菜单分类
-const menus = [
-  { key: 'pay', label: '支付规则' },
-  { key: 'order', label: '下单规则' },
-  { key: 'delivery', label: '配送设置' },
-  { key: 'verify', label: '订单核销' },
-  { key: 'show', label: '展示' },
-  { key: 'share', label: '分享' },
-];
-const activeMenu = ref('pay');
+// 分类激活项由父级 GoodsHome 左侧二级菜单传入（pay/orderRule/delivery/verify/show/share）
+const props = defineProps({ activeMenu: { type: String, default: 'pay' } });
 
 const cfg = reactive({
   // 支付规则
@@ -550,18 +537,7 @@ onMounted(load);
 
 <style scoped>
 .hd-actions { display: flex; gap: 8px; }
-.settings-layout { display: flex; gap: 16px; align-items: flex-start; }
-.side-menu {
-  width: 160px; flex-shrink: 0; background: #fff; border-radius: 8px;
-  padding: 8px; position: sticky; top: 16px;
-}
-.side-menu-item {
-  height: 44px; line-height: 44px; padding: 0 12px; border-radius: 8px;
-  margin-bottom: 4px; font-size: 14px; color: #4e5969; cursor: pointer; white-space: nowrap;
-}
-.side-menu-item:hover { background: #f2f3f5; color: #1d2129; }
-.side-menu-item.active { background: #e8f3ff; color: #165dff; font-weight: 500; }
-.side-content { flex: 1; min-width: 0; }
+.settings-content { width: 100%; }
 .set-card { border: 1px solid #e5e6eb; border-radius: 8px; padding: 16px 20px 4px; margin-bottom: 16px; }
 .set-group-title {
   font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 12px;
