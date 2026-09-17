@@ -145,7 +145,10 @@ onMounted(async () => {
 });
 
 function enterApp(app) {
-  if (app.code === 'panorama') router.push('/apps/panorama');
+  // 侧边栏一级菜单应用直接跳真实中心（商品管理/设计中心），不走 /apps/xxx 占位
+  if (app.code === 'goods') router.push('/goods');
+  else if (app.code === 'design') router.push('/design');
+  else if (app.code === 'panorama') router.push('/apps/panorama');
   else if (app.code === 'card') router.push('/apps/card');
   else router.push('/apps/' + app.code);
 }
