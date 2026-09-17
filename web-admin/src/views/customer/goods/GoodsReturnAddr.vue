@@ -46,13 +46,13 @@
           </el-form-item>
           <el-form-item label="收件地区" required>
             <div class="region-row">
-              <el-select v-model="form.province" placeholder="==省==" class="region-sel" @change="onProvince">
+              <el-select v-model="form.province" placeholder="==省==" class="region-sel" show-overflow-tooltip @change="onProvince">
                 <el-option v-for="p in AREA_DATA" :key="p.value" :label="p.label" :value="p.value" />
               </el-select>
-              <el-select v-model="form.city" placeholder="==市==" class="region-sel" @change="onCity">
+              <el-select v-model="form.city" placeholder="==市==" class="region-sel" show-overflow-tooltip @change="onCity">
                 <el-option v-for="c in cityOptions" :key="c.value" :label="c.label" :value="c.value" />
               </el-select>
-              <el-select v-model="form.district" placeholder="==区/市/县==" class="region-sel">
+              <el-select v-model="form.district" placeholder="==区/市/县==" class="region-sel" show-overflow-tooltip>
                 <el-option v-for="a in districtOptions" :key="a.value" :label="a.label" :value="a.value" />
               </el-select>
             </div>
@@ -184,11 +184,11 @@ onMounted(load);
 .hd-actions { display: flex; gap: 8px; }
 .mt12 { margin-top: 12px; }
 .empty-tip { color: #86909c; font-size: 13px; padding: 24px 0; }
-.return-form-wrap { display: flex; gap: 32px; align-items: flex-start; background: #fff; border-radius: 8px; padding: 24px; margin-top: 16px; }
-.return-form { flex: 1; min-width: 0; }
+.return-form-wrap { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; background: #fff; border-radius: 8px; padding: 24px; margin-top: 16px; }
+.return-form { flex: 1 1 560px; min-width: 0; }
 .w360 { width: 360px; }
-.region-row { display: flex; gap: 8px; }
-.region-sel { flex: 1; min-width: 0; }
+.region-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.region-sel { flex: 1 1 130px; min-width: 130px; }
 .form-actions { display: flex; gap: 12px; margin-top: 8px; }
 .return-form-aside { width: 220px; flex-shrink: 0; border-left: 1px solid #f2f3f5; padding-left: 24px; }
 .aside-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
