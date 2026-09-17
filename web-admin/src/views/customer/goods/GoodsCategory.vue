@@ -85,12 +85,11 @@
         <el-form-item label="分类图片">
           <div class="img-picker">
             <el-image v-if="dialog.image" :src="resolveUrl(dialog.image)" fit="cover" class="picker-img" :preview-src-list="[resolveUrl(dialog.image)]" preview-teleported />
-            <div v-else class="picker-img picker-empty" @click="pickImage"><el-icon><Plus /></el-icon></div>
+            <div v-else class="picker-img picker-empty" @click="openPicker('image')"><el-icon><Plus /></el-icon></div>
             <div class="picker-ops">
-              <el-button size="small" @click="pickImage">选择图片</el-button>
+              <el-button size="small" @click="openPicker('image')">选择图片</el-button>
               <el-button v-if="dialog.image" size="small" text type="danger" @click="dialog.image = ''">移除</el-button>
             </div>
-            <input ref="fileInput" type="file" accept="image/*" class="hide" @change="onFileChange" />
           </div>
         </el-form-item>
       </el-form>
@@ -99,6 +98,9 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 素材库选择弹窗 -->
+    <MaterialPicker v-model="picker.show" @confirm="onPickImg" />
   </div>
 </template>
 
@@ -106,8 +108,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Picture, Plus } from '@element-plus/icons-vue';
-import { customerApiCall, designCall } from '../../../api';
+import { customerApiCall } from '../../../api';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
+import MaterialPicker from '../apps/design/MaterialPicker.vue';
 
 const list = ref([]);
 const tree = ref([]);
@@ -120,7 +123,7 @@ const editingSort = ref(0);
 const keyword = ref('');
 const dialog = ref({ show: false, id: null, pid: 0, name: '', sortOrder: 0, image: '' });
 const saving = ref(false);
-const fileInput = ref(null);
+const picker = ref({ show: false, target: '' });
 
 const parentName = computed(() => {
   if (!dialog.value.pid) return '';
@@ -245,18 +248,10 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-function pickImage() { fileInput.value?.click(); }
-async function onFileChange(e) {
-  const f = e.target.files?.[0];
-  e.target.value = '';
-  if (!f) return;
-  try {
-    const fd = new FormData();
-    fd.append('file', f);
-    const data = await designCall.post('/material/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-    dialog.value.image = data.file_url || data.url || '';
-    ElMessage.success('图片已上传');
-  } catch (err) { ElMessage.error(`上传失败：${err}`); }
+function openPicker(target) { picker.value = { show: true, target }; }
+function onPickImg(url) {
+  if (!url) return;
+  if (picker.value.target === 'image') dialog.value.image = url;
 }
 
 onMounted(load);

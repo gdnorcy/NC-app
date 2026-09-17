@@ -397,12 +397,11 @@
             <el-form-item label="分享图">
               <div class="img-picker">
                 <el-image v-if="cfg.shareImg" :src="resolveUrl(cfg.shareImg)" fit="cover" class="picker-img" :preview-src-list="[resolveUrl(cfg.shareImg)]" preview-teleported />
-                <div v-else class="picker-img picker-empty" @click="pickImage"><el-icon><Plus /></el-icon></div>
+                <div v-else class="picker-img picker-empty" @click="openPicker('shareImg')"><el-icon><Plus /></el-icon></div>
                 <div class="picker-ops">
-                  <el-button size="small" @click="pickImage">选择图片</el-button>
+                  <el-button size="small" @click="openPicker('shareImg')">选择图片</el-button>
                   <el-button v-if="cfg.shareImg" size="small" text type="danger" @click="cfg.shareImg = ''">移除</el-button>
                 </div>
-                <input ref="fileInput" type="file" accept="image/*" class="hide" @change="onFileChange" />
                 <span class="form-hint">建议尺寸 5:4，不超过 100kb</span>
               </div>
             </el-form-item>
@@ -412,6 +411,8 @@
 
     <!-- 链接选择弹窗 -->
     <LinkPicker v-model="linkPickerShow" :model-link="linkPickerValue" @confirm="onLinkConfirm" />
+    <!-- 素材库选择弹窗 -->
+    <MaterialPicker v-model="picker.show" @confirm="onPickImg" />
   </div>
 </template>
 
@@ -419,9 +420,10 @@
 import { ref, reactive, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
-import { customerApiCall, designCall } from '../../../api';
+import { customerApiCall } from '../../../api';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
 import LinkPicker from '../apps/design/LinkPicker.vue';
+import MaterialPicker from '../apps/design/MaterialPicker.vue';
 import { AREA_DATA } from './area-data.js';
 
 // 分类激活项由父级 GoodsHome 左侧二级菜单传入（pay/orderRule/delivery/verify/show/share）
@@ -475,8 +477,8 @@ function onLinkConfirm(v) {
 }
 
 const saving = ref(false);
-const fileInput = ref(null);
 const cateOptions = ref([]);
+const picker = ref({ show: false, target: '' });
 
 function resolveUrl(u) {
   if (!u) return '';
@@ -518,18 +520,10 @@ async function save() {
   } catch (e) { ElMessage.error(e); } finally { saving.value = false; }
 }
 
-function pickImage() { fileInput.value?.click(); }
-async function onFileChange(e) {
-  const f = e.target.files?.[0];
-  e.target.value = '';
-  if (!f) return;
-  try {
-    const fd = new FormData();
-    fd.append('file', f);
-    const data = await designCall.post('/material/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-    cfg.shareImg = data.file_url || data.url || '';
-    ElMessage.success('图片已上传');
-  } catch (err) { ElMessage.error(`上传失败：${err}`); }
+function openPicker(target) { picker.value = { show: true, target }; }
+function onPickImg(url) {
+  if (!url) return;
+  if (picker.value.target === 'shareImg') cfg.shareImg = url;
 }
 
 onMounted(load);
