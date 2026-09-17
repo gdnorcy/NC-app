@@ -1121,5 +1121,6 @@ cate_style(1/2) / detail_style(1/2/3) / goods_iscard(1开2关) / share_style(1/2
 - **下载素材入库三步缺一不可**：①curl 下载到 docs/ 备份 → ②**全量 `cp` 到 server/public/对应目录** → ③`find server/public` 与 `find docs` **逐文件 diff 完整性**（`[ -f server/public/$f ] || echo MISSING`），缺一即前端 img 404 显示空白。
 - 本次漏复制 `price_show.png`（价格卡）与 `share_1_2.png`（分享图），页面无任何报错、仅预览缺图——**文件级完整性检查是唯一防线**；不要把「server 目录 ls 过」当验证。
 - 下载失败的文件（如 HTML 404 残件 146B）要识别剔除（file 命令看类型），不得混入素材目录。
+- **透明底白字图（如 price_theme_*.png）不能直接 Read 验证**：白字在白底/透明底上肉眼不可见，Read 会误判「纯白无内容」（曾据此误判素材缺失，绕弯路）。必须用 PIL 统计**白色不透明像素**（`a>200 and r>240 and g>240 and b>240` 计数>0 即有白字内容）或**深色底合成后 Read**（`bg.paste(im, (0,0), im)`，如深蓝底 90,160,248）。此类图设计为叠在彩色/渐变底上显示白字（「年货节大促」=蓝渐变底上的白字 banner）。
 - 交付前浏览器实测：清 SW + 强刷 → 切详情风格2 → 断言价格条四层 img 全部 naturalWidth>0。
 - **「开发中」占位页排查**：代码已提交但页面显示占位 = 运行的是旧构建（build:admin 后 assets 哈希更新）或 SW 缓存旧 chunk；先清 SW + 重新 build:admin 再判断，不要误判为路由缺失。
