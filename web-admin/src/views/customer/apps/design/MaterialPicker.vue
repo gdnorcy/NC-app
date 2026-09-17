@@ -13,27 +13,27 @@
         <span class="mp-tab" :class="{ active: mode === 'upload' }" @click="switchMode('upload')">本地上传</span>
         <span class="mp-tab" :class="{ active: mode === 'net' }" @click="switchMode('net')">网络提取</span>
       </div>
-      <span class="mp-limit">大小不要超过 {{ limits.maxImageSize }}M</span>
-      <el-input v-model="q.keyword" placeholder="搜索图片名称" size="small" clearable style="width: 150px" @keyup.enter="reload(1)" @clear="reload(1)" />
+      <span class="mp-limit">大小不要超过 {{ props.fileType === 'video' ? limits.maxVideoSize : limits.maxImageSize }}M</span>
+      <el-input v-model="q.keyword" :placeholder="props.fileType === 'video' ? '搜索视频名称' : '搜索图片名称'" size="small" clearable style="width: 150px" @keyup.enter="reload(1)" @clear="reload(1)" />
       <el-date-picker v-model="q.dateRange" type="daterange" size="small" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 230px" @change="reload(1)" />
     </div>
 
     <!-- 本地上传 / 网络提取 模式体 -->
     <div v-if="mode === 'upload'" class="mp-upload">
-      <input ref="uploadRef" type="file" accept="image/*" style="display: none" @change="doUpload" />
+      <input ref="uploadRef" type="file" :accept="acceptStr" style="display: none" @change="doUpload" />
       <div class="mp-upload-box" @click="uploadRef && uploadRef.click()">
         <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#165DFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-        <div class="mp-upload-txt">点击选择图片上传</div>
-        <div class="mp-upload-sub">支持 {{ limits.maxImageSize }}M 以内的 jpg / png / webp 图片</div>
+        <div class="mp-upload-txt">{{ props.fileType === 'video' ? '点击选择视频上传' : '点击选择图片上传' }}</div>
+        <div class="mp-upload-sub">{{ props.fileType === 'video' ? `支持 ${limits.maxVideoSize}M 以内的 mp4 视频` : `支持 ${limits.maxImageSize}M 以内的 jpg / png / webp 图片` }}</div>
       </div>
     </div>
     <div v-else class="mp-net">
-      <el-input v-model="netUrl" placeholder="请在此处粘贴图片地址" clearable>
+      <el-input v-model="netUrl" :placeholder="props.fileType === 'video' ? '请在此处粘贴视频地址' : '请在此处粘贴图片地址'" clearable>
         <template #append>
           <el-button type="primary" :loading="netLoading" @click="doImport">提取</el-button>
         </template>
       </el-input>
-      <div class="mp-net-help">需要 http://…… 大小不要超过 {{ limits.maxImageSize }}M，支持图片类型 .gif，.jpg，.png，.jpeg</div>
+      <div class="mp-net-help">{{ props.fileType === 'video' ? `需要 http://…… 大小不要超过 ${limits.maxVideoSize}M，支持 mp4 视频` : `需要 http://…… 大小不要超过 ${limits.maxImageSize}M，支持图片类型 .gif，.jpg，.png，.jpeg` }}</div>
     </div>
 
     <div class="mp-body">
@@ -101,8 +101,12 @@ import { designCall } from '../../../../api';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  // 素材类型过滤：all=全部（默认，保持原行为）| image | video(mp4)
+  fileType: { type: String, default: 'all' },
 });
 const emit = defineEmits(['update:modelValue', 'confirm']);
+
+const acceptStr = props.fileType === 'video' ? 'video/*' : props.fileType === 'image' ? 'image/*' : 'image/*,video/*';
 
 const mode = ref('upload'); // upload | net
 const limits = reactive({ maxImageSize: 2, maxVideoSize: 50 });
@@ -142,6 +146,7 @@ async function reload(p) {
     if (q.categoryId) params.categoryId = q.categoryId;
     if (q.keyword) params.keyword = q.keyword;
     if (q.dateRange && q.dateRange.length === 2) { params.dateFrom = q.dateRange[0]; params.dateTo = q.dateRange[1]; }
+    if (props.fileType && props.fileType !== 'all') params.fileType = props.fileType;
     const res = await designCall.get('/material/list', { params });
     mats.value = res.list || [];
     total.value = res.total || 0;

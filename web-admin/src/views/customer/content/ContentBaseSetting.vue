@@ -39,6 +39,31 @@
         </div>
         <div class="form-hint">建议 5:4 比例，不超过 100kb</div>
       </el-form-item>
+
+      <div class="form-section">AI 生成配置</div>
+      <el-form-item label="启用 AI 生成">
+        <el-switch v-model="form.aiEnable" />
+        <div class="form-hint">开启后文章列表可使用「AI 生成文章」</div>
+      </el-form-item>
+      <el-form-item label="接口地址">
+        <el-input v-model="form.aiApiUrl" placeholder="https://api.deepseek.com/chat/completions（OpenAI 兼容协议）" style="width: 480px" />
+      </el-form-item>
+      <el-form-item label="API Key">
+        <el-input v-model="form.aiApiKey" placeholder="sk-..." show-password style="width: 480px" />
+      </el-form-item>
+      <el-form-item label="模型">
+        <el-input v-model="form.aiModel" placeholder="deepseek-chat" style="width: 240px" />
+        <div class="form-hint">默认 deepseek-chat，兼容 DeepSeek / 通义 / OpenAI 等</div>
+      </el-form-item>
+
+      <div class="form-section">文章采集配置</div>
+      <el-form-item label="启用采集">
+        <el-switch v-model="form.collectEnable" />
+        <div class="form-hint">开启后文章列表可使用「采集文章」</div>
+      </el-form-item>
+      <el-form-item label="采集 API Key">
+        <el-input v-model="form.collectApiKey" placeholder="第三方采集服务 API Key（预留）" style="width: 480px" />
+      </el-form-item>
     </el-form>
 
     <MaterialPicker v-model="picker.show" @confirm="onPickImg" />
@@ -54,7 +79,11 @@ import MaterialPicker from '../apps/design/MaterialPicker.vue';
 
 const saving = ref(false);
 const picker = reactive({ show: false, target: '' });
-const form = reactive({ articleShareTitle: '', articleShareImg: '', picShareTitle: '', picShareImg: '' });
+const form = reactive({
+  articleShareTitle: '', articleShareImg: '', picShareTitle: '', picShareImg: '',
+  aiEnable: false, aiApiUrl: '', aiApiKey: '', aiModel: '',
+  collectEnable: false, collectApiKey: '',
+});
 
 function resolveUrl(u) {
   if (!u) return '';
@@ -70,6 +99,8 @@ async function load() {
       articleShareImg: res.article_share_img || '',
       picShareTitle: res.pic_share_title || '',
       picShareImg: res.pic_share_img || '',
+      aiEnable: !!res.ai_enable, aiApiUrl: res.ai_api_url || '', aiApiKey: res.ai_api_key || '', aiModel: res.ai_model || '',
+      collectEnable: !!res.collect_enable, collectApiKey: res.collect_api_key || '',
     });
   } catch (e) {
     ElMessage.error(e || '设置加载失败');

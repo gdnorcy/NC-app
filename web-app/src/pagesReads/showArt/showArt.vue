@@ -126,7 +126,7 @@ async function submitComment() {
   const text = commentText.value.trim();
   if (!text) { uni.showToast({ title: '请输入评论内容', icon: 'none' }); return; }
   try {
-    const res = await cardApi.contentAddComment({ articleId: id.value, content: text, nickname: '' });
+    const res = await cardApi.contentAddComment({ articleId: id.value, content: text, nickname: '', tid: tid.value });
     commentText.value = '';
     uni.showToast({ title: '评论成功', icon: 'success' });
     loadComments();

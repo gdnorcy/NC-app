@@ -257,7 +257,7 @@ onMounted(async () => {
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);
     if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
     else if (preview) uni.showToast({ title: '草稿预览模式', icon: 'none' });
-  } catch (e) {}
+  } catch (e) { console.error('[design-load-error]', e && e.message ? e.message : e); }
 
   // 消息未读红点
   try {

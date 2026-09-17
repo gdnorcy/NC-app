@@ -196,6 +196,35 @@ npm run test:frontend
 3. 交付前逐级点开联动下拉实测：省→市→区县逐级可选、切换上级清空下级、保存值与回显一致。
 4. 旧数据兼容：存储格式升级（如"省 市 详细"→"省 市 区县 详细"）时，回显必须兼容旧数据（按区县表匹配第3段是否为区县）。
 
+## 问题8：`<script setup>` 使用 Vue API 漏 import，构建不报错但运行期页面静默降级（2026-09-18）
+
+**现象**：设计中心首页装修预览（?preview=1）只显示名片默认首页、装修 DIY 块完全不出现；管理端草稿数据（design_json）与接口返回（/api/card/design/config?preview=1 返回 8 组件含 article-list source=content）均正确，但 C 端 `DesignPage` 未挂载。排查两天最终定位：`DesignPage.vue` 使用 `computed()` 但 `<script setup>` 的 `import { reactive, ref, onMounted, onUnmounted } from 'vue'` 漏了 `computed`。
+
+**根因**：vite/uni 构建时未导入的标识符被当作 undefined 编译进产物，构建/verify 全绿、无编译报错；运行期 `setup` 抛 `ReferenceError: computed is not defined`，被 home.vue 外层 `catch (e) {}` 静默吞掉 → designComps 赋值未执行 → `v-if="designComps.length"` 为 false → 整块装修区不渲染、无任何错误提示。顺带发现 `DesignNav.vue` 选项式子组件用 Vue2 风格 `render(h)`，Vue3 不注入 h 参数，同样报 `TypeError: e is not a function` 导致设计头部不渲染。
+
+**预防规范（通用，含小程序端）**：
+1. **`<script setup>` 组合式 API 用到什么必须显式 import 什么**：`ref/computed/watch/onMounted/onUnmounted/nextTick/reactive` 等全部从 'vue' 显式导入；禁止依赖任何"全局可用"的错觉（uni-app 只全局提供 uni 与 @dcloudio/uni-app 生命周期）。
+2. **选项式 `render(h)` 是 Vue2 写法**：Vue3 中选项式 render 不传 h 参数，必须 `import { h } from 'vue'` 并写 `render()`（无参），内部用 `h('view'/'text'/'image')` 创建元素。
+3. **"数据对、接口对、页面不渲染"排查顺序**：①浏览器 console 抓 `ReferenceError/TypeError at setup/render`（先给外层 catch 临时加 `console.error` 暴露被吞异常）；②按报错 chunk 对照源码 import 完整性；③再查 v-if 条件与响应式赋值。**禁止**在 catch 静默吞错（红线，见问题5）。
+4. **交付前自查**：新增/修改 C 端组件后，先扫一遍 `grep -n "computed\|watch\|nextTick" 文件` 对照 `import { ... } from 'vue'`；改完构建后必须浏览器实测真实页面（含装修预览路径），不能只看构建通过。
+
+## 问题9：C 端验证被 Service Worker / HTTP 强缓存旧 chunk 蒙蔽（2026-09-18）
+
+**现象**：清 SW 重载后 script src 仍是旧哈希（index-VukaJ0H_.js），新构建（index-CWxy2DC-.js）不生效；即使 reload 也复用旧 index.html + 旧 chunk，导致改了代码但行为不变、白排查。
+
+**根因**：① server/public/card/assets 采用 1 年强缓存（`Cache-Control: public, max-age=31536000`），旧哈希文件残留在目录时浏览器直接命中缓存；② 同 URL 导航（hash 路由）被浏览器复用不重新请求 HTML；③ Service Worker 曾用 stale-while-revalidate 缓存页面。
+
+**预防规范**：
+1. **同步产物必须删旧再拷**：`rm -rf server/public/card/assets/* server/public/card/index.html` 后 `cp -R` 新产物，禁止 `cp -R` 直接叠加（旧 chunk 残留会污染验证）。
+2. **验证前清 SW + 缓存破坏参数**：`navigator.serviceWorker.getRegistrations()→unregister` + `caches.keys()→delete`；刷新用带 `&v=随机` 的 URL 强制重新请求 HTML，并核对 `document.querySelectorAll('script')` 的 src 是否为新哈希。
+3. **判断"代码改了没生效"**：先看 script src 哈希是否等于最新构建产物，不等 = 缓存问题，先清缓存再排查逻辑。
+
+## 装修组件联动内容管理（2026-09-18 打通）
+
+- **管理端注册**（`web-admin/src/views/customer/apps/design/componentRegistry.js`）：article-list 增加 `source` 字段（radio：manual 手动编辑 / content 内容管理文章）；新增 `pic-list`（组图列表）与 `video-list`（视频列表）两个营销组件，数据源固定内容管理（无手动模式），schema 含内容/样式/会员权限（板块标题、显示日期/封面/简介、每行几个、背景色、圆角、下边距、会员等级浏览权限）。
+- **C 端渲染**（`web-app/src/components/DesignPage.vue`）：article-list source=content 分支拉 `contentArticles`（cardApi.contentArticles({tid, page:1, pageSize:20})）渲染真实文章（thumb/title/created_at），点击 `openContentArticle` 跳 `/pagesReads/showArt/showArt?id=&tid=`；pic-list 拉 `contentPics` 跳 showPictures；video-list 拉 `contentVideos` 跳 videoList 列表页（无视频详情页）；空态显示"暂无文章/组图/视频"。
+- **数据链路**：管理端保存草稿 → `tenant_page_design`（status=0）→ C 端 `/api/card/design/config?preview=1` 返回草稿 components → home.vue `fetchDesignConfig(true,true,pageType)` → designComps → DesignPage 渲染。预览 URL 需带 tid/exp/sig 签名（cardApi.designConfig 自动从 hash 透传）。
+
 ## 待接入能力清单（2026-09-17，商城设置字段全集 1:1 复刻后确认）商城设置中下列字段来自菜鸟云生态能力，我方尚未接入；**字段保留（保持 1:1）**，前端已加橙色「待接入」提示，禁止删除：
 
 

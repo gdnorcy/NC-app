@@ -71,11 +71,16 @@ export function createDesignService(db) {
   };
 
   /** 素材列表 */
-  svc.listMaterials = (tenantId, { categoryId, keyword, dateFrom, dateTo, page, pageSize } = {}) => {
+  svc.listMaterials = (tenantId, { categoryId, keyword, dateFrom, dateTo, fileType, page, pageSize } = {}) => {
     const where = ['m.tenant_id = ?'];
     const params = [tenantId];
     if (categoryId) { where.push('m.category_id = ?'); params.push(Number(categoryId)); }
     if (keyword) { where.push('m.file_name LIKE ?'); params.push(`%${keyword}%`); }
+    if (fileType && fileType !== 'all') {
+      if (fileType === 'image') where.push("m.file_type IN ('jpg','jpeg','png','gif','webp')");
+      else if (fileType === 'video') where.push("m.file_type = 'mp4'");
+      else { where.push('m.file_type = ?'); params.push(String(fileType)); }
+    }
     if (dateFrom) { where.push("substr(m.created_at, 1, 10) >= ?"); params.push(String(dateFrom)); }
     if (dateTo) { where.push("substr(m.created_at, 1, 10) <= ?"); params.push(String(dateTo)); }
     const total = db.prepare(`SELECT COUNT(*) n FROM material m WHERE ${where.join(' AND ')}`).get(...params).n;

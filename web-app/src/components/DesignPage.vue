@@ -422,7 +422,19 @@
       <view v-else-if="c.type === 'article-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
         <text v-if="c.props.title" class="dp-article-title">{{ c.props.title }}</text>
         <view class="dp-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 1) + ', 1fr)' }">
-          <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-article-item" @click="onJump(it.link)">
+          <view v-if="c.props.source === 'content'">
+            <view v-for="(it, i) in contentArticles" :key="i" class="dp-article-item" @click="openContentArticle(it)">
+              <image v-if="it.thumb" :src="resolveUrl(it.thumb)" mode="aspectFill" class="dp-article-img" />
+              <view v-else class="dp-article-img dp-article-img-empty"><text>图</text></view>
+              <view class="dp-article-body">
+                <text class="dp-article-t">{{ it.title || '文章标题' }}</text>
+                <text v-if="it.intro" class="dp-article-d">{{ it.intro }}</text>
+                <text v-if="c.props.showDate" class="dp-article-date">{{ String(it.created_at || '').slice(0, 10) }}</text>
+              </view>
+            </view>
+            <view v-if="!contentArticles.length" class="dp-article-empty"><text>暂无文章</text></view>
+          </view>
+          <view v-for="(it, i) in (c.props.source === 'content' ? [] : (c.props.items || []))" v-else :key="i" class="dp-article-item" @click="onJump(it.link)">
             <image v-if="it.image" :src="resolveUrl(it.image)" mode="aspectFill" class="dp-article-img" />
             <view v-else class="dp-article-img dp-article-img-empty"><text>图</text></view>
             <view class="dp-article-body">
@@ -431,6 +443,37 @@
               <text v-if="c.props.showDate" class="dp-article-date">{{ it.date || '2026-01-01' }}</text>
             </view>
           </view>
+        </view>
+      </view>
+      <!-- 组图列表（内容管理数据源） -->
+      <view v-else-if="c.type === 'pic-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
+        <text v-if="c.props.title" class="dp-article-title">{{ c.props.title }}</text>
+        <view class="dp-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 1) + ', 1fr)' }">
+          <view v-for="(it, i) in contentPics" :key="i" class="dp-article-item" @click="openContentPic(it)">
+            <image v-if="it.thumb" :src="resolveUrl(it.thumb)" mode="aspectFill" class="dp-article-img" />
+            <view v-else class="dp-article-img dp-article-img-empty"><text>图</text></view>
+            <view class="dp-article-body">
+              <text class="dp-article-t">{{ it.title || '组图' }}</text>
+              <text v-if="c.props.showDate" class="dp-article-date">{{ String(it.created_at || '').slice(0, 10) }}</text>
+            </view>
+          </view>
+          <view v-if="!contentPics.length" class="dp-article-empty"><text>暂无组图</text></view>
+        </view>
+      </view>
+      <!-- 视频列表（内容管理数据源） -->
+      <view v-else-if="c.type === 'video-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
+        <text v-if="c.props.title" class="dp-article-title">{{ c.props.title }}</text>
+        <view class="dp-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 1) + ', 1fr)' }">
+          <view v-for="(it, i) in contentVideos" :key="i" class="dp-article-item" @click="openContentVideo(it)">
+            <image v-if="it.cover" :src="resolveUrl(it.cover)" mode="aspectFill" class="dp-article-img" />
+            <view v-else class="dp-article-img dp-article-img-empty"><text>视频</text></view>
+            <view class="dp-article-body">
+              <text class="dp-article-t">{{ it.title || '视频' }}</text>
+              <text v-if="c.props.showIntro && it.intro" class="dp-article-d">{{ it.intro }}</text>
+              <text v-if="c.props.showDate" class="dp-article-date">{{ String(it.created_at || '').slice(0, 10) }}</text>
+            </view>
+          </view>
+          <view v-if="!contentVideos.length" class="dp-article-empty"><text>暂无视频</text></view>
         </view>
       </view>
       <!-- 网页容器 -->
@@ -483,7 +526,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted, onUnmounted } from 'vue';
+import { reactive, ref, computed, onMounted, onUnmounted } from 'vue';
 import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
 import SIcon from './SIcon.vue';
 const props = defineProps({
@@ -1049,6 +1092,7 @@ onMounted(() => {
   (props.comps || []).forEach((c, i) => {
     if (c.type === 'pano-scenes') loadPanoScenes(i);
   });
+  loadContentArticles();
 });
 function panoCategories(p) {
   return String(p.categories || '')
@@ -1083,6 +1127,53 @@ function onJump(url) {
   }
   const path = url.startsWith('/') ? url : `/${url}`;
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
+}
+
+// 内容管理文章数据源（article-list source=content）
+const contentArticles = ref([]);
+const contentPics = ref([]);
+const contentVideos = ref([]);
+function openContentArticle(it) {
+  if (!it || !it.id) return;
+  const tid = props.tenantId || '';
+  uni.navigateTo({
+    url: `/pagesReads/showArt/showArt?id=${it.id}&tid=${tid}`,
+    fail: () => uni.showToast({ title: '打开文章失败', icon: 'none' }),
+  });
+}
+function openContentPic(it) {
+  if (!it || !it.id) return;
+  const tid = props.tenantId || '';
+  uni.navigateTo({
+    url: `/pagesReads/showPictures/showPictures?id=${it.id}&tid=${tid}`,
+    fail: () => uni.showToast({ title: '打开组图失败', icon: 'none' }),
+  });
+}
+function openContentVideo(it) {
+  const tid = props.tenantId || '';
+  uni.navigateTo({
+    url: `/pagesReads/videoList/videoList?tid=${tid}`,
+    fail: () => uni.showToast({ title: '打开视频列表失败', icon: 'none' }),
+  });
+}
+function loadContentArticles() {
+  const t = props.tenantId || '';
+  const comps = props.comps || [];
+  if (comps.some((c) => c.type === 'article-list' && c.props.source === 'content')) {
+    cardApi.contentArticles({ tid: t, page: 1, pageSize: 20 })
+      .then((res) => { contentArticles.value = Array.isArray(res?.list) ? res.list : []; })
+      .catch(() => { contentArticles.value = []; });
+  }
+  if (comps.some((c) => c.type === 'pic-list')) {
+    cardApi.contentPics({ tid: t, page: 1, pageSize: 20 })
+      .then((res) => { contentPics.value = Array.isArray(res?.list) ? res.list : []; })
+      .catch(() => { contentPics.value = []; });
+  }
+  if (comps.some((c) => c.type === 'video-list')) {
+    cardApi.contentVideos({ tid: t, page: 1, pageSize: 20 })
+      .then((res) => { contentVideos.value = Array.isArray(res?.list) ? res.list : []; })
+      .catch(() => { contentVideos.value = []; });
+  }
 }
 
 // 视频号视频来源：支持新版 {finderUserName, feedId} 与旧版 url "视频号ID:视频ID"
@@ -1520,6 +1611,7 @@ function openChannel(kind, p) {
 .dp-article-t { font-size: 14px; color: #1d2129; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-article-d { font-size: 12px; color: #86909c; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dp-article-date { font-size: 11px; color: #c9cdd4; margin-top: auto; padding-top: 4px; }
+.dp-article-empty { padding: 24px 0; text-align: center; color: #c9cdd4; font-size: 13px; }
 .dp-web { border-radius: 8px; overflow: hidden; background: #f7f8fa; }
 .dp-web-frame { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
 .dp-web-empty { height: 100%; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 13px; }

@@ -34,6 +34,7 @@
 </template>
 
 <script>
+import { h } from 'vue';
 import { API_DOMAIN } from '../utils/cardApi.js';
 
 // 左/右单项：文字（加粗/字号）/图片/搜索/图标+文字
@@ -55,7 +56,7 @@ const PosItem = {
       return this.item.bold ? 'font-weight:600;' : '';
     },
   },
-  render(h) {
+  render() {
     const it = this.item;
     const style = (extra) => `color:${this.color};font-size:${it.fontSize || 13}px;${this.bold}${extra || ''}`;
     if (it.type === 'text') {
@@ -99,7 +100,7 @@ const PosCenter = {
       return this.item.type && this.item.type !== 'none' && (this.item.text || this.item.image);
     },
   },
-  render(h) {
+  render() {
     const it = this.item;
     if (!this.hasContent) {
       const base = this.header && this.header.type === 'immersive' ? '#ffffff' : ((this.header && this.header.textColor) || '#1d2129');

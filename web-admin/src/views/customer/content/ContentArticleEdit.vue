@@ -173,7 +173,9 @@
           <el-form-item label="视频">
             <div class="video-list">
               <div v-for="(v, i) in form.videos" :key="i" class="video-item">
-                <el-input v-model="v.url" placeholder="视频链接（腾讯视频/抖音/mp4）" style="width: 320px" />
+                <el-button size="small" type="primary" plain @click="openVideoPicker(i)">选择视频</el-button>
+                <video v-if="v.url" :src="resolveUrl(v.url)" controls style="width: 120px; height: 68px; object-fit: cover; border-radius: 6px;"></video>
+                <el-input v-model="v.url" placeholder="视频链接（素材库/mp4/腾讯视频/抖音）" style="width: 260px" />
                 <el-radio-group v-model="v.playMode">
                   <el-radio value="click">点击播放</el-radio>
                   <el-radio value="auto">自动播放</el-radio>
@@ -182,7 +184,7 @@
               </div>
               <el-button size="small" @click="form.videos.push({ url: '', playMode: 'click' })">增加视频</el-button>
             </div>
-            <div class="form-hint">播放方式默认点击播放</div>
+            <div class="form-hint">播放方式默认点击播放；可通过素材库选择或粘贴第三方平台视频链接</div>
           </el-form-item>
 
           <div class="form-section">音频设置</div>
@@ -325,7 +327,8 @@
       <el-button type="primary" :loading="saving" @click="save(true)">保存并返回列表</el-button>
     </div>
 
-    <MaterialPicker v-model="picker.show" @confirm="onPickImg" />
+    <MaterialPicker v-model="picker.show" :file-type="picker.type || 'image'" @confirm="onPickImg" />
+    <MaterialPicker v-model="videoPicker.show" file-type="video" @confirm="onPickVideo" />
     <el-dialog v-model="relate.show" title="添加关联文章" width="720px" destroy-on-close>
       <el-table :data="relate.list" height="420" @selection-change="(v) => (relate.selected = v)">
         <el-table-column type="selection" width="44" />
@@ -362,7 +365,8 @@ const isEdit = computed(() => articleId.value > 0);
 const tab = ref('base');
 const cateTree = ref([]);
 const saving = ref(false);
-const picker = reactive({ show: false, target: '' });
+const picker = reactive({ show: false, target: '', type: 'image' });
+const videoPicker = reactive({ show: false, index: -1 });
 const relate = reactive({ show: false, list: [], selected: [] });
 
 const emptyForm = () => ({
@@ -429,6 +433,17 @@ function onPickImg(url) {
   else if (picker.target === 'carousel') form.carousel.push(url);
   else if (picker.target === 'posterBg') form.posterBg = url;
   else if (picker.target === 'shareImg') form.shareImg = url;
+}
+
+function openVideoPicker(index) {
+  videoPicker.index = index;
+  videoPicker.show = true;
+}
+function onPickVideo(url) {
+  if (!url || videoPicker.index < 0) return;
+  if (!form.videos[videoPicker.index]) form.videos.push({ url: '', playMode: 'click' });
+  form.videos[videoPicker.index].url = url;
+  videoPicker.index = -1;
 }
 
 async function openRelatePicker() {

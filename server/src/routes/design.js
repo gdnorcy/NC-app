@@ -77,9 +77,10 @@ export default function createDesignRouter(db, deps = {}) {
   });
 
   material.get('/list', tenant, (req, res) => {
+    res.set('Cache-Control', 'no-store');
     const data = svc.listMaterials(req.customerId, {
       categoryId: req.query.categoryId, keyword: req.query.keyword,
-      dateFrom: req.query.dateFrom, dateTo: req.query.dateTo,
+      dateFrom: req.query.dateFrom, dateTo: req.query.dateTo, fileType: req.query.fileType,
       page: req.query.page, pageSize: req.query.pageSize,
     });
     res.json({ ...data, limits: svc.getUploadLimits(req.customerId) });
@@ -134,14 +135,18 @@ export default function createDesignRouter(db, deps = {}) {
       const ctype = String(resp.headers.get('content-type') || '').toLowerCase().split(';')[0];
       const buf = Buffer.from(await resp.arrayBuffer());
       const isImg = IMG_WHITELIST.includes(ctype) || IMG_EXT_RE.test(url);
-      if (!isImg) return res.status(400).json({ error: '仅支持 gif / jpg / png / webp 图片' });
-      const chk = checkImgSize(buf, limits.maxImageSize);
-      if (!chk.ok) return res.status(400).json({ error: chk.error });
+      const isVid = VIDEO_WHITELIST.includes(ctype) || /\.mp4(\?|$)/i.test(url);
+      if (!isImg && !isVid) return res.status(400).json({ error: '仅支持 gif / jpg / png / webp 图片与 mp4 视频' });
+      if (isVid && buf.length > limits.maxVideoSize * 1024 * 1024) return res.status(400).json({ error: `视频大小不能超过 ${limits.maxVideoSize}MB` });
+      if (isImg) {
+        const chk = checkImgSize(buf, limits.maxImageSize);
+        if (!chk.ok) return res.status(400).json({ error: chk.error });
+      }
       const storage = await getStorage(db);
       const name = decodeURIComponent(url.split('/').pop() || '').replace(/[^\w.\-]/g, '_') || `net-${Date.now()}`;
       const key = `material/${req.customerId}/${Date.now()}-${name}`;
       const fileUrl = await storage.put(buf, key);
-      const type = ctype.split('/')[1] || (IMG_EXT_RE.exec(url) ? IMG_EXT_RE.exec(url)[1].replace('jpeg', 'jpg') : 'jpg');
+      const type = isVid ? 'mp4' : (ctype.split('/')[1] || (IMG_EXT_RE.exec(url) ? IMG_EXT_RE.exec(url)[1].replace('jpeg', 'jpg') : 'jpg'));
       const r = svc.addMaterial(req.customerId, {
         categoryId: req.body?.categoryId || null, fileName: name,
         fileUrl, fileSize: buf.length, fileType: type,
