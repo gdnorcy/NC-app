@@ -3,7 +3,7 @@
     <div class="page-header"><h2 class="page-title" style="display:flex;align-items:center;gap:8px;"><SIcon name="settings" size="default" color="#4E5969" />基础设置</h2></div>
     <div class="page-card">
       <h3 style="margin-bottom:16px;">站点信息</h3>
-      <el-form :model="form" label-width="120px">
+      <el-form :model="form" label-width="130px">
         <el-form-item label="站点名称"><el-input v-model="form.siteName" /></el-form-item>
         <el-form-item label="系统Logo">
           <el-upload :auto-upload="false" :show-file-list="false" accept="image/*" @change="uploadLogo">
@@ -20,7 +20,7 @@
     </div>
     <div class="page-card">
       <h3 style="margin-bottom:16px;">平台版权</h3>
-      <el-form :model="form" label-width="120px">
+      <el-form :model="form" label-width="130px">
         <el-form-item label="版权所有者"><el-input v-model="form.copyrightOwner" /></el-form-item>
         <el-form-item label="版权年份"><el-input v-model="form.copyrightYear" /></el-form-item>
         <el-form-item label="自定义版权文字"><el-input v-model="form.customCopyright" placeholder="留空则自动生成" /></el-form-item>

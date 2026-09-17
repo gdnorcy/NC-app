@@ -11,7 +11,7 @@
       <div>
         <div class="page-card">
           <h3 style="margin-bottom:16px;">基本信息</h3>
-          <el-form :model="form" label-width="100px">
+          <el-form :model="form" label-width="110px">
             <el-form-item label="场景名称" required><el-input v-model="form.title" /></el-form-item>
             <el-form-item label="描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
             <el-form-item label="排序"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
@@ -21,7 +21,7 @@
         </div>
         <div class="page-card">
           <h3 style="margin-bottom:16px;">内容增强</h3>
-          <el-form :model="form.meta" label-width="100px">
+          <el-form :model="form.meta" label-width="110px">
             <el-form-item label="背景音乐URL"><el-input v-model="form.meta.bgMusic" placeholder="选填" /></el-form-item>
             <el-form-item label="解说音频URL"><el-input v-model="form.meta.voiceover" placeholder="选填" /></el-form-item>
             <el-form-item label="场景介绍"><el-input v-model="form.meta.introText" type="textarea" placeholder="进入场景时显示，5秒后自动隐藏" /></el-form-item>

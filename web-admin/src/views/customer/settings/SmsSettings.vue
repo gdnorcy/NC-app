@@ -6,7 +6,7 @@
     </div>
 
     <div class="card">
-      <el-form :model="sms" label-width="140px" size="default">
+      <el-form :model="sms" label-width="160px" size="default">
         <el-form-item label="短信模式">
           <el-radio-group v-model="sms.mode">
             <el-radio value="platform">借用平台</el-radio>

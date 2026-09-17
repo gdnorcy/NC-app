@@ -112,7 +112,7 @@
 
     <!-- 创建/编辑应用弹窗 -->
     <el-dialog v-model="showCreate" :title="editing ? '编辑应用' : '创建应用'" width="600px">
-      <el-form :model="form" label-width="100px">
+      <el-form :model="form" label-width="110px">
         <el-form-item label="应用名称" required><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="图标"><el-input v-model="form.icon" placeholder="emoji，如 🌐" /></el-form-item>
         <el-form-item label="应用描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
@@ -141,7 +141,7 @@
       <el-alert type="warning" :closable="false" style="margin-bottom:16px;">
         请妥善保存 AppSecret，关闭后将不再完整显示。重置密钥会使所有现有令牌失效。
       </el-alert>
-      <el-form label-width="100px">
+      <el-form label-width="110px">
         <el-form-item label="AppID">
           <el-input v-model="secretForm.appId" readonly>
             <template #append><el-button text @click="copy(secretForm.appId)">复制</el-button></template>

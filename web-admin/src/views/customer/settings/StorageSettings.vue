@@ -20,7 +20,7 @@
         <!-- 阿里云OSS -->
         <el-tab-pane label="阿里云OSS" name="aliyun">
           <div class="tab-content">
-            <el-form :model="storage.aliyun" label-width="140px" size="default">
+            <el-form :model="storage.aliyun" label-width="160px" size="default">
               <el-form-item label="AccessKey ID" required>
                 <el-input v-model="storage.aliyun.accessKeyId" placeholder="请输入AccessKey ID" />
               </el-form-item>
@@ -50,7 +50,7 @@
         <!-- 七牛云 -->
         <el-tab-pane label="七牛云" name="qiniu">
           <div class="tab-content">
-            <el-form :model="storage.qiniu" label-width="140px" size="default">
+            <el-form :model="storage.qiniu" label-width="160px" size="default">
               <el-form-item label="AccessKey" required>
                 <el-input v-model="storage.qiniu.accessKey" placeholder="请输入AccessKey" />
               </el-form-item>

@@ -23,7 +23,7 @@
       <!-- ① 项目信息 -->
       <section id="sec-basic" :ref="setSecEls" class="page-card" data-sec="basic">
         <div class="section-title">项目信息</div>
-        <el-form :model="form" label-width="110px">
+        <el-form :model="form" label-width="140px">
           <el-form-item label="项目名称" required>
             <el-input v-model="form.customerName" placeholder="如：某某科技有限公司" maxlength="50" show-word-limit />
           </el-form-item>
@@ -99,7 +99,7 @@
       <!-- ③ 独立配置 -->
       <section id="sec-config" :ref="setSecEls" class="page-card" data-sec="config">
         <div class="section-title">独立配置</div>
-        <el-form :model="form.config" label-width="130px">
+        <el-form :model="form.config" label-width="140px">
           <el-form-item label="底部版权文字">
             <el-input v-model="form.config.footerCopyright" placeholder="留空则使用平台版权；自定义文字显示在手机端页面底部" maxlength="60" />
           </el-form-item>
@@ -128,7 +128,7 @@
 
         <div class="sub-section">
           <div class="section-title">素材与容量</div>
-          <el-form :model="form.config" label-width="130px">
+          <el-form :model="form.config" label-width="140px">
             <el-form-item label="图片上传大小(MB)">
               <el-input-number v-model="form.config.maxImageSize" :min="1" :max="500" />
               <div class="form-help">上传的单张图片大小上限，默认 2MB</div>

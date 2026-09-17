@@ -4,7 +4,7 @@
     <el-alert type="info" :closable="false" style="margin-bottom:16px;">
       第三方平台用于代开发客户的微信小程序/公众号：客户授权后，平台代为管理与发布。
     </el-alert>
-    <el-form :model="form" label-width="150px">
+    <el-form :model="form" label-width="170px">
       <el-form-item label="第三方平台AppID">
         <el-input v-model="form.component_appid" placeholder="wx开头的AppID" />
       </el-form-item>

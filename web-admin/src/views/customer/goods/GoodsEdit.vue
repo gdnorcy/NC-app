@@ -17,7 +17,7 @@
     <el-tabs v-model="tab" class="edit-tabs">
       <!-- ============ 基础信息 ============ -->
       <el-tab-pane label="基础信息" name="base">
-        <el-form label-width="140px" label-position="left" class="edit-form">
+        <el-form label-width="160px" label-position="left" class="edit-form">
           <el-form-item label="排序"><el-input-number v-model="g.sortOrder" :min="0" controls-position="right" /></el-form-item>
           <el-form-item label="状态">
             <el-radio-group v-model="g.status">

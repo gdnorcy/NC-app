@@ -2,7 +2,7 @@
   <div>
     <div class="page-header"><h2 class="page-title" style="display:flex;align-items:center;gap:8px;"><SIcon name="sms" size="default" color="#4E5969" />短信接口</h2></div>
     <div class="page-card">
-      <el-form :model="form" label-width="140px">
+      <el-form :model="form" label-width="160px">
         <el-form-item label="短信服务商">
           <el-select v-model="form.provider" style="width:100%;">
             <el-option label="Mock（开发）" value="mock" />

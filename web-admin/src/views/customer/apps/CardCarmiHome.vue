@@ -94,7 +94,7 @@
 
     <!-- ============ 卡密库编辑弹窗 ============ -->
     <el-dialog v-model="libDlg.show" :title="libDlg.form.id ? '编辑卡密库' : '添加卡密库'" width="560px">
-      <el-form label-width="110px">
+      <el-form label-width="130px">
         <el-form-item label="卡密库名称" required>
           <el-input v-model="libDlg.form.name" placeholder="请输入卡密库名称" maxlength="30" />
         </el-form-item>

@@ -8,7 +8,7 @@
           <el-button type="primary" @click="save('local')">保存并启用</el-button>
         </el-tab-pane>
         <el-tab-pane label="阿里云OSS" name="aliyun">
-          <el-form :model="form.aliyun" label-width="140px">
+          <el-form :model="form.aliyun" label-width="160px">
             <el-form-item label="AccessKey ID"><el-input v-model="form.aliyun.accessKeyId" /></el-form-item>
             <el-form-item label="AccessKey Secret"><el-input v-model="form.aliyun.accessKeySecret" type="password" placeholder="留空保持不变" /></el-form-item>
             <el-form-item label="Region区域"><el-input v-model="form.aliyun.region" placeholder="如：oss-cn-hangzhou" /></el-form-item>
@@ -22,7 +22,7 @@
           </div>
         </el-tab-pane>
         <el-tab-pane label="七牛云" name="qiniu">
-          <el-form :model="form.qiniu" label-width="140px">
+          <el-form :model="form.qiniu" label-width="160px">
             <el-form-item label="AccessKey"><el-input v-model="form.qiniu.accessKey" /></el-form-item>
             <el-form-item label="SecretKey"><el-input v-model="form.qiniu.secretKey" type="password" placeholder="留空保持不变" /></el-form-item>
             <el-form-item label="所属区域">

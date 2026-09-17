@@ -15,7 +15,7 @@
 
     <div class="page-card">
       <h3 style="margin-bottom:16px;">微信小程序（平台统一）</h3>
-      <el-form :model="defaultsForm.mini" label-width="160px">
+      <el-form :model="defaultsForm.mini" label-width="170px">
         <el-form-item label="平台小程序AppID">
           <el-input v-model="defaultsForm.mini.appid" placeholder="未开通独立小程序的客户共用" />
         </el-form-item>
@@ -27,7 +27,7 @@
 
     <div class="page-card">
       <h3 style="margin-bottom:16px;">H5手机端</h3>
-      <el-form :model="defaultsForm.h5" label-width="160px">
+      <el-form :model="defaultsForm.h5" label-width="170px">
         <el-form-item label="默认访问路径">
           <el-input v-model="defaultsForm.h5.path" placeholder="如 /mobile" />
         </el-form-item>
@@ -42,7 +42,7 @@
 
     <div class="page-card">
       <h3 style="margin-bottom:16px;">微信公众号（平台统一）</h3>
-      <el-form :model="defaultsForm.mp" label-width="160px">
+      <el-form :model="defaultsForm.mp" label-width="170px">
         <el-form-item label="平台公众号AppID">
           <el-input v-model="defaultsForm.mp.appid" placeholder="未开通独立公众号的客户共用" />
         </el-form-item>
@@ -54,7 +54,7 @@
 
     <div class="page-card">
       <h3 style="margin-bottom:16px;">PC网站</h3>
-      <el-form :model="defaultsForm.pc" label-width="160px">
+      <el-form :model="defaultsForm.pc" label-width="170px">
         <el-form-item label="默认域名">
           <el-input v-model="defaultsForm.pc.domain" placeholder="如 vr.yourdomain.com" />
         </el-form-item>
