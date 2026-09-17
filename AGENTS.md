@@ -873,3 +873,8 @@ npm run test:frontend
 - 浏览器改自定义色走 UI：点「自定义」→ 逐个 `.pc-hex-input` 填 hex（`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set` + `dispatchEvent(new Event('input',{bubbles:true}))`）→ 点 `.pc-btn-primary` 确定；浮层 transition 渲染有延迟，改前先查 `.pc-hex-input` 数量。
 - 三窗素材为透明挖空 PNG（主题色处 alpha=0，运行时由窗底填充色透出）——判断"色块盖在图片上"问题时先查层级与背景填充方式。
 - 交付链：`npm run build:admin` → `npm run verify` → `npm run test:frontend` → 浏览器实测 → 对比图 → `git commit`（AGENTS.md 同步）。
+
+## 5. 页面整体排版对齐（2026-09-17 新增）
+- **整体排版必须与菜鸟云一致，不能只对齐元素样式**：系统风格页 = **左侧配置区 + 右侧手机预览区**（`.ds-layout` flex row：`.ds-config` 固定 460px、`.ds-preview-panel` flex:1、三窗横排 `overflow-x:auto`；`max-width:1100px` 时纵向回退属预期）。**禁止**把预览区放在配置下方竖排。
+- **素材自带 UI 三层 alpha 分析法（PIL 权威定位，替代截图猜测）**：三张预览 PNG 是透明挖空图。定位"素材自带 UI"（如上门自提选中 tab）用 `px[x,y][3]` 逐行统计 alpha 分布：`alpha0`=挖空（透出底层色）、`alpha153`=半透明底（素材自带选中态，叠底层色混合）、`alpha255`=不透明（盖住底层）。素材自带形状（如 tab 圆角）**禁止再叠同形状 div 套娃**——只需在 z0 底层补色由素材透出 + 文字独立 z3 居中。
+- **先看整体布局再逐元素**：复刻某页面前先确认页面整体布局（左右分栏/上下分栏/预览区位置/宽窄屏断点），再逐元素比对；改布局后在真实宽窗口（≥1100px）验证左右分栏。
