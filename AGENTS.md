@@ -1018,3 +1018,16 @@ npm run test:frontend
 - 现象：build:admin 后浏览器打开仍显示旧页面（菜单缺失/功能不变），URL 已变但内容没变——根因是 SW 缓存旧哈希 customer-*.js。
 - 实测前置：`bu.js` 清除 `navigator.serviceWorker.getRegistrations()` + `caches.keys()` 再 reload；否则一切「页面没反应」的排查都是浪费时间。
 - 交付前检查清单追加：浏览器实测前先清 SW 再验证（不只强刷）。
+
+# 送礼物分享样式复刻规范（2026-09-17 新增）
+
+## 对标（菜鸟云 giftForYou setView）实测结论
+- 分享样式 = 3 张完整分享模板图（750×1334，含动态文字层：昵称的礼物/赠言/立即打开按钮），后台只做「选图」：图卡缩略预览 + 样式标签 + 选中态，不提供自定义合成参数。
+- 样式↔素材映射（菜鸟云 DOM 顺序与编号相反，以视觉为准）：样式一=gift3.jpg（深蓝金丝带）、样式二=gift2.jpg（橙红礼盒+星星）、样式三=gift1.jpg（黑金蝴蝶结）。
+- 图卡布局：手机比例缩略图（约 200×398 等比），下方样式标签，原生 radio 选中；我们实现用主色描边+右上✓角标增强选中辨识。
+
+## 落地规范
+- 素材入 static 目录：`server/public/gift-share/`（gift1/2/3.jpg），并**必须**在 server/src/app.js 显式挂载 `/gift-share` 静态路由（server/public 不是根静态目录，不挂载会被 SPA fallback 吞掉返回 index.html），maxAge '1y'。
+- 分享样式选择 UI 一律用图卡（img 缩略 + 标签 + 选中态），禁止纯文字卡；新增其它带「样式/模板图」选择的组件沿用此形态。
+- 保存字段 shareStyle 1/2/3 后端已支持（gift_config.share_style），前端仅需映射图片 URL，无需改表。
+- 复刻对标图片类功能流程：浏览器抓 img src 与 naturalWidth/Height → curl 下载本地 Read 验证内容与映射 → 入 static → 前端图卡化 → 实测选中与落库。
