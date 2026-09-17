@@ -211,6 +211,7 @@ test('P0-6c 组合包租户授权：开通演示方案可访问其包含的应�
   const { hasSolution } = await import('../src/tenant.js');
   assert.equal(hasSolution(db, 1, 'card'), true, 'demo 方案应授权 card 应用');
   assert.equal(hasSolution(db, 1, 'panorama'), true, 'demo 方案应授权 panorama 应用');
+  assert.equal(hasSolution(db, 1, 'goods'), true, 'demo 方案应授权 goods（商品管理）应用');
   assert.equal(hasSolution(db, 1, 'future_app'), false, '未勾选应用不授权');
   // 还原
   db.prepare('UPDATE projects SET solutions = ? WHERE id = 1').run(orig);

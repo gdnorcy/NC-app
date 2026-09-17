@@ -47,6 +47,14 @@ export function createGoodsRouter(db) {
     } catch { /* 日志失败不阻断主流程 */ }
   }
 
+  // 商品应用授权校验：商品管理 = 总后台（平台）应用授权，租户方案未开通时不可访问（1:1 复刻菜鸟云「商品=总后台授权」）
+  function requireGoodsApp(req, res, next) {
+    if (!hasSolution(db, req.customerId, 'goods')) {
+      return res.status(403).json({ error: '未开通「商品管理」应用，请联系平台管理员开通' });
+    }
+    next();
+  }
+
   // 读/写保护：只读租户禁止写操作
   function assertWritable(req, res) {
     if (req.tenantReadonly) {
@@ -58,7 +66,7 @@ export function createGoodsRouter(db) {
 
   // ---------- 商品分类 ----------
   // 树形分类（一级 + 二级），附带各分类商品数
-  router.get('/categories', requireTenant, (req, res) => {
+  router.get('/categories', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
       const cats = db.prepare('SELECT * FROM goods_category WHERE customer_id = ? ORDER BY pid ASC, sort_order DESC, id ASC').all(cid);
@@ -82,7 +90,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.post('/categories', requireTenant, (req, res) => {
+  router.post('/categories', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -100,7 +108,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.put('/categories/:id', requireTenant, (req, res) => {
+  router.put('/categories/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -121,7 +129,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.delete('/categories/:id', requireTenant, (req, res) => {
+  router.delete('/categories/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -138,7 +146,7 @@ export function createGoodsRouter(db) {
   });
 
   // 批量操作：上架/下架/删除（对标工具栏 批量上架/批量下架/批量删除）
-  router.post('/categories/batch', requireTenant, (req, res) => {
+  router.post('/categories/batch', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -160,7 +168,7 @@ export function createGoodsRouter(db) {
 
   // ---------- 商品列表 ----------
   // status: all 全部 / sell 出售中 / stockwarn 库存预警 / soldout 已售空 / off 未上架 / expired 已失效
-  router.get('/', requireTenant, (req, res) => {
+  router.get('/', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
       const { status = 'all', catId, keyword = '', page = 1, pageSize = 10, sortBy = 'default' } = req.query;
@@ -194,7 +202,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.post('/', requireTenant, (req, res) => {
+  router.post('/', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -222,7 +230,7 @@ export function createGoodsRouter(db) {
   });
 
   // 批量操作：up 上架 / down 下架 / del 删除（对标工具栏 批量下架；行内 上架/下架）
-  router.post('/batch', requireTenant, (req, res) => {
+  router.post('/batch', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -244,7 +252,7 @@ export function createGoodsRouter(db) {
   });
 
   // ---------- 商品参数模板 ----------
-  router.get('/params', requireTenant, (req, res) => {
+  router.get('/params', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
       const { keyword = '' } = req.query;
@@ -255,7 +263,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.post('/params', requireTenant, (req, res) => {
+  router.post('/params', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -268,7 +276,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.delete('/params/:id', requireTenant, (req, res) => {
+  router.delete('/params/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -281,7 +289,7 @@ export function createGoodsRouter(db) {
   });
 
   // ---------- 商城设置 ----------
-  router.get('/settings', requireTenant, (req, res) => {
+  router.get('/settings', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
       const row = db.prepare('SELECT config FROM goods_setting WHERE customer_id = ?').get(cid);
@@ -291,7 +299,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.put('/settings', requireTenant, (req, res) => {
+  router.put('/settings', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -306,12 +314,12 @@ export function createGoodsRouter(db) {
   });
 
   // ---------- 授权应用（商品类型 Tab 显示条件：卡密商品=电子卡密应用、虚拟商品=礼品卡券应用） ----------
-  router.get('/licenses', requireTenant, (req, res) => {
+  router.get('/licenses', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
       const granted = [];
       if (hasSolution(db, cid, 'card-carmi')) granted.push('card-carmi');
-      if (hasSolution(db, cid, 'card-ticket')) granted.push('card-ticket');
+      // 注意：虚拟商品=默认开通（无授权绑定），礼品卡券/送礼物=独立营销应用，不在此处作为类型开关
       res.json({ apps: granted });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -319,7 +327,7 @@ export function createGoodsRouter(db) {
   // ============================================================
   // 订单管理（二期-A：列表/详情/发货/完成/退款；须在 /:id 之前注册）
   // ============================================================
-  router.get('/orders', requireTenant, (req, res) => {
+  router.get('/orders', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const svc = createGoodsOrderService(db);
       const { status = '', keyword = '', page = 1, pageSize = 20 } = req.query;
@@ -328,7 +336,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.get('/orders/:id', requireTenant, (req, res) => {
+  router.get('/orders/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const svc = createGoodsOrderService(db);
       const order = svc.getOrderByTenant(req.customerId, req.params.id);
@@ -337,7 +345,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  router.post('/orders/:id/ship', requireTenant, (req, res) => {
+  router.post('/orders/:id/ship', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const svc = createGoodsOrderService(db);
       const order = svc.ship({ customerId: req.customerId, orderId: req.params.id });
@@ -346,7 +354,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
-  router.post('/orders/:id/done', requireTenant, (req, res) => {
+  router.post('/orders/:id/done', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const svc = createGoodsOrderService(db);
       const order = svc.done({ customerId: req.customerId, orderId: req.params.id });
@@ -355,7 +363,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
-  router.post('/orders/:id/refund', requireTenant, (req, res) => {
+  router.post('/orders/:id/refund', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const svc = createGoodsOrderService(db);
       const order = svc.refund({ customerId: req.customerId, orderId: req.params.id });
@@ -364,7 +372,7 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
-  router.get('/:id', requireTenant, (req, res) => {
+  router.get('/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
       const row = db.prepare('SELECT * FROM goods WHERE id = ? AND customer_id = ?').get(Number(req.params.id), cid);
@@ -376,7 +384,7 @@ export function createGoodsRouter(db) {
   });
 
 
-  router.put('/:id', requireTenant, (req, res) => {
+  router.put('/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -410,7 +418,7 @@ export function createGoodsRouter(db) {
   });
 
 
-  router.delete('/:id', requireTenant, (req, res) => {
+  router.delete('/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
@@ -425,7 +433,7 @@ export function createGoodsRouter(db) {
 
 
   // 复制商品（对标行操作「复制」）
-  router.post('/:id/copy', requireTenant, (req, res) => {
+  router.post('/:id/copy', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;

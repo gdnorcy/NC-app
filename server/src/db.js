@@ -1994,6 +1994,24 @@ function seedGoods(db) {
     db.exec("ALTER TABLE goods ADD COLUMN card_key_id INTEGER");
   }
 
+  // —— 应用注册：商品管理（平台授权应用，1:1 复刻菜鸟云「商品=总后台授权」；租户方案勾选后侧边栏「商品管理」才显示；演示方案自动纳入见下方 solution_apps）——
+  db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('基础功能', 'apps', 2)");
+  db.prepare("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('goods', '商品管理', '商品发布/分类/订单/参数与商城设置（菜鸟云商品一级菜单）', 'template', '基础功能', 1, 1)").run();
+  {
+    const goodsApp = db.prepare("SELECT id FROM apps WHERE code = 'goods'").get();
+    if (goodsApp) {
+      const goodsMenus = [
+        ['商品列表', 'goods:list', '商品列表管理'],
+        ['商品分类', 'goods:cates', '商品分类管理'],
+        ['商品订单', 'goods:orders', '商品订单管理'],
+        ['商品参数', 'goods:params', '商品参数模板'],
+        ['商城设置', 'goods:settings', '商城设置'],
+      ];
+      const menuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+      goodsMenus.forEach(([mod, key, label], idx) => menuIns.run(goodsApp.id, mod, mod, key, label, idx + 1));
+    }
+  }
+
   // —— 应用注册：电子卡密（卡密类型授权）/ 礼品卡券（营销应用）/ 送礼物（营销应用）（分类=营销引流；演示方案自动纳入见 migrateSolutionApps）——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('营销引流', 'channel', 4)");
   const goodsApps = [
@@ -2025,7 +2043,7 @@ function seedGoods(db) {
   try {
     const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
     if (demoRow) {
-      const apps = db.prepare("SELECT id FROM apps WHERE code IN ('card-carmi','card-ticket','card-gift')").all();
+      const apps = db.prepare("SELECT id FROM apps WHERE code IN ('goods','card-carmi','card-ticket','card-gift')").all();
       for (const a of apps) {
         if (!db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, a.id)) {
           db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, a.id);

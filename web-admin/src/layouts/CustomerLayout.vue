@@ -45,7 +45,7 @@
             <SIcon name="apps" size="default" />
             <span>应用中心</span>
           </el-menu-item>
-          <el-menu-item index="/goods">
+          <el-menu-item v-if="hasGoodsApp" index="/goods">
             <SIcon name="template" size="default" />
             <span>商品管理</span>
           </el-menu-item>
@@ -189,6 +189,8 @@ const tenantExpired = ref(false);
 const tenantReadonly = ref(false);
 const tenantValidUntil = ref('');
 const tenantDaysLeft = ref(null);
+const installedApps = ref([]); // 租户方案展开后的应用清单（/api/customer/apps）
+const hasGoodsApp = computed(() => installedApps.value.some(a => a.code === 'goods'));
 
 const authStore = { user: JSON.parse(localStorage.getItem('customer_user') || 'null') };
 const isTenantAdmin = computed(() => isTenantAdminFn(authStore.user));
@@ -221,6 +223,14 @@ onMounted(async () => {
     const res = await fetch('/api/settings/public').then(r => r.json());
     systemName.value = res.siteName || '零壹系统云';
     systemLogo.value = res.logo || '';
+  } catch (e) {}
+  // 租户方案展开应用清单（商品管理等平台授权应用的侧边栏显示开关）
+  try {
+    const token = localStorage.getItem('customer_token');
+    const ar = await fetch('/api/customer/apps', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(r => r.json());
+    installedApps.value = ar.apps || [];
   } catch (e) {}
   // 租户生命周期状态（到期提示/续费引导）
   try {
