@@ -37,6 +37,10 @@ const routes = [
       { path: 'apps/share-all', component: () => import('../views/customer/apps/dist/ShareAllHome.vue'), meta: { title: '全民股东', breadcrumbs: ['应用中心', '分销体系', '全民股东'] } },
       { path: 'apps/share-cat', component: () => import('../views/customer/apps/dist/ShareCatHome.vue'), meta: { title: '类目股东', breadcrumbs: ['应用中心', '分销体系', '类目股东'] } },
       { path: 'apps/share-area', component: () => import('../views/customer/apps/dist/ShareAreaHome.vue'), meta: { title: '区域股东', breadcrumbs: ['应用中心', '分销体系', '区域股东'] } },
+      // 营销引流应用（电子卡密/礼品卡券/送礼物：应用内 Tab 占位页，二期-C 实现完整功能）
+      { path: 'apps/card-carmi', component: () => import('../views/customer/apps/AppsPlaceholder.vue'), meta: { title: '电子卡密', breadcrumbs: ['应用中心', '营销引流', '电子卡密'] } },
+      { path: 'apps/card-ticket', component: () => import('../views/customer/apps/AppsPlaceholder.vue'), meta: { title: '礼品卡券', breadcrumbs: ['应用中心', '营销引流', '礼品卡券'] } },
+      { path: 'apps/card-gift', component: () => import('../views/customer/apps/AppsPlaceholder.vue'), meta: { title: '送礼物', breadcrumbs: ['应用中心', '营销引流', '送礼物'] } },
       // 设计中心（侧边栏一级菜单：素材/风格/导航/模板/首页/页面装修）
       { path: 'design', component: () => import('../views/customer/apps/design/DesignHome.vue'), meta: { title: '设计中心', breadcrumbs: ['设计中心'] } },
       // 商品管理（侧边栏一级菜单：1:1 菜鸟云「东莞同城通」duoproducts）

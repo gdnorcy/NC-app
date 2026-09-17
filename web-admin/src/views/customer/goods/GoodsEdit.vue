@@ -6,11 +6,12 @@
       </div>
     </AppPageHeader>
 
-    <!-- 类型 Tab（对标菜鸟云：普通商品/卡密商品/虚拟商品 三类型默认全开放，无需应用授权） -->
+    <!-- 类型 Tab（对标菜鸟云：普通默认；卡密=授权「电子卡密」；虚拟=授权「礼品卡券」） -->
     <div class="type-tabs">
       <div class="type-tab" :class="{ active: topType === 1 }" @click="setType(1)">普通商品</div>
-      <div class="type-tab" :class="{ active: topType === 3 }" @click="setType(3)">卡密商品</div>
-      <div class="type-tab" :class="{ active: topType === 4 }" @click="setType(4)">虚拟商品</div>
+      <div v-if="licenses.includes('card-carmi')" class="type-tab" :class="{ active: topType === 3 }" @click="setType(3)">卡密商品</div>
+      <div v-if="licenses.includes('card-ticket')" class="type-tab" :class="{ active: topType === 4 }" @click="setType(4)">虚拟商品</div>
+      <span v-if="!licenses.length" class="type-hint">未开通「电子卡密/礼品卡券」应用，仅普通商品（应用中心可开通）</span>
     </div>
 
     <el-tabs v-model="tab" class="edit-tabs">

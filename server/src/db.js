@@ -1834,8 +1834,8 @@ function normalizeProjectSolutions(db) {
 /**
  * 商品体系（2026-09-17 新增，1:1 复刻菜鸟云「东莞同城通」duoproducts）
  * 建表：goods_category（二级分类）/ goods（商品全字段）/ goods_sku（多规格）/ goods_param（参数模板）/ goods_setting（商城设置）
- * 应用注册：电子卡密（card-carmi，卡密库/自动发货增强应用）、送礼物（card-gift，实物礼品转赠营销应用）
- * —— 商品类型「普通/卡密/虚拟」默认全部开放（对标菜鸟云实测：添加页三类型 Tab 无需授权即显示）
+ * 应用注册：电子卡密（card-carmi，卡密商品类型授权）、礼品卡券（card-ticket，虚拟商品类型授权）、送礼物（card-gift，实物礼品转赠营销应用）
+ * —— 商品类型 Tab 授权驱动（对标菜鸟云）：普通默认；卡密=授权「电子卡密」；虚拟=授权「礼品卡券」；送礼物非类型开关
  */
 function seedGoods(db) {
   db.exec(`
@@ -1985,11 +1985,12 @@ function seedGoods(db) {
     CREATE INDEX IF NOT EXISTS idx_goods_order_log ON goods_order_log(order_id);
   `);
 
-  // —— 应用注册：电子卡密 / 送礼物（商品类型授权驱动；分类=营销引流；演示方案自动纳入见 migrateSolutionApps）——
+  // —— 应用注册：电子卡密（卡密类型授权）/ 礼品卡券（虚拟类型授权）/ 送礼物（营销应用）（分类=营销引流；演示方案自动纳入见 migrateSolutionApps）——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('营销引流', 'channel', 4)");
   const goodsApps = [
     ['card-carmi', '电子卡密', '卡密商品，用户付款自动发货（授权后商品添加页出现「卡密商品」类型）', 'badge', 1],
-    ['card-gift', '送礼物', '实物礼品，购买商品转赠好友（营销引流应用，非商品类型开关）', 'crown', 2],
+    ['card-ticket', '礼品卡券', '虚品实物，自己兑用转人兑用（授权后商品添加页出现「虚拟商品」类型）', 'voucher', 2],
+    ['card-gift', '送礼物', '实物礼品，购买商品转赠好友（营销引流应用，非商品类型开关）', 'crown', 3],
   ];
   const goodsAppIns = db.prepare('INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
   for (const [code, name, desc, icon, order] of goodsApps) {
@@ -2000,6 +2001,9 @@ function seedGoods(db) {
       'card-carmi': [
         ['卡密库', 'carmi:list', '卡密库管理'],
         ['卡密分类', 'carmi:cates', '卡密分类管理'],
+      ],
+      'card-ticket': [
+        ['卡券库', 'ticket:list', '礼品卡券管理'],
       ],
       'card-gift': [
         ['商品列表', 'gift:list', '送礼物商品管理'],
@@ -2012,7 +2016,7 @@ function seedGoods(db) {
   try {
     const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
     if (demoRow) {
-      const apps = db.prepare("SELECT id FROM apps WHERE code IN ('card-carmi','card-gift')").all();
+      const apps = db.prepare("SELECT id FROM apps WHERE code IN ('card-carmi','card-ticket','card-gift')").all();
       for (const a of apps) {
         if (!db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, a.id)) {
           db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, a.id);

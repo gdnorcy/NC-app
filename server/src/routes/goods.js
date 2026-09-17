@@ -305,13 +305,13 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ---------- 授权应用（商品类型 Tab 显示条件：卡密商品=电子卡密应用、虚拟商品=送礼物应用） ----------
+  // ---------- 授权应用（商品类型 Tab 显示条件：卡密商品=电子卡密应用、虚拟商品=礼品卡券应用） ----------
   router.get('/licenses', requireTenant, (req, res) => {
     try {
       const cid = req.customerId;
       const granted = [];
       if (hasSolution(db, cid, 'card-carmi')) granted.push('card-carmi');
-      if (hasSolution(db, cid, 'card-gift')) granted.push('card-gift');
+      if (hasSolution(db, cid, 'card-ticket')) granted.push('card-ticket');
       res.json({ apps: granted });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
