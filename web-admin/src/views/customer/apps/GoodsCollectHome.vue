@@ -1,10 +1,14 @@
 <template>
   <div class="collect-home">
-    <!-- 应用内 Tab（对齐菜鸟云商品采集：采集配置 / 采集记录） -->
+    <!-- 应用内 Tab（商品采集：采集配置 / 接口 / 采集记录） -->
     <div class="card-tabs">
       <div class="ctab" :class="{ active: activeTab === 'config' }" @click="activeTab = 'config'">
         <SIcon name="dynamic" size="default" :color="activeTab === 'config' ? '#165dff' : '#4e5969'" />
         <span>采集配置</span>
+      </div>
+      <div class="ctab" :class="{ active: activeTab === 'api' }" @click="activeTab = 'api'">
+        <SIcon name="key" size="default" :color="activeTab === 'api' ? '#165dff' : '#4e5969'" />
+        <span>接口</span>
       </div>
       <div class="ctab" :class="{ active: activeTab === 'records' }" @click="activeTab = 'records'">
         <SIcon name="template" size="default" :color="activeTab === 'records' ? '#165dff' : '#4e5969'" />
@@ -12,21 +16,9 @@
       </div>
     </div>
 
-    <!-- ============ 采集配置（1:1 菜鸟云 goods_collect/goodsadd：商品链接/选择分类/状态/确定 + 采集APIKEY） ============ -->
+    <!-- ============ 采集配置（1:1 菜鸟云 goods_collect/goodsadd：商品链接/选择分类/状态/确定） ============ -->
     <div v-if="activeTab === 'config'" class="panel">
       <AppPageHeader title="商品采集" desc="批量采集淘宝/天猫商品链接到商品库（多个链接用 ; 分隔）" />
-      <div class="card collect-form">
-        <div class="sub-title">采集 APIKEY</div>
-        <el-form label-width="90px" style="max-width: 640px">
-          <el-form-item label="APIKEY">
-            <el-input v-model="apiKey" class="w360" placeholder="数据接口 APIKEY" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="savingKey" @click="saveApiKey">保存</el-button>
-          </el-form-item>
-        </el-form>
-        <div class="collect-tip">采集 APIKEY：点击申请在我的数据接口中添加淘宝、天猫、京东商城接口</div>
-      </div>
       <div class="card collect-form">
         <div class="sub-title">添加采集任务</div>
         <el-form label-width="90px" style="max-width: 640px">
@@ -49,8 +41,25 @@
           </el-form-item>
         </el-form>
         <div class="collect-tip">
-          说明：采集任务提交后将进入采集记录，真实商品抓取需在第三方数据接口配置淘宝/天猫 APIKEY 后自动入库。
+          说明：采集任务提交后将进入采集记录，真实商品抓取需在「接口」菜单中配置淘宝/天猫 APIKEY 后自动入库。
         </div>
+      </div>
+    </div>
+
+    <!-- ============ 接口（采集 APIKEY，独立菜单项） ============ -->
+    <div v-else-if="activeTab === 'api'" class="panel">
+      <AppPageHeader title="接口" desc="配置第三方数据接口 APIKEY（采集淘宝/天猫/京东商品）" />
+      <div class="card collect-form">
+        <div class="sub-title">采集 APIKEY</div>
+        <el-form label-width="90px" style="max-width: 640px">
+          <el-form-item label="APIKEY">
+            <el-input v-model="apiKey" class="w360" placeholder="数据接口 APIKEY" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="savingKey" @click="saveApiKey">保存</el-button>
+          </el-form-item>
+        </el-form>
+        <div class="collect-tip">采集 APIKEY：点击申请在我的数据接口中添加淘宝、天猫、京东商城接口</div>
       </div>
     </div>
 
