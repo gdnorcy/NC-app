@@ -480,6 +480,18 @@ export function createGoodsRouter(db) {
       res.json({ id: r.lastInsertRowid });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
+  router.put('/return-addresses/:id', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const { name = '', phone = '', address = '', remark = '' } = req.body;
+      if (!name.trim() || !phone.trim() || !address.trim()) return res.status(400).json({ error: '收件人、手机号、详细地址为必填' });
+      const r = db.prepare('UPDATE goods_return_addr SET name = ?, phone = ?, address = ?, remark = ? WHERE id = ? AND customer_id = ?')
+        .run(name.trim(), phone.trim(), address.trim(), remark.trim(), Number(req.params.id), req.customerId);
+      if (!r.changes) return res.status(404).json({ error: '地址不存在' });
+      audit(req, 'update', 'goods_return_addr', Number(req.params.id), `编辑退货地址 ${name.trim()}`);
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
   router.post('/return-addresses/batch-delete', requireTenant, requireGoodsApp, (req, res) => {
     try {
       if (!assertWritable(req, res)) return;

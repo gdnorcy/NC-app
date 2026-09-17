@@ -74,7 +74,7 @@ const subDefs = {
     { key: 'param', label: '商品参数', icon: 'logs', countKey: 'param' },
   ],
   order: [
-    { key: 'order', label: '商品订单', icon: 'orders' },
+    { key: 'goodsOrders', label: '商品订单', icon: 'orders' },
     { key: 'afterSale', label: '售后订单', icon: 'orders' },
     { key: 'returns', label: '退货地址', icon: 'storage' },
   ],
