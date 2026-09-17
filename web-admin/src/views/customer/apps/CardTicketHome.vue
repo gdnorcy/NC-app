@@ -1,6 +1,6 @@
 <template>
   <div class="ticket-home">
-    <!-- 应用内 Tab（对齐菜鸟云礼品卡券：卡券分类 / 卡券列表） -->
+    <!-- 应用内 Tab（对齐菜鸟云礼品卡券：卡券分类 / 卡券列表 / 实物订单 / 基础设置） -->
     <div class="card-tabs">
       <div class="ctab" :class="{ active: activeTab === 'cates' }" @click="activeTab = 'cates'">
         <SIcon name="apps" size="default" :color="activeTab === 'cates' ? '#165dff' : '#4e5969'" />
@@ -9,6 +9,14 @@
       <div class="ctab" :class="{ active: activeTab === 'cards' }" @click="activeTab = 'cards'">
         <SIcon name="voucher" size="default" :color="activeTab === 'cards' ? '#165dff' : '#4e5969'" />
         <span>卡券列表</span>
+      </div>
+      <div class="ctab" :class="{ active: activeTab === 'orders' }" @click="activeTab = 'orders'; loadOrders()">
+        <SIcon name="orders" size="default" :color="activeTab === 'orders' ? '#165dff' : '#4e5969'" />
+        <span>实物订单</span>
+      </div>
+      <div class="ctab" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'; loadSettings()">
+        <SIcon name="settings" size="default" :color="activeTab === 'settings' ? '#165dff' : '#4e5969'" />
+        <span>基础设置</span>
       </div>
     </div>
 
@@ -35,7 +43,7 @@
     </div>
 
     <!-- ============ 卡券列表 ============ -->
-    <div v-else class="panel">
+    <div v-else-if="activeTab === 'cards'" class="panel">
       <AppPageHeader title="卡券列表" desc="卡券可自己兑用或转赠他人兑用；上架后可见可购买">
         <el-select v-model="q.cateId" placeholder="请选择分类" clearable style="width: 180px" @change="loadCards">
           <el-option v-for="c in cates" :key="c.id" :label="c.name" :value="c.id" />
@@ -87,6 +95,86 @@
             </template>
           </el-table-column>
         </el-table>
+      </div>
+    </div>
+
+    <!-- ============ 实物订单 ============ -->
+    <div v-else-if="activeTab === 'orders'" class="panel">
+      <AppPageHeader title="实物订单" desc="礼品卡券购买订单（对齐菜鸟云 giftcard/order；含快递/自取、发货状态）">
+        <el-select v-model="oQ.deliveryMode" placeholder="全部发货模式" clearable style="width: 150px" @change="loadOrders">
+          <el-option label="快递发货" value="express" />
+          <el-option label="到店自取" value="pickup" />
+        </el-select>
+        <el-select v-model="oQ.status" placeholder="全部订单状态" clearable style="width: 150px" @change="loadOrders">
+          <el-option label="待发货" value="paid" />
+          <el-option label="已发货" value="shipped" />
+          <el-option label="已完成" value="done" />
+          <el-option label="退款中" value="refunding" />
+          <el-option label="已退款" value="refunded" />
+        </el-select>
+        <el-input v-model="oQ.kw" placeholder="订单号" clearable style="width: 180px" @keyup.enter="loadOrders" />
+        <el-button type="primary" @click="loadOrders">搜索</el-button>
+        <el-button @click="exportOrders">导出</el-button>
+      </AppPageHeader>
+      <div class="card">
+        <el-table :data="orders" v-loading="orderLoading">
+          <el-table-column prop="order_no" label="订单号" width="200" />
+          <el-table-column label="商品" min-width="200">
+            <template #default="{ row }">
+              <div v-for="it in row.items" :key="it.id" class="order-item">{{ it.title }} ×{{ it.num }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column label="实付" width="100">
+            <template #default="{ row }">¥{{ row.payAmountY }}</template>
+          </el-table-column>
+          <el-table-column label="配送类型" width="100">
+            <template #default="{ row }">{{ row.delivery_mode === 'pickup' ? '到店自取' : '快递发货' }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="110">
+            <template #default="{ row }">
+              <el-tag size="small" :type="statusType(row.status)" effect="light">{{ statusText(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="收货人" width="130">
+            <template #default="{ row }">
+              <div v-if="row.receiver_name">{{ row.receiver_name }}<br /><span class="sub">{{ row.receiver_phone }}</span></div>
+              <span v-else class="sub">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="created_at" label="下单时间" width="160" />
+          <el-table-column label="操作" width="110" fixed="right">
+            <template #default="{ row }">
+              <el-button v-if="row.status === 'paid'" link type="primary" @click="shipOrder(row)">发货</el-button>
+              <el-button v-else link type="info" disabled>—</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-if="!orderLoading && !orders.length" description="暂无卡券订单（卡券购买后在此显示）" />
+      </div>
+    </div>
+
+    <!-- ============ 基础设置 ============ -->
+    <div v-else-if="activeTab === 'settings'" class="panel">
+      <AppPageHeader title="基础设置" desc="卡券分享设置（对齐菜鸟云 giftcard/set）">
+        <el-button type="primary" :loading="setSaving" @click="saveSettings">确定</el-button>
+      </AppPageHeader>
+      <div class="card set-card">
+        <el-form label-width="110px">
+          <el-form-item label="分享标题">
+            <el-input v-model="settings.shareTitle" maxlength="50" placeholder="请填写分享标题" style="max-width: 420px" />
+          </el-form-item>
+          <el-form-item label="分享图">
+            <div class="img-picker">
+              <el-image v-if="settings.shareImg" :src="settings.shareImg" fit="cover" class="thumb-box" :preview-src-list="[settings.shareImg]" preview-teleported />
+              <div v-else class="thumb-box thumb-empty" @click="openPicker('shareImg')"><el-icon><Plus /></el-icon></div>
+              <div class="picker-ops">
+                <el-button size="small" @click="openPicker('shareImg')">选择图片</el-button>
+                <el-button v-if="settings.shareImg" size="small" text type="danger" @click="settings.shareImg = ''">移除</el-button>
+              </div>
+            </div>
+            <div class="form-tip">建议尺寸 5:4，不超过 100kb</div>
+          </el-form-item>
+        </el-form>
       </div>
     </div>
 
@@ -293,9 +381,56 @@ function onPickImg(url) {
   if (!url) return;
   if (picker.value.target === 'thumb') cardDlg.form.thumb = url;
   else if (picker.value.target === 'carousel') cardDlg.form.carousel.push(url);
+  else if (picker.value.target === 'shareImg') settings.shareImg = url;
 }
 
 function fen(v) { return ((v || 0) / 100).toFixed(2); }
+
+// ---------- 实物订单 ----------
+const orders = ref([]);
+const orderLoading = ref(false);
+const oQ = reactive({ deliveryMode: '', status: '', kw: '' });
+
+const STATUS_MAP = {
+  pending: ['待支付', 'warning'], paid: ['待发货', 'primary'], shipped: ['已发货', 'success'],
+  done: ['已完成', 'success'], refunding: ['退款中', 'warning'], refunded: ['已退款', 'danger'], closed: ['已关闭', 'info'],
+};
+function statusText(s) { return STATUS_MAP[s]?.[0] || s; }
+function statusType(s) { return STATUS_MAP[s]?.[1] || 'info'; }
+
+async function loadOrders() {
+  orderLoading.value = true;
+  try {
+    orders.value = (await customerApiCall.get('/gift-card/orders', { params: { deliveryMode: oQ.deliveryMode, status: oQ.status, keyword: oQ.kw } })).list || [];
+  } catch (e) { ElMessage.error(e); } finally { orderLoading.value = false; }
+}
+async function shipOrder(row) {
+  try {
+    await customerApiCall.post(`/goods/orders/${row.id}/ship`);
+    ElMessage.success('已发货'); loadOrders();
+  } catch (e) { ElMessage.error(e); }
+}
+function exportOrders() {
+  window.open(`/api/customer/gift-card/orders/export?deliveryMode=${oQ.deliveryMode}&status=${oQ.status}&keyword=${encodeURIComponent(oQ.kw)}`, '_blank');
+}
+
+// ---------- 基础设置 ----------
+const settings = reactive({ shareTitle: '', shareImg: '' });
+const setSaving = ref(false);
+async function loadSettings() {
+  try {
+    const s = await customerApiCall.get('/gift-card/settings');
+    settings.shareTitle = s.shareTitle || '';
+    settings.shareImg = s.shareImg || '';
+  } catch (e) { ElMessage.error(e); }
+}
+async function saveSettings() {
+  setSaving.value = true;
+  try {
+    await customerApiCall.put('/gift-card/settings', { ...settings });
+    ElMessage.success('保存成功');
+  } catch (e) { ElMessage.error(e); } finally { setSaving.value = false; }
+}
 
 function emptyCard() {
   return {
@@ -377,4 +512,7 @@ onMounted(() => { loadCates(); loadCards(); });
 .price-cell .sub { font-size: 12px; color: #86909C; }
 .carousel-box { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .carousel-item { display: flex; align-items: center; gap: 6px; }
+.set-card { max-width: 640px; }
+.order-item { line-height: 1.6; }
+.sub { font-size: 12px; color: #86909C; }
 </style>

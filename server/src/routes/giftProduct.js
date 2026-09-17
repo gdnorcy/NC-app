@@ -51,6 +51,38 @@ export function createGiftRouter(db) {
     return true;
   }
 
+  // ---------- 基础设置（1:1 复刻菜鸟云 setView：开关/分享样式/过期时间/标准运费/礼物赠言） ----------
+  router.get('/settings', requireTenant, requireGift, (req, res) => {
+    try {
+      const row = db.prepare('SELECT * FROM gift_config WHERE customer_id = ?').get(req.customerId);
+      res.json(row ? {
+        status: row.status, shareStyle: row.share_style, expireHour: row.expire_hour,
+        normDeliveryFee: row.norm_delivery_fee, messages: safeJson(row.messages),
+      } : { status: 1, shareStyle: 1, expireHour: 0, normDeliveryFee: 0, messages: [] });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.put('/settings', requireTenant, requireGift, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const cid = req.customerId;
+      const b = req.body;
+      const messages = Array.isArray(b.messages) ? b.messages.filter((m) => String(m || '').trim()).map((m) => String(m).trim()) : [];
+      db.prepare(
+        `INSERT INTO gift_config (customer_id, status, share_style, expire_hour, norm_delivery_fee, messages)
+         VALUES (?,?,?,?,?,?)
+         ON CONFLICT(customer_id) DO UPDATE SET status=excluded.status, share_style=excluded.share_style,
+           expire_hour=excluded.expire_hour, norm_delivery_fee=excluded.norm_delivery_fee,
+           messages=excluded.messages, updated_at=datetime('now')`
+      ).run(cid, Number(b.status) === 0 ? 0 : 1, Number(b.shareStyle) === 2 ? 2 : (Number(b.shareStyle) === 3 ? 3 : 1),
+        Number(b.expireHour) || 0, Math.round((Number(b.normDeliveryFee) || 0) * 100), JSON.stringify(messages));
+      audit(req, 'update', 'gift_config', 0, '更新送礼物基础设置');
+      res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  function safeJson(s) { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } }
+
   // 礼物商品列表：join goods，含绑定状态（status 0关 1开）
   router.get('/products', requireTenant, requireGift, (req, res) => {
     try {

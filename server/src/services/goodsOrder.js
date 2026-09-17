@@ -177,10 +177,12 @@ export function createGoodsOrderService(db) {
   };
 
   /** 后台：订单列表（状态筛选/搜索/分页） */
-  svc.listOrders = ({ customerId, status = '', keyword = '', page = 1, pageSize = 20 }) => {
+  svc.listOrders = ({ customerId, status = '', keyword = '', page = 1, pageSize = 20, source = '', deliveryMode = '' }) => {
     const where = ['customer_id = ?'];
     const params = [customerId];
     if (status) { where.push('status = ?'); params.push(status); }
+    if (source) { where.push('source = ?'); params.push(source); }
+    if (deliveryMode) { where.push('delivery_mode = ?'); params.push(deliveryMode); }
     if (keyword) {
       where.push('(order_no LIKE ? OR id IN (SELECT order_id FROM goods_order_item WHERE title LIKE ?))');
       params.push(`%${keyword}%`, `%${keyword}%`);

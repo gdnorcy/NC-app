@@ -2066,7 +2066,31 @@ function seedGoods(db) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(customer_id, product_id)
     );
+    CREATE TABLE IF NOT EXISTS gift_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL UNIQUE,
+      status INTEGER NOT NULL DEFAULT 1,   -- 送礼物开关（1开启 0关闭）
+      share_style INTEGER NOT NULL DEFAULT 1, -- 分享样式（1/2/3）
+      expire_hour INTEGER NOT NULL DEFAULT 0, -- 过期时间（小时，超过未领取退回）
+      norm_delivery_fee INTEGER NOT NULL DEFAULT 0, -- 标准运费（分）
+      messages TEXT NOT NULL DEFAULT '[]', -- 礼物赠言（JSON 数组）
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS giftcard_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL UNIQUE,
+      share_title TEXT NOT NULL DEFAULT '', -- 分享标题
+      share_img TEXT NOT NULL DEFAULT '',   -- 分享图
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT
+    );
   `);
+
+  // 订单来源（2026-09-17 对齐菜鸟云商品订单来源区分：普通商品/礼品卡券实物订单/送礼物订单）
+  if (!colExists(db, 'goods_order', 'source')) {
+    db.exec("ALTER TABLE goods_order ADD COLUMN source TEXT NOT NULL DEFAULT 'goods'");
+  }
 
   // 类型差异化字段（2026-09-17 对齐菜鸟云三类型表单差异）：手机号填写（卡密/虚拟）、卡密库（卡密专属，库表二期）
   // 注意：幂等迁移必须放在 db.exec 模板字符串之外，否则 SQLite 报 near "if" syntax error

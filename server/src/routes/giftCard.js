@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import { tenantState, hasSolution } from '../tenant.js';
 import { addOperationLog } from '../db.js';
+import { createGoodsOrderService } from '../services/goodsOrder.js';
 
 export function createGiftCardRouter(db) {
   const router = Router();
@@ -50,6 +51,66 @@ export function createGiftCardRouter(db) {
     if (req.tenantReadonly) { res.status(403).json({ error: '服务已到期，当前为只读模式' }); return false; }
     return true;
   }
+
+  // ---------- 基础设置（1:1 复刻菜鸟云 giftcard/set：分享标题/分享图） ----------
+  router.get('/settings', requireTenant, requireTicket, (req, res) => {
+    try {
+      const row = db.prepare('SELECT * FROM giftcard_config WHERE customer_id = ?').get(req.customerId);
+      res.json(row ? { shareTitle: row.share_title, shareImg: row.share_img } : { shareTitle: '', shareImg: '' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.put('/settings', requireTenant, requireTicket, (req, res) => {
+    try {
+      if (!assertWritable(req, res)) return;
+      const cid = req.customerId;
+      const b = req.body;
+      db.prepare(
+        `INSERT INTO giftcard_config (customer_id, share_title, share_img)
+         VALUES (?,?,?)
+         ON CONFLICT(customer_id) DO UPDATE SET share_title=excluded.share_title, share_img=excluded.share_img, updated_at=datetime('now')`
+      ).run(cid, String(b.shareTitle || ''), String(b.shareImg || ''));
+      audit(req, 'update', 'giftcard_config', 0, '更新卡券基础设置');
+      res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ---------- 实物订单（1:1 复刻菜鸟云 giftcard/order：卡券购买订单 source='giftcard'；发货模式/状态/时间/订单号/手机/搜索/导出） ----------
+  router.get('/orders', requireTenant, requireTicket, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const { status = '', keyword = '', deliveryMode = '', page = 1, pageSize = 20 } = req.query;
+      const result = svc.listOrders({
+        customerId: req.customerId, status, keyword, page: Number(page), pageSize: Number(pageSize),
+        source: 'giftcard', deliveryMode,
+      });
+      res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.get('/orders/export', requireTenant, requireTicket, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const { status = '', keyword = '', deliveryMode = '' } = req.query;
+      const { list } = svc.listOrders({
+        customerId: req.customerId, status, keyword, page: 1, pageSize: 10000, source: 'giftcard', deliveryMode,
+      });
+      const esc = (s) => String(s ?? '').replace(/"/g, '""');
+      const rows = [['订单号', '商品', '价格', '支付', '配送类型', '状态', '收货人', '电话', '时间']];
+      for (const o of list) {
+        rows.push([
+          o.order_no, esc(o.items.map((i) => i.title).join('/')), (o.pay_amount / 100).toFixed(2),
+          o.status === 'paid' || o.status === 'shipped' || o.status === 'done' ? '已支付' : '未支付',
+          o.delivery_mode === 'pickup' ? '到店自取' : '快递发货', o.status,
+          esc(o.receiver_name), esc(o.receiver_phone), o.created_at,
+        ]);
+      }
+      const csv = '\uFEFF' + rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\r\n');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="giftcard-orders-${Date.now()}.csv"`);
+      res.send(csv);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
 
   // ---------- 卡券分类 ----------
   router.get('/categories', requireTenant, requireTicket, (req, res) => {

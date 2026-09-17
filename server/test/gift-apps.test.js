@@ -119,6 +119,54 @@ describe('营销引流：礼品卡券+送礼物', () => {
     assert.equal(after.body.length, 1);
   });
 
+  test('基础设置：送礼物/卡券配置 CRUD + 实物订单查询', async () => {
+    // 送礼物基础设置（默认值 + 保存 + 回读）
+    const d0 = await request(app).get('/api/customer/gift/settings').set(auth(t1));
+    assert.equal(d0.status, 200);
+    assert.equal(d0.body.status, 1);
+    const set = await request(app).put('/api/customer/gift/settings').set(auth(t1)).send({
+      status: 0, shareStyle: 3, expireHour: 24, normDeliveryFee: 8.5, messages: ['送你一份心意~', '  '],
+    });
+    assert.equal(set.status, 200);
+    const d1 = await request(app).get('/api/customer/gift/settings').set(auth(t1));
+    assert.equal(d1.body.status, 0);
+    assert.equal(d1.body.shareStyle, 3);
+    assert.equal(d1.body.expireHour, 24);
+    assert.equal(d1.body.normDeliveryFee, 850, '运费分存储');
+    assert.deepEqual(d1.body.messages, ['送你一份心意~'], '空赠言过滤');
+    // 卡券基础设置
+    const k0 = await request(app).get('/api/customer/gift-card/settings').set(auth(t1));
+    assert.equal(k0.status, 200);
+    const kset = await request(app).put('/api/customer/gift-card/settings').set(auth(t1)).send({ shareTitle: '送你一张卡', shareImg: '/uploads/s.png' });
+    assert.equal(kset.status, 200);
+    const k1 = await request(app).get('/api/customer/gift-card/settings').set(auth(t1));
+    assert.equal(k1.body.shareTitle, '送你一张卡');
+    // 实物订单：造 source='giftcard' 订单 + 普通订单，筛选生效且隔离
+    const oIns = db.prepare(
+      "INSERT INTO goods_order (order_no, customer_id, user_id, status, total_amount, freight, pay_amount, delivery_mode, receiver_name, receiver_phone, receiver_address, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+    );
+    const o1 = Number(oIns.run('GT202609170001', 1, 1, 'paid', 10000, 0, 10000, 'express', '张三', '13800000001', '东莞', 'giftcard').lastInsertRowid);
+    const o2 = Number(oIns.run('GT202609170002', 1, 2, 'shipped', 5000, 0, 5000, 'pickup', '', '', '', 'giftcard').lastInsertRowid);
+    oIns.run('GT202609170003', 1, 3, 'paid', 2000, 0, 2000, 'express', '李四', '13800000002', '广州', 'goods');
+    db.prepare("INSERT INTO goods_order_item (order_id, goods_id, title, thumb, price, num) VALUES (?,?,?,?,?,?)").run(o1, 1, '话费卡100元', '', 10000, 1);
+    db.prepare("INSERT INTO goods_order_item (order_id, goods_id, title, thumb, price, num) VALUES (?,?,?,?,?,?)").run(o2, 1, '超市卡50元', '', 5000, 1);
+    const ol = await request(app).get('/api/customer/gift-card/orders').set(auth(t1));
+    assert.equal(ol.status, 200);
+    assert.equal(ol.body.total, 2, '仅卡券来源订单');
+    const byMode = await request(app).get('/api/customer/gift-card/orders?deliveryMode=pickup').set(auth(t1));
+    assert.equal(byMode.body.total, 1);
+    assert.equal(byMode.body.list[0].delivery_mode, 'pickup');
+    const byKw = await request(app).get('/api/customer/gift-card/orders?keyword=GT202609170002').set(auth(t1));
+    assert.equal(byKw.body.total, 1);
+    assert.equal(byKw.body.list[0].items[0].title, '超市卡50元');
+    // 导出 CSV
+    const ex = await request(app).get('/api/customer/gift-card/orders/export').set(auth(t1));
+    assert.equal(ex.status, 200);
+    assert.ok(ex.text.startsWith('\uFEFF'));
+    assert.match(ex.text, /话费卡100元/);
+    assert.match(ex.text, /订单号/);
+  });
+
   test('送礼物：绑定/批量开关/单开关/解绑/隔离', async () => {
     // 造两个商品
     const ins = db.prepare("INSERT INTO goods (customer_id, title, thumb, price, stock, status, type, top_type) VALUES (?,?,?,?,?,?,?,?)");
