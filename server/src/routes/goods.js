@@ -205,15 +205,15 @@ export function createGoodsRouter(db) {
            pickup, freight_mode, fixed_freight, sale_mode, spec_mode, stock, min_buy, weight, price, market_price,
            cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
            super_form, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
-           distribution, advanced)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           distribution, advanced, phone_required, card_key_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         cid, g.topType, g.type, g.status, g.sortOrder, g.title, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
         g.weight, g.price, g.marketPrice, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
         g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.video, g.videoCover,
         g.videoPlay, g.tags, g.brief, g.brandTag, g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing),
-        JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced)
+        JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId
       );
       saveSkus(db, r.lastInsertRowid, g.skus || []);
       audit(req, 'goods_add', 'goods', r.lastInsertRowid, `新增商品 ${g.title}`);
@@ -390,7 +390,8 @@ export function createGoodsRouter(db) {
            min_buy = ?, weight = ?, price = ?, market_price = ?, cost_price = ?, goods_no = ?, member_price = ?,
            param = ?, recommend = ?, unit = ?, views = ?, real_sales = ?, fake_sales = ?, fake_people = ?, super_form = ?,
            video = ?, video_cover = ?, video_play = ?, tags = ?, brief = ?, brand_tag = ?, title_tag = ?, service = ?,
-           marketing = ?, member = ?, distribution = ?, advanced = ?, updated_at = datetime('now')
+           marketing = ?, member = ?, distribution = ?, advanced = ?, phone_required = ?, card_key_id = ?,
+           updated_at = datetime('now')
          WHERE id = ?`
       ).run(
         g.topType, g.type, g.status, g.sortOrder, g.title, JSON.stringify(g.cateIds), JSON.stringify(g.images),
@@ -398,7 +399,8 @@ export function createGoodsRouter(db) {
         g.weight, g.price, g.marketPrice, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
         g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.video, g.videoCover,
         g.videoPlay, g.tags, g.brief, g.brandTag, g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing),
-        JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), exist.id
+        JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId,
+        exist.id
       );
       db.prepare('DELETE FROM goods_sku WHERE goods_id = ?').run(exist.id);
       saveSkus(db, exist.id, g.skus || []);
@@ -435,15 +437,15 @@ export function createGoodsRouter(db) {
            pickup, freight_mode, fixed_freight, sale_mode, spec_mode, stock, min_buy, weight, price, market_price,
            cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
            super_form, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
-           distribution, advanced)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           distribution, advanced, phone_required, card_key_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         cid, g.topType, g.type, 'off', 0, `${g.title}（副本）`, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
         g.weight, g.price, g.marketPrice, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
         0, g.unit, 0, 0, 0, 0, g.superForm, g.video, g.videoCover, g.videoPlay, g.tags, g.brief, g.brandTag,
         g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing), JSON.stringify(g.member),
-        JSON.stringify(g.distribution), JSON.stringify(g.advanced)
+        JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId
       );
       const skus = db.prepare('SELECT * FROM goods_sku WHERE goods_id = ?').all(src.id);
       for (const s of skus) {
@@ -511,6 +513,8 @@ function normalizeGoods(body) {
     member: body.member && typeof body.member === 'object' ? body.member : {},
     distribution: body.distribution && typeof body.distribution === 'object' ? body.distribution : {},
     advanced: body.advanced && typeof body.advanced === 'object' ? body.advanced : {},
+    phoneRequired: [0, 1, 2].includes(Number(body.phoneRequired)) ? Number(body.phoneRequired) : 0,  // 0不展示 1必填 2选填（卡密/虚拟）
+    cardKeyId: body.cardKeyId ? Number(body.cardKeyId) : null,                                     // 卡密库（仅卡密，二期）
     skus: Array.isArray(body.skus) ? body.skus : [],
   };
 }
@@ -561,6 +565,8 @@ function rowToGoods(r) {
     member: parse(r.member, {}),
     distribution: parse(r.distribution, {}),
     advanced: parse(r.advanced, {}),
+    phoneRequired: r.phone_required ?? 0,
+    cardKeyId: r.card_key_id ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };

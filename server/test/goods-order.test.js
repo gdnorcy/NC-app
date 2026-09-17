@@ -135,4 +135,25 @@ describe('商品订单（goods_order 闭环）', () => {
     assert.equal(svc.getOrderByTenant(TENANT, lst.list[0].id).id, lst.list[0].id);
     assert.equal(svc.getOrderByTenant(99999, lst.list[0].id), null);
   });
+
+  test('类型差异化字段：phone_required/card_key_id 写入与回读（对齐菜鸟云三类型表单）', () => {
+    const cols = db.prepare('PRAGMA table_info(goods)').all().map(c => c.name);
+    assert.ok(cols.includes('phone_required'), 'goods 表应含 phone_required 列');
+    assert.ok(cols.includes('card_key_id'), 'goods 表应含 card_key_id 列');
+    const r = db.prepare(
+      `INSERT INTO goods (customer_id, title, type, status, stock, price, spec_mode, images, phone_required, card_key_id)
+       VALUES (?, '卡密差异化测试', 'carmi', 'sell', 0, 88, 'single', '[]', 1, 520)`
+    ).run(TENANT);
+    const row = db.prepare('SELECT phone_required, card_key_id, type FROM goods WHERE id = ?').get(Number(r.lastInsertRowid));
+    assert.equal(row.phone_required, 1, '卡密手机号必填应落库');
+    assert.equal(row.card_key_id, 520, '卡密库 ID 应落库');
+    assert.equal(row.type, 'carmi');
+    // 虚拟商品默认 phone_required=0（不展示）
+    const v = db.prepare(
+      `INSERT INTO goods (customer_id, title, type, status, stock, price, spec_mode, images) VALUES (?, '虚拟差异化测试', 'virtual', 'sell', 10, 66, 'single', '[]')`
+    ).run(TENANT);
+    const vrow = db.prepare('SELECT phone_required, card_key_id FROM goods WHERE id = ?').get(Number(v.lastInsertRowid));
+    assert.equal(vrow.phone_required, 0);
+    assert.equal(vrow.card_key_id, null);
+  });
 });

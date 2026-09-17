@@ -6,12 +6,12 @@
       </div>
     </AppPageHeader>
 
-    <!-- 类型 Tab（对标菜鸟云：普通默认；卡密=授权「电子卡密」；虚拟=授权「礼品卡券」） -->
+    <!-- 类型 Tab（对标菜鸟云：普通默认；卡密=授权「电子卡密」；虚拟=默认开通） -->
     <div class="type-tabs">
       <div class="type-tab" :class="{ active: topType === 1 }" @click="setType(1)">普通商品</div>
       <div v-if="licenses.includes('card-carmi')" class="type-tab" :class="{ active: topType === 3 }" @click="setType(3)">卡密商品</div>
-      <div v-if="licenses.includes('card-ticket')" class="type-tab" :class="{ active: topType === 4 }" @click="setType(4)">虚拟商品</div>
-      <span v-if="!licenses.length" class="type-hint">未开通「电子卡密/礼品卡券」应用，仅普通商品（应用中心可开通）</span>
+      <div class="type-tab" :class="{ active: topType === 4 }" @click="setType(4)">虚拟商品</div>
+      <span v-if="!licenses.includes('card-carmi')" class="type-hint">未开通「电子卡密」应用，仅普通/虚拟商品（应用中心可开通）</span>
     </div>
 
     <el-tabs v-model="tab" class="edit-tabs">
@@ -60,12 +60,12 @@
             </div>
             <div class="form-hint">双列展示建议 400×400，单列展示建议 750×750</div>
           </el-form-item>
-          <el-form-item label="取货方式">
+          <el-form-item v-if="topType === 1" label="取货方式">
             <el-radio-group v-model="g.pickup">
               <el-radio value="express">快递物流</el-radio>
             </el-radio-group>
           </el-form-item>
-          <el-form-item label="运费方式">
+          <el-form-item v-if="topType === 1" label="运费方式">
             <el-radio-group v-model="g.freightMode" class="inline">
               <el-radio value="fixed">固定运费</el-radio>
               <el-radio value="template">运费模板</el-radio>
@@ -73,6 +73,21 @@
             <el-input-number v-if="g.freightMode === 'fixed'" v-model="g.fixedFreight" :min="0" :precision="2" controls-position="right" class="ml12" />
             <span v-if="g.freightMode === 'fixed'" class="form-hint">元</span>
             <span v-else class="form-hint">运费模板（二期开放）</span>
+          </el-form-item>
+          <!-- 手机号填写（卡密/虚拟：菜鸟云 type3/type4 专属，0不展示 1必填 2选填） -->
+          <el-form-item v-if="topType !== 1" label="手机号填写">
+            <el-radio-group v-model="g.phoneRequired">
+              <el-radio :value="0">不展示</el-radio>
+              <el-radio :value="1">必填</el-radio>
+              <el-radio :value="2">选填</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <!-- 卡密库（仅卡密：菜鸟云 type3 专属，选择卡密库 + 去设置；库表二期-C） -->
+          <el-form-item v-if="topType === 3" label="卡密库">
+            <el-select v-model="g.cardKeyId" placeholder="请选择卡密库" clearable style="width: 240px">
+              <el-option v-for="k in cardKeys" :key="k.id" :label="k.name" :value="k.id" />
+            </el-select>
+            <span class="form-hint ml12">卡密库管理（二期-C 开放），暂无卡密库可选</span>
           </el-form-item>
           <el-form-item label="商品详情">
             <RichTextEditor v-model="g.info" class="rich-editor" />
@@ -83,13 +98,13 @@
       <!-- ============ 价格设置 ============ -->
       <el-tab-pane label="价格设置" name="price">
         <el-form label-width="140px" label-position="left" class="edit-form">
-          <el-form-item label="售卖方式">
+          <el-form-item v-if="topType === 1" label="售卖方式">
             <el-radio-group v-model="g.saleMode">
               <el-radio value="online">线上销售</el-radio>
               <el-radio value="consult">价格面议</el-radio>
             </el-radio-group>
           </el-form-item>
-          <el-form-item label="规格">
+          <el-form-item v-if="topType !== 3" label="规格">
             <el-radio-group v-model="g.specMode">
               <el-radio value="single">单规格</el-radio>
               <el-radio value="multi">多规格</el-radio>
@@ -97,15 +112,15 @@
           </el-form-item>
 
           <template v-if="g.specMode === 'single'">
-            <el-form-item label="库存">
+            <el-form-item v-if="topType !== 3" label="库存">
               <el-input-number v-model="g.stock" :min="0" controls-position="right" />
               <span class="form-hint">库存为 0 时商品不上架</span>
             </el-form-item>
-            <el-form-item label="起购数量"><el-input-number v-model="g.minBuy" :min="1" controls-position="right" /></el-form-item>
-            <el-form-item label="重量（KG）"><el-input-number v-model="g.weight" :min="0" :precision="2" controls-position="right" /></el-form-item>
+            <el-form-item v-if="topType !== 3" label="起购数量"><el-input-number v-model="g.minBuy" :min="1" controls-position="right" /></el-form-item>
+            <el-form-item v-if="topType !== 3" label="重量（KG）"><el-input-number v-model="g.weight" :min="0" :precision="2" controls-position="right" /></el-form-item>
             <el-form-item label="售价"><el-input-number v-model="g.price" :min="0" :precision="2" controls-position="right" class="price-input" /></el-form-item>
           </template>
-          <template v-else>
+          <template v-else-if="topType !== 3">
             <!-- 多规格：规格名 + 规格值 → 自动组合 SKU -->
             <el-form-item label="规格名">
               <el-input v-model="specName" placeholder="如：颜色" class="w240" @change="rebuildSkus" />
@@ -133,7 +148,7 @@
 
           <el-form-item label="市场价"><el-input-number v-model="g.marketPrice" :min="0" :precision="2" controls-position="right" /></el-form-item>
           <el-form-item label="成本价"><el-input-number v-model="g.costPrice" :min="0" :precision="2" controls-position="right" /></el-form-item>
-          <el-form-item label="货号"><el-input v-model="g.goodsNo" placeholder="商品货号/编码" class="w240" /></el-form-item>
+          <el-form-item v-if="topType !== 3" label="货号"><el-input v-model="g.goodsNo" placeholder="商品货号/编码" class="w240" /></el-form-item>
           <el-form-item label="会员价">
             <el-radio-group v-model="g.memberPrice.mode" class="inline">
               <el-radio value="none">暂无折扣</el-radio>
@@ -346,6 +361,7 @@ const isEdit = computed(() => goodsId.value > 0);
 const tab = ref('base');
 const topType = ref(1);
 const licenses = ref([]);
+const cardKeys = ref([]);  // 卡密库（二期-C 接入后填充）
 const cateOptions = ref([]);
 const paramTpls = ref([]);
 const saving = ref(false);
@@ -365,6 +381,8 @@ const g = reactive({
   member: { priceShow: 'default', exclusive: 'default' },
   distribution: { rule: 'off' },
   advanced: { supplier: '', limitBuy: false, limitBuyCount: 1, stockMode: 'order', remark: '', shareTitle: '', shareImg: '', buyBtn: '', cart: 'default', promoLinks: '' },
+  phoneRequired: 0,   // 手机号填写：0不展示 1必填 2选填（卡密/虚拟）
+  cardKeyId: null,    // 卡密库（仅卡密）
   skus: [],
 });
 

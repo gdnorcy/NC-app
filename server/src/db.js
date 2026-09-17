@@ -1985,7 +1985,16 @@ function seedGoods(db) {
     CREATE INDEX IF NOT EXISTS idx_goods_order_log ON goods_order_log(order_id);
   `);
 
-  // —— 应用注册：电子卡密（卡密类型授权）/ 礼品卡券（虚拟类型授权）/ 送礼物（营销应用）（分类=营销引流；演示方案自动纳入见 migrateSolutionApps）——
+  // 类型差异化字段（2026-09-17 对齐菜鸟云三类型表单差异）：手机号填写（卡密/虚拟）、卡密库（卡密专属，库表二期）
+  // 注意：幂等迁移必须放在 db.exec 模板字符串之外，否则 SQLite 报 near "if" syntax error
+  if (!colExists(db, 'goods', 'phone_required')) {
+    db.exec("ALTER TABLE goods ADD COLUMN phone_required INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!colExists(db, 'goods', 'card_key_id')) {
+    db.exec("ALTER TABLE goods ADD COLUMN card_key_id INTEGER");
+  }
+
+  // —— 应用注册：电子卡密（卡密类型授权）/ 礼品卡券（营销应用）/ 送礼物（营销应用）（分类=营销引流；演示方案自动纳入见 migrateSolutionApps）——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('营销引流', 'channel', 4)");
   const goodsApps = [
     ['card-carmi', '电子卡密', '卡密商品，用户付款自动发货（授权后商品添加页出现「卡密商品」类型）', 'badge', 1],
