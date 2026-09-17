@@ -513,7 +513,13 @@ async function load() {
   } catch (e) { /* 默认值兜底 */ }
   try {
     const cats = await customerApiCall.get('/goods/categories');
-    cateOptions.value = (cats || []).map((c) => ({ id: c.id, name: c.name }));
+    const list = cats.list || [];
+    const byId = new Map(list.map((c) => [c.id, c]));
+    // 关联分类：显示全部一级+二级，二级带「一级/二级」前缀避免重名
+    cateOptions.value = list.map((c) => ({
+      id: c.id,
+      name: c.pid ? `${(byId.get(c.pid) || {}).name || ''}/${c.name}` : c.name,
+    }));
   } catch (e) { /* 分类加载失败不阻断 */ }
 }
 
