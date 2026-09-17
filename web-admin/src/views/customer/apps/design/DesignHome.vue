@@ -1114,8 +1114,8 @@ onMounted(() => {
 }
 /* 预览三窗（1:1 菜鸟云 choose_style_single：250×466 / 圆角22 / 紫调阴影） */
 .ds-preview-row { display: flex; gap: 40px; overflow-x: auto; padding: 10px 6px 14px; }
-/* 每台手机独立投影（下方为主、模糊收小），三窗并排不连成整体 */
-.ds-preview { position: relative; flex: 0 0 250px; width: 250px; height: 466px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 10px 24px rgba(76, 66, 188, 0.18), 0 2px 6px rgba(76, 66, 188, 0.08); }
+/* 每台手机独立轻投影（克制，三窗并排不连成整体） */
+.ds-preview { position: relative; flex: 0 0 250px; width: 250px; height: 466px; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 3px 10px rgba(76, 66, 188, 0.1), 0 1px 2px rgba(76, 66, 188, 0.06); }
 /* 头部状态栏/胶囊图（透明素材，背景图头部透明处透出） */
 .ds-preview-top { position: absolute; left: 0; top: 0; width: 100%; height: 52px; z-index: 2; display: block; }
 /* 页面静态背景图（头部区域透明，透出 head 底色） */
