@@ -201,8 +201,8 @@
               <span class="ds-ov" :style="{ bottom: '43px', left: '5px', width: '240px', height: '50px', background: style.primaryColor }"></span>
             </div>
             <!-- 以下动态元素均位于背景图不透明区域，覆盖层(z0)在其之下会被遮住，必须独立 z3 置于背景图之上 -->
-            <!-- 邀请好友一起抢：浅青渐变胶囊（z3，与头像组同行；菜鸟云为胶囊按钮形态） -->
-            <span class="ds-invite" :style="{ color: style.primaryColor, background: `linear-gradient(90deg, ${hexA(style.primaryColor, 0.25)}, ${hexA(style.primaryColor, 0.5)})` }">邀请好友一起抢</span>
+            <!-- 邀请好友一起抢：主题颜色 + 渐变颜色组成的实色渐变胶囊（菜鸟云 1:1，白字） -->
+            <span class="ds-invite" :style="{ color: style.textColor, background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }">邀请好友一起抢</span>
             <!-- 已售300份：纯文字 + 主色火焰图标在文字上方（无胶囊背景，菜鸟云 1:1） -->
             <span class="ds-sale" :style="{ color: style.primaryColor }">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 2c1.2 4.2-3.6 6.2-3.6 9.8A4.6 4.6 0 0 0 13 16.4a4.6 4.6 0 0 0 4.6-4.6c0-2.2-1-3.6-2-4.8-1.2 1.4-2.4 2-3.4 1.4.8-2.2 1.2-4.4-.2-6.4z"/></svg>
@@ -216,10 +216,10 @@
             <div class="ds-av-row" :style="{ bottom: '52px', left: '10px' }">
               <img v-for="(a, i) in avatars" :key="i" :src="a" class="ds-av" alt="" />
             </div>
-            <!-- 底部操作：加入购物车（浅青）+ 立即购买（主色渐变）左右无缝合成一个整体胶囊（菜鸟云 1:1；右移避开素材收藏图标） -->
+            <!-- 底部操作：加入购物车（辅助色底+主色字）+ 立即购买（主题色底+白字）左右无缝合成一个整体胶囊（菜鸟云 1:1；右移避开素材收藏图标） -->
             <span class="ds-btns">
-              <b class="ds-cart" :style="{ color: style.primaryColor, background: hexA(style.primaryColor, 0.25) }">加入购物车</b>
-              <b class="ds-buy" :style="{ color: '#fff', background: `linear-gradient(90deg, ${style.primaryColor}, ${style.gradientColor})` }">立即购买</b>
+              <b class="ds-cart" :style="{ color: style.subTextColor, background: style.secondaryColor }">加入购物车</b>
+              <b class="ds-buy" :style="{ color: style.textColor, background: style.primaryColor }">立即购买</b>
             </span>
           </div>
           <!-- 商品订单 -->
