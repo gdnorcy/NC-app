@@ -1,6 +1,6 @@
 <template>
   <div class="goods-style">
-    <AppPageHeader title="商城风格" desc="商品分类页与详情页的展示风格（1:1 复刻菜鸟云 duoproducts/cateset）">
+    <AppPageHeader title="商城风格" desc="商品分类页与详情页的展示风格">
       <div class="hd-actions">
         <el-button type="primary" :loading="saving" @click="save">确定</el-button>
       </div>
