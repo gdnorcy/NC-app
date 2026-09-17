@@ -289,13 +289,40 @@ export function createGoodsRouter(db) {
   });
 
   // ---------- 商城设置 ----------
+  // 菜鸟云 duoproductsset/index 字段全集（1:1，2026-09-17 实测）
+  const GOODS_SETTINGS_DEFAULTS = {
+    // 支付规则
+    onlinePay: 1, useYue: 0, cashOnDelivery: 0,
+    codMethods: [], area: '', areaJson: '',
+    useConsumerCard: 1,
+    // 下单规则
+    fullBuy: 0, enableFxsBuy: 0, unFxsLink: '', unFxsLinkType: '',
+    useFormId: 0, payRedirect: '/pages/main_shop_order/main_shop_order', payRedirectType: 'page',
+    payErrRedirect: '', payErrRedirectType: 'page', orderRemarks: '选填：建议填写和卖家商量好的内容~',
+    // 快递配送
+    express: 2, byouType: 2, baoyou: '', kdps: '快递配送', psName: '快递配送', freightFeeType: 1,
+    // 同城配送
+    citySend: 1, citySendId: 1, citySendShop: 0, ctps: '同城配送', ctName: '同城配送',
+    // 到店自提
+    takeSelf: 1, takeTime: 1, takeTimeName: '自取时间', takePhone: 1, takeSelfAddress: 0, ddzq: '到店自取', zqName: '到店自取',
+    // 订单核销
+    enableOrderRefund: 1, orderCancelTime: 30, supportTime: 15, receiving: 15,
+    orderValidityType: 1, validityStartedAt: '', validityEndedAt: '', validityInterval: '',
+    // 展示
+    showOrderList: 1, showFxMoney: 0, showVipPrice: 0,
+    priceShowValue: '', priceShowName: '点击查看', priceShowLink: '提示##非会员无法查看价格！', priceShowLinkType: 'popuptext',
+    showCoupon: 1, shoppingCart: 1, cusId: 1, invoiceFormId: 0,
+    goodsRecommend: '', goodsCategories: [], nineApiKey: '', isEvaluate: 1, evaluateAudit: 0,
+    // 分享
+    shareTitle: '', shareImg: '',
+  };
   router.get('/settings', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
       const row = db.prepare('SELECT config FROM goods_setting WHERE customer_id = ?').get(cid);
       let config = {};
       try { config = JSON.parse(row?.config || '{}'); } catch { config = {}; }
-      res.json(config);
+      res.json({ ...GOODS_SETTINGS_DEFAULTS, ...config });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -303,7 +330,7 @@ export function createGoodsRouter(db) {
     try {
       if (!assertWritable(req, res)) return;
       const cid = req.customerId;
-      const config = req.body || {};
+      const config = { ...GOODS_SETTINGS_DEFAULTS, ...(req.body || {}) };
       db.prepare(
         `INSERT INTO goods_setting (customer_id, config, updated_at) VALUES (?, ?, datetime('now'))
          ON CONFLICT(customer_id) DO UPDATE SET config = excluded.config, updated_at = datetime('now')`
