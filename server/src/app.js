@@ -16,6 +16,7 @@ import { createUsersRouter } from './routes/users.js';
 import { createSettingsRouter } from './routes/settings.js';
 import { createLogsRouter } from './routes/logs.js';
 import { createCustomerRouter } from './routes/customer.js';
+import { createGoodsRouter } from './routes/goods.js';
 import { createSolutionsRouter } from './routes/solutions.js';
 import { createMultiAuthRouter } from './routes/multi-auth.js';
 import { createAppRegistryRouter } from './routes/app-registry.js';
@@ -67,6 +68,8 @@ export function createApp({ db } = {}) {
   app.use('/api', createLogsRouter(database));
   app.use('/api/customer', requireAuth, createCustomerRouter(database));
   app.use('/api/customer/distribution', requireAuth, createDistributionRouter(database));
+  // 商品体系（1:1 菜鸟云 duoproducts）：商品/分类/参数/商城设置
+  app.use('/api/customer/goods', requireAuth, createGoodsRouter(database));
 
   // 设计中心：素材中心 /api/material + 装修配置 /api/design（顶层前缀，租户中间件内部校验）
   const designRouters = createDesignRouter(database);

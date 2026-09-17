@@ -878,3 +878,27 @@ npm run test:frontend
 - **整体排版必须与菜鸟云一致，不能只对齐元素样式**：系统风格页 = **左侧配置区 + 右侧手机预览区**（`.ds-layout` flex row：`.ds-config` 固定 460px、`.ds-preview-panel` flex:1、三窗横排 `overflow-x:auto`；`max-width:1100px` 时纵向回退属预期）。**禁止**把预览区放在配置下方竖排。
 - **素材自带 UI 三层 alpha 分析法（PIL 权威定位，替代截图猜测）**：三张预览 PNG 是透明挖空图。定位"素材自带 UI"（如上门自提选中 tab）用 `px[x,y][3]` 逐行统计 alpha 分布：`alpha0`=挖空（透出底层色）、`alpha153`=半透明底（素材自带选中态，叠底层色混合）、`alpha255`=不透明（盖住底层）。素材自带形状（如 tab 圆角）**禁止再叠同形状 div 套娃**——只需在 z0 底层补色由素材透出 + 文字独立 z3 居中。
 - **先看整体布局再逐元素**：复刻某页面前先确认页面整体布局（左右分栏/上下分栏/预览区位置/宽窄屏断点），再逐元素比对；改布局后在真实宽窗口（≥1100px）验证左右分栏。
+
+# 商品管理复刻经验（2026-09-17 新增，云菜鸟「东莞同城通」一级菜单「商品」）
+
+## 1. Express 路由顺序：通配 /:id 必须排在具体路径之后
+- 症状：`GET /goods/params`、`/goods/licenses`、`/goods/settings` 返回 404「商品不存在」（被 `GET /:id` 抢注，id='params'）。
+- 规范：`/:id` 系（GET/PUT/DELETE /:id、POST /:id/copy）必须注册在所有具体路径（/categories、/params、/settings、/licenses、/batch）**之后**；同类问题扩展检查所有 router 文件。
+
+## 2. Express ETag 304 + axios reject 陷阱（数据静默丢失，重要）
+- 症状：编辑页反复导航后，licenses 授权 Tab/分类级联消失，接口日志显示 304。
+- 根因：Express 默认给 API 响应加 ETag，浏览器对同 URL 再次请求发条件请求 → 服务器返回 304；axios 默认 `validateStatus` 只认 2xx，**304 会 reject**，Promise.all 全挂，catch 吞错 → 页面数据静默为空。
+- 修复：`web-admin/src/api/index.js` customerApi 请求拦截器统一加 `config.headers['Cache-Control'] = 'no-store'`（根治所有客户后台 API 的同类隐患）。
+
+## 3. 浏览器 memory cache 旧 chunk（比 SW 更隐蔽）
+- 症状：服务器产物已更新（新 hash 存在、旧 hash 404），但**同一 tab 反复 navigate 仍加载旧 hash chunk**（performance 列表可见 index-DIl-7oGu.js 等旧名）。
+- 根因：Chrome memory cache 对已加载过的 JS 直接复用，不查服务器；SW 清了也没用。
+- 规范：验证前端改动必须**开新 tab**（或无痕）加载，不能在同一 tab 内反复刷新判断。
+
+## 4. 授权驱动显示（功能类型按应用授权动态出现）
+- 商品类型 Tab（普通/卡密/虚拟）由 `GET /goods/licenses` 返回的应用 code 驱动：`card-carmi`（电子卡密）、`card-gift`（送礼物）；演示方案 is_demo 自动全勾，普通方案经 solution_apps 授权，未授权不渲染 Tab 并提示「应用中心可开通」。
+- 新建应用时同步：INSERT apps + app_menus + seedGoods 演示方案纳入（参照 goods 5 表 seedGoods）。
+
+## 5. 商品管理布局（用户确认的「设计中心+应用中心」混合样式）
+- 三栏：顶部横向分类（GoodsHome topTabs，设计中心 CardTabs 风格）+ 左侧竖向二级菜单（cat-sidebar 复用应用中心圆角块+角标，12 子项）+ 右侧内容区（默认页=商品列表首页）。**明确否决**应用中心卡片式 grid。
+- 用户叮嘱：复刻时「功能类型的显示/隐藏条件」也要细读复刻（如卡密/虚拟靠应用授权，不止这两种，普遍化处理）；边做边把经验写入 AGENTS.md。

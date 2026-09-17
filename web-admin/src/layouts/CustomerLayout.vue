@@ -45,6 +45,10 @@
             <SIcon name="apps" size="default" />
             <span>应用中心</span>
           </el-menu-item>
+          <el-menu-item index="/goods">
+            <SIcon name="template" size="default" />
+            <span>商品管理</span>
+          </el-menu-item>
 
           <el-menu-item index="/billing">
             <SIcon name="wallet" size="default" />

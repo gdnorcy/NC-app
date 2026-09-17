@@ -20,6 +20,7 @@ export function buildSidebarMenus(user) {
   const menus = [
     { code: 'dashboard', label: '工作台', path: '/dashboard' },
     { code: 'apps', label: '应用中心', path: '/apps' },
+    { code: 'goods', label: '商品管理', path: '/goods' },
     { code: 'billing', label: '套餐与续费', path: '/billing' },
     { code: 'orders', label: '我的账单', path: '/orders' },
     { code: 'member', label: '会员', path: '/member' },

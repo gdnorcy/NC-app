@@ -172,6 +172,9 @@ const customerApi = axios.create({ baseURL: '/api/customer' });
 customerApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('customer_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // 禁用浏览器 HTTP 缓存：Express 默认给 API 响应加 ETag，同 URL 二次请求返回 304，
+  // axios validateStatus 不含 304 会 reject，导致页面数据静默丢失（商品编辑页曾踩坑）
+  config.headers['Cache-Control'] = 'no-store';
   return config;
 });
 customerApi.interceptors.response.use(

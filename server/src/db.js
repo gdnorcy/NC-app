@@ -1735,6 +1735,9 @@ function migrate(db) {
   // —— 分销体系：建表 + 应用注册 + 存量迁移（在 migrateSolutionApps 前执行，保证演示方案覆盖新应用）——
   seedDistribution(db);
 
+  // —— 商品体系（1:1 复刻菜鸟云「东莞同城通」duoproducts：商品/分类/参数/商城设置 + 卡密/虚拟应用注册）——
+  seedGoods(db);
+
   // —— 设计中心：建表 + 应用注册（素材中心/系统风格/底部导航/系统模板/首页跳转/页面装修）——
   seedDesign(db);
 
@@ -1828,6 +1831,144 @@ function normalizeProjectSolutions(db) {
  * - 应用注册：分销体系分类 + 5 个独立应用（dist/partner/share-all/share-cat/share-area）+ app_menus
  * - 存量迁移：platform_user.parent_id/grandparent_id → dist_user_relation（补租户维度，修复跨租户串号）
  */
+/**
+ * 商品体系（2026-09-17 新增，1:1 复刻菜鸟云「东莞同城通」duoproducts）
+ * 建表：goods_category（二级分类）/ goods（商品全字段）/ goods_sku（多规格）/ goods_param（参数模板）/ goods_setting（商城设置）
+ * 应用注册：电子卡密（card-carmi，卡密商品类型授权）、送礼物（card-gift，虚拟商品类型授权）
+ * —— 商品类型「卡密商品/虚拟商品」由应用授权驱动显示（对标：应用中心授权后添加页才出现该类型 Tab）
+ */
+function seedGoods(db) {
+  db.exec(`
+    -- 商品分类（支持二级：pid=0 为一级）
+    CREATE TABLE IF NOT EXISTS goods_category (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      pid INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL,
+      image TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_cat ON goods_category(customer_id, pid);
+
+    -- 商品（字段对齐菜鸟云添加商品 8 页签）
+    CREATE TABLE IF NOT EXISTS goods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      top_type INTEGER NOT NULL DEFAULT 1,        -- 1普通 3卡密 4虚拟
+      type TEXT NOT NULL DEFAULT 'normal',        -- normal/card/gift
+      status TEXT NOT NULL DEFAULT 'sell',        -- sell出售中/off未上架/expired已失效
+      sort_order INTEGER NOT NULL DEFAULT 0,      -- 排序（数字越大越靠前）
+      title TEXT NOT NULL,
+      cate_ids TEXT NOT NULL DEFAULT '[]',        -- 所属分类（可多选）
+      images TEXT NOT NULL DEFAULT '[]',          -- 轮播图（750×750 ≤100kb）
+      thumb TEXT NOT NULL DEFAULT '',             -- 缩略图
+      info TEXT NOT NULL DEFAULT '',              -- 商品详情（富文本）
+      pickup TEXT NOT NULL DEFAULT 'express',     -- 取货方式：express快递物流
+      freight_mode TEXT NOT NULL DEFAULT 'fixed', -- 运费方式：fixed固定运费/template运费模板
+      fixed_freight REAL NOT NULL DEFAULT 0,      -- 固定运费（元）
+      sale_mode TEXT NOT NULL DEFAULT 'online',   -- 售卖：online线上销售/consult价格面议
+      spec_mode TEXT NOT NULL DEFAULT 'single',   -- 规格：single单规格/multi多规格
+      stock INTEGER NOT NULL DEFAULT 0,           -- 库存（0 不上架）
+      min_buy INTEGER NOT NULL DEFAULT 1,         -- 起购数量
+      weight REAL NOT NULL DEFAULT 0,             -- 重量 KG
+      price REAL NOT NULL DEFAULT 0,              -- 售价
+      market_price REAL NOT NULL DEFAULT 0,       -- 市场价
+      cost_price REAL NOT NULL DEFAULT 0,         -- 成本价
+      goods_no TEXT NOT NULL DEFAULT '',          -- 货号
+      member_price TEXT NOT NULL DEFAULT '{}',    -- 会员价 {mode, list:[{level,type,value}]}
+      param TEXT NOT NULL DEFAULT '[]',           -- 商品参数 [{name, content}]
+      recommend INTEGER NOT NULL DEFAULT 0,       -- 推荐商品
+      unit TEXT NOT NULL DEFAULT '',              -- 商品单位
+      views INTEGER NOT NULL DEFAULT 0,           -- 浏览次数
+      real_sales INTEGER NOT NULL DEFAULT 0,      -- 真实销量
+      fake_sales INTEGER NOT NULL DEFAULT 0,      -- 虚拟销量
+      fake_people INTEGER NOT NULL DEFAULT 0,     -- 虚拟人数
+      super_form TEXT NOT NULL DEFAULT '',        -- 超级表单：default/单独
+      video TEXT NOT NULL DEFAULT '',             -- 商品视频（腾讯网址或mp4）
+      video_cover TEXT NOT NULL DEFAULT '',       -- 视频封面（1:1）
+      video_play TEXT NOT NULL DEFAULT 'popup',   -- 播放设置：popup弹窗/full全屏
+      tags TEXT NOT NULL DEFAULT '',              -- 商品标签（英文逗号隔开）
+      brief TEXT NOT NULL DEFAULT '',             -- 商品简介
+      brand_tag TEXT NOT NULL DEFAULT '',         -- 品牌标签
+      title_tag TEXT NOT NULL DEFAULT '',         -- 标题标签
+      service TEXT NOT NULL DEFAULT '[]',         -- 服务保障
+      marketing TEXT NOT NULL DEFAULT '{}',       -- 营销设置 {points, buyPoints, buyBalance, coupon, share}
+      member TEXT NOT NULL DEFAULT '{}',          -- 会员设置 {priceShow, exclusive}
+      distribution TEXT NOT NULL DEFAULT '{}',    -- 分销设置 {rule}
+      advanced TEXT NOT NULL DEFAULT '{}',        -- 高级设置 {limitBuy, stockMode, remark, shareTitle, shareImg, buyBtn, cart, promoLinks}
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_tenant ON goods(customer_id, status);
+
+    -- 多规格 SKU
+    CREATE TABLE IF NOT EXISTS goods_sku (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      goods_id INTEGER NOT NULL,
+      spec_json TEXT NOT NULL DEFAULT '{}',       -- {规格名: 规格值}
+      price REAL NOT NULL DEFAULT 0,
+      stock INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_sku ON goods_sku(goods_id);
+
+    -- 商品参数模板
+    CREATE TABLE IF NOT EXISTS goods_param (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- 商城设置（每租户一条 config JSON：价格展示/优惠券/购物车/客服/开票/评价/分享）
+    CREATE TABLE IF NOT EXISTS goods_setting (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL UNIQUE,
+      config TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // —— 应用注册：电子卡密 / 送礼物（商品类型授权驱动；演示方案自动纳入见 migrateSolutionApps）——
+  db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('行业应用', 'apps', 6)");
+  const goodsApps = [
+    ['card-carmi', '电子卡密', '卡密商品，用户付款自动发货（授权后商品添加页出现「卡密商品」类型）', 'badge', 1],
+    ['card-gift', '送礼物', '虚品实物，自己兑用转人兑用（授权后商品添加页出现「虚拟商品」类型）', 'crown', 2],
+  ];
+  const goodsAppIns = db.prepare('INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
+  for (const [code, name, desc, icon, order] of goodsApps) {
+    goodsAppIns.run(code, name, desc, icon, '行业应用', order);
+    const app = db.prepare('SELECT id FROM apps WHERE code = ?').get(code);
+    if (!app) continue;
+    const menus = {
+      'card-carmi': [
+        ['卡密库', 'carmi:list', '卡密库管理'],
+        ['卡密分类', 'carmi:cates', '卡密分类管理'],
+      ],
+      'card-gift': [
+        ['商品列表', 'gift:list', '送礼物商品管理'],
+      ],
+    }[code] || [];
+    const menuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+    menus.forEach(([mod, key, label], idx) => menuIns.run(app.id, mod, mod, key, label, idx + 1));
+  }
+  // 演示方案纳入（migrateSolutionApps 全量覆盖兜底，此处保证即时一致性）
+  try {
+    const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo'").get();
+    if (demoRow) {
+      const apps = db.prepare("SELECT id FROM apps WHERE code IN ('card-carmi','card-gift')").all();
+      for (const a of apps) {
+        if (!db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, a.id)) {
+          db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, a.id);
+        }
+      }
+    }
+  } catch {}
+}
+
 function seedDistribution(db) {
   db.exec(`
     -- 租户插件安装/启用表
