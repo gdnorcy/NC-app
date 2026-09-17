@@ -372,6 +372,56 @@ export function createGoodsRouter(db) {
     } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
+  // ---------- 售后订单（1:1 复刻菜鸟云 duoproducts/service） ----------
+  router.get('/after-sales', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const { status = '', keyword = '', afterNo = '', page = 1, pageSize = 20 } = req.query;
+      const result = svc.listAfterSales({ customerId: req.customerId, status, keyword, afterNo, page: Number(page), pageSize: Number(pageSize) });
+      res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.get('/after-sales/export', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const { status = '', keyword = '', afterNo = '' } = req.query;
+      const { list } = svc.listAfterSales({ customerId: req.customerId, status, keyword, afterNo, page: 1, pageSize: 10000 });
+      const esc = (s) => String(s ?? '').replace(/"/g, '""');
+      const rows = [['售后单号', '原订单号', '商品', '收货人', '手机', '售后类型', '售后状态', '退款金额', '退款理由', '拒绝原因', '申请时间']];
+      for (const r of list) {
+        rows.push([
+          r.after_sale_no, r.order_no, esc(r.goods_desc || ''), esc(r.receiver_name), esc(r.receiver_phone),
+          r.type === 'return' ? '退货退款' : '仅退款',
+          { pending: '待处理', processing: '处理中', refunded: '退款完成', cancelled: '退款取消' }[r.status] || r.status,
+          r.amountY, esc(r.reason), esc(r.refuse_reason), r.createdAt,
+        ]);
+      }
+      const csv = '\uFEFF' + rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\r\n');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="after-sales-${Date.now()}.csv"`);
+      res.send(csv);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.post('/after-sales/:id/agree', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const row = svc.agreeAfterSale({ customerId: req.customerId, id: req.params.id, amount: req.body.amount });
+      audit(req, 'agree', 'goods_after_sale', row.id, `售后单#${row.after_sale_no} 同意退款 ¥${row.amountY}`);
+      res.json(row);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  router.post('/after-sales/:id/refuse', requireTenant, requireGoodsApp, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const row = svc.refuseAfterSale({ customerId: req.customerId, id: req.params.id, reason: req.body.reason });
+      audit(req, 'refuse', 'goods_after_sale', row.id, `售后单#${row.after_sale_no} 拒绝退款`);
+      res.json(row);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   router.get('/:id', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;

@@ -2091,6 +2091,24 @@ function seedGoods(db) {
   if (!colExists(db, 'goods_order', 'source')) {
     db.exec("ALTER TABLE goods_order ADD COLUMN source TEXT NOT NULL DEFAULT 'goods'");
   }
+  // 售后订单（2026-09-17 1:1 复刻菜鸟云 duoproducts/service：待处理/处理中/退款完成/退款取消）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS goods_after_sale (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      after_sale_no TEXT NOT NULL UNIQUE,      -- 售后单号（AS+时间戳）
+      customer_id INTEGER NOT NULL,            -- 租户
+      order_id INTEGER NOT NULL,               -- goods_order.id
+      user_id INTEGER NOT NULL DEFAULT 0,      -- 买家 platform_user.id
+      type TEXT NOT NULL DEFAULT 'refund',     -- refund仅退款/return退货退款
+      reason TEXT NOT NULL DEFAULT '',         -- 退款理由
+      amount INTEGER NOT NULL DEFAULT 0,       -- 退款金额（分）
+      status TEXT NOT NULL DEFAULT 'pending',  -- pending待处理/processing处理中/refunded退款完成/cancelled退款取消
+      refuse_reason TEXT NOT NULL DEFAULT '',  -- 拒绝原因
+      refund_no TEXT NOT NULL DEFAULT '',      -- 退款流水号
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 
   // 类型差异化字段（2026-09-17 对齐菜鸟云三类型表单差异）：手机号填写（卡密/虚拟）、卡密库（卡密专属，库表二期）
   // 注意：幂等迁移必须放在 db.exec 模板字符串之外，否则 SQLite 报 near "if" syntax error

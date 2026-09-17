@@ -171,6 +171,9 @@ export function createGoodsOrderService(db) {
       else db.prepare('UPDATE goods SET stock = stock + ? WHERE id = ?').run(it.num, it.goods_id);
     }
     db.prepare("UPDATE goods_order SET status = 'refunded', refunded_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(order.id);
+    // 联动售后单：该订单存在待处理/处理中的售后 → 置退款完成
+    db.prepare("UPDATE goods_after_sale SET status = 'refunded', refund_no = ?, updated_at = datetime('now') WHERE order_id = ? AND status IN ('pending','processing')")
+      .run('REF' + Date.now(), order.id);
     pushLog(order.id, 'refund', `退款 ¥${yuan(order.pay_amount)}，库存已恢复`);
     pushMsg(order.customer_id, order.user_id, '订单退款通知', `订单#${order.order_no} 已退款 ¥${yuan(order.pay_amount)}`, '/pages/goods/order');
     return svc.getOrder(order.id);
@@ -227,6 +230,80 @@ export function createGoodsOrderService(db) {
       payAmountY: yuan(row.pay_amount),
       freightY: yuan(row.freight),
     };
+  };
+
+  // ================= 售后订单（1:1 复刻菜鸟云 duoproducts/service） =================
+  const afterSaleNo = () => 'AS' + Date.now().toString().slice(-10) + Math.floor(Math.random() * 90 + 10);
+
+  /** C 端申请售后：订单已支付、未售后退款完成、未重复申请 */
+  svc.createAfterSale = ({ customerId, orderId, userId, type = 'refund', reason = '' }) => {
+    const order = db.prepare('SELECT * FROM goods_order WHERE id = ? AND customer_id = ?').get(Number(orderId), customerId);
+    if (!order) throw new Error('订单不存在');
+    if (!['paid', 'shipped'].includes(order.status)) throw new Error('仅已支付/已发货订单可申请售后');
+    const exist = db.prepare("SELECT id FROM goods_after_sale WHERE order_id = ? AND status IN ('pending','processing','refunded')").get(order.id);
+    if (exist) throw new Error('该订单已有售后申请');
+    const no = afterSaleNo();
+    db.prepare('INSERT INTO goods_after_sale (after_sale_no, customer_id, order_id, user_id, type, reason, amount) VALUES (?,?,?,?,?,?,?)')
+      .run(no, customerId, order.id, Number(userId) || 0, type === 'return' ? 'return' : 'refund', String(reason || ''), order.pay_amount);
+    const newId = Number(db.prepare('SELECT last_insert_rowid() AS id').get().id);
+    return svc.getAfterSale(customerId, newId);
+  };
+
+  /** 后台：售后列表（状态/售后单号/手机/昵称/商品名/原订单号筛选） */
+  svc.listAfterSales = ({ customerId, status = '', keyword = '', afterNo = '', page = 1, pageSize = 20 }) => {
+    const where = ['a.customer_id = ?'];
+    const params = [customerId];
+    if (status) { where.push('a.status = ?'); params.push(status); }
+    if (afterNo) { where.push('a.after_sale_no LIKE ?'); params.push(`%${afterNo}%`); }
+    if (keyword) {
+      where.push(`(a.after_sale_no LIKE ? OR o.order_no LIKE ? OR p.nickname LIKE ? OR p.phone LIKE ? OR o.id IN (SELECT order_id FROM goods_order_item WHERE title LIKE ?))`);
+      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+    }
+    const total = db.prepare(`SELECT COUNT(*) c FROM goods_after_sale a JOIN goods_order o ON o.id = a.order_id LEFT JOIN platform_user p ON p.id = a.user_id WHERE ${where.join(' AND ')}`).get(...params).c;
+    const rows = db.prepare(`SELECT a.*, o.order_no, o.delivery_mode, o.receiver_name, o.receiver_phone, o.pay_amount AS order_pay_amount,
+      p.nickname, p.phone AS buyer_phone,
+      (SELECT GROUP_CONCAT(title || '×' || num, '、') FROM goods_order_item WHERE order_id = o.id) AS goods_desc
+      FROM goods_after_sale a JOIN goods_order o ON o.id = a.order_id LEFT JOIN platform_user p ON p.id = a.user_id
+      WHERE ${where.join(' AND ')} ORDER BY a.id DESC LIMIT ? OFFSET ?`)
+      .all(...params, pageSize, (page - 1) * pageSize);
+    const list = rows.map((r) => ({
+      ...r,
+      amountY: yuan(r.amount), orderPayAmountY: yuan(r.order_pay_amount),
+      createdAt: r.created_at, updatedAt: r.updated_at,
+    }));
+    return { list, total };
+  };
+
+  /** 后台：同意退款（待处理 → 处理中；金额 ≤ 订单实付） */
+  svc.agreeAfterSale = ({ customerId, id, amount }) => {
+    const row = db.prepare('SELECT * FROM goods_after_sale WHERE id = ? AND customer_id = ?').get(Number(id), customerId);
+    if (!row) throw new Error('售后单不存在');
+    if (row.status !== 'pending') throw new Error('仅待处理售后单可同意');
+    const order = db.prepare('SELECT pay_amount FROM goods_order WHERE id = ?').get(row.order_id);
+    const amt = Math.round(Number(amount) * 100);
+    if (!(amt > 0)) throw new Error('请填写退款金额');
+    if (amt > order.pay_amount) throw new Error(`最大可退款金额为 ¥${yuan(order.pay_amount)}`);
+    db.prepare("UPDATE goods_after_sale SET amount = ?, status = 'processing', updated_at = datetime('now') WHERE id = ?").run(amt, row.id);
+    return svc.getAfterSale(customerId, row.id);
+  };
+
+  /** 后台：拒绝（待处理 → 退款取消；原因必填） */
+  svc.refuseAfterSale = ({ customerId, id, reason }) => {
+    const row = db.prepare('SELECT * FROM goods_after_sale WHERE id = ? AND customer_id = ?').get(Number(id), customerId);
+    if (!row) throw new Error('售后单不存在');
+    if (row.status !== 'pending') throw new Error('仅待处理售后单可拒绝');
+    if (!String(reason || '').trim()) throw new Error('请填写拒绝原因');
+    db.prepare("UPDATE goods_after_sale SET status = 'cancelled', refuse_reason = ?, updated_at = datetime('now') WHERE id = ?").run(String(reason).trim(), row.id);
+    return svc.getAfterSale(customerId, row.id);
+  };
+
+  svc.getAfterSale = (customerId, id) => {
+    const row = db.prepare(`SELECT a.*, o.order_no, o.receiver_name, o.receiver_phone, p.nickname, p.phone AS buyer_phone,
+      (SELECT GROUP_CONCAT(title || '×' || num, '、') FROM goods_order_item WHERE order_id = o.id) AS goods_desc
+      FROM goods_after_sale a JOIN goods_order o ON o.id = a.order_id LEFT JOIN platform_user p ON p.id = a.user_id
+      WHERE a.id = ? AND a.customer_id = ?`).get(Number(id), customerId);
+    if (!row) return null;
+    return { ...row, amountY: yuan(row.amount), orderPayAmountY: yuan(row.order_pay_amount) };
   };
 
   return svc;

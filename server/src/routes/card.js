@@ -736,6 +736,18 @@ export function createCardRouter(db, wxService) {
     }
   });
 
+  // 申请售后（1:1 复刻菜鸟云：仅退款/退货退款，已支付订单可申请，同单唯一）
+  router.post('/goods/orders/:id/after-sale', auth, requireTenant, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const row = svc.createAfterSale({
+        customerId: req.customerId, orderId: req.params.id, userId: req.user.id,
+        type: req.body.type, reason: req.body.reason,
+      });
+      res.json(row);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
   // 下单：建业务单 + 支付单，返回支付所需信息
   router.post('/goods/order', auth, requireTenant, (req, res) => {
     try {

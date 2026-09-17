@@ -44,6 +44,7 @@ import GoodsCategory from './GoodsCategory.vue';
 import GoodsParams from './GoodsParams.vue';
 import GoodsSettings from './GoodsSettings.vue';
 import GoodsOrders from './GoodsOrders.vue';
+import GoodsAfterSale from './GoodsAfterSale.vue';
 import GoodsPlaceholder from './GoodsPlaceholder.vue';
 
 const route = useRoute();
@@ -66,6 +67,7 @@ const subDefs = {
   ],
   order: [
     { key: 'order', label: '商品订单', icon: 'orders' },
+    { key: 'afterSale', label: '售后订单', icon: 'orders' },
     { key: 'returns', label: '退货地址', icon: 'storage', disabled: true },
   ],
   marketing: [
@@ -99,6 +101,7 @@ const compMap = {
   param: GoodsParams,
   settings: GoodsSettings,
   order: GoodsOrders,
+  afterSale: GoodsAfterSale,
 };
 const activeComp = computed(() => compMap[activeSub.value] || GoodsPlaceholder);
 
