@@ -8,6 +8,7 @@ import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
 import { createDistributionService, buildShareUrl } from '../services/distribution.js';
 import { createMemberService } from '../services/member.js';
+import { createGoodsOrderService } from '../services/goodsOrder.js';
 import { PaymentService } from '../services/payment.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
@@ -711,6 +712,56 @@ export function createCardRouter(db, wxService) {
         remark: '购买会员卡',
       });
       res.json({ orderNo: order.orderNo, amount: order.amount, level });
+    } catch (e) {
+      res.status(400).json({ error: e.message || '下单失败' });
+    }
+  });
+
+  // ============================================================
+  // 商品订单（二期-A：C 端下单 → 支付单 → 分销分账/扣库存/通知由支付成功链路处理）
+  // ============================================================
+
+  // 我的订单列表（C 端）
+  router.get('/goods/orders', auth, (req, res) => {
+    try {
+      if (!req.customerId) return res.json({ list: [] });
+      const svc = createGoodsOrderService(db);
+      const { status = '', page = 1, pageSize = 10 } = req.query;
+      const result = svc.listOrders({ customerId: req.customerId, status, keyword: '', page: Number(page), pageSize: Number(pageSize) });
+      // C 端仅返回当前用户订单
+      const list = (result.list || []).filter((o) => o.user_id === req.user.id);
+      res.json({ list, total: list.length });
+    } catch (e) {
+      res.status(400).json({ error: e.message || '查询失败' });
+    }
+  });
+
+  // 下单：建业务单 + 支付单，返回支付所需信息
+  router.post('/goods/order', auth, requireTenant, (req, res) => {
+    try {
+      const { items, deliveryMode = 'express', receiverName = '', receiverPhone = '', receiverAddress = '', remark = '' } = req.body || {};
+      const svc = createGoodsOrderService(db);
+      const order = svc.createOrder({
+        customerId: req.customerId,
+        userId: req.user.id,
+        identityType: req.user.identity_type || 'individual',
+        items, deliveryMode, receiverName, receiverPhone, receiverAddress, remark,
+      });
+      const payment = new PaymentService(db);
+      const payOrder = payment.createOrder({
+        payerType: 'tenant',
+        customerId: req.customerId,
+        userId: req.user.id,
+        identityType: req.user.identity_type || 'individual',
+        solution: 'goods',
+        productType: 'goods',
+        productId: String(order.id),
+        productName: `商品订单#${order.orderNo}`,
+        amount: order.pay_amount,
+        channel: req.body?.channel || 'wechat',
+        remark: `GO_${order.orderNo}`,
+      });
+      res.json({ orderNo: order.order_no, payOrderNo: payOrder.orderNo, amount: order.pay_amount, id: order.id });
     } catch (e) {
       res.status(400).json({ error: e.message || '下单失败' });
     }

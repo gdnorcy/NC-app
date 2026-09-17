@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import { tenantState, hasSolution } from '../tenant.js';
 import { addOperationLog } from '../db.js';
+import { createGoodsOrderService } from '../services/goodsOrder.js';
 
 const STOCK_WARN_THRESHOLD = 10; // 库存预警阈值（对标：库存 ≤10 且 >0 且出售中）
 
@@ -313,6 +314,54 @@ export function createGoodsRouter(db) {
       if (hasSolution(db, cid, 'card-gift')) granted.push('card-gift');
       res.json({ apps: granted });
     } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ============================================================
+  // 订单管理（二期-A：列表/详情/发货/完成/退款；须在 /:id 之前注册）
+  // ============================================================
+  router.get('/orders', requireTenant, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const { status = '', keyword = '', page = 1, pageSize = 20 } = req.query;
+      const result = svc.listOrders({ customerId: req.customerId, status, keyword, page: Number(page), pageSize: Number(pageSize) });
+      res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.get('/orders/:id', requireTenant, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const order = svc.getOrderByTenant(req.customerId, req.params.id);
+      if (!order) return res.status(404).json({ error: '订单不存在' });
+      res.json(order);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  router.post('/orders/:id/ship', requireTenant, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const order = svc.ship({ customerId: req.customerId, orderId: req.params.id });
+      audit(req, 'ship', 'goods_order', order.id, `订单#${order.order_no} 发货`);
+      res.json(order);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  router.post('/orders/:id/done', requireTenant, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const order = svc.done({ customerId: req.customerId, orderId: req.params.id });
+      audit(req, 'done', 'goods_order', order.id, `订单#${order.order_no} 完成`);
+      res.json(order);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  router.post('/orders/:id/refund', requireTenant, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const order = svc.refund({ customerId: req.customerId, orderId: req.params.id });
+      audit(req, 'refund', 'goods_order', order.id, `订单#${order.order_no} 退款`);
+      res.json(order);
+    } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
   router.get('/:id', requireTenant, (req, res) => {

@@ -1930,6 +1930,59 @@ function seedGoods(db) {
       config TEXT NOT NULL DEFAULT '{}',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- 商品订单头（二期-A 订单闭环；业务单与 payment_orders 支付单分离，经 pay_order_id 关联）
+    CREATE TABLE IF NOT EXISTS goods_order (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_no TEXT NOT NULL UNIQUE,
+      customer_id INTEGER NOT NULL,               -- 租户
+      user_id INTEGER NOT NULL DEFAULT 0,          -- 买家（platform_user.id）
+      buyer_identity_type TEXT NOT NULL DEFAULT 'individual', -- individual/employee
+      status TEXT NOT NULL DEFAULT 'pending',      -- pending待支付/paid已支付/shipped已发货/done已完成/refunding退款中/refunded已退款/closed已关闭
+      total_amount INTEGER NOT NULL DEFAULT 0,     -- 商品总额（分）
+      freight INTEGER NOT NULL DEFAULT 0,          -- 运费（分）
+      pay_amount INTEGER NOT NULL DEFAULT 0,       -- 实付（分）
+      pay_order_id INTEGER NOT NULL DEFAULT 0,     -- payment_orders.id（分销分账经此单触发）
+      delivery_mode TEXT NOT NULL DEFAULT 'express', -- express快递/pickup自提
+      receiver_name TEXT NOT NULL DEFAULT '',
+      receiver_phone TEXT NOT NULL DEFAULT '',
+      receiver_address TEXT NOT NULL DEFAULT '',
+      remark TEXT NOT NULL DEFAULT '',
+      paid_at TEXT,
+      shipped_at TEXT,
+      done_at TEXT,
+      refunded_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_order_tenant ON goods_order(customer_id, status);
+    CREATE INDEX IF NOT EXISTS idx_goods_order_user ON goods_order(user_id);
+    CREATE INDEX IF NOT EXISTS idx_goods_order_pay ON goods_order(pay_order_id);
+
+    -- 订单明细（商品快照防改价：title/thumb/spec/price 在下单时落库）
+    CREATE TABLE IF NOT EXISTS goods_order_item (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      goods_id INTEGER NOT NULL,
+      sku_id INTEGER NOT NULL DEFAULT 0,
+      goods_type TEXT NOT NULL DEFAULT 'normal',   -- normal普通/carmi卡密/gift虚拟
+      title TEXT NOT NULL DEFAULT '',
+      thumb TEXT NOT NULL DEFAULT '',
+      spec_json TEXT NOT NULL DEFAULT '{}',
+      price INTEGER NOT NULL DEFAULT 0,            -- 成交单价（分）
+      num INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_order_item ON goods_order_item(order_id);
+
+    -- 订单状态流日志
+    CREATE TABLE IF NOT EXISTS goods_order_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      action TEXT NOT NULL DEFAULT '',
+      remark TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_order_log ON goods_order_log(order_id);
   `);
 
   // —— 应用注册：电子卡密 / 送礼物（商品类型授权驱动；演示方案自动纳入见 migrateSolutionApps）——
