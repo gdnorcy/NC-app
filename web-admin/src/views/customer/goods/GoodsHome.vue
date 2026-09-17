@@ -12,20 +12,18 @@
       <!-- 左侧竖向二级菜单（应用中心 cat-item 样式：圆角背景块 + 数量角标）；数据洞察为独立横排页，不显示左侧菜单 -->
       <aside v-if="activeTop !== 'insight'" class="cat-sidebar">
         <div class="cat-header">{{ activeTopLabel }}</div>
-        <template v-for="s in subMenus" :key="s.key">
-          <div v-if="s.group" class="cat-group">{{ s.label }}</div>
-          <div
-            v-else
-            class="cat-item"
-            :class="{ active: activeSub === s.key, sub: s.parent }"
-            @click="switchSub(s.key)"
-          >
-            <SIcon :name="s.icon" size="default" />
-            <span class="cat-name">{{ s.label }}</span>
-            <span v-if="s.count !== null" class="cat-count">{{ s.count }}</span>
-            <span v-else-if="s.disabled" class="cat-tag">开发中</span>
-          </div>
-        </template>
+        <div
+          v-for="s in subMenus"
+          :key="s.key"
+          class="cat-item"
+          :class="{ active: activeSub === s.key }"
+          @click="switchSub(s.key)"
+        >
+          <SIcon :name="s.icon" size="default" />
+          <span class="cat-name">{{ s.label }}</span>
+          <span v-if="s.count !== null" class="cat-count">{{ s.count }}</span>
+          <span v-else-if="s.disabled" class="cat-tag">开发中</span>
+        </div>
       </aside>
 
       <!-- 右侧内容区（默认页 = 商品列表首页） -->
@@ -88,13 +86,12 @@ const subDefs = {
     { key: 'supplier', label: '供应厂商', icon: 'building' },
   ],
   shop: [
-    { key: 'settings', label: '商城设置', icon: 'settings', group: true },
-    { key: 'pay', label: '支付规则', icon: 'settings', parent: 'settings' },
-    { key: 'orderRule', label: '下单规则', icon: 'settings', parent: 'settings' },
-    { key: 'delivery', label: '配送设置', icon: 'settings', parent: 'settings' },
-    { key: 'verify', label: '订单核销', icon: 'settings', parent: 'settings' },
-    { key: 'show', label: '展示', icon: 'settings', parent: 'settings' },
-    { key: 'share', label: '分享', icon: 'settings', parent: 'settings' },
+    { key: 'pay', label: '支付规则', icon: 'settings' },
+    { key: 'orderRule', label: '下单规则', icon: 'settings' },
+    { key: 'delivery', label: '配送设置', icon: 'settings' },
+    { key: 'verify', label: '订单核销', icon: 'settings' },
+    { key: 'show', label: '展示', icon: 'settings' },
+    { key: 'share', label: '分享', icon: 'settings' },
     { key: 'style', label: '商城风格', icon: 'palette' },
   ],
 };
@@ -144,9 +141,8 @@ function switchTop(key) {
   if (key === 'insight') {
     activeSub.value = '';
   } else {
-    const def = subDefs[key] || [];
-    const firstValid = def.find((s) => !s.group) || def[0];
-    activeSub.value = firstValid?.key || '';
+    const first = (subDefs[key] || [])[0];
+    activeSub.value = first?.key || '';
   }
   syncQuery();
 }
@@ -154,13 +150,7 @@ function switchTop(key) {
 function switchSub(key) {
   const s = subMenus.value.find((x) => x.key === key);
   if (s?.disabled) return; // 开发中占位不切换
-  if (s?.group) {
-    // 点击分组标题 → 默认选中第一个子项
-    const first = subMenus.value.find((x) => x.parent === key && !x.disabled);
-    activeSub.value = first?.key || key;
-  } else {
-    activeSub.value = key;
-  }
+  activeSub.value = key;
   syncQuery();
 }
 
@@ -191,8 +181,8 @@ onMounted(async () => {
     activeSub.value = '';
   } else {
     const def = subDefs[activeTop.value] || [];
-    if (def.some((s) => s.key === qM && !s.group)) activeSub.value = qM;
-    else activeSub.value = (def.find((s) => !s.group) || def[0])?.key || '';
+    if (def.some((s) => s.key === qM)) activeSub.value = qM;
+    else activeSub.value = def[0]?.key || '';
   }
   loadCounts();
 });
@@ -270,14 +260,6 @@ onMounted(async () => {
 }
 .cat-item.active .cat-count { background: rgba(22, 93, 255, 0.1); color: #165dff; }
 .cat-tag { font-size: 11px; color: #86909c; border: 1px solid #e5e6eb; border-radius: 6px; padding: 0 6px; line-height: 18px; }
-.cat-group {
-  font-size: 11px;
-  color: #909399;
-  padding: 12px 12px 6px;
-  letter-spacing: 0.5px;
-  user-select: none;
-}
-.cat-item.sub { padding-left: 48px; height: 40px; }
 
 /* 右侧内容区 */
 .goods-content { flex: 1; min-width: 0; background: #fff; border-radius: 8px; padding: 20px; }
