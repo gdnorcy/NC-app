@@ -990,3 +990,31 @@ npm run test:frontend
 2. **专属字段全链路落地**：新增类型专属字段必须先建表迁移（幂等）→ 后端读写 → 前端表单/保存/回显 → 测试断言，禁止只做 UI。
 3. **交付前逐类型实测**：切三类型验证表单渲染、保存、回显；新增字段在列表/详情/订单链路无残留。
 4. 联动：类型字段变化同步 type 白名单、订单明细快照、C 端渲染（二期）。
+
+# 商品管理实页化 + 商品采集独立应用 + 首页跳转选择器规范（2026-09-17 新增）
+
+## 商品管理 12 子项全量实页（对标菜鸟云 duoproducts）
+- 商品管理 GoodsHome 五分类 12 子项全部真实页面，禁止 disabled 占位：数据洞察 / 商品列表 / 商品分类 / 商品参数 / 商品订单 / 售后订单 / 退货地址(GoodsReturnAddr) / 评论管理(GoodsComment) / 品牌标签(GoodsBrandTag) / 标题标签(GoodsTitleTag) / 服务保障(GoodsServiceTag) / 供应厂商(GoodsSupplier) / 商城设置 / 商城风格(GoodsStyle)。
+- 通用标签组件 GoodsTagList.vue（hasContent/hasIcon 开关复用品牌/标题/服务保障三页）；退货地址/供应商/评论/风格各自独立组件。
+- 数据表：goods_return_addr / goods_supplier / goods_brand_tag / goods_title_tag / goods_service_tag / goods_comment / goods_cate_style（db.js seedGoods 尾部幂等创建）。
+- 路由顺序：新 REST 路由（return-addresses/suppliers/brand-tags/title-tags/service-tags/comments/category-style）必须定义在 `router.get('/:id')` 之前，否则被参数路由吞掉。
+- 评论管理级别语义：level 1=好评/2=中评/3=差评，status show=显示/hide=隐藏，支持批量删除。
+
+## 独立应用与授权独立性
+- 商品采集独立应用 goods-collect（营销引流），不从属商品管理；其 API（/goods/collects）**禁止挂 requireGoodsApp**，只 requireTenant——独立应用只依赖自身授权（演示方案自动全勾）。
+- 从商品管理移出的功能必须同步：GoodsHome subDefs 移除菜单 + 应用中心注册新应用 + 路由注册 + C 端无引用残留。
+- 新增应用涉及差异化表单/类型切换时必须逐变体实测（见「商品类型差异化表单复刻规范」）。
+
+## 首页跳转页面选择器（对标菜鸟云）
+- 设计中心「首页跳转」= 页面选择器弹窗，三组：智能名片（11 项）/ 行业应用（360全景首页/浏览）/ 装修页面（pageList 动态，值 `/pages/cardMain/home?pageType=xxx`）。
+- home_page 存储**完整路径字符串**（如 `/pages/index/index`、`/pages/cardMain/home?pageType=product`），无白名单；存量旧 key（card/market/radar/member/distribution）读时兼容转路径，写时转路径。
+- 旧默认值 `card` = 不跳转（展示 DIY 首页）；`saveHomeConfig` 空值兜底存 'card'。
+- C 端设计.js 三处联动：HOME_PAGE_MAP 扩展（行业应用+更多名片页）→ resolveHomePath 支持 `/` 开头路径直通 → normalizeDesignConfig homePage 保留路径（禁止把路径降级为 card）。
+- fetchDesignConfig/readDesignConfig 支持 pageType 独立缓存 key（`STORAGE_KEY:pageType`）；cardApi.designConfig(preview, pageType) 透传 query。
+- /design/config 支持 ?pageType=：优先已发布、回退草稿；未指定按 is_home。home.vue onLoad 读 options.pageType 渲染指定 DIY 页面。
+- 跳转目标为 home 自身时靠 JUMP_DONE_KEY 防死循环（reLaunch 后新实例 onShow 检查已设即停）。
+
+## 浏览器实测前必须清 Service Worker（再次踩坑强化）
+- 现象：build:admin 后浏览器打开仍显示旧页面（菜单缺失/功能不变），URL 已变但内容没变——根因是 SW 缓存旧哈希 customer-*.js。
+- 实测前置：`bu.js` 清除 `navigator.serviceWorker.getRegistrations()` + `caches.keys()` 再 reload；否则一切「页面没反应」的排查都是浪费时间。
+- 交付前检查清单追加：浏览器实测前先清 SW 再验证（不只强刷）。
