@@ -62,10 +62,6 @@
             <SIcon name="crown" size="default" />
             <span>会员</span>
           </el-menu-item>
-          <el-menu-item v-if="isTenantAdmin" index="/members">
-            <SIcon name="team" size="default" />
-            <span>成员管理</span>
-          </el-menu-item>
           <el-sub-menu index="/settings">
             <template #title>
               <SIcon name="settings" size="default" />
@@ -75,6 +71,7 @@
             <el-menu-item index="/settings/storage">远程附件</el-menu-item>
             <el-menu-item index="/settings/sms">短信配置</el-menu-item>
             <el-menu-item index="/settings/payment">支付配置</el-menu-item>
+            <el-menu-item v-if="isTenantAdmin" index="/members">成员管理</el-menu-item>
           </el-sub-menu>
         </template>
       </el-menu>
