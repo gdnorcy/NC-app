@@ -147,6 +147,17 @@ npm run test:frontend
 2. 交付前在浏览器 Network 面板确认请求 URL 正确、状态 2xx
 3. 页面空态时优先排查取数链路（URL 前缀、响应解包）而非后端
 
+## 问题4：组件内联 template 字符串在 vite runtime-only 构建下不编译导致渲染为空（2026-09-17）
+
+**现象**：商城设置页（GoodsSettings.vue）自封装 `OnOff`（开启/关闭 radio 组）与 `LinkInput` 组件，以 `template: '...'` 字符串定义，页面正常构建但组件渲染为空（表单行只剩说明文字、radio/输入框全部消失）。
+
+**根因**：vite 的 vue 插件默认使用 runtime-only 构建（无模板编译器），组件选项中的 `template` 字符串无法编译成 render 函数 → 渲染结果为空，且不报错，排查极难（console 无任何 Vue 警告）。
+
+**预防规范**：
+1. **自定义展示组件禁止用 `template:` 字符串定义**；优先把结构直接内联写进页面模板（重复 12 次也比渲染为空好排查），或使用 `h()`/JSX render 函数（`defineComponent({ setup() { return () => h(ElRadioGroup, {...}, () => [...]) } })`）
+2. 渲染空的问题排查顺序：先确认构建产物是否最新（`navigate('reload')` 强制刷新，SPA hash 路由 navigate 到同 URL 不会自动 reload）→ 再看 console → 最后查组件定义方式
+3. 复刻字段类页面时，字段全集/默认值/联动条件（v-if 显示）以对标页 DOM 实测为准，保存后必须 reload 验证持久化，不能只验证「保存成功」提示
+
 # UI设计规范（强制）
 
 ## 设计令牌
