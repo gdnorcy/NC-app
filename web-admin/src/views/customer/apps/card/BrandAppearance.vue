@@ -1,5 +1,7 @@
 <template>
   <div class="brand-appearance">
+    <!-- 统一Tab导航（与智能名片其它页面一致，保持选项卡栏不消失） -->
+    <CardTabs />
     <AppPageHeader title="品牌外观" desc="品牌主色将应用于对外展示的名片页面（名片详情头部）">
     </AppPageHeader>
 
@@ -32,6 +34,7 @@ import { ref, onMounted } from 'vue';
 import { customerApiCall } from '../../../../api';
 import { ElMessage } from 'element-plus';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
+import CardTabs from './CardTabs.vue';
 
 const brandColor = ref('');
 const savingBrand = ref(false);
