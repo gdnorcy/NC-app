@@ -1108,3 +1108,18 @@ cate_style(1/2) / detail_style(1/2/3) / goods_iscard(1开2关) / share_style(1/2
 3. **详情风格 radio 对标本身无缩略图**（风格一无图，风格二/三空 img），1:1 复刻时不做缩略图，靠左侧预览联动体现差异。
 4. **Vite 静态资源坑**：img src 直接写 `/goods-style/xxx.png` 会被 Vite 当模块解析报 rollup resolve 失败；必须以 `:src` 绑定变量（const 字符串或 computed）绕过静态分析。
 5. **自定义上传**：pbgImg/pbgTheme=0 时显示上传，调 `POST /api/customer/upload`（FormData file），返回 res.url 存 pbgImgCustom/pbgThemeCustom。
+
+## 价格条渲染契约（实测权威 DOM，2026-09-17 补）
+详情风格1/2 价格条（.pricebg_box，box1 高 36 / box2 高 97，卡片开=padding 7px 7px 0 + box1 圆角 5px5px0 0 / box2 圆角 13px）为**四层叠加**，缺一层即视觉缺失（曾漏 price_show.png 导致价格卡不显示）：
+1. `.price_bg_show` 渐变底：`linear-gradient(90deg,#70b0ff,#4491F1)` + color #fff（主题色模式）；
+2. `.bg_imgOn` 背景图（仅 pbg_style=2 时 display:block）：src=`price_bg{详情风格}_{pbg_img}.png`，object-fit: cover（裁剪）/ fill（填充），绝对定位盖满；
+3. `.price_theme` 主题图（透明底白字促销文案，pbg_theme 1-13 + 自定义）：`price_theme_{N}.png`，**「年货节大促」= price_theme_1.png**（400×72 透明底白字，蓝渐变底上即蓝底白字 banner）；显示 CSS top:8px left:8px height:12px width:auto；
+4. `.price_in` 价格卡：`price_show.png`（750×202 白卡：¥249.00/件 + 划线¥499.00/件 + 🔥已售21件 + 爆款大牌好物 + 商品名两行），显示 CSS bottom:3px height:67px width:100%。
+素材真实 URL 前缀：`/image/static/goods_detail/`（price_theme/price_bg）与 `/image/goods_detail/`（price_show）。验收时四层逐一断言 img `complete && naturalWidth>0`，并切 pbg_style/卡片/主题样式验证联动。
+
+## 素材完整性铁律（2026-09-17 补，用户红框「少了一张图片」根因）
+- **下载素材入库三步缺一不可**：①curl 下载到 docs/ 备份 → ②**全量 `cp` 到 server/public/对应目录** → ③`find server/public` 与 `find docs` **逐文件 diff 完整性**（`[ -f server/public/$f ] || echo MISSING`），缺一即前端 img 404 显示空白。
+- 本次漏复制 `price_show.png`（价格卡）与 `share_1_2.png`（分享图），页面无任何报错、仅预览缺图——**文件级完整性检查是唯一防线**；不要把「server 目录 ls 过」当验证。
+- 下载失败的文件（如 HTML 404 残件 146B）要识别剔除（file 命令看类型），不得混入素材目录。
+- 交付前浏览器实测：清 SW + 强刷 → 切详情风格2 → 断言价格条四层 img 全部 naturalWidth>0。
+- **「开发中」占位页排查**：代码已提交但页面显示占位 = 运行的是旧构建（build:admin 后 assets 哈希更新）或 SW 缓存旧 chunk；先清 SW + 重新 build:admin 再判断，不要误判为路由缺失。
