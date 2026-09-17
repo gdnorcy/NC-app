@@ -229,9 +229,11 @@
             <div class="ds-preview-head" :style="dsHeadStyle()">商品订单</div>
             <div class="ds-preview-ov">
               <span class="ds-ov" :style="{ top: '52px', left: '0', width: '100%', height: '55px', background: style.primaryColor }"></span>
+              <!-- 上门自提选中 tab 底色：素材右半为半透明挖空，z0 补主题色浅青由素材透出（不另套 tab 形状） -->
+              <span class="ds-ov" :style="{ top: '60px', left: '50%', width: '50%', height: '26px', background: hexA(style.primaryColor, 0.25), borderRadius: '8px' }"></span>
             </div>
-            <!-- 上门自提 tab：浅青圆角矩形选中态 + 主色文字居中（与素材"快递配送" tab 并排各占半宽；菜鸟云 1:1） -->
-            <span class="ds-ziti" :style="{ color: style.primaryColor, background: hexA(style.primaryColor, 0.25) }">上门自提</span>
+            <!-- 上门自提文字：主色、居中于素材自带 tab（无背景，菜鸟云 1:1） -->
+            <span class="ds-ziti" :style="{ color: style.primaryColor }">上门自提</span>
             <!-- 提交订单（主色实底圆角按钮，底部右侧） -->
             <span class="ds-submit" :style="{ background: style.primaryColor, color: '#fff' }">提交订单</span>
           </div>
@@ -1126,16 +1128,16 @@ onMounted(() => {
 .ds-btns { position: absolute; z-index: 3; bottom: 14px; right: 6px; display: flex; overflow: hidden; border-radius: 11px; }
 .ds-cart { height: 22px; padding: 0 4px; font-size: 9px; font-weight: 400; line-height: 22px; text-align: center; white-space: nowrap; box-sizing: border-box; }
 .ds-buy { height: 22px; padding: 0 4px; font-size: 9px; font-weight: 400; line-height: 22px; text-align: center; white-space: nowrap; box-sizing: border-box; }
-/* 上门自提 tab：浅青圆角矩形选中态 + 主色文字居中（占窗右半，与素材"快递配送"左半 tab 并排；菜鸟云 1:1） */
+/* 上门自提文字：主色、居中于素材自带半透明 tab（无背景，不另套 tab；菜鸟云 1:1） */
 .ds-ziti {
   position: absolute; z-index: 3;
   left: 50%; width: 50%;
-  top: 56px; height: 40px;
+  top: 60px; height: 26px;
   display: flex; align-items: center; justify-content: center;
   box-sizing: border-box;
-  border-radius: 8px;
-  font-size: 11px; line-height: 40px;
+  font-size: 11px; line-height: 26px;
   text-align: center;
+  white-space: nowrap;
 }
 /* 提交订单：主色实底圆角按钮（底部右部，菜鸟云距右 ~39px） */
 .ds-submit { position: absolute; z-index: 3; bottom: 14px; right: 30px; width: 80px; height: 24px; border-radius: 8px; font-size: 12px; line-height: 24px; text-align: center; box-sizing: border-box; }
