@@ -227,6 +227,41 @@
             </el-radio-group>
             <div class="form-hint full">默认设置，跟随分销设置，查看平台分销设置</div>
           </el-form-item>
+          <template v-if="form.distRule === 'custom'">
+            <el-form-item label="佣金类型">
+              <el-radio-group v-model="form.commissionType">
+                <el-radio value="percent">百分比</el-radio>
+                <el-radio value="fixed">固定金额</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="佣金设置">
+              <table class="dist-commission-table">
+                <thead>
+                  <tr>
+                    <th>等级名称</th>
+                    <th>直推佣金</th>
+                    <th>间推佣金</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(lv, i) in form.commissionLevels" :key="i">
+                    <td>
+                      <el-input v-model="lv.name" placeholder="等级名称" style="width: 160px" />
+                    </td>
+                    <td>
+                      <el-input-number v-model="lv.direct" :min="0" :precision="form.commissionType === 'fixed' ? 2 : 2" controls-position="right" style="width: 140px" />
+                      <span class="uti">{{ form.commissionType === 'fixed' ? '元' : '%' }}</span>
+                    </td>
+                    <td>
+                      <el-input-number v-model="lv.indirect" :min="0" :precision="form.commissionType === 'fixed' ? 2 : 2" controls-position="right" style="width: 140px" />
+                      <span class="uti">{{ form.commissionType === 'fixed' ? '元' : '%' }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="form-hint full">单独配置为本文设置独立的分佣比例；百分比按成交额计提，固定金额按单计提</div>
+            </el-form-item>
+          </template>
           <el-form-item label="说明">
             <div class="dist-tip">
               <p>分销设置对接应用中心「分销体系」：关闭=不参与分销；默认设置=跟随分销体系全局配置；单独配置=为本文设置独立的分佣比例。</p>
@@ -267,14 +302,16 @@
               <el-radio value="bottom">底部展示</el-radio>
             </el-radio-group>
           </el-form-item>
-          <el-form-item label="积分数量">
-            <el-input-number v-model="form.points" :min="0" controls-position="right" style="width: 160px" />
-            <span class="form-hint">积分</span>
-          </el-form-item>
-          <el-form-item label="积分限制">
-            <el-input-number v-model="form.pointsLimit" :min="0" controls-position="right" style="width: 160px" />
-            <span class="form-hint">次/每天</span>
-          </el-form-item>
+          <template v-if="form.shareMode !== 'close'">
+            <el-form-item label="积分数量">
+              <el-input-number v-model="form.points" :min="0" controls-position="right" style="width: 160px" />
+              <span class="form-hint">积分</span>
+            </el-form-item>
+            <el-form-item label="积分限制">
+              <el-input-number v-model="form.pointsLimit" :min="0" controls-position="right" style="width: 160px" />
+              <span class="form-hint">次/每天</span>
+            </el-form-item>
+          </template>
         </el-form>
       </el-tab-pane>
 
@@ -375,7 +412,9 @@ const emptyForm = () => ({
   titleShow: 1, timeShow: 1, posterBg: '', shareTitle: '', shareImgMode: 'thumb', shareImg: '',
   visitShow: 1, likeShow: 1, collectShow: 1, relateTitle: '推荐阅读', relateIds: [], relateList: [],
   showContent: 'goods', videos: [], audioTitle: '', audioUrl: '', audioMode: 'normal',
-  audioPlayMode: 'click', audioPlayForm: 'once', distRule: 'close', recommend: 0, jumpUrl: '',
+  audioPlayMode: 'click', audioPlayForm: 'once', distRule: 'close',
+  commissionType: 'percent', commissionLevels: [{ name: '默认等级', direct: 0, indirect: 0 }],
+  recommend: 0, jumpUrl: '',
   commentMode: 'default', shareMode: 'default', shareStyle: 'popup', points: 0, pointsLimit: 0,
   payAmount: 0, superForm: '', formShow: 'pay', files: [], fileShow: 'pay',
 });
@@ -409,6 +448,8 @@ async function loadDetail() {
       audioTitle: res.audio_title, audioUrl: res.audio_url, audioMode: res.audio_mode,
       audioPlayMode: res.audio_play_mode, audioPlayForm: res.audio_play_form,
       distRule: res.dist_rule, recommend: res.recommend, jumpUrl: res.jump_url,
+      commissionType: res.commission_type || 'percent',
+      commissionLevels: (() => { const l = JSON.parse(res.commission_levels || '[]'); return l.length ? l : [{ name: '默认等级', direct: 0, indirect: 0 }]; })(),
       commentMode: res.comment_mode, shareMode: res.share_mode, shareStyle: res.share_style,
       points: res.points, pointsLimit: res.points_limit, payAmount: res.pay_amount,
       superForm: res.super_form, formShow: res.form_show, files: JSON.parse(res.files || '[]'),
@@ -535,6 +576,10 @@ onMounted(() => {
 .relate-name { font-size: 13px; color: #1d2129; flex: 1; }
 .dist-tip { font-size: 13px; color: #4e5969; line-height: 1.8; }
 .dist-tip p { margin: 0; }
+.dist-commission-table { border-collapse: collapse; border: 1px solid #f0f3f5; }
+.dist-commission-table th, .dist-commission-table td { border: 1px solid #f0f3f5; padding: 6px 10px; text-align: center; }
+.dist-commission-table th { background: #f7f8fa; color: #4e5969; font-weight: 500; }
+.dist-commission-table .uti { margin-left: 4px; color: #5c6270; }
 .save-bar {
   display: flex; justify-content: flex-end; gap: 12px;
   background: #fff; border-radius: 8px; padding: 14px 20px; margin-top: 16px;

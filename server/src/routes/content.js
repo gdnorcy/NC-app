@@ -200,9 +200,9 @@ export function createContentRouter(db) {
         (customer_id, status, sort_order, cate_ids, title, thumb, carousel, update_at, views, intro, detail,
          title_show, time_show, poster_bg, share_title, share_img_mode, share_img, visit_show, like_show, collect_show,
          relate_title, relate_ids, show_content, videos, audio_title, audio_url, audio_mode, audio_play_mode, audio_play_form,
-         dist_rule, recommend, jump_url, comment_mode, share_mode, share_style, points, points_limit,
+         dist_rule, commission_type, commission_levels, recommend, jump_url, comment_mode, share_mode, share_style, points, points_limit,
          pay_amount, super_form, form_show, files, file_show)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         cid, b.status === undefined ? 1 : Number(b.status), Number(b.sortOrder) || 0,
         JSON.stringify(cateIds), String(b.title).trim(), b.thumb || '', JSON.stringify(b.carousel || []),
         b.updateAt || '', Number(b.views) || 0, b.intro || '', b.detail || '',
@@ -213,7 +213,8 @@ export function createContentRouter(db) {
         b.relateTitle || '推荐阅读', JSON.stringify(b.relateIds || []), b.showContent || 'goods',
         JSON.stringify(b.videos || []), b.audioTitle || '', b.audioUrl || '', b.audioMode || 'normal',
         b.audioPlayMode || 'click', b.audioPlayForm || 'once',
-        b.distRule || 'close', b.recommend ? 1 : 0, b.jumpUrl || '', b.commentMode || 'default',
+        b.distRule || 'close', b.commissionType || 'percent', JSON.stringify(Array.isArray(b.commissionLevels) ? b.commissionLevels : []),
+        b.recommend ? 1 : 0, b.jumpUrl || '', b.commentMode || 'default',
         b.shareMode || 'default', b.shareStyle || 'popup', Number(b.points) || 0, Number(b.pointsLimit) || 0,
         Number(b.payAmount) || 0, b.superForm || '', b.formShow || 'pay', JSON.stringify(b.files || []), b.fileShow || 'pay'
       );
@@ -240,6 +241,7 @@ export function createContentRouter(db) {
         ['relate_title', 'relateTitle'], ['relate_ids', 'relateIds'], ['show_content', 'showContent'],
         ['videos', 'videos'], ['audio_title', 'audioTitle'], ['audio_url', 'audioUrl'], ['audio_mode', 'audioMode'],
         ['audio_play_mode', 'audioPlayMode'], ['audio_play_form', 'audioPlayForm'], ['dist_rule', 'distRule'],
+        ['commission_type', 'commissionType'], ['commission_levels', 'commissionLevels'],
         ['recommend', 'recommend'], ['jump_url', 'jumpUrl'], ['comment_mode', 'commentMode'],
         ['share_mode', 'shareMode'], ['share_style', 'shareStyle'], ['points', 'points'], ['points_limit', 'pointsLimit'],
         ['pay_amount', 'payAmount'], ['super_form', 'superForm'], ['form_show', 'formShow'], ['files', 'files'],
@@ -247,7 +249,7 @@ export function createContentRouter(db) {
       ];
       for (const [col, key] of cols) {
         if (b[key] === undefined) continue;
-        if (col === 'cate_ids' || col === 'carousel' || col === 'relate_ids' || col === 'videos' || col === 'files') {
+        if (col === 'cate_ids' || col === 'carousel' || col === 'relate_ids' || col === 'videos' || col === 'files' || col === 'commission_levels') {
           set.push(`${col} = ?`); vals.push(JSON.stringify(Array.isArray(b[key]) ? b[key] : []));
         } else {
           set.push(`${col} = ?`); vals.push(b[key]);
@@ -269,13 +271,13 @@ export function createContentRouter(db) {
       const r = db.prepare(`INSERT INTO content_article (customer_id, status, sort_order, cate_ids, title, thumb, carousel,
         update_at, views, intro, detail, title_show, time_show, poster_bg, share_title, share_img_mode, share_img,
         visit_show, like_show, collect_show, relate_title, relate_ids, show_content, videos, audio_title, audio_url,
-        audio_mode, audio_play_mode, audio_play_form, dist_rule, recommend, jump_url, comment_mode, share_mode,
-        share_style, points, points_limit, pay_amount, super_form, form_show, files, file_show)
+        audio_mode, audio_play_mode, audio_play_form, dist_rule, commission_type, commission_levels, recommend, jump_url,
+        comment_mode, share_mode, share_style, points, points_limit, pay_amount, super_form, form_show, files, file_show)
         SELECT customer_id, status, sort_order, cate_ids, title, thumb, carousel, update_at, views, intro, detail,
         title_show, time_show, poster_bg, share_title, share_img_mode, share_img, visit_show, like_show, collect_show,
         relate_title, relate_ids, show_content, videos, audio_title, audio_url, audio_mode, audio_play_mode, audio_play_form,
-        dist_rule, recommend, jump_url, comment_mode, share_mode, share_style, points, points_limit, pay_amount,
-        super_form, form_show, files, file_show FROM content_article WHERE id = ?`).run(a.id);
+        dist_rule, commission_type, commission_levels, recommend, jump_url, comment_mode, share_mode, share_style,
+        points, points_limit, pay_amount, super_form, form_show, files, file_show FROM content_article WHERE id = ?`).run(a.id);
       audit(req, 'content_article_copy', 'content_article', r.lastInsertRowid, `复制文章 ${a.title}`);
       res.json({ success: true, id: r.lastInsertRowid });
     } catch (e) { res.status(500).json({ error: e.message }); }

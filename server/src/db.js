@@ -321,6 +321,14 @@ function migrate(db) {
     db.exec("ALTER TABLE content_comment ADD COLUMN nickname TEXT NOT NULL DEFAULT ''");
   }
 
+  // —— content_article 表：补分销佣金字段（佣金类型/佣金等级） ——
+  if (!colExists(db, 'content_article', 'commission_type')) {
+    db.exec("ALTER TABLE content_article ADD COLUMN commission_type TEXT NOT NULL DEFAULT 'percent'");
+  }
+  if (!colExists(db, 'content_article', 'commission_levels')) {
+    db.exec("ALTER TABLE content_article ADD COLUMN commission_levels TEXT NOT NULL DEFAULT '[]'");
+  }
+
   // —— scenes 表：补字段 + project_id → plan_id ——
   if (!colExists(db, 'scenes', 'preview_path')) {
     db.exec("ALTER TABLE scenes ADD COLUMN preview_path TEXT NOT NULL DEFAULT ''");
@@ -3375,6 +3383,8 @@ function seedContent(db) {
       audio_play_form TEXT NOT NULL DEFAULT 'once',  -- 单次播放/循环播放
       -- 分销设置
       dist_rule TEXT NOT NULL DEFAULT 'close', -- 关闭/默认设置/单独配置
+      commission_type TEXT NOT NULL DEFAULT 'percent', -- 佣金类型 percent百分比/fixed固定金额
+      commission_levels TEXT NOT NULL DEFAULT '[]',    -- 佣金等级 [{name, direct, indirect}]
       -- 高级设置
       recommend INTEGER NOT NULL DEFAULT 0,    -- 设为推荐
       jump_url TEXT NOT NULL DEFAULT '',       -- 直接跳转链接
