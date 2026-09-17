@@ -1,6 +1,6 @@
 <template>
   <div class="goods-home">
-    <!-- 顶部横向分类（设计中心 CardTabs 样式）：商品管理 / 订单配送 / 营销运营 / 商城设置 -->
+    <!-- 顶部横向分类（设计中心 CardTabs 样式）：数据洞察 / 商品管理 / 订单配送 / 营销运营 / 商城设置 -->
     <div class="card-tabs">
       <div v-for="t in topTabs" :key="t.key" class="ctab" :class="{ active: activeTop === t.key }" @click="switchTop(t.key)">
         <SIcon :name="t.icon" size="default" :color="activeTop === t.key ? '#165dff' : '#4e5969'" />
@@ -9,8 +9,8 @@
     </div>
 
     <div class="goods-body">
-      <!-- 左侧竖向二级菜单（应用中心 cat-item 样式：圆角背景块 + 数量角标） -->
-      <aside class="cat-sidebar">
+      <!-- 左侧竖向二级菜单（应用中心 cat-item 样式：圆角背景块 + 数量角标）；数据洞察为独立横排页，不显示左侧菜单 -->
+      <aside v-if="activeTop !== 'insight'" class="cat-sidebar">
         <div class="cat-header">{{ activeTopLabel }}</div>
         <div
           v-for="s in subMenus"
@@ -52,6 +52,7 @@ const route = useRoute();
 const router = useRouter();
 
 const topTabs = [
+  { key: 'insight', label: '数据洞察', icon: 'analytics' },
   { key: 'goods', label: '商品管理', icon: 'template' },
   { key: 'order', label: '订单配送', icon: 'orders' },
   { key: 'marketing', label: '营销运营', icon: 'analytics' },
@@ -61,7 +62,6 @@ const topTabs = [
 // 二级菜单（对齐菜鸟云「东莞同城通」duoproducts 12 子项；count=null 不显示角标）
 const subDefs = {
   goods: [
-    { key: 'insight', label: '数据洞察', icon: 'analytics' },
     { key: 'list', label: '商品列表', icon: 'template', countKey: 'goods' },
     { key: 'category', label: '商品分类', icon: 'apps', countKey: 'category' },
     { key: 'param', label: '商品参数', icon: 'logs', countKey: 'param' },
@@ -85,8 +85,8 @@ const subDefs = {
   ],
 };
 
-const activeTop = ref('goods');
-const activeSub = ref('insight');
+const activeTop = ref('insight');
+const activeSub = ref('');
 const counts = ref({ goods: 0, category: 0, param: 0 });
 
 const activeTopLabel = computed(() => topTabs.find((t) => t.key === activeTop.value)?.label || '');
@@ -106,13 +106,20 @@ const compMap = {
   order: GoodsOrders,
   afterSale: GoodsAfterSale,
 };
-const activeComp = computed(() => compMap[activeSub.value] || GoodsPlaceholder);
+const activeComp = computed(() => {
+  if (activeTop.value === 'insight') return GoodsInsight;
+  return compMap[activeSub.value] || GoodsPlaceholder;
+});
 
 function switchTop(key) {
   if (activeTop.value === key) return;
   activeTop.value = key;
-  const first = (subDefs[key] || [])[0];
-  activeSub.value = first?.key || '';
+  if (key === 'insight') {
+    activeSub.value = '';
+  } else {
+    const first = (subDefs[key] || [])[0];
+    activeSub.value = first?.key || '';
+  }
   syncQuery();
 }
 
@@ -146,8 +153,12 @@ onMounted(async () => {
   const qTop = String(route.query.top || '');
   const qM = String(route.query.m || '');
   if (topTabs.some((t) => t.key === qTop)) activeTop.value = qTop;
-  if ((subDefs[activeTop.value] || []).some((s) => s.key === qM)) activeSub.value = qM;
-  else activeSub.value = (subDefs[activeTop.value] || [])[0]?.key || 'list';
+  if (activeTop.value === 'insight') {
+    activeSub.value = '';
+  } else {
+    if ((subDefs[activeTop.value] || []).some((s) => s.key === qM)) activeSub.value = qM;
+    else activeSub.value = (subDefs[activeTop.value] || [])[0]?.key || 'list';
+  }
   loadCounts();
 });
 </script>
