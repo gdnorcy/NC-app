@@ -1,8 +1,17 @@
 <template>
   <div class="apps-center">
-    <!-- 左侧分类导航（与总后台应用中心一致） -->
+    <!-- 左侧分类导航（与总后台应用中心一致；顶部「全部」默认展示所有应用） -->
     <aside class="cat-sidebar">
       <div class="cat-header">功能分类</div>
+      <div
+        class="cat-item"
+        :class="{ active: activeCat?.name === '全部' }"
+        @click="activeCat = { name: '全部', icon: 'apps', apps }"
+      >
+        <SIcon name="apps" size="default" />
+        <span class="cat-name">全部</span>
+        <span class="cat-count">{{ allCount }}</span>
+      </div>
       <div
         v-for="cat in categories"
         :key="cat.name"
@@ -22,40 +31,76 @@
         <div class="content-title">{{ activeCat?.name || '' }} <span class="content-sub">{{ catCountText }}</span></div>
         <div class="drag-tip" v-if="draggingApp">拖拽卡片到目标位置释放，可调整应用顺序</div>
       </div>
-      <div v-if="!activeCat?.apps.length" class="empty">该分类下暂无应用</div>
-      <div class="app-grid">
-        <template v-for="(app, idx) in activeCat?.apps || []" :key="app.code">
-          <!-- 全端渠道分类：直接展示各端渠道卡片，进入即到对应渠道配置 -->
-          <template v-if="app.code === 'channel'">
-            <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card">
-              <div class="app-icon-wrap">
-                <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
+
+      <!-- 全部模式：按分类分组平铺所有应用 -->
+      <template v-if="showAll">
+        <div v-if="!categories.length" class="empty">暂无应用</div>
+        <div v-for="g in categories" :key="'g-' + g.name" class="cat-group">
+          <div class="group-title">{{ g.name }} <span class="group-count">{{ catDisplayCount(g) }}</span></div>
+          <div class="app-grid">
+            <template v-for="app in g.apps" :key="app.code">
+              <template v-if="app.code === 'channel'">
+                <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card">
+                  <div class="app-icon-wrap">
+                    <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
+                  </div>
+                  <div class="app-name">{{ ch.name }}</div>
+                  <div class="app-code">{{ ch.type }}</div>
+                  <div class="app-desc">{{ ch.desc }}</div>
+                  <el-button type="primary" size="small" class="enter-btn" @click="enterChannel(ch)">进入应用</el-button>
+                </div>
+              </template>
+              <div v-else class="app-card">
+                <div class="app-icon-wrap">
+                  <SIcon :name="app.icon" size="xlarge" class="app-icon" />
+                </div>
+                <div class="app-name">{{ app.name }}</div>
+                <div class="app-code">{{ app.code }}</div>
+                <div class="app-desc">{{ app.description }}</div>
+                <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
               </div>
-              <div class="app-name">{{ ch.name }}</div>
-              <div class="app-code">{{ ch.type }}</div>
-              <div class="app-desc">{{ ch.desc }}</div>
-              <el-button type="primary" size="small" class="enter-btn" @click="enterChannel(ch)">进入应用</el-button>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- 分类模式：仅显示当前分类应用 -->
+      <template v-else>
+        <div v-if="!activeCat?.apps.length" class="empty">该分类下暂无应用</div>
+        <div class="app-grid">
+          <template v-for="(app, idx) in activeCat?.apps || []" :key="app.code">
+            <!-- 全端渠道分类：直接展示各端渠道卡片，进入即到对应渠道配置 -->
+            <template v-if="app.code === 'channel'">
+              <div v-for="ch in CUST_CHANNELS" :key="'ch-' + ch.type" class="app-card channel-card">
+                <div class="app-icon-wrap">
+                  <SIcon :name="ch.icon" size="xlarge" class="app-icon" />
+                </div>
+                <div class="app-name">{{ ch.name }}</div>
+                <div class="app-code">{{ ch.type }}</div>
+                <div class="app-desc">{{ ch.desc }}</div>
+                <el-button type="primary" size="small" class="enter-btn" @click="enterChannel(ch)">进入应用</el-button>
+              </div>
+            </template>
+            <div
+              v-else
+              class="app-card"
+              :draggable="true"
+              @dragstart="onDragStart(app, idx, $event)"
+              @dragover.prevent
+              @drop="onDrop(app, idx, $event)"
+              @dragend="onDragEnd"
+            >
+              <div class="app-icon-wrap">
+                <SIcon :name="app.icon" size="xlarge" class="app-icon" />
+              </div>
+              <div class="app-name">{{ app.name }}</div>
+              <div class="app-code">{{ app.code }}</div>
+              <div class="app-desc">{{ app.description }}</div>
+              <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
             </div>
           </template>
-          <div
-            v-else
-            class="app-card"
-            :draggable="true"
-            @dragstart="onDragStart(app, idx, $event)"
-            @dragover.prevent
-            @drop="onDrop(app, idx, $event)"
-            @dragend="onDragEnd"
-          >
-            <div class="app-icon-wrap">
-              <SIcon :name="app.icon" size="xlarge" class="app-icon" />
-            </div>
-            <div class="app-name">{{ app.name }}</div>
-            <div class="app-code">{{ app.code }}</div>
-            <div class="app-desc">{{ app.description }}</div>
-            <el-button type="primary" size="small" class="enter-btn" @click="enterApp(app)">进入应用</el-button>
-          </div>
-        </template>
-      </div>
+        </div>
+      </template>
     </main>
   </div>
 </template>
@@ -84,8 +129,13 @@ const CUST_CHANNELS = [
 
 const catCountText = computed(() => {
   const list = activeCat.value?.apps || [];
+  if (showAll.value) return `共 ${allCount.value} 个应用`;
   if (list.some(a => a.code === 'channel')) return `共 ${CUST_CHANNELS.length} 个渠道`;
   return `共 ${list.length} 个应用`;
+});
+const showAll = computed(() => activeCat.value?.name === '全部');
+const allCount = computed(() => {
+  return categories.value.reduce((n, c) => n + catDisplayCount(c), 0);
 });
 function catDisplayCount(cat) {
   if (!cat) return 0;
@@ -139,9 +189,11 @@ onMounted(async () => {
     if (!cats.some(c => c.name === name)) cats.push({ name, icon: 'apps', apps: byCat[name] });
   });
   categories.value = cats;
-  // 面包屑带分类参数（如 /apps?cat=分销体系）时直接定位到对应分类
+  // 默认展示「全部」应用；带分类参数（如 /apps?cat=营销引流）时定位到对应分类
   const q = route.query.cat;
-  activeCat.value = (q ? cats.find(c => c.name === String(q)) : null) || cats[0] || null;
+  activeCat.value = (q ? cats.find(c => c.name === String(q)) : null)
+    || (q === '全部' ? { name: '全部', icon: 'apps', apps: apps.value } : null)
+    || { name: '全部', icon: 'apps', apps: apps.value };
 });
 
 function enterApp(app) {
@@ -232,6 +284,28 @@ async function persistSort() {
   line-height: 20px;
 }
 .cat-item.active .cat-count { background: rgba(22, 93, 255, 0.1); color: #165dff; }
+
+/* 全部模式：分类分组 */
+.cat-group { margin-bottom: 20px; }
+.cat-group:last-child { margin-bottom: 0; }
+.group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2129;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.group-count {
+  font-size: 12px;
+  color: #86909c;
+  background: #f2f3f5;
+  border-radius: 10px;
+  padding: 0 8px;
+  line-height: 20px;
+  font-weight: 400;
+}
 
 /* 右侧内容 */
 .cat-content { flex: 1; min-width: 0; background: #fff; border-radius: 8px; padding: 20px; }
