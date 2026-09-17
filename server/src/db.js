@@ -1985,15 +1985,15 @@ function seedGoods(db) {
     CREATE INDEX IF NOT EXISTS idx_goods_order_log ON goods_order_log(order_id);
   `);
 
-  // —— 应用注册：电子卡密 / 送礼物（商品类型授权驱动；演示方案自动纳入见 migrateSolutionApps）——
-  db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('行业应用', 'apps', 6)");
+  // —— 应用注册：电子卡密 / 送礼物（商品类型授权驱动；分类=营销引流；演示方案自动纳入见 migrateSolutionApps）——
+  db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('营销引流', 'channel', 4)");
   const goodsApps = [
     ['card-carmi', '电子卡密', '卡密商品，用户付款自动发货（授权后商品添加页出现「卡密商品」类型）', 'badge', 1],
     ['card-gift', '送礼物', '虚品实物，自己兑用转人兑用（授权后商品添加页出现「虚拟商品」类型）', 'crown', 2],
   ];
   const goodsAppIns = db.prepare('INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
   for (const [code, name, desc, icon, order] of goodsApps) {
-    goodsAppIns.run(code, name, desc, icon, '行业应用', order);
+    goodsAppIns.run(code, name, desc, icon, '营销引流', order);
     const app = db.prepare('SELECT id FROM apps WHERE code = ?').get(code);
     if (!app) continue;
     const menus = {
