@@ -42,3 +42,7 @@ body {
 .el-table { border-radius: 8px; overflow: hidden; }
 .el-button--primary { background: #165DFF; border-color: #165DFF; }
 .el-button--primary:hover { background: #0E42D2; border-color: #0E42D2; }
+
+/* 弹窗/消息框标题强制单行，避免短标题被意外拆行（2026-09-17） */
+.el-dialog__title,
+.el-message-box__title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
