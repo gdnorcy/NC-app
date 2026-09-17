@@ -86,12 +86,12 @@ const subDefs = {
     { key: 'supplier', label: '供应厂商', icon: 'building' },
   ],
   shop: [
-    { key: 'pay', label: '支付规则', icon: 'settings' },
-    { key: 'orderRule', label: '下单规则', icon: 'settings' },
-    { key: 'delivery', label: '配送设置', icon: 'settings' },
-    { key: 'verify', label: '订单核销', icon: 'settings' },
-    { key: 'show', label: '展示设置', icon: 'settings' },
-    { key: 'share', label: '分享设置', icon: 'settings' },
+    { key: 'pay', label: '支付规则', icon: 'wallet' },
+    { key: 'orderRule', label: '下单规则', icon: 'orders' },
+    { key: 'delivery', label: '配送设置', icon: 'delivery' },
+    { key: 'verify', label: '订单核销', icon: 'verify' },
+    { key: 'show', label: '展示设置', icon: 'show' },
+    { key: 'share', label: '分享设置', icon: 'share' },
     { key: 'style', label: '商城风格', icon: 'palette' },
   ],
 };
