@@ -1108,6 +1108,8 @@ cate_style(1/2) / detail_style(1/2/3) / goods_iscard(1开2关) / share_style(1/2
 3. **详情风格 radio 对标本身无缩略图**（风格一无图，风格二/三空 img），1:1 复刻时不做缩略图，靠左侧预览联动体现差异。
 4. **Vite 静态资源坑**：img src 直接写 `/goods-style/xxx.png` 会被 Vite 当模块解析报 rollup resolve 失败；必须以 `:src` 绑定变量（const 字符串或 computed）绕过静态分析。
 5. **自定义上传**：pbgImg/pbgTheme=0 时显示上传，调 `POST /api/customer/upload`（FormData file），返回 res.url 存 pbgImgCustom/pbgThemeCustom。
+6. **分类风格选中态 1:1**（2026-09-17 修）：菜鸟云分类风格**无右上角打勾、无选中角标**，选择态=下方 radio 圆点选中；我方曾私自加 `.style-check` 右上角打勾 + radio 用 `:model-value="form.cateStyle===c.value"` 传布尔（el-radio 无 value 时选中判定恒 false → radio 永不选中，仅打勾可见）。修复：删打勾，radio 用 `el-radio-group v-model` + `el-radio :value`；图卡可保留主色边框高亮（增强），但**禁止添加对标没有的选中元素**。
+7. **radio/checkbox 绑定规范**：组件选中态必须用 `v-model` + `:value`（或 model-value 传当前选中值）驱动；**禁止 `:model-value` 传布尔表达式**模拟选中（内部 value 与布尔永不相等 → 选中态失效）。此类「控件不响应」先查绑定，再怀疑渲染。
 
 ## 价格条渲染契约（实测权威 DOM，2026-09-17 补）
 详情风格1/2 价格条（.pricebg_box，box1 高 36 / box2 高 97，卡片开=padding 7px 7px 0 + box1 圆角 5px5px0 0 / box2 圆角 13px）为**四层叠加**，缺一层即视觉缺失（曾漏 price_show.png 导致价格卡不显示）：
