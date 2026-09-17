@@ -195,6 +195,18 @@ export const cardApi = {
   designLead: (data) => request('/design/leads', 'POST', data),
   // 设计中心「全景场景」组件：按租户拉取全景方案（封面/发布状态）
   designPanoramaScenes: () => request('/design/panorama-scenes', 'GET'),
+
+  // ===== 内容管理（C 端公开读取，?tid= 指定租户）=====
+  contentArticleCates: (tid) => request(`/content/article-cates?tid=${tid || ''}`),
+  contentArticles: (params) => request('/content/articles' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentArticle: (id, tid) => request(`/content/articles/${id}?tid=${tid || ''}`),
+  contentComments: (params) => request('/content/comments' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentAddComment: (data) => request('/content/comments', 'POST', data),
+  contentPicCates: (tid) => request(`/content/pic-cates?tid=${tid || ''}`),
+  contentPics: (params) => request('/content/pics' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentPic: (id, tid) => request(`/content/pics/${id}?tid=${tid || ''}`),
+  contentVideos: (params) => request('/content/videos' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentSettings: (tid) => request(`/content/settings?tid=${tid || ''}`),
 };
 
 // 支付API

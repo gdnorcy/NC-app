@@ -181,6 +181,46 @@
           }
         }
       ]
+    },
+    {
+      "root": "pagesReads",
+      "pages": [
+        {
+          "path": "articleList/articleList",
+          "style": {
+            "navigationBarTitleText": "文章列表",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "showArt/showArt",
+          "style": {
+            "navigationBarTitleText": "文章详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "picList/picList",
+          "style": {
+            "navigationBarTitleText": "组图列表",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "showPictures/showPictures",
+          "style": {
+            "navigationBarTitleText": "组图详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "videoList/videoList",
+          "style": {
+            "navigationBarTitleText": "视频列表",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     }
   ],
   "globalStyle": {
@@ -197,7 +237,9 @@
       "minified": true
     },
     "usingComponents": true,
-    "requiredPrivateInfos": ["getLocation"],
+    "requiredPrivateInfos": [
+      "getLocation"
+    ],
     "permission": {
       "scope.userLocation": {
         "desc": "用于全景场景定位"

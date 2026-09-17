@@ -316,6 +316,11 @@ function seedSolutionDefaults(db) {
 
 /** 存量库迁移（幂等） */
 function migrate(db) {
+  // —— content_comment 表：补 nickname（C 端评论昵称） ——
+  if (!colExists(db, 'content_comment', 'nickname')) {
+    db.exec("ALTER TABLE content_comment ADD COLUMN nickname TEXT NOT NULL DEFAULT ''");
+  }
+
   // —— scenes 表：补字段 + project_id → plan_id ——
   if (!colExists(db, 'scenes', 'preview_path')) {
     db.exec("ALTER TABLE scenes ADD COLUMN preview_path TEXT NOT NULL DEFAULT ''");
@@ -1756,6 +1761,9 @@ function migrate(db) {
 
   // —— 会员体系（租户级会员，1:1 复刻菜鸟云：等级/开卡/申请/积分/消费/标签/设置）——
   seedMember(db);
+
+  // —— 内容体系（1:1 复刻菜鸟云「东莞同城通」内容：文章/组图/视频/评论/基础设置）——
+  seedContent(db);
 
   // —— dist_config 扩展字段（分销基本设置 + 分销参数，2026-09-09 新增）——
   // 分销商名称/下级名称/申请页顶图/分销推广图/申请页提示/0元订单/显示上级/显示电话/默认等级
@@ -3302,4 +3310,187 @@ export function queryOperationLogs(db, { userId, action, targetType, from, to, l
     .all(...params, limit, offset);
   const total = db.prepare(`SELECT COUNT(*) AS n FROM operation_logs ${whereSql}`).get(...params)?.n || 0;
   return { logs: rows, total };
+}
+
+// ---------- 内容体系（1:1 复刻菜鸟云「东莞同城通」内容：文章/组图/视频/评论/基础设置） ----------
+function seedContent(db) {
+  db.exec(`
+    -- 文章分类（支持二级：pid=0 顶级）
+    CREATE TABLE IF NOT EXISTS content_article_cate (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      pid INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL,
+      image TEXT NOT NULL DEFAULT '',          -- 缩略图 350x350 ≤100kb
+      intro TEXT NOT NULL DEFAULT '',          -- 分类简介
+      sort_order INTEGER NOT NULL DEFAULT 0,   -- 数字越大越靠前
+      status INTEGER NOT NULL DEFAULT 1,       -- 1启用 0禁用
+      page_size INTEGER NOT NULL DEFAULT 10,   -- 每页数量（不填默认10）
+      img_ratio TEXT NOT NULL DEFAULT '1:1',   -- 图片比例 1:1/4:3/3:4/自适应
+      plate_style TEXT NOT NULL DEFAULT 'one_big', -- 板块样式 一列大图/两列图片/一列小图1/一列小图2/无图列表
+      share_title TEXT NOT NULL DEFAULT '',
+      share_img TEXT NOT NULL DEFAULT '',      -- 分享图 5:4 ≤100kb
+      member_view INTEGER NOT NULL DEFAULT 0,  -- 会员浏览 0关闭 1开启
+      pc_enable INTEGER NOT NULL DEFAULT 1,    -- PC端 1启用 0禁用
+      ad_header TEXT NOT NULL DEFAULT '',      -- 流量广告-头部广告
+      ad_footer TEXT NOT NULL DEFAULT '',      -- 流量广告-底部广告
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_content_article_cate ON content_article_cate(customer_id, pid);
+
+    -- 文章（字段对齐菜鸟云添加文章 6 页签）
+    CREATE TABLE IF NOT EXISTS content_article (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      status INTEGER NOT NULL DEFAULT 1,       -- 1上架 0下架
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      cate_ids TEXT NOT NULL DEFAULT '[]',     -- 所属分类（可多选，第一个为主分类）
+      title TEXT NOT NULL,
+      thumb TEXT NOT NULL DEFAULT '',          -- 缩略图（与分类图片比例一致 ≤500kb）
+      carousel TEXT NOT NULL DEFAULT '[]',     -- 轮播图 750*432 ≤200kb
+      update_at TEXT NOT NULL DEFAULT '',      -- 更新时间
+      views INTEGER NOT NULL DEFAULT 0,        -- 浏览次数
+      intro TEXT NOT NULL DEFAULT '',          -- 文章简介
+      detail TEXT NOT NULL DEFAULT '',         -- 文章详情（富文本）
+      -- 样式设置
+      title_show INTEGER NOT NULL DEFAULT 1,   -- 标题板块 1展示 0隐藏
+      time_show INTEGER NOT NULL DEFAULT 1,    -- 时间板块
+      poster_bg TEXT NOT NULL DEFAULT '',      -- 海报背景 600*960 底部留空260px
+      share_title TEXT NOT NULL DEFAULT '',
+      share_img_mode TEXT NOT NULL DEFAULT 'thumb', -- 分享图 缩略图/自定义/小程序转发图
+      share_img TEXT NOT NULL DEFAULT '',
+      visit_show INTEGER NOT NULL DEFAULT 1,   -- 访问量展示
+      like_show INTEGER NOT NULL DEFAULT 1,    -- 点赞量展示
+      collect_show INTEGER NOT NULL DEFAULT 1, -- 收藏量展示
+      relate_title TEXT NOT NULL DEFAULT '推荐阅读', -- 关联文章显示标题（≤10字）
+      relate_ids TEXT NOT NULL DEFAULT '[]',   -- 关联文章（拖动排序）
+      show_content TEXT NOT NULL DEFAULT 'goods', -- 高级展示内容 推荐商品
+      -- 音视频设置
+      videos TEXT NOT NULL DEFAULT '[]',       -- [{url, play_mode}] 点击播放/自动播放
+      audio_title TEXT NOT NULL DEFAULT '',
+      audio_url TEXT NOT NULL DEFAULT '',
+      audio_mode TEXT NOT NULL DEFAULT 'normal',  -- 正常音频/背景音频
+      audio_play_mode TEXT NOT NULL DEFAULT 'click', -- 点击播放/自动播放
+      audio_play_form TEXT NOT NULL DEFAULT 'once',  -- 单次播放/循环播放
+      -- 分销设置
+      dist_rule TEXT NOT NULL DEFAULT 'close', -- 关闭/默认设置/单独配置
+      -- 高级设置
+      recommend INTEGER NOT NULL DEFAULT 0,    -- 设为推荐
+      jump_url TEXT NOT NULL DEFAULT '',       -- 直接跳转链接
+      comment_mode TEXT NOT NULL DEFAULT 'default', -- 系统默认/本篇关闭/本篇启用
+      share_mode TEXT NOT NULL DEFAULT 'default',    -- 文章分享
+      share_style TEXT NOT NULL DEFAULT 'popup',     -- 分享样式 弹框展示/底部展示
+      points INTEGER NOT NULL DEFAULT 0,       -- 积分数量
+      points_limit INTEGER NOT NULL DEFAULT 0, -- 积分限制 次/每天
+      -- 付费设置
+      pay_amount REAL NOT NULL DEFAULT 0,      -- 付费金额 0或空为不收费
+      super_form TEXT NOT NULL DEFAULT '',     -- 超级表单（待接入：红包封面）
+      form_show TEXT NOT NULL DEFAULT 'pay',   -- 表单展示 付费展示/直接展示
+      files TEXT NOT NULL DEFAULT '[]',        -- 文件下载 [{name,url}]
+      file_show TEXT NOT NULL DEFAULT 'pay',   -- 文件展示 付费展示/直接展示
+      likes INTEGER NOT NULL DEFAULT 0,
+      collects INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_content_article ON content_article(customer_id, status, sort_order);
+
+    -- 文章评论（含视频/音频）
+    CREATE TABLE IF NOT EXISTS content_comment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      content_id INTEGER NOT NULL,             -- 文章/视频/音频 id
+      content_type TEXT NOT NULL DEFAULT 'article', -- article/video/audio
+      title TEXT NOT NULL DEFAULT '',          -- 文章标题冗余
+      content TEXT NOT NULL DEFAULT '',
+      nickname TEXT NOT NULL DEFAULT '',       -- 评论昵称（C 端）
+      is_audit INTEGER NOT NULL DEFAULT 1,     -- 是否审核 1通过 0待审
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_content_comment ON content_comment(customer_id, content_type);
+
+    -- 组图分类
+    CREATE TABLE IF NOT EXISTS content_pic_cate (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      pid INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL,
+      image TEXT NOT NULL DEFAULT '',          -- 缩略图 350*350 ≤500kb
+      intro TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      status INTEGER NOT NULL DEFAULT 1,       -- 1启用 0禁用
+      page_size INTEGER NOT NULL DEFAULT 10,   -- 列表每页数量
+      plate_style TEXT NOT NULL DEFAULT 'style1', -- 列表板块样式 样式一~四
+      share_title TEXT NOT NULL DEFAULT '',
+      share_img TEXT NOT NULL DEFAULT '',      -- 5:4 ≤100kb
+      member_view INTEGER NOT NULL DEFAULT 0,
+      pc_enable INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_content_pic_cate ON content_pic_cate(customer_id, pid);
+
+    -- 组图
+    CREATE TABLE IF NOT EXISTS content_pic (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      cate_id INTEGER NOT NULL DEFAULT 0,
+      title TEXT NOT NULL,
+      views INTEGER NOT NULL DEFAULT 0,
+      show_style TEXT NOT NULL DEFAULT 'single', -- 单列大图/双列瀑布流/三列小图
+      thumb TEXT NOT NULL DEFAULT '',          -- 缩略图 750*750 ≤500kb
+      images TEXT NOT NULL DEFAULT '[]',       -- 组图 750x1200 ≤500kb（多图）
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      status INTEGER NOT NULL DEFAULT 1,       -- 1上架 0下架
+      recommend INTEGER NOT NULL DEFAULT 0,    -- 设为推荐
+      bg_mode INTEGER NOT NULL DEFAULT 0,      -- 组图背景 0关闭 1开启（模糊背景）
+      share_points INTEGER NOT NULL DEFAULT 0, -- 分享积分开关
+      points INTEGER NOT NULL DEFAULT 0,
+      points_limit INTEGER NOT NULL DEFAULT 0,
+      share_title TEXT NOT NULL DEFAULT '',
+      share_img TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_content_pic ON content_pic(customer_id, cate_id);
+
+    -- 视频
+    CREATE TABLE IF NOT EXISTS content_video (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      status INTEGER NOT NULL DEFAULT 1,       -- 1启用 0禁用
+      be_online INTEGER NOT NULL DEFAULT 1,    -- 1已上线 0未上线
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      title TEXT NOT NULL,
+      cover TEXT NOT NULL DEFAULT '',          -- 封面图 600x500 ≤100kb
+      intro TEXT NOT NULL DEFAULT '',
+      video_url TEXT NOT NULL DEFAULT '',      -- 腾讯视频/抖音视频/mp4（<50M）
+      recommend INTEGER NOT NULL DEFAULT 0,    -- 设为推荐
+      views INTEGER NOT NULL DEFAULT 0,
+      likes INTEGER NOT NULL DEFAULT 0,
+      forwards INTEGER NOT NULL DEFAULT 0,
+      share_title TEXT NOT NULL DEFAULT '',
+      share_img TEXT NOT NULL DEFAULT '',      -- 5:4 ≤100kb
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_content_video ON content_video(customer_id, be_online);
+
+    -- 内容基础设置（全部文章/全部组图分享 + AI生成/采集配置）
+    CREATE TABLE IF NOT EXISTS content_setting (
+      customer_id INTEGER PRIMARY KEY,
+      article_share_title TEXT NOT NULL DEFAULT '',
+      article_share_img TEXT NOT NULL DEFAULT '',
+      pic_share_title TEXT NOT NULL DEFAULT '',
+      pic_share_img TEXT NOT NULL DEFAULT '',
+      ai_enable INTEGER NOT NULL DEFAULT 0,    -- AI生成文章开关（待配置大模型接口）
+      ai_api_url TEXT NOT NULL DEFAULT '',     -- 大模型接口地址
+      ai_api_key TEXT NOT NULL DEFAULT '',     -- 大模型 API Key
+      ai_model TEXT NOT NULL DEFAULT '',
+      collect_enable INTEGER NOT NULL DEFAULT 0, -- 文章采集开关
+      collect_api_key TEXT NOT NULL DEFAULT '',  -- 采集 API Key
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 }

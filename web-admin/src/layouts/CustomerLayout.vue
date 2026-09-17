@@ -49,6 +49,10 @@
             <SIcon name="template" size="default" />
             <span>商品管理</span>
           </el-menu-item>
+          <el-menu-item index="/content">
+            <SIcon name="doc" size="default" />
+            <span>内容管理</span>
+          </el-menu-item>
 
           <el-menu-item index="/billing">
             <SIcon name="wallet" size="default" />

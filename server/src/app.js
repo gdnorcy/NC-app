@@ -21,6 +21,7 @@ import { createLiveRouter } from './routes/live.js';
 import { createCardKeyRouter } from './routes/cardKey.js';
 import { createGiftCardRouter } from './routes/giftCard.js';
 import { createGiftRouter } from './routes/giftProduct.js';
+import { createContentRouter, createContentPublicRouter } from './routes/content.js';
 import { createSolutionsRouter } from './routes/solutions.js';
 import { createMultiAuthRouter } from './routes/multi-auth.js';
 import { createAppRegistryRouter } from './routes/app-registry.js';
@@ -76,6 +77,9 @@ export function createApp({ db, deps = {} } = {}) {
   app.use('/api/customer/goods', requireAuth, createGoodsRouter(database));
   // 小程序直播（1:1 菜鸟云「微信直播」）：直播列表/商品同步/商品审核
   app.use('/api/customer/live', requireAuth, createLiveRouter(database, deps));
+  // 内容体系（1:1 菜鸟云「内容」）：文章/组图/视频/评论/基础设置（管理端）+ C 端公开读取
+  app.use('/api/customer/content', requireAuth, createContentRouter(database));
+  app.use('/api/card/content', createContentPublicRouter(database));
   app.use('/api/customer/card-key', requireAuth, createCardKeyRouter(database));
   app.use('/api/customer/gift-card', requireAuth, createGiftCardRouter(database));
   app.use('/api/customer/gift', requireAuth, createGiftRouter(database));
