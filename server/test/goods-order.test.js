@@ -94,7 +94,7 @@ describe('商品订单（goods_order 闭环）', () => {
   });
 
   test('支付成功：虚拟商品自动发货置 done', () => {
-    const r = db.prepare(`INSERT INTO goods (customer_id, title, type, status, stock, price, spec_mode, images) VALUES (?, '虚拟品', 'gift', 'sell', 999, 5, 'single', '[]')`).run(TENANT);
+    const r = db.prepare(`INSERT INTO goods (customer_id, title, type, status, stock, price, spec_mode, images) VALUES (?, '虚拟品', 'virtual', 'sell', 999, 5, 'single', '[]')`).run(TENANT);
     const gid = Number(r.lastInsertRowid);
     const o = svc.createOrder({ customerId: TENANT, userId: 3002, items: [{ goodsId: gid, num: 1 }], deliveryMode: 'pickup' });
     createPayAndPaid(o);

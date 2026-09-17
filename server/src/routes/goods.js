@@ -470,7 +470,7 @@ function saveSkus(db, goodsId, skus) {
 function normalizeGoods(body) {
   return {
     topType: Number(body.topType) || 1,
-    type: ['normal', 'card', 'gift'].includes(body.type) ? body.type : 'normal',
+    type: ['normal', 'carmi', 'virtual'].includes(body.type) ? body.type : 'normal',
     status: ['sell', 'off', 'expired'].includes(body.status) ? body.status : 'sell',
     sortOrder: Number(body.sortOrder) || 0,
     title: String(body.title || '').trim(),

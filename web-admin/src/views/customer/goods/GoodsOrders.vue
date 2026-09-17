@@ -170,7 +170,7 @@ const STATUS_MAP = {
   closed: { label: '已关闭', tag: 'info' },
 };
 
-const TYPE_MAP = { normal: '普通', carmi: '卡密', gift: '虚拟' };
+const TYPE_MAP = { normal: '普通', carmi: '卡密', virtual: '虚拟' };
 const LOG_MAP = {
   create: '创建订单', paid: '支付成功', auto_refund: '自动退款',
   ship: '商家发货', done: '订单完成', refund: '订单退款',

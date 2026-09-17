@@ -6,12 +6,11 @@
       </div>
     </AppPageHeader>
 
-    <!-- 类型 Tab（对标：普通商品 / 卡密商品 / 虚拟商品；卡密/虚拟由应用授权驱动显示） -->
+    <!-- 类型 Tab（对标菜鸟云：普通商品/卡密商品/虚拟商品 三类型默认全开放，无需应用授权） -->
     <div class="type-tabs">
-      <div class="type-tab active" @click="setType(1)">普通商品</div>
-      <div v-if="licenses.includes('card-carmi')" class="type-tab" :class="{ active: topType === 3 }" @click="setType(3)">卡密商品</div>
-      <div v-if="licenses.includes('card-gift')" class="type-tab" :class="{ active: topType === 4 }" @click="setType(4)">虚拟商品</div>
-      <span v-if="!licenses.length" class="type-hint">未开通「电子卡密/送礼物」应用，仅普通商品（应用中心可开通）</span>
+      <div class="type-tab" :class="{ active: topType === 1 }" @click="setType(1)">普通商品</div>
+      <div class="type-tab" :class="{ active: topType === 3 }" @click="setType(3)">卡密商品</div>
+      <div class="type-tab" :class="{ active: topType === 4 }" @click="setType(4)">虚拟商品</div>
     </div>
 
     <el-tabs v-model="tab" class="edit-tabs">
@@ -377,7 +376,7 @@ function resolveUrl(u) {
 function setType(t) {
   topType.value = t;
   g.topType = t;
-  g.type = { 1: 'normal', 3: 'card', 4: 'gift' }[t] || 'normal';
+  g.type = { 1: 'normal', 3: 'carmi', 4: 'virtual' }[t] || 'normal';
 }
 
 async function loadMeta() {

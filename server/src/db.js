@@ -1834,8 +1834,8 @@ function normalizeProjectSolutions(db) {
 /**
  * 商品体系（2026-09-17 新增，1:1 复刻菜鸟云「东莞同城通」duoproducts）
  * 建表：goods_category（二级分类）/ goods（商品全字段）/ goods_sku（多规格）/ goods_param（参数模板）/ goods_setting（商城设置）
- * 应用注册：电子卡密（card-carmi，卡密商品类型授权）、送礼物（card-gift，虚拟商品类型授权）
- * —— 商品类型「卡密商品/虚拟商品」由应用授权驱动显示（对标：应用中心授权后添加页才出现该类型 Tab）
+ * 应用注册：电子卡密（card-carmi，卡密库/自动发货增强应用）、送礼物（card-gift，实物礼品转赠营销应用）
+ * —— 商品类型「普通/卡密/虚拟」默认全部开放（对标菜鸟云实测：添加页三类型 Tab 无需授权即显示）
  */
 function seedGoods(db) {
   db.exec(`
@@ -1858,7 +1858,7 @@ function seedGoods(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       customer_id INTEGER NOT NULL,
       top_type INTEGER NOT NULL DEFAULT 1,        -- 1普通 3卡密 4虚拟
-      type TEXT NOT NULL DEFAULT 'normal',        -- normal/card/gift
+      type TEXT NOT NULL DEFAULT 'normal',        -- normal普通/carmi卡密/virtual虚拟
       status TEXT NOT NULL DEFAULT 'sell',        -- sell出售中/off未上架/expired已失效
       sort_order INTEGER NOT NULL DEFAULT 0,      -- 排序（数字越大越靠前）
       title TEXT NOT NULL,
@@ -1965,7 +1965,7 @@ function seedGoods(db) {
       order_id INTEGER NOT NULL,
       goods_id INTEGER NOT NULL,
       sku_id INTEGER NOT NULL DEFAULT 0,
-      goods_type TEXT NOT NULL DEFAULT 'normal',   -- normal普通/carmi卡密/gift虚拟
+      goods_type TEXT NOT NULL DEFAULT 'normal',   -- normal普通/carmi卡密/virtual虚拟
       title TEXT NOT NULL DEFAULT '',
       thumb TEXT NOT NULL DEFAULT '',
       spec_json TEXT NOT NULL DEFAULT '{}',
@@ -1989,7 +1989,7 @@ function seedGoods(db) {
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('营销引流', 'channel', 4)");
   const goodsApps = [
     ['card-carmi', '电子卡密', '卡密商品，用户付款自动发货（授权后商品添加页出现「卡密商品」类型）', 'badge', 1],
-    ['card-gift', '送礼物', '虚品实物，自己兑用转人兑用（授权后商品添加页出现「虚拟商品」类型）', 'crown', 2],
+    ['card-gift', '送礼物', '实物礼品，购买商品转赠好友（营销引流应用，非商品类型开关）', 'crown', 2],
   ];
   const goodsAppIns = db.prepare('INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)');
   for (const [code, name, desc, icon, order] of goodsApps) {
