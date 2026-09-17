@@ -2370,7 +2370,7 @@ function seedGoods(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_goods_collect ON goods_collect(customer_id);
   `);
-  db.prepare("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('goods-collect', '商品采集', '批量采集淘宝/天猫商品链接到商品库', 'dynamic', '营销引流', 4, 1)").run();
+  db.prepare("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('goods-collect', '商品采集', '批量采集淘宝/天猫商品链接到商品库', 'dynamic', '基础功能', 4, 1)").run();
   {
     const gcApp = db.prepare("SELECT id FROM apps WHERE code = 'goods-collect'").get();
     if (gcApp) {
