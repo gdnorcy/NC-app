@@ -502,44 +502,53 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-all' || comp.type === 'goods-featured'">
-      <div class="r-gl-title">商品列表</div>
-      <div class="r-gl-grid">
-        <div v-for="i in 2" :key="i" class="r-gl-card">
-          <div class="r-gl-img"><span>🛍</span></div>
-          <div class="r-gl-t">商品名称示例</div>
-          <div class="r-gl-price">¥19.9</div>
+      <div class="r-gab-head">
+        <div><div class="r-gab-title">板块标题</div><div class="r-gab-sub">副标题描述</div></div>
+        <div class="r-gab-more">查看更多 ›</div>
+      </div>
+      <div class="r-gab-grid">
+        <div v-for="i in 2" :key="i" class="r-gab-card">
+          <div class="r-gab-img"><span>🛍</span></div>
+          <div class="r-gab-name">商品名称示例</div>
+          <div class="r-gab-row"><span class="r-gab-price">¥19.9</span><span class="r-gab-buy">购买</span></div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-rank'">
-      <div class="r-rank-row" v-for="i in 3" :key="i">
-        <span class="r-rank-no">{{ i }}</span>
-        <div class="r-rank-img"><span>🛍</span></div>
-        <div class="r-rank-info"><div class="r-rank-t">热销商品示例</div><div class="r-rank-price">¥{{ 9.9+i*10 }}</div></div>
+      <div class="r-gtitle"><span>商品排行</span><div class="r-gtitle-line"></div></div>
+      <div class="r-gp-2col">
+        <div class="r-gp-row" v-for="i in 2" :key="i">
+          <span class="r-rank-no">{{ i }}</span>
+          <div class="r-gp-img"><span>🛍</span></div>
+          <div class="r-gp-info"><div class="r-gp-title">热销商品</div><div class="r-gp-price-row"><span class="r-gp-price">¥{{ 9.9+i*10 }}</span></div></div>
+        </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-like'">
-      <div class="r-gp-row">
-        <div class="r-gp-img"><span>🛍</span></div>
-        <div class="r-gp-info">
-          <div class="r-gp-title">猜你喜欢商品</div>
-          <div class="r-gp-price-row"><span class="r-gp-price">¥39.00</span></div>
+      <div class="r-gtitle"><span>猜你喜欢</span><div class="r-gtitle-line"></div></div>
+      <div class="r-gp-2col">
+        <div class="r-gp-row" v-for="i in 2" :key="i">
+          <div class="r-gp-img"><span>🛍</span></div>
+          <div class="r-gp-info"><div class="r-gp-title">推荐商品</div><div class="r-gp-price-row"><span class="r-gp-price">¥29.9</span></div></div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-swiper'">
-      <div class="r-swiper"><div class="r-swiper-img"><span>🛍 轮播商品</span></div></div>
+      <div class="r-swiper">
+        <div class="r-gp-row" v-for="i in 2" :key="i">
+          <div class="r-gp-img"><span>🛍</span></div>
+          <div class="r-gp-info"><div class="r-gp-title">轮播商品</div><div class="r-gp-price-row"><span class="r-gp-price">¥39.9</span></div></div>
+        </div>
+      </div>
     </template>
     <template v-else-if="comp.type === 'goods-show'">
-      <div class="r-show"><div class="r-show-img"><span>🛍 商品展播</span></div></div>
+      <div class="r-show"><span>🛍 商品展播海报</span></div>
     </template>
     <template v-else-if="comp.type === 'goods-tabs'">
-      <div class="r-tabs"><span class="r-tab active">全部</span><span class="r-tab">分类一</span><span class="r-tab">分类二</span></div>
-      <div class="r-gl-grid">
-        <div v-for="i in 2" :key="i" class="r-gl-card">
-          <div class="r-gl-img"><span>🛍</span></div>
-          <div class="r-gl-t">Tab商品示例</div>
-        </div>
+      <div class="r-tabs"><span class="r-tab active">选项一</span><span class="r-tab">选项二</span></div>
+      <div class="r-gp-row">
+        <div class="r-gp-img"><span>🛍</span></div>
+        <div class="r-gp-info"><div class="r-gp-title">Tab商品示例</div><div class="r-gp-price-row"><span class="r-gp-price">¥29.9</span></div></div>
       </div>
     </template>
   </div>
@@ -1467,8 +1476,31 @@ function chRadius(p, i) {
 .r-rank-price{font-size:11px;color:#F53F3F;margin-top:2px;}
 .r-swiper{height:100px;}
 .r-swiper-img{width:100%;height:100%;background:linear-gradient(135deg,#E8F3FF,#F2F3F5);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#86909C;}
-.r-show{height:120px;}
-.r-show-img{width:100%;height:100%;background:linear-gradient(135deg,#F53F3F22,#E8F3FF);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#86909C;}
+.r-show{height:120px;background:linear-gradient(135deg,#F53F3F22,#E8F3FF);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#86909C;}
+/* 全部商品/精品推荐 */
+.r-gab-head{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;}
+.r-gab-title{font-size:14px;font-weight:700;color:#1d2129;}
+.r-gab-sub{font-size:10px;color:#86909C;margin-top:1px;}
+.r-gab-more{font-size:11px;color:#86909C;}
+.r-gab-grid{display:flex;gap:6px;padding:0 4px;}
+.r-gab-card{flex:1;background:#fff;border-radius:6px;overflow:hidden;}
+.r-gab-img{width:100%;height:80px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.r-gab-name{font-size:11px;color:#1d2129;padding:4px 6px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.r-gab-row{display:flex;justify-content:space-between;align-items:center;padding:2px 6px 6px;}
+.r-gab-price{font-size:12px;color:#F53F3F;font-weight:600;}
+.r-gab-buy{font-size:9px;color:#fff;background:#F53F3F;padding:1px 6px;border-radius:8px;}
+/* 标题栏 */
+.r-gtitle{display:flex;align-items:center;justify-content:center;padding:8px 0 6px;}
+.r-gtitle span{font-size:14px;font-weight:700;color:#1d2129;}
+.r-gtitle-line{flex:1;height:1px;background:#e5e6eb;margin:0 8px;}
+/* 双列 */
+.r-gp-2col{display:flex;flex-wrap:wrap;gap:6px;}
+.r-gp-2col .r-gp-row{width:calc(50% - 3px);margin:0;flex-shrink:0;}
+.r-gp-2col .r-gp-img{width:40px;height:40px;}
+.r-rank-no{font-size:11px;font-weight:700;color:#F53F3F;margin-right:2px;}
+/* 轮播商品预览 */
+.r-swiper{display:flex;gap:6px;overflow:hidden;height:auto;}
+.r-swiper .r-gp-row{flex:1;margin:0;}
 .r-tabs{display:flex;gap:12px;margin-bottom:8px;}
 .r-tab{font-size:11px;color:#86909C;padding-bottom:2px;}
 .r-tab.active{color:#165DFF;font-weight:600;border-bottom:2px solid #165DFF;}

@@ -537,71 +537,87 @@
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
       </view>
 
-      <view v-else-if="c.type === 'goods-all' || c.type === 'goods-featured'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
-        <text v-if="c.props.title" class="dp-goodslist-title">{{ c.props.title }}</text>
-        <view class="dp-goodslist-grid">
-          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
-            <view class="dp-gl-card-img-wrap">
-              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" />
-              <view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view>
-            </view>
-            <view class="dp-gl-card-info">
-              <text class="dp-gl-card-t">{{ g.title }}</text>
-              <view class="dp-gl-price">
-                <template v-if="c.props.showPrice !== false"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></template>
-                <text v-if="c.props.showSales !== false" class="dp-gl-sales">已售{{ g.sales || 0 }}</text>
-              </view>
-            </view>
+      <view v-else-if="c.type === 'goods-all' || c.type === 'goods-featured'" class="dp-gab-wrap" :style="dpGoodsListStyle(c.props)">
+        <view class="dp-gab-head" v-if="c.props.title">
+          <view class="dp-gab-head-l">
+            <text class="dp-gab-title">{{ c.props.title }}</text>
+            <text v-if="c.props.subtitle" class="dp-gab-sub">{{ c.props.subtitle }}</text>
+          </view>
+          <view class="dp-gab-more" v-if="c.props.showMore !== false" @click="onJump(c.props.link||'')">
+            <text class="dp-gab-more-t">{{ c.props.moreText || '查看更多' }}</text>
+            <text class="dp-gab-more-arrow">›</text>
           </view>
         </view>
+        <swiper class="dp-gab-swiper" :indicator-dots="false" :autoplay="false" :circular="false">
+          <swiper-item v-for="(page,pi) in chunk(mallGoods[c.id]||[], c.props.perPage||2)" :key="pi">
+            <view class="dp-gab-grid">
+              <view v-for="g in page" :key="g.id" class="dp-gab-card" @click="goMallDetail(g.id)">
+                <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gab-img" />
+                <view v-else class="dp-gab-img dp-gl-img-empty"><text>🛍</text></view>
+                <text class="dp-gab-name">{{ g.title }}</text>
+                <view class="dp-gab-price-row">
+                  <text class="dp-gab-price">¥{{ yuanFmt(g.price) }}</text>
+                  <view class="dp-gab-buy" :style="{background:c.props.buyBg||'#F53F3F'}"><text>{{ c.props.buyText||'购买' }}</text></view>
+                </view>
+              </view>
+            </view>
+          </swiper-item>
+        </swiper>
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
       </view>
 
-      <!-- ew商品组件：商品排行（左图右文+排名） -->
+      <!-- ew商品组件：商品排行（标题栏+双列左图右文商品组） -->
       <view v-else-if="c.type === 'goods-rank'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
-        <text v-if="c.props.showTitle !== false && c.props.title" class="dp-goodslist-title" :style="{color:c.props.titleColor}">{{ c.props.title }}</text>
-        <view v-for="(g,i) in (mallGoods[c.id] || [])" :key="g.id" class="dp-rank-row" @click="goMallDetail(g.id)">
-          <text class="dp-rank-no" :class="{top:i<3}">{{ i+1 }}</text>
-          <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-rank-img" />
-          <view v-else class="dp-rank-img dp-gl-img-empty"><text>🛍</text></view>
-          <view class="dp-rank-info">
-            <text class="dp-gl-card-t">{{ g.title }}</text>
-            <view class="dp-gl-price" v-if="c.props.showPrice !== false"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></view>
+        <view class="dp-gtitle-bar">
+          <text class="dp-gtitle-text">{{ c.props.title || '商品排行' }}</text>
+          <view class="dp-gtitle-line"></view>
+        </view>
+        <view class="dp-gp-2col">
+          <view v-for="(g,i) in (mallGoods[c.id] || [])" :key="g.id" class="dp-gp-row" @click="goMallDetail(g.id)">
+            <text class="dp-rank-no" :class="{top:i<3}">{{ i+1 }}</text>
+            <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gp-img" />
+            <view v-else class="dp-gp-img dp-gl-img-empty"><text>🛍</text></view>
+            <view class="dp-gp-info">
+              <text class="dp-gp-title">{{ g.title }}</text>
+              <view class="dp-gp-price-row"><text class="dp-gp-price">¥{{ yuanFmt(g.price) }}</text></view>
+            </view>
           </view>
         </view>
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
       </view>
 
-      <!-- ew商品组件：猜你喜欢（双列） -->
+      <!-- ew商品组件：猜你喜欢（标题栏+双列左图右文商品组） -->
       <view v-else-if="c.type === 'goods-like'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
-        <text v-if="c.props.showTitle !== false && c.props.title" class="dp-goodslist-title" :style="{color:c.props.titleColor}">{{ c.props.title }}</text>
-        <view class="dp-goodslist-grid">
-          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
-            <view class="dp-gl-card-img-wrap">
-              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" />
-              <view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view>
-            </view>
-            <view class="dp-gl-card-info">
-              <text class="dp-gl-card-t">{{ g.title }}</text>
-              <view class="dp-gl-price">
-                <template v-if="c.props.showPrice !== false"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></template>
-                <text v-if="c.props.showSales !== false" class="dp-gl-sales">已售{{ g.sales || 0 }}</text>
-              </view>
+        <view class="dp-gtitle-bar">
+          <text class="dp-gtitle-text">{{ c.props.title || '猜你喜欢' }}</text>
+          <view class="dp-gtitle-line"></view>
+        </view>
+        <view class="dp-gp-2col">
+          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gp-row" @click="goMallDetail(g.id)">
+            <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gp-img" />
+            <view v-else class="dp-gp-img dp-gl-img-empty"><text>🛍</text></view>
+            <view class="dp-gp-info">
+              <text class="dp-gp-title">{{ g.title }}</text>
+              <view class="dp-gp-price-row"><text class="dp-gp-price">¥{{ yuanFmt(g.price) }}</text></view>
             </view>
           </view>
         </view>
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
       </view>
 
-      <!-- ew商品组件：轮播商品（横向+背景图） -->
+      <!-- ew商品组件：轮播商品（横向滚动，左图右文商品组样式卡片） -->
       <view v-else-if="c.type === 'goods-swiper'" class="dp-goods-swiper" :style="dpSwiperBoxStyle(c.props)">
         <scroll-view scroll-x class="dp-gsw-row" :show-scrollbar="false">
           <view class="dp-gsw-inner">
-            <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gsw-card" @click="goMallDetail(g.id)">
-              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gsw-img" />
-              <view v-else class="dp-gsw-img dp-gl-img-empty"><text>🛍</text></view>
-              <text class="dp-gsw-t">{{ g.title }}</text>
-              <text class="dp-gsw-price" :style="{color:c.props.priceColor||'#F53F3F'}">¥{{ yuanFmt(g.price) }}</text>
+            <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gsw-item" @click="goMallDetail(g.id)">
+              <view class="dp-gp-row">
+                <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gp-img" />
+                <view v-else class="dp-gp-img dp-gl-img-empty"><text>🛍</text></view>
+                <view class="dp-gp-info">
+                  <text class="dp-gp-title">{{ g.title }}</text>
+                  <view class="dp-gp-price-row"><text class="dp-gp-price">¥{{ yuanFmt(g.price) }}</text></view>
+                </view>
+              </view>
             </view>
           </view>
         </scroll-view>
@@ -617,17 +633,17 @@
         </view>
       </view>
 
-      <!-- ew商品组件：选项卡 -->
+      <!-- ew商品组件：选项卡（tab栏+单列左图右文商品组） -->
       <view v-else-if="c.type === 'goods-tabs'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
         <view class="dp-gtabs-bar">
           <text v-for="(t,ti) in (c.props.tabs||[])" :key="ti" class="dp-gtab" :class="{on: cTab===ti}" :style="cTab===ti?{color:c.props.activeColor||'#165DFF'}:{}" @click="cTab=ti">{{ t.title }}</text>
         </view>
-        <view class="dp-goodslist-grid">
-          <view v-for="g in (mallGoods[c.id+'_'+cTab] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
-            <view class="dp-gl-card-img-wrap"><image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" /><view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view></view>
-            <view class="dp-gl-card-info"><text class="dp-gl-card-t">{{ g.title }}</text>
-              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></view>
-            </view>
+        <view v-for="g in (mallGoods[c.id+'_'+cTab] || [])" :key="g.id" class="dp-gp-row" @click="goMallDetail(g.id)">
+          <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gp-img" />
+          <view v-else class="dp-gp-img dp-gl-img-empty"><text>🛍</text></view>
+          <view class="dp-gp-info">
+            <text class="dp-gp-title">{{ g.title }}</text>
+            <view class="dp-gp-price-row"><text class="dp-gp-price">¥{{ yuanFmt(g.price) }}</text></view>
           </view>
         </view>
       </view>
@@ -1249,6 +1265,13 @@ function loadMallComps() {
     }
   });
 }
+function chunk(arr, size) {
+  if (!arr || !arr.length) return [];
+  size = size || 2;
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 function goMallDetail(id) {
   onJump(`/pages/mall/detail?id=${id}${props.tenantId ? `&tid=${props.tenantId}` : ''}`);
 }
@@ -1859,10 +1882,37 @@ function openChannel(kind, p) {
 .dp-goods-swiper{overflow:hidden;}
 .dp-gsw-row{width:100%;}
 .dp-gsw-inner{display:flex;padding:0 12px;}
-.dp-gsw-card{width:120px;margin-right:10px;background:#fff;border-radius:8px;overflow:hidden;flex-shrink:0;}
-.dp-gsw-img{width:120px;height:120px;}
-.dp-gsw-t{display:block;font-size:12px;padding:4px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dp-gsw-price{display:block;font-size:13px;font-weight:600;padding:2px 6px 8px;}
+/* 全部商品/精品推荐：板块标题+swiper卡片 */
+.dp-gab-wrap{background:#f5f6f8;padding:8px 0 12px;}
+.dp-gab-head{display:flex;justify-content:space-between;align-items:center;padding:12px 12px 8px;}
+.dp-gab-head-l{display:flex;flex-direction:column;}
+.dp-gab-title{font-size:16px;font-weight:700;color:#1d2129;}
+.dp-gab-sub{font-size:12px;color:#86909C;margin-top:2px;}
+.dp-gab-more{display:flex;align-items:center;}
+.dp-gab-more-t{font-size:12px;color:#86909C;}
+.dp-gab-more-arrow{font-size:14px;color:#86909C;margin-left:2px;}
+.dp-gab-swiper{width:100%;height:auto;}
+.dp-gab-grid{display:flex;padding:0 8px;gap:8px;}
+.dp-gab-card{flex:1;background:#fff;border-radius:8px;overflow:hidden;padding-bottom:8px;}
+.dp-gab-img{width:100%;height:140px;display:block;}
+.dp-gab-name{display:block;font-size:13px;color:#1d2129;padding:6px 8px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dp-gab-price-row{display:flex;justify-content:space-between;align-items:center;padding:4px 8px 0;}
+.dp-gab-price{font-size:15px;color:#F53F3F;font-weight:600;}
+.dp-gab-buy{padding:3px 10px;border-radius:12px;}
+.dp-gab-buy text{font-size:11px;color:#fff;}
+/* 标题栏（排行/猜你喜欢） */
+.dp-gtitle-bar{display:flex;align-items:center;justify-content:center;padding:14px 0 8px;}
+.dp-gtitle-text{font-size:16px;font-weight:700;color:#1d2129;}
+.dp-gtitle-line{flex:1;height:1px;background:#e5e6eb;margin:0 12px;}
+/* 双列左图右文商品组 */
+.dp-gp-2col{display:flex;flex-wrap:wrap;padding:0 8px;gap:8px;}
+.dp-gp-2col .dp-gp-row{width:calc(50% - 4px);margin:0;flex-shrink:0;}
+.dp-gp-2col .dp-gp-img{width:60px;height:60px;}
+.dp-gp-2col .dp-rank-no{position:absolute;top:4px;left:4px;font-size:13px;font-weight:700;color:#fff;background:rgba(0,0,0,0.3);width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;}
+.dp-gp-2col .dp-rank-no.top{background:#F53F3F;}
+/* 轮播商品：横向滚动左图右文卡片 */
+.dp-gsw-item{width:280px;margin-right:8px;flex-shrink:0;}
+.dp-gsw-item .dp-gp-row{margin:0;}
 .dp-goods-show{display:flex;align-items:center;justify-content:center;}
 .dp-gs-mask{position:absolute;inset:0;background:rgba(0,0,0,0.25);}
 .dp-gs-text{position:relative;z-index:1;text-align:center;color:#fff;}
