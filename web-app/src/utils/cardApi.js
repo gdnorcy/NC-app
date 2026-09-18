@@ -1,37 +1,12 @@
 // 智能名片 API 封装
+import { createApiClient } from './apiClient.js';
+
 const BASE_URL = 'http://localhost:3000/api/card';
 const MARKET_BASE_URL = 'http://localhost:3000/api/card-market';
 const PAYMENT_BASE_URL = 'http://localhost:3000/api/payment';
 
-function request(url, method = 'GET', data = {}) {
-  return new Promise((resolve, reject) => {
-    const token = uni.getStorageSync('card_token');
-    uni.request({
-      url: url.startsWith('http') ? url : BASE_URL + url,
-      method,
-      data,
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-      },
-      success: (res) => {
-        if (res.statusCode === 401) {
-          uni.removeStorageSync('card_token');
-          uni.removeStorageSync('card_user');
-          uni.reLaunch({ url: '/pages/card/login' });
-          reject(new Error('未登录'));
-          return;
-        }
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data);
-        } else {
-          reject(new Error(res.data?.error || '请求失败'));
-        }
-      },
-      fail: (err) => reject(err),
-    });
-  });
-}
+// 公共请求层（token 注入 / 401 跳登录 / 响应解包），行为与原 request 完全一致
+const { request } = createApiClient(BASE_URL);
 
 // 支付API请求（使用card_token认证）
 function paymentRequest(url, method = 'GET', data = {}) {

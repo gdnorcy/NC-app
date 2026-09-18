@@ -135,7 +135,7 @@ describe('商城 C 端 API（/api/mall）', () => {
     cart = await fetch(`${baseUrl}/api/mall/cart`, { headers: auth() }).then(json);
     assert.equal(cart.list.length, 2);
     const skuItem = cart.list.find((i) => i.skuId === sku.id);
-    assert.equal(skuItem.price, 120); // sku 价
+    assert.equal(skuItem.price, 12000); // sku 价（元→分）
 
     // 清空
     r = await fetch(`${baseUrl}/api/mall/cart`, { method: 'DELETE', headers: auth() });

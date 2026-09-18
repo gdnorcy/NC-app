@@ -45,9 +45,9 @@ export function createMallRouter(db) {
     next();
   }
 
-  // C 端变体 requireGoodsApp：租户 = 登录态优先，其次 ?tid=（分享/装修嵌入）
+  // C 端变体 requireGoodsApp：租户 = URL ?tid=（分享/装修嵌入优先），其次登录态
   function requireGoodsApp(req, res, next) {
-    const cid = req.customerId || Number(req.query.tid) || null;
+    const cid = Number(req.query.tid) || req.customerId || null;
     if (!cid || !hasSolution(db, cid, 'goods')) {
       return res.status(403).json({ error: '未开通「商品管理」应用，请联系平台管理员开通' });
     }
@@ -159,7 +159,7 @@ export function createMallRouter(db) {
           id: r.id, goodsId: r.goods_id, skuId: r.sku_id, quantity: r.quantity,
           title: r.title, thumb: r.thumb, specMode: r.spec_mode, type: r.type,
           specJson: r.spec_json || '{}',
-          price: r.sku_id ? r.sku_price : r.goods_price,
+          price: Math.round((r.sku_id ? r.sku_price : r.goods_price) * 100),
           stock: r.sku_id ? r.sku_stock : r.goods_stock,
           onShelf: r.goods_status === 'sell',
         })),

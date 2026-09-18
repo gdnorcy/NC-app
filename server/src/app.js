@@ -45,6 +45,10 @@ export function createApp({ db, deps = {} } = {}) {
   const database = db || createDb();
   const app = express();
 
+  // API 响应禁用 ETag/304 协商缓存：uni.request(H5 XHR) 遇到 304 会拿到空 body，
+  // 导致「接口 200/304 但页面数据为空」（购物车/门店等 GET 均受影响），API 数据频繁变更不该走协商缓存
+  app.disable('etag');
+
   // 微信回调需要原始XML文本，必须在express.json之前
   app.use('/api/channel/wx-callback', express.text({ type: '*/xml' }));
   app.use('/api/channel/wx-message', express.text({ type: '*/xml' }));

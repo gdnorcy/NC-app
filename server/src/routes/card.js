@@ -24,7 +24,7 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   router.post('/auth/wx-login', async (req, res) => {
     try {
-      const { code, parentId } = req.body;
+      const { code, parentId, tid } = req.body;
       if (!code) return res.status(400).json({ error: 'code不能为空' });
 
       // 调用微信code2session
@@ -49,6 +49,22 @@ export function createCardRouter(db, wxService) {
           'INSERT INTO platform_user (openid, unionid, nickname, avatar) VALUES (?,?,?,?)'
         ).run(openid, unionid, '微信用户', '');
         user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(result.lastInsertRowid);
+      }
+
+      // H5 演示/无微信环境：URL 携带 tid 时，将无归属用户自动绑定到该租户（建 enterprise + 写 customer_id）
+      // 使 mock 登录用户能正常参与购物车/下单（租户上下文一致），真实微信登录不受影响。
+      if (!user.customer_id && Number(tid)) {
+        const cid = Number(tid);
+        const ent = db.prepare(
+          "SELECT id FROM tenant_enterprises WHERE customer_id = ? AND name = ?"
+        ).get(cid, 'H5演示用户_' + user.id);
+        const entId = ent ? ent.id : db.prepare(
+          "INSERT INTO tenant_enterprises (customer_id, name) VALUES (?, ?)"
+        ).run(cid, 'H5演示用户_' + user.id).lastInsertRowid;
+        db.prepare('UPDATE platform_user SET enterprise_id = ?, customer_id = ? WHERE id = ?')
+          .run(entId, cid, user.id);
+        user.customer_id = cid;
+        user.enterprise_id = entId;
       }
 
       // 生成token

@@ -282,6 +282,37 @@ npm run test:frontend
 2. **验证前清 SW + 缓存破坏参数**：`navigator.serviceWorker.getRegistrations()→unregister` + `caches.keys()→delete`；刷新用带 `&v=随机` 的 URL 强制重新请求 HTML，并核对 `document.querySelectorAll('script')` 的 src 是否为新哈希。
 3. **判断"代码改了没生效"**：先看 script src 哈希是否等于最新构建产物，不等 = 缓存问题，先清缓存再排查逻辑。
 
+## 问题10：API 响应 ETag/304 导致 uni.request 拿到空 body，页面数据静默为空（2026-09-18）
+
+**现象**：商城 C 端购物车/门店列表：curl 接口 200 返回 1 条，页面却显示「购物车还是空的/暂无可用门店」；服务端日志同 URL 交替出现 `200` 与 `304`。页面加载的 chunk 哈希是最新的，排查半天无果。
+
+**根因**：express 默认对所有响应生成 ETag，GET 接口第二次被浏览器带 `If-None-Match` 请求 → 返回 304（无 body）；uni.request（H5 为 XHR）对 304 处理不完整，`res.data` 为空且 statusCode 判定走非 2xx 分支或静默空，页面 `res.list || []` 得到空数组——接口「成功」但数据为空，且无任何报错。
+
+**预防规范（通用）**：
+1. **API 响应必须禁用 ETag**：`createApp` 内 `app.disable('etag')`（已实施于 server/src/app.js）。API 数据频繁变更，不应走协商缓存；静态资源另有 Cache-Control 不受影响。
+2. **「接口 200 但页面空」排查顺序**：先 curl 二次确认是否出现 `304` → 再核对页面加载 chunk 哈希（问题9）→ 再查响应结构/catch 吞错（问题5）。
+3. **uni.request 对 304 的不信任**：任何「服务端 curl 有数据、页面无数据」的组合，先怀疑 304/缓存，再怀疑取数逻辑。
+
+## 问题11：uni H5 storage 与 localStorage 直写不同步，页面模块读不到登录态（2026-09-18）
+
+**现象**：用 `localStorage.setItem('card_token', token)` 注入登录态后，页面 ensureLogin 仍判未登录、不发请求（服务端日志无该请求）；同一浏览器上下文内直接 `fetch` 却 200 有数据。
+
+**根因**：uni-app H5 的 `uni.getStorageSync` 内部对 localStorage 有内存缓存/包装，绕过 uni API 直接写 localStorage 时页面模块读到的仍是旧值或空；反之 uni 写入后直读 localStorage 也可能是包装格式。
+
+**预防规范（通用）**：
+1. **读登录态统一走 `getToken()`（mallUtil.js）**：H5 端 `localStorage.getItem('card_token')` 直读优先（token 就是原始字符串），小程序端 fallback `uni.getStorageSync`。禁止页面再裸写 `uni.getStorageSync('card_token')` 判断登录态（小程序可用但 H5 埋雷）。
+2. **调试注入登录态**：`localStorage.setItem('card_token', token)` 后必须整页刷新（location.href）让页面重新加载；同 tab hash 导航页面模块不重新初始化 storage 缓存。
+3. **「登录态判断失败但 fetch 正常」= storage 不同步**，先换成 getToken() 直读再排查业务逻辑。
+
+# 商城 C 端一期口径（2026-09-18）
+
+- **金额口径（强制）**：商品列表/详情接口 price=元；购物车 cart 接口 price=分（`Math.round((sku|goods 单价)*100)`）；订单/支付 amount=分。前端统一 `fen2yuan`（分→元）/`yuanFmt`（元→元字符串），禁止混用。
+- **下单后清购物车**：checkout 提交订单 + mockPay 成功后，按 `cartIds`（URL 参数）逐条 `DELETE /api/mall/cart/:id`（直接购买路径 cartIds 为空跳过）。
+- **配送方式取第一个商品详情 delivery**：checkout 购物车路径下单后需 `getGoodsDetail(items[0].goodsId)` 拉取配送设置（express/citySend/takeSelf），自提模式自动切 `deliveryMode='pickup'`，与商品详情展示一致。
+- **自提门店数据源 = store 表**（customer_id + status=1），非 goods_store；演示租户 tid=1 已建「东莞同城通·旗舰店」（id=3）。
+- **演示数据**：goods id=11 普通（¥19.9）、id=12 多规格（sku1 大份 ¥129 / sku2 小份 ¥88）；mock 登录 code `h5_mall_e2e_1789730119908` 命中 uid 99007（customer_id=1）。
+- **C 端验证前必做**：清 SW + 缓存破坏参数（问题9）+ 确认 script 哈希最新 + 确认接口无 304（问题10），否则白排查。
+
 ## 设计中心首页跳转按应用维度化（2026-09-18 新增，通用强制）
 
 - **存储**：`tenant_home_config` 的 `home_pages`（TEXT JSON，`{appCode: 启动页路径}`）按应用维度存各行业应用启动页；旧 `home_page` 列保留并同步 = `homePages.card`（C 端旧字段兼容）。`'card'`/空值键不落库 = 该应用展示默认首页（名片默认 DIY 装修首页「首页」开关生效）。
