@@ -37,6 +37,7 @@ import { createPaymentRouter } from './routes/payment.js';
 import { createDistributionRouter } from './routes/distribution.js';
 import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
+import { hasSolution, tenantState } from './tenant.js';
 
 export function createApp({ db, deps = {} } = {}) {
   const database = db || createDb();
@@ -227,38 +228,94 @@ export function createApp({ db, deps = {} } = {}) {
     });
   }
 
-  // 智能名片H5构建产物
+  // ============ 行业应用公开入口（独立首页方案：每个应用一个 URL 前缀） ============
+  // 登记表：路径前缀 → { code: 应用 code, name: 应用名, dist: 产物目录, index: 入口文件名 }
+  // 未来新增行业应用（/mall、/content、/live…）只需在此登记 + 产物就位。
+  // 未开通校验：仅当顶层 query 带 tid 且租户可判定时生效（未开通 → 统一「未开通」提示页）；
+  // 无 tid / 预览签名(exp+sig) / 静态资源一律放行（兼容 hash 内 tid 的旧链接）。
+  const appEntries = [];
+
+  const notOpenedPage = (entry) => `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"><title>应用未开通</title></head>
+<body style="margin:0;background:#F7F8FA;font-family:'PingFang SC','Segoe UI',Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+<div style="text-align:center;padding:32px;">
+<svg width="56" height="56" viewBox="0 0 24 24" fill="none" style="display:block;margin:0 auto 16px;">
+<rect x="5" y="11" width="14" height="9" rx="2" stroke="#165DFF" stroke-width="1.6"/>
+<path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="#165DFF" stroke-width="1.6"/>
+</svg>
+<h1 style="font-size:18px;color:#1D2129;margin:0 0 8px;">「${entry.name}」未开通</h1>
+<p style="font-size:14px;color:#86909C;margin:0 0 24px;line-height:1.6;">该应用尚未在当前租户开通，请联系平台管理员，<br/>或前往应用中心开通后使用。</p>
+<a href="/customer#/apps" style="display:inline-block;background:#165DFF;color:#fff;text-decoration:none;font-size:14px;padding:10px 24px;border-radius:8px;">前往应用中心</a>
+</div></body></html>`;
+
+  // 智能名片H5构建产物（/card）
   const cardDist = path.join(config.publicDir, 'card');
   if (fs.existsSync(cardDist)) {
-    app.use('/card/assets', express.static(path.join(cardDist, 'assets'), { maxAge: '1y' }));
-    app.use('/card/static', express.static(path.join(cardDist, 'static'), { maxAge: '1y' }));
+    appEntries.push({ prefix: '/card', code: 'card', name: '智能名片', dist: cardDist, index: 'index.html' });
+  }
+
+  // 360全景查看端（/pano）：vite 构建产物 base=/pano/，SW 注册 /pano/sw.js
+  const indexHtml = path.join(config.webDistDir, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    appEntries.push({ prefix: '/pano', code: 'panorama', name: '360全景', dist: config.webDistDir, index: 'index.html' });
+  }
+
+  // 统一入口校验（先于所有 express.static 注册，确保带 tid 的 HTML 请求先经过未开通判定）
+  for (const entry of appEntries) {
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
-      if (req.path === '/card' || req.path.startsWith('/card/')) {
-        res.set('Cache-Control', 'no-cache');
-        return res.sendFile(path.join(cardDist, 'index.html'));
+      if (req.path !== entry.prefix && !req.path.startsWith(entry.prefix + '/')) return next();
+      if (req.path.startsWith(entry.prefix + '/assets') || req.path.startsWith(entry.prefix + '/static')) return next();
+      if (req.query.exp && req.query.sig) return next();
+      const tid = Number(req.query.tid);
+      if (tid) {
+        const state = tenantState(database, tid, { ctx: 'mini' });
+        if (state.missing || state.expired) {
+          res.status(403).set('Cache-Control', 'no-cache');
+          return res.send(notOpenedPage(entry));
+        }
+        if (!hasSolution(database, tid, entry.code)) {
+          res.status(403).set('Cache-Control', 'no-cache');
+          return res.send(notOpenedPage(entry));
+        }
       }
       next();
     });
   }
 
-  // 生产环境：托管 web 构建产物，SPA 路由回退到对应入口页
-  const indexHtml = path.join(config.webDistDir, 'index.html');
-  const oldAdminHtml = path.join(config.webDistDir, 'admin.html');
+  // 静态资源（强缓存）
+  for (const entry of appEntries) {
+    app.use(`${entry.prefix}/assets`, express.static(path.join(entry.dist, 'assets'), { maxAge: '1y' }));
+    if (fs.existsSync(path.join(entry.dist, 'static'))) {
+      app.use(`${entry.prefix}/static`, express.static(path.join(entry.dist, 'static'), { maxAge: '1y' }));
+    }
+  }
+  // 全景其余静态文件（sw.js、favicon 等，HTML 不缓存）
   if (fs.existsSync(indexHtml)) {
-    app.use(
-      express.static(config.webDistDir, {
-        setHeaders(res, filePath) {
-          if (filePath.endsWith('.html')) res.set('Cache-Control', 'no-cache');
-        },
-      })
-    );
+    app.use('/pano', express.static(config.webDistDir, {
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('.html')) res.set('Cache-Control', 'no-cache');
+      },
+    }));
+    // 旧 SW 注册地址兼容：/sw.js → /pano/sw.js
+    app.get('/sw.js', (req, res) => res.redirect(301, '/pano/sw.js'));
+    // 根路径兼容：旧全景入口 / 迁移到 /pano（保留 query，如 ?plan=1&scene=N）
+    app.use((req, res, next) => {
+      if (req.method === 'GET' && (req.path === '/' || req.path === '/index.html')) {
+        const q = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+        return res.redirect(301, '/pano' + q);
+      }
+      next();
+    });
+  }
+
+  // 统一入口 fallback（静态资源已由 express.static 处理，走到这里的是 SPA 路由/HTML）
+  for (const entry of appEntries) {
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
-      if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
-      if (req.path.startsWith('/admin') || req.path.startsWith('/customer')) return next();
-      if (req.path.startsWith('/card')) return next();
-      return res.sendFile(indexHtml);
+      if (req.path !== entry.prefix && !req.path.startsWith(entry.prefix + '/')) return next();
+      res.set('Cache-Control', 'no-cache');
+      return res.sendFile(path.join(entry.dist, entry.index));
     });
   }
 

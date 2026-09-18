@@ -48,8 +48,14 @@ test('健康检查', async () => {
   assert.equal(res.body.ok, true);
 });
 
-test('SPA 托管：/ 返回展示端入口页', async () => {
+test('SPA 托管：/ 301 到 /pano（行业应用独立首页，全景迁移）', async () => {
   const res = await request(app).get('/');
+  assert.equal(res.status, 301);
+  assert.equal(res.headers.location, '/pano');
+});
+
+test('SPA 托管：/pano/ 返回展示端入口页', async () => {
+  const res = await request(app).get('/pano/');
   assert.equal(res.status, 200);
   assert.match(res.text, /INDEX_ENTRY/);
 });

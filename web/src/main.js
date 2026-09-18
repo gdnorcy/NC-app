@@ -6,7 +6,7 @@ import { track } from './analytics.js';
 // 生产模式注册 Service Worker：全景图/静态资源缓存，秒开与离线可用
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/pano/sw.js').catch(() => {});
   });
 }
 

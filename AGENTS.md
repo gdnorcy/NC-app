@@ -1259,3 +1259,31 @@ cate_style(1/2) / detail_style(1/2/3) / goods_iscard(1开2关) / share_style(1/2
 3. **回显兜底**：JSON 数组字段回显时做空值兜底（如佣金等级为空 → 补「默认等级」默认行），老数据兼容。
 4. **排查顺序**：对每个「带 tab/分组 + radio/select 配置」的编辑页，逐个 tab 点开，逐字段检查对标是否有联动；检查对标脚本 `grep -n "change\|show()\|hide()"` 找联动点。
 5. **交付前自查**：浏览器实测每个联动分支——主字段每个取值都点一遍，确认从属字段的显示/隐藏/单位符合对标；保存后 reload 验证回显。
+
+# 行业应用公开入口分发规范（2026-09-18 新增，独立首页方案）
+
+## 架构：登记表驱动（server/src/app.js）
+
+- **appEntries 登记表**：`{ prefix, code, name, dist, index }`，每个行业应用一个 URL 前缀。当前已登记：`/card`（智能名片，server/public/card）、`/pano`（360全景，项目 web/dist，vite `base:'/pano/'`，SW 注册 `/pano/sw.js`）。**未来新增行业应用只需登记 + 产物就位**，无需改中间件。
+- **统一校验中间件**（注册于**所有 express.static 之前**，顺序关键）：GET + 前缀命中 + 非 assets/static + 无预览签名(exp+sig) + **顶层 query 带 tid** → 租户不可判定（missing/expired）或 `!hasSolution(tid, entry.code)` → 403「未开通」提示页（含前往应用中心链接 `/customer#/apps`）。
+- **放行契约**：无 tid（兼容 hash 内 tid 旧链接，SPA 自行兜底）/ 预览签名 / 静态资源一律放行。
+- **静态资源**：`{prefix}/assets`、`{prefix}/static` 强缓存 1y；其余（sw.js 等）static + HTML no-cache。
+- **旧地址兼容 301**：`/`、`/index.html` → `/pano`（**原 query 透传**，如 `?plan=1&scene=3`）；`/sw.js` → `/pano/sw.js`。
+- **租户解析演进**：一期顶层 `?tid=`；二期按子域名 Host 解析（演进式，接口契约不变）。
+
+## 测试
+
+- `server/test/app-entry.test.js` 11 用例（根 301 透传 query / sw.js 301 / SPA fallback / assets 放行 / tid 已开通 200 / 未开通 403 文案 / 不存在 403 / /card 无 tid 200 / /card 未开通 403 / 预览签名放行 / 非入口不拦截）。
+- 测试构造：临时 dist（webDistDir 指向 temp，含 index.html+assets）、临时 DB（projects 行开通 demo 方案=全应用 vs 未开通）。
+- **node --test 下 before 挂起的两个坑**：① 固定端口可能被占 → 用 `app.listen(0, '127.0.0.1', resolve)` + `server.on('error', reject)` 随机端口；② fetch 默认**跟随 301**，断言重定向必须 `{ redirect: 'manual' }` 否则看到的是跟随后的 200、location 为 null（曾误判"重定向没生效"）。
+
+## 问题11：colExists 对不存在表执行 PRAGMA 抛错，导致迁移崩溃 + 后端测试 207 个预存失败（2026-09-18）
+
+**现象**：任意新库 `createDb()` 崩溃 `no such table: content_comment`，后端全量测试 207 个失败（全部 hookFailed，表面看"环境挂了"）。
+
+**根因**：`migrate(db)` 在 `seedContent(db)`（content_* 建表，含 content_comment）**之前**执行；`colExists` 直接 `PRAGMA table_info(表)`，对不存在的表 node:sqlite 抛错，且错误发生在每个测试的 before → 大面积 cancelled。
+
+**预防规范（通用）**：
+1. **`colExists` 表不存在时按「列已存在」处理（返回 true）**：迁移语义是"若列缺失则补列"，表未建时该表的建表语句（SCHEMA 或后置 seed）已含目标列，无需 ALTER；返回 false 反而会触发 `ALTER TABLE` 对不存在表执行再次崩溃。禁止直接对不存在表 PRAGMA/ALTER。
+2. **建表顺序**：`db.exec(SCHEMA)` → migrate → 后置 seed 建表（seedContent 等）。migrate 引用的表若由后置 seed 建，必须走幂等防御（colExists 表不存在跳过），不得假设"表一定已建"。
+3. **全量测试大面积 hookFailed/cancelled 时**：先看单个 before 的真实错误（`grep -A8 hookFailed`），同类失败（同一错误码/同一条 SQL）多为共享根因，逐个文件修根因而不是当环境问题跳过。
