@@ -3,7 +3,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
-import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword, addOperationLog } from '../db.js';
+import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken, hashPassword, addOperationLog, resolveMemberRoles, memberIsTenantAdmin } from '../db.js';
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
@@ -590,51 +590,7 @@ router.get('/orders', requireTenant, (req, res) => {
   res.json({ orders });
 });
 
-// 成员管理（仅管理员）
-router.get('/members', requireTenant, requireTenantAdmin, (req, res) => {
-  const members = db
-    .prepare('SELECT * FROM users WHERE customer_id = ? ORDER BY id ASC')
-    .all(req.customerId)
-    .map(toUser);
-  res.json({ members });
-});
-
-// 新增成员（仅管理员）
-router.post('/members', requireTenant, requireTenantAdmin, (req, res) => {
-  const { username, password, phone, role } = req.body;
-  if (!username || !password) return res.status(400).json({ error: '用户名和密码必填' });
-  if (password.length < 6) return res.status(400).json({ error: '密码至少 6 位' });
-  const memberRole = role === 'tenant_member' ? 'tenant_member' : 'tenant_member';
-  const { enterpriseId } = req.body || {};
-  let entId = null;
-  if (enterpriseId) {
-    const ent = db.prepare('SELECT id FROM tenant_enterprises WHERE id = ? AND customer_id = ?').get(Number(enterpriseId), req.customerId);
-    if (!ent) return res.status(400).json({ error: '绑定企业不存在' });
-    entId = ent.id;
-  }
-  const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (exists) return res.status(400).json({ error: '用户名已存在' });
-  const { hash, salt } = hashPassword(password);
-  const info = db
-    .prepare(
-      'INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id, enterprise_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    )
-    .run(username, phone || null, hash, salt, memberRole, 'active', req.customerId, entId);
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
-  auditCust(db, req, 'create_member', 'user', user.id, `新增成员: ${username}${entId ? '(企业管理员)' : ''}`);
-  res.json({ user: toUser(user) });
-});
-
-// 删除成员（仅管理员，不能删自己）
-router.delete('/members/:id', requireTenant, requireTenantAdmin, (req, res) => {
-  const id = Number(req.params.id);
-  if (id === req.user.id) return res.status(400).json({ error: '不能删除自己' });
-  const member = db.prepare('SELECT * FROM users WHERE id = ? AND customer_id = ?').get(id, req.customerId);
-  if (!member) return res.status(404).json({ error: '成员不存在' });
-  db.prepare('DELETE FROM users WHERE id = ?').run(id);
-  auditCust(db, req, 'delete_member', 'user', id, `删除成员: ${member.username}`);
-  res.json({ ok: true });
-});
+// 成员管理（仅管理员）—— 已迁移至统一账号体系（accounts + tenant_members），见文件尾部 /members 路由
 
 // 账号设置：修改密码
 router.post('/change-password', requireTenant, (req, res) => {
@@ -1526,6 +1482,265 @@ router.get('/card/trends', requireTenant, (req, res) => {
       return res.send(member.buildScoreLogsCsv(all.logs));
     }
     res.json(member.listScoreLogs(req.customerId, f));
+  });
+
+  // ============================================================
+  // 统一账号体系：成员管理（accounts + tenant_members + roles）
+  // ============================================================
+
+  // —— 权限点树（分配权限弹窗用：按应用分组的一/二级菜单）——
+  router.get('/roles/permission-tree', requireTenant, requireTenantAdmin, (req, res) => {
+    const apps = db
+      .prepare(
+        `SELECT a.code, a.name FROM apps a ORDER BY a.sort_order, a.id`
+      )
+      .all();
+    const menus = db
+      .prepare(
+        `SELECT m.id, m.app_id, m.module, m.key, m.label FROM app_menus m ORDER BY m.sort_order, m.id`
+      )
+      .all();
+    const tree = apps
+      .map((a) => ({
+        code: a.code,
+        name: a.name,
+        menus: menus.filter((m) => m.module === a.code || a.code === 'panorama')
+          .map((m) => ({ key: m.key, label: m.label })),
+      }))
+      .filter((a) => a.menus.length > 0);
+    res.json({ tree });
+  });
+
+  // —— 角色列表（内置 + 租户自定义，含权限点回显）——
+  router.get('/roles', requireTenant, requireTenantAdmin, (req, res) => {
+    const roles = db
+      .prepare(
+        `SELECT r.*, (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS perm_count,
+                (SELECT COUNT(*) FROM member_roles mr WHERE mr.role_id = r.id) AS member_count
+         FROM roles r WHERE r.tenant_id = 0 OR r.tenant_id = ?
+         ORDER BY r.tenant_id, r.id`
+      )
+      .all(req.customerId);
+    const withPerms = roles.map((r) => ({
+      ...r,
+      perms: db.prepare('SELECT app_code, menu_key FROM role_permissions WHERE role_id = ?').all(r.id),
+    }));
+    res.json({ roles: withPerms });
+  });
+
+  // —— 新建角色（内置禁建；租户自定义 scope=tenant|store）——
+  router.post('/roles', requireTenant, requireTenantAdmin, (req, res) => {
+    const { name, scope } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: '请输入角色名称' });
+    const s = scope === 'store' ? 'store' : 'tenant';
+    const r = db
+      .prepare('INSERT INTO roles (tenant_id, code, name, scope, builtin) VALUES (?, ?, ?, ?, 0)')
+      .run(req.customerId, 'tmp', String(name).trim(), s);
+    db.prepare("UPDATE roles SET code = 'custom' || id WHERE id = ?").run(r.lastInsertRowid);
+    const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(r.lastInsertRowid);
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'role_create', targetType: 'role', targetId: role.id, detail: `新建角色: ${role.name}`, ip: req.ip });
+    res.json({ role });
+  });
+
+  // —— 编辑角色（内置只允许改名称）——
+  router.put('/roles/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(req.params.id);
+    if (!role || (role.tenant_id !== 0 && role.tenant_id !== req.customerId)) {
+      return res.status(404).json({ error: '角色不存在' });
+    }
+    const { name, scope } = req.body || {};
+    if (name && String(name).trim()) {
+      db.prepare('UPDATE roles SET name = ?, updated_at = datetime("now") WHERE id = ?').run(String(name).trim(), role.id);
+    }
+    if (scope && (scope === 'tenant' || scope === 'store') && role.builtin === 0) {
+      db.prepare("UPDATE roles SET scope = ?, updated_at = datetime('now') WHERE id = ?").run(scope, role.id);
+    }
+    res.json({ ok: true });
+  });
+
+  // —— 删除角色（内置禁删）——
+  router.delete('/roles/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(req.params.id);
+    if (!role || (role.tenant_id !== 0 && role.tenant_id !== req.customerId)) {
+      return res.status(404).json({ error: '角色不存在' });
+    }
+    if (role.builtin === 1) return res.status(403).json({ error: '内置角色不可删除' });
+    db.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(role.id);
+    db.prepare('DELETE FROM member_roles WHERE role_id = ?').run(role.id);
+    db.prepare('DELETE FROM roles WHERE id = ?').run(role.id);
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'role_delete', targetType: 'role', targetId: role.id, detail: `删除角色: ${role.name}`, ip: req.ip });
+    res.json({ ok: true });
+  });
+
+  // —— 分配角色权限点（整体覆盖，perms: [{app, key}]）——
+  router.put('/roles/:id/permissions', requireTenant, requireTenantAdmin, (req, res) => {
+    const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(req.params.id);
+    if (!role || (role.tenant_id !== 0 && role.tenant_id !== req.customerId)) {
+      return res.status(404).json({ error: '角色不存在' });
+    }
+    const { perms } = req.body || {};
+    const list = Array.isArray(perms) ? perms : [];
+    db.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(role.id);
+    const ins = db.prepare('INSERT OR IGNORE INTO role_permissions (role_id, app_code, menu_key) VALUES (?, ?, ?)');
+    for (const p of list) {
+      if (p && p.app && p.key) ins.run(role.id, p.app, p.key);
+    }
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'role_perm', targetType: 'role', targetId: role.id, detail: `分配权限 ${list.length} 项`, ip: req.ip });
+    res.json({ ok: true });
+  });
+
+  // —— 成员列表（含角色标签 / 门店负责人标记 / 账号信息）——
+  router.get('/members', requireTenant, requireTenantAdmin, (req, res) => {
+    const members = db
+      .prepare(
+        `SELECT tm.id, tm.tenant_id, tm.account_id, tm.name, tm.nickname, tm.avatar, tm.status, tm.identities, tm.created_at,
+                a.username, a.phone, a.need_reset,
+                s.name AS store_name, s.id AS store_id
+         FROM tenant_members tm
+         JOIN accounts a ON a.id = tm.account_id
+         LEFT JOIN store s ON s.owner_member_id = tm.id
+         WHERE tm.tenant_id = ?
+         ORDER BY tm.id DESC`
+      )
+      .all(req.customerId);
+    const withRoles = members.map((m) => ({
+      ...m,
+      roles: resolveMemberRoles(db, m.id),
+      isTenantAdmin: memberIsTenantAdmin(db, m.id),
+    }));
+    res.json({ members: withRoles });
+  });
+
+  // —— 当前登录成员信息（角色/权限点/门店）——
+  router.get('/members/me', requireTenant, (req, res) => {
+    if (!req.user.memberId) {
+      return res.json({ member: null, roles: [], perms: [], storeIds: [], isTenantAdmin: false });
+    }
+    const member = db
+      .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
+      .get(req.user.memberId, req.customerId);
+    if (!member) return res.json({ member: null, roles: [], perms: [], storeIds: [], isTenantAdmin: false });
+    const roles = resolveMemberRoles(db, member.id);
+    const isTenantAdmin = roles.some((r) => r.code === 'tenant_admin');
+    let perms = [];
+    if (!isTenantAdmin) {
+      perms = db
+        .prepare(
+          `SELECT rp.app_code, rp.menu_key FROM role_permissions rp
+           WHERE rp.role_id IN (SELECT role_id FROM member_roles WHERE member_id = ?)`
+        )
+        .all(member.id);
+    }
+    const stores = db
+      .prepare('SELECT id, name FROM store WHERE owner_member_id = ?')
+      .all(member.id);
+    res.json({ member, roles, perms, storeIds: stores.map((s) => s.id), isTenantAdmin });
+  });
+
+  // —— 添加成员（账号不存在则自动创建）——
+  router.post('/members', requireTenant, requireTenantAdmin, (req, res) => {
+    const { name, phone, username, password, identities, roleIds } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: '请输入成员姓名' });
+    const loginName = String(username || phone || '').trim();
+    if (!loginName) return res.status(400).json({ error: '请填写登录账号或手机号' });
+    // 账号存在性（accounts 与 users 双查，避免撞名）
+    let account = db.prepare('SELECT * FROM accounts WHERE username = ? OR phone = ?').get(loginName, loginName);
+    if (!account) {
+      if (!password || String(password).length < 6) return res.status(400).json({ error: '新账号需设置至少 6 位密码' });
+      const { hash, salt } = hashPassword(String(password));
+      const r = db
+        .prepare('INSERT INTO accounts (username, phone, password_hash, password_salt, status) VALUES (?, ?, ?, ?, ?)')
+        .run(loginName, /^1\d{10}$/.test(loginName) ? loginName : null, hash, salt, 'active');
+      account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(r.lastInsertRowid);
+    } else if (db.prepare('SELECT 1 FROM tenant_members WHERE tenant_id = ? AND account_id = ?').get(req.customerId, account.id)) {
+      return res.status(409).json({ error: '该账号已在本租户存在成员身份' });
+    }
+    const r = db
+      .prepare('INSERT INTO tenant_members (tenant_id, account_id, name, nickname, status, identities) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(req.customerId, account.id, String(name).trim(), String(name).trim(), 'active', JSON.stringify(Array.isArray(identities) ? identities : ['backend_admin']));
+    const member = db.prepare('SELECT * FROM tenant_members WHERE id = ?').get(r.lastInsertRowid);
+    const insMr = db.prepare('INSERT OR IGNORE INTO member_roles (member_id, role_id) VALUES (?, ?)');
+    for (const rid of Array.isArray(roleIds) ? roleIds : []) insMr.run(member.id, rid);
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'member_create', targetType: 'member', targetId: member.id, detail: `添加成员: ${member.name}`, ip: req.ip });
+    res.json({ member });
+  });
+
+  // —— 编辑成员（姓名/手机/身份/状态；手机号同步 accounts）——
+  router.put('/members/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    const member = db
+      .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
+      .get(req.params.id, req.customerId);
+    if (!member) return res.status(404).json({ error: '成员不存在' });
+    const { name, phone, identities, status } = req.body || {};
+    if (name && String(name).trim()) {
+      db.prepare('UPDATE tenant_members SET name = ?, nickname = ?, updated_at = datetime("now") WHERE id = ?').run(String(name).trim(), String(name).trim(), member.id);
+    }
+    if (Array.isArray(identities)) {
+      db.prepare('UPDATE tenant_members SET identities = ?, updated_at = datetime("now") WHERE id = ?').run(JSON.stringify(identities), member.id);
+    }
+    if (status === 'active' || status === 'disabled') {
+      db.prepare('UPDATE tenant_members SET status = ?, updated_at = datetime("now") WHERE id = ?').run(status, member.id);
+      db.prepare('UPDATE accounts SET status = ? WHERE id = ?').run(status, member.account_id);
+    }
+    if (phone && /^1\d{10}$/.test(String(phone))) {
+      const clash = db.prepare('SELECT id FROM accounts WHERE phone = ? AND id != ?').get(String(phone), member.account_id);
+      if (clash) return res.status(409).json({ error: '该手机号已被其他账号使用' });
+      db.prepare('UPDATE accounts SET phone = ?, username = CASE WHEN username IS NULL THEN ? ELSE username END, updated_at = datetime("now") WHERE id = ?').run(String(phone), String(phone), member.account_id);
+    }
+    res.json({ ok: true });
+  });
+
+  // —— 分配成员角色（整体覆盖）——
+  router.put('/members/:id/roles', requireTenant, requireTenantAdmin, (req, res) => {
+    const member = db
+      .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
+      .get(req.params.id, req.customerId);
+    if (!member) return res.status(404).json({ error: '成员不存在' });
+    const { roleIds } = req.body || {};
+    const ids = Array.isArray(roleIds) ? roleIds : [];
+    db.prepare('DELETE FROM member_roles WHERE member_id = ?').run(member.id);
+    const ins = db.prepare('INSERT OR IGNORE INTO member_roles (member_id, role_id) VALUES (?, ?)');
+    for (const rid of ids) ins.run(member.id, rid);
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'member_role', targetType: 'member', targetId: member.id, detail: `分配角色 ${ids.length} 个`, ip: req.ip });
+    res.json({ ok: true });
+  });
+
+  // —— 重置成员密码（写入 accounts）——
+  router.put('/members/:id/reset-password', requireTenant, requireTenantAdmin, (req, res) => {
+    const member = db
+      .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
+      .get(req.params.id, req.customerId);
+    if (!member) return res.status(404).json({ error: '成员不存在' });
+    const { password } = req.body || {};
+    if (!password || String(password).length < 6) return res.status(400).json({ error: '密码至少 6 位' });
+    const { hash, salt } = hashPassword(String(password));
+    db.prepare('UPDATE accounts SET password_hash = ?, password_salt = ?, need_reset = 0, updated_at = datetime("now") WHERE id = ?').run(hash, salt, member.account_id);
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'member_reset_pwd', targetType: 'member', targetId: member.id, detail: `重置成员密码: ${member.name}`, ip: req.ip });
+    res.json({ ok: true });
+  });
+
+  // —— 移除成员（解绑租户身份；账号保留；门店负责人同时解除关联）——
+  router.delete('/members/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    if (Number(req.params.id) === req.user.memberId) return res.status(400).json({ error: '不能删除自己' });
+    const member = db
+      .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
+      .get(req.params.id, req.customerId);
+    if (!member) return res.status(404).json({ error: '成员不存在' });
+    if (memberIsTenantAdmin(db, member.id)) {
+      const cnt = db
+        .prepare(
+          `SELECT COUNT(*) c FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+           WHERE r.code = 'tenant_admin' AND mr.member_id IN
+           (SELECT id FROM tenant_members WHERE tenant_id = ?)`
+        )
+        .get(req.customerId);
+      if (cnt.c <= 1) return res.status(403).json({ error: '至少保留一名租户管理员' });
+    }
+    db.prepare("UPDATE store SET owner_member_id = NULL WHERE owner_member_id = ?").run(member.id);
+    db.prepare('DELETE FROM member_roles WHERE member_id = ?').run(member.id);
+    db.prepare('DELETE FROM tenant_members WHERE id = ?').run(member.id);
+    addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'member_delete', targetType: 'member', targetId: member.id, detail: `移除成员: ${member.name}`, ip: req.ip });
+    res.json({ ok: true });
   });
 
   return router;

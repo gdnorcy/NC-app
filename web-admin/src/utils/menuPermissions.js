@@ -40,10 +40,6 @@ export function buildSidebarMenus(user) {
       ],
     });
   }
-  // 租户管理员：成员管理
-  if (isTenantAdmin(user)) {
-    menus.push({ code: 'members', label: '成员管理', path: '/members' });
-  }
   menus.push({
     code: 'settings',
     label: '系统设置',
@@ -55,6 +51,14 @@ export function buildSidebarMenus(user) {
       { code: 'set-payment', label: '支付配置', path: '/settings/payment' },
     ],
   });
+  // 租户管理员：成员管理 / 角色管理（归入系统设置二级菜单）
+  if (isTenantAdmin(user)) {
+    const settingsMenu = menus.find((m) => m.code === 'settings');
+    settingsMenu.children.splice(1, 0,
+      { code: 'set-members', label: '成员管理', path: '/members' },
+      { code: 'set-roles', label: '角色管理', path: '/roles' },
+    );
+  }
   return menus;
 }
 

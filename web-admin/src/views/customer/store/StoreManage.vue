@@ -159,10 +159,27 @@
             <el-radio :value="0">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-divider content-position="left">负责人信息（门店超管）</el-divider>
-        <el-form-item label="负责人姓名" prop="ownerName"><el-input v-model="form.ownerName" maxlength="20" placeholder="请输入负责人姓名（必填）" /></el-form-item>
-        <el-form-item label="负责人账号"><el-input v-model="form.ownerAccount" placeholder="手机号（门店超管）" /></el-form-item>
-        <el-form-item label="负责人密码"><el-input v-model="form.ownerPassword" placeholder="数字+字母组合（必填）" show-password /></el-form-item>
+        <el-divider content-position="left">负责人信息（门店超管 · 统一账号体系）</el-divider>
+        <el-form-item label="负责人来源" prop="ownerMode">
+          <el-radio-group v-model="form.ownerMode">
+            <el-radio value="new">新建负责人账号</el-radio>
+            <el-radio value="existing">选择已有成员</el-radio>
+          </el-radio-group>
+          <p class="field-tip">负责人将获得「门店管理员」角色，使用登录账号进入后台</p>
+        </el-form-item>
+        <template v-if="form.ownerMode === 'new'">
+          <el-form-item label="负责人姓名" prop="ownerName"><el-input v-model="form.ownerName" maxlength="20" placeholder="请输入负责人姓名" /></el-form-item>
+          <el-form-item label="登录账号" prop="ownerPhone"><el-input v-model="form.ownerPhone" placeholder="手机号（即登录账号）" /></el-form-item>
+          <el-form-item label="登录密码" prop="ownerPassword"><el-input v-model="form.ownerPassword" placeholder="至少 6 位" show-password /></el-form-item>
+        </template>
+        <template v-else>
+          <el-form-item label="选择成员" prop="ownerMemberId">
+            <el-select v-model="form.ownerMemberId" filterable placeholder="从本租户成员中选择负责人" style="width: 100%">
+              <el-option v-for="m in memberOptions" :key="m.id" :label="`${m.name || m.username}（${m.username}${m.phone ? ' / ' + m.phone : ''}）`" :value="m.id" />
+            </el-select>
+            <p class="field-tip">未找到目标成员？可先到「系统设置 → 成员管理」添加</p>
+          </el-form-item>
+        </template>
       </el-form>
 
       <!-- 第二步：业绩结算 -->
@@ -276,11 +293,12 @@ const region = ref([]);
 const emptyForm = () => ({
   id: null, name: '', type: '直营店', logo: '', number: '', categoryId: null, tagIds: [],
   phone: '', address: '', businessTimeType: 'all_day', businessTime: '', licenseImgs: [], licenseShow: 1,
-  remark: '', status: 1, ownerName: '', ownerAccount: '', ownerPassword: '',
+  remark: '', status: 1, ownerMode: 'new', ownerName: '', ownerPhone: '', ownerPassword: '', ownerMemberId: null,
   settleType: 'immediate', settleDays: 0, withdrawRatioType: 'system', withdrawRatio: 0, withdrawEnabled: 1,
   priceMode: 'unified', stockMode: 'unified', shelfMode: 'unified', confirmPayEnabled: 1, deliveryMode: 'head',
 });
 const form = reactive(emptyForm());
+const memberOptions = ref([]);
 
 const rules0 = {
   name: [{ required: true, message: '请输入门店名称', trigger: 'blur' }],
@@ -288,6 +306,9 @@ const rules0 = {
   region: [{ required: true, message: '请选择所属区域（省/市/区县）', trigger: 'change' }],
   address: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
   ownerName: [{ required: true, message: '请输入负责人姓名', trigger: 'blur' }],
+  ownerPhone: [{ required: true, message: '请输入负责人手机号', trigger: 'blur' }],
+  ownerPassword: [{ required: true, message: '请输入登录密码', trigger: 'blur' }],
+  ownerMemberId: [{ required: true, message: '请选择负责人成员', trigger: 'change' }],
 };
 
 function resolveUrl(u) { return u || ''; }
@@ -309,14 +330,16 @@ function reset() { Object.assign(query, { name: '', type: '', categoryId: '', st
 
 async function loadRefs() {
   try {
-    const [c, t, q] = await Promise.all([
+    const [c, t, q, m] = await Promise.all([
       customerApiCall.get('/store/categories'),
       customerApiCall.get('/store/tag-groups'),
       customerApiCall.get('/store/quota'),
+      customerApiCall.get('/members').catch(() => ({ members: [] })),
     ]);
     categories.value = c.list || [];
     tagGroups.value = t.list || [];
     quota.value = q || quota.value;
+    memberOptions.value = (m.members || []).map((x) => ({ id: x.id, name: x.name || x.username, username: x.username, phone: x.phone }));
   } catch (e) { /* 下拉数据失败不阻断列表 */ }
 }
 
@@ -332,7 +355,8 @@ function openEdit(row) {
     categoryId: row.category_id, tagIds: (row.tags || []).map((t) => t.id),
     phone: row.phone, address: row.address, businessTimeType: row.business_time_type, businessTime: row.business_time,
     licenseImgs: row.licenseImgs || [], licenseShow: row.license_show, remark: row.remark, status: row.status,
-    ownerName: row.owner_name, ownerAccount: row.owner_account, ownerPassword: row.owner_password,
+    ownerMode: row.owner_member_id ? 'existing' : 'new',
+    ownerName: row.owner_name, ownerPhone: row.owner_account || '', ownerPassword: '', ownerMemberId: row.owner_member_id || null,
     settleType: row.settle_type, settleDays: row.settle_days, withdrawRatioType: row.withdraw_ratio_type,
     withdrawRatio: row.withdraw_ratio, withdrawEnabled: row.withdraw_enabled, priceMode: row.price_mode,
     stockMode: row.stock_mode, shelfMode: row.shelf_mode, confirmPayEnabled: row.confirm_pay_enabled, deliveryMode: row.delivery_mode,
@@ -348,8 +372,13 @@ async function nextStep() {
     if (!form.phone) return ElMessage.warning('请输入联系电话');
     if (!region.value.length) return ElMessage.warning('请选择所属区域（省/市/区县）');
     if (!form.address) return ElMessage.warning('请输入详细地址');
-    if (!form.ownerName) return ElMessage.warning('请输入负责人姓名');
-    if (!form.ownerPassword) return ElMessage.warning('请输入负责人密码（数字+字母组合）');
+    if (form.ownerMode === 'new') {
+      if (!form.ownerName) return ElMessage.warning('请输入负责人姓名');
+      if (!/^1\d{10}$/.test(form.ownerPhone || '')) return ElMessage.warning('请输入正确的负责人手机号');
+      if (!form.ownerPassword || form.ownerPassword.length < 6) return ElMessage.warning('负责人登录密码至少 6 位');
+    } else if (!form.ownerMemberId) {
+      return ElMessage.warning('请选择负责人成员');
+    }
   }
   step.value++;
 }
@@ -360,12 +389,18 @@ async function save() {
   if (!form.phone) return ElMessage.warning('请输入联系电话');
   if (!region.value.length) return ElMessage.warning('请选择所属区域（省/市/区县）');
   if (!form.address) return ElMessage.warning('请输入详细地址');
-  if (!form.ownerName) return ElMessage.warning('请输入负责人姓名');
-  if (!form.ownerPassword) return ElMessage.warning('请输入负责人密码');
+  if (form.ownerMode === 'new') {
+    if (!form.ownerName) return ElMessage.warning('请输入负责人姓名');
+    if (!/^1\d{10}$/.test(form.ownerPhone || '')) return ElMessage.warning('请输入正确的负责人手机号');
+    if (!form.ownerPassword || form.ownerPassword.length < 6) return ElMessage.warning('负责人登录密码至少 6 位');
+  } else if (!form.ownerMemberId) {
+    return ElMessage.warning('请选择负责人成员');
+  }
   saving.value = true;
   const payload = {
     ...form,
     province: region.value[0] || '', city: region.value[1] || '', district: region.value[2] || '',
+    ownerAccount: undefined, ownerPassword: undefined,
   };
   delete payload.id;
   try {

@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from './config.js';
-import { verifyPassword, hashPassword, toUser, addOperationLog } from './db.js';
+import { verifyPassword, hashPassword, toUser, addOperationLog, resolveMemberRoles } from './db.js';
 import { rateLimitMiddleware } from './rate-limit.js';
 import { tenantState } from './tenant.js';
 import { getSmsProvider, genSmsCode } from './sms.js';
@@ -12,7 +12,15 @@ const SMS_SEND_INTERVAL_MS = 60 * 1000; // 同一手机号 60 秒内只能发一
 
 export function issueToken(user) {
   return jwt.sign(
-    { uid: user.id, username: user.username, role: user.role, customerId: user.customer_id || null, enterpriseId: user.enterprise_id || null },
+    {
+      uid: user.id,
+      username: user.username,
+      role: user.role,
+      customerId: user.customer_id || null,
+      enterpriseId: user.enterprise_id || null,
+      memberId: user.memberId || null,
+      roles: (user.roles || []).map((r) => r.code),
+    },
     config.jwtSecret,
     { expiresIn: '7d' }
   );
@@ -21,11 +29,40 @@ export function issueToken(user) {
 export function createAuthRouter(db) {
   const router = express.Router();
 
-  function findUserByIdentifier(identifier) {
-    // identifier 可以是 username 或 phone
-    return db
-      .prepare('SELECT * FROM users WHERE username = ? OR phone = ?')
+  function findLoginUser(identifier) {
+    // 新模型优先：accounts（登录凭据）→ 关联的租户成员（业务身份）
+    const acc = db
+      .prepare('SELECT * FROM accounts WHERE username = ? OR phone = ?')
       .get(identifier, identifier);
+    if (acc) {
+      const member = db
+        .prepare("SELECT * FROM tenant_members WHERE account_id = ? AND status = 'active' ORDER BY id LIMIT 1")
+        .get(acc.id);
+      if (member) {
+        const roles = resolveMemberRoles(db, member.id);
+        const role = roles.some((r) => r.code === 'tenant_admin') ? 'tenant_admin' : 'tenant_member';
+        return {
+          id: acc.id,
+          username: acc.username || acc.phone || '',
+          phone: acc.phone || null,
+          password_hash: acc.password_hash,
+          password_salt: acc.password_salt,
+          role,
+          status: acc.status,
+          customer_id: member.tenant_id,
+          enterprise_id: null,
+          memberId: member.id,
+          roles,
+          isMemberAccount: true,
+        };
+      }
+    }
+    // 旧模型兜底：users（平台 admin/operator / 测试直插 / 未迁移存量）
+    const u = db.prepare('SELECT * FROM users WHERE username = ? OR phone = ?').get(identifier, identifier);
+    if (u) {
+      return { ...u, roles: [], memberId: null, isMemberAccount: false };
+    }
+    return null;
   }
 
   // —— 账号密码登录（IP 防刷：每 60s 最多 20 次尝试） ——
@@ -34,7 +71,7 @@ export function createAuthRouter(db) {
     if (!username || !password) {
       return res.status(400).json({ error: '请输入账号和密码' });
     }
-    const user = findUserByIdentifier(String(username).trim());
+    const user = findLoginUser(String(username).trim());
     if (!user || user.status !== 'active') {
       return res.status(401).json({ error: '账号不存在或已停用' });
     }
@@ -174,7 +211,7 @@ export function createAuthRouter(db) {
     if (new Date(record.expires_at + 'Z').getTime() < Date.now()) {
       return res.status(400).json({ error: '验证码已过期' });
     }
-    const user = db.prepare('SELECT * FROM users WHERE phone = ?').get(phone);
+    const user = findLoginUser(phone);
     if (!user) {
       return res.status(404).json({ error: '该手机号尚未注册' });
     }
@@ -213,7 +250,15 @@ export function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: '未登录' });
   try {
     const payload = jwt.verify(token, config.jwtSecret);
-    req.user = { id: payload.uid, username: payload.username, role: payload.role, customerId: payload.customerId || null, enterpriseId: payload.enterpriseId || null };
+    req.user = {
+      id: payload.uid,
+      username: payload.username,
+      role: payload.role,
+      customerId: payload.customerId || null,
+      enterpriseId: payload.enterpriseId || null,
+      memberId: payload.memberId || null,
+      roles: payload.roles || [],
+    };
     return next();
   } catch {
     return res.status(401).json({ error: '登录已过期' });
@@ -228,6 +273,27 @@ export function requireRole(roles) {
     if (!allowed.includes(req.user.role)) {
       return res.status(403).json({ error: '无权限执行此操作' });
     }
+    return next();
+  };
+}
+
+/** 权限点校验中间件工厂：requirePerm(db, appCode, menuKey)
+ *  - 平台账号 admin/operator 全量
+ *  - 租户超管（role=tenant_admin 或 roles 含 tenant_admin）全量
+ *  - 普通成员：校验其角色的 role_permissions 是否命中（app_code + menu_key）
+ *  - 门店管理员（store_admin）：P0 放行其 scope=store 的应用菜单（门店端工作台 P1 再做严格隔离）
+ */
+export function requirePerm(db, app, key) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: '未登录' });
+    const role = req.user.role;
+    if (role === 'admin' || role === 'operator') return next();
+    if (role === 'tenant_admin' || (req.user.roles || []).includes('tenant_admin')) return next();
+    if (!req.user.memberId) return res.status(403).json({ error: '无权限执行此操作' });
+    const hit = db
+      .prepare('SELECT 1 FROM role_permissions rp WHERE rp.role_id IN (SELECT role_id FROM member_roles WHERE member_id = ?) AND rp.app_code = ? AND rp.menu_key = ?')
+      .get(req.user.memberId, app, key);
+    if (!hit) return res.status(403).json({ error: '无权限执行此操作' });
     return next();
   };
 }

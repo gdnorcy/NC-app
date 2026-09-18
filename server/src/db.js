@@ -1784,6 +1784,9 @@ function migrate(db) {
   // —— 门店体系（1:1 复刻 nshop 连锁门店 chainShop：门店/分组/标签/提现/基础设置 + 总后台配额制）——
   seedStore(db);
 
+  // —— 统一账号体系（accounts + tenant_members + roles，2026-09-18 新增）——
+  seedMemberSystem(db);
+
   // —— dist_config 扩展字段（分销基本设置 + 分销参数，2026-09-09 新增）——
   // 分销商名称/下级名称/申请页顶图/分销推广图/申请页提示/0元订单/显示上级/显示电话/默认等级
   if (tableExists(db, 'dist_config')) {
@@ -3658,4 +3661,165 @@ function seedStore(db) {
       storeMenus.forEach(([key, label], idx) => menuIns.run(storeApp.id, 'store', '门店管理', key, label, idx + 1));
     }
   }
+}
+
+// ============================================================
+// 统一账号体系（accounts + tenant_members + roles，2026-09-18）
+// 对标云菜鸟「员工/角色/岗位/部门」模型；本地扩展：
+//   - accounts（登录凭据，全局唯一，密码哈希）
+//   - tenant_members（账号在某租户下的业务身份，一人多身份）
+//   - roles（内置 + 租户自定义角色，scope=tenant|store）
+//   - member_roles（成员-角色多对多）
+//   - role_permissions（角色-权限点，复用 app_menus 的 app_code+key）
+//   - departments / posts（P1 组织维度，先建表）
+// 幂等：createDb 每次执行可重复运行。
+// ============================================================
+function seedMemberSystem(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE,
+      phone TEXT UNIQUE,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      need_reset INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS tenant_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      account_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      nickname TEXT NOT NULL DEFAULT '',
+      avatar TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active',
+      identities TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id, account_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_tm_tenant ON tenant_members(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_tm_account ON tenant_members(account_id);
+    CREATE TABLE IF NOT EXISTS roles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      code TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL,
+      scope TEXT NOT NULL DEFAULT 'tenant',
+      builtin INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id, code)
+    );
+    CREATE TABLE IF NOT EXISTS member_roles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_id INTEGER NOT NULL,
+      role_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (member_id, role_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_mr_member ON member_roles(member_id);
+    CREATE TABLE IF NOT EXISTS role_permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role_id INTEGER NOT NULL,
+      app_code TEXT NOT NULL,
+      menu_key TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (role_id, app_code, menu_key)
+    );
+    CREATE TABLE IF NOT EXISTS departments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id, name)
+    );
+    CREATE TABLE IF NOT EXISTS posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id, name)
+    );
+  `);
+
+  // 内置角色（tenant_id=0 平台模板，所有租户共用；builtin=1 禁删）
+  const builtinRoles = [
+    { code: 'tenant_admin', name: '租户管理员', scope: 'tenant' },
+    { code: 'tenant_member', name: '普通成员', scope: 'tenant' },
+    { code: 'store_admin', name: '门店管理员', scope: 'store' },
+  ];
+  const insRole = db.prepare('INSERT OR IGNORE INTO roles (tenant_id, code, name, scope, builtin) VALUES (0, ?, ?, ?, 1)');
+  builtinRoles.forEach(r => insRole.run(r.code, r.name, r.scope));
+
+  // 迁移1：users（tenant_admin/tenant_member 且挂租户）→ accounts + tenant_members + 内置角色
+  const oldUsers = db.prepare("SELECT * FROM users WHERE role IN ('tenant_admin','tenant_member') AND customer_id IS NOT NULL").all();
+  const getAccountByRow = db.prepare('SELECT * FROM accounts WHERE username = ? OR phone = ?');
+  const insAccount = db.prepare('INSERT OR IGNORE INTO accounts (username, phone, password_hash, password_salt, status) VALUES (?, ?, ?, ?, ?)');
+  const getMember = db.prepare('SELECT * FROM tenant_members WHERE tenant_id = ? AND account_id = ?');
+  const insMember = db.prepare('INSERT OR IGNORE INTO tenant_members (tenant_id, account_id, name, nickname, status) VALUES (?, ?, ?, ?, ?)');
+  const getRole = db.prepare('SELECT * FROM roles WHERE tenant_id = 0 AND code = ?');
+  const insMr = db.prepare('INSERT OR IGNORE INTO member_roles (member_id, role_id) VALUES (?, ?)');
+
+  for (const u of oldUsers) {
+    let acc = getAccountByRow.get(u.username || '', u.phone || '');
+    if (!acc) {
+      const r = insAccount.run(u.username ?? null, u.phone ?? null, u.password_hash, u.password_salt, u.status || 'active');
+      acc = db.prepare('SELECT * FROM accounts WHERE id = ?').get(r.lastInsertRowid);
+    }
+    let member = getMember.get(u.customer_id, acc.id);
+    if (!member) {
+      const r = insMember.run(u.customer_id, acc.id, u.username || u.phone || '', u.username || '', u.status || 'active');
+      member = db.prepare('SELECT * FROM tenant_members WHERE id = ?').get(r.lastInsertRowid);
+    }
+    const role = getRole.get(u.role);
+    if (role) insMr.run(member.id, role.id);
+  }
+
+  // 迁移2：存量门店负责人（store.owner_account 手机号）→ accounts + member + store_admin + owner_member_id
+  if (tableExists(db, 'store')) {
+    if (!colExists(db, 'store', 'owner_member_id')) {
+      db.exec('ALTER TABLE store ADD COLUMN owner_member_id INTEGER');
+    }
+    const updStoreOwner = db.prepare('UPDATE store SET owner_member_id = ? WHERE id = ?');
+    const stores = db.prepare("SELECT * FROM store WHERE owner_account IS NOT NULL AND owner_account != ''").all();
+    for (const s of stores) {
+      let acc = db.prepare('SELECT * FROM accounts WHERE phone = ? OR username = ?').get(s.owner_account, s.owner_account);
+      if (!acc) {
+        const { hash, salt } = hashPassword(String(s.owner_account + 'init').slice(0, 12) || 'store@init1');
+        const r = insAccount.run('store_' + s.owner_account, s.owner_account, hash, salt, 'active');
+        db.prepare('UPDATE accounts SET need_reset = 1 WHERE id = ?').run(r.lastInsertRowid);
+        acc = db.prepare('SELECT * FROM accounts WHERE id = ?').get(r.lastInsertRowid);
+      }
+      let member = getMember.get(s.tenant_id ?? 1, acc.id);
+      if (!member) {
+        const r = insMember.run(s.tenant_id ?? 1, acc.id, s.owner_name || s.owner_account, '', 'active');
+        member = db.prepare('SELECT * FROM tenant_members WHERE id = ?').get(r.lastInsertRowid);
+      }
+      const sa = getRole.get('store_admin');
+      if (sa && member) {
+        insMr.run(member.id, sa.id);
+        if (!s.owner_member_id) updStoreOwner.run(member.id, s.id);
+      }
+    }
+  }
+}
+
+export function resolveMemberRoles(db, memberId) {
+  return db.prepare(
+    `SELECT r.id, r.code, r.name, r.scope, r.tenant_id
+     FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+     WHERE mr.member_id = ? ORDER BY r.id`
+  ).all(memberId);
+}
+
+export function memberIsTenantAdmin(db, memberId) {
+  const row = db.prepare(
+    `SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+     WHERE mr.member_id = ? AND r.code = 'tenant_admin'`
+  ).get(memberId);
+  return !!row;
 }

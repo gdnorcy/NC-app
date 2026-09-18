@@ -40,10 +40,9 @@ describe('角色判定', () => {
 describe('buildSidebarMenus 权限矩阵', () => {
   const codes = (menus) => menus.map((m) => m.code);
 
-  it('租户管理员：含成员管理+系统设置，无企业面板', () => {
+  it('租户管理员：成员管理/角色管理归入系统设置二级，无企业面板', () => {
     const menus = buildSidebarMenus({ role: 'tenant_admin' });
     const all = codes(menus).join(',');
-    expect(all).toContain('members');
     expect(all).toContain('settings');
     expect(all).not.toContain('enterprise');
     // 基础模块始终存在
@@ -51,25 +50,37 @@ describe('buildSidebarMenus 权限矩阵', () => {
     expect(all).toContain('apps');
     expect(all).toContain('billing');
     expect(all).toContain('orders');
+    // 系统设置 children 含成员管理/角色管理（不再是一级菜单）
+    const settings = menus.find((m) => m.code === 'settings');
+    const setCodes = settings.children.map((c) => c.code).join(',');
+    expect(setCodes).toContain('set-members');
+    expect(setCodes).toContain('set-roles');
+    expect(setCodes).toContain('set-account');
   });
 
-  it('入驻企业管理员：含企业子面板 4 项，无成员管理', () => {
+  it('入驻企业管理员：含企业子面板 4 项，系统设置无成员管理', () => {
     const menus = buildSidebarMenus({ enterpriseId: 3, role: 'member' });
     const all = codes(menus).join(',');
     expect(all).toContain('enterprise');
-    expect(all).not.toContain('members');
     const ent = menus.find((m) => m.code === 'enterprise');
     expect(ent.children.map((c) => c.code)).toEqual([
       'ent-dashboard', 'ent-employees', 'ent-pool', 'ent-settings',
     ]);
+    const settings = menus.find((m) => m.code === 'settings');
+    const setCodes = settings.children.map((c) => c.code).join(',');
+    expect(setCodes).not.toContain('set-members');
+    expect(setCodes).not.toContain('set-roles');
   });
 
-  it('普通成员：无企业面板、无成员管理', () => {
+  it('普通成员：无企业面板，系统设置无成员管理', () => {
     const menus = buildSidebarMenus({ role: 'member' });
     const all = codes(menus).join(',');
     expect(all).not.toContain('enterprise');
-    expect(all).not.toContain('members');
     expect(all).toContain('settings');
+    const settings = menus.find((m) => m.code === 'settings');
+    const setCodes = settings.children.map((c) => c.code).join(',');
+    expect(setCodes).not.toContain('set-members');
+    expect(setCodes).not.toContain('set-roles');
   });
 
   it('异常入参不抛错', () => {

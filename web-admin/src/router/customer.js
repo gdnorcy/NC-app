@@ -58,7 +58,8 @@ const routes = [
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
       { path: 'member', component: () => import('../views/customer/member/MemberHome.vue'), meta: { title: '会员', breadcrumbs: ['会员'] } },
       { path: 'billing', component: () => import('../views/customer/Billing.vue'), meta: { title: '套餐与续费', breadcrumbs: ['套餐与续费'] } },
-      { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['成员管理'] } },
+      { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['系统设置', '成员管理'] } },
+      { path: 'roles', component: () => import('../views/customer/Roles.vue'), meta: { title: '角色管理', breadcrumbs: ['系统设置', '角色管理'] } },
       // 企业管理员端（企业角色化子面板）
       { path: 'enterprise', component: () => import('../views/customer/enterprise/EnterpriseDashboard.vue'), meta: { title: '企业工作台', breadcrumbs: ['企业工作台'] } },
       { path: 'enterprise/employees', component: () => import('../views/customer/enterprise/EnterpriseEmployees.vue'), meta: { title: '企业员工', breadcrumbs: ['企业工作台', '企业员工'] } },

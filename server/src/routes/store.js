@@ -2,9 +2,48 @@
 // 数据严格按 customer_id 隔离；门店数量配额 = 总后台授权填写（project_apps.quota），租户端可购买增加
 import { Router } from 'express';
 import { tenantState } from '../tenant.js';
-import { addOperationLog } from '../db.js';
+import { addOperationLog, hashPassword } from '../db.js';
 
 const DEMO_STORE_QUOTA = 50; // 演示方案（无 project_apps 行）默认门店配额，对标 nshop 默认 50
+
+/** 门店负责人账号处理（统一账号体系）：
+ *  - ownerMode=new：新建 accounts + tenant_members + 绑定 store_admin 角色
+ *  - ownerMode=existing：复用已有成员（校验属于本租户），绑定 store_admin 角色
+ * 返回 owner_member_id；失败抛 Error（消息可直接返回）
+ */
+function resolveStoreOwner(db, customerId, body) {
+  const mode = body.ownerMode === 'existing' ? 'existing' : 'new';
+  const sa = db.prepare("SELECT id FROM roles WHERE tenant_id = 0 AND code = 'store_admin'").get();
+  const insMr = db.prepare('INSERT OR IGNORE INTO member_roles (member_id, role_id) VALUES (?, ?)');
+
+  if (mode === 'existing') {
+    const memberId = Number(body.ownerMemberId) || 0;
+    const member = db.prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?').get(memberId, customerId);
+    if (!member) throw new Error('所选成员不存在或不属于本租户');
+    if (sa) insMr.run(member.id, sa.id);
+    return { mode, memberId: member.id, name: member.name, account: member.nickname || member.name };
+  }
+
+  // 新建账号
+  const phone = String(body.ownerPhone || '').trim();
+  const password = String(body.ownerPassword || '');
+  const name = String(body.ownerName || '').trim();
+  if (!/^1\d{10}$/.test(phone)) throw new Error('请输入正确的负责人手机号（即登录账号）');
+  if (password.length < 6) throw new Error('负责人登录密码至少 6 位');
+  let account = db.prepare('SELECT * FROM accounts WHERE phone = ? OR username = ?').get(phone, phone);
+  if (!account) {
+    const { hash, salt } = hashPassword(password);
+    const r = db.prepare('INSERT INTO accounts (username, phone, password_hash, password_salt, status) VALUES (?, ?, ?, ?, ?)').run(phone, phone, hash, salt, 'active');
+    account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(r.lastInsertRowid);
+  }
+  let member = db.prepare('SELECT * FROM tenant_members WHERE tenant_id = ? AND account_id = ?').get(customerId, account.id);
+  if (!member) {
+    const r = db.prepare('INSERT INTO tenant_members (tenant_id, account_id, name, nickname, status, identities) VALUES (?, ?, ?, ?, ?, ?)').run(customerId, account.id, name || phone, name || phone, 'active', '["backend_admin"]');
+    member = db.prepare('SELECT * FROM tenant_members WHERE id = ?').get(r.lastInsertRowid);
+  }
+  if (sa) insMr.run(member.id, sa.id); // 新建/复用统一绑定 store_admin（幂等）
+  return { mode, memberId: member.id, name, account: phone };
+}
 
 export function createStoreRouter(db) {
   const router = Router();
@@ -123,25 +162,27 @@ export function createStoreRouter(db) {
     res.json({ list: rows.map(decorateStore), total, page, pageSize });
   });
 
-  // —— 创建门店（校验配额）——
+  // —— 创建门店（校验配额；负责人=统一账号体系成员+store_admin 角色）——
   router.post('/', requireTenant, (req, res) => {
     const cid = req.customerId;
     const b = req.body || {};
     if (!b.name) return res.status(400).json({ error: '请输入门店名称' });
     if (!b.phone) return res.status(400).json({ error: '请输入联系电话' });
-    if (!b.ownerName) return res.status(400).json({ error: '请输入负责人姓名' });
     if (usedCount(cid) >= getQuota(cid)) return res.status(400).json({ error: '门店数量已达上限，可在「购买门店」中增加' });
+    let owner;
+    try { owner = resolveStoreOwner(db, cid, b); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
     const r = db.prepare(`INSERT INTO store
       (customer_id, name, type, logo, number, category_id, gaode_key, phone, province, city, district, address, lng, lat,
        business_time_type, business_time, license_imgs, license_show, remark, status,
-       owner_name, owner_account, owner_password,
+       owner_name, owner_account, owner_password, owner_member_id,
        settle_type, settle_days, withdraw_ratio_type, withdraw_ratio, withdraw_enabled,
        price_mode, stock_mode, shelf_mode, confirm_pay_enabled, delivery_mode)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       cid, b.name || '', b.type || '直营店', b.logo || '', b.number || '', Number(b.categoryId) || 0, b.gaodeKey || '', b.phone || '',
       b.province || '', b.city || '', b.district || '', b.address || '', Number(b.lng) || 0, Number(b.lat) || 0,
       b.businessTimeType || 'all_day', b.businessTime || '', JSON.stringify(b.licenseImgs || []), b.licenseShow === false ? 0 : 1, b.remark || '', b.status === false ? 0 : 1,
-      b.ownerName || '', b.ownerAccount || '', b.ownerPassword || '',
+      owner.name, owner.account, '', owner.memberId,
       b.settleType || 'immediate', Number(b.settleDays) || 0, b.withdrawRatioType || 'system', Number(b.withdrawRatio) || 0, b.withdrawEnabled === false ? 0 : 1,
       b.priceMode || 'unified', b.stockMode || 'unified', b.shelfMode || 'unified', b.confirmPayEnabled === false ? 0 : 1, b.deliveryMode || 'head');
     const id = r.lastInsertRowid;
@@ -160,10 +201,21 @@ export function createStoreRouter(db) {
     if (!row) return res.status(404).json({ error: '门店不存在' });
     const b = req.body || {};
     if (b.name !== undefined && !b.name) return res.status(400).json({ error: '请输入门店名称' });
+    let ownerMemberId = row.owner_member_id;
+    let ownerName = row.owner_name;
+    let ownerAccount = row.owner_account;
+    if (b.ownerMode === 'existing' || b.ownerMode === 'new') {
+      try {
+        const owner = resolveStoreOwner(db, cid, b);
+        ownerMemberId = owner.memberId;
+        ownerName = owner.name;
+        ownerAccount = owner.account;
+      } catch (e) { return res.status(400).json({ error: e.message }); }
+    }
     db.prepare(`UPDATE store SET
       name=?, type=?, logo=?, number=?, category_id=?, gaode_key=?, phone=?, province=?, city=?, district=?, address=?, lng=?, lat=?,
       business_time_type=?, business_time=?, license_imgs=?, license_show=?, remark=?, status=?,
-      owner_name=?, owner_account=?, owner_password=?,
+      owner_name=?, owner_account=?, owner_password=?, owner_member_id=?,
       settle_type=?, settle_days=?, withdraw_ratio_type=?, withdraw_ratio=?, withdraw_enabled=?,
       price_mode=?, stock_mode=?, shelf_mode=?, confirm_pay_enabled=?, delivery_mode=?, updated_at=datetime('now')
       WHERE id=? AND customer_id=?`).run(
@@ -178,8 +230,7 @@ export function createStoreRouter(db) {
       b.licenseImgs !== undefined ? JSON.stringify(b.licenseImgs) : row.license_imgs,
       b.licenseShow !== undefined ? (b.licenseShow === false ? 0 : 1) : row.license_show,
       b.remark !== undefined ? b.remark : row.remark, b.status !== undefined ? (b.status === false ? 0 : 1) : row.status,
-      b.ownerName !== undefined ? b.ownerName : row.owner_name, b.ownerAccount !== undefined ? b.ownerAccount : row.owner_account,
-      b.ownerPassword !== undefined ? b.ownerPassword : row.owner_password,
+      ownerName, ownerAccount, '', ownerMemberId,
       b.settleType !== undefined ? b.settleType : row.settle_type, b.settleDays !== undefined ? Number(b.settleDays) : row.settle_days,
       b.withdrawRatioType !== undefined ? b.withdrawRatioType : row.withdraw_ratio_type,
       b.withdrawRatio !== undefined ? Number(b.withdrawRatio) : row.withdraw_ratio,
