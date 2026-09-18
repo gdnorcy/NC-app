@@ -152,7 +152,7 @@ export const cardApi = {
   createDynamic: (data) => request('/dynamics', 'POST', data),
 
   // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）；pageType 指定 DIY 装修页面（首页跳转选择器）
-  designConfig: (preview, pageType = '') => {
+  designConfig: (preview, pageType = '', tid = '') => {
     const params = {};
     if (preview) params.preview = 1;
     if (pageType) params.pageType = pageType;
@@ -163,6 +163,7 @@ export const cardApi = {
         ['tid', 'exp', 'sig'].forEach((k) => { if (hp.get(k)) params[k] = hp.get(k); });
       } catch { /* 忽略解析失败 */ }
     }
+    if (tid) params.tid = tid; // 显式租户（商城等跨应用首页装修读取），优先于 hash 透传
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
     return request('/design/config' + qs);
   },

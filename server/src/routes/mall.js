@@ -130,6 +130,20 @@ export function createMallRouter(db) {
   });
 
   // ---------- 门店（公开读，自提选择；一期不校验营业时间） ----------
+  // ---------- 商城首页装修（公开，mall-home 页面发布稿→草稿回退，供 C 端装修区渲染） ----------
+  router.get('/design-home', authOptional, requireGoodsApp, (req, res) => {
+    try {
+      const cid = req.customerId;
+      const pick = (status) => db.prepare(
+        "SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'mall-home' AND status = ? ORDER BY version DESC LIMIT 1"
+      ).get(cid, status);
+      const row = pick(1) || pick(0);
+      if (!row) return res.json({ components: [], meta: {} });
+      const j = JSON.parse(row.design_json || '{}');
+      res.json({ components: j.components || [], meta: j.meta || {} });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
   router.get('/stores', authOptional, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;

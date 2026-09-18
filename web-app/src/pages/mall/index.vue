@@ -10,6 +10,13 @@
       </view>
     </view>
 
+    <!-- 首页装修区（商品管理-首页装修；未配置/未发布时为空，走下方瀑布流兜底） -->
+    <view v-if="designComps.length" class="design-zone">
+      <DesignPage :comps="designComps" :tenant-id="Number(tid)" />
+    </view>
+
+    <!-- 兜底商品列表（装修稿未含「商品列表」组件时展示：分类 + 排序 + 瀑布流） -->
+    <template v-if="!hasGoodsList">
     <!-- 分类横向滚动 -->
     <scroll-view class="cate-scroll" scroll-x :show-scrollbar="false">
       <view class="cate-list">
@@ -65,6 +72,7 @@
       </view>
       <view class="load-more" v-if="goodsList.length">{{ noMore ? '没有更多了' : '加载中…' }}</view>
     </scroll-view>
+    </template>
   </view>
 </template>
 
@@ -75,6 +83,7 @@ import { mallApi } from '../../utils/mallApi.js';
 import { yuanFmt, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
+import DesignPage from '../../components/DesignPage.vue';
 
 const tid = ref('');
 const cateList = ref([{ id: 0, name: '全部' }]);
@@ -94,6 +103,9 @@ const loading = ref(false);
 const loadError = ref('');
 const cartCount = ref(0);
 const canBack = ref(getCurrentPages().length > 1);
+// 首页装修：mall-home 页面草稿/发布稿（C 端读取发布稿→草稿回退），组件由 DesignPage 渲染
+const designComps = ref([]);
+const hasGoodsList = computed(() => designComps.value.some((c) => c.type === 'goods-list'));
 
 const resolveUrl = (u) => resolveAssetUrl(u, tid.value);
 
@@ -174,14 +186,37 @@ function fetchCartCount() {
     .catch(() => {});
 }
 
+function fetchMallDesign() {
+  return mallApi.getDesignHome({ tid: tid.value })
+    .then((res) => {
+      designComps.value = (res?.components || []).filter((c) => c && c.type);
+    })
+    .catch(() => { designComps.value = []; });
+}
+
 onLoad((o) => {
   tid.value = getTid(o);
+  // 分类导航跳入：/pages/mall/index?catId=xx 定位到指定分类（兜底列表生效时）
+  if (o && o.catId) {
+    activeCat.value = Number(o.catId) || 0;
+    if (tid.value) {
+      mallApi.getCates({ tid: tid.value })
+        .then((res) => {
+          cateList.value = [{ id: 0, name: '全部' }, ...(res.list || [])];
+          fetchGoods(true);
+        })
+        .catch(() => { fetchGoods(true); });
+    } else {
+      fetchGoods(true);
+    }
+  }
 });
 
 onShow(() => {
   if (tid.value) fetchCates();
-  fetchGoods(true);
   fetchCartCount();
+  // 装修稿含商品列表组件时，由装修区承载商品展示，跳过瀑布流兜底
+  fetchMallDesign().then(() => { if (!hasGoodsList.value) fetchGoods(true); });
 });
 </script>
 
@@ -374,4 +409,7 @@ onShow(() => {
   font-size: 24rpx;
   color: #c9cdd4;
 }
+
+.design-zone { background: #f7f8fa; }
+
 </style>

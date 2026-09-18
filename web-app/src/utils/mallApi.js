@@ -25,6 +25,9 @@ export const mallApi = {
   removeCart: (id) => request(`/cart/${id}`, 'DELETE'),
   clearCart: () => request('/cart', 'DELETE'),
 
+  /** 商城首页装修组件（公开，mall-home 发布稿→草稿回退） */
+  getDesignHome: (params) => request('/design-home' + qs(params)),
+
   // ===== 门店（自提选择，公开读）=====
   getStores: (params) => request('/stores' + qs(params)),
 

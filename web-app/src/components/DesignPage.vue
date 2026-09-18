@@ -513,6 +513,55 @@
         </view>
         <video v-if="feedVideo" :src="feedVideo" class="dp-vfeed-player" controls autoplay @ended="feedVideo = ''" @error="feedVideo = ''" />
       </view>
+      <!-- 商城组件：商品分类导航 -->
+      <view v-else-if="c.type === 'goods-nav'" class="dp-goodsnav" :style="dpGoodsNavStyle(c.props)">
+        <text v-if="c.props.showTitle && c.props.title" class="dp-goodsnav-title">{{ c.props.title }}</text>
+        <view class="dp-goodsnav-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 4) + ', 1fr)' }">
+          <view v-for="cat in (mallCates[c.id] || [])" :key="cat.id" class="dp-goodsnav-cell" @click="onJump('/pages/mall/index?catId=' + cat.id)">
+            <image v-if="cat.image" :src="resolveUrl(cat.image)" mode="aspectFill" class="dp-goodsnav-ico" :style="{ borderRadius: c.props.shape === 'circle' ? '50%' : (c.props.iconRadius ?? 12) + 'px' }" />
+            <view v-else class="dp-goodsnav-ico dp-goodsnav-ico-empty" :style="{ borderRadius: c.props.shape === 'circle' ? '50%' : (c.props.iconRadius ?? 12) + 'px' }"><text>🛍</text></view>
+            <text class="dp-goodsnav-text" :style="{ fontSize: (c.props.fontSize || 12) + 'px', fontWeight: c.props.bold ? 600 : 400 }">{{ cat.name }}</text>
+          </view>
+        </view>
+      </view>
+      <!-- 商城组件：商品列表 -->
+      <view v-else-if="c.type === 'goods-list'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
+        <text v-if="c.props.showTitle && c.props.title" class="dp-goodslist-title">{{ c.props.title }}</text>
+        <view v-if="c.props.layout === 'single'" class="dp-goodslist-single">
+          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-single" @click="goMallDetail(g.id)">
+            <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-single-img" />
+            <view v-else class="dp-gl-single-img dp-gl-img-empty"><text>🛍</text></view>
+            <view class="dp-gl-single-info">
+              <text class="dp-gl-single-t">{{ g.title }}</text>
+              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text><text class="dp-gl-sales">已售{{ g.sales || 0 }}</text></view>
+            </view>
+          </view>
+        </view>
+        <scroll-view v-else-if="c.props.layout === 'scroll'" class="dp-goodslist-scroll" scroll-x :show-scrollbar="false">
+          <view class="dp-goodslist-scroll-row">
+            <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-scroll" @click="goMallDetail(g.id)">
+              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-scroll-img" />
+              <view v-else class="dp-gl-scroll-img dp-gl-img-empty"><text>🛍</text></view>
+              <text class="dp-gl-scroll-t">{{ g.title }}</text>
+              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></view>
+            </view>
+          </view>
+        </scroll-view>
+        <view v-else class="dp-goodslist-grid">
+          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
+            <view class="dp-gl-card-img-wrap">
+              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" />
+              <view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view>
+              <view v-if="g.soldout" class="dp-gl-soldout"><text>已售罄</text></view>
+            </view>
+            <view class="dp-gl-card-info">
+              <text class="dp-gl-card-t">{{ g.title }}</text>
+              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text><text class="dp-gl-sales">已售{{ g.sales || 0 }}</text></view>
+            </view>
+          </view>
+        </view>
+        <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
+      </view>
     </view>
 
     <!-- 视频弹出显示浮层 -->
@@ -528,6 +577,8 @@
 <script setup>
 import { reactive, ref, computed, onMounted, onUnmounted } from 'vue';
 import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
+import { mallApi } from '../utils/mallApi.js';
+import { yuanFmt } from '../utils/mallUtil.js';
 import SIcon from './SIcon.vue';
 const props = defineProps({
   comps: { type: Array, default: () => [] },
@@ -1088,11 +1139,42 @@ async function loadPanoScenes(i) {
     panoPlans[i] = [];
   }
 }
+// ===== 商城组件数据（goods-nav/goods-list 按组件 id 缓存）=====
+const mallCates = reactive({});
+const mallGoods = reactive({});
+function loadMallComps() {
+  (props.comps || []).forEach((c) => {
+    if (!c.id) return;
+    if (c.type === 'goods-nav' && !mallCates[c.id]) {
+      mallApi.getCates({ tid: props.tenantId || undefined })
+        .then((res) => { mallCates[c.id] = res.list || []; })
+        .catch(() => { mallCates[c.id] = []; });
+    }
+    if (c.type === 'goods-list' && !mallGoods[c.id]) {
+      const p = c.props || {};
+      const params = { tid: props.tenantId || undefined, page: 1, pageSize: p.limit || 10, sortBy: p.sortBy || 'default' };
+      if (p.source === 'category' && p.catId) params.catId = p.catId;
+      mallApi.getGoods(params)
+        .then((res) => { mallGoods[c.id] = res.list || []; })
+        .catch(() => { mallGoods[c.id] = []; });
+    }
+  });
+}
+function goMallDetail(id) {
+  onJump(`/pages/mall/detail?id=${id}${props.tenantId ? `&tid=${props.tenantId}` : ''}`);
+}
+function dpGoodsNavStyle(p) {
+  return { background: p.bgColor || 'transparent', marginTop: (p.marginTop ?? 0) + 'px', marginBottom: (p.marginBottom ?? 0) + 'px', borderRadius: (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px' };
+}
+function dpGoodsListStyle(p) {
+  return { background: p.bgColor || 'transparent', borderRadius: (p.radius ?? 8) + 'px', marginTop: (p.marginTop ?? 0) + 'px', marginBottom: (p.marginBottom ?? 0) + 'px' };
+}
 onMounted(() => {
   (props.comps || []).forEach((c, i) => {
     if (c.type === 'pano-scenes') loadPanoScenes(i);
   });
   loadContentArticles();
+  loadMallComps();
 });
 function panoCategories(p) {
   return String(p.categories || '')
@@ -1633,4 +1715,39 @@ function openChannel(kind, p) {
 .dp-vfeed-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; }
 .dp-vfeed-t { font-size: 12px; color: #1d2129; padding: 7px 8px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-vfeed-player { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-50%); width: 100%; height: 220px; z-index: 999; background: #000; }
+
+/* ===== 商城组件样式（goods-nav / goods-list） ===== */
+.dp-goodsnav { padding: 12px; box-sizing: border-box; }
+.dp-goodsnav-title, .dp-goodslist-title { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
+.dp-goodsnav-grid { display: grid; gap: 10px; }
+.dp-goodsnav-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.dp-goodsnav-ico { width: 44px; height: 44px; }
+.dp-goodsnav-ico-empty { display: flex; align-items: center; justify-content: center; background: rgba(22,93,255,.06); font-size: 18px; }
+.dp-goodsnav-text { font-size: 12px; color: #4e5969; }
+.dp-goodslist { padding: 12px; box-sizing: border-box; }
+.dp-goodslist-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.dp-gl-card { background: #fff; border-radius: 10px; overflow: hidden; }
+.dp-gl-card-img-wrap { position: relative; width: 100%; height: 150px; background: #f7f8fa; }
+.dp-gl-card-img { width: 100%; height: 100%; }
+.dp-gl-img-empty { display: flex; align-items: center; justify-content: center; background: #f7f8fa; font-size: 24px; color: #c9cdd4; }
+.dp-gl-soldout { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.6); font-size: 12px; color: #4e5969; }
+.dp-gl-card-info { padding: 8px; }
+.dp-gl-card-t { font-size: 13px; color: #1d2129; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.4; min-height: 36px; }
+.dp-gl-price { display: flex; align-items: baseline; margin-top: 4px; }
+.dp-gl-price-sym { font-size: 12px; color: #f53f3f; }
+.dp-gl-price-num { font-size: 16px; font-weight: 600; color: #f53f3f; }
+.dp-gl-sales { font-size: 11px; color: #86909c; margin-left: auto; }
+.dp-goodslist-single { display: flex; flex-direction: column; gap: 10px; }
+.dp-gl-single { display: flex; background: #fff; border-radius: 10px; overflow: hidden; }
+.dp-gl-single-img { width: 110px; height: 110px; flex-shrink: 0; }
+.dp-gl-single-info { flex: 1; padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; }
+.dp-gl-single-t { font-size: 13px; color: #1d2129; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.4; }
+.dp-goodslist-scroll { white-space: nowrap; }
+.dp-goodslist-scroll-row { display: inline-flex; gap: 10px; padding: 2px; }
+.dp-gl-scroll { width: 120px; background: #fff; border-radius: 10px; overflow: hidden; }
+.dp-gl-scroll-img { width: 120px; height: 120px; }
+.dp-gl-scroll-t { display: block; font-size: 12px; color: #1d2129; padding: 6px 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-gl-scroll .dp-gl-price { padding: 2px 8px 8px; }
+.dp-gl-empty { padding: 20px 0; text-align: center; font-size: 12px; color: #86909c; }
+
 </style>

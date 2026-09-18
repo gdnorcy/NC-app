@@ -825,6 +825,8 @@ import { mergeEwHeader } from '../../../../utils/designHeader';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
+  // 页面列表作用域（如 'mall-' 只显示该前缀页面；空 = 全部页面，设计中心使用）
+  pageScope: { type: String, default: '' },
 });
 const emit = defineEmits(['dirty-change', 'page-switch']);
 const pageName = ref('首页');
@@ -1106,9 +1108,11 @@ function mergePages(list) {
   return [...map.values()];
 }
 const filteredPages = computed(() => {
+  let arr = mergedPages.value;
+  if (props.pageScope) arr = arr.filter((p) => (p.page_type || '').startsWith(props.pageScope));
   const kw2 = pageKw.value.trim();
-  if (!kw2) return mergedPages.value;
-  return mergedPages.value.filter((p) => (p.page_name || '').includes(kw2));
+  if (!kw2) return arr;
+  return arr.filter((p) => (p.page_name || '').includes(kw2));
 });
 const homePageType = computed(() => mergedPages.value.find((p) => p.isHome)?.page_type || 'home');
 // 页面列表拖拽排序：dragstart 记起点 → dragover 重排（splice）→ drop 提交后端
@@ -1185,8 +1189,8 @@ async function deletePage(p) {
     await designCall.post('/design/page/delete', { pageType: p.page_type });
     ElMessage.success('已删除');
     await loadPageList();
-    // 删除的是当前正在编辑的页面 → 切回首页
-    if (p.page_type === props.pageType) emit('page-switch', 'home');
+    // 删除的是当前正在编辑的页面 → 切回首页（scope 模式回 scope 默认页）
+    if (p.page_type === props.pageType) emit('page-switch', props.pageScope ? `${props.pageScope}home` : 'home');
   } catch (e) { ElMessage.error(e); }
 }
 
