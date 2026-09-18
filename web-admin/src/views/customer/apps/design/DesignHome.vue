@@ -1454,9 +1454,9 @@ onMounted(() => {
 
 .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
 .tpl-card { border: 1px solid #e5e6eb; border-radius: 10px; background: #fff; padding-bottom: 4px; }
-.tpl-phone { position: relative; background: #1d2129; border-radius: 18px; padding: 5px; margin: 10px 10px 0; }
-.tpl-phone-notch { position: absolute; top: 7px; left: 50%; transform: translateX(-50%); width: 38px; height: 4px; background: #1d2129; border-radius: 2px; z-index: 2; }
-.tpl-phone-screen { background: #fff; border-radius: 13px; height: 230px; overflow: hidden; position: relative; }
+.tpl-phone { position: relative; background: #1d2129; border-radius: 18px; padding: 5px; margin: 10px auto 0; width: 140px; aspect-ratio: 9 / 19; }
+.tpl-phone-notch { position: absolute; top: 7px; left: 50%; transform: translateX(-50%); width: 34px; height: 4px; background: #1d2129; border-radius: 2px; z-index: 2; }
+.tpl-phone-screen { background: #fff; border-radius: 13px; height: 100%; overflow: hidden; position: relative; }
 .tpl-screen-inner { padding-top: 10px; }
 .tpl-public { position: absolute; top: 8px; right: 8px; z-index: 3; }
 .tpl-cat-tag { margin-left: 6px; }
