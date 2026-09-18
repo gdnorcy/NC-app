@@ -147,6 +147,9 @@ function tableExists(db, name) {
 }
 
 function colExists(db, table, col) {
+  // 表不存在时按“列已存在”处理（跳过 ALTER）：新库该表若在建表语句中已含目标列则无需补；
+  // 否则直接对不存在表执行 PRAGMA/ALTER 会抛 no such table，破坏迁移幂等（content_comment 曾触发）
+  if (!tableExists(db, table)) return true;
   return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
 }
 
@@ -2147,6 +2150,10 @@ function seedGoods(db) {
   if (!colExists(db, 'goods', 'card_key_id')) {
     db.exec("ALTER TABLE goods ADD COLUMN card_key_id INTEGER");
   }
+  // 礼品卡券·实物卡绑定商品（2026-09-18 对齐菜鸟云 giftcard type=2：实物卡把面额替换为「指定商品」）
+  if (!colExists(db, 'giftcard', 'product_id')) {
+    db.exec("ALTER TABLE giftcard ADD COLUMN product_id INTEGER NOT NULL DEFAULT 0");
+  }
 
   // —— 应用注册：商品管理（平台授权应用，1:1 复刻菜鸟云「商品=总后台授权」；租户方案勾选后侧边栏「商品管理」才显示；演示方案自动纳入见下方 solution_apps）——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('基础功能', 'apps', 2)");
@@ -3036,6 +3043,14 @@ function seedMember(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_member_user_labels ON member_user_labels (tenant_id, user_id);
   `);
+
+  // 申请模式·审核方式/有效时长（2026-09-18 对齐菜鸟云 member level upgradeMode=apply：审核方式 manual/auto + 有效时长天）
+  if (!colExists(db, 'member_levels', 'review_mode')) {
+    db.exec("ALTER TABLE member_levels ADD COLUMN review_mode TEXT NOT NULL DEFAULT 'manual'");
+  }
+  if (!colExists(db, 'member_levels', 'valid_days')) {
+    db.exec("ALTER TABLE member_levels ADD COLUMN valid_days INTEGER NOT NULL DEFAULT 0");
+  }
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

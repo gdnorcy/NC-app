@@ -184,7 +184,8 @@ export function createGiftCardRouter(db) {
         id: r.id, cateId: r.cate_id, cateName: cm.get(r.cate_id) || '',
         name: r.name, price: r.price, stock: r.stock, sold: r.sold,
         limitNum: r.limit_num, increase: r.increase, type: r.type,
-        money: r.money, useType: r.use_type, useBtime: r.use_btime, useEtime: r.use_etime,
+        money: r.money, productId: r.product_id || 0,
+        useType: r.use_type, useBtime: r.use_btime, useEtime: r.use_etime,
         todayAfter: r.today_after, yesAfter: r.yes_after,
         thumb: r.thumb, carousel: safeJson(r.carousel), descs: r.descs,
         shareTitle: r.share_title, shareImg: r.share_img, detail: r.detail,
@@ -205,12 +206,13 @@ export function createGiftCardRouter(db) {
       const cate = db.prepare('SELECT id FROM giftcard_category WHERE id = ? AND customer_id = ?').get(Number(b.cateId), cid);
       if (!cate) return res.status(400).json({ error: '所属分类不存在' });
       const r = db.prepare(
-        `INSERT INTO giftcard (customer_id, cate_id, name, price, stock, limit_num, increase, type, money,
+        `INSERT INTO giftcard (customer_id, cate_id, name, price, stock, limit_num, increase, type, money, product_id,
           use_type, use_btime, use_etime, today_after, yes_after, thumb, carousel, descs, share_title, share_img, detail, sort, flag)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).run(cid, Number(b.cateId), String(b.name).trim(), Number(b.price) || 0, Number(b.stock) || 0,
         Number(b.limitNum) || 0, Number(b.increase) === 1 ? 1 : 0, Number(b.type) === 2 ? 2 : 1,
-        Number(b.money) || 0, Number(b.useType) || 1, String(b.useBtime || ''), String(b.useEtime || ''),
+        Number(b.money) || 0, Number(b.productId) || 0,
+        Number(b.useType) || 1, String(b.useBtime || ''), String(b.useEtime || ''),
         Number(b.todayAfter) || 0, Number(b.yesAfter) || 0, String(b.thumb || ''),
         JSON.stringify(Array.isArray(b.carousel) ? b.carousel : []), String(b.descs || ''),
         String(b.shareTitle || ''), String(b.shareImg || ''), String(b.detail || ''),
@@ -228,11 +230,12 @@ export function createGiftCardRouter(db) {
       const b = req.body;
       if (!String(b.name || '').trim()) return res.status(400).json({ error: '请输入卡券名称' });
       const r = db.prepare(
-        `UPDATE giftcard SET name=?, price=?, stock=?, limit_num=?, increase=?, type=?, money=?, use_type=?,
+        `UPDATE giftcard SET name=?, price=?, stock=?, limit_num=?, increase=?, type=?, money=?, product_id=?, use_type=?,
           use_btime=?, use_etime=?, today_after=?, yes_after=?, thumb=?, carousel=?, descs=?, share_title=?, share_img=?, detail=?, sort=?, flag=?, updated_at=datetime('now')
          WHERE id=? AND customer_id=?`
       ).run(String(b.name).trim(), Number(b.price) || 0, Number(b.stock) || 0, Number(b.limitNum) || 0,
-        Number(b.increase) === 1 ? 1 : 0, Number(b.type) === 2 ? 2 : 1, Number(b.money) || 0, Number(b.useType) || 1,
+        Number(b.increase) === 1 ? 1 : 0, Number(b.type) === 2 ? 2 : 1, Number(b.money) || 0, Number(b.productId) || 0,
+        Number(b.useType) || 1,
         String(b.useBtime || ''), String(b.useEtime || ''), Number(b.todayAfter) || 0, Number(b.yesAfter) || 0,
         String(b.thumb || ''), JSON.stringify(Array.isArray(b.carousel) ? b.carousel : []), String(b.descs || ''),
         String(b.shareTitle || ''), String(b.shareImg || ''), String(b.detail || ''),

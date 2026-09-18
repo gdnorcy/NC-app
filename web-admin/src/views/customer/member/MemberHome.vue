@@ -385,6 +385,19 @@
     <el-dialog v-model="levelDlg.show" :title="levelDlg.form.id ? '编辑等级' : '新建等级'" width="640px" top="4vh">
       <el-form label-width="120px" label-position="right">
         <el-divider content-position="left">基础信息</el-divider>
+        <el-form-item label="等级状态" required>
+          <el-radio-group v-model="levelDlg.form.status">
+            <el-radio :value="1">开启</el-radio>
+            <el-radio :value="0">关闭</el-radio>
+          </el-radio-group>
+          <span class="form-tip">关闭后用户不可见/不可升级到该等级</span>
+        </el-form-item>
+        <el-form-item label="选择等级" required>
+          <el-select v-model="levelDlg.form.levelNo" placeholder="请选择等级" style="width: 200px">
+            <el-option v-for="n in 50" :key="n" :label="`Lv${n}${n === 1 ? '（最低）' : ''}`" :value="n" />
+          </el-select>
+          <span class="form-tip">数字越大等级越高</span>
+        </el-form-item>
         <el-form-item label="等级名称" required>
           <el-input v-model="levelDlg.form.name" maxlength="32" placeholder="如：黄金会员" />
         </el-form-item>
@@ -414,6 +427,19 @@
           </el-select>
           <span class="form-tip">用户申请升级时填写该表单内容</span>
         </el-form-item>
+        <template v-if="levelDlg.form.upgradeMode === 'apply'">
+          <el-form-item label="审核方式">
+            <el-radio-group v-model="levelDlg.form.reviewMode">
+              <el-radio value="manual">手动审核</el-radio>
+              <el-radio value="auto">自动审核</el-radio>
+            </el-radio-group>
+            <span class="form-tip">自动审核：用户提交申请后自动通过开卡</span>
+          </el-form-item>
+          <el-form-item label="有效时长">
+            <el-input-number v-model="levelDlg.form.validDays" :min="0" :max="3650" controls-position="right" />
+            <span class="form-tip">天（0=永久有效）</span>
+          </el-form-item>
+        </template>
         <el-form-item v-if="levelDlg.form.upgradeMode === 'consume'" label="累计消费金额" required>
           <el-input-number v-model="levelDlg.form.consumeAmount" :min="0" :step="100" />
           <span class="form-tip">累计消费满该金额自动升级（单位：分）</span>
@@ -582,9 +608,10 @@ async function loadLevels() {
   levels.value = res.levels || [];
 }
 function openLevelEdit(lv) {
+  const nextNo = levels.value.length ? Math.max(...levels.value.map((x) => Number(x.level_no) || 0)) + 1 : 1;
   levelDlg.form = lv
-    ? { ...lv, benefits: { ...emptyBenefits(), ...(lv.benefits || {}) } }
-    : { id: null, name: '', icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, formId: 0, description: '', benefits: emptyBenefits() };
+    ? { ...lv, status: lv.status ?? 1, levelNo: lv.level_no ?? nextNo, reviewMode: lv.review_mode || 'manual', validDays: lv.valid_days ?? 0, benefits: { ...emptyBenefits(), ...(lv.benefits || {}) } }
+    : { id: null, name: '', status: 1, levelNo: Math.min(nextNo, 50), icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, formId: 0, reviewMode: 'manual', validDays: 0, description: '', benefits: emptyBenefits() };
   levelDlg.show = true;
 }
 async function saveLevel() {

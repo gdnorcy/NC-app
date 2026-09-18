@@ -105,6 +105,19 @@
               <el-radio value="consult">价格面议</el-radio>
             </el-radio-group>
           </el-form-item>
+          <template v-if="g.saleMode === 'consult'">
+            <el-form-item label="自定别名">
+              <el-input v-model="g.advanced.faceName" placeholder="如：面议/联系客服" maxlength="20" class="w240" />
+              <span class="form-hint">C 端购买按钮上显示的文案</span>
+            </el-form-item>
+            <el-form-item label="选择链接">
+              <el-input v-model="g.advanced.faceUrl" placeholder="跳转链接（如客服微信/电话页）" class="w420" />
+            </el-form-item>
+            <el-form-item label="转发电话">
+              <el-switch v-model="g.advanced.facePhone" />
+              <span class="form-hint">开启后 C 端支持一键拨打电话咨询</span>
+            </el-form-item>
+          </template>
           <el-form-item v-if="topType !== 3" label="规格">
             <el-radio-group v-model="g.specMode">
               <el-radio value="single">单规格</el-radio>
@@ -119,7 +132,7 @@
             </el-form-item>
             <el-form-item v-if="topType !== 3" label="起购数量"><el-input-number v-model="g.minBuy" :min="1" controls-position="right" /></el-form-item>
             <el-form-item v-if="topType !== 3" label="重量（KG）"><el-input-number v-model="g.weight" :min="0" :precision="2" controls-position="right" /></el-form-item>
-            <el-form-item v-if="g.specMode === 'single' && g.saleMode !== 'consult'" label="售价"><el-input-number v-model="g.price" :min="0" :precision="2" controls-position="right" class="price-input" /></el-form-item>
+            <el-form-item v-if="g.specMode === 'single'" label="售价"><el-input-number v-model="g.price" :min="0" :precision="2" controls-position="right" class="price-input" /></el-form-item>
           </template>
           <template v-else-if="topType !== 3">
             <!-- 多规格：规格名 + 规格值 → 自动组合 SKU -->
@@ -157,16 +170,33 @@
               <el-radio value="custom">单独设置</el-radio>
             </el-radio-group>
             <div v-if="g.memberPrice.mode === 'custom'" class="member-price-list">
-              <div v-for="(mp, i) in g.memberPrice.list || []" :key="i" class="member-price-row">
-                <el-input v-model="mp.level" placeholder="会员等级" class="w160" />
-                <el-select v-model="mp.type" class="w120">
-                  <el-option label="折扣(%)" value="discount" />
-                  <el-option label="固定价(元)" value="fixed" />
-                </el-select>
-                <el-input-number v-model="mp.value" :min="0" :precision="2" controls-position="right" />
-                <el-button size="small" text type="danger" @click="g.memberPrice.list.splice(i, 1)">删除</el-button>
+              <el-radio-group v-model="g.memberPrice.priceType" class="inline">
+                <el-radio value="percent">折扣</el-radio>
+                <el-radio value="amount">金额</el-radio>
+              </el-radio-group>
+              <div class="form-hint" style="margin-left:0;margin-top:4px">
+                {{ g.memberPrice.priceType === 'percent' ? '折扣：9.8 表示 98 折（按等级逐行设置）' : '金额：按会员等级逐行设置固定会员价（元）' }}
               </div>
-              <el-button size="small" @click="(g.memberPrice.list = g.memberPrice.list || []).push({ level: '', type: 'discount', value: 0 })">添加会员等级</el-button>
+              <el-table v-if="levelOptions.length" :data="levelOptions" size="small" border class="member-price-table">
+                <el-table-column label="会员等级" min-width="160">
+                  <template #default="{ row }">Lv{{ row.level_no }} {{ row.name }}</template>
+                </el-table-column>
+                <el-table-column :label="g.memberPrice.priceType === 'percent' ? '折扣（折）' : '会员价（元）'" width="220">
+                  <template #default="{ row }">
+                    <el-input-number
+                      v-model="g.memberPrice.priceMap[row.id]"
+                      :min="0"
+                      :precision="g.memberPrice.priceType === 'percent' ? 1 : 2"
+                      :max="g.memberPrice.priceType === 'percent' ? 100 : undefined"
+                      size="small"
+                      controls-position="right"
+                      class="w-full"
+                      :placeholder="g.memberPrice.priceType === 'percent' ? '如 9.8' : '如 99.00'"
+                    />
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div v-else class="form-hint" style="margin-left:0">暂无会员等级，请先在「会员管理-会员等级」中创建等级</div>
             </div>
           </el-form-item>
         </el-form>
@@ -271,12 +301,33 @@
               <el-radio value="custom">独立</el-radio>
             </el-radio-group>
           </el-form-item>
+          <el-form-item v-if="g.member.priceShow === 'custom'" label="展示权限">
+            <el-radio-group v-model="g.member.noVipShowPrice">
+              <el-radio value="invisible">非会员不可见价格</el-radio>
+              <el-radio value="visible">非会员可见价格且可见会员价</el-radio>
+            </el-radio-group>
+          </el-form-item>
           <el-form-item label="会员专享">
             <el-radio-group v-model="g.member.exclusive">
               <el-radio value="all">选择等级</el-radio>
               <el-radio value="default">默认</el-radio>
             </el-radio-group>
           </el-form-item>
+          <template v-if="g.member.exclusive === 'all'">
+            <el-form-item label="购买等级">
+              <el-radio-group v-model="g.member.buyLevel">
+                <el-radio value="min">最低等级</el-radio>
+                <el-radio value="any">指定等级</el-radio>
+                <el-radio value="all">全部等级</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item v-if="g.member.buyLevel === 'any'" label="指定等级">
+              <el-select v-model="g.member.levelIds" multiple filterable collapse-tags collapse-tags-tooltip placeholder="请选择可购买的会员等级" style="width: 420px">
+                <el-option v-for="lv in levelOptions" :key="lv.id" :label="`Lv${lv.level_no} ${lv.name}`" :value="lv.id" />
+              </el-select>
+              <div class="form-hint" style="margin-left:0;margin-top:4px">只有指定的会员等级可购买</div>
+            </el-form-item>
+          </template>
         </el-form>
       </el-tab-pane>
 
@@ -362,6 +413,12 @@
               <el-radio value="custom">单独</el-radio>
             </el-radio-group>
           </el-form-item>
+          <el-form-item v-if="g.advanced.cart === 'custom'" label="购物车">
+            <el-radio-group v-model="g.advanced.cartVisible">
+              <el-radio :value="1">显示</el-radio>
+              <el-radio :value="0">不显示</el-radio>
+            </el-radio-group>
+          </el-form-item>
           <el-form-item label="推广链接">
             <el-input v-model="g.advanced.promoLinks" placeholder="抖音/快手/淘宝链接（多个用英文逗号分隔）" class="w420" />
             <div class="form-hint">按钮名称不超过 6 字，默认「添加到橱窗」</div>
@@ -401,6 +458,7 @@ const licenses = ref([]);
 const cardKeys = ref([]);  // 卡密库（应用中心-电子卡密管理端接入）
 const cateOptions = ref([]);
 const paramTpls = ref([]);
+const levelOptions = ref([]);  // 会员等级（会员价逐行 + 会员专享指定等级）
 const saving = ref(false);
 const paramName = ref('商品参数');
 const specName = ref('');
@@ -411,13 +469,14 @@ const g = reactive({
   topType: 1, type: 'normal', status: 'sell', sortOrder: 0, title: '', cateIds: [],
   images: [], thumb: '', info: '', pickup: 'express', freightMode: 'fixed', fixedFreight: 0,
   saleMode: 'online', specMode: 'single', stock: 0, minBuy: 1, weight: 0, price: 0,
-  marketPrice: 0, costPrice: 0, goodsNo: '', memberPrice: { mode: 'none', list: [] },
+  marketPrice: 0, costPrice: 0, goodsNo: '',
+  memberPrice: { mode: 'none', priceType: 'percent', priceMap: {} },
   param: [], recommend: false, unit: '', views: 0, realSales: 0, fakeSales: 0, fakePeople: 0,
   superForm: 'default', video: '', videoCover: '', videoPlay: 'popup', tags: '', brief: '',
   brandTag: '', titleTag: '', service: [], marketing: { points: 0, buyPoints: '', buyBalance: 0, coupon: false, share: false },
-  member: { priceShow: 'default', exclusive: 'default' },
+  member: { priceShow: 'default', noVipShowPrice: 'invisible', exclusive: 'default', buyLevel: 'all', levelIds: [] },
   distribution: { rule: 'off', commissionType: 'percent', commissionLevels: [] },
-  advanced: { supplier: '', limitBuy: false, limitBuyCount: 1, stockMode: 'order', remark: '', shareTitle: '', shareImg: '', buyBtn: '', cart: 'default', promoLinks: '' },
+  advanced: { supplier: '', limitBuy: false, limitBuyCount: 1, stockMode: 'order', remark: '', shareTitle: '', shareImg: '', buyBtn: '', cart: 'default', cartVisible: 1, promoLinks: '', faceName: '', faceUrl: '', facePhone: false },
   phoneRequired: 0,   // 手机号填写：0不展示 1必填 2选填（卡密/虚拟）
   cardKeyId: null,    // 卡密库（仅卡密）
   skus: [],
@@ -446,6 +505,11 @@ async function loadMeta() {
     cateOptions.value = cates.tree || [];
     paramTpls.value = params.list || [];
     licenses.value = lic.apps || [];
+    // 会员等级列表（会员价逐行 + 会员专享指定等级）
+    try {
+      const lv = await customerApiCall.get('/member/levels');
+      levelOptions.value = (lv.levels || []).filter((x) => x.status !== 0);
+    } catch (e) { console.warn('[GoodsEdit] loadLevels fail', e); }
     // 卡密库下拉（仅开通电子卡密时拉取）
     if (licenses.value.includes('card-carmi')) {
       try {
@@ -477,16 +541,38 @@ async function loadGoods() {
     topType.value = g.topType;
     g.cateIds = (g.cateIds || []).map(Number);
     g.recommend = !!g.recommend;
-    g.memberPrice = { mode: g.memberPrice.mode || 'none', list: g.memberPrice.list || [] };
+    g.memberPrice = {
+      mode: 'none', priceType: 'percent', priceMap: {},
+      ...(g.memberPrice || {}),
+    };
+    // 兼容旧版 list 结构（自由文本 level + type + value）→ 迁移到 priceMap
+    if (Array.isArray(g.memberPrice.list) && g.memberPrice.list.length && !Object.keys(g.memberPrice.priceMap || {}).length) {
+      g.memberPrice.priceType = g.memberPrice.list[0]?.type === 'fixed' ? 'amount' : 'percent';
+      const map = {};
+      for (const row of g.memberPrice.list) {
+        const hit = levelOptions.value.find((l) => l.name === row.level);
+        if (hit) map[hit.id] = row.value;
+      }
+      g.memberPrice.priceMap = map;
+    }
+    if (typeof g.memberPrice.priceMap !== 'object' || !g.memberPrice.priceMap) g.memberPrice.priceMap = {};
     g.marketing = { points: 0, buyPoints: '', buyBalance: 0, coupon: false, share: false, ...(g.marketing || {}) };
-    g.member = { priceShow: 'default', exclusive: 'default', ...(g.member || {}) };
+    g.member = {
+      priceShow: 'default', noVipShowPrice: 'invisible', exclusive: 'default', buyLevel: 'all', levelIds: [],
+      ...(g.member || {}),
+    };
+    if (!Array.isArray(g.member.levelIds)) g.member.levelIds = [];
     g.distribution = { rule: 'off', commissionType: 'percent', commissionLevels: [], ...(g.distribution || {}) };
     if (typeof g.distribution.commissionLevels === 'string') {
       try { g.distribution.commissionLevels = JSON.parse(g.distribution.commissionLevels) || []; }
       catch (e) { console.warn('[GoodsEdit] parse commissionLevels fail', e); g.distribution.commissionLevels = []; }
     }
     if (!Array.isArray(g.distribution.commissionLevels)) g.distribution.commissionLevels = [];
-    g.advanced = { supplier: '', limitBuy: false, limitBuyCount: 1, stockMode: 'order', remark: '', shareTitle: '', shareImg: '', buyBtn: '', cart: 'default', promoLinks: '', ...(g.advanced || {}) };
+    g.advanced = {
+      supplier: '', limitBuy: false, limitBuyCount: 1, stockMode: 'order', remark: '', shareTitle: '', shareImg: '',
+      buyBtn: '', cart: 'default', cartVisible: 1, promoLinks: '', faceName: '', faceUrl: '', facePhone: false,
+      ...(g.advanced || {}),
+    };
     g.service = g.service || [];
     g.param = g.param || [];
   } catch (e) { ElMessage.error(e); }

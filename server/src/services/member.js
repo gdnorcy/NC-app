@@ -46,14 +46,15 @@ export function createMemberService(db) {
   function addLevel(tenantId, d) {
     const levelNo = Number(d.levelNo) || 1;
     const info = db.prepare(
-      `INSERT INTO member_levels (tenant_id, level_no, name, status, icon, bg_color, text_show, text_color, upgrade_mode, consume_amount, buy_price, buy_product, form_id, benefits, description, sort_order)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO member_levels (tenant_id, level_no, name, status, icon, bg_color, text_show, text_color, upgrade_mode, consume_amount, buy_price, buy_product, form_id, benefits, description, sort_order, review_mode, valid_days)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       tenantId, levelNo, d.name || '', d.status === 0 ? 0 : 1, d.icon || '', d.bgColor || '',
       d.textShow === 0 ? 0 : 1, d.textColor || '#ffffff', d.upgradeMode || 'consume',
       Math.round(Number(d.consumeAmount) || 0), Math.round(Number(d.buyPrice) || 0),
       d.buyProduct || '', Number(d.formId) || 0, JSON.stringify(d.benefits || {}),
-      d.description || '', Number(d.sortOrder) || levelNo
+      d.description || '', Number(d.sortOrder) || levelNo,
+      d.reviewMode === 'auto' ? 'auto' : 'manual', Number(d.validDays) || 0
     );
     return getLevel(tenantId, info.lastInsertRowid);
   }
@@ -61,7 +62,7 @@ export function createMemberService(db) {
     const cur = getLevel(tenantId, id);
     if (!cur) return null;
     db.prepare(
-      `UPDATE member_levels SET level_no=?, name=?, status=?, icon=?, bg_color=?, text_show=?, text_color=?, upgrade_mode=?, consume_amount=?, buy_price=?, buy_product=?, form_id=?, benefits=?, description=?, sort_order=? WHERE id=? AND tenant_id=?`
+      `UPDATE member_levels SET level_no=?, name=?, status=?, icon=?, bg_color=?, text_show=?, text_color=?, upgrade_mode=?, consume_amount=?, buy_price=?, buy_product=?, form_id=?, benefits=?, description=?, sort_order=?, review_mode=?, valid_days=? WHERE id=? AND tenant_id=?`
     ).run(
       d.levelNo ?? cur.level_no, d.name ?? cur.name,
       d.status === undefined ? cur.status : (d.status === 0 ? 0 : 1),
@@ -74,7 +75,10 @@ export function createMemberService(db) {
       d.formId === undefined ? cur.form_id : Number(d.formId) || 0,
       d.benefits === undefined ? JSON.stringify(cur.benefits) : JSON.stringify(d.benefits),
       d.description ?? cur.description,
-      d.sortOrder ?? cur.sort_order, id, tenantId
+      d.sortOrder ?? cur.sort_order,
+      d.reviewMode === undefined ? cur.review_mode : (d.reviewMode === 'auto' ? 'auto' : 'manual'),
+      d.validDays === undefined ? cur.valid_days : Number(d.validDays) || 0,
+      id, tenantId
     );
     return getLevel(tenantId, id);
   }

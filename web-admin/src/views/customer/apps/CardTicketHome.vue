@@ -262,10 +262,18 @@
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="卡券面额">
+          <el-col :span="8" v-if="cardDlg.form.type === 1">
+            <el-form-item label="卡券面额" required>
               <el-input-number v-model="cardDlg.form.money" :min="0" :precision="2" controls-position="right" style="width: 100%" />
               <div class="form-tip">单位：元</div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="16" v-if="cardDlg.form.type === 2">
+            <el-form-item label="指定商品" required>
+              <el-select v-model="cardDlg.form.productId" placeholder="请选择实物商品" filterable style="width: 100%">
+                <el-option v-for="p in goodsOptions" :key="p.id" :label="p.title" :value="p.id" />
+              </el-select>
+              <div class="form-tip">实物卡购买后发放指定商品；请先在「商品管理」上架实物商品</div>
             </el-form-item>
           </el-col>
           <el-col :span="16">
@@ -435,9 +443,18 @@ async function saveSettings() {
 function emptyCard() {
   return {
     id: 0, name: '', cateId: null, price: 0, stock: 0, limitNum: 0, increase: 0, type: 1,
-    money: 0, useType: 1, useBtime: '', useEtime: '', todayAfter: 1, yesAfter: 1,
+    money: 0, productId: 0, useType: 1, useBtime: '', useEtime: '', todayAfter: 1, yesAfter: 1,
     thumb: '', carousel: [], descs: '', shareTitle: '', shareImg: '', detail: '', sort: 0, flag: 1,
   };
+}
+
+// 实物卡绑定商品下拉（仅已上架商品）
+const goodsOptions = ref([]);
+async function loadGoodsOptions() {
+  try {
+    const r = await customerApiCall.get('/goods', { params: { status: 'sell', page: 1, pageSize: 200 } });
+    goodsOptions.value = (r.list || []).map((g) => ({ id: g.id, title: g.title }));
+  } catch (e) { console.warn('[CardTicket] loadGoodsOptions fail', e); }
 }
 
 async function loadCards() {
@@ -449,7 +466,8 @@ async function loadCards() {
 
 function openCard(row) {
   cardDlg.form = row ? {
-    ...emptyCard(), ...row, price: row.price / 100, money: row.money / 100, carousel: [...(row.carousel || [])],
+    ...emptyCard(), ...row, price: row.price / 100, money: row.money / 100,
+    productId: row.productId || 0, carousel: [...(row.carousel || [])],
   } : emptyCard();
   useRange.value = row && row.useBtime ? [row.useBtime, row.useEtime] : null;
   cardDlg.show = true;
@@ -461,11 +479,15 @@ async function saveCard() {
   const f = cardDlg.form;
   if (!f.name.trim()) return ElMessage.warning('请输入卡券名称');
   if (!f.cateId) return ElMessage.warning('请选择所属分类');
+  if (f.type === 1 && !(Number(f.money) > 0)) return ElMessage.warning('请填写卡券面额');
+  if (f.type === 2 && !f.productId) return ElMessage.warning('请选择指定商品');
   if (f.useType === 0 && (!useRange.value || !useRange.value.length)) return ElMessage.warning('请选择固定时间有效期');
   const payload = {
     ...f,
     price: Math.round((Number(f.price) || 0) * 100),
-    money: Math.round((Number(f.money) || 0) * 100),
+    // 充值卡存面额、清 productId；实物卡存 productId、清 money（互斥）
+    money: f.type === 1 ? Math.round((Number(f.money) || 0) * 100) : 0,
+    productId: f.type === 2 ? Number(f.productId) || 0 : 0,
     useBtime: f.useType === 0 && useRange.value ? useRange.value[0] : '',
     useEtime: f.useType === 0 && useRange.value ? useRange.value[1] : '',
     carousel: f.carousel.filter(Boolean),
@@ -496,7 +518,7 @@ async function batchDel() {
   } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error(e); }
 }
 
-onMounted(() => { loadCates(); loadCards(); });
+onMounted(() => { loadCates(); loadCards(); loadGoodsOptions(); });
 </script>
 
 <style scoped>
