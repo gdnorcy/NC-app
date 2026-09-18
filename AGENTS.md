@@ -304,6 +304,23 @@ npm run test:frontend
 2. **调试注入登录态**：`localStorage.setItem('card_token', token)` 后必须整页刷新（location.href）让页面重新加载；同 tab hash 导航页面模块不重新初始化 storage 缓存。
 3. **「登录态判断失败但 fetch 正常」= storage 不同步**，先换成 getToken() 直读再排查业务逻辑。
 
+## 问题12：uni 装修组件「内层 height:100%、外层漏设高」导致 DOM 渲染但视觉塌陷（2026-09-18）
+
+**现象**：商城首页轮播图（swiper）接口正确返回、DOM 元素也在（.dp-swiper 节点存在），但页面上完全看不到——`getBoundingClientRect().height = 0`。
+
+**根因**：DesignPage.vue 中 `dpSwiperBoxStyle` 返回 `height:'100%'`，而外层 `.dp-swiper` 容器 style（`dpSwiperStyle`）只设了 borderRadius/shadow，**漏设高度**；父容器高度 auto → 100% 解算为 0 → 内层 swiper 高度 0。uni H5 不会报错，页面「数据对、DOM 在、就是看不见」。
+
+**预防规范（通用，不限于 swiper）**：
+1. **任何内层用 `height:'100%'` 的组件，外层容器 style 必须显式设高度**（`p.height+'px'` 或 aspect-ratio）；二者缺一必塌陷。全文件 `grep "height: '100%'"` 必须逐个核对外层。
+2. **uni-app H5 中 `<swiper>` 是特殊组件**：不设高度时 H5 端按 0/默认 150px 计算，必须由 props.height（设计稿 px）显式撑外层；image 类组件靠 mode（widthFix/aspectRatio）或内容撑高，不受此影响。
+3. **「组件 DOM 存在但看不见」排查顺序**：先 `getBoundingClientRect().height` 量外层/内层 → 若为 0 即高度塌陷，查外层 style 是否漏高 → 再查图片 404/接口字段。不要只看接口数据正确就以为渲染正常。
+4. **新增装修组件时自查**：style 函数必须覆盖「尺寸从哪来」——是内容撑开、aspect-ratio、还是 props.height；三选一必须有答案。
+
+## 商城装修页固定头部规则（2026-09-18）
+
+- `/pages/mall/index` 页面级固定头（「商城」标题+购物车）仅在**无装修组件兜底**时显示；`designComps.length > 0`（装修首页/行业首页）时必须隐藏固定头（`v-if="!designComps.length"`），让装修内容（轮播图等）顶到页面最顶部，与真实 C 端访问一致。
+- **预览 URL 必须走真实 C 端入口**（mall-home → `/mall/#/pages/mall/index`），禁止用通用装修容器代替——通用容器自带头部栏会造成预览与真实页面不一致。
+
 # 商城 C 端一期口径（2026-09-18）
 
 - **金额口径（强制）**：商品列表/详情接口 price=元；购物车 cart 接口 price=分（`Math.round((sku|goods 单价)*100)`）；订单/支付 amount=分。前端统一 `fen2yuan`（分→元）/`yuanFmt`（元→元字符串），禁止混用。

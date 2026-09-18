@@ -1,7 +1,7 @@
 <template>
   <view class="mall-page">
     <!-- 顶部栏：返回(有来源时) + 标题 + 购物车入口 -->
-    <view class="mall-nav">
+    <view class="mall-nav" v-if="!designComps.length">
       <view class="nav-back" @click="goBack" v-if="canBack"><text>‹</text></view>
       <text class="nav-title">商城</text>
       <view class="nav-cart" @click="goCart">
