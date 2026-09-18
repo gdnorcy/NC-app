@@ -451,7 +451,7 @@
             <div class="pm-toolbar-right">
               <el-button @click="renameTemplate">重命名模板</el-button>
               <el-button @click="openPreview">预览模板</el-button>
-              <el-button type="primary" @click="goEdit('home')">立即装修</el-button>
+              <el-button type="primary" @click="goEdit(homePageType)">立即装修</el-button>
             </div>
           </div>
 

@@ -11,11 +11,14 @@ export const DESIGN_PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
  * 生成 C 端首页预览 URL（带一次性签名，30 分钟内有效，免登录）。
  * draft=true 生成草稿预览（preview=1，装修页「保存并预览」）；默认与真实首页一致（读发布版/同一缓存）。
  */
-export function buildDesignPreviewUrl(tenantId, draft = false) {
+export function buildDesignPreviewUrl(tenantId, draft = false, homePageType = 'home') {
   const exp = Math.floor(Date.now() / 1000) + 1800;
   const sig = createHash('sha256').update(`${tenantId}:${exp}:${DESIGN_PREVIEW_SECRET}`).digest('hex').slice(0, 32);
   // 预览统一读草稿(实时最新)：装修中显示最新草稿；发布后草稿=发布，与真实首页自然一致
-  return `/card/?nc=preview#/pages/cardMain/home?preview=1&tid=${tenantId}&exp=${exp}&sig=${sig}`;
+  const q = `tid=${tenantId}&exp=${exp}&sig=${sig}`;
+  // 按实际设为首页的页面 pageType 走对应 C 端预览路径：名片 home → cardMain/home；其它页面走通用装修容器 panorama/home?pageType=xxx
+  if (!homePageType || homePageType === 'home') return `/card/?nc=preview#/pages/cardMain/home?preview=1&${q}`;
+  return `/card/?nc=preview#/pages/panorama/home?preview=1&pageType=${encodeURIComponent(homePageType)}&${q}`;
 }
 
 export function createDesignService(db) {

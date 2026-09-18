@@ -336,7 +336,10 @@ export default function createDesignRouter(db, deps = {}) {
   // ---- 首页预览 URL：默认生成与 C 端真实首页一致的一次性签名 URL（普通模式，读发布版/同缓存）；
   // ---- ?draft=1 时生成草稿预览 URL（preview=1，装修页「保存并预览」用）----
   design.get('/previewUrl', tenant, (req, res) => {
-    res.json({ url: buildDesignPreviewUrl(req.customerId, String(req.query.draft) === '1') });
+    // 预览必须与「设为首页(is_home)」的页面一致：查当前首页 pageType，再生成对应 C 端预览 URL
+    const homeRow = db.prepare("SELECT page_type FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 ORDER BY id DESC LIMIT 1").get(req.customerId);
+    const homePageType = homeRow?.page_type || 'home';
+    res.json({ url: buildDesignPreviewUrl(req.customerId, String(req.query.draft) === '1', homePageType) });
   });
 
   return { material, design };
