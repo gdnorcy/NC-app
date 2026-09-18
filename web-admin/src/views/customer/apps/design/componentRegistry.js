@@ -36,6 +36,7 @@ export const componentGroups = [
   { key: 'basic', name: '基础组件' },
   { key: 'marketing', name: '营销组件' },
   { key: 'function', name: '功能组件' },
+  { key: 'mall', name: '商城组件' },
 ];
 
 // 组件图标（eweishop 原版）
