@@ -44,13 +44,13 @@ describe('设计中心 C 端渲染工具', () => {
 
   it('P2.2b 首页跳转按应用维度化：homePages.card 优先，兼容旧 homePage 单值', () => {
     // 新版：homePages 对象，card 应用单独配置
-    const cfg = normalizeDesignConfig({ homePages: { card: '/pages/cardMain/home?pageType=home', panorama: '/pages/index/index' }, homePage: 'market' });
+    const cfg = normalizeDesignConfig({ homePages: { card: '/pages/cardMain/home?pageType=home', panorama: '/pages/panorama/index' }, homePage: 'market' });
     expect(cfg.homePage).toBe('/pages/cardMain/home?pageType=home'); // homePages.card 优先
     // 旧版：无 homePages 时回退 homePage 单值
     const legacy = normalizeDesignConfig({ homePage: 'market' });
     expect(legacy.homePage).toBe('market');
     // 空值兜底 card（不跳转）
-    const empty = normalizeDesignConfig({ homePages: { panorama: '/pages/index/index' } });
+    const empty = normalizeDesignConfig({ homePages: { panorama: '/pages/panorama/index' } });
     expect(empty.homePage).toBe('card');
   });
 
@@ -95,9 +95,9 @@ describe('设计中心 C 端渲染工具', () => {
     expect(resolveHomePath('market')).toBe('/pages/card/market');
     expect(resolveHomePath('radar')).toBe('/pages/card/visitors');
     expect(resolveHomePath('distribution')).toBe('/pages/card/distribution');
-    expect(resolveHomePath('panorama')).toBe('/pages/index/index');
+    expect(resolveHomePath('panorama')).toBe('/pages/panorama/index');
     expect(resolveHomePath('/pages/cardMain/home?pageType=product')).toBe('/pages/cardMain/home?pageType=product');
-    expect(resolveHomePath('/pages/index/index')).toBe('/pages/index/index');
+    expect(resolveHomePath('/pages/panorama/index')).toBe('/pages/panorama/index');
     expect(resolveHomePath('非法值')).toBeNull();
   });
 

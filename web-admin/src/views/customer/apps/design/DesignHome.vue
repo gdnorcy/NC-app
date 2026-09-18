@@ -970,7 +970,7 @@ const CARD_PAGES = [
   { value: '/pages/card/profile', label: '我的', icon: 'user' },
 ];
 const PANORAMA_PAGES = [
-  { value: '/pages/index/index', label: '360全景首页', icon: 'panorama', desc: '360°全景方案列表（全景应用内首页）' },
+  { value: '/pages/panorama/index', label: '360全景首页', icon: 'panorama', desc: '360°全景方案列表（全景应用内首页）' },
   { value: '/pages/viewer/viewer', label: '360全景浏览', icon: 'panorama', desc: '直接进入全景浏览' },
 ];
 const GOODS_PAGES = [

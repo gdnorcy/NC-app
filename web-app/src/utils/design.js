@@ -25,7 +25,7 @@ export const HOME_PAGE_MAP = {
   mycard: '/pages/card/myCard',
   profile: '/pages/card/profile',
   // 行业应用
-  panorama: '/pages/index/index', // 360全景首页
+  panorama: '/pages/panorama/index', // 360全景首页
   'panorama-viewer': '/pages/viewer/viewer', // 360全景浏览
 };
 

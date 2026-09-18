@@ -8,7 +8,7 @@ export const LINK_CATALOG = [
     name: '行业应用首页',
     items: [
       { label: '智能名片首页', value: '/pages/cardMain/home' },
-      { label: '360全景首页', value: '/pages/index/index', desc: '360°全景方案列表（全景应用内首页）' },
+      { label: '360全景首页', value: '/pages/panorama/index', desc: '360°全景方案列表（全景应用内首页）' },
       { label: '商城首页', value: '/pages/mall/index', desc: '商城（建设中占位页）' },
     ],
   },
