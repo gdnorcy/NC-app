@@ -219,6 +219,20 @@ npm run test:frontend
 2. **验证前清 SW + 缓存破坏参数**：`navigator.serviceWorker.getRegistrations()→unregister` + `caches.keys()→delete`；刷新用带 `&v=随机` 的 URL 强制重新请求 HTML，并核对 `document.querySelectorAll('script')` 的 src 是否为新哈希。
 3. **判断"代码改了没生效"**：先看 script src 哈希是否等于最新构建产物，不等 = 缓存问题，先清缓存再排查逻辑。
 
+## 设计中心首页跳转按应用维度化（2026-09-18 新增，通用强制）
+
+- **存储**：`tenant_home_config` 的 `home_pages`（TEXT JSON，`{appCode: 启动页路径}`）按应用维度存各行业应用启动页；旧 `home_page` 列保留并同步 = `homePages.card`（C 端旧字段兼容）。`'card'`/空值键不落库 = 该应用展示默认首页（名片默认 DIY 装修首页「首页」开关生效）。
+- **接口契约**：`GET /api/customer/design/home/get` → `{homePages:{appCode:path}}`；`POST /api/customer/design/home/save` body = `{homePages:{...}}`（新）或 `{homePage:'x'}`（旧单值，兼容字符串→card）；`GET /api/card/design/config` → 同时返回 `homePage`（=homePages.card）与 `homePages`。
+- **管理端 UI**（DesignHome.vue「首页跳转」tab）：按 `HOME_APPS` 清单（card/panorama…）每应用一行「已选/未设置 + 选择链接 + 清除」；选择器弹窗按当前编辑应用过滤（card = 名片页+装修页面，panorama = 全景页），标题带「选择「XX」启动页」。新增行业应用时：HOME_APPS 加行 + groupsFor 加分组。
+- **C 端消费**（web-app/src/utils/design.js）：`normalizeDesignConfig` 取 `homePages.card ?? homePage`（旧字段兜底），`resolveHomePath` 不变；home.vue onShow 按 card 应用配置 reLaunch。
+- **系统模板**：模板 JSON 存 `homePages` 对象（旧模板 `homePage` 单值兼容，应用模板时 `cfg.homePages` 优先）。
+- **交付前检查**：每个应用行单独配置保存 → reload 后回显；旧单值配置迁移后仍生效；C 端名片启动跳转路径与保存一致。
+
+## 后端测试全量验证规范（2026-09-18 补充）
+
+- `npm test`（`node --test` 默认文件级并发）共享 HTTP 端口时**偶发 `HPE_INVALID_CONSTANT` 连接污染失败**（非逻辑失败，单文件/串行全过）；全量验证以**串行**为准：`node --test --test-concurrency=1 server/test/*.test.js`，344/344 全绿才算通过。
+- 单文件调试：`node --test --test-concurrency=1 server/test/<file>.test.js`。
+
 ## 装修组件联动内容管理（2026-09-18 打通）
 
 - **管理端注册**（`web-admin/src/views/customer/apps/design/componentRegistry.js`）：article-list 增加 `source` 字段（radio：manual 手动编辑 / content 内容管理文章）；新增 `pic-list`（组图列表）与 `video-list`（视频列表）两个营销组件，数据源固定内容管理（无手动模式），schema 含内容/样式/会员权限（板块标题、显示日期/封面/简介、每行几个、背景色、圆角、下边距、会员等级浏览权限）。
