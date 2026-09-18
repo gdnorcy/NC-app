@@ -104,7 +104,9 @@ const PosCenter = {
     const it = this.item;
     if (!this.hasContent) {
       const base = this.header && this.header.type === 'immersive' ? '#ffffff' : ((this.header && this.header.textColor) || '#1d2129');
-      return h('text', { class: 'dn-title-text', style: `color:${base}` }, this.fallback || '首页');
+      // fallback 为空字符串（第二行/未配中心内容）时不兜底显示「首页」，避免与第一行标题重复；仅 fallback 有值时显示
+      if (!this.fallback) return h('text', { class: 'dn-title-text', style: `color:${base}` });
+      return h('text', { class: 'dn-title-text', style: `color:${base}` }, this.fallback);
     }
     let inner = null;
     if (it.type === 'text') {
