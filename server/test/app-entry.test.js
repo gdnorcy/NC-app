@@ -110,6 +110,34 @@ describe('行业应用公开入口（独立首页分发）', () => {
     assert.match(await r.text(), /未开通/);
   });
 
+  test('/mall 无路径 → 302 默认直达商城占位页（保留 query，目标带尾斜杠避免重定向循环）', async () => {
+    const r = await get('/mall');
+    assert.equal(r.status, 302);
+    assert.equal(r.headers.get('location'), '/mall/#/pages/mall/index');
+    const r2 = await get('/mall?tid=99001');
+    assert.equal(r2.status, 302);
+    assert.equal(r2.headers.get('location'), '/mall/?tid=99001#/pages/mall/index');
+  });
+
+  test('/mall/ 返回商城 SPA index.html（与 /card 共用 uni H5 产物）', async () => {
+    const r = await get('/mall/');
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /<div id="app">/);
+  });
+
+  test('/mall/?tid=已开通 goods 租户 → 200 放行', async () => {
+    const r = await get('/mall/?tid=99001');
+    assert.equal(r.status, 200);
+  });
+
+  test('/mall/?tid=未开通租户 → 403 未开通提示页（按 goods 应用校验）', async () => {
+    const r = await get('/mall/?tid=99002');
+    assert.equal(r.status, 403);
+    const html = await r.text();
+    assert.match(html, /未开通/);
+    assert.match(html, /前往应用中心/);
+  });
+
   test('预览签名（exp+sig）跳过校验放行', async () => {
     const r = await get('/card/?nc=preview&exp=1789669951&sig=abc');
     assert.equal(r.status, 200);

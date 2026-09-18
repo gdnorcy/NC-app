@@ -255,6 +255,10 @@ export function createApp({ db, deps = {} } = {}) {
   const cardDist = path.join(config.publicDir, 'card');
   if (fs.existsSync(cardDist)) {
     appEntries.push({ prefix: '/card', code: 'card', name: '智能名片', dist: cardDist, index: 'index.html' });
+    // 商城 C 端独立入口预留（/mall）：当前与 /card 共用 uni H5 产物，hash 直达商城页；
+    // 未来商城 C 端独立构建时，仅需将 mallDist 指向新产物目录即可（code 已按 goods 应用校验开通）
+    const mallDist = path.join(config.publicDir, 'card');
+    appEntries.push({ prefix: '/mall', code: 'goods', name: '商城', dist: mallDist, index: 'index.html' });
   }
 
   // 360全景查看端（/pano）：vite 构建产物 base=/pano/，SW 注册 /pano/sw.js
@@ -311,6 +315,15 @@ export function createApp({ db, deps = {} } = {}) {
       next();
     });
   }
+
+  // /mall 无路径时默认直达商城占位页（保留 query，如 ?tid=1），保持 /mall 前缀独立入口观感；
+  // 仅精确匹配裸 /mall（无尾斜杠）。注意：redirect 目标必须带尾斜杠 /mall/，
+  // 否则浏览器重发请求时 hash 不上送，路径仍为 /mall → 无限重定向（ERR_TOO_MANY_REDIRECTS）。
+  app.get('/mall', (req, res, next) => {
+    if (req.path !== '/mall') return next();
+    const q = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
+    res.redirect(302, '/mall/' + q + '#/pages/mall/index');
+  });
 
   // 统一入口 fallback（静态资源已由 express.static 处理，走到这里的是 SPA 路由/HTML）
   for (const entry of appEntries) {
