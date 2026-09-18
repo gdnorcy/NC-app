@@ -1252,7 +1252,13 @@ export function createCardRouter(db, wxService) {
     const tenantId = req.customerId || previewTid;
     const style = db.prepare('SELECT style_json FROM tenant_style_config WHERE tenant_id = ?').get(tenantId);
     const tab = db.prepare("SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND is_default = 1 AND enabled = 1").get(tenantId);
-    const home = db.prepare('SELECT home_page FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
+    const home = db.prepare('SELECT home_page, home_pages FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
+    let homePages = {};
+    if (home) {
+      try { homePages = JSON.parse(home.home_pages || '{}'); } catch { homePages = {}; }
+      // 兼容旧字段：home_pages 未含 card 时以 home_page 兜底（'card' 表示不跳转，展示 DIY 装修首页）
+      if (!homePages.card && home.home_page && home.home_page !== 'card') homePages.card = home.home_page;
+    }
     // 预览模式（?preview=1）：额外返回首页草稿页面组件，供 C 端「保存并预览」；
     // 首页跳转选择器支持指定 DIY 装修页面（?pageType=xxx）：读取该 page_type 的已发布页面（未发布回退草稿），
     // 与菜鸟云「首页跳转可选 DIY 页面」语义一致；未指定时按 is_home 首页渲染
@@ -1293,7 +1299,8 @@ export function createCardRouter(db, wxService) {
       tenantId,
       style: style ? JSON.parse(style.style_json || '{}') : null,
       tab: tab ? { name: tab.scheme_name, items: JSON.parse(tab.tab_json || '[]') } : null,
-      homePage: home?.home_page || 'card',
+      homePage: homePages.card || home?.home_page || 'card',
+      homePages,
       header,
       pages,
     });

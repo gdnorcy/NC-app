@@ -42,6 +42,18 @@ describe('设计中心 C 端渲染工具', () => {
     expect(cfg.homePage).toBe('market');
   });
 
+  it('P2.2b 首页跳转按应用维度化：homePages.card 优先，兼容旧 homePage 单值', () => {
+    // 新版：homePages 对象，card 应用单独配置
+    const cfg = normalizeDesignConfig({ homePages: { card: '/pages/cardMain/home?pageType=home', panorama: '/pages/index/index' }, homePage: 'market' });
+    expect(cfg.homePage).toBe('/pages/cardMain/home?pageType=home'); // homePages.card 优先
+    // 旧版：无 homePages 时回退 homePage 单值
+    const legacy = normalizeDesignConfig({ homePage: 'market' });
+    expect(legacy.homePage).toBe('market');
+    // 空值兜底 card（不跳转）
+    const empty = normalizeDesignConfig({ homePages: { panorama: '/pages/index/index' } });
+    expect(empty.homePage).toBe('card');
+  });
+
   it('P2.1 系统风格字段兜底：旧数据（无新字段）回退默认玫红套', () => {
     const cfg = normalizeDesignConfig({ style: { primaryColor: '#F53F3F' } });
     expect(cfg.style.primaryColor).toBe('#F53F3F'); // 主色保留

@@ -226,15 +226,28 @@ export function createDesignService(db) {
   // ============ 首页跳转 ============
 
   svc.getHomeConfig = (tenantId) => {
-    const row = db.prepare('SELECT home_page FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
-    return { homePage: row ? row.home_page : 'card' };
+    const row = db.prepare('SELECT home_page, home_pages FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
+    let homePages = {};
+    if (row) {
+      try { homePages = JSON.parse(row.home_pages || '{}'); } catch { homePages = {}; }
+      // 兼容旧字段：home_pages 为空时以旧 home_page 作为 card 应用配置（'card' = 不跳转）
+      if (!homePages.card && row.home_page && row.home_page !== 'card') homePages.card = row.home_page;
+    }
+    return { homePages };
   };
 
-  svc.saveHomeConfig = (tenantId, homePage) => {
+  svc.saveHomeConfig = (tenantId, homePages) => {
+    const obj = (homePages && typeof homePages === 'object') ? homePages : {};
+    // 兼容旧调用（单值 homePage → card 应用）
+    if (typeof homePages === 'string') obj.card = homePages;
+    for (const k of Object.keys(obj)) {
+      if (obj[k] === 'card' || !obj[k]) delete obj[k]; // 'card' = 该应用不跳转（默认首页），不落库
+    }
+    const cardHome = obj.card || 'card';
     db.prepare(`
-      INSERT INTO tenant_home_config (tenant_id, home_page) VALUES (?, ?)
-      ON CONFLICT(tenant_id) DO UPDATE SET home_page = excluded.home_page, updated_at = datetime('now')
-    `).run(tenantId, String(homePage || 'card'));
+      INSERT INTO tenant_home_config (tenant_id, home_page, home_pages) VALUES (?, ?, ?)
+      ON CONFLICT(tenant_id) DO UPDATE SET home_page = excluded.home_page, home_pages = excluded.home_pages, updated_at = datetime('now')
+    `).run(tenantId, cardHome, JSON.stringify(obj));
     return { ok: true };
   };
 
@@ -284,7 +297,8 @@ export function createDesignService(db) {
     if (!t) return { ok: false, error: '模板不存在' };
     const cfg = t.template_json || {};
     if (cfg.style) svc.saveStyle(tenantId, cfg.style);
-    if (cfg.homePage) svc.saveHomeConfig(tenantId, cfg.homePage);
+    if (cfg.homePages) svc.saveHomeConfig(tenantId, cfg.homePages); // 按应用维度化（新版模板）
+    else if (cfg.homePage) svc.saveHomeConfig(tenantId, cfg.homePage); // 兼容旧模板单值
     if (cfg.tabs) {
       const tabs = Array.isArray(cfg.tabs) ? cfg.tabs : [cfg.tabs];
       for (const tItem of tabs) {

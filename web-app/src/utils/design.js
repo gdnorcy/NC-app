@@ -39,7 +39,11 @@ export function normalizeDesignConfig(raw) {
   const style = cfg.style || {};
   const tab = cfg.tab;
   const tabItems = Array.isArray(tab?.items) && tab.items.length ? tab.items : DEFAULT_DESIGN_TABS;
-  const homePage = (typeof cfg.homePage === 'string' && (cfg.homePage.startsWith('/') || HOME_PAGE_MAP[cfg.homePage])) ? cfg.homePage : 'card';
+  // 首页跳转按应用维度化：card 应用启动页取 homePages.card，兼容旧 homePage 单值
+  const homePageRaw = (cfg.homePages && typeof cfg.homePages === 'object' && typeof cfg.homePages.card === 'string')
+    ? cfg.homePages.card
+    : cfg.homePage;
+  const homePage = (typeof homePageRaw === 'string' && (homePageRaw.startsWith('/') || HOME_PAGE_MAP[homePageRaw])) ? homePageRaw : 'card';
   const pageMeta = cfg.pages?.meta || {};
   const globalDefault = pageMeta.global?.headerDefault || {};
   return {

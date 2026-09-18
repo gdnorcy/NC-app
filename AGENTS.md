@@ -225,6 +225,27 @@ npm run test:frontend
 - **C 端渲染**（`web-app/src/components/DesignPage.vue`）：article-list source=content 分支拉 `contentArticles`（cardApi.contentArticles({tid, page:1, pageSize:20})）渲染真实文章（thumb/title/created_at），点击 `openContentArticle` 跳 `/pagesReads/showArt/showArt?id=&tid=`；pic-list 拉 `contentPics` 跳 showPictures；video-list 拉 `contentVideos` 跳 videoList 列表页（无视频详情页）；空态显示"暂无文章/组图/视频"。
 - **数据链路**：管理端保存草稿 → `tenant_page_design`（status=0）→ C 端 `/api/card/design/config?preview=1` 返回草稿 components → home.vue `fetchDesignConfig(true,true,pageType)` → designComps → DesignPage 渲染。预览 URL 需带 tid/exp/sig 签名（cardApi.designConfig 自动从 hash 透传）。
 
+## 首页跳转按应用维度化（2026-09-18 实施）
+
+**背景**：设计中心「首页跳转」原为单值 `tenant_home_config.home_page`（只配名片小程序启动页）。按应用维度化后，每个行业应用（card 智能名片 / panorama 360全景 / 未来 mall/content 等）可单独配置启动页。
+
+**存储与契约**：
+- `tenant_home_config` 新增 `home_pages TEXT DEFAULT '{}'`（JSON：`{"card":"路径","panorama":"路径"}`）；`home_page` 保留 = `homePages.card` 同步镜像（兼容旧 C 端）。
+- `GET /api/customer/design/home/get` → `{ homePages: {appCode: path} }`（home_pages 为空时从旧 home_page 迁移出 card）。
+- `POST /home/save` body：新 `{homePages:{...}}` 或旧 `{homePage:'x'}`（字符串→card）；`'card'`/空值 = 该应用不跳转（展示应用默认首页），**不落库**。
+- `GET /api/card/design/config` → 返回 `homePage`（兼容，= `homePages.card || home_page || 'card'`）+ `homePages` 全量。
+- 系统模板 JSON 存 `homePages` 对象（旧模板 `homePage` 兼容读取，applyTemplate 优先 homePages）。
+
+**前端**（`web-admin/src/views/customer/apps/design/DesignHome.vue` 首页跳转 tab）：
+- 每应用一行（`HOME_APPS`：card/panorama…）：应用名 + 启动页 label + 「选择链接/清除」；选择器弹窗按当前应用过滤（card 含名片页+装修页面，panorama 只含全景页）；保存提交整组 `{homePages}`。
+- C 端 `web-app/src/utils/design.js`：`normalizeDesignConfig` 取 `homePages.card ?? homePage`（homePages 优先），home.vue 消费不变。
+
+**新增应用规则**：新行业应用接入时，在 `HOME_APPS` 登记 appCode+可选页面，后端无需改（home_pages 按 key 存取）。
+
+## 测试并发模式提示（2026-09-18）
+
+`npm test`（node --test 默认并发跑文件）偶发 `HPE_INVALID_CONSTANT`（共享 HTTP 端口连接污染），非逻辑失败。**全量验证用串行模式**：`node --test --test-concurrency=1 server/test/*.test.js`（344/344 稳定全过）；单文件 `node --test --test-concurrency=1 server/test/xxx.test.js`。
+
 ## 待接入能力清单（2026-09-17，商城设置字段全集 1:1 复刻后确认）商城设置中下列字段来自菜鸟云生态能力，我方尚未接入；**字段保留（保持 1:1）**，前端已加橙色「待接入」提示，禁止删除：
 
 

@@ -326,7 +326,10 @@ export default function createDesignRouter(db, deps = {}) {
   // ---- 首页跳转 ----
   design.get('/home/get', tenant, (req, res) => res.json(svc.getHomeConfig(req.customerId)));
   design.post('/home/save', tenant, tenantAdmin, (req, res) => {
-    const r = svc.saveHomeConfig(req.customerId, req.body?.homePage);
+    // 兼容旧调用（{homePage:'x'} 单值）与新调用（{homePages:{card,panorama}} 按应用维度化）
+    const body = req.body || {};
+    const payload = body.homePages !== undefined ? body.homePages : body.homePage;
+    const r = svc.saveHomeConfig(req.customerId, payload);
     res.json(r);
   });
 

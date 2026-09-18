@@ -136,10 +136,26 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
   });
 
   // ============ 首页跳转 ============
-  it('P7 首页跳转：默认 card，可保存', () => {
-    assert.equal(svc.getHomeConfig(T1).homePage, 'card');
+  it('P7 首页跳转：按应用维度化（homePages 对象）+ 旧单值兼容', () => {
+    assert.deepEqual(svc.getHomeConfig(T1).homePages, {});
+    // 新调用：按应用存对象（card 智能名片 / panorama 360全景）
+    assert.equal(svc.saveHomeConfig(T1, { card: '/pages/cardMain/home?pageType=home', panorama: '/pages/index/index' }).ok, true);
+    let cfg = svc.getHomeConfig(T1);
+    assert.equal(cfg.homePages.card, '/pages/cardMain/home?pageType=home');
+    assert.equal(cfg.homePages.panorama, '/pages/index/index');
+    // 兼容旧单值调用（字符串 → card 应用；旧 key 原样存，由 C 端/管理端映射）
     assert.equal(svc.saveHomeConfig(T1, 'market').ok, true);
-    assert.equal(svc.getHomeConfig(T1).homePage, 'market');
+    cfg = svc.getHomeConfig(T1);
+    assert.equal(cfg.homePages.card, 'market');
+    assert.equal(cfg.homePages.panorama, undefined); // 字符串调用只覆盖 card
+    // 'card' = 该应用不跳转（展示 DIY 装修首页），不落库
+    assert.equal(svc.saveHomeConfig(T1, { card: 'card', panorama: '/pages/viewer/viewer' }).ok, true);
+    cfg = svc.getHomeConfig(T1);
+    assert.equal(cfg.homePages.card, undefined);
+    assert.equal(cfg.homePages.panorama, '/pages/viewer/viewer');
+    // home_page 列与 homePages.card 同步（C 端旧字段兼容）
+    const row = db.prepare('SELECT home_page FROM tenant_home_config WHERE tenant_id = ?').get(T1);
+    assert.equal(row.home_page, 'card');
   });
 
   // ============ 系统模板 ============
