@@ -3,6 +3,31 @@
 - 每次改动完成后，都必须创建一个对应的 git commit，以便后续追踪和回滚。
 - 每次改动后，都必须编写或更新相关测试，并在交付给用户前，确保所有测试和验证全部通过。
 
+# 统一账号体系（2026-09-18 确认，方案 docs/账号体系重建方案.md）
+
+## 数据模型（accounts + tenant_members 分离）
+
+- **accounts**：平台级登录账号（username/phone + password_hash/password_salt/status），一人一号，跨租户复用；不存明文密码。
+- **tenant_members**：租户成员（tenant_id + account_id 关联），携带 name/nickname/status/identities(JSON)/enterprise_id 等租户侧属性；同一账号可加入多个租户成为不同成员。
+- 登录入口：`POST /api/auth/login` 支持 `{username|phone, password}`，登录态返回 member_id（角色与权限以成员为准）。
+- 权限模型：`roles`（内置 tenant_id=0 的租户管理员/普通成员/门店管理员 + 租户自定义）+ `member_roles`（成员-角色绑定）+ `role_permissions`（角色-权限点）。
+- 内置角色不可删除；自定义角色可分配权限点；`GET /api/customer/roles` 返回 `perms:[{app_code,menu_key}]` 数组供分配权限弹窗回显。
+
+## 侧边栏菜单归属（2026-09-18 确认）
+
+- **成员管理 / 角色管理已从一级菜单移入「系统设置」二级菜单**（仅租户管理员可见）；侧边栏只保留顶层模块（工作台/设计中心/应用中心/商品管理/内容管理/套餐与续费/我的账单/会员/系统设置）。
+- **坑（必读）**：侧边栏渲染源是 `web-admin/src/layouts/CustomerLayout.vue` 写死的 `<el-menu>`（不是 buildSidebarMenus）；`menuPermissions.js buildSidebarMenus` 只服务路由守卫/断言/测试。**改菜单必须三处同步**：CustomerLayout.vue（渲染）+ menuPermissions.js（守卫）+ menuPermissions.test.js（断言），否则出现「路由能进、菜单不显示」或反之。
+- 应用内 Tab 类页面（CardTabs 等）顶部选项卡栏必须常驻（见「选项卡栏常驻规范」）。
+
+## 门店负责人 = 统一账号（2026-09-18 实施，P0.5）
+
+- 创建/编辑门店负责人**二选一**（`ownerMode`）：`new` = 新建账号（ownerName + ownerPhone=登录账号 + ownerPassword≥6 位）；`existing` = 复用本租户已有成员（ownerMemberId）。
+- 后端 `server/src/routes/store.js resolveStoreOwner`：新建自动 INSERT accounts + tenant_members，并统一绑定内置 `store_admin` 角色（INSERT OR IGNORE 幂等）；store 表仅存 `owner_member_id` + `owner_name/owner_account`（展示用），**不再存 owner_password**。
+- 校验：existing 必须属于本租户（否则 400「不属于本租户」）；new 手机号须 `/^1\d{10}$/`、密码 ≥6 位。
+- 前端 `StoreManage.vue`：负责人步骤「负责人来源」radio 切换（new 显示姓名/手机号/密码；existing 显示成员下拉，数据来自 `GET /api/customer/members`）；`GET /store/categories`、`/store/tag-groups`、`/store/quota`、`/members` 并行加载。
+- 测试：`server/test/store-owner.test.js`（4 项：roles perms 回显 / new 全链路 / existing 复用补绑 / 越权与非法手机号 400）。
+
+
 # 构建部署规范（强制）
 
 ## 前端修改后必须执行
