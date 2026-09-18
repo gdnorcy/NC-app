@@ -1796,7 +1796,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-lib-card:hover { border-color: #165dff; background: #f7fbff; box-shadow: 0 1px 4px rgba(22,93,255,.12); }
 .pe-lib-card:active { cursor: grabbing; }
 .pe-lib-ico { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-.pe-lib-ico img { width: 32px; height: 32px; object-fit: contain; display: block; }
+.pe-lib-ico img { width: 40px; height: 40px; object-fit: contain; display: block; }
 .pe-lib-card .pe-lib-name {
   font-size: 12px; color: #1d2129; max-width: 100%; line-height: 1.35; text-align: center;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
