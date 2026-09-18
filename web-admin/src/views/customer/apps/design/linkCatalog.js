@@ -5,6 +5,14 @@
  */
 export const LINK_CATALOG = [
   {
+    name: '行业应用首页',
+    items: [
+      { label: '智能名片首页', value: '/pages/cardMain/home' },
+      { label: '360全景首页', value: '/pages/index/index' },
+      { label: '商城首页', value: '/pages/mall/index' },
+    ],
+  },
+  {
     name: '页面',
     items: [
       { label: '首页', value: '/pages/cardMain/home' },
@@ -44,12 +52,6 @@ export const LINK_CATALOG = [
     items: [
       { label: '方案列表', value: '/?plan=' },
       { label: '场景预览', value: '/?plan=1&scene=1' },
-    ],
-  },
-  {
-    name: '商城',
-    items: [
-      { label: '商城首页', value: '/pages/mall/index' },
     ],
   },
   {
