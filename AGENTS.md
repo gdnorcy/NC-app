@@ -316,6 +316,18 @@ npm run test:frontend
 3. **「组件 DOM 存在但看不见」排查顺序**：先 `getBoundingClientRect().height` 量外层/内层 → 若为 0 即高度塌陷，查外层 style 是否漏高 → 再查图片 404/接口字段。不要只看接口数据正确就以为渲染正常。
 4. **新增装修组件时自查**：style 函数必须覆盖「尺寸从哪来」——是内容撑开、aspect-ratio、还是 props.height；三选一必须有答案。
 
+## 问题13：复刻组件图标擅自自创 SVG，风格与原版 PNG 不统一（2026-09-19）
+
+**现象**：复刻 ew 8 个商城装修组件时，组件库图标一开始全用占位 `image`，后来又自作主张配了 SIcon 黑色线性 SVG，结果与设计器里其它组件（ew 原版彩色 PNG，橙色/粉色系）风格完全割裂。用户明确要求"直接复刻 ew 对应图标，重复的才重制"。
+
+**根因**：① 没先确认对标站该组件图标用的是什么素材、长什么样，就凭"语义接近"从本地 SVG 图标库里挑；② 组件库图标渲染机制是 `<img :src="COMP_ICONS[c.icon]">`（PNG 映射表），icon 字段本应指向 ew 原版 PNG 的 key，我却填了 SVG 名 → 既破图又风格不搭。
+
+**预防规范（通用，不限于组件图标）**：
+1. **复刻任何带视觉素材的组件，图标/缩略图必须先用对标站原图**：在对标站组件库上，读卡片的 computed `background-image` 或 `img.src`，下载原版 PNG 到 `web-admin/src/assets/comp-icons/`，再在 `componentRegistry.js` 的 `COMP_ICONS` 登记映射。**禁止**凭语义从本地 SVG 图标库挑一个顶替，除非该图标在对标站不存在或与已有图标重复。
+2. **组件库图标 = ew 原版 PNG（彩色）**：icon 字段值必须是 `COMP_ICONS` 里已有的 key，或新增 import 后登记；PageEditor 的 SIcon fallback 只是兜底，不是默认方案。
+3. **「重复图标才重制」原则**：ew 原版多个组件共用同一张图（如 goods/group 与 goods/all 共用 goods.png、轮播与展播共用 bannerGoods.png）是正常的，直接复用；只有对标站确实没有对应图标时才用 SIcon 兜底。
+4. **交付前视觉对照**：新组件图标与同组其它组件并排截图看——色彩风格、图标大小是否一致；出现黑/灰线性图标混入彩色 PNG 组时立即停下。
+
 ## 商城装修页固定头部规则（2026-09-18）
 
 - `/pages/mall/index` 页面级固定头（「商城」标题+购物车）仅在**无装修组件兜底**时显示；`designComps.length > 0`（装修首页/行业首页）时必须隐藏固定头（`v-if="!designComps.length"`），让装修内容（轮播图等）顶到页面最顶部，与真实 C 端访问一致。
