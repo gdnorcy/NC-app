@@ -488,7 +488,61 @@
         </div>
       </div>
     </template>
+
+    <!-- ew 8个商城组件设计器预览（mock数据） -->
+    <template v-else-if="comp.type === 'goods-group'">
+      <div class="r-gp-row">
+        <div class="r-gp-img"><span>🛍</span></div>
+        <div class="r-gp-info">
+          <div class="r-gp-title-row"><span class="r-gp-tag">标题标签</span><span class="r-gp-title">商品名称示例</span></div>
+          <div class="r-gp-sub">副标题描述文字</div>
+          <div class="r-gp-price-row"><span class="r-gp-price">¥20.00</span><span class="r-gp-unit">/件</span></div>
+        </div>
+        <div class="r-gp-buy">购买</div>
       </div>
+    </template>
+    <template v-else-if="comp.type === 'goods-all' || comp.type === 'goods-featured'">
+      <div class="r-gl-title">商品列表</div>
+      <div class="r-gl-grid">
+        <div v-for="i in 2" :key="i" class="r-gl-card">
+          <div class="r-gl-img"><span>🛍</span></div>
+          <div class="r-gl-t">商品名称示例</div>
+          <div class="r-gl-price">¥19.9</div>
+        </div>
+      </div>
+    </template>
+    <template v-else-if="comp.type === 'goods-rank'">
+      <div class="r-rank-row" v-for="i in 3" :key="i">
+        <span class="r-rank-no">{{ i }}</span>
+        <div class="r-rank-img"><span>🛍</span></div>
+        <div class="r-rank-info"><div class="r-rank-t">热销商品示例</div><div class="r-rank-price">¥{{ 9.9+i*10 }}</div></div>
+      </div>
+    </template>
+    <template v-else-if="comp.type === 'goods-like'">
+      <div class="r-gp-row">
+        <div class="r-gp-img"><span>🛍</span></div>
+        <div class="r-gp-info">
+          <div class="r-gp-title">猜你喜欢商品</div>
+          <div class="r-gp-price-row"><span class="r-gp-price">¥39.00</span></div>
+        </div>
+      </div>
+    </template>
+    <template v-else-if="comp.type === 'goods-swiper'">
+      <div class="r-swiper"><div class="r-swiper-img"><span>🛍 轮播商品</span></div></div>
+    </template>
+    <template v-else-if="comp.type === 'goods-show'">
+      <div class="r-show"><div class="r-show-img"><span>🛍 商品展播</span></div></div>
+    </template>
+    <template v-else-if="comp.type === 'goods-tabs'">
+      <div class="r-tabs"><span class="r-tab active">全部</span><span class="r-tab">分类一</span><span class="r-tab">分类二</span></div>
+      <div class="r-gl-grid">
+        <div v-for="i in 2" :key="i" class="r-gl-card">
+          <div class="r-gl-img"><span>🛍</span></div>
+          <div class="r-gl-t">Tab商品示例</div>
+        </div>
+      </div>
+    </template>
+  </div>
 </template>
 
 <script setup>
@@ -1388,4 +1442,34 @@ function chRadius(p, i) {
 .comp-render { position: relative; }
 
 /* 商城组件预览（编辑端） */
+.r-gp-row{display:flex;align-items:center;background:#fff;border-radius:8px;padding:8px;margin:4px 0;}
+.r-gp-img{width:50px;height:50px;border-radius:6px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.r-gp-info{flex:1;margin:0 8px;min-width:0;}
+.r-gp-title-row{display:flex;align-items:center;gap:4px;}
+.r-gp-tag{font-size:8px;color:#fff;background:#F53F3F;padding:0 4px;border-radius:2px;flex-shrink:0;}
+.r-gp-title{font-size:11px;color:#1D2129;font-weight:500;}
+.r-gp-sub{font-size:9px;color:#86909C;margin-top:2px;}
+.r-gp-price-row{display:flex;align-items:baseline;margin-top:2px;}
+.r-gp-price{font-size:13px;color:#F53F3F;font-weight:600;}
+.r-gp-unit{font-size:9px;color:#86909C;}
+.r-gp-buy{padding:3px 10px;border-radius:10px;background:#F53F3F;color:#fff;font-size:10px;flex-shrink:0;}
+.r-gl-title{font-size:12px;color:#1D2129;font-weight:500;margin:4px 0 6px;}
+.r-gl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.r-gl-card{background:#fff;border-radius:8px;overflow:hidden;}
+.r-gl-img{height:70px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.r-gl-t{font-size:10px;color:#1D2129;padding:4px 6px 0;}
+.r-gl-price{font-size:12px;color:#F53F3F;padding:0 6px 4px;font-weight:600;}
+.r-rank-row{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #f2f3f5;}
+.r-rank-no{width:16px;font-size:12px;color:#F53F3F;font-weight:700;text-align:center;}
+.r-rank-img{width:40px;height:40px;border-radius:6px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:16px;margin:0 8px;}
+.r-rank-info{flex:1;}
+.r-rank-t{font-size:11px;color:#1D2129;}
+.r-rank-price{font-size:11px;color:#F53F3F;margin-top:2px;}
+.r-swiper{height:100px;}
+.r-swiper-img{width:100%;height:100%;background:linear-gradient(135deg,#E8F3FF,#F2F3F5);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#86909C;}
+.r-show{height:120px;}
+.r-show-img{width:100%;height:100%;background:linear-gradient(135deg,#F53F3F22,#E8F3FF);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#86909C;}
+.r-tabs{display:flex;gap:12px;margin-bottom:8px;}
+.r-tab{font-size:11px;color:#86909C;padding-bottom:2px;}
+.r-tab.active{color:#165DFF;font-weight:600;border-bottom:2px solid #165DFF;}
 </style>
