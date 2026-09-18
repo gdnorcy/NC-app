@@ -609,9 +609,28 @@ async function loadLevels() {
 }
 function openLevelEdit(lv) {
   const nextNo = levels.value.length ? Math.max(...levels.value.map((x) => Number(x.level_no) || 0)) + 1 : 1;
+  // DB 返回为 snake_case（upgrade_mode/form_id/bg_color 等），表单字段为 camelCase，必须显式映射，否则 radio/下拉回显丢失
   levelDlg.form = lv
-    ? { ...lv, status: lv.status ?? 1, levelNo: lv.level_no ?? nextNo, reviewMode: lv.review_mode || 'manual', validDays: lv.valid_days ?? 0, benefits: { ...emptyBenefits(), ...(lv.benefits || {}) } }
-    : { id: null, name: '', status: 1, levelNo: Math.min(nextNo, 50), icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, formId: 0, reviewMode: 'manual', validDays: 0, description: '', benefits: emptyBenefits() };
+    ? {
+        id: lv.id,
+        name: lv.name || '',
+        status: lv.status ?? 1,
+        levelNo: lv.level_no ?? nextNo,
+        icon: lv.icon || '',
+        bgColor: lv.bg_color || '',
+        textColor: lv.text_color || '#ffffff',
+        textShow: lv.text_show ?? 1,
+        upgradeMode: lv.upgrade_mode || 'consume',
+        consumeAmount: lv.consume_amount || 0,
+        buyPrice: lv.buy_price || 0,
+        buyProduct: lv.buy_product || '',
+        formId: lv.form_id || 0,
+        reviewMode: lv.review_mode || 'manual',
+        validDays: lv.valid_days ?? 0,
+        description: lv.description || '',
+        benefits: { ...emptyBenefits(), ...(lv.benefits || {}) },
+      }
+    : { id: null, name: '', status: 1, levelNo: Math.min(nextNo, 50), icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, buyProduct: '', formId: 0, reviewMode: 'manual', validDays: 0, description: '', benefits: emptyBenefits() };
   levelDlg.show = true;
 }
 async function saveLevel() {

@@ -356,6 +356,7 @@
                     <th>等级名称</th>
                     <th>直推佣金</th>
                     <th>间推佣金</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -371,9 +372,13 @@
                       <el-input-number v-model="lv.indirect" :min="0" :precision="2" controls-position="right" style="width: 140px" />
                       <span class="uti">{{ g.distribution.commissionType === 'fixed' ? '元' : '%' }}</span>
                     </td>
+                    <td>
+                      <el-button size="small" text type="danger" @click="g.distribution.commissionLevels.splice(i, 1)">删除</el-button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
+              <el-button size="small" class="mt8" @click="g.distribution.commissionLevels.push({ level_name: '', direct: 0, indirect: 0 })">添加等级</el-button>
               <div class="form-hint full">百分比按成交额计提，固定金额按单计提；未添加等级时使用分销体系全局默认</div>
             </el-form-item>
           </template>

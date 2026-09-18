@@ -319,6 +319,11 @@ function seedSolutionDefaults(db) {
 
 /** 存量库迁移（幂等） */
 function migrate(db) {
+  // —— tenant_home_config 表：补 home_pages（首页跳转按应用维度化：{appCode: 启动页路径}） ——
+  if (!colExists(db, 'tenant_home_config', 'home_pages')) {
+    db.exec("ALTER TABLE tenant_home_config ADD COLUMN home_pages TEXT NOT NULL DEFAULT '{}'");
+  }
+
   // —— content_comment 表：补 nickname（C 端评论昵称） ——
   if (!colExists(db, 'content_comment', 'nickname')) {
     db.exec("ALTER TABLE content_comment ADD COLUMN nickname TEXT NOT NULL DEFAULT ''");
@@ -2848,6 +2853,7 @@ function seedDesign(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tenant_id INTEGER NOT NULL UNIQUE,
       home_page TEXT NOT NULL DEFAULT 'card',
+      home_pages TEXT NOT NULL DEFAULT '{}',
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
