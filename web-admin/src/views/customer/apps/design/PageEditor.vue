@@ -40,7 +40,10 @@
                   @click="addComponent(c.type)"
                 >
                   <span v-if="c.pro" class="pe-lib-tag">高级</span>
-                  <span class="pe-lib-ico"><img :src="COMP_ICONS[c.icon]" :alt="c.name" /></span>
+                  <span class="pe-lib-ico">
+                    <img v-if="COMP_ICONS[c.icon]" :src="COMP_ICONS[c.icon]" :alt="c.name" />
+                    <SIcon v-else :name="c.icon" size="xlarge" />
+                  </span>
                   <span class="pe-lib-name">{{ c.name }}</span>
                 </div>
               </div>
