@@ -15,6 +15,13 @@
       }
     },
     {
+      "path": "pages/panorama/home",
+      "style": {
+        "navigationBarTitleText": "全景首页",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/panorama/index",
       "style": {
         "navigationBarTitleText": "360全景",

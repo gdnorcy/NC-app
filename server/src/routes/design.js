@@ -286,8 +286,8 @@ export default function createDesignRouter(db, deps = {}) {
   });
 
   // ---- 系统模板 ----
-  design.get('/template/publicList', tenant, (req, res) => res.json({ list: svc.listTemplates(req.customerId, 'public') }));
-  design.get('/template/myList', tenant, (req, res) => res.json({ list: svc.listTemplates(req.customerId, 'mine') }));
+  design.get('/template/publicList', tenant, (req, res) => res.json({ list: svc.listTemplates(req.customerId, 'public', req.query?.category) }));
+  design.get('/template/myList', tenant, (req, res) => res.json({ list: svc.listTemplates(req.customerId, 'mine', req.query?.category) }));
   design.post('/template/apply', tenant, tenantAdmin, (req, res) => {
     const r = svc.applyTemplate(req.customerId, Number(req.body?.id));
     if (!r.ok) return res.status(400).json({ error: r.error });

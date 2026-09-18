@@ -375,12 +375,17 @@
           <el-radio-button value="public">模板市场</el-radio-button>
           <el-radio-button value="mine">我的模板</el-radio-button>
         </el-radio-group>
+        <el-radio-group v-model="tplCat" class="mb16 tpl-cat-group">
+          <el-radio-button value="">全部</el-radio-button>
+          <el-radio-button v-for="c in tplCategories" :key="c" :value="c">{{ c }}</el-radio-button>
+        </el-radio-group>
         <div v-loading="tplLoading" class="tpl-grid">
-          <div v-for="t in templates" :key="t.id" class="tpl-card">
+          <div v-for="t in filteredTemplates" :key="t.id" class="tpl-card">
             <div class="tpl-cover">
               <img v-if="t.cover_url" :src="resolveUrl(t.cover_url)" />
               <div v-else class="tpl-cover-empty">{{ t.template_name[0] }}</div>
               <el-tag v-if="t.is_public" size="small" class="tpl-public">平台模板</el-tag>
+              <el-tag v-if="t.category" size="small" effect="plain" class="tpl-cat-tag">{{ t.category }}</el-tag>
             </div>
             <div class="tpl-name">{{ t.template_name }}</div>
             <div class="tpl-ops">
@@ -389,7 +394,7 @@
               <el-button v-if="!t.is_public" size="small" text type="danger" @click="delTemplate(t)">删除</el-button>
             </div>
           </div>
-          <div v-if="!templates.length && !tplLoading" class="media-empty">暂无模板</div>
+          <div v-if="!filteredTemplates.length && !tplLoading" class="media-empty">暂无模板</div>
         </div>
       </div>
     </section>
@@ -452,6 +457,7 @@
                   <span class="pm-row-drag" title="按住拖动排序">⠿</span>
                   <span class="pm-row-name">{{ row.page_name }}</span>
                   <el-tag v-if="row.isHome" size="small" type="success" class="pm-home-tag">首页</el-tag>
+                  <el-tag v-for="tag in industryHomeTags(row.page_type)" :key="tag" size="small" type="warning" effect="plain" class="pm-home-tag">{{ tag }}</el-tag>
                   <el-tag v-if="row.status === 1" size="small" type="info" effect="plain">已发布</el-tag>
                 </template>
               </el-table-column>
@@ -475,12 +481,13 @@
                   <el-tag :type="row.memberOnly ? 'warning' : 'info'" size="small" effect="plain">{{ row.memberOnly ? '开' : '关' }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="250">
+              <el-table-column label="操作" width="290">
                 <template #default="{ row }">
                   <div class="pm-ops">
                     <el-button size="small" text type="primary" @click="goEdit(row.page_type)">装修</el-button>
                     <el-button size="small" text @click="copyPage(row)">复制</el-button>
                     <el-button size="small" text @click="sharePage(row)">推广</el-button>
+                    <el-button size="small" text type="primary" @click="openIndustryHome(row)">设置为…</el-button>
                     <el-button size="small" text type="danger" :disabled="builtinPages.includes(row.page_type)" @click="deletePage(row)">删除</el-button>
                   </div>
                 </template>
@@ -495,6 +502,18 @@
         </div>
       </div>
     </section>
+
+    <!-- 行内「设置为…」行业首页弹窗 -->
+    <el-dialog v-model="industryHomeDialog.show" :title="`设置为…（${industryHomeDialog.row ? industryHomeDialog.row.page_name : ''}）`" width="440px" append-to-body>
+      <div class="ind-desc">将该页面设为某行业应用的首页；同一行业应用只保留一个首页，设置后原首页身份自动取消。不影响「首页」（统一默认首页）。</div>
+      <div class="ind-list">
+        <div v-for="app in INDUSTRY_APPS" :key="app.appCode" class="ind-item">
+          <div class="ind-name">{{ app.name }}首页</div>
+          <el-button size="small" type="primary" plain :loading="industryHomeDialog.saving" @click="setIndustryHome(app)">设为{{ app.name }}首页</el-button>
+        </div>
+      </div>
+      <template #footer><el-button @click="industryHomeDialog.show = false">取消</el-button></template>
+    </el-dialog>
 
     <!-- 素材选择弹窗（统一素材选择器：本地上传/网络提取/搜索/分类/分页） -->
     <MaterialPicker v-model="imgSel.show" @confirm="confirmImgSel" />
@@ -555,7 +574,7 @@ const homePreview = ref([]);
 const homeName = ref('首页');
 const homeUpdated = ref('');
 const pagePreviewUrl = ref('');
-const builtinPages = ['home', 'card', 'dynamic', 'mine'];
+const builtinPages = ['home', 'card', 'dynamic', 'mine', 'mall-home'];
 async function loadPages() {
   pageLoading.value = true;
   try {
@@ -724,6 +743,48 @@ async function deletePage(p) {
     loadPages();
   } catch (e) { ElMessage.error(e); }
 }
+// ============ 行内「设置为…」行业首页（home_pages 按应用，互斥覆盖；不影响 is_home 统一默认首页） ============
+const INDUSTRY_APPS = [
+  { appCode: 'goods', name: '商城', path: (pt) => `/pages/mall/index?pageType=${pt}` },
+  { appCode: 'card', name: '智能名片', path: (pt) => `/pages/cardMain/home?pageType=${pt}` },
+  { appCode: 'panorama', name: '360全景', path: (pt) => `/pages/panorama/home?pageType=${pt}` },
+];
+const industryHomeDialog = reactive({ show: false, row: null, saving: false });
+function openIndustryHome(row) {
+  industryHomeDialog.row = row;
+  industryHomeDialog.show = true;
+}
+function industryHomeTags(pageType) {
+  if (!pageType) return [];
+  const tags = [];
+  for (const app of INDUSTRY_APPS) {
+    const v = homePages.value[app.appCode] || '';
+    if (v && v.includes(`pageType=${pageType}`)) tags.push(`${app.name}首页`);
+  }
+  return tags;
+}
+async function setIndustryHome(app) {
+  const row = industryHomeDialog.row;
+  if (!row) return;
+  const old = homePages.value[app.appCode];
+  if (old && old.includes(`pageType=${row.page_type}`)) {
+    ElMessage.info(`「${row.page_name}」已是${app.name}首页`);
+    return;
+  }
+  industryHomeDialog.saving = true;
+  try {
+    homePages.value[app.appCode] = app.path(row.page_type);
+    await saveHome();
+    ElMessage.success(`已将「${row.page_name}」设为${app.name}首页（原${app.name}首页身份已取消）`);
+    industryHomeDialog.show = false;
+  } catch (e) { ElMessage.error(e); } finally { industryHomeDialog.saving = false; }
+}
+
+// ============ 系统模板分类（动态去重） ============
+const tplCat = ref('');
+const tplCategories = computed(() => [...new Set(templates.value.map((t) => t.category).filter(Boolean))]);
+const filteredTemplates = computed(() => (tplCat.value ? templates.value.filter((t) => t.category === tplCat.value) : templates.value));
+
 async function setHome(row) {
   if (row.isHome) return;
   try {
@@ -1328,6 +1389,12 @@ onMounted(() => {
 .tpl-cover img { width: 100%; height: 100%; object-fit: cover; }
 .tpl-cover-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 36px; color: #c9cdd4; background: linear-gradient(135deg, #e8f3ff, #f7f8fa); }
 .tpl-public { position: absolute; top: 8px; right: 8px; }
+.tpl-cat-tag { margin-left: 6px; }
+.tpl-cat-group { margin-left: 12px; }
+.ind-desc { font-size: 12px; color: #86909c; margin-bottom: 12px; line-height: 1.6; }
+.ind-list { display: flex; flex-direction: column; gap: 8px; }
+.ind-item { display: flex; align-items: center; justify-content: space-between; border: 1px solid #e5e6eb; border-radius: 8px; padding: 10px 14px; }
+.ind-name { font-size: 14px; color: #1d2129; }
 .tpl-name { padding: 10px 12px 4px; font-size: 13px; color: #1d2129; font-weight: 500; }
 .tpl-ops { padding: 8px 12px 12px; display: flex; gap: 8px; }
 

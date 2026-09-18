@@ -340,6 +340,12 @@ function migrate(db) {
     db.exec("ALTER TABLE tenant_home_config ADD COLUMN home_pages TEXT NOT NULL DEFAULT '{}'");
   }
 
+  // —— tenant_template 表：补 category（系统模板分类：商城/名片…；行业模板按分类组织） ——
+  if (!colExists(db, 'tenant_template', 'category')) {
+    db.exec("ALTER TABLE tenant_template ADD COLUMN category TEXT NOT NULL DEFAULT ''");
+  }
+
+
   // —— content_comment 表：补 nickname（C 端评论昵称） ——
   if (!colExists(db, 'content_comment', 'nickname')) {
     db.exec("ALTER TABLE content_comment ADD COLUMN nickname TEXT NOT NULL DEFAULT ''");
@@ -2892,6 +2898,7 @@ function seedDesign(db) {
       cover_url TEXT,
       template_json TEXT NOT NULL DEFAULT '{}',
       is_public INTEGER NOT NULL DEFAULT 0,
+      category TEXT NOT NULL DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -2927,6 +2934,38 @@ function seedDesign(db) {
       updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // 预置商城公共模板（幂等）：T1/T2/T3，设计中心「系统模板 → 商城分类」；应用走「新建页面」语义
+  const MALL_TPL_JSON = {
+    'T1 标准电商': { pages: { 'mall-home': { components: [
+      { type: 'search', props: { placeholder: '搜索商品', locate: 'none', showBtn: false } },
+      { type: 'swiper', props: { items: [{ url: '', link: '' }, { url: '', link: '' }], height: 160, showDots: true, indicator: 'dot' } },
+      { type: 'notice', props: { text: '欢迎光临本店，新品热卖中', iconType: 'system' } },
+      { type: 'goods-nav', props: { title: '商品分类', showTitle: true, columns: 4, shape: 'rounded', iconRadius: 12 } },
+      { type: 'title-bar', props: { styleType: 1, text: '热销推荐', subText: 'HOT', moreText: '更多', moreEnabled: true } },
+      { type: 'goods-list', props: { title: '热销推荐', showTitle: false, source: 'all', sortBy: 'sales', layout: 'double', limit: 10 } },
+    ] } } },
+    'T2 同城自提': { pages: { 'mall-home': { components: [
+      { type: 'swiper', props: { items: [{ url: '', link: '' }, { url: '', link: '' }], height: 160, showDots: true, indicator: 'dot' } },
+      { type: 'goods-nav', props: { title: '商品分类', showTitle: true, columns: 4, shape: 'rounded', iconRadius: 12 } },
+      { type: 'notice', props: { text: '支持到店自提与同城配送，下单时可选门店', iconType: 'system' } },
+      { type: 'title-bar', props: { styleType: 1, text: '为你推荐', subText: 'RECOMMEND', moreText: '更多', moreEnabled: true } },
+      { type: 'goods-list', props: { title: '为你推荐', showTitle: false, source: 'all', sortBy: 'default', layout: 'double', limit: 10 } },
+    ] } } },
+    'T3 简约品牌': { pages: { 'mall-home': { components: [
+      { type: 'search', props: { placeholder: '搜索商品', locate: 'none', showBtn: false } },
+      { type: 'image', props: { mode: 'standard', style: 'single', url: '', link: '', widthMode: 'full', radiusTop: 0, radiusBottom: 0 } },
+      { type: 'image-text', props: { url: '', title: '品牌故事', desc: '讲述您的品牌与产品理念', textPos: 'below', align: 'left' } },
+      { type: 'title-bar', props: { styleType: 1, text: '精选好物', subText: 'SELECT', moreText: '更多', moreEnabled: true } },
+      { type: 'goods-list', props: { title: '精选好物', showTitle: false, source: 'all', sortBy: 'new', layout: 'scroll', limit: 8 } },
+      { type: 'rich-text', props: { html: '<p style="font-size:14px;">这里是品牌详情介绍，可以放置店铺公告、服务说明等内容。</p>' } },
+    ] } } },
+  };
+  const mallSeed = db.prepare('SELECT id FROM tenant_template WHERE tenant_id = 0 AND is_public = 1 AND template_name = ?');
+  const insTpl = db.prepare("INSERT INTO tenant_template (tenant_id, template_name, template_json, is_public, category) VALUES (0, ?, ?, 1, '商城')");
+  for (const [name, json] of Object.entries(MALL_TPL_JSON)) {
+    if (!mallSeed.get(name)) insTpl.run(name, JSON.stringify(json));
+  }
 
   // 设计中心页面装修：首页可切换标记（幂等迁移；现有 home 页自动置为首页）
   if (tableExists(db, 'tenant_page_design') && !colExists(db, 'tenant_page_design', 'is_home')) {

@@ -253,10 +253,14 @@ export function createDesignService(db) {
 
   // ============ 系统模板 ============
 
-  svc.listTemplates = (tenantId, scope) => {
-    if (scope === 'public') return db.prepare('SELECT id, template_name, cover_url, is_public, created_at FROM tenant_template WHERE is_public = 1 ORDER BY id DESC').all();
-    if (scope === 'mine') return db.prepare('SELECT id, template_name, cover_url, is_public, created_at FROM tenant_template WHERE tenant_id = ? ORDER BY id DESC').all(tenantId);
-    return db.prepare('SELECT id, template_name, cover_url, is_public, created_at FROM tenant_template WHERE tenant_id = ? OR is_public = 1 ORDER BY is_public DESC, id DESC').all(tenantId);
+  svc.listTemplates = (tenantId, scope, category) => {
+    const cat = String(category || '').trim();
+    const catSql = cat ? ' AND category = ?' : '';
+    const withCat = (sql, args) => (cat ? db.prepare(sql + catSql + ' ORDER BY id DESC').all(...args, cat) : db.prepare(sql + ' ORDER BY id DESC').all(...args));
+    const baseCols = 'id, template_name, cover_url, is_public, category, created_at';
+    if (scope === 'public') return withCat(`SELECT ${baseCols} FROM tenant_template WHERE is_public = 1`, []);
+    if (scope === 'mine') return withCat(`SELECT ${baseCols} FROM tenant_template WHERE tenant_id = ?`, [tenantId]);
+    return withCat(`SELECT ${baseCols} FROM tenant_template WHERE tenant_id = ? OR is_public = 1`, [tenantId]);
   };
 
   svc.getTemplate = (tenantId, id) => {
@@ -493,8 +497,8 @@ export function createDesignService(db) {
   };
 
   svc.deletePage = (tenantId, pageType) => {
-    const builtin = ['home', 'card', 'dynamic', 'mine'];
-    if (builtin.includes(pageType)) return { ok: false, error: '内置页面（首页/名片详情/个人动态/个人中心）不可删除' };
+    const builtin = ['home', 'card', 'dynamic', 'mine', 'mall-home'];
+    if (builtin.includes(pageType)) return { ok: false, error: '内置页面（首页/名片详情/个人动态/个人中心/商城首页）不可删除' };
     const home = db.prepare('SELECT id FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND is_home = 1').get(tenantId, pageType);
     if (home) return { ok: false, error: '当前页面为首页，请先切换首页后再删除' };
     db.prepare('DELETE FROM tenant_page_design WHERE tenant_id = ? AND page_type = ?').run(tenantId, pageType);

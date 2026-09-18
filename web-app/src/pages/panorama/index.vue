@@ -26,6 +26,16 @@
 </template>
 
 <script>
+import { cardApi } from '../../utils/cardApi.js';
+
+function tidFromHash() {
+  if (typeof window === 'undefined' || !window.location || !window.location.hash) return '';
+  try {
+    const hp = new URLSearchParams((window.location.hash.split('?')[1] || ''));
+    return hp.get('tid') || '';
+  } catch (e) { return ''; }
+}
+
 export default {
   data() {
     return { plans: [] };
@@ -33,7 +43,22 @@ export default {
   onLoad() {
     this.loadPlans();
   },
+  onShow() {
+    // 行业首页联动：设计中心「设为360全景首页」写入 home_pages.panorama（/pages/panorama/home?pageType=xx）
+    // 命中装修首页配置 → reLaunch 到该页面；未配置展示方案列表（全景默认首页）
+    this.checkHomeRedirect();
+  },
   methods: {
+    async checkHomeRedirect() {
+      try {
+        const raw = await cardApi.designConfig(false, '', tidFromHash());
+        const hp = (raw && raw.homePages && raw.homePages.panorama) || '';
+        if (hp && hp.includes('/pages/panorama/home?pageType=')) {
+          const tid = tidFromHash();
+          uni.reLaunch({ url: hp + (tid ? (hp.includes('?') ? '&tid=' : '?tid=') + tid : '') });
+        }
+      } catch (e) { /* 配置读取失败不阻断方案列表 */ }
+    },
     async loadPlans() {
       try {
         const res = await uni.request({

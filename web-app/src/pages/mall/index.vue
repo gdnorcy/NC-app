@@ -105,6 +105,7 @@ const cartCount = ref(0);
 const canBack = ref(getCurrentPages().length > 1);
 // 首页装修：mall-home 页面草稿/发布稿（C 端读取发布稿→草稿回退），组件由 DesignPage 渲染
 const designComps = ref([]);
+const pageType = ref('');
 const hasGoodsList = computed(() => designComps.value.some((c) => c.type === 'goods-list'));
 
 const resolveUrl = (u) => resolveAssetUrl(u, tid.value);
@@ -187,7 +188,9 @@ function fetchCartCount() {
 }
 
 function fetchMallDesign() {
-  return mallApi.getDesignHome({ tid: tid.value })
+  const p = { tid: tid.value };
+  if (pageType.value) p.pageType = pageType.value;
+  return mallApi.getDesignHome(p)
     .then((res) => {
       designComps.value = (res?.components || []).filter((c) => c && c.type);
     })
@@ -196,6 +199,8 @@ function fetchMallDesign() {
 
 onLoad((o) => {
   tid.value = getTid(o);
+  // 行业首页联动：/pages/mall/index?pageType=xxx（「设为商城首页」写入的装修页面）
+  if (o && o.pageType) pageType.value = String(o.pageType).trim();
   // 分类导航跳入：/pages/mall/index?catId=xx 定位到指定分类（兜底列表生效时）
   if (o && o.catId) {
     activeCat.value = Number(o.catId) || 0;

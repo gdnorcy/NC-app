@@ -163,7 +163,10 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     const t = svc.saveTemplate(T1, { name: '商务风', templateJson: { style: { primaryColor: '#123456' }, homePage: 'card' } });
     assert.ok(t.ok);
     assert.equal(svc.listTemplates(T1, 'mine').length, 1);
-    assert.equal(svc.listTemplates(T1, 'public').length, 0);
+    // 平台预置公共模板（商城分类 T1/T2/T3）在公共列表可见，且私有模板不出现在公共列表
+    const pubList = svc.listTemplates(T1, 'public');
+    assert.ok(pubList.some((x) => x.category === '商城'), '平台预置商城模板存在');
+    assert.ok(!pubList.some((x) => x.template_name === '商务风'), '私有模板不出现在公共列表');
     const exp = svc.exportTemplateJson(T1, t.id);
     assert.equal(exp.style.primaryColor, '#123456');
     // 应用：覆盖风格
@@ -173,7 +176,8 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     const pubPages = { mine: { components: [{ id: 'x1', type: 'title', props: { text: '模板首页' } }] } };
     const pub = svc.saveTemplate(0, { name: '平台标准', templateJson: { style: { primaryColor: '#0AF' }, homePage: 'market', pages: pubPages }, isPublic: true });
     assert.ok(pub.ok);
-    assert.equal(svc.listTemplates(T1, 'public').length, 1);
+    const pubList2 = svc.listTemplates(T1, 'public');
+    assert.ok(pubList2.some((x) => x.template_name === '平台标准'), '新公共模板在公共列表可见');
     assert.equal(svc.applyTemplate(T1, pub.id).ok, true);
     assert.equal(svc.getStyle(T1).primaryColor, '#0AF');
     // 应用模板须同步草稿与发布：预览（读草稿）与实际启用（读发布）一致

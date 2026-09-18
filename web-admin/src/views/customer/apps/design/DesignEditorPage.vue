@@ -15,7 +15,6 @@
         <el-button size="small" type="success" :loading="publishing" @click="publish">发布</el-button>
         <el-button size="small" @click="loadVersions">历史版本</el-button>
         <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
-        <el-button size="small" type="warning" plain @click="tplDialog.show = true">模板库</el-button>
       </div>
     </div>
 
@@ -116,25 +115,6 @@
       </div>
     </div>
 
-    <!-- 模板库（预置行业模板，一键套用覆盖当前页面草稿） -->
-    <el-dialog v-model="tplDialog.show" :title="'模板库 · ' + (pageType === MALL_HOME_PAGE ? '商城首页' : '当前页面')" width="680px" append-to-body>
-      <div class="tpl-desc">选择模板一键套用（将覆盖当前页面草稿，套用后可自由编辑）；「空白开始」清空画布。</div>
-      <div class="tpl-grid">
-        <div v-for="tpl in mallTemplates" :key="tpl.key" class="tpl-card">
-          <div class="tpl-name">{{ tpl.name }}</div>
-          <div class="tpl-desc">{{ tpl.desc }}</div>
-          <div class="tpl-tags">
-            <span v-for="tag in tpl.tags" :key="tag" class="tpl-tag">{{ tag }}</span>
-          </div>
-          <el-button size="small" type="primary" :loading="tplDialog.applying === tpl.key" @click="applyTemplate(tpl)">套用此模板</el-button>
-        </div>
-      </div>
-      <template #footer>
-        <el-button :loading="tplDialog.applying === 'blank'" @click="applyTemplate(null)">空白开始</el-button>
-        <el-button @click="tplDialog.show = false">取消</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 返回三选弹窗（方案A：保存并返回 / 不保存返回 / 取消） -->
     <el-dialog v-model="backDialog.show" title="页面有未保存的修改" width="420px" append-to-body :show-close="false">
       <div class="back-dialog-desc">当前页面有未保存的修改，退出前请选择处理方式：</div>
@@ -153,13 +133,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, nextTick, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 import { designCall } from '../../../../api';
 import PageEditor from './PageEditor.vue';
-import { mallTemplates, MALL_HOME_PAGE } from './mallTemplates.js';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
 
@@ -250,43 +229,6 @@ async function saveAndPreview() { await editorRef.value?.saveAndPreview(); }
 async function loadVersions() { await editorRef.value?.loadVersions(); }
 async function saveAsTemplate() { await editorRef.value?.saveAsTemplate(); }
 
-// ---- 模板库（一键套用预置模板，覆盖当前页面草稿） ----
-const tplDialog = reactive({ show: false, applying: '' });
-const tplPageName = computed(() => {
-  const map = { [MALL_HOME_PAGE]: '商城首页' };
-  return map[pageType.value] || '当前页面';
-});
-async function applyTemplate(tpl) {
-  const tplName = tpl ? tpl.name : '空白页面';
-  try {
-    await ElMessageBox.confirm(tpl ? `套用「${tplName}」将覆盖当前页面草稿，确认继续？` : '将清空当前页面草稿，确认继续？', '套用确认', { type: 'warning' });
-  } catch { return; }
-  tplDialog.applying = tpl ? tpl.key : 'blank';
-  try {
-    let baseVersion = 1;
-    try {
-      const cur = await designCall.get('/design/page/detail', { params: { pageType: pageType.value, published: 0 } });
-      if (cur?.page?.version) baseVersion = cur.page.version;
-    } catch { /* 无草稿则从 v1 开始 */ }
-    const designJson = { components: tpl ? tpl.components.map((c, i) => ({ id: `tpl-${tpl.key}-${i}`, ...c })) : [], meta: {} };
-    await designCall.post('/design/page/saveDraft', {
-      pageType: pageType.value,
-      pageName: tplPageName.value,
-      designJson,
-      baseVersion,
-    });
-    ElMessage.success(`「${tplName}」已套用，可在画布继续调整`);
-    tplDialog.show = false;
-    // 重新加载编辑器草稿
-    await nextTick();
-    await editorRef.value?.load();
-  } catch (e) {
-    if (typeof e === 'string' && e.includes('已被其他成员修改')) {
-      ElMessage.warning(e + '，请刷新页面重试');
-    } else ElMessage.error(e);
-  } finally { tplDialog.applying = ''; }
-}
-
 // 返回：保存状态检测（方案A：快照对比脏标记 → 三选：保存并返回 / 不保存返回 / 取消）
 const backDialog = reactive({ show: false, saving: false });
 let leaveConfirmed = false; // 三选弹窗已确认离开，路由守卫不再二次拦截
@@ -324,13 +266,6 @@ onMounted(loadGlobal);
 </script>
 
 <style scoped>
-.tpl-desc { font-size: 12px; color: #86909c; margin-bottom: 12px; }
-.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-.tpl-card { border: 1px solid #e5e6eb; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.tpl-name { font-size: 15px; font-weight: 600; color: #1d2129; }
-.tpl-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.tpl-tag { font-size: 11px; color: #165dff; background: rgba(22,93,255,.06); border-radius: 4px; padding: 2px 8px; }
-
 .design-editor-page {
   height: 100vh;
   display: flex;

@@ -130,13 +130,25 @@ export function createMallRouter(db) {
   });
 
   // ---------- 门店（公开读，自提选择；一期不校验营业时间） ----------
-  // ---------- 商城首页装修（公开，mall-home 页面发布稿→草稿回退，供 C 端装修区渲染） ----------
+  // ---------- 商城首页装修（公开，发布稿→草稿回退，供 C 端装修区渲染） ----------
+  // 页面解析：?pageType= 优先（首页跳转/行内「设为商城首页」写入的 `/pages/mall/index?pageType=xx`）；
+  // 未指定时读 home_pages.goods（默认 mall-home，即商城内置默认首页，不可删除）
   router.get('/design-home', authOptional, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
+      let reqPageType = String(req.query.pageType || '').trim();
+      if (!reqPageType) {
+        const home = db.prepare('SELECT home_pages FROM tenant_home_config WHERE tenant_id = ?').get(cid);
+        let hp = {};
+        try { hp = JSON.parse(home?.home_pages || '{}'); } catch { hp = {}; }
+        const g = String(hp.goods || '');
+        const m = g.match(/[?&]pageType=([^&]+)/);
+        if (m) reqPageType = decodeURIComponent(m[1]);
+      }
+      const type = reqPageType || 'mall-home';
       const pick = (status) => db.prepare(
-        "SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'mall-home' AND status = ? ORDER BY version DESC LIMIT 1"
-      ).get(cid, status);
+        'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = ? ORDER BY version DESC LIMIT 1'
+      ).get(cid, type, status);
       const row = pick(1) || pick(0);
       if (!row) return res.json({ components: [], meta: {} });
       const j = JSON.parse(row.design_json || '{}');
