@@ -488,30 +488,7 @@
         </div>
       </div>
     </template>
-    <template v-else-if="comp.type === 'goods-nav'">
-      <div class="r-goods-nav">
-        <div v-if="comp.props.showTitle && comp.props.title" class="r-goods-nav-title">{{ comp.props.title }}</div>
-        <div class="r-goods-nav-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 4) + ',1fr)' }">
-          <div v-for="i in Math.min(comp.props.columns || 4, 8)" :key="i" class="r-goods-nav-cell">
-            <div class="r-goods-nav-ico" :style="{ borderRadius: comp.props.shape === 'circle' ? '50%' : (comp.props.iconRadius || 12) + 'px' }">🛍</div>
-            <div class="r-goods-nav-text" :style="{ fontSize: (comp.props.fontSize || 12) + 'px', fontWeight: comp.props.bold ? 600 : 400 }">分类{{ i }}</div>
-          </div>
-        </div>
       </div>
-    </template>
-    <template v-else-if="comp.type === 'goods-list'">
-      <div class="r-goods-list">
-        <div v-if="comp.props.showTitle && comp.props.title" class="r-goods-list-title">{{ comp.props.title }}</div>
-        <div class="r-goods-list-grid" :style="{ gridTemplateColumns: comp.props.layout === 'single' ? '1fr' : 'repeat(2,1fr)' }">
-          <div v-for="i in Math.min(comp.props.limit || 4, 6)" :key="i" class="r-goods-list-cell">
-            <div class="r-goods-list-img">🛍</div>
-            <div class="r-goods-list-t">商品名称示例 {{ i }}</div>
-            <div class="r-goods-list-p">¥ 99.00</div>
-          </div>
-        </div>
-      </div>
-    </template>
-  </div>
 </template>
 
 <script setup>
@@ -1411,14 +1388,4 @@ function chRadius(p, i) {
 .comp-render { position: relative; }
 
 /* 商城组件预览（编辑端） */
-.r-goods-nav-title, .r-goods-list-title { font-size: 15px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
-.r-goods-nav-grid { display: grid; gap: 10px; }
-.r-goods-nav-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; background: #fff; border: 1px solid #f0f1f3; border-radius: 10px; }
-.r-goods-nav-ico { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: rgba(22,93,255,.06); }
-.r-goods-nav-text { color: #4e5969; }
-.r-goods-list-grid { display: grid; gap: 10px; }
-.r-goods-list-cell { background: #fff; border: 1px solid #f0f1f3; border-radius: 10px; overflow: hidden; }
-.r-goods-list-img { height: 110px; display: flex; align-items: center; justify-content: center; font-size: 26px; background: #f7f8fa; }
-.r-goods-list-t { font-size: 12px; color: #1d2129; padding: 6px 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.r-goods-list-p { font-size: 13px; color: #f53f3f; font-weight: 600; padding: 2px 8px 8px; }
 </style>

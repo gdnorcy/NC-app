@@ -513,56 +513,6 @@
         </view>
         <video v-if="feedVideo" :src="feedVideo" class="dp-vfeed-player" controls autoplay @ended="feedVideo = ''" @error="feedVideo = ''" />
       </view>
-      <!-- 商城组件：商品分类导航 -->
-      <view v-else-if="c.type === 'goods-nav'" class="dp-goodsnav" :style="dpGoodsNavStyle(c.props)">
-        <text v-if="c.props.showTitle && c.props.title" class="dp-goodsnav-title">{{ c.props.title }}</text>
-        <view class="dp-goodsnav-grid" :style="{ gridTemplateColumns: 'repeat(' + (c.props.columns || 4) + ', 1fr)' }">
-          <view v-for="cat in (mallCates[c.id] || [])" :key="cat.id" class="dp-goodsnav-cell" @click="onJump('/pages/mall/index?catId=' + cat.id)">
-            <image v-if="cat.image" :src="resolveUrl(cat.image)" mode="aspectFill" class="dp-goodsnav-ico" :style="{ borderRadius: c.props.shape === 'circle' ? '50%' : (c.props.iconRadius ?? 12) + 'px' }" />
-            <view v-else class="dp-goodsnav-ico dp-goodsnav-ico-empty" :style="{ borderRadius: c.props.shape === 'circle' ? '50%' : (c.props.iconRadius ?? 12) + 'px' }"><text>🛍</text></view>
-            <text class="dp-goodsnav-text" :style="{ fontSize: (c.props.fontSize || 12) + 'px', fontWeight: c.props.bold ? 600 : 400 }">{{ cat.name }}</text>
-          </view>
-        </view>
-      </view>
-      <!-- 商城组件：商品列表 -->
-      <view v-else-if="c.type === 'goods-list'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
-        <text v-if="c.props.showTitle && c.props.title" class="dp-goodslist-title">{{ c.props.title }}</text>
-        <view v-if="c.props.layout === 'single'" class="dp-goodslist-single">
-          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-single" @click="goMallDetail(g.id)">
-            <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-single-img" />
-            <view v-else class="dp-gl-single-img dp-gl-img-empty"><text>🛍</text></view>
-            <view class="dp-gl-single-info">
-              <text class="dp-gl-single-t">{{ g.title }}</text>
-              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text><text class="dp-gl-sales">已售{{ g.sales || 0 }}</text></view>
-            </view>
-          </view>
-        </view>
-        <scroll-view v-else-if="c.props.layout === 'scroll'" class="dp-goodslist-scroll" scroll-x :show-scrollbar="false">
-          <view class="dp-goodslist-scroll-row">
-            <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-scroll" @click="goMallDetail(g.id)">
-              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-scroll-img" />
-              <view v-else class="dp-gl-scroll-img dp-gl-img-empty"><text>🛍</text></view>
-              <text class="dp-gl-scroll-t">{{ g.title }}</text>
-              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></view>
-            </view>
-          </view>
-        </scroll-view>
-        <view v-else class="dp-goodslist-grid">
-          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
-            <view class="dp-gl-card-img-wrap">
-              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" />
-              <view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view>
-              <view v-if="g.soldout" class="dp-gl-soldout"><text>已售罄</text></view>
-            </view>
-            <view class="dp-gl-card-info">
-              <text class="dp-gl-card-t">{{ g.title }}</text>
-              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text><text class="dp-gl-sales">已售{{ g.sales || 0 }}</text></view>
-            </view>
-          </view>
-        </view>
-        <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
-      </view>
-
       <!-- ew商品组件：商品组/全部商品/精品推荐（双列卡片） -->
       <view v-else-if="c.type === 'goods-group' || c.type === 'goods-all' || c.type === 'goods-featured'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
         <text v-if="c.props.title" class="dp-goodslist-title">{{ c.props.title }}</text>
@@ -1238,26 +1188,12 @@ async function loadPanoScenes(i) {
     panoPlans[i] = [];
   }
 }
-// ===== 商城组件数据（goods-nav/goods-list 按组件 id 缓存）=====
-const mallCates = reactive({});
+// ===== 商城组件数据（按组件 id 缓存）=====
 const mallGoods = reactive({});
 const cTab = ref(0);
 function loadMallComps() {
   (props.comps || []).forEach((c) => {
     if (!c.id) return;
-    if (c.type === 'goods-nav' && !mallCates[c.id]) {
-      mallApi.getCates({ tid: props.tenantId || undefined })
-        .then((res) => { mallCates[c.id] = res.list || []; })
-        .catch(() => { mallCates[c.id] = []; });
-    }
-    if (c.type === 'goods-list' && !mallGoods[c.id]) {
-      const p = c.props || {};
-      const params = { tid: props.tenantId || undefined, page: 1, pageSize: p.limit || 10, sortBy: p.sortBy || 'default' };
-      if (p.source === 'category' && p.catId) params.catId = p.catId;
-      mallApi.getGoods(params)
-        .then((res) => { mallGoods[c.id] = res.list || []; })
-        .catch(() => { mallGoods[c.id] = []; });
-    }
     // ew 8 个商品组件：统一按组件 id 拉商品
     if (['goods-group','goods-all','goods-featured','goods-rank','goods-like','goods-swiper','goods-show'].includes(c.type) && !mallGoods[c.id]) {
       const p = c.props || {};
@@ -1292,9 +1228,6 @@ function loadMallComps() {
 }
 function goMallDetail(id) {
   onJump(`/pages/mall/detail?id=${id}${props.tenantId ? `&tid=${props.tenantId}` : ''}`);
-}
-function dpGoodsNavStyle(p) {
-  return { background: p.bgColor || 'transparent', marginTop: (p.marginTop ?? 0) + 'px', marginBottom: (p.marginBottom ?? 0) + 'px', borderRadius: (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px' };
 }
 function dpGoodsListStyle(p) {
   return { background: p.bgColor || 'transparent', borderRadius: (p.radius ?? 8) + 'px', marginTop: (p.marginTop ?? 0) + 'px', marginBottom: (p.marginBottom ?? 0) + 'px' };
@@ -1850,14 +1783,8 @@ function openChannel(kind, p) {
 .dp-vfeed-t { font-size: 12px; color: #1d2129; padding: 7px 8px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-vfeed-player { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-50%); width: 100%; height: 220px; z-index: 999; background: #000; }
 
-/* ===== 商城组件样式（goods-nav / goods-list） ===== */
-.dp-goodsnav { padding: 12px; box-sizing: border-box; }
-.dp-goodsnav-title, .dp-goodslist-title { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
-.dp-goodsnav-grid { display: grid; gap: 10px; }
-.dp-goodsnav-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.dp-goodsnav-ico { width: 44px; height: 44px; }
-.dp-goodsnav-ico-empty { display: flex; align-items: center; justify-content: center; background: rgba(22,93,255,.06); font-size: 18px; }
-.dp-goodsnav-text { font-size: 12px; color: #4e5969; }
+/* ===== 商城组件样式 ===== */
+.dp-goodslist-title { font-size: 16px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
 .dp-goodslist { padding: 12px; box-sizing: border-box; }
 .dp-goodslist-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .dp-gl-card { background: #fff; border-radius: 10px; overflow: hidden; }

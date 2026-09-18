@@ -810,28 +810,11 @@ function thumbHtml(t) {
         case 'search': out.push(row(11, '#f2f3f5', 6)); break;
         case 'swiper': out.push(row(32, ACC, 4)); break;
         case 'notice': out.push(row(8, LINE, 2, '3px 8px')); break;
-        case 'goods-nav': {
-          const cols = p.columns || 4;
-          let cells = '';
-          for (let i = 0; i < cols; i++) cells += `<div style="height:14px;background:${ACC};border-radius:3px;"></div>`;
-          out.push(`<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:3px;margin:4px 6px;">${cells}</div>`);
-          break;
-        }
+        
         case 'title-bar':
           out.push(`<div style="display:flex;align-items:center;gap:4px;margin:5px 6px 3px;"><div style="width:26px;height:6px;background:#1d2129;border-radius:2px;"></div><div style="flex:1;height:5px;background:${LINE};border-radius:2px;"></div><div style="width:12px;height:5px;background:${LINE};border-radius:2px;"></div></div>`);
           break;
-        case 'goods-list': {
-          if (p.layout === 'scroll') {
-            let cells = '';
-            for (let i = 0; i < 3; i++) cells += `<div style="flex:1;height:34px;background:${LINE};border-radius:3px;"></div>`;
-            out.push(`<div style="display:flex;gap:4px;margin:4px 6px;">${cells}</div>`);
-          } else {
-            let cells = '';
-            for (let i = 0; i < 2; i++) cells += `<div style="flex:1;"><div style="height:24px;background:${LINE};border-radius:3px;"></div><div style="height:5px;background:${LINE};border-radius:2px;margin-top:3px;"></div><div style="width:60%;height:5px;background:${LINE};border-radius:2px;margin-top:2px;"></div></div>`;
-            out.push(`<div style="display:flex;gap:4px;margin:4px 6px;">${cells}</div>`);
-          }
-          break;
-        }
+        
         case 'image': out.push(row(26, ACC, 3)); break;
         case 'image-text':
           out.push(`<div style="display:flex;gap:5px;margin:4px 6px;align-items:center;"><div style="width:26px;height:20px;background:${ACC};border-radius:3px;"></div><div style="flex:1;"><div style="height:6px;background:#1d2129;border-radius:2px;"></div><div style="height:5px;background:${LINE};border-radius:2px;margin-top:3px;"></div></div></div>`);
