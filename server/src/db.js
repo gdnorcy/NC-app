@@ -2275,6 +2275,13 @@ function seedGoods(db) {
   if (!colExists(db, 'live_goods', 'thumb')) {
     db.exec("ALTER TABLE live_goods ADD COLUMN thumb TEXT NOT NULL DEFAULT ''");
   }
+  // 幂等迁移：live_rooms.push_addr / push_code（推流类型直播间的推流地址/推流码，微信创建接口返回）
+  if (!colExists(db, 'live_rooms', 'push_addr')) {
+    db.exec("ALTER TABLE live_rooms ADD COLUMN push_addr TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'live_rooms', 'push_code')) {
+    db.exec("ALTER TABLE live_rooms ADD COLUMN push_code TEXT NOT NULL DEFAULT ''");
+  }
 
   // 演示方案纳入小程序直播
   try {

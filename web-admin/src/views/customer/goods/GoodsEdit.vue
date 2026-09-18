@@ -119,7 +119,7 @@
             </el-form-item>
             <el-form-item v-if="topType !== 3" label="起购数量"><el-input-number v-model="g.minBuy" :min="1" controls-position="right" /></el-form-item>
             <el-form-item v-if="topType !== 3" label="重量（KG）"><el-input-number v-model="g.weight" :min="0" :precision="2" controls-position="right" /></el-form-item>
-            <el-form-item label="售价"><el-input-number v-model="g.price" :min="0" :precision="2" controls-position="right" class="price-input" /></el-form-item>
+            <el-form-item v-if="g.specMode === 'single' && g.saleMode !== 'consult'" label="售价"><el-input-number v-model="g.price" :min="0" :precision="2" controls-position="right" class="price-input" /></el-form-item>
           </template>
           <template v-else-if="topType !== 3">
             <!-- 多规格：规格名 + 规格值 → 自动组合 SKU -->
@@ -289,7 +289,43 @@
               <el-radio value="default">默认</el-radio>
               <el-radio value="custom">单独</el-radio>
             </el-radio-group>
+            <div class="form-hint">默认设置跟随分销体系全局配置；单独为该商品设置独立分佣比例</div>
           </el-form-item>
+          <template v-if="g.distribution.rule === 'custom'">
+            <el-form-item label="佣金类型">
+              <el-radio-group v-model="g.distribution.commissionType">
+                <el-radio value="percent">百分比</el-radio>
+                <el-radio value="fixed">固定金额</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="佣金设置">
+              <table class="dist-commission-table">
+                <thead>
+                  <tr>
+                    <th>等级名称</th>
+                    <th>直推佣金</th>
+                    <th>间推佣金</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(lv, i) in g.distribution.commissionLevels" :key="i">
+                    <td>
+                      <el-input v-model="lv.level_name" placeholder="等级名称" style="width: 160px" />
+                    </td>
+                    <td>
+                      <el-input-number v-model="lv.direct" :min="0" :precision="2" controls-position="right" style="width: 140px" />
+                      <span class="uti">{{ g.distribution.commissionType === 'fixed' ? '元' : '%' }}</span>
+                    </td>
+                    <td>
+                      <el-input-number v-model="lv.indirect" :min="0" :precision="2" controls-position="right" style="width: 140px" />
+                      <span class="uti">{{ g.distribution.commissionType === 'fixed' ? '元' : '%' }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="form-hint full">百分比按成交额计提，固定金额按单计提；未添加等级时使用分销体系全局默认</div>
+            </el-form-item>
+          </template>
         </el-form>
       </el-tab-pane>
 
@@ -380,7 +416,7 @@ const g = reactive({
   superForm: 'default', video: '', videoCover: '', videoPlay: 'popup', tags: '', brief: '',
   brandTag: '', titleTag: '', service: [], marketing: { points: 0, buyPoints: '', buyBalance: 0, coupon: false, share: false },
   member: { priceShow: 'default', exclusive: 'default' },
-  distribution: { rule: 'off' },
+  distribution: { rule: 'off', commissionType: 'percent', commissionLevels: [] },
   advanced: { supplier: '', limitBuy: false, limitBuyCount: 1, stockMode: 'order', remark: '', shareTitle: '', shareImg: '', buyBtn: '', cart: 'default', promoLinks: '' },
   phoneRequired: 0,   // 手机号填写：0不展示 1必填 2选填（卡密/虚拟）
   cardKeyId: null,    // 卡密库（仅卡密）
@@ -444,7 +480,12 @@ async function loadGoods() {
     g.memberPrice = { mode: g.memberPrice.mode || 'none', list: g.memberPrice.list || [] };
     g.marketing = { points: 0, buyPoints: '', buyBalance: 0, coupon: false, share: false, ...(g.marketing || {}) };
     g.member = { priceShow: 'default', exclusive: 'default', ...(g.member || {}) };
-    g.distribution = { rule: 'off', ...(g.distribution || {}) };
+    g.distribution = { rule: 'off', commissionType: 'percent', commissionLevels: [], ...(g.distribution || {}) };
+    if (typeof g.distribution.commissionLevels === 'string') {
+      try { g.distribution.commissionLevels = JSON.parse(g.distribution.commissionLevels) || []; }
+      catch (e) { console.warn('[GoodsEdit] parse commissionLevels fail', e); g.distribution.commissionLevels = []; }
+    }
+    if (!Array.isArray(g.distribution.commissionLevels)) g.distribution.commissionLevels = [];
     g.advanced = { supplier: '', limitBuy: false, limitBuyCount: 1, stockMode: 'order', remark: '', shareTitle: '', shareImg: '', buyBtn: '', cart: 'default', promoLinks: '', ...(g.advanced || {}) };
     g.service = g.service || [];
     g.param = g.param || [];
@@ -568,4 +609,9 @@ onMounted(async () => {
   display: flex; justify-content: flex-end; gap: 12px;
   background: #fff; border-radius: 8px; padding: 14px 20px; margin-top: 16px;
 }
+.dist-commission-table { border-collapse: collapse; border: 1px solid #f0f3f5; }
+.dist-commission-table th, .dist-commission-table td { border: 1px solid #f0f3f5; padding: 6px 10px; text-align: center; }
+.dist-commission-table th { background: #f7f8fa; color: #4e5969; font-weight: 500; }
+.dist-commission-table .uti { margin-left: 4px; color: #5c6270; }
+.form-hint.full { display: block; margin-left: 0; margin-top: 4px; width: 100%; }
 </style>

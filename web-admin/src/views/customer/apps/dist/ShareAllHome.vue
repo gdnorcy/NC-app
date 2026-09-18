@@ -80,8 +80,8 @@
           <el-input v-model="addForm.userId" placeholder="平台用户 ID" />
         </el-form-item>
         <el-form-item label="权重">
-          <el-input-number v-model="addForm.weight" :min="0.01" :max="100" :step="1" />
-          <span class="form-help">权重分配模式生效</span>
+          <el-input-number v-model="addForm.weight" :min="0.01" :max="100" :step="1" :disabled="config.mode === 1" />
+          <span class="form-help">{{ config.mode === 1 ? '均等分配模式无需填写权重' : '权重分配模式生效' }}</span>
         </el-form-item>
       </el-form>
       <template #footer>

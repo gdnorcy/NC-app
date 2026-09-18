@@ -182,6 +182,16 @@
               <el-radio value="push">推流</el-radio>
             </el-radio-group>
           </el-form-item>
+          <template v-if="dlg.form.liveType === 'push'">
+            <el-form-item label="推流地址">
+              <span class="push-text">{{ dlg.form.pushAddr || '-' }}</span>
+              <el-button v-if="dlg.form.pushAddr" link type="primary" size="small" @click="copyPush('pushAddr')">复制</el-button>
+            </el-form-item>
+            <el-form-item label="推流码">
+              <span class="push-text">{{ dlg.form.pushCode || '-' }}</span>
+              <el-button v-if="dlg.form.pushCode" link type="primary" size="small" @click="copyPush('pushCode')">复制</el-button>
+            </el-form-item>
+          </template>
           <el-form-item label="功能开关">
             <div class="switch-grid">
               <span class="sw-item"><el-switch v-model="dlg.form.replayEnabled" />回放</span>
@@ -268,6 +278,7 @@ function openEdit(row) {
     name: row.name, roomId: row.room_id, anchorName: row.anchor_name,
     thumbnail: row.thumbnail, listDisplay: !!row.list_display, recommend: !!row.recommend,
     liveType: row.live_type || 'phone',
+    pushAddr: row.push_addr || '', pushCode: row.push_code || '',
     start_time: row.start_time, end_time: row.end_time,
     source: row.source, replayEnabled: !!row.replay_enabled, shareEnabled: !!row.share_enabled, serviceEnabled: !!row.service_enabled,
   };
@@ -319,6 +330,15 @@ async function copyLink(row) {
     const res = await customerApiCall.get(`/live/rooms/${row.id}/link`);
     if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(res.link);
     ElMessage.success('直播间链接已复制');
+  } catch (e) { ElMessage.error(e || '复制失败'); }
+}
+
+async function copyPush(field) {
+  const val = dlg.form[field];
+  if (!val) return;
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(val);
+    ElMessage.success(field === 'pushAddr' ? '推流地址已复制' : '推流码已复制');
   } catch (e) { ElMessage.error(e || '复制失败'); }
 }
 
@@ -377,4 +397,5 @@ onMounted(load);
 .switch-grid { display: flex; flex-wrap: wrap; gap: 16px; }
 .sw-item { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #1d2129; }
 .time-ro { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1d2129; }
+.push-text { font-family: monospace; font-size: 13px; color: #1d2129; word-break: break-all; margin-right: 8px; }
 </style>

@@ -131,18 +131,21 @@ export function createLiveRouter(db, deps = {}) {
         serviceEnabled: b.serviceEnabled === 1,
       });
       const roomId = wxRes.roomId;
+      const pushAddr = wxRes.push_addr || wxRes.pushAddr || '';
+      const pushCode = wxRes.push_code || wxRes.pushCode || '';
       const info = db.prepare(`INSERT INTO live_rooms
         (customer_id, room_id, name, anchor_name, anchor_wechat, background_img, cover_img, share_img,
-         start_time, end_time, live_type, like_enabled, shelf_enabled, comment_enabled, replay_enabled, share_enabled, service_enabled)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+         start_time, end_time, live_type, push_addr, push_code, like_enabled, shelf_enabled, comment_enabled, replay_enabled, share_enabled, service_enabled)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         cid, roomId ?? null, b.name.trim(), b.anchorName.trim(), b.anchorWechat.trim(),
         b.backgroundImg || '', b.coverImg || '', b.shareImg || '',
         b.startTime, b.endTime, b.liveType || 'phone',
+        pushAddr, pushCode,
         b.likeEnabled !== 0 ? 1 : 0, b.shelfEnabled !== 0 ? 1 : 0, b.commentEnabled !== 0 ? 1 : 0,
         b.replayEnabled === 1 ? 1 : 0, b.shareEnabled !== 0 ? 1 : 0, b.serviceEnabled === 1 ? 1 : 0,
       );
       audit(req, 'create_live_room', 'live_room', info.lastInsertRowid, `创建直播间: ${b.name.trim()}`);
-      res.json({ ok: true, id: info.lastInsertRowid, roomId: roomId ?? null });
+      res.json({ ok: true, id: info.lastInsertRowid, roomId: roomId ?? null, pushAddr, pushCode });
     } catch (e) {
       res.status(502).json({ error: e.message || '创建直播间失败' });
     }

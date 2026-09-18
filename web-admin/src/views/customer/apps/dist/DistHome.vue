@@ -96,7 +96,7 @@
                 <el-input-number v-model="cfg.ratio1" :min="0" :max="0.9" :step="0.05" :precision="2" />
                 <span class="form-tip">一级下线付费订单的佣金比例</span>
               </el-form-item>
-              <el-form-item label="二级佣金比例">
+              <el-form-item v-if="cfg.isOpenLevel2" label="二级佣金比例">
                 <el-input-number v-model="cfg.ratio2" :min="0" :max="0.9" :step="0.05" :precision="2" />
                 <span class="form-tip">二级下线付费订单的佣金比例</span>
               </el-form-item>
@@ -256,15 +256,15 @@
                 <el-switch v-model="subForm.enabled" />
                 <span class="form-tip">开启后提现审核/打款、收益结算将向用户微信发送订阅消息</span>
               </el-form-item>
-              <el-form-item label="提现审核模板" required>
+              <el-form-item v-if="subForm.enabled" label="提现审核模板" required>
                 <el-input v-model="subForm.tmplReview" placeholder="微信订阅消息模板 ID（审核通过/驳回共用）" class="w480" />
                 <span class="form-tip">字段：thing1 结果 / amount2 金额 / thing3 状态 / date4 时间</span>
               </el-form-item>
-              <el-form-item label="打款完成模板">
+              <el-form-item v-if="subForm.enabled" label="打款完成模板">
                 <el-input v-model="subForm.tmplDone" placeholder="微信订阅消息模板 ID（打款完成）" class="w480" />
                 <span class="form-tip">字段：thing1 内容 / amount2 金额 / thing3 流水号 / date4 时间</span>
               </el-form-item>
-              <el-form-item label="结算到账模板">
+              <el-form-item v-if="subForm.enabled" label="结算到账模板">
                 <el-input v-model="subForm.tmplSettle" placeholder="微信订阅消息模板 ID（收益结算到账）" class="w480" />
                 <span class="form-tip">字段：thing1 内容 / amount2 金额 / thing3 说明 / date4 时间</span>
               </el-form-item>

@@ -408,6 +408,12 @@
             <el-radio value="apply">申请模式</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-form-item v-if="levelDlg.form.upgradeMode === 'apply'" label="申请表单">
+          <el-select v-model="levelDlg.form.formId" placeholder="请选择申请表单" clearable style="width: 260px">
+            <el-option v-for="f in formOptions" :key="f.id" :label="f.title" :value="f.id" />
+          </el-select>
+          <span class="form-tip">用户申请升级时填写该表单内容</span>
+        </el-form-item>
         <el-form-item v-if="levelDlg.form.upgradeMode === 'consume'" label="累计消费金额" required>
           <el-input-number v-model="levelDlg.form.consumeAmount" :min="0" :step="100" />
           <span class="form-tip">累计消费满该金额自动升级（单位：分）</span>
@@ -493,7 +499,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
-import { customerApiCall } from '../../../api';
+import { customerApiCall, publicApi } from '../../../api';
 
 const tabs = [
   { key: 'stats', label: '数据统计', icon: 'chart' },
@@ -561,7 +567,16 @@ async function exportUsers() {
 // ---------- 等级 ----------
 const levels = ref([]);
 const levelDlg = reactive({ show: false, form: {} });
+const formOptions = ref([]);
 const emptyBenefits = () => ({ discount: { enabled: false, value: 0 }, scoreMultiple: { enabled: false, value: 0 }, pointBack: { enabled: false, value: 0 }, viewPrice: { enabled: false } });
+async function loadFormOptions() {
+  try {
+    const res = await publicApi.get('/card-market/forms');
+    formOptions.value = (res.forms || []).filter((f) => f.status === 'active');
+  } catch (e) {
+    console.warn('[MemberHome] loadFormOptions fail', e);
+  }
+}
 async function loadLevels() {
   const res = await customerApiCall.get('/member/levels');
   levels.value = res.levels || [];
@@ -569,7 +584,7 @@ async function loadLevels() {
 function openLevelEdit(lv) {
   levelDlg.form = lv
     ? { ...lv, benefits: { ...emptyBenefits(), ...(lv.benefits || {}) } }
-    : { id: null, name: '', icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, description: '', benefits: emptyBenefits() };
+    : { id: null, name: '', icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, formId: 0, description: '', benefits: emptyBenefits() };
   levelDlg.show = true;
 }
 async function saveLevel() {
@@ -834,6 +849,7 @@ onMounted(() => {
   loadCards();
   loadLogs();
   loadScoreLogs();
+  loadFormOptions();
 });
 </script>
 

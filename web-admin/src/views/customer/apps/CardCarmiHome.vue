@@ -116,7 +116,7 @@
             <el-radio :value="1">是</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="通用展示内容">
+        <el-form-item v-if="selectedCateType === 2" label="通用展示内容">
           <el-input v-model="libDlg.form.dataContent" type="textarea" :rows="2" placeholder="输入展示内容，例如：网盘地址xxx 提取码xxx" />
           <div class="form-tip">通用卡密：客户收到的卡密信息一致；单个卡密忽略此项</div>
         </el-form-item>
@@ -198,7 +198,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../components/SIcon.vue';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
@@ -211,6 +211,12 @@ const cates = ref([]);
 const cateLoading = ref(false);
 const cateKw = ref('');
 const cateDlg = reactive({ show: false, saving: false, form: { id: 0, name: '', type: 1 } });
+
+// 新建卡密库时所选分类的类型（2=通用卡密才显示「通用展示内容」）
+const selectedCateType = computed(() => {
+  const c = cates.value.find((x) => x.id === libDlg.form.cateId);
+  return c ? Number(c.type) : 0;
+});
 
 async function loadCates() {
   cateLoading.value = true;
