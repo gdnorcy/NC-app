@@ -165,9 +165,10 @@ function togglePerm(app, m, val) {
   permSet.value = next;
 }
 async function savePerms() {
+  // menu_key 本身含冒号（如 card:overview），必须按第一个冒号切分，禁止 k.split(':') 解构（会截断 key）
   const perms = Array.from(permSet.value).map((k) => {
-    const [app, key] = k.split(':');
-    return { app, key };
+    const idx = k.indexOf(':');
+    return { app: k.slice(0, idx), key: k.slice(idx + 1) };
   });
   try {
     await customerApiCall.put(`/roles/${current.value.id}/permissions`, { perms });

@@ -19,6 +19,13 @@
 - **坑（必读）**：侧边栏渲染源是 `web-admin/src/layouts/CustomerLayout.vue` 写死的 `<el-menu>`（不是 buildSidebarMenus）；`menuPermissions.js buildSidebarMenus` 只服务路由守卫/断言/测试。**改菜单必须三处同步**：CustomerLayout.vue（渲染）+ menuPermissions.js（守卫）+ menuPermissions.test.js（断言），否则出现「路由能进、菜单不显示」或反之。
 - 应用内 Tab 类页面（CardTabs 等）顶部选项卡栏必须常驻（见「选项卡栏常驻规范」）。
 
+## 分配权限弹窗按应用分组（2026-09-18 修复，通用强制）
+
+- **permission-tree 分组依据 = `app_menus.app_id` → `apps.id`，禁止用 `module` 匹配 app code**：`app_menus.module` 是中文分组名（总览/方案管理/名片管理…），不是应用 code。曾用 `menus.filter(m => m.module === a.code || a.code === 'panorama')` 导致**所有菜单全部塞进「360全景」分组**（截图即此现象），已改为按 app_id 分组。
+- **menu_key 本身含冒号前缀**（`card:overview`、`pano:overview`、`share-all:config`）；前端勾选标识格式 = `${app_code}:${menu_key}`（如 `card:card:overview`）。**保存切分必须按第一个冒号 `k.indexOf(':')`**，禁止 `k.split(':')` 解构（会把 `card:overview` 截断成 `card`，回显全部丢失）。
+- 同名权限点（如「数据洞察」在 360全景/智能名片/全端渠道都有）靠**分组归属**区分，不拼接应用名到 label。
+- 回归测试：`server/test/store-owner.test.js` 的「permission-tree 按应用分组」用例——每个分组菜单必须与 apps.id 登记的 app_menus 一一对应（不串组、不缺失），且 360全景 分组不得出现 card:/goods:/live: 等其它应用前缀。
+
 ## 门店负责人 = 统一账号（2026-09-18 实施，P0.5）
 
 - 创建/编辑门店负责人**二选一**（`ownerMode`）：`new` = 新建账号（ownerName + ownerPhone=登录账号 + ownerPassword≥6 位）；`existing` = 复用本租户已有成员（ownerMemberId）。

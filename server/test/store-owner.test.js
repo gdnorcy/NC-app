@@ -115,3 +115,41 @@ test('创建门店校验：existing 传他租户成员应 400；new 手机号非
   assert.equal(r2.status, 400);
   assert.match(r2.body.error, /手机号/);
 });
+
+test('permission-tree 按应用分组：360全景 分组不得混入其它应用菜单', async () => {
+  const r = await request(app).get('/api/customer/roles/permission-tree').set('Authorization', `Bearer ${tenantToken}`);
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.body.tree) && r.body.tree.length > 0);
+
+  // 用 app_menus.app_id 对照：每个分组的菜单必须与 apps.id 一一对应，不得串组
+  const appById = new Map(db.prepare('SELECT id, code, name FROM apps').all().map((a) => [a.id, a]));
+  const menusByApp = new Map();
+  for (const m of db.prepare('SELECT app_id, key FROM app_menus').all()) {
+    if (!menusByApp.has(m.app_id)) menusByApp.set(m.app_id, new Set());
+    menusByApp.get(m.app_id).add(m.key);
+  }
+
+  for (const group of r.body.tree) {
+    const appRow = db.prepare('SELECT id, code FROM apps WHERE code = ?').get(group.code);
+    assert.ok(appRow, `分组 code 应在 apps 中存在: ${group.code}`);
+    const expectKeys = menusByApp.get(appRow.id) || new Set();
+    const actualKeys = group.menus.map((m) => m.key);
+    for (const k of actualKeys) {
+      assert.ok(expectKeys.has(k), `[${group.code}] 菜单 ${k} 不属于该应用（按 app_id=${appRow.id}）`);
+    }
+    // 该应用登记的菜单不得缺失（有菜单的应用必须出现在树中且全量）
+    if (expectKeys.size) {
+      assert.equal(new Set(actualKeys).size, expectKeys.size, `[${group.code}] 菜单数量与登记一致`);
+    }
+  }
+
+  // 回归点：360全景 分组不得混入其它应用的菜单（card:/goods:/live:/carmi:/gift:/ticket:/collect:/dist:/partner:/share-/channel:/store:/design:/member:/customer:/market:/pool:/visitor:/template:）
+  const pano = r.body.tree.find((g) => g.code === 'panorama');
+  assert.ok(pano && pano.menus.length > 0, '360全景 分组应存在且有菜单');
+  const foreign = ['card:', 'goods:', 'live:', 'carmi:', 'gift:', 'ticket:', 'collect:', 'dist:', 'partner:', 'share-', 'channel:', 'store:', 'design:', 'member:', 'customer:', 'market:', 'pool:', 'visitor:', 'template:'];
+  for (const m of pano.menus) {
+    assert.ok(!foreign.some((f) => m.key.startsWith(f)), `360全景 分组混入其它应用菜单: ${m.key}`);
+  }
+  const allKeys = r.body.tree.flatMap((g) => g.menus.map((m) => `${g.code}:${m.key}`));
+  assert.equal(new Set(allKeys).size, allKeys.length, '跨应用菜单不应重复');
+});

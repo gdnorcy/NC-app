@@ -1489,23 +1489,26 @@ router.get('/card/trends', requireTenant, (req, res) => {
   // ============================================================
 
   // —— 权限点树（分配权限弹窗用：按应用分组的一/二级菜单）——
+  // 分组依据 = app_menus.app_id → apps.id（app_menus.module 是中文分组名，禁止用 module 匹配 app code；
+  // 曾用 `m.module === a.code || a.code==='panorama'` 导致全部菜单落入 panorama 分组，已修复）
   router.get('/roles/permission-tree', requireTenant, requireTenantAdmin, (req, res) => {
     const apps = db
       .prepare(
-        `SELECT a.code, a.name FROM apps a ORDER BY a.sort_order, a.id`
+        `SELECT a.id, a.code, a.name FROM apps a ORDER BY a.sort_order, a.id`
       )
       .all();
     const menus = db
       .prepare(
-        `SELECT m.id, m.app_id, m.module, m.key, m.label FROM app_menus m ORDER BY m.sort_order, m.id`
+        `SELECT m.app_id, m.module, m.key, m.label FROM app_menus m ORDER BY m.sort_order, m.id`
       )
       .all();
     const tree = apps
       .map((a) => ({
         code: a.code,
         name: a.name,
-        menus: menus.filter((m) => m.module === a.code || a.code === 'panorama')
-          .map((m) => ({ key: m.key, label: m.label })),
+        menus: menus
+          .filter((m) => m.app_id === a.id)
+          .map((m) => ({ key: m.key, label: m.label, module: m.module })),
       }))
       .filter((a) => a.menus.length > 0);
     res.json({ tree });
