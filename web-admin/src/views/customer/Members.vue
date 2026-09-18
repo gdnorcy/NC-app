@@ -235,6 +235,11 @@ function openRoles(row) {
   showRoles.value = true;
 }
 async function saveRoles() {
+  // 最后管理员保护（后端同样兜底）：唯一租户管理员不能移除自身 tenant_admin 角色
+  const adminRole = roles.value.find((r) => r.code === 'tenant_admin');
+  if (current.value.isTenantAdmin && tenantAdminCount.value <= 1 && adminRole && !roleForm.roleIds.includes(adminRole.id)) {
+    return ElMessage.warning('至少保留一名租户管理员');
+  }
   try {
     await customerApiCall.put(`/members/${current.value.id}/roles`, { roleIds: roleForm.roleIds });
     ElMessage.success('角色已更新'); showRoles.value = false; load();

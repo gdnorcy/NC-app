@@ -5,6 +5,7 @@ import {
   isMember,
   buildSidebarMenus,
   isAppRouteAllowed,
+  hasPerm,
 } from './menuPermissions.js';
 
 // ============================================================
@@ -86,6 +87,30 @@ describe('buildSidebarMenus 权限矩阵', () => {
   it('异常入参不抛错', () => {
     expect(() => buildSidebarMenus(null)).not.toThrow();
     expect(() => buildSidebarMenus({})).not.toThrow();
+  });
+});
+
+describe('hasPerm 权限点判定（成员管理可授权）', () => {
+  it('租户管理员天然全权', () => {
+    expect(hasPerm({ role: 'tenant_admin' }, 'set-members')).toBe(true);
+    expect(hasPerm({ role: 'tenant_admin' }, 'anything')).toBe(true);
+  });
+
+  it('普通成员按 perms 数组判定', () => {
+    const withPerm = { role: 'member', perms: ['set-members', 'card:overview'] };
+    expect(hasPerm(withPerm, 'set-members')).toBe(true);
+    expect(hasPerm(withPerm, 'set-roles')).toBe(false);
+    expect(hasPerm({ role: 'member', perms: [] }, 'set-members')).toBe(false);
+    expect(hasPerm({ role: 'member' }, 'set-members')).toBe(false);
+    expect(hasPerm(null, 'set-members')).toBe(false);
+  });
+
+  it('拥有 set-members 的普通成员：可见成员管理，角色管理仍仅管理员', () => {
+    const menus = buildSidebarMenus({ role: 'member', perms: ['set-members'] });
+    const settings = menus.find((m) => m.code === 'settings');
+    const setCodes = settings.children.map((c) => c.code).join(',');
+    expect(setCodes).toContain('set-members');
+    expect(setCodes).not.toContain('set-roles');
   });
 });
 

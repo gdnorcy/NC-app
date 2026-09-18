@@ -41,6 +41,15 @@ export function createAuthRouter(db) {
       if (member) {
         const roles = resolveMemberRoles(db, member.id);
         const role = roles.some((r) => r.code === 'tenant_admin') ? 'tenant_admin' : 'tenant_member';
+        // 成员权限点：汇总其全部角色的 role_permissions.menu_key（前端菜单可见性/后端操作判定用）
+        const perms = db
+          .prepare(
+            `SELECT DISTINCT rp.menu_key FROM member_roles mr
+             JOIN role_permissions rp ON rp.role_id = mr.role_id
+             WHERE mr.member_id = ?`
+          )
+          .all(member.id)
+          .map((r) => r.menu_key);
         return {
           id: acc.id,
           username: acc.username || acc.phone || '',
@@ -53,6 +62,7 @@ export function createAuthRouter(db) {
           enterprise_id: null,
           memberId: member.id,
           roles,
+          perms,
           isMemberAccount: true,
         };
       }
@@ -60,7 +70,7 @@ export function createAuthRouter(db) {
     // 旧模型兜底：users（平台 admin/operator / 测试直插 / 未迁移存量）
     const u = db.prepare('SELECT * FROM users WHERE username = ? OR phone = ?').get(identifier, identifier);
     if (u) {
-      return { ...u, roles: [], memberId: null, isMemberAccount: false };
+      return { ...u, roles: [], memberId: null, perms: [], isMemberAccount: false };
     }
     return null;
   }

@@ -15,6 +15,12 @@ export function isMember(user) {
   return !!user && user?.role !== 'tenant_admin' && !isEnterpriseAdmin(user);
 }
 
+/** 当前用户是否拥有指定菜单权限点（menu_key，如 set-members）；租户管理员天然全权 */
+export function hasPerm(user, menuKey) {
+  if (isTenantAdmin(user)) return true;
+  return !!user && Array.isArray(user?.perms) && user.perms.includes(menuKey);
+}
+
 /** 侧边栏菜单结构：code 用于断言，label/path 用于渲染 */
 export function buildSidebarMenus(user) {
   const menus = [
@@ -51,13 +57,13 @@ export function buildSidebarMenus(user) {
       { code: 'set-payment', label: '支付配置', path: '/settings/payment' },
     ],
   });
-  // 租户管理员：成员管理 / 角色管理（归入系统设置二级菜单）
-  if (isTenantAdmin(user)) {
+  // 成员管理：租户管理员 或 拥有 set-members 权限点的成员可见；角色管理仍仅租户管理员
+  if (isTenantAdmin(user) || hasPerm(user, 'set-members')) {
     const settingsMenu = menus.find((m) => m.code === 'settings');
-    settingsMenu.children.splice(1, 0,
-      { code: 'set-members', label: '成员管理', path: '/members' },
-      { code: 'set-roles', label: '角色管理', path: '/roles' },
-    );
+    settingsMenu.children.splice(1, 0, { code: 'set-members', label: '成员管理', path: '/members' });
+    if (isTenantAdmin(user)) {
+      settingsMenu.children.splice(2, 0, { code: 'set-roles', label: '角色管理', path: '/roles' });
+    }
   }
   return menus;
 }

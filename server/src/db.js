@@ -220,14 +220,25 @@ function migrateSolutionApps(db) {
     }
   }
   // 演示方案确保覆盖全部应用（含手动新增 apps 但无对应 solution 的情况）
+  // 注意：hidden=1 的系统级应用（system 系统设置等）不纳入任何方案
   if (demoSolutionId) {
-    const allApps = db.prepare('SELECT id FROM apps ORDER BY id ASC').all();
+    const allApps = db.prepare('SELECT id FROM apps WHERE enabled = 1 AND hidden = 0 ORDER BY id ASC').all();
     for (const a of allApps) {
       if (!db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoSolutionId, a.id)) {
         db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoSolutionId, a.id);
       }
     }
   }
+
+  // —— 系统级权限点容器：system 应用（enabled=0 + hidden=1，不出现在应用中心/方案，仅用于分配权限弹窗分组） ——
+  let sysApp = db.prepare("SELECT id FROM apps WHERE code = 'system'").get();
+  if (!sysApp) {
+    const r = db
+      .prepare("INSERT INTO apps (code, name, description, icon, sort_order, enabled, hidden) VALUES ('system', '系统设置', '系统级功能权限点容器，不在应用中心展示', '', 999, 0, 1)")
+      .run();
+    sysApp = { id: r.lastInsertRowid };
+  }
+  db.prepare("INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, '系统设置', '系统设置', 'set-members', '成员管理', 0)").run(sysApp.id);
   // 应用菜单：现有 solution_permissions（app_id=0 的存量行）→ app_menus 去重
   const legacyPerms = db.prepare('SELECT * FROM solution_permissions WHERE app_id = 0 ORDER BY id ASC').all();
   for (const p of legacyPerms) {
@@ -319,6 +330,11 @@ function seedSolutionDefaults(db) {
 
 /** 存量库迁移（幂等） */
 function migrate(db) {
+  // —— apps 表：补 hidden（系统级应用不对外展示：如 system 系统设置权限点容器） ——
+  if (!colExists(db, 'apps', 'hidden')) {
+    db.exec('ALTER TABLE apps ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0');
+  }
+
   // —— tenant_home_config 表：补 home_pages（首页跳转按应用维度化：{appCode: 启动页路径}） ——
   if (!colExists(db, 'tenant_home_config', 'home_pages')) {
     db.exec("ALTER TABLE tenant_home_config ADD COLUMN home_pages TEXT NOT NULL DEFAULT '{}'");
@@ -670,6 +686,7 @@ function migrate(db) {
       icon TEXT NOT NULL DEFAULT '',
       sort_order INTEGER NOT NULL DEFAULT 0,
       enabled INTEGER NOT NULL DEFAULT 1,
+      hidden INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -3271,6 +3288,8 @@ export function toUser(row) {
     status: row.status,
     customerId: row.customer_id || null,
     enterpriseId: row.enterprise_id || null,
+    memberId: row.memberId || null,
+    perms: row.perms || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

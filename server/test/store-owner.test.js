@@ -153,3 +153,46 @@ test('permission-tree 按应用分组：360全景 分组不得混入其它应用
   const allKeys = r.body.tree.flatMap((g) => g.menus.map((m) => `${g.code}:${m.key}`));
   assert.equal(new Set(allKeys).size, allKeys.length, '跨应用菜单不应重复');
 });
+
+test('成员管理可授权：拥有 set-members 权限点的普通成员可访问 /members，/roles 仍 403', async () => {
+  // 建自定义角色 + set-members 权限点
+  const roleR = db.prepare("INSERT INTO roles (tenant_id, code, name, scope, builtin) VALUES (1, 'custom_perm', '成员运营', 'tenant', 0)").run();
+  db.prepare("INSERT INTO role_permissions (role_id, app_code, menu_key) VALUES (?, 'system', 'set-members')").run(roleR.lastInsertRowid);
+  // 建普通成员账号（新模型 accounts + tenant_members）
+  const { hash, salt } = hashPassword('abc123');
+  const accR = db.prepare("INSERT INTO accounts (username, phone, password_hash, password_salt, status) VALUES ('op2026','13800002026',?,?,'active')").run(hash, salt);
+  const memR = db.prepare("INSERT INTO tenant_members (tenant_id, account_id, name, nickname, status, identities) VALUES (1, ?, '成员运营', '成员运营', 'active', '[\"backend_admin\"]')").run(accR.lastInsertRowid);
+  db.prepare('INSERT INTO member_roles (member_id, role_id) VALUES (?, ?)').run(memR.lastInsertRowid, roleR.lastInsertRowid);
+
+  const login = async (u, p) => (await request(app).post('/api/auth/login').send({ username: u, password: p })).body.token;
+  const opToken = await login('op2026', 'abc123');
+  assert.ok(opToken, '成员运营账号应可登录');
+
+  const r1 = await request(app).get('/api/customer/members').set('Authorization', `Bearer ${opToken}`);
+  assert.equal(r1.status, 200, '拥有 set-members 权限点的成员可访问成员列表');
+  assert.ok(Array.isArray(r1.body.members));
+  const r2 = await request(app).get('/api/customer/roles').set('Authorization', `Bearer ${opToken}`);
+  assert.equal(r2.status, 403, '角色管理仍仅租户管理员');
+});
+
+test('最后管理员保护：移除唯一租户管理员的 tenant_admin 角色应 400', async () => {
+  const adminRole = db.prepare("SELECT id FROM roles WHERE code = 'tenant_admin' AND tenant_id = 0").get();
+  assert.ok(adminRole, '内置 tenant_admin 角色应存在');
+  // 在已有租户 1 下建唯一 tenant_admin 成员（测试租户 projects id=1 已存在，可正常登录）
+  const { hash, salt } = hashPassword('admin771');
+  const accR = db.prepare("INSERT INTO accounts (username, phone, password_hash, password_salt, status) VALUES ('t1admin','13800007771',?,?,'active')").run(hash, salt);
+  const memR = db.prepare("INSERT INTO tenant_members (tenant_id, account_id, name, nickname, status, identities) VALUES (1, ?, '唯一管理员', '唯一管理员', 'active', '[\"backend_admin\"]')").run(accR.lastInsertRowid);
+  db.prepare('INSERT INTO member_roles (member_id, role_id) VALUES (?, ?)').run(memR.lastInsertRowid, adminRole.id);
+
+  // 用该管理员登录（findLoginUser 取 accounts → 第一个 active member）
+  const login = async (u, p) => (await request(app).post('/api/auth/login').send({ username: u, password: p })).body.token;
+  const token = await login('t1admin', 'admin771');
+  assert.ok(token);
+  // 移除自身 tenant_admin 角色（空数组）
+  const r = await request(app).put(`/api/customer/members/${memR.lastInsertRowid}/roles`).set('Authorization', `Bearer ${token}`).send({ roleIds: [] });
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /至少保留一名租户管理员/);
+  // 数据应未被改动
+  const still = db.prepare('SELECT 1 FROM member_roles WHERE member_id = ? AND role_id = ?').get(memR.lastInsertRowid, adminRole.id);
+  assert.ok(still, '角色绑定不应被移除');
+});

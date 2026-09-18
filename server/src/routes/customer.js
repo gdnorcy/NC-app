@@ -116,6 +116,35 @@ function requireTenantAdmin(req, res, next) {
   next();
 }
 
+// 中间件：租户管理员 或 拥有 set-members 权限点的成员（成员管理可授权；角色管理仍仅管理员）
+// 权限点实时查库（角色分配后无需重新登录立即生效；memberId=null 的旧 users 只认 tenant_admin）
+function requireMemberManage(req, res, next) {
+  if (req.user.role === 'tenant_admin') return next();
+  if (req.user.memberId) {
+    const has = db
+      .prepare(
+        `SELECT 1 FROM member_roles mr
+         JOIN role_permissions rp ON rp.role_id = mr.role_id
+         WHERE mr.member_id = ? AND rp.menu_key = 'set-members' LIMIT 1`
+      )
+      .get(req.user.memberId);
+    if (has) return next();
+  }
+  return res.status(403).json({ error: '仅管理员或具备成员管理权限者可操作' });
+}
+
+// 当前租户 tenant_admin 角色成员数（最后管理员保护用）
+function countTenantAdmins(customerId) {
+  return db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM member_roles mr
+       JOIN roles r ON r.id = mr.role_id
+       JOIN tenant_members tm ON tm.id = mr.member_id
+       WHERE tm.tenant_id = ? AND r.code = 'tenant_admin'`
+    )
+    .get(customerId).n;
+}
+
 // 获取当前租户信息
 router.get('/profile', requireTenant, (req, res) => {
   const cust = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.customerId);
@@ -1593,7 +1622,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
   });
 
   // —— 成员列表（含角色标签 / 门店负责人标记 / 账号信息）——
-  router.get('/members', requireTenant, requireTenantAdmin, (req, res) => {
+  router.get('/members', requireTenant, requireMemberManage, (req, res) => {
     const members = db
       .prepare(
         `SELECT tm.id, tm.tenant_id, tm.account_id, tm.name, tm.nickname, tm.avatar, tm.status, tm.identities, tm.created_at,
@@ -1641,7 +1670,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
   });
 
   // —— 添加成员（账号不存在则自动创建）——
-  router.post('/members', requireTenant, requireTenantAdmin, (req, res) => {
+  router.post('/members', requireTenant, requireMemberManage, (req, res) => {
     const { name, phone, username, password, identities, roleIds } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ error: '请输入成员姓名' });
     const loginName = String(username || phone || '').trim();
@@ -1669,7 +1698,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
   });
 
   // —— 编辑成员（姓名/手机/身份/状态；手机号同步 accounts）——
-  router.put('/members/:id', requireTenant, requireTenantAdmin, (req, res) => {
+  router.put('/members/:id', requireTenant, requireMemberManage, (req, res) => {
     const member = db
       .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
       .get(req.params.id, req.customerId);
@@ -1694,13 +1723,27 @@ router.get('/card/trends', requireTenant, (req, res) => {
   });
 
   // —— 分配成员角色（整体覆盖）——
-  router.put('/members/:id/roles', requireTenant, requireTenantAdmin, (req, res) => {
+  router.put('/members/:id/roles', requireTenant, requireMemberManage, (req, res) => {
     const member = db
       .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
       .get(req.params.id, req.customerId);
     if (!member) return res.status(404).json({ error: '成员不存在' });
     const { roleIds } = req.body || {};
     const ids = Array.isArray(roleIds) ? roleIds : [];
+    // 最后管理员保护：目标成员是租户管理员且操作后该租户将无管理员 → 拒绝
+    const isAdminNow = db
+      .prepare(
+        `SELECT 1 FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+         WHERE mr.member_id = ? AND r.code = 'tenant_admin' LIMIT 1`
+      )
+      .get(member.id);
+    if (isAdminNow) {
+      const adminRole = db.prepare("SELECT id FROM roles WHERE code = 'tenant_admin' AND tenant_id = 0").get();
+      const stillAdmin = ids.includes(adminRole.id);
+      if (!stillAdmin && countTenantAdmins(req.customerId) <= 1) {
+        return res.status(400).json({ error: '至少保留一名租户管理员' });
+      }
+    }
     db.prepare('DELETE FROM member_roles WHERE member_id = ?').run(member.id);
     const ins = db.prepare('INSERT OR IGNORE INTO member_roles (member_id, role_id) VALUES (?, ?)');
     for (const rid of ids) ins.run(member.id, rid);
@@ -1709,7 +1752,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
   });
 
   // —— 重置成员密码（写入 accounts）——
-  router.put('/members/:id/reset-password', requireTenant, requireTenantAdmin, (req, res) => {
+  router.put('/members/:id/reset-password', requireTenant, requireMemberManage, (req, res) => {
     const member = db
       .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')
       .get(req.params.id, req.customerId);
@@ -1723,7 +1766,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
   });
 
   // —— 移除成员（解绑租户身份；账号保留；门店负责人同时解除关联）——
-  router.delete('/members/:id', requireTenant, requireTenantAdmin, (req, res) => {
+  router.delete('/members/:id', requireTenant, requireMemberManage, (req, res) => {
     if (Number(req.params.id) === req.user.memberId) return res.status(400).json({ error: '不能删除自己' });
     const member = db
       .prepare('SELECT * FROM tenant_members WHERE id = ? AND tenant_id = ?')

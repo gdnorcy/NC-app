@@ -31,7 +31,7 @@ export function createAppsAdminRouter(db) {
   router.get('/', (_req, res) => {
     try {
       const cats = db.prepare('SELECT * FROM app_categories ORDER BY sort_order, id').all();
-      const apps = db.prepare('SELECT * FROM apps ORDER BY sort_order, id').all();
+      const apps = db.prepare('SELECT * FROM apps WHERE hidden = 0 ORDER BY sort_order, id').all();
       const categories = cats.map((c) => {
         const list = apps.filter((a) => a.category === c.name).map(rowToApp);
         return { ...rowToCat(c), apps: list };
@@ -100,6 +100,7 @@ export function createAppsAdminRouter(db) {
     try {
       const app = db.prepare('SELECT * FROM apps WHERE id = ?').get(Number(req.params.id));
       if (!app) return res.status(404).json({ error: '应用不存在' });
+      if (app.hidden === 1) return res.status(403).json({ error: '系统级应用不可编辑' });
       const { name, description, icon } = req.body || {};
       db.prepare("UPDATE apps SET name = ?, description = ?, icon = ?, updated_at = datetime('now') WHERE id = ?")
         .run(name || app.name, description !== undefined ? description : app.description, icon || app.icon, app.id);
@@ -136,6 +137,7 @@ export function createAppsAdminRouter(db) {
     try {
       const app = db.prepare('SELECT * FROM apps WHERE id = ?').get(Number(req.params.id));
       if (!app) return res.status(404).json({ error: '应用不存在' });
+      if (app.hidden === 1) return res.status(403).json({ error: '系统级应用不可改分类' });
       const { category } = req.body || {};
       const cat = db.prepare('SELECT id FROM app_categories WHERE name = ?').get(category);
       if (!category || !cat) return res.status(400).json({ error: '目标分类不存在' });

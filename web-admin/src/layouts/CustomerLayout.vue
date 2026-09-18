@@ -72,7 +72,7 @@
               <span>系统设置</span>
             </template>
             <el-menu-item index="/settings/account">账号设置</el-menu-item>
-            <el-menu-item v-if="isTenantAdmin" index="/members">成员管理</el-menu-item>
+            <el-menu-item v-if="canManageMembers" index="/members">成员管理</el-menu-item>
             <el-menu-item v-if="isTenantAdmin" index="/roles">角色管理</el-menu-item>
             <el-menu-item index="/settings/storage">远程附件</el-menu-item>
             <el-menu-item index="/settings/sms">短信配置</el-menu-item>
@@ -174,7 +174,7 @@
 import { ref, computed, onMounted, provide } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { isTenantAdmin as isTenantAdminFn, isEnterpriseAdmin as isEnterpriseAdminFn } from '../utils/menuPermissions';
+import { isTenantAdmin as isTenantAdminFn, isEnterpriseAdmin as isEnterpriseAdminFn, hasPerm as hasPermFn } from '../utils/menuPermissions';
 import {
   SwitchButton, Fold, Expand, ArrowDown, Back, QuestionFilled,
 } from '@element-plus/icons-vue';
@@ -196,6 +196,7 @@ const hasGoodsApp = computed(() => installedApps.value.some(a => a.code === 'goo
 
 const authStore = { user: JSON.parse(localStorage.getItem('customer_user') || 'null') };
 const isTenantAdmin = computed(() => isTenantAdminFn(authStore.user));
+const canManageMembers = computed(() => isTenantAdminFn(authStore.user) || hasPermFn(authStore.user, 'set-members'));
 const isEnterpriseAdmin = computed(() => isEnterpriseAdminFn(authStore.user));
 const isImpersonate = computed(() => !!localStorage.getItem('admin_token_backup'));
 const activeMenu = computed(() => route.path);

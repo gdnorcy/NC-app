@@ -34,6 +34,15 @@
 - 前端 `StoreManage.vue`：负责人步骤「负责人来源」radio 切换（new 显示姓名/手机号/密码；existing 显示成员下拉，数据来自 `GET /api/customer/members`）；`GET /store/categories`、`/store/tag-groups`、`/store/quota`、`/members` 并行加载。
 - 测试：`server/test/store-owner.test.js`（4 项：roles perms 回显 / new 全链路 / existing 复用补绑 / 越权与非法手机号 400）。
 
+## 成员/角色权限加固（2026-09-18 实施，A+B）
+
+- **最后管理员保护（方案A，通用强制）**：`PUT /members/:id/roles` 与 `DELETE /members/:id` 均须保证该租户至少保留 1 名 tenant_admin（countTenantAdmins ≤1 且移除 → 400「至少保留一名租户管理员」/403）；DELETE 另有「不能删除自己」。前端 Members.vue 同步禁用（最后一个管理员移除按钮 disabled + saveRoles 预校验）。
+- **成员管理可授权（方案B）**：新增权限点 `system:set-members`（「系统设置」分组下的「成员管理」），自定义角色被勾选后，其成员可进入**成员管理**（列表/新建/编辑/角色分配/重置密码/停用），**角色管理仍仅租户管理员**（避免提权环：有 set-members 者不能改角色、不能分配 tenant_admin）。
+- **后端中间件**：`requireMemberManage`（customer.js）= tenant_admin 放行，或 `req.user.memberId` 实时查 `member_roles JOIN role_permissions` 含 set-members（每次请求查库，角色变更即时生效，不依赖 JWT 快照）；`GET /members/me` 保持 requireTenant。旧 users（memberId=null）只认 tenant_admin。
+- **前端链路**：登录时 findLoginUser（auth.js）为成员汇总 `perms`（DISTINCT menu_key 数组）→ 登录响应 `user.perms`（toUser 透传，db.js）；`menuPermissions.js hasPerm(user, key)`（tenant_admin 天然 true）；CustomerLayout 成员管理 `v-if="canManageMembers"`（isTenantAdmin || hasPerm('set-members')），角色管理仍 isTenantAdmin。
+- **system 应用（hidden 系统级应用，通用机制）**：apps 表新增 `hidden` 列；`system` 应用（code='system', enabled=0, hidden=1）为权限点容器，**不出现在总后台应用中心**（appsAdmin 列表 WHERE hidden=0）与租户应用中心/演示方案（demo 覆盖全部应用改为 WHERE enabled=1 AND hidden=0），但**必须出现在分配权限弹窗分组**（permission-tree 不加 hidden 过滤）；appsAdmin 对 hidden=1 应用的编辑/改分类返回 403。新增系统级权限点：apps 表加 hidden 应用 + app_menus 登记，勿塞入真实业务应用。
+- 测试：`server/test/store-owner.test.js`（+2：set-members 成员可 GET /members 且 /roles 403；移除唯一 tenant_admin → 400 且数据未变）；`menuPermissions.test.js`（+hasPerm 3 用例）。
+
 
 # 构建部署规范（强制）
 
