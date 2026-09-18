@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header">
+    <div v-if="!embedded" class="page-header">
       <div>
         <h2 class="page-title">角色管理</h2>
         <p class="page-desc">内置角色（租户管理员 / 普通成员 / 门店管理员）不可删除；自定义角色可分配菜单权限点</p>
@@ -9,6 +9,10 @@
     </div>
 
     <div class="page-card">
+      <div class="toolbar">
+        <div />
+        <el-button type="primary" @click="openCreate"><el-icon><Plus /></el-icon>新建角色</el-button>
+      </div>
       <el-table :data="roles" stripe>
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="name" label="角色名称" min-width="160">
@@ -83,6 +87,9 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { customerApiCall } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+
+// 合并页嵌入模式：隐藏自身页头（标题/描述/右上按钮），由「成员与权限」页统一承载
+defineProps({ embedded: { type: Boolean, default: false } });
 
 const roles = ref([]);
 const showEdit = ref(false);
@@ -184,6 +191,7 @@ onMounted(load);
 .page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
 .page-desc { font-size: 13px; color: #86909c; margin: 4px 0 0; }
 .page-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; align-items: center; }
 .tag-gap { margin-left: 4px; }
 .dialog-tip { font-size: 13px; color: #86909c; margin: 0 0 12px; }
 .perm-tree { max-height: 420px; overflow: auto; border: 1px solid #e5e6eb; border-radius: 8px; padding: 12px 16px; }

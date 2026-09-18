@@ -57,13 +57,11 @@ export function buildSidebarMenus(user) {
       { code: 'set-payment', label: '支付配置', path: '/settings/payment' },
     ],
   });
-  // 成员管理：租户管理员 或 拥有 set-members 权限点的成员可见；角色管理仍仅租户管理员
+  // 成员与权限（合并页，页内 Tab 承载成员管理/角色管理）：租户管理员 或 拥有 set-members 权限点的成员可见；
+  // 角色管理 Tab 仍仅租户管理员（防提权环），在 MemberAccess.vue 内按 isTenantAdmin 控制
   if (isTenantAdmin(user) || hasPerm(user, 'set-members')) {
     const settingsMenu = menus.find((m) => m.code === 'settings');
-    settingsMenu.children.splice(1, 0, { code: 'set-members', label: '成员管理', path: '/members' });
-    if (isTenantAdmin(user)) {
-      settingsMenu.children.splice(2, 0, { code: 'set-roles', label: '角色管理', path: '/roles' });
-    }
+    settingsMenu.children.splice(1, 0, { code: 'set-access', label: '成员与权限', path: '/access' });
   }
   return menus;
 }

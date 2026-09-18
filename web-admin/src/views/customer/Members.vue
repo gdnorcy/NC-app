@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header">
+    <div v-if="!embedded" class="page-header">
       <div>
         <h2 class="page-title">成员管理</h2>
         <p class="page-desc">统一账号体系：账号（登录凭据）与成员（业务身份）分离，一人可持多角色；门店负责人也是成员</p>
@@ -10,14 +10,17 @@
 
     <div class="page-card">
       <div class="toolbar">
-        <el-input v-model="keyword" placeholder="搜索姓名 / 账号 / 手机号" clearable style="width: 240px" @input="applyFilter" />
-        <el-select v-model="filterRole" placeholder="全部角色" clearable style="width: 180px" @change="applyFilter">
-          <el-option v-for="r in roles" :key="r.id" :label="r.name" :value="r.id" />
-        </el-select>
-        <el-select v-model="filterStore" placeholder="全部成员" clearable style="width: 160px" @change="applyFilter">
-          <el-option label="门店负责人" value="store" />
-          <el-option label="非门店负责人" value="none" />
-        </el-select>
+        <div class="toolbar-filters">
+          <el-input v-model="keyword" placeholder="搜索姓名 / 账号 / 手机号" clearable style="width: 240px" @input="applyFilter" />
+          <el-select v-model="filterRole" placeholder="全部角色" clearable style="width: 180px" @change="applyFilter">
+            <el-option v-for="r in roles" :key="r.id" :label="r.name" :value="r.id" />
+          </el-select>
+          <el-select v-model="filterStore" placeholder="全部成员" clearable style="width: 160px" @change="applyFilter">
+            <el-option label="门店负责人" value="store" />
+            <el-option label="非门店负责人" value="none" />
+          </el-select>
+        </div>
+        <el-button type="primary" @click="openCreate"><el-icon><Plus /></el-icon>添加成员</el-button>
       </div>
 
       <el-table :data="filtered" stripe>
@@ -140,6 +143,9 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { customerApiCall } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+
+// 合并页嵌入模式：隐藏自身页头（标题/描述/右上按钮），由「成员与权限」页统一承载
+defineProps({ embedded: { type: Boolean, default: false } });
 
 const IDENTITY_MAP = { backend_admin: '后台管理员', mini_admin: '小程序管理员', promoter: '推广员', notify: '消息推送' };
 
@@ -280,7 +286,8 @@ onMounted(() => { load(); loadRoles(); });
 .page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
 .page-desc { font-size: 13px; color: #86909c; margin: 4px 0 0; }
 .page-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-.toolbar { display: flex; gap: 12px; margin-bottom: 16px; }
+.toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; align-items: center; }
+.toolbar-filters { display: flex; gap: 12px; flex-wrap: wrap; }
 .member-cell { display: flex; align-items: center; gap: 10px; }
 .member-name { font-size: 14px; color: #1d2129; font-weight: 500; display: flex; align-items: center; }
 .member-sub { font-size: 12px; color: #86909c; margin-top: 2px; }

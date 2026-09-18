@@ -34,6 +34,13 @@
 - 前端 `StoreManage.vue`：负责人步骤「负责人来源」radio 切换（new 显示姓名/手机号/密码；existing 显示成员下拉，数据来自 `GET /api/customer/members`）；`GET /store/categories`、`/store/tag-groups`、`/store/quota`、`/members` 并行加载。
 - 测试：`server/test/store-owner.test.js`（4 项：roles perms 回显 / new 全链路 / existing 复用补绑 / 越权与非法手机号 400）。
 
+## 成员与权限合并（2026-09-18 实施，方案A）
+
+- **系统设置二级菜单「成员管理」「角色管理」合并为「成员与权限」**（path `/access`，MemberAccess.vue）：页内 el-tabs 承载「成员管理」tab（复用 Members.vue embedded 模式）与「角色管理」tab（仅租户管理员可见，复用 Roles.vue embedded 模式）；旧路由 `/members`、`/roles` 保留兼容（不在菜单出现）。
+- **embedded 模式约定**：被合并页内嵌的子页面组件（Members/Roles）声明 `defineProps({ embedded: Boolean })`，`embedded` 时隐藏自身 `.page-header`（标题/描述/右上主按钮），操作按钮移至 `.page-card` 顶部 toolbar 右侧；合并页统一用 AppPageHeader。
+- **菜单三处同步**：CustomerLayout.vue（`/access` 一项，`v-if="canManageMembers"`）+ menuPermissions.js（settings children 只保留 `set-access`，条件 isTenantAdmin || hasPerm('set-members')）+ menuPermissions.test.js（断言 set-access 存在、set-members/set-roles 不存在）。
+- 权限语义不变：`set-members` 权限点成员可进合并页但只看得到「成员管理」tab；「角色管理」tab 由 MemberAccess.vue 内 `isTenantAdmin` 控制，普通成员不可见。
+
 ## 成员/角色权限加固（2026-09-18 实施，A+B）
 
 - **最后管理员保护（方案A，通用强制）**：`PUT /members/:id/roles` 与 `DELETE /members/:id` 均须保证该租户至少保留 1 名 tenant_admin（countTenantAdmins ≤1 且移除 → 400「至少保留一名租户管理员」/403）；DELETE 另有「不能删除自己」。前端 Members.vue 同步禁用（最后一个管理员移除按钮 disabled + saveRoles 预校验）。

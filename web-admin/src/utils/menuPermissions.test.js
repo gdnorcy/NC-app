@@ -51,11 +51,12 @@ describe('buildSidebarMenus 权限矩阵', () => {
     expect(all).toContain('apps');
     expect(all).toContain('billing');
     expect(all).toContain('orders');
-    // 系统设置 children 含成员管理/角色管理（不再是一级菜单）
+    // 系统设置 children 含合并后的「成员与权限」（不再是一级菜单）
     const settings = menus.find((m) => m.code === 'settings');
     const setCodes = settings.children.map((c) => c.code).join(',');
-    expect(setCodes).toContain('set-members');
-    expect(setCodes).toContain('set-roles');
+    expect(setCodes).toContain('set-access');
+    expect(setCodes).not.toContain('set-members');
+    expect(setCodes).not.toContain('set-roles');
     expect(setCodes).toContain('set-account');
   });
 
@@ -69,8 +70,7 @@ describe('buildSidebarMenus 权限矩阵', () => {
     ]);
     const settings = menus.find((m) => m.code === 'settings');
     const setCodes = settings.children.map((c) => c.code).join(',');
-    expect(setCodes).not.toContain('set-members');
-    expect(setCodes).not.toContain('set-roles');
+    expect(setCodes).not.toContain('set-access');
   });
 
   it('普通成员：无企业面板，系统设置无成员管理', () => {
@@ -80,8 +80,7 @@ describe('buildSidebarMenus 权限矩阵', () => {
     expect(all).toContain('settings');
     const settings = menus.find((m) => m.code === 'settings');
     const setCodes = settings.children.map((c) => c.code).join(',');
-    expect(setCodes).not.toContain('set-members');
-    expect(setCodes).not.toContain('set-roles');
+    expect(setCodes).not.toContain('set-access');
   });
 
   it('异常入参不抛错', () => {
@@ -105,11 +104,11 @@ describe('hasPerm 权限点判定（成员管理可授权）', () => {
     expect(hasPerm(null, 'set-members')).toBe(false);
   });
 
-  it('拥有 set-members 的普通成员：可见成员管理，角色管理仍仅管理员', () => {
+  it('拥有 set-members 的普通成员：可见合并菜单「成员与权限」', () => {
     const menus = buildSidebarMenus({ role: 'member', perms: ['set-members'] });
     const settings = menus.find((m) => m.code === 'settings');
     const setCodes = settings.children.map((c) => c.code).join(',');
-    expect(setCodes).toContain('set-members');
+    expect(setCodes).toContain('set-access');
     expect(setCodes).not.toContain('set-roles');
   });
 });

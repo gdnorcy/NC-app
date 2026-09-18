@@ -72,8 +72,7 @@
               <span>系统设置</span>
             </template>
             <el-menu-item index="/settings/account">账号设置</el-menu-item>
-            <el-menu-item v-if="canManageMembers" index="/members">成员管理</el-menu-item>
-            <el-menu-item v-if="isTenantAdmin" index="/roles">角色管理</el-menu-item>
+            <el-menu-item v-if="canManageMembers" index="/access">成员与权限</el-menu-item>
             <el-menu-item index="/settings/storage">远程附件</el-menu-item>
             <el-menu-item index="/settings/sms">短信配置</el-menu-item>
             <el-menu-item index="/settings/payment">支付配置</el-menu-item>
