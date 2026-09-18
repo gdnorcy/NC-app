@@ -83,6 +83,7 @@
         <el-form-item label="姓名" required><el-input v-model="form.name" placeholder="成员姓名" /></el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="form.phone" placeholder="手机号（可作登录账号）" />
+          <div class="field-tip">修改后将同步更新该账号的登录手机号</div>
         </el-form-item>
         <template v-if="!editId">
           <el-form-item label="登录账号">
@@ -282,6 +283,7 @@ onMounted(() => { load(); loadRoles(); });
 </script>
 
 <style scoped>
+.field-tip { font-size: 12px; color: #86909c; line-height: 1.5; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0; }
 .page-desc { font-size: 13px; color: #86909c; margin: 4px 0 0; }

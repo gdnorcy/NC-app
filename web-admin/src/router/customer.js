@@ -67,7 +67,7 @@ const routes = [
       { path: 'enterprise/pool', component: () => import('../views/customer/enterprise/EnterprisePool.vue'), meta: { title: '企业公海', breadcrumbs: ['企业工作台', '企业公海'] } },
       { path: 'enterprise/settings', component: () => import('../views/customer/enterprise/EnterpriseSettings.vue'), meta: { title: '企业设置', breadcrumbs: ['企业工作台', '企业设置'] } },
       { path: 'settings', redirect: '/settings/account', meta: { title: '系统设置', breadcrumbs: ['系统设置'] } },
-      { path: 'settings/account', component: () => import('../views/customer/settings/AccountSettings.vue'), meta: { title: '账号设置', breadcrumbs: ['系统设置', '账号设置'] } },
+      { path: 'settings/account', component: () => import('../views/customer/settings/AccountSettings.vue'), meta: { title: '我的账号', breadcrumbs: ['我的账号'] } },
       { path: 'settings/storage', component: () => import('../views/customer/settings/StorageSettings.vue'), meta: { title: '远程附件', breadcrumbs: ['系统设置', '远程附件'] } },
       { path: 'settings/sms', component: () => import('../views/customer/settings/SmsSettings.vue'), meta: { title: '短信配置', breadcrumbs: ['系统设置', '短信配置'] } },
       { path: 'settings/payment', component: () => import('../views/customer/settings/PaymentConfig.vue'), meta: { title: '支付配置', breadcrumbs: ['系统设置', '支付配置'] } },
@@ -77,7 +77,7 @@ const routes = [
 
 /** 角色可访问路径集（含子菜单） */
 function allowedPaths(user) {
-  const set = new Set(['/login', '/dashboard', '/design', '/design/edit', '/goods', '/goods/edit', '/content', '/content/article/edit', '/orders']);
+  const set = new Set(['/login', '/dashboard', '/design', '/design/edit', '/goods', '/goods/edit', '/content', '/content/article/edit', '/orders', '/settings/account']);
   for (const m of buildSidebarMenus(user)) {
     set.add(m.path);
     for (const c of m.children || []) set.add(c.path);

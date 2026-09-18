@@ -34,6 +34,14 @@
 - 前端 `StoreManage.vue`：负责人步骤「负责人来源」radio 切换（new 显示姓名/手机号/密码；existing 显示成员下拉，数据来自 `GET /api/customer/members`）；`GET /store/categories`、`/store/tag-groups`、`/store/quota`、`/members` 并行加载。
 - 测试：`server/test/store-owner.test.js`（4 项：roles perms 回显 / new 全链路 / existing 复用补绑 / 越权与非法手机号 400）。
 
+## 我的账号移入右上角个人中心（2026-09-18 实施，方案A）
+
+- **「账号设置」→「我的账号」，从系统设置二级菜单移入右上角个人中心**：CustomerLayout 右上角 el-dropdown「个人中心」command=profile → `router.push('/settings/account')`（原为空动作）；系统设置 children 移除 set-account；`/settings/account` 路由保留 + allowedPaths 白名单（buildSidebarMenus 不再含它）。
+- **「我的账号」定位 = 个人自助**：个人信息（账号只读 + 手机号自助修改，附说明「修改后将同步更新该账号的登录手机号」）+ 修改密码（验旧）+ **新增「我的角色与权限」只读卡片**（`GET /api/customer/members/me` → roles/perms/isTenantAdmin；管理员显示「租户管理员 + 默认全部权限」，普通成员显示角色 tags + 权限点文案）。
+- **权限点文案映射**：PERM_LABELS 集中维护（如 `system:set-members` → 「系统设置 · 成员管理」），未知 key 兜底显示 `app_code:menu_key`。
+- **与「成员与权限」的分工**：我的账号 = 当前登录人自助（本人手机号/密码/角色查看）；成员与权限 = 管理员治理全体成员（含代改他人手机号、重置他人密码、分配角色）。手机号为同一数据源（accounts.phone），两处入口均加同步说明。
+- 测试：menuPermissions.test.js 断言 `setCodes` not.toContain('set-account')。
+
 ## 账单并入套餐与续费 + 会员菜单改名（2026-09-18 实施）
 
 - **「我的账单」合并进「套餐与续费」**（Billing.vue 内 el-tabs：「套餐与续费」tab = 原内容（当前方案/用量/续费/发票），「我的账单」tab = `<Orders embedded />`）；侧边栏删除「我的账单」项，只保留「套餐与续费」。

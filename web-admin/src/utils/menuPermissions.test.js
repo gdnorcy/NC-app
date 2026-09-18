@@ -59,7 +59,8 @@ describe('buildSidebarMenus 权限矩阵', () => {
     expect(setCodes).toContain('set-access');
     expect(setCodes).not.toContain('set-members');
     expect(setCodes).not.toContain('set-roles');
-    expect(setCodes).toContain('set-account');
+    // 账号设置（我的账号）已移入右上角个人中心，不在系统设置二级菜单
+    expect(setCodes).not.toContain('set-account');
   });
 
   it('入驻企业管理员：含企业子面板 4 项，系统设置无成员管理', () => {

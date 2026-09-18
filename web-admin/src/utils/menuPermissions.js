@@ -50,7 +50,6 @@ export function buildSidebarMenus(user) {
     label: '系统设置',
     path: '/settings',
     children: [
-      { code: 'set-account', label: '账号设置', path: '/settings/account' },
       { code: 'set-storage', label: '远程附件', path: '/settings/storage' },
       { code: 'set-sms', label: '短信配置', path: '/settings/sms' },
       { code: 'set-payment', label: '支付配置', path: '/settings/payment' },
