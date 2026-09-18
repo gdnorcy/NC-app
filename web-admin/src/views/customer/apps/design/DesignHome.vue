@@ -432,8 +432,8 @@
                 <svg viewBox="0 0 26 13" width="23" height="12" fill="none"><rect x="0.5" y="0.5" width="21" height="12" rx="3.5" stroke="#1d2129" stroke-width="1.1"/><rect x="2.5" y="2.5" width="13" height="8" rx="1.8" fill="#1d2129"/><path d="M23.5 4.5v4a2.2 2.2 0 0 0 0-4z" fill="#1d2129"/></svg>
               </span>
             </div>
-            <div v-if="pagePreviewUrl" class="pm-iframe-wrap" :style="{ height: previewH * 0.72 + 'px' }">
-              <iframe :src="pagePreviewUrl" class="pm-iframe" title="首页实时预览" @load="measurePreview" />
+            <div v-if="pagePreviewUrl" class="pm-iframe-wrap">
+              <iframe :src="pagePreviewUrl" class="pm-iframe" title="首页实时预览" />
             </div>
             <div v-else class="pm-canvas">
               <div v-for="comp in homePreview" :key="comp.id" class="pm-comp">
@@ -615,22 +615,6 @@ async function loadHomePreview() {
   } catch (e) { /* 预览加载失败不阻塞 */ }
 }
 const homePageType = computed(() => pageList.value.find((p) => p.isHome)?.page_type || 'home');
-// 预览 iframe 高度自适应：按 C 端真实内容 scrollHeight 量取（缩放后 0.72），避免底部内容被裁
-const previewH = ref(500);
-function measurePreview(e) {
-  const f = e && e.target;
-  if (!f) return;
-  const read = () => {
-    try {
-      const doc = f.contentDocument || (f.contentWindow && f.contentWindow.document);
-      if (!doc) return;
-      const h = doc.body.scrollHeight || doc.documentElement.scrollHeight || 500;
-      previewH.value = Math.max(480, Math.min(780, h));
-    } catch (err) { /* 跨域不量，保持默认 */ }
-  };
-  setTimeout(read, 600);
-  setTimeout(read, 1600);
-}
 function editHome() { goEdit(homePageType.value); }
 async function renameTemplate() {
   try {
@@ -1301,8 +1285,8 @@ onMounted(() => {
 .pm-phone { width: 270px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb; }
 .pm-status { height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 11px; font-weight: 600; color: #1d2129; }
 .pm-ps-icons { display: flex; align-items: center; gap: 4px; }
-.pm-iframe-wrap { width: 270px; overflow: hidden; }
-.pm-iframe { display: block; width: 375px; border: 0; background: #fff; transform: scale(0.72); transform-origin: top left; }
+.pm-iframe-wrap { width: 270px; height: 518px; overflow: hidden; }
+.pm-iframe { display: block; width: 375px; height: 720px; border: 0; background: #fff; transform: scale(0.72); transform-origin: top left; }
 .pm-canvas { min-height: 380px; padding: 10px; background: #fff; }
 .pm-comp { margin-bottom: 8px; }
 .pm-empty { color: #86909c; text-align: center; padding: 60px 0; font-size: 12px; }
