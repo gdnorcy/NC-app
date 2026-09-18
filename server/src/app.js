@@ -34,6 +34,7 @@ import { createOpenApiRouter } from './routes/openapi.js';
 import { createOAuthAppsRouter } from './routes/oauth-apps.js';
 import { createChannelRouter } from './routes/channel.js';
 import { createCardRouter } from './routes/card.js';
+import { createMallRouter } from './routes/mall.js';
 import { createPaymentRouter } from './routes/payment.js';
 import { createDistributionRouter } from './routes/distribution.js';
 import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';
@@ -84,6 +85,8 @@ export function createApp({ db, deps = {} } = {}) {
   // 门店体系（1:1 nshop 连锁门店 chainShop）：门店/分组/标签/提现/基础设置 + 配额购买
   app.use('/api/customer/store', requireAuth, createStoreRouter(database));
   app.use('/api/card/content', createContentPublicRouter(database));
+  // 商城 C 端公开 API（/api/mall 独立命名空间，方案C；requireGoodsApp C 端变体在 router 内）
+  app.use('/api/mall', createMallRouter(database));
   app.use('/api/customer/card-key', requireAuth, createCardKeyRouter(database));
   app.use('/api/customer/gift-card', requireAuth, createGiftCardRouter(database));
   app.use('/api/customer/gift', requireAuth, createGiftRouter(database));

@@ -3661,6 +3661,30 @@ function seedStore(db) {
     db.exec("ALTER TABLE goods_order ADD COLUMN store_name TEXT NOT NULL DEFAULT ''");
   }
 
+  // 商城 C 端一期（2026-09-18）：goods_order 增加 store_id + pickup_code（到店自提：门店ID + 核销码，幂等迁移）
+  if (tableExists(db, 'goods_order') && !colExists(db, 'goods_order', 'store_id')) {
+    db.exec('ALTER TABLE goods_order ADD COLUMN store_id INTEGER NOT NULL DEFAULT 0');
+  }
+  if (tableExists(db, 'goods_order') && !colExists(db, 'goods_order', 'pickup_code')) {
+    db.exec("ALTER TABLE goods_order ADD COLUMN pickup_code TEXT NOT NULL DEFAULT ''");
+  }
+
+  // 商城 C 端购物车（服务端，登录态多端同步：H5/小程序共用 card_token 同一用户）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS goods_cart (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,               -- 租户
+      user_id INTEGER NOT NULL,                   -- 买家（platform_user.id）
+      goods_id INTEGER NOT NULL,
+      sku_id INTEGER NOT NULL DEFAULT 0,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(customer_id, user_id, goods_id, sku_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_goods_cart_user ON goods_cart(customer_id, user_id);
+  `);
+
   // —— 应用注册：门店管理（行业应用；nshop 连锁门店；总后台授权时填写门店数量配额）——
   db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('行业应用', 'building', 6)");
   db.prepare("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('store', '门店管理', '连锁门店管理：门店/分组/标签/提现与基础设置（nshop连锁门店）', 'building', '行业应用', 5, 1)").run();

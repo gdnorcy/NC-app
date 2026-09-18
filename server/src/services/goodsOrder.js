@@ -35,10 +35,20 @@ export function createGoodsOrderService(db) {
 
   const yuan = (fen) => (Number(fen) / 100).toFixed(2);
 
-  /** 下单：校验商品/库存 → 建业务单+明细 → 返回业务单（支付单由路由层创建） */
-  svc.createOrder = ({ customerId, userId, identityType = 'individual', items, deliveryMode = 'express', storeName = '', receiverName = '', receiverPhone = '', receiverAddress = '', remark = '' }) => {
+  /** 下单：校验商品/库存 → 建业务单+明细 → 返回业务单（支付单由路由层创建）
+   *  deliveryMode: express快递 / pickup到店自提（storeId 指定门店，生成核销码） */
+  svc.createOrder = ({ customerId, userId, identityType = 'individual', items, deliveryMode = 'express', storeId = 0, storeName = '', receiverName = '', receiverPhone = '', receiverAddress = '', remark = '' }) => {
     if (!Array.isArray(items) || !items.length) throw new Error('请选择商品');
     if (deliveryMode === 'express' && (!receiverName || !receiverPhone)) throw new Error('请填写收货人信息');
+
+    // 门店自提：storeId>0 时校验门店（存在+启用）并生成核销码；storeId=0 兼容旧调用方（管理端历史契约，不生成核销码）
+    let pickupCode = '';
+    if (deliveryMode === 'pickup' && storeId) {
+      const store = db.prepare('SELECT id, name FROM store WHERE id = ? AND status = 1').get(Number(storeId));
+      if (!store) throw new Error('门店不存在或已停用');
+      storeName = store.name;
+      pickupCode = String(Math.floor(100000 + Math.random() * 900000));
+    }
 
     const orderItems = [];
     let total = 0;
@@ -76,9 +86,9 @@ export function createGoodsOrderService(db) {
     const orderNo = genOrderNo();
     const r = db.prepare(`
       INSERT INTO goods_order (order_no, customer_id, user_id, buyer_identity_type, status, total_amount, freight, pay_amount,
-        delivery_mode, store_name, receiver_name, receiver_phone, receiver_address, remark)
-      VALUES (?, ?, ?, ?, 'pending', ?, 0, ?, ?, ?, ?, ?, ?, ?)
-    `).run(orderNo, customerId, userId, identityType, total, total, deliveryMode, storeName || '', receiverName, receiverPhone, receiverAddress, remark);
+        delivery_mode, store_id, store_name, pickup_code, receiver_name, receiver_phone, receiver_address, remark)
+      VALUES (?, ?, ?, ?, 'pending', ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(orderNo, customerId, userId, identityType, total, total, deliveryMode, storeId || 0, storeName || '', pickupCode, receiverName, receiverPhone, receiverAddress, remark);
     const orderId = r.lastInsertRowid;
 
     const insItem = db.prepare(`
