@@ -174,6 +174,11 @@ npm run test:frontend
 - 错误处理：拦截器已 reject 为字符串，`catch (e)` 直接 `ElMessage.error(e || '默认提示')`，**禁止** `e.response?.data?.error`。
 - 新增页面调用前先确认所用 API 实例的 baseURL 与拦截器行为，参照现有页面（如 Analytics.vue、TemplateLibrary.vue）。
 
+# 复刻新组件/新功能强制流程（2026-09-19）
+
+**复刻任何新组件/新页面/新功能前，必须先读 `docs/复刻检查清单.md`，逐条打勾后才允许写代码。**
+截图存 `docs/对标截图/<组件名>/`，没有截图就不动笔。这是硬规则，不是建议。
+
 # 历史问题与预防规范
 
 ## 问题1：旧版本HTML文件残留导致用户访问旧版本（2026-09-06）

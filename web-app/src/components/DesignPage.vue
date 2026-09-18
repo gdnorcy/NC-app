@@ -514,7 +514,30 @@
         <video v-if="feedVideo" :src="feedVideo" class="dp-vfeed-player" controls autoplay @ended="feedVideo = ''" @error="feedVideo = ''" />
       </view>
       <!-- ew商品组件：商品组/全部商品/精品推荐（双列卡片） -->
-      <view v-else-if="c.type === 'goods-group' || c.type === 'goods-all' || c.type === 'goods-featured'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
+      <!-- ew商品组：单列左图右文+购买按钮（1:1复刻ew） -->
+      <view v-else-if="c.type === 'goods-group'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
+        <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gp-row" @click="goMallDetail(g.id)">
+          <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gp-img" />
+          <view v-else class="dp-gp-img dp-gl-img-empty"><text>🛍</text></view>
+          <view class="dp-gp-info">
+            <view class="dp-gp-title-row">
+              <text v-if="c.props.showTag !== false" class="dp-gp-tag">{{ c.props.tagText || '标题标签' }}</text>
+              <text class="dp-gp-title">{{ g.title }}</text>
+            </view>
+            <text v-if="g.subtitle" class="dp-gp-sub">{{ g.subtitle }}</text>
+            <view class="dp-gp-price-row">
+              <text class="dp-gp-price">¥{{ yuanFmt(g.price) }}</text>
+              <text class="dp-gp-unit">/件</text>
+            </view>
+          </view>
+          <view class="dp-gp-buy" :style="{background:c.props.buyBg||'#F53F3F'}" @click.stop="goMallDetail(g.id)">
+            <text class="dp-gp-buy-t">{{ c.props.buyText || '购买' }}</text>
+          </view>
+        </view>
+        <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
+      </view>
+
+      <view v-else-if="c.type === 'goods-all' || c.type === 'goods-featured'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
         <text v-if="c.props.title" class="dp-goodslist-title">{{ c.props.title }}</text>
         <view class="dp-goodslist-grid">
           <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
@@ -1818,7 +1841,21 @@ function openChannel(kind, p) {
 .dp-rank-no{width:22px;font-size:16px;font-weight:700;color:#c9cdd4;}
 .dp-rank-no.top{color:#f53f3f3;}
 .dp-rank-img{width:64px;height:64px;border-radius:8px;margin-right:10px;flex-shrink:0;}
+
 .dp-rank-info{flex:1;}
+/* ew商品组：左图右文+购买按钮 */
+.dp-gp-row{display:flex;align-items:center;background:#fff;border-radius:12px;padding:12px;margin:8px 12px;}
+.dp-gp-img{width:80px;height:80px;border-radius:8px;flex-shrink:0;}
+.dp-gp-info{flex:1;margin:0 12px;min-width:0;}
+.dp-gp-title-row{display:flex;align-items:center;gap:6px;}
+.dp-gp-tag{font-size:10px;color:#fff;background:#F53F3F;padding:1px 6px;border-radius:4px;flex-shrink:0;}
+.dp-gp-title{font-size:14px;color:#1D2129;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dp-gp-sub{font-size:12px;color:#86909C;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dp-gp-price-row{display:flex;align-items:baseline;margin-top:4px;}
+.dp-gp-price{font-size:16px;color:#F53F3F;font-weight:600;}
+.dp-gp-unit{font-size:12px;color:#86909C;margin-left:2px;}
+.dp-gp-buy{padding:6px 14px;border-radius:16px;flex-shrink:0;}
+.dp-gp-buy-t{font-size:12px;color:#fff;}
 .dp-goods-swiper{overflow:hidden;}
 .dp-gsw-row{width:100%;}
 .dp-gsw-inner{display:flex;padding:0 12px;}
