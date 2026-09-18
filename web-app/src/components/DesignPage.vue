@@ -562,6 +562,102 @@
         </view>
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
       </view>
+
+      <!-- ew商品组件：商品组/全部商品/精品推荐（双列卡片） -->
+      <view v-else-if="c.type === 'goods-group' || c.type === 'goods-all' || c.type === 'goods-featured'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
+        <text v-if="c.props.title" class="dp-goodslist-title">{{ c.props.title }}</text>
+        <view class="dp-goodslist-grid">
+          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
+            <view class="dp-gl-card-img-wrap">
+              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" />
+              <view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view>
+            </view>
+            <view class="dp-gl-card-info">
+              <text class="dp-gl-card-t">{{ g.title }}</text>
+              <view class="dp-gl-price">
+                <template v-if="c.props.showPrice !== false"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></template>
+                <text v-if="c.props.showSales !== false" class="dp-gl-sales">已售{{ g.sales || 0 }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
+      </view>
+
+      <!-- ew商品组件：商品排行（左图右文+排名） -->
+      <view v-else-if="c.type === 'goods-rank'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
+        <text v-if="c.props.showTitle !== false && c.props.title" class="dp-goodslist-title" :style="{color:c.props.titleColor}">{{ c.props.title }}</text>
+        <view v-for="(g,i) in (mallGoods[c.id] || [])" :key="g.id" class="dp-rank-row" @click="goMallDetail(g.id)">
+          <text class="dp-rank-no" :class="{top:i<3}">{{ i+1 }}</text>
+          <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-rank-img" />
+          <view v-else class="dp-rank-img dp-gl-img-empty"><text>🛍</text></view>
+          <view class="dp-rank-info">
+            <text class="dp-gl-card-t">{{ g.title }}</text>
+            <view class="dp-gl-price" v-if="c.props.showPrice !== false"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></view>
+          </view>
+        </view>
+        <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
+      </view>
+
+      <!-- ew商品组件：猜你喜欢（双列） -->
+      <view v-else-if="c.type === 'goods-like'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
+        <text v-if="c.props.showTitle !== false && c.props.title" class="dp-goodslist-title" :style="{color:c.props.titleColor}">{{ c.props.title }}</text>
+        <view class="dp-goodslist-grid">
+          <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
+            <view class="dp-gl-card-img-wrap">
+              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" />
+              <view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view>
+            </view>
+            <view class="dp-gl-card-info">
+              <text class="dp-gl-card-t">{{ g.title }}</text>
+              <view class="dp-gl-price">
+                <template v-if="c.props.showPrice !== false"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></template>
+                <text v-if="c.props.showSales !== false" class="dp-gl-sales">已售{{ g.sales || 0 }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
+      </view>
+
+      <!-- ew商品组件：轮播商品（横向+背景图） -->
+      <view v-else-if="c.type === 'goods-swiper'" class="dp-goods-swiper" :style="dpSwiperBoxStyle(c.props)">
+        <scroll-view scroll-x class="dp-gsw-row" :show-scrollbar="false">
+          <view class="dp-gsw-inner">
+            <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="dp-gsw-card" @click="goMallDetail(g.id)">
+              <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gsw-img" />
+              <view v-else class="dp-gsw-img dp-gl-img-empty"><text>🛍</text></view>
+              <text class="dp-gsw-t">{{ g.title }}</text>
+              <text class="dp-gsw-price" :style="{color:c.props.priceColor||'#F53F3F'}">¥{{ yuanFmt(g.price) }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- ew商品组件：商品展播（背景图海报） -->
+      <view v-else-if="c.type === 'goods-show'" class="dp-goods-show" :style="dpShowStyle(c.props)">
+        <view class="dp-gs-mask"></view>
+        <view class="dp-gs-text">
+          <text class="dp-gs-main">{{ c.props.mainTitle }}</text>
+          <text class="dp-gs-sub">{{ c.props.subTitle }}</text>
+          <view class="dp-gs-btn" :style="{background:c.props.btnColor||'#165DFF'}" @click="onJump(c.props.link||'')"><text>{{ c.props.btnText || '查看更多' }}</text></view>
+        </view>
+      </view>
+
+      <!-- ew商品组件：选项卡 -->
+      <view v-else-if="c.type === 'goods-tabs'" class="dp-goodslist" :style="dpGoodsListStyle(c.props)">
+        <view class="dp-gtabs-bar">
+          <text v-for="(t,ti) in (c.props.tabs||[])" :key="ti" class="dp-gtab" :class="{on: cTab===ti}" :style="cTab===ti?{color:c.props.activeColor||'#165DFF'}:{}" @click="cTab=ti">{{ t.title }}</text>
+        </view>
+        <view class="dp-goodslist-grid">
+          <view v-for="g in (mallGoods[c.id+'_'+cTab] || [])" :key="g.id" class="dp-gl-card" @click="goMallDetail(g.id)">
+            <view class="dp-gl-card-img-wrap"><image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="dp-gl-card-img" /><view v-else class="dp-gl-card-img dp-gl-img-empty"><text>🛍</text></view></view>
+            <view class="dp-gl-card-info"><text class="dp-gl-card-t">{{ g.title }}</text>
+              <view class="dp-gl-price"><text class="dp-gl-price-sym">¥</text><text class="dp-gl-price-num">{{ yuanFmt(g.price) }}</text></view>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 视频弹出显示浮层 -->
@@ -817,8 +913,11 @@ function dpSwiperStyle(p) {
   return s;
 }
 function dpSwiperBoxStyle(p) {
-  const s = { height: '100%' };
-  return s;
+  if (p && (p.bgImage || p.bgColor || p.priceColor)) {
+    const bg = p.bgImage ? 'url(' + resolveUrl(p.bgImage) + ') center/cover' : (p.bgColor || '#F7F8FA');
+    return { background: bg, marginTop: (p.marginTop ?? 0) + 'px', marginBottom: (p.marginBottom ?? 0) + 'px', padding: '12px 0' };
+  }
+  return { height: '100%' };
 }
 function dpGridStyle(p) {
   const s = { gridTemplateColumns: 'repeat(' + (p.columns || 4) + ',1fr)', background: p.bgColor || 'transparent' };
@@ -1142,6 +1241,7 @@ async function loadPanoScenes(i) {
 // ===== 商城组件数据（goods-nav/goods-list 按组件 id 缓存）=====
 const mallCates = reactive({});
 const mallGoods = reactive({});
+const cTab = ref(0);
 function loadMallComps() {
   (props.comps || []).forEach((c) => {
     if (!c.id) return;
@@ -1158,6 +1258,36 @@ function loadMallComps() {
         .then((res) => { mallGoods[c.id] = res.list || []; })
         .catch(() => { mallGoods[c.id] = []; });
     }
+    // ew 8 个商品组件：统一按组件 id 拉商品
+    if (['goods-group','goods-all','goods-featured','goods-rank','goods-like','goods-swiper','goods-show'].includes(c.type) && !mallGoods[c.id]) {
+      const p = c.props || {};
+      const params = { tid: props.tenantId || undefined, page: 1, pageSize: p.limit || 10 };
+      if (c.type === 'goods-rank') params.sortBy = 'sales';
+      else if (c.type === 'goods-like') params.sortBy = 'newDesc';
+      else if (c.type === 'goods-featured' && p.auto !== false) params.sortBy = 'sales';
+      else if (p.sortBy) params.sortBy = p.sortBy;
+      if (p.source === 'category' && p.catId) params.catId = p.catId;
+      mallApi.getGoods(params)
+        .then((res) => { mallGoods[c.id] = res.list || []; })
+        .catch(() => { mallGoods[c.id] = []; });
+    }
+    // 选项卡：每 tab 独立拉
+    if (c.type === 'goods-tabs') {
+      const tabs = (c.props && c.props.tabs) || [];
+      tabs.forEach((t, ti) => {
+        if (mallGoods[c.id + '_' + ti]) return;
+        const params = { tid: props.tenantId || undefined, page: 1, pageSize: (c.props.limit || 6) };
+        if (t.goodsIds) {
+          mallApi.getGoods({ ...params, ids: t.goodsIds })
+            .then((res) => { mallGoods[c.id + '_' + ti] = res.list || []; })
+            .catch(() => { mallGoods[c.id + '_' + ti] = []; });
+        } else {
+          mallApi.getGoods(params)
+            .then((res) => { mallGoods[c.id + '_' + ti] = res.list || []; })
+            .catch(() => { mallGoods[c.id + '_' + ti] = []; });
+        }
+      });
+    }
   });
 }
 function goMallDetail(id) {
@@ -1168,6 +1298,10 @@ function dpGoodsNavStyle(p) {
 }
 function dpGoodsListStyle(p) {
   return { background: p.bgColor || 'transparent', borderRadius: (p.radius ?? 8) + 'px', marginTop: (p.marginTop ?? 0) + 'px', marginBottom: (p.marginBottom ?? 0) + 'px' };
+}
+function dpShowStyle(p) {
+  const bg = p.bgImage ? 'url(' + resolveUrl(p.bgImage) + ') center/cover' : (p.bgColor || '#165DFF');
+  return { background: bg, height: '200px', marginTop: (p.marginTop ?? 0) + 'px', marginBottom: (p.marginBottom ?? 0) + 'px', position: 'relative' };
 }
 onMounted(() => {
   (props.comps || []).forEach((c, i) => {
@@ -1751,3 +1885,27 @@ function openChannel(kind, p) {
 .dp-gl-empty { padding: 20px 0; text-align: center; font-size: 12px; color: #86909c; }
 
 </style>
+
+/* ew 8个商品组件 */
+.dp-rank-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f2f3f5;}
+.dp-rank-no{width:22px;font-size:16px;font-weight:700;color:#c9cdd4;}
+.dp-rank-no.top{color:#f53f3f3;}
+.dp-rank-img{width:64px;height:64px;border-radius:8px;margin-right:10px;flex-shrink:0;}
+.dp-rank-info{flex:1;}
+.dp-goods-swiper{overflow:hidden;}
+.dp-gsw-row{width:100%;}
+.dp-gsw-inner{display:flex;padding:0 12px;}
+.dp-gsw-card{width:120px;margin-right:10px;background:#fff;border-radius:8px;overflow:hidden;flex-shrink:0;}
+.dp-gsw-img{width:120px;height:120px;}
+.dp-gsw-t{display:block;font-size:12px;padding:4px 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dp-gsw-price{display:block;font-size:13px;font-weight:600;padding:2px 6px 8px;}
+.dp-goods-show{display:flex;align-items:center;justify-content:center;}
+.dp-gs-mask{position:absolute;inset:0;background:rgba(0,0,0,0.25);}
+.dp-gs-text{position:relative;z-index:1;text-align:center;color:#fff;}
+.dp-gs-main{display:block;font-size:22px;font-weight:700;}
+.dp-gs-sub{display:block;font-size:13px;margin:6px 0 12px;opacity:0.9;}
+.dp-gs-btn{display:inline-block;padding:6px 22px;border-radius:20px;font-size:13px;color:#fff;}
+.dp-gtabs-bar{display:flex;border-bottom:1px solid #eee;margin-bottom:10px;}
+.dp-gtab{padding:8px 16px;font-size:14px;color:#4e5969;position:relative;}
+.dp-gtab.on{font-weight:600;}
+.dp-gtab.on::after{content:'';position:absolute;left:16px;right:16px;bottom:0;height:2px;background:currentColor;}

@@ -1456,3 +1456,16 @@ cate_style(1/2) / detail_style(1/2/3) / goods_iscard(1开2关) / share_style(1/2
 - **测试 headers 必须在 before 之后构造**：node:test 中 `describe` 回调同步执行，模块顶层 `const authHeaders = { Authorization: \`Bearer ${token}\` }` 会在 `before` 给 token 赋值**之前**求值 → 请求带 `Bearer undefined` → 全 401 且难排查。正确写法：`const auth = () => ({ Authorization: \`Bearer ${token}\` })` 函数式生成。
 - **service 层保持向后兼容，新约束放路由层**：goodsOrder.createOrder 的 pickup 在 `storeId>0` 时校验门店并生成核销码，`storeId=0` 保持旧契约（管理端历史调用不传门店）；C 端严格校验（pickup 必须带 storeId）放在 mall.js 路由层。改既有 service 时先跑其既有测试，防止契约冲突回归。
 - 测试串行基线：`node --test --test-concurrency=1 server/test/*.test.js` 当前 **362/362**（mall.test.js 新增 7 用例）。
+
+## ew 8 个商品组件复刻（2026-09-19 启动）
+
+对标 ew（vipuser3.eweishop.com）商品类组件 8 个：商品组/全部商品/选项卡/商品排行/轮播商品/猜你喜欢/商品展播/精品推荐。已逐个点开实测参数。
+
+**已落地**：goods-list 已有骨架（全部/分类/手动 + 双列/单列/横向）。
+**新增 type**：goods-group / goods-all / goods-tabs / goods-rank / goods-swiper / goods-like / goods-show / goods-featured。
+
+### 一期未做 / 待接入（备忘，后续补齐）
+- **"选择分组"数据源**：ew 的分组=商户/店铺分组，我方无商户体系，参数位保留但禁用，待商户体系接入。
+- **猜你喜欢真个性化**：一期按"最新上架"固定规则，待推荐算法接入。
+- **精品推荐"适用界面"**（购物车/会员中心/支付成功/商品详情/优惠券/礼物清单）：一期只做首页展示，多界面投放后续铺。
+- **选项卡"滑动置顶"**、**商品排行"关键字/价格区间过滤"**、**购物车按钮"商品加购"**（vs 进详情页）：一期先做基础版，高级交互后补。

@@ -71,16 +71,21 @@ export function createMallRouter(db) {
   router.get('/goods', authOptional, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
-      const { catId, keyword = '', page = 1, pageSize = 10, sortBy = 'default' } = req.query;
+      const { catId, keyword = '', page = 1, pageSize = 10, sortBy = 'default', ids = '' } = req.query;
       const where = ['customer_id = ?', "status = 'sell'"];
       const params = [cid];
       if (catId) { where.push('cate_ids LIKE ?'); params.push(`%${Number(catId)}%`); }
       if (keyword) { where.push('title LIKE ?'); params.push(`%${keyword}%`); }
+      const idList = String(ids || '').split(/[,，]/).map((x) => Number(x)).filter((x) => x > 0);
+      if (idList.length) { where.push(`id IN (${idList.map(() => '?').join(',')})`); params.push(...idList); }
       const whereSql = where.join(' AND ');
       const total = db.prepare(`SELECT COUNT(*) AS n FROM goods WHERE ${whereSql}`).get(...params).n;
       const orderSql = {
         sales: '(real_sales + fake_sales) DESC, id DESC',
         new: 'created_at DESC, id DESC',
+        newDesc: 'created_at DESC, id DESC',
+        newAsc: 'created_at ASC, id ASC',
+        views: 'sort_order DESC, id DESC',
         priceAsc: 'price ASC, id DESC',
         priceDesc: 'price DESC, id DESC',
       }[sortBy] || 'sort_order DESC, id DESC';
