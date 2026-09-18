@@ -2,8 +2,10 @@
   <div>
     <div class="page-header"><h2 class="page-title">套餐与续费</h2></div>
 
-    <!-- 当前方案卡片 -->
-    <div class="page-card current-plan">
+    <el-tabs v-model="activeTab" class="billing-tabs">
+      <el-tab-pane label="套餐与续费" name="plan">
+        <!-- 当前方案卡片 -->
+        <div class="page-card current-plan">
       <div class="cp-left">
         <div class="cp-badge">{{ planData.project?.name || '我的项目' }}</div>
         <div class="cp-desc">
@@ -113,15 +115,26 @@
         </el-table-column>
       </el-table>
       <el-empty v-if="!invoices.length" description="暂无发票记录" />
-    </div>
+        </div>
+      </el-tab-pane>
+
+      <el-tab-pane label="我的账单" name="orders">
+        <Orders embedded />
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { customerApiCall, customerPaymentCall } from '../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../components/SIcon.vue';
+import Orders from './Orders.vue';
+
+const route = useRoute();
+const activeTab = ref(route.query.tab === 'orders' ? 'orders' : 'plan');
 
 const planData = ref({ project: {}, solutions: [] });
 const usagePlan = ref({});

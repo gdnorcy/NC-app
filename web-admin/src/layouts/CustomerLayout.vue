@@ -58,13 +58,9 @@
             <SIcon name="wallet" size="default" />
             <span>套餐与续费</span>
           </el-menu-item>
-          <el-menu-item index="/orders">
-            <SIcon name="orders" size="default" />
-            <span>我的账单</span>
-          </el-menu-item>
           <el-menu-item index="/member">
             <SIcon name="crown" size="default" />
-            <span>会员</span>
+            <span>会员管理</span>
           </el-menu-item>
           <el-sub-menu index="/settings">
             <template #title>

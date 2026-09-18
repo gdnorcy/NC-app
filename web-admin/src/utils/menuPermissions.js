@@ -29,8 +29,7 @@ export function buildSidebarMenus(user) {
     { code: 'goods', label: '商品管理', path: '/goods' },
     { code: 'content', label: '内容管理', path: '/content' },
     { code: 'billing', label: '套餐与续费', path: '/billing' },
-    { code: 'orders', label: '我的账单', path: '/orders' },
-    { code: 'member', label: '会员', path: '/member' },
+    { code: 'member', label: '会员管理', path: '/member' },
   ];
   // 入驻企业管理员：企业子面板（工作台/员工/公海/设置）
   if (isEnterpriseAdmin(user)) {

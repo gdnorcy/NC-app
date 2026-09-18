@@ -34,6 +34,13 @@
 - 前端 `StoreManage.vue`：负责人步骤「负责人来源」radio 切换（new 显示姓名/手机号/密码；existing 显示成员下拉，数据来自 `GET /api/customer/members`）；`GET /store/categories`、`/store/tag-groups`、`/store/quota`、`/members` 并行加载。
 - 测试：`server/test/store-owner.test.js`（4 项：roles perms 回显 / new 全链路 / existing 复用补绑 / 越权与非法手机号 400）。
 
+## 账单并入套餐与续费 + 会员菜单改名（2026-09-18 实施）
+
+- **「我的账单」合并进「套餐与续费」**（Billing.vue 内 el-tabs：「套餐与续费」tab = 原内容（当前方案/用量/续费/发票），「我的账单」tab = `<Orders embedded />`）；侧边栏删除「我的账单」项，只保留「套餐与续费」。
+- Orders.vue 增加 `embedded` prop（隐藏页头）；`/orders` 旧路由保留兼容（Orders.vue 独立可访问），并加入路由守卫 allowedPaths 基线白名单（因 buildSidebarMenus 不再含 orders）。
+- **「会员」菜单改名「会员管理」**：CustomerLayout.vue + menuPermissions.js（label）+ customer.js 路由 meta title + breadcrumbs 同步。
+- 菜单三处同步不变：CustomerLayout.vue + menuPermissions.js + menuPermissions.test.js（断言：billing 存在、orders 不存在、member 存在）。
+
 ## 成员与权限合并（2026-09-18 实施，方案A）
 
 - **系统设置二级菜单「成员管理」「角色管理」合并为「成员与权限」**（path `/access`，MemberAccess.vue）：页内 el-tabs 承载「成员管理」tab（复用 Members.vue embedded 模式）与「角色管理」tab（仅租户管理员可见，复用 Roles.vue embedded 模式）；旧路由 `/members`、`/roles` 保留兼容（不在菜单出现）。

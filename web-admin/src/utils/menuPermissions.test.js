@@ -50,7 +50,9 @@ describe('buildSidebarMenus 权限矩阵', () => {
     expect(all).toContain('dashboard');
     expect(all).toContain('apps');
     expect(all).toContain('billing');
-    expect(all).toContain('orders');
+    // 我的账单已合并进「套餐与续费」（不再独立菜单）
+    expect(all).not.toContain('orders');
+    expect(all).toContain('member');
     // 系统设置 children 含合并后的「成员与权限」（不再是一级菜单）
     const settings = menus.find((m) => m.code === 'settings');
     const setCodes = settings.children.map((c) => c.code).join(',');

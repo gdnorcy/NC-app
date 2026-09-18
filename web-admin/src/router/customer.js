@@ -56,7 +56,7 @@ const routes = [
       { path: 'content', component: () => import('../views/customer/content/ContentHome.vue'), meta: { title: '内容管理', breadcrumbs: ['内容管理'] } },
       { path: 'content/article/edit', component: () => import('../views/customer/content/ContentArticleEdit.vue'), meta: { title: '添加/编辑文章', breadcrumbs: ['内容管理', '文章列表', '添加/编辑文章'] } },
       { path: 'orders', component: () => import('../views/customer/Orders.vue'), meta: { title: '我的账单', breadcrumbs: ['我的账单'] } },
-      { path: 'member', component: () => import('../views/customer/member/MemberHome.vue'), meta: { title: '会员', breadcrumbs: ['会员'] } },
+      { path: 'member', component: () => import('../views/customer/member/MemberHome.vue'), meta: { title: '会员管理', breadcrumbs: ['会员管理'] } },
       { path: 'billing', component: () => import('../views/customer/Billing.vue'), meta: { title: '套餐与续费', breadcrumbs: ['套餐与续费'] } },
       { path: 'access', component: () => import('../views/customer/MemberAccess.vue'), meta: { title: '成员与权限', breadcrumbs: ['系统设置', '成员与权限'] } },
       { path: 'members', component: () => import('../views/customer/Members.vue'), meta: { title: '成员管理', breadcrumbs: ['系统设置', '成员管理'] } },
@@ -77,7 +77,7 @@ const routes = [
 
 /** 角色可访问路径集（含子菜单） */
 function allowedPaths(user) {
-  const set = new Set(['/login', '/dashboard', '/design', '/design/edit', '/goods', '/goods/edit', '/content', '/content/article/edit']);
+  const set = new Set(['/login', '/dashboard', '/design', '/design/edit', '/goods', '/goods/edit', '/content', '/content/article/edit', '/orders']);
   for (const m of buildSidebarMenus(user)) {
     set.add(m.path);
     for (const c of m.children || []) set.add(c.path);
