@@ -809,7 +809,7 @@ function dpNoticeList(p) {
   return (p.items || []).filter((it) => it && it.text).slice(0, 10);
 }
 function dpSwiperStyle(p) {
-  const s = { overflow: 'hidden' };
+  const s = { overflow: 'hidden', height: (p.height || 160) + 'px' };
   s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
   if (p.immersive) s.borderRadius = '0';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';

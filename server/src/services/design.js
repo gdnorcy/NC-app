@@ -16,8 +16,10 @@ export function buildDesignPreviewUrl(tenantId, draft = false, homePageType = 'h
   const sig = createHash('sha256').update(`${tenantId}:${exp}:${DESIGN_PREVIEW_SECRET}`).digest('hex').slice(0, 32);
   // 预览统一读草稿(实时最新)：装修中显示最新草稿；发布后草稿=发布，与真实首页自然一致
   const q = `tid=${tenantId}&exp=${exp}&sig=${sig}`;
-  // 按实际设为首页的页面 pageType 走对应 C 端预览路径：名片 home → cardMain/home；其它页面走通用装修容器 panorama/home?pageType=xxx
+  // 按实际设为首页的页面 pageType 走对应 C 端预览路径（与真实访问一致，避免通用容器自带头部/缺组件）：
+  // 名片 home → cardMain/home；商城 mall-home → /mall/ 独立入口 mall/index；其它页面 → 通用装修容器 panorama/home?pageType=xxx
   if (!homePageType || homePageType === 'home') return `/card/?nc=preview#/pages/cardMain/home?preview=1&${q}`;
+  if (homePageType === 'mall-home' || homePageType.startsWith('mall-')) return `/mall/?nc=preview#/pages/mall/index?preview=1&pageType=${encodeURIComponent(homePageType)}&${q}`;
   return `/card/?nc=preview#/pages/panorama/home?preview=1&pageType=${encodeURIComponent(homePageType)}&${q}`;
 }
 
