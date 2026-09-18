@@ -31,6 +31,10 @@ import iconContact from '../../../../assets/comp-icons/contact.png';
 import iconArticle from '../../../../assets/comp-icons/article.png';
 import iconWeb from '../../../../assets/comp-icons/web.png';
 import iconFollow from '../../../../assets/comp-icons/follow.png';
+import iconGoods from '../../../../assets/comp-icons/goods.png';
+import iconTabbar from '../../../../assets/comp-icons/tabbar.png';
+import iconGuess from '../../../../assets/comp-icons/guess.png';
+import iconCeramics from '../../../../assets/comp-icons/ceramics.png';
 
 export const componentGroups = [
   { key: 'basic', name: '基础组件' },
@@ -74,6 +78,12 @@ export const COMP_ICONS = {
   spacer: iconDivider,
   'follow-official': iconFollow,
   'video-feed': iconVideo,
+  'goods': iconGoods,
+  'goodsRanking': iconStats,
+  'bannerGoods': iconImageText,
+  'tabbar': iconTabbar,
+  'guess': iconGuess,
+  'ceramics': iconCeramics,
 };
 
 // 宫格导航图标选择器选项（系统 SVG 图标库，SIcon 双端通用）
@@ -1018,7 +1028,7 @@ export const componentRegistry = [
     type: 'goods-group',
     name: '商品组',
     group: 'mall',
-    icon: 'market',
+    icon: 'goods',
     defaultProps: { title:'', showPrice:true, showSales:true, showOrig:false, source:'all', catId:'', goodsIds:'', limit:4, bgColor:'', radius:8, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'title', label: '板块标题', control: 'input', section: 'content', placeholder: '留空不显示' },
@@ -1040,7 +1050,7 @@ export const componentRegistry = [
     type: 'goods-all',
     name: '全部商品',
     group: 'mall',
-    icon: 'category',
+    icon: 'goods',
     defaultProps: { title:'全部商品', source:'all', catId:'', goodsIds:'', sortBy:'newDesc', limit:10, showPrice:true, showSales:true, bgColor:'', radius:8, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'title', label: '板块标题', control:'input', section:'content' },
@@ -1062,7 +1072,7 @@ export const componentRegistry = [
     type: 'goods-rank',
     name: '商品排行',
     group: 'mall',
-    icon: 'analytics',
+    icon: 'goodsRanking',
     defaultProps: { title:'热销排行', showTitle:true, titleColor:'#1D2129', catId:'', limit:5, imageRatio:'1:1', showPrice:true, bgColor:'', radius:8, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'title', label: '标题', control:'input', section:'content' },
@@ -1083,7 +1093,7 @@ export const componentRegistry = [
     type: 'goods-like',
     name: '猜你喜欢',
     group: 'mall',
-    icon: 'like',
+    icon: 'guess',
     defaultProps: { title:'猜你喜欢', showTitle:true, titleColor:'#1D2129', limit:10, imageRatio:'1:1', showPrice:true, showSales:true, bgColor:'', radius:8, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'title', label: '标题', control:'input', section:'content' },
@@ -1104,7 +1114,7 @@ export const componentRegistry = [
     type: 'goods-swiper',
     name: '轮播商品',
     group: 'mall',
-    icon: 'chart',
+    icon: 'bannerGoods',
     defaultProps: { source:'manual', goodsIds:'', catId:'', bgImage:'', bgColor:'', priceColor:'#F53F3F', limit:10, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'source', label: '数据来源', control:'radio', section:'content', options:[{label:'按分类',value:'category'},{label:'手动指定',value:'manual'}] },
@@ -1123,7 +1133,7 @@ export const componentRegistry = [
     type: 'goods-show',
     name: '商品展播',
     group: 'mall',
-    icon: 'show',
+    icon: 'bannerGoods',
     defaultProps: { goodsIds:'', bgImage:'', mainTitle:'', subTitle:'', btnText:'查看更多', btnColor:'#165DFF', link:'', marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'goodsIds', label: '商品ID(逗号分隔)', control:'input', section:'content' },
@@ -1142,7 +1152,7 @@ export const componentRegistry = [
     type: 'goods-featured',
     name: '精品推荐',
     group: 'mall',
-    icon: 'crown',
+    icon: 'ceramics',
     defaultProps: { title:'精品推荐', auto:true, goodsIds:'', limit:6, showPrice:true, showSales:true, bgColor:'', radius:8, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'title', label: '标题文字', control:'input', section:'content' },
@@ -1162,7 +1172,7 @@ export const componentRegistry = [
     type: 'goods-tabs',
     name: '选项卡',
     group: 'mall',
-    icon: 'template',
+    icon: 'tabbar',
     defaultProps: { tabs:[{title:'推荐',goodsIds:''},{title:'热销',goodsIds:''}], activeColor:'#165DFF', limit:6, bgColor:'', radius:8, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
       { key: 'tabs', label: '选项卡(每卡标题+商品ID)', control:'list', section:'content' },
