@@ -381,9 +381,12 @@
         </el-radio-group>
         <div v-loading="tplLoading" class="tpl-grid">
           <div v-for="t in filteredTemplates" :key="t.id" class="tpl-card">
-            <div class="tpl-cover">
-              <img v-if="t.cover_url" :src="resolveUrl(t.cover_url)" />
-              <div v-else class="tpl-cover-empty">{{ t.template_name[0] }}</div>
+            <div class="tpl-phone">
+              <div class="tpl-phone-notch"></div>
+              <div class="tpl-phone-screen">
+                <img v-if="t.cover_url" :src="resolveUrl(t.cover_url)" style="width:100%;height:100%;object-fit:cover;" />
+                <div v-else class="tpl-screen-inner" v-html="thumbHtml(t)"></div>
+              </div>
               <el-tag v-if="t.is_public" size="small" class="tpl-public">平台模板</el-tag>
               <el-tag v-if="t.category" size="small" effect="plain" class="tpl-cat-tag">{{ t.category }}</el-tag>
             </div>
@@ -784,6 +787,72 @@ async function setIndustryHome(app) {
 const tplCat = ref('');
 const tplCategories = computed(() => [...new Set(templates.value.map((t) => t.category).filter(Boolean))]);
 const filteredTemplates = computed(() => (tplCat.value ? templates.value.filter((t) => t.category === tplCat.value) : templates.value));
+
+// 系统模板手机壳线框缩略：按模板 JSON 的组件结构自动生成低保真示意
+function thumbHtml(t) {
+  try {
+    const json = typeof t.template_json === 'string' ? JSON.parse(t.template_json) : t.template_json;
+    const page = json && json.pages && Object.values(json.pages)[0];
+    const comps = (page && page.components) || [];
+    const ACC = 'rgba(22,93,255,0.14)';
+    const LINE = '#e5e6eb';
+    const out = [];
+    const row = (h, bg, r = 3, m = '4px 6px') => `<div style="height:${h}px;background:${bg};border-radius:${r}px;margin:${m}"></div>`;
+    for (const c of comps) {
+      const p = c.props || {};
+      switch (c.type) {
+        case 'search': out.push(row(11, '#f2f3f5', 6)); break;
+        case 'swiper': out.push(row(32, ACC, 4)); break;
+        case 'notice': out.push(row(8, LINE, 2, '3px 8px')); break;
+        case 'goods-nav': {
+          const cols = p.columns || 4;
+          let cells = '';
+          for (let i = 0; i < cols; i++) cells += `<div style="height:14px;background:${ACC};border-radius:3px;"></div>`;
+          out.push(`<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:3px;margin:4px 6px;">${cells}</div>`);
+          break;
+        }
+        case 'title-bar':
+          out.push(`<div style="display:flex;align-items:center;gap:4px;margin:5px 6px 3px;"><div style="width:26px;height:6px;background:#1d2129;border-radius:2px;"></div><div style="flex:1;height:5px;background:${LINE};border-radius:2px;"></div><div style="width:12px;height:5px;background:${LINE};border-radius:2px;"></div></div>`);
+          break;
+        case 'goods-list': {
+          if (p.layout === 'scroll') {
+            let cells = '';
+            for (let i = 0; i < 3; i++) cells += `<div style="flex:1;height:34px;background:${LINE};border-radius:3px;"></div>`;
+            out.push(`<div style="display:flex;gap:4px;margin:4px 6px;">${cells}</div>`);
+          } else {
+            let cells = '';
+            for (let i = 0; i < 2; i++) cells += `<div style="flex:1;"><div style="height:24px;background:${LINE};border-radius:3px;"></div><div style="height:5px;background:${LINE};border-radius:2px;margin-top:3px;"></div><div style="width:60%;height:5px;background:${LINE};border-radius:2px;margin-top:2px;"></div></div>`;
+            out.push(`<div style="display:flex;gap:4px;margin:4px 6px;">${cells}</div>`);
+          }
+          break;
+        }
+        case 'image': out.push(row(26, ACC, 3)); break;
+        case 'image-text':
+          out.push(`<div style="display:flex;gap:5px;margin:4px 6px;align-items:center;"><div style="width:26px;height:20px;background:${ACC};border-radius:3px;"></div><div style="flex:1;"><div style="height:6px;background:#1d2129;border-radius:2px;"></div><div style="height:5px;background:${LINE};border-radius:2px;margin-top:3px;"></div></div></div>`);
+          break;
+        case 'rich-text':
+          out.push(row(6, LINE, 2, '4px 8px')); out.push(row(6, LINE, 2, '2px 8px')); break;
+        case 'grid-nav': {
+          let cells = '';
+          for (let i = 0; i < 4; i++) cells += `<div style="height:12px;background:${ACC};border-radius:3px;"></div>`;
+          out.push(`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin:4px 6px;">${cells}</div>`);
+          break;
+        }
+        case 'article-list':
+        case 'pic-list':
+        case 'video-list':
+          out.push(`<div style="display:flex;gap:5px;margin:4px 6px;align-items:center;"><div style="width:24px;height:20px;background:${LINE};border-radius:3px;"></div><div style="flex:1;"><div style="height:6px;background:#1d2129;border-radius:2px;"></div><div style="height:5px;background:${LINE};border-radius:2px;margin-top:3px;"></div></div></div>`);
+          break;
+        case 'banner':
+        case 'image-card': out.push(row(28, ACC, 4)); break;
+        case 'button': out.push(row(12, ACC, 6, '4px 24px')); break;
+        case 'section-divider': out.push(row(2, LINE, 1, '6px 6px')); break;
+        default: out.push(row(10, LINE, 2, '4px 8px'));
+      }
+    }
+    return out.join('');
+  } catch (e) { return ''; }
+}
 
 async function setHome(row) {
   if (row.isHome) return;
@@ -1384,11 +1453,12 @@ onMounted(() => {
 .tab-icon-empty { width: 32px; height: 32px; border: 1px dashed #c9cdd4; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: #86909c; cursor: pointer; }
 
 .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-.tpl-card { border: 1px solid #e5e6eb; border-radius: 8px; overflow: hidden; }
-.tpl-cover { position: relative; height: 120px; background: #f7f8fa; }
-.tpl-cover img { width: 100%; height: 100%; object-fit: cover; }
-.tpl-cover-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 36px; color: #c9cdd4; background: linear-gradient(135deg, #e8f3ff, #f7f8fa); }
-.tpl-public { position: absolute; top: 8px; right: 8px; }
+.tpl-card { border: 1px solid #e5e6eb; border-radius: 10px; background: #fff; padding-bottom: 4px; }
+.tpl-phone { position: relative; background: #1d2129; border-radius: 18px; padding: 5px; margin: 10px 10px 0; }
+.tpl-phone-notch { position: absolute; top: 7px; left: 50%; transform: translateX(-50%); width: 38px; height: 4px; background: #1d2129; border-radius: 2px; z-index: 2; }
+.tpl-phone-screen { background: #fff; border-radius: 13px; height: 230px; overflow: hidden; position: relative; }
+.tpl-screen-inner { padding-top: 10px; }
+.tpl-public { position: absolute; top: 8px; right: 8px; z-index: 3; }
 .tpl-cat-tag { margin-left: 6px; }
 .tpl-cat-group { margin-left: 12px; }
 .ind-desc { font-size: 12px; color: #86909c; margin-bottom: 12px; line-height: 1.6; }

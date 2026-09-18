@@ -257,10 +257,11 @@ export function createDesignService(db) {
     const cat = String(category || '').trim();
     const catSql = cat ? ' AND category = ?' : '';
     const withCat = (sql, args) => (cat ? db.prepare(sql + catSql + ' ORDER BY id DESC').all(...args, cat) : db.prepare(sql + ' ORDER BY id DESC').all(...args));
-    const baseCols = 'id, template_name, cover_url, is_public, category, created_at';
-    if (scope === 'public') return withCat(`SELECT ${baseCols} FROM tenant_template WHERE is_public = 1`, []);
-    if (scope === 'mine') return withCat(`SELECT ${baseCols} FROM tenant_template WHERE tenant_id = ?`, [tenantId]);
-    return withCat(`SELECT ${baseCols} FROM tenant_template WHERE tenant_id = ? OR is_public = 1`, [tenantId]);
+    const baseCols = 'id, template_name, cover_url, is_public, category, created_at, template_json';
+    const parse = (rows) => rows.map((t) => { try { t.template_json = JSON.parse(t.template_json); } catch { t.template_json = {}; } return t; });
+    if (scope === 'public') return parse(withCat(`SELECT ${baseCols} FROM tenant_template WHERE is_public = 1`, []));
+    if (scope === 'mine') return parse(withCat(`SELECT ${baseCols} FROM tenant_template WHERE tenant_id = ?`, [tenantId]));
+    return parse(withCat(`SELECT ${baseCols} FROM tenant_template WHERE tenant_id = ? OR is_public = 1`, [tenantId]));
   };
 
   svc.getTemplate = (tenantId, id) => {
