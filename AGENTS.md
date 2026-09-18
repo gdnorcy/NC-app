@@ -556,6 +556,7 @@ npm run test:frontend
 - SQLite 时间函数必须写 `datetime('now')`（**单引号**）；`datetime("now")` 双引号会被 SQLite 解析为列名，报 `no such column: "now"` 导致接口 500。
 - 在 JS 单引号字符串里嵌 SQL 时，SQL 内的单引号会与外层冲突：**SQL 字符串外层用双引号**（`db.prepare("UPDATE ... datetime('now') ...")`），禁止用 `sed` 直接替换引号导致 JS 语法错误。
 - 历史教训：appsAdmin.js 5 处 + app-registry.js 1 处曾用 `datetime("now")`，导致应用中心「修改分类/编辑应用/拖拽位置」全部 500；修复后须 `node -c` 语法检查 + curl 实测接口。
+- **2026-09-18 补充（同类复发）**：customer.js 6 处 `datetime("now")` 漏网，导致成员管理「停用/启用/编辑资料/重置密码」与角色改名全部 500（`no such column: "now"`）。**新增/修改任何含 SQL 的代码后，必须全仓 grep `datetime("now")` 确认 0 残留**（`grep -rn 'datetime("now")' server/src/`），修复时注意 SQL 外层引号与内层 `datetime('now')` 单引号的配对（外层改用双引号），改完 `node -c` + curl 实测受影响接口。
 
 ## 应用中心拖拽排序（2026-09-08 更新）
 

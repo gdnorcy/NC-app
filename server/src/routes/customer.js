@@ -1582,7 +1582,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
     }
     const { name, scope } = req.body || {};
     if (name && String(name).trim()) {
-      db.prepare('UPDATE roles SET name = ?, updated_at = datetime("now") WHERE id = ?').run(String(name).trim(), role.id);
+      db.prepare("UPDATE roles SET name = ?, updated_at = datetime('now') WHERE id = ?").run(String(name).trim(), role.id);
     }
     if (scope && (scope === 'tenant' || scope === 'store') && role.builtin === 0) {
       db.prepare("UPDATE roles SET scope = ?, updated_at = datetime('now') WHERE id = ?").run(scope, role.id);
@@ -1705,19 +1705,19 @@ router.get('/card/trends', requireTenant, (req, res) => {
     if (!member) return res.status(404).json({ error: '成员不存在' });
     const { name, phone, identities, status } = req.body || {};
     if (name && String(name).trim()) {
-      db.prepare('UPDATE tenant_members SET name = ?, nickname = ?, updated_at = datetime("now") WHERE id = ?').run(String(name).trim(), String(name).trim(), member.id);
+      db.prepare("UPDATE tenant_members SET name = ?, nickname = ?, updated_at = datetime('now') WHERE id = ?").run(String(name).trim(), String(name).trim(), member.id);
     }
     if (Array.isArray(identities)) {
-      db.prepare('UPDATE tenant_members SET identities = ?, updated_at = datetime("now") WHERE id = ?').run(JSON.stringify(identities), member.id);
+      db.prepare("UPDATE tenant_members SET identities = ?, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(identities), member.id);
     }
     if (status === 'active' || status === 'disabled') {
-      db.prepare('UPDATE tenant_members SET status = ?, updated_at = datetime("now") WHERE id = ?').run(status, member.id);
+      db.prepare("UPDATE tenant_members SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, member.id);
       db.prepare('UPDATE accounts SET status = ? WHERE id = ?').run(status, member.account_id);
     }
     if (phone && /^1\d{10}$/.test(String(phone))) {
       const clash = db.prepare('SELECT id FROM accounts WHERE phone = ? AND id != ?').get(String(phone), member.account_id);
       if (clash) return res.status(409).json({ error: '该手机号已被其他账号使用' });
-      db.prepare('UPDATE accounts SET phone = ?, username = CASE WHEN username IS NULL THEN ? ELSE username END, updated_at = datetime("now") WHERE id = ?').run(String(phone), String(phone), member.account_id);
+      db.prepare("UPDATE accounts SET phone = ?, username = CASE WHEN username IS NULL THEN ? ELSE username END, updated_at = datetime('now') WHERE id = ?").run(String(phone), String(phone), member.account_id);
     }
     res.json({ ok: true });
   });
@@ -1760,7 +1760,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
     const { password } = req.body || {};
     if (!password || String(password).length < 6) return res.status(400).json({ error: '密码至少 6 位' });
     const { hash, salt } = hashPassword(String(password));
-    db.prepare('UPDATE accounts SET password_hash = ?, password_salt = ?, need_reset = 0, updated_at = datetime("now") WHERE id = ?').run(hash, salt, member.account_id);
+    db.prepare("UPDATE accounts SET password_hash = ?, password_salt = ?, need_reset = 0, updated_at = datetime('now') WHERE id = ?").run(hash, salt, member.account_id);
     addOperationLog(db, { userId: req.user.id, username: req.user.username, action: 'member_reset_pwd', targetType: 'member', targetId: member.id, detail: `重置成员密码: ${member.name}`, ip: req.ip });
     res.json({ ok: true });
   });
