@@ -1401,3 +1401,10 @@ cate_style(1/2) / detail_style(1/2/3) / goods_iscard(1开2关) / share_style(1/2
 **本轮缺漏与修复**：编辑弹窗缺「排序」字段（菜鸟云 edit.html 首位）→ `live_rooms` 加 `sort` 列（幂等迁移默认0）、GET /rooms 改 `ORDER BY sort DESC, id DESC`、PUT /rooms/:id 收 sort、编辑弹窗首位加 el-input-number「排序 数字越大越靠前」。**注意：rooms/sync 的 upsert 不含 sort，同步微信列表不会覆盖用户本地排序。**
 
 **预防（通用）**：1:1 复刻核对时，**创建表单与编辑表单都要逐字段对照**（此前多次只核创建/列表，漏编辑弹窗字段）；编辑弹窗往往含排序/显示控制等本地字段，需单独点开编辑实测；数据不足时用 SQL 插入测试行验证编辑弹窗字段与保存回显，测完清理。
+
+## 商城 C 端公开 API 规范（2026-09-18，/api/mall）
+
+- **登录中间件必须自行解析 token**：mall.js 的 `auth` 不得依赖 `authOptional` 先跑设置 `req.user`（Express 路由级中间件按挂载顺序执行，`router.post('/cart', auth, ...)` 里 authOptional 不会自动执行）——`auth` 必须自己 `resolveUser(req)` + `attachUser`，否则所有登录接口**永远 401**（本次已踩坑修复）。规律：**每个需要登录的路由中间件，要么显式挂 authOptional+auth 两个，要么 auth 内部自足解析**。
+- **测试 headers 必须在 before 之后构造**：node:test 中 `describe` 回调同步执行，模块顶层 `const authHeaders = { Authorization: \`Bearer ${token}\` }` 会在 `before` 给 token 赋值**之前**求值 → 请求带 `Bearer undefined` → 全 401 且难排查。正确写法：`const auth = () => ({ Authorization: \`Bearer ${token}\` })` 函数式生成。
+- **service 层保持向后兼容，新约束放路由层**：goodsOrder.createOrder 的 pickup 在 `storeId>0` 时校验门店并生成核销码，`storeId=0` 保持旧契约（管理端历史调用不传门店）；C 端严格校验（pickup 必须带 storeId）放在 mall.js 路由层。改既有 service 时先跑其既有测试，防止契约冲突回归。
+- 测试串行基线：`node --test --test-concurrency=1 server/test/*.test.js` 当前 **362/362**（mall.test.js 新增 7 用例）。
