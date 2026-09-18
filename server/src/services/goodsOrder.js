@@ -36,7 +36,7 @@ export function createGoodsOrderService(db) {
   const yuan = (fen) => (Number(fen) / 100).toFixed(2);
 
   /** 下单：校验商品/库存 → 建业务单+明细 → 返回业务单（支付单由路由层创建） */
-  svc.createOrder = ({ customerId, userId, identityType = 'individual', items, deliveryMode = 'express', receiverName = '', receiverPhone = '', receiverAddress = '', remark = '' }) => {
+  svc.createOrder = ({ customerId, userId, identityType = 'individual', items, deliveryMode = 'express', storeName = '', receiverName = '', receiverPhone = '', receiverAddress = '', remark = '' }) => {
     if (!Array.isArray(items) || !items.length) throw new Error('请选择商品');
     if (deliveryMode === 'express' && (!receiverName || !receiverPhone)) throw new Error('请填写收货人信息');
 
@@ -76,9 +76,9 @@ export function createGoodsOrderService(db) {
     const orderNo = genOrderNo();
     const r = db.prepare(`
       INSERT INTO goods_order (order_no, customer_id, user_id, buyer_identity_type, status, total_amount, freight, pay_amount,
-        delivery_mode, receiver_name, receiver_phone, receiver_address, remark)
-      VALUES (?, ?, ?, ?, 'pending', ?, 0, ?, ?, ?, ?, ?, ?)
-    `).run(orderNo, customerId, userId, identityType, total, total, deliveryMode, receiverName, receiverPhone, receiverAddress, remark);
+        delivery_mode, store_name, receiver_name, receiver_phone, receiver_address, remark)
+      VALUES (?, ?, ?, ?, 'pending', ?, 0, ?, ?, ?, ?, ?, ?, ?)
+    `).run(orderNo, customerId, userId, identityType, total, total, deliveryMode, storeName || '', receiverName, receiverPhone, receiverAddress, remark);
     const orderId = r.lastInsertRowid;
 
     const insItem = db.prepare(`

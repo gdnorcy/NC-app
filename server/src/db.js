@@ -1781,6 +1781,9 @@ function migrate(db) {
   // —— 内容体系（1:1 复刻菜鸟云「东莞同城通」内容：文章/组图/视频/评论/基础设置）——
   seedContent(db);
 
+  // —— 门店体系（1:1 复刻 nshop 连锁门店 chainShop：门店/分组/标签/提现/基础设置 + 总后台配额制）——
+  seedStore(db);
+
   // —— dist_config 扩展字段（分销基本设置 + 分销参数，2026-09-09 新增）——
   // 分销商名称/下级名称/申请页顶图/分销推广图/申请页提示/0元订单/显示上级/显示电话/默认等级
   if (tableExists(db, 'dist_config')) {
@@ -3536,4 +3539,123 @@ function seedContent(db) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+}
+
+/** —— 门店体系（1:1 复刻 nshop 连锁门店 chainShop）——
+ *  应用：store 门店管理（行业应用）
+ *  配额：总后台授权时在项目权限中填写门店数量（project_apps.quota）；
+ *        租户端「购买门店」可增加配额（模拟购买，nshop 原机制）
+ */
+function seedStore(db) {
+  db.exec(`
+    -- 门店主表（1:1 nshop 创建门店 3 步表单字段全集）
+    CREATE TABLE IF NOT EXISTS store (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',            -- 门店名称
+      type TEXT NOT NULL DEFAULT '直营店',       -- 门店类型
+      logo TEXT NOT NULL DEFAULT '',            -- 门店LOGO（200x200 正方形）
+      number TEXT NOT NULL DEFAULT '',          -- 门店编号
+      category_id INTEGER NOT NULL DEFAULT 0,   -- 门店分组
+      gaode_key TEXT NOT NULL DEFAULT '',       -- 高德Web端服务接口Key（同城配送用户定位）
+      phone TEXT NOT NULL DEFAULT '',           -- 联系电话
+      province TEXT NOT NULL DEFAULT '', city TEXT NOT NULL DEFAULT '', district TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',         -- 详细地址
+      lng REAL NOT NULL DEFAULT 0, lat REAL NOT NULL DEFAULT 0,  -- 地图定位（高德坐标）
+      business_time_type TEXT NOT NULL DEFAULT 'all_day',  -- 营业时间：all_day 全天 / custom 自定义
+      business_time TEXT NOT NULL DEFAULT '',   -- 自定义营业时间
+      license_imgs TEXT NOT NULL DEFAULT '[]',  -- 营业资质图片（最多10张，建议210x150）
+      license_show INTEGER NOT NULL DEFAULT 1,  -- 营业资质显示：1显示 0隐藏
+      remark TEXT NOT NULL DEFAULT '',          -- 其他备注
+      status INTEGER NOT NULL DEFAULT 1,        -- 门店状态：1启用 0禁用
+      owner_name TEXT NOT NULL DEFAULT '',      -- 负责人姓名
+      owner_account TEXT NOT NULL DEFAULT '',   -- 负责人账号（手机号，门店超管）
+      owner_password TEXT NOT NULL DEFAULT '',  -- 负责人密码
+      settle_type TEXT NOT NULL DEFAULT 'immediate',  -- 结算时间：immediate 立即 / days N天后
+      settle_days INTEGER NOT NULL DEFAULT 0,   -- N天结算天数
+      withdraw_ratio_type TEXT NOT NULL DEFAULT 'system', -- 提现抽成：system 跟随系统 / custom 自定义
+      withdraw_ratio REAL NOT NULL DEFAULT 0,   -- 自定义抽成比例(%)
+      withdraw_enabled INTEGER NOT NULL DEFAULT 1,       -- 门店提现：1支持 0不支持
+      price_mode TEXT NOT NULL DEFAULT 'unified',   -- 商品售价：unified 总部统一 / custom 门店自定义
+      stock_mode TEXT NOT NULL DEFAULT 'unified',   -- 商品库存：unified 总部统一 / independent 门店独立
+      shelf_mode TEXT NOT NULL DEFAULT 'unified',   -- 商品下架：unified 总部统一 / store 支持门店下架
+      confirm_pay_enabled INTEGER NOT NULL DEFAULT 1, -- 后台确认付款：1支持 0不支持
+      delivery_mode TEXT NOT NULL DEFAULT 'head',     -- 门店配送设置：head 总部为门店配置 / store 门店独立配置
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_store_customer ON store(customer_id);
+
+    -- 门店分组（nshop chainShop/group）
+    CREATE TABLE IF NOT EXISTS store_category (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_store_category_customer ON store_category(customer_id);
+
+    -- 门店标签组（nshop chainShop/label：标签组下挂标签）
+    CREATE TABLE IF NOT EXISTS store_tag_group (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_store_tag_group_customer ON store_tag_group(customer_id);
+
+    -- 门店标签（nshop：标签名称/排序/分配门店/启用）
+    CREATE TABLE IF NOT EXISTS store_tag (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      group_id INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_store_tag_customer ON store_tag(customer_id);
+
+    -- 门店-标签关联
+    CREATE TABLE IF NOT EXISTS store_relation (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      store_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      UNIQUE(customer_id, store_id, tag_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_store_relation_store ON store_relation(store_id);
+  `);
+
+  // 门店数量配额：总后台授权时填写（project_apps.quota，租户端可购买增加）
+  if (tableExists(db, 'project_apps') && !colExists(db, 'project_apps', 'quota')) {
+    db.exec('ALTER TABLE project_apps ADD COLUMN quota INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // 订单门店自提：goods_order 增加 store_name（自提门店名，幂等迁移）
+  if (tableExists(db, 'goods_order') && !colExists(db, 'goods_order', 'store_name')) {
+    db.exec("ALTER TABLE goods_order ADD COLUMN store_name TEXT NOT NULL DEFAULT ''");
+  }
+
+  // —— 应用注册：门店管理（行业应用；nshop 连锁门店；总后台授权时填写门店数量配额）——
+  db.exec("INSERT OR IGNORE INTO app_categories (name, icon, sort_order) VALUES ('行业应用', 'building', 6)");
+  db.prepare("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('store', '门店管理', '连锁门店管理：门店/分组/标签/提现与基础设置（nshop连锁门店）', 'building', '行业应用', 5, 1)").run();
+  {
+    const storeApp = db.prepare("SELECT id FROM apps WHERE code = 'store'").get();
+    if (storeApp) {
+      const storeMenus = [
+        ['storeStats', '门店统计'],
+        ['storeManage', '门店管理'],
+        ['storeGroup', '门店分组'],
+        ['storeTag', '门店标签'],
+        ['storeWithdraw', '提现管理'],
+        ['storeSetting', '基础设置'],
+        ['storeBuy', '购买门店'],
+      ];
+      const menuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+      storeMenus.forEach(([key, label], idx) => menuIns.run(storeApp.id, 'store', '门店管理', key, label, idx + 1));
+    }
+  }
 }

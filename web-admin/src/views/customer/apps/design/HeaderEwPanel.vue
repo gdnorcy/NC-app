@@ -66,12 +66,18 @@
         </div>
       </template>
       <template v-else-if="layer.left.type === 'store'">
-        <div class="hew-row"><div class="hew-label">信息</div><el-input v-model="layer.left.store.info" size="small" class="hew-flex" placeholder="门店信息" /></div>
+        <div class="hew-row">
+          <div class="hew-label">选择门店</div>
+          <el-select v-model="layer.left.store.id" size="small" class="hew-flex" placeholder="从门店管理选择" @change="onStorePick(layer, $event)">
+            <el-option v-for="s in stores" :key="s.id" :label="`${s.name}（${s.province}${s.city}）`" :value="s.id" />
+          </el-select>
+        </div>
+        <div class="hew-tip">数据来自「门店管理」中已启用门店；未创建门店时请先到门店管理创建。</div>
+        <div class="hew-row"><div class="hew-label">门店名称</div><el-input v-model="layer.left.store.name" size="small" class="hew-flex" /></div>
         <div class="hew-row hew-3"><div class="hew-label">省</div><el-input v-model="layer.left.store.province" size="small" placeholder="省" /></div>
         <div class="hew-row hew-3"><div class="hew-label">市</div><el-input v-model="layer.left.store.city" size="small" placeholder="市" /></div>
         <div class="hew-row hew-3"><div class="hew-label">区</div><el-input v-model="layer.left.store.district" size="small" placeholder="区" /></div>
         <div class="hew-row"><div class="hew-label">详细地址</div><el-input v-model="layer.left.store.address" size="small" class="hew-flex" /></div>
-        <div class="hew-row"><div class="hew-label">门店名称</div><el-input v-model="layer.left.store.name" size="small" class="hew-flex" /></div>
         <div class="hew-row">
           <div class="hew-label">颜色</div>
           <el-color-picker v-model="layer.left.store.color" size="small" />
@@ -79,6 +85,13 @@
         </div>
       </template>
       <template v-else-if="layer.left.type === 'city'">
+        <div class="hew-row">
+          <div class="hew-label">城市定位</div>
+          <el-select v-model="layer.left.cityName" size="small" class="hew-flex" filterable placeholder="选择城市（自动定位展示）" @change="onCityPick($event)">
+            <el-option v-for="c in cityNames" :key="c" :label="c" :value="c" />
+          </el-select>
+        </div>
+        <div class="hew-tip">选择城市后头部左侧展示该城市名（真实定位能力需小程序授权定位接口）。</div>
         <div class="hew-row">
           <div class="hew-label">颜色</div>
           <el-color-picker v-model="layer.left.color" size="small" />
@@ -246,7 +259,7 @@ export function mkEwHeader() {
 }
 function mkEwLayer() {
   return {
-    left: { type: 'none', image: '', icon: '', color: '#ffffff', link: '', store: { info: '', province: '', city: '', district: '', address: '', name: '', color: '#ffffff' } },
+    left: { type: 'none', image: '', icon: '', color: '#ffffff', link: '', cityName: '', store: { id: '', info: '', province: '', city: '', district: '', address: '', name: '', color: '#ffffff' } },
     middle: { type: 'none', image: '', link: '', search: { fillBg: '#f2f2f2', borderBg: '#ffffff', iconColor: '#3d404d', textColor: '#ffffff', placeholder: '', placeholderLen: 0, placeholderMax: 10, hotword: false, showBtn: true } },
     right: { type: 'none', image: '', icon: '', color: '#ffffff', link: '' },
   };
@@ -254,9 +267,12 @@ function mkEwLayer() {
 </script>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
+import { customerApiCall } from '../../../../api';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
+import { AREA_DATA_FULL } from '../../goods/area-data-full.js';
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({}) },
@@ -306,6 +322,37 @@ const shownLayers = computed(() => {
 });
 
 const icons = ['user', 'building', 'team', 'market', 'exchange', 'pool', 'radar', 'customer', 'audit', 'key', 'chart', 'settings', 'template', 'dynamic', 'dashboard', 'apps', 'orders', 'wallet', 'storage', 'sms', 'panorama', 'card', 'channel', 'devices', 'solutions', 'users', 'logs', 'crown', 'no-ads', 'badge', 'analytics', 'palette', 'wechat', 'mobile', 'official', 'pc', 'dist', 'partner', 'share', 'category', 'area'];
+
+// 门店管理数据（门店定位选择器）+ 城市列表（城市定位）
+const stores = ref([]);
+const cityNames = [];
+(function buildCityNames() {
+  AREA_DATA_FULL.forEach((prov) => {
+    (prov.children || []).forEach((city) => cityNames.push(city.label));
+  });
+})();
+async function loadStores() {
+  try {
+    const r = await customerApiCall.get('/store/all');
+    stores.value = (r && r.stores) || [];
+  } catch (e) {
+    // 门店未开通/接口失败不阻断头部设置（保留下拉为空提示）
+  }
+}
+function onStorePick(layer, id) {
+  const s = stores.value.find((x) => x.id === id);
+  if (!s) return;
+  layer.left.store = {
+    id: s.id, info: `${s.province}${s.city}${s.district} ${s.address}`.trim(), province: s.province, city: s.city,
+    district: s.district, address: s.address, name: s.name, color: layer.left.store.color || '#ffffff',
+  };
+}
+function onCityPick(city) {
+  if (!city) return;
+  const cityName = city.replace(/市$/, '');
+  ElMessage.success(`城市定位：${cityName}`);
+}
+onMounted(loadStores);
 
 // 素材选择：target 描述写回位置
 const imgSel = ref({ show: false, target: null });

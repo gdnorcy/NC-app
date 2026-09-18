@@ -83,6 +83,11 @@
               <el-switch v-model="app.enabled" size="small" />
               <span class="form-help">{{ app.enabled ? '已开通' : '未开通' }}</span>
             </div>
+            <div v-if="app.enabled && app.code === 'store'" class="app-perm-quota">
+              <span class="quota-label">门店数量配额（总后台授权时填写）：</span>
+              <el-input-number v-model="app.quota" :min="0" :max="10000" size="small" style="width:140px" />
+              <span class="form-help">租户端数量不够时可「购买门店」增加</span>
+            </div>
             <div v-if="app.enabled && app.menus.length" class="app-perm-menus">
               <el-checkbox
                 v-for="m in app.menus"
@@ -450,7 +455,7 @@ async function save() {
       adminUserId: form.adminUserId,
       solutions: form.solutions,
       config: form.config,
-      apps: appPermissions.value.map((a) => ({ code: a.code, enabled: a.enabled })),
+      apps: appPermissions.value.map((a) => ({ code: a.code, enabled: a.enabled, quota: a.code === 'store' ? a.quota : undefined })),
       menus: appPermissions.value.flatMap((a) => a.menus.map((m) => ({ appCode: a.code, key: m.key, enabled: m.enabled }))),
     };
     if (isEdit.value) await updateCustomer(route.params.id, baseData);
@@ -509,6 +514,8 @@ async function save() {
 .app-perm-name { font-size:14px; font-weight:600; color:#1D2129; }
 .app-perm-head .el-switch { margin-left:auto; }
 .app-perm-menus { display:flex; flex-wrap:wrap; gap:4px 20px; padding:10px 0 0 24px; margin-top:10px; border-top:1px dashed #F2F3F5; }
+.app-perm-quota { display:flex; align-items:center; gap:10px; padding:10px 0 0 24px; margin-top:10px; border-top:1px dashed #F2F3F5; font-size:13px; color:#4E5969; }
+.app-perm-quota .quota-label { white-space:nowrap; }
 
 .channel-list { display:flex; flex-direction:column; gap:16px; }
 .channel-item { background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }

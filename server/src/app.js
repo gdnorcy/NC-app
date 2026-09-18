@@ -16,6 +16,7 @@ import { createUsersRouter } from './routes/users.js';
 import { createSettingsRouter } from './routes/settings.js';
 import { createLogsRouter } from './routes/logs.js';
 import { createCustomerRouter } from './routes/customer.js';
+import { createStoreRouter } from './routes/store.js';
 import { createGoodsRouter } from './routes/goods.js';
 import { createLiveRouter } from './routes/live.js';
 import { createCardKeyRouter } from './routes/cardKey.js';
@@ -80,6 +81,8 @@ export function createApp({ db, deps = {} } = {}) {
   app.use('/api/customer/live', requireAuth, createLiveRouter(database, deps));
   // 内容体系（1:1 菜鸟云「内容」）：文章/组图/视频/评论/基础设置（管理端）+ C 端公开读取
   app.use('/api/customer/content', requireAuth, createContentRouter(database));
+  // 门店体系（1:1 nshop 连锁门店 chainShop）：门店/分组/标签/提现/基础设置 + 配额购买
+  app.use('/api/customer/store', requireAuth, createStoreRouter(database));
   app.use('/api/card/content', createContentPublicRouter(database));
   app.use('/api/customer/card-key', requireAuth, createCardKeyRouter(database));
   app.use('/api/customer/gift-card', requireAuth, createGiftCardRouter(database));

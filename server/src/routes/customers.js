@@ -85,14 +85,17 @@ export function projectPermissions(db, project) {
     }
   });
   // 3) 项目级覆盖
-  db.prepare('SELECT * FROM project_apps WHERE project_id = ?').all(project.id)
-    .forEach((a) => { appAuth[a.app_code] = Boolean(a.enabled); });
+  const projApps = db.prepare('SELECT * FROM project_apps WHERE project_id = ?').all(project.id);
+  projApps.forEach((a) => { appAuth[a.app_code] = Boolean(a.enabled); });
+  const projQuota = {}; // appCode -> quota（总后台授权时填写，如门店数量）
+  projApps.forEach((a) => { if (a.quota) projQuota[a.app_code] = a.quota; });
   db.prepare('SELECT * FROM project_permissions WHERE project_id = ?').all(project.id)
     .forEach((p) => { permAuth[`${p.app_code}:${p.menu_key}`] = Boolean(p.enabled); });
   return apps
     .filter((a) => a.enabled !== 0)
     .map((a) => ({
       code: a.code, name: a.name, icon: a.icon, description: a.description, enabled: !!appAuth[a.code],
+      quota: projQuota[a.code] || 0,
       menus: db.prepare('SELECT module, module_label, key, label, sort_order FROM app_menus WHERE app_id = ? ORDER BY sort_order ASC, id ASC').all(a.id)
         .map((m) => ({ module: m.module, moduleLabel: m.module_label, key: m.key, label: m.label, enabled: !!permAuth[`${a.code}:${m.key}`] })),
     }));
@@ -102,10 +105,11 @@ export function projectPermissions(db, project) {
 export function saveProjectPermissions(db, projectId, body) {
   if (Array.isArray(body.apps)) {
     db.prepare('DELETE FROM project_apps WHERE project_id = ?').run(projectId);
-    const ins = db.prepare('INSERT OR REPLACE INTO project_apps (project_id, app_code, enabled) VALUES (?, ?, ?)');
+    const ins = db.prepare('INSERT OR REPLACE INTO project_apps (project_id, app_code, enabled, quota) VALUES (?, ?, ?, ?)');
     body.apps.forEach((a) => {
       if (!a || !a.code) return;
-      ins.run(projectId, String(a.code), a.enabled === false ? 0 : 1);
+      const quota = a.code === 'store' ? Math.max(0, Math.floor(Number(a.quota) || 0)) : 0;
+      ins.run(projectId, String(a.code), a.enabled === false ? 0 : 1, quota);
     });
   }
   if (Array.isArray(body.menus)) {

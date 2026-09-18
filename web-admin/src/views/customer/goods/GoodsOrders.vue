@@ -103,7 +103,7 @@
             <el-descriptions-item label="订单号"><span class="mono">{{ detail.order_no }}</span></el-descriptions-item>
             <el-descriptions-item label="状态">{{ statusLabel(detail.status) }}</el-descriptions-item>
             <el-descriptions-item label="买家">{{ detail.buyerName }}</el-descriptions-item>
-            <el-descriptions-item label="配送方式">{{ detail.delivery_mode === 'pickup' ? '门店自提' : '快递配送' }}</el-descriptions-item>
+            <el-descriptions-item label="配送方式">{{ detail.delivery_mode === 'pickup' ? (detail.store_name ? `门店自提（${detail.store_name}）` : '门店自提') : '快递配送' }}</el-descriptions-item>
             <el-descriptions-item label="商品总额">¥{{ detail.totalAmountY }}</el-descriptions-item>
             <el-descriptions-item label="实付金额"><b>¥{{ detail.payAmountY }}</b></el-descriptions-item>
             <el-descriptions-item v-if="detail.receiver_name" label="收货人">{{ detail.receiver_name }} {{ detail.receiver_phone }}</el-descriptions-item>
