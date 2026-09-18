@@ -53,7 +53,6 @@ import GoodsTitleTag from './GoodsTitleTag.vue';
 import GoodsServiceTag from './GoodsServiceTag.vue';
 import GoodsSupplier from './GoodsSupplier.vue';
 import GoodsStyle from './GoodsStyle.vue';
-import MallHomeDecorate from './MallHomeDecorate.vue';
 import GoodsPlaceholder from './GoodsPlaceholder.vue';
 
 const route = useRoute();
@@ -73,7 +72,6 @@ const subDefs = {
     { key: 'list', label: '商品列表', icon: 'template', countKey: 'goods' },
     { key: 'category', label: '商品分类', icon: 'apps', countKey: 'category' },
     { key: 'param', label: '商品参数', icon: 'logs', countKey: 'param' },
-    { key: 'home', label: '首页装修', icon: 'palette' },
   ],
   order: [
     { key: 'goodsOrders', label: '商品订单', icon: 'orders' },
@@ -131,7 +129,6 @@ const compMap = {
   service: GoodsServiceTag,
   supplier: GoodsSupplier,
   style: GoodsStyle,
-  home: MallHomeDecorate,
 };
 const activeComp = computed(() => {
   if (activeTop.value === 'insight') return GoodsInsight;
