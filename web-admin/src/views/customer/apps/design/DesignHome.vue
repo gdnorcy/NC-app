@@ -1283,7 +1283,7 @@ onMounted(() => {
 .pm-phone { width: 270px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb; }
 .pm-status { height: 24px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 11px; font-weight: 600; color: #1d2129; }
 .pm-ps-icons { display: flex; align-items: center; gap: 4px; }
-.pm-iframe { display: block; width: 100%; height: 480px; border: 0; background: #fff; }
+.pm-iframe { display: block; width: 375px; height: 720px; border: 0; background: #fff; transform: scale(0.72); transform-origin: top left; }
 .pm-canvas { min-height: 380px; padding: 10px; background: #fff; }
 .pm-comp { margin-bottom: 8px; }
 .pm-empty { color: #86909c; text-align: center; padding: 60px 0; font-size: 12px; }
