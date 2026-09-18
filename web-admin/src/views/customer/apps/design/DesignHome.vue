@@ -387,14 +387,18 @@
                 <img v-if="t.cover_url" :src="resolveUrl(t.cover_url)" style="width:100%;height:100%;object-fit:cover;" />
                 <div v-else class="tpl-screen-inner" v-html="thumbHtml(t)"></div>
               </div>
-              <el-tag v-if="t.is_public" size="small" class="tpl-public">平台模板</el-tag>
-              <el-tag v-if="t.category" size="small" effect="plain" class="tpl-cat-tag">{{ t.category }}</el-tag>
+              <div class="tpl-hover">
+                <div class="tpl-mask"></div>
+                <button class="tpl-use" @click="applyTemplate(t)">应用模板</button>
+                <div class="tpl-hover-btns">
+                  <span @click="exportTemplate(t)">导出</span>
+                  <span v-if="!t.is_public" class="tpl-del" @click="delTemplate(t)">删除</span>
+                </div>
+              </div>
             </div>
-            <div class="tpl-name">{{ t.template_name }}</div>
-            <div class="tpl-ops">
-              <el-button size="small" type="primary" @click="applyTemplate(t)">应用模板</el-button>
-              <el-button size="small" @click="exportTemplate(t)">导出</el-button>
-              <el-button v-if="!t.is_public" size="small" text type="danger" @click="delTemplate(t)">删除</el-button>
+            <div class="tpl-name">
+              {{ t.template_name }}
+              <span v-if="t.is_public" class="tpl-badge">平台模板</span>
             </div>
           </div>
           <div v-if="!filteredTemplates.length && !tplLoading" class="media-empty">暂无模板</div>
@@ -1458,15 +1462,24 @@ onMounted(() => {
 .tpl-phone-notch { position: absolute; top: 7px; left: 50%; transform: translateX(-50%); width: 34px; height: 4px; background: #1d2129; border-radius: 2px; z-index: 2; }
 .tpl-phone-screen { background: #fff; border-radius: 13px; height: 100%; overflow: hidden; position: relative; }
 .tpl-screen-inner { padding-top: 10px; }
-.tpl-public { position: absolute; top: 8px; right: 8px; z-index: 3; }
-.tpl-cat-tag { margin-left: 6px; }
+.tpl-hover { position: absolute; inset: 0; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; opacity: 0; transition: opacity .2s; z-index: 3; }
+.tpl-mask { position: absolute; inset: 0; border-radius: 18px; background: rgba(0,0,0,.5); }
+.tpl-use { position: relative; z-index: 1; background: #165dff; color: #fff; border: none; padding: 10px 30px; border-radius: 24px; font-size: 14px; cursor: pointer; }
+.tpl-use:hover { background: #4080ff; }
+.tpl-hover-btns { position: relative; z-index: 1; display: flex; gap: 16px; }
+.tpl-hover-btns span { color: rgba(255,255,255,.9); font-size: 12px; cursor: pointer; }
+.tpl-hover-btns span:hover { color: #fff; }
+.tpl-hover-btns .tpl-del { color: #ff9c9e; }
+.tpl-phone:hover .tpl-hover, .tpl-card:hover .tpl-hover { opacity: 1; }
+.tpl-card { transition: transform .2s, box-shadow .2s; }
+.tpl-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.1); }
+.tpl-badge { margin-left: 6px; font-size: 11px; color: #86909c; background: #f2f3f5; border-radius: 4px; padding: 1px 6px; vertical-align: 1px; }
 .tpl-cat-group { margin-left: 12px; }
 .ind-desc { font-size: 12px; color: #86909c; margin-bottom: 12px; line-height: 1.6; }
 .ind-list { display: flex; flex-direction: column; gap: 8px; }
 .ind-item { display: flex; align-items: center; justify-content: space-between; border: 1px solid #e5e6eb; border-radius: 8px; padding: 10px 14px; }
 .ind-name { font-size: 14px; color: #1d2129; }
 .tpl-name { padding: 10px 12px 4px; font-size: 13px; color: #1d2129; font-weight: 500; }
-.tpl-ops { padding: 8px 12px 12px; display: flex; gap: 8px; }
 
 .img-sel { display: grid; grid-template-columns: 160px 1fr; gap: 16px; min-height: 360px; }
 .img-sel-side { border-right: 1px solid #f2f3f5; padding-right: 12px; }
