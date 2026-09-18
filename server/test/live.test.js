@@ -107,10 +107,10 @@ test('直播列表：创建（微信接口）→ 列表 → 编辑 → 删除', 
   assert.equal(list.body.total, 1);
   assert.equal(list.body.rows[0].name, '测试直播间A');
 
-  // 编辑
+  // 编辑（含排序：1:1 菜鸟云编辑弹窗「排序 数字越大越靠前」）
   const id = list.body.rows[0].id;
   const edit = await request(app).put(`/api/customer/live/rooms/${id}`).set('Authorization', `Bearer ${token}`).send({
-    name: '测试直播间A改', listDisplay: 0, recommend: 1, liveType: 'push',
+    name: '测试直播间A改', listDisplay: 0, recommend: 1, liveType: 'push', sort: 88,
   });
   assert.equal(edit.status, 200);
   const after = await request(app).get('/api/customer/live/rooms').set('Authorization', `Bearer ${token}`);
@@ -119,6 +119,7 @@ test('直播列表：创建（微信接口）→ 列表 → 编辑 → 删除', 
   assert.equal(row.list_display, 0);
   assert.equal(row.recommend, 1);
   assert.equal(row.live_type, 'push');
+  assert.equal(row.sort, 88);
 
   // 复制链接
   const link = await request(app).get(`/api/customer/live/rooms/${id}/link`).set('Authorization', `Bearer ${token}`);

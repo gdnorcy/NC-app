@@ -92,7 +92,7 @@ export function createLiveRouter(db, deps = {}) {
     }
     const where = conds.join(' AND ');
     const total = db.prepare(`SELECT COUNT(*) c FROM live_rooms WHERE ${where}`).get(...args).c;
-    const rows = db.prepare(`SELECT * FROM live_rooms WHERE ${where} ORDER BY id DESC LIMIT ? OFFSET ?`)
+    const rows = db.prepare(`SELECT * FROM live_rooms WHERE ${where} ORDER BY sort DESC, id DESC LIMIT ? OFFSET ?`)
       .all(...args, ps, (p - 1) * ps);
     res.json({ rows, total, page: p, pageSize: ps });
   });
@@ -161,7 +161,7 @@ export function createLiveRouter(db, deps = {}) {
     const b = req.body || {};
     db.prepare(`UPDATE live_rooms SET
         name=?, room_id=?, anchor_name=?, thumbnail=?, background_img=?, share_img=?, cover_img=?,
-        start_time=?, end_time=?, list_display=?, recommend=?, live_type=?,
+        start_time=?, end_time=?, list_display=?, recommend=?, live_type=?, sort=?,
         replay_enabled=?, share_enabled=?, service_enabled=?, updated_at=datetime('now')
       WHERE id=? AND customer_id=?`).run(
       b.name ?? row.name, b.roomId ?? row.room_id, b.anchorName ?? row.anchor_name,
@@ -171,6 +171,7 @@ export function createLiveRouter(db, deps = {}) {
       b.listDisplay !== undefined ? (b.listDisplay ? 1 : 0) : row.list_display,
       b.recommend !== undefined ? (b.recommend ? 1 : 0) : row.recommend,
       b.liveType ?? row.live_type,
+      b.sort !== undefined ? Number(b.sort) || 0 : row.sort,
       b.replayEnabled !== undefined ? (b.replayEnabled ? 1 : 0) : row.replay_enabled,
       b.shareEnabled !== undefined ? (b.shareEnabled ? 1 : 0) : row.share_enabled,
       b.serviceEnabled !== undefined ? (b.serviceEnabled ? 1 : 0) : row.service_enabled,

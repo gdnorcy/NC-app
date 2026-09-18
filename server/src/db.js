@@ -2250,6 +2250,7 @@ function seedGoods(db) {
       start_time TEXT NOT NULL DEFAULT '',
       end_time TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT '未开始',  -- 未开始/直播中/已结束/禁播/暂停中/异常/已过期
+      sort INTEGER NOT NULL DEFAULT 0,          -- 排序：数字越大越靠前（1:1 菜鸟云编辑弹窗）
       live_type TEXT NOT NULL DEFAULT 'phone', -- phone手机直播 / push推流
       list_display INTEGER NOT NULL DEFAULT 1,  -- 列表显示 1显示 0隐藏
       recommend INTEGER NOT NULL DEFAULT 0,     -- 设为推荐 1开 0关（DIY直播模块区分展示）
@@ -2293,6 +2294,10 @@ function seedGoods(db) {
   }
   if (!colExists(db, 'live_rooms', 'push_code')) {
     db.exec("ALTER TABLE live_rooms ADD COLUMN push_code TEXT NOT NULL DEFAULT ''");
+  }
+  // 幂等迁移：live_rooms.sort（排序：数字越大越靠前，1:1 菜鸟云编辑弹窗）
+  if (!colExists(db, 'live_rooms', 'sort')) {
+    db.exec('ALTER TABLE live_rooms ADD COLUMN sort INTEGER NOT NULL DEFAULT 0');
   }
 
   // 演示方案纳入小程序直播

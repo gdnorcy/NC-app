@@ -144,6 +144,10 @@
         </template>
 
         <template v-else>
+          <el-form-item label="排序">
+            <el-input-number v-model="dlg.form.sort" :min="0" :max="9999" :controls="false" style="width: 120px" />
+            <span class="form-hint">数字越大越靠前</span>
+          </el-form-item>
           <el-form-item label="直播间ID">
             <el-input v-model="dlg.form.roomId" placeholder="微信直播间ID" />
           </el-form-item>
@@ -275,7 +279,7 @@ function openCreate() { dlg.id = null; dlg.form = emptyForm(); dlg.show = true; 
 function openEdit(row) {
   dlg.id = row.id;
   dlg.form = {
-    name: row.name, roomId: row.room_id, anchorName: row.anchor_name,
+    name: row.name, roomId: row.room_id, anchorName: row.anchor_name, sort: row.sort || 0,
     thumbnail: row.thumbnail, listDisplay: !!row.list_display, recommend: !!row.recommend,
     liveType: row.live_type || 'phone',
     pushAddr: row.push_addr || '', pushCode: row.push_code || '',
@@ -296,7 +300,7 @@ async function save() {
   try {
     if (dlg.id) {
       await customerApiCall.put(`/live/rooms/${dlg.id}`, {
-        name: f.name, roomId: f.roomId, anchorName: f.anchorName, thumbnail: f.thumbnail,
+        name: f.name, roomId: f.roomId, anchorName: f.anchorName, thumbnail: f.thumbnail, sort: f.sort || 0,
         listDisplay: f.listDisplay ? 1 : 0, recommend: f.recommend ? 1 : 0, liveType: f.liveType,
         replayEnabled: f.replayEnabled ? 1 : 0, shareEnabled: f.shareEnabled ? 1 : 0, serviceEnabled: f.serviceEnabled ? 1 : 0,
       });
