@@ -952,6 +952,7 @@ const homePicker = ref({ show: false, appCode: 'card', value: '' });
 const HOME_APPS = [
   { appCode: 'card', name: '智能名片', icon: 'card' },
   { appCode: 'panorama', name: '360全景', icon: 'panorama' },
+  { appCode: 'goods', name: '商城', icon: 'show' },
 ];
 
 // 每个应用的可选页面分组（card：名片页面 + DIY 装修页面；panorama：全景页面）
@@ -972,6 +973,9 @@ const PANORAMA_PAGES = [
   { value: '/pages/index/index', label: '360全景首页', icon: 'panorama', desc: '行业应用入口' },
   { value: '/pages/viewer/viewer', label: '360全景浏览', icon: 'panorama', desc: '直接进入全景浏览' },
 ];
+const GOODS_PAGES = [
+  { value: '/pages/mall/index', label: '商城首页', icon: 'show', desc: '建设中，暂为占位页' },
+];
 
 // 弹窗分组：card 含「装修页面」（已建 DIY 页面动态）
 function groupsFor(appCode) {
@@ -990,6 +994,7 @@ function groupsFor(appCode) {
     ];
   }
   if (appCode === 'panorama') return [{ name: '360全景', items: PANORAMA_PAGES }];
+  if (appCode === 'goods') return [{ name: '商城', items: GOODS_PAGES }];
   return [];
 }
 

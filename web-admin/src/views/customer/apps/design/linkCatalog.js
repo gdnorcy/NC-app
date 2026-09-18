@@ -47,6 +47,12 @@ export const LINK_CATALOG = [
     ],
   },
   {
+    name: '商城',
+    items: [
+      { label: '商城首页', value: '/pages/mall/index' },
+    ],
+  },
+  {
     name: '我的',
     items: [
       { label: '会员中心', value: '/pages/card/member' },
