@@ -8,8 +8,8 @@ export const LINK_CATALOG = [
     name: '行业应用首页',
     items: [
       { label: '智能名片首页', value: '/pages/cardMain/home' },
-      { label: '360全景首页', value: '/pages/index/index' },
-      { label: '商城首页', value: '/pages/mall/index' },
+      { label: '360全景首页', value: '/pages/index/index', desc: '360°全景方案列表（全景应用内首页）' },
+      { label: '商城首页', value: '/pages/mall/index', desc: '商城（建设中占位页）' },
     ],
   },
   {
@@ -50,8 +50,7 @@ export const LINK_CATALOG = [
   {
     name: '全景应用',
     items: [
-      { label: '方案列表', value: '/?plan=' },
-      { label: '场景预览', value: '/?plan=1&scene=1' },
+      { label: '场景预览', value: '/pages/viewer/viewer?planId=1', desc: '示例链接：按实际方案替换 planId（如 ?planId=8）' },
     ],
   },
   {

@@ -43,6 +43,7 @@
             <div class="lk-item-info">
               <div class="lk-item-label">{{ it.label }}</div>
               <div class="lk-item-value">{{ it.value }}</div>
+              <div v-if="it.desc" class="lk-item-desc">{{ it.desc }}</div>
             </div>
             <span v-if="pick === it.value" class="lk-check">✓</span>
           </div>
@@ -128,6 +129,7 @@ function doConfirm() {
 .lk-item-info { flex: 1; min-width: 0; }
 .lk-item-label { font-size: 13px; color: #1D2129; line-height: 1.4; }
 .lk-item-value { font-size: 11px; color: #86909C; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-item-desc { font-size: 11px; color: #C9CDD4; margin-top: 2px; line-height: 1.4; }
 .lk-check { color: #165DFF; font-weight: 600; flex-shrink: 0; }
 .lk-empty { text-align: center; color: #86909C; font-size: 13px; padding: 40px 0; }
 .lk-custom { padding: 4px 0; }
