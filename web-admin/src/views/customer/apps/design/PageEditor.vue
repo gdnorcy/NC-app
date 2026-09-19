@@ -369,9 +369,12 @@
                     <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
                   </el-input>
                   <div v-else-if="f.control === 'goodsPicker'" class="pe-goods-picker">
-                    <div v-if="selectedComp.props[f.key]" class="pe-picked-goods">
-                      <span>已选 {{ (selectedComp.props[f.key]||'').split(',').filter(x=>x).length }} 个商品</span>
-                      <el-button size="small" text @click="openLinkSel(null, null, {pickerMode:'goods'})">修改</el-button>
+                    <div v-if="pickedGoods.length" class="pe-picked-list">
+                      <div v-for="g in pickedGoods" :key="g.id" class="pe-picked-item">
+                        <img v-if="g.image" :src="g.image" class="pe-picked-img" />
+                        <div class="pe-picked-name">{{ g.title }}</div>
+                      </div>
+                      <div class="pe-picked-add" @click="openLinkSel(null, null, {pickerMode:'goods'})">+添加</div>
                     </div>
                     <div v-else class="pe-addchild" @click="openLinkSel(null, null, {pickerMode:'goods'})">+添加</div>
                   </div>
@@ -1589,6 +1592,11 @@ function onCubeStyleChange(v) {
   selectedComp.value.props.blocks = cubeBlocksForStyle(v);
 }
 // 系统链接选择器：link 字段点「选择」弹窗回填
+const pickedGoods = computed(() => {
+  const v = selectedComp.value?.props?.goodsIds;
+  if (!v) return [];
+  return String(v).split(',').filter(Boolean).map(id => ({ id }));
+});
 const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false, mode: 'link' });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
@@ -2044,6 +2052,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .sel-video-tag { position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 0 6px; border-radius: 8px; color: #fff; background: rgba(22,93,255,.85); }
 .sel-item.picked { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .sel-check { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+.el-radio-group { white-space:nowrap; }
+.el-radio-group .el-radio { margin-right:16px; }
 </style>
 
 <style scoped>
@@ -2051,7 +2061,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-add-child:hover { border-color:#165dff; color:#165dff; }
 .pe-picked-goods { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f7f8fa; border-radius:6px; font-size:13px; }
 
-.pe-addchild { background:#f5f7fa; border-radius:4px; padding:10px; text-align:center; color:#4e5969; cursor:pointer; font-size:13px; }
+.pe-addchild { border:1px dashed #c9cdd4; border-radius:4px; padding:24px 10px; text-align:center; color:#9ca3af; cursor:pointer; font-size:14px; }
 .pe-addchild:hover { background:#e8f3ff; color:#165dff; }
 .pe-readonly-row { display:flex; align-items:center; gap:8px; }
 .pe-labeltext { font-size:13px; color:#4e5969; white-space:nowrap; }
