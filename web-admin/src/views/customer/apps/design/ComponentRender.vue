@@ -496,7 +496,15 @@
         <div class="ew-gg-body">
           <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
           <div class="ew-gg-sub">这里是商品副标题</div>
-          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
+          <div class="ew-gg-foot">
+            <span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span>
+            <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">
+              <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
+              <template v-else-if="comp.props.buyBtnStyle==='buybtn6'">+</template>
+              <template v-else-if="comp.props.buyBtnStyle==='buybtn3'">🛒</template>
+              <template v-else-if="comp.props.buyBtnStyle==='buybtn4'">🛒</template>
+            </span>
+          </div>
         </div>
       </div>
     </template>
@@ -1003,6 +1011,21 @@ function imageBoxStyle(p) {
   const s = { borderRadius: (p.radius ?? 0) + 'px' };
   if (p.widthMode === 'auto') s.display = 'inline-block';
   if (p.bgColor) s.background = p.bgColor;
+  return s;
+}
+function buyBtnStyleOf(p) {
+  const bg = p.btnColorMode === 0 ? (p.buyBtnBg || '#ef4f4f') : '#ef4f4f';
+  const radius = (p.buyBtnRadius ?? 4) + 'px';
+  const color = p.buyBtnColor || '#fff';
+  const sizeMap = { small: '20px 8px', medium: '24px 12px', large: '28px 16px' };
+  const s = { borderRadius: radius, color: color, background: bg, fontSize: '12px' };
+  if (p.buyBtnStyle === 'buybtn1') {
+    s.padding = sizeMap[p.buyBtnSize] || sizeMap.small;
+  } else {
+    s.width = '24px'; s.height = '24px'; s.padding = '0';
+    s.display = 'inline-flex'; s.alignItems = 'center'; s.justifyContent = 'center';
+  }
+  if (p.buyBtnBorder && p.buyBtnBorder !== 'transparent') s.border = '1px solid ' + p.buyBtnBorder;
   return s;
 }
 function imageRadius(p) {
