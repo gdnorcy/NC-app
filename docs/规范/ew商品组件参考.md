@@ -15,7 +15,7 @@
 
 ### 配置参数
 - **样式**：默认/投影/描边
-- **选择风格**：6种缩略图（当前第1种=左图右文）
+- **选择风格**：7种缩略图（DOM实测 `document.querySelectorAll('.ivu-radio-group.goods label').length` = 7），原版PNG已下载到 `web-admin/src/assets/design-thumbs/`
 - **选择商品**：全部商品/选择分类/选择分组（单选）+ +添加按钮
 - **底部背景**：transparent
 - **商品背景**：#fff
