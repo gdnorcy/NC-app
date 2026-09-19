@@ -491,7 +491,7 @@
 
     <!-- ew 8个商城组件设计器预览（按ew实际DOM结构1:1复刻） -->
     <template v-else-if="comp.type === 'goods-group'">
-      <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)">
+      <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)" :style="{ '--gg-gap': (comp.props.goodsGap||12) + 'px' }">
         <div class="ew-gg" v-for="g in mallGoods" :key="g.id">
           <div class="ew-gg-img" :class="comp.props.badgeType==='system' ? 'show-icon' : ''">
             <img v-if="g.thumb" :src="resolveUrl(g.thumb)" />
@@ -1540,7 +1540,7 @@ function chRadius(p, i) {
 /* 商城组件预览（编辑端） */
 /* ew商品组7种风格（1:1对照ew computed CSS） */
 .ew-gg-list{display:block;}
-.ew-gg{display:block;overflow:hidden;position:relative;margin-bottom:10px;}
+.ew-gg{display:block;overflow:hidden;position:relative;margin-bottom:var(--gg-gap,12px);}
 .ew-gg-img{display:block;overflow:hidden;background:#f5f5f5;}
 .ew-gg-img img{width:100%;height:100%;object-fit:cover;display:block;}
 .ew-gg-body{display:block;}
