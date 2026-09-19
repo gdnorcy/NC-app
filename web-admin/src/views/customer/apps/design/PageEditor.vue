@@ -371,23 +371,23 @@
                   <div v-else-if="f.control === 'goodsPicker'" class="pe-goods-picker">
                     <div v-if="pickedGoods.length" class="pe-picked-list">
                       <div v-for="g in pickedGoods" :key="g.id" class="pe-picked-item">
-                        <img v-if="g.image" :src="g.image" class="pe-picked-img" />
+                        <img v-if="g.thumb || g.image" :src="g.thumb || g.image" class="pe-picked-img" />
                         <div class="pe-picked-name">{{ g.title }}</div>
                       </div>
-                      <div class="pe-picked-add" @click="openLinkSel(null, null, {pickerMode:'goods'})">+添加</div>
+                      <div class="pe-picked-add" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
                     </div>
-                    <div v-else class="pe-addchild" @click="openLinkSel(null, null, {pickerMode:'goods'})">+添加</div>
+                    <div v-else class="pe-addchild" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
                   </div>
                   <div v-else-if="f.control === 'catPicker'" class="pe-readonly-row">
                     <span class="pe-labeltext">分类</span>
-                    <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat'})">
+                    <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat', key:'catId'})">
                       <input class="pe-readonly-input" :value="selectedComp.props[f.key]" placeholder="请选择分类" readonly />
                       <i class="el-icon-link pe-readonly-icon"></i>
                     </div>
                   </div>
                   <div v-else-if="f.control === 'groupPicker'" class="pe-readonly-row">
                     <span class="pe-labeltext">分组</span>
-                    <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat'})">
+                    <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat', key:'catId'})">
                       <input class="pe-readonly-input" :value="selectedComp.props[f.key]" placeholder="请选择分组" readonly />
                       <i class="el-icon-link pe-readonly-icon"></i>
                     </div>

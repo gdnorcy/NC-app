@@ -37,7 +37,7 @@
               @click="togglePick(g.id)"
             >
               <span class="lk-dot"></span>
-              <img v-if="g.image" :src="g.image" class="lk-goods-img" />
+              <img v-if="g.thumb || g.image" :src="g.thumb || g.image" class="lk-goods-img" />
               <div class="lk-item-info">
                 <div class="lk-item-label">{{ g.title }}</div>
                 <div class="lk-item-value">¥{{ g.price }}</div>
