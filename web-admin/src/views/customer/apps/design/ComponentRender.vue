@@ -491,7 +491,7 @@
 
     <!-- ew 8个商城组件设计器预览（按ew实际DOM结构1:1复刻） -->
     <template v-else-if="comp.type === 'goods-group'">
-      <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
+      <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
         <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff', borderRadius: (comp.props.radiusTop||0)+'px '+(comp.props.radiusBottom||0)+'px' }">
           <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
           <div v-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
@@ -1510,6 +1510,12 @@ function chRadius(p, i) {
 /* 商城组件预览（编辑端） */
 /* ew商品组：上方大图+下方左图右文 */
 .ew-gg-list{display:flex;flex-direction:column;}
+.ew-gg-st3,.ew-gg-st4{display:grid;grid-template-columns:1fr 1fr;}
+.ew-gg-st4 .ew-gg{display:flex;flex-direction:row;}
+.ew-gg-st4 .ew-gg-img{width:80px;flex-shrink:0;}
+.ew-gg-st4 .ew-gg-body{flex:1;padding:8px;}
+.ew-gg-st3 .ew-gg{display:flex;flex-direction:column;}
+.ew-gg-st3 .ew-gg-img{width:100%;height:120px;}
 .ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
 .ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
 .ew-gg-badge img{width:100%;height:100%;}
