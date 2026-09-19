@@ -179,7 +179,7 @@
               <div v-if="sec.fields.length" class="pe-sec">
                 <div v-if="sec.label" class="pe-sec-name">{{ sec.label }}</div>
                 <div v-if="sec.desc" style="font-size:12px;color:#86909C;margin:-6px 0 8px;line-height:1.5;">{{ sec.desc }}</div>
-                <el-form-item v-for="(f, fi) in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'pe-label-top': f.label === '选择商品', 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint', 'pe-when-field': !!f.when }">
+                <el-form-item v-for="(f, fi) in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'pe-label-top': f.label === '选择商品', 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint', 'pe-when-field': !!f.when, 'pe-when-group-start': !!f.when && (!sec.fields[fi-1] || !sec.fields[fi-1].when), 'pe-when-group-end': !!f.when && (!sec.fields[fi+1] || !sec.fields[fi+1].when) }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
@@ -1438,6 +1438,8 @@ async function load() {
           props.marginLR = Math.max(props.marginLeft ?? 0, props.marginRight ?? 0);
           delete props.marginLeft; delete props.marginRight;
         }
+        // buyBtnShow boolean→number 迁移（true→1, false→0）
+        if (typeof props.buyBtnShow === 'boolean') props.buyBtnShow = props.buyBtnShow ? 1 : 0;
         return { ...c, props };
       });
       if (json.meta) {
@@ -1980,9 +1982,10 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-sec { margin-bottom: 14px; }
 .pe-sec-name { font-size: 12px; font-weight: 600; color: #4e5969; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .pe-sec-name::after { content: ''; flex: 1; height: 1px; background: #f0f1f3; }
-.pe-when-field { background: #f7f8fa; border-radius: 0; margin: 0 !important; padding: 8px 10px !important; }
-.pe-when-field:first-of-type { border-radius: 8px 8px 0 0; }
-.pe-when-field:last-of-type { border-radius: 0 0 8px 8px; }
+.pe-when-field { background: #f7f8fa; margin: 0 !important; padding: 8px 10px !important; }
+.pe-when-field + .pe-when-field { border-top: none; }
+.pe-when-group-start { border-radius: 8px 8px 0 0; }
+.pe-when-group-end { border-radius: 0 0 8px 8px; }
 .pe-sec .el-form-item :deep(.required label) { color: #f53f3f; }
 .pe-sec :deep(.el-form-item.required .el-form-item__label::before) { content: '*'; color: #f53f3f; margin-right: 4px; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
