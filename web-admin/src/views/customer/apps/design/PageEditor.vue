@@ -230,6 +230,14 @@
                         <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5"/>
                         <rect :x="(44 - ratioShapes[o.value].w) / 2" :y="(44 - ratioShapes[o.value].h) / 2" :width="ratioShapes[o.value].w" :height="ratioShapes[o.value].h" rx="3" fill="#C9CDD4"/>
                       </svg>
+                      <svg v-else-if="goodsLayoutShapes[String(o.value)]" class="pe-graphic-svg" viewBox="0 0 88 56">
+                        <template v-if="String(o.value)==='1'"><rect x="2" y="4" width="84" height="22" rx="4" fill="#F2F3F5"/><rect x="6" y="8" width="18" height="14" rx="2" fill="#C9CDD4"/><rect x="28" y="9" width="40" height="3" rx="1.5" fill="#C9CDD4"/><rect x="28" y="15" width="25" height="3" rx="1.5" fill="#E5E6EB"/><rect x="72" y="10" width="12" height="10" rx="2" fill="#ef4f4f"/></template>
+                        <template v-else-if="String(o.value)==='2'"><rect x="2" y="4" width="40" height="48" rx="4" fill="#F2F3F5"/><rect x="46" y="4" width="40" height="48" rx="4" fill="#F2F3F5"/><rect x="6" y="8" width="32" height="28" rx="2" fill="#C9CDD4"/><rect x="50" y="8" width="32" height="28" rx="2" fill="#C9CDD4"/><rect x="6" y="39" width="20" height="3" rx="1.5" fill="#C9CDD4"/><rect x="50" y="39" width="20" height="3" rx="1.5" fill="#C9CDD4"/></template>
+                        <template v-else-if="String(o.value)==='3'"><rect x="2" y="4" width="27" height="48" rx="4" fill="#F2F3F5"/><rect x="31" y="4" width="27" height="48" rx="4" fill="#F2F3F5"/><rect x="61" y="4" width="25" height="48" rx="4" fill="#F2F3F5"/><rect x="6" y="8" width="19" height="28" rx="2" fill="#C9CDD4"/><rect x="35" y="8" width="19" height="28" rx="2" fill="#C9CDD4"/><rect x="65" y="8" width="17" height="28" rx="2" fill="#C9CDD4"/></template>
+                        <template v-else-if="String(o.value)==='4'"><rect x="2" y="8" width="50" height="40" rx="4" fill="#F2F3F5"/><rect x="56" y="8" width="30" height="40" rx="4" fill="#F2F3F5"/><rect x="6" y="12" width="42" height="24" rx="2" fill="#C9CDD4"/><rect x="60" y="12" width="22" height="24" rx="2" fill="#C9CDD4"/></template>
+                        <template v-else-if="String(o.value)==='5'"><rect x="2" y="4" width="84" height="22" rx="4" fill="#F2F3F5"/><rect x="6" y="8" width="18" height="14" rx="2" fill="#C9CDD4"/><rect x="28" y="9" width="40" height="3" rx="1.5" fill="#C9CDD4"/><rect x="28" y="15" width="25" height="3" rx="1.5" fill="#E5E6EB"/><rect x="6" y="30" width="18" height="14" rx="2" fill="#C9CDD4"/><rect x="28" y="31" width="40" height="3" rx="1.5" fill="#C9CDD4"/><rect x="28" y="37" width="25" height="3" rx="1.5" fill="#E5E6EB"/></template>
+                        <template v-else-if="String(o.value)==='6'"><rect x="2" y="4" width="84" height="16" rx="4" fill="#F2F3F5"/><rect x="6" y="7" width="10" height="10" rx="2" fill="#C9CDD4"/><rect x="20" y="8" width="50" height="3" rx="1.5" fill="#C9CDD4"/><rect x="6" y="24" width="80" height="16" rx="4" fill="#F2F3F5"/><rect x="10" y="27" width="10" height="10" rx="2" fill="#C9CDD4"/><rect x="24" y="28" width="50" height="3" rx="1.5" fill="#C9CDD4"/></template>
+                      </svg>
                       <svg v-else class="pe-graphic-svg" viewBox="0 0 88 56">
                         <rect x="2" y="4" width="40" height="48" rx="6" fill="#F2F3F5"/>
                         <rect x="46" y="4" width="40" height="48" rx="6" fill="#F2F3F5"/>
@@ -966,6 +974,7 @@ const ratioShapes = {
   '1:1': { w: 27, h: 27 },
   '9:16': { w: 22, h: 32 },
 };
+const goodsLayoutShapes = { '1':'', '2':'', '3':'', '4':'', '5':'', '6':'' };
 // 导航栏渲染（按头部设置，照抄云菜鸟：custom=按配置 / immersive=透明悬浮 / official=白底深字固定样式）
 // 方案一头部渲染数据源：跟随全局默认时用全局 s1 覆盖页面对应字段（背景/标题/类型等），自定义本页时用页面 meta.header
 const hdr = computed(() => {
