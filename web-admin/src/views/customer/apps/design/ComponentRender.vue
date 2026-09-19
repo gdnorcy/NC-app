@@ -1543,7 +1543,7 @@ function chRadius(p, i) {
 .ew-gg-name{font-size:14px;color:#333;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ew-gg-sub{font-size:12px;color:#999;line-height:1.4;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ew-gg-sales{font-size:11px;color:#999;margin-top:4px;}
-.ew-gg-price{font-size:14px;color:#ff5555;font-weight:700;}
+.ew-gg-price{flex:1;font-size:14px;color:#ff5555;font-weight:700;}
 .ew-gg-price small{font-size:11px;font-weight:400;}
 .ew-gg-original{font-size:11px;color:#ccc;text-decoration:line-through;margin-left:4px;}
 .ew-gg-buybtn{display:inline-block;padding:4px 12px;background:#ff5555;color:#fff;font-size:12px;border-radius:4px;}
@@ -1553,7 +1553,7 @@ function chRadius(p, i) {
 .ew-gg-st1 .ew-gg{width:100%;background:#fff;border-radius:4px;}
 .ew-gg-st1 .ew-gg-img{width:100%;height:162px;float:none;}
 .ew-gg-st1 .ew-gg-body{width:100%;padding:10px 12px 12px;}
-.ew-gg-st1 .ew-gg-saleline{display:flex;align-items:center;justify-content:flex-end;margin-top:8px;}
+.ew-gg-st1 .ew-gg-saleline{display:flex;align-items:center;margin-top:8px;}
 
 /* st2 (goods,list): 单列左图右文 图130px */
 .ew-gg-st2{margin:6px 6px 4px;}
