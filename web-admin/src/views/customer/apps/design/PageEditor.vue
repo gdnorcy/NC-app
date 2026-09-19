@@ -370,11 +370,11 @@
                   </el-input>
                   <div v-else-if="f.control === 'goodsPicker'" class="pe-goods-picker">
                     <div v-if="pickedGoods.length" class="pe-picked-list">
-                      <div v-for="g in pickedGoods" :key="g.id" class="pe-picked-item">
-                        <img v-if="g.thumb || g.image" :src="g.thumb || g.image" class="pe-picked-img" />
+                      <div v-for="g in pickedGoods" :key="g.id" class="pe-picked-item" style="width:60px;flex-shrink:0;">
+                        <img v-if="g.thumb || g.image" :src="g.thumb || g.image" style="width:60px;height:60px;object-fit:cover;border-radius:4px;display:block;" />
                         <div class="pe-picked-name">{{ g.title }}</div>
                       </div>
-                      <div class="pe-picked-add" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
+                      <div class="pe-picked-add" style="width:60px;height:60px;font-size:12px;" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
                     </div>
                     <div v-else class="pe-addchild" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
                   </div>
