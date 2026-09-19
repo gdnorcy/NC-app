@@ -493,9 +493,13 @@
     <template v-else-if="comp.type === 'goods-group'">
       <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)">
         <div class="ew-gg" v-for="g in mallGoods" :key="g.id">
-          <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" /><div v-else class="ew-gg-ph"></div></div>
-          <div v-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
-          <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
+          <div class="ew-gg-img" :class="comp.props.badgeType==='system' ? 'show-icon' : ''">
+            <img v-if="g.thumb" :src="resolveUrl(g.thumb)" />
+            <div v-else class="ew-gg-ph"></div>
+            <div v-if="comp.props.badgeType==='system'" class="ew-gg-flag">{{ g.titleTag || "热卖" }}</div>
+            <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
+            <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
+          </div>
           <div class="ew-gg-body">
             <div v-if="comp.props.showTag!==false" class="ew-gg-tag-line"><span class="ew-gg-tag">标题标签</span></div>
             <div v-if="comp.props.showTitle!==false" class="ew-gg-name" :style="{color: comp.props.titleColor||'#333'}">{{ g.title || '商品标题' }}</div>
@@ -1601,6 +1605,8 @@ function chRadius(p, i) {
 .ew-gg-st7 .ew-gg-body{width:100%;padding:8px 6px;}
 .ew-gg-st7 .ew-gg-saleline{display:flex;align-items:center;margin-top:4px;}
 .ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
+.ew-gg-img{position:relative;}
+.ew-gg-flag{position:absolute;top:0;left:0;background:#ff5555;color:#fff;font-size:12px;padding:2px 8px;z-index:2;border-radius:0 0 4px 0;}
 .ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
 .ew-gg-badge img{width:100%;height:100%;}
 .ew-gg-badge-text{position:absolute;top:0;left:0;background:#F53F3F;color:#fff;font-size:10px;padding:2px 6px;z-index:2;}
