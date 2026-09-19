@@ -500,9 +500,13 @@
             <span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span>
             <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">
               <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
-              <template v-else-if="comp.props.buyBtnStyle==='buybtn6'">+</template>
-              <template v-else-if="comp.props.buyBtnStyle==='buybtn3'">🛒</template>
-              <template v-else-if="comp.props.buyBtnStyle==='buybtn4'">🛒</template>
+              <template v-else-if="comp.props.buyBtnStyle==='buybtn6'" style="font-size:16px;line-height:1;">+</template>
+              <template v-else-if="comp.props.buyBtnStyle==='buybtn3'">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39L8 18h13l-2-9H5.12"/></svg>
+              </template>
+              <template v-else-if="comp.props.buyBtnStyle==='buybtn4'">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13.07h7.45c.75 0 1.41-.41 1.75-1.03l3.24-5.85c.08-.13.11-.28.11-.42 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+              </template>
             </span>
           </div>
         </div>

@@ -1031,7 +1031,7 @@ export const componentRegistry = [
       bottomBg:'transparent', productBg:'#fff',
       showTitle:true, showSub:true, showPrice:true, showOrig:false, showSales:false, showTag:true, showMerchant:false, showMemberPrice:false, showNewUserPrice:false,
       titleColor:'#37383A', subColor:'#999ca7', priceColor:'#fd463e', origColor:'#999CA7', salesColor:'#999CA7',
-      buyBtnShow:1, buyBtnStyle:'buybtn1', buyBtnText:'购买', buyBtnColor:'#fff', btnColorMode:1, buyBtnBg:'#ef4f4f', buyBtnBorder:'transparent', buyBtnRadius:4, buyBtnSize:'small', cartAction:0,
+      buyBtnShow:1, buyBtnStyle:'buybtn1', buyBtnText:'购买', buyBtnColor:'transparent', btnColorMode:1, buyBtnBg:'#ef4f4f', buyBtnBorder:'transparent', buyBtnRadius:4, buyBtnSize:'small', cartAction:0,
       badgeType:'none', cartAction:'detail',
       memberLevel:'all', limit:4, marginLR:0, radiusTop:4, radiusBottom:4, marginTop:0, marginBottom:0 },
     schema: [
@@ -1063,7 +1063,7 @@ export const componentRegistry = [
       { key:'showMerchant', label:'商户名称', control:'switch', section:'content', group:'显示内容' },
       { key:'buyBtnShow', label:'显示', control:'radio', section:'content', group:'购物车按钮', options:[{label:'显示',value:1},{label:'隐藏',value:0}] },
       { key:'buyBtnStyle', label:'样式', control:'radio', graphic:true, thumbSize:36, section:'content', group:'购物车按钮', options:[{label:'',value:'buybtn1',img:'__buyBtn1'},{label:'',value:'buybtn6',img:'__buyBtn2'},{label:'',value:'buybtn3',img:'__buyBtn3'},{label:'',value:'buybtn4',img:'__buyBtn4'}], when:{buyBtnShow:1} },
-      { key:'buyBtnText', label:'文字', control:'input', section:'content', when:{buyBtnShow:1} },
+      { key:'buyBtnText', label:'文字', control:'input', section:'content', maxlength:4, when:{buyBtnShow:1} },
       { key:'buyBtnColor', label:'颜色', control:'color', section:'content', when:{buyBtnShow:1} },
       { key:'buyBtnRadius', label:'圆角', control:'slider', section:'content', min:0, max:20, when:{buyBtnShow:1} },
       { key:'btnColorMode', label:'背景', control:'radio', section:'content', options:[{label:'跟随主题风格',value:1},{label:'自定义',value:0}], when:{buyBtnShow:1} },
