@@ -1584,6 +1584,7 @@ function onCubeStyleChange(v) {
 const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false, mode: 'link' });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
+  linkSel.mode = listField?.pickerMode || 'link';
   if (selectedComp.value) {
     if (typeof listIdx === 'number' && typeof fieldIdx === 'number' && listField) {
       const items = selectedComp.value.props[listField.key] || [];
