@@ -850,6 +850,10 @@ import goodsList from '../../../../assets/design-thumbs/goods_list.png';
 import twoGoodsTwo from '../../../../assets/design-thumbs/twoGoods_two.png';
 import twoGoodsList2 from '../../../../assets/design-thumbs/twoGoods_list2.png';
 import otherGoodsThree3 from '../../../../assets/design-thumbs/otherGoods_three3.png';
+import buyBtn1 from '../../../../assets/design-thumbs/buyBtn1.png';
+import buyBtn2 from '../../../../assets/design-thumbs/buyBtn2.png';
+import buyBtn3 from '../../../../assets/design-thumbs/buyBtn3.png';
+import buyBtn4 from '../../../../assets/design-thumbs/buyBtn4.png';
 import otherGoodsThree from '../../../../assets/design-thumbs/otherGoods_three.png';
 import otherGoodsThree2 from '../../../../assets/design-thumbs/otherGoods_three2.png';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
@@ -1011,7 +1015,7 @@ const ratioShapes = {
   '9:16': { w: 22, h: 32 },
 };
 const goodsLayoutShapes = { '1':'', '2':'', '3':'', '4':'', '5':'', '6':'', '7':'' };
-const thumbMap = { __goods_one: goodsOne, __goods_list: goodsList, __twoGoods_two: twoGoodsTwo, __twoGoods_list2: twoGoodsList2, __otherGoods_three3: otherGoodsThree3, __otherGoods_three: otherGoodsThree, __otherGoods_three2: otherGoodsThree2 };
+const thumbMap = { __goods_one: goodsOne, __goods_list: goodsList, __twoGoods_two: twoGoodsTwo, __twoGoods_list2: twoGoodsList2, __otherGoods_three3: otherGoodsThree3, __otherGoods_three: otherGoodsThree, __otherGoods_three2: otherGoodsThree2, __buyBtn1: buyBtn1, __buyBtn2: buyBtn2, __buyBtn3: buyBtn3, __buyBtn4: buyBtn4 };
 // 导航栏渲染（按头部设置，照抄云菜鸟：custom=按配置 / immersive=透明悬浮 / official=白底深字固定样式）
 // 方案一头部渲染数据源：跟随全局默认时用全局 s1 覆盖页面对应字段（背景/标题/类型等），自定义本页时用页面 meta.header
 const hdr = computed(() => {
