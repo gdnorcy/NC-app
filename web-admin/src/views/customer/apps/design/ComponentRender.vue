@@ -612,18 +612,7 @@
 </template>
 
 <script setup>
-function startSwiper() {
-  if (props.comp.type === 'swiper' && swiperItems.value.length > 1) {
-    swTimer = setInterval(() => { sIdx.value = (sIdx.value + 1) % swiperItems.value.length; }, props.comp.props.interval || 4000);
-  }
-}
-onMounted(startSwiper);
-onBeforeUnmount(() => { if (swTimer) clearInterval(swTimer); });
-watch(() => props.comp.props.items, () => {
-  if (sIdx.value >= swiperItems.value.length) sIdx.value = 0;
-  startSwiper();
-}, { deep: true });
-watch(() => props.comp.props.interval, startSwiper);
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
@@ -665,6 +654,20 @@ const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fo
 // 主标题族兜底标题文字族文案（存量组件无 titleText）
 const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
 const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null } });
+
+
+function startSwiper() {
+  if (props.comp.type === 'swiper' && swiperItems.value.length > 1) {
+    swTimer = setInterval(() => { sIdx.value = (sIdx.value + 1) % swiperItems.value.length; }, props.comp.props.interval || 4000);
+  }
+}
+onMounted(startSwiper);
+onBeforeUnmount(() => { if (swTimer) clearInterval(swTimer); });
+watch(() => props.comp.props.items, () => {
+  if (sIdx.value >= swiperItems.value.length) sIdx.value = 0;
+  startSwiper();
+}, { deep: true });
+watch(() => props.comp.props.interval, startSwiper);
 const emit = defineEmits(['cell-select']);
 
 // 全景场景组件：编辑端预览拉取租户真实方案
