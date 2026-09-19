@@ -1263,7 +1263,7 @@ const schemaSections = computed(() => {
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;
     if (f.whenNotStyle && f.whenNotStyle.includes(Number(props.styleType))) return false;
-    return !f.when || Object.entries(f.when).every(([k, v]) => props[k] === v || String(props[k]) === String(v));
+    return !f.when || Object.entries(f.when).every(([k, v]) => props[k] === v || String(props[k]) === String(v) || (v === 1 && props[k] === true) || (v === 0 && props[k] === false));
   };
   const grpFields = def.schema.filter((f) => f.group && whenOk(f));
   if (grpFields.length) {
@@ -1860,7 +1860,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-group-caret.open { transform: rotate(90deg); }
 .pe-group-name { font-weight: 600; }
 .pe-group-n { margin-left: 2px; font-size: 11px; color: #86909c; background: #f2f3f5; border-radius: 10px; padding: 0 8px; line-height: 18px; }
-.pe-group-body { padding: 2px 0; }
+.pe-group-body { padding: 8px 10px; background: #f7f8fa; border-radius: 8px; margin: 4px 0; }
 .pe-lib-item {
   display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px;
   border-radius: 8px; margin-bottom: 2px; cursor: grab;
