@@ -373,14 +373,22 @@
                       <span>已选 {{ (selectedComp.props[f.key]||'').split(',').filter(x=>x).length }} 个商品</span>
                       <el-button size="small" text @click="openLinkSel(null, null, {pickerMode:'goods'})">修改</el-button>
                     </div>
-                    <div v-else class="pe-add-child" @click="openLinkSel(null, null, {pickerMode:'goods'})">+添加</div>
+                    <div v-else class="pe-addchild" @click="openLinkSel(null, null, {pickerMode:'goods'})">+添加</div>
                   </div>
-                  <el-input v-else-if="f.control === 'catPicker'" v-model="selectedComp.props[f.key]" placeholder="请选择分类" readonly>
-                    <template #append><el-button @click="openLinkSel(null, null, {pickerMode:'cat'})">选择</el-button></template>
-                  </el-input>
-                  <el-input v-else-if="f.control === 'groupPicker'" v-model="selectedComp.props[f.key]" placeholder="请选择分组" readonly>
-                    <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
-                  </el-input>
+                  <div v-else-if="f.control === 'catPicker'" class="pe-readonly-row">
+                    <span class="pe-labeltext">分类</span>
+                    <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat'})">
+                      <input class="pe-readonly-input" :value="selectedComp.props[f.key]" placeholder="请选择分类" readonly />
+                      <i class="el-icon-link pe-readonly-icon"></i>
+                    </div>
+                  </div>
+                  <div v-else-if="f.control === 'groupPicker'" class="pe-readonly-row">
+                    <span class="pe-labeltext">分组</span>
+                    <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat'})">
+                      <input class="pe-readonly-input" :value="selectedComp.props[f.key]" placeholder="请选择分组" readonly />
+                      <i class="el-icon-link pe-readonly-icon"></i>
+                    </div>
+                  </div>
                   <el-switch v-else-if="f.control === 'switch'" v-model="selectedComp.props[f.key]" />
                   <el-select v-else-if="f.control === 'select'" v-model="selectedComp.props[f.key]" size="small" style="width:100%">
                     <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
@@ -2042,4 +2050,12 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-add-child { border:1px dashed #c9cdd4; border-radius:6px; padding:10px; text-align:center; color:#4e5969; cursor:pointer; font-size:13px; }
 .pe-add-child:hover { border-color:#165dff; color:#165dff; }
 .pe-picked-goods { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f7f8fa; border-radius:6px; font-size:13px; }
+
+.pe-addchild { background:#f5f7fa; border-radius:4px; padding:10px; text-align:center; color:#4e5969; cursor:pointer; font-size:13px; }
+.pe-addchild:hover { background:#e8f3ff; color:#165dff; }
+.pe-readonly-row { display:flex; align-items:center; gap:8px; }
+.pe-labeltext { font-size:13px; color:#4e5969; white-space:nowrap; }
+.pe-readonly-div { flex:1; position:relative; cursor:pointer; }
+.pe-readonly-input { width:100%; height:32px; padding:0 28px 0 10px; border:1px solid #dcdfe6; border-radius:4px; background:#f5f7fa; font-size:13px; color:#606266; outline:none; box-sizing:border-box; }
+.pe-readonly-icon { position:absolute; right:8px; top:50%; transform:translateY(-50%); color:#909399; font-size:14px; }
 </style>
