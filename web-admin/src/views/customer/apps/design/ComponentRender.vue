@@ -491,28 +491,26 @@
 
     <!-- ew 8个商城组件设计器预览（按ew实际DOM结构1:1复刻） -->
     <template v-else-if="comp.type === 'goods-group'">
-      <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
-        <div class="ew-gg" v-for="g in mallGoods" :key="g.id" :style="{ background: comp.props.productBg||'#fff', borderRadius: (comp.props.radiusTop||0)+'px '+(comp.props.radiusBottom||0)+'px' }">
-          <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" style="width:100%;height:100%;object-fit:cover;" /><div v-else class="ew-gg-ph"></div></div>
+      <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)">
+        <div class="ew-gg" v-for="g in mallGoods" :key="g.id">
+          <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" /><div v-else class="ew-gg-ph"></div></div>
           <div v-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
           <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
           <div class="ew-gg-body">
-            <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
-            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title || '商品标题' }}</span></div>
-            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">{{ g.info || g.subtitle || '' }}</div>
-            <div class="ew-gg-foot">
-              <template v-if="comp.props.showPrice!==false">
-                <span v-if="comp.props.showOrig" class="ew-gg-orig">¥30</span>
-                <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ g.price||0 }}</span><span class="ew-gg-unit">/件</span>
-              </template>
-              <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">
+            <div v-if="comp.props.showTag!==false" class="ew-gg-tag-line"><span class="ew-gg-tag">标题标签</span></div>
+            <div v-if="comp.props.showTitle!==false" class="ew-gg-name" :style="{color: comp.props.titleColor||'#333'}">{{ g.title || '商品标题' }}</div>
+            <div v-if="comp.props.showSub!==false" class="ew-gg-sub" :style="{color: comp.props.subColor||'#999'}" v-html="g.info || g.subtitle || ''"></div>
+            <div v-if="comp.props.styleType!==6 && comp.props.showPrice!==false" class="ew-gg-saleline">
+              <span v-if="comp.props.showOrig" class="ew-gg-original">¥{{ g.market_price||30 }}</span>
+              <span class="ew-gg-price" :style="{color: comp.props.priceColor||'#ff5555'}">¥{{ g.price||0 }}<small>/件</small></span>
+              <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buybtn" :style="buyBtnStyleOf(comp.props)">
                 <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
-                <template v-else-if="comp.props.buyBtnStyle==='buybtn6'" style="font-size:16px;line-height:1;">+</template>
+                <template v-else-if="comp.props.buyBtnStyle==='buybtn6'">+</template>
                 <template v-else-if="comp.props.buyBtnStyle==='buybtn3'">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39L8 18h13l2-9H5.12"/></svg>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39L8 18h13l2-9H5.12"/></svg>
                 </template>
                 <template v-else-if="comp.props.buyBtnStyle==='buybtn4'">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13.07h7.45c.75 0 1.41-.41 1.75-1.03l3.24-5.85c.08-.13.11-.28.11-.42 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13.07h7.45c.75 0 1.41-.41 1.75-1.03l3.24-5.85c.08-.13.11-.28.11-.42 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
                 </template>
               </span>
             </div>
@@ -1536,39 +1534,72 @@ function chRadius(p, i) {
 .comp-render { position: relative; }
 
 /* 商城组件预览（编辑端） */
-/* ew商品组7种风格（1:1对照ew截图） */
-.ew-gg-list{display:flex;flex-direction:column;}
-/* st1 (goods,one): 单列 左图右文（大图100px） */
-.ew-gg-st1{display:flex;flex-direction:column;}
-.ew-gg-st1 .ew-gg{display:flex;flex-direction:row;}
-.ew-gg-st1 .ew-gg-img{width:100px;flex-shrink:0;height:100px;}
-.ew-gg-st1 .ew-gg-body{flex:1;padding:8px;}
-/* st2 (goods,list): 单列紧凑列表 左图右文（小图80px） */
-.ew-gg-st2{display:flex;flex-direction:column;}
-.ew-gg-st2 .ew-gg{display:flex;flex-direction:row;}
-.ew-gg-st2 .ew-gg-img{width:80px;flex-shrink:0;height:80px;}
-.ew-gg-st2 .ew-gg-body{flex:1;padding:6px 8px;}
-/* st3 (twoGoods,two): 单列大图卡片 图上150px */
-.ew-gg-st3{display:flex;flex-direction:column;}
-.ew-gg-st3 .ew-gg{display:flex;flex-direction:column;}
-.ew-gg-st3 .ew-gg-img{width:100%;height:150px;}
-/* st4 (twoGoods,list2): 双列 左图右文（小图60px） */
-.ew-gg-st4{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.ew-gg-st4 .ew-gg{display:flex;flex-direction:row;}
-.ew-gg-st4 .ew-gg-img{width:60px;flex-shrink:0;height:60px;}
-.ew-gg-st4 .ew-gg-body{flex:1;padding:4px;}
-/* st5 (otherGoods,three3): 单列大图卡片 图上120px */
-.ew-gg-st5{display:flex;flex-direction:column;}
-.ew-gg-st5 .ew-gg{display:flex;flex-direction:column;}
-.ew-gg-st5 .ew-gg-img{width:100%;height:120px;}
-/* st6 (otherGoods,three): 单列大图卡片 图上100px 简洁无价格 */
-.ew-gg-st6{display:flex;flex-direction:column;}
-.ew-gg-st6 .ew-gg{display:flex;flex-direction:column;}
-.ew-gg-st6 .ew-gg-img{width:100%;height:100px;}
-/* st7 (otherGoods,three2): 单列 图上80px */
-.ew-gg-st7{display:flex;flex-direction:column;}
-.ew-gg-st7 .ew-gg{display:flex;flex-direction:column;}
-.ew-gg-st7 .ew-gg-img{width:100%;height:80px;}
+/* ew商品组7种风格（1:1对照ew computed CSS） */
+.ew-gg-list{display:block;}
+.ew-gg{display:block;overflow:hidden;position:relative;margin-bottom:10px;}
+.ew-gg-img{display:block;overflow:hidden;background:#f5f5f5;}
+.ew-gg-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.ew-gg-body{display:block;}
+.ew-gg-name{font-size:14px;color:#333;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ew-gg-sub{font-size:12px;color:#999;line-height:1.4;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ew-gg-sales{font-size:11px;color:#999;margin-top:4px;}
+.ew-gg-price{font-size:14px;color:#ff5555;font-weight:700;}
+.ew-gg-price small{font-size:11px;font-weight:400;}
+.ew-gg-original{font-size:11px;color:#ccc;text-decoration:line-through;margin-left:4px;}
+.ew-gg-buybtn{display:inline-block;padding:4px 12px;background:#ff5555;color:#fff;font-size:12px;border-radius:4px;}
+
+/* st1 (goods,one): 单列全宽大图 图上162px 文字下 */
+.ew-gg-st1{margin:12px;}
+.ew-gg-st1 .ew-gg{width:100%;background:#fff;border-radius:4px;}
+.ew-gg-st1 .ew-gg-img{width:100%;height:162px;float:none;}
+.ew-gg-st1 .ew-gg-body{width:100%;padding:10px 12px 12px;}
+.ew-gg-st1 .ew-gg-saleline{display:flex;align-items:center;justify-content:flex-end;margin-top:8px;}
+
+/* st2 (goods,list): 单列左图右文 图130px */
+.ew-gg-st2{margin:6px 6px 4px;}
+.ew-gg-st2 .ew-gg{width:100%;background:#fff;border-radius:4px;}
+.ew-gg-st2 .ew-gg-img{width:130px;height:130px;float:left;}
+.ew-gg-st2 .ew-gg-body{display:flex;flex-direction:column;height:130px;padding:8px 12px;overflow:hidden;}
+.ew-gg-st2 .ew-gg-saleline{display:flex;align-items:center;margin-top:auto;}
+
+/* st3 (twoGoods,two): 双列大图卡片 图172px */
+.ew-gg-st3{margin:8.5px;overflow:hidden;}
+.ew-gg-st3 .ew-gg{float:left;width:48%;margin-right:2%;background:#fff;border-radius:4px;}
+.ew-gg-st3 .ew-gg:last-child{margin-right:0;}
+.ew-gg-st3 .ew-gg-img{width:100%;height:172px;float:none;}
+.ew-gg-st3 .ew-gg-body{width:100%;padding:8px 12px;}
+.ew-gg-st3 .ew-gg-saleline{display:flex;align-items:flex-end;justify-content:flex-end;margin-top:8px;}
+
+/* st4 (twoGoods,list2): 双列左图右文紧凑 图80px */
+.ew-gg-st4{margin:8.5px;overflow:hidden;}
+.ew-gg-st4 .ew-gg{float:left;width:48%;margin-right:2%;background:#fff;border-radius:4px;}
+.ew-gg-st4 .ew-gg:last-child{margin-right:0;}
+.ew-gg-st4 .ew-gg-img{width:80px;height:80px;float:left;}
+.ew-gg-st4 .ew-gg-body{display:block;height:80px;padding:4px;overflow:hidden;}
+.ew-gg-st4 .ew-gg-saleline{display:flex;align-items:center;}
+
+/* st5 (otherGoods,three3): 三列卡片 图112px */
+.ew-gg-st5{margin:1.5px 8.5px;overflow:hidden;}
+.ew-gg-st5 .ew-gg{float:left;width:31.5%;margin-right:2.5%;background:#fff;border-radius:4px;}
+.ew-gg-st5 .ew-gg:last-child{margin-right:0;}
+.ew-gg-st5 .ew-gg-img{width:100%;height:112px;float:none;}
+.ew-gg-st5 .ew-gg-body{width:100%;padding:8px 6px;}
+.ew-gg-st5 .ew-gg-saleline{display:flex;align-items:center;margin-top:4px;}
+
+/* st6 (otherGoods,three): 三列简洁卡片 图112px 无价格 */
+.ew-gg-st6{display:flex;flex-direction:row;flex-wrap:wrap;margin:1.5px 8.5px;}
+.ew-gg-st6 .ew-gg{width:31.5%;margin-right:2.5%;background:#fff;border-radius:4px;}
+.ew-gg-st6 .ew-gg:last-child{margin-right:0;}
+.ew-gg-st6 .ew-gg-img{width:100%;height:112px;float:none;}
+.ew-gg-st6 .ew-gg-body{width:100%;padding:8px 6px;}
+
+/* st7 (otherGoods,three2): 三列卡片 图100px */
+.ew-gg-st7{display:flex;flex-direction:row;flex-wrap:wrap;margin:1.5px 8.5px;}
+.ew-gg-st7 .ew-gg{width:31.5%;margin-right:2.5%;background:#fff;border-radius:4px;}
+.ew-gg-st7 .ew-gg:last-child{margin-right:0;}
+.ew-gg-st7 .ew-gg-img{width:100%;height:100px;float:none;}
+.ew-gg-st7 .ew-gg-body{width:100%;padding:8px 6px;}
+.ew-gg-st7 .ew-gg-saleline{display:flex;align-items:center;margin-top:4px;}
 .ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
 .ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
 .ew-gg-badge img{width:100%;height:100%;}
