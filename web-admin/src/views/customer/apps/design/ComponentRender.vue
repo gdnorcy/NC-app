@@ -1536,37 +1536,39 @@ function chRadius(p, i) {
 .comp-render { position: relative; }
 
 /* 商城组件预览（编辑端） */
-/* ew商品组7种风格 */
+/* ew商品组7种风格（1:1对照ew截图） */
 .ew-gg-list{display:flex;flex-direction:column;}
-/* st1: 双列网格 图上文字下（默认） */
-.ew-gg-st1{display:grid;grid-template-columns:1fr 1fr;}
-/* st2: 单列 左图右文 */
+/* st1 (goods,one): 单列 左图右文（大图100px） */
+.ew-gg-st1{display:flex;flex-direction:column;}
+.ew-gg-st1 .ew-gg{display:flex;flex-direction:row;}
+.ew-gg-st1 .ew-gg-img{width:100px;flex-shrink:0;height:100px;}
+.ew-gg-st1 .ew-gg-body{flex:1;padding:8px;}
+/* st2 (goods,list): 单列紧凑列表 左图右文（小图80px） */
 .ew-gg-st2{display:flex;flex-direction:column;}
 .ew-gg-st2 .ew-gg{display:flex;flex-direction:row;}
-.ew-gg-st2 .ew-gg-img{width:100px;flex-shrink:0;height:100px;}
-.ew-gg-st2 .ew-gg-body{flex:1;padding:8px;display:flex;flex-direction:column;}
-/* st3: 双列 图上文字下（大图） */
-.ew-gg-st3{display:grid;grid-template-columns:1fr 1fr;}
+.ew-gg-st2 .ew-gg-img{width:80px;flex-shrink:0;height:80px;}
+.ew-gg-st2 .ew-gg-body{flex:1;padding:6px 8px;}
+/* st3 (twoGoods,two): 单列大图卡片 图上150px */
+.ew-gg-st3{display:flex;flex-direction:column;}
 .ew-gg-st3 .ew-gg{display:flex;flex-direction:column;}
-.ew-gg-st3 .ew-gg-img{width:100%;height:140px;}
-/* st4: 双列 左图右文 */
-.ew-gg-st4{display:grid;grid-template-columns:1fr 1fr;}
+.ew-gg-st3 .ew-gg-img{width:100%;height:150px;}
+/* st4 (twoGoods,list2): 双列 左图右文（小图60px） */
+.ew-gg-st4{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .ew-gg-st4 .ew-gg{display:flex;flex-direction:row;}
-.ew-gg-st4 .ew-gg-img{width:80px;flex-shrink:0;height:80px;}
-.ew-gg-st4 .ew-gg-body{flex:1;padding:6px;}
-/* st5: 单列大图卡片 */
+.ew-gg-st4 .ew-gg-img{width:60px;flex-shrink:0;height:60px;}
+.ew-gg-st4 .ew-gg-body{flex:1;padding:4px;}
+/* st5 (otherGoods,three3): 单列大图卡片 图上120px */
 .ew-gg-st5{display:flex;flex-direction:column;}
 .ew-gg-st5 .ew-gg{display:flex;flex-direction:column;}
-.ew-gg-st5 .ew-gg-img{width:100%;height:180px;}
-/* st6: 单列紧凑列表 */
+.ew-gg-st5 .ew-gg-img{width:100%;height:120px;}
+/* st6 (otherGoods,three): 单列大图卡片 图上100px 简洁无价格 */
 .ew-gg-st6{display:flex;flex-direction:column;}
-.ew-gg-st6 .ew-gg{display:flex;flex-direction:row;}
-.ew-gg-st6 .ew-gg-img{width:80px;flex-shrink:0;height:80px;}
-.ew-gg-st6 .ew-gg-body{flex:1;padding:6px;}
-/* st7: 双列瀑布流 */
-.ew-gg-st7{display:grid;grid-template-columns:1fr 1fr;}
+.ew-gg-st6 .ew-gg{display:flex;flex-direction:column;}
+.ew-gg-st6 .ew-gg-img{width:100%;height:100px;}
+/* st7 (otherGoods,three2): 单列 图上80px */
+.ew-gg-st7{display:flex;flex-direction:column;}
 .ew-gg-st7 .ew-gg{display:flex;flex-direction:column;}
-.ew-gg-st7 .ew-gg-img{width:100%;height:110px;}
+.ew-gg-st7 .ew-gg-img{width:100%;height:80px;}
 .ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
 .ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
 .ew-gg-badge img{width:100%;height:100%;}
