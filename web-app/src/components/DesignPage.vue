@@ -521,12 +521,16 @@
           <view class="ew-gg-body">
             <view class="ew-gg-line1">
               <span v-if="c.props.showTag!==false" class="ew-gg-tag">{{ c.props.tagText || '标题标签' }}</span>
-              <span class="ew-gg-title">{{ g.title }}</span>
+              <span v-if="c.props.showTitle!==false" class="ew-gg-title" :style="{color:c.props.titleColor||'#37383a'}">{{ g.title }}</span>
             </view>
-            <view v-if="g.subtitle" class="ew-gg-sub">{{ g.subtitle }}</view>
+            <view v-if="c.props.showSub!==false && g.subtitle" class="ew-gg-sub" :style="{color:c.props.subColor||'#999ca7'}">{{ g.subtitle }}</view>
             <view class="ew-gg-foot">
-              <span class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</span>
-              <span class="ew-gg-unit">/件</span>
+              <template v-if="c.props.showPrice!==false">
+                <span class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(displayPrice(g,c)) }}</span>
+                <span v-if="c.props.showOrig!==false && origPrice(g,c)" class="ew-gg-orig" :style="{color:c.props.origColor||'#999CA7'}">¥{{ yuanFmt(origPrice(g,c)) }}</span>
+              </template>
+              <span v-if="c.props.showSales!==false && g.sales" class="ew-gg-sales" :style="{color:c.props.salesColor||'#999CA7'}">{{ g.sales }}人付款</span>
+              <span v-if="c.props.showMerchant!==false && g.merchantName" class="ew-gg-merchant">{{ g.merchantName }}</span>
               <span v-if="c.props.buyBtnShow!==false" class="ew-gg-buy" :style="{background:c.props.buyBtnBg||'#ef4f4f',color:c.props.buyBtnColor||'#fff'}">{{ c.props.buyBtnText||'购买' }}</span>
             </view>
           </view>
@@ -650,6 +654,20 @@ import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
 import { mallApi } from '../utils/mallApi.js';
 import { yuanFmt } from '../utils/mallUtil.js';
 import SIcon from './SIcon.vue';
+
+// 价格优先级：新人价 > 会员价 > 划线价 > 原价
+function displayPrice(g, c) {
+  const p = c.props || {};
+  if (p.showNewUserPrice && g.newUserPrice != null && g.newUserPrice > 0) return g.newUserPrice;
+  if (p.showMemberPrice && g.memberPrice != null && g.memberPrice > 0) return g.memberPrice;
+  return g.price;
+}
+function origPrice(g, c) {
+  const p = c.props || {};
+  if (!p.showOrig) return 0;
+  if (g.origPrice && g.origPrice > g.price) return g.origPrice;
+  return 0;
+}
 const props = defineProps({
   comps: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },

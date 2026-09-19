@@ -2184,6 +2184,9 @@ function seedGoods(db) {
   if (!colExists(db, 'goods', 'card_key_id')) {
     db.exec("ALTER TABLE goods ADD COLUMN card_key_id INTEGER");
   }
+  if (!colExists(db, 'goods', 'new_user_price')) {
+    db.exec("ALTER TABLE goods ADD COLUMN new_user_price REAL NOT NULL DEFAULT 0");
+  }
   // 礼品卡券·实物卡绑定商品（2026-09-18 对齐菜鸟云 giftcard type=2：实物卡把面额替换为「指定商品」）
   if (!colExists(db, 'giftcard', 'product_id')) {
     db.exec("ALTER TABLE giftcard ADD COLUMN product_id INTEGER NOT NULL DEFAULT 0");

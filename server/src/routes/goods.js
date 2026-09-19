@@ -952,6 +952,7 @@ function rowToGoods(r) {
     weight: r.weight,
     price: r.price,
     marketPrice: r.market_price,
+    newUserPrice: r.new_user_price || 0,
     costPrice: r.cost_price,
     goodsNo: r.goods_no,
     memberPrice: parse(r.member_price, {}),
