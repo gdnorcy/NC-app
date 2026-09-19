@@ -391,6 +391,11 @@
                     </div>
                   </div>
                   <el-switch v-else-if="f.control === 'switch'" v-model="selectedComp.props[f.key]" />
+                  <div v-else-if="f.control === 'switchColor'" style="display:flex;align-items:center;gap:8px;width:100%;">
+                    <el-checkbox :model-value="selectedComp.props[f.key]" @change="v => selectedComp.props[f.key] = v" />
+                    <el-color-picker v-model="selectedComp.props[f.colorKey]" size="small" />
+                    <span style="font-size:12px;color:#86909C;flex:1;">{{ selectedComp.props[f.colorKey] }}</span>
+                  </div>
                   <el-select v-else-if="f.control === 'select'" v-model="selectedComp.props[f.key]" size="small" style="width:100%">
                     <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
                   </el-select>
