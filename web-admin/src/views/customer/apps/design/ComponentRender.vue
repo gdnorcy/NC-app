@@ -494,7 +494,8 @@
       <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
         <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff', borderRadius: (comp.props.radiusTop||0)+'px '+(comp.props.radiusBottom||0)+'px' }">
           <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
-          <div v-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
+          <div v-if="comp.props.badgeType==='system'" class="ew-gg-badge-system">新品</div>
+          <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
           <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
           <div class="ew-gg-body">
             <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
@@ -1513,15 +1514,21 @@ function chRadius(p, i) {
 /* 商城组件预览（编辑端） */
 /* ew商品组：上方大图+下方左图右文 */
 .ew-gg-list{display:flex;flex-direction:column;}
-.ew-gg-st3,.ew-gg-st4{display:grid;grid-template-columns:1fr 1fr;}
-.ew-gg-st4 .ew-gg{display:flex;flex-direction:row;}
+.ew-gg-st3,.ew-gg-st5,.ew-gg-st6,.ew-gg-st7{display:grid;grid-template-columns:1fr 1fr;}
+.ew-gg-st5,.ew-gg-st6,.ew-gg-st7{grid-template-columns:1fr 1fr 1fr;}
+.ew-gg-st4,.ew-gg-st6{display:grid;grid-template-columns:1fr 1fr;}
+.ew-gg-st6{grid-template-columns:1fr 1fr 1fr;}
+.ew-gg-st4 .ew-gg,.ew-gg-st6 .ew-gg{display:flex;flex-direction:row;}
 .ew-gg-st4 .ew-gg-img{width:80px;flex-shrink:0;}
-.ew-gg-st4 .ew-gg-body{flex:1;padding:8px;}
-.ew-gg-st3 .ew-gg{display:flex;flex-direction:column;}
+.ew-gg-st6 .ew-gg-img{width:70px;flex-shrink:0;}
+.ew-gg-st4 .ew-gg-body,.ew-gg-st6 .ew-gg-body{flex:1;padding:8px;}
+.ew-gg-st3 .ew-gg,.ew-gg-st5 .ew-gg,.ew-gg-st7 .ew-gg{display:flex;flex-direction:column;}
 .ew-gg-st3 .ew-gg-img{width:100%;height:120px;}
+.ew-gg-st5 .ew-gg-img,.ew-gg-st7 .ew-gg-img{width:100%;height:100px;}
 .ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
 .ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
 .ew-gg-badge img{width:100%;height:100%;}
+.ew-gg-badge-system{position:absolute;top:0;left:0;background:#F53F3F;color:#fff;font-size:10px;padding:2px 6px;z-index:2;}
 .ew-gg-badge-text{position:absolute;top:0;left:0;background:#F53F3F;color:#fff;font-size:10px;padding:2px 6px;z-index:2;}
 .ew-gg-orig{font-size:11px;color:#999;text-decoration:line-through;margin-right:4px;}
 .ew-gg-img{width:100%;height:120px;background:#f2f3f5;}
