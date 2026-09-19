@@ -1062,7 +1062,7 @@ export const componentRegistry = [
       { key:'showTag', label:'标题标签', control:'switch', section:'content', group:'显示内容' },
       { key:'showMerchant', label:'商户名称', control:'switch', section:'content', group:'显示内容' },
       { key:'buyBtnShow', label:'显示', control:'radio', section:'content', group:'购物车按钮', options:[{label:'显示',value:1},{label:'隐藏',value:0}] },
-      { key:'buyBtnStyle', label:'样式', control:'radio', graphic:true, section:'content', group:'购物车按钮', options:[{label:'',value:1,img:'__buyBtn1'},{label:'',value:2,img:'__buyBtn2'},{label:'',value:3,img:'__buyBtn3'},{label:'',value:4,img:'__buyBtn4'}], when:{buyBtnShow:1} },
+      { key:'buyBtnStyle', label:'样式', control:'radio', graphic:true, thumbSize:36, section:'content', group:'购物车按钮', options:[{label:'',value:1,img:'__buyBtn1'},{label:'',value:2,img:'__buyBtn2'},{label:'',value:3,img:'__buyBtn3'},{label:'',value:4,img:'__buyBtn4'}], when:{buyBtnShow:1} },
       { key:'buyBtnText', label:'文字', control:'input', section:'content', when:{buyBtnShow:1} },
       { key:'buyBtnColor', label:'颜色', control:'color', section:'content', when:{buyBtnShow:1} },
       { key:'buyBtnRadius', label:'圆角', control:'slider', section:'content', min:0, max:20, when:{buyBtnShow:1} },

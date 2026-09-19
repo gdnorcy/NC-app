@@ -214,7 +214,7 @@
                       class="pe-graphic-item" :class="{ active: String(selectedComp.props[f.key]) === String(o.value) }"
                       @click="selectedComp.props[f.key] = o.value"
                     >
-                      <img v-if="o.img" :src="thumbMap[o.img]" class="pe-graphic-svg" style="object-fit:contain" />
+                      <img v-if="o.img" :src="thumbMap[o.img]" class="pe-graphic-svg" :style="{objectFit:'contain',width:(f.thumbSize||56)+'px',height:(f.thumbSize||56)+'px'}" />
                       <svg v-else-if="String(o.value) === '1'" class="pe-graphic-svg" viewBox="0 0 44 44">
                         <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5"/>
                         <rect x="13" y="3" width="18" height="38" rx="3" fill="#C9CDD4"/>
