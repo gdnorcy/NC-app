@@ -371,12 +371,12 @@
                   <div v-else-if="f.control === 'goodsPicker'" class="pe-goods-picker">
                     <div v-if="selectedComp.props[f.key]" class="pe-picked-goods">
                       <span>已选 {{ (selectedComp.props[f.key]||'').split(',').filter(x=>x).length }} 个商品</span>
-                      <el-button size="small" text @click="openLinkSel(null, null, f)">修改</el-button>
+                      <el-button size="small" text @click="openLinkSel(null, null, {pickerMode:'goods'})">修改</el-button>
                     </div>
-                    <div v-else class="pe-add-child" @click="openLinkSel(null, null, f)">+添加</div>
+                    <div v-else class="pe-add-child" @click="openLinkSel(null, null, {pickerMode:'goods'})">+添加</div>
                   </div>
                   <el-input v-else-if="f.control === 'catPicker'" v-model="selectedComp.props[f.key]" placeholder="请选择分类" readonly>
-                    <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
+                    <template #append><el-button @click="openLinkSel(null, null, {pickerMode:'cat'})">选择</el-button></template>
                   </el-input>
                   <el-input v-else-if="f.control === 'groupPicker'" v-model="selectedComp.props[f.key]" placeholder="请选择分组" readonly>
                     <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
@@ -786,7 +786,7 @@
     <MaterialPicker v-model="imgSel.show" @confirm="confirmImgSel" />
 
     <!-- 系统链接选择器（分类配置驱动） -->
-    <LinkPicker v-model="linkSel.show" :model-link="linkSel.current" @confirm="confirmLinkSel" />
+    <LinkPicker v-model="linkSel.show" :model-link="linkSel.current" :mode="linkSel.mode || 'link'" @confirm="confirmLinkSel" />
 
     <!-- 热区编辑器（1:1 还原 eweishop：4步步骤条 + 黄色热区框双击添加链接 + 添加热区/保存） -->
     <el-dialog v-model="hsSel.show" title="热区编辑器" width="820px" append-to-body :close-on-click-modal="false">
@@ -1581,7 +1581,7 @@ function onCubeStyleChange(v) {
   selectedComp.value.props.blocks = cubeBlocksForStyle(v);
 }
 // 系统链接选择器：link 字段点「选择」弹窗回填
-const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false });
+const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false, mode: 'link' });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
   if (selectedComp.value) {
