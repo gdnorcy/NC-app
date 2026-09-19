@@ -1045,7 +1045,7 @@ export const componentRegistry = [
         {label:'',value:6,img:'__otherGoods_three'},
         {label:'',value:7,img:'__otherGoods_three2'},
       ] },
-      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', hint:'自动添加时按销量显示商品', options:[{label:'手动选择',value:'manual'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group'}] },
+      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', hint:'自动添加时按销量显示商品', options:[{label:'手动选择',value:'manual'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group',disabled:true}] },
       { key:'goodsIds', label:'', control:'goodsPicker', section:'content', group:'商品来源', when:{source:'manual'} },
       { key:'catId', label:'分类', control:'catPicker', section:'content', group:'商品来源', when:{source:'category'} },
       { key:'groupId', label:'分组', control:'groupPicker', section:'content', group:'商品来源', when:{source:'group'} },
@@ -1094,7 +1094,7 @@ export const componentRegistry = [
     schema: [
       { key:'style', label:'样式', control:'radio', graphic:true, section:'style', options:[{label:'默认',value:'default'},{label:'投影',value:'shadow'},{label:'描边',value:'border'}] },
       { key:'styleType', label:'选择风格', control:'radio', graphic:true, section:'style', group:'选择风格', options:[1,2,3,4].map(v=>({label:'风格'+v,value:v})) },
-      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', options:[{label:'全部商品',value:'all'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group'}] },
+      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', options:[{label:'全部商品',value:'all'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group',disabled:true}] },
       { key:'catId', label:'分类', control:'input', section:'content', when:{source:'category'} },
       { key:'sortBy', label:'排序', control:'radio', section:'content', options:[{label:'不排序',value:'none'},{label:'按上架时间倒序',value:'newDesc'},{label:'按上架时间正序',value:'newAsc'},{label:'按访问量',value:'views'}] },
       { key:'limit', label:'显示数量', control:'slider', section:'content', min:2, max:30, group:'商品来源' },
@@ -1197,7 +1197,7 @@ export const componentRegistry = [
       bottomBg:'transparent', productBg:'#fff', priceColor:'#ff3e1a',
       limit:5, radius:4, marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
-      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', options:[{label:'手动选择',value:'manual'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group'}] },
+      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', options:[{label:'手动选择',value:'manual'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group',disabled:true}] },
       { key:'groupId', label:'分组', control:'input', section:'content', when:{source:'group'} },
       { key:'catId', label:'分类', control:'input', section:'content', when:{source:'category'} },
       { key:'goodsIds', label:'商品ID', control:'input', section:'content', when:{source:'manual'} },
@@ -1222,7 +1222,7 @@ export const componentRegistry = [
       btnText:'查看更多', btnColor:'#5ec01f', btnTextColor:'#ffffff', link:'',
       bottomBg:'transparent', marginTop:0, marginBottom:0, memberLevel:'all' },
     schema: [
-      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', options:[{label:'手动选择',value:'manual'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group'}] },
+      { key:'source', label:'选择商品', control:'radio', section:'content', group:'商品来源', options:[{label:'手动选择',value:'manual'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group',disabled:true}] },
       { key:'goodsIds', label:'商品ID', control:'input', section:'content', when:{source:'manual'} },
       { key:'bgImage', label:'图片(750x510)', control:'image', section:'content' },
       { key:'mainTitle', label:'主标题', control:'input', section:'content' },

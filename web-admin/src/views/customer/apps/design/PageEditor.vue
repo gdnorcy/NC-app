@@ -262,7 +262,7 @@
                     <el-radio-button v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio-button>
                   </el-radio-group>
                   <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
-                    <el-radio v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
+                    <el-radio v-for="o in f.options" :key="o.value" :value="o.value" :disabled="o.disabled">{{ o.label }}</el-radio>
                   </el-radio-group>
                   <!-- 魔方：格子填充方式（属性区编辑，图形化：裁剪铺满/完整显示/拉伸填满/原尺寸） -->
                   <div v-else-if="f.control === 'cube-cell-fill'" class="pe-cube-fill">
