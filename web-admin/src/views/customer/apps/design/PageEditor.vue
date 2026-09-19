@@ -1592,11 +1592,23 @@ function onCubeStyleChange(v) {
   selectedComp.value.props.blocks = cubeBlocksForStyle(v);
 }
 // 系统链接选择器：link 字段点「选择」弹窗回填
+const goodsCache = ref({});
 const pickedGoods = computed(() => {
   const v = selectedComp.value?.props?.goodsIds;
   if (!v) return [];
-  return String(v).split(',').filter(Boolean).map(id => ({ id }));
+  return String(v).split(',').filter(Boolean).map(id => goodsCache.value[id] || { id }).filter(Boolean);
 });
+watch(() => selectedComp.value?.props?.goodsIds, async (v) => {
+  if (!v) return;
+  const ids = String(v).split(',').filter(Boolean);
+  const missing = ids.filter(id => !goodsCache.value[id]);
+  if (!missing.length) return;
+  try {
+    const res = await designCall.get('/customer/goods', { params: { page: 1, pageSize: 200 } });
+    const list = res.list || res.data || [];
+    list.forEach(g => { goodsCache.value[g.id] = g; });
+  } catch (e) { console.error('load goods', e); }
+}, { immediate: true });
 const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false, mode: 'link' });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
