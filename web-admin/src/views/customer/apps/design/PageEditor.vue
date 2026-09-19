@@ -1247,7 +1247,7 @@ const schemaSections = computed(() => {
     const topPlain = def.schema.filter((f) => !f.group && (f.control === 'stylePicker' || f.section === 'style') && whenOk(f));
     const bottomPlain = def.schema.filter((f) => !f.group && f.control !== 'stylePicker' && f.section !== 'style' && !f.whenStyle && !f.whenNotStyle && whenOk(f));
     const merged = [];
-    if (topPlain.length) merged.push({ key: 'plain', label: '', fields: topPlain });
+    if (topPlain.length) merged.push({ key: 'plain', label: '样式', fields: topPlain });
     merged.push(...groups);
     if (bottomPlain.length) merged.push({ key: 'plain2', label: '', fields: bottomPlain });
     if (common.length) merged.push({ key: 'common', label: '通用样式', fields: common });
