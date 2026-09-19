@@ -368,6 +368,19 @@
                   <el-input v-else-if="f.control === 'link'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || '如 /pages/card/market'">
                     <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
                   </el-input>
+                  <div v-else-if="f.control === 'goodsPicker'" class="pe-goods-picker">
+                    <div v-if="selectedComp.props[f.key]" class="pe-picked-goods">
+                      <span>已选 {{ (selectedComp.props[f.key]||'').split(',').filter(x=>x).length }} 个商品</span>
+                      <el-button size="small" text @click="openLinkSel(null, null, f)">修改</el-button>
+                    </div>
+                    <div v-else class="pe-add-child" @click="openLinkSel(null, null, f)">+添加</div>
+                  </div>
+                  <el-input v-else-if="f.control === 'catPicker'" v-model="selectedComp.props[f.key]" placeholder="请选择分类" readonly>
+                    <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
+                  </el-input>
+                  <el-input v-else-if="f.control === 'groupPicker'" v-model="selectedComp.props[f.key]" placeholder="请选择分组" readonly>
+                    <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
+                  </el-input>
                   <el-switch v-else-if="f.control === 'switch'" v-model="selectedComp.props[f.key]" />
                   <el-select v-else-if="f.control === 'select'" v-model="selectedComp.props[f.key]" size="small" style="width:100%">
                     <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
@@ -2022,4 +2035,10 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .sel-video-tag { position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 0 6px; border-radius: 8px; color: #fff; background: rgba(22,93,255,.85); }
 .sel-item.picked { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .sel-check { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+</style>
+
+<style scoped>
+.pe-add-child { border:1px dashed #c9cdd4; border-radius:6px; padding:10px; text-align:center; color:#4e5969; cursor:pointer; font-size:13px; }
+.pe-add-child:hover { border-color:#165dff; color:#165dff; }
+.pe-picked-goods { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f7f8fa; border-radius:6px; font-size:13px; }
 </style>
