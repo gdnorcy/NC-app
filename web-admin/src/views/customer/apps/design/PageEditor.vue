@@ -2064,7 +2064,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .sel-video-tag { position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 0 6px; border-radius: 8px; color: #fff; background: rgba(22,93,255,.85); }
 .sel-item.picked { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .sel-check { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; }
-.el-radio-group { display:flex; flex-wrap:nowrap; align-items:center; gap:0; }
+.el-radio-group { display:flex; flex-wrap:nowrap; align-items:center; gap:0; width:100%; }
 .el-radio-group .el-radio { margin-right:4px !important; margin-left:0 !important; flex-shrink:0; font-size:12px; }
 .el-radio-group .el-radio .el-radio__label { font-size:12px; }
 .el-radio-group .el-radio { margin-right:16px; }
@@ -2076,9 +2076,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-picked-goods { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f7f8fa; border-radius:6px; font-size:13px; }
 
 .pe-goods-picker { width:100%; }
-.pe-label-top :deep(.el-form-item__label-wrap) { display:block !important; margin-left:0 !important; }
-.pe-label-top :deep(.el-form-item__label) { width:auto !important; text-align:left !important; justify-content:flex-start !important; padding-bottom:8px !important; }
-.pe-label-top :deep(.el-form-item__content) { margin-left:0 !important; }
+.pe-label-top .el-form-item__label-wrap { display:block !important; margin-left:0 !important; }
+.pe-label-top .el-form-item__label { display:block !important; width:auto !important; text-align:left !important; justify-content:flex-start !important; padding-bottom:8px !important; float:none !important; }
+.pe-label-top .el-form-item__content { margin-left:0 !important; }
 .pe-addchild { border:1px dashed #6b7685; border-radius:4px; padding:0; text-align:center; color:#999; cursor:pointer; font-size:13px; height:32px; line-height:32px; background:transparent; }
 .pe-addchild:hover { background:#e8f3ff; color:#165dff; }
 .pe-readonly-row { display:flex; align-items:center; gap:8px; }
