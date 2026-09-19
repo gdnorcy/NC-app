@@ -655,11 +655,15 @@ import { mallApi } from '../utils/mallApi.js';
 import { yuanFmt } from '../utils/mallUtil.js';
 import SIcon from './SIcon.vue';
 
-// 价格优先级：新人价 > 会员价 > 划线价 > 原价
+// 价格优先级：新人价 > 会员价 > 原价
+// 会员价memberPrice是{mode,priceMap:{levelId:value}}对象，一期简化为取priceMap第一个值
 function displayPrice(g, c) {
   const p = c.props || {};
   if (p.showNewUserPrice && g.newUserPrice != null && g.newUserPrice > 0) return g.newUserPrice;
-  if (p.showMemberPrice && g.memberPrice != null && g.memberPrice > 0) return g.memberPrice;
+  if (p.showMemberPrice && g.memberPrice && g.memberPrice.mode === 'custom' && g.memberPrice.priceMap) {
+    const vals = Object.values(g.memberPrice.priceMap).filter(v => v && v > 0);
+    if (vals.length) return vals[0];
+  }
   return g.price;
 }
 function origPrice(g, c) {

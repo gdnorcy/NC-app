@@ -161,6 +161,7 @@
           </template>
 
           <el-form-item label="市场价"><el-input-number v-model="g.marketPrice" :min="0" :precision="2" controls-position="right" /></el-form-item>
+          <el-form-item label="新人价"><el-input-number v-model="g.newUserPrice" :min="0" :precision="2" controls-position="right" /></el-form-item>
           <el-form-item label="成本价"><el-input-number v-model="g.costPrice" :min="0" :precision="2" controls-position="right" /></el-form-item>
           <el-form-item v-if="topType !== 3" label="货号"><el-input v-model="g.goodsNo" placeholder="商品货号/编码" class="w240" /></el-form-item>
           <el-form-item label="会员价">
@@ -474,7 +475,7 @@ const g = reactive({
   topType: 1, type: 'normal', status: 'sell', sortOrder: 0, title: '', cateIds: [],
   images: [], thumb: '', info: '', pickup: 'express', freightMode: 'fixed', fixedFreight: 0,
   saleMode: 'online', specMode: 'single', stock: 0, minBuy: 1, weight: 0, price: 0,
-  marketPrice: 0, costPrice: 0, goodsNo: '',
+  marketPrice: 0, newUserPrice: 0, costPrice: 0, goodsNo: '',
   memberPrice: { mode: 'none', priceType: 'percent', priceMap: {} },
   param: [], recommend: false, unit: '', views: 0, realSales: 0, fakeSales: 0, fakePeople: 0,
   superForm: 'default', video: '', videoCover: '', videoPlay: 'popup', tags: '', brief: '',

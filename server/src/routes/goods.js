@@ -211,17 +211,17 @@ export function createGoodsRouter(db) {
       const r = db.prepare(
         `INSERT INTO goods (customer_id, top_type, type, status, sort_order, title, cate_ids, images, thumb, info,
            pickup, freight_mode, fixed_freight, sale_mode, spec_mode, stock, min_buy, weight, price, market_price,
-           cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
+           new_user_price, cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
            super_form, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
-           distribution, advanced, phone_required, card_key_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           distribution, advanced, phone_required, card_key_id, new_user_price)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         cid, g.topType, g.type, g.status, g.sortOrder, g.title, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
-        g.weight, g.price, g.marketPrice, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
+        g.weight, g.price, g.marketPrice, g.newUserPrice || 0, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
         g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.video, g.videoCover,
         g.videoPlay, g.tags, g.brief, g.brandTag, g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing),
-        JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId
+        JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId, g.newUserPrice || 0
       );
       saveSkus(db, r.lastInsertRowid, g.skus || []);
       audit(req, 'goods_add', 'goods', r.lastInsertRowid, `新增商品 ${g.title}`);
@@ -797,7 +797,7 @@ export function createGoodsRouter(db) {
       db.prepare(
         `UPDATE goods SET top_type = ?, type = ?, status = ?, sort_order = ?, title = ?, cate_ids = ?, images = ?,
            thumb = ?, info = ?, pickup = ?, freight_mode = ?, fixed_freight = ?, sale_mode = ?, spec_mode = ?, stock = ?,
-           min_buy = ?, weight = ?, price = ?, market_price = ?, cost_price = ?, goods_no = ?, member_price = ?,
+           min_buy = ?, weight = ?, price = ?, market_price = ?, new_user_price = ?, cost_price = ?, goods_no = ?, member_price = ?,
            param = ?, recommend = ?, unit = ?, views = ?, real_sales = ?, fake_sales = ?, fake_people = ?, super_form = ?,
            video = ?, video_cover = ?, video_play = ?, tags = ?, brief = ?, brand_tag = ?, title_tag = ?, service = ?,
            marketing = ?, member = ?, distribution = ?, advanced = ?, phone_required = ?, card_key_id = ?,
@@ -806,7 +806,7 @@ export function createGoodsRouter(db) {
       ).run(
         g.topType, g.type, g.status, g.sortOrder, g.title, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
-        g.weight, g.price, g.marketPrice, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
+        g.weight, g.price, g.marketPrice, g.newUserPrice || 0, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
         g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.video, g.videoCover,
         g.videoPlay, g.tags, g.brief, g.brandTag, g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing),
         JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId,
@@ -845,14 +845,14 @@ export function createGoodsRouter(db) {
       const r = db.prepare(
         `INSERT INTO goods (customer_id, top_type, type, status, sort_order, title, cate_ids, images, thumb, info,
            pickup, freight_mode, fixed_freight, sale_mode, spec_mode, stock, min_buy, weight, price, market_price,
-           cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
+           new_user_price, cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
            super_form, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
-           distribution, advanced, phone_required, card_key_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           distribution, advanced, phone_required, card_key_id, new_user_price)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         cid, g.topType, g.type, 'off', 0, `${g.title}（副本）`, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
-        g.weight, g.price, g.marketPrice, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
+        g.weight, g.price, g.marketPrice, g.newUserPrice || 0, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
         0, g.unit, 0, 0, 0, 0, g.superForm, g.video, g.videoCover, g.videoPlay, g.tags, g.brief, g.brandTag,
         g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing), JSON.stringify(g.member),
         JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId
