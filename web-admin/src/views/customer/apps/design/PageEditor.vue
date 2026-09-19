@@ -1239,7 +1239,7 @@ const schemaSections = computed(() => {
 });
 
 // 通用分组：按 schema 物理顺序动态建组（支持自定义 section，如富文本 bg/style/content/margin/radius/member）
-const SEC_LABELS = { content: '内容', style: '样式', bg: '选择颜色', margin: '边距', radius: '圆角设置', member: '' };
+const SEC_LABELS = { content: '内容', style: '样式', bg: '选择颜色', color: '选择颜色', cart: '购物车按钮', margin: '边距', radius: '圆角设置', member: '' };
 function buildSecs(def, whenOk, common) {
   const secs = [];
   const secOrder = [];
