@@ -1036,7 +1036,15 @@ export const componentRegistry = [
       memberLevel:'all', limit:4, marginLR:0, radiusTop:4, radiusBottom:4, marginTop:0, marginBottom:0 },
     schema: [
       { key:'style', label:'样式', control:'radio', section:'style', options:[{label:'默认',value:'default'},{label:'投影',value:'shadow'},{label:'描边',value:'border'}] },
-      { key:'styleType', label:'选择风格', control:'radio', graphic:true, section:'content', options:[1,2,3,4,5,6,7].map(v=>({label:'风格'+v,value:v})) },
+      { key:'styleType', label:'选择风格', control:'radio', graphic:true, section:'content', options:[
+        {label:'风格1',value:1,img:'__goods_one'},
+        {label:'风格2',value:2,img:'__goods_list'},
+        {label:'风格3',value:3,img:'__twoGoods_two'},
+        {label:'风格4',value:4,img:'__twoGoods_list2'},
+        {label:'风格5',value:5,img:'__otherGoods_three3'},
+        {label:'风格6',value:6,img:'__otherGoods_three'},
+        {label:'风格7',value:7,img:'__otherGoods_three2'},
+      ] },
       { key:'source', label:'选择商品', control:'radio', section:'content', options:[{label:'全部商品',value:'all'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group'}] },
       { key:'groupId', label:'分组', control:'input', section:'content', when:{source:'group'} },
       { key:'catId', label:'分类', control:'input', section:'content', when:{source:'category'} },
