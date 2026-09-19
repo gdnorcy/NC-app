@@ -1924,7 +1924,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-graphic-name { font-size: 12px; color: #4e5969; white-space: nowrap; }
 .pe-graphic-item.active .pe-graphic-name { color: #165dff; font-weight: 500; }
 .pe-graphic-check { position: absolute; top: 4px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
-.pe-graphic-item.active .pe-graphic-check { display: block; }
+.pe-graphic-item.active .pe-graphic-check { display: none; }
 /* 风格选择器（eweishop 1:1：修改风格 → 弹窗） */
 /* 图片风格选择（eweishop 1:1） */
 .pe-style-grid-img { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 10px; }
