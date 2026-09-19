@@ -1604,7 +1604,7 @@ function chRadius(p, i) {
 .ew-gg-st7 .ew-gg-img{width:100%;height:100px;float:none;}
 .ew-gg-st7 .ew-gg-body{width:100%;padding:8px 6px;}
 .ew-gg-st7 .ew-gg-saleline{display:flex;align-items:center;margin-top:4px;}
-.ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
+
 .ew-gg-img{position:relative;}
 .ew-gg-flag{position:absolute;top:0;left:0;background:#ff5555;color:#fff;font-size:12px;padding:2px 8px;z-index:2;border-radius:0 0 4px 0;}
 .ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
