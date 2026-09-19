@@ -1036,7 +1036,7 @@ export const componentRegistry = [
       memberLevel:'all', limit:4, marginLR:0, radiusTop:4, radiusBottom:4, marginTop:0, marginBottom:0 },
     schema: [
       { key:'style', label:'样式', control:'radio', section:'style', options:[{label:'默认',value:'default'},{label:'投影',value:'shadow'},{label:'描边',value:'border'}] },
-      { key:'styleType', label:'选择风格', control:'radio', graphic:true, section:'content', options:[1,2,3,4,5,6].map(v=>({label:'风格'+v,value:v})) },
+      { key:'styleType', label:'选择风格', control:'radio', graphic:true, section:'content', options:[1,2,3,4,5,6,7].map(v=>({label:'风格'+v,value:v})) },
       { key:'source', label:'选择商品', control:'radio', section:'content', options:[{label:'全部商品',value:'all'},{label:'选择分类',value:'category'},{label:'选择分组',value:'group'}] },
       { key:'groupId', label:'分组', control:'input', section:'content', when:{source:'group'} },
       { key:'catId', label:'分类', control:'input', section:'content', when:{source:'category'} },
