@@ -63,6 +63,15 @@ export function createGoodsOrderService(db) {
       let skuId = 0;
       let stock = row.stock || 0;
 
+      // 新人价校验：前端要求用新人价时，服务端验证是否首单
+      if (it.useNewUserPrice && row.new_user_price > 0) {
+        const orderCount = db.prepare(
+          'SELECT COUNT(*) c FROM goods_order WHERE customer_id = ? AND user_id = ? AND status IN (?, ?, ?)'
+        ).get(customerId, userId, 'paid', 'shipped', 'completed').c;
+        if (orderCount > 0) throw new Error(`商品「${row.title}」：您不是新人，不能享受新人价`);
+        price = yuan2fen(row.new_user_price);
+      }
+
       if (row.spec_mode === 'multi' && it.skuId) {
         const sku = db.prepare('SELECT * FROM goods_sku WHERE id = ? AND goods_id = ?').get(Number(it.skuId), gid);
         if (!sku) throw new Error(`商品「${row.title}」规格不存在`);
