@@ -489,66 +489,86 @@
       </div>
     </template>
 
-    <!-- ew 8个商城组件设计器预览（mock数据） -->
+    <!-- ew 8个商城组件设计器预览（按ew实际DOM结构1:1复刻） -->
     <template v-else-if="comp.type === 'goods-group'">
-      <div class="r-gp-row">
-        <div class="r-gp-img"><span>🛍</span></div>
-        <div class="r-gp-info">
-          <div class="r-gp-title-row"><span class="r-gp-tag">标题标签</span><span class="r-gp-title">商品名称示例</span></div>
-          <div class="r-gp-sub">副标题描述文字</div>
-          <div class="r-gp-price-row"><span class="r-gp-price">¥20.00</span><span class="r-gp-unit">/件</span></div>
+      <div class="ew-gg">
+        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg-body">
+          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
+          <div class="ew-gg-sub">这里是商品副标题</div>
+          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
         </div>
-        <div class="r-gp-buy">购买</div>
       </div>
     </template>
-    <template v-else-if="comp.type === 'goods-all' || comp.type === 'goods-featured'">
-      <div class="r-gab-head">
-        <div><div class="r-gab-title">板块标题</div><div class="r-gab-sub">副标题描述</div></div>
-        <div class="r-gab-more">查看更多 ›</div>
+    <template v-else-if="comp.type === 'goods-all'">
+      <div class="ew-gg" v-for="i in 2" :key="i">
+        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg-body">
+          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
+          <div class="ew-gg-sub">这里是商品副标题</div>
+          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
+        </div>
       </div>
-      <div class="r-gab-grid">
-        <div v-for="i in 2" :key="i" class="r-gab-card">
-          <div class="r-gab-img"><span>🛍</span></div>
-          <div class="r-gab-name">商品名称示例</div>
-          <div class="r-gab-row"><span class="r-gab-price">¥19.9</span><span class="r-gab-buy">购买</span></div>
+    </template>
+    <template v-else-if="comp.type === 'goods-tabs'">
+      <div class="ew-tabs">
+        <span class="ew-tab ew-tab-on">选项</span><span class="ew-tab">选项</span>
+      </div>
+      <div class="ew-gg">
+        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg-body">
+          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
+          <div class="ew-gg-sub">这里是商品副标题</div>
+          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-rank'">
-      <div class="r-gtitle"><span>商品排行</span><div class="r-gtitle-line"></div></div>
-      <div class="r-gp-2col">
-        <div class="r-gp-row" v-for="i in 2" :key="i">
-          <span class="r-rank-no">{{ i }}</span>
-          <div class="r-gp-img"><span>🛍</span></div>
-          <div class="r-gp-info"><div class="r-gp-title">热销商品</div><div class="r-gp-price-row"><span class="r-gp-price">¥{{ 9.9+i*10 }}</span></div></div>
+      <div class="ew-center-title"><span class="ew-ct-bar">▮</span><span>商品排行</span></div>
+      <div class="ew-gg">
+        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg-body">
+          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
+          <div class="ew-gg-sub">这里是商品副标题</div>
+          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-like'">
-      <div class="r-gtitle"><span>猜你喜欢</span><div class="r-gtitle-line"></div></div>
-      <div class="r-gp-2col">
-        <div class="r-gp-row" v-for="i in 2" :key="i">
-          <div class="r-gp-img"><span>🛍</span></div>
-          <div class="r-gp-info"><div class="r-gp-title">推荐商品</div><div class="r-gp-price-row"><span class="r-gp-price">¥29.9</span></div></div>
+      <div class="ew-center-title"><span class="ew-ct-heart">♥</span><span>猜你喜欢</span></div>
+      <div class="ew-gg">
+        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg-body">
+          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
+          <div class="ew-gg-sub">这里是商品副标题</div>
+          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-swiper'">
-      <div class="r-swiper">
-        <div class="r-gp-row" v-for="i in 2" :key="i">
-          <div class="r-gp-img"><span>🛍</span></div>
-          <div class="r-gp-info"><div class="r-gp-title">轮播商品</div><div class="r-gp-price-row"><span class="r-gp-price">¥39.9</span></div></div>
-        </div>
+      <div class="ew-swiper">
+        <div class="ew-sw-ph"></div>
+        <span class="ew-sw-price">¥20<span class="ew-sw-unit">/件</span></span>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-show'">
-      <div class="r-show"><span>🛍 商品展播海报</span></div>
+      <div class="ew-show">
+        <div class="ew-show-text">
+          <div class="ew-show-t1">买买买不用看价格</div>
+          <div class="ew-show-t2">79元任选5件</div>
+          <div class="ew-show-btn">查看更多 ›</div>
+        </div>
+        <div class="ew-show-ph"></div>
+      </div>
     </template>
-    <template v-else-if="comp.type === 'goods-tabs'">
-      <div class="r-tabs"><span class="r-tab active">选项一</span><span class="r-tab">选项二</span></div>
-      <div class="r-gp-row">
-        <div class="r-gp-img"><span>🛍</span></div>
-        <div class="r-gp-info"><div class="r-gp-title">Tab商品示例</div><div class="r-gp-price-row"><span class="r-gp-price">¥29.9</span></div></div>
+    <template v-else-if="comp.type === 'goods-featured'">
+      <div class="ew-feat">
+        <div class="ew-feat-text">
+          <div class="ew-feat-t1">缤纷水果任你挑</div>
+          <div class="ew-feat-t2">35元特价中</div>
+          <div class="ew-feat-btn">查看更多 ›</div>
+        </div>
+        <div class="ew-feat-ph"></div>
       </div>
     </template>
   </div>
@@ -1451,56 +1471,48 @@ function chRadius(p, i) {
 .comp-render { position: relative; }
 
 /* 商城组件预览（编辑端） */
-.r-gp-row{display:flex;align-items:center;background:#fff;border-radius:8px;padding:8px;margin:4px 0;}
-.r-gp-img{width:50px;height:50px;border-radius:6px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-.r-gp-info{flex:1;margin:0 8px;min-width:0;}
-.r-gp-title-row{display:flex;align-items:center;gap:4px;}
-.r-gp-tag{font-size:8px;color:#fff;background:#F53F3F;padding:0 4px;border-radius:2px;flex-shrink:0;}
-.r-gp-title{font-size:11px;color:#1D2129;font-weight:500;}
-.r-gp-sub{font-size:9px;color:#86909C;margin-top:2px;}
-.r-gp-price-row{display:flex;align-items:baseline;margin-top:2px;}
-.r-gp-price{font-size:13px;color:#F53F3F;font-weight:600;}
-.r-gp-unit{font-size:9px;color:#86909C;}
-.r-gp-buy{padding:3px 10px;border-radius:10px;background:#F53F3F;color:#fff;font-size:10px;flex-shrink:0;}
-.r-gl-title{font-size:12px;color:#1D2129;font-weight:500;margin:4px 0 6px;}
-.r-gl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.r-gl-card{background:#fff;border-radius:8px;overflow:hidden;}
-.r-gl-img{height:70px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:24px;}
-.r-gl-t{font-size:10px;color:#1D2129;padding:4px 6px 0;}
-.r-gl-price{font-size:12px;color:#F53F3F;padding:0 6px 4px;font-weight:600;}
-.r-rank-row{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #f2f3f5;}
-.r-rank-no{width:16px;font-size:12px;color:#F53F3F;font-weight:700;text-align:center;}
-.r-rank-img{width:40px;height:40px;border-radius:6px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:16px;margin:0 8px;}
-.r-rank-info{flex:1;}
-.r-rank-t{font-size:11px;color:#1D2129;}
-.r-rank-price{font-size:11px;color:#F53F3F;margin-top:2px;}
-.r-swiper{height:100px;}
-.r-swiper-img{width:100%;height:100%;background:linear-gradient(135deg,#E8F3FF,#F2F3F5);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#86909C;}
-.r-show{height:120px;background:linear-gradient(135deg,#F53F3F22,#E8F3FF);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#86909C;}
-/* 全部商品/精品推荐 */
-.r-gab-head{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;}
-.r-gab-title{font-size:14px;font-weight:700;color:#1d2129;}
-.r-gab-sub{font-size:10px;color:#86909C;margin-top:1px;}
-.r-gab-more{font-size:11px;color:#86909C;}
-.r-gab-grid{display:flex;gap:6px;padding:0 4px;}
-.r-gab-card{flex:1;background:#fff;border-radius:6px;overflow:hidden;}
-.r-gab-img{width:100%;height:80px;background:#f2f3f5;display:flex;align-items:center;justify-content:center;font-size:20px;}
-.r-gab-name{font-size:11px;color:#1d2129;padding:4px 6px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.r-gab-row{display:flex;justify-content:space-between;align-items:center;padding:2px 6px 6px;}
-.r-gab-price{font-size:12px;color:#F53F3F;font-weight:600;}
-.r-gab-buy{font-size:9px;color:#fff;background:#F53F3F;padding:1px 6px;border-radius:8px;}
-/* 标题栏 */
-.r-gtitle{display:flex;align-items:center;justify-content:center;padding:8px 0 6px;}
-.r-gtitle span{font-size:14px;font-weight:700;color:#1d2129;}
-.r-gtitle-line{flex:1;height:1px;background:#e5e6eb;margin:0 8px;}
-/* 双列 */
-.r-gp-2col{display:flex;flex-wrap:wrap;gap:6px;}
-.r-gp-2col .r-gp-row{width:calc(50% - 3px);margin:0;flex-shrink:0;}
-.r-gp-2col .r-gp-img{width:40px;height:40px;}
-.r-rank-no{font-size:11px;font-weight:700;color:#F53F3F;margin-right:2px;}
-/* 轮播商品预览 */
-.r-swiper{display:flex;gap:6px;overflow:hidden;height:auto;}
-.r-swiper .r-gp-row{flex:1;margin:0;}
+/* ew商品组：上方大图+下方左图右文 */
+.ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:4px 0;}
+.ew-gg-img{width:100%;height:120px;background:#f2f3f5;}
+.ew-gg-ph{width:100%;height:100%;background:linear-gradient(135deg,#e8e8e8,#d8d8d8);}
+.ew-gg-body{padding:8px;}
+.ew-gg-line1{display:flex;align-items:center;gap:4px;}
+.ew-gg-tag{font-size:8px;color:#fff;background:#F53F3F;padding:0 4px;border-radius:2px;flex-shrink:0;line-height:14px;}
+.ew-gg-title{font-size:13px;color:#1D2129;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ew-gg-sub{font-size:11px;color:#999ca7;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ew-gg-foot{display:flex;align-items:center;margin-top:4px;}
+.ew-gg-price{font-size:14px;color:#fd463e;font-weight:600;}
+.ew-gg-unit{font-size:10px;color:#999ca7;margin-left:2px;}
+.ew-gg-buy{margin-left:auto;padding:4px 14px;border-radius:12px;background:#F53F3F;color:#fff;font-size:11px;}
+/* ew选项卡 */
+.ew-tabs{display:flex;background:#fff;padding:0 8px;border-bottom:1px solid #f2f3f5;}
+.ew-tab{flex:1;text-align:center;padding:10px 0;font-size:14px;color:#666;position:relative;}
+.ew-tab-on{color:#ef4f4f;font-weight:500;}
+.ew-tab-on::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:24px;height:2px;background:#ef4f4f;border-radius:1px;}
+/* ew居中标题（猜你喜欢/商品排行） */
+.ew-center-title{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 0 6px;background:#fff;}
+.ew-center-title span{font-size:14px;font-weight:700;color:#333;}
+.ew-ct-heart{color:#F53F3F;font-size:16px;}
+.ew-ct-bar{color:#F53F3F;font-size:14px;letter-spacing:-2px;}
+/* ew轮播商品：大图+浮价格 */
+.ew-swiper{position:relative;background:#f2f3f5;border-radius:8px;overflow:hidden;height:160px;}
+.ew-sw-ph{width:100%;height:100%;background:linear-gradient(135deg,#e8e8e8,#d8d8d8);}
+.ew-sw-price{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.9);padding:2px 8px;border-radius:4px;font-size:13px;color:#ff3e1a;font-weight:600;}
+.ew-sw-unit{font-size:10px;color:#999;font-weight:400;}
+/* ew商品展播：绿色海报 */
+.ew-show{position:relative;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:8px;overflow:hidden;padding:16px;height:140px;}
+.ew-show-text{position:relative;z-index:1;}
+.ew-show-t1{font-size:14px;color:#37383a;font-weight:500;}
+.ew-show-t2{font-size:22px;color:#18a918;font-weight:700;margin-top:4px;}
+.ew-show-btn{display:inline-block;margin-top:8px;padding:4px 12px;background:#5ec01f;color:#fff;border-radius:12px;font-size:11px;}
+.ew-show-ph{position:absolute;right:0;top:0;width:100px;height:100px;background:linear-gradient(135deg,#ffcc80,#ffb74d);border-radius:0 8px 0 80px;}
+/* ew精品推荐：蓝色海报 */
+.ew-feat{position:relative;background:linear-gradient(135deg,#4a90d9,#357abd);border-radius:8px;overflow:hidden;padding:16px;height:120px;}
+.ew-feat-text{position:relative;z-index:1;}
+.ew-feat-t1{font-size:13px;color:#fff;font-weight:500;}
+.ew-feat-t2{font-size:20px;color:#fff;font-weight:700;margin-top:4px;}
+.ew-feat-btn{display:inline-block;margin-top:8px;padding:4px 12px;background:#0446b4;color:#fff;border-radius:12px;font-size:11px;}
+.ew-feat-ph{position:absolute;right:0;top:0;width:100px;height:100%;background:linear-gradient(135deg,#81c784,#66bb6a);border-radius:0 8px 8px 0;opacity:.6;}
 .r-tabs{display:flex;gap:12px;margin-bottom:8px;}
 .r-tab{font-size:11px;color:#86909C;padding-bottom:2px;}
 .r-tab.active{color:#165DFF;font-weight:600;border-bottom:2px solid #165DFF;}
