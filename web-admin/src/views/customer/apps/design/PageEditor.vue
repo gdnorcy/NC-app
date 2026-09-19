@@ -381,7 +381,7 @@
                   <div v-else-if="f.control === 'catPicker'" class="pe-readonly-row">
                     <span class="pe-labeltext">分类</span>
                     <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat', key:'catId'})">
-                      <input class="pe-readonly-input" :value="selectedComp.props[f.key]" placeholder="请选择分类" readonly />
+                      <input class="pe-readonly-input" :value="catName(selectedComp.props[f.key])" placeholder="请选择分类" readonly />
                       <i class="el-icon-link pe-readonly-icon"></i>
                     </div>
                   </div>
@@ -1609,6 +1609,17 @@ watch(() => selectedComp.value?.props?.goodsIds, async (v) => {
     list.forEach(g => { goodsCache.value[g.id] = g; });
   } catch (e) { console.error('load goods', e); }
 }, { immediate: true });
+const catCache = ref({});
+watch(() => selectedComp.value?.props?.catId, async (v) => {
+  if (!v) return;
+  if (catCache.value[v]) return;
+  try {
+    const res = await designCall.get('/customer/goods/categories');
+    const list = res.list || res.data || [];
+    list.forEach(c => { catCache.value[c.id] = c.name; });
+  } catch(e) {}
+}, { immediate: true });
+function catName(id) { return catCache.value[id] || (id ? '分类' + id : ''); }
 function removePickedGood(id) {
   if (!selectedComp.value) return;
   const ids = String(selectedComp.value.props.goodsIds || '').split(',').filter(x => x && x !== String(id));
