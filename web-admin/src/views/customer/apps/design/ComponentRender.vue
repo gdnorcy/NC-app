@@ -521,99 +521,98 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-all'">
-      <div class="ew-gg" v-for="i in 2" :key="i">
-        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
-        <div class="ew-gg-body">
-          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
-          <div class="ew-gg-sub">这里是商品副标题</div>
-          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
+      <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
+        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff' }">
+          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+          <div class="ew-gg-body">
+            <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
+            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">这里是商品标题</span></div>
+            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">这里是商品副标题</div>
+            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false">
+              <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥20</span><span class="ew-gg-unit">/件</span>
+              <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">{{ comp.props.buyBtnText||'购买' }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-tabs'">
-      <div class="ew-tabs">
-        <span class="ew-tab ew-tab-on">选项</span><span class="ew-tab">选项</span>
+      <div class="ew-tabs" :style="{background: comp.props.tabBg||'#fff'}">
+        <span v-for="(t,i) in (comp.props.tabs||[])" :key="i" class="ew-tab" :class="{'ew-tab-on': i===0}" :style="i===0?{color:comp.props.tabActiveColor}:{color:comp.props.tabTextColor}">{{ t.title||'选项' }}</span>
       </div>
-      <div class="ew-gg">
-        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
-        <div class="ew-gg-body">
-          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
-          <div class="ew-gg-sub">这里是商品副标题</div>
-          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
+      <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px', background: comp.props.bottomBg||'transparent' }">
+        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ borderRadius: (comp.props.radius||0)+'px' }">
+          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+          <div class="ew-gg-body">
+            <div class="ew-gg-line1"><span class="ew-gg-title">这里是商品标题</span></div>
+            <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span></div>
+          </div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-rank'">
-      <div class="ew-center-title"><span class="ew-ct-bar">▮</span><span>商品排行</span></div>
-      <div class="ew-gg">
-        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
-        <div class="ew-gg-body">
-          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
-          <div class="ew-gg-sub">这里是商品副标题</div>
-          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
+      <div class="ew-center-title" v-if="comp.props.showTitle!==false">
+        <span v-if="comp.props.titleIcon==='bar'" class="ew-ct-bar">▮</span>
+        <span :style="{color: comp.props.titleColor}">{{ comp.props.title||'商品排行' }}</span>
+      </div>
+      <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
+        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff' }">
+          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+          <div class="ew-gg-body">
+            <div class="ew-gg-line1"><span class="ew-gg-title">这里是商品标题</span></div>
+            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span></div>
+          </div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-like'">
-      <div class="ew-center-title"><span class="ew-ct-heart">♥</span><span>猜你喜欢</span></div>
-      <div class="ew-gg">
-        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
-        <div class="ew-gg-body">
-          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
-          <div class="ew-gg-sub">这里是商品副标题</div>
-          <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span><span class="ew-gg-buy">购买</span></div>
+      <div class="ew-center-title" v-if="comp.props.showTitle!==false">
+        <span v-if="comp.props.titleIcon==='heart'" class="ew-ct-heart">♥</span>
+        <span :style="{color: comp.props.titleColor}">{{ comp.props.title||'猜你喜欢' }}</span>
+      </div>
+      <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
+        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff' }">
+          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+          <div class="ew-gg-body">
+            <div class="ew-gg-line1"><span class="ew-gg-title">这里是商品标题</span></div>
+            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span></div>
+          </div>
         </div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-swiper'">
-      <div class="ew-swiper">
+      <div class="ew-swiper" :style="{ borderRadius: (comp.props.radius||0)+'px', background: comp.props.productBg||'#fff' }">
         <div class="ew-sw-ph"></div>
-        <span class="ew-sw-price">¥20<span class="ew-sw-unit">/件</span></span>
+        <span class="ew-sw-price" :style="{color: comp.props.priceColor}">¥20<span class="ew-sw-unit">/件</span></span>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-show'">
-      <div class="ew-show">
+      <div class="ew-show" :style="{ background: comp.props.bottomBg||'transparent' }">
         <div class="ew-show-text">
-          <div class="ew-show-t1">买买买不用看价格</div>
-          <div class="ew-show-t2">79元任选5件</div>
-          <div class="ew-show-btn">查看更多 ›</div>
+          <div class="ew-show-t1" :style="{color: comp.props.mainTitleColor}">{{ comp.props.mainTitle||'买买买不用看价格' }}</div>
+          <div class="ew-show-t2" :style="{color: comp.props.subTitleColor}">{{ comp.props.subTitle||'79元任选5件' }}</div>
+          <div class="ew-show-btn" :style="{background: comp.props.btnColor, color: comp.props.btnTextColor}">{{ comp.props.btnText||'查看更多' }} ›</div>
         </div>
-        <div class="ew-show-ph"></div>
+        <div class="ew-show-ph" v-if="comp.props.bgImage" :style="{backgroundImage:'url('+comp.props.bgImage+')'}"></div>
+        <div class="ew-show-ph" v-else></div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-featured'">
-      <div class="ew-feat">
+      <div class="ew-feat" :style="{ background: comp.props.bottomBg||'transparent' }">
         <div class="ew-feat-text">
-          <div class="ew-feat-t1">缤纷水果任你挑</div>
-          <div class="ew-feat-t2">35元特价中</div>
-          <div class="ew-feat-btn">查看更多 ›</div>
+          <div class="ew-feat-t1" :style="{color: comp.props.mainTitleColor}">{{ comp.props.mainTitle||'缤纷水果任你挑' }}</div>
+          <div class="ew-feat-t2" :style="{color: comp.props.subTitleColor}">{{ comp.props.subTitle||'35元特价中' }}</div>
+          <div class="ew-feat-btn" :style="{background: comp.props.btnColor, color: comp.props.btnTextColor}">{{ comp.props.btnText||'查看更多' }} ›</div>
         </div>
-        <div class="ew-feat-ph"></div>
+        <div class="ew-feat-ph" v-if="comp.props.bgImage" :style="{backgroundImage:'url('+comp.props.bgImage+')'}"></div>
+        <div class="ew-feat-ph" v-else></div>
       </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
-
-import tbDecoUrl from '../../../../assets/design-styles/title/title3.png';
-import tbBubbleUrl from '../../../../assets/design-styles/title/bubble.png';
-import tbS4L from '../../../../assets/design-styles/title/s4_l.png';
-import tbS4R from '../../../../assets/design-styles/title/s4_r.png';
-import tbS5L from '../../../../assets/design-styles/title/s5_l.png';
-import tbS5C from '../../../../assets/design-styles/title/s5_c.png';
-import tbS5R from '../../../../assets/design-styles/title/s5_r.png';
-import tbS6L from '../../../../assets/design-styles/title/s6_l.png';
-import tbS6R from '../../../../assets/design-styles/title/s6_r.png';
-import { customerApiCall } from '../../../../api';
-
-// 轮播图编辑端预览：单张显示 + 定时轮播 + 指示器同步（避免多图并排平铺）
-const swiperItems = computed(() => (props.comp.props.items || []).filter((it) => it.url));
-const sIdx = ref(0);
-let swTimer = null;
 function startSwiper() {
-  if (swTimer) { clearInterval(swTimer); swTimer = null; }
   if (props.comp.type === 'swiper' && swiperItems.value.length > 1) {
     swTimer = setInterval(() => { sIdx.value = (sIdx.value + 1) % swiperItems.value.length; }, props.comp.props.interval || 4000);
   }
