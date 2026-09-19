@@ -1021,12 +1021,15 @@ function buyBtnStyleOf(p) {
   const bg = p.btnColorMode === 0 ? (p.buyBtnBg || '#ef4f4f') : '#ef4f4f';
   const radius = (p.buyBtnRadius ?? 4) + 'px';
   const color = p.buyBtnColor || '#fff';
-  const sizeMap = { small: '20px 8px', medium: '24px 12px', large: '28px 16px' };
-  const s = { borderRadius: radius, color: color, background: bg, fontSize: '12px' };
+  const sizeMap = { small: '3px 10px', medium: '5px 12px', large: '7px 14px' };
+  const s = { borderRadius: radius, color: color, background: bg, fontSize: '10px', lineHeight: '1.4' };
   if (p.buyBtnStyle === 'buybtn1') {
     s.padding = sizeMap[p.buyBtnSize] || sizeMap.small;
+    s.whiteSpace = 'nowrap';
   } else {
-    s.width = '24px'; s.height = '24px'; s.padding = '0';
+    const iconSize = { small: '18px', medium: '22px', large: '26px' };
+    const sz = iconSize[p.buyBtnSize] || iconSize.small;
+    s.width = sz; s.height = sz; s.padding = '0';
     s.display = 'inline-flex'; s.alignItems = 'center'; s.justifyContent = 'center';
   }
   if (p.buyBtnBorder && p.buyBtnBorder !== 'transparent') s.border = '1px solid ' + p.buyBtnBorder;
@@ -1510,7 +1513,7 @@ function chRadius(p, i) {
 .ew-gg-foot{display:flex;align-items:center;margin-top:4px;}
 .ew-gg-price{font-size:14px;color:#fd463e;font-weight:600;}
 .ew-gg-unit{font-size:10px;color:#999ca7;margin-left:2px;}
-.ew-gg-buy{margin-left:auto;padding:4px 14px;border-radius:12px;background:#F53F3F;color:#fff;font-size:11px;}
+.ew-gg-buy{margin-left:auto;}
 /* ew选项卡 */
 .ew-tabs{display:flex;background:#fff;padding:0 8px;border-bottom:1px solid #f2f3f5;}
 .ew-tab{flex:1;text-align:center;padding:10px 0;font-size:14px;color:#666;position:relative;}

@@ -1967,9 +1967,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-prop { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
 .pe-prop-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .pe-prop-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
-.pe-sec { margin-bottom: 14px; }
-.pe-sec-name { font-size: 12px; font-weight: 600; color: #4e5969; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-.pe-sec-name::after { content: ''; flex: 1; height: 1px; background: #f0f1f3; }
+.pe-sec { margin-bottom: 14px; background: #f7f8fa; border-radius: 8px; padding: 10px 12px; }
+.pe-sec-name { font-size: 12px; font-weight: 600; color: #4e5969; margin-bottom: 10px; }
+/* 灰底容器内不需要分隔线 */
 .pe-sec .el-form-item :deep(.required label) { color: #f53f3f; }
 .pe-sec :deep(.el-form-item.required .el-form-item__label::before) { content: '*'; color: #f53f3f; margin-right: 4px; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
