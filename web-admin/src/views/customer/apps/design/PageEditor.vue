@@ -1440,6 +1440,8 @@ async function load() {
         }
         // buyBtnShow boolean→number 迁移（true→1, false→0）
         if (typeof props.buyBtnShow === 'boolean') props.buyBtnShow = props.buyBtnShow ? 1 : 0;
+        // buyBtnStyle 空值默认 buybtn1
+        if (!props.buyBtnStyle) props.buyBtnStyle = 'buybtn1';
         return { ...c, props };
       });
       if (json.meta) {
