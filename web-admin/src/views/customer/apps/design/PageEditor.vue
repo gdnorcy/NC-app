@@ -178,7 +178,7 @@
             <template v-for="sec in schemaSections" :key="sec.key">
               <div v-if="sec.fields.length" class="pe-sec">
                 <div v-if="sec.label" class="pe-sec-name">{{ sec.label }}</div>
-                <el-form-item v-for="f in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint' }">
+                <el-form-item v-for="f in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'pe-label-top': f.label === '选择商品', 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint' }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
@@ -2064,7 +2064,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .sel-video-tag { position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 0 6px; border-radius: 8px; color: #fff; background: rgba(22,93,255,.85); }
 .sel-item.picked { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .sel-check { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; }
-.el-radio-group { display:flex; flex-wrap:nowrap; align-items:center; }
+.el-radio-group { display:flex; flex-wrap:nowrap; align-items:center; gap:0; }
+.el-radio-group .el-radio { margin-right:8px !important; margin-left:0 !important; flex-shrink:0; }
 .el-radio-group .el-radio { margin-right:16px; }
 </style>
 
@@ -2074,6 +2075,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-picked-goods { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f7f8fa; border-radius:6px; font-size:13px; }
 
 .pe-goods-picker { width:100%; }
+.pe-label-top :deep(.el-form-item__label-wrap) { display:block !important; margin-left:0 !important; }
+.pe-label-top :deep(.el-form-item__label) { width:auto !important; text-align:left !important; justify-content:flex-start !important; padding-bottom:8px !important; }
+.pe-label-top :deep(.el-form-item__content) { margin-left:0 !important; }
 .pe-addchild { border:1px dashed #c9cdd4; border-radius:4px; padding:24px 10px; text-align:center; color:#9ca3af; cursor:pointer; font-size:14px; }
 .pe-addchild:hover { background:#e8f3ff; color:#165dff; }
 .pe-readonly-row { display:flex; align-items:center; gap:8px; }
