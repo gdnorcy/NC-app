@@ -1982,7 +1982,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-sec { margin-bottom: 14px; }
 .pe-sec-name { font-size: 12px; font-weight: 600; color: #4e5969; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .pe-sec-name::after { content: ''; flex: 1; height: 1px; background: #f0f1f3; }
-.pe-prop-body :deep(.el-form-item.pe-when-field) { background: #f7f8fa; margin-bottom: 0 !important; padding: 8px 10px !important; }
+.pe-prop-body :deep(.el-form-item.pe-when-field) { background: #f7f8fa; margin: 0 !important; padding: 8px 10px !important; }
 .pe-when-field + .pe-when-field { border-top: none; }
 .pe-when-group-start { border-radius: 8px 8px 0 0; }
 .pe-when-group-end { border-radius: 0 0 8px 8px; }
