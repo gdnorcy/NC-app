@@ -491,23 +491,31 @@
 
     <!-- ew 8个商城组件设计器预览（按ew实际DOM结构1:1复刻） -->
     <template v-else-if="comp.type === 'goods-group'">
-      <div class="ew-gg">
-        <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
-        <div class="ew-gg-body">
-          <div class="ew-gg-line1"><span class="ew-gg-tag">标题标签</span><span class="ew-gg-title">这里是商品标题</span></div>
-          <div class="ew-gg-sub">这里是商品副标题</div>
-          <div class="ew-gg-foot">
-            <span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span>
-            <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">
-              <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
-              <template v-else-if="comp.props.buyBtnStyle==='buybtn6'" style="font-size:16px;line-height:1;">+</template>
-              <template v-else-if="comp.props.buyBtnStyle==='buybtn3'">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39L8 18h13l-2-9H5.12"/></svg>
+      <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
+        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff', borderRadius: (comp.props.radiusTop||0)+'px '+(comp.props.radiusBottom||0)+'px' }">
+          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+          <div v-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
+          <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
+          <div class="ew-gg-body">
+            <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
+            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">这里是商品标题</span></div>
+            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">这里是商品副标题</div>
+            <div class="ew-gg-foot">
+              <template v-if="comp.props.showPrice!==false">
+                <span v-if="comp.props.showOrig" class="ew-gg-orig">¥30</span>
+                <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥20</span><span class="ew-gg-unit">/件</span>
               </template>
-              <template v-else-if="comp.props.buyBtnStyle==='buybtn4'">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13.07h7.45c.75 0 1.41-.41 1.75-1.03l3.24-5.85c.08-.13.11-.28.11-.42 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
-              </template>
-            </span>
+              <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">
+                <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
+                <template v-else-if="comp.props.buyBtnStyle==='buybtn6'" style="font-size:16px;line-height:1;">+</template>
+                <template v-else-if="comp.props.buyBtnStyle==='buybtn3'">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39L8 18h13l2-9H5.12"/></svg>
+                </template>
+                <template v-else-if="comp.props.buyBtnStyle==='buybtn4'">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13.07h7.45c.75 0 1.41-.41 1.75-1.03l3.24-5.85c.08-.13.11-.28.11-.42 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                </template>
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -1502,7 +1510,12 @@ function chRadius(p, i) {
 
 /* 商城组件预览（编辑端） */
 /* ew商品组：上方大图+下方左图右文 */
-.ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:4px 0;}
+.ew-gg-list{display:flex;flex-direction:column;}
+.ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
+.ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
+.ew-gg-badge img{width:100%;height:100%;}
+.ew-gg-badge-text{position:absolute;top:0;left:0;background:#F53F3F;color:#fff;font-size:10px;padding:2px 6px;z-index:2;}
+.ew-gg-orig{font-size:11px;color:#999;text-decoration:line-through;margin-right:4px;}
 .ew-gg-img{width:100%;height:120px;background:#f2f3f5;}
 .ew-gg-ph{width:100%;height:100%;background:linear-gradient(135deg,#e8e8e8,#d8d8d8);}
 .ew-gg-body{padding:8px;}
