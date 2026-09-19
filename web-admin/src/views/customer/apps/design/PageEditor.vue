@@ -369,12 +369,12 @@
                     <template #append><el-button @click="openLinkSel(null, null, f)">选择</el-button></template>
                   </el-input>
                   <div v-else-if="f.control === 'goodsPicker'" class="pe-goods-picker">
-                    <div v-if="pickedGoods.length" class="pe-picked-list">
-                      <div v-for="g in pickedGoods" :key="g.id" class="pe-picked-item" style="width:60px;flex-shrink:0;">
+                    <div v-if="pickedGoods.length" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;">
+                      <div v-for="g in pickedGoods" :key="g.id" style="position:relative;width:60px;height:60px;flex-shrink:0;">
                         <img v-if="g.thumb || g.image" :src="g.thumb || g.image" style="width:60px;height:60px;object-fit:cover;border-radius:4px;display:block;" />
-                        <div class="pe-picked-name">{{ g.title }}</div>
+                        <span style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:#ff4d4f;color:#fff;border-radius:50%;font-size:10px;line-height:16px;text-align:center;cursor:pointer;" @click="removePickedGood(g.id)">×</span>
                       </div>
-                      <div class="pe-picked-add" style="width:60px;height:60px;font-size:12px;" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
+                      <div style="width:60px;height:60px;border:1px dashed #6b7685;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#999;cursor:pointer;flex-shrink:0;" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
                     </div>
                     <div v-else class="pe-addchild" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
                   </div>
@@ -1609,6 +1609,11 @@ watch(() => selectedComp.value?.props?.goodsIds, async (v) => {
     list.forEach(g => { goodsCache.value[g.id] = g; });
   } catch (e) { console.error('load goods', e); }
 }, { immediate: true });
+function removePickedGood(id) {
+  if (!selectedComp.value) return;
+  const ids = String(selectedComp.value.props.goodsIds || '').split(',').filter(x => x && x !== String(id));
+  selectedComp.value.props.goodsIds = ids.join(',');
+}
 const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false, mode: 'link' });
 function openLinkSel(listIdx, fieldIdx, listField) {
   let current = '';
