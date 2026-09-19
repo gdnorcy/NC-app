@@ -47,6 +47,24 @@
             <div v-if="!filteredGoods.length" class="lk-empty">暂无商品</div>
           </div>
         </template>
+        <!-- 分类模式：分类列表 -->
+        <template v-else-if="mode === 'cat'">
+          <div v-if="goodsLoading" class="lk-empty">加载中...</div>
+          <div
+            v-for="c in goodsCats"
+            :key="c.id"
+            class="lk-item"
+            :class="{ active: pick === String(c.id) }"
+            @click="pick = String(c.id)"
+          >
+            <span class="lk-dot"></span>
+            <div class="lk-item-info">
+              <div class="lk-item-label">{{ c.name }}</div>
+            </div>
+            <span v-if="pick === String(c.id)" class="lk-check">✓</span>
+          </div>
+          <div v-if="!goodsLoading && !goodsCats.length" class="lk-empty">暂无分类</div>
+        </template>
         <!-- 自定义链接：手输 -->
         <div v-else-if="activeCat === CUSTOM_LINK.name" class="lk-custom">
           <div class="lk-label">自定义链接</div>
