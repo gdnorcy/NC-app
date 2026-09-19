@@ -494,17 +494,16 @@
       <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
         <div class="ew-gg" v-for="g in mallGoods" :key="g.id" :style="{ background: comp.props.productBg||'#fff', borderRadius: (comp.props.radiusTop||0)+'px '+(comp.props.radiusBottom||0)+'px' }">
           <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" style="width:100%;height:100%;object-fit:cover;" /><div v-else class="ew-gg-ph"></div></div>
-          <div v-if="comp.props.badgeType==='system'" class="ew-gg-badge-system">新品</div>
-          <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
+          <div v-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
           <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
           <div class="ew-gg-body">
             <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
-            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title }}</span></div>
-            <div class="ew-gg-sub" v-if="comp.props.showSub!==false && g.subtitle" :style="{color: comp.props.subColor}">{{ g.subtitle }}</div>
+            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title || '商品标题' }}</span></div>
+            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">{{ g.info || g.subtitle || '' }}</div>
             <div class="ew-gg-foot">
               <template v-if="comp.props.showPrice!==false">
                 <span v-if="comp.props.showOrig" class="ew-gg-orig">¥30</span>
-                <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ (g.price||0)/100 }}</span><span class="ew-gg-unit">/件</span>
+                <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ g.price||0 }}</span><span class="ew-gg-unit">/件</span>
               </template>
               <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">
                 <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
@@ -527,10 +526,10 @@
           <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
           <div class="ew-gg-body">
             <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
-            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title }}</span></div>
-            <div class="ew-gg-sub" v-if="comp.props.showSub!==false && g.subtitle" :style="{color: comp.props.subColor}">{{ g.subtitle }}</div>
+            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title || '商品标题' }}</span></div>
+            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">{{ g.info || g.subtitle || '' }}</div>
             <div class="ew-gg-foot" v-if="comp.props.showPrice!==false">
-              <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ (g.price||0)/100 }}</span><span class="ew-gg-unit">/件</span>
+              <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ g.price||0 }}</span><span class="ew-gg-unit">/件</span>
               <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">{{ comp.props.buyBtnText||'购买' }}</span>
             </div>
           </div>
@@ -615,7 +614,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { customerApiCall } from '../../../../api';
-
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
 const tbOuterStyle = (p) => {
@@ -657,30 +655,10 @@ const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fo
 const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
 const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null } });
 
-// 商城组件：加载真实商品
-const mallGoods = ref([]);
-async function loadMallGoods() {
-  const c = props.comp;
-  if (!['goods-group','goods-all','goods-tabs','goods-rank','goods-like','goods-swiper'].includes(c.type)) return;
-  try {
-    let params = {};
-    if (c.props.source === 'manual' && c.props.goodsIds) {
-      params.ids = c.props.goodsIds;
-    } else if (c.props.source === 'category' && c.props.catId) {
-      params.catId = c.props.catId;
-    } else {
-      params.limit = c.props.limit || 4;
-    }
-    const res = await customerApiCall.get('/goods', { params });
-    mallGoods.value = res.data.list || res.data || [];
-  } catch(e) {
-    mallGoods.value = [];
-  }
-}
-onMounted(loadMallGoods);
-watch(() => [props.comp.props.goodsIds, props.comp.props.catId, props.comp.props.source, props.comp.props.limit], loadMallGoods, { deep: true });
-
-
+// 轮播图状态
+const sIdx = ref(0);
+let swTimer = null;
+const swiperItems = computed(() => (props.comp.props.items || []).filter(it => it && it.url));
 function startSwiper() {
   if (props.comp.type === 'swiper' && swiperItems.value.length > 1) {
     swTimer = setInterval(() => { sIdx.value = (sIdx.value + 1) % swiperItems.value.length; }, props.comp.props.interval || 4000);
@@ -693,6 +671,24 @@ watch(() => props.comp.props.items, () => {
   startSwiper();
 }, { deep: true });
 watch(() => props.comp.props.interval, startSwiper);
+
+// 商城组件：加载真实商品
+const mallGoods = ref([]);
+async function loadMallGoods() {
+  const c = props.comp;
+  try {
+    let params = { limit: c.props.limit || 4 };
+    if (c.props.source === 'manual' && c.props.goodsIds) params.ids = c.props.goodsIds;
+    else if (c.props.source === 'category' && c.props.catId) params.catId = c.props.catId;
+    const token = localStorage.getItem('customer_token');
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch('/api/customer/goods?' + qs, { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    mallGoods.value = data.list || data || [];
+  } catch(e) { mallGoods.value = []; }
+}
+onMounted(loadMallGoods);
+watch(() => [props.comp.props.goodsIds, props.comp.props.catId, props.comp.props.source], loadMallGoods, { deep: true });
 const emit = defineEmits(['cell-select']);
 
 // 全景场景组件：编辑端预览拉取租户真实方案
@@ -1538,21 +1534,15 @@ function chRadius(p, i) {
 /* 商城组件预览（编辑端） */
 /* ew商品组：上方大图+下方左图右文 */
 .ew-gg-list{display:flex;flex-direction:column;}
-.ew-gg-st3,.ew-gg-st5,.ew-gg-st6,.ew-gg-st7{display:grid;grid-template-columns:1fr 1fr;}
-.ew-gg-st5,.ew-gg-st6,.ew-gg-st7{grid-template-columns:1fr 1fr 1fr;}
-.ew-gg-st4,.ew-gg-st6{display:grid;grid-template-columns:1fr 1fr;}
-.ew-gg-st6{grid-template-columns:1fr 1fr 1fr;}
-.ew-gg-st4 .ew-gg,.ew-gg-st6 .ew-gg{display:flex;flex-direction:row;}
+.ew-gg-st3,.ew-gg-st4{display:grid;grid-template-columns:1fr 1fr;}
+.ew-gg-st4 .ew-gg{display:flex;flex-direction:row;}
 .ew-gg-st4 .ew-gg-img{width:80px;flex-shrink:0;}
-.ew-gg-st6 .ew-gg-img{width:70px;flex-shrink:0;}
-.ew-gg-st4 .ew-gg-body,.ew-gg-st6 .ew-gg-body{flex:1;padding:8px;}
-.ew-gg-st3 .ew-gg,.ew-gg-st5 .ew-gg,.ew-gg-st7 .ew-gg{display:flex;flex-direction:column;}
+.ew-gg-st4 .ew-gg-body{flex:1;padding:8px;}
+.ew-gg-st3 .ew-gg{display:flex;flex-direction:column;}
 .ew-gg-st3 .ew-gg-img{width:100%;height:120px;}
-.ew-gg-st5 .ew-gg-img,.ew-gg-st7 .ew-gg-img{width:100%;height:100px;}
 .ew-gg{background:#fff;border-radius:8px;overflow:hidden;margin:0;position:relative;}
 .ew-gg-badge{position:absolute;top:0;left:0;width:38px;height:38px;z-index:2;}
 .ew-gg-badge img{width:100%;height:100%;}
-.ew-gg-badge-system{position:absolute;top:0;left:0;background:#F53F3F;color:#fff;font-size:10px;padding:2px 6px;z-index:2;}
 .ew-gg-badge-text{position:absolute;top:0;left:0;background:#F53F3F;color:#fff;font-size:10px;padding:2px 6px;z-index:2;}
 .ew-gg-orig{font-size:11px;color:#999;text-decoration:line-through;margin-right:4px;}
 .ew-gg-img{width:100%;height:120px;background:#f2f3f5;}
