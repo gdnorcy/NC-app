@@ -113,6 +113,11 @@
             <el-form-item label="备注提示">
               <el-input v-model="cfg.orderRemarks" class="w360" placeholder="订单下单页面备注框提示" />
             </el-form-item>
+            <el-form-item label="新人价有效期">
+              <el-input-number v-model="cfg.newUserDays" :min="0" :max="365" :step="1" style="width: 140px" />
+              <span class="unit">天</span>
+              <span class="form-hint">新用户注册后X天内可享受新人价，0表示不限时间（仅首单）</span>
+            </el-form-item>
           </el-form>
         </div>
 
@@ -437,7 +442,7 @@ const cfg = reactive({
   // 下单规则
   fullBuy: 0, enableFxsBuy: 0, unFxsLink: '', unFxsLinkType: 'page',
   useFormId: 0, payRedirect: '/pages/main_shop_order/main_shop_order', payRedirectType: 'page',
-  payErrRedirect: '', payErrRedirectType: 'page', orderRemarks: '选填：建议填写和卖家商量好的内容~',
+  payErrRedirect: '', payErrRedirectType: 'page', orderRemarks: '选填：建议填写和卖家商量好的内容~', newUserDays: 7,
   // 快递配送
   express: 2, byouType: 2, baoyou: '', kdps: '快递配送', psName: '快递配送', freightFeeType: 1,
   // 同城配送
