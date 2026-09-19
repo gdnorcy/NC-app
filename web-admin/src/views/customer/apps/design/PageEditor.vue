@@ -378,15 +378,13 @@
                     </div>
                     <div v-else class="pe-addchild" @click="openLinkSel(null, null, {pickerMode:'goods', key:'goodsIds'})">+添加</div>
                   </div>
-                  <div v-else-if="f.control === 'catPicker'" class="pe-readonly-row">
-                    <span class="pe-labeltext">分类</span>
+                  <div v-else-if="f.control === 'catPicker'">
                     <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat', key:'catId'})">
                       <input class="pe-readonly-input" :value="catName(selectedComp.props[f.key])" placeholder="请选择分类" readonly />
                       <i class="el-icon-link pe-readonly-icon"></i>
                     </div>
                   </div>
-                  <div v-else-if="f.control === 'groupPicker'" class="pe-readonly-row">
-                    <span class="pe-labeltext">分组</span>
+                  <div v-else-if="f.control === 'groupPicker'">
                     <div class="pe-readonly-div" @click="openLinkSel(null, null, {pickerMode:'cat', key:'catId'})">
                       <input class="pe-readonly-input" :value="selectedComp.props[f.key]" placeholder="请选择分组" readonly />
                       <i class="el-icon-link pe-readonly-icon"></i>
