@@ -171,7 +171,7 @@ export function createGoodsRouter(db) {
   router.get('/', requireTenant, requireGoodsApp, (req, res) => {
     try {
       const cid = req.customerId;
-      const { status = 'all', catId, keyword = '', page = 1, pageSize = 10, sortBy = 'default' } = req.query;
+      const { status = 'all', catId, keyword = '', page = 1, pageSize = 10, sortBy = 'default', ids = '' } = req.query;
       const where = ['customer_id = ?'];
       const params = [cid];
       if (status === 'sell') { where.push("status = 'sell' AND stock > 0"); }
@@ -179,6 +179,8 @@ export function createGoodsRouter(db) {
       else if (status === 'soldout') { where.push("status = 'sell' AND stock <= 0"); }
       else if (status === 'off') { where.push("status = 'off'"); }
       else if (status === 'expired') { where.push("status = 'expired'"); }
+      const idList = String(ids || '').split(/[,，]/).map((x) => Number(x)).filter((x) => x > 0);
+      if (idList.length) { where.push(`id IN (${idList.map(() => '?').join(',')})`); params.push(...idList); }
       if (catId) {
         where.push('cate_ids LIKE ?');
         params.push(`%${Number(catId)}%`);

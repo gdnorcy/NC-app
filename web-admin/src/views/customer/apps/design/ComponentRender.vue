@@ -677,7 +677,7 @@ const mallGoods = ref([]);
 async function loadMallGoods() {
   const c = props.comp;
   try {
-    let params = { pageSize: c.props.limit || 4 };
+    let params = { pageSize: c.props.limit || 4, status: 'sell' };
     if (c.props.source === 'manual' && c.props.goodsIds && c.props.goodsIds.length) {
       params.ids = c.props.goodsIds.join(',');
       params.pageSize = 100;
