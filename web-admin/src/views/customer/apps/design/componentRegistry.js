@@ -1032,7 +1032,7 @@ export const componentRegistry = [
       showTitle:true, showSub:true, showPrice:true, showOrig:false, showSales:false, showTag:true, showMerchant:false, showMemberPrice:false, showNewUserPrice:false,
       titleColor:'#37383A', subColor:'#999ca7', priceColor:'#fd463e', origColor:'#999CA7', salesColor:'#999CA7',
       buyBtnShow:1, buyBtnStyle:'buybtn1', buyBtnText:'购买', buyBtnColor:'transparent', btnColorMode:1, buyBtnBg:'#ef4f4f', buyBtnBorder:'transparent', buyBtnRadius:4, buyBtnSize:'small', cartAction:0,
-      badgeType:'none', cartAction:'detail',
+      badgeType:'none',
       memberLevel:'all', limit:4, marginLR:0, radiusTop:4, radiusBottom:4, marginTop:0, marginBottom:0 },
     schema: [
       { key:'style', label:'样式', control:'radio', graphic:true, section:'style', options:[{label:'默认',value:'default'},{label:'投影',value:'shadow'},{label:'描边',value:'border'}] },

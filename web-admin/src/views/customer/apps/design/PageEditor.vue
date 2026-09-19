@@ -1441,7 +1441,16 @@ async function load() {
         // buyBtnShow boolean→number 迁移（true→1, false→0）
         if (typeof props.buyBtnShow === 'boolean') props.buyBtnShow = props.buyBtnShow ? 1 : 0;
         // buyBtnStyle 空值默认 buybtn1
-        if (!props.buyBtnStyle) props.buyBtnStyle = 'buybtn1';
+        if (!['buybtn1','buybtn6','buybtn3','buybtn4'].includes(props.buyBtnStyle)) props.buyBtnStyle = 'buybtn1';
+        // 购物车按钮默认值强制对齐（旧组件数据迁移）
+        props.buyBtnShow = (typeof props.buyBtnShow === 'boolean') ? (props.buyBtnShow ? 1 : 0) : (props.buyBtnShow ?? 1);
+        if (!['buybtn1','buybtn6','buybtn3','buybtn4'].includes(props.buyBtnStyle)) props.buyBtnStyle = 'buybtn1';
+        if (!props.buyBtnText) props.buyBtnText = '购买';
+        if (props.buyBtnRadius == null) props.buyBtnRadius = 4;
+        props.btnColorMode = 1;
+        props.cartAction = 0;
+        if (!props.buyBtnSize) props.buyBtnSize = 'small';
+        if (!props.badgeType) props.badgeType = 'none';
         return { ...c, props };
       });
       if (json.meta) {
