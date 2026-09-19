@@ -492,19 +492,19 @@
     <!-- ew 8个商城组件设计器预览（按ew实际DOM结构1:1复刻） -->
     <template v-else-if="comp.type === 'goods-group'">
       <div class="ew-gg-list" :class="'ew-gg-st'+(comp.props.styleType||1)" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
-        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff', borderRadius: (comp.props.radiusTop||0)+'px '+(comp.props.radiusBottom||0)+'px' }">
-          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg" v-for="g in mallGoods" :key="g.id" :style="{ background: comp.props.productBg||'#fff', borderRadius: (comp.props.radiusTop||0)+'px '+(comp.props.radiusBottom||0)+'px' }">
+          <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" style="width:100%;height:100%;object-fit:cover;" /><div v-else class="ew-gg-ph"></div></div>
           <div v-if="comp.props.badgeType==='system'" class="ew-gg-badge-system">新品</div>
           <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
           <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
           <div class="ew-gg-body">
             <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
-            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">这里是商品标题</span></div>
-            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">这里是商品副标题</div>
+            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title }}</span></div>
+            <div class="ew-gg-sub" v-if="comp.props.showSub!==false && g.subtitle" :style="{color: comp.props.subColor}">{{ g.subtitle }}</div>
             <div class="ew-gg-foot">
               <template v-if="comp.props.showPrice!==false">
                 <span v-if="comp.props.showOrig" class="ew-gg-orig">¥30</span>
-                <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥20</span><span class="ew-gg-unit">/件</span>
+                <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ (g.price||0)/100 }}</span><span class="ew-gg-unit">/件</span>
               </template>
               <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">
                 <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
@@ -527,10 +527,10 @@
           <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
           <div class="ew-gg-body">
             <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
-            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">这里是商品标题</span></div>
-            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">这里是商品副标题</div>
+            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title }}</span></div>
+            <div class="ew-gg-sub" v-if="comp.props.showSub!==false && g.subtitle" :style="{color: comp.props.subColor}">{{ g.subtitle }}</div>
             <div class="ew-gg-foot" v-if="comp.props.showPrice!==false">
-              <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥20</span><span class="ew-gg-unit">/件</span>
+              <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ (g.price||0)/100 }}</span><span class="ew-gg-unit">/件</span>
               <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">{{ comp.props.buyBtnText||'购买' }}</span>
             </div>
           </div>
@@ -614,6 +614,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { customerApiCall } from '../../../../api';
 
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
@@ -655,6 +656,29 @@ const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fo
 // 主标题族兜底标题文字族文案（存量组件无 titleText）
 const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
 const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null } });
+
+// 商城组件：加载真实商品
+const mallGoods = ref([]);
+async function loadMallGoods() {
+  const c = props.comp;
+  if (!['goods-group','goods-all','goods-tabs','goods-rank','goods-like','goods-swiper'].includes(c.type)) return;
+  try {
+    let params = {};
+    if (c.props.source === 'manual' && c.props.goodsIds) {
+      params.ids = c.props.goodsIds;
+    } else if (c.props.source === 'category' && c.props.catId) {
+      params.catId = c.props.catId;
+    } else {
+      params.limit = c.props.limit || 4;
+    }
+    const res = await customerApiCall.get('/goods', { params });
+    mallGoods.value = res.data.list || res.data || [];
+  } catch(e) {
+    mallGoods.value = [];
+  }
+}
+onMounted(loadMallGoods);
+watch(() => [props.comp.props.goodsIds, props.comp.props.catId, props.comp.props.source, props.comp.props.limit], loadMallGoods, { deep: true });
 
 
 function startSwiper() {
