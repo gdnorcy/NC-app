@@ -179,7 +179,7 @@
               <div v-if="sec.fields.length" class="pe-sec">
                 <div v-if="sec.label" class="pe-sec-name">{{ sec.label }}</div>
                 <div v-if="sec.desc" style="font-size:12px;color:#86909C;margin:-6px 0 8px;line-height:1.5;">{{ sec.desc }}</div>
-                <el-form-item v-for="f in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'pe-label-top': f.label === '选择商品', 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint' }">
+                <el-form-item v-for="f in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'pe-label-top': f.label === '选择商品', 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint', 'pe-when-box': !!f.when }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
@@ -1967,9 +1967,10 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-prop { background: #fff; border-radius: 8px; padding: 12px; height: 100%; min-height: 0; overflow-y: auto; }
 .pe-prop-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
 .pe-prop-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #165dff; }
-.pe-sec { margin-bottom: 14px; background: #f7f8fa; border-radius: 8px; padding: 10px 12px; }
-.pe-sec-name { font-size: 12px; font-weight: 600; color: #4e5969; margin-bottom: 10px; }
-/* 灰底容器内不需要分隔线 */
+.pe-sec { margin-bottom: 14px; }
+.pe-sec-name { font-size: 12px; font-weight: 600; color: #4e5969; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.pe-sec-name::after { content: ''; flex: 1; height: 1px; background: #f0f1f3; }
+.pe-when-box { background: #f7f8fa; border-radius: 6px; padding: 8px 10px; margin: 4px 0 !important; }
 .pe-sec .el-form-item :deep(.required label) { color: #f53f3f; }
 .pe-sec :deep(.el-form-item.required .el-form-item__label::before) { content: '*'; color: #f53f3f; margin-right: 4px; }
 .pe-prop-body :deep(.el-form-item) { margin-bottom: 12px; }
