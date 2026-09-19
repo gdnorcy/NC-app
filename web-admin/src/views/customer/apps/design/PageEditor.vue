@@ -2064,7 +2064,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .sel-video-tag { position: absolute; top: 4px; right: 4px; font-size: 10px; padding: 0 6px; border-radius: 8px; color: #fff; background: rgba(22,93,255,.85); }
 .sel-item.picked { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
 .sel-check { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; font-size: 12px; display: flex; align-items: center; justify-content: center; }
-.el-radio-group { white-space:nowrap; }
+.el-radio-group { display:flex; flex-wrap:nowrap; align-items:center; }
 .el-radio-group .el-radio { margin-right:16px; }
 </style>
 
@@ -2073,6 +2073,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-add-child:hover { border-color:#165dff; color:#165dff; }
 .pe-picked-goods { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f7f8fa; border-radius:6px; font-size:13px; }
 
+.pe-goods-picker { width:100%; }
 .pe-addchild { border:1px dashed #c9cdd4; border-radius:4px; padding:24px 10px; text-align:center; color:#9ca3af; cursor:pointer; font-size:14px; }
 .pe-addchild:hover { background:#e8f3ff; color:#165dff; }
 .pe-readonly-row { display:flex; align-items:center; gap:8px; }
