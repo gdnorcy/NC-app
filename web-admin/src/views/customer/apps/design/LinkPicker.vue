@@ -152,7 +152,7 @@ function togglePick(id) {
 async function loadGoods() {
   goodsLoading.value = true;
   try {
-    const res = await designCall.get('/goods/list', { params: { page: 1, pageSize: 200 } });
+    const res = await designCall.get('/customer/goods', { params: { page: 1, pageSize: 200 } });
     goodsList.value = res.list || res.data || [];
   } catch (e) {
     goodsList.value = [];
@@ -163,7 +163,7 @@ async function loadGoods() {
 async function loadCats() {
   goodsLoading.value = true;
   try {
-    const res = await designCall.get('/goods/category/list');
+    const res = await designCall.get('/customer/goods/categories');
     goodsCats.value = res.list || res.data || [];
   } catch (e) {
     goodsCats.value = [];
