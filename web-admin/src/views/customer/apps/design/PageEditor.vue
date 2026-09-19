@@ -1245,7 +1245,7 @@ const schemaSections = computed(() => {
     }
     // 顶部字段（选择风格等）置于分组前；无分组的普通字段（会员等级等）置于分组后，与 ew 面板顺序一致
     const topPlain = def.schema.filter((f) => !f.group && (f.control === 'stylePicker' || f.section === 'style') && whenOk(f));
-    const bottomPlain = def.schema.filter((f) => !f.group && f.control !== 'stylePicker' && !f.whenStyle && !f.whenNotStyle && whenOk(f));
+    const bottomPlain = def.schema.filter((f) => !f.group && f.control !== 'stylePicker' && f.section !== 'style' && !f.whenStyle && !f.whenNotStyle && whenOk(f));
     const merged = [];
     if (topPlain.length) merged.push({ key: 'plain', label: '', fields: topPlain });
     merged.push(...groups);
