@@ -86,6 +86,7 @@
             <div class="app-desc">{{ app.description || '暂无描述' }}</div>
             <div class="app-card-ops">
               <el-button v-if="app.code === 'channel'" size="small" type="primary" plain @click="enterApp(app)">进入管理</el-button>
+              <el-button v-if="hasAdminManage(app.code)" size="small" type="primary" plain @click.stop="enterManage(app)">进入管理</el-button>
               <el-button size="small" @click="openMoveDialog(app)">修改分类</el-button>
               <el-button size="small" @click="openAppDialog(app)">编辑应用</el-button>
               <el-button size="small" text class="drag-handle" @click="onHintDrag">拖拽位置</el-button>
@@ -164,11 +165,13 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { adminApi } from '../../api';
+import { hasAdminManage } from '../../config/adminAppConfigs';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete } from '@element-plus/icons-vue';
 import SIcon from '../../components/SIcon.vue';
 
 const router = useRouter();
+function enterManage(app) { router.push(`/apps-center/${app.code}/manage`); }
 const route = useRoute();
 
 // 平台各端渠道（已开通在前、未开发在后；未开发渠道标注「未开发」不可进入）

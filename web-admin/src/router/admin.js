@@ -34,6 +34,7 @@ const routes = [
       { path: 'settings/security', redirect: '/settings?tab=security' },
       { path: 'settings/open', redirect: '/settings?tab=open' },
       { path: 'apps-center', component: () => import('../views/admin/AppCenter.vue'), meta: { title: '应用中心', breadcrumbs: ['应用中心'] } },
+      { path: 'apps-center/:code/manage', component: () => import('../views/admin/AppManage.vue'), meta: { title: '应用配置', breadcrumbs: ['应用中心', '应用配置'] } },
       { path: 'radar', component: () => import('../views/admin/RadarAdmin.vue'), meta: { title: '雷达管理', breadcrumbs: ['智能名片', '雷达管理'] } },
       { path: 'member-packages', component: () => import('../views/admin/MemberPackages.vue'), meta: { title: '会员套餐', breadcrumbs: ['智能名片', '会员套餐'] } },
       { path: 'card-collects', component: () => import('../views/admin/CollectsAdmin.vue'), meta: { title: '收藏管理', breadcrumbs: ['智能名片', '收藏管理'] } },

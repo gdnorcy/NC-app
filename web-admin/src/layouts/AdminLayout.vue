@@ -39,25 +39,6 @@
           <SIcon name="solutions" size="default" />
           <span>解决方案</span>
         </el-menu-item>
-        <template v-if="isAdmin">
-          <div v-if="!collapsed" class="menu-group-title">智能名片</div>
-          <el-menu-item index="/templates">
-            <SIcon name="template" size="default" />
-            <span>名片模板</span>
-          </el-menu-item>
-          <el-menu-item index="/radar">
-            <SIcon name="chart" size="default" />
-            <span>雷达管理</span>
-          </el-menu-item>
-          <el-menu-item index="/member-packages">
-            <SIcon name="badge" size="default" />
-            <span>会员套餐</span>
-          </el-menu-item>
-          <el-menu-item index="/card-collects">
-            <SIcon name="like" size="default" />
-            <span>收藏管理</span>
-          </el-menu-item>
-        </template>
         <el-menu-item index="/finance">
           <SIcon name="wallet" size="default" />
           <span>财务管理</span>
@@ -145,7 +126,7 @@ const search = ref('');
 const logo = ref('');
 
 const isAdmin = computed(() => authStore.user?.role === 'admin');
-const activeMenu = computed(() => route.path);
+const activeMenu = computed(() => (route.path.startsWith('/apps-center') ? '/apps-center' : route.path));
 const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() || 'U');
 const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title || '']);
 // 面包屑链接映射：可点击项跳对应顶层入口（当前页/无映射项不可点）
