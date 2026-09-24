@@ -163,20 +163,24 @@ test('会员套餐 CRUD：列表(features+新字段)/新建/重名400/更新权�
   assert.ok(opts.body.options.includes('ai_report'));
   assert.ok(opts.body.options.includes('enterprise'));
 
-  // 新建
-  const create = await request(app).post('/api/admin/member-packages').set(auth).send({ level: 'vip_test', name: '测试套餐', price: 19.9, durationDays: 90, features: ['ai_report'], discount: 0.85, collectLimit: 10, voiceEnabled: true, groupLimit: 3 });
+  // 新建（含配额字段）
+  const create = await request(app).post('/api/admin/member-packages').set(auth).send({ level: 'vip_test', name: '测试套餐', price: 19.9, durationDays: 90, features: ['ai_report'], discount: 0.85, collectLimit: 10, leadQuota: 10, pushQuota: 5, voiceEnabled: true, groupLimit: 3 });
   assert.equal(create.status, 201);
   const pid = create.body.package.id;
+  assert.equal(create.body.package.lead_quota, 10, '新建套餐应写入 lead_quota');
+  assert.equal(create.body.package.push_quota, 5, '新建套餐应写入 push_quota');
 
   // 重名 400
   const dup = await request(app).post('/api/admin/member-packages').set(auth).send({ level: 'vip_test', name: '重复' });
   assert.equal(dup.status, 400);
 
-  // 更新权益字段
-  const upd = await request(app).put(`/api/admin/member-packages/${pid}`).set(auth).send({ discount: 0.9, collectLimit: 20, features: ['ai_report', 'ai_words', 'quota_lead'], enabled: false });
+  // 更新权益字段（含配额）
+  const upd = await request(app).put(`/api/admin/member-packages/${pid}`).set(auth).send({ discount: 0.9, collectLimit: 20, leadQuota: 30, features: ['ai_report', 'ai_words', 'quota_lead'], enabled: false });
   assert.equal(upd.status, 200);
   assert.equal(upd.body.package.discount, 0.9);
   assert.equal(upd.body.package.collect_limit, 20);
+  assert.equal(upd.body.package.lead_quota, 30, '更新应写入 lead_quota');
+  assert.equal(upd.body.package.push_quota, 5, '未传 pushQuota 应保留原值');
   assert.equal(upd.body.package.voice_enabled, 1, '未传 voiceEnabled 应保留原值');
   assert.deepEqual(JSON.parse(upd.body.package.features), ['ai_report', 'ai_words', 'quota_lead']);
 

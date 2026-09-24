@@ -1285,8 +1285,19 @@ function migrate(db) {
   try { db.exec('ALTER TABLE member_package ADD COLUMN collect_limit INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
   try { db.exec('ALTER TABLE member_package ADD COLUMN voice_enabled INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
   try { db.exec('ALTER TABLE member_package ADD COLUMN group_limit INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+  try { db.exec('ALTER TABLE member_package ADD COLUMN lead_quota INTEGER NOT NULL DEFAULT 0'); } catch (e) {} // 留资配额 0=不限（方案占位 50，运营确认后改后台套餐配置）
+  try { db.exec('ALTER TABLE member_package ADD COLUMN push_quota INTEGER NOT NULL DEFAULT 0'); } catch (e) {} // 推送配额 0=不限（方案占位 100，阶段D联调消费）
 
   // features 枚举迁移（VIP权益扩展：修订五——silver 加 ai_report；gold 加 ai_report,ai_words,quota_lead；diamond 加全部+enterprise；幂等去重）
+  // 配额数值迁移（占位值：gold/diamond 留资 50；diamond 推送 100；运营确认后可后台改，不硬编码）
+  const quotaSeed = { gold: { lead_quota: 50 }, diamond: { lead_quota: 50, push_quota: 100 } };
+  for (const [lvl, kv] of Object.entries(quotaSeed)) {
+    const row = db.prepare('SELECT lead_quota, push_quota FROM member_package WHERE level = ?').get(lvl);
+    if (row && (!row.lead_quota || !row.push_quota)) {
+      db.prepare('UPDATE member_package SET lead_quota = ?, push_quota = ? WHERE level = ?').run(
+        kv.lead_quota ?? row.lead_quota, kv.push_quota ?? row.push_quota, lvl);
+    }
+  }
   const featureMigrate = {
     silver: ['ai_report'],
     gold: ['ai_report', 'ai_words', 'quota_lead'],

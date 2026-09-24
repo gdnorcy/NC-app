@@ -40,14 +40,16 @@ export function createMemberAdminRouter(db) {
       const features = Array.isArray(b.features) ? b.features.filter((f) => FEATURE_OPTIONS.includes(f)) : [];
       const r = db.prepare(
         `INSERT INTO member_package (level, name, price, duration_days, description, features, sort_order, enabled,
-          discount, collect_limit, voice_enabled, group_limit)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+          discount, collect_limit, voice_enabled, group_limit, lead_quota, push_quota)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).run(level, name, Number(b.price) || 0, Number(b.durationDays) || 30,
         String(b.description || '').slice(0, 200), JSON.stringify(features),
         Number(b.sortOrder) || 0, b.enabled === false ? 0 : 1,
         Number(b.discount) >= 0 ? Number(b.discount) : 1.0,
         Number(b.collectLimit) >= 0 ? Number(b.collectLimit) : 0,
-        b.voiceEnabled ? 1 : 0, Number(b.groupLimit) >= 0 ? Number(b.groupLimit) : 0);
+        b.voiceEnabled ? 1 : 0, Number(b.groupLimit) >= 0 ? Number(b.groupLimit) : 0,
+        Number(b.leadQuota) >= 0 ? Number(b.leadQuota) : 0,
+        Number(b.pushQuota) >= 0 ? Number(b.pushQuota) : 0);
       addOperationLog(db, { userId: req.user?.id, username: req.user?.username, action: 'create_member_package', targetType: 'member_package', targetId: r.lastInsertRowid, detail: `创建会员套餐: ${name}`, ip: req.ip });
       res.status(201).json({ package: db.prepare('SELECT * FROM member_package WHERE id=?').get(r.lastInsertRowid) });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -63,7 +65,7 @@ export function createMemberAdminRouter(db) {
       const features = Array.isArray(b.features) ? b.features.filter((f) => FEATURE_OPTIONS.includes(f)) : undefined;
       db.prepare(
         `UPDATE member_package SET level=?, name=?, price=?, duration_days=?, description=?, features=?, sort_order=?, enabled=?,
-          discount=?, collect_limit=?, voice_enabled=?, group_limit=?, updated_at=datetime('now') WHERE id=?`
+          discount=?, collect_limit=?, voice_enabled=?, group_limit=?, lead_quota=?, push_quota=?, updated_at=datetime('now') WHERE id=?`
       ).run(
         b.level !== undefined && String(b.level).trim() ? String(b.level).trim() : p.level,
         b.name !== undefined && String(b.name).trim() ? String(b.name).trim() : p.name,
@@ -77,6 +79,8 @@ export function createMemberAdminRouter(db) {
         b.collectLimit !== undefined ? (Number(b.collectLimit) >= 0 ? Number(b.collectLimit) : 0) : p.collect_limit,
         b.voiceEnabled !== undefined ? (b.voiceEnabled ? 1 : 0) : p.voice_enabled,
         b.groupLimit !== undefined ? (Number(b.groupLimit) >= 0 ? Number(b.groupLimit) : 0) : p.group_limit,
+        b.leadQuota !== undefined ? (Number(b.leadQuota) >= 0 ? Number(b.leadQuota) : 0) : p.lead_quota,
+        b.pushQuota !== undefined ? (Number(b.pushQuota) >= 0 ? Number(b.pushQuota) : 0) : p.push_quota,
         id,
       );
       addOperationLog(db, { userId: req.user?.id, username: req.user?.username, action: 'update_member_package', targetType: 'member_package', targetId: id, detail: `更新会员套餐: ${p.name}`, ip: req.ip });

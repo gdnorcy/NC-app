@@ -795,6 +795,10 @@ export function createCardRouter(db, wxService) {
       if (!card) return res.status(404).json({ error: '名片不存在' });
       if (!phone && !name) return res.status(400).json({ error: '请至少提供姓名或手机号' });
       const tenantId = radar.resolveTenant(cardId);
+      // 留资配额（阶段B对齐：套餐有效期累计 + 成功才扣 + 超限引导升级；free 不限）
+      if (!quota.canLead(card.user_id)) {
+        return res.status(403).json({ error: '留资额度已达上限，升级会员可解锁更多留资', limitHit: true });
+      }
       db.prepare(
         'INSERT INTO card_lead (tenant_id, card_id, owner_user_id, visitor_openid, name, phone, source) VALUES (?,?,?,?,?,?,?)'
       ).run(tenantId, cardId, card.user_id, '', String(name).trim().slice(0, 64), String(phone).trim().slice(0, 32), 'radar');

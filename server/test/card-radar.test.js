@@ -164,6 +164,14 @@ test('quota：planOf / hasFeature / quotaLeft / canCollect 各等级', () => {
   db.prepare('INSERT INTO card_collect (card_id, user_id) VALUES (?,?)').run(cardC, uidD);
   assert.equal(quota.canCollect(uidD), false, '收藏 2/2 应超限');
   assert.equal(quota.quotaLeft(uidD, 'collect').left, 0);
+  // diamond：push 配额 100（方案占位）+ lead 配额 50
+  setMember(uidA, 'diamond');
+  const qPush = quota.quotaLeft(uidA, 'push');
+  assert.equal(qPush.limit, 100, 'diamond push_quota 应为 100（占位）');
+  assert.equal(qPush.unlimited, false);
+  const qDia = quota.quotaLeft(uidA, 'lead');
+  assert.equal(qDia.limit, 50, 'diamond lead_quota 应为 50（占位）');
+  setMember(uidA, 'gold'); // 还原，供后续用例使用
   // 无租户的 B 不在此测试段，避免与 track 段冲突
 });
 
@@ -204,6 +212,23 @@ test('留资写入：card_lead + 客户池 + form 高意向事件 + 站内提醒
   // 配额扣减：gold 留资配额 50，used 至少 1
   const q = createQuotaService(db).quotaLeft(uidFromToken(tokA), 'lead');
   assert.ok(q.used >= 1);
+});
+
+test('留资配额拦截：free 名片不限；会员超限 403 引导升级', async () => {
+  // free 名片主（tokE）：无有效套餐 → 不限，提交成功
+  const cardE2 = await createCard(tokE, '雷达测试E2');
+  const freeLead = await request(app).post('/api/card/leads').send({ cardId: cardE2, name: '王五', phone: '13900139000' });
+  assert.equal(freeLead.status, 200, 'free 名片主留资不应受限');
+
+  // gold 名片主（tokA，quota 用例已 setMember gold 并留资 1 条）：lead_quota=1 → 第 2 条 403
+  db.prepare("UPDATE member_package SET lead_quota=1 WHERE level='gold'").run();
+  const blocked = await request(app).post('/api/card/leads').send({ cardId: cardA, name: '赵六', phone: '13700137000' });
+  assert.equal(blocked.status, 403, 'gold 留资超限应 403');
+  assert.equal(blocked.body.limitHit, true);
+  assert.match(blocked.body.error, /升级会员/, '提示应引导升级');
+  const blockedRow = db.prepare("SELECT id FROM card_lead WHERE owner_user_id=? AND phone='13700137000'").get(uidFromToken(tokA));
+  assert.equal(blockedRow, undefined, '被拦截的留资不应落库');
+  db.prepare("UPDATE member_package SET lead_quota=50 WHERE level='gold'").run(); // 还原
 });
 
 test('高潜榜会员门槛：free locked / gold 数据；CSV 导出', async () => {

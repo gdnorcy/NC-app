@@ -22,6 +22,12 @@
       <el-table-column label="收藏上限" width="90" align="center">
         <template #default="{ row }">{{ row.collect_limit === 0 ? '不限' : row.collect_limit }}</template>
       </el-table-column>
+      <el-table-column label="留资配额" width="90" align="center">
+        <template #default="{ row }">{{ row.lead_quota === 0 ? '不限' : row.lead_quota }}</template>
+      </el-table-column>
+      <el-table-column label="推送配额" width="90" align="center">
+        <template #default="{ row }">{{ row.push_quota === 0 ? '不限' : row.push_quota }}</template>
+      </el-table-column>
       <el-table-column label="语音" width="70" align="center">
         <template #default="{ row }"><el-tag :type="row.voice_enabled ? 'success' : 'info'" size="small">{{ row.voice_enabled ? '开' : '关' }}</el-tag></template>
       </el-table-column>
@@ -68,6 +74,18 @@
           <div class="inline-form">
             <el-input-number v-model="dialog.form.collectLimit" :min="0" />
             <span class="hint">0=不限</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="留资配额">
+          <div class="inline-form">
+            <el-input-number v-model="dialog.form.leadQuota" :min="0" />
+            <span class="hint">0=不限（有效线索累计）</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="推送配额">
+          <div class="inline-form">
+            <el-input-number v-model="dialog.form.pushQuota" :min="0" />
+            <span class="hint">0=不限（订阅/公众号消息，阶段D联调）</span>
           </div>
         </el-form-item>
         <el-form-item label="语音简介">
@@ -124,6 +142,7 @@ const openDialog = (row) => {
       form: {
         level: row.level, name: row.name, price: row.price, durationDays: row.duration_days,
         features: row.features || [], discount: row.discount, collectLimit: row.collect_limit,
+        leadQuota: row.lead_quota, pushQuota: row.push_quota,
         voiceEnabled: !!row.voice_enabled, groupLimit: row.group_limit, sortOrder: row.sort_order,
         description: row.description, enabled: !!row.enabled,
       },
@@ -131,7 +150,7 @@ const openDialog = (row) => {
   } else {
     dialog.value = {
       visible: true, id: null,
-      form: { level: '', name: '', price: 0, durationDays: 30, features: [], discount: 1.0, collectLimit: 0, voiceEnabled: false, groupLimit: 0, sortOrder: 0, description: '', enabled: true },
+      form: { level: '', name: '', price: 0, durationDays: 30, features: [], discount: 1.0, collectLimit: 0, leadQuota: 0, pushQuota: 0, voiceEnabled: false, groupLimit: 0, sortOrder: 0, description: '', enabled: true },
     };
   }
 };
