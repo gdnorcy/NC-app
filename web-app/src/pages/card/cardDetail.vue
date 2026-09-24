@@ -1016,7 +1016,7 @@ function shareCard() {
 .hero-full { position: relative; overflow: hidden; height: 640rpx; background: #1a1a1a; }
 .hero-bg { position: absolute; left: 0; top: 0; width: 100%; height: 120%; }
 .hero-shade { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55)); }
-.hero-full-info { position: absolute; left: 0; right: 0; bottom: 120rpx; padding: 0 48rpx; color: #fff; z-index: 2; }
+.hero-full-info { position: absolute; left: 0; right: 0; bottom: 232rpx; padding: 0 48rpx; color: #fff; z-index: 2; }
 .hfi-name { font-size: 48rpx; font-weight: 700; color: #fff; }
 .hfi-pos { font-size: 26rpx; color: rgba(255,255,255,0.85); margin-top: 8rpx; }
 .hfi-line { display: flex; align-items: center; gap: 10rpx; font-size: 24rpx; color: rgba(255,255,255,0.9); margin-top: 12rpx; }
