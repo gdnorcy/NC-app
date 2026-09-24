@@ -195,7 +195,7 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   // 名片模板（C 端套用：平台公共 enabled + 本租户私有）
   // ============================================================
-  router.get('/templates', auth, (req, res) => {
+  router.get('/templates', authOptional, (req, res) => {
     try {
       const rows = db.prepare(
         'SELECT * FROM card_templates WHERE (tenant_id = 0 AND enabled = 1) OR (tenant_id = ? AND enabled = 1) ORDER BY tenant_id, sort_order, id DESC'
