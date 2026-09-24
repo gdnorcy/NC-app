@@ -181,6 +181,9 @@ function goBack() {
   gap: 8rpx;
   padding: 16rpx 32rpx;
   background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 .mt-item {
   flex: 1;

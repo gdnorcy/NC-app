@@ -53,13 +53,13 @@
     <view class="tab-panel" v-if="activeTab === 'intro'">
       <view class="sec-t">个人简介</view>
       <!-- 语音简介（阶段C：上传音频展示） -->
-      <view class="voice-box" v-if="card.voiceUrl">
-        <SIcon name="dynamic" size="large" color="#165dff" />
+      <view class="voice-box" v-if="card.voiceUrl" @click="toggleVoice">
+        <view class="vb-play"><SIcon :name="voicePlaying ? 'pause' : 'play'" size="default" color="#165dff" /></view>
         <view class="vb-info">
           <view class="vb-name">{{ card.voiceName || '语音简介' }}</view>
-          <view class="vb-tip">点击播放</view>
+          <view class="vb-tip">{{ voicePlaying ? '播放中…' : '点击播放' }}</view>
         </view>
-        <audio class="vb-audio" :src="card.voiceUrl" controls />
+        <text class="vb-dur" v-if="voiceDur">{{ voiceDur }}s</text>
       </view>
       <view class="card-row">
         <view class="intro-line" v-if="card.position">
@@ -240,6 +240,23 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
 const card = ref({});
+const voicePlaying = ref(false);
+const voiceDur = ref(0);
+let voiceCtx = null;
+function toggleVoice() {
+  if (!card.value?.voiceUrl) return;
+  if (!voiceCtx) {
+    voiceCtx = uni.createInnerAudioContext();
+    voiceCtx.src = card.value.voiceUrl;
+    voiceCtx.onTimeUpdate(() => { voiceDur.value = Math.round(voiceCtx.duration || 0); });
+    voiceCtx.onEnded(() => { voicePlaying.value = false; });
+    voiceCtx.onStop(() => { voicePlaying.value = false; });
+    voiceCtx.onError(() => { voicePlaying.value = false; });
+  }
+  if (voicePlaying.value) { voiceCtx.pause(); voicePlaying.value = false; }
+  else { voiceCtx.play(); voicePlaying.value = true; }
+}
+onUnload(() => { if (voiceCtx) { voiceCtx.destroy(); voiceCtx = null; } });
 // 品牌色 hero：租户配置了 brand_color 则用品牌渐变，否则回退默认橙色
 const heroStyle = computed(() => ({ background: heroGradient(card.value.templateTheme?.primary || card.value.brandColor) }));
 const works = ref([]);
@@ -946,5 +963,9 @@ function shareCard() {
 .vb-info { flex: 1; min-width: 0; }
 .vb-name { font-size: 28rpx; font-weight: 600; color: var(--t1); }
 .vb-tip { font-size: 22rpx; color: var(--t3); margin-top: 4rpx; }
-.vb-audio { flex: 1; min-width: 0; height: 64rpx; }
+.vb-play {
+  width: 72rpx; height: 72rpx; border-radius: 50%; flex-shrink: 0;
+  background: var(--bg-tag); display: flex; align-items: center; justify-content: center;
+}
+.vb-dur { font-size: 22rpx; color: var(--t3); flex-shrink: 0; }
 </style>
