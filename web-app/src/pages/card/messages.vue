@@ -152,7 +152,7 @@ function goBack() {
 <style scoped>
 .msg-page {
   min-height: 100vh;
-  background: #f5f6f7;
+  background: var(--bg-page);
   padding-bottom: 60rpx;
   box-sizing: border-box;
 }
@@ -172,8 +172,8 @@ function goBack() {
   display: flex;
   align-items: center;
 }
-.mn-title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
-.mn-clear { font-size: 26rpx; color: #07c160; }
+.mn-title { font-size: 34rpx; font-weight: 600; color: var(--t5); }
+.mn-clear { font-size: 26rpx; color: var(--success); }
 
 .msg-tabs {
   display: flex;
@@ -185,19 +185,19 @@ function goBack() {
   flex: 1;
   text-align: center;
   font-size: 28rpx;
-  color: #4e5969;
+  color: var(--t2);
   padding: 14rpx 0;
   border-radius: 12rpx;
   position: relative;
 }
-.mt-item.on { background: rgba(7, 193, 96, 0.08); color: #07c160; font-weight: 600; }
+.mt-item.on { background: rgba(7, 193, 96, 0.08); color: var(--success); font-weight: 600; }
 .mt-dot {
   display: inline-block;
   min-width: 28rpx;
   height: 28rpx;
   line-height: 28rpx;
   border-radius: 14rpx;
-  background: #f53f3f;
+  background: var(--danger);
   color: #fff;
   font-size: 20rpx;
   padding: 0 6rpx;
@@ -224,13 +224,13 @@ function goBack() {
   justify-content: center;
   flex-shrink: 0;
 }
-.m-ic.exchange { background: linear-gradient(135deg, #07c160, #05a050); }
-.m-ic.visitor { background: linear-gradient(135deg, #1d4e8f, #2e6bb8); }
+.m-ic.exchange { background: linear-gradient(135deg, var(--success), #05a050); }
+.m-ic.visitor { background: linear-gradient(135deg, var(--primary-deep), #2e6bb8); }
 .m-ic.system { background: linear-gradient(135deg, #8c8c8c, #6b6b6b); }
 .m-body { flex: 1; min-width: 0; }
 .m-row { display: flex; align-items: center; justify-content: space-between; }
-.m-title { font-size: 28rpx; font-weight: 600; color: #1a1a1a; }
-.m-time { font-size: 22rpx; color: #9a9a9a; }
+.m-title { font-size: 28rpx; font-weight: 600; color: var(--t5); }
+.m-time { font-size: 22rpx; color: var(--t4); }
 .m-content {
   font-size: 25rpx;
   color: #5b5b5b;
@@ -248,13 +248,13 @@ function goBack() {
   width: 14rpx;
   height: 14rpx;
   border-radius: 50%;
-  background: #f53f3f;
+  background: var(--danger);
 }
 .msg-empty {
   padding: 160rpx 40rpx;
   text-align: center;
 }
 .me-icon { width: 120rpx; height: 120rpx; margin: 0 auto 24rpx; }
-.me-text { font-size: 30rpx; color: #1a1a1a; font-weight: 500; }
-.me-hint { font-size: 24rpx; color: #9a9a9a; margin-top: 12rpx; }
+.me-text { font-size: 30rpx; color: var(--t5); font-weight: 500; }
+.me-hint { font-size: 24rpx; color: var(--t4); margin-top: 12rpx; }
 </style>

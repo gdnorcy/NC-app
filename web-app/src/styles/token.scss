@@ -1,0 +1,75 @@
+// ============================================================
+// 智能名片设计令牌（P0 打底）
+// 取值 = 现有页面高频色原样收敛，视觉零变化；新代码一律用 token
+// 双形态：SCSS 变量（页面 style lang="scss" 可用）+ CSS 自定义属性（全局 :root，任何页面 var() 可用）
+// ============================================================
+
+// ---------- 语义色板 ----------
+$primary: #165dff;            // 品牌蓝（现有高频）
+$primary-deep: #1d4e8f;       // 品牌蓝深（渐变/hover）
+$brand-orange: #ff7d00;       // 品牌橙（活动/强调）
+$success: #07c160;            // 微信绿（成功/加微信）
+$danger: #f53f3f;             // 危险/删除
+$warning: #ffb800;            // 警告
+$gold: #ffd21e;               // 会员金
+
+$t1: #1d2129;                 // 主文本
+$t2: #4e5969;                 // 次文本
+$t3: #86909c;                 // 辅助文本/次级图标
+$t4: #9a9a9a;                 // 占位/弱提示
+$t5: #1a1a1a;                 // 深文本（历史遗留高频）
+
+$border: #e5e6eb;             // 普通边框
+$border-strong: #c9cdd4;      // 强调边框/分割
+$bg-page: #f5f6f7;            // 页面背景
+$bg-card: #f7f8fa;            // 卡片/浅灰块
+$bg-hover: #f2f3f5;           // hover/按压
+$bg-mask: rgba(0, 0, 0, 0.5); // 遮罩
+$bg-tag: rgba(22, 93, 255, 0.08); // 品牌淡底标签
+
+// ---------- 字号阶梯（rpx→px） ----------
+$font-icontext: 11px;   // 图标旁文字
+$font-caption: 12px;    // 辅助说明
+$font-caption-lg: 13px; // 次级正文
+$font-paragraph: 14px;  // 正文
+$font-title: 15px;      // 小标题
+$font-title-lg: 16px;   // 标题
+$font-title-xl: 24px;   // 大标题
+
+// ---------- 间距（严格 8 的倍数） ----------
+$space-sm: 4px;
+$space-md: 8px;
+$space-lg: 16px;
+$space-xl: 24px;
+$space-xxl: 32px;
+
+// ---------- 圆角 ----------
+$radius-sm: 8rpx;
+$radius-md: 16rpx;
+$radius-lg: 24rpx;
+
+// ---------- 暴露为 CSS 自定义属性（全局可用） ----------
+:root {
+  --primary: #{$primary};
+  --primary-deep: #{$primary-deep};
+  --brand-orange: #{$brand-orange};
+  --success: #{$success};
+  --danger: #{$danger};
+  --warning: #{$warning};
+  --gold: #{$gold};
+  --t1: #{$t1};
+  --t2: #{$t2};
+  --t3: #{$t3};
+  --t4: #{$t4};
+  --t5: #{$t5};
+  --border: #{$border};
+  --border-strong: #{$border-strong};
+  --bg-page: #{$bg-page};
+  --bg-card: #{$bg-card};
+  --bg-hover: #{$bg-hover};
+  --bg-mask: #{$bg-mask};
+  --bg-tag: #{$bg-tag};
+  --radius-sm: #{$radius-sm};
+  --radius-md: #{$radius-md};
+  --radius-lg: #{$radius-lg};
+}

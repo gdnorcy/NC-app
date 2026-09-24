@@ -39,7 +39,7 @@
         <!-- 类型选择（仅新建时） -->
         <view v-if="!isEdit" class="type-cards">
           <view class="type-card" :class="{ active: cardType === 'individual' }" @click="cardType = 'individual'">
-            <view class="type-icon" style="background: linear-gradient(135deg,#07c160,#1edc87);">
+            <view class="type-icon" style="background: linear-gradient(135deg,var(--success),#1edc87);">
               <SIcon name="user" size="xlarge" color="#ffffff" />
             </view>
             <view class="type-info">
@@ -49,7 +49,7 @@
             <view class="type-check" v-if="cardType === 'individual'">✓</view>
           </view>
           <view class="type-card" :class="{ active: cardType === 'enterprise' }" @click="cardType = 'enterprise'">
-            <view class="type-icon" style="background: linear-gradient(135deg,#1d4e8f,#3b7bd4);">
+            <view class="type-icon" style="background: linear-gradient(135deg,var(--primary-deep),#3b7bd4);">
               <SIcon name="building" size="xlarge" color="#ffffff" />
             </view>
             <view class="type-info">
@@ -70,7 +70,7 @@
               class="tpl-item" :class="{ active: form.templateId === t.id }"
               @click="selectTemplate(t)"
             >
-              <view class="tpl-cover" :style="{ background: (t.themeConfig && t.themeConfig.primary) || '#07c160' }">
+              <view class="tpl-cover" :style="{ background: (t.themeConfig && t.themeConfig.primary) || 'var(--success)' }">
                 <image v-if="t.cover" :src="t.cover" class="tpl-cover-img" mode="aspectFill" />
                 <text v-else class="tpl-cover-text">{{ t.name.slice(0, 2) }}</text>
                 <view class="tpl-check" v-if="form.templateId === t.id">✓</view>
@@ -519,7 +519,7 @@ async function submit() {
 
 /* 顶部标题 */
 .header {
-  background: linear-gradient(155deg, #0e2a4e, #1d4e8f 55%, #3b7bd4);
+  background: linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4);
   padding: 88rpx 32rpx 32rpx;
 }
 .row1 {
@@ -567,8 +567,8 @@ async function submit() {
   width: 48rpx;
   height: 48rpx;
   border-radius: 24rpx;
-  background: #e5e6eb;
-  color: #86909c;
+  background: var(--border);
+  color: var(--t3);
   font-size: 24rpx;
   font-weight: 600;
   display: flex;
@@ -577,7 +577,7 @@ async function submit() {
   transition: all 0.3s;
 }
 .step-dot.active {
-  background: #07c160;
+  background: var(--success);
   color: #fff;
   box-shadow: 0 4rpx 12rpx rgba(7,193,96,0.3);
 }
@@ -587,11 +587,11 @@ async function submit() {
 }
 .step-label {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--t3);
   margin-top: 8rpx;
 }
 .step-label.active {
-  color: #07c160;
+  color: var(--success);
   font-weight: 600;
 }
 .progress-line {
@@ -600,11 +600,11 @@ async function submit() {
   left: 15%;
   right: 15%;
   height: 4rpx;
-  background: #e5e6eb;
+  background: var(--border);
 }
 .progress-fill {
   height: 100%;
-  background: #07c160;
+  background: var(--success);
   transition: width 0.4s;
 }
 
@@ -626,11 +626,11 @@ async function submit() {
 .card-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .card-desc {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--t3);
   margin-top: 4rpx;
 }
 
@@ -645,13 +645,13 @@ async function submit() {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  border: 2rpx solid #e5e6eb;
+  border: 2rpx solid var(--border);
   border-radius: 14rpx;
   padding: 20rpx;
   transition: all 0.2s;
 }
 .type-card.active {
-  border-color: #07c160;
+  border-color: var(--success);
   background: rgba(7,193,96,0.05);
 }
 .type-icon {
@@ -669,18 +669,18 @@ async function submit() {
 .type-name {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .type-desc {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--t3);
   margin-top: 4rpx;
 }
 .type-check {
   width: 40rpx;
   height: 40rpx;
   border-radius: 20rpx;
-  background: #07c160;
+  background: var(--success);
   color: #fff;
   display: flex;
   align-items: center;
@@ -692,7 +692,7 @@ async function submit() {
 /* 入驻绑定 */
 .bind-section {
   margin-top: 20rpx;
-  border: 2rpx dashed #c9cdd4;
+  border: 2rpx dashed var(--border-strong);
   border-radius: 14rpx;
   padding: 16rpx 20rpx;
 }
@@ -707,11 +707,11 @@ async function submit() {
   gap: 8rpx;
   font-size: 26rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .bind-arrow {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--t3);
 }
 .bind-body {
   margin-top: 16rpx;
@@ -719,10 +719,10 @@ async function submit() {
 .bind-hint {
 
 .need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
-.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: #f7f8fa; color: #4e5969; font-size: 26rpx; border: 2rpx solid transparent; }
-.need-item.on { background: rgba(22,93,255,0.08); color: #165dff; border-color: #165dff; font-weight: 500; }
+.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t2); font-size: 26rpx; border: 2rpx solid transparent; }
+.need-item.on { background: rgba(22,93,255,0.08); color: var(--primary); border-color: var(--primary); font-weight: 500; }
   font-size: 20rpx;
-  color: #86909c;
+  color: var(--t3);
   margin-top: 8rpx;
 }
 
@@ -735,27 +735,27 @@ async function submit() {
 }
 .form-label {
   font-size: 26rpx;
-  color: #4e5969;
+  color: var(--t2);
   margin-bottom: 10rpx;
 }
 .required {
-  color: #f53f3f;
+  color: var(--danger);
 }
 .form-input {
   height: 84rpx;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  color: #1d2129;
+  color: var(--t1);
 }
 .error-tip {
   font-size: 22rpx;
-  color: #f53f3f;
+  color: var(--danger);
   margin-top: 6rpx;
 }
 .form-item.error .form-input {
-  border: 2rpx solid #f53f3f;
+  border: 2rpx solid var(--danger);
 }
 .switch-item {
   display: flex;
@@ -775,8 +775,8 @@ async function submit() {
   width: 112rpx;
   height: 112rpx;
   border-radius: 24rpx;
-  background: #f7f8fa;
-  border: 2rpx dashed #c9cdd4;
+  background: var(--bg-card);
+  border: 2rpx dashed var(--border-strong);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -790,11 +790,11 @@ async function submit() {
 }
 .avatar-plus {
   font-size: 40rpx;
-  color: #86909c;
+  color: var(--t3);
 }
 .avatar-text {
   font-size: 20rpx;
-  color: #86909c;
+  color: var(--t3);
 }
 .avatar-img {
   width: 100%;
@@ -802,7 +802,7 @@ async function submit() {
 }
 .avatar-hint {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--t3);
 }
 
 /* 预览 */
@@ -812,11 +812,11 @@ async function submit() {
 .preview-title {
   font-size: 26rpx;
   font-weight: 600;
-  color: #4e5969;
+  color: var(--t2);
   margin-bottom: 12rpx;
 }
 .preview-card {
-  background: linear-gradient(155deg, #0e2a4e, #1d4e8f 55%, #3b7bd4);
+  background: linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4);
   border-radius: 16rpx;
   padding: 24rpx;
 }
@@ -894,7 +894,7 @@ async function submit() {
 .btn-primary {
   flex: 1;
   height: 88rpx;
-  background: #07c160;
+  background: var(--success);
   color: #fff;
   font-size: 30rpx;
   font-weight: 600;
@@ -908,8 +908,8 @@ async function submit() {
 .btn-secondary {
   width: 160rpx;
   height: 88rpx;
-  background: #f2f3f5;
-  color: #4e5969;
+  background: var(--bg-hover);
+  color: var(--t2);
   font-size: 28rpx;
   border-radius: 44rpx;
   border: none;
@@ -918,48 +918,48 @@ async function submit() {
   width: 160rpx;
   height: 88rpx;
   background: #fff;
-  color: #86909c;
+  color: var(--t3);
   font-size: 28rpx;
   border-radius: 44rpx;
-  border: 2rpx solid #e5e6eb;
+  border: 2rpx solid var(--border);
 }
 
 /* ===== 模板选择 ===== */
 .tpl-scroll { width: 100%; white-space: nowrap; margin-top: 16rpx; }
 .tpl-list { display: inline-flex; gap: 20rpx; padding: 4rpx 2rpx 12rpx; }
-.tpl-item { width: 200rpx; flex-shrink: 0; border-radius: 16rpx; border: 3rpx solid transparent; overflow: hidden; background: #f7f8fa; }
-.tpl-item.active { border-color: #07c160; background: #f0faf5; }
+.tpl-item { width: 200rpx; flex-shrink: 0; border-radius: 16rpx; border: 3rpx solid transparent; overflow: hidden; background: var(--bg-card); }
+.tpl-item.active { border-color: var(--success); background: #f0faf5; }
 .tpl-cover { position: relative; height: 150rpx; display: flex; align-items: center; justify-content: center; }
 .tpl-cover-img { width: 100%; height: 100%; }
 .tpl-cover-text { color: #fff; font-size: 44rpx; font-weight: 600; }
-.tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #07c160; color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
-.tpl-name { display: block; padding: 12rpx 10rpx 14rpx; font-size: 24rpx; color: #1d2129; text-align: center; white-space: normal; word-break: break-all; }
+.tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--success); color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
+.tpl-name { display: block; padding: 12rpx 10rpx 14rpx; font-size: 24rpx; color: var(--t1); text-align: center; white-space: normal; word-break: break-all; }
 .vip-tag {
-  display: inline-block; font-size: 20rpx; color: #fff; background: #ffd21e;
+  display: inline-block; font-size: 20rpx; color: #fff; background: var(--gold);
   border-radius: 6rpx; padding: 2rpx 10rpx; margin-left: 12rpx; vertical-align: middle;
 }
 .voice-row { margin-top: 16rpx; }
 .voice-upload {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 100%; height: 160rpx; border: 2rpx dashed #c9cdd4; border-radius: 16rpx;
-  background: #f7f8fa; gap: 8rpx;
+  width: 100%; height: 160rpx; border: 2rpx dashed var(--border-strong); border-radius: 16rpx;
+  background: var(--bg-card); gap: 8rpx;
 }
-.voice-plus { font-size: 48rpx; color: #86909c; line-height: 1; }
-.voice-text { font-size: 26rpx; color: #86909c; }
+.voice-plus { font-size: 48rpx; color: var(--t3); line-height: 1; }
+.voice-text { font-size: 26rpx; color: var(--t3); }
 .voice-file {
   display: flex; align-items: center; gap: 18rpx;
-  background: #f7f8fa; border-radius: 16rpx; padding: 20rpx 24rpx;
+  background: var(--bg-card); border-radius: 16rpx; padding: 20rpx 24rpx;
 }
 .vf-info { flex: 1; min-width: 0; }
-.vf-name { font-size: 28rpx; font-weight: 600; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vf-tip { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
+.vf-name { font-size: 28rpx; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vf-tip { font-size: 22rpx; color: var(--t3); margin-top: 4rpx; }
 .vf-actions { display: flex; flex-direction: column; gap: 8rpx; }
-.vf-del { font-size: 22rpx; color: #f53f3f; }
-.vf-re { font-size: 22rpx; color: #165dff; }
+.vf-del { font-size: 22rpx; color: var(--danger); }
+.vf-re { font-size: 22rpx; color: var(--primary); }
 .voice-audio { width: 200rpx; height: 64rpx; }
 .voice-locked {
   display: flex; align-items: center; gap: 12rpx;
-  background: #fffbe8; border: 2rpx dashed #ffd21e; border-radius: 16rpx;
+  background: #fffbe8; border: 2rpx dashed var(--gold); border-radius: 16rpx;
   padding: 24rpx; color: #b8860b; font-size: 26rpx; margin-top: 16rpx;
 }
 </style>

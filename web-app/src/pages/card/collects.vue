@@ -78,20 +78,20 @@ function goBack() {
 </script>
 
 <style scoped>
-.col-page { min-height: 100vh; background: #f5f6f7; padding-bottom: 80rpx; }
+.col-page { min-height: 100vh; background: var(--bg-page); padding-bottom: 80rpx; }
 .msg-nav {
   display: flex; align-items: center; justify-content: space-between;
   padding: 24rpx 28rpx; background: #fff;
   position: sticky; top: 0; z-index: 10;
 }
-.mn-back, .mn-clear { font-size: 28rpx; color: #1a1a1a; }
-.mn-title { font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.mn-clear { color: #86909c; }
+.mn-back, .mn-clear { font-size: 28rpx; color: var(--t5); }
+.mn-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
+.mn-clear { color: var(--t3); }
 .col-list { padding: 20rpx 28rpx; }
 .col-item {
   display: flex; align-items: center; gap: 22rpx;
   background: #fff; border-radius: 24rpx; padding: 26rpx;
-  margin-bottom: 18rpx; border: 1px solid #e5e6eb;
+  margin-bottom: 18rpx; border: 1px solid var(--border);
 }
 .c-av {
   width: 96rpx; height: 96rpx; border-radius: 50%; overflow: hidden;
@@ -99,19 +99,19 @@ function goBack() {
   display: flex; align-items: center; justify-content: center;
 }
 .c-av-img { width: 100%; height: 100%; }
-.c-av-txt { font-size: 36rpx; font-weight: 600; color: #07c160; }
+.c-av-txt { font-size: 36rpx; font-weight: 600; color: var(--success); }
 .c-info { flex: 1; min-width: 0; }
-.c-name { font-size: 30rpx; font-weight: 600; color: #1d2129; }
-.c-sub { font-size: 24rpx; color: #86909c; margin-top: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c-time { font-size: 22rpx; color: #c9cdd4; margin-top: 8rpx; }
+.c-name { font-size: 30rpx; font-weight: 600; color: var(--t1); }
+.c-sub { font-size: 24rpx; color: var(--t3); margin-top: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-time { font-size: 22rpx; color: var(--border-strong); margin-top: 8rpx; }
 .c-act {
   display: flex; align-items: center; gap: 8rpx;
-  font-size: 22rpx; color: #86909c;
-  background: #f7f8fa; border-radius: 999rpx; padding: 10rpx 20rpx;
+  font-size: 22rpx; color: var(--t3);
+  background: var(--bg-card); border-radius: 999rpx; padding: 10rpx 20rpx;
   flex-shrink: 0;
 }
 .msg-empty { text-align: center; padding: 120rpx 40rpx; }
 .me-icon { margin-bottom: 20rpx; }
-.me-text { font-size: 30rpx; color: #1d2129; }
-.me-hint { font-size: 24rpx; color: #86909c; margin-top: 12rpx; }
+.me-text { font-size: 30rpx; color: var(--t1); }
+.me-hint { font-size: 24rpx; color: var(--t3); margin-top: 12rpx; }
 </style>

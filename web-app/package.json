@@ -25,6 +25,7 @@
   "@dcloudio/uni-cli-shared": "3.0.0-5020420260813003",
   "@dcloudio/uni-stacktracey": "3.0.0-5020420260813003",
   "@dcloudio/vite-plugin-uni": "3.0.0-5020420260813003",
+  "sass": "^1.105.0",
   "vite": "5.2.8",
   "vitest": "^3.2.7"
  }

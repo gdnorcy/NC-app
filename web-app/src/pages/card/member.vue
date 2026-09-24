@@ -346,7 +346,7 @@ async function openMember(pkg) {
 <style scoped>
 .member-page {
   min-height: 100vh;
-  background: #f5f6f7;
+  background: var(--bg-page);
   padding-bottom: 160rpx;
 }
 
@@ -395,11 +395,11 @@ async function openMember(pkg) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #1a1a1a;
+  color: var(--t5);
 }
 .sec-t small {
   font-size: 22rpx;
-  color: #9a9a9a;
+  color: var(--t4);
   font-weight: 400;
 }
 .plan-grid {
@@ -412,30 +412,30 @@ async function openMember(pkg) {
   background: #fff;
   border-radius: 32rpx;
   padding: 36rpx;
-  border: 1.5px solid #e5e6eb;
+  border: 1.5px solid var(--border);
   position: relative;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .plan.hot {
-  border-color: #07c160;
+  border-color: var(--success);
   box-shadow: 0 4px 16px rgba(7,193,96,0.08);
 }
 .pn {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--t5);
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
 .cur-tag {
   font-size: 22rpx;
-  color: #07c160;
+  color: var(--success);
   font-weight: 400;
 }
 .hot-tag {
   font-size: 20rpx;
-  color: #07c160;
+  color: var(--success);
   background: #e7f7ee;
   padding: 4rpx 14rpx;
   border-radius: 12rpx;
@@ -451,7 +451,7 @@ async function openMember(pkg) {
   font-style: normal;
   font-size: 22rpx;
   font-weight: 400;
-  color: #9a9a9a;
+  color: var(--t4);
   margin-left: 4rpx;
 }
 .plan-features {
@@ -483,12 +483,12 @@ async function openMember(pkg) {
   transition: opacity 0.15s;
 }
 .btn.buy {
-  background: #07c160;
+  background: var(--success);
   color: #fff;
 }
 .btn.on {
   background: #e7f7ee;
-  color: #07c160;
+  color: var(--success);
 }
 .btn:active {
   opacity: 0.75;
@@ -501,9 +501,9 @@ async function openMember(pkg) {
 }
 .de-left { display: flex; align-items: center; gap: 12px; }
 .de-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(22,93,255,0.08); display: flex; align-items: center; justify-content: center; }
-.de-title { font-size: 15px; font-weight: 600; color: #1d2129; }
-.de-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
-.de-arrow { font-size: 22px; color: #c9cdd4; }
+.de-title { font-size: 15px; font-weight: 600; color: var(--t1); }
+.de-sub { font-size: 12px; color: var(--t3); margin-top: 2px; }
+.de-arrow { font-size: 22px; color: var(--border-strong); }
 
 /* ===== 租户会员卡 ===== */
 .tcard {
@@ -525,24 +525,24 @@ async function openMember(pkg) {
 .sign-row {
   display: flex; align-items: center; justify-content: space-between;
   margin: 24rpx 28rpx 0; background: #fff; border-radius: 20rpx; padding: 26rpx 28rpx;
-  border: 1px solid #e5e6eb;
+  border: 1px solid var(--border);
 }
-.si-title { font-size: 28rpx; font-weight: 600; color: #1a1a1a; }
-.si-sub { font-size: 22rpx; color: #9a9a9a; margin-top: 6rpx; }
-.sign-btn { background: #165dff; color: #fff; font-size: 26rpx; font-weight: 600; padding: 16rpx 44rpx; border-radius: 999rpx; }
+.si-title { font-size: 28rpx; font-weight: 600; color: var(--t5); }
+.si-sub { font-size: 22rpx; color: var(--t4); margin-top: 6rpx; }
+.sign-btn { background: var(--primary); color: #fff; font-size: 26rpx; font-weight: 600; padding: 16rpx 44rpx; border-radius: 999rpx; }
 .sign-btn:active { opacity: 0.8; }
 .tlevels { margin: 0 28rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.tlv { background: #fff; border-radius: 20rpx; padding: 28rpx; border: 1.5px solid #e5e6eb; }
-.tlv.cur { border-color: #165dff; background: #f7fbff; }
+.tlv { background: #fff; border-radius: 20rpx; padding: 28rpx; border: 1.5px solid var(--border); }
+.tlv.cur { border-color: var(--primary); background: #f7fbff; }
 .tlv-head { display: flex; align-items: center; justify-content: space-between; }
-.tlv-name { font-size: 30rpx; font-weight: 700; color: #1a1a1a; }
-.tlv-no { font-size: 22rpx; color: #165dff; background: #e8f3ff; padding: 4rpx 16rpx; border-radius: 10rpx; }
-.tlv-desc { font-size: 23rpx; color: #9a9a9a; margin-top: 10rpx; line-height: 1.5; }
+.tlv-name { font-size: 30rpx; font-weight: 700; color: var(--t5); }
+.tlv-no { font-size: 22rpx; color: var(--primary); background: #e8f3ff; padding: 4rpx 16rpx; border-radius: 10rpx; }
+.tlv-desc { font-size: 23rpx; color: var(--t4); margin-top: 10rpx; line-height: 1.5; }
 .tlv-btn { margin-top: 20rpx; text-align: center; padding: 18rpx; border-radius: 16rpx; font-size: 27rpx; font-weight: 600; }
-.tlv-btn.buy { background: #165dff; color: #fff; }
-.tlv-btn.apply { background: #ff7d00; color: #fff; }
-.tlv-btn.on { background: #e8f3ff; color: #165dff; }
-.tlv-btn.disabled { background: #f2f3f5; color: #c9cdd4; }
+.tlv-btn.buy { background: var(--primary); color: #fff; }
+.tlv-btn.apply { background: var(--brand-orange); color: #fff; }
+.tlv-btn.on { background: #e8f3ff; color: var(--primary); }
+.tlv-btn.disabled { background: var(--bg-hover); color: var(--border-strong); }
 .tlv-btn:active { opacity: 0.8; }
 .apply-tip { margin: 20rpx 28rpx 0; padding: 20rpx 24rpx; border-radius: 16rpx; font-size: 24rpx; line-height: 1.5; }
 .apply-tip.st-pending { background: #fff7e6; color: #ad6800; border: 1px solid #ffd591; }
