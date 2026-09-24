@@ -10,12 +10,12 @@
     <!-- 类型页签 -->
     <view class="msg-tabs">
       <view class="mt-item" :class="{ on: tab === '' }" @click="switchTab('')">
-        全部<text v-if="unreadTotal" class="mt-dot">{{ unreadTotal }}</text>
+        全部<Badge v-if="unreadTotal" :count="unreadTotal" :max="99" />
       </view>
       <view class="mt-item" :class="{ on: tab === 'exchange' }" @click="switchTab('exchange')">交换</view>
       <view class="mt-item" :class="{ on: tab === 'visitor' }" @click="switchTab('visitor')">访客</view>
       <view class="mt-item" :class="{ on: tab === 'system' }" @click="switchTab('system')">系统</view>
-      <view class="mt-item" :class="{ on: tab === 'radar' }" @click="switchTab('radar')">雷达<text v-if="radarUnread" class="mt-dot">{{ radarUnread }}</text></view>
+      <view class="mt-item" :class="{ on: tab === 'radar' }" @click="switchTab('radar')">雷达<Badge v-if="radarUnread" :count="radarUnread" :max="99" /></view>
     </view>
 
     <!-- 列表 -->
@@ -48,6 +48,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
+import Badge from '../../components/Badge.vue';
 
 const messages = ref([]);
 const unreadTotal = ref(0);

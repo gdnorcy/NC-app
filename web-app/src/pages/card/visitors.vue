@@ -58,13 +58,14 @@
     </view>
 
     <!-- 高潜榜（会员内，AI 意向识别） -->
-    <view class="lead-card" v-if="!locked && topLeads.length">
+    <view class="lead-card" v-if="!locked && (leadLoading || topLeads.length)">
       <view class="sec-t lead-sec">
         <text>高潜榜 <small>AI 意向识别</small></text>
         <view class="lead-ai" v-if="hasFeature('ai_report')" @click="openAiReport">AI 意向报告</view>
         <view class="lead-ai locked" v-else @click="goMember">升级查看</view>
       </view>
-      <view class="lead-list">
+      <Skeleton v-if="leadLoading" :rows="3" avatar />
+      <view class="lead-list" v-else>
         <view class="lead-row" v-for="(l, i) in topLeads" :key="i" @click="viewLeadIntent(l)">
           <view class="lead-rank" :class="{ hot: i < 3 }">{{ i + 1 }}</view>
           <view class="lead-info">
@@ -205,6 +206,7 @@ import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import Skeleton from '../../components/Skeleton.vue';
 
 const summary = ref({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
 const visitors = ref([]);
@@ -214,6 +216,7 @@ const displayWeek = ref(0);
 const displayTotal = ref(0);
 const locked = ref(false);
 const topLeads = ref([]);
+const leadLoading = ref(false);
 const features = ref([]);
 const showAiReport = ref(false);
 const showLeadIntent = ref(false);
@@ -255,12 +258,16 @@ onMounted(async () => {
     animateNumber('week', res.week);
     animateNumber('total', res.total);
     // 阶段C：会员权益 + 高潜榜（免费用户在 locked 分支已 return）
+    leadLoading.value = true;
     try {
       const feat = await cardApi.getRadarFeatures();
       features.value = feat.features || [];
       const leads = await cardApi.getRadarTopLeads(10);
       topLeads.value = leads.leads || [];
-    } catch (e) {}
+    } catch (e) {
+    } finally {
+      leadLoading.value = false;
+    }
   } catch (e) {}
 });
 

@@ -142,7 +142,7 @@
       <view class="os-row" @click="goMessages">
         <view class="osr-icon"><SIcon name="dynamic" size="default" color="#1d4e8f" /></view>
         <view class="osr-main"><view class="osr-name">消息中心</view><view class="osr-desc">交换申请、访客动态等通知</view></view>
-        <text class="osr-badge" v-if="msgUnread > 0">{{ msgUnread > 99 ? '99+' : msgUnread }}</text>
+        <Badge v-if="msgUnread > 0" :count="msgUnread" :max="99" />
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="goCollects">
@@ -177,6 +177,7 @@ import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { shadeHex } from '../../utils/color.js';
+import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
