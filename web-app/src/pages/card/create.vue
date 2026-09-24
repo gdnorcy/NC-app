@@ -74,6 +74,8 @@
                 <image v-if="t.cover" :src="t.cover" class="tpl-cover-img" mode="aspectFill" />
                 <text v-else class="tpl-cover-text">{{ t.name.slice(0, 2) }}</text>
                 <text class="tpl-layout" v-if="t.layout === 'full'">全屏大图</text>
+                <text class="tpl-price-tag" :class="Number(t.price) > 0 ? 'paid' : 'free'">{{ Number(t.price) > 0 ? '¥' + Number(t.price) : '免费' }}</text>
+                <view class="tpl-owned" v-if="t.purchased">已购</view>
                 <view class="tpl-check" v-if="form.templateId === t.id">✓</view>
               </view>
               <text class="tpl-name">{{ t.name }}</text>
@@ -275,7 +277,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { cardApi } from '../../utils/cardApi.js';
+import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
@@ -315,22 +317,60 @@ const errors = reactive({ name: false, phone: false });
 
 const templates = ref([]);
 const templatesLoaded = ref(false);
-async function loadTemplates() {
-  if (templatesLoaded.value) return;
+async function loadTemplates(force = false) {
+  if (templatesLoaded.value && !force) return;
   try {
     const res = await cardApi.getTemplates();
     templates.value = res.templates || [];
-    // 默认选中第一个模板（若有）
+    // 默认选中第一个可用模板（跳过付费未购）
     if (templates.value.length && !form.templateId) {
-      form.templateId = templates.value[0].id;
+      const first = templates.value.find((t) => Number(t.price) <= 0 || t.purchased) || templates.value[0];
+      form.templateId = first.id;
     }
     templatesLoaded.value = true;
   } catch (e) {
     console.warn('模板加载失败', e);
   }
 }
-function selectTemplate(t) {
-  form.templateId = form.templateId === t.id ? '' : t.id;
+function selectTemplate(tpl) {
+  // 付费未购：先购买再选中
+  if (Number(tpl.price) > 0 && !tpl.purchased) {
+    uni.showModal({
+      title: '购买模板',
+      content: `「${tpl.name}」需付费 ¥${Number(tpl.price)}，购买后永久可用。是否购买？`,
+      success: async (r) => {
+        if (!r.confirm) return;
+        uni.showLoading({ title: '创建订单...' });
+        try {
+          const res = await cardApi.buyTemplate(tpl.id);
+          uni.hideLoading();
+          uni.showModal({
+            title: '确认支付',
+            content: `确认支付 ¥${(res.amount / 100).toFixed(2)} 购买「${res.templateName}」？`,
+            success: async (r2) => {
+              if (!r2.confirm) return;
+              uni.showLoading({ title: '支付中...' });
+              try {
+                await paymentApi.mockPay(res.orderNo);
+                uni.hideLoading();
+                uni.showToast({ title: '购买成功', icon: 'success' });
+                await loadTemplates(true);
+                form.templateId = tpl.id;
+              } catch (e) {
+                uni.hideLoading();
+                uni.showToast({ title: e.message || '支付失败', icon: 'none' });
+              }
+            },
+          });
+        } catch (e) {
+          uni.hideLoading();
+          uni.showToast({ title: e.message || '创建订单失败', icon: 'none' });
+        }
+      },
+    });
+    return;
+  }
+  form.templateId = form.templateId === tpl.id ? '' : tpl.id;
 }
 
 onShow(() => {
@@ -939,6 +979,10 @@ async function submit() {
   padding: 4rpx 10rpx; border-radius: 8rpx;
 }
 .tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--success); color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
+.tpl-price-tag { position: absolute; left: 8rpx; bottom: 8rpx; z-index: 2; font-size: 18rpx; padding: 4rpx 10rpx; border-radius: 8rpx; color: #fff; }
+.tpl-price-tag.free { background: rgba(0,180,42,0.85); }
+.tpl-price-tag.paid { background: rgba(255,125,0,0.92); }
+.tpl-owned { position: absolute; right: 8rpx; bottom: 8rpx; z-index: 2; font-size: 18rpx; color: #fff; background: rgba(22,93,255,0.85); padding: 4rpx 10rpx; border-radius: 8rpx; }
 .tpl-name { display: block; padding: 12rpx 10rpx 14rpx; font-size: 24rpx; color: var(--t1); text-align: center; white-space: normal; word-break: break-all; }
 .vip-tag {
   display: inline-block; font-size: 20rpx; color: #fff; background: var(--gold);

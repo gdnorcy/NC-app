@@ -55,6 +55,10 @@
           <SIcon name="star" size="default" :color="collected ? '#ffd21e' : '#ffffff'" />
           <text :style="collected ? 'color:var(--gold)' : ''">{{ collected ? '已收藏' : '收藏' }}</text>
         </view>
+        <view class="qb" @click="goTemplateSelect" v-if="isMine">
+          <SIcon name="template" size="default" color="#ffffff" />
+          <text>换模板</text>
+        </view>
       </view>
     </view>
 
@@ -506,6 +510,11 @@ async function submitComment() {
   } finally {
     commentPanel.sending = false;
   }
+}
+const isMine = computed(() => Number(card.value.userId) > 0 && Number(card.value.userId) === Number(uni.getStorageSync('card_user')?.id || 0));
+function goTemplateSelect() {
+  if (!isMine.value) return;
+  uni.navigateTo({ url: `/pages/card/templateSelect?cardId=${card.value.id}` });
 }
 function ensureLogin() {
   if (!uni.getStorageSync('card_token')) {

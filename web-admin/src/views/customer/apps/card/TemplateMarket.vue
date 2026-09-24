@@ -30,9 +30,13 @@
           <div class="tpl-desc">{{ t.description || (t.tenantId === 0 ? '平台提供 · 全员可用' : '本租户私有模板') }}</div>
           <div class="tpl-price-line">
             <span v-if="t.tenantId === 0" class="tpl-price" :class="Number(t.price || 0) > 0 ? 'paid' : 'free'">
-              {{ Number(t.price || 0) > 0 ? `¥${Number(t.price)}` : '免费' }}
+              平台价：{{ Number(t.price || 0) > 0 ? `¥${Number(t.price)}` : '免费' }}
             </span>
             <el-tag v-if="t.tenantId === 0 && Number(t.price || 0) > 0 && t.purchased" size="small" type="success" effect="plain">已购买</el-tag>
+          </div>
+          <div v-if="t.tenantId === 0" class="tpl-price-line">
+            <span class="cprice-label">C端售价</span>
+            <span class="tpl-price" :class="Number(t.cPrice || 0) > 0 ? 'paid' : 'free'">{{ Number(t.cPrice || 0) > 0 ? `¥${Number(t.cPrice)}` : '免费' }}</span>
           </div>
           <div class="tpl-status" :class="t.enabled ? 'on' : 'off'">{{ t.enabled ? '已启用' : '已停用' }}</div>
         </div>
@@ -47,6 +51,7 @@
             <span v-else class="use-hint">需管理员购买</span>
           </span>
           <span v-else class="use-hint">{{ Number(t.price || 0) > 0 ? '已购买 · 全员可用' : '免费 · 平台全员可用' }}</span>
+          <button v-if="isTenantAdmin" class="btn-buy ghost" @click="openCPrice(t)">设C端售价</button>
         </div>
       </div>
     </div>
@@ -99,6 +104,10 @@
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" />
         </el-form-item>
+        <el-form-item label="C端售价">
+          <el-input-number v-model="form.price" :min="0" :precision="2" size="small" style="width: 160px" />
+          <span class="enable-hint">0 元 = 员工免费使用；>0 元 = 员工需付费购买后可用</span>
+        </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="form.enabled" />
           <span class="enable-hint">{{ form.enabled ? '员工创建名片时可选' : '停用后员工不可选用' }}</span>
@@ -107,6 +116,21 @@
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- C端售价设置弹窗 -->
+    <el-dialog v-model="cPriceVisible" title="设置C端售价" width="420px" :close-on-click-modal="false">
+      <el-form label-width="90px">
+        <el-form-item label="C端售价">
+          <el-input-number v-model="cPriceForm.cPrice" :min="0" :precision="2" size="small" style="width: 180px" />
+          <span class="enable-hint" style="margin-left:10px;">0 元 = 对C端用户免费</span>
+        </el-form-item>
+        <div class="enable-hint">C端用户购买模板的收益归本租户。设置后立即对员工/用户生效。</div>
+      </el-form>
+      <template #footer>
+        <el-button @click="cPriceVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveCPrice">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -126,13 +150,29 @@ const buyingId = ref(null);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const saving = ref(false);
-const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true, layout: 'card', cover: '' });
+const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true, layout: 'card', cover: '', price: 0 });
 
 async function load() {
   const res = await customerApiCall.get('/card/templates');
   templates.value = res.templates || [];
 }
 
+const cPriceVisible = ref(false);
+const cPriceForm = ref({ id: null, cPrice: 0 });
+function openCPrice(t) {
+  cPriceForm.value = { id: t.id, cPrice: Number(t.cPrice || 0) };
+  cPriceVisible.value = true;
+}
+async function saveCPrice() {
+  try {
+    await customerApiCall.put(`/card/templates/${cPriceForm.value.id}/c-price`, { cPrice: cPriceForm.value.cPrice });
+    ElMessage.success('C端售价已保存');
+    cPriceVisible.value = false;
+    load();
+  } catch (e) {
+    ElMessage.error(e || '保存失败');
+  }
+}
 async function buyTemplate(t) {
   if (buyingId.value) return;
   buyingId.value = t.id;
@@ -168,12 +208,12 @@ async function handleCoverUpload(opt) {
 
 function openCreate() {
   isEdit.value = false;
-  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true, layout: 'card', cover: '' };
+  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true, layout: 'card', cover: '', price: 0 };
   dialogVisible.value = true;
 }
 function openEdit(t) {
   isEdit.value = true;
-  form.value = { id: t.id, name: t.name, description: t.description, themeConfig: { ...t.themeConfig }, sortOrder: t.sortOrder, enabled: !!t.enabled, layout: t.layout || 'card', cover: t.cover || '' };
+  form.value = { id: t.id, name: t.name, description: t.description, themeConfig: { ...t.themeConfig }, sortOrder: t.sortOrder, enabled: !!t.enabled, layout: t.layout || 'card', cover: t.cover || '', price: Number(t.price || 0) };
   dialogVisible.value = true;
 }
 async function save() {
@@ -249,6 +289,8 @@ onMounted(load);
 .enable-hint { margin-left: 10px; font-size: 12px; color: #86909c; }
 .tpl-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid #f2f3f5; }
 .tpl-price-line { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.cprice-label { font-size: 12px; color: #86909c; }
+.btn-buy.ghost { background: #fff; color: #165dff; border: 1px solid #165dff; }
 .tpl-price { display: inline-block; font-size: 13px; font-weight: 600; }
 .tpl-price.free { color: #00b42a; }
 .tpl-price.paid { color: #ff7d00; }

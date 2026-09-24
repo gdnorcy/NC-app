@@ -193,15 +193,86 @@ export function createCardRouter(db, wxService) {
   });
 
   // ============================================================
-  // 名片模板（C 端套用：平台公共 enabled + 本租户私有）
+  // 名片模板商业化（两层：平台→租户购买→租户设C端售价；C端用户→付费解锁）
+  // 可见范围：租户自建 + 平台免费(price=0) + 平台已购付费
   // ============================================================
+  /** 某租户对 C 端可见的模板列表（含 C 端售价 price，元；0=免费） */
+  function cVisibleTemplates(customerId) {
+    const owned = new Map();
+    db.prepare("SELECT asset_key, c_price FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'card_template'")
+      .all(customerId || 0)
+      .forEach((r) => owned.set(Number(r.asset_key), Number(r.c_price || 0)));
+    const rows = db.prepare(`
+      SELECT * FROM card_templates ct WHERE ct.enabled = 1 AND (
+        (ct.tenant_id != 0 AND ct.tenant_id = ?)
+        OR (ct.tenant_id = 0 AND ct.price <= 0)
+        OR (ct.tenant_id = 0 AND ct.price > 0 AND EXISTS (
+          SELECT 1 FROM tenant_asset_purchases tap
+          WHERE tap.tenant_id = ? AND tap.asset_type = 'card_template' AND tap.asset_key = CAST(ct.id AS TEXT)
+        ))
+      ) ORDER BY ct.tenant_id, ct.sort_order, ct.id DESC
+    `).all(customerId || 0, customerId || 0);
+    return rows.map((t) => {
+      const isPlatform = Number(t.tenant_id) === 0;
+      const cPrice = isPlatform ? (owned.get(Number(t.id)) || 0) : Number(t.price || 0);
+      return {
+        id: t.id, name: t.name, cover: t.cover, description: t.description, layout: t.layout || 'card',
+        themeConfig: (() => { try { return JSON.parse(t.theme_config); } catch { return {}; } })(),
+        tenantId: t.tenant_id, price: cPrice,
+      };
+    });
+  }
+
+  /** C 端用户已购模板集合 */
+  function userOwnedTemplates(userId) {
+    return new Set(db.prepare('SELECT template_id FROM user_template_purchases WHERE user_id = ?').all(userId).map((r) => Number(r.template_id)));
+  }
+
+  /** 校验模板是否对 C 端用户可用（可见 + 免费或已购） */
+  function canCUseTemplate(customerId, userId, templateId) {
+    if (!templateId) return { ok: true };
+    const list = cVisibleTemplates(customerId);
+    const t = list.find((x) => x.id === Number(templateId));
+    if (!t) return { ok: false, error: '模板不存在或不可用' };
+    if (Number(t.price) <= 0) return { ok: true, price: 0 };
+    if (userId && userOwnedTemplates(userId).has(Number(templateId))) return { ok: true, price: Number(t.price) };
+    return { ok: false, error: '该模板为付费模板，请先购买' };
+  }
+
+  // C 端模板列表（未登录：仅平台免费模板；登录后：租户可见集合 + 本人已购状态）
   router.get('/templates', authOptional, (req, res) => {
     try {
-      const rows = db.prepare(
-        'SELECT * FROM card_templates WHERE (tenant_id = 0 AND enabled = 1) OR (tenant_id = ? AND enabled = 1) ORDER BY tenant_id, sort_order, id DESC'
-      ).all(req.customerId || 0);
-      res.json({ templates: rows.map((t) => ({ id: t.id, name: t.name, cover: t.cover, description: t.description, layout: t.layout || 'card', themeConfig: (() => { try { return JSON.parse(t.theme_config); } catch { return {}; } })(), tenantId: t.tenant_id })) });
+      const list = cVisibleTemplates(req.customerId || 0);
+      const owned = req.user ? userOwnedTemplates(req.user.id) : new Set();
+      res.json({ templates: list.map((t) => ({ ...t, purchased: owned.has(Number(t.id)) })) });
     } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // C 端购买付费模板（生成支付单，支付成功后由 payment 解锁 user_template_purchases）
+  router.post('/templates/:id/purchase', auth, (req, res) => {
+    try {
+      if (!req.customerId) return res.status(403).json({ error: '未入驻任何企业，暂不可购买模板' });
+      const id = Number(req.params.id);
+      const t = cVisibleTemplates(req.customerId).find((x) => x.id === id);
+      if (!t) return res.status(404).json({ error: '模板不存在或不可用' });
+      if (Number(t.price) <= 0) return res.status(400).json({ error: '免费模板无需购买' });
+      if (userOwnedTemplates(req.user.id).has(id)) return res.status(400).json({ error: '已购买该模板' });
+      const payment = new PaymentService(db);
+      const order = payment.createOrder({
+        payerType: 'tenant',
+        customerId: req.customerId,
+        userId: req.user.id,
+        identityType: req.user.identity_type || 'individual',
+        solution: 'card',
+        productType: 'template',
+        productId: String(id),
+        productName: t.name,
+        amount: Math.round(Number(t.price) * 100), // payment_orders.amount 单位为分
+        channel: req.body.channel || 'wechat',
+        remark: '购买名片模板',
+      });
+      res.json({ orderNo: order.orderNo, amount: order.amount, templateName: t.name, templateId: id });
+    } catch (e) { res.status(400).json({ error: e.message || '下单失败' }); }
   });
 
   // ============================================================
@@ -318,6 +389,8 @@ export function createCardRouter(db, wxService) {
   router.post('/cards', auth, (req, res) => {
     const { name, position, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, templateId, voiceUrl, voiceName } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
+    const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
+    if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
     const result = db.prepare(
       `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public, template_id, voice_url, voice_name)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
@@ -332,6 +405,8 @@ export function createCardRouter(db, wxService) {
             slogan, tags, templateId, voiceUrl, voiceName,
             bindCode, applyType, enterpriseName, industry } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
+    const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
+    if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
 
     // 1. 创建名片
     const cardType = applyType === 'enterprise' ? 'company' : 'personal';
@@ -411,10 +486,10 @@ export function createCardRouter(db, wxService) {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
     const { name, position, city, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName } = req.body;
-    // 模板存在性校验（公共或本租户）
+    // 模板校验（C 端可见 + 免费或已购）
     if (templateId !== undefined && templateId) {
-      const tpl = db.prepare('SELECT id FROM card_templates WHERE id = ? AND ((tenant_id = 0 AND enabled = 1) OR tenant_id = ?)').get(templateId, req.customerId || 0);
-      if (!tpl) return res.status(400).json({ error: '模板不存在或不可用' });
+      const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
+      if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
     }
     db.prepare(
       `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, updated_at=datetime('now') WHERE id=?`

@@ -25,10 +25,16 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
       const bought = new Set(
         db.prepare("SELECT asset_key FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'card_template'").all(req.user.customerId).map((r) => String(r.asset_key))
       );
+      const cPriceMap = new Map(
+        db.prepare("SELECT asset_key, c_price FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'card_template'").all(req.user.customerId).map((r) => [String(r.asset_key), r.c_price])
+      );
       res.json({
         templates: rows.map((row) => {
           const t = toTemplate(row);
-          if (row.tenant_id === 0) t.purchased = bought.has(String(row.id)) || Number(row.price || 0) === 0;
+          if (row.tenant_id === 0) {
+            t.purchased = bought.has(String(row.id)) || Number(row.price || 0) === 0;
+            t.cPrice = cPriceMap.has(String(row.id)) ? Number(cPriceMap.get(String(row.id))) : 0;
+          }
           return t;
         }),
       });
@@ -60,7 +66,7 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
       const tenantId = isAdmin ? 0 : req.user.customerId;
       const r = db.prepare(
         'INSERT INTO card_templates (tenant_id, name, cover, theme_config, description, enabled, sort_order, price, layout) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), enabled ? 1 : 0, Number(sortOrder) || 0, isAdmin ? (Number(price) || 0) : 0, layout === 'full' ? 'full' : 'card');
+      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), enabled ? 1 : 0, Number(sortOrder) || 0, Number(price) || 0, layout === 'full' ? 'full' : 'card');
       const row = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(r.lastInsertRowid);
       res.json({ template: toTemplate(row) });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -95,11 +101,32 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
              sortOrder != null ? Number(sortOrder) : null,
              layout != null ? (layout === 'full' ? 'full' : 'card') : null,
              layout != null ? (layout === 'full' ? 'full' : 'card') : null,
-             isAdmin ? Number(price) : null,
-             isAdmin ? Number(price) : null,
+             price != null ? Number(price) : null,
+             price != null ? Number(price) : null,
              id);
       const row = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(id);
       res.json({ template: toTemplate(row) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ============ 设置平台模板 C 端售价（租户侧；0=对C端免费） ============
+  router.put('/templates/:id/c-price', (req, res) => {
+    try {
+      if (isAdmin) return res.status(403).json({ error: '总后台无需设置C端售价' });
+      const id = Number(req.params.id);
+      const row = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(id);
+      if (!row) return res.status(404).json({ error: '模板不存在' });
+      if (row.tenant_id !== 0) return res.status(400).json({ error: '自建模板售价请在编辑中设置' });
+      if (!row.enabled) return res.status(400).json({ error: '该模板已下架' });
+      const cPrice = Math.max(0, Number(req.body.cPrice || 0));
+      const exist = db.prepare("SELECT id FROM tenant_asset_purchases WHERE tenant_id = ? AND asset_type = 'card_template' AND asset_key = ?").get(req.user.customerId, String(id));
+      if (exist) {
+        db.prepare("UPDATE tenant_asset_purchases SET c_price = ? WHERE id = ?").run(cPrice, exist.id);
+      } else {
+        db.prepare("INSERT INTO tenant_asset_purchases (tenant_id, asset_type, asset_key, price, c_price) VALUES (?, 'card_template', ?, 0, ?)")
+          .run(req.user.customerId, String(id), cPrice);
+      }
+      res.json({ ok: true, templateId: id, cPrice });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 

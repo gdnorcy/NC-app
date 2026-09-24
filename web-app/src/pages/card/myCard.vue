@@ -386,6 +386,10 @@ function editCard() {
   if (!pageCardId.value) return;
   uni.navigateTo({ url: `/pages/card/create?id=${pageCardId.value}` });
 }
+function goTemplateSelect() {
+  if (!pageCardId.value) return;
+  uni.navigateTo({ url: `/pages/card/templateSelect?cardId=${pageCardId.value}` });
+}
 function previewCard() {
   // 他人视角预览：跳对外展示页
   uni.navigateTo({ url: `/pages/card/cardDetail?id=${pageCardId.value}` });

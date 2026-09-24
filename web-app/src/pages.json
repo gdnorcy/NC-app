@@ -104,6 +104,13 @@
           }
         },
         {
+          "path": "templateSelect",
+          "style": {
+            "navigationBarTitleText": "更换模板",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "cardDetail",
           "style": {
             "navigationBarTitleText": "名片详情",

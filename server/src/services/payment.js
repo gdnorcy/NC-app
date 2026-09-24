@@ -153,6 +153,20 @@ export class PaymentService {
       this.member.openCardByOrder(order);
     }
 
+    // 名片模板购买支付成功 → 解锁（写 user_template_purchases，永久可用）
+    if (order.solution === 'card' && order.productType === 'template' && order.userId) {
+      const tplId = Number(order.productId);
+      if (tplId) {
+        try {
+          this.db.prepare(
+            "INSERT INTO user_template_purchases (user_id, template_id, order_no, amount) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, template_id) DO NOTHING"
+          ).run(order.userId, tplId, order.orderNo, Number(order.amount || 0));
+        } catch (e) {
+          console.error('名片模板解锁失败:', e?.message || e);
+        }
+      }
+    }
+
     // 商品订单支付成功 → 业务处理（扣库存/状态流转/消息通知；卡密虚拟自动发货）
     if (order.solution === 'goods' && this.goodsOrder) {
       try {

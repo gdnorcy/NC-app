@@ -66,6 +66,7 @@ export const cardApi = {
   },
   // 名片模板（平台公共 + 本租户私有）
   getTemplates: () => request('/templates'),
+  buyTemplate: (id) => request(`/templates/${id}/purchase`, 'POST', {}),
   // 动态互动（点赞/评论）
   likeDynamic: (id) => request(`/dynamics/${id}/like`, 'POST', {}),
   getComments: (id) => request(`/dynamics/${id}/comments`),
