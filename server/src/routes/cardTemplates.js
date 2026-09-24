@@ -55,12 +55,12 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
   // ============ 新建 ============
   router.post('/templates', (req, res) => {
     try {
-      const { name, cover = '', themeConfig = {}, description = '', sortOrder = 0, enabled = true, price = 0 } = req.body || {};
+      const { name, cover = '', themeConfig = {}, description = '', sortOrder = 0, enabled = true, price = 0, layout = 'card' } = req.body || {};
       if (!name) return res.status(400).json({ error: '模板名称必填' });
       const tenantId = isAdmin ? 0 : req.user.customerId;
       const r = db.prepare(
-        'INSERT INTO card_templates (tenant_id, name, cover, theme_config, description, enabled, sort_order, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), enabled ? 1 : 0, Number(sortOrder) || 0, isAdmin ? (Number(price) || 0) : 0);
+        'INSERT INTO card_templates (tenant_id, name, cover, theme_config, description, enabled, sort_order, price, layout) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(tenantId, String(name).slice(0, 64), String(cover).slice(0, 512), JSON.stringify(themeConfig || {}), String(description || '').slice(0, 256), enabled ? 1 : 0, Number(sortOrder) || 0, isAdmin ? (Number(price) || 0) : 0, layout === 'full' ? 'full' : 'card');
       const row = db.prepare('SELECT * FROM card_templates WHERE id = ?').get(r.lastInsertRowid);
       res.json({ template: toTemplate(row) });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -75,7 +75,7 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
       // 权限：总后台仅平台模板；租户仅本租户私有模板
       if (isAdmin && exist.tenant_id !== 0) return res.status(403).json({ error: '无权操作客户项目私有模板' });
       if (!isAdmin && exist.tenant_id !== req.user.customerId) return res.status(403).json({ error: '无权操作该模板' });
-      const { name, cover, themeConfig, description, enabled, sortOrder, price } = req.body || {};
+      const { name, cover, themeConfig, description, enabled, sortOrder, price, layout } = req.body || {};
       db.prepare(`UPDATE card_templates SET
         name = COALESCE(?, name),
         cover = COALESCE(?, cover),
@@ -83,6 +83,7 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
         description = COALESCE(?, description),
         enabled = COALESCE(?, enabled),
         sort_order = COALESCE(?, sort_order),
+        layout = CASE WHEN ? IS NULL THEN layout ELSE ? END,
         price = CASE WHEN ? IS NULL THEN price ELSE ? END,
         updated_at = datetime('now')
         WHERE id = ?`)
@@ -92,6 +93,8 @@ export function createCardTemplateRouter(db, { mode = 'admin' } = {}) {
              description != null ? String(description).slice(0, 256) : null,
              enabled != null ? (enabled ? 1 : 0) : null,
              sortOrder != null ? Number(sortOrder) : null,
+             layout != null ? (layout === 'full' ? 'full' : 'card') : null,
+             layout != null ? (layout === 'full' ? 'full' : 'card') : null,
              isAdmin ? Number(price) : null,
              isAdmin ? Number(price) : null,
              id);
@@ -132,6 +135,7 @@ function toTemplate(row) {
     themeConfig: theme,
     description: row.description,
     enabled: !!row.enabled,
+    layout: row.layout || 'card',
     price: Number(row.price || 0),
     sortOrder: row.sort_order,
     createdAt: row.created_at,

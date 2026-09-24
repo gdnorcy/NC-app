@@ -129,3 +129,42 @@ test('T4 模板主题配置：themeConfig 结构化返回，C 端可应用', asy
   const dark = list.body.templates.find((x) => x.name === '深空黑');
   assert.ok(dark && dark.themeConfig.primary === '#1d2129', '租户市场含平台模板主题配置');
 });
+
+test('T5 模板布局 layout：默认 card，可创建/更新 full，列表返回', async () => {
+  // 默认 card
+  const def = await request(app)
+    .post('/api/admin/card/templates')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: '默认布局模板', themeConfig: { primary: '#165dff' } });
+  assert.equal(def.status, 200);
+  assert.equal(def.body.template.layout, 'card', '未指定 layout 默认 card');
+
+  // 创建 full
+  const full = await request(app)
+    .post('/api/admin/card/templates')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: '全屏大图模板', themeConfig: { primary: '#07c160' }, layout: 'full' });
+  assert.equal(full.status, 200);
+  assert.equal(full.body.template.layout, 'full', '创建时可指定 full');
+
+  // 更新 card -> full
+  const put = await request(app)
+    .put(`/api/admin/card/templates/${def.body.template.id}`)
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ layout: 'full' });
+  assert.equal(put.status, 200);
+  assert.equal(put.body.template.layout, 'full', '更新 layout 生效');
+
+  // 非法值回退 card
+  const putBad = await request(app)
+    .put(`/api/admin/card/templates/${def.body.template.id}`)
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ layout: 'weird' });
+  assert.equal(putBad.body.template.layout, 'card', '非 full 值回退 card');
+
+  // 列表返回 layout
+  const list = await request(app).get('/api/admin/card/templates').set('Authorization', `Bearer ${adminToken}`);
+  const row = list.body.templates.find((x) => x.id === def.body.template.id);
+  assert.equal(row.layout, 'card', '列表返回 layout（更新后为 full 后改回）');
+  assert.ok(list.body.templates.some((x) => x.layout === 'full'), '列表含 full 模板');
+});

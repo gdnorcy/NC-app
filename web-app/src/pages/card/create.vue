@@ -73,6 +73,7 @@
               <view class="tpl-cover" :style="{ background: (t.themeConfig && t.themeConfig.primary) || 'var(--success)' }">
                 <image v-if="t.cover" :src="t.cover" class="tpl-cover-img" mode="aspectFill" />
                 <text v-else class="tpl-cover-text">{{ t.name.slice(0, 2) }}</text>
+                <text class="tpl-layout" v-if="t.layout === 'full'">全屏大图</text>
                 <view class="tpl-check" v-if="form.templateId === t.id">✓</view>
               </view>
               <text class="tpl-name">{{ t.name }}</text>
@@ -932,6 +933,11 @@ async function submit() {
 .tpl-cover { position: relative; height: 150rpx; display: flex; align-items: center; justify-content: center; }
 .tpl-cover-img { width: 100%; height: 100%; }
 .tpl-cover-text { color: #fff; font-size: 44rpx; font-weight: 600; }
+.tpl-layout {
+  position: absolute; right: 8rpx; top: 8rpx; z-index: 2;
+  font-size: 18rpx; color: #fff; background: rgba(0,0,0,0.45);
+  padding: 4rpx 10rpx; border-radius: 8rpx;
+}
 .tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--success); color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
 .tpl-name { display: block; padding: 12rpx 10rpx 14rpx; font-size: 24rpx; color: var(--t1); text-align: center; white-space: normal; word-break: break-all; }
 .vip-tag {
