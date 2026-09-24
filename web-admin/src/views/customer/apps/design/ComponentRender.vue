@@ -523,16 +523,33 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-all'">
-      <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
-        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff' }">
-          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+      <div class="ew-gg-list" :class="['ew-gg-st'+(comp.props.styleType||1), comp.props.carousel===1 ? 'ew-gg-carousel' : '']" :style="{ '--gg-gap': (comp.props.goodsGap||7) + 'px' }">
+        <div class="ew-gg" v-for="g in mallAllGoods" :key="g.id">
+          <div class="ew-gg-img" :style="(comp.props.styleType===3 && comp.props.imgRatio) ? {aspectRatio: comp.props.imgRatio} : {}" :class="comp.props.badgeType==='system' ? 'show-icon' : ''">
+            <img v-if="g.thumb" :src="resolveUrl(g.thumb)" />
+            <div v-else class="ew-gg-ph"></div>
+            <div v-if="comp.props.badgeType==='system'" class="ew-gg-flag">{{ g.titleTag || "热卖" }}</div>
+            <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeImage" class="ew-gg-badge"><img :src="comp.props.badgeImage" /></div>
+            <div v-else-if="comp.props.badgeType==='custom' && comp.props.badgeText" class="ew-gg-badge-text">{{ comp.props.badgeText }}</div>
+          </div>
           <div class="ew-gg-body">
-            <div class="ew-gg-line1" v-if="comp.props.showTag!==false"><span class="ew-gg-tag">标题标签</span></div>
-            <div class="ew-gg-line1"><span class="ew-gg-title" v-if="comp.props.showTitle!==false" :style="{color: comp.props.titleColor}">{{ g.title || '商品标题' }}</span></div>
-            <div class="ew-gg-sub" v-if="comp.props.showSub!==false" :style="{color: comp.props.subColor}">{{ g.info || g.subtitle || '' }}</div>
-            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false">
-              <span class="ew-gg-price" :style="{color: comp.props.priceColor}">¥{{ g.price||0 }}</span><span class="ew-gg-unit">/件</span>
-              <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buy" :style="buyBtnStyleOf(comp.props)">{{ comp.props.buyBtnText||'购买' }}</span>
+            <div v-if="comp.props.showTag!==false" class="ew-gg-tag-line"><span class="ew-gg-tag">标题标签</span></div>
+            <div v-if="comp.props.showTitle!==false" class="ew-gg-name" :style="{color: comp.props.titleColor||'#333'}">{{ g.title || '商品标题' }}</div>
+            <div v-if="comp.props.styleType!==3 && comp.props.showSub!==false" class="ew-gg-sub" :style="{color: comp.props.subColor||'#999'}" v-html="g.info || g.subtitle || ''"></div>
+            <div v-if="comp.props.styleType!==6 && comp.props.showPrice!==false" class="ew-gg-saleline">
+              <span v-if="comp.props.showOrig" class="ew-gg-original">¥{{ g.market_price||30 }}</span>
+              <span class="ew-gg-price" :style="{color: comp.props.priceColor||'#ff5555'}">¥{{ g.price||0 }}<small>/件</small></span>
+              <span v-if="comp.props.showSales" class="ew-gg-sold">已售{{ g.sales||0 }}件</span>
+              <span v-if="comp.props.buyBtnShow==1" class="ew-gg-buybtn" :style="buyBtnStyleOf(comp.props)">
+                <template v-if="comp.props.buyBtnStyle==='buybtn1'">{{ comp.props.buyBtnText||'购买' }}</template>
+                <template v-else-if="comp.props.buyBtnStyle==='buybtn6'">+</template>
+                <template v-else-if="comp.props.buyBtnStyle==='buybtn3'">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39L8 18h13l2-9H5.12"/></svg>
+                </template>
+                <template v-else-if="comp.props.buyBtnStyle==='buybtn4'">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.44C4.52 15.37 5.48 17 7 17h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12L8.1 13.07h7.45c.75 0 1.41-.41 1.75-1.03l3.24-5.85c.08-.13.11-.28.11-.42 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                </template>
+              </span>
             </div>
           </div>
         </div>
@@ -695,6 +712,18 @@ async function loadMallGoods() {
 }
 onMounted(loadMallGoods);
 watch(() => [props.comp.props.goodsIds, props.comp.props.catId, props.comp.props.source], loadMallGoods, { deep: true });
+
+// 全部商品：拉取全部出售中商品
+const mallAllGoods = ref([]);
+async function loadMallAllGoods() {
+  try {
+    const token = localStorage.getItem('customer_token');
+    const res = await fetch('/api/customer/goods?pageSize=10&status=sell', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    mallAllGoods.value = data.list || data || [];
+  } catch(e) { mallAllGoods.value = []; }
+}
+onMounted(loadMallAllGoods);
 const emit = defineEmits(['cell-select']);
 
 // 全景场景组件：编辑端预览拉取租户真实方案
@@ -1573,6 +1602,10 @@ function chRadius(p, i) {
 .ew-gg-st3 .ew-gg-img{width:100%;height:172px;float:none;}
 .ew-gg-st3 .ew-gg-body{width:100%;padding:8px 12px;}
 .ew-gg-st3 .ew-gg-saleline{display:flex;align-items:flex-end;justify-content:flex-end;margin-top:8px;}
+.ew-gg-carousel{overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch;}
+.ew-gg-carousel .ew-gg{display:inline-block;vertical-align:top;width:45%;margin-right:var(--gg-gap,7px);white-space:normal;float:none;}
+.ew-gg-carousel .ew-gg:nth-child(2n){margin-right:var(--gg-gap,7px);}
+.ew-gg-carousel .ew-gg:last-child{margin-right:0;}
 
 /* st4 (twoGoods,list2): 双列左图右文紧凑 图80px */
 .ew-gg-st4{margin:8.5px;overflow:hidden;}

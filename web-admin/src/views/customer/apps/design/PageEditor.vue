@@ -212,7 +212,7 @@
                     <div
                       v-for="o in f.options" :key="o.value"
                       class="pe-graphic-item" :class="{ active: String(selectedComp.props[f.key]) === String(o.value) }"
-                      @click="selectedComp.props[f.key] = o.value"
+                      @click="setProp(f.key, o.value)"
                     >
                       <img v-if="o.img" :src="thumbMap[o.img]" class="pe-graphic-svg" :style="f.thumbSize ? {objectFit:'contain',width:f.thumbSize+'px',height:f.thumbSize+'px'} : {objectFit:'contain'}" />
                       <svg v-else-if="String(o.value) === '1'" class="pe-graphic-svg" viewBox="0 0 44 44">
@@ -1015,7 +1015,7 @@ const ratioShapes = {
   '9:16': { w: 22, h: 32 },
 };
 const goodsLayoutShapes = { '1':'', '2':'', '3':'', '4':'', '5':'', '6':'', '7':'' };
-const thumbMap = { __goods_one: goodsOne, __goods_list: goodsList, __twoGoods_two: twoGoodsTwo, __twoGoods_list2: twoGoodsList2, __otherGoods_three3: otherGoodsThree3, __otherGoods_three: otherGoodsThree, __otherGoods_three2: otherGoodsThree2, __buyBtn1: buyBtn1, __buyBtn2: buyBtn2, __buyBtn3: buyBtn3, __buyBtn4: buyBtn4 };
+const thumbMap = { __goods_one: goodsOne, __goods_list: goodsList, __twoGoods_two: twoGoodsTwo, __goodsall_waterfull: twoGoodsTwo, __twoGoods_list2: twoGoodsList2, __otherGoods_three3: otherGoodsThree3, __otherGoods_three: otherGoodsThree, __otherGoods_three2: otherGoodsThree2, __buyBtn1: buyBtn1, __buyBtn2: buyBtn2, __buyBtn3: buyBtn3, __buyBtn4: buyBtn4 };
 // 导航栏渲染（按头部设置，照抄云菜鸟：custom=按配置 / immersive=透明悬浮 / official=白底深字固定样式）
 // 方案一头部渲染数据源：跟随全局默认时用全局 s1 覆盖页面对应字段（背景/标题/类型等），自定义本页时用页面 meta.header
 const hdr = computed(() => {
@@ -1248,10 +1248,21 @@ async function deletePage(p) {
 }
 
 let uid = 1;
-const selectedComp = computed(() => {
+const selectedComp = ref(null);
+function refreshSelectedComp() {
   const c = components.value.find((c) => c.id === selected.value) || null;
-  return c ? { ...c, name: findComponent(c.type)?.name || c.type } : null;
-});
+  if(c) c.name = findComponent(c.type)?.name || c.type;
+  selectedComp.value = c;
+}
+function setProp(key, val) {
+  if (!selectedComp.value) return;
+  const real = components.value.find((c) => c.id === selectedComp.value.id);
+  if (real) {
+    real.props[key] = val;
+    selectedComp.value = real;
+  }
+}
+
 // 属性面板分组：内容 / 样式 + 通用样式（跳过组件已有同名 key）；支持 schema 字段 group（ew 1:1 分组面板）
 const schemaSections = computed(() => {
   if (!selectedComp.value) return [];
@@ -1263,7 +1274,11 @@ const schemaSections = computed(() => {
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;
     if (f.whenNotStyle && f.whenNotStyle.includes(Number(props.styleType))) return false;
-    return !f.when || Object.entries(f.when).every(([k, v]) => props[k] === v || String(props[k]) === String(v) || (v === 1 && props[k] === true) || (v === 0 && props[k] === false));
+    return !f.when || Object.entries(f.when).every(([k, v]) => {
+      const pv = props[k];
+      if (Array.isArray(v)) return v.some(x => pv === x || String(pv) === String(x));
+      return pv === v || String(pv) === String(v) || (v === 1 && pv === true) || (v === 0 && pv === false);
+    });
   };
   const grpFields = def.schema.filter((f) => f.group && whenOk(f));
   if (grpFields.length) {
@@ -1382,6 +1397,7 @@ function addComponent(type) {
     components.value.push(c);
   }
   selected.value = c.id;
+  refreshSelectedComp();
 }
 function removeComp(id) {
   components.value = components.value.filter((c) => c.id !== id);
@@ -1392,8 +1408,9 @@ function dupComp(comp) {
   const idx = components.value.findIndex((x) => x.id === comp.id);
   components.value.splice(idx + 1, 0, c);
   selected.value = c.id;
+  refreshSelectedComp();
 }
-function selectComp(comp) { selected.value = comp.id; cubeSel.value = null; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); }
+function selectComp(comp) { selected.value = comp.id; cubeSel.value = null; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); refreshSelectedComp(); }
 function onLibDragStart(e, type) { e.dataTransfer.setData('text/plain', type); }
 function onCanvasDragOver() {}
 function onCanvasDrop(e) {
