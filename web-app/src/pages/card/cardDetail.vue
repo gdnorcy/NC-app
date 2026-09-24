@@ -34,6 +34,10 @@
           <SIcon name="channel" size="default" color="#ffffff" />
           <text>分享</text>
         </view>
+        <view class="qb" @click="toggleCollect">
+          <SIcon name="star" size="default" :color="collected ? '#ffd21e' : '#ffffff'" />
+          <text :style="collected ? 'color:#ffd21e' : ''">{{ collected ? '已收藏' : '收藏' }}</text>
+        </view>
       </view>
     </view>
 
@@ -238,6 +242,7 @@ const activeForm = ref(null);
 const formShow = ref(false);
 const formData = ref({});
 const formSending = ref(false);
+const collected = ref(false);
 
 // 访客填写表单提交（线索回流）
 function openForm() {
@@ -339,6 +344,13 @@ onMounted(async () => {
         const w = await cardApi.getCardWorks(id);
         works.value = w.works || [];
       } catch (e) {}
+      // 阶段C：查询当前名片是否已收藏（登录用户）
+      if (uni.getStorageSync('card_token')) {
+        try {
+          const c = await cardApi.getMyCollects(200);
+          collected.value = (c.collects || []).some((x) => String(x.cardId) === String(id));
+        } catch (e) {}
+      }
       // 加载动态
       try {
         const d = await cardApi.getCardDynamics(id);
@@ -452,6 +464,29 @@ function timeText(t) {
 function openVideo() {
   uni.showToast({ title: '跳转视频号', icon: 'none' });
 }
+async function toggleCollect() {
+  const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id;
+  if (!id) return;
+  if (!uni.getStorageSync('card_token')) {
+    uni.showToast({ title: '请先登录后收藏', icon: 'none' });
+    uni.navigateTo({ url: '/pages/cardMain/login' });
+    return;
+  }
+  try {
+    if (collected.value) {
+      await cardApi.uncollectCard(id);
+      collected.value = false;
+      uni.showToast({ title: '已取消收藏', icon: 'none' });
+    } else {
+      await cardApi.collectCard(id);
+      collected.value = true;
+      uni.showToast({ title: '收藏成功', icon: 'success' });
+    }
+  } catch (e) {
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' });
+  }
+}
+
 function shareCard() {
   uni.showToast({ title: '请点击右上角分享', icon: 'none' });
 }

@@ -287,3 +287,18 @@ test('转发链记录与列表', async () => {
   assert.equal(shares.status, 200);
   assert.ok(shares.body.shares.some((s) => s.toOpenid === 'wx_openid_9'), '转发链应记录被转发者');
 });
+
+test('阶段C features：free 锁定 / 会员返回 features+quota', async () => {
+  // free 用户（tokE 新注册）
+  const fe = await request(app).get('/api/card/radar/features').set('Authorization', `Bearer ${tokE}`);
+  assert.equal(fe.status, 200);
+  assert.equal(fe.body.isMember, false, 'free 用户不是会员');
+  // gold 用户（tokA 已升级）→ isMember + ai_report + quota 三口径
+  const fa = await request(app).get('/api/card/radar/features').set('Authorization', `Bearer ${tokA}`);
+  assert.equal(fa.status, 200);
+  assert.equal(fa.body.isMember, true, 'gold 用户是会员');
+  assert.ok(fa.body.features.includes('ai_report'), 'gold 应含 ai_report');
+  assert.ok(fa.body.quota.lead && typeof fa.body.quota.lead.limit === 'number', 'quota.lead 应有 limit');
+  assert.ok(fa.body.quota.push && typeof fa.body.quota.push.limit === 'number', 'quota.push 应有 limit');
+  assert.ok(fa.body.quota.collect && typeof fa.body.quota.collect.limit === 'number', 'quota.collect 应有 limit');
+});

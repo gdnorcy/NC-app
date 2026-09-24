@@ -91,3 +91,50 @@ describe('cardApi 请求封装', () => {
     expect(args.data).toEqual({ tenantId: 1, formTitle: '留资表单', fields: [{ label: '姓名', value: '李四' }] });
   });
 });
+
+// ============================================================
+// 阶段C 雷达/收藏方法：URL 与 method 对齐后端路由
+// ============================================================
+describe('阶段C 雷达/收藏方法', () => {
+  it('getRadarFeatures → GET /radar/features', async () => {
+    mockResponse(200, { isMember: true });
+    await cardApi.getRadarFeatures();
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/radar/features', method: 'GET' }));
+  });
+
+  it('collectCard → POST /collect 带 cardId', async () => {
+    mockResponse(200, { ok: true, collected: true });
+    await cardApi.collectCard(7);
+    const args = uniMock.request.mock.calls[0][0];
+    expect(args.url).toBe('http://localhost:3000/api/card/collect');
+    expect(args.method).toBe('POST');
+    expect(args.data.cardId).toBe(7);
+  });
+
+  it('uncollectCard → DELETE /collect?cardId=', async () => {
+    mockResponse(200, { ok: true, collected: false });
+    await cardApi.uncollectCard(7);
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/collect?cardId=7', method: 'DELETE' }));
+  });
+
+  it('getMyCollects → GET /collects?limit=', async () => {
+    mockResponse(200, { collects: [] });
+    await cardApi.getMyCollects(200);
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/collects?limit=200', method: 'GET' }));
+  });
+
+  it('readRadarNotify → POST /radar/notifies/:id/read', async () => {
+    mockResponse(200, { ok: true });
+    await cardApi.readRadarNotify(9);
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/radar/notifies/9/read', method: 'POST' }));
+  });
+
+  it('saveRadarConfig → POST /radar/config 带数据', async () => {
+    mockResponse(200, { ok: true });
+    await cardApi.saveRadarConfig({ switch: 1 });
+    const args = uniMock.request.mock.calls[0][0];
+    expect(args.url).toBe('http://localhost:3000/api/card/radar/config');
+    expect(args.method).toBe('POST');
+    expect(args.data.switch).toBe(1);
+  });
+});

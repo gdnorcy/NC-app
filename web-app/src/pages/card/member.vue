@@ -86,6 +86,14 @@
             <view class="check"><SIcon name="badge" size="small" color="#07c160" /></view>
             <text>{{ f }}</text>
           </view>
+          <view class="pf" v-if="p.voice_enabled === 1">
+            <view class="check"><SIcon name="badge" size="small" color="#07c160" /></view>
+            <text>语音简介</text>
+          </view>
+          <view class="pf" v-if="p.discount && p.discount > 0 && p.discount < 1">
+            <view class="check"><SIcon name="badge" size="small" color="#07c160" /></view>
+            <text>名片模板 {{ Math.round(p.discount * 10) }} 折</text>
+          </view>
         </view>
         <view v-if="isCurrent(p.level) || p.level === 'free'" class="btn on" @click="p.level !== 'free' && openMember(p)">当前套餐</view>
         <view v-else class="btn buy" @click="openMember(p)">立即开通</view>

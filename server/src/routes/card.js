@@ -726,6 +726,23 @@ export function createCardRouter(db, wxService) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // 当前会员权益：features + 配额余量（阶段C：AI报告入口 / 会员卡权益清单用；free 返回空 features + 不限配额）
+  router.get('/radar/features', auth, (req, res) => {
+    const lead = quota.quotaLeft(req.user.id, 'lead');
+    const push = quota.quotaLeft(req.user.id, 'push');
+    const collect = quota.quotaLeft(req.user.id, 'collect');
+    const all = ['ai_report', 'ai_words', 'quota_lead', 'quota_push', 'enterprise'];
+    res.json({
+      isMember: !!quota.planOf(req.user.id),
+      features: all.filter((f) => quota.hasFeature(req.user.id, f)),
+      quota: {
+        lead: { limit: lead.limit, used: lead.used, left: lead.left, unlimited: lead.unlimited },
+        push: { limit: push.limit, used: push.used, left: push.left, unlimited: push.unlimited },
+        collect: { limit: collect.limit, used: collect.used, left: collect.left, unlimited: collect.unlimited },
+      },
+    });
+  });
+
   // 站内提醒列表（名片主消息页）
   router.get('/radar/notifies', auth, (req, res) => {
     const notifies = radar.listNotifies(req.customerId || 0, req.user.id, Number(req.query.limit) || 50);

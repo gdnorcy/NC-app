@@ -128,6 +128,7 @@
       </view>
       <view class="ov-empty" v-else>还没有访客，快去分享你的名片吧</view>
       <view class="ov-more" @click="goVisitors">查看全部访客 ›</view>
+      <view class="ov-more" @click="goRadarConfig">雷达配置 ›</view>
     </view>
 
     <!-- 高级工具 -->
@@ -142,6 +143,11 @@
         <view class="osr-icon"><SIcon name="dynamic" size="default" color="#1d4e8f" /></view>
         <view class="osr-main"><view class="osr-name">消息中心</view><view class="osr-desc">交换申请、访客动态等通知</view></view>
         <text class="osr-badge" v-if="msgUnread > 0">{{ msgUnread > 99 ? '99+' : msgUnread }}</text>
+        <text class="osr-arrow">›</text>
+      </view>
+      <view class="os-row" @click="goCollects">
+        <view class="osr-icon"><SIcon name="star" size="default" color="#1d4e8f" /></view>
+        <view class="osr-main"><view class="osr-name">我的收藏</view><view class="osr-desc">收藏的名片，随时回访</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="saveCardInfo">
@@ -334,6 +340,10 @@ onMounted(async () => {
       track('card_view', { cardId: Number(id), page: '/pages/card/myCard', extra: { name: card.value.name } });
       // 商务增强版数据（本人名片）
       await loadOwnerData();
+      // 阶段C：会员权益（features + quota）
+      try {
+        features.value = await cardApi.getRadarFeatures();
+      } catch (e) {}
     } catch (e) {
       loadFailed.value = true;
       loadFailedMsg.value = e && e.message === 'timeout'
@@ -389,6 +399,7 @@ function locateInMarket() {
   uni.navigateTo({ url: '/pages/card/market' });
 }
 function goVisitors() { uni.navigateTo({ url: '/pages/card/visitors' }); }
+function goRadarConfig() { uni.navigateTo({ url: '/pages/card/radarConfig' }); }
 function saveCardInfo() {
   const c = card.value;
   const lines = [
@@ -413,6 +424,7 @@ function exportData() {
   uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '名片与访客数据已复制', icon: 'none' }) });
 }
 const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
+const goCollects = () => uni.navigateTo({ url: '/pages/card/collects' });
 const goMessages = () => uni.navigateTo({ url: '/pages/card/messages' });
 function leaveTenant() {
   uni.showModal({
@@ -500,6 +512,32 @@ function leaveTenant() {
 .om-locate { margin-top: 16rpx; font-size: 24rpx; color: #1d4e8f; }
 
 .owner-section { background: #fff; border-radius: 20rpx; margin: 0 24rpx 20rpx; padding: 8rpx 28rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
+.mb-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 20rpx;
+  margin-top: 20rpx; background: #f7f8fa; border-radius: 20rpx; padding: 24rpx;
+  border: 1px solid #e5e6eb;
+}
+.mb-banner.on { background: rgba(22, 93, 255, 0.06); border-color: #165dff; }
+.mb-left { flex: 1; min-width: 0; }
+.mb-title { font-size: 28rpx; font-weight: 600; color: #1d2129; }
+.mb-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 14rpx; }
+.mb-tag {
+  font-size: 20rpx; color: #165dff; background: rgba(22, 93, 255, 0.08);
+  border-radius: 8rpx; padding: 4rpx 14rpx;
+}
+.mb-banner.on .mb-tag { color: #07c160; background: rgba(7, 193, 96, 0.1); }
+.mb-btn {
+  font-size: 24rpx; color: #fff; background: #165dff;
+  border-radius: 999rpx; padding: 12rpx 28rpx; flex-shrink: 0;
+}
+.mb-banner.on .mb-btn { background: #07c160; }
+.mb-quota { display: flex; gap: 16rpx; margin-top: 20rpx; }
+.mbq-item {
+  flex: 1; background: #fff; border: 1px solid #e5e6eb; border-radius: 16rpx;
+  padding: 20rpx 16rpx; text-align: center;
+}
+.mbq-n { font-size: 30rpx; font-weight: 600; color: #1d2129; }
+.mbq-l { font-size: 22rpx; color: #86909c; margin-top: 6rpx; }
 .os-t { font-size: 28rpx; font-weight: 600; color: #1a1a1a; padding: 24rpx 0 8rpx; }
 .os-t small { font-size: 20rpx; color: #9a9a9a; font-weight: 400; }
 .os-row { display: flex; align-items: center; gap: 16rpx; padding: 24rpx 0; border-bottom: 1rpx solid #f0f0f0; }

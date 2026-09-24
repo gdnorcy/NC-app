@@ -111,6 +111,12 @@
           }
         },
         {
+          "path": "collects",
+          "style": {
+            "navigationBarTitleText": "我的收藏"
+          }
+        },
+        {
           "path": "connections",
           "style": {
             "navigationBarTitleText": "我的人脉库",
@@ -227,6 +233,12 @@
           "style": {
             "navigationBarTitleText": "我的动态",
             "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "radarConfig",
+          "style": {
+            "navigationBarTitleText": "雷达配置"
           }
         }
       ]

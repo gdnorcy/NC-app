@@ -64,6 +64,25 @@ export const cardApi = {
   getVisitorSummary: () => request('/visitors/summary'),
   getVisitorTimeline: (openid) => request(`/visitors/${openid}/timeline`),
 
+  // ===== 运营型雷达（阶段C：高潜榜/意向/AI报告/配置/话术/转发/导出/站内提醒）=====
+  getRadarTopLeads: (limit) => request(`/radar/top-leads?limit=${limit || 20}`),
+  getRadarIntent: (openid) => request(`/radar/intent/${openid}`),
+  getRadarFeatures: () => request('/radar/features'),
+  getRadarConfig: () => request('/radar/config'),
+  saveRadarConfig: (data) => request('/radar/config', 'POST', data),
+  getRadarWords: () => request('/radar/words'),
+  saveRadarWord: (data) => request('/radar/words', 'POST', data),
+  getRadarShares: (limit) => request(`/radar/shares?limit=${limit || 50}`),
+  getRadarExport: () => request('/radar/export'),
+  getRadarNotifies: (limit) => request(`/radar/notifies?limit=${limit || 50}`),
+  readRadarNotify: (id) => request(`/radar/notifies/${id}/read`, 'POST', {}),
+  radarSubscribe: (data) => request('/radar/subscribe', 'POST', data),
+
+  // ===== 名片收藏（阶段C：收藏/取消/我的收藏）=====
+  collectCard: (cardId) => request('/collect', 'POST', { cardId }),
+  uncollectCard: (cardId) => request(`/collect?cardId=${cardId}`, 'DELETE'),
+  getMyCollects: (limit) => request(`/collects?limit=${limit || 50}`),
+
   // ===== 分销中心（租户维度，双身份隔离）=====
   distBind: (parentId, identityType) => request('/distribution/bind', 'POST', { parentId, identityType }),
   distFunnel: (data) => request('/distribution/funnel', 'POST', data),

@@ -15,6 +15,7 @@
       <view class="mt-item" :class="{ on: tab === 'exchange' }" @click="switchTab('exchange')">交换</view>
       <view class="mt-item" :class="{ on: tab === 'visitor' }" @click="switchTab('visitor')">访客</view>
       <view class="mt-item" :class="{ on: tab === 'system' }" @click="switchTab('system')">系统</view>
+      <view class="mt-item" :class="{ on: tab === 'radar' }" @click="switchTab('radar')">雷达<text v-if="radarUnread" class="mt-dot">{{ radarUnread }}</text></view>
     </view>
 
     <!-- 列表 -->
@@ -50,6 +51,7 @@ import SIcon from '../../components/SIcon.vue';
 
 const messages = ref([]);
 const unreadTotal = ref(0);
+const radarUnread = ref(0);
 const tab = ref('');
 
 onShow(() => { trackPageView('/pages/card/messages'); });
@@ -59,6 +61,24 @@ onMounted(async () => {
 });
 
 async function load() {
+  if (tab.value === 'radar') {
+    // 阶段C：运营型雷达站内提醒（card_radar_notify，独立于市场消息）
+    try {
+      const res = await cardApi.getRadarNotifies(50);
+      messages.value = (res.notifies || []).map((n) => ({
+        id: n.id,
+        type: 'visitor',
+        title: n.title || '访客动态',
+        content: (n.visitorName || '有访客') + ' · ' + (n.eventName || '') + (n.channel === 0 ? '' : ' · 订阅推送'),
+        created_at: n.createdAt,
+        is_read: n.readAt ? 1 : 0,
+        radar: true,
+      }));
+      radarUnread.value = messages.value.filter((m) => !m.is_read).length;
+      unreadTotal.value = 0;
+    } catch (e) {}
+    return;
+  }
   try {
     const [listRes, unreadRes] = await Promise.all([
       cardApi.getMessages(tab.value),
@@ -77,8 +97,13 @@ function switchTab(t) {
 function open(m) {
   if (!m.is_read) {
     m.is_read = 1;
-    cardApi.markMessagesRead([m.id]).catch(() => {});
-    if (unreadTotal.value > 0) unreadTotal.value -= 1;
+    if (m.radar) {
+      cardApi.readRadarNotify(m.id).catch(() => {});
+      if (radarUnread.value > 0) radarUnread.value -= 1;
+    } else {
+      cardApi.markMessagesRead([m.id]).catch(() => {});
+      if (unreadTotal.value > 0) unreadTotal.value -= 1;
+    }
   }
   if (m.link) {
     uni.navigateTo({ url: m.link });
@@ -86,6 +111,15 @@ function open(m) {
 }
 
 function readAll() {
+  if (tab.value === 'radar') {
+    const radarIds = messages.value.filter((m) => !m.is_read).map((m) => m.id);
+    if (!radarIds.length) return;
+    Promise.all(radarIds.map((id) => cardApi.readRadarNotify(id))).then(() => {
+      messages.value.forEach((m) => (m.is_read = 1));
+      radarUnread.value = 0;
+    }).catch(() => {});
+    return;
+  }
   cardApi.markMessagesRead([]).then(() => {
     messages.value.forEach((m) => (m.is_read = 1));
     unreadTotal.value = 0;

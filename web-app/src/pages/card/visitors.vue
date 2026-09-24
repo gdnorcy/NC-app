@@ -57,6 +57,76 @@
       </view>
     </view>
 
+    <!-- 高潜榜（会员内，AI 意向识别） -->
+    <view class="lead-card" v-if="!locked && topLeads.length">
+      <view class="sec-t lead-sec">
+        <text>高潜榜 <small>AI 意向识别</small></text>
+        <view class="lead-ai" v-if="hasFeature('ai_report')" @click="openAiReport">AI 意向报告</view>
+        <view class="lead-ai locked" v-else @click="goMember">升级查看</view>
+      </view>
+      <view class="lead-list">
+        <view class="lead-row" v-for="(l, i) in topLeads" :key="i" @click="viewLeadIntent(l)">
+          <view class="lead-rank" :class="{ hot: i < 3 }">{{ i + 1 }}</view>
+          <view class="lead-info">
+            <view class="lead-name">
+              {{ leadName(l) }}
+              <text class="lead-lv" :class="l.level === '高意向' ? 'green' : (l.level === '中意向' ? 'blue' : 'gray')">{{ l.level }}</text>
+            </view>
+            <view class="lead-meta">意向分 {{ l.score }} · 命中 {{ l.hitCount }} 次</view>
+            <view class="lead-words" v-if="l.words && l.words.length">建议：{{ l.words[0] }}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- AI 意向报告弹层（ai_report 权益） -->
+    <view class="sheet-mask" :class="{ on: showAiReport }" @click="showAiReport = false"></view>
+    <view class="sheet" :class="{ on: showAiReport }">
+      <view class="grip"></view>
+      <view class="sheet-title">AI 意向报告</view>
+      <view class="sheet-sub">基于近期访客行为生成 · 数据每 5 分钟更新</view>
+      <view class="ai-report">
+        <view class="ai-row">
+          <view class="ai-k">高意向访客</view>
+          <view class="ai-v">{{ aiHigh }} 人</view>
+        </view>
+        <view class="ai-row">
+          <view class="ai-k">中意向访客</view>
+          <view class="ai-v">{{ aiMid }} 人</view>
+        </view>
+        <view class="ai-row">
+          <view class="ai-k">低意向访客</view>
+          <view class="ai-v">{{ aiLow }} 人</view>
+        </view>
+        <view class="ai-row">
+          <view class="ai-k">建议优先跟进</view>
+          <view class="ai-v">{{ aiSuggest }}</view>
+        </view>
+      </view>
+      <view class="btn-main blue" @click="showAiReport = false">知道了</view>
+    </view>
+
+    <!-- 意向详情弹层（会员内） -->
+    <view class="sheet-mask" :class="{ on: showLeadIntent }" @click="closeLeadIntent"></view>
+    <view class="sheet" :class="{ on: showLeadIntent }">
+      <view class="grip"></view>
+      <view class="sheet-title">{{ leadIntent ? leadIntent.visitorName : '' }} · 意向详情</view>
+      <view class="sheet-sub" v-if="leadIntent">意向分 {{ leadIntent.score }} / 100 · 命中 {{ leadIntent.hitCount }} 次</view>
+      <view class="li-box" v-if="leadIntent">
+        <view class="li-item" v-for="(t, i) in leadIntent.items" :key="i">
+          <view class="li-dot" :class="t.cls"><SIcon :name="t.icon" size="small" color="#ffffff" /></view>
+          <view class="li-t">{{ t.t }}</view>
+          <view class="li-s">{{ t.s }}</view>
+        </view>
+      </view>
+      <view class="li-words" v-if="leadIntent && leadIntent.words && leadIntent.words.length">
+        <view class="li-words-t">推荐跟进话术</view>
+        <view class="li-words-c" v-for="(w, i) in leadIntent.words" :key="i">{{ w }}</view>
+      </view>
+      <view class="btn-main" @click="convertFromIntent">转为客户</view>
+      <view class="btn-ghost" @click="closeLeadIntent">关闭</view>
+    </view>
+
     <!-- 访客记录（demo card-row visitor） -->
     <view class="sec-t">访客记录 <small>{{ visitors.length }} 条</small></view>
     <view class="visitor-list" v-if="visitors.length">
@@ -143,6 +213,11 @@ const displayToday = ref(0);
 const displayWeek = ref(0);
 const displayTotal = ref(0);
 const locked = ref(false);
+const topLeads = ref([]);
+const features = ref([]);
+const showAiReport = ref(false);
+const showLeadIntent = ref(false);
+const leadIntent = ref(null);
 
 const showConvert = ref(false);
 const showTimeline = ref(false);
@@ -179,11 +254,77 @@ onMounted(async () => {
     animateNumber('today', res.today);
     animateNumber('week', res.week);
     animateNumber('total', res.total);
+    // 阶段C：会员权益 + 高潜榜（免费用户在 locked 分支已 return）
+    try {
+      const feat = await cardApi.getRadarFeatures();
+      features.value = feat.features || [];
+      const leads = await cardApi.getRadarTopLeads(10);
+      topLeads.value = leads.leads || [];
+    } catch (e) {}
   } catch (e) {}
 });
 
 function goMember() {
   uni.navigateTo({ url: '/pages/card/member' });
+}
+
+// ===== 阶段C：高潜榜 / AI 报告 / 意向详情 =====
+function hasFeature(f) {
+  return (features.value || []).includes(f);
+}
+
+function leadName(l) {
+  const v = (visitors.value || []).find((x) => x.visitorOpenid === l.visitorOpenid);
+  return (v && v.nickname && v.nickname !== '匿名访客') ? v.nickname : '匿名访客';
+}
+
+const aiHigh = computed(() => topLeads.value.filter((l) => l.level === '高意向').length);
+const aiMid = computed(() => topLeads.value.filter((l) => l.level === '中意向').length);
+const aiLow = computed(() => topLeads.value.filter((l) => l.level === '低意向').length);
+const aiSuggest = computed(() => {
+  const t = topLeads.value[0];
+  return t ? `${leadName(t)}（意向 ${t.score} 分）` : '暂无高潜访客';
+});
+
+function openAiReport() {
+  if (!hasFeature('ai_report')) return goMember();
+  showAiReport.value = true;
+}
+
+async function viewLeadIntent(l) {
+  if (!l.visitorOpenid || l.visitorOpenid === 'anonymous') {
+    uni.showToast({ title: '匿名访客暂无意向详情', icon: 'none' });
+    return;
+  }
+  leadIntent.value = { visitorOpenid: l.visitorOpenid, visitorName: leadName(l), score: l.score, hitCount: l.hitCount, words: l.words || [], items: [
+    { t: '访问你的名片', s: '来源：微信分享', cls: 'gray', icon: 'analytics' },
+    { t: '命中 ' + l.hitCount + ' 个关键行为', s: '意向分 ' + l.score + ' 分', cls: l.level === '高意向' ? 'green' : 'blue', icon: 'radar' },
+  ] };
+  showLeadIntent.value = true;
+  try {
+    const res = await cardApi.getRadarIntent(l.visitorOpenid);
+    if (res.intent) {
+      leadIntent.value.score = res.intent.score;
+      leadIntent.value.hitCount = res.intent.hit_count;
+      leadIntent.value.items = [
+        { t: '访问你的名片', s: '来源：微信分享', cls: 'gray', icon: 'analytics' },
+        { t: '关键行为 ' + res.intent.hit_count + ' 次', s: '意向分 ' + res.intent.score + ' 分', cls: res.intent.level === '高意向' ? 'green' : 'blue', icon: 'radar' },
+      ];
+      leadIntent.value.words = res.intent.words || [];
+    }
+  } catch (e) {}
+}
+
+function closeLeadIntent() {
+  showLeadIntent.value = false;
+  leadIntent.value = null;
+}
+
+function convertFromIntent() {
+  if (!leadIntent.value) return;
+  const v = (visitors.value || []).find((x) => x.visitorOpenid === (leadIntent.value.visitorOpenid || ''));
+  closeLeadIntent();
+  setTimeout(() => convert(v || { nickname: leadIntent.value.visitorName, tag: '高意向' }), 250);
 }
 
 // 离开时保存滚动位置，切Tab返回后恢复
@@ -737,5 +878,130 @@ async function saveConvert() {
   border-radius: 26rpx;
   margin-top: 20rpx;
   text-align: center;
+}
+
+/* ===== 高潜榜（阶段C）===== */
+.lead-card {
+  margin: 8rpx 28rpx 24rpx;
+  background: #fff;
+  border-radius: 32rpx;
+  padding: 28rpx;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+.lead-sec {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 20rpx;
+}
+.lead-sec small { color: #86909c; }
+.lead-ai {
+  font-size: 24rpx;
+  color: #07c160;
+  background: rgba(7, 193, 96, 0.08);
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+}
+.lead-ai.locked { color: #86909c; background: #f2f3f5; }
+.lead-list { display: flex; flex-direction: column; }
+.lead-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 22rpx 0;
+  border-bottom: 1px solid #f2f3f5;
+}
+.lead-row:last-child { border-bottom: none; }
+.lead-rank {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 16rpx;
+  background: #f2f3f5;
+  color: #86909c;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.lead-rank.hot { background: rgba(7, 193, 96, 0.12); color: #07c160; }
+.lead-info { flex: 1; min-width: 0; }
+.lead-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1d2129;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+.lead-lv {
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-weight: 400;
+}
+.lead-lv.green { color: #07c160; background: rgba(7,193,96,.1); }
+.lead-lv.blue { color: #165dff; background: rgba(22,93,255,.1); }
+.lead-lv.gray { color: #86909c; background: #f2f3f5; }
+.lead-meta { font-size: 24rpx; color: #86909c; margin-top: 8rpx; }
+.lead-words {
+  font-size: 22rpx;
+  color: #4e5969;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+  padding: 10rpx 16rpx;
+  margin-top: 12rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== AI 意向报告 ===== */
+.ai-report { margin: 28rpx 0; }
+.ai-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1px solid #f2f3f5;
+}
+.ai-row:last-child { border-bottom: none; }
+.ai-k { font-size: 28rpx; color: #4e5969; }
+.ai-v { font-size: 28rpx; font-weight: 600; color: #1d2129; }
+
+/* ===== 意向详情 ===== */
+.li-box { margin: 28rpx 0; }
+.li-item {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 16rpx 0;
+}
+.li-dot {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #86909c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.li-dot.green { background: #07c160; }
+.li-dot.blue { background: #165dff; }
+.li-t { font-size: 28rpx; color: #1d2129; }
+.li-s { font-size: 24rpx; color: #86909c; }
+.li-words { margin: 8rpx 0 20rpx; }
+.li-words-t { font-size: 26rpx; font-weight: 600; color: #1d2129; margin-bottom: 12rpx; }
+.li-words-c {
+  font-size: 24rpx;
+  color: #4e5969;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+  padding: 14rpx 18rpx;
+  margin-bottom: 10rpx;
+  line-height: 1.5;
 }
 </style>
