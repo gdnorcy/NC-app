@@ -239,5 +239,25 @@ export const customerMiniAuditStatus = () => customerApi.get('/channels/mini/aud
 export const customerMiniRelease = () => customerApi.post('/channels/mini/release');
 export const customerMiniRollback = () => customerApi.post('/channels/mini/rollback');
 export const fetchCustomerMiniDeployLogs = () => customerApi.get('/channels/mini/deploy-logs');
+// 阶段B：运营型雷达后台
+export const fetchRadarEvents = () => adminApi.get('/radar/events');
+export const createRadarEvent = (data) => adminApi.post('/radar/events', data);
+export const updateRadarEvent = (id, data) => adminApi.put(`/radar/events/${id}`, data);
+export const deleteRadarEvent = (id) => adminApi.delete(`/radar/events/${id}`);
+export const fetchRadarWords = () => adminApi.get('/radar/words');
+export const createRadarWord = (data) => adminApi.post('/radar/words', data);
+export const updateRadarWord = (id, data) => adminApi.put(`/radar/words/${id}`, data);
+export const deleteRadarWord = (id) => adminApi.delete(`/radar/words/${id}`);
+export const fetchRadarPushConfig = () => adminApi.get('/radar/push-config');
+export const saveRadarPushConfig = (data) => adminApi.post('/radar/push-config', data);
+export const fetchAdminCollects = (params) => adminApi.get('/radar/collects', { params });
+export const deleteAdminCollect = (id) => adminApi.delete(`/radar/collects/${id}`);
+
+// 阶段B：会员套餐（VIP权益扩展）
+export const fetchMemberPackages = () => adminApi.get('/member-packages');
+export const fetchMemberFeatureOptions = () => adminApi.get('/member-packages/feature-options');
+export const createMemberPackage = (data) => adminApi.post('/member-packages', data);
+export const updateMemberPackage = (id, data) => adminApi.put(`/member-packages/${id}`, data);
+export const deleteMemberPackage = (id) => adminApi.delete(`/member-packages/${id}`);
 
 export default { adminApi, publicApi, customerApi };

@@ -28,6 +28,8 @@ import { createMultiAuthRouter } from './routes/multi-auth.js';
 import { createAppRegistryRouter } from './routes/app-registry.js';
 import { createAppsAdminRouter } from './routes/appsAdmin.js';
 import { createCardTemplateRouter } from './routes/cardTemplates.js';
+import { createRadarAdminRouter } from './routes/radarAdmin.js';
+import { createMemberAdminRouter } from './routes/memberAdmin.js';
 import { adminOverview } from './services/analytics.js';
 import { createOAuthRouter } from './routes/oauth.js';
 import { createOpenApiRouter } from './routes/openapi.js';
@@ -106,6 +108,10 @@ export function createApp({ db, deps = {} } = {}) {
   // 名片模板库：平台公共（总后台）+ 租户私有（客户后台）
   app.use('/api/admin/card', requireAuth, createCardTemplateRouter(database, { mode: 'admin' }));
   app.use('/api/customer/card', requireAuth, createCardTemplateRouter(database, { mode: 'tenant' }));
+  // 阶段B：运营型雷达后台（事件/话术库/推送模板/收藏管理）
+  app.use('/api/admin/radar', requireAuth, createRadarAdminRouter(database));
+  // 阶段B：会员套餐后台（VIP权益扩展新字段 + features 能力点）
+  app.use('/api/admin/member-packages', requireAuth, createMemberAdminRouter(database));
   // 总后台：行为分析概览（按解决方案）
   app.use('/api/admin/analytics', requireAuth, (req, res) => {
     if (req.method === 'GET') {
