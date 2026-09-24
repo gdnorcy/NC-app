@@ -117,7 +117,9 @@
             </view>
             <view class="form-item" v-if="cardType === 'enterprise'">
               <view class="form-label">所属行业</view>
-              <input class="form-input" v-model="form.industry" placeholder="如：互联网/制造/服务" placeholder-class="ph" />
+              <picker mode="selector" :range="INDUSTRIES" @change="onCompanyIndustryChange">
+                <view class="form-input picker-value" :class="{ ph: !form.industry }">{{ form.industry || '请选择所属行业' }}</view>
+              </picker>
             </view>
             <view class="bind-hint">口令由管理员提供，用于绑定到指定客户项目</view>
           </view>
@@ -137,8 +139,11 @@
         </view>
 
         <view class="form-item">
-          <view class="form-label">所在城市</view>
-          <input class="form-input" v-model="form.city" placeholder="如：东莞" placeholder-class="ph" />
+          <view class="form-label">所在城市 <text class="required">*</text></view>
+          <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
+            <view class="form-input picker-value" :class="{ ph: !form.city }">{{ form.city || '请选择所在城市' }}</view>
+          </picker>
+          <view class="error-tip" v-if="errors.city">请选择所在城市</view>
         </view>
 
         <view class="form-item">
@@ -208,8 +213,11 @@
         </view>
 
         <view class="form-item">
-          <view class="form-label">业务领域</view>
-          <input class="form-input" v-model="form.businessField" placeholder="如：互联网/教育/医疗" placeholder-class="ph" />
+          <view class="form-label">业务领域 <text class="required">*</text></view>
+          <picker mode="selector" :range="INDUSTRIES" @change="onBusinessChange">
+            <view class="form-input picker-value" :class="{ ph: !form.businessField }">{{ form.businessField || '请选择业务领域' }}</view>
+          </picker>
+          <view class="error-tip" v-if="errors.businessField">请选择业务领域</view>
         </view>
       </view>
 
@@ -275,9 +283,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { INDUSTRIES, REGIONS } from '../../utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 
@@ -313,7 +322,46 @@ function toggleNeed(t) {
   else uni.showToast({ title: '最多选择 3 个', icon: 'none' });
 }
 
-const errors = reactive({ name: false, phone: false });
+const errors = reactive({ name: false, city: false, phone: false, businessField: false });
+
+// —— 行业/城市级联（P0：文档要求行业、城市必填 + 级联选择） ——
+const provinceList = Object.keys(REGIONS);
+const provinceIndex = ref(0);
+const cityIndex = ref(0);
+const regionCities = computed(() => REGIONS[provinceList[provinceIndex.value]] || []);
+function syncCityIndex() {
+  if (form.city) {
+    const found = provinceList.findIndex((pv) => (REGIONS[pv] || []).includes(form.city));
+    if (found >= 0) {
+      provinceIndex.value = found;
+      const ci = (REGIONS[provinceList[found]] || []).indexOf(form.city);
+      cityIndex.value = ci >= 0 ? ci : 0;
+      return;
+    }
+  }
+  provinceIndex.value = 0;
+  cityIndex.value = 0;
+}
+function onCityChange(e) {
+  const v = e.detail.value || [];
+  provinceIndex.value = v[0] || 0;
+  cityIndex.value = v[1] || 0;
+  form.city = regionCities.value[cityIndex.value] || '';
+  errors.city = false;
+}
+function onCityColumnChange(e) {
+  if (e.detail.column === 0) {
+    provinceIndex.value = e.detail.value;
+    cityIndex.value = 0;
+  }
+}
+function onBusinessChange(e) {
+  form.businessField = INDUSTRIES[e.detail.value] || '';
+  errors.businessField = false;
+}
+function onCompanyIndustryChange(e) {
+  form.industry = INDUSTRIES[e.detail.value] || '';
+}
 
 const templates = ref([]);
 const templatesLoaded = ref(false);
@@ -395,6 +443,7 @@ onMounted(async () => {
       const res = await cardApi.getCard(id);
       Object.assign(form, res.card);
       form.needTags = parseNeedTags(form.needTags);
+      syncCityIndex();
     } catch (e) {}
   } else {
     // 新建时展示本人入驻申请审核状态
@@ -464,11 +513,13 @@ function goMember() {
 function validateStep(step) {
   if (step === 0) {
     errors.name = !form.name.trim();
-    return !errors.name;
+    errors.city = !form.city.trim();
+    return !errors.name && !errors.city;
   }
   if (step === 1) {
     errors.phone = !form.phone.trim();
-    return !errors.phone;
+    errors.businessField = !form.businessField.trim();
+    return !errors.phone && !errors.businessField;
   }
   return true;
 }
@@ -1012,4 +1063,7 @@ async function submit() {
   background: #fffbe8; border: 2rpx dashed var(--gold); border-radius: 16rpx;
   padding: 24rpx; color: #b8860b; font-size: 26rpx; margin-top: 16rpx;
 }
+
+.picker-value { display: flex; align-items: center; min-height: 88rpx; }
+.picker-value.ph { color: #9a9a9a; }
 </style>

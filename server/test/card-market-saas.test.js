@@ -532,3 +532,93 @@ test('P5 客户状态机：显式迁移表放行合法迁移，终态锁定，fo
   db.prepare('DELETE FROM card_profile WHERE user_id = ?').run(uid);
   db.prepare('DELETE FROM platform_user WHERE id = ?').run(uid);
 });
+
+// ===== P0/P1 新契约回归（名片行业城市级联 / 收藏分组 / 提现上限 / 集市同城+banners）=====
+test('P0 收藏分组闭环：新建/移动/分组列表/删除回未分组', async () => {
+  const a = await wxLogin('grp_a');
+  const b = await wxLogin('grp_b');
+  const r2 = await request(app)
+    .post('/api/card/cards/create-with-apply')
+    .set(bearer(b))
+    .send({ name: '分组目标名片', bindCode: '1001', applyType: 'individual', city: '东莞', businessField: '互联网/IT' });
+  approveApply('grp_b', 1);
+  const targetId = r2.body.card.id;
+
+  // a 收藏 b 的名片
+  const col = await request(app).post('/api/card/collect').set(bearer(a)).send({ cardId: targetId });
+  assert.equal(col.status, 200);
+
+  // 新建分组（无该组收藏时仍返回成功，前端本地维护空组）
+  const g1 = await request(app).post('/api/card/collects/group').set(bearer(a)).send({ name: '商务合作' });
+  assert.equal(g1.status, 200);
+
+  // 从列表取收藏 id 再移动
+  const firstList = await request(app).get('/api/card/collects?limit=200').set(bearer(a));
+  const colRow = firstList.body.collects.find((c) => c.cardId === targetId);
+  assert.ok(colRow && colRow.id, '收藏行存在');
+  const mv = await request(app).post(`/api/card/collects/${colRow.id}/group`).set(bearer(a)).send({ groupName: '商务合作' });
+  assert.equal(mv.status, 200);
+
+  // 分组列表结构：groups + collects[groupName]
+  const list = await request(app).get('/api/card/collects?limit=200').set(bearer(a));
+  assert.ok(list.body.groups.some((g) => g.name === '商务合作'), '分组出现在 groups');
+  const mine = list.body.collects.find((c) => c.cardId === targetId);
+  assert.ok(mine, '收藏在列表中');
+  assert.equal(mine.groupName, '商务合作');
+
+  // 删除分组 → 移回未分组
+  const del = await request(app).post('/api/card/collects/group/delete').set(bearer(a)).send({ name: '商务合作' });
+  assert.equal(del.status, 200);
+  const list2 = await request(app).get('/api/card/collects?limit=200').set(bearer(a));
+  assert.ok(!list2.body.groups.some((g) => g.name === '商务合作'), '分组已删除');
+  const back = list2.body.collects.find((c) => c.cardId === targetId);
+  assert.equal(back.groupName, '未分组');
+
+  // 清理
+  db.prepare('DELETE FROM card_collect WHERE user_id = ?').run((await wxLogin('grp_a2')) ? 0 : 0); // 占位防未定义
+  const ua = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_grp_a'").get().id;
+  const ub = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_grp_b'").get().id;
+  db.prepare('DELETE FROM card_collect WHERE user_id IN (?, ?)').run(ua, ub);
+  db.prepare('DELETE FROM tenant_individuals WHERE user_id = ?').run(ub);
+  db.prepare('DELETE FROM card_profile WHERE user_id = ?').run(ub);
+  db.prepare('DELETE FROM platform_user WHERE id IN (?, ?)').run(ua, ub);
+});
+
+test('P1 集市：上架冗余城市 + list?city 过滤 + settings banners 往返', async () => {
+  // 用户 a 建名片（东莞）并上架
+  const a = await wxLogin('city_a');
+  const r = await request(app)
+    .post('/api/card/cards/create-with-apply')
+    .set(bearer(a))
+    .send({ name: '同城名片', bindCode: '1001', applyType: 'individual', city: '东莞', businessField: '互联网/IT' });
+  approveApply('city_a', 1);
+  const uid = r.body.card.userId;
+  const indId = db.prepare('SELECT id FROM tenant_individuals WHERE user_id = ? AND customer_id = 1').get(uid).id;
+  const tg = await request(app).post('/api/card-market/market/toggle').set(bearer(a)).send({ subjectType: 'individual', subjectId: indId });
+  assert.equal(tg.status, 200);
+  // 上架应冗余写入 city（取自 card_profile.city = 东莞）
+  const item = db.prepare("SELECT id, city FROM card_market_items WHERE customer_id = 1 AND subject_type = 'individual' AND subject_id = ?").get(indId);
+  assert.equal(item.city, '东莞');
+
+  // list?city 精确过滤
+  const inCity = await request(app).get('/api/card-market/market/list?city=东莞').set(bearer(a));
+  assert.ok(inCity.body.items.some((x) => x.id === itemRowId(item)), '同城列表含该名片');
+  const outCity = await request(app).get('/api/card-market/market/list?city=深圳').set(bearer(a));
+  assert.ok(!outCity.body.items.some((x) => x.id === itemRowId(item)), '异城列表不含该名片');
+
+  // settings banners 往返（租户管理员）
+  const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
+  const put = await request(app).put('/api/card-market/market/settings').set(bearer(makeJwt(adm1))).send({ banners: [{ image: 'https://x.test/a.png', link: 'https://x.test' }] });
+  assert.equal(put.status, 200);
+  const got = await request(app).get('/api/card-market/market/settings').set(bearer(makeJwt(adm1)));
+  assert.deepEqual(got.body.settings.banners, [{ image: 'https://x.test/a.png', link: 'https://x.test' }]);
+
+  // 清理
+  db.prepare('DELETE FROM card_market_items WHERE customer_id = 1 AND subject_type = ? AND subject_id = ?').run('individual', indId);
+  db.prepare('DELETE FROM card_customer WHERE owner_user_id = ?').run(uid);
+  db.prepare('DELETE FROM tenant_individuals WHERE user_id = ?').run(uid);
+  db.prepare('DELETE FROM card_profile WHERE user_id = ?').run(uid);
+  db.prepare('DELETE FROM platform_user WHERE id = ?').run(uid);
+});
+
+function itemRowId(itemRow) { return itemRow.id; }

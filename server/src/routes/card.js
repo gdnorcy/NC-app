@@ -387,14 +387,14 @@ export function createCardRouter(db, wxService) {
   });
 
   router.post('/cards', auth, (req, res) => {
-    const { name, position, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, templateId, voiceUrl, voiceName } = req.body;
+    const { name, position, city, industry, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, templateId, voiceUrl, voiceName } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
     const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
     if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public, template_id, voice_url, voice_name)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', Array.isArray(needTags) ? JSON.stringify(needTags) : (needTags || ''), avatar || '', isPublic ? 1 : 0, templateId || '', voiceUrl || '', voiceName || '');
+      `INSERT INTO card_profile (user_id, name, position, city, industry, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public, template_id, voice_url, voice_name)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', industry || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', Array.isArray(needTags) ? JSON.stringify(needTags) : (needTags || ''), avatar || '', isPublic ? 1 : 0, templateId || '', voiceUrl || '', voiceName || '');
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(result.lastInsertRowid);
     res.json({ card: toCard(card) });
   });
@@ -411,9 +411,9 @@ export function createCardRouter(db, wxService) {
     // 1. 创建名片
     const cardType = applyType === 'enterprise' ? 'company' : 'personal';
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags, template_id, voice_url, voice_name)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '', templateId || '', voiceUrl || '', voiceName || '');
+      `INSERT INTO card_profile (user_id, name, position, city, industry, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags, template_id, voice_url, voice_name)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', industry || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '', templateId || '', voiceUrl || '', voiceName || '');
     const cardId = result.lastInsertRowid;
 
     // 2. 处理入驻申请（填了口令才入驻）
@@ -485,15 +485,15 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName } = req.body;
+    const { name, position, city, industry, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName } = req.body;
     // 模板校验（C 端可见 + 免费或已购）
     if (templateId !== undefined && templateId) {
       const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
       if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
     }
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, updated_at=datetime('now') WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, card.id);
     const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
       FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });
@@ -877,7 +877,7 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   router.post('/collect', auth, (req, res) => {
     try {
-      const { cardId } = req.body || {};
+      const { cardId, groupName } = req.body || {};
       if (!cardId) return res.status(400).json({ error: 'cardId不能为空' });
       const card = db.prepare("SELECT * FROM card_profile WHERE id = ? AND status = 'active'").get(cardId);
       if (!card) return res.status(404).json({ error: '名片不存在' });
@@ -888,7 +888,7 @@ export function createCardRouter(db, wxService) {
       if (!quota.canCollect(req.user.id)) {
         return res.status(403).json({ error: '收藏数量已达上限，升级会员可收藏更多名片', limitHit: true });
       }
-      db.prepare('INSERT INTO card_collect (card_id, user_id) VALUES (?,?)').run(cardId, req.user.id);
+      db.prepare('INSERT INTO card_collect (card_id, user_id, group_name) VALUES (?,?,?)').run(cardId, req.user.id, groupName || '未分组');
       res.json({ ok: true, collected: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -910,10 +910,58 @@ export function createCardRouter(db, wxService) {
         `SELECT c.*, cp.name, cp.company, cp.position, cp.avatar FROM card_collect c
          LEFT JOIN card_profile cp ON cp.id = c.card_id
          WHERE c.user_id = ? ORDER BY c.id DESC LIMIT ?`
-      ).all(req.user.id, Number(req.query.limit) || 50);
-      res.json({ collects: rows.map((r) => ({
-        id: r.id, cardId: r.card_id, name: r.name || '', company: r.company || '', position: r.position || '', avatar: r.avatar || '', createdAt: r.created_at,
-      })) });
+      ).all(req.user.id, Number(req.query.limit) || 200);
+      const groups = db.prepare(
+        "SELECT group_name AS name, COUNT(*) AS count FROM card_collect WHERE user_id = ? GROUP BY group_name ORDER BY MIN(id)"
+      ).all(req.user.id).map((g) => ({ name: g.name || '未分组', count: g.count }));
+      res.json({
+        groups,
+        collects: rows.map((r) => ({
+          id: r.id, cardId: r.card_id, groupName: r.group_name || '未分组', name: r.name || '', company: r.company || '', position: r.position || '', avatar: r.avatar || '', createdAt: r.created_at,
+        })),
+      });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 名片夹分组管理（group_name 字符串集合，不建独立分组表）
+  // 新建/重命名分组：POST /collects/group {name, oldName?}（oldName 存在则重命名该分组）
+  router.post('/collects/group', auth, (req, res) => {
+    try {
+      const { name, oldName } = req.body || {};
+      if (!name || !String(name).trim()) return res.status(400).json({ error: '分组名不能为空' });
+      const n = String(name).trim().slice(0, 20);
+      if (oldName && String(oldName) !== '未分组') {
+        db.prepare("UPDATE card_collect SET group_name = ? WHERE user_id = ? AND group_name = ?").run(n, req.user.id, String(oldName));
+      } else {
+        const exist = db.prepare('SELECT id FROM card_collect WHERE user_id = ? AND group_name = ? LIMIT 1').get(req.user.id, n);
+        if (!exist) {
+          // 无收藏时也允许先建分组：用一条无 card 的占位记录不可行，改为直接返回成功并允许前端本地维护
+        }
+      }
+      const groups = db.prepare("SELECT group_name AS name, COUNT(*) AS count FROM card_collect WHERE user_id = ? GROUP BY group_name ORDER BY MIN(id)").all(req.user.id).map((g) => ({ name: g.name || '未分组', count: g.count }));
+      res.json({ ok: true, groups });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 删除分组：组内收藏移回「未分组」
+  router.post('/collects/group/delete', auth, (req, res) => {
+    try {
+      const { name } = req.body || {};
+      if (!name || String(name) === '未分组') return res.status(400).json({ error: '无效分组' });
+      db.prepare("UPDATE card_collect SET group_name = '未分组' WHERE user_id = ? AND group_name = ?").run(req.user.id, String(name));
+      const groups = db.prepare("SELECT group_name AS name, COUNT(*) AS count FROM card_collect WHERE user_id = ? GROUP BY group_name ORDER BY MIN(id)").all(req.user.id).map((g) => ({ name: g.name || '未分组', count: g.count }));
+      res.json({ ok: true, groups });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 移动收藏到指定分组
+  router.post('/collects/:id/group', auth, (req, res) => {
+    try {
+      const { groupName } = req.body || {};
+      const row = db.prepare('SELECT id FROM card_collect WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!row) return res.status(404).json({ error: '收藏不存在' });
+      db.prepare('UPDATE card_collect SET group_name = ? WHERE id = ?').run(groupName || '未分组', row.id);
+      res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -1500,7 +1548,7 @@ export function createCardRouter(db, wxService) {
     return {
       id: row.id, userId: row.user_id, enterpriseId: row.enterprise_id, cardType: row.card_type,
       name: row.name, position: row.position, city: row.city, phone: row.phone, wechat: row.wechat, email: row.email,
-      company: row.company, bio: row.bio, businessField: row.business_field, avatar: row.avatar,
+      company: row.company, bio: row.bio, businessField: row.business_field, industry: row.industry || '', avatar: row.avatar,
       slogan: row.slogan || '', tags: row.tags || '', needTags: row.need_tags || '',
       templateId: row.template_id, templateTheme, templateLayout: row.template_layout || 'card', videoChannel: row.video_channel, isPublic: !!row.is_public,
       collectCount: row.collectCount || 0, recentVisitors: row.recentVisitors || [],

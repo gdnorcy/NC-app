@@ -42,6 +42,22 @@
       <text class="notice-text">{{ settings.notice }}</text>
     </view>
 
+    <!-- 广告轮播（管理端集市设置配置 banners） -->
+    <swiper v-if="banners.length" class="banner-swiper" circular indicator-dots autoplay interval="4000" indicator-color="rgba(255,255,255,0.5)" indicator-active-color="#ffffff">
+      <swiper-item v-for="(b, i) in banners" :key="i" @click="openBanner(b)">
+        <image v-if="b.image" :src="b.image" class="banner-img" mode="aspectFill" />
+        <view v-else class="banner-placeholder">广告位</view>
+      </swiper-item>
+    </swiper>
+
+    <!-- 同城筛选（按本人名片所在城市匹配集市主体城市） -->
+    <view class="samecity-row">
+      <view class="sc-pill" :class="{ on: sameCity }" @click="toggleSameCity">
+        {{ sameCity ? '📍 同城' : '🌐 全部' }}<text class="sc-city" v-if="myCity">（{{ myCity }}）</text>
+      </view>
+      <text class="sc-tip" v-if="!myCity">完善名片"所在城市"后可开启同城</text>
+    </view>
+
     <!-- ===== 方案C：分类页签 ===== -->
     <template v-if="style === 'C'">
       <view class="c-tabs">
@@ -277,6 +293,9 @@ const needFilter = ref(false);
 const sort = ref('comprehensive');
 const style = ref('A');
 const settings = ref({});
+const banners = ref([]);
+const myCity = ref('');
+const sameCity = ref(false);
 const tenantName = ref('');
 const loading = ref(false);
 const foldOpen = ref(false);
@@ -364,7 +383,13 @@ async function loadAll() {
     if (settingsRes.status === 'fulfilled' && settingsRes.value.settings) {
       settings.value = settingsRes.value.settings;
       style.value = settings.value.style || 'A';
+      banners.value = settings.value.banners || [];
     }
+    // 本人名片城市（同城筛选基准）
+    try {
+      const mc = await cardApi.memberMyCard();
+      myCity.value = (mc && mc.card && mc.card.city) || '';
+    } catch (e2) {}
     if (statusRes.status === 'fulfilled') myStatus.value = statusRes.value;
     if (connRes.status === 'fulfilled' && connRes.value.connections) {
       exchangedUserIds.value = connRes.value.connections
@@ -384,6 +409,7 @@ async function loadMarket() {
   try {
     const params = { type: filterType.value, keyword: keyword.value, sort: sort.value };
     if (needFilter.value) params.need = '找渠道';
+    if (sameCity.value && myCity.value) params.city = myCity.value;
     const res = await cardApi.getMarketList(params);
     items.value = res.items || [];
   } catch (e) {
@@ -394,6 +420,20 @@ async function loadMarket() {
 function selectType(type) {
   filterType.value = type;
   loadMarket();
+}
+function toggleSameCity() {
+  if (!sameCity.value && !myCity.value) {
+    return uni.showToast({ title: '请先在"创建/编辑名片"中完善所在城市', icon: 'none' });
+  }
+  sameCity.value = !sameCity.value;
+  loadMarket();
+}
+function openBanner(b) {
+  if (b.link) {
+    // #ifdef H5
+    window.open(b.link, '_blank');
+    // #endif
+  }
 }
 function toggleNeed() {
   needFilter.value = !needFilter.value;
@@ -572,4 +612,13 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .empty-state { display: flex; flex-direction: column; align-items: center; padding: 120rpx 40rpx; }
 .empty-text { font-size: 30rpx; color: #5b5b5b; margin-top: 24rpx; }
 .empty-hint { font-size: 24rpx; color: #9a9a9a; margin-top: 8rpx; }
+
+.banner-swiper { height: 240rpx; margin: 16rpx 24rpx; border-radius: 16rpx; overflow: hidden; }
+.banner-img { width: 100%; height: 100%; border-radius: 16rpx; }
+.banner-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #eef1f5; color: #9a9a9a; font-size: 26rpx; border-radius: 16rpx; }
+.samecity-row { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 24rpx 4rpx; }
+.sc-pill { display: inline-flex; align-items: center; gap: 6rpx; font-size: 24rpx; color: var(--t3); background: #fff; border: 1px solid var(--border); border-radius: 999rpx; padding: 10rpx 22rpx; }
+.sc-pill.on { color: #fff; background: #165dff; border-color: #165dff; }
+.sc-city { font-size: 22rpx; opacity: 0.8; }
+.sc-tip { font-size: 22rpx; color: var(--t3); }
 </style>

@@ -93,6 +93,20 @@
           <el-form-item label="集市公告">
             <el-input v-model="settings.notice" placeholder="例如：欢迎各位会员，对接商务资源，共建人脉网络" style="max-width: 420px;" />
           </el-form-item>
+          <el-form-item label="广告轮播">
+            <div class="banner-editor">
+              <div class="banner-row" v-for="(b, i) in settings.banners" :key="i">
+                <el-upload :show-file-list="false" :http-request="(o) => handleBannerUpload(o, i)" accept="image/*">
+                  <el-button size="small">{{ b.image ? '重传图' : '上传图' }} {{ i + 1 }}</el-button>
+                </el-upload>
+                <img v-if="b.image" :src="b.image" class="banner-preview" />
+                <el-input v-model="b.link" placeholder="跳转链接（可选）" style="width: 220px" size="small" />
+                <el-button size="small" type="danger" text @click="settings.banners.splice(i, 1)">删除</el-button>
+              </div>
+              <el-button size="small" type="primary" plain @click="settings.banners.push({ image: '', link: '' })" v-if="settings.banners.length < 5">＋添加轮播图</el-button>
+              <div class="form-tip">C端集市公告下方轮播展示；建议图片 750×300，最多 5 张</div>
+            </div>
+          </el-form-item>
           <el-form-item label="上架审核模式">
             <el-radio-group v-model="settings.auditMode">
               <el-radio value="auto">默认上架（个人可手动下架）</el-radio>
@@ -193,7 +207,8 @@ const settings = ref({
   contactVisible: 'after_exchange',
   style: 'A',
   notice: '',
-  poolFloatMode: 'soft'
+  poolFloatMode: 'soft',
+  banners: []
 });
 const styles = ref([]);
 const buyingKey = ref('');
@@ -230,6 +245,20 @@ async function loadStats() {
     const res = await publicApi.get('/card-market/market/stats');
     if (res.stats) stats.value = res.stats;
   } catch (e) {}
+}
+
+async function handleBannerUpload(opt, idx) {
+  try {
+    const fd = new FormData();
+    fd.append('file', opt.file);
+    const res = await publicApi.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const url = new URL(res.path || res.previewPath, window.location.origin).href;
+    if (!settings.value.banners[idx]) settings.value.banners[idx] = { image: '', link: '' };
+    settings.value.banners[idx].image = url;
+    ElMessage.success('上传成功');
+  } catch (e) {
+    ElMessage.error('上传失败');
+  }
 }
 
 async function loadSettings() {
@@ -326,4 +355,9 @@ async function forceRemove(row) {
 .buy-tip { font-size: 12px; color: #86909c; }
 .hint-text { font-size: 13px; color: #86909c; margin: 0; }
 .form-tip { font-size: 12px; color: #86909c; line-height: 1.6; margin-top: 6px; width: 100%; }
+
+.banner-editor { display: flex; flex-direction: column; gap: 12rpx; max-width: 640px; }
+.banner-row { display: flex; align-items: center; gap: 12rpx; }
+.banner-preview { width: 120px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
+.form-tip { font-size: 12px; color: #999; }
 </style>

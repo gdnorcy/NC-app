@@ -216,6 +216,7 @@ export function createCardMarketRouter(db) {
         style: settings.style || 'A',
         notice: settings.notice || '',
         poolFloatMode: settings.pool_float_mode || 'soft',
+        banners: (() => { try { return JSON.parse(settings.banners || '[]'); } catch { return []; } })(),
       },
       styles: styleAssets(req.customerId),
     });
@@ -239,7 +240,7 @@ export function createCardMarketRouter(db) {
 
   // 更新集市配置（仅租户管理员）
   router.put('/market/settings', tenant, requireTenantAdmin, (req, res) => {
-    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice, poolFloatMode } = req.body;
+    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice, poolFloatMode, banners } = req.body;
     if (poolFloatMode !== undefined && !['soft', 'recover', 'hard'].includes(poolFloatMode)) {
       return res.status(400).json({ error: '无效的上浮方式' });
     }
@@ -268,9 +269,11 @@ export function createCardMarketRouter(db) {
       style = COALESCE(?, style),
       notice = COALESCE(?, notice),
       pool_float_mode = COALESCE(?, pool_float_mode),
+      banners = COALESCE(?, banners),
       updated_at = datetime('now')
       WHERE customer_id = ?`).run(
-      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), S(poolFloatMode), req.customerId
+      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), S(poolFloatMode),
+      banners === undefined ? null : (Array.isArray(banners) ? JSON.stringify(banners) : String(banners)), req.customerId
     );
     audit(db, req, 'update_market_settings', 'market_settings', req.customerId, '更新人脉集市配置');
     res.json({ success: true, styles: styleAssets(req.customerId) });
@@ -287,7 +290,7 @@ export function createCardMarketRouter(db) {
 
   // ===== 集市列表 =====
   router.get('/market/list', tenant, (req, res) => {
-    const { type, keyword, scope, need, industry, sort } = req.query;
+    const { type, keyword, scope, need, industry, sort, city } = req.query;
     const sw = marketEnabled(req.customerId);
     if (!sw.enabled) return res.json({ items: [], message: '集市未开启' });
 
@@ -338,6 +341,10 @@ export function createCardMarketRouter(db) {
         END LIKE ?
       )`;
       params.push(`%${keyword}%`);
+    }
+    if (city) {
+      sql += ' AND mi.city = ?';
+      params.push(String(city));
     }
     if (need) {
       // 供需标签筛选：need_tags JSON 内包含目标标签
@@ -471,8 +478,13 @@ export function createCardMarketRouter(db) {
       const auditStatus = settings?.audit_mode === 'manual' ? 'pending' : 'approved';
       // 企业主体上架需要企业id
       const enterpriseId = subjectType === 'enterprise' ? subjectId : (subjectType === 'employee' ? (db.prepare('SELECT enterprise_id FROM tenant_enterprise_employees WHERE id = ?').get(subjectId)?.enterprise_id) : null);
-      db.prepare(`INSERT INTO card_market_items (customer_id, subject_type, subject_id, user_id, enterprise_id, audit_status)
-        VALUES (?, ?, ?, ?, ?, ?)`).run(req.customerId, subjectType, subjectId, userId, enterpriseId, auditStatus);
+      // 同城筛选：冗余写入主体城市（个人/员工取名片 city；企业暂不支持城市）
+      let city = '';
+      if (subjectType === 'individual' || subjectType === 'employee') {
+        city = (db.prepare("SELECT city FROM card_profile WHERE user_id = ? AND status = ? ORDER BY id DESC LIMIT 1").get(userId, 'active')?.city) || '';
+      }
+      db.prepare(`INSERT INTO card_market_items (customer_id, subject_type, subject_id, user_id, enterprise_id, audit_status, city)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`).run(req.customerId, subjectType, subjectId, userId, enterpriseId, auditStatus, city);
       res.json({ success: true, inMarket: true, auditStatus });
       audit(db, req, 'toggle_market_item', 'market_item', existing?.id ?? null, `${subjectType}#${subjectId} 上架集市，审核=${auditStatus}`);
     }

@@ -96,7 +96,10 @@ export const cardApi = {
   // ===== 名片收藏（阶段C：收藏/取消/我的收藏）=====
   collectCard: (cardId) => request('/collect', 'POST', { cardId }),
   uncollectCard: (cardId) => request(`/collect?cardId=${cardId}`, 'DELETE'),
-  getMyCollects: (limit) => request(`/collects?limit=${limit || 50}`),
+  getMyCollects: (limit) => request(`/collects?limit=${limit || 200}`),
+  createCollectGroup: (name, oldName) => request('/collects/group', 'POST', { name, oldName }),
+  deleteCollectGroup: (name) => request('/collects/group/delete', 'POST', { name }),
+  moveCollectGroup: (collectId, groupName) => request(`/collects/${collectId}/group`, 'POST', { groupName }),
 
   // ===== 分销中心（租户维度，双身份隔离）=====
   distBind: (parentId, identityType) => request('/distribution/bind', 'POST', { parentId, identityType }),

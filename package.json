@@ -5,7 +5,7 @@
  "description": "360全景浏览器：H5/Web 展示端 + 管理后台",
  "workspaces": [
   "server",
-  "web",
+  "web-app",
   "web-admin"
  ],
  "scripts": {

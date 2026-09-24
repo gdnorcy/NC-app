@@ -2052,6 +2052,33 @@ function migrate(db) {
   // 仍残留 ['demo','card'] 之类组合，导致 Billing 方案续费出现「智能名片」幽灵方案卡。
   // 规则：移除应用 code 与已下架方案 code；保留在售方案；清理后为空回填「演示试用方案」(demo)。
   normalizeProjectSolutions(db);
+
+  // —— 模板两层购买链：租户购买平台模板后可设 C 端售价（幂等补列）——
+  if (colExists(db, 'tenant_asset_purchases', 'id') && !colExists(db, 'tenant_asset_purchases', 'c_price')) {
+    db.exec('ALTER TABLE tenant_asset_purchases ADD COLUMN c_price REAL NOT NULL DEFAULT 0');
+  }
+
+  // —— 智能名片 P0/P1 ——
+  // card_profile 补 industry（公司行业，级联选择后落库）
+  if (!colExists(db, 'card_profile', 'industry')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN industry TEXT NOT NULL DEFAULT ''");
+  }
+  // card_collect 补 group_name（名片夹分组：默认未分组）
+  if (!colExists(db, 'card_collect', 'group_name')) {
+    db.exec("ALTER TABLE card_collect ADD COLUMN group_name TEXT NOT NULL DEFAULT '未分组'");
+  }
+  // dist_config 补 max_withdraw（单次提现上限，0=不限）
+  if (!colExists(db, 'dist_config', 'max_withdraw')) {
+    db.exec('ALTER TABLE dist_config ADD COLUMN max_withdraw REAL NOT NULL DEFAULT 0');
+  }
+  // card_market_items 补 city（同城筛选，上架时按主体冗余写入）
+  if (!colExists(db, 'card_market_items', 'city')) {
+    db.exec("ALTER TABLE card_market_items ADD COLUMN city TEXT NOT NULL DEFAULT ''");
+  }
+  // card_market_settings 补 banners（集市广告轮播 JSON:[{image,link}]）
+  if (!colExists(db, 'card_market_settings', 'banners')) {
+    db.exec("ALTER TABLE card_market_settings ADD COLUMN banners TEXT NOT NULL DEFAULT '[]'");
+  }
 }
 
 /** 存量租户 solutions 规范化（见 createDb 调用处注释） */

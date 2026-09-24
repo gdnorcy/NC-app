@@ -58,7 +58,7 @@ export function createDistributionService(db) {
 
   const DEFAULT_CONFIG = {
     ratio1: 0.20, ratio2: 0.05, is_open_level2: 1, is_self_buy: 0,
-    calc_type: 1, settle_day: 7, min_withdraw: 10, withdraw_fee_rate: 0, max_total_ratio: 0.30,
+    calc_type: 1, settle_day: 7, min_withdraw: 10, max_withdraw: 0, withdraw_fee_rate: 0, max_total_ratio: 0.30,
   };
 
   /** 读取租户二级分销配置（不存在自动建默认） */
@@ -90,6 +90,7 @@ export function createDistributionService(db) {
       calc_type: Number(patch.calc_type ?? cur.calc_type) === 2 ? 2 : 1,
       settle_day: Math.max(1, Math.min(90, Number(patch.settle_day ?? cur.settle_day) || 7)),
       min_withdraw: Math.max(0, Number(patch.min_withdraw ?? cur.min_withdraw) || 0),
+      max_withdraw: Math.max(0, Number(patch.max_withdraw ?? cur.max_withdraw) || 0),
       withdraw_fee_rate: Math.max(0, Math.min(1, Number(patch.withdraw_fee_rate ?? cur.withdraw_fee_rate) || 0)),
       max_total_ratio: Math.max(0, Math.min(1, Number(patch.max_total_ratio ?? cur.max_total_ratio) || 0)),
       distributor_gate: [0, 1, 2].includes(Number(patch.distributor_gate ?? cur.distributor_gate)) ? Number(patch.distributor_gate ?? cur.distributor_gate) : 0,
@@ -120,14 +121,14 @@ export function createDistributionService(db) {
     };
     db.prepare(`
       UPDATE dist_config SET ratio1=?, ratio2=?, is_open_level2=?, is_self_buy=?, calc_type=?,
-        settle_day=?, min_withdraw=?, withdraw_fee_rate=?, max_total_ratio=?, distributor_gate=?,
+        settle_day=?, min_withdraw=?, max_withdraw=?, withdraw_fee_rate=?, max_total_ratio=?, distributor_gate=?,
         dist_name=?, sub_name=?, apply_top_img=?, promote_img=?, apply_tip=?,
         zero_order=?, show_parent=?, show_phone=?, default_level=?,
         bind_rule=?, become_rule=?, become_amount=?, become_products=?, share_title=?, share_img=?,
         apply_agreement=?, dist_notice=?, poster_badge=?, poster_templates=?, updated_at=datetime('now')
       WHERE tenant_id=?
     `).run(next.ratio1, next.ratio2, next.is_open_level2, next.is_self_buy, next.calc_type,
-      next.settle_day, next.min_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate,
+      next.settle_day, next.min_withdraw, next.max_withdraw, next.withdraw_fee_rate, next.max_total_ratio, next.distributor_gate,
       next.dist_name, next.sub_name, next.apply_top_img, next.promote_img, next.apply_tip,
       next.zero_order, next.show_parent, next.show_phone, next.default_level,
       next.bind_rule, next.become_rule, next.become_amount, next.become_products, next.share_title, next.share_img,
@@ -989,6 +990,7 @@ export function createDistributionService(db) {
     if (amount <= 0) return { ok: false, error: '提现金额无效' };
     if (wallet.available < amount) return { ok: false, error: '可提现余额不足' };
     if (amount < config.min_withdraw * 100) return { ok: false, error: `可提现余额不足最低提现门槛${config.min_withdraw}元` };
+    if (config.max_withdraw > 0 && amount > config.max_withdraw * 100) return { ok: false, error: `单次提现上限${config.max_withdraw}元` };
     let acct = '';
     try {
       const obj = typeof payAccount === 'string' ? JSON.parse(payAccount) : payAccount;
@@ -1532,6 +1534,7 @@ export function createDistributionService(db) {
       showParent: !!cfg.show_parent,
       showPhone: !!cfg.show_phone,
       withdrawMin: Number(cfg.min_withdraw || 0),
+      withdrawMax: Number(cfg.max_withdraw || 0),
       withdrawFeeRate: Number(cfg.withdraw_fee_rate || 0),
       defaultLevel: cfg.default_level || '默认等级',
       selfName: self ? (self.nickname || '我') : '我',

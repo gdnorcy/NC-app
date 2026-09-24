@@ -141,6 +141,25 @@ describe('分销体系（分销裂变底座）', () => {
     assert.equal(log.status, 'settled');
   });
 
+  it('提现：单次上限校验（max_withdraw）', () => {
+    // 独立用户 1010，避免影响共用用户 1000 的后续用例
+    dist.getWallet(TENANT, 1010, 'individual');
+    db.prepare("UPDATE dist_wallet SET available = 30000 WHERE tenant_id = ? AND user_id = 1010 AND identity_type = 'individual'").run(TENANT);
+    // 上限 100 元
+    dist.saveConfig(TENANT, { min_withdraw: 1, max_withdraw: 100 });
+    // 超过上限（101元）→ 拒绝
+    const over = dist.applyWithdraw(TENANT, 1010, 'individual', 101);
+    assert.equal(over.ok, false);
+    assert.match(over.error, /单次提现上限/);
+    // 等于上限（100元）→ 允许
+    const eq = dist.applyWithdraw(TENANT, 1010, 'individual', 100);
+    assert.ok(eq.ok);
+    // 上限恢复 0（不限）后，超额可提
+    dist.saveConfig(TENANT, { max_withdraw: 0 });
+    const reset = dist.applyWithdraw(TENANT, 1010, 'individual', 101);
+    assert.ok(reset.ok);
+  });
+
   it('提现：余额门槛校验 + 手续费 + 冻结', () => {
     const w = dist.getWallet(TENANT, 1000, 'individual');
     assert.equal(w.available, 500);

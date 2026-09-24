@@ -126,6 +126,10 @@
                 <el-input-number v-model="cfg.minWithdraw" :min="0" :step="10" />
                 <span class="form-tip">元</span>
               </el-form-item>
+              <el-form-item label="单次提现上限">
+                <el-input-number v-model="cfg.maxWithdraw" :min="0" :step="100" />
+                <span class="form-tip">元；0 表示不限</span>
+              </el-form-item>
               <el-form-item label="提现手续费比例">
                 <el-input-number v-model="cfg.withdrawFeeRate" :min="0" :max="1" :step="0.01" :precision="2" />
                 <span class="form-tip">0~1（如 0.05 表示 5%）</span>
@@ -950,7 +954,7 @@ function addPoster() {
 function setDefaultPoster(url) { cfg.promoteImg = url; }
 const cfg = reactive({
   ratio1: 0.2, ratio2: 0.05, isOpenLevel2: true, isSelfBuy: false,
-  calcType: 1, settleDay: 7, minWithdraw: 10, withdrawFeeRate: 0, maxTotalRatio: 0.3,
+  calcType: 1, settleDay: 7, minWithdraw: 10, maxWithdraw: 0, withdrawFeeRate: 0, maxTotalRatio: 0.3,
   distName: '推广员', subName: '下级', applyTopImg: '', promoteImg: '', applyTip: '',
   zeroOrder: false, showParent: false, showPhone: false, defaultLevel: '默认等级', posterBadge: true,
   posterTemplates: [],
@@ -966,7 +970,7 @@ async function loadConfig() {
       ratio1: c.ratio1 ?? 0.2, ratio2: c.ratio2 ?? 0.05,
       isOpenLevel2: c.is_open_level2 ? true : false, isSelfBuy: c.is_self_buy ? true : false,
       calcType: c.calc_type ?? 1, settleDay: c.settle_day ?? 7,
-      minWithdraw: c.min_withdraw ?? 10, withdrawFeeRate: c.withdraw_fee_rate ?? 0,
+      minWithdraw: c.min_withdraw ?? 10, maxWithdraw: c.max_withdraw ?? 0, withdrawFeeRate: c.withdraw_fee_rate ?? 0,
       maxTotalRatio: c.max_total_ratio ?? 0.3,
       // 基本设置 + 分销参数
       distName: c.dist_name || '推广员', subName: c.sub_name || '下级',
@@ -1019,7 +1023,7 @@ async function saveConfig() {
     await customerApiCall.put('/distribution/config', {
       ratio1: cfg.ratio1, ratio2: cfg.ratio2, is_open_level2: cfg.isOpenLevel2 ? 1 : 0,
       is_self_buy: cfg.isSelfBuy ? 1 : 0, calc_type: cfg.calcType, settle_day: cfg.settleDay,
-      min_withdraw: cfg.minWithdraw, withdraw_fee_rate: cfg.withdrawFeeRate, max_total_ratio: cfg.maxTotalRatio,
+      min_withdraw: cfg.minWithdraw, max_withdraw: cfg.maxWithdraw, withdraw_fee_rate: cfg.withdrawFeeRate, max_total_ratio: cfg.maxTotalRatio,
       dist_name: cfg.distName, sub_name: cfg.subName, apply_top_img: cfg.applyTopImg,
       promote_img: cfg.promoteImg, apply_tip: cfg.applyTip, zero_order: cfg.zeroOrder ? 1 : 0,
       show_parent: cfg.showParent ? 1 : 0, show_phone: cfg.showPhone ? 1 : 0, default_level: cfg.defaultLevel,
