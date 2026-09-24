@@ -155,6 +155,32 @@
           </view>
           <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
         </view>
+
+        <!-- 语音简介（VIP权益：上传音频；克隆语音后续） -->
+        <view class="card-title" style="margin-top: 20rpx;">语音简介<text class="vip-tag">VIP</text></view>
+        <view class="voice-row" v-if="voiceAllowed">
+          <view class="voice-upload" @click="chooseVoice" v-if="!form.voiceUrl">
+            <text class="voice-plus">+</text>
+            <text class="voice-text">上传音频</text>
+          </view>
+          <view class="voice-file" v-else>
+            <SIcon name="dynamic" size="large" color="#165dff" />
+            <view class="vf-info">
+              <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
+              <view class="vf-tip">点击播放试听</view>
+            </view>
+            <audio class="voice-audio" :src="voiceSrc" controls v-if="voiceSrc" />
+            <view class="vf-actions">
+              <text class="vf-del" @click="clearVoice">删除</text>
+              <text class="vf-re" @click="chooseVoice">重传</text>
+            </view>
+          </view>
+          <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
+        </view>
+        <view class="voice-locked" v-else @click="goMember">
+          <SIcon name="crown" size="small" color="#ffd21e" />
+          <text>开通会员解锁语音简介</text>
+        </view>
       </view>
 
       <!-- 卡片2：联系方式 -->
@@ -266,7 +292,10 @@ const form = reactive({
   name: '', position: '', city: '', bio: '', avatar: '',
   phone: '', wechat: '', email: '', businessField: '', videoChannel: '', isPublic: true, needTags: [],
   bindCode: '', enterpriseName: '', industry: '',
+  voiceUrl: '', voiceName: '',
 });
+const voiceAllowed = ref(false);
+const voiceSrc = ref('');
 
 const NEED_OPTIONS = ['找渠道', '求合作', '招合伙人', '寻资源', '招代理', '找投资'];
 function parseNeedTags(v) {
@@ -308,6 +337,13 @@ onShow(() => {
 });
 
 onMounted(async () => {
+  // 语音简介会员权限（阶段C）
+  if (uni.getStorageSync('card_token')) {
+    try {
+      const feats = await cardApi.getRadarFeatures();
+      voiceAllowed.value = !!(feats && feats.isMember);
+    } catch (e) {}
+  }
   // 加载模板列表（新建/编辑均可用，编辑时默认选中当前模板）
   loadTemplates();
   const pages = getCurrentPages();
@@ -342,6 +378,46 @@ function chooseAvatar() {
       form.avatar = res.tempFilePaths[0];
     },
   });
+}
+
+// 语音简介（H5 端原生 file 选择；小程序端后续按 uni.uploadFile 接入）
+function chooseVoice() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*';
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (!/^(audio\/|.*\.(mp3|wav|m4a|aac|ogg|webm)$)/i.test(file.type)) {
+      return uni.showToast({ title: '仅支持 mp3/wav/m4a/aac/ogg 音频', icon: 'none' });
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return uni.showToast({ title: '音频大小不能超过 10MB', icon: 'none' });
+    }
+    uni.showLoading({ title: '上传中…' });
+    try {
+      const res = await cardApi.uploadVoiceFile(file);
+      form.voiceUrl = res.url;
+      form.voiceName = res.name || file.name || '语音简介';
+      voiceSrc.value = res.url;
+      uni.showToast({ title: '上传成功', icon: 'success' });
+    } catch (e) {
+      uni.showToast({ title: e.message || '上传失败', icon: 'none' });
+    } finally {
+      uni.hideLoading();
+    }
+  };
+  input.click();
+}
+
+function clearVoice() {
+  form.voiceUrl = '';
+  form.voiceName = '';
+  voiceSrc.value = '';
+}
+
+function goMember() {
+  uni.navigateTo({ url: '/pages/card/member' });
 }
 
 function validateStep(step) {
@@ -858,4 +934,32 @@ async function submit() {
 .tpl-cover-text { color: #fff; font-size: 44rpx; font-weight: 600; }
 .tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: #07c160; color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
 .tpl-name { display: block; padding: 12rpx 10rpx 14rpx; font-size: 24rpx; color: #1d2129; text-align: center; white-space: normal; word-break: break-all; }
+.vip-tag {
+  display: inline-block; font-size: 20rpx; color: #fff; background: #ffd21e;
+  border-radius: 6rpx; padding: 2rpx 10rpx; margin-left: 12rpx; vertical-align: middle;
+}
+.voice-row { margin-top: 16rpx; }
+.voice-upload {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 100%; height: 160rpx; border: 2rpx dashed #c9cdd4; border-radius: 16rpx;
+  background: #f7f8fa; gap: 8rpx;
+}
+.voice-plus { font-size: 48rpx; color: #86909c; line-height: 1; }
+.voice-text { font-size: 26rpx; color: #86909c; }
+.voice-file {
+  display: flex; align-items: center; gap: 18rpx;
+  background: #f7f8fa; border-radius: 16rpx; padding: 20rpx 24rpx;
+}
+.vf-info { flex: 1; min-width: 0; }
+.vf-name { font-size: 28rpx; font-weight: 600; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vf-tip { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
+.vf-actions { display: flex; flex-direction: column; gap: 8rpx; }
+.vf-del { font-size: 22rpx; color: #f53f3f; }
+.vf-re { font-size: 22rpx; color: #165dff; }
+.voice-audio { width: 200rpx; height: 64rpx; }
+.voice-locked {
+  display: flex; align-items: center; gap: 12rpx;
+  background: #fffbe8; border: 2rpx dashed #ffd21e; border-radius: 16rpx;
+  padding: 24rpx; color: #b8860b; font-size: 26rpx; margin-top: 16rpx;
+}
 </style>

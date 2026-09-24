@@ -52,6 +52,15 @@
     <!-- 简介面板 -->
     <view class="tab-panel" v-if="activeTab === 'intro'">
       <view class="sec-t">个人简介</view>
+      <!-- 语音简介（阶段C：上传音频展示） -->
+      <view class="voice-box" v-if="card.voiceUrl">
+        <SIcon name="dynamic" size="large" color="#165dff" />
+        <view class="vb-info">
+          <view class="vb-name">{{ card.voiceName || '语音简介' }}</view>
+          <view class="vb-tip">点击播放</view>
+        </view>
+        <audio class="vb-audio" :src="card.voiceUrl" controls />
+      </view>
       <view class="card-row">
         <view class="intro-line" v-if="card.position">
           <SIcon name="user" size="small" color="#86909c" />
@@ -929,4 +938,13 @@ function shareCard() {
 .fp-submit { flex: 1; background: #165dff; color: #fff; font-size: 28rpx; border-radius: 12rpx; }
 .fp-submit[disabled] { opacity: 0.6; }
 
+.voice-box {
+  display: flex; align-items: center; gap: 18rpx;
+  background: #f7f8fa; border-radius: 16rpx; padding: 22rpx 24rpx;
+  margin-bottom: 16rpx;
+}
+.vb-info { flex: 1; min-width: 0; }
+.vb-name { font-size: 28rpx; font-weight: 600; color: #1d2129; }
+.vb-tip { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
+.vb-audio { flex: 1; min-width: 0; height: 64rpx; }
 </style>

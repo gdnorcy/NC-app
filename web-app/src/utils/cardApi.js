@@ -50,6 +50,20 @@ export const cardApi = {
   getCardWorks: (id) => request(`/cards/${id}/works`),
   getCardDynamics: (id) => request(`/cards/${id}/dynamics`),
   getCardVideos: (id) => request(`/cards/${id}/videos`),
+  // 语音简介上传（阶段C：上传音频；克隆语音后续新增；H5 端 FormData，小程序端走 uni.uploadFile）
+  uploadVoiceFile: (file) => {
+    const token = uni.getStorageSync('card_token');
+    const fd = new FormData();
+    fd.append('file', file);
+    return fetch(BASE_URL + '/voice-upload', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    }).then((r) => r.json().then((data) => {
+      if (!r.ok) throw new Error(data.error || '上传失败');
+      return data;
+    }));
+  },
   // 名片模板（平台公共 + 本租户私有）
   getTemplates: () => request('/templates'),
   // 动态互动（点赞/评论）

@@ -138,3 +138,41 @@ describe('阶段C 雷达/收藏方法', () => {
     expect(args.data.switch).toBe(1);
   });
 });
+
+describe('阶段C 语音简介上传', () => {
+  const fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+  });
+
+  it('uploadVoiceFile → POST /voice-upload，FormData 含 file，带 Authorization', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: '/uploads/voice-a.mp3', name: 'intro.mp3' }),
+    });
+    const file = new Blob(['fake-audio'], { type: 'audio/mpeg' });
+    Object.assign(file, { name: 'intro.mp3' });
+    const res = await cardApi.uploadVoiceFile(file);
+    expect(res.url).toBe('/uploads/voice-a.mp3');
+    expect(res.name).toBe('intro.mp3');
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:3000/api/card/voice-upload');
+    expect(opts.method).toBe('POST');
+    expect(opts.headers.Authorization).toBe('Bearer test-token');
+    expect(opts.body).toBeInstanceOf(FormData);
+    const f = opts.body.get('file');
+    expect(f).toBeInstanceOf(Blob);
+    expect(f.type).toBe('audio/mpeg');
+    expect(f.size).toBeGreaterThan(0);
+  });
+
+  it('uploadVoiceFile 非 2xx 抛错（error 文案）', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: '音频大小不能超过 10MB' }),
+    });
+    await expect(cardApi.uploadVoiceFile({ name: 'big.mp3' })).rejects.toThrow('音频大小不能超过 10MB');
+  });
+});

@@ -3,7 +3,10 @@
  * 个人C端用户 + 企业租户 + 平台运营
  */
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
+import { getStorage } from '../storage/index.js';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
 import { createDistributionService, buildShareUrl } from '../services/distribution.js';
@@ -16,8 +19,14 @@ import { createQuotaService } from '../services/quota.js';
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 
+const AUDIO_MIME = new Set(['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/x-m4a', 'audio/m4a', 'audio/webm', 'audio/x-mpeg']);
+
 export function createCardRouter(db, wxService) {
   const router = Router();
+  const voiceUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 语音简介 ≤10MB
+  });
   const distribution = createDistributionService(db);
   const member = createMemberService(db);
   const radar = createRadarService(db);
@@ -274,13 +283,39 @@ export function createCardRouter(db, wxService) {
     res.json({ videos: videos.map((v) => ({ id: v.id, cardId: v.card_id, title: v.title, coverUrl: v.cover_url, duration: v.duration, sortOrder: v.sort_order })) });
   });
 
+  // ============================================================
+  // 语音简介上传（阶段C：上传音频；克隆语音后续新增）
+  // ============================================================
+  router.post('/voice-upload', auth, (req, res) => {
+    voiceUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? '音频大小不能超过 10MB' : err.message;
+        return res.status(400).json({ error: message });
+      }
+      if (!req.file) return res.status(400).json({ error: '未收到音频文件' });
+      const mime = (req.file.mimetype || '').toLowerCase();
+      if (!AUDIO_MIME.has(mime)) {
+        return res.status(400).json({ error: '仅支持 mp3/wav/m4a/aac/ogg 音频格式' });
+      }
+      const ext = (path.extname(req.file.originalname || '') || '.mp3').toLowerCase().replace(/[^a-z0-9.]/g, '');
+      try {
+        const storage = await getStorage(db);
+        const url = await storage.put(req.file.buffer, `voice-card-${req.user.id}-${Date.now()}${ext}`);
+        res.status(201).json({ url, name: req.file.originalname || '语音简介' });
+      } catch (e) {
+        console.error('语音上传失败:', e);
+        res.status(500).json({ error: '语音上传失败' });
+      }
+    });
+  });
+
   router.post('/cards', auth, (req, res) => {
-    const { name, position, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, templateId } = req.body;
+    const { name, position, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, templateId, voiceUrl, voiceName } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public, template_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', Array.isArray(needTags) ? JSON.stringify(needTags) : (needTags || ''), avatar || '', isPublic ? 1 : 0, templateId || '');
+      `INSERT INTO card_profile (user_id, name, position, phone, wechat, email, company, bio, business_field, need_tags, avatar, is_public, template_id, voice_url, voice_name)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', phone || '', wechat || '', email || '', company || '', bio || '', businessField || '', Array.isArray(needTags) ? JSON.stringify(needTags) : (needTags || ''), avatar || '', isPublic ? 1 : 0, templateId || '', voiceUrl || '', voiceName || '');
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(result.lastInsertRowid);
     res.json({ card: toCard(card) });
   });
@@ -288,16 +323,16 @@ export function createCardRouter(db, wxService) {
   // 创建名片+入驻申请（合并流程）
   router.post('/cards/create-with-apply', auth, (req, res) => {
     const { name, position, city, phone, wechat, email, bio, businessField, avatar, isPublic, videoChannel,
-            slogan, tags, templateId,
+            slogan, tags, templateId, voiceUrl, voiceName,
             bindCode, applyType, enterpriseName, industry } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
 
     // 1. 创建名片
     const cardType = applyType === 'enterprise' ? 'company' : 'personal';
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags, template_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '', templateId || '');
+      `INSERT INTO card_profile (user_id, name, position, city, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags, template_id, voice_url, voice_name)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '', templateId || '', voiceUrl || '', voiceName || '');
     const cardId = result.lastInsertRowid;
 
     // 2. 处理入驻申请（填了口令才入驻）
@@ -369,15 +404,15 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId } = req.body;
+    const { name, position, city, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName } = req.body;
     // 模板存在性校验（公共或本租户）
     if (templateId !== undefined && templateId) {
       const tpl = db.prepare('SELECT id FROM card_templates WHERE id = ? AND ((tenant_id = 0 AND enabled = 1) OR tenant_id = ?)').get(templateId, req.customerId || 0);
       if (!tpl) return res.status(400).json({ error: '模板不存在或不可用' });
     }
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, phone=?, wechat=?, email=?, company=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, updated_at=datetime('now') WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, card.id);
     const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
       FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });
@@ -1387,6 +1422,7 @@ export function createCardRouter(db, wxService) {
       company: row.company, bio: row.bio, businessField: row.business_field, avatar: row.avatar,
       slogan: row.slogan || '', tags: row.tags || '', needTags: row.need_tags || '',
       templateId: row.template_id, templateTheme, videoChannel: row.video_channel, isPublic: !!row.is_public,
+      voiceUrl: row.voice_url || '', voiceName: row.voice_name || '',
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
       ownerMemberLevel,
       brandColor,

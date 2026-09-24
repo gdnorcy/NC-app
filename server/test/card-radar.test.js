@@ -302,3 +302,50 @@ test('阶段C features：free 锁定 / 会员返回 features+quota', async () =>
   assert.ok(fa.body.quota.push && typeof fa.body.quota.push.limit === 'number', 'quota.push 应有 limit');
   assert.ok(fa.body.quota.collect && typeof fa.body.quota.collect.limit === 'number', 'quota.collect 应有 limit');
 });
+
+
+test('语音简介：上传音频成功（audio/mpeg → /uploads 路径）', async () => {
+  const res = await request(app)
+    .post('/api/card/voice-upload')
+    .set('Authorization', `Bearer ${tokA}`)
+    .attach('file', Buffer.from('%PDF-fake-audio-bytes-0001'), { filename: 'intro.mp3', contentType: 'audio/mpeg' });
+  assert.equal(res.status, 201, `期望 201，实际 ${res.status} ${JSON.stringify(res.body)}`);
+  assert.ok(res.body.url && res.body.url.startsWith('/uploads/'), '返回 url 应为 /uploads/ 开头');
+  assert.ok(res.body.name, '应返回原始文件名');
+});
+
+test('语音简介：非音频 mime 拒绝', async () => {
+  const res = await request(app)
+    .post('/api/card/voice-upload')
+    .set('Authorization', `Bearer ${tokA}`)
+    .attach('file', Buffer.from('hello world'), { filename: 'x.txt', contentType: 'text/plain' });
+  assert.equal(res.status, 400, '非音频应 400');
+  assert.match(res.body.error, /音频格式/, '错误提示应指向音频格式');
+});
+
+test('语音简介：创建名片带 voiceUrl 并可在详情读取', async () => {
+  const c = await request(app)
+    .post('/api/card/cards')
+    .set('Authorization', `Bearer ${tokA}`)
+    .send({ name: '语音测试', position: '顾问', isPublic: true, voiceUrl: '/uploads/voice-a.mp3', voiceName: '我的语音.mp3' });
+  assert.equal(c.status, 200);
+  const id = c.body.card.id;
+  const got = await request(app).get(`/api/card/cards/${id}`).set('Authorization', `Bearer ${tokA}`);
+  assert.equal(got.status, 200);
+  assert.equal(got.body.card.voiceUrl, '/uploads/voice-a.mp3', '详情应回读 voiceUrl');
+  assert.equal(got.body.card.voiceName, '我的语音.mp3', '详情应回读 voiceName');
+});
+
+test('语音简介：更新名片可清除 voiceUrl', async () => {
+  const c = await request(app)
+    .post('/api/card/cards')
+    .set('Authorization', `Bearer ${tokA}`)
+    .send({ name: '语音清理', position: '顾问', isPublic: true, voiceUrl: '/uploads/voice-b.mp3' });
+  const id = c.body.card.id;
+  const up = await request(app)
+    .put(`/api/card/cards/${id}`)
+    .set('Authorization', `Bearer ${tokA}`)
+    .send({ voiceUrl: '' });
+  assert.equal(up.status, 200);
+  assert.equal(up.body.card.voiceUrl, '', 'voiceUrl 传空串应清空（不再保留旧值）');
+});

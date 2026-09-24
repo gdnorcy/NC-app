@@ -1917,6 +1917,13 @@ function migrate(db) {
   if (colExists(db, 'card_profile', 'id') && !colExists(db, 'card_profile', 'need_tags')) {
     db.exec("ALTER TABLE card_profile ADD COLUMN need_tags TEXT NOT NULL DEFAULT ''");
   }
+  // —— 语音简介（阶段C落地：上传音频；克隆语音后续）——
+  if (!colExists(db, 'card_profile', 'voice_url')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN voice_url TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_profile', 'voice_name')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN voice_name TEXT NOT NULL DEFAULT ''");
+  }
 
   // —— 方案资产 P1：集市风格库 + 租户资产购买记录 + 模板价格 ——
   db.exec(`
