@@ -2,9 +2,26 @@
   <!-- ===== 名片详情页（全局对外展示落地页｜所有人可见） =====
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
   <view class="profile-page">
-    <!-- 沉浸式hero（demo g4 品牌色渐变，默认橙色） -->
-    <view class="hero" :style="heroStyle">
-      <view class="row1">
+    <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
+    <view class="hero" :class="layoutFull ? 'hero-full' : ''" :style="layoutFull ? '' : heroStyle">
+      <!-- tp2 全屏大图式 -->
+      <template v-if="layoutFull">
+        <image class="hero-bg" :src="card.avatar" mode="aspectFill" :style="bgParallax" />
+        <view class="hero-shade"></view>
+        <view class="hero-full-info">
+          <view class="hfi-name">{{ card.name || '您的姓名' }}</view>
+          <view class="hfi-pos">{{ card.position || '—' }}</view>
+          <view class="hfi-line"><SIcon name="building" size="small" color="#ffffff" /><text>{{ card.company || '—' }}</text></view>
+          <view class="hfi-line" v-if="card.phone"><SIcon name="mobile" size="small" color="#ffffff" /><text>{{ card.phone }}</text></view>
+          <view class="hfi-line" v-if="card.city"><SIcon name="location" size="small" color="#ffffff" /><text>{{ card.city }}</text></view>
+        </view>
+        <view class="hero-counts">
+          <view class="hc-item"><text class="hc-num">{{ card.viewCount || 0 }}</text><text class="hc-lab">人气</text></view>
+          <view class="hc-item"><text class="hc-num">{{ card.collectCount || 0 }}</text><text class="hc-lab">收藏</text></view>
+        </view>
+      </template>
+      <!-- tp1 卡片头式（原布局） -->
+      <view class="row1" v-else>
         <view class="hero-avatar">
           <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
           <view v-else class="avatar-txt">{{ card.name?.[0] || '名' }}</view>
@@ -38,6 +55,18 @@
           <SIcon name="star" size="default" :color="collected ? '#ffd21e' : '#ffffff'" />
           <text :style="collected ? 'color:var(--gold)' : ''">{{ collected ? '已收藏' : '收藏' }}</text>
         </view>
+      </view>
+    </view>
+
+    <!-- 人气区：访客头像墙 + 浏览/收藏计数 -->
+    <view class="visitor-strip" v-if="card.recentVisitors && card.recentVisitors.length || (card.viewCount || 0) > 0">
+      <view class="vs-avs" v-if="card.recentVisitors && card.recentVisitors.length">
+        <image v-for="(a, i) in card.recentVisitors" :key="i" class="vs-av" :src="a" mode="aspectFill" />
+      </view>
+      <view class="vs-count">
+        <text class="vs-num">{{ card.viewCount || 0 }}</text> 人浏览
+        <text class="vs-dot">·</text>
+        <text class="vs-num">{{ card.collectCount || 0 }}</text> 人收藏
       </view>
     </view>
 
@@ -231,7 +260,7 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue';
-import { onUnload } from '@dcloudio/uni-app';
+import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient } from '../../utils/color.js';
@@ -240,6 +269,12 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
 const card = ref({});
+const layoutFull = computed(() => card.value?.templateLayout === 'full');
+const bgParallax = ref({});
+registerPageScroll((e) => {
+  if (!layoutFull.value) return;
+  bgParallax.value = { transform: `translateY(${e.scrollTop * 0.3}px)` };
+});
 const voicePlaying = ref(false);
 const voiceDur = ref(0);
 let voiceCtx = null;
@@ -968,4 +1003,27 @@ function shareCard() {
   background: var(--bg-tag); display: flex; align-items: center; justify-content: center;
 }
 .vb-dur { font-size: 22rpx; color: var(--t3); flex-shrink: 0; }
+.visitor-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #ffffff; margin: 16rpx 32rpx 0; padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+}
+.vs-avs { display: flex; gap: 12rpx; overflow: hidden; }
+.vs-av { width: 56rpx; height: 56rpx; border-radius: 50%; background: var(--bg-hover); flex-shrink: 0; }
+.vs-count { font-size: 22rpx; color: var(--t3); white-space: nowrap; }
+.vs-num { font-weight: 600; color: var(--t1); }
+.vs-dot { margin: 0 8rpx; color: var(--border-strong); }
+.hero-full { position: relative; overflow: hidden; height: 640rpx; background: #1a1a1a; }
+.hero-bg { position: absolute; left: 0; top: 0; width: 100%; height: 120%; }
+.hero-shade { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55)); }
+.hero-full-info { position: absolute; left: 0; right: 0; bottom: 120rpx; padding: 0 48rpx; color: #fff; z-index: 2; }
+.hfi-name { font-size: 48rpx; font-weight: 700; color: #fff; }
+.hfi-pos { font-size: 26rpx; color: rgba(255,255,255,0.85); margin-top: 8rpx; }
+.hfi-line { display: flex; align-items: center; gap: 10rpx; font-size: 24rpx; color: rgba(255,255,255,0.9); margin-top: 12rpx; }
+.hero-counts { position: absolute; left: 0; right: 0; bottom: 0; height: 96rpx; display: flex; background: rgba(255,255,255,0.16); backdrop-filter: blur(12rpx); z-index: 2; }
+.hero-full .quickbar { position: absolute; left: 0; right: 0; bottom: 104rpx; z-index: 2; margin-top: 0; }
+.hero-full .quickbar .qb { color: #fff; }
+.hc-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.hc-num { font-size: 30rpx; font-weight: 700; color: #fff; }
+.hc-lab { font-size: 20rpx; color: rgba(255,255,255,0.8); margin-top: 2rpx; }
 </style>

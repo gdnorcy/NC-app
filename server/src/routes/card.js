@@ -200,7 +200,7 @@ export function createCardRouter(db, wxService) {
       const rows = db.prepare(
         'SELECT * FROM card_templates WHERE (tenant_id = 0 AND enabled = 1) OR (tenant_id = ? AND enabled = 1) ORDER BY tenant_id, sort_order, id DESC'
       ).all(req.customerId || 0);
-      res.json({ templates: rows.map((t) => ({ id: t.id, name: t.name, cover: t.cover, description: t.description, themeConfig: (() => { try { return JSON.parse(t.theme_config); } catch { return {}; } })(), tenantId: t.tenant_id })) });
+      res.json({ templates: rows.map((t) => ({ id: t.id, name: t.name, cover: t.cover, description: t.description, layout: t.layout || 'card', themeConfig: (() => { try { return JSON.parse(t.theme_config); } catch { return {}; } })(), tenantId: t.tenant_id })) });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -225,7 +225,7 @@ export function createCardRouter(db, wxService) {
 
   router.get('/cards/:id', (req, res) => {
     const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config,
-      ct.theme_config as template_theme
+      ct.theme_config as template_theme, ct.layout as template_layout
       FROM card_profile cp
       LEFT JOIN platform_user pu ON cp.user_id = pu.id
       LEFT JOIN projects pj ON pj.id = (
@@ -236,6 +236,7 @@ export function createCardRouter(db, wxService) {
       )
       LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.id = ?`).get(req.params.id);
+    if (card) card.template_layout = card.template_layout || 'card';
     if (!card) return res.status(404).json({ error: '名片不存在' });
     if (card.status !== 'active') return res.status(404).json({ error: '名片不可用' });
     // 附加租户启用的表单（优先挂载到本名片，否则取租户第一个 active 表单）
@@ -252,6 +253,11 @@ export function createCardRouter(db, wxService) {
         .get(tenantId);
       if (any) activeForm = { id: any.id, title: any.title, description: any.description, fields: JSON.parse(any.fields || '[]') };
     }
+    card.templateLayout = card.template_layout || 'card';
+    card.collectCount = db.prepare('SELECT COUNT(*) AS c FROM card_collect WHERE card_id = ?').get(card.id).c;
+    card.recentVisitors = db.prepare(
+      'SELECT pu.avatar FROM card_visitor cv LEFT JOIN platform_user pu ON cv.visitor_user_id = pu.id WHERE cv.card_id = ? AND pu.avatar IS NOT NULL AND pu.avatar != \'\' ORDER BY cv.last_visit_at DESC LIMIT 8'
+    ).all(card.id).map((r) => r.avatar);
     res.json({ card: toCard(card), activeForm });
   });
 
@@ -1421,7 +1427,8 @@ export function createCardRouter(db, wxService) {
       name: row.name, position: row.position, city: row.city, phone: row.phone, wechat: row.wechat, email: row.email,
       company: row.company, bio: row.bio, businessField: row.business_field, avatar: row.avatar,
       slogan: row.slogan || '', tags: row.tags || '', needTags: row.need_tags || '',
-      templateId: row.template_id, templateTheme, videoChannel: row.video_channel, isPublic: !!row.is_public,
+      templateId: row.template_id, templateTheme, templateLayout: row.template_layout || 'card', videoChannel: row.video_channel, isPublic: !!row.is_public,
+      collectCount: row.collectCount || 0, recentVisitors: row.recentVisitors || [],
       voiceUrl: row.voice_url || '', voiceName: row.voice_name || '',
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
       ownerMemberLevel,

@@ -1199,6 +1199,8 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_card_templates_tenant ON card_templates(tenant_id, enabled);
   `);
+  // 名片模板布局：card=卡片头式（默认） / full=全屏大图式
+  try { db.exec("ALTER TABLE card_templates ADD COLUMN layout TEXT NOT NULL DEFAULT 'card'"); } catch (e) { /* 已存在则忽略 */ }
 
   // —— 名片视频表 ——
   db.exec(`

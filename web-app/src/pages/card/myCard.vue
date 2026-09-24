@@ -168,6 +168,12 @@
     </view>
 
     <CardTabBar active="card" />
+
+    <!-- 雷达悬浮球 + 未读角标 -->
+    <view class="radar-float" @click="goVisitors">
+      <SIcon name="radar" size="xlarge" color="#ffffff" />
+      <Badge v-if="msgUnread > 0" :count="msgUnread" :max="99" />
+    </view>
   </view>
 </template>
 
@@ -571,4 +577,12 @@ function leaveTenant() {
 .ov-time { font-size: 22rpx; color: var(--t4); margin-top: 4rpx; }
 .ov-empty { font-size: 24rpx; color: var(--t4); padding: 20rpx 0; }
 .ov-more { font-size: 24rpx; color: var(--primary-deep); padding: 16rpx 0 8rpx; text-align: center; }
+.radar-float {
+  position: fixed; right: 32rpx; bottom: 140rpx; z-index: 100;
+  width: 96rpx; height: 96rpx; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(22, 93, 255, 0.35);
+}
+.radar-float .bd-wrap { position: absolute; top: -6rpx; right: -6rpx; }
 </style>
