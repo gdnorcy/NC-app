@@ -16,6 +16,7 @@
             <div class="tpl-name">姓名</div>
             <div class="tpl-pos">职位 · 公司</div>
           </div>
+          <span class="tpl-layout" v-if="t.layout === 'full'">全屏大图</span>
           <span class="tpl-status" :class="t.enabled ? 'on' : 'off'">{{ t.enabled ? '已启用' : '已停用' }}</span>
         </div>
         <div class="tpl-body">
@@ -67,6 +68,22 @@
             <span class="color-label">圆角 radius</span>
           </div>
         </el-form-item>
+        <el-form-item label="布局">
+          <el-select v-model="form.layout" style="width: 100%">
+            <el-option label="卡片头式（渐变）" value="card" />
+            <el-option label="全屏大图（头像背景）" value="full" />
+          </el-select>
+          <div class="layout-hint">全屏大图：名片详情以头像为全屏背景展示</div>
+        </el-form-item>
+        <el-form-item label="封面">
+          <div class="cover-row">
+            <el-upload :show-file-list="false" :http-request="handleCoverUpload" accept="image/*">
+              <el-button size="small">上传封面</el-button>
+            </el-upload>
+            <img v-if="form.cover" :src="form.cover" class="cover-preview" />
+            <el-button v-if="form.cover" size="small" type="danger" text @click="form.cover = ''">移除</el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="价格">
           <el-input-number v-model="form.price" :min="0" :precision="2" size="small" style="width: 160px" />
           <span class="color-label" style="margin-left:8px;">0 元为免费模板，>0 元客户端按需购买</span>
@@ -86,13 +103,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { adminApi } from '../../api';
+import { adminApi, uploadImage } from '../../api';
 
 const templates = ref([]);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const saving = ref(false);
-const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, price: 0, sortOrder: 0 });
+const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, price: 0, sortOrder: 0, layout: 'card', cover: '' });
 
 async function load() {
   const res = await adminApi.get('/card/templates');
@@ -101,16 +118,25 @@ async function load() {
 
 const coverStyle = (t) => {
   const cfg = t.themeConfig || {};
-  return {
-    background: cfg.background || '#f5f7fa',
-    '--tpl-primary': cfg.primary || '#165dff',
-  };
+  const s = { background: cfg.background || '#f5f7fa', '--tpl-primary': cfg.primary || '#165dff' };
+  if (t.cover) s.backgroundImage = `url(${t.cover})`;
+  return s;
 };
 const isColor = (v) => typeof v === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v);
 
+async function handleCoverUpload(opt) {
+  try {
+    const res = await uploadImage(opt.file);
+    form.value.cover = new URL(res.path || res.previewPath, window.location.origin).href;
+    ElMessage.success('封面上传成功');
+  } catch (e) {
+    ElMessage.error(e || '上传失败');
+  }
+}
+
 function openCreate() {
   isEdit.value = false;
-  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0 };
+  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, layout: 'card', cover: '' };
   dialogVisible.value = true;
 }
 function openEdit(t) {
@@ -121,6 +147,8 @@ function openEdit(t) {
     description: t.description,
     themeConfig: { ...t.themeConfig },
     sortOrder: t.sortOrder,
+    layout: t.layout || 'card',
+    cover: t.cover || '',
   };
   dialogVisible.value = true;
 }
@@ -171,6 +199,10 @@ onMounted(load);
 .tpl-status { position: absolute; top: 10px; right: 10px; font-size: 11px; padding: 2px 10px; border-radius: 999px; }
 .tpl-status.on { background: rgba(0,180,42,0.1); color: #00b42a; }
 .tpl-status.off { background: rgba(134,144,156,0.1); color: #86909c; }
+.tpl-layout { position: absolute; top: 10px; left: 10px; font-size: 11px; padding: 2px 10px; border-radius: 999px; background: rgba(22,93,255,0.12); color: #165dff; }
+.cover-row { display: flex; align-items: center; gap: 10px; }
+.cover-preview { width: 96px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e6eb; }
+.layout-hint { font-size: 12px; color: #86909c; margin-top: 4px; }
 .tpl-body { padding: 14px 16px; flex: 1; }
 .tpl-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .tpl-desc { font-size: 12px; color: #86909c; margin-top: 4px; min-height: 32px; }

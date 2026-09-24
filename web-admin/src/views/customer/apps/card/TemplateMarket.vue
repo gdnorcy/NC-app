@@ -21,6 +21,7 @@
             <div class="tpl-name">姓名</div>
             <div class="tpl-pos">职位 · 公司</div>
           </div>
+          <span class="tpl-layout" v-if="t.layout === 'full'">全屏大图</span>
           <span class="tpl-badge" v-if="t.tenantId === 0">平台</span>
           <span class="tpl-badge mine" v-else>自建</span>
         </div>
@@ -79,6 +80,22 @@
             <span class="color-label">圆角 radius</span>
           </div>
         </el-form-item>
+        <el-form-item label="布局">
+          <el-select v-model="form.layout" style="width: 100%">
+            <el-option label="卡片头式（渐变）" value="card" />
+            <el-option label="全屏大图（头像背景）" value="full" />
+          </el-select>
+          <div class="enable-hint">全屏大图：名片详情以头像为全屏背景展示</div>
+        </el-form-item>
+        <el-form-item label="封面">
+          <div class="cover-row">
+            <el-upload :show-file-list="false" :http-request="handleCoverUpload" accept="image/*">
+              <el-button size="small">上传封面</el-button>
+            </el-upload>
+            <img v-if="form.cover" :src="form.cover" class="cover-preview" />
+            <el-button v-if="form.cover" size="small" type="danger" text @click="form.cover = ''">移除</el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" />
         </el-form-item>
@@ -109,7 +126,7 @@ const buyingId = ref(null);
 const dialogVisible = ref(false);
 const isEdit = ref(false);
 const saving = ref(false);
-const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true });
+const form = ref({ name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true, layout: 'card', cover: '' });
 
 async function load() {
   const res = await customerApiCall.get('/card/templates');
@@ -132,17 +149,31 @@ async function buyTemplate(t) {
 
 const coverStyle = (t) => {
   const cfg = t.themeConfig || {};
-  return { background: cfg.background || '#f5f7fa', '--tpl-primary': cfg.primary || '#165dff' };
+  const s = { background: cfg.background || '#f5f7fa', '--tpl-primary': cfg.primary || '#165dff' };
+  if (t.cover) s.backgroundImage = `url(${t.cover})`;
+  return s;
 };
+
+async function handleCoverUpload(opt) {
+  try {
+    const fd = new FormData();
+    fd.append('file', opt.file);
+    const res = await customerApiCall.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    form.value.cover = new URL(res.path || res.previewPath, window.location.origin).href;
+    ElMessage.success('封面上传成功');
+  } catch (e) {
+    ElMessage.error(e || '上传失败');
+  }
+}
 
 function openCreate() {
   isEdit.value = false;
-  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true };
+  form.value = { name: '', description: '', themeConfig: { primary: '#165dff', background: '#f5f7fa', radius: 8 }, sortOrder: 0, enabled: true, layout: 'card', cover: '' };
   dialogVisible.value = true;
 }
 function openEdit(t) {
   isEdit.value = true;
-  form.value = { id: t.id, name: t.name, description: t.description, themeConfig: { ...t.themeConfig }, sortOrder: t.sortOrder, enabled: !!t.enabled };
+  form.value = { id: t.id, name: t.name, description: t.description, themeConfig: { ...t.themeConfig }, sortOrder: t.sortOrder, enabled: !!t.enabled, layout: t.layout || 'card', cover: t.cover || '' };
   dialogVisible.value = true;
 }
 async function save() {
@@ -206,6 +237,9 @@ onMounted(load);
 .tpl-pos { font-size: 12px; color: #86909c; margin-top: 2px; }
 .tpl-badge { position: absolute; top: 10px; right: 10px; font-size: 11px; padding: 2px 10px; border-radius: 999px; background: rgba(22,93,255,0.1); color: #165dff; }
 .tpl-badge.mine { background: rgba(114,46,209,0.1); color: #722ed1; }
+.tpl-layout { position: absolute; top: 10px; left: 10px; font-size: 11px; padding: 2px 10px; border-radius: 999px; background: rgba(22,93,255,0.12); color: #165dff; }
+.cover-row { display: flex; align-items: center; gap: 10px; }
+.cover-preview { width: 96px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e6eb; }
 .tpl-body { padding: 12px 16px; flex: 1; }
 .tpl-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .tpl-desc { font-size: 12px; color: #86909c; margin-top: 4px; }
