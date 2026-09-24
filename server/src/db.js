@@ -1280,6 +1280,27 @@ function migrate(db) {
     }
   }
 
+  // 会员套餐增列（VIP权益扩展：模板折扣/收藏上限/语音简介/建群数；老库迁移，已存在则忽略）
+  try { db.exec('ALTER TABLE member_package ADD COLUMN discount REAL NOT NULL DEFAULT 1.0'); } catch (e) {}
+  try { db.exec('ALTER TABLE member_package ADD COLUMN collect_limit INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+  try { db.exec('ALTER TABLE member_package ADD COLUMN voice_enabled INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+  try { db.exec('ALTER TABLE member_package ADD COLUMN group_limit INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+
+  // features 枚举迁移（VIP权益扩展：修订五——silver 加 ai_report；gold 加 ai_report,ai_words,quota_lead；diamond 加全部+enterprise；幂等去重）
+  const featureMigrate = {
+    silver: ['ai_report'],
+    gold: ['ai_report', 'ai_words', 'quota_lead'],
+    diamond: ['ai_report', 'ai_words', 'quota_lead', 'quota_push', 'enterprise'],
+  };
+  for (const [lvl, adds] of Object.entries(featureMigrate)) {
+    const row = db.prepare('SELECT features FROM member_package WHERE level = ?').get(lvl);
+    if (row) {
+      const arr = (() => { try { return JSON.parse(row.features || '[]'); } catch { return []; } })();
+      for (const f of adds) if (!arr.includes(f)) arr.push(f);
+      db.prepare('UPDATE member_package SET features = ? WHERE level = ?').run(JSON.stringify(arr), lvl);
+    }
+  }
+
   // —— 名片模板表 ——
   db.exec(`
     CREATE TABLE IF NOT EXISTS card_template (
@@ -1292,6 +1313,154 @@ function migrate(db) {
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+  `);
+
+  // —— 智能名片运营型雷达（评估修订后按阶段A实施：事件/话术/推送配置/意向/转发链/站内提醒/留资/收藏）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_radar_event (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL,                -- 事件标识（与 /visitor/track actionType 对齐）：view/like/comment/exchange/share/video/form/collect/revisit
+      title TEXT NOT NULL DEFAULT '',    -- 展示名：如“浏览了名片”
+      icon TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      is_show_ai INTEGER NOT NULL DEFAULT 1,   -- 是否计入 AI 报告
+      notice_type INTEGER NOT NULL DEFAULT 1,  -- 1 小程序订阅 / 2 公众号 / 0 不推送
+      importance INTEGER NOT NULL DEFAULT 1,   -- 重要级：1 普通 / 2 高（转发/留电话/二次回访）
+      weight INTEGER NOT NULL DEFAULT 1,       -- 意向分权重
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_radar_event_tenant ON card_radar_event(tenant_id, name);
+  `);
+  // 预置雷达事件（与现有 actionType 语义对齐；insert or ignore 幂等）
+  const radarEvents = [
+    { name: 'view', title: '浏览了名片', icon: 'view', importance: 1, weight: 1 },
+    { name: 'like', title: '点赞了内容', icon: 'like', importance: 1, weight: 2 },
+    { name: 'comment', title: '评论了内容', icon: 'comment', importance: 2, weight: 3 },
+    { name: 'exchange', title: '交换了名片', icon: 'exchange', importance: 2, weight: 4 },
+    { name: 'share', title: '转发了名片', icon: 'share', importance: 2, weight: 4 },
+    { name: 'video', title: '观看了视频', icon: 'video', importance: 1, weight: 2 },
+    { name: 'form', title: '提交了留资表单', icon: 'form', importance: 2, weight: 4 },
+    { name: 'collect', title: '收藏了名片', icon: 'collect', importance: 1, weight: 2 },
+    { name: 'revisit', title: '二次回访', icon: 'revisit', importance: 2, weight: 3 },
+  ];
+  for (const ev of radarEvents) {
+    const exists = db.prepare('SELECT id FROM card_radar_event WHERE tenant_id=0 AND name=?').get(ev.name);
+    if (!exists) {
+      db.prepare('INSERT INTO card_radar_event (tenant_id,name,title,icon,importance,weight) VALUES (0,?,?,?,?,?)')
+        .run(ev.name, ev.title, ev.icon, ev.importance, ev.weight);
+    }
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_radar_words (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      event_id INTEGER NOT NULL,
+      time_start INTEGER NOT NULL DEFAULT 0,   -- 第 N 次命中起
+      time_end INTEGER NOT NULL DEFAULT 0,     -- 第 N 次命中止，0 表示不限
+      words TEXT NOT NULL DEFAULT '',         -- 建议话术
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_radar_words_event ON card_radar_words(tenant_id, event_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_radar_push_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL UNIQUE,
+      switch INTEGER NOT NULL DEFAULT 0,       -- 雷达推送总开关
+      xcx_tmpid TEXT NOT NULL DEFAULT '',     -- 小程序一次性订阅消息模板 id
+      gzh_appid TEXT NOT NULL DEFAULT '',
+      gzh_tmpid TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_radar_intent (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      owner_user_id INTEGER NOT NULL,        -- 名片主
+      visitor_openid TEXT NOT NULL DEFAULT '',
+      visitor_user_id INTEGER NOT NULL DEFAULT 0,
+      score REAL NOT NULL DEFAULT 0,         -- 意向分 0-100
+      hit_count INTEGER NOT NULL DEFAULT 0,  -- 关键事件命中次数
+      last_calc_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_radar_intent_owner ON card_radar_intent(tenant_id, owner_user_id, score);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_radar_share (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      card_id INTEGER NOT NULL,
+      from_user_id INTEGER NOT NULL,         -- 转发者
+      to_openid TEXT NOT NULL DEFAULT '',    -- 被转发者（未注册为空）
+      share_url TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_radar_share_card ON card_radar_share(tenant_id, card_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_radar_notify (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      owner_user_id INTEGER NOT NULL,        -- 收提醒的名片主
+      event_name TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      visitor_name TEXT NOT NULL DEFAULT '',
+      channel INTEGER NOT NULL DEFAULT 0,    -- 0 站内 / 1 订阅消息 / 2 公众号
+      payload TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'pending', -- pending/sent/failed
+      read_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_radar_notify_owner ON card_radar_notify(tenant_id, owner_user_id, status);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_lead (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL DEFAULT 0,
+      card_id INTEGER NOT NULL DEFAULT 0,     -- 来自哪张名片
+      owner_user_id INTEGER NOT NULL DEFAULT 0, -- 名片主
+      visitor_openid TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT 'radar',   -- radar / form
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_lead_owner ON card_lead(tenant_id, owner_user_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_collect (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(card_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_collect_user ON card_collect(user_id);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_radar_subscribe (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,            -- 授权用户（名片主）
+      granted INTEGER NOT NULL DEFAULT 0,  -- 是否授权一次性订阅消息
+      tmpl_ids TEXT NOT NULL DEFAULT '[]', -- 授权模板 id（阶段D消费）
+      consumed INTEGER NOT NULL DEFAULT 0, -- 已被消费次数
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_radar_subscribe_user ON card_radar_subscribe(user_id);
   `);
 
   // —— 分销佣金记录表 ——

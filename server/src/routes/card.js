@@ -10,6 +10,8 @@ import { createDistributionService, buildShareUrl } from '../services/distributi
 import { createMemberService } from '../services/member.js';
 import { createGoodsOrderService } from '../services/goodsOrder.js';
 import { PaymentService } from '../services/payment.js';
+import { createRadarService } from '../services/radar.js';
+import { createQuotaService } from '../services/quota.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -18,6 +20,8 @@ export function createCardRouter(db, wxService) {
   const router = Router();
   const distribution = createDistributionService(db);
   const member = createMemberService(db);
+  const radar = createRadarService(db);
+  const quota = createQuotaService(db);
 
   // ============================================================
   // 微信授权登录/注册
@@ -427,6 +431,51 @@ export function createCardRouter(db, wxService) {
         db.prepare('UPDATE card_profile SET view_count=view_count+1 WHERE id=?').run(cardId);
       }
 
+      // ===== 运营型雷达链路（评估修订：cardId 反查租户 → 匹配事件 → 意向分 → 客户池 → 话术 → 分级提醒） =====
+      // 雷达链路失败不阻塞主上报（try/catch 兜底）
+      try {
+        const cardRow = db.prepare('SELECT user_id FROM card_profile WHERE id = ?').get(cardId);
+        const tenantId = radar.resolveTenant(cardId);
+        const event = radar.matchEvent(tenantId, actionType || 'view');
+        if (event && cardRow) {
+          const ownerUserId = cardRow.user_id;
+          const visitor = {
+            openid: visitorOpenid || 'anonymous',
+            name: (actionDetail || '').slice(0, 64),
+            phone: '',
+            wechat: '',
+            company: '',
+            userId: 0,
+          };
+          // 已注册访客：card_visitor.visitor_user_id 关联真实用户（如有）
+          const vRow = db.prepare(
+            'SELECT visitor_user_id FROM card_visitor WHERE card_id=? AND visitor_openid=? ORDER BY id DESC LIMIT 1'
+          ).get(cardId, visitorOpenid || 'anonymous');
+          if (vRow && vRow.visitor_user_id) visitor.userId = vRow.visitor_user_id;
+
+          const intent = radar.onVisitorEvent(tenantId, ownerUserId, visitor, event, { duration: duration || 0 });
+
+          // 高意向事件（转发/留电话/二次回访等 importance>=2）或带可识别身份（有姓名/已注册）时沉淀客户池
+          let client = null;
+          if (event.importance >= 2 || visitor.name || visitor.userId) {
+            client = radar.upsertClient(tenantId, ownerUserId, visitor, 'radar');
+          }
+
+          // 话术：写入跟进建议（不自动群发，合规），随响应返回供前端提示
+          const words = radar.pickWords(tenantId, event.id, intent.hit);
+          if (client && client.id) {
+            db.prepare(
+              "INSERT INTO card_customer_follow (customer_id, user_id, content, next_follow_at) VALUES (?,?,?,NULL)"
+            ).run(client.id, ownerUserId, words);
+          }
+
+          // 分级提醒：高意向事件才推送（通道未接降级站内提醒，见 radar.sendNotify）
+          if (event.importance >= 2) {
+            radar.sendNotify(tenantId, ownerUserId, event, visitor);
+          }
+        }
+      } catch (radarErr) { /* 雷达链路异常不影响访客上报 */ }
+
       res.json({ ok: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -529,6 +578,236 @@ export function createCardRouter(db, wxService) {
     db.prepare('UPDATE card_visitor SET read_at = datetime(\'now\') WHERE card_id=? AND visitor_openid=?')
       .run(card.id, req.params.visitorOpenid);
     res.json({ ok: true });
+  });
+
+  // ============================================================
+  // 运营型雷达（阶段A：高潜榜/意向详情/配置/话术/转发链/导出/站内提醒/订阅授权）
+  // ============================================================
+
+  // 会员门槛判断（与 /visitors/summary 同口径：非 free 且未过期）
+  function radarMember(req, res) {
+    const isMember = req.user.member_level !== 'free' && req.user.member_expire_at && new Date(req.user.member_expire_at) > new Date();
+    if (!isMember) {
+      res.json({ locked: true, memberLevel: req.user.member_level || 'free', memberExpireAt: req.user.member_expire_at || null });
+      return null;
+    }
+    return isMember;
+  }
+
+  // 高潜客户榜（会员内）
+  router.get('/radar/top-leads', auth, (req, res) => {
+    try {
+      if (!radarMember(req, res)) return;
+      const card = db.prepare('SELECT id, user_id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
+      if (!card) return res.json({ leads: [], total: 0 });
+      const tenantId = radar.resolveTenant(card.id);
+      const leads = radar.topLeads(tenantId, req.user.id, Number(req.query.limit) || 20).map((r) => ({
+        visitorOpenid: r.visitor_openid,
+        visitorUserId: r.visitor_user_id,
+        score: r.score,
+        hitCount: r.hit_count,
+        level: r.score >= 70 ? '高意向' : (r.score >= 40 ? '中意向' : '低意向'),
+        lastCalcAt: r.last_calc_at,
+        words: radar.pickWords(tenantId, (() => { const e = radar.matchEvent(tenantId, 'view'); return e ? e.id : 0; })(), r.hit_count),
+      }));
+      res.json({ leads, total: leads.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 单个访客意向详情（会员内）
+  router.get('/radar/intent/:visitorOpenid', auth, (req, res) => {
+    try {
+      if (!radarMember(req, res)) return;
+      const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
+      if (!card) return res.json({ intent: null });
+      const tenantId = radar.resolveTenant(card.id);
+      const intent = radar.intentOf(tenantId, req.user.id, req.params.visitorOpenid);
+      res.json({ intent: intent ? { ...intent, level: intent.score >= 70 ? '高意向' : (intent.score >= 40 ? '中意向' : '低意向') } : null });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 小程序端上报订阅授权结果（阶段D消费；阶段A留存授权记录）
+  router.post('/radar/subscribe', auth, (req, res) => {
+    try {
+      const { granted, tmplIds = [] } = req.body || {};
+      db.prepare(
+        'INSERT INTO card_radar_subscribe (user_id, granted, tmpl_ids) VALUES (?,?,?)'
+      ).run(req.user.id, granted ? 1 : 0, JSON.stringify(Array.isArray(tmplIds) ? tmplIds.slice(0, 5) : []));
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 名片主查看雷达配置
+  router.get('/radar/config', auth, (req, res) => {
+    const cfg = db.prepare('SELECT * FROM card_radar_push_config WHERE tenant_id = ?').get(req.customerId || 0);
+    res.json({ config: cfg ? { switch: cfg.switch, xcxTmpid: cfg.xcx_tmpid, gzhAppid: cfg.gzh_appid, gzhTmpid: cfg.gzh_tmpid } : null });
+  });
+
+  // 更新雷达配置（开关/推送模板；tenant 级 upsert）
+  router.post('/radar/config', auth, requireTenant, (req, res) => {
+    try {
+      const { switch: sw, xcxTmpid, gzhAppid, gzhTmpid } = req.body || {};
+      const exists = db.prepare('SELECT * FROM card_radar_push_config WHERE tenant_id = ?').get(req.customerId);
+      if (exists) {
+        db.prepare(
+          "UPDATE card_radar_push_config SET switch=?, xcx_tmpid=?, gzh_appid=?, gzh_tmpid=?, updated_at=datetime('now') WHERE id=?"
+        ).run(sw !== undefined ? (sw ? 1 : 0) : exists.switch, xcxTmpid ?? exists.xcx_tmpid, gzhAppid ?? exists.gzh_appid, gzhTmpid ?? exists.gzh_tmpid, exists.id);
+      } else {
+        db.prepare(
+          'INSERT INTO card_radar_push_config (tenant_id, switch, xcx_tmpid, gzh_appid, gzh_tmpid) VALUES (?,?,?,?,?)'
+        ).run(req.customerId, sw ? 1 : 0, xcxTmpid || '', gzhAppid || '', gzhTmpid || '');
+      }
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 话术列表（按事件分组，tenant 维度 + 平台公共）
+  router.get('/radar/words', auth, (req, res) => {
+    const events = db.prepare(
+      'SELECT * FROM card_radar_event WHERE enabled = 1 AND (tenant_id = ? OR tenant_id = 0) ORDER BY tenant_id DESC, sort_order, id'
+    ).all(req.customerId || 0);
+    res.json({ groups: events.map((ev) => ({
+      eventId: ev.id, name: ev.name, title: ev.title, importance: ev.importance,
+      words: db.prepare('SELECT id, time_start, time_end, words FROM card_radar_words WHERE tenant_id = ? AND event_id = ? ORDER BY time_start').all(req.customerId || 0, ev.id),
+    })) });
+  });
+
+  // 新增/编辑话术（tenant 维度）
+  router.post('/radar/words', auth, requireTenant, (req, res) => {
+    try {
+      const { eventId, timeStart = 0, timeEnd = 0, words } = req.body || {};
+      const ev = db.prepare('SELECT id FROM card_radar_event WHERE id = ? AND (tenant_id = ? OR tenant_id = 0)').get(eventId, req.customerId);
+      if (!ev) return res.status(404).json({ error: '事件不存在' });
+      if (!words || !String(words).trim()) return res.status(400).json({ error: '话术内容不能为空' });
+      const r = db.prepare(
+        'INSERT INTO card_radar_words (tenant_id, event_id, time_start, time_end, words) VALUES (?,?,?,?,?)'
+      ).run(req.customerId, eventId, Number(timeStart) || 0, Number(timeEnd) || 0, String(words).trim().slice(0, 500));
+      res.json({ ok: true, id: r.lastInsertRowid });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 转发传播链列表（会员内）
+  router.get('/radar/shares', auth, (req, res) => {
+    try {
+      if (!radarMember(req, res)) return;
+      const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
+      if (!card) return res.json({ shares: [], total: 0 });
+      const tenantId = radar.resolveTenant(card.id);
+      const shares = radar.shares(tenantId, card.id, Number(req.query.limit) || 50);
+      res.json({ shares: shares.map((s) => ({ id: s.id, fromUserId: s.from_user_id, toOpenid: s.to_openid, shareUrl: s.share_url, createdAt: s.created_at })), total: shares.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 记录转发链（公开，分享名片时上报）
+  router.post('/radar/share', (req, res) => {
+    try {
+      const { cardId, fromUserId, toOpenid, shareUrl } = req.body || {};
+      if (!cardId || !fromUserId) return res.status(400).json({ error: '参数缺失' });
+      const card = db.prepare('SELECT id FROM card_profile WHERE id = ?').get(cardId);
+      if (!card) return res.status(404).json({ error: '名片不存在' });
+      const tenantId = radar.resolveTenant(cardId);
+      radar.trackShare(tenantId, cardId, fromUserId, toOpenid || '', shareUrl || '');
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 客户+意向导出 CSV（会员内；企微同步占位）
+  router.get('/radar/export', auth, (req, res) => {
+    try {
+      if (!radarMember(req, res)) return;
+      const leads = radar.topLeads(req.customerId || 0, req.user.id, 500);
+      const lines = ['访客openid,意向分,命中次数,最近计算时间'];
+      for (const l of leads) {
+        lines.push(`${l.visitor_openid},${l.score},${l.hit_count},${l.last_calc_at}`);
+      }
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="radar-leads.csv"');
+      res.send('\uFEFF' + lines.join('\n'));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 站内提醒列表（名片主消息页）
+  router.get('/radar/notifies', auth, (req, res) => {
+    const notifies = radar.listNotifies(req.customerId || 0, req.user.id, Number(req.query.limit) || 50);
+    res.json({ notifies: notifies.map((n) => ({ id: n.id, eventName: n.event_name, title: n.title, visitorName: n.visitor_name, channel: n.channel, status: n.status, readAt: n.read_at, createdAt: n.created_at })) });
+  });
+
+  // 站内提醒已读
+  router.post('/radar/notifies/:id/read', auth, (req, res) => {
+    db.prepare("UPDATE card_radar_notify SET read_at = datetime('now') WHERE id = ? AND owner_user_id = ?")
+      .run(req.params.id, req.user.id);
+    res.json({ ok: true });
+  });
+
+  // ============================================================
+  // 名片收藏（产品决策：本期做；collect_limit 权益：0=不限，超限提示升级）
+  // ============================================================
+  router.post('/collect', auth, (req, res) => {
+    try {
+      const { cardId } = req.body || {};
+      if (!cardId) return res.status(400).json({ error: 'cardId不能为空' });
+      const card = db.prepare("SELECT * FROM card_profile WHERE id = ? AND status = 'active'").get(cardId);
+      if (!card) return res.status(404).json({ error: '名片不存在' });
+      if (Number(card.user_id) === req.user.id) return res.status(400).json({ error: '不能收藏自己的名片' });
+      const exist = db.prepare('SELECT id FROM card_collect WHERE card_id = ? AND user_id = ?').get(cardId, req.user.id);
+      if (exist) return res.json({ ok: true, collected: true });
+      // 收藏上限校验（collect_limit：0=不限）
+      if (!quota.canCollect(req.user.id)) {
+        return res.status(403).json({ error: '收藏数量已达上限，升级会员可收藏更多名片', limitHit: true });
+      }
+      db.prepare('INSERT INTO card_collect (card_id, user_id) VALUES (?,?)').run(cardId, req.user.id);
+      res.json({ ok: true, collected: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 取消收藏
+  router.delete('/collect', auth, (req, res) => {
+    try {
+      const { cardId } = req.query || {};
+      if (!cardId) return res.status(400).json({ error: 'cardId不能为空' });
+      db.prepare('DELETE FROM card_collect WHERE card_id = ? AND user_id = ?').run(cardId, req.user.id);
+      res.json({ ok: true, collected: false });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 我的收藏列表
+  router.get('/collects', auth, (req, res) => {
+    try {
+      const rows = db.prepare(
+        `SELECT c.*, cp.name, cp.company, cp.position, cp.avatar FROM card_collect c
+         LEFT JOIN card_profile cp ON cp.id = c.card_id
+         WHERE c.user_id = ? ORDER BY c.id DESC LIMIT ?`
+      ).all(req.user.id, Number(req.query.limit) || 50);
+      res.json({ collects: rows.map((r) => ({
+        id: r.id, cardId: r.card_id, name: r.name || '', company: r.company || '', position: r.position || '', avatar: r.avatar || '', createdAt: r.created_at,
+      })) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ============================================================
+  // 无感留资（修订二：card_lead 提交表；授权手机号 → 落线索 → 客户池 → 高意向事件+提醒）
+  // ============================================================
+  router.post('/leads', (req, res) => {
+    try {
+      const { cardId, name = '', phone = '' } = req.body || {};
+      if (!cardId) return res.status(400).json({ error: 'cardId不能为空' });
+      const card = db.prepare("SELECT * FROM card_profile WHERE id = ? AND status = 'active'").get(cardId);
+      if (!card) return res.status(404).json({ error: '名片不存在' });
+      if (!phone && !name) return res.status(400).json({ error: '请至少提供姓名或手机号' });
+      const tenantId = radar.resolveTenant(cardId);
+      db.prepare(
+        'INSERT INTO card_lead (tenant_id, card_id, owner_user_id, visitor_openid, name, phone, source) VALUES (?,?,?,?,?,?,?)'
+      ).run(tenantId, cardId, card.user_id, '', String(name).trim().slice(0, 64), String(phone).trim().slice(0, 32), 'radar');
+      // 入客户池（有手机号/姓名时）
+      radar.upsertClient(tenantId, card.user_id, { openid: '', name: String(name).trim() || '游客', phone: String(phone).trim(), wechat: '', company: '', userId: 0 }, 'radar');
+      // 触发高意向事件 form（importance>=2 → 站内提醒）
+      const event = radar.matchEvent(tenantId, 'form');
+      if (event) {
+        radar.onVisitorEvent(tenantId, card.user_id, { openid: '', name: String(name).trim() || '游客', phone: String(phone).trim(), userId: 0 }, event, {});
+        radar.sendNotify(tenantId, card.user_id, event, { name: String(name).trim() || '匿名访客' });
+      }
+      res.json({ ok: true, message: '提交成功，我们会尽快与您联系' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // 近7日访问趋势（按日聚合，缺日补0）
