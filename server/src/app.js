@@ -3,7 +3,6 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { config } from './config.js';
 import { createDb } from './db.js';
@@ -46,6 +45,16 @@ import { hasSolution, tenantState } from './tenant.js';
 export function createApp({ db, deps = {} } = {}) {
   const database = db || createDb();
   const app = express();
+
+// 开发/多端部署 CORS：允许跨域（生产同源部署不受影响；带凭证请求走同源或反向代理）
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 
   // API 响应禁用 ETag/304 协商缓存：uni.request(H5 XHR) 遇到 304 会拿到空 body，
   // 导致「接口 200/304 但页面数据为空」（购物车/门店等 GET 均受影响），API 数据频繁变更不该走协商缓存
