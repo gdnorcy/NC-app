@@ -41,6 +41,10 @@
         </el-menu-item>
         <template v-if="isAdmin">
           <div v-if="!collapsed" class="menu-group-title">智能名片</div>
+          <el-menu-item index="/templates">
+            <SIcon name="template" size="default" />
+            <span>名片模板</span>
+          </el-menu-item>
           <el-menu-item index="/radar">
             <SIcon name="chart" size="default" />
             <span>雷达管理</span>
