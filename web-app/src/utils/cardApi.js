@@ -1,5 +1,6 @@
 // 智能名片 API 封装
 import { createApiClient } from './apiClient.js';
+import { getTid } from './mallUtil.js';
 
 const BASE_URL = 'http://localhost:3000/api/card';
 const MARKET_BASE_URL = 'http://localhost:3000/api/card-market';
@@ -64,8 +65,11 @@ export const cardApi = {
       return data;
     }));
   },
-  // 名片模板（平台公共 + 本租户私有）
-  getTemplates: () => request('/templates'),
+  // 名片模板（平台公共 + 本租户私有；小程序端由入口 tid 指定租户，H5 端走登录态）
+  getTemplates: () => {
+    const tid = getTid();
+    return request(tid ? `/templates?tid=${tid}` : '/templates');
+  },
   buyTemplate: (id) => request(`/templates/${id}/purchase`, 'POST', {}),
   // 动态互动（点赞/评论）
   likeDynamic: (id) => request(`/dynamics/${id}/like`, 'POST', {}),

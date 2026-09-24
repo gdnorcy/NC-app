@@ -1,5 +1,6 @@
 <script>
 import { fetchDesignConfig, applyDesignStyle } from './utils/design.js';
+import { getTid } from './utils/mallUtil.js';
 
 export default {
   globalData: {
@@ -7,8 +8,12 @@ export default {
     apiBase: '',
     customerId: null,
   },
-  onLaunch() {
+  onLaunch(options) {
     console.log('App Launch');
+    // MP-WEIXIN：分享/扫码进入带 tid，记录租户上下文（供模板/商城/全景按租户加载）
+    // #ifdef MP-WEIXIN
+    getTid(options);
+    // #endif
     this.initChannel();
     this.initDesignConfig();
   },

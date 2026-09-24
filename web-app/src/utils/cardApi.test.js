@@ -90,6 +90,26 @@ describe('cardApi 请求封装', () => {
     expect(args.method).toBe('POST');
     expect(args.data).toEqual({ tenantId: 1, formTitle: '留资表单', fields: [{ label: '姓名', value: '李四' }] });
   });
+
+  it('getTemplates 带租户 tid（小程序端入口上下文）', async () => {
+    mockResponse(200, { templates: [] });
+    uniMock.getStorageSync.mockImplementation((k) => (k === 'mall_tid' ? '2' : 'test-token'));
+    await cardApi.getTemplates();
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: 'http://localhost:3000/api/card/templates?tid=2',
+      method: 'GET',
+    }));
+  });
+
+  it('getTemplates 无租户上下文时不带 tid（平台公共模板）', async () => {
+    mockResponse(200, { templates: [] });
+    uniMock.getStorageSync.mockImplementation((k) => (k === 'mall_tid' ? '' : 'test-token'));
+    await cardApi.getTemplates();
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: 'http://localhost:3000/api/card/templates',
+      method: 'GET',
+    }));
+  });
 });
 
 // ============================================================

@@ -240,9 +240,11 @@ export function createCardRouter(db, wxService) {
   }
 
   // C 端模板列表（未登录：仅平台免费模板；登录后：租户可见集合 + 本人已购状态）
+  // ?tid= 显式指定租户（小程序端分享/扫码进入的租户上下文），优先于登录态 customerId
   router.get('/templates', authOptional, (req, res) => {
     try {
-      const list = cVisibleTemplates(req.customerId || 0);
+      const customerId = Number(req.query.tid) || req.customerId || 0;
+      const list = cVisibleTemplates(customerId);
       const owned = req.user ? userOwnedTemplates(req.user.id) : new Set();
       res.json({ templates: list.map((t) => ({ ...t, purchased: owned.has(Number(t.id)) })) });
     } catch (e) { res.status(500).json({ error: e.message }); }
