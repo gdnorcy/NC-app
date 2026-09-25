@@ -466,6 +466,41 @@
         </div>
       </div>
     </template>
+    <!-- 组图列表（内容管理数据源，对齐 C 端 pic-list） -->
+    <template v-else-if="comp.type === 'pic-list'">
+      <div class="r-article" :class="'r-article-' + (comp.props.listStyle || 'row')" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px' }">
+        <div v-if="comp.props.title" class="r-article-title">{{ comp.props.title }}</div>
+        <div class="r-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 1) + ',1fr)' }">
+          <div v-for="(it, i) in contentPics" :key="i" class="r-article-item">
+            <div v-if="it.thumb" class="r-article-img"><img :src="resolveUrl(it.thumb)" /></div>
+            <div v-else class="r-article-img r-article-img-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+            <div class="r-article-body">
+              <div class="r-article-t">{{ it.title || '组图' }}</div>
+              <div v-if="comp.props.showDate" class="r-article-date">{{ String(it.created_at || '').slice(0, 10) }}</div>
+            </div>
+          </div>
+          <div v-if="!contentPics.length" class="r-article-empty">暂无组图</div>
+        </div>
+      </div>
+    </template>
+    <!-- 视频列表（内容管理数据源，对齐 C 端 video-list） -->
+    <template v-else-if="comp.type === 'video-list'">
+      <div class="r-article" :class="'r-article-' + (comp.props.listStyle || 'row')" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px' }">
+        <div v-if="comp.props.title" class="r-article-title">{{ comp.props.title }}</div>
+        <div class="r-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 1) + ',1fr)' }">
+          <div v-for="(it, i) in contentVideos" :key="i" class="r-article-item">
+            <div v-if="it.cover" class="r-article-img"><img :src="resolveUrl(it.cover)" /></div>
+            <div v-else class="r-article-img r-article-img-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg></div>
+            <div class="r-article-body">
+              <div class="r-article-t">{{ it.title || '视频' }}</div>
+              <div v-if="comp.props.showIntro && it.intro" class="r-article-d">{{ it.intro }}</div>
+              <div v-if="comp.props.showDate" class="r-article-date">{{ String(it.created_at || '').slice(0, 10) }}</div>
+            </div>
+          </div>
+          <div v-if="!contentVideos.length" class="r-article-empty">暂无视频</div>
+        </div>
+      </div>
+    </template>
     <!-- 网页容器 -->
     <template v-else-if="comp.type === 'web-container'">
       <div class="r-web" :style="{ height: (comp.props.height || 400) + 'px' }">
@@ -828,19 +863,36 @@ async function loadGoodsVariants() {
 onMounted(loadGoodsVariants);
 watch(() => props.comp, loadGoodsVariants, { deep: true });
 
-// 内容文章（article-list source=content，对齐 C 端 cardApi.contentArticles）
+// 内容管理数据（对齐 C 端 cardApi.contentArticles/contentPics/contentVideos）
 const contentArticles = ref([]);
-async function loadContentArticles() {
-  if (props.comp.type !== 'article-list' || props.comp.props.source !== 'content') return;
+const contentPics = ref([]);
+const contentVideos = ref([]);
+async function loadContentList() {
+  const t = props.comp.type;
+  const token = localStorage.getItem('customer_token');
+  const h = { 'Authorization': 'Bearer ' + token };
+  const paths = {
+    'article-list': t === 'article-list' && props.comp.props.source === 'content' ? '/api/card/content/articles?page=1&pageSize=20' : null,
+    'pic-list': '/api/card/content/pics?page=1&pageSize=20',
+    'video-list': '/api/card/content/videos?page=1&pageSize=20',
+  };
+  const path = paths[t];
+  if (!path) return;
   try {
-    const token = localStorage.getItem('customer_token');
-    const res = await fetch('/api/card/content/articles?page=1&pageSize=20', { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch(path, { headers: h });
     const data = await res.json();
-    contentArticles.value = Array.isArray(data.list) ? data.list : [];
-  } catch (e) { contentArticles.value = []; }
+    const list = Array.isArray(data.list) ? data.list : [];
+    if (t === 'article-list') contentArticles.value = list;
+    else if (t === 'pic-list') contentPics.value = list;
+    else contentVideos.value = list;
+  } catch (e) {
+    if (t === 'article-list') contentArticles.value = [];
+    else if (t === 'pic-list') contentPics.value = [];
+    else contentVideos.value = [];
+  }
 }
-onMounted(loadContentArticles);
-watch(() => props.comp, loadContentArticles, { deep: true });
+onMounted(loadContentList);
+watch(() => props.comp, loadContentList, { deep: true });
 
 const emit = defineEmits(['cell-select']);
 
