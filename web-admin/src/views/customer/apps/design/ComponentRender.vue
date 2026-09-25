@@ -557,52 +557,56 @@
     </template>
     <template v-else-if="comp.type === 'goods-tabs'">
       <div class="ew-tabs" :style="{background: comp.props.tabBg||'#fff'}">
-        <span v-for="(t,i) in (comp.props.tabs||[])" :key="i" class="ew-tab" :class="{'ew-tab-on': i===0}" :style="i===0?{color:comp.props.tabActiveColor}:{color:comp.props.tabTextColor}">{{ t.title||'选项' }}</span>
+        <span v-for="(t,i) in (comp.props.tabs||[])" :key="i" class="ew-tab" :class="{'ew-tab-on': cTab===i}" :style="cTab===i?{color:comp.props.tabActiveColor||'#ef4f4f'}:{color:comp.props.tabTextColor||'#666'}" @click="cTab=i">{{ t.title||'选项' }}</span>
       </div>
       <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px', background: comp.props.bottomBg||'transparent' }">
-        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ borderRadius: (comp.props.radius||0)+'px' }">
-          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div v-for="g in (tabGoods[cTab]||[])" :key="g.id" class="ew-gg" :style="{ borderRadius: (comp.props.radius||0)+'px' }">
+          <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" /><div v-else class="ew-gg-ph"></div></div>
           <div class="ew-gg-body">
-            <div class="ew-gg-line1"><span class="ew-gg-title">这里是商品标题</span></div>
-            <div class="ew-gg-foot"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span></div>
+            <div class="ew-gg-line1"><span class="ew-gg-title">{{ g.title||'商品标题' }}</span></div>
+            <div class="ew-gg-foot"><span class="ew-gg-price" :style="{color:comp.props.priceColor||'#fd463e'}">¥{{ g.price||0 }}</span><span class="ew-gg-unit">/件</span></div>
           </div>
         </div>
+        <div v-if="!(tabGoods[cTab]||[]).length" class="ew-v-empty">暂无商品</div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-rank'">
       <div class="ew-center-title" v-if="comp.props.showTitle!==false">
-        <span v-if="comp.props.titleIcon==='bar'" class="ew-ct-bar">▮</span>
+        <span v-if="comp.props.titleIcon!=='heart'" class="ew-ct-bar">▮</span>
         <span :style="{color: comp.props.titleColor}">{{ comp.props.title||'商品排行' }}</span>
       </div>
       <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
-        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff' }">
-          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg" v-for="g in rankGoods" :key="g.id" :style="{ background: comp.props.productBg||'#fff' }">
+          <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" /><div v-else class="ew-gg-ph"></div></div>
           <div class="ew-gg-body">
-            <div class="ew-gg-line1"><span class="ew-gg-title">这里是商品标题</span></div>
-            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span></div>
+            <div class="ew-gg-line1"><span class="ew-gg-title">{{ g.title||'商品标题' }}</span></div>
+            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false"><span class="ew-gg-price" :style="{color:comp.props.priceColor||'#fd463e'}">¥{{ g.price||0 }}</span><span class="ew-gg-unit">/件</span></div>
           </div>
         </div>
+        <div v-if="!rankGoods.length" class="ew-v-empty">暂无商品</div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-like'">
       <div class="ew-center-title" v-if="comp.props.showTitle!==false">
-        <span v-if="comp.props.titleIcon==='heart'" class="ew-ct-heart">♥</span>
+        <span v-if="comp.props.titleIcon!=='bar'" class="ew-ct-heart">♥</span>
         <span :style="{color: comp.props.titleColor}">{{ comp.props.title||'猜你喜欢' }}</span>
       </div>
       <div class="ew-gg-list" :style="{ gap: (comp.props.goodsGap||12) + 'px' }">
-        <div class="ew-gg" v-for="i in (comp.props.limit||4)" :key="i" :style="{ background: comp.props.productBg||'#fff' }">
-          <div class="ew-gg-img"><div class="ew-gg-ph"></div></div>
+        <div class="ew-gg" v-for="g in likeGoods" :key="g.id" :style="{ background: comp.props.productBg||'#fff' }">
+          <div class="ew-gg-img"><img v-if="g.thumb" :src="resolveUrl(g.thumb)" /><div v-else class="ew-gg-ph"></div></div>
           <div class="ew-gg-body">
-            <div class="ew-gg-line1"><span class="ew-gg-title">这里是商品标题</span></div>
-            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false"><span class="ew-gg-price">¥20</span><span class="ew-gg-unit">/件</span></div>
+            <div class="ew-gg-line1"><span class="ew-gg-title">{{ g.title||'商品标题' }}</span></div>
+            <div class="ew-gg-foot" v-if="comp.props.showPrice!==false"><span class="ew-gg-price" :style="{color:comp.props.priceColor||'#fd463e'}">¥{{ g.price||0 }}</span><span class="ew-gg-unit">/件</span></div>
           </div>
         </div>
+        <div v-if="!likeGoods.length" class="ew-v-empty">暂无商品</div>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-swiper'">
       <div class="ew-swiper" :style="{ borderRadius: (comp.props.radius||0)+'px', background: comp.props.productBg||'#fff' }">
-        <div class="ew-sw-ph"></div>
-        <span class="ew-sw-price" :style="{color: comp.props.priceColor}">¥20<span class="ew-sw-unit">/件</span></span>
+        <img v-if="swiperGoods.length && swiperGoods[0].thumb" :src="resolveUrl(swiperGoods[0].thumb)" class="ew-sw-img" />
+        <div v-else class="ew-sw-ph"></div>
+        <span v-if="swiperGoods.length" class="ew-sw-price" :style="{color: comp.props.priceColor||'#ff3e1a'}">¥{{ swiperGoods[0].price||0 }}<span class="ew-sw-unit">/件</span></span>
       </div>
     </template>
     <template v-else-if="comp.type === 'goods-show'">
@@ -775,6 +779,41 @@ async function loadMallAllGoods() {
   } catch(e) { mallAllGoods.value = []; }
 }
 onMounted(loadMallAllGoods);
+
+// 商品变体：排行/猜你喜欢/轮播商品/选项卡（拉真实数据，对齐 C 端 DesignPage）
+const rankGoods = ref([]);
+const likeGoods = ref([]);
+const swiperGoods = ref([]);
+const tabGoods = ref({});
+const cTab = ref(0);
+async function fetchGoods(params) {
+  try {
+    const token = localStorage.getItem('customer_token');
+    const qs = new URLSearchParams({ status: 'sell', ...params }).toString();
+    const res = await fetch('/api/customer/goods?' + qs, { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    return data.list || data || [];
+  } catch (e) { return []; }
+}
+async function loadGoodsVariants() {
+  const t = props.comp.type;
+  const p = props.comp.props || {};
+  const base = { pageSize: p.limit || 4 };
+  if (t === 'goods-rank') rankGoods.value = await fetchGoods({ ...base, sortBy: 'sales' });
+  else if (t === 'goods-like') likeGoods.value = await fetchGoods({ ...base, sortBy: 'newDesc' });
+  else if (t === 'goods-swiper') swiperGoods.value = await fetchGoods({ ...base });
+  else if (t === 'goods-tabs') {
+    const tabs = p.tabs || [];
+    tabs.forEach(async (tab, ti) => {
+      const params = { pageSize: p.limit || 6 };
+      if (tab.goodsIds) params.ids = tab.goodsIds.join(',');
+      tabGoods.value[ti] = await fetchGoods(params);
+    });
+  }
+}
+onMounted(loadGoodsVariants);
+watch(() => props.comp, loadGoodsVariants, { deep: true });
+
 const emit = defineEmits(['cell-select']);
 
 // 全景场景组件：编辑端预览拉取租户真实方案
@@ -1736,6 +1775,11 @@ const nativeGridItems = [
 /* ew轮播商品：大图+浮价格 */
 .ew-swiper{position:relative;background:#f2f3f5;border-radius:8px;overflow:hidden;height:160px;}
 .ew-sw-ph{width:100%;height:100%;background:linear-gradient(135deg,#e8e8e8,#d8d8d8);}
+.ew-sw-img{width:100%;height:100%;object-fit:cover;display:block;}
+.ew-sw-price{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.45);color:#fff;border-radius:4px;padding:2px 6px;font-size:12px;}
+.ew-sw-unit{font-size:10px;margin-left:1px;}
+.ew-v-empty{padding:20px 0;text-align:center;color:#86909C;font-size:13px;background:#fff;}
+.ew-gg-img img{width:100%;height:100%;object-fit:cover;display:block;}
 .ew-sw-price{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.9);padding:2px 8px;border-radius:4px;font-size:13px;color:#ff3e1a;font-weight:600;}
 .ew-sw-unit{font-size:10px;color:#999;font-weight:400;}
 /* ew商品展播：绿色海报 */
