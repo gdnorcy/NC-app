@@ -418,11 +418,11 @@
         <!-- 左侧：模板名 + 正常手机大小真实预览（iframe 可操作） -->
         <div class="pm-left">
           <div class="pm-tpl-head">
-            <span class="pm-tpl-name">{{ homeName }}</span>
-            <span class="pm-use-tag">使用中</span>
-            <el-button size="small" text type="primary" @click="editHome">立即装修</el-button>
+            <span class="pm-tpl-name">{{ hasHome ? homeName : '名片首页（未装修）' }}</span>
+            <span class="pm-use-tag" :class="{ 'pm-not-set': !hasHome }">{{ hasHome ? '使用中' : '未装修' }}</span>
+            <el-button size="small" text type="primary" @click="ensureHomePage">立即装修</el-button>
           </div>
-          <div class="pm-update">最近更新：{{ homeUpdated }}</div>
+          <div class="pm-update">最近更新：{{ hasHome ? homeUpdated : '尚未创建，点击「立即装修」初始化名片首页' }}</div>
           <div class="pm-phone">
             <div class="pm-status">
               <span>10:18</span>
@@ -439,7 +439,7 @@
               <div v-for="comp in homePreview" :key="comp.id" class="pm-comp">
                 <ComponentRender :comp="comp" />
               </div>
-              <div v-if="!homePreview.length" class="pm-empty">首页暂无组件，点击「立即装修」添加内容</div>
+              <div v-if="!homePreview.length" class="pm-empty">{{ hasHome ? '首页暂无组件，点击「立即装修」添加内容' : '名片首页尚未装修，点击「立即装修」创建并进入装修' }}</div>
             </div>
           </div>
         </div>
@@ -503,7 +503,14 @@
               </el-table-column>
             </el-table>
             <div class="pm-drag-tip">按住行首 ⠿ 拖动可调整页面顺序</div>
-          <div v-if="!filteredPages.length && !pageLoading" class="media-empty">暂无页面，点击「新建页面」创建</div>
+          <div v-if="!filteredPages.length && !pageLoading" class="media-empty">
+            <div>暂无页面，点击「新建页面」创建</div>
+            <div v-if="!hasHome" class="home-placeholder">
+              <span class="pm-use-tag pm-not-set">未装修</span>
+              <span class="home-placeholder-name">名片首页</span>
+              <el-button size="small" type="primary" @click="ensureHomePage">去装修</el-button>
+            </div>
+          </div>
           <div v-else-if="filteredPages.length > pmPageSize" class="pm-pager">
             <el-pagination background layout="total, prev, pager, next, jumper" :total="filteredPages.length" :page-size="pmPageSize" :current-page="pageNum" @current-change="pageNum = $event" />
           </div>
@@ -616,6 +623,18 @@ async function loadHomePreview() {
 }
 const homePageType = computed(() => pageList.value.find((p) => p.isHome)?.page_type || 'home');
 function editHome() { goEdit(homePageType.value); }
+const hasHome = computed(() => pageList.value.some((p) => p.isHome));
+/** 无首页时创建「名片首页」并设为主页后进入装修；已有首页直接进入编辑器 */
+async function ensureHomePage() {
+  try {
+    if (hasHome.value) { goEdit(homePageType.value); return; }
+    const res = await designCall.post(`${API}/page/create`, { pageName: '名片首页' });
+    if (res.id) await designCall.post(`${API}/page/setHome`, { id: res.id });
+    ElMessage.success('名片首页已创建，进入装修');
+    loadPages();
+    if (res.pageType) goEdit(res.pageType);
+  } catch (e) { ElMessage.error(e); }
+}
 async function renameTemplate() {
   try {
     const { value } = await ElMessageBox.prompt('请输入模板名称（当前首页名称）', '重命名模板', { inputValue: homeName.value, inputPattern: /\S+/, inputErrorMessage: '名称不能为空' });
@@ -1263,6 +1282,9 @@ onMounted(() => {
 .pm-left { background: #fff; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .pm-tpl-head { display: flex; align-items: center; gap: 8px; width: 100%; }
 .pm-use-tag { font-size: 11px; color: #165dff; background: #e8f3ff; border-radius: 10px; padding: 2px 8px; line-height: 16px; flex-shrink: 0; }
+.pm-not-set { color: #ff7d00; background: #fff3e8; }
+.home-placeholder { margin-top: 12px; display: flex; align-items: center; gap: 8px; justify-content: center; }
+.home-placeholder-name { font-weight: 600; color: #1d2129; }
 .pm-tpl-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pm-update { font-size: 12px; color: #86909c; width: 100%; }
 .pm-phone { width: 270px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb; }
