@@ -147,7 +147,7 @@
           <!-- 画布 = 真实 C 端页面（iframe 渲染，B1：编辑所见即线上） -->
           <div class="pe-canvas">
             <!-- 选中组件操作条（上移/下移/复制/删除，仿 ew：画布内不拖拽） -->
-            <div v-if="selectedComp" class="pe-comp-tools pe-canvas-tools">
+            <div v-if="selectedComp" class="pe-comp-tools pe-canvas-tools" :style="{ top: toolsTop + 'px' }">
               <span class="pe-comp-idx">{{ compIndex(selectedComp) }}</span>
               <span class="pe-comp-type">{{ selectedComp.name }}</span>
               <span class="pe-tool" title="上移" @click.stop="moveComp(selectedComp, -1)">↑</span>
@@ -1856,8 +1856,19 @@ watch(() => props.pageType, () => { selected.value = null; load(); });
 // ---- B1：画布 = 真实 C 端页面（iframe）----
 const previewUrl = ref('');
 const frameHeight = ref(800);
+const toolsTop = ref(4);
 let framePushTimer = null;
 let frameBridgeBound = false;
+
+/** 参照 ew：选中组件的操作边条跟随组件位置（读 iframe 内 .dp-slot offsetTop，同源直接取） */
+function updateToolsPos() {
+  const f = frameEl();
+  if (!f || !f.contentDocument) { toolsTop.value = 4; return; }
+  const idx = components.value.findIndex((x) => x.id === selected.value);
+  const slots = f.contentDocument.querySelectorAll('.dp-slot');
+  if (!slots[idx]) { toolsTop.value = 4; return; }
+  toolsTop.value = Math.max(2, slots[idx].offsetTop);
+}
 
 /** 组件序号（1 起，供操作条展示） */
 function compIndex(comp) {
@@ -1896,6 +1907,9 @@ function pushSelected() {
   if (!f || !f.contentWindow) return;
   const idx = components.value.findIndex((x) => x.id === selected.value);
   f.contentWindow.postMessage({ source: 'nc-admin', type: 'set-selected', index: idx }, '*');
+  // 边条跟随组件：选中/排序/属性变化后延时取新位置
+  clearTimeout(updateToolsPos._t);
+  updateToolsPos._t = setTimeout(updateToolsPos, 260);
 }
 function onFrameLoad() {
   setTimeout(() => { pushDesignJson(); pushSelected(); }, 200);
@@ -2074,7 +2088,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-canvas { min-height: 420px; padding: 0; background: transparent; position: relative; }
 /* B1：真实 C 端页面 iframe 画布 */
 .pe-live-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 420px; }
-.pe-canvas-tools { top: 4px; right: 4px; position: absolute; z-index: 10; }
+.pe-canvas-tools { right: 4px; position: absolute; z-index: 10; transition: top .12s; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 0; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
 .pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }
