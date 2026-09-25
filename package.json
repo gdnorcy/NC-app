@@ -11,7 +11,7 @@
  "scripts": {
   "dev": "npm run dev -w server",
   "build": "npm run build:admin",
-  "build:admin": "rm -rf server/public/admin/assets server/public/admin/admin.html server/public/admin/customer.html && npm run build -w web-admin",
+  "build:admin": "node scripts/check-editor-components.mjs && rm -rf server/public/admin/assets server/public/admin/admin.html server/public/admin/customer.html && npm run build -w web-admin",
   "build:mobile": "npm run build:h5 -w web-app",
   "build:all": "npm run build:admin && npm run build:mobile",
   "start": "npm run start -w server",

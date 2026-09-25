@@ -7,6 +7,7 @@
 - 每次改动后编写/更新测试，交付前全部测试通过
 - 复刻任何新组件/新页面/新功能前，**必须先读 `docs/复刻检查清单.md` 逐条打勾**
 - **改完商城组件schema后必须跑 `python3 scripts/check-mall-components.py`**，有输出就不许说"完成"，必须先补渲染
+- **改完编辑器 ComponentRender.vue 后必须跑 `node scripts/check-editor-components.mjs`**（已挂入 build:admin 前置），数据组件无真实数据源/占位假数据直接构建失败
 
 ### 复刻两道硬门槛（文件存在性检查，不满足不许动）
 1. **开工门槛**：`docs/对标截图/<组件名>/` 目录必须存在，里面必须有 ew 渲染截图 + 配置面板截图。截图文件不存在 → 不许写一行代码。
