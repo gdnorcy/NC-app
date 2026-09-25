@@ -1,0 +1,1 @@
+{"audience":"在360全景项目里落地开发的开发者/开发团队","reader_task":"理解运营型雷达与VIP权益扩展两模块的可开发设计，明确数据表、后端接口、前端页面、测试与实施顺序","genre_contract":"product-and-engineering-document","adapter":null,"presentation_mode":"rich","visual_plan":{"reason":"用正文承载表结构/接口/代码骨架等可开发明细，用一张HTML总览图呈现两模块整体数据流与实施依赖，避免重复表达","blocks":[{"type":"html5-block","min_count":1,"purpose":"展示运营型雷达与VIP权益两模块的整体数据流与实施顺序"}]}}

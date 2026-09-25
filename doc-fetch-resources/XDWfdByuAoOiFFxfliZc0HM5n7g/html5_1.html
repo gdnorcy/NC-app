@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="use-iframe" content="true">
+<meta name="html-box-height-mode" content="auto">
+<meta name="description" content="龙兵小程序UI到自研版落点的映射与实施顺序总览图">
+<title>龙兵UI借鉴落点总览</title>
+<style>
+  body{margin:0;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f7f8fa;color:#1f2329;font-size:13px;line-height:1.6;padding:14px;box-sizing:border-box;}
+  .wrap{width:100%;max-width:100%;box-sizing:border-box;}
+  .title{font-size:18px;font-weight:700;margin-bottom:2px;}
+  .sub{font-size:12px;color:#8a919f;margin-bottom:14px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .box{flex:1;min-width:280px;background:#fff;border:1px solid #e0e3e8;border-radius:10px;padding:12px;box-sizing:border-box;}
+  .b-green{border-top:4px solid #19a918;}
+  .b-blue{border-top:4px solid #165dff;}
+  .b-amber{border-top:4px solid #f59e0b;}
+  .box h3{margin:0 0 6px;font-size:15px;}
+  .flow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#f1f5f9;border:1px solid #e0e3e8;border-radius:6px;padding:8px;line-height:1.7;white-space:pre-wrap;}
+  .tag{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:5px;padding:0 5px;font-size:11px;margin-left:4px;}
+  .foot{margin-top:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;font-size:12px;color:#15803d;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">龙兵小程序 UI · 借鉴落点总览<span class="tag">转译到 uni-app / Vue</span></div>
+  <div class="sub">示意 · 龙兵 wxapp（WXML/WXSS）设计语言 → 自研版 web-app 具体文件</div>
+
+  <div class="row">
+    <div class="box b-green">
+      <h3>① 设计系统层</h3>
+      <div class="flow">龙兵 app.wxss：
+ 字号阶梯 22/24/26/28/30/32/48rpx
+ 语义色板 primary绿#19a918·链接蓝#108ee9
+ 间距 8/16/32rpx · 1px高清线
+ flex/栅格 col-1~12 工具类
+→ 转译到：新建 web-app/src/styles/
+  token.scss（色板/字号/间距变量）
+  utility.scss（原子工具类）
+  全局引入 main.js</div>
+    </div>
+
+    <div class="box b-blue">
+      <h3>② 组件层</h3>
+      <div class="flow">龙兵 components（30+）：
+ skeleton骨架屏 popup弹层 badge角标
+ indexlist索引列表 sticky吸顶
+ lazy-image canvasdrawer/painter海报
+ notify marquee count-down stepper
+ v-tabs swiper tabbar mask search
+→ 转译到：web-app/src/components/
+ 优先补齐：Skeleton/Popup/Badge/Sticky/
+  LazyImage/CardPoster（海报绘制）</div>
+    </div>
+
+    <div class="box b-amber">
+      <h3>③ 名片页层</h3>
+      <div class="flow">龙兵 home.wxml 信息架构：
+ 多模板 ta-tp{{id}} 动态渲染
+ 4键操作栏（存手机/名片夹/打电话/分享）
+ 信息横滑（电话/导航/微信/邮箱）
+ 访客头像墙 + 浏览/收藏计数
+ 个人介绍/公司介绍分节
+ 语音简介卡片
+ 雷达悬浮球 + 未读badge
+→ 改造自研：cardDetail.vue
+ （已有hero渐变/quickbar/SIcon/TabBar
+   补：多模板切换/头像墙/语音卡/分节）</div>
+    </div>
+  </div>
+
+  <div class="foot"><b>实施顺序</b>：先 token.scss + utility.scss（打底）→ 再补 6 个公共组件 → 最后重构 cardDetail.vue 名片页。全部对齐现有 web-app 设计语言（品牌蓝#165dff/橙#f59e0b、中性灰#f5f6f7）。</div>
+</div>
+</body>
+</html>

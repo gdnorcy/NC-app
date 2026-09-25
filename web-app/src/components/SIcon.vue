@@ -1,9 +1,8 @@
 <template>
-  <image
+  <view
     class="s-icon"
     :class="[`s-icon--${size}`, { 's-icon--disabled': disabled }]"
-    :src="iconSrc"
-    mode="aspectFit"
+    :style="iconStyle"
   />
 </template>
 
@@ -75,13 +74,14 @@ const svgMap = {
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
 };
 
-// 生成带颜色的SVG base64
-const iconSrc = computed(() => {
+// 生成带颜色的SVG base64，作为 view 的背景图（background-size:contain 缩放进固定尺寸的 view）
+const iconStyle = computed(() => {
   const content = svgMap[props.name];
-  if (!content) return '';
+  if (!content) return {};
   const strokeColor = props.color || 'currentColor';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${content}</svg>`;
-  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${content}</svg>`;
+  const url = 'url("data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))) + '")';
+  return { backgroundImage: url };
 });
 </script>
 
@@ -90,6 +90,10 @@ const iconSrc = computed(() => {
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0;
+  flex: 0 0 auto;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
 }
 .s-icon--small { width: 18px; height: 18px; }
 .s-icon--default { width: 20px; height: 20px; }

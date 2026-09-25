@@ -1,0 +1,1 @@
+{"audience":"在360全景项目里做智能名片UI的前端/开发团队","reader_task":"理解龙兵小程序UI的可借鉴点，明确如何转译并落到自研版具体文件（设计系统、组件、名片页信息架构）","genre_contract":"product-and-engineering-document","adapter":null,"presentation_mode":"rich","visual_plan":{"reason":"用正文承载设计token、组件清单、落点文件等明细，用一张HTML图呈现龙兵设计到自研版落点的映射与实施顺序","blocks":[{"type":"html5-block","min_count":1,"purpose":"展示龙兵UI设计到自研版落点的映射与实施顺序"}]}}

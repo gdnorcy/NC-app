@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="use-iframe" content="true">
+<meta name="html-box-height-mode" content="auto">
+<meta name="description" content="运营型雷达与VIP权益扩展两模块的整体数据流与实施顺序总览图">
+<title>雷达与VIP权益落地方案总览</title>
+<style>
+  body{margin:0;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f7f8fa;color:#1f2329;font-size:13px;line-height:1.6;padding:14px;box-sizing:border-box;}
+  .wrap{width:100%;max-width:100%;box-sizing:border-box;}
+  .title{font-size:18px;font-weight:700;margin-bottom:2px;}
+  .sub{font-size:12px;color:#8a919f;margin-bottom:14px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .box{flex:1;min-width:280px;background:#fff;border:1px solid #e0e3e8;border-radius:10px;padding:12px;box-sizing:border-box;}
+  .b-blue{border-top:4px solid #3b82f6;}
+  .b-amber{border-top:4px solid #d97706;}
+  .box h3{margin:0 0 6px;font-size:15px;}
+  .box .sub2{font-size:12px;color:#5a6270;margin-bottom:8px;}
+  .flow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#f1f5f9;border:1px solid #e0e3e8;border-radius:6px;padding:8px;line-height:1.7;}
+  ul{margin:8px 0 0;padding-left:18px;}
+  li{margin-bottom:2px;}
+  .foot{margin-top:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;font-size:12px;color:#15803d;}
+  .tag{display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:5px;padding:0 5px;font-size:11px;margin-left:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">运营型雷达 + VIP 权益扩展 · 落地方案总览</div>
+  <div class="sub">示意 · 对齐自研版 server/src（Express + SQLite + services 工厂模式），方案确认后实施</div>
+
+  <div class="row">
+    <div class="box b-blue">
+      <h3>模块一 · 运营型雷达<span class="tag">P0 高潜排序 / P0 分级提醒 / P0 无感留资 / P1 AI话术 / P1 转发追踪 / P1 CRM导出</span></h3>
+      <div class="sub2">改造 /api/card/visitor/track 收口，事件驱动</div>
+      <div class="flow">
+        visitor/track → 记行为(card_visitor_action)<br>
+        ├─ 命中 card_radar_event(enabled)<br>
+        ├─ 算意向分 → 高潜排序(意向分+成交率)<br>
+        ├─ 入客户池 card_customer(打标 source=radar)<br>
+        ├─ 分级提醒：转发/留电话/二次回访 优先推送<br>
+        ├─ AI话术：按画像+意向分 生成跟进建议<br>
+        └─ 推送：订阅消息/公众号 → 名片主
+      </div>
+      <ul>
+        <li>新表：card_radar_event / card_radar_words / card_radar_push_config / card_radar_intent / card_radar_share</li>
+        <li>复用：card_visitor、card_visitor_action、card_customer.tags、design_leads</li>
+      </ul>
+    </div>
+
+    <div class="box b-amber">
+      <h3>模块二 · VIP 权益扩展<span class="tag">P0 龙兵四维 / P0 AI钩子 / P1 用量配额 / P1 企业席位</span></h3>
+      <div class="sub2">member_package 增列 + 集中校验 card/quota.js</div>
+      <div class="flow">
+        member_package 增列：discount / collect_limit / voice_enabled / group_limit<br>
+        features 增能力点：ai_report / ai_words / quota_lead / enterprise<br>
+        card/quota.js 集中校验 check()<br>
+        ├─ 模板折扣(购买时打折)<br>
+        ├─ 收藏上限(拦截)<br>
+        ├─ 语音简介(开关)<br>
+        ├─ 建群数(拦截)<br>
+        └─ 配额(AI报告份数/留资条数/推送条数)<br>
+        member/buy 支付开通链路不动
+      </div>
+      <ul>
+        <li>会员挂用户/租户维度，多名片共享</li>
+        <li>复用现有支付单 payment.js、member.js、方案化权限</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot"><b>实施顺序</b>：阶段A（表迁移+后端 service/路由）→ 阶段B（admin 配置页）→ 阶段C（C 端页面）→ 阶段D（测试+联调）。雷达推送依赖小程序订阅消息授权与公众号模板配置，先建开关后联调。</div>
+</div>
+</body>
+</html>

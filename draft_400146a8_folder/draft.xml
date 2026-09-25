@@ -1,0 +1,170 @@
+<title>龙兵小程序 UI 借鉴方案（360全景项目·智能名片）</title>
+
+<h1 seq="auto">方案概述</h1>
+
+<p><b>核心判断：</b>龙兵小程序 UI 的“好看 + 精细”来自三件事——一套原子化设计系统（app.wxss）、30+ 个公共组件、以及名片首页的精妙信息架构。本方案把这三层转译到自研版（360全景项目，uni-app / Vue），并落到具体文件。</p>
+
+<p>借鉴的是<b>设计语言与组件模式</b>，不是代码搬运（龙兵为微信小程序原生 WXML，自研为 uni-app）。方案只描述设计与落点，未改代码。</p>
+
+<h2 seq="auto">读者任务与范围</h2>
+
+<table>
+<colgroup><col width="220"/><col width="600"/></colgroup>
+<thead><tr><th><p>读者任务</p></th><th><p>方案回答</p></th></tr></thead>
+<tbody>
+<tr><td><p>借鉴什么</p></td><td><p>三层：设计系统（字号/色板/间距/1px 线/栅格）、组件库、名片首页信息架构。</p></td></tr>
+<tr><td><p>落到哪</p></td><td><p>自研版 web-app：新建 styles/ 工具类、components/ 补组件、重构 cardDetail.vue。</p></td></tr>
+<tr><td><p>怎么做</p></td><td><p>先打底设计 token，再补组件，最后改名片页；对齐现有品牌蓝/橙与中性灰。</p></td></tr>
+<tr><td><p>不做什么</p></td><td><p>不复制龙兵视觉到“换皮”；不改变现有功能与数据；不搬龙兵商城/全景 UI。</p></td></tr>
+</tbody>
+</table>
+
+<h2 seq="auto">自研版现有 UI 基线（对齐点）</h2>
+
+<p>借鉴必须落在现有语言之上，先确认已有能力：</p>
+<ul>
+<li><b>沉浸式 hero</b>：cardDetail.vue 品牌色渐变（默认橙 #b45309→#f59e0b），hero-badge 会员徽章。</li>
+<li><b>图标库</b>：SIcon 公共组件（自带图标集，mobile/exchange/location/channel/radar/star 等）。</li>
+<li><b>快捷栏 / Tab / 底部 TabBar</b>：quickbar、mp-tabs、底部名片/雷达/集市/会员 Tab。</li>
+<li><b>中性灰底</b>：页面背景 #f5f6f7，次级图标 #86909c，品牌蓝 #165dff。</li>
+<li><b>线索表单</b>：访客表单已内嵌名片页（线索回流）。</li>
+</ul>
+
+<html5-block path="@./draft_400146a8_folder/widget.html"/>
+
+<h1 seq="auto">一、设计系统借鉴（P0）</h1>
+
+<h2 seq="auto">龙兵 app.wxss 解析</h2>
+
+<table>
+<colgroup><col width="180"/><col width="420"/><col width="220"/></colgroup>
+<thead><tr><th><p>体系</p></th><th><p>龙兵取值</p></th><th><p>借鉴价值</p></th></tr></thead>
+<tbody>
+<tr><td><p>字号阶梯</p></td><td><p>22 / 24 / 26 / 28 / 30 / 32 / 48rpx（icontext→title-xl）</p></td><td><p>统一层级，拒绝随意字号</p></td></tr>
+<tr><td><p>语义色板</p></td><td><p>primary 绿 #19a918、链接蓝 #108ee9、warning #feb22d、error #fa3a39、caption #888</p></td><td><p>状态色语义化、全文一致</p></td></tr>
+<tr><td><p>间距系统</p></td><td><p>8 / 16 / 32rpx（sm/md/lg）严格 8 的倍数</p></td><td><p>版面节奏整齐</p></td></tr>
+<tr><td><p>1px 高清线</p></td><td><p>b-1px 用 scale(0.5) 实现细线</p></td><td><p>移动端细线不糊</p></td></tr>
+<tr><td><p>Flex / 栅格</p></td><td><p>flex / flex-center / flex-between + col-1~12</p></td><td><p>布局原子化</p></td></tr>
+<tr><td><p>列表单元格</p></td><td><p>cell-list / cell-item / cell（iOS 风格）</p></td><td><p>标准列表组件</p></td></tr>
+</tbody>
+</table>
+
+<h2 seq="auto">自研版落点：新建 web-app/src/styles/</h2>
+
+<pre lang="scss" caption="styles/token.scss（设计变量）"><code>// 语义色板（对齐自研现有 + 借鉴龙兵状态色）
+$color-primary: #165dff;      // 品牌蓝（自研现有）
+$color-brand: #f59e0b;        // 品牌橙（hero 默认）
+$color-success: #19a918;      // 借鉴龙兵
+$color-link: #108ee9;         // 借鉴龙兵
+$color-warning: #feb22d;      // 借鉴龙兵
+$color-error: #fa3a39;        // 借鉴龙兵
+$color-hot: #ea3341;
+$color-caption: #86909c;      // 次级灰（自研现有）
+$color-body: #f5f6f7;         // 页面背景（自研现有）
+
+// 字号阶梯（借鉴龙兵，rpx→px 换算）
+$font-size: (icontext: 11px, caption: 12px, caption-lg: 13px, paragraph: 14px, title: 15px, title-lg: 16px, title-xl: 24px);
+
+// 间距（严格 8 的倍数）
+$space: (sm: 4px, md: 8px, lg: 16px);</code></pre>
+
+<pre lang="scss" caption="styles/utility.scss（原子工具类，全局引入）"><code>// 字号类：f-icontext / f-caption / f-paragraph / f-title / f-title-lg / f-title-xl
+// 颜色类：c-primary / c-link / c-warning / c-error / c-caption / c-paragraph
+// 间距类：mg-sm/md/lg · mt-* · mb-* · ml-* · mr-* · pd-* · pt-* · pb-* · pl-* · pr-*
+// Flex 类：flex / flex-1 / flex-column / flex-center / flex-between / flex-x-center
+// 1px 高清线：.b-1px / .b-1px-t / .b-1px-b（scale(0.5) 实现）
+// 省略：.ellipsis / .ellipsis-2 / .ellipsis-3
+// 列表：.cell-list / .cell-item / .cell（iOS 风格单元格）</code></pre>
+
+<p>在 main.js 全局引入 utility.scss，供所有页面复用，替换散落的硬编码颜色与间距。</p>
+
+<h1 seq="auto">二、组件库借鉴（P1）</h1>
+
+<h2 seq="auto">龙兵组件清单与优先补齐</h2>
+
+<p>龙兵 components/ 共 30+ 个，其中对“精细感”贡献最大、且自研版尚缺的，按优先级补齐到 web-app/src/components/：</p>
+
+<table>
+<colgroup><col width="200"/><col width="180"/><col width="440"/></colgroup>
+<thead><tr><th><p>组件</p></th><th><p>优先级</p></th><th><p>用途 / 落点</p></th></tr></thead>
+<tbody>
+<tr><td><p>Skeleton 骨架屏</p></td><td><p>P0</p></td><td><p>名片/雷达页加载占位，提升“精细”第一印象</p></td></tr>
+<tr><td><p>Badge 角标</p></td><td><p>P0</p></td><td><p>雷达悬浮球未读数、消息角标（自研 TabBar 可复用）</p></td></tr>
+<tr><td><p>Popup 弹层</p></td><td><p>P0</p></td><td><p>名片操作弹层、确认弹窗</p></td></tr>
+<tr><td><p>Sticky 吸顶</p></td><td><p>P1</p></td><td><p>名片页 Tab / 雷达页筛选项吸顶</p></td></tr>
+<tr><td><p>LazyImage 懒加载</p></td><td><p>P1</p></td><td><p>名片作品图/头像列表性能优化</p></td></tr>
+<tr><td><p>IndexList 索引列表</p></td><td><p>P1</p></td><td><p>通讯录 / 人脉库字母索引</p></td></tr>
+<tr><td><p>CardPoster 海报绘制</p></td><td><p>P1</p></td><td><p>借鉴 canvasdrawer/painter，生成裂变海报（对接现有海报功能）</p></td></tr>
+</tbody>
+</table>
+
+<h2 seq="auto">组件实现要点</h2>
+
+<ul>
+<li><b>复用 SIcon</b>：新组件一律走现有 SIcon 图标库，保持图标风格统一。</li>
+<li><b>对齐 token</b>：所有新组件取 token.scss 变量，不写硬编码色。</li>
+<li><b>uni-app 适配</b>：组件用 Vue3 + scoped style，兼容 H5 / 小程序端。</li>
+<li><b>海报绘制</b>：Canvas 绘制，对齐现有 poster 数据结构，生成二维码 + 品牌色 + 头像版式。</li>
+</ul>
+
+<h1 seq="auto">三、名片首页信息架构借鉴（P1）</h1>
+
+<h2 seq="auto">龙兵 home.wxml 结构拆解</h2>
+
+<table>
+<colgroup><col width="220"/><col width="600"/></colgroup>
+<thead><tr><th><p>区块</p></th><th><p>做法与精细点</p></th></tr></thead>
+<tbody>
+<tr><td><p>多模板渲染</p></td><td><p>ta-tp{{now_temp_id}} 动态模板，模板名精确到编号，一键切换</p></td></tr>
+<tr><td><p>操作栏</p></td><td><p>4 个图标按钮：存到手机 / 名片夹 / 拨打电话 / 分享</p></td></tr>
+<tr><td><p>信息横滑条</p></td><td><p>电话 / 导航 / 复制微信 / 复制邮箱，icon+标签+值 卡片横滑</p></td></tr>
+<tr><td><p>访客头像墙</p></td><td><p>最近浏览者头像 + “X 人浏览，Y 人收藏” + 点赞</p></td></tr>
+<tr><td><p>分节介绍</p></td><td><p>个人介绍 / 公司介绍，cell-list-title 分隔，图片 widthFix</p></td></tr>
+<tr><td><p>语音简介卡</p></td><td><p>头像 + 播放按钮 + “X 秒，点击试听”</p></td></tr>
+<tr><td><p>雷达悬浮球</p></td><td><p>右下 message-icon 悬浮 + 未读 badge 角标</p></td></tr>
+</tbody>
+</table>
+
+<h2 seq="auto">自研版 cardDetail.vue 改造建议</h2>
+
+<ul>
+<li><b>多模板切换</b>：现有 template 体系接入动态渲染（品牌色 + 模板主题 hero 渐变），对齐龙兵模板编号切换。</li>
+<li><b>补头像墙与计数</b>：在作品/简介面板上方插入最近浏览者头像墙 + 浏览/收藏计数（对接现有 view 数据）。</li>
+<li><b>补语音简介卡</b>：有语音时展示播放卡片（复用 SIcon 播放图标）。</li>
+<li><b>分节标题统一</b>：个人介绍 / 公司介绍用 cell-list-title + 1px 线分隔，统一间距。</li>
+<li><b>雷达悬浮入口</b>：复用现有 visitors 入口，加悬浮球 + Badge 未读数。</li>
+<li><b>保留现有</b>：沉浸式 hero、quickbar、mp-tabs、线索表单、底部 TabBar 保留不破坏。</li>
+</ul>
+
+<h1 seq="auto">四、涉及文件清单</h1>
+
+<table>
+<colgroup><col width="260"/><col width="240"/><col width="320"/></colgroup>
+<thead><tr><th><p>文件</p></th><th><p>动作</p></th><th><p>内容</p></th></tr></thead>
+<tbody>
+<tr><td><p>web-app/src/styles/token.scss</p></td><td><p>新建</p></td><td><p>色板 / 字号 / 间距变量</p></td></tr>
+<tr><td><p>web-app/src/styles/utility.scss</p></td><td><p>新建</p></td><td><p>原子工具类 + 1px 线 + 列表单元格</p></td></tr>
+<tr><td><p>web-app/src/main.js</p></td><td><p>修改</p></td><td><p>全局引入 utility.scss</p></td></tr>
+<tr><td><p>web-app/src/components/（Skeleton/Badge/Popup/Sticky/LazyImage/IndexList/CardPoster）</p></td><td><p>新建</p></td><td><p>公共组件</p></td></tr>
+<tr><td><p>web-app/src/pages/card/cardDetail.vue</p></td><td><p>重构</p></td><td><p>多模板切换 / 头像墙 / 语音卡 / 分节 / 雷达悬浮</p></td></tr>
+<tr><td><p>web-app/src/pages/card/visitors.vue 等</p></td><td><p>局部</p></td><td><p>雷达页用 skeleton / sticky 提升观感</p></td></tr>
+</tbody>
+</table>
+
+<h1 seq="auto">五、实施顺序</h1>
+
+<ol seq="auto">
+<li><b>阶段 1 · 打底</b>：新建 token.scss + utility.scss，全局引入；替换名片核心页硬编码色。</li>
+<li><b>阶段 2 · 组件</b>：补 Skeleton / Badge / Popup / Sticky / LazyImage / IndexList / CardPoster 六个组件。</li>
+<li><b>阶段 3 · 名片页</b>：重构 cardDetail.vue（多模板 / 头像墙 / 语音卡 / 分节 / 雷达悬浮）。</li>
+<li><b>阶段 4 · 收尾</b>：雷达页与会员卡页用新组件打磨，构建 verify 全绿。</li>
+</ol>
+
+<h1 seq="auto">六、风险与待确认</h1>
+
+<ul>
+<li><b>不换皮</b>：借鉴设计系统与信息架构，保持自研品牌蓝/橙主色，不整套复制龙兵绿色主题。</li>
+<li><b>数据对齐</b>：头像墙 / 语音卡 / 多模板依赖现有 card 数据字段，需核对 visitors / voice / template 数据是否齐备。</li>
+<li><b>小程序端适配</b>：uni-app 新组件需同时验证 H5 与小程序端渲染，尤其 Canvas 海报。</li>
+<li><b>范围</b>：本方案只覆盖 C 端名片域 UI，管理端 web-admin 与全景 / 商城不在借鉴范围。</li>
+</ul>

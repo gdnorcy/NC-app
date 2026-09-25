@@ -1,0 +1,391 @@
+<title>智能名片 · 运营型雷达与VIP权益扩展开发方案（360全景项目）</title>
+
+<h1 seq="auto">方案概述</h1>
+
+<p><b>核心判断：</b>在自研版（360全景项目，Node + Express + SQLite，服务工厂模式）上，把运营型雷达与 VIP 权益从“记录 + 开关”升级为“判断 + 转化 + 智能付费”。模块一在现有访客追踪（card_visitor / card_visitor_action）上补事件、意向分、分级提醒、AI 话术、转发链与留资闭环；模块二在现有会员（member_package / member.js）上补龙兵四维（模板折扣 / 收藏上限 / 语音 / 建群数）并叠加 AI 能力、用量配额与企业席位三档付费。</p>
+
+<p>本方案只描述设计与可照做的代码骨架，未改动任何现有代码；确认后再按阶段 A–D 实施。</p>
+
+<h2 seq="auto">读者任务与范围</h2>
+
+<table>
+<colgroup><col width="220"/><col width="600"/></colgroup>
+<thead><tr><th><p>读者任务</p></th><th><p>方案回答</p></th></tr></thead>
+<tbody>
+<tr><td><p>要不要做 / 做什么</p></td><td><p>做两块：运营型雷达（P0 四项 + P1 三项）、VIP 权益扩展（龙兵四维 + AI / 配额 / 企业席位三档）。不做商城 / 全景联动，不在本方案内改动分销与支付主链路。</p></td></tr>
+<tr><td><p>怎么落表</p></td><td><p>新增 4 张雷达表 + member_package 增列，全部对齐 db.js 的 CREATE TABLE IF NOT EXISTS 与 ALTER try/catch 迁移风格。</p></td></tr>
+<tr><td><p>怎么写后端</p></td><td><p>新增 services/radar.js 与 services/quota.js 工厂服务，路由挂在 card.js 的同一 router 下，鉴权沿用 auth / requireTenant。</p></td></tr>
+<tr><td><p>怎么验收</p></td><td><p>阶段 D 给出测试清单：后端 node:test + supertest、前端 vitest、构建 verify。</p></td></tr>
+</tbody>
+</table>
+
+<h2 seq="auto">设计基线：现有可复用能力</h2>
+
+<p>方案严格复用以下现有资产，避免重复造轮子：</p>
+<ul>
+<li><b>访客数据</b>：card_visitor（按天聚合）+ card_visitor_action（行为时间线）已有，新增逻辑只在 /visitor/track 上收口。</li>
+<li><b>客户池</b>：card_customer（tags JSON、status、next_follow_at）+ card_customer_follow（跟进记录）已存在。</li>
+<li><b>会员与支付</b>：member_package（features 能力点数组）+ member.js（myCard / levels / apply / sign / buy）+ payment.js（统一支付单，支付成功开卡）已存在。</li>
+<li><b>线索</b>：design_leads（表单线索）已存在，用于无感留资对接。</li>
+<li><b>服务模式</b>：仿 distribution.js 的 createDistributionService(db) 工厂，导出 createRadarService / createQuotaService。</li>
+</ul>
+
+<html5-block path="@./draft_78c4400e_folder/widget.html"/>
+
+<h1 seq="auto">模块一：运营型雷达</h1>
+
+<h2 seq="auto">目标与市场对标</h2>
+
+<p>市场同类（宽脉、企晨、华为云、爱微商）雷达已从“谁看了我”进化到“判断 + 转化”：意向分、高潜排序、无感留资、AI 话术、CRM 同步。本模块以龙兵的事件推送为基线，叠加这五层能力。</p>
+
+<table>
+<colgroup><col width="160"/><col width="330"/><col width="330"/></colgroup>
+<thead><tr><th><p>能力</p></th><th><p>龙兵 v8.1.9（参考）</p></th><th><p>本方案（自研版落地）</p></th></tr></thead>
+<tbody>
+<tr><td><p>事件定义</p></td><td><p>radar_event，事件启用才推送</p></td><td><p>card_radar_event，含 notice_type 与重要级</p></td></tr>
+<tr><td><p>意向判断</p></td><td><p>无（仅统计次数）</p></td><td><p>card_radar_intent 意向分 + 高潜排序</p></td></tr>
+<tr><td><p>话术</p></td><td><p>radar_words 按时间区间静态词</p></td><td><p>card_radar_words 静态兜底 + AI 个性化话术</p></td></tr>
+<tr><td><p>推送</p></td><td><p>旧 formid 订阅消息（已废弃）+ 公众号</p></td><td><p>一次性订阅消息 + 公众号模板</p></td></tr>
+<tr><td><p>留资</p></td><td><p>无</p></td><td><p>对接 design_leads 无感留资入池</p></td></tr>
+<tr><td><p>转发链</p></td><td><p>无</p></td><td><p>card_radar_share 记录转发传播</p></td></tr>
+</tbody>
+</table>
+
+<h2 seq="auto">数据表设计</h2>
+
+<p>新增 4 张表，均带 tenant_id 租户隔离，时间戳用 datetime('now') 默认值，与 db.js 现有表风格一致。</p>
+
+<pre lang="sql" caption="db.js 中新增建表（追加到 schema 初始化）"><code>CREATE TABLE IF NOT EXISTS card_radar_event (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL,
+  name TEXT NOT NULL,                -- 事件标识：card_view / card_like / card_collect / phone_shared / share / dynamic_like / revisit
+  title TEXT NOT NULL DEFAULT '',    -- 展示名：如“浏览了名片”
+  icon TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  is_show_ai INTEGER NOT NULL DEFAULT 1,   -- 是否计入 AI 报告
+  notice_type INTEGER NOT NULL DEFAULT 1,  -- 1 小程序订阅 / 2 公众号 / 0 不推送
+  importance INTEGER NOT NULL DEFAULT 1,   -- 重要级：1 普通 / 2 高（转发/留电话/二次回访）
+  weight INTEGER NOT NULL DEFAULT 1,       -- 意向分权重
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_radar_event_tenant ON card_radar_event(tenant_id, name);
+
+CREATE TABLE IF NOT EXISTS card_radar_words (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL,
+  event_id INTEGER NOT NULL,
+  time_start INTEGER NOT NULL DEFAULT 0,   -- 第 N 次命中起
+  time_end INTEGER NOT NULL DEFAULT 0,     -- 第 N 次命中止，0 表示不限
+  words TEXT NOT NULL DEFAULT '',         -- 建议话术
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_radar_words_event ON card_radar_words(tenant_id, event_id);
+
+CREATE TABLE IF NOT EXISTS card_radar_push_config (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL UNIQUE,
+  switch INTEGER NOT NULL DEFAULT 0,       -- 雷达推送总开关
+  xcx_tmpid TEXT NOT NULL DEFAULT '',     -- 小程序一次性订阅消息模板 id
+  gzh_appid TEXT NOT NULL DEFAULT '',
+  gzh_tmpid TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS card_radar_intent (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL,
+  owner_user_id INTEGER NOT NULL,        -- 名片主
+  visitor_openid TEXT NOT NULL DEFAULT '',
+  visitor_user_id INTEGER NOT NULL DEFAULT 0,
+  score REAL NOT NULL DEFAULT 0,         -- 意向分 0-100
+  hit_count INTEGER NOT NULL DEFAULT 0,  -- 关键事件命中次数
+  last_calc_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_radar_intent_owner ON card_radar_intent(tenant_id, owner_user_id, score);
+
+CREATE TABLE IF NOT EXISTS card_radar_share (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL,
+  card_id INTEGER NOT NULL,
+  from_user_id INTEGER NOT NULL,         -- 转发者
+  to_openid TEXT NOT NULL DEFAULT '',    -- 被转发者（未注册为空）
+  share_url TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_radar_share_card ON card_radar_share(tenant_id, card_id);</code></pre>
+
+<h2 seq="auto">后端服务 services/radar.js</h2>
+
+<p>新建工厂服务，仿 distribution.js。核心方法：matchEvent（事件匹配）、computeIntent（意向分）、upsertClient（入客户池）、pickWords（话术）、sendNotify（推送）、trackShare（转发链）。</p>
+
+<pre lang="js" caption="services/radar.js 骨架"><code>export function createRadarService(db, deps) {
+  const { payment, member } = deps || {};
+
+  // 1. 匹配事件定义（按 actionType + tenant 命中 enabled 事件）
+  function matchEvent(tenantId, actionType) {
+    return db.prepare(
+      'SELECT * FROM card_radar_event WHERE tenant_id=? AND name=? AND enabled=1'
+    ).get(tenantId, actionType) || null;
+  }
+
+  // 2. 意向分：权重和 + 关键事件加成，归一化到 0-100
+  function computeIntent(event, hitCount, durationSeconds) {
+    let s = event.weight * 20;
+    if (event.importance >= 2) s += 30;
+    s += Math.min(hitCount * 5, 20);
+    if (durationSeconds > 30) s += 10;
+    return Math.max(0, Math.min(100, s));
+  }
+
+  // 3. 上报收口：记录行为后调用
+  function onVisitorEvent(tenantId, ownerUserId, visitor, event, detail) {
+    const now = Date.now();
+    // 写意向分
+    const prev = db.prepare(
+      'SELECT * FROM card_radar_intent WHERE tenant_id=? AND owner_user_id=? AND (visitor_openid=? OR visitor_user_id=?)'
+    ).get(tenantId, ownerUserId, visitor.openid || '', visitor.userId || 0);
+    const hit = (prev ? prev.hit_count : 0) + 1;
+    const score = computeIntent(event, hit, detail.duration || 0);
+    if (prev) {
+      db.prepare('UPDATE card_radar_intent SET score=?, hit_count=?, last_calc_at=datetime(\'now\') WHERE id=?')
+        .run(score, hit, prev.id);
+    } else {
+      db.prepare('INSERT INTO card_radar_intent (tenant_id,owner_user_id,visitor_openid,visitor_user_id,score,hit_count) VALUES (?,?,?,?,?,?)')
+        .run(tenantId, ownerUserId, visitor.openid || '', visitor.userId || 0, score, hit);
+    }
+    return { score, hit };
+  }
+
+  // 4. 高潜客户榜（P0）：按意向分降序
+  function topLeads(tenantId, ownerUserId, limit = 20) {
+    return db.prepare(
+      'SELECT * FROM card_radar_intent WHERE tenant_id=? AND owner_user_id=? ORDER BY score DESC, hit_count DESC LIMIT ?'
+    ).all(tenantId, ownerUserId, limit);
+  }
+
+  // 5. 话术（P1）：先按事件+命中次数取静态词，再可接 AI 生成
+  function pickWords(tenantId, eventId, hitCount, profile) {
+    const row = db.prepare(
+      'SELECT words FROM card_radar_words WHERE tenant_id=? AND event_id=? AND time_start&lt;=? AND (time_end=0 OR time_end&gt;=?) ORDER BY time_start DESC'
+    ).get(tenantId, eventId, hitCount, hitCount);
+    if (row) return row.words;
+    // AI 兜底占位：按 profile 生成一句话跟进建议（预留 AI 接口）
+    return '该访客近期多次查看名片，可主动联系确认合作意向。';
+  }
+
+  // 6. 入客户池：复用 card_customer，source=radar，tags 追加
+  function upsertClient(tenantId, ownerUserId, visitor, source) {
+    const exist = db.prepare(
+      'SELECT * FROM card_customer WHERE owner_user_id=? AND phone=?'
+    ).get(ownerUserId, visitor.phone || '');
+    if (exist) {
+      const tags = JSON.parse(exist.tags || '[]');
+      if (!tags.includes('radar')) tags.push('radar');
+      db.prepare('UPDATE card_customer SET tags=?, updated_at=datetime(\'now\') WHERE id=?')
+        .run(JSON.stringify(tags), exist.id);
+      return exist;
+    }
+    return db.prepare(
+      'INSERT INTO card_customer (owner_user_id,name,phone,wechat,company,tags,source,status,next_follow_at) VALUES (?,?,?,?,?,?,?,?,?)'
+    ).run(ownerUserId, visitor.name || '游客', visitor.phone || '', visitor.wechat || '', visitor.company || '',
+      JSON.stringify(['radar']), source || 'radar', 'pending', '');
+  }
+
+  // 7. 推送（P0/P1）：读 push_config，按 notice_type 分发
+  function sendNotify(tenantId, ownerUserId, event, visitor) {
+    const cfg = db.prepare('SELECT * FROM card_radar_push_config WHERE tenant_id=?').get(tenantId);
+    if (!cfg || cfg.switch !== 1) return { ok: false, reason: 'no-config' };
+    const openid = db.prepare('SELECT openid FROM platform_user WHERE id=?').get(ownerUserId);
+    if (!openid) return { ok: false, reason: 'no-openid' };
+    const payload = {
+      openid: openid.openid,
+      event: event.name,
+      title: event.title,
+      visitor: visitor.name || '匿名访客',
+      time: new Date().toLocaleString('zh-CN')
+    };
+    // notice_type 1：一次性订阅消息（wx.requestSubscribeMessage 授权后推一次）
+    // notice_type 2：公众号模板消息（需用户已关注）
+    // 推送由外部 channel 封装，此处返回 payload 交由 routes 调用
+    return { ok: true, payload, channel: event.notice_type };
+  }
+
+  return { matchEvent, onVisitorEvent, topLeads, pickWords, upsertClient, sendNotify, computeIntent };
+}</code></pre>
+
+<h2 seq="auto">API 接口清单</h2>
+
+<table>
+<colgroup><col width="60"/><col width="250"/><col width="270"/><col width="240"/></colgroup>
+<thead><tr><th><p>方法</p></th><th><p>路径</p></th><th><p>说明</p></th><th><p>鉴权</p></th></tr></thead>
+<tbody>
+<tr><td><p>POST</p></td><td><p>/api/card/visitor/track</p></td><td><p>改造：上报行为后调 radar.onVisitorEvent + upsertClient + 分级推送</p></td><td><p>否</p></td></tr>
+<tr><td><p>GET</p></td><td><p>/api/card/radar/top-leads</p></td><td><p>高潜客户榜（意向分排序）</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>GET</p></td><td><p>/api/card/radar/intent/:openid</p></td><td><p>单个访客意向详情</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>POST</p></td><td><p>/api/card/radar/subscribe</p></td><td><p>小程序端上报订阅授权结果</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>GET</p></td><td><p>/api/card/radar/config</p></td><td><p>名片主查看雷达配置（开关/推送方式）</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>POST</p></td><td><p>/api/card/radar/config</p></td><td><p>更新雷达配置</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>GET</p></td><td><p>/api/card/radar/words</p></td><td><p>话术列表（按事件分组）</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>POST</p></td><td><p>/api/card/radar/words</p></td><td><p>新增/编辑话术</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>GET</p></td><td><p>/api/card/radar/shares</p></td><td><p>转发传播链列表</p></td><td><p>Bearer</p></td></tr>
+<tr><td><p>GET</p></td><td><p>/api/card/radar/export</p></td><td><p>客户 + 意向导出 CSV / 同步企微（占位）</p></td><td><p>Bearer</p></td></tr>
+</tbody>
+</table>
+
+<p>后台管理（web-admin）新增雷达配置路由：雷达事件 / 话术库 / 推送模板，仿 distribution 后台管理模式，走 admin 鉴权。</p>
+
+<h2 seq="auto">事件匹配与意向分算法</h2>
+
+<p>在 /visitor/track 现有逻辑后追加：</p>
+<ol seq="auto">
+<li>读取 actionType，调用 radar.matchEvent 命中启用事件；未命中直接返回，不做额外处理。</li>
+<li>命中后按事件 importance 判断是否属高意向（转发 / 留电话 / 二次回访），高意向事件升级推送优先级与话术。</li>
+<li>调用 radar.onVisitorEvent 累计 hit 并写意向分（权重 + 关键事件加成 + 时长），结果存 card_radar_intent。</li>
+<li>调用 radar.upsertClient 把访客落入名片主客户池，source=radar、tags 追加 radar。</li>
+<li>调用 radar.pickWords 取话术，写入 card_customer_follow 作为跟进建议（不自动群发，合规）。</li>
+<li>调用 radar.sendNotify 推送名片主，channel 由 notice_type 决定。</li>
+</ol>
+
+<h2 seq="auto">推送实现（关键差异）</h2>
+
+<p>龙兵使用已废弃的 formid（7 天过期）订阅消息；本方案改用新版微信<b>一次性订阅消息</b>：用户在名片页通过 wx.requestSubscribeMessage 授权，每授权可推送一次，授权结果经 /radar/subscribe 上报后端留存，命中事件时消费一次授权推送。</p>
+<p>公众号模板消息作为第二种通道：需名片主已关注公众号且有审核通过的模板，推送前在 sendNotify 内校验 gzh_appid / gzh_tmpid 非空，失败记日志不阻塞上报链路。</p>
+
+<h2 seq="auto">无感留资、转发追踪与 CRM 导出</h2>
+
+<ul>
+<li><b>无感留资（P0）</b>：名片页内嵌线索表单（复用 design_leads），用户授权手机号即落线索 → 通过 upsertClient 进客户池 → 触发一次高意向事件与推送。</li>
+<li><b>转发追踪（P1）</b>：分享名片时带 share_url，被转发者打开记录 card_radar_share（from_user_id / to_openid），名片主可见“谁转发给了谁”，二次传播视为高意向。</li>
+<li><b>CRM 导出 / 企微同步（P1）</b>：/radar/export 提供 CSV 导出（客户 + 意向分 + 跟进状态）；企微同步预留接口位，待企微凭证联调。</li>
+</ul>
+
+<h2 seq="auto">前端页面</h2>
+
+<table>
+<colgroup><col width="160"/><col width="330"/><col width="330"/></colgroup>
+<thead><tr><th><p>页面</p></th><th><p>端</p></th><th><p>内容</p></th></tr></thead>
+<tbody>
+<tr><td><p>访客雷达</p></td><td><p>C 端 card 页</p></td><td><p>在现有 visitors.vue 上增加高潜榜、意向分、关键行为标记</p></td></tr>
+<tr><td><p>雷达配置</p></td><td><p>C 端名片主</p></td><td><p>推送开关、订阅授权引导、话术库设置、转发追踪列表</p></td></tr>
+<tr><td><p>雷达管理</p></td><td><p>web-admin</p></td><td><p>事件定义、话术库、推送模板配置（仿 distribution 后台）</p></td></tr>
+</tbody>
+</table>
+
+<h1 seq="auto">模块二：VIP 权益扩展</h1>
+
+<h2 seq="auto">目标</h2>
+
+<p>保留龙兵四维（模板折扣 / 收藏上限 / 语音 / 建群数），并叠加市场验证的三档：AI 能力付费钩子、用量配额、企业席位，把付费点从“解锁功能”升级为“解锁智能与规模”。</p>
+
+<h2 seq="auto">表变更</h2>
+
+<pre lang="sql" caption="member_package 增列（db.js 迁移，try/catch）"><code>// 迁移：member_package 增列
+try { db.exec('ALTER TABLE member_package ADD COLUMN discount REAL NOT NULL DEFAULT 1.0'); } catch (e) {}
+try { db.exec('ALTER TABLE member_package ADD COLUMN collect_limit INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+try { db.exec('ALTER TABLE member_package ADD COLUMN voice_enabled INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+try { db.exec('ALTER TABLE member_package ADD COLUMN group_limit INTEGER NOT NULL DEFAULT 0'); } catch (e) {}</code></pre>
+
+<p>features 能力点数组新增枚举：ai_report（AI 意向报告）、ai_words（AI 个性化话术）、quota_lead（无感留资配额）、quota_push（推送配额）、enterprise（企业席位 / 报表导出 / CRM 同步）。示例等级：free 无以上点；silver 含 ai_report；gold 含 ai_report + ai_words + quota_lead；diamond 含全部 + enterprise。</p>
+
+<h2 seq="auto">集中校验服务 services/quota.js</h2>
+
+<p>统一能力校验，避免权益逻辑散落各处；仿 distribution.js 工厂模式。</p>
+
+<pre lang="js" caption="services/quota.js 骨架"><code>export function createQuotaService(db) {
+  // 取用户当前会员等级与套餐（租户维度）
+  function planOf(userId, tenantId) {
+    const row = db.prepare(
+      'SELECT member_level FROM platform_user WHERE id=? AND tenant_id=?'
+    ).get(userId, tenantId);
+    if (!row || !row.member_level || row.member_level === 'free') return null;
+    return db.prepare('SELECT * FROM member_package WHERE level=?').get(row.member_level) || null;
+  }
+
+  // 校验某能力点是否可用
+  function hasFeature(userId, tenantId, feature) {
+    const plan = planOf(userId, tenantId);
+    if (!plan) return false;
+    return (JSON.parse(plan.features || '[]')).includes(feature);
+  }
+
+  // 用量配额校验：返回剩余额度，-1 表示不限
+  function quotaLeft(userId, tenantId, kind) {
+    if (!hasFeature(userId, tenantId, kind)) return 0;
+    const limit = kind === 'quota_lead' ? 50 : 100; // 按套餐可配置，此处示例
+    const used = db.prepare('SELECT COUNT(*) c FROM design_leads WHERE user_id=?').get(userId).c;
+    return Math.max(0, limit - used);
+  }
+
+  // 收藏上限
+  function canCollect(userId, tenantId) {
+    const plan = planOf(userId, tenantId);
+    const limit = plan ? plan.collect_limit : 0; // 0 = 不限
+    if (limit === 0) return true;
+    const used = db.prepare('SELECT COUNT(*) c FROM card_collect WHERE user_id=?').get(userId).c;
+    return used &lt; limit;
+  }
+
+  return { planOf, hasFeature, quotaLeft, canCollect };
+}</code></pre>
+
+<h2 seq="auto">权益点明细</h2>
+
+<table>
+<colgroup><col width="200"/><col width="300"/><col width="320"/></colgroup>
+<thead><tr><th><p>权益点</p></th><th><p>校验位置</p></th><th><p>落地动作</p></th></tr></thead>
+<tbody>
+<tr><td><p>模板折扣（龙兵四维）</p></td><td><p>购买模板下单</p></td><td><p>读 member_package.discount 打折，复用统一支付单</p></td></tr>
+<tr><td><p>收藏上限（龙兵四维）</p></td><td><p>收藏名片动作</p></td><td><p>quota.canCollect 拦截，超限提示升级</p></td></tr>
+<tr><td><p>语音简介（龙兵四维）</p></td><td><p>名片编辑页</p></td><td><p>voice_enabled 控制语音上传显隐</p></td></tr>
+<tr><td><p>建群数（龙兵四维）</p></td><td><p>创建群动作</p></td><td><p>group_limit 拦截超限</p></td></tr>
+<tr><td><p>AI 报告 / AI 话术（AI 钩子）</p></td><td><p>访客雷达页 / 话术生成</p></td><td><p>hasFeature(ai_report / ai_words)，高等级才可见</p></td></tr>
+<tr><td><p>留资配额（用量配额）</p></td><td><p>design_leads 写入</p></td><td><p>quota.quotaLeft 控制，超额提示升级</p></td></tr>
+<tr><td><p>企业席位（企业版）</p></td><td><p>方案化权限层</p></td><td><p>feature enterprise：员工名片数、报表导出、CRM 同步作为高客单档位</p></td></tr>
+</tbody>
+</table>
+
+<p>支付与开卡链路（member/buy → payment.js → 支付成功开卡）不修改，新权益随 member_package 读取直接生效。</p>
+
+<h2 seq="auto">前端页面</h2>
+
+<ul>
+<li><b>C 端会员卡</b>：myCard 展示权益清单（折扣 / 收藏上限 / 语音 / 建群 / AI 报告 / 配额余量）。</li>
+<li><b>C 端名片编辑页</b>：按 voice_enabled 显隐语音；模板选择展示会员折扣价。</li>
+<li><b>C 端访客雷达页</b>：ai_report 会员可见 AI 意向报告入口，非会员展示“升级查看”。</li>
+<li><b>web-admin 会员套餐</b>：套餐编辑页增列 discount / collect_limit / voice_enabled / group_limit 与 features 勾选。</li>
+</ul>
+
+<h1 seq="auto">测试计划</h1>
+
+<table>
+<colgroup><col width="220"/><col width="600"/></colgroup>
+<thead><tr><th><p>层级</p></th><th><p>用例</p></th></tr></thead>
+<tbody>
+<tr><td><p>后端（node:test + supertest）</p></td><td><p>雷达事件命中与未命中分支；意向分边界（0/100、关键事件加成）；话术时间区间匹配（含 0 不限）；推送开关关闭不阻塞上报；quota 的 canCollect / hasFeature / quotaLeft 各等级；收藏超限拦截。</p></td></tr>
+<tr><td><p>前端（vitest）</p></td><td><p>访客雷达高潜榜渲染；会员权益清单按等级显示；语音 / 模板折扣显隐。</p></td></tr>
+<tr><td><p>构建验证</p></td><td><p>npm run build:admin + npm run verify + npm run test:frontend 全绿。</p></td></tr>
+</tbody>
+</table>
+
+<h1 seq="auto">实施里程碑</h1>
+
+<ol seq="auto">
+<li><b>阶段 A · 数据与后端</b>：db.js 追加 4 张雷达表 + member_package 增列；新建 radar.js / quota.js；card.js 挂雷达路由、改造 /visitor/track；后端测试。</li>
+<li><b>阶段 B · 后台配置</b>：web-admin 新增雷达事件 / 话术库 / 推送模板 / 会员套餐新字段；构建 verify。</li>
+<li><b>阶段 C · C 端页面</b>：访客雷达高潜榜与 AI 报告入口、雷达配置、名片编辑语音 / 模板折扣、会员卡权益展示。</li>
+<li><b>阶段 D · 联调收尾</b>：一次性订阅消息授权联调、公众号模板配置、CRM 导出 / 企微占位、全量测试与构建。</li>
+</ol>
+
+<h1 seq="auto">风险与待确认</h1>
+
+<ul>
+<li><b>订阅消息授权门槛</b>：一次性订阅每次需用户授权，非会员 / 未授权用户无法即时推送；需在名片页设计授权引导，且推送仅为辅助提醒，不阻塞主链路。</li>
+<li><b>AI 话术接口</b>：AI 生成话术依赖现有 AI 能力，方案中先以静态兜底文案占位，接 AI 后再替换。</li>
+<li><b>企微同步</b>：依赖企业微信凭证联调，本期先提供 CSV 导出，企微同步保留接口位。</li>
+<li><b>会员归属</b>：VIP 权益按用户 / 租户维度生效，多名片共享，需确认与现有方案化权限的边界是否一致。</li>
+<li><b>配额基数</b>：quota 示例数值（留资 50 / 推送 100）仅为占位，待运营确认后写入套餐配置。</li>
+</ul>

@@ -1,0 +1,86 @@
+<title>智能名片系统使用逻辑（360全景自研版应用）</title>
+<h1>摘要</h1>
+<p><b>核心判断：</b>该系统是"名片分发 + 访客雷达 + 会员商业化 + 分销分佣"四位一体的闭环。使用逻辑可概括为：<b>五类角色</b>（平台/名片用户/访客/分销商）、<b>两条入口</b>（分享名片进入展示页、直接打开进入我的名片页）、<b>十二步主流程闭环</b>（授权→创建→展示→留痕→分发→名片夹→集市→雷达→VIP→分销→提现→后台），叠加支付幂等、分佣分层、模板状态机等关键规则。以下按自研版（360全景）落点逐项给出映射。</p>
+<html5-block path="@./draft_1602b24d_folder/widget.html"/>
+<h1>一、角色与权限地图</h1>
+<table>
+<colgroup><col width="150"/><col width="270"/><col width="400"/></colgroup>
+<thead><tr><th><p>角色</p></th><th><p>职责</p></th><th><p>自研版落点</p></th></tr></thead>
+<tbody>
+<tr><td><p>平台方 / 运营</p></td><td><p>后台配置模板、雷达规则、广告、分类、支付开关、开数授权（多租户）</p></td><td><p>web-admin 管理端（现有），需补雷达配置、模板/开数授权</p></td></tr>
+<tr><td><p>名片用户（商家/个人）</p></td><td><p>创建名片、对外展示、开通 VIP、分销推广、收入提现</p></td><td><p>myCard / cardDetail / member / distribution（现有）</p></td></tr>
+<tr><td><p>访客 / 陌生人</p></td><td><p>浏览名片、点赞收藏、电话微信、留痕留资</p></td><td><p>cardDetail 访客侧 + card_visitor / card_visitor_action（现有）</p></td></tr>
+<tr><td><p>分销商</p></td><td><p>推广名片、发展下线、按层级分佣、生成分销海报</p></td><td><p>distribution / distPartner / distShare*（现有，直推+间推）</p></td></tr>
+</tbody>
+</table>
+<h1>二、进入路径与首屏</h1>
+<p>陌生人的第一屏决定了产品第一印象，需优先还原。</p>
+<table>
+<colgroup><col width="220"/><col width="300"/><col width="300"/></colgroup>
+<thead><tr><th><p>入口</p></th><th><p>源码行为</p></th><th><p>自研版落点</p></th></tr></thead>
+<tbody>
+<tr><td><p>入口 A · 分享名片进入</p></td><td><p>path=home?scene=uid，第一屏即对方名片展示页（模板 + 点赞收藏 + 语音 + 雷达悬浮球 + 滚动视差）</p></td><td><p>cardDetail.vue（重点，含场景值追踪）</p></td></tr>
+<tr><td><p>入口 B · 直接打开</p></td><td><p>entryPagePath=index；有名片→展示自己名片+完善引导；无名片→平台引导文案 + 授权登录引导创建</p></td><td><p>myCard.vue 首页引导逻辑</p></td></tr>
+</tbody>
+</table>
+<h1>三、使用逻辑主线（十二步闭环）</h1>
+<p>按主闭环（1-7）与商业化扩展（8-12）分组，标注自研版已有/待补。</p>
+<h2>3.1 主闭环（访客→留痕→分发）</h2>
+<table>
+<colgroup><col width="36"/><col width="130"/><col width="330"/><col width="320"/></colgroup>
+<thead><tr><th><p>#</p></th><th><p>步骤</p></th><th><p>行为</p></th><th><p>自研版落点</p></th></tr></thead>
+<tbody>
+<tr><td><p>1</p></td><td><p>授权登录</p></td><td><p>wx.login→code2Session→静默获取用户信息存 globalData；websocket 常连接收实时未读</p></td><td><p>现有登录鉴权；websocket 实时红点为增强项</p></td></tr>
+<tr><td><p>2</p></td><td><p>创建名片</p></td><td><p>姓名/职位/行业必填（行业、城市级联）；可选语音、头像相册、公司信息、地址；is_private 公开/私密</p></td><td><p>create.vue 表单，补行业/城市级联与必填校验</p></td></tr>
+<tr><td><p>3</p></td><td><p>对外展示</p></td><td><p>多模板切换（tp1/tp2）；信息卡；语音卡；VIP 徽章；4 键操作栏</p></td><td><p>cardDetail.vue + 模板体系（待补多模板）</p></td></tr>
+<tr><td><p>4</p></td><td><p>访客留痕</p></td><td><p>他人浏览 hot+1；点赞/收藏/电话/微信/地址等每个动作全量雷达上报</p></td><td><p>card_visitor / card_visitor_action（现有），补事件维度</p></td></tr>
+<tr><td><p>5</p></td><td><p>名片分发</p></td><td><p>转发分享（定制标题+分享上报）、海报生成、小程序码、分销海报 canvas 绘制</p></td><td><p>share 能力 + 海报（待补 canvas）</p></td></tr>
+<tr><td><p>6</p></td><td><p>名片夹</p></td><td><p>收藏名片管理、分组、快捷联系</p></td><td><p>收藏列表（待补分组）</p></td></tr>
+<tr><td><p>7</p></td><td><p>人脉集市</p></td><td><p>热门/附近 LBS；分类；广告轮播；sticky 吸顶 Tab</p></td><td><p>market / visitors 列表（待补 LBS 与吸顶）</p></td></tr>
+</tbody>
+</table>
+<h2>3.2 商业化扩展（雷达→VIP→分销）</h2>
+<table>
+<colgroup><col width="36"/><col width="130"/><col width="330"/><col width="320"/></colgroup>
+<thead><tr><th><p>#</p></th><th><p>步骤</p></th><th><p>行为</p></th><th><p>自研版落点</p></th></tr></thead>
+<tbody>
+<tr><td><p>8</p></td><td><p>雷达运营</p></td><td><p>意向判客、客户列表、打标签、星标、群发、订阅推送（配置→规则→事件→意向→话术→推送→标签闭环）</p></td><td><p>visitors / visitorTimeline + 开发方案（雷达新表待建）</p></td></tr>
+<tr><td><p>9</p></td><td><p>会员 VIP</p></td><td><p>等级套餐 join→order→pay；权益维度：名片折扣/可收藏数/语音/建群数/模板购买</p></td><td><p>member.vue + member_package（待补权益列）</p></td></tr>
+<tr><td><p>10</p></td><td><p>分销分佣</p></td><td><p>直推 proportion1 + 间推 proportion2；支付成功自动分账；合伙人等级 + 升级门槛</p></td><td><p>distribution.js（现有，对等）</p></td></tr>
+<tr><td><p>11</p></td><td><p>钱包提现</p></td><td><p>余额三键隔离；受 withdrawal_limit 限制；手动/自动企业付款，失败回滚</p></td><td><p>distWallet + payment.js（现有，补限额与回滚）</p></td></tr>
+<tr><td><p>12</p></td><td><p>平台后台</p></td><td><p>模板元数据、雷达配置、广告、分类、开数授权（多租户按开数授权）</p></td><td><p>web-admin（现有，补雷达配置与模板/开数授权）</p></td></tr>
+</tbody>
+</table>
+<h1>四、关键业务规则（闭环约束）</h1>
+<ul>
+<li><b>登录静默 + 必要授权：</b>微信静默登录，无需强制授权即可浏览；创建/留资时按需授权。</li>
+<li><b>名片校验：</b>行业、地址未完善则不能对外展示，返回引导（tipPerfect→去完善）。</li>
+<li><b>全量留痕：</b>点赞/收藏/分享/电话/微信/地址导航每个动作都上报雷达（like_card/collect_card/share_card/call_tel/…）。</li>
+<li><b>支付回调幂等：</b>订单 status==0 判重，按 type 分发（VIP/模板/合伙人/置顶），随后触发分佣 Hook。</li>
+<li><b>分佣规则：</b>直推 proportion1 + 间推 proportion2，单笔比例 ≥1 才入账（防零元分佣）。</li>
+<li><b>模板状态机：</b>0 购买 → 1 使用 → 2 已使用；VIP 按等级享受折扣。</li>
+<li><b>提现：</b>受 withdrawal_limit 限制；自动企业付款失败回滚到余额。</li>
+<li><b>雷达闭环：</b>配置→规则→事件匹配→意向分→话术→推送→打标签，是运营型雷达而非记录型。</li>
+</ul>
+<h1>五、自研版落点映射</h1>
+<table>
+<colgroup><col width="200"/><col width="330"/><col width="290"/></colgroup>
+<thead><tr><th><p>能力</p></th><th><p>平台版做法</p></th><th><p>360全景 现状与建议</p></th></tr></thead>
+<tbody>
+<tr><td><p>名片展示</p></td><td><p>多模板 tp1/tp2、视差、点赞收藏实心态、语音卡、雷达球</p></td><td><p>cardDetail 已有基础；按 UI 方案补多模板 + 动效（P0）</p></td></tr>
+<tr><td><p>访客留痕</p></td><td><p>hot+1、全动作雷达上报、访客头像墙</p></td><td><p>card_visitor / action 已有；补事件维度与头像墙</p></td></tr>
+<tr><td><p>雷达运营</p></td><td><p>配置/规则/话术/意向/群发/标签闭环</p></td><td><p>开发方案 4 张新表 + radar.js 待实施（P1）</p></td></tr>
+<tr><td><p>会员 VIP</p></td><td><p>等级权益：折扣/收藏数/语音/建群/模板</p></td><td><p>member_package 补权益列 + quota.js（P1）</p></td></tr>
+<tr><td><p>分销分佣</p></td><td><p>直推+间推、支付分账、合伙人等级</p></td><td><p>distribution.js 已对等（无需改）</p></td></tr>
+<tr><td><p>支付</p></td><td><p>订单 status==0 判重 + type 分发 + 分佣 Hook</p></td><td><p>payment.js 已有，补 type 分发扩展（VIP/置顶）</p></td></tr>
+<tr><td><p>提现</p></td><td><p>限额 + 手动/自动企业付款回滚</p></td><td><p>distWallet 补限额与回滚（P2）</p></td></tr>
+<tr><td><p>多租户授权</p></td><td><p>按开数（1/5/20/无限）授权</p></td><td><p>web-admin 补开数授权（P2）</p></td></tr>
+</tbody>
+</table>
+<h1>六、建议落地顺序</h1>
+<ol>
+<li><b>P0 · 主闭环补齐：</b>多模板展示、名片必填校验（行业/地址）、访客头像墙、分享海报。</li>
+<li><b>P1 · 雷达 + VIP：</b>雷达 4 新表 + 意向判客 + 话术推送；会员权益列 + 用量配额。</li>
+<li><b>P2 · 商业化增强：</b>支付 type 分发扩展（置顶）、提现限额回滚、分销海报、多租户开数授权。</li>
+<li><b>P3 · 实时与分发：</b>websocket 实时未读、模板状态机折扣、广告轮播。</li>
+</ol>

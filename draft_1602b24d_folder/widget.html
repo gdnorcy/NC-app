@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="use-iframe" content="true">
+<meta name="html-box-height-mode" content="auto">
+<meta name="description" content="智能名片系统使用逻辑全景：四类角色、两条入口、主流程十二步闭环、关键规则">
+<title>智能名片系统使用逻辑全景</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f7f8fa;color:#1f2329;padding:18px;font-size:13px;line-height:1.55;}
+.title{font-size:17px;font-weight:700;color:#1f2329;margin-bottom:2px;}
+.sub{font-size:11px;color:#86909c;margin-bottom:14px;}
+.section{font-size:13px;font-weight:700;color:#165dff;margin:14px 0 6px;}
+/* 角色 */
+.roles{display:flex;gap:10px;flex-wrap:wrap;}
+.role{flex:1;min-width:170px;background:#fff;border:1px solid #e5e6eb;border-radius:10px;padding:10px;border-top:3px solid #165dff;}
+.role:nth-child(2){border-top-color:#f59e0b;}
+.role:nth-child(3){border-top-color:#16a34a;}
+.role:nth-child(4){border-top-color:#dc2626;}
+.role h4{font-size:13px;margin-bottom:5px;}
+.role div{font-size:11px;color:#4e5969;}
+.role span{display:block;font-size:10px;color:#86909c;margin-top:3px;}
+/* 入口 */
+.entry{display:flex;gap:10px;flex-wrap:wrap;}
+.entry .card{flex:1;min-width:220px;background:#fff;border:1px solid #e5e6eb;border-radius:10px;padding:10px;}
+.entry .card b{font-size:12px;}
+.entry .card div{font-size:11px;color:#4e5969;margin-top:3px;}
+/* 主流程 */
+.flow{display:flex;flex-wrap:wrap;gap:8px;}
+.step{flex:1 1 140px;background:#fff;border:1px solid #e5e6eb;border-radius:8px;padding:8px 9px;position:relative;}
+.step .n{display:inline-block;width:18px;height:18px;border-radius:50%;background:#165dff;color:#fff;font-size:11px;text-align:center;line-height:18px;font-weight:700;margin-right:5px;}
+.step b{font-size:12px;}
+.step div{font-size:10px;color:#4e5969;margin-top:3px;}
+.step.hl{border-color:#f59e0b;}
+.step.hl .n{background:#f59e0b;}
+/* 规则 */
+.rules{background:#fff;border:1px solid #e5e6eb;border-radius:10px;padding:10px 12px;}
+.rules li{font-size:11px;color:#4e5969;margin:3px 0;padding-left:2px;}
+.rules b{color:#1f2329;}
+.tag{display:inline-block;font-size:10px;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px;}
+.tag.p0{background:#fff1e0;color:#f59e0b;}
+.tag.p1{background:#eef3ff;color:#165dff;}
+.tag.p2{background:#eafaf0;color:#16a34a;}
+</style>
+</head>
+<body>
+<div class="title">智能名片系统 · 使用逻辑全景</div>
+<div class="sub">示意 · 依据平台版源码归纳，用于 360全景 自研版落点映射</div>
+
+<div class="section">一、四类角色</div>
+<div class="roles">
+  <div class="role"><h4>平台方 / 运营</h4><div>后台配置模板、雷达、广告、分类、支付开关、开数授权</div><span>管理端 · 平台层</span></div>
+  <div class="role"><h4>名片用户（商家/个人）</h4><div>创建名片、对外展示、VIP 会员、分销推广、收入提现</div><span>小程序 C 端</span></div>
+  <div class="role"><h4>访客 / 陌生人</h4><div>浏览名片、点赞收藏、电话微信、留痕留资</div><span>被分享进入</span></div>
+  <div class="role"><h4>分销商</h4><div>推广名片、发展下线、按层级分佣、生成分销海报</div><span>下级用户</span></div>
+</div>
+
+<div class="section">二、两条入口</div>
+<div class="entry">
+  <div class="card"><b>入口 A · 分享名片进入 → 名片展示页(home)</b><div>他人转发 / 海报 / 小程序码，带场景值 pid 追踪来源，第一屏即对方名片（tp1/tp2 模板 + 点赞收藏 + 语音 + 雷达）</div></div>
+  <div class="card"><b>入口 B · 直接打开小程序 → 我的名片页(index)</b><div>已有名片 → 展示自己名片；无名片陌生人 → 平台引导文案 + 授权登录引导创建</div></div>
+</div>
+
+<div class="section">三、主流程（十二步闭环）</div>
+<div class="flow">
+  <div class="step"><span class="n">1</span><b>授权登录</b><div>wx.login→code2Session→静默；websocket 常连实时未读</div></div>
+  <div class="step"><span class="n">2</span><b>创建名片</b><div>姓名/职位/行业必填；语音、相册、公司、地址；公开/私密</div></div>
+  <div class="step"><span class="n">3</span><b>对外展示</b><div>多模板切换；信息卡；语音；VIP 徽章</div></div>
+  <div class="step"><span class="n">4</span><b>访客留痕</b><div>浏览 hot+1；点赞/收藏/电话/微信/地址全量雷达上报</div></div>
+  <div class="step"><span class="n">5</span><b>名片分发</b><div>转发 / 海报 / 小程序码 / 分销海报 canvas 生成</div></div>
+  <div class="step"><span class="n">6</span><b>名片夹</b><div>收藏名片管理、分组、快捷联系</div></div>
+  <div class="step"><span class="n">7</span><b>人脉集市</b><div>热门 / 附近 LBS；分类；广告轮播；sticky 吸顶</div></div>
+  <div class="step hl"><span class="n">8</span><b>雷达运营</b><div>意向判客、客户列表、打标签、星标、群发、订阅推送</div></div>
+  <div class="step"><span class="n">9</span><b>会员 VIP</b><div>等级套餐 join→order→pay；权益：折扣/可收藏数/语音/建群/模板</div></div>
+  <div class="step hl"><span class="n">10</span><b>分销分佣</b><div>直推+间推两级；支付成功自动分账；合伙人等级</div></div>
+  <div class="step"><span class="n">11</span><b>钱包提现</b><div>余额三键隔离；手动/自动企业付款，失败回滚</div></div>
+  <div class="step"><span class="n">12</span><b>平台后台</b><div>模板元数据、雷达配置、广告、分类、开数授权</div></div>
+</div>
+
+<div class="section">四、关键规则</div>
+<div class="rules">
+  <li><b>支付回调幂等：</b>订单 status==0 判重，按 type 分发（VIP/模板/合伙人/置顶）后触发分佣 Hook</li>
+  <li><b>分佣规则：</b>直推 proportion1 + 间推 proportion2，比例 &ge;1 才入账</li>
+  <li><b>名片校验：</b>行业、地址未完善则不能对外展示（引导完善）</li>
+  <li><b>模板状态机：</b>0 购买 → 1 使用 → 2 已使用；VIP 享受折扣</li>
+  <li><b>提现：</b>受 withdrawal_limit 限制；自动企业付款失败回滚</li>
+  <li><b>雷达闭环：</b>配置 → 规则 → 事件 → 意向 → 话术 → 推送 → 打标签</li>
+</div>
+</body>
+</html>
