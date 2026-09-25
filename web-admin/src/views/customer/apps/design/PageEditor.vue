@@ -150,15 +150,6 @@
           </div>
           <!-- 画布 = 真实 C 端页面（iframe 渲染，B1：编辑所见即线上） -->
           <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop.prevent="onCanvasDrop">
-            <!-- 选中组件操作条（上移/下移/复制/删除，仿 ew：画布内不拖拽） -->
-            <div v-if="selectedComp" class="pe-comp-tools pe-canvas-tools" :style="{ top: toolsTop + 'px' }">
-              <span class="pe-comp-idx">{{ compIndex(selectedComp) }}</span>
-              <span class="pe-comp-type">{{ selectedComp.name }}</span>
-              <span class="pe-tool" title="上移" @click.stop="moveComp(selectedComp, -1)">↑</span>
-              <span class="pe-tool" title="下移" @click.stop="moveComp(selectedComp, 1)">↓</span>
-              <span class="pe-tool" title="复制" @click.stop="dupComp(selectedComp)">⧉</span>
-              <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(selectedComp.id)">✕</span>
-            </div>
             <div
               v-for="(c, i) in components"
               :key="c.id"
@@ -170,6 +161,15 @@
               @drop.prevent="onCompDrop()"
               @click.stop="selectComp(c)"
             >
+              <!-- 组件操作条（组件内嵌，hover/选中显示，对齐 ew） -->
+              <div class="pe-comp-tools" @click.stop>
+                <span class="pe-comp-idx">{{ compIndex(c) }}</span>
+                <span class="pe-comp-type">{{ c.name }}</span>
+                <span class="pe-tool" title="上移" @click.stop="moveComp(c, -1)">↑</span>
+                <span class="pe-tool" title="下移" @click.stop="moveComp(c, 1)">↓</span>
+                <span class="pe-tool" title="复制" @click.stop="dupComp(c)">⧉</span>
+                <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(c.id)">✕</span>
+              </div>
               <ComponentRender :comp="c" :global="meta.global || {}" />
             </div>
             <div v-if="!components.length" class="pe-empty">
@@ -2107,7 +2107,6 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-canvas { min-height: 420px; padding: 0; background: transparent; position: relative; }
 /* B1：真实 C 端页面 iframe 画布 */
 .pe-live-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 420px; }
-.pe-canvas-tools { right: 4px; position: absolute; z-index: 10; transition: top .12s; }
 .pe-toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 0; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
