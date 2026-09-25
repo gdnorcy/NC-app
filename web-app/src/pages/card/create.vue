@@ -606,8 +606,12 @@ async function submit() {
 .create-page {
   min-height: 100vh;
   background: #f5f7fa;
-  /* 底部留白需容纳 fixed footer（含按钮默认margin与安全区），否则语音简介等底部内容被"下一步"遮挡 */
-  padding-bottom: calc(240rpx + env(safe-area-inset-bottom));
+  /* 底部留白 = footer高 + 视觉间距(约20rpx)。H5 footer约120rpx → 140rpx 间隙舒适 */
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+  /* #ifdef MP-WEIXIN */
+  /* 小程序 button 默认 margin 使 footer 更高 → 148rpx 与 H5(140rpx) 视觉间隙一致(~17px)，safe-area 兜底真机 */
+  padding-bottom: calc(148rpx + env(safe-area-inset-bottom));
+  /* #endif */
 }
 
 /* 顶部标题 */
