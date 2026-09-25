@@ -606,7 +606,8 @@ async function submit() {
 .create-page {
   min-height: 100vh;
   background: #f5f7fa;
-  padding-bottom: 140rpx;
+  /* 底部留白需容纳 fixed footer（含按钮默认margin与安全区），否则语音简介等底部内容被"下一步"遮挡 */
+  padding-bottom: calc(240rpx + env(safe-area-inset-bottom));
 }
 
 /* 顶部标题 */
