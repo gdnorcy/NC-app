@@ -1,5 +1,5 @@
 <template>
-  <view class="mall-page">
+  <view class="mall-page" :class="{ 'mp-editor': editorMode }">
     <!-- 顶部栏：返回(有来源时) + 标题 + 购物车入口 -->
     <view class="mall-nav" v-if="!designComps.length">
       <view class="nav-back" @click="goBack" v-if="canBack"><text>‹</text></view>
@@ -12,7 +12,18 @@
 
     <!-- 首页装修区（商品管理-首页装修；未配置/未发布时为空，走下方瀑布流兜底） -->
     <view v-if="designComps.length" class="design-zone">
-      <DesignPage :comps="designComps" :tenant-id="Number(tid)" />
+      <!-- 编辑预览（设计中心 iframe）组件槽：点击选中 + 高亮，仅 H5 编辑模式生效 -->
+      <template v-for="(c, i) in designComps" :key="i">
+        <view
+          class="dp-slot"
+          :class="{ 'dp-slot-sel': editorSel === i }"
+          <!-- #ifdef H5 -->
+          @click.capture.stop="onSlotClick($event, i)"
+          <!-- #endif -->
+        >
+          <DesignPage :comps="[c]" :tenant-id="Number(tid)" :global="designGlobal" />
+        </view>
+      </template>
     </view>
 
     <!-- 兜底商品列表（装修稿未含「商品列表」组件时展示：分类 + 排序 + 瀑布流） -->
@@ -77,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
 import { yuanFmt, getTid, getToken } from '../../utils/mallUtil.js';
@@ -105,6 +116,7 @@ const cartCount = ref(0);
 const canBack = ref(getCurrentPages().length > 1);
 // 首页装修：mall-home 页面草稿/发布稿（C 端读取发布稿→草稿回退），组件由 DesignPage 渲染
 const designComps = ref([]);
+const designGlobal = ref({});
 const pageType = ref('');
 const hasGoodsList = computed(() => designComps.value.some((c) => ['goods-group','goods-all','goods-tabs','goods-rank','goods-like','goods-swiper','goods-show','goods-featured'].includes(c.type)));
 
@@ -197,7 +209,63 @@ function fetchMallDesign() {
     .catch(() => { designComps.value = []; });
 }
 
+// ---- 设计中心编辑预览模式（iframe，仅 H5）：接收 designJson / 选中高亮 / 点击上报 / 高度上报 ----
+const editorMode = ref(false);
+const editorSel = ref(-1);
+let editorBridgeBound = false;
+function detectEditorMode() {
+  // #ifdef H5
+  try {
+    const q = (window.location.hash.split('?')[1] || '');
+    if (new URLSearchParams(q).get('editor') === '1') editorMode.value = true;
+  } catch { /* 忽略 */ }
+  // #endif
+}
+function reportEditorHeight() {
+  // #ifdef H5
+  if (!editorMode.value) return;
+  try {
+    const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    window.parent.postMessage({ source: 'nc-c-iframe', type: 'resize', height: h }, '*');
+  } catch { /* 忽略 */ }
+  // #endif
+}
+function bindEditorBridge() {
+  // #ifdef H5
+  if (editorBridgeBound) return;
+  editorBridgeBound = true;
+  window.addEventListener('message', (e) => {
+    const d = e && e.data;
+    if (!d || d.source !== 'nc-admin') return;
+    if (d.type === 'design-json') {
+      const j = d.json || {};
+      designComps.value = Array.isArray(j.components) ? j.components.filter((x) => x && x.type) : [];
+      const meta = j.meta || {};
+      designGlobal.value = meta.global || {};
+      nextTick(reportEditorHeight);
+    } else if (d.type === 'set-selected') {
+      editorSel.value = typeof d.index === 'number' ? d.index : -1;
+    }
+  });
+  window.addEventListener('resize', reportEditorHeight);
+  if (typeof MutationObserver !== 'undefined') {
+    const mo = new MutationObserver(() => { clearTimeout(reportEditorHeight._t); reportEditorHeight._t = setTimeout(reportEditorHeight, 200); });
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+  }
+  setTimeout(reportEditorHeight, 300);
+  // #endif
+}
+function onSlotClick(e, i) {
+  // #ifdef H5
+  if (!editorMode.value) return;
+  e.stopPropagation();
+  try { window.parent.postMessage({ source: 'nc-c-iframe', type: 'component-click', index: i }, '*'); } catch { /* 忽略 */ }
+  // #endif
+}
+
 onLoad((o) => {
+  detectEditorMode();
+  if (editorMode.value) bindEditorBridge();
   tid.value = getTid(o);
   // 行业首页联动：/pages/mall/index?pageType=xxx（「设为商城首页」写入的装修页面）
   if (o && o.pageType) pageType.value = String(o.pageType).trim();
@@ -220,6 +288,8 @@ onLoad((o) => {
 onShow(() => {
   if (tid.value) fetchCates();
   fetchCartCount();
+  // 编辑预览（iframe 画布）：装修稿由编辑器 design-json 实时推送，跳过后端拉取避免竞态覆盖
+  if (editorMode.value) return;
   // 装修稿含商品列表组件时，由装修区承载商品展示，跳过瀑布流兜底
   fetchMallDesign().then(() => { if (!hasGoodsList.value) fetchGoods(true); });
 });
@@ -234,6 +304,13 @@ onShow(() => {
   overflow: hidden;
   box-sizing: border-box;
 }
+/* 编辑预览（设计中心 iframe）：页面自然撑高，滚动交给父容器 */
+.mp-editor { height: auto !important; min-height: 100vh; overflow: visible; }
+.mp-editor .goods-scroll { height: auto !important; flex: none; }
+/* 编辑预览组件槽：点击选中高亮 */
+.dp-slot { position: relative; }
+.dp-slot-sel { outline: 3px solid #165dff; outline-offset: -1px; box-shadow: 0 0 0 1px #165dff inset; }
+.dp-slot-sel::after { content: '已选中'; position: absolute; top: 0; right: 0; z-index: 99; padding: 2px 8px; font-size: 20rpx; color: #fff; background: #165dff; border-radius: 0 0 0 8rpx; pointer-events: none; }
 .mall-nav {
   display: flex;
   align-items: center;
