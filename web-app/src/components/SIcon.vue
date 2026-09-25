@@ -1,9 +1,20 @@
 <template>
+  <!-- 小程序端：image 组件不支持 SVG data-URI，改用构建期预生成的 PNG（scripts/gen-mp-sicons.js） -->
+  <!-- #ifdef MP-WEIXIN -->
+  <image
+    class="s-icon"
+    :class="[`s-icon--${size}`, { 's-icon--disabled': disabled }]"
+    :src="mpIconSrc"
+    mode="aspectFit"
+  />
+  <!-- #endif -->
+  <!-- #ifndef MP-WEIXIN -->
   <view
     class="s-icon"
     :class="[`s-icon--${size}`, { 's-icon--disabled': disabled }]"
     :style="iconStyle"
   />
+  <!-- #endif -->
 </template>
 
 <script setup>
@@ -55,6 +66,7 @@ const svgMap = {
   logs: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/><path d="M8 3v2M16 3v2"/>',
   crown: '<path d="M3 7l4 4 5-7 5 7 4-4-2 12H5L3 7z"/><path d="M5 19h14"/>',
   'no-ads': '<circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   badge: '<circle cx="12" cy="9" r="5"/><path d="M8.5 13.5L7 21l5-3 5 3-1.5-7.5"/>',
   voucher: '<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M3 10.5h18"/><circle cx="12" cy="10.5" r="1.7"/>',
   analytics: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="12" y="8" width="3" height="10" rx="1"/><rect x="17" y="5" width="3" height="13" rx="1"/>',
@@ -74,14 +86,24 @@ const svgMap = {
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
 };
 
-// 生成带颜色的SVG base64，作为 view 的背景图（background-size:contain 缩放进固定尺寸的 view）
-const iconStyle = computed(() => {
+// 生成带颜色的SVG data-URI；H5 作为 view 背景图，小程序端作为 image src
+function buildSvgDataUri() {
   const content = svgMap[props.name];
-  if (!content) return {};
+  if (!content) return '';
   const strokeColor = props.color || 'currentColor';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${content}</svg>`;
-  const url = 'url("data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg))) + '")';
-  return { backgroundImage: url };
+  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+}
+const iconSrc = computed(() => buildSvgDataUri());
+// 小程序端图标：指向构建期生成的 PNG（scripts/gen-mp-sicons.js 产出 static/sicons/{name}-{hex}.png）
+const mpIconSrc = computed(() => {
+  const hex = (props.color || '#000000').replace(/^#/, '').toLowerCase();
+  return `/static/sicons/${props.name}-${hex}.png`;
+});
+const iconStyle = computed(() => {
+  const url = buildSvgDataUri();
+  if (!url) return {};
+  return { backgroundImage: `url("${url}")` };
 });
 </script>
 

@@ -20,7 +20,7 @@
     <view class="radar-stats" v-else>
       <view class="rstat up">
         <view class="lbl">今日访问</view>
-        <view class="num"><text class="n">{{ displayToday }}</text><i>人</i></view>
+        <view class="num"><text class="n">{{ displayToday }}</text><text class="num-unit">人</text></view>
         <view class="sub">
           <SIcon name="chart" size="small" color="#07c160" />
           <text>较昨日 {{ diffText }}</text>
@@ -28,7 +28,7 @@
       </view>
       <view class="rstat blue">
         <view class="lbl">本周访问</view>
-        <view class="num"><text class="n">{{ displayWeek }}</text><i>人</i></view>
+        <view class="num"><text class="n">{{ displayWeek }}</text><text class="num-unit">人</text></view>
         <view class="sub">
           <SIcon name="radar" size="small" color="#07c160" />
           <text>累计访问 {{ displayTotal }} 人</text>
@@ -533,7 +533,7 @@ async function saveConvert() {
   color: var(--t5);
   line-height: 1;
 }
-.rstat .num i {
+.rstat .num .num-unit {
   font-style: normal;
   font-size: 26rpx;
   font-weight: 500;

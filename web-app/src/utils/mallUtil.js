@@ -30,7 +30,16 @@ export function getTid(options) {
     try { uni.setStorageSync('mall_tid', String(tid)); } catch { /* 忽略 */ }
     return String(tid);
   }
-  try { return uni.getStorageSync('mall_tid') || ''; } catch { return ''; }
+  try {
+    const saved = uni.getStorageSync('mall_tid');
+    if (saved) return String(saved);
+    // 小程序渠道绑定租户上下文（initChannel 通过 appid 换取 customerId），未登录也能按租户加载模板
+    const cfg = uni.getStorageSync('channel_config');
+    if (cfg && cfg.customerId) return String(cfg.customerId);
+    const cid = uni.getStorageSync('channel_customer_id');
+    if (cid) return String(cid);
+    return '';
+  } catch { return ''; }
 }
 
 // 读登录态 token：H5 端 localStorage 直读优先（uni H5 storage 有内存缓存，与 localStorage 直写可能不同步），小程序端 fallback uni

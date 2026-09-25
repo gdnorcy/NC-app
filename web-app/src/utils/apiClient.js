@@ -28,7 +28,7 @@ export function createApiClient(baseURL, options = {}) {
     try { uni.removeStorageSync(tokenKey); } catch { /* 忽略 */ }
   }
 
-  function request(url, method = 'GET', data = {}) {
+  function request(url, method = 'GET', data = {}, opts = {}) {
     return new Promise((resolve, reject) => {
       const token = readToken();
       uni.request({
@@ -41,6 +41,13 @@ export function createApiClient(baseURL, options = {}) {
         },
         success: (res) => {
           if (res.statusCode === 401) {
+            // 默认 401 清凭证跳登录；调用方传 opts.skipAuthRedirect=true 时只降级不跳转
+            // （会员中心等"游客也可浏览"的页面，登录数据失败应保持页面可见）
+            console.warn('[apiClient-401]', url, 'skip:', !!(opts && opts.skipAuthRedirect));
+            if (opts.skipAuthRedirect) {
+              reject(new Error('未登录'));
+              return;
+            }
             clearToken();
             try { uni.removeStorageSync('card_user'); } catch { /* 忽略 */ }
             uni.reLaunch({ url: loginPath });

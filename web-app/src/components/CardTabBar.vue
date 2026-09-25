@@ -70,13 +70,14 @@ function goDesign(it) {
 }
 
 onMounted(async () => {
+  console.log('[tabbar] mounted');
   // 拉取设计配置（缓存 5 分钟内不重复请求），就绪后刷新导航
   try {
     const cfg = await fetchDesignConfig(false);
     if (cfg) localCfg.value = cfg;
   } catch (e) { /* 拉取失败保持兜底 */ }
   try {
-    const res = await cardApi.getCards();
+    const res = await cardApi.getCardsSafe();
     if (res.cards && res.cards.length) myCardId.value = res.cards[0].id;
   } catch (e) {}
 });

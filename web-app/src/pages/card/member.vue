@@ -80,7 +80,7 @@
           <text v-if="isCurrent(p.level)" class="cur-tag">· 当前</text>
           <text v-else-if="p.level === 'gold'" class="hot-tag">最受欢迎</text>
         </view>
-        <view class="price">¥{{ formatPrice(p.price) }}<i> / 月</i></view>
+        <view class="price">¥{{ formatPrice(p.price) }}<text class="price-unit"> / 月</text></view>
         <view class="plan-features">
           <view class="pf" v-for="f in getFeatureTexts(p.features)" :key="f">
             <view class="check"><SIcon name="badge" size="small" color="#07c160" /></view>
@@ -155,18 +155,25 @@ const currentLevelText = computed(() => ({ free: '免费版', silver: '白银会
 onShow(() => { trackPageView('/pages/card/member'); });
 
 onMounted(async () => {
+  console.log('[member] mounted start');
   restoreScrollTop('member');
+  // 公共数据：套餐列表不依赖登录态，独立加载（任何登录接口失败不得拖垮套餐展示）
   try {
-    const [pkgRes, memberRes, cardsRes, tCardRes, tLevelsRes] = await Promise.all([
-      cardApi.getPackages(),
+    const pkgRes = await cardApi.getPackages();
+    packages.value = (pkgRes.packages || []).filter((p) => p.enabled !== 0);
+  } catch (e) {
+    console.warn('套餐列表加载失败', e);
+  }
+  // 登录类数据：未登录/游客降级为默认态，不阻塞页面
+  try {
+    const [memberRes, cardsRes, tCardRes, tLevelsRes] = await Promise.all([
       cardApi.getMemberStatus(),
-      cardApi.getCards(),
+      cardApi.getCardsSafe(),
       cardApi.memberMyCard(),
       cardApi.memberLevels(),
     ]);
     const myCard0 = (cardsRes.cards || [])[0];
     if (myCard0?.brandColor) brandColor.value = myCard0.brandColor;
-    packages.value = (pkgRes.packages || []).filter((p) => p.enabled !== 0);
     isMember.value = memberRes.isMember;
     memberLevel.value = memberRes.level;
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
@@ -175,7 +182,10 @@ onMounted(async () => {
       memberCard.value = tCardRes.card;
       tenantLevels.value = tCardRes.levels || [];
       applyStatus.value = tCardRes.applyStatus || null;
-    }  } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('会员信息加载失败（未登录或接口异常，保持默认态）', e);
+  }
 });
 
 // 离开时保存滚动位置，切Tab返回后恢复
@@ -447,7 +457,7 @@ async function openMember(pkg) {
   color: #2e6bb8;
   margin: 16rpx 0 8rpx;
 }
-.price i {
+.price-unit {
   font-style: normal;
   font-size: 22rpx;
   font-weight: 400;

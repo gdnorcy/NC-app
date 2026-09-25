@@ -43,6 +43,8 @@ export const cardApi = {
 
   // 名片
   getCards: () => request('/cards'),
+  // 游客可降级的"我的名片"（会员中心取品牌色等场景，401 不跳登录）
+  getCardsSafe: () => request('/cards', 'GET', {}, { skipAuthRedirect: true }),
   getCard: (id) => request(`/cards/${id}`),
   createCard: (data) => request('/cards', 'POST', data),
   createCardWithApply: (data) => request('/cards/create-with-apply', 'POST', data),
@@ -175,10 +177,10 @@ export const cardApi = {
 
   // 会员
   getPackages: () => request('/member/packages'),
-  getMemberStatus: () => request('/member/status'),
+  getMemberStatus: () => request('/member/status', 'GET', {}, { skipAuthRedirect: true }),
   // 租户级会员卡（1:1 复刻菜鸟云会员中心）
-  memberMyCard: () => request('/member/my-card'),
-  memberLevels: () => request('/member/levels'),
+  memberMyCard: () => request('/member/my-card', 'GET', {}, { skipAuthRedirect: true }),
+  memberLevels: () => request('/member/levels', 'GET', {}, { skipAuthRedirect: true }),
   memberApply: (data) => request('/member/apply', 'POST', data),
   memberSign: () => request('/member/sign', 'POST', {}),
   memberBuy: (data) => request('/member/buy', 'POST', data),
