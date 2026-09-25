@@ -338,7 +338,8 @@ export default function createDesignRouter(db, deps = {}) {
   design.get('/previewUrl', tenant, (req, res) => {
     // 预览必须与「设为首页(is_home)」的页面一致：查当前首页 pageType，再生成对应 C 端预览 URL
     const homeRow = db.prepare("SELECT page_type FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 ORDER BY id DESC LIMIT 1").get(req.customerId);
-    const homePageType = homeRow?.page_type || 'home';
+    // 编辑器画布（B1）会传入当前正在编辑的 pageType，保证 iframe 预览与编辑页一致
+    const homePageType = String(req.query.pageType || '').trim() || homeRow?.page_type || 'home';
     res.json({ url: buildDesignPreviewUrl(req.customerId, String(req.query.draft) === '1', homePageType) });
   });
 

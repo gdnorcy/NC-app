@@ -144,27 +144,29 @@
               </div>
             </template>
           </div>
-          <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop="onCanvasDrop">
-            <div
-              v-for="(comp, i) in components" :key="comp.id"
-              class="pe-comp" :class="{ active: selected === comp.id }"
-              draggable="true"
-              @click.stop="selectComp(comp)"
-              @dragstart="onCompDragStart($event, i)"
-              @dragover.prevent="onCompDragOver(i)"
-              @drop.stop="onCompDrop(i)"
-            >
-              <div class="pe-comp-tools">
-                <span class="pe-comp-idx">{{ i + 1 }}</span>
-                <span class="pe-comp-type">{{ compName(comp.type) }}</span>
-                <span class="pe-tool" title="复制" @click.stop="dupComp(comp)">⧉</span>
-                <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(comp.id)">✕</span>
-              </div>
-              <ComponentRender :comp="comp" :global="meta.global" :cube-sel="cubeSel" @cell-select="onCubeCellSelect" />
+          <!-- 画布 = 真实 C 端页面（iframe 渲染，B1：编辑所见即线上） -->
+          <div class="pe-canvas">
+            <!-- 选中组件操作条（上移/下移/复制/删除，仿 ew：画布内不拖拽） -->
+            <div v-if="selectedComp" class="pe-comp-tools pe-canvas-tools">
+              <span class="pe-comp-idx">{{ compIndex(selectedComp) }}</span>
+              <span class="pe-comp-type">{{ selectedComp.name }}</span>
+              <span class="pe-tool" title="上移" @click.stop="moveComp(selectedComp, -1)">↑</span>
+              <span class="pe-tool" title="下移" @click.stop="moveComp(selectedComp, 1)">↓</span>
+              <span class="pe-tool" title="复制" @click.stop="dupComp(selectedComp)">⧉</span>
+              <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(selectedComp.id)">✕</span>
             </div>
+            <iframe
+              v-if="previewUrl"
+              :src="previewUrl"
+              class="pe-live-frame"
+              :style="{ height: frameHeight + 'px' }"
+              title="真实C端预览"
+              frameborder="0"
+              @load="onFrameLoad"
+            ></iframe>
             <div v-if="!components.length" class="pe-empty">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
-              <span>从左侧拖拽组件到此处，或点击组件库添加</span>
+              <span>从左侧组件库点击添加组件，画布即时渲染真实效果</span>
             </div>
           </div>
         </div>
@@ -860,7 +862,6 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall } from '../../../../api';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
-import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
 import HeaderEwPanel, { mkEwHeader } from './HeaderEwPanel.vue';
@@ -1851,7 +1852,84 @@ function onListItemDragOver(key, idx) {
 function onListItemDrop() { listDrag = null; }
 
 watch(() => props.pageType, () => { selected.value = null; load(); });
-onMounted(() => { load(); loadPageList(); });
+
+// ---- B1：画布 = 真实 C 端页面（iframe）----
+const previewUrl = ref('');
+const frameHeight = ref(800);
+let framePushTimer = null;
+let frameBridgeBound = false;
+
+/** 组件序号（1 起，供操作条展示） */
+function compIndex(comp) {
+  return components.value.findIndex((x) => x.id === comp.id) + 1;
+}
+/** 上下移动选中组件（仿 ew：画布内不拖拽，工具条排序） */
+function moveComp(comp, dir) {
+  const i = components.value.findIndex((x) => x.id === comp.id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= components.value.length) return;
+  const arr = [...components.value];
+  const [m] = arr.splice(i, 1);
+  arr.splice(j, 0, m);
+  components.value = arr;
+  refreshSelectedComp();
+}
+function frameEl() {
+  return document.querySelector('.pe-live-frame');
+}
+/** 推送当前 designJson 给 C 端 iframe（实时渲染） */
+function pushDesignJson() {
+  const f = frameEl();
+  if (!f || !f.contentWindow) return;
+  f.contentWindow.postMessage({
+    source: 'nc-admin',
+    type: 'design-json',
+    json: {
+      components: JSON.parse(JSON.stringify(components.value)),
+      meta: JSON.parse(JSON.stringify(meta)),
+    },
+  }, '*');
+}
+/** 推送选中组件下标给 C 端 iframe（高亮） */
+function pushSelected() {
+  const f = frameEl();
+  if (!f || !f.contentWindow) return;
+  const idx = components.value.findIndex((x) => x.id === selected.value);
+  f.contentWindow.postMessage({ source: 'nc-admin', type: 'set-selected', index: idx }, '*');
+}
+function onFrameLoad() {
+  setTimeout(() => { pushDesignJson(); pushSelected(); }, 200);
+}
+/** 监听 C 端 iframe 上报（点击组件 → 选中联动；高度变化 → 自适应） */
+function bindFrameBridge() {
+  if (frameBridgeBound) return;
+  frameBridgeBound = true;
+  window.addEventListener('message', (e) => {
+    const d = e && e.data;
+    if (!d || d.source !== 'nc-c-iframe') return;
+    if (d.type === 'component-click') {
+      const c = components.value[d.index];
+      if (c) selectComp(c);
+    } else if (d.type === 'resize') {
+      if (typeof d.height === 'number' && d.height > 0 && d.height < 50000) frameHeight.value = d.height;
+    }
+  });
+}
+/** 生成带签名 + editor=1 的真实 C 端预览 URL */
+async function initPreviewFrame() {
+  try {
+    const res = await designCall.get('/design/previewUrl', { params: { draft: 1, pageType: props.pageType } });
+    if (res && res.url) {
+      previewUrl.value = res.url.includes('editor=1') ? res.url : res.url.replace('preview=1', 'preview=1&editor=1');
+    }
+  } catch (e) { /* 预览不可用不阻塞编辑（iframe 保持空） */ }
+}
+// 组件/元数据变化 → 防抖推送给 iframe 实时渲染
+watch(components, () => { clearTimeout(framePushTimer); framePushTimer = setTimeout(pushDesignJson, 800); }, { deep: true });
+watch(meta, () => { clearTimeout(framePushTimer); framePushTimer = setTimeout(pushDesignJson, 800); }, { deep: true });
+watch(selected, () => pushSelected());
+
+onMounted(() => { load(); loadPageList(); bindFrameBridge(); initPreviewFrame(); });
 defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate, load, pageName, components });
 </script>
 
@@ -1993,7 +2071,10 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
-.pe-canvas { min-height: 420px; padding: 0; background: transparent; }
+.pe-canvas { min-height: 420px; padding: 0; background: transparent; position: relative; }
+/* B1：真实 C 端页面 iframe 画布 */
+.pe-live-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 420px; }
+.pe-canvas-tools { top: 4px; right: 4px; position: absolute; z-index: 10; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 0; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
 .pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }

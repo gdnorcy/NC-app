@@ -18,6 +18,14 @@
 
     <!-- 装修组件区：DIY 组件与名片模块组件按配置顺序渲染（可穿插排序） -->
     <template v-if="designComps.length" v-for="(c, i) in designComps" :key="i">
+      <!-- 编辑预览（设计中心 iframe）组件槽：点击选中 + 高亮，仅 H5 编辑模式生效 -->
+      <view
+        class="dp-slot"
+        :class="{ 'dp-slot-sel': editorSel === i }"
+        <!-- #ifdef H5 -->
+        @click.capture.stop="onSlotClick($event, i)"
+        <!-- #endif -->
+      >
       <!-- 名片搜索栏 -->
       <view v-if="c.type === 'native-search'" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }" :style="nativeMargin(c.props)">
         <view class="search-box" @click="goSearch">
@@ -130,6 +138,7 @@
       </view>
       <!-- 其余 DIY 组件 -->
       <DesignPage v-else :comps="[c]" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" />
+      </view>
     </template>
 
     <!-- 底部间距 -->
@@ -141,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { onShow, onLoad, onPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
@@ -202,6 +211,65 @@ onPageScroll((e) => { headerScrolled.value = (e?.scrollTop || 0) > 10; });
 let pageOptions = {};
 onLoad((o) => { pageOptions = o || {}; });
 
+// ---- 设计中心编辑预览模式（iframe，仅 H5）：接收 designJson / 选中高亮 / 点击上报 / 高度上报 ----
+const editorMode = ref(false);
+const editorSel = ref(-1);
+let editorBridgeBound = false;
+function detectEditorMode() {
+  // #ifdef H5
+  try {
+    const q = (window.location.hash.split('?')[1] || '');
+    if (new URLSearchParams(q).get('editor') === '1') editorMode.value = true;
+  } catch { /* 忽略 */ }
+  // #endif
+}
+function reportEditorHeight() {
+  // #ifdef H5
+  if (!editorMode.value) return;
+  try {
+    const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    window.parent.postMessage({ source: 'nc-c-iframe', type: 'resize', height: h }, '*');
+  } catch { /* 忽略 */ }
+  // #endif
+}
+function bindEditorBridge() {
+  // #ifdef H5
+  if (editorBridgeBound) return;
+  editorBridgeBound = true;
+  window.addEventListener('message', (e) => {
+    const d = e && e.data;
+    if (!d || d.source !== 'nc-admin') return;
+    if (d.type === 'design-json') {
+      const j = d.json || {};
+      designComps.value = Array.isArray(j.components) ? j.components : [];
+      const meta = j.meta || {};
+      designGlobal.value = meta.global || {};
+      designTheme.value = meta.theme || {};
+      designHeader.value = meta.header || null;
+      if (j.style) designStyle.value = j.style;
+      designTenantId.value = j.tenantId || designTenantId.value;
+      nextTick(reportEditorHeight);
+    } else if (d.type === 'set-selected') {
+      editorSel.value = typeof d.index === 'number' ? d.index : -1;
+    }
+  });
+  window.addEventListener('resize', reportEditorHeight);
+  if (typeof MutationObserver !== 'undefined') {
+    const mo = new MutationObserver(() => { clearTimeout(reportEditorHeight._t); reportEditorHeight._t = setTimeout(reportEditorHeight, 200); });
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+  }
+  setTimeout(reportEditorHeight, 300);
+  // #endif
+}
+function onSlotClick(e, i) {
+  // #ifdef H5
+  if (!editorMode.value) return;
+  e.stopPropagation();
+  try { window.parent.postMessage({ source: 'nc-c-iframe', type: 'component-click', index: i }, '*'); } catch { /* 忽略 */ }
+  // #endif
+}
+
+
 // 小程序分享卡片：标题/图片取主题设置「分享标题/分享图片」，path 带当前租户 tid
 onShareAppMessage(() => {
   const tid = pageOptions.tid ? `?tid=${pageOptions.tid}` : '';
@@ -240,11 +308,17 @@ const features = [
 ];
 
 onMounted(async () => {
-  try {
-    const res = await cardApi.getProfile();
-    user.value = res.user;
-    myCard.value = res.card;
-  } catch (e) {}
+  detectEditorMode();
+  // 编辑预览（设计中心 iframe 画布）：以游客视角渲染真实组件与商品，登录态数据请求跳过（401 会跳登录页破坏画布）
+  const isEditor = editorMode.value;
+  if (isEditor) bindEditorBridge();
+  if (!isEditor) {
+    try {
+      const res = await cardApi.getProfile();
+      user.value = res.user;
+      myCard.value = res.card;
+    } catch (e) {}
+  }
 
   // 设计中心首页装修：预览模式（?preview=1）加载草稿组件，否则加载已发布组件；
   // 首页跳转选择器支持指定 DIY 装修页面（?pageType=xxx，如 /pages/cardMain/home?pageType=product）
@@ -261,31 +335,36 @@ onMounted(async () => {
     designStyle.value = config?.style || null;
     // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);
-    if (preview && !designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
-    else if (preview) uni.showToast({ title: '草稿预览模式', icon: 'none' });
+    // 编辑预览（iframe 画布）下不弹草稿提示，避免干扰真实渲染观感
+    if (preview && !isEditor) {
+      if (!designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
+      else uni.showToast({ title: '草稿预览模式', icon: 'none' });
+    }
   } catch (e) { console.error('[design-load-error]', e && e.message ? e.message : e); }
 
-  // 消息未读红点
-  try {
-    const unread = await cardApi.getMessageUnread();
-    unreadCount.value = unread.count || 0;
-  } catch (e) {}
+  // 消息未读红点（编辑预览跳过：游客视角无登录态）
+  if (!isEditor) {
+    try {
+      const unread = await cardApi.getMessageUnread();
+      unreadCount.value = unread.count || 0;
+    } catch (e) {}
 
-  // 加载访客统计
-  try {
-    const summary = await cardApi.getVisitorSummary();
-    visitorStats.value = {
-      today: summary.todayCount || 0,
-      total: summary.totalCount || 0,
-      exchange: summary.exchangeCount || 0,
-    };
-  } catch (e) {}
+    // 加载访客统计
+    try {
+      const summary = await cardApi.getVisitorSummary();
+      visitorStats.value = {
+        today: summary.todayCount || 0,
+        total: summary.totalCount || 0,
+        exchange: summary.exchangeCount || 0,
+      };
+    } catch (e) {}
 
-  // 加载人脉集市推荐
-  try {
-    const market = await cardApi.getMarketList({ type: 'all' });
-    marketList.value = (market.items || []).slice(0, 6);
-  } catch (e) {}
+    // 加载人脉集市推荐
+    try {
+      const market = await cardApi.getMarketList({ type: 'all' });
+      marketList.value = (market.items || []).slice(0, 6);
+    } catch (e) {}
+  }
 });
 
 // 我的名片头像/卡片品牌色渐变（租户 brandColor，无则默认蓝）
@@ -706,4 +785,9 @@ function viewMarketCard(item) {
 }
 
 /* 底部Tab：由 CardTabBar 组件承载（设计中心导航方案优先） */
+
+/* ---- 编辑预览（设计中心 iframe）：组件槽点击选中高亮 ---- */
+.dp-slot { position: relative; }
+.dp-slot-sel { outline: 3px solid #165dff; outline-offset: -1px; box-shadow: 0 0 0 1px #165dff inset; }
+.dp-slot-sel::after { content: '已选中'; position: absolute; top: 0; right: 0; z-index: 99; padding: 2px 8px; font-size: 20rpx; color: #fff; background: #165dff; border-radius: 0 0 0 8rpx; pointer-events: none; }
 </style>
