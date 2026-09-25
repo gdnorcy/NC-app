@@ -1747,15 +1747,30 @@ export function createCardRouter(db, wxService) {
     }
     // 预览模式（?preview=1）：额外返回首页草稿页面组件，供 C 端「保存并预览」；
     // 首页跳转选择器支持指定 DIY 装修页面（?pageType=xxx）：读取该 page_type 的已发布页面（未发布回退草稿），
-    // 与菜鸟云「首页跳转可选 DIY 页面」语义一致；未指定时按 is_home 首页渲染
+    // 与菜鸟云「首页跳转可选 DIY 页面」语义一致；未指定时按 card 应用语义取页：
+    // ① home_pages.card 指向的 pageType → ② 无则预置 page_type='home'（智能名片默认首页）→ ③ 兜底 is_home=1。
+    // 说明：panorama/index 同接口调用只读 homePages 不使用 pages 字段，因此无 pageType 统一走 card 语义不产生跨应用干扰
     const reqPageType = String(req.query.pageType || '').trim();
     let pages = null;
     let header = null;
     const pickPage = (status) => {
-      const q = reqPageType
-        ? 'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = ? ORDER BY version DESC LIMIT 1'
-        : 'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = ? ORDER BY version DESC LIMIT 1';
-      const args = reqPageType ? [tenantId, reqPageType, status] : [tenantId, status];
+      let q;
+      let args;
+      if (reqPageType) {
+        q = 'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = ? ORDER BY version DESC LIMIT 1';
+        args = [tenantId, reqPageType, status];
+      } else {
+        const cm = String(homePages.card || '').match(/pageType=([^&]+)/);
+        const target = cm ? cm[1] : 'home';
+        const exists = db.prepare('SELECT 1 FROM tenant_page_design WHERE tenant_id = ? AND page_type = ?').get(tenantId, target);
+        if (exists) {
+          q = 'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND page_type = ? AND status = ? ORDER BY version DESC LIMIT 1';
+          args = [tenantId, target, status];
+        } else {
+          q = 'SELECT design_json FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 AND status = ? ORDER BY version DESC LIMIT 1';
+          args = [tenantId, status];
+        }
+      }
       return db.prepare(q).get(...args);
     };
     if (String(req.query.preview) === '1') {

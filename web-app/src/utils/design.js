@@ -170,11 +170,14 @@ function mergeLayer(g, p) {
   };
 }
 
-/** 读取本地缓存（未过期才有效） */
+/** 读取本地缓存（未过期且含有效组件才有效；空装修结果不缓存，避免污染后永不刷新） */
 export function readDesignConfig(key = STORAGE_KEY) {
   try {
     const cached = uni.getStorageSync(key);
-    if (cached && cached.ts && Date.now() - cached.ts < TTL) return cached.config || null;
+    if (!cached || !cached.ts || Date.now() - cached.ts >= TTL) return null;
+    const comps = cached.config && cached.config.pages && cached.config.pages.components;
+    if (!Array.isArray(comps) || !comps.length) return null;
+    return cached.config;
   } catch { /* 忽略 */ }
   return null;
 }
@@ -192,7 +195,8 @@ export async function fetchDesignConfig(force = false, preview = false, pageType
   const raw = await cardApi.designConfig(false, pageType);
   const config = normalizeDesignConfig(raw);
   try {
-    uni.setStorageSync(cacheKey, { ts: Date.now(), config });
+    const comps = config && config.pages && config.pages.components;
+    if (Array.isArray(comps) && comps.length) uni.setStorageSync(cacheKey, { ts: Date.now(), config });
   } catch { /* 存储失败不阻塞 */ }
   return config;
 }

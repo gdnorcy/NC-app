@@ -101,11 +101,14 @@ describe('设计中心 C 端渲染工具', () => {
     expect(resolveHomePath('非法值')).toBeNull();
   });
 
-  it('P5 本地缓存：未过期可读，过期失效', () => {
-    const config = normalizeDesignConfig({ style: { primaryColor: '#F53F3F' }, homePage: 'member' });
-    uni.setStorageSync(STORAGE_KEY, { ts: Date.now() - 1000, config }); // 1 秒前，未过期
+  it('P5 本地缓存：未过期且有组件可读；过期失效；空组件缓存不读（避免污染后永不刷新）', () => {
+    const config = normalizeDesignConfig({ style: { primaryColor: '#F53F3F' }, homePage: 'member', pages: { components: [{ type: 'notice' }] } });
+    uni.setStorageSync(STORAGE_KEY, { ts: Date.now() - 1000, config }); // 1 秒前，未过期且含组件
     expect(readDesignConfig()).toBeTruthy();
     expect(readDesignConfig().style.primaryColor).toBe('#F53F3F');
+    // 空组件缓存（历史污染：后端空结果被缓存）应视为无效 → null，触发重新请求
+    uni.setStorageSync(STORAGE_KEY, { ts: Date.now() - 1000, config: { pages: {} } });
+    expect(readDesignConfig()).toBeNull();
     uni.setStorageSync(STORAGE_KEY, { ts: Date.now() - 10 * 60 * 1000, config }); // 10 分钟前，已过期
     expect(readDesignConfig()).toBeNull();
   });
