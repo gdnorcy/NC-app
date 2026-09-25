@@ -1,6 +1,7 @@
 // 智能名片 API 封装
 import { createApiClient } from './apiClient.js';
 import { getTid } from './mallUtil.js';
+import { DEFAULT_TENANT_ID } from '../config.js';
 
 const BASE_URL = 'http://localhost:3000/api/card';
 const MARKET_BASE_URL = 'http://localhost:3000/api/card-market';
@@ -8,6 +9,14 @@ const PAYMENT_BASE_URL = 'http://localhost:3000/api/payment';
 
 // 公共请求层（token 注入 / 401 跳登录 / 响应解包），行为与原 request 完全一致
 const { request } = createApiClient(BASE_URL);
+
+// 是否已登录：H5 优先直读 localStorage（与 apiClient.readToken 一致），小程序端走 uni 原生
+function hasCardToken() {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('card_token')) return true;
+  } catch { /* 忽略 */ }
+  try { return !!uni.getStorageSync('card_token'); } catch { return false; }
+}
 
 // 支付API请求（使用card_token认证）
 function paymentRequest(url, method = 'GET', data = {}) {
@@ -207,6 +216,8 @@ export const cardApi = {
       } catch { /* 忽略解析失败 */ }
     }
     if (tid) params.tid = tid; // 显式租户（商城等跨应用首页装修读取），优先于 hash 透传
+    // 游客访问（无登录态且无显式/透传租户）：使用部署默认租户读取公开装修配置，保证装修首页对游客可见
+    if (!params.tid && DEFAULT_TENANT_ID && !hasCardToken()) params.tid = DEFAULT_TENANT_ID;
     const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
     return request('/design/config' + qs);
   },

@@ -103,7 +103,11 @@ describe('cardApi 请求封装', () => {
 
   it('getTemplates 无租户上下文时不带 tid（平台公共模板）', async () => {
     mockResponse(200, { templates: [] });
-    uniMock.getStorageSync.mockImplementation((k) => (k === 'mall_tid' ? '' : 'test-token'));
+    // 无租户：mall_tid 与渠道绑定键全部为空，仅登录 token 存在
+    uniMock.getStorageSync.mockImplementation((k) => {
+      if (['mall_tid', 'channel_config', 'channel_customer_id'].includes(k)) return '';
+      return 'test-token';
+    });
     await cardApi.getTemplates();
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
       url: 'http://localhost:3000/api/card/templates',
@@ -194,5 +198,24 @@ describe('阶段C 语音简介上传', () => {
       json: async () => ({ error: '音频大小不能超过 10MB' }),
     });
     await expect(cardApi.uploadVoiceFile({ name: 'big.mp3' })).rejects.toThrow('音频大小不能超过 10MB');
+  });
+
+  it('designConfig：游客（无 token、无显式 tid）自动带默认租户，保证装修首页可见', async () => {
+    uniMock.getStorageSync.mockReturnValue('');
+    mockResponse(200, { pages: { components: [] } });
+    await cardApi.designConfig(false, '');
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: 'http://localhost:3000/api/card/design/config?tid=1',
+    }));
+  });
+
+  it('designConfig：已登录时不强制附加默认租户（登录态租户由后端 customerId 决定）', async () => {
+    mockResponse(200, { pages: { components: [] } });
+    await cardApi.designConfig(false, '');
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: 'http://localhost:3000/api/card/design/config',
+    }));
+    const url = uniMock.request.mock.calls[0][0].url;
+    expect(url.includes('tid=')).toBe(false);
   });
 });
