@@ -6,6 +6,10 @@
         <el-tag v-if="published" type="success" size="small">已发布 v{{ published.version }}</el-tag>
         <el-tag v-if="draft" type="info" size="small">有草稿</el-tag>
       </div>
+      <div class="pe-toolbar-right">
+        <el-button size="small" @click="openPreview">预览</el-button>
+        <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
+      </div>
     </div>
 
     <div class="pe-body">
@@ -145,7 +149,7 @@
             </template>
           </div>
           <!-- 画布 = 真实 C 端页面（iframe 渲染，B1：编辑所见即线上） -->
-          <div class="pe-canvas">
+          <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop.prevent="onCanvasDrop">
             <!-- 选中组件操作条（上移/下移/复制/删除，仿 ew：画布内不拖拽） -->
             <div v-if="selectedComp" class="pe-comp-tools pe-canvas-tools" :style="{ top: toolsTop + 'px' }">
               <span class="pe-comp-idx">{{ compIndex(selectedComp) }}</span>
@@ -155,15 +159,19 @@
               <span class="pe-tool" title="复制" @click.stop="dupComp(selectedComp)">⧉</span>
               <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(selectedComp.id)">✕</span>
             </div>
-            <iframe
-              v-if="previewUrl"
-              :src="previewUrl"
-              class="pe-live-frame"
-              :style="{ height: frameHeight + 'px' }"
-              title="真实C端预览"
-              frameborder="0"
-              @load="onFrameLoad"
-            ></iframe>
+            <div
+              v-for="(c, i) in components"
+              :key="c.id"
+              class="pe-comp"
+              :class="{ active: selected === c.id }"
+              draggable="true"
+              @dragstart="onCompDragStart($event, i)"
+              @dragover.prevent="onCompDragOver(i)"
+              @drop.prevent="onCompDrop()"
+              @click.stop="selectComp(c)"
+            >
+              <ComponentRender :comp="c" :global="meta.global || {}" />
+            </div>
             <div v-if="!components.length" class="pe-empty">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
               <span>从左侧组件库点击添加组件，画布即时渲染真实效果</span>
@@ -862,6 +870,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall } from '../../../../api';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
+import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
 import HeaderEwPanel, { mkEwHeader } from './HeaderEwPanel.vue';
@@ -1405,6 +1414,7 @@ function addComponent(type) {
   }
   selected.value = c.id;
   refreshSelectedComp();
+  updateToolsPos();
 }
 function removeComp(id) {
   components.value = components.value.filter((c) => c.id !== id);
@@ -1422,7 +1432,7 @@ function dupComp(comp) {
   selected.value = c.id;
   refreshSelectedComp();
 }
-function selectComp(comp) { selected.value = comp.id; cubeSel.value = null; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); refreshSelectedComp(); }
+function selectComp(comp) { selected.value = comp.id; cubeSel.value = null; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); refreshSelectedComp(); updateToolsPos(); }
 function onLibDragStart(e, type) { e.dataTransfer.setData('text/plain', type); }
 function onCanvasDragOver() {}
 function onCanvasDrop(e) {
@@ -1440,7 +1450,7 @@ function onCompDragOver(i) {
     dragIdx = i;
   }
 }
-function onCompDrop() { dragIdx = -1; }
+function onCompDrop() { dragIdx = -1; updateToolsPos(); }
 
 async function load() {
   try {
@@ -1867,12 +1877,10 @@ let frameBridgeBound = false;
 
 /** 参照 ew：选中组件的操作边条跟随组件位置（读 iframe 内 .dp-slot offsetTop，同源直接取） */
 function updateToolsPos() {
-  const f = frameEl();
-  if (!f || !f.contentDocument) { toolsTop.value = 4; return; }
+  const comps = document.querySelectorAll('.pe-comp');
   const idx = components.value.findIndex((x) => x.id === selected.value);
-  const slots = f.contentDocument.querySelectorAll('.dp-slot');
-  if (!slots[idx]) { toolsTop.value = 4; return; }
-  toolsTop.value = Math.max(2, slots[idx].offsetTop);
+  if (!comps[idx]) { toolsTop.value = 4; return; }
+  toolsTop.value = Math.max(2, comps[idx].offsetTop);
 }
 
 /** 组件序号（1 起，供操作条展示） */
@@ -1935,6 +1943,12 @@ function bindFrameBridge() {
   });
 }
 /** 生成带签名 + editor=1 的真实 C 端预览 URL */
+function openPreview() {
+  if (!previewUrl.value) return;
+  const url = previewUrl.value.replace('editor=1&', '').replace('&editor=1', '').replace('editor=1', '');
+  window.open(url, '_blank');
+}
+
 async function initPreviewFrame() {
   try {
     const res = await designCall.get('/design/previewUrl', { params: { draft: 1, pageType: props.pageType } });
@@ -2094,6 +2108,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 /* B1：真实 C 端页面 iframe 画布 */
 .pe-live-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 420px; }
 .pe-canvas-tools { right: 4px; position: absolute; z-index: 10; transition: top .12s; }
+.pe-toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 0; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
 .pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }
