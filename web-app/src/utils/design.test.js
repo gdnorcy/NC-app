@@ -269,4 +269,17 @@ describe('设计中心 C 端渲染工具', () => {
     expect(resolveAssetUrl('')).toBe('');
     expect(resolveAssetUrl(null)).toBe('');
   });
+
+  it('P18 原生功能区配置（pages.meta.nativeSections）随 pages 透传，未配置时不生成默认值', () => {
+    const cfg = normalizeDesignConfig({
+      style: {},
+      pages: { components: [{ type: 'grid-nav' }], meta: { nativeSections: { searchBar: false, quickGrid: true } } },
+    });
+    expect(cfg.pages).toEqual(expect.objectContaining({
+      meta: expect.objectContaining({ nativeSections: { searchBar: false, quickGrid: true } }),
+    }));
+    // 未配置 nativeSections 时 pages 原样保留（C 端按 !== false 兜底全开）
+    const cfg2 = normalizeDesignConfig({ style: {}, pages: { components: [] } });
+    expect(cfg2.pages.meta).toBeUndefined();
+  });
 });

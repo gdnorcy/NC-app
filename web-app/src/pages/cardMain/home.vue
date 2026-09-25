@@ -20,7 +20,7 @@
     <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" class="design-section" />
 
     <!-- 顶部搜索栏（沉浸式头部悬浮时保留顶部安全距，其余类型由设计导航占位） -->
-    <view class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }">
+    <view v-if="nativeVisible.searchBar" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }">
       <view class="search-box" @click="goSearch">
         <SIcon name="dynamic" size="small" color="#86909c" />
         <text class="search-placeholder">搜索名片、客户、人脉</text>
@@ -32,7 +32,7 @@
     </view>
 
     <!-- 功能九宫格 -->
-    <view class="grid-section">
+    <view v-if="nativeVisible.quickGrid" class="grid-section">
       <view class="grid">
         <view class="grid-item" v-for="item in features" :key="item.key" @click="goPage(item.path)">
           <view class="grid-icon" :style="{ background: item.bg }">
@@ -44,7 +44,7 @@
     </view>
 
     <!-- 我的名片卡片 -->
-    <view class="section">
+    <view v-if="nativeVisible.myCard" class="section">
       <view class="section-header">
         <view class="section-title">我的名片</view>
         <view class="section-more" @click="goMyCard">查看详情 ›</view>
@@ -75,7 +75,7 @@
     </view>
 
     <!-- 访客雷达 -->
-    <view class="section">
+    <view v-if="nativeVisible.visitorRadar" class="section">
       <view class="section-header">
         <view class="section-title">
           <SIcon name="radar" size="default" color="#00b42a" />
@@ -113,7 +113,7 @@
     </view>
 
     <!-- 人脉集市推荐 -->
-    <view class="section">
+    <view v-if="nativeVisible.peopleMarket" class="section">
       <view class="section-header">
         <view class="section-title">
           <SIcon name="market" size="default" color="#722ed1" />
@@ -166,8 +166,20 @@ const designHeader = ref(null);
 const designGlobal = ref({});
 const designTheme = ref({});
 const designStyle = ref(null);
+const designNative = ref({});
 const shareBack = ref(false);
 const headerScrolled = ref(false);
+// 原生功能区可见性（装修配置 meta.nativeSections 控制；未配置默认全开）
+const nativeVisible = computed(() => {
+  const n = designNative.value || {};
+  return {
+    searchBar: n.searchBar !== false,
+    quickGrid: n.quickGrid !== false,
+    myCard: n.myCard !== false,
+    visitorRadar: n.visitorRadar !== false,
+    peopleMarket: n.peopleMarket !== false,
+  };
+});
 // 系统风格头部（无页面头部配置时全局默认）：headColor 跟随主色→主题色底 / 白色头部→白底；文字色对应
 const sysHeadStyle = computed(() => {
   const st = designStyle.value;
@@ -252,6 +264,7 @@ onMounted(async () => {
     designHeader.value = config?.header || null;
     designGlobal.value = config?.pages?.meta?.global || {};
     designTheme.value = config?.pages?.meta?.theme || {};
+    designNative.value = config?.pages?.meta?.nativeSections || {};
     designStyle.value = config?.style || null;
     // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);

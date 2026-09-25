@@ -739,6 +739,31 @@
         </div>
       </div>
 
+      <!-- 原生功能区（搜索栏/功能宫格/我的名片/访客雷达/人脉集市）：控制 C 端首页 DIY 装修区下方的原生模块显示 -->
+      <div v-if="headerPanel.active === 'native'" class="hp-body">
+        <div class="hp-hint" style="margin-bottom:10px;">控制 C 端首页 DIY 装修区下方的原生功能区模块（全部关闭后首页仅显示装修内容）</div>
+        <div class="hp-row">
+          <div class="hp-label">顶部搜索栏</div>
+          <el-switch v-model="meta.nativeSections.searchBar" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">功能宫格</div>
+          <el-switch v-model="meta.nativeSections.quickGrid" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">我的名片</div>
+          <el-switch v-model="meta.nativeSections.myCard" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">访客雷达</div>
+          <el-switch v-model="meta.nativeSections.visitorRadar" />
+        </div>
+        <div class="hp-row">
+          <div class="hp-label">人脉集市</div>
+          <el-switch v-model="meta.nativeSections.peopleMarket" />
+        </div>
+      </div>
+
       <template #footer>
         <el-button size="small" @click="headerPanel.show = false">关闭</el-button>
         <el-button size="small" type="primary" @click="headerPanel.show = false; saveDraft()">保存</el-button>
@@ -959,6 +984,7 @@ const meta = reactive({
   global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
   header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, followGlobal: false, ew: mkEwHeader() },
   nav: { mode: 'default', schemeId: null, jumpEnabled: true },
+  nativeSections: { searchBar: true, quickGrid: true, myCard: true, visitorRadar: true, peopleMarket: true },
 });
 
 // 头部方案（页面覆盖全局默认）：header.scheme ?? global.headerDefault.scheme ?? 1
@@ -995,6 +1021,7 @@ const headerPanel = reactive({ show: false, active: 'header', tabs: [
   { key: 'global', label: '全局设置' },
   { key: 'header', label: '头部设置' },
   { key: 'nav', label: '底部导航' },
+  { key: 'native', label: '原生功能区' },
 ] });
 // ---- dirty 快照（方案A：保存后快照对比，返回前检测） ----
 let baseSnapshot = '';
@@ -1491,6 +1518,7 @@ function defaultMeta() {
     global: { bgColor: '', bgImage: '', headerDefault: { scheme: 1, ew: mkEwHeader(), s1: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129' } } },
     header: { type: 'custom', bgColor: '#ffffff', bgImage: '', fixed: true, padding: 0, lines: 1, titleText: '', textColor: '#1d2129', content: mkHeaderRow(), content2: mkHeaderRow(), scheme: 1, followGlobal: true, ew: mkEwHeader() },
     nav: { mode: 'default', schemeId: null, jumpEnabled: true },
+    nativeSections: { searchBar: true, quickGrid: true, myCard: true, visitorRadar: true, peopleMarket: true },
   };
 }
 function deepMerge(base, patch) {
