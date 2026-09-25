@@ -261,14 +261,13 @@ onMounted(async () => {
     // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);
     // 编辑预览（iframe 画布）下不弹草稿提示，避免干扰真实渲染观感
-    if (preview && !isEditor) {
+    if (preview) {
       if (!designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
       else uni.showToast({ title: '草稿预览模式', icon: 'none' });
     }
   } catch (e) { console.error('[design-load-error]', e && e.message ? e.message : e); }
 
-  // 消息未读红点（编辑预览跳过：游客视角无登录态）
-  if (!isEditor) {
+  // 消息未读红点
     try {
       const unread = await cardApi.getMessageUnread();
       unreadCount.value = unread.count || 0;
@@ -289,7 +288,6 @@ onMounted(async () => {
       const market = await cardApi.getMarketList({ type: 'all' });
       marketList.value = (market.items || []).slice(0, 6);
     } catch (e) {}
-  }
 });
 
 // 我的名片头像/卡片品牌色渐变（租户 brandColor，无则默认蓝）

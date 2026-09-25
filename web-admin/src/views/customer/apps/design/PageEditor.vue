@@ -1530,12 +1530,24 @@ function deepMerge(base, patch) {
   }
   return out;
 }
+/** 方案1：保存时把 schema 默认值合并进组件 props，保证 C 端渲染与编辑器画布一致（对齐 ew：拖入即带默认并持久化）。
+ * 仅合并配置型默认（标题/开关/样式/items 结构），数据型默认已在 registry 清空为空数组，不会产生假数据。 */
+function withSchemaDefaults(list) {
+  if (!Array.isArray(list)) return list;
+  return list.map((c) => {
+    if (!c || typeof c !== 'object') return c;
+    const def = findComponent(c.type);
+    if (!def || !def.defaultProps) return c;
+    return { ...c, props: { ...def.defaultProps, ...(c.props || {}) } };
+  });
+}
+
 async function saveDraft() {
   saving.value = true;
   try {
     const res = await designCall.post('/design/page/saveDraft', {
       pageType: props.pageType, pageName: pageName.value,
-      designJson: { components: components.value, meta: { ...meta } },
+      designJson: { components: withSchemaDefaults(components.value), meta: { ...meta } },
       baseVersion: draft.value?.version ?? published.value?.version ?? 1,
     });
     draft.value = { ...draft.value, version: res.version };
@@ -1589,7 +1601,7 @@ async function saveAndPreview() {
   try {
     const res = await designCall.post('/design/page/saveDraft', {
       pageType: props.pageType, pageName: pageName.value,
-      designJson: { components: components.value, meta: { ...meta } },
+      designJson: { components: withSchemaDefaults(components.value), meta: { ...meta } },
       baseVersion: draft.value?.version ?? published.value?.version ?? 1,
     });
     draft.value = { ...draft.value, version: res.version };

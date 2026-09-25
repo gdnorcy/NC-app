@@ -9,7 +9,7 @@
         <template v-if="comp.props.mode === 'hotzone' && comp.props.items?.length">
           <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :class="imgFillCls(comp.props)" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
             <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
-            <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
+            <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片</div>
             <div
               v-for="(h, hi) in it.hotspots || []" :key="hi"
               class="r-image-hotspot"
@@ -24,7 +24,7 @@
           <div class="r-image-row" :style="{ gap: (comp.props.gap ?? 0) + 'px' }">
             <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-row-item" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
               <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
-              <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
+              <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片</div>
             </div>
           </div>
         </template>
@@ -33,7 +33,7 @@
           <div v-if="comp.props.url" class="r-image-single" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
             <img :src="resolveUrl(comp.props.url)" :style="imgFillStyle(comp.props)" />
           </div>
-          <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片组件（右侧选择素材）</div>
+          <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片</div>
         </template>
       </div>
     </template>
@@ -125,7 +125,7 @@
       <!-- 本地视频 -->
       <div v-else class="r-video" :class="'r-video-' + (comp.props.ratio || '16:9').replace(':', '-')" :style="{ aspectRatio: ({ '16:9': '16 / 9', '4:3': '4 / 3', '1:1': '1 / 1', '9:16': '9 / 16' })[comp.props.ratio] || '16 / 9' }">
         <img v-if="comp.props.poster" :src="resolveUrl(comp.props.poster)" />
-        <div v-else class="r-video-empty"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
+        <div v-else class="r-video-empty"><span class="r-video-empty-text">视频</span></div>
         <span v-if="comp.props.displayMode === 'popup'" class="r-video-tag r-video-tag2">弹出</span>
       </div>
     </template>
@@ -133,14 +133,7 @@
     <template v-else-if="comp.type === 'live-list'">
       <div class="r-live" :class="'r-live-' + (comp.props.listStyle || '1')" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px' }">
         <div v-if="comp.props.title" class="r-live-title-bar">{{ comp.props.title }}</div>
-        <div v-for="(it, i) in Array.from({ length: Math.min(Number(comp.props.limit) || 3, 3) })" :key="i" class="r-live-card">
-          <div class="r-live-cover">直播</div>
-          <div class="r-live-info">
-            <div class="r-live-title">直播标题</div>
-            <div class="r-live-meta">0 人观看</div>
-          </div>
-        </div>
-        <div v-if="!comp.props.limit" class="r-live-empty">暂无直播</div>
+        <div class="r-live-empty">暂无直播</div>
       </div>
     </template>
     <!-- 图文卡片 -->
@@ -162,7 +155,7 @@
           <span v-if="comp.props.indicator === 'dot'" class="r-swiper-dots"><i v-for="(d, di) in swiperItems" :key="di" :class="{ on: di === sIdx }" :style="{ background: comp.props.indicatorColor || '#165DFF' }"></i></span>
           <span v-else-if="comp.props.indicator === 'number'" class="r-swiper-num" :style="{ color: comp.props.indicatorColor || '#165DFF' }">{{ sIdx + 1 }}/{{ swiperItems.length }}</span>
         </template>
-        <div v-else class="r-swiper-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>轮播图（至少添加一张图片）</div>
+        <div v-else class="r-swiper-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>轮播图（请添加图片）</div>
       </div>
     </template>
     <!-- 名片卡 -->
@@ -254,7 +247,7 @@
     <!-- 视频号主页 -->
     <template v-else-if="comp.type === 'channel-profile'">
       <div class="r-channel" :style="{ background: comp.props.bgColor || '#F7F8FA' }">
-        <div class="r-ch-avatar"><img v-if="comp.props.avatar" :src="resolveUrl(comp.props.avatar)" /><svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5"/></svg></div>
+        <div class="r-ch-avatar"><img v-if="comp.props.avatar" :src="resolveUrl(comp.props.avatar)" /><span v-else class="r-ch-avatar-text">号</span></div>
         <div class="r-ch-body">
           <div class="r-ch-name">{{ comp.props.nickname || '视频号昵称' }}</div>
           <div class="r-ch-desc">{{ comp.props.desc || '视频号简介' }}</div>
@@ -267,7 +260,7 @@
       <div class="r-chvideo" :style="{ background: comp.props.bgColor || '#F7F8FA' }">
         <div class="r-chv-cover">
           <img v-if="comp.props.cover" :src="resolveUrl(comp.props.cover)" />
-          <div v-else class="r-chv-empty"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/></svg></div>
+          <div v-else class="r-chv-empty"><span class="r-chv-ico">▶</span></div>
           <span class="r-chv-tag">视频号</span>
         </div>
         <div class="r-chv-body">
@@ -280,7 +273,7 @@
     <template v-else-if="comp.type === 'channel-live'">
       <div class="r-chlive" :class="'r-card-' + (comp.props.style || 'default')" :style="channelLiveStyle(comp.props)">
         <div class="r-chl-cover">
-          <div class="r-chl-empty"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14v11H5zM8 7V4h8v3M10 11l4 2.5-4 2.5z"/></svg></div>
+          <div class="r-chl-empty"><span class="r-chl-ico">▶</span></div>
           <span class="r-chl-badge" :style="{ background: comp.props.statusBg || '#165DFF', color: comp.props.statusColor || '#fff' }">● 直播中</span>
         </div>
         <div class="r-chl-title" :style="{ color: comp.props.titleColor || '#1D2129' }">直播标题</div>
@@ -392,7 +385,7 @@
     <!-- 搜索框 -->
     <template v-else-if="comp.type === 'search'">
       <div class="r-search" :class="comp.props.style === 'shadow' ? 'shadow' : comp.props.style === 'border' ? 'border' : ''" :style="searchStyle(comp.props)">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
+        <span class="r-search-ico">🔍</span>
         <span v-if="comp.props.showPlaceholder !== false" class="r-search-ph">{{ comp.props.placeholder || '搜索名片 / 内容' }}</span>
         <span v-if="comp.props.showBtn" class="r-search-btn">搜索</span>
       </div>
@@ -1493,7 +1486,7 @@ const nativeGridItems = [
 .r-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
 .r-video { position: relative; border-radius: 8px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
 .r-video img { width: 100%; height: 100%; object-fit: cover; }
-.r-video-empty { opacity: .6; }
+.r-video-empty { opacity: .6; display: flex; align-items: center; justify-content: center; }
 .r-video-tag { position: absolute; top: 6px; right: 6px; font-size: 10px; line-height: 1; color: #fff; background: rgba(0,0,0,.55); border-radius: 4px; padding: 3px 5px; }
 .r-video-tag2 { right: auto; left: 6px; }
 /* 直播列表预览 */
@@ -1503,6 +1496,16 @@ const nativeGridItems = [
 .r-live-title { font-size: 12px; color: #1d2129; font-weight: 500; }
 .r-live-meta { font-size: 11px; color: #86909c; margin-top: 2px; }
 .r-live-empty { padding: 20px 0; text-align: center; color: #86909c; font-size: 12px; }
+.r-live-title-bar { font-size: 15px; font-weight: 600; padding: 10px 12px 8px; color: #1D2129; }
+.r-live-card { display: flex; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #f2f3f5; }
+.r-live-cover { width: 96px; height: 60px; border-radius: 6px; background: #f2f3f5; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 12px; flex-shrink: 0; }
+.r-live-info { flex: 1; min-width: 0; }
+.r-live-title { font-size: 14px; color: #1D2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-live-meta { font-size: 12px; color: #86909c; margin-top: 4px; }
+.r-video-empty-text { font-size: 13px; color: #86909c; }
+.r-search-ico { font-size: 14px; line-height: 1; }
+.r-chl-ico, .r-chv-ico { font-size: 18px; color: #ffffff; }
+.r-ch-avatar-text { font-size: 18px; color: #86909c; }
 .r-live-2 .r-live-card { flex-direction: column; align-items: stretch; }
 .r-live-2 .r-live-cover { width: 100%; height: 60px; }
 /* 视频号视频（eweishop 复刻） */

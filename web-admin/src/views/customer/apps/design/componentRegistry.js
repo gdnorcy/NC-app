@@ -122,7 +122,7 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [{ url: '', link: '', hotspots: [] }], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
         { label: '单图', value: 'single' },
@@ -330,7 +330,7 @@ export const componentRegistry = [
       url: '', poster: '', ratio: '16:9', displayMode: 'direct', autoplayLocal: false, loopLocal: false,
       // 视频号视频（eweishop 复刻）：风格一列/两列、相同主体、视频号id/视频id、自动播放+静音+循环、多视频、背景色/背景图、间距/高度/上圆角/下圆角
       style: 'single',
-      videos: [{ sameOwner: true, finderUserName: '', feedId: '', autoplayItem: 'auto', mutedItem: true, loopItem: false, feedToken: '' }],
+      videos: [],
       chRatio: '16:9',
       bgType: 'color', bgColor: '', bgImage: '',
       vSpacing: 0, spaceTop: 0, spaceBottom: 0, hMargin: 0, height: 0, radiusTop: false, radiusBottom: false,
@@ -422,7 +422,7 @@ export const componentRegistry = [
     name: '轮播图',
     group: 'basic',
     icon: 'swiper',
-    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }], height: 150, interval: 4000, heightMode: 'fixed', indicator: 'dot', indicatorColor: '#165DFF', immersive: false, showDots: true, dotsPos: 'center', bgSync: false, style: 'default', borderColor: '#E5E6EB', bgColor: '', radiusTop: 0, radiusBottom: 0, marginTop: 0, marginBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    defaultProps: { items: [], height: 150, interval: 4000, heightMode: 'fixed', indicator: 'dot', indicatorColor: '#165DFF', immersive: false, showDots: true, dotsPos: 'center', bgSync: false, style: 'default', borderColor: '#E5E6EB', bgColor: '', radiusTop: 0, radiusBottom: 0, marginTop: 0, marginBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       {
         key: 'items', label: '轮播图片', control: 'list', section: 'content',
@@ -637,7 +637,7 @@ export const componentRegistry = [
     icon: 'rich-text',
     defaultProps: {
       // ew 1:1：默认内容=提示文案+表格示例；底部背景=外层底色，组件背景=内容底色
-      html: '<p style="font-size:14px;">点此编辑「富文本」内容 ——></p><p style="font-size:14px;">你可以对文字进行<strong>加粗</strong>、<em>斜体</em>、<u>下划线</u>、<s>删除线</s>、<span style="color:#165dff;">文字颜色</span>、<span style="background-color:#fff7e8;">背景色</span>、以及字号大小等简单排版操作。</p><p style="font-size:14px;">还可以在这里加入表格了</p><table border="1" style="border-collapse:collapse;width:100%;font-size:13px;"><tr><td>中奖客户</td><td>发放奖品</td><td>备注</td></tr><tr><td>猪猪</td><td>内测码</td><td>已经发放</td></tr><tr><td>大麦</td><td>积分</td><td>领取地址</td></tr></table><p style="font-size:14px;">也可在这里插入图片、并对图片加上超级链接，方便用户点击。</p>',
+      html: '<p>富文本内容</p>',
       bottomBg: 'transparent', compBgColor: '#ffffff',
       style: 'default', borderColor: '#E5E6EB',
       marginTop: 0, marginBottom: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0,
@@ -662,7 +662,7 @@ export const componentRegistry = [
     name: '组图橱窗',
     group: 'basic',
     icon: 'image-gallery',
-    defaultProps: { items: [{ url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }, { url: '', link: '' }], columns: 2, radius: 8, gap: 8, style: 'default', borderColor: '#E5E6EB', slideMode: 'slide', radiusTop: 8, radiusBottom: 8, marginTop: 0, marginBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    defaultProps: { items: [], columns: 2, radius: 8, gap: 8, style: 'default', borderColor: '#E5E6EB', slideMode: 'slide', radiusTop: 8, radiusBottom: 8, marginTop: 0, marginBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       {
         key: 'items', label: '组图', control: 'list', section: 'content',
@@ -879,10 +879,7 @@ export const componentRegistry = [
     defaultProps: {
       title: '最新资讯',
       source: 'manual',
-      items: [
-        { title: '文章标题一', desc: '这里是文章摘要内容，可点击查看详情…', date: '2026-09-09', image: '', link: '' },
-        { title: '文章标题二', desc: '这里是文章摘要内容，可点击查看详情…', date: '2026-09-08', image: '', link: '' },
-      ],
+      items: [],
       showDate: true,
       columns: 1,
       listStyle: 'row',
@@ -955,12 +952,7 @@ export const componentRegistry = [
     icon: 'video-feed',
     defaultProps: {
       title: '精彩视频',
-      items: [
-        { title: '视频标题一', cover: '', video: '', link: '' },
-        { title: '视频标题二', cover: '', video: '', link: '' },
-        { title: '视频标题三', cover: '', video: '', link: '' },
-        { title: '视频标题四', cover: '', video: '', link: '' },
-      ],
+      items: [],
       columns: 2,
     },
     schema: [
