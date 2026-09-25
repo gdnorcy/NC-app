@@ -414,15 +414,26 @@
         </div>
       </AppPageHeader>
 
+      <div class="app-home-cards">
+        <div v-for="app in INDUSTRY_APPS" :key="app.appCode" class="app-home-card">
+          <div class="app-home-head">
+            <span class="app-home-name">{{ app.name }}首页</span>
+            <span class="pm-use-tag" :class="{ 'pm-not-set': !appHomeState[app.appCode] }">{{ appHomeState[app.appCode] ? '已装修' : '未装修' }}</span>
+          </div>
+          <div class="app-home-desc">{{ appHomeState[app.appCode] ? `当前页面：${appHomeState[app.appCode].name}` : '未配置，点击「立即装修」创建并设置' }}</div>
+          <el-button size="small" type="primary" @click="ensureAppHome(app)">立即装修</el-button>
+        </div>
+      </div>
+
       <div class="page-manage pm-layout">
         <!-- 左侧：模板名 + 正常手机大小真实预览（iframe 可操作） -->
         <div class="pm-left">
           <div class="pm-tpl-head">
-            <span class="pm-tpl-name">{{ hasHome ? homeName : '名片首页（未装修）' }}</span>
-            <span class="pm-use-tag" :class="{ 'pm-not-set': !hasHome }">{{ hasHome ? '使用中' : '未装修' }}</span>
-            <el-button size="small" text type="primary" @click="ensureHomePage">立即装修</el-button>
+            <span class="pm-tpl-name">{{ homeName }}</span>
+            <span class="pm-use-tag">使用中</span>
+            <el-button size="small" text type="primary" @click="editHome">立即装修</el-button>
           </div>
-          <div class="pm-update">最近更新：{{ hasHome ? homeUpdated : '尚未创建，点击「立即装修」初始化名片首页' }}</div>
+          <div class="pm-update">最近更新：{{ homeUpdated }}</div>
           <div class="pm-phone">
             <div class="pm-status">
               <span>10:18</span>
@@ -439,7 +450,7 @@
               <div v-for="comp in homePreview" :key="comp.id" class="pm-comp">
                 <ComponentRender :comp="comp" />
               </div>
-              <div v-if="!homePreview.length" class="pm-empty">{{ hasHome ? '首页暂无组件，点击「立即装修」添加内容' : '名片首页尚未装修，点击「立即装修」创建并进入装修' }}</div>
+              <div v-if="!homePreview.length" class="pm-empty">首页暂无组件，点击「立即装修」添加内容</div>
             </div>
           </div>
         </div>
@@ -503,14 +514,7 @@
               </el-table-column>
             </el-table>
             <div class="pm-drag-tip">按住行首 ⠿ 拖动可调整页面顺序</div>
-          <div v-if="!filteredPages.length && !pageLoading" class="media-empty">
-            <div>暂无页面，点击「新建页面」创建</div>
-            <div v-if="!hasHome" class="home-placeholder">
-              <span class="pm-use-tag pm-not-set">未装修</span>
-              <span class="home-placeholder-name">名片首页</span>
-              <el-button size="small" type="primary" @click="ensureHomePage">去装修</el-button>
-            </div>
-          </div>
+          <div v-if="!filteredPages.length && !pageLoading" class="media-empty">暂无页面，点击「新建页面」创建</div>
           <div v-else-if="filteredPages.length > pmPageSize" class="pm-pager">
             <el-pagination background layout="total, prev, pager, next, jumper" :total="filteredPages.length" :page-size="pmPageSize" :current-page="pageNum" @current-change="pageNum = $event" />
           </div>
@@ -623,16 +627,30 @@ async function loadHomePreview() {
 }
 const homePageType = computed(() => pageList.value.find((p) => p.isHome)?.page_type || 'home');
 function editHome() { goEdit(homePageType.value); }
-const hasHome = computed(() => pageList.value.some((p) => p.isHome));
-/** 无首页时创建「名片首页」并设为主页后进入装修；已有首页直接进入编辑器 */
-async function ensureHomePage() {
+
+/** 应用首页入口：每个行业应用独立首页（homePages 按应用指向，不占用 is_home 统一默认首页；页面可混用各应用组件） */
+const appHomeState = computed(() => {
+  const map = {};
+  for (const app of INDUSTRY_APPS) {
+    const v = homePages.value[app.appCode] || '';
+    const m = v.match(/pageType=([^&]+)/);
+    const pt = m ? m[1] : '';
+    const page = pt ? pageList.value.find((p) => p.page_type === pt) : null;
+    map[app.appCode] = page ? { name: page.page_name, pageType: pt } : null;
+  }
+  return map;
+});
+async function ensureAppHome(app) {
   try {
-    if (hasHome.value) { goEdit(homePageType.value); return; }
-    const res = await designCall.post(`${API}/page/create`, { pageName: '名片首页' });
-    if (res.id) await designCall.post(`${API}/page/setHome`, { id: res.id });
-    ElMessage.success('名片首页已创建，进入装修');
-    loadPages();
-    if (res.pageType) goEdit(res.pageType);
+    const cur = appHomeState.value[app.appCode];
+    if (cur) { goEdit(cur.pageType); return; }
+    const res = await designCall.post(`${API}/page/create`, { pageName: `${app.name}首页` });
+    if (res.pageType) {
+      homePages.value[app.appCode] = app.path(res.pageType);
+      await saveHome();
+      goEdit(res.pageType); // 先跳编辑器，列表在返回时刷新
+      loadPages();
+    }
   } catch (e) { ElMessage.error(e); }
 }
 async function renameTemplate() {
@@ -1283,8 +1301,11 @@ onMounted(() => {
 .pm-tpl-head { display: flex; align-items: center; gap: 8px; width: 100%; }
 .pm-use-tag { font-size: 11px; color: #165dff; background: #e8f3ff; border-radius: 10px; padding: 2px 8px; line-height: 16px; flex-shrink: 0; }
 .pm-not-set { color: #ff7d00; background: #fff3e8; }
-.home-placeholder { margin-top: 12px; display: flex; align-items: center; gap: 8px; justify-content: center; }
-.home-placeholder-name { font-weight: 600; color: #1d2129; }
+.app-home-cards { display: flex; gap: 12px; margin-bottom: 16px; }
+.app-home-card { flex: 1; border: 1px solid #e5e6eb; border-radius: 8px; padding: 14px 16px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+.app-home-head { display: flex; align-items: center; gap: 8px; }
+.app-home-name { font-weight: 600; color: #1d2129; }
+.app-home-desc { font-size: 12px; color: #86909c; line-height: 18px; min-height: 18px; }
 .pm-tpl-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .pm-update { font-size: 12px; color: #86909c; width: 100%; }
 .pm-phone { width: 270px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb; }
