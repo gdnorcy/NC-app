@@ -49,7 +49,8 @@ $radius-md: 16rpx;
 $radius-lg: 24rpx;
 
 // ---------- 暴露为 CSS 自定义属性（全局可用） ----------
-:root {
+// 微信小程序 wxss 不支持 :root（根选择器为 page），双挂 page 保证两端变量生效
+:root, page {
   --primary: #{$primary};
   --primary-deep: #{$primary-deep};
   --brand-orange: #{$brand-orange};
