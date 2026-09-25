@@ -1495,6 +1495,11 @@ async function load() {
     baseSnapshot = snapshot();
     dirty = false;
     emit('dirty-change', false);
+    // 进入编辑器默认选中第一个组件：边条/属性面板立即可见（参照 ew 默认选中态）
+    if (!selected.value && components.value.length) {
+      selectComp(components.value[0]);
+      pushSelected();
+    }
   } catch (e) { ElMessage.error(e); }
 }
 function defaultMeta() {
