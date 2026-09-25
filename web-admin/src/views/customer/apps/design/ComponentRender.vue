@@ -627,6 +627,57 @@
         <div class="ew-feat-ph" v-else></div>
       </div>
     </template>
+    <!-- 名片搜索栏（完整版原生模块） -->
+    <template v-else-if="comp.type === 'native-search'">
+      <div class="r-native-search" :style="nativeMargin(comp.props)">
+        <div class="r-search shadow" :style="searchStyle({ placeholder: '搜索名片、客户、人脉', showBtn: false })">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
+          <span class="r-search-ph">搜索名片、客户、人脉</span>
+        </div>
+        <div class="r-native-msg"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 1 0-16 0 8 8 0 0 0 16 0z"/><path d="M12 8v4M12 16h.01"/></svg></div>
+      </div>
+    </template>
+    <!-- 名片宫格（完整版 9 宫格原生模块） -->
+    <template v-else-if="comp.type === 'native-grid'">
+      <div class="r-native-grid" :style="nativeMargin(comp.props)">
+        <div v-for="(it, i) in nativeGridItems" :key="i" class="r-native-grid-item">
+          <div class="r-native-grid-icon" :style="{ background: it.bg }">{{ it.label.slice(0, 1) }}</div>
+          <div class="r-native-grid-text">{{ it.label }}</div>
+        </div>
+      </div>
+    </template>
+    <!-- 我的名片（完整版原生模块） -->
+    <template v-else-if="comp.type === 'native-mycard'">
+      <div class="r-native-section" :style="nativeMargin(comp.props)">
+        <div v-if="comp.props.showTitle !== false" class="r-native-title">我的名片<em>查看详情 ›</em></div>
+        <div class="r-mycard" :style="{ background: '#F0F7FF' }">
+          <div class="r-mycard-avatar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#165DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5"/></svg></div>
+          <div class="r-mycard-body">
+            <div class="r-mycard-name">我的名片</div>
+            <div class="r-mycard-sub">创建名片后展示姓名、职位、公司</div>
+          </div>
+          <div class="r-mycard-arrow">›</div>
+        </div>
+      </div>
+    </template>
+    <!-- 访客雷达（完整版原生模块） -->
+    <template v-else-if="comp.type === 'native-radar'">
+      <div class="r-native-section" :style="nativeMargin(comp.props)">
+        <div v-if="comp.props.showTitle !== false" class="r-native-title">访客雷达<em>查看全部 ›</em></div>
+        <div class="r-stats" :style="{ '--st': '#165DFF' }">
+          <div v-if="comp.props.showToday" class="r-stats-item"><b>0</b><span>今日访客</span></div>
+          <div v-if="comp.props.showTotal" class="r-stats-item"><b>0</b><span>累计访客</span></div>
+          <div v-if="comp.props.showExchange" class="r-stats-item"><b>0</b><span>名片交换</span></div>
+        </div>
+      </div>
+    </template>
+    <!-- 人脉集市（完整版原生模块） -->
+    <template v-else-if="comp.type === 'native-market'">
+      <div class="r-native-section" :style="nativeMargin(comp.props)">
+        <div v-if="comp.props.showTitle !== false" class="r-native-title">人脉集市<em>进入集市 ›</em></div>
+        <div class="r-native-market-empty">暂无人脉推荐</div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1237,6 +1288,23 @@ function chRadius(p, i) {
   if (p.radiusBottom && last) r.push('12px');
   return r.length ? r.join(' ') : '';
 }
+function nativeMargin(p) {
+  const s = {};
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  return s;
+}
+const nativeGridItems = [
+  { label: '我的名片', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },
+  { label: '访客雷达', bg: 'linear-gradient(135deg,#00b42a,#23c343)' },
+  { label: '客户管理', bg: 'linear-gradient(135deg,#ff7d00,#ff9a2e)' },
+  { label: '人脉集市', bg: 'linear-gradient(135deg,#722ed1,#9254de)' },
+  { label: '名片交换', bg: 'linear-gradient(135deg,#f5319d,#ff7d9b)' },
+  { label: '分销中心', bg: 'linear-gradient(135deg,#0fc6c2,#35e0e0)' },
+  { label: '会员中心', bg: 'linear-gradient(135deg,#f7ba1e,#ffd666)' },
+  { label: '我的动态', bg: 'linear-gradient(135deg,#4080ff,#7cc5ff)' },
+  { label: '更多', bg: 'linear-gradient(135deg,#86909c,#a9b0bb)' },
+];
 </script>
 
 <style scoped>
@@ -1687,4 +1755,15 @@ function chRadius(p, i) {
 .r-tabs{display:flex;gap:12px;margin-bottom:8px;}
 .r-tab{font-size:11px;color:#86909C;padding-bottom:2px;}
 .r-tab.active{color:#165DFF;font-weight:600;border-bottom:2px solid #165DFF;}
+/* 名片组件（完整版原生模块）预览 */
+.r-native-search{display:flex;align-items:center;gap:8px;}
+.r-native-msg{flex-shrink:0;}
+.r-native-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px 6px;background:#fff;border-radius:8px;padding:12px 8px;}
+.r-native-grid-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.r-native-grid-icon{width:28px;height:28px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;}
+.r-native-grid-text{font-size:10px;color:#4e5969;}
+.r-native-section{background:#fff;border-radius:8px;padding:12px;}
+.r-native-title{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;color:#1d2129;margin-bottom:10px;}
+.r-native-title em{font-style:normal;font-size:11px;font-weight:400;color:#86909c;}
+.r-native-market-empty{text-align:center;color:#86909c;font-size:12px;padding:14px 0;background:#f7f8fa;border-radius:8px;}
 </style>

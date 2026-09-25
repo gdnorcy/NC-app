@@ -16,123 +16,121 @@
       </view>
     </view>
 
-    <!-- 设计中心装修区（发布/预览的首页组件） -->
-    <DesignPage v-if="designComps.length" :comps="designComps" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" class="design-section" />
-
-    <!-- 顶部搜索栏（沉浸式头部悬浮时保留顶部安全距，其余类型由设计导航占位） -->
-    <view v-if="nativeVisible.searchBar" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }">
-      <view class="search-box" @click="goSearch">
-        <SIcon name="dynamic" size="small" color="#86909c" />
-        <text class="search-placeholder">搜索名片、客户、人脉</text>
-      </view>
-      <view class="msg-icon" @click="goMessages">
-        <SIcon name="audit" size="default" color="#4e5969" />
-        <view class="msg-dot" v-if="unreadCount > 0"></view>
-      </view>
-    </view>
-
-    <!-- 功能九宫格 -->
-    <view v-if="nativeVisible.quickGrid" class="grid-section">
-      <view class="grid">
-        <view class="grid-item" v-for="item in features" :key="item.key" @click="goPage(item.path)">
-          <view class="grid-icon" :style="{ background: item.bg }">
-            <SIcon :name="item.icon" size="large" color="#ffffff" />
-          </view>
-          <view class="grid-label">{{ item.label }}</view>
+    <!-- 装修组件区：DIY 组件与名片模块组件按配置顺序渲染（可穿插排序） -->
+    <template v-if="designComps.length" v-for="(c, i) in designComps" :key="i">
+      <!-- 名片搜索栏 -->
+      <view v-if="c.type === 'native-search'" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }" :style="nativeMargin(c.props)">
+        <view class="search-box" @click="goSearch">
+          <SIcon name="dynamic" size="small" color="#86909c" />
+          <text class="search-placeholder">搜索名片、客户、人脉</text>
+        </view>
+        <view class="msg-icon" @click="goMessages">
+          <SIcon name="audit" size="default" color="#4e5969" />
+          <view class="msg-dot" v-if="unreadCount > 0"></view>
         </view>
       </view>
-    </view>
-
-    <!-- 我的名片卡片 -->
-    <view v-if="nativeVisible.myCard" class="section">
-      <view class="section-header">
-        <view class="section-title">我的名片</view>
-        <view class="section-more" @click="goMyCard">查看详情 ›</view>
-      </view>
-      <view class="my-card" v-if="myCard" @click="goMyCard">
-        <view class="card-avatar" :style="avatarStyle">
-          <image v-if="myCard.avatar" :src="myCard.avatar" class="avatar-img" mode="aspectFill" />
-          <text v-else>{{ myCard.name?.[0] || '名' }}</text>
-        </view>
-        <view class="card-info">
-          <view class="card-name">{{ myCard.name }}</view>
-          <view class="card-position">{{ myCard.position || '未设置职位' }}</view>
-          <view class="card-company">{{ myCard.company || '未设置公司' }}</view>
-        </view>
-        <view class="card-edit" @click.stop="goEdit">
-          <SIcon name="template" size="small" color="#165dff" />
-          <text>编辑</text>
-        </view>
-      </view>
-      <view class="my-card create" v-else @click="goCreate">
-        <view class="create-icon"><SIcon name="card" size="xlarge" color="#165dff" /></view>
-        <view class="create-info">
-          <view class="create-title">创建我的名片</view>
-          <view class="create-desc">三步完成，快速创建专属名片</view>
-        </view>
-        <view class="create-arrow">›</view>
-      </view>
-    </view>
-
-    <!-- 访客雷达 -->
-    <view v-if="nativeVisible.visitorRadar" class="section">
-      <view class="section-header">
-        <view class="section-title">
-          <SIcon name="radar" size="default" color="#00b42a" />
-          <text>访客雷达</text>
-        </view>
-        <view class="section-more" @click="goVisitors">查看全部 ›</view>
-      </view>
-      <view class="visitor-stats">
-        <view class="visitor-stat">
-          <view class="visitor-num">{{ visitorStats.today || 0 }}</view>
-          <view class="visitor-label">今日访客</view>
-        </view>
-        <view class="visitor-divider"></view>
-        <view class="visitor-stat">
-          <view class="visitor-num">{{ visitorStats.total || 0 }}</view>
-          <view class="visitor-label">累计访客</view>
-        </view>
-        <view class="visitor-divider"></view>
-        <view class="visitor-stat">
-          <view class="visitor-num">{{ visitorStats.exchange || 0 }}</view>
-          <view class="visitor-label">名片交换</view>
-        </view>
-      </view>
-      <view class="visitor-list" v-if="visitorList.length">
-        <view class="visitor-item" v-for="v in visitorList" :key="v.id">
-          <view class="visitor-avatar">{{ v.name?.[0] || '访' }}</view>
-          <view class="visitor-info">
-            <view class="visitor-name">{{ v.name || '匿名访客' }}</view>
-            <view class="visitor-time">{{ v.visitTime || '刚刚' }}</view>
-          </view>
-          <view class="visitor-action">查看名片</view>
-        </view>
-      </view>
-      <view class="empty-hint" v-else>暂无访客记录</view>
-    </view>
-
-    <!-- 人脉集市推荐 -->
-    <view v-if="nativeVisible.peopleMarket" class="section">
-      <view class="section-header">
-        <view class="section-title">
-          <SIcon name="market" size="default" color="#722ed1" />
-          <text>人脉集市</text>
-        </view>
-        <view class="section-more" @click="goMarket">进入集市 ›</view>
-      </view>
-      <scroll-view class="market-scroll" scroll-x v-if="marketList.length">
-        <view class="market-list">
-          <view class="market-card" v-for="item in marketList" :key="item.id" @click="viewMarketCard(item)">
-            <view class="market-avatar">{{ item.name?.[0] || '名' }}</view>
-            <view class="market-name">{{ item.name }}</view>
-            <view class="market-position">{{ item.position || '—' }}</view>
-            <view class="market-company">{{ item.companyName || item.company || '—' }}</view>
+      <!-- 名片宫格（9 宫格） -->
+      <view v-else-if="c.type === 'native-grid'" class="grid-section" :style="nativeMargin(c.props)">
+        <view class="grid">
+          <view class="grid-item" v-for="item in features" :key="item.key" @click="goPage(item.path)">
+            <view class="grid-icon" :style="{ background: item.bg }">
+              <SIcon :name="item.icon" size="large" color="#ffffff" />
+            </view>
+            <view class="grid-label">{{ item.label }}</view>
           </view>
         </view>
-      </scroll-view>
-      <view class="empty-hint" v-else>暂无人脉推荐</view>
-    </view>
+      </view>
+      <!-- 我的名片 -->
+      <view v-else-if="c.type === 'native-mycard'" class="section" :style="nativeMargin(c.props)">
+        <view class="section-header" v-if="c.props.showTitle !== false">
+          <view class="section-title">我的名片</view>
+          <view class="section-more" @click="goMyCard">查看详情 ›</view>
+        </view>
+        <view class="my-card" v-if="myCard" @click="goMyCard">
+          <view class="card-avatar" :style="avatarStyle">
+            <image v-if="myCard.avatar" :src="myCard.avatar" class="avatar-img" mode="aspectFill" />
+            <text v-else>{{ myCard.name?.[0] || '名' }}</text>
+          </view>
+          <view class="card-info">
+            <view class="card-name">{{ myCard.name }}</view>
+            <view class="card-position">{{ myCard.position || '未设置职位' }}</view>
+            <view class="card-company">{{ myCard.company || '未设置公司' }}</view>
+          </view>
+          <view class="card-edit" @click.stop="goEdit">
+            <SIcon name="template" size="small" color="#165dff" />
+            <text>编辑</text>
+          </view>
+        </view>
+        <view class="my-card create" v-else @click="goCreate">
+          <view class="create-icon"><SIcon name="card" size="xlarge" color="#165dff" /></view>
+          <view class="create-info">
+            <view class="create-title">创建我的名片</view>
+            <view class="create-desc">三步完成，快速创建专属名片</view>
+          </view>
+          <view class="create-arrow">›</view>
+        </view>
+      </view>
+      <!-- 访客雷达 -->
+      <view v-else-if="c.type === 'native-radar'" class="section" :style="nativeMargin(c.props)">
+        <view class="section-header" v-if="c.props.showTitle !== false">
+          <view class="section-title">
+            <SIcon name="radar" size="default" color="#00b42a" />
+            <text>访客雷达</text>
+          </view>
+          <view class="section-more" @click="goVisitors">查看全部 ›</view>
+        </view>
+        <view class="visitor-stats">
+          <view class="visitor-stat" v-if="c.props.showToday !== false">
+            <view class="visitor-num">{{ visitorStats.today || 0 }}</view>
+            <view class="visitor-label">今日访客</view>
+          </view>
+          <view class="visitor-divider" v-if="c.props.showToday !== false && c.props.showTotal !== false"></view>
+          <view class="visitor-stat" v-if="c.props.showTotal !== false">
+            <view class="visitor-num">{{ visitorStats.total || 0 }}</view>
+            <view class="visitor-label">累计访客</view>
+          </view>
+          <view class="visitor-divider" v-if="c.props.showTotal !== false && c.props.showExchange !== false"></view>
+          <view class="visitor-stat" v-if="c.props.showExchange !== false">
+            <view class="visitor-num">{{ visitorStats.exchange || 0 }}</view>
+            <view class="visitor-label">名片交换</view>
+          </view>
+        </view>
+        <view class="visitor-list" v-if="visitorList.length">
+          <view class="visitor-item" v-for="v in visitorList" :key="v.id">
+            <view class="visitor-avatar">{{ v.name?.[0] || '访' }}</view>
+            <view class="visitor-info">
+              <view class="visitor-name">{{ v.name || '匿名访客' }}</view>
+              <view class="visitor-time">{{ v.visitTime || '刚刚' }}</view>
+            </view>
+            <view class="visitor-action">查看名片</view>
+          </view>
+        </view>
+        <view class="empty-hint" v-else>暂无访客记录</view>
+      </view>
+      <!-- 人脉集市 -->
+      <view v-else-if="c.type === 'native-market'" class="section" :style="nativeMargin(c.props)">
+        <view class="section-header" v-if="c.props.showTitle !== false">
+          <view class="section-title">
+            <SIcon name="market" size="default" color="#722ed1" />
+            <text>人脉集市</text>
+          </view>
+          <view class="section-more" @click="goMarket">进入集市 ›</view>
+        </view>
+        <scroll-view class="market-scroll" scroll-x v-if="marketList.length">
+          <view class="market-list">
+            <view class="market-card" v-for="item in marketList" :key="item.id" @click="viewMarketCard(item)">
+              <view class="market-avatar">{{ item.name?.[0] || '名' }}</view>
+              <view class="market-name">{{ item.name }}</view>
+              <view class="market-position">{{ item.position || '—' }}</view>
+              <view class="market-company">{{ item.companyName || item.company || '—' }}</view>
+            </view>
+          </view>
+        </scroll-view>
+        <view class="empty-hint" v-else>暂无人脉推荐</view>
+      </view>
+      <!-- 其余 DIY 组件 -->
+      <DesignPage v-else :comps="[c]" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" />
+    </template>
 
     <!-- 底部间距 -->
     <view class="bottom-space"></view>
@@ -166,20 +164,16 @@ const designHeader = ref(null);
 const designGlobal = ref({});
 const designTheme = ref({});
 const designStyle = ref(null);
-const designNative = ref({});
 const shareBack = ref(false);
 const headerScrolled = ref(false);
-// 原生功能区可见性（装修配置 meta.nativeSections 控制；未配置默认全开）
-const nativeVisible = computed(() => {
-  const n = designNative.value || {};
-  return {
-    searchBar: n.searchBar !== false,
-    quickGrid: n.quickGrid !== false,
-    myCard: n.myCard !== false,
-    visitorRadar: n.visitorRadar !== false,
-    peopleMarket: n.peopleMarket !== false,
-  };
-});
+// 名片模块组件外边距（schema 上边距/下边距）
+function nativeMargin(props) {
+  const p = props || {};
+  const s = {};
+  if (p.marginTop) s.marginTop = p.marginTop + 'px';
+  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  return s;
+}
 // 系统风格头部（无页面头部配置时全局默认）：headColor 跟随主色→主题色底 / 白色头部→白底；文字色对应
 const sysHeadStyle = computed(() => {
   const st = designStyle.value;
@@ -264,7 +258,6 @@ onMounted(async () => {
     designHeader.value = config?.header || null;
     designGlobal.value = config?.pages?.meta?.global || {};
     designTheme.value = config?.pages?.meta?.theme || {};
-    designNative.value = config?.pages?.meta?.nativeSections || {};
     designStyle.value = config?.style || null;
     // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);

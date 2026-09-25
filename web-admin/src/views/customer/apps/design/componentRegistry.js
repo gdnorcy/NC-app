@@ -40,6 +40,7 @@ export const componentGroups = [
   { key: 'basic', name: '基础组件' },
   { key: 'marketing', name: '营销组件' },
   { key: 'function', name: '功能组件' },
+  { key: 'card', name: '名片组件' },
   { key: 'mall', name: '商城组件' },
 ];
 
@@ -84,6 +85,11 @@ export const COMP_ICONS = {
   'tabbar': iconTabbar,
   'guess': iconGuess,
   'ceramics': iconCeramics,
+  'native-search': iconSearch,
+  'native-grid': iconGridNav,
+  'native-mycard': iconMyCard,
+  'native-radar': iconStats,
+  'native-market': iconContact,
 };
 
 // 宫格导航图标选择器选项（系统 SVG 图标库，SIcon 双端通用）
@@ -1301,7 +1307,68 @@ export const componentRegistry = [
       { key:'marginTop', label:'上边距', control:'slider', section:'style', group:'边距设置', min:0, max:40 },
       { key:'marginBottom', label:'下边距', control:'slider', section:'style', group:'边距设置', min:0, max:40 },
     ],
-  }
+  },
+  {
+    type: 'native-search',
+    name: '名片搜索栏',
+    group: 'card',
+    icon: 'native-search',
+    defaultProps: { marginTop: 0, marginBottom: 0 },
+    schema: [
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
+  {
+    type: 'native-grid',
+    name: '名片宫格',
+    group: 'card',
+    icon: 'native-grid',
+    defaultProps: { marginTop: 0, marginBottom: 0 },
+    schema: [
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
+  {
+    type: 'native-mycard',
+    name: '我的名片',
+    group: 'card',
+    icon: 'native-mycard',
+    defaultProps: { showTitle: true, marginTop: 0, marginBottom: 0 },
+    schema: [
+      { key: 'showTitle', label: '显示标题', control: 'switch', section: 'content' },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
+  {
+    type: 'native-radar',
+    name: '访客雷达',
+    group: 'card',
+    icon: 'native-radar',
+    defaultProps: { showTitle: true, showToday: true, showTotal: true, showExchange: true, marginTop: 0, marginBottom: 0 },
+    schema: [
+      { key: 'showTitle', label: '显示标题', control: 'switch', section: 'content' },
+      { key: 'showToday', label: '今日访客', control: 'switch', section: 'content' },
+      { key: 'showTotal', label: '累计访客', control: 'switch', section: 'content' },
+      { key: 'showExchange', label: '名片交换', control: 'switch', section: 'content' },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
+  {
+    type: 'native-market',
+    name: '人脉集市',
+    group: 'card',
+    icon: 'native-market',
+    defaultProps: { showTitle: true, marginTop: 0, marginBottom: 0 },
+    schema: [
+      { key: 'showTitle', label: '显示标题', control: 'switch', section: 'content' },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
 ];
 
 // 通用样式：自动注入属性面板「通用样式」分组（跳过组件 schema 已有同名 key）
