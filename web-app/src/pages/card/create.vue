@@ -809,14 +809,14 @@ async function submit() {
   margin-top: 16rpx;
 }
 .bind-hint {
-
-.need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
-.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t2); font-size: 26rpx; border: 2rpx solid transparent; }
-.need-item.on { background: rgba(22,93,255,0.08); color: var(--primary); border-color: var(--primary); font-weight: 500; }
   font-size: 20rpx;
   color: var(--t3);
   margin-top: 8rpx;
 }
+
+.need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
+.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t2); font-size: 26rpx; border: 2rpx solid transparent; }
+.need-item.on { background: rgba(22,93,255,0.08); color: var(--primary); border-color: var(--primary); font-weight: 500; }
 
 /* 表单 */
 .form-item {
