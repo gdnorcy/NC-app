@@ -1414,7 +1414,6 @@ function addComponent(type) {
   }
   selected.value = c.id;
   refreshSelectedComp();
-  updateToolsPos();
 }
 function removeComp(id) {
   components.value = components.value.filter((c) => c.id !== id);
@@ -1432,7 +1431,7 @@ function dupComp(comp) {
   selected.value = c.id;
   refreshSelectedComp();
 }
-function selectComp(comp) { selected.value = comp.id; cubeSel.value = null; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); refreshSelectedComp(); updateToolsPos(); }
+function selectComp(comp) { selected.value = comp.id; cubeSel.value = null; const c = components.value.find((x) => x.id === comp.id); migrateCube(c); refreshSelectedComp(); }
 function onLibDragStart(e, type) { e.dataTransfer.setData('text/plain', type); }
 function onCanvasDragOver() {}
 function onCanvasDrop(e) {
@@ -1450,7 +1449,7 @@ function onCompDragOver(i) {
     dragIdx = i;
   }
 }
-function onCompDrop() { dragIdx = -1; updateToolsPos(); }
+function onCompDrop() { dragIdx = -1; }
 
 async function load() {
   try {
@@ -1508,7 +1507,6 @@ async function load() {
     // 进入编辑器默认选中第一个组件：边条/属性面板立即可见（参照 ew 默认选中态）
     if (!selected.value && components.value.length) {
       selectComp(components.value[0]);
-      pushSelected();
     }
   } catch (e) { ElMessage.error(e); }
 }
@@ -1868,21 +1866,6 @@ function onListItemDrop() { listDrag = null; }
 
 watch(() => props.pageType, () => { selected.value = null; load(); });
 
-// ---- B1：画布 = 真实 C 端页面（iframe）----
-const previewUrl = ref('');
-const frameHeight = ref(800);
-const toolsTop = ref(4);
-let framePushTimer = null;
-let frameBridgeBound = false;
-
-/** 参照 ew：选中组件的操作边条跟随组件位置（读 iframe 内 .dp-slot offsetTop，同源直接取） */
-function updateToolsPos() {
-  const comps = document.querySelectorAll('.pe-comp');
-  const idx = components.value.findIndex((x) => x.id === selected.value);
-  if (!comps[idx]) { toolsTop.value = 4; return; }
-  toolsTop.value = Math.max(2, comps[idx].offsetTop);
-}
-
 /** 组件序号（1 起，供操作条展示） */
 function compIndex(comp) {
   return components.value.findIndex((x) => x.id === comp.id) + 1;
@@ -1898,71 +1881,16 @@ function moveComp(comp, dir) {
   components.value = arr;
   refreshSelectedComp();
 }
-function frameEl() {
-  return document.querySelector('.pe-live-frame');
-}
-/** 推送当前 designJson 给 C 端 iframe（实时渲染） */
-function pushDesignJson() {
-  const f = frameEl();
-  if (!f || !f.contentWindow) return;
-  f.contentWindow.postMessage({
-    source: 'nc-admin',
-    type: 'design-json',
-    json: {
-      components: JSON.parse(JSON.stringify(components.value)),
-      meta: JSON.parse(JSON.stringify(meta)),
-    },
-  }, '*');
-}
-/** 推送选中组件下标给 C 端 iframe（高亮） */
-function pushSelected() {
-  const f = frameEl();
-  if (!f || !f.contentWindow) return;
-  const idx = components.value.findIndex((x) => x.id === selected.value);
-  f.contentWindow.postMessage({ source: 'nc-admin', type: 'set-selected', index: idx }, '*');
-  // 边条跟随组件：选中/排序/属性变化后延时取新位置
-  clearTimeout(updateToolsPos._t);
-  updateToolsPos._t = setTimeout(updateToolsPos, 260);
-}
-function onFrameLoad() {
-  setTimeout(() => { pushDesignJson(); pushSelected(); }, 200);
-}
-/** 监听 C 端 iframe 上报（点击组件 → 选中联动；高度变化 → 自适应） */
-function bindFrameBridge() {
-  if (frameBridgeBound) return;
-  frameBridgeBound = true;
-  window.addEventListener('message', (e) => {
-    const d = e && e.data;
-    if (!d || d.source !== 'nc-c-iframe') return;
-    if (d.type === 'component-click') {
-      const c = components.value[d.index];
-      if (c) selectComp(c);
-    } else if (d.type === 'resize') {
-      if (typeof d.height === 'number' && d.height > 0 && d.height < 50000) frameHeight.value = d.height;
-    }
-  });
-}
-/** 生成带签名 + editor=1 的真实 C 端预览 URL */
-function openPreview() {
-  if (!previewUrl.value) return;
-  const url = previewUrl.value.replace('editor=1&', '').replace('&editor=1', '').replace('editor=1', '');
-  window.open(url, '_blank');
-}
-
-async function initPreviewFrame() {
+/** 预览：新窗口打开真实 C 端页（带签名一次性 URL，读最新草稿） */
+async function openPreview() {
   try {
     const res = await designCall.get('/design/previewUrl', { params: { draft: 1, pageType: props.pageType } });
-    if (res && res.url) {
-      previewUrl.value = res.url.includes('editor=1') ? res.url : res.url.replace('preview=1', 'preview=1&editor=1');
-    }
-  } catch (e) { /* 预览不可用不阻塞编辑（iframe 保持空） */ }
+    if (res && res.url) window.open(res.url, '_blank');
+    else ElMessage.info('暂无法打开预览');
+  } catch (e) { ElMessage.error('预览失败'); }
 }
-// 组件/元数据变化 → 防抖推送给 iframe 实时渲染
-watch(components, () => { clearTimeout(framePushTimer); framePushTimer = setTimeout(pushDesignJson, 800); }, { deep: true });
-watch(meta, () => { clearTimeout(framePushTimer); framePushTimer = setTimeout(pushDesignJson, 800); }, { deep: true });
-watch(selected, () => pushSelected());
 
-onMounted(() => { load(); loadPageList(); bindFrameBridge(); initPreviewFrame(); });
+onMounted(() => { load(); loadPageList(); });
 defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate, load, pageName, components });
 </script>
 
