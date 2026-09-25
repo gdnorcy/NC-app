@@ -112,7 +112,7 @@ import { onUnload } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import { heroGradient } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
-import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
+import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 

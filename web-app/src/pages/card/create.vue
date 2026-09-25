@@ -286,7 +286,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
-import { INDUSTRIES, REGIONS } from '../../utils/cardOptions.js';
+import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 

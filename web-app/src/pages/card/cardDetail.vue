@@ -268,7 +268,7 @@ import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app'
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient } from '../../utils/color.js';
-import { saveCardTabState, restoreScrollTop, h5ScrollTop } from '../../utils/cardTabState.js';
+import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
