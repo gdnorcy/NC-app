@@ -440,15 +440,29 @@
       <div class="r-article" :class="'r-article-' + (comp.props.listStyle || 'row')" :style="{ background: comp.props.bgColor || 'transparent', borderRadius: (comp.props.radius ?? 8) + 'px' }">
         <div v-if="comp.props.title" class="r-article-title">{{ comp.props.title }}</div>
         <div class="r-article-grid" :style="{ gridTemplateColumns: 'repeat(' + (comp.props.columns || 1) + ',1fr)' }">
-          <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-article-item">
-            <div v-if="it.image" class="r-article-img"><img :src="resolveUrl(it.image)" /></div>
-            <div v-else class="r-article-img r-article-img-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
-            <div class="r-article-body">
-              <div class="r-article-t">{{ it.title || '文章标题' }}</div>
-              <div v-if="it.desc" class="r-article-d">{{ it.desc }}</div>
-              <div v-if="comp.props.showDate" class="r-article-date">{{ it.date || '2026-01-01' }}</div>
+          <template v-if="comp.props.source === 'content'">
+            <div v-for="(it, i) in contentArticles" :key="i" class="r-article-item">
+              <div v-if="it.thumb" class="r-article-img"><img :src="resolveUrl(it.thumb)" /></div>
+              <div v-else class="r-article-img r-article-img-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+              <div class="r-article-body">
+                <div class="r-article-t">{{ it.title || '文章标题' }}</div>
+                <div v-if="it.intro" class="r-article-d">{{ it.intro }}</div>
+                <div v-if="comp.props.showDate" class="r-article-date">{{ String(it.created_at || '').slice(0, 10) }}</div>
+              </div>
             </div>
-          </div>
+            <div v-if="!contentArticles.length" class="r-article-empty">暂无文章</div>
+          </template>
+          <template v-else>
+            <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-article-item">
+              <div v-if="it.image" class="r-article-img"><img :src="resolveUrl(it.image)" /></div>
+              <div v-else class="r-article-img r-article-img-empty"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9CDD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg></div>
+              <div class="r-article-body">
+                <div class="r-article-t">{{ it.title || '文章标题' }}</div>
+                <div v-if="it.desc" class="r-article-d">{{ it.desc }}</div>
+                <div v-if="comp.props.showDate" class="r-article-date">{{ it.date || '2026-01-01' }}</div>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </template>
@@ -813,6 +827,20 @@ async function loadGoodsVariants() {
 }
 onMounted(loadGoodsVariants);
 watch(() => props.comp, loadGoodsVariants, { deep: true });
+
+// 内容文章（article-list source=content，对齐 C 端 cardApi.contentArticles）
+const contentArticles = ref([]);
+async function loadContentArticles() {
+  if (props.comp.type !== 'article-list' || props.comp.props.source !== 'content') return;
+  try {
+    const token = localStorage.getItem('customer_token');
+    const res = await fetch('/api/card/content/articles?page=1&pageSize=20', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    contentArticles.value = Array.isArray(data.list) ? data.list : [];
+  } catch (e) { contentArticles.value = []; }
+}
+onMounted(loadContentArticles);
+watch(() => props.comp, loadContentArticles, { deep: true });
 
 const emit = defineEmits(['cell-select']);
 
@@ -1779,6 +1807,7 @@ const nativeGridItems = [
 .ew-sw-price{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.45);color:#fff;border-radius:4px;padding:2px 6px;font-size:12px;}
 .ew-sw-unit{font-size:10px;margin-left:1px;}
 .ew-v-empty{padding:20px 0;text-align:center;color:#86909C;font-size:13px;background:#fff;}
+.r-article-empty{padding:20px 0;text-align:center;color:#86909C;font-size:13px;background:#fff;}
 .ew-gg-img img{width:100%;height:100%;object-fit:cover;display:block;}
 .ew-sw-price{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.9);padding:2px 8px;border-radius:4px;font-size:13px;color:#ff3e1a;font-weight:600;}
 .ew-sw-unit{font-size:10px;color:#999;font-weight:400;}
