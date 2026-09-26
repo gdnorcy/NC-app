@@ -232,8 +232,9 @@ export const cardApi = {
       } catch { /* 忽略解析失败 */ }
     }
     if (tid) params.tid = tid; // 显式租户（商城等跨应用首页装修读取），优先于 hash 透传
-    // 游客访问（无登录态且无显式/透传租户）：使用部署默认租户读取公开装修配置，保证装修首页对游客可见
-    if (!params.tid && DEFAULT_TENANT_ID && !hasCardToken()) params.tid = DEFAULT_TENANT_ID;
+    // 单租户部署：无显式/透传租户时统一用部署默认租户读取装修配置（登录用户无租户归属时
+    // 后端 customerId=0 会读到空配置，故 C 端一律附加默认租户保证内容一致）
+    if (!params.tid && DEFAULT_TENANT_ID) params.tid = DEFAULT_TENANT_ID;
     const qs = Object.keys(params).length ? '?' + qsStringify(params) : '';
     return request('/design/config' + qs);
   },

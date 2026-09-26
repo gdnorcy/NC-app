@@ -209,14 +209,22 @@ describe('阶段C 语音简介上传', () => {
     }));
   });
 
-  it('designConfig：已登录时不强制附加默认租户（登录态租户由后端 customerId 决定）', async () => {
+  it('designConfig：已登录（无租户归属）也统一附加部署默认租户（单租户部署，避免后端 customerId=0 读到空配置）', async () => {
+    uniMock.getStorageSync.mockReturnValue('test-token');
     mockResponse(200, { pages: { components: [] } });
     await cardApi.designConfig(false, '');
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/design/config',
+      url: 'http://localhost:3000/api/card/design/config?tid=1',
     }));
-    const url = uniMock.request.mock.calls[0][0].url;
-    expect(url.includes('tid=')).toBe(false);
+  });
+
+  it('designConfig：显式 tid 优先于默认租户（商城/全景跨应用读取）', async () => {
+    uniMock.getStorageSync.mockReturnValue('test-token');
+    mockResponse(200, { pages: { components: [] } });
+    await cardApi.designConfig(false, 'mall-home', '2');
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: 'http://localhost:3000/api/card/design/config?pageType=mall-home&tid=2',
+    }));
   });
 });
 

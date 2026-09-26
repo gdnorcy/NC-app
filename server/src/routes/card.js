@@ -3,6 +3,7 @@
  * 个人C端用户 + 企业租户 + 平台运营
  */
 import { Router } from 'express';
+import { config } from '../config.js';
 import multer from 'multer';
 import path from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
@@ -1734,8 +1735,11 @@ export function createCardRouter(db, wxService) {
     const previewTid = req.customerId ? 0 : verifyPreviewSig(req.query);
     // 公开浏览：未登录时支持 ?tid= 数字指定租户（装修配置为公开内容，供商城/全景等公开首页渲染）
     const pubTid = Number(req.query.tid) || 0;
-    if (!req.customerId && !previewTid && !pubTid) return res.status(401).json({ error: '未登录' });
-    const tenantId = req.customerId || previewTid || pubTid;
+    // 登录但无租户归属（customerId=0）、且无签名/显式租户时，回退部署默认租户读取公开装修配置
+    // （小程序登录用户常无 customer_id，若直用 0 会读到平台级空配置，与装修中心内容不一致）
+    const effectiveTenant = req.customerId || previewTid || pubTid || Number(config.defaultTenantId) || 0;
+    if (!req.customerId && !previewTid && !pubTid && !Number(config.defaultTenantId)) return res.status(401).json({ error: '未登录' });
+    const tenantId = effectiveTenant;
     const style = db.prepare('SELECT style_json FROM tenant_style_config WHERE tenant_id = ?').get(tenantId);
     const tab = db.prepare("SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND is_default = 1 AND enabled = 1").get(tenantId);
     const home = db.prepare('SELECT home_page, home_pages FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
