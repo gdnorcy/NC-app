@@ -38,7 +38,11 @@ export function normalizeDesignConfig(raw) {
   const cfg = raw || {};
   const style = cfg.style || {};
   const tab = cfg.tab;
-  const tabItems = Array.isArray(tab?.items) && tab.items.length ? tab.items : DEFAULT_DESIGN_TABS;
+  // 底部导航模式：装修页面设置配置（none=关闭 → 不渲染导航；custom 时服务端已按 schemeId 返回方案）
+  const navCfg = cfg.nav || {};
+  const navMode = navCfg.mode === 'none' || navCfg.mode === 'custom' ? navCfg.mode : 'default';
+  const navJumpEnabled = navCfg.jumpEnabled !== false;
+  const tabItems = navMode === 'none' ? [] : (Array.isArray(tab?.items) && tab.items.length ? tab.items : DEFAULT_DESIGN_TABS);
   // 首页跳转按应用维度化：card 应用启动页取 homePages.card，兼容旧 homePage 单值
   const homePageRaw = (cfg.homePages && typeof cfg.homePages === 'object' && typeof cfg.homePages.card === 'string')
     ? cfg.homePages.card
@@ -59,6 +63,8 @@ export function normalizeDesignConfig(raw) {
       subTextColor: style.subTextColor || '#FE0137',
     },
     header: normalizeHeader(cfg.header, globalDefault),
+    navMode,
+    navJumpEnabled,
     tabItems: tabItems.map((it, i) => ({
       text: it.text || `导航${i + 1}`,
       icon: typeof it.icon === 'string' ? it.icon : '',

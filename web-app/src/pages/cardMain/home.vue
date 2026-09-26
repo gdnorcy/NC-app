@@ -134,7 +134,7 @@
       <DesignPage v-else :comps="[c]" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" /> </template>
 
     <!-- 底部间距 -->
-    <view class="bottom-space"></view>
+    <view v-if="navMode !== 'none'" class="bottom-space"></view>
 
     <!-- 底部Tab：优先渲染设计中心发布的默认导航方案，未发布时兜底默认项 -->
     <CardTabBar active="home" />
@@ -165,6 +165,7 @@ const designTenantId = ref(0);
 const designHeader = ref(null);
 const designGlobal = ref({});
 const designTheme = ref({});
+const navMode = ref('default');
 const designStyle = ref(null);
 const shareBack = ref(false);
 const headerScrolled = ref(false);
@@ -301,6 +302,7 @@ onMounted(async () => {
     designHeader.value = config?.header || null;
     designGlobal.value = config?.pages?.meta?.global || {};
     designTheme.value = config?.pages?.meta?.theme || {};
+    navMode.value = config?.navMode || 'default';
     designStyle.value = config?.style || null;
     // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);

@@ -1741,7 +1741,7 @@ export function createCardRouter(db, wxService) {
     if (!req.customerId && !previewTid && !pubTid && !Number(config.defaultTenantId)) return res.status(401).json({ error: '未登录' });
     const tenantId = effectiveTenant;
     const style = db.prepare('SELECT style_json FROM tenant_style_config WHERE tenant_id = ?').get(tenantId);
-    const tab = db.prepare("SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND is_default = 1 AND enabled = 1").get(tenantId);
+    let tab = null; // 底部导航方案：由装修页面设置 meta.nav 决定（default/custom/none）
     const home = db.prepare('SELECT home_page, home_pages FROM tenant_home_config WHERE tenant_id = ?').get(tenantId);
     let homePages = {};
     if (home) {
@@ -1807,9 +1807,25 @@ export function createCardRouter(db, wxService) {
     const homePt = homeRow?.page_type || 'home';
     const homeShell = HOME_SHELL[homePt] || '/pages/panorama/home';
     const homePageUrl = `${homeShell}?pageType=${homePt}`;
+    // 底部导航：读取装修「页面设置 → 底部导航」配置（页面级）
+    // mode=default 用租户默认方案；mode=custom 用指定独立方案；mode=none 关闭
+    const pageNav = (pages && pages.meta && pages.meta.nav) || {};
+    const navMode = pageNav.mode === 'none' || pageNav.mode === 'custom' ? pageNav.mode : 'default';
+    if (navMode === 'none') {
+      tab = null;
+    } else if (navMode === 'custom' && Number(pageNav.schemeId)) {
+      tab = db
+        .prepare('SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND id = ? AND enabled = 1')
+        .get(tenantId, Number(pageNav.schemeId));
+    } else {
+      tab = db
+        .prepare('SELECT scheme_name, tab_json FROM tenant_tab_scheme WHERE tenant_id = ? AND is_default = 1 AND enabled = 1')
+        .get(tenantId);
+    }
     res.json({
       tenantId,
       style: style ? JSON.parse(style.style_json || '{}') : null,
+      nav: { mode: navMode, jumpEnabled: pageNav.jumpEnabled !== false },
       tab: tab ? { name: tab.scheme_name, items: JSON.parse(tab.tab_json || '[]') } : null,
       homePage: homePages.card || home?.home_page || 'card',
       homePages,

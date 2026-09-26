@@ -1,5 +1,5 @@
 <template>
-  <view class="mp-tabbar" :style="{ gridTemplateColumns: 'repeat(' + (designItems.length || 4) + ', 1fr)' }">
+  <view v-if="designItems.length || navMode !== 'none'" class="mp-tabbar" :style="{ gridTemplateColumns: 'repeat(' + (designItems.length || 4) + ', 1fr)' }">
     <!-- 设计中心已发布底部导航方案：优先渲染配置项 -->
     <template v-if="designItems.length">
       <view v-for="(it, i) in designItems" :key="i" class="mtb" :class="{ on: isOn(it) }" @click="goDesign(it)">
@@ -48,6 +48,8 @@ const localCfg = ref(null);
 const designConfig = computed(() => localCfg.value || readDesignConfig());
 const designItems = computed(() => designConfig.value?.tabItems || []);
 const primary = computed(() => designConfig.value?.style?.primaryColor || '#165DFF');
+const navMode = computed(() => designConfig.value?.navMode || 'default');
+const navJumpEnabled = computed(() => designConfig.value?.navJumpEnabled !== false);
 
 function iconUrl(u) {
   if (!u) return '';
@@ -65,6 +67,7 @@ function isOn(it) {
   return cur === it.url || cur.indexOf(it.url) === 0;
 }
 function goDesign(it) {
+  if (!navJumpEnabled.value) return;
   if (isOn(it) || !it.url) return;
   uni.reLaunch({ url: it.url });
 }
@@ -83,6 +86,7 @@ onMounted(async () => {
 });
 
 function goCard() {
+  if (!navJumpEnabled.value) return;
   if (props.active === 'card') return;
   // 优先回到最近查看的名片，避免多张名片时固定跳第一张
   const lastId = uni.getStorageSync('cardLastViewId');
@@ -96,6 +100,7 @@ function goCard() {
 }
 
 function goPage(path, key) {
+  if (!navJumpEnabled.value) return;
   if (props.active === key) return;
   uni.reLaunch({ url: path });
 }
