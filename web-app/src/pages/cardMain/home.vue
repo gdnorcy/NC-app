@@ -456,6 +456,7 @@ function viewMarketCard(item) {
 }
 .search-box {
   flex: 1;
+  min-width: 0; /* 防止占位文案把搜索框撑破（flex 子项默认 min-width:auto） */
   display: flex;
   align-items: center;
   gap: 12rpx;
@@ -465,6 +466,11 @@ function viewMarketCard(item) {
   padding: 0 28rpx;
 }
 .search-placeholder {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 26rpx;
   color: #86909c;
 }

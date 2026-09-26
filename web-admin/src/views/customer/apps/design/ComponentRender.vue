@@ -1736,7 +1736,7 @@ const nativeGridItems = [
 .r-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .r-gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* 搜索框 */
-.r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; }
+.r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; min-width: 0; }
 .r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .r-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 12px; padding: 3px 12px; border-radius: 12px; }
 .r-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
@@ -1933,7 +1933,7 @@ const nativeGridItems = [
 .r-tab{font-size:11px;color:#86909C;padding-bottom:2px;}
 .r-tab.active{color:#165DFF;font-weight:600;border-bottom:2px solid #165DFF;}
 /* 名片组件（完整版原生模块）预览 */
-.r-native-search{display:flex;align-items:center;gap:8px;}
+.r-native-search{display:flex;align-items:center;gap:8px;}.r-native-search .r-search{flex:1;min-width:0;}
 .r-native-msg{flex-shrink:0;}
 .r-native-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px 6px;background:#fff;border-radius:8px;padding:12px 8px;}
 .r-native-grid-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
