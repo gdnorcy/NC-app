@@ -20,11 +20,11 @@
     <template v-if="designComps.length" v-for="(c, i) in designComps" :key="i">
       <!-- 名片搜索栏 -->
       <view v-if="c.type === 'native-search'" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }" :style="nativeMargin(c.props)">
-        <view class="search-box" @click="goSearch">
-          <SIcon name="dynamic" size="small" color="#86909c" />
-          <text class="search-placeholder">搜索名片、客户、人脉</text>
+        <view class="search-box" :style="searchBoxStyle(c.props)" @click="goSearch">
+          <SIcon name="dynamic" size="small" :color="c.props.textColor || '#86909c'" />
+          <text class="search-placeholder" :style="{ color: c.props.textColor || '#86909c' }">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
         </view>
-        <view class="msg-icon" @click="goMessages">
+        <view class="msg-icon" v-if="c.props.showMsg !== false" @click="goMessages">
           <SIcon name="audit" size="default" color="#4e5969" />
           <view class="msg-dot" v-if="unreadCount > 0"></view>
         </view>
@@ -45,20 +45,20 @@
       <!-- 我的名片 -->
       <view v-else-if="c.type === 'native-mycard'" class="section" :style="nativeMargin(c.props)">
         <view class="section-header" v-if="c.props.showTitle !== false">
-          <view class="section-title">我的名片</view>
-          <view class="section-more" @click="goMyCard">查看详情 ›</view>
+          <view class="section-title">{{ c.props.title || '我的名片' }}</view>
+          <view class="section-more" v-if="c.props.showMore !== false" @click="goMyCard">{{ c.props.moreText || '查看详情' }} ›</view>
         </view>
-        <view class="my-card" v-if="myCard" @click="goMyCard">
+        <view class="my-card" :style="myCardStyle(c.props)" v-if="myCard" @click="goMyCard">
           <view class="card-avatar" :style="avatarStyle">
             <image v-if="myCard.avatar" :src="myCard.avatar" class="avatar-img" mode="aspectFill" />
             <text v-else>{{ myCard.name?.[0] || '名' }}</text>
           </view>
           <view class="card-info">
             <view class="card-name">{{ myCard.name }}</view>
-            <view class="card-position">{{ myCard.position || '未设置职位' }}</view>
-            <view class="card-company">{{ myCard.company || '未设置公司' }}</view>
+            <view class="card-position" v-if="c.props.showPosition !== false">{{ myCard.position || '未设置职位' }}</view>
+            <view class="card-company" v-if="c.props.showCompany !== false">{{ myCard.company || '未设置公司' }}</view>
           </view>
-          <view class="card-edit" @click.stop="goEdit">
+          <view class="card-edit" v-if="c.props.showEdit !== false" @click.stop="goEdit">
             <SIcon name="template" size="small" color="#165dff" />
             <text>编辑</text>
           </view>
@@ -77,27 +77,27 @@
         <view class="section-header" v-if="c.props.showTitle !== false">
           <view class="section-title">
             <SIcon name="radar" size="default" color="#00b42a" />
-            <text>访客雷达</text>
+            <text>{{ c.props.title || '访客雷达' }}</text>
           </view>
-          <view class="section-more" @click="goVisitors">查看全部 ›</view>
+          <view class="section-more" v-if="c.props.showMore !== false" @click="goVisitors">{{ c.props.moreText || '查看全部' }} ›</view>
         </view>
         <view class="visitor-stats">
           <view class="visitor-stat" v-if="c.props.showToday !== false">
-            <view class="visitor-num">{{ visitorStats.today || 0 }}</view>
-            <view class="visitor-label">今日访客</view>
+            <view class="visitor-num" :style="{ color: c.props.numColor || '#165dff' }">{{ visitorStats.today || 0 }}</view>
+            <view class="visitor-label">{{ c.props.todayText || '今日访客' }}</view>
           </view>
           <view class="visitor-divider" v-if="c.props.showToday !== false && c.props.showTotal !== false"></view>
           <view class="visitor-stat" v-if="c.props.showTotal !== false">
-            <view class="visitor-num">{{ visitorStats.total || 0 }}</view>
-            <view class="visitor-label">累计访客</view>
+            <view class="visitor-num" :style="{ color: c.props.numColor || '#165dff' }">{{ visitorStats.total || 0 }}</view>
+            <view class="visitor-label">{{ c.props.totalText || '累计访客' }}</view>
           </view>
           <view class="visitor-divider" v-if="c.props.showTotal !== false && c.props.showExchange !== false"></view>
           <view class="visitor-stat" v-if="c.props.showExchange !== false">
-            <view class="visitor-num">{{ visitorStats.exchange || 0 }}</view>
-            <view class="visitor-label">名片交换</view>
+            <view class="visitor-num" :style="{ color: c.props.numColor || '#165dff' }">{{ visitorStats.exchange || 0 }}</view>
+            <view class="visitor-label">{{ c.props.exchangeText || '名片交换' }}</view>
           </view>
         </view>
-        <view class="visitor-list" v-if="visitorList.length">
+        <view class="visitor-list" v-if="c.props.showList !== false && visitorList.length">
           <view class="visitor-item" v-for="v in visitorList" :key="v.id">
             <view class="visitor-avatar">{{ v.name?.[0] || '访' }}</view>
             <view class="visitor-info">
@@ -114,13 +114,13 @@
         <view class="section-header" v-if="c.props.showTitle !== false">
           <view class="section-title">
             <SIcon name="market" size="default" color="#722ed1" />
-            <text>人脉集市</text>
+            <text>{{ c.props.title || '人脉集市' }}</text>
           </view>
-          <view class="section-more" @click="goMarket">进入集市 ›</view>
+          <view class="section-more" @click="goMarket">{{ c.props.moreText || '进入集市' }} ›</view>
         </view>
         <scroll-view class="market-scroll" scroll-x v-if="marketList.length">
           <view class="market-list">
-            <view class="market-card" v-for="item in marketList" :key="item.id" @click="viewMarketCard(item)">
+            <view class="market-card" v-for="item in marketList" :key="item.id" :style="{ borderRadius: (c.props.cardRadius ?? 12) + 'px' }" @click="viewMarketCard(item)">
               <view class="market-avatar">{{ item.name?.[0] || '名' }}</view>
               <view class="market-name">{{ item.name }}</view>
               <view class="market-position">{{ item.position || '—' }}</view>
@@ -128,7 +128,7 @@
             </view>
           </view>
         </scroll-view>
-        <view class="empty-hint" v-else>暂无人脉推荐</view>
+        <view class="empty-hint" v-else>{{ c.props.emptyText || '暂无人脉推荐' }}</view>
       </view>
       <!-- 其余 DIY 组件 -->
       <DesignPage v-else :comps="[c]" :stats="visitorStats" :tenant-id="designTenantId" :global="designGlobal" /> </template>
@@ -357,6 +357,23 @@ onShow(() => {
   })();
 });
 
+// 名片搜索栏样式（可自定义：高/圆角/背景/文字色/风格）
+function searchBoxStyle(p) {
+  const s = {
+    background: p.bgColor || '#f2f3f5',
+    borderRadius: ((p.radius ?? 16) * 2) + 'rpx',
+    height: ((p.height || 36) * 2) + 'rpx',
+  };
+  if (p.style === 'shadow') s.boxShadow = '0 2rpx 8rpx rgba(31,35,41,0.08)';
+  if (p.style === 'border') s.border = '1rpx solid #E5E6EB';
+  return s;
+}
+// 我的名片卡片样式（圆角/阴影）
+function myCardStyle(p) {
+  const s = { borderRadius: (p.radius ?? 12) + 'px' };
+  if (p.shadow !== false) s.boxShadow = '0 4rpx 16rpx rgba(31,35,41,0.06)';
+  return s;
+}
 function goPage(path) {
   uni.navigateTo({ url: path });
 }

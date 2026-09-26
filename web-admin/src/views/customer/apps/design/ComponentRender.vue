@@ -676,11 +676,11 @@
     <!-- 名片搜索栏（完整版原生模块） -->
     <template v-else-if="comp.type === 'native-search'">
       <div class="r-native-search" :style="nativeMargin(comp.props)">
-        <div class="r-search shadow" :style="searchStyle({ placeholder: '搜索名片、客户、人脉', showBtn: false })">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
-          <span class="r-search-ph">搜索名片、客户、人脉</span>
+        <div class="r-search" :style="searchBoxPreviewStyle(comp.props)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" :stroke="comp.props.textColor || '#86909C'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
+          <span class="r-search-ph" :style="{ color: comp.props.textColor || '#86909C' }">{{ comp.props.placeholder || '搜索名片、客户、人脉' }}</span>
         </div>
-        <div class="r-native-msg"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 1 0-16 0 8 8 0 0 0 16 0z"/><path d="M12 8v4M12 16h.01"/></svg></div>
+        <div v-if="comp.props.showMsg !== false" class="r-native-msg"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 1 0-16 0 8 8 0 0 0 16 0z"/><path d="M12 8v4M12 16h.01"/></svg></div>
       </div>
     </template>
     <!-- 名片宫格（系统功能快捷入口，预览：items 配置优先，回退默认宫格） -->
@@ -700,8 +700,8 @@
     <!-- 我的名片（完整版原生模块） -->
     <template v-else-if="comp.type === 'native-mycard'">
       <div class="r-native-section" :style="nativeMargin(comp.props)">
-        <div v-if="comp.props.showTitle !== false" class="r-native-title">我的名片<em>查看详情 ›</em></div>
-        <div class="r-mycard" :style="{ background: '#F0F7FF' }">
+        <div v-if="comp.props.showTitle !== false" class="r-native-title">{{ comp.props.title || '我的名片' }}<em v-if="comp.props.showMore !== false">{{ comp.props.moreText || '查看详情' }} ›</em></div>
+        <div class="r-mycard" :style="myCardPreviewStyle(comp.props)">
           <div class="r-mycard-avatar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#165DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5"/></svg></div>
           <div class="r-mycard-body">
             <div class="r-mycard-name">我的名片</div>
@@ -714,19 +714,19 @@
     <!-- 访客雷达（完整版原生模块） -->
     <template v-else-if="comp.type === 'native-radar'">
       <div class="r-native-section" :style="nativeMargin(comp.props)">
-        <div v-if="comp.props.showTitle !== false" class="r-native-title">访客雷达<em>查看全部 ›</em></div>
-        <div class="r-stats" :style="{ '--st': '#165DFF' }">
-          <div v-if="comp.props.showToday" class="r-stats-item"><b>0</b><span>今日访客</span></div>
-          <div v-if="comp.props.showTotal" class="r-stats-item"><b>0</b><span>累计访客</span></div>
-          <div v-if="comp.props.showExchange" class="r-stats-item"><b>0</b><span>名片交换</span></div>
+        <div v-if="comp.props.showTitle !== false" class="r-native-title">{{ comp.props.title || '访客雷达' }}<em v-if="comp.props.showMore !== false">{{ comp.props.moreText || '查看全部' }} ›</em></div>
+        <div class="r-stats" :style="{ '--st': comp.props.numColor || '#165DFF' }">
+          <div v-if="comp.props.showToday" class="r-stats-item"><b>0</b><span>{{ comp.props.todayText || '今日访客' }}</span></div>
+          <div v-if="comp.props.showTotal" class="r-stats-item"><b>0</b><span>{{ comp.props.totalText || '累计访客' }}</span></div>
+          <div v-if="comp.props.showExchange" class="r-stats-item"><b>0</b><span>{{ comp.props.exchangeText || '名片交换' }}</span></div>
         </div>
       </div>
     </template>
     <!-- 人脉集市（完整版原生模块） -->
     <template v-else-if="comp.type === 'native-market'">
       <div class="r-native-section" :style="nativeMargin(comp.props)">
-        <div v-if="comp.props.showTitle !== false" class="r-native-title">人脉集市<em>进入集市 ›</em></div>
-        <div class="r-native-market-empty">暂无人脉推荐</div>
+        <div v-if="comp.props.showTitle !== false" class="r-native-title">{{ comp.props.title || '人脉集市' }}<em>{{ comp.props.moreText || '进入集市' }} ›</em></div>
+        <div class="r-native-market-empty">{{ comp.props.emptyText || '暂无人脉推荐' }}</div>
       </div>
     </template>
   </div>
@@ -1233,6 +1233,23 @@ function noticeStyle(p) {
   if (p.bold) s.fontWeight = '600';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+// 名片搜索栏预览样式（native-search 自定义：高/圆角/背景/文字色/风格）
+function searchBoxPreviewStyle(p) {
+  const s = {
+    background: p.bgColor || '#F2F3F5',
+    borderRadius: (p.radius ?? 16) + 'px',
+    height: (p.height || 36) + 'px',
+  };
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.08)';
+  if (p.style === 'border') s.border = '1px solid #E5E6EB';
+  return s;
+}
+// 我的名片卡片预览样式（圆角/阴影）
+function myCardPreviewStyle(p) {
+  const s = { background: '#F0F7FF', borderRadius: (p.radius ?? 12) + 'px' };
+  if (p.shadow !== false) s.boxShadow = '0 4px 16px rgba(31,35,41,0.06)';
   return s;
 }
 function searchStyle(p) {
