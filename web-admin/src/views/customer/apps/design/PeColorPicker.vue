@@ -6,6 +6,16 @@
       <svg class="pe-color-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </div>
 
+    <!-- 渐变预设：值为渐变时显示，点选即应用 -->
+    <div v-if="open && isGradient" class="pc-grads" @mousedown.stop>
+      <span class="pc-grads-label">渐变</span>
+      <span
+        v-for="(g, gi) in gradPresets" :key="gi"
+        class="pc-grad" :class="{ 'pc-grad--on': cur === g }"
+        :style="{ background: g }" :title="g" @click="onGrad(g)"
+      ></span>
+    </div>
+
     <!-- ew/iView ColorPicker 风格：下拉浮层（SV 饱和度面板 + 色相条 + hex 输入 + 清空/确定） -->
     <div v-if="open" class="pc-pop" @mousedown.stop>
       <div class="pc-sv" ref="svRef" :style="{ background: svBg }" @pointerdown="onSvDown">
@@ -50,8 +60,19 @@ onMounted(() => { syncFromCur(); document.addEventListener('pointerdown', onDocD
 onBeforeUnmount(() => { document.removeEventListener('pointerdown', onDocDown, true); });
 
 const isTransparent = computed(() => !cur.value || cur.value === 'transparent');
-const display = computed(() => (isTransparent.value ? 'transparent' : cur.value));
+const isGradient = computed(() => /^linear-gradient/i.test(cur.value || ''));
+const display = computed(() => (isTransparent.value ? 'transparent' : (isGradient.value ? '渐变' : cur.value)));
 const boxStyle = computed(() => (isTransparent.value ? {} : { background: cur.value }));
+// 渐变预设（方案 A 9 色 + 通用 2 色）
+const gradPresets = [
+  'linear-gradient(135deg,#2979ff,#00b0ff)', 'linear-gradient(135deg,#00b8a9,#00d68f)',
+  'linear-gradient(135deg,#ff6b35,#ff9800)', 'linear-gradient(135deg,#7c4dff,#b388ff)',
+  'linear-gradient(135deg,#00b0ff,#536dfe)', 'linear-gradient(135deg,#ff3d3d,#ff7043)',
+  'linear-gradient(135deg,#ffb300,#ff8f00)', 'linear-gradient(135deg,#ec407a,#ab47bc)',
+  'linear-gradient(135deg,#78909c,#546e7a)', 'linear-gradient(135deg,#00b42a,#52c41a)',
+  'linear-gradient(135deg,#13c2c2,#00d0c7)',
+];
+function onGrad(g) { cur.value = g; emit('update:modelValue', g); open.value = false; }
 const svBg = computed(() => `linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, hsla(${hue.value},100%,50%,0)), hsl(${hue.value},100%,50%)`);
 const svDotStyle = computed(() => ({
   left: sat.value + '%',
@@ -63,6 +84,7 @@ const hueDotStyle = computed(() => ({ left: (hue.value / 360 * 100) + '%', backg
 function curHex() { return isTransparent.value ? '#ffffff' : (cur.value || '#ffffff'); }
 
 function syncFromCur() {
+  if (isGradient.value) return; // 渐变值不解析为 hex
   const hsv = hexToHsv(curHex());
   hue.value = hsv.h; sat.value = hsv.s; val.value = hsv.v;
   hexInput.value = curHex().replace('#', '');
@@ -170,6 +192,15 @@ function hexToHsv(hex) {
 </script>
 
 <style scoped>
+.pc-grads {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 8px 10px; border-bottom: 1px solid #e5e6eb;
+  background: #fff; border-radius: 4px 4px 0 0;
+}
+.pc-grads-label { font-size: 12px; color: #86909c; margin-right: 2px; }
+.pc-grad { width: 22px; height: 22px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+.pc-grad:hover { border-color: #165dff; }
+.pc-grad--on { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.2); }
 .pe-color { position: relative; display: inline-flex; }
 .pe-color-trigger {
   display: inline-flex;

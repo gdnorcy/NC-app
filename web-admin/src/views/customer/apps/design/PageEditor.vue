@@ -430,6 +430,7 @@
                           <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:100%">
                             <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
                           </el-select>
+                          <PeColorPicker v-else-if="sf.control === 'color'" v-model="it[sf.key]" />
                           <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                           <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
                             <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
