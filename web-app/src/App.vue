@@ -46,7 +46,7 @@ export default {
 
         // 构建API基础地址
         // #ifdef MP-WEIXIN
-        this.globalData.apiBase = 'https://your-api-domain.com'; // 发布时替换为实际域名
+        this.globalData.apiBase = 'http://localhost:3000'; // 开发默认本地；发布时替换为实际 HTTPS 域名
         // #endif
         // #ifdef H5
         this.globalData.apiBase = location.origin;

@@ -70,7 +70,7 @@
             </template>
             <text v-else class="dp-cd-inline" :style="cdInlineStyle(c.props)">{{ cdVal(i).d }}天{{ cdVal(i).h }}小时{{ cdVal(i).m }}分</text>
           </view>
-          <view class="dp-cd-btn" :style="cdBtnStyle(c.props)" @click="onJump(c.props.link)"><text :style="{ color: c.props.cdBtnText || '#FC5917' }">{{ c.props.btnText || '抢先查看' }}</text></view>
+          <view class="dp-cd-btn" :style="cdBtnStyle(c.props)" @click="onJump(c.props.link)"><text class="dp-cd-btn-text" :style="{ color: c.props.cdBtnText || '#FC5917' }">{{ c.props.btnText || '抢先查看' }}</text></view>
         </view>
       </view>
       <!-- 倒计时02（eweishop 复刻：左图文+数字倒计时 + 右双图） -->
@@ -169,7 +169,7 @@
             <image :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-swiper-img" :style="dpImgStyle(c.props)" @click="onJump(it.link)" />
           </swiper-item>
         </swiper>
-        <view v-if="c.props.indicator === 'number' && (c.props.items || []).some((it) => it.url)" class="dp-swiper-num" :style="{ color: c.props.indicatorColor || '#165dff' }"><text>1/{{ c.props.items.filter((x) => x.url).length }}</text></view>
+        <view v-if="c.props.indicator === 'number' && (c.props.items || []).some((it) => it.url)" class="dp-swiper-num" :style="{ color: c.props.indicatorColor || '#165dff' }"><text class="dp-swiper-num-text">1/{{ c.props.items.filter((x) => x.url).length }}</text></view>
         <view v-if="!(c.props.items || []).some((it) => it.url)" class="dp-swiper-empty"><text>轮播图（请添加图片）</text></view>
       </view>
       <!-- 名片卡 -->
@@ -1565,7 +1565,7 @@ function openChannel(kind, p) {
 .dp-cd-shadow .dp-cd-digit { box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18); }
 .dp-cd-border .dp-cd-digit { box-shadow: none; border: 1px solid rgba(252, 89, 23, 0.45); }
 .dp-cd-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #FC5917; font-size: 12px; line-height: 1.2; width: 48px; height: 48px; border-radius: 50%; background: #FEEC22; display: flex; align-items: center; justify-content: center; text-align: center; }
-.dp-cd-btn text { max-width: 26px; word-break: break-all; }
+.dp-cd-btn-text { max-width: 26px; word-break: break-all; }
 
 /* 倒计时02（eweishop 复刻） */
 .dp-cd2 { display: flex; gap: 6px; overflow: hidden; background: transparent; aspect-ratio: 375 / 188; }
@@ -1641,7 +1641,7 @@ function openChannel(kind, p) {
 .dp-swiper-img { width: 100%; height: 100%; }
 .dp-swiper-empty { height: 100%; display: flex; align-items: center; justify-content: center; color: #86909c; font-size: 12px; }
 .dp-swiper-num { position: absolute; right: 12px; bottom: 10px; background: rgba(0,0,0,.35); color: #fff; font-size: 11px; padding: 1px 8px; border-radius: 8px; z-index: 5; }
-.dp-swiper-num text { color: inherit; }
+.dp-swiper-num-text { color: inherit; }
 /* 名片卡 */
 .dp-mycard { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 8px; }
 .dp-mc-avatar { width: 44px; height: 44px; border-radius: 50%; background: #165dff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; flex-shrink: 0; }
