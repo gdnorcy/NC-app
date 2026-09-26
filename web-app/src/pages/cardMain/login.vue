@@ -51,10 +51,7 @@ async function checkGlobalHome() {
     if (target) {
       // 已按装修中心「首页」完成冷启动跳转：置位会话内首页跳转标记，home 页老逻辑不再二次跳
       uni.setStorageSync(JUMP_DONE_KEY, '1');
-      uni.reLaunch({
-        url: target,
-        fail: (e) => console.warn('[global-home] 跳转失败（开发者工具需清缓存完整编译以更新 app.json 注册）', e && e.errMsg ? e.errMsg : e),
-      });
+      uni.reLaunch({ url: target });
     }
     else console.log('[global-home] 无首页配置或已在本页，跳过跳转', raw && raw.homePageUrl, cur);
   } catch (e) {

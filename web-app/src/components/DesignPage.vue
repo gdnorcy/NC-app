@@ -1660,7 +1660,9 @@ function openChannel(kind, p) {
 /* 数据统计 */
 .dp-stats { display: flex; border-radius: 8px; background: #fff; border: 1px solid #f0f1f3; padding: 16px 8px; }
 .dp-stats-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; border-right: 1px solid #f0f1f3; }
+/* #ifdef H5 */
 .dp-stats-item:last-child { border-right: none; }
+/* #endif */
 .dp-stats-num { font-size: 20px; font-weight: 700; color: var(--st, #165dff); }
 .dp-stats-label { font-size: 12px; color: #86909c; }
 /* 全景方案 */
@@ -1727,8 +1729,10 @@ function openChannel(kind, p) {
 /* #ifdef H5 */
 .dp-richtext :deep(p) { margin: 0 0 0.5em; padding: 0; }
 /* #endif */
-/* 末段不留底部间距：p 的 margin-bottom 溢出容器背景外，会导致下边距=0 时组件下方仍有空隙 */
+/* 末段不留底部间距：仅 H5 生效（rich-text 内部节点小程序端不受组件 wxss 影响，且结构伪类选择器违规） */
+/* #ifdef H5 */
 .dp-richtext :deep(:last-child) { margin-bottom: 0; }
+/* #endif */
 /* 富文本段落样式仅 H5 生效（rich-text 内部节点小程序端不受组件 wxss 影响，且 tag 选择器违规） */
 /* 组图橱窗 */
 .dp-gallery { display: grid; width: 100%; }
