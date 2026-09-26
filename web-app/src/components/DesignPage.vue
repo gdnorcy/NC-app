@@ -141,7 +141,7 @@
       <view v-else-if="c.type === 'live-list'" class="dp-livelist" :class="'dp-live-style-' + (c.props.listStyle || '1')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
         <text v-if="c.props.title" class="dp-live-title-bar">{{ c.props.title }}</text>
         <view v-if="liveList.length" class="dp-live-grid">
-          <view v-for="(it, i) in liveList.slice(0, Number(c.props.limit) || 6)" :key="i" class="dp-live-card" @click="openChannel('live', it)">
+          <view v-for="(it, i) in liveList.slice(0, Number(c.props.limit) || 6)" :key="i" class="dp-live-card" @click="openLiveRoom(it)">
             <image v-if="it.cover" :src="resolveUrl(it.cover)" mode="aspectFill" class="dp-live-cover" />
             <view v-else class="dp-live-cover dp-live-cover-ph"><text>直播</text></view>
             <view class="dp-live-tag">直播中</view>
@@ -1297,6 +1297,7 @@ onMounted(() => {
     if (c.type === 'pano-scenes') loadPanoScenes(i);
   });
   loadContentArticles();
+  loadLiveList();
   loadMallComps();
 });
 function panoCategories(p) {
@@ -1361,6 +1362,28 @@ function openContentVideo(it) {
     fail: () => uni.showToast({ title: '打开视频列表失败', icon: 'none' }),
   });
 }
+/** 小程序直播 C 端：live-list 卡片点击——微信直播间有 roomId 跳观看页，无则降级视频号跳转 */
+function openLiveRoom(it) {
+  if (it && it.roomId) {
+    const tid = props.tenantId || '';
+    const q = `roomId=${it.roomId}&tid=${tid}&title=${encodeURIComponent(it.title || '')}&cover=${encodeURIComponent(it.cover || '')}&anchor=${encodeURIComponent(it.anchor || '')}`;
+    uni.navigateTo({ url: `/pages/cardMain/live?${q}` });
+    return;
+  }
+  openChannel('live', it);
+}
+
+/** 小程序直播 C 端：live-list 装修模块数据源（公开接口 /api/card/live/rooms） */
+function loadLiveList() {
+  const t = props.tenantId || '';
+  const comps = props.comps || [];
+  if (comps.some((c) => c.type === 'live-list')) {
+    cardApi.liveRooms({ tid: t, page: 1, pageSize: 20 })
+      .then((res) => { liveList.value = Array.isArray(res?.list) ? res.list : []; })
+      .catch(() => { liveList.value = []; });
+  }
+}
+
 function loadContentArticles() {
   const t = props.tenantId || '';
   const comps = props.comps || [];

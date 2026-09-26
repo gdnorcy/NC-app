@@ -219,3 +219,22 @@ describe('阶段C 语音简介上传', () => {
     expect(url.includes('tid=')).toBe(false);
   });
 });
+
+describe('B期 live C 端：liveRooms 直播列表', () => {
+  it('liveRooms 带租户 tid → GET /api/card/live/rooms?tid=1&page=1&pageSize=20', async () => {
+    mockResponse(200, { list: [{ id: 1, title: '直播间A', cover: '/c.jpg', viewer: 88 }], total: 1 });
+    const res = await cardApi.liveRooms({ tid: 1, page: 1, pageSize: 20 });
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: 'http://localhost:3000/api/card/live/rooms?tid=1&page=1&pageSize=20',
+      method: 'GET',
+    }));
+    expect(res.list[0].title).toBe('直播间A');
+  });
+
+  it('liveRooms 无参数时仅请求基础路径（后端校验兜底）', async () => {
+    mockResponse(200, { list: [], total: 0 });
+    await cardApi.liveRooms();
+    const url = uniMock.request.mock.calls[0][0].url;
+    expect(url).toBe('http://localhost:3000/api/card/live/rooms');
+  });
+});

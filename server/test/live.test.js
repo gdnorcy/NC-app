@@ -198,6 +198,36 @@ test('同步商品列表：调微信拉取已审核商品写入商品库', async
   assert.equal(list.body.rows[0].thumb, 'https://wx.example.com/thumb1.png', '同步应保存微信商品缩略图');
 });
 
+test('C 端公开接口：/api/card/live/rooms 租户校验 + 展示过滤 + 字段映射', async () => {
+  // 未开通 live 的租户（tenant2 仅 card）→ 403
+  const closed = await request(app).get('/api/card/live/rooms?tid=2');
+  assert.equal(closed.status, 403);
+  assert.match(closed.body.error, /未开通/);
+
+  // demo 租户（含 live）预置 3 个直播间：直播中(展示) / 已结束(隐藏) / list_display=0(隐藏)
+  db.prepare("INSERT INTO live_rooms (customer_id, room_id, name, anchor_name, cover_img, start_time, end_time, status, sort, recommend, list_display, view_count) VALUES (1, 9001, 'C端直播中', '主播甲', '/uploads/c1.jpg', '2026-11-01 19:00:00', '2026-11-01 20:00:00', '直播中', 10, 0, 1, 88)").run();
+  db.prepare("INSERT INTO live_rooms (customer_id, room_id, name, anchor_name, cover_img, start_time, end_time, status, sort, recommend, list_display, view_count) VALUES (1, 9002, 'C端已结束', '主播乙', '/uploads/c2.jpg', '2026-10-01 19:00:00', '2026-10-01 20:00:00', '已结束', 20, 1, 1, 66)").run();
+  db.prepare("INSERT INTO live_rooms (customer_id, room_id, name, anchor_name, cover_img, start_time, end_time, status, sort, recommend, list_display, view_count) VALUES (1, 9003, 'C端隐藏', '主播丙', '', '2026-11-02 19:00:00', '2026-11-02 20:00:00', '未开始', 30, 1, 0, 0)").run();
+
+  const r = await request(app).get('/api/card/live/rooms?tid=1');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  // 已结束 + list_display=0 均不展示；字段映射正确
+  const titles = r.body.list.map((x) => x.title);
+  assert.ok(titles.includes('C端直播中'), `应含「C端直播中」，实际 ${JSON.stringify(titles)}`);
+  assert.ok(!titles.includes('C端已结束'), '已结束直播间不应展示');
+  assert.ok(!titles.includes('C端隐藏'), 'list_display=0 直播间不应展示');
+  const room = r.body.list.find((x) => x.title === 'C端直播中');
+  assert.equal(room.anchor, '主播甲');
+  assert.equal(room.cover, '/uploads/c1.jpg');
+  assert.equal(room.status, '直播中');
+  assert.equal(room.viewer, 88);
+  assert.equal(room.roomId, 9001);
+
+  // 缺 tid → 403（checkTenantAccess 未关联客户项目）
+  const noTid = await request(app).get('/api/card/live/rooms');
+  assert.equal(noTid.status, 403);
+});
+
 test('权限：未开通 live 应用的租户 403', async () => {
   // tenant2（customer_id=2，仅 card 方案，未开通 live）
   const login2 = await request(app).post('/api/auth/login').send({ username: 'tenant2', password: 'admin123' });

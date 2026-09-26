@@ -251,6 +251,8 @@ export const cardApi = {
   contentPics: (params) => request('/content/pics' + (params ? '?' + new URLSearchParams(params).toString() : '')),
   contentPic: (id, tid) => request(`/content/pics/${id}?tid=${tid || ''}`),
   contentVideos: (params) => request('/content/videos' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  /** 小程序直播 C 端：直播间列表（装修页 live-list 数据源，tid 租户校验） */
+  liveRooms: (params) => request('/live/rooms' + (params ? '?' + new URLSearchParams(params).toString() : '')),
   contentSettings: (tid) => request(`/content/settings?tid=${tid || ''}`),
 };
 

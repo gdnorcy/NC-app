@@ -15,6 +15,13 @@
       }
     },
     {
+      "path": "pages/cardMain/live",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/panorama/home",
       "style": {
         "navigationBarTitleText": "全景首页",
@@ -74,6 +81,13 @@
       "path": "pages/viewer/viewer",
       "style": {
         "navigationBarTitleText": "全景浏览",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/live/list",
+      "style": {
+        "navigationBarTitleText": "直播间",
         "navigationStyle": "custom"
       }
     },

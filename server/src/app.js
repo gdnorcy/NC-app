@@ -17,7 +17,7 @@ import { createLogsRouter } from './routes/logs.js';
 import { createCustomerRouter } from './routes/customer.js';
 import { createStoreRouter } from './routes/store.js';
 import { createGoodsRouter } from './routes/goods.js';
-import { createLiveRouter } from './routes/live.js';
+import { createLiveRouter, createLivePublicRouter } from './routes/live.js';
 import { createCardKeyRouter } from './routes/cardKey.js';
 import { createGiftCardRouter } from './routes/giftCard.js';
 import { createGiftRouter } from './routes/giftProduct.js';
@@ -95,6 +95,7 @@ app.use((req, res, next) => {
   app.use('/api/customer/goods', requireAuth, createGoodsRouter(database));
   // 小程序直播（1:1 菜鸟云「微信直播」）：直播列表/商品同步/商品审核
   app.use('/api/customer/live', requireAuth, createLiveRouter(database, deps));
+  app.use('/api/card/live', createLivePublicRouter(database));
   // 内容体系（1:1 菜鸟云「内容」）：文章/组图/视频/评论/基础设置（管理端）+ C 端公开读取
   app.use('/api/customer/content', requireAuth, createContentRouter(database));
   // 门店体系（1:1 nshop 连锁门店 chainShop）：门店/分组/标签/提现/基础设置 + 配额购买
@@ -242,7 +243,8 @@ app.use((req, res, next) => {
   // uni-app H5构建产物（移动端）
   const mobileDist = path.join(__dirname, '..', '..', 'web-app', 'dist', 'build', 'h5');
   if (fs.existsSync(mobileDist)) {
-    app.use('/mobile-assets', express.static(path.join(mobileDist, 'assets'), { maxAge: '1y' }));
+    // uni-app H5 产物 base='./'：index.html 以相对路径引用 ./assets/，浏览器解析为 /mobile/assets/…
+    app.use('/mobile/assets', express.static(path.join(mobileDist, 'assets'), { maxAge: '1y' }));
     app.use((req, res, next) => {
       if (req.method !== 'GET') return next();
       if (req.path === '/mobile' || req.path.startsWith('/mobile/')) {

@@ -1,7 +1,7 @@
 // 小程序直播（租户后台）—— 1:1 复刻菜鸟云「微信直播」：直播列表 / 商品同步 / 商品审核
 // 数据严格按 customer_id 隔离；应用授权由 hasSolution('live') 驱动（演示方案自动开通）
 import { Router } from 'express';
-import { tenantState, hasSolution } from '../tenant.js';
+import { tenantState, hasSolution, checkTenantAccess } from '../tenant.js';
 import { addOperationLog } from '../db.js';
 import { config } from '../config.js';
 import { createWechatLiveService } from '../services/wechatLive.js';
@@ -419,6 +419,59 @@ export function createLiveRouter(db, deps = {}) {
     }
     audit(req, 'reauth_live_goods', 'live_goods', id, `重新提交直播商品审核: ${row.name}`);
     res.json({ ok: true });
+  });
+
+  return router;
+}
+
+// ============================================================
+// 小程序直播 C 端公开路由（/api/card/live）：装修页 live-list / channel-live 数据源
+// 租户校验：checkTenantAccess(tid) + live 应用开通校验；只返回列表展示字段
+// ============================================================
+export function createLivePublicRouter(db) {
+  const router = Router();
+
+  function resolveTenant(req, res) {
+    const tid = Number(req.query.tid || req.body?.tid);
+    const access = checkTenantAccess(db, tid, 'live', 'mini');
+    if (access) {
+      res.status(access.status).json({ error: access.error });
+      return null;
+    }
+    return tid;
+  }
+
+  /** 直播间列表（C 端）：list_display=1 的直播间，按推荐 + sort 排序；已结束/禁播/已过期不展示 */
+  router.get('/rooms', (req, res) => {
+    const cid = resolveTenant(req, res);
+    if (!cid) return;
+    const { page = 1, pageSize = 20 } = req.query;
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.min(50, Math.max(1, Number(pageSize) || 20));
+    const HIDE_STATUS = ['已结束', '禁播', '已过期'];
+    const rows = db.prepare(
+      `SELECT * FROM live_rooms WHERE customer_id = ? AND list_display = 1 ORDER BY recommend DESC, sort DESC, id DESC LIMIT ? OFFSET ?`
+    ).all(cid, ps, (p - 1) * ps);
+    const list = rows
+      .filter((r) => !HIDE_STATUS.includes(r.status))
+      .map((r) => ({
+        id: r.id,
+        roomId: r.room_id || null,
+        title: r.name,
+        anchor: r.anchor_name,
+        cover: r.cover_img || r.thumbnail || '',
+        shareImg: r.share_img || '',
+        startTime: r.start_time,
+        endTime: r.end_time,
+        status: r.status,
+        recommend: r.recommend,
+        liveType: r.live_type,
+        viewer: r.view_count,
+        likeEnabled: r.like_enabled,
+        replayEnabled: r.replay_enabled,
+      }));
+    const total = db.prepare(`SELECT COUNT(*) c FROM live_rooms WHERE customer_id = ? AND list_display = 1`).get(cid).c;
+    res.json({ list, total, page: p, pageSize: ps });
   });
 
   return router;
