@@ -2191,7 +2191,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-fold-btn { font-size: 12px; color: #4e5969; padding: 2px 0; }
 .pe-list-fold-btn::before { content: "▸ "; color: #86909c; display: inline-block; transition: transform .15s; }
 .pe-list-details[open] .pe-list-fold-btn::before { transform: rotate(90deg); }
-.pe-list-fold-body { margin-top: 4px; }
+.pe-list-fold-body { margin-top: 6px; display: flex; flex-direction: column; gap: 10px; }
 .pe-list-label { font-size: 11px; color: #86909c; }
 .pe-list-ops { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
 .pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }

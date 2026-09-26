@@ -10,7 +10,7 @@
     </div>
     <div v-else class="pe-img-empty" @click="openPicker">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-      <span>添加图片</span>
+      <span class="pe-img-empty-txt">{{ mini ? '添加' : '添加图片' }}</span>
     </div>
     <MaterialPicker v-model="pickerOpen" @confirm="onPick" />
   </div>
@@ -92,6 +92,7 @@ function onPick(url) {
 .pe-img--compact .pe-img-ops .el-button { padding: 0 6px; font-size: 11px; height: 24px; }
 /* 迷你模式（自定义图标等极小图字段） */
 .pe-img--mini .pe-img-empty { width: 40px; height: 40px; gap: 2px; font-size: 10px; }
+.pe-img--mini .pe-img-empty-txt { white-space: nowrap; line-height: 1; }
 .pe-img--mini .pe-img-empty svg { width: 14px; height: 14px; }
 .pe-img--mini .pe-img-main { height: 40px; }
 .pe-img--mini .pe-img-empty { padding: 2px; }
