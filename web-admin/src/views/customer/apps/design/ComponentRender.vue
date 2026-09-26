@@ -683,12 +683,14 @@
         <div class="r-native-msg"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 1 0-16 0 8 8 0 0 0 16 0z"/><path d="M12 8v4M12 16h.01"/></svg></div>
       </div>
     </template>
-    <!-- 名片宫格（完整版 9 宫格原生模块） -->
+    <!-- 名片宫格（系统功能快捷入口，预览：items 配置优先，回退默认宫格） -->
     <template v-else-if="comp.type === 'native-grid'">
-      <div class="r-native-grid" :style="nativeMargin(comp.props)">
-        <div v-for="(it, i) in nativeGridItems" :key="i" class="r-native-grid-item">
-          <div class="r-native-grid-icon" :style="{ background: it.bg }">{{ it.label.slice(0, 1) }}</div>
-          <div class="r-native-grid-text">{{ it.label }}</div>
+      <div class="r-native-grid" :style="gridPreviewStyle(comp.props)">
+        <div v-for="(it, i) in gridPreviewItems(comp.props)" :key="i" class="r-native-grid-item">
+          <div class="r-native-grid-icon" :style="{ background: it.bg || '#165dff' }">{{ (it.text || it.label || '名').slice(0, 1) }}
+            <em v-if="it.badge" class="r-native-grid-badge">{{ it.badge }}</em>
+          </div>
+          <div class="r-native-grid-text">{{ it.text || it.label }}</div>
         </div>
       </div>
     </template>
@@ -1406,6 +1408,16 @@ function nativeMargin(p) {
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
 }
+// 名片宫格预览：items 配置优先（与 C 端 gridItems 同规则），无配置回退默认宫格
+function gridPreviewItems(props) {
+  const items = (props && props.items) || [];
+  if (items.length) return items;
+  return nativeGridItems;
+}
+function gridPreviewStyle(props) {
+  const p = props || {};
+  return { gridTemplateColumns: `repeat(${p.columns || 5}, 1fr)` };
+}
 const nativeGridItems = [
   { label: '我的名片', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },
   { label: '访客雷达', bg: 'linear-gradient(135deg,#00b42a,#23c343)' },
@@ -1888,7 +1900,7 @@ const nativeGridItems = [
 .r-native-msg{flex-shrink:0;}
 .r-native-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px 6px;background:#fff;border-radius:8px;padding:12px 8px;}
 .r-native-grid-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
-.r-native-grid-icon{width:28px;height:28px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;}
+.r-native-grid-icon{position:relative;width:28px;height:28px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;}.r-native-grid-badge{position:absolute;top:-5px;right:-8px;min-width:14px;height:14px;padding:0 3px;border-radius:99px;background:#f53f3f;color:#fff;font-size:8px;line-height:14px;font-style:normal;text-align:center;}
 .r-native-grid-text{font-size:10px;color:#4e5969;}
 .r-native-section{background:#fff;border-radius:8px;padding:12px;}
 .r-native-title{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;color:#1d2129;margin-bottom:10px;}

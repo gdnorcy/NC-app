@@ -114,6 +114,7 @@ export const ICON_OPTIONS = [
   { value: 'chart', label: '图表' },
   { value: 'notice', label: '公告' },
   { value: 'devices', label: '设备' },
+  { value: 'apps', label: '应用' },
 ];
 
 export const componentRegistry = [
@@ -1316,8 +1317,40 @@ export const componentRegistry = [
     name: '名片宫格',
     group: 'card',
     icon: 'native-grid',
-    defaultProps: { marginTop: 0, marginBottom: 0 },
+    defaultProps: {
+      marginTop: 0, marginBottom: 0,
+      columns: 4, shape: 'rounded', iconSize: 40, iconRadius: 14,
+      fontSize: 12, bold: false, gap: 0,
+      items: [
+        { icon: 'card', text: '我的名片', url: '/pages/card/myCard', bg: '#165dff', badge: '' },
+        { icon: 'radar', text: '访客雷达', url: '/pages/card/visitors', bg: '#00b42a', badge: '' },
+        { icon: 'customer', text: '客户管理', url: '/pages/card/customers', bg: '#ff7d00', badge: '' },
+        { icon: 'market', text: '人脉集市', url: '/pages/card/market', bg: '#722ed1', badge: '' },
+        { icon: 'exchange', text: '名片交换', url: '/pages/card/connections', bg: '#13c2c2', badge: '' },
+        { icon: 'wallet', text: '分销中心', url: '/pages/card/distribution', bg: '#f5222d', badge: '' },
+        { icon: 'crown', text: '会员中心', url: '/pages/card/member', bg: '#faad14', badge: '' },
+        { icon: 'dynamic', text: '我的动态', url: '/pages/card/dynamic', bg: '#eb2f96', badge: '' },
+        { icon: 'apps', text: '更多', url: '/pages/card/profile', bg: '#86909c', badge: '' },
+      ],
+    },
     schema: [
+      {
+        key: 'items', label: '宫格项', control: 'list', section: 'content',
+        itemFields: [
+          { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS },
+          { key: 'text', label: '文字', control: 'input' },
+          { key: 'bg', label: '图标底色', control: 'color' },
+          { key: 'badge', label: '角标', control: 'input', placeholder: '选填，如 NEW' },
+          { key: 'url', label: '跳转', control: 'link', placeholder: '如 /pages/card/myCard' },
+        ],
+      },
+      { key: 'columns', label: '列数', control: 'radio', section: 'style', options: [{ label: '3列', value: 3 }, { label: '4列', value: 4 }, { label: '5列', value: 5 }] },
+      { key: 'shape', label: '图标形状', control: 'radio', section: 'style', options: [{ label: '圆形', value: 'circle' }, { label: '圆角', value: 'rounded' }] },
+      { key: 'iconSize', label: '图标大小', control: 'slider', section: 'style', min: 24, max: 64 },
+      { key: 'iconRadius', label: '图标圆角', control: 'slider', section: 'style', min: 0, max: 24, when: { shape: 'rounded' } },
+      { key: 'fontSize', label: '字体设置', control: 'slider', section: 'style', min: 10, max: 20 },
+      { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
+      { key: 'gap', label: '宫格间距', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],

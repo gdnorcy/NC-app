@@ -29,14 +29,15 @@
           <view class="msg-dot" v-if="unreadCount > 0"></view>
         </view>
       </view>
-      <!-- 名片宫格（9 宫格） -->
+      <!-- 名片宫格（系统功能快捷入口，可自定义：宫格项/列数/形状/图标/角标/字号） -->
       <view v-else-if="c.type === 'native-grid'" class="grid-section" :style="nativeMargin(c.props)">
-        <view class="grid">
-          <view class="grid-item" v-for="item in features" :key="item.key" @click="goPage(item.path)">
-            <view class="grid-icon" :style="{ background: item.bg }">
+        <view class="grid" :style="gridStyle(c.props)">
+          <view class="grid-item" v-for="(item, i) in gridItems(c.props)" :key="i" @click="goPage(item.url || item.path)">
+            <view class="grid-icon" :style="gridIconStyle(c.props, item)">
               <SIcon :name="item.icon" size="large" color="#ffffff" />
+              <view v-if="item.badge" class="grid-badge"><text>{{ item.badge }}</text></view>
             </view>
-            <view class="grid-label">{{ item.label }}</view>
+            <view class="grid-label" :style="gridLabelStyle(c.props)">{{ item.text || item.label }}</view>
           </view>
         </view>
       </view>
@@ -172,6 +173,36 @@ function nativeMargin(props) {
   if (p.marginTop) s.marginTop = p.marginTop + 'px';
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
   return s;
+}
+// 名片宫格：配置 items 优先；无配置（旧数据）回退系统默认宫格
+function gridItems(props) {
+  const items = (props && props.items) || [];
+  if (items.length) return items;
+  return features.map((f) => ({ icon: f.icon, text: f.label, url: f.path, bg: f.bg }));
+}
+function gridStyle(props) {
+  const p = props || {};
+  // 旧数据无 items：回退系统默认宫格，保持原 3 列布局；配置了 items 才按 columns 渲染
+  const cols = (p.items || []).length ? (p.columns || 4) : 3;
+  return {
+    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+    gap: (p.gap || 0) + 'px',
+  };
+}
+function gridIconStyle(props, item) {
+  const p = props || {};
+  const size = (p.iconSize || 40) + 'px';
+  const shape = p.shape || 'rounded';
+  return {
+    width: size,
+    height: size,
+    background: item.bg || '#165dff',
+    borderRadius: shape === 'circle' ? '50%' : ((p.iconRadius ?? 14) + 'px'),
+  };
+}
+function gridLabelStyle(props) {
+  const p = props || {};
+  return { fontSize: (p.fontSize || 12) + 'px', fontWeight: p.bold ? '600' : '400' };
 }
 // 系统风格头部（无页面头部配置时全局默认）：headColor 跟随主色→主题色底 / 白色头部→白底；文字色对应
 const sysHeadStyle = computed(() => {
@@ -435,17 +466,17 @@ function viewMarketCard(item) {
   margin-bottom: 16rpx;
 }
 .grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  /* 列数由组件配置注入 gridTemplateColumns；间距由 gap 注入 */
 }
 .grid-item {
-  width: 33.33%;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20rpx 0;
 }
 .grid-icon {
+  position: relative;
   width: 88rpx;
   height: 88rpx;
   border-radius: 24rpx;
@@ -453,6 +484,20 @@ function viewMarketCard(item) {
   align-items: center;
   justify-content: center;
   margin-bottom: 12rpx;
+}
+.grid-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -14rpx;
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  background: #f53f3f;
+  color: #fff;
+  font-size: 18rpx;
+  line-height: 30rpx;
+  text-align: center;
 }
 .grid-label {
   font-size: 24rpx;
