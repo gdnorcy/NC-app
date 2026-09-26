@@ -77,9 +77,10 @@
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="建店时间" width="160" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="primary" @click="openGoods(row)">门店商品</el-button>
             <el-button link type="danger" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -88,6 +89,9 @@
       <el-pagination v-if="total > pageSize" class="pager" layout="prev, pager, next, total" :total="total" :page-size="pageSize" :current-page="page" @current-change="load" />
       <el-empty v-if="!loading && !list.length" description="暂无门店，点击右上角「创建门店」" :image-size="80" />
     </el-card>
+
+    <!-- 门店商品配置（商城二期：门店价/门店库存/本店上下架） -->
+    <StoreGoodsDrawer v-model:visible="goodsDrawer.show" :store-id="goodsDrawer.storeId" :store-name="goodsDrawer.storeName" />
 
     <!-- 创建/编辑门店：三步（门店信息 / 业绩结算 / 权益分配，1:1 nshop） -->
     <el-dialog v-model="dialog.show" :title="dialog.id ? '编辑门店' : '创建门店'" width="880px" top="4vh" destroy-on-close>
@@ -266,6 +270,7 @@ import { Plus } from '@element-plus/icons-vue';
 import { customerApiCall } from '../../../api';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
 import MaterialPicker from '../apps/design/MaterialPicker.vue';
+import StoreGoodsDrawer from './StoreGoodsDrawer.vue';
 import { AREA_DATA_FULL } from '../goods/area-data-full.js';
 
 const props = defineProps({ openCreate: { type: Number, default: 0 } });
@@ -284,6 +289,7 @@ const query = reactive({ name: '', type: '', categoryId: '', status: '' });
 const dialog = ref({ show: false, id: null });
 const step = ref(0);
 const saving = ref(false);
+const goodsDrawer = ref({ show: false, storeId: 0, storeName: '' });
 const picker = ref({ show: false, target: '' });
 
 // 省市区三级数据（全国区划，格式 [ {label,value,children} ]）
@@ -342,6 +348,8 @@ async function loadRefs() {
     memberOptions.value = (m.members || []).map((x) => ({ id: x.id, name: x.name || x.username, username: x.username, phone: x.phone }));
   } catch (e) { /* 下拉数据失败不阻断列表 */ }
 }
+
+function openGoods(row) { goodsDrawer.value = { show: true, storeId: row.id, storeName: row.name }; }
 
 function openCreate() {
   Object.assign(form, emptyForm());

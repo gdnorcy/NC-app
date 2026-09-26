@@ -47,6 +47,7 @@ const routes = [
       { path: 'apps/live', component: () => import('../views/customer/live/LiveHome.vue'), meta: { title: '小程序直播', breadcrumbs: ['应用中心', '客群维护', '小程序直播'] } },
       // 门店管理（应用中心「行业应用」：1:1 nshop 连锁门店 chainShop）
       { path: 'apps/store', component: () => import('../views/customer/store/StoreHome.vue'), meta: { title: '门店管理', breadcrumbs: ['应用中心', '行业应用', '门店管理'], solution: 'store' }, },
+      { path: 'apps/store/orders', component: () => import('../views/customer/store/StoreOrders.vue'), meta: { title: '门店订单', breadcrumbs: ['应用中心', '行业应用', '门店管理', '门店订单'], solution: 'store' }, },
       // 设计中心（侧边栏一级菜单：素材/风格/导航/模板/首页/页面装修）
       { path: 'design', component: () => import('../views/customer/apps/design/DesignHome.vue'), meta: { title: '设计中心', breadcrumbs: ['设计中心'] } },
       // 商品管理（侧边栏一级菜单：1:1 菜鸟云「东莞同城通」duoproducts）

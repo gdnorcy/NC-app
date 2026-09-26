@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isTenantAdmin,
   isEnterpriseAdmin,
+  isStoreAdmin,
   isMember,
   buildSidebarMenus,
   isAppRouteAllowed,
@@ -25,6 +26,16 @@ describe('角色判定', () => {
     expect(isEnterpriseAdmin({ enterpriseId: 3, role: 'tenant_admin' })).toBe(false);
     expect(isEnterpriseAdmin({ role: 'tenant_admin' })).toBe(false);
     expect(isEnterpriseAdmin({})).toBe(false);
+  });
+
+  it('isStoreAdmin 门店管理员（roles 含 store_admin 角色对象）为 true', () => {
+    expect(isStoreAdmin({ role: 'tenant_member', roles: [{ code: 'store_admin', name: '门店管理员' }] })).toBe(true);
+    expect(isStoreAdmin({ role: 'tenant_member', roles: [] })).toBe(false);
+    expect(isStoreAdmin({ role: 'tenant_member' })).toBe(false);
+    expect(isStoreAdmin({ role: 'tenant_admin', roles: [] })).toBe(false);
+    expect(isStoreAdmin(null)).toBe(false);
+    // roles 为字符串数组时不误判（防御）
+    expect(isStoreAdmin({ role: 'tenant_member', roles: ['store_admin'] })).toBe(false);
   });
 
   it('isMember 普通成员为 true，管理员为 false', () => {
@@ -74,6 +85,15 @@ describe('buildSidebarMenus 权限矩阵', () => {
     const settings = menus.find((m) => m.code === 'settings');
     const setCodes = settings.children.map((c) => c.code).join(',');
     expect(setCodes).not.toContain('set-access');
+  });
+
+  it('门店管理员：仅工作台 + 门店订单直达，无应用中心/商品/设置', () => {
+    const menus = buildSidebarMenus({ role: 'tenant_member', roles: [{ code: 'store_admin' }] });
+    const all = codes(menus).join(',');
+    expect(all).toBe('dashboard,store-orders');
+    expect(all).not.toContain('apps');
+    expect(all).not.toContain('goods');
+    expect(all).not.toContain('settings');
   });
 
   it('普通成员：无企业面板，系统设置无成员管理', () => {
@@ -133,6 +153,14 @@ describe('isAppRouteAllowed 应用路由守卫', () => {
 
   it('应用中心子路由对普通成员放行（应用中心全员可见）', () => {
     expect(isAppRouteAllowed(member, '/apps/card')).toBe(true);
+  });
+
+  it('门店管理员可直达 /apps/store/orders，其他应用路由不放行', () => {
+    const sa = { role: 'tenant_member', roles: [{ code: 'store_admin' }] };
+    expect(isAppRouteAllowed(sa, '/apps/store/orders')).toBe(true);
+    expect(isAppRouteAllowed(sa, '/apps/store')).toBe(true);
+    expect(isAppRouteAllowed(sa, '/apps/card')).toBe(false);
+    expect(isAppRouteAllowed(sa, '/apps/panorama')).toBe(false);
   });
 
   it('非应用中心路由不放行', () => {

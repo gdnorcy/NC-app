@@ -465,7 +465,7 @@ export function createStoreRouter(db) {
       req.storeAdmin = true;
       return next();
     }
-    const sid = Number(req.query.storeId || req.body?.storeId) || 0;
+    const sid = Number(req.query.storeId || req.body?.storeId || req.params.id) || 0;
     if (!sid) return res.status(400).json({ error: '请指定门店' });
     const store = db.prepare('SELECT id, name FROM store WHERE id = ? AND customer_id = ?').get(sid, req.customerId);
     if (!store) return res.status(404).json({ error: '门店不存在' });

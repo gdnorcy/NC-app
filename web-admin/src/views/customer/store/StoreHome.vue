@@ -25,6 +25,7 @@ import StoreTag from './StoreTag.vue';
 import StoreWithdraw from './StoreWithdraw.vue';
 import StoreSetting from './StoreSetting.vue';
 import StoreBuy from './StoreBuy.vue';
+import StoreOrders from './StoreOrders.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -36,6 +37,7 @@ const topTabs = [
   { key: 'tag', label: '门店标签', icon: 'badge' },
   { key: 'withdraw', label: '提现管理', icon: 'wallet' },
   { key: 'setting', label: '基础设置', icon: 'settings' },
+  { key: 'orders', label: '门店订单', icon: 'orders' },
   { key: 'buy', label: '购买门店', icon: 'orders' },
 ];
 
@@ -49,7 +51,7 @@ watch(() => route.query.m, (v) => {
   if (v && topTabs.some((t) => t.key === v) && v !== activeTab.value) activeTab.value = v;
 });
 
-const comps = { stats: StoreStats, manage: StoreManage, group: StoreGroup, tag: StoreTag, withdraw: StoreWithdraw, setting: StoreSetting, buy: StoreBuy };
+const comps = { stats: StoreStats, manage: StoreManage, group: StoreGroup, tag: StoreTag, withdraw: StoreWithdraw, setting: StoreSetting, orders: StoreOrders, buy: StoreBuy };
 const activeComp = computed(() => comps[activeTab.value] || StoreStats);
 
 // 子组件联动：StoreStats「创建门店」→ 切到门店管理并打开创建弹窗

@@ -49,7 +49,17 @@ async function handleLogin() {
     if (!res.token) throw new Error(res.error || '登录失败');
     if (!['tenant_admin', 'tenant_member'].includes(res.user.role)) throw new Error('该账号无权访问客户工作台');
     localStorage.setItem('customer_token', res.token);
-    localStorage.setItem('customer_user', JSON.stringify(res.user));
+    // 合并成员角色（store_admin 等）与门店归属：菜单按角色过滤（门店管理员仅门店订单）
+    try {
+      const me = await fetch('/api/customer/members/me', {
+        headers: { Authorization: `Bearer ${res.token}` },
+      }).then(r => r.json());
+      localStorage.setItem('customer_user', JSON.stringify({
+        ...res.user, roles: me.roles || [], storeIds: me.storeIds || [], isTenantAdmin: !!me.isTenantAdmin,
+      }));
+    } catch {
+      localStorage.setItem('customer_user', JSON.stringify(res.user));
+    }
     ElMessage.success('登录成功');
     router.push('/dashboard');
   } catch (e) { error.value = e.message; }

@@ -31,6 +31,17 @@
             <span>企业设置</span>
           </el-menu-item>
         </template>
+        <!-- 门店管理员：仅工作台 + 门店订单（复用租户管理端，按角色过滤菜单） -->
+        <template v-else-if="isStoreAdmin">
+          <el-menu-item index="/dashboard">
+            <SIcon name="dashboard" size="default" />
+            <span>工作台</span>
+          </el-menu-item>
+          <el-menu-item index="/apps/store/orders">
+            <SIcon name="orders" size="default" />
+            <span>门店订单</span>
+          </el-menu-item>
+        </template>
         <!-- 租户管理员/成员：完整租户菜单 -->
         <template v-else>
           <el-menu-item index="/dashboard">
@@ -168,7 +179,7 @@
 import { ref, computed, onMounted, provide } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { isTenantAdmin as isTenantAdminFn, isEnterpriseAdmin as isEnterpriseAdminFn, hasPerm as hasPermFn } from '../utils/menuPermissions';
+import { isTenantAdmin as isTenantAdminFn, isEnterpriseAdmin as isEnterpriseAdminFn, isStoreAdmin as isStoreAdminFn, hasPerm as hasPermFn } from '../utils/menuPermissions';
 import {
   SwitchButton, Fold, Expand, ArrowDown, Back, QuestionFilled,
 } from '@element-plus/icons-vue';
@@ -192,6 +203,7 @@ const authStore = { user: JSON.parse(localStorage.getItem('customer_user') || 'n
 const isTenantAdmin = computed(() => isTenantAdminFn(authStore.user));
 const canManageMembers = computed(() => isTenantAdminFn(authStore.user) || hasPermFn(authStore.user, 'set-members'));
 const isEnterpriseAdmin = computed(() => isEnterpriseAdminFn(authStore.user));
+const isStoreAdmin = computed(() => isStoreAdminFn(authStore.user));
 const isImpersonate = computed(() => !!localStorage.getItem('admin_token_backup'));
 const activeMenu = computed(() => route.path);
 const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() || 'U');

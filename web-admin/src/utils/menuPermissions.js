@@ -21,8 +21,20 @@ export function hasPerm(user, menuKey) {
   return !!user && Array.isArray(user?.perms) && user.perms.includes(menuKey);
 }
 
+/** 门店管理员（store_admin 角色）：仅能操作本门店订单/核销/售后，侧边栏只留「门店订单」 */
+export function isStoreAdmin(user) {
+  return !!user && Array.isArray(user?.roles) && user.roles.some((r) => r?.code === 'store_admin');
+}
+
 /** 侧边栏菜单结构：code 用于断言，label/path 用于渲染 */
 export function buildSidebarMenus(user) {
+  // 门店管理员：只保留「门店订单」直达（复用租户管理端，按角色过滤菜单）
+  if (isStoreAdmin(user)) {
+    return [
+      { code: 'dashboard', label: '工作台', path: '/dashboard' },
+      { code: 'store-orders', label: '门店订单', path: '/apps/store/orders' },
+    ];
+  }
   const menus = [
     { code: 'dashboard', label: '工作台', path: '/dashboard' },
     { code: 'apps', label: '应用中心', path: '/apps' },
@@ -76,6 +88,8 @@ export function visibleMenuCodes(user) {
  */
 export function isAppRouteAllowed(user, path) {
   if (!user || typeof path !== 'string' || !path.startsWith('/apps/')) return false;
+  // 门店管理员：侧边栏直达 /apps/store/orders，应用路由按前缀放行
+  if (isStoreAdmin(user) && path.startsWith('/apps/store')) return true;
   const menus = buildSidebarMenus(user);
   return menus.some((m) => m.path === '/apps');
 }

@@ -257,6 +257,11 @@ describe('商城二期：门店体系（门店价/库存/下架/核销/确认收
     assert.equal(appleInList.storePrice, 6.6);
     assert.ok(Number(appleInList.storeStock) >= 0, '门店库存字段应返回数字（已被前序测试扣减，不断言精确值）');
 
+    // 租户管理员 GET 无需 query.storeId（storeId 来自路径参数）——回归：requireStoreContext 需接受 req.params.id
+    const adminGet = await request(app).get(`/api/customer/store/${storeA}/goods`).set(admin());
+    assert.equal(adminGet.status, 200, JSON.stringify(adminGet.body));
+    assert.ok(adminGet.body.list.length >= 1, '租户管理员路径参数门店应返回商品列表');
+
     // 租户管理员 PUT 修改苹果门店价 7.7/库存 20
     const put = await request(app).put(`/api/customer/store/${storeA}/goods/${goodsApple}`).set(admin()).send({ storeId: storeA, price: 7.7, stock: 20, status: 'sell' });
     assert.equal(put.status, 200, JSON.stringify(put.body));
