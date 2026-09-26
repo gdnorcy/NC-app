@@ -6,10 +6,7 @@
         <el-tag v-if="published" type="success" size="small">已发布 v{{ published.version }}</el-tag>
         <el-tag v-if="draft" type="info" size="small">有草稿</el-tag>
       </div>
-      <div class="pe-toolbar-right">
-        <el-button size="small" @click="openPreview">预览</el-button>
-        <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
-      </div>
+      <!-- 顶部操作按钮已统一收敛到外层独立窗口（DesignEditorPage：保存并预览/保存草稿/发布/历史版本/另存为模板），此处仅保留页面状态信息 -->
     </div>
 
     <div class="pe-body">
@@ -1894,14 +1891,6 @@ function moveComp(comp, dir) {
   refreshSelectedComp();
 }
 /** 预览：新窗口打开真实 C 端页（带签名一次性 URL，读最新草稿） */
-async function openPreview() {
-  try {
-    const res = await designCall.get('/design/previewUrl', { params: { draft: 1, pageType: props.pageType } });
-    if (res && res.url) window.open(res.url, '_blank');
-    else ElMessage.info('暂无法打开预览');
-  } catch (e) { ElMessage.error('预览失败'); }
-}
-
 onMounted(() => { load(); loadPageList(); });
 defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate, load, pageName, components });
 </script>
