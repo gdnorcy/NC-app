@@ -1239,7 +1239,7 @@ function noticeStyle(p) {
 function searchBoxPreviewStyle(p) {
   const s = {
     background: p.bgColor || '#F2F3F5',
-    borderRadius: (p.radius ?? 16) + 'px',
+    borderRadius: (p.radius ?? 18) + 'px',
     height: (p.height || 36) + 'px',
   };
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.08)';

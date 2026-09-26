@@ -361,7 +361,7 @@ onShow(() => {
 function searchBoxStyle(p) {
   const s = {
     background: p.bgColor || '#f2f3f5',
-    borderRadius: ((p.radius ?? 16) * 2) + 'rpx',
+    borderRadius: ((p.radius ?? 18) * 2) + 'rpx',
     height: ((p.height || 36) * 2) + 'rpx',
   };
   if (p.style === 'shadow') s.boxShadow = '0 2rpx 8rpx rgba(31,35,41,0.08)';

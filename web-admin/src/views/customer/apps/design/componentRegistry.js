@@ -1307,7 +1307,7 @@ export const componentRegistry = [
     name: '名片搜索栏',
     group: 'card',
     icon: 'native-search',
-    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 16, bgColor: '#f2f3f5', textColor: '#86909c', style: 'shadow', showMsg: true, marginTop: 0, marginBottom: 0 },
+    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0 },
     schema: [
       { key: 'placeholder', label: '占位文案', control: 'input', section: 'content', placeholder: '如 搜索名片、客户、人脉' },
       { key: 'style', label: '搜索框风格', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '阴影', value: 'shadow' }, { label: '描边', value: 'border' }] },
