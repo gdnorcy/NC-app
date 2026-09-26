@@ -27,6 +27,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { getTid } from '../../utils/mallUtil.js';
 import { buildGlobalHomeRedirect } from '../../utils/globalHome.js';
+import { JUMP_DONE_KEY } from '../../utils/design.js';
 import { DEFAULT_TENANT_ID } from '../../config.js';
 
 // 冷启动首页联动：装修中心「首页」（is_home=1）配置谁就跳谁（商城/全景/名片/自定义页）
@@ -47,7 +48,11 @@ async function checkGlobalHome() {
     const pages = getCurrentPages();
     const cur = pages.length ? pages[pages.length - 1].route || '' : '';
     const target = buildGlobalHomeRedirect(raw && raw.homePageUrl, homeTid, cur);
-    if (target) uni.reLaunch({ url: target });
+    if (target) {
+      // 已按装修中心「首页」完成冷启动跳转：置位会话内首页跳转标记，home 页老逻辑不再二次跳
+      uni.setStorageSync(JUMP_DONE_KEY, '1');
+      uni.reLaunch({ url: target });
+    }
     else console.log('[global-home] 无首页配置或已在本页，跳过跳转', raw && raw.homePageUrl, cur);
   } catch (e) {
     // 配置读取失败不阻断登录页；输出日志便于排查（小程序端需勾选「不校验合法域名」访问 localhost）

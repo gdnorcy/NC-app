@@ -352,6 +352,13 @@ onShow(() => {
       const config = await fetchDesignConfig(false);
       const target = resolveHomePath(config?.homePage);
       if (!target) return;
+      // 目标即当前页（配置的 card 应用首页就是本页）时不跳，避免 reLaunch 自身超时
+      const cur = getCurrentPages();
+      const curRoute = cur.length ? cur[cur.length - 1].route || '' : '';
+      if (('/' + curRoute) === target.split('?')[0]) {
+        uni.setStorageSync(JUMP_DONE_KEY, '1');
+        return;
+      }
       uni.setStorageSync(JUMP_DONE_KEY, '1');
       uni.reLaunch({ url: target });
     } catch (e) { /* 配置拉取失败不阻断首页 */ }

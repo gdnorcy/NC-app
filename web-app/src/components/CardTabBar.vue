@@ -12,19 +12,19 @@
     <template v-else>
       <view class="mtb" :class="{ on: active === 'card' }" @click="goCard">
         <SIcon name="card" size="default" :color="active === 'card' ? '#07c160' : '#9a9a9a'" />
-        <text>名片</text>
+        <text class="mtb-txt">名片</text>
       </view>
       <view class="mtb" :class="{ on: active === 'radar' }" @click="goPage('/pages/card/visitors', 'radar')">
         <SIcon name="radar" size="default" :color="active === 'radar' ? '#07c160' : '#9a9a9a'" />
-        <text>雷达</text>
+        <text class="mtb-txt">雷达</text>
       </view>
       <view class="mtb" :class="{ on: active === 'market' }" @click="goPage('/pages/card/market', 'market')">
         <SIcon name="market" size="default" :color="active === 'market' ? '#07c160' : '#9a9a9a'" />
-        <text>集市</text>
+        <text class="mtb-txt">集市</text>
       </view>
       <view class="mtb" :class="{ on: active === 'member' }" @click="goPage('/pages/card/member', 'member')">
         <SIcon name="crown" size="default" :color="active === 'member' ? '#07c160' : '#9a9a9a'" />
-        <text>会员</text>
+        <text class="mtb-txt">会员</text>
       </view>
     </template>
   </view>
@@ -129,6 +129,6 @@ function goPage(path, key) {
   color: #07c160;
   font-weight: 500;
 }
-.mtb.on text { color: inherit; }
+.mtb.on .mtb-txt { color: inherit; }
 .tab-icon-img { width: 44rpx; height: 44rpx; }
 </style>
