@@ -3,8 +3,8 @@
     <!-- 设计中心已发布底部导航方案：优先渲染配置项 -->
     <template v-if="designItems.length">
       <view v-for="(it, i) in designItems" :key="i" class="mtb" :class="{ on: isOn(it) }" @click="goDesign(it)">
-        <image v-if="it.icon" :src="iconUrl(it.icon)" class="tab-icon-img" mode="aspectFit" />
-        <SIcon v-else :name="fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? primary : '#9a9a9a'" />
+        <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="tab-icon-img" mode="aspectFit" />
+        <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? primary : '#9a9a9a'" />
         <text :style="{ color: isOn(it) ? primary : '#9a9a9a' }">{{ it.text }}</text>
       </view>
     </template>
@@ -51,6 +51,10 @@ const primary = computed(() => designConfig.value?.style?.primaryColor || '#165D
 const navMode = computed(() => designConfig.value?.navMode || 'default');
 const navJumpEnabled = computed(() => designConfig.value?.navJumpEnabled !== false);
 
+function isImgIcon(u) {
+  if (!u) return false;
+  return /^https?:|^data:|^\//.test(u) || /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(u);
+}
 function iconUrl(u) {
   if (!u) return '';
   if (/^https?:|^data:/.test(u)) return u;
