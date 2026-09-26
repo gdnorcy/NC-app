@@ -46,7 +46,7 @@ describe('createApiClient 公共请求层', () => {
     await expect(client.request('/cart')).rejects.toThrow('未登录');
     expect(uniMock.removeStorageSync).toHaveBeenCalledWith('card_token');
     expect(uniMock.removeStorageSync).toHaveBeenCalledWith('card_user');
-    expect(uniMock.reLaunch).toHaveBeenCalledWith({ url: '/pages/card/login' });
+    expect(uniMock.reLaunch).toHaveBeenCalledWith({ url: '/pages/cardMain/login' });
   });
 
   it('无 token 时 Authorization 为空', async () => {

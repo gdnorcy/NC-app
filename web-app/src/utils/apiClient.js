@@ -7,7 +7,7 @@
  */
 export function createApiClient(baseURL, options = {}) {
   const tokenKey = options.tokenKey || 'card_token';
-  const loginPath = options.loginPath || '/pages/card/login';
+  const loginPath = options.loginPath || '/pages/cardMain/login';
 
   // 读登录态：H5 端 uni storage 与 localStorage 直写可能不同步（uni H5 有内存缓存），
   // 优先直读 localStorage（同源，token 字符串一致）；小程序端无 localStorage 走 uni 原生。
