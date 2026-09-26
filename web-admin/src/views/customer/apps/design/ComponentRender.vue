@@ -687,7 +687,9 @@
     <template v-else-if="comp.type === 'native-grid'">
       <div class="r-native-grid" :style="gridPreviewStyle(comp.props)">
         <div v-for="(it, i) in gridPreviewItems(comp.props)" :key="i" class="r-native-grid-item">
-          <div class="r-native-grid-icon" :style="gridPreviewIconStyle(comp.props, it)">{{ (it.text || it.label || '名').slice(0, 1) }}
+          <div class="r-native-grid-icon" :style="gridPreviewIconStyle(comp.props, it)">
+            <PeSIcon v-if="it.icon" :name="it.icon" :size="Number(comp.props.iconSize || 28) * 0.66" color="#ffffff" />
+            <span v-else>{{ (it.text || it.label || '名').slice(0, 1) }}</span>
             <em v-if="it.badge" class="r-native-grid-badge">{{ it.badge }}</em>
           </div>
           <div class="r-native-grid-text" :style="gridPreviewTextStyle(comp.props)">{{ it.text || it.label }}</div>
@@ -732,6 +734,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { customerApiCall } from '../../../../api';
+import PeSIcon from './PeSIcon.vue';
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
 const tbOuterStyle = (p) => {
