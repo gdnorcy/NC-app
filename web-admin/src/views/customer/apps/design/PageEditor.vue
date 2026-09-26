@@ -437,7 +437,7 @@
                                   </el-select>
                                   <el-switch v-else-if="sf.control === 'switch'" :model-value="it[sf.key] !== false" @update:model-value="it[sf.key] = $event" size="small" />
                                   <PeColorPicker v-else-if="sf.control === 'color'" v-model="it[sf.key]" />
-                                  <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
+                                  <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :mini="sf.mini" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                                   <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
                                     <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
                                   </div>
@@ -461,7 +461,7 @@
                                 </el-select>
                                 <el-switch v-else-if="sf.control === 'switch'" :model-value="it[sf.key] !== false" @update:model-value="it[sf.key] = $event" size="small" />
                                 <PeColorPicker v-else-if="sf.control === 'color'" v-model="it[sf.key]" />
-                                <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
+                                <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :mini="sf.mini" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                                 <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
                                   <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
                                 </div>

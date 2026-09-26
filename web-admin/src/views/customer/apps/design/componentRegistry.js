@@ -1348,7 +1348,7 @@ export const componentRegistry = [
           { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS, compact: true },
           { key: 'visible', label: '显示', control: 'switch', help: '关闭后该宫格项在 C 端隐藏', compact: true },
           { key: 'bg', label: '图标底色', control: 'color', compact: true },
-          { key: 'iconImage', label: '自定义图标', control: 'image', compact: true, optional: true, help: '选填，上传图片后覆盖内置图标（建议方形透明底 PNG，约 100×100）' },
+          { key: 'iconImage', label: '自定义图标', control: 'image', compact: true, mini: true, optional: true, help: '选填，上传图片后覆盖内置图标（建议方形透明底 PNG，约 100×100）' },
           { key: 'text', label: '文字', control: 'input', compact: true, optional: true },
           { key: 'badge', label: '角标', control: 'input', placeholder: '选填，如 NEW', compact: true, optional: true },
           { key: 'url', label: '跳转', control: 'link', placeholder: '如 /pages/card/myCard', compact: true, optional: true },

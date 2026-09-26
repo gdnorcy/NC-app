@@ -1,5 +1,5 @@
 <template>
-  <div class="pe-img" :class="{ 'pe-img--compact': compact }" :title="compact && help ? help : undefined">
+  <div class="pe-img" :class="{ 'pe-img--compact': compact, 'pe-img--mini': mini }" :title="compact && help ? help : undefined">
     <div v-if="help && !compact" class="pe-img-help">{{ help }}</div>
     <div v-if="modelValue" class="pe-img-box">
       <img :src="resolveUrl(modelValue)" class="pe-img-main" @click="openPicker" />
@@ -25,6 +25,7 @@ const props = defineProps({
   help: { type: String, default: '' },
   clearable: { type: Boolean, default: true },
   compact: { type: Boolean, default: false },
+  mini: { type: Boolean, default: false },
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -89,4 +90,10 @@ function onPick(url) {
 .pe-img--compact .pe-img-box { display: inline-flex; flex-direction: column; }
 .pe-img--compact .pe-img-ops { padding: 3px 4px; gap: 2px; }
 .pe-img--compact .pe-img-ops .el-button { padding: 0 6px; font-size: 11px; height: 24px; }
+/* 迷你模式（自定义图标等极小图字段） */
+.pe-img--mini .pe-img-empty { width: 40px; height: 40px; gap: 2px; font-size: 10px; }
+.pe-img--mini .pe-img-empty svg { width: 14px; height: 14px; }
+.pe-img--mini .pe-img-main { height: 40px; }
+.pe-img--mini .pe-img-empty { padding: 2px; }
+.pe-img--mini .pe-img-ops .el-button { padding: 0 5px; font-size: 10px; height: 20px; }
 </style>
