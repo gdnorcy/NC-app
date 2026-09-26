@@ -146,6 +146,7 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { onShow, onLoad, onPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
+import { qsParse } from '../../utils/qs.js';
 import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -261,7 +262,7 @@ function isPreviewMode() {
   // #ifdef H5
   try {
     const q = (window.location.hash.split('?')[1] || '');
-    if (new URLSearchParams(q).get('preview') === '1') return true;
+    if (qsParse(q).preview === '1') return true;
   } catch { /* 忽略 */ }
   // #endif
   return false;

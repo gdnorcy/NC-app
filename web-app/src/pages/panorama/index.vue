@@ -27,12 +27,13 @@
 
 <script>
 import { cardApi } from '../../utils/cardApi.js';
+import { qsParse } from '../../utils/qs.js';
 
 function tidFromHash() {
   if (typeof window === 'undefined' || !window.location || !window.location.hash) return '';
   try {
-    const hp = new URLSearchParams((window.location.hash.split('?')[1] || ''));
-    return hp.get('tid') || '';
+    const hp = qsParse(window.location.hash.split('?')[1] || '');
+    return hp.tid || '';
   } catch (e) { return ''; }
 }
 

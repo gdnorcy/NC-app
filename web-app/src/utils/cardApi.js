@@ -1,6 +1,7 @@
 // 智能名片 API 封装
 import { createApiClient } from './apiClient.js';
 import { getTid } from './mallUtil.js';
+import { qsStringify, qsParse } from './qs.js';
 import { DEFAULT_TENANT_ID } from '../config.js';
 
 const BASE_URL = 'http://localhost:3000/api/card';
@@ -147,18 +148,18 @@ export const cardApi = {
   markVisitorRead: (openid) => request(`/visitors/${openid}/read`, 'POST'),
 
   // 客户管理
-  getCustomers: (params) => request('/customers' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  getCustomers: (params) => request('/customers' + (params ? '?' + qsStringify(params) : '')),
   createCustomer: (data) => request('/customers', 'POST', data),
   updateCustomer: (id, data) => request(`/customers/${id}`, 'PUT', data),
   addFollow: (id, data) => request(`/customers/${id}/follow`, 'POST', data),
   getFollows: (id) => request(`/customers/${id}/follows`),
 
   // 人脉集市（租户级）
-  getMarketList: (params) => request(MARKET_BASE_URL + '/market/list' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  getMarketList: (params) => request(MARKET_BASE_URL + '/market/list' + (params ? '?' + qsStringify(params) : '')),
   submitForm: (id, data) => request(MARKET_BASE_URL + `/forms/${id}/submit`, 'POST', { data }),
   getMarketSettings: () => request(MARKET_BASE_URL + '/market/settings'),
   toggleMarket: (data) => request(MARKET_BASE_URL + '/market/toggle', 'POST', data),
-  checkMarket: (params) => request(MARKET_BASE_URL + '/market/check' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  checkMarket: (params) => request(MARKET_BASE_URL + '/market/check' + (params ? '?' + qsStringify(params) : '')),
   getMarketMyStatus: () => request(MARKET_BASE_URL + '/market/my-status'),
   getMarketMyStats: () => request(MARKET_BASE_URL + '/market/my-stats'),
 
@@ -226,14 +227,14 @@ export const cardApi = {
     // H5 带签名访问（设计中心 iframe 免登录）：hash 中存在 tid/exp/sig 即透传，预览模式同样适用
     if (typeof window !== 'undefined' && window.location && window.location.hash) {
       try {
-        const hp = new URLSearchParams((window.location.hash.split('?')[1] || ''));
-        ['tid', 'exp', 'sig'].forEach((k) => { if (hp.get(k)) params[k] = hp.get(k); });
+        const hp = qsParse(window.location.hash.split('?')[1] || '');
+        ['tid', 'exp', 'sig'].forEach((k) => { if (hp[k]) params[k] = hp[k]; });
       } catch { /* 忽略解析失败 */ }
     }
     if (tid) params.tid = tid; // 显式租户（商城等跨应用首页装修读取），优先于 hash 透传
     // 游客访问（无登录态且无显式/透传租户）：使用部署默认租户读取公开装修配置，保证装修首页对游客可见
     if (!params.tid && DEFAULT_TENANT_ID && !hasCardToken()) params.tid = DEFAULT_TENANT_ID;
-    const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
+    const qs = Object.keys(params).length ? '?' + qsStringify(params) : '';
     return request('/design/config' + qs);
   },
   // 设计中心万能表单提交（访客留资，归集设计线索）
@@ -243,16 +244,16 @@ export const cardApi = {
 
   // ===== 内容管理（C 端公开读取，?tid= 指定租户）=====
   contentArticleCates: (tid) => request(`/content/article-cates?tid=${tid || ''}`),
-  contentArticles: (params) => request('/content/articles' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentArticles: (params) => request('/content/articles' + (params ? '?' + qsStringify(params) : '')),
   contentArticle: (id, tid) => request(`/content/articles/${id}?tid=${tid || ''}`),
-  contentComments: (params) => request('/content/comments' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentComments: (params) => request('/content/comments' + (params ? '?' + qsStringify(params) : '')),
   contentAddComment: (data) => request('/content/comments', 'POST', data),
   contentPicCates: (tid) => request(`/content/pic-cates?tid=${tid || ''}`),
-  contentPics: (params) => request('/content/pics' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentPics: (params) => request('/content/pics' + (params ? '?' + qsStringify(params) : '')),
   contentPic: (id, tid) => request(`/content/pics/${id}?tid=${tid || ''}`),
-  contentVideos: (params) => request('/content/videos' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  contentVideos: (params) => request('/content/videos' + (params ? '?' + qsStringify(params) : '')),
   /** 小程序直播 C 端：直播间列表（装修页 live-list 数据源，tid 租户校验） */
-  liveRooms: (params) => request('/live/rooms' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  liveRooms: (params) => request('/live/rooms' + (params ? '?' + qsStringify(params) : '')),
   contentSettings: (tid) => request(`/content/settings?tid=${tid || ''}`),
 };
 
@@ -265,7 +266,7 @@ export const paymentApi = {
   // 查询订单
   getOrder: (orderNo) => paymentRequest(`/orders/${orderNo}`),
   // 我的订单
-  getMyOrders: (params) => paymentRequest('/my-orders' + (params ? '?' + new URLSearchParams(params).toString() : '')),
+  getMyOrders: (params) => paymentRequest('/my-orders' + (params ? '?' + qsStringify(params) : '')),
 };
 
 // 接口域名（不含 /api 路径段）：用于相对路径资源（如全景图 /uploads/xxx）拼接完整 URL
