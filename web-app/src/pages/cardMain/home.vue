@@ -24,9 +24,9 @@
           <SIcon name="dynamic" size="small" :color="c.props.textColor || '#86909c'" />
           <text class="search-placeholder" :style="{ color: c.props.textColor || '#86909c' }">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
         </view>
-        <view class="msg-icon" v-if="c.props.showMsg !== false" @click="goMessages">
-          <SIcon name="audit" size="default" color="#4e5969" />
-          <view class="msg-dot" v-if="unreadCount > 0"></view>
+        <view class="msg-icon" v-if="c.props.showMsg !== false" :class="{ 'has-unread': unreadCount > 0 }" @click="goMessages">
+          <view class="msg-icon-inner"><SIcon name="bell" size="default" color="#4e5969" /></view>
+          <view class="msg-badge" v-if="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
         </view>
       </view>
       <!-- 名片宫格（系统功能快捷入口，可自定义：宫格项/列数/形状/图标/角标/字号） -->
@@ -438,8 +438,8 @@ function viewMarketCard(item) {
 .top-bar {
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  padding: 88rpx 32rpx 24rpx;
+  gap: 12rpx;
+  padding: 88rpx 24rpx 24rpx;
   background: #fff;
 }
 /* 系统风格全局默认头部（无页面头部配置时）：背景=头部颜色，文字=头部文字 */
@@ -469,21 +469,45 @@ function viewMarketCard(item) {
   color: #86909c;
 }
 .msg-icon {
-  width: 72rpx;
+  width: 56rpx;
   height: 72rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
 }
-.msg-dot {
+.msg-icon-inner { display: flex; }
+/* 有新未读：铃铛每 4s 抖动一次 + 徽章呼吸脉冲 */
+.msg-icon.has-unread .msg-icon-inner { animation: bell-shake 1s ease-in-out 3s infinite; }
+@keyframes bell-shake {
+  0%, 55%, 100% { transform: rotate(0); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-10deg); }
+  30% { transform: rotate(8deg); }
+  40% { transform: rotate(-6deg); }
+  50% { transform: rotate(0); }
+}
+.msg-badge {
   position: absolute;
-  top: 14rpx;
-  right: 14rpx;
-  width: 16rpx;
-  height: 16rpx;
+  top: 4rpx;
+  right: -6rpx;
+  min-width: 28rpx;
+  height: 28rpx;
+  padding: 0 8rpx;
+  border-radius: 14rpx;
   background: #f53f3f;
-  border-radius: 8rpx;
+  color: #fff;
+  font-size: 18rpx;
+  line-height: 28rpx;
+  text-align: center;
+  box-sizing: border-box;
+  z-index: 2;
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
 }
 
 /* 功能九宫格 */

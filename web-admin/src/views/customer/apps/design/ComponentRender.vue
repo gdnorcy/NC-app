@@ -680,7 +680,7 @@
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" :stroke="comp.props.textColor || '#86909C'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
           <span class="r-search-ph" :style="{ color: comp.props.textColor || '#86909C' }">{{ comp.props.placeholder || '搜索名片、客户、人脉' }}</span>
         </div>
-        <div v-if="comp.props.showMsg !== false" class="r-native-msg"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 1 0-16 0 8 8 0 0 0 16 0z"/><path d="M12 8v4M12 16h.01"/></svg></div>
+        <div v-if="comp.props.showMsg !== false" class="r-native-msg"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
       </div>
     </template>
     <!-- 名片宫格（系统功能快捷入口，预览：items 配置优先，回退默认宫格） -->
