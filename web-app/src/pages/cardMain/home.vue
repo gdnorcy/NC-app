@@ -179,7 +179,9 @@ function nativeMargin(props) {
 // 名片宫格：配置 items 优先；无配置（旧数据）回退系统默认宫格
 function gridItems(props) {
   const items = (props && props.items) || [];
-  if (items.length) return items;
+  // 宫格项显示/隐藏：visible === false 的项不渲染
+  const visible = items.filter((it) => it.visible !== false);
+  if (visible.length) return visible;
   return features.map((f) => ({ icon: f.icon, text: f.label, url: f.path, bg: f.bg }));
 }
 function gridStyle(props) {

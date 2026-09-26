@@ -1432,7 +1432,9 @@ function nativeMargin(p) {
 // 名片宫格预览：items 配置优先（与 C 端 gridItems 同规则），无配置回退默认宫格
 function gridPreviewItems(props) {
   const items = (props && props.items) || [];
-  if (items.length) return items;
+  // 宫格项显示/隐藏：visible === false 的项不渲染（与 C 端一致）
+  const visible = items.filter((it) => it.visible !== false);
+  if (visible.length) return visible;
   return nativeGridItems;
 }
 function gridPreviewStyle(props) {
