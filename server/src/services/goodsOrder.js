@@ -4,9 +4,11 @@
 // handlePaymentSuccess → distribution.computeOrderSplit 自动分账（复用现有链路，无需改分销逻辑）。
 // 消息通知：支付/发货/退款写 card_message（type=system），失败不阻断主流程。
 import { randomBytes } from 'node:crypto';
+import { createStoreGoodsService } from './storeGoods.js';
 
 export function createGoodsOrderService(db) {
   const svc = {};
+  const storeGoods = createStoreGoodsService(db);
 
   function genOrderNo(prefix = 'G') {
     const now = new Date();
@@ -59,6 +61,11 @@ export function createGoodsOrderService(db) {
       const row = db.prepare('SELECT * FROM goods WHERE id = ? AND customer_id = ? AND status = ?').get(gid, customerId, 'sell');
       if (!row) throw new Error(`商品#${gid}不存在或未上架`);
 
+      // 门店可售校验（shelf_mode=store 且该门店下架 → 自提不可购）
+      if (deliveryMode === 'pickup' && storeId && !storeGoods.isStoreSellable({ customerId, goodsId: gid, storeId, goodsStatus: row.status })) {
+        throw new Error(`商品「${row.title}」本店暂不销售`);
+      }
+
       let price = yuan2fen(row.price);
       let skuId = 0;
       let stock = row.stock || 0;
@@ -78,6 +85,14 @@ export function createGoodsOrderService(db) {
         price = yuan2fen(sku.price);
         stock = sku.stock || 0;
         skuId = sku.id;
+      }
+
+      // 门店模式解析（price_mode=custom → 门店价；stock_mode=independent → 门店库存，-1 跟随总部）
+      if (storeId) {
+        const pr = storeGoods.resolvePrice({ customerId, goodsId: gid, storeId, basePrice: price });
+        price = pr.price;
+        const st = storeGoods.resolveStock({ customerId, goodsId: gid, storeId, baseStock: stock, skuId, baseSkuStock: stock });
+        stock = st.stock;
       }
 
       if (num > stock) throw new Error(`商品「${row.title}」库存不足（剩余 ${stock}）`);
@@ -122,13 +137,22 @@ export function createGoodsOrderService(db) {
     const items = db.prepare('SELECT * FROM goods_order_item WHERE order_id = ?').all(order.id);
 
     // 扣库存（支付成功才扣，防超卖）；不足则自动退款标记
+    // 门店独立库存（stock_mode=independent）按 goods_store 校验；其余走总部表
     let stockOk = true;
+    const stmtSku = db.prepare('SELECT * FROM goods_sku WHERE id = ?');
+    const stmtStock = db.prepare('SELECT stock FROM goods WHERE id = ?');
     for (const it of items) {
+      if (order.store_id) {
+        const base = it.sku_id ? (stmtSku.get(it.sku_id)?.stock || 0) : (stmtStock.get(it.goods_id)?.stock || 0);
+        const st = storeGoods.resolveStock({ customerId: order.customer_id, goodsId: it.goods_id, storeId: order.store_id, skuId: it.sku_id, baseStock: base, baseSkuStock: base });
+        if (st.stock < it.num) { stockOk = false; break; }
+        continue;
+      }
       if (it.sku_id) {
-        const sku = db.prepare('SELECT * FROM goods_sku WHERE id = ?').get(it.sku_id);
+        const sku = stmtSku.get(it.sku_id);
         if (!sku || sku.stock < it.num) { stockOk = false; break; }
       } else {
-        const g = db.prepare('SELECT stock FROM goods WHERE id = ?').get(it.goods_id);
+        const g = stmtStock.get(it.goods_id);
         if (!g || g.stock < it.num) { stockOk = false; break; }
       }
     }
@@ -139,6 +163,9 @@ export function createGoodsOrderService(db) {
       return;
     }
     for (const it of items) {
+      if (order.store_id && storeGoods.deductStock({ customerId: order.customer_id, goodsId: it.goods_id, storeId: order.store_id, skuId: it.sku_id, num: it.num })) {
+        continue; // 已扣门店独立库存
+      }
       if (it.sku_id) {
         db.prepare('UPDATE goods_sku SET stock = stock - ? WHERE id = ?').run(it.num, it.sku_id);
       } else {
@@ -183,9 +210,10 @@ export function createGoodsOrderService(db) {
     if (!order) throw new Error('订单不存在');
     if (!['paid', 'shipped'].includes(order.status)) throw new Error('当前状态不可退款');
 
-    // 恢复库存
+    // 恢复库存（门店独立库存回补 goods_store，其余回补总部表）
     const items = db.prepare('SELECT * FROM goods_order_item WHERE order_id = ?').all(order.id);
     for (const it of items) {
+      if (order.store_id && storeGoods.restoreStock({ customerId: order.customer_id, goodsId: it.goods_id, storeId: order.store_id, skuId: it.sku_id, num: it.num })) continue;
       if (it.sku_id) db.prepare('UPDATE goods_sku SET stock = stock + ? WHERE id = ?').run(it.num, it.sku_id);
       else db.prepare('UPDATE goods SET stock = stock + ? WHERE id = ?').run(it.num, it.goods_id);
     }
@@ -359,6 +387,103 @@ export function createGoodsOrderService(db) {
       GROUP BY o.user_id ORDER BY s DESC, orders DESC LIMIT 10`).all(customerId, startDay);
     const hotUsers = hu.map((r, idx) => ({ rank: idx + 1, nickname: r.nickname || `用户${r.user_id}`, orders: r.orders, amount: r.s }));
     return { range, days, metrics, trend, hotGoods, hotUsers };
+  };
+
+  // ================= 门店维度（商城二期：store_admin 按 store_id 隔离 + 核销闭环） =================
+
+  /** 门店核销：自提订单 paid + 核销码匹配 + 订单属该门店 → verify_status=verified */
+  svc.verifyOrder = ({ customerId, storeId, orderId, code, userId }) => {
+    const order = db.prepare('SELECT * FROM goods_order WHERE id = ? AND customer_id = ?').get(Number(orderId), customerId);
+    if (!order) throw new Error('订单不存在');
+    if (order.delivery_mode !== 'pickup') throw new Error('该订单非自提订单');
+    if (Number(order.store_id) !== Number(storeId)) throw new Error('订单不属于该门店');
+    if (order.status !== 'paid') throw new Error('仅已支付订单可核销');
+    if (order.verify_status === 'verified') throw new Error('订单已核销，请勿重复核销');
+    if (String(order.pickup_code || '').trim() !== String(code || '').trim()) throw new Error('核销码不正确');
+    db.prepare("UPDATE goods_order SET verify_status = 'verified', verified_at = datetime('now'), verify_store_id = ?, verify_by = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(Number(storeId), Number(userId) || 0, order.id);
+    pushLog(order.id, 'verify', `门店核销成功（门店#${storeId}）`);
+    pushMsg(order.customer_id, order.user_id, '核销成功', `订单#${order.order_no} 已在门店核销，凭订单即可完成自提`, '');
+    return svc.getOrder(order.id);
+  };
+
+  /** 门店确认收款（confirm_pay_enabled=1 时：自提订单线下收款 → 置已支付，不进支付单） */
+  svc.confirmPay = ({ customerId, storeId, orderId, userId }) => {
+    const order = db.prepare('SELECT * FROM goods_order WHERE id = ? AND customer_id = ?').get(Number(orderId), customerId);
+    if (!order) throw new Error('订单不存在');
+    if (order.delivery_mode !== 'pickup') throw new Error('该订单非自提订单');
+    if (Number(order.store_id) !== Number(storeId)) throw new Error('订单不属于该门店');
+    const store = db.prepare('SELECT confirm_pay_enabled FROM store WHERE id = ?').get(Number(storeId));
+    if (!store || Number(store.confirm_pay_enabled) !== 1) throw new Error('该门店未开启后台确认付款');
+    if (order.status !== 'pending') throw new Error('仅待支付订单可确认收款');
+    db.prepare("UPDATE goods_order SET status = 'paid', paid_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(order.id);
+    pushLog(order.id, 'confirm_pay', `门店确认收款（门店#${storeId}）`);
+    pushMsg(order.customer_id, order.user_id, '订单支付成功', `订单#${order.order_no} 已由门店确认收款 ¥${yuan(order.pay_amount)}`, '');
+    return svc.getOrder(order.id);
+  };
+
+  /** 门店订单列表（store_admin 按 store_id 隔离） */
+  svc.listStoreOrders = ({ customerId, storeId, status = '', verifyStatus = '', page = 1, pageSize = 20 }) => {
+    const where = ['customer_id = ?', 'store_id = ?'];
+    const params = [customerId, Number(storeId)];
+    if (status) { where.push('status = ?'); params.push(status); }
+    if (verifyStatus) { where.push('verify_status = ?'); params.push(verifyStatus); }
+    const whereSql = where.join(' AND ');
+    const total = db.prepare(`SELECT COUNT(*) c FROM goods_order WHERE ${whereSql}`).get(...params).c;
+    const rows = db.prepare(`SELECT * FROM goods_order WHERE ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`)
+      .all(...params, pageSize, (page - 1) * pageSize);
+    const list = rows.map((row) => {
+      const b = db.prepare('SELECT nickname FROM platform_user WHERE id = ?').get(row.user_id) || {};
+      return { ...row, items: db.prepare('SELECT * FROM goods_order_item WHERE order_id = ?').all(row.id), buyerName: b.nickname || `用户${row.user_id}`, totalAmountY: yuan(row.total_amount), payAmountY: yuan(row.pay_amount), freightY: yuan(row.freight) };
+    });
+    return { list, total };
+  };
+
+  /** 门店订单详情（按门店隔离） */
+  svc.getStoreOrder = ({ customerId, storeId, orderId }) => {
+    const row = db.prepare('SELECT * FROM goods_order WHERE id = ? AND customer_id = ? AND store_id = ?').get(Number(orderId), customerId, Number(storeId));
+    if (!row) return null;
+    return svc.getOrder(row.id);
+  };
+
+  /** 门店售后列表（join goods_order.store_id 隔离） */
+  svc.listStoreAfterSales = ({ customerId, storeId, status = '', page = 1, pageSize = 20 }) => {
+    const where = ['a.customer_id = ?', 'o.store_id = ?'];
+    const params = [customerId, Number(storeId)];
+    if (status) { where.push('a.status = ?'); params.push(status); }
+    const total = db.prepare(`SELECT COUNT(*) c FROM goods_after_sale a JOIN goods_order o ON o.id = a.order_id WHERE ${where.join(' AND ')}`).get(...params).c;
+    const rows = db.prepare(`SELECT a.*, o.order_no, o.delivery_mode, o.receiver_name, o.receiver_phone, o.pay_amount AS order_pay_amount,
+      p.nickname, p.phone AS buyer_phone,
+      (SELECT GROUP_CONCAT(title || '×' || num, '、') FROM goods_order_item WHERE order_id = o.id) AS goods_desc
+      FROM goods_after_sale a JOIN goods_order o ON o.id = a.order_id LEFT JOIN platform_user p ON p.id = a.user_id
+      WHERE ${where.join(' AND ')} ORDER BY a.id DESC LIMIT ? OFFSET ?`)
+      .all(...params, pageSize, (page - 1) * pageSize);
+    return { list: rows.map((r) => ({ ...r, amountY: yuan(r.amount), orderPayAmountY: yuan(r.order_pay_amount) })), total };
+  };
+
+  /** 门店售后处理：同意退款（校验售后单订单属该门店） */
+  svc.agreeStoreAfterSale = ({ customerId, storeId, id, amount }) => {
+    const row = db.prepare(`SELECT a.* FROM goods_after_sale a JOIN goods_order o ON o.id = a.order_id
+      WHERE a.id = ? AND a.customer_id = ? AND o.store_id = ?`).get(Number(id), customerId, Number(storeId));
+    if (!row) throw new Error('售后单不存在');
+    if (row.status !== 'pending') throw new Error('仅待处理售后单可同意');
+    const order = db.prepare('SELECT pay_amount FROM goods_order WHERE id = ?').get(row.order_id);
+    const amt = Math.round(Number(amount) * 100);
+    if (!(amt > 0)) throw new Error('请填写退款金额');
+    if (amt > order.pay_amount) throw new Error(`最大可退款金额为 ¥${yuan(order.pay_amount)}`);
+    db.prepare("UPDATE goods_after_sale SET amount = ?, status = 'processing', updated_at = datetime('now') WHERE id = ?").run(amt, row.id);
+    return svc.getAfterSale(customerId, row.id);
+  };
+
+  /** 门店售后处理：拒绝（校验售后单订单属该门店） */
+  svc.refuseStoreAfterSale = ({ customerId, storeId, id, reason }) => {
+    const row = db.prepare(`SELECT a.* FROM goods_after_sale a JOIN goods_order o ON o.id = a.order_id
+      WHERE a.id = ? AND a.customer_id = ? AND o.store_id = ?`).get(Number(id), customerId, Number(storeId));
+    if (!row) throw new Error('售后单不存在');
+    if (row.status !== 'pending') throw new Error('仅待处理售后单可拒绝');
+    if (!String(reason || '').trim()) throw new Error('请填写拒绝原因');
+    db.prepare("UPDATE goods_after_sale SET status = 'cancelled', refuse_reason = ?, updated_at = datetime('now') WHERE id = ?").run(String(reason).trim(), row.id);
+    return svc.getAfterSale(customerId, row.id);
   };
 
   return svc;

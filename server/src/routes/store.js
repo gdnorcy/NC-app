@@ -2,7 +2,8 @@
 // 数据严格按 customer_id 隔离；门店数量配额 = 总后台授权填写（project_apps.quota），租户端可购买增加
 import { Router } from 'express';
 import { tenantState } from '../tenant.js';
-import { addOperationLog, hashPassword } from '../db.js';
+import { addOperationLog, hashPassword, resolveMemberRoles } from '../db.js';
+import { createGoodsOrderService } from '../services/goodsOrder.js';
 
 const DEMO_STORE_QUOTA = 50; // 演示方案（无 project_apps 行）默认门店配额，对标 nshop 默认 50
 
@@ -442,6 +443,149 @@ export function createStoreRouter(db) {
   // —— 提现管理（P1：需业绩结算体系，返回空态结构对齐 nshop 列）——
   router.get('/withdrawals', requireTenant, (req, res) => {
     res.json({ list: [], total: 0, note: '提现功能需接入门店业绩结算体系（P1），当前暂无提现数据' });
+  });
+
+  // ================= 商城二期（2026-09-26）：门店商品配置 + 门店订单/核销/确认收款/售后 =================
+
+  /** 门店上下文解析：store_admin（门店负责人，经 owner_member_id 绑定）强制限定自己门店；
+   *  租户管理员（tenant_admin/tenant_member）需显式传 storeId 指定门店。
+   *  挂载 req.storeId / req.storeName / req.storeAdmin */
+  function requireStoreContext(req, res, next) {
+    const memberId = req.user?.memberId || req.user?.id;
+    let isStoreAdmin = false;
+    if (memberId) {
+      const roles = resolveMemberRoles(db, memberId);
+      isStoreAdmin = roles.some((r) => r.code === 'store_admin');
+    }
+    if (isStoreAdmin) {
+      const store = db.prepare('SELECT id, name FROM store WHERE owner_member_id = ?').get(memberId);
+      if (!store) return res.status(403).json({ error: '当前账号未绑定门店' });
+      req.storeId = store.id;
+      req.storeName = store.name;
+      req.storeAdmin = true;
+      return next();
+    }
+    const sid = Number(req.query.storeId || req.body?.storeId) || 0;
+    if (!sid) return res.status(400).json({ error: '请指定门店' });
+    const store = db.prepare('SELECT id, name FROM store WHERE id = ? AND customer_id = ?').get(sid, req.customerId);
+    if (!store) return res.status(404).json({ error: '门店不存在' });
+    req.storeId = store.id;
+    req.storeName = store.name;
+    req.storeAdmin = false;
+    next();
+  }
+
+  // —— 门店商品列表（含门店价/门店库存/门店状态；null 表示跟随总部） ——
+  router.get('/:id/goods', requireTenant, requireStoreContext, (req, res) => {
+    const cid = req.customerId;
+    const storeId = Number(req.params.id);
+    if (storeId !== req.storeId) return res.status(403).json({ error: '无权查看其他门店商品' });
+    const store = db.prepare('SELECT * FROM store WHERE id = ? AND customer_id = ?').get(storeId, cid);
+    if (!store) return res.status(404).json({ error: '门店不存在' });
+    const { keyword = '', page = 1, pageSize = 20 } = req.query;
+    const where = ['customer_id = ?', "status = 'sell'"];
+    const params = [cid];
+    if (keyword) { where.push('title LIKE ?'); params.push(`%${keyword}%`); }
+    const total = db.prepare(`SELECT COUNT(*) c FROM goods WHERE ${where.join(' AND ')}`).get(...params).c;
+    const rows = db.prepare(`SELECT id, title, thumb, price, stock, spec_mode, unit FROM goods WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ? OFFSET ?`)
+      .all(...params, Number(pageSize), (Number(page) - 1) * Number(pageSize));
+    const stmtRel = db.prepare('SELECT * FROM goods_store WHERE customer_id = ? AND goods_id = ? AND store_id = ?');
+    const list = rows.map((g) => {
+      const rel = stmtRel.get(cid, g.id, storeId);
+      return {
+        ...g,
+        storePrice: rel && Number(rel.price) > 0 ? Number(rel.price) : null,
+        storeStock: rel && Number(rel.stock) >= 0 ? Number(rel.stock) : null,
+        storeStatus: rel ? rel.status : 'sell',
+      };
+    });
+    res.json({ list, total, page: Number(page), pageSize: Number(pageSize), storeMode: { priceMode: store.price_mode, stockMode: store.stock_mode, shelfMode: store.shelf_mode } });
+  });
+
+  // —— 设置门店商品（门店价/门店库存/上下架；price=0 清除跟随总部、stock=-1 清除跟随总部、status=off 门店下架） ——
+  router.put('/:id/goods/:goodsId', requireTenant, requireStoreContext, (req, res) => {
+    const cid = req.customerId;
+    const storeId = Number(req.params.id);
+    const goodsId = Number(req.params.goodsId);
+    if (storeId !== req.storeId) return res.status(403).json({ error: '无权操作其他门店商品' });
+    const g = db.prepare('SELECT * FROM goods WHERE id = ? AND customer_id = ?').get(goodsId, cid);
+    if (!g) return res.status(404).json({ error: '商品不存在' });
+    const b = req.body || {};
+    const rel = db.prepare('SELECT * FROM goods_store WHERE customer_id = ? AND goods_id = ? AND store_id = ?').get(cid, goodsId, storeId);
+    const price = b.price !== undefined && b.price !== null && Number(b.price) > 0 ? Number(b.price) : 0;
+    const stock = b.stock !== undefined && b.stock !== null && Number(b.stock) >= 0 ? Number(b.stock) : -1;
+    const status = b.status === 'off' ? 'off' : 'sell';
+    const skuStock = b.skuStock && typeof b.skuStock === 'object' ? JSON.stringify(b.skuStock) : (rel?.sku_stock || '{}');
+    if (rel) {
+      db.prepare("UPDATE goods_store SET price = ?, stock = ?, sku_stock = ?, status = ?, updated_at = datetime('now') WHERE id = ?")
+        .run(price, stock, skuStock, status, rel.id);
+    } else {
+      db.prepare('INSERT INTO goods_store (customer_id, goods_id, store_id, price, stock, sku_stock, status) VALUES (?,?,?,?,?,?,?)')
+        .run(cid, goodsId, storeId, price, stock, skuStock, status);
+    }
+    audit(req, 'store_goods_set', 'goods_store', goodsId, `设置门店#${storeId} 商品配置：门店价${price} 门店库存${stock} 状态${status}`);
+    const rel2 = db.prepare('SELECT * FROM goods_store WHERE customer_id = ? AND goods_id = ? AND store_id = ?').get(cid, goodsId, storeId);
+    res.json({ ok: true, rel: rel2 });
+  });
+
+  // —— 门店订单列表（store_admin 强制本门店；租户管理员按 storeId 指定） ——
+  router.get('/orders', requireTenant, requireStoreContext, (req, res) => {
+    const svc = createGoodsOrderService(db);
+    const { status = '', verifyStatus = '', page = 1, pageSize = 20 } = req.query;
+    const r = svc.listStoreOrders({ customerId: req.customerId, storeId: req.storeId, status, verifyStatus, page: Number(page), pageSize: Number(pageSize) });
+    res.json({ list: r.list, total: r.total, store: { id: req.storeId, name: req.storeName }, storeAdmin: req.storeAdmin });
+  });
+
+  // —— 门店订单详情（按门店隔离） ——
+  router.get('/orders/:id', requireTenant, requireStoreContext, (req, res) => {
+    const svc = createGoodsOrderService(db);
+    const order = svc.getStoreOrder({ customerId: req.customerId, storeId: req.storeId, orderId: Number(req.params.id) });
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    res.json({ order });
+  });
+
+  // —— 门店核销（输入核销码，校验：自提 + 已支付 + 订单属该门店 + 码匹配 → verified） ——
+  router.post('/orders/:id/verify', requireTenant, requireStoreContext, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const order = svc.verifyOrder({ customerId: req.customerId, storeId: req.storeId, orderId: Number(req.params.id), code: req.body?.code || '', userId: req.user.id });
+      res.json({ ok: true, order });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // —— 门店确认收款（confirm_pay_enabled=1：自提订单线下收款 → 置已支付） ——
+  router.post('/orders/:id/confirm-pay', requireTenant, requireStoreContext, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const order = svc.confirmPay({ customerId: req.customerId, storeId: req.storeId, orderId: Number(req.params.id), userId: req.user.id });
+      res.json({ ok: true, order });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // —— 门店售后列表（按门店隔离） ——
+  router.get('/after-sales', requireTenant, requireStoreContext, (req, res) => {
+    const svc = createGoodsOrderService(db);
+    const { status = '', page = 1, pageSize = 20 } = req.query;
+    const r = svc.listStoreAfterSales({ customerId: req.customerId, storeId: req.storeId, status, page: Number(page), pageSize: Number(pageSize) });
+    res.json({ list: r.list, total: r.total });
+  });
+
+  // —— 门店售后：同意退款（校验售后单订单属该门店） ——
+  router.post('/after-sales/:id/agree', requireTenant, requireStoreContext, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const r = svc.agreeStoreAfterSale({ customerId: req.customerId, storeId: req.storeId, id: Number(req.params.id), amount: req.body?.amount || 0 });
+      res.json({ ok: true, afterSale: r });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+  });
+
+  // —— 门店售后：拒绝（校验售后单订单属该门店） ——
+  router.post('/after-sales/:id/refuse', requireTenant, requireStoreContext, (req, res) => {
+    try {
+      const svc = createGoodsOrderService(db);
+      const r = svc.refuseStoreAfterSale({ customerId: req.customerId, storeId: req.storeId, id: Number(req.params.id), reason: req.body?.reason || '' });
+      res.json({ ok: true, afterSale: r });
+    } catch (e) { res.status(400).json({ error: e.message }); }
   });
 
   return router;

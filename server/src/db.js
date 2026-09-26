@@ -4105,6 +4105,36 @@ function seedMemberSystem(db) {
       }
     }
   }
+
+  // —— 商城二期（2026-09-26）：goods_store 门店商品关系表（门店价/门店库存/门店上下架） ——
+  // 三种模式由 store.price_mode（unified/custom）/ stock_mode（unified/independent）/ shelf_mode（unified/store）驱动
+  db.exec(`CREATE TABLE IF NOT EXISTS goods_store (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id INTEGER NOT NULL,
+    goods_id INTEGER NOT NULL,
+    store_id INTEGER NOT NULL,
+    price REAL NOT NULL DEFAULT 0,          -- 门店价（元；0=跟随总部价）
+    stock INTEGER NOT NULL DEFAULT -1,      -- 门店库存（-1=跟随总部库存；>=0 门店独立库存）
+    sku_stock TEXT NOT NULL DEFAULT '{}',   -- 多规格门店库存 {"skuId": stock}（-1=跟随总部）
+    status TEXT NOT NULL DEFAULT 'sell',    -- sell可售 / off门店下架
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(customer_id, goods_id, store_id)
+  )`);
+
+  // —— 商城二期：goods_order 核销状态（自提订单：paid → verified 核销 → done） ——
+  if (!colExists(db, 'goods_order', 'verify_status')) {
+    db.exec("ALTER TABLE goods_order ADD COLUMN verify_status TEXT NOT NULL DEFAULT 'pending'");
+  }
+  if (!colExists(db, 'goods_order', 'verified_at')) {
+    db.exec('ALTER TABLE goods_order ADD COLUMN verified_at TEXT');
+  }
+  if (!colExists(db, 'goods_order', 'verify_store_id')) {
+    db.exec('ALTER TABLE goods_order ADD COLUMN verify_store_id INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!colExists(db, 'goods_order', 'verify_by')) {
+    db.exec('ALTER TABLE goods_order ADD COLUMN verify_by INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 export function resolveMemberRoles(db, memberId) {
