@@ -418,25 +418,57 @@
                     >
                       <span class="pe-list-drag" title="按住拖动排序">⠿</span>
                       <div class="pe-list-fields">
-                        <div v-for="(sf, si) in visibleItemFields(f, it)" :key="si" class="pe-list-field">
-                          <div class="pe-list-label">{{ sf.label }}</div>
-                          <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
-                            <el-radio v-for="o in sf.options" :key="o.value" :value="o.value" size="small">{{ o.label }}</el-radio>
-                          </el-radio-group>
-                          <el-input v-else-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
-                          <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'">
-                            <template #append><el-button @click="openLinkSel(idx, si, f, sf)">选择</el-button></template>
-                          </el-input>
-                          <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:132px">
-                            <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
-                          </el-select>
-                          <el-switch v-else-if="sf.control === 'switch'" :model-value="it[sf.key] !== false" @update:model-value="it[sf.key] = $event" size="small" />
-                          <PeColorPicker v-else-if="sf.control === 'color'" v-model="it[sf.key]" />
-                          <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
-                          <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
-                            <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
-                          </div>
-                        </div>
+                        <template v-for="(grp, gi) in listFieldGroups(f, it)" :key="gi">
+                          <details v-if="grp.section === 'opt'" class="pe-list-details">
+                            <summary class="pe-list-fold-btn">选填项（{{ grp.fields.map((x) => x.label).join('、') }}）</summary>
+                            <div class="pe-list-fold-body">
+                              <div v-for="(sf, si) in grp.fields" :key="si" class="pe-list-field" :class="sf.compact ? 'pe-list-compact' : ''">
+                                <div class="pe-list-label">{{ sf.label }}</div>
+                                <div class="pe-list-ctr">
+                                  <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
+                                    <el-radio v-for="o in sf.options" :key="o.value" :value="o.value" size="small">{{ o.label }}</el-radio>
+                                  </el-radio-group>
+                                  <el-input v-else-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
+                                  <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'">
+                                    <template #append><el-button @click="openLinkSel(idx, si, f, sf)">选择</el-button></template>
+                                  </el-input>
+                                  <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:132px">
+                                    <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
+                                  </el-select>
+                                  <el-switch v-else-if="sf.control === 'switch'" :model-value="it[sf.key] !== false" @update:model-value="it[sf.key] = $event" size="small" />
+                                  <PeColorPicker v-else-if="sf.control === 'color'" v-model="it[sf.key]" />
+                                  <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
+                                  <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
+                                    <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </details>
+                          <template v-else>
+                            <div v-for="(sf, si) in grp.fields" :key="si" class="pe-list-field" :class="sf.compact ? 'pe-list-compact' : ''">
+                              <div class="pe-list-label">{{ sf.label }}</div>
+                              <div class="pe-list-ctr">
+                                <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
+                                  <el-radio v-for="o in sf.options" :key="o.value" :value="o.value" size="small">{{ o.label }}</el-radio>
+                                </el-radio-group>
+                                <el-input v-else-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
+                                <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'">
+                                  <template #append><el-button @click="openLinkSel(idx, si, f, sf)">选择</el-button></template>
+                                </el-input>
+                                <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:132px">
+                                  <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
+                                </el-select>
+                                <el-switch v-else-if="sf.control === 'switch'" :model-value="it[sf.key] !== false" @update:model-value="it[sf.key] = $event" size="small" />
+                                <PeColorPicker v-else-if="sf.control === 'color'" v-model="it[sf.key]" />
+                                <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
+                                <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
+                                  <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
+                                </div>
+                              </div>
+                            </div>
+                          </template>
+                        </template>
                       </div>
                       <div class="pe-list-ops">
                         <el-button size="small" text type="danger" @click="removeListItem(selectedComp, f.key, idx)">删除</el-button>
@@ -1862,6 +1894,16 @@ function listVal(it, sf) {
 function visibleItemFields(f, it) {
   return (f.itemFields || []).filter((sf) => listFieldVisible(sf, it));
 }
+// 常用字段保持顺序在前，optional 字段归入折叠组
+function listFieldGroups(f, it) {
+  const fields = visibleItemFields(f, it);
+  const main = fields.filter((sf) => !sf.optional);
+  const opt = fields.filter((sf) => sf.optional);
+  const groups = [];
+  if (main.length) groups.push({ section: 'main', fields: main });
+  if (opt.length) groups.push({ section: 'opt', fields: opt });
+  return groups;
+}
 let listDrag = null; // { key, from }
 function onListItemDragStart(e, key, idx) {
   listDrag = { key, from: idx };
@@ -2139,6 +2181,17 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-drag { color: #c9cdd4; font-size: 16px; line-height: 1.2; cursor: grab; user-select: none; flex-shrink: 0; }
 .pe-list-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .pe-list-field { display: flex; flex-direction: column; gap: 2px; }
+.pe-list-field.pe-list-compact { flex-direction: row; align-items: center; gap: 8px; }
+.pe-list-field.pe-list-compact .pe-list-label { width: 56px; flex-shrink: 0; margin: 0; }
+.pe-list-ctr { flex: 1; min-width: 0; display: flex; align-items: center; }
+.pe-list-field:not(.pe-list-compact) .pe-list-ctr { display: block; }
+.pe-list-details { border-top: 1px dashed #e5e6eb; margin-top: 2px; padding-top: 4px; }
+.pe-list-details summary { list-style: none; cursor: pointer; user-select: none; }
+.pe-list-details summary::-webkit-details-marker { display: none; }
+.pe-list-fold-btn { font-size: 12px; color: #4e5969; padding: 2px 0; }
+.pe-list-fold-btn::before { content: "▸ "; color: #86909c; display: inline-block; transition: transform .15s; }
+.pe-list-details[open] .pe-list-fold-btn::before { transform: rotate(90deg); }
+.pe-list-fold-body { margin-top: 4px; }
 .pe-list-label { font-size: 11px; color: #86909c; }
 .pe-list-ops { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
 .pe-list-link { display: inline-block; font-size: 12px; color: #722ED1; text-decoration: none; margin-bottom: 8px; }
