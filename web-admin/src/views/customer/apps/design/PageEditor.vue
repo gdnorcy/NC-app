@@ -427,9 +427,10 @@
                           <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'">
                             <template #append><el-button @click="openLinkSel(idx, si, f, sf)">选择</el-button></template>
                           </el-input>
-                          <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:100%">
+                          <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:132px">
                             <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
                           </el-select>
+                          <el-switch v-else-if="sf.control === 'switch'" :model-value="it[sf.key] !== false" @update:model-value="it[sf.key] = $event" size="small" />
                           <PeColorPicker v-else-if="sf.control === 'color'" v-model="it[sf.key]" />
                           <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                           <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
