@@ -40,13 +40,22 @@ describe('createApiClient 公共请求层', () => {
     expect(args.header['Content-Type']).toBe('application/json');
   });
 
-  it('401 清空凭证并跳登录页', async () => {
+  it('已登录 token 失效（401）时清空凭证并跳登录页', async () => {
+    uniMock.getStorageSync.mockReturnValue('expired-token');
     const client = createApiClient('http://localhost:3000/api/mall');
     mockResponse(401, { error: '未登录' });
     await expect(client.request('/cart')).rejects.toThrow('未登录');
     expect(uniMock.removeStorageSync).toHaveBeenCalledWith('card_token');
     expect(uniMock.removeStorageSync).toHaveBeenCalledWith('card_user');
     expect(uniMock.reLaunch).toHaveBeenCalledWith({ url: '/pages/cardMain/login' });
+  });
+
+  it('游客模式（无 token）401 只降级不跳登录页', async () => {
+    uniMock.getStorageSync.mockReturnValue('');
+    const client = createApiClient('http://localhost:3000/api/mall');
+    mockResponse(401, { error: '未登录' });
+    await expect(client.request('/cart')).rejects.toThrow('未登录');
+    expect(uniMock.reLaunch).not.toHaveBeenCalled();
   });
 
   it('无 token 时 Authorization 为空', async () => {

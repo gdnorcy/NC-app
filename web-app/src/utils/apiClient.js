@@ -41,10 +41,11 @@ export function createApiClient(baseURL, options = {}) {
         },
         success: (res) => {
           if (res.statusCode === 401) {
-            // 默认 401 清凭证跳登录；调用方传 opts.skipAuthRedirect=true 时只降级不跳转
-            // （会员中心等"游客也可浏览"的页面，登录数据失败应保持页面可见）
-            console.warn('[apiClient-401]', url, 'skip:', !!(opts && opts.skipAuthRedirect));
-            if (opts.skipAuthRedirect) {
+            // 401 处理：调用方显式 skipAuthRedirect，或未持有 token（游客模式）→ 只降级不跳登录；
+            // 已登录但 token 失效才清凭证跳登录页（避免游客浏览名片/商城首页时被反复踢回登录页）
+            const hasToken = !!token;
+            console.warn('[apiClient-401]', url, 'skip:', !!(opts && opts.skipAuthRedirect) || !hasToken);
+            if (opts.skipAuthRedirect || !hasToken) {
               reject(new Error('未登录'));
               return;
             }
