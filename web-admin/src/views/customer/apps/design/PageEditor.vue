@@ -425,7 +425,7 @@
                           </el-radio-group>
                           <el-input v-else-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
                           <el-input v-else-if="sf.control === 'link'" v-model="it[sf.key]" size="small" :placeholder="sf.placeholder || '如 /pages/card/market'">
-                            <template #append><el-button @click="openLinkSel(idx, si, sf)">选择</el-button></template>
+                            <template #append><el-button @click="openLinkSel(idx, si, f, sf)">选择</el-button></template>
                           </el-input>
                           <el-select v-else-if="sf.control === 'select'" v-model="it[sf.key]" size="small" style="width:100%">
                             <el-option v-for="o in sf.options" :key="o.value" :label="o.label" :value="o.value" />
@@ -1709,18 +1709,20 @@ function removePickedGood(id) {
   selectedComp.value.props.goodsIds = ids.join(',');
 }
 const linkSel = reactive({ show: false, fieldKey: null, listField: null, listIdx: null, fieldIdx: null, headerPos: null, headerRow: null, current: '', hsMode: false, mode: 'link' });
-function openLinkSel(listIdx, fieldIdx, listField) {
+function openLinkSel(listIdx, fieldIdx, listField, itemField) {
   let current = '';
   linkSel.mode = listField?.pickerMode || 'link';
   if (selectedComp.value) {
     if (typeof listIdx === 'number' && typeof fieldIdx === 'number' && listField) {
+      // 列表项字段：直接用 itemField 取当前值（listField.itemFields[fieldIdx] 可能因 visibleItemFields 过滤错位）
       const items = selectedComp.value.props[listField.key] || [];
-      current = (items[listIdx] || {})[listField.itemFields[fieldIdx].key] || '';
+      current = (items[listIdx] || {})[(itemField || listField.itemFields?.[fieldIdx] || {}).key] || '';
     } else if (listField) {
       current = selectedComp.value.props[listField.key] || '';
     }
   }
   linkSel.fieldKey = listField?.key || null;
+  linkSel.itemField = itemField || null;
   linkSel.listField = listField || null;
   linkSel.listIdx = typeof listIdx === 'number' ? listIdx : null;
   linkSel.fieldIdx = typeof fieldIdx === 'number' ? fieldIdx : null;
@@ -1752,7 +1754,7 @@ function confirmLinkSel(link) {
       if (linkSel.listField && typeof linkSel.listIdx === 'number' && typeof linkSel.fieldIdx === 'number') {
         const items = selectedComp.value.props[linkSel.listField.key] || [];
         if (!items[linkSel.listIdx]) items[linkSel.listIdx] = {};
-        items[linkSel.listIdx][linkSel.listField.itemFields[linkSel.fieldIdx].key] = link;
+        items[linkSel.listIdx][(linkSel.itemField || linkSel.listField.itemFields[linkSel.fieldIdx]).key] = link;
       } else if (linkSel.fieldKey) {
         selectedComp.value.props[linkSel.fieldKey] = link;
       }

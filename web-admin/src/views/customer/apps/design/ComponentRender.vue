@@ -688,7 +688,8 @@
       <div class="r-native-grid" :style="gridPreviewStyle(comp.props)">
         <div v-for="(it, i) in gridPreviewItems(comp.props)" :key="i" class="r-native-grid-item">
           <div class="r-native-grid-icon" :style="gridPreviewIconStyle(comp.props, it)">
-            <PeSIcon v-if="it.icon" :name="it.icon" :size="Number(comp.props.iconSize || 28) * 0.66" color="#ffffff" />
+            <img v-if="it.iconImage" :src="it.iconImage" class="r-native-grid-icon-img" />
+            <PeSIcon v-else-if="it.icon" :name="it.icon" :size="Number(comp.props.iconSize || 28) * 0.66" color="#ffffff" />
             <span v-else>{{ (it.text || it.label || '名').slice(0, 1) }}</span>
             <em v-if="it.badge" class="r-native-grid-badge">{{ it.badge }}</em>
           </div>
@@ -1919,7 +1920,7 @@ const nativeGridItems = [
 .r-native-msg{flex-shrink:0;}
 .r-native-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px 6px;background:#fff;border-radius:8px;padding:12px 8px;}
 .r-native-grid-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
-.r-native-grid-icon{position:relative;width:28px;height:28px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;}.r-native-grid-badge{position:absolute;top:-5px;right:-8px;min-width:14px;height:14px;padding:0 3px;border-radius:99px;background:#f53f3f;color:#fff;font-size:8px;line-height:14px;font-style:normal;text-align:center;}
+.r-native-grid-icon{position:relative;width:28px;height:28px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;}.r-native-grid-icon-img{width:72%;height:72%;object-fit:contain;}.r-native-grid-badge{position:absolute;top:-5px;right:-8px;min-width:14px;height:14px;padding:0 3px;border-radius:99px;background:#f53f3f;color:#fff;font-size:8px;line-height:14px;font-style:normal;text-align:center;}
 .r-native-grid-text{font-size:10px;color:#4e5969;}
 .r-native-section{background:#fff;border-radius:8px;padding:12px;}
 .r-native-title{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;color:#1d2129;margin-bottom:10px;}

@@ -1339,6 +1339,7 @@ export const componentRegistry = [
         key: 'items', label: '宫格项', control: 'list', section: 'content',
         itemFields: [
           { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS },
+          { key: 'iconImage', label: '自定义图标', control: 'image', help: '选填，上传图片后覆盖内置图标（建议方形透明底 PNG，约 100×100）' },
           { key: 'text', label: '文字', control: 'input' },
           { key: 'bg', label: '图标底色', control: 'color' },
           { key: 'badge', label: '角标', control: 'input', placeholder: '选填，如 NEW' },

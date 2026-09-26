@@ -7,7 +7,7 @@
     </div>
 
     <!-- 渐变预设：值为渐变时显示，点选即应用 -->
-    <div v-if="open && isGradient" class="pc-grads" @mousedown.stop>
+    <div v-if="open" class="pc-grads" @mousedown.stop>
       <span class="pc-grads-label">渐变</span>
       <span
         v-for="(g, gi) in gradPresets" :key="gi"

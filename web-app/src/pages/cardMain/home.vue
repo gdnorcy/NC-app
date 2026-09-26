@@ -34,7 +34,8 @@
         <view class="grid" :style="gridStyle(c.props)">
           <view class="grid-item" v-for="(item, i) in gridItems(c.props)" :key="i" @click="goPage(item.url || item.path)">
             <view class="grid-icon" :style="gridIconStyle(c.props, item)">
-              <SIcon :name="item.icon" :size="gridIconSize(c.props)" color="#ffffff" />
+              <image v-if="item.iconImage" :src="resolveAssetUrl(item.iconImage)" mode="aspectFit" class="grid-icon-img" />
+              <SIcon v-else-if="item.icon" :name="item.icon" :size="gridIconSize(c.props)" color="#ffffff" />
               <view v-if="item.badge" class="grid-badge"><text>{{ item.badge }}</text></view>
             </view>
             <view class="grid-label" :style="gridLabelStyle(c.props)">{{ item.text || item.label }}</view>
@@ -493,6 +494,10 @@ function viewMarketCard(item) {
   align-items: center;
   justify-content: center;
   margin-bottom: 12rpx;
+}
+.grid-icon-img {
+  width: 72%;
+  height: 72%;
 }
 .grid-badge {
   position: absolute;
