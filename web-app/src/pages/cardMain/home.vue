@@ -34,7 +34,7 @@
         <view class="grid" :style="gridStyle(c.props)">
           <view class="grid-item" v-for="(item, i) in gridItems(c.props)" :key="i" @click="goPage(item.url || item.path)">
             <view class="grid-icon" :style="gridIconStyle(c.props, item)">
-              <SIcon :name="item.icon" size="large" color="#ffffff" />
+              <SIcon :name="item.icon" :size="gridIconSize(c.props)" color="#ffffff" />
               <view v-if="item.badge" class="grid-badge"><text>{{ item.badge }}</text></view>
             </view>
             <view class="grid-label" :style="gridLabelStyle(c.props)">{{ item.text || item.label }}</view>
@@ -200,9 +200,18 @@ function gridIconStyle(props, item) {
     borderRadius: shape === 'circle' ? '50%' : ((p.iconRadius ?? 14) + 'px'),
   };
 }
+// 图标本体尺寸：跟随 iconSize 滑块（SIcon 数值尺寸）
+function gridIconSize(props) {
+  return Number((props && props.iconSize) || 40);
+}
 function gridLabelStyle(props) {
   const p = props || {};
-  return { fontSize: (p.fontSize || 12) + 'px', fontWeight: p.bold ? '600' : '400' };
+  const hasItems = (p.items || []).length;
+  // 旧数据无 items：保持原 24rpx 常规字重
+  return {
+    fontSize: (hasItems ? (p.fontSize || 12) : 12) + 'px',
+    fontWeight: hasItems && p.bold ? '600' : '400',
+  };
 }
 // 系统风格头部（无页面头部配置时全局默认）：headColor 跟随主色→主题色底 / 白色头部→白底；文字色对应
 const sysHeadStyle = computed(() => {

@@ -687,10 +687,10 @@
     <template v-else-if="comp.type === 'native-grid'">
       <div class="r-native-grid" :style="gridPreviewStyle(comp.props)">
         <div v-for="(it, i) in gridPreviewItems(comp.props)" :key="i" class="r-native-grid-item">
-          <div class="r-native-grid-icon" :style="{ background: it.bg || '#165dff' }">{{ (it.text || it.label || '名').slice(0, 1) }}
+          <div class="r-native-grid-icon" :style="gridPreviewIconStyle(comp.props, it)">{{ (it.text || it.label || '名').slice(0, 1) }}
             <em v-if="it.badge" class="r-native-grid-badge">{{ it.badge }}</em>
           </div>
-          <div class="r-native-grid-text">{{ it.text || it.label }}</div>
+          <div class="r-native-grid-text" :style="gridPreviewTextStyle(comp.props)">{{ it.text || it.label }}</div>
         </div>
       </div>
     </template>
@@ -1416,7 +1416,23 @@ function gridPreviewItems(props) {
 }
 function gridPreviewStyle(props) {
   const p = props || {};
-  return { gridTemplateColumns: `repeat(${p.columns || 5}, 1fr)` };
+  return { gridTemplateColumns: `repeat(${p.columns || 5}, 1fr)`, gap: (p.gap || 0) + 'px' };
+}
+function gridPreviewIconStyle(props, it) {
+  const p = props || {};
+  const size = (p.iconSize || 28) + 'px';
+  return {
+    width: size,
+    height: size,
+    background: it.bg || '#165dff',
+    borderRadius: p.shape === 'circle' ? '50%' : ((p.iconRadius ?? 10) + 'px'),
+    fontSize: (p.iconSize || 28) >= 36 ? '18px' : '13px',
+    fontWeight: '600',
+  };
+}
+function gridPreviewTextStyle(props) {
+  const p = props || {};
+  return { fontSize: (p.fontSize || 10) + 'px', fontWeight: p.bold ? '600' : '400' };
 }
 const nativeGridItems = [
   { label: '我的名片', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },

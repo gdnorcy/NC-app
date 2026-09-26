@@ -3,7 +3,8 @@
   <!-- #ifdef MP-WEIXIN -->
   <image
     class="s-icon"
-    :class="[`s-icon--${size}`, { 's-icon--disabled': disabled }]"
+    :class="sizeClass"
+    :style="numStyle"
     :src="mpIconSrc"
     mode="aspectFit"
   />
@@ -11,8 +12,8 @@
   <!-- #ifndef MP-WEIXIN -->
   <view
     class="s-icon"
-    :class="[`s-icon--${size}`, { 's-icon--disabled': disabled }]"
-    :style="iconStyle"
+    :class="sizeClass"
+    :style="[iconStyle, numStyle]"
   />
   <!-- #endif -->
 </template>
@@ -22,10 +23,15 @@ import { computed } from 'vue';
 
 const props = defineProps({
   name: { type: String, required: true },
-  size: { type: String, default: 'default' }, // small(18px) / default(20px) / large(24px) / xlarge(32px)
+  // 预设档位：small(18px) / default(20px) / large(24px) / xlarge(32px)；
+  // 数值：自定义像素尺寸（如 40 → 40px，装修组件 iconSize 滑块驱动）
+  size: { type: [String, Number], default: 'default' },
   color: { type: String, default: '' }, // 图标颜色，如 '#ffffff'、'#165dff'
   disabled: { type: Boolean, default: false },
 });
+
+const sizeClass = computed(() => (typeof props.size === 'string' ? `s-icon--${props.size}` : ''));
+const numStyle = computed(() => (typeof props.size === 'number' ? { width: props.size + 'px', height: props.size + 'px' } : null));
 
 // SVG图标内容映射
 const svgMap = {
