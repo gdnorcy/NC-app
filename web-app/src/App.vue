@@ -63,7 +63,7 @@ export default {
             this.globalData.customerId = res.data.customerId;
             uni.setStorageSync('channel_config', res.data);
             // 动态设置导航栏标题
-            uni.setNavigationBarTitle({ title: res.data.brandName || '360全景' });
+            uni.setNavigationBarTitle({ title: res.data.brandName || '零壹系统云' });
             console.log('渠道初始化成功:', res.data);
           }
         }

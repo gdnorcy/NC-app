@@ -1796,12 +1796,20 @@ export function createCardRouter(db, wxService) {
         header = homeJson.meta?.header || null;
       }
     }
+    // 统一默认首页（is_home）→ C 端跳转 URL：配置谁为首页就跳谁（商城/全景/名片/自定义页）
+    // 预置页按应用壳跳转（home→智能名片、mall-home→商城）；custom-* 自定义页走全景通用装修壳
+    const homeRow = db.prepare('SELECT page_type FROM tenant_page_design WHERE tenant_id = ? AND is_home = 1 ORDER BY id DESC LIMIT 1').get(tenantId);
+    const HOME_SHELL = { home: '/pages/cardMain/home', 'mall-home': '/pages/mall/index' };
+    const homePt = homeRow?.page_type || 'home';
+    const homeShell = HOME_SHELL[homePt] || '/pages/panorama/home';
+    const homePageUrl = `${homeShell}?pageType=${homePt}`;
     res.json({
       tenantId,
       style: style ? JSON.parse(style.style_json || '{}') : null,
       tab: tab ? { name: tab.scheme_name, items: JSON.parse(tab.tab_json || '[]') } : null,
       homePage: homePages.card || home?.home_page || 'card',
       homePages,
+      homePageUrl,
       header,
       pages,
     });

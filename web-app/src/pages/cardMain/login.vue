@@ -23,7 +23,29 @@
 </template>
 
 <script setup>
+import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { getTid } from '../../utils/mallUtil.js';
+import { buildGlobalHomeRedirect } from '../../utils/globalHome.js';
+
+// 冷启动首页联动：装修中心「首页」（is_home=1）配置谁就跳谁（商城/全景/名片/自定义页）
+// 仅小程序冷启动页检查；游客自动带默认租户读取公开配置；跳转目标页自身不重复检查，无死循环
+onShow(() => {
+  // #ifndef H5
+  checkGlobalHome();
+  // #endif
+});
+
+async function checkGlobalHome() {
+  try {
+    const tid = getTid();
+    const raw = await cardApi.designConfig(false, '', tid);
+    const pages = getCurrentPages();
+    const cur = pages.length ? pages[pages.length - 1].route || '' : '';
+    const target = buildGlobalHomeRedirect(raw && raw.homePageUrl, tid, cur);
+    if (target) uni.reLaunch({ url: target });
+  } catch (e) { /* 配置读取失败不阻断登录页 */ }
+}
 
 function handleWxLogin() {
   // #ifdef H5

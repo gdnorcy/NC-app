@@ -112,3 +112,33 @@ test('首页语义：带 pageType 显式指定不受 card 语义影响', async (
   const comps = (res.body.pages && res.body.pages.components) || [];
   assert.deepEqual(comps.map((c) => c.type), ['grid-nav', 'pano-scenes']);
 });
+
+
+test('首页跳转 URL：is_home=1 为商城首页 → homePageUrl 指向商城壳', async () => {
+  db.prepare('UPDATE tenant_home_config SET home_pages = ?, home_page = ? WHERE tenant_id = ?')
+    .run('{}', 'card', TID);
+  db.prepare('UPDATE tenant_page_design SET is_home = 0 WHERE tenant_id = ?').run(TID);
+  db.prepare("DELETE FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'mall-home'").run(TID);
+  seedPages([pageDesign('mall-home', '商城首页', [{ type: 'goods-list', id: 'gl1' }], 1, 1)]);
+  const res = await request(app).get(previewUrl(''));
+  assert.equal(res.status, 200);
+  assert.equal(res.body.homePageUrl, '/pages/mall/index?pageType=mall-home');
+});
+
+test('首页跳转 URL：is_home=1 为自定义页 → homePageUrl 指向全景通用壳', async () => {
+  db.prepare('UPDATE tenant_page_design SET is_home = 0 WHERE tenant_id = ?').run(TID);
+  db.prepare("DELETE FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'custom-99'").run(TID);
+  seedPages([pageDesign('custom-99', '自定义首页', [{ type: 'notice', id: 'n1' }], 1, 1)]);
+  const res = await request(app).get(previewUrl(''));
+  assert.equal(res.status, 200);
+  assert.equal(res.body.homePageUrl, '/pages/panorama/home?pageType=custom-99');
+});
+
+test('首页跳转 URL：无 is_home 页面 → 兜底智能名片 home', async () => {
+  db.prepare('UPDATE tenant_page_design SET is_home = 0 WHERE tenant_id = ?').run(TID);
+  db.prepare("DELETE FROM tenant_page_design WHERE tenant_id = ? AND page_type = 'home'").run(TID);
+  seedPages([pageDesign('home', '首页', [{ type: 'grid-nav', id: 'g1' }], 1, 0)]);
+  const res = await request(app).get(previewUrl(''));
+  assert.equal(res.status, 200);
+  assert.equal(res.body.homePageUrl, '/pages/cardMain/home?pageType=home');
+});
