@@ -108,4 +108,20 @@ let count = 0;
     console.log(`[gen-mp-sicons] 清理旧产物 ${f}`);
   }
   console.log(`[gen-mp-sicons] 已生成 ${count} 个图标 PNG → ${path.relative(root, outDir)}`);
+
+  // 4) 生成 base64 映射模块（SIcon MP 分支用 data URI，绕过开发者工具/基础库对 http 图片的禁用）
+  const mapOut = path.join(root, 'src', 'utils', 'sicons-base64.js');
+  const entries = fs
+    .readdirSync(outDir)
+    .filter((f) => f.endsWith('.png'))
+    .map((f) => {
+      const key = f.replace(/\.png$/, '');
+      const b64 = fs.readFileSync(path.join(outDir, f)).toString('base64');
+      return `  '${key}': '${b64}'`;
+    });
+  fs.writeFileSync(
+    mapOut,
+    `// 自动生成：小程序端 SIcon 图标 base64 映射（scripts/gen-mp-sicons.js，勿手改）\n// 用途：微信基础库 3.x 禁用 http 图片（含开发者工具映射的包内资源），data URI 不依赖网络\nexport const siconsBase64 = {\n${entries.join(',\n')}\n};\n`
+  );
+  console.log(`[gen-mp-sicons] 已生成 base64 映射 ${entries.length} 条 → src/utils/sicons-base64.js`);
 })();

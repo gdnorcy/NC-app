@@ -20,6 +20,9 @@
 
 <script setup>
 import { computed } from 'vue';
+// #ifdef MP-WEIXIN
+import { siconsBase64 } from '../utils/sicons-base64.js';
+// #endif
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -102,10 +105,12 @@ function buildSvgDataUri() {
   return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 }
 const iconSrc = computed(() => buildSvgDataUri());
-// 小程序端图标：指向构建期生成的 PNG（scripts/gen-mp-sicons.js 产出 static/sicons/{name}-{hex}.png）
+// 小程序端图标：构建期生成的 base64 data URI（scripts/gen-mp-sicons.js 产出 sicons-base64.js）
+// 基础库 3.x 禁用 http 图片（含开发者工具映射的包内资源），data URI 不依赖网络、真机/工具均正常
 const mpIconSrc = computed(() => {
   const hex = (props.color || '#000000').replace(/^#/, '').toLowerCase();
-  return `/static/sicons/${props.name}-${hex}.png`;
+  const b64 = siconsBase64[`${props.name}-${hex}`];
+  return b64 ? `data:image/png;base64,${b64}` : '';
 });
 const iconStyle = computed(() => {
   const url = buildSvgDataUri();
