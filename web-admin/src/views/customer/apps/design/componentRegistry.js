@@ -1345,9 +1345,9 @@ export const componentRegistry = [
       {
         key: 'items', label: '宫格项', control: 'list', section: 'content',
         itemFields: [
-          { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS, inline: true },
-          { key: 'visible', label: '显示', control: 'switch', help: '关闭后该宫格项在 C 端隐藏', inline: true },
-          { key: 'bg', label: '图标底色', control: 'color', inline: true },
+          { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS },
+          { key: 'visible', label: '显示', control: 'switch', help: '关闭后该宫格项在 C 端隐藏' },
+          { key: 'bg', label: '图标底色', control: 'color' },
           { key: 'iconImage', label: '自定义图标', control: 'image', compact: true, help: '选填，上传图片后覆盖内置图标（建议方形透明底 PNG，约 100×100）' },
           { key: 'text', label: '文字', control: 'input' },
           { key: 'badge', label: '角标', control: 'input', placeholder: '选填，如 NEW' },
