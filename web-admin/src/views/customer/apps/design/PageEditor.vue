@@ -418,9 +418,11 @@
                     >
                       <span class="pe-list-drag" title="按住拖动排序">⠿</span>
                       <div class="pe-list-fields">
-                        <div v-for="(sf, si) in visibleItemFields(f, it)" :key="si" class="pe-list-field">
-                          <div class="pe-list-label">{{ sf.label }}</div>
-                          <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
+                        <template v-for="(grp, gi) in listFieldGroups(f, it)" :key="gi">
+                        <div :class="grp.inline ? 'pe-list-inline' : ''">
+                          <div v-for="(sf, si) in grp.fields" :key="si" class="pe-list-field" :class="grp.inline ? 'pe-list-inline-item' : ''">
+                            <div class="pe-list-label">{{ sf.label }}</div>
+                            <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
                             <el-radio v-for="o in sf.options" :key="o.value" :value="o.value" size="small">{{ o.label }}</el-radio>
                           </el-radio-group>
                           <el-input v-else-if="sf.control === 'input'" v-model="it[sf.key]" size="small" />
@@ -435,8 +437,10 @@
                           <PeImagePicker v-else-if="sf.control === 'image'" v-model="it[sf.key]" :compact="sf.compact" :help="sf.help || '建议图片宽度750，高度200-950，支持jpg、png。'" />
                           <div v-else-if="sf.control === 'hotspots'" class="pe-hs-field">
                             <el-button size="small" type="primary" plain @click="openHotspotEditor(f, idx)">管理热区（{{ (it.hotspots || []).length }}）</el-button>
+                            </div>
                           </div>
-                        </div>
+                          </div>
+                        </template>
                       </div>
                       <div class="pe-list-ops">
                         <el-button size="small" text type="danger" @click="removeListItem(selectedComp, f.key, idx)">删除</el-button>
@@ -1862,6 +1866,22 @@ function listVal(it, sf) {
 function visibleItemFields(f, it) {
   return (f.itemFields || []).filter((sf) => listFieldVisible(sf, it));
 }
+// inline 字段合并为同一行（如 图标/显示/图标底色），其余字段独立成行
+function listFieldGroups(f, it) {
+  const fields = visibleItemFields(f, it);
+  const groups = [];
+  let cur = null;
+  for (const sf of fields) {
+    if (sf.inline) {
+      if (!cur || !cur.inline) { cur = { inline: true, fields: [] }; groups.push(cur); }
+      cur.fields.push(sf);
+    } else {
+      cur = null;
+      groups.push({ inline: false, fields: [sf] });
+    }
+  }
+  return groups;
+}
 let listDrag = null; // { key, from }
 function onListItemDragStart(e, key, idx) {
   listDrag = { key, from: idx };
@@ -2137,6 +2157,8 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-item:active { cursor: grabbing; }
 .pe-list-item.drag-over { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); }
 .pe-list-drag { color: #c9cdd4; font-size: 16px; line-height: 1.2; cursor: grab; user-select: none; flex-shrink: 0; }
+.pe-list-inline { display: flex; gap: 8px; align-items: flex-start; }
+.pe-list-inline-item { flex: 1; min-width: 0; }
 .pe-list-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .pe-list-field { display: flex; flex-direction: column; gap: 2px; }
 .pe-list-label { font-size: 11px; color: #86909c; }
