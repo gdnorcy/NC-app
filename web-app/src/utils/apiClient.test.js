@@ -94,4 +94,32 @@ describe('mallApi 方法映射', () => {
     expect(uniMock.request.mock.calls[1][0].url).toBe('http://localhost:3000/api/mall/orders');
     expect(uniMock.request.mock.calls[1][0].method).toBe('POST');
   });
+
+  it('H5 环境（window 存在）→ mallApi 走同源相对路径 /api/mall（/mall 独立产物任意域名/端口可用）', async () => {
+    globalThis.window = { location: { search: '' } };
+    try {
+      // 动态 import + query 强制重新求值模块（BASE_URL 为模块级常量）
+      const mod = await import('./mallApi.js?h5=1');
+      uniMock.getStorageSync.mockReturnValue('t');
+      uniMock.request.mockImplementation((args) => args.success({ statusCode: 200, data: { list: [] } }));
+      await mod.mallApi.getGoods({ page: 1, pageSize: 10 });
+      expect(uniMock.request.mock.calls[0][0].url).toBe('/api/mall/goods?page=1&pageSize=10');
+    } finally {
+      delete globalThis.window;
+    }
+  });
+
+  it('H5 环境（window 存在）→ paymentApi 走同源相对路径 /api/payment（商城 mock 支付链路）', async () => {
+    globalThis.window = { location: { search: '' } };
+    try {
+      const mod = await import('./cardApi.js?h5=1');
+      uniMock.getStorageSync.mockReturnValue('t');
+      uniMock.request.mockImplementation((args) => args.success({ statusCode: 200, data: { paid: true } }));
+      await mod.paymentApi.mockPay('NO123');
+      expect(uniMock.request.mock.calls[0][0].url).toBe('/api/payment/mock-pay');
+      expect(uniMock.request.mock.calls[0][0].header.Authorization).toBe('Bearer t');
+    } finally {
+      delete globalThis.window;
+    }
+  });
 });

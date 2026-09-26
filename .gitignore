@@ -8,4 +8,5 @@ node_modules/
 /data/
 /server/src/data/
 /server/public/card/
+/server/public/mall/
 _tmp_

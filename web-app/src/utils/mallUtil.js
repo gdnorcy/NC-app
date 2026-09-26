@@ -12,11 +12,17 @@ export function yuanFmt(price) {
 }
 
 // 租户上下文：首页/分享进入时记录 tid，供后续页面透传（未登录浏览场景）
-// 兼容三种入口：Page.onLoad(options.tid，分享直带) / App.onLaunch(options.query.tid，分享卡片)
+// 兼容四种入口：H5 顶层 query（/mall/?tid=1，与 /pano 对齐；uni H5 hash 路由下顶层 query 不进页面 onLoad）
+// / Page.onLoad(options.tid，分享直带) / App.onLaunch(options.query.tid，分享卡片)
 // / 扫码场景值 options.scene（URL 编码的 query 串，如 "tid%3D1"）
 export function getTid(options) {
   let tid = '';
-  if (options) {
+  // H5：顶层 query 直读（部署默认租户/分享链接带 tid 时，独立 H5 产物按租户加载）
+  if (typeof window !== 'undefined' && window.location && window.location.search) {
+    const m = window.location.search.match(/(?:[?&]|^)tid=(\d+)/);
+    if (m) tid = m[1];
+  }
+  if (!tid && options) {
     tid = options.tid || (options.query && options.query.tid) || '';
     if (!tid && options.scene) {
       try {

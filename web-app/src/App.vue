@@ -10,10 +10,9 @@ export default {
   },
   onLaunch(options) {
     console.log('App Launch');
-    // MP-WEIXIN：分享/扫码进入带 tid，记录租户上下文（供模板/商城/全景按租户加载）
-    // #ifdef MP-WEIXIN
+    // 记录租户上下文（供模板/商城/全景按租户加载）：
+    // 小程序：分享/扫码进入带 tid；H5：getTid 内部直读顶层 query（/mall/?tid=1 与 /pano 对齐）
     getTid(options);
-    // #endif
     this.initChannel();
     this.initDesignConfig();
   },

@@ -5,7 +5,12 @@ import { DEFAULT_TENANT_ID } from '../config.js';
 
 const BASE_URL = 'http://localhost:3000/api/card';
 const MARKET_BASE_URL = 'http://localhost:3000/api/card-market';
-const PAYMENT_BASE_URL = 'http://localhost:3000/api/payment';
+// 支付API基址：H5（含 /mall 独立产物）走同源相对路径，任意域名/端口部署可用；
+// 小程序端 uni.request 要求完整 URL，开发占位 localhost:3000，发布时替换实际 HTTPS 域名
+const PAYMENT_BASE_URL =
+  typeof window !== 'undefined' && window.location
+    ? '/api/payment'
+    : 'http://localhost:3000/api/payment';
 
 // 公共请求层（token 注入 / 401 跳登录 / 响应解包），行为与原 request 完全一致
 const { request } = createApiClient(BASE_URL);
@@ -18,10 +23,20 @@ function hasCardToken() {
   try { return !!uni.getStorageSync('card_token'); } catch { return false; }
 }
 
-// 支付API请求（使用card_token认证）
+// 支付API请求（使用card_token认证；H5 端 localStorage 直读优先，与 apiClient.readToken 一致）
+function readPaymentToken() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const v = localStorage.getItem('card_token');
+      if (v) return v;
+    }
+  } catch { /* 忽略 */ }
+  try { return uni.getStorageSync('card_token'); } catch { return ''; }
+}
+
 function paymentRequest(url, method = 'GET', data = {}) {
   return new Promise((resolve, reject) => {
-    const token = uni.getStorageSync('card_token');
+    const token = readPaymentToken();
     uni.request({
       url: PAYMENT_BASE_URL + url,
       method,

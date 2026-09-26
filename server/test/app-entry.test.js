@@ -1,7 +1,7 @@
 /**
  * 行业应用公开入口分发测试（独立首页方案）
  * - 根路径 / → 301 /pano（全景迁移，保留 query）
- * - /pano、/card 前缀 → 各自 SPA index.html（SPA fallback）
+ * - /pano、/card、/mall 前缀 → 各自 SPA index.html（SPA fallback；card/mall 独立产物目录）
  * - 静态资源（assets）强缓存放行
  * - 顶层 ?tid= 且未开通 → 统一「未开通」提示页（403）
  * - 顶层 ?tid= 已开通 / 无 tid / 预览签名(exp+sig) → 放行
@@ -16,7 +16,7 @@ import { createDb } from '../src/db.js';
 import { config } from '../src/config.js';
 
 describe('行业应用公开入口（独立首页分发）', () => {
-  let db, app, server, tmpDist, tmpDb;
+  let db, app, server, tmpDist, tmpPublic, tmpDb;
   let baseUrl;
 
   before(async () => {
@@ -27,14 +27,24 @@ describe('行业应用公开入口（独立首页分发）', () => {
     fs.writeFileSync(path.join(tmpDist, 'assets', 'main-test.js'), 'console.log(1)');
     fs.writeFileSync(path.join(tmpDist, 'sw.js'), 'self.version=1;');
 
+    // 临时 publicDir：模拟 card/mall 独立 H5 产物目录（商城 C 端独立构建后分目录托管）
+    tmpPublic = fs.mkdtempSync(path.join(os.tmpdir(), 'pub-'));
+    fs.mkdirSync(path.join(tmpPublic, 'card', 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(tmpPublic, 'card', 'index.html'), '<!doctype html><html><body><div id="app">card-dist</div></body></html>');
+    fs.writeFileSync(path.join(tmpPublic, 'card', 'assets', 'card.js'), 'console.log("card")');
+    fs.mkdirSync(path.join(tmpPublic, 'mall', 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(tmpPublic, 'mall', 'index.html'), '<!doctype html><html><body><div id="app">mall-dist</div></body></html>');
+    fs.writeFileSync(path.join(tmpPublic, 'mall', 'assets', 'mall.js'), 'console.log("mall")');
+
     // 临时 DB：创建租户（T_OPEN 开通 demo 方案=全应用；T_CLOSED 未开通任何方案）
     tmpDb = path.join(os.tmpdir(), `app-entry-${Date.now()}.db`);
     db = createDb(tmpDb);
     db.prepare("INSERT INTO projects (id, customer_name, status, solutions) VALUES (?, ?, 'active', ?)").run(99001, '已开通租户', JSON.stringify(['demo']));
     db.prepare("INSERT INTO projects (id, customer_name, status, solutions) VALUES (?, ?, 'active', ?)").run(99002, '未开通租户', JSON.stringify([]));
 
-    // 指向临时全景产物目录
+    // 指向临时产物目录（webDistDir=全景、publicDir=card/mall 等 H5 产物）
     config.webDistDir = tmpDist;
+    config.publicDir = tmpPublic;
     app = createApp({ db });
     await new Promise((resolve, reject) => {
       server = app.listen(0, '127.0.0.1', () => resolve());
@@ -48,6 +58,7 @@ describe('行业应用公开入口（独立首页分发）', () => {
     try { db.close(); } catch {}
     try { fs.rmSync(tmpDb, { force: true }); } catch {}
     try { fs.rmSync(tmpDist, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(tmpPublic, { recursive: true, force: true }); } catch {}
   });
 
   const get = (url) => fetch(`${baseUrl}${url}`, { redirect: 'manual' });
@@ -99,9 +110,16 @@ describe('行业应用公开入口（独立首页分发）', () => {
     assert.match(await r.text(), /未开通/);
   });
 
-  test('/card/ 无 tid → 200（SPA 自行兜底）', async () => {
+  test('/card/ 无 tid → 200（独立 card 产物 SPA index.html）', async () => {
     const r = await get('/card/');
     assert.equal(r.status, 200);
+    assert.match(await r.text(), /card-dist/);
+  });
+
+  test('/card/assets 静态资源走 card 产物目录', async () => {
+    const r = await get('/card/assets/card.js');
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /card/);
   });
 
   test('/card/?tid=未开通租户 → 403 未开通提示页', async () => {
@@ -119,10 +137,16 @@ describe('行业应用公开入口（独立首页分发）', () => {
     assert.equal(r2.headers.get('location'), '/mall/?tid=99001#/pages/mall/index');
   });
 
-  test('/mall/ 返回商城 SPA index.html（与 /card 共用 uni H5 产物）', async () => {
+  test('/mall/ 返回商城独立产物 SPA index.html（独立 mall 构建目录）', async () => {
     const r = await get('/mall/');
     assert.equal(r.status, 200);
-    assert.match(await r.text(), /<div id="app">/);
+    assert.match(await r.text(), /mall-dist/);
+  });
+
+  test('/mall/assets 静态资源走 mall 独立产物目录（与 card 分目录托管）', async () => {
+    const r = await get('/mall/assets/mall.js');
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /mall/);
   });
 
   test('/mall/?tid=已开通 goods 租户 → 200 放行', async () => {

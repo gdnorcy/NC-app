@@ -66,6 +66,23 @@ if (fs.existsSync(assetsDir)) {
   check(fileCount < 100, `⚠️  assets文件过多(${fileCount})，可能有旧构建残留`, true);
 }
 
+// 5. 检查移动端 H5 产物（card/mall 独立托管目录，由 scripts/sync-mobile-dist.mjs 双份同步）
+for (const name of ['card', 'mall']) {
+  const dist = path.join(__dirname, '..', 'server', 'public', name);
+  const html = path.join(dist, 'index.html');
+  const assets = path.join(dist, 'assets');
+  check(fs.existsSync(html), `❌ ${name}/index.html 不存在（未同步 H5 产物）`);
+  if (fs.existsSync(html)) {
+    const content = fs.readFileSync(html, 'utf-8');
+    const refs = [...content.matchAll(/(?:src|href)="\.\/assets\/([^"]+)"/g)].map((m) => m[1]);
+    for (const asset of refs) {
+      check(fs.existsSync(path.join(assets, asset)), `❌ ${name}/index.html 引用的资源不存在: ${asset}`);
+    }
+    check(refs.length > 0, `⚠️  ${name}/index.html 未引用任何 ./assets/ 资源（相对路径异常）`, true);
+  }
+  check(fs.existsSync(assets) && fs.readdirSync(assets).length > 0, `❌ ${name}/assets 为空`);
+}
+
 // 输出结果
 console.log('\n=== 构建产物验证 ===\n');
 
@@ -83,6 +100,7 @@ if (errors.length > 0) {
   console.log('✅ 所有引用资源存在');
   console.log(`✅ 关键功能代码存在 (全端渠道: ${channelChunk})`);
   console.log(`✅ 小程序管理代码存在 (${miniChunk})`);
+  console.log('✅ card/mall 独立 H5 产物存在且资源完整');
   if (warnings.length === 0) console.log('✅ 无重复旧版本');
   console.log('\n✅ 构建验证通过\n');
 }

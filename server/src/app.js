@@ -277,9 +277,12 @@ app.use((req, res, next) => {
   const cardDist = path.join(config.publicDir, 'card');
   if (fs.existsSync(cardDist)) {
     appEntries.push({ prefix: '/card', code: 'card', name: '智能名片', dist: cardDist, index: 'index.html' });
-    // 商城 C 端独立入口预留（/mall）：当前与 /card 共用 uni H5 产物，hash 直达商城页；
-    // 未来商城 C 端独立构建时，仅需将 mallDist 指向新产物目录即可（code 已按 goods 应用校验开通）
-    const mallDist = path.join(config.publicDir, 'card');
+  }
+
+  // 商城 C 端独立 H5 产物（/mall）：独立构建目录 server/public/mall（与 /card 分目录托管，
+  // 由 scripts/sync-mobile-dist.mjs 双份同步；code 按 goods 应用校验开通）
+  const mallDist = path.join(config.publicDir, 'mall');
+  if (fs.existsSync(mallDist)) {
     appEntries.push({ prefix: '/mall', code: 'goods', name: '商城', dist: mallDist, index: 'index.html' });
   }
 

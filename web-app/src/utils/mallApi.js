@@ -3,10 +3,15 @@
  * - 复用 createApiClient 公共请求层：token / 401 / 解包 与 cardApi 一致，登录态统一 card_token
  * - 商品浏览类接口公开（?tid= 指定租户）；购物车/下单/订单需登录（Authorization 头）
  * - 服务端 /api/mall 整体挂 requireGoodsApp C 端变体（未开通 goods 应用 → 403）
+ * - API 基址：H5（含 /mall 独立产物）走同源相对路径 /api/mall，任意域名/端口部署可用；
+ *   小程序端 uni.request 要求完整 URL，开发占位 localhost:3000，发布时替换实际 HTTPS 域名
  */
 import { createApiClient, qs } from './apiClient.js';
 
-const BASE_URL = 'http://localhost:3000/api/mall';
+const BASE_URL =
+  typeof window !== 'undefined' && window.location
+    ? '/api/mall'
+    : 'http://localhost:3000/api/mall';
 const { request } = createApiClient(BASE_URL);
 
 export const mallApi = {
