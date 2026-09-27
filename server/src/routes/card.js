@@ -1731,6 +1731,8 @@ export function createCardRouter(db, wxService) {
 
   // 设计中心：C 端读取租户发布配置（最新风格/底部导航/首页跳转，供小程序/H5 按配置渲染）
   router.get('/design/config', authOptional, (req, res) => {
+    // 装修配置实时性要求高（导航方案/页面内容改后须立即生效）：禁止 HTTP 层缓存（浏览器启发式缓存会导致改方案后仍显示旧导航）
+    res.setHeader('Cache-Control', 'no-store');
     // 租户上下文：正常登录态优先；否则校验设计中心预览签名（免登录）
     const previewTid = req.customerId ? 0 : verifyPreviewSig(req.query);
     // 公开浏览：未登录时支持 ?tid= 数字指定租户（装修配置为公开内容，供商城/全景等公开首页渲染）

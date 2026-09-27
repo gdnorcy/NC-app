@@ -205,7 +205,7 @@ describe('阶段C 语音简介上传', () => {
     mockResponse(200, { pages: { components: [] } });
     await cardApi.designConfig(false, '');
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/design/config?tid=1',
+      url: expect.stringMatching(/^http:\/\/localhost:3000\/api\/card\/design\/config\?(_t=\d+&)?tid=1$/),
     }));
   });
 
@@ -214,7 +214,7 @@ describe('阶段C 语音简介上传', () => {
     mockResponse(200, { pages: { components: [] } });
     await cardApi.designConfig(false, '');
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/design/config?tid=1',
+      url: expect.stringMatching(/^http:\/\/localhost:3000\/api\/card\/design\/config\?(_t=\d+&)?tid=1$/),
     }));
   });
 
@@ -223,7 +223,7 @@ describe('阶段C 语音简介上传', () => {
     mockResponse(200, { pages: { components: [] } });
     await cardApi.designConfig(false, 'mall-home', '2');
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/design/config?pageType=mall-home&tid=2',
+      url: expect.stringMatching(/^http:\/\/localhost:3000\/api\/card\/design\/config\?(_t=\d+&)?pageType=mall-home&tid=2$/),
     }));
   });
 });

@@ -221,7 +221,7 @@ export const cardApi = {
 
   // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）；pageType 指定 DIY 装修页面（首页跳转选择器）
   designConfig: (preview, pageType = '', tid = '') => {
-    const params = {};
+    const params = { _t: Date.now() }; // 时间戳防浏览器 HTTP 缓存（装修配置改后须立即生效）
     if (preview) params.preview = 1;
     if (pageType) params.pageType = pageType;
     // H5 带签名访问（设计中心 iframe 免登录）：hash 中存在 tid/exp/sig 即透传，预览模式同样适用

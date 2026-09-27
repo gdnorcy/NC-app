@@ -140,6 +140,7 @@ export function createMallRouter(db) {
   // 未指定时读 home_pages.goods（默认 mall-home，即商城内置默认首页，不可删除）
   router.get('/design-home', authOptional, requireGoodsApp, (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store'); // 装修内容改后须立即生效，禁 HTTP 缓存
       const cid = req.customerId;
       let reqPageType = String(req.query.pageType || '').trim();
       if (!reqPageType) {

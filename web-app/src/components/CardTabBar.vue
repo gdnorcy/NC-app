@@ -78,11 +78,10 @@ function goDesign(it) {
   uni.reLaunch({ url: it.url });
 }
 
-onMounted(async () => {
-  console.log('[tabbar] mounted');
-  // 拉取设计配置（缓存 5 分钟内不重复请求），就绪后刷新导航
+async function loadNav() {
+  // 底部导航是全局关键 UI：强制拉最新配置（跳过 5 分钟 storage 缓存）+ 时间戳防浏览器 HTTP 缓存，
+  // 设计中心切换方案后刷新页面/返回本页立即生效，无需清缓存
   try {
-    // 底部导航是全局关键 UI：每次进页面强制拉最新配置，装修中心改动后立即生效（不受 5 分钟缓存影响）
     const cfg = await fetchDesignConfig(true, false, props.pageType);
     if (cfg) localCfg.value = cfg;
   } catch (e) { /* 拉取失败保持兜底 */ }
@@ -90,7 +89,9 @@ onMounted(async () => {
     const res = await cardApi.getCardsSafe();
     if (res.cards && res.cards.length) myCardId.value = res.cards[0].id;
   } catch (e) {}
-});
+}
+
+onMounted(loadNav);
 
 function goCard() {
   if (!navJumpEnabled.value) return;
