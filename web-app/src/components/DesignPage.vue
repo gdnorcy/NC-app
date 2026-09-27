@@ -1101,9 +1101,26 @@ const tabBarH = ref(50 + (() => {
 })());
 function measureTabBar() {
   try {
+    // 有底部导航才避让：找不到导航元素时置 0，保证与画布（无导航 navBarH=0）一致
     const el = document.querySelector('.mp-tabbar') || document.querySelector('.dp-tabbar');
-    if (el) tabBarH.value = Math.round(el.getBoundingClientRect().height);
-  } catch (e) { /* 小程序无 document，走兜底值 */ }
+    tabBarH.value = el ? Math.round(el.getBoundingClientRect().height) : 0;
+  } catch (e) { tabBarH.value = 0; /* 小程序无 document，按无导航处理 */ }
+}
+// 导航由设计配置异步加载（fetchDesignConfig），高度可能在首帧后才定型（如 21px 加载态 → 54px 成品）；
+// 轮询测量直到连续两次一致，保证悬浮组件避让高度 = 最终导航高度，与画布一致
+let tabBarWatchTimer = null;
+function startTabBarWatch() {
+  if (tabBarWatchTimer) clearInterval(tabBarWatchTimer);
+  let last = -1, stable = 0;
+  tabBarWatchTimer = setInterval(() => {
+    measureTabBar();
+    if (tabBarH.value === last) {
+      stable++;
+      if (stable >= 2) { clearInterval(tabBarWatchTimer); tabBarWatchTimer = null; }
+    } else stable = 0;
+    last = tabBarH.value;
+  }, 400);
+  setTimeout(() => { if (tabBarWatchTimer) { clearInterval(tabBarWatchTimer); tabBarWatchTimer = null; } }, 4000);
 }
 
 function dpFloatStyle(p) {
@@ -1374,7 +1391,7 @@ onMounted(() => {
   loadLiveList();
   loadMallComps();
   measureTabBar();
-  setTimeout(measureTabBar, 300);
+  startTabBarWatch();
   if ((props.comps || []).some((c) => c.type === 'fab-cart')) {
     loadCartCount();
     uni.$on('cart:changed', onCartChanged);

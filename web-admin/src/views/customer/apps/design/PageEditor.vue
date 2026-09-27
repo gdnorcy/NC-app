@@ -200,7 +200,7 @@
                 <span class="pe-tool" title="复制" @click.stop="dupComp(c)">⧉</span>
                 <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(c.id)">✕</span>
               </div>
-              <ComponentRender :comp="c" :global="meta.global || {}" />
+              <ComponentRender :comp="c" :global="meta.global || {}" :navBarH="navBarH" />
             </div>
           </div>
         </div>
@@ -934,7 +934,7 @@ import buyBtn3 from '../../../../assets/design-thumbs/buyBtn3.png';
 import buyBtn4 from '../../../../assets/design-thumbs/buyBtn4.png';
 import otherGoodsThree from '../../../../assets/design-thumbs/otherGoods_three.png';
 import otherGoodsThree2 from '../../../../assets/design-thumbs/otherGoods_three2.png';
-import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall } from '../../../../api';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
@@ -1081,6 +1081,15 @@ const previewNavItems = computed(() => {
   if (!scheme) return [];
   try { return JSON.parse(scheme.tab_json || '[]'); } catch { return []; }
 });
+// 画布底部导航实际高度：悬浮组件（购物车/悬浮按钮）避让用，动态测量 .pe-phone-tabbar，与 C 端测量 .mp-tabbar 逻辑一致
+const navBarH = ref(0);
+function measureNavBar() {
+  nextTick(() => {
+    const el = document.querySelector('.pe-phone-tabbar');
+    navBarH.value = el ? Math.round(el.getBoundingClientRect().height) : 0;
+  });
+}
+watch(previewNavItems, measureNavBar, { immediate: true });
 function previewNavIsImgIcon(it) {
   const u = it && it.icon;
   if (!u) return false;
@@ -2344,11 +2353,11 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-readonly-icon { position:absolute; right:8px; top:50%; transform:translateY(-50%); color:#909399; font-size:14px; }
 
 /* 编辑画布底部导航预览 */
-.pe-phone-tabbar{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #f2f3f5;padding:6px 0 10px;flex-shrink:0;}
-.pe-ptb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;color:#7a7f8a;}
+.pe-phone-tabbar{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #f2f3f5;padding:7px 0 7px;flex-shrink:0;}
+.pe-ptb{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;color:#7a7f8a;}
 .pe-ptb.on{color:#165DFF;}
 .pe-ptb.on .pe-ptb-text{font-weight:600;color:#165DFF;}
 .pe-ptb-img{width:20px;height:20px;object-fit:contain;}
 .pe-ptb-ph{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;}
-.pe-ptb-text{font-size:10px;color:inherit;}
+.pe-ptb-text{font-size:11px;line-height:1.5;color:inherit;}
 </style>// build-ver: A1-native-1790336044

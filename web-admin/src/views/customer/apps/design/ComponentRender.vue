@@ -784,7 +784,7 @@ const tbTextStyle = (comp) => ({ color: comp.props.titleColor || '#333333', font
 const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fontSize: (comp.props.titleFontSize2 || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
 // 主标题族兜底标题文字族文案（存量组件无 titleText）
 const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
-const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null } });
+const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null }, navBarH: { type: Number, default: 0 } });
 
 // 轮播图状态
 const sIdx = ref(0);
@@ -1239,7 +1239,7 @@ function resolveFloatPos(p, tabH) {
 }
 function floatStyle(p) {
   const s = { background: p.color || '#165DFF' };
-  const { pos, x, y } = resolveFloatPos(p, FAB_TAB_BAR_H);
+  const { pos, x, y } = resolveFloatPos(p, props.navBarH);
   const xpx = x + 'px', ypx = y + 'px';
   if (pos === 'top-left') { s.top = ypx; s.left = xpx; }
   else if (pos === 'top-right') { s.top = ypx; s.right = xpx; }
@@ -1455,12 +1455,9 @@ function chRadius(p, i) {
   if (p.radiusBottom && last) r.push('12px');
   return r.length ? r.join(' ') : '';
 }
-// 画布悬浮组件：渲染在预览壳视口层（模拟 C 端 fixed 相对视口），bottom = 组件边距 + 底部导航高；
-// 导航高取画布预览壳 tabbar 实际高度（.pe-phone-tabbar 高约 59px），保证按钮距导航 = 组件边距，与 C 端一致
-const FAB_TAB_BAR_H = 59;
 function fabCartStyle(p) {
   const st = {};
-  const { pos, x, y } = resolveFloatPos(p, FAB_TAB_BAR_H);
+  const { pos, x, y } = resolveFloatPos(p, props.navBarH);
   const xpx = x + 'px', ypx = y + 'px';
   if (pos === 'top-left') { st.top = ypx; st.left = xpx; }
   else if (pos === 'top-right') { st.top = ypx; st.right = xpx; }
