@@ -8,6 +8,8 @@
       <DesignPage v-for="(c, i) in comps" :key="i" :comps="[c]" :tenant-id="Number(tid)" :global="designGlobal" />
     </template>
     <view v-else class="ph-empty">暂无装修内容</view>
+    <!-- 页面含商品组件 → 商城场景，显示浮动购物车 -->
+    <FabCart v-if="hasGoods" :tid="tid" />
     <CardTabBar active="pano" :page-type="pageType" />
     <view class="tabbar-space"></view>
   </view>
@@ -16,13 +18,19 @@
 <script>
 import DesignPage from '../../components/DesignPage.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import FabCart from '../../components/FabCart.vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { normalizeDesignConfig } from '../../utils/design.js';
 
 export default {
-  components: { DesignPage },
+  components: { DesignPage, FabCart },
   data() {
     return { comps: [], tid: '', designGlobal: {}, pageType: '' };
+  },
+  computed: {
+    hasGoods() {
+      return (this.comps || []).some((c) => ['goods-group', 'goods-list', 'goods-all', 'goods-tabs', 'goods-rank', 'goods-like', 'goods-swiper', 'goods-show', 'goods-featured'].includes(c.type));
+    },
   },
   onLoad(o) {
     const pageType = String((o && o.pageType) || '').trim();

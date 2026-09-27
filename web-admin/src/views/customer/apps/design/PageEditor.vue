@@ -183,8 +183,8 @@
               <span class="pe-ptb-text">{{ it.text || '入口' }}</span>
             </div>
           </div>
-          <!-- 商城首页装修稿模式浮动购物车（与 C 端 mall/index 一致） -->
-          <div v-if="pageType === 'mall-home'" class="pe-fab-cart" title="购物车（装修稿模式浮动入口）">
+          <!-- 商城场景浮动购物车：页面为商城应用页或含商品组件时显示（与 C 端 FabCart 一致） -->
+          <div v-if="isMallScene" class="pe-fab-cart" title="购物车（商城场景浮动入口）">
             <SIcon name="cart" size="large" color="#ffffff" />
             <span class="pe-fab-badge">3</span>
           </div>
@@ -937,6 +937,12 @@ const props = defineProps({
 const emit = defineEmits(['dirty-change', 'page-switch']);
 const pageName = ref('首页');
 const components = ref([]);
+const GOODS_COMP_TYPES = ['goods-group', 'goods-list', 'goods-all', 'goods-tabs', 'goods-rank', 'goods-like', 'goods-swiper', 'goods-show', 'goods-featured'];
+const isMallScene = computed(() => {
+  const pt = String(props.pageType || '');
+  if (pt.startsWith('mall')) return true;
+  return (components.value || []).some((c) => c && GOODS_COMP_TYPES.includes(c.type));
+});
 const selected = ref(null);
 // 魔方：当前选中的格子（属性面板样式区编辑该格圆角/间隔）
 const cubeSel = ref(null);
@@ -1560,6 +1566,8 @@ async function load() {
       else Object.assign(meta, defaultMeta());
     } else {
       Object.assign(meta, defaultMeta());
+      pageName.value = '页面';
+      components.value = [];
     }
     baseSnapshot = snapshot();
     dirty = false;
