@@ -1310,8 +1310,11 @@ async function loadCartCount() {
 function onCartChanged() { loadCartCount(); }
 function dpFabCartStyle(p) {
   const st = {};
-  if (p.marginTop) st.top = p.marginTop + 'px';
-  if (p.position === 'right-bottom') st.bottom = '100rpx'; else if (p.marginBottom) st.top = p.marginBottom + 'px';
+  if (p.position === 'right-bottom') {
+    st.bottom = (140 + (Number(p.marginBottom) || 0)) + 'rpx';
+  } else {
+    st.top = (180 + (Number(p.marginTop) || 0)) + 'rpx';
+  }
   if (p.bgColor) st.background = p.bgColor;
   return st;
 }
@@ -2036,7 +2039,7 @@ function openChannel(kind, p) {
 .ew-feat-img{position:absolute;right:0;top:0;width:200rpx;height:100%;border-radius:0 16rpx 16rpx 0;opacity:.6;}
 
 /* 功能组件-购物车（浮动入口） */
-.dp-fab-cart{position:fixed;right:28rpx;top:180rpx;z-index:99;width:88rpx;height:88rpx;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 4rpx 16rpx rgba(0,0,0,.15);}
+.dp-fab-cart{position:fixed;right:28rpx;top:180rpx;z-index:999;width:88rpx;height:88rpx;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 4rpx 16rpx rgba(0,0,0,.15);}
 .dp-fab-cart.dp-fab-rb{top:auto;bottom:140rpx;}
 .dp-fab-badge{position:absolute;top:-6rpx;right:-6rpx;min-width:32rpx;height:32rpx;line-height:32rpx;border-radius:16rpx;background:#ff3b30;color:#fff;font-size:20rpx;text-align:center;padding:0 8rpx;box-sizing:border-box;}
 </style>

@@ -1432,7 +1432,11 @@ function chRadius(p, i) {
 }
 function fabCartStyle(p) {
   const st = {};
-  if (p.marginTop) st.top = p.marginTop + 'px';
+  if (p.position === 'right-bottom') {
+    st.bottom = (100 + (Number(p.marginBottom) || 0)) + 'px';
+  } else {
+    st.top = (120 + (Number(p.marginTop) || 0)) + 'px';
+  }
   if (p.bgColor) st.background = p.bgColor;
   return st;
 }
@@ -1958,7 +1962,7 @@ const nativeGridItems = [
 .r-native-title{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;color:#1d2129;margin-bottom:10px;}
 .r-native-title em{font-style:normal;font-size:11px;font-weight:400;color:#86909c;}
 .r-native-market-empty{text-align:center;color:#86909c;font-size:12px;padding:14px 0;background:#f7f8fa;border-radius:8px;}
-.r-fab-cart{position:absolute;right:14px;top:120px;width:44px;height:44px;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.r-fab-cart{position:absolute;right:14px;top:120px;z-index:999;width:44px;height:44px;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
 .r-fab-cart.r-fab-rb{top:auto;bottom:100px;}
 .r-fab-cart-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;line-height:16px;border-radius:8px;background:#ff3b30;color:#fff;font-size:10px;text-align:center;padding:0 4px;box-sizing:border-box;}
 </style>

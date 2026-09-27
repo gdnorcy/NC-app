@@ -1452,10 +1452,10 @@ function migrateCube(c) {
   }
 }
 function addComponent(type) {
-  // 名片组件为页面级单实例：页面中已存在同名组件时阻止重复添加
-  if (type && type.startsWith('native-') && components.value.some((x) => x.type === type)) {
+  // 单实例组件：名片组件(native-*)与购物车(fab-cart)为页面级单实例，已存在时阻止重复添加
+  if (type && (type.startsWith('native-') || type === 'fab-cart') && components.value.some((x) => x.type === type)) {
     const reg = findComponent(type);
-    ElMessage.warning(`「${reg ? reg.name : type}」已在页面中，名片模块为单实例，不可重复添加`);
+    ElMessage.warning(`「${reg ? reg.name : type}」已在页面中，该组件为单实例，不可重复添加`);
     return;
   }
   const c = newComp(type);
