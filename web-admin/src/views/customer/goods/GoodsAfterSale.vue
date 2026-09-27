@@ -7,7 +7,7 @@
       </div>
     </div>
 
-    <AppPageHeader title="售后订单" desc="商品订单售后处理（1:1 复刻菜鸟云 duoproducts/service）">
+    <AppPageHeader title="售后订单" desc="商品订单售后处理">
       <el-input v-model="q.keyword" placeholder="售后单号/原订单号/手机/昵称/商品名称" clearable style="width: 260px" @keyup.enter="load" />
       <el-button type="primary" @click="load">搜索</el-button>
       <el-button @click="exportCsv">导出</el-button>

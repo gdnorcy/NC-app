@@ -11,7 +11,7 @@
     </div>
 
     <template v-if="activeTab === 'products'">
-      <AppPageHeader title="送礼物" desc="从商品库绑定礼物商品，购买后支持转赠好友（1:1 复刻菜鸟云 giftForYou）">
+      <AppPageHeader title="送礼物" desc="从商品库绑定礼物商品，购买后支持转赠好友">
         <el-select v-model="q.cateId" placeholder="请选择分类" clearable style="width: 180px" @change="loadProducts">
           <el-option v-for="c in cates" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>

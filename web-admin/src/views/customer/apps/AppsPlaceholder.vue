@@ -13,7 +13,7 @@
     <div class="ph-body">
       <SIcon name="dynamic" size="xlarge" class="ph-icon" />
       <div class="ph-text">{{ activeLabel }} 正在开发中</div>
-      <div class="ph-desc">按菜鸟云「东莞同城通」1:1 复刻计划，该功能将在二期-C 迭代开放</div>
+      <div class="ph-desc">该功能将在二期-C 迭代开放</div>
     </div>
   </div>
 </template>

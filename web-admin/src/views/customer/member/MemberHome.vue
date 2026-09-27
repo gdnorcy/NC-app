@@ -10,7 +10,7 @@
 
     <!-- ================= 数据统计 ================= -->
     <section v-if="activeTab === 'stats'">
-      <AppPageHeader title="数据统计" desc="会员体系核心数据一览（1:1 复刻菜鸟云「用户-数据统计」）">
+      <AppPageHeader title="数据统计" desc="会员体系核心数据一览">
         <div class="hd-actions">
           <el-button type="primary" :loading="loading" @click="loadAll">刷新</el-button>
         </div>

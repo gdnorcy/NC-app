@@ -1,6 +1,6 @@
 <template>
   <div class="goods-comment">
-    <AppPageHeader title="评论管理" desc="商品评价管理（1:1 复刻菜鸟云评论管理）">
+    <AppPageHeader title="评论管理" desc="商品评价统一管理">
       <div class="hd-actions">
         <el-button type="danger" plain :disabled="!selected.length" @click="batchDel">批量删除</el-button>
         <el-button type="primary" @click="openAdd">添加评论</el-button>

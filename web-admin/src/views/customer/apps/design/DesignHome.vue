@@ -313,7 +313,7 @@
 
     <!-- ============ 首页跳转（按应用维度化：每个行业应用可单独配置启动页） ============ -->
     <section v-if="activeTab === 'home'">
-      <AppPageHeader title="首页跳转" desc="每个行业应用可单独设置启动后的默认页面（1:1 复刻菜鸟云：选择链接弹窗，支持 DIY 装修页面/应用页面）">
+      <AppPageHeader title="首页跳转" desc="每个行业应用可单独设置启动后的默认页面（选择链接弹窗，支持 DIY 装修页面/应用页面）">
         <div class="hd-actions"><el-button type="primary" :loading="homeSaving" @click="saveHome">保存配置</el-button></div>
       </AppPageHeader>
       <div class="card form-card">

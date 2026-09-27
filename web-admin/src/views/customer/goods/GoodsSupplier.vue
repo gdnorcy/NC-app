@@ -1,6 +1,6 @@
 <template>
   <div class="goods-supplier">
-    <AppPageHeader title="供应厂商" desc="商品供应厂商管理（1:1 复刻菜鸟云供应厂商）">
+    <AppPageHeader title="供应厂商" desc="商品供应厂商管理">
       <div class="hd-actions">
         <el-button type="primary" @click="openAdd">添加供应商</el-button>
       </div>
