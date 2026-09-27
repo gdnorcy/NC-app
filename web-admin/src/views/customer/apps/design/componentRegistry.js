@@ -1417,7 +1417,7 @@ export const componentRegistry = [
     name: '购物车',
     group: 'mall',
     icon: 'cart',
-    defaultProps: { bgColor: '#165dff', iconColor: '#ffffff', showBadge: true, position: 'bottom-right', distance: 20, style: 'square' },
+    defaultProps: { bgColor: '#ef4f4f', iconColor: '#ffffff', showBadge: true, position: 'bottom-right', distance: 20, style: 'square' },
     schema: [
       { key: 'showBadge', label: '显示数量角标', control: 'switch', section: 'content' },
       { key: 'position', label: '悬浮位置', control: 'radio', section: 'style', options: [{ label: '左上', value: 'top-left' }, { label: '右上', value: 'top-right' }, { label: '左下', value: 'bottom-left' }, { label: '右下', value: 'bottom-right' }] },

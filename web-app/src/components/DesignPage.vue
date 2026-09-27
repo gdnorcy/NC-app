@@ -1336,8 +1336,8 @@ function dpFabCartStyle(p) {
   else if (pos === 'top-right') { st.top = d; st.right = d; }
   else if (pos === 'bottom-left') { st.bottom = d; st.left = d; }
   else { st.bottom = d; st.right = d; }
-  // 组件风格：默认圆角矩形（与其他悬浮组件/宫格图标一致），round 为圆形
-  st.borderRadius = p.style === 'round' ? '50%' : '24rpx';
+  // 组件风格：默认圆角矩形（与其他悬浮组件/宫格图标一致），round 为圆形；用 px（H5 内联样式不支持 rpx）
+  st.borderRadius = p.style === 'round' ? '50%' : '12px';
   if (p.bgColor) st.background = p.bgColor;
   return st;
 }
