@@ -137,7 +137,7 @@
     <view v-if="navMode !== 'none'" class="bottom-space"></view>
 
     <!-- 底部Tab：优先渲染设计中心发布的默认导航方案，未发布时兜底默认项 -->
-    <CardTabBar active="home" />
+    <CardTabBar active="home" page-type="home" />
   </view>
 </template>
 

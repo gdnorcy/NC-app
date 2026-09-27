@@ -75,6 +75,8 @@
       <view class="load-more" v-if="goodsList.length">{{ noMore ? '没有更多了' : '加载中…' }}</view>
     </scroll-view>
     </template>
+    <CardTabBar active="mall" page-type="mall-home" />
+    <view class="tabbar-space"></view>
   </view>
 </template>
 
@@ -85,6 +87,7 @@ import { mallApi } from '../../utils/mallApi.js';
 import { yuanFmt, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
 
 const tid = ref('');
@@ -229,6 +232,7 @@ onShow(() => {
 </script>
 
 <style scoped>
+.tabbar-space { height: 140rpx; }
 .mall-page {
   display: flex;
   flex-direction: column;

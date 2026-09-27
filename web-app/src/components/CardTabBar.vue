@@ -39,6 +39,8 @@ import SIcon from './SIcon.vue';
 const props = defineProps({
   // 当前高亮tab: card / radar / market / member / home
   active: { type: String, default: '' },
+  // 当前页面装修 pageType（决定底部导航读取哪个页面的 nav 配置；空=按首页语义）
+  pageType: { type: String, default: '' },
 });
 
 const myCardId = ref(null);
@@ -80,7 +82,8 @@ onMounted(async () => {
   console.log('[tabbar] mounted');
   // 拉取设计配置（缓存 5 分钟内不重复请求），就绪后刷新导航
   try {
-    const cfg = await fetchDesignConfig(false);
+    // 底部导航是全局关键 UI：每次进页面强制拉最新配置，装修中心改动后立即生效（不受 5 分钟缓存影响）
+    const cfg = await fetchDesignConfig(true, false, props.pageType);
     if (cfg) localCfg.value = cfg;
   } catch (e) { /* 拉取失败保持兜底 */ }
   try {

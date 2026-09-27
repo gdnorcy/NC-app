@@ -8,21 +8,25 @@
       <DesignPage v-for="(c, i) in comps" :key="i" :comps="[c]" :tenant-id="Number(tid)" :global="designGlobal" />
     </template>
     <view v-else class="ph-empty">暂无装修内容</view>
+    <CardTabBar active="pano" :page-type="pageType" />
+    <view class="tabbar-space"></view>
   </view>
 </template>
 
 <script>
 import DesignPage from '../../components/DesignPage.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { normalizeDesignConfig } from '../../utils/design.js';
 
 export default {
   components: { DesignPage },
   data() {
-    return { comps: [], tid: '', designGlobal: {} };
+    return { comps: [], tid: '', designGlobal: {}, pageType: '' };
   },
   onLoad(o) {
     const pageType = String((o && o.pageType) || '').trim();
+    this.pageType = pageType;
     this.tid = String((o && o.tid) || '');
     if (!pageType) return;
     cardApi.designConfig(false, pageType, this.tid)
@@ -44,9 +48,10 @@ export default {
 .pano-home {
   min-height: 100vh;
   background: #f5f7fa;
-  padding-bottom: 20px;
+  padding-bottom: 160rpx;
   box-sizing: border-box;
 }
+.tabbar-space { height: 20rpx; }
 .ph-topbar {
   position: sticky;
   top: 0;
