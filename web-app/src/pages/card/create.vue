@@ -5,13 +5,21 @@
     </view>
     <!-- 顶部标题 -->
     <view class="header">
+      <view class="page-bar">
+        <view class="bar-back" @click="goBack">
+          <text class="bar-back-arrow">‹</text>
+        </view>
+        <view class="bar-title">{{ isEdit ? '编辑名片' : '创建名片' }}</view>
+        <view class="bar-right">
+          <view class="hero-badge">
+            <SIcon name="shield" size="small" color="#07c160" />
+            微信授权登录
+          </view>
+        </view>
+      </view>
       <view class="hero-en" v-if="skinSerif">{{ heroEn }}</view>
       <view class="row1">
         <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
-        <view class="hero-badge">
-          <SIcon name="shield" size="small" color="#07c160" />
-          微信授权登录
-        </view>
       </view>
       <view class="hero-line" v-if="skinSerif"></view>
       <view class="subtitle">{{ isEdit ? '完善信息，让别人更了解你' : '个人也可以创建，无需企业账号 · 2 分钟完成' }}</view>
@@ -24,14 +32,23 @@
         <view v-if="lpTexture" class="lp-texture" :style="{ backgroundImage: lpTexture }"></view>
         <view v-if="lpBarTop" class="lp-bartop" :style="lpBarTop"></view>
         <view class="lp-body" :class="'lp-' + lpLayout">
-          <view class="lp-avatar" :style="lpAvatarStyle">
-            <image v-if="form.avatar" :src="form.avatar" class="lp-avatar-img" mode="aspectFill" />
-            <text v-else class="lp-avatar-txt" :style="{ color: lpHeroStyle.color || '#fff' }">{{ form.name?.[0] || '名' }}</text>
+          <view class="lp-top">
+            <view class="lp-avatar" :style="lpAvatarStyle">
+              <image v-if="form.avatar" :src="form.avatar" class="lp-avatar-img" mode="aspectFill" />
+              <text v-else class="lp-avatar-txt" :style="{ color: lpHeroStyle.color || '#fff' }">{{ form.name?.[0] || '名' }}</text>
+            </view>
+            <view class="lp-id">
+              <view class="lp-name" :style="lpTextStyle">{{ form.name || '您的姓名' }}</view>
+              <view class="lp-pos" :style="lpSubStyle">{{ form.position || '职位/头衔' }}</view>
+              <view class="lp-co" :style="lpSubStyle">{{ form.city || '所在城市' }}</view>
+            </view>
           </view>
-          <view class="lp-id">
-            <view class="lp-name" :style="lpTextStyle">{{ form.name || '您的姓名' }}</view>
-            <view class="lp-pos" :style="lpSubStyle">{{ form.position || '职位/头衔' }}</view>
-            <view class="lp-co" :style="lpSubStyle">{{ form.city || '所在城市' }}</view>
+          <view class="lp-bottom">
+            <view class="lp-company" :style="lpSubStyle">{{ form.companyName || lpCompanyFallback }}</view>
+            <view class="lp-live">
+              <view class="lp-live-dot" :style="{ background: lpAccentStyle.color }"></view>
+              <text class="lp-live-txt" :style="lpAccentStyle">实时预览</text>
+            </view>
           </view>
         </view>
       </view>
@@ -487,6 +504,7 @@ const lpAccentStyle = computed(() => (lpTheme.value ? heroAccentStyle(lpTheme.va
 const lpAvatarStyle = computed(() => (lpTheme.value ? { borderRadius: heroRadius(lpTheme.value, true) } : {}));
 const lpBarTop = computed(() => (lpTheme.value ? heroBarTopStyle(lpTheme.value) : null));
 const lpTexture = computed(() => (lpTheme.value ? heroTextureBg(lpTheme.value) : ''));
+const lpCompanyFallback = computed(() => (currentTemplate.value?.ownerName || '零壹系统云'));
 
 // 方案A：live 皮肤跟随选中模板整体换肤（页面背景/标题区/按钮/卡片/文字 token 联动）
 const skinVars = computed(() => {
@@ -661,6 +679,12 @@ function clearVoice() {
   voiceSrc.value = '';
 }
 
+function goBack() {
+  const pages = getCurrentPages();
+  if (pages.length > 1) uni.navigateBack();
+  else uni.switchTab({ url: '/pages/cardMain/home' });
+}
+
 function goMember() {
   uni.navigateTo({ url: '/pages/card/member' });
 }
@@ -769,7 +793,7 @@ async function submit() {
 }
 .lp-hero {
   position: relative;
-  padding: 40rpx 32rpx 36rpx;
+  padding: 56rpx 40rpx 48rpx;
   overflow: hidden;
 }
 .lp-spot {
@@ -798,14 +822,52 @@ async function submit() {
 }
 .lp-body {
   position: relative;
-  z-index: 1;
+  display: flex;
+  flex-direction: column;
 }
-/* cls 经典横排 */
+.lp-top {
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+.lp-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 52rpx;
+  position: relative;
+  z-index: 2;
+}
+.lp-company {
+  font-size: 24rpx;
+  opacity: 0.85;
+}
+.lp-live {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background: rgba(255,255,255,0.14);
+  border: 1rpx solid rgba(255,255,255,0.28);
+  padding: 10rpx 20rpx;
+  border-radius: 999rpx;
+}
+.lp-live-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  box-shadow: 0 0 10rpx currentColor;
+}
+.lp-live-txt {
+  font-size: 22rpx;
+  letter-spacing: 3rpx;
+  font-weight: 600;
+}
 .lp-cls {
   display: flex;
   align-items: center;
 }
-.lp-cls .lp-avatar { width: 96rpx; height: 96rpx; margin-right: 24rpx; flex-shrink: 0; }
+.lp-cls .lp-avatar { width: 120rpx; height: 120rpx; margin-right: 28rpx; flex-shrink: 0; }
 /* ctr 居中展示 */
 .lp-ctr {
   display: flex;
@@ -813,13 +875,17 @@ async function submit() {
   align-items: center;
   text-align: center;
 }
+.lp-ctr .lp-top { flex-direction: column; align-items: center; text-align: center; }
 .lp-ctr .lp-avatar { width: 112rpx; height: 112rpx; }
 .lp-ctr .lp-name { margin-top: 14rpx; }
+.lp-ctr .lp-bottom { margin-top: 28rpx; }
 /* mag 杂志大字 */
 .lp-mag {
   padding-top: 4rpx;
 }
+.lp-mag .lp-top { flex-direction: column; align-items: flex-start; }
 .lp-mag .lp-name { font-size: 44rpx; letter-spacing: 4rpx; }
+.lp-mag .lp-bottom { margin-top: 28rpx; }
 .lp-mag .lp-rule { width: 48rpx; height: 4rpx; margin: 14rpx 0; }
 .lp-avatar {
   border: 2rpx solid rgba(255,255,255,0.4);
@@ -834,7 +900,7 @@ async function submit() {
 .lp-avatar-img { width: 100%; height: 100%; }
 .lp-avatar-txt { font-size: 40rpx; font-weight: 700; }
 .lp-id { flex: 1; min-width: 0; }
-.lp-name { font-size: 34rpx; font-weight: 700; }
+.lp-name { font-size: 38rpx; font-weight: 700; }
 .lp-pos { font-size: 24rpx; opacity: 0.88; margin-top: 6rpx; }
 .lp-co { font-size: 22rpx; opacity: 0.72; margin-top: 8rpx; }
 .lp-cap {
@@ -895,7 +961,37 @@ async function submit() {
 /* 顶部标题 */
 .header {
   background: var(--sk-header, linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4));
-  padding: 88rpx 32rpx 32rpx;
+  padding: 0 32rpx 32rpx;
+}
+.page-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0 16rpx;
+}
+.bar-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.bar-back-arrow {
+  font-size: 56rpx;
+  line-height: 1;
+  color: #fff;
+  font-weight: 300;
+}
+.bar-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+  text-align: center;
+  margin-right: 64rpx;
+}
+.bar-right {
+  width: 64rpx;
 }
 .row1 {
   display: flex;
