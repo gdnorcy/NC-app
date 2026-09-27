@@ -567,7 +567,7 @@
 
       <!-- ew商品排行：居中标题+单列商品 -->
       <view v-else-if="c.type === 'goods-rank'" class="dp-ew-wrap" :style="dpEewWrapStyle(c.props)">
-        <view class="ew-center-title"><text class="ew-ct-bar">▮</text><text class="ew-center-title-text" :style="{color:c.props.titleColor||'#333'}">{{ c.props.title||'商品排行' }}</text></view>
+        <view v-if="c.props.showTitle!==false" class="ew-center-title"><text class="ew-ct-bar">▮</text><text class="ew-center-title-text" :style="{color:c.props.titleColor||'#333'}">{{ c.props.title||'商品排行' }}</text></view>
         <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="ew-gg" @click="goMallDetail(g.id)">
           <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img" />
           <view v-else class="ew-gg-img ew-gg-ph"></view>
@@ -581,7 +581,7 @@
 
       <!-- ew猜你喜欢：居中标题+单列商品 -->
       <view v-else-if="c.type === 'goods-like'" class="dp-ew-wrap" :style="dpEewWrapStyle(c.props)">
-        <view class="ew-center-title"><text class="ew-ct-heart">♥</text><text class="ew-center-title-text" :style="{color:c.props.titleColor||'#333'}">{{ c.props.title||'猜你喜欢' }}</text></view>
+        <view v-if="c.props.showTitle!==false" class="ew-center-title"><text class="ew-ct-heart">♥</text><text class="ew-center-title-text" :style="{color:c.props.titleColor||'#333'}">{{ c.props.title||'猜你喜欢' }}</text></view>
         <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="ew-gg" @click="goMallDetail(g.id)">
           <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img" />
           <view v-else class="ew-gg-img ew-gg-ph"></view>

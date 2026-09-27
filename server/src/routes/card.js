@@ -1839,6 +1839,7 @@ export function createCardRouter(db, wxService) {
 
   // 设计中心「全景场景」组件：按租户返回全景方案（含发布状态与封面），供小程序/H5 首页渲染
   router.get('/design/panorama-scenes', authOptional, (req, res) => {
+    res.setHeader('Cache-Control', 'no-store'); // 全景方案为装修配置，改后须立即生效
     const previewTid = req.customerId ? 0 : verifyPreviewSig(req.query);
     if (!req.customerId && !previewTid) return res.status(401).json({ error: '未登录' });
     const tenantId = req.customerId || previewTid;
