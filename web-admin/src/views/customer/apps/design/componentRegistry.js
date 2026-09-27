@@ -871,7 +871,7 @@ export const componentRegistry = [
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market 或 tel:13800138000' },
       { key: 'color', label: '背景色', control: 'color', section: 'style' },
       { key: 'position', label: '组件位置', control: 'radio', section: 'style', options: [{ label: '左上', value: 'top-left' }, { label: '右上', value: 'top-right' }, { label: '左下', value: 'bottom-left' }, { label: '右下', value: 'bottom-right' }] },
-      { key: 'style', label: '组件风格', control: 'graphic', section: 'style', options: [{ label: '圆形', value: 'round' }, { label: '圆角矩形', value: 'square' }] },
+      { key: 'style', label: '组件风格', control: 'radio', graphic: true, section: 'style', options: [{ label: '圆形', value: 'round' }, { label: '圆角矩形', value: 'square' }] },
       { key: 'distance', label: '组件边距', control: 'slider', section: 'style', min: 4, max: 60 },
     ],
   },
@@ -1421,7 +1421,7 @@ export const componentRegistry = [
     schema: [
       { key: 'showBadge', label: '显示数量角标', control: 'switch', section: 'content' },
       { key: 'position', label: '悬浮位置', control: 'radio', section: 'style', options: [{ label: '左上', value: 'top-left' }, { label: '右上', value: 'top-right' }, { label: '左下', value: 'bottom-left' }, { label: '右下', value: 'bottom-right' }] },
-      { key: 'style', label: '组件风格', control: 'graphic', section: 'style', options: [{ label: '圆角矩形', value: 'square' }, { label: '圆形', value: 'round' }] },
+      { key: 'style', label: '组件风格', control: 'radio', graphic: true, section: 'style', options: [{ label: '圆角矩形', value: 'square' }, { label: '圆形', value: 'round' }] },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'iconColor', label: '图标颜色', control: 'color', section: 'style' },
       { key: 'distance', label: '组件边距', control: 'slider', section: 'style', min: 4, max: 60 },
