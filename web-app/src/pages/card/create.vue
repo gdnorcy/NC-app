@@ -57,7 +57,7 @@
     <view class="cards-container">
       <view class="card" :class="{ active: currentStep === 0, prev: currentStep > 0 }">
         <view class="card-title">填写基本信息</view>
-        <view class="card-desc">先填核心信息，类型 / 模板等配置下一步继续</view>
+        <view class="card-desc">先填姓名与职位，名片即刻预览</view>
 
 
 
@@ -72,6 +72,39 @@
           <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
         </view>
 
+      </view>
+
+      <!-- 卡片2：联系方式 -->
+
+      <view class="card" :class="{ active: currentStep === 1, prev: currentStep > 1 }">
+        <view class="card-title">联系方式</view>
+        <view class="card-desc">方便客户找到你</view>
+
+        <view class="form-item" :class="{ error: errors.phone }">
+          <view class="form-label">手机号 <text class="required">*</text></view>
+          <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
+          <view class="error-tip" v-if="errors.phone">请输入手机号</view>
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">微信号</view>
+          <input class="form-input" v-model="form.wechat" placeholder="请输入微信号" placeholder-class="ph" />
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">邮箱</view>
+          <input class="form-input" v-model="form.email" placeholder="请输入邮箱" placeholder-class="ph" />
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">业务领域 <text class="required">*</text></view>
+          <picker mode="selector" :range="INDUSTRIES" @change="onBusinessChange">
+            <view class="form-input picker-value" :class="{ ph: !form.businessField }">{{ form.businessField || '请选择业务领域' }}</view>
+          </picker>
+          <view class="error-tip" v-if="errors.businessField">请选择业务领域</view>
+        </view>
+
+        <view class="card-title" style="margin-top: 20rpx;">所在城市等信息</view>
         <view class="form-item">
           <view class="form-label">所在城市 <text class="required">*</text></view>
           <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
@@ -123,38 +156,6 @@
           <SIcon name="crown" size="small" color="#ffd21e" />
           <text>开通会员解锁语音简介</text>
         </view>
-      </view>
-
-      <!-- 卡片2：联系方式 -->
-
-      <view class="card" :class="{ active: currentStep === 1, prev: currentStep > 1 }">
-        <view class="card-title">联系方式</view>
-        <view class="card-desc">方便客户找到你</view>
-
-        <view class="form-item" :class="{ error: errors.phone }">
-          <view class="form-label">手机号 <text class="required">*</text></view>
-          <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.phone">请输入手机号</view>
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">微信号</view>
-          <input class="form-input" v-model="form.wechat" placeholder="请输入微信号" placeholder-class="ph" />
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">邮箱</view>
-          <input class="form-input" v-model="form.email" placeholder="请输入邮箱" placeholder-class="ph" />
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">业务领域 <text class="required">*</text></view>
-          <picker mode="selector" :range="INDUSTRIES" @change="onBusinessChange">
-            <view class="form-input picker-value" :class="{ ph: !form.businessField }">{{ form.businessField || '请选择业务领域' }}</view>
-          </picker>
-          <view class="error-tip" v-if="errors.businessField">请选择业务领域</view>
-        </view>
-
         <view v-if="!isEdit" class="card-title" style="margin-top: 20rpx;">选择名片类型</view>
         <view v-if="!isEdit" class="card-desc">个人也可以创建，无需企业账号</view>
 
@@ -667,13 +668,13 @@ function goMember() {
 function validateStep(step) {
   if (step === 0) {
     errors.name = !form.name.trim();
-    errors.city = !form.city.trim();
-    return !errors.name && !errors.city;
+    return !errors.name;
   }
   if (step === 1) {
+    errors.city = !form.city.trim();
     errors.phone = !form.phone.trim();
     errors.businessField = !form.businessField.trim();
-    return !errors.phone && !errors.businessField;
+    return !errors.city && !errors.phone && !errors.businessField;
   }
   return true;
 }
