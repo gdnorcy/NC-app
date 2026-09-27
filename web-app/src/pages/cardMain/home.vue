@@ -136,9 +136,6 @@
     <!-- 底部间距 -->
     <view v-if="navMode !== 'none'" class="bottom-space"></view>
 
-    <!-- 页面含商品组件 → 商城场景，显示浮动购物车 -->
-    <FabCart v-if="hasGoods" :tid="designTenantId" />
-
     <!-- 底部Tab：优先渲染设计中心发布的默认导航方案，未发布时兜底默认项 -->
     <CardTabBar active="home" page-type="home" />
   </view>
@@ -153,7 +150,6 @@ import { qsParse } from '../../utils/qs.js';
 import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
-import FabCart from '../../components/FabCart.vue';
 import DesignPage from '../../components/DesignPage.vue';
 import DesignNav from '../../components/DesignNav.vue';
 import DesignNavEw from '../../components/DesignNavEw.vue';
@@ -165,7 +161,6 @@ const visitorStats = ref({ today: 0, total: 0, exchange: 0 });
 const visitorList = ref([]);
 const marketList = ref([]);
 const designComps = ref([]);
-const hasGoods = computed(() => (designComps.value || []).some((c) => ['goods-group', 'goods-list', 'goods-all', 'goods-tabs', 'goods-rank', 'goods-like', 'goods-swiper', 'goods-show', 'goods-featured'].includes(c.type)));
 const designTenantId = ref(0);
 const designHeader = ref(null);
 const designGlobal = ref({});

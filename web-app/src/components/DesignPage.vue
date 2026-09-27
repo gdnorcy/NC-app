@@ -533,7 +533,7 @@
               <text v-if="c.props.showOrig" class="ew-gg-original">¥{{ g.market_price || 30 }}</text>
               <text class="ew-gg-price" :style="{color:c.props.priceColor||'#ff5555'}">¥{{ yuanFmt(displayPrice(g,c)) }}<text class="ew-gg-unit">/件</text></text>
               <text v-if="c.props.showSales" class="ew-gg-sold">已售{{ (g.sales||0) }}件</text>
-              <view v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">
+              <view v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:(c.props.buyBtnColor && c.props.buyBtnColor!=='transparent') ? c.props.buyBtnColor : '#fff'}">
                 <text v-if="c.props.buyBtnStyle==='buybtn6'">+</text>
                 <text v-else-if="c.props.buyBtnStyle==='buybtn1' || !c.props.buyBtnStyle">{{ c.props.buyBtnText||'购买' }}</text>
                 <SIcon v-else name="cart" size="small" color="#ffffff" />
@@ -562,7 +562,7 @@
               <text v-if="c.props.showOrig" class="ew-gg-original">¥{{ g.market_price || 30 }}</text>
               <text class="ew-gg-price" :style="{color:c.props.priceColor||'#ff5555'}">¥{{ yuanFmt(displayPrice(g,c)) }}<text class="ew-gg-unit">/件</text></text>
               <text v-if="c.props.showSales" class="ew-gg-sold">已售{{ (g.sales||0) }}件</text>
-              <view v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">
+              <view v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:(c.props.buyBtnColor && c.props.buyBtnColor!=='transparent') ? c.props.buyBtnColor : '#fff'}">
                 <text v-if="c.props.buyBtnStyle==='buybtn6'">+</text>
                 <text v-else-if="c.props.buyBtnStyle==='buybtn1' || !c.props.buyBtnStyle">{{ c.props.buyBtnText||'购买' }}</text>
                 <SIcon v-else name="cart" size="small" color="#ffffff" />
@@ -649,6 +649,10 @@
             <view class="ew-gg-foot"><text class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</text></view>
           </view>
         </view>
+      </view>
+      <view v-else-if="c.type === 'fab-cart'" class="dp-fab-cart" :class="c.props.position === 'right-bottom' ? 'dp-fab-rb' : ''" :style="dpFabCartStyle(c.props)" @click="goCart">
+        <SIcon name="cart" size="default" :color="c.props.iconColor || '#ffffff'" />
+        <view v-if="c.props.showBadge !== false" class="dp-fab-badge">3</view>
       </view>
     </view>
 
@@ -1292,6 +1296,16 @@ function chunk(arr, size) {
   const out = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
+}
+function dpFabCartStyle(p) {
+  const st = {};
+  if (p.marginTop) st.top = p.marginTop + 'px';
+  if (p.position === 'right-bottom') st.bottom = '100rpx'; else if (p.marginBottom) st.top = p.marginBottom + 'px';
+  if (p.bgColor) st.background = p.bgColor;
+  return st;
+}
+function goCart() {
+  uni.navigateTo({ url: `/pages/mall/cart${props.tenantId ? `?tid=${props.tenantId}` : ''}` });
 }
 function goMallDetail(id) {
   onJump(`/pages/mall/detail?id=${id}${props.tenantId ? `&tid=${props.tenantId}` : ''}`);
@@ -2005,6 +2019,11 @@ function openChannel(kind, p) {
 .ew-feat-t2{font-size:40rpx;color:#fff;font-weight:700;margin-top:8rpx;}
 .ew-feat-btn{display:inline-block;margin-top:16rpx;padding:8rpx 24rpx;background:#0446b4;color:#fff;border-radius:24rpx;font-size:22rpx;}
 .ew-feat-img{position:absolute;right:0;top:0;width:200rpx;height:100%;border-radius:0 16rpx 16rpx 0;opacity:.6;}
+
+/* 功能组件-购物车（浮动入口） */
+.dp-fab-cart{position:fixed;right:28rpx;top:180rpx;z-index:99;width:88rpx;height:88rpx;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 4rpx 16rpx rgba(0,0,0,.15);}
+.dp-fab-cart.dp-fab-rb{top:auto;bottom:140rpx;}
+.dp-fab-badge{position:absolute;top:-6rpx;right:-6rpx;min-width:32rpx;height:32rpx;line-height:32rpx;border-radius:16rpx;background:#ff3b30;color:#fff;font-size:20rpx;text-align:center;padding:0 8rpx;box-sizing:border-box;}
 </style>
 
 /* ew 8个商品组件 */

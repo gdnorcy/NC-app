@@ -15,11 +15,6 @@
       <template v-for="(c, i) in designComps" :key="i">
         <DesignPage :comps="[c]" :tenant-id="Number(tid)" :global="designGlobal" />
       </template>
-      <!-- 装修稿模式浮动购物车入口：装修化后顶部栏隐藏，购物车功能入口保留为悬浮按钮 -->
-      <view class="mall-fab-cart" @click="goCart">
-        <SIcon name="cart" size="default" color="#ffffff" />
-        <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
-      </view>
     </view>
 
     <!-- 兜底商品列表（装修稿未含「商品列表」组件时展示：分类 + 排序 + 瀑布流） -->
@@ -238,15 +233,6 @@ onShow(() => {
 
 <style scoped>
 .tabbar-space { height: 140rpx; }
-/* 装修稿模式浮动购物车（右上角悬浮） */
-.mall-fab-cart {
-  position: fixed; right: 28rpx; top: 180rpx; z-index: 99;
-  width: 88rpx; height: 88rpx; border-radius: 50%;
-  background: rgba(22, 93, 255, 0.92);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
-}
-.mall-fab-cart .cart-badge { position: absolute; top: -6rpx; right: -6rpx; min-width: 32rpx; height: 32rpx; line-height: 32rpx; border-radius: 16rpx; background: #ff3b30; color: #fff; font-size: 20rpx; text-align: center; padding: 0 8rpx; box-sizing: border-box; }
 .mall-page {
   display: flex;
   flex-direction: column;

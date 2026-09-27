@@ -729,6 +729,13 @@
         <div class="r-native-market-empty">{{ comp.props.emptyText || '暂无人脉推荐' }}</div>
       </div>
     </template>
+    <!-- 功能组件：购物车（浮动入口，位置/颜色可配） -->
+    <template v-else-if="comp.type === 'fab-cart'">
+      <div class="r-fab-cart" :class="comp.props.position === 'right-bottom' ? 'r-fab-rb' : ''" :style="fabCartStyle(comp.props)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" :stroke="comp.props.iconColor || '#fff'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h2.6l2.7 12.4a2 2 0 0 0 2 1.6h8.3a2 2 0 0 0 2-1.6L21.5 8H6"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/></svg>
+        <span v-if="comp.props.showBadge !== false" class="r-fab-cart-badge">3</span>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1272,7 +1279,7 @@ function imageBoxStyle(p) {
 function buyBtnStyleOf(p) {
   const bg = p.btnColorMode === 0 ? (p.buyBtnBg || '#ef4f4f') : '#ef4f4f';
   const radius = (p.buyBtnRadius ?? 4) + 'px';
-  const color = p.buyBtnColor || '#fff';
+  const color = (p.buyBtnColor && p.buyBtnColor !== 'transparent') ? p.buyBtnColor : '#fff';
   const sizeMap = { small: '3px 10px', medium: '5px 12px', large: '7px 14px' };
   const s = { borderRadius: radius, color: color, background: bg, fontSize: '10px', lineHeight: '1.4' };
   if (p.buyBtnStyle === 'buybtn1') {
@@ -1422,6 +1429,12 @@ function chRadius(p, i) {
   if (p.radiusTop && first) r.push('12px');
   if (p.radiusBottom && last) r.push('12px');
   return r.length ? r.join(' ') : '';
+}
+function fabCartStyle(p) {
+  const st = {};
+  if (p.marginTop) st.top = p.marginTop + 'px';
+  if (p.bgColor) st.background = p.bgColor;
+  return st;
 }
 function nativeMargin(p) {
   const s = {};
@@ -1945,4 +1958,7 @@ const nativeGridItems = [
 .r-native-title{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;color:#1d2129;margin-bottom:10px;}
 .r-native-title em{font-style:normal;font-size:11px;font-weight:400;color:#86909c;}
 .r-native-market-empty{text-align:center;color:#86909c;font-size:12px;padding:14px 0;background:#f7f8fa;border-radius:8px;}
+.r-fab-cart{position:absolute;right:14px;top:120px;width:44px;height:44px;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.r-fab-cart.r-fab-rb{top:auto;bottom:100px;}
+.r-fab-cart-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;line-height:16px;border-radius:8px;background:#ff3b30;color:#fff;font-size:10px;text-align:center;padding:0 4px;box-sizing:border-box;}
 </style>
