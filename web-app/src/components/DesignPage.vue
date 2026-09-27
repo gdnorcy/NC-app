@@ -533,7 +533,11 @@
               <text v-if="c.props.showOrig" class="ew-gg-original">¥{{ g.market_price || 30 }}</text>
               <text class="ew-gg-price" :style="{color:c.props.priceColor||'#ff5555'}">¥{{ yuanFmt(displayPrice(g,c)) }}<text class="ew-gg-unit">/件</text></text>
               <text v-if="c.props.showSales" class="ew-gg-sold">已售{{ (g.sales||0) }}件</text>
-              <text v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">{{ c.props.buyBtnText||'购买' }}</text>
+              <view v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">
+                <text v-if="c.props.buyBtnStyle==='buybtn6'">+</text>
+                <text v-else-if="c.props.buyBtnStyle==='buybtn1' || !c.props.buyBtnStyle">{{ c.props.buyBtnText||'购买' }}</text>
+                <SIcon v-else name="cart" size="small" color="#ffffff" />
+              </view>
             </view>
           </view>
         </view>
@@ -558,7 +562,11 @@
               <text v-if="c.props.showOrig" class="ew-gg-original">¥{{ g.market_price || 30 }}</text>
               <text class="ew-gg-price" :style="{color:c.props.priceColor||'#ff5555'}">¥{{ yuanFmt(displayPrice(g,c)) }}<text class="ew-gg-unit">/件</text></text>
               <text v-if="c.props.showSales" class="ew-gg-sold">已售{{ (g.sales||0) }}件</text>
-              <text v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">{{ c.props.buyBtnText||'购买' }}</text>
+              <view v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">
+                <text v-if="c.props.buyBtnStyle==='buybtn6'">+</text>
+                <text v-else-if="c.props.buyBtnStyle==='buybtn1' || !c.props.buyBtnStyle">{{ c.props.buyBtnText||'购买' }}</text>
+                <SIcon v-else name="cart" size="small" color="#ffffff" />
+              </view>
             </view>
           </view>
         </view>
@@ -1928,7 +1936,7 @@ function openChannel(kind, p) {
 .ew-gg-saleline{display:flex;align-items:center;margin-top:8rpx;}
 .ew-gg-original{font-size:22rpx;color:#ccc;text-decoration:line-through;margin-left:8rpx;}
 .ew-gg-sold{font-size:22rpx;color:#999;margin-left:auto;}
-.ew-gg-buybtn{flex-shrink:0;margin-left:auto;padding:8rpx 24rpx;background:#ff5555;color:#fff;font-size:24rpx;border-radius:8rpx;}
+.ew-gg-buybtn{flex-shrink:0;margin-left:auto;display:flex;align-items:center;justify-content:center;gap:4rpx;padding:8rpx 24rpx;background:#ff5555;color:#fff;font-size:24rpx;border-radius:8rpx;box-sizing:border-box;min-height:56rpx;}
 /* st1 单列大图 */
 .ew-gg-st1{margin:24rpx;}
 .ew-gg-st1 .ew-gg{width:100%;background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,24rpx);}
