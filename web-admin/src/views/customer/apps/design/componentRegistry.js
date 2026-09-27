@@ -864,7 +864,7 @@ export const componentRegistry = [
     name: '悬浮按钮',
     group: 'function',
     icon: 'float-btn',
-    defaultProps: { text: '联系我们', link: '', color: '#165DFF', position: 'bottom-right', style: 'round', iconType: 'image', iconName: 'chat', icon: '', distance: 20, memberLevel: 'all' },
+    defaultProps: { text: '联系我们', link: '', color: '#165DFF', position: 'bottom-right', style: 'round', iconType: 'image', iconName: 'chat', icon: '', offsetX: 20, offsetY: 20, memberLevel: 'all' },
     schema: [
       { key: 'iconType', label: '选择样式', control: 'radio', section: 'content', options: [{ label: '图标', value: 'icon' }, { label: '图片', value: 'image' }] },
       { key: 'icon', label: '图标图片', control: 'image', section: 'content', when: { iconType: 'image' } },
@@ -872,7 +872,8 @@ export const componentRegistry = [
       { key: 'color', label: '背景色', control: 'color', section: 'style' },
       { key: 'position', label: '组件位置', control: 'radio', section: 'style', options: [{ label: '左上', value: 'top-left' }, { label: '右上', value: 'top-right' }, { label: '左下', value: 'bottom-left' }, { label: '右下', value: 'bottom-right' }] },
       { key: 'style', label: '组件风格', control: 'radio', graphic: true, section: 'style', options: [{ label: '圆形', value: 'round' }, { label: '圆角矩形', value: 'square' }] },
-      { key: 'distance', label: '组件边距', control: 'slider', section: 'style', min: 4, max: 60 },
+      { key: 'offsetX', label: '横向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
+      { key: 'offsetY', label: '纵向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
     ],
   },
   {
@@ -1417,14 +1418,15 @@ export const componentRegistry = [
     name: '购物车',
     group: 'mall',
     icon: 'cart',
-    defaultProps: { bgColor: '#ef4f4f', iconColor: '#ffffff', showBadge: true, position: 'bottom-right', distance: 20, style: 'square' },
+    defaultProps: { bgColor: '#ef4f4f', iconColor: '#ffffff', showBadge: true, position: 'bottom-right', offsetX: 20, offsetY: 20, style: 'square' },
     schema: [
       { key: 'showBadge', label: '显示数量角标', control: 'switch', section: 'content' },
       { key: 'position', label: '悬浮位置', control: 'radio', section: 'style', options: [{ label: '左上', value: 'top-left' }, { label: '右上', value: 'top-right' }, { label: '左下', value: 'bottom-left' }, { label: '右下', value: 'bottom-right' }] },
       { key: 'style', label: '组件风格', control: 'radio', graphic: true, section: 'style', options: [{ label: '圆角矩形', value: 'square' }, { label: '圆形', value: 'round' }] },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'iconColor', label: '图标颜色', control: 'color', section: 'style' },
-      { key: 'distance', label: '组件边距', control: 'slider', section: 'style', min: 4, max: 60 },
+      { key: 'offsetX', label: '横向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
+      { key: 'offsetY', label: '纵向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
     ],
   },
   {

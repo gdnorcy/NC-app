@@ -1220,16 +1220,31 @@ function gridStyle(p) {
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
+function resolveFloatPos(p, tabH) {
+  // 统一悬浮组件定位：四角锚点 position + 横向偏移 offsetX + 纵向偏移 offsetY
+  let pos = p.position || 'bottom-right';
+  if (pos === 'right') pos = 'top-right';
+  else if (pos === 'right-bottom') pos = 'bottom-right';
+  const legacy = Number(p.distance);
+  let x, y;
+  if (p.offsetX != null && p.offsetX !== '') x = Number(p.offsetX);
+  else x = Number.isNaN(legacy) ? (Number(p.marginLeft) || 20) : legacy;
+  if (p.offsetY != null && p.offsetY !== '') y = Number(p.offsetY);
+  else y = Number.isNaN(legacy) ? (Number(p.marginTop) || Number(p.marginBottom) || 20) : legacy;
+  if (Number.isNaN(x)) x = 20;
+  if (Number.isNaN(y)) y = 20;
+  // 底部锚点自动避让底部导航/安全区
+  if (pos === 'bottom-left' || pos === 'bottom-right') y += tabH || 0;
+  return { pos, x, y };
+}
 function floatStyle(p) {
   const s = { background: p.color || '#165DFF' };
-  let d = p.distance ?? 12;
-  const pos = p.position || 'bottom-right';
-  if (pos === 'bottom-left' || pos === 'bottom-right') d += FAB_TAB_BAR_H;
-  d += 'px';
-  if (pos === 'top-left') { s.top = d; s.left = d; }
-  else if (pos === 'top-right') { s.top = d; s.right = d; }
-  else if (pos === 'bottom-left') { s.bottom = d; s.left = d; }
-  else { s.bottom = d; s.right = d; }
+  const { pos, x, y } = resolveFloatPos(p, FAB_TAB_BAR_H);
+  const xpx = x + 'px', ypx = y + 'px';
+  if (pos === 'top-left') { s.top = ypx; s.left = xpx; }
+  else if (pos === 'top-right') { s.top = ypx; s.right = xpx; }
+  else if (pos === 'bottom-left') { s.bottom = ypx; s.left = xpx; }
+  else { s.bottom = ypx; s.right = xpx; }
   return s;
 }
 function channelLiveStyle(p) {
@@ -1445,18 +1460,12 @@ function chRadius(p, i) {
 const FAB_TAB_BAR_H = 59;
 function fabCartStyle(p) {
   const st = {};
-  let d = Number(p.distance);
-  // 兼容旧数据：position right→右上、right-bottom→右下；无 distance 时取旧 marginTop/marginBottom
-  let pos = p.position || 'bottom-right';
-  if (pos === 'right') pos = 'top-right';
-  else if (pos === 'right-bottom') pos = 'bottom-right';
-  if (Number.isNaN(d) || d == null) d = Number(p.marginTop) || Number(p.marginBottom) || 20;
-  if (pos === 'bottom-left' || pos === 'bottom-right') d += FAB_TAB_BAR_H;
-  d += 'px';
-  if (pos === 'top-left') { st.top = d; st.left = d; }
-  else if (pos === 'top-right') { st.top = d; st.right = d; }
-  else if (pos === 'bottom-left') { st.bottom = d; st.left = d; }
-  else { st.bottom = d; st.right = d; }
+  const { pos, x, y } = resolveFloatPos(p, FAB_TAB_BAR_H);
+  const xpx = x + 'px', ypx = y + 'px';
+  if (pos === 'top-left') { st.top = ypx; st.left = xpx; }
+  else if (pos === 'top-right') { st.top = ypx; st.right = xpx; }
+  else if (pos === 'bottom-left') { st.bottom = ypx; st.left = xpx; }
+  else { st.bottom = ypx; st.right = xpx; }
   // 组件风格：默认圆角矩形（与其他悬浮组件/宫格图标一致），round 为圆形
   st.borderRadius = p.style === 'round' ? '50%' : '12px';
   if (p.bgColor) st.background = p.bgColor;
