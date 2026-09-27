@@ -4,7 +4,7 @@
       <view class="nav-back" @click="goBack"><text>‹</text></view>
       <text class="nav-title">商品详情</text>
       <view class="nav-cart" @click="goCart">
-        <text class="cart-ico">🛒</text>
+        <SIcon name="cart" size="default" color="#1d2129" />
         <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
       </view>
     </view>
@@ -53,7 +53,7 @@
     <!-- 底部操作栏 -->
     <view class="action-bar" v-if="goods">
       <view class="action-cart" @click="openSku('cart')">
-        <text class="action-ico">🛒</text>
+        <SIcon name="cart" size="default" color="#1d2129" />
         <text>购物车</text>
       </view>
       <view class="action-btn add" @click="openSku('cart')" :class="{ disabled: goods.soldout }">加入购物车</view>
@@ -262,7 +262,6 @@ onLoad((o) => {
 .nav-back { width: 60rpx; font-size: 44rpx; color: #1d2129; line-height: 1; }
 .nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1d2129; }
 .nav-cart { width: 60rpx; position: relative; display: flex; align-items: center; justify-content: flex-end; }
-.cart-ico { font-size: 36rpx; }
 .cart-badge {
   position: absolute; top: -8rpx; right: -12rpx; min-width: 30rpx; height: 30rpx;
   padding: 0 6rpx; border-radius: 15rpx; background: #f53f3f; color: #fff;
@@ -300,7 +299,6 @@ onLoad((o) => {
   background: #fff; border-top: 1rpx solid #f2f3f5;
 }
 .action-cart { display: flex; flex-direction: column; align-items: center; margin-right: 24rpx; font-size: 20rpx; color: #4e5969; }
-.action-ico { font-size: 40rpx; }
 .action-btn {
   flex: 1; height: 80rpx; line-height: 80rpx; text-align: center;
   border-radius: 40rpx; font-size: 28rpx; font-weight: 500;

@@ -76,10 +76,10 @@
 
     <!-- Tab切换（demo mp-tabs） -->
     <view class="mp-tabs">
-      <view class="mp-tab" :class="{ on: activeTab === 'intro' }" @click="activeTab='intro'">简介<span class="bar"></span></view>
-      <view class="mp-tab" :class="{ on: activeTab === 'works' }" @click="activeTab='works'">作品<span class="bar"></span></view>
-      <view class="mp-tab" :class="{ on: activeTab === 'dynamic' }" @click="activeTab='dynamic'">动态<span class="bar"></span></view>
-      <view class="mp-tab" :class="{ on: activeTab === 'video' }" @click="activeTab='video'">视频<span class="bar"></span></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'intro' }" @click="activeTab='intro'">简介<text class="bar"></text></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'works' }" @click="activeTab='works'">作品<text class="bar"></text></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'dynamic' }" @click="activeTab='dynamic'">动态<text class="bar"></text></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'video' }" @click="activeTab='video'">视频<text class="bar"></text></view>
     </view>
 
     <!-- 简介面板 -->
@@ -151,7 +151,7 @@
             </view>
             <view class="dyn-who">
               <b>{{ d.authorName || card.name }}</b>
-              <span>{{ timeText(d.createdAt) }}</span>
+              <text>{{ timeText(d.createdAt) }}</text>
             </view>
           </view>
           <view class="dyn-body">
@@ -160,12 +160,12 @@
           </view>
           <image v-if="d.images && d.images.length" class="dyn-img" :src="d.images[0]" mode="aspectFill" @click="previewDyn(d)" />
           <view class="dyn-meta">
-            <span class="dyn-act" :class="{ liked: d.likedByMe }" @click.stop="toggleLike(d)">
+            <text class="dyn-act" :class="{ liked: d.likedByMe }" @click.stop="toggleLike(d)">
               <SIcon name="like" size="small" :color="d.likedByMe ? '#165dff' : '#9a9a9a'" /> {{ d.likeCount || 0 }}
-            </span>
-            <span class="dyn-act" @click.stop="openComments(d)">
+            </text>
+            <text class="dyn-act" @click.stop="openComments(d)">
               <SIcon name="comment" size="small" color="#9a9a9a" /> {{ d.commentCount || 0 }}
-            </span>
+            </text>
           </view>
         </view>
       </view>

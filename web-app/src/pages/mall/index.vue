@@ -5,7 +5,7 @@
       <view class="nav-back" @click="goBack" v-if="canBack"><text>‹</text></view>
       <text class="nav-title">商城</text>
       <view class="nav-cart" @click="goCart">
-        <text class="cart-ico">🛒</text>
+        <SIcon name="cart" size="default" color="#1d2129" />
         <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
       </view>
     </view>
@@ -236,9 +236,9 @@ onShow(() => {
 .mall-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   background: #f7f8fa;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 /* 编辑预览（设计中心 iframe）：页面自然撑高，滚动交给父容器 */
@@ -273,7 +273,6 @@ onShow(() => {
   align-items: center;
   justify-content: flex-end;
 }
-.cart-ico { font-size: 36rpx; }
 .cart-badge {
   position: absolute;
   top: -8rpx;

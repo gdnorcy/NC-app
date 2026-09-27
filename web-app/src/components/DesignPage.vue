@@ -377,7 +377,7 @@
       <!-- 搜索框 -->
       <view v-else-if="c.type === 'search'">
         <view class="dp-search" :class="c.props.style === 'shadow' ? 'shadow' : c.props.style === 'border' ? 'border' : ''" :style="dpSearchStyle(c.props)" @click="onSearch(c.props)">
-          <text class="dp-search-ico">🔍</text>
+          <SIcon name="search" size="small" color="#c9cdd4" />
           <text v-if="c.props.showPlaceholder !== false" class="dp-search-ph">{{ c.props.placeholder || '搜索名片 / 内容' }}</text>
           <text v-if="c.props.showBtn" class="dp-search-btn">搜索</text>
         </view>
@@ -572,8 +572,8 @@
           <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img" />
           <view v-else class="ew-gg-img ew-gg-ph"></view>
           <view class="ew-gg-body">
-            <view class="ew-gg-line1"><span class="ew-gg-title">{{ g.title }}</span></view>
-            <view v-if="c.props.showPrice!==false" class="ew-gg-foot"><span class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</span></view>
+            <view class="ew-gg-line1"><text class="ew-gg-title">{{ g.title }}</text></view>
+            <view v-if="c.props.showPrice!==false" class="ew-gg-foot"><text class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</text></view>
           </view>
         </view>
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
@@ -586,8 +586,8 @@
           <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img" />
           <view v-else class="ew-gg-img ew-gg-ph"></view>
           <view class="ew-gg-body">
-            <view class="ew-gg-line1"><span class="ew-gg-title">{{ g.title }}</span></view>
-            <view v-if="c.props.showPrice!==false" class="ew-gg-foot"><span class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</span></view>
+            <view class="ew-gg-line1"><text class="ew-gg-title">{{ g.title }}</text></view>
+            <view v-if="c.props.showPrice!==false" class="ew-gg-foot"><text class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</text></view>
           </view>
         </view>
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
@@ -600,7 +600,7 @@
             <view class="ew-sw-item" @click="goMallDetail(g.id)">
               <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-sw-img" />
               <view v-else class="ew-sw-img ew-sw-ph"></view>
-              <span class="ew-sw-price" :style="{color:c.props.priceColor||'#ff3e1a'}">¥{{ yuanFmt(g.price) }}<span class="ew-sw-unit">/件</span></span>
+              <text class="ew-sw-price" :style="{color:c.props.priceColor||'#ff3e1a'}">¥{{ yuanFmt(g.price) }}<text class="ew-sw-unit">/件</text></text>
             </view>
           </swiper-item>
         </swiper>
@@ -637,8 +637,8 @@
           <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img" />
           <view v-else class="ew-gg-img ew-gg-ph"></view>
           <view class="ew-gg-body">
-            <view class="ew-gg-line1"><span class="ew-gg-title">{{ g.title }}</span></view>
-            <view class="ew-gg-foot"><span class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</span></view>
+            <view class="ew-gg-line1"><text class="ew-gg-title">{{ g.title }}</text></view>
+            <view class="ew-gg-foot"><text class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</text></view>
           </view>
         </view>
       </view>
@@ -1812,7 +1812,6 @@ function openChannel(kind, p) {
 .dp-tb-more { flex-shrink: 0; font-size: 12px; color: #86909c; }
 /* 搜索框 */
 .dp-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; box-sizing: border-box; }
-.dp-search-ico { font-size: 13px; }
 .dp-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dp-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 12px; padding: 3px 12px; border-radius: 12px; }
 .dp-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
