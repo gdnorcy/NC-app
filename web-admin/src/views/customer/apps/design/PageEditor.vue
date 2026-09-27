@@ -194,7 +194,6 @@
             >
               <div class="pe-comp-tools" @click.stop>
                 <span class="pe-comp-idx">{{ compIndex(c) }}</span>
-                <span class="pe-comp-type">{{ c.name }}</span>
                 <span class="pe-tool" title="上移" @click.stop="moveComp(c, -1)">↑</span>
                 <span class="pe-tool" title="下移" @click.stop="moveComp(c, 1)">↓</span>
                 <span class="pe-tool" title="复制" @click.stop="dupComp(c)">⧉</span>

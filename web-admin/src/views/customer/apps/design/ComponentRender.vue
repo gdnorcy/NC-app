@@ -426,7 +426,7 @@
           <img v-if="comp.props.iconType === 'image' && comp.props.icon" :src="resolveUrl(comp.props.icon)" :style="floatIcoStyle(comp.props)" />
           <PeSIcon v-else-if="comp.props.iconType === 'icon'" :name="floatIconName(comp.props)" :size="Number(comp.props.iconSize || 22)" color="#ffffff" />
           <span v-else>{{ comp.props.text || '联系' }}</span>
-          <span class="r-float-tag" :class="(comp.props.position || 'bottom-right').startsWith('left') ? 'r-float-tag-left' : ''">悬浮按钮</span>
+
         </div>
       </div>
     </template>
@@ -736,7 +736,7 @@
       <div class="r-fab-cart" :style="fabCartStyle(comp.props)">
         <svg viewBox="0 0 24 24" :width="comp.props.iconSize || 20" :height="comp.props.iconSize || 20" fill="none" :stroke="comp.props.iconColor || '#fff'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h2.6l2.7 12.4a2 2 0 0 0 2 1.6h8.3a2 2 0 0 0 2-1.6L21.5 8H6"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/></svg>
         <span v-if="comp.props.showBadge !== false" class="r-fab-cart-badge">3</span>
-        <span class="r-fab-cart-tag">购物车</span>
+
       </div>
     </template>
   </div>
@@ -2017,6 +2017,4 @@ const nativeGridItems = [
 .r-fab-cart{position:absolute;z-index:999;width:44px;height:44px;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
 .r-fab-cart-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;line-height:16px;border-radius:8px;background:#ff3b30;color:#fff;font-size:10px;text-align:center;padding:0 4px;box-sizing:border-box;}
 /* 画布悬浮组件名称标签（仅编辑器显示，C 端不渲染） */
-.r-fab-cart-tag,.r-float-tag{position:absolute;top:50%;transform:translateY(-50%);right:calc(100% + 8px);font-size:11px;line-height:1.4;color:#165dff;background:rgba(255,255,255,.95);border:1px solid rgba(22,93,255,.35);border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.08);pointer-events:none;}
-.r-float-tag.r-float-tag-left{right:auto;left:calc(100% + 8px);}
 </style>
