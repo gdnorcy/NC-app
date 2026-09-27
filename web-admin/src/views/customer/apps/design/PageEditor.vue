@@ -148,10 +148,10 @@
           <!-- 画布 = 真实 C 端页面（iframe 渲染，B1：编辑所见即线上） -->
           <div class="pe-canvas" @dragover.prevent="onCanvasDragOver" @drop.prevent="onCanvasDrop">
             <div
-              v-for="(c, i) in components"
+              v-for="(c, i) in normalComps"
               :key="c.id"
               class="pe-comp"
-              :class="{ active: selected === c.id, 'pe-comp-float': c.type === 'fab-cart' || c.type === 'float-btn' }"
+              :class="{ active: selected === c.id }"
               draggable="true"
               @dragstart="onCompDragStart($event, i)"
               @dragover.prevent="onCompDragOver(i)"
@@ -181,6 +181,26 @@
               <SIcon v-else-if="it.icon" :name="it.icon" size="default" color="#7a7f8a" />
               <span v-else class="pe-ptb-ph">●</span>
               <span class="pe-ptb-text">{{ it.text || '入口' }}</span>
+            </div>
+          </div>
+          <!-- 悬浮组件视口层：绝对定位相对整个预览壳（模拟 C 端 fixed 相对视口），不随 canvas 内容滚动 -->
+          <div class="pe-float-layer">
+            <div
+              v-for="c in floatComps"
+              :key="c.id"
+              class="pe-comp pe-comp-float"
+              :class="{ active: selected === c.id }"
+              @click.stop="selectComp(c)"
+            >
+              <div class="pe-comp-tools" @click.stop>
+                <span class="pe-comp-idx">{{ compIndex(c) }}</span>
+                <span class="pe-comp-type">{{ c.name }}</span>
+                <span class="pe-tool" title="上移" @click.stop="moveComp(c, -1)">↑</span>
+                <span class="pe-tool" title="下移" @click.stop="moveComp(c, 1)">↓</span>
+                <span class="pe-tool" title="复制" @click.stop="dupComp(c)">⧉</span>
+                <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(c.id)">✕</span>
+              </div>
+              <ComponentRender :comp="c" :global="meta.global || {}" />
             </div>
           </div>
         </div>
@@ -932,6 +952,9 @@ const props = defineProps({
 const emit = defineEmits(['dirty-change', 'page-switch']);
 const pageName = ref('首页');
 const components = ref([]);
+// 悬浮组件（购物车/悬浮按钮）独立到视口层渲染，与普通组件（canvas 内流式/滚动）分开
+const floatComps = computed(() => components.value.filter(c => c.type === 'fab-cart' || c.type === 'float-btn'));
+const normalComps = computed(() => components.value.filter(c => c.type !== 'fab-cart' && c.type !== 'float-btn'));
 const selected = ref(null);
 // 魔方：当前选中的格子（属性面板样式区编辑该格圆角/间隔）
 const cubeSel = ref(null);
@@ -2110,6 +2133,11 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
 .pe-canvas { flex: 1 1 0%; min-height: 420px; padding: 0; background: transparent; position: relative; overflow-y: auto; }
+/* 悬浮组件视口层：覆盖整个预览壳，模拟 C 端 fixed 视口定位；容器穿透点击，仅组件按钮可点 */
+.pe-float-layer { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+/* 容器穿透点击（组件撑满层也不拦截画布），仅悬浮按钮自身与操作条可点（按钮可点由 ComponentRender .comp-float 规则保证） */
+.pe-float-layer .pe-comp { pointer-events: none; }
+.pe-float-layer .pe-comp-tools { pointer-events: auto; }
 /* B1：真实 C 端页面 iframe 画布 */
 .pe-live-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 420px; }
 .pe-toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }

@@ -1224,6 +1224,7 @@ function floatStyle(p) {
   const s = { background: p.color || '#165DFF' };
   let d = p.distance ?? 12;
   const pos = p.position || 'bottom-right';
+  if (pos === 'bottom-left' || pos === 'bottom-right') d += FAB_TAB_BAR_H;
   d += 'px';
   if (pos === 'top-left') { s.top = d; s.left = d; }
   else if (pos === 'top-right') { s.top = d; s.right = d; }
@@ -1439,7 +1440,9 @@ function chRadius(p, i) {
   if (p.radiusBottom && last) r.push('12px');
   return r.length ? r.join(' ') : '';
 }
-// 画布悬浮组件：canvas 底部已紧贴底部导航（预览壳 flex 布局），bottom 直接按「组件边距」起算，与 C 端距导航的距离一致
+// 画布悬浮组件：渲染在预览壳视口层（模拟 C 端 fixed 相对视口），bottom = 组件边距 + 底部导航高；
+// 导航高取画布预览壳 tabbar 实际高度（.pe-phone-tabbar 高约 59px），保证按钮距导航 = 组件边距，与 C 端一致
+const FAB_TAB_BAR_H = 59;
 function fabCartStyle(p) {
   const st = {};
   let d = Number(p.distance);
@@ -1448,6 +1451,7 @@ function fabCartStyle(p) {
   if (pos === 'right') pos = 'top-right';
   else if (pos === 'right-bottom') pos = 'bottom-right';
   if (Number.isNaN(d) || d == null) d = Number(p.marginTop) || Number(p.marginBottom) || 20;
+  if (pos === 'bottom-left' || pos === 'bottom-right') d += FAB_TAB_BAR_H;
   d += 'px';
   if (pos === 'top-left') { st.top = d; st.left = d; }
   else if (pos === 'top-right') { st.top = d; st.right = d; }
