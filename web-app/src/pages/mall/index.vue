@@ -224,6 +224,7 @@ onLoad((o) => {
 });
 
 onShow(() => {
+  uni.$emit('cart:changed'); // 购物车组件（fab-cart）数量刷新
   if (tid.value) fetchCates();
   fetchCartCount();
   // 装修稿含商品列表组件时，由装修区承载商品展示，跳过瀑布流兜底

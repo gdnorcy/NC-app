@@ -41,7 +41,11 @@ export default {
       uni.navigateBack({ delta: 1, fail: () => uni.reLaunch({ url: '/pages/panorama/index' }) });
     },
   },
+  onShow() {
+    uni.$emit('cart:changed'); // 购物车组件（fab-cart）数量刷新
+  },
 };
+
 </script>
 
 <style scoped>

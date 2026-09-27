@@ -347,6 +347,7 @@ const avatarStyle = computed(() => {
 // 设计中心首页跳转：配置了非默认首页时，首次进入自动跳转到对应页面
 const homeJumpChecked = ref(false);
 onShow(() => {
+  uni.$emit('cart:changed'); // 购物车组件（fab-cart）数量刷新
   if (isPreviewMode()) return; // 预览模式不触发首页跳转
   if (homeJumpChecked.value) return;
   homeJumpChecked.value = true;

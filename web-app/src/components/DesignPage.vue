@@ -652,7 +652,7 @@
       </view>
       <view v-else-if="c.type === 'fab-cart'" class="dp-fab-cart" :class="c.props.position === 'right-bottom' ? 'dp-fab-rb' : ''" :style="dpFabCartStyle(c.props)" @click="goCart">
         <SIcon name="cart" size="default" :color="c.props.iconColor || '#ffffff'" />
-        <view v-if="c.props.showBadge !== false" class="dp-fab-badge">3</view>
+        <view v-if="c.props.showBadge !== false && cartCount > 0" class="dp-fab-badge">{{ cartCount > 99 ? '99+' : cartCount }}</view>
       </view>
     </view>
 
@@ -842,6 +842,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   if (cdTimer) clearInterval(cdTimer);
+  uni.$off('cart:changed', onCartChanged);
 });
 
 // 万能表单数据（按组件下标隔离，支持同页多个表单）
@@ -1297,6 +1298,16 @@ function chunk(arr, size) {
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
+const cartCount = ref(0);
+async function loadCartCount() {
+  try {
+    const res = await mallApi.getCart();
+    cartCount.value = (res.list || []).length;
+  } catch (e) {
+    if (e && String(e).includes('请先登录')) cartCount.value = 0;
+  }
+}
+function onCartChanged() { loadCartCount(); }
 function dpFabCartStyle(p) {
   const st = {};
   if (p.marginTop) st.top = p.marginTop + 'px';
@@ -1327,6 +1338,10 @@ onMounted(() => {
   loadContentArticles();
   loadLiveList();
   loadMallComps();
+  if ((props.comps || []).some((c) => c.type === 'fab-cart')) {
+    loadCartCount();
+    uni.$on('cart:changed', onCartChanged);
+  }
 });
 function panoCategories(p) {
   return String(p.categories || '')
