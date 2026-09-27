@@ -174,6 +174,15 @@
               <span>从左侧组件库点击添加组件，画布即时渲染真实效果</span>
             </div>
           </div>
+          <!-- 底部导航预览：按页面「底部导航」设置渲染（使用默认/独立方案/关闭导航），编辑画布所见即所得 -->
+          <div v-if="previewNavItems.length" class="pe-phone-tabbar">
+            <div v-for="(it, i) in previewNavItems" :key="i" class="pe-ptb" :class="{ on: i === 0 }">
+              <img v-if="previewNavIsImgIcon(it)" :src="resolveUrl(it.icon)" class="pe-ptb-img" />
+              <SIcon v-else-if="it.icon" :name="it.icon" size="default" color="#7a7f8a" />
+              <span v-else class="pe-ptb-ph">●</span>
+              <span class="pe-ptb-text">{{ it.text || '入口' }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1031,6 +1040,21 @@ const phoneStyle = computed(() => {
   return s;
 });
 const tabSchemes = ref([]);
+// ---- 底部导航预览：编辑画布所见即所得（按页面 meta.nav 渲染对应方案） ----
+const previewNavItems = computed(() => {
+  const mode = meta.nav.mode;
+  if (mode === 'none') return [];
+  const scheme = mode === 'custom'
+    ? tabSchemes.value.find((t) => t.id === meta.nav.schemeId)
+    : tabSchemes.value.find((t) => t.is_default) || tabSchemes.value[0];
+  if (!scheme) return [];
+  try { return JSON.parse(scheme.tab_json || '[]'); } catch { return []; }
+});
+function previewNavIsImgIcon(it) {
+  const u = it && it.icon;
+  if (!u) return false;
+  return /^https?:|^data:|^\/uploads\/|^\/admin-assets\/|\.(png|jpe?g|gif|svg|webp)(\?|$)/i.test(u);
+}
 const headerPanel = reactive({ show: false, active: 'header', tabs: [
   { key: 'theme', label: '主题设置' },
   { key: 'global', label: '全局设置' },
@@ -2266,4 +2290,13 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-readonly-div { flex:1; position:relative; cursor:pointer; }
 .pe-readonly-input { width:100%; height:32px; padding:0 28px 0 10px; border:1px solid #dcdfe6; border-radius:4px; background:#f5f7fa; font-size:13px; color:#606266; outline:none; box-sizing:border-box; }
 .pe-readonly-icon { position:absolute; right:8px; top:50%; transform:translateY(-50%); color:#909399; font-size:14px; }
+
+/* 编辑画布底部导航预览 */
+.pe-phone-tabbar{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #f2f3f5;padding:6px 0 10px;flex-shrink:0;}
+.pe-ptb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;color:#7a7f8a;}
+.pe-ptb.on{color:#165DFF;}
+.pe-ptb.on .pe-ptb-text{font-weight:600;color:#165DFF;}
+.pe-ptb-img{width:20px;height:20px;object-fit:contain;}
+.pe-ptb-ph{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;}
+.pe-ptb-text{font-size:10px;color:inherit;}
 </style>// build-ver: A1-native-1790336044
