@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黑金创建页·质感对比</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; background: #101014; color: #fff; padding: 34px 16px 60px; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+  .sub { text-align: center; color: #9aa0ad; font-size: 13px; margin-bottom: 30px; line-height: 1.6; }
+  .cmp { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; }
+  .col { width: 280px; }
+  .col-title { text-align: center; font-size: 14px; font-weight: 600; margin-bottom: 10px; padding: 6px 0; border-radius: 8px; }
+  .col-title.cur { color: #ffc966; background: rgba(255,201,102,.12); }
+  .col-title.new { color: #7de0a3; background: rgba(125,224,163,.12); }
+  .phone { width: 280px; background: #000; border-radius: 34px; padding: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.55); }
+  .scr { background: #f4f2ec; border-radius: 24px; height: 540px; overflow: hidden; position: relative; }
+  /* ===== 当前版：黑金皮肤（已有） ===== */
+  .cur .scr { background: linear-gradient(180deg, rgba(28,24,18,.94), rgba(42,36,28,.9)); }
+  .cur .h { padding: 34px 20px 18px; }
+  .cur .h .t { font-size: 20px; font-weight: 700; color: #f0ead9; }
+  .cur .h .s { font-size: 11px; color: rgba(240,234,217,.65); margin-top: 5px; }
+  .cur .card { margin: 10px 14px 0; background: rgba(255,255,255,.09); border: 1px solid rgba(201,162,94,.6); border-radius: 14px; padding: 20px; }
+  .cur .card .av { width: 52px; height: 52px; border-radius: 50%; background: rgba(201,162,94,.35); border: 1px solid rgba(201,162,94,.8); margin: 0 auto 10px; }
+  .cur .card .nm { text-align: center; color: #f0ead9; font-size: 16px; }
+  .cur .card .ps { text-align: center; color: rgba(240,234,217,.6); font-size: 11px; margin-top: 4px; }
+  .cur .steps { display: flex; gap: 6px; justify-content: center; margin: 16px 0 4px; }
+  .cur .steps i { width: 6px; height: 6px; border-radius: 3px; background: rgba(201,162,94,.4); }
+  .cur .steps i.on { width: 18px; background: #c9a25e; }
+  .cur .f { margin: 12px 14px 0; }
+  .cur .fi { height: 42px; background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.22); border-radius: 10px; margin-bottom: 10px; padding: 0 14px; color: rgba(240,234,217,.5); font-size: 11px; display: flex; align-items: center; }
+  .cur .btn { margin: 6px 14px 0; height: 46px; border-radius: 23px; background: linear-gradient(135deg, #c9a25e, #a8843d); color: #1c1812; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  /* ===== 方案3质感版 ===== */
+  .new .scr { background:
+      radial-gradient(120% 60% at 80% -10%, rgba(201,162,94,.16), transparent 60%),
+      radial-gradient(90% 50% at -10% 20%, rgba(201,162,94,.08), transparent 55%),
+      linear-gradient(180deg, #171310 0%, #241d15 60%, #1a1510 100%); }
+  .new .h { padding: 38px 20px 10px; text-align: center; position: relative; }
+  .new .h .en { font-size: 10px; color: #c9a25e; letter-spacing: 5px; margin-bottom: 6px; }
+  .new .h .t { font-size: 22px; font-weight: 700; color: #f0ead9; letter-spacing: 4px; font-family: "Songti SC","Noto Serif SC",serif; }
+  .new .h .rule { width: 42px; height: 1px; background: linear-gradient(90deg, transparent, #c9a25e, transparent); margin: 10px auto 0; }
+  .new .h .s { font-size: 10px; color: rgba(240,234,217,.5); margin-top: 8px; letter-spacing: 1px; }
+  .new .card { margin: 12px 16px 0; border-radius: 18px; padding: 22px 18px; position: relative;
+      background: linear-gradient(160deg, #1c1812, #2a241c);
+      border: 1px solid rgba(201,162,94,.75);
+      box-shadow: 0 0 0 1px rgba(201,162,94,.22), 0 0 22px rgba(201,162,94,.14), inset 0 0 0 1px rgba(201,162,94,.28); }
+  .new .card::after { content: ''; position: absolute; inset: 6px; border: 1px solid rgba(201,162,94,.22); border-radius: 12px; pointer-events: none; }
+  .new .card .spot { position: absolute; width: 120px; height: 90px; right: -30px; top: -34px; border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(255,214,140,.22), transparent 70%); pointer-events: none; }
+  .new .card .av { width: 58px; height: 58px; border-radius: 50%; background: rgba(201,162,94,.3); border: 1.5px solid rgba(201,162,94,.9); margin: 0 auto 12px;
+      box-shadow: 0 0 0 4px rgba(201,162,94,.12); }
+  .new .card .nm { text-align: center; color: #f0ead9; font-size: 17px; font-weight: 600; letter-spacing: 3px; font-family: "Songti SC", serif; }
+  .new .card .ps { text-align: center; color: rgba(201,162,94,.85); font-size: 10px; margin-top: 6px; letter-spacing: 2px; }
+  .new .card .div { width: 40px; height: 1px; background: linear-gradient(90deg, transparent, rgba(201,162,94,.7), transparent); margin: 12px auto 0; }
+  .new .steps { display: flex; gap: 8px; justify-content: center; margin: 18px 0 6px; }
+  .new .steps i { width: 7px; height: 7px; border-radius: 4px; background: rgba(201,162,94,.35); }
+  .new .steps i.on { width: 22px; background: linear-gradient(90deg, #c9a25e, #ffe9a5); box-shadow: 0 0 8px rgba(201,162,94,.6); }
+  .new .f { margin: 12px 16px 0; }
+  .new .fi { height: 44px; background: rgba(255,255,255,.05); border: 1px solid rgba(201,162,94,.28); border-radius: 11px; margin-bottom: 10px; padding: 0 14px; color: rgba(240,234,217,.42); font-size: 11px; display: flex; align-items: center;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.4); }
+  .new .btn { margin: 8px 16px 0; height: 48px; border-radius: 24px; background: linear-gradient(135deg, #e8c57a, #c9a25e 45%, #a8843d); color: #1c1812; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; letter-spacing: 2px;
+      box-shadow: 0 4px 16px rgba(201,162,94,.35), inset 0 1px 0 rgba(255,255,255,.35); }
+  .diff { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 18px 20px; margin-top: 26px; max-width: 860px; margin-left: auto; margin-right: auto; }
+  .diff h3 { font-size: 14px; margin-bottom: 10px; color: #ffc966; }
+  .diff table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .diff td, .diff th { border: 1px solid rgba(255,255,255,.12); padding: 8px 10px; text-align: left; color: #cdd2dc; }
+  .diff th { background: rgba(255,255,255,.05); color: #fff; }
+  .diff .miss { color: #ffb36b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>黑金创建页 · 当前 vs 方案3质感</h1>
+  <div class="sub">同样的墨黑金主题，方案 3 多了"烫金仪式感"细节，质感差距就在这里</div>
+
+  <div class="cmp">
+    <!-- 当前版 -->
+    <div class="col cur">
+      <div class="col-title">当前皮肤（已落地）</div>
+      <div class="phone"><div class="scr">
+        <div class="h"><div class="t">创建你的名片</div><div class="s">个人也可以创建，无需企业账号</div></div>
+        <div class="card">
+          <div class="av"></div>
+          <div class="nm">您的姓名</div>
+          <div class="ps">职位/头衔</div>
+        </div>
+        <div class="steps"><i class="on"></i><i></i><i></i></div>
+        <div class="f">
+          <div class="fi">姓名 *</div>
+          <div class="fi">职位/头衔</div>
+        </div>
+        <div class="btn">下一步</div>
+      </div></div>
+    </div>
+    <!-- 方案3质感版 -->
+    <div class="col new">
+      <div class="col-title">方案 3 质感还原版（待增强）</div>
+      <div class="phone"><div class="scr">
+        <div class="h">
+          <div class="en">CREATE YOUR CARD</div>
+          <div class="t">创建你的名片</div>
+          <div class="rule"></div>
+          <div class="s">个人也可以创建 · 无需企业账号</div>
+        </div>
+        <div class="card">
+          <div class="spot"></div>
+          <div class="av"></div>
+          <div class="nm">您的姓名</div>
+          <div class="ps">职位/头衔</div>
+          <div class="div"></div>
+        </div>
+        <div class="steps"><i class="on"></i><i></i><i></i></div>
+        <div class="f">
+          <div class="fi">姓名 *</div>
+          <div class="fi">职位/头衔</div>
+        </div>
+        <div class="btn">下一步 · 填写联系方式</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="diff">
+    <h3>差距清单（方案 3 有、当前皮肤没有的细节）</h3>
+    <table>
+      <tr><th>细节</th><th>当前皮肤</th><th>方案 3 质感版</th></tr>
+      <tr><td>标题排版</td><td>普通黑体标题</td><td class="miss">衬线宋体大字 + 字距 4px + 英文小注脚 CREATE YOUR CARD</td></tr>
+      <tr><td>金色分隔</td><td>无</td><td class="miss">标题下金色细分划线（渐变收尾）</td></tr>
+      <tr><td>名片卡</td><td>深色卡 + 单层金描边</td><td class="miss">内嵌金线框（双层描边）+ 顶部金色光斑 + 金辉投影</td></tr>
+      <tr><td>头像</td><td>金圆</td><td class="miss">金环外圈光晕（外描边+扩散）</td></tr>
+      <tr><td>按钮</td><td>金色渐变（已有）</td><td class="miss">鎏金高光按钮：亮金→深金渐变 + 顶部高光线 + 金辉投影 + 深色字</td></tr>
+      <tr><td>输入框</td><td>半透明白边</td><td class="miss">金色描边 + 内阴影暗槽</td></tr>
+      <tr><td>步骤条</td><td>金色圆点</td><td class="miss">激活态金色渐变 + 发光</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

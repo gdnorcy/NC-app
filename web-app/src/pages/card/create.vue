@@ -5,6 +5,7 @@
     </view>
     <!-- 顶部标题 -->
     <view class="header">
+      <view class="hero-en" v-if="skinSerif">{{ heroEn }}</view>
       <view class="row1">
         <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
         <view class="hero-badge">
@@ -12,12 +13,14 @@
           微信授权登录
         </view>
       </view>
+      <view class="hero-line" v-if="skinSerif"></view>
       <view class="subtitle">{{ isEdit ? '完善信息，让别人更了解你' : '个人也可以创建，无需企业账号 · 2 分钟完成' }}</view>
     </view>
 
     <!-- 名片实时预览卡（live 顶部 / split 固定区；step 在第 3 步展示） -->
     <view class="live-preview" v-if="skinType !== 'step'">
-      <view class="lp-hero" :style="lpHeroStyle">
+      <view class="lp-hero" :style="[lpHeroStyle, lpFrameStyle]">
+        <view v-if="skinSerif && lpDark" class="lp-spot"></view>
         <view v-if="lpTexture" class="lp-texture" :style="{ backgroundImage: lpTexture }"></view>
         <view v-if="lpBarTop" class="lp-bartop" :style="lpBarTop"></view>
         <view class="lp-body" :class="'lp-' + lpLayout">
@@ -483,7 +486,6 @@ const lpTexture = computed(() => (lpTheme.value ? heroTextureBg(lpTheme.value) :
 
 // 方案A：live 皮肤跟随选中模板整体换肤（页面背景/标题区/按钮/卡片/文字 token 联动）
 const skinVars = computed(() => {
-  if (skinType.value !== 'live') return {};
   const t = lpTheme.value;
   if (!t) return {};
   const accent = t.accent || '#165dff';
@@ -499,28 +501,45 @@ const skinVars = computed(() => {
     vars['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
     vars['--sk-btn-text'] = '#ffffff';
     vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.35)}`;
+    vars['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
     vars['--bg-card'] = '#ffffff';
     vars['--t1'] = '#1d2129';
     vars['--t2'] = '#4e5969';
     vars['--t3'] = '#86909c';
     vars['--border'] = '#e5e6eb';
     vars['--border-strong'] = '#c9cdd4';
+    vars['--sk-skin'] = 'light';
+    vars['--sk-input-border'] = '1px solid ' + hexA(accent, 0.45);
+    vars['--sk-input-shadow'] = 'none';
+    vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.16)}, 0 10rpx 24rpx ${hexA(accent, 0.12)}`;
+    vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
   } else {
-    vars['--sk-bg'] = `linear-gradient(180deg, ${hexA(bg, 0.94)}, ${hexA(bgEnd, 0.88)})`;
+    vars['--sk-bg'] = `radial-gradient(120% 55% at 85% -8%, ${hexA(accent, 0.16)}, transparent 62%), radial-gradient(90% 50% at -8% 22%, ${hexA(accent, 0.1)}, transparent 55%), linear-gradient(180deg, ${shadeHex(bg, 0.06)}, ${shadeHex(bgEnd, 0.02)})`;
     vars['--sk-header'] = `linear-gradient(155deg, ${bg}, ${bgEnd})`;
-    vars['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.2)})`;
+    vars['--sk-btn'] = `linear-gradient(135deg, ${hexA(accent, 0.92)}, ${hexA(accent, 0.55)} 48%, ${shadeHex(accent, 0.1)})`;
     // 鎏金/亮色点缀按钮配深色文字（黑金=金钮深字，方案3 G 同款）
     vars['--sk-btn-text'] = hexLuma(accent) > 170 ? '#1d2129' : '#ffffff';
-    vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.4)}`;
+    vars['--sk-btn-glow'] = `0 6rpx 18rpx ${hexA(accent, 0.4)}`;
+    vars['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
     vars['--bg-card'] = 'rgba(255,255,255,0.09)';
     vars['--t1'] = t.textColor || '#ffffff';
     vars['--t2'] = t.text2Color || 'rgba(255,255,255,0.8)';
     vars['--t3'] = 'rgba(255,255,255,0.55)';
     vars['--border'] = 'rgba(255,255,255,0.22)';
     vars['--border-strong'] = 'rgba(255,255,255,0.45)';
+    vars['--sk-skin'] = 'dark';
+    vars['--sk-input-border'] = '1px solid ' + hexA(accent, 0.35);
+    vars['--sk-input-shadow'] = 'inset 0 2rpx 8rpx rgba(0,0,0,0.4)';
+    vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.2)}, 0 0 26rpx ${hexA(accent, 0.16)}, inset 0 0 0 1px ${hexA(accent, 0.3)}`;
+    vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
   }
   return vars;
 });
+const skinSerif = computed(() => !!lpTheme.value && skinVars.value['--sk-skin'] === 'dark');
+const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
+const heroEn = computed(() => (currentTemplate.value ? (skinEnMap[currentTemplate.value.id] || 'CREATE YOUR CARD') : 'CREATE YOUR CARD'));
+const lpDark = computed(() => skinVars.value['--sk-skin'] === 'dark');
+const lpFrameStyle = computed(() => (lpDark.value ? { boxShadow: skinVars.value['--sk-card-frame'] } : {}));
 function hexLuma(color) {
   let c = String(color || '').trim();
   if (c.startsWith('#')) {
@@ -749,6 +768,17 @@ async function submit() {
   padding: 40rpx 32rpx 36rpx;
   overflow: hidden;
 }
+.lp-spot {
+  position: absolute;
+  width: 240rpx;
+  height: 180rpx;
+  right: -60rpx;
+  top: -70rpx;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--sk-spot, rgba(255,214,140,0.22)), transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
 .lp-texture {
   position: absolute;
   inset: 0;
@@ -872,6 +902,25 @@ async function submit() {
   font-size: 40rpx;
   font-weight: 700;
   color: #fff;
+}
+.hero-en {
+  font-size: 20rpx;
+  letter-spacing: 8rpx;
+  color: var(--sk-en-c, rgba(255,255,255,0.72));
+  margin-bottom: 10rpx;
+  font-family: "Songti SC", "Noto Serif SC", serif;
+}
+.hero-line {
+  width: 72rpx;
+  height: 2rpx;
+  background: var(--sk-line, rgba(255,255,255,0.5));
+  margin-top: 14rpx;
+}
+.skin-live .title,
+.skin-split .title,
+.skin-step .title {
+  font-family: "Songti SC", "Noto Serif SC", serif;
+  letter-spacing: 4rpx;
 }
 .hero-badge {
   display: flex;
@@ -1089,6 +1138,8 @@ async function submit() {
   padding: 0 24rpx;
   font-size: 28rpx;
   color: var(--t1);
+  border: var(--sk-input-border, 2rpx solid transparent);
+  box-shadow: var(--sk-input-shadow, none);
 }
 .error-tip {
   font-size: 22rpx;
@@ -1276,6 +1327,18 @@ async function submit() {
   border-radius: 44rpx;
   border: none;
   box-shadow: var(--sk-btn-glow, 0 4rpx 12rpx rgba(7,193,96,0.3));
+  position: relative;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  top: 6rpx;
+  height: 2rpx;
+  border-radius: 2rpx;
+  background: var(--sk-btn-shine, transparent);
+  pointer-events: none;
 }
 .btn-primary[disabled] {
   opacity: 0.6;
