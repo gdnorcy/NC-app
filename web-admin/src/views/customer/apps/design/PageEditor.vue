@@ -934,7 +934,7 @@ import buyBtn3 from '../../../../assets/design-thumbs/buyBtn3.png';
 import buyBtn4 from '../../../../assets/design-thumbs/buyBtn4.png';
 import otherGoodsThree from '../../../../assets/design-thumbs/otherGoods_three.png';
 import otherGoodsThree2 from '../../../../assets/design-thumbs/otherGoods_three2.png';
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall } from '../../../../api';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
@@ -1090,6 +1090,18 @@ function measureNavBar() {
   });
 }
 watch(previewNavItems, measureNavBar, { immediate: true });
+// 悬浮组件选中 / 属性变化（偏移、大小等）时重算工具条位置
+watch(selected, () => nextTick(positionFloatTools));
+watch(() => selectedComp.value?.props, () => nextTick(positionFloatTools), { deep: true });
+onMounted(() => {
+  const wrap = document.querySelector('.pe-canvas-wrap');
+  if (wrap) { floatToolsScrollEl = wrap; wrap.addEventListener('scroll', positionFloatTools, { passive: true }); }
+  window.addEventListener('resize', positionFloatTools);
+});
+onBeforeUnmount(() => {
+  if (floatToolsScrollEl) floatToolsScrollEl.removeEventListener('scroll', positionFloatTools);
+  window.removeEventListener('resize', positionFloatTools);
+});
 function previewNavIsImgIcon(it) {
   const u = it && it.icon;
   if (!u) return false;
@@ -1358,6 +1370,27 @@ function refreshSelectedComp() {
   const c = components.value.find((c) => c.id === selected.value) || null;
   if(c) c.name = findComponent(c.type)?.name || c.type;
   selectedComp.value = c;
+}
+// 悬浮组件工具条（删除/复制/上下移）跟随组件位置：fixed 定位到组件上方居中，
+// 解决工具条固定预览壳右上角与右下角悬浮组件视线脱节（用户选中后看不到删除）的问题
+let floatToolsScrollEl = null;
+function positionFloatTools() {
+  const layer = document.querySelector('.pe-float-layer');
+  const active = layer && layer.querySelector('.pe-comp-float.active');
+  if (!active) return;
+  const compEl = active.querySelector('.r-fab-cart, .r-float');
+  const toolsEl = active.querySelector('.pe-comp-tools');
+  if (!compEl || !toolsEl) return;
+  const cr = compEl.getBoundingClientRect();
+  const tr = toolsEl.getBoundingClientRect();
+  let left = cr.left + cr.width / 2 - tr.width / 2;
+  let top = cr.top - tr.height - 6;
+  if (top < 4) top = cr.bottom + 6;
+  left = Math.max(4, Math.min(left, window.innerWidth - tr.width - 4));
+  toolsEl.style.left = left + 'px';
+  toolsEl.style.top = top + 'px';
+  toolsEl.style.right = 'auto';
+  toolsEl.style.bottom = 'auto';
 }
 function setProp(key, val) {
   if (!selectedComp.value) return;
@@ -2182,7 +2215,12 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
   border-color: transparent !important; box-shadow: none !important; background: transparent !important;
 }
 /* 操作条：悬浮组件固定在组件区右上角；点击穿透层内恢复操作条可点 */
-.pe-comp-float .pe-comp-tools { pointer-events: auto; top: 8px; right: 8px; }
+.pe-comp-float .pe-comp-tools {
+  pointer-events: auto; top: auto; right: auto; position: fixed; display: none;
+}
+/* 悬浮组件 hover 不显示工具条（避免位置跳动），仅选中(active)显示；位置由 positionFloatTools 动态跟随组件 */
+.pe-comp-float:hover .pe-comp-tools { display: none; }
+.pe-comp-float.active .pe-comp-tools { display: flex; }
 
 /* 空态 */
 .pe-empty { color: #86909c; text-align: center; padding: 80px 0; font-size: 13px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
