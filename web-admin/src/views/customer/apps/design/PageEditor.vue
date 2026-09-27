@@ -152,6 +152,7 @@
               :key="c.id"
               class="pe-comp"
               :class="{ active: selected === c.id }"
+              :style="c.type === 'fab-cart' ? { minHeight: '120px' } : {}"
               draggable="true"
               @dragstart="onCompDragStart($event, i)"
               @dragover.prevent="onCompDragOver(i)"

@@ -32,6 +32,7 @@ import iconArticle from '../../../../assets/comp-icons/article.png';
 import iconWeb from '../../../../assets/comp-icons/web.png';
 import iconFollow from '../../../../assets/comp-icons/follow.png';
 import iconGoods from '../../../../assets/comp-icons/goods.png';
+import iconCart from '../../../../assets/comp-icons/cart.png';
 import iconTabbar from '../../../../assets/comp-icons/tabbar.png';
 import iconGuess from '../../../../assets/comp-icons/guess.png';
 import iconCeramics from '../../../../assets/comp-icons/ceramics.png';
@@ -80,6 +81,7 @@ export const COMP_ICONS = {
   'follow-official': iconFollow,
   'video-feed': iconVideo,
   'goods': iconGoods,
+  'cart': iconCart,
   'goodsRanking': iconStats,
   'bannerGoods': iconImageText,
   'tabbar': iconTabbar,
