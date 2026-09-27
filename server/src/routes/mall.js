@@ -90,7 +90,7 @@ export function createMallRouter(db) {
         priceDesc: 'price DESC, id DESC',
       }[sortBy] || 'sort_order DESC, id DESC';
       const list = db.prepare(
-        `SELECT id, title, thumb, price, market_price, unit, stock, real_sales, fake_sales, type, spec_mode FROM goods
+        `SELECT id, title, thumb, info, price, market_price, unit, stock, real_sales, fake_sales, type, spec_mode, title_tag FROM goods
          WHERE ${whereSql} ORDER BY ${orderSql} LIMIT ? OFFSET ?`
       ).all(...params, Number(pageSize), (Number(page) - 1) * Number(pageSize));
       res.json({

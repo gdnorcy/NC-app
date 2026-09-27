@@ -514,45 +514,51 @@
         <video v-if="feedVideo" :src="feedVideo" class="dp-vfeed-player" controls autoplay @ended="feedVideo = ''" @error="feedVideo = ''" />
       </view>
       <!-- ew商品组：单列卡片（大图在上+下方文字+购买按钮） -->
-      <view v-else-if="c.type === 'goods-group'" class="dp-ew-wrap" :style="dpEewWrapStyle(c.props)">
+      <!-- goods-list 为旧版商品列表 type（与 goods-group 同语义），兼容渲染 -->
+      <!-- 与画布 ComponentRender goods-group 渲染完全对齐：图+角标+标签+名称+副标题+价格行+购买钮 -->
+      <view v-else-if="c.type === 'goods-group' || c.type === 'goods-list'" class="ew-gg-list" :class="'ew-gg-st'+(c.props.styleType||1)" :style="{ '--gg-gap': (c.props.goodsGap||12) + 'px' }">
         <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="ew-gg" @click="goMallDetail(g.id)">
-          <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img" />
-          <view v-else class="ew-gg-img ew-gg-ph"></view>
+          <view class="ew-gg-img" :class="c.props.badgeType==='system' ? 'show-icon' : ''">
+            <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img-el" />
+            <view v-else class="ew-gg-ph"></view>
+            <view v-if="c.props.badgeType==='system'" class="ew-gg-flag">{{ g.title_tag || '热卖' }}</view>
+            <view v-else-if="c.props.badgeType==='custom' && c.props.badgeImage" class="ew-gg-badge"><image :src="resolveUrl(c.props.badgeImage)" mode="aspectFit" class="ew-gg-badge-img" /></view>
+            <view v-else-if="c.props.badgeType==='custom' && c.props.badgeText" class="ew-gg-badge-text">{{ c.props.badgeText }}</view>
+          </view>
           <view class="ew-gg-body">
-            <view class="ew-gg-line1">
-              <span v-if="c.props.showTag!==false" class="ew-gg-tag">{{ c.props.tagText || '标题标签' }}</span>
-              <span v-if="c.props.showTitle!==false" class="ew-gg-title" :style="{color:c.props.titleColor||'#37383a'}">{{ g.title }}</span>
-            </view>
-            <view v-if="c.props.showSub!==false && g.subtitle" class="ew-gg-sub" :style="{color:c.props.subColor||'#999ca7'}">{{ g.subtitle }}</view>
-            <view class="ew-gg-foot">
-              <template v-if="c.props.showPrice!==false">
-                <span class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(displayPrice(g,c)) }}</span>
-                <span v-if="c.props.showOrig!==false && origPrice(g,c)" class="ew-gg-orig" :style="{color:c.props.origColor||'#999CA7'}">¥{{ yuanFmt(origPrice(g,c)) }}</span>
-              </template>
-              <span v-if="c.props.showSales!==false && g.sales" class="ew-gg-sales" :style="{color:c.props.salesColor||'#999CA7'}">{{ g.sales }}人付款</span>
-              <span v-if="c.props.showMerchant!==false && g.merchantName" class="ew-gg-merchant">{{ g.merchantName }}</span>
-              <span v-if="c.props.buyBtnShow!==false" class="ew-gg-buy" :style="{background:c.props.buyBtnBg||'#ef4f4f',color:c.props.buyBtnColor||'#fff'}">{{ c.props.buyBtnText||'购买' }}</span>
+            <view v-if="c.props.showTag!==false" class="ew-gg-tag-line"><text class="ew-gg-tag">{{ c.props.tagText || '标题标签' }}</text></view>
+            <view v-if="c.props.showTitle!==false" class="ew-gg-name" :style="{color:c.props.titleColor||'#333'}">{{ g.title || '商品标题' }}</view>
+            <view v-if="c.props.showSub!==false" class="ew-gg-sub" :style="{color:c.props.subColor||'#999'}">{{ g.info || g.subtitle || '' }}</view>
+            <view v-if="c.props.styleType!==6 && c.props.showPrice!==false" class="ew-gg-saleline">
+              <text v-if="c.props.showOrig" class="ew-gg-original">¥{{ g.market_price || 30 }}</text>
+              <text class="ew-gg-price" :style="{color:c.props.priceColor||'#ff5555'}">¥{{ yuanFmt(displayPrice(g,c)) }}<text class="ew-gg-unit">/件</text></text>
+              <text v-if="c.props.showSales" class="ew-gg-sold">已售{{ (g.sales||0) }}件</text>
+              <text v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">{{ c.props.buyBtnText||'购买' }}</text>
             </view>
           </view>
         </view>
         <view v-if="!(mallGoods[c.id] || []).length" class="dp-gl-empty"><text>暂无商品</text></view>
       </view>
 
-      <!-- ew全部商品：同商品组样式 -->
-      <view v-else-if="c.type === 'goods-all'" class="dp-ew-wrap" :style="dpEewWrapStyle(c.props)">
+      <!-- ew全部商品：与 goods-group 同结构（画布对齐） -->
+      <view v-else-if="c.type === 'goods-all'" class="ew-gg-list" :class="['ew-gg-st'+(c.props.styleType||1), c.props.carousel===1 ? 'ew-gg-carousel' : '']" :style="{ '--gg-gap': (c.props.goodsGap||7) + 'px' }">
         <view v-for="g in (mallGoods[c.id] || [])" :key="g.id" class="ew-gg" @click="goMallDetail(g.id)">
-          <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img" />
-          <view v-else class="ew-gg-img ew-gg-ph"></view>
+          <view class="ew-gg-img" :class="c.props.badgeType==='system' ? 'show-icon' : ''">
+            <image v-if="g.thumb" :src="resolveUrl(g.thumb)" mode="aspectFill" class="ew-gg-img-el" />
+            <view v-else class="ew-gg-ph"></view>
+            <view v-if="c.props.badgeType==='system'" class="ew-gg-flag">{{ g.title_tag || '热卖' }}</view>
+            <view v-else-if="c.props.badgeType==='custom' && c.props.badgeImage" class="ew-gg-badge"><image :src="resolveUrl(c.props.badgeImage)" mode="aspectFit" class="ew-gg-badge-img" /></view>
+            <view v-else-if="c.props.badgeType==='custom' && c.props.badgeText" class="ew-gg-badge-text">{{ c.props.badgeText }}</view>
+          </view>
           <view class="ew-gg-body">
-            <view class="ew-gg-line1">
-              <span v-if="c.props.showTag!==false" class="ew-gg-tag">标题标签</span>
-              <span class="ew-gg-title">{{ g.title }}</span>
-            </view>
-            <view v-if="g.subtitle" class="ew-gg-sub">{{ g.subtitle }}</view>
-            <view class="ew-gg-foot">
-              <span class="ew-gg-price" :style="{color:c.props.priceColor||'#fd463e'}">¥{{ yuanFmt(g.price) }}</span>
-              <span class="ew-gg-unit">/件</span>
-              <span v-if="c.props.buyBtnShow!==false" class="ew-gg-buy" :style="{background:c.props.buyBtnBg||'#ef4f4f'}">{{ c.props.buyBtnText||'购买' }}</span>
+            <view v-if="c.props.showTag!==false" class="ew-gg-tag-line"><text class="ew-gg-tag">{{ c.props.tagText || '标题标签' }}</text></view>
+            <view v-if="c.props.showTitle!==false" class="ew-gg-name" :style="{color:c.props.titleColor||'#333'}">{{ g.title || '商品标题' }}</view>
+            <view v-if="c.props.styleType!==3 && c.props.showSub!==false" class="ew-gg-sub" :style="{color:c.props.subColor||'#999'}">{{ g.info || g.subtitle || '' }}</view>
+            <view v-if="c.props.styleType!==6 && c.props.showPrice!==false" class="ew-gg-saleline">
+              <text v-if="c.props.showOrig" class="ew-gg-original">¥{{ g.market_price || 30 }}</text>
+              <text class="ew-gg-price" :style="{color:c.props.priceColor||'#ff5555'}">¥{{ yuanFmt(displayPrice(g,c)) }}<text class="ew-gg-unit">/件</text></text>
+              <text v-if="c.props.showSales" class="ew-gg-sold">已售{{ (g.sales||0) }}件</text>
+              <text v-if="c.props.buyBtnShow==1" class="ew-gg-buybtn" :style="{background:c.props.buyBtnBg||'#ff5555',color:c.props.buyBtnColor||'#fff'}">{{ c.props.buyBtnText||'购买' }}</text>
             </view>
           </view>
         </view>
@@ -1241,7 +1247,7 @@ function loadMallComps() {
   (props.comps || []).forEach((c) => {
     if (!c.id) return;
     // ew 8 个商品组件：统一按组件 id 拉商品
-    if (['goods-group','goods-all','goods-featured','goods-rank','goods-like','goods-swiper','goods-show'].includes(c.type) && !mallGoods[c.id]) {
+    if (['goods-group','goods-list','goods-all','goods-featured','goods-rank','goods-like','goods-swiper','goods-show'].includes(c.type) && !mallGoods[c.id]) {
       const p = c.props || {};
       const params = { tid: props.tenantId || undefined, page: 1, pageSize: p.limit || 10 };
       if (c.type === 'goods-rank') params.sortBy = 'sales';
@@ -1911,6 +1917,61 @@ function openChannel(kind, p) {
 .ew-gg-price{font-size:28rpx;color:#fd463e;font-weight:600;}
 .ew-gg-unit{font-size:20rpx;color:#999ca7;margin-left:4rpx;}
 .ew-gg-buy{margin-left:auto;padding:8rpx 28rpx;border-radius:24rpx;background:#F53F3F;color:#fff;font-size:22rpx;}
+/* ew商品组（画布对齐版）：goods-group/goods-all */
+.ew-gg-list{display:block;}
+.ew-gg-img-el{width:100%;height:100%;display:block;}
+.ew-gg-flag{position:absolute;top:0;left:0;background:#ff5555;color:#fff;font-size:24rpx;padding:4rpx 16rpx;z-index:2;border-radius:0 0 8rpx 0;}
+.ew-gg-badge{position:absolute;top:0;left:0;width:76rpx;height:76rpx;z-index:2;}
+.ew-gg-badge-img{width:100%;height:100%;display:block;}
+.ew-gg-badge-text{position:absolute;top:0;left:0;background:#ff5555;color:#fff;font-size:22rpx;padding:4rpx 12rpx;z-index:2;border-radius:0 0 8rpx 0;}
+.ew-gg-name{font-size:28rpx;color:#333;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ew-gg-tag-line{margin-bottom:4rpx;}
+.ew-gg-saleline{display:flex;align-items:center;margin-top:8rpx;}
+.ew-gg-original{font-size:22rpx;color:#ccc;text-decoration:line-through;margin-left:8rpx;}
+.ew-gg-sold{font-size:22rpx;color:#999;margin-left:auto;}
+.ew-gg-buybtn{flex-shrink:0;margin-left:auto;padding:8rpx 24rpx;background:#ff5555;color:#fff;font-size:24rpx;border-radius:8rpx;}
+/* st1 单列大图 */
+.ew-gg-st1{margin:24rpx;}
+.ew-gg-st1 .ew-gg{width:100%;background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,24rpx);}
+.ew-gg-st1 .ew-gg-img{width:100%;height:324rpx;background:#f5f5f5;}
+.ew-gg-st1 .ew-gg-body{width:100%;padding:20rpx 24rpx 24rpx;}
+/* st2 左图右文 */
+.ew-gg-st2{margin:12rpx 12rpx 8rpx;}
+.ew-gg-st2 .ew-gg{width:100%;background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,16rpx);}
+.ew-gg-st2 .ew-gg-img{width:260rpx;height:260rpx;background:#f5f5f5;}
+.ew-gg-st2 .ew-gg-body{display:flex;flex-direction:column;height:260rpx;padding:16rpx 24rpx;overflow:hidden;}
+.ew-gg-st2 .ew-gg-saleline{margin-top:auto;}
+/* st3 双列大图 */
+.ew-gg-st3{margin:17rpx;overflow:hidden;}
+.ew-gg-st3 .ew-gg{float:left;width:calc(50% - var(--gg-gap,12px)/2);margin-right:var(--gg-gap,12px);background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,16rpx);}
+.ew-gg-st3 .ew-gg-img{width:100%;height:344rpx;background:#f5f5f5;}
+.ew-gg-st3 .ew-gg-body{width:100%;padding:16rpx 24rpx;}
+/* st4 双列小图左 */
+.ew-gg-st4{margin:17rpx;overflow:hidden;}
+.ew-gg-st4 .ew-gg{float:left;width:calc(50% - var(--gg-gap,12px)/2);margin-right:var(--gg-gap,12px);background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,16rpx);}
+.ew-gg-st4 .ew-gg-img{width:160rpx;height:160rpx;background:#f5f5f5;}
+.ew-gg-st4 .ew-gg-body{display:flex;flex-direction:column;height:160rpx;padding:12rpx 16rpx;overflow:hidden;}
+.ew-gg-st4 .ew-gg-saleline{margin-top:auto;}
+/* st5 三列 */
+.ew-gg-st5{margin:17rpx;overflow:hidden;}
+.ew-gg-st5 .ew-gg{float:left;width:calc((100% - 2*var(--gg-gap,12px))/3);margin-right:var(--gg-gap,12px);background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,16rpx);}
+.ew-gg-st5 .ew-gg-img{width:100%;height:224rpx;background:#f5f5f5;}
+.ew-gg-st5 .ew-gg-body{width:100%;padding:12rpx 16rpx;}
+.ew-gg-st5 .ew-gg-saleline{margin-top:8rpx;}
+/* st6 三列无价格行 */
+.ew-gg-st6{margin:17rpx;overflow:hidden;}
+.ew-gg-st6 .ew-gg{float:left;width:calc((100% - 2*var(--gg-gap,12px))/3);margin-right:var(--gg-gap,12px);background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,16rpx);}
+.ew-gg-st6 .ew-gg-img{width:100%;height:224rpx;background:#f5f5f5;}
+.ew-gg-st6 .ew-gg-body{width:100%;padding:12rpx 16rpx;}
+/* st7 三列轻量 */
+.ew-gg-st7{margin:17rpx;overflow:hidden;}
+.ew-gg-st7 .ew-gg{float:left;width:calc((100% - 2*var(--gg-gap,12px))/3);margin-right:var(--gg-gap,12px);background:#fff;border-radius:8rpx;margin-bottom:var(--gg-gap,16rpx);}
+.ew-gg-st7 .ew-gg-img{width:100%;height:200rpx;background:#f5f5f5;}
+.ew-gg-st7 .ew-gg-body{width:100%;padding:12rpx 16rpx;}
+/* 轮播横滑 */
+.ew-gg-carousel{overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch;}
+.ew-gg-carousel .ew-gg{display:inline-block;vertical-align:top;width:45%;margin-right:var(--gg-gap,14rpx);white-space:normal;float:none;}
+.ew-gg-carousel .ew-gg-img{width:100%;height:280rpx;}
 .ew-tabs{display:flex;background:#fff;padding:0 16rpx;border-bottom:1rpx solid #f2f3f5;}
 .ew-tab{flex:1;text-align:center;padding:20rpx 0;font-size:28rpx;color:#666;position:relative;}
 .ew-tab.on{color:#ef4f4f;font-weight:500;}

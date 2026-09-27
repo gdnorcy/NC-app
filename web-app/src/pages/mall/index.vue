@@ -112,7 +112,7 @@ const canBack = ref(getCurrentPages().length > 1);
 const designComps = ref([]);
 const designGlobal = ref({});
 const pageType = ref('');
-const hasGoodsList = computed(() => designComps.value.some((c) => ['goods-group','goods-all','goods-tabs','goods-rank','goods-like','goods-swiper','goods-show','goods-featured'].includes(c.type)));
+const hasGoodsList = computed(() => designComps.value.some((c) => ['goods-group','goods-list','goods-all','goods-tabs','goods-rank','goods-like','goods-swiper','goods-show','goods-featured'].includes(c.type)));
 
 const resolveUrl = (u) => resolveAssetUrl(u, tid.value);
 
