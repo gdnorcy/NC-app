@@ -93,9 +93,8 @@
               class="tpl-item" :class="{ active: form.templateId === t.id }"
               @click="selectTemplate(t)"
             >
-              <view class="tpl-cover" :style="tplCoverStyle(t)">
-                <image v-if="t.cover" :src="t.cover" class="tpl-cover-img" mode="aspectFill" />
-                <text v-else class="tpl-cover-text">{{ t.name.slice(0, 2) }}</text>
+              <view class="tpl-cover">
+                <TplThumb :template="t" class="tpl-thumb" />
                 <text class="tpl-layout" v-if="t.layout === 'full'">全屏大图</text>
                 <text class="tpl-layout" v-else-if="t.themeConfig && t.themeConfig.heroLayout === 'ctr'">居中展示</text>
                 <text class="tpl-layout" v-else-if="t.themeConfig && t.themeConfig.heroLayout === 'mag'">杂志大字</text>
@@ -320,6 +319,7 @@ import {
   heroBarTopStyle, heroTextureBg, heroRadius,
 } from '../../utils/templateTheme.js';
 import SIcon from '../../components/SIcon.vue';
+import TplThumb from '../../components/TplThumb.vue';
 
 const isEdit = ref(false);
 const submitting = ref(false);
@@ -413,14 +413,6 @@ async function loadTemplates(force = false) {
   } catch (e) {
     console.warn('模板加载失败', e);
   }
-}
-// 模板缩略图背景：按 themeConfig 渲染渐变/纯色（旧字段 primary 兼容）
-function tplCoverStyle(t) {
-  const cfg = t.themeConfig || {};
-  if (cfg.bgStart && cfg.bgEnd) {
-    return { background: `linear-gradient(${Number(cfg.bgAngle) || 160}deg, ${cfg.bgStart}, ${cfg.bgEnd})` };
-  }
-  return { background: cfg.primary || 'var(--success)' };
 }
 function selectTemplate(tpl) {
   // 付费未购：先购买再选中
@@ -1231,9 +1223,8 @@ async function submit() {
 .tpl-list { display: inline-flex; gap: 20rpx; padding: 4rpx 2rpx 12rpx; }
 .tpl-item { width: 200rpx; flex-shrink: 0; border-radius: 16rpx; border: 3rpx solid transparent; overflow: hidden; background: var(--bg-card); }
 .tpl-item.active { border-color: var(--success); background: #f0faf5; }
-.tpl-cover { position: relative; height: 150rpx; display: flex; align-items: center; justify-content: center; }
-.tpl-cover-img { width: 100%; height: 100%; }
-.tpl-cover-text { color: #fff; font-size: 44rpx; font-weight: 600; }
+.tpl-cover { position: relative; height: 150rpx; }
+.tpl-thumb { position: absolute; inset: 0; }
 .tpl-layout {
   position: absolute; right: 8rpx; top: 8rpx; z-index: 2;
   font-size: 18rpx; color: #fff; background: rgba(0,0,0,0.45);

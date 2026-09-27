@@ -16,10 +16,24 @@
         :class="{ platform: t.tenantId === 0 }"
       >
         <div class="tpl-cover" :style="coverStyle(t)">
-          <div class="tpl-cover-inner">
-            <div class="tpl-avatar" :style="{ background: t.themeConfig.primary || '#165dff' }">名</div>
-            <div class="tpl-name">姓名</div>
-            <div class="tpl-pos">职位 · 公司</div>
+          <div class="tpl-cover-inner" :class="'tpl-mini-' + (miniLayout(t))">
+            <template v-if="miniLayout(t) === 'cls'">
+              <div class="mini-avatar" :style="miniAvatarStyle(t)"></div>
+              <div class="mini-lines">
+                <div class="mini-bar" :style="miniBarStyle(t)"></div>
+                <div class="mini-bar dim" :style="miniBarStyle(t)"></div>
+              </div>
+            </template>
+            <template v-else-if="miniLayout(t) === 'ctr'">
+              <div class="mini-avatar lg" :style="miniAvatarStyle(t)"></div>
+              <div class="mini-bar w" :style="miniBarStyle(t)"></div>
+              <div class="mini-bar w dim" :style="miniBarStyle(t)"></div>
+            </template>
+            <template v-else>
+              <div class="mini-bar mag" :style="miniBarStyle(t)"></div>
+              <div class="mini-bar mid dim" :style="miniBarStyle(t)"></div>
+              <div class="mini-rule" :style="{ background: t.themeConfig.accent || t.themeConfig.primary || '#165dff' }"></div>
+            </template>
           </div>
           <span class="tpl-layout" v-if="t.layout === 'full'">全屏大图</span>
           <span class="tpl-badge" v-if="t.tenantId === 0">平台</span>
@@ -190,9 +204,47 @@ async function buyTemplate(t) {
 const coverStyle = (t) => {
   const cfg = t.themeConfig || {};
   const s = { background: cfg.background || '#f5f7fa', '--tpl-primary': cfg.primary || '#165dff' };
-  if (t.cover) s.backgroundImage = `url(${t.cover})`;
+  if (cfg.bgStart && cfg.bgEnd) {
+    s.background = `linear-gradient(${Number(cfg.bgAngle) || 160}deg, ${cfg.bgStart}, ${cfg.bgEnd})`;
+  } else if (cfg.background) {
+    s.background = cfg.background;
+  }
+  const tex = coverTexture(cfg);
+  if (tex) s.background = `${tex}, ${s.background}`;
+  if (cfg.border === 'gold') { s.border = '1px solid ' + (cfg.borderColor || '#c9a25e'); s.boxShadow = '0 0 10px rgba(201,162,94,.35)'; }
+  if (cfg.border === 'glow') { s.border = '1px solid ' + (cfg.borderColor || '#4d8dff'); s.boxShadow = '0 0 12px rgba(77,141,255,.5)'; }
+  if (t.cover) { s.backgroundImage = `url(${t.cover})`; s.backgroundSize = 'cover'; s.backgroundPosition = 'center'; }
+  s['--tpl-accent'] = cfg.accent || cfg.primary || '#165dff';
   return s;
 };
+const coverTexture = (cfg) => {
+  if (cfg.texture === 'spots') return 'radial-gradient(rgba(255,255,255,.18) 1px, transparent 2px), radial-gradient(rgba(255,255,255,.10) 2px, transparent 3px)';
+  if (cfg.texture === 'dots') return 'radial-gradient(rgba(201,162,94,.25) 1px, transparent 2px), radial-gradient(rgba(201,162,94,.14) 2px, transparent 3px)';
+  if (cfg.texture === 'grid') return 'linear-gradient(rgba(255,255,255,.10) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px)';
+  return '';
+};
+
+const miniLayout = (t) => {
+  const hl = (t.themeConfig || {}).heroLayout;
+  return ['cls', 'ctr', 'mag'].includes(hl) ? hl : 'cls';
+};
+const miniAvatarStyle = (t) => {
+  const cfg = t.themeConfig || {};
+  const accent = cfg.accent || cfg.primary || '#165dff';
+  return { background: hexA(accent, 0.32), border: `1px solid ${hexA(accent, 0.75)}`, borderRadius: miniLayout(t) === 'mag' ? '50%' : '6px' };
+};
+const miniBarStyle = (t) => ({ background: (t.themeConfig || {}).textColor || '#ffffff' });
+function hexA(color, alpha) {
+  if (!color) return `rgba(22,93,255,${alpha})`;
+  let c = String(color).trim();
+  if (c.startsWith('#')) {
+    c = c.slice(1);
+    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+    const n = parseInt(c, 16);
+    if (!Number.isNaN(n) && c.length === 6) return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+  }
+  return color;
+}
 
 async function handleCoverUpload(opt) {
   try {
@@ -270,8 +322,20 @@ onMounted(load);
 .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 .tpl-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden; display: flex; flex-direction: column; }
 .tpl-card.platform { border: 1px solid #e8f3ff; }
-.tpl-cover { position: relative; height: 140px; display: flex; align-items: center; justify-content: center; }
-.tpl-cover-inner { text-align: center; }
+.tpl-cover { position: relative; height: 140px; overflow: hidden; }
+.tpl-cover-inner { height: 100%; padding: 18px 22px; box-sizing: border-box; }
+.tpl-mini-cls { display: flex; align-items: center; gap: 12px; }
+.tpl-mini-cls .mini-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.tpl-mini-ctr { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
+.tpl-mini-mag { display: flex; flex-direction: column; justify-content: center; gap: 7px; }
+.mini-avatar { width: 30px; height: 30px; border-radius: 6px; flex-shrink: 0; }
+.mini-avatar.lg { width: 40px; height: 40px; margin-bottom: 2px; }
+.mini-bar { height: 6px; border-radius: 3px; width: 82%; }
+.mini-bar.dim { opacity: .55; width: 58%; }
+.mini-bar.w { width: 70%; }
+.mini-bar.mag { height: 10px; width: 72%; border-radius: 5px; }
+.mini-bar.mid { width: 50%; }
+.mini-rule { height: 2px; width: 58%; margin-top: 4px; border-radius: 1px; }
 .tpl-avatar { width: 42px; height: 42px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; margin: 0 auto 8px; }
 .tpl-name { font-size: 14px; font-weight: 600; color: #1d2129; }
 .tpl-pos { font-size: 12px; color: #86909c; margin-top: 2px; }

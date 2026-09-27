@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名片模板缩略图优化方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif; background: #f3f5f9; color: #1d2129; padding: 32px 20px 60px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  .sub { text-align: center; color: #86909c; font-size: 14px; margin-bottom: 30px; }
+  .issue { background: #fff; border-radius: 16px; padding: 18px 20px; margin-bottom: 28px; border: 1px solid #e5e6eb; box-shadow: 0 2px 8px rgba(0,0,0,.03); }
+  .issue b { color: #f53f3f; }
+  .issue-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .issue-row .phone { flex-shrink: 0; }
+  .issue-desc { flex: 1; min-width: 260px; line-height: 1.7; color: #4e5969; }
+  .tag { display: inline-block; background: #ffece8; color: #f53f3f; font-size: 12px; padding: 2px 10px; border-radius: 20px; margin-bottom: 8px; }
+  .opt { background: #fff; border-radius: 16px; padding: 22px 24px 26px; margin-bottom: 20px; border: 1px solid #e5e6eb; box-shadow: 0 2px 8px rgba(0,0,0,.03); }
+  .opt-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .opt-no { width: 34px; height: 34px; border-radius: 10px; background: #165dff; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .opt-no.b { background: #07c160; }
+  .opt-title { font-size: 18px; font-weight: 700; }
+  .opt-sub { font-size: 13px; color: #86909c; }
+  .opt-body { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; }
+  .phone { width: 240px; background: #111; border-radius: 30px; padding: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); flex-shrink: 0; }
+  .phone-screen { background: #f7f8fa; border-radius: 22px; padding: 14px 10px 12px; height: 420px; overflow: hidden; }
+  .ps-title { font-size: 13px; font-weight: 600; text-align: center; color: #1d2129; margin-bottom: 8px; }
+  .ps-desc { font-size: 10px; color: #86909c; text-align: center; margin-bottom: 10px; }
+  /* 模拟卡片 */
+  .mock-card { background: #fff; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .mc-label { font-size: 11px; font-weight: 600; margin-bottom: 6px; color: #1d2129; }
+  /* 模板横滑区 */
+  .tpl-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .tpl-cell { width: 82px; flex-shrink: 0; border-radius: 8px; border: 2px solid transparent; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .tpl-cell.on { border-color: #07c160; }
+  .tpl-cell .nm { font-size: 10px; text-align: center; padding: 4px 2px; color: #1d2129; }
+  /* 当前：文字缩略图 */
+  .cur-cover { height: 62px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; }
+  /* 迷你名片缩略图（代码渲染） */
+  .mini-card { height: 62px; position: relative; overflow: hidden; }
+  .mini-in { padding: 7px 8px; height: 100%; }
+  .mini-avatar { width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,.5); flex-shrink: 0; }
+  .mini-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.85); }
+  .mini-bar.dim { background: rgba(255,255,255,.5); width: 70%; }
+  .mini-rule { height: 1px; background: rgba(255,255,255,.4); margin: 4px 0; }
+  /* cls */
+  .mini-cls { display: flex; gap: 8px; align-items: center; }
+  .mini-cls .lines { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  /* ctr */
+  .mini-ctr { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .mini-ctr .mini-avatar { width: 20px; height: 20px; }
+  /* mag */
+  .mini-mag { display: flex; flex-direction: column; gap: 3px; justify-content: center; }
+  .mini-mag .mini-bar { width: 76%; height: 5px; }
+  .mini-mag .mini-bar.dim { width: 55%; }
+  .badge { position: absolute; top: 3px; right: 3px; font-size: 7px; background: rgba(0,0,0,.45); color: #fff; padding: 1px 4px; border-radius: 3px; }
+  .pros { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; flex: 1; min-width: 260px; }
+  .pro { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.6; color: #4e5969; }
+  .pro .ok { color: #07c160; font-weight: 700; flex-shrink: 0; }
+  .pro .no { color: #f53f3f; font-weight: 700; flex-shrink: 0; }
+  .verdict { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600; padding: 5px 14px; border-radius: 20px; }
+  .verdict.a { background: #e8f3ff; color: #165dff; }
+  .verdict.b { background: #e8ffea; color: #07c160; }
+  .rec { border: 2px solid #07c160; }
+  .rec-badge { position: absolute; top: -11px; left: 24px; background: #07c160; color: #fff; font-size: 12px; padding: 2px 12px; border-radius: 20px; font-weight: 600; }
+  .opt { position: relative; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  th, td { border: 1px solid #e5e6eb; padding: 8px 10px; text-align: left; }
+  th { background: #f7f8fa; font-weight: 600; }
+  .cmp-title { font-size: 16px; font-weight: 700; margin: 6px 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>名片模板缩略图优化方案</h1>
+  <div class="sub">问题：创建页「选择模板」目前只显示渐变底色 + 模板名前两个字，看不出版式和风格</div>
+
+  <div class="issue">
+    <div class="tag">现状问题</div>
+    <div class="issue-row">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="ps-title">选择模板</div>
+          <div class="ps-desc">套用模板主题，保存后可在名片详情实时预览</div>
+          <div class="tpl-strip">
+            <div class="tpl-cell on"><div class="cur-cover" style="background:linear-gradient(160deg,#1c1812,#2a241c)">黑金</div><div class="nm">黑金奢华</div></div>
+            <div class="tpl-cell"><div class="cur-cover" style="background:linear-gradient(160deg,#1a2f5c,#3a2a5c)">暗夜</div><div class="nm">暗夜科技</div></div>
+            <div class="tpl-cell"><div class="cur-cover" style="background:linear-gradient(160deg,#0e2a4e,#3b7bd4)">精致</div><div class="nm">精致商务</div></div>
+            <div class="tpl-cell"><div class="cur-cover" style="background:#fdfcfb">纸艺</div><div class="nm">纸艺雅致</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="issue-desc">
+        现在缩略图 = <b>底色 + 两个汉字</b>。用户看不到：版式（横排/居中/杂志大字）、字体风格（衬线/无衬线）、描边（鎏金/霓虹）、纹理（光斑/纸点）——<b>所有模板看起来都差不多</b>，只能靠名字区分，选模板像开盲盒。
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案A -->
+  <div class="opt">
+    <div class="opt-head">
+      <div class="opt-no">A</div>
+      <div>
+        <div class="opt-title">迷你名片缩略图（代码渲染）</div>
+        <div class="opt-sub">按 themeConfig 实时绘制每个模板的缩小版 hero · 零资源 · 自动适配</div>
+      </div>
+    </div>
+    <div class="opt-body">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="ps-title">选择模板</div>
+          <div class="ps-desc">所见即所得 · 缩略图=名片微缩版</div>
+          <div class="tpl-strip">
+            <!-- 黑金 居中 -->
+            <div class="tpl-cell on">
+              <div class="mini-card" style="background:linear-gradient(160deg,#1c1812,#2a241c);border:1px solid #c9a25e">
+                <div class="mini-in mini-ctr">
+                  <div class="mini-avatar" style="background:rgba(201,162,94,.35);border:1px solid #c9a25e"></div>
+                  <div class="mini-bar" style="background:#f0ead9;width:80%"></div>
+                  <div class="mini-bar dim" style="background:rgba(240,234,217,.6);width:55%"></div>
+                </div>
+                <span class="badge">居中</span>
+              </div>
+              <div class="nm">黑金奢华</div>
+            </div>
+            <!-- 暗夜 mag -->
+            <div class="tpl-cell">
+              <div class="mini-card" style="background:linear-gradient(160deg,#1a2f5c,#3a2a5c);border:1px solid #4d8dff;box-shadow:0 0 6px rgba(77,141,255,.5)">
+                <div class="mini-in mini-mag">
+                  <div class="mini-bar" style="background:#e8ecff;width:70%"></div>
+                  <div class="mini-bar dim" style="background:rgba(232,236,255,.6);width:48%"></div>
+                  <div class="mini-rule" style="background:rgba(77,141,255,.7)"></div>
+                </div>
+                <span class="badge">杂志</span>
+              </div>
+              <div class="nm">暗夜科技</div>
+            </div>
+            <!-- 精致 cls -->
+            <div class="tpl-cell">
+              <div class="mini-card" style="background:linear-gradient(160deg,#0e2a4e,#3b7bd4)">
+                <div class="mini-in mini-cls">
+                  <div class="mini-avatar" style="background:rgba(255,255,255,.45)"></div>
+                  <div class="lines">
+                    <div class="mini-bar" style="width:90%"></div>
+                    <div class="mini-bar dim" style="width:60%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="nm">精致商务</div>
+            </div>
+            <!-- 纸艺 mag 浅色 -->
+            <div class="tpl-cell">
+              <div class="mini-card" style="background:linear-gradient(160deg,#fdfcf9,#f4f1ea);border:1px solid #c9a25e">
+                <div class="mini-in mini-mag">
+                  <div class="mini-bar" style="background:#2b2723;width:70%"></div>
+                  <div class="mini-bar dim" style="background:rgba(43,39,35,.55);width:48%"></div>
+                  <div class="mini-rule" style="background:rgba(201,162,94,.8)"></div>
+                </div>
+                <span class="badge">杂志</span>
+              </div>
+              <div class="nm">纸艺雅致</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="pro"><span class="ok">✓</span>缩略图 = 真名片微缩版：头像、名字条、职位条、版式布局、渐变/描边/纹理全部呈现，选模板一眼看懂</div>
+        <div class="pro"><span class="ok">✓</span>零资源零成本：由代码按 themeConfig 绘制，新模板入库自动有缩略图，无需人工配图</div>
+        <div class="pro"><span class="ok">✓</span>体积友好：不占小程序包、不走网络，快</div>
+        <div class="pro"><span class="no">✗</span>是"示意微缩"而非像素级真实截图，细节（真实头像照片等）用占位表示</div>
+        <span class="verdict a">推荐 · 先用这个，立竿见影</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案B -->
+  <div class="opt">
+    <div class="opt-head">
+      <div class="opt-no b">B</div>
+      <div>
+        <div class="opt-title">真实封面图</div>
+        <div class="opt-sub">模板封面 = 真实渲染截图（后台可上传），缩略图直接用图</div>
+      </div>
+    </div>
+    <div class="opt-body">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="ps-title">选择模板</div>
+          <div class="ps-desc">每张都是真实名片效果图</div>
+          <div class="tpl-strip">
+            <div class="tpl-cell on"><img src="https://p6-flow-sign.byteimg.com/tos-cn-i-ik7evvg4ik/052994cacc104915a459ee3614bd4c26.png~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=20260927232106373D5D502AA8017EC2D0&rrcfp=a6e186ed&x-expires=1793114466&x-signature=r7I5ihjn8F0pY7ceXpEnhySSmOA%3D" style="width:100%;height:62px;object-fit:cover;display:block"><div class="nm">黑金奢华</div></div>
+            <div class="tpl-cell"><img src="https://p26-flow-sign.byteimg.com/tos-cn-i-ik7evvg4ik/86b1c563505f406497146adfe9ceb83a.png~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=20260927232119290150329F1A497D4DA5&rrcfp=a6e186ed&x-expires=1793114479&x-signature=agnSNBzXfreoXiAhv2ulPyBA4d0%3D" style="width:100%;height:62px;object-fit:cover;display:block"><div class="nm">暗夜科技</div></div>
+            <div class="tpl-cell"><img src="https://p26-flow-sign.byteimg.com/tos-cn-i-ik7evvg4ik/df495bcd202c4c82a3b0405db59a088d.png~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=20260927232053540B96D799273570B3C5&rrcfp=a6e186ed&x-expires=1793114453&x-signature=7d%2FWCC3WizBv3HyVsDz%2FlRcjEyI%3D" style="width:100%;height:62px;object-fit:cover;display:block"><div class="nm">精致商务</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="pros">
+        <div class="pro"><span class="ok">✓</span>最直观：就是真实名片效果，用户看到的=最终成品</div>
+        <div class="pro"><span class="ok">✓</span>模板市场后台可维护：上传/更换封面，运营可控</div>
+        <div class="pro"><span class="no">✗</span>每个模板都要有人生成/维护一张封面图，模板多了是持续工作量</div>
+        <div class="pro"><span class="no">✗</span>图片走网络：C 端多一次加载；小程序包要压缩时需把图转远程（你之前定的方向）</div>
+        <span class="verdict b">适合模板市场精细化运营时启用</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案C 推荐 -->
+  <div class="opt rec">
+    <span class="rec-badge">推荐</span>
+    <div class="opt-head">
+      <div class="opt-no b">C</div>
+      <div>
+        <div class="opt-title">混合：默认代码渲染 + 封面图可覆盖</div>
+        <div class="opt-sub">迷你名片缩略图为默认，后台模板市场可为模板上传真实封面，有封面用封面、无封面用迷你名片</div>
+      </div>
+    </div>
+    <div class="opt-body">
+      <div class="pros" style="min-width:100%;margin-top:0">
+        <div class="pro"><span class="ok">✓</span>今天就能见效：6 个新模板 + 旧模板立即有直观缩略图，零人工</div>
+        <div class="pro"><span class="ok">✓</span>长期可升级：运营想更精细时，逐模板上传真实封面即切换，两端（创建页+模板市场）共用 cover 字段</div>
+        <div class="pro"><span class="ok">✓</span>包体积/网络可控：默认不加载图片；封面只在存在时走远程图，压缩包时也可一键退回</div>
+        <div class="pro"><span class="ok">✓</span>逻辑统一：一个 getTplCover(t) 函数同时服务创建页缩略图与模板市场卡片</div>
+        <span class="verdict b">推荐实施</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="opt">
+    <div class="cmp-title">三案对比</div>
+    <table>
+      <tr><th>维度</th><th>现状</th><th>A 代码渲染</th><th>B 真实封面</th><th>C 混合（推荐）</th></tr>
+      <tr><td>直观度</td><td>低（只有字）</td><td>高（微缩名片）</td><td>最高（真实效果）</td><td>高→最高（随封面升级）</td></tr>
+      <tr><td>实施成本</td><td>—</td><td>低（纯前端）</td><td>中（需配图+上传）</td><td>低（先 A，B 后补）</td></tr>
+      <tr><td>资源/体积</td><td>—</td><td>零</td><td>网络图</td><td>默认零，可选网络图</td></tr>
+      <tr><td>模板市场联动</td><td>—</td><td>同函数复用</td><td>cover 字段</td><td>同函数复用+cover 字段</td></tr>
+      <tr><td>新增模板体验</td><td>—</td><td>自动有缩略图</td><td>需人工配图</td><td>自动有，可再配图</td></tr>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

@@ -24,9 +24,8 @@
         class="tpl-item"
         :class="{ active: applyingId === t.id || card.templateId === t.id }"
       >
-        <view class="tpl-cover" :style="{ background: (t.themeConfig && t.themeConfig.primary) || '#165dff' }">
-          <image v-if="t.cover" :src="t.cover" class="tpl-cover-img" mode="aspectFill" />
-          <text v-else class="tpl-cover-text">{{ t.name.slice(0, 2) }}</text>
+        <view class="tpl-cover">
+          <TplThumb :template="t" class="tpl-thumb" />
           <text class="tpl-layout" v-if="t.layout === 'full'">全屏大图</text>
           <text class="tpl-price-tag" :class="Number(t.price) > 0 ? 'paid' : 'free'">{{ Number(t.price) > 0 ? '¥' + Number(t.price) : '免费' }}</text>
           <view class="tpl-owned" v-if="t.purchased">已购</view>
@@ -49,6 +48,7 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import TplThumb from '../../components/TplThumb.vue';
 
 const cardId = ref(null);
 const card = ref({});
@@ -152,9 +152,8 @@ onLoad((options) => {
 .tpl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; padding: 24rpx; }
 .tpl-item { background: #fff; border-radius: 16rpx; overflow: hidden; border: 2rpx solid transparent; }
 .tpl-item.active { border-color: #165dff; }
-.tpl-cover { position: relative; height: 200rpx; display: flex; align-items: center; justify-content: center; }
-.tpl-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.tpl-cover-text { font-size: 40rpx; color: #fff; font-weight: 600; }
+.tpl-cover { position: relative; height: 200rpx; }
+.tpl-thumb { position: absolute; inset: 0; }
 .tpl-layout { position: absolute; left: 8rpx; top: 8rpx; font-size: 18rpx; color: #fff; background: rgba(0,0,0,0.45); padding: 4rpx 10rpx; border-radius: 8rpx; }
 .tpl-price-tag { position: absolute; left: 8rpx; bottom: 8rpx; font-size: 18rpx; padding: 4rpx 10rpx; border-radius: 8rpx; color: #fff; }
 .tpl-price-tag.free { background: rgba(0,180,42,0.85); }
