@@ -1094,16 +1094,23 @@ function dpFormStyle(p) {
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
-// 底部导航避让：CardTabBar 高约 50px（100rpx）+ 底部安全区；悬浮组件 bottom 位置需在其上方，否则被底部导航遮挡
-const TAB_BAR_H = 50 + (() => {
+// 底部导航避让：CardTabBar 实际高度动态测量（未渲染时兜底 50px + 底部安全区）；
+// 悬浮组件 bottom 位置需在其上方，否则被底部导航遮挡；动态测量保证与画布「按钮距导航=组件边距」完全一致
+const tabBarH = ref(50 + (() => {
   try { return uni.getSystemInfoSync().safeAreaInsets?.bottom || 0; } catch (e) { return 0; }
-})();
+})());
+function measureTabBar() {
+  try {
+    const el = document.querySelector('.mp-tabbar') || document.querySelector('.dp-tabbar');
+    if (el) tabBarH.value = Math.round(el.getBoundingClientRect().height);
+  } catch (e) { /* 小程序无 document，走兜底值 */ }
+}
 
 function dpFloatStyle(p) {
   const s = { background: p.color || '#165dff' };
   let d = p.distance ?? 12;
   const pos = p.position || 'bottom-right';
-  if (pos === 'bottom-left' || pos === 'bottom-right') d += TAB_BAR_H;
+  if (pos === 'bottom-left' || pos === 'bottom-right') d += tabBarH.value;
   d += 'px';
   if (pos === 'top-left') { s.top = d; s.left = d; }
   else if (pos === 'top-right') { s.top = d; s.right = d; }
@@ -1323,7 +1330,7 @@ function dpFabCartStyle(p) {
   if (pos === 'right') pos = 'top-right';
   else if (pos === 'right-bottom') pos = 'bottom-right';
   if (Number.isNaN(d) || d == null) d = Number(p.marginTop) || Number(p.marginBottom) || 20;
-  if (pos === 'bottom-left' || pos === 'bottom-right') d += TAB_BAR_H;
+  if (pos === 'bottom-left' || pos === 'bottom-right') d += tabBarH.value;
   d += 'px';
   if (pos === 'top-left') { st.top = d; st.left = d; }
   else if (pos === 'top-right') { st.top = d; st.right = d; }
@@ -1355,6 +1362,8 @@ onMounted(() => {
   loadContentArticles();
   loadLiveList();
   loadMallComps();
+  measureTabBar();
+  setTimeout(measureTabBar, 300);
   if ((props.comps || []).some((c) => c.type === 'fab-cart')) {
     loadCartCount();
     uni.$on('cart:changed', onCartChanged);
