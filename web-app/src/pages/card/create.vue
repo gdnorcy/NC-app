@@ -66,7 +66,8 @@
       <view class="bar-label">
         <text>{{ steps[currentStep] }}</text>
         <text v-if="currentStep === 0" class="bar-next">· 下一步填写联系方式</text>
-        <text v-else-if="currentStep === 1" class="bar-next">· 下一步发布设置</text>
+        <text v-else-if="currentStep === 1" class="bar-next">· 下一步名片配置</text>
+        <text v-else-if="currentStep === 2" class="bar-next">· 下一步发布设置</text>
       </view>
     </view>
 
@@ -134,45 +135,10 @@
           <view class="form-label">一句话介绍</view>
           <input class="form-input" v-model="form.bio" placeholder="你专注什么、能提供什么" placeholder-class="ph" />
         </view>
+      </view>
 
-        <!-- 头像上传 -->
-        <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
-        <view class="avatar-row">
-          <view class="avatar-upload" @click="chooseAvatar">
-            <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill" />
-            <view v-else class="avatar-placeholder">
-              <text class="avatar-plus">+</text>
-              <text class="avatar-text">上传</text>
-            </view>
-          </view>
-          <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
-        </view>
-
-        <!-- 语音简介（VIP权益：上传音频；克隆语音后续） -->
-        <view class="card-title" style="margin-top: 20rpx;">语音简介<text class="vip-tag">VIP</text></view>
-        <view class="voice-row" v-if="voiceAllowed">
-          <view class="voice-upload" @click="chooseVoice" v-if="!form.voiceUrl">
-            <text class="voice-plus">+</text>
-            <text class="voice-text">上传音频</text>
-          </view>
-          <view class="voice-file" v-else>
-            <SIcon name="dynamic" size="large" color="#165dff" />
-            <view class="vf-info">
-              <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
-              <view class="vf-tip">点击播放试听</view>
-            </view>
-            <audio class="voice-audio" :src="voiceSrc" controls v-if="voiceSrc" />
-            <view class="vf-actions">
-              <text class="vf-del" @click="clearVoice">删除</text>
-              <text class="vf-re" @click="chooseVoice">重传</text>
-            </view>
-          </view>
-          <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
-        </view>
-        <view class="voice-locked" v-else @click="goMember">
-          <SIcon name="crown" size="small" color="#ffd21e" />
-          <text>开通会员解锁语音简介</text>
-        </view>
+      <!-- 卡片3：名片配置 -->
+      <view class="card" :class="{ active: currentStep === 2, prev: currentStep > 2 }">
         <view v-if="!isEdit" class="card-title" style="margin-top: 20rpx;">选择名片类型</view>
         <view v-if="!isEdit" class="card-desc">个人也可以创建，无需企业账号</view>
 
@@ -266,11 +232,49 @@
           </view>
         </view>
 
-
       </view>
 
-      <!-- 卡片3：发布设置 -->
-      <view class="card" :class="{ active: currentStep === 2 }">
+      <!-- 卡片4：发布设置 -->
+      <view class="card" :class="{ active: currentStep === 3, prev: currentStep > 3 }">
+        <!-- 头像上传 -->
+        <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
+        <view class="avatar-row">
+          <view class="avatar-upload" @click="chooseAvatar">
+            <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill" />
+            <view v-else class="avatar-placeholder">
+              <text class="avatar-plus">+</text>
+              <text class="avatar-text">上传</text>
+            </view>
+          </view>
+          <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
+        </view>
+
+        <!-- 语音简介（VIP权益：上传音频；克隆语音后续） -->
+        <view class="card-title" style="margin-top: 20rpx;">语音简介<text class="vip-tag">VIP</text></view>
+        <view class="voice-row" v-if="voiceAllowed">
+          <view class="voice-upload" @click="chooseVoice" v-if="!form.voiceUrl">
+            <text class="voice-plus">+</text>
+            <text class="voice-text">上传音频</text>
+          </view>
+          <view class="voice-file" v-else>
+            <SIcon name="dynamic" size="large" color="#165dff" />
+            <view class="vf-info">
+              <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
+              <view class="vf-tip">点击播放试听</view>
+            </view>
+            <audio class="voice-audio" :src="voiceSrc" controls v-if="voiceSrc" />
+            <view class="vf-actions">
+              <text class="vf-del" @click="clearVoice">删除</text>
+              <text class="vf-re" @click="chooseVoice">重传</text>
+            </view>
+          </view>
+          <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
+        </view>
+        <view class="voice-locked" v-else @click="goMember">
+          <SIcon name="crown" size="small" color="#ffd21e" />
+          <text>开通会员解锁语音简介</text>
+        </view>
+
         <view class="card-title">发布设置</view>
         <view class="card-desc">设置名片展示和发布选项</view>
 
@@ -317,14 +321,13 @@
         </view>
       </view>
     </view>
-
     <!-- 底部操作栏 -->
     <view class="footer">
       <view class="footer-btns">
         <button v-if="currentStep > 0" class="btn-secondary" @click="prevStep">上一步</button>
         <button v-if="currentStep === 1" class="btn-skip" @click="skipDetail">跳过</button>
-        <button v-if="currentStep < 2" class="btn-primary" @click="nextStep">{{ currentStep === 0 ? '下一步 · 填写联系方式' : '下一步 · 发布设置' }}</button>
-        <button v-if="currentStep === 2" class="btn-primary" @click="submit" :disabled="submitting">
+        <button v-if="currentStep < 3" class="btn-primary" @click="nextStep">{{ currentStep === 0 ? '下一步 · 填写联系方式' : currentStep === 1 ? '下一步 · 名片配置' : '下一步 · 发布设置' }}</button>
+        <button v-if="currentStep === 3" class="btn-primary" @click="submit" :disabled="submitting">
           {{ submitting ? '提交中...' : (isEdit ? '保存修改' : '创建名片') }}
         </button>
       </view>
@@ -353,7 +356,7 @@ const applyMsg = ref('');
 const currentStep = ref(0);
 const cardType = ref('individual');
 const showBind = ref(false);
-const steps = ['基本信息', '联系方式', '发布设置'];
+const steps = ['基本信息', '联系方式', '名片配置', '发布设置'];
 // 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导 / split 沉浸双分区
 const skinType = ref('live');
 
