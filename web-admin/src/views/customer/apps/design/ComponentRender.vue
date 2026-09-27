@@ -732,7 +732,7 @@
     </template>
     <!-- 功能组件：购物车（浮动入口，位置/颜色可配） -->
     <template v-else-if="comp.type === 'fab-cart'">
-      <div class="r-fab-cart" :class="comp.props.position === 'right-bottom' ? 'r-fab-rb' : ''" :style="fabCartStyle(comp.props)">
+      <div class="r-fab-cart" :style="fabCartStyle(comp.props)">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" :stroke="comp.props.iconColor || '#fff'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h2.6l2.7 12.4a2 2 0 0 0 2 1.6h8.3a2 2 0 0 0 2-1.6L21.5 8H6"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/></svg>
         <span v-if="comp.props.showBadge !== false" class="r-fab-cart-badge">3</span>
         <span class="r-fab-cart-tag">购物车</span>
@@ -1440,11 +1440,17 @@ function chRadius(p, i) {
 }
 function fabCartStyle(p) {
   const st = {};
-  if (p.position === 'right-bottom') {
-    st.bottom = (100 + (Number(p.marginBottom) || 0)) + 'px';
-  } else {
-    st.top = (120 + (Number(p.marginTop) || 0)) + 'px';
-  }
+  let d = Number(p.distance);
+  // 兼容旧数据：position right→右上、right-bottom→右下；无 distance 时取旧 marginTop/marginBottom
+  let pos = p.position || 'bottom-right';
+  if (pos === 'right') pos = 'top-right';
+  else if (pos === 'right-bottom') pos = 'bottom-right';
+  if (Number.isNaN(d) || d == null) d = Number(p.marginTop) || Number(p.marginBottom) || 20;
+  d += 'px';
+  if (pos === 'top-left') { st.top = d; st.left = d; }
+  else if (pos === 'top-right') { st.top = d; st.right = d; }
+  else if (pos === 'bottom-left') { st.bottom = d; st.left = d; }
+  else { st.bottom = d; st.right = d; }
   if (p.bgColor) st.background = p.bgColor;
   return st;
 }
@@ -1976,8 +1982,7 @@ const nativeGridItems = [
 .r-native-title{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:600;color:#1d2129;margin-bottom:10px;}
 .r-native-title em{font-style:normal;font-size:11px;font-weight:400;color:#86909c;}
 .r-native-market-empty{text-align:center;color:#86909c;font-size:12px;padding:14px 0;background:#f7f8fa;border-radius:8px;}
-.r-fab-cart{position:absolute;right:14px;top:120px;z-index:999;width:44px;height:44px;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
-.r-fab-cart.r-fab-rb{top:auto;bottom:100px;}
+.r-fab-cart{position:absolute;z-index:999;width:44px;height:44px;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
 .r-fab-cart-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;line-height:16px;border-radius:8px;background:#ff3b30;color:#fff;font-size:10px;text-align:center;padding:0 4px;box-sizing:border-box;}
 /* 画布悬浮组件名称标签（仅编辑器显示，C 端不渲染） */
 .r-fab-cart-tag,.r-float-tag{position:absolute;top:50%;transform:translateY(-50%);right:calc(100% + 8px);font-size:11px;line-height:1.4;color:#165dff;background:rgba(255,255,255,.95);border:1px solid rgba(22,93,255,.35);border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.08);pointer-events:none;}

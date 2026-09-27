@@ -650,7 +650,7 @@
           </view>
         </view>
       </view>
-      <view v-else-if="c.type === 'fab-cart'" class="dp-fab-cart" :class="c.props.position === 'right-bottom' ? 'dp-fab-rb' : ''" :style="dpFabCartStyle(c.props)" @click="goCart">
+      <view v-else-if="c.type === 'fab-cart'" class="dp-fab-cart" :style="dpFabCartStyle(c.props)" @click="goCart">
         <SIcon name="cart" size="default" :color="c.props.iconColor || '#ffffff'" />
         <view v-if="c.props.showBadge !== false && cartCount > 0" class="dp-fab-badge">{{ cartCount > 99 ? '99+' : cartCount }}</view>
       </view>
@@ -1310,11 +1310,17 @@ async function loadCartCount() {
 function onCartChanged() { loadCartCount(); }
 function dpFabCartStyle(p) {
   const st = {};
-  if (p.position === 'right-bottom') {
-    st.bottom = (140 + (Number(p.marginBottom) || 0)) + 'rpx';
-  } else {
-    st.top = (180 + (Number(p.marginTop) || 0)) + 'rpx';
-  }
+  let d = Number(p.distance);
+  // 兼容旧数据：position right→右上、right-bottom→右下；无 distance 时取旧 marginTop/marginBottom
+  let pos = p.position || 'bottom-right';
+  if (pos === 'right') pos = 'top-right';
+  else if (pos === 'right-bottom') pos = 'bottom-right';
+  if (Number.isNaN(d) || d == null) d = Number(p.marginTop) || Number(p.marginBottom) || 20;
+  d += 'px';
+  if (pos === 'top-left') { st.top = d; st.left = d; }
+  else if (pos === 'top-right') { st.top = d; st.right = d; }
+  else if (pos === 'bottom-left') { st.bottom = d; st.left = d; }
+  else { st.bottom = d; st.right = d; }
   if (p.bgColor) st.background = p.bgColor;
   return st;
 }
@@ -2039,8 +2045,7 @@ function openChannel(kind, p) {
 .ew-feat-img{position:absolute;right:0;top:0;width:200rpx;height:100%;border-radius:0 16rpx 16rpx 0;opacity:.6;}
 
 /* 功能组件-购物车（浮动入口） */
-.dp-fab-cart{position:fixed;right:28rpx;top:180rpx;z-index:999;width:88rpx;height:88rpx;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 4rpx 16rpx rgba(0,0,0,.15);}
-.dp-fab-cart.dp-fab-rb{top:auto;bottom:140rpx;}
+.dp-fab-cart{position:fixed;z-index:999;width:88rpx;height:88rpx;border-radius:50%;background:#165dff;display:flex;align-items:center;justify-content:center;box-shadow:0 4rpx 16rpx rgba(0,0,0,.15);}
 .dp-fab-badge{position:absolute;top:-6rpx;right:-6rpx;min-width:32rpx;height:32rpx;line-height:32rpx;border-radius:16rpx;background:#ff3b30;color:#fff;font-size:20rpx;text-align:center;padding:0 8rpx;box-sizing:border-box;}
 </style>
 

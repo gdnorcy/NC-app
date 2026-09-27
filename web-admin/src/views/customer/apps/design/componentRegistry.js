@@ -1417,14 +1417,13 @@ export const componentRegistry = [
     name: '购物车',
     group: 'mall',
     icon: 'cart',
-    defaultProps: { bgColor: '#165dff', iconColor: '#ffffff', showBadge: true, position: 'right', marginTop: 0, marginBottom: 0 },
+    defaultProps: { bgColor: '#165dff', iconColor: '#ffffff', showBadge: true, position: 'bottom-right', distance: 20 },
     schema: [
       { key: 'showBadge', label: '显示数量角标', control: 'switch', section: 'content' },
-      { key: 'position', label: '悬浮位置', control: 'radio', section: 'content', options: [{ label: '右侧中部', value: 'right' }, { label: '右下角', value: 'right-bottom' }] },
+      { key: 'position', label: '悬浮位置', control: 'radio', section: 'style', options: [{ label: '左上', value: 'top-left' }, { label: '右上', value: 'top-right' }, { label: '左下', value: 'bottom-left' }, { label: '右下', value: 'bottom-right' }] },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'iconColor', label: '图标颜色', control: 'color', section: 'style' },
-      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 80 },
-      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 80 },
+      { key: 'distance', label: '组件边距', control: 'slider', section: 'style', min: 4, max: 60 },
     ],
   },
   {

@@ -1334,7 +1334,9 @@ const schemaSections = computed(() => {
   const def = findComponent(selectedComp.value.type);
   if (!def) return [];
   const ownKeys = def.schema.map((f) => f.key);
-  const common = commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))) && !(selectedComp.value.type === 'rich-text' && f.key === 'bgColor'));
+  // 悬浮组件（购物车/悬浮按钮）：外观/边距由自身 schema 管理，通用样式（内边距/圆角/左右边距等）无用途且不生效，整区跳过
+  const isFloatComp = selectedComp.value.type === 'fab-cart' || selectedComp.value.type === 'float-btn';
+  const common = isFloatComp ? [] : commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))) && !(selectedComp.value.type === 'rich-text' && f.key === 'bgColor'));
   const props = selectedComp.value.props || {};
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;
