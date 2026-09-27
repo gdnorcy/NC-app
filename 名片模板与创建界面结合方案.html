@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名片模板 × 创建界面 结合方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; background: #0f1117; color: #fff; padding: 36px 20px 60px; }
+  .page-head { text-align: center; margin-bottom: 30px; }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+  .page-head p { color: #8b93a7; font-size: 12.5px; margin-top: 8px; }
+  .page-head p b { color: #4d8dff; }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+
+  .layer { display: flex; gap: 22px; align-items: stretch; margin-bottom: 26px; }
+  .l-box { flex: 1; background: #171a22; border: 1px solid #262b37; border-radius: 18px; padding: 20px; }
+  .l-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 99px; margin-bottom: 12px; }
+  .l-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .l-box .desc { font-size: 11.5px; color: #9aa3b2; line-height: 1.9; margin-bottom: 12px; }
+  .l-box .role { font-size: 11px; color: #aeb6c6; background: #0d1017; border-radius: 10px; padding: 10px 12px; line-height: 1.8; }
+  .l-box .role b { color: #4d8dff; }
+  .link { align-self: center; font-size: 26px; color: #4d8dff; text-align: center; flex-shrink: 0; }
+  .link small { display: block; font-size: 9px; color: #7d8699; }
+
+  .mid { background: linear-gradient(135deg, rgba(77,141,255,.14), rgba(139,123,255,.1)); border: 1px solid rgba(77,141,255,.35); border-radius: 18px; padding: 20px; margin-bottom: 26px; }
+  .mid h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .mid p { font-size: 11.5px; color: #c7d2e6; line-height: 1.9; }
+  .mid .flow { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .flow-step { flex: 1; min-width: 130px; background: #12151c; border-radius: 12px; padding: 12px; text-align: center; }
+  .flow-step .n { width: 20px; height: 20px; border-radius: 50%; background: #4d8dff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; margin: 0 auto 8px; }
+  .flow-step .t { font-size: 11.5px; font-weight: 700; }
+  .flow-step .s { font-size: 9.5px; color: #8b93a7; margin-top: 4px; line-height: 1.5; }
+  .flow-arr { align-self: center; color: #4d8dff; font-size: 16px; }
+
+  .plan-list { background: #171a22; border: 1px solid #262b37; border-radius: 18px; padding: 20px; }
+  .plan-list h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th { text-align: left; color: #8b93a7; font-weight: 600; padding: 8px 10px; border-bottom: 1px solid #262b37; }
+  td { padding: 10px; border-bottom: 1px solid #1d2129; color: #c7d2e6; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td b { color: #fff; }
+  .pill { display: inline-block; font-size: 9px; padding: 2px 8px; border-radius: 99px; background: rgba(77,141,255,.15); color: #7eb0ff; margin-right: 4px; }
+  .pill.g { background: rgba(201,162,94,.15); color: #e6cfa6; }
+  .steps { list-style: none; margin-top: 12px; }
+  .steps li { font-size: 11.5px; color: #aeb6c6; line-height: 2; padding-left: 22px; position: relative; }
+  .steps li::before { content: '➜'; position: absolute; left: 0; color: #4d8dff; }
+  .steps li b { color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>名片模板 × 创建界面 · 结合方案</h1>
+  <p>两层职责：<b>模板市场决定名片长什么样</b> · <b>创建界面是模板的「试穿间」</b></p>
+</div>
+
+<div class="wrap">
+
+  <!-- 两层架构 -->
+  <div class="layer">
+    <div class="l-box">
+      <div class="l-tag" style="background:rgba(77,141,255,.15);color:#7eb0ff">第 1 层 · 模板市场（名片模板）</div>
+      <h3>决定「名片长什么样」</h3>
+      <div class="desc">卡片模板库（card_templates）——用户选中的模板 = 名片详情页的版式与视觉。承接 A/D/E/G/H/I。</div>
+      <div class="role">
+        <b>产出</b>：6 个新模板（精致商务/实时光效/沉浸展示/黑金奢华/暗夜科技/纸艺雅致）+ 现有 3 + 全屏沉浸 = 10 个<br>
+        <b>内容</b>：heroLayout 版式（经典/居中/杂志）+ 视觉风格（渐变/字体/描边/纹理）<br>
+        <b>影响面</b>：名片详情、分享、会员中心等所有展示点
+      </div>
+    </div>
+    <div class="link">⇄<small>选择/预览</small></div>
+    <div class="l-box">
+      <div class="l-tag" style="background:rgba(201,162,94,.15);color:#e6cfa6">第 2 层 · 创建界面（create.vue）</div>
+      <h3>决定「创建名片怎么操作」</h3>
+      <div class="desc">用户创建名片的流程界面——不搞皮肤化，做交互升级。采用方案 D 的实时预览范式。</div>
+      <div class="role">
+        <b>升级</b>：中央名片实时预览卡（随模板换肤、随输入更新）<br>
+        <b>升级</b>：模板选择区横滑展示模板市场全部模板（缩略图=迷你名片）<br>
+        <b>升级</b>：紧凑编辑表单，边填边看效果<br>
+        <b>本质</b>：创建界面 = 模板的「试穿间」
+      </div>
+    </div>
+  </div>
+
+  <!-- 结合点 -->
+  <div class="mid">
+    <h3>◎ 结合点：创建界面实时预览卡 = 按选中模板 theme_config 渲染的「迷你名片」</h3>
+    <p>
+      创建界面与模板市场<b>共用同一套渲染函数</b>（renderTemplateTheme）——创建界面里的预览卡，就是名片详情页的缩小版。<br>
+      用户在创建时选中的模板、填写的姓名/职位，实时渲染在预览卡上 → 保存后名片详情页<b>长一样</b>。模板是"衣服"，创建界面是"试衣间"，两者通过同一渲染内核结合。
+    </p>
+    <div class="flow">
+      <div class="flow-step"><div class="n">1</div><div class="t">进入创建</div><div class="s">选择名片类型<br>个人/企业</div></div>
+      <div class="flow-arr">➜</div>
+      <div class="flow-step"><div class="n">2</div><div class="t">选模板</div><div class="s">横滑浏览模板市场<br>点选即换肤预览</div></div>
+      <div class="flow-arr">➜</div>
+      <div class="flow-step"><div class="n">3</div><div class="t">填信息</div><div class="s">姓名/职位/城市<br>名片卡实时更新</div></div>
+      <div class="flow-arr">➜</div>
+      <div class="flow-step"><div class="n">4</div><div class="t">保存发布</div><div class="s">名片详情页<br>与预览完全一致</div></div>
+    </div>
+  </div>
+
+  <!-- 分工表 -->
+  <div class="plan-list">
+    <h3>两部分改造的分工与建议顺序</h3>
+    <table>
+      <tr><th style="width:26%">事项</th><th style="width:37%">模板市场层（第 1 层）</th><th>创建界面层（第 2 层）</th></tr>
+      <tr><td><b>A/D/E/G/H/I 的作用</b></td><td>6 个方案的<b>名片卡视觉+版式</b> → 成为 6 个模板，详情页按模板渲染</td><td>方案 D 的<b>实时预览交互</b> → 创建页升级为所见即所得；方案的页面布局不做皮肤化</td></tr>
+      <tr><td><b>核心开发</b></td><td><span class="pill">DB</span>插 6 模板 <span class="pill">渲染</span>renderTemplateTheme（hero 版式分支）</td><td><span class="pill">创建页</span>实时预览卡 <span class="pill">横滑</span>模板选择 <span class="pill">紧凑</span>表单</td></tr>
+      <tr><td><b>影响面</b></td><td>名片详情/分享/会员中心（全局渲染）</td><td>仅创建流程页（create.vue）</td></tr>
+      <tr><td><b>顺序</b></td><td colspan="2"><b>先做模板层（基础）→ 再做创建界面层（复用同一渲染函数）→ 三端实测</b></td></tr>
+    </table>
+    <ul class="steps">
+      <li><b>先模板层</b>：card_templates 插 6 模板（theme_config 含 heroLayout+视觉），渲染函数支持三种 hero 版式 —— 模板市场先立起来</li>
+      <li><b>再创建界面</b>：create.vue 中央加实时预览卡（复用渲染函数）+ 模板横滑选择 + 紧凑表单 —— 创建体验升级</li>
+      <li><b>最后联测</b>：创建时选模板 → 预览 → 保存 → 详情页一致（H5+小程序）</li>
+    </ul>
+  </div>
+
+</div>
+
+</body>
+</html>

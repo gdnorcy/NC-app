@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新建名片界面优化方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0f1117;
+    color: #fff;
+    padding: 40px 20px 60px;
+  }
+  .page-head { text-align: center; margin-bottom: 36px; }
+  .page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: 1px; }
+  .page-head p { color: #8b93a7; font-size: 13px; margin-top: 8px; }
+  .page-head p b { color: #4d8dff; }
+
+  .compare { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; }
+  .plan {
+    width: 330px; background: #171a22; border-radius: 20px; padding: 22px 18px 26px;
+    border: 1px solid #262b37;
+  }
+  .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .plan-badge {
+    width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: #fff; flex-shrink: 0;
+  }
+  .plan-name { font-size: 16px; font-weight: 700; }
+  .plan-sub { font-size: 11px; color: #8b93a7; margin-top: 2px; }
+  .plan-tag { margin-left: auto; font-size: 10px; color: #8b93a7; border: 1px solid #333a4a; padding: 3px 8px; border-radius: 99px; }
+
+  /* 手机壳 */
+  .phone {
+    width: 290px; height: 600px; margin: 0 auto; border-radius: 38px;
+    background: #0b0d12; border: 7px solid #23262e; position: relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 2px #14161c;
+  }
+  .phone::before {
+    content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 72px; height: 18px; background: #1b1e26; border-radius: 99px; z-index: 9;
+  }
+  .screen {
+    position: absolute; inset: 0; border-radius: 31px; overflow: hidden;
+    background: #f2f4f7; font-size: 12px; color: #1d2129;
+  }
+  .screen * { box-sizing: border-box; }
+
+  /* ============ 方案A：精致卡片 ============ */
+  .a-body { display: flex; flex-direction: column; height: 100%; }
+  .a-hero {
+    padding: 40px 18px 26px; position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #0e2a4e 0%, #165dff 78%, #3b7bd4 100%);
+  }
+  .a-hero::after {
+    content:''; position: absolute; right: -40px; top: -30px; width: 140px; height: 140px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.28), rgba(255,255,255,0) 65%);
+  }
+  .a-hero::before {
+    content:''; position: absolute; left: -30px; bottom: -46px; width: 110px; height: 110px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(122,186,255,.35), rgba(122,186,255,0) 65%);
+  }
+  .a-hero .login { position: absolute; top: 40px; right: 18px; font-size: 10px; color: #fff; background: rgba(255,255,255,.18); padding: 5px 12px; border-radius: 99px; }
+  .a-hero h2 { color: #fff; font-size: 22px; font-weight: 800; letter-spacing: .5px; }
+  .a-hero p { color: rgba(255,255,255,.78); font-size: 11px; margin-top: 5px; }
+  .a-steps { display: flex; align-items: center; gap: 6px; margin-top: 18px; }
+  .a-step { display: flex; align-items: center; gap: 5px; }
+  .a-dot {
+    width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; background: rgba(255,255,255,.22); color: #fff;
+  }
+  .a-dot.on { background: #fff; color: #165dff; box-shadow: 0 0 0 4px rgba(255,255,255,.18); }
+  .a-dot.ok { background: #34d17b; color: #fff; }
+  .a-step-label { color: rgba(255,255,255,.8); font-size: 10px; }
+  .a-step-label.on { color: #fff; font-weight: 700; }
+  .a-line { width: 18px; height: 2px; background: rgba(255,255,255,.25); border-radius: 2px; }
+
+  .a-scroll { flex: 1; overflow: hidden; padding: 0 14px; background: #f2f4f7; }
+  .a-card {
+    background: #fff; border-radius: 16px; padding: 14px; margin-top: 12px;
+    box-shadow: 0 4px 14px rgba(29,33,41,.05);
+  }
+  .a-card-title { font-size: 13px; font-weight: 700; color: #1d2129; margin-bottom: 3px; }
+  .a-card-sub { font-size: 10px; color: #86909c; margin-bottom: 12px; }
+  .a-types { display: flex; gap: 10px; }
+  .a-type {
+    flex: 1; border: 1.5px solid #e5e6eb; border-radius: 12px; padding: 10px; background: #fafbfc;
+    transition: all .2s;
+  }
+  .a-type.on { border-color: #165dff; background: #eef4ff; box-shadow: 0 0 0 3px rgba(22,93,255,.10); }
+  .a-type-ic { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; margin-bottom: 6px; }
+  .a-type b { font-size: 12px; display: block; }
+  .a-type span { font-size: 9.5px; color: #86909c; display: block; margin-top: 2px; }
+  .a-tpls { display: flex; gap: 8px; }
+  .a-tpl { flex: 1; position: relative; border-radius: 10px; overflow: hidden; }
+  .a-tpl .cover { height: 58px; border-radius: 10px; }
+  .a-tpl .name { font-size: 10px; text-align: center; margin-top: 5px; color: #4e5969; }
+  .a-tpl .tag { position: absolute; top: 4px; left: 4px; font-size: 8px; color: #fff; background: rgba(0,0,0,.35); padding: 1px 5px; border-radius: 99px; }
+  .a-tpl.on .cover { outline: 2px solid #165dff; outline-offset: 1px; }
+  .a-tpl.on::after {
+    content: '✓'; position: absolute; top: 3px; right: 3px; width: 15px; height: 15px;
+    background: #165dff; color: #fff; font-size: 10px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .a-tpl.on .name { color: #165dff; font-weight: 600; }
+  .a-needs { display: flex; flex-wrap: wrap; gap: 7px; }
+  .a-need { font-size: 10.5px; color: #4e5969; background: #f2f3f5; padding: 5px 12px; border-radius: 99px; }
+  .a-need.on { background: linear-gradient(135deg,#165dff,#3b7bd4); color: #fff; font-weight: 600; box-shadow: 0 3px 8px rgba(22,93,255,.3); }
+  .a-fold { font-size: 10px; color: #165dff; margin-left: auto; }
+  .a-field { margin-bottom: 12px; }
+  .a-field:last-child { margin-bottom: 0; }
+  .a-label { font-size: 11px; color: #4e5969; margin-bottom: 6px; }
+  .a-label i { color: #f53f3f; font-style: normal; }
+  .a-input { background: #f7f8fa; border: 1.5px solid #e5e6eb; border-radius: 10px; padding: 10px 12px; font-size: 12px; color: #86909c; }
+  .a-input.ph { color: #c9cdd4; }
+
+  .a-footer { padding: 12px 14px 18px; background: #fff; box-shadow: 0 -4px 16px rgba(0,0,0,.05); }
+  .a-btn {
+    background: linear-gradient(135deg, #07c160, #06a153); color: #fff; text-align: center;
+    padding: 13px; border-radius: 14px; font-size: 14px; font-weight: 700;
+    box-shadow: 0 6px 16px rgba(7,193,96,.35);
+  }
+
+  /* ============ 方案B：沉浸品牌 ============ */
+  .b-body { display: flex; flex-direction: column; height: 100%; }
+  .b-hero {
+    padding: 42px 18px 26px; position: relative; overflow: hidden;
+    background:
+      radial-gradient(circle at 88% 12%, rgba(255,255,255,.35) 0, rgba(255,255,255,0) 42%),
+      radial-gradient(circle at 8% 88%, rgba(120,220,255,.35) 0, rgba(120,220,255,0) 40%),
+      linear-gradient(150deg, #0b2a4a 0%, #124fa8 55%, #0e9bd4 100%);
+  }
+  .b-hero .grid {
+    position: absolute; inset: 0; opacity: .1;
+    background-image: linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .b-login { position: absolute; top: 40px; right: 18px; font-size: 10px; color: #fff; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25); padding: 5px 12px; border-radius: 99px; }
+  .b-hero h2 { color: #fff; font-size: 24px; font-weight: 800; letter-spacing: .5px; position: relative; }
+  .b-hero p { color: rgba(255,255,255,.8); font-size: 11px; margin-top: 6px; position: relative; }
+  .b-bar { display: flex; gap: 5px; margin-top: 20px; position: relative; }
+  .b-bar i { flex: 1; height: 4px; border-radius: 99px; background: rgba(255,255,255,.22); }
+  .b-bar i.on { background: #fff; }
+  .b-bar i.ok { background: #34d17b; }
+  .b-bar-labels { display: flex; justify-content: space-between; margin-top: 6px; position: relative; }
+  .b-bar-labels span { font-size: 9px; color: rgba(255,255,255,.75); }
+  .b-bar-labels span.on { color: #fff; font-weight: 700; }
+
+  .b-sheet {
+    flex: 1; background: #f5f7fa; border-radius: 26px 26px 0 0; margin-top: -18px; position: relative;
+    padding: 6px 16px 0; overflow: hidden;
+  }
+  .b-grip { width: 38px; height: 4px; background: #d4d7de; border-radius: 99px; margin: 8px auto 2px; }
+  .b-group { margin-top: 12px; }
+  .b-gtitle { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #4e5969; margin-bottom: 9px; }
+  .b-gtitle::before { content: ''; width: 3px; height: 12px; background: linear-gradient(#165dff,#0e9bd4); border-radius: 2px; }
+  .b-gtitle .more { margin-left: auto; color: #165dff; font-weight: 500; font-size: 10px; }
+  .b-types { display: flex; gap: 10px; }
+  .b-type { flex: 1; background: #fff; border-radius: 14px; padding: 11px; box-shadow: 0 3px 10px rgba(29,33,41,.05); border: 1.5px solid transparent; }
+  .b-type.on { border-color: #165dff; box-shadow: 0 6px 16px rgba(22,93,255,.14); }
+  .b-type-ic { width: 28px; height: 28px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; margin-bottom: 7px; box-shadow: 0 3px 8px rgba(0,0,0,.12); }
+  .b-type b { font-size: 12px; display: block; }
+  .b-type span { font-size: 9.5px; color: #86909c; display: block; margin-top: 2px; }
+  .b-tpl-scroll { display: flex; gap: 10px; overflow: hidden; }
+  .b-tpl { flex-shrink: 0; width: 118px; }
+  .b-tpl .cover { height: 74px; border-radius: 12px; position: relative; }
+  .b-tpl .cover i { position: absolute; bottom: 6px; left: 8px; font-style: normal; font-size: 9px; color: #fff; background: rgba(0,0,0,.32); padding: 1px 6px; border-radius: 99px; }
+  .b-tpl .name { font-size: 10px; text-align: center; margin-top: 5px; color: #4e5969; }
+  .b-tpl.on .cover { outline: 2px solid #165dff; outline-offset: 2px; box-shadow: 0 4px 12px rgba(22,93,255,.25); }
+  .b-tpl.on .name { color: #165dff; font-weight: 700; }
+  .b-tpl .chk { display: none; }
+  .b-tpl.on .chk { display: flex; position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; background: #165dff; color: #fff; font-size: 10px; border-radius: 50%; align-items: center; justify-content: center; }
+  .b-needs { display: flex; flex-wrap: wrap; gap: 7px; }
+  .b-need { font-size: 10.5px; color: #4e5969; background: #fff; padding: 5px 12px; border-radius: 99px; box-shadow: 0 2px 6px rgba(29,33,41,.05); }
+  .b-need.on { background: linear-gradient(135deg,#165dff,#0e9bd4); color: #fff; font-weight: 600; box-shadow: 0 4px 10px rgba(22,93,255,.28); }
+  .b-field { background: #fff; border-radius: 12px; padding: 11px 13px; margin-bottom: 9px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(29,33,41,.04); }
+  .b-field label { font-size: 11px; color: #1d2129; width: 58px; flex-shrink: 0; }
+  .b-field label i { color: #f53f3f; font-style: normal; }
+  .b-field span { font-size: 11px; color: #c9cdd4; flex: 1; }
+  .b-footer { padding: 12px 16px 18px; }
+  .b-btn {
+    background: linear-gradient(135deg, #0fae63, #07c160); color: #fff; text-align: center;
+    padding: 14px; border-radius: 16px; font-size: 15px; font-weight: 800; position: relative;
+    box-shadow: 0 8px 20px rgba(7,193,96,.4);
+  }
+  .b-btn small { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: 500; opacity: .85; }
+  .b-hint { text-align: center; font-size: 9.5px; color: #86909c; margin-top: 8px; }
+
+  /* ============ 方案C：轻量极简 ============ */
+  .c-body { display: flex; flex-direction: column; height: 100%; background: #f7f8fa; }
+  .c-top { padding: 44px 20px 14px; }
+  .c-login { float: right; font-size: 10px; color: #165dff; border: 1px solid #cfe0ff; background: #eef4ff; padding: 5px 12px; border-radius: 99px; }
+  .c-top h2 { font-size: 22px; font-weight: 800; color: #1d2129; letter-spacing: .5px; margin-top: 16px; }
+  .c-top p { color: #86909c; font-size: 11px; margin-top: 5px; }
+  .c-steps { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .c-dot { width: 8px; height: 8px; border-radius: 50%; background: #dfe2e8; }
+  .c-dot.on { width: 22px; background: #165dff; border-radius: 99px; }
+  .c-dot.ok { background: #07c160; }
+  .c-step-label { font-size: 10px; color: #86909c; }
+  .c-step-label.on { color: #165dff; font-weight: 700; }
+  .c-line { width: 14px; height: 1px; background: #dfe2e8; }
+
+  .c-scroll { flex: 1; overflow: hidden; padding: 0 20px; }
+  .c-section { border-bottom: 1px solid #eceef2; padding: 16px 0; }
+  .c-section:last-child { border-bottom: none; }
+  .c-title { font-size: 13px; font-weight: 700; color: #1d2129; margin-bottom: 4px; }
+  .c-sub { font-size: 10px; color: #a9aeb8; margin-bottom: 12px; }
+  .c-types { display: flex; gap: 12px; }
+  .c-type { flex: 1; }
+  .c-type .ic { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; margin-bottom: 6px; }
+  .c-type b { font-size: 12px; color: #1d2129; display: block; }
+  .c-type span { font-size: 9.5px; color: #a9aeb8; display: block; margin-top: 2px; }
+  .c-type.on b { color: #165dff; }
+  .c-type.on .ic { box-shadow: 0 0 0 3px #eef4ff; }
+  .c-tpls { display: flex; gap: 12px; }
+  .c-tpl { flex: 1; text-align: center; }
+  .c-tpl .cover { height: 64px; border-radius: 10px; border: 2px solid transparent; }
+  .c-tpl .name { font-size: 10px; color: #4e5969; margin-top: 6px; }
+  .c-tpl.on .cover { border-color: #165dff; }
+  .c-tpl.on .name { color: #165dff; font-weight: 700; }
+  .c-tpl .free { font-size: 8px; color: #07c160; background: #e9f9f0; display: inline-block; padding: 1px 6px; border-radius: 99px; margin-top: 2px; }
+  .c-needs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .c-need { font-size: 11px; color: #4e5969; background: #fff; border: 1px solid #eceef2; padding: 5px 13px; border-radius: 8px; }
+  .c-need.on { background: #165dff; color: #fff; border-color: #165dff; font-weight: 500; }
+  .c-fold { float: right; font-size: 10px; color: #a9aeb8; }
+  .c-row { display: flex; align-items: center; padding: 13px 0; border-bottom: 1px solid #f0f1f4; }
+  .c-row:last-child { border-bottom: none; }
+  .c-row label { font-size: 12px; color: #1d2129; width: 70px; }
+  .c-row label i { color: #f53f3f; font-style: normal; }
+  .c-row span { font-size: 11px; color: #c9cdd4; flex: 1; text-align: right; }
+  .c-row .arr { color: #c9cdd4; font-size: 12px; margin-left: 4px; }
+
+  .c-footer { padding: 14px 20px 20px; }
+  .c-btn {
+    background: #165dff; color: #fff; text-align: center; padding: 13px; border-radius: 10px;
+    font-size: 14px; font-weight: 700; box-shadow: 0 6px 18px rgba(22,93,255,.22);
+  }
+  .c-hint { text-align: center; font-size: 9.5px; color: #a9aeb8; margin-top: 10px; }
+
+  /* 对比要点 */
+  .points { margin-top: 16px; background: #12151c; border-radius: 12px; padding: 12px 14px; }
+  .points h4 { font-size: 12px; color: #fff; margin-bottom: 8px; }
+  .points li { font-size: 10.5px; color: #9aa3b2; line-height: 1.9; list-style: none; padding-left: 14px; position: relative; }
+  .points li::before { content: '·'; position: absolute; left: 3px; color: #4d8dff; }
+  .points li b { color: #cdd5e0; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>新建名片界面 · 优化方案对比</h1>
+  <p>基于当前「创建名片」页 3 个视觉方向 · <b>A 精致卡片</b>（改动小）/ <b>B 沉浸品牌</b>（App 范式）/ <b>C 轻量极简</b>（Apple 风）</p>
+</div>
+
+<div class="compare">
+
+  <!-- ===== 方案A ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#165dff,#3b7bd4)">A</div>
+      <div>
+        <div class="plan-name">精致卡片</div>
+        <div class="plan-sub">现结构上精细化 · 改动最小 · 推荐</div>
+      </div>
+      <div class="plan-tag">改动量 ★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="a-body">
+          <div class="a-hero">
+            <div class="login">微信授权登录</div>
+            <h2>创建你的名片</h2>
+            <p>个人也可以创建，无需企业账号 · 2分钟完成</p>
+            <div class="a-steps">
+              <div class="a-step"><div class="a-dot on">1</div><div class="a-step-label on">基本信息</div></div>
+              <div class="a-line"></div>
+              <div class="a-step"><div class="a-dot">2</div><div class="a-step-label">联系方式</div></div>
+              <div class="a-line"></div>
+              <div class="a-step"><div class="a-dot">3</div><div class="a-step-label">发布设置</div></div>
+            </div>
+          </div>
+          <div class="a-scroll">
+            <div class="a-card">
+              <div class="a-card-title">选择名片类型</div>
+              <div class="a-card-sub">个人也可以创建，无需企业账号</div>
+              <div class="a-types">
+                <div class="a-type on"><div class="a-type-ic" style="background:linear-gradient(135deg,#07c160,#1edc87)">👤</div><b>个人名片</b><span>自由职业者/个体从业者</span></div>
+                <div class="a-type"><div class="a-type-ic" style="background:linear-gradient(135deg,#165dff,#3b7bd4)">🏢</div><b>企业名片</b><span>企业主体/团队/门店</span></div>
+              </div>
+            </div>
+            <div class="a-card">
+              <div class="a-card-title">选择模板</div>
+              <div class="a-card-sub">套用模板主题，保存后可在名片详情实时预览</div>
+              <div class="a-tpls">
+                <div class="a-tpl on"><div class="cover" style="background:linear-gradient(160deg,#0e2a4e,#3b7bd4)"><span class="tag">商务蓝</span></div><div class="name">商务蓝模板</div></div>
+                <div class="a-tpl"><div class="cover" style="background:linear-gradient(160deg,#f5f7fa,#dfe3e8)"><span class="tag">员工</span></div><div class="name">员工简约白</div></div>
+                <div class="a-tpl"><div class="cover" style="background:linear-gradient(160deg,#b08d57,#e6cfa6)"><span class="tag">租户</span></div><div class="name">租户金色模板</div></div>
+              </div>
+            </div>
+            <div class="a-card">
+              <div class="a-card-title">供需标签</div>
+              <div class="a-card-sub">最多选3个，展示在名片详情页</div>
+              <div class="a-needs">
+                <span class="a-need on">找渠道</span><span class="a-need">求合作</span><span class="a-need on">招合伙人</span>
+                <span class="a-need">寻资源</span><span class="a-need">招代理</span><span class="a-need">找投资</span>
+              </div>
+            </div>
+            <div class="a-card">
+              <div class="a-card-title">入驻绑定 <span class="a-fold">（选填）展开 ▾</span></div>
+            </div>
+            <div class="a-card">
+              <div class="a-card-title">填写基本信息</div>
+              <div style="margin-top:10px">
+                <div class="a-field"><div class="a-label">姓名<i>*</i></div><div class="a-input ph">请输入你的姓名</div></div>
+                <div class="a-field"><div class="a-label">职位/头衔</div><div class="a-input ph">自由职业者/顾问/创始人...</div></div>
+                <div class="a-field"><div class="a-label">所在城市<i>*</i></div><div class="a-input ph">请选择城市</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="a-footer">
+            <div class="a-btn">下一步 · 填写联系方式</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>关键提升</h4>
+      <ul>
+        <li><b>表单卡片化</b>：每组信息独立白卡片 + 柔和阴影，视觉层级清晰</li>
+        <li><b>顶部呼吸感</b>：保留品牌渐变，加光斑层次，标题加粗、信息分离</li>
+        <li><b>模板选中态</b>：主色描边 + 右上角对勾角标，选中更明确</li>
+        <li><b>步骤条精细</b>：数字圆形渐变底 + 完成打勾 + 当前步光晕</li>
+        <li><b>主按钮</b>：渐变 + 阴影 + 按压反馈，底部白条浮起</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 方案B ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#0e9bd4,#165dff)">B</div>
+      <div>
+        <div class="plan-name">沉浸品牌</div>
+        <div class="plan-sub">App 注册/创建范式 · 视觉冲击强</div>
+      </div>
+      <div class="plan-tag">改动量 ★★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="b-body">
+          <div class="b-hero">
+            <div class="grid"></div>
+            <div class="b-login">微信授权登录</div>
+            <h2>创建你的名片</h2>
+            <p>2 分钟完成，即刻开启你的数字名片</p>
+            <div class="b-bar"><i class="ok"></i><i class="on"></i><i></i></div>
+            <div class="b-bar-labels"><span class="ok">基本信息</span><span class="on">联系方式</span><span>发布设置</span></div>
+          </div>
+          <div class="b-sheet">
+            <div class="b-grip"></div>
+            <div class="b-group">
+              <div class="b-gtitle">名片类型 <span class="more">个人也可以创建 ›</span></div>
+              <div class="b-types">
+                <div class="b-type on"><div class="b-type-ic" style="background:linear-gradient(135deg,#07c160,#1edc87)">👤</div><b>个人名片</b><span>自由职业者/个体从业者</span></div>
+                <div class="b-type"><div class="b-type-ic" style="background:linear-gradient(135deg,#165dff,#0e9bd4)">🏢</div><b>企业名片</b><span>企业主体/团队/门店</span></div>
+              </div>
+            </div>
+            <div class="b-group">
+              <div class="b-gtitle">选择模板 <span class="more">查看全部 ›</span></div>
+              <div class="b-tpl-scroll">
+                <div class="b-tpl on"><div class="cover" style="background:linear-gradient(160deg,#0b2a4a,#0e9bd4)"><i>商务蓝</i><span class="chk">✓</span></div><div class="name">商务蓝模板</div></div>
+                <div class="b-tpl"><div class="cover" style="background:linear-gradient(160deg,#f5f7fa,#dfe3e8)"><i>员工</i><span class="chk">✓</span></div><div class="name">员工简约白</div></div>
+                <div class="b-tpl"><div class="cover" style="background:linear-gradient(160deg,#b08d57,#e6cfa6)"><i>租户</i><span class="chk">✓</span></div><div class="name">租户金色</div></div>
+                <div class="b-tpl"><div class="cover" style="background:linear-gradient(160deg,#3a3a3a,#6b6b6b)"><i>更多</i><span class="chk">✓</span></div><div class="name">更多模板</div></div>
+              </div>
+            </div>
+            <div class="b-group">
+              <div class="b-gtitle">供需标签 <span class="more">最多选3个 ›</span></div>
+              <div class="b-needs">
+                <span class="b-need on">找渠道</span><span class="b-need">求合作</span><span class="b-need on">招合伙人</span>
+                <span class="b-need">寻资源</span><span class="b-need">招代理</span>
+              </div>
+            </div>
+            <div class="b-group">
+              <div class="b-gtitle">基本信息</div>
+              <div class="b-field"><label>姓名<i>*</i></label><span>请输入你的姓名</span></div>
+              <div class="b-field"><label>职位/头衔</label><span>自由职业者/顾问/创始人...</span></div>
+              <div class="b-field"><label>所在城市<i>*</i></label><span>请选择城市 ›</span></div>
+              <div class="b-field"><label>入驻绑定</label><span>选填，填口令同步入驻 ›</span></div>
+            </div>
+          </div>
+          <div class="b-footer">
+            <div class="b-btn">下一步 <small>预计 2 分钟</small></div>
+            <div class="b-hint">保存后可在名片详情实时预览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>关键提升</h4>
+      <ul>
+        <li><b>沉浸主视觉</b>：品牌渐变 + 网格纹理 + 光斑，首屏即品牌感</li>
+        <li><b>表单浮层</b>：白色圆角面板上浮覆盖视觉区，App 注册页范式</li>
+        <li><b>步骤进度条</b>：分段填充条，完成/当前/未到一目了然</li>
+        <li><b>模板横滑</b>：卡片预览横向滑动，可扩展更多模板（对标名片全能王模板库）</li>
+        <li><b>分组标题</b>：色条引导 + 右侧「查看全部」，功能可延展</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 方案C ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#4e5969,#86909c)">C</div>
+      <div>
+        <div class="plan-name">轻量极简</div>
+        <div class="plan-sub">Apple 风格 · 留白排版撑精致</div>
+      </div>
+      <div class="plan-tag">改动量 ★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="c-body">
+          <div class="c-top">
+            <div class="c-login">微信授权登录</div>
+            <h2>创建你的名片</h2>
+            <p>个人也可以创建，无需企业账号 · 2分钟完成</p>
+            <div class="c-steps">
+              <div class="c-step-label on">基本信息</div><div class="c-line"></div>
+              <div class="c-dot ok"></div><div class="c-step-label">联系方式</div><div class="c-line"></div>
+              <div class="c-dot"></div><div class="c-step-label">发布设置</div>
+            </div>
+          </div>
+          <div class="c-scroll">
+            <div class="c-section">
+              <div class="c-title">选择名片类型</div>
+              <div class="c-sub">个人也可以创建，无需企业账号</div>
+              <div class="c-types">
+                <div class="c-type on"><div class="ic" style="background:linear-gradient(135deg,#07c160,#1edc87)">👤</div><b>个人名片</b><span>自由职业者/个体</span></div>
+                <div class="c-type"><div class="ic" style="background:linear-gradient(135deg,#165dff,#3b7bd4)">🏢</div><b>企业名片</b><span>企业/团队/门店</span></div>
+              </div>
+            </div>
+            <div class="c-section">
+              <div class="c-title">选择模板</div>
+              <div class="c-sub">套用模板主题，保存后可在名片详情实时预览</div>
+              <div class="c-tpls">
+                <div class="c-tpl on"><div class="cover" style="background:linear-gradient(160deg,#0e2a4e,#3b7bd4)"></div><div class="name">商务蓝模板</div><div class="free">免费</div></div>
+                <div class="c-tpl"><div class="cover" style="background:linear-gradient(160deg,#f5f7fa,#dfe3e8)"></div><div class="name">员工简约白</div><div class="free">免费</div></div>
+                <div class="c-tpl"><div class="cover" style="background:linear-gradient(160deg,#b08d57,#e6cfa6)"></div><div class="name">租户金色模板</div><div class="free">免费</div></div>
+              </div>
+            </div>
+            <div class="c-section">
+              <div class="c-title">供需标签 <span class="c-fold">最多选3个</span></div>
+              <div class="c-needs" style="margin-top:12px">
+                <span class="c-need on">找渠道</span><span class="c-need">求合作</span><span class="c-need on">招合伙人</span>
+                <span class="c-need">寻资源</span><span class="c-need">招代理</span><span class="c-need">找投资</span>
+              </div>
+            </div>
+            <div class="c-section">
+              <div class="c-title">基本信息</div>
+              <div style="margin-top:4px">
+                <div class="c-row"><label>姓名<i>*</i></label><span>请输入你的姓名</span></div>
+                <div class="c-row"><label>职位/头衔</label><span>自由职业者/顾问/创始人...</span></div>
+                <div class="c-row"><label>所在城市<i>*</i></label><span>请选择城市<span class="arr">›</span></span></div>
+                <div class="c-row"><label>入驻绑定</label><span>选填，填口令同步入驻<span class="arr">›</span></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="c-footer">
+            <div class="c-btn">下一步</div>
+            <div class="c-hint">预计 2 分钟完成创建</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>关键提升</h4>
+      <ul>
+        <li><b>大面积留白</b>：无重色块，靠字号层级和间距出精致感</li>
+        <li><b>列表式表单</b>：左标签右输入 + 细分隔线，信息密度高且清爽</li>
+        <li><b>步骤条简化</b>：当前步胶囊高亮 + 完成点绿色，克制不抢眼</li>
+        <li><b>标签方形化</b>：小圆角方形标签，现代感强（区别于传统胶囊）</li>
+        <li><b>主按钮</b>：纯色细圆角，克制但有阴影层次</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

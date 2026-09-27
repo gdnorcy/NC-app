@@ -671,6 +671,7 @@ router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
   if (updates.sms) config.sms = { ...(config.sms || {}), ...updates.sms };
   if (updates.copyright !== undefined) config.copyright = updates.copyright;
   if (updates.brand_color !== undefined) config.brand_color = String(updates.brand_color).trim();
+  if (updates.card_create_skin !== undefined) config.card_create_skin = ['live', 'step', 'split'].includes(updates.card_create_skin) ? updates.card_create_skin : 'live';
   if (updates.payment) config.payment = { ...(config.payment || {}), ...updates.payment };
   if (updates.upload_limits) config.upload_limits = { ...(config.upload_limits || {}), ...updates.upload_limits };
   if (updates.open_platform) config.open_platform = { ...(config.open_platform || {}), ...updates.open_platform };

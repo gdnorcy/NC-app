@@ -247,7 +247,16 @@ export function createCardRouter(db, wxService) {
       const customerId = Number(req.query.tid) || req.customerId || 0;
       const list = cVisibleTemplates(customerId);
       const owned = req.user ? userOwnedTemplates(req.user.id) : new Set();
-      res.json({ templates: list.map((t) => ({ ...t, purchased: owned.has(Number(t.id)) })) });
+      // 创建页默认皮肤（B1：租户后台配置，C 端无感）
+      let skin = 'live';
+      try {
+        const proj = db.prepare('SELECT config FROM projects WHERE id = ?').get(customerId);
+        if (proj && proj.config) {
+          const cfg = JSON.parse(proj.config || '{}');
+          if (['live', 'step', 'split'].includes(cfg.card_create_skin)) skin = cfg.card_create_skin;
+        }
+      } catch {}
+      res.json({ templates: list.map((t) => ({ ...t, purchased: owned.has(Number(t.id)) })), skin });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 

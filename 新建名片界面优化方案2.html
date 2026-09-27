@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新建名片界面优化方案（二）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0f1117; color: #fff; padding: 40px 20px 60px;
+  }
+  .page-head { text-align: center; margin-bottom: 36px; }
+  .page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: 1px; }
+  .page-head p { color: #8b93a7; font-size: 13px; margin-top: 8px; }
+  .page-head p b { color: #4d8dff; }
+
+  .compare { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; }
+  .plan { width: 330px; background: #171a22; border-radius: 20px; padding: 22px 18px 26px; border: 1px solid #262b37; }
+  .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .plan-badge { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; flex-shrink: 0; }
+  .plan-name { font-size: 16px; font-weight: 700; }
+  .plan-sub { font-size: 11px; color: #8b93a7; margin-top: 2px; }
+  .plan-tag { margin-left: auto; font-size: 10px; color: #8b93a7; border: 1px solid #333a4a; padding: 3px 8px; border-radius: 99px; }
+
+  .phone { width: 290px; height: 600px; margin: 0 auto; border-radius: 38px; background: #0b0d12; border: 7px solid #23262e; position: relative; box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 2px #14161c; }
+  .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 72px; height: 18px; background: #1b1e26; border-radius: 99px; z-index: 9; }
+  .screen { position: absolute; inset: 0; border-radius: 31px; overflow: hidden; background: #f2f4f7; font-size: 12px; color: #1d2129; }
+  .screen * { box-sizing: border-box; }
+  .points { margin-top: 16px; background: #12151c; border-radius: 12px; padding: 12px 14px; }
+  .points h4 { font-size: 12px; margin-bottom: 8px; }
+  .points li { font-size: 10.5px; color: #9aa3b2; line-height: 1.9; list-style: none; padding-left: 14px; position: relative; }
+  .points li::before { content: '·'; position: absolute; left: 3px; color: #4d8dff; }
+  .points li b { color: #cdd5e0; font-weight: 600; }
+
+  /* ============ 方案D：实时预览 · 所见即所得 ============ */
+  .d-body { display: flex; flex-direction: column; height: 100%; background: #eef1f6; }
+  .d-nav { display: flex; align-items: center; padding: 42px 16px 0; }
+  .d-back { font-size: 18px; color: #1d2129; }
+  .d-title { font-size: 14px; font-weight: 700; margin-left: 12px; }
+  .d-login { margin-left: auto; font-size: 10px; color: #165dff; background: #eef4ff; border: 1px solid #d7e6ff; padding: 4px 10px; border-radius: 99px; }
+  .d-stage { padding: 14px 18px 0; position: relative; }
+  .d-label { font-size: 10px; color: #86909c; margin-bottom: 10px; letter-spacing: 1px; }
+  .d-label b { color: #165dff; }
+  .d-card {
+    width: 172px; height: 250px; margin: 0 auto; border-radius: 18px; position: relative; overflow: hidden;
+    background: linear-gradient(165deg, #0e2a4e 0%, #165dff 55%, #7cc0ff 100%);
+    box-shadow: 0 18px 40px rgba(22,93,255,.35), 0 4px 12px rgba(0,0,0,.15);
+    padding: 16px;
+  }
+  .d-card::before { content:''; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.3), transparent 65%); }
+  .d-card::after { content:''; position: absolute; left: -24px; bottom: -30px; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, rgba(140,210,255,.4), transparent 65%); }
+  .d-card .avatar { width: 34px; height: 34px; border-radius: 12px; background: rgba(255,255,255,.9); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .d-card .nm { color: #fff; font-size: 20px; font-weight: 800; margin-top: 12px; letter-spacing: 1px; }
+  .d-card .pos { color: rgba(255,255,255,.85); font-size: 10px; margin-top: 3px; }
+  .d-card .city { color: rgba(255,255,255,.65); font-size: 9px; margin-top: 2px; }
+  .d-card .qr { position: absolute; right: 14px; bottom: 14px; width: 30px; height: 30px; background: rgba(255,255,255,.92); border-radius: 4px; }
+  .d-card .logo { position: absolute; left: 16px; bottom: 14px; font-size: 8px; color: rgba(255,255,255,.7); letter-spacing: 1px; }
+  .d-live { text-align: center; font-size: 9px; color: #07c160; margin-top: 10px; }
+  .d-live::before { content: ''; display: inline-block; width: 6px; height: 6px; background: #07c160; border-radius: 50%; margin-right: 4px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  .d-edit { flex: 1; margin: 10px 12px 0; background: #fff; border-radius: 18px; padding: 12px; box-shadow: 0 6px 20px rgba(29,33,41,.07); overflow: hidden; }
+  .d-e-row { display: flex; align-items: center; padding: 8px 2px; border-bottom: 1px solid #f0f1f4; }
+  .d-e-row:last-child { border-bottom: none; }
+  .d-e-row label { font-size: 10.5px; color: #4e5969; width: 52px; flex-shrink: 0; }
+  .d-e-row label i { color: #f53f3f; font-style: normal; }
+  .d-e-row .v { flex: 1; font-size: 11px; color: #1d2129; text-align: right; }
+  .d-e-row .v.ph { color: #c9cdd4; }
+  .d-e-row .v.g { color: #165dff; }
+  .d-e-row input { flex: 1; border: none; outline: none; text-align: right; font-size: 11px; color: #1d2129; width: 100%; }
+  .d-tpls { display: flex; gap: 6px; padding: 10px 2px 2px; }
+  .d-tpl { flex: 1; height: 34px; border-radius: 8px; border: 2px solid transparent; }
+  .d-tpl.on { border-color: #165dff; }
+  .d-foot { padding: 10px 14px 18px; }
+  .d-btn { background: linear-gradient(135deg,#165dff,#3b7bd4); color: #fff; text-align: center; padding: 12px; border-radius: 14px; font-size: 13px; font-weight: 700; box-shadow: 0 6px 16px rgba(22,93,255,.3); }
+
+  /* ============ 方案E：沉浸双分区 ============ */
+  .e-body { display: flex; flex-direction: column; height: 100%; }
+  .e-show {
+    flex: 1.15; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 20% 20%, #1c3f7a 0%, transparent 50%), radial-gradient(circle at 85% 80%, #0e9bd4 0%, transparent 45%), linear-gradient(160deg, #0b1e3a, #123f8a);
+  }
+  .e-show .stars { position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(255,255,255,.5) 1px, transparent 1px); background-size: 22px 22px; }
+  .e-show .halo { position: absolute; width: 260px; height: 260px; border-radius: 50%; left: 50%; top: 46%; transform: translate(-50%,-50%); background: radial-gradient(circle, rgba(120,190,255,.35), transparent 62%); }
+  .e-top { position: absolute; top: 38px; left: 0; right: 0; display: flex; align-items: center; padding: 0 16px; z-index: 3; }
+  .e-back { color: #fff; font-size: 17px; }
+  .e-title { color: #fff; font-size: 14px; font-weight: 700; margin-left: 12px; }
+  .e-login { margin-left: auto; font-size: 9.5px; color: #fff; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); padding: 4px 10px; border-radius: 99px; }
+  .e-card {
+    position: absolute; left: 50%; top: 47%; transform: translate(-50%,-50%) rotate(-3deg);
+    width: 176px; height: 252px; border-radius: 18px; overflow: hidden;
+    background: linear-gradient(165deg, #fdfcfb, #eef1f8);
+    box-shadow: 0 24px 50px rgba(0,0,0,.45);
+    padding: 16px; transition: transform .4s;
+  }
+  .e-card:hover { transform: translate(-50%,-50%) rotate(0deg) scale(1.02); }
+  .e-card .bar { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #165dff, #0e9bd4); }
+  .e-card .avatar { width: 36px; height: 36px; border-radius: 12px; background: linear-gradient(135deg,#165dff,#0e9bd4); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-top: 10px; }
+  .e-card .nm { color: #1d2129; font-size: 21px; font-weight: 800; margin-top: 12px; }
+  .e-card .pos { color: #86909c; font-size: 10px; margin-top: 3px; }
+  .e-card .line { width: 100%; height: 1px; background: linear-gradient(90deg, #e5e6eb, transparent); margin: 10px 0 8px; }
+  .e-card .contact { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #86909c; margin-top: 5px; }
+  .e-card .qr { position: absolute; right: 14px; bottom: 14px; width: 32px; height: 32px; background: #1d2129; border-radius: 4px; }
+  .e-card .logo { position: absolute; left: 16px; bottom: 14px; font-size: 8px; color: #b0b6c0; letter-spacing: 1px; }
+  .e-tag { position: absolute; left: 50%; top: 78%; transform: translateX(-50%); font-size: 9.5px; color: rgba(255,255,255,.85); background: rgba(255,255,255,.12); padding: 4px 12px; border-radius: 99px; z-index: 3; white-space: nowrap; }
+  .e-edit { flex: 1; background: #fff; border-radius: 22px 22px 0 0; margin-top: -14px; padding: 14px 16px 0; position: relative; z-index: 5; overflow: hidden; }
+  .e-grip { width: 38px; height: 4px; background: #d4d7de; border-radius: 99px; margin: 0 auto 12px; }
+  .e-types { display: flex; gap: 8px; margin-bottom: 10px; }
+  .e-type { flex: 1; text-align: center; padding: 8px 0; border-radius: 12px; border: 1.5px solid #e5e6eb; }
+  .e-type b { font-size: 11px; display: block; color: #4e5969; }
+  .e-type.on { border-color: #165dff; background: #eef4ff; }
+  .e-type.on b { color: #165dff; }
+  .e-row { display: flex; align-items: center; padding: 9px 0; border-bottom: 1px solid #f2f3f5; }
+  .e-row:last-child { border-bottom: none; }
+  .e-row label { font-size: 11px; color: #4e5969; width: 64px; }
+  .e-row label i { color: #f53f3f; font-style: normal; }
+  .e-row input { flex: 1; border: none; outline: none; text-align: right; font-size: 11.5px; color: #1d2129; }
+  .e-row .ph { color: #c9cdd4; text-align: right; font-size: 11px; }
+  .e-btn { background: linear-gradient(135deg,#0e9bd4,#165dff); color: #fff; text-align: center; padding: 12px; border-radius: 14px; font-size: 13.5px; font-weight: 700; margin: 8px 0 14px; box-shadow: 0 8px 20px rgba(22,93,255,.3); }
+
+  /* ============ 方案F：分步引导 ============ */
+  .f-body { display: flex; flex-direction: column; height: 100%; background: #f7f8fa; }
+  .f-top { padding: 40px 20px 0; display: flex; align-items: center; }
+  .f-x { font-size: 16px; color: #86909c; }
+  .f-progress { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .f-dot { width: 6px; height: 6px; border-radius: 50%; background: #dfe2e8; }
+  .f-dot.on { width: 18px; background: #165dff; border-radius: 99px; }
+  .f-skip { font-size: 10px; color: #a9aeb8; }
+  .f-title { padding: 22px 24px 4px; }
+  .f-title h2 { font-size: 21px; font-weight: 800; color: #1d2129; line-height: 1.35; }
+  .f-title p { font-size: 11px; color: #86909c; margin-top: 6px; }
+  .f-hero { padding: 18px 24px 0; }
+  .f-cards { display: flex; gap: 12px; }
+  .f-card {
+    flex: 1; border-radius: 18px; padding: 18px 14px; position: relative; overflow: hidden;
+    border: 2px solid transparent;
+  }
+  .f-card .ic { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 17px; margin-bottom: 10px; }
+  .f-card b { font-size: 14px; color: #fff; display: block; }
+  .f-card span { font-size: 9.5px; color: rgba(255,255,255,.75); display: block; margin-top: 4px; line-height: 1.5; }
+  .f-card.on { border-color: #165dff; box-shadow: 0 10px 24px rgba(22,93,255,.22); }
+  .f-card.on::after { content: '✓'; position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; background: #165dff; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+  .f-mini { display: flex; gap: 10px; margin-top: 16px; }
+  .f-mini .m { flex: 1; border-radius: 14px; overflow: hidden; }
+  .f-mini .m .cv { height: 62px; }
+  .f-mini .m .nm2 { font-size: 9.5px; text-align: center; color: #4e5969; padding: 5px 0 2px; }
+  .f-mini .m.on .cv { outline: 2.5px solid #165dff; outline-offset: 2px; }
+  .f-mini .m.on .nm2 { color: #165dff; font-weight: 700; }
+  .f-body2 { padding: 18px 24px 0; }
+  .f-field { background: #fff; border: 1.5px solid #eceef2; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+  .f-field label { font-size: 10px; color: #86909c; display: block; margin-bottom: 4px; }
+  .f-field .v { font-size: 13px; color: #1d2129; }
+  .f-field .v.ph { color: #c9cdd4; }
+  .f-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .f-tag { font-size: 10.5px; color: #4e5969; background: #fff; border: 1px solid #eceef2; padding: 6px 13px; border-radius: 10px; }
+  .f-tag.on { background: #165dff; color: #fff; border-color: #165dff; }
+  .f-foot { margin-top: auto; padding: 10px 24px 18px; }
+  .f-btn { background: #165dff; color: #fff; text-align: center; padding: 14px; border-radius: 14px; font-size: 14px; font-weight: 700; box-shadow: 0 8px 20px rgba(22,93,255,.25); }
+  .f-btn .arr { float: right; font-weight: 400; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>新建名片界面 · 优化方案（二）</h1>
+  <p>跳出表单框架 · 让「名片本身」成为页面主角 · <b>D 实时预览</b> / <b>E 沉浸双分区</b> / <b>F 分步引导</b></p>
+</div>
+
+<div class="compare">
+
+  <!-- ===== 方案D ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#165dff,#7cc0ff)">D</div>
+      <div>
+        <div class="plan-name">实时预览 · 所见即所得</div>
+        <div class="plan-sub">填什么名片就变什么 · 核心推荐</div>
+      </div>
+      <div class="plan-tag">改动量 ★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="d-body">
+          <div class="d-nav">
+            <span class="d-back">‹</span>
+            <span class="d-title">创建名片</span>
+            <span class="d-login">微信授权登录</span>
+          </div>
+          <div class="d-stage">
+            <div class="d-label">名片实时预览 · <b>编辑即更新</b></div>
+            <div class="d-card" id="dCard">
+              <div class="avatar">👤</div>
+              <div class="nm" id="dName">你的名字</div>
+              <div class="pos" id="dPos">职位 / 头衔</div>
+              <div class="city" id="dCity">所在城市</div>
+              <div class="qr"></div>
+              <div class="logo">零壹系统云</div>
+            </div>
+            <div class="d-live">实时预览中</div>
+          </div>
+          <div class="d-edit">
+            <div class="d-e-row"><label>姓名<i>*</i></label><input id="dInpName" value="" placeholder="请输入你的姓名" style="text-align:right;color:#c9cdd4"></div>
+            <div class="d-e-row"><label>职位/头衔</label><input id="dInpPos" value="" placeholder="自由职业者/顾问..." style="text-align:right;color:#c9cdd4"></div>
+            <div class="d-e-row"><label>所在城市<i>*</i></label><span class="v ph">请选择城市 ›</span></div>
+            <div class="d-tpls">
+              <div class="d-tpl on" style="background:linear-gradient(160deg,#0e2a4e,#3b7bd4)"></div>
+              <div class="d-tpl" style="background:linear-gradient(160deg,#f5f7fa,#dfe3e8)"></div>
+              <div class="d-tpl" style="background:linear-gradient(160deg,#b08d57,#e6cfa6)"></div>
+            </div>
+          </div>
+          <div class="d-foot">
+            <div class="d-btn">下一步 · 填写联系方式</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>核心逻辑（可交互：在姓名/职位框输入试试）</h4>
+      <ul>
+        <li><b>主角是名片卡</b>：一张竖版名片实时渲染在页面中央，输入即变化——所见即所得</li>
+        <li><b>编辑区退为工具</b>：紧凑两行输入 + 模板缩略条，不喧宾夺主</li>
+        <li><b>模板切换即时换肤</b>：点模板缩略图，名片卡整体换风格</li>
+        <li>精致感来自<strong>名片卡本身</strong>的渐变、排版与光效，而非表单装饰</li>
+        <li>对标：Canva / 稿定 / 名片编辑器范式，产品感最强</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 方案E ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#0e9bd4,#123f8a)">E</div>
+      <div>
+        <div class="plan-name">沉浸双分区</div>
+        <div class="plan-sub">上展示下编辑 · 立体名片</div>
+      </div>
+      <div class="plan-tag">改动量 ★★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="e-body">
+          <div class="e-show">
+            <div class="stars"></div>
+            <div class="halo"></div>
+            <div class="e-top">
+              <span class="e-back">‹</span>
+              <span class="e-title">创建名片</span>
+              <span class="e-login">授权登录</span>
+            </div>
+            <div class="e-card">
+              <div class="bar"></div>
+              <div class="avatar">👤</div>
+              <div class="nm" id="eName">你的名字</div>
+              <div class="pos" id="ePos">职位 / 头衔</div>
+              <div class="line"></div>
+              <div class="contact">📞 138-0000-0000</div>
+              <div class="contact">📍 所在城市</div>
+              <div class="qr"></div>
+              <div class="logo">零壹系统云</div>
+            </div>
+            <div class="e-tag">名片将以此样式展示 · 悬停可翻转角度</div>
+          </div>
+          <div class="e-edit">
+            <div class="e-grip"></div>
+            <div class="e-types">
+              <div class="e-type on"><b>个人名片</b></div>
+              <div class="e-type"><b>企业名片</b></div>
+            </div>
+            <div class="e-row"><label>姓名<i>*</i></label><input id="eInpName" placeholder="请输入你的姓名" style="text-align:right"></div>
+            <div class="e-row"><label>职位/头衔</label><input id="eInpPos" placeholder="自由职业者/顾问..." style="text-align:right"></div>
+            <div class="e-row"><label>所在城市<i>*</i></label><span class="ph">请选择城市 ›</span></div>
+            <div class="e-row"><label>入驻绑定</label><span class="ph">选填，填口令同步入驻 ›</span></div>
+            <div class="e-btn">下一步</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>核心逻辑（可交互：在姓名/职位框输入试试）</h4>
+      <ul>
+        <li><b>上半沉浸展示</b>：深色渐变星空氛围 + 名片卡立体浮起（微倾斜、有投影）</li>
+        <li><b>下半编辑面板</b>：白色圆角浮层，类型切换 + 紧凑表单</li>
+        <li><b>实时联动</b>：编辑内容即时更新到名片卡（输入试试）</li>
+        <li>精致感来自<strong>空间感与光效</strong>：卡片像"举在手里的一张真名片"</li>
+        <li>对标：移动端设计工具（Canva / 创客贴）的预览-编辑分屏</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 方案F ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#4e5969,#86909c)">F</div>
+      <div>
+        <div class="plan-name">分步引导</div>
+        <div class="plan-sub">一屏一焦点 · 仪式感推进</div>
+      </div>
+      <div class="plan-tag">改动量 ★★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="f-body">
+          <div class="f-top">
+            <span class="f-x">✕</span>
+            <div class="f-progress">
+              <div class="f-dot on"></div><div class="f-dot"></div><div class="f-dot"></div>
+            </div>
+            <span class="f-skip">跳过</span>
+          </div>
+          <div class="f-title">
+            <h2>先选一种名片<br>适合你的身份</h2>
+            <p>个人也可以创建，无需企业账号 · 2分钟完成</p>
+          </div>
+          <div class="f-hero">
+            <div class="f-cards">
+              <div class="f-card on" style="background:linear-gradient(150deg,#07c160,#1edc87)">
+                <div class="ic" style="background:rgba(255,255,255,.25)">👤</div>
+                <b>个人名片</b>
+                <span>自由职业者 / 个体从业者 / 普通人</span>
+              </div>
+              <div class="f-card" style="background:linear-gradient(150deg,#165dff,#3b7bd4)">
+                <div class="ic" style="background:rgba(255,255,255,.25)">🏢</div>
+                <b>企业名片</b>
+                <span>企业主体 / 团队 / 门店</span>
+              </div>
+            </div>
+            <div class="f-mini">
+              <div class="m on"><div class="cv" style="background:linear-gradient(160deg,#0e2a4e,#3b7bd4)"></div><div class="nm2">商务蓝模板</div></div>
+              <div class="m"><div class="cv" style="background:linear-gradient(160deg,#f5f7fa,#dfe3e8)"></div><div class="nm2">员工简约白</div></div>
+              <div class="m"><div class="cv" style="background:linear-gradient(160deg,#b08d57,#e6cfa6)"></div><div class="nm2">租户金色</div></div>
+            </div>
+          </div>
+          <div class="f-body2">
+            <div class="f-field"><label>姓名 <i style="color:#f53f3f;font-style:normal">*</i></label><div class="v ph">请输入你的姓名</div></div>
+            <div class="f-field"><label>职位/头衔</label><div class="v ph">自由职业者/顾问/创始人...</div></div>
+            <div class="f-tags" style="margin-top:14px">
+              <span class="f-tag on">找渠道</span><span class="f-tag">求合作</span><span class="f-tag on">招合伙人</span>
+              <span class="f-tag">寻资源</span><span class="f-tag">招代理</span>
+            </div>
+          </div>
+          <div class="f-foot">
+            <div class="f-btn">下一步 · 填写联系方式 <span class="arr">›</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>核心逻辑</h4>
+      <ul>
+        <li><b>一屏一焦点</b>：三步各自全屏（①类型 → ②模板 → ③信息），每屏一个主决策，不堆叠</li>
+        <li><b>大卡片选择</b>：类型用大色块卡片，选中带对勾角标，决策快</li>
+        <li><b>进度点 + 跳过</b>：顶部分步进度，可跳过选填项，降低放弃率</li>
+        <li>精致感来自<strong>专注与节奏</strong>：像引导式 onboarding，首屏即品牌感</li>
+        <li>对标：注册/引导流程（即刻、小红书新手流程）</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // D：实时预览联动
+  const dName = document.getElementById('dName'), dPos = document.getElementById('dPos'), dCity = document.getElementById('dCity');
+  const dInpName = document.getElementById('dInpName'), dInpPos = document.getElementById('dInpPos');
+  dInpName.addEventListener('input', e => {
+    const v = e.target.value.trim();
+    dName.textContent = v || '你的名字';
+    e.target.style.color = v ? '#1d2129' : '#c9cdd4';
+  });
+  dInpPos.addEventListener('input', e => {
+    const v = e.target.value.trim();
+    dPos.textContent = v || '职位 / 头衔';
+    e.target.style.color = v ? '#1d2129' : '#c9cdd4';
+  });
+  // E：实时预览联动
+  const eName = document.getElementById('eName'), ePos = document.getElementById('ePos');
+  const eInpName = document.getElementById('eInpName'), eInpPos = document.getElementById('eInpPos');
+  eInpName.addEventListener('input', e => { eName.textContent = e.target.value.trim() || '你的名字'; });
+  eInpPos.addEventListener('input', e => { ePos.textContent = e.target.value.trim() || '职位 / 头衔'; });
+</script>
+
+</body>
+</html>

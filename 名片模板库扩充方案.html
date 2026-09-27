@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名片模板库扩充方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; background: #0f1117; color: #fff; padding: 36px 20px 60px; }
+  .page-head { text-align: center; margin-bottom: 30px; }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+  .page-head p { color: #8b93a7; font-size: 12.5px; margin-top: 8px; }
+  .page-head p b { color: #4d8dff; }
+  .sec { max-width: 1080px; margin: 0 auto 34px; }
+  .sec-t { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .sec-no { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg,#165dff,#4d8dff); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+  .sec-t h2 { font-size: 17px; font-weight: 700; }
+  .sec-t .hint { margin-left: auto; font-size: 11px; color: #8b93a7; }
+
+  /* 模板清单 */
+  .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .tpl-item { background: #171a22; border: 1px solid #262b37; border-radius: 16px; padding: 14px; cursor: pointer; transition: all .2s; }
+  .tpl-item:hover { border-color: #3a4256; transform: translateY(-2px); }
+  .tpl-item.sel { border-color: #4d8dff; box-shadow: 0 0 0 2px rgba(77,141,255,.18), 0 8px 24px rgba(0,0,0,.35); }
+  .tpl-item .tag { display: inline-block; font-size: 9px; color: #8b93a7; background: #232837; border-radius: 99px; padding: 2px 8px; margin-bottom: 8px; }
+  .tpl-item .tag.new { color: #4d8dff; background: rgba(77,141,255,.14); }
+  .tpl-item .name { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  /* 迷你名片卡 */
+  .mini { width: 100%; height: 132px; border-radius: 10px; position: relative; overflow: hidden; padding: 12px; }
+  .mini .m-av { width: 24px; height: 24px; border-radius: 8px; background: rgba(255,255,255,.85); display: flex; align-items: center; justify-content: center; font-size: 11px; }
+  .mini .m-nm { font-size: 14px; font-weight: 700; margin-top: 8px; }
+  .mini .m-pos { font-size: 8.5px; margin-top: 3px; opacity: .8; }
+  .mini .m-city { font-size: 7.5px; margin-top: 2px; opacity: .6; }
+  .mini .m-qr { position: absolute; right: 10px; bottom: 10px; width: 20px; height: 20px; border-radius: 2px; background: rgba(255,255,255,.85); }
+  .mini .m-logo { position: absolute; left: 12px; bottom: 10px; font-size: 6.5px; opacity: .6; letter-spacing: 1px; }
+  .tpl-item .cfg { margin-top: 10px; font-size: 9.5px; color: #7d8699; line-height: 1.7; }
+  .tpl-item .cfg b { color: #aeb6c6; font-weight: 600; }
+
+  /* 手机壳 */
+  .demo { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; }
+  .phone { width: 300px; height: 620px; border-radius: 40px; background: #0b0d12; border: 7px solid #23262e; position: relative; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+  .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 72px; height: 18px; background: #1b1e26; border-radius: 99px; z-index: 9; }
+  .screen { position: absolute; inset: 0; border-radius: 33px; overflow: hidden; background: #f2f4f7; font-size: 12px; color: #1d2129; display: flex; flex-direction: column; }
+  .ph-nav { display: flex; align-items: center; padding: 42px 16px 0; }
+  .ph-back { font-size: 17px; color: #1d2129; }
+  .ph-title { font-size: 13px; font-weight: 700; margin-left: 12px; }
+  .ph-login { margin-left: auto; font-size: 9px; color: #165dff; background: #eef4ff; padding: 4px 10px; border-radius: 99px; }
+  .ph-label { padding: 14px 18px 8px; font-size: 10px; color: #86909c; letter-spacing: 1px; }
+  .ph-label b { color: #165dff; }
+  /* 名片预览卡 */
+  .preview-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 18px; min-height: 300px; }
+  .preview {
+    width: 178px; height: 256px; border-radius: 16px; position: relative; overflow: hidden;
+    padding: 16px; box-shadow: 0 20px 46px rgba(0,0,0,.28);
+    transition: all .35s;
+  }
+  .preview .av { width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .preview .nm { font-size: 19px; font-weight: 700; margin-top: 12px; letter-spacing: 1px; }
+  .preview .pos { font-size: 9.5px; margin-top: 4px; opacity: .85; }
+  .preview .city { font-size: 8.5px; margin-top: 2px; opacity: .6; }
+  .preview .qr { position: absolute; right: 14px; bottom: 14px; width: 26px; height: 26px; border-radius: 3px; }
+  .preview .logo { position: absolute; left: 16px; bottom: 16px; font-size: 7.5px; opacity: .65; letter-spacing: 2px; }
+  /* 模板选择横滑条 */
+  .tpl-strip { padding: 8px 12px 12px; display: flex; gap: 8px; overflow-x: auto; }
+  .tpl-strip::-webkit-scrollbar { display: none; }
+  .strip-item { flex-shrink: 0; width: 56px; text-align: center; }
+  .strip-item .s { width: 56px; height: 76px; border-radius: 8px; border: 2px solid transparent; position: relative; overflow: hidden; }
+  .strip-item .sn { font-size: 8px; color: #4e5969; margin-top: 4px; white-space: nowrap; }
+  .strip-item.on .s { border-color: #165dff; box-shadow: 0 0 0 2px rgba(22,93,255,.15); }
+  .strip-item.on .sn { color: #165dff; font-weight: 700; }
+  .strip-item.on .s::after { content: '✓'; position: absolute; top: 2px; right: 2px; width: 13px; height: 13px; background: #165dff; color: #fff; font-size: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .ph-foot { padding: 4px 14px 16px; }
+  .ph-btn { background: #165dff; color: #fff; text-align: center; padding: 12px; border-radius: 13px; font-size: 13px; font-weight: 700; }
+
+  .side { flex: 1; min-width: 320px; max-width: 460px; }
+  .card { background: #171a22; border: 1px solid #262b37; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .card h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .schema { background: #0d1017; border: 1px solid #232837; border-radius: 10px; padding: 14px; font-family: "SF Mono", Consolas, monospace; font-size: 10.5px; line-height: 1.8; color: #9fb4d9; overflow-x: auto; }
+  .schema .k { color: #6b9bff; }
+  .schema .v { color: #8fcaa1; }
+  .schema .c { color: #5a6378; }
+  .steps { list-style: none; }
+  .steps li { font-size: 11.5px; color: #aeb6c6; line-height: 2; padding-left: 22px; position: relative; }
+  .steps li::before { content: '➜'; position: absolute; left: 0; color: #4d8dff; }
+  .steps li b { color: #fff; }
+  .risk { font-size: 10.5px; color: #d3a25e; line-height: 1.9; padding: 10px 12px; background: rgba(211,162,94,.08); border: 1px solid rgba(211,162,94,.25); border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>名片模板库扩充方案</h1>
+  <p>把 A / D / E / G / H / I 方案落成可选的「名片模板」· 配置结构升级 + 渲染升级 + 创建页实时换肤</p>
+</div>
+
+<!-- ============ 01 模板清单 ============ -->
+<div class="sec">
+  <div class="sec-t"><div class="sec-no">1</div><h2>模板清单（3 现有 + 6 新增 = 9 个模板，全部免费）</h2><div class="hint">点击卡片可在右侧预览效果 ↓</div></div>
+  <div class="tpl-grid" id="tplGrid">
+    <!-- JS 动态生成 -->
+  </div>
+</div>
+
+<!-- ============ 02 落地演示 ============ -->
+<div class="sec">
+  <div class="sec-t"><div class="sec-no">2</div><h2>创建页效果：模板选择区横滑 + 名片实时换肤</h2><div class="hint">点下方模板缩略图，名片卡即时变化</div></div>
+  <div class="demo">
+    <div class="phone">
+      <div class="screen">
+        <div class="ph-nav"><span class="ph-back">‹</span><span class="ph-title">创建名片</span><span class="ph-login">微信授权登录</span></div>
+        <div class="ph-label">名片实时预览 · <b>点模板即换肤</b></div>
+        <div class="preview-wrap">
+          <div class="preview" id="pv"></div>
+        </div>
+        <div class="tpl-strip" id="strip"></div>
+        <div class="ph-foot"><div class="ph-btn">下一步 · 填写联系方式</div></div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <h3>配置结构升级（theme_config 新 Schema）</h3>
+        <div class="schema">
+<span class="k">"bgType"</span>: <span class="v">"gradient"</span> <span class="c">// solid / gradient / glass / paper</span><br>
+<span class="k">"bgStart"</span>: <span class="v">"#0e2a4e"</span>, <span class="k">"bgEnd"</span>: <span class="v">"#3b7bd4"</span>, <span class="k">"bgAngle"</span>: <span class="v">160</span><br>
+<span class="k">"textColor"</span>: <span class="v">"#ffffff"</span>, <span class="k">"text2Color"</span>: <span class="v">"rgba(255,255,255,.85)"</span><br>
+<span class="k">"accent"</span>: <span class="v">"#7cc0ff"</span> <span class="c">// 点缀色</span><br>
+<span class="k">"fontFamily"</span>: <span class="v">"serif"</span> <span class="c">// sans 黑体 / serif 衬线</span><br>
+<span class="k">"border"</span>: <span class="v">"gold"</span>, <span class="k">"borderColor"</span>: <span class="v">"#c9a25e"</span> <span class="c">// none/gold/glow</span><br>
+<span class="k">"texture"</span>: <span class="v">"spots"</span> <span class="c">// none/spots/grid/dots</span><br>
+<span class="k">"radius"</span>: <span class="v">18</span>, <span class="k">"barTop"</span>: <span class="v">false</span> <span class="c">// 顶部渐变条（E）</span><br>
+<span class="k">"cardStyle"</span>: <span class="v">"solid"</span> <span class="c">// solid / glass（H 毛玻璃）</span><br>
+<span class="c">// 旧模板只有 primary/background/radius → 自动降级兼容</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>落地实施步骤</h3>
+        <ul class="steps">
+          <li><b>DB</b>：card_templates 表插入 6 个新模板（enabled=1），theme_config 用新 Schema；清理 2 个测试模板</li>
+          <li><b>渲染升级</b>：写统一 `renderTemplateTheme(theme)`，名片详情/分享/会员中心等所有展示点支持 渐变/字体/描边/纹理/毛玻璃</li>
+          <li><b>创建页</b>：模板区改横向滑动列表，缩略图直接渲染「迷你名片卡」真实效果，选中实时换肤</li>
+          <li><b>templateSelect 页</b>：缩略图样式与创建页统一</li>
+          <li><b>三端实测</b>：H5 + 微信小程序端渲染一致（毛玻璃在小程序降级为半透明实色）</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>注意事项</h3>
+        <div class="risk">① 渲染升级影响所有名片展示点 → 必须向后兼容（旧模板 primary 兜底）② 小程序对 backdrop-filter（毛玻璃）支持有限 → H 模板小程序端降级处理 ③ 模板选择"横滑"替代原来 3 个并排，需保留付费模板的展示位（当前全免费）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 03 全屏大图兼容 ============ -->
+<div class="sec">
+  <div class="sec-t"><div class="sec-no">3</div><h2>全屏大图（头像背景）模板兼容设计</h2><div class="hint">现有 layout='full' 分支与新增 card 模板天然共存</div></div>
+  <div class="demo" style="align-items:flex-start">
+    <div class="side" style="max-width:520px">
+      <div class="card">
+        <h3>① 布局分支：两类模板互不干扰</h3>
+        <div style="display:flex;gap:12px">
+          <div style="flex:1;background:#0d1017;border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:10.5px;color:#8b93a7;margin-bottom:8px">card 布局（现有3 + 新增6）</div>
+            <div style="height:86px;border-radius:8px;background:linear-gradient(160deg,#0e2a4e,#3b7bd4);display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">名片卡 hero（渐变主题）</div>
+            <div style="font-size:9px;color:#7d8699;margin-top:6px">heroStyle = heroGradient(theme.primary)<br>新 Schema 全字段生效</div>
+          </div>
+          <div style="flex:1;background:#0d1017;border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:10.5px;color:#8b93a7;margin-bottom:8px">full 布局（全屏大图，现有）</div>
+            <div style="height:86px;border-radius:8px;position:relative;overflow:hidden;background:#223">
+              <div style="position:absolute;inset:0;background:linear-gradient(160deg,#4a7fc9,#2a4a7a);opacity:.6"></div>
+              <div style="position:absolute;left:0;right:0;bottom:0;height:40%;background:linear-gradient(transparent,rgba(0,0,0,.55))"></div>
+              <div style="position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.85)"></div>
+              <div style="position:absolute;bottom:8px;left:0;right:0;font-size:8px;color:#fff;text-align:center">头像全屏背景 + 视差 + 计数条</div>
+            </div>
+            <div style="font-size:9px;color:#7d8699;margin-top:6px">hero-full 分支（已有代码判断）<br>背景=用户头像大图，不走主题色</div>
+          </div>
+        </div>
+        <div style="font-size:10.5px;color:#aeb6c6;margin-top:12px;line-height:1.8">
+          新增 6 个模板 <b>layout='card'</b> → 走左侧分支；现有 full 模板保持 <b>layout='full'</b> → 走右侧分支。<br>
+          cardDetail 已有 <span style="font-family:monospace;font-size:9.5px;color:#6b9bff">layoutFull ? 'hero-full' : heroStyle</span> 分支判断，<b>零冲突</b>。
+        </div>
+      </div>
+    </div>
+    <div class="side" style="max-width:520px">
+      <div class="card">
+        <h3>② 新 Schema 字段作用域（按布局）</h3>
+        <div class="schema" style="font-size:10px">
+<span class="k">card 布局</span> <span class="v">全字段生效</span><br>
+&nbsp;&nbsp;bgType / bgStart / bgEnd / texture / radius / barTop<br>
+&nbsp;&nbsp;textColor / accent / fontFamily / border / cardStyle<br>
+<span class="k">full 布局</span> <span class="v">仅非背景字段生效</span><br>
+&nbsp;&nbsp;textColor → 头像上浮动文字颜色<br>
+&nbsp;&nbsp;accent → 计数条 / 按钮点缀色<br>
+&nbsp;&nbsp;fontFamily → 浮层字体<br>
+&nbsp;&nbsp;border / texture / barTop → <span class="c">暂不生效（背景被头像覆盖）</span><br>
+<span class="c">// 兜底：full 模板 theme_config 缺失时走现有 hero 逻辑，不报错</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>③ full 模板可选增强（二期，本期不做）</h3>
+        <div class="risk" style="margin-top:0">
+          full 布局可选择性吸收新 Schema：<b>黑金+全屏头像</b>（头像加金线框+暗色遮罩）、<b>暗夜+全屏头像</b>（头像上叠霓虹光晕）、<b>纸艺+全屏头像</b>（头像加细金线+纸纹遮罩）——<br>本期保持 full 独立渲染，先保证 6 个新 card 模板稳定，增强后置。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TEMPLATES = [
+  { id: 1, name: '商务蓝模板', old: true, cfg: '主色 #1D4E8F · 浅底 · 圆角8', theme: { bgType: 'solid', bg: '#f5f7fa', text: '#1d2129', accent: '#1D4E8F', font: 'sans', border: 'none', radius: 8 } },
+  { id: 4, name: '员工简约白', old: true, cfg: '主色 #165dff · 白底 · 圆角8', theme: { bgType: 'solid', bg: '#f5f7fa', text: '#1d2129', accent: '#165dff', font: 'sans', border: 'none', radius: 8 } },
+  { id: 3, name: '租户金色模板', old: true, cfg: '主色 #B8860B · 米底 · 圆角10', theme: { bgType: 'solid', bg: '#fdf6e3', text: '#5c4a1e', accent: '#B8860B', font: 'sans', border: 'none', radius: 10 } },
+  { id: 6, name: 'A 精致商务', new: true, cfg: '深蓝渐变 · 光斑 · 圆角18', theme: { bgType: 'gradient', start: '#0e2a4e', end: '#3b7bd4', angle: 160, text: '#ffffff', accent: '#7cc0ff', font: 'sans', border: 'none', texture: 'spots', radius: 18 } },
+  { id: 7, name: 'D 实时光效', new: true, cfg: '蓝渐变 · 强光效 · 圆角18', theme: { bgType: 'gradient', start: '#0e2a4e', end: '#7cc0ff', angle: 165, text: '#ffffff', accent: '#a8d4ff', font: 'sans', border: 'none', texture: 'spots', radius: 18 } },
+  { id: 8, name: 'E 沉浸展示', new: true, cfg: '白卡 · 顶渐变条 · 深字', theme: { bgType: 'solid', bg: '#fdfcfb', text: '#1d2129', accent: '#0e9bd4', font: 'sans', border: 'none', barTop: true, radius: 18 } },
+  { id: 9, name: 'G 黑金奢华', new: true, cfg: '墨黑 · 鎏金描边 · 衬线', theme: { bgType: 'gradient', start: '#1c1812', end: '#2a241c', angle: 160, text: '#f0ead9', accent: '#c9a25e', font: 'serif', border: 'gold', borderColor: '#c9a25e', radius: 14 } },
+  { id: 10, name: 'H 暗夜科技', new: true, cfg: '毛玻璃 · 霓虹描边 · 蓝紫', theme: { bgType: 'glass', start: '#1a2f5c', end: '#3a2a5c', text: '#e8ecff', accent: '#4d8dff', font: 'sans', border: 'glow', borderColor: '#4d8dff', radius: 16 } },
+  { id: 11, name: 'I 纸艺雅致', new: true, cfg: '米白纸纹 · 细金线 · 衬线', theme: { bgType: 'paper', bg: '#fdfcf9', text: '#2b2723', accent: '#c9a25e', font: 'serif', border: 'gold', borderColor: '#c9a25e', texture: 'dots', radius: 8 } },
+];
+
+const $ = id => document.getElementById(id);
+
+function cardCss(t, isMini) {
+  const th = t.theme; const s = {};
+  const r = th.radius || 16;
+  s.borderRadius = r + 'px';
+  let bg = '';
+  if (th.bgType === 'gradient') bg = `linear-gradient(${th.angle||160}deg, ${th.start}, ${th.end})`;
+  else if (th.bgType === 'glass') bg = `linear-gradient(${th.angle||160}deg, ${th.start}cc, ${th.end}cc)`;
+  else bg = th.bg;
+  s.background = bg;
+  if (th.bgType === 'glass') { s.backdropFilter = 'blur(12px)'; s.boxShadow = '0 20px 46px rgba(0,0,0,.3), 0 0 24px rgba(77,141,255,.15), inset 0 0 30px rgba(157,180,255,.06)'; }
+  else s.boxShadow = '0 20px 46px rgba(0,0,0,.28)';
+  if (th.border === 'gold') { s.border = '1px solid ' + (th.borderColor||'#c9a25e'); }
+  if (th.border === 'glow') { s.border = '1px solid ' + (th.borderColor||'#4d8dff'); s.boxShadow += ', 0 0 24px rgba(77,141,255,.25)'; }
+  s.color = th.text;
+  if (th.font === 'serif') s.fontFamily = '"Songti SC","Noto Serif SC",serif';
+  s.position = 'relative';
+  return s;
+}
+function textureLayer(th) {
+  if (!th.texture) return '';
+  let bg = '';
+  if (th.texture === 'spots') bg = 'radial-gradient(rgba(255,255,255,.3) 1px, transparent 1px)';
+  if (th.texture === 'dots') bg = 'radial-gradient(rgba(122,111,93,.14) .6px, transparent .6px)';
+  if (th.texture === 'grid') bg = 'linear-gradient(rgba(255,255,255,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.4) 1px, transparent 1px)';
+  const size = th.texture === 'grid' ? '18px 18px' : '3px 3px';
+  return `<div style="position:absolute;inset:0;opacity:.5;background-image:${bg};background-size:${size};pointer-events:none"></div>`;
+}
+function barLayer(th) {
+  if (!th.barTop) return '';
+  return `<div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,${th.accent},${th.accent=== '#0e9bd4' ? '#165dff' : th.accent});z-index:2"></div>`;
+}
+function cardHTML(t, isMini) {
+  const th = t.theme;
+  const inner = th.border === 'gold' ? `<div style="position:absolute;inset:6px;border:1px solid rgba(201,162,94,.2);border-radius:${(th.radius||16)-6}px;pointer-events:none"></div>` : '';
+  return `
+    <div class="mini" style="${cssObj(cardCss(t))}">
+      ${textureLayer(th)}${barLayer(th)}${inner}
+      <div class="m-av" style="background:${th.accent};color:#fff;z-index:1">👤</div>
+      <div class="m-nm" style="color:${th.text}">你的名字</div>
+      <div class="m-pos" style="color:${th.text}">职位 / 头衔</div>
+      <div class="m-city" style="color:${th.text}">所在城市</div>
+      <div class="m-qr" style="background:${th.text};opacity:.85;z-index:1"></div>
+      <div class="m-logo" style="color:${th.text}">零壹系统云</div>
+    </div>`;
+}
+function cssObj(obj) { return Object.entries(obj).map(([k,v]) => `${k}:${v}`).join(';'); }
+
+// 生成模板清单
+const grid = $('tplGrid');
+TEMPLATES.forEach((t, i) => {
+  const div = document.createElement('div');
+  div.className = 'tpl-item' + (i === 6 ? ' sel' : '');
+  div.dataset.id = t.id;
+  div.innerHTML = `
+    <span class="tag ${t.new ? 'new' : ''}">${t.new ? '新增' : '现有'}</span>
+    <div class="name">${t.name}</div>
+    ${cardHTML(t)}
+    <div class="cfg"><b>${t.cfg}</b></div>`;
+  div.onclick = () => selectTpl(t.id);
+  grid.appendChild(div);
+});
+
+// 生成底部横滑条
+const strip = $('strip');
+TEMPLATES.forEach((t, i) => {
+  const d = document.createElement('div');
+  d.className = 'strip-item' + (i === 6 ? ' on' : '');
+  d.dataset.id = t.id;
+  d.innerHTML = `<div class="s" style="${cssObj(cardCss(t))}"></div><div class="sn">${t.name}</div>`;
+  d.onclick = () => selectTpl(t.id);
+  strip.appendChild(d);
+});
+
+// 预览卡
+const pv = $('pv');
+function renderPreview(t) {
+  const th = t.theme;
+  let inner = th.border === 'gold' ? `<div style="position:absolute;inset:6px;border:1px solid rgba(201,162,94,.2);border-radius:${(th.radius||16)-6}px;pointer-events:none"></div>` : '';
+  let avBg = th.bgType === 'glass' ? `linear-gradient(135deg, rgba(77,141,255,.5), rgba(139,123,255,.5))` : th.accent;
+  pv.innerHTML = `
+    ${textureLayer(th)}${barLayer(th)}${inner}
+    <div class="av" style="background:${avBg};color:#fff;z-index:1">👤</div>
+    <div class="nm" style="color:${th.text}">你的名字</div>
+    <div class="pos" style="color:${th.text}">职位 / 头衔</div>
+    <div class="city" style="color:${th.text}">所在城市</div>
+    <div class="qr" style="background:${th.text};opacity:.85;z-index:1"></div>
+    <div class="logo" style="color:${th.text}">零壹系统云</div>`;
+  Object.assign(pv.style, cardCss(t));
+}
+function selectTpl(id) {
+  const t = TEMPLATES.find(x => x.id === id);
+  document.querySelectorAll('.tpl-item').forEach(el => el.classList.toggle('sel', Number(el.dataset.id) === id));
+  document.querySelectorAll('.strip-item').forEach(el => el.classList.toggle('on', Number(el.dataset.id) === id));
+  renderPreview(t);
+}
+renderPreview(TEMPLATES[6]);
+</script>
+
+</body>
+</html>

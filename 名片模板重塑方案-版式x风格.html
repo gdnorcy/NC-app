@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名片模板重塑：版式×风格方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; background: #0f1117; color: #fff; padding: 36px 20px 60px; }
+  .page-head { text-align: center; margin-bottom: 30px; }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+  .page-head p { color: #8b93a7; font-size: 12.5px; margin-top: 8px; }
+  .page-head p b { color: #4d8dff; }
+  .sec { max-width: 1100px; margin: 0 auto 34px; }
+  .sec-t { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .sec-no { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg,#165dff,#4d8dff); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+  .sec-t h2 { font-size: 17px; font-weight: 700; }
+  .sec-t .hint { margin-left: auto; font-size: 11px; color: #8b93a7; }
+
+  /* 诊断 */
+  .diag { background: #171a22; border: 1px solid #262b37; border-radius: 16px; padding: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .diag .box { flex: 1; min-width: 220px; background: #0d1017; border-radius: 12px; padding: 14px; }
+  .diag .box h4 { font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .diag .box .bad { color: #f56c6c; }
+  .diag .box .good { color: #4d8dff; }
+  .diag .box p { font-size: 10.5px; color: #9aa3b2; line-height: 1.9; }
+  .diag .arrow { align-self: center; font-size: 22px; color: #4d8dff; }
+
+  /* 矩阵 */
+  .matrix { display: grid; grid-template-columns: 92px repeat(4, 1fr); gap: 10px; }
+  .m-cell { background: #171a22; border: 1px solid #262b37; border-radius: 12px; padding: 10px; min-height: 100px; }
+  .m-head { font-size: 11px; font-weight: 700; text-align: center; padding: 8px; }
+  .m-rowhead { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; text-align: center; padding: 8px; background: #232837; border-radius: 10px; }
+  .m-note { font-size: 9.5px; color: #7d8699; text-align: center; margin-top: 4px; line-height: 1.5; }
+  .m-hot { border-color: #4d8dff; box-shadow: 0 0 0 2px rgba(77,141,255,.15); }
+  .m-hot .m-note { color: #4d8dff; font-weight: 600; }
+
+  /* 手机壳 */
+  .demo { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+  .phone { width: 272px; height: 560px; border-radius: 38px; background: #0b0d12; border: 7px solid #23262e; position: relative; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+  .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 68px; height: 17px; background: #1b1e26; border-radius: 99px; z-index: 9; }
+  .screen { position: absolute; inset: 0; border-radius: 31px; overflow: hidden; background: #f2f4f7; display: flex; flex-direction: column; }
+  .phone-cap { text-align: center; margin-top: 8px; }
+  .phone-cap .pn { font-size: 13px; font-weight: 700; }
+  .phone-cap .ps { font-size: 9.5px; color: #8b93a7; margin-top: 2px; }
+  .phone-cap .pf { font-size: 9px; color: #4d8dff; margin-top: 4px; background: rgba(77,141,255,.12); display: inline-block; padding: 2px 8px; border-radius: 99px; }
+
+  /* hero 版式 */
+  .hero { position: relative; overflow: hidden; flex-shrink: 0; }
+  /* 1 经典横排 */
+  .h-cls { display: flex; align-items: center; padding: 46px 18px 18px; }
+  .h-cls .av { width: 52px; height: 52px; border-radius: 16px; background: rgba(255,255,255,.85); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-right: 12px; flex-shrink: 0; }
+  .h-cls .nm { font-size: 17px; font-weight: 800; color: #fff; }
+  .h-cls .pos { font-size: 9.5px; color: rgba(255,255,255,.8); margin-top: 3px; }
+  .h-cls .ct { font-size: 8px; color: rgba(255,255,255,.55); margin-top: 2px; }
+  /* 2 居中展示 */
+  .h-ctr { text-align: center; padding: 52px 16px 16px; }
+  .h-ctr .av { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.9); display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto; }
+  .h-ctr .nm { font-size: 18px; font-weight: 800; color: #fff; margin-top: 10px; }
+  .h-ctr .pos { font-size: 10px; color: rgba(255,255,255,.8); margin-top: 3px; }
+  .h-ctr .ct { font-size: 8.5px; color: rgba(255,255,255,.55); margin-top: 2px; }
+  /* 3 全屏沉浸 */
+  .h-full { height: 250px; }
+  .h-full .bg { position: absolute; inset: 0; background: linear-gradient(160deg,#4a7fc9,#2a4a7a); }
+  .h-full .shade { position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.05), rgba(0,0,0,.6)); }
+  .h-full .info { position: absolute; left: 18px; right: 18px; bottom: 14px; }
+  .h-full .nm { font-size: 19px; font-weight: 800; color: #fff; }
+  .h-full .pos { font-size: 10px; color: rgba(255,255,255,.85); margin-top: 3px; }
+  .h-full .ct { font-size: 8.5px; color: rgba(255,255,255,.6); margin-top: 2px; }
+  /* 4 杂志大字 */
+  .h-mag { padding: 52px 20px 22px; }
+  .h-mag .nm { font-size: 24px; font-weight: 400; letter-spacing: 2px; color: #fff; font-family: "Songti SC", serif; }
+  .h-mag .rule { width: 30px; height: 2px; background: rgba(255,255,255,.8); margin: 10px 0; }
+  .h-mag .pos { font-size: 10px; color: rgba(255,255,255,.8); letter-spacing: 1px; }
+  .h-mag .ct { font-size: 8.5px; color: rgba(255,255,255,.55); margin-top: 3px; letter-spacing: 1px; }
+
+  /* 名片下半部（body 区示意） */
+  .card-body { background: #fff; flex: 1; padding: 12px 14px; }
+  .body-row { display: flex; align-items: center; gap: 8px; background: #f7f8fa; border-radius: 10px; padding: 9px 11px; margin-bottom: 8px; }
+  .body-row .dot { width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0; }
+  .body-row .ln { flex: 1; height: 8px; background: #e9ebf0; border-radius: 99px; }
+  .body-row .ln.w { width: 60%; }
+  .card-body .tags { display: flex; gap: 6px; margin-top: 10px; }
+  .card-body .tag { font-size: 8.5px; color: #4e5969; background: #f2f3f5; border-radius: 99px; padding: 3px 9px; }
+
+  .sec-foot { text-align: center; font-size: 11px; color: #8b93a7; margin-top: 14px; }
+  .sec-foot b { color: #4d8dff; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>名片模板重塑方案 · 版式 × 风格</h1>
+  <p>模板的真正差异来自<b>版式结构</b>，颜色只是皮肤 · 现有 3 个模板只是换色，需要重塑</p>
+</div>
+
+<!-- ============ 01 诊断 ============ -->
+<div class="sec">
+  <div class="sec-t"><div class="sec-no">1</div><h2>问题诊断：现有模板 = 换色皮肤，不是模板</h2></div>
+  <div class="diag">
+    <div class="box">
+      <h4 class="bad">现状（3 个模板）</h4>
+      <p>
+        商务蓝 #1D4E8F / 简约白 #165dff / 租户金 #B8860B<br>
+        → 只改 <b>primary 主色 + 背景色</b><br>
+        → 版式、结构、排版 <b>完全一样</b><br>
+        → 本质是 <b>「换色皮肤」</b>，不是模板
+      </p>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="box">
+      <h4 class="good">模板应该是什么</h4>
+      <p>
+        <b>版式（结构）</b>：头像位置、信息排列、对齐方式不同<br>
+        <b>风格（视觉）</b>：渐变 / 字体 / 纹理 / 描边 / 圆角<br>
+        → 模板 = <b>版式 × 风格</b>，组合出真正差异<br>
+        → 用户换模板 = 名片<b>换一种呈现方式</b>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 02 版式×风格矩阵 ============ -->
+<div class="sec">
+  <div class="sec-t"><div class="sec-no">2</div><h2>模板矩阵：4 版式 × 风格组合（9 个真实模板）</h2><div class="hint">高亮 = 推荐首批落地</div></div>
+  <div class="matrix">
+    <div class="m-rowhead" style="visibility:hidden"></div>
+    <div class="m-head">经典横排</div>
+    <div class="m-head">居中展示</div>
+    <div class="m-head">全屏沉浸</div>
+    <div class="m-head">杂志大字</div>
+    <div class="m-rowhead">基础<br><span style="font-weight:400;font-size:9px;color:#8b93a7">商务/通用</span></div>
+    <div class="m-cell m-hot"><div style="font-size:11px;color:#fff">商务蓝·经典</div><div class="m-note">现有模板升级<br>版式保留，视觉细化</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#fff">居中大气</div><div class="m-note">新：大头像居中<br>适合个人 IP</div></div>
+    <div class="m-cell m-hot"><div style="font-size:11px;color:#fff">全屏沉浸</div><div class="m-note">现有 full 模板<br>头像铺满+视差</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#fff">简约留白</div><div class="m-note">新：左对齐大字<br>克制排版</div></div>
+    <div class="m-rowhead">高端<br><span style="font-weight:400;font-size:9px;color:#8b93a7">黑金奢华</span></div>
+    <div class="m-cell"><div style="font-size:11px;color:#c9a25e">黑金·经典</div><div class="m-note">鎏金描边+衬线<br>商务精英</div></div>
+    <div class="m-cell m-hot"><div style="font-size:11px;color:#c9a25e">黑金·居中</div><div class="m-note">大图居中+金线<br>企业家/高端</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#c9a25e">黑金·全屏</div><div class="m-note">头像+金框暗遮罩<br>二期</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#c9a25e">黑金·杂志</div><div class="m-note">衬线大字+金线<br>奢侈感</div></div>
+    <div class="m-rowhead">科技<br><span style="font-weight:400;font-size:9px;color:#8b93a7">暗夜蓝紫</span></div>
+    <div class="m-cell"><div style="font-size:11px;color:#9db4ff">暗夜·经典</div><div class="m-note">毛玻璃+霓虹边<br>现代科技</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#9db4ff">暗夜·居中</div><div class="m-note">光晕大头像<br>设计/科技人</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#9db4ff">暗夜·全屏</div><div class="m-note">头像+霓虹光<br>二期</div></div>
+    <div class="m-cell m-hot"><div style="font-size:11px;color:#9db4ff">暗夜·杂志</div><div class="m-note">大字+光效<br>先锋品牌</div></div>
+    <div class="m-rowhead">文艺<br><span style="font-weight:400;font-size:9px;color:#8b93a7">纸艺米金</span></div>
+    <div class="m-cell"><div style="font-size:11px;color:#e6cfa6">纸艺·经典</div><div class="m-note">纸纹+细金线<br>文化格调</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#e6cfa6">纸艺·居中</div><div class="m-note">圆形头像+衬线<br>设计师</div></div>
+    <div class="m-cell"><div style="font-size:11px;color:#e6cfa6">纸艺·全屏</div><div class="m-note">头像+纸纹遮罩<br>二期</div></div>
+    <div class="m-cell m-hot"><div style="font-size:11px;color:#e6cfa6">纸艺·杂志</div><div class="m-note">宋体大字+金线<br>书卷气</div></div>
+  </div>
+  <div class="sec-foot"><b>首批落地 6 个</b>：商务蓝·经典 / 全屏沉浸（现有升级）/ 居中大气 / 黑金·居中 / 暗夜·杂志 / 纸艺·杂志 —— 版式与风格都不同，模板才有意义</div>
+</div>
+
+<!-- ============ 03 四种版式效果 ============ -->
+<div class="sec">
+  <div class="sec-t"><div class="sec-no">3</div><h2>四种版式 · 同一套信息的不同呈现（hero 结构差异）</h2></div>
+  <div class="demo">
+    <!-- 经典横排 -->
+    <div>
+      <div class="phone-cap"><div class="pn">经典横排</div><div class="ps">头像左 · 信息右</div><div class="pf">商务蓝</div></div>
+      <div class="phone" style="margin-top:6px">
+        <div class="screen">
+          <div class="hero h-cls" style="background:linear-gradient(160deg,#0e2a4e,#3b7bd4)">
+            <div class="av">👤</div>
+            <div><div class="nm">你的名字</div><div class="pos">职位 / 头衔</div><div class="ct">📍 所在城市</div></div>
+          </div>
+          <div class="card-body">
+            <div class="body-row"><div class="dot" style="background:#e8f3ff"></div><div class="ln"></div></div>
+            <div class="body-row"><div class="dot" style="background:#fff3e8"></div><div class="ln"></div></div>
+            <div class="tags"><span class="tag">找渠道</span><span class="tag">求合作</span><span class="tag">招合伙人</span></div>
+            <div class="body-row" style="margin-top:10px"><div class="dot" style="background:#e9f9f0"></div><div class="ln w"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 居中展示 -->
+    <div>
+      <div class="phone-cap"><div class="pn">居中展示</div><div class="ps">大头像居中 · 对称为主</div><div class="pf">黑金·居中</div></div>
+      <div class="phone" style="margin-top:6px">
+        <div class="screen">
+          <div class="hero h-ctr" style="background:linear-gradient(160deg,#1c1812,#2a241c);border:1px solid rgba(201,162,94,.4)">
+            <div class="av" style="border:1.5px solid #c9a25e">👤</div>
+            <div class="nm" style="color:#f0ead9;font-family:'Songti SC',serif;letter-spacing:2px">你的名字</div>
+            <div class="pos" style="color:#c9a25e">职位 / 头衔</div>
+            <div class="ct" style="color:rgba(232,226,212,.5)">📍 所在城市</div>
+          </div>
+          <div class="card-body">
+            <div class="body-row"><div class="dot" style="background:#c9a25e22"></div><div class="ln"></div></div>
+            <div class="body-row"><div class="dot" style="background:#c9a25e22"></div><div class="ln"></div></div>
+            <div class="tags" style="justify-content:center"><span class="tag">找渠道</span><span class="tag">求合作</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 全屏沉浸 -->
+    <div>
+      <div class="phone-cap"><div class="pn">全屏沉浸</div><div class="ps">头像铺满 · 信息浮层</div><div class="pf">现有 full 升级</div></div>
+      <div class="phone" style="margin-top:6px">
+        <div class="screen">
+          <div class="hero h-full">
+            <div class="bg"></div>
+            <div class="shade"></div>
+            <div class="info">
+              <div class="nm">你的名字</div>
+              <div class="pos">职位 / 头衔</div>
+              <div class="ct">📍 所在城市</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="body-row"><div class="dot" style="background:#e8f3ff"></div><div class="ln"></div></div>
+            <div class="body-row"><div class="dot" style="background:#fff3e8"></div><div class="ln"></div></div>
+            <div class="tags"><span class="tag">找渠道</span><span class="tag">求合作</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 杂志大字 -->
+    <div>
+      <div class="phone-cap"><div class="pn">杂志大字</div><div class="ps">左对齐 · 大字排版</div><div class="pf">纸艺·杂志</div></div>
+      <div class="phone" style="margin-top:6px">
+        <div class="screen">
+          <div class="hero h-mag" style="background:#f4f1ea;border-bottom:1px solid #e0dacb">
+            <div class="nm" style="color:#2b2723">你的名字</div>
+            <div class="rule" style="background:#c9a25e"></div>
+            <div class="pos" style="color:#8b7f6c">职位 / 头衔</div>
+            <div class="ct" style="color:#a89c88">📍 所在城市</div>
+          </div>
+          <div class="card-body" style="background:#f4f1ea">
+            <div class="body-row" style="background:#fff"><div class="dot" style="background:#c9a25e22"></div><div class="ln"></div></div>
+            <div class="body-row" style="background:#fff"><div class="dot" style="background:#c9a25e22"></div><div class="ln"></div></div>
+            <div class="tags"><span class="tag">找渠道</span><span class="tag">求合作</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sec-foot">同一套信息（姓名/职位/城市/标签/动态）在 4 种版式下呈现完全不同 → 这才是「模板」的价值</div>
+</div>
+
+</body>
+</html>

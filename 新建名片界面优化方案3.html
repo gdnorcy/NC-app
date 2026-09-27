@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新建名片界面优化方案（三）高端系列</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0f1117; color: #fff; padding: 40px 20px 60px;
+  }
+  .page-head { text-align: center; margin-bottom: 36px; }
+  .page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: 1px; }
+  .page-head p { color: #8b93a7; font-size: 13px; margin-top: 8px; }
+  .page-head p b { color: #d4af6a; }
+
+  .compare { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; }
+  .plan { width: 330px; background: #171a22; border-radius: 20px; padding: 22px 18px 26px; border: 1px solid #262b37; }
+  .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .plan-badge { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; flex-shrink: 0; }
+  .plan-name { font-size: 16px; font-weight: 700; }
+  .plan-sub { font-size: 11px; color: #8b93a7; margin-top: 2px; }
+  .plan-tag { margin-left: auto; font-size: 10px; color: #8b93a7; border: 1px solid #333a4a; padding: 3px 8px; border-radius: 99px; }
+
+  .phone { width: 290px; height: 600px; margin: 0 auto; border-radius: 38px; background: #0b0d12; border: 7px solid #23262e; position: relative; box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 2px #14161c; }
+  .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 72px; height: 18px; background: #1b1e26; border-radius: 99px; z-index: 9; }
+  .screen { position: absolute; inset: 0; border-radius: 31px; overflow: hidden; font-size: 12px; }
+  .screen * { box-sizing: border-box; }
+  .points { margin-top: 16px; background: #12151c; border-radius: 12px; padding: 12px 14px; }
+  .points h4 { font-size: 12px; margin-bottom: 8px; }
+  .points li { font-size: 10.5px; color: #9aa3b2; line-height: 1.9; list-style: none; padding-left: 14px; position: relative; }
+  .points li::before { content: '·'; position: absolute; left: 3px; color: #d4af6a; }
+  .points li b { color: #cdd5e0; font-weight: 600; }
+
+  /* ============ 方案G：黑金奢华 ============ */
+  .g-body { display: flex; flex-direction: column; height: 100%; background: linear-gradient(180deg, #12100c, #0b0a08); color: #e8e2d4; }
+  .g-nav { display: flex; align-items: center; padding: 42px 16px 0; }
+  .g-back { color: #c9a25e; font-size: 17px; }
+  .g-title { font-size: 13px; font-weight: 700; margin-left: 12px; letter-spacing: 2px; color: #e8e2d4; }
+  .g-login { margin-left: auto; font-size: 9.5px; color: #c9a25e; border: 1px solid rgba(201,162,94,.45); padding: 4px 10px; border-radius: 99px; }
+  .g-hero { padding: 18px 18px 4px; text-align: center; position: relative; }
+  .g-hero h2 { font-size: 21px; font-weight: 500; letter-spacing: 6px; color: #f0ead9; }
+  .g-hero .en { font-size: 8px; letter-spacing: 4px; color: rgba(201,162,94,.8); margin-top: 6px; text-transform: uppercase; }
+  .g-hero .rule { width: 40px; height: 1px; background: linear-gradient(90deg, transparent, #c9a25e, transparent); margin: 12px auto 0; }
+  .g-card {
+    width: 176px; height: 252px; margin: 14px auto 0; border-radius: 14px; position: relative; overflow: hidden;
+    background: linear-gradient(160deg, #1c1812 0%, #262019 55%, #1a1510 100%);
+    border: 1px solid rgba(201,162,94,.55);
+    box-shadow: 0 18px 44px rgba(0,0,0,.6), 0 0 24px rgba(201,162,94,.08);
+    padding: 16px;
+  }
+  .g-card::before { content:''; position: absolute; inset: 6px; border: 1px solid rgba(201,162,94,.18); border-radius: 9px; pointer-events: none; }
+  .g-card::after { content:''; position: absolute; right: -40px; top: -40px; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle, rgba(201,162,94,.14), transparent 65%); }
+  .g-card .avatar { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(201,162,94,.6); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .g-card .nm { color: #f0ead9; font-size: 18px; font-weight: 600; margin-top: 12px; letter-spacing: 3px; }
+  .g-card .pos { color: #c9a25e; font-size: 9px; margin-top: 4px; letter-spacing: 2px; }
+  .g-card .city { color: rgba(232,226,212,.5); font-size: 8.5px; margin-top: 3px; letter-spacing: 1px; }
+  .g-card .qr { position: absolute; right: 16px; bottom: 16px; width: 26px; height: 26px; background: rgba(240,234,217,.9); border-radius: 3px; }
+  .g-card .logo { position: absolute; left: 16px; bottom: 16px; font-size: 8px; color: rgba(201,162,94,.85); letter-spacing: 2px; }
+  .g-live { text-align: center; font-size: 8.5px; color: rgba(201,162,94,.75); margin-top: 10px; letter-spacing: 2px; }
+  .g-edit { flex: 1; margin: 12px 12px 0; background: rgba(255,255,255,.025); border: 1px solid rgba(201,162,94,.14); border-radius: 16px; padding: 10px 14px; overflow: hidden; }
+  .g-row { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(201,162,94,.1); }
+  .g-row:last-child { border-bottom: none; }
+  .g-row label { font-size: 10px; color: #a89e8a; width: 56px; letter-spacing: 1px; flex-shrink: 0; }
+  .g-row label i { color: #d4af6a; font-style: normal; }
+  .g-row input { flex: 1; border: none; outline: none; background: transparent; text-align: right; font-size: 11px; color: #e8e2d4; }
+  .g-row .ph { color: rgba(232,226,212,.32); text-align: right; font-size: 10.5px; }
+  .g-tpls { display: flex; gap: 8px; padding: 10px 0 6px; }
+  .g-tpl { flex: 1; height: 30px; border-radius: 8px; border: 1.5px solid rgba(201,162,94,.18); overflow: hidden; }
+  .g-tpl.on { border-color: #c9a25e; box-shadow: 0 0 0 2px rgba(201,162,94,.15); }
+  .g-foot { padding: 12px 14px 18px; }
+  .g-btn {
+    background: linear-gradient(135deg, #c9a25e, #a8844a); color: #14100a; text-align: center;
+    padding: 13px; border-radius: 12px; font-size: 13px; font-weight: 800; letter-spacing: 3px;
+    box-shadow: 0 8px 22px rgba(201,162,94,.3);
+  }
+
+  /* ============ 方案H：暗夜科技 ============ */
+  .h-body { display: flex; flex-direction: column; height: 100%; background: #05070f; color: #e8ecff; }
+  .h-bg { position: absolute; inset: 0; overflow: hidden; }
+  .h-bg .orb { position: absolute; border-radius: 50%; filter: blur(60px); }
+  .h-bg .o1 { width: 220px; height: 220px; left: -70px; top: 60px; background: rgba(77,141,255,.28); }
+  .h-bg .o2 { width: 200px; height: 200px; right: -60px; top: 300px; background: rgba(139,123,255,.22); }
+  .h-bg .o3 { width: 180px; height: 180px; left: 40px; bottom: -40px; background: rgba(14,155,212,.2); }
+  .h-nav { position: relative; display: flex; align-items: center; padding: 42px 16px 0; }
+  .h-back { color: #9db4ff; font-size: 17px; }
+  .h-title { font-size: 13px; font-weight: 600; margin-left: 12px; letter-spacing: 1px; color: #e8ecff; }
+  .h-login { margin-left: auto; font-size: 9.5px; color: #9db4ff; background: rgba(77,141,255,.12); border: 1px solid rgba(77,141,255,.35); padding: 4px 10px; border-radius: 99px; }
+  .h-hero { position: relative; padding: 20px 18px 0; }
+  .h-hero h2 { font-size: 22px; font-weight: 700; color: #f4f7ff; letter-spacing: 1px; }
+  .h-hero p { color: rgba(157,180,255,.65); font-size: 10px; margin-top: 6px; letter-spacing: 1px; }
+  .h-steps { display: flex; gap: 6px; margin-top: 14px; }
+  .h-steps i { height: 3px; flex: 1; border-radius: 99px; background: rgba(157,180,255,.18); }
+  .h-steps i.on { background: linear-gradient(90deg, #4d8dff, #8b7bff); box-shadow: 0 0 10px rgba(77,141,255,.5); }
+  .h-card {
+    width: 180px; height: 248px; margin: 16px auto 0; border-radius: 16px; position: relative; overflow: hidden;
+    background: linear-gradient(160deg, rgba(77,141,255,.16), rgba(139,123,255,.08) 60%, rgba(14,155,212,.14));
+    border: 1px solid rgba(157,180,255,.35);
+    box-shadow: 0 18px 44px rgba(0,0,0,.55), 0 0 30px rgba(77,141,255,.12), inset 0 0 30px rgba(157,180,255,.06);
+    backdrop-filter: blur(14px);
+    padding: 16px;
+  }
+  .h-card::after { content:''; position: absolute; right: -26px; top: -26px; width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle, rgba(77,141,255,.35), transparent 65%); }
+  .h-card .avatar { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, rgba(77,141,255,.5), rgba(139,123,255,.5)); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .h-card .nm { color: #f4f7ff; font-size: 19px; font-weight: 700; margin-top: 12px; letter-spacing: 1px; }
+  .h-card .pos { color: rgba(157,180,255,.8); font-size: 9.5px; margin-top: 4px; }
+  .h-card .city { color: rgba(157,180,255,.5); font-size: 8.5px; margin-top: 2px; }
+  .h-card .line { width: 100%; height: 1px; background: linear-gradient(90deg, rgba(157,180,255,.4), transparent); margin: 10px 0; }
+  .h-card .qr { position: absolute; right: 14px; bottom: 14px; width: 26px; height: 26px; background: linear-gradient(135deg, #4d8dff, #8b7bff); border-radius: 4px; opacity: .9; }
+  .h-card .logo { position: absolute; left: 16px; bottom: 16px; font-size: 8px; color: rgba(157,180,255,.6); letter-spacing: 2px; }
+  .h-live { text-align: center; font-size: 8.5px; color: rgba(157,180,255,.7); margin-top: 12px; letter-spacing: 2px; }
+  .h-edit { flex: 1; margin: 12px 12px 0; background: rgba(255,255,255,.05); border: 1px solid rgba(157,180,255,.18); border-radius: 16px; padding: 10px 14px; backdrop-filter: blur(14px); overflow: hidden; }
+  .h-row { display: flex; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(157,180,255,.1); }
+  .h-row:last-child { border-bottom: none; }
+  .h-row label { font-size: 10px; color: #9db4ff; width: 56px; flex-shrink: 0; letter-spacing: 1px; }
+  .h-row label i { color: #8b7bff; font-style: normal; }
+  .h-row input { flex: 1; border: none; outline: none; background: transparent; text-align: right; font-size: 11px; color: #e8ecff; }
+  .h-row .ph { color: rgba(232,236,255,.3); text-align: right; font-size: 10.5px; }
+  .h-tpls { display: flex; gap: 8px; padding: 10px 0 4px; }
+  .h-tpl { flex: 1; height: 28px; border-radius: 8px; border: 1.5px solid rgba(157,180,255,.15); overflow: hidden; }
+  .h-tpl.on { border-color: #4d8dff; box-shadow: 0 0 0 2px rgba(77,141,255,.2), 0 0 12px rgba(77,141,255,.3); }
+  .h-foot { padding: 12px 14px 18px; position: relative; }
+  .h-btn {
+    background: linear-gradient(135deg, #4d8dff, #8b7bff); color: #fff; text-align: center;
+    padding: 13px; border-radius: 14px; font-size: 13.5px; font-weight: 700; letter-spacing: 2px;
+    box-shadow: 0 8px 24px rgba(77,141,255,.35), 0 0 18px rgba(139,123,255,.2);
+  }
+
+  /* ============ 方案I：纸艺雅致 ============ */
+  .i-body { display: flex; flex-direction: column; height: 100%; background: #f4f1ea; color: #2b2723; }
+  .i-nav { display: flex; align-items: center; padding: 42px 16px 0; }
+  .i-back { color: #7a6f5d; font-size: 17px; }
+  .i-title { font-size: 13px; font-weight: 600; margin-left: 12px; letter-spacing: 2px; color: #2b2723; }
+  .i-login { margin-left: auto; font-size: 9.5px; color: #7a6f5d; border: 1px solid #d8d0c0; padding: 4px 10px; border-radius: 99px; }
+  .i-hero { padding: 20px 20px 0; text-align: center; }
+  .i-hero h2 { font-size: 22px; font-weight: 400; letter-spacing: 3px; color: #2b2723; font-family: "Songti SC", "Noto Serif SC", serif; }
+  .i-hero p { font-size: 9.5px; color: #9a8f7c; margin-top: 8px; letter-spacing: 2px; }
+  .i-card {
+    width: 178px; height: 250px; margin: 16px auto 0; border-radius: 8px; position: relative; overflow: hidden;
+    background: #fdfcf9;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 12px 32px rgba(43,39,35,.1);
+    padding: 18px;
+  }
+  .i-card::before { content:''; position: absolute; inset: 0; opacity: .5; background-image: radial-gradient(rgba(122,111,93,.12) 0.6px, transparent 0.6px); background-size: 3px 3px; }
+  .i-card .gold { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #c9a25e, transparent); }
+  .i-card .avatar { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #c9a25e; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .i-card .nm { font-size: 19px; font-weight: 500; margin-top: 12px; letter-spacing: 3px; color: #2b2723; font-family: "Songti SC", "Noto Serif SC", serif; }
+  .i-card .pos { color: #8b7f6c; font-size: 9px; margin-top: 4px; letter-spacing: 2px; }
+  .i-card .rule { width: 26px; height: 1px; background: #c9a25e; margin: 10px 0; }
+  .i-card .city { color: #a89c88; font-size: 8.5px; letter-spacing: 1px; }
+  .i-card .qr { position: absolute; right: 16px; bottom: 16px; width: 26px; height: 26px; background: #2b2723; border-radius: 2px; opacity: .85; }
+  .i-card .logo { position: absolute; left: 18px; bottom: 18px; font-size: 8px; color: #c9a25e; letter-spacing: 2px; }
+  .i-live { text-align: center; font-size: 8.5px; color: #a89c88; margin-top: 12px; letter-spacing: 2px; }
+  .i-edit { flex: 1; margin: 12px 14px 0; background: #fff; border: 1px solid #ebe5da; border-radius: 12px; padding: 6px 16px; overflow: hidden; }
+  .i-row { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid #f0ece3; }
+  .i-row:last-child { border-bottom: none; }
+  .i-row label { font-size: 10.5px; color: #6f6655; width: 58px; letter-spacing: 1px; flex-shrink: 0; }
+  .i-row label i { color: #b08d57; font-style: normal; }
+  .i-row input { flex: 1; border: none; outline: none; background: transparent; text-align: right; font-size: 11px; color: #2b2723; font-family: "Songti SC", "Noto Serif SC", serif; }
+  .i-row .ph { color: #cfc8ba; text-align: right; font-size: 10.5px; }
+  .i-tpls { display: flex; gap: 8px; padding: 10px 0 4px; }
+  .i-tpl { flex: 1; height: 30px; border-radius: 6px; border: 1px solid #e0dacb; overflow: hidden; }
+  .i-tpl.on { border-color: #c9a25e; box-shadow: 0 0 0 1px #c9a25e inset; }
+  .i-foot { padding: 12px 14px 18px; }
+  .i-btn {
+    background: #2b2723; color: #f4f1ea; text-align: center; padding: 13px; border-radius: 8px;
+    font-size: 12.5px; font-weight: 600; letter-spacing: 4px; box-shadow: 0 8px 20px rgba(43,39,35,.18);
+  }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>新建名片界面 · 高端系列方案</h1>
+  <p>三个高端气质方向 · <b>G 黑金奢华</b>（鎏金质感）/ <b>H 暗夜科技</b>（光效毛玻璃）/ <b>I 纸艺雅致</b>（衬线纸感）</p>
+</div>
+
+<div class="compare">
+
+  <!-- ===== 方案G：黑金奢华 ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#c9a25e,#8a6a34)">G</div>
+      <div>
+        <div class="plan-name">黑金奢华</div>
+        <div class="plan-sub">鎏金质感 · 商务高端</div>
+      </div>
+      <div class="plan-tag">改动量 ★★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="g-body">
+          <div class="g-nav">
+            <span class="g-back">‹</span>
+            <span class="g-title">创建名片</span>
+            <span class="g-login">微信授权登录</span>
+          </div>
+          <div class="g-hero">
+            <h2>创建你的名片</h2>
+            <div class="en">Create Your Card</div>
+            <div class="rule"></div>
+          </div>
+          <div class="g-card">
+            <div class="avatar">👤</div>
+            <div class="nm">你的名字</div>
+            <div class="pos">职位 / 头衔</div>
+            <div class="city">所在城市</div>
+            <div class="qr"></div>
+            <div class="logo">零壹系统云</div>
+          </div>
+          <div class="g-live">· 实时预览 ·</div>
+          <div class="g-edit">
+            <div class="g-row"><label>姓名<i>*</i></label><span class="ph">请输入你的姓名</span></div>
+            <div class="g-row"><label>职位/头衔</label><span class="ph">自由职业者/顾问...</span></div>
+            <div class="g-row"><label>所在城市<i>*</i></label><span class="ph">请选择城市 ›</span></div>
+            <div class="g-tpls">
+              <div class="g-tpl on" style="background:linear-gradient(160deg,#1c1812,#3a3020)"></div>
+              <div class="g-tpl" style="background:linear-gradient(160deg,#f5f2ea,#e0dacb)"></div>
+              <div class="g-tpl" style="background:linear-gradient(160deg,#241d12,#6b4f2a)"></div>
+            </div>
+          </div>
+          <div class="g-foot">
+            <div class="g-btn">下一步 · 填写联系方式</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>高端感来源</h4>
+      <ul>
+        <li><b>黑金配色</b>：墨黑底 + 鎏金点缀，奢侈品/高端商务惯用</li>
+        <li><b>烫金名片卡</b>：深色卡 + 金色细描边 + 内嵌金线框 + 光泽光斑</li>
+        <li><b>仪式感排版</b>：中文大字距 + 英文小注脚 + 金色细分割线，克制留白</li>
+        <li><b>金色按钮</b>：鎏金渐变实心 + 深色文字，按键即有高级手感</li>
+        <li>适合：商务名片、企业家、高端行业（金融/律师/地产）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 方案H：暗夜科技 ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#4d8dff,#8b7bff)">H</div>
+      <div>
+        <div class="plan-name">暗夜科技</div>
+        <div class="plan-sub">光效毛玻璃 · 现代高端</div>
+      </div>
+      <div class="plan-tag">改动量 ★★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="h-body">
+          <div class="h-bg">
+            <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+          </div>
+          <div class="h-nav">
+            <span class="h-back">‹</span>
+            <span class="h-title">创建名片</span>
+            <span class="h-login">微信授权登录</span>
+          </div>
+          <div class="h-hero">
+            <h2>创建你的名片</h2>
+            <p>2 分钟完成，即刻开启数字名片</p>
+            <div class="h-steps"><i class="on"></i><i></i><i></i></div>
+          </div>
+          <div class="h-card">
+            <div class="avatar">👤</div>
+            <div class="nm">你的名字</div>
+            <div class="pos">职位 / 头衔</div>
+            <div class="city">所在城市</div>
+            <div class="line"></div>
+            <div class="qr"></div>
+            <div class="logo">零壹系统云</div>
+          </div>
+          <div class="h-live">· LIVE PREVIEW ·</div>
+          <div class="h-edit">
+            <div class="h-row"><label>姓名<i>*</i></label><span class="ph">请输入你的姓名</span></div>
+            <div class="h-row"><label>职位/头衔</label><span class="ph">自由职业者/顾问...</span></div>
+            <div class="h-row"><label>所在城市<i>*</i></label><span class="ph">请选择城市 ›</span></div>
+            <div class="h-tpls">
+              <div class="h-tpl on" style="background:linear-gradient(160deg,#1a2f5c,#4d8dff)"></div>
+              <div class="h-tpl" style="background:linear-gradient(160deg,#e8ecff,#b8c4e8)"></div>
+              <div class="h-tpl" style="background:linear-gradient(160deg,#3a2a5c,#8b7bff)"></div>
+            </div>
+          </div>
+          <div class="h-foot">
+            <div class="h-btn">下一步 · 填写联系方式</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>高端感来源</h4>
+      <ul>
+        <li><b>暗夜光效</b>：深空蓝黑底 + 三团柔光晕（模糊球体），氛围感强</li>
+        <li><b>毛玻璃卡片</b>：半透明渐变 + 模糊 + 霓虹描边，科技奢华（Apple/特斯拉风）</li>
+        <li><b>电光蓝紫渐变</b>：按钮与高亮用蓝→紫光感渐变，现代高级</li>
+        <li><b>发光进度条</b>：步骤条带光晕，交互处有"呼吸感"</li>
+        <li>适合：科技、互联网、设计、年轻化品牌</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 方案I：纸艺雅致 ===== -->
+  <div class="plan">
+    <div class="plan-head">
+      <div class="plan-badge" style="background:linear-gradient(135deg,#8b7f6c,#c9a25e)">I</div>
+      <div>
+        <div class="plan-name">纸艺雅致</div>
+        <div class="plan-sub">衬线纸感 · 克制优雅</div>
+      </div>
+      <div class="plan-tag">改动量 ★★</div>
+    </div>
+    <div class="phone">
+      <div class="screen">
+        <div class="i-body">
+          <div class="i-nav">
+            <span class="i-back">‹</span>
+            <span class="i-title">创建名片</span>
+            <span class="i-login">微信授权登录</span>
+          </div>
+          <div class="i-hero">
+            <h2>创建你的名片</h2>
+            <p>个人也可以创建 · 2 分钟完成</p>
+          </div>
+          <div class="i-card">
+            <div class="gold"></div>
+            <div class="avatar">👤</div>
+            <div class="nm">你的名字</div>
+            <div class="pos">职位 / 头衔</div>
+            <div class="rule"></div>
+            <div class="city">所在城市</div>
+            <div class="qr"></div>
+            <div class="logo">零壹系统云</div>
+          </div>
+          <div class="i-live">实时预览 · 保存后展示此样式</div>
+          <div class="i-edit">
+            <div class="i-row"><label>姓名<i>*</i></label><span class="ph">请输入你的姓名</span></div>
+            <div class="i-row"><label>职位/头衔</label><span class="ph">自由职业者/顾问...</span></div>
+            <div class="i-row"><label>所在城市<i>*</i></label><span class="ph">请选择城市 ›</span></div>
+            <div class="i-tpls">
+              <div class="i-tpl on" style="background:#fdfcf9"></div>
+              <div class="i-tpl" style="background:#f5f2ea"></div>
+              <div class="i-tpl" style="background:#efe8d8"></div>
+            </div>
+          </div>
+          <div class="i-foot">
+            <div class="i-btn">下一步 · 填写联系方式</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="points">
+      <h4>高端感来源</h4>
+      <ul>
+        <li><b>纸感材质</b>：米白暖底 + 名片卡细腻纸纹点阵 + 顶部细金线，像一张高定印刷名片</li>
+        <li><b>衬线字体</b>：宋体字重 + 大间距排版，书卷气与品牌感（奢侈品/出版风格）</li>
+        <li><b>克制用色</b>：黑白米 + 一点鎏金，几乎无装饰——留白本身就是高级</li>
+        <li><b>深墨主按钮</b>：黑底白字细长，安静有力</li>
+        <li>适合：设计师、文化、高端服务、追求格调的行业</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -3,7 +3,10 @@
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
   <view class="profile-page">
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
-    <view class="hero" :class="layoutFull ? 'hero-full' : ''" :style="layoutFull ? '' : heroStyle">
+    <view class="hero" :class="layoutFull ? 'hero-full' : 'hero-' + heroLayout" :style="heroStyle">
+      <!-- 模板主题 overlay：纹理 + 顶部渐变条 -->
+      <view v-if="!layoutFull && textureBg" class="hero-texture" :style="{ backgroundImage: textureBg }"></view>
+      <view v-if="!layoutFull && barTopStyle" class="hero-bartop" :style="barTopStyle"></view>
       <!-- tp2 全屏大图式 -->
       <template v-if="layoutFull">
         <image class="hero-bg" :src="card.avatar" mode="aspectFill" :style="bgParallax" />
@@ -20,43 +23,62 @@
           <view class="hc-item"><text class="hc-num">{{ card.collectCount || 0 }}</text><text class="hc-lab">收藏</text></view>
         </view>
       </template>
-      <!-- tp1 卡片头式（原布局） -->
-      <view class="row1" v-else>
-        <view class="hero-avatar">
+      <!-- tp1-1 经典横排（cls）：头像左 · 信息右 -->
+      <view class="row1" v-else-if="heroLayout === 'cls'">
+        <view class="hero-avatar" :style="avatarStyle">
           <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
-          <view v-else class="avatar-txt">{{ card.name?.[0] || '名' }}</view>
+          <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
         </view>
         <view class="hero-id">
-          <view class="nm">{{ card.name || '您的姓名' }}</view>
-          <view class="pos">{{ card.position || '—' }}</view>
-          <view class="co">{{ cityLine }}</view>
+          <view class="nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+          <view class="pos" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="co" :style="subStyle">{{ cityLine }}</view>
         </view>
-        <view class="hero-badge" v-if="memberLevel !== 'free'"><SIcon name="crown" size="small" color="#fff" /> {{ memberLevelText }}</view>
+        <view class="hero-badge" v-if="memberLevel !== 'free'" :style="{ color: heroColor, background: isLightHero ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)', borderColor: isLightHero ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)' }"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
       </view>
-      <!-- quickbar（demo四键） -->
-      <view class="quickbar">
+      <!-- tp1-2 居中展示（ctr）：大头像居中 · 信息居中 -->
+      <view class="hero-ctr" v-else-if="heroLayout === 'ctr'">
+        <view class="ctr-avatar" :style="avatarStyle">
+          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
+        </view>
+        <view class="ctr-name" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+        <view class="ctr-pos" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="ctr-co" :style="subStyle">{{ cityLine }}</view>
+        <view class="hero-badge ctr-badge" v-if="memberLevel !== 'free'" :style="{ color: heroColor, background: isLightHero ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)', borderColor: isLightHero ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)' }"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+      </view>
+      <!-- tp1-3 杂志大字（mag）：左对齐大字 · 衬线 · 细线 -->
+      <view class="hero-mag" v-else>
+        <view class="mag-name" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+        <view class="mag-rule" :style="accentStyle"></view>
+        <view class="mag-pos" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="mag-co" :style="subStyle">{{ cityLine }}</view>
+        <view class="hero-badge mag-badge" v-if="memberLevel !== 'free'" :style="{ color: heroColor, background: isLightHero ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)', borderColor: isLightHero ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)' }"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+      </view>
+      <!-- quickbar（快速操作四键+） -->
+      <view class="quickbar" :class="isLightHero ? 'qb-light' : ''">
         <view class="qb" @click="callPhone" v-if="card.phone">
-          <SIcon name="mobile" size="default" color="#ffffff" />
+          <SIcon name="mobile" size="default" :color="heroColor" />
           <text>拨号</text>
         </view>
         <view class="qb" @click="copyWechat" v-if="card.wechat">
-          <SIcon name="exchange" size="default" color="#ffffff" />
+          <SIcon name="exchange" size="default" :color="heroColor" />
           <text>复制微信</text>
         </view>
         <view class="qb" @click="navigateTo">
-          <SIcon name="location" size="default" color="#ffffff" />
+          <SIcon name="location" size="default" :color="heroColor" />
           <text>导航</text>
         </view>
         <view class="qb" @click="shareCard">
-          <SIcon name="channel" size="default" color="#ffffff" />
+          <SIcon name="channel" size="default" :color="heroColor" />
           <text>分享</text>
         </view>
         <view class="qb" @click="toggleCollect">
-          <SIcon name="star" size="default" :color="collected ? '#ffd21e' : '#ffffff'" />
+          <SIcon name="star" size="default" :color="collected ? '#ffd21e' : heroColor" />
           <text :style="collected ? 'color:var(--gold)' : ''">{{ collected ? '已收藏' : '收藏' }}</text>
         </view>
         <view class="qb" @click="goTemplateSelect" v-if="isMine">
-          <SIcon name="template" size="default" color="#ffffff" />
+          <SIcon name="template" size="default" :color="heroColor" />
           <text>换模板</text>
         </view>
       </view>
@@ -268,6 +290,10 @@ import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app'
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient } from '../../utils/color.js';
+import {
+  parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
+  heroBarTopStyle, heroTextureBg, heroLayoutClass, heroRadius,
+} from '../../utils/templateTheme.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -296,8 +322,34 @@ function toggleVoice() {
   else { voiceCtx.play(); voicePlaying.value = true; }
 }
 onUnload(() => { if (voiceCtx) { voiceCtx.destroy(); voiceCtx = null; } });
-// 品牌色 hero：租户配置了 brand_color 则用品牌渐变，否则回退默认橙色
-const heroStyle = computed(() => ({ background: heroGradient(card.value.templateTheme?.primary || card.value.brandColor) }));
+// ===== 模板主题（新 Schema：heroLayout 版式 + 视觉；兼容旧 primary/background/radius）=====
+const heroTheme = computed(() => parseTheme(card.value.templateTheme));
+// hero 版式：cls 经典横排 / ctr 居中展示 / mag 杂志大字（full 全屏分支单独处理）
+const heroLayout = computed(() => (layoutFull.value ? '' : heroLayoutClass(card.value.templateTheme)));
+// hero 背景：模板主题优先（渐变/纯色/描边），无模板时回退租户品牌色渐变
+const heroStyle = computed(() => {
+  const t = heroTheme.value;
+  if (t) return { ...heroBgStyle(t), color: t.textColor };
+  return { background: heroGradient(card.value.brandColor), color: '#fff' };
+});
+const nmStyle = computed(() => {
+  const t = heroTheme.value;
+  if (t) return { ...heroTextStyle(t), fontWeight: t.heroLayout === 'mag' ? 500 : 700 };
+  return { color: '#fff', fontWeight: 700 };
+});
+const subStyle = computed(() => (heroTheme.value ? heroText2Style(heroTheme.value) : { color: 'rgba(255,255,255,.88)' }));
+const accentStyle = computed(() => (heroTheme.value ? heroAccentStyle(heroTheme.value) : { color: '#fff' }));
+const avatarStyle = computed(() => (heroTheme.value ? { borderRadius: heroRadius(heroTheme.value, true) } : {}));
+const barTopStyle = computed(() => (heroTheme.value ? heroBarTopStyle(heroTheme.value) : null));
+const textureBg = computed(() => (heroTheme.value ? heroTextureBg(heroTheme.value) : ''));
+const heroColor = computed(() => (heroTheme.value?.textColor || '#ffffff'));
+// 浅色 hero（白/纸艺等）：quickbar 用深色半透明底，避免白色文字不可见
+const isLightHero = computed(() => {
+  const c = String(heroColor.value || '#ffffff').replace('#', '');
+  if (c.length !== 6) return false;
+  const n = parseInt(c, 16);
+  return (((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) > 180;
+});
 const works = ref([]);
 const dynamics = ref([]);
 const videos = ref([]);
@@ -638,6 +690,99 @@ function shareCard() {
   border-radius: 999rpx;
   white-space: nowrap;
   flex-shrink: 0;
+}
+/* ===== 模板主题 overlay：纹理 + 顶部渐变条 ===== */
+.hero-texture {
+  position: absolute;
+  inset: 0;
+  background-size: 90rpx 90rpx, 90rpx 90rpx;
+  background-position: 0 0, 45rpx 45rpx;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+.hero-bartop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8rpx;
+  z-index: 2;
+}
+/* ===== 居中展示（ctr）===== */
+.hero-ctr {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.ctr-avatar {
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.4);
+  box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.25);
+  background: rgba(255,255,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ctr-name {
+  font-size: 42rpx;
+  font-weight: 700;
+  margin-top: 18rpx;
+  letter-spacing: 2rpx;
+}
+.ctr-pos {
+  font-size: 25rpx;
+  opacity: 0.88;
+  margin-top: 8rpx;
+}
+.ctr-co {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
+}
+.ctr-badge {
+  margin-top: 16rpx;
+}
+/* ===== 杂志大字（mag）===== */
+.hero-mag {
+  position: relative;
+  z-index: 1;
+  padding-top: 6rpx;
+}
+.mag-name {
+  font-size: 52rpx;
+  letter-spacing: 4rpx;
+}
+.mag-rule {
+  width: 56rpx;
+  height: 4rpx;
+  margin: 18rpx 0;
+  border-radius: 4rpx;
+}
+.mag-pos {
+  font-size: 25rpx;
+  letter-spacing: 2rpx;
+  opacity: 0.88;
+}
+.mag-co {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
+  letter-spacing: 1rpx;
+}
+.mag-badge {
+  margin-top: 18rpx;
+}
+/* ===== 浅色 hero（白/纸艺）：quickbar 深色半透明底 ===== */
+.hero .quickbar.qb-light .qb {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.09);
 }
 
 /* ===== quickbar（demo四键）===== */

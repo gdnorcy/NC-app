@@ -1,5 +1,5 @@
 <template>
-  <view class="create-page">
+  <view class="create-page" :class="'skin-' + skinType">
     <view v-if="applyMsg" class="apply-banner" :class="{ 'apply-banner--reject': applyStatus === 'rejected' }">
       {{ applyMsg }}
     </view>
@@ -13,6 +13,29 @@
         </view>
       </view>
       <view class="subtitle">{{ isEdit ? '完善信息，让别人更了解你' : '个人也可以创建，无需企业账号 · 2 分钟完成' }}</view>
+    </view>
+
+    <!-- 名片实时预览卡（live 顶部 / split 固定区；step 在第 3 步展示） -->
+    <view class="live-preview" v-if="skinType !== 'step'">
+      <view class="lp-hero" :style="lpHeroStyle">
+        <view v-if="lpTexture" class="lp-texture" :style="{ backgroundImage: lpTexture }"></view>
+        <view v-if="lpBarTop" class="lp-bartop" :style="lpBarTop"></view>
+        <view class="lp-body" :class="'lp-' + lpLayout">
+          <view class="lp-avatar" :style="lpAvatarStyle">
+            <image v-if="form.avatar" :src="form.avatar" class="lp-avatar-img" mode="aspectFill" />
+            <text v-else class="lp-avatar-txt" :style="{ color: lpHeroStyle.color || '#fff' }">{{ form.name?.[0] || '名' }}</text>
+          </view>
+          <view class="lp-id">
+            <view class="lp-name" :style="lpTextStyle">{{ form.name || '您的姓名' }}</view>
+            <view class="lp-pos" :style="lpSubStyle">{{ form.position || '职位/头衔' }}</view>
+            <view class="lp-co" :style="lpSubStyle">{{ form.city || '所在城市' }}</view>
+          </view>
+        </view>
+      </view>
+      <view class="lp-cap">
+        <text class="lp-cap-t">{{ currentTemplateName }}</text>
+        <text class="lp-cap-hint">选模板即换肤 · 实时预览</text>
+      </view>
     </view>
 
     <!-- 进度指示器 -->
@@ -70,10 +93,12 @@
               class="tpl-item" :class="{ active: form.templateId === t.id }"
               @click="selectTemplate(t)"
             >
-              <view class="tpl-cover" :style="{ background: (t.themeConfig && t.themeConfig.primary) || 'var(--success)' }">
+              <view class="tpl-cover" :style="tplCoverStyle(t)">
                 <image v-if="t.cover" :src="t.cover" class="tpl-cover-img" mode="aspectFill" />
                 <text v-else class="tpl-cover-text">{{ t.name.slice(0, 2) }}</text>
                 <text class="tpl-layout" v-if="t.layout === 'full'">全屏大图</text>
+                <text class="tpl-layout" v-else-if="t.themeConfig && t.themeConfig.heroLayout === 'ctr'">居中展示</text>
+                <text class="tpl-layout" v-else-if="t.themeConfig && t.themeConfig.heroLayout === 'mag'">杂志大字</text>
                 <text class="tpl-price-tag" :class="Number(t.price) > 0 ? 'paid' : 'free'">{{ Number(t.price) > 0 ? '¥' + Number(t.price) : '免费' }}</text>
                 <view class="tpl-owned" v-if="t.purchased">已购</view>
                 <view class="tpl-check" v-if="form.templateId === t.id">✓</view>
@@ -236,31 +261,33 @@
           <switch :checked="form.isPublic" @change="form.isPublic = $event.detail.value" color="#165dff" />
         </view>
 
-        <!-- 名片预览 -->
+        <!-- 名片预览（按选中模板渲染，三皮肤共用） -->
         <view class="preview-section">
-          <view class="preview-title">名片预览</view>
-          <view class="preview-card">
-            <view class="preview-header">
-              <view class="preview-avatar">{{ form.name?.[0] || '名' }}</view>
+          <view class="preview-title">名片预览 · {{ currentTemplateName }}</view>
+          <view class="preview-card" :style="lpHeroStyle">
+            <view v-if="lpTexture" class="lp-texture" :style="{ backgroundImage: lpTexture }"></view>
+            <view v-if="lpBarTop" class="lp-bartop" :style="lpBarTop"></view>
+            <view class="preview-header" :class="'ph-' + lpLayout">
+              <view class="preview-avatar" :style="lpAvatarStyle">{{ form.name?.[0] || '名' }}</view>
               <view class="preview-info">
-                <view class="preview-name">{{ form.name || '您的姓名' }}</view>
-                <view class="preview-position">{{ form.position || '职位/头衔' }}</view>
-                <view class="preview-company">{{ form.city || '所在城市' }}</view>
+                <view class="preview-name" :style="lpTextStyle">{{ form.name || '您的姓名' }}</view>
+                <view class="preview-position" :style="lpSubStyle">{{ form.position || '职位/头衔' }}</view>
+                <view class="preview-company" :style="lpSubStyle">{{ form.city || '所在城市' }}</view>
               </view>
             </view>
             <view class="preview-divider"></view>
             <view class="preview-contact">
               <view class="contact-item" v-if="form.phone">
                 <text class="contact-label">手机</text>
-                <text class="contact-value">{{ form.phone }}</text>
+                <text class="contact-value" :style="lpTextStyle">{{ form.phone }}</text>
               </view>
               <view class="contact-item" v-if="form.wechat">
                 <text class="contact-label">微信</text>
-                <text class="contact-value">{{ form.wechat }}</text>
+                <text class="contact-value" :style="lpTextStyle">{{ form.wechat }}</text>
               </view>
               <view class="contact-item" v-if="form.email">
                 <text class="contact-label">邮箱</text>
-                <text class="contact-value">{{ form.email }}</text>
+                <text class="contact-value" :style="lpTextStyle">{{ form.email }}</text>
               </view>
             </view>
           </view>
@@ -288,6 +315,10 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
+import {
+  parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
+  heroBarTopStyle, heroTextureBg, heroRadius,
+} from '../../utils/templateTheme.js';
 import SIcon from '../../components/SIcon.vue';
 
 const isEdit = ref(false);
@@ -298,6 +329,8 @@ const currentStep = ref(0);
 const cardType = ref('individual');
 const showBind = ref(false);
 const steps = ['基本信息', '联系方式', '发布设置'];
+// 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导 / split 沉浸双分区
+const skinType = ref('live');
 
 const form = reactive({
   id: null,
@@ -370,6 +403,7 @@ async function loadTemplates(force = false) {
   try {
     const res = await cardApi.getTemplates();
     templates.value = res.templates || [];
+    if (['live', 'step', 'split'].includes(res.skin)) skinType.value = res.skin;
     // 默认选中第一个可用模板（跳过付费未购）
     if (templates.value.length && !form.templateId) {
       const first = templates.value.find((t) => Number(t.price) <= 0 || t.purchased) || templates.value[0];
@@ -379,6 +413,14 @@ async function loadTemplates(force = false) {
   } catch (e) {
     console.warn('模板加载失败', e);
   }
+}
+// 模板缩略图背景：按 themeConfig 渲染渐变/纯色（旧字段 primary 兼容）
+function tplCoverStyle(t) {
+  const cfg = t.themeConfig || {};
+  if (cfg.bgStart && cfg.bgEnd) {
+    return { background: `linear-gradient(${Number(cfg.bgAngle) || 160}deg, ${cfg.bgStart}, ${cfg.bgEnd})` };
+  }
+  return { background: cfg.primary || 'var(--success)' };
 }
 function selectTemplate(tpl) {
   // 付费未购：先购买再选中
@@ -420,6 +462,23 @@ function selectTemplate(tpl) {
   }
   form.templateId = form.templateId === tpl.id ? '' : tpl.id;
 }
+
+// ===== 名片实时预览卡（live 顶部 / split 固定区共用；随选中模板换肤、随输入更新）=====
+const currentTemplate = computed(() => templates.value.find((t) => t.id === form.templateId) || null);
+const currentTemplateName = computed(() => currentTemplate.value?.name || '默认样式');
+const lpTheme = computed(() => parseTheme(currentTemplate.value?.themeConfig));
+const lpLayout = computed(() => lpTheme.value?.heroLayout || 'cls');
+const lpHeroStyle = computed(() => {
+  const t = lpTheme.value;
+  if (t) return { ...heroBgStyle(t), color: t.textColor };
+  return { background: 'linear-gradient(155deg,#0e2a4e,#3b7bd4)', color: '#fff' };
+});
+const lpTextStyle = computed(() => (lpTheme.value ? { ...heroTextStyle(lpTheme.value), fontWeight: lpTheme.value.heroLayout === 'mag' ? 500 : 700 } : { color: '#fff', fontWeight: 700 }));
+const lpSubStyle = computed(() => (lpTheme.value ? heroText2Style(lpTheme.value) : { color: 'rgba(255,255,255,.85)' }));
+const lpAccentStyle = computed(() => (lpTheme.value ? heroAccentStyle(lpTheme.value) : { color: '#fff' }));
+const lpAvatarStyle = computed(() => (lpTheme.value ? { borderRadius: heroRadius(lpTheme.value, true) } : {}));
+const lpBarTop = computed(() => (lpTheme.value ? heroBarTopStyle(lpTheme.value) : null));
+const lpTexture = computed(() => (lpTheme.value ? heroTextureBg(lpTheme.value) : ''));
 
 onShow(() => {
   trackPageView('/pages/card/create');
@@ -603,6 +662,118 @@ async function submit() {
   color: #D25F00;
   background: #FFF3E8;
 }
+
+/* ===== 名片实时预览卡（live 顶部 / split 固定区） ===== */
+.live-preview {
+  margin: 24rpx 24rpx 0;
+  background: #fff;
+  border-radius: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 28rpx rgba(0,0,0,0.08);
+}
+.lp-hero {
+  position: relative;
+  padding: 40rpx 32rpx 36rpx;
+  overflow: hidden;
+}
+.lp-texture {
+  position: absolute;
+  inset: 0;
+  background-size: 90rpx 90rpx, 90rpx 90rpx;
+  background-position: 0 0, 45rpx 45rpx;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.lp-bartop {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 8rpx;
+}
+.lp-body {
+  position: relative;
+  z-index: 1;
+}
+/* cls 经典横排 */
+.lp-cls {
+  display: flex;
+  align-items: center;
+}
+.lp-cls .lp-avatar { width: 96rpx; height: 96rpx; margin-right: 24rpx; flex-shrink: 0; }
+/* ctr 居中展示 */
+.lp-ctr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.lp-ctr .lp-avatar { width: 112rpx; height: 112rpx; }
+.lp-ctr .lp-name { margin-top: 14rpx; }
+/* mag 杂志大字 */
+.lp-mag {
+  padding-top: 4rpx;
+}
+.lp-mag .lp-name { font-size: 44rpx; letter-spacing: 4rpx; }
+.lp-mag .lp-rule { width: 48rpx; height: 4rpx; margin: 14rpx 0; }
+.lp-avatar {
+  border: 2rpx solid rgba(255,255,255,0.4);
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.22);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+}
+.lp-avatar-img { width: 100%; height: 100%; }
+.lp-avatar-txt { font-size: 40rpx; font-weight: 700; }
+.lp-id { flex: 1; min-width: 0; }
+.lp-name { font-size: 34rpx; font-weight: 700; }
+.lp-pos { font-size: 24rpx; opacity: 0.88; margin-top: 6rpx; }
+.lp-co { font-size: 22rpx; opacity: 0.72; margin-top: 8rpx; }
+.lp-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14rpx 24rpx;
+  border-top: 2rpx solid #f0f1f3;
+}
+.lp-cap-t { font-size: 24rpx; font-weight: 600; color: var(--t1); }
+.lp-cap-hint { font-size: 20rpx; color: var(--t3); }
+
+/* ===== 三皮肤布局差异 ===== */
+/* step 分步引导：卡片全屏化 + 焦点感 */
+.skin-step .header { padding-top: 88rpx; }
+.skin-step .cards-container { padding: 0 24rpx; }
+.skin-step .card {
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+  min-height: 640rpx;
+  box-shadow: 0 12rpx 40rpx rgba(0,0,0,0.08);
+}
+.skin-step .btn-primary {
+  height: 96rpx;
+  font-size: 32rpx;
+  border-radius: 48rpx;
+}
+.skin-step .btn-secondary,
+.skin-step .btn-skip { height: 96rpx; border-radius: 48rpx; }
+.skin-step .progress-bar { padding-top: 40rpx; }
+/* split 沉浸双分区：预览卡固定顶部 */
+.skin-split .live-preview {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: 20rpx 24rpx 0;
+  box-shadow: 0 10rpx 32rpx rgba(0,0,0,0.12);
+}
+.skin-split .lp-hero { padding: 56rpx 36rpx 48rpx; }
+.skin-split .lp-avatar { width: 128rpx; height: 128rpx; }
+.skin-split .lp-name { font-size: 40rpx; }
+.skin-split .cards-container { padding-top: 8rpx; }
+/* live：预览卡 + 紧凑表单 */
+.skin-live .form-item { margin-top: 16rpx; }
+.skin-live .card-title { font-size: 28rpx; }
+.skin-live .live-preview { margin-top: 20rpx; }
 .create-page {
   min-height: 100vh;
   background: #f5f7fa;
@@ -916,6 +1087,40 @@ async function submit() {
   background: linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4);
   border-radius: 16rpx;
   padding: 24rpx;
+  position: relative;
+  overflow: hidden;
+}
+.preview-card .lp-texture {
+  position: absolute;
+  inset: 0;
+  background-size: 90rpx 90rpx, 90rpx 90rpx;
+  background-position: 0 0, 45rpx 45rpx;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.preview-card .lp-bartop {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 8rpx;
+}
+.preview-card .preview-header {
+  position: relative;
+  z-index: 1;
+}
+.preview-card .preview-divider,
+.preview-card .preview-contact {
+  position: relative;
+  z-index: 1;
+}
+.preview-card .preview-header.ph-mag {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6rpx;
+}
+.preview-card .preview-header.ph-ctr {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 .preview-header {
   display: flex;
