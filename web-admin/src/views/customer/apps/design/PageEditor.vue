@@ -259,6 +259,14 @@
                         <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5"/>
                         <rect x="3" y="14" width="38" height="16" rx="3" fill="#C9CDD4"/>
                       </svg>
+                      <svg v-else-if="o.value === 'round'" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <circle cx="22" cy="22" r="19" fill="#F2F3F5"/>
+                        <circle cx="22" cy="22" r="13" fill="#C9CDD4"/>
+                      </svg>
+                      <svg v-else-if="o.value === 'square'" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="3" y="3" width="38" height="38" rx="9" fill="#F2F3F5"/>
+                        <rect x="10" y="10" width="24" height="24" rx="6" fill="#C9CDD4"/>
+                      </svg>
                       <svg v-else-if="o.value === 'single'" class="pe-graphic-svg" viewBox="0 0 88 56">
                         <rect x="4" y="4" width="80" height="48" rx="6" fill="#F2F3F5"/>
                         <rect x="12" y="12" width="64" height="32" rx="4" fill="#C9CDD4"/>
