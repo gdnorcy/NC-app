@@ -1,5 +1,5 @@
 <template>
-  <div class="comp-render" :style="containerStyle">
+  <div class="comp-render" :class="isFloatComp ? 'comp-float' : ''" :style="containerStyle">
     <template v-if="comp.type === 'title'">
       <div class="r-title" :style="{ color: comp.props.color, textAlign: comp.props.align }">{{ comp.props.text || '标题文字' }}</div>
     </template>
@@ -1057,12 +1057,18 @@ function cd2CellStyle(p, img) {
   return s;
 }
 
+const isFloatComp = computed(() => props.comp.type === 'fab-cart' || props.comp.type === 'float-btn');
 const containerStyle = computed(() => {
   const p = props.comp.props || {};
   const g = props.global || {};
   const cardGap = 12;
   const cardRadius = 8;
   const s = {};
+  // 悬浮组件（购物车/悬浮按钮）：容器撑满预览壳组件区——按钮 top/bottom/right 才相对预览壳真悬浮
+  // （画布内 .pe-comp-float 已撑满，此处容器同样撑满，避免 .comp-render{position:relative} 抢占定位祖先）
+  if (props.comp.type === 'fab-cart' || props.comp.type === 'float-btn') {
+    return { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 };
+  }
   // 有「左右边距」参数、属性面板不注入「内边距」滑块的组件：忽略容器 p.padding（防止存量冗余 padding 造成左右隐藏间隔）
   const HIDDEN_PADDING_TYPES = ['image', 'countdown', 'countdown2', 'image-text', 'cube', 'title-bar'];
   if (p.padding !== undefined && p.padding !== '' && !HIDDEN_PADDING_TYPES.includes(props.comp.type)) s.padding = `${p.padding}px`;
@@ -1825,6 +1831,12 @@ const nativeGridItems = [
 .r-vfeed-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
 .r-vfeed-t { font-size: 11px; color: #1d2129; padding: 6px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .comp-render { position: relative; }
+/* 悬浮组件（购物车/悬浮按钮）：容器点击穿透，仅按钮/内部 wrap 可点；wrap 撑满容器（bottom 定位才相对预览壳） */
+.comp-float { pointer-events: none; }
+.comp-float .r-fab-cart,
+.comp-float .r-float { pointer-events: auto; }
+/* wrap 仅撑满定位（按钮相对其 bottom/right），本身必须穿透——否则撑满层会拦截全画布点击 */
+.comp-float .r-float-wrap { pointer-events: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
 
 /* 商城组件预览（编辑端） */
 /* ew商品组7种风格（1:1对照ew computed CSS） */

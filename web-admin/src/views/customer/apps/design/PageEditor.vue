@@ -151,7 +151,7 @@
               v-for="(c, i) in components"
               :key="c.id"
               class="pe-comp"
-              :class="{ active: selected === c.id }"
+              :class="{ active: selected === c.id, 'pe-comp-float': c.type === 'fab-cart' || c.type === 'float-btn' }"
               draggable="true"
               @dragstart="onCompDragStart($event, i)"
               @dragover.prevent="onCompDragOver(i)"
@@ -2125,6 +2125,16 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-tool { cursor: pointer; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background .15s; font-size: 12px; line-height: 1; }
 .pe-tool:hover { background: rgba(255,255,255,.25); }
 .pe-tool-del:hover { background: #f53f3f; }
+/* 悬浮组件（购物车/悬浮按钮）：包裹层撑满预览壳组件区 → 按钮 top/bottom/right 相对预览壳真悬浮；
+   pointer-events:none 让空白区点击穿透到下方组件，仅按钮/操作条可点 */
+.pe-comp-float {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0; height: auto; margin: 0;
+  z-index: 50; /* 悬浮层置顶：避免被后序组件覆盖导致点不中 */
+  pointer-events: none;
+  border-color: transparent !important; box-shadow: none !important; background: transparent !important;
+}
+/* 操作条：悬浮组件固定在组件区右上角；点击穿透层内恢复操作条可点 */
+.pe-comp-float .pe-comp-tools { pointer-events: auto; top: 8px; right: 8px; }
 
 /* 空态 */
 .pe-empty { color: #86909c; text-align: center; padding: 80px 0; font-size: 13px; display: flex; flex-direction: column; gap: 12px; align-items: center; }

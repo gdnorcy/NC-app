@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>宫格项表单紧凑化方案对比</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f2f3f5; padding: 24px; }
+  h1 { font-size: 18px; color: #1d2129; margin-bottom: 6px; }
+  .sub { font-size: 13px; color: #86909c; margin-bottom: 20px; }
+  .wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .col { width: 320px; background: #fff; border-radius: 8px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .col-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .col-title { font-size: 14px; font-weight: 600; color: #1d2129; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e8f3ff; color: #165dff; }
+  .tag.now { background: #f2f3f5; color: #86909c; }
+  .tag.hot { background: #e8f8ef; color: #00b42a; }
+  .panel { border: 1px solid #e5e6eb; border-radius: 6px; overflow: hidden; }
+  .item-title { font-size: 12px; color: #1d2129; font-weight: 600; padding: 8px 10px; background: #fafafa; border-bottom: 1px solid #f0f0f0; }
+  .item-title .n { color: #165dff; font-weight: 700; margin-right: 4px; }
+  .f { padding: 7px 10px; border-bottom: 1px solid #f5f5f5; }
+  .f:last-child { border-bottom: none; }
+  .f-label { font-size: 11px; color: #86909c; margin-bottom: 4px; }
+  /* 现状竖排 */
+  .f .ctr { width: 100%; }
+  /* 方案A label左置 */
+  .f.row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
+  .f.row .f-label { margin: 0; width: 56px; flex-shrink: 0; font-size: 12px; color: #4e5969; }
+  .f.row .ctr { flex: 1; min-width: 0; display: flex; align-items: center; }
+  .f.row.tight { padding: 4px 10px; }
+  /* 控件外观 */
+  .sel { width: 100%; height: 28px; border: 1px solid #c9cdd4; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 12px; color: #1d2129; }
+  .sel .ic { width: 16px; height: 16px; border-radius: 4px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+  .sel .arr { color: #c9cdd4; font-size: 10px; }
+  .sw { width: 36px; height: 20px; border-radius: 10px; background: #165dff; position: relative; display: inline-block; }
+  .sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .color { display: flex; align-items: center; gap: 6px; }
+  .color .chip { width: 28px; height: 28px; border-radius: 4px; border: 1px solid #e5e6eb; }
+  .color .hex { font-size: 11px; color: #86909c; border: 1px solid #e5e6eb; border-radius: 4px; padding: 4px 8px; background: #fff; }
+  .inp { width: 100%; height: 28px; border: 1px solid #c9cdd4; border-radius: 4px; padding: 0 8px; font-size: 12px; color: #1d2129; background: #fff; display: flex; align-items: center; }
+  .inp.place { color: #c9cdd4; }
+  .inp .btn { margin-left: auto; font-size: 11px; color: #165dff; border: 1px solid #c9cdd4; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+  .imgbox { height: 52px; border: 1px dashed #c9cdd4; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #86909c; background: #fafbfc; }
+  .imgbox small { display: block; color: #c9cdd4; font-size: 10px; }
+  /* 折叠 */
+  .fold { padding: 6px 10px; background: #fafbfc; border-top: 1px solid #f0f0f0; }
+  .fold-btn { font-size: 12px; color: #4e5969; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .fold-btn .tri { font-size: 9px; color: #86909c; transition: transform .15s; }
+  .fold-body { display: none; margin-top: 6px; }
+  .fold.open .tri { transform: rotate(90deg); }
+  .fold.open .fold-body { display: block; }
+  .note { font-size: 12px; color: #86909c; margin-top: 10px; line-height: 1.6; }
+  .note b { color: #4e5969; }
+  .hint { font-size: 10px; color: #c9cdd4; line-height: 1.5; }
+</style>
+</head>
+<body>
+<h1>宫格项表单紧凑化 — 方案对比</h1>
+<div class="sub">当前竖排 7 项约 380px 高；A/B/C 方案高度对比见下方标注</div>
+<div class="wrap">
+
+  <!-- 现状 -->
+  <div class="col">
+    <div class="col-head"><span class="col-title">现状（竖排）</span><span class="tag now">当前</span></div>
+    <div class="panel">
+      <div class="item-title"><span class="n">2</span>名片宫格 · 宫格项 1</div>
+      <div class="f"><div class="f-label">图标</div><div class="ctr"><span class="sel"><span><span class="ic" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span>我的名片</span><span class="arr">▾</span></span></div></div>
+      <div class="f"><div class="f-label">显示</div><div class="ctr"><span class="sw"></span></div></div>
+      <div class="f"><div class="f-label">图标底色</div><div class="ctr"><span class="color"><span class="chip" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span><span class="hex">渐变</span></span></div></div>
+      <div class="f"><div class="f-label">自定义图标</div><div class="ctr"><div class="imgbox">点击上传<small>建议方形透明底 PNG 100×100</small></div></div></div>
+      <div class="f"><div class="f-label">文字</div><div class="ctr"><span class="inp">我的名片</span></div></div>
+      <div class="f"><div class="f-label">角标</div><div class="ctr"><span class="inp place">选填，如 NEW</span></div></div>
+      <div class="f"><div class="f-label">跳转</div><div class="ctr"><span class="inp">/pages/card/myCard<span class="btn">选择</span></span></div></div>
+    </div>
+    <div class="note">高度 ≈ <b>380px</b>。每个字段占 2 行（label 一行 + 控件一行）。</div>
+  </div>
+
+  <!-- 方案A -->
+  <div class="col">
+    <div class="col-head"><span class="col-title">方案 A · label 左置同行</span><span class="tag hot">推荐</span></div>
+    <div class="panel">
+      <div class="item-title"><span class="n">2</span>名片宫格 · 宫格项 1</div>
+      <div class="f row"><div class="f-label">图标</div><div class="ctr"><span class="sel"><span><span class="ic" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span>我的名片</span><span class="arr">▾</span></span></div></div>
+      <div class="f row"><div class="f-label">显示</div><div class="ctr"><span class="sw"></span></div></div>
+      <div class="f row"><div class="f-label">图标底色</div><div class="ctr"><span class="color"><span class="chip" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span><span class="hex">渐变</span></span></div></div>
+      <div class="f row"><div class="f-label">自定义图标</div><div class="ctr"><div class="imgbox" style="height:44px">点击上传</div></div></div>
+      <div class="f row"><div class="f-label">文字</div><div class="ctr"><span class="inp">我的名片</span></div></div>
+      <div class="f row"><div class="f-label">角标</div><div class="ctr"><span class="inp place">选填，如 NEW</span></div></div>
+      <div class="f row"><div class="f-label">跳转</div><div class="ctr"><span class="inp">/pages/card/myCard<span class="btn">选择</span></span></div></div>
+    </div>
+    <div class="note">高度 ≈ <b>205px</b>（↓46%）。顺序不变，仅 label 移到左侧同行。</div>
+  </div>
+
+  <!-- 方案B -->
+  <div class="col">
+    <div class="col-head"><span class="col-title">方案 B · 选填项折叠</span><span class="tag">可选</span></div>
+    <div class="panel">
+      <div class="item-title"><span class="n">2</span>名片宫格 · 宫格项 1</div>
+      <div class="f"><div class="f-label">图标</div><div class="ctr"><span class="sel"><span><span class="ic" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span>我的名片</span><span class="arr">▾</span></span></div></div>
+      <div class="f"><div class="f-label">显示</div><div class="ctr"><span class="sw"></span></div></div>
+      <div class="f"><div class="f-label">图标底色</div><div class="ctr"><span class="color"><span class="chip" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span><span class="hex">渐变</span></span></div></div>
+      <div class="f"><div class="f-label">文字</div><div class="ctr"><span class="inp">我的名片</span></div></div>
+      <div class="f"><div class="f-label">跳转</div><div class="ctr"><span class="inp">/pages/card/myCard<span class="btn">选择</span></span></div></div>
+      <div class="fold">
+        <div class="fold-btn"><span class="tri">▶</span>选填项（自定义图标、角标）</div>
+        <div class="fold-body">
+          <div class="f row tight" style="display:block"><div class="f-label">自定义图标</div><div class="imgbox" style="height:44px">点击上传</div></div>
+          <div class="f row tight" style="display:block"><div class="f-label">角标</div><span class="inp place">选填，如 NEW</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">高度 ≈ <b>248px</b>（收起时，↓35%）。常用项保留，选填项一点即展开。</div>
+  </div>
+
+  <!-- 方案C -->
+  <div class="col">
+    <div class="col-head"><span class="col-title">方案 C · A + B 组合</span><span class="tag">最省高度</span></div>
+    <div class="panel">
+      <div class="item-title"><span class="n">2</span>名片宫格 · 宫格项 1</div>
+      <div class="f row"><div class="f-label">图标</div><div class="ctr"><span class="sel"><span><span class="ic" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span>我的名片</span><span class="arr">▾</span></span></div></div>
+      <div class="f row"><div class="f-label">显示</div><div class="ctr"><span class="sw"></span></div></div>
+      <div class="f row"><div class="f-label">图标底色</div><div class="ctr"><span class="color"><span class="chip" style="background:linear-gradient(135deg,#2979ff,#00b0ff)"></span><span class="hex">渐变</span></span></div></div>
+      <div class="f row"><div class="f-label">文字</div><div class="ctr"><span class="inp">我的名片</span></div></div>
+      <div class="f row"><div class="f-label">跳转</div><div class="ctr"><span class="inp">/pages/card/myCard<span class="btn">选择</span></span></div></div>
+      <div class="fold">
+        <div class="fold-btn"><span class="tri">▶</span>选填项（自定义图标、角标）</div>
+        <div class="fold-body">
+          <div class="f row tight"><div class="f-label">自定义图标</div><div class="ctr"><div class="imgbox" style="height:40px">点击上传</div></div></div>
+          <div class="f row tight"><div class="f-label">角标</div><div class="ctr"><span class="inp place">选填，如 NEW</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">高度 ≈ <b>148px</b>（↓61%）。label 同行 + 选填折叠，最紧凑。</div>
+  </div>
+
+</div>
+</body>
+</html>
