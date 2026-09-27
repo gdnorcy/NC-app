@@ -525,6 +525,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
+import SIcon from '../../../components/SIcon.vue';
 import { customerApiCall, publicApi } from '../../../api';
 
 const tabs = [
