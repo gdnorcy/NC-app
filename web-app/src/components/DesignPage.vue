@@ -1094,10 +1094,17 @@ function dpFormStyle(p) {
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
+// 底部导航避让：CardTabBar 高约 50px（100rpx）+ 底部安全区；悬浮组件 bottom 位置需在其上方，否则被底部导航遮挡
+const TAB_BAR_H = 50 + (() => {
+  try { return uni.getSystemInfoSync().safeAreaInsets?.bottom || 0; } catch (e) { return 0; }
+})();
+
 function dpFloatStyle(p) {
   const s = { background: p.color || '#165dff' };
-  const d = (p.distance ?? 12) + 'px';
+  let d = p.distance ?? 12;
   const pos = p.position || 'bottom-right';
+  if (pos === 'bottom-left' || pos === 'bottom-right') d += TAB_BAR_H;
+  d += 'px';
   if (pos === 'top-left') { s.top = d; s.left = d; }
   else if (pos === 'top-right') { s.top = d; s.right = d; }
   else if (pos === 'bottom-left') { s.bottom = d; s.left = d; }
@@ -1316,6 +1323,7 @@ function dpFabCartStyle(p) {
   if (pos === 'right') pos = 'top-right';
   else if (pos === 'right-bottom') pos = 'bottom-right';
   if (Number.isNaN(d) || d == null) d = Number(p.marginTop) || Number(p.marginBottom) || 20;
+  if (pos === 'bottom-left' || pos === 'bottom-right') d += TAB_BAR_H;
   d += 'px';
   if (pos === 'top-left') { st.top = d; st.left = d; }
   else if (pos === 'top-right') { st.top = d; st.right = d; }
