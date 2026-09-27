@@ -1413,7 +1413,7 @@ export const componentRegistry = [
   {
     type: 'fab-cart',
     name: '购物车',
-    group: 'function',
+    group: 'mall',
     icon: 'cart',
     defaultProps: { bgColor: '#165dff', iconColor: '#ffffff', showBadge: true, position: 'right', marginTop: 0, marginBottom: 0 },
     schema: [
