@@ -120,6 +120,24 @@ export const ICON_OPTIONS = [
   { value: 'apps', label: '应用' },
 ];
 
+// 悬浮按钮内置图标（SIcon/PeSIcon 通用图标名）
+export const FLOAT_ICON_OPTIONS = [
+  { value: 'wechat', label: '微信' },
+  { value: 'sms', label: '短信' },
+  { value: 'mail', label: '邮件' },
+  { value: 'bell', label: '通知' },
+  { value: 'mobile', label: '电话' },
+  { value: 'dynamic', label: '消息' },
+  { value: 'cart', label: '购物车' },
+  { value: 'star', label: '收藏' },
+  { value: 'location', label: '位置' },
+  { value: 'search', label: '搜索' },
+  { value: 'share', label: '分享' },
+  { value: 'like', label: '点赞' },
+  { value: 'comment', label: '评论' },
+  { value: 'customer', label: '客户' },
+];
+
 export const componentRegistry = [
   {
     type: 'image',
@@ -864,9 +882,10 @@ export const componentRegistry = [
     name: '悬浮按钮',
     group: 'function',
     icon: 'float-btn',
-    defaultProps: { text: '联系我们', link: '', color: '#165DFF', position: 'bottom-right', style: 'round', iconType: 'image', iconName: 'chat', icon: '', offsetX: 20, offsetY: 20, memberLevel: 'all' },
+    defaultProps: { text: '联系我们', link: '', color: '#165DFF', position: 'bottom-right', style: 'round', iconType: 'icon', iconName: 'wechat', icon: '', offsetX: 20, offsetY: 20, size: 52, iconSize: 22, memberLevel: 'all' },
     schema: [
-      { key: 'iconType', label: '选择样式', control: 'radio', section: 'content', options: [{ label: '图标', value: 'icon' }, { label: '图片', value: 'image' }] },
+      { key: 'iconType', label: '选择样式', control: 'radio', section: 'content', options: [{ label: '内置图标', value: 'icon' }, { label: '自定义图片', value: 'image' }] },
+      { key: 'iconName', label: '图标选择', control: 'select', section: 'content', options: FLOAT_ICON_OPTIONS, when: { iconType: 'icon' } },
       { key: 'icon', label: '图标图片', control: 'image', section: 'content', when: { iconType: 'image' } },
       { key: 'link', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market 或 tel:13800138000' },
       { key: 'color', label: '背景色', control: 'color', section: 'style' },
@@ -874,6 +893,8 @@ export const componentRegistry = [
       { key: 'style', label: '组件风格', control: 'radio', graphic: true, section: 'style', options: [{ label: '圆形', value: 'round' }, { label: '圆角矩形', value: 'square' }] },
       { key: 'offsetX', label: '横向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
       { key: 'offsetY', label: '纵向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
+      { key: 'size', label: '组件大小', control: 'slider', section: 'style', min: 32, max: 96 },
+      { key: 'iconSize', label: '图标大小', control: 'slider', section: 'style', min: 14, max: 32 },
     ],
   },
   {
@@ -1418,7 +1439,7 @@ export const componentRegistry = [
     name: '购物车',
     group: 'mall',
     icon: 'cart',
-    defaultProps: { bgColor: '#ef4f4f', iconColor: '#ffffff', showBadge: true, position: 'bottom-right', offsetX: 20, offsetY: 20, style: 'square' },
+    defaultProps: { bgColor: '#ef4f4f', iconColor: '#ffffff', showBadge: true, position: 'bottom-right', offsetX: 20, offsetY: 20, style: 'square', size: 44, iconSize: 20 },
     schema: [
       { key: 'showBadge', label: '显示数量角标', control: 'switch', section: 'content' },
       { key: 'position', label: '悬浮位置', control: 'radio', section: 'style', options: [{ label: '左上', value: 'top-left' }, { label: '右上', value: 'top-right' }, { label: '左下', value: 'bottom-left' }, { label: '右下', value: 'bottom-right' }] },
@@ -1427,6 +1448,8 @@ export const componentRegistry = [
       { key: 'iconColor', label: '图标颜色', control: 'color', section: 'style' },
       { key: 'offsetX', label: '横向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
       { key: 'offsetY', label: '纵向偏移', control: 'slider', section: 'style', min: 0, max: 100 },
+      { key: 'size', label: '组件大小', control: 'slider', section: 'style', min: 32, max: 96 },
+      { key: 'iconSize', label: '图标大小', control: 'slider', section: 'style', min: 14, max: 32 },
     ],
   },
   {

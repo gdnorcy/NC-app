@@ -415,8 +415,9 @@
       </view>
       <!-- 悬浮按钮 -->
       <view v-else-if="c.type === 'float-btn'" class="dp-float" :class="'dp-float-' + (c.props.style || 'round')" :style="dpFloatStyle(c.props)" @click="onFloatClick(c.props)">
-        <image v-if="c.props.iconType === 'image' && c.props.icon" :src="resolveUrl(c.props.icon)" mode="aspectFit" class="dp-float-ico" />
-        <text v-else-if="c.props.iconType === 'icon' || !c.props.iconType">{{ c.props.text || '联系' }}</text>
+        <image v-if="c.props.iconType === 'image' && c.props.icon" :src="resolveUrl(c.props.icon)" mode="aspectFit" class="dp-float-ico" :style="dpFloatIcoStyle(c.props)" />
+        <SIcon v-else-if="c.props.iconType === 'icon'" :name="dpFloatIconName(c.props)" :size="Number(c.props.iconSize || 22)" color="#ffffff" />
+        <text v-else>{{ c.props.text || '联系' }}</text>
       </view>
       <!-- 文章列表 -->
       <view v-else-if="c.type === 'article-list'" class="dp-article" :class="'dp-article-' + (c.props.listStyle || 'row')" :style="{ background: c.props.bgColor || 'transparent', borderRadius: (c.props.radius ?? 8) + 'px' }">
@@ -651,7 +652,7 @@
         </view>
       </view>
       <view v-else-if="c.type === 'fab-cart'" class="dp-fab-cart" :style="dpFabCartStyle(c.props)" @click="goCart">
-        <SIcon name="cart" size="default" :color="c.props.iconColor || '#ffffff'" />
+        <SIcon name="cart" :size="Number(c.props.iconSize || 20)" :color="c.props.iconColor || '#ffffff'" />
         <view v-if="c.props.showBadge !== false && cartCount > 0" class="dp-fab-badge">{{ cartCount > 99 ? '99+' : cartCount }}</view>
       </view>
     </view>
@@ -1125,6 +1126,10 @@ function startTabBarWatch() {
 
 function dpFloatStyle(p) {
   const s = { background: p.color || '#165dff' };
+  // 整体大小：round 直径 / square 高度（宽度随内容自适应），与画布一致
+  const size = Number(p.size) || (p.style === 'round' ? 52 : 44);
+  if (p.style === 'round') { s.width = size + 'px'; s.height = size + 'px'; }
+  else { s.height = size + 'px'; s.fontSize = Math.max(11, Math.round(size * 0.28)) + 'px'; }
   const { pos, x, y } = resolveFloatPos(p, tabBarH.value);
   const xpx = x + 'px', ypx = y + 'px';
   if (pos === 'top-left') { s.top = ypx; s.left = xpx; }
@@ -1132,6 +1137,16 @@ function dpFloatStyle(p) {
   else if (pos === 'bottom-left') { s.bottom = ypx; s.left = xpx; }
   else { s.bottom = ypx; s.right = xpx; }
   return s;
+}
+function dpFloatIcoStyle(p) {
+  const n = Number(p.iconSize) || 22;
+  return { width: n + 'px', height: n + 'px' };
+}
+// 悬浮按钮内置图标名校验：旧数据可能残留无效名（如 chat），回退默认 wechat
+const DP_FLOAT_ICON_NAMES = ['wechat','sms','mail','bell','mobile','dynamic','cart','star','location','search','share','like','comment','customer','card','radar','market','exchange','pool','wallet','dist','crown'];
+function dpFloatIconName(p) {
+  const n = p.iconName || 'wechat';
+  return DP_FLOAT_ICON_NAMES.includes(n) ? n : 'wechat';
 }
 function dpChannelLiveStyle(p) {
   const s = { background: p.bgColor || '#F7F8FA' };
@@ -1365,6 +1380,9 @@ function dpFabCartStyle(p) {
   // 组件风格：默认圆角矩形（与其他悬浮组件/宫格图标一致），round 为圆形；用 px（H5 内联样式不支持 rpx）
   st.borderRadius = p.style === 'round' ? '50%' : '12px';
   if (p.bgColor) st.background = p.bgColor;
+  // 整体大小（px），与画布一致
+  st.width = (Number(p.size) || 44) + 'px';
+  st.height = (Number(p.size) || 44) + 'px';
   return st;
 }
 function goCart() {
@@ -1924,7 +1942,7 @@ function openChannel(kind, p) {
 .dp-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
 /* 悬浮按钮 */
-.dp-float { position: fixed; z-index: 99; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
+.dp-float { position: fixed; z-index: 99; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .dp-float-ico { width: 22px; height: 22px; }
 .dp-float-round { border-radius: 50%; width: 52px; height: 52px; padding: 0; }
 .dp-float-square { border-radius: 10px; padding: 8px 14px; }

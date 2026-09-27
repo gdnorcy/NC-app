@@ -423,7 +423,8 @@
     <template v-else-if="comp.type === 'float-btn'">
       <div class="r-float-wrap">
         <div class="r-float" :class="'r-float-' + (comp.props.style || 'round')" :style="floatStyle(comp.props)">
-          <img v-if="comp.props.iconType === 'image' && comp.props.icon" :src="resolveUrl(comp.props.icon)" />
+          <img v-if="comp.props.iconType === 'image' && comp.props.icon" :src="resolveUrl(comp.props.icon)" :style="floatIcoStyle(comp.props)" />
+          <PeSIcon v-else-if="comp.props.iconType === 'icon'" :name="floatIconName(comp.props)" :size="Number(comp.props.iconSize || 22)" color="#ffffff" />
           <span v-else>{{ comp.props.text || '联系' }}</span>
           <span class="r-float-tag" :class="(comp.props.position || 'bottom-right').startsWith('left') ? 'r-float-tag-left' : ''">悬浮按钮</span>
         </div>
@@ -733,7 +734,7 @@
     <!-- 功能组件：购物车（浮动入口，位置/颜色可配） -->
     <template v-else-if="comp.type === 'fab-cart'">
       <div class="r-fab-cart" :style="fabCartStyle(comp.props)">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" :stroke="comp.props.iconColor || '#fff'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h2.6l2.7 12.4a2 2 0 0 0 2 1.6h8.3a2 2 0 0 0 2-1.6L21.5 8H6"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/></svg>
+        <svg viewBox="0 0 24 24" :width="comp.props.iconSize || 20" :height="comp.props.iconSize || 20" fill="none" :stroke="comp.props.iconColor || '#fff'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h2.6l2.7 12.4a2 2 0 0 0 2 1.6h8.3a2 2 0 0 0 2-1.6L21.5 8H6"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/></svg>
         <span v-if="comp.props.showBadge !== false" class="r-fab-cart-badge">3</span>
         <span class="r-fab-cart-tag">购物车</span>
       </div>
@@ -1239,6 +1240,10 @@ function resolveFloatPos(p, tabH) {
 }
 function floatStyle(p) {
   const s = { background: p.color || '#165DFF' };
+  // 整体大小：round 直径 / square 高度（宽度随内容自适应），与 C 端一致
+  const size = Number(p.size) || (p.style === 'round' ? 52 : 44);
+  if (p.style === 'round') { s.width = size + 'px'; s.height = size + 'px'; }
+  else { s.height = size + 'px'; s.fontSize = Math.max(11, Math.round(size * 0.28)) + 'px'; }
   const { pos, x, y } = resolveFloatPos(p, props.navBarH);
   const xpx = x + 'px', ypx = y + 'px';
   if (pos === 'top-left') { s.top = ypx; s.left = xpx; }
@@ -1246,6 +1251,16 @@ function floatStyle(p) {
   else if (pos === 'bottom-left') { s.bottom = ypx; s.left = xpx; }
   else { s.bottom = ypx; s.right = xpx; }
   return s;
+}
+function floatIcoStyle(p) {
+  const n = Number(p.iconSize) || 22;
+  return { width: n + 'px', height: n + 'px' };
+}
+// 悬浮按钮内置图标名校验：旧数据可能残留无效名（如 chat），回退默认 wechat
+const FLOAT_ICON_NAMES = ['wechat','sms','mail','bell','mobile','dynamic','cart','star','location','search','share','like','comment','customer','card','radar','market','exchange','pool','wallet','dist','crown'];
+function floatIconName(p) {
+  const n = p.iconName || 'wechat';
+  return FLOAT_ICON_NAMES.includes(n) ? n : 'wechat';
 }
 function channelLiveStyle(p) {
   const s = { background: p.bgColor || '#F7F8FA' };
@@ -1466,6 +1481,9 @@ function fabCartStyle(p) {
   // 组件风格：默认圆角矩形（与其他悬浮组件/宫格图标一致），round 为圆形
   st.borderRadius = p.style === 'round' ? '50%' : '12px';
   if (p.bgColor) st.background = p.bgColor;
+  // 整体大小（px），与 C 端一致
+  st.width = (Number(p.size) || 44) + 'px';
+  st.height = (Number(p.size) || 44) + 'px';
   return st;
 }
 function nativeMargin(p) {
@@ -1801,7 +1819,7 @@ const nativeGridItems = [
 .r-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
 /* 悬浮按钮 */
 .r-float-wrap { position: relative; width: 100%; box-sizing: border-box; }
-.r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; }
+.r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .r-float img { width: 22px; height: 22px; object-fit: contain; }
 .r-float-square { border-radius: 10px; padding: 8px 14px; }
 .r-titlebar { display: flex; align-items: center; }
