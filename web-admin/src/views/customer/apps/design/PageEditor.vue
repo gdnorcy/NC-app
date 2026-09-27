@@ -183,6 +183,11 @@
               <span class="pe-ptb-text">{{ it.text || '入口' }}</span>
             </div>
           </div>
+          <!-- 商城首页装修稿模式浮动购物车（与 C 端 mall/index 一致） -->
+          <div v-if="pageType === 'mall-home'" class="pe-fab-cart" title="购物车（装修稿模式浮动入口）">
+            <SIcon name="cart" size="large" color="#ffffff" />
+            <span class="pe-fab-badge">3</span>
+          </div>
         </div>
       </div>
 
@@ -2058,6 +2063,21 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
   box-shadow: 0 4px 16px rgba(0,0,0,.08), 0 0 0 1px #e5e6eb;
   overflow: hidden;
   flex-shrink: 0;
+  position: relative;
+}
+/* 商城首页装修稿模式浮动购物车（预览壳右上角，与 C 端 mall/index 视觉一致） */
+.pe-fab-cart {
+  position: absolute; right: 14px; top: 120px; z-index: 50;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(22, 93, 255, 0.92);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  cursor: pointer;
+}
+.pe-fab-cart .s-icon { margin: 0; }
+.pe-fab-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; line-height: 16px;
+  border-radius: 8px; background: #ff3b30; color: #fff; font-size: 10px; text-align: center; padding: 0 4px; box-sizing: border-box;
 }
 /* 顶部状态栏：模拟真实小程序（时间/信号/WiFi/电池固定，参考图7） */
 .pe-status-bar {
