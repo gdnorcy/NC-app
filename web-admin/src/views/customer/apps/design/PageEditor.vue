@@ -2063,6 +2063,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
   overflow: hidden;
   flex-shrink: 0;
   position: relative;
+  display: flex; flex-direction: column; /* 状态栏/导航/画布/底部导航纵向排布，画布底部紧贴底部导航，与 C 端视口结构一致 */
 }
 /* 顶部状态栏：模拟真实小程序（时间/信号/WiFi/电池固定，参考图7） */
 .pe-status-bar {
@@ -2108,7 +2109,7 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
-.pe-canvas { min-height: 420px; padding: 0; background: transparent; position: relative; }
+.pe-canvas { flex: 1 1 0%; min-height: 420px; padding: 0; background: transparent; position: relative; overflow-y: auto; }
 /* B1：真实 C 端页面 iframe 画布 */
 .pe-live-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 420px; }
 .pe-toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }

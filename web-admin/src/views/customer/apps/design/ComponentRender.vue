@@ -1222,8 +1222,9 @@ function gridStyle(p) {
 }
 function floatStyle(p) {
   const s = { background: p.color || '#165DFF' };
-  const d = (p.distance ?? 12) + 'px';
+  let d = p.distance ?? 12;
   const pos = p.position || 'bottom-right';
+  d += 'px';
   if (pos === 'top-left') { s.top = d; s.left = d; }
   else if (pos === 'top-right') { s.top = d; s.right = d; }
   else if (pos === 'bottom-left') { s.bottom = d; s.left = d; }
@@ -1438,6 +1439,7 @@ function chRadius(p, i) {
   if (p.radiusBottom && last) r.push('12px');
   return r.length ? r.join(' ') : '';
 }
+// 画布悬浮组件：canvas 底部已紧贴底部导航（预览壳 flex 布局），bottom 直接按「组件边距」起算，与 C 端距导航的距离一致
 function fabCartStyle(p) {
   const st = {};
   let d = Number(p.distance);
