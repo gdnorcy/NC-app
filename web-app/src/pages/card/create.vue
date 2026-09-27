@@ -1,5 +1,5 @@
 <template>
-  <view class="create-page" :class="'skin-' + skinType">
+  <view class="create-page" :class="'skin-' + skinType" :style="skinVars">
     <view v-if="applyMsg" class="apply-banner" :class="{ 'apply-banner--reject': applyStatus === 'rejected' }">
       {{ applyMsg }}
     </view>
@@ -318,6 +318,7 @@ import {
   parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
   heroBarTopStyle, heroTextureBg, heroRadius,
 } from '../../utils/templateTheme.js';
+import { shadeHex } from '../../utils/color.js';
 import SIcon from '../../components/SIcon.vue';
 import TplThumb from '../../components/TplThumb.vue';
 
@@ -404,8 +405,16 @@ async function loadTemplates(force = false) {
     const res = await cardApi.getTemplates();
     templates.value = res.templates || [];
     if (['live', 'step', 'split'].includes(res.skin)) skinType.value = res.skin;
-    // 默认选中第一个可用模板（跳过付费未购）
-    if (templates.value.length && !form.templateId) {
+    // 支持 URL ?tpl=<id> 指定模板（深链/验证）；否则默认第一个可用模板（跳过付费未购）
+    const pages = getCurrentPages();
+    const opts = pages[pages.length - 1].options || {};
+    const tplId = Number(opts.tpl);
+    if (tplId) {
+      const hit = templates.value.find((t) => t.id === tplId && (Number(t.price) <= 0 || t.purchased));
+      if (hit) form.templateId = hit.id;
+      else form.templateId = '';
+    }
+    if (!form.templateId && templates.value.length) {
       const first = templates.value.find((t) => Number(t.price) <= 0 || t.purchased) || templates.value[0];
       form.templateId = first.id;
     }
@@ -471,6 +480,78 @@ const lpAccentStyle = computed(() => (lpTheme.value ? heroAccentStyle(lpTheme.va
 const lpAvatarStyle = computed(() => (lpTheme.value ? { borderRadius: heroRadius(lpTheme.value, true) } : {}));
 const lpBarTop = computed(() => (lpTheme.value ? heroBarTopStyle(lpTheme.value) : null));
 const lpTexture = computed(() => (lpTheme.value ? heroTextureBg(lpTheme.value) : ''));
+
+// 方案A：live 皮肤跟随选中模板整体换肤（页面背景/标题区/按钮/卡片/文字 token 联动）
+const skinVars = computed(() => {
+  if (skinType.value !== 'live') return {};
+  const t = lpTheme.value;
+  if (!t) return {};
+  const accent = t.accent || '#165dff';
+  const bg = t.bgStart || '#165dff';
+  const bgEnd = t.bgEnd || bg;
+  const light = hexLuma(bg) > 160;
+  const vars = {};
+  vars['--primary'] = accent;
+  vars['--success'] = accent;
+  if (light) {
+    vars['--sk-bg'] = `linear-gradient(180deg, ${hexA(bg, 0.14)}, transparent 280rpx), #f6f7fb`;
+    vars['--sk-header'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
+    vars['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
+    vars['--sk-btn-text'] = '#ffffff';
+    vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.35)}`;
+    vars['--bg-card'] = '#ffffff';
+    vars['--t1'] = '#1d2129';
+    vars['--t2'] = '#4e5969';
+    vars['--t3'] = '#86909c';
+    vars['--border'] = '#e5e6eb';
+    vars['--border-strong'] = '#c9cdd4';
+  } else {
+    vars['--sk-bg'] = `linear-gradient(180deg, ${hexA(bg, 0.94)}, ${hexA(bgEnd, 0.88)})`;
+    vars['--sk-header'] = `linear-gradient(155deg, ${bg}, ${bgEnd})`;
+    vars['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.2)})`;
+    // 鎏金/亮色点缀按钮配深色文字（黑金=金钮深字，方案3 G 同款）
+    vars['--sk-btn-text'] = hexLuma(accent) > 170 ? '#1d2129' : '#ffffff';
+    vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.4)}`;
+    vars['--bg-card'] = 'rgba(255,255,255,0.09)';
+    vars['--t1'] = t.textColor || '#ffffff';
+    vars['--t2'] = t.text2Color || 'rgba(255,255,255,0.8)';
+    vars['--t3'] = 'rgba(255,255,255,0.55)';
+    vars['--border'] = 'rgba(255,255,255,0.22)';
+    vars['--border-strong'] = 'rgba(255,255,255,0.45)';
+  }
+  return vars;
+});
+function hexLuma(color) {
+  let c = String(color || '').trim();
+  if (c.startsWith('#')) {
+    c = c.slice(1);
+    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+    const n = parseInt(c, 16);
+    if (!Number.isNaN(n) && c.length === 6) {
+      return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255));
+    }
+  }
+  return 200; // 非 hex（rgba 等）按浅色处理
+}
+function hexA(color, alpha) {
+  if (!color) return `rgba(22,93,255,${alpha})`;
+  let c = String(color).trim();
+  if (c.startsWith('#')) {
+    c = c.slice(1);
+    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+    const n = parseInt(c, 16);
+    if (!Number.isNaN(n) && c.length === 6) {
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+    }
+  }
+  // rgba(255,255,255,.85) 等：解析原透明度并覆盖
+  const m = String(color).match(/rgba?\(([^)]+)\)/);
+  if (m) {
+    const parts = m[1].split(',').map((x) => x.trim());
+    return `rgba(${parts[0]},${parts[1]},${parts[2]},${alpha})`;
+  }
+  return color;
+}
 
 onShow(() => {
   trackPageView('/pages/card/create');
@@ -768,7 +849,7 @@ async function submit() {
 .skin-live .live-preview { margin-top: 20rpx; }
 .create-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--sk-bg, #f5f7fa);
   /* 底部留白 = footer高 + 视觉间距(约20rpx)。H5 footer约120rpx → 140rpx 间隙舒适 */
   padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
   /* #ifdef MP-WEIXIN */
@@ -779,7 +860,7 @@ async function submit() {
 
 /* 顶部标题 */
 .header {
-  background: linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4);
+  background: var(--sk-header, linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4));
   padding: 88rpx 32rpx 32rpx;
 }
 .row1 {
@@ -1188,13 +1269,13 @@ async function submit() {
 .btn-primary {
   flex: 1;
   height: 88rpx;
-  background: var(--success);
-  color: #fff;
+  background: var(--sk-btn, var(--success));
+  color: var(--sk-btn-text, #fff);
   font-size: 30rpx;
   font-weight: 600;
   border-radius: 44rpx;
   border: none;
-  box-shadow: 0 4rpx 12rpx rgba(7,193,96,0.3);
+  box-shadow: var(--sk-btn-glow, 0 4rpx 12rpx rgba(7,193,96,0.3));
 }
 .btn-primary[disabled] {
   opacity: 0.6;
