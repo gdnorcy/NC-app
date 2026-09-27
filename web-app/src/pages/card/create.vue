@@ -43,23 +43,119 @@
 
     <!-- 进度指示器 -->
     <view class="progress-bar">
-      <view class="progress-step" v-for="(step, idx) in steps" :key="idx">
-        <view class="step-dot" :class="{ active: currentStep >= idx, done: currentStep > idx }">
-          <text v-if="currentStep > idx">✓</text>
-          <text v-else>{{ idx + 1 }}</text>
-        </view>
-        <view class="step-label" :class="{ active: currentStep === idx }">{{ step }}</view>
+      <view class="bar-segs">
+        <view v-for="(step, idx) in steps" :key="idx" class="bar-seg" :class="{ on: currentStep >= idx, done: currentStep > idx }"></view>
       </view>
-      <view class="progress-line">
-        <view class="progress-fill" :style="{ width: (currentStep / 2) * 100 + '%' }"></view>
+      <view class="bar-label">
+        <text>{{ steps[currentStep] }}</text>
+        <text v-if="currentStep === 0" class="bar-next">· 下一步填写联系方式</text>
+        <text v-else-if="currentStep === 1" class="bar-next">· 下一步发布设置</text>
       </view>
     </view>
 
     <!-- 卡片容器 -->
     <view class="cards-container">
-      <!-- 卡片1：选择类型+基本信息 -->
       <view class="card" :class="{ active: currentStep === 0, prev: currentStep > 0 }">
-        <view v-if="!isEdit" class="card-title">选择名片类型</view>
+        <view class="card-title">填写基本信息</view>
+        <view class="card-desc">先填核心信息，类型 / 模板等配置下一步继续</view>
+
+
+
+        <view class="form-item">
+          <view class="form-label">姓名 <text class="required">*</text></view>
+          <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
+          <view class="error-tip" v-if="errors.name">请输入姓名</view>
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">职位/头衔</view>
+          <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">所在城市 <text class="required">*</text></view>
+          <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
+            <view class="form-input picker-value" :class="{ ph: !form.city }">{{ form.city || '请选择所在城市' }}</view>
+          </picker>
+          <view class="error-tip" v-if="errors.city">请选择所在城市</view>
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">一句话介绍</view>
+          <input class="form-input" v-model="form.bio" placeholder="你专注什么、能提供什么" placeholder-class="ph" />
+        </view>
+
+        <!-- 头像上传 -->
+        <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
+        <view class="avatar-row">
+          <view class="avatar-upload" @click="chooseAvatar">
+            <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill" />
+            <view v-else class="avatar-placeholder">
+              <text class="avatar-plus">+</text>
+              <text class="avatar-text">上传</text>
+            </view>
+          </view>
+          <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
+        </view>
+
+        <!-- 语音简介（VIP权益：上传音频；克隆语音后续） -->
+        <view class="card-title" style="margin-top: 20rpx;">语音简介<text class="vip-tag">VIP</text></view>
+        <view class="voice-row" v-if="voiceAllowed">
+          <view class="voice-upload" @click="chooseVoice" v-if="!form.voiceUrl">
+            <text class="voice-plus">+</text>
+            <text class="voice-text">上传音频</text>
+          </view>
+          <view class="voice-file" v-else>
+            <SIcon name="dynamic" size="large" color="#165dff" />
+            <view class="vf-info">
+              <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
+              <view class="vf-tip">点击播放试听</view>
+            </view>
+            <audio class="voice-audio" :src="voiceSrc" controls v-if="voiceSrc" />
+            <view class="vf-actions">
+              <text class="vf-del" @click="clearVoice">删除</text>
+              <text class="vf-re" @click="chooseVoice">重传</text>
+            </view>
+          </view>
+          <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
+        </view>
+        <view class="voice-locked" v-else @click="goMember">
+          <SIcon name="crown" size="small" color="#ffd21e" />
+          <text>开通会员解锁语音简介</text>
+        </view>
+      </view>
+
+      <!-- 卡片2：联系方式 -->
+
+      <view class="card" :class="{ active: currentStep === 1, prev: currentStep > 1 }">
+        <view class="card-title">联系方式</view>
+        <view class="card-desc">方便客户找到你</view>
+
+        <view class="form-item" :class="{ error: errors.phone }">
+          <view class="form-label">手机号 <text class="required">*</text></view>
+          <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
+          <view class="error-tip" v-if="errors.phone">请输入手机号</view>
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">微信号</view>
+          <input class="form-input" v-model="form.wechat" placeholder="请输入微信号" placeholder-class="ph" />
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">邮箱</view>
+          <input class="form-input" v-model="form.email" placeholder="请输入邮箱" placeholder-class="ph" />
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">业务领域 <text class="required">*</text></view>
+          <picker mode="selector" :range="INDUSTRIES" @change="onBusinessChange">
+            <view class="form-input picker-value" :class="{ ph: !form.businessField }">{{ form.businessField || '请选择业务领域' }}</view>
+          </picker>
+          <view class="error-tip" v-if="errors.businessField">请选择业务领域</view>
+        </view>
+
+        <view v-if="!isEdit" class="card-title" style="margin-top: 20rpx;">选择名片类型</view>
         <view v-if="!isEdit" class="card-desc">个人也可以创建，无需企业账号</view>
 
         <!-- 类型选择（仅新建时） -->
@@ -152,100 +248,7 @@
           </view>
         </view>
 
-        <view class="card-title" style="margin-top: 20rpx;">填写基本信息</view>
 
-        <view class="form-item">
-          <view class="form-label">姓名 <text class="required">*</text></view>
-          <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.name">请输入姓名</view>
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">职位/头衔</view>
-          <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">所在城市 <text class="required">*</text></view>
-          <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
-            <view class="form-input picker-value" :class="{ ph: !form.city }">{{ form.city || '请选择所在城市' }}</view>
-          </picker>
-          <view class="error-tip" v-if="errors.city">请选择所在城市</view>
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">一句话介绍</view>
-          <input class="form-input" v-model="form.bio" placeholder="你专注什么、能提供什么" placeholder-class="ph" />
-        </view>
-
-        <!-- 头像上传 -->
-        <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
-        <view class="avatar-row">
-          <view class="avatar-upload" @click="chooseAvatar">
-            <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill" />
-            <view v-else class="avatar-placeholder">
-              <text class="avatar-plus">+</text>
-              <text class="avatar-text">上传</text>
-            </view>
-          </view>
-          <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
-        </view>
-
-        <!-- 语音简介（VIP权益：上传音频；克隆语音后续） -->
-        <view class="card-title" style="margin-top: 20rpx;">语音简介<text class="vip-tag">VIP</text></view>
-        <view class="voice-row" v-if="voiceAllowed">
-          <view class="voice-upload" @click="chooseVoice" v-if="!form.voiceUrl">
-            <text class="voice-plus">+</text>
-            <text class="voice-text">上传音频</text>
-          </view>
-          <view class="voice-file" v-else>
-            <SIcon name="dynamic" size="large" color="#165dff" />
-            <view class="vf-info">
-              <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
-              <view class="vf-tip">点击播放试听</view>
-            </view>
-            <audio class="voice-audio" :src="voiceSrc" controls v-if="voiceSrc" />
-            <view class="vf-actions">
-              <text class="vf-del" @click="clearVoice">删除</text>
-              <text class="vf-re" @click="chooseVoice">重传</text>
-            </view>
-          </view>
-          <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
-        </view>
-        <view class="voice-locked" v-else @click="goMember">
-          <SIcon name="crown" size="small" color="#ffd21e" />
-          <text>开通会员解锁语音简介</text>
-        </view>
-      </view>
-
-      <!-- 卡片2：联系方式 -->
-      <view class="card" :class="{ active: currentStep === 1, prev: currentStep > 1 }">
-        <view class="card-title">联系方式</view>
-        <view class="card-desc">方便客户找到你</view>
-
-        <view class="form-item" :class="{ error: errors.phone }">
-          <view class="form-label">手机号 <text class="required">*</text></view>
-          <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.phone">请输入手机号</view>
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">微信号</view>
-          <input class="form-input" v-model="form.wechat" placeholder="请输入微信号" placeholder-class="ph" />
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">邮箱</view>
-          <input class="form-input" v-model="form.email" placeholder="请输入邮箱" placeholder-class="ph" />
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">业务领域 <text class="required">*</text></view>
-          <picker mode="selector" :range="INDUSTRIES" @change="onBusinessChange">
-            <view class="form-input picker-value" :class="{ ph: !form.businessField }">{{ form.businessField || '请选择业务领域' }}</view>
-          </picker>
-          <view class="error-tip" v-if="errors.businessField">请选择业务领域</view>
-        </view>
       </view>
 
       <!-- 卡片3：发布设置 -->
@@ -302,7 +305,7 @@
       <view class="footer-btns">
         <button v-if="currentStep > 0" class="btn-secondary" @click="prevStep">上一步</button>
         <button v-if="currentStep === 1" class="btn-skip" @click="skipDetail">跳过</button>
-        <button v-if="currentStep < 2" class="btn-primary" @click="nextStep">下一步</button>
+        <button v-if="currentStep < 2" class="btn-primary" @click="nextStep">{{ currentStep === 0 ? '下一步 · 填写联系方式' : '下一步 · 发布设置' }}</button>
         <button v-if="currentStep === 2" class="btn-primary" @click="submit" :disabled="submitting">
           {{ submitting ? '提交中...' : (isEdit ? '保存修改' : '创建名片') }}
         </button>
@@ -939,63 +942,36 @@ async function submit() {
   margin-top: 8rpx;
 }
 
-/* 进度指示器 */
+/* 进度指示器（方案3 光晕横线） */
 .progress-bar {
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-start;
-  padding: 32rpx 48rpx 16rpx;
-  position: relative;
+  padding: 30rpx 48rpx 6rpx;
 }
-.progress-step {
+.bar-segs {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 1;
+  gap: 10rpx;
 }
-.step-dot {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 24rpx;
-  background: var(--border);
-  color: var(--t3);
-  font-size: 24rpx;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.bar-seg {
+  flex: 1;
+  height: 6rpx;
+  border-radius: 99rpx;
+  background: var(--bg-hover, rgba(255,255,255,0.16));
   transition: all 0.3s;
 }
-.step-dot.active {
-  background: var(--success);
-  color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(7,193,96,0.3);
+.bar-seg.on {
+  background: linear-gradient(90deg, var(--primary, #165dff), var(--success, #07c160));
+  box-shadow: 0 0 10rpx var(--sk-seg-glow, rgba(22,93,255,0.5));
 }
-.step-dot.done {
-  background: #00b42a;
-  color: #fff;
+.bar-seg.done {
+  background: var(--success, #07c160);
 }
-.step-label {
+.bar-label {
+  margin-top: 12rpx;
   font-size: 22rpx;
-  color: var(--t3);
-  margin-top: 8rpx;
+  color: var(--t2);
 }
-.step-label.active {
-  color: var(--success);
-  font-weight: 600;
-}
-.progress-line {
-  position: absolute;
-  top: 52rpx;
-  left: 15%;
-  right: 15%;
-  height: 4rpx;
-  background: var(--border);
-}
-.progress-fill {
-  height: 100%;
-  background: var(--success);
-  transition: width 0.4s;
+.bar-next {
+  color: var(--primary);
+  opacity: 0.75;
 }
 
 /* 卡片容器 */
