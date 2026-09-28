@@ -173,39 +173,51 @@
           <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
         </view>
 
-        <!-- 语音简介（VIP权益：上传音频；克隆语音后续） -->
-        <view class="card-title" style="margin-top: 20rpx;">语音简介<text class="vip-tag">VIP</text></view>
-        <view class="voice-row" v-if="voiceAllowed">
-          <view class="voice-upload" @click="chooseVoice" v-if="!form.voiceUrl">
-            <text class="voice-plus">+</text>
-            <text class="voice-text">上传音频</text>
-          </view>
-          <view class="voice-file" v-else>
-            <SIcon name="dynamic" size="large" color="#165dff" />
-            <view class="vf-info">
-              <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
-              <view class="vf-tip">点击播放试听</view>
+
+        <!-- 高级选项（默认收起：语音简介 + 视频号ID） -->
+        <view class="bind-section adv-section" style="margin-top: 24rpx;">
+          <view class="bind-header" @click="showAdv = !showAdv">
+            <view class="bind-title">
+              <SIcon name="settings" size="small" color="#165dff" />
+              高级选项
             </view>
-            <audio class="voice-audio" :src="voiceSrc" controls v-if="voiceSrc" />
-            <view class="vf-actions">
-              <text class="vf-del" @click="clearVoice">删除</text>
-              <text class="vf-re" @click="chooseVoice">重传</text>
-            </view>
+            <view class="bind-arrow">{{ showAdv ? '收起' : '展开' }}</view>
           </view>
-          <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
-        </view>
-        <view class="voice-locked" v-else @click="goMember">
-          <SIcon name="crown" size="small" color="#ffd21e" />
-          <text>开通会员解锁语音简介</text>
+          <view v-if="showAdv" class="bind-body">
+                    <view class="card-title" style="margin-top: 20rpx;">语音简介<text class="vip-tag">VIP</text></view>
+            <view class="voice-row" v-if="voiceAllowed">
+              <view class="voice-upload" @click="chooseVoice" v-if="!form.voiceUrl">
+                <text class="voice-plus">+</text>
+                <text class="voice-text">上传音频</text>
+              </view>
+              <view class="voice-file" v-else>
+                <SIcon name="dynamic" size="large" color="#165dff" />
+                <view class="vf-info">
+                  <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
+                  <view class="vf-tip">点击播放试听</view>
+                </view>
+                <audio class="voice-audio" :src="voiceSrc" controls v-if="voiceSrc" />
+                <view class="vf-actions">
+                  <text class="vf-del" @click="clearVoice">删除</text>
+                  <text class="vf-re" @click="chooseVoice">重传</text>
+                </view>
+              </view>
+              <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
+            </view>
+            <view class="voice-locked" v-else @click="goMember">
+              <SIcon name="crown" size="small" color="#ffd21e" />
+              <text>开通会员解锁语音简介</text>
+            </view>
+        <view class="form-item">
+              <view class="form-label">视频号ID</view>
+              <input class="form-input" v-model="form.videoChannel" placeholder="绑定后可在名片展示视频号" placeholder-class="ph" />
+            </view>
+
+          </view>
         </view>
 
         <view class="card-title">发布设置</view>
         <view class="card-desc">设置名片展示和发布选项</view>
-
-        <view class="form-item">
-          <view class="form-label">视频号ID</view>
-          <input class="form-input" v-model="form.videoChannel" placeholder="绑定后可在名片展示视频号" placeholder-class="ph" />
-        </view>
 
         <view class="form-item switch-item">
           <view class="form-label">公开到人脉集市</view>
@@ -246,6 +258,7 @@ const applyMsg = ref('');
 const currentStep = ref(0);
 const cardType = ref('individual');
 const showBind = ref(false);
+const showAdv = ref(false);
 const steps = ['基本信息', '联系方式', '确认发布'];
 // 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导 / split 沉浸双分区
 const skinType = ref('live');
@@ -789,6 +802,9 @@ async function submit() {
   border-radius: 32rpx;
   padding: 20rpx 36rpx;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card + .card {
+  margin-top: 28rpx;
 }
 .card:not(.active) {
   display: none;
