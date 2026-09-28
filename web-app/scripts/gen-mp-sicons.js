@@ -68,6 +68,32 @@ function walk(dir) {
 }
 walk(srcDir);
 
+// 租户主题色兜底：读取 server/data/panorama.db 的 tenant_style_config，
+// 把各租户主色/渐变/辅助/文字色加入动态色板（设计中心 14 套预设任选其一都会命中；
+// 无 DB / 无 sqlite3 环境时跳过，仅保留静态色与黑色兜底）
+try {
+  const { execSync } = require('child_process');
+  const dbPath = path.join(__dirname, '..', '..', 'server', 'data', 'panorama.db');
+  if (fs.existsSync(dbPath)) {
+    const rows = execSync(`sqlite3 "${dbPath}" "SELECT style_json FROM tenant_style_config;"`, { maxBuffer: 1 << 22 }).toString().trim();
+    const COLOR_KEYS = ['primaryColor', 'gradientColor', 'secondaryColor', 'textColor', 'subTextColor'];
+    if (rows) {
+      for (const line of rows.split('\n')) {
+        try {
+          const cfg = JSON.parse(line);
+          for (const k of COLOR_KEYS) {
+            const hm = String(cfg[k] || '').match(/#[0-9a-fA-F]{3,8}/i);
+            if (hm) dynColors.add(hm[0].toLowerCase());
+          }
+        } catch { /* 单行解析失败跳过 */ }
+      }
+      console.log(`[gen-mp-sicons] 租户主题色兜底：动态色 ${dynColors.size} 个`);
+    }
+  }
+} catch (e) {
+  console.log('[gen-mp-sicons] 租户主题色读取跳过（无 sqlite3/DB）：', String(e.message).slice(0, 60));
+}
+
 // 动态 name 兜底：全图标 × 动态处静态颜色
 for (const hex of dynColors) {
   for (const iconName of Object.keys(svgMap)) pairs.add(`${iconName}-${hex.replace('#', '')}`);

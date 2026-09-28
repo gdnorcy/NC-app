@@ -113,7 +113,9 @@ const iconSrc = computed(() => buildSvgDataUri());
 // 基础库 3.x 禁用 http 图片（含开发者工具映射的包内资源），data URI 不依赖网络、真机/工具均正常
 const mpIconSrc = computed(() => {
   const hex = (props.color || '#000000').replace(/^#/, '').toLowerCase();
-  const b64 = siconsBase64[`${props.name}-${hex}`];
+  let b64 = siconsBase64[`${props.name}-${hex}`];
+  // 未预生成的颜色（如运行期主题色）兜底到黑色变体，避免小程序端空白占位
+  if (!b64) b64 = siconsBase64[`${props.name}-000000`];
   return b64 ? `data:image/png;base64,${b64}` : '';
 });
 const iconStyle = computed(() => {
