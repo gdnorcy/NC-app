@@ -13,11 +13,14 @@
         <view class="bar-right"></view>
       </view>
       <view class="row1">
-        <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
+        <view class="row1-l">
+          <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
+          <view class="hero-en" v-if="skinSerif">{{ heroEn }}</view>
+          <view class="hero-line" v-if="skinSerif"></view>
+          <view class="subtitle">{{ isEdit ? '完善信息，让别人更了解你' : stepSubtitle }}</view>
+        </view>
+        <view class="stepnum" v-if="!isEdit">{{ currentStep + 1 }} / 3</view>
       </view>
-      <view class="hero-en" v-if="skinSerif">{{ heroEn }}</view>
-      <view class="hero-line" v-if="skinSerif"></view>
-      <view class="subtitle">{{ isEdit ? '完善信息，让别人更了解你' : '个人也可以创建，无需企业账号 · 2 分钟完成' }}</view>
     </view>
 
     <!-- 名片实时预览卡（live 顶部 / split 固定区；step 在第 3 步展示） -->
@@ -53,18 +56,6 @@
       </view>
     </view>
 
-    <!-- 进度指示器 -->
-    <view class="progress-bar">
-      <view class="bar-segs">
-        <view v-for="(step, idx) in steps" :key="idx" class="bar-seg" :class="{ on: currentStep >= idx, done: currentStep > idx }"></view>
-      </view>
-      <view class="bar-label">
-        <text>{{ steps[currentStep] }}</text>
-        <text v-if="currentStep === 0" class="bar-next">· 下一步填写联系方式</text>
-        <text v-else-if="currentStep === 1" class="bar-next">· 下一步名片配置</text>
-        <text v-else-if="currentStep === 2" class="bar-next">· 下一步发布设置</text>
-      </view>
-    </view>
 
     <!-- 卡片容器 -->
     <view class="cards-container">
@@ -230,8 +221,8 @@
 
       </view>
 
-      <!-- 卡片4：发布设置 -->
-      <view class="card" :class="{ active: currentStep === 3, prev: currentStep > 3 }">
+      <!-- 卡片4：发布设置（并入第2步确认发布） -->
+      <view class="card" :class="{ active: currentStep === 2, prev: currentStep > 2 }">
         <!-- 头像上传 -->
         <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
         <view class="avatar-row">
@@ -322,8 +313,8 @@
       <view class="footer-btns">
         <button v-if="currentStep > 0" class="btn-secondary" @click="prevStep">上一步</button>
         <button v-if="currentStep === 1" class="btn-skip" @click="skipDetail">跳过</button>
-        <button v-if="currentStep < 3" class="btn-primary" @click="nextStep">{{ currentStep === 0 ? '下一步 · 填写联系方式' : currentStep === 1 ? '下一步 · 名片配置' : '下一步 · 发布设置' }}</button>
-        <button v-if="currentStep === 3" class="btn-primary" @click="submit" :disabled="submitting">
+        <button v-if="currentStep < 2" class="btn-primary" @click="nextStep">{{ currentStep === 0 ? '下一步 · 填写联系方式' : '下一步 · 确认发布' }}</button>
+        <button v-if="currentStep === 2" class="btn-primary" @click="submit" :disabled="submitting">
           {{ submitting ? '提交中...' : (isEdit ? '保存修改' : '创建名片') }}
         </button>
       </view>
@@ -352,7 +343,7 @@ const applyMsg = ref('');
 const currentStep = ref(0);
 const cardType = ref('individual');
 const showBind = ref(false);
-const steps = ['基本信息', '联系方式', '名片配置', '发布设置'];
+const steps = ['基本信息', '联系方式', '确认发布'];
 // 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导 / split 沉浸双分区
 const skinType = ref('live');
 
@@ -524,6 +515,9 @@ const skinVars = computed(() => {
     vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.35)}`;
     vars['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
     vars['--bg-card'] = '#ffffff';
+    vars['--sk-card-bg'] = '#ffffff';
+    vars['--sk-hd-text'] = '#1d2129';
+    vars['--sk-hd-sub'] = '#a2a9b5';
     vars['--t1'] = '#1d2129';
     vars['--t2'] = '#4e5969';
     vars['--t3'] = '#86909c';
@@ -546,6 +540,10 @@ const skinVars = computed(() => {
     vars['--sk-btn-glow'] = `0 6rpx 18rpx ${hexA(accent, 0.4)}`;
     vars['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
     vars['--bg-card'] = 'rgba(255,255,255,0.09)';
+    vars['--sk-card-bg'] = 'rgba(255,255,255,0.08)';
+    vars['--sk-hd-text'] = t.textColor || '#ffffff';
+    vars['--sk-hd-sub'] = t.text2Color || 'rgba(255,255,255,0.8)';
+    vars['--sk-title-font'] = '"Songti SC", "Noto Serif SC", serif';
     vars['--t1'] = t.textColor || '#ffffff';
     vars['--t2'] = t.text2Color || 'rgba(255,255,255,0.8)';
     vars['--t3'] = 'rgba(255,255,255,0.55)';
@@ -561,6 +559,10 @@ const skinVars = computed(() => {
     vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
   }
   return vars;
+});
+const stepSubtitle = computed(() => {
+  const m = ['填写基本信息，2 分钟完成发布', '方便客户找到你', '预览无误，即可发布'];
+  return m[currentStep.value] || m[0];
 });
 const skinSerif = computed(() => !!lpTheme.value && skinVars.value['--sk-skin'] === 'dark');
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
@@ -712,7 +714,7 @@ function nextStep() {
     uni.showToast({ title: '请完善必填信息', icon: 'none' });
     return;
   }
-  if (currentStep.value < 3) {
+  if (currentStep.value < 2) {
     currentStep.value++;
   }
 }
@@ -919,7 +921,7 @@ async function submit() {
 
 /* ===== 三皮肤布局差异 ===== */
 /* step 分步引导：卡片全屏化 + 焦点感 */
-.skin-step .header { padding-top: 88rpx; }
+.skin-step .header { padding-top: 56rpx; background: transparent; }
 .skin-step .cards-container { padding: 0 24rpx; }
 .skin-step .card {
   border-radius: 24rpx;
@@ -928,13 +930,13 @@ async function submit() {
   box-shadow: 0 12rpx 40rpx rgba(0,0,0,0.08);
 }
 .skin-step .btn-primary {
-  height: 96rpx;
+  height: 104rpx;
   font-size: 32rpx;
-  border-radius: 48rpx;
+  border-radius: 28rpx;
+  letter-spacing: 4rpx;
 }
 .skin-step .btn-secondary,
-.skin-step .btn-skip { height: 96rpx; border-radius: 48rpx; }
-.skin-step .progress-bar { padding-top: 40rpx; }
+.skin-step .btn-skip { height: 104rpx; border-radius: 28rpx; }
 /* split 沉浸双分区：预览卡固定顶部 */
 .skin-split .live-preview {
   position: sticky;
@@ -1000,12 +1002,25 @@ async function submit() {
 .row1 {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
+}
+.row1-l {
+  flex: 1;
+  min-width: 0;
 }
 .title {
   font-size: 40rpx;
+  font-weight: 800;
+  color: var(--sk-hd-text, #fff);
+  letter-spacing: 1rpx;
+}
+.stepnum {
+  font-size: 30rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--t3, #86909c);
+  letter-spacing: 1rpx;
+  flex-shrink: 0;
+  margin-left: 20rpx;
 }
 .hero-en {
   font-size: 20rpx;
@@ -1021,10 +1036,14 @@ async function submit() {
   margin-top: 14rpx;
 }
 .skin-live .title,
-.skin-split .title,
-.skin-step .title {
+.skin-split .title {
   font-family: "Songti SC", "Noto Serif SC", serif;
   letter-spacing: 4rpx;
+}
+.skin-step .title {
+  font-family: var(--sk-title-font, inherit);
+  letter-spacing: 2rpx;
+  color: var(--sk-hd-text, #1d2129);
 }
 .hero-badge {
   display: flex;
@@ -1038,41 +1057,9 @@ async function submit() {
   color: #fff;
 }
 .subtitle {
-  font-size: 24rpx;
-  color: rgba(255,255,255,0.8);
-  margin-top: 8rpx;
-}
-
-/* 进度指示器（方案3 光晕横线） */
-.progress-bar {
-  padding: 30rpx 48rpx 6rpx;
-}
-.bar-segs {
-  display: flex;
-  gap: 10rpx;
-}
-.bar-seg {
-  flex: 1;
-  height: 6rpx;
-  border-radius: 99rpx;
-  background: var(--bg-hover, rgba(255,255,255,0.16));
-  transition: all 0.3s;
-}
-.bar-seg.on {
-  background: linear-gradient(90deg, var(--primary, #165dff), var(--success, #07c160));
-  box-shadow: 0 0 10rpx var(--sk-seg-glow, rgba(22,93,255,0.5));
-}
-.bar-seg.done {
-  background: var(--success, #07c160);
-}
-.bar-label {
-  margin-top: 12rpx;
-  font-size: 22rpx;
-  color: var(--t2);
-}
-.bar-next {
-  color: var(--primary);
-  opacity: 0.75;
+  font-size: 26rpx;
+  color: var(--sk-hd-sub, rgba(255,255,255,0.8));
+  margin-top: 10rpx;
 }
 
 /* 卡片容器 */
@@ -1082,9 +1069,9 @@ async function submit() {
   min-height: 560rpx;
 }
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 28rpx;
+  background: var(--sk-card-bg, #fff);
+  border-radius: 32rpx;
+  padding: 20rpx 36rpx;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card:not(.active) {
@@ -1210,15 +1197,19 @@ async function submit() {
   color: var(--danger);
 }
 .form-input {
-  height: 88rpx;
+  height: 96rpx;
   background: var(--sk-input-bg, var(--bg-card));
-  border-radius: 16rpx;
-  padding: 0 28rpx;
+  border-radius: 24rpx;
+  padding: 0 32rpx;
   font-size: 28rpx;
   color: var(--sk-input-text, var(--t1));
   border: var(--sk-input-border, 2rpx solid transparent);
   box-shadow: var(--sk-input-shadow, none);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.form-input:focus {
+  border-color: var(--sk-input-focus, #2f6bff) !important;
+  box-shadow: 0 0 0 6rpx rgba(47,107,255,0.12);
 }
 .form-input.ph, .picker-value.ph {
   color: var(--sk-input-ph, #9a9a9a);
@@ -1401,12 +1392,12 @@ async function submit() {
 }
 .btn-primary {
   flex: 1;
-  height: 88rpx;
+  height: 96rpx;
   background: var(--sk-btn, var(--success));
   color: var(--sk-btn-text, #fff);
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 600;
-  border-radius: 44rpx;
+  border-radius: 28rpx;
   border: none;
   box-shadow: var(--sk-btn-glow, 0 4rpx 12rpx rgba(7,193,96,0.3));
   position: relative;
