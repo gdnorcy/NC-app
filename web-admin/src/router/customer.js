@@ -6,6 +6,8 @@ const routes = [
   { path: '/login', component: () => import('../views/customer/Login.vue'), meta: { title: '登录' } },
   // 设计中心·独立装修编辑窗口（无后台壳全屏，参考云菜鸟/eweishop）
   { path: '/design/edit', component: () => import('../views/customer/apps/design/DesignEditorPage.vue'), meta: { title: '页面装修' } },
+  // 设计中心·底部导航独立编辑窗口（无后台壳全屏，1:1 复刻云菜鸟「设计-底部菜单」三栏编辑页）
+  { path: '/design/tab-editor', component: () => import('../views/customer/apps/design/TabNavEditor.vue'), meta: { title: '底部导航' } },
   {
     path: '/',
     component: CustomerLayout,

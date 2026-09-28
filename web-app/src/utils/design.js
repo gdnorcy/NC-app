@@ -43,6 +43,18 @@ export function normalizeDesignConfig(raw) {
   const navMode = navCfg.mode === 'none' || navCfg.mode === 'custom' ? navCfg.mode : 'default';
   const navJumpEnabled = navCfg.jumpEnabled !== false;
   const tabItems = navMode === 'none' ? [] : (Array.isArray(tab?.items) && tab.items.length ? tab.items : DEFAULT_DESIGN_TABS);
+  // 底部导航样式配置（云菜鸟 1:1：导航类型/风格/边框圆角/背景/颜色；缺字段默认=C端现状渲染）
+  const tabStyle = {
+    type: ['flat', 'float', 'fan'].includes(tab?.type) ? tab.type : 'flat',
+    style: ['normal', 'slider', 'btnCenter', 'btnRaise', 'btnInset'].includes(tab?.style) ? tab.style : 'normal',
+    corner: ['square', 'round', 'arc'].includes(tab?.corner) ? tab.corner : 'square',
+    bg: typeof tab?.bg === 'string' ? tab.bg : '',
+    colors: {
+      unselected: (typeof tab?.colors?.unselected === 'string' && tab.colors.unselected) ? tab.colors.unselected : '#9a9a9a',
+      selected: typeof tab?.colors?.selected === 'string' ? tab.colors.selected : '',
+      highlight: typeof tab?.colors?.highlight === 'string' ? tab.colors.highlight : '',
+    },
+  };
   // 首页跳转按应用维度化：card 应用启动页取 homePages.card，兼容旧 homePage 单值
   const homePageRaw = (cfg.homePages && typeof cfg.homePages === 'object' && typeof cfg.homePages.card === 'string')
     ? cfg.homePages.card
@@ -65,6 +77,7 @@ export function normalizeDesignConfig(raw) {
     header: normalizeHeader(cfg.header, globalDefault),
     navMode,
     navJumpEnabled,
+    tabStyle,
     tabItems: tabItems.map((it, i) => ({
       text: it.text || `导航${i + 1}`,
       icon: typeof it.icon === 'string' ? it.icon : '',

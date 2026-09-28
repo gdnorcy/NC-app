@@ -105,23 +105,26 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
 
   // ============ 底部导航 ============
   it('P6 底部导航：新建自动默认/编辑/复制/默认禁删/停用', () => {
-    const r1 = svc.saveTabScheme(T1, { name: '主导航', tabJson: [{ text: '首页', url: '/pages/card/myCard' }] });
+    const r1 = svc.saveTabScheme(T1, { name: '主导航', tabJson: [{ text: '首页', url: '/pages/card/myCard' }, { text: '集市', url: '/pages/card/market' }] });
     assert.ok(r1.ok);
     // 首个方案自动默认
     let list = svc.listTabSchemes(T1);
     assert.equal(list.length, 1);
     assert.equal(list[0].is_default, 1);
     // 第二个方案不自动默认
-    const r2 = svc.saveTabScheme(T1, { name: '备用导航', tabJson: [] });
+    const r2 = svc.saveTabScheme(T1, { name: '备用导航', tabJson: [{ text: '我的', url: '/pages/card/profile' }, { text: '会员', url: '/pages/card/member' }] });
     assert.ok(r2.ok);
     list = svc.listTabSchemes(T1);
     assert.equal(list.filter((x) => x.is_default === 1).length, 1);
     // 默认方案禁删
     assert.equal(svc.deleteTabScheme(T1, r1.id).ok, false);
-    // 编辑
-    const upd = svc.saveTabScheme(T1, { id: r2.id, name: '备用V2', tabJson: [{ text: '集市', url: '/pages/card/market' }] });
+    // 编辑（旧数组格式 → 归一化对象存储）
+    const upd = svc.saveTabScheme(T1, { id: r2.id, name: '备用V2', tabJson: [{ text: '集市', url: '/pages/card/market' }, { text: '动态', url: '/pages/card/dynamic' }] });
     assert.equal(upd.ok, true);
-    assert.equal(svc.listTabSchemes(T1).find((x) => x.id === r2.id).scheme_name, '备用V2');
+    const updRow = svc.listTabSchemes(T1).find((x) => x.id === r2.id);
+    assert.equal(updRow.scheme_name, '备用V2');
+    assert.equal(updRow.tab_json.items.length, 2); // 返回归一化对象
+    assert.equal(updRow.tab_json.type, 'flat'); // 旧数组缺样式字段走默认
     // 复制
     const cp = svc.copyTabScheme(T1, r2.id);
     assert.ok(cp.ok);
@@ -133,6 +136,54 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     const after = svc.listTabSchemes(T1);
     assert.equal(after.find((x) => x.id === r2.id).is_default, 1);
     assert.equal(after.find((x) => x.id === r1.id).is_default, 0);
+  });
+
+  it('P6b 底部导航：菜单项数量 2~5 校验 + 新对象结构归一化', () => {
+    // 少于 2 项拒绝
+    assert.equal(svc.saveTabScheme(T1, { name: '单项目', tabJson: [{ text: '首页', url: '/pages/card/myCard' }] }).ok, false);
+    assert.equal(svc.saveTabScheme(T1, { name: '空项目', tabJson: [] }).ok, false);
+    // 新对象结构保存（含样式字段）
+    const full = svc.saveTabScheme(T1, {
+      name: '全配置导航',
+      tabJson: {
+        show: { mp: true, h5: false },
+        type: 'float',
+        style: 'btnRaise',
+        corner: 'round',
+        bg: '/uploads/tab-bg.png',
+        colors: { unselected: '#666666', selected: '#FF6600', highlight: '#FF0000' },
+        items: [
+          { text: '首页', icon: 'dashboard', url: '/pages/cardMain/home' },
+          { text: '集市', icon: 'market', url: '/pages/card/market' },
+          { text: '会员', icon: 'crown', url: '/pages/card/member' },
+          { text: '我的', icon: 'user', url: '/pages/card/profile' },
+          { text: '动态', icon: 'dynamic', url: '/pages/card/dynamic' },
+        ],
+      },
+    });
+    assert.ok(full.ok);
+    const got = svc.listTabSchemes(T1).find((x) => x.id === full.id).tab_json;
+    assert.equal(got.type, 'float');
+    assert.equal(got.style, 'btnRaise');
+    assert.equal(got.corner, 'round');
+    assert.equal(got.bg, '/uploads/tab-bg.png');
+    assert.equal(got.colors.selected, '#FF6600');
+    assert.equal(got.show.h5, false);
+    assert.equal(got.items.length, 5);
+    // 非法样式/类型自动回退默认
+    const bad = svc.saveTabScheme(T1, { name: '非法字段', tabJson: { type: 'xxx', style: 'yyy', corner: 'zzz', items: [{ text: 'a' }, { text: 'b' }] } });
+    assert.ok(bad.ok);
+    const badRow = svc.listTabSchemes(T1).find((x) => x.id === bad.id).tab_json;
+    assert.equal(badRow.type, 'flat');
+    assert.equal(badRow.style, 'normal');
+    assert.equal(badRow.corner, 'square');
+    // 超过 5 项拒绝
+    assert.equal(svc.saveTabScheme(T1, { name: '超限导航', tabJson: { items: [1, 2, 3, 4, 5, 6].map((i) => ({ text: 't' + i, url: '/p' + i })) } }).ok, false);
+    // 旧数组归一化兜底
+    const legacy = svc.normalizeTabJson([{ text: '首页', url: '/pages/cardMain/home' }, { text: '我的', icon: 'user', url: '/pages/card/profile' }]);
+    assert.equal(legacy.type, 'flat');
+    assert.equal(legacy.colors.unselected, '#9a9a9a');
+    assert.equal(legacy.items[1].icon, 'user');
   });
 
   // ============ 首页跳转 ============

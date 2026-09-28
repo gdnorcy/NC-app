@@ -249,7 +249,7 @@
     <!-- ============ 底部导航 ============ -->
     <section v-if="activeTab === 'tabs'">
       <AppPageHeader title="底部导航" desc="多套导航方案管理；小程序读取「默认方案」渲染 Tab（默认方案不可删除）">
-        <div class="hd-actions"><el-button type="primary" @click="openTabScheme()">新建导航方案</el-button></div>
+        <div class="hd-actions"><el-button type="primary" @click="openTabEditor(true)">新建导航方案</el-button></div>
       </AppPageHeader>
       <div class="card">
         <div class="table-scroll">
@@ -275,7 +275,7 @@
           <el-table-column label="操作" width="280">
             <template #default="{ row }">
               <el-button v-if="!row.is_default" size="small" text type="primary" @click="setDefault(row)">设为默认</el-button>
-              <el-button size="small" text @click="openTabScheme(row)">编辑</el-button>
+              <el-button size="small" text @click="openTabEditor(false, row)">编辑</el-button>
               <el-button size="small" text @click="copyTabScheme(row)">复制</el-button>
               <el-button size="small" text @click="toggleTabScheme(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
               <el-button size="small" text type="danger" :disabled="row.is_default" @click="delTabScheme(row)">删除</el-button>
@@ -285,30 +285,6 @@
         </div>
       </div>
 
-      <!-- 编辑导航方案 -->
-      <el-dialog v-model="schemeShow" :title="schemeForm.id ? '编辑导航方案' : '新建导航方案'" width="680px" append-to-body>
-        <el-form label-width="100px">
-          <el-form-item label="方案名称">
-            <el-input v-model="schemeForm.scheme_name" maxlength="20" style="width: 260px" />
-          </el-form-item>
-        </el-form>
-        <div class="tab-items">
-          <div v-for="(it, i) in schemeForm.items" :key="i" class="tab-item-row">
-            <el-input v-model="it.text" placeholder="文字" class="w100" />
-            <div class="tab-icon">
-              <img v-if="it.icon" :src="resolveUrl(it.icon)" class="tab-icon-img" @click="openImageSelect('tab', i)" />
-              <span v-else class="tab-icon-empty" @click="openImageSelect('tab', i)">选图标</span>
-            </div>
-            <el-input v-model="it.url" placeholder="跳转页面地址，如 /pages/card/market" class="flex-1" />
-            <el-button text type="danger" @click="schemeForm.items.splice(i, 1)">删除</el-button>
-          </div>
-          <el-button size="small" @click="schemeForm.items.push({ text: '', icon: '', url: '' })">+ 添加导航项</el-button>
-        </div>
-        <template #footer>
-          <el-button @click="schemeShow = false">取消</el-button>
-          <el-button type="primary" :loading="schemeSaving" @click="saveTabScheme">保存方案</el-button>
-        </template>
-      </el-dialog>
     </section>
 
     <!-- ============ 首页跳转（按应用维度化：每个行业应用可单独配置启动页） ============ -->
@@ -1054,9 +1030,6 @@ async function saveStyle() {
 // ============ 底部导航 ============
 const tabSchemes = ref([]);
 const tabLoading = ref(false);
-const schemeShow = ref(false);
-const schemeSaving = ref(false);
-const schemeForm = reactive({ id: null, scheme_name: '', items: [] });
 async function loadTabSchemes() {
   tabLoading.value = true;
   try {
@@ -1065,25 +1038,13 @@ async function loadTabSchemes() {
   } catch (e) { ElMessage.error(e); } finally { tabLoading.value = false; }
 }
 function tabCount(row) {
+  const t = row.tab_json;
+  if (t && Array.isArray(t.items)) return t.items.length;
   try { return JSON.parse(row.tab_json || '[]').length; } catch { return 0; }
 }
-function openTabScheme(row) {
-  if (row) {
-    let items = [];
-    try { items = JSON.parse(row.tab_json || '[]'); } catch { items = []; }
-    Object.assign(schemeForm, { id: row.id, scheme_name: row.scheme_name, items });
-  } else {
-    Object.assign(schemeForm, { id: null, scheme_name: '', items: [{ text: '首页', icon: '', url: '/pages/card/myCard' }, { text: '集市', icon: '', url: '/pages/card/market' }] });
-  }
-  schemeShow.value = true;
-}
-async function saveTabScheme() {
-  if (!schemeForm.scheme_name.trim()) { ElMessage.warning('请输入方案名称'); return; }
-  schemeSaving.value = true;
-  try {
-    await designCall.post(`${API}/tab/save`, { id: schemeForm.id || undefined, name: schemeForm.scheme_name, tabJson: schemeForm.items });
-    schemeShow.value = false; ElMessage.success('已保存'); loadTabSchemes();
-  } catch (e) { ElMessage.error(e); } finally { schemeSaving.value = false; }
+// 打开底部导航独立编辑页（1:1 复刻云菜鸟「设计-底部菜单」：三栏编辑窗口）
+function openTabEditor(isNew, row) {
+  router.push(isNew ? '/design/tab-editor?new=1' : `/design/tab-editor?id=${row.id}`);
 }
 async function setDefault(row) {
   try { await designCall.post(`${API}/tab/setDefault`, { id: row.id }); ElMessage.success('已设为默认导航'); loadTabSchemes(); } catch (e) { ElMessage.error(e); }
@@ -1221,7 +1182,7 @@ function buildTemplateJson() {
   return {
     style: { ...style },
     homePages: homePages.value,
-    tabs: tabSchemes.value.filter((t) => t.is_default).map((t) => ({ name: t.scheme_name, items: (() => { try { return JSON.parse(t.tab_json); } catch { return []; } })() })),
+    tabs: tabSchemes.value.filter((t) => t.is_default).map((t) => ({ name: t.scheme_name, items: (t.tab_json && Array.isArray(t.tab_json.items) ? t.tab_json.items : []) })),
     pages: {},
     materialIds: [],
   };
@@ -1281,7 +1242,7 @@ function openImageSelect(target, idx) {
 }
 function confirmImgSel(url) {
   if (url) {
-    if (imgSel.target === 'tab' && imgSel.targetIdx !== null) schemeForm.items[imgSel.targetIdx].icon = url;
+    // 底部导航菜单图标选择已迁移至独立编辑页（TabNavEditor）
   }
   imgSel.show = false;
 }

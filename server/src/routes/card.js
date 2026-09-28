@@ -16,6 +16,7 @@ import { createGoodsOrderService } from '../services/goodsOrder.js';
 import { PaymentService } from '../services/payment.js';
 import { createRadarService } from '../services/radar.js';
 import { createQuotaService } from '../services/quota.js';
+import { normalizeTabJson } from '../services/design.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -1837,7 +1838,11 @@ export function createCardRouter(db, wxService) {
       tenantId,
       style: style ? JSON.parse(style.style_json || '{}') : null,
       nav: { mode: navMode, jumpEnabled: pageNav.jumpEnabled !== false },
-      tab: tab ? { name: tab.scheme_name, items: JSON.parse(tab.tab_json || '[]') } : null,
+      tab: tab ? (() => {
+        let tj = [];
+        try { tj = JSON.parse(tab.tab_json || '[]'); } catch { tj = []; }
+        return { name: tab.scheme_name, ...normalizeTabJson(tj) };
+      })() : null,
       homePage: homePages.card || home?.home_page || 'card',
       homePages,
       homePageUrl,

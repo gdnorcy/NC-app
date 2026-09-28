@@ -7,6 +7,44 @@ import { createHash } from 'node:crypto';
 
 export const DESIGN_PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 
+// 底部导航 tab_json 默认样式（存量旧数组/缺字段自动归一化；默认值=C端现状渲染，保证旧方案不改变视觉）
+const DEFAULT_TAB_STYLE = {
+  show: { mp: true, h5: true },
+  type: 'flat', // flat 普通平铺 / float 底部悬浮 / fan 扇形悬浮
+  style: 'normal', // normal 普通 / slider 滑块 / btnCenter 按钮居中 / btnRaise 按钮凸起 / btnInset 按钮嵌入
+  corner: 'square', // square 直角 / round 圆角 / arc 弧形
+  bg: '',
+  colors: { unselected: '#9a9a9a', selected: '', highlight: '' }, // 空色=不配置（C端回退主题色）
+};
+const TAB_TYPES = ['flat', 'float', 'fan'];
+const TAB_STYLES = ['normal', 'slider', 'btnCenter', 'btnRaise', 'btnInset'];
+const TAB_CORNERS = ['square', 'round', 'arc'];
+
+/** tab_json 归一化：兼容旧纯数组 [{text,icon,url}] 与新对象结构，返回标准对象（服务端/编辑端/C端共用） */
+export function normalizeTabJson(raw) {
+  const isArr = Array.isArray(raw);
+  const o = isArr ? {} : (raw && typeof raw === 'object' ? raw : {});
+  const itemsRaw = isArr ? raw : (Array.isArray(o.items) ? o.items : []);
+  return {
+    ...DEFAULT_TAB_STYLE,
+    show: { mp: true, h5: true, ...(o.show || {}) },
+    type: TAB_TYPES.includes(o.type) ? o.type : DEFAULT_TAB_STYLE.type,
+    style: TAB_STYLES.includes(o.style) ? o.style : DEFAULT_TAB_STYLE.style,
+    corner: TAB_CORNERS.includes(o.corner) ? o.corner : DEFAULT_TAB_STYLE.corner,
+    bg: typeof o.bg === 'string' ? o.bg : '',
+    colors: {
+      unselected: typeof o.colors?.unselected === 'string' && o.colors.unselected ? o.colors.unselected : DEFAULT_TAB_STYLE.colors.unselected,
+      selected: typeof o.colors?.selected === 'string' ? o.colors.selected : '',
+      highlight: typeof o.colors?.highlight === 'string' ? o.colors.highlight : '',
+    },
+    items: itemsRaw.map((it) => ({
+      text: String(it?.text || ''),
+      icon: String(it?.icon || ''),
+      url: String(it?.url || ''),
+    })),
+  };
+}
+
 /**
  * 生成 C 端首页预览 URL（带一次性签名，30 分钟内有效，免登录）。
  * draft=true 生成草稿预览（preview=1，装修页「保存并预览」）；默认与真实首页一致（读发布版/同一缓存）。
@@ -178,20 +216,29 @@ export function createDesignService(db) {
 
   // ============ 底部导航 ============
 
-  svc.listTabSchemes = (tenantId) =>
-    db.prepare('SELECT id, scheme_name, tab_json, is_default, enabled, created_at, updated_at FROM tenant_tab_scheme WHERE tenant_id = ? ORDER BY is_default DESC, id ASC').all(tenantId);
+  svc.normalizeTabJson = normalizeTabJson;
 
-  /** 新增/编辑 合并接口 */
+  svc.listTabSchemes = (tenantId) =>
+    db.prepare('SELECT id, scheme_name, tab_json, is_default, enabled, created_at, updated_at FROM tenant_tab_scheme WHERE tenant_id = ? ORDER BY is_default DESC, id ASC').all(tenantId)
+      .map((row) => {
+        let raw = [];
+        try { raw = JSON.parse(row.tab_json || '[]'); } catch { raw = []; }
+        return { ...row, tab_json: svc.normalizeTabJson(raw) };
+      });
+
+  /** 新增/编辑 合并接口；tabJson 支持旧数组或新对象；菜单项数量 2~5（微信小程序 tabBar 规则） */
   svc.saveTabScheme = (tenantId, { id, name, tabJson, enabled }) => {
     const n = String(name || '').trim();
     if (!n) return { ok: false, error: '方案名称不能为空' };
-    const json = JSON.stringify(tabJson || []);
+    const norm = svc.normalizeTabJson(tabJson);
+    if (norm.items.length < 2 || norm.items.length > 5) return { ok: false, error: '菜单项数量需为 2~5 个（小程序 tabBar 规则）' };
+    const json = JSON.stringify(norm);
     if (id) {
       const s = db.prepare('SELECT id FROM tenant_tab_scheme WHERE tenant_id = ? AND id = ?').get(tenantId, id);
       if (!s) return { ok: false, error: '方案不存在' };
       db.prepare("UPDATE tenant_tab_scheme SET scheme_name = ?, tab_json = ?, enabled = ?, updated_at = datetime('now') WHERE id = ? AND tenant_id = ?")
         .run(n, json, enabled === undefined ? 1 : (enabled ? 1 : 0), id, tenantId);
-      svc.syncRefs(tenantId, 'tab', id, tabJson || []);
+      svc.syncRefs(tenantId, 'tab', id, norm);
       return { ok: true, id };
     }
     const r = db.prepare('INSERT INTO tenant_tab_scheme (tenant_id, scheme_name, tab_json, is_default, enabled) VALUES (?, ?, ?, 0, 1)').run(tenantId, n, json);
@@ -199,7 +246,7 @@ export function createDesignService(db) {
     // 首个方案自动设为默认
     const cnt = db.prepare('SELECT COUNT(*) n FROM tenant_tab_scheme WHERE tenant_id = ?').get(tenantId).n;
     if (cnt === 1) svc.setDefaultTabScheme(tenantId, nid);
-    svc.syncRefs(tenantId, 'tab', nid, tabJson || []);
+    svc.syncRefs(tenantId, 'tab', nid, norm);
     return { ok: true, id: nid };
   };
 

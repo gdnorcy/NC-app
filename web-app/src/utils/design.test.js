@@ -282,4 +282,42 @@ describe('设计中心 C 端渲染工具', () => {
     const cfg2 = normalizeDesignConfig({ style: {}, pages: { components: [] } });
     expect(cfg2.pages.meta).toBeUndefined();
   });
+
+  it('P19 底部导航样式解析：云菜鸟新对象结构（type/style/corner/bg/colors/items）透传 + 非法值回退', () => {
+    const cfg = normalizeDesignConfig({
+      style: { primaryColor: '#0DA29D' },
+      tab: {
+        show: { mp: true, h5: false },
+        type: 'float',
+        style: 'btnRaise',
+        corner: 'arc',
+        bg: '/uploads/nav-bg.png',
+        colors: { unselected: '#888888', selected: '#FF5500', highlight: '#FF8800' },
+        items: [{ text: '首页', icon: 'dashboard', url: '/pages/cardMain/home' }, { text: '我的', icon: 'user', url: '/pages/card/profile' }],
+      },
+    });
+    expect(cfg.tabStyle.type).toBe('float');
+    expect(cfg.tabStyle.style).toBe('btnRaise');
+    expect(cfg.tabStyle.corner).toBe('arc');
+    expect(cfg.tabStyle.bg).toBe('/uploads/nav-bg.png');
+    expect(cfg.tabStyle.colors.unselected).toBe('#888888');
+    expect(cfg.tabStyle.colors.selected).toBe('#FF5500');
+    expect(cfg.tabStyle.colors.highlight).toBe('#FF8800');
+    expect(cfg.tabItems).toHaveLength(2);
+    // 非法枚举回退默认（flat/normal/square/空bg）
+    const bad = normalizeDesignConfig({ tab: { type: 'hack', style: 'hack', corner: 'hack', bg: 123, colors: { unselected: '', selected: 0 }, items: [] } });
+    expect(bad.tabStyle.type).toBe('flat');
+    expect(bad.tabStyle.style).toBe('normal');
+    expect(bad.tabStyle.corner).toBe('square');
+    expect(bad.tabStyle.bg).toBe('');
+    expect(bad.tabStyle.colors.unselected).toBe('#9a9a9a');
+    expect(bad.tabStyle.colors.selected).toBe('');
+    // 缺配置（存量方案/旧数组）→ 默认 flat/normal/square
+    const legacy = normalizeDesignConfig({ tab: { items: [{ text: 'a', icon: 'dashboard', url: '/x' }] } });
+    expect(legacy.tabStyle.type).toBe('flat');
+    expect(legacy.tabStyle.style).toBe('normal');
+    expect(legacy.tabStyle.corner).toBe('square');
+    expect(legacy.tabStyle.colors.selected).toBe('');
+    expect(legacy.tabStyle.colors.highlight).toBe('');
+  });
 });

@@ -1,13 +1,62 @@
 <template>
-  <view v-if="designItems.length || navMode !== 'none'" class="mp-tabbar" :style="{ gridTemplateColumns: 'repeat(' + (designItems.length || 4) + ', 1fr)' }">
+  <view
+    v-if="designItems.length || navMode !== 'none'"
+    class="mp-tabbar"
+    :class="['mp-tabbar-' + tabType, 'mp-corner-' + tabCorner]"
+    :style="tabbarStyle"
+  >
     <!-- 设计中心已发布底部导航方案：优先渲染配置项 -->
     <template v-if="designItems.length">
-      <view v-for="(it, i) in designItems" :key="i" class="mtb" :class="{ on: isOn(it) }" @click="goDesign(it)">
-        <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="tab-icon-img" mode="aspectFit" />
-        <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? primary : '#9a9a9a'" />
-        <text :style="{ color: isOn(it) ? primary : '#9a9a9a' }">{{ it.text }}</text>
-      </view>
+      <!-- 扇形悬浮：中心主按钮 + 点击展开扇形菜单 -->
+      <template v-if="tabType === 'fan'">
+        <view class="mp-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
+          <image v-if="isImgIcon(designItems[0].icon)" :src="iconUrl(designItems[0].icon)" class="mp-fan-main-img" mode="aspectFit" />
+          <SIcon v-else :name="designItems[0].icon || fallbackTabIcon(designItems[0].text)" size="xlarge" color="#ffffff" />
+          <text class="mp-fan-main-txt">{{ designItems[0].text }}</text>
+        </view>
+        <view v-if="fanOpen" class="mp-fan-menu">
+          <view v-for="(it, i) in designItems.slice(1)" :key="i" class="mp-fan-item" @click="goDesign(it)">
+            <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-fan-item-img" mode="aspectFit" />
+            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? activeColor : inactiveColor" />
+            <text class="mp-fan-item-txt" :style="{ color: isOn(it) ? activeColor : inactiveColor }">{{ it.text }}</text>
+          </view>
+        </view>
+      </template>
+
+      <!-- 平铺/悬浮：5 种选中风格 -->
+      <template v-else>
+        <view
+          v-for="(it, i) in designItems"
+          :key="i"
+          class="mtb"
+          :class="[{ on: isOn(it) }, 'mtb-' + tabStyle, { 'mp-mid': isMid(i) }]"
+          @click="goDesign(it)"
+        >
+          <!-- slider：选中项图标后圆形滑块 -->
+          <view v-if="tabStyle === 'slider' && isOn(it)" class="mp-slider" :style="{ background: activeSoft }"></view>
+
+          <!-- 按钮居中/凸起/嵌入：中间项渲染突出大按钮 -->
+          <view
+            v-if="isMid(i) && ['btnCenter', 'btnRaise', 'btnInset'].includes(tabStyle)"
+            class="mp-mid-btn"
+            :class="'mp-mid-' + tabStyle"
+            :style="{ background: mainBtnBg }"
+          >
+            <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-mid-img" mode="aspectFit" />
+            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
+            <text class="mp-mid-txt">{{ it.text }}</text>
+          </view>
+
+          <!-- 常规项（含 slider 滑块项） -->
+          <template v-else>
+            <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="tab-icon-img" mode="aspectFit" />
+            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="tabColor(it)" />
+            <text class="mp-tab-txt" :class="{ 'mp-tab-bold': isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
+          </template>
+        </view>
+      </template>
     </template>
+
     <!-- 默认导航（未发布设计配置） -->
     <template v-else>
       <view class="mtb" :class="{ on: active === 'card' }" @click="goCard">
@@ -44,12 +93,23 @@ const props = defineProps({
 });
 
 const myCardId = ref(null);
+const fanOpen = ref(false);
 
 // 设计中心配置：优先响应式本地值（挂载时拉取），回退 storage 缓存
 const localCfg = ref(null);
 const designConfig = computed(() => localCfg.value || readDesignConfig());
 const designItems = computed(() => designConfig.value?.tabItems || []);
-const primary = computed(() => designConfig.value?.style?.primaryColor || '#165DFF');
+const tabStyleCfg = computed(() => designConfig.value?.tabStyle || {});
+const tabType = computed(() => tabStyleCfg.value.type || 'flat');
+const tabStyle = computed(() => tabStyleCfg.value.style || 'normal');
+const tabCorner = computed(() => tabStyleCfg.value.corner || 'square');
+const tabBg = computed(() => tabStyleCfg.value.bg || '');
+// 选中色：优先导航方案「已选中色」，空则回退主题主色（现状）
+const activeColor = computed(() => tabStyleCfg.value.colors?.selected || designConfig.value?.style?.primaryColor || '#165DFF');
+const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
+// 突出色：优先导航方案「突出颜色」，空则回退选中色
+const mainBtnBg = computed(() => tabStyleCfg.value.colors?.highlight || activeColor.value);
+const activeSoft = computed(() => hexA(activeColor.value, 0.18));
 const navMode = computed(() => designConfig.value?.navMode || 'default');
 const navJumpEnabled = computed(() => designConfig.value?.navJumpEnabled !== false);
 
@@ -72,9 +132,37 @@ function isOn(it) {
   if (!cur || !it.url) return false;
   return cur === it.url || cur.indexOf(it.url) === 0;
 }
+function tabColor(it) {
+  return isOn(it) ? activeColor.value : inactiveColor.value;
+}
+function isMid(i) {
+  if (!designItems.value.length) return false;
+  return i === Math.floor(designItems.value.length / 2);
+}
+function tabbarStyle() {
+  const st = {};
+  if (tabBg.value) {
+    st.backgroundImage = `url(${iconUrl(tabBg.value)})`;
+    st.backgroundSize = 'cover';
+    st.backgroundPosition = 'center';
+  } else {
+    st.background = '#ffffff';
+  }
+  // 底部悬浮：左右留白 + 底部留白 + 圆角卡片
+  if (tabType.value === 'float') {
+    st.left = '32rpx';
+    st.right = '32rpx';
+    st.bottom = '28rpx';
+    st.borderRadius = '48rpx';
+    st.boxShadow = '0 8rpx 32rpx rgba(0,0,0,0.12)';
+  }
+  return st;
+}
+
 function goDesign(it) {
   if (!navJumpEnabled.value) return;
   if (isOn(it) || !it.url) return;
+  fanOpen.value = false;
   uni.reLaunch({ url: it.url });
 }
 
@@ -112,6 +200,14 @@ function goPage(path, key) {
   if (props.active === key) return;
   uni.reLaunch({ url: path });
 }
+
+/** 十六进制色转 rgba（滑杆/背景半透明用） */
+function hexA(hex, alpha) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return 'rgba(22, 93, 255, ' + alpha + ')';
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
 </script>
 
 <style scoped>
@@ -121,27 +217,111 @@ function goPage(path, key) {
   left: 0;
   right: 0;
   background: #fff;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   padding: 14rpx 0 calc(14rpx + env(safe-area-inset-bottom));
   border-top: 1px solid #f2f3f5;
   z-index: 50;
 }
+/* 边框圆角：圆角 / 弧形 */
+.mp-corner-round { border-radius: 32rpx 32rpx 0 0; overflow: hidden; }
+.mp-corner-arc { border-radius: 60rpx 60rpx 0 0; overflow: hidden; }
+/* 底部悬浮（radius 由内联样式控制） */
+.mp-tabbar-float { border-top: none; }
+
 .mtb {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 6rpx;
   font-size: 22rpx;
   color: #9a9a9a;
   background: none;
   border: none;
   padding: 0;
+  position: relative;
 }
-.mtb.on {
-  color: #07c160;
-  font-weight: 500;
-}
-.mtb.on .mtb-txt { color: inherit; }
+.mtb.on { font-weight: 500; }
+.mp-tab-txt { line-height: 1.2; }
+.mp-tab-bold { font-weight: 600; }
 .tab-icon-img { width: 44rpx; height: 44rpx; }
+
+/* slider：选中项圆形滑块背景 */
+.mp-slider {
+  position: absolute;
+  top: 2rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  z-index: 0;
+}
+.mp-slider + image, .mp-slider + .s-icon, .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
+
+/* 中间突出按钮（按钮居中/凸起/嵌入） */
+.mp-mid-btn {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.18);
+  align-self: flex-start;
+  margin-top: -36rpx;
+}
+.mp-mid-btn .s-icon { margin: 0; }
+.mp-mid-img { width: 44rpx; height: 44rpx; }
+.mp-mid-txt { font-size: 20rpx; color: #fff; line-height: 1.3; }
+/* 按钮居中：居中凸出半个 */
+.mp-mid-btnCenter { margin-top: -30rpx; width: 100rpx; height: 100rpx; }
+/* 按钮凸起：明显凸出（上移更多 + 阴影加强） */
+.mp-mid-btnRaise { margin-top: -60rpx; width: 112rpx; height: 112rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
+/* 按钮嵌入：半嵌 bar 内 */
+.mp-mid-btnInset { margin-top: -16rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
+
+/* 扇形悬浮 */
+.mp-fan-main {
+  position: absolute;
+  left: 50%;
+  bottom: calc(28rpx + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.25);
+  z-index: 12;
+}
+.mp-fan-main-img { width: 52rpx; height: 52rpx; }
+.mp-fan-main-txt { font-size: 20rpx; color: #fff; line-height: 1.3; margin-top: 2rpx; }
+.mp-fan-menu {
+  position: absolute;
+  bottom: calc(168rpx + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 24rpx;
+  z-index: 12;
+}
+.mp-fan-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 20rpx;
+  padding: 16rpx 20rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.14);
+}
+.mp-fan-item-img { width: 40rpx; height: 40rpx; }
+.mp-fan-item-txt { font-size: 20rpx; }
 </style>
