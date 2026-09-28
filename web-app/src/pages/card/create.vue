@@ -174,8 +174,15 @@
         </view>
 
 
+        <view class="card-title">发布设置</view>
+        <view class="card-desc">设置名片展示和发布选项</view>
+
+        <view class="form-item switch-item">
+          <view class="form-label">公开到人脉集市</view>
+          <switch :checked="form.isPublic" @change="form.isPublic = $event.detail.value" color="#165dff" />
+        </view>
         <!-- 高级选项（默认收起：语音简介 + 视频号ID） -->
-        <view class="bind-section adv-section" style="margin-top: 24rpx;">
+        <view class="bind-section adv-section" style="margin-top: 40rpx;">
           <view class="bind-header" @click="showAdv = !showAdv">
             <view class="bind-title">
               <SIcon name="settings" size="small" color="#165dff" />
@@ -216,13 +223,6 @@
           </view>
         </view>
 
-        <view class="card-title">发布设置</view>
-        <view class="card-desc">设置名片展示和发布选项</view>
-
-        <view class="form-item switch-item">
-          <view class="form-label">公开到人脉集市</view>
-          <switch :checked="form.isPublic" @change="form.isPublic = $event.detail.value" color="#165dff" />
-        </view>
 
 
       </view>
