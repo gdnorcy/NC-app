@@ -23,40 +23,6 @@
       </view>
     </view>
 
-    <!-- 名片实时预览卡（live 顶部 / split 固定区；step 在第 3 步展示） -->
-    <view class="live-preview" v-if="skinType !== 'step'">
-      <view class="lp-hero" :style="[lpHeroStyle, lpFrameStyle]">
-        <view v-if="skinSerif && lpDark" class="lp-spot"></view>
-        <view v-if="lpTexture" class="lp-texture" :style="{ backgroundImage: lpTexture }"></view>
-        <view v-if="lpBarTop" class="lp-bartop" :style="lpBarTop"></view>
-        <view class="lp-body" :class="'lp-' + lpLayout">
-          <view class="lp-top">
-            <view class="lp-avatar" :style="lpAvatarStyle">
-              <image v-if="form.avatar" :src="form.avatar" class="lp-avatar-img" mode="aspectFill" />
-              <text v-else class="lp-avatar-txt" :style="{ color: lpHeroStyle.color || '#fff' }">{{ form.name?.[0] || '名' }}</text>
-            </view>
-            <view class="lp-id">
-              <view class="lp-name" :style="lpTextStyle">{{ form.name || '您的姓名' }}</view>
-              <view class="lp-pos" :style="lpSubStyle">{{ form.position || '职位/头衔' }}</view>
-              <view class="lp-co" :style="lpSubStyle">{{ form.city || '所在城市' }}</view>
-            </view>
-          </view>
-          <view class="lp-bottom">
-            <view class="lp-company" :style="lpSubStyle">{{ form.companyName || lpCompanyFallback }}</view>
-            <view class="lp-live">
-              <view class="lp-live-dot" :style="{ background: lpAccentStyle.color }"></view>
-              <text class="lp-live-txt" :style="lpAccentStyle">实时预览</text>
-            </view>
-          </view>
-        </view>
-      </view>
-      <view class="lp-cap">
-        <text class="lp-cap-t">{{ currentTemplateName }}</text>
-        <text class="lp-cap-hint">选模板即换肤 · 实时预览</text>
-      </view>
-    </view>
-
-
     <!-- 卡片容器 -->
     <view class="cards-container">
       <view class="card" :class="{ active: currentStep === 0, prev: currentStep > 0 }">
@@ -132,51 +98,22 @@
         <!-- 类型选择（仅新建时） -->
         <view v-if="!isEdit" class="type-cards">
           <view class="type-card" :class="{ active: cardType === 'individual' }" @click="cardType = 'individual'">
-            <view class="type-icon" style="background: linear-gradient(135deg,var(--success),#1edc87);">
-              <SIcon name="user" size="xlarge" color="#ffffff" />
-            </view>
-            <view class="type-info">
-              <view class="type-name">个人名片</view>
-              <view class="type-desc">自由职业者 / 个体从业者 / 普通人</view>
-            </view>
             <view class="type-check" v-if="cardType === 'individual'">✓</view>
+            <view class="type-icon type-icon--personal">
+              <SIcon name="user" size="large" color="#ffffff" />
+            </view>
+            <view class="type-name">个人名片</view>
+            <view class="type-desc">自由职业者 / 个体从业者 / 普通人</view>
           </view>
           <view class="type-card" :class="{ active: cardType === 'enterprise' }" @click="cardType = 'enterprise'">
-            <view class="type-icon" style="background: linear-gradient(135deg,var(--primary-deep),#3b7bd4);">
-              <SIcon name="building" size="xlarge" color="#ffffff" />
-            </view>
-            <view class="type-info">
-              <view class="type-name">企业名片</view>
-              <view class="type-desc">企业主体 / 团队 / 门店</view>
-            </view>
             <view class="type-check" v-if="cardType === 'enterprise'">✓</view>
+            <view class="type-icon type-icon--enterprise">
+              <SIcon name="building" size="large" color="#ffffff" />
+            </view>
+            <view class="type-name">企业名片</view>
+            <view class="type-desc">企业主体 / 团队 / 门店</view>
           </view>
         </view>
-
-        <!-- 选择模板（公共模板 + 租户私有模板） -->
-        <view class="card-title" style="margin-top: 20rpx;">选择模板</view>
-        <view class="card-desc">套用模板主题，保存后可在名片详情实时预览</view>
-        <scroll-view class="tpl-scroll" scroll-x :show-scrollbar="false">
-          <view class="tpl-list">
-            <view
-              v-for="t in templates" :key="t.id"
-              class="tpl-item" :class="{ active: form.templateId === t.id }"
-              @click="selectTemplate(t)"
-            >
-              <view class="tpl-cover">
-                <TplThumb :template="t" class="tpl-thumb" />
-                <text class="tpl-layout" v-if="t.layout === 'full'">全屏大图</text>
-                <text class="tpl-layout" v-else-if="t.themeConfig && t.themeConfig.heroLayout === 'ctr'">居中展示</text>
-                <text class="tpl-layout" v-else-if="t.themeConfig && t.themeConfig.heroLayout === 'mag'">杂志大字</text>
-                <text class="tpl-price-tag" :class="Number(t.price) > 0 ? 'paid' : 'free'">{{ Number(t.price) > 0 ? '¥' + Number(t.price) : '免费' }}</text>
-                <view class="tpl-owned" v-if="t.purchased">已购</view>
-                <view class="tpl-check" v-if="form.templateId === t.id">✓</view>
-              </view>
-              <text class="tpl-name">{{ t.name }}</text>
-            </view>
-          </view>
-        </scroll-view>
-        <view class="bind-hint">未选择时使用默认名片样式</view>
 
         <!-- 供需标签（多选≤3） -->
         <view class="card-title" style="margin-top: 20rpx;">供需标签</view>
@@ -275,37 +212,7 @@
           <switch :checked="form.isPublic" @change="form.isPublic = $event.detail.value" color="#165dff" />
         </view>
 
-        <!-- 名片预览（按选中模板渲染，三皮肤共用） -->
-        <view class="preview-section">
-          <view class="preview-title">名片预览 · {{ currentTemplateName }}</view>
-          <view class="preview-card" :style="lpHeroStyle">
-            <view v-if="lpTexture" class="lp-texture" :style="{ backgroundImage: lpTexture }"></view>
-            <view v-if="lpBarTop" class="lp-bartop" :style="lpBarTop"></view>
-            <view class="preview-header" :class="'ph-' + lpLayout">
-              <view class="preview-avatar" :style="lpAvatarStyle">{{ form.name?.[0] || '名' }}</view>
-              <view class="preview-info">
-                <view class="preview-name" :style="lpTextStyle">{{ form.name || '您的姓名' }}</view>
-                <view class="preview-position" :style="lpSubStyle">{{ form.position || '职位/头衔' }}</view>
-                <view class="preview-company" :style="lpSubStyle">{{ form.city || '所在城市' }}</view>
-              </view>
-            </view>
-            <view class="preview-divider"></view>
-            <view class="preview-contact">
-              <view class="contact-item" v-if="form.phone">
-                <text class="contact-label">手机</text>
-                <text class="contact-value" :style="lpTextStyle">{{ form.phone }}</text>
-              </view>
-              <view class="contact-item" v-if="form.wechat">
-                <text class="contact-label">微信</text>
-                <text class="contact-value" :style="lpTextStyle">{{ form.wechat }}</text>
-              </view>
-              <view class="contact-item" v-if="form.email">
-                <text class="contact-label">邮箱</text>
-                <text class="contact-value" :style="lpTextStyle">{{ form.email }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
+
       </view>
     </view>
     <!-- 底部操作栏 -->
@@ -328,13 +235,9 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
-import {
-  parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
-  heroBarTopStyle, heroTextureBg, heroRadius,
-} from '../../utils/templateTheme.js';
+import { parseTheme } from '../../utils/templateTheme.js';
 import { shadeHex } from '../../utils/color.js';
 import SIcon from '../../components/SIcon.vue';
-import TplThumb from '../../components/TplThumb.vue';
 
 const isEdit = ref(false);
 const submitting = ref(false);
@@ -437,64 +340,9 @@ async function loadTemplates(force = false) {
     console.warn('模板加载失败', e);
   }
 }
-function selectTemplate(tpl) {
-  // 付费未购：先购买再选中
-  if (Number(tpl.price) > 0 && !tpl.purchased) {
-    uni.showModal({
-      title: '购买模板',
-      content: `「${tpl.name}」需付费 ¥${Number(tpl.price)}，购买后永久可用。是否购买？`,
-      success: async (r) => {
-        if (!r.confirm) return;
-        uni.showLoading({ title: '创建订单...' });
-        try {
-          const res = await cardApi.buyTemplate(tpl.id);
-          uni.hideLoading();
-          uni.showModal({
-            title: '确认支付',
-            content: `确认支付 ¥${(res.amount / 100).toFixed(2)} 购买「${res.templateName}」？`,
-            success: async (r2) => {
-              if (!r2.confirm) return;
-              uni.showLoading({ title: '支付中...' });
-              try {
-                await paymentApi.mockPay(res.orderNo);
-                uni.hideLoading();
-                uni.showToast({ title: '购买成功', icon: 'success' });
-                await loadTemplates(true);
-                form.templateId = tpl.id;
-              } catch (e) {
-                uni.hideLoading();
-                uni.showToast({ title: e.message || '支付失败', icon: 'none' });
-              }
-            },
-          });
-        } catch (e) {
-          uni.hideLoading();
-          uni.showToast({ title: e.message || '创建订单失败', icon: 'none' });
-        }
-      },
-    });
-    return;
-  }
-  form.templateId = form.templateId === tpl.id ? '' : tpl.id;
-}
-
 // ===== 名片实时预览卡（live 顶部 / split 固定区共用；随选中模板换肤、随输入更新）=====
 const currentTemplate = computed(() => templates.value.find((t) => t.id === form.templateId) || null);
-const currentTemplateName = computed(() => currentTemplate.value?.name || '默认样式');
 const lpTheme = computed(() => parseTheme(currentTemplate.value?.themeConfig));
-const lpLayout = computed(() => lpTheme.value?.heroLayout || 'cls');
-const lpHeroStyle = computed(() => {
-  const t = lpTheme.value;
-  if (t) return { ...heroBgStyle(t), color: t.textColor };
-  return { background: 'linear-gradient(155deg,#0e2a4e,#3b7bd4)', color: '#fff' };
-});
-const lpTextStyle = computed(() => (lpTheme.value ? { ...heroTextStyle(lpTheme.value), fontWeight: lpTheme.value.heroLayout === 'mag' ? 500 : 700 } : { color: '#fff', fontWeight: 700 }));
-const lpSubStyle = computed(() => (lpTheme.value ? heroText2Style(lpTheme.value) : { color: 'rgba(255,255,255,.85)' }));
-const lpAccentStyle = computed(() => (lpTheme.value ? heroAccentStyle(lpTheme.value) : { color: '#fff' }));
-const lpAvatarStyle = computed(() => (lpTheme.value ? { borderRadius: heroRadius(lpTheme.value, true) } : {}));
-const lpBarTop = computed(() => (lpTheme.value ? heroBarTopStyle(lpTheme.value) : null));
-const lpTexture = computed(() => (lpTheme.value ? heroTextureBg(lpTheme.value) : ''));
-const lpCompanyFallback = computed(() => (currentTemplate.value?.ownerName || '零壹系统云'));
 
 // 方案A：live 皮肤跟随选中模板整体换肤（页面背景/标题区/按钮/卡片/文字 token 联动）
 const skinVars = computed(() => {
@@ -577,8 +425,6 @@ const stepSubtitle = computed(() => {
 const skinSerif = computed(() => !!lpTheme.value && skinVars.value['--sk-skin'] === 'dark');
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
 const heroEn = computed(() => (currentTemplate.value ? (skinEnMap[currentTemplate.value.id] || 'CREATE YOUR CARD') : 'CREATE YOUR CARD'));
-const lpDark = computed(() => skinVars.value['--sk-skin'] === 'dark');
-const lpFrameStyle = computed(() => (lpDark.value ? { boxShadow: skinVars.value['--sk-card-frame'] } : {}));
 function hexLuma(color) {
   let c = String(color || '').trim();
   if (c.startsWith('#')) {
@@ -799,136 +645,6 @@ async function submit() {
   background: #FFF3E8;
 }
 
-/* ===== 名片实时预览卡（live 顶部 / split 固定区） ===== */
-.live-preview {
-  margin: 24rpx 24rpx 0;
-  background: #fff;
-  border-radius: 20rpx;
-  overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(0,0,0,0.08);
-}
-.lp-hero {
-  position: relative;
-  padding: 56rpx 40rpx 48rpx;
-  overflow: hidden;
-}
-.lp-spot {
-  position: absolute;
-  width: 240rpx;
-  height: 180rpx;
-  right: -60rpx;
-  top: -70rpx;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, var(--sk-spot, rgba(255,214,140,0.22)), transparent 70%);
-  pointer-events: none;
-  z-index: 1;
-}
-.lp-texture {
-  position: absolute;
-  inset: 0;
-  background-size: 90rpx 90rpx, 90rpx 90rpx;
-  background-position: 0 0, 45rpx 45rpx;
-  opacity: 0.5;
-  pointer-events: none;
-}
-.lp-bartop {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 8rpx;
-}
-.lp-body {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-.lp-top {
-  display: flex;
-  align-items: center;
-  position: relative;
-  z-index: 2;
-}
-.lp-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 52rpx;
-  position: relative;
-  z-index: 2;
-}
-.lp-company {
-  font-size: 24rpx;
-  opacity: 0.85;
-}
-.lp-live {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  background: rgba(255,255,255,0.14);
-  border: 1rpx solid rgba(255,255,255,0.28);
-  padding: 10rpx 20rpx;
-  border-radius: 999rpx;
-}
-.lp-live-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  box-shadow: 0 0 10rpx currentColor;
-}
-.lp-live-txt {
-  font-size: 22rpx;
-  letter-spacing: 3rpx;
-  font-weight: 600;
-}
-.lp-cls {
-  display: flex;
-  align-items: center;
-}
-.lp-cls .lp-avatar { width: 120rpx; height: 120rpx; margin-right: 28rpx; flex-shrink: 0; }
-/* ctr 居中展示 */
-.lp-ctr {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-.lp-ctr .lp-top { flex-direction: column; align-items: center; text-align: center; }
-.lp-ctr .lp-avatar { width: 112rpx; height: 112rpx; }
-.lp-ctr .lp-name { margin-top: 14rpx; }
-.lp-ctr .lp-bottom { margin-top: 28rpx; }
-/* mag 杂志大字 */
-.lp-mag {
-  padding-top: 4rpx;
-}
-.lp-mag .lp-top { flex-direction: column; align-items: flex-start; }
-.lp-mag .lp-name { font-size: 44rpx; letter-spacing: 4rpx; }
-.lp-mag .lp-bottom { margin-top: 28rpx; }
-.lp-mag .lp-rule { width: 48rpx; height: 4rpx; margin: 14rpx 0; }
-.lp-avatar {
-  border: 2rpx solid rgba(255,255,255,0.4);
-  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.22);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.25);
-  flex-shrink: 0;
-}
-.lp-avatar-img { width: 100%; height: 100%; }
-.lp-avatar-txt { font-size: 40rpx; font-weight: 700; }
-.lp-id { flex: 1; min-width: 0; }
-.lp-name { font-size: 44rpx; font-weight: 700; line-height: 1.25; }
-.lp-pos { font-size: 26rpx; margin-top: 12rpx; opacity: 0.85; }
-.lp-co { font-size: 24rpx; margin-top: 10rpx; opacity: 0.6; }
-.lp-cap {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14rpx 24rpx;
-  border-top: 2rpx solid #f0f1f3;
-}
-.lp-cap-t { font-size: 24rpx; font-weight: 600; color: var(--t1); }
-.lp-cap-hint { font-size: 20rpx; color: var(--t3); }
-
 /* ===== 三皮肤布局差异 ===== */
 /* step 分步引导：卡片全屏化 + 焦点感 */
 .skin-step .header { padding-top: 56rpx; background: transparent; }
@@ -947,22 +663,11 @@ async function submit() {
 }
 .skin-step .btn-secondary,
 .skin-step .btn-skip { height: 104rpx; border-radius: 28rpx; }
-/* split 沉浸双分区：预览卡固定顶部 */
-.skin-split .live-preview {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  margin: 20rpx 24rpx 0;
-  box-shadow: 0 10rpx 32rpx rgba(0,0,0,0.12);
-}
-.skin-split .lp-hero { padding: 56rpx 36rpx 48rpx; }
-.skin-split .lp-avatar { width: 128rpx; height: 128rpx; }
-.skin-split .lp-name { font-size: 40rpx; }
+/* split：表单全屏 */
 .skin-split .cards-container { padding-top: 8rpx; }
-/* live：预览卡 + 紧凑表单 */
+/* live：紧凑表单 */
 .skin-live .form-item { margin-top: 16rpx; }
 .skin-live .card-title { font-size: 28rpx; }
-.skin-live .live-preview { margin-top: 20rpx; }
 .create-page {
   min-height: 100vh;
   background: var(--sk-bg, #f5f7fa);
@@ -1098,38 +803,42 @@ async function submit() {
   margin-top: 4rpx;
 }
 
-/* 类型选择 */
+/* 类型选择（两列并排） */
 .type-cards {
   display: flex;
-  flex-direction: column;
-  gap: 16rpx;
+  gap: 20rpx;
   margin-top: 20rpx;
 }
 .type-card {
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16rpx;
+  text-align: center;
   border: 2rpx solid var(--border);
-  border-radius: 14rpx;
-  padding: 20rpx;
+  border-radius: 24rpx;
+  padding: 32rpx 16rpx 28rpx;
+  background: var(--sk-input-bg, var(--bg-card));
+  position: relative;
   transition: all 0.2s;
 }
 .type-card.active {
-  border-color: var(--success);
-  background: rgba(7,193,96,0.05);
+  border-color: var(--primary);
+  background: rgba(22,93,255,0.06);
 }
 .type-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 18rpx;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-bottom: 20rpx;
+  box-shadow: 0 6rpx 16rpx rgba(22,93,255,0.22);
 }
-.type-info {
-  flex: 1;
-}
+.type-icon--personal { background: linear-gradient(135deg, #165dff, #4d8dff); }
+.type-icon--enterprise { background: linear-gradient(135deg, #1D4E8F, #3b7bd4); }
 .type-name {
   font-size: 28rpx;
   font-weight: 600;
@@ -1141,15 +850,18 @@ async function submit() {
   margin-top: 4rpx;
 }
 .type-check {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 20rpx;
-  background: var(--success);
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: var(--primary);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24rpx;
+  font-size: 22rpx;
   flex-shrink: 0;
 }
 
@@ -1280,110 +992,6 @@ async function submit() {
   color: var(--t3);
 }
 
-/* 预览 */
-.preview-section {
-  margin-top: 32rpx;
-}
-.preview-title {
-  font-size: 26rpx;
-  font-weight: 600;
-  color: var(--t2);
-  margin-bottom: 12rpx;
-}
-.preview-card {
-  background: linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4);
-  border-radius: 16rpx;
-  padding: 24rpx;
-  position: relative;
-  overflow: hidden;
-}
-.preview-card .lp-texture {
-  position: absolute;
-  inset: 0;
-  background-size: 90rpx 90rpx, 90rpx 90rpx;
-  background-position: 0 0, 45rpx 45rpx;
-  opacity: 0.5;
-  pointer-events: none;
-}
-.preview-card .lp-bartop {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 8rpx;
-}
-.preview-card .preview-header {
-  position: relative;
-  z-index: 1;
-}
-.preview-card .preview-divider,
-.preview-card .preview-contact {
-  position: relative;
-  z-index: 1;
-}
-.preview-card .preview-header.ph-mag {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6rpx;
-}
-.preview-card .preview-header.ph-ctr {
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-.preview-header {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.preview-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 40rpx;
-  background: rgba(255,255,255,0.25);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32rpx;
-  font-weight: 600;
-}
-.preview-name {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #fff;
-}
-.preview-position {
-  font-size: 24rpx;
-  color: rgba(255,255,255,0.85);
-  margin-top: 4rpx;
-}
-.preview-company {
-  font-size: 22rpx;
-  color: rgba(255,255,255,0.65);
-  margin-top: 2rpx;
-}
-.preview-divider {
-  height: 2rpx;
-  background: rgba(255,255,255,0.2);
-  margin: 20rpx 0;
-}
-.preview-contact {
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-.contact-item {
-  display: flex;
-  gap: 16rpx;
-}
-.contact-label {
-  font-size: 22rpx;
-  color: rgba(255,255,255,0.7);
-  width: 72rpx;
-}
-.contact-value {
-  font-size: 22rpx;
-  color: #fff;
-}
 
 /* 底部操作栏 */
 .footer {
@@ -1409,6 +1017,7 @@ async function submit() {
   font-weight: 600;
   border-radius: 28rpx;
   border: none;
+  line-height: 96rpx;
   box-shadow: var(--sk-btn-glow, 0 4rpx 12rpx rgba(7,193,96,0.3));
   position: relative;
 }
@@ -1427,42 +1036,28 @@ async function submit() {
   opacity: 0.6;
 }
 .btn-secondary {
-  width: 160rpx;
-  height: 88rpx;
+  width: 176rpx;
+  height: 96rpx;
   background: var(--bg-hover);
   color: var(--t2);
   font-size: 28rpx;
-  border-radius: 44rpx;
+  font-weight: 500;
+  border-radius: 28rpx;
   border: none;
+  line-height: 96rpx;
 }
 .btn-skip {
-  width: 160rpx;
-  height: 88rpx;
+  width: 176rpx;
+  height: 96rpx;
   background: #fff;
   color: var(--t3);
   font-size: 28rpx;
-  border-radius: 44rpx;
+  font-weight: 500;
+  border-radius: 28rpx;
   border: 2rpx solid var(--border);
+  line-height: 96rpx;
 }
 
-/* ===== 模板选择 ===== */
-.tpl-scroll { width: 100%; white-space: nowrap; margin-top: 16rpx; }
-.tpl-list { display: inline-flex; gap: 20rpx; padding: 4rpx 2rpx 12rpx; }
-.tpl-item { width: 200rpx; flex-shrink: 0; border-radius: 16rpx; border: 3rpx solid transparent; overflow: hidden; background: var(--bg-card); }
-.tpl-item.active { border-color: var(--success); background: #f0faf5; }
-.tpl-cover { position: relative; height: 150rpx; }
-.tpl-thumb { position: absolute; inset: 0; }
-.tpl-layout {
-  position: absolute; right: 8rpx; top: 8rpx; z-index: 2;
-  font-size: 18rpx; color: #fff; background: rgba(0,0,0,0.45);
-  padding: 4rpx 10rpx; border-radius: 8rpx;
-}
-.tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--success); color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; }
-.tpl-price-tag { position: absolute; left: 8rpx; bottom: 8rpx; z-index: 2; font-size: 18rpx; padding: 4rpx 10rpx; border-radius: 8rpx; color: #fff; }
-.tpl-price-tag.free { background: rgba(0,180,42,0.85); }
-.tpl-price-tag.paid { background: rgba(255,125,0,0.92); }
-.tpl-owned { position: absolute; right: 8rpx; bottom: 8rpx; z-index: 2; font-size: 18rpx; color: #fff; background: rgba(22,93,255,0.85); padding: 4rpx 10rpx; border-radius: 8rpx; }
-.tpl-name { display: block; padding: 12rpx 10rpx 14rpx; font-size: 24rpx; color: var(--t1); text-align: center; white-space: normal; word-break: break-all; }
 .vip-tag {
   display: inline-block; font-size: 20rpx; color: #fff; background: var(--gold);
   border-radius: 6rpx; padding: 2rpx 10rpx; margin-left: 12rpx; vertical-align: middle;
