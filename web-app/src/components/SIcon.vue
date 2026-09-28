@@ -43,6 +43,7 @@ const svgMap = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
   team: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 2.5-5 6-5s6 2 6 5"/><path d="M15 15c2.5 0 5 1.5 5 4"/>',
   building: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/><path d="M10 21v-3h4v3"/>',
+  enterprise: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 7v11"/><path d="M10 21v-3h4v3"/>',
   market: '<circle cx="8.5" cy="8.5" r="3.4"/><circle cx="15.8" cy="9.2" r="2.8"/><path d="M3 19.5c.4-3.2 2.8-5 5.2-5s4.8 1.8 5.2 5"/><path d="M14.4 14.8c2.7.4 4.8 2 5.2 4.7"/>',
   exchange: '<path d="M8 6.5h8l-2.5-2.5"/><path d="M16 17.5H8l2.5 2.5"/><rect x="2" y="8" width="8" height="5.5" rx="1.5"/><rect x="14" y="10.5" width="8" height="5.5" rx="1.5"/>',
   pool: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',

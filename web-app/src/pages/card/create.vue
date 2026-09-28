@@ -108,7 +108,7 @@
           <view class="type-card" :class="{ active: cardType === 'enterprise' }" @click="cardType = 'enterprise'">
             <view class="type-check" v-if="cardType === 'enterprise'">✓</view>
             <view class="type-icon type-icon--enterprise">
-              <SIcon name="building" size="large" color="#ffffff" />
+              <SIcon name="enterprise" size="large" color="#ffffff" />
             </view>
             <view class="type-name">企业名片</view>
             <view class="type-desc">企业主体 / 团队 / 门店</view>
@@ -899,7 +899,7 @@ async function submit() {
 }
 
 .need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
-.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t2); font-size: 26rpx; border: 2rpx solid transparent; }
+.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t3); font-size: 26rpx; border: 2rpx dashed var(--border-strong); }
 .need-item.on { background: rgba(22,93,255,0.08); color: var(--primary); border-color: var(--primary); font-weight: 500; }
 
 /* 表单 */
@@ -1011,9 +1011,10 @@ async function submit() {
 .btn-primary {
   flex: 1;
   height: 96rpx;
+  padding: 0;
   background: var(--sk-btn, var(--success));
   color: var(--sk-btn-text, #fff);
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 600;
   border-radius: 28rpx;
   border: none;
@@ -1036,22 +1037,24 @@ async function submit() {
   opacity: 0.6;
 }
 .btn-secondary {
-  width: 176rpx;
+  width: 144rpx;
   height: 96rpx;
+  padding: 0;
   background: var(--bg-hover);
   color: var(--t2);
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 500;
   border-radius: 28rpx;
   border: none;
   line-height: 96rpx;
 }
 .btn-skip {
-  width: 176rpx;
+  width: 144rpx;
   height: 96rpx;
+  padding: 0;
   background: #fff;
   color: var(--t3);
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 500;
   border-radius: 28rpx;
   border: 2rpx solid var(--border);
