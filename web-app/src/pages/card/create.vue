@@ -10,17 +10,12 @@
           <text class="bar-back-arrow">‹</text>
         </view>
         <view class="bar-title">{{ isEdit ? '编辑名片' : '创建名片' }}</view>
-        <view class="bar-right">
-          <view class="hero-badge">
-            <SIcon name="shield" size="small" color="#07c160" />
-            微信授权登录
-          </view>
-        </view>
+        <view class="bar-right"></view>
       </view>
-      <view class="hero-en" v-if="skinSerif">{{ heroEn }}</view>
       <view class="row1">
         <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
       </view>
+      <view class="hero-en" v-if="skinSerif">{{ heroEn }}</view>
       <view class="hero-line" v-if="skinSerif"></view>
       <view class="subtitle">{{ isEdit ? '完善信息，让别人更了解你' : '个人也可以创建，无需企业账号 · 2 分钟完成' }}</view>
     </view>
@@ -75,19 +70,26 @@
     <view class="cards-container">
       <view class="card" :class="{ active: currentStep === 0, prev: currentStep > 0 }">
         <view class="card-title">填写基本信息</view>
-        <view class="card-desc">先填姓名与职位，名片即刻预览</view>
+        <view class="card-desc">姓名、职位与城市，名片即刻预览</view>
 
+        <view class="glass-form">
+          <view class="form-item">
+            <view class="form-label">姓名 <text class="required">*</text></view>
+            <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
+            <view class="error-tip" v-if="errors.name">请输入姓名</view>
+          </view>
 
+          <view class="form-item">
+            <view class="form-label">职位/头衔</view>
+            <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
+          </view>
 
-        <view class="form-item">
-          <view class="form-label">姓名 <text class="required">*</text></view>
-          <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.name">请输入姓名</view>
-        </view>
-
-        <view class="form-item">
-          <view class="form-label">职位/头衔</view>
-          <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
+          <view class="form-item">
+            <view class="form-label">所在城市</view>
+            <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
+              <view class="form-input picker-value" :class="{ ph: !form.city }">{{ form.city || '请选择城市' }}</view>
+            </picker>
+          </view>
         </view>
 
       </view>
@@ -120,15 +122,6 @@
             <view class="form-input picker-value" :class="{ ph: !form.businessField }">{{ form.businessField || '请选择业务领域' }}</view>
           </picker>
           <view class="error-tip" v-if="errors.businessField">请选择业务领域</view>
-        </view>
-
-        <view class="card-title" style="margin-top: 20rpx;">所在城市等信息</view>
-        <view class="form-item">
-          <view class="form-label">所在城市 <text class="required">*</text></view>
-          <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
-            <view class="form-input picker-value" :class="{ ph: !form.city }">{{ form.city || '请选择所在城市' }}</view>
-          </picker>
-          <view class="error-tip" v-if="errors.city">请选择所在城市</view>
         </view>
 
         <view class="form-item">
@@ -698,10 +691,9 @@ function validateStep(step) {
     return !errors.name;
   }
   if (step === 1) {
-    errors.city = !form.city.trim();
     errors.phone = !form.phone.trim();
     errors.businessField = !form.businessField.trim();
-    return !errors.city && !errors.phone && !errors.businessField;
+    return !errors.phone && !errors.businessField;
   }
   return true;
 }
@@ -711,7 +703,7 @@ function nextStep() {
     uni.showToast({ title: '请完善必填信息', icon: 'none' });
     return;
   }
-  if (currentStep.value < 2) {
+  if (currentStep.value < 3) {
     currentStep.value++;
   }
 }
@@ -903,9 +895,9 @@ async function submit() {
 .lp-avatar-img { width: 100%; height: 100%; }
 .lp-avatar-txt { font-size: 40rpx; font-weight: 700; }
 .lp-id { flex: 1; min-width: 0; }
-.lp-name { font-size: 38rpx; font-weight: 700; }
-.lp-pos { font-size: 24rpx; opacity: 0.88; margin-top: 6rpx; }
-.lp-co { font-size: 22rpx; opacity: 0.72; margin-top: 8rpx; }
+.lp-name { font-size: 44rpx; font-weight: 700; line-height: 1.25; }
+.lp-pos { font-size: 26rpx; margin-top: 12rpx; opacity: 0.85; }
+.lp-co { font-size: 24rpx; margin-top: 10rpx; opacity: 0.6; }
 .lp-cap {
   display: flex;
   align-items: center;
