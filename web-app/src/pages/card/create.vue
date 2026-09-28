@@ -174,7 +174,7 @@
         </view>
 
 
-        <view class="card-title">发布设置</view>
+        <view class="card-title" style="margin-top: 24rpx;">发布设置</view>
         <view class="card-desc">设置名片展示和发布选项</view>
 
         <view class="form-item switch-item">
