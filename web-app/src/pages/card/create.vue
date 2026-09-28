@@ -72,24 +72,27 @@
         <view class="card-title">填写基本信息</view>
         <view class="card-desc">姓名、职位与城市，名片即刻预览</view>
 
-        <view class="glass-form">
-          <view class="form-item">
-            <view class="form-label">姓名 <text class="required">*</text></view>
-            <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
-            <view class="error-tip" v-if="errors.name">请输入姓名</view>
-          </view>
+        <view class="form-item">
+          <view class="form-label">姓名 <text class="required">*</text></view>
+          <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
+          <view class="error-tip" v-if="errors.name">请输入姓名</view>
+        </view>
 
-          <view class="form-item">
-            <view class="form-label">职位/头衔</view>
-            <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
-          </view>
+        <view class="form-item">
+          <view class="form-label">职位/头衔</view>
+          <input class="form-input" v-model="form.position" placeholder="自由职业者 / 顾问 / 创始人…" placeholder-class="ph" />
+        </view>
 
-          <view class="form-item">
-            <view class="form-label">所在城市</view>
-            <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
-              <view class="form-input picker-value" :class="{ ph: !form.city }">{{ form.city || '请选择城市' }}</view>
-            </picker>
-          </view>
+        <view class="form-item">
+          <view class="form-label">公司名称</view>
+          <input class="form-input" v-model="form.companyName" placeholder="请输入公司名称" placeholder-class="ph" />
+        </view>
+
+        <view class="form-item">
+          <view class="form-label">所在城市</view>
+          <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
+            <view class="form-input picker-value" :class="{ ph: !form.city }">{{ form.city || '请选择城市' }}</view>
+          </picker>
         </view>
 
       </view>
@@ -528,7 +531,10 @@ const skinVars = computed(() => {
     vars['--border-strong'] = '#c9cdd4';
     vars['--sk-skin'] = 'light';
     vars['--sk-input-border'] = '1px solid ' + hexA(accent, 0.45);
-    vars['--sk-input-shadow'] = 'none';
+    vars['--sk-input-shadow'] = '0 2rpx 8rpx rgba(0,0,0,0.04)';
+    vars['--sk-input-bg'] = '#ffffff';
+    vars['--sk-input-text'] = '#1d2129';
+    vars['--sk-input-ph'] = '#a8b1bd';
     vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.16)}, 0 10rpx 24rpx ${hexA(accent, 0.12)}`;
     vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
   } else {
@@ -546,8 +552,11 @@ const skinVars = computed(() => {
     vars['--border'] = 'rgba(255,255,255,0.22)';
     vars['--border-strong'] = 'rgba(255,255,255,0.45)';
     vars['--sk-skin'] = 'dark';
-    vars['--sk-input-border'] = '1px solid ' + hexA(accent, 0.35);
-    vars['--sk-input-shadow'] = 'inset 0 2rpx 8rpx rgba(0,0,0,0.4)';
+    vars['--sk-input-border'] = '1px solid ' + hexA(accent, 0.45);
+    vars['--sk-input-shadow'] = 'inset 0 2rpx 10rpx rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)';
+    vars['--sk-input-bg'] = 'rgba(255,255,255,0.07)';
+    vars['--sk-input-text'] = '#ffffff';
+    vars['--sk-input-ph'] = 'rgba(255,255,255,0.45)';
     vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.2)}, 0 0 26rpx ${hexA(accent, 0.16)}, inset 0 0 0 1px ${hexA(accent, 0.3)}`;
     vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
   }
@@ -1186,28 +1195,33 @@ async function submit() {
 
 /* 表单 */
 .form-item {
-  margin-top: 20rpx;
+  margin-top: 24rpx;
 }
 .form-item:first-child {
   margin-top: 0;
 }
 .form-label {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: var(--t2);
-  margin-bottom: 10rpx;
+  margin-bottom: 12rpx;
+  letter-spacing: 1rpx;
 }
 .required {
   color: var(--danger);
 }
 .form-input {
-  height: 84rpx;
-  background: var(--bg-card);
-  border-radius: 12rpx;
-  padding: 0 24rpx;
+  height: 88rpx;
+  background: var(--sk-input-bg, var(--bg-card));
+  border-radius: 16rpx;
+  padding: 0 28rpx;
   font-size: 28rpx;
-  color: var(--t1);
+  color: var(--sk-input-text, var(--t1));
   border: var(--sk-input-border, 2rpx solid transparent);
   box-shadow: var(--sk-input-shadow, none);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.form-input.ph, .picker-value.ph {
+  color: var(--sk-input-ph, #9a9a9a);
 }
 .error-tip {
   font-size: 22rpx;
