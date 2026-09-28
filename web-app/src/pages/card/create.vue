@@ -531,6 +531,16 @@ const skinVars = computed(() => {
     vars['--sk-input-ph'] = '#a8b1bd';
     vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.16)}, 0 10rpx 24rpx ${hexA(accent, 0.12)}`;
     vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
+    // step 皮肤（品牌方案）：浅色下脱离模板主题色，统一品牌蓝 + Notion 中性细边
+    if (skinType.value === 'step') {
+      vars['--primary'] = '#165dff';
+      vars['--success'] = '#165dff';
+      vars['--sk-btn'] = 'linear-gradient(135deg, #165dff, #3b7bff)';
+      vars['--sk-btn-glow'] = '0 4rpx 12rpx rgba(22,93,255,0.25)';
+      vars['--sk-input-border'] = '1px solid #e5e6eb';
+      vars['--sk-input-shadow'] = '0 2rpx 8rpx rgba(0,0,0,0.03)';
+      vars['--sk-header'] = 'linear-gradient(180deg, #f6f7fb, #f6f7fb)';
+    }
   } else {
     vars['--sk-bg'] = `radial-gradient(120% 55% at 85% -8%, ${hexA(accent, 0.16)}, transparent 62%), radial-gradient(90% 50% at -8% 22%, ${hexA(accent, 0.1)}, transparent 55%), linear-gradient(180deg, ${shadeHex(bg, 0.06)}, ${shadeHex(bgEnd, 0.02)})`;
     vars['--sk-header'] = `linear-gradient(155deg, ${bg}, ${bgEnd})`;
