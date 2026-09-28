@@ -670,6 +670,7 @@ async function submit() {
 .skin-live .card-title { font-size: 28rpx; }
 .create-page {
   min-height: 100vh;
+  box-sizing: border-box;
   background: var(--sk-bg, #f5f7fa);
   /* 底部留白 = footer高 + 视觉间距(约20rpx)。H5 footer约120rpx → 140rpx 间隙舒适 */
   padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
