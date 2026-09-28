@@ -562,7 +562,15 @@ function goBack() {
 }
 
 function goMember() {
-  uni.navigateTo({ url: '/pages/card/member' });
+  uni.showModal({
+    title: '语音简介为会员权益',
+    content: '开通会员后可上传语音简介（≤10MB）。是否前往会员中心开通？',
+    confirmText: '去开通',
+    cancelText: '暂不',
+    success: (res) => {
+      if (res.confirm) uni.navigateTo({ url: '/pages/card/member' });
+    },
+  });
 }
 
 function validateStep(step) {

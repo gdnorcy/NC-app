@@ -3,6 +3,7 @@
     <!-- hero（demo g3 青绿渐变） -->
     <view class="hero g3" :style="heroStyle">
       <view class="row1">
+        <view class="mb-back" @click="goBack"><SIcon name="back" size="large" color="#ffffff" /></view>
         <view class="hero-left">
           <view class="hero-title">会员中心</view>
           <view class="hero-sub">当前：{{ currentLevelText }}{{ isMember ? ' · 有效期至 ' + memberExpire : ' · 尚未开通' }}</view>
@@ -146,6 +147,12 @@ const applyTipText = computed(() => {
   return `你的会员申请已被驳回：${s.reason || '未填写原因'}`;
 });
 
+
+function goBack() {
+  const pages = getCurrentPages();
+  if (pages.length > 1) uni.navigateBack();
+  else uni.reLaunch({ url: '/pages/cardMain/home' });
+}
 function goDistribution() {
   uni.navigateTo({ url: '/pages/card/distribution' });
 }
@@ -368,6 +375,7 @@ async function openMember(pkg) {
   background: linear-gradient(155deg, #0f766e, #14b8a6);
   overflow: hidden;
 }
+.mb-back { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; margin-right: 8rpx; flex-shrink: 0; }
 .row1 {
   display: flex;
   align-items: center;
