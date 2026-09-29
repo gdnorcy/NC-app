@@ -82,7 +82,7 @@
                     :key="i"
                     class="ph-fan-item"
                     :class="'ph-fan-pos-' + i"
-                    :style="{ background: form.colors.menuBg || '#ffffff' }"
+                    :style="{ background: fanBg }"
                     @click="previewIdx = i"
                   >
                     <img v-if="isPreviewImg(it, i)" :src="resolveUrl(previewImg(it, i))" class="ph-fan-item-img" />
@@ -90,7 +90,7 @@
                     <text :style="{ color: previewIdx === i ? activeColor : (form.colors.menuText || '#333333') }">{{ it.text }}</text>
                   </view>
                 </view>
-                <view class="ph-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
+                <view class="ph-fan-main" :style="{ background: fanMainBg }" @click="fanOpen = !fanOpen">
                   <view class="ph-fan-main-icon"><i></i><i></i><i></i></view>
                   <text class="ph-fan-main-txt">菜单</text>
                 </view>
@@ -449,6 +449,9 @@ const mainBtnBg = computed(() => {
   if (s && s !== 'transparent') return s;
   return '#ff4d4f'; // 云菜鸟默认红色
 });
+// 扇形悬浮：背景颜色(bgColor，云菜鸟扇形专用)优先作菜单/主按钮背景，回落菜单背景/突出色（与 C 端一致）
+const fanBg = computed(() => form.bgColor || form.colors.menuBg || '#ffffff');
+const fanMainBg = computed(() => form.bgColor || mainBtnBg.value);
 // 预览中间按钮：按钮居中=圆角矩形(高/圆角可调)；凸起/嵌入=圆形
 const previewMidBtnStyle = computed(() => {
   const base = { background: mainBtnBg.value };
@@ -595,7 +598,14 @@ function tabbarStyle() {
     }
     return st;
   }
-  st.background = '#ffffff';
+  // 颜色背景模式：应用「背景颜色」设置（与 C 端 CardTabBar 一致）；未设置回落白底
+  st.background = form.bgColor || '#ffffff';
+  // 导航横线：仅平铺 普通/滑块/居中 配置项（与 C 端一致）；有值=显示配置色，空=隐藏
+  if (showNavLine.value && form.colors.navLine) {
+    st.borderTop = `1px solid ${form.colors.navLine}`;
+  } else if (form.type !== 'float') {
+    st.borderTop = 'none';
+  }
   if (form.type === 'float') {
     st.left = '16px';
     st.right = '16px';

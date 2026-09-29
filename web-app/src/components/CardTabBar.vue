@@ -12,13 +12,13 @@
       <!-- 扇形悬浮：右下菜单主按钮 + 弧形子菜单（云菜鸟 1:1：子菜单默认展开） -->
       <template v-if="tabType === 'fan'">
         <view v-if="fanOpen" class="mp-fan-menu" :class="'mp-fan-count-' + designItems.length">
-          <view v-for="(it, i) in designItems" :key="i" class="mp-fan-item" :class="'mp-fan-pos-' + i" :style="{ background: menuBgColor }" @click="goDesign(it)">
+          <view v-for="(it, i) in designItems" :key="i" class="mp-fan-item" :class="'mp-fan-pos-' + i" :style="{ background: fanBg }" @click="goDesign(it)">
             <image v-if="useItemImg(it)" :src="iconUrl(itemImgSrc(it))" class="mp-fan-item-img" mode="aspectFit" />
             <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? activeColor : menuTextColor" />
             <text class="mp-fan-item-txt" :style="{ color: isOn(it) ? activeColor : menuTextColor }">{{ it.text }}</text>
           </view>
         </view>
-        <view class="mp-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
+        <view class="mp-fan-main" :style="{ background: fanMainBg }" @click="fanOpen = !fanOpen">
           <view class="mp-fan-main-icon"><i></i><i></i><i></i></view>
           <text class="mp-fan-main-txt">菜单</text>
         </view>
@@ -185,6 +185,9 @@ const tabIconStyle = { width: '52rpx', height: '52rpx' };
 // 扇形悬浮：菜单背景/菜单文字（云菜鸟联动；未配置回退白底/深灰）
 const menuBgColor = computed(() => tabStyleCfg.value.colors?.menuBg || '#ffffff');
 const menuTextColor = computed(() => tabStyleCfg.value.colors?.menuText || '#333333');
+// 扇形悬浮：背景颜色(bgColor，云菜鸟扇形专用)优先作菜单/主按钮背景，回落菜单背景/突出色
+const fanBg = computed(() => tabStyleCfg.value.bgColor || menuBgColor.value);
+const fanMainBg = computed(() => tabStyleCfg.value.bgColor || mainBtnBg.value);
 const activeSoft = computed(() => hexA(activeColor.value, 0.18));
 const navMode = computed(() => designConfig.value?.navMode || 'default');
 const navJumpEnabled = computed(() => designConfig.value?.navJumpEnabled !== false);
