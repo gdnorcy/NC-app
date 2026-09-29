@@ -865,15 +865,16 @@ onMounted(load);
 .te-body {
   flex: 1;
   display: grid;
-  /* 左栏收窄到 216（操作已收纳），右栏 340，省出的空间给中间手机预览 */
-  grid-template-columns: 216px minmax(0, 1fr) 340px;
+  /* 左栏 216（操作已收纳）；右栏加宽到 400 给密集属性控件留空间；中间列限宽 520，避免超宽屏被拉伸导致左右显得更小；整组居中保持平衡 */
+  grid-template-columns: 216px minmax(0, 520px) 400px;
+  justify-content: center;
   gap: 12px;
   padding: 12px;
   overflow: hidden;
 }
 .te-left, .te-center, .te-right { background: #fff; border-radius: 8px; }
 .te-left { padding: 12px; overflow-y: auto; }
-.te-right { padding: 16px; overflow-y: auto; }
+.te-right { padding: 18px; overflow-y: auto; }
 .te-center { display: flex; align-items: center; justify-content: center; padding: 12px; overflow: auto; }
 
 /* 左栏：导航列表（窄栏优化版：两行卡片 + ··· 菜单 + 状态色点） */
@@ -1105,9 +1106,9 @@ onMounted(load);
 .ph-fan-pos-4 { right: 15px; bottom: 135px; }
 
 /* 右栏：配置面板 */
-.te-group { margin-bottom: 22px; }
-.te-group-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
-.te-sub-title { font-size: 12px; color: #86909c; margin: 10px 0 8px; }
+.te-group { margin-bottom: 24px; }
+.te-group-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 12px; }
+.te-sub-title { font-size: 12px; color: #86909c; margin: 12px 0 10px; }
 .te-check-row { display: flex; gap: 16px; }
 .te-radio-row { display: flex; }
 .te-radio-row :deep(.el-radio-button__inner) { font-size: 12px; padding: 8px 12px; }
@@ -1129,7 +1130,7 @@ onMounted(load);
 .te-param-val { font-size: 13px; color: #4e5969; width: 42px; text-align: right; }
 .te-tip { font-size: 11px; color: #86909c; margin-top: 6px; line-height: 16px; }
 
-.te-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.te-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .te-color-label { font-size: 12px; color: #1d2129; width: 60px; flex-shrink: 0; }
 .te-color-hint { font-size: 11px; color: #86909c; margin-left: auto; }
 
