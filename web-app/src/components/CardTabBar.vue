@@ -279,16 +279,17 @@ function hexA(hex, alpha) {
 .mp-tab-bold { font-weight: 600; }
 .tab-icon-img { width: 44rpx; height: 44rpx; }
 
-/* slider：选中项圆形滑块背景 */
+/* slider：选中项圆形滑块背景（凸出导航条上沿，对齐云菜鸟） */
 .mp-slider {
   position: absolute;
-  top: 4rpx;
+  top: -28rpx;
   left: 50%;
   transform: translateX(-50%);
-  width: 64rpx;
-  height: 64rpx;
+  width: 80rpx;
+  height: 80rpx;
   border-radius: 50%;
   z-index: 0;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
 }
 .mp-slider + image, .mp-slider + .s-icon, .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
 

@@ -787,14 +787,14 @@ onMounted(load);
 .ph-tab-icon-img { width: 22px; height: 22px; object-fit: contain; }
 .ph-slider {
   position: absolute;
-  top: 1px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   z-index: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 .ph-slider ~ .ph-tab-txt { position: relative; z-index: 1; }
 /* 中间突出项容器：圆形按钮 + 下方文字（云菜鸟 1:1：主按钮标签保留） */

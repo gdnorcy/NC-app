@@ -222,6 +222,12 @@ app.use((req, res, next) => {
     app.use('/goods-style', express.static(goodsStyleDist, { maxAge: '1y' }));
   }
 
+  // 通用图片素材（导航栏背景图 tabbar-bg 等）
+  const imagesDist = path.join(config.publicDir, 'images');
+  if (fs.existsSync(imagesDist)) {
+    app.use('/images', express.static(imagesDist, { maxAge: '1y' }));
+  }
+
   // Vue管理后台构建产物
   const adminDist = path.join(config.publicDir, 'admin');
   if (fs.existsSync(adminDist)) {
