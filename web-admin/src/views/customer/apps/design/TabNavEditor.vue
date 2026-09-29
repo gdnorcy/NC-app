@@ -1165,13 +1165,13 @@ onMounted(load);
   font-size: 11px;
   color: #86909c;
 }
-/* 图片模式：每个菜单项两张图（未选中 / 已选中） */
-.te-nav-icon-double { flex-direction: column; gap: 4px; width: 40px; }
+/* 图片模式：每个菜单项两张图（未选中 / 已选中），竖向均分、放大并留出间距（高度自适应，不再被父级 40px 裁切） */
+.te-nav-icon-double { flex-direction: column; align-items: center; gap: 10px; width: 48px; height: auto; }
 .te-nav-img-slot {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 1px dashed #c9cdd4;
-  border-radius: 6px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1179,8 +1179,8 @@ onMounted(load);
   overflow: hidden;
 }
 .te-nav-img-slot:hover { border-color: #165dff; }
-.te-nav-img-thumb { width: 34px; height: 34px; object-fit: contain; }
-.te-nav-img-ph { font-size: 10px; color: #86909c; text-align: center; line-height: 1.2; }
+.te-nav-img-thumb { width: 42px; height: 42px; object-fit: contain; }
+.te-nav-img-ph { font-size: 11px; color: #86909c; text-align: center; line-height: 1.25; }
 .te-nav-fields { flex: 1; min-width: 0; }
 .te-nav-text { margin-bottom: 6px; }
 .te-nav-link-row { display: flex; gap: 6px; }
