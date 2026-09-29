@@ -777,6 +777,11 @@ onMounted(load);
 .ph-type-float { position: absolute; }
 .ph-type-fan { background: transparent !important; border-top: none; box-shadow: none !important; }
 /* 凸起：导航栏加高容纳凸出按钮（云菜鸟 footerbg 750*190）；嵌入：正常高度（750*110） */
+/* 凸起/嵌入：整个导航背景替换为背景图（不叠加白底、去顶部分隔线） */
+.ph-tabbar.ph-st-btnRaise, .ph-tabbar.ph-st-btnInset {
+  background: transparent;
+  border-top: none;
+}
 .ph-tabbar.ph-st-btnRaise { min-height: 62px; }
 .ph-tabbar.ph-st-btnInset { min-height: 50px; }
 .ph-tab {

@@ -350,6 +350,10 @@ function hexA(hex, alpha) {
 .mp-fan-main-icon i { display: block; width: 34rpx; height: 4rpx; border-radius: 2rpx; background: #fff; }
 .mp-fan-main-txt { font-size: 20rpx; color: #fff; line-height: 1.3; margin-top: 4rpx; }
 .mp-tabbar-fan { background: transparent !important; border-top: none; box-shadow: none !important; }
+.mp-tabbar.mp-st-btnRaise, .mp-tabbar.mp-st-btnInset {
+  background: transparent;
+  border-top: none;
+}
 .mp-tabbar.mp-st-btnRaise { min-height: 140rpx; }
 .mp-tabbar.mp-st-btnInset { min-height: 110rpx; }
 .mp-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
