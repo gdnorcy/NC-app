@@ -83,9 +83,9 @@
                     class="ph-mid"
                     :class="'ph-mid-' + form.style"
                   >
-                    <view class="ph-mid-btn" :style="{ background: form.style === 'btnCenter' ? '#ffffff' : mainBtnBg }">
+                    <view class="ph-mid-btn" :style="{ background: mainBtnBg }">
                       <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-mid-img" mode="aspectFit" />
-                      <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="xlarge" :color="form.style === 'btnCenter' ? (form.colors.unselected || '#9a9a9a') : '#ffffff'" />
+                      <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="xlarge" color="#ffffff" />
                     </view>
                     <text class="ph-mid-txt" :class="{ on: previewIdx === i }" :style="{ color: tabColor(i) }">{{ it.text }}</text>
                   </view>
@@ -856,15 +856,18 @@ onMounted(load);
 }
 .ph-mid-btn .s-icon { margin: 0; }
 .ph-mid-img { width: 22px; height: 22px; }
-/* 按钮居中：居中凸出半个（作用于按钮，文字留在栏内） */
-/* 按钮居中：白色小圆凸出半个（对齐云菜鸟：白底深灰图标） */
-.ph-mid-btnCenter .ph-mid-btn { margin-top: -12px; width: 38px; height: 38px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15); }
-/* 按钮凸起：明显凸出（上移更多 + 阴影加强 + bar 增高） */
+/* 按钮居中：红色圆角矩形(pill)，凸出半个（对齐云菜鸟：高28px圆角7px） */
+.ph-mid-btnCenter .ph-mid-btn {
+  margin-top: -14px;
+  width: 56px;
+  height: 28px;
+  border-radius: 7px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
 /* 按钮凸起：按钮约2/3在导航条外（对齐云菜鸟） */
 .ph-mid-btnRaise .ph-mid-btn { margin-top: -62px; width: 54px; height: 54px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); }
-/* 按钮嵌入：半嵌 bar 内 */
-/* 按钮嵌入：按钮悬浮在凹槽上方有间隙，无白色外框（对齐云菜鸟） */
-.ph-mid-btnInset .ph-mid-btn { margin-top: -28px; width: 44px; height: 44px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
+/* 按钮嵌入：半嵌在导航条内（对齐云菜鸟：按钮中心在导航条上沿） */
+.ph-mid-btnInset .ph-mid-btn { margin-top: -14px; width: 48px; height: 48px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
 .ph-slider + image, .ph-slider + svg { position: relative; z-index: 1; }
 .ph-slider + image ~ text, .ph-slider + svg ~ text { position: relative; z-index: 1; }
 

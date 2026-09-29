@@ -42,7 +42,7 @@
           >
             <view class="mp-mid-btn" :style="midBtnStyle">
               <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-mid-img" mode="aspectFit" />
-              <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" :color="tabStyle === 'btnCenter' ? (tabStyleCfg.value.colors?.unselected || '#9a9a9a') : '#ffffff'" />
+              <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
             </view>
             <text class="mp-mid-txt" :class="{ on: isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </view>
@@ -129,8 +129,8 @@ const midBtnStyle = computed(() => {
   const r = (tabStyleCfg.value.btnRadius || 7) * 2;
   const isCenter = tabStyle.value === 'btnCenter';
   if (isCenter) {
-    // 按钮居中：白色小圆浮起（云菜鸟 1:1），不是主题色实心
-    return { background: '#ffffff', width: '76rpx', height: h + 'rpx', borderRadius: r + 'rpx', boxShadow: '0 6rpx 16rpx rgba(0,0,0,0.15)' };
+    // 按钮居中：红色pill圆角矩形（对齐云菜鸟：高28px圆角7px）
+    return { background: mainBtnBg.value, width: '112rpx', height: h + 'rpx', borderRadius: r + 'rpx', boxShadow: '0 6rpx 16rpx rgba(0,0,0,0.15)' };
   }
   return { background: mainBtnBg.value };
 });
@@ -328,12 +328,12 @@ function hexA(hex, alpha) {
 .mp-mid-img { width: 44rpx; height: 44rpx; }
 .mp-mid-txt { font-size: 20rpx; line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
 .mp-mid-txt.on { font-weight: 600; }
-/* 按钮居中：居中凸出半个（作用于按钮，文字留在栏内） */
-.mp-mid-btnCenter .mp-mid-btn { margin-top: -30rpx; width: 100rpx; height: 100rpx; }
-/* 按钮凸起：明显凸出（上移更多 + 阴影加强；直径与云菜鸟 43px 一致） */
+/* 按钮居中：红色pill圆角矩形 */
+.mp-mid-btnCenter .mp-mid-btn { margin-top: -28rpx; width: 112rpx; height: 56rpx; border-radius: 14rpx; }
+/* 按钮凸起：按钮约2/3在导航条外 */
 .mp-mid-btnRaise .mp-mid-btn { margin-top: -124rpx; width: 108rpx; height: 108rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
-/* 按钮嵌入：半嵌 bar 内 */
-.mp-mid-btnInset .mp-mid-btn { margin-top: -56rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18); }
+/* 按钮嵌入：半嵌在导航条内 */
+.mp-mid-btnInset .mp-mid-btn { margin-top: -28rpx; width: 96rpx; height: 96rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18); }
 
 /* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .mp-fan-main {
