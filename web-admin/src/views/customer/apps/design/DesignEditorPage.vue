@@ -3,18 +3,24 @@
     <div class="de-top">
       <div class="de-top-left">
         <el-button size="small" @click="goBack">← 返回设计中心</el-button>
-        <span class="de-title">页面装修</span>
+        <span class="de-title">{{ navActive === 'tab' ? '底部导航' : '页面装修' }}</span>
         <span class="de-sub">独立编辑窗口</span>
       </div>
       <div class="de-top-right">
-        <template v-if="dirty">
+        <template v-if="currentDirty">
           <span class="de-dirty-tag">● 未保存</span>
         </template>
-        <el-button size="small" :loading="previewing" @click="saveAndPreview">保存并预览</el-button>
-        <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
-        <el-button size="small" type="success" :loading="publishing" @click="publish">发布</el-button>
-        <el-button size="small" @click="loadVersions">历史版本</el-button>
-        <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
+        <!-- 底部导航：内嵌编辑器自带保存逻辑，顶栏只暴露「保存导航」 -->
+        <template v-if="navActive === 'tab'">
+          <el-button size="small" type="primary" :loading="tabSaving" @click="saveTab">保存导航</el-button>
+        </template>
+        <template v-else>
+          <el-button size="small" :loading="previewing" @click="saveAndPreview">保存并预览</el-button>
+          <el-button size="small" type="primary" :loading="saving" @click="saveDraft">保存草稿</el-button>
+          <el-button size="small" type="success" :loading="publishing" @click="publish">发布</el-button>
+          <el-button size="small" @click="loadVersions">历史版本</el-button>
+          <el-button size="small" @click="saveAsTemplate">另存为模板</el-button>
+        </template>
       </div>
     </div>
 
@@ -29,6 +35,10 @@
           <span class="de-nav-ico">◉</span>
           <span class="de-nav-name">启动页</span>
         </div>
+        <div class="de-nav-item" :class="{ active: navActive === 'tab' }" @click="switchNav('tab')" :title="'底部导航'">
+          <span class="de-nav-ico">▤</span>
+          <span class="de-nav-name">底部导航</span>
+        </div>
       </div>
 
       <!-- 主区：页面装修 或 启动页配置 -->
@@ -39,6 +49,14 @@
           @dirty-change="(v) => dirty = v"
           @page-switch="onPageSwitch"
           ref="editorRef"
+        />
+
+        <!-- 底部导航（内嵌 TabNavEditor：导航列表 / 手机预览 / 配置 三栏） -->
+        <TabNavEditor
+          v-else-if="navActive === 'tab'"
+          ref="tabRef"
+          embedded
+          @dirty-change="(v) => tabDirty = v"
         />
 
         <!-- 启动页配置（参考图3+图4：广告页 定时关闭/按钮进入/多图滑动） -->
@@ -133,12 +151,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 import { designCall } from '../../../../api';
 import PageEditor from './PageEditor.vue';
+import TabNavEditor from './TabNavEditor.vue';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
 
@@ -147,7 +166,12 @@ const router = useRouter();
 
 const navActive = ref('edit');
 const pageType = ref(route.query.pageType || 'home');
-const dirty = ref(false);
+const dirty = ref(false);          // 装修页面（PageEditor）未保存
+const tabDirty = ref(false);       // 底部导航（TabNavEditor）未保存
+const tabSaving = ref(false);
+const tabRef = ref(null);
+// 当前左侧导航对应的未保存状态（顶栏标记 / 离开拦截都用它）
+const currentDirty = computed(() => (navActive.value === 'tab' ? tabDirty.value : dirty.value));
 const saving = ref(false);
 const publishing = ref(false);
 const previewing = ref(false);
@@ -202,9 +226,10 @@ function resolveUrl(u) {
 }
 function switchNav(k) {
   if (k === navActive.value) return;
-  // 从装修页切走前检测未保存
-  if (k === 'splash' && dirty.value) {
-    ElMessageBox.confirm('当前页面有未保存的修改，切换后修改将丢失，是否继续？', '未保存提示', { type: 'warning', confirmButtonText: '继续切换', cancelButtonText: '取消' })
+  // 切走前按来源面板检测未保存（装修页=dirty，底部导航=tabDirty，切换会卸载组件导致修改丢失）
+  const leavingDirty = navActive.value === 'tab' ? tabDirty.value : navActive.value === 'edit' && dirty.value;
+  if (leavingDirty) {
+    ElMessageBox.confirm('当前有未保存的修改，切换后修改将丢失，是否继续？', '未保存提示', { type: 'warning', confirmButtonText: '继续切换', cancelButtonText: '取消' })
       .then(() => { navActive.value = k; })
       .catch(() => {});
     return;
@@ -222,7 +247,11 @@ function onPageSwitch(type) {
   router.replace({ path: '/design/edit', query: { pageType: type } });
 }
 
-// ---- 顶部按钮：委托给 PageEditor ----
+// ---- 顶部按钮：委托给 PageEditor / TabNavEditor ----
+async function saveTab() {
+  tabSaving.value = true;
+  try { await tabRef.value?.save(); } catch (e) { ElMessage.error(e); } finally { tabSaving.value = false; }
+}
 async function saveDraft() { await editorRef.value?.saveDraft(); }
 async function publish() { await editorRef.value?.publish(); }
 async function saveAndPreview() { await editorRef.value?.saveAndPreview(); }
@@ -233,13 +262,14 @@ async function saveAsTemplate() { await editorRef.value?.saveAsTemplate(); }
 const backDialog = reactive({ show: false, saving: false });
 let leaveConfirmed = false; // 三选弹窗已确认离开，路由守卫不再二次拦截
 function goBack() {
-  if (!dirty.value) { router.push('/design'); return; }
+  if (!currentDirty.value) { router.push('/design'); return; }
   backDialog.show = true;
 }
 async function backSave() {
   backDialog.saving = true;
   try {
-    await saveDraft();
+    if (navActive.value === 'tab') await tabRef.value?.save();
+    else await saveDraft();
     backDialog.show = false;
     leaveConfirmed = true;
     router.push('/design');
@@ -253,7 +283,7 @@ function backLeave() {
 onBeforeRouteLeave((to, from, next) => {
   // 三选弹窗已确认（保存并返回 / 不保存返回）不再二次拦截
   if (leaveConfirmed) { next(); return; }
-  if (dirty.value && to.path === '/design') {
+  if (currentDirty.value && to.path === '/design') {
     ElMessageBox.confirm('当前页面有未保存的修改，确定不保存直接离开吗？', '未保存提示', { type: 'warning', confirmButtonText: '直接离开', cancelButtonText: '留下' })
       .then(() => next())
       .catch(() => next(false));

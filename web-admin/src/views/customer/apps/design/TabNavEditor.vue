@@ -1,7 +1,7 @@
 <template>
-  <div class="tab-editor-page">
-    <!-- 顶部：返回 + 标题 + 保存导航 -->
-    <div class="te-top">
+  <div class="tab-editor-page" :class="{ 'is-embedded': embedded }">
+    <!-- 顶部：返回 + 标题 + 保存导航（嵌入模式由宿主页面提供顶栏，这里隐藏） -->
+    <div v-if="!embedded" class="te-top">
       <div class="te-top-left">
         <el-button size="small" @click="goBack">← 返回设计中心</el-button>
         <span class="te-title">底部导航</span>
@@ -14,26 +14,53 @@
     </div>
 
     <div class="te-body">
-      <!-- 左栏：导航列表 -->
+      <!-- 左栏：导航列表（窄栏优化：操作收进 ··· 菜单，状态用色点，卡片两行） -->
       <aside class="te-left">
         <div class="te-left-head">
-          <span>导航列表</span>
-          <el-button size="small" type="primary" plain @click="createScheme">+ 创建新导航</el-button>
+          <span class="te-left-title">导航列表<span class="te-left-count">{{ filteredSchemes.length }}</span></span>
+          <el-button class="te-add-btn" circle size="small" type="primary" title="创建新导航" @click="createScheme">+</el-button>
         </div>
+        <el-input
+          v-if="schemes.length > 8"
+          v-model="schemeKw"
+          size="small"
+          placeholder="搜索导航"
+          clearable
+          class="te-left-search"
+        />
         <div class="te-schemes">
-          <div v-for="s in schemes" :key="s.id" class="te-scheme" :class="{ active: currentId === s.id }" @click="selectScheme(s)">
-            <div class="te-scheme-top">
+          <div
+            v-for="s in filteredSchemes" :key="s.id"
+            class="te-scheme" :class="{ active: currentId === s.id }"
+            @click="selectScheme(s)"
+          >
+            <div class="te-scheme-row1">
               <span class="te-scheme-name" :title="s.scheme_name">{{ s.scheme_name }}</span>
-              <el-tag v-if="s.is_default" size="small" type="success">默认</el-tag>
+              <el-tag v-if="s.is_default" size="small" type="success" class="te-tag-default">默认</el-tag>
+              <el-dropdown trigger="click" placement="bottom-end" @command="(c) => onSchemeCmd(c, s)">
+                <span class="te-scheme-more" title="更多操作" @click.stop>···</span>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="copy">复制</el-dropdown-item>
+                    <el-dropdown-item command="default" :disabled="!!s.is_default">设为默认</el-dropdown-item>
+                    <el-dropdown-item command="toggle">{{ s.enabled ? '停用' : '启用' }}</el-dropdown-item>
+                    <el-dropdown-item command="del" divided :disabled="!!s.is_default">删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
-            <div class="te-scheme-meta">{{ s.tab_json.items.length }} 项 · {{ s.enabled ? '启用' : '停用' }}</div>
-            <div class="te-scheme-ops" @click.stop>
-              <el-button size="small" text @click="copyScheme(s)">复制</el-button>
-              <el-button size="small" text type="danger" :disabled="s.is_default" @click="delScheme(s)">删除</el-button>
-              <el-switch :model-value="s.enabled" :active-value="1" :inactive-value="0" size="small" @change="(v) => userToggle(s, v)" />
+            <div class="te-scheme-row2">
+              <span
+                class="te-dot" :class="{ on: !!s.enabled }"
+                :title="s.enabled ? '已启用，点击停用' : '已停用，点击启用'"
+                @click.stop="userToggle(s, s.enabled ? 0 : 1)"
+              ></span>
+              <span class="te-scheme-meta">{{ s.tab_json.items.length }} 项 · {{ s.enabled ? '启用' : '停用' }}</span>
             </div>
           </div>
-          <div v-if="!schemes.length" class="te-scheme-empty">暂无导航方案，点击上方「创建新导航」</div>
+          <div v-if="!filteredSchemes.length" class="te-scheme-empty">
+            {{ schemeKw ? '没有匹配的导航' : '暂无导航方案，点击右上角 + 新建' }}
+          </div>
         </div>
       </aside>
 
@@ -58,7 +85,7 @@
                     :style="{ background: form.colors.menuBg || '#ffffff' }"
                     @click="previewIdx = i"
                   >
-                    <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-fan-item-img" mode="aspectFit" />
+                    <img v-if="isPreviewImg(it, i)" :src="resolveUrl(previewImg(it, i))" class="ph-fan-item-img" />
                     <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="default" :color="previewIdx === i ? activeColor : (form.colors.menuText || '#333333')" />
                     <text :style="{ color: previewIdx === i ? activeColor : (form.colors.menuText || '#333333') }">{{ it.text }}</text>
                   </view>
@@ -84,7 +111,7 @@
                     :class="'ph-mid-' + form.style"
                   >
                     <view class="ph-mid-btn" :style="{ background: mainBtnBg }">
-                      <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-mid-img" mode="aspectFit" />
+                      <img v-if="isPreviewImg(it, i)" :src="resolveUrl(previewImg(it, i))" class="ph-mid-img" />
                       <SIcon
                         v-else
                         :name="it.icon || fallbackIcon(it.text)"
@@ -97,7 +124,7 @@
                   <!-- 常规项 -->
                   <template v-else>
                     <view v-if="form.style === 'slider' && previewIdx === i" class="ph-slider" :style="{ background: activeColor }"></view>
-                    <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-tab-icon-img" mode="aspectFit" />
+                    <img v-if="isPreviewImg(it, i)" :src="resolveUrl(previewImg(it, i))" class="ph-tab-icon-img" />
                     <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="large" :color="form.style === 'slider' && previewIdx === i ? '#ffffff' : tabColor(i)" />
                     <text class="ph-tab-txt" :style="{ color: tabColor(i) }" :class="{ 'ph-tab-bold': previewIdx === i }">{{ it.text }}</text>
                   </template>
@@ -240,17 +267,31 @@
         <div class="te-group">
           <div class="te-group-title">导航设置</div>
           <div class="te-nav-toggle">
-            <el-radio-group v-model="itemIconMode" size="small">
+            <el-radio-group v-model="form.iconMode" size="small">
               <el-radio-button value="icon">图标</el-radio-button>
               <el-radio-button value="img">图片</el-radio-button>
             </el-radio-group>
           </div>
           <div v-for="(it, i) in form.items" :key="i" class="te-nav-item">
-            <div class="te-nav-icon">
-              <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="te-nav-icon-img" @click="openIconSel(i)" />
-              <SIcon v-else-if="it.icon" :name="it.icon" size="xlarge" color="#4e5969" @click="openIconSel(i)" />
-              <span v-else class="te-nav-icon-empty" @click="openIconSel(i)">选图标</span>
-            </div>
+            <template v-if="form.iconMode === 'img'">
+              <div class="te-nav-icon te-nav-icon-double">
+                <div class="te-nav-img-slot" @click="openItemImg(i, 'unsel')">
+                  <img v-if="it.imgurl" :src="resolveUrl(it.imgurl)" class="te-nav-img-thumb" />
+                  <span v-else class="te-nav-img-ph">未选中<br />图片</span>
+                </div>
+                <div class="te-nav-img-slot" @click="openItemImg(i, 'sel')">
+                  <img v-if="it.imgurlact" :src="resolveUrl(it.imgurlact)" class="te-nav-img-thumb" />
+                  <span v-else class="te-nav-img-ph">已选中<br />图片</span>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <div class="te-nav-icon">
+                <img v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="te-nav-icon-img" @click="openIconSel(i)" />
+                <SIcon v-else-if="it.icon" :name="it.icon" size="xlarge" color="#4e5969" @click="openIconSel(i)" />
+                <span v-else class="te-nav-icon-empty" @click="openIconSel(i)">选图标</span>
+              </div>
+            </template>
             <div class="te-nav-fields">
               <el-input v-model="it.text" placeholder="文字" class="te-nav-text" />
               <div class="te-nav-link-row">
@@ -261,7 +302,7 @@
             <div class="te-nav-del" @click="removeItem(i)">×</div>
           </div>
           <div v-if="form.items.length < 5" class="te-nav-add" @click="addItem">添加一个</div>
-          <div class="te-tip">菜单项 2~5 个（小程序 tabBar 规则），至少保留 2 个</div>
+          <div class="te-tip">菜单项 2~5 个（小程序 tabBar 规则），至少保留 2 个；切到「图片」时每个菜单项需分别设置未选中 / 已选中两张图</div>
         </div>
       </aside>
     </div>
@@ -320,6 +361,11 @@ const API = '/design';
 const router = useRouter();
 const route = useRoute();
 
+// embedded：作为页面装修（DesignEditorPage）左侧「底部导航」入口的内嵌内容渲染，
+// 隐藏自带顶栏，由宿主顶栏提供保存按钮与未保存标记
+defineProps({ embedded: { type: Boolean, default: false } });
+const emit = defineEmits(['dirty-change']);
+
 // 导航风格 5 种（云菜鸟 footStyle 1-5；第 6 张示例图「扇形悬浮」属导航类型，不是风格）
 const STYLE_OPTIONS = [
   { value: 'normal', label: '普通样式' },
@@ -338,12 +384,18 @@ const BUILTIN_ICONS = [
 ];
 
 const schemes = ref([]);
+const schemeKw = ref('');
+// 左栏收窄后不再常驻操作按钮，列表按名称/项数过滤（方案超过 8 个才显示搜索框）
+const filteredSchemes = computed(() => {
+  const kw = schemeKw.value.trim().toLowerCase();
+  if (!kw) return schemes.value;
+  return schemes.value.filter((s) => (s.scheme_name || '').toLowerCase().includes(kw));
+});
 const currentId = ref(null);
 const saving = ref(false);
 const dirty = ref(false);
 const previewIdx = ref(0);
 const fanOpen = ref(true); // 扇形子菜单默认展开（云菜鸟 1:1）
-const itemIconMode = ref('icon');
 // 主题主色 fallback（C 端选中色回退）
 const stylePrimary = ref('#165DFF');
 
@@ -354,6 +406,7 @@ const form = reactive({
   type: 'flat',
   style: 'normal',
   corner: 'square',
+  iconMode: 'icon', // icon 图标 / img 图片（全局切换，每个菜单项两张图：未选中/已选中）
   bg: '',
   bgColor: '',
   btnHeight: 28,
@@ -458,7 +511,7 @@ watch(
     () => form.colors.highlight,
     () => form.colors.menuBg,
     () => form.colors.menuText,
-    () => form.items.map((x) => x.text + x.icon + x.url).join('|'),
+    () => form.items.map((x) => x.text + x.icon + x.imgurl + x.imgurlact + x.url).join('|') + '|' + form.iconMode,
   ],
   () => { if (currentId.value !== null || form.items.length) dirty.value = true; }
 );
@@ -488,6 +541,29 @@ function resolveUrl(u) {
   if (!u) return '';
   if (/^https?:|^data:|^blob:/.test(u)) return u;
   return u.startsWith('/') ? u : `/${u}`;
+}
+function normItem(it) {
+  return {
+    text: it?.text || '',
+    icon: it?.icon || '',
+    imgurl: it?.imgurl || '',
+    imgurlact: it?.imgurlact || '',
+    url: it?.url || '',
+  };
+}
+// 预览：图片模式按选中态返回 已选中图(imgurlact) / 未选中图(imgurl)，无图返回 null（回落图标）
+function previewImg(it, i) {
+  if (form.iconMode !== 'img') return null;
+  const active = previewIdx.value === i;
+  return (active && it.imgurlact) ? it.imgurlact : it.imgurl;
+}
+function isPreviewImg(it, i) {
+  return !!previewImg(it, i);
+}
+function openItemImg(i, which) {
+  imgSel.target = which === 'sel' ? 'itemImgSelected' : 'itemImgUnselected';
+  imgSel.targetIdx = i;
+  imgSel.show = true;
 }
 function tabColor(i) {
   return previewIdx === i ? activeColor.value : (form.colors.unselected || '#9a9a9a');
@@ -574,7 +650,8 @@ function selectScheme(s) {
     btnHeight: s.tab_json.btnHeight || 28,
     btnRadius: s.tab_json.btnRadius || 7,
     colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333', navLine: '', ...(s.tab_json.colors || {}) },
-    items: (s.tab_json.items || []).map((it) => ({ text: it.text, icon: it.icon, url: it.url })),
+    items: (s.tab_json.items || []).map(normItem),
+    iconMode: s.tab_json.iconMode === 'img' ? 'img' : 'icon',
   });
   dirty.value = false;
 }
@@ -589,14 +666,15 @@ function createScheme() {
     type: 'flat',
     style: 'normal',
     corner: 'square',
+    iconMode: 'icon',
     bg: '',
     bgColor: '',
     btnHeight: 28,
     btnRadius: 7,
     colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333', navLine: '' },
     items: [
-      { text: '首页', icon: 'dashboard', url: '/pages/cardMain/home' },
-      { text: '我的', icon: 'user', url: '/pages/card/profile' },
+      normItem({ text: '首页', icon: 'dashboard', url: '/pages/cardMain/home' }),
+      normItem({ text: '我的', icon: 'user', url: '/pages/card/profile' }),
     ],
   });
   dirty.value = false;
@@ -616,12 +694,13 @@ async function save() {
         type: form.type,
         style: form.type === 'fan' ? 'normal' : form.style,
         corner: form.corner,
+        iconMode: form.iconMode,
         bg: form.bg,
         bgColor: form.bgColor,
         btnHeight: form.btnHeight,
         btnRadius: form.btnRadius,
         colors: { ...form.colors },
-        items: form.items.map((it) => ({ text: it.text, icon: it.icon, url: it.url })),
+        items: form.items.map((it) => ({ text: it.text, icon: it.icon, imgurl: it.imgurl || '', imgurlact: it.imgurlact || '', url: it.url })),
       },
     };
     await designCall.post(`${API}/tab/save`, payload);
@@ -668,7 +747,7 @@ async function delScheme(s) {
 // ============ 菜单项 ============
 function addItem() {
   if (form.items.length >= 5) return;
-  form.items.push({ text: '', icon: '', url: '' });
+  form.items.push(normItem({ text: '', icon: '', url: '' }));
   // 云菜鸟 1:1：新增菜单后默认仍选中第一项（滑块选中项不应跳到新增项）
   if (previewIdx.value < 0) previewIdx.value = 0;
 }
@@ -709,6 +788,8 @@ function confirmImgSel(url) {
     form.bg = url;
   } else if (imgSel.target === 'itemIcon' && imgSel.targetIdx !== null && form.items[imgSel.targetIdx]) {
     form.items[imgSel.targetIdx].icon = url;
+  } else if ((imgSel.target === 'itemImgUnselected' || imgSel.target === 'itemImgSelected') && imgSel.targetIdx !== null && form.items[imgSel.targetIdx]) {
+    form.items[imgSel.targetIdx][imgSel.target === 'itemImgUnselected' ? 'imgurl' : 'imgurlact'] = url;
   }
   imgSel.show = false;
 }
@@ -722,9 +803,28 @@ function confirmLink(link) {
   linkSel.show = false;
 }
 
+// 左栏 ··· 菜单统一入口（复制 / 设为默认 / 启停 / 删除）
+async function onSchemeCmd(cmd, s) {
+  if (cmd === 'copy') return copyScheme(s);
+  if (cmd === 'del') return delScheme(s);
+  if (cmd === 'toggle') return userToggle(s, s.enabled ? 0 : 1);
+  if (cmd === 'default') return setDefault(s);
+}
+async function setDefault(s) {
+  try {
+    await designCall.post(`${API}/tab/setDefault`, { id: s.id });
+    ElMessage.success('已设为默认导航');
+    await load();
+  } catch (e) { ElMessage.error(e); }
+}
+
 function goBack() {
   router.push('/design');
 }
+
+// 未保存状态上行给宿主（嵌入模式下由宿主顶栏展示）
+watch(dirty, (v) => emit('dirty-change', v));
+defineExpose({ save });
 
 onMounted(load);
 </script>
@@ -736,6 +836,12 @@ onMounted(load);
   flex-direction: column;
   background: #f2f3f5;
   min-width: 1100px;
+}
+/* 嵌入模式（页面装修左侧「底部导航」入口）：占满宿主主区，不限制最小宽度 */
+.tab-editor-page.is-embedded {
+  height: 100%;
+  min-width: 0;
+  background: transparent;
 }
 
 /* 顶部 */
@@ -759,7 +865,8 @@ onMounted(load);
 .te-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 360px;
+  /* 左栏收窄到 216（操作已收纳），右栏 340，省出的空间给中间手机预览 */
+  grid-template-columns: 216px minmax(0, 1fr) 340px;
   gap: 12px;
   padding: 12px;
   overflow: hidden;
@@ -769,16 +876,46 @@ onMounted(load);
 .te-right { padding: 16px; overflow-y: auto; }
 .te-center { display: flex; align-items: center; justify-content: center; padding: 12px; overflow: auto; }
 
-/* 左栏：导航列表 */
-.te-left-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
-.te-scheme { border: 1px solid #e5e6eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+/* 左栏：导航列表（窄栏优化版：两行卡片 + ··· 菜单 + 状态色点） */
+.te-left-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.te-left-title { display: flex; align-items: baseline; gap: 4px; font-size: 14px; font-weight: 600; color: #1d2129; }
+.te-left-count { font-size: 12px; font-weight: 400; color: #86909c; }
+.te-add-btn { width: 24px; height: 24px; padding: 0; font-size: 15px; line-height: 1; }
+.te-left-search { margin-bottom: 8px; }
+.te-scheme {
+  position: relative;
+  border: 1px solid #e5e6eb; border-radius: 8px;
+  padding: 8px 10px; margin-bottom: 8px; cursor: pointer;
+  overflow: hidden; transition: background .15s, border-color .15s;
+}
+.te-scheme:hover { border-color: #c9cdd4; }
+/* 选中：左侧竖条 + 浅蓝底（比只换边框更好认） */
 .te-scheme.active { border-color: #165dff; background: #e8f3ff; }
-.te-scheme-top { display: flex; align-items: center; gap: 6px; }
-.te-scheme-name { font-size: 13px; font-weight: 600; color: #1d2129; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.te-scheme-meta { font-size: 12px; color: #86909c; margin: 4px 0 6px; }
-.te-scheme-ops { display: flex; align-items: center; gap: 2px; }
-.te-scheme-ops :deep(.el-button + .el-button) { margin-left: 0; }
-.te-scheme-empty { color: #86909c; font-size: 12px; text-align: center; padding: 30px 0; }
+.te-scheme.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: #165dff;
+}
+.te-scheme-row1 { display: flex; align-items: center; gap: 6px; }
+.te-scheme-name { font-size: 13px; font-weight: 600; color: #1d2129; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.te-tag-default { flex-shrink: 0; height: 18px; padding: 0 5px; font-size: 11px; line-height: 16px; }
+/* ··· 默认隐藏，hover/选中时显示，避免常驻占宽度 */
+.te-scheme-more {
+  flex-shrink: 0; width: 18px; text-align: center; cursor: pointer;
+  color: #86909c; font-size: 14px; line-height: 14px; letter-spacing: 1px;
+  opacity: 0; transition: opacity .15s;
+}
+.te-scheme:hover .te-scheme-more, .te-scheme.active .te-scheme-more { opacity: 1; }
+.te-scheme-more:hover { color: #165dff; }
+.te-scheme-row2 { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+/* 状态色点：替代 el-switch，点击可切换启停 */
+.te-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: #c9cdd4; cursor: pointer; transition: background .15s;
+}
+.te-dot.on { background: #00b42a; }
+.te-dot:hover { box-shadow: 0 0 0 3px rgba(0, 180, 42, .15); }
+.te-scheme-meta { font-size: 12px; color: #86909c; }
+.te-scheme-empty { color: #86909c; font-size: 12px; text-align: center; padding: 24px 8px; line-height: 1.6; }
 
 /* 中栏：手机预览 */
 .te-center { flex-direction: column; }
@@ -1028,6 +1165,22 @@ onMounted(load);
   font-size: 11px;
   color: #86909c;
 }
+/* 图片模式：每个菜单项两张图（未选中 / 已选中） */
+.te-nav-icon-double { flex-direction: column; gap: 4px; width: 40px; }
+.te-nav-img-slot {
+  width: 36px;
+  height: 36px;
+  border: 1px dashed #c9cdd4;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.te-nav-img-slot:hover { border-color: #165dff; }
+.te-nav-img-thumb { width: 34px; height: 34px; object-fit: contain; }
+.te-nav-img-ph { font-size: 10px; color: #86909c; text-align: center; line-height: 1.2; }
 .te-nav-fields { flex: 1; min-width: 0; }
 .te-nav-text { margin-bottom: 6px; }
 .te-nav-link-row { display: flex; gap: 6px; }

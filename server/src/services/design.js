@@ -17,7 +17,8 @@ const DEFAULT_TAB_STYLE = {
   bgColor: '', // 扇形悬浮专用：背景颜色（云菜鸟扇形=背景颜色非图片）
   btnHeight: 28, // 按钮居中：中间按钮高度（px，云菜鸟默认28）
   btnRadius: 7, // 按钮居中：中间按钮圆角（px，云菜鸟默认7）
-  colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333', navLine: '' }, // 空色=不配置（C端回退主题色）；menuBg/menuText=扇形菜单背景/文字；navLine=导航横线
+  colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333',   navLine: '' }, // 空色=不配置（C端回退主题色）；menuBg/menuText=扇形菜单背景/文字；navLine=导航横线
+  iconMode: 'icon', // icon 图标 / img 图片（全局切换；图片模式每个菜单项两张图：未选中/已选中）
 };
 const TAB_TYPES = ['flat', 'float', 'fan'];
 const TAB_STYLES = ['normal', 'slider', 'btnCenter', 'btnRaise', 'btnInset'];
@@ -34,6 +35,7 @@ export function normalizeTabJson(raw) {
     type: TAB_TYPES.includes(o.type) ? o.type : DEFAULT_TAB_STYLE.type,
     style: TAB_STYLES.includes(o.style) ? o.style : DEFAULT_TAB_STYLE.style,
     corner: TAB_CORNERS.includes(o.corner) ? o.corner : DEFAULT_TAB_STYLE.corner,
+    iconMode: o.iconMode === 'img' ? 'img' : DEFAULT_TAB_STYLE.iconMode,
     bg: typeof o.bg === 'string' ? o.bg : '',
     bgColor: typeof o.bgColor === 'string' ? o.bgColor : '',
     btnHeight: typeof o.btnHeight === 'number' && o.btnHeight >= 20 && o.btnHeight <= 60 ? o.btnHeight : DEFAULT_TAB_STYLE.btnHeight,
@@ -49,6 +51,8 @@ export function normalizeTabJson(raw) {
     items: itemsRaw.map((it) => ({
       text: String(it?.text || ''),
       icon: String(it?.icon || ''),
+      imgurl: String(it?.imgurl || ''),
+      imgurlact: String(it?.imgurlact || ''),
       url: String(it?.url || ''),
     })),
   };

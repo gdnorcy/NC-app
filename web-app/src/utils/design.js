@@ -48,6 +48,7 @@ export function normalizeDesignConfig(raw) {
     type: ['flat', 'float', 'fan'].includes(tab?.type) ? tab.type : 'flat',
     style: ['normal', 'slider', 'btnCenter', 'btnRaise', 'btnInset'].includes(tab?.style) ? tab.style : 'normal',
     corner: ['square', 'round', 'arc'].includes(tab?.corner) ? tab.corner : 'square',
+    iconMode: tab?.iconMode === 'img' ? 'img' : 'icon',
     bg: typeof tab?.bg === 'string' ? tab.bg : '',
     bgColor: typeof tab?.bgColor === 'string' ? tab.bgColor : '',
     btnHeight: typeof tab?.btnHeight === 'number' ? tab.btnHeight : 28,
@@ -87,6 +88,8 @@ export function normalizeDesignConfig(raw) {
     tabItems: tabItems.map((it, i) => ({
       text: it.text || `导航${i + 1}`,
       icon: typeof it.icon === 'string' ? it.icon : '',
+      imgurl: typeof it.imgurl === 'string' ? it.imgurl : '',
+      imgurlact: typeof it.imgurlact === 'string' ? it.imgurlact : '',
       url: typeof it.url === 'string' && it.url.startsWith('/') ? it.url : `/pages/cardMain/home`,
     })),
     homePage,

@@ -13,7 +13,7 @@
       <template v-if="tabType === 'fan'">
         <view v-if="fanOpen" class="mp-fan-menu" :class="'mp-fan-count-' + designItems.length">
           <view v-for="(it, i) in designItems" :key="i" class="mp-fan-item" :class="'mp-fan-pos-' + i" :style="{ background: menuBgColor }" @click="goDesign(it)">
-            <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-fan-item-img" mode="aspectFit" />
+            <image v-if="useItemImg(it)" :src="iconUrl(itemImgSrc(it))" class="mp-fan-item-img" mode="aspectFit" />
             <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? activeColor : menuTextColor" />
             <text class="mp-fan-item-txt" :style="{ color: isOn(it) ? activeColor : menuTextColor }">{{ it.text }}</text>
           </view>
@@ -44,7 +44,7 @@
             :class="'mp-mid-' + tabStyle"
           >
             <view class="mp-mid-btn" :style="midBtnStyle">
-              <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-mid-img" mode="aspectFit" />
+              <image v-if="useItemImg(it)" :src="iconUrl(itemImgSrc(it))" class="mp-mid-img" mode="aspectFit" />
               <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
             </view>
             <text class="mp-mid-txt" :class="{ on: isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
@@ -52,7 +52,7 @@
 
           <!-- 常规项（含 slider 滑块项） -->
           <template v-else>
-            <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="tab-icon-img" mode="aspectFit" />
+            <image v-if="useItemImg(it)" :src="iconUrl(itemImgSrc(it))" class="tab-icon-img" mode="aspectFit" />
             <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :style="tabIconStyle" :color="tabStyle === 'slider' && isOn(it) ? '#ffffff' : tabColor(it)" />
             <text class="mp-tab-txt" :class="{ 'mp-tab-bold': isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </template>
@@ -107,6 +107,8 @@ const tabType = computed(() => tabStyleCfg.value.type || 'flat');
 const tabStyle = computed(() => tabStyleCfg.value.style || 'normal');
 const tabCorner = computed(() => tabStyleCfg.value.corner || 'square');
 const tabBg = computed(() => tabStyleCfg.value.bg || '');
+// 图标/图片模式（云菜鸟 iconimgshow：全局切换；图片模式每个菜单项两张图：未选中/已选中）
+const iconMode = computed(() => tabStyleCfg.value.iconMode === 'img' ? 'img' : 'icon');
 // 背景类型（云菜鸟实测矩阵）：fan、平铺/悬浮(普通/滑块/居中) = 背景颜色；平铺/悬浮(凸起/嵌入) = 背景图片
 const isColorBg = computed(() => {
   const st = ['normal', 'slider', 'btnCenter'].includes(tabStyle.value);
@@ -196,6 +198,12 @@ function iconUrl(u) {
   if (/^https?:|^data:/.test(u)) return u;
   return u.startsWith('/') ? API_DOMAIN + u : API_DOMAIN + '/' + u;
 }
+// 图片模式：按选中态返回 已选中图(imgurlact) / 未选中图(imgurl)，非图片模式或无图返回 null（回落图标）
+function itemImgSrc(it) {
+  if (iconMode.value !== 'img') return null;
+  return (isOn(it) && it.imgurlact) ? it.imgurlact : it.imgurl;
+}
+function useItemImg(it) { return !!itemImgSrc(it); }
 function currentRoute() {
   const pages = getCurrentPages();
   const cur = pages[pages.length - 1];
