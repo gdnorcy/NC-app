@@ -189,6 +189,13 @@ function tabbarStyle() {
     st.backgroundImage = `url(${iconUrl(bgPath)})`;
     st.backgroundSize = '100% 100%';
     st.backgroundPosition = 'center';
+    // 凸起/嵌入悬浮：背景图自带圆角阴影，只设位置
+    if (tabType.value === 'float') {
+      st.left = '32rpx';
+      st.right = '32rpx';
+      st.bottom = '28rpx';
+    }
+    return st;
   }
   // 底部悬浮：左右留白 + 底部留白 + 圆角卡片
   if (tabType.value === 'float') {
@@ -330,10 +337,10 @@ function hexA(hex, alpha) {
 .mp-mid-txt.on { font-weight: 600; }
 /* 按钮居中：红色pill圆角矩形 */
 .mp-mid-btnCenter .mp-mid-btn { margin-top: -28rpx; width: 112rpx; height: 56rpx; border-radius: 14rpx; }
-/* 按钮凸起：按钮约2/3在导航条外 */
-.mp-mid-btnRaise .mp-mid-btn { margin-top: -124rpx; width: 108rpx; height: 108rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
+/* 按钮凸起：约2/3在外，1/3嵌入凹槽 */
+.mp-mid-btnRaise .mp-mid-btn { margin-top: -92rpx; width: 108rpx; height: 108rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌在导航条内 */
-.mp-mid-btnInset .mp-mid-btn { margin-top: -28rpx; width: 96rpx; height: 96rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18); }
+.mp-mid-btnInset .mp-mid-btn { margin-top: -20rpx; width: 96rpx; height: 96rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18); }
 
 /* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .mp-fan-main {

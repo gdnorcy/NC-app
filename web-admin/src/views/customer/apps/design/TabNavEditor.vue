@@ -488,9 +488,15 @@ function tabbarStyle() {
     st.backgroundImage = `url(${resolveUrl(bgPath)})`;
     st.backgroundSize = '100% 100%';
     st.backgroundPosition = 'center';
-  } else {
-    st.background = '#ffffff';
+    // 凸起/嵌入用背景图时，背景图自带圆角和阴影，不再叠加额外样式
+    if (form.type === 'float') {
+      st.left = '16px';
+      st.right = '16px';
+      st.bottom = '14px';
+    }
+    return st;
   }
+  st.background = '#ffffff';
   if (form.type === 'float') {
     st.left = '16px';
     st.right = '16px';
@@ -864,10 +870,10 @@ onMounted(load);
   border-radius: 7px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
-/* 按钮凸起：按钮约2/3在导航条外（对齐云菜鸟） */
-.ph-mid-btnRaise .ph-mid-btn { margin-top: -62px; width: 54px; height: 54px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); }
-/* 按钮嵌入：半嵌在导航条内（对齐云菜鸟：按钮中心在导航条上沿） */
-.ph-mid-btnInset .ph-mid-btn { margin-top: -14px; width: 48px; height: 48px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
+/* 按钮凸起：按钮约2/3在外，1/3嵌入凹槽（对齐云菜鸟） */
+.ph-mid-btnRaise .ph-mid-btn { margin-top: -46px; width: 54px; height: 54px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); }
+/* 按钮嵌入：按钮半嵌在导航条内（对齐云菜鸟） */
+.ph-mid-btnInset .ph-mid-btn { margin-top: -10px; width: 48px; height: 48px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
 .ph-slider + image, .ph-slider + svg { position: relative; z-index: 1; }
 .ph-slider + image ~ text, .ph-slider + svg ~ text { position: relative; z-index: 1; }
 
