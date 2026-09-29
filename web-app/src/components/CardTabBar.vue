@@ -35,15 +35,17 @@
           <!-- slider：选中项图标后圆形滑块 -->
           <view v-if="tabStyle === 'slider' && isOn(it)" class="mp-slider" :style="{ background: activeSoft }"></view>
 
-          <!-- 按钮居中/凸起/嵌入：中间项渲染突出大按钮 -->
+          <!-- 按钮居中/凸起/嵌入：中间项渲染突出大按钮 + 文字（云菜鸟 1:1：标签保留） -->
           <view
             v-if="isMid(i) && ['btnCenter', 'btnRaise', 'btnInset'].includes(tabStyle)"
-            class="mp-mid-btn"
+            class="mp-mid"
             :class="'mp-mid-' + tabStyle"
-            :style="midBtnStyle"
           >
-            <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-mid-img" mode="aspectFit" />
-            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
+            <view class="mp-mid-btn" :style="midBtnStyle">
+              <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-mid-img" mode="aspectFit" />
+              <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
+            </view>
+            <text class="mp-mid-txt" :class="{ on: isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </view>
 
           <!-- 常规项（含 slider 滑块项） -->
@@ -292,29 +294,29 @@ function hexA(hex, alpha) {
 }
 .mp-slider + image, .mp-slider + .s-icon, .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
 
-/* 中间突出按钮（按钮居中/凸起/嵌入） */
+/* 中间突出项容器：圆形按钮 + 下方文字（云菜鸟 1:1：主按钮标签保留） */
+.mp-mid { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
 .mp-mid-btn {
   width: 96rpx;
   height: 96rpx;
   border-radius: 50%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #fff;
   box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.18);
-  align-self: flex-start;
-  margin-top: -36rpx;
+  align-self: center;
 }
 .mp-mid-btn .s-icon { margin: 0; }
 .mp-mid-img { width: 44rpx; height: 44rpx; }
-.mp-mid-txt { font-size: 20rpx; color: #fff; line-height: 1.3; }
-/* 按钮居中：居中凸出半个 */
-.mp-mid-btnCenter { margin-top: -30rpx; width: 100rpx; height: 100rpx; }
+.mp-mid-txt { font-size: 20rpx; line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
+.mp-mid-txt.on { font-weight: 600; }
+/* 按钮居中：居中凸出半个（作用于按钮，文字留在栏内） */
+.mp-mid-btnCenter .mp-mid-btn { margin-top: -30rpx; width: 100rpx; height: 100rpx; }
 /* 按钮凸起：明显凸出（上移更多 + 阴影加强；直径与云菜鸟 43px 一致） */
-.mp-mid-btnRaise { margin-top: -64rpx; width: 88rpx; height: 88rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
+.mp-mid-btnRaise .mp-mid-btn { margin-top: -64rpx; width: 88rpx; height: 88rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
-.mp-mid-btnInset { margin-top: -16rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
+.mp-mid-btnInset .mp-mid-btn { margin-top: -16rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
 
 /* 扇形悬浮 */
 .mp-fan-main {
