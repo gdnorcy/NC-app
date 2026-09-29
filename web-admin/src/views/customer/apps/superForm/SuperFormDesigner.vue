@@ -26,7 +26,9 @@
               v-for="item in group.items"
               :key="item.type"
               class="sf-pal-item"
+              draggable="true"
               @click="addComponent(item.type)"
+              @dragstart="onPaletteDrag(item.type, $event)"
             >{{ item.label }}</div>
           </div>
         </div>
@@ -36,22 +38,32 @@
       <div class="sf-canvas">
         <div class="sf-phone">
           <div class="sf-phone-bar"><span>13:32</span><span>表单</span></div>
-          <div class="sf-phone-body" :class="settings.layout">
-            <div
-              v-for="(comp, idx) in components"
-              :key="comp.id"
-              class="sf-comp"
-              :class="{ active: comp.id === selectedId }"
-              @click="selectedId = comp.id"
-            >
-              <div class="sf-comp-ops" v-if="comp.id === selectedId">
-                <span @click.stop="move(idx, -1)">↑</span>
-                <span @click.stop="move(idx, 1)">↓</span>
-                <span @click.stop="remove(idx)">✕</span>
+          <div
+            class="sf-phone-body"
+            :class="settings.layout"
+            @dragover.prevent="dragOverIdx = components.length"
+            @drop="onDrop(components.length, $event)"
+          >
+            <div v-for="(comp, idx) in components" :key="comp.id" class="sf-comp-wrap">
+              <div v-if="dragOverIdx === idx" class="sf-drop-line" />
+              <div
+                class="sf-comp"
+                :class="{ active: comp.id === selectedId }"
+                draggable="true"
+                @click="selectedId = comp.id"
+                @dragstart="onCompDrag(comp.id, $event)"
+                @dragend="resetDrag"
+                @dragover.prevent.stop="dragOverIdx = idx"
+                @drop.stop="onDrop(idx, $event)"
+              >
+                <div class="sf-comp-ops" v-if="comp.id === selectedId">
+                  <span @click.stop="remove(idx)">✕</span>
+                </div>
+                <ComponentPreview :comp="comp" />
               </div>
-              <ComponentPreview :comp="comp" />
             </div>
-            <div v-if="!components.length" class="sf-empty">请从左侧列表中选择一个组件，然后用鼠标拖动组件放置于此处。</div>
+            <div v-if="dragOverIdx === components.length" class="sf-drop-line" />
+            <div v-if="!components.length" class="sf-empty">请从左侧拖拽或点击组件，放置于此处。</div>
           </div>
         </div>
       </div>
@@ -66,13 +78,13 @@
           </el-tabs>
           <div v-if="propTab === 'content'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
-              <el-form-item label="是否显示" v-if="selected.type !== 'submit'">
+              <el-form-item label="是否显示" v-if="selected.type !== 'submit' && !noPropTypes.includes(selected.type)">
                 <el-radio-group v-model="selected.content.required">
                   <el-radio :value="true">显示</el-radio>
                   <el-radio :value="false">隐藏</el-radio>
                 </el-radio-group>
               </el-form-item>
-              <el-form-item label="是否必填" v-if="selected.type !== 'submit'">
+              <el-form-item label="是否必填" v-if="selected.type !== 'submit' && !noPropTypes.includes(selected.type)">
                 <el-radio-group v-model="selected.content.required">
                   <el-radio :value="true">必填</el-radio>
                   <el-radio :value="false">非必填</el-radio>
@@ -143,6 +155,184 @@
                     <el-radio value="date">日期</el-radio><el-radio value="time">日期+时间</el-radio>
                   </el-radio-group>
                 </el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'number'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
+                <el-form-item label="数值范围">最小 <el-input-number v-model="selected.content.min" :min="0" /> 最大 <el-input-number v-model="selected.content.max" :min="0" /></el-form-item>
+                <el-form-item label="默认值"><el-input v-model="selected.content.defaultValue" placeholder="选填" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'time'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="类型">
+                  <el-radio-group v-model="selected.content.dateType">
+                    <el-radio value="date">日期</el-radio><el-radio value="time">时间</el-radio><el-radio value="datetime">日期+时间</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'location'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="按钮文案"><el-input v-model="selected.content.tipText" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'attachment'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="最多上传"><el-input-number v-model="selected.content.maxCount" :min="1" :max="9" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'agreement'">
+                <el-form-item label="协议正文"><el-input v-model="selected.content.label" type="textarea" :rows="2" /></el-form-item>
+                <el-form-item label="必须勾选">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">是</el-radio><el-radio :value="false">否</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="链接文案"><el-input v-model="selected.content.linkText" /></el-form-item>
+                <el-form-item label="链接地址"><el-input v-model="selected.content.linkUrl" placeholder="https://" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'rate'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="最高分值"><el-input-number v-model="selected.content.max" :min="3" :max="10" /></el-form-item>
+                <el-form-item label="默认分值"><el-input-number v-model="selected.content.defaultValue" :min="0" :max="selected.content.max" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'filedownload'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="文件名称"><el-input v-model="selected.content.fileName" /></el-form-item>
+                <el-form-item label="文件地址"><el-input v-model="selected.content.fileUrl" placeholder="https://" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'phoneauth'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="按钮文案"><el-input v-model="selected.content.placeholder" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'carplate'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'title'">
+                <el-form-item label="标题文字"><el-input v-model="selected.content.text" /></el-form-item>
+                <el-form-item label="文字大小"><el-input-number v-model="selected.content.size" :min="12" :max="40" /> px</el-form-item>
+                <el-form-item label="对齐方式">
+                  <el-radio-group v-model="selected.content.align">
+                    <el-radio value="left">左</el-radio><el-radio value="center">中</el-radio><el-radio value="right">右</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="文字颜色"><el-color-picker v-model="selected.content.color" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'richtext'">
+                <el-form-item label="富文本"><el-input v-model="selected.content.html" type="textarea" :rows="4" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'blank'">
+                <el-form-item label="高度"><el-input-number v-model="selected.content.height" :min="1" :max="200" /> px</el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'line'">
+                <el-form-item label="线条样式">
+                  <el-select v-model="selected.content.style">
+                    <el-option label="实线" value="solid" />
+                    <el-option label="虚线" value="dashed" />
+                    <el-option label="点线" value="dotted" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="线条颜色"><el-color-picker v-model="selected.content.color" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'swiper'">
+                <el-form-item label="图片地址">
+                  <div v-for="(img, si) in selected.content.images" :key="si" class="sf-opt-row">
+                    <el-input v-model="selected.content.images[si]" placeholder="图片 URL" style="width: 220px" />
+                    <el-button text type="danger" @click="selected.content.images.splice(si, 1)">删</el-button>
+                  </div>
+                  <el-button size="small" @click="selected.content.images.push('')">+ 添加图片</el-button>
+                </el-form-item>
+                <el-form-item label="高度"><el-input-number v-model="selected.content.height" :min="60" :max="400" /> px</el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'bigimage'">
+                <el-form-item label="图片地址"><el-input v-model="selected.content.image" placeholder="图片 URL" /></el-form-item>
+                <el-form-item label="跳转链接"><el-input v-model="selected.content.link" placeholder="选填，点击大图跳转" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'video'">
+                <el-form-item label="视频地址"><el-input v-model="selected.content.src" placeholder="视频 URL" /></el-form-item>
+                <el-form-item label="封面图"><el-input v-model="selected.content.poster" placeholder="选填" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'backdesc'">
+                <el-form-item label="描述文字"><el-input v-model="selected.content.text" type="textarea" :rows="3" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'realtime'">
+                <el-form-item label="模块标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="动态文案"><el-input v-model="selected.content.title" placeholder="如：已有 0 人参与" /></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'pagebreak'">
+                <el-form-item label="说明"><span class="sf-hint">分页组件用于把表单拆成多页，填写者需逐页填写后提交。</span></el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'pay'">
+                <el-form-item label="支付标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="固定金额"><el-input-number v-model="selected.content.amount" :min="0" :precision="2" /> 元</el-form-item>
+                <el-form-item label="支付规格">
+                  <div v-for="(sp, spi) in selected.content.specs" :key="spi" class="sf-opt-row">
+                    <el-input v-model="sp.name" placeholder="规格名" style="width: 110px" />
+                    <el-input-number v-model="sp.price" :min="0" :precision="2" />
+                    <el-button text type="danger" @click="selected.content.specs.splice(spi, 1)">删</el-button>
+                  </div>
+                  <el-button size="small" @click="selected.content.specs.push({ name: '新规格', price: 0 })">+ 添加规格</el-button>
+                </el-form-item>
+                <el-form-item label="支付方式">
+                  <el-radio-group v-model="selected.content.payType">
+                    <el-radio value="wechat">微信支付</el-radio>
+                    <el-radio value="alipay">支付宝</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="说明"><span class="sf-hint">实际微信/支付宝支付将在发布后接入，当前仅记录所选规格与金额。</span></el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'submit'">
@@ -270,6 +460,8 @@ const saving = ref(false);
 
 const selected = computed(() => components.value.find((c) => c.id === selectedId.value) || null);
 const choiceComponents = computed(() => components.value.filter((c) => ['radio', 'checkbox', 'select'].includes(c.type)));
+// 纯展示/特殊组件不显示「是否显示 / 是否必填」表头
+const noPropTypes = ['pagebreak', 'backdesc', 'realtime', 'swiper', 'bigimage', 'title', 'richtext', 'blank', 'line', 'video', 'pay'];
 function optionsOf(compId) {
   const c = components.value.find((x) => x.id === compId);
   return c?.content?.options || [];
@@ -280,17 +472,50 @@ function addComponent(type) {
   components.value.push(createComponent(type));
   selectedId.value = components.value[components.value.length - 1].id;
 }
-function move(idx, dir) {
-  const ni = idx + dir;
-  if (ni < 0 || ni >= components.value.length) return;
-  const arr = components.value;
-  [arr[idx], arr[ni]] = [arr[ni], arr[idx]];
-  components.value = [...arr];
-}
 function remove(idx) {
   const id = components.value[idx].id;
   components.value.splice(idx, 1);
   if (selectedId.value === id) selectedId.value = null;
+}
+
+// ——— 真·拖拽：组件库拖入画布 / 画布内重排 ———
+const dragType = ref(null); // 从组件库拖入的类型
+const dragId = ref(null);   // 画布内拖动的组件 id
+const dragOverIdx = ref(-1); // 当前悬停插入位置
+
+function onPaletteDrag(type, ev) {
+  dragType.value = type;
+  dragId.value = null;
+  ev.dataTransfer.effectAllowed = 'copy';
+  ev.dataTransfer.setData('text/plain', type);
+}
+function onCompDrag(id, ev) {
+  dragId.value = id;
+  dragType.value = null;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', id);
+}
+function onDrop(targetIdx, ev) {
+  ev.preventDefault();
+  if (dragType.value) {
+    const comp = createComponent(dragType.value);
+    const i = Math.min(targetIdx, components.value.length);
+    components.value.splice(i, 0, comp);
+    selectedId.value = comp.id;
+  } else if (dragId.value) {
+    const from = components.value.findIndex((c) => c.id === dragId.value);
+    if (from === -1) return resetDrag();
+    const [moved] = components.value.splice(from, 1);
+    let to = targetIdx;
+    if (from < targetIdx) to = targetIdx - 1;
+    components.value.splice(to, 0, moved);
+  }
+  resetDrag();
+}
+function resetDrag() {
+  dragType.value = null;
+  dragId.value = null;
+  dragOverIdx.value = -1;
 }
 
 async function load() {
@@ -340,7 +565,10 @@ onMounted(load);
 .sf-phone-bar { height: 28px; background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 12px; }
 .sf-phone-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 .sf-phone-body.horizontal { flex-direction: row; flex-wrap: wrap; }
-.sf-comp { position: relative; border: 1px solid transparent; border-radius: 8px; padding: 8px; }
+.sf-comp-wrap { position: relative; }
+.sf-drop-line { height: 0; border-top: 2px solid #409eff; margin: 3px 2px; }
+.sf-comp { position: relative; border: 1px solid transparent; border-radius: 8px; padding: 8px; cursor: grab; }
+.sf-comp:active { cursor: grabbing; }
 .sf-comp.active { border-color: #409eff; }
 .sf-comp-ops { position: absolute; top: -12px; right: 6px; display: flex; gap: 6px; background: #409eff; color: #fff; border-radius: 4px; padding: 2px 6px; font-size: 12px; z-index: 2; }
 .sf-comp-ops span { cursor: pointer; }
