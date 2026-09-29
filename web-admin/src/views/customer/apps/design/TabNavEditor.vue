@@ -476,10 +476,17 @@ function isMid(i) { return i === midIdx.value; }
 function tabbarStyle() {
   const st = {};
   const useBgImg = ['btnRaise', 'btnInset'].includes(form.style);
-  if (useBgImg && form.bg) {
-    st.backgroundImage = `url(${resolveUrl(form.bg)})`;
-    // 平铺：拉伸铺满全宽（悬浮条图的圆角边距被裁掉）；悬浮：cover 保持比例
-    st.backgroundSize = form.type === 'float' ? 'cover' : '100% 100%';
+  if (useBgImg) {
+    // 按导航类型选对应背景图（菜鸟云：平铺 footerbg1_*，悬浮 footerbg2_*）
+    const isFlat = form.type !== 'float';
+    let bgPath = form.bg;
+    // 用户未自定义时，按类型自动选默认背景图
+    if (!bgPath || bgPath.includes('/images/tabbar-bg/btn-')) {
+      if (form.style === 'btnRaise') bgPath = `/images/tabbar-bg/btn-raise-${isFlat ? 'flat' : 'float'}.png`;
+      else bgPath = `/images/tabbar-bg/btn-inset-${isFlat ? 'flat' : 'float'}.png`;
+    }
+    st.backgroundImage = `url(${resolveUrl(bgPath)})`;
+    st.backgroundSize = '100% 100%';
     st.backgroundPosition = 'center';
   } else {
     st.background = '#ffffff';
