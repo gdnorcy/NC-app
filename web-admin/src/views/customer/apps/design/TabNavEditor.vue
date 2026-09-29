@@ -47,23 +47,25 @@
             </div>
             <!-- 底部导航预览（与 C 端 CardTabBar 同构渲染） -->
             <div class="ph-tabbar" :class="['ph-type-' + form.type]" :style="tabbarStyle()">
-              <!-- 扇形悬浮：中心主按钮 + 点击展开扇形菜单 -->
+              <!-- 扇形悬浮：右下菜单主按钮 + 弧形子菜单（云菜鸟 1:1：子菜单默认展开） -->
               <template v-if="form.type === 'fan'">
-                <view class="ph-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
-                  <SIcon :name="form.items[0]?.icon || fallbackIcon(form.items[0]?.text)" size="xlarge" color="#ffffff" />
-                  <text class="ph-fan-main-txt">{{ form.items[0]?.text }}</text>
-                </view>
                 <view v-if="fanOpen" class="ph-fan-menu">
                   <view
-                    v-for="(it, i) in form.items.slice(1)"
+                    v-for="(it, i) in form.items"
                     :key="i"
                     class="ph-fan-item"
+                    :class="'ph-fan-pos-' + i"
                     :style="{ background: form.colors.menuBg || '#ffffff' }"
-                    @click="previewIdx = i + 1"
+                    @click="previewIdx = i"
                   >
-                    <SIcon :name="it.icon || fallbackIcon(it.text)" size="default" :color="previewIdx === i + 1 ? activeColor : (form.colors.menuText || '#333333')" />
-                    <text :style="{ color: previewIdx === i + 1 ? activeColor : (form.colors.menuText || '#333333') }">{{ it.text }}</text>
+                    <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-fan-item-img" mode="aspectFit" />
+                    <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="default" :color="previewIdx === i ? activeColor : (form.colors.menuText || '#333333')" />
+                    <text :style="{ color: previewIdx === i ? activeColor : (form.colors.menuText || '#333333') }">{{ it.text }}</text>
                   </view>
+                </view>
+                <view class="ph-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
+                  <view class="ph-fan-main-icon"><i></i><i></i><i></i></view>
+                  <text class="ph-fan-main-txt">菜单</text>
                 </view>
               </template>
               <!-- 平铺/悬浮：5 种选中风格（云菜鸟 1:1：普通/滑块/按钮居中/按钮凸起/按钮嵌入） -->
@@ -89,9 +91,9 @@
                   </view>
                   <!-- 常规项 -->
                   <template v-else>
-                    <view v-if="form.style === 'slider' && previewIdx === i" class="ph-slider" :style="{ background: activeColorSoft }"></view>
+                    <view v-if="form.style === 'slider' && previewIdx === i" class="ph-slider" :style="{ background: activeColor }"></view>
                     <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-tab-icon-img" mode="aspectFit" />
-                    <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="large" :color="tabColor(i)" />
+                    <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="large" :color="form.style === 'slider' && previewIdx === i ? '#ffffff' : tabColor(i)" />
                     <text :style="{ color: tabColor(i) }" :class="{ 'ph-tab-bold': previewIdx === i }">{{ it.text }}</text>
                   </template>
                 </view>
@@ -335,7 +337,7 @@ const currentId = ref(null);
 const saving = ref(false);
 const dirty = ref(false);
 const previewIdx = ref(0);
-const fanOpen = ref(false);
+const fanOpen = ref(true); // 扇形子菜单默认展开（云菜鸟 1:1）
 const itemIconMode = ref('icon');
 // 主题主色 fallback（C 端选中色回退）
 const stylePrimary = ref('#165DFF');
@@ -428,6 +430,8 @@ watch(
   ],
   () => { if (currentId.value !== null || form.items.length) dirty.value = true; }
 );
+// 切到扇形类型时默认展开子菜单（云菜鸟 1:1）
+watch(() => form.type, (t) => { if (t === 'fan') fanOpen.value = true; });
 
 function fallbackIcon(text) {
   const m = { '首页': 'dashboard', '集市': 'market', '会员': 'crown', '我的': 'user', '名片': 'card', '人脉': 'market', '动态': 'dynamic', '消息': 'sms' };
@@ -447,7 +451,8 @@ function tabColor(i) {
 }
 // 中间项索引（云菜鸟实测：主按钮在中间菜单项，项数<3 则无主按钮）
 // 5 项→第3项(index=2)正中、4 项→第3项(index=2)偏右、3 项→第2项(index=1)正中、2 项→无
-const midIdx = computed(() => (form.items.length >= 3 ? Math.floor(form.items.length / 2) : -1));
+// 云菜鸟实测：偶数项（4 项）无主按钮凸起（退化均分），仅奇数项（3/5 项）中间主按钮
+const midIdx = computed(() => (form.items.length >= 3 && form.items.length % 2 === 1 ? Math.floor(form.items.length / 2) : -1));
 function isMid(i) { return i === midIdx.value; }
 function tabbarStyle() {
   const st = {};
@@ -768,13 +773,14 @@ onMounted(load);
 .ph-tab-icon-img { width: 22px; height: 22px; object-fit: contain; }
 .ph-slider {
   position: absolute;
-  top: 3px;
+  top: 0px;
   left: 50%;
   transform: translateX(-50%);
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   z-index: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 /* 中间突出项容器：圆形按钮 + 下方文字（云菜鸟 1:1：主按钮标签保留） */
 .ph-mid { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
@@ -817,12 +823,11 @@ onMounted(load);
 .ph-slider + image, .ph-slider + svg { position: relative; z-index: 1; }
 .ph-slider + image ~ text, .ph-slider + svg ~ text { position: relative; z-index: 1; }
 
-/* 扇形悬浮 */
+/* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .ph-fan-main {
   position: absolute;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
+  right: 20px;
+  bottom: 18px;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -835,28 +840,32 @@ onMounted(load);
   z-index: 12;
   cursor: pointer;
 }
-.ph-fan-main-txt { font-size: 9px; color: #fff; margin-top: -2px; }
-.ph-fan-menu {
-  position: absolute;
-  bottom: 84px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 14px;
-  z-index: 12;
-}
+.ph-fan-main-txt { font-size: 9px; color: #fff; margin-top: 2px; }
+.ph-fan-main-icon { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.ph-fan-main-icon i { display: block; width: 16px; height: 2px; border-radius: 1px; background: #fff; }
+.ph-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
 .ph-fan-item {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  font-size: 10px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 10px;
-  padding: 8px 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  justify-content: center;
+  gap: 1px;
+  font-size: 9px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   cursor: pointer;
+  pointer-events: auto;
+  line-height: 1.1;
 }
+.ph-fan-item-img { width: 20px; height: 20px; object-fit: contain; }
+.ph-fan-pos-0 { right: 18px; bottom: 108px; }
+.ph-fan-pos-1 { left: 26px; bottom: 262px; }
+.ph-fan-pos-2 { left: 26px; bottom: 196px; }
+.ph-fan-pos-3 { left: 42px; bottom: 128px; }
+.ph-fan-pos-4 { left: 26px; bottom: 326px; }
 
 /* 右栏：配置面板 */
 .te-group { margin-bottom: 22px; }

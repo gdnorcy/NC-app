@@ -7,19 +7,18 @@
   >
     <!-- 设计中心已发布底部导航方案：优先渲染配置项 -->
     <template v-if="designItems.length">
-      <!-- 扇形悬浮：中心主按钮 + 点击展开扇形菜单 -->
+      <!-- 扇形悬浮：右下菜单主按钮 + 弧形子菜单（云菜鸟 1:1：子菜单默认展开） -->
       <template v-if="tabType === 'fan'">
-        <view class="mp-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
-          <image v-if="isImgIcon(designItems[0].icon)" :src="iconUrl(designItems[0].icon)" class="mp-fan-main-img" mode="aspectFit" />
-          <SIcon v-else :name="designItems[0].icon || fallbackTabIcon(designItems[0].text)" size="xlarge" color="#ffffff" />
-          <text class="mp-fan-main-txt">{{ designItems[0].text }}</text>
-        </view>
-        <view v-if="fanOpen" class="mp-fan-menu" :style="{ background: menuBgColor }">
-          <view v-for="(it, i) in designItems.slice(1)" :key="i" class="mp-fan-item" :style="{ background: menuBgColor }" @click="goDesign(it)">
+        <view v-if="fanOpen" class="mp-fan-menu">
+          <view v-for="(it, i) in designItems" :key="i" class="mp-fan-item" :class="'mp-fan-pos-' + i" :style="{ background: menuBgColor }" @click="goDesign(it)">
             <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-fan-item-img" mode="aspectFit" />
             <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? activeColor : menuTextColor" />
             <text class="mp-fan-item-txt" :style="{ color: isOn(it) ? activeColor : menuTextColor }">{{ it.text }}</text>
           </view>
+        </view>
+        <view class="mp-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
+          <view class="mp-fan-main-icon"><i></i><i></i><i></i></view>
+          <text class="mp-fan-main-txt">菜单</text>
         </view>
       </template>
 
@@ -33,7 +32,7 @@
           @click="goDesign(it)"
         >
           <!-- slider：选中项图标后圆形滑块 -->
-          <view v-if="tabStyle === 'slider' && isOn(it)" class="mp-slider" :style="{ background: activeSoft }"></view>
+          <view v-if="tabStyle === 'slider' && isOn(it)" class="mp-slider" :style="{ background: activeColor }"></view>
 
           <!-- 按钮居中/凸起/嵌入：中间项渲染突出大按钮 + 文字（云菜鸟 1:1：标签保留） -->
           <view
@@ -51,7 +50,7 @@
           <!-- 常规项（含 slider 滑块项） -->
           <template v-else>
             <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="tab-icon-img" mode="aspectFit" />
-            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :style="tabIconStyle" :color="tabColor(it)" />
+            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :style="tabIconStyle" :color="tabStyle === 'slider' && isOn(it) ? '#ffffff' : tabColor(it)" />
             <text class="mp-tab-txt" :class="{ 'mp-tab-bold': isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </template>
         </view>
@@ -94,7 +93,7 @@ const props = defineProps({
 });
 
 const myCardId = ref(null);
-const fanOpen = ref(false);
+const fanOpen = ref(true); // 扇形子菜单默认展开（云菜鸟 1:1）
 
 // 设计中心配置：优先响应式本地值（挂载时拉取），回退 storage 缓存
 const localCfg = ref(null);
@@ -158,10 +157,9 @@ function tabColor(it) {
   return isOn(it) ? activeColor.value : inactiveColor.value;
 }
 function isMid(i) {
-  // 云菜鸟实测：主按钮在中间菜单项，项数<3 则无主按钮
-  // 5 项→第3项(index=2)正中、4 项→第3项(index=2)偏右、3 项→第2项(index=1)正中、2 项→无
+  // 云菜鸟实测：仅奇数项（5/3 项）中间菜单项有主按钮凸起，偶数项（4/2 项）无主按钮（退化均分）
   const n = designItems.value.length;
-  if (n < 3) return false;
+  if (n < 3 || n % 2 === 0) return false;
   return i === Math.floor(n / 2);
 }
 function tabbarStyle() {
@@ -318,12 +316,11 @@ function hexA(hex, alpha) {
 /* 按钮嵌入：半嵌 bar 内 */
 .mp-mid-btnInset .mp-mid-btn { margin-top: -16rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
 
-/* 扇形悬浮 */
+/* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .mp-fan-main {
   position: absolute;
-  left: 50%;
-  bottom: calc(28rpx + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+  right: 30rpx;
+  bottom: calc(40rpx + env(safe-area-inset-bottom));
   width: 108rpx;
   height: 108rpx;
   border-radius: 50%;
@@ -335,27 +332,29 @@ function hexA(hex, alpha) {
   box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.25);
   z-index: 12;
 }
-.mp-fan-main-img { width: 52rpx; height: 52rpx; }
-.mp-fan-main-txt { font-size: 20rpx; color: #fff; line-height: 1.3; margin-top: 2rpx; }
-.mp-fan-menu {
-  position: absolute;
-  bottom: calc(168rpx + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 24rpx;
-  z-index: 12;
-}
+.mp-fan-main-icon { display: flex; flex-direction: column; gap: 7rpx; align-items: center; }
+.mp-fan-main-icon i { display: block; width: 34rpx; height: 4rpx; border-radius: 2rpx; background: #fff; }
+.mp-fan-main-txt { font-size: 20rpx; color: #fff; line-height: 1.3; margin-top: 4rpx; }
+.mp-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
 .mp-fan-item {
+  position: absolute;
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6rpx;
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 20rpx;
-  padding: 16rpx 20rpx;
-  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.14);
+  justify-content: center;
+  gap: 2rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+  line-height: 1.2;
 }
 .mp-fan-item-img { width: 40rpx; height: 40rpx; }
 .mp-fan-item-txt { font-size: 20rpx; }
+.mp-fan-pos-0 { right: 36rpx; bottom: 216rpx; }
+.mp-fan-pos-1 { left: 52rpx; bottom: 524rpx; }
+.mp-fan-pos-2 { left: 52rpx; bottom: 392rpx; }
+.mp-fan-pos-3 { left: 84rpx; bottom: 256rpx; }
+.mp-fan-pos-4 { left: 52rpx; bottom: 652rpx; }
 </style>
