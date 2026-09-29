@@ -852,8 +852,8 @@ onMounted(load);
 /* 按钮居中：白色小圆凸出半个（对齐云菜鸟：白底深灰图标） */
 .ph-mid-btnCenter .ph-mid-btn { margin-top: -12px; width: 38px; height: 38px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15); }
 /* 按钮凸起：明显凸出（上移更多 + 阴影加强 + bar 增高） */
-/* 按钮凸起：明显凸出，无白色外框（对齐云菜鸟） */
-.ph-mid-btnRaise .ph-mid-btn { margin-top: -28px; width: 46px; height: 46px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); }
+/* 按钮凸起：按钮悬浮在凹槽上方有间隙（对齐云菜鸟） */
+.ph-mid-btnRaise .ph-mid-btn { margin-top: -38px; width: 46px; height: 46px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
 /* 按钮嵌入：按钮悬浮在凹槽上方有间隙，无白色外框（对齐云菜鸟） */
 .ph-mid-btnInset .ph-mid-btn { margin-top: -28px; width: 44px; height: 44px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
