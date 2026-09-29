@@ -877,11 +877,11 @@ onMounted(load);
   line-height: 1.1;
 }
 .ph-fan-item-img { width: 20px; height: 20px; object-fit: contain; }
-.ph-fan-pos-0 { right: 60px; bottom: 320px; }
-.ph-fan-pos-1 { left: 140px; bottom: 250px; }
-.ph-fan-pos-2 { left: 115px; bottom: 220px; }
-.ph-fan-pos-3 { left: 140px; bottom: 140px; }
-.ph-fan-pos-4 { right: 60px; bottom: 140px; }
+.ph-fan-pos-0 { right: 20px; bottom: 315px; }
+.ph-fan-pos-1 { right: 80px; bottom: 300px; }
+.ph-fan-pos-2 { right: 120px; bottom: 225px; }
+.ph-fan-pos-3 { right: 80px; bottom: 150px; }
+.ph-fan-pos-4 { right: 15px; bottom: 135px; }
 
 /* 右栏：配置面板 */
 .te-group { margin-bottom: 22px; }

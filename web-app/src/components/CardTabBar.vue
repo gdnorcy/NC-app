@@ -356,9 +356,10 @@ function hexA(hex, alpha) {
 }
 .mp-fan-item-img { width: 40rpx; height: 40rpx; }
 .mp-fan-item-txt { font-size: 20rpx; }
-.mp-fan-pos-0 { right: 140rpx; bottom: 750rpx; }
-.mp-fan-pos-1 { left: 330rpx; bottom: 585rpx; }
-.mp-fan-pos-2 { left: 270rpx; bottom: 515rpx; }
-.mp-fan-pos-3 { left: 330rpx; bottom: 330rpx; }
-.mp-fan-pos-4 { right: 140rpx; bottom: 330rpx; }
+/* 子按钮以主按钮圆心为基准沿左半圆弧均匀分布，互不重叠（对齐新菜鸟 1:1，与 admin 预览同比例） */
+.mp-fan-pos-0 { right: 40rpx; bottom: 630rpx; }   /* 右上：选中态 */
+.mp-fan-pos-1 { right: 160rpx; bottom: 600rpx; } /* 正上偏左 */
+.mp-fan-pos-2 { right: 240rpx; bottom: 450rpx; } /* 正左 */
+.mp-fan-pos-3 { right: 160rpx; bottom: 300rpx; } /* 左下 */
+.mp-fan-pos-4 { right: 30rpx; bottom: 270rpx; }  /* 右下 */
 </style>
