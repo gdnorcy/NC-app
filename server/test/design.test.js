@@ -194,6 +194,19 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     assert.equal(fanDft.colors.menuBg, '#ffffff');
     assert.equal(fanDft.colors.menuText, '#333333');
     assert.equal(fanDft.bgColor, '');
+    // 导航风格（style 5 种）联动字段：btnHeight/btnRadius（按钮居中）+ navLine（平铺普通/滑块/居中）
+    const btnC = svc.normalizeTabJson({ type: 'flat', style: 'btnCenter', btnHeight: 32, btnRadius: 10, colors: { navLine: '#dddddd' }, items: [{ text: '首页', url: '/h' }] });
+    assert.equal(btnC.btnHeight, 32);
+    assert.equal(btnC.btnRadius, 10);
+    assert.equal(btnC.colors.navLine, '#dddddd');
+    const btnCDft = svc.normalizeTabJson({ type: 'flat', style: 'btnCenter', items: [{ text: 'a', url: '/a' }] });
+    assert.equal(btnCDft.btnHeight, 28);
+    assert.equal(btnCDft.btnRadius, 7);
+    assert.equal(btnCDft.colors.navLine, '');
+    // 越界回退默认
+    const badBtn = svc.normalizeTabJson({ type: 'flat', style: 'btnCenter', btnHeight: 999, btnRadius: -1, items: [{ text: 'a', url: '/a' }] });
+    assert.equal(badBtn.btnHeight, 28);
+    assert.equal(badBtn.btnRadius, 7);
   });
 
   // ============ 首页跳转 ============

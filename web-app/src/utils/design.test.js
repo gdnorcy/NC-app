@@ -313,6 +313,15 @@ describe('设计中心 C 端渲染工具', () => {
     expect(fanDft.tabStyle.bgColor).toBe('');
     expect(fanDft.tabStyle.colors.menuBg).toBe('#ffffff');
     expect(fanDft.tabStyle.colors.menuText).toBe('#333333');
+    // 导航风格联动字段（btnHeight/btnRadius 按钮居中；navLine 平铺普通/滑块/居中）
+    const btnC = normalizeDesignConfig({ tab: { type: 'flat', style: 'btnCenter', btnHeight: 30, btnRadius: 12, colors: { navLine: '#dddddd' }, items: [{ text: 'a', url: '/a' }] } });
+    expect(btnC.tabStyle.btnHeight).toBe(30);
+    expect(btnC.tabStyle.btnRadius).toBe(12);
+    expect(btnC.tabStyle.colors.navLine).toBe('#dddddd');
+    const btnDft = normalizeDesignConfig({ tab: { type: 'flat', style: 'btnCenter', items: [{ text: 'a', url: '/a' }] } });
+    expect(btnDft.tabStyle.btnHeight).toBe(28);
+    expect(btnDft.tabStyle.btnRadius).toBe(7);
+    expect(btnDft.tabStyle.colors.navLine).toBe('');
     // 非法枚举回退默认（flat/normal/square/空bg）
     const bad = normalizeDesignConfig({ tab: { type: 'hack', style: 'hack', corner: 'hack', bg: 123, colors: { unselected: '', selected: 0 }, items: [] } });
     expect(bad.tabStyle.type).toBe('flat');

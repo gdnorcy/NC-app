@@ -40,17 +40,16 @@
             v-if="isMid(i) && ['btnCenter', 'btnRaise', 'btnInset'].includes(tabStyle)"
             class="mp-mid-btn"
             :class="'mp-mid-' + tabStyle"
-            :style="{ background: mainBtnBg }"
+            :style="midBtnStyle"
           >
             <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-mid-img" mode="aspectFit" />
             <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
-            <text class="mp-mid-txt">{{ it.text }}</text>
           </view>
 
           <!-- 常规项（含 slider 滑块项） -->
           <template v-else>
             <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="tab-icon-img" mode="aspectFit" />
-            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="tabColor(it)" />
+            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :style="tabIconStyle" :color="tabColor(it)" />
             <text class="mp-tab-txt" :class="{ 'mp-tab-bold': isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </template>
         </view>
@@ -109,6 +108,19 @@ const activeColor = computed(() => tabStyleCfg.value.colors?.selected || designC
 const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
 // 突出色：优先导航方案「突出颜色」，空则回退选中色
 const mainBtnBg = computed(() => tabStyleCfg.value.colors?.highlight || activeColor.value);
+// 中间按钮尺寸/形状（云菜鸟：按钮居中=圆角矩形(高=btnHeight 圆角=btnRadius)；凸起/嵌入=圆形）
+const midBtnStyle = computed(() => {
+  const h = (tabStyleCfg.value.btnHeight || 28) * 2;
+  const r = (tabStyleCfg.value.btnRadius || 7) * 2;
+  if (tabStyle.value === 'btnCenter') {
+    return { background: mainBtnBg.value, width: '76rpx', height: h + 'rpx', borderRadius: r + 'rpx' };
+  }
+  return { background: mainBtnBg.value };
+});
+// 导航横线（云菜鸟：平铺普通/滑块/居中 配置项；不填则不显示）
+const navLineColor = computed(() => tabStyleCfg.value.colors?.navLine || '');
+// 常规图标尺寸（云菜鸟 26px → 52rpx）
+const tabIconStyle = { width: '52rpx', height: '52rpx' };
 // 扇形悬浮：菜单背景/菜单文字（云菜鸟联动；未配置回退白底/深灰）
 const menuBgColor = computed(() => tabStyleCfg.value.colors?.menuBg || '#ffffff');
 const menuTextColor = computed(() => tabStyleCfg.value.colors?.menuText || '#333333');
@@ -161,6 +173,12 @@ function tabbarStyle() {
     st.bottom = '28rpx';
     st.borderRadius = '48rpx';
     st.boxShadow = '0 8rpx 32rpx rgba(0,0,0,0.12)';
+  }
+  // 导航横线（云菜鸟：平铺 普通/滑块/居中 配置项；有值=显示配置色，空=隐藏）
+  if (navLineColor.value) {
+    st.borderTop = `1px solid ${navLineColor.value}`;
+  } else if (tabType.value !== 'float') {
+    st.borderTop = 'none';
   }
   return st;
 }
@@ -249,7 +267,7 @@ function hexA(hex, alpha) {
   position: relative;
 }
 .mtb.on { font-weight: 500; }
-.mp-tab-txt { line-height: 1.2; }
+.mp-tab-txt { line-height: 1.2; font-size: 36rpx; }
 .mp-tab-bold { font-weight: 600; }
 .tab-icon-img { width: 44rpx; height: 44rpx; }
 
@@ -285,8 +303,8 @@ function hexA(hex, alpha) {
 .mp-mid-txt { font-size: 20rpx; color: #fff; line-height: 1.3; }
 /* 按钮居中：居中凸出半个 */
 .mp-mid-btnCenter { margin-top: -30rpx; width: 100rpx; height: 100rpx; }
-/* 按钮凸起：明显凸出（上移更多 + 阴影加强） */
-.mp-mid-btnRaise { margin-top: -60rpx; width: 112rpx; height: 112rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
+/* 按钮凸起：明显凸出（上移更多 + 阴影加强；直径与云菜鸟 43px 一致） */
+.mp-mid-btnRaise { margin-top: -64rpx; width: 88rpx; height: 88rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
 .mp-mid-btnInset { margin-top: -16rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
 
