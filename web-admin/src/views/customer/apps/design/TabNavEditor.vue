@@ -841,7 +841,7 @@ onMounted(load);
 /* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .ph-fan-main {
   position: absolute;
-  right: 20px;
+  right: 40px;
   bottom: 220px;
   width: 56px;
   height: 56px;
@@ -859,12 +859,7 @@ onMounted(load);
 .ph-fan-main-icon { display: flex; flex-direction: column; gap: 3px; align-items: center; }
 .ph-fan-main-icon i { display: block; width: 16px; height: 2px; border-radius: 1px; background: #fff; }
 .ph-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
-/* 4 项扇形：云菜鸟右侧弧形（子菜单全部右侧、主按钮右中偏下） */
-.ph-fan-count-4 .ph-fan-pos-0 { right: 60px; bottom: 340px; left: auto; }
-.ph-fan-count-4 .ph-fan-pos-1 { right: 60px; bottom: 280px; left: auto; }
-.ph-fan-count-4 .ph-fan-pos-2 { right: 60px; bottom: 220px; left: auto; }
-.ph-fan-count-4 .ph-fan-pos-3 { right: 60px; bottom: 160px; left: auto; }
-.ph-fan-count-4 .ph-fan-main { right: 20px; bottom: 220px; }
+/* 4 项与 5 项扇形弧线统一（菜鸟云：右上1+左弧3，5项加右下） */
 .ph-fan-item {
   position: absolute;
   width: 46px;
@@ -882,11 +877,11 @@ onMounted(load);
   line-height: 1.1;
 }
 .ph-fan-item-img { width: 20px; height: 20px; object-fit: contain; }
-.ph-fan-pos-0 { right: 44px; bottom: 300px; }
-.ph-fan-pos-1 { left: 44px; bottom: 300px; }
-.ph-fan-pos-2 { left: 20px; bottom: 220px; }
-.ph-fan-pos-3 { left: 44px; bottom: 140px; }
-.ph-fan-pos-4 { right: 44px; bottom: 140px; }
+.ph-fan-pos-0 { right: 60px; bottom: 320px; }
+.ph-fan-pos-1 { left: 140px; bottom: 250px; }
+.ph-fan-pos-2 { left: 115px; bottom: 220px; }
+.ph-fan-pos-3 { left: 140px; bottom: 140px; }
+.ph-fan-pos-4 { right: 60px; bottom: 140px; }
 
 /* 右栏：配置面板 */
 .te-group { margin-bottom: 22px; }
