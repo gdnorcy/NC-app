@@ -30,7 +30,7 @@
             <div class="te-scheme-ops" @click.stop>
               <el-button size="small" text @click="copyScheme(s)">复制</el-button>
               <el-button size="small" text type="danger" :disabled="s.is_default" @click="delScheme(s)">删除</el-button>
-              <el-switch :model-value="s.enabled" size="small" @change="(v) => toggleScheme(s, v)" />
+              <el-switch :model-value="s.enabled" :active-value="1" :inactive-value="0" size="small" @change="(v) => userToggle(s, v)" />
             </div>
           </div>
           <div v-if="!schemes.length" class="te-scheme-empty">暂无导航方案，点击上方「创建新导航」</div>
@@ -257,15 +257,43 @@
       </aside>
     </div>
 
-    <!-- 示例展示弹层（云菜鸟：导航风格大图预览，左右切换） -->
-    <el-dialog v-model="example.show" title="示例展示" width="520px" append-to-body>
+    <!-- 示例展示弹层（云菜鸟：弹窗内实时渲染当前方案，切换风格/类型/菜单实时联动） -->
+    <el-dialog v-model="example.show" title="示例展示" width="480px" append-to-body>
       <div class="te-example">
-        <img :src="exampleImg" class="te-example-img" :alt="exampleLabel" />
-        <div class="te-example-meta">{{ exampleLabel }}（{{ example.idx + 1 }} / {{ exampleImgs.length }}）</div>
-        <div class="te-example-nav">
-          <el-button size="small" @click="examplePrev">上一个</el-button>
-          <el-button size="small" @click="exampleNext">下一个</el-button>
+        <div class="te-example-phone">
+          <div class="ph-page">
+            <div class="ph-page-placeholder"></div>
+          </div>
+          <div class="ph-tabbar" :class="['ph-type-' + form.type]" :style="tabbarStyle()">
+            <template v-if="form.type === 'fan'">
+              <view class="ph-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
+                <SIcon :name="form.items[0]?.icon || fallbackIcon(form.items[0]?.text)" size="xlarge" color="#ffffff" />
+                <text class="ph-fan-main-txt">{{ form.items[0]?.text }}</text>
+              </view>
+              <view v-if="fanOpen" class="ph-fan-menu">
+                <view v-for="(it, i) in form.items.slice(1)" :key="i" class="ph-fan-item" :style="{ background: form.colors.menuBg || '#ffffff' }" @click="previewIdx = i + 1">
+                  <SIcon :name="it.icon || fallbackIcon(it.text)" size="default" :color="previewIdx === i + 1 ? activeColor : (form.colors.menuText || '#333333')" />
+                  <text :style="{ color: previewIdx === i + 1 ? activeColor : (form.colors.menuText || '#333333') }">{{ it.text }}</text>
+                </view>
+              </view>
+            </template>
+            <template v-else>
+              <view v-for="(it, i) in form.items" :key="i" class="ph-tab" :class="[{ on: previewIdx === i }, 'ph-st-' + form.style, { 'ph-mid': isMid(i) }]" @click="previewIdx = i">
+                <view v-if="isMid(i) && ['btnCenter', 'btnRaise', 'btnInset'].includes(form.style)" class="ph-mid-btn" :class="'ph-mid-' + form.style" :style="{ background: mainBtnBg }">
+                  <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-mid-img" mode="aspectFit" />
+                  <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="xlarge" color="#ffffff" />
+                </view>
+                <template v-else>
+                  <view v-if="form.style === 'slider' && previewIdx === i" class="ph-slider" :style="{ background: activeColorSoft }"></view>
+                  <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-tab-icon-img" mode="aspectFit" />
+                  <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="large" :color="tabColor(i)" />
+                  <text :style="{ color: tabColor(i) }" :class="{ 'ph-tab-bold': previewIdx === i }">{{ it.text }}</text>
+                </template>
+              </view>
+            </template>
+          </div>
         </div>
+        <div class="te-example-meta">实时预览当前方案（菜单 {{ form.items.length }} 项）· 切换右侧风格 / 类型 / 颜色实时联动</div>
       </div>
     </el-dialog>
 
@@ -299,13 +327,12 @@ import PeColorPicker from './PeColorPicker.vue';
 import MaterialPicker from './MaterialPicker.vue';
 import LinkPicker from './LinkPicker.vue';
 import { designCall } from '../../../../api';
-// 导航风格示例图（云菜鸟原版：普通/滑块/按钮居中/按钮凸起/按钮嵌入/扇形）
+// 导航风格缩略图（风格选择网格用；示例弹窗已改为实时渲染）
 import tabStyle1 from '../../../../assets/design-styles/tabStyle_1.png';
 import tabStyle2 from '../../../../assets/design-styles/tabStyle_2.png';
 import tabStyle3 from '../../../../assets/design-styles/tabStyle_3.png';
 import tabStyle4 from '../../../../assets/design-styles/tabStyle_4.png';
 import tabStyle5 from '../../../../assets/design-styles/tabStyle_5.png';
-import tabStyle6 from '../../../../assets/design-styles/tabStyle_6.png';
 
 const API = '/design';
 const router = useRouter();
@@ -354,22 +381,11 @@ const form = reactive({
 });
 
 const iconSel = reactive({ show: false, idx: null });
-// 示例展示（云菜鸟：导航风格大图 1-6，左右切换）
-const example = reactive({ show: false, idx: 0 });
-const exampleImgs = [tabStyle1, tabStyle2, tabStyle3, tabStyle4, tabStyle5, tabStyle6];
-const exampleLabels = ['普通样式', '滑块样式', '按钮居中', '按钮凸起', '按钮嵌入', '扇形悬浮'];
-const exampleImg = computed(() => exampleImgs[example.idx]);
-const exampleLabel = computed(() => exampleLabels[example.idx]);
-function exampleCurrent() {
-  const map = { normal: 0, slider: 1, btnCenter: 2, btnRaise: 3, btnInset: 4, fan: 5 };
-  return form.type === 'fan' ? 5 : (map[form.style] ?? 0);
-}
+// 示例展示（云菜鸟：弹窗内为当前方案的实时渲染预览，切换风格/类型/菜单实时联动）
+const example = reactive({ show: false });
 function openExample() {
-  example.idx = exampleCurrent();
   example.show = true;
 }
-function examplePrev() { example.idx = (example.idx + exampleImgs.length - 1) % exampleImgs.length; }
-function exampleNext() { example.idx = (example.idx + 1) % exampleImgs.length; }
 const imgSel = reactive({ show: false, target: null, targetIdx: null });
 const linkSel = reactive({ show: false, idx: null, val: '' });
 const linkVal = computed(() => {
@@ -443,9 +459,9 @@ function resolveUrl(u) {
 function tabColor(i) {
   return previewIdx === i ? activeColor.value : (form.colors.unselected || '#9a9a9a');
 }
-// 中间项索引（云菜鸟实测：主按钮固定为第 3 个菜单项 index=2；项数<3 则无主按钮）
-// 5 项→第3项正中、4 项→第3项偏右、3 项→第3项、2 项→无主按钮
-const midIdx = computed(() => (form.items.length >= 3 ? 2 : -1));
+// 中间项索引（云菜鸟实测：主按钮在中间菜单项，项数<3 则无主按钮）
+// 5 项→第3项(index=2)正中、4 项→第3项(index=2)偏右、3 项→第2项(index=1)正中、2 项→无
+const midIdx = computed(() => (form.items.length >= 3 ? Math.floor(form.items.length / 2) : -1));
 function isMid(i) { return i === midIdx.value; }
 function tabbarStyle() {
   const st = {};
@@ -475,6 +491,8 @@ async function load() {
   try {
     const res = await designCall.get(`${API}/tab/list`);
     schemes.value = res.list || [];
+    toggleReady = false;
+    setTimeout(() => { toggleReady = true; }, 500);
   } catch (e) { ElMessage.error(e); }
   try {
     const st = await designCall.get(`${API}/style/get`);
@@ -572,13 +590,19 @@ async function save() {
 async function copyScheme(s) {
   try { await designCall.post(`${API}/tab/copy`, { id: s.id }); ElMessage.success('已复制'); load(); } catch (e) { ElMessage.error(e); }
 }
-async function toggleScheme(s, v) {
-  // 仅用户交互触发（:model-value 外部赋值不会派发用户 change；此处再按值与当前显示一致跳过，防初始化/外部赋值误触发）
+// el-switch 的 change 在初始化/外部赋值时也会派发（会把 enabled 误写成 0），
+// 列表加载完成并稳定渲染后才放行真实交互；期间 change 一律忽略
+let toggleReady = false;
+function userToggle(s, v) {
+  if (!toggleReady) return;
   const next = v ? 1 : 0;
   if (s.enabled === next) return;
   const prev = s.enabled;
   s.enabled = next; // 乐观更新
-  try { await designCall.post(`${API}/tab/save`, { id: s.id, enabled: next }); } catch (e) { s.enabled = prev; ElMessage.error(e); }
+  designCall.post(`${API}/tab/save`, { id: s.id, enabled: next }).catch((e) => {
+    s.enabled = prev;
+    ElMessage.error(e);
+  });
 }
 async function delScheme(s) {
   try { await ElMessageBox.confirm(`确认删除导航方案「${s.scheme_name}」？`, '删除确认', { type: 'warning' }); } catch { return; }
@@ -916,11 +940,13 @@ onMounted(load);
 }
 .te-nav-add:hover { border-color: #165dff; color: #165dff; }
 
-/* 示例展示弹层 */
+/* 示例展示弹层（实时渲染手机预览） */
 .te-example { text-align: center; }
-.te-example-img { max-width: 100%; border-radius: 8px; border: 1px solid #e5e6eb; }
-.te-example-meta { font-size: 13px; color: #4e5969; margin: 10px 0; }
-.te-example-nav { display: flex; justify-content: center; gap: 10px; }
+.te-example-phone { width: 300px; margin: 0 auto; border: 6px solid #1d2129; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+.te-example-phone .ph-page { height: 120px; }
+.te-example-phone .ph-tabbar,
+.te-example-phone .ph-type-float { position: relative; }
+.te-example-meta { font-size: 13px; color: #4e5969; margin: 12px 0 4px; }
 
 /* 图标选择弹层 */
 .te-icon-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-height: 380px; overflow-y: auto; }
