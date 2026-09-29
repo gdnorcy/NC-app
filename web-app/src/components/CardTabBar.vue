@@ -5,6 +5,8 @@
     :class="['mp-tabbar-' + tabType, 'mp-corner-' + tabCorner, 'mp-st-' + tabStyle]"
     :style="tabbarStyle()"
   >
+    <!-- 按钮凸起/嵌入：导航背景图独立图层（云菜鸟：contain + center bottom，容器高=背景图高/2） -->
+    <view v-if="bgLayerStyle" class="mp-tabbar-bg" :style="bgLayerStyle"></view>
     <!-- 设计中心已发布底部导航方案：优先渲染配置项 -->
     <template v-if="designItems.length">
       <!-- 扇形悬浮：右下菜单主按钮 + 弧形子菜单（云菜鸟 1:1：子菜单默认展开） -->
@@ -29,6 +31,7 @@
           :key="i"
           class="mtb"
           :class="[{ on: isOn(it) }, 'mtb-' + tabStyle, { 'mp-mid': isMid(i) }]"
+          :style="itemStyle()"
           @click="goDesign(it)"
         >
           <!-- slider：选中项图标后圆形滑块 -->
@@ -123,6 +126,45 @@ const mainBtnBg = computed(() => {
   if (c.selected && c.selected !== 'transparent') return c.selected;
   return '#ff4d4f';
 });
+/**
+ * 按钮凸起/嵌入几何（云菜鸟后台实测，预览宽 375px 1:1；rpx = px × 2）
+ * 容器高 = 背景图高/2（图 750 宽 → 375 宽等比），padding 与中钮负边距均按实测值
+ * footnav_4=凸起 / footnav_5=嵌入；foot_styleBox1=普通平铺 / foot_styleBox2=底部悬浮
+ */
+const BTN_BG_METRIC = {
+  'flat-btnRaise': { h: 164, padTop: 52, padSide: 0, mt: -60, mb: 16 },   // 82px / padding-top 26 / 中钮 -30 / 8
+  'flat-btnInset': { h: 110, padTop: 0, padSide: 0, mt: -64, mb: 22 },    // 55px / 0 / -32 / 11
+  'float-btnRaise': { h: 190, padTop: 52, padSide: 40, mt: -60, mb: 16 }, // 95px / 26+左右20 / -30 / 8
+  'float-btnInset': { h: 138, padTop: 0, padSide: 40, mt: -64, mb: 22 },  // 69px / 左右20 / -32 / 11
+};
+const btnMetric = computed(() => BTN_BG_METRIC[`${tabType.value}-${tabStyle.value}`] || null);
+// 背景图：云菜鸟原图命名 footerbg{1平铺|2悬浮}_{1凸起|2嵌入} / footerbg2_{4凸起|5嵌入}_{1直角|2圆角|3弧形}
+const bgImgPath = computed(() => {
+  const kind = tabStyle.value === 'btnRaise' ? 'raise' : 'inset';
+  if (tabType.value === 'float') {
+    const c = tabCorner.value === 'square' ? '-square' : tabCorner.value === 'arc' ? '-arc' : '';
+    return `/images/tabbar-bg/btn-${kind}-float${c}.png`;
+  }
+  return `/images/tabbar-bg/btn-${kind}-flat.png`;
+});
+// 背景图独立图层：高度=导航条高度（不含安全区），contain + center bottom 对齐云菜鸟
+const bgLayerStyle = computed(() => {
+  if (isColorBg.value || !btnMetric.value) return null;
+  let bgPath = tabBg.value;
+  if (!bgPath || bgPath.includes('/images/tabbar-bg/btn-')) bgPath = bgImgPath.value;
+  return {
+    height: btnMetric.value.h + 'rpx',
+    backgroundImage: `url(${iconUrl(bgPath)})`,
+    backgroundSize: 'contain',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center bottom',
+  };
+});
+// 菜单项高度（凸起/嵌入时按云菜鸟实测：容器高 - padding-top）
+function itemStyle() {
+  const m = btnMetric.value;
+  return m ? { height: m.h - m.padTop + 'rpx' } : {};
+}
 // 中间按钮尺寸/形状（云菜鸟：按钮居中=圆角矩形(高=btnHeight 圆角=btnRadius)；凸起/嵌入=圆形）
 const midBtnStyle = computed(() => {
   const h = (tabStyleCfg.value.btnHeight || 28) * 2;
@@ -179,21 +221,16 @@ function tabbarStyle() {
   if (isColorBg.value) {
     st.background = tabStyleCfg.value.bgColor || '#ffffff';
   } else {
-    // 按钮凸起/嵌入：按导航类型选对应背景图（平铺 footerbg1_*，悬浮 footerbg2_*）
-    const isFlat = tabType.value !== 'float';
-    let bgPath = tabBg.value;
-    if (!bgPath || bgPath.includes('/images/tabbar-bg/btn-')) {
-      if (tabStyle.value === 'btnRaise') bgPath = `/images/tabbar-bg/btn-raise-${isFlat ? 'flat' : 'float'}.png`;
-      else bgPath = `/images/tabbar-bg/btn-inset-${isFlat ? 'flat' : 'float'}.png`;
-    }
-    st.backgroundImage = `url(${iconUrl(bgPath)})`;
-    st.backgroundSize = '100% 100%';
-    st.backgroundPosition = 'center';
-    // 凸起/嵌入悬浮：背景图自带圆角阴影，只设位置
-    if (tabType.value === 'float') {
-      st.left = '32rpx';
-      st.right = '32rpx';
-      st.bottom = '28rpx';
+    // 按钮凸起/嵌入：云菜鸟 1:1 —— 背景图由独立图层渲染（contain + center bottom），
+    // 容器只负责内边距（内缩由背景图自带透明边 + padding 共同决定），不再拉伸背景、不再手动偏移悬浮位置
+    const m = btnMetric.value;
+    if (m) {
+      st.paddingTop = m.padTop + 'rpx';
+      st.paddingLeft = m.padSide + 'rpx';
+      st.paddingRight = m.padSide + 'rpx';
+      st.paddingBottom = 'env(safe-area-inset-bottom)';
+      // 无菜单项时兜底撑住导航条（菜单项高度由 itemStyle 给出）
+      st.minHeight = m.h - m.padTop + 'rpx';
     }
     return st;
   }
@@ -318,6 +355,36 @@ function hexA(hex, alpha) {
 .mtb-slider.on .s-icon, .mtb-slider.on .tab-icon-img { position: relative; top: -24rpx; z-index: 1; }
 .mp-slider + image, .mp-slider + .s-icon, .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
 
+/* 按钮凸起/嵌入：云菜鸟 1:1 图层与排版修正 */
+.mp-tabbar.mp-st-btnRaise, .mp-tabbar.mp-st-btnInset { overflow: visible; }
+.mp-tabbar-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+/* 菜单项：云菜鸟 .item 为 flex 居中（无 gap），常规图标 26px→52rpx，文字 12px→24rpx */
+.mp-tabbar.mp-st-btnRaise .mtb,
+.mp-tabbar.mp-st-btnInset .mtb { justify-content: center; gap: 0; position: relative; z-index: 1; }
+.mp-tabbar.mp-st-btnRaise .mp-tab-txt,
+.mp-tabbar.mp-st-btnInset .mp-tab-txt,
+.mp-tabbar.mp-st-btnRaise .mp-mid-txt,
+.mp-tabbar.mp-st-btnInset .mp-mid-txt { font-size: 24rpx; line-height: 36rpx; }
+.mp-tabbar.mp-st-btnRaise .tab-icon-img,
+.mp-tabbar.mp-st-btnInset .tab-icon-img { width: 56rpx; height: 56rpx; }
+/* 中钮：云菜鸟 navNum_icon 43×43px → 86rpx，阴影 0 3px 2px rgba(165,178,195,.22)
+   凸起 margin-top -30px / 嵌入 -32px，配 flex 居中实现"骑在导航条凹槽/凸台上" */
+.mp-mid-btnRaise, .mp-mid-btnInset { height: auto; justify-content: flex-start; }
+.mp-mid-btnRaise .mp-mid-btn,
+.mp-mid-btnInset .mp-mid-btn {
+  width: 86rpx;
+  height: 86rpx;
+  box-shadow: 0 6rpx 4rpx rgba(165, 178, 195, 0.22);
+}
+.mp-mid-btnRaise .mp-mid-btn { margin-top: -60rpx; margin-bottom: 16rpx; }
+.mp-mid-btnInset .mp-mid-btn { margin-top: -64rpx; margin-bottom: 22rpx; }
 /* 中间突出项容器：圆形按钮 + 下方文字（云菜鸟 1:1：主按钮标签保留） */
 .mp-mid { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
 .mp-mid-btn {
@@ -335,12 +402,11 @@ function hexA(hex, alpha) {
 .mp-mid-img { width: 44rpx; height: 44rpx; }
 .mp-mid-txt { font-size: 20rpx; line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
 .mp-mid-txt.on { font-weight: 600; }
+.mp-mid-btnRaise .mp-mid-txt, .mp-mid-btnInset .mp-mid-txt { margin-top: 0; }
 /* 按钮居中：红色pill圆角矩形 */
 .mp-mid-btnCenter .mp-mid-btn { margin-top: -28rpx; width: 112rpx; height: 56rpx; border-radius: 14rpx; }
-/* 按钮凸起：约2/3在外，1/3嵌入凹槽 */
-.mp-mid-btnRaise .mp-mid-btn { margin-top: -92rpx; width: 108rpx; height: 108rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
-/* 按钮嵌入：半嵌在导航条内 */
-.mp-mid-btnInset .mp-mid-btn { margin-top: -20rpx; width: 96rpx; height: 96rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18); }
+/* 凸起/嵌入：中钮图标 23px→46rpx、图片图标 28px→56rpx（云菜鸟 .item img） */
+.mp-mid-btnRaise .mp-mid-img, .mp-mid-btnInset .mp-mid-img { width: 56rpx; height: 56rpx; }
 
 /* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .mp-fan-main {
@@ -366,8 +432,7 @@ function hexA(hex, alpha) {
   background: transparent;
   border-top: none;
 }
-.mp-tabbar.mp-st-btnRaise { min-height: 160rpx; }
-.mp-tabbar.mp-st-btnInset { min-height: 110rpx; }
+/* 高度由菜单项撑起（= 背景图高/2 - padding-top），不再写死 min-height */
 .mp-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
 /* 4 项与 5 项扇形弧线统一（菜鸟云：右上1+左弧3，5项加右下） */
 .mp-fan-item {

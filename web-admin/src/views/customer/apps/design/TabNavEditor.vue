@@ -85,7 +85,12 @@
                   >
                     <view class="ph-mid-btn" :style="{ background: mainBtnBg }">
                       <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-mid-img" mode="aspectFit" />
-                      <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="xlarge" color="#ffffff" />
+                      <SIcon
+                        v-else
+                        :name="it.icon || fallbackIcon(it.text)"
+                        :size="['btnRaise', 'btnInset'].includes(form.style) ? 'large' : 'xlarge'"
+                        color="#ffffff"
+                      />
                     </view>
                     <text class="ph-mid-txt" :class="{ on: previewIdx === i }" :style="{ color: tabColor(i) }">{{ it.text }}</text>
                   </view>
@@ -404,10 +409,30 @@ const isColorBg = computed(() => {
   const st = ['normal', 'slider', 'btnCenter'].includes(form.style);
   return form.type === 'fan' || (form.type === 'flat' && st) || (form.type === 'float' && st);
 });
-const bgSizeTip = computed(() => {
-  if (form.style === 'btnInset') return '750 * 110';
-  if (form.type === 'float') return '750 * 190';
-  return '750 * 164';
+/**
+ * 按钮凸起/嵌入几何（云菜鸟后台实测，预览宽 375px）
+ * footnav_4=凸起 / footnav_5=嵌入；foot_styleBox1=普通平铺 / foot_styleBox2=底部悬浮
+ * 容器高 = 背景图(750×H)等比到 375 的高；中钮 43×43，凸起 margin-top -30 / 嵌入 -32
+ * 缩放系数：.te-phone-screen 宽 320 含 4px 手机边框（border-box）→ tabbar 实际渲染宽 312px
+ * 必须按 312/375 换算，否则背景图 contain 等比高度 ≠ 容器高，会露出缝隙
+ */
+const EW = 312 / 375;
+const BTN_BG_METRIC = {
+  'flat-btnRaise': { h: 82, padTop: 26, padSide: 0, mt: -30, mb: 8, tip: '750 * 164' },
+  'flat-btnInset': { h: 55, padTop: 0, padSide: 0, mt: -32, mb: 11, tip: '750 * 110' },
+  'float-btnRaise': { h: 95, padTop: 26, padSide: 20, mt: -30, mb: 8, tip: '750 * 190' },
+  'float-btnInset': { h: 69, padTop: 0, padSide: 20, mt: -32, mb: 11, tip: '750 * 138' },
+};
+const btnMetric = computed(() => BTN_BG_METRIC[`${form.type}-${form.style}`] || null);
+const bgSizeTip = computed(() => btnMetric.value?.tip || '750 * 190');
+// 背景图：云菜鸟原图 footerbg{1平铺|2悬浮}_{1凸起|2嵌入} / footerbg2_{4凸起|5嵌入}_{1直角|2圆角|3弧形}
+const bgImgPath = computed(() => {
+  const kind = form.style === 'btnRaise' ? 'raise' : 'inset';
+  if (form.type === 'float') {
+    const c = form.corner === 'square' ? '-square' : form.corner === 'arc' ? '-arc' : '';
+    return `/images/tabbar-bg/btn-${kind}-float${c}.png`;
+  }
+  return `/images/tabbar-bg/btn-${kind}-flat.png`;
 });
 // 按钮参数：平铺或悬浮 × 按钮居中
 const showBtnParam = computed(() => form.type !== 'fan' && form.style === 'btnCenter');
@@ -439,14 +464,13 @@ watch(
 );
 // 切到扇形类型时默认展开子菜单（云菜鸟 1:1）
 watch(() => form.type, (t) => { if (t === 'fan') fanOpen.value = true; });
-// 凸起/嵌入切风格时自动带默认背景图（云菜鸟 1:1：风格联动默认 footerbg；已有自定义 bg 不覆盖）
-const DEFAULT_BG = { btnRaise: '/images/tabbar-bg/btn-raise.png', btnInset: '/images/tabbar-bg/btn-inset.png' };
-watch(() => form.style, (s) => {
+// 凸起/嵌入切风格时自动带默认背景图（云菜鸟 1:1：风格×类型×圆角联动默认 footerbg；已有自定义 bg 不覆盖）
+watch([() => form.style, () => form.type, () => form.corner], () => {
+  const s = form.style;
   if (s === 'btnRaise' || s === 'btnInset') {
-    const def = DEFAULT_BG[s];
-    // 仅当 bg 为空或仍为默认图之一时跟随联动；用户自定义 bg 保留
-    if (!form.bg || Object.values(DEFAULT_BG).includes(form.bg)) form.bg = def;
-  } else if (Object.values(DEFAULT_BG).includes(form.bg)) {
+    // 仅当 bg 为空或仍为内置默认图之一时跟随联动；用户自定义 bg 保留
+    if (!form.bg || form.bg.includes('/images/tabbar-bg/btn-')) form.bg = bgImgPath.value;
+  } else if (form.bg.includes('/images/tabbar-bg/btn-')) {
     // 切回普通/滑块/居中时，默认背景图残留清空（修复切回后圆槽残留 bug）
     form.bg = '';
   }
@@ -477,22 +501,21 @@ function tabbarStyle() {
   const st = {};
   const useBgImg = ['btnRaise', 'btnInset'].includes(form.style);
   if (useBgImg) {
-    // 按导航类型选对应背景图（菜鸟云：平铺 footerbg1_*，悬浮 footerbg2_*）
-    const isFlat = form.type !== 'float';
+    // 云菜鸟 1:1：背景图 contain + center bottom（不拉伸），容器高=背景图等比高度，
+    // 悬浮内缩由背景图自带透明边 + padding 决定，不再手动偏移 left/right/bottom
     let bgPath = form.bg;
-    // 用户未自定义时，按类型自动选默认背景图
-    if (!bgPath || bgPath.includes('/images/tabbar-bg/btn-')) {
-      if (form.style === 'btnRaise') bgPath = `/images/tabbar-bg/btn-raise-${isFlat ? 'flat' : 'float'}.png`;
-      else bgPath = `/images/tabbar-bg/btn-inset-${isFlat ? 'flat' : 'float'}.png`;
-    }
+    if (!bgPath || bgPath.includes('/images/tabbar-bg/btn-')) bgPath = bgImgPath.value;
     st.backgroundImage = `url(${resolveUrl(bgPath)})`;
-    st.backgroundSize = '100% 100%';
-    st.backgroundPosition = 'center';
-    // 凸起/嵌入用背景图时，背景图自带圆角和阴影，不再叠加额外样式
-    if (form.type === 'float') {
-      st.left = '16px';
-      st.right = '16px';
-      st.bottom = '14px';
+    st.backgroundSize = 'contain';
+    st.backgroundRepeat = 'no-repeat';
+    st.backgroundPosition = 'center bottom';
+    const m = btnMetric.value;
+    if (m) {
+      st.boxSizing = 'border-box'; // 高度含 padding（云菜鸟 .diymenu 实测为 border-box）
+      st.height = (m.h * EW).toFixed(2) + 'px';
+      st.paddingTop = (m.padTop * EW).toFixed(2) + 'px';
+      st.paddingLeft = (m.padSide * EW).toFixed(2) + 'px';
+      st.paddingRight = (m.padSide * EW).toFixed(2) + 'px';
     }
     return st;
   }
@@ -777,8 +800,11 @@ onMounted(load);
   background: repeating-linear-gradient(45deg, #f2f3f5, #f2f3f5 12px, #f7f8fa 12px, #f7f8fa 24px);
 }
 
-/* 预览 tabbar（与 C 端 CardTabBar 同构） */
+/* 预览 tabbar（与 C 端 CardTabBar 同构）
+   --ew：tabbar 实际渲染宽 312px（320 屏宽 - 4px×2 手机边框）/ 云菜鸟实测预览宽 375px
+   凸起/嵌入尺寸按此等比换算，须与 JS 的 EW 常量保持一致 */
 .ph-tabbar {
+  --ew: 0.832;
   position: absolute;
   bottom: 0;
   left: 0;
@@ -790,14 +816,24 @@ onMounted(load);
 }
 .ph-type-float { position: absolute; }
 .ph-type-fan { background: transparent !important; border-top: none; box-shadow: none !important; }
-/* 凸起：导航栏加高容纳凸出按钮（云菜鸟 footerbg 750*190）；嵌入：正常高度（750*110） */
-/* 凸起/嵌入：整个导航背景替换为背景图（不叠加白底、去顶部分隔线） */
+/* 凸起/嵌入：整个导航背景替换为背景图（不叠加白底、去顶部分隔线）
+   高度/内边距由 tabbarStyle() 按云菜鸟实测值写入（容器高=背景图等比高，contain + center bottom） */
 .ph-tabbar.ph-st-btnRaise, .ph-tabbar.ph-st-btnInset {
   background: transparent;
   border-top: none;
+  overflow: visible;
 }
-.ph-tabbar.ph-st-btnRaise { min-height: 70px; }
-.ph-tabbar.ph-st-btnInset { min-height: 50px; }
+/* 菜单项：云菜鸟 .item 为 flex 居中（无 gap） */
+.ph-tabbar.ph-st-btnRaise .ph-tab,
+.ph-tabbar.ph-st-btnInset .ph-tab { justify-content: center; gap: 0; }
+.ph-tabbar.ph-st-btnRaise .ph-tab-txt,
+.ph-tabbar.ph-st-btnInset .ph-tab-txt,
+.ph-mid-btnRaise .ph-mid-txt,
+.ph-mid-btnInset .ph-mid-txt { font-size: calc(12px * var(--ew)); line-height: calc(18px * var(--ew)); }
+.ph-tabbar.ph-st-btnRaise .ph-tab-icon-img,
+.ph-tabbar.ph-st-btnInset .ph-tab-icon-img,
+.ph-mid-btnRaise .ph-mid-img,
+.ph-mid-btnInset .ph-mid-img { width: calc(28px * var(--ew)); height: calc(28px * var(--ew)); }
 .ph-tab {
   flex: 1;
   display: flex;
@@ -870,10 +906,19 @@ onMounted(load);
   border-radius: 7px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
-/* 按钮凸起：按钮约2/3在外，1/3嵌入凹槽（对齐云菜鸟） */
-.ph-mid-btnRaise .ph-mid-btn { margin-top: -46px; width: 54px; height: 54px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); }
-/* 按钮嵌入：按钮半嵌在导航条内（对齐云菜鸟） */
-.ph-mid-btnInset .ph-mid-btn { margin-top: -10px; width: 48px; height: 48px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
+/* 按钮凸起/嵌入（云菜鸟 1:1：navNum_icon 43×43px，阴影 0 3px 2px rgba(165,178,195,.22)，
+   凸起 margin-top -30px / 嵌入 -32px，配 .item flex 居中实现骑在凸台/凹槽上） */
+.ph-mid-btnRaise, .ph-mid-btnInset { height: auto; justify-content: flex-start; }
+.ph-mid-btnRaise .ph-mid-btn,
+.ph-mid-btnInset .ph-mid-btn {
+  width: calc(43px * var(--ew));
+  height: calc(43px * var(--ew));
+  align-self: center;
+  box-shadow: 0 calc(3px * var(--ew)) calc(2px * var(--ew)) rgba(165, 178, 195, 0.22);
+}
+.ph-mid-btnRaise .ph-mid-btn { margin-top: calc(-30px * var(--ew)); margin-bottom: calc(8px * var(--ew)); }
+.ph-mid-btnInset .ph-mid-btn { margin-top: calc(-32px * var(--ew)); margin-bottom: calc(11px * var(--ew)); }
+.ph-mid-btnRaise .ph-mid-txt, .ph-mid-btnInset .ph-mid-txt { margin-top: 0; }
 .ph-slider + image, .ph-slider + svg { position: relative; z-index: 1; }
 .ph-slider + image ~ text, .ph-slider + svg ~ text { position: relative; z-index: 1; }
 
