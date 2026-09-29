@@ -80,7 +80,7 @@ const routes = [
 
 /** 角色可访问路径集（含子菜单） */
 function allowedPaths(user) {
-  const set = new Set(['/login', '/dashboard', '/design', '/design/edit', '/goods', '/goods/edit', '/content', '/content/article/edit', '/orders', '/settings/account']);
+  const set = new Set(['/login', '/dashboard', '/design', '/design/edit', '/design/tab-editor', '/goods', '/goods/edit', '/content', '/content/article/edit', '/orders', '/settings/account']);
   for (const m of buildSidebarMenus(user)) {
     set.add(m.path);
     for (const c of m.children || []) set.add(c.path);
