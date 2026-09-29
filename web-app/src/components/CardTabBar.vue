@@ -112,7 +112,7 @@ const isColorBg = computed(() => {
 // 选中色：优先导航方案「已选中色」，空则回退主题主色（现状）
 const activeColor = computed(() => {
   const s = tabStyleCfg.value.colors?.selected;
-  return (s && s !== 'transparent') ? s : (designConfig.value?.style?.primaryColor || '#165DFF');
+  return (s && s !== 'transparent') ? s : '#ff4d4f';
 });
 const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
 // 突出色：优先导航方案「突出颜色」，空则回退选中色

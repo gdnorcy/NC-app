@@ -381,7 +381,7 @@ const linkVal = computed(() => {
   return form.items[linkSel.idx].url;
 });
 
-const activeColor = computed(() => (form.colors.selected && form.colors.selected !== 'transparent' ? form.colors.selected : stylePrimary.value || '#165DFF'));
+const activeColor = computed(() => (form.colors.selected && form.colors.selected !== 'transparent' ? form.colors.selected : '#ff4d4f'));
 const activeColorSoft = computed(() => activeColor.value + '2e');
 const mainBtnBg = computed(() => {
   // 中间按钮颜色：优先"突出颜色"，空则用"已选中色"，不自动跟主题色（对齐云菜鸟）
