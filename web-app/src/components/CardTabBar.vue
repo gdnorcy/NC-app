@@ -326,7 +326,7 @@ function hexA(hex, alpha) {
 /* 按钮居中：居中凸出半个（作用于按钮，文字留在栏内） */
 .mp-mid-btnCenter .mp-mid-btn { margin-top: -30rpx; width: 100rpx; height: 100rpx; }
 /* 按钮凸起：明显凸出（上移更多 + 阴影加强；直径与云菜鸟 43px 一致） */
-.mp-mid-btnRaise .mp-mid-btn { margin-top: -76rpx; width: 92rpx; height: 92rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
+.mp-mid-btnRaise .mp-mid-btn { margin-top: -104rpx; width: 100rpx; height: 100rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
 .mp-mid-btnInset .mp-mid-btn { margin-top: -56rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.18); }
 
@@ -354,7 +354,7 @@ function hexA(hex, alpha) {
   background: transparent;
   border-top: none;
 }
-.mp-tabbar.mp-st-btnRaise { min-height: 140rpx; }
+.mp-tabbar.mp-st-btnRaise { min-height: 160rpx; }
 .mp-tabbar.mp-st-btnInset { min-height: 110rpx; }
 .mp-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
 /* 4 项与 5 项扇形弧线统一（菜鸟云：右上1+左弧3，5项加右下） */
