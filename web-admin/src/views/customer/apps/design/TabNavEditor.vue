@@ -381,7 +381,7 @@ const linkVal = computed(() => {
   return form.items[linkSel.idx].url;
 });
 
-const activeColor = computed(() => form.colors.selected || stylePrimary.value || '#165DFF');
+const activeColor = computed(() => (form.colors.selected && form.colors.selected !== 'transparent' ? form.colors.selected : stylePrimary.value || '#165DFF'));
 const activeColorSoft = computed(() => activeColor.value + '2e');
 const mainBtnBg = computed(() => form.colors.highlight || activeColor.value);
 // 预览中间按钮：按钮居中=圆角矩形(高/圆角可调)；凸起/嵌入=圆形
@@ -794,8 +794,11 @@ onMounted(load);
   height: 40px;
   border-radius: 50%;
   z-index: 0;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 3px #ffffff, 0 4px 10px rgba(0, 0, 0, 0.2);
 }
+/* slider 选中项：图标上移居中到圆钮中央（对齐云菜鸟） */
+.ph-st-slider.on .s-icon,
+.ph-st-slider.on .ph-tab-icon-img { position: relative; top: -12px; z-index: 1; }
 .ph-slider ~ .ph-tab-txt { position: relative; z-index: 1; }
 /* 中间突出项容器：圆形按钮 + 下方文字（云菜鸟 1:1：主按钮标签保留） */
 .ph-mid { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }

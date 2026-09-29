@@ -110,7 +110,10 @@ const isColorBg = computed(() => {
   return tabType.value === 'fan' || st;
 });
 // 选中色：优先导航方案「已选中色」，空则回退主题主色（现状）
-const activeColor = computed(() => tabStyleCfg.value.colors?.selected || designConfig.value?.style?.primaryColor || '#165DFF');
+const activeColor = computed(() => {
+  const s = tabStyleCfg.value.colors?.selected;
+  return (s && s !== 'transparent') ? s : (designConfig.value?.style?.primaryColor || '#165DFF');
+});
 const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
 // 突出色：优先导航方案「突出颜色」，空则回退选中色
 const mainBtnBg = computed(() => tabStyleCfg.value.colors?.highlight || activeColor.value);
@@ -289,8 +292,10 @@ function hexA(hex, alpha) {
   height: 80rpx;
   border-radius: 50%;
   z-index: 0;
-  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 6rpx #ffffff, 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
 }
+/* slider 选中项：图标上移居中到圆钮中央（对齐云菜鸟） */
+.mtb-slider.on .s-icon, .mtb-slider.on .tab-icon-img { position: relative; top: -24rpx; z-index: 1; }
 .mp-slider + image, .mp-slider + .s-icon, .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
 
 /* 中间突出项容器：圆形按钮 + 下方文字（云菜鸟 1:1：主按钮标签保留） */
