@@ -2,14 +2,14 @@
   <view
     v-if="designItems.length || navMode !== 'none'"
     class="mp-tabbar"
-    :class="['mp-tabbar-' + tabType, 'mp-corner-' + tabCorner]"
+    :class="['mp-tabbar-' + tabType, 'mp-corner-' + tabCorner, 'mp-st-' + tabStyle]"
     :style="tabbarStyle()"
   >
     <!-- 设计中心已发布底部导航方案：优先渲染配置项 -->
     <template v-if="designItems.length">
       <!-- 扇形悬浮：右下菜单主按钮 + 弧形子菜单（云菜鸟 1:1：子菜单默认展开） -->
       <template v-if="tabType === 'fan'">
-        <view v-if="fanOpen" class="mp-fan-menu">
+        <view v-if="fanOpen" class="mp-fan-menu" :class="'mp-fan-count-' + designItems.length">
           <view v-for="(it, i) in designItems" :key="i" class="mp-fan-item" :class="'mp-fan-pos-' + i" :style="{ background: menuBgColor }" @click="goDesign(it)">
             <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-fan-item-img" mode="aspectFit" />
             <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? activeColor : menuTextColor" />
@@ -282,11 +282,11 @@ function hexA(hex, alpha) {
 /* slider：选中项圆形滑块背景 */
 .mp-slider {
   position: absolute;
-  top: 2rpx;
+  top: 4rpx;
   left: 50%;
   transform: translateX(-50%);
-  width: 68rpx;
-  height: 68rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
   z-index: 0;
 }
@@ -314,13 +314,13 @@ function hexA(hex, alpha) {
 /* 按钮凸起：明显凸出（上移更多 + 阴影加强；直径与云菜鸟 43px 一致） */
 .mp-mid-btnRaise .mp-mid-btn { margin-top: -64rpx; width: 88rpx; height: 88rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
-.mp-mid-btnInset .mp-mid-btn { margin-top: -16rpx; width: 88rpx; height: 88rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
+.mp-mid-btnInset .mp-mid-btn { margin-top: -16rpx; width: 68rpx; height: 68rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
 
 /* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .mp-fan-main {
   position: absolute;
-  right: 30rpx;
-  bottom: calc(40rpx + env(safe-area-inset-bottom));
+  right: 47rpx;
+  bottom: calc(515rpx + env(safe-area-inset-bottom));
   width: 108rpx;
   height: 108rpx;
   border-radius: 50%;
@@ -335,7 +335,16 @@ function hexA(hex, alpha) {
 .mp-fan-main-icon { display: flex; flex-direction: column; gap: 7rpx; align-items: center; }
 .mp-fan-main-icon i { display: block; width: 34rpx; height: 4rpx; border-radius: 2rpx; background: #fff; }
 .mp-fan-main-txt { font-size: 20rpx; color: #fff; line-height: 1.3; margin-top: 4rpx; }
+.mp-tabbar-fan { background: transparent !important; border-top: none; box-shadow: none !important; }
+.mp-tabbar.mp-st-btnRaise { min-height: 140rpx; }
+.mp-tabbar.mp-st-btnInset { min-height: 110rpx; }
 .mp-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
+/* 4 项扇形：云菜鸟右侧弧形 */
+.mp-fan-count-4 .mp-fan-pos-0 { right: 140rpx; bottom: 795rpx; left: auto; }
+.mp-fan-count-4 .mp-fan-pos-1 { right: 140rpx; bottom: 655rpx; left: auto; }
+.mp-fan-count-4 .mp-fan-pos-2 { right: 140rpx; bottom: 515rpx; left: auto; }
+.mp-fan-count-4 .mp-fan-pos-3 { right: 140rpx; bottom: 375rpx; left: auto; }
+.mp-fan-count-4 .mp-fan-main { right: 47rpx; bottom: calc(515rpx + env(safe-area-inset-bottom)); }
 .mp-fan-item {
   position: absolute;
   width: 92rpx;
@@ -352,9 +361,9 @@ function hexA(hex, alpha) {
 }
 .mp-fan-item-img { width: 40rpx; height: 40rpx; }
 .mp-fan-item-txt { font-size: 20rpx; }
-.mp-fan-pos-0 { right: 36rpx; bottom: 216rpx; }
-.mp-fan-pos-1 { left: 52rpx; bottom: 524rpx; }
-.mp-fan-pos-2 { left: 52rpx; bottom: 392rpx; }
-.mp-fan-pos-3 { left: 84rpx; bottom: 256rpx; }
-.mp-fan-pos-4 { left: 52rpx; bottom: 652rpx; }
+.mp-fan-pos-0 { right: 103rpx; bottom: 700rpx; }
+.mp-fan-pos-1 { left: 103rpx; bottom: 700rpx; }
+.mp-fan-pos-2 { left: 47rpx; bottom: 515rpx; }
+.mp-fan-pos-3 { left: 103rpx; bottom: 330rpx; }
+.mp-fan-pos-4 { right: 103rpx; bottom: 330rpx; }
 </style>

@@ -46,10 +46,10 @@
               <div class="ph-page-placeholder"></div>
             </div>
             <!-- 底部导航预览（与 C 端 CardTabBar 同构渲染） -->
-            <div class="ph-tabbar" :class="['ph-type-' + form.type]" :style="tabbarStyle()">
+            <div class="ph-tabbar" :class="['ph-type-' + form.type, 'ph-st-' + form.style]" :style="tabbarStyle()">
               <!-- 扇形悬浮：右下菜单主按钮 + 弧形子菜单（云菜鸟 1:1：子菜单默认展开） -->
               <template v-if="form.type === 'fan'">
-                <view v-if="fanOpen" class="ph-fan-menu">
+                <view v-if="fanOpen" class="ph-fan-menu" :class="'ph-fan-count-' + form.items.length">
                   <view
                     v-for="(it, i) in form.items"
                     :key="i"
@@ -94,7 +94,7 @@
                     <view v-if="form.style === 'slider' && previewIdx === i" class="ph-slider" :style="{ background: activeColor }"></view>
                     <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-tab-icon-img" mode="aspectFit" />
                     <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="large" :color="form.style === 'slider' && previewIdx === i ? '#ffffff' : tabColor(i)" />
-                    <text :style="{ color: tabColor(i) }" :class="{ 'ph-tab-bold': previewIdx === i }">{{ it.text }}</text>
+                    <text class="ph-tab-txt" :style="{ color: tabColor(i) }" :class="{ 'ph-tab-bold': previewIdx === i }">{{ it.text }}</text>
                   </template>
                 </view>
               </template>
@@ -398,8 +398,8 @@ const isColorBg = computed(() => {
   return form.type === 'fan' || (form.type === 'flat' && st) || (form.type === 'float' && st);
 });
 const bgSizeTip = computed(() => {
-  if (form.type === 'float') return '750 * 190';
   if (form.style === 'btnInset') return '750 * 110';
+  if (form.type === 'float') return '750 * 190';
   return '750 * 164';
 });
 // 按钮参数：平铺或悬浮 × 按钮居中
@@ -432,6 +432,15 @@ watch(
 );
 // 切到扇形类型时默认展开子菜单（云菜鸟 1:1）
 watch(() => form.type, (t) => { if (t === 'fan') fanOpen.value = true; });
+// 凸起/嵌入切风格时自动带默认背景图（云菜鸟 1:1：风格联动默认 footerbg；已有自定义 bg 不覆盖）
+const DEFAULT_BG = { btnRaise: '/images/tabbar-bg/btn-raise.png', btnInset: '/images/tabbar-bg/btn-inset.png' };
+watch(() => form.style, (s) => {
+  if (s === 'btnRaise' || s === 'btnInset') {
+    const def = DEFAULT_BG[s];
+    // 仅当 bg 为空或仍为默认图之一时跟随联动；用户自定义 bg 保留
+    if (!form.bg || Object.values(DEFAULT_BG).includes(form.bg)) form.bg = def;
+  }
+});
 
 function fallbackIcon(text) {
   const m = { '首页': 'dashboard', '集市': 'market', '会员': 'crown', '我的': 'user', '名片': 'card', '人脉': 'market', '动态': 'dynamic', '消息': 'sms' };
@@ -612,7 +621,8 @@ async function delScheme(s) {
 function addItem() {
   if (form.items.length >= 5) return;
   form.items.push({ text: '', icon: '', url: '' });
-  previewIdx.value = form.items.length - 1;
+  // 云菜鸟 1:1：新增菜单后默认仍选中第一项（滑块选中项不应跳到新增项）
+  if (previewIdx.value < 0) previewIdx.value = 0;
 }
 function removeItem(i) {
   if (form.items.length <= 2) { ElMessage.warning('至少保留 2 个菜单项（小程序 tabBar 规则）'); return; }
@@ -754,6 +764,10 @@ onMounted(load);
   z-index: 10;
 }
 .ph-type-float { position: absolute; }
+.ph-type-fan { background: transparent !important; border-top: none; box-shadow: none !important; }
+/* 凸起：导航栏加高容纳凸出按钮（云菜鸟 footerbg 750*190）；嵌入：正常高度（750*110） */
+.ph-tabbar.ph-st-btnRaise { min-height: 62px; }
+.ph-tabbar.ph-st-btnInset { min-height: 50px; }
 .ph-tab {
   flex: 1;
   display: flex;
@@ -773,15 +787,16 @@ onMounted(load);
 .ph-tab-icon-img { width: 22px; height: 22px; object-fit: contain; }
 .ph-slider {
   position: absolute;
-  top: 0px;
+  top: 1px;
   left: 50%;
   transform: translateX(-50%);
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   z-index: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
+.ph-slider ~ .ph-tab-txt { position: relative; z-index: 1; }
 /* 中间突出项容器：圆形按钮 + 下方文字（云菜鸟 1:1：主按钮标签保留） */
 .ph-mid { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
 .ph-mid-btn { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); align-self: center; }
@@ -827,7 +842,7 @@ onMounted(load);
 .ph-fan-main {
   position: absolute;
   right: 20px;
-  bottom: 18px;
+  bottom: 220px;
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -844,6 +859,12 @@ onMounted(load);
 .ph-fan-main-icon { display: flex; flex-direction: column; gap: 3px; align-items: center; }
 .ph-fan-main-icon i { display: block; width: 16px; height: 2px; border-radius: 1px; background: #fff; }
 .ph-fan-menu { position: absolute; inset: 0; z-index: 11; pointer-events: none; }
+/* 4 项扇形：云菜鸟右侧弧形（子菜单全部右侧、主按钮右中偏下） */
+.ph-fan-count-4 .ph-fan-pos-0 { right: 60px; bottom: 340px; left: auto; }
+.ph-fan-count-4 .ph-fan-pos-1 { right: 60px; bottom: 280px; left: auto; }
+.ph-fan-count-4 .ph-fan-pos-2 { right: 60px; bottom: 220px; left: auto; }
+.ph-fan-count-4 .ph-fan-pos-3 { right: 60px; bottom: 160px; left: auto; }
+.ph-fan-count-4 .ph-fan-main { right: 20px; bottom: 220px; }
 .ph-fan-item {
   position: absolute;
   width: 46px;
@@ -861,11 +882,11 @@ onMounted(load);
   line-height: 1.1;
 }
 .ph-fan-item-img { width: 20px; height: 20px; object-fit: contain; }
-.ph-fan-pos-0 { right: 18px; bottom: 108px; }
-.ph-fan-pos-1 { left: 26px; bottom: 262px; }
-.ph-fan-pos-2 { left: 26px; bottom: 196px; }
-.ph-fan-pos-3 { left: 42px; bottom: 128px; }
-.ph-fan-pos-4 { left: 26px; bottom: 326px; }
+.ph-fan-pos-0 { right: 44px; bottom: 300px; }
+.ph-fan-pos-1 { left: 44px; bottom: 300px; }
+.ph-fan-pos-2 { left: 20px; bottom: 220px; }
+.ph-fan-pos-3 { left: 44px; bottom: 140px; }
+.ph-fan-pos-4 { right: 44px; bottom: 140px; }
 
 /* 右栏：配置面板 */
 .te-group { margin-bottom: 22px; }
