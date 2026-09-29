@@ -865,9 +865,8 @@ onMounted(load);
 .te-body {
   flex: 1;
   display: grid;
-  /* 左栏 216（操作已收纳）；右栏加宽到 440 给密集属性控件留空间；中间列限宽 520，避免超宽屏被拉伸导致左右显得更小；整组居中保持平衡 */
-  grid-template-columns: 216px minmax(0, 520px) 440px;
-  justify-content: center;
+  /* 左栏 216（操作已收纳）；右栏 440 给密集属性控件留空间；中间列自由伸缩(1fr)，手机预览在其中居中 */
+  grid-template-columns: 216px minmax(0, 1fr) 440px;
   gap: 12px;
   padding: 12px;
   overflow: hidden;
