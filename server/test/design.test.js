@@ -184,6 +184,16 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     assert.equal(legacy.type, 'flat');
     assert.equal(legacy.colors.unselected, '#9a9a9a');
     assert.equal(legacy.items[1].icon, 'user');
+    // 扇形悬浮联动字段：bgColor + 菜单背景/文字 默认与透传（云菜鸟 1:1）
+    const fan = svc.normalizeTabJson({ type: 'fan', bgColor: '#ff6633', colors: { menuBg: '#fff1f0', menuText: '#660000' }, items: [{ text: '首页', url: '/h' }] });
+    assert.equal(fan.type, 'fan');
+    assert.equal(fan.bgColor, '#ff6633');
+    assert.equal(fan.colors.menuBg, '#fff1f0');
+    assert.equal(fan.colors.menuText, '#660000');
+    const fanDft = svc.normalizeTabJson({ type: 'fan', items: [{ text: 'a', url: '/a' }] });
+    assert.equal(fanDft.colors.menuBg, '#ffffff');
+    assert.equal(fanDft.colors.menuText, '#333333');
+    assert.equal(fanDft.bgColor, '');
   });
 
   // ============ 首页跳转 ============

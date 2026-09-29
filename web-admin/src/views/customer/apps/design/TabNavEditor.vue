@@ -39,6 +39,7 @@
 
       <!-- 中栏：手机预览 -->
       <main class="te-center">
+        <div class="te-center-bar"><el-button size="small" @click="openExample">查看示例展示</el-button></div>
         <div class="te-phone">
           <div class="te-phone-screen">
             <div class="ph-page">
@@ -53,9 +54,15 @@
                   <text class="ph-fan-main-txt">{{ form.items[0]?.text }}</text>
                 </view>
                 <view v-if="fanOpen" class="ph-fan-menu">
-                  <view v-for="(it, i) in form.items.slice(1)" :key="i" class="ph-fan-item" @click="previewIdx = i + 1">
-                    <SIcon :name="it.icon || fallbackIcon(it.text)" size="default" :color="previewIdx === i + 1 ? activeColor : form.colors.unselected" />
-                    <text :style="{ color: previewIdx === i + 1 ? activeColor : form.colors.unselected }">{{ it.text }}</text>
+                  <view
+                    v-for="(it, i) in form.items.slice(1)"
+                    :key="i"
+                    class="ph-fan-item"
+                    :style="{ background: form.colors.menuBg || '#ffffff' }"
+                    @click="previewIdx = i + 1"
+                  >
+                    <SIcon :name="it.icon || fallbackIcon(it.text)" size="default" :color="previewIdx === i + 1 ? activeColor : (form.colors.menuText || '#333333')" />
+                    <text :style="{ color: previewIdx === i + 1 ? activeColor : (form.colors.menuText || '#333333') }">{{ it.text }}</text>
                   </view>
                 </view>
               </template>
@@ -108,8 +115,8 @@
               <el-radio-button value="fan">扇形悬浮</el-radio-button>
             </el-radio-group>
           </div>
-          <div class="te-sub-title">导航风格</div>
-          <div class="te-style-grid">
+          <div v-if="form.type !== 'fan'" class="te-sub-title">导航风格</div>
+          <div v-if="form.type !== 'fan'" class="te-style-grid">
             <div
               v-for="(st, i) in STYLE_OPTIONS"
               :key="st.value"
@@ -121,8 +128,8 @@
               <span class="te-style-label">{{ st.label }}</span>
             </div>
           </div>
-          <div class="te-sub-title">边框圆角</div>
-          <div class="te-radio-row">
+          <div v-if="form.type === 'float'" class="te-sub-title">边框圆角</div>
+          <div v-if="form.type === 'float'" class="te-radio-row">
             <el-radio-group v-model="form.corner">
               <el-radio-button value="square">直角</el-radio-button>
               <el-radio-button value="round">圆角</el-radio-button>
@@ -131,19 +138,39 @@
           </div>
         </div>
 
-        <!-- 背景图片 -->
+        <!-- 背景：普通平铺/底部悬浮=图片，扇形悬浮=颜色 -->
         <div class="te-group">
-          <div class="te-group-title">背景图片</div>
-          <div class="te-bg-row">
-            <el-input v-model="form.bg" placeholder="图片链接" class="flex-1" />
-            <el-button @click="openBgPick">选择图片</el-button>
-          </div>
-          <div class="te-tip">导航背景建议尺寸：750 * 190</div>
+          <div class="te-group-title">{{ form.type === 'fan' ? '背景颜色' : '背景图片' }}</div>
+          <template v-if="form.type === 'fan'">
+            <div class="te-bg-row">
+              <PeColorPicker v-model="form.bgColor" />
+              <el-button text size="small" @click="form.bgColor = ''">重置</el-button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="te-bg-row">
+              <el-input v-model="form.bg" placeholder="图片链接" class="flex-1" />
+              <el-button @click="openBgPick">选择图片</el-button>
+            </div>
+            <div class="te-tip">导航背景建议尺寸：{{ form.type === 'float' ? '750 * 190' : '750 * 164' }}</div>
+          </template>
         </div>
 
-        <!-- 颜色设置 -->
+        <!-- 颜色设置（导航类型联动：平铺=未选中/已选中/突出颜色；悬浮=未选中/已选中；扇形=菜单背景/菜单文字/未选中/已选中） -->
         <div class="te-group">
           <div class="te-group-title">颜色设置</div>
+          <template v-if="form.type === 'fan'">
+            <div class="te-color-row">
+              <span class="te-color-label">菜单背景</span>
+              <PeColorPicker v-model="form.colors.menuBg" />
+              <el-button text size="small" @click="form.colors.menuBg = '#ffffff'">重置</el-button>
+            </div>
+            <div class="te-color-row">
+              <span class="te-color-label">菜单文字</span>
+              <PeColorPicker v-model="form.colors.menuText" />
+              <el-button text size="small" @click="form.colors.menuText = '#333333'">重置</el-button>
+            </div>
+          </template>
           <div class="te-color-row">
             <span class="te-color-label">未选中色</span>
             <PeColorPicker v-model="form.colors.unselected" />
@@ -155,12 +182,13 @@
             <el-button text size="small" @click="form.colors.selected = ''">重置</el-button>
             <span class="te-color-hint">不填则应用主题主色</span>
           </div>
-          <div class="te-color-row">
+          <div v-if="form.type === 'flat'" class="te-color-row">
             <span class="te-color-label">突出颜色</span>
             <PeColorPicker v-model="form.colors.highlight" />
             <el-button text size="small" @click="form.colors.highlight = ''">重置</el-button>
             <span class="te-color-hint">尽量与样式DIY中"突出色"保持一致</span>
           </div>
+          <div v-else class="te-color-hint" style="margin-top: -6px;">尽量与样式DIY中"突出色"保持一致，防止杂乱</div>
         </div>
 
         <!-- 导航设置：菜单项 -->
@@ -192,6 +220,18 @@
         </div>
       </aside>
     </div>
+
+    <!-- 示例展示弹层（云菜鸟：导航风格大图预览，左右切换） -->
+    <el-dialog v-model="example.show" title="示例展示" width="520px" append-to-body>
+      <div class="te-example">
+        <img :src="exampleImg" class="te-example-img" :alt="exampleLabel" />
+        <div class="te-example-meta">{{ exampleLabel }}（{{ example.idx + 1 }} / {{ exampleImgs.length }}）</div>
+        <div class="te-example-nav">
+          <el-button size="small" @click="examplePrev">上一个</el-button>
+          <el-button size="small" @click="exampleNext">下一个</el-button>
+        </div>
+      </div>
+    </el-dialog>
 
     <!-- 图标选择弹层 -->
     <el-dialog v-model="iconSel.show" title="选择图标" width="440px" append-to-body>
@@ -229,6 +269,7 @@ import tabStyle2 from '../../../../assets/design-styles/tabStyle_2.png';
 import tabStyle3 from '../../../../assets/design-styles/tabStyle_3.png';
 import tabStyle4 from '../../../../assets/design-styles/tabStyle_4.png';
 import tabStyle5 from '../../../../assets/design-styles/tabStyle_5.png';
+import tabStyle6 from '../../../../assets/design-styles/tabStyle_6.png';
 
 const API = '/design';
 const router = useRouter();
@@ -269,11 +310,28 @@ const form = reactive({
   style: 'normal',
   corner: 'square',
   bg: '',
-  colors: { unselected: '#9a9a9a', selected: '', highlight: '' },
+  bgColor: '',
+  colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333' },
   items: [],
 });
 
 const iconSel = reactive({ show: false, idx: null });
+// 示例展示（云菜鸟：导航风格大图 1-6，左右切换）
+const example = reactive({ show: false, idx: 0 });
+const exampleImgs = [tabStyle1, tabStyle2, tabStyle3, tabStyle4, tabStyle5, tabStyle6];
+const exampleLabels = ['普通样式', '滑块样式', '按钮居中', '按钮凸起', '按钮嵌入', '扇形悬浮'];
+const exampleImg = computed(() => exampleImgs[example.idx]);
+const exampleLabel = computed(() => exampleLabels[example.idx]);
+function exampleCurrent() {
+  const map = { normal: 0, slider: 1, btnCenter: 2, btnRaise: 3, btnInset: 4, fan: 5 };
+  return form.type === 'fan' ? 5 : (map[form.style] ?? 0);
+}
+function openExample() {
+  example.idx = exampleCurrent();
+  example.show = true;
+}
+function examplePrev() { example.idx = (example.idx + exampleImgs.length - 1) % exampleImgs.length; }
+function exampleNext() { example.idx = (example.idx + 1) % exampleImgs.length; }
 const imgSel = reactive({ show: false, target: null, targetIdx: null });
 const linkSel = reactive({ show: false, idx: null, val: '' });
 const linkVal = computed(() => {
@@ -294,9 +352,12 @@ watch(
     () => form.style,
     () => form.corner,
     () => form.bg,
+    () => form.bgColor,
     () => form.colors.unselected,
     () => form.colors.selected,
     () => form.colors.highlight,
+    () => form.colors.menuBg,
+    () => form.colors.menuText,
     () => form.items.map((x) => x.text + x.icon + x.url).join('|'),
   ],
   () => { if (currentId.value !== null || form.items.length) dirty.value = true; }
@@ -375,7 +436,8 @@ function selectScheme(s) {
     style: s.tab_json.style || 'normal',
     corner: s.tab_json.corner || 'square',
     bg: s.tab_json.bg || '',
-    colors: { unselected: '#9a9a9a', selected: '', highlight: '', ...(s.tab_json.colors || {}) },
+    bgColor: s.tab_json.bgColor || '',
+    colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333', ...(s.tab_json.colors || {}) },
     items: (s.tab_json.items || []).map((it) => ({ text: it.text, icon: it.icon, url: it.url })),
   });
   dirty.value = false;
@@ -392,7 +454,8 @@ function createScheme() {
     style: 'normal',
     corner: 'square',
     bg: '',
-    colors: { unselected: '#9a9a9a', selected: '', highlight: '' },
+    bgColor: '',
+    colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333' },
     items: [
       { text: '首页', icon: 'dashboard', url: '/pages/cardMain/home' },
       { text: '我的', icon: 'user', url: '/pages/card/profile' },
@@ -413,9 +476,10 @@ async function save() {
       tabJson: {
         show: { ...form.show },
         type: form.type,
-        style: form.style,
+        style: form.type === 'fan' ? 'normal' : form.style,
         corner: form.corner,
         bg: form.bg,
+        bgColor: form.bgColor,
         colors: { ...form.colors },
         items: form.items.map((it) => ({ text: it.text, icon: it.icon, url: it.url })),
       },
@@ -565,6 +629,8 @@ onMounted(load);
 .te-scheme-empty { color: #86909c; font-size: 12px; text-align: center; padding: 30px 0; }
 
 /* 中栏：手机预览 */
+.te-center { flex-direction: column; }
+.te-center-bar { align-self: stretch; display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .te-phone { width: 320px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .te-phone-screen {
   width: 320px;
@@ -745,6 +811,12 @@ onMounted(load);
   margin-bottom: 6px;
 }
 .te-nav-add:hover { border-color: #165dff; color: #165dff; }
+
+/* 示例展示弹层 */
+.te-example { text-align: center; }
+.te-example-img { max-width: 100%; border-radius: 8px; border: 1px solid #e5e6eb; }
+.te-example-meta { font-size: 13px; color: #4e5969; margin: 10px 0; }
+.te-example-nav { display: flex; justify-content: center; gap: 10px; }
 
 /* 图标选择弹层 */
 .te-icon-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-height: 380px; overflow-y: auto; }

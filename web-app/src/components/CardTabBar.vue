@@ -14,11 +14,11 @@
           <SIcon v-else :name="designItems[0].icon || fallbackTabIcon(designItems[0].text)" size="xlarge" color="#ffffff" />
           <text class="mp-fan-main-txt">{{ designItems[0].text }}</text>
         </view>
-        <view v-if="fanOpen" class="mp-fan-menu">
-          <view v-for="(it, i) in designItems.slice(1)" :key="i" class="mp-fan-item" @click="goDesign(it)">
+        <view v-if="fanOpen" class="mp-fan-menu" :style="{ background: menuBgColor }">
+          <view v-for="(it, i) in designItems.slice(1)" :key="i" class="mp-fan-item" :style="{ background: menuBgColor }" @click="goDesign(it)">
             <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-fan-item-img" mode="aspectFit" />
-            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? activeColor : inactiveColor" />
-            <text class="mp-fan-item-txt" :style="{ color: isOn(it) ? activeColor : inactiveColor }">{{ it.text }}</text>
+            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :color="isOn(it) ? activeColor : menuTextColor" />
+            <text class="mp-fan-item-txt" :style="{ color: isOn(it) ? activeColor : menuTextColor }">{{ it.text }}</text>
           </view>
         </view>
       </template>
@@ -109,6 +109,9 @@ const activeColor = computed(() => tabStyleCfg.value.colors?.selected || designC
 const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
 // 突出色：优先导航方案「突出颜色」，空则回退选中色
 const mainBtnBg = computed(() => tabStyleCfg.value.colors?.highlight || activeColor.value);
+// 扇形悬浮：菜单背景/菜单文字（云菜鸟联动；未配置回退白底/深灰）
+const menuBgColor = computed(() => tabStyleCfg.value.colors?.menuBg || '#ffffff');
+const menuTextColor = computed(() => tabStyleCfg.value.colors?.menuText || '#333333');
 const activeSoft = computed(() => hexA(activeColor.value, 0.18));
 const navMode = computed(() => designConfig.value?.navMode || 'default');
 const navJumpEnabled = computed(() => designConfig.value?.navJumpEnabled !== false);
@@ -141,7 +144,10 @@ function isMid(i) {
 }
 function tabbarStyle() {
   const st = {};
-  if (tabBg.value) {
+  // 扇形悬浮：背景颜色（非图片）；其余类型：背景图片
+  if (tabType.value === 'fan') {
+    st.background = tabStyleCfg.value.bgColor || '#ffffff';
+  } else if (tabBg.value) {
     st.backgroundImage = `url(${iconUrl(tabBg.value)})`;
     st.backgroundSize = 'cover';
     st.backgroundPosition = 'center';

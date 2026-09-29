@@ -14,7 +14,8 @@ const DEFAULT_TAB_STYLE = {
   style: 'normal', // normal 普通 / slider 滑块 / btnCenter 按钮居中 / btnRaise 按钮凸起 / btnInset 按钮嵌入
   corner: 'square', // square 直角 / round 圆角 / arc 弧形
   bg: '',
-  colors: { unselected: '#9a9a9a', selected: '', highlight: '' }, // 空色=不配置（C端回退主题色）
+  bgColor: '', // 扇形悬浮专用：背景颜色（云菜鸟扇形=背景颜色非图片）
+  colors: { unselected: '#9a9a9a', selected: '', highlight: '', menuBg: '#ffffff', menuText: '#333333' }, // 空色=不配置（C端回退主题色）；menuBg/menuText=扇形菜单背景/文字
 };
 const TAB_TYPES = ['flat', 'float', 'fan'];
 const TAB_STYLES = ['normal', 'slider', 'btnCenter', 'btnRaise', 'btnInset'];
@@ -32,10 +33,13 @@ export function normalizeTabJson(raw) {
     style: TAB_STYLES.includes(o.style) ? o.style : DEFAULT_TAB_STYLE.style,
     corner: TAB_CORNERS.includes(o.corner) ? o.corner : DEFAULT_TAB_STYLE.corner,
     bg: typeof o.bg === 'string' ? o.bg : '',
+    bgColor: typeof o.bgColor === 'string' ? o.bgColor : '',
     colors: {
       unselected: typeof o.colors?.unselected === 'string' && o.colors.unselected ? o.colors.unselected : DEFAULT_TAB_STYLE.colors.unselected,
       selected: typeof o.colors?.selected === 'string' ? o.colors.selected : '',
       highlight: typeof o.colors?.highlight === 'string' ? o.colors.highlight : '',
+      menuBg: typeof o.colors?.menuBg === 'string' && o.colors.menuBg ? o.colors.menuBg : DEFAULT_TAB_STYLE.colors.menuBg,
+      menuText: typeof o.colors?.menuText === 'string' && o.colors.menuText ? o.colors.menuText : DEFAULT_TAB_STYLE.colors.menuText,
     },
     items: itemsRaw.map((it) => ({
       text: String(it?.text || ''),

@@ -304,6 +304,15 @@ describe('设计中心 C 端渲染工具', () => {
     expect(cfg.tabStyle.colors.selected).toBe('#FF5500');
     expect(cfg.tabStyle.colors.highlight).toBe('#FF8800');
     expect(cfg.tabItems).toHaveLength(2);
+    // 扇形悬浮：bgColor + 菜单背景/文字透传（云菜鸟 1:1 联动）
+    const fan = normalizeDesignConfig({ tab: { type: 'fan', bgColor: '#ff6633', colors: { menuBg: '#fff1f0', menuText: '#660000' }, items: [{ text: '首页', icon: 'dashboard', url: '/h' }] } });
+    expect(fan.tabStyle.bgColor).toBe('#ff6633');
+    expect(fan.tabStyle.colors.menuBg).toBe('#fff1f0');
+    expect(fan.tabStyle.colors.menuText).toBe('#660000');
+    const fanDft = normalizeDesignConfig({ tab: { type: 'fan', items: [{ text: 'a', url: '/a' }] } });
+    expect(fanDft.tabStyle.bgColor).toBe('');
+    expect(fanDft.tabStyle.colors.menuBg).toBe('#ffffff');
+    expect(fanDft.tabStyle.colors.menuText).toBe('#333333');
     // 非法枚举回退默认（flat/normal/square/空bg）
     const bad = normalizeDesignConfig({ tab: { type: 'hack', style: 'hack', corner: 'hack', bg: 123, colors: { unselected: '', selected: 0 }, items: [] } });
     expect(bad.tabStyle.type).toBe('flat');

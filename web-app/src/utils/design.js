@@ -49,10 +49,13 @@ export function normalizeDesignConfig(raw) {
     style: ['normal', 'slider', 'btnCenter', 'btnRaise', 'btnInset'].includes(tab?.style) ? tab.style : 'normal',
     corner: ['square', 'round', 'arc'].includes(tab?.corner) ? tab.corner : 'square',
     bg: typeof tab?.bg === 'string' ? tab.bg : '',
+    bgColor: typeof tab?.bgColor === 'string' ? tab.bgColor : '',
     colors: {
       unselected: (typeof tab?.colors?.unselected === 'string' && tab.colors.unselected) ? tab.colors.unselected : '#9a9a9a',
       selected: typeof tab?.colors?.selected === 'string' ? tab.colors.selected : '',
       highlight: typeof tab?.colors?.highlight === 'string' ? tab.colors.highlight : '',
+      menuBg: typeof tab?.colors?.menuBg === 'string' ? tab.colors.menuBg : '#ffffff',
+      menuText: typeof tab?.colors?.menuText === 'string' ? tab.colors.menuText : '#333333',
     },
   };
   // 首页跳转按应用维度化：card 应用启动页取 homePages.card，兼容旧 homePage 单值
