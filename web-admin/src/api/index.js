@@ -260,4 +260,12 @@ export const createMemberPackage = (data) => adminApi.post('/member-packages', d
 export const updateMemberPackage = (id, data) => adminApi.put(`/member-packages/${id}`, data);
 export const deleteMemberPackage = (id) => adminApi.delete(`/member-packages/${id}`);
 
+// 超级表单（挂载于 /api/card-market/super-form，使用 publicApi）
+export const fetchSuperForms = (params) => publicApi.get('/card-market/super-form', { params });
+export const createSuperForm = (data) => publicApi.post('/card-market/super-form', data);
+export const getSuperForm = (id) => publicApi.get(`/card-market/super-form/${id}`);
+export const updateSuperForm = (id, data) => publicApi.put(`/card-market/super-form/${id}`, data);
+export const deleteSuperForm = (id) => publicApi.delete(`/card-market/super-form/${id}`);
+export const fetchSuperFormSubmissions = (id) => publicApi.get(`/card-market/super-form/${id}/submissions`);
+
 export default { adminApi, publicApi, customerApi };

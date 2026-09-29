@@ -303,6 +303,18 @@
           }
         }
       ]
+    },
+    {
+      "root": "pages/superForm",
+      "pages": [
+        {
+          "path": "fill",
+          "style": {
+            "navigationBarTitleText": "超级表单",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     }
   ],
   "globalStyle": {

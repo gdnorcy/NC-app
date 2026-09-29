@@ -1725,6 +1725,31 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_submission_form ON card_form_submission(form_id);
     CREATE INDEX IF NOT EXISTS idx_submission_customer ON card_form_submission(customer_id);
+
+    -- 超级表单模板（拖拽表单设计器）
+    CREATE TABLE IF NOT EXISTS super_form_template (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',          -- 表单名称
+      config TEXT NOT NULL DEFAULT '{}',      -- JSON: { components:[{id,type,content,style}], settings:{basic,submit,logic,layout,globalStyle} }
+      status TEXT DEFAULT 'draft',            -- draft/published/disabled
+      created_by INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_super_form_customer ON super_form_template(customer_id);
+
+    -- 超级表单提交记录
+    CREATE TABLE IF NOT EXISTS super_form_submission (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      form_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      user_id INTEGER,
+      data TEXT NOT NULL DEFAULT '{}',        -- JSON: {compId: value}
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_super_form_submission_form ON super_form_submission(form_id);
+    CREATE INDEX IF NOT EXISTS idx_super_form_submission_customer ON super_form_submission(customer_id);
   `);
 
   // —— 预置智能名片解决方案 ——

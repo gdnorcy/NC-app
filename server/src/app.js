@@ -38,7 +38,7 @@ import { createCardRouter } from './routes/card.js';
 import { createMallRouter } from './routes/mall.js';
 import { createPaymentRouter } from './routes/payment.js';
 import { createDistributionRouter } from './routes/distribution.js';
-import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';
+import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';import { createSuperFormRouter } from './routes/superForm.js';
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 import { hasSolution, tenantState } from './tenant.js';
 
@@ -150,7 +150,11 @@ app.use((req, res, next) => {
   // 支付API使用组合认证：支持JWT（租户/平台）和card_token（个人用户）
   const comboAuth = (req, res, next) => {
     // 公开路径白名单（访客免认证）：表单提交
-    if (/^\/forms\/\d+\/submit$/.test(req.path)) {
+    // 注意：super-form 挂在 /api/card-market 之下，comboAuth 可能以两种上下文运行：
+    //   /api/card-market 上下文 → req.path = /super-form/<id>/(submit|public)
+    //   /api/card-market/super-form 上下文 → req.path = /<id>/(submit|public)
+    // 两种都要放行（访客免认证）。
+    if (/^\/forms\/\d+\/submit$/.test(req.path) || /^\/super-form\/\d+\/(submit|public)$/.test(req.path) || /^\/\d+\/(submit|public)$/.test(req.path)) {
       req.user = null;
       return next();
     }
@@ -185,6 +189,8 @@ app.use((req, res, next) => {
   app.use('/api/payment', comboAuth, createPaymentRouter(database));
   // 人脉集市API（组合认证：支持JWT和card_token）
   app.use('/api/card-market', comboAuth, createCardMarketRouter(database));
+  // 超级表单API（组合认证：支持JWT和card_token；提交与公开配置走白名单免认证）
+  app.use('/api/card-market/super-form', comboAuth, createSuperFormRouter(database));
   // 计费API（总后台套餐/发票管理 + 客户后台套餐/发票）
   app.use('/api', createBillingRouter(database));
   app.use('/api/customer', requireAuth, createCustomerBillingRouter(database));

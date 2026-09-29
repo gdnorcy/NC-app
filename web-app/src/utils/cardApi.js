@@ -157,6 +157,8 @@ export const cardApi = {
   // 人脉集市（租户级）
   getMarketList: (params) => request(MARKET_BASE_URL + '/market/list' + (params ? '?' + qsStringify(params) : '')),
   submitForm: (id, data) => request(MARKET_BASE_URL + `/forms/${id}/submit`, 'POST', { data }),
+  getSuperForm: (id) => request(MARKET_BASE_URL + `/super-form/${id}/public`),
+  submitSuperForm: (id, data) => request(MARKET_BASE_URL + `/super-form/${id}/submit`, 'POST', { data }),
   getMarketSettings: () => request(MARKET_BASE_URL + '/market/settings'),
   toggleMarket: (data) => request(MARKET_BASE_URL + '/market/toggle', 'POST', data),
   checkMarket: (params) => request(MARKET_BASE_URL + '/market/check' + (params ? '?' + qsStringify(params) : '')),
