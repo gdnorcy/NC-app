@@ -478,7 +478,8 @@ function tabbarStyle() {
   const useBgImg = ['btnRaise', 'btnInset'].includes(form.style);
   if (useBgImg && form.bg) {
     st.backgroundImage = `url(${resolveUrl(form.bg)})`;
-    st.backgroundSize = 'cover';
+    // 平铺：拉伸铺满全宽（悬浮条图的圆角边距被裁掉）；悬浮：cover 保持比例
+    st.backgroundSize = form.type === 'float' ? 'cover' : '100% 100%';
     st.backgroundPosition = 'center';
   } else {
     st.background = '#ffffff';

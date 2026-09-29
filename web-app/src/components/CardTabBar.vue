@@ -180,7 +180,8 @@ function tabbarStyle() {
     st.background = tabStyleCfg.value.bgColor || '#ffffff';
   } else if (tabBg.value) {
     st.backgroundImage = `url(${iconUrl(tabBg.value)})`;
-    st.backgroundSize = 'cover';
+    // 平铺：拉伸铺满全宽（悬浮条图圆角边距裁掉）；悬浮：cover 保持比例
+    st.backgroundSize = tabType.value === 'float' ? 'cover' : '100% 100%';
     st.backgroundPosition = 'center';
   } else {
     st.background = '#ffffff';
