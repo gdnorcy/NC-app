@@ -855,7 +855,8 @@ onMounted(load);
 /* 按钮凸起：明显凸出（白色外圈浮起 + 上移更多，对齐云菜鸟） */
 .ph-mid-btnRaise .ph-mid-btn { margin-top: -28px; width: 46px; height: 46px; box-shadow: 0 0 0 3px #ffffff, 0 8px 18px rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
-.ph-mid-btnInset .ph-mid-btn { margin-top: -6px; width: 34px; height: 34px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12); }
+/* 按钮嵌入：半嵌在导航条内（中心对齐上沿，白色外圈，对齐云菜鸟） */
+.ph-mid-btnInset .ph-mid-btn { margin-top: -22px; width: 44px; height: 44px; box-shadow: 0 0 0 3px #ffffff, 0 4px 12px rgba(0, 0, 0, 0.15); }
 .ph-slider + image, .ph-slider + svg { position: relative; z-index: 1; }
 .ph-slider + image ~ text, .ph-slider + svg ~ text { position: relative; z-index: 1; }
 

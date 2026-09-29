@@ -328,7 +328,7 @@ function hexA(hex, alpha) {
 /* 按钮凸起：明显凸出（上移更多 + 阴影加强；直径与云菜鸟 43px 一致） */
 .mp-mid-btnRaise .mp-mid-btn { margin-top: -56rpx; width: 92rpx; height: 92rpx; box-shadow: 0 0 0 6rpx #ffffff, 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
-.mp-mid-btnInset .mp-mid-btn { margin-top: -16rpx; width: 68rpx; height: 68rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
+.mp-mid-btnInset .mp-mid-btn { margin-top: -44rpx; width: 88rpx; height: 88rpx; box-shadow: 0 0 0 6rpx #ffffff, 0 4rpx 12rpx rgba(0, 0, 0, 0.15); }
 
 /* 扇形悬浮（云菜鸟 1:1：右下菜单主按钮 + 弧形子菜单） */
 .mp-fan-main {
