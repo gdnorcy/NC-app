@@ -30,7 +30,7 @@
             <div class="te-scheme-ops" @click.stop>
               <el-button size="small" text @click="copyScheme(s)">复制</el-button>
               <el-button size="small" text type="danger" :disabled="s.is_default" @click="delScheme(s)">删除</el-button>
-              <el-switch v-model="s.enabled" size="small" @change="toggleScheme(s)" />
+              <el-switch :model-value="s.enabled" size="small" @change="(v) => toggleScheme(s, v)" />
             </div>
           </div>
           <div v-if="!schemes.length" class="te-scheme-empty">暂无导航方案，点击上方「创建新导航」</div>
@@ -46,7 +46,7 @@
               <div class="ph-page-placeholder"></div>
             </div>
             <!-- 底部导航预览（与 C 端 CardTabBar 同构渲染） -->
-            <div class="ph-tabbar" :class="['ph-type-' + form.type]" :style="tabbarStyle">
+            <div class="ph-tabbar" :class="['ph-type-' + form.type]" :style="tabbarStyle()">
               <!-- 扇形悬浮：中心主按钮 + 点击展开扇形菜单 -->
               <template v-if="form.type === 'fan'">
                 <view class="ph-fan-main" :style="{ background: mainBtnBg }" @click="fanOpen = !fanOpen">
@@ -388,18 +388,21 @@ const previewMidBtnStyle = computed(() => {
   }
   return base;
 });
-// 背景联动：fan 或 平铺(普通/滑块/居中) = 背景颜色；平铺(凸起/嵌入)与悬浮 = 背景图片
-const isColorBg = computed(() => form.type === 'fan' || (form.type === 'flat' && ['normal', 'slider', 'btnCenter'].includes(form.style)));
+// 背景联动（云菜鸟实测矩阵）：fan、平铺(普通/滑块/居中)、悬浮(普通/滑块/居中) = 背景颜色；平铺(凸起/嵌入)、悬浮(凸起/嵌入) = 背景图片
+const isColorBg = computed(() => {
+  const st = ['normal', 'slider', 'btnCenter'].includes(form.style);
+  return form.type === 'fan' || (form.type === 'flat' && st) || (form.type === 'float' && st);
+});
 const bgSizeTip = computed(() => {
   if (form.type === 'float') return '750 * 190';
   if (form.style === 'btnInset') return '750 * 110';
   return '750 * 164';
 });
-// 按钮参数：平铺×按钮居中
-const showBtnParam = computed(() => form.type === 'flat' && form.style === 'btnCenter');
-// 颜色联动：导航横线 = 平铺(普通/滑块/居中)；突出颜色 = 平铺(凸起/嵌入)；扇形=菜单背景/文字；悬浮=仅两色
+// 按钮参数：平铺或悬浮 × 按钮居中
+const showBtnParam = computed(() => form.type !== 'fan' && form.style === 'btnCenter');
+// 颜色联动（云菜鸟实测矩阵）：导航横线 = 平铺(普通/滑块/居中)；突出颜色 = 平铺或悬浮(居中/凸起/嵌入)；扇形=菜单背景/文字
 const showNavLine = computed(() => form.type === 'flat' && ['normal', 'slider', 'btnCenter'].includes(form.style));
-const showHighlight = computed(() => form.type === 'flat' && ['btnRaise', 'btnInset'].includes(form.style));
+const showHighlight = computed(() => form.type !== 'fan' && ['btnCenter', 'btnRaise', 'btnInset'].includes(form.style));
 
 watch(
   [
@@ -569,8 +572,13 @@ async function save() {
 async function copyScheme(s) {
   try { await designCall.post(`${API}/tab/copy`, { id: s.id }); ElMessage.success('已复制'); load(); } catch (e) { ElMessage.error(e); }
 }
-async function toggleScheme(s) {
-  try { await designCall.post(`${API}/tab/save`, { id: s.id, enabled: s.enabled ? 1 : 0 }); } catch (e) { ElMessage.error(e); }
+async function toggleScheme(s, v) {
+  // 仅用户交互触发（:model-value 外部赋值不会派发用户 change；此处再按值与当前显示一致跳过，防初始化/外部赋值误触发）
+  const next = v ? 1 : 0;
+  if (s.enabled === next) return;
+  const prev = s.enabled;
+  s.enabled = next; // 乐观更新
+  try { await designCall.post(`${API}/tab/save`, { id: s.id, enabled: next }); } catch (e) { s.enabled = prev; ElMessage.error(e); }
 }
 async function delScheme(s) {
   try { await ElMessageBox.confirm(`确认删除导航方案「${s.scheme_name}」？`, '删除确认', { type: 'warning' }); } catch { return; }

@@ -136,6 +136,11 @@ describe('设计中心（素材/风格/导航/模板/页面装修）', () => {
     const after = svc.listTabSchemes(T1);
     assert.equal(after.find((x) => x.id === r2.id).is_default, 1);
     assert.equal(after.find((x) => x.id === r1.id).is_default, 0);
+    // 仅切换启用状态（无 name/tabJson）：只更新 enabled，不校验名称（开关切换场景）
+    assert.equal(svc.saveTabScheme(T1, { id: r2.id, enabled: 0 }).ok, true);
+    assert.equal(svc.listTabSchemes(T1).find((x) => x.id === r2.id).enabled, 0);
+    assert.equal(svc.saveTabScheme(T1, { id: r2.id, enabled: 1 }).ok, true);
+    assert.equal(svc.listTabSchemes(T1).find((x) => x.id === r2.id).enabled, 1);
   });
 
   it('P6b 底部导航：菜单项数量 2~5 校验 + 新对象结构归一化', () => {

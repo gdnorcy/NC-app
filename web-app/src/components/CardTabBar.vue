@@ -3,7 +3,7 @@
     v-if="designItems.length || navMode !== 'none'"
     class="mp-tabbar"
     :class="['mp-tabbar-' + tabType, 'mp-corner-' + tabCorner]"
-    :style="tabbarStyle"
+    :style="tabbarStyle()"
   >
     <!-- 设计中心已发布底部导航方案：优先渲染配置项 -->
     <template v-if="designItems.length">
@@ -103,6 +103,11 @@ const tabType = computed(() => tabStyleCfg.value.type || 'flat');
 const tabStyle = computed(() => tabStyleCfg.value.style || 'normal');
 const tabCorner = computed(() => tabStyleCfg.value.corner || 'square');
 const tabBg = computed(() => tabStyleCfg.value.bg || '');
+// 背景类型（云菜鸟实测矩阵）：fan、平铺/悬浮(普通/滑块/居中) = 背景颜色；平铺/悬浮(凸起/嵌入) = 背景图片
+const isColorBg = computed(() => {
+  const st = ['normal', 'slider', 'btnCenter'].includes(tabStyle.value);
+  return tabType.value === 'fan' || st;
+});
 // 选中色：优先导航方案「已选中色」，空则回退主题主色（现状）
 const activeColor = computed(() => tabStyleCfg.value.colors?.selected || designConfig.value?.style?.primaryColor || '#165DFF');
 const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
@@ -158,8 +163,8 @@ function isMid(i) {
 }
 function tabbarStyle() {
   const st = {};
-  // 扇形悬浮：背景颜色（非图片）；其余类型：背景图片
-  if (tabType.value === 'fan') {
+  // 背景类型（云菜鸟矩阵）：颜色型(普通/滑块/居中/扇形) → 背景颜色；图片型(凸起/嵌入) → 背景图片
+  if (isColorBg.value) {
     st.background = tabStyleCfg.value.bgColor || '#ffffff';
   } else if (tabBg.value) {
     st.backgroundImage = `url(${iconUrl(tabBg.value)})`;

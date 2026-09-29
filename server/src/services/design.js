@@ -235,9 +235,18 @@ export function createDesignService(db) {
         return { ...row, tab_json: svc.normalizeTabJson(raw) };
       });
 
-  /** 新增/编辑 合并接口；tabJson 支持旧数组或新对象；菜单项数量 2~5（微信小程序 tabBar 规则） */
+  /** 新增/编辑 合并接口；tabJson 支持旧数组或新对象；菜单项数量 2~5（微信小程序 tabBar 规则）
+   *  仅切换启用状态（无 name 且无 tabJson）时只更新 enabled，不校验名称 */
   svc.saveTabScheme = (tenantId, { id, name, tabJson, enabled }) => {
     const n = String(name || '').trim();
+    if (!n && (tabJson === undefined || tabJson === null)) {
+      if (!id) return { ok: false, error: '方案不存在' };
+      const s = db.prepare('SELECT id FROM tenant_tab_scheme WHERE tenant_id = ? AND id = ?').get(tenantId, id);
+      if (!s) return { ok: false, error: '方案不存在' };
+      db.prepare("UPDATE tenant_tab_scheme SET enabled = ?, updated_at = datetime('now') WHERE id = ? AND tenant_id = ?")
+        .run(enabled ? 1 : 0, id, tenantId);
+      return { ok: true, id };
+    }
     if (!n) return { ok: false, error: '方案名称不能为空' };
     const norm = svc.normalizeTabJson(tabJson);
     if (norm.items.length < 2 || norm.items.length > 5) return { ok: false, error: '菜单项数量需为 2~5 个（小程序 tabBar 规则）' };
