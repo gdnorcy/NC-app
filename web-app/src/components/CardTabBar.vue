@@ -116,7 +116,13 @@ const activeColor = computed(() => {
 });
 const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
 // 突出色：优先导航方案「突出颜色」，空则回退选中色
-const mainBtnBg = computed(() => tabStyleCfg.value.colors?.highlight || activeColor.value);
+const mainBtnBg = computed(() => {
+  // 中间按钮颜色：优先突出颜色，空则已选中色，不自动跟主题色（对齐云菜鸟）
+  const c = tabStyleCfg.value.colors || {};
+  if (c.highlight && c.highlight !== 'transparent') return c.highlight;
+  if (c.selected && c.selected !== 'transparent') return c.selected;
+  return '#ff4d4f';
+});
 // 中间按钮尺寸/形状（云菜鸟：按钮居中=圆角矩形(高=btnHeight 圆角=btnRadius)；凸起/嵌入=圆形）
 const midBtnStyle = computed(() => {
   const h = (tabStyleCfg.value.btnHeight || 28) * 2;
@@ -320,7 +326,7 @@ function hexA(hex, alpha) {
 /* 按钮居中：居中凸出半个（作用于按钮，文字留在栏内） */
 .mp-mid-btnCenter .mp-mid-btn { margin-top: -30rpx; width: 100rpx; height: 100rpx; }
 /* 按钮凸起：明显凸出（上移更多 + 阴影加强；直径与云菜鸟 43px 一致） */
-.mp-mid-btnRaise .mp-mid-btn { margin-top: -64rpx; width: 88rpx; height: 88rpx; box-shadow: 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
+.mp-mid-btnRaise .mp-mid-btn { margin-top: -56rpx; width: 92rpx; height: 92rpx; box-shadow: 0 0 0 6rpx #ffffff, 0 14rpx 32rpx rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
 .mp-mid-btnInset .mp-mid-btn { margin-top: -16rpx; width: 68rpx; height: 68rpx; box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12); }
 
