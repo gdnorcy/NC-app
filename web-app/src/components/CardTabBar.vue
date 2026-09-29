@@ -42,7 +42,7 @@
           >
             <view class="mp-mid-btn" :style="midBtnStyle">
               <image v-if="isImgIcon(it.icon)" :src="iconUrl(it.icon)" class="mp-mid-img" mode="aspectFit" />
-              <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
+              <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" :color="tabStyle === 'btnCenter' ? (tabStyleCfg.value.colors?.unselected || '#9a9a9a') : '#ffffff'" />
             </view>
             <text class="mp-mid-txt" :class="{ on: isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </view>
@@ -121,8 +121,10 @@ const mainBtnBg = computed(() => tabStyleCfg.value.colors?.highlight || activeCo
 const midBtnStyle = computed(() => {
   const h = (tabStyleCfg.value.btnHeight || 28) * 2;
   const r = (tabStyleCfg.value.btnRadius || 7) * 2;
-  if (tabStyle.value === 'btnCenter') {
-    return { background: mainBtnBg.value, width: '76rpx', height: h + 'rpx', borderRadius: r + 'rpx' };
+  const isCenter = tabStyle.value === 'btnCenter';
+  if (isCenter) {
+    // 按钮居中：白色小圆浮起（云菜鸟 1:1），不是主题色实心
+    return { background: '#ffffff', width: '76rpx', height: h + 'rpx', borderRadius: r + 'rpx', boxShadow: '0 6rpx 16rpx rgba(0,0,0,0.15)' };
   }
   return { background: mainBtnBg.value };
 });

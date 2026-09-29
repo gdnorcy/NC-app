@@ -83,9 +83,9 @@
                     class="ph-mid"
                     :class="'ph-mid-' + form.style"
                   >
-                    <view class="ph-mid-btn" :style="{ background: mainBtnBg }">
+                    <view class="ph-mid-btn" :style="{ background: form.style === 'btnCenter' ? '#ffffff' : mainBtnBg }">
                       <image v-if="isImgIcon(it.icon)" :src="resolveUrl(it.icon)" class="ph-mid-img" mode="aspectFit" />
-                      <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="xlarge" color="#ffffff" />
+                      <SIcon v-else :name="it.icon || fallbackIcon(it.text)" size="xlarge" :color="form.style === 'btnCenter' ? (form.colors.unselected || '#9a9a9a') : '#ffffff'" />
                     </view>
                     <text class="ph-mid-txt" :class="{ on: previewIdx === i }" :style="{ color: tabColor(i) }">{{ it.text }}</text>
                   </view>
@@ -439,6 +439,9 @@ watch(() => form.style, (s) => {
     const def = DEFAULT_BG[s];
     // 仅当 bg 为空或仍为默认图之一时跟随联动；用户自定义 bg 保留
     if (!form.bg || Object.values(DEFAULT_BG).includes(form.bg)) form.bg = def;
+  } else if (Object.values(DEFAULT_BG).includes(form.bg)) {
+    // 切回普通/滑块/居中时，默认背景图残留清空（修复切回后圆槽残留 bug）
+    form.bg = '';
   }
 });
 
@@ -465,7 +468,8 @@ const midIdx = computed(() => (form.items.length >= 3 && form.items.length % 2 =
 function isMid(i) { return i === midIdx.value; }
 function tabbarStyle() {
   const st = {};
-  if (form.bg) {
+  const useBgImg = ['btnRaise', 'btnInset'].includes(form.style);
+  if (useBgImg && form.bg) {
     st.backgroundImage = `url(${resolveUrl(form.bg)})`;
     st.backgroundSize = 'cover';
     st.backgroundPosition = 'center';
@@ -833,7 +837,8 @@ onMounted(load);
 .ph-mid-btn .s-icon { margin: 0; }
 .ph-mid-img { width: 22px; height: 22px; }
 /* 按钮居中：居中凸出半个（作用于按钮，文字留在栏内） */
-.ph-mid-btnCenter .ph-mid-btn { margin-top: -12px; width: 38px; height: 38px; }
+/* 按钮居中：白色小圆凸出半个（对齐云菜鸟：白底深灰图标） */
+.ph-mid-btnCenter .ph-mid-btn { margin-top: -12px; width: 38px; height: 38px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15); }
 /* 按钮凸起：明显凸出（上移更多 + 阴影加强 + bar 增高） */
 .ph-mid-btnRaise .ph-mid-btn { margin-top: -26px; width: 44px; height: 44px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22); }
 /* 按钮嵌入：半嵌 bar 内 */
