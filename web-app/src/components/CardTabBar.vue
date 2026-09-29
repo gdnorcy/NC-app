@@ -151,8 +151,10 @@ function tabColor(it) {
   return isOn(it) ? activeColor.value : inactiveColor.value;
 }
 function isMid(i) {
-  if (!designItems.value.length) return false;
-  return i === Math.floor(designItems.value.length / 2);
+  // 云菜鸟实测：主按钮固定为第 3 个菜单项 index=2；项数<3 则无主按钮
+  // 5 项→第3项正中、4 项→第3项偏右、3 项→第3项、2 项→无主按钮
+  if (designItems.value.length < 3) return false;
+  return i === 2;
 }
 function tabbarStyle() {
   const st = {};

@@ -440,8 +440,9 @@ function resolveUrl(u) {
 function tabColor(i) {
   return previewIdx === i ? activeColor.value : (form.colors.unselected || '#9a9a9a');
 }
-// 中间项索引（云菜鸟：floor(n/2)，4 项=第3项；响应式，随 items 加载变化）
-const midIdx = computed(() => Math.floor(form.items.length / 2));
+// 中间项索引（云菜鸟实测：主按钮固定为第 3 个菜单项 index=2；项数<3 则无主按钮）
+// 5 项→第3项正中、4 项→第3项偏右、3 项→第3项、2 项→无主按钮
+const midIdx = computed(() => (form.items.length >= 3 ? 2 : -1));
 function isMid(i) { return i === midIdx.value; }
 function tabbarStyle() {
   const st = {};
