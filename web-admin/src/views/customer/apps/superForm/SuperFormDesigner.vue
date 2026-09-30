@@ -185,10 +185,25 @@
 
               <template v-else-if="selected.type === 'image'">
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
                 <el-form-item label="是否必填">
                   <el-radio-group v-model="selected.content.required">
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
+                </el-form-item>
+                <el-form-item label="图片类型">
+                  <el-radio-group v-model="selected.content.imageType">
+                    <el-radio value="normal">普通</el-radio>
+                    <el-radio value="idcard">身份证</el-radio>
+                    <el-radio value="license">营业执照</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="示例图">
+                  <el-input v-model="selected.content.sampleImg" placeholder="示例图URL" />
+                  <span class="sf-hint">示例图可引导用户上传规定模式的图片</span>
+                </el-form-item>
+                <el-form-item label="最少上传">
+                  <el-input-number v-model="selected.content.minCount" :min="0" :max="9" />
                 </el-form-item>
                 <el-form-item label="最多上传">
                   <el-input-number v-model="selected.content.maxCount" :min="1" :max="9" />
@@ -244,6 +259,14 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
+                </el-form-item>
                 <el-form-item label="预填文字"><el-input v-model="selected.content.prefill" /></el-form-item>
                 <el-form-item label="内容类型">
                   <el-radio-group v-model="selected.content.dateType">
@@ -269,6 +292,14 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
+                </el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
                 <el-form-item label="大小限制">
                   <el-input-number v-model="selected.content.min" :min="0" size="small" /> ~
@@ -284,6 +315,14 @@
                   <el-radio-group v-model="selected.content.required">
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
+                </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
                 <el-form-item label="内容类型">
                   <el-radio-group v-model="selected.content.dateType">
