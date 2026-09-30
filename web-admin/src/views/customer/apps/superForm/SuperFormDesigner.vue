@@ -339,6 +339,14 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
+                </el-form-item>
                 <el-form-item label="按钮文案"><el-input v-model="selected.content.tipText" /></el-form-item>
               </template>
 
@@ -348,6 +356,14 @@
                   <el-radio-group v-model="selected.content.required">
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
+                </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
                 <el-form-item label="最多上传"><el-input-number v-model="selected.content.maxCount" :min="1" :max="9" /></el-form-item>
               </template>
@@ -369,6 +385,14 @@
                   <el-radio-group v-model="selected.content.required">
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
+                </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
                 <el-form-item label="描述文字"><el-input v-model="selected.content.desc" placeholder="请输入描述文字" /></el-form-item>
                 <el-form-item label="允许半选"><el-switch v-model="selected.content.allowHalf" /></el-form-item>
@@ -392,6 +416,14 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
+                </el-form-item>
                 <el-form-item label="按钮文案"><el-input v-model="selected.content.placeholder" /></el-form-item>
               </template>
 
@@ -401,6 +433,14 @@
                   <el-radio-group v-model="selected.content.required">
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
+                </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
                 <el-form-item label="按钮文案"><el-input v-model="selected.content.buttonText" /></el-form-item>
