@@ -201,7 +201,7 @@
                   </div>
                 </el-form-item>
                 <el-form-item label="最少上传">
-                  <el-input-number v-model="selected.content.minCount" :min="0" :max="9" />
+                  <el-input-number :model-value="selected.content.minCount ?? 0" @update:model-value="selected.content.minCount = $event" :min="0" :max="9" />
                 </el-form-item>
                 <el-form-item label="最多上传">
                   <el-input-number v-model="selected.content.maxCount" :min="1" :max="9" />
