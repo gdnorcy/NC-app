@@ -1914,6 +1914,19 @@ function migrate(db) {
     db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, chApp.id);
   }
 
+  // —— 超级表单（ew 超级表单：拖拽式表单设计器，独立应用，归入「高级功能」分类，默认对租户可见）——
+  db.exec("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('super-form', '超级表单', '拖拽式表单设计器：自定义字段、逻辑跳转、数据收集与导出', 'form', '高级功能', 8, 1)");
+  const sfRow = db.prepare("SELECT id FROM apps WHERE code = 'super-form'").get();
+  if (sfRow) {
+    const sfMenuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+    const sfMenus = [
+      ['表单管理', 'superform:view', '表单查看'], ['表单管理', 'superform:edit', '表单设计'],
+      ['数据管理', 'superform:data', '数据查看'], ['数据管理', 'superform:export', '数据导出'],
+      ['系统设置', 'superform:setting', '设置查看'],
+    ];
+    sfMenus.forEach(([mod, key, label], idx) => sfMenuIns.run(sfRow.id, mod, mod, key, label, idx + 1));
+  }
+
   // —— 入驻口令使用审计 ——
   db.exec(`
     CREATE TABLE IF NOT EXISTS tenant_invite_log (
