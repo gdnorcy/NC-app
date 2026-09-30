@@ -102,22 +102,23 @@
           <input v-else-if="comp.type === 'carplate'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder || '请输入车牌号'" />
 
           <!-- 标题 -->
-          <view v-else-if="comp.type === 'title'" class="sf-title" :style="{ fontSize: (comp.content.size || 18) + 'px', textAlign: comp.content.align || 'left', color: comp.content.color || '#303133' }">
+          <!-- 标题：组件样式的主标题大小/颜色优先，回退内容配置 -->
+          <view v-else-if="comp.type === 'title'" class="sf-title" :style="{ fontSize: (comp.style && comp.style.titleSize || comp.content.size || 17) + 'px', textAlign: comp.content.align || 'left', color: comp.style && comp.style.labelColor || comp.content.color || '#000000' }">
             {{ comp.content.text }}
           </view>
 
           <!-- 富文本 -->
           <view v-else-if="comp.type === 'richtext'" class="sf-richtext" v-html="comp.content.html" />
 
-          <!-- 空白块 -->
-          <view v-else-if="comp.type === 'blank'" :style="{ height: (comp.content.height || 20) + 'px' }" />
+          <!-- 空白块：样式「空白高度」优先 -->
+          <view v-else-if="comp.type === 'blank'" :style="{ height: (comp.style && comp.style.dividerHeight != null ? comp.style.dividerHeight : comp.content.height || 20) + 'px' }" />
 
-          <!-- 辅助线 -->
-          <view v-else-if="comp.type === 'line'" class="sf-line" :style="{ borderTopStyle: comp.content.style || 'solid', borderTopColor: comp.content.color || '#dcdfe6' }" />
+          <!-- 辅助线：样式「线条粗细 / 线条颜色」优先 -->
+          <view v-else-if="comp.type === 'line'" class="sf-line" :style="{ borderTopStyle: comp.content.style || 'solid', borderTopWidth: (comp.style && comp.style.dividerHeight != null ? comp.style.dividerHeight : 1) + 'px', borderTopColor: comp.style && comp.style.dividerColor || comp.content.color || '#000000' }" />
 
           <!-- 轮播图 -->
           <view v-else-if="comp.type === 'swiper'" class="sf-swiper">
-            <swiper v-if="(comp.content.images || []).length" autoplay circular :style="{ height: (comp.content.height || 160) + 'px' }">
+            <swiper v-if="(comp.content.images || []).length" autoplay circular :style="{ height: (comp.style && comp.style.inputHeight || comp.content.height || 160) + 'px' }">
               <swiper-item v-for="(img, si) in comp.content.images" :key="si">
                 <image :src="img" class="sf-swiper-img" mode="aspectFill" />
               </swiper-item>
@@ -176,6 +177,7 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { componentStyleVars } from './componentStyle.js';
 
 const formId = ref(null);
 const form = reactive({ name: '', config: { components: [], settings: {} } });
@@ -224,39 +226,9 @@ const pageBgStyle = computed(() => {
   }
   return s;
 });
-// 组件级样式（左右边距 / 输入框圆角 / 标题与输入字号）——逐组件生效
+// 组件级样式：对齐 ew 四段（组件背景 / 组件整体 / 组件风格 / 组件颜色），按类型逐组件生效
 function fieldStyle(comp) {
-  const g = form.config.settings?.globalStyle || {};
-  const st = comp.style || {};
-  const mx = st.marginX != null ? st.marginX : (g.compMarginX || 0);
-  const s = {
-    paddingLeft: mx + 'px',
-    paddingRight: mx + 'px',
-    '--c-input-radius': st.radius != null ? st.radius + 'px' : 'var(--g-input-radius, 6px)',
-    '--c-title-size': (st.titleSize || 14) + 'px',
-    '--c-input-size': (st.inputSize || 14) + 'px',
-  };
-  // 评分专用：组件背景 / 顶外边距 / 上下边距 / 圆角 / 颜色变量
-  if (comp.type === 'rate' && st.icon) {
-    if (st.outMarginTop) s.marginTop = st.outMarginTop + 'px';
-    if (st.marginY != null) { s.paddingTop = st.marginY + 'px'; s.paddingBottom = st.marginY + 'px'; }
-    if (st.radius) s.borderRadius = st.radius + 'px';
-    if (st.bgType === 'color' && st.bgColor && st.bgColor.toUpperCase() !== '#FFFFFF') s.background = st.bgColor;
-    if (st.bgType === 'imgcolor') {
-      if (st.bgColor) s.backgroundColor = st.bgColor;
-      if (st.bgImage) {
-        s.backgroundImage = 'url("' + st.bgImage + '")';
-        s.backgroundRepeat = st.bgRepeat || 'repeat-x';
-        s.backgroundPosition = (st.bgPosX || 'left') + ' ' + (st.bgPosY || 'top');
-        if (st.bgImgStyle === 'fill') s.backgroundSize = 'cover';
-        else if (st.bgImgStyle === 'fixed') s.backgroundSize = 'contain';
-        else s.backgroundSize = (st.bgImgW != null ? st.bgImgW : 20) + '% ' + (st.bgImgH != null ? st.bgImgH : 20) + '%';
-      }
-    }
-    s['--rate-active'] = st.activeColor || '#F7BA2A';
-    s['--rate-desc'] = st.descColor || '#999999';
-  }
-  return s;
+  return componentStyleVars(comp, form.config.settings?.globalStyle || {});
 }
 
 const components = computed(() => form.config.components || []);
@@ -541,12 +513,13 @@ async function submit() {
 .sf-form.horizontal { display: flex; flex-wrap: wrap; gap: 12px; }
 .sf-form.horizontal .sf-field { flex: 1 1 45%; }
 .sf-form-name { font-size: 18px; font-weight: 600; padding: 16px 16px 4px; }
+/* 所有组件样式均消费「组件样式 → CSS 变量」（ew 四段：背景/整体/风格/颜色），与设计器预览同一套语义 */
 .sf-field { padding: 12px 16px; }
-.sf-label { font-size: var(--c-title-size, 14px); color: var(--c-title-color, #303133); margin-bottom: 8px; }
-.sf-req { color: var(--c-error-color, #f56c6c); margin-left: 2px; }
-.sf-input { width: 100%; border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); box-sizing: border-box; background: #fff; color: var(--c-input-color, #303133); }
-textarea.sf-input { min-height: 84px; }
-.sf-upload { border: 1px dashed #c0c4cc; border-radius: var(--g-radius, 6px); padding: 18px; text-align: center; color: #909399; font-size: 13px; }
+.sf-label { font-size: var(--c-title-size, 14px); color: var(--c-title-color, #000000); margin-bottom: 8px; }
+.sf-req { color: var(--c-error-color, #ED4F4F); margin-left: 2px; }
+.sf-input { width: 100%; border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); box-sizing: border-box; background: var(--c-input-bg, #F7F9FA); color: var(--c-input-color, #333333); }
+textarea.sf-input { min-height: var(--c-input-height, 84px); }
+.sf-upload { min-width: var(--c-upload-size, 45px); min-height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 10px var(--c-input-pad-x, 10px); text-align: center; color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 13px); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
 /* 线风格：输入类控件去边框，仅保留底线（对齐 ew 组件风格） */
 .cs-line .sf-input,
 .cs-line .sf-loc,
@@ -554,52 +527,53 @@ textarea.sf-input { min-height: 84px; }
 .cs-line .sf-download,
 .cs-line .sf-upload { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 .sf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
-.sf-opt { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: 6px; padding: 8px 14px; font-size: 14px; }
-.sf-opt.on { border-color: #409eff; color: #409eff; background: #ecf5ff; }
-.sf-submit { width: 100%; border: none; border-radius: 8px; padding: 12px; background: #409eff; color: #fff; font-size: 16px; margin-top: 6px; }
+.sf-opt { border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 8px 14px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); background: var(--c-input-bg, #F7F9FA); }
+.sf-opt.on { border-color: var(--c-active-color, #2667EC); color: var(--c-active-color, #2667EC); background: var(--c-input-bg, #F7F9FA); }
+.sf-submit { width: 100%; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 22px); padding: 12px; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); font-size: 16px; margin-top: 6px; }
 .sf-ended { text-align: center; color: #909399; padding: 30px; }
 .sf-empty { text-align: center; color: #c0c4cc; padding: 30px; }
-.sf-loc { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
-.sf-agree { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #606266; flex-wrap: wrap; }
-.sf-check { width: 18px; height: 18px; border: 1px solid #c0c4cc; border-radius: 4px; text-align: center; line-height: 18px; color: #fff; flex-shrink: 0; }
-.sf-check.on { background: #409eff; border-color: #409eff; }
+.sf-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); text-align: center; }
+.sf-agree { display: flex; align-items: flex-start; gap: 8px; font-size: var(--c-input-size, 13px); color: var(--c-input-color, #333333); flex-wrap: wrap; }
+.sf-check { width: 18px; height: 18px; border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: 4px; text-align: center; line-height: 18px; color: #fff; flex-shrink: 0; }
+.sf-check.on { background: var(--c-check-color, #4385FF); border-color: var(--c-check-color, #4385FF); }
 .sf-agree-text { flex: 1; }
-.sf-link { color: #409eff; }
+.sf-link { color: var(--c-input-color, #2667EC); }
 .sf-rate { display: flex; flex-direction: column; gap: 4px; }
-.sf-rate-desc { color: var(--rate-desc, #999999); font-size: 12px; }
+.sf-rate-desc { color: var(--c-desc-color, #999999); font-size: 12px; }
 .sf-rate-icons { display: flex; gap: 4px; }
-.sf-star { font-size: 26px; color: #dcdfe6; }
-.sf-star.on { color: #f7ba2a; }
-.sf-download { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
-.sf-auth { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); color: #409eff; text-align: center; background: #fff; }
+.sf-star { font-size: 26px; color: var(--c-inactive-color, #C6D1DE); }
+.sf-star.on { color: var(--c-active-color, #F7BA2A); }
+.sf-download { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-file-size, 14px); color: var(--c-file-title, #333333); background: var(--c-input-bg, #F7F9FA); text-align: center; }
+.sf-download::after { content: ' 下载'; color: var(--c-down-color, #4385FF); }
+.sf-auth { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); color: var(--c-empower-color, #4385FF); text-align: center; background: var(--c-input-bg, #F7F9FA); }
 .sf-sms { display: flex; flex-direction: column; gap: 8px; }
 .sf-sms-row { display: flex; gap: 8px; align-items: stretch; }
 .sf-sms-phone { flex: 1; }
 .sf-sms-code { width: 100%; }
-.sf-sms-btn { border: 1px solid #409eff; border-radius: 6px; padding: 0 14px; font-size: 13px; color: #409eff; background: #fff; display: flex; align-items: center; white-space: nowrap; flex-shrink: 0; }
-.sf-title { font-weight: 600; padding: 4px 0; }
+.sf-sms-btn { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 6px); padding: 0 14px; font-size: 13px; color: var(--c-msg-color, #4385FF); background: #fff; display: flex; align-items: center; white-space: nowrap; flex-shrink: 0; }
+.sf-title { font-weight: 600; padding: 4px var(--c-input-pad-x, 10px); font-size: var(--c-title-size, 17px); color: var(--c-title-color, #000000); }
 .sf-richtext { font-size: 14px; color: #303133; line-height: 1.6; }
-.sf-line { border-top-width: 1px; margin: 4px 0; }
-.sf-swiper { width: 100%; border-radius: 8px; overflow: hidden; }
+.sf-line { border-top-width: var(--c-divider-height, 1px); border-top-color: var(--c-divider-color, #000000); margin: 4px 0; }
+.sf-swiper { width: 100%; border-radius: var(--c-img-radius, 0px); overflow: hidden; }
 .sf-swiper-img { width: 100%; height: 100%; display: block; }
-.sf-swiper-empty { background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: 6px; padding: 24px; text-align: center; color: #909399; font-size: 13px; }
-.sf-bigimage { width: 100%; border-radius: 8px; overflow: hidden; }
+.sf-swiper-empty { background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: var(--c-img-radius, 6px); padding: 24px; text-align: center; color: #909399; font-size: 13px; }
+.sf-bigimage { width: 100%; border-radius: var(--c-img-radius, 8px); overflow: hidden; }
 .sf-bigimage-img { width: 100%; display: block; }
-.sf-bigimage-empty { background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: 6px; padding: 30px; text-align: center; color: #909399; font-size: 13px; }
-.sf-video { width: 100%; border-radius: 8px; overflow: hidden; }
+.sf-bigimage-empty { background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: var(--c-img-radius, 6px); padding: 30px; text-align: center; color: #909399; font-size: 13px; }
+.sf-video { width: 100%; border-radius: var(--c-input-radius, 8px); overflow: hidden; }
 .sf-video-el { width: 100%; display: block; }
 .sf-video-empty { background: #000; color: #fff; text-align: center; padding: 30px; font-size: 13px; }
-.sf-backdesc { font-size: 13px; color: #909399; background: #f5f6f8; border-radius: 6px; padding: 10px 12px; line-height: 1.6; }
-.sf-realtime { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #606266; background: #ecf5ff; border-radius: 6px; padding: 10px 12px; }
+.sf-backdesc { font-size: var(--c-title-size, 14px); color: var(--c-input-color, #333333); line-height: 1.6; }
+.sf-realtime { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--c-title-color, #000000); background: var(--c-input-bg, #F7F9FA); border-radius: var(--c-input-radius, 10px); padding: 10px 12px; }
 .sf-realtime-label { font-weight: 600; }
-.sf-realtime-count { color: #409eff; }
-.sf-next { width: 100%; border: 1px solid #409eff; border-radius: 8px; padding: 12px; background: #fff; color: #409eff; font-size: 16px; text-align: center; margin-top: 6px; }
-.sf-pay { border: 1px solid #f0c78a; border-radius: 8px; padding: 12px; background: #fffaf0; }
-.sf-pay-label { font-size: 14px; color: #303133; font-weight: 600; margin-bottom: 8px; }
-.sf-pay-amt { color: #f56c6c; margin-left: 6px; }
+.sf-realtime-count { color: var(--c-active-color, #2667EC); }
+.sf-next { width: 100%; border: 1px solid var(--c-next-border, #0076F0); border-radius: var(--c-input-radius, 19px); padding: 12px; background: var(--c-next-bg, #0076F0); color: var(--c-next-color, #FFFFFF); font-size: 16px; text-align: center; margin-top: 6px; }
+.sf-pay { border: 1px solid var(--c-border-color, #F7F9FA); border-radius: var(--c-input-radius, 3px); padding: var(--c-model-margin-y, 10px); background: var(--c-input-bg, #F7F9FA); }
+.sf-pay-label { font-size: var(--c-title-size, 16px); color: var(--c-title-color, #000000); font-weight: 600; margin-bottom: 8px; }
+.sf-pay-amt { color: var(--c-price-color, #FF1C1C); margin-left: 6px; }
 .sf-pay-specs { display: flex; flex-direction: column; gap: 8px; }
-.sf-pay-spec { display: flex; justify-content: space-between; border: 1px solid #dcdfe6; border-radius: 6px; padding: 10px 12px; font-size: 14px; }
-.sf-pay-spec.on { border-color: #f0a020; background: #fff3e0; }
-.sf-pay-spec-price { color: #f56c6c; font-weight: 600; }
-.sf-pay-tip { font-size: 12px; color: #909399; }
+.sf-pay-spec { display: flex; justify-content: space-between; border: 1px solid var(--c-border-color, #F7F9FA); border-radius: var(--c-input-radius, 3px); padding: 10px 12px; font-size: 14px; color: var(--c-spec-color, #000000); }
+.sf-pay-spec.on { border-color: var(--c-active-color, #2667EC); background: var(--c-input-bg, #F7F9FA); }
+.sf-pay-spec-price { color: var(--c-price-color, #FF1C1C); font-weight: 600; }
+.sf-pay-tip { font-size: 12px; color: var(--c-count-color, #79797B); }
 </style>

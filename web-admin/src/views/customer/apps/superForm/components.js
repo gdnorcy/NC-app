@@ -1,5 +1,11 @@
 // 超级表单组件定义与默认值（后台设计器 / C 端渲染共用）
 let __seq = 0;
+// 组件样式 schema / CSS 变量映射与 C 端填写页共用（web-app/src/pages/superForm/componentStyle.js）
+import {
+  STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars,
+} from '../../../../../../web-app/src/pages/superForm/componentStyle.js';
+export { STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars };
+
 export function genId() {
   return 'c_' + Date.now().toString(36) + (__seq++).toString(36);
 }
@@ -170,26 +176,8 @@ export function defaultContent(type) {
   }
 }
 
-export function defaultStyle() {
-  return { styleType: 'box', marginX: 10, radius: 3, titleSize: 16, inputSize: 14 };
-}
-
-// 评分组件专用样式（对齐 ew：组件背景/组件整体/组件风格/组件颜色）
-export function defaultRateStyle() {
-  return {
-    // 组件背景
-    bgType: 'color', bgColor: '#FFFFFF', bgImage: '', bgRepeat: 'repeat-x', bgPosX: 'left', bgPosY: 'top', bgImgStyle: 'custom', bgImgW: 20, bgImgH: 20,
-    // 组件整体
-    outMarginTop: 0, marginY: 10, marginX: 0, radius: 0,
-    // 组件风格
-    icon: 'smile', iconMarginX: 10, titleSize: 16,
-    // 组件颜色
-    titleColor: '#000000', descColor: '#999999', errorColor: '#ED4F4F', inactiveColor: '#C6D1DE', activeColor: '#F7BA2A',
-  };
-}
-
 export function createComponent(type) {
-  return { id: genId(), type, content: defaultContent(type), style: type === 'rate' ? defaultRateStyle() : defaultStyle() };
+  return { id: genId(), type, content: defaultContent(type), style: defaultStyle(type) };
 }
 
 export function defaultSettings() {
