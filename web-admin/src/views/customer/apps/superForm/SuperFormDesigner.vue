@@ -532,16 +532,28 @@
               <div class="sf-sec">组件风格</div>
               <template v-if="selected.type === 'swiper'">
                 <el-form-item label="风格">
-                  <el-radio-group v-model="selected.style.swiperStyle">
-                    <el-radio value="full">全屏风格</el-radio>
-                    <el-radio value="triple">三联风格</el-radio>
-                  </el-radio-group>
+                  <div class="sf-style-cards">
+                    <div class="sf-style-card" :class="{ on: selected.style.swiperStyle === 'full' }" @click="selected.style.swiperStyle = 'full'">
+                      <div class="sf-style-demo"><div style="width:100%;height:100%;background:#e0e0e0;border-radius:2px" /></div>
+                      <div class="sf-style-card-name">全屏风格</div>
+                    </div>
+                    <div class="sf-style-card" :class="{ on: selected.style.swiperStyle === 'triple' }" @click="selected.style.swiperStyle = 'triple'">
+                      <div class="sf-style-demo" style="display:flex;gap:2px"><div style="flex:1;background:#e0e0e0;border-radius:1px" /><div style="flex:1;background:#ccc;border-radius:1px" /><div style="flex:1;background:#e0e0e0;border-radius:1px" /></div>
+                      <div class="sf-style-card-name">三联风格</div>
+                    </div>
+                  </div>
                 </el-form-item>
                 <el-form-item label="指示点样式">
-                  <el-radio-group v-model="selected.style.dotStyle">
-                    <el-radio value="dot">圆点</el-radio>
-                    <el-radio value="num">数字+文字</el-radio>
-                  </el-radio-group>
+                  <div class="sf-style-cards">
+                    <div class="sf-style-card" :class="{ on: selected.style.dotStyle === 'dot' }" @click="selected.style.dotStyle = 'dot'">
+                      <div class="sf-style-demo" style="display:flex;align-items:center;justify-content:center;gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:#333" /><span style="width:5px;height:5px;border-radius:50%;background:#999" /><span style="width:5px;height:5px;border-radius:50%;background:#999" /></div>
+                      <div class="sf-style-card-name">圆点</div>
+                    </div>
+                    <div class="sf-style-card" :class="{ on: selected.style.dotStyle === 'num' }" @click="selected.style.dotStyle = 'num'">
+                      <div class="sf-style-demo" style="display:flex;align-items:center;justify-content:center;gap:4px"><span style="font-size:9px;color:#333">1/3</span></div>
+                      <div class="sf-style-card-name">数字+文字</div>
+                    </div>
+                  </div>
                 </el-form-item>
                 <el-form-item label="选中透明度">
                   <el-slider v-model="selected.style.activeOpacity" :min="0" :max="1" :step="0.1" style="flex:1" />
