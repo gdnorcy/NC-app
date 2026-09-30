@@ -80,6 +80,15 @@
             <text v-else>{{ values[comp.id] }}</text>
           </view>
 
+          <!-- 短信认证 -->
+          <view v-else-if="comp.type === 'sms'" class="sf-sms">
+            <view class="sf-sms-row">
+              <input class="sf-input sf-sms-phone" v-model="values[comp.id].phone" :placeholder="comp.content.placeholder || '请输入手机号'" />
+              <view class="sf-sms-btn" @click="authSms(comp.id)">{{ comp.content.buttonText || '获取验证码' }}</view>
+            </view>
+            <input class="sf-input sf-sms-code" v-model="values[comp.id].code" placeholder="请输入验证码" />
+          </view>
+
           <!-- 车牌号 -->
           <input v-else-if="comp.type === 'carplate'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder || '请输入车牌号'" />
 
@@ -242,6 +251,10 @@ async function load() {
       if (c.type === 'pay' && (!c.content.specs || !c.content.specs.length)) {
         values[c.id] = { amount: c.content.amount || 0 };
       }
+      // 短信认证预置 {phone, code}，供 v-model 绑定
+      if (c.type === 'sms' && !values[c.id]) {
+        values[c.id] = { phone: '', code: '' };
+      }
     });
   } catch (e) {
     uni.showToast({ title: '表单加载失败', icon: 'none' });
@@ -303,6 +316,17 @@ function authPhone(id) {
   });
 }
 
+function authSms(id) {
+  // 演示交互：校验手机号格式后模拟下发验证码（真实环境接入短信服务）
+  const v = values[id] || (values[id] = { phone: '', code: '' });
+  const phone = (v.phone || '').trim();
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    uni.showToast({ title: '请输入正确的手机号', icon: 'none' });
+    return;
+  }
+  uni.showToast({ title: '验证码已发送（演示）', icon: 'none' });
+}
+
 function toggleAgree(id) {
   values[id] = !values[id];
 }
@@ -332,6 +356,14 @@ function validateList(list) {
     // 协议：必须勾选
     if (c.type === 'agreement') {
       if (ct.required && !v) return '请先勾选：' + (ct.label || '协议');
+      continue;
+    }
+
+    // 短信认证：手机号必填 + 格式校验
+    if (c.type === 'sms') {
+      const phone = (v && typeof v === 'object' && v.phone) ? v.phone : (typeof v === 'string' ? v : '');
+      if (ct.required && !phone) return (ct.label || '短信认证') + '为必填项';
+      if (phone && !/^1[3-9]\d{9}$/.test(String(phone).trim())) return (ct.label || '短信认证') + '手机号格式不正确';
       continue;
     }
     // 评分：必填需 >0
@@ -442,6 +474,11 @@ textarea.sf-input { min-height: 84px; }
 .sf-star.on { color: #f7ba2a; }
 .sf-download { border: 1px solid #dcdfe6; border-radius: 6px; padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
 .sf-auth { border: 1px solid #dcdfe6; border-radius: 6px; padding: 10px; font-size: 14px; color: #409eff; text-align: center; background: #fff; }
+.sf-sms { display: flex; flex-direction: column; gap: 8px; }
+.sf-sms-row { display: flex; gap: 8px; align-items: stretch; }
+.sf-sms-phone { flex: 1; }
+.sf-sms-code { width: 100%; }
+.sf-sms-btn { border: 1px solid #409eff; border-radius: 6px; padding: 0 14px; font-size: 13px; color: #409eff; background: #fff; display: flex; align-items: center; white-space: nowrap; flex-shrink: 0; }
 .sf-title { font-weight: 600; padding: 4px 0; }
 .sf-richtext { font-size: 14px; color: #303133; line-height: 1.6; }
 .sf-line { border-top-width: 1px; margin: 4px 0; }

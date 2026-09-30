@@ -61,6 +61,13 @@
       <button class="cmpv-auth">{{ comp.content.placeholder || '授权手机号' }}</button>
     </template>
 
+    <template v-else-if="comp.type === 'sms'">
+      <div class="cmpv-sms">
+        <input class="cmpv-input" :placeholder="comp.content.placeholder || '请输入手机号'" disabled />
+        <button class="cmpv-auth-btn">{{ comp.content.buttonText || '获取验证码' }}</button>
+      </div>
+    </template>
+
     <template v-else-if="comp.type === 'carplate'">
       <input class="cmpv-input" :placeholder="comp.content.placeholder || '请输入车牌号'" disabled />
     </template>
@@ -146,6 +153,9 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
 .cmpv-rate { font-size: 20px; color: #f7ba2a; letter-spacing: 2px; }
 .cmpv-download { border: 1px solid #dcdfe6; border-radius: 4px; padding: 8px 10px; font-size: 13px; color: #409eff; background: #ecf5ff; }
 .cmpv-auth { border: 1px solid #dcdfe6; border-radius: 6px; padding: 8px 12px; font-size: 14px; background: #fff; color: #409eff; }
+.cmpv-sms { display: flex; gap: 8px; align-items: stretch; }
+.cmpv-sms .cmpv-input { flex: 1; }
+.cmpv-auth-btn { border: 1px solid #dcdfe6; border-radius: 4px; padding: 0 12px; font-size: 13px; background: #fff; color: #409eff; white-space: nowrap; cursor: default; }
 .cmpv-title { font-weight: 600; }
 .cmpv-richtext { font-size: 13px; color: #303133; line-height: 1.6; }
 .cmpv-line { border-top-width: 1px; margin: 4px 0; }

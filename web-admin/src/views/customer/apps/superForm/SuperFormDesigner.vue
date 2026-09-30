@@ -17,7 +17,7 @@
     </div>
 
     <div class="sf-body">
-      <!-- 左：组件库 -->
+      <!-- 左：组件库（对齐 ew：灰色分组条 + 3 列彩色图标卡片网格） -->
       <div class="sf-palette">
         <div v-for="group in palette" :key="group.category" class="sf-pal-group">
           <div class="sf-pal-cat">{{ group.category }}</div>
@@ -27,9 +27,17 @@
               :key="item.type"
               class="sf-pal-item"
               draggable="true"
+              :title="item.label + '（点击或拖入画布）'"
               @click="addComponent(item.type)"
               @dragstart="onPaletteDrag(item.type, $event)"
-            >{{ item.label }}</div>
+            >
+              <span class="sf-pal-icon" :style="{ background: group.color }">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="ICONS[item.type] || ''" />
+              </span>
+              <span class="sf-pal-label">{{ item.label }}</span>
+            </div>
+            <!-- 补齐网格空位，保证边框闭合（对齐原版表格线） -->
+            <div v-if="group.items.length % 3" class="sf-pal-fill" :style="{ gridColumn: 'span ' + (3 - (group.items.length % 3)) }" />
           </div>
         </div>
       </div>
@@ -241,6 +249,18 @@
                 <el-form-item label="按钮文案"><el-input v-model="selected.content.placeholder" /></el-form-item>
               </template>
 
+              <template v-else-if="selected.type === 'sms'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="是否必填">
+                  <el-radio-group v-model="selected.content.required">
+                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
+                <el-form-item label="按钮文案"><el-input v-model="selected.content.buttonText" /></el-form-item>
+                <el-form-item label="说明"><span class="sf-hint">实际下发短信验证码需接入短信服务，当前为演示交互。</span></el-form-item>
+              </template>
+
               <template v-else-if="selected.type === 'carplate'">
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="是否必填">
@@ -442,7 +462,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getSuperForm, updateSuperForm } from '../../../../api/index.js';
 import {
-  COMPONENT_PALETTE, createComponent, defaultSettings, COMPONENT_LABEL,
+  COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, COMPONENT_LABEL,
 } from './components.js';
 import ComponentPreview from './ComponentPreview.vue';
 
@@ -450,6 +470,7 @@ const props = defineProps({ formId: [Number, String], formName: String });
 const emit = defineEmits(['close']);
 
 const palette = COMPONENT_PALETTE;
+const ICONS = COMPONENT_ICONS;
 const components = ref([]);
 const settings = reactive(defaultSettings());
 const selectedId = ref(null);
@@ -554,12 +575,19 @@ onMounted(load);
 .sf-topbar { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #ebeef5; }
 .sf-title { font-weight: 600; }
 .sf-top-actions { margin-left: auto; display: flex; gap: 10px; align-items: center; }
-.sf-body { flex: 1; display: grid; grid-template-columns: 220px 1fr 360px; min-height: 0; }
-.sf-palette { background: #fff; border-right: 1px solid #ebeef5; overflow: auto; padding: 12px; }
-.sf-pal-cat { font-size: 12px; color: #909399; margin: 8px 0 6px; }
-.sf-pal-items { display: flex; flex-wrap: wrap; gap: 8px; }
-.sf-pal-item { border: 1px dashed #c0c4cc; border-radius: 6px; padding: 8px 10px; font-size: 13px; cursor: pointer; background: #fafafa; }
-.sf-pal-item:hover { border-color: #409eff; color: #409eff; }
+.sf-body { flex: 1; display: grid; grid-template-columns: 252px 1fr 360px; min-height: 0; }
+/* —— 组件库：对齐 ew 原版（灰色分组条 + 3 列图标卡片 + 表格线网格） —— */
+.sf-palette { background: #fff; border-right: 1px solid #ebedf0; overflow: auto; padding: 0; }
+.sf-pal-group { margin-bottom: 0; }
+.sf-pal-cat { background: #f5f6f8; border-bottom: 1px solid #ebedf0; padding: 9px 12px; font-size: 13px; color: #333; font-weight: 500; position: sticky; top: 0; z-index: 1; }
+.sf-pal-items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #f0f1f3; }
+.sf-pal-item { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; padding: 14px 4px 12px; cursor: pointer; background: #fff; user-select: none; transition: background .15s; }
+.sf-pal-item:hover { background: #f7fbf9; }
+.sf-pal-item:hover .sf-pal-label { color: #165dff; }
+.sf-pal-fill { background: #fff; }
+.sf-pal-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0, 0, 0, .12); flex-shrink: 0; }
+.sf-pal-icon svg { width: 19px; height: 19px; display: block; }
+.sf-pal-label { font-size: 12px; color: #333; line-height: 1.2; text-align: center; }
 .sf-canvas { overflow: auto; display: flex; justify-content: center; padding: 24px; }
 .sf-phone { width: 375px; min-height: 640px; background: #fff; border-radius: 28px; box-shadow: 0 6px 24px rgba(0,0,0,.12); display: flex; flex-direction: column; overflow: hidden; }
 .sf-phone-bar { height: 28px; background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 12px; }
