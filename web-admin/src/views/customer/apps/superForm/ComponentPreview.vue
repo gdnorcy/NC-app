@@ -50,7 +50,7 @@
     </template>
 
     <template v-else-if="comp.type === 'rate'">
-      <div class="cmpv-rate">{{ '★'.repeat(comp.content.defaultValue || 0) }}{{ '☆'.repeat((comp.content.max || 5) - (comp.content.defaultValue || 0)) }}</div>
+      <div class="cmpv-rate">{{ '☆'.repeat(comp.content.max || 3) }}</div>
     </template>
 
     <template v-else-if="comp.type === 'filedownload'">

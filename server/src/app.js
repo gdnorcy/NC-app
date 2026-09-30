@@ -6,7 +6,7 @@ import express from 'express';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { config } from './config.js';
 import { createDb } from './db.js';
-import { createAuthRouter, requireAuth } from './auth.js';
+import { createAuthRouter, requireAuth, softAuth } from './auth.js';
 import { createScenesRouter } from './routes/scenes.js';
 import { createStorageRouter } from './routes/storage.js';
 import { createPlansRouter } from './routes/plans.js';
@@ -155,7 +155,8 @@ app.use((req, res, next) => {
     //   /api/card-market/super-form 上下文 → req.path = /<id>/(submit|public)
     // 两种都要放行（访客免认证）。
     if (/^\/forms\/\d+\/submit$/.test(req.path) || /^\/super-form\/\d+\/(submit|public)$/.test(req.path) || /^\/\d+\/(submit|public)$/.test(req.path)) {
-      req.user = null;
+      // 软认证：访客免认证放行；携带合法 token 时识别身份（按人次数限制需要）
+      softAuth(req, database);
       return next();
     }
     const token = req.headers.authorization?.replace('Bearer ', '');

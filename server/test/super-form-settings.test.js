@@ -10,11 +10,12 @@ import { createDb, hashPassword } from '../src/db.js';
 import { issueToken } from '../src/auth.js';
 
 /**
- * 超级表单「填写设置」（表单设置→基础设置）服务端行为：
- * - 次数（settings.basic.collectLimit，0=不限）提交上限校验
- * - 提交周期 submitCycle=daily（每天一次）按当天提交数计数，文案「今日填写次数已达上限」
- * - submitCycle=once（仅一次，默认）按累计提交数计数，文案「表单收集份数已达上限」
- * - 填写设置新字段（fillCrowd/crowdAddable/submitCycle/cycleStart/cycleEnd）随 config 落库
+ * 超级表单「基础信息 + 填写设置」（表单设置→基础设置）服务端行为（对齐 ew）：
+ * - 基础信息：收集份数（collectLimit，0=不限，累计总数）→「表单收集份数已达上限」
+ * - 填写设置：次数（submitTimes，0=不限，按填写人计数；游客不受限）→「您的填写次数已达上限」
+ * - 提交周期 submitCycle：permanent=永久 / day=每天 / week=每周 / month=每月 / year=每年
+ * - 填表人群 fillCrowd：all=全部（包含游客）/ auth=授权用户 / level=指定等级（crowdLevels 多选）/ pwd=密码（crowdPwd 最多20位）
+ * - 页面背景 globalStyle：图片+颜色（bgRepeat/bgPosX/bgPosY/bgImgStyle/bgImgW/bgImgH）随 config 落库
  */
 let app;
 let tmpDir;
@@ -47,14 +48,14 @@ after(() => {
 
 const API = '/api/card-market/super-form';
 
-async function createForm(t, basic) {
+async function createForm(t, basic, globalStyle) {
   const res = await request(app).post(API)
     .set('Authorization', `Bearer ${t}`)
     .send({
       name: '报名表',
       config: {
         components: [{ id: 'c1', type: 'text', content: { label: '姓名' }, style: {} }],
-        settings: { basic: { name: '报名表', collectLimit: 2, ...basic } },
+        settings: { basic: { name: '报名表', collectLimit: 0, submitTimes: 0, ...basic }, globalStyle: { ...globalStyle } },
       },
     });
   assert.equal(res.status, 200);
@@ -69,35 +70,56 @@ async function createForm(t, basic) {
 test('填写设置：新字段随 config 落库并可回读', async () => {
   const t = issueToken(adm);
   const id = await createForm(t, {
-    fillCrowd: 'member', crowdAddable: false, submitCycle: 'daily',
-    cycleStart: '2026-09-01', cycleEnd: '2026-09-30',
-  });
+    fillCrowd: 'level', crowdLevels: ['vip1', 'vip2'], crowdPwd: 'abc123', submitCycle: 'day',
+    submitTimes: 3,
+  }, { pageBgType: 'imgcolor', bgRepeat: 'no-repeat', bgPosX: 'center', bgPosY: 'bottom', bgImgStyle: 'custom', bgImgW: 50, bgImgH: 60 });
   const get = await request(app).get(`${API}/${id}`).set('Authorization', `Bearer ${t}`);
   assert.equal(get.status, 200);
-  const basic = get.body.config?.settings?.basic || get.body.config?.settings?.basic;
   const b = get.body.config.settings.basic;
-  assert.equal(b.fillCrowd, 'member');
-  assert.equal(b.crowdAddable, false);
-  assert.equal(b.submitCycle, 'daily');
-  assert.equal(b.cycleStart, '2026-09-01');
-  assert.equal(b.cycleEnd, '2026-09-30');
+  assert.equal(b.fillCrowd, 'level');
+  assert.deepEqual(b.crowdLevels, ['vip1', 'vip2']);
+  assert.equal(b.crowdPwd, 'abc123');
+  assert.equal(b.submitCycle, 'day');
+  assert.equal(b.submitTimes, 3);
+  const g = get.body.config.settings.globalStyle;
+  assert.equal(g.pageBgType, 'imgcolor');
+  assert.equal(g.bgRepeat, 'no-repeat');
+  assert.equal(g.bgPosX, 'center');
+  assert.equal(g.bgPosY, 'bottom');
+  assert.equal(g.bgImgStyle, 'custom');
+  assert.equal(g.bgImgW, 50);
+  assert.equal(g.bgImgH, 60);
 });
 
-test('填写设置：每天一次 + 次数2 → 第3次提交被拒（按当天计数）', async () => {
+test('填写设置：每天+次数2 → 同一用户第3次被拒，游客不受限', async () => {
   const t = issueToken(adm);
-  const id = await createForm(t, { submitCycle: 'daily', collectLimit: 2 });
-  const s1 = await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '甲' } });
+  const id = await createForm(t, { submitCycle: 'day', submitTimes: 2 });
+  // 登录用户（JWT 软认证识别身份）
+  const s1 = await request(app).post(`${API}/${id}/submit`).set('Authorization', `Bearer ${t}`).send({ data: { c1: '甲' } });
   assert.equal(s1.status, 200);
-  const s2 = await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '乙' } });
+  const s2 = await request(app).post(`${API}/${id}/submit`).set('Authorization', `Bearer ${t}`).send({ data: { c1: '乙' } });
   assert.equal(s2.status, 200);
-  const s3 = await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '丙' } });
+  const s3 = await request(app).post(`${API}/${id}/submit`).set('Authorization', `Bearer ${t}`).send({ data: { c1: '丙' } });
   assert.equal(s3.status, 400);
-  assert.equal(s3.body.error, '今日填写次数已达上限');
+  assert.equal(s3.body.error, '您的填写次数已达上限');
+  // 游客（无 token）不受次数限制
+  const g1 = await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '游客' } });
+  assert.equal(g1.status, 200);
 });
 
-test('填写设置：仅一次 + 次数2 → 第3次提交被拒（按累计计数）', async () => {
+test('填写设置：永久+次数1 → 换周期边界（按累计计数）', async () => {
   const t = issueToken(adm);
-  const id = await createForm(t, { submitCycle: 'once', collectLimit: 2 });
+  const id = await createForm(t, { submitCycle: 'permanent', submitTimes: 1 });
+  const s1 = await request(app).post(`${API}/${id}/submit`).set('Authorization', `Bearer ${t}`).send({ data: { c1: '甲' } });
+  assert.equal(s1.status, 200);
+  const s2 = await request(app).post(`${API}/${id}/submit`).set('Authorization', `Bearer ${t}`).send({ data: { c1: '乙' } });
+  assert.equal(s2.status, 400);
+  assert.equal(s2.body.error, '您的填写次数已达上限');
+});
+
+test('基础信息：收集份数2 → 第3次提交被拒（按累计总数）', async () => {
+  const t = issueToken(adm);
+  const id = await createForm(t, { collectLimit: 2 });
   await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '甲' } });
   await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '乙' } });
   const s3 = await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '丙' } });
@@ -105,9 +127,9 @@ test('填写设置：仅一次 + 次数2 → 第3次提交被拒（按累计计�
   assert.equal(s3.body.error, '表单收集份数已达上限');
 });
 
-test('填写设置：次数0 = 不限，可连续提交', async () => {
+test('基础信息 + 填写设置：均为0 = 不限，可连续提交', async () => {
   const t = issueToken(adm);
-  const id = await createForm(t, { submitCycle: 'daily', collectLimit: 0 });
+  const id = await createForm(t, { collectLimit: 0, submitTimes: 0 });
   for (let i = 0; i < 3; i++) {
     const s = await request(app).post(`${API}/${id}/submit`).send({ data: { c1: '客' + i } });
     assert.equal(s.status, 200);

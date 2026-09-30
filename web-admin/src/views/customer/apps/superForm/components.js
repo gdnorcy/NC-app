@@ -132,7 +132,7 @@ export function defaultContent(type) {
     case 'agreement':
       return { label: '我已阅读并同意', required: true, linkText: '《用户协议》', linkUrl: '' };
     case 'rate':
-      return { label: '评分', required: true, max: 5, defaultValue: 0 };
+      return { label: '评分', required: true, desc: '', allowHalf: false, max: 3 };
     case 'filedownload':
       return { label: '文件下载', fileUrl: '', fileName: '', required: false };
     case 'phoneauth':
@@ -180,15 +180,16 @@ export function createComponent(type) {
 
 export function defaultSettings() {
   return {
-    // 填写设置（对齐 ew：填表人群 / 提交周期 / 次数）
-    basic: { name: '', collectStart: '', collectEnd: '', collectLimit: 0, allowModify: true, shareTitle: '', shareImage: '', fillCrowd: 'all', crowdAddable: true, submitCycle: 'once', cycleStart: '', cycleEnd: '' },
+    // 基础信息 + 填写设置（对齐 ew：填表人群四选一 / 提交周期五档 / 次数为按人次数）
+    basic: { name: '', collectStart: '', collectEnd: '', collectLimit: 0, allowModify: true, shareTitle: '', shareImage: '', fillCrowd: 'all', crowdLevels: [], crowdPwd: '', submitCycle: 'permanent', submitTimes: 0 },
     submit: { secondConfirm: true, jumpLink: '' },
     logic: [],
     layout: 'vertical',
     globalStyle: {
       marginTop: 0, marginY: 20, marginX: 0, radius: 0, compMarginX: 20, inputRadius: 3,
-      // 页面背景（对齐 ew：嵌入式表单不生效）
-      pageBgType: 'color', pageBgColor: '#F3F3F3', pageBgImage: '',
+      // 页面背景（对齐 ew：嵌入式表单不生效；图片+颜色含平铺/位置/图片样式/宽高）
+      pageBgType: 'color', pageBgColor: '#f3f3f3', pageBgImage: '',
+      bgRepeat: 'repeat-x', bgPosX: 'left', bgPosY: 'top', bgImgStyle: 'custom', bgImgW: 20, bgImgH: 20,
       // 组件颜色（对齐 ew）
       cBorder: '#F5F2F2', cTitle: '#000000', cInput: '#333333', cError: '#ED4F4F',
     },

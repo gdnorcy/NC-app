@@ -238,8 +238,13 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="最高分值"><el-input-number v-model="selected.content.max" :min="3" :max="10" /></el-form-item>
-                <el-form-item label="默认分值"><el-input-number v-model="selected.content.defaultValue" :min="0" :max="selected.content.max" /></el-form-item>
+                <el-form-item label="描述文字"><el-input v-model="selected.content.desc" placeholder="请输入描述文字" /></el-form-item>
+                <el-form-item label="允许半选"><el-switch v-model="selected.content.allowHalf" /></el-form-item>
+                <el-form-item label="最高量级">
+                  <el-select v-model="selected.content.max" style="width: 120px">
+                    <el-option v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]" :key="n" :label="n" :value="n" />
+                  </el-select>
+                </el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'filedownload'">
@@ -430,16 +435,65 @@
               <el-radio value="imgcolor">图片+颜色</el-radio>
             </el-radio-group>
           </div>
+          <template v-if="settings.globalStyle.pageBgType === 'imgcolor'">
+            <div class="sf-color-row">
+              <span class="sf-color-label">背景图片：</span>
+              <el-input v-model="settings.globalStyle.pageBgImage" size="small" style="flex: 1" placeholder="图片地址" />
+              <el-button size="small" @click="imgPickerTarget = 'pageBg'; imgPickerShow = true">选择图片</el-button>
+            </div>
+            <div class="sf-color-row">
+              <span class="sf-color-label">平铺方式：</span>
+              <el-radio-group v-model="settings.globalStyle.bgRepeat">
+                <el-radio value="repeat-x">左右重复</el-radio>
+                <el-radio value="repeat-y">上下平铺</el-radio>
+                <el-radio value="repeat">都平铺</el-radio>
+                <el-radio value="no-repeat">不平铺</el-radio>
+              </el-radio-group>
+            </div>
+            <div class="sf-color-row">
+              <span class="sf-color-label">左右位置：</span>
+              <el-radio-group v-model="settings.globalStyle.bgPosX">
+                <el-radio value="left">左</el-radio>
+                <el-radio value="center">中</el-radio>
+                <el-radio value="right">右</el-radio>
+              </el-radio-group>
+            </div>
+            <div class="sf-color-row">
+              <span class="sf-color-label">上下位置：</span>
+              <el-radio-group v-model="settings.globalStyle.bgPosY">
+                <el-radio value="top">上</el-radio>
+                <el-radio value="center">中</el-radio>
+                <el-radio value="bottom">下</el-radio>
+              </el-radio-group>
+            </div>
+            <div class="sf-color-row">
+              <span class="sf-color-label">图片样式：</span>
+              <el-radio-group v-model="settings.globalStyle.bgImgStyle">
+                <el-radio value="custom">自定义</el-radio>
+                <el-radio value="fill">填充</el-radio>
+                <el-radio value="fixed">图片固定比例</el-radio>
+              </el-radio-group>
+            </div>
+            <template v-if="settings.globalStyle.bgImgStyle === 'custom'">
+              <div class="sf-color-row">
+                <span class="sf-color-label">背景图宽：</span>
+                <el-slider v-model="settings.globalStyle.bgImgW" :min="0" :max="100" class="sf-dist-slider" />
+                <el-input-number v-model="settings.globalStyle.bgImgW" :min="0" :max="100" size="small" style="width: 96px" />
+                <span class="sf-dist-unit">%</span>
+              </div>
+              <div class="sf-color-row">
+                <span class="sf-color-label">背景图高：</span>
+                <el-slider v-model="settings.globalStyle.bgImgH" :min="0" :max="100" class="sf-dist-slider" />
+                <el-input-number v-model="settings.globalStyle.bgImgH" :min="0" :max="100" size="small" style="width: 96px" />
+                <span class="sf-dist-unit">%</span>
+              </div>
+            </template>
+          </template>
           <div class="sf-color-row">
             <span class="sf-color-label">背景颜色：</span>
             <el-color-picker v-model="settings.globalStyle.pageBgColor" size="small" />
             <el-input v-model="settings.globalStyle.pageBgColor" size="small" style="width: 96px" />
-            <el-button size="small" @click="settings.globalStyle.pageBgColor = '#F3F3F3'">重置</el-button>
-          </div>
-          <div v-if="settings.globalStyle.pageBgType === 'imgcolor'" class="sf-color-row">
-            <span class="sf-color-label">背景图片：</span>
-            <el-input v-model="settings.globalStyle.pageBgImage" size="small" style="flex: 1" placeholder="请选择图片" />
-            <el-button size="small" @click="imgPickerTarget = 'pageBg'; imgPickerShow = true">选择图片</el-button>
+            <el-button size="small" @click="settings.globalStyle.pageBgColor = '#f3f3f3'">重置</el-button>
           </div>
           <div class="sf-sec">组件颜色</div>
           <div class="sf-color-grid">
@@ -461,38 +515,50 @@
           </div>
           <div v-if="formSettingsTab === 'basic'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
+              <div class="sf-sec">基础信息</div>
               <el-form-item label="表单名称"><el-input v-model="settings.basic.name" /></el-form-item>
               <el-form-item label="收集时间">
-                <el-date-picker v-model="settings.basic.collectStart" type="datetime" placeholder="开始" value-format="YYYY-MM-DD HH:mm" style="width: 170px" />
+                <el-date-picker v-model="settings.basic.collectStart" type="datetime" placeholder="开始日期" value-format="YYYY-MM-DD HH:mm" style="width: 170px" />
                 <span style="margin: 0 6px">至</span>
-                <el-date-picker v-model="settings.basic.collectEnd" type="datetime" placeholder="结束" value-format="YYYY-MM-DD HH:mm" style="width: 170px" />
+                <el-date-picker v-model="settings.basic.collectEnd" type="datetime" placeholder="结束日期" value-format="YYYY-MM-DD HH:mm" style="width: 170px" />
+                <div class="sf-hint sf-hint-block">(*注：嵌入式表单不生效)</div>
+              </el-form-item>
+              <el-form-item label="收集份数">
+                <el-input-number v-model="settings.basic.collectLimit" :min="0" />
+                <span class="sf-hint" style="margin-left: 8px">0 为不限制（*注：嵌入式表单不生效）</span>
               </el-form-item>
               <el-form-item label="允许修改"><el-switch v-model="settings.basic.allowModify" /></el-form-item>
-              <div class="sf-sec">填写设置</div>
+              <div class="sf-sec">填写设置 <span class="sf-sec-note">（*注：该模块嵌入式表单不生效）</span></div>
               <el-form-item label="填表人群">
-                <el-select v-model="settings.basic.fillCrowd" style="width: 150px">
-                  <el-option label="所有人" value="all" />
-                  <el-option label="仅会员" value="member" />
-                  <el-option label="员工及会员" value="staff" />
+                <el-radio-group v-model="settings.basic.fillCrowd">
+                  <el-radio value="all">全部（包含游客）</el-radio>
+                  <el-radio value="auth">授权用户</el-radio>
+                  <el-radio value="level">指定等级</el-radio>
+                  <el-radio value="pwd">密码</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item v-if="settings.basic.fillCrowd === 'level'" label=" ">
+                <el-select v-model="settings.basic.crowdLevels" multiple placeholder="请选择等级（可多选）" style="width: 220px">
+                  <el-option v-for="lv in levelOptions" :key="lv.value" :label="lv.label" :value="lv.value" />
                 </el-select>
-                <el-checkbox v-model="settings.basic.crowdAddable" style="margin-left: 12px">填表人可增加</el-checkbox>
+              </el-form-item>
+              <el-form-item v-if="settings.basic.fillCrowd === 'pwd'" label=" ">
+                <el-input v-model="settings.basic.crowdPwd" :maxlength="20" placeholder="密码最多20位" style="width: 220px" />
               </el-form-item>
               <el-form-item label="提交周期">
                 <el-radio-group v-model="settings.basic.submitCycle">
-                  <el-radio value="once">仅一次</el-radio>
-                  <el-radio value="daily">每天一次</el-radio>
+                  <el-radio-button value="permanent">永久</el-radio-button>
+                  <el-radio-button value="day">每天</el-radio-button>
+                  <el-radio-button value="week">每周</el-radio-button>
+                  <el-radio-button value="month">每月</el-radio-button>
+                  <el-radio-button value="year">每年</el-radio-button>
                 </el-radio-group>
               </el-form-item>
-              <el-form-item v-if="settings.basic.submitCycle === 'daily'" label="周期范围">
-                <el-date-picker v-model="settings.basic.cycleStart" type="date" placeholder="开始日期" value-format="YYYY-MM-DD" style="width: 140px" />
-                <span style="margin: 0 6px">至</span>
-                <el-date-picker v-model="settings.basic.cycleEnd" type="date" placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 140px" />
-              </el-form-item>
               <el-form-item label="次数">
-                <el-input-number v-model="settings.basic.collectLimit" :min="0" />
+                <el-input-number v-model="settings.basic.submitTimes" :min="0" />
                 <span style="margin-left: 6px">次</span>
+                <div class="sf-hint sf-hint-block">{{ settings.basic.fillCrowd === 'all' ? '0为不限制（游客填写时不受次数限制）' : '0 为不限制' }}</div>
               </el-form-item>
-              <div class="sf-hint sf-hint-block" style="margin: -12px 0 8px 92px">0代表不限制次数（游客填写时不受次数限制）</div>
               <el-form-item label="分享标题"><el-input v-model="settings.basic.shareTitle" placeholder="请输入分享标题" /></el-form-item>
               <el-form-item label="分享图片">
                 <el-input v-model="settings.basic.shareImage" placeholder="请选择图片">
@@ -508,7 +574,7 @@
             </el-form>
           </div>
           <div v-else class="sf-prop-form">
-            <div class="sf-logic-tip">提示：请添加完所有组件之后再设置逻辑部分（分页以及提交按钮不参与逻辑部分设置）。你可以为选择类字段（单项选择、多项选择、评分、下拉选择）设定规则：填写者选择某字段的某选项后，显示该字段之后的其他字段。</div>
+            <div class="sf-logic-tip">提示：请添加完所有组件之后再设置该逻辑部分（分页以及提交按钮不参与逻辑部分设置）。你可以为选择类字段（单项选择、多项选择、评分、下拉选择）设定规则，填写者选择某字段的某选项后，显示该字段之后的其他字段。操作文档：点击跳转</div>
             <div v-for="(rule, ri) in settings.logic" :key="ri" class="sf-rule">
               <div class="sf-rule-title" @click="toggleRule(ri)">
                 <span>规则 {{ ri + 1 }}</span>
@@ -519,13 +585,36 @@
                 <div class="sf-rule-cond-label">当满足以下条件时</div>
                 <div class="sf-rule-box">
                   <div v-for="(cond, ci) in rule.conditions" :key="ci" class="sf-rule-cond">
+                    <el-select
+                      v-if="ci === 0 && rule.conditions.length > 1"
+                      v-model="rule.operator" class="sf-rule-op" size="small">
+                      <el-option label="或" value="or" />
+                      <el-option label="且" value="and" />
+                    </el-select>
+                    <span v-else-if="ci > 0" class="sf-rule-op-text">{{ rule.operator === 'and' ? '且' : '或' }}</span>
                     在
-                    <el-select v-model="cond.compId" placeholder="请选择" style="width: 150px" @change="cond.option = ''">
+                    <el-select v-model="cond.compId" placeholder="请选择" style="width: 140px" @change="onCondCompChange(cond)">
                       <el-option v-for="c in choiceComponents" :key="c.id" :label="c.content.label" :value="c.id" />
                     </el-select>
-                    <el-select v-model="cond.option" placeholder="请选择" style="width: 130px" :disabled="!cond.compId">
+                    <span v-if="cond.compId" class="sf-rule-cmp">{{ comparatorLabel(cond) }}</span>
+                    <!-- 单选/多选：选择了任一（可多选选项） -->
+                    <el-select v-if="condType(cond.compId) === 'radio' || condType(cond.compId) === 'checkbox'" v-model="cond.option" multiple placeholder="请选择" style="width: 140px" :disabled="!cond.compId">
                       <el-option v-for="opt in optionsOf(cond.compId)" :key="opt.value" :label="opt.label" :value="opt.value" />
                     </el-select>
+                    <!-- 下拉：选择了（单选） -->
+                    <el-select v-else-if="condType(cond.compId) === 'select'" :model-value="cond.option[0]" placeholder="请选择" style="width: 140px" :disabled="!cond.compId" @update:model-value="cond.option = [$event]">
+                      <el-option v-for="opt in optionsOf(cond.compId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                    </el-select>
+                    <!-- 评分：介于 min ~ max -->
+                    <template v-else-if="condType(cond.compId) === 'rate'">
+                      <el-select :model-value="cond.option[0]" placeholder="最低" style="width: 84px" :disabled="!cond.compId" @update:model-value="cond.option[0] = $event">
+                        <el-option v-for="n in rateMaxOf(cond.compId)" :key="'min'+n" :label="n" :value="n" />
+                      </el-select>
+                      <span style="margin: 0 4px">~</span>
+                      <el-select :model-value="cond.option[1]" placeholder="最高" style="width: 84px" :disabled="!cond.compId" @update:model-value="cond.option[1] = $event">
+                        <el-option v-for="n in rateMaxOf(cond.compId)" :key="'max'+n" :label="n" :value="n" />
+                      </el-select>
+                    </template>
                     <el-button link type="danger" @click="removeCondition(rule, ci)">删除</el-button>
                   </div>
                   <el-button link type="primary" @click="addCondition(rule)">添加条件</el-button>
@@ -580,6 +669,8 @@ const selectedId = ref(null);
 const panelMode = ref('settings');
 const propTab = ref('content');
 const formSettingsTab = ref('basic');
+// 填表人群「指定等级」候选项（对齐 ew「请选择等级（可多选）」；等级体系待接入，先空态）
+const levelOptions = ref([]);
 const saving = ref(false);
 const imgPickerShow = ref(false);
 const imgPickerTarget = ref('share'); // share=分享图片 / pageBg=页面背景图片
@@ -629,12 +720,15 @@ const phoneStyle = computed(() => {
     '--c-input-color': g.cInput || '#333333',
     '--c-error-color': g.cError || '#ED4F4F',
   };
-  // 页面背景：颜色 / 图片+颜色
+  // 页面背景：颜色 / 图片+颜色（平铺/位置/图片样式对齐 ew）
   if (g.pageBgColor) s.backgroundColor = g.pageBgColor;
   if (g.pageBgType === 'imgcolor' && g.pageBgImage) {
     s.backgroundImage = 'url("' + g.pageBgImage + '")';
-    s.backgroundSize = 'cover';
-    s.backgroundPosition = 'center';
+    s.backgroundRepeat = g.bgRepeat || 'repeat-x';
+    s.backgroundPosition = (g.bgPosX || 'left') + ' ' + (g.bgPosY || 'top');
+    if (g.bgImgStyle === 'fill') s.backgroundSize = 'cover';
+    else if (g.bgImgStyle === 'fixed') s.backgroundSize = 'contain';
+    else s.backgroundSize = (g.bgImgW != null ? g.bgImgW : 20) + '% ' + (g.bgImgH != null ? g.bgImgH : 20) + '%';
   }
   return s;
 });
@@ -668,14 +762,55 @@ function showCandidate(rule) {
   return components.value.filter((c) => !condIds.includes(c.id) && c.type !== 'submit');
 }
 
-// —— 逻辑规则：多条件（兼容旧单条件 compId/option） ——
+// —— 逻辑规则：对齐 ew（选择类字段 radio/checkbox/select/rate；多条件且/或；评分介于；结束表单需提交按钮） ——
 const ruleCollapse = ref({});
 function ruleOpen(i) { return ruleCollapse.value[i] !== false; }
 function toggleRule(i) { ruleCollapse.value[i] = !ruleOpen(i); }
-function addRule() { settings.logic.push({ conditions: [{ compId: '', option: '' }], action: 'show', showIds: [] }); }
-function addCondition(rule) { rule.conditions.push({ compId: '', option: '' }); }
+function condType(compId) {
+  const c = components.value.find((x) => x.id === compId);
+  return c ? c.type : '';
+}
+function comparatorLabel(cond) {
+  const t = condType(cond.compId);
+  if (t === 'radio' || t === 'checkbox') return '选择了任一';
+  if (t === 'select') return '选择了';
+  if (t === 'rate') return '介于';
+  return '';
+}
+function rateMaxOf(compId) {
+  const c = components.value.find((x) => x.id === compId);
+  return (c && c.content && c.content.max) || 5;
+}
+function emptyCondition() { return { compId: '', comparator: '', option: [] }; }
+function onCondCompChange(cond) {
+  cond.comparator = comparatorLabel(cond) ? { radio: 'select_any', checkbox: 'select_any', select: 'equal', rate: 'between' }[condType(cond.compId)] || '' : '';
+  cond.option = condType(cond.compId) === 'rate' ? ['', ''] : [];
+}
+function addRule() { settings.logic.push({ operator: 'or', conditions: [emptyCondition()], action: 'show', showIds: [] }); }
+function addCondition(rule) { rule.conditions.push(emptyCondition()); }
 function removeCondition(rule, i) { if (rule.conditions.length > 1) rule.conditions.splice(i, 1); }
-function confirmLogic() { ElMessage.success('逻辑设置已应用，保存页面后生效'); }
+function confirmLogic() {
+  // 校验1：则结束表单必须有提交按钮（对齐 ew 文案）
+  const hasSubmit = components.value.some((c) => c.type === 'submit');
+  if (settings.logic.some((r) => r.action === 'end') && !hasSubmit) {
+    ElMessage.error('请确保DIY表单中存在提交按钮！');
+    return;
+  }
+  // 校验2：不允许重复条件（同字段+同选项）
+  const seen = new Set();
+  for (const r of settings.logic) {
+    for (const c of r.conditions) {
+      if (!c.compId || !c.option || (Array.isArray(c.option) ? c.option.length === 0 : c.option === '')) continue;
+      const key = c.compId + '|' + (Array.isArray(c.option) ? c.option.join(',') : c.option);
+      if (seen.has(key)) {
+        ElMessage.error('逻辑条件设置中存在相同项，请修改后再保存！');
+        return;
+      }
+      seen.add(key);
+    }
+  }
+  ElMessage.success('逻辑设置已应用，保存页面后生效');
+}
 
 function setLayout(v) { settings.layout = v; }
 function addComponent(type) {
@@ -744,13 +879,22 @@ async function load() {
     settings.basic = { ...def.basic, ...(cfg.settings?.basic || {}) };
     settings.submit = { ...def.submit, ...(cfg.settings?.submit || {}) };
     settings.globalStyle = { ...def.globalStyle, ...(cfg.settings?.globalStyle || {}) };
-    // 逻辑规则统一为多条件结构（旧数据 compId/option → conditions[0]）
+    // 逻辑规则统一为多条件结构（旧数据 compId/option → conditions[0]；option 统一数组；补 operator）
     settings.logic = (Array.isArray(cfg.settings?.logic) ? cfg.settings.logic : []).map((r) => ({
       ...r,
+      operator: r.operator || 'or',
       action: r.action || 'show',
       showIds: r.showIds || [],
-      conditions: (r.conditions && r.conditions.length) ? r.conditions : [{ compId: r.compId || '', option: r.option || '' }],
+      conditions: (r.conditions && r.conditions.length) ? r.conditions : [{ compId: r.compId || '', comparator: '', option: [] }],
     }));
+    settings.logic.forEach((r) => r.conditions.forEach((c) => {
+      if (!Array.isArray(c.option)) c.option = c.option === '' || c.option == null ? [] : [c.option];
+      if (!c.comparator) c.comparator = { radio: 'select_any', checkbox: 'select_any', select: 'equal', rate: 'between' }[condType(c.compId)] || '';
+    }));
+    // 填写设置旧值迁移（once→permanent / daily→day；fillCrowd 非法值回 all）
+    if (settings.basic.submitCycle === 'once') settings.basic.submitCycle = 'permanent';
+    if (settings.basic.submitCycle === 'daily') settings.basic.submitCycle = 'day';
+    if (!['all', 'auth', 'level', 'pwd'].includes(settings.basic.fillCrowd)) settings.basic.fillCrowd = 'all';
   } catch (e) { ElMessage.error(e.message || '加载失败'); }
 }
 
@@ -874,6 +1018,9 @@ onMounted(load);
 .sf-rule-cond-label { font-size: 13px; color: #303133; margin: 4px 0 8px; }
 .sf-rule-box { border: 1px solid #ebeef5; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
 .sf-rule-cond { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; color: #606266; flex-wrap: wrap; }
+.sf-rule-op { width: 64px; }
+.sf-rule-op-text { color: #409eff; font-weight: 500; }
+.sf-rule-cmp { color: #909399; }
 .sf-rule-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .sf-opt-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 </style>

@@ -254,6 +254,36 @@ export function createAuthRouter(db) {
 }
 
 // —— 鉴权中间件 ——
+// 软认证：不强制登录，仅当携带合法 token（card_token/JWT）时识别身份。
+// 供公开接口（如超级表单提交）使用：游客免认证可提交，登录用户身份用于按人次数限制。
+export function softAuth(req, db) {
+  req.user = null;
+  req.userId = null;
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return;
+  // card_token（个人用户）
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString());
+    if (payload.uid) {
+      const user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(payload.uid);
+      if (user && user.status === 'active') {
+        req.user = user;
+        req.userId = user.id;
+        return;
+      }
+    }
+  } catch {}
+  // JWT（租户/平台账号）
+  try {
+    const payload = jwt.verify(token, config.jwtSecret);
+    if (payload?.uid) {
+      req.user = { id: payload.uid, username: payload.username, role: payload.role, customerId: payload.customerId || null };
+      req.userId = payload.uid;
+    }
+  } catch {}
+}
+
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;

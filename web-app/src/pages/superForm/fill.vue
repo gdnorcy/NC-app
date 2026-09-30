@@ -66,7 +66,7 @@
 
           <!-- 评分 -->
           <view v-else-if="comp.type === 'rate'" class="sf-rate">
-            <text v-for="n in (comp.content.max || 5)" :key="n" class="sf-star" :class="{ on: (values[comp.id] || 0) >= n }" @click="values[comp.id] = n">★</text>
+            <text v-for="n in (comp.content.max || 3)" :key="n" class="sf-star" :class="{ on: (values[comp.id] || 0) >= n }" @click="values[comp.id] = n">★</text>
           </view>
 
           <!-- 文件下载 -->
@@ -200,15 +200,18 @@ const globalStyle = computed(() => {
     '--c-error-color': g.cError || '#ED4F4F',
   };
 });
-// 页面背景：颜色 / 图片+颜色（对齐 ew 全局样式）
+// 页面背景：颜色 / 图片+颜色（平铺/位置/图片样式对齐 ew 全局样式）
 const pageBgStyle = computed(() => {
   const g = form.config.settings?.globalStyle || {};
   const s = {};
   if (g.pageBgColor) s.backgroundColor = g.pageBgColor;
   if (g.pageBgType === 'imgcolor' && g.pageBgImage) {
     s.backgroundImage = 'url("' + g.pageBgImage + '")';
-    s.backgroundSize = 'cover';
-    s.backgroundPosition = 'center';
+    s.backgroundRepeat = g.bgRepeat || 'repeat-x';
+    s.backgroundPosition = (g.bgPosX || 'left') + ' ' + (g.bgPosY || 'top');
+    if (g.bgImgStyle === 'fill') s.backgroundSize = 'cover';
+    else if (g.bgImgStyle === 'fixed') s.backgroundSize = 'contain';
+    else s.backgroundSize = (g.bgImgW != null ? g.bgImgW : 20) + '% ' + (g.bgImgH != null ? g.bgImgH : 20) + '%';
   }
   return s;
 });
@@ -228,10 +231,30 @@ function fieldStyle(comp) {
 
 const components = computed(() => form.config.components || []);
 
-// when 联动：被规则隐藏的字段默认不可见，条件满足才显示（支持多条件 AND，兼容旧单条件）
+// when 联动：对齐 ew 逻辑语义
+// - 单选/多选：选择了任一（选项交集）；下拉：选择了（单值）；评分：介于 min~max
+// - 规则内多条件支持 且/或（rule.operator，旧数据默认 or）；兼容旧单条件 compId/option（字符串）
+function condHit(c) {
+  const val = values[c.compId];
+  if (val == null || val === '') return false;
+  const opts = Array.isArray(c.option) ? c.option : (c.option === '' || c.option == null ? [] : [c.option]);
+  const cmp = c.comparator || (Array.isArray(opts) && opts.length === 2 && opts.every((o) => o !== '' && !isNaN(Number(o))) ? 'between' : 'select_any');
+  if (cmp === 'between') {
+    const n = Number(val);
+    const lo = Number(opts[0]);
+    const hi = Number(opts[1]);
+    return !isNaN(n) && !isNaN(lo) && !isNaN(hi) && n >= lo && n <= hi;
+  }
+  if (cmp === 'equal') return String(val) === String(opts[0]);
+  // select_any：多选/单选均取交集
+  const vals = Array.isArray(val) ? val.map(String) : [String(val)];
+  return opts.map(String).some((o) => vals.includes(o));
+}
 function ruleMatched(r) {
-  const conds = (r.conditions && r.conditions.length) ? r.conditions : [{ compId: r.compId, option: r.option }];
-  return conds.every((c) => values[c.compId] === c.option);
+  const conds = (r.conditions && r.conditions.length) ? r.conditions : [{ compId: r.compId, option: r.option, comparator: '' }];
+  const valid = conds.filter((c) => c.compId);
+  if (!valid.length) return false;
+  return r.operator === 'and' ? valid.every(condHit) : valid.some(condHit);
 }
 const visibleComponents = computed(() => {
   const logic = form.config.settings?.logic || [];

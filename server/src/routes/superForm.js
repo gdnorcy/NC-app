@@ -148,15 +148,27 @@ export function createSuperFormRouter(db) {
     const { data } = req.body || {};
     const form = db.prepare('SELECT * FROM super_form_template WHERE id = ? AND status = ?').get(id, 'published');
     if (!form) return res.status(404).json({ error: '表单不存在或未发布' });
-    // 次数限制（settings.basic.collectLimit，0=不限；提交周期 daily=每天一次，按当天计数）
+    // 收集份数（settings.basic.collectLimit，0=不限，累计总数）
     const cfg = parseConfig(form.config);
-    const limit = Number(cfg?.settings?.basic?.collectLimit || 0);
-    if (limit > 0) {
-      const cycle = cfg?.settings?.basic?.submitCycle === 'daily' ? 'daily' : 'once';
-      const cnt = cycle === 'daily'
-        ? db.prepare("SELECT COUNT(*) AS c FROM super_form_submission WHERE form_id = ? AND date(created_at) = date('now')").get(id).c
-        : db.prepare('SELECT COUNT(*) AS c FROM super_form_submission WHERE form_id = ?').get(id).c;
-      if (cnt >= limit) return res.status(400).json({ error: cycle === 'daily' ? '今日填写次数已达上限' : '表单收集份数已达上限' });
+    const totalLimit = Number(cfg?.settings?.basic?.collectLimit || 0);
+    if (totalLimit > 0) {
+      const cnt = db.prepare('SELECT COUNT(*) AS c FROM super_form_submission WHERE form_id = ?').get(id).c;
+      if (cnt >= totalLimit) return res.status(400).json({ error: '表单收集份数已达上限' });
+    }
+    // 次数（settings.basic.submitTimes，0=不限；按填写人计数，游客不受次数限制）
+    // 提交周期：permanent=永久 / day=每天 / week=每周 / month=每月 / year=每年
+    const timesLimit = Number(cfg?.settings?.basic?.submitTimes || 0);
+    if (timesLimit > 0 && userId) {
+      const cycle = cfg?.settings?.basic?.submitCycle || 'permanent';
+      const where = {
+        permanent: 'form_id = ? AND user_id = ?',
+        day: "form_id = ? AND user_id = ? AND date(created_at) = date('now')",
+        week: "form_id = ? AND user_id = ? AND strftime('%Y-%W', created_at) = strftime('%Y-%W', 'now')",
+        month: "form_id = ? AND user_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')",
+        year: "form_id = ? AND user_id = ? AND strftime('%Y', created_at) = strftime('%Y', 'now')",
+      }[cycle] || 'form_id = ? AND user_id = ?';
+      const cnt = db.prepare(`SELECT COUNT(*) AS c FROM super_form_submission WHERE ${where}`).get(id, userId).c;
+      if (cnt >= timesLimit) return res.status(400).json({ error: '您的填写次数已达上限' });
     }
     db.prepare(`INSERT INTO super_form_submission (form_id, customer_id, user_id, data)
       VALUES (?, ?, ?, ?)`).run(id, form.customer_id, userId, JSON.stringify(data || {}));
