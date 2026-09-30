@@ -1015,17 +1015,17 @@ onMounted(load);
 <style scoped>
 .sf-designer { height: 100%; display: flex; flex-direction: column; background: #f5f6f8; }
 /* —— 顶栏：对齐 ew 深色横条 —— */
-.sf-topbar { display: flex; align-items: center; gap: 14px; padding: 0 16px; height: 48px; background: #2a2e33; flex-shrink: 0; }
-.sf-title { font-weight: 600; color: #fff; }
+.sf-topbar { display: flex; align-items: center; gap: 14px; padding: 0 16px; height: 48px; background: #fff; border-bottom: 1px solid #ebedf0; flex-shrink: 0; }
+.sf-title { font-weight: 600; color: #303133; font-size: 15px; }
 .sf-tb-group { display: flex; gap: 8px; align-items: center; }
-.sf-tb-label { color: #fff; font-size: 13px; }
-.sf-tb-btn { border: none; background: #45494f; color: #fff; font-size: 13px; padding: 6px 14px; border-radius: 4px; cursor: pointer; transition: background .15s; }
-.sf-tb-btn:hover { background: #53575e; }
-.sf-tb-btn.on, .sf-tb-btn.on:hover { background: #409eff; }
-.sf-tb-back { background: transparent; }
+.sf-tb-label { color: #606266; font-size: 13px; }
+.sf-tb-btn { border: 1px solid #dcdfe6; background: #fff; color: #303133; font-size: 13px; padding: 5px 14px; border-radius: 4px; cursor: pointer; transition: all .15s; }
+.sf-tb-btn:hover { color: #409eff; border-color: #c6e2ff; background: #ecf5ff; }
+.sf-tb-btn.on, .sf-tb-btn.on:hover { background: #409eff; border-color: #409eff; color: #fff; }
+.sf-tb-back { background: transparent; border: none; color: #409eff; padding: 5px 8px; }
 .sf-tb-right { margin-left: auto; display: flex; gap: 20px; align-items: center; }
-.sf-tb-link { border: none; background: transparent; color: #fff; font-size: 13px; cursor: pointer; padding: 14px 2px; border-bottom: 2px solid transparent; }
-.sf-tb-link:hover { color: #c9d4ff; }
+.sf-tb-link { border: none; background: transparent; color: #606266; font-size: 13px; cursor: pointer; padding: 14px 2px; border-bottom: 2px solid transparent; }
+.sf-tb-link:hover { color: #409eff; }
 .sf-tb-link.on { color: #409eff; border-bottom-color: #409eff; }
 .sf-tb-ico { font-size: 12px; margin-right: 2px; }
 .sf-body { flex: 1; display: grid; grid-template-columns: 252px 1fr 360px; min-height: 0; }
@@ -1043,8 +1043,8 @@ onMounted(load);
 .sf-pal-label { font-size: 12px; color: #333; line-height: 1.2; text-align: center; }
 .sf-canvas { overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
 .sf-phone { width: 375px; min-height: 640px; background: #f2f3f5; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); display: flex; flex-direction: column; overflow: hidden; }
-/* 状态栏（黑）+ 标题栏（白，含小程序胶囊），对齐 ew 手机预览 */
-.sf-phone-status { height: 24px; background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 11px; flex-shrink: 0; }
+/* 状态栏（浅色，对齐页面装修预览）+ 标题栏（白，含小程序胶囊） */
+.sf-phone-status { height: 24px; background: #fff; color: #303133; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 11px; flex-shrink: 0; }
 .sf-phone-nav { height: 36px; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
 .sf-phone-nav-title { font-size: 14px; font-weight: 500; color: #303133; }
 .sf-phone-capsule { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #606266; border: 1px solid #e8e8e8; border-radius: 10px; padding: 1px 8px; background: #fafafa; }
