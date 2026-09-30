@@ -588,6 +588,21 @@
                   </el-radio-group>
                 </el-form-item>
               </template>
+              <template v-if="selected.type === 'image'">
+                <el-form-item label="单行展示">
+                  <el-radio-group v-model="selected.style.rowCount">
+                    <el-radio :value="2">2张</el-radio>
+                    <el-radio :value="3">3张</el-radio>
+                    <el-radio :value="4">4张</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="上传边框">
+                  <el-radio-group v-model="selected.style.borderStyle">
+                    <el-radio value="solid">直线</el-radio>
+                    <el-radio value="dashed">虚线</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+              </template>
               <template v-if="curStyleSchema.boxLine">
                 <div class="sf-style-cards">
                   <div class="sf-style-card" :class="{ on: selected.style.styleType === 'box' }" @click="selected.style.styleType = 'box'">
