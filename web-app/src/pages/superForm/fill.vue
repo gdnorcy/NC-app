@@ -20,15 +20,51 @@
           <!-- 时间 -->
           <input v-else-if="comp.type === 'time'" class="sf-input" :type="timeType(comp.content.dateType)" v-model="values[comp.id]" />
 
-          <!-- 图片上传 -->
-          <view v-else-if="comp.type === 'image'" class="sf-upload" @click="pickImage(comp.id)">
-            <text v-if="!values[comp.id]">+ 上传图片（最多 {{ comp.content.maxCount }} 张）</text>
-            <text v-else>{{ values[comp.id].length }} 张已选</text>
+          <!-- 图片上传（ew picture-upload：普通/身份证/营业执照 三种模式联动） -->
+          <view v-else-if="comp.type === 'image'">
+            <!-- 普通：示例图 + 多选上传（最少/最多限制） -->
+            <template v-if="(comp.content.imageType || 'normal') === 'normal'">
+              <view class="sf-upload" :class="{ 'has-sample': comp.content.sampleImg }" @click="pickImage(comp.id)">
+                <image v-if="comp.content.sampleImg" class="sf-sample" :src="comp.content.sampleImg" mode="aspectFill" />
+                <text v-else class="sf-camera">+</text>
+              </view>
+              <text class="sf-upload-tip">上传图片（{{ limitText(comp.content) }}）</text>
+              <view v-if="(values[comp.id] || []).length" class="sf-upload-list">
+                <text v-for="(n, i) in values[comp.id]" :key="i" class="sf-upload-item">已选 {{ i + 1 }} · {{ n }}</text>
+              </view>
+            </template>
+            <!-- 身份证：人像面 / 国徽面 双槽 -->
+            <template v-else-if="comp.content.imageType === 'idcard'">
+              <view class="sf-id-row">
+                <view class="sf-id-box" @click="pickIdFace(comp.id, 'ward')">
+                  <image class="sf-id-bg" src="/static/superform/id-front.png" mode="widthFix" />
+                  <text class="sf-camera-circle">+</text>
+                  <text class="sf-id-face" v-if="values[comp.id] && values[comp.id].ward">已上传</text>
+                  <text class="sf-id-text">证件人像面</text>
+                </view>
+                <view class="sf-id-box" @click="pickIdFace(comp.id, 'back')">
+                  <image class="sf-id-bg" src="/static/superform/id-beck.png" mode="widthFix" />
+                  <text class="sf-camera-circle">+</text>
+                  <text class="sf-id-face" v-if="values[comp.id] && values[comp.id].back">已上传</text>
+                  <text class="sf-id-text">证件国徽面</text>
+                </view>
+              </view>
+            </template>
+            <!-- 营业执照：单槽 -->
+            <template v-else>
+              <view class="sf-id-row">
+                <view class="sf-id-box sf-license-box" @click="pickLicense(comp.id)">
+                  <image class="sf-id-bg" src="/static/superform/license.png" mode="widthFix" />
+                  <text class="sf-camera-circle">+</text>
+                  <text class="sf-id-face" v-if="values[comp.id]">已上传</text>
+                </view>
+              </view>
+            </template>
           </view>
 
           <!-- 附件 -->
           <view v-else-if="comp.type === 'attachment'" class="sf-upload" @click="pickFile(comp.id)">
-            <text v-if="!values[comp.id] || !values[comp.id].length">+ 上传附件（最多 {{ comp.content.maxCount }} 个）</text>
+            <text v-if="!values[comp.id] || !values[comp.id].length">+ 上传附件（{{ comp.content.minCount ? `最少 ${comp.content.minCount} 个，` : '' }}最多 {{ comp.content.maxCount }} 个）</text>
             <text v-else>{{ values[comp.id].length }} 个文件已选</text>
           </view>
 
@@ -335,11 +371,41 @@ function toggleCheck(id, val) {
 }
 
 function pickImage(id) {
+  const c = components.value.find((x) => x.id === id);
+  const max = (c?.content?.maxCount || 0) || 9;
   // P1 简化：记录文件名（真实上传在后续迭代补全）
   uni.chooseImage({
-    count: 9,
+    count: max,
     success: (r) => { values[id] = r.tempFiles.map((f) => f.name); },
   });
+}
+
+// 身份证：人像面(ward) / 国徽面(back) 各传一张 —— ew 用 {ward, back} 结构
+function pickIdFace(id, face) {
+  uni.chooseImage({
+    count: 1,
+    success: (r) => {
+      const v = values[id];
+      values[id] = { ward: '', back: '', ...(typeof v === 'object' && v && !Array.isArray(v) ? v : {}), [face]: r.tempFiles[0].name };
+    },
+  });
+}
+
+// 营业执照：单张
+function pickLicense(id) {
+  uni.chooseImage({
+    count: 1,
+    success: (r) => { values[id] = r.tempFiles[0].name; },
+  });
+}
+
+// 数量限制文案（ew：0 = 不限制）
+function limitText(ct) {
+  const min = ct.minCount || 0;
+  const max = ct.maxCount || 0;
+  if (min && max) return `最少 ${min} 张，最多 ${max} 张`;
+  if (max) return `最多 ${max} 张`;
+  return '数量不限';
 }
 
 function timeType(dt) {
@@ -446,6 +512,37 @@ function validateList(list) {
       continue;
     }
 
+    // 图片上传：普通=数组（最少/最多张数），身份证=两面都要，营业执照=单张
+    if (c.type === 'image') {
+      const imgType = ct.imageType || 'normal';
+      if (imgType === 'idcard') {
+        if (ct.required && (!v || !v.ward || !v.back)) return (ct.label || '上传身份证照片') + '请上传证件人像面与国徽面';
+        continue;
+      }
+      if (imgType === 'license') {
+        if (ct.required && !v) return (ct.label || '上传营业执照') + '为必填项';
+        continue;
+      }
+      const arr = Array.isArray(v) ? v : [];
+      const min = ct.minCount || 0;
+      const max = ct.maxCount || 0;
+      if (ct.required && !arr.length) return (ct.label || '图片上传') + '为必填项';
+      if (min && arr.length < min) return (ct.label || '图片上传') + `最少上传 ${min} 张`;
+      if (max && arr.length > max) return (ct.label || '图片上传') + `最多上传 ${max} 张`;
+      continue;
+    }
+
+    // 附件：最少/最多个数（ew insertLimit）
+    if (c.type === 'attachment') {
+      const arr = Array.isArray(v) ? v : [];
+      const amin = ct.minCount || 0;
+      const amax = ct.maxCount || 0;
+      if (ct.required && !arr.length) return (ct.label || '附件') + '为必填项';
+      if (amin && arr.length < amin) return (ct.label || '附件') + `最少上传 ${amin} 个`;
+      if (amax && arr.length > amax) return (ct.label || '附件') + `最多上传 ${amax} 个`;
+      continue;
+    }
+
     if (ct.required) {
       const empty = v == null || v === '' || (Array.isArray(v) ? v.length === 0 : (typeof v === 'object' && !v.address ? true : String(v).trim() === ''));
       if (empty) return (ct.label || '该项') + '为必填项';
@@ -477,9 +574,6 @@ function validateList(list) {
       if (ct.min != null && n < ct.min) return (ct.label || '数字') + `不能小于 ${ct.min}`;
       if (ct.max != null && n > ct.max) return (ct.label || '数字') + `不能大于 ${ct.max}`;
       if (ct.step != null && ct.step > 1 && n % ct.step !== 0) return (ct.label || '数字') + `需为 ${ct.step} 的倍数`;
-    }
-    if (c.type === 'image' && Array.isArray(v)) {
-      if (ct.maxCount && v.length > ct.maxCount) return (ct.label || '图片') + `最多上传 ${ct.maxCount} 张`;
     }
     if (c.type === 'radio' && ct.required && !v) return (ct.label || '单项选择') + '为必选项';
     if (c.type === 'select' && ct.required && !v) return (ct.label || '下拉选择') + '为必选项';
@@ -557,6 +651,22 @@ async function submit() {
 .sf-input { width: 100%; border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); box-sizing: border-box; background: var(--c-input-bg, #F7F9FA); color: var(--c-input-color, #333333); }
 textarea.sf-input { min-height: var(--c-input-height, 84px); }
 .sf-upload { min-width: var(--c-upload-size, 45px); min-height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 10px var(--c-input-pad-x, 10px); text-align: center; color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 13px); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
+/* 图片上传：普通（示例图）/ 身份证（双面）/ 营业执照（单槽），对齐 ew picture-upload-widget */
+.sf-upload.has-sample { padding: 0; overflow: hidden; }
+.sf-sample { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); display: block; }
+.sf-camera { color: #ADBAC6; font-size: 30px; line-height: 1; }
+.sf-upload-tip { display: block; font-size: 12px; color: var(--c-prompt-color, #999999); margin-top: 6px; }
+.sf-upload-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.sf-upload-item { font-size: 12px; color: var(--c-input-color, #333333); }
+.sf-id-row { display: flex; gap: 15px; flex-wrap: wrap; }
+/* ew .id-card-box（实测 167x129）：宽165 含左右内边距26，示例图通栏，半透明圆形相机 57x57 居中，文字13/#666 */
+.sf-id-box { width: 165px; padding: 15px 26px; position: relative; text-align: center; border-radius: 3px; background: var(--c-img-bg, #FFFFFF); border: 1px solid var(--c-img-border, #CED3D6); box-sizing: border-box; }
+.sf-license-box { width: 155px; padding: 23px 17px 12px; }
+.sf-id-bg { width: 100%; display: block; }
+.sf-camera-circle { position: absolute; width: 57px; height: 57px; line-height: 57px; text-align: center; background: rgba(0, 0, 0, 0.16); border-radius: 50%; top: 15px; left: 54px; color: #FFFFFF; font-size: 27px; }
+.sf-license-box .sf-camera-circle { top: 30px; left: 32px; }
+.sf-id-face { position: absolute; right: 6px; top: 6px; font-size: 11px; color: #4385FF; background: rgba(255, 255, 255, 0.85); border-radius: 3px; padding: 1px 5px; z-index: 1; }
+.sf-id-text { display: block; font-size: 13px; font-weight: 500; color: #666666; line-height: 20px; }
 /* 线风格：输入类控件去边框，仅保留底线（对齐 ew 组件风格） */
 .cs-line .sf-input,
 .cs-line .sf-loc,

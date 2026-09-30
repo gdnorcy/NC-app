@@ -10,7 +10,25 @@
     </template>
 
     <template v-else-if="comp.type === 'image'">
-      <div class="cmpv-upload">+</div>
+      <!-- ew picture-upload-widget：普通=示例图+相机，身份证=人像面/国徽面双槽，营业执照=单槽 -->
+      <template v-if="comp.content.imageType === 'idcard'">
+        <div class="cmpv-id-row">
+          <div class="cmpv-id-box"><img class="cmpv-id-bg" :src="idFront" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span><span class="cmpv-id-text">证件人像面</span></div>
+          <div class="cmpv-id-box"><img class="cmpv-id-bg" :src="idBack" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span><span class="cmpv-id-text">证件国徽面</span></div>
+        </div>
+      </template>
+      <template v-else-if="comp.content.imageType === 'license'">
+        <div class="cmpv-id-row">
+          <div class="cmpv-id-box cmpv-license-box"><img class="cmpv-id-bg" :src="licenseImg" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span></div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="cmpv-upload cmpv-normal-upload">
+          <img v-if="comp.content.sampleImg" class="cmpv-sample" :src="comp.content.sampleImg" />
+          <span v-else class="cmpv-camera" />
+        </div>
+        <div class="cmpv-upload-tip">上传图片（{{ limitText(comp) }}）</div>
+      </template>
     </template>
 
     <template v-else-if="comp.type === 'radio'">
@@ -149,8 +167,20 @@
 </template>
 
 <script setup>
+import idFront from '../../../../assets/superform/id-front.png';
+import idBack from '../../../../assets/superform/id-beck.png';
+import licenseImg from '../../../../assets/superform/license.png';
+
 defineProps({ comp: { type: Object, required: true } });
 const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigimage', 'video', 'backdesc', 'realtime', 'pagebreak', 'pay'];
+// 数量限制文案（ew：0 = 不限制）
+function limitText(comp) {
+  const min = comp.content.minCount || 0;
+  const max = comp.content.maxCount || 0;
+  if (min && max) return `最少 ${min} 张，最多 ${max} 张`;
+  if (max) return `最多 ${max} 张`;
+  return '数量不限';
+}
 </script>
 
 <style scoped>
@@ -161,7 +191,23 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
 .cmpv-input::placeholder { color: var(--c-prompt-color, #CCCCCC); }
 .cmpv-select { display: flex; align-items: center; justify-content: space-between; }
 .cmpv-select::after { content: '▾'; color: var(--c-icon-color, #000000); }
-.cmpv-upload { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: var(--c-input-bg, #F7F9FA); color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 14px); }
+.cmpv-upload { min-width: var(--c-upload-size, 45px); min-height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: var(--c-input-bg, #F7F9FA); color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 14px); overflow: hidden; box-sizing: border-box; }
+/* 相机图标：ew iconfont \e6e7（字体取自 ew 原包） */
+@font-face { font-family: 'SfIconfont'; src: url('../../../../assets/superform/iconfont.woff2') format('woff2'); }
+.cmpv-camera { font-family: 'SfIconfont'; font-style: normal; color: #ADBAC6; font-size: 26px; width: 26px; height: 26px; line-height: 1; }
+.cmpv-camera::before { content: '\e6e7'; }
+.cmpv-normal-upload { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); }
+.cmpv-sample { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmpv-upload-tip { font-size: 12px; color: var(--c-prompt-color, #999999); margin-top: 6px; }
+.cmpv-id-row { display: flex; gap: 15px; flex-wrap: wrap; }
+/* ew .id-card-box（实测 167x129）：宽165 含左右内边距26，示例图通栏，半透明圆形相机 57x57 居中，文字13/#666 */
+.cmpv-id-box { width: 165px; padding: 15px 26px; position: relative; text-align: center; border-radius: 3px; background: var(--c-img-bg, #FFFFFF); border: 1px solid var(--c-img-border, #CED3D6); box-sizing: border-box; }
+.cmpv-id-bg { width: 100%; display: block; }
+.cmpv-camera-circle { position: absolute; width: 57px; height: 57px; line-height: 57px; text-align: center; background: rgba(0, 0, 0, 0.16); border-radius: 50%; top: 15px; left: 54px; color: #FFFFFF; font-size: 27px; }
+.cmpv-camera-circle .cmpv-camera { display: inline-block; vertical-align: middle; line-height: inherit; }
+.cmpv-id-text { display: block; font-size: 13px; font-weight: 500; color: #666666; line-height: 20px; }
+.cmpv-license-box { width: 155px; padding: 23px 17px 12px; }
+.cmpv-license-box .cmpv-camera-circle { top: 30px; left: 32px; }
 .cmpv-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--c-option-color, #333333); margin: 6px 0; }
 .cmpv-opt-row { display: flex; align-items: center; gap: 8px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); margin: 6px 0; padding: 6px 0; }
 .cmpv-opt-row.line { border-bottom: 1px solid var(--c-border-color, #dcdfe6); }

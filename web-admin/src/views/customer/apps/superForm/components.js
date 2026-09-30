@@ -150,7 +150,8 @@ export function defaultContent(type) {
     case 'textarea':
       return { ...base, maxLength: 400, minLength: 0, contentType: 'normal', readonly: false, verifyRepeat: false };
     case 'image':
-      return { ...base, maxCount: 9, minCount: 0, imageType: 'normal', sampleImg: '' };
+      // ew 默认 label=上传图片；图片类型切换会联动 标题/提示文字/数量限制
+      return { ...base, label: '上传图片', maxCount: 9, minCount: 0, imageType: 'normal', sampleImg: '' };
     case 'radio':
     case 'checkbox':
       return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], min: 0, max: 0 };
@@ -165,7 +166,7 @@ export function defaultContent(type) {
     case 'location':
       return { ...base, tipText: '点击获取定位' };
     case 'attachment':
-      return { ...base, maxCount: 3 };
+      return { ...base, maxCount: 3, minCount: 0 };
     case 'agreement':
       return { label: '我已阅读并同意', required: true, linkText: '《用户协议》', linkUrl: '' };
     case 'rate':
@@ -205,6 +206,13 @@ export function defaultContent(type) {
     default:
       return { ...base };
   }
+}
+
+// 组件内容迁移：旧数据缺 ew 新增字段时补默认值（图片上传的 图片类型/示例图/最少上传）
+export function migrateContent(comp) {
+  const def = defaultContent(comp.type);
+  comp.content = { ...def, ...(comp.content || {}) };
+  return comp;
 }
 
 export function createComponent(type) {

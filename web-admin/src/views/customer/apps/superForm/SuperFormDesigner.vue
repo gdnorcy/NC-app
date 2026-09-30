@@ -187,25 +187,39 @@
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
                 <el-form-item label="图片类型">
-                  <el-radio-group v-model="selected.content.imageType">
+                  <!-- ew imgType-editor.handler：切类型会联动 标题/提示文字/数量限制（身份證/營業執照固定 0 张） -->
+                  <el-radio-group v-model="selected.content.imageType" @change="onImgTypeChange">
                     <el-radio value="normal">普通</el-radio>
                     <el-radio value="idcard">身份证</el-radio>
                     <el-radio value="license">营业执照</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="示例图">
-                  <div class="sf-sample-img">
-                    <img v-if="selected.content.sampleImg" :src="selected.content.sampleImg" />
-                    <span v-else class="sf-camera">📷</span>
-                    <span class="sf-hint" style="margin-left:10px">示例图可引导用户上传规定模式的图片</span>
-                  </div>
-                </el-form-item>
-                <el-form-item label="最少上传">
-                  <el-input-number :model-value="selected.content.minCount ?? 0" @update:model-value="selected.content.minCount = $event" :min="0" :max="9" />
-                </el-form-item>
-                <el-form-item label="最多上传">
-                  <el-input-number v-model="selected.content.maxCount" :min="1" :max="9" />
-                </el-form-item>
+                <!-- ew 联动：示例图 / 输入限制 仅「普通」显示 -->
+                <template v-if="selected.content.imageType === 'normal'">
+                  <el-form-item label="示例图">
+                    <div class="sf-sample-img">
+                      <span class="sf-sample-box" @click="imgPickerTarget = 'sampleImg'; imgPickerShow = true">
+                        <img v-if="selected.content.sampleImg" :src="selected.content.sampleImg" />
+                        <i v-else class="sf-camera-icon" />
+                      </span>
+                      <span class="sf-hint" style="margin-left:10px">示例图可引导用户上传规定模式的图片</span>
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="输入限制">
+                    <div class="sf-limit-row">
+                      <span class="sf-limit-label">最少上传</span>
+                      <el-slider v-model="selected.content.minCount" :min="0" :max="10" show-input :show-input-controls="false" class="sf-limit-slider" />
+                      <span>张</span>
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="">
+                    <div class="sf-limit-row">
+                      <span class="sf-limit-label">最多上传</span>
+                      <el-slider v-model="selected.content.maxCount" :min="0" :max="10" show-input :show-input-controls="false" class="sf-limit-slider" />
+                      <span>张</span>
+                    </div>
+                  </el-form-item>
+                </template>
               </template>
 
               <template v-else-if="['radio', 'checkbox', 'select'].includes(selected.type)">
@@ -363,7 +377,21 @@
                   <el-switch v-model="selected.content.verifyRepeat" />
                   <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
-                <el-form-item label="最多上传"><el-input-number v-model="selected.content.maxCount" :min="1" :max="9" /></el-form-item>
+                <el-form-item label="输入限制">
+                  <!-- ew insertLimit-editor：附件为「最少/最多上传 … 个」，滑杆上限 10 -->
+                  <div class="sf-limit-row">
+                    <span class="sf-limit-label">最少上传</span>
+                    <el-slider v-model="selected.content.minCount" :min="0" :max="10" show-input :show-input-controls="false" class="sf-limit-slider" />
+                    <span>个</span>
+                  </div>
+                </el-form-item>
+                <el-form-item label="">
+                  <div class="sf-limit-row">
+                    <span class="sf-limit-label">最多上传</span>
+                    <el-slider v-model="selected.content.maxCount" :min="0" :max="10" show-input :show-input-controls="false" class="sf-limit-slider" />
+                    <span>个</span>
+                  </div>
+                </el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'agreement'">
@@ -988,7 +1016,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getSuperForm, updateSuperForm } from '../../../../api/index.js';
 import {
-  COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, styleSchema, migrateStyle, componentStyleVars, COMPONENT_LABEL,
+  COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, styleSchema, migrateStyle, migrateContent, componentStyleVars, COMPONENT_LABEL,
 } from './components.js';
 import ComponentPreview from './ComponentPreview.vue';
 import MaterialPicker from '../design/MaterialPicker.vue';
@@ -1014,7 +1042,27 @@ function onPickImg(url) {
   if (!url) return;
   if (imgPickerTarget.value === 'pageBg') settings.globalStyle.pageBgImage = url;
   else if (imgPickerTarget.value === 'compBg' && selected.value) selected.value.style.bgImage = url;
+  else if (imgPickerTarget.value === 'sampleImg' && selected.value) selected.value.content.sampleImg = url;
   else settings.basic.shareImage = url;
+}
+
+// 图片上传「图片类型」联动 —— 1:1 复刻 ew imgType-editor.handler（含默认文案判断的怪癖）
+// 注：'图片上传' 是本项目旧默认标题，与 ew 的 '上传图片' 同样视为「未改过」参与联动
+function onImgTypeChange(t) {
+  const c = selected.value.content;
+  const untouched = !c.label || c.label === '上传图片' || c.label === '图片上传';
+  if (t === 'idcard') {
+    if (untouched) c.label = '上传身份证照片';
+    if (!c.placeholder) c.placeholder = '身份证照片仅用于实名认证';
+    c.minCount = 0; c.maxCount = 0;
+  } else if (t === 'license') {
+    if (untouched) c.label = '上传营业执照';
+    if (!c.placeholder) c.placeholder = '营业执照仅用于实名认证';
+    c.minCount = 0; c.maxCount = 0;
+  } else {
+    if (!c.label || c.label === '上传身份证照片' || c.label === '上传营业执照') c.label = '上传图片';
+    if (c.placeholder === '身份证照片仅用于实名认证' || c.placeholder === '营业执照仅用于实名认证') c.placeholder = '';
+  }
 }
 
 const selected = computed(() => components.value.find((c) => c.id === selectedId.value) || null);
@@ -1221,6 +1269,8 @@ async function load() {
     components.value = Array.isArray(cfg.components) ? cfg.components : [];
     // 组件样式迁移：旧数据用通用样式，按类型补齐 ew 各组件专用字段
     components.value.forEach((c) => migrateStyle(c));
+    // 组件内容迁移：旧数据缺图片上传的 图片类型/示例图/最少上传 等字段时补齐
+    components.value.forEach((c) => migrateContent(c));
     Object.assign(settings, def, cfg.settings || {});
     // 分组深合并，避免旧数据缺字段时面板绑定 undefined
     settings.basic = { ...def.basic, ...(cfg.settings?.basic || {}) };
@@ -1331,8 +1381,16 @@ onMounted(load);
 .sf-hint { color: #909399; font-size: 12px; margin-left: 6px; }
 .sf-hint-block { margin-left: 0; margin-top: 4px; display: block; }
 .sf-sample-img { display: flex; align-items: center; }
-.sf-sample-img img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ebeef5; }
-.sf-camera { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border: 1px solid #dcdfe6; border-radius: 4px; background: #f7f9fa; color: #c0c4cc; font-size: 24px; }
+/* ew 相机图标（iconfont \e6e7，字体取自 ew 原包 fonts/iconfont.2d166a51.woff2） */
+@font-face { font-family: 'SfIconfont'; src: url('../../../../assets/superform/iconfont.woff2') format('woff2'); }
+.sf-camera-icon { font-family: 'SfIconfont'; font-style: normal; color: #ADBAC6; font-size: 26px; }
+.sf-camera-icon::before { content: '\e6e7'; }
+.sf-sample-box { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border: 1px solid #ebeef5; border-radius: 4px; background: #f7f9fa; overflow: hidden; cursor: pointer; }
+.sf-sample-box img { width: 100%; height: 100%; object-fit: cover; }
+.sf-limit-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+.sf-limit-label { font-size: 13px; color: #606266; white-space: nowrap; }
+.sf-limit-slider { flex: 1; }
+.sf-limit-slider .el-slider__input { width: 60px; }
 /* —— 右栏面板（对齐 ew：蓝条标题 + 大块分段 tab + 灰色分区条） —— */
 .sf-panel-head { font-size: 16px; font-weight: 600; color: #303133; padding: 2px 0 8px 10px; border-left: 3px solid #409eff; margin-bottom: 12px; }
 .sf-seg { display: flex; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }

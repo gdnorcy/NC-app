@@ -46,10 +46,10 @@ describe('超级表单组件样式 schema', () => {
     expect(submit.inputBg).toBe('#0076F0');
     expect(submit.labelColor).toBe('#FFFFFF');
     expect(submit.inputRadius).toBe(22);
-    // 评分用图标卡而非框/线卡
+    // 评分用图标卡而非框/线卡（boxLine 为风格卡数组，评分用 icons）
     expect(STYLE_SCHEMA.rate.icons).toBe(true);
     expect(STYLE_SCHEMA.rate.boxLine).toBeUndefined();
-    expect(STYLE_SCHEMA.text.boxLine).toBe(true);
+    expect(Array.isArray(STYLE_SCHEMA.text.boxLine) && STYLE_SCHEMA.text.boxLine.length > 0).toBe(true);
   });
 
   it('styleSchema 对未知类型返回空 schema 而不是别的组件的', () => {
