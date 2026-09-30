@@ -78,7 +78,7 @@
                 <div class="sf-comp-ops" v-if="comp.id === selectedId">
                   <span @click.stop="remove(idx)">✕</span>
                 </div>
-                <ComponentPreview :comp="comp" />
+                <ComponentPreview :comp="comp" :layout="settings.layout" />
               </div>
             </div>
             <div v-if="dragOverIdx === components.length" class="sf-drop-line" />
@@ -149,12 +149,12 @@
                   </el-checkbox-group>
                 </el-form-item>
                 <el-form-item v-if="selected.content.contentType === 'normal'" label="最少输入">
-                  <el-slider v-model="selected.content.minLength" :min="0" :max="400" style="flex:1" />
-                  <el-input-number v-model="selected.content.minLength" :min="0" :max="400" size="small" style="width:90px;margin-left:10px" />
+                  <el-slider v-model="selected.content.minLength" :min="0" :max="200" style="flex:1" />
+                  <el-input-number v-model="selected.content.minLength" :min="0" :max="200" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
                 <el-form-item v-if="selected.content.contentType === 'normal'" label="最多输入">
-                  <el-slider v-model="selected.content.maxLength" :min="0" :max="400" style="flex:1" />
-                  <el-input-number v-model="selected.content.maxLength" :min="0" :max="400" size="small" style="width:90px;margin-left:10px" />
+                  <el-slider v-model="selected.content.maxLength" :min="0" :max="3000" style="flex:1" />
+                  <el-input-number v-model="selected.content.maxLength" :min="0" :max="3000" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
                 <el-form-item label="内容校验">
                   <el-switch v-model="selected.content.verifyRepeat" active-text="相同内容不可重复提交" />
@@ -174,12 +174,12 @@
                   <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
                 <el-form-item label="最少输入">
-                  <el-slider v-model="selected.content.minLength" :min="0" :max="1000" style="flex:1" />
-                  <el-input-number v-model="selected.content.minLength" :min="0" :max="1000" size="small" style="width:90px;margin-left:10px" />
+                  <el-slider v-model="selected.content.minLength" :min="0" :max="200" style="flex:1" />
+                  <el-input-number v-model="selected.content.minLength" :min="0" :max="200" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
                 <el-form-item label="最多输入">
-                  <el-slider v-model="selected.content.maxLength" :min="0" :max="1000" style="flex:1" />
-                  <el-input-number v-model="selected.content.maxLength" :min="0" :max="1000" size="small" style="width:90px;margin-left:10px" />
+                  <el-slider v-model="selected.content.maxLength" :min="0" :max="3000" style="flex:1" />
+                  <el-input-number v-model="selected.content.maxLength" :min="0" :max="3000" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
               </template>
 
@@ -710,21 +710,22 @@
                 </el-form-item>
               </template>
               <template v-if="selected.type === 'image'">
-                <el-form-item label="单行展示">
-                  <el-radio-group v-model="selected.style.rowCount">
+                <!-- ew 实测：单行展示仅上下布局显示（rowsShow 2/3/4张）；左右布局由下方框/线风格卡代替 -->
+                <el-form-item v-if="settings.layout !== 'horizontal'" label="单行展示">
+                  <el-radio-group v-model="selected.style.rowsShow">
                     <el-radio :value="2">2张</el-radio>
                     <el-radio :value="3">3张</el-radio>
                     <el-radio :value="4">4张</el-radio>
                   </el-radio-group>
                 </el-form-item>
                 <el-form-item label="上传边框">
-                  <el-radio-group v-model="selected.style.borderStyle">
+                  <el-radio-group v-model="selected.style.borderType">
                     <el-radio value="solid">直线</el-radio>
                     <el-radio value="dashed">虚线</el-radio>
                   </el-radio-group>
                 </el-form-item>
               </template>
-              <template v-if="Array.isArray(curStyleSchema.boxLine) && curStyleSchema.boxLine.length">
+              <template v-if="Array.isArray(curStyleSchema.boxLine) && curStyleSchema.boxLine.length && (!curStyleSchema.hOnlyBoxLine || settings.layout === 'horizontal')">
                 <div class="sf-style-cards">
                   <div v-for="bl in curStyleSchema.boxLine" :key="bl.value" class="sf-style-card" :class="{ on: selected.style.styleType === bl.value }" @click="selected.style.styleType = bl.value">
                     <div class="sf-style-demo">
@@ -757,14 +758,14 @@
                   </div>
                 </div>
               </template>
-              <el-form-item v-for="row in curStyleSchema.styleRows" :key="row.key" :label="row.label">
+              <el-form-item v-for="row in curStyleRows" :key="row.key" :label="row.label">
                 <el-slider v-model="selected.style[row.key]" :min="0" :max="row.max" class="sf-inline-slider" />
                 <el-input-number v-model="selected.style[row.key]" :min="0" :max="row.max" size="small" style="width: 96px" /> px
               </el-form-item>
 
-              <template v-if="curStyleSchema.colorRows.length">
+              <template v-if="curColorRows.length">
                 <div class="sf-sec">组件颜色</div>
-                <el-form-item v-for="row in curStyleSchema.colorRows" :key="row.key" :label="row.label">
+                <el-form-item v-for="row in curColorRows" :key="row.key" :label="row.label">
                   <el-color-picker v-model="selected.style[row.key]" size="small" />
                   <el-input v-model="selected.style[row.key]" size="small" style="width: 96px; margin-left: 8px" />
                   <el-button size="small" style="margin-left: 8px" @click="selected.style[row.key] = row.def">重置</el-button>
@@ -1068,6 +1069,9 @@ function onImgTypeChange(t) {
 const selected = computed(() => components.value.find((c) => c.id === selectedId.value) || null);
 // 当前组件类型的样式 schema（ew 每种组件都有独立的 组件风格 / 组件颜色 行，不可共用一套）
 const curStyleSchema = computed(() => styleSchema(selected.value?.type));
+// ew 部分行仅左右布局显示（如图片上传的 上传框大小/图片圆角/图片背景/图片边框），按当前布局过滤
+const curStyleRows = computed(() => (curStyleSchema.value.styleRows || []).filter((r) => !r.hOnly || settings.layout === 'horizontal'));
+const curColorRows = computed(() => (curStyleSchema.value.colorRows || []).filter((r) => !r.hOnly || settings.layout === 'horizontal'));
 // 选择类字段（对齐 ew：含评分）
 const choiceComponents = computed(() => components.value.filter((c) => ['radio', 'checkbox', 'select', 'rate'].includes(c.type)));
 // 纯展示/特殊组件不显示「是否显示 / 是否必填」表头

@@ -18,10 +18,10 @@
  */
 export const STYLE_SCHEMA = {
   text: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
-    { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
-    { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
-    { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
-    { key: 'inputSize', label: '输入文本大小', def: 14, max: 20 },
+    { key: 'inputMarginX', label: '左右边距', def: 10, max: 60 },
+    { key: 'inputRadius', label: '输入框圆角', def: 3, max: 100 },
+    { key: 'titleSize', label: '标题大小', def: 16, max: 30 },
+    { key: 'inputSize', label: '输入文本大小', def: 14, max: 30 },
   ], colorRows: [
     { key: 'borderColor', label: '底框边框', def: '#F5F2F2' },
     { key: 'labelColor', label: '标题颜色', def: '#000000' },
@@ -32,11 +32,11 @@ export const STYLE_SCHEMA = {
     { key: 'scanCodeIcon', label: '扫码图标', def: '#666666' },
   ] },
   textarea: { boxLine: [{value:'box1',label:'框风格1'},{value:'box2',label:'框风格2'},{value:'line',label:'线风格'}], styleRows: [
-    { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
-    { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
-    { key: 'inputHeight', label: '输入区高度', def: 166, max: 400 },
-    { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
-    { key: 'inputSize', label: '输入文本大小', def: 14, max: 20 },
+    { key: 'inputMarginX', label: '左右边距', def: 10, max: 60 },
+    { key: 'inputRadius', label: '输入框圆角', def: 3, max: 100 },
+    { key: 'inputHeight', label: '输入区高度', def: 166, max: 300 },
+    { key: 'titleSize', label: '标题大小', def: 16, max: 30 },
+    { key: 'inputSize', label: '输入文本大小', def: 14, max: 30 },
   ], colorRows: [
     { key: 'borderColor', label: '底框边框', def: '#F5F2F2' },
     { key: 'labelColor', label: '标题颜色', def: '#000000' },
@@ -45,22 +45,30 @@ export const STYLE_SCHEMA = {
     { key: 'inputBg', label: '输入背景', def: '#F7F9FA' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  image: { boxLine: false, styleRows: [
-    { key: 'uploadBoxSize', label: '上传框尺寸', def: 45, max: 120 },
-    { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
-    { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
-    { key: 'imgRadius', label: '图片圆角', def: 3, max: 20 },
-    { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
-    { key: 'promptSize', label: '提示文字大小', def: 14, max: 20 },
-  ], colorRows: [
-    { key: 'inputBg', label: '上传框背景', def: '#F7F9FA' },
-    { key: 'borderColor', label: '上传框边框', def: '#F5F2F2' },
-    { key: 'imgBg', label: '图片背景', def: '#FFFFFF' },
-    { key: 'imgBorder', label: '图片边框', def: '#CED3D6' },
-    { key: 'labelColor', label: '标题颜色', def: '#000000' },
-    { key: 'promptColor', label: '提示文字', def: '#999999' },
-    { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
-  ] },
+  image: {
+    // ew 实测：上下布局 组件风格 = 单行展示(2/3/4张→rowsShow) + 上传边框(直线/虚线→borderType)
+    //          + 左右边距(max44) + 底框圆角 + 标题大小(max30) + 提示文字大小(max30)，无 上传框大小/图片圆角；
+    //   左右布局 组件风格 = 框风格/线风格卡 + 上传边框 + 上传框大小(max120,def45) + 左右边距 + 底框圆角
+    //          + 图片圆角 + 标题大小 + 提示文字大小；组件颜色里 图片背景/图片边框 仅左右布局显示。
+    boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}],
+    hOnlyBoxLine: true,
+    extraDefs: { rowsShow: 2, borderType: 'solid' },
+    styleRows: [
+      { key: 'uploadBoxSize', label: '上传框大小', def: 45, max: 120, hOnly: true },
+      { key: 'inputMarginX', label: '左右边距', def: 10, max: 44 },
+      { key: 'inputRadius', label: '底框圆角', def: 3, max: 100 },
+      { key: 'imgRadius', label: '图片圆角', def: 3, max: 100, hOnly: true },
+      { key: 'titleSize', label: '标题大小', def: 16, max: 30 },
+      { key: 'promptSize', label: '提示文字大小', def: 14, max: 30 },
+    ], colorRows: [
+      { key: 'labelColor', label: '标题颜色', def: '#000000' },
+      { key: 'borderColor', label: '底框边框', def: '#F5F2F2' },
+      { key: 'inputBg', label: '背景颜色', def: '#F7F9FA' },
+      { key: 'imgBg', label: '图片背景', def: '#FFFFFF', hOnly: true },
+      { key: 'imgBorder', label: '图片边框', def: '#CED3D6', hOnly: true },
+      { key: 'promptColor', label: '提示文本', def: '#999999' },
+      { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
+    ] },
   radio: { boxLine: [{value:'s1',label:'风格1'},{value:'s2',label:'风格2'},{value:'s3',label:'风格3'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -352,6 +360,8 @@ export function defaultStyle(type) {
   const s = { ...COMMON_BG, ...COMMON_WHOLE };
   if (sc.boxLine) s.styleType = 'box';
   if (sc.icons) s.icon = 'smile';
+  // 非滑杆类枚举默认值（如图片上传 rowsShow/borderType）
+  if (sc.extraDefs) Object.assign(s, sc.extraDefs);
   (sc.styleRows || []).forEach((r) => { s[r.key] = r.def; });
   (sc.colorRows || []).forEach((r) => { s[r.key] = r.def; });
   return s;
@@ -473,7 +483,9 @@ export function componentStyleVars(comp, globalStyle) {
   Object.keys(st).forEach((k) => {
     const v = st[k];
     if (v == null || v === '') return;
-    if (SIZE_VAR[k]) s[SIZE_VAR[k]] = v + 'px';
+    if (k === 'rowsShow') { s['--c-img-rows'] = v; }          // 图片上传 单行展示（无单位）
+    else if (k === 'borderType') { s['--c-img-border-style'] = v; } // 图片上传 上传边框 solid/dashed
+    else if (SIZE_VAR[k]) s[SIZE_VAR[k]] = v + 'px';
     else if (COLOR_VAR[k]) s[COLOR_VAR[k]] = v;
     else if (typeof v === 'number') s['--st-' + k] = v + 'px';
     else if (typeof v === 'string' && v.charAt(0) === '#') s['--cl-' + k] = v;

@@ -4,7 +4,7 @@
       <view class="sf-form-name" v-if="form.name">{{ form.name }}</view>
 
       <template v-for="comp in currentPageComponents" :key="comp.id">
-        <view class="sf-field" :class="{ 'cs-line': comp.style && comp.style.styleType === 'line' }" :style="fieldStyle(comp)">
+        <view class="sf-field" :class="{ 'cs-line': comp.style && comp.style.styleType === 'line', 'sf-t-image': comp.type === 'image' }" :style="fieldStyle(comp)">
           <view class="sf-label" v-if="!noTitleTypes.includes(comp.type)">
             {{ comp.content.label || '未命名' }}
             <text v-if="comp.content.required" class="sf-req">*</text>
@@ -20,45 +20,68 @@
           <!-- 时间 -->
           <input v-else-if="comp.type === 'time'" class="sf-input" :type="timeType(comp.content.dateType)" v-model="values[comp.id]" />
 
-          <!-- 图片上传（ew picture-upload：普通/身份证/营业执照 三种模式联动） -->
-          <view v-else-if="comp.type === 'image'">
-            <!-- 普通：示例图 + 多选上传（最少/最多限制） -->
-            <template v-if="(comp.content.imageType || 'normal') === 'normal'">
-              <view class="sf-upload" :class="{ 'has-sample': comp.content.sampleImg }" @click="pickImage(comp.id)">
-                <image v-if="comp.content.sampleImg" class="sf-sample" :src="comp.content.sampleImg" mode="aspectFill" />
-                <text v-else class="sf-camera">+</text>
-              </view>
-              <text class="sf-upload-tip">上传图片（{{ limitText(comp.content) }}）</text>
-              <view v-if="(values[comp.id] || []).length" class="sf-upload-list">
-                <text v-for="(n, i) in values[comp.id]" :key="i" class="sf-upload-item">已选 {{ i + 1 }} · {{ n }}</text>
-              </view>
-            </template>
-            <!-- 身份证：人像面 / 国徽面 双槽 -->
-            <template v-else-if="comp.content.imageType === 'idcard'">
-              <view class="sf-id-row">
-                <view class="sf-id-box" @click="pickIdFace(comp.id, 'ward')">
+          <!-- 图片上传（ew picture-upload：普通/身份证/营业执照 三种模式联动）
+               上下布局：rowsShow 等分正方形框（ew getImgHeight 令高=宽），边框/背景走 底框边框/背景颜色；
+               左右布局：框/线风格字段行 + uploadBoxSize 小方框（图片背景/图片边框/图片圆角） -->
+          <view v-else-if="comp.type === 'image'" class="sf-img-body">
+            <!-- 左右布局：label 左 + 上传框右 -->
+            <template v-if="layout === 'horizontal'">
+              <view class="sf-image-h" :class="{ 'is-line': comp.style && comp.style.styleType === 'line' }">
+                <text class="sf-image-h-label">{{ comp.content.label || '未命名' }}<text v-if="comp.content.required" class="sf-req">*</text></text>
+                <view v-if="(comp.content.imageType || 'normal') === 'normal'" class="sf-h-box" @click="pickImage(comp.id)">
+                  <image v-if="comp.content.sampleImg" class="sf-sample" :src="comp.content.sampleImg" mode="aspectFill" />
+                  <text v-else class="sf-camera sf-camera-sm">+</text>
+                </view>
+                <view v-else-if="comp.content.imageType === 'idcard'" class="sf-h-box" @click="pickIdFace(comp.id, 'ward')">
                   <image class="sf-id-bg" src="/static/superform/id-front.png" mode="widthFix" />
-                  <text class="sf-camera-circle">+</text>
                   <text class="sf-id-face" v-if="values[comp.id] && values[comp.id].ward">已上传</text>
-                  <text class="sf-id-text">证件人像面</text>
                 </view>
-                <view class="sf-id-box" @click="pickIdFace(comp.id, 'back')">
-                  <image class="sf-id-bg" src="/static/superform/id-beck.png" mode="widthFix" />
-                  <text class="sf-camera-circle">+</text>
-                  <text class="sf-id-face" v-if="values[comp.id] && values[comp.id].back">已上传</text>
-                  <text class="sf-id-text">证件国徽面</text>
-                </view>
-              </view>
-            </template>
-            <!-- 营业执照：单槽 -->
-            <template v-else>
-              <view class="sf-id-row">
-                <view class="sf-id-box sf-license-box" @click="pickLicense(comp.id)">
+                <view v-else class="sf-h-box" @click="pickLicense(comp.id)">
                   <image class="sf-id-bg" src="/static/superform/license.png" mode="widthFix" />
-                  <text class="sf-camera-circle">+</text>
                   <text class="sf-id-face" v-if="values[comp.id]">已上传</text>
                 </view>
               </view>
+            </template>
+            <!-- 上下布局 -->
+            <template v-else>
+              <!-- 普通：示例图 + 多选上传（最少/最多限制） -->
+              <template v-if="(comp.content.imageType || 'normal') === 'normal'">
+                <view class="sf-upload sf-upload-img" :class="{ 'has-sample': comp.content.sampleImg }" @click="pickImage(comp.id)">
+                  <image v-if="comp.content.sampleImg" class="sf-sample" :src="comp.content.sampleImg" mode="aspectFill" />
+                  <text v-else class="sf-camera">+</text>
+                </view>
+                <text class="sf-upload-tip">上传图片（{{ limitText(comp.content) }}）</text>
+                <view v-if="(values[comp.id] || []).length" class="sf-upload-list">
+                  <text v-for="(n, i) in values[comp.id]" :key="i" class="sf-upload-item">已选 {{ i + 1 }} · {{ n }}</text>
+                </view>
+              </template>
+              <!-- 身份证：人像面 / 国徽面 双槽 -->
+              <template v-else-if="comp.content.imageType === 'idcard'">
+                <view class="sf-id-row">
+                  <view class="sf-id-box" @click="pickIdFace(comp.id, 'ward')">
+                    <image class="sf-id-bg" src="/static/superform/id-front.png" mode="widthFix" />
+                    <text class="sf-camera-circle">+</text>
+                    <text class="sf-id-face" v-if="values[comp.id] && values[comp.id].ward">已上传</text>
+                    <text class="sf-id-text">证件人像面</text>
+                  </view>
+                  <view class="sf-id-box" @click="pickIdFace(comp.id, 'back')">
+                    <image class="sf-id-bg" src="/static/superform/id-beck.png" mode="widthFix" />
+                    <text class="sf-camera-circle">+</text>
+                    <text class="sf-id-face" v-if="values[comp.id] && values[comp.id].back">已上传</text>
+                    <text class="sf-id-text">证件国徽面</text>
+                  </view>
+                </view>
+              </template>
+              <!-- 营业执照：单槽 -->
+              <template v-else>
+                <view class="sf-id-row">
+                  <view class="sf-id-box sf-license-box" @click="pickLicense(comp.id)">
+                    <image class="sf-id-bg" src="/static/superform/license.png" mode="widthFix" />
+                    <text class="sf-camera-circle">+</text>
+                    <text class="sf-id-face" v-if="values[comp.id]">已上传</text>
+                  </view>
+                </view>
+              </template>
             </template>
           </view>
 
@@ -652,15 +675,30 @@ async function submit() {
 textarea.sf-input { min-height: var(--c-input-height, 84px); }
 .sf-upload { min-width: var(--c-upload-size, 45px); min-height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 10px var(--c-input-pad-x, 10px); text-align: center; color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 13px); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
 /* 图片上传：普通（示例图）/ 身份证（双面）/ 营业执照（单槽），对齐 ew picture-upload-widget */
+/* 组件风格「左右边距」→ 内容区水平内边距（ew 作用于 form-item-box） */
+.sf-img-body { padding: 0 var(--c-input-pad-x, 10px); box-sizing: border-box; }
+/* 上下布局普通模式：rowsShow 等分正方形框（ew 实测 calc(100%/N - 15px)，高=宽） */
+.sf-upload-img { width: calc(100% / var(--c-img-rows, 2) - 15px); aspect-ratio: 1; min-width: 0; min-height: 0; padding: 0; border: 1px var(--c-img-border-style, solid) var(--c-border-color, #F5F2F2); }
+.sf-upload-img .sf-sample { width: 100%; height: 100%; }
+.sf-upload-img .sf-camera { color: #CED3D6; font-size: 27px; }
 .sf-upload.has-sample { padding: 0; overflow: hidden; }
 .sf-sample { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); display: block; }
 .sf-camera { color: #ADBAC6; font-size: 30px; line-height: 1; }
-.sf-upload-tip { display: block; font-size: 12px; color: var(--c-prompt-color, #999999); margin-top: 6px; }
+/* 左右布局：框/线风格字段行 + uploadBoxSize 小方框（ew leftBoxStyle：imgBg/imgBorder/imgRadius） */
+.sf-image-h { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 3px); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
+.sf-image-h.is-line { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
+.sf-image-h-label { flex: 1; font-size: var(--c-title-size, 16px); color: var(--c-title-color, #000000); }
+.sf-h-box { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-sizing: border-box; position: relative; border: 1px var(--c-img-border-style, solid) var(--c-img-border, #CED3D6); background: var(--c-img-bg, #FFFFFF); border-radius: var(--c-img-radius, 3px); }
+.sf-h-box .sf-sample { width: 100%; height: 100%; }
+.sf-camera-sm { color: #CED3D6; font-size: 21px; }
+/* 左右布局下图片组件的通用标题隐藏（label 已并入字段行左侧） */
+.sf-form.horizontal .sf-t-image > .sf-label { display: none; }
+.sf-upload-tip { display: block; font-size: var(--c-prompt-size, 12px); color: var(--c-prompt-color, #999999); margin-top: 6px; }
 .sf-upload-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .sf-upload-item { font-size: 12px; color: var(--c-input-color, #333333); }
 .sf-id-row { display: flex; gap: 15px; flex-wrap: wrap; }
-/* ew .id-card-box（实测 167x129）：宽165 含左右内边距26，示例图通栏，半透明圆形相机 57x57 居中，文字13/#666 */
-.sf-id-box { width: 165px; padding: 15px 26px; position: relative; text-align: center; border-radius: 3px; background: var(--c-img-bg, #FFFFFF); border: 1px solid var(--c-img-border, #CED3D6); box-sizing: border-box; }
+/* ew boxStyle（id/license 槽与普通框共用）：边框=底框边框(直线/虚线)、背景=背景颜色、圆角=底框圆角 */
+.sf-id-box { width: 165px; padding: 15px 26px; position: relative; text-align: center; border-radius: var(--c-input-radius, 3px); background: var(--c-input-bg, #F7F9FA); border: 1px var(--c-img-border-style, solid) var(--c-border-color, #F5F2F2); box-sizing: border-box; }
 .sf-license-box { width: 155px; padding: 23px 17px 12px; }
 .sf-id-bg { width: 100%; display: block; }
 .sf-camera-circle { position: absolute; width: 57px; height: 57px; line-height: 57px; text-align: center; background: rgba(0, 0, 0, 0.16); border-radius: 50%; top: 15px; left: 54px; color: #FFFFFF; font-size: 27px; }

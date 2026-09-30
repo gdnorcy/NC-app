@@ -58,6 +58,42 @@ describe('超级表单组件样式 schema', () => {
     expect(s.styleRows).toEqual([]);
     expect(s.colorRows).toEqual([]);
   });
+
+  it('图片上传：ew 实测面板（单行展示/上传边框枚举 + 布局相关行 + 颜色行标签）', () => {
+    const img = STYLE_SCHEMA.image;
+    // 组件风格枚举默认值：单行展示 2 张、上传边框 直线
+    expect(img.extraDefs).toEqual({ rowsShow: 2, borderType: 'solid' });
+    expect(defaultStyle('image').rowsShow).toBe(2);
+    expect(defaultStyle('image').borderType).toBe('solid');
+    // 框/线风格卡仅左右布局显示
+    expect(img.hOnlyBoxLine).toBe(true);
+    expect(img.boxLine.map((r) => r.label)).toEqual(['框风格', '线风格']);
+    // 上传框大小/图片圆角 仅左右布局；左右边距 max 44、标题/提示 max 30（ew 实测）
+    const row = (k) => img.styleRows.find((r) => r.key === k);
+    expect(row('uploadBoxSize').hOnly).toBe(true);
+    expect(row('imgRadius').hOnly).toBe(true);
+    expect(row('inputMarginX').max).toBe(44);
+    expect(row('titleSize').max).toBe(30);
+    expect(row('promptSize').max).toBe(30);
+    // 颜色行：图片背景/图片边框 仅左右布局；标签对齐 ew（背景颜色/底框边框/提示文本）
+    const crow = (k) => img.colorRows.find((r) => r.key === k);
+    expect(crow('imgBg').hOnly).toBe(true);
+    expect(crow('imgBorder').hOnly).toBe(true);
+    expect(crow('inputBg').label).toBe('背景颜色');
+    expect(crow('borderColor').label).toBe('底框边框');
+    expect(crow('promptColor').label).toBe('提示文本');
+  });
+
+  it('单行/多行文本滑杆上限对齐 ew：左右边距 60、标题/输入文本 30、输入区高度 300', () => {
+    const trow = (k) => STYLE_SCHEMA.text.styleRows.find((r) => r.key === k);
+    expect(trow('inputMarginX').max).toBe(60);
+    expect(trow('titleSize').max).toBe(30);
+    expect(trow('inputSize').max).toBe(30);
+    const arow = (k) => STYLE_SCHEMA.textarea.styleRows.find((r) => r.key === k);
+    expect(arow('inputMarginX').max).toBe(60);
+    expect(arow('inputHeight').max).toBe(300);
+    expect(arow('titleSize').max).toBe(30);
+  });
 });
 
 describe('componentStyleVars', () => {
@@ -88,6 +124,13 @@ describe('componentStyleVars', () => {
     const comp = { type: 'text', style: { marginX: undefined, marginY: undefined } };
     const s = componentStyleVars(comp, { compMarginX: 20 });
     expect(s.paddingLeft).toBe('20px');
+  });
+
+  it('图片上传枚举输出无单位变量：单行展示 --c-img-rows、上传边框 --c-img-border-style', () => {
+    const comp = { type: 'image', style: { ...defaultStyle('image'), rowsShow: 3, borderType: 'dashed' } };
+    const s = componentStyleVars(comp, {});
+    expect(s['--c-img-rows']).toBe(3);
+    expect(s['--c-img-border-style']).toBe('dashed');
   });
 });
 

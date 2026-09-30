@@ -10,24 +10,46 @@
     </template>
 
     <template v-else-if="comp.type === 'image'">
-      <!-- ew picture-upload-widget：普通=示例图+相机，身份证=人像面/国徽面双槽，营业执照=单槽 -->
-      <template v-if="comp.content.imageType === 'idcard'">
-        <div class="cmpv-id-row">
-          <div class="cmpv-id-box"><img class="cmpv-id-bg" :src="idFront" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span><span class="cmpv-id-text">证件人像面</span></div>
-          <div class="cmpv-id-box"><img class="cmpv-id-bg" :src="idBack" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span><span class="cmpv-id-text">证件国徽面</span></div>
-        </div>
-      </template>
-      <template v-else-if="comp.content.imageType === 'license'">
-        <div class="cmpv-id-row">
-          <div class="cmpv-id-box cmpv-license-box"><img class="cmpv-id-bg" :src="licenseImg" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span></div>
+      <!-- ew picture-upload-widget：上下布局=rowsShow 等分正方形框(边框/背景走 底框边框/背景颜色)；
+           左右布局=框/线风格字段行 + uploadBoxSize 小方框(图片背景/图片边框)；身份证/营业执照=固定槽 -->
+      <template v-if="layout !== 'horizontal'">
+        <div class="cmpv-img-body">
+          <template v-if="comp.content.imageType === 'idcard'">
+            <div class="cmpv-id-row">
+              <div class="cmpv-id-box"><img class="cmpv-id-bg" :src="idFront" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span><span class="cmpv-id-text">证件人像面</span></div>
+              <div class="cmpv-id-box"><img class="cmpv-id-bg" :src="idBack" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span><span class="cmpv-id-text">证件国徽面</span></div>
+            </div>
+          </template>
+          <template v-else-if="comp.content.imageType === 'license'">
+            <div class="cmpv-id-row">
+              <div class="cmpv-id-box cmpv-license-box"><img class="cmpv-id-bg" :src="licenseImg" /><span class="cmpv-camera-circle"><span class="cmpv-camera" /></span></div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="cmpv-normal-box">
+              <img v-if="comp.content.sampleImg" class="cmpv-sample" :src="comp.content.sampleImg" />
+              <span v-else class="cmpv-camera" />
+            </div>
+            <div class="cmpv-upload-tip">上传图片（{{ limitText(comp) }}）</div>
+          </template>
         </div>
       </template>
       <template v-else>
-        <div class="cmpv-upload cmpv-normal-upload">
-          <img v-if="comp.content.sampleImg" class="cmpv-sample" :src="comp.content.sampleImg" />
-          <span v-else class="cmpv-camera" />
+        <div class="cmpv-image-h" :class="{ 'is-line': comp.style && comp.style.styleType === 'line' }">
+          <div class="cmpv-image-h-label">{{ comp.content.label || '未命名' }}<span v-if="comp.content.required" class="cmpv-req">*</span></div>
+          <template v-if="comp.content.imageType === 'idcard'">
+            <div class="cmpv-h-box cmpv-h-slot"><img class="cmpv-id-bg" :src="idFront" /></div>
+          </template>
+          <template v-else-if="comp.content.imageType === 'license'">
+            <div class="cmpv-h-box cmpv-h-slot"><img class="cmpv-id-bg" :src="licenseImg" /></div>
+          </template>
+          <template v-else>
+            <div class="cmpv-h-box">
+              <img v-if="comp.content.sampleImg" class="cmpv-sample" :src="comp.content.sampleImg" />
+              <span v-else class="cmpv-camera" />
+            </div>
+          </template>
         </div>
-        <div class="cmpv-upload-tip">上传图片（{{ limitText(comp) }}）</div>
       </template>
     </template>
 
@@ -171,7 +193,10 @@ import idFront from '../../../../assets/superform/id-front.png';
 import idBack from '../../../../assets/superform/id-beck.png';
 import licenseImg from '../../../../assets/superform/license.png';
 
-defineProps({ comp: { type: Object, required: true } });
+defineProps({
+  comp: { type: Object, required: true },
+  layout: { type: String, default: 'vertical' },
+});
 const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigimage', 'video', 'backdesc', 'realtime', 'pagebreak', 'pay'];
 // 数量限制文案（ew：0 = 不限制）
 function limitText(comp) {
@@ -192,16 +217,25 @@ function limitText(comp) {
 .cmpv-select { display: flex; align-items: center; justify-content: space-between; }
 .cmpv-select::after { content: '▾'; color: var(--c-icon-color, #000000); }
 .cmpv-upload { min-width: var(--c-upload-size, 45px); min-height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: var(--c-input-bg, #F7F9FA); color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 14px); overflow: hidden; box-sizing: border-box; }
+/* —— 图片上传（ew 实测）：上下布局普通模式 = rowsShow 等分正方形框（ew getImgHeight 令高=宽） —— */
+.cmpv-img-body { padding: 0 var(--c-input-pad-x, 10px); }
+.cmpv-normal-box { width: calc(100% / var(--c-img-rows, 2) - 15px); aspect-ratio: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; box-sizing: border-box; border: 1px var(--c-img-border-style, solid) var(--c-border-color, #F5F2F2); background: var(--c-input-bg, #F7F9FA); border-radius: var(--c-input-radius, 3px); }
+.cmpv-normal-box .cmpv-camera { color: #CED3D6; font-size: 27px; width: 27px; height: 27px; }
+/* 左右布局：框/线风格字段行 + uploadBoxSize 小方框（ew leftBoxStyle：imgBg/imgBorder/imgRadius） */
+.cmpv-image-h { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 3px); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
+.cmpv-image-h.is-line { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
+.cmpv-image-h-label { flex: 1; font-size: var(--c-title-size, 16px); color: var(--c-title-color, #000000); }
+.cmpv-h-box { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-sizing: border-box; border: 1px var(--c-img-border-style, solid) var(--c-img-border, #CED3D6); background: var(--c-img-bg, #FFFFFF); border-radius: var(--c-img-radius, 3px); }
+.cmpv-h-box .cmpv-camera { color: #CED3D6; font-size: 21px; width: 21px; height: 21px; }
 /* 相机图标：ew iconfont \e6e7（字体取自 ew 原包） */
 @font-face { font-family: 'SfIconfont'; src: url('../../../../assets/superform/iconfont.woff2') format('woff2'); }
 .cmpv-camera { font-family: 'SfIconfont'; font-style: normal; color: #ADBAC6; font-size: 26px; width: 26px; height: 26px; line-height: 1; }
 .cmpv-camera::before { content: '\e6e7'; }
-.cmpv-normal-upload { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); }
 .cmpv-sample { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cmpv-upload-tip { font-size: 12px; color: var(--c-prompt-color, #999999); margin-top: 6px; }
+.cmpv-upload-tip { font-size: var(--c-prompt-size, 12px); color: var(--c-prompt-color, #999999); margin-top: 6px; }
 .cmpv-id-row { display: flex; gap: 15px; flex-wrap: wrap; }
-/* ew .id-card-box（实测 167x129）：宽165 含左右内边距26，示例图通栏，半透明圆形相机 57x57 居中，文字13/#666 */
-.cmpv-id-box { width: 165px; padding: 15px 26px; position: relative; text-align: center; border-radius: 3px; background: var(--c-img-bg, #FFFFFF); border: 1px solid var(--c-img-border, #CED3D6); box-sizing: border-box; }
+/* ew boxStyle（id/license 槽与普通框共用）：边框=底框边框(直线/虚线)、背景=背景颜色、圆角=底框圆角 */
+.cmpv-id-box { width: 165px; padding: 15px 26px; position: relative; text-align: center; border-radius: var(--c-input-radius, 3px); background: var(--c-input-bg, #F7F9FA); border: 1px var(--c-img-border-style, solid) var(--c-border-color, #F5F2F2); box-sizing: border-box; }
 .cmpv-id-bg { width: 100%; display: block; }
 .cmpv-camera-circle { position: absolute; width: 57px; height: 57px; line-height: 57px; text-align: center; background: rgba(0, 0, 0, 0.16); border-radius: 50%; top: 15px; left: 54px; color: #FFFFFF; font-size: 27px; }
 .cmpv-camera-circle .cmpv-camera { display: inline-block; vertical-align: middle; line-height: inherit; }
