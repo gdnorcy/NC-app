@@ -186,11 +186,6 @@
               <template v-else-if="selected.type === 'image'">
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
-                <el-form-item label="是否必填">
-                  <el-radio-group v-model="selected.content.required">
-                    <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
-                  </el-radio-group>
-                </el-form-item>
                 <el-form-item label="图片类型">
                   <el-radio-group v-model="selected.content.imageType">
                     <el-radio value="normal">普通</el-radio>
@@ -199,8 +194,12 @@
                   </el-radio-group>
                 </el-form-item>
                 <el-form-item label="示例图">
-                  <el-input v-model="selected.content.sampleImg" placeholder="示例图URL" />
-                  <span class="sf-hint">示例图可引导用户上传规定模式的图片</span>
+                  <div class="sf-sample-img">
+                    <img v-if="selected.content.sampleImg" :src="selected.content.sampleImg" />
+                    <span v-else class="sf-camera">📷</span>
+                    <span class="sf-hint" style="margin-left:10px">示例图可引导用户上传规定模式的图片</span>
+                  </div>
+                  <el-input v-model="selected.content.sampleImg" placeholder="示例图URL" style="margin-top:8px" />
                 </el-form-item>
                 <el-form-item label="最少上传">
                   <el-input-number v-model="selected.content.minCount" :min="0" :max="9" />
@@ -1332,6 +1331,9 @@ onMounted(load);
 .sf-prop-form { margin-top: 8px; }
 .sf-hint { color: #909399; font-size: 12px; margin-left: 6px; }
 .sf-hint-block { margin-left: 0; margin-top: 4px; display: block; }
+.sf-sample-img { display: flex; align-items: center; }
+.sf-sample-img img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ebeef5; }
+.sf-camera { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border: 1px solid #dcdfe6; border-radius: 4px; background: #f7f9fa; color: #c0c4cc; font-size: 24px; }
 /* —— 右栏面板（对齐 ew：蓝条标题 + 大块分段 tab + 灰色分区条） —— */
 .sf-panel-head { font-size: 16px; font-weight: 600; color: #303133; padding: 2px 0 8px 10px; border-left: 3px solid #409eff; margin-bottom: 12px; }
 .sf-seg { display: flex; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
