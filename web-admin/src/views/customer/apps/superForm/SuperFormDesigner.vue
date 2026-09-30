@@ -202,6 +202,14 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
+                </el-form-item>
                 <el-form-item label="选项类型">
                   <el-radio-group v-model="selected.content.optionType">
                     <el-radio value="text">文字选项</el-radio>
