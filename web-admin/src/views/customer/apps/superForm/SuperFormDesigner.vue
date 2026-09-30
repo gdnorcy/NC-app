@@ -165,6 +165,14 @@
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
                 <el-form-item label="预填文字"><el-input v-model="selected.content.prefill" /></el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则必填"预填文字"，用户无法修改</span>
+                </el-form-item>
+                <el-form-item label="内容校验">
+                  <el-switch v-model="selected.content.verifyRepeat" />
+                  <span class="sf-hint">开启校验则相同内容无法重复提交</span>
+                </el-form-item>
                 <el-form-item label="最少输入">
                   <el-slider v-model="selected.content.minLength" :min="0" :max="1000" style="flex:1" />
                   <el-input-number v-model="selected.content.minLength" :min="0" :max="1000" size="small" style="width:90px;margin-left:10px" />
