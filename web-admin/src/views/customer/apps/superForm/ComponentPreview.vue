@@ -10,7 +10,7 @@
     </template>
 
     <template v-else-if="comp.type === 'image'">
-      <div class="cmpv-upload">+ 上传图片（最多 {{ comp.content.maxCount }} 张）</div>
+      <div class="cmpv-upload">+</div>
     </template>
 
     <template v-else-if="comp.type === 'radio'">
@@ -48,7 +48,7 @@
     </template>
 
     <template v-else-if="comp.type === 'attachment'">
-      <div class="cmpv-upload">+ 上传附件（最多 {{ comp.content.maxCount }} 个）</div>
+      <div class="cmpv-upload">+</div>
     </template>
 
     <template v-else-if="comp.type === 'agreement'">
