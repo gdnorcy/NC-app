@@ -560,6 +560,25 @@
                   <span class="sf-hint" style="margin-left:8px">最大是1</span>
                 </el-form-item>
               </template>
+              <template v-if="selected.type === 'title'">
+                <el-form-item label="对齐方式">
+                  <el-radio-group v-model="selected.style.align">
+                    <el-radio value="left">左对齐</el-radio>
+                    <el-radio value="center">居中对齐</el-radio>
+                    <el-radio value="right">右对齐</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="线条风格">
+                  <el-radio-group v-model="selected.style.lineStyle">
+                    <el-radio value="vline">垂直分割线</el-radio>
+                    <el-radio value="hline">水平分割线</el-radio>
+                    <el-radio value="none">无</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="主标题加粗">
+                  <el-switch v-model="selected.style.bold" />
+                </el-form-item>
+              </template>
               <template v-if="curStyleSchema.boxLine">
                 <div class="sf-style-cards">
                   <div class="sf-style-card" :class="{ on: selected.style.styleType === 'box' }" @click="selected.style.styleType = 'box'">
