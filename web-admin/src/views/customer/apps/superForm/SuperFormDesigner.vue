@@ -128,13 +128,19 @@
                     <el-radio value="scan">扫码识别<span class="sf-hint">（暂不支持H5端）</span></el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="同步姓名">
+                <el-form-item v-if="selected.content.contentType === 'normal'" label="同步姓名">
                   <el-radio-group v-model="selected.content.syncName">
                     <el-radio :value="false">关闭</el-radio>
                     <el-radio :value="true">开启</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="输入类型">
+                <el-form-item v-if="selected.content.contentType === 'phone'" label="同步手机号">
+                  <el-radio-group v-model="selected.content.syncName">
+                    <el-radio :value="false">关闭</el-radio>
+                    <el-radio :value="true">开启</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item v-if="selected.content.contentType === 'normal'" label="输入类型">
                   <el-checkbox-group v-model="selected.content.inputType">
                     <el-checkbox value="chinese">中文</el-checkbox>
                     <el-checkbox value="english">英文</el-checkbox>
@@ -142,11 +148,11 @@
                     <el-checkbox value="symbol">符号</el-checkbox>
                   </el-checkbox-group>
                 </el-form-item>
-                <el-form-item label="最少输入">
+                <el-form-item v-if="selected.content.contentType === 'normal'" label="最少输入">
                   <el-slider v-model="selected.content.minLength" :min="0" :max="400" style="flex:1" />
                   <el-input-number v-model="selected.content.minLength" :min="0" :max="400" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
-                <el-form-item label="最多输入">
+                <el-form-item v-if="selected.content.contentType === 'normal'" label="最多输入">
                   <el-slider v-model="selected.content.maxLength" :min="0" :max="400" style="flex:1" />
                   <el-input-number v-model="selected.content.maxLength" :min="0" :max="400" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
@@ -204,10 +210,21 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="类型">
+                <el-form-item label="预填文字"><el-input v-model="selected.content.prefill" /></el-form-item>
+                <el-form-item label="内容类型">
                   <el-radio-group v-model="selected.content.dateType">
-                    <el-radio value="date">日期</el-radio><el-radio value="time">日期+时间</el-radio>
+                    <el-radio value="date">单个日期</el-radio>
+                    <el-radio value="range">日期范围</el-radio>
                   </el-radio-group>
+                </el-form-item>
+                <el-form-item label="同步生日">
+                  <el-radio-group v-model="selected.content.syncBirthday">
+                    <el-radio :value="false">关闭</el-radio>
+                    <el-radio :value="true">开启</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item v-if="selected.content.dateType === 'range'" label="日期范围">
+                  <el-date-picker v-model="selected.content.defaultRange" type="daterange" size="small" />
                 </el-form-item>
               </template>
 
@@ -234,9 +251,10 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="类型">
+                <el-form-item label="内容类型">
                   <el-radio-group v-model="selected.content.dateType">
-                    <el-radio value="date">日期</el-radio><el-radio value="time">时间</el-radio><el-radio value="datetime">日期+时间</el-radio>
+                    <el-radio value="time">单个时间</el-radio>
+                    <el-radio value="timerange">时间段</el-radio>
                   </el-radio-group>
                 </el-form-item>
               </template>
