@@ -14,16 +14,16 @@
     </template>
 
     <template v-else-if="comp.type === 'radio'">
-      <div class="cmpv-opts">
-        <div v-for="(opt, i) in comp.content.options" :key="i"
-             class="cmpv-opt" :class="{ on: i === 0, line: comp.style && comp.style.styleType === 'line' }">{{ opt.label }}</div>
+      <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row"
+           :class="{ line: comp.style && comp.style.styleType === 'line' }">
+        <span class="cmpv-circle" :class="{ on: i === 0 }" />{{ opt.label }}
       </div>
     </template>
 
     <template v-else-if="comp.type === 'checkbox'">
-      <div class="cmpv-opts">
-        <div v-for="(opt, i) in comp.content.options" :key="i"
-             class="cmpv-opt" :class="{ on: i === 0, line: comp.style && comp.style.styleType === 'line' }">{{ opt.label }}</div>
+      <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row"
+           :class="{ line: comp.style && comp.style.styleType === 'line' }">
+        <span class="cmpv-square" :class="{ on: i === 0 }" />{{ opt.label }}
       </div>
     </template>
 
@@ -163,14 +163,14 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
 .cmpv-select::after { content: '▾'; color: var(--c-icon-color, #000000); }
 .cmpv-upload { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: var(--c-input-bg, #F7F9FA); color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 14px); }
 .cmpv-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--c-option-color, #333333); margin: 6px 0; }
-.cmpv-opts { display: flex; flex-wrap: wrap; gap: 8px; }
-.cmpv-opt { border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: var(--c-input-radius, 6px); padding: 8px 14px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); background: var(--c-input-bg, #F7F9FA); }
-.cmpv-opt.on { border-color: var(--c-active-color, #2667EC); color: var(--c-active-color, #2667EC); background: var(--c-input-bg, #F7F9FA); }
-.cmpv-opt.line { border-radius: 0; background: transparent; }
-.cmpv-opt.line:not(.on) { border-color: transparent; border-bottom: 1px solid var(--c-border-color, #dcdfe6); }
-.cmpv-opt.on.line { border-color: transparent; border-bottom: 1px solid var(--c-active-color, #2667EC); }
-.cmpv-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--c-inactive-border, #F5F2F2); background: var(--c-input-bg, #F7F9FA); }
-.cmpv-square { width: 16px; height: 16px; border-radius: 3px; border: 1px solid var(--c-inactive-border, #F5F2F2); background: var(--c-input-bg, #F7F9FA); }
+.cmpv-opt-row { display: flex; align-items: center; gap: 8px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); margin: 6px 0; padding: 6px 0; }
+.cmpv-opt-row.line { border-bottom: 1px solid var(--c-border-color, #dcdfe6); }
+.cmpv-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; flex-shrink: 0; position: relative; box-sizing: border-box; }
+.cmpv-circle.on { border-color: var(--c-active-color, #2667EC); }
+.cmpv-circle.on::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--c-active-color, #2667EC); }
+.cmpv-square { width: 16px; height: 16px; border-radius: 3px; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; flex-shrink: 0; position: relative; box-sizing: border-box; }
+.cmpv-square.on { border-color: var(--c-active-color, #2667EC); background: var(--c-active-color, #2667EC); }
+.cmpv-square.on::after { content: '✓'; position: absolute; inset: 0; color: #fff; font-size: 11px; line-height: 14px; text-align: center; }
 .cmpv-submit { width: 100%; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 22px); padding: 10px; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); font-size: 15px; }
 .cmpv-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 8px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
 .cmpv-agree { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--c-input-color, #333333); }

@@ -34,12 +34,16 @@
 
           <!-- 单项选择 -->
           <view v-else-if="comp.type === 'radio'" class="sf-opts">
-            <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt" :class="{ on: values[comp.id] === opt.value }" @click="values[comp.id] = opt.value">{{ opt.label }}</view>
+            <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt-row" :class="{ on: values[comp.id] === opt.value, line: comp.style && comp.style.styleType === 'line' }" @click="values[comp.id] = opt.value">
+              <text class="sf-dot" :class="{ on: values[comp.id] === opt.value }" />{{ opt.label }}
+            </view>
           </view>
 
           <!-- 多项选择 -->
           <view v-else-if="comp.type === 'checkbox'" class="sf-opts">
-            <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt" :class="{ on: (values[comp.id] || []).includes(opt.value) }" @click="toggleCheck(comp.id, opt.value)">{{ opt.label }}</view>
+            <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt-row" :class="{ on: (values[comp.id] || []).includes(opt.value), line: comp.style && comp.style.styleType === 'line' }" @click="toggleCheck(comp.id, opt.value)">
+              <text class="sf-checkbox" :class="{ on: (values[comp.id] || []).includes(opt.value) }">✓</text>{{ opt.label }}
+            </view>
           </view>
 
           <!-- 下拉选择 -->
@@ -526,9 +530,14 @@ textarea.sf-input { min-height: var(--c-input-height, 84px); }
 .cs-line .sf-auth,
 .cs-line .sf-download,
 .cs-line .sf-upload { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
-.sf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
-.sf-opt { border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 8px 14px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); background: var(--c-input-bg, #F7F9FA); }
-.sf-opt.on { border-color: var(--c-active-color, #2667EC); color: var(--c-active-color, #2667EC); background: var(--c-input-bg, #F7F9FA); }
+.sf-opts { display: flex; flex-direction: column; gap: 0; }
+.sf-opt-row { display: flex; align-items: center; gap: 8px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); padding: 8px 0; }
+.sf-opt-row.line { border-bottom: 1px solid var(--c-border-color, #dcdfe6); }
+.sf-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; position: relative; flex-shrink: 0; box-sizing: border-box; }
+.sf-dot.on { border-color: var(--c-active-color, #2667EC); }
+.sf-dot.on::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--c-active-color, #2667EC); }
+.sf-checkbox { width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; text-align: center; line-height: 18px; font-size: 12px; color: #fff; flex-shrink: 0; box-sizing: border-box; }
+.sf-checkbox.on { background: var(--c-active-color, #2667EC); border-color: var(--c-active-color, #2667EC); }
 .sf-submit { width: 100%; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 22px); padding: 12px; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); font-size: 16px; margin-top: 6px; }
 .sf-ended { text-align: center; color: #909399; padding: 30px; }
 .sf-empty { text-align: center; color: #c0c4cc; padding: 30px; }
