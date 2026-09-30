@@ -380,6 +380,99 @@
             </el-form>
           </div>
 
+          <!-- 评分组件专用样式（对齐 ew：组件背景/组件整体/组件风格/组件颜色） -->
+          <div v-else-if="selected.type === 'rate'" class="sf-prop-form">
+            <el-form label-width="92px" size="small">
+              <div class="sf-sec">组件背景</div>
+              <el-form-item label="背景类型">
+                <el-radio-group v-model="selected.style.bgType">
+                  <el-radio value="color">颜色</el-radio>
+                  <el-radio value="imgcolor">图片+颜色</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <template v-if="selected.style.bgType === 'imgcolor'">
+                <el-form-item label="背景图片">
+                  <el-input v-model="selected.style.bgImage" placeholder="图片地址" />
+                  <el-button style="margin-left: 8px" @click="imgPickerTarget = 'rateBg'; imgPickerShow = true">选择图片</el-button>
+                </el-form-item>
+                <el-form-item label="平铺方式">
+                  <el-radio-group v-model="selected.style.bgRepeat">
+                    <el-radio value="repeat-x">左右重复</el-radio>
+                    <el-radio value="repeat-y">上下平铺</el-radio>
+                    <el-radio value="repeat">都平铺</el-radio>
+                    <el-radio value="no-repeat">不平铺</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="左右位置">
+                  <el-radio-group v-model="selected.style.bgPosX">
+                    <el-radio value="left">左</el-radio><el-radio value="center">中</el-radio><el-radio value="right">右</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="上下位置">
+                  <el-radio-group v-model="selected.style.bgPosY">
+                    <el-radio value="top">上</el-radio><el-radio value="center">中</el-radio><el-radio value="bottom">下</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="图片样式">
+                  <el-radio-group v-model="selected.style.bgImgStyle">
+                    <el-radio value="custom">自定义</el-radio>
+                    <el-radio value="fill">填充</el-radio>
+                    <el-radio value="fixed">图片固定比例</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <template v-if="selected.style.bgImgStyle === 'custom'">
+                  <el-form-item label="背景图宽">
+                    <el-slider v-model="selected.style.bgImgW" :min="0" :max="100" class="sf-inline-slider" />
+                    <el-input-number v-model="selected.style.bgImgW" :min="0" :max="100" size="small" style="width: 96px" /> %
+                  </el-form-item>
+                  <el-form-item label="背景图高">
+                    <el-slider v-model="selected.style.bgImgH" :min="0" :max="100" class="sf-inline-slider" />
+                    <el-input-number v-model="selected.style.bgImgH" :min="0" :max="100" size="small" style="width: 96px" /> %
+                  </el-form-item>
+                </template>
+              </template>
+              <el-form-item label="背景颜色">
+                <el-color-picker v-model="selected.style.bgColor" size="small" />
+                <el-input v-model="selected.style.bgColor" size="small" style="width: 96px; margin-left: 8px" />
+                <el-button size="small" style="margin-left: 8px" @click="selected.style.bgColor = '#FFFFFF'">重置</el-button>
+              </el-form-item>
+              <div class="sf-sec">组件整体</div>
+              <el-form-item label="顶外边距">
+                <el-slider v-model="selected.style.outMarginTop" :min="0" :max="100" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.outMarginTop" :min="0" :max="100" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="上下边距">
+                <el-slider v-model="selected.style.marginY" :min="0" :max="100" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.marginY" :min="0" :max="100" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="左右边距">
+                <el-slider v-model="selected.style.marginX" :min="0" :max="100" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.marginX" :min="0" :max="100" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="组件圆角"><el-input-number v-model="selected.style.radius" :min="0" :max="40" /> px</el-form-item>
+              <div class="sf-sec">组件风格</div>
+              <div class="sf-style-cards">
+                <div v-for="ic in rateIcons" :key="ic.value" class="sf-style-card" :class="{ on: selected.style.icon === ic.value }" @click="selected.style.icon = ic.value">
+                  <div class="sf-style-demo sf-icon-demo" :style="{ color: '#F7BA2A' }">{{ ic.glyph }}</div>
+                </div>
+              </div>
+              <el-form-item label="左右边距">
+                <el-slider v-model="selected.style.iconMarginX" :min="0" :max="100" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.iconMarginX" :min="0" :max="100" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="标题大小">
+                <el-slider v-model="selected.style.titleSize" :min="12" :max="24" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.titleSize" :min="12" :max="24" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <div class="sf-sec">组件颜色</div>
+              <el-form-item v-for="row in rateColorRows" :key="row.key" :label="row.label">
+                <el-color-picker v-model="selected.style[row.key]" size="small" />
+                <el-input v-model="selected.style[row.key]" size="small" style="width: 96px; margin-left: 8px" />
+                <el-button size="small" style="margin-left: 8px" @click="selected.style[row.key] = row.def">重置</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+
           <div v-else class="sf-prop-form">
             <div class="sf-sec">组件风格</div>
             <div class="sf-style-cards">
@@ -652,7 +745,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getSuperForm, updateSuperForm } from '../../../../api/index.js';
 import {
-  COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, COMPONENT_LABEL,
+  COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, defaultRateStyle, COMPONENT_LABEL,
 } from './components.js';
 import ComponentPreview from './ComponentPreview.vue';
 import MaterialPicker from '../design/MaterialPicker.vue';
@@ -673,10 +766,11 @@ const formSettingsTab = ref('basic');
 const levelOptions = ref([]);
 const saving = ref(false);
 const imgPickerShow = ref(false);
-const imgPickerTarget = ref('share'); // share=分享图片 / pageBg=页面背景图片
+const imgPickerTarget = ref('share'); // share=分享图片 / pageBg=页面背景图片 / rateBg=评分组件背景图片
 function onPickImg(url) {
   if (!url) return;
   if (imgPickerTarget.value === 'pageBg') settings.globalStyle.pageBgImage = url;
+  else if (imgPickerTarget.value === 'rateBg' && selected.value) selected.value.style.bgImage = url;
   else settings.basic.shareImage = url;
 }
 
@@ -700,6 +794,19 @@ const colorRows = [
   { key: 'cTitle', label: '标题颜色', def: '#000000' },
   { key: 'cInput', label: '输入文本', def: '#333333' },
   { key: 'cError', label: '错误提示', def: '#ED4F4F' },
+];
+// 评分组件样式：图标风格 + 组件颜色行（对齐 ew 24~26-*.png）
+const rateIcons = [
+  { value: 'smile', glyph: '☺' },
+  { value: 'heart', glyph: '♥' },
+  { value: 'star', glyph: '★' },
+];
+const rateColorRows = [
+  { key: 'titleColor', label: '标题颜色', def: '#000000' },
+  { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
+  { key: 'descColor', label: '描述文字', def: '#999999' },
+  { key: 'inactiveColor', label: '未激活颜色', def: '#C6D1DE' },
+  { key: 'activeColor', label: '选中颜色', def: '#F7BA2A' },
 ];
 
 // 设计器手机预览应用全局样式（此前预览完全不生效）
@@ -737,13 +844,40 @@ function compWrapStyle(comp) {
   const st = comp.style || {};
   const g = settings.globalStyle || {};
   const mx = st.marginX != null ? st.marginX : (g.compMarginX || 0);
-  return {
+  const s = {
     paddingLeft: mx + 'px',
     paddingRight: mx + 'px',
     '--c-input-radius': st.radius != null ? st.radius + 'px' : 'var(--g-input-radius, 3px)',
     '--c-title-size': (st.titleSize || 14) + 'px',
     '--c-input-size': (st.inputSize || 14) + 'px',
   };
+  // 评分专用：组件背景 / 顶外边距 / 上下边距 / 组件圆角 / 图标与标题颜色
+  if (comp.type === 'rate' && st.icon) {
+    if (st.outMarginTop) s.marginTop = st.outMarginTop + 'px';
+    if (st.marginY != null) { s.paddingTop = st.marginY + 'px'; s.paddingBottom = st.marginY + 'px'; }
+    if (st.radius) s.borderRadius = st.radius + 'px';
+    if (st.bgType === 'color' && st.bgColor) s.background = st.bgColor;
+    if (st.bgType === 'imgcolor') {
+      if (st.bgColor) s.backgroundColor = st.bgColor;
+      if (st.bgImage) {
+        s.backgroundImage = 'url("' + st.bgImage + '")';
+        s.backgroundRepeat = st.bgRepeat || 'repeat-x';
+        s.backgroundPosition = (st.bgPosX || 'left') + ' ' + (st.bgPosY || 'top');
+        if (st.bgImgStyle === 'fill') s.backgroundSize = 'cover';
+        else if (st.bgImgStyle === 'fixed') s.backgroundSize = 'contain';
+        else s.backgroundSize = (st.bgImgW != null ? st.bgImgW : 20) + '% ' + (st.bgImgH != null ? st.bgImgH : 20) + '%';
+      }
+    }
+    s['--rate-active'] = st.activeColor || '#F7BA2A';
+    s['--rate-inactive'] = st.inactiveColor || '#C6D1DE';
+    s['--rate-title'] = st.titleColor || '#000000';
+    s['--rate-desc'] = st.descColor || '#999999';
+    s['--rate-error'] = st.errorColor || '#ED4F4F';
+    // 评分的标题/错误提示也吃组件颜色
+    s['--c-title-color'] = st.titleColor || '#000000';
+    s['--c-error-color'] = st.errorColor || '#ED4F4F';
+  }
+  return s;
 }
 
 function openPanel(mode) { panelMode.value = mode; }
@@ -874,6 +1008,10 @@ async function load() {
     const cfg = f.config || {};
     const def = defaultSettings();
     components.value = Array.isArray(cfg.components) ? cfg.components : [];
+    // 评分组件样式迁移：旧数据用通用样式，补齐评分专用字段
+    components.value.forEach((c) => {
+      if (c.type === 'rate' && !(c.style || {}).icon) c.style = { ...defaultRateStyle(), ...(c.style || {}) };
+    });
     Object.assign(settings, def, cfg.settings || {});
     // 分组深合并，避免旧数据缺字段时面板绑定 undefined
     settings.basic = { ...def.basic, ...(cfg.settings?.basic || {}) };
@@ -1001,6 +1139,7 @@ onMounted(load);
 .sf-color-label { width: 74px; font-size: 13px; color: #606266; text-align: right; flex-shrink: 0; }
 /* —— 组件风格卡片（对齐 ew 框/线风格示意卡） —— */
 .sf-style-cards { display: flex; gap: 12px; margin-bottom: 4px; }
+.sf-icon-demo { font-size: 30px; color: #F7BA2A; }
 .sf-style-card { width: 96px; border: 1px solid #dcdfe6; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; background: #fff; }
 .sf-style-card.on { border-color: #409eff; box-shadow: 0 0 0 1px #409eff inset; }
 .sf-style-demo { height: 44px; border-radius: 4px; border: 1px solid #ebeef5; display: flex; flex-direction: column; gap: 5px; align-items: flex-start; padding: 8px; }

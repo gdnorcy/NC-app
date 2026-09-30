@@ -64,9 +64,18 @@
             <text v-if="comp.content.linkText" class="sf-link" @click.stop="openLink(comp.content.linkUrl)">{{ comp.content.linkText }}</text>
           </view>
 
-          <!-- 评分 -->
+          <!-- 评分（图标/颜色/描述文字随组件样式） -->
           <view v-else-if="comp.type === 'rate'" class="sf-rate">
-            <text v-for="n in (comp.content.max || 3)" :key="n" class="sf-star" :class="{ on: (values[comp.id] || 0) >= n }" @click="values[comp.id] = n">★</text>
+            <text v-if="comp.content.desc" class="sf-rate-desc">{{ comp.content.desc }}</text>
+            <view class="sf-rate-icons">
+              <text
+                v-for="n in (comp.content.max || 3)" :key="n"
+                class="sf-star"
+                :class="{ on: (values[comp.id] || 0) >= n }"
+                :style="{ color: (values[comp.id] || 0) >= n ? (comp.style && comp.style.activeColor || '#F7BA2A') : (comp.style && comp.style.inactiveColor || '#C6D1DE') }"
+                @click="values[comp.id] = n"
+              >{{ comp.style && comp.style.icon === 'heart' ? '♥' : comp.style && comp.style.icon === 'star' ? '★' : '☺' }}</text>
+            </view>
           </view>
 
           <!-- 文件下载 -->
@@ -220,13 +229,34 @@ function fieldStyle(comp) {
   const g = form.config.settings?.globalStyle || {};
   const st = comp.style || {};
   const mx = st.marginX != null ? st.marginX : (g.compMarginX || 0);
-  return {
+  const s = {
     paddingLeft: mx + 'px',
     paddingRight: mx + 'px',
     '--c-input-radius': st.radius != null ? st.radius + 'px' : 'var(--g-input-radius, 6px)',
     '--c-title-size': (st.titleSize || 14) + 'px',
     '--c-input-size': (st.inputSize || 14) + 'px',
   };
+  // 评分专用：组件背景 / 顶外边距 / 上下边距 / 圆角 / 颜色变量
+  if (comp.type === 'rate' && st.icon) {
+    if (st.outMarginTop) s.marginTop = st.outMarginTop + 'px';
+    if (st.marginY != null) { s.paddingTop = st.marginY + 'px'; s.paddingBottom = st.marginY + 'px'; }
+    if (st.radius) s.borderRadius = st.radius + 'px';
+    if (st.bgType === 'color' && st.bgColor && st.bgColor.toUpperCase() !== '#FFFFFF') s.background = st.bgColor;
+    if (st.bgType === 'imgcolor') {
+      if (st.bgColor) s.backgroundColor = st.bgColor;
+      if (st.bgImage) {
+        s.backgroundImage = 'url("' + st.bgImage + '")';
+        s.backgroundRepeat = st.bgRepeat || 'repeat-x';
+        s.backgroundPosition = (st.bgPosX || 'left') + ' ' + (st.bgPosY || 'top');
+        if (st.bgImgStyle === 'fill') s.backgroundSize = 'cover';
+        else if (st.bgImgStyle === 'fixed') s.backgroundSize = 'contain';
+        else s.backgroundSize = (st.bgImgW != null ? st.bgImgW : 20) + '% ' + (st.bgImgH != null ? st.bgImgH : 20) + '%';
+      }
+    }
+    s['--rate-active'] = st.activeColor || '#F7BA2A';
+    s['--rate-desc'] = st.descColor || '#999999';
+  }
+  return s;
 }
 
 const components = computed(() => form.config.components || []);
@@ -535,7 +565,9 @@ textarea.sf-input { min-height: 84px; }
 .sf-check.on { background: #409eff; border-color: #409eff; }
 .sf-agree-text { flex: 1; }
 .sf-link { color: #409eff; }
-.sf-rate { display: flex; gap: 4px; }
+.sf-rate { display: flex; flex-direction: column; gap: 4px; }
+.sf-rate-desc { color: var(--rate-desc, #999999); font-size: 12px; }
+.sf-rate-icons { display: flex; gap: 4px; }
 .sf-star { font-size: 26px; color: #dcdfe6; }
 .sf-star.on { color: #f7ba2a; }
 .sf-download { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }

@@ -50,7 +50,14 @@
     </template>
 
     <template v-else-if="comp.type === 'rate'">
-      <div class="cmpv-rate">{{ '☆'.repeat(comp.content.max || 3) }}</div>
+      <div v-if="comp.content.desc" class="cmpv-rate-desc">{{ comp.content.desc }}</div>
+      <div class="cmpv-rate">
+        <span
+          v-for="n in (comp.content.max || 3)" :key="n"
+          class="cmpv-rate-ic"
+          :style="{ color: 'var(--rate-inactive, #C6D1DE)' }"
+        >{{ comp.style && comp.style.icon === 'heart' ? '♥' : comp.style && comp.style.icon === 'star' ? '★' : '☺' }}</span>
+      </div>
     </template>
 
     <template v-else-if="comp.type === 'filedownload'">
@@ -151,6 +158,8 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
 .cmpv-agree { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #606266; }
 .cmpv-agree a { color: #409eff; }
 .cmpv-rate { font-size: 20px; color: #f7ba2a; letter-spacing: 2px; }
+.cmpv-rate-ic { font-size: 24px; margin-right: 4px; }
+.cmpv-rate-desc { color: var(--rate-desc, #999999); font-size: 12px; margin-bottom: 4px; }
 .cmpv-download { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 4px); padding: 8px 10px; font-size: 13px; color: #409eff; background: #ecf5ff; }
 .cmpv-auth { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 8px 12px; font-size: var(--c-input-size, 14px); background: #fff; color: #409eff; }
 .cmpv-sms { display: flex; gap: 8px; align-items: stretch; }
