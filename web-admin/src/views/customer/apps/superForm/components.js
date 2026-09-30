@@ -143,7 +143,7 @@ export const COMPONENT_LABEL = {
 };
 
 export function defaultContent(type) {
-  const base = { label: COMPONENT_LABEL[type] || '未命名', required: false, placeholder: '', prefill: '' };
+  const base = { label: COMPONENT_LABEL[type] || '未命名', required: false, visible: true, placeholder: '', prefill: '' };
   switch (type) {
     case 'text':
       return { ...base, maxLength: 400, minLength: 0, contentType: 'normal', syncName: false, inputType: [], readonly: false, verifyRepeat: false };

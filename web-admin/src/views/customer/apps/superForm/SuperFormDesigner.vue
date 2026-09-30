@@ -99,7 +99,7 @@
           <div v-if="propTab === 'content'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
               <el-form-item label="是否显示" v-if="selected.type !== 'submit' && !noPropTypes.includes(selected.type)">
-                <el-radio-group v-model="selected.content.required">
+                <el-radio-group v-model="selected.content.visible">
                   <el-radio :value="true">显示</el-radio>
                   <el-radio :value="false">隐藏</el-radio>
                 </el-radio-group>
