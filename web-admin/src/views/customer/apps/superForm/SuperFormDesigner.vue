@@ -111,7 +111,7 @@
                 </el-radio-group>
               </el-form-item>
 
-              <template v-if="selected.type === 'text' || selected.type === 'textarea'">
+              <template v-if="selected.type === 'text'">
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
                 <el-form-item label="预填文字"><el-input v-model="selected.content.prefill" /></el-form-item>
@@ -152,6 +152,20 @@
                 </el-form-item>
                 <el-form-item label="内容校验">
                   <el-switch v-model="selected.content.verifyRepeat" active-text="相同内容不可重复提交" />
+                </el-form-item>
+              </template>
+
+              <template v-else-if="selected.type === 'textarea'">
+                <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
+                <el-form-item label="预填文字"><el-input v-model="selected.content.prefill" /></el-form-item>
+                <el-form-item label="最少输入">
+                  <el-slider v-model="selected.content.minLength" :min="0" :max="1000" style="flex:1" />
+                  <el-input-number v-model="selected.content.minLength" :min="0" :max="1000" size="small" style="width:90px;margin-left:10px" />
+                </el-form-item>
+                <el-form-item label="最多输入">
+                  <el-slider v-model="selected.content.maxLength" :min="0" :max="1000" style="flex:1" />
+                  <el-input-number v-model="selected.content.maxLength" :min="0" :max="1000" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
               </template>
 
