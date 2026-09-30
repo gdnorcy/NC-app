@@ -467,10 +467,34 @@ function validateList(list) {
         if (!re.test(s)) return ct.label + '包含不允许的字符';
       }
     }
+    if (c.type === 'textarea' && v) {
+      const s = String(v).trim();
+      if (ct.minLength && s.length < ct.minLength) return ct.label + `至少 ${ct.minLength} 位`;
+      if (ct.maxLength && s.length > ct.maxLength) return ct.label + `最多 ${ct.maxLength} 位`;
+    }
     if (c.type === 'number' && v !== '' && v != null) {
       const n = Number(v);
       if (ct.min != null && n < ct.min) return (ct.label || '数字') + `不能小于 ${ct.min}`;
       if (ct.max != null && n > ct.max) return (ct.label || '数字') + `不能大于 ${ct.max}`;
+      if (ct.step != null && ct.step > 1 && n % ct.step !== 0) return (ct.label || '数字') + `需为 ${ct.step} 的倍数`;
+    }
+    if (c.type === 'image' && Array.isArray(v)) {
+      if (ct.maxCount && v.length > ct.maxCount) return (ct.label || '图片') + `最多上传 ${ct.maxCount} 张`;
+    }
+    if (c.type === 'radio' && ct.required && !v) return (ct.label || '单项选择') + '为必选项';
+    if (c.type === 'select' && ct.required && !v) return (ct.label || '下拉选择') + '为必选项';
+    if (c.type === 'checkbox' && Array.isArray(v)) {
+      if (ct.required && v.length === 0) return (ct.label || '多项选择') + '为必选项';
+      if (ct.minSelect && v.length < ct.minSelect) return (ct.label || '多项选择') + `至少选择 ${ct.minSelect} 项`;
+      if (ct.maxSelect && v.length > ct.maxSelect) return (ct.label || '多项选择') + `最多选择 ${ct.maxSelect} 项`;
+    }
+    if (c.type === 'location' && ct.required && v && typeof v === 'object' && !v.address) return (ct.label || '定位') + '为必选项';
+    if (c.type === 'date' && v) {
+      const s = String(v);
+      if (ct.dateType === 'range' && !Array.isArray(v)) return (ct.label || '日期') + '请选择日期范围';
+    }
+    if (c.type === 'time' && v) {
+      if (ct.dateType === 'timerange' && !Array.isArray(v)) return (ct.label || '时间') + '请选择时间段';
     }
     if (c.type === 'carplate' && v) {
       const re = /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-Z0-9]{4,5}[A-Z0-9挂学警港澳]$/;
