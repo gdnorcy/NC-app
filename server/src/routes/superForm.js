@@ -148,12 +148,15 @@ export function createSuperFormRouter(db) {
     const { data } = req.body || {};
     const form = db.prepare('SELECT * FROM super_form_template WHERE id = ? AND status = ?').get(id, 'published');
     if (!form) return res.status(404).json({ error: '表单不存在或未发布' });
-    // 次数限制（settings.basic.collectLimit，0=不限）
+    // 次数限制（settings.basic.collectLimit，0=不限；提交周期 daily=每天一次，按当天计数）
     const cfg = parseConfig(form.config);
     const limit = Number(cfg?.settings?.basic?.collectLimit || 0);
     if (limit > 0) {
-      const cnt = db.prepare('SELECT COUNT(*) AS c FROM super_form_submission WHERE form_id = ?').get(id).c;
-      if (cnt >= limit) return res.status(400).json({ error: '表单收集份数已达上限' });
+      const cycle = cfg?.settings?.basic?.submitCycle === 'daily' ? 'daily' : 'once';
+      const cnt = cycle === 'daily'
+        ? db.prepare("SELECT COUNT(*) AS c FROM super_form_submission WHERE form_id = ? AND date(created_at) = date('now')").get(id).c
+        : db.prepare('SELECT COUNT(*) AS c FROM super_form_submission WHERE form_id = ?').get(id).c;
+      if (cnt >= limit) return res.status(400).json({ error: cycle === 'daily' ? '今日填写次数已达上限' : '表单收集份数已达上限' });
     }
     db.prepare(`INSERT INTO super_form_submission (form_id, customer_id, user_id, data)
       VALUES (?, ?, ?, ?)`).run(id, form.customer_id, userId, JSON.stringify(data || {}));

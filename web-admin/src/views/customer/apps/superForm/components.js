@@ -180,7 +180,8 @@ export function createComponent(type) {
 
 export function defaultSettings() {
   return {
-    basic: { name: '', collectStart: '', collectEnd: '', collectLimit: 0, allowModify: true, shareTitle: '', shareImage: '' },
+    // 填写设置（对齐 ew：填表人群 / 提交周期 / 次数）
+    basic: { name: '', collectStart: '', collectEnd: '', collectLimit: 0, allowModify: true, shareTitle: '', shareImage: '', fillCrowd: 'all', crowdAddable: true, submitCycle: 'once', cycleStart: '', cycleEnd: '' },
     submit: { secondConfirm: true, jumpLink: '' },
     logic: [],
     layout: 'vertical',

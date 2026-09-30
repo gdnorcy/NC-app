@@ -467,8 +467,32 @@
                 <span style="margin: 0 6px">至</span>
                 <el-date-picker v-model="settings.basic.collectEnd" type="datetime" placeholder="结束" value-format="YYYY-MM-DD HH:mm" style="width: 170px" />
               </el-form-item>
-              <el-form-item label="收集份数"><el-input-number v-model="settings.basic.collectLimit" :min="0" /> <span class="sf-hint">0 为不限制（游客填写时不受次数限制）</span></el-form-item>
               <el-form-item label="允许修改"><el-switch v-model="settings.basic.allowModify" /></el-form-item>
+              <div class="sf-sec">填写设置</div>
+              <el-form-item label="填表人群">
+                <el-select v-model="settings.basic.fillCrowd" style="width: 150px">
+                  <el-option label="所有人" value="all" />
+                  <el-option label="仅会员" value="member" />
+                  <el-option label="员工及会员" value="staff" />
+                </el-select>
+                <el-checkbox v-model="settings.basic.crowdAddable" style="margin-left: 12px">填表人可增加</el-checkbox>
+              </el-form-item>
+              <el-form-item label="提交周期">
+                <el-radio-group v-model="settings.basic.submitCycle">
+                  <el-radio value="once">仅一次</el-radio>
+                  <el-radio value="daily">每天一次</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item v-if="settings.basic.submitCycle === 'daily'" label="周期范围">
+                <el-date-picker v-model="settings.basic.cycleStart" type="date" placeholder="开始日期" value-format="YYYY-MM-DD" style="width: 140px" />
+                <span style="margin: 0 6px">至</span>
+                <el-date-picker v-model="settings.basic.cycleEnd" type="date" placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 140px" />
+              </el-form-item>
+              <el-form-item label="次数">
+                <el-input-number v-model="settings.basic.collectLimit" :min="0" />
+                <span style="margin-left: 6px">次</span>
+              </el-form-item>
+              <div class="sf-hint sf-hint-block" style="margin: -12px 0 8px 92px">0代表不限制次数（游客填写时不受次数限制）</div>
               <el-form-item label="分享标题"><el-input v-model="settings.basic.shareTitle" placeholder="请输入分享标题" /></el-form-item>
               <el-form-item label="分享图片">
                 <el-input v-model="settings.basic.shareImage" placeholder="请选择图片">
