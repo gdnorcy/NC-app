@@ -607,9 +607,23 @@
                 <div class="sf-style-cards">
                   <div v-for="bl in curStyleSchema.boxLine" :key="bl.value" class="sf-style-card" :class="{ on: selected.style.styleType === bl.value }" @click="selected.style.styleType = bl.value">
                     <div class="sf-style-demo">
-                      <span class="sd-bar" />
-                      <span v-if="bl.value === 'line'" class="sd-line" />
-                      <span v-else class="sd-bar sd-long" />
+                      <span v-if="bl.value === 'box' || bl.value === 'box1' || bl.value === 's1'" class="sd-bar sd-long" />
+                      <template v-else-if="bl.value === 'box2' || bl.value === 's2'">
+                        <span class="sd-bar sd-sm" />
+                        <span class="sd-line" />
+                      </template>
+                      <template v-else-if="bl.value === 's3'">
+                        <span class="sd-bar sd-sm" />
+                        <span class="sd-line" />
+                      </template>
+                      <template v-else-if="bl.value === 'step'">
+                        <span class="sd-bar sd-sm" />
+                        <span class="sd-bar sd-sm" />
+                      </template>
+                      <template v-else-if="bl.value === 'slider'">
+                        <span class="sd-slider" />
+                      </template>
+                      <span v-else class="sd-line" />
                     </div>
                     <div class="sf-style-card-name">{{ bl.label }}</div>
                   </div>
@@ -1249,7 +1263,9 @@ onMounted(load);
 .sf-style-demo { height: 44px; border-radius: 4px; border: 1px solid #ebeef5; display: flex; flex-direction: column; gap: 5px; align-items: flex-start; padding: 8px; }
 .sd-bar { display: block; width: 40%; height: 6px; border-radius: 2px; background: #d9e4ff; }
 .sd-long { width: 80%; }
+.sd-sm { width: 25%; height: 5px; }
 .sd-line { display: block; width: 100%; height: 1px; background: #c0c4cc; margin-top: 8px; }
+.sd-slider { display: block; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(to right, #d9e4ff 60%, #e4e7ed 60%); margin-top: 4px; }
 .sf-style-card-name { font-size: 12px; color: #606266; margin-top: 6px; }
 /* —— 逻辑规则 —— */
 .sf-logic-tip { font-size: 12px; color: #909399; margin-bottom: 10px; line-height: 1.7; }
