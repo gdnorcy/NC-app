@@ -417,9 +417,37 @@
           <div class="sf-dist-rows">
             <div v-for="row in distRows" :key="row.key" class="sf-dist-row">
               <span class="sf-dist-label">{{ row.label }}：</span>
-              <el-slider v-model="settings.globalStyle[row.key]" :min="0" :max="row.max" class="sf-dist-slider" />
+              <el-slider v-if="!row.noSlider" v-model="settings.globalStyle[row.key]" :min="0" :max="row.max" class="sf-dist-slider" />
               <el-input-number v-model="settings.globalStyle[row.key]" :min="0" :max="row.max" size="small" style="width: 96px" />
               <span class="sf-dist-unit">px</span>
+            </div>
+          </div>
+          <div class="sf-sec">页面背景 <span class="sf-sec-note">（嵌入式表单不生效）</span></div>
+          <div class="sf-color-row">
+            <span class="sf-color-label">背景类型：</span>
+            <el-radio-group v-model="settings.globalStyle.pageBgType">
+              <el-radio value="color">颜色</el-radio>
+              <el-radio value="imgcolor">图片+颜色</el-radio>
+            </el-radio-group>
+          </div>
+          <div class="sf-color-row">
+            <span class="sf-color-label">背景颜色：</span>
+            <el-color-picker v-model="settings.globalStyle.pageBgColor" size="small" />
+            <el-input v-model="settings.globalStyle.pageBgColor" size="small" style="width: 96px" />
+            <el-button size="small" @click="settings.globalStyle.pageBgColor = '#F3F3F3'">重置</el-button>
+          </div>
+          <div v-if="settings.globalStyle.pageBgType === 'imgcolor'" class="sf-color-row">
+            <span class="sf-color-label">背景图片：</span>
+            <el-input v-model="settings.globalStyle.pageBgImage" size="small" style="flex: 1" placeholder="请选择图片" />
+            <el-button size="small" @click="imgPickerTarget = 'pageBg'; imgPickerShow = true">选择图片</el-button>
+          </div>
+          <div class="sf-sec">组件颜色</div>
+          <div class="sf-color-grid">
+            <div v-for="row in colorRows" :key="row.key" class="sf-color-row">
+              <span class="sf-color-label">{{ row.label }}：</span>
+              <el-color-picker v-model="settings.globalStyle[row.key]" size="small" />
+              <el-input v-model="settings.globalStyle[row.key]" size="small" style="width: 88px" />
+              <el-button size="small" @click="settings.globalStyle[row.key] = row.def">重置</el-button>
             </div>
           </div>
         </template>
@@ -444,7 +472,7 @@
               <el-form-item label="分享标题"><el-input v-model="settings.basic.shareTitle" placeholder="请输入分享标题" /></el-form-item>
               <el-form-item label="分享图片">
                 <el-input v-model="settings.basic.shareImage" placeholder="请选择图片">
-                  <template #append><el-button @click="imgPickerShow = true">选择图片</el-button></template>
+                  <template #append><el-button @click="imgPickerTarget = 'share'; imgPickerShow = true">选择图片</el-button></template>
                 </el-input>
               </el-form-item>
               <div class="sf-sec">提交设置 <span class="sf-sec-note">（*注：该模块嵌入式表单不生效）</span></div>
@@ -502,7 +530,7 @@
       </div>
     </div>
 
-    <MaterialPicker v-model="imgPickerShow" @confirm="onPickShareImg" />
+    <MaterialPicker v-model="imgPickerShow" @confirm="onPickImg" />
   </div>
 </template>
 
@@ -530,26 +558,39 @@ const propTab = ref('content');
 const formSettingsTab = ref('basic');
 const saving = ref(false);
 const imgPickerShow = ref(false);
+const imgPickerTarget = ref('share'); // share=分享图片 / pageBg=页面背景图片
+function onPickImg(url) {
+  if (!url) return;
+  if (imgPickerTarget.value === 'pageBg') settings.globalStyle.pageBgImage = url;
+  else settings.basic.shareImage = url;
+}
 
 const selected = computed(() => components.value.find((c) => c.id === selectedId.value) || null);
 // 选择类字段（对齐 ew：含评分）
 const choiceComponents = computed(() => components.value.filter((c) => ['radio', 'checkbox', 'select', 'rate'].includes(c.type)));
 // 纯展示/特殊组件不显示「是否显示 / 是否必填」表头
 const noPropTypes = ['pagebreak', 'backdesc', 'realtime', 'swiper', 'bigimage', 'title', 'richtext', 'blank', 'line', 'video', 'pay'];
-// 全局样式距离属性行（对齐 ew：两个「左右边距」分别为页面级 / 组件级）
+// 全局样式距离属性行（对齐 ew：两个「左右边距」分别为页面级 / 组件级；圆角行无滑杆）
 const distRows = [
   { key: 'marginTop', label: '顶外边距', max: 100 },
   { key: 'marginY', label: '上下边距', max: 100 },
   { key: 'marginX', label: '左右边距', max: 100 },
-  { key: 'radius', label: '组件圆角', max: 40 },
+  { key: 'radius', label: '组件圆角', max: 40, noSlider: true },
   { key: 'compMarginX', label: '左右边距', max: 100 },
-  { key: 'inputRadius', label: '输入框圆角', max: 40 },
+  { key: 'inputRadius', label: '输入框圆角', max: 40, noSlider: true },
+];
+// 组件颜色行（对齐 ew：底框边框/标题颜色/输入文本/错误提示，两列 + 重置）
+const colorRows = [
+  { key: 'cBorder', label: '底框边框', def: '#F5F2F2' },
+  { key: 'cTitle', label: '标题颜色', def: '#000000' },
+  { key: 'cInput', label: '输入文本', def: '#333333' },
+  { key: 'cError', label: '错误提示', def: '#ED4F4F' },
 ];
 
 // 设计器手机预览应用全局样式（此前预览完全不生效）
 const phoneStyle = computed(() => {
   const g = settings.globalStyle || {};
-  return {
+  const s = {
     marginTop: (g.marginTop || 0) + 'px',
     paddingTop: (g.marginY || 0) + 'px',
     paddingBottom: (g.marginY || 0) + 'px',
@@ -558,7 +599,20 @@ const phoneStyle = computed(() => {
     // 全局圆角（组件圆角 / 输入框圆角），供预览内组件经 CSS 变量消费
     '--g-radius': (g.radius || 0) + 'px',
     '--g-input-radius': (g.inputRadius != null ? g.inputRadius : 3) + 'px',
+    // 组件颜色（对齐 ew）
+    '--c-border-color': g.cBorder || '#F5F2F2',
+    '--c-title-color': g.cTitle || '#000000',
+    '--c-input-color': g.cInput || '#333333',
+    '--c-error-color': g.cError || '#ED4F4F',
   };
+  // 页面背景：颜色 / 图片+颜色
+  if (g.pageBgColor) s.backgroundColor = g.pageBgColor;
+  if (g.pageBgType === 'imgcolor' && g.pageBgImage) {
+    s.backgroundImage = 'url("' + g.pageBgImage + '")';
+    s.backgroundSize = 'cover';
+    s.backgroundPosition = 'center';
+  }
+  return s;
 });
 // 组件级样式（左右边距 / 输入框圆角 / 标题与输入字号）——逐组件生效
 function compWrapStyle(comp) {
@@ -589,7 +643,6 @@ function showCandidate(rule) {
   const condIds = (rule.conditions || []).map((c) => c.compId);
   return components.value.filter((c) => !condIds.includes(c.id) && c.type !== 'submit');
 }
-function onPickShareImg(url) { if (url) settings.basic.shareImage = url; }
 
 // —— 逻辑规则：多条件（兼容旧单条件 compId/option） ——
 const ruleCollapse = ref({});
@@ -747,7 +800,7 @@ onMounted(load);
 .sf-comp-wrap.cs-line :deep(.cmpv-loc),
 .sf-comp-wrap.cs-line :deep(.cmpv-auth),
 .sf-comp-wrap.cs-line :deep(.cmpv-download),
-.sf-comp-wrap.cs-line :deep(.cmpv-upload) { border: none; border-bottom: 1px solid #dcdfe6; border-radius: 0; background: transparent; }
+.sf-comp-wrap.cs-line :deep(.cmpv-upload) { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 .sf-comp-wrap { position: relative; }
 .sf-drop-line { height: 0; border-top: 2px solid #409eff; margin: 3px 2px; }
 .sf-comp { position: relative; border: 1px solid transparent; border-radius: 8px; padding: 8px; cursor: grab; }
@@ -774,6 +827,10 @@ onMounted(load);
 .sf-dist-slider { flex: 1; }
 .sf-dist-unit { font-size: 12px; color: #909399; }
 .sf-inline-slider { flex: 1; margin-right: 10px; }
+/* —— 颜色属性行（对齐 ew：色板 + 色值输入 + 重置） —— */
+.sf-color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 24px; }
+.sf-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.sf-color-label { width: 74px; font-size: 13px; color: #606266; text-align: right; flex-shrink: 0; }
 /* —— 组件风格卡片（对齐 ew 框/线风格示意卡） —— */
 .sf-style-cards { display: flex; gap: 12px; margin-bottom: 4px; }
 .sf-style-card { width: 96px; border: 1px solid #dcdfe6; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; background: #fff; }

@@ -1,5 +1,5 @@
 <template>
-  <view class="sf-page">
+  <view class="sf-page" :style="pageBgStyle">
     <view class="sf-form" :class="layout" :style="globalStyle">
       <view class="sf-form-name" v-if="form.name">{{ form.name }}</view>
 
@@ -193,7 +193,24 @@ const globalStyle = computed(() => {
     // 全局圆角（组件圆角 / 输入框圆角），供各字段经 CSS 变量消费
     '--g-radius': (g.radius || 0) + 'px',
     '--g-input-radius': (g.inputRadius != null ? g.inputRadius : 3) + 'px',
+    // 组件颜色（对齐 ew）
+    '--c-border-color': g.cBorder || '#F5F2F2',
+    '--c-title-color': g.cTitle || '#000000',
+    '--c-input-color': g.cInput || '#333333',
+    '--c-error-color': g.cError || '#ED4F4F',
   };
+});
+// 页面背景：颜色 / 图片+颜色（对齐 ew 全局样式）
+const pageBgStyle = computed(() => {
+  const g = form.config.settings?.globalStyle || {};
+  const s = {};
+  if (g.pageBgColor) s.backgroundColor = g.pageBgColor;
+  if (g.pageBgType === 'imgcolor' && g.pageBgImage) {
+    s.backgroundImage = 'url("' + g.pageBgImage + '")';
+    s.backgroundSize = 'cover';
+    s.backgroundPosition = 'center';
+  }
+  return s;
 });
 // 组件级样式（左右边距 / 输入框圆角 / 标题与输入字号）——逐组件生效
 function fieldStyle(comp) {
@@ -472,9 +489,9 @@ async function submit() {
 .sf-form.horizontal .sf-field { flex: 1 1 45%; }
 .sf-form-name { font-size: 18px; font-weight: 600; padding: 16px 16px 4px; }
 .sf-field { padding: 12px 16px; }
-.sf-label { font-size: var(--c-title-size, 14px); color: #303133; margin-bottom: 8px; }
-.sf-req { color: #f56c6c; margin-left: 2px; }
-.sf-input { width: 100%; border: 1px solid #dcdfe6; border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); box-sizing: border-box; background: #fff; }
+.sf-label { font-size: var(--c-title-size, 14px); color: var(--c-title-color, #303133); margin-bottom: 8px; }
+.sf-req { color: var(--c-error-color, #f56c6c); margin-left: 2px; }
+.sf-input { width: 100%; border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); box-sizing: border-box; background: #fff; color: var(--c-input-color, #303133); }
 textarea.sf-input { min-height: 84px; }
 .sf-upload { border: 1px dashed #c0c4cc; border-radius: var(--g-radius, 6px); padding: 18px; text-align: center; color: #909399; font-size: 13px; }
 /* 线风格：输入类控件去边框，仅保留底线（对齐 ew 组件风格） */
@@ -482,14 +499,14 @@ textarea.sf-input { min-height: 84px; }
 .cs-line .sf-loc,
 .cs-line .sf-auth,
 .cs-line .sf-download,
-.cs-line .sf-upload { border: none; border-bottom: 1px solid #dcdfe6; border-radius: 0; background: transparent; }
+.cs-line .sf-upload { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 .sf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
-.sf-opt { border: 1px solid #dcdfe6; border-radius: 6px; padding: 8px 14px; font-size: 14px; }
+.sf-opt { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: 6px; padding: 8px 14px; font-size: 14px; }
 .sf-opt.on { border-color: #409eff; color: #409eff; background: #ecf5ff; }
 .sf-submit { width: 100%; border: none; border-radius: 8px; padding: 12px; background: #409eff; color: #fff; font-size: 16px; margin-top: 6px; }
 .sf-ended { text-align: center; color: #909399; padding: 30px; }
 .sf-empty { text-align: center; color: #c0c4cc; padding: 30px; }
-.sf-loc { border: 1px solid #dcdfe6; border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
+.sf-loc { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
 .sf-agree { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #606266; flex-wrap: wrap; }
 .sf-check { width: 18px; height: 18px; border: 1px solid #c0c4cc; border-radius: 4px; text-align: center; line-height: 18px; color: #fff; flex-shrink: 0; }
 .sf-check.on { background: #409eff; border-color: #409eff; }
@@ -498,8 +515,8 @@ textarea.sf-input { min-height: 84px; }
 .sf-rate { display: flex; gap: 4px; }
 .sf-star { font-size: 26px; color: #dcdfe6; }
 .sf-star.on { color: #f7ba2a; }
-.sf-download { border: 1px solid #dcdfe6; border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
-.sf-auth { border: 1px solid #dcdfe6; border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); color: #409eff; text-align: center; background: #fff; }
+.sf-download { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
+.sf-auth { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); color: #409eff; text-align: center; background: #fff; }
 .sf-sms { display: flex; flex-direction: column; gap: 8px; }
 .sf-sms-row { display: flex; gap: 8px; align-items: stretch; }
 .sf-sms-phone { flex: 1; }

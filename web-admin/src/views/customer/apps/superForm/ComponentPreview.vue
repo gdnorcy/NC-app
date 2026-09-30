@@ -138,21 +138,21 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
 </script>
 
 <style scoped>
-.cmpv-label { font-size: var(--c-title-size, 14px); color: #303133; margin-bottom: 6px; }
-.cmpv-req { color: #f56c6c; margin-left: 2px; }
-.cmpv-input { width: 100%; border: 1px solid #dcdfe6; border-radius: var(--c-input-radius, var(--g-input-radius, 4px)); padding: 8px 10px; font-size: var(--c-input-size, 14px); background: #fff; color: #909399; box-sizing: border-box; }
+.cmpv-label { font-size: var(--c-title-size, 14px); color: var(--c-title-color, #303133); margin-bottom: 6px; }
+.cmpv-req { color: var(--c-error-color, #f56c6c); margin-left: 2px; }
+.cmpv-input { width: 100%; border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 4px)); padding: 8px 10px; font-size: var(--c-input-size, 14px); background: #fff; color: var(--c-input-color, #909399); box-sizing: border-box; }
 .cmpv-select { display: flex; align-items: center; }
 .cmpv-upload { border: 1px dashed #c0c4cc; border-radius: var(--g-radius, 6px); padding: 16px; text-align: center; color: #909399; font-size: 13px; }
 .cmpv-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #303133; margin: 6px 0; }
 .cmpv-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #c0c4cc; }
 .cmpv-square { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #c0c4cc; }
 .cmpv-submit { width: 100%; border: none; border-radius: 6px; padding: 10px; background: #409eff; color: #fff; font-size: 15px; }
-.cmpv-loc { border: 1px solid #dcdfe6; border-radius: var(--g-radius, 4px); padding: 8px 10px; font-size: 14px; color: #409eff; background: #ecf5ff; box-sizing: border-box; }
+.cmpv-loc { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 4px); padding: 8px 10px; font-size: 14px; color: #409eff; background: #ecf5ff; box-sizing: border-box; }
 .cmpv-agree { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #606266; }
 .cmpv-agree a { color: #409eff; }
 .cmpv-rate { font-size: 20px; color: #f7ba2a; letter-spacing: 2px; }
-.cmpv-download { border: 1px solid #dcdfe6; border-radius: var(--g-radius, 4px); padding: 8px 10px; font-size: 13px; color: #409eff; background: #ecf5ff; }
-.cmpv-auth { border: 1px solid #dcdfe6; border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 8px 12px; font-size: var(--c-input-size, 14px); background: #fff; color: #409eff; }
+.cmpv-download { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--g-radius, 4px); padding: 8px 10px; font-size: 13px; color: #409eff; background: #ecf5ff; }
+.cmpv-auth { border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 8px 12px; font-size: var(--c-input-size, 14px); background: #fff; color: #409eff; }
 .cmpv-sms { display: flex; gap: 8px; align-items: stretch; }
 .cmpv-sms .cmpv-input { flex: 1; }
 .cmpv-auth-btn { border: 1px solid #dcdfe6; border-radius: 4px; padding: 0 12px; font-size: 13px; background: #fff; color: #409eff; white-space: nowrap; cursor: default; }

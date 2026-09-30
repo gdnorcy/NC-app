@@ -184,7 +184,13 @@ export function defaultSettings() {
     submit: { secondConfirm: true, jumpLink: '' },
     logic: [],
     layout: 'vertical',
-    globalStyle: { marginTop: 0, marginY: 20, marginX: 0, radius: 0, compMarginX: 20, inputRadius: 3 },
+    globalStyle: {
+      marginTop: 0, marginY: 20, marginX: 0, radius: 0, compMarginX: 20, inputRadius: 3,
+      // 页面背景（对齐 ew：嵌入式表单不生效）
+      pageBgType: 'color', pageBgColor: '#F3F3F3', pageBgImage: '',
+      // 组件颜色（对齐 ew）
+      cBorder: '#F5F2F2', cTitle: '#000000', cInput: '#333333', cError: '#ED4F4F',
+    },
   };
 }
 
