@@ -120,19 +120,35 @@
                   <span class="sf-hint">开启只读则仅显示"预填文字"，用户无法修改</span>
                 </el-form-item>
                 <el-form-item label="内容类型">
-                  <el-select v-model="selected.content.contentType">
-                    <el-option label="普通" value="normal" />
-                    <el-option label="手机号码" value="phone" />
-                    <el-option label="邮箱" value="email" />
-                    <el-option label="身份证" value="idcard" />
-                  </el-select>
+                  <el-radio-group v-model="selected.content.contentType">
+                    <el-radio value="normal">普通</el-radio>
+                    <el-radio value="phone">手机号码</el-radio>
+                    <el-radio value="email">邮箱</el-radio>
+                    <el-radio value="idcard">身份证</el-radio>
+                    <el-radio value="scan">扫码识别<span class="sf-hint">（暂不支持H5端）</span></el-radio>
+                  </el-radio-group>
                 </el-form-item>
                 <el-form-item label="同步姓名">
-                  <el-switch v-model="selected.content.syncName" />
+                  <el-radio-group v-model="selected.content.syncName">
+                    <el-radio :value="false">关闭</el-radio>
+                    <el-radio :value="true">开启</el-radio>
+                  </el-radio-group>
                 </el-form-item>
-                <el-form-item label="输入限制">
-                  最少 <el-input-number v-model="selected.content.minLength" :min="0" :max="400" /> 位 ·
-                  最多 <el-input-number v-model="selected.content.maxLength" :min="0" :max="400" /> 位
+                <el-form-item label="输入类型">
+                  <el-checkbox-group v-model="selected.content.inputType">
+                    <el-checkbox value="chinese">中文</el-checkbox>
+                    <el-checkbox value="english">英文</el-checkbox>
+                    <el-checkbox value="number">数字</el-checkbox>
+                    <el-checkbox value="symbol">符号</el-checkbox>
+                  </el-checkbox-group>
+                </el-form-item>
+                <el-form-item label="最少输入">
+                  <el-slider v-model="selected.content.minLength" :min="0" :max="400" style="flex:1" />
+                  <el-input-number v-model="selected.content.minLength" :min="0" :max="400" size="small" style="width:90px;margin-left:10px" />
+                </el-form-item>
+                <el-form-item label="最多输入">
+                  <el-slider v-model="selected.content.maxLength" :min="0" :max="400" style="flex:1" />
+                  <el-input-number v-model="selected.content.maxLength" :min="0" :max="400" size="small" style="width:90px;margin-left:10px" />
                 </el-form-item>
                 <el-form-item label="内容校验">
                   <el-switch v-model="selected.content.verifyRepeat" active-text="相同内容不可重复提交" />
