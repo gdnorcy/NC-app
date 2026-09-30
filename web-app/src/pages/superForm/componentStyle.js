@@ -300,12 +300,15 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'bottomColor', label: '底部文字', def: '#000000' },
   ] },
-  swiper: { boxLine: true, styleRows: [
-    { key: 'inputHeight', label: '轮播高度', def: 194, max: 500 },
+  swiper: { boxLine: false, styleRows: [
+    { key: 'inputHeight', label: '图片高度', def: 194, max: 500 },
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'imgRadius', label: '图片圆角', def: 0, max: 20 },
+    { key: 'dotGap', label: '圆点间距', def: 6, max: 30 },
+    { key: 'dotBottom', label: '圆点底边距', def: 8, max: 30 },
+    { key: 'switchSpeed', label: '切换速度', def: 3, max: 10 },
   ], colorRows: [
-    { key: 'activeColor', label: '指示点颜色', def: '#FFFFFF' },
+    { key: 'activeColor', label: '选中按钮色', def: '#FFFFFF' },
   ] },
   bigimage: { boxLine: false, styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
