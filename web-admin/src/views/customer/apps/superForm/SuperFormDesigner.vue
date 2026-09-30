@@ -53,7 +53,8 @@
             @dragover.prevent="dragOverIdx = components.length"
             @drop="onDrop(components.length, $event)"
           >
-            <div v-for="(comp, idx) in components" :key="comp.id" class="sf-comp-wrap" :style="compWrapStyle">
+            <div v-for="(comp, idx) in components" :key="comp.id" class="sf-comp-wrap"
+                 :class="{ 'cs-line': comp.style && comp.style.styleType === 'line' }" :style="compWrapStyle(comp)">
               <div v-if="dragOverIdx === idx" class="sf-drop-line" />
               <div
                 class="sf-comp"
@@ -552,13 +553,24 @@ const phoneStyle = computed(() => {
     paddingBottom: (g.marginY || 0) + 'px',
     paddingLeft: (g.marginX || 0) + 'px',
     paddingRight: (g.marginX || 0) + 'px',
+    // 全局圆角（组件圆角 / 输入框圆角），供预览内组件经 CSS 变量消费
+    '--g-radius': (g.radius || 0) + 'px',
+    '--g-input-radius': (g.inputRadius != null ? g.inputRadius : 3) + 'px',
   };
 });
-const compWrapStyle = computed(() => {
+// 组件级样式（左右边距 / 输入框圆角 / 标题与输入字号）——逐组件生效
+function compWrapStyle(comp) {
+  const st = comp.style || {};
   const g = settings.globalStyle || {};
-  const mx = g.compMarginX || 0;
-  return mx ? { paddingLeft: mx + 'px', paddingRight: mx + 'px' } : {};
-});
+  const mx = st.marginX != null ? st.marginX : (g.compMarginX || 0);
+  return {
+    paddingLeft: mx + 'px',
+    paddingRight: mx + 'px',
+    '--c-input-radius': st.radius != null ? st.radius + 'px' : 'var(--g-input-radius, 3px)',
+    '--c-title-size': (st.titleSize || 14) + 'px',
+    '--c-input-size': (st.inputSize || 14) + 'px',
+  };
+}
 
 function openPanel(mode) { panelMode.value = mode; }
 function selectComp(id) { selectedId.value = id; panelMode.value = 'props'; }
@@ -705,11 +717,20 @@ onMounted(load);
 .sf-pal-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0, 0, 0, .12); flex-shrink: 0; }
 .sf-pal-icon svg { width: 19px; height: 19px; display: block; }
 .sf-pal-label { font-size: 12px; color: #333; line-height: 1.2; text-align: center; }
-.sf-canvas { overflow: auto; display: flex; justify-content: center; padding: 24px; }
+.sf-canvas { overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
 .sf-phone { width: 375px; min-height: 640px; background: #fff; border-radius: 28px; box-shadow: 0 6px 24px rgba(0,0,0,.12); display: flex; flex-direction: column; overflow: hidden; }
 .sf-phone-bar { height: 28px; background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 12px; }
-.sf-phone-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-.sf-phone-body.horizontal { flex-direction: row; flex-wrap: wrap; }
+.sf-phone-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; align-content: flex-start; }
+.sf-phone-body.horizontal { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; }
+/* 左右布局：每个字段约占半行（对齐 C 端 .sf-field 的 flex:1 1 45%） */
+.sf-phone-body.horizontal .sf-comp-wrap { flex: 1 1 45%; box-sizing: border-box; min-width: 0; }
+/* 线风格：输入类控件去边框，仅保留底线（对齐 ew 组件风格） */
+.sf-comp-wrap.cs-line :deep(.cmpv-input),
+.sf-comp-wrap.cs-line :deep(.cmpv-select),
+.sf-comp-wrap.cs-line :deep(.cmpv-loc),
+.sf-comp-wrap.cs-line :deep(.cmpv-auth),
+.sf-comp-wrap.cs-line :deep(.cmpv-download),
+.sf-comp-wrap.cs-line :deep(.cmpv-upload) { border: none; border-bottom: 1px solid #dcdfe6; border-radius: 0; background: transparent; }
 .sf-comp-wrap { position: relative; }
 .sf-drop-line { height: 0; border-top: 2px solid #409eff; margin: 3px 2px; }
 .sf-comp { position: relative; border: 1px solid transparent; border-radius: 8px; padding: 8px; cursor: grab; }

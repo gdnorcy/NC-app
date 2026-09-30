@@ -4,7 +4,7 @@
       <view class="sf-form-name" v-if="form.name">{{ form.name }}</view>
 
       <template v-for="comp in currentPageComponents" :key="comp.id">
-        <view class="sf-field" :style="fieldStyle">
+        <view class="sf-field" :class="{ 'cs-line': comp.style && comp.style.styleType === 'line' }" :style="fieldStyle(comp)">
           <view class="sf-label" v-if="!noTitleTypes.includes(comp.type)">
             {{ comp.content.label || '未命名' }}
             <text v-if="comp.content.required" class="sf-req">*</text>
@@ -190,16 +190,24 @@ const globalStyle = computed(() => {
     paddingBottom: (g.marginY || 0) + 'px',
     paddingLeft: (g.marginX || 0) + 'px',
     paddingRight: (g.marginX || 0) + 'px',
-    // 输入框圆角（全局样式）
-    '--sf-input-radius': (g.inputRadius != null ? g.inputRadius : 3) + 'px',
+    // 全局圆角（组件圆角 / 输入框圆角），供各字段经 CSS 变量消费
+    '--g-radius': (g.radius || 0) + 'px',
+    '--g-input-radius': (g.inputRadius != null ? g.inputRadius : 3) + 'px',
   };
 });
-// 组件级左右边距（全局样式，应用到每个字段）
-const fieldStyle = computed(() => {
+// 组件级样式（左右边距 / 输入框圆角 / 标题与输入字号）——逐组件生效
+function fieldStyle(comp) {
   const g = form.config.settings?.globalStyle || {};
-  const mx = g.compMarginX || 0;
-  return mx ? { paddingLeft: mx + 'px', paddingRight: mx + 'px' } : {};
-});
+  const st = comp.style || {};
+  const mx = st.marginX != null ? st.marginX : (g.compMarginX || 0);
+  return {
+    paddingLeft: mx + 'px',
+    paddingRight: mx + 'px',
+    '--c-input-radius': st.radius != null ? st.radius + 'px' : 'var(--g-input-radius, 6px)',
+    '--c-title-size': (st.titleSize || 14) + 'px',
+    '--c-input-size': (st.inputSize || 14) + 'px',
+  };
+}
 
 const components = computed(() => form.config.components || []);
 
@@ -464,18 +472,24 @@ async function submit() {
 .sf-form.horizontal .sf-field { flex: 1 1 45%; }
 .sf-form-name { font-size: 18px; font-weight: 600; padding: 16px 16px 4px; }
 .sf-field { padding: 12px 16px; }
-.sf-label { font-size: 14px; color: #303133; margin-bottom: 8px; }
+.sf-label { font-size: var(--c-title-size, 14px); color: #303133; margin-bottom: 8px; }
 .sf-req { color: #f56c6c; margin-left: 2px; }
-.sf-input { width: 100%; border: 1px solid #dcdfe6; border-radius: var(--sf-input-radius, 6px); padding: 10px; font-size: 14px; box-sizing: border-box; background: #fff; }
+.sf-input { width: 100%; border: 1px solid #dcdfe6; border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); box-sizing: border-box; background: #fff; }
 textarea.sf-input { min-height: 84px; }
-.sf-upload { border: 1px dashed #c0c4cc; border-radius: 6px; padding: 18px; text-align: center; color: #909399; font-size: 13px; }
+.sf-upload { border: 1px dashed #c0c4cc; border-radius: var(--g-radius, 6px); padding: 18px; text-align: center; color: #909399; font-size: 13px; }
+/* 线风格：输入类控件去边框，仅保留底线（对齐 ew 组件风格） */
+.cs-line .sf-input,
+.cs-line .sf-loc,
+.cs-line .sf-auth,
+.cs-line .sf-download,
+.cs-line .sf-upload { border: none; border-bottom: 1px solid #dcdfe6; border-radius: 0; background: transparent; }
 .sf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
 .sf-opt { border: 1px solid #dcdfe6; border-radius: 6px; padding: 8px 14px; font-size: 14px; }
 .sf-opt.on { border-color: #409eff; color: #409eff; background: #ecf5ff; }
 .sf-submit { width: 100%; border: none; border-radius: 8px; padding: 12px; background: #409eff; color: #fff; font-size: 16px; margin-top: 6px; }
 .sf-ended { text-align: center; color: #909399; padding: 30px; }
 .sf-empty { text-align: center; color: #c0c4cc; padding: 30px; }
-.sf-loc { border: 1px solid #dcdfe6; border-radius: 6px; padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
+.sf-loc { border: 1px solid #dcdfe6; border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
 .sf-agree { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #606266; flex-wrap: wrap; }
 .sf-check { width: 18px; height: 18px; border: 1px solid #c0c4cc; border-radius: 4px; text-align: center; line-height: 18px; color: #fff; flex-shrink: 0; }
 .sf-check.on { background: #409eff; border-color: #409eff; }
@@ -484,8 +498,8 @@ textarea.sf-input { min-height: 84px; }
 .sf-rate { display: flex; gap: 4px; }
 .sf-star { font-size: 26px; color: #dcdfe6; }
 .sf-star.on { color: #f7ba2a; }
-.sf-download { border: 1px solid #dcdfe6; border-radius: 6px; padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
-.sf-auth { border: 1px solid #dcdfe6; border-radius: 6px; padding: 10px; font-size: 14px; color: #409eff; text-align: center; background: #fff; }
+.sf-download { border: 1px solid #dcdfe6; border-radius: var(--g-radius, 6px); padding: 10px; font-size: 14px; color: #409eff; background: #ecf5ff; text-align: center; }
+.sf-auth { border: 1px solid #dcdfe6; border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px; font-size: var(--c-input-size, 14px); color: #409eff; text-align: center; background: #fff; }
 .sf-sms { display: flex; flex-direction: column; gap: 8px; }
 .sf-sms-row { display: flex; gap: 8px; align-items: stretch; }
 .sf-sms-phone { flex: 1; }
