@@ -150,7 +150,7 @@ export function defaultContent(type) {
     case 'textarea':
       return { ...base, maxLength: 400, minLength: 0, contentType: 'normal', readonly: false, verifyRepeat: false };
     case 'image':
-      return { ...base, maxCount: 9 };
+      return { ...base, maxCount: 9, minCount: 0, imageType: 'normal', sampleImg: '' };
     case 'radio':
     case 'checkbox':
       return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], min: 0, max: 0 };

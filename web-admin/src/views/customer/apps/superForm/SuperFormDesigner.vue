@@ -199,7 +199,6 @@
                     <span v-else class="sf-camera">📷</span>
                     <span class="sf-hint" style="margin-left:10px">示例图可引导用户上传规定模式的图片</span>
                   </div>
-                  <el-input v-model="selected.content.sampleImg" placeholder="示例图URL" style="margin-top:8px" />
                 </el-form-item>
                 <el-form-item label="最少上传">
                   <el-input-number v-model="selected.content.minCount" :min="0" :max="9" />
