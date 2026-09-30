@@ -9,8 +9,8 @@
           <el-radio-button value="vertical">上下布局</el-radio-button>
           <el-radio-button value="horizontal">左右布局</el-radio-button>
         </el-radio-group>
-        <el-button @click="styleDialog = true">样式设置</el-button>
-        <el-button @click="formSettingsTab = 'basic'; formSettingsVisible = true">表单设置</el-button>
+        <el-button @click="openPanel('style')">样式设置</el-button>
+        <el-button @click="openPanel('settings')">表单设置</el-button>
         <el-button @click="save(false)">保存页面</el-button>
         <el-button type="primary" @click="save(true)">保存并发布</el-button>
       </div>
@@ -49,16 +49,17 @@
           <div
             class="sf-phone-body"
             :class="settings.layout"
+            :style="phoneStyle"
             @dragover.prevent="dragOverIdx = components.length"
             @drop="onDrop(components.length, $event)"
           >
-            <div v-for="(comp, idx) in components" :key="comp.id" class="sf-comp-wrap">
+            <div v-for="(comp, idx) in components" :key="comp.id" class="sf-comp-wrap" :style="compWrapStyle">
               <div v-if="dragOverIdx === idx" class="sf-drop-line" />
               <div
                 class="sf-comp"
                 :class="{ active: comp.id === selectedId }"
                 draggable="true"
-                @click="selectedId = comp.id"
+                @click="selectComp(comp.id)"
                 @dragstart="onCompDrag(comp.id, $event)"
                 @dragend="resetDrag"
                 @dragover.prevent.stop="dragOverIdx = idx"
@@ -76,14 +77,15 @@
         </div>
       </div>
 
-      <!-- 右：属性面板 -->
+      <!-- 右：属性面板（对齐 ew：组件属性 / 全局样式 / 表单设置 三模式） -->
       <div class="sf-props">
         <!-- 选中组件：内容/样式 -->
-        <template v-if="selected">
-          <el-tabs v-model="propTab">
-            <el-tab-pane label="内容设置" name="content" />
-            <el-tab-pane label="样式设置" name="style" />
-          </el-tabs>
+        <template v-if="panelMode === 'props' && selected">
+          <div class="sf-panel-head">{{ COMPONENT_LABEL[selected.type] || '组件' }}</div>
+          <div class="sf-seg">
+            <div class="sf-seg-item" :class="{ on: propTab === 'content' }" @click="propTab = 'content'">内容设置</div>
+            <div class="sf-seg-item" :class="{ on: propTab === 'style' }" @click="propTab = 'style'">样式设置</div>
+          </div>
           <div v-if="propTab === 'content'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
               <el-form-item label="是否显示" v-if="selected.type !== 'submit' && !noPropTypes.includes(selected.type)">
@@ -103,6 +105,10 @@
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
                 <el-form-item label="预填文字"><el-input v-model="selected.content.prefill" /></el-form-item>
+                <el-form-item label="只读">
+                  <el-switch v-model="selected.content.readonly" />
+                  <span class="sf-hint">开启只读则仅显示"预填文字"，用户无法修改</span>
+                </el-form-item>
                 <el-form-item label="内容类型">
                   <el-select v-model="selected.content.contentType">
                     <el-option label="普通" value="normal" />
@@ -367,26 +373,61 @@
           </div>
 
           <div v-else class="sf-prop-form">
+            <div class="sf-sec">组件风格</div>
+            <div class="sf-style-cards">
+              <div class="sf-style-card" :class="{ on: selected.style.styleType === 'box' }" @click="selected.style.styleType = 'box'">
+                <div class="sf-style-demo"><span class="sd-bar" /><span class="sd-bar sd-long" /></div>
+                <div class="sf-style-card-name">框风格</div>
+              </div>
+              <div class="sf-style-card" :class="{ on: selected.style.styleType === 'line' }" @click="selected.style.styleType = 'line'">
+                <div class="sf-style-demo"><span class="sd-bar" /><span class="sd-line" /></div>
+                <div class="sf-style-card-name">线风格</div>
+              </div>
+            </div>
             <el-form label-width="92px" size="small">
-              <el-form-item label="组件风格">
-                <el-radio-group v-model="selected.style.styleType">
-                  <el-radio value="box">框风格</el-radio><el-radio value="line">线风格</el-radio>
-                </el-radio-group>
+              <el-form-item label="左右边距">
+                <el-slider v-model="selected.style.marginX" :min="0" :max="40" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.marginX" :min="0" :max="40" size="small" style="width: 96px" /> px
               </el-form-item>
-              <el-form-item label="左右边距"><el-input-number v-model="selected.style.marginX" :min="0" :max="40" /> px</el-form-item>
               <el-form-item label="输入框圆角"><el-input-number v-model="selected.style.radius" :min="0" :max="20" /> px</el-form-item>
-              <el-form-item label="标题大小"><el-slider v-model="selected.style.titleSize" :min="12" :max="24" /> px</el-form-item>
-              <el-form-item label="输入文本大小"><el-slider v-model="selected.style.inputSize" :min="12" :max="20" /> px</el-form-item>
+              <el-form-item label="标题大小">
+                <el-slider v-model="selected.style.titleSize" :min="12" :max="24" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.titleSize" :min="12" :max="24" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="输入文本大小">
+                <el-slider v-model="selected.style.inputSize" :min="12" :max="20" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.inputSize" :min="12" :max="20" size="small" style="width: 96px" /> px
+              </el-form-item>
             </el-form>
           </div>
         </template>
 
-        <!-- 未选中：表单设置 -->
+        <!-- 全局样式（对齐 ew：右栏面板，非弹窗） -->
+        <template v-else-if="panelMode === 'style'">
+          <div class="sf-panel-head">全局样式</div>
+          <div class="sf-sec">基础布局</div>
+          <el-radio-group v-model="settings.layout">
+            <el-radio-button value="vertical">上下布局</el-radio-button>
+            <el-radio-button value="horizontal">左右布局</el-radio-button>
+          </el-radio-group>
+          <div class="sf-sec">距离属性</div>
+          <div class="sf-dist-rows">
+            <div v-for="row in distRows" :key="row.key" class="sf-dist-row">
+              <span class="sf-dist-label">{{ row.label }}：</span>
+              <el-slider v-model="settings.globalStyle[row.key]" :min="0" :max="row.max" class="sf-dist-slider" />
+              <el-input-number v-model="settings.globalStyle[row.key]" :min="0" :max="row.max" size="small" style="width: 96px" />
+              <span class="sf-dist-unit">px</span>
+            </div>
+          </div>
+        </template>
+
+        <!-- 表单设置 -->
         <template v-else>
-          <el-tabs v-model="formSettingsTab">
-            <el-tab-pane label="基础设置" name="basic" />
-            <el-tab-pane label="逻辑设置" name="logic" />
-          </el-tabs>
+          <div class="sf-panel-head">表单设置</div>
+          <div class="sf-seg">
+            <div class="sf-seg-item" :class="{ on: formSettingsTab === 'basic' }" @click="formSettingsTab = 'basic'">基础设置</div>
+            <div class="sf-seg-item" :class="{ on: formSettingsTab === 'logic' }" @click="formSettingsTab = 'logic'">逻辑设置</div>
+          </div>
           <div v-if="formSettingsTab === 'basic'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
               <el-form-item label="表单名称"><el-input v-model="settings.basic.name" /></el-form-item>
@@ -395,65 +436,70 @@
                 <span style="margin: 0 6px">至</span>
                 <el-date-picker v-model="settings.basic.collectEnd" type="datetime" placeholder="结束" value-format="YYYY-MM-DD HH:mm" style="width: 170px" />
               </el-form-item>
-              <el-form-item label="收集份数"><el-input-number v-model="settings.basic.collectLimit" :min="0" /> <span class="sf-hint">0 为不限制</span></el-form-item>
+              <el-form-item label="收集份数"><el-input-number v-model="settings.basic.collectLimit" :min="0" /> <span class="sf-hint">0 为不限制（游客填写时不受次数限制）</span></el-form-item>
               <el-form-item label="允许修改"><el-switch v-model="settings.basic.allowModify" /></el-form-item>
-              <el-form-item label="分享标题"><el-input v-model="settings.basic.shareTitle" /></el-form-item>
-              <el-form-item label="分享图片"><el-input v-model="settings.basic.shareImage" placeholder="图片地址" /></el-form-item>
-              <el-divider>提交设置</el-divider>
+              <el-form-item label="分享标题"><el-input v-model="settings.basic.shareTitle" placeholder="请输入分享标题" /></el-form-item>
+              <el-form-item label="分享图片">
+                <el-input v-model="settings.basic.shareImage" placeholder="请选择图片">
+                  <template #append><el-button @click="imgPickerShow = true">选择图片</el-button></template>
+                </el-input>
+              </el-form-item>
+              <div class="sf-sec">提交设置 <span class="sf-sec-note">（*注：该模块嵌入式表单不生效）</span></div>
               <el-form-item label="二次确认"><el-switch v-model="settings.submit.secondConfirm" /></el-form-item>
-              <el-form-item label="跳转页面"><el-input v-model="settings.submit.jumpLink" placeholder="选择链接或输入地址，不选则停留当前页" /></el-form-item>
+              <el-form-item label="跳转页面">
+                <el-input v-model="settings.submit.jumpLink" placeholder="请选择链接或输入链接地址" />
+                <div class="sf-hint sf-hint-block">不选则停留当前页面不进行跳转</div>
+              </el-form-item>
             </el-form>
           </div>
           <div v-else class="sf-prop-form">
-            <div class="sf-logic-tip">可为选择类字段（单项选择、多项选择、下拉选择）设定规则：填写者选择某选项后，显示该字段之后的其他字段。分页与提交按钮不参与逻辑。</div>
+            <div class="sf-logic-tip">提示：请添加完所有组件之后再设置逻辑部分（分页以及提交按钮不参与逻辑部分设置）。你可以为选择类字段（单项选择、多项选择、评分、下拉选择）设定规则：填写者选择某字段的某选项后，显示该字段之后的其他字段。</div>
             <div v-for="(rule, ri) in settings.logic" :key="ri" class="sf-rule">
-              <div class="sf-rule-title">规则 {{ ri + 1 }}
-                <el-button text type="danger" @click="settings.logic.splice(ri, 1)">删除</el-button>
+              <div class="sf-rule-title" @click="toggleRule(ri)">
+                <span>规则 {{ ri + 1 }}</span>
+                <span class="sf-rule-arrow" :class="{ open: ruleOpen(ri) }">⌄</span>
+                <el-button text type="danger" @click.stop="settings.logic.splice(ri, 1)">删除</el-button>
               </div>
-              <div class="sf-rule-cond">当满足：字段
-                <el-select v-model="rule.compId" placeholder="选择字段" style="width: 150px" @change="rule.option = ''">
-                  <el-option v-for="c in choiceComponents" :key="c.id" :label="c.content.label" :value="c.id" />
-                </el-select>
-                选项
-                <el-select v-model="rule.option" placeholder="选择选项" style="width: 130px" :disabled="!rule.compId">
-                  <el-option v-for="opt in optionsOf(rule.compId)" :key="opt.value" :label="opt.label" :value="opt.value" />
-                </el-select>
-              </div>
-              <div class="sf-rule-cond">
-                <el-radio-group v-model="rule.action">
-                  <el-radio value="show">则显示字段</el-radio>
-                  <el-radio value="end">则结束表单</el-radio>
-                </el-radio-group>
-              </div>
-              <div v-if="rule.action === 'show'" class="sf-rule-cond">
-                显示：
-                <el-select v-model="rule.showIds" multiple placeholder="选择要显示的字段" style="width: 280px">
-                  <el-option v-for="c in components.filter(c => c.id !== rule.compId && c.type !== 'submit')" :key="c.id" :label="c.content.label" :value="c.id" />
-                </el-select>
-              </div>
+              <template v-if="ruleOpen(ri)">
+                <div class="sf-rule-cond-label">当满足以下条件时</div>
+                <div class="sf-rule-box">
+                  <div v-for="(cond, ci) in rule.conditions" :key="ci" class="sf-rule-cond">
+                    在
+                    <el-select v-model="cond.compId" placeholder="请选择" style="width: 150px" @change="cond.option = ''">
+                      <el-option v-for="c in choiceComponents" :key="c.id" :label="c.content.label" :value="c.id" />
+                    </el-select>
+                    <el-select v-model="cond.option" placeholder="请选择" style="width: 130px" :disabled="!cond.compId">
+                      <el-option v-for="opt in optionsOf(cond.compId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                    </el-select>
+                    <el-button link type="danger" @click="removeCondition(rule, ci)">删除</el-button>
+                  </div>
+                  <el-button link type="primary" @click="addCondition(rule)">添加条件</el-button>
+                </div>
+                <div class="sf-rule-cond">
+                  <el-radio-group v-model="rule.action">
+                    <el-radio value="show">则显示字段</el-radio>
+                    <el-radio value="end">则结束表单</el-radio>
+                  </el-radio-group>
+                </div>
+                <div v-if="rule.action === 'show'" class="sf-rule-cond">
+                  显示：
+                  <el-select v-model="rule.showIds" multiple placeholder="选择要显示的字段" style="width: 280px">
+                    <el-option v-for="c in showCandidate(rule)" :key="c.id" :label="c.content.label" :value="c.id" />
+                  </el-select>
+                </div>
+              </template>
             </div>
-            <el-button size="small" @click="settings.logic.push({ compId: '', option: '', action: 'show', showIds: [] })">+ 添加规则</el-button>
+            <div class="sf-rule-actions">
+              <el-button type="primary" @click="addRule">+ 添加规则</el-button>
+              <el-button type="primary" @click="confirmLogic">确定</el-button>
+              <span class="sf-hint">请点击确认按钮完成逻辑设置部分</span>
+            </div>
           </div>
         </template>
       </div>
     </div>
 
-    <!-- 全局样式弹窗 -->
-    <el-dialog v-model="styleDialog" title="样式设置" width="420px">
-      <el-form label-width="100px" size="small">
-        <el-form-item label="基础布局">
-          <el-radio-group v-model="settings.layout">
-            <el-radio value="vertical">上下布局</el-radio><el-radio value="horizontal">左右布局</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="顶外边距"><el-input-number v-model="settings.globalStyle.marginTop" :min="0" :max="100" /> px</el-form-item>
-        <el-form-item label="上下边距"><el-input-number v-model="settings.globalStyle.marginY" :min="0" :max="100" /> px</el-form-item>
-        <el-form-item label="左右边距"><el-input-number v-model="settings.globalStyle.marginX" :min="0" :max="100" /> px</el-form-item>
-        <el-form-item label="组件圆角"><el-input-number v-model="settings.globalStyle.radius" :min="0" :max="40" /> px</el-form-item>
-        <el-form-item label="输入框圆角"><el-input-number v-model="settings.globalStyle.inputRadius" :min="0" :max="40" /> px</el-form-item>
-      </el-form>
-      <template #footer><el-button type="primary" @click="styleDialog = false">确定</el-button></template>
-    </el-dialog>
+    <MaterialPicker v-model="imgPickerShow" @confirm="onPickShareImg" />
   </div>
 </template>
 
@@ -465,6 +511,7 @@ import {
   COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, COMPONENT_LABEL,
 } from './components.js';
 import ComponentPreview from './ComponentPreview.vue';
+import MaterialPicker from '../design/MaterialPicker.vue';
 
 const props = defineProps({ formId: [Number, String], formName: String });
 const emit = defineEmits(['close']);
@@ -474,29 +521,84 @@ const ICONS = COMPONENT_ICONS;
 const components = ref([]);
 const settings = reactive(defaultSettings());
 const selectedId = ref(null);
+// 右栏三模式：props=组件属性 / style=全局样式 / settings=表单设置（对齐 ew）
+const panelMode = ref('settings');
 const propTab = ref('content');
 const formSettingsTab = ref('basic');
-const styleDialog = ref(false);
 const saving = ref(false);
+const imgPickerShow = ref(false);
 
 const selected = computed(() => components.value.find((c) => c.id === selectedId.value) || null);
-const choiceComponents = computed(() => components.value.filter((c) => ['radio', 'checkbox', 'select'].includes(c.type)));
+// 选择类字段（对齐 ew：含评分）
+const choiceComponents = computed(() => components.value.filter((c) => ['radio', 'checkbox', 'select', 'rate'].includes(c.type)));
 // 纯展示/特殊组件不显示「是否显示 / 是否必填」表头
 const noPropTypes = ['pagebreak', 'backdesc', 'realtime', 'swiper', 'bigimage', 'title', 'richtext', 'blank', 'line', 'video', 'pay'];
+// 全局样式距离属性行（对齐 ew：两个「左右边距」分别为页面级 / 组件级）
+const distRows = [
+  { key: 'marginTop', label: '顶外边距', max: 100 },
+  { key: 'marginY', label: '上下边距', max: 100 },
+  { key: 'marginX', label: '左右边距', max: 100 },
+  { key: 'radius', label: '组件圆角', max: 40 },
+  { key: 'compMarginX', label: '左右边距', max: 100 },
+  { key: 'inputRadius', label: '输入框圆角', max: 40 },
+];
+
+// 设计器手机预览应用全局样式（此前预览完全不生效）
+const phoneStyle = computed(() => {
+  const g = settings.globalStyle || {};
+  return {
+    marginTop: (g.marginTop || 0) + 'px',
+    paddingTop: (g.marginY || 0) + 'px',
+    paddingBottom: (g.marginY || 0) + 'px',
+    paddingLeft: (g.marginX || 0) + 'px',
+    paddingRight: (g.marginX || 0) + 'px',
+  };
+});
+const compWrapStyle = computed(() => {
+  const g = settings.globalStyle || {};
+  const mx = g.compMarginX || 0;
+  return mx ? { paddingLeft: mx + 'px', paddingRight: mx + 'px' } : {};
+});
+
+function openPanel(mode) { panelMode.value = mode; }
+function selectComp(id) { selectedId.value = id; panelMode.value = 'props'; }
 function optionsOf(compId) {
   const c = components.value.find((x) => x.id === compId);
-  return c?.content?.options || [];
+  if (!c) return [];
+  if (c.type === 'rate') {
+    const max = c.content.max || 5;
+    return Array.from({ length: max }, (_, i) => ({ label: `${i + 1} 分`, value: String(i + 1) }));
+  }
+  return c.content?.options || [];
 }
+function showCandidate(rule) {
+  const condIds = (rule.conditions || []).map((c) => c.compId);
+  return components.value.filter((c) => !condIds.includes(c.id) && c.type !== 'submit');
+}
+function onPickShareImg(url) { if (url) settings.basic.shareImage = url; }
+
+// —— 逻辑规则：多条件（兼容旧单条件 compId/option） ——
+const ruleCollapse = ref({});
+function ruleOpen(i) { return ruleCollapse.value[i] !== false; }
+function toggleRule(i) { ruleCollapse.value[i] = !ruleOpen(i); }
+function addRule() { settings.logic.push({ conditions: [{ compId: '', option: '' }], action: 'show', showIds: [] }); }
+function addCondition(rule) { rule.conditions.push({ compId: '', option: '' }); }
+function removeCondition(rule, i) { if (rule.conditions.length > 1) rule.conditions.splice(i, 1); }
+function confirmLogic() { ElMessage.success('逻辑设置已应用，保存页面后生效'); }
 
 function setLayout(v) { settings.layout = v; }
 function addComponent(type) {
   components.value.push(createComponent(type));
   selectedId.value = components.value[components.value.length - 1].id;
+  panelMode.value = 'props'; // 添加后右栏自动切到该组件属性（对齐 ew）
 }
 function remove(idx) {
   const id = components.value[idx].id;
   components.value.splice(idx, 1);
-  if (selectedId.value === id) selectedId.value = null;
+  if (selectedId.value === id) {
+    selectedId.value = null;
+    if (panelMode.value === 'props') panelMode.value = 'settings';
+  }
 }
 
 // ——— 真·拖拽：组件库拖入画布 / 画布内重排 ———
@@ -523,6 +625,7 @@ function onDrop(targetIdx, ev) {
     const i = Math.min(targetIdx, components.value.length);
     components.value.splice(i, 0, comp);
     selectedId.value = comp.id;
+    panelMode.value = 'props';
   } else if (dragId.value) {
     const from = components.value.findIndex((c) => c.id === dragId.value);
     if (from === -1) return resetDrag();
@@ -543,21 +646,35 @@ async function load() {
   try {
     const f = await getSuperForm(props.formId);
     const cfg = f.config || {};
+    const def = defaultSettings();
     components.value = Array.isArray(cfg.components) ? cfg.components : [];
-    Object.assign(settings, defaultSettings(), cfg.settings || {});
-    if (!settings.basic) settings.basic = defaultSettings().basic;
-    if (!settings.submit) settings.submit = defaultSettings().submit;
-    if (!settings.logic) settings.logic = [];
-    if (!settings.globalStyle) settings.globalStyle = defaultSettings().globalStyle;
+    Object.assign(settings, def, cfg.settings || {});
+    // 分组深合并，避免旧数据缺字段时面板绑定 undefined
+    settings.basic = { ...def.basic, ...(cfg.settings?.basic || {}) };
+    settings.submit = { ...def.submit, ...(cfg.settings?.submit || {}) };
+    settings.globalStyle = { ...def.globalStyle, ...(cfg.settings?.globalStyle || {}) };
+    // 逻辑规则统一为多条件结构（旧数据 compId/option → conditions[0]）
+    settings.logic = (Array.isArray(cfg.settings?.logic) ? cfg.settings.logic : []).map((r) => ({
+      ...r,
+      action: r.action || 'show',
+      showIds: r.showIds || [],
+      conditions: (r.conditions && r.conditions.length) ? r.conditions : [{ compId: r.compId || '', option: r.option || '' }],
+    }));
   } catch (e) { ElMessage.error(e.message || '加载失败'); }
 }
 
 async function save(publish) {
   saving.value = true;
+  // 首条件回写 compId/option，兼容旧版 C 端渲染
+  const logicCompat = settings.logic.map((r) => ({
+    ...r,
+    compId: r.conditions?.[0]?.compId || '',
+    option: r.conditions?.[0]?.option || '',
+  }));
   const payload = {
     name: settings.basic.name || '未命名表单',
     status: publish ? 'published' : undefined,
-    config: { components: components.value, settings: JSON.parse(JSON.stringify(settings)) },
+    config: { components: components.value, settings: JSON.parse(JSON.stringify({ ...settings, logic: logicCompat })) },
   };
   try {
     await updateSuperForm(props.formId, payload);
@@ -604,9 +721,40 @@ onMounted(load);
 .sf-props { background: #fff; border-left: 1px solid #ebeef5; overflow: auto; padding: 14px; }
 .sf-prop-form { margin-top: 8px; }
 .sf-hint { color: #909399; font-size: 12px; margin-left: 6px; }
-.sf-logic-tip { font-size: 12px; color: #909399; margin-bottom: 10px; }
+.sf-hint-block { margin-left: 0; margin-top: 4px; display: block; }
+/* —— 右栏面板（对齐 ew：蓝条标题 + 大块分段 tab + 灰色分区条） —— */
+.sf-panel-head { font-size: 16px; font-weight: 600; color: #303133; padding: 2px 0 8px 10px; border-left: 3px solid #409eff; margin-bottom: 12px; }
+.sf-seg { display: flex; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+.sf-seg-item { flex: 1; text-align: center; padding: 10px 0; font-size: 14px; color: #606266; cursor: pointer; background: #f5f7fa; user-select: none; }
+.sf-seg-item + .sf-seg-item { border-left: 1px solid #fff; }
+.sf-seg-item.on { background: #409eff; color: #fff; }
+.sf-sec { background: #f5f6f8; border-radius: 4px; padding: 8px 12px; font-size: 13px; color: #303133; font-weight: 500; margin: 12px 0; }
+.sf-sec-note { font-weight: 400; color: #909399; font-size: 12px; }
+.sf-dist-rows { padding: 2px 0; }
+.sf-dist-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sf-dist-label { width: 84px; font-size: 13px; color: #606266; text-align: right; flex-shrink: 0; }
+.sf-dist-slider { flex: 1; }
+.sf-dist-unit { font-size: 12px; color: #909399; }
+.sf-inline-slider { flex: 1; margin-right: 10px; }
+/* —— 组件风格卡片（对齐 ew 框/线风格示意卡） —— */
+.sf-style-cards { display: flex; gap: 12px; margin-bottom: 4px; }
+.sf-style-card { width: 96px; border: 1px solid #dcdfe6; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; background: #fff; }
+.sf-style-card.on { border-color: #409eff; box-shadow: 0 0 0 1px #409eff inset; }
+.sf-style-demo { height: 44px; border-radius: 4px; border: 1px solid #ebeef5; display: flex; flex-direction: column; gap: 5px; align-items: flex-start; padding: 8px; }
+.sd-bar { display: block; width: 40%; height: 6px; border-radius: 2px; background: #d9e4ff; }
+.sd-long { width: 80%; }
+.sd-line { display: block; width: 100%; height: 1px; background: #c0c4cc; margin-top: 8px; }
+.sf-style-card-name { font-size: 12px; color: #606266; margin-top: 6px; }
+/* —— 逻辑规则 —— */
+.sf-logic-tip { font-size: 12px; color: #909399; margin-bottom: 10px; line-height: 1.7; }
 .sf-rule { border: 1px solid #ebeef5; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
-.sf-rule-title { font-weight: 600; display: flex; justify-content: space-between; margin-bottom: 8px; }
-.sf-rule-cond { margin: 6px 0; }
+.sf-rule-title { font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 8px; cursor: pointer; }
+.sf-rule-title .el-button { margin-left: auto; }
+.sf-rule-arrow { display: inline-block; color: #909399; transition: transform .2s; }
+.sf-rule-arrow.open { transform: rotate(180deg); }
+.sf-rule-cond-label { font-size: 13px; color: #303133; margin: 4px 0 8px; }
+.sf-rule-box { border: 1px solid #ebeef5; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.sf-rule-cond { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; color: #606266; flex-wrap: wrap; }
+.sf-rule-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .sf-opt-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 </style>

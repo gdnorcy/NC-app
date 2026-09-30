@@ -184,7 +184,7 @@ export function defaultSettings() {
     submit: { secondConfirm: true, jumpLink: '' },
     logic: [],
     layout: 'vertical',
-    globalStyle: { marginTop: 0, marginY: 20, marginX: 0, radius: 0, inputRadius: 3 },
+    globalStyle: { marginTop: 0, marginY: 20, marginX: 0, radius: 0, compMarginX: 20, inputRadius: 3 },
   };
 }
 

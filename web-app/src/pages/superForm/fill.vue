@@ -4,7 +4,7 @@
       <view class="sf-form-name" v-if="form.name">{{ form.name }}</view>
 
       <template v-for="comp in currentPageComponents" :key="comp.id">
-        <view class="sf-field">
+        <view class="sf-field" :style="fieldStyle">
           <view class="sf-label" v-if="!noTitleTypes.includes(comp.type)">
             {{ comp.content.label || '未命名' }}
             <text v-if="comp.content.required" class="sf-req">*</text>
@@ -190,23 +190,35 @@ const globalStyle = computed(() => {
     paddingBottom: (g.marginY || 0) + 'px',
     paddingLeft: (g.marginX || 0) + 'px',
     paddingRight: (g.marginX || 0) + 'px',
+    // 输入框圆角（全局样式）
+    '--sf-input-radius': (g.inputRadius != null ? g.inputRadius : 3) + 'px',
   };
+});
+// 组件级左右边距（全局样式，应用到每个字段）
+const fieldStyle = computed(() => {
+  const g = form.config.settings?.globalStyle || {};
+  const mx = g.compMarginX || 0;
+  return mx ? { paddingLeft: mx + 'px', paddingRight: mx + 'px' } : {};
 });
 
 const components = computed(() => form.config.components || []);
 
-// when 联动：被规则隐藏的字段默认不可见，条件满足才显示
+// when 联动：被规则隐藏的字段默认不可见，条件满足才显示（支持多条件 AND，兼容旧单条件）
+function ruleMatched(r) {
+  const conds = (r.conditions && r.conditions.length) ? r.conditions : [{ compId: r.compId, option: r.option }];
+  return conds.every((c) => values[c.compId] === c.option);
+}
 const visibleComponents = computed(() => {
   const logic = form.config.settings?.logic || [];
   const targeted = new Set();
   const shown = new Set();
   logic.filter((r) => r.action === 'show').forEach((r) => {
     (r.showIds || []).forEach((id) => targeted.add(id));
-    if (values[r.compId] === r.option) (r.showIds || []).forEach((id) => shown.add(id));
+    if (ruleMatched(r)) (r.showIds || []).forEach((id) => shown.add(id));
   });
   const hidden = [...targeted].filter((id) => !shown.has(id));
   // 结束表单规则
-  const endRule = logic.find((r) => r.action === 'end' && values[r.compId] === r.option);
+  const endRule = logic.find((r) => r.action === 'end' && ruleMatched(r));
   if (endRule) ended.value = true;
   return components.value.filter((c) => !hidden.includes(c.id));
 });
@@ -454,7 +466,7 @@ async function submit() {
 .sf-field { padding: 12px 16px; }
 .sf-label { font-size: 14px; color: #303133; margin-bottom: 8px; }
 .sf-req { color: #f56c6c; margin-left: 2px; }
-.sf-input { width: 100%; border: 1px solid #dcdfe6; border-radius: 6px; padding: 10px; font-size: 14px; box-sizing: border-box; background: #fff; }
+.sf-input { width: 100%; border: 1px solid #dcdfe6; border-radius: var(--sf-input-radius, 6px); padding: 10px; font-size: 14px; box-sizing: border-box; background: #fff; }
 textarea.sf-input { min-height: 84px; }
 .sf-upload { border: 1px dashed #c0c4cc; border-radius: 6px; padding: 18px; text-align: center; color: #909399; font-size: 13px; }
 .sf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
