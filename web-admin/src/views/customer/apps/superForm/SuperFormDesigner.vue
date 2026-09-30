@@ -219,7 +219,11 @@
                   </el-radio-group>
                 </el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
-                <el-form-item label="数值范围">最小 <el-input-number v-model="selected.content.min" :min="0" /> 最大 <el-input-number v-model="selected.content.max" :min="0" /></el-form-item>
+                <el-form-item label="大小限制">
+                  <el-input-number v-model="selected.content.min" :min="0" size="small" /> ~
+                  <el-input-number v-model="selected.content.max" :min="0" size="small" />
+                </el-form-item>
+                <el-form-item label="间隔"><el-input-number v-model="selected.content.step" :min="1" size="small" /> <span class="sf-hint">每次增减步进</span></el-form-item>
                 <el-form-item label="默认值"><el-input v-model="selected.content.defaultValue" placeholder="选填" /></el-form-item>
               </template>
 
