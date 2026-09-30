@@ -457,6 +457,15 @@ function validateList(list) {
       if (ct.contentType === 'phone' && !/^1[3-9]\d{9}$/.test(s)) return ct.label + '格式不正确（手机号）';
       if (ct.contentType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return ct.label + '格式不正确（邮箱）';
       if (ct.contentType === 'idcard' && !/(^\d{15}$)|(^\d{17}[\dXx]$)/.test(s)) return ct.label + '格式不正确（身份证）';
+      if (Array.isArray(ct.inputType) && ct.inputType.length > 0) {
+        const rules = [];
+        if (ct.inputType.includes('chinese')) rules.push('\\u4e00-\\u9fa5');
+        if (ct.inputType.includes('english')) rules.push('a-zA-Z');
+        if (ct.inputType.includes('number')) rules.push('0-9');
+        if (ct.inputType.includes('symbol')) rules.push('\\p{P}\\p{S}');
+        const re = new RegExp('^[' + rules.join('') + ']+$', 'u');
+        if (!re.test(s)) return ct.label + '包含不允许的字符';
+      }
     }
     if (c.type === 'number' && v !== '' && v != null) {
       const n = Number(v);
