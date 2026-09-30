@@ -14,11 +14,17 @@
     </template>
 
     <template v-else-if="comp.type === 'radio'">
-      <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt"><span class="cmpv-circle" />{{ opt.label }}</div>
+      <div class="cmpv-opts">
+        <div v-for="(opt, i) in comp.content.options" :key="i"
+             class="cmpv-opt" :class="{ on: i === 0, line: comp.style && comp.style.styleType === 'line' }">{{ opt.label }}</div>
+      </div>
     </template>
 
     <template v-else-if="comp.type === 'checkbox'">
-      <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt"><span class="cmpv-square" />{{ opt.label }}</div>
+      <div class="cmpv-opts">
+        <div v-for="(opt, i) in comp.content.options" :key="i"
+             class="cmpv-opt" :class="{ on: i === 0, line: comp.style && comp.style.styleType === 'line' }">{{ opt.label }}</div>
+      </div>
     </template>
 
     <template v-else-if="comp.type === 'select'">
@@ -157,6 +163,12 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
 .cmpv-select::after { content: '▾'; color: var(--c-icon-color, #000000); }
 .cmpv-upload { width: var(--c-upload-size, 45px); height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: var(--c-input-bg, #F7F9FA); color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 14px); }
 .cmpv-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--c-option-color, #333333); margin: 6px 0; }
+.cmpv-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.cmpv-opt { border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: var(--c-input-radius, 6px); padding: 8px 14px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); background: var(--c-input-bg, #F7F9FA); }
+.cmpv-opt.on { border-color: var(--c-active-color, #2667EC); color: var(--c-active-color, #2667EC); background: var(--c-input-bg, #F7F9FA); }
+.cmpv-opt.line { border-radius: 0; background: transparent; }
+.cmpv-opt.line:not(.on) { border-color: transparent; border-bottom: 1px solid var(--c-border-color, #dcdfe6); }
+.cmpv-opt.on.line { border-color: transparent; border-bottom: 1px solid var(--c-active-color, #2667EC); }
 .cmpv-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--c-inactive-border, #F5F2F2); background: var(--c-input-bg, #F7F9FA); }
 .cmpv-square { width: 16px; height: 16px; border-radius: 3px; border: 1px solid var(--c-inactive-border, #F5F2F2); background: var(--c-input-bg, #F7F9FA); }
 .cmpv-submit { width: 100%; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 22px); padding: 10px; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); font-size: 15px; }
@@ -193,4 +205,11 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
 .cmpv-pay-spec { font-size: 12px; color: var(--c-spec-color, #000000); border: 1px solid var(--c-border-color, #F7F9FA); border-radius: var(--c-input-radius, 3px); padding: 4px 6px; }
 .cmpv-pay-spec .cmpv-pay-price { color: var(--c-price-color, #FF1C1C); }
 .cmpv-pay-tip { font-size: 12px; color: var(--c-count-color, #79797B); }
+/* 线风格：输入类控件去边框仅留底线（对齐 C 端 .cs-line，.cs-line 加在父级 wrap 上） */
+:deep(.cs-line) .cmpv-input,
+:deep(.cs-line) .cmpv-loc,
+:deep(.cs-line) .cmpv-auth,
+:deep(.cs-line) .cmpv-auth-btn,
+:deep(.cs-line) .cmpv-download,
+:deep(.cs-line) .cmpv-upload { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 </style>

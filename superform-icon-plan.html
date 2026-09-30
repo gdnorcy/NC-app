@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>超级表单组件图标风格方案</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; background: #f5f6f8; margin: 0; padding: 30px; }
+  h1 { font-size: 20px; color: #333; margin-bottom: 8px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 30px; }
+  .compare { display: flex; gap: 40px; flex-wrap: wrap; }
+  .col { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .col h2 { font-size: 15px; margin: 0 0 4px; }
+  .col .desc { font-size: 12px; color: #999; margin-bottom: 20px; line-height: 1.6; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; }
+  .badge-current { background: #fff3e0; color: #ff6b4a; }
+  .badge-new { background: #e8f5e9; color: #4caf50; }
+  .grid { display: grid; grid-template-columns: repeat(5, 56px); gap: 12px; }
+  .item { text-align: center; }
+  .item .ic { width: 56px; height: 56px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+  .item .lb { font-size: 11px; color: #666; }
+
+  /* 当前风格：分类底色方块 + 白色线条 */
+  .cur-basic .ic { background: #5fc396; }
+  .cur-special .ic { background: #7e5bef; }
+  .cur-decor .ic { background: #3fa1f0; }
+  .cur-basic svg, .cur-special svg, .cur-decor svg { stroke: #fff; fill: none; stroke-width: 1.5; }
+
+  /* 方案A：完全对齐装修组件（橙红色图标，透明底，无方块） */
+  .planA .ic { background: transparent; }
+  .planA svg { stroke: #ff6b4a; fill: none; stroke-width: 1.8; }
+
+  /* 方案B：浅灰底卡片 + 橙红色图标（对齐装修组件面板卡片样式） */
+  .planB .ic { background: #f7f8fa; border: 1px solid #eef0f3; }
+  .planB svg { stroke: #ff6b4a; fill: none; stroke-width: 1.8; }
+
+  /* 方案C：保留分类色但改成细线条 + 浅底（柔和过渡） */
+  .planC-basic .ic { background: #e8f7f0; }
+  .planC-special .ic { background: #f1ebff; }
+  .planC-decor .ic { background: #e8f3fd; }
+  .planC-basic svg { stroke: #5fc396; fill: none; stroke-width: 1.8; }
+  .planC-special svg { stroke: #7e5bef; fill: none; stroke-width: 1.8; }
+  .planC-decor svg { stroke: #3fa1f0; fill: none; stroke-width: 1.8; }
+
+  .ref { background: #fff; border-radius: 12px; padding: 24px; margin-top: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .ref h2 { font-size: 15px; margin: 0 0 16px; }
+  .ref-grid { display: grid; grid-template-columns: repeat(5, 56px); gap: 12px; }
+</style>
+</head>
+<body>
+<h1>超级表单组件图标风格方案</h1>
+<div class="sub">目标：与设计中心装修组件面板的图标视觉风格统一</div>
+
+<div class="compare">
+  <!-- 当前风格 -->
+  <div class="col">
+    <h2>当前风格 <span class="badge badge-current">现状</span></h2>
+    <div class="desc">分类底色方块（绿/紫/蓝）+ 白色线条图标<br>三种颜色区分组件类别</div>
+    <div class="grid cur-basic">
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M6 5.5h12M12 5.5v13"/></svg></div><div class="lb">单行文本</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="#fff" stroke="none"/></svg></div><div class="lb">单选</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m6 17 3.5-3.5 2.5 2.5 3-3 3 3"/></svg></div><div class="lb">图片</div></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="grid cur-special">
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.5 2.5 4.9-5.4"/></svg></div><div class="lb">提交</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><path d="m6 5 6.5 7L6 19M12.5 5 19 12l-6.5 7"/></svg></div><div class="lb">分页</div></div>
+    </div>
+    <div style="height:12px"></div>
+    <div class="grid cur-decor">
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M5.5 6h13M12 6v12M9 18h6"/></svg></div><div class="lb">标题</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M10 9l5.2 3L10 15z" fill="#fff" stroke="none"/></svg></div><div class="lb">视频</div></div>
+    </div>
+  </div>
+
+  <!-- 方案A -->
+  <div class="col">
+    <h2>方案A：橙红图标透明底 <span class="badge badge-new">推荐</span></h2>
+    <div class="desc">完全对齐装修组件：橙红色(#ff6b4a)图标<br>透明底，无方块，与设计中心视觉统一</div>
+    <div class="grid planA">
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M6 5.5h12M12 5.5v13"/></svg></div><div class="lb">单行文本</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="#ff6b4a" stroke="none"/></svg></div><div class="lb">单选</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m6 17 3.5-3.5 2.5 2.5 3-3 3 3"/></svg></div><div class="lb">图片</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.3 12.3 2.5 2.5 5-5.4"/></svg></div><div class="lb">多选</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="m9 10.5 3 3.2 3-3.2"/></svg></div><div class="lb">下拉</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M8 3v5M16 3v5M3.5 10.5h17"/></svg></div><div class="lb">日期</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 21c-4.2-3.7-6.3-6.9-6.3-9.6a6.3 6.3 0 1 1 12.6 0C18.3 14.1 16.2 17.3 12 21z"/><circle cx="12" cy="11" r="2.3"/></svg></div><div class="lb">定位</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H10l-4.5 4v-4H7a3 3 0 0 1-3-3z"/></svg></div><div class="lb">短信</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.5 2.5 4.9-5.4"/></svg></div><div class="lb">提交</div></div>
+      <div class="item"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M5.5 6h13M12 6v12M9 18h6"/></svg></div><div class="lb">标题</div></div>
+    </div>
+  </div>
+
+  <!-- 方案B -->
+  <div class="col">
+    <h2>方案B：浅灰卡片 + 橙红图标</h2>
+    <div class="desc">浅灰圆角卡片底 + 橙红图标<br>保留卡片感，但与装修面板卡片样式一致</div>
+    <div class="grid planB">
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M6 5.5h12M12 5.5v13"/></svg></div><div class="lb">单行文本</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="#ff6b4a" stroke="none"/></svg></div><div class="lb">单选</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m6 17 3.5-3.5 2.5 2.5 3-3 3 3"/></svg></div><div class="lb">图片</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.3 12.3 2.5 2.5 5-5.4"/></svg></div><div class="lb">多选</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="m9 10.5 3 3.2 3-3.2"/></svg></div><div class="lb">下拉</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M8 3v5M16 3v5M3.5 10.5h17"/></svg></div><div class="lb">日期</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 21c-4.2-3.7-6.3-6.9-6.3-9.6a6.3 6.3 0 1 1 12.6 0C18.3 14.1 16.2 17.3 12 21z"/><circle cx="12" cy="11" r="2.3"/></svg></div><div class="lb">定位</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H10l-4.5 4v-4H7a3 3 0 0 1-3-3z"/></svg></div><div class="lb">短信</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.5 2.5 4.9-5.4"/></svg></div><div class="lb">提交</div></div>
+      <div class="item"><div class="ic"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M5.5 6h13M12 6v12M9 18h6"/></svg></div><div class="lb">标题</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 参考：装修组件实际效果 -->
+<div class="ref">
+  <h2>参考：设计中心装修组件面板实际效果</h2>
+  <div class="ref-grid">
+    <div class="item"><div class="ic" style="background:transparent"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M4 6l8-3 8 3v12l-8 3-8-3z" stroke="#ff6b4a" fill="none" stroke-width="1.5"/></svg></div><div class="lb">图片</div></div>
+    <div class="item"><div class="ic" style="background:transparent"><svg width="28" height="28" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#ff6b4a" fill="none" stroke-width="1.5"/><path d="M7 12h4M12 9v6" stroke="#ff6b4a" stroke-width="1.5"/></svg></div><div class="lb">按钮</div></div>
+    <div class="item"><div class="ic" style="background:transparent"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M4 12h16" stroke="#ff6b4a" stroke-width="1.5"/></svg></div><div class="lb">分割线</div></div>
+    <div class="item"><div class="ic" style="background:transparent"><svg width="28" height="28" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#ff6b4a" fill="none" stroke-width="1.5"/><path d="M7 10h4M7 14h10" stroke="#ff6b4a" stroke-width="1.5"/></svg></div><div class="lb">表单</div></div>
+    <div class="item"><div class="ic" style="background:transparent"><svg width="28" height="28" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#ff6b4a" fill="none" stroke-width="1.5"/><circle cx="9" cy="10" r="1.5" stroke="#ff6b4a" stroke-width="1.5"/><path d="m5 16 4-4 3 3 4-4 3 3" stroke="#ff6b4a" stroke-width="1.5"/></svg></div><div class="lb">轮播图</div></div>
+  </div>
+  <div style="margin-top:16px; font-size:12px; color:#999;">特点：橙红色 #ff6b4a、透明底、无方块、线条+填充、图标约28px</div>
+</div>
+
+</body>
+</html>
