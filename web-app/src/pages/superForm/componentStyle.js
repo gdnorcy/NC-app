@@ -17,7 +17,7 @@
  * - colorRows：组件颜色行 { key, label, def }
  */
 export const STYLE_SCHEMA = {
-  text: { boxLine: true, styleRows: [
+  text: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -31,7 +31,7 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'scanCodeIcon', label: '扫码图标', def: '#666666' },
   ] },
-  textarea: { boxLine: true, styleRows: [
+  textarea: { boxLine: [{value:'box1',label:'框风格1'},{value:'box2',label:'框风格2'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'inputHeight', label: '输入区高度', def: 166, max: 400 },
@@ -45,7 +45,7 @@ export const STYLE_SCHEMA = {
     { key: 'inputBg', label: '输入背景', def: '#F7F9FA' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  image: { boxLine: true, styleRows: [
+  image: { boxLine: false, styleRows: [
     { key: 'uploadBoxSize', label: '上传框尺寸', def: 45, max: 120 },
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -61,7 +61,7 @@ export const STYLE_SCHEMA = {
     { key: 'promptColor', label: '提示文字', def: '#999999' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  radio: { boxLine: true, styleRows: [
+  radio: { boxLine: [{value:'s1',label:'风格1'},{value:'s2',label:'风格2'},{value:'s3',label:'风格3'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -75,7 +75,7 @@ export const STYLE_SCHEMA = {
     { key: 'activeColor', label: '选中颜色', def: '#2667EC' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  checkbox: { boxLine: true, styleRows: [
+  checkbox: { boxLine: [{value:'s1',label:'风格1'},{value:'s2',label:'风格2'},{value:'s3',label:'风格3'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -89,7 +89,7 @@ export const STYLE_SCHEMA = {
     { key: 'activeColor', label: '选中颜色', def: '#2667EC' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  select: { boxLine: true, styleRows: [
+  select: { boxLine: [{value:'s1',label:'风格1'},{value:'s2',label:'风格2'},{value:'s3',label:'风格3'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -103,7 +103,7 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'iconColor', label: '下拉图标', def: '#000000' },
   ] },
-  number: { boxLine: true, styleRows: [
+  number: { boxLine: [{value:'step',label:'增减类型'},{value:'slider',label:'滑块风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'operateRadius', label: '按钮圆角', def: 3, max: 20 },
@@ -118,7 +118,7 @@ export const STYLE_SCHEMA = {
     { key: 'enterTextColor', label: '输入文本', def: '#333333' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  date: { boxLine: true, styleRows: [
+  date: { boxLine: [{value:'line',label:'线风格'},{value:'box1',label:'框风格1'},{value:'box2',label:'框风格2'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -131,7 +131,7 @@ export const STYLE_SCHEMA = {
     { key: 'enterTextColor', label: '输入文本', def: '#333333' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  time: { boxLine: true, styleRows: [
+  time: { boxLine: [{value:'line',label:'线风格'},{value:'box1',label:'框风格1'},{value:'box2',label:'框风格2'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -145,7 +145,7 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'iconColor', label: '图标颜色', def: '#FFFFFF' },
   ] },
-  location: { boxLine: true, styleRows: [
+  location: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -159,7 +159,7 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'iconColor', label: '图标颜色', def: '#000000' },
   ] },
-  attachment: { boxLine: true, styleRows: [
+  attachment: { boxLine: false, styleRows: [
     { key: 'uploadBoxSize', label: '上传框尺寸', def: 45, max: 120 },
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -176,7 +176,7 @@ export const STYLE_SCHEMA = {
     { key: 'fileTitleColor', label: '文件标题', def: '#333333' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  sms: { boxLine: true, styleRows: [
+  sms: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'innerMargin', label: '内部间距', def: 15, max: 60 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -212,7 +212,7 @@ export const STYLE_SCHEMA = {
     { key: 'inactiveColor', label: '未激活颜色', def: '#C6D1DE' },
     { key: 'activeColor', label: '选中颜色', def: '#F7BA2A' },
   ] },
-  filedownload: { boxLine: true, styleRows: [
+  filedownload: { boxLine: [{value:'s1',label:'风格1'},{value:'s2',label:'风格2'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'fileSize', label: '文件文字大小', def: 13, max: 20 },
@@ -225,7 +225,7 @@ export const STYLE_SCHEMA = {
     { key: 'fileTitleColor', label: '文件标题', def: '#333333' },
     { key: 'downTextColor', label: '下载文字', def: '#4385FF' },
   ] },
-  phoneauth: { boxLine: true, styleRows: [
+  phoneauth: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'innerMargin', label: '内部间距', def: 15, max: 60 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -240,7 +240,7 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'empowerColor', label: '授权按钮', def: '#4385FF' },
   ] },
-  carplate: { boxLine: true, styleRows: [
+  carplate: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'innerMargin', label: '内部间距', def: 15, max: 60 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -278,11 +278,11 @@ export const STYLE_SCHEMA = {
   ], colorRows: [
     { key: 'enterTextColor', label: '文字颜色', def: '#333333' },
   ] },
-  realtime: { boxLine: true, styleRows: [
+  realtime: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '圆角', def: 10, max: 30 },
   ], colorRows: [] },
-  pay: { boxLine: true, styleRows: [
+  pay: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'modelTopBottomMargin', label: '规格上下边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -314,7 +314,7 @@ export const STYLE_SCHEMA = {
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'imgRadius', label: '图片圆角', def: 3, max: 20 },
   ], colorRows: [] },
-  title: { boxLine: true, styleRows: [
+  title: { boxLine: false, styleRows: [
     { key: 'inputMarginX', label: '左右边距', def: 10, max: 40 },
     { key: 'titleSize', label: '主标题大小', def: 17, max: 30 },
     { key: 'subTitleSize', label: '副标题大小', def: 13, max: 24 },

@@ -603,15 +603,15 @@
                   </el-radio-group>
                 </el-form-item>
               </template>
-              <template v-if="curStyleSchema.boxLine">
+              <template v-if="Array.isArray(curStyleSchema.boxLine) && curStyleSchema.boxLine.length">
                 <div class="sf-style-cards">
-                  <div class="sf-style-card" :class="{ on: selected.style.styleType === 'box' }" @click="selected.style.styleType = 'box'">
-                    <div class="sf-style-demo"><span class="sd-bar" /><span class="sd-bar sd-long" /></div>
-                    <div class="sf-style-card-name">框风格</div>
-                  </div>
-                  <div class="sf-style-card" :class="{ on: selected.style.styleType === 'line' }" @click="selected.style.styleType = 'line'">
-                    <div class="sf-style-demo"><span class="sd-bar" /><span class="sd-line" /></div>
-                    <div class="sf-style-card-name">线风格</div>
+                  <div v-for="bl in curStyleSchema.boxLine" :key="bl.value" class="sf-style-card" :class="{ on: selected.style.styleType === bl.value }" @click="selected.style.styleType = bl.value">
+                    <div class="sf-style-demo">
+                      <span class="sd-bar" />
+                      <span v-if="bl.value === 'line'" class="sd-line" />
+                      <span v-else class="sd-bar sd-long" />
+                    </div>
+                    <div class="sf-style-card-name">{{ bl.label }}</div>
                   </div>
                 </div>
               </template>
