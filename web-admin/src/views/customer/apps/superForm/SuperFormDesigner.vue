@@ -1,18 +1,19 @@
 <template>
   <div class="sf-designer">
-    <!-- 顶栏 -->
+    <!-- 顶栏（对齐 ew：深色横条 + 基础布局按钮组点亮 + 右侧图标动作） -->
     <div class="sf-topbar">
-      <el-button text @click="$emit('close')">← 返回</el-button>
+      <button class="sf-tb-btn sf-tb-back" @click="$emit('close')">← 返回</button>
       <span class="sf-title">超级表单设计器</span>
-      <div class="sf-top-actions">
-        <el-radio-group :model-value="settings.layout" @update:model-value="setLayout">
-          <el-radio-button value="vertical">上下布局</el-radio-button>
-          <el-radio-button value="horizontal">左右布局</el-radio-button>
-        </el-radio-group>
-        <el-button @click="openPanel('style')">样式设置</el-button>
-        <el-button @click="openPanel('settings')">表单设置</el-button>
-        <el-button @click="save(false)">保存页面</el-button>
-        <el-button type="primary" @click="save(true)">保存并发布</el-button>
+      <div class="sf-tb-group">
+        <span class="sf-tb-label">基础布局：</span>
+        <button class="sf-tb-btn" :class="{ on: settings.layout === 'vertical' }" @click="settings.layout = 'vertical'">上下布局</button>
+        <button class="sf-tb-btn" :class="{ on: settings.layout === 'horizontal' }" @click="settings.layout = 'horizontal'">左右布局</button>
+        <button class="sf-tb-btn" :class="{ on: panelMode === 'style' }" @click="openPanel('style')">样式设置</button>
+      </div>
+      <div class="sf-tb-right">
+        <button class="sf-tb-link" :class="{ on: panelMode === 'settings' }" @click="openPanel('settings')"><span class="sf-tb-ico">⊙</span> 表单设置</button>
+        <button class="sf-tb-link" @click="save(false)"><span class="sf-tb-ico">💾</span> 保存页面</button>
+        <button class="sf-tb-link" @click="save(true)"><span class="sf-tb-ico">💾</span> 保存并发布</button>
       </div>
     </div>
 
@@ -45,7 +46,8 @@
       <!-- 中：手机预览 -->
       <div class="sf-canvas">
         <div class="sf-phone">
-          <div class="sf-phone-bar"><span>13:32</span><span>表单</span></div>
+          <div class="sf-phone-status"><span>13:32</span><span>▂▄▆ ⏻</span></div>
+          <div class="sf-phone-nav"><span class="sf-phone-nav-title">表单</span><span class="sf-phone-capsule">⋯ ◎</span></div>
           <div
             class="sf-phone-body"
             :class="settings.layout"
@@ -73,7 +75,7 @@
               </div>
             </div>
             <div v-if="dragOverIdx === components.length" class="sf-drop-line" />
-            <div v-if="!components.length" class="sf-empty">请从左侧拖拽或点击组件，放置于此处。</div>
+            <div v-if="!components.length" class="sf-empty">请从左侧列表中选择一个组件，然后用鼠标拖动组件放置于此处.</div>
           </div>
         </div>
       </div>
@@ -701,9 +703,20 @@ onMounted(load);
 
 <style scoped>
 .sf-designer { height: 100%; display: flex; flex-direction: column; background: #f5f6f8; }
-.sf-topbar { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #ebeef5; }
-.sf-title { font-weight: 600; }
-.sf-top-actions { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+/* —— 顶栏：对齐 ew 深色横条 —— */
+.sf-topbar { display: flex; align-items: center; gap: 14px; padding: 0 16px; height: 48px; background: #2a2e33; flex-shrink: 0; }
+.sf-title { font-weight: 600; color: #fff; }
+.sf-tb-group { display: flex; gap: 8px; align-items: center; }
+.sf-tb-label { color: #fff; font-size: 13px; }
+.sf-tb-btn { border: none; background: #45494f; color: #fff; font-size: 13px; padding: 6px 14px; border-radius: 4px; cursor: pointer; transition: background .15s; }
+.sf-tb-btn:hover { background: #53575e; }
+.sf-tb-btn.on, .sf-tb-btn.on:hover { background: #409eff; }
+.sf-tb-back { background: transparent; }
+.sf-tb-right { margin-left: auto; display: flex; gap: 20px; align-items: center; }
+.sf-tb-link { border: none; background: transparent; color: #fff; font-size: 13px; cursor: pointer; padding: 14px 2px; border-bottom: 2px solid transparent; }
+.sf-tb-link:hover { color: #c9d4ff; }
+.sf-tb-link.on { color: #409eff; border-bottom-color: #409eff; }
+.sf-tb-ico { font-size: 12px; margin-right: 2px; }
 .sf-body { flex: 1; display: grid; grid-template-columns: 252px 1fr 360px; min-height: 0; }
 /* —— 组件库：对齐 ew 原版（灰色分组条 + 3 列图标卡片 + 表格线网格） —— */
 .sf-palette { background: #fff; border-right: 1px solid #ebedf0; overflow: auto; padding: 0; }
@@ -718,9 +731,13 @@ onMounted(load);
 .sf-pal-icon svg { width: 19px; height: 19px; display: block; }
 .sf-pal-label { font-size: 12px; color: #333; line-height: 1.2; text-align: center; }
 .sf-canvas { overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
-.sf-phone { width: 375px; min-height: 640px; background: #fff; border-radius: 28px; box-shadow: 0 6px 24px rgba(0,0,0,.12); display: flex; flex-direction: column; overflow: hidden; }
-.sf-phone-bar { height: 28px; background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 12px; }
-.sf-phone-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; align-content: flex-start; }
+.sf-phone { width: 375px; min-height: 640px; background: #f2f3f5; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); display: flex; flex-direction: column; overflow: hidden; }
+/* 状态栏（黑）+ 标题栏（白，含小程序胶囊），对齐 ew 手机预览 */
+.sf-phone-status { height: 24px; background: #000; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 11px; flex-shrink: 0; }
+.sf-phone-nav { height: 36px; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
+.sf-phone-nav-title { font-size: 14px; font-weight: 500; color: #303133; }
+.sf-phone-capsule { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #606266; border: 1px solid #e8e8e8; border-radius: 10px; padding: 1px 8px; background: #fafafa; }
+.sf-phone-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; align-content: flex-start; background: #f2f3f5; }
 .sf-phone-body.horizontal { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; }
 /* 左右布局：每个字段约占半行（对齐 C 端 .sf-field 的 flex:1 1 45%） */
 .sf-phone-body.horizontal .sf-comp-wrap { flex: 1 1 45%; box-sizing: border-box; min-width: 0; }
