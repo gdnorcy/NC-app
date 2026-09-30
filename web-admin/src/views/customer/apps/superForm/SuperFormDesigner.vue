@@ -194,12 +194,30 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
+                <el-form-item label="选项类型">
+                  <el-radio-group v-model="selected.content.optionType">
+                    <el-radio value="text">文字选项</el-radio>
+                    <el-radio value="image">图片选项</el-radio>
+                    <el-radio value="imageText">图文选项</el-radio>
+                  </el-radio-group>
+                </el-form-item>
                 <el-form-item label="选项">
                   <div v-for="(opt, oi) in selected.content.options" :key="oi" class="sf-opt-row">
-                    <el-input v-model="opt.label" placeholder="选项文案" style="width: 160px" />
+                    <template v-if="selected.content.optionType === 'image'">
+                      <el-input v-model="opt.image" placeholder="图片URL" style="width: 200px" />
+                    </template>
+                    <template v-else>
+                      <el-input v-model="opt.label" placeholder="选项文案" style="width: 160px" />
+                    </template>
                     <el-button text type="danger" @click="selected.content.options.splice(oi, 1)">删</el-button>
                   </div>
-                  <el-button size="small" @click="selected.content.options.push({ label: '新选项', value: String(selected.content.options.length + 1) })">+ 添加选项</el-button>
+                  <el-button size="small" @click="selected.content.options.push({ label: '新选项', value: String(selected.content.options.length + 1), image: '' })">+ 添加选项</el-button>
+                </el-form-item>
+                <el-form-item v-if="selected.type === 'checkbox'" label="最少选择">
+                  <el-input-number v-model="selected.content.minSelect" :min="0" size="small" />
+                </el-form-item>
+                <el-form-item v-if="selected.type === 'checkbox'" label="最多选择">
+                  <el-input-number v-model="selected.content.maxSelect" :min="0" size="small" />
                 </el-form-item>
               </template>
 
