@@ -530,6 +530,24 @@
               <el-form-item label="组件圆角"><el-input-number v-model="selected.style.radius" :min="0" :max="40" /> px</el-form-item>
 
               <div class="sf-sec">组件风格</div>
+              <template v-if="selected.type === 'swiper'">
+                <el-form-item label="风格">
+                  <el-radio-group v-model="selected.style.swiperStyle">
+                    <el-radio value="full">全屏风格</el-radio>
+                    <el-radio value="triple">三联风格</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="指示点样式">
+                  <el-radio-group v-model="selected.style.dotStyle">
+                    <el-radio value="dot">圆点</el-radio>
+                    <el-radio value="num">数字+文字</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="选中透明度">
+                  <el-slider v-model="selected.style.activeOpacity" :min="0" :max="1" :step="0.1" style="flex:1" />
+                  <span class="sf-hint" style="margin-left:8px">最大是1</span>
+                </el-form-item>
+              </template>
               <template v-if="curStyleSchema.boxLine">
                 <div class="sf-style-cards">
                   <div class="sf-style-card" :class="{ on: selected.style.styleType === 'box' }" @click="selected.style.styleType = 'box'">
