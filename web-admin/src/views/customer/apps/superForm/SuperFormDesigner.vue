@@ -579,6 +579,15 @@
                   <el-switch v-model="selected.style.bold" />
                 </el-form-item>
               </template>
+              <template v-if="selected.type === 'video'">
+                <el-form-item label="视频样式">
+                  <el-radio-group v-model="selected.style.videoRatio">
+                    <el-radio value="16:9">16:9</el-radio>
+                    <el-radio value="4:3">4:3</el-radio>
+                    <el-radio value="1:1">1:1</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+              </template>
               <template v-if="curStyleSchema.boxLine">
                 <div class="sf-style-cards">
                   <div class="sf-style-card" :class="{ on: selected.style.styleType === 'box' }" @click="selected.style.styleType = 'box'">
