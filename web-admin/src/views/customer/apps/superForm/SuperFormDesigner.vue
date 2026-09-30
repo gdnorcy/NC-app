@@ -32,8 +32,8 @@
               @click="addComponent(item.type)"
               @dragstart="onPaletteDrag(item.type, $event)"
             >
-              <span class="sf-pal-icon" :style="{ background: group.color }">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="ICONS[item.type] || ''" />
+              <span class="sf-pal-icon">
+                <svg viewBox="0 0 24 24" v-html="ICONS[item.type] || ''" />
               </span>
               <span class="sf-pal-label">{{ item.label }}</span>
             </div>
@@ -1038,8 +1038,8 @@ onMounted(load);
 .sf-pal-item:hover { background: #f7fbf9; }
 .sf-pal-item:hover .sf-pal-label { color: #165dff; }
 .sf-pal-fill { background: #fff; }
-.sf-pal-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0, 0, 0, .12); flex-shrink: 0; }
-.sf-pal-icon svg { width: 19px; height: 19px; display: block; }
+.sf-pal-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sf-pal-icon svg { width: 26px; height: 26px; display: block; }
 .sf-pal-label { font-size: 12px; color: #333; line-height: 1.2; text-align: center; }
 .sf-canvas { overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
 .sf-phone { width: 375px; min-height: 640px; background: #f2f3f5; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); display: flex; flex-direction: column; overflow: hidden; }

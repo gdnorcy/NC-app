@@ -10,18 +10,21 @@ export function genId() {
   return 'c_' + Date.now().toString(36) + (__seq++).toString(36);
 }
 
-// 组件分类底色（对齐 ew：基础=绿 / 特殊=紫 / 装修=蓝）
-export const CATEGORY_COLORS = {
-  '基础组件': '#5fc396',
-  '特殊组件': '#7e5bef',
-  '装修组件': '#3fa1f0',
+// 组件调色板（29 个，对齐 ew 原版：基础 17 / 特殊 5 / 装修 7；提交按钮归特殊组件，含短信认证）
+// 图标配色：三层蜜桃橙（浅 #ffc4a8 / 标准 #ff8a6a / 深 #f0503a），填充为主、大圆角、透明底，
+// 对齐 docs/规范/07-UI设计.md 与 web-admin/src/assets/comp-icons/ 原版 PNG 风格
+export const ICON_C = {
+  light: '#ffc4a8',
+  mid: '#ff8a6a',
+  dark: '#f0503a',
+  white: '#ffffff',
 };
 
 // 组件调色板（29 个，对齐 ew 原版：基础 17 / 特殊 5 / 装修 7；提交按钮归特殊组件，含短信认证）
+// 分组标题色仅用于分组条，图标本身不再用分类色方块
 export const COMPONENT_PALETTE = [
   {
     category: '基础组件',
-    color: CATEGORY_COLORS['基础组件'],
     items: [
       { type: 'text', label: '单行文本' },
       { type: 'textarea', label: '多行文本' },
@@ -44,7 +47,6 @@ export const COMPONENT_PALETTE = [
   },
   {
     category: '特殊组件',
-    color: CATEGORY_COLORS['特殊组件'],
     items: [
       { type: 'pagebreak', label: '分页' },
       { type: 'submit', label: '提交按钮' },
@@ -55,7 +57,6 @@ export const COMPONENT_PALETTE = [
   },
   {
     category: '装修组件',
-    color: CATEGORY_COLORS['装修组件'],
     items: [
       { type: 'swiper', label: '轮播图' },
       { type: 'bigimage', label: '大图模块' },
@@ -68,37 +69,67 @@ export const COMPONENT_PALETTE = [
   },
 ];
 
-// 组件库图标（白色线条 SVG inner 内容，配合分类底色的圆角方块渲染，对齐 ew 图标网格）
+// 组件库图标（三层蜜桃橙填充 SVG inner，viewBox 24×24，透明底无方块）
+// 浅 #ffc4a8 大块底 / 中 #ff8a6a 中间层 / 深 #f0503a 强调
 export const COMPONENT_ICONS = {
-  text: '<path d="M6 5.5h12M12 5.5v13"/>',
-  textarea: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M7.5 9.5h9M7.5 13h6"/>',
-  image: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="m6 17 3.5-3.5 2.5 2.5 3-3 3 3"/>',
-  radio: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="#fff" stroke="none"/>',
-  checkbox: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.3 12.3 2.5 2.5 5-5.4"/>',
-  select: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="m9 10.5 3 3.2 3-3.2"/>',
-  number: '<path d="M9.5 6 8 18M16 6l-1.5 12M5.5 10h13.5M5 14.5h13.5"/>',
-  date: '<rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M8 3v5M16 3v5M3.5 10.5h17"/>',
-  time: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-  location: '<path d="M12 21c-4.2-3.7-6.3-6.9-6.3-9.6a6.3 6.3 0 1 1 12.6 0C18.3 14.1 16.2 17.3 12 21z"/><circle cx="12" cy="11" r="2.3"/>',
-  attachment: '<path d="m20.5 11.5-8 8a5 5 0 0 1-7.1-7.1l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-2.9-2.9l7.2-7.1"/>',
-  sms: '<path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H10l-4.5 4v-4H7a3 3 0 0 1-3-3z"/><path d="M8.5 10h.01M12 10h.01M15.5 10h.01"/>',
-  agreement: '<rect x="4.5" y="3.5" width="15" height="17" rx="2.5"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
-  rate: '<path d="m12 3.8 2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z"/>',
-  filedownload: '<path d="M12 4v10.5M7.5 11l4.5 4.5 4.5-4.5M5 19.5h14"/>',
-  phoneauth: '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M10.8 17.8h2.4"/>',
-  carplate: '<rect x="3" y="7.5" width="18" height="9" rx="2"/><path d="M7 12h.01M10.5 12h.01M14 12h.01M17 12h.01"/>',
-  submit: '<circle cx="12" cy="12" r="8.5"/><path d="m8.3 12.2 2.5 2.5 4.9-5.4"/>',
-  pagebreak: '<path d="m6 5 6.5 7L6 19M12.5 5 19 12l-6.5 7"/>',
-  backdesc: '<rect x="4" y="4.5" width="16" height="15" rx="2.5"/><path d="M8 9h8M8 12.5h8M8 16h5"/>',
-  realtime: '<path d="M6.5 3.5h11M6.5 20.5h11M7.5 3.5c0 4.5 3.5 5.5 4.5 6.5 1-1 4.5-2 4.5-6.5M7.5 20.5c0-4.5 3.5-5.5 4.5-6.5 1 1 4.5 2 4.5 6.5"/>',
-  pay: '<rect x="4.5" y="3.5" width="15" height="17" rx="2.5"/><path d="m9 7.5 3 3.5 3-3.5M12 11v6M9.5 12.5h5M9.5 14.8h5"/>',
-  swiper: '<rect x="2.5" y="6" width="13.5" height="12" rx="2"/><path d="M18.5 8v8M21 9.5v5"/>',
-  bigimage: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.5" r="1.6"/><path d="m5.5 16.5 4.5-4.5 3 3 3.5-3.5 2.5 2.5"/>',
-  title: '<path d="M5.5 6h13M12 6v12M9 18h6"/>',
-  richtext: '<rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8h8M8 11.5h8M8 15h4.5"/>',
-  blank: '<rect x="5" y="5" width="14" height="14" rx="2.5" stroke-dasharray="3.5 3"/>',
-  line: '<path d="M3.5 12h17"/>',
-  video: '<rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="M10 9l5.2 3L10 15z" fill="#fff" stroke="none"/>',
+  // 单行文本：三行深浅横条
+  text: '<rect x="4" y="6" width="16" height="3" rx="1.5" fill="#ffc4a8"/><rect x="4" y="11" width="12" height="3" rx="1.5" fill="#ff8a6a"/><rect x="4" y="16" width="14" height="3" rx="1.5" fill="#f0503a"/>',
+  // 多行文本：浅橙块 + 三行深浅线
+  textarea: '<rect x="3.5" y="4.5" width="17" height="15" rx="3" fill="#ffc4a8"/><rect x="6.5" y="8" width="11" height="2" rx="1" fill="#ff8a6a"/><rect x="6.5" y="11.5" width="11" height="2" rx="1" fill="#fff"/><rect x="6.5" y="15" width="8" height="2" rx="1" fill="#f0503a"/>',
+  // 图片上传：浅橙块 + 深橙山 + 中橙太阳
+  image: '<rect x="3.5" y="5" width="17" height="14" rx="3" fill="#ffc4a8"/><circle cx="9" cy="9.5" r="1.8" fill="#ff8a6a"/><path d="m6 17 3.5-3.5 2.5 2.5 3-3 3 3z" fill="#f0503a"/>',
+  // 单选：浅橙圆底 + 深橙内点
+  radio: '<circle cx="12" cy="12" r="8.5" fill="#ffc4a8"/><circle cx="12" cy="12" r="3.2" fill="#f0503a"/>',
+  // 多选：浅橙圆角方块 + 白勾
+  checkbox: '<rect x="4" y="4" width="16" height="16" rx="5" fill="#ffc4a8"/><path d="m8.5 12.3 2.3 2.3 4.7-5.2" stroke="#f0503a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  // 下拉：浅橙块 + 深橙箭头
+  select: '<rect x="3.5" y="5" width="17" height="14" rx="3" fill="#ffc4a8"/><path d="m9.5 10 2.5 2.8 2.5-2.8z" fill="#f0503a"/>',
+  // 数字：浅橙块 + 深橙数字符号
+  number: '<rect x="3.5" y="5" width="17" height="14" rx="3" fill="#ffc4a8"/><path d="M9 8.5l-1.5 7M16 8.5l-1.5 7" stroke="#f0503a" stroke-width="1.8" stroke-linecap="round"/><path d="M6 11h12" stroke="#ff8a6a" stroke-width="1.5" stroke-linecap="round"/>',
+  // 日期：浅橙日历块 + 中橙顶条 + 深橙日期格
+  date: '<rect x="3.5" y="5.5" width="17" height="15" rx="3" fill="#ffc4a8"/><rect x="3.5" y="5.5" width="17" height="5" rx="2.5" fill="#ff8a6a"/><rect x="7" y="13" width="3.5" height="3.5" rx="1" fill="#f0503a"/>',
+  // 时间：浅橙圆底 + 深橙指针
+  time: '<circle cx="12" cy="12" r="8.5" fill="#ffc4a8"/><path d="M12 8v4.5l3 2" stroke="#f0503a" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+  // 定位：浅橙水滴 + 深橙中心点
+  location: '<path d="M12 21s-7.5-6.5-7.5-12a7.5 7.5 0 1 1 15 0c0 5.5-7.5 12-7.5 12z" fill="#ffc4a8"/><circle cx="12" cy="10.5" r="2.8" fill="#f0503a"/>',
+  // 附件：浅橙文件 + 深橙回形针
+  attachment: '<rect x="5" y="4" width="14" height="16" rx="2.5" fill="#ffc4a8"/><path d="m9.5 13.5 3-3a2.2 2.2 0 0 1 3.1 3.1l-3 3" stroke="#f0503a" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+  // 短信认证：浅橙气泡 + 深浅三点
+  sms: '<path d="M5 8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-6l-4 4v-4H8a3 3 0 0 1-3-3z" fill="#ffc4a8"/><circle cx="9" cy="10.5" r="1" fill="#f0503a"/><circle cx="12" cy="10.5" r="1" fill="#ff8a6a"/><circle cx="15" cy="10.5" r="1" fill="#f0503a"/>',
+  // 协议：浅橙文档 + 深橙勾
+  agreement: '<rect x="4.5" y="3.5" width="15" height="17" rx="2.5" fill="#ffc4a8"/><path d="m8.5 12 2.3 2.3 4.7-5" stroke="#f0503a" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  // 评分：浅橙星底 + 深橙描边
+  rate: '<path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8z" fill="#ffc4a8" stroke="#f0503a" stroke-width="1.2" stroke-linejoin="round"/>',
+  // 文件下载：浅橙向下箭头
+  filedownload: '<rect x="4" y="4" width="16" height="16" rx="4" fill="#ffc4a8"/><path d="M12 7.5v7M8.5 11l3.5 3.5L15.5 11M7 18h10" stroke="#f0503a" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  // 手机号授权：浅橙手机 + 深橙按钮条
+  phoneauth: '<rect x="7" y="3" width="10" height="18" rx="3" fill="#ffc4a8"/><rect x="10.5" y="18" width="3" height="1.6" rx="0.8" fill="#f0503a"/>',
+  // 车牌号：浅橙车牌块 + 深橙字
+  carplate: '<rect x="3" y="7" width="18" height="10" rx="2.5" fill="#ffc4a8"/><circle cx="7" cy="12" r="1" fill="#f0503a"/><circle cx="10.5" cy="12" r="1" fill="#ff8a6a"/><circle cx="14" cy="12" r="1" fill="#ff8a6a"/><circle cx="17" cy="12" r="1" fill="#f0503a"/>',
+  // 分页：深浅箭头
+  pagebreak: '<path d="m5 6 4 6-4 6" fill="none" stroke="#ffc4a8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m11 6 4 6-4 6" fill="none" stroke="#ff8a6a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="m17 6 4 6-4 6" fill="none" stroke="#f0503a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  // 提交按钮：深橙圆 + 白勾
+  submit: '<circle cx="12" cy="12" r="9" fill="#f0503a"/><path d="m8.3 12.2 2.5 2.5 4.9-5.4" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  // 后台描述：浅橙文档 + 深浅线
+  backdesc: '<rect x="4" y="4.5" width="16" height="15" rx="2.5" fill="#ffc4a8"/><rect x="7" y="8" width="10" height="2" rx="1" fill="#ff8a6a"/><rect x="7" y="11.5" width="10" height="2" rx="1" fill="#fff"/><rect x="7" y="15" width="6" height="2" rx="1" fill="#f0503a"/>',
+  // 实时动态：浅橙波纹
+  realtime: '<circle cx="12" cy="12" r="3" fill="#f0503a"/><path d="M12 5a7 7 0 0 1 7 7M12 8a4 4 0 0 1 4 4" stroke="#ff8a6a" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+  // 表单支付：浅橙卡片 + 深橙¥
+  pay: '<rect x="4.5" y="3.5" width="15" height="17" rx="2.5" fill="#ffc4a8"/><path d="m9 7.5 3 3.5 3-3.5M12 11v6M9.5 12.5h5" stroke="#f0503a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  // 轮播图：浅橙块 + 中橙图 + 深橙箭头
+  swiper: '<rect x="3" y="6" width="14" height="12" rx="2" fill="#ffc4a8"/><path d="m6 15 3-3 2.5 2.5L14 12l3 3z" fill="#ff8a6a"/><path d="M19 8v8M21.5 9.5v5" stroke="#f0503a" stroke-width="1.5" stroke-linecap="round"/>',
+  // 大图模块：浅橙块 + 深橙山 + 中橙太阳
+  bigimage: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="#ffc4a8"/><circle cx="9" cy="9" r="1.8" fill="#ff8a6a"/><path d="m6 16.5 4-4 3 3 3.5-3.5 2.5 2.5z" fill="#f0503a"/>',
+  // 标题：中橙横条 + 深橙竖
+  title: '<rect x="5" y="6" width="14" height="4" rx="2" fill="#ff8a6a"/><rect x="10.5" y="6" width="3" height="13" rx="1.5" fill="#f0503a"/>',
+  // 富文本：浅橙块 + 深浅行
+  richtext: '<rect x="4" y="3.5" width="16" height="17" rx="3" fill="#ffc4a8"/><rect x="7" y="7.5" width="10" height="2" rx="1" fill="#ff8a6a"/><rect x="7" y="11" width="10" height="2" rx="1" fill="#fff"/><rect x="7" y="14.5" width="6" height="2" rx="1" fill="#f0503a"/>',
+  // 空白块：浅橙虚线块
+  blank: '<rect x="5" y="5" width="14" height="14" rx="2.5" fill="none" stroke="#ffc4a8" stroke-width="1.5" stroke-dasharray="3 2.5"/>',
+  // 辅助线：三段深浅
+  line: '<rect x="3" y="11" width="5.5" height="2" rx="1" fill="#ffc4a8"/><rect x="9.25" y="11" width="5.5" height="2" rx="1" fill="#ff8a6a"/><rect x="15.5" y="11" width="5.5" height="2" rx="1" fill="#f0503a"/>',
+  // 视频：浅橙块 + 深橙播放三角
+  video: '<rect x="3" y="4.5" width="18" height="15" rx="4" fill="#ffc4a8"/><path d="M10 9.5l5.5 3-5.5 3z" fill="#f0503a"/>',
 };
 
 export const COMPONENT_LABEL = {
