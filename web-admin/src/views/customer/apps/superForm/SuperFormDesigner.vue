@@ -46,7 +46,14 @@
       <!-- 中：手机预览 -->
       <div class="sf-canvas">
         <div class="sf-phone">
-          <div class="sf-phone-status"><span>13:32</span><span>▂▄▆ ⏻</span></div>
+          <div class="sf-phone-status">
+            <span class="sf-phone-time">10:18</span>
+            <span class="sf-phone-icons">
+              <svg width="16" height="10" viewBox="0 0 16 10" fill="#303133"><rect x="0" y="6" width="2" height="4" rx="0.5"/><rect x="3.5" y="4" width="2" height="6" rx="0.5"/><rect x="7" y="2" width="2" height="8" rx="0.5"/><rect x="10.5" y="0" width="2" height="10" rx="0.5"/></svg>
+              <svg width="15" height="11" viewBox="0 0 15 11" fill="none" stroke="#303133" stroke-width="1"><path d="M1.5 4.5a8 8 0 0 1 12 0M3.5 7a5.5 5.5 0 0 1 8 0M6 9.5a2 2 0 0 1 3 0" stroke-linecap="round"/></svg>
+              <svg width="22" height="10" viewBox="0 0 25 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="#303133" opacity="0.4"/><rect x="2" y="2" width="16" height="7" rx="1" fill="#303133"/><rect x="22.5" y="3" width="2" height="5" rx="1" fill="#303133" opacity="0.4"/></svg>
+            </span>
+          </div>
           <div class="sf-phone-nav"><span class="sf-phone-nav-title">表单</span><span class="sf-phone-capsule">⋯ ◎</span></div>
           <div
             class="sf-phone-body"
@@ -1044,7 +1051,9 @@ onMounted(load);
 .sf-canvas { overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
 .sf-phone { width: 375px; min-height: 640px; background: #f2f3f5; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); display: flex; flex-direction: column; overflow: hidden; }
 /* 状态栏（浅色，对齐页面装修预览）+ 标题栏（白，含小程序胶囊） */
-.sf-phone-status { height: 24px; background: #fff; color: #303133; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 11px; flex-shrink: 0; }
+.sf-phone-status { height: 28px; background: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; flex-shrink: 0; }
+.sf-phone-time { font-size: 14px; font-weight: 600; color: #1d1d1f; }
+.sf-phone-icons { display: flex; align-items: center; gap: 5px; }
 .sf-phone-nav { height: 36px; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
 .sf-phone-nav-title { font-size: 14px; font-weight: 500; color: #303133; }
 .sf-phone-capsule { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #606266; border: 1px solid #e8e8e8; border-radius: 10px; padding: 1px 8px; background: #fafafa; }
