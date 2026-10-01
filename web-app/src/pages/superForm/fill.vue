@@ -11,14 +11,14 @@
           </view>
 
           <!-- 单行/多行文本 -->
-          <textarea v-if="comp.type === 'textarea'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder" />
-          <input v-else-if="comp.type === 'text'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder" />
+          <textarea v-if="comp.type === 'textarea'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder" :disabled="comp.content.readonly" />
+          <input v-else-if="comp.type === 'text'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder" :disabled="comp.content.readonly" />
 
           <!-- 数字 -->
-          <input v-else-if="comp.type === 'number'" class="sf-input" type="number" v-model="values[comp.id]" :placeholder="comp.content.placeholder" />
+          <input v-else-if="comp.type === 'number'" class="sf-input" type="number" v-model="values[comp.id]" :placeholder="comp.content.placeholder" :disabled="comp.content.readonly" />
 
           <!-- 时间 -->
-          <input v-else-if="comp.type === 'time'" class="sf-input" :type="timeType(comp.content.dateType)" v-model="values[comp.id]" />
+          <input v-else-if="comp.type === 'time'" class="sf-input" :type="timeType(comp.content.dateType)" v-model="values[comp.id]" :disabled="comp.content.readonly" />
 
           <!-- 图片上传（ew picture-upload：普通/身份证/营业执照 三种模式联动）
                上下布局：rowsShow 等分正方形框（ew getImgHeight 令高=宽），边框/背景走 底框边框/背景颜色；
@@ -106,13 +106,13 @@
           </view>
 
           <!-- 下拉选择 -->
-          <select v-else-if="comp.type === 'select'" class="sf-input" v-model="values[comp.id]">
+          <select v-else-if="comp.type === 'select'" class="sf-input" v-model="values[comp.id]" :disabled="comp.content.readonly">
             <option value="" disabled>请选择</option>
             <option v-for="(opt, i) in comp.content.options" :key="i" :value="opt.value">{{ opt.label }}</option>
           </select>
 
           <!-- 日期 -->
-          <input v-else-if="comp.type === 'date'" class="sf-input" :type="comp.content.dateType === 'time' ? 'datetime-local' : 'date'" v-model="values[comp.id]" />
+          <input v-else-if="comp.type === 'date'" class="sf-input" :type="comp.content.dateType === 'time' ? 'datetime-local' : 'date'" v-model="values[comp.id]" :disabled="comp.content.readonly" />
 
           <!-- 定位 -->
           <view v-else-if="comp.type === 'location'" class="sf-loc" @click="getLocation(comp.id)">
@@ -162,7 +162,7 @@
           </view>
 
           <!-- 车牌号 -->
-          <input v-else-if="comp.type === 'carplate'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder || '请输入车牌号'" />
+          <input v-else-if="comp.type === 'carplate'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder || '请输入车牌号'" :disabled="comp.content.readonly" />
 
           <!-- 标题 -->
           <!-- 标题：组件样式的主标题大小/颜色优先，回退内容配置 -->
@@ -373,6 +373,16 @@ async function load() {
     currentPage.value = 0;
     // 无规格的支付项预置金额，便于提交时记录
     components.value.forEach((c) => {
+      const ct = c.content || {};
+      // 预填 / 默认值（对齐 ew 预填文字 / 数字默认值；只读字段用户无法修改，仍按预填值展示）
+      if (c.type === 'text' || c.type === 'textarea') {
+        if (ct.prefill) values[c.id] = ct.prefill;
+      } else if (c.type === 'number') {
+        if (ct.defaultValue !== '' && ct.defaultValue != null) values[c.id] = ct.defaultValue;
+      } else if (c.type === 'date') {
+        // 单项日期支持预填文字；日期范围为数组，预填需另行处理，此处跳过
+        if (ct.dateType !== 'range' && ct.prefill) values[c.id] = ct.prefill;
+      }
       if (c.type === 'pay' && (!c.content.specs || !c.content.specs.length)) {
         values[c.id] = { amount: c.content.amount || 0 };
       }

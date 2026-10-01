@@ -146,37 +146,40 @@ export function defaultContent(type) {
   const base = { label: COMPONENT_LABEL[type] || '未命名', required: false, visible: true, placeholder: '', prefill: '' };
   switch (type) {
     case 'text':
-      return { ...base, maxLength: 400, minLength: 0, contentType: 'normal', syncName: false, inputType: [], readonly: false, verifyRepeat: false };
+      return { ...base, maxLength: 400, minLength: 0, contentType: 'normal', syncName: false, syncPhone: false, inputType: [], readonly: false, verifyRepeat: false };
     case 'textarea':
       return { ...base, maxLength: 400, minLength: 0, contentType: 'normal', readonly: false, verifyRepeat: false };
     case 'image':
       // ew 默认 label=上传图片；图片类型切换会联动 标题/提示文字/数量限制
       return { ...base, label: '上传图片', maxCount: 9, minCount: 0, imageType: 'normal', sampleImg: '' };
     case 'radio':
+      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }] };
     case 'checkbox':
-      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], min: 0, max: 0 };
+      // 多选的「最少/最多选择」字段名对齐面板(minSelect/maxSelect)与 C 端校验，区别于 radio（单选无数量限制）
+      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], minSelect: 0, maxSelect: 0 };
     case 'select':
       return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }] };
     case 'date':
-      return { ...base, dateType: 'date' };
+      // base 已含 prefill/placeholder；补充 readonly/校验/同步生日/范围默认值
+      return { ...base, dateType: 'date', readonly: false, verifyRepeat: false, syncBirthday: false, defaultRange: [] };
     case 'number':
-      return { ...base, min: 0, max: 999999, defaultValue: '' };
+      return { ...base, min: 0, max: 999999, defaultValue: '', readonly: false, verifyRepeat: false, step: 1 };
     case 'time':
-      return { ...base, dateType: 'datetime' };
+      return { ...base, dateType: 'datetime', readonly: false, verifyRepeat: false };
     case 'location':
-      return { ...base, tipText: '点击获取定位' };
+      return { ...base, tipText: '点击获取定位', readonly: false, verifyRepeat: false };
     case 'attachment':
-      return { ...base, maxCount: 3, minCount: 0 };
+      return { ...base, maxCount: 3, minCount: 0, readonly: false, verifyRepeat: false };
     case 'agreement':
       return { label: '我已阅读并同意', required: true, linkText: '《用户协议》', linkUrl: '' };
     case 'rate':
-      return { label: '评分', required: true, desc: '', allowHalf: false, max: 3 };
+      return { label: '评分', required: true, desc: '', allowHalf: false, max: 3, readonly: false, verifyRepeat: false };
     case 'filedownload':
       return { label: '文件下载', fileUrl: '', fileName: '', required: false };
     case 'phoneauth':
-      return { ...base, placeholder: '点击授权获取手机号' };
+      return { ...base, placeholder: '点击授权获取手机号', readonly: false, verifyRepeat: false };
     case 'sms':
-      return { ...base, placeholder: '请输入手机号', buttonText: '获取验证码' };
+      return { ...base, placeholder: '请输入手机号', buttonText: '获取验证码', readonly: false, verifyRepeat: false };
     case 'carplate':
       return { ...base, placeholder: '请输入车牌号' };
     case 'pagebreak':
