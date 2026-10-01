@@ -205,6 +205,32 @@
                       <span class="sf-hint" style="margin-left:10px">示例图可引导用户上传规定模式的图片</span>
                     </div>
                   </el-form-item>
+                  <!-- ew 示例引导卡：上传-示例 / 未上传-示例 双卡预览（普通类型；左卡随示例图联动） -->
+                  <el-form-item label="">
+                    <div class="sf-img-demo">
+                      <div class="sf-img-demo-card">
+                        <div class="sf-img-demo-head">上传-示例</div>
+                        <div class="sf-img-demo-body">
+                          <div class="sf-img-demo-box">
+                            <img v-if="selected.content.sampleImg" :src="selected.content.sampleImg" />
+                            <div v-else class="sf-img-demo-ph">
+                              <span class="sf-img-demo-photo">
+                                <span class="sf-img-demo-line" />
+                                <span class="sf-img-demo-line short" />
+                              </span>
+                              <span class="sf-img-demo-badge"><i class="sf-camera-icon sf-img-demo-cam"></i></span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="sf-img-demo-card">
+                        <div class="sf-img-demo-head">未上传-示例</div>
+                        <div class="sf-img-demo-body">
+                          <div class="sf-img-demo-box"><i class="sf-camera-icon sf-img-demo-cam-lg"></i></div>
+                        </div>
+                      </div>
+                    </div>
+                  </el-form-item>
                   <el-form-item label="输入限制">
                     <div class="sf-limit-row">
                       <span class="sf-limit-label">最少上传</span>
@@ -1395,6 +1421,20 @@ onMounted(load);
 .sf-limit-label { font-size: 13px; color: #606266; white-space: nowrap; }
 .sf-limit-slider { flex: 1; }
 .sf-limit-slider .el-slider__input { width: 60px; }
+/* —— 图片上传「上传-示例 / 未上传-示例」引导卡（对齐 ew 内容面板普通类型） —— */
+.sf-img-demo { display: flex; gap: 10px; width: 100%; }
+.sf-img-demo-card { flex: 1; min-width: 0; border: 1px solid #e4e7ed; background: #fff; }
+.sf-img-demo-head { height: 30px; line-height: 30px; text-align: center; background: #909399; color: #fff; font-size: 13px; font-weight: 600; letter-spacing: 1px; }
+.sf-img-demo-body { padding: 12px; display: flex; align-items: center; justify-content: center; }
+.sf-img-demo-box { width: 100%; max-width: 110px; aspect-ratio: 1 / 1; border: 1px dashed #d3d8de; background: #fafbfc; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.sf-img-demo-box img { width: 100%; height: 100%; object-fit: cover; }
+.sf-img-demo-ph { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.sf-img-demo-photo { position: relative; width: 72%; height: 54%; border-radius: 6px; background: linear-gradient(180deg, #e9ecf0 0%, #d9dee4 100%); overflow: hidden; }
+.sf-img-demo-line { position: absolute; left: 14%; right: 14%; bottom: 16%; height: 4px; border-radius: 2px; background: #c3cad2; }
+.sf-img-demo-line.short { right: 32%; bottom: 32%; background: #cdd4db; }
+.sf-img-demo-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: rgba(96, 98, 102, 0.78); display: flex; align-items: center; justify-content: center; }
+.sf-img-demo-cam { color: #fff; font-size: 14px; }
+.sf-img-demo-cam-lg { font-size: 26px; }
 /* —— 右栏面板（对齐 ew：蓝条标题 + 大块分段 tab + 灰色分区条） —— */
 .sf-panel-head { font-size: 16px; font-weight: 600; color: #303133; padding: 2px 0 8px 10px; border-left: 3px solid #409eff; margin-bottom: 12px; }
 .sf-seg { display: flex; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
