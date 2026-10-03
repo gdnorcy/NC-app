@@ -358,6 +358,10 @@ function migrate(db) {
   if (!colExists(db, 'content_article', 'commission_levels')) {
     db.exec("ALTER TABLE content_article ADD COLUMN commission_levels TEXT NOT NULL DEFAULT '[]'");
   }
+  // 商品单独指定超级表单：super_form='custom' 时生效，存 super_form_template.id（0=未指定）
+  if (!colExists(db, 'goods', 'super_form_id')) {
+    db.exec('ALTER TABLE goods ADD COLUMN super_form_id INTEGER NOT NULL DEFAULT 0');
+  }
 
   // —— scenes 表：补字段 + project_id → plan_id ——
   if (!colExists(db, 'scenes', 'preview_path')) {
@@ -2206,7 +2210,8 @@ function seedGoods(db) {
       real_sales INTEGER NOT NULL DEFAULT 0,      -- 真实销量
       fake_sales INTEGER NOT NULL DEFAULT 0,      -- 虚拟销量
       fake_people INTEGER NOT NULL DEFAULT 0,     -- 虚拟人数
-      super_form TEXT NOT NULL DEFAULT '',        -- 超级表单：default/单独
+      super_form TEXT NOT NULL DEFAULT '',        -- 超级表单：default(用商城默认)/custom(单独)
+      super_form_id INTEGER NOT NULL DEFAULT 0,    -- 单独指定的超级表单 id（super_form=custom 时生效）
       video TEXT NOT NULL DEFAULT '',             -- 商品视频（腾讯网址或mp4）
       video_cover TEXT NOT NULL DEFAULT '',       -- 视频封面（1:1）
       video_play TEXT NOT NULL DEFAULT 'popup',   -- 播放设置：popup弹窗/full全屏
@@ -3747,7 +3752,7 @@ function seedContent(db) {
       points_limit INTEGER NOT NULL DEFAULT 0, -- 积分限制 次/每天
       -- 付费设置
       pay_amount REAL NOT NULL DEFAULT 0,      -- 付费金额 0或空为不收费
-      super_form TEXT NOT NULL DEFAULT '',     -- 超级表单（待接入：红包封面）
+      super_form TEXT NOT NULL DEFAULT '',     -- 超级表单：存 super_form_template.id（''/0=不使用）
       form_show TEXT NOT NULL DEFAULT 'pay',   -- 表单展示 付费展示/直接展示
       files TEXT NOT NULL DEFAULT '[]',        -- 文件下载 [{name,url}]
       file_show TEXT NOT NULL DEFAULT 'pay',   -- 文件展示 付费展示/直接展示

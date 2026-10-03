@@ -89,12 +89,19 @@
               <span class="form-hint">点击查看系统链接，普通用户点击购买会跳转到该页面</span>
             </el-form-item>
             <el-form-item label="超级表单">
-              <el-select v-model="cfg.useFormId" style="width: 220px">
+              <el-select v-model="cfg.useFormId" style="width: 220px" filterable placeholder="请选择表单">
                 <el-option label="---不使用表单---" :value="0" />
-                <el-option label="红包封面" :value="1" />
+                <el-option
+                  v-for="sf in superFormOptions"
+                  :key="sf.value"
+                  :label="sf.label"
+                  :value="sf.value"
+                >
+                  <span>{{ sf.label }}</span>
+                  <span style="float: right; color: #b0b3ba; font-size: 12px">{{ sf.tag }}</span>
+                </el-option>
               </el-select>
-              <span class="form-hint">选用超级表单，多个商品一起下单统一调用，单个商品下单不使用表单，请到商品相关处选择为默认设置</span>
-              <span class="form-hint pending-hint">待接入：需开通「超级表单」应用后生效</span>
+              <span class="form-hint">调用「应用中心 - 高级功能 - 超级表单」中已创建并发布的表单；多个商品一起下单时统一调用，单个商品下单不使用表单</span>
             </el-form-item>
             <el-form-item label="成功跳转">
               <div class="link-row">
@@ -426,6 +433,7 @@ import { ref, reactive, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
 import { customerApiCall } from '../../../api';
+import { fetchSuperForms } from '../../../api/index';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
 import LinkPicker from '../apps/design/LinkPicker.vue';
 import MaterialPicker from '../apps/design/MaterialPicker.vue';
@@ -531,7 +539,22 @@ function onPickImg(url) {
   if (picker.value.target === 'shareImg') cfg.shareImg = url;
 }
 
-onMounted(load);
+// 超级表单选项（调用已创建并发布的表单；cfg.useFormId 存 formId，0=不使用）
+const superFormOptions = ref([]);
+async function loadSuperForms() {
+  try {
+    const { forms } = await fetchSuperForms();
+    superFormOptions.value = (forms || [])
+      .filter((f) => f.status === 'published')
+      .map((f) => ({
+        value: Number(f.id),
+        label: f.name,
+        tag: { published: '已发布', draft: '草稿', disabled: '已停用' }[f.status] || f.status,
+      }));
+  } catch (e) { superFormOptions.value = []; }
+}
+
+onMounted(() => { load(); loadSuperForms(); });
 </script>
 
 <style scoped>

@@ -403,6 +403,24 @@
         </view>
         <view class="dp-form-btn" :style="{ background: c.props.btnColor || '#165dff' }" @click="submitForm(i, c)"><text>{{ c.props.submitText || '提交' }}</text></view>
       </view>
+      <!-- 超级表单：入口卡片，点击跳该表单的独立填写页（复用 29 组件填写页能力） -->
+      <view v-else-if="c.type === 'superform'" class="dp-sf" @click="goSuperform(c)">
+        <view class="dp-sf-head">
+          <text class="dp-sf-title">{{ c.props.formName || '超级表单' }}</text>
+          <text class="dp-sf-tag">表单</text>
+        </view>
+        <view v-if="sfShowList(c).length" class="dp-sf-fields">
+          <view v-for="(f, fi) in sfShowList(c)" :key="fi" class="dp-sf-field">
+            <text class="dp-sf-field-name">{{ f.label || '字段' }}</text>
+            <text v-if="f.required" class="dp-sf-req">*</text>
+          </view>
+          <text v-if="sfHiddenCount(c) > 0 || sfExpanded[c.id]" class="dp-sf-more" @click.stop="toggleSfExpand(c)">
+            {{ sfExpanded[c.id] ? '收起字段' : '展开全部 ' + (c.props.fields || []).length + ' 个字段' }}
+          </text>
+        </view>
+        <text v-else-if="!(c.props.fields || []).length" class="dp-sf-none">该表单暂未配置字段</text>
+        <view class="dp-sf-btn" :style="{ background: c.props.btnColor || '#F0503A' }"><text>{{ c.props.btnText || '立即填写' }}</text></view>
+      </view>
       <!-- 客服联系 -->
       <view v-else-if="c.type === 'contact'" class="dp-contact">
         <view class="dp-contact-ico"><text>客</text></view>
@@ -1450,6 +1468,40 @@ function onJump(url) {
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
 }
 
+// 超级表单装修组件：跳该表单的独立填写页（/pages/superForm/fill，参数 ?formId=）
+function goSuperform(c) {
+  const formId = (c && c.props && c.props.formId) || '';
+  if (!formId) {
+    uni.showToast({ title: '请先在设计中心选择表单', icon: 'none' });
+    return;
+  }
+  uni.navigateTo({
+    url: `/pages/superForm/fill?formId=${formId}`,
+    fail: () => uni.showToast({ title: '打开表单失败', icon: 'none' }),
+  });
+}
+// 字段摘要显示数量：默认「前 4 个」；选「全部」且超过 8 个时先折叠，点「展开全部」再全量展示
+const SF_COLLAPSE_LIMIT = 8;
+const sfExpanded = reactive({});
+function sfShowList(c) {
+  const all = (c && c.props && c.props.fields) || [];
+  if (!all.length) return [];
+  const n = Number(c.props.fieldCount);
+  const limit = Number.isFinite(n) && n >= 0 ? n : 4;   // 缺省/脏数据回退「前 4 个」
+  if (limit <= 0) return [];
+  // 非「全部」模式下点「展开全部」→ 本次临时全量展示（不污染已保存的 fieldCount）
+  if (sfExpanded[c.id] && limit < 999) return all;
+  if (limit >= 999 && all.length > SF_COLLAPSE_LIMIT && !sfExpanded[c.id]) return all.slice(0, SF_COLLAPSE_LIMIT);
+  return all.slice(0, limit);
+}
+function sfHiddenCount(c) {
+  const all = (c && c.props && c.props.fields) || [];
+  return all.length - sfShowList(c).length;
+}
+function toggleSfExpand(c) {
+  sfExpanded[c.id] = !sfExpanded[c.id];
+}
+
 // 内容管理文章数据源（article-list source=content）
 const contentArticles = ref([]);
 const contentPics = ref([]);
@@ -1700,6 +1752,18 @@ function openChannel(kind, p) {
 .dp-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
 .dp-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+/* 超级表单入口卡片 */
+.dp-sf { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; background: #fff; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+.dp-sf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dp-sf-title { font-size: 14px; font-weight: 600; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-sf-tag { flex-shrink: 0; font-size: 10px; line-height: 1; color: #f0503a; background: #fff1ed; border-radius: 4px; padding: 3px 5px; }
+.dp-sf-fields { display: flex; flex-direction: column; gap: 8px; }
+.dp-sf-field { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
+.dp-sf-field-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-sf-req { color: #f0503a; margin-left: 2px; }
+.dp-sf-more { display: block; font-size: 11px; color: #86909c; text-align: center; padding: 2px 0; }
+.dp-sf-none { font-size: 12px; color: #86909c; border: 1px dashed #e5e6eb; border-radius: 6px; padding: 10px 12px; text-align: center; }
+.dp-sf-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
 .dp-video { border-radius: 8px; overflow: hidden; background: #000; position: relative; }
 .dp-video-player { width: 100%; height: 200px; display: block; }
 .dp-video-empty { height: 120px; background: #000; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.5); font-size: 13px; }

@@ -235,10 +235,31 @@
           <el-form-item label="虚拟销量"><el-input-number v-model="g.fakeSales" :min="0" controls-position="right" /></el-form-item>
           <el-form-item label="虚拟人数"><el-input-number v-model="g.fakePeople" :min="0" controls-position="right" /></el-form-item>
           <el-form-item label="超级表单">
-            <el-radio-group v-model="g.superForm">
-              <el-radio value="default">默认</el-radio>
-              <el-radio value="custom">单独</el-radio>
-            </el-radio-group>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <el-radio-group v-model="g.superForm">
+                <el-radio value="default">默认</el-radio>
+                <el-radio value="custom">单独</el-radio>
+              </el-radio-group>
+              <el-select
+                v-if="g.superForm === 'custom'"
+                v-model="g.superFormId"
+                style="width: 240px"
+                filterable
+                placeholder="选择该商品使用的表单"
+              >
+                <el-option label="---请选择表单---" :value="0" />
+                <el-option
+                  v-for="sf in superFormOptions"
+                  :key="sf.value"
+                  :label="sf.label"
+                  :value="sf.value"
+                >
+                  <span>{{ sf.label }}</span>
+                  <span style="float: right; color: #b0b3ba; font-size: 12px">{{ sf.tag }}</span>
+                </el-option>
+              </el-select>
+            </div>
+            <span class="form-hint">「默认」用商城设置里的表单；「单独」可为该商品指定自己的超级表单</span>
           </el-form-item>
           <el-form-item label="商品视频">
             <el-input v-model="g.video" placeholder="腾讯视频网址或本地 mp4 链接" class="w420" />
@@ -448,7 +469,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Plus, Close } from '@element-plus/icons-vue';
-import { customerApiCall } from '../../../api';
+import { customerApiCall, fetchSuperForms } from '../../../api';
 import AppPageHeader from '../../../components/AppPageHeader.vue';
 import RichTextEditor from '../apps/design/RichTextEditor.vue';
 import MaterialPicker from '../apps/design/MaterialPicker.vue';
@@ -465,6 +486,7 @@ const cardKeys = ref([]);  // 卡密库（应用中心-电子卡密管理端接�
 const cateOptions = ref([]);
 const paramTpls = ref([]);
 const levelOptions = ref([]);  // 会员等级（会员价逐行 + 会员专享指定等级）
+const superFormOptions = ref([]);  // 已发布超级表单（superForm='custom' 时可指定）
 const saving = ref(false);
 const paramName = ref('商品参数');
 const specName = ref('');
@@ -478,7 +500,7 @@ const g = reactive({
   marketPrice: 0, newUserPrice: 0, costPrice: 0, goodsNo: '',
   memberPrice: { mode: 'none', priceType: 'percent', priceMap: {} },
   param: [], recommend: false, unit: '', views: 0, realSales: 0, fakeSales: 0, fakePeople: 0,
-  superForm: 'default', video: '', videoCover: '', videoPlay: 'popup', tags: '', brief: '',
+  superForm: 'default', superFormId: 0, video: '', videoCover: '', videoPlay: 'popup', tags: '', brief: '',
   brandTag: '', titleTag: '', service: [], marketing: { points: 0, buyPoints: '', buyBalance: 0, coupon: false, share: false },
   member: { priceShow: 'default', noVipShowPrice: 'invisible', exclusive: 'default', buyLevel: 'all', levelIds: [] },
   distribution: { rule: 'off', commissionType: 'percent', commissionLevels: [] },
@@ -527,6 +549,24 @@ async function loadMeta() {
 
 function goCarmi() {
   router.push('/apps/card-carmi');
+}
+
+// 超级表单下拉（superForm='custom' 时可为本商品单独指定表单）
+// 只列已发布表单：草稿/停用的表单 C 端 public 接口取不到，绑了也填不了
+async function loadSuperForms() {
+  try {
+    const { forms } = await fetchSuperForms();
+    superFormOptions.value = (forms || [])
+      .filter((f) => f.status === 'published')
+      .map((f) => ({
+        value: Number(f.id),
+        label: f.name,
+        tag: { published: '已发布', draft: '草稿', disabled: '已停用' }[f.status] || f.status,
+      }));
+  } catch (e) {
+    console.warn('[GoodsEdit] loadSuperForms fail', e);
+    superFormOptions.value = [];
+  }
 }
 
 async function loadGoods() {
@@ -647,6 +687,7 @@ function goBack() {
 
 onMounted(async () => {
   await loadMeta();
+  loadSuperForms();
   await loadGoods();
 });
 </script>

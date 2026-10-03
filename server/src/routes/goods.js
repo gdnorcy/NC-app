@@ -214,14 +214,14 @@ export function createGoodsRouter(db) {
         `INSERT INTO goods (customer_id, top_type, type, status, sort_order, title, cate_ids, images, thumb, info,
            pickup, freight_mode, fixed_freight, sale_mode, spec_mode, stock, min_buy, weight, price, market_price,
            new_user_price, cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
-           super_form, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
+           super_form, super_form_id, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
            distribution, advanced, phone_required, card_key_id, new_user_price)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         cid, g.topType, g.type, g.status, g.sortOrder, g.title, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
         g.weight, g.price, g.marketPrice, g.newUserPrice || 0, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
-        g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.video, g.videoCover,
+        g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.superFormId || 0, g.video, g.videoCover,
         g.videoPlay, g.tags, g.brief, g.brandTag, g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing),
         JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId, g.newUserPrice || 0
       );
@@ -800,7 +800,7 @@ export function createGoodsRouter(db) {
         `UPDATE goods SET top_type = ?, type = ?, status = ?, sort_order = ?, title = ?, cate_ids = ?, images = ?,
            thumb = ?, info = ?, pickup = ?, freight_mode = ?, fixed_freight = ?, sale_mode = ?, spec_mode = ?, stock = ?,
            min_buy = ?, weight = ?, price = ?, market_price = ?, new_user_price = ?, cost_price = ?, goods_no = ?, member_price = ?,
-           param = ?, recommend = ?, unit = ?, views = ?, real_sales = ?, fake_sales = ?, fake_people = ?, super_form = ?,
+           param = ?, recommend = ?, unit = ?, views = ?, real_sales = ?, fake_sales = ?, fake_people = ?, super_form = ?, super_form_id = ?,
            video = ?, video_cover = ?, video_play = ?, tags = ?, brief = ?, brand_tag = ?, title_tag = ?, service = ?,
            marketing = ?, member = ?, distribution = ?, advanced = ?, phone_required = ?, card_key_id = ?,
            updated_at = datetime('now')
@@ -809,7 +809,7 @@ export function createGoodsRouter(db) {
         g.topType, g.type, g.status, g.sortOrder, g.title, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
         g.weight, g.price, g.marketPrice, g.newUserPrice || 0, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
-        g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.video, g.videoCover,
+        g.recommend, g.unit, g.views, g.realSales, g.fakeSales, g.fakePeople, g.superForm, g.superFormId || 0, g.video, g.videoCover,
         g.videoPlay, g.tags, g.brief, g.brandTag, g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing),
         JSON.stringify(g.member), JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId,
         exist.id
@@ -848,16 +848,16 @@ export function createGoodsRouter(db) {
         `INSERT INTO goods (customer_id, top_type, type, status, sort_order, title, cate_ids, images, thumb, info,
            pickup, freight_mode, fixed_freight, sale_mode, spec_mode, stock, min_buy, weight, price, market_price,
            new_user_price, cost_price, goods_no, member_price, param, recommend, unit, views, real_sales, fake_sales, fake_people,
-           super_form, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
+           super_form, super_form_id, video, video_cover, video_play, tags, brief, brand_tag, title_tag, service, marketing, member,
            distribution, advanced, phone_required, card_key_id, new_user_price)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         cid, g.topType, g.type, 'off', 0, `${g.title}（副本）`, JSON.stringify(g.cateIds), JSON.stringify(g.images),
         g.thumb, g.info, g.pickup, g.freightMode, g.fixedFreight, g.saleMode, g.specMode, g.stock, g.minBuy,
         g.weight, g.price, g.marketPrice, g.newUserPrice || 0, g.costPrice, g.goodsNo, JSON.stringify(g.memberPrice), JSON.stringify(g.param),
-        0, g.unit, 0, 0, 0, 0, g.superForm, g.video, g.videoCover, g.videoPlay, g.tags, g.brief, g.brandTag,
+        0, g.unit, 0, 0, 0, 0, g.superForm, g.superFormId || 0, g.video, g.videoCover, g.videoPlay, g.tags, g.brief, g.brandTag,
         g.titleTag, JSON.stringify(g.service), JSON.stringify(g.marketing), JSON.stringify(g.member),
-        JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId
+        JSON.stringify(g.distribution), JSON.stringify(g.advanced), g.phoneRequired, g.cardKeyId, g.newUserPrice || 0
       );
       const skus = db.prepare('SELECT * FROM goods_sku WHERE goods_id = ?').all(src.id);
       for (const s of skus) {
@@ -913,6 +913,8 @@ function normalizeGoods(body) {
     fakeSales: Number(body.fakeSales) || 0,
     fakePeople: Number(body.fakePeople) || 0,
     superForm: body.superForm || '',
+    //单独指定的超级表单 id（super_form='custom' 时生效；0=未指定）
+    superFormId: Number(body.superFormId) || 0,
     video: body.video || '',
     videoCover: body.videoCover || '',
     videoPlay: body.videoPlay || 'popup',
@@ -966,6 +968,7 @@ function rowToGoods(r) {
     fakeSales: r.fake_sales,
     fakePeople: r.fake_people,
     superForm: r.super_form,
+    superFormId: r.super_form_id || 0,
     video: r.video,
     videoCover: r.video_cover,
     videoPlay: r.video_play,

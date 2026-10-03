@@ -323,13 +323,21 @@
             <span class="form-hint">元，0或空为不收费</span>
           </el-form-item>
           <el-form-item label="文章表单">
-            <el-select v-model="form.superForm" style="width: 260px" placeholder="不使用表单">
+            <el-select v-model="form.superForm" style="width: 260px" placeholder="不使用表单" filterable>
               <el-option label="不使用表单" value="" />
-              <el-option label="红包封面（待接入）" value="hongbao" disabled>
-                <span>红包封面（待接入）</span>
+              <el-option
+                v-for="sf in superFormOptions"
+                :key="sf.value"
+                :label="sf.label"
+                :value="sf.value"
+              >
+                <span>{{ sf.label }}</span>
+                <span style="float: right; color: #b0b3ba; font-size: 12px">{{ sf.tag }}</span>
               </el-option>
             </el-select>
-            <div class="form-hint full">超级表单能力待接入：需新建「超级表单」应用后生效</div>
+            <div class="form-hint full">
+              调用「应用中心 - 高级功能 - 超级表单」中已创建并发布的表单；读者按下方「表单展示」时机填写后提交。
+            </div>
           </el-form-item>
           <el-form-item label="表单展示">
             <el-radio-group v-model="form.formShow">
@@ -391,6 +399,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Plus, Close } from '@element-plus/icons-vue';
 import { customerApiCall } from '../../../api';
+import { fetchSuperForms } from '../../../api/index';
 import RichTextEditor from '../apps/design/RichTextEditor.vue';
 import MaterialPicker from '../apps/design/MaterialPicker.vue';
 
@@ -405,6 +414,21 @@ const saving = ref(false);
 const picker = reactive({ show: false, target: '', type: 'image' });
 const videoPicker = reactive({ show: false, index: -1 });
 const relate = reactive({ show: false, list: [], selected: [] });
+
+// 超级表单选项（调用已创建并发布的表单；后端 super_form 存 formId）
+const superFormOptions = ref([]);
+async function loadSuperForms() {
+  try {
+    const { forms } = await fetchSuperForms();
+    superFormOptions.value = (forms || [])
+      .filter((f) => f.status === 'published')
+      .map((f) => ({
+        value: String(f.id),
+        label: f.name,
+        tag: { published: '已发布', draft: '草稿', disabled: '已停用' }[f.status] || f.status,
+      }));
+  } catch (e) { superFormOptions.value = []; }
+}
 
 const emptyForm = () => ({
   status: 1, sortOrder: 0, cateIds: [], title: '', thumb: '', carousel: [], updateAt: '',
@@ -535,6 +559,7 @@ async function save(backToList) {
 
 onMounted(() => {
   loadCates();
+  loadSuperForms();
   if (isEdit.value) loadDetail();
 });
 </script>

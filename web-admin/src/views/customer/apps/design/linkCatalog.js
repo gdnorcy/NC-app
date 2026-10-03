@@ -54,6 +54,12 @@ export const LINK_CATALOG = [
     ],
   },
   {
+    name: '超级表单',
+    items: [
+      { label: '超级表单填写页', value: '/pages/superForm/fill?formId=1', desc: '示例链接：按实际表单替换 formId（如 ?formId=5）；需在「应用中心-高级功能-超级表单」中创建并发布表单' },
+    ],
+  },
+  {
     name: '我的',
     items: [
       { label: '会员中心', value: '/pages/card/member' },

@@ -67,7 +67,7 @@
               <div v-if="dragOverIdx === idx" class="sf-drop-line" />
               <div
                 class="sf-comp"
-                :class="{ active: comp.id === selectedId }"
+                :class="{ active: comp.id === selectedId, 'is-hidden': !compVisible(comp) }"
                 draggable="true"
                 @click="selectComp(comp.id)"
                 @dragstart="onCompDrag(comp.id, $event)"
@@ -80,6 +80,7 @@
                 </div>
                 <ComponentPreview :comp="comp" :layout="settings.layout" />
               </div>
+              <div v-if="!compVisible(comp)" class="sf-hidden-badge">已隐藏</div>
             </div>
             <div v-if="dragOverIdx === components.length" class="sf-drop-line" />
             <div v-if="!components.length" class="sf-empty">请从左侧列表中选择一个组件，然后用鼠标拖动组件放置于此处.</div>
@@ -98,13 +99,14 @@
           </div>
           <div v-if="propTab === 'content'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
-              <el-form-item label="是否显示" v-if="selected.type !== 'submit' && !noPropTypes.includes(selected.type)">
+              <!-- P0：ew 在全部 29 组件渲染「是否显示」+「是否必填」。是否显示恒定渲染；是否必填避开自带必填控件的组件（radio/checkbox/select/date/number/time/location/attachment/phoneauth/sms/carplate/rate/agreement）与提交按钮（submit），其余 12 装修/特殊组件保留 ew 同款「是否必填」开关 -->
+              <el-form-item label="是否显示">
                 <el-radio-group v-model="selected.content.visible">
                   <el-radio :value="true">显示</el-radio>
                   <el-radio :value="false">隐藏</el-radio>
                 </el-radio-group>
               </el-form-item>
-              <el-form-item label="是否必填" v-if="selected.type !== 'submit' && !noPropTypes.includes(selected.type)">
+              <el-form-item label="是否必填" v-if="selected.type !== 'submit' && !['radio','checkbox','select','date','number','time','location','attachment','phoneauth','sms','carplate','rate','agreement'].includes(selected.type)">
                 <el-radio-group v-model="selected.content.required">
                   <el-radio :value="true">必填</el-radio>
                   <el-radio :value="false">非必填</el-radio>
@@ -263,14 +265,14 @@
                   <el-switch v-model="selected.content.verifyRepeat" />
                   <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
-                <el-form-item label="选项类型">
+                <el-form-item v-if="selected.type === 'radio' || selected.type === 'checkbox'" label="选项类型">
                   <el-radio-group v-model="selected.content.optionType">
                     <el-radio value="text">文字选项</el-radio>
                     <el-radio value="image">图片选项</el-radio>
                     <el-radio value="imageText">图文选项</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="选项">
+                <el-form-item v-if="selected.type !== 'select' || selected.content.presetType === 'normal'" label="选项">
                   <div v-for="(opt, oi) in selected.content.options" :key="oi" class="sf-opt-row">
                     <template v-if="selected.content.optionType === 'image'">
                       <el-input v-model="opt.image" placeholder="图片URL" style="width: 200px" />
@@ -282,11 +284,45 @@
                   </div>
                   <el-button size="small" @click="selected.content.options.push({ label: '新选项', value: String(selected.content.options.length + 1), image: '' })">+ 添加选项</el-button>
                 </el-form-item>
+                <template v-if="selected.type === 'select'">
+                  <el-form-item label="预设类型">
+                    <el-radio-group v-model="selected.content.presetType">
+                      <el-radio value="normal">普通</el-radio>
+                      <el-radio value="region">省市区</el-radio>
+                      <el-radio value="date">日期</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item v-if="selected.content.presetType !== 'normal'" label="下拉框级数">
+                    <el-radio-group v-model="selected.content.level">
+                      <el-radio :value="1">一级</el-radio><el-radio :value="2">二级</el-radio><el-radio :value="3">三级</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item v-if="selected.content.presetType !== 'normal'" label="说明">
+                    <span class="sf-hint">{{ selected.content.presetType === 'region' ? '省市区三级联动；如仅需省/市请下调级数' : '年 / 月 / 日 分级联动；如需选择三级级数请直接使用日期组件' }}</span>
+                  </el-form-item>
+                </template>
                 <el-form-item v-if="selected.type === 'checkbox'" label="最少选择">
                   <el-input-number v-model="selected.content.minSelect" :min="0" size="small" />
                 </el-form-item>
                 <el-form-item v-if="selected.type === 'checkbox'" label="最多选择">
                   <el-input-number v-model="selected.content.maxSelect" :min="0" size="small" />
+                </el-form-item>
+                <el-form-item v-if="selected.type === 'checkbox'" label="排他选项">
+                  <el-switch v-model="selected.content.exclusive" />
+                  <span class="sf-hint">开启后，选中排他项将清空其他选择（如"以上都不是"）</span>
+                </el-form-item>
+                <el-form-item v-if="selected.type === 'checkbox' && selected.content.exclusive" label="排他项">
+                  <el-select v-model="selected.content.exclusiveValue" style="width: 160px">
+                    <el-option v-for="(opt, oi) in selected.content.options" :key="oi" :label="opt.label" :value="opt.value" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="selected.type === 'checkbox'" label="添加其他选项">
+                  <el-switch v-model="selected.content.allowOther" />
+                  <span class="sf-hint">允许用户填写其他选项</span>
+                </el-form-item>
+                <el-form-item v-if="selected.type === 'checkbox' || (selected.type === 'select' && selected.content.presetType === 'normal')" label="批量添加">
+                  <el-input type="textarea" :rows="2" v-model="batchOptionsText" placeholder="每行一个选项，回车分隔" />
+                  <el-button size="small" @click="batchAddOptions">批量添加</el-button>
                 </el-form-item>
               </template>
 
@@ -386,6 +422,12 @@
                   <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
                 <el-form-item label="按钮文案"><el-input v-model="selected.content.tipText" /></el-form-item>
+                <el-form-item label="内容类型">
+                  <el-radio-group v-model="selected.content.contentType">
+                    <el-radio value="point">定位点</el-radio>
+                    <el-radio value="route">点到点</el-radio>
+                  </el-radio-group>
+                </el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'attachment'">
@@ -418,10 +460,31 @@
                     <span>个</span>
                   </div>
                 </el-form-item>
+                <el-form-item label="上传类型">
+                  <el-checkbox-group v-model="selected.content.accept">
+                    <el-checkbox v-for="ext in ATTACH_EXTS" :key="ext" :value="ext">{{ ext }}</el-checkbox>
+                  </el-checkbox-group>
+                  <span class="sf-hint">不选则允许所有类型</span>
+                </el-form-item>
+                <el-form-item label="大小限制">
+                  <el-input-number v-model="selected.content.maxSize" :min="0" :max="102400" /> KB
+                  <span class="sf-hint">0 表示不限</span>
+                </el-form-item>
+                <el-form-item label="">
+                  <span class="sf-hint">该组件适用于 H5 / 微信小程序 / 头条小程序 / 百度小程序 / 支付宝小程序，暂不支持其他端</span>
+                </el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'agreement'">
-                <el-form-item label="协议正文"><el-input v-model="selected.content.label" type="textarea" :rows="2" /></el-form-item>
+                <el-form-item label="勾选文案"><el-input v-model="selected.content.label" placeholder="如：我已阅读并同意" /></el-form-item>
+                <el-form-item label="协议正文"><el-input v-model="selected.content.content" type="textarea" :rows="3" placeholder="协议全文，看完模式将展示供阅读" /></el-form-item>
+                <el-form-item label="显示方式">
+                  <el-radio-group v-model="selected.content.showMode">
+                    <el-radio value="direct">直接勾选</el-radio>
+                    <el-radio value="view">看完勾选</el-radio>
+                  </el-radio-group>
+                  <span class="sf-hint">看完勾选：需阅读完协议正文方可勾选</span>
+                </el-form-item>
                 <el-form-item label="必须勾选">
                   <el-radio-group v-model="selected.content.required">
                     <el-radio :value="true">是</el-radio><el-radio :value="false">否</el-radio>
@@ -459,6 +522,8 @@
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="文件名称"><el-input v-model="selected.content.fileName" /></el-form-item>
                 <el-form-item label="文件地址"><el-input v-model="selected.content.fileUrl" placeholder="https://" /></el-form-item>
+                <el-form-item label="示例文件"><el-input v-model="selected.content.sampleFile" placeholder="选填，示例文件地址" /></el-form-item>
+                <el-form-item label="提示文字"><el-input v-model="selected.content.tip" placeholder="选填，如下载说明" /></el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'phoneauth'">
@@ -510,7 +575,10 @@
               </template>
 
               <template v-else-if="selected.type === 'title'">
-                <el-form-item label="标题文字"><el-input v-model="selected.content.text" /></el-form-item>
+                <el-form-item label="标题文字"><el-input v-model="selected.content.text" placeholder="主标题" /></el-form-item>
+                <el-form-item label="副标题文字"><el-input v-model="selected.content.subtitle" placeholder="选填，主标题下方的副标题" /></el-form-item>
+                <el-form-item label="提示文字"><el-input v-model="selected.content.tip" placeholder="选填，标题下方灰色提示" /></el-form-item>
+                <el-form-item label="标题链接"><el-input v-model="selected.content.link" placeholder="选填，点击标题跳转" /></el-form-item>
                 <el-form-item label="文字大小"><el-input-number v-model="selected.content.size" :min="12" :max="40" /> px</el-form-item>
                 <el-form-item label="对齐方式">
                   <el-radio-group v-model="selected.content.align">
@@ -537,6 +605,7 @@
                   </el-select>
                 </el-form-item>
                 <el-form-item label="线条颜色"><el-color-picker v-model="selected.content.color" /></el-form-item>
+                <el-form-item label="线条高度"><el-input-number v-model="selected.content.height" :min="1" :max="20" /> px</el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'swiper'">
@@ -547,17 +616,31 @@
                   </div>
                   <el-button size="small" @click="selected.content.images.push('')">+ 添加图片</el-button>
                 </el-form-item>
+                <el-form-item label="图片描述"><el-input v-model="selected.content.desc" placeholder="选填，轮播图下方说明文字" /></el-form-item>
+                <el-form-item label="点击链接"><el-input v-model="selected.content.link" placeholder="选填，点击轮播图跳转" /></el-form-item>
                 <el-form-item label="高度"><el-input-number v-model="selected.content.height" :min="60" :max="400" /> px</el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'bigimage'">
                 <el-form-item label="图片地址"><el-input v-model="selected.content.image" placeholder="图片 URL" /></el-form-item>
+                <el-form-item label="图片描述"><el-input v-model="selected.content.desc" placeholder="选填，大图下方说明文字" /></el-form-item>
                 <el-form-item label="跳转链接"><el-input v-model="selected.content.link" placeholder="选填，点击大图跳转" /></el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'video'">
                 <el-form-item label="视频地址"><el-input v-model="selected.content.src" placeholder="视频 URL" /></el-form-item>
                 <el-form-item label="封面图"><el-input v-model="selected.content.poster" placeholder="选填" /></el-form-item>
+                <el-form-item label="显示方式">
+                  <el-radio-group v-model="selected.content.display">
+                    <el-radio value="direct">直接显示</el-radio>
+                    <el-radio value="popup">弹出显示</el-radio>
+                  </el-radio-group>
+                  <span class="sf-hint">弹出显示：仅展示封面与播放按钮，点击后弹出播放</span>
+                </el-form-item>
+                <el-form-item label="自动播放">
+                  <el-switch v-model="selected.content.autoplay" />
+                  <span class="sf-hint">开启后视频进入页面即自动播放（直接显示模式生效）</span>
+                </el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'backdesc'">
@@ -567,16 +650,37 @@
               <template v-else-if="selected.type === 'realtime'">
                 <el-form-item label="模块标题"><el-input v-model="selected.content.label" /></el-form-item>
                 <el-form-item label="动态文案"><el-input v-model="selected.content.title" placeholder="如：已有 0 人参与" /></el-form-item>
+                <el-form-item label="虚拟人数">
+                  <el-input-number v-model="selected.content.fakeCount" :min="0" />
+                  <span class="sf-hint">叠加到真实参与数上展示，营造热度</span>
+                </el-form-item>
+                <el-form-item label="开启倒计时">
+                  <el-switch v-model="selected.content.countdown" />
+                </el-form-item>
+                <el-form-item v-if="selected.content.countdown" label="倒计时时间">
+                  <el-date-picker v-model="selected.content.countdownTime" type="datetime" placeholder="选择结束时间" value-format="YYYY-MM-DD HH:mm:ss" />
+                </el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'pagebreak'">
-                <el-form-item label="说明"><span class="sf-hint">分页组件用于把表单拆成多页，填写者需逐页填写后提交。</span></el-form-item>
+                <el-form-item label="禁止返回上一步">
+                  <el-switch v-model="selected.content.noReturn" />
+                  <span class="sf-hint">开启后填写者无法返回上一页</span>
+                </el-form-item>
+                <el-form-item label="上一步按钮文字"><el-input v-model="selected.content.prevText" placeholder="上一步" /></el-form-item>
+                <el-form-item label="下一步按钮文字"><el-input v-model="selected.content.nextText" placeholder="下一页" /></el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'pay'">
                 <el-form-item label="支付标题"><el-input v-model="selected.content.label" /></el-form-item>
-                <el-form-item label="固定金额"><el-input-number v-model="selected.content.amount" :min="0" :precision="2" /> 元</el-form-item>
-                <el-form-item label="支付规格">
+                <el-form-item label="规格类型">
+                  <el-radio-group v-model="selected.content.specType">
+                    <el-radio value="single">单规格</el-radio>
+                    <el-radio value="multi">多规格</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item v-if="selected.content.specType !== 'multi'" label="固定金额"><el-input-number v-model="selected.content.amount" :min="0" :precision="2" /> 元</el-form-item>
+                <el-form-item v-else label="支付规格">
                   <div v-for="(sp, spi) in selected.content.specs" :key="spi" class="sf-opt-row">
                     <el-input v-model="sp.name" placeholder="规格名" style="width: 110px" />
                     <el-input-number v-model="sp.price" :min="0" :precision="2" />
@@ -584,21 +688,62 @@
                   </div>
                   <el-button size="small" @click="selected.content.specs.push({ name: '新规格', price: 0 })">+ 添加规格</el-button>
                 </el-form-item>
+                <el-form-item label="库存展示">
+                  <el-switch v-model="selected.content.showStock" />
+                  <span v-if="selected.content.showStock" style="margin-left:8px">
+                    库存 <el-input-number v-model="selected.content.stock" :min="0" style="width:120px" /> 件
+                  </span>
+                </el-form-item>
+                <el-form-item label="支付退款">
+                  <el-select v-model="selected.content.refundType" style="width:160px">
+                    <el-option label="不支持退款" value="none" />
+                    <el-option label="随时退款" value="anytime" />
+                    <el-option label="条件退款" value="condition" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="支付核销"><el-switch v-model="selected.content.verify" /><span class="sf-hint">开启后支付成功需核销使用</span></el-form-item>
+                <el-form-item label="支付限购">
+                  <el-input-number v-model="selected.content.limitBuy" :min="0" /> 件/人
+                  <span class="sf-hint">0 表示不限制</span>
+                </el-form-item>
+                <el-form-item label="日期选择">
+                  <el-switch v-model="selected.content.dateSelect" />
+                  <span class="sf-hint">开启后填写者需选择参与日期</span>
+                </el-form-item>
+                <el-form-item label="优惠券"><el-switch v-model="selected.content.coupon" /></el-form-item>
+                <el-form-item label="积分抵扣"><el-switch v-model="selected.content.points" /></el-form-item>
+                <el-form-item label="会员折扣"><el-switch v-model="selected.content.memberDiscount" /></el-form-item>
+                <el-form-item label="支付分销"><el-switch v-model="selected.content.distribute" /><span class="sf-hint">开启后推广员可得佣金</span></el-form-item>
                 <el-form-item label="支付方式">
                   <el-radio-group v-model="selected.content.payType">
                     <el-radio value="wechat">微信支付</el-radio>
                     <el-radio value="alipay">支付宝</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="说明"><span class="sf-hint">实际微信/支付宝支付将在发布后接入，当前仅记录所选规格与金额。</span></el-form-item>
+                <el-form-item label="说明"><span class="sf-hint">实际微信/支付宝支付、退款/核销/分销等能力将在发布后接入，当前仅记录配置。</span></el-form-item>
               </template>
 
               <template v-else-if="selected.type === 'submit'">
                 <el-form-item label="内容标题"><el-input v-model="selected.content.label" /></el-form-item>
+                <el-form-item label="上下文提示">
+                  <el-select v-model="selected.content.context" style="width:160px">
+                    <el-option label="通用" value="general" />
+                    <el-option label="商品表单" value="goods" />
+                    <el-option label="活动表单" value="activity" />
+                    <el-option label="会员表单" value="member" />
+                    <el-option label="文章表单" value="article" />
+                    <el-option label="视频表单" value="video" />
+                    <el-option label="音频表单" value="audio" />
+                  </el-select>
+                  <span class="sf-hint">{{ submitContextHint }}</span>
+                </el-form-item>
                 <el-form-item label="提示文字"><el-input v-model="selected.content.tipText" placeholder="提交成功后显示的提示信息" /></el-form-item>
                 <el-form-item label="轻提示">
                   <el-switch v-model="selected.content.lightTip" />
                   <span class="sf-hint">默认关闭，弹出提示文字，需点击确认按钮再跳转</span>
+                </el-form-item>
+                <el-form-item label="跳转指定页面">
+                  <el-input v-model="selected.content.jumpLink" placeholder="如 /pages/webview?src=... 或外部链接（留空不跳转）" />
                 </el-form-item>
               </template>
             </el-form>
@@ -1060,6 +1205,8 @@ const selectedId = ref(null);
 const panelMode = ref('settings');
 const propTab = ref('content');
 const formSettingsTab = ref('basic');
+// 批量添加选项（textarea 逐行 → options）
+const batchOptionsText = ref('');
 // 填表人群「指定等级」候选项（对齐 ew「请选择等级（可多选）」；等级体系待接入，先空态）
 const levelOptions = ref([]);
 const saving = ref(false);
@@ -1100,8 +1247,19 @@ const curStyleRows = computed(() => (curStyleSchema.value.styleRows || []).filte
 const curColorRows = computed(() => (curStyleSchema.value.colorRows || []).filter((r) => !r.hOnly || settings.layout === 'horizontal'));
 // 选择类字段（对齐 ew：含评分）
 const choiceComponents = computed(() => components.value.filter((c) => ['radio', 'checkbox', 'select', 'rate'].includes(c.type)));
-// 纯展示/特殊组件不显示「是否显示 / 是否必填」表头
-const noPropTypes = ['pagebreak', 'backdesc', 'realtime', 'swiper', 'bigimage', 'title', 'richtext', 'blank', 'line', 'video', 'pay'];
+// 提交按钮上下文提示（对齐 ew：不同业务场景按钮功能说明）
+const SUBMIT_CONTEXT_HINTS = {
+  general: '通用表单，提交即完成',
+  goods: '商品表单：提交后通常进入下单/购买流程',
+  activity: '活动表单：提交即报名/参与活动',
+  member: '会员表单：提交即开通/绑定会员',
+  article: '文章表单：提交即订阅/收藏文章',
+  video: '视频表单：提交即观看/互动视频',
+  audio: '音频表单：提交即收听/互动音频',
+};
+const submitContextHint = computed(() => SUBMIT_CONTEXT_HINTS[selected.value?.content?.context] || SUBMIT_CONTEXT_HINTS.general);
+// 附件可上传的扩展名白名单（不选 = 不限）
+const ATTACH_EXTS = ['doc', 'docx', 'xls', 'xlsx', 'csv', 'ppt', 'pptx', 'pdf', '7z', 'zip', 'rar', 'mp4', 'mov', 'mkv', 'avi'];
 // 全局样式距离属性行（对齐 ew：两个「左右边距」分别为页面级 / 组件级；圆角行无滑杆）
 const distRows = [
   { key: 'marginTop', label: '顶外边距', max: 100 },
@@ -1171,6 +1329,9 @@ function compWrapStyle(comp) {
 
 function openPanel(mode) { panelMode.value = mode; }
 function selectComp(id) { selectedId.value = id; panelMode.value = 'props'; }
+// 组件是否在 C 端显示：设计器「是否显示=隐藏」(content.visible === false) 即隐藏；缺省按显示，与 ew 一致。
+// 设计器画布里仍保留（半透明 + 虚线 + 角标），保证可点选改回显示，不直接消失。
+function compVisible(c) { return !(c && c.content && c.content.visible === false); }
 function optionsOf(compId) {
   const c = components.value.find((x) => x.id === compId);
   if (!c) return [];
@@ -1240,6 +1401,20 @@ function addComponent(type) {
   components.value.push(createComponent(type));
   selectedId.value = components.value[components.value.length - 1].id;
   panelMode.value = 'props'; // 添加后右栏自动切到该组件属性（对齐 ew）
+}
+// 批量添加选项：逐行解析，追加到当前选中组件的 options（radio/checkbox/select）
+function batchAddOptions() {
+  const comp = selected.value;
+  if (!comp) return;
+  const lines = (batchOptionsText.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return;
+  const opts = comp.content.options || (comp.content.options = []);
+  let n = opts.length;
+  for (const line of lines) {
+    n += 1;
+    opts.push({ label: line, value: String(n), image: '' });
+  }
+  batchOptionsText.value = '';
 }
 function remove(idx) {
   const id = components.value[idx].id;
@@ -1400,9 +1575,13 @@ onMounted(load);
 .sf-comp-wrap.cs-line :deep(.cmpv-upload) { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 .sf-comp-wrap { position: relative; }
 .sf-drop-line { height: 0; border-top: 2px solid #409eff; margin: 3px 2px; }
-.sf-comp { position: relative; border: 1px solid transparent; border-radius: 8px; padding: 8px; cursor: grab; }
+.sf-comp { position: relative; border: 1px solid transparent; border-radius:8px; padding: 8px; cursor: grab; transition: opacity .15s; }
 .sf-comp:active { cursor: grabbing; }
 .sf-comp.active { border-color: #409eff; }
+/* 设计器画布：是否显示=隐藏 的组件半透明 + 虚线框（保留仍可点选改回显示） */
+.sf-comp.is-hidden { opacity: .32; border: 1px dashed #c0c4cc; outline: 1px dashed #c0c4cc; outline-offset: 2px; }
+.sf-comp.is-hidden.active { opacity: 1; }
+.sf-hidden-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(144,147,153,.92); color: #fff; font-size: 12px; padding: 2px 10px; border-radius: 10px; pointer-events: none; z-index: 3; white-space: nowrap; }
 .sf-comp-ops { position: absolute; top: -12px; right: 6px; display: flex; gap: 6px; background: #409eff; color: #fff; border-radius: 4px; padding: 2px 6px; font-size: 12px; z-index: 2; }
 .sf-comp-ops span { cursor: pointer; }
 .sf-empty { color: #c0c4cc; font-size: 13px; text-align: center; margin-top: 60px; }

@@ -156,9 +156,11 @@ export function defaultContent(type) {
       return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }] };
     case 'checkbox':
       // 多选的「最少/最多选择」字段名对齐面板(minSelect/maxSelect)与 C 端校验，区别于 radio（单选无数量限制）
-      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], minSelect: 0, maxSelect: 0 };
+      // 排他选项 / 添加其他选项 对齐 ew
+      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], minSelect: 0, maxSelect: 0, exclusive: false, exclusiveValue: '', allowOther: false };
     case 'select':
-      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }] };
+      // presetType: 普通 / 省市区 / 日期；level: 下拉框级数（省市区/日期走级联，默认三级）
+      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], presetType: 'normal', level: 3 };
     case 'date':
       // base 已含 prefill/placeholder；补充 readonly/校验/同步生日/范围默认值
       return { ...base, dateType: 'date', readonly: false, verifyRepeat: false, syncBirthday: false, defaultRange: [] };
@@ -167,15 +169,17 @@ export function defaultContent(type) {
     case 'time':
       return { ...base, dateType: 'datetime', readonly: false, verifyRepeat: false };
     case 'location':
-      return { ...base, tipText: '点击获取定位', readonly: false, verifyRepeat: false };
+      return { ...base, tipText: '点击获取定位', readonly: false, verifyRepeat: false, contentType: 'point' };
     case 'attachment':
-      return { ...base, maxCount: 3, minCount: 0, readonly: false, verifyRepeat: false };
+      return { ...base, maxCount: 3, minCount: 0, readonly: false, verifyRepeat: false, accept: [], maxSize: 0 };
     case 'agreement':
-      return { label: '我已阅读并同意', required: true, linkText: '《用户协议》', linkUrl: '' };
+      // 协议：显示方式(直接勾选/看完勾选) + 协议正文(看完模式展示) + 链接
+      return { label: '我已阅读并同意', required: true, content: '', showMode: 'direct', linkText: '《用户协议》', linkUrl: '' };
     case 'rate':
       return { label: '评分', required: true, desc: '', allowHalf: false, max: 3, readonly: false, verifyRepeat: false };
     case 'filedownload':
-      return { label: '文件下载', fileUrl: '', fileName: '', required: false };
+      // 文件下载：示例文件 + 提示文字（对齐 ew 示例文件/提示模型）
+      return { label: '文件下载', fileUrl: '', fileName: '', required: false, sampleFile: '', tip: '' };
     case 'phoneauth':
       return { ...base, placeholder: '点击授权获取手机号', readonly: false, verifyRepeat: false };
     case 'sms':
@@ -183,29 +187,44 @@ export function defaultContent(type) {
     case 'carplate':
       return { ...base, placeholder: '请输入车牌号' };
     case 'pagebreak':
-      return { label: '分页' };
+      // 分页：上一步/下一步按钮文案 + 禁止返回（级联影响 C 端翻页导航）
+      return { label: '分页', noReturn: false, prevText: '上一步', nextText: '下一页' };
     case 'backdesc':
       return { text: '这是一段后台描述文字，仅用于填写页展示说明。' };
     case 'realtime':
-      return { label: '实时动态', title: '已有 0 人参与' };
+      // 实时动态：虚拟基数（叠加真实参与数展示）+ 倒计时开关
+      return { label: '实时动态', title: '已有 0 人参与', fakeCount: 0, countdown: false, countdownTime: '' };
     case 'pay':
-      return { label: '报名费', amount: 0, specs: [], payType: 'wechat' };
+      // 表单支付：规格类型(单/多) + 库存展示 + 退款/核销/限购/日期选择/优惠券/积分/会员折扣/分销（对齐 ew 支付能力面板）
+      return {
+        label: '报名费', amount: 0, specs: [], payType: 'wechat',
+        specType: 'single',
+        showStock: false, stock: 0,
+        refundType: 'none', verify: false,
+        limitBuy: 0, dateSelect: false,
+        coupon: false, points: false, memberDiscount: false, distribute: false,
+      };
     case 'swiper':
-      return { images: [], height: 160 };
+      // 轮播图：图片描述(全局说明) + 点击链接（对齐 ew 图片描述/选择链接）
+      return { images: [], height: 160, desc: '', link: '' };
     case 'bigimage':
-      return { image: '', link: '' };
+      return { image: '', link: '', desc: '' };
     case 'title':
-      return { text: '标题文字', size: 18, align: 'left', color: '#303133' };
+      // 标题：主/副标题 + 提示文字 + 标题链接（对齐 ew 主标题/副标题/提示/链接）
+      return { text: '标题文字', size: 18, align: 'left', color: '#303133', subtitle: '', tip: '', link: '' };
     case 'richtext':
       return { html: '<p>这里是一段富文本内容</p>' };
     case 'blank':
       return { height: 20 };
     case 'line':
-      return { style: 'solid', color: '#dcdfe6' };
+      // 辅助线：线条高度（对齐 ew 线条高度）
+      return { style: 'solid', color: '#dcdfe6', height: 1 };
     case 'video':
-      return { src: '', poster: '' };
+      // 视频：显示方式(直接显示/弹出显示) + 自动播放（对齐 ew 视频显示方式/自动播放）
+      return { src: '', poster: '', display: 'direct', autoplay: false };
     case 'submit':
-      return { label: '确认', tipText: '提交成功', lightTip: false };
+      // 提交按钮：上下文提示(场景化) + 跳转指定页面（对齐 ew 提交按钮面板）
+      return { label: '确认', tipText: '提交成功', lightTip: false, context: 'general', jumpLink: '' };
     default:
       return { ...base };
   }

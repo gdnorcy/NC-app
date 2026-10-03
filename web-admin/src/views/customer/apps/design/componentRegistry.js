@@ -14,6 +14,7 @@ import iconDivider from '../../../../assets/comp-icons/line.png';
 import iconNotice from '../../../../assets/comp-icons/notice.png';
 import iconCountdown from '../../../../assets/comp-icons/countdown.png';
 import iconForm from '../../../../assets/comp-icons/form.png';
+import iconSuperForm from '../../../../assets/comp-icons/superform.png';
 import iconVideo from '../../../../assets/comp-icons/video.png';
 import iconImageText from '../../../../assets/comp-icons/bannerGoods.png';
 import iconSwiper from '../../../../assets/comp-icons/banner.png';
@@ -73,6 +74,7 @@ export const COMP_ICONS = {
   search: iconSearch,
   tabs: iconButton,
   'form-pro': iconForm,
+  superform: iconSuperForm,
   contact: iconContact,
   'float-btn': iconFloat,
   'article-list': iconArticle,
@@ -860,6 +862,38 @@ export const componentRegistry = [
       { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
+    ],
+  },
+  {
+    // 超级表单：引用「应用中心-超级表单」里已建好的表单（formId），
+    // 画布/C 端只渲染一张入口卡片，点击跳转该表单的独立填写页
+    // /pages/superForm/fill?formId=x —— 复用填写页已实现的 29 种组件/校验/逻辑/支付，
+    // 不在装修渲染器里重复实现一遍表单逻辑。
+    // fields 仅为画布预览用的轻量摘要（label/required），不存整份 config，避免草稿 JSON 膨胀。
+    type: 'superform',
+    name: '超级表单',
+    group: 'marketing',
+    icon: 'superform',
+    badge: 'new',
+    defaultProps: {
+      formId: '', formName: '', fields: [],
+      btnText: '立即填写', fieldCount: '4', showFields: true, btnColor: '#F0503A',
+    },
+    schema: [
+      { key: 'formId', label: '选择表单', control: 'superformPicker', section: 'content', required: true, help: '选择「应用中心-超级表单」中已创建好的表单' },
+      { key: 'btnText', label: '按钮文字', control: 'input', section: 'content' },
+      { key: 'btnColor', label: '按钮色', control: 'color', section: 'content' },
+      {
+        key: 'fieldCount', label: '预览显示字段数', control: 'select', section: 'content',
+        help: '画布手机预览区有限，字段多时建议选「前 4 个」；选「全部」后超过 8 个会自动折叠，可点「展开全部」查看。',
+        // 用字符串值：el-select 对数字 0 存在被当空值处理的版本差异，字符串最稳
+        options: [
+          { value: '0', label: '不显示字段' },
+          { value: '4', label: '前 4 个' },
+          { value: '10', label: '前 10 个' },
+          { value: '999', label: '全部' },
+        ],
+      },
     ],
   },
   {

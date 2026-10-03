@@ -434,6 +434,23 @@
                       <i class="el-icon-link pe-readonly-icon"></i>
                     </div>
                   </div>
+                  <div v-else-if="f.control === 'superformPicker'">
+                    <div v-if="selectedComp.props.formName" class="pe-sf-picked">
+                      <div class="pe-sf-picked-main">
+                        <div class="pe-sf-picked-name">{{ selectedComp.props.formName }}</div>
+                        <div class="pe-sf-picked-sub">{{ (selectedComp.props.fields || []).length }} 个字段 · 跳转填写页</div>
+                      </div>
+                      <div class="pe-sf-picked-ops">
+                        <el-button link type="primary" size="small" @click="openSuperformSel">更换</el-button>
+                        <el-button link type="danger" size="small" @click="clearSuperformSel">清除</el-button>
+                      </div>
+                    </div>
+                    <div v-else class="pe-readonly-div" @click="openSuperformSel">
+                      <input class="pe-readonly-input" value="" placeholder="请选择超级表单" readonly />
+                      <i class="el-icon-link pe-readonly-icon"></i>
+                    </div>
+                    <div v-if="f.help" class="pe-sf-help">{{ f.help }}</div>
+                  </div>
                   <el-switch v-else-if="f.control === 'switch'" v-model="selectedComp.props[f.key]" />
                   <div v-else-if="f.control === 'switchColor'" style="display:flex;align-items:center;gap:8px;width:100%;">
                     <el-switch :model-value="selectedComp.props[f.key]" @change="v => selectedComp.props[f.key] = v" />
@@ -880,6 +897,36 @@
     <!-- 系统链接选择器（分类配置驱动） -->
     <LinkPicker v-model="linkSel.show" :model-link="linkSel.current" :mode="linkSel.mode || 'link'" @confirm="confirmLinkSel" />
 
+    <!-- 超级表单选择器：列出「应用中心-超级表单」的表单，选中后回填 formId/formName/字段摘要 -->
+    <el-dialog v-model="sfSel.show" title="选择超级表单" width="640px" append-to-body :close-on-click-modal="false">
+      <div v-loading="sfSel.loading" class="pe-sf-sel">
+        <el-input v-model="sfSel.keyword" placeholder="搜索表单名称" clearable size="small" style="margin-bottom:12px">
+          <template #append>
+            <el-button @click="loadSuperformList">搜索</el-button>
+          </template>
+        </el-input>
+        <el-alert v-if="!sfSel.loading && !sfSel.list.length" title="还没有超级表单，请先到「应用中心 - 高级功能 - 超级表单」创建" type="info" :closable="false" />
+        <div v-else class="pe-sf-sel-list">
+          <div
+            v-for="fm in sfSel.list" :key="fm.id"
+            class="pe-sf-sel-item" :class="{ on: String(sfSel.current) === String(fm.id) }"
+            @click="pickSuperform(fm)"
+          >
+            <div class="pe-sf-sel-info">
+              <div class="pe-sf-sel-name">{{ fm.name }}</div>
+              <div class="pe-sf-sel-meta">
+                <el-tag size="small" :type="fm.status === 'published' ? 'success' : fm.status === 'disabled' ? 'info' : 'warning'">
+                  {{ { draft: '草稿', published: '已发布', disabled: '已停用' }[fm.status] || fm.status }}
+                </el-tag>
+                <span class="pe-sf-sel-sub">{{ fm.submissionCount || 0 }} 条提交 · {{ fm.createdAt || '' }}</span>
+              </div>
+            </div>
+            <div class="pe-sf-sel-pick"><i class="el-icon-check"></i></div>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 热区编辑器（1:1 还原 eweishop：4步步骤条 + 黄色热区框双击添加链接 + 添加热区/保存） -->
     <el-dialog v-model="hsSel.show" title="热区编辑器" width="820px" append-to-body :close-on-click-modal="false">
       <div v-if="hsSel.show">
@@ -935,7 +982,7 @@ import otherGoodsThree from '../../../../assets/design-thumbs/otherGoods_three.p
 import otherGoodsThree2 from '../../../../assets/design-thumbs/otherGoods_three2.png';
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { designCall } from '../../../../api';
+import { designCall, fetchSuperForms, getSuperForm } from '../../../../api';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
@@ -950,6 +997,7 @@ import CubeLayoutEditor from './CubeLayoutEditor.vue';
 import SIcon from '../../../../components/SIcon.vue';
 import { cubeBlocksForStyle } from './cubeLayouts';
 import { mergeEwHeader } from '../../../../utils/designHeader';
+import { COMPONENT_LABEL } from '../superForm/components';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
@@ -1896,6 +1944,66 @@ function confirmLinkSel(link) {
   linkSel.show = false;
 }
 
+// ---- 超级表单选择器（装修组件 superform 绑定已有超级表单）----
+// 组件只存 formId 引用 + 画布预览用的轻量字段摘要（label/required），
+// 不把整份表单 config 内联进装修草稿，避免 design_json 体积膨胀。
+const sfSel = reactive({ show: false, loading: false, list: [], keyword: '', current: '' });
+
+async function loadSuperformList() {
+  sfSel.loading = true;
+  try {
+    const { forms } = await fetchSuperForms();
+    const kw = String(sfSel.keyword || '').trim().toLowerCase();
+    sfSel.list = (forms || []).filter((f) => !kw || String(f.name || '').toLowerCase().includes(kw));
+  } catch (e) {
+    ElMessage.error(e?.message || '加载超级表单列表失败');
+    sfSel.list = [];
+  } finally {
+    sfSel.loading = false;
+  }
+}
+
+function openSuperformSel() {
+  sfSel.current = selectedComp.value?.props?.formId || '';
+  sfSel.keyword = '';
+  sfSel.show = true;
+  loadSuperformList();
+}
+
+function clearSuperformSel() {
+  if (!selectedComp.value) return;
+  selectedComp.value.props.formId = '';
+  selectedComp.value.props.formName = '';
+  selectedComp.value.props.fields = [];
+}
+
+async function pickSuperform(row) {
+  if (!selectedComp.value || !row) return;
+  const p = selectedComp.value.props;
+  p.formId = row.id;
+  p.formName = row.name;
+  p.fields = [];
+  sfSel.show = false;
+  // 拉取表单配置，仅提取字段摘要用于画布预览（label / 必填），不整份存下来
+  try {
+    const detail = await getSuperForm(row.id);
+    const comps = detail?.config?.components || [];
+    p.fields = comps
+      // 过滤非字段类组件（提交/分页/空白/辅助线）与「是否显示=隐藏」的组件，与 C 端填写页可见逻辑一致
+      .filter((c) => c && c.type !== 'submit' && c.type !== 'blank' && c.type !== 'line' && c.type !== 'pagebreak' && c.content?.visible !== false)
+      .map((c) => ({
+        // 超级表单组件标题真实字段是 content.label（回退 title/text/类型名）
+        label: c.content?.label || c.content?.title || c.content?.text || COMPONENT_LABEL[c.type] || '字段',
+        required: c.content?.required === true,
+        // 组件类型：画布预览按类型取图标（复用超级表单三层蜜桃橙图标）
+        type: c.type || '',
+      }));
+  } catch (e) {
+    // 拉取失败不阻塞绑定：仍可跳转填写页，只是画布没有字段摘要
+    p.fields = [];
+  }
+}
+
 // ---- 热区编辑器（eweishop 图片(热区) 高级模式）----
 const hsSel = reactive({ show: false, listIdx: null, imgUrl: '', hotspots: [], active: null, dragging: null });
 function openHotspotEditor(listField, listIdx) {
@@ -2388,6 +2496,24 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-readonly-div { flex:1; position:relative; cursor:pointer; }
 .pe-readonly-input { width:100%; height:32px; padding:0 28px 0 10px; border:1px solid #dcdfe6; border-radius:4px; background:#f5f7fa; font-size:13px; color:#606266; outline:none; box-sizing:border-box; }
 .pe-readonly-icon { position:absolute; right:8px; top:50%; transform:translateY(-50%); color:#909399; font-size:14px; }
+/* 超级表单选择控件（属性面板） */
+.pe-sf-help { font-size:12px; color:#909399; line-height:1.6; margin-top:6px; }
+.pe-sf-picked { display:flex; align-items:center; gap:8px; border:1px solid #dcdfe6; border-radius:4px; background:#f5f7fa; padding:8px 10px; }
+.pe-sf-picked-main { flex:1; min-width:0; }
+.pe-sf-picked-name { font-size:13px; color:#303133; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pe-sf-picked-sub { font-size:12px; color:#909399; margin-top:2px; }
+.pe-sf-picked-ops { flex-shrink:0; display:flex; align-items:center; }
+/* 超级表单选择弹窗 */
+.pe-sf-sel-list { max-height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+.pe-sf-sel-item { display:flex; align-items:center; gap:10px; border:1px solid #e5e6eb; border-radius:6px; padding:10px 12px; cursor:pointer; transition:border-color .15s, background .15s; }
+.pe-sf-sel-item:hover { border-color:#c0c4cc; }
+.pe-sf-sel-item.on { border-color:#f0503a; background:#fff6f3; }
+.pe-sf-sel-info { flex:1; min-width:0; }
+.pe-sf-sel-name { font-size:14px; color:#1d2129; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pe-sf-sel-meta { display:flex; align-items:center; gap:8px; margin-top:4px; }
+.pe-sf-sel-sub { font-size:12px; color:#909399; }
+.pe-sf-sel-pick { width:20px; height:20px; border-radius:50%; border:1px solid #dcdfe6; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; flex-shrink:0; }
+.pe-sf-sel-item.on .pe-sf-sel-pick { background:#f0503a; border-color:#f0503a; }
 
 /* 编辑画布底部导航预览 */
 .pe-phone-tabbar{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid #f2f3f5;padding:7px 0 7px;flex-shrink:0;}

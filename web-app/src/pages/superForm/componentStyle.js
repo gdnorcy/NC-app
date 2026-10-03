@@ -457,6 +457,17 @@ export const COLOR_VAR = {
  * @param {Object} comp 组件（含 style）
  * @param {Object} globalStyle 全局样式（仅用于组件左右边距兜底）
  */
+/**
+ * 组件是否可见（C 端渲染 / 分页 / 校验的判定入口）。
+ * 设计器「是否显示 = 隐藏」写入 content.visible === false 时隐藏；
+ * 缺省（undefined / true）按显示处理，与 ew 默认一致。
+ * @param {Object} c 组件对象（含 content）
+ * @returns {boolean}
+ */
+export function isVisible(c) {
+  return !(c && c.content && c.content.visible === false);
+}
+
 export function componentStyleVars(comp, globalStyle) {
   const st = comp.style || {};
   const g = globalStyle || {};

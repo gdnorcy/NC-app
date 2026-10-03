@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars,
+  STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars, isVisible,
 } from './componentStyle.js';
 
 // ew 超级表单 29 种组件（基础 17 / 特殊 5 / 装修 7）
@@ -10,6 +10,19 @@ const ALL_TYPES = [
   'pagebreak', 'submit', 'backdesc', 'realtime', 'pay',
   'swiper', 'bigimage', 'title', 'richtext', 'blank', 'line', 'video',
 ];
+
+describe('isVisible（C 端是否显示开关）', () => {
+  it('content.visible !== false 一律显示（默认 / 显示 / 缺 content 都按显示）', () => {
+    expect(isVisible({ content: { visible: true } })).toBe(true);
+    expect(isVisible({ content: {} })).toBe(true);
+    expect(isVisible({ content: { visible: undefined } })).toBe(true);
+    expect(isVisible({})).toBe(true);
+    expect(isVisible(null)).toBe(true);
+  });
+  it('content.visible === false 隐藏（对齐 ew「是否显示=隐藏」）', () => {
+    expect(isVisible({ content: { visible: false } })).toBe(false);
+  });
+});
 
 describe('超级表单组件样式 schema', () => {
   it('29 种组件全部有专用样式 schema（杜绝回落到别组件的通用面板）', () => {

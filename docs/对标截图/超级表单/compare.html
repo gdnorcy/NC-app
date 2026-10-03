@@ -1,0 +1,231 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>超级表单 · 我方 vs ew 面板并排对照</title>
+<style>
+  body{font-family:-apple-system,'PingFang SC',Arial,sans-serif;margin:0;background:#f5f6f8;color:#1d2129}
+  h1{font-size:18px;padding:16px 20px;margin:0;background:#1d2129;color:#fff}
+  .meta{padding:8px 20px;color:#86909c;font-size:13px}
+  table{border-collapse:collapse;width:100%;background:#fff}
+  th,td{border:1px solid #e5e6eb;padding:8px;vertical-align:top}
+  th{background:#f2f3f5;font-size:13px;text-align:left}
+  .idx{width:36px;text-align:center;color:#86909c}
+  .name{width:90px;font-weight:600}
+  .name small{color:#c9cdd4;font-weight:400}
+  .shot{width:38%}
+  .shot img{max-width:100%;border:1px solid #eee;border-radius:4px}
+  .missing{color:#f53f3f;font-size:13px;padding:20px 0;text-align:center}
+  .chk{width:24%}
+  .chk ul{margin:0;padding-left:16px;font-size:12px;color:#4e5969;line-height:1.7}
+  tr:nth-child(even) td{background:#fafbfc}
+</style></head><body>
+<h1>超级表单 · 我方 vs ew 面板并排对照</h1>
+<div class="meta">ew 目录：ew面板 ｜ 我方目录：我方面板 ｜ 生成于 2026/10/3 14:24:28</div>
+<table>
+  <thead><tr><th>#</th><th>组件</th><th>ew 截图</th><th>我方截图</th><th>逐眼核对清单（B 类缺口，已落地待确认）</th></tr></thead>
+  <tbody>
+<tr>
+    <td class="idx">1</td>
+    <td class="name">单行文本<br/><small>text</small></td>
+    <td class="shot"><img src="ew面板/text.png" loading="lazy" alt="text"/></td>
+    <td class="shot"><img src="我方面板/text.png" loading="lazy" alt="text"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填（顶栏）</li><li>内容标题/提示/预填/输入类型</li><li>同步手机号/姓名</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">2</td>
+    <td class="name">多行文本<br/><small>textarea</small></td>
+    <td class="shot"><div class="missing">缺 textarea.png</div></td>
+    <td class="shot"><img src="我方面板/textarea.png" loading="lazy" alt="textarea"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>多行输入</li><li>最少/最多输入</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">3</td>
+    <td class="name">图片上传<br/><small>image</small></td>
+    <td class="shot"><div class="missing">缺 image.png</div></td>
+    <td class="shot"><img src="我方面板/image.png" loading="lazy" alt="image"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>图片类型(普通/身份证/营业执照)</li><li>示例图引导</li><li>最少/最多上传</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">4</td>
+    <td class="name">单项选择<br/><small>radio</small></td>
+    <td class="shot"><div class="missing">缺 radio.png</div></td>
+    <td class="shot"><img src="我方面板/radio.png" loading="lazy" alt="radio"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>选项编辑</li><li>是否必填独立开关</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">5</td>
+    <td class="name">多项选择<br/><small>checkbox</small></td>
+    <td class="shot"><div class="missing">缺 checkbox.png</div></td>
+    <td class="shot"><img src="我方面板/checkbox.png" loading="lazy" alt="checkbox"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>排他选项</li><li>添加其他选项</li><li>批量添加</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">6</td>
+    <td class="name">下拉选择<br/><small>select</small></td>
+    <td class="shot"><div class="missing">缺 select.png</div></td>
+    <td class="shot"><img src="我方面板/select.png" loading="lazy" alt="select"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>预设类型(普通/省市区/日期)</li><li>下拉框级数</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">7</td>
+    <td class="name">日期<br/><small>date</small></td>
+    <td class="shot"><div class="missing">缺 date.png</div></td>
+    <td class="shot"><img src="我方面板/date.png" loading="lazy" alt="date"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>日期类型</li><li>同步生日/默认范围</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">8</td>
+    <td class="name">数字<br/><small>number</small></td>
+    <td class="shot"><div class="missing">缺 number.png</div></td>
+    <td class="shot"><img src="我方面板/number.png" loading="lazy" alt="number"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>步进/默认值</li><li>范围限制</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">9</td>
+    <td class="name">时间<br/><small>time</small></td>
+    <td class="shot"><div class="missing">缺 time.png</div></td>
+    <td class="shot"><img src="我方面板/time.png" loading="lazy" alt="time"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>时间类型(时间段/单个时间)</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">10</td>
+    <td class="name">定位<br/><small>location</small></td>
+    <td class="shot"><div class="missing">缺 location.png</div></td>
+    <td class="shot"><img src="我方面板/location.png" loading="lazy" alt="location"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>内容类型(定位点/路线)</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">11</td>
+    <td class="name">附件<br/><small>attachment</small></td>
+    <td class="shot"><div class="missing">缺 attachment.png</div></td>
+    <td class="shot"><img src="我方面板/attachment.png" loading="lazy" alt="attachment"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>上传类型白名单</li><li>大小限制(KB)</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">12</td>
+    <td class="name">短信认证<br/><small>sms</small></td>
+    <td class="shot"><div class="missing">缺 sms.png</div></td>
+    <td class="shot"><img src="我方面板/sms.png" loading="lazy" alt="sms"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>按钮文案/说明</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">13</td>
+    <td class="name">协议<br/><small>agreement</small></td>
+    <td class="shot"><div class="missing">缺 agreement.png</div></td>
+    <td class="shot"><img src="我方面板/agreement.png" loading="lazy" alt="agreement"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>勾选文案</li><li>协议正文</li><li>显示方式(直接/看完勾选)</li><li>链接文案/地址</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">14</td>
+    <td class="name">评分<br/><small>rate</small></td>
+    <td class="shot"><img src="ew面板/rate.png" loading="lazy" alt="rate"/></td>
+    <td class="shot"><img src="我方面板/rate.png" loading="lazy" alt="rate"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>描述/最高量级/半选</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">15</td>
+    <td class="name">文件下载<br/><small>filedownload</small></td>
+    <td class="shot"><div class="missing">缺 filedownload.png</div></td>
+    <td class="shot"><img src="我方面板/filedownload.png" loading="lazy" alt="filedownload"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>文件名称/地址</li><li>示例文件</li><li>提示文字</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">16</td>
+    <td class="name">手机号授权<br/><small>phoneauth</small></td>
+    <td class="shot"><div class="missing">缺 phoneauth.png</div></td>
+    <td class="shot"><img src="我方面板/phoneauth.png" loading="lazy" alt="phoneauth"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>按钮文案</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">17</td>
+    <td class="name">车牌号<br/><small>carplate</small></td>
+    <td class="shot"><div class="missing">缺 carplate.png</div></td>
+    <td class="shot"><img src="我方面板/carplate.png" loading="lazy" alt="carplate"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>提示文字</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">18</td>
+    <td class="name">提交按钮<br/><small>submit</small></td>
+    <td class="shot"><img src="ew面板/submit.png" loading="lazy" alt="submit"/></td>
+    <td class="shot"><img src="我方面板/submit.png" loading="lazy" alt="submit"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>按钮文案</li><li>上下文提示(场景)</li><li>跳转指定页面</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">19</td>
+    <td class="name">分页<br/><small>pagebreak</small></td>
+    <td class="shot"><div class="missing">缺 pagebreak.png</div></td>
+    <td class="shot"><img src="我方面板/pagebreak.png" loading="lazy" alt="pagebreak"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>禁止返回上一步</li><li>上一步/下一步文案</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">20</td>
+    <td class="name">后台描述<br/><small>backdesc</small></td>
+    <td class="shot"><div class="missing">缺 backdesc.png</div></td>
+    <td class="shot"><img src="我方面板/backdesc.png" loading="lazy" alt="backdesc"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>描述文字</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">21</td>
+    <td class="name">实时动态<br/><small>realtime</small></td>
+    <td class="shot"><div class="missing">缺 realtime.png</div></td>
+    <td class="shot"><img src="我方面板/realtime.png" loading="lazy" alt="realtime"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>模块标题/动态文案</li><li>虚拟人数</li><li>倒计时</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">22</td>
+    <td class="name">表单支付<br/><small>pay</small></td>
+    <td class="shot"><img src="ew面板/pay.png" loading="lazy" alt="pay"/></td>
+    <td class="shot"><img src="我方面板/pay.png" loading="lazy" alt="pay"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>规格类型(单/多)</li><li>固定金额/规格</li><li>库存展示</li><li>退款/核销/限购</li><li>日期选择</li><li>优惠券/积分/会员折扣/分销标签</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">23</td>
+    <td class="name">轮播图<br/><small>swiper</small></td>
+    <td class="shot"><div class="missing">缺 swiper.png</div></td>
+    <td class="shot"><img src="我方面板/swiper.png" loading="lazy" alt="swiper"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>图片列表</li><li>图片描述</li><li>点击链接</li><li>高度</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">24</td>
+    <td class="name">大图模块<br/><small>bigimage</small></td>
+    <td class="shot"><div class="missing">缺 bigimage.png</div></td>
+    <td class="shot"><img src="我方面板/bigimage.png" loading="lazy" alt="bigimage"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>图片地址</li><li>图片描述</li><li>跳转链接</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">25</td>
+    <td class="name">标题<br/><small>title</small></td>
+    <td class="shot"><div class="missing">缺 title.png</div></td>
+    <td class="shot"><img src="我方面板/title.png" loading="lazy" alt="title"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>主标题/副标题/提示/链接</li><li>大小/对齐/颜色</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">26</td>
+    <td class="name">富文本<br/><small>richtext</small></td>
+    <td class="shot"><div class="missing">缺 richtext.png</div></td>
+    <td class="shot"><img src="我方面板/richtext.png" loading="lazy" alt="richtext"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>富文本编辑</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">27</td>
+    <td class="name">空白块<br/><small>blank</small></td>
+    <td class="shot"><div class="missing">缺 blank.png</div></td>
+    <td class="shot"><img src="我方面板/blank.png" loading="lazy" alt="blank"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>空白高度</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">28</td>
+    <td class="name">辅助线<br/><small>line</small></td>
+    <td class="shot"><div class="missing">缺 line.png</div></td>
+    <td class="shot"><img src="我方面板/line.png" loading="lazy" alt="line"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>线条样式/颜色</li><li>线条高度</li></ul></td>
+  </tr>
+<tr>
+    <td class="idx">29</td>
+    <td class="name">视频<br/><small>video</small></td>
+    <td class="shot"><div class="missing">缺 video.png</div></td>
+    <td class="shot"><img src="我方面板/video.png" loading="lazy" alt="video"/></td>
+    <td class="chk"><ul><li>是否显示/是否必填</li><li>视频地址/封面</li><li>显示方式(直接/弹出)</li><li>自动播放</li></ul></td>
+  </tr>
+  </tbody>
+</table>
+</body></html>

@@ -407,6 +407,29 @@
         <div class="r-form-btn" :style="{ background: comp.props.btnColor || '#165DFF' }">{{ comp.props.submitText || '提交' }}</div>
       </div>
     </template>
+    <!-- 超级表单：入口卡片（引用 formId，点击跳该表单的独立填写页） -->
+    <template v-else-if="comp.type === 'superform'">
+      <div class="r-sf">
+        <div class="r-sf-head">
+          <div class="r-sf-title">{{ comp.props.formName || '超级表单' }}</div>
+          <div class="r-sf-tag">表单</div>
+        </div>
+        <div v-if="sfShowList.length" class="r-sf-fields">
+          <div v-for="(f, i) in sfShowList" :key="i" class="r-sf-field">
+            <span class="r-sf-field-ico">
+              <svg viewBox="0 0 24 24" v-html="sfFieldIcon(f.type)" />
+            </span>
+            <span class="r-sf-field-name">{{ f.label || '字段' }}</span>
+            <span v-if="f.required" class="r-sf-req">*</span>
+          </div>
+          <div v-if="sfCanExpand || sfExpanded" class="r-sf-more" @click.stop="toggleSfExpand">
+            {{ sfExpanded ? '收起字段' : `展开全部 ${comp.props.fields.length} 个字段` }}
+          </div>
+        </div>
+        <div v-else-if="(comp.props.fields || []).length === 0" class="r-sf-none">请在右侧「选择表单」中绑定一个超级表单</div>
+        <div class="r-sf-btn" :style="{ background: comp.props.btnColor || '#F0503A' }">{{ comp.props.btnText || '立即填写' }}</div>
+      </div>
+    </template>
     <!-- 客服联系 -->
     <template v-else-if="comp.type === 'contact'">
       <div class="r-contact">
@@ -746,6 +769,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { customerApiCall } from '../../../../api';
 import PeSIcon from './PeSIcon.vue';
+// 超级表单字段图标：复用超级表单组件库同款「三层蜜桃橙」SVG inner（24×24，透明底，符合 docs/规范/07-UI设计.md）
+import { COMPONENT_ICONS as SF_ICONS } from '../superForm/components';
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
 const tbOuterStyle = (p) => {
@@ -1057,6 +1082,34 @@ function cd2CellStyle(p, img) {
   if (img) s.backgroundImage = `url(${JSON.stringify(resolveUrl(img)).slice(1, -1)})`;
   return s;
 }
+
+// ---- 超级表单（superform）字段摘要显示控制 ----
+// 默认「前 4 个」：画布手机预览可视区约 570px，29 组件全量渲染会撑到 1300px+，
+// 导致组件跨屏、悬浮工具条错位、拖拽到不了页面中间。字段多时由用户自行展开。
+const SF_COLLAPSE_LIMIT = 8;   // 选「全部」时超过该数量则默认折叠
+const sfExpanded = ref(false);
+const sfFieldCount = computed(() => {
+  const v = Number(props.comp?.props?.fieldCount);
+  return Number.isFinite(v) && v >= 0 ? v : 4;   // 缺省/脏数据回退「前 4 个」
+});
+const sfAllFields = computed(() => (props.comp?.props?.fields || []).filter((f) => f && f.visible !== false));
+// 是否有可展开的隐藏字段
+const sfCanExpand = computed(() => sfAllFields.value.length > sfShowList.value.length);
+// 折叠入口点击：切到全量展示 / 收起（不修改用户已保存的 fieldCount，仅本次临时展开）
+function toggleSfExpand() { sfExpanded.value = !sfExpanded.value; }
+const sfShowList = computed(() => {
+  const n = sfFieldCount.value;
+  if (n <= 0) return [];
+  const all = sfAllFields.value;
+  // 非「全部」模式下点击「展开全部」→ 本次临时全量展示（不污染已保存的 fieldCount）
+  if (sfExpanded.value && n < 999) return all;
+  // 「全部」且字段过多 → 先折叠到 SF_COLLAPSE_LIMIT，点击后全量展示
+  if (n >= 999 && all.length > SF_COLLAPSE_LIMIT && !sfExpanded.value) return all.slice(0, SF_COLLAPSE_LIMIT);
+  return all.slice(0, n);
+});
+function sfFieldIcon(type) { return SF_ICONS[type] || SF_ICONS.text || ''; }
+// 切换表单/字段数后复位展开态，避免"展开全部"跨表单残留
+watch(() => [props.comp?.id, props.comp?.props?.formId, sfFieldCount.value], () => { sfExpanded.value = false; });
 
 const isFloatComp = computed(() => props.comp.type === 'fab-cart' || props.comp.type === 'float-btn');
 const containerStyle = computed(() => {
@@ -1598,6 +1651,21 @@ const nativeGridItems = [
 .r-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
 .r-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+/* 超级表单入口卡片 */
+.r-sf { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; background: #fff; display: flex; flex-direction: column; gap: 10px; }
+.r-sf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.r-sf-title { font-size: 14px; font-weight: 600; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-sf-tag { flex-shrink: 0; font-size: 10px; line-height: 1; color: #f0503a; background: #fff1ed; border-radius: 4px; padding: 3px 5px; }
+.r-sf-fields { display: flex; flex-direction: column; gap: 8px; }
+.r-sf-field { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: #86909c; }
+.r-sf-field-ico { flex-shrink: 0; width: 16px; height: 16px; margin-right: 7px; display: flex; align-items: center; justify-content: center; }
+.r-sf-field-ico svg { width: 16px; height: 16px; display: block; }
+.r-sf-field-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-sf-req { color: #f0503a; margin-left: 2px; }
+.r-sf-more { font-size: 11px; color: #86909c; text-align: center; cursor: pointer; user-select: none; padding: 2px 0; border-radius: 4px; }
+.r-sf-more:hover { color: #f0503a; }
+.r-sf-none { font-size: 12px; color: #86909c; border: 1px dashed #e5e6eb; border-radius: 6px; padding: 10px 12px; text-align: center; }
+.r-sf-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
 .r-video { position: relative; border-radius: 8px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
 .r-video img { width: 100%; height: 100%; object-fit: cover; }
 .r-video-empty { opacity: .6; display: flex; align-items: center; justify-content: center; }
