@@ -226,7 +226,7 @@
 <script setup>
 import { computed } from 'vue';
 // 风格卡值→语义 class 的映射与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
-import { styleVariant, optLayout, optType as optTypeOf, isImgOptionType as sfIsImgOptionType } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
+import { styleVariant, optType as optTypeOf, isImgOptionType as sfIsImgOptionType } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
 import idFront from '../../../../assets/superform/id-front.png';
 import idBack from '../../../../assets/superform/id-beck.png';
 import licenseImg from '../../../../assets/superform/license.png';
@@ -243,9 +243,10 @@ const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigi
  * 且新增的 s2/s3/slider 值也自动有了视觉（此前这些值无对应规则 = 死参数）。
  */
 const styleCls = computed(() => styleVariant(props.comp));
-// 组件级「上下布局 / 左右布局」（对标站 field-wrapper-radio-top / -left），
-// 与 C 端 SuperFormRender.fieldCls 的 sf-layout-left 同一口径。
-const layoutCls = computed(() => (optLayout(props.comp) === 'left' ? { 'sf-layout-left': true } : {}));
+// 组件级「上下布局 / 左右布局」直接读表单级 layout（settings.layout）——
+// 顶栏「基础布局」与「全局样式 → 基础布局」是唯一切换入口，面板不另设开关（否则两套打架）。
+// 对标站对应 field-wrapper-radio-top / field-wrapper-radio-left：左右布局标题固定 90px。
+const layoutCls = computed(() => (props.layout === 'horizontal' ? { 'sf-layout-left': true } : {}));
 // 数量限制文案（ew：0 = 不限制）
 /**
  * 选择类的「选项类型」（文字 / 图片 / 图文）→ 渲染端值。

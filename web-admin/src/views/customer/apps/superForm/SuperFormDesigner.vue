@@ -104,13 +104,10 @@
             <div class="sf-seg-item" :class="{ on: propTab === 'content' }" @click="propTab = 'content'">内容设置</div>
             <div class="sf-seg-item" :class="{ on: propTab === 'style' }" @click="propTab = 'style'">样式设置</div>
           </div>
-          <!-- 组件级「上下布局 / 左右布局」（对标站组件面板顶部第二组 tab，
-               对应 field-wrapper-radio-top / field-wrapper-radio-left）。
-               切换只改 content.optLayout，不影响面板字段（与对标站实测一致）。 -->
-          <div v-if="supportsLayout" class="sf-seg sf-seg-layout">
-            <div class="sf-seg-item" :class="{ on: optLayoutOf(selected) === 'top' }" @click="setOptLayout('top')">上下布局</div>
-            <div class="sf-seg-item" :class="{ on: optLayoutOf(selected) === 'left' }" @click="setOptLayout('left')">左右布局</div>
-          </div>
+          <!-- 注：组件的「上下布局 / 左右布局」不再单独加一段分段 ——
+               对标站面板顶部那组 tab 就是表单级的「基础布局」（settings.layout），
+               额外再加一段会出现两套开关互相打架。左右布局由 settings.layout 统一驱动。 -->
+
           <div v-if="propTab === 'content'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
               <!-- P0：ew 在全部 29 组件渲染「是否显示」+「是否必填」。是否显示恒定渲染；是否必填避开自带必填控件的组件（radio/checkbox/select/date/number/time/location/attachment/phoneauth/sms/carplate/rate/agreement）与提交按钮（submit），其余 12 装修/特殊组件保留 ew 同款「是否必填」开关 -->
@@ -1277,7 +1274,7 @@ import { getSuperForm, updateSuperForm } from '../../../../api/index.js';
 import { markSfMetaUpdated } from '../../../../utils/sfMetaBus.js';
 import {
   COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, styleSchema, migrateStyle, migrateContent, componentStyleVars, COMPONENT_LABEL, genId,
-  optLayout, supportsOptLayout, isImgOptionType as sfIsImgOptionType,
+  isImgOptionType as sfIsImgOptionType,
 } from './components.js';
 import ComponentPreview from './ComponentPreview.vue';
 import MaterialPicker from '../design/MaterialPicker.vue';
@@ -1341,20 +1338,11 @@ const selected = computed(() => components.value.find((c) => c.id === selectedId
 // 避免设计器/C端/预览端三处各写一份口径（值域之外的写法会漏）。
 const isImgOptionType = (comp) => sfIsImgOptionType(comp);
 
-// ── 组件级「上下布局 / 左右布局」（对标站组件面板顶部第二组 tab）──────────
-const supportsLayout = computed(() => supportsOptLayout(selected.value?.type));
-const optLayoutOf = (comp) => optLayout(comp);
-function setOptLayout(v) {
-  if (!selected.value) return;
-  if (!selected.value.content) selected.value.content = {};
-  selected.value.content.optLayout = v;
-}
-onMounted(() => {
-  // 老数据补齐 optLayout 字段，避免面板上读不到（缺省视为 top）
-  components.value.forEach((c) => {
-    if (c.content && c.content.optLayout === undefined) c.content.optLayout = 'top';
-  });
-});
+// ── 组件级「上下布局 / 左右布局」──
+// ⚠️ 不要在这里再加独立开关：对标站组件面板顶部那组 tab 就是表单级的「基础布局」
+//    （settings.layout，顶栏与「全局样式 → 基础布局」两处已在控制它）。
+//    额外加 content.optLayout 会做出第二套数据源，两套开关互相打架。
+//    左右布局统一由 settings.layout 驱动，预览端/C 端读同一份。
 
 // ── 选项编辑：拖拽排序 / 新增 / 添加其他 / 批量添加 / 切类型重置 ──────────
 const optDragIndex = ref(-1);
@@ -1879,9 +1867,9 @@ onMounted(load);
 /* 对标站原版 PNG 缩略图（radio/checkbox 风格1/2/3） */
 .sf-style-thumb { width: 100%; height: auto; display: block; border-radius: 3px; }
 
-/* —— 组件级「上下布局 / 左右布局」分段（对标站组件面板顶部第二组 tab）—— */
-.sf-seg-layout { margin-top: 8px; }
-.sf-seg-layout .sf-seg-item { flex: 1; text-align: center; }
+/* —— 组件级「上下布局 / 左右布局」分段 ——
+   已移除：布局开关统一由表单级 settings.layout（顶栏 / 全局样式→基础布局）提供，
+   组件面板不再重复放一组，避免两套数据源打架。 */
 
 /* —— 选项编辑区（对标站 radio-list__item 复刻，2026-10-04）——
    对标站每行结构：icon-drag_2 拖拽手柄 + 「选项」prefix 标签 + 输入框/选择图片 + 删除 */

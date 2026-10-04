@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars, isVisible, styleVariant,
-  optLayout, supportsOptLayout, optType, isImgOptionType,
+  optType, isImgOptionType,
 } from './sfComponentStyle.js';
+import * as SF from './sfComponentStyle.js';
+// 已移除的组件级布局 helper：断言其确实不存在（防止将来被重新加回来造成两套开关）
+const { optLayout, supportsOptLayout } = SF;
 
 // ew 超级表单 29 种组件（基础 17 / 特殊 5 / 装修 7）
 const ALL_TYPES = [
@@ -340,24 +343,27 @@ describe('migrateStyle 旧数据迁移', () => {
 // ══════════════════════════════════════════════════════════════════════
 // 单项选择组件互动逻辑（对标站 CSSOM + 面板实操精读，2026-10-04）
 // ══════════════════════════════════════════════════════════════════════
-describe('optLayout 组件级「上下/左右布局」', () => {
-  it('缺省为上下布局，老数据无 optLayout 时兜底 top', () => {
-    expect(optLayout({ type: 'radio', content: {} })).toBe('top');
-    expect(optLayout({ type: 'radio', content: { optLayout: undefined } })).toBe('top');
-    expect(optLayout(null)).toBe('top');
+describe('「上下/左右布局」由表单级 settings.layout 统一驱动（无组件私有开关）', () => {
+  it('schema 不再导出组件级布局 helper（避免与 settings.layout 两套数据源打架）', () => {
+    expect(optLayout).toBeUndefined();
+    expect(supportsOptLayout).toBeUndefined();
   });
 
-  it('显式 left 时返回 left；非法值回落 top', () => {
-    expect(optLayout({ content: { optLayout: 'left' } })).toBe('left');
-    expect(optLayout({ content: { optLayout: 'xxx' } })).toBe('top');
+  it('左右布局时逐组件外边距归零（间距交给容器 gap），与 layout 参数口径一致', () => {
+    const comp = { type: 'radio', style: { ...defaultStyle('radio'), outMarginTop: 30 } };
+    expect(componentStyleVars(comp, {}, 'horizontal').marginTop).toBe('0px');
+    expect(componentStyleVars(comp, {}, 'vertical').marginTop).toBe('30px');
   });
 
-  it('只有带标题的输入/选择类组件支持布局切换（对标站范围）', () => {
-    ['text', 'textarea', 'radio', 'checkbox', 'select', 'date', 'time', 'number', 'location', 'attachment', 'sms']
-      .forEach((t) => expect(supportsOptLayout(t)).toBe(true));
-    // 图片上传/评分/提交按钮/装修组件在 ew 上没有这组 tab
-    ['image', 'rate', 'submit', 'swiper', 'title', 'agreement', 'pay'].forEach((t) => {
-      expect(supportsOptLayout(t)).toBe(false);
+  it('上下/左右布局切换不产生任何 CSS 变量（纯容器 class 层面的表现）', () => {
+    const comp = { type: 'radio', style: defaultStyle('radio') };
+    const v = componentStyleVars(comp, {}, 'vertical');
+    const h = componentStyleVars(comp, {}, 'horizontal');
+    const keys = new Set([...Object.keys(v), ...Object.keys(h)]);
+    // horizontal 只应多出 marginTop 归零这一项差异，不引入布局专属变量
+    [...keys].forEach((k) => {
+      if (k === 'marginTop') return;
+      expect(v[k], `horizontal 不应改变 ${k}`).toBe(h[k]);
     });
   });
 });

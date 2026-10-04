@@ -436,7 +436,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { cardApi } from '../utils/cardApi.js';
-import { componentStyleVars, isVisible, styleVariant, optLayout, optType as optTypeOf, isImgOptionType } from '../utils/sfComponentStyle.js';
+import { componentStyleVars, isVisible, styleVariant, optType as optTypeOf, isImgOptionType } from '../utils/sfComponentStyle.js';
 import { regionProvinces, regionCities, regionDistricts, dateYears, dateDays } from '../utils/sfRegionData.js';
 
 /**
@@ -551,8 +551,9 @@ function fieldCls(comp) {
   return Object.assign(
     {
       'sf-t-image': comp.type === 'image',
-      // 组件级「上下布局 / 左右布局」（对标站 field-wrapper-radio-top / -left）
-      'sf-layout-left': optLayout(comp) === 'left',
+      // 「上下布局 / 左右布局」由表单级 settings.layout 统一驱动（唯一切换入口：
+      // 顶栏「基础布局」/ 全局样式→基础布局）。不读组件私有字段，避免两套开关打架。
+      'sf-layout-left': layout.value === 'horizontal',
     },
     styleVariant(comp)
   );

@@ -543,30 +543,6 @@ export const COLOR_VAR = {
 };
 
 /**
- * 组件级「上下布局 / 左右布局」（对标站组件面板顶部第二组 tab）。
- *
- * 对标站 CSSOM 实测：
- *   上下布局 top  → field-wrapper-radio-top  + field-wrapper-label-top  （标题独占一行，label width:0）
- *   左右布局 left → field-wrapper-radio-left + field-wrapper-label-left （标题与选项同行，label 固定 90px）
- *
- * 存 content.optLayout，老数据缺省为 'top'。
- * @param {Object} comp 组件（含 content）
- * @returns {'top'|'left'}
- */
-export function optLayout(comp) {
-  const v = comp && comp.content && comp.content.optLayout;
-  return v === 'left' ? 'left' : 'top';
-}
-
-/** 该组件是否支持「上下/左右布局」切换（对标站只有带标题的输入/选择类组件有） */
-export function supportsOptLayout(type) {
-  return {
-    text: 1, textarea: 1, radio: 1, checkbox: 1, select: 1,
-    date: 1, time: 1, number: 1, location: 1, attachment: 1, sms: 1
-  }[type] === 1;
-}
-
-/**
  * 「选项类型」三档（content.optionType：text 文字 / image 图片 / imageText 图文）。
  * 老数据没有该字段（undefined）时兜底 'text'。
  * @param {Object} comp

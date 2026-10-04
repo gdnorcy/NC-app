@@ -3,11 +3,11 @@ let __seq = 0;
 // 组件样式 schema / CSS 变量映射与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
 import {
   STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars,
-  optLayout, supportsOptLayout, optType, isImgOptionType, styleVariant,
+  optType, isImgOptionType, styleVariant,
 } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
 export {
   STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars,
-  optLayout, supportsOptLayout, optType, isImgOptionType, styleVariant,
+  optType, isImgOptionType, styleVariant,
 };
 
 export function genId() {
