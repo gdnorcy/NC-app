@@ -78,9 +78,19 @@ export const STYLE_SCHEMA = {
     { key: 'optTextAlign', label: '选项文字对齐', type: 'select', def: 'left', options: [
       { value: 'left', label: '左对齐' }, { value: 'center', label: '居中' }
     ] },
-    // 「选项类型」= 图片/图文 时生效：选项图尺寸与圆角
-    { key: 'optionImgSize', label: '选项图片大小', def: 40, max: 120, optImgOnly: true },
-    { key: 'optionImgRadius', label: '选项图片圆角', def: 3, max: 60, optImgOnly: true },
+    // ── 图片/图文选项的排布（对标站 CSSOM 实测：.static-radio 是纵向大图列表，
+    //    img height:95px; max-width:200px，无横向网格）──
+    // optImgLayout: list=纵向列表（对标站默认，图片固定高 95px）
+    //               grid=网格（扩展能力，格子数由 optImgPerRow 决定，图片大小用 optionImgSize）
+    { key: 'optImgLayout', label: '选项排布', type: 'select', def: 'list', optImgOnly: true, options: [
+      { value: 'list', label: '纵向列表' }, { value: 'grid', label: '网格排列' }
+    ] },
+    { key: 'optImgPerRow', label: '每行选项数', type: 'select', def: 3, optImgOnly: true, optImgGridOnly: true, options: [
+      { value: 2, label: '2 个' }, { value: 3, label: '3 个' }, { value: 4, label: '4 个' }, { value: 5, label: '5 个' }
+    ] },
+    // 「选项类型」= 图片/图文 时生效：网格模式下的选项图尺寸与圆角
+    { key: 'optionImgSize', label: '选项图片大小', def: 64, max: 160, optImgOnly: true, optImgGridOnly: true },
+    { key: 'optionImgRadius', label: '选项图片圆角', def: 3, max: 60, optImgOnly: true, optImgGridOnly: true },
   ], colorRows: [
     // optImgHide：「图片/图文选项」时隐藏（对标站实测该状态下这 5 个颜色字段整块消失）
     { key: 'inputBg', label: '选项背景', def: '#F7F9FA', optImgHide: true },
@@ -100,9 +110,19 @@ export const STYLE_SCHEMA = {
     { key: 'optTextAlign', label: '选项文字对齐', type: 'select', def: 'left', options: [
       { value: 'left', label: '左对齐' }, { value: 'center', label: '居中' }
     ] },
-    // 「选项类型」= 图片/图文 时生效：选项图尺寸与圆角
-    { key: 'optionImgSize', label: '选项图片大小', def: 40, max: 120, optImgOnly: true },
-    { key: 'optionImgRadius', label: '选项图片圆角', def: 3, max: 60, optImgOnly: true },
+    // ── 图片/图文选项的排布（对标站 CSSOM 实测：.static-radio 是纵向大图列表，
+    //    img height:95px; max-width:200px，无横向网格）──
+    // optImgLayout: list=纵向列表（对标站默认，图片固定高 95px）
+    //               grid=网格（扩展能力，格子数由 optImgPerRow 决定，图片大小用 optionImgSize）
+    { key: 'optImgLayout', label: '选项排布', type: 'select', def: 'list', optImgOnly: true, options: [
+      { value: 'list', label: '纵向列表' }, { value: 'grid', label: '网格排列' }
+    ] },
+    { key: 'optImgPerRow', label: '每行选项数', type: 'select', def: 3, optImgOnly: true, optImgGridOnly: true, options: [
+      { value: 2, label: '2 个' }, { value: 3, label: '3 个' }, { value: 4, label: '4 个' }, { value: 5, label: '5 个' }
+    ] },
+    // 「选项类型」= 图片/图文 时生效：网格模式下的选项图尺寸与圆角
+    { key: 'optionImgSize', label: '选项图片大小', def: 64, max: 160, optImgOnly: true, optImgGridOnly: true },
+    { key: 'optionImgRadius', label: '选项图片圆角', def: 3, max: 60, optImgOnly: true, optImgGridOnly: true },
   ], colorRows: [
     // optImgHide：「图片/图文选项」时隐藏（对标站实测该状态下这 5 个颜色字段整块消失）
     { key: 'inputBg', label: '选项背景', def: '#F7F9FA', optImgHide: true },
@@ -639,6 +659,11 @@ export function componentStyleVars(comp, globalStyle, layout) {
     // 选项文字对齐（对标站 --align-items）：字符串枚举，需显式发射，
     // 否则会被下面的兜底分支跳过（既非 number 也非 # 开头）→ 面板调了没反应。
     else if (k === 'optTextAlign') { s['--c-opt-align'] = (v === 'center' ? 'center' : 'left'); }
+    // 图片/图文选项排布：list=纵向列表（对标站默认）/ grid=网格。
+    // 字符串枚举同样要显式发射，否则兜底分支会把它当普通字符串丢掉。
+    else if (k === 'optImgLayout') { s['--c-opt-img-layout'] = (v === 'grid' ? 'grid' : 'list'); }
+    // 网格模式每行格子数：clamp 到 2~5，防止手改数据写出 0 列/超大列
+    else if (k === 'optImgPerRow') { s['--c-opt-img-per-row'] = String(Math.min(5, Math.max(2, parseInt(v, 10) || 3))); }
     else if (SIZE_VAR[k]) s[SIZE_VAR[k]] = v + 'px';
     else if (COLOR_VAR[k]) s[COLOR_VAR[k]] = v;
     else if (typeof v === 'number') s['--st-' + k] = v + 'px';

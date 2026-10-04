@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars, isVisible, styleVariant,
   optType, isImgOptionType,
@@ -427,5 +429,122 @@ describe('optTextAlign 选项文字对齐（对标站 --align-items）', () => {
     expect(v1['--c-opt-align']).toBe('center' === v1['--c-opt-align'] ? 'center' : 'left');
     const v2 = componentStyleVars({ type: 'radio', style: { ...defaultStyle('radio'), optTextAlign: 'xxx' } }, {});
     expect(v2['--c-opt-align']).toBe('left');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// 图片/图文选项的排布（对标站 CSSOM 实测：.static-radio 纵向大图列表）
+// ══════════════════════════════════════════════════════════════════════
+describe('图片/图文选项排布 optImgLayout', () => {
+  it('默认纵向列表（对标站行为），网格需显式开启', () => {
+    const d = defaultStyle('radio');
+    expect(d.optImgLayout).toBe('list');
+    const v = componentStyleVars({ type: 'radio', style: d }, {});
+    expect(v['--c-opt-img-layout']).toBe('list');
+    const g = componentStyleVars({ type: 'radio', style: { ...d, optImgLayout: 'grid' } }, {});
+    expect(g['--c-opt-img-layout']).toBe('grid');
+  });
+
+  it('非法值回落 list（不能因为脏数据把布局切成未知态）', () => {
+    const v = componentStyleVars({ type: 'radio', style: { ...defaultStyle('radio'), optImgLayout: 'xxx' } }, {});
+    expect(v['--c-opt-img-layout']).toBe('list');
+  });
+
+  it('每行格子数 clamp 到 2~5，防止手改数据写出 0 列或超宽列', () => {
+    const d = defaultStyle('radio');
+    const mk = (n) => componentStyleVars({ type: 'radio', style: { ...d, optImgPerRow: n } }, {})['--c-opt-img-per-row'];
+    expect(mk(2)).toBe('2');
+    expect(mk(5)).toBe('5');
+    expect(mk(1)).toBe('2');     // 下溢
+    expect(mk(99)).toBe('5');    // 上溢
+    expect(mk('abc')).toBe('3'); // NaN 兜底
+    // undefined/null/'' 由 componentStyleVars 的 `if (v == null || v === '') return` 拦截，
+    // 不发射变量 → CSS 走 var(--c-opt-img-per-row, 3) 的默认值，与 defaultStyle 的 3 一致
+    expect(mk(undefined)).toBeUndefined();
+    expect(defaultStyle('radio').optImgPerRow).toBe(3);
+  });
+
+  it('网格参数带 optImgGridOnly（纵向列表时面板应隐藏这几行）', () => {
+    const rows = styleSchema('radio').styleRows;
+    ['optImgPerRow', 'optionImgSize', 'optionImgRadius'].forEach((k) => {
+      const r = rows.find((x) => x.key === k);
+      expect(r, `${k} 应存在`).toBeTruthy();
+      expect(r.optImgOnly, `${k} 应仅图片选项可见`).toBe(true);
+      expect(r.optImgGridOnly, `${k} 应仅网格模式可见`).toBe(true);
+    });
+    // 排布选择器本身两种模式都要能看到
+    const lay = rows.find((x) => x.key === 'optImgLayout');
+    expect(lay.optImgOnly).toBe(true);
+    expect(lay.optImgGridOnly).toBeUndefined();
+  });
+
+  it('checkbox 与 radio 同构（同一套排布参数）', () => {
+    const r = styleSchema('checkbox').styleRows;
+    expect(r.find((x) => x.key === 'optImgLayout')).toBeTruthy();
+    expect(r.find((x) => x.key === 'optImgPerRow')).toBeTruthy();
+  });
+
+  it('网格模式图片大小可调，默认 64px（列表模式固定 95px 高，由 CSS 兜底）', () => {
+    const r = styleSchema('radio').styleRows.find((x) => x.key === 'optionImgSize');
+    expect(r.def).toBe(64);
+    const v = componentStyleVars({ type: 'radio', style: { ...defaultStyle('radio'), optionImgSize: 100 } }, {});
+    expect(v['--c-option-img-size']).toBe('100px');
+  });
+
+  // 回归：网格模式曾写成 `width:100%`，图片被格子宽度撑满（实测 101x101），
+  // 「选项图片大小」变成死参数。这里锁死 CSS 源码形态，防止改回去。
+  it('网格模式 CSS 用 --c-option-img-size 控制图片边长，不用 width:100%', () => {
+    const files = [
+      path.resolve(__dirname, '../components/SuperFormRender.vue'),
+      path.resolve(__dirname, '../../../web-admin/src/views/customer/apps/superForm/ComponentPreview.vue'),
+    ];
+    files.forEach((f) => {
+      // 先剥掉注释：注释里会正常提到 "width:100%"（说明为何不能写），
+      // 不剥掉会被正则误判成违规声明。
+      const raw = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      // 只看 <style> 段（模板里也有 opts-img-grid，全文 split 会切错段）
+      const styleIdx = raw.search(/<style[^>]*>/);
+      expect(styleIdx, `${path.basename(f)} 应有 <style> 段`).toBeGreaterThan(-1);
+      const css = raw.slice(styleIdx);
+      // 截出网格模式那一段
+      const seg = css.split('opts-img-grid').slice(1).join('opts-img-grid');
+      const rules = seg.match(/[^{}]*opts-img-grid[^{}]*\{[^}]*\}/g) || [];
+      const imgRules = rules.filter((r) => /opt-img(\s|,|\{|$|-ph)/.test(r));
+      expect(imgRules.length, `${path.basename(f)} 应有网格图片规则`).toBeGreaterThan(0);
+      imgRules.forEach((r) => {
+        // 只看独立的 width 声明，不能是 max-width（后者正是我们要的）
+        expect(r, `${path.basename(f)} 网格图片规则不能写死 width:100%：\n${r}`)
+          .not.toMatch(/(^|[^-\w])width:\s*100%/);
+        expect(r, `${path.basename(f)} 网格图片规则应消费 --c-option-img-size：\n${r}`)
+          .toMatch(/var\(--c-option-img-size/);
+        expect(r, `${path.basename(f)} 网格图片应保留 max-width:100% 防溢出：\n${r}`)
+          .toMatch(/max-width:\s*100%/);
+      });
+    });
+  });
+
+  // 回归：列表模式下未配图的占位块曾塌成 6px 细线（C 端实测）。
+  // 根因是 `.opt-img { width:auto }` 排在 `.opt-img-ph { width:130px }` 之后，
+  // 两者特异性相同（同 4 个 class）时后者胜 → 显式宽度被 auto 覆盖。
+  it('列表模式 CSS 顺序：占位块宽度规则必须排在 width:auto 之后', () => {
+    const files = [
+      path.resolve(__dirname, '../components/SuperFormRender.vue'),
+      path.resolve(__dirname, '../../../web-admin/src/views/customer/apps/superForm/ComponentPreview.vue'),
+    ];
+    files.forEach((f) => {
+      const raw = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      // 只看 <style> 段（模板里也有 opts-img-grid，不能用全文 split）
+      const styleIdx = raw.search(/<style[^>]*>/);
+      expect(styleIdx, `${path.basename(f)} 应有 <style> 段`).toBeGreaterThan(-1);
+      const css = raw.slice(styleIdx);
+      // 列表模式 = 第一个 opts-img-grid 之前的部分
+      const listSeg = css.split('opts-img-grid')[0];
+      const imgIdx = listSeg.search(/opt-img[a-z-]*(?![-\w])[^{}]*\{[^}]*width:\s*auto/);
+      const phIdx = listSeg.search(/opt-img-ph[^{}]*\{[^}]*--c-opt-img-ph-w/);
+      expect(imgIdx, `${path.basename(f)} 应有列表模式 width:auto 规则`).toBeGreaterThan(-1);
+      expect(phIdx, `${path.basename(f)} 应有占位块宽度规则`).toBeGreaterThan(-1);
+      expect(imgIdx, `${path.basename(f)} width:auto 必须排在占位块宽度之前`)
+        .toBeLessThan(phIdx);
+    });
   });
 });

@@ -11,3 +11,4 @@ node_modules/
 /server/public/mall/
 _tmp_
 vite.config.js.timestamp-*.mjs
+vitest.config.js.timestamp-*.mjs

@@ -69,7 +69,7 @@
     </template>
 
     <template v-else-if="comp.type === 'radio'">
-      <div class="cmpv-opt-box" :class="{ 'opts-img': optType(comp) !== 'text' }">
+      <div class="cmpv-opt-box" :class="optsCls(comp)">
         <!-- 首个选项演示选中态：设计器里必须能看到选中长什么样（对标站画布即带选中演示） -->
         <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row" :class="[optType(comp), { on: i === 0 }]">
           <span class="cmpv-circle" :class="{ on: i === 0 }" />
@@ -84,7 +84,7 @@
     </template>
 
     <template v-else-if="comp.type === 'checkbox'">
-      <div class="cmpv-opt-box" :class="{ 'opts-img': optType(comp) !== 'text' }">
+      <div class="cmpv-opt-box" :class="optsCls(comp)">
         <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row" :class="[optType(comp), { on: i === 0 }]">
           <span class="cmpv-square" :class="{ on: i === 0 }" />
           <!-- 图片/图文：未配图时用占位块 + 序号（对标站画布是灰色占位块），空 src 会渲染破图 -->
@@ -264,6 +264,12 @@ function optType(comp) {
   return optTypeOf(comp);
 }
 const isImgOptionType = (comp) => sfIsImgOptionType(comp);
+/** 选项区 class：与 C 端 SuperFormRender.optsCls 同一口径（list 纵向列表 / grid 网格） */
+function optsCls(comp) {
+  if (optType(comp) === 'text') return {};
+  const grid = comp.style && comp.style.optImgLayout === 'grid';
+  return { 'opts-img': true, 'opts-img-grid': !!grid };
+}
 function limitText(comp) {
   const min = comp.content.minCount || 0;
   const max = comp.content.maxCount || 0;
@@ -388,10 +394,29 @@ function sliderPct(comp) {
    圆角由外层 .cmpv-opt-box 承担（选项行本身无边框，圆角无处可见）。 */
 .cmpv-opt-row { display: flex; align-items: center; gap: 8px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); margin: 6px 0; padding: 6px var(--c-input-pad-x, 10px); }
 /* 「选项类型」三态（content.optionType：文字/图片/图文）—— 与 C 端 .sf-opt-row.image/.imageText 同语义。
-   图片/图文：选项区横向等分、每列一卡（图上文下）；勾选框 order:-1 置于图上方。 */
-.cmpv-opt-box.opts-img { display: flex; flex-direction: row; flex-wrap: wrap; }
-.cmpv-opt-box.opts-img .cmpv-opt-row { flex: 1 1 0; min-width: var(--c-option-img-size, 40px); margin: 0; flex-direction: column; gap: 4px; padding: var(--c-input-pad-x, 10px) 4px; }
+   图片/图文排布：list=纵向大图列表（对标站 .static-radio，img height:95px max-width:200px）/
+                  grid=网格排列（每行 --c-opt-img-per-row 个，边长 --c-option-img-size）。 */
+.cmpv-opt-box.opts-img { display: flex; flex-direction: column; }
+.cmpv-opt-box.opts-img .cmpv-opt-row { margin: 0; align-items: center; gap: 10px; }
+/* 列表模式：图片固定高 95px（对标站 .static-radio-image），宽度按比例自适应。
+   未配图的占位块是 <span>，没有内在宽度，必须给显式宽高，否则会塌成一条细线。
+   ⚠️ 两条规则必须保持这个先后顺序 —— 特异性相同（同 4 个 class），
+   若 .cmpv-opt-img-ph 写在前面会被 width:auto 覆盖成 6px 细线（C 端踩过这个坑）。 */
+.cmpv-opt-box.opts-img .cmpv-opt-row .cmpv-opt-img { height: var(--c-opt-img-h, 95px); width: auto; max-width: 200px; max-height: none; }
+.cmpv-opt-box.opts-img .cmpv-opt-row .cmpv-opt-img-ph { width: var(--c-opt-img-ph-w, 130px); flex-shrink: 0; }
+.cmpv-opt-box.opts-img .cmpv-opt-row.image,
+.cmpv-opt-box.opts-img .cmpv-opt-row.imageText { flex-direction: row; align-items: center; gap: 10px; padding: 10px 0; }
 .cmpv-opt-box.opts-img .cmpv-opt-row + .cmpv-opt-row { border-top: none; }
+/* 网格模式 */
+.cmpv-opt-box.opts-img.opts-img-grid { display: grid; grid-template-columns: repeat(var(--c-opt-img-per-row, 3), minmax(0, 1fr)); gap: 8px; }
+.cmpv-opt-box.opts-img.opts-img-grid .cmpv-opt-row,
+.cmpv-opt-box.opts-img.opts-img-grid .cmpv-opt-row.image,
+.cmpv-opt-box.opts-img.opts-img-grid .cmpv-opt-row.imageText { flex-direction: column; gap: 4px; padding: 4px 0; align-items: center; }
+/* 网格模式图片边长由「选项图片大小」控制（--c-option-img-size，缺省 64px）。
+   不能写 width:100% —— 会被格子宽度覆盖把图撑满格，参数退化成死参数。 */
+.cmpv-opt-box.opts-img.opts-img-grid .cmpv-opt-row .cmpv-opt-img,
+.cmpv-opt-box.opts-img.opts-img-grid .cmpv-opt-row .cmpv-opt-img-ph { width: var(--c-option-img-size, 64px); max-width: 100%; height: auto; aspect-ratio: 1; max-height: none; }
+.cmpv-opt-box.opts-img.opts-img-grid .cmpv-opt-label { text-align: center; }
 /* 圆点/勾选框在模板里已是第一个子元素，column 布局下自然落在图上方（勿加 order:-1，会被推出选项行）。 */
 .cmpv-opt-img { width: var(--c-option-img-size, 40px); height: var(--c-option-img-size, 40px); border-radius: var(--c-option-img-radius, 3px); background: var(--c-input-bg, #F7F9FA); object-fit: cover; flex-shrink: 0; }
 /* 未配图的选项：灰色占位块 + 序号（对齐对标站画布；空 src 的 <img> 会显示破图图标） */

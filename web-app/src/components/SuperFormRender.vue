@@ -140,7 +140,7 @@
           <!-- 单项选择（视觉由根节点 sfx-optbox/optplain/optline 决定，此处不再挂 line class） -->
           <!-- 单项选择（选项类型 content.optionType：text 文字 / image 图片 / imageText 图文）
                optType() 兜底 'text'：老数据没有该字段，若直接判=== 'image' 会全部落到空档。 -->
-          <view v-else-if="comp.type === 'radio'" class="sf-opts" :class="{ 'opts-img': optType(comp) !== 'text' }">
+          <view v-else-if="comp.type === 'radio'" class="sf-opts" :class="optsCls(comp)">
             <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt-row" :class="[optType(comp), { on: values[comp.id] === opt.value }]" @click="values[comp.id] = opt.value">
               <text class="sf-dot" :class="{ on: values[comp.id] === opt.value }" />
               <!-- 图片选项：只显示图；图文选项：图 + 文案 -->
@@ -154,7 +154,7 @@
           </view>
 
           <!-- 多项选择 -->
-          <view v-else-if="comp.type === 'checkbox'" class="sf-opts" :class="{ 'opts-img': optType(comp) !== 'text' }">
+          <view v-else-if="comp.type === 'checkbox'" class="sf-opts" :class="optsCls(comp)">
             <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt-row" :class="[optType(comp), { on: (values[comp.id] || []).includes(opt.value) }]" @click="toggleCheck(comp.id, opt.value)">
               <text class="sf-checkbox" :class="{ on: (values[comp.id] || []).includes(opt.value) }">✓</text>
               <!-- 图片/图文：未配图时用占位块 + 序号（空 src 会渲染破图） -->
@@ -547,6 +547,18 @@ function fieldStyle(comp) {
  */
 function optType(comp) {
   return optTypeOf(comp);
+}
+
+/**
+ * 选项区 class：区分「文字选项」与「图片/图文选项」，后者再区分
+ * 纵向列表（list，对标站默认）/ 网格排列（grid）。
+ * 排布与每行格子数由 --c-opt-img-layout / --c-opt-img-per-row 两个 CSS 变量驱动
+ * （由 componentStyleVars 从 style.optImgLayout / optImgPerRow 发射）。
+ */
+function optsCls(comp) {
+  if (optType(comp) === 'text') return {};
+  const grid = comp.style && comp.style.optImgLayout === 'grid';
+  return { 'opts-img': true, 'opts-img-grid': !!grid };
 }
 /**
  * 「组件风格」风格卡 → 容器 class（sfv-box / sfv-plain / sfv-line / sfx-opt* …）。
@@ -1397,9 +1409,43 @@ async function submit() {
 /* 选项区基础样式（框风格给描边+圆角+底色，消费 --c-input-radius）；线风格去框只留行间底线。
    与设计器预览 .cmpv-opt-box 同构。 */
 .sf-opts { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--c-inactive-border, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: var(--c-input-bg, #F7F9FA); }
-/* 图片/图文选项：选项区改横向等分（每列一个卡片），勾选框移到图片上方 */
-.sf-opts.opts-img { flex-direction: row; flex-wrap: wrap; }
-.sf-opts.opts-img .sf-opt-row { flex: 1 1 0; min-width: var(--c-option-img-size, 40px); align-items: center; }
+/* 图片/图文选项的排布。
+   ── 对标站实况（CSSOM 抓 .static-radio）：**纵向大图列表**，不是横向网格 ──
+     .static-radio .el-radio { display:block; width:100%; margin-bottom:20px; }
+     .static-radio .static-radio-image { height:95px; max-width:200px; }
+   即图片固定高 95px、宽度自适应，一行一个选项。
+   我方此前做成 flex:1 1 0 等分网格 —— 方向性错误：6 个选项挤一行、每格仅约 48px，
+   且「选项图片大小」只抬到 min-width，参数形同虚设。
+
+   现支持两种（--c-opt-img-layout，缺省 list = 对标站行为）：
+   list 纵向列表：图片 height:var(--c-opt-img-h,95px)，max-width 200px，宽度自适应
+   grid 网格排列：每行 --c-opt-img-per-row 个（2~5），图片边长 --c-option-img-size */
+.sf-opts.opts-img { flex-direction: column; }
+.sf-opts.opts-img .sf-opt-row { align-items: center; gap: 10px; }
+/* 列表模式：图文选项图在左、勾选与文字在右（对标站 .static-radio 的行内结构）
+   未配图的占位块是 <view>，无内在宽度，必须给显式宽高，否则塌成细线。
+   ⚠️ 本条必须排在下面 `.sf-opt-img { width:auto }` 之后 —— 两者特异性相同
+   （4 个 class），同序时后者胜；写在前面会被 width:auto 覆盖成 6px 细线。 */
+.sf-opts.opts-img .sf-opt-row .sf-opt-img { height: var(--c-opt-img-h, 95px); width: auto; max-width: 200px; max-height: none; }
+.sf-opts.opts-img .sf-opt-row .sf-opt-img-ph { width: var(--c-opt-img-ph-w, 130px); flex-shrink: 0; }
+.sf-opts.opts-img .sf-opt-row.image,
+.sf-opts.opts-img .sf-opt-row.imageText { flex-direction: row; align-items: center; gap: 10px; padding: 10px 0; }
+.sf-opts.opts-img .sf-opt-row.imageText .sf-opt-label { flex: 1; min-width: 0; }
+/* 图片档：只有图 + 勾选，文字左对齐在图右侧（对标站 label 在图之后） */
+.sf-opts.opts-img .sf-opt-row.image { padding: 10px 0; }
+
+/* 网格模式：容器改 grid，每行格子数由 --c-opt-img-per-row 决定 */
+.sf-opts.opts-img.opts-img-grid { display: grid; grid-template-columns: repeat(var(--c-opt-img-per-row, 3), minmax(0, 1fr)); gap: 8px; }
+.sf-opts.opts-img.opts-img-grid .sf-opt-row,
+.sf-opts.opts-img.opts-img-grid .sf-opt-row.image,
+.sf-opts.opts-img.opts-img-grid .sf-opt-row.imageText { flex-direction: column; gap: 4px; padding: 4px 0; align-items: center; text-align: center; }
+/* 网格模式图片边长由「选项图片大小」控制（--c-option-img-size，缺省 64px）。
+   注意不能写 width:100% —— 那会被格子宽度覆盖、把图片撑满格，
+   「选项图片大小」就退化成死参数（与之前横向等分网格同一个坑）。
+   max-width:100% 保证格子比设定值窄时不溢出。 */
+.sf-opts.opts-img.opts-img-grid .sf-opt-row .sf-opt-img,
+.sf-opts.opts-img.opts-img-grid .sf-opt-row .sf-opt-img-ph { width: var(--c-option-img-size, 64px); max-width: 100%; height: auto; aspect-ratio: 1; max-height: none; }
+.sf-opts.opts-img.opts-img-grid .sf-opt-row .sf-opt-label { text-align: center; }
 .sf-opts.opts-img .sf-opt-row + .sf-opt-row { border-top: none; }
 /* 选择类的三种风格作用在**选项区**（s1/s2/s3），与输入类的 box/line 语义不同：
      sfx-optbox   描边 + 浅底（整块一个框，行间有分隔线）

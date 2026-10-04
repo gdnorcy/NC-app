@@ -1013,7 +1013,9 @@
                 </div>
               </template>
               <el-form-item v-for="row in curStyleRows" :key="row.key" :label="row.label">
-                <!-- 字符串枚举行（如「选项文字对齐」对标站 --align-items）：用下拉，不用滑块 -->
+                <!-- 字符串枚举行（选项文字对齐 / 选项排布 / 每行选项数）：用下拉，不用滑块。
+                     每行选项数的 option 值是数字，componentStyleVars 里已做 parseInt + clamp 2~5，
+                     即使被 el-select 存成字符串也能安全解析。 -->
                 <el-select v-if="row.type === 'select'" v-model="selected.style[row.key]" size="small" style="width: 140px">
                   <el-option v-for="o in (row.options || [])" :key="o.value" :label="o.label" :value="o.value" />
                 </el-select>
@@ -1356,6 +1358,8 @@ const selected = computed(() => components.value.find((c) => c.id === selectedId
 // 选择类的「选项类型」是否为图片/图文。统一走 sfComponentStyle 的同源实现，
 // 避免设计器/C端/预览端三处各写一份口径（值域之外的写法会漏）。
 const isImgOptionType = (comp) => sfIsImgOptionType(comp);
+/** 图片/图文选项是否「网格排列」（默认 list 纵向列表 = 对标站行为） */
+const isGridImgLayout = (comp) => !!(comp && comp.style && comp.style.optImgLayout === 'grid');
 
 // ── 组件级「上下布局 / 左右布局」──
 // ⚠️ 不要在这里再加独立开关：对标站组件面板顶部那组 tab 就是表单级的「基础布局」
@@ -1427,6 +1431,8 @@ const curStyleSchema = computed(() => styleSchema(selected.value?.type));
 const curStyleRows = computed(() => (curStyleSchema.value.styleRows || []).filter((r) => {
   if (r.hOnly && settings.layout !== 'horizontal') return false;
   if (r.optImgOnly && !isImgOptionType(selected.value)) return false;
+  // 网格排列才需要「每行个数 / 图片大小 / 图片圆角」；纵向列表时图片固定高 95px（对标站）
+  if (r.optImgGridOnly && !(isImgOptionType(selected.value) && isGridImgLayout(selected.value))) return false;
   return true;
 }));
 const curColorRows = computed(() => (curStyleSchema.value.colorRows || []).filter((r) => {
