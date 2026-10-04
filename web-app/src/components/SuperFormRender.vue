@@ -144,7 +144,11 @@
             <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt-row" :class="[optType(comp), { on: values[comp.id] === opt.value }]" @click="values[comp.id] = opt.value">
               <text class="sf-dot" :class="{ on: values[comp.id] === opt.value }" />
               <!-- 图片选项：只显示图；图文选项：图 + 文案 -->
-              <image v-if="optType(comp) === 'image' || optType(comp) === 'imageText'" class="sf-opt-img" :src="opt.image" mode="aspectFill" />
+              <!-- 图片/图文：未配图时用占位块 + 序号（空 src 会渲染破图） -->
+              <template v-if="optType(comp) === 'image' || optType(comp) === 'imageText'">
+                <image v-if="opt.image" class="sf-opt-img" :src="opt.image" mode="aspectFill" />
+                <view v-else class="sf-opt-img sf-opt-img-ph">{{ i + 1 }}</view>
+              </template>
               <text v-if="optType(comp) === 'text' || optType(comp) === 'imageText'" class="sf-opt-label">{{ opt.label }}</text>
             </view>
           </view>
@@ -153,7 +157,11 @@
           <view v-else-if="comp.type === 'checkbox'" class="sf-opts" :class="{ 'opts-img': optType(comp) !== 'text' }">
             <view v-for="(opt, i) in comp.content.options" :key="i" class="sf-opt-row" :class="[optType(comp), { on: (values[comp.id] || []).includes(opt.value) }]" @click="toggleCheck(comp.id, opt.value)">
               <text class="sf-checkbox" :class="{ on: (values[comp.id] || []).includes(opt.value) }">✓</text>
-              <image v-if="optType(comp) === 'image' || optType(comp) === 'imageText'" class="sf-opt-img" :src="opt.image" mode="aspectFill" />
+              <!-- 图片/图文：未配图时用占位块 + 序号（空 src 会渲染破图） -->
+              <template v-if="optType(comp) === 'image' || optType(comp) === 'imageText'">
+                <image v-if="opt.image" class="sf-opt-img" :src="opt.image" mode="aspectFill" />
+                <view v-else class="sf-opt-img sf-opt-img-ph">{{ i + 1 }}</view>
+              </template>
               <text v-if="optType(comp) === 'text' || optType(comp) === 'imageText'" class="sf-opt-label">{{ opt.label }}</text>
             </view>
             <view v-if="comp.content.allowOther" class="sf-opt-row sf-opt-other">
@@ -1416,6 +1424,8 @@ async function submit() {
 /* 注：圆点/勾选框在模板里已是第一个子元素，column 布局下自然落在图上方。
    此前给它们加了 order:-1，会被推到选项行**之外**（浮在选项区顶部），故已移除。 */
 .sf-opt-img { width: var(--c-option-img-size, 40px); height: var(--c-option-img-size, 40px); border-radius: var(--c-option-img-radius, 3px); background: var(--c-input-bg, #F7F9FA); flex-shrink: 0; }
+/* 未配图的选项：灰色占位块 + 序号（空 src 的 <image> 会渲染破图） */
+.sf-opt-img-ph { display: flex; align-items: center; justify-content: center; font-size: 13px; color: #a8abb2; background: #f0f1f3; }
 .sf-opt-label { flex: 1; min-width: 0; }
 .sf-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; position: relative; flex-shrink: 0; box-sizing: border-box; }
 .sf-dot.on { border-color: var(--c-active-color, #2667EC); }

@@ -298,14 +298,20 @@
                     >
                       <!-- 拖拽手柄（对标站 .icon-drag_2）：选项可拖拽排序 -->
                       <span class="sf-opt-drag" title="拖拽排序">⋮⋮</span>
-                      <!-- 序号 prefix（对标站 .el-input__prefix「选项」） -->
-                      <span v-if="!isImgOptionType(selected)" class="sf-opt-prefix">选项</span>
+                      <!-- 图片/图文：缩略图 + 「选择图片」按钮（对标站 .setting-radio-btn，点开是资源选择器弹窗）。
+                           此前只给了一个 placeholder 写着「选择图片」的文本框 = 没有真正上传入口。 -->
                       <template v-if="isImgOptionType(selected)">
-                        <el-input v-model="opt.image" placeholder="选择图片" style="width: 150px" size="small" />
-                        <el-input v-if="selected.content.optionType !== 'image'" v-model="opt.label" placeholder="选项文案" style="width: 120px" size="small" />
+                        <span class="sf-opt-thumb" :class="{ empty: !opt.image }" @click="pickOptionImage(oi)">
+                          <img v-if="opt.image" :src="opt.image" alt="" />
+                          <i v-else class="sf-camera-icon" />
+                        </span>
+                        <span class="sf-opt-pick" @click="pickOptionImage(oi)">选择图片</span>
+                        <el-input v-if="selected.content.optionType !== 'image'" v-model="opt.label" placeholder="选项文案" size="small" style="width: 110px" />
                       </template>
                       <template v-else>
-                        <el-input v-model="opt.label" :placeholder="'选项'" style="width: 150px" size="small" />
+                        <!-- 序号 prefix（对标站 .el-input__prefix「选项」） -->
+                        <span class="sf-opt-prefix">选项</span>
+                        <el-input v-model="opt.label" placeholder="选项" size="small" style="width: 150px" />
                       </template>
                       <span class="sf-opt-del" @click="selected.content.options.splice(oi, 1)">删除</span>
                     </div>
@@ -1305,13 +1311,26 @@ const batchOptionsText = ref('');
 const levelOptions = ref([]);
 const saving = ref(false);
 const imgPickerShow = ref(false);
-const imgPickerTarget = ref('share'); // share=分享图片 / pageBg=页面背景图片 / compBg=组件背景图片
+// target：share=分享图片 / pageBg=页面背景图片 / compBg=组件背景图片 /
+//        sampleImg=图片上传组件示例图 / optImg=选择类组件的选项图片（配合 optImgIndex）
+const imgPickerTarget = ref('share');
+const imgPickerOptIndex = ref(-1);
 function onPickImg(url) {
   if (!url) return;
   if (imgPickerTarget.value === 'pageBg') settings.globalStyle.pageBgImage = url;
   else if (imgPickerTarget.value === 'compBg' && selected.value) selected.value.style.bgImage = url;
   else if (imgPickerTarget.value === 'sampleImg' && selected.value) selected.value.content.sampleImg = url;
-  else settings.basic.shareImage = url;
+  // 选择类组件的选项图片：写入对应选项的 image 字段（图文选项同时保留文案）
+  else if (imgPickerTarget.value === 'optImg' && selected.value) {
+    const opt = selected.value.content.options[imgPickerOptIndex.value];
+    if (opt) opt.image = url;
+  } else settings.basic.shareImage = url;
+}
+/** 打开选项图片选择器（对标站图片选项行内是「选择图片」按钮，不是文本框） */
+function pickOptionImage(oi) {
+  imgPickerOptIndex.value = oi;
+  imgPickerTarget.value = 'optImg';
+  imgPickerShow.value = true;
 }
 
 // 图片上传「图片类型」联动 —— 1:1 复刻 ew imgType-editor.handler（含默认文案判断的怪癖）
@@ -1880,6 +1899,13 @@ onMounted(load);
 .sf-opt-drag { cursor: grab; color: #c0c4cc; font-size: 13px; letter-spacing: -2px; user-select: none; flex-shrink: 0; }
 .sf-opt-drag:active { cursor: grabbing; }
 .sf-opt-prefix { flex-shrink: 0; font-size: 12px; color: #909399; background: #f4f4f5; border-radius: 3px; padding: 0 6px; line-height: 24px; }
+/* 图片/图文选项：缩略图 + 「选择图片」按钮（对标站 .setting-radio-btn 走资源选择器弹窗） */
+.sf-opt-thumb { width: 38px; height: 38px; flex-shrink: 0; border: 1px dashed #dcdfe6; border-radius: 4px; background: #fafafa; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
+.sf-opt-thumb:hover { border-color: #409eff; }
+.sf-opt-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sf-opt-thumb.empty .sf-camera-icon { font-size: 16px; color: #c0c4cc; font-style: normal; }
+.sf-opt-pick { flex-shrink: 0; font-size: 12px; color: #409eff; cursor: pointer; }
+.sf-opt-pick:hover { color: #66b1ff; }
 .sf-opt-del { flex-shrink: 0; font-size: 12px; color: #f56c6c; cursor: pointer; }
 .sf-opt-del:hover { color: #c45656; }
 .sf-opts-actions { display: flex; align-items: center; gap: 6px; margin-top: 2px; }

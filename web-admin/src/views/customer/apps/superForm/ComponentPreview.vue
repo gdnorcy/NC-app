@@ -73,7 +73,11 @@
         <!-- 首个选项演示选中态：设计器里必须能看到选中长什么样（对标站画布即带选中演示） -->
         <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row" :class="[optType(comp), { on: i === 0 }]">
           <span class="cmpv-circle" :class="{ on: i === 0 }" />
-          <img v-if="optType(comp) === 'image' || optType(comp) === 'imageText'" class="cmpv-opt-img" :src="opt.image" alt="" />
+          <!-- 图片/图文：未配图时用占位块 + 序号（对标站画布是灰色占位块），空 src 会渲染破图 -->
+          <template v-if="optType(comp) === 'image' || optType(comp) === 'imageText'">
+            <img v-if="opt.image" class="cmpv-opt-img" :src="opt.image" alt="" />
+            <span v-else class="cmpv-opt-img cmpv-opt-img-ph">{{ i + 1 }}</span>
+          </template>
           <span v-if="optType(comp) === 'text' || optType(comp) === 'imageText'" class="cmpv-opt-label">{{ opt.label }}</span>
         </div>
       </div>
@@ -83,7 +87,11 @@
       <div class="cmpv-opt-box" :class="{ 'opts-img': optType(comp) !== 'text' }">
         <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row" :class="[optType(comp), { on: i === 0 }]">
           <span class="cmpv-square" :class="{ on: i === 0 }" />
-          <img v-if="optType(comp) === 'image' || optType(comp) === 'imageText'" class="cmpv-opt-img" :src="opt.image" alt="" />
+          <!-- 图片/图文：未配图时用占位块 + 序号（对标站画布是灰色占位块），空 src 会渲染破图 -->
+          <template v-if="optType(comp) === 'image' || optType(comp) === 'imageText'">
+            <img v-if="opt.image" class="cmpv-opt-img" :src="opt.image" alt="" />
+            <span v-else class="cmpv-opt-img cmpv-opt-img-ph">{{ i + 1 }}</span>
+          </template>
           <span v-if="optType(comp) === 'text' || optType(comp) === 'imageText'" class="cmpv-opt-label">{{ opt.label }}</span>
         </div>
       </div>
@@ -386,6 +394,8 @@ function sliderPct(comp) {
 .cmpv-opt-box.opts-img .cmpv-opt-row + .cmpv-opt-row { border-top: none; }
 /* 圆点/勾选框在模板里已是第一个子元素，column 布局下自然落在图上方（勿加 order:-1，会被推出选项行）。 */
 .cmpv-opt-img { width: var(--c-option-img-size, 40px); height: var(--c-option-img-size, 40px); border-radius: var(--c-option-img-radius, 3px); background: var(--c-input-bg, #F7F9FA); object-fit: cover; flex-shrink: 0; }
+/* 未配图的选项：灰色占位块 + 序号（对齐对标站画布；空 src 的 <img> 会显示破图图标） */
+.cmpv-opt-img-ph { display: inline-flex; align-items: center; justify-content: center; font-size: 13px; color: #a8abb2; background: #f0f1f3; }
 .cmpv-opt-label { flex: 1; min-width: 0; }
 .cmpv-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; flex-shrink: 0; position: relative; box-sizing: border-box; }
 .cmpv-circle.on { border-color: var(--c-active-color, #2667EC); }
