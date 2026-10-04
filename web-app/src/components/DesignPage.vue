@@ -403,23 +403,22 @@
         </view>
         <view class="dp-form-btn" :style="{ background: c.props.btnColor || '#165dff' }" @click="submitForm(i, c)"><text>{{ c.props.submitText || '提交' }}</text></view>
       </view>
-      <!-- 超级表单：入口卡片，点击跳该表单的独立填写页（复用 29 组件填写页能力） -->
-      <view v-else-if="c.type === 'superform'" class="dp-sf" @click="goSuperform(c)">
-        <view class="dp-sf-head">
-          <text class="dp-sf-title">{{ c.props.formName || '超级表单' }}</text>
-          <text class="dp-sf-tag">表单</text>
-        </view>
-        <view v-if="sfShowList(c).length" class="dp-sf-fields">
-          <view v-for="(f, fi) in sfShowList(c)" :key="fi" class="dp-sf-field">
-            <text class="dp-sf-field-name">{{ f.label || '字段' }}</text>
-            <text v-if="f.required" class="dp-sf-req">*</text>
+      <!-- 超级表单：原地内嵌可填表单（复用 SuperFormRender，与独立填表页同一套逻辑，不再跳页） -->
+      <view v-else-if="c.type === 'superform'" class="dp-sf">
+        <!-- 未绑定表单：给运营提示，不渲染空壳 -->
+        <view v-if="!c.props.formId" class="dp-sf-none">请在设计中心为该组件选择一个超级表单</view>
+        <template v-else>
+          <view v-if="c.props.formName" class="dp-sf-head">
+            <text class="dp-sf-title">{{ c.props.formName }}</text>
           </view>
-          <text v-if="sfHiddenCount(c) > 0 || sfExpanded[c.id]" class="dp-sf-more" @click.stop="toggleSfExpand(c)">
-            {{ sfExpanded[c.id] ? '收起字段' : '展开全部 ' + (c.props.fields || []).length + ' 个字段' }}
-          </text>
-        </view>
-        <text v-else-if="!(c.props.fields || []).length" class="dp-sf-none">该表单暂未配置字段</text>
-        <view class="dp-sf-btn" :style="{ background: c.props.btnColor || '#F0503A' }"><text>{{ c.props.btnText || '立即填写' }}</text></view>
+          <!-- 每个组件实例按 formId+组件 id 独立加载与隔离状态（同一页面可放多个表单） -->
+          <SuperFormRender
+            :key="c.props.formId + '_' + c.id"
+            :form-id="c.props.formId"
+            :name="c.props.formName"
+            mode="embed"
+          />
+        </template>
       </view>
       <!-- 客服联系 -->
       <view v-else-if="c.type === 'contact'" class="dp-contact">
@@ -691,6 +690,8 @@ import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
 import { mallApi } from '../utils/mallApi.js';
 import { yuanFmt } from '../utils/mallUtil.js';
 import SIcon from './SIcon.vue';
+// 超级表单渲染器（与独立填表页 /pages/superForm/fill 共用同一套表单逻辑）
+import SuperFormRender from './SuperFormRender.vue';
 
 // 价格优先级：新人价 > 会员价 > 原价
 // 会员价memberPrice是{mode,priceMap:{levelId:value}}对象，一期简化为取priceMap第一个值
@@ -1145,9 +1146,9 @@ function startTabBarWatch() {
 function dpFloatStyle(p) {
   const s = { background: p.color || '#165dff' };
   // 整体大小：round 直径 / square 高度（宽度随内容自适应），与画布一致
-  const size = Number(p.size) || (p.style === 'round' ? 52 : 44);
+  const size = Number(p.size) || (p.style === 'round' ? 52 : 48);
   if (p.style === 'round') { s.width = size + 'px'; s.height = size + 'px'; }
-  else { s.height = size + 'px'; s.fontSize = Math.max(11, Math.round(size * 0.28)) + 'px'; }
+  else { s.height = size + 'px'; s.fontSize = Math.max(11, Math.round(size * 0.30)) + 'px'; }
   const { pos, x, y } = resolveFloatPos(p, tabBarH.value);
   const xpx = x + 'px', ypx = y + 'px';
   if (pos === 'top-left') { s.top = ypx; s.left = xpx; }
@@ -1468,39 +1469,8 @@ function onJump(url) {
   uni.navigateTo({ url: path, fail: () => uni.showToast({ title: '页面不存在', icon: 'none' }) });
 }
 
-// 超级表单装修组件：跳该表单的独立填写页（/pages/superForm/fill，参数 ?formId=）
-function goSuperform(c) {
-  const formId = (c && c.props && c.props.formId) || '';
-  if (!formId) {
-    uni.showToast({ title: '请先在设计中心选择表单', icon: 'none' });
-    return;
-  }
-  uni.navigateTo({
-    url: `/pages/superForm/fill?formId=${formId}`,
-    fail: () => uni.showToast({ title: '打开表单失败', icon: 'none' }),
-  });
-}
-// 字段摘要显示数量：默认「前 4 个」；选「全部」且超过 8 个时先折叠，点「展开全部」再全量展示
-const SF_COLLAPSE_LIMIT = 8;
-const sfExpanded = reactive({});
-function sfShowList(c) {
-  const all = (c && c.props && c.props.fields) || [];
-  if (!all.length) return [];
-  const n = Number(c.props.fieldCount);
-  const limit = Number.isFinite(n) && n >= 0 ? n : 4;   // 缺省/脏数据回退「前 4 个」
-  if (limit <= 0) return [];
-  // 非「全部」模式下点「展开全部」→ 本次临时全量展示（不污染已保存的 fieldCount）
-  if (sfExpanded[c.id] && limit < 999) return all;
-  if (limit >= 999 && all.length > SF_COLLAPSE_LIMIT && !sfExpanded[c.id]) return all.slice(0, SF_COLLAPSE_LIMIT);
-  return all.slice(0, limit);
-}
-function sfHiddenCount(c) {
-  const all = (c && c.props && c.props.fields) || [];
-  return all.length - sfShowList(c).length;
-}
-function toggleSfExpand(c) {
-  sfExpanded[c.id] = !sfExpanded[c.id];
-}
+// 超级表单装修组件：表单渲染已内联到模板（SuperFormRender mode="embed"），
+// 渲染器内部按 formId 自行拉取表单并维护实例状态，这里无需跳转与字段摘要逻辑。
 
 // 内容管理文章数据源（article-list source=content）
 const contentArticles = ref([]);
@@ -1712,8 +1682,8 @@ function openChannel(kind, p) {
 .dp-card-shadow { box-shadow: 0 2px 8px rgba(31,35,41,0.1); }
 .dp-card-border { border: 1px solid #E5E6EB; }
 .dp-notice-ico { width: 18px; height: 18px; flex: none; }
-.dp-btn { display: inline-block; padding: 10px 24px; font-size: 14px; text-align: center; box-sizing: border-box; }
-.dp-btn.auto { width: auto; }
+.dp-btn { display: inline-block; height: 80rpx; line-height: 80rpx; padding: 0 48rpx; font-size: 28rpx; border-radius: 16rpx; text-align: center; box-sizing: border-box; }
+.dp-btn.auto { width: auto; height: 64rpx; line-height: 64rpx; padding: 0 24rpx; border-radius: 12rpx; font-size: 28rpx; }
 .dp-divider { position: relative; height: 0; margin: 14px 0; display: flex; align-items: center; justify-content: center; }
 .dp-divider-line { display: none; }
 .dp-divider-text { position: absolute; background: #fff; padding: 0 10px; font-size: 12px; color: #86909c; }
@@ -1751,19 +1721,15 @@ function openChannel(kind, p) {
 .dp-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .dp-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .dp-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
-.dp-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+/* L 档（docs/规范/08-装修中心按钮规范.md，对齐微信官方 WeUI default）：
+   96rpx(48px) 高 / 16rpx(8px) 圆角 / 34rpx(17px) 字号。原为 36px/8px/13px，低于官方
+   7-9mm 热区要求（≈44px）。改用 rpx 以与其他端一致缩放；画布 .r-form-btn 取 rpx ÷ 2。 */
+.dp-form-btn { height: 96rpx; border-radius: 16rpx; color: #fff; font-size: 34rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 /* 超级表单入口卡片 */
-.dp-sf { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; background: #fff; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
-.dp-sf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dp-sf-title { font-size: 14px; font-weight: 600; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dp-sf-tag { flex-shrink: 0; font-size: 10px; line-height: 1; color: #f0503a; background: #fff1ed; border-radius: 4px; padding: 3px 5px; }
-.dp-sf-fields { display: flex; flex-direction: column; gap: 8px; }
-.dp-sf-field { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
-.dp-sf-field-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dp-sf-req { color: #f0503a; margin-left: 2px; }
-.dp-sf-more { display: block; font-size: 11px; color: #86909c; text-align: center; padding: 2px 0; }
+.dp-sf { display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+.dp-sf-head { display: flex; align-items: center; gap: 8px; }
+.dp-sf-title { font-size: 15px; font-weight: 500; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dp-sf-none { font-size: 12px; color: #86909c; border: 1px dashed #e5e6eb; border-radius: 6px; padding: 10px 12px; text-align: center; }
-.dp-sf-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
 .dp-video { border-radius: 8px; overflow: hidden; background: #000; position: relative; }
 .dp-video-player { width: 100%; height: 200px; display: block; }
 .dp-video-empty { height: 120px; background: #000; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.5); font-size: 13px; }
@@ -1883,7 +1849,7 @@ function openChannel(kind, p) {
 .dp-ch-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .dp-ch-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .dp-ch-desc { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dp-ch-btn { flex-shrink: 0; font-size: 12px; color: #165dff; border: 1px solid #165dff; border-radius: 20px; padding: 4px 12px; background: #fff; }
+.dp-ch-btn { flex-shrink: 0; font-size: 28rpx; color: #165dff; border: 1px solid #165dff; border-radius: 8rpx; padding: 0 24rpx; height: 56rpx; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; background: #fff; }
 /* 视频号视频 */
 .dp-chvideo { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
 .dp-chv-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
@@ -1900,7 +1866,7 @@ function openChannel(kind, p) {
 .dp-chl-empty { color: #86909c; font-size: 24px; }
 .dp-chl-badge { position: absolute; left: 8px; top: 8px; background: #f53f3f; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
 .dp-chl-time { font-size: 12px; margin-top: 4px; padding: 0 12px; }
-.dp-chl-btn { display: inline-block; margin: 8px 12px; font-size: 12px; padding: 4px 14px; border-radius: 14px; }
+.dp-chl-btn { display: inline-flex; align-items: center; justify-content: center; margin: 8px 12px; font-size: 28rpx; padding: 0 28rpx; border-radius: 12rpx; height: 64rpx; box-sizing: border-box; text-align: center; }
 .dp-chl-title { padding: 10px 12px; font-size: 14px; font-weight: 600; color: #1d2129; background: #fff; }
 /* 富文本 */
 .dp-richtext { font-size: 14px; color: #1d2129; line-height: 1.7; word-break: break-word; }
@@ -1986,7 +1952,7 @@ function openChannel(kind, p) {
 /* 搜索框 */
 .dp-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; box-sizing: border-box; }
 .dp-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dp-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 12px; padding: 3px 12px; border-radius: 12px; }
+.dp-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 28rpx; padding: 0 24rpx; border-radius: 8rpx; height: 56rpx; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 .dp-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .dp-search-hot-item { font-size: 11px; color: #86909c; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 10px; padding: 2px 8px; }
 /* 选项卡 */
@@ -2004,12 +1970,12 @@ function openChannel(kind, p) {
 .dp-contact-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .dp-contact-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .dp-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dp-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
+.dp-contact-btn { flex-shrink: 0; color: #fff; font-size: 28rpx; border-radius: 16rpx; padding: 0 28rpx; height: 80rpx; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 /* 悬浮按钮 */
-.dp-float { position: fixed; z-index: 99; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.dp-float { position: fixed; z-index: 99; color: #fff; font-size: 28rpx; border-radius: 48rpx; padding: 0 32rpx; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .dp-float-ico { width: 22px; height: 22px; }
 .dp-float-round { border-radius: 50%; width: 52px; height: 52px; padding: 0; }
-.dp-float-square { border-radius: 10px; padding: 8px 14px; }
+.dp-float-square { border-radius: 48rpx; padding: 0 32rpx; }
 .dp-article { padding: 2px 0; }
 .dp-article-title { font-size: 15px; font-weight: 600; color: #1d2129; display: block; margin-bottom: 10px; }
 .dp-article-grid { display: grid; gap: 10px; }
@@ -2036,7 +2002,10 @@ function openChannel(kind, p) {
 .dp-follow-desc { font-size: 12px; color: #86909c; margin-top: 3px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dp-follow-qr { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; }
 .dp-follow-qr-empty { background: #f7f8fa; display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 11px; }
-.dp-follow-btn { font-size: 12px; color: #165dff; border: 1px solid #165dff; border-radius: 8px; padding: 6px 12px; flex-shrink: 0; }
+/* XS 档（docs/规范/08-装修中心按钮规范.md）：56rpx 高 / 8rpx 圆角 / 28rpx 字号 / 24rpx 左右内距。
+   此前画布 .r-follow-btn 是手抄本规则的，抄成了 11px/6px/4px 10px，导致装修预览与实际效果不一致；
+   现在两端都从规范取值（画布 = 本规则 rpx ÷ 2），改这里必须同步改 ComponentRender.vue 的 .r-follow-btn。 */
+.dp-follow-btn { height: 56rpx; padding: 0 24rpx; box-sizing: border-box; font-size: 28rpx; color: #165dff; border: 2rpx solid #165dff; border-radius: 8rpx; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; line-height: 1.2; }
 .dp-vfeed-title { font-size: 15px; font-weight: 600; color: #1d2129; display: block; margin-bottom: 10px; }
 .dp-vfeed-grid { display: grid; gap: 8px; }
 .dp-vfeed-item { border: 1px solid #f0f1f3; border-radius: 10px; overflow: hidden; background: #fff; }
@@ -2235,7 +2204,7 @@ function openChannel(kind, p) {
 .dp-gs-text{position:relative;z-index:1;text-align:center;color:#fff;}
 .dp-gs-main{display:block;font-size:22px;font-weight:700;}
 .dp-gs-sub{display:block;font-size:13px;margin:6px 0 12px;opacity:0.9;}
-.dp-gs-btn{display:inline-block;padding:6px 22px;border-radius:20px;font-size:13px;color:#fff;}
+.dp-gs-btn{display:inline-flex;align-items:center;justify-content:center;padding:0 24rpx;border-radius:12rpx;font-size:28rpx;height:64rpx;box-sizing:border-box;text-align:center;color:#fff;}
 .dp-gtabs-bar{display:flex;border-bottom:1px solid #eee;margin-bottom:10px;}
 .dp-gtab{padding:8px 16px;font-size:14px;color:#4e5969;position:relative;}
 .dp-gtab.on{font-weight:600;}

@@ -197,10 +197,16 @@ export default {
 }
 .dnew-search-txt { font-size: 24rpx; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
 .dnew-search-btn {
-  font-size: 22rpx;
-  line-height: 1;
-  padding: 10rpx 18rpx;
-  border-radius: 26rpx;
+  font-size: 28rpx;
+  line-height: 1.2;
+  padding: 0 24rpx;
+  border-radius: 8rpx;
+  height: 56rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   flex-shrink: 0;
+  text-align: center;
 }
 </style>

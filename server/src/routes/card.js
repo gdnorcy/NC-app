@@ -1790,11 +1790,21 @@ export function createCardRouter(db, wxService) {
       return db.prepare(q).get(...args);
     };
     if (String(req.query.preview) === '1') {
+      // 预览优先读草稿（status=0）。但页面一经发布，publishPage 会 DELETE 草稿行（design.js:516），
+      // 此时草稿为空 → 必须回退已发布版本（status=1），否则设计中心首页 iframe 预览空白、
+      // 并误弹「草稿暂无组件」（用户反馈）。与下方非预览分支对称：草稿空 → 回退发布版。
       const draft = pickPage(0);
       if (draft) {
         const j = JSON.parse(draft.design_json || '{}');
         pages = j;
         header = j.meta?.header || null;
+      } else {
+        const pub = pickPage(1);
+        if (pub) {
+          const j = JSON.parse(pub.design_json || '{}');
+          pages = j;
+          header = j.meta?.header || null;
+        }
       }
     } else {
       // 非预览：读取已发布页面组件与头部设置，供 C 端小程序/H5 渲染装修；

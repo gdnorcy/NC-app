@@ -5,6 +5,7 @@
  * - /api/design/tab/*       底部导航
  * - /api/design/template/*  系统模板（市场/私有/应用/导出/导入）
  * - /api/design/home        首页跳转
+ * - /api/design/plans       全景方案只读列表（链接选择器；按 tenant 隔离）
  * - /api/material/*         素材中心（分类/上传/列表/移动/删除/引用校验）
  * 全部要求租户登录；写操作要求租户管理员；统一携带 tenant_id 隔离
  */
@@ -331,6 +332,34 @@ export default function createDesignRouter(db, deps = {}) {
     const payload = body.homePages !== undefined ? body.homePages : body.homePage;
     const r = svc.saveHomeConfig(req.customerId, payload);
     res.json(r);
+  });
+
+  // ---- 全景方案（链接选择器用）----
+  // 只读列表：按 tenant 隔离。公开的 GET /api/plans 不带客户过滤（跨客户），
+  // 客户后台不能直接用，否则会把所有客户的方案都列出来。
+  // 注意：projects 表用 id 直接当客户 id（user.customerId / req.customerId 对应的就是 projects.id），
+  // 该表没有 customer_id 列，误写会直接 500。
+  design.get('/plans', tenant, (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const rows = db.prepare(
+      `SELECT p.id, p.name, p.description, p.cover_path, p.published, p.share_enabled, p.sort_order,
+              (SELECT COUNT(*) FROM scenes s WHERE s.plan_id = p.id AND s.published = 1) AS scene_count
+         FROM plans p
+         JOIN projects c ON c.id = p.project_id
+        WHERE c.id = ?
+        ORDER BY p.sort_order ASC, p.id ASC`
+    ).all(req.customerId);
+    res.json({
+      plans: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        coverPath: r.cover_path,
+        published: !!r.published,
+        shareEnabled: !!r.share_enabled,
+        sceneCount: r.scene_count,
+      })),
+    });
   });
 
   // ---- 首页预览 URL：默认生成与 C 端真实首页一致的一次性签名 URL（普通模式，读发布版/同缓存）；

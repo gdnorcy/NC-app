@@ -2,6 +2,10 @@
  * 系统链接分类配置（配置驱动）
  * 后续新增页面/功能只需在此加一行，链接选择器自动出现。
  * value 与小程序/H5 路由保持一致。
+ *
+ * 动态分类：写 `dynamic: '<key>'` + `items: []`，由 LinkPicker 在打开时按 key 拉真实数据，
+ * 避免把客户数据（表单 id / 方案 id）硬编码成示例链接。需要接后端数据的分类用这个机制，
+ * 静态页面/功能才写 items。
  */
 export const LINK_CATALOG = [
   {
@@ -49,15 +53,13 @@ export const LINK_CATALOG = [
   },
   {
     name: '全景应用',
-    items: [
-      { label: '场景预览', value: '/pages/viewer/viewer?planId=1', desc: '示例链接：按实际方案替换 planId（如 ?planId=8）' },
-    ],
+    dynamic: 'plans',
+    items: [],
   },
   {
     name: '超级表单',
-    items: [
-      { label: '超级表单填写页', value: '/pages/superForm/fill?formId=1', desc: '示例链接：按实际表单替换 formId（如 ?formId=5）；需在「应用中心-高级功能-超级表单」中创建并发布表单' },
-    ],
+    dynamic: 'superform',
+    items: [],
   },
   {
     name: '我的',
@@ -70,3 +72,31 @@ export const LINK_CATALOG = [
 
 /** 自定义链接分类（保留手输兜底） */
 export const CUSTOM_LINK = { name: '自定义链接', custom: true };
+
+/**
+ * 动态分类的数据源与链接模板集中在这里，LinkPicker 只认 key。
+ * path(r) 由 LinkPicker 传入行数据，返回该行的 C 端路由。
+ */
+export const DYNAMIC_SOURCES = {
+  // 超级表单填写页：按已建表单逐个列出
+  superform: {
+    path: (r) => `/pages/superForm/fill?formId=${r.id}`,
+  },
+  // 全景方案浏览页：按本客户方案逐个列出
+  plans: {
+    path: (r) => `/pages/viewer/viewer?planId=${r.id}`,
+  },
+};
+
+/**
+ * 回显用：从动态链接里解析出目标 id。
+ * 返回 { key, id } 或 null。用于打开弹窗时静态目录匹配不到的场景
+ * （历史配置指向真实数据，静态 items 已不再硬编码）。
+ */
+export function parseDynamicLink(key, link) {
+  const src = DYNAMIC_SOURCES[key];
+  if (!src || !link) return null;
+  const param = key === 'superform' ? 'formId' : 'planId';
+  const m = String(link).match(new RegExp(`[?&]${param}=(\\d+)`));
+  return m ? { key, id: Number(m[1]) } : null;
+}

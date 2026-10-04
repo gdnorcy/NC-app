@@ -1,10 +1,14 @@
 // 超级表单组件定义与默认值（后台设计器 / C 端渲染共用）
 let __seq = 0;
-// 组件样式 schema / CSS 变量映射与 C 端填写页共用（web-app/src/pages/superForm/componentStyle.js）
+// 组件样式 schema / CSS 变量映射与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
 import {
   STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars,
-} from '../../../../../../web-app/src/pages/superForm/componentStyle.js';
-export { STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars };
+  optLayout, supportsOptLayout, optType, isImgOptionType, styleVariant,
+} from '../../../../../../web-app/src/utils/sfComponentStyle.js';
+export {
+  STYLE_SCHEMA, defaultStyle, styleSchema, migrateStyle, componentStyleVars,
+  optLayout, supportsOptLayout, optType, isImgOptionType, styleVariant,
+};
 
 export function genId() {
   return 'c_' + Date.now().toString(36) + (__seq++).toString(36);
@@ -153,11 +157,13 @@ export function defaultContent(type) {
       // ew 默认 label=上传图片；图片类型切换会联动 标题/提示文字/数量限制
       return { ...base, label: '上传图片', maxCount: 9, minCount: 0, imageType: 'normal', sampleImg: '' };
     case 'radio':
-      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }] };
+      // optionType：选项类型 = 文字 / 图片 / 图文（ew「选项类型」三选一）。此前面板有该三选钮，
+      // 但两端渲染器都不消费、且新建组件不带该字段（undefined），属死参数。2026-10-04 补齐。
+      return { ...base, optionType: 'text', options: [{ label: '选项一', value: '1', image: '' }, { label: '选项二', value: '2', image: '' }] };
     case 'checkbox':
       // 多选的「最少/最多选择」字段名对齐面板(minSelect/maxSelect)与 C 端校验，区别于 radio（单选无数量限制）
       // 排他选项 / 添加其他选项 对齐 ew
-      return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], minSelect: 0, maxSelect: 0, exclusive: false, exclusiveValue: '', allowOther: false };
+      return { ...base, optionType: 'text', options: [{ label: '选项一', value: '1', image: '' }, { label: '选项二', value: '2', image: '' }], minSelect: 0, maxSelect: 0, exclusive: false, exclusiveValue: '', allowOther: false };
     case 'select':
       // presetType: 普通 / 省市区 / 日期；level: 下拉框级数（省市区/日期走级联，默认三级）
       return { ...base, options: [{ label: '选项一', value: '1' }, { label: '选项二', value: '2' }], presetType: 'normal', level: 3 };

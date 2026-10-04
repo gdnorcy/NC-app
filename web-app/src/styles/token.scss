@@ -48,6 +48,30 @@ $radius-sm: 8rpx;
 $radius-md: 16rpx;
 $radius-lg: 24rpx;
 
+// ---------- 按钮（装修中心专用，对齐微信官方 WeUI） ----------
+// 依据 docs/规范/08-装修中心按钮规范.md：四档 48 / 40 / 32 / 28px，方角 8 / 6 / 4px。
+// 微信《小程序设计指南》3.2 要求"推荐使用或模仿标准控件尺寸"，故以 WeUI 为准。
+// 圆角刻意复用既有 $radius-md(8px) / $radius-sm(4px)，不新增档外圆角。
+// 注意：商城另用胶囊（80rpx 高 + 圆角=高的一半），属独立场景（底部 fixed bar，
+// 不与装修页按钮同屏），本令牌不覆盖商城。
+$btn-h: 96rpx;         // L 主操作（WeUI default 48px）
+$btn-h-m: 80rpx;       // M 标准（WeUI medium 40px）
+$btn-h-s: 64rpx;       // S 紧凑（WeUI mini 32px）
+$btn-h-xs: 56rpx;      // XS 迷你（WeUI xmini 28px）
+
+$btn-radius: 16rpx;    // L/M 圆角 8px（= $radius-md）
+$btn-radius-s: 12rpx;  // S 圆角 6px
+$btn-radius-xs: 8rpx;  // XS 圆角 4px（= $radius-sm）
+
+$btn-pad-x: 48rpx;     // L/M 左右内距 24px
+$btn-pad-x-s: 24rpx;   // S/XS 左右内距 12px
+
+$btn-font: 34rpx;      // L 字号 17px
+$btn-font-sm: 28rpx;   // M/S/XS 字号 14px
+
+$btn-weight: 500;
+$btn-weight-s: 400;
+
 // ---------- 暴露为 CSS 自定义属性（全局可用） ----------
 // 微信小程序 wxss 不支持 :root（根选择器为 page），双挂 page 保证两端变量生效
 :root, page {
@@ -73,4 +97,15 @@ $radius-lg: 24rpx;
   --radius-sm: #{$radius-sm};
   --radius-md: #{$radius-md};
   --radius-lg: #{$radius-lg};
+  --btn-h: #{$btn-h};
+  --btn-h-m: #{$btn-h-m};
+  --btn-h-s: #{$btn-h-s};
+  --btn-h-xs: #{$btn-h-xs};
+  --btn-radius: #{$btn-radius};
+  --btn-radius-s: #{$btn-radius-s};
+  --btn-radius-xs: #{$btn-radius-xs};
+  --btn-pad-x: #{$btn-pad-x};
+  --btn-pad-x-s: #{$btn-pad-x-s};
+  --btn-font: #{$btn-font};
+  --btn-font-sm: #{$btn-font-sm};
 }

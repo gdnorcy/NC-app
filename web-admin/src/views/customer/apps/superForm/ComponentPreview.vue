@@ -1,12 +1,27 @@
 <template>
-  <div class="cmpv">
+  <div class="cmpv" :class="[styleCls, layoutCls]">
     <div v-if="!noLabel.includes(comp.type)" class="cmpv-label">
       {{ comp.content.label || '未命名' }}
       <span v-if="comp.content.required" class="cmpv-req">*</span>
     </div>
 
-    <template v-if="comp.type === 'text' || comp.type === 'textarea'">
+    <!-- 单行/多行文本：textarea 必须用 <textarea> 渲染（此前与text 共用 <input>，
+         导致设计器里看不出「这是多行」，且字数统计缺失，与 C 端不一致） -->
+    <template v-if="comp.type === 'text'">
       <input class="cmpv-input" :placeholder="comp.content.placeholder" :value="comp.content.prefill" disabled />
+    </template>
+
+    <template v-else-if="comp.type === 'textarea'">
+      <div class="cmpv-textarea-box">
+        <textarea
+          class="cmpv-input cmpv-textarea"
+          :placeholder="comp.content.placeholder"
+          :value="comp.content.prefill"
+          disabled
+        />
+        <!-- 字数统计：对齐 C 端原生 textarea 的 maxlength 提示（0/400），ew 也有该计数 -->
+        <span v-if="comp.content.maxLength > 0" class="cmpv-counter">{{ (comp.content.prefill || '').length }}/{{ comp.content.maxLength }}</span>
+      </div>
     </template>
 
     <template v-else-if="comp.type === 'image'">
@@ -54,16 +69,23 @@
     </template>
 
     <template v-else-if="comp.type === 'radio'">
-      <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row"
-           :class="{ line: comp.style && comp.style.styleType === 'line' }">
-        <span class="cmpv-circle" :class="{ on: i === 0 }" />{{ opt.label }}
+      <div class="cmpv-opt-box" :class="{ 'opts-img': optType(comp) !== 'text' }">
+        <!-- 首个选项演示选中态：设计器里必须能看到选中长什么样（对标站画布即带选中演示） -->
+        <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row" :class="[optType(comp), { on: i === 0 }]">
+          <span class="cmpv-circle" :class="{ on: i === 0 }" />
+          <img v-if="optType(comp) === 'image' || optType(comp) === 'imageText'" class="cmpv-opt-img" :src="opt.image" alt="" />
+          <span v-if="optType(comp) === 'text' || optType(comp) === 'imageText'" class="cmpv-opt-label">{{ opt.label }}</span>
+        </div>
       </div>
     </template>
 
     <template v-else-if="comp.type === 'checkbox'">
-      <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row"
-           :class="{ line: comp.style && comp.style.styleType === 'line' }">
-        <span class="cmpv-square" :class="{ on: i === 0 }" />{{ opt.label }}
+      <div class="cmpv-opt-box" :class="{ 'opts-img': optType(comp) !== 'text' }">
+        <div v-for="(opt, i) in comp.content.options" :key="i" class="cmpv-opt-row" :class="[optType(comp), { on: i === 0 }]">
+          <span class="cmpv-square" :class="{ on: i === 0 }" />
+          <img v-if="optType(comp) === 'image' || optType(comp) === 'imageText'" class="cmpv-opt-img" :src="opt.image" alt="" />
+          <span v-if="optType(comp) === 'text' || optType(comp) === 'imageText'" class="cmpv-opt-label">{{ opt.label }}</span>
+        </div>
       </div>
     </template>
 
@@ -76,7 +98,20 @@
     </template>
 
     <template v-else-if="comp.type === 'number'">
-      <input class="cmpv-input" :placeholder="comp.content.placeholder || '请输入数字'" :value="comp.content.prefill" disabled />
+      <!-- 组件风格：增减类型(step) / 滑块风格(slider)。此前预览只有裸input，
+           与 C 端不一致 → 设计器里看不到这两个风格的真实形态 -->
+      <div v-if="comp.style && comp.style.styleType === 'step'" class="cmpv-num">
+        <span class="cmpv-step-btn">−</span>
+        <input class="cmpv-input cmpv-num-in" :placeholder="comp.content.placeholder || '请输入数字'" :value="comp.content.prefill" disabled />
+        <span class="cmpv-step-btn">+</span>
+      </div>
+      <div v-else-if="comp.style && comp.style.styleType === 'slider'" class="cmpv-num">
+        <div class="cmpv-slider">
+          <div class="cmpv-slider-track"><div class="cmpv-slider-fill" :style="{ width: sliderPct(comp) + '%' }" /><div class="cmpv-slider-thumb" :style="{ left: sliderPct(comp) + '%' }" /></div>
+        </div>
+        <span class="cmpv-slider-val">{{ sliderVal(comp) }}</span>
+      </div>
+      <input v-else class="cmpv-input" :placeholder="comp.content.placeholder || '请输入数字'" :value="comp.content.prefill" disabled />
     </template>
 
     <template v-else-if="comp.type === 'time'">
@@ -125,9 +160,9 @@
       <input class="cmpv-input" :placeholder="comp.content.placeholder || '请输入车牌号'" disabled />
     </template>
 
-    <template v-else-if="comp.type === 'title'">
-      <div class="cmpv-title" :style="{ fontSize: (comp.style && comp.style.titleSize || comp.content.size || 17) + 'px', textAlign: comp.content.align || 'left', color: comp.style && comp.style.labelColor || comp.content.color || '#000000' }">{{ comp.content.text }}</div>
-    </template>
+            <template v-else-if="comp.type === 'title'">
+              <div class="cmpv-title" :style="{ fontSize: (comp.style && comp.style.titleSize || comp.content.size || 17) + 'px', textAlign: comp.content.align || 'left', color: comp.style && comp.style.labelColor || comp.content.color || '#000000' }">{{ comp.content.text }}<div v-if="comp.content.subtitle" class="cmpv-title-sub">{{ comp.content.subtitle }}</div><div v-if="comp.content.tip" class="cmpv-title-tip">{{ comp.content.tip }}</div></div>
+            </template>
 
     <template v-else-if="comp.type === 'richtext'">
       <div class="cmpv-richtext" v-html="comp.content.html" />
@@ -189,22 +224,55 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
+// 风格卡值→语义 class 的映射与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
+import { styleVariant, optLayout, optType as optTypeOf, isImgOptionType as sfIsImgOptionType } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
 import idFront from '../../../../assets/superform/id-front.png';
 import idBack from '../../../../assets/superform/id-beck.png';
 import licenseImg from '../../../../assets/superform/license.png';
 
-defineProps({
+const props = defineProps({
   comp: { type: Object, required: true },
   layout: { type: String, default: 'vertical' },
 });
 const noLabel = ['submit', 'title', 'richtext', 'blank', 'line', 'swiper', 'bigimage', 'video', 'backdesc', 'realtime', 'pagebreak', 'pay'];
+/**
+ * 「组件风格」风格卡 → 预览容器 class（sfv-box / sfv-plain / sfv-line / sfx-opt* …）。
+ * 此前预览根节点不挂任何风格 class，导致「框风格/框风格1/框风格2/线风格」点击后预览无变化
+ * （用户反馈「三个风格无效」）。现与 C 端 .sf-field 走同一个 styleVariant() 映射，三端天然一致，
+ * 且新增的 s2/s3/slider 值也自动有了视觉（此前这些值无对应规则 = 死参数）。
+ */
+const styleCls = computed(() => styleVariant(props.comp));
+// 组件级「上下布局 / 左右布局」（对标站 field-wrapper-radio-top / -left），
+// 与 C 端 SuperFormRender.fieldCls 的 sf-layout-left 同一口径。
+const layoutCls = computed(() => (optLayout(props.comp) === 'left' ? { 'sf-layout-left': true } : {}));
 // 数量限制文案（ew：0 = 不限制）
+/**
+ * 选择类的「选项类型」（文字 / 图片 / 图文）→ 渲染端值。
+ * 与 C 端 SuperFormRender.optType 同一口径：老数据没有 content.optionType 时兜底 'text'。
+ */
+function optType(comp) {
+  return optTypeOf(comp);
+}
+const isImgOptionType = (comp) => sfIsImgOptionType(comp);
 function limitText(comp) {
   const min = comp.content.minCount || 0;
   const max = comp.content.maxCount || 0;
   if (min && max) return `最少 ${min} 张，最多 ${max} 张`;
   if (max) return `最多 ${max} 张`;
   return '数量不限';
+}
+// 数字滑块风格：当前值（无值时取 min）与百分比位置，供预览渲染滑轨
+function sliderVal(comp) {
+  const v = comp.content.prefill;
+  return v != null && v !== '' ? v : (comp.content.min != null ? comp.content.min : 0);
+}
+function sliderPct(comp) {
+  const min = Number(comp.content.min != null ? comp.content.min : 0);
+  const max = Number(comp.content.max != null ? comp.content.max : 100);
+  const v = Number(sliderVal(comp));
+  if (max === min) return 0;
+  return Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100));
 }
 </script>
 
@@ -213,9 +281,23 @@ function limitText(comp) {
 .cmpv-label { font-size: var(--c-title-size, 14px); color: var(--c-title-color, #000000); margin-bottom: 6px; }
 .cmpv-req { color: var(--c-error-color, #ED4F4F); margin-left: 2px; }
 .cmpv-input { width: 100%; border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 8px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); background: var(--c-input-bg, #F7F9FA); color: var(--c-input-color, #333333); box-sizing: border-box; }
+/* 多行文本：与 C 端 textarea.sf-input 同构（min-height 走 --c-input-height，默认 84px），
+   外层relative 供右下角字数统计定位。对齐 C 端原生 textarea 的 0/400 提示。 */
+.cmpv-textarea-box { position: relative; }
+.cmpv-textarea { min-height: var(--c-input-height, 84px); resize: none; display: block; }
+.cmpv-counter { position: absolute; right: var(--c-input-pad-x, 10px); bottom: 6px; font-size: var(--c-prompt-size, 12px); color: var(--c-count-color, #909399); line-height: 1; pointer-events: none; }
 .cmpv-input::placeholder { color: var(--c-prompt-color, #CCCCCC); }
 .cmpv-select { display: flex; align-items: center; justify-content: space-between; }
 .cmpv-select::after { content: '▾'; color: var(--c-icon-color, #000000); }
+/* 数字组件的两种风格（对齐 C 端 .sf-number / .sf-slider） */
+.cmpv-num { display: flex; align-items: stretch; gap: 8px; }
+.cmpv-num-in { flex: 1; text-align: center; }
+.cmpv-step-btn { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1; background: var(--c-operate-bg, #FFFFFF); color: var(--c-title-color, #333333); border: 1px solid var(--c-operate-border, #dcdfe6); border-radius: var(--c-operate-radius, 3px); }
+.cmpv-slider { flex: 1; display: flex; align-items: center; height: 24px; }
+.cmpv-slider-track { position: relative; width: 100%; height: 4px; border-radius: 2px; background: var(--c-inactive-color, #C6D1DE); }
+.cmpv-slider-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; background: var(--c-active-color, #2667EC); }
+.cmpv-slider-thumb { position: absolute; top: 50%; width: 18px; height: 18px; margin-left: -9px; transform: translateY(-50%); border-radius: 50%; background: #FFFFFF; border: 1px solid var(--c-active-color, #2667EC); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.cmpv-slider-val { min-width: 40px; text-align: right; font-size: var(--c-input-size, 14px); color: var(--c-title-color, #000000); font-weight: 600; }
 .cmpv-upload { min-width: var(--c-upload-size, 45px); min-height: var(--c-upload-size, 45px); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: var(--c-input-bg, #F7F9FA); color: var(--c-prompt-color, #999999); font-size: var(--c-prompt-size, 14px); overflow: hidden; box-sizing: border-box; }
 /* —— 图片上传（ew 实测）：上下布局普通模式 = rowsShow 等分正方形框（ew getImgHeight 令高=宽） —— */
 .cmpv-img-body { padding: 0 var(--c-input-pad-x, 10px); }
@@ -243,28 +325,121 @@ function limitText(comp) {
 .cmpv-license-box { width: 155px; padding: 23px 17px 12px; }
 .cmpv-license-box .cmpv-camera-circle { top: 30px; left: 32px; }
 .cmpv-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--c-option-color, #333333); margin: 6px 0; }
-.cmpv-opt-row { display: flex; align-items: center; gap: 8px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); margin: 6px 0; padding: 6px 0; }
-.cmpv-opt-row.line { border-bottom: 1px solid var(--c-border-color, #dcdfe6); }
+/* 选项容器：默认（sfv-box）白底+圆角（消费 --c-input-radius）与边框（--c-inactive-border）。
+   三种选择类风格（s1/s2/s3）由根节点的 sfx-optbox / sfx-optplain / sfx-optline 驱动。 */
+.cmpv-opt-box { border: 1px solid var(--c-inactive-border, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); background: #fff; }
+/* 「组件风格」语义 class（值→语义映射见 sfComponentStyle.styleVariant，与 C 端 .sf-field 同一套）：
+     sfv-box   描边 + 浅底（= 基础样式，也是无风格时的默认）
+     sfv-plain 白底 + 极淡描边（弱框；白底无框会在白卡片上「消失」，同 C 端 sfv-plain）
+     sfv-line  去框只留底线
+   此前预览根节点不挂风格 class、box1/box2 也没有对应规则 → 三个风格卡点了没反应。
+   ⚠️ 覆盖清单必须与「有风格卡的组件的实际容器 class」一一对齐，漏一个该组件的风格卡就是死参数
+   （已漏过 pay / realtime / opt-box / image-h / id-box，2026-10-04 审计补齐）。*/
+.cmpv.sfv-box .cmpv-input,
+.cmpv.sfv-box .cmpv-loc,
+.cmpv.sfv-box .cmpv-auth,
+.cmpv.sfv-box .cmpv-download,
+.cmpv.sfv-box .cmpv-upload,
+.cmpv.sfv-box .cmpv-pay,
+.cmpv.sfv-box .cmpv-realtime,
+.cmpv.sfv-box .cmpv-image-h,
+.cmpv.sfv-box .cmpv-id-box,
+.cmpv.sfv-box .cmpv-opt-box { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
+.cmpv.sfv-plain .cmpv-input,
+.cmpv.sfv-plain .cmpv-loc,
+.cmpv.sfv-plain .cmpv-auth,
+.cmpv.sfv-plain .cmpv-download,
+.cmpv.sfv-plain .cmpv-upload,
+.cmpv.sfv-plain .cmpv-pay,
+.cmpv.sfv-plain .cmpv-realtime,
+.cmpv.sfv-plain .cmpv-image-h,
+.cmpv.sfv-plain .cmpv-id-box,
+.cmpv.sfv-plain .cmpv-opt-box { background: #FFFFFF; border: 1px solid var(--c-plain-border, #EBEEF5); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
+/* 线风格：输入类控件去边框仅保留底线（对齐 C 端 .sfv-line） */
+.cmpv.sfv-line .cmpv-input,
+.cmpv.sfv-line .cmpv-loc,
+.cmpv.sfv-line .cmpv-auth,
+.cmpv.sfv-line .cmpv-download,
+.cmpv.sfv-line .cmpv-upload,
+.cmpv.sfv-line .cmpv-pay,
+.cmpv.sfv-line .cmpv-realtime,
+.cmpv.sfv-line .cmpv-image-h,
+.cmpv.sfv-line .cmpv-id-box,
+.cmpv.sfv-line .cmpv-opt-box { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
+/* 选择类三态（s1 描边整块 / s2 每项独立成卡 / s3 仅行间底线），与 C 端 sfx-opt* 同语义 */
+.cmpv.sfx-optbox .cmpv-opt-box { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-inactive-border, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
+.cmpv.sfx-optbox .cmpv-opt-row + .cmpv-opt-row { border-top: 1px solid var(--c-inactive-border, #dcdfe6); }
+.cmpv.sfx-optplain .cmpv-opt-box { background: transparent; border: none; border-radius: 0; display: flex; flex-direction: column; gap: var(--c-input-pad-x, 10px); }
+.cmpv.sfx-optplain .cmpv-opt-row { background: #FFFFFF; border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); margin: 0; }
+.cmpv.sfx-optline .cmpv-opt-box { background: transparent; border: none; border-radius: 0; }
+.cmpv.sfx-optline .cmpv-opt-row + .cmpv-opt-row { border-top: 1px solid var(--c-border-color, #dcdfe6); }
+/* 选项行：消费「组件风格」的 --c-input-pad-x（左右边距）与 --c-input-radius（输入框圆角）。
+   此前写死 `padding: 6px 0` 且不引用这两个变量 → 选择类的左右边距/输入框圆角是死参数
+   （变量已注入但无元素消费，实测 paddingLeft 恒 0px）。此处补上消费，与输入类组件同语义。
+   圆角由外层 .cmpv-opt-box 承担（选项行本身无边框，圆角无处可见）。 */
+.cmpv-opt-row { display: flex; align-items: center; gap: 8px; font-size: var(--c-input-size, 14px); color: var(--c-option-color, #333333); margin: 6px 0; padding: 6px var(--c-input-pad-x, 10px); }
+/* 「选项类型」三态（content.optionType：文字/图片/图文）—— 与 C 端 .sf-opt-row.image/.imageText 同语义。
+   图片/图文：选项区横向等分、每列一卡（图上文下）；勾选框 order:-1 置于图上方。 */
+.cmpv-opt-box.opts-img { display: flex; flex-direction: row; flex-wrap: wrap; }
+.cmpv-opt-box.opts-img .cmpv-opt-row { flex: 1 1 0; min-width: var(--c-option-img-size, 40px); margin: 0; flex-direction: column; gap: 4px; padding: var(--c-input-pad-x, 10px) 4px; }
+.cmpv-opt-box.opts-img .cmpv-opt-row + .cmpv-opt-row { border-top: none; }
+/* 圆点/勾选框在模板里已是第一个子元素，column 布局下自然落在图上方（勿加 order:-1，会被推出选项行）。 */
+.cmpv-opt-img { width: var(--c-option-img-size, 40px); height: var(--c-option-img-size, 40px); border-radius: var(--c-option-img-radius, 3px); background: var(--c-input-bg, #F7F9FA); object-fit: cover; flex-shrink: 0; }
+.cmpv-opt-label { flex: 1; min-width: 0; }
 .cmpv-circle { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; flex-shrink: 0; position: relative; box-sizing: border-box; }
 .cmpv-circle.on { border-color: var(--c-active-color, #2667EC); }
 .cmpv-circle.on::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--c-active-color, #2667EC); }
 .cmpv-square { width: 16px; height: 16px; border-radius: 3px; border: 1px solid var(--c-inactive-border, #dcdfe6); background: #fff; flex-shrink: 0; position: relative; box-sizing: border-box; }
 .cmpv-square.on { border-color: var(--c-active-color, #2667EC); background: var(--c-active-color, #2667EC); }
+
+/* ── 对标站 CSSOM 实测补齐（2026-10-04 精读）────────────────────────────
+   风格3 = 胶囊按钮，选中态填 --c-active-color 蓝底白字：
+     .top-box3-radio .el-radio.is-checked .el-radio__label {
+       background: var(--active-color); border-color: var(--active-color); color: #fff; }
+   我方此前三档选中态都只改圆点/勾选框颜色，选项胶囊本身不变色 → 风格3 视觉缺失。
+   sfx-optfill 仅在 styleVariant 判定 styleType==='s3' 时挂载。 */
+.cmpv.sfx-optfill .cmpv-opt-row { border-radius: var(--c-input-radius, 3px); }
+.cmpv.sfx-optfill .cmpv-opt-row.on { background: var(--c-active-color, #2667EC); border-color: var(--c-active-color, #2667EC); }
+.cmpv.sfx-optfill .cmpv-opt-row.on .cmpv-opt-label { color: #FFFFFF; }
+.cmpv.sfx-optfill .cmpv-opt-row.on .cmpv-circle { border-color: #FFFFFF; background: #FFFFFF; }
+.cmpv.sfx-optfill .cmpv-opt-row.on .cmpv-circle::after { background: var(--c-active-color, #2667EC); }
+.cmpv.sfx-optfill .cmpv-opt-row.on .cmpv-square { border-color: #FFFFFF; background: #FFFFFF; }
+
+/* 「选项文字对齐」（对标站 --align-items，默认 left） */
+.cmpv-opt-box { text-align: var(--c-opt-align, left); }
+.cmpv-opt-label { text-align: inherit; }
+
+/* ── 组件级「上下布局 / 左右布局」（对标站 field-wrapper-radio-top / -left）──
+   左右布局：标题固定 90px 与内容同行（对标站 label width:90px; content margin-left:90px） */
+.cmpv.sf-layout-left { display: flex; align-items: flex-start; }
+.cmpv.sf-layout-left > .cmpv-label { width: 90px; flex-shrink: 0; line-height: 20px; padding-top: 2px; }
+.cmpv.sf-layout-left > .cmpv-opt-box,
+.cmpv.sf-layout-left > .cmpv-input,
+.cmpv.sf-layout-left > .cmpv-textarea-box,
+.cmpv.sf-layout-left > .cmpv-number,
+.cmpv.sf-layout-left > .cmpv-realtime,
+.cmpv.sf-layout-left > .cmpv-pay,
+.cmpv.sf-layout-left > .cmpv-upload { flex: 1; min-width: 0; margin-left: 90px; }
+.cmpv.sf-layout-left.sfx-optbox > .cmpv-label,
+.cmpv.sf-layout-left.sfx-optplain > .cmpv-label,
+.cmpv.sf-layout-left.sfx-optline > .cmpv-label { padding-top: 10px; }
 .cmpv-square.on::after { content: '✓'; position: absolute; inset: 0; color: #fff; font-size: 11px; line-height: 14px; text-align: center; }
-.cmpv-submit { width: 100%; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 22px); padding: 10px; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); font-size: 15px; }
+.cmpv-submit { width: 100%; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 24px); padding: 10px; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); font-size: 15px; }
 .cmpv-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 8px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
 .cmpv-agree { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--c-input-color, #333333); }
-.cmpv-agree a { color: var(--c-input-color, #2667EC); }
+.cmpv-agree a { color: var(--c-agree-btn, #2667EC); }
 .cmpv-rate { display: flex; font-size: 20px; letter-spacing: 2px; }
 .cmpv-rate-ic { font-size: 24px; margin-right: 4px; }
 .cmpv-rate-desc { color: var(--c-desc-color, #999999); font-size: 12px; margin-bottom: 4px; }
 .cmpv-download { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 8px var(--c-input-pad-x, 10px); font-size: var(--c-file-size, 13px); color: var(--c-file-title, #333333); background: var(--c-input-bg, #F7F9FA); }
 .cmpv-download::after { content: ' 下载'; color: var(--c-down-color, #4385FF); }
 .cmpv-auth { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 8px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); background: var(--c-input-bg, #F7F9FA); color: var(--c-empower-color, #4385FF); }
-.cmpv-sms { display: flex; gap: 8px; align-items: stretch; }
+.cmpv-sms { display: flex; gap: var(--c-inner-margin, 8px); align-items: stretch; }
 .cmpv-sms .cmpv-input { flex: 1; }
 .cmpv-auth-btn { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 3px); padding: 0 12px; font-size: 13px; background: #fff; color: var(--c-msg-color, #4385FF); white-space: nowrap; cursor: default; }
 .cmpv-title { font-weight: 600; }
+.cmpv-title-sub { display: block; font-size: var(--c-subtitle-size, 13px); color: var(--c-subtitle-color, #909399); margin-top: 4px; font-weight: 400; }
+.cmpv-title-tip { display: block; font-size: 12px; color: var(--c-desc-color, #999999); margin-top: 4px; }
 .cmpv-richtext { font-size: 13px; color: #303133; line-height: 1.6; }
 .cmpv-line { margin: 4px 0; }
 .cmpv-swiper { width: 100%; border-radius: var(--c-img-radius, 0px); overflow: hidden; }
@@ -274,7 +449,9 @@ function limitText(comp) {
 .cmpv-bigimg-empty { background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: var(--c-img-radius, 4px); padding: 24px; text-align: center; color: #909399; font-size: 12px; }
 .cmpv-video-empty { background: #000; color: #fff; text-align: center; padding: 24px; font-size: 12px; border-radius: var(--c-input-radius, 4px); }
 .cmpv-backdesc { font-size: var(--c-title-size, 14px); color: var(--c-input-color, #333333); line-height: 1.6; }
-.cmpv-realtime { font-size: 12px; color: var(--c-title-color, #000000); border-radius: var(--c-input-radius, 10px); padding: 8px 10px; }
+/* 实时动态：此前只有圆角+padding、无边框无底色 → 风格卡的「框风格」无任何基础样式可改，
+   视觉上也与 C 端 .sf-realtime（描边+底色）不一致。现补齐基础样式，风格 class 才有作用对象。 */
+.cmpv-realtime { font-size: 12px; color: var(--c-title-color, #000000); border-radius: var(--c-input-radius, 10px); padding: 8px 10px; background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); }
 .cmpv-pagebreak { display: flex; gap: 10px; }
 .cmpv-pb-btn { flex: 1; border-radius: var(--c-input-radius, 19px); padding: 8px; font-size: 14px; }
 .cmpv-pb-prev { background: var(--c-prev-bg, #EDF1F3); color: var(--c-prev-color, #333333); border: 1px solid var(--c-prev-border, #EDF1F3); }
@@ -285,11 +462,4 @@ function limitText(comp) {
 .cmpv-pay-spec { font-size: 12px; color: var(--c-spec-color, #000000); border: 1px solid var(--c-border-color, #F7F9FA); border-radius: var(--c-input-radius, 3px); padding: 4px 6px; }
 .cmpv-pay-spec .cmpv-pay-price { color: var(--c-price-color, #FF1C1C); }
 .cmpv-pay-tip { font-size: 12px; color: var(--c-count-color, #79797B); }
-/* 线风格：输入类控件去边框仅留底线（对齐 C 端 .cs-line，.cs-line 加在父级 wrap 上） */
-:deep(.cs-line) .cmpv-input,
-:deep(.cs-line) .cmpv-loc,
-:deep(.cs-line) .cmpv-auth,
-:deep(.cs-line) .cmpv-auth-btn,
-:deep(.cs-line) .cmpv-download,
-:deep(.cs-line) .cmpv-upload { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 </style>

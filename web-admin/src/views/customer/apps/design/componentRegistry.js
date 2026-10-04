@@ -881,8 +881,8 @@ export const componentRegistry = [
     },
     schema: [
       { key: 'formId', label: '选择表单', control: 'superformPicker', section: 'content', required: true, help: '选择「应用中心-超级表单」中已创建好的表单' },
-      { key: 'btnText', label: '按钮文字', control: 'input', section: 'content' },
-      { key: 'btnColor', label: '按钮色', control: 'color', section: 'content' },
+      // 注：提交按钮的文字/颜色/圆角/高度由表单里「提交按钮」组件的样式决定（C 端与画布预览同源渲染），
+      // 这里不再提供 btnText/btnColor 配置——此前提供的配置在 C 端不生效，只会造成「改了没反应」的误解。
       {
         key: 'fieldCount', label: '预览显示字段数', control: 'select', section: 'content',
         help: '画布手机预览区有限，字段多时建议选「前 4 个」；选「全部」后超过 8 个会自动折叠，可点「展开全部」查看。',

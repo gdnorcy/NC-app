@@ -38,7 +38,7 @@
       </div>
     </template>
     <template v-else-if="comp.type === 'button'">
-      <div class="r-btn" :style="btnStyle(comp.props)">{{ comp.props.text || '按钮' }}</div>
+      <div class="r-btn" :class="{ auto: comp.props.widthMode === 'auto' }" :style="btnStyle(comp.props)">{{ comp.props.text || '按钮' }}</div>
     </template>
     <template v-else-if="comp.type === 'divider'">
       <div class="r-divider" :style="dividerStyle(comp.props)"><span v-if="comp.props.text" :style="{ color: comp.props.color || '#86909C' }">{{ comp.props.text }}</span></div>
@@ -407,27 +407,35 @@
         <div class="r-form-btn" :style="{ background: comp.props.btnColor || '#165DFF' }">{{ comp.props.submitText || '提交' }}</div>
       </div>
     </template>
-    <!-- 超级表单：入口卡片（引用 formId，点击跳该表单的独立填写页） -->
+    <!-- 超级表单：与 C 端 SuperFormRender mode="embed" 1:1 同构 —— 不显示表单名/标签头，
+         单张白卡承载全部字段（field padding 12px 16px），提交按钮全宽 48px/17px（L 档）。
+         复用设计器同款 ComponentPreview 逐组件渲染 + 同一套 --c-* 样式变量。 -->
     <template v-else-if="comp.type === 'superform'">
       <div class="r-sf">
-        <div class="r-sf-head">
-          <div class="r-sf-title">{{ comp.props.formName || '超级表单' }}</div>
-          <div class="r-sf-tag">表单</div>
-        </div>
-        <div v-if="sfShowList.length" class="r-sf-fields">
-          <div v-for="(f, i) in sfShowList" :key="i" class="r-sf-field">
-            <span class="r-sf-field-ico">
-              <svg viewBox="0 0 24 24" v-html="sfFieldIcon(f.type)" />
-            </span>
-            <span class="r-sf-field-name">{{ f.label || '字段' }}</span>
-            <span v-if="f.required" class="r-sf-req">*</span>
-          </div>
-          <div v-if="sfCanExpand || sfExpanded" class="r-sf-more" @click.stop="toggleSfExpand">
-            {{ sfExpanded ? '收起字段' : `展开全部 ${comp.props.fields.length} 个字段` }}
+        <div v-if="sfRealComps.length" class="r-sf-real" :class="{ horizontal: sfRealLayout === 'horizontal' }">
+          <div v-for="(c, i) in sfRealComps" :key="c.id || i" class="r-sf-real-comp" :style="sfRealCompVars(c)">
+            <!-- 风格卡class 由内层 ComponentPreview 自行挂载（sfv-box/sfv-plain/sfv-line），
+                 此处不再重复判断 styleType，避免两处判定不一致导致风格在画布预览里失效。 -->
+            <ComponentPreview :comp="c" :layout="sfRealLayout" />
           </div>
         </div>
-        <div v-else-if="(comp.props.fields || []).length === 0" class="r-sf-none">请在右侧「选择表单」中绑定一个超级表单</div>
-        <div class="r-sf-btn" :style="{ background: comp.props.btnColor || '#F0503A' }">{{ comp.props.btnText || '立即填写' }}</div>
+        <!-- 兜底：config 未拉到/拉取失败（表单已删等）→ 保留原字段摘要入口卡 -->
+        <template v-else>
+          <div v-if="sfShowList.length" class="r-sf-fields">
+            <div v-for="(f, i) in sfShowList" :key="i" class="r-sf-field">
+              <span class="r-sf-field-ico">
+                <svg viewBox="0 0 24 24" v-html="sfFieldIcon(f.type)" />
+              </span>
+              <span class="r-sf-field-name">{{ f.label || '字段' }}</span>
+              <span v-if="f.required" class="r-sf-req">*</span>
+            </div>
+            <div v-if="sfCanExpand || sfExpanded" class="r-sf-more" @click.stop="toggleSfExpand">
+              {{ sfExpanded ? '收起字段' : `展开全部 ${comp.props.fields.length} 个字段` }}
+            </div>
+          </div>
+          <div v-else-if="(comp.props.fields || []).length === 0" class="r-sf-none">请在右侧「选择表单」中绑定一个超级表单</div>
+          <div class="r-sf-btn" :style="sfBtnStyle()">{{ sfBtnLabel() }}</div>
+        </template>
       </div>
     </template>
     <!-- 客服联系 -->
@@ -771,6 +779,10 @@ import { customerApiCall } from '../../../../api';
 import PeSIcon from './PeSIcon.vue';
 // 超级表单字段图标：复用超级表单组件库同款「三层蜜桃橙」SVG inner（24×24，透明底，符合 docs/规范/07-UI设计.md）
 import { COMPONENT_ICONS as SF_ICONS } from '../superForm/components';
+// 画布真实渲染超级表单：复用设计器同款预览组件（真实输入框/单选/按钮），
+// 样式翻译与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
+import ComponentPreview from '../superForm/ComponentPreview.vue';
+import { componentStyleVars } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
 const tbOuterStyle = (p) => {
@@ -810,7 +822,7 @@ const tbTextStyle = (comp) => ({ color: comp.props.titleColor || '#333333', font
 const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fontSize: (comp.props.titleFontSize2 || 16) + 'px', fontWeight: comp.props.bold ? 700 : 400, fontStyle: comp.props.italic ? 'italic' : 'normal' });
 // 主标题族兜底标题文字族文案（存量组件无 titleText）
 const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
-const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null }, navBarH: { type: Number, default: 0 } });
+const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null }, navBarH: { type: Number, default: 0 }, sfMeta: { type: Object, default: null } });
 
 // 轮播图状态
 const sIdx = ref(0);
@@ -1111,6 +1123,59 @@ function sfFieldIcon(type) { return SF_ICONS[type] || SF_ICONS.text || ''; }
 // 切换表单/字段数后复位展开态，避免"展开全部"跨表单残留
 watch(() => [props.comp?.id, props.comp?.props?.formId, sfFieldCount.value], () => { sfExpanded.value = false; });
 
+// ---- 提交按钮与 C 端同步 ----
+// C 端 .sf-submit 的文字/样式来自表单 submit 组件自身配置（PageEditor 经 sfMeta 传入，
+// 与 C 端同源）。meta 未加载/表单已删时回退装修 props 旧渲染（兼容存量草稿）。
+const sfSubmitMeta = computed(() => {
+  const id = Number(props.comp?.props?.formId);
+  if (!id || !props.sfMeta) return null;
+  return props.sfMeta[id] || null;
+});
+
+// ---- 画布真实渲染（所见即所得）----
+// meta.comps 为表单完整可见组件树（PageEditor extractSfMeta 提取，运行时缓存不写草稿）。
+// 与设计器手机预览同构：每组件一张白卡（componentStyleVars 默认 bgColor #FFF +
+// marginY 上下 10px 由灰底容器的 gap 呈现），线风格由内层预览的 .sfv-line 规则去框留线。
+const sfRealComps = computed(() => {
+  const m = sfSubmitMeta.value;
+  return m && Array.isArray(m.comps) ? m.comps : [];
+});
+const sfRealLayout = computed(() => (sfSubmitMeta.value?.layout === 'horizontal' ? 'horizontal' : 'vertical'));
+function sfRealCompVars(c) {
+  return componentStyleVars(c || {}, sfSubmitMeta.value?.globalStyle || {}, sfRealLayout.value);
+}
+function sfBtnLabel() {
+  const m = sfSubmitMeta.value;
+  if (m) return m.label || '确认';
+  return props.comp?.props?.btnText || '立即填写';
+}
+function sfBtnStyle() {
+  const m = sfSubmitMeta.value;
+  // 未加载到表单 meta（表单已删 / 加载失败）时回退「超级表单提交按钮」默认样式（蓝底全胶囊 24px = 高度一半），
+  // 不再使用装修组件旧的 btnColor（C 端不生效，会显示错误的橙红色），保证画布所见即所得。
+  if (!m) return { background: '#0076F0', color: '#FFFFFF', borderRadius: '24px', border: '1px solid #0076F0' };
+  // 与 C 端 .sf-submit 同值：height 48px(C 端 96rpx) + font-size 17px(C 端 34rpx)
+  // + padding 左右 12px(C 端 24rpx) + line-height 1.2 + border-box + flex 居中。
+  // 高度/字号走规范 L 档（超级表单提交按钮无独立尺寸配置，与 C 端保持一致）；
+  // 底色/圆角/文字色/边框消费表单 submit 组件自身的样式变量，随超级表单「样式设置」实时变化。
+  const b = m.btn || {};
+  const s = {
+    height: '48px',
+    padding: '0 12px',
+    fontSize: '17px',
+    lineHeight: '1.2',
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: b.bg || '#0076F0',
+    borderRadius: b.radius || '22px',
+    color: b.color || '#FFFFFF',
+  };
+  if (b.border) s.border = `1px solid ${b.border}`;
+  return s;
+}
+
 const isFloatComp = computed(() => props.comp.type === 'fab-cart' || props.comp.type === 'float-btn');
 const containerStyle = computed(() => {
   const p = props.comp.props || {};
@@ -1233,7 +1298,7 @@ function btnStyle(p) {
   }
   if (p.widthMode === 'auto') {
     s.display = 'inline-block';
-    s.padding = '0 24px';
+    s.padding = '0 12px';
     s.width = 'auto';
   } else {
     s.width = '100%';
@@ -1294,9 +1359,9 @@ function resolveFloatPos(p, tabH) {
 function floatStyle(p) {
   const s = { background: p.color || '#165DFF' };
   // 整体大小：round 直径 / square 高度（宽度随内容自适应），与 C 端一致
-  const size = Number(p.size) || (p.style === 'round' ? 52 : 44);
+  const size = Number(p.size) || (p.style === 'round' ? 52 : 48);
   if (p.style === 'round') { s.width = size + 'px'; s.height = size + 'px'; }
-  else { s.height = size + 'px'; s.fontSize = Math.max(11, Math.round(size * 0.28)) + 'px'; }
+  else { s.height = size + 'px'; s.fontSize = Math.max(11, Math.round(size * 0.30)) + 'px'; }
   const { pos, x, y } = resolveFloatPos(p, props.navBarH);
   const xpx = x + 'px', ypx = y + 'px';
   if (pos === 'top-left') { s.top = ypx; s.left = xpx; }
@@ -1604,7 +1669,8 @@ const nativeGridItems = [
 .r-image-hotspot { position: absolute; border: 1.5px solid #165DFF; background: rgba(22, 93, 255, 0.18); box-sizing: border-box; pointer-events: none; }
 .r-image-hotspot-idx { position: absolute; top: 0; left: 0; background: #165DFF; color: #fff; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 0 0 4px 0; }
 .r-image-empty { height: 88px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; }
-.r-btn { display: inline-block; padding: 10px 24px; border-radius: 8px; font-size: 14px; text-align: center; }
+.r-btn { display: inline-block; height: 40px; line-height: 40px; padding: 0 24px; border-radius: 8px; font-size: 14px; text-align: center; box-sizing: border-box; }
+.r-btn.auto { height: 32px; line-height: 32px; padding: 0 12px; border-radius: 6px; font-size: 14px; }
 .r-divider { height: 0; margin: 14px 0; position: relative; }
 .r-divider span { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
@@ -1650,12 +1716,10 @@ const nativeGridItems = [
 .r-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
 .r-form-title { font-size: 14px; font-weight: 600; color: #1d2129; }
 .r-form-input { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #86909c; }
-.r-form-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
-/* 超级表单入口卡片 */
-.r-sf { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; background: #fff; display: flex; flex-direction: column; gap: 10px; }
-.r-sf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.r-sf-title { font-size: 14px; font-weight: 600; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.r-sf-tag { flex-shrink: 0; font-size: 10px; line-height: 1; color: #f0503a; background: #fff1ed; border-radius: 4px; padding: 3px 5px; }
+/* 与 C 端 .dp-form-btn 同源：C 端 96rpx/16rpx/34rpx → 此处 48px/8px/17px。 */
+.r-form-btn { height: 48px; border-radius: 8px; color: #fff; font-size: 17px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
+/* 超级表单：外壳透明（C 端 embed 由 .r-sf-real 白卡直接承载，不再套画布组件卡） */
+.r-sf { display: flex; flex-direction: column; gap: 10px; }
 .r-sf-fields { display: flex; flex-direction: column; gap: 8px; }
 .r-sf-field { height: 34px; border-radius: 6px; background: #f7f8fa; border: 1px solid #e5e6eb; display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: #86909c; }
 .r-sf-field-ico { flex-shrink: 0; width: 16px; height: 16px; margin-right: 7px; display: flex; align-items: center; justify-content: center; }
@@ -1665,7 +1729,34 @@ const nativeGridItems = [
 .r-sf-more { font-size: 11px; color: #86909c; text-align: center; cursor: pointer; user-select: none; padding: 2px 0; border-radius: 4px; }
 .r-sf-more:hover { color: #f0503a; }
 .r-sf-none { font-size: 12px; color: #86909c; border: 1px dashed #e5e6eb; border-radius: 6px; padding: 10px 12px; text-align: center; }
-.r-sf-btn { height: 36px; border-radius: 8px; color: #fff; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+/* —— 真实表单渲染容器：1:1 同构 C 端 SuperFormRender ——
+   「组件即卡片」：容器不着色，卡片白底由各组件 inline backgroundColor 提供，
+   卡间灰缝由 componentStyleVars 内联 marginTop(=顶外边距) 让宿主页底色透出（对齐 C 端 .sf-field）。
+   此前 .r-sf-real-comp 写死 margin-bottom:10px 会架空「顶外边距」参数，已移除。 */
+.r-sf-real { background: transparent; display: flex; flex-direction: column; }
+.r-sf-real.horizontal { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+/* 左右布局：每个字段约占半行（对齐 C 端 .sf-form.horizontal .sf-field 的 flex:1 1 45%） */
+.r-sf-real.horizontal .r-sf-real-comp { flex: 1 1 45%; box-sizing: border-box; min-width: 0; }
+/* margin/padding 横向不设：卡片左右内距完全由 componentStyleVars 内联 marginX 决定 */
+.r-sf-real-comp { position: relative; padding: 12px 0; }
+/* ComponentPreview 内部度量对齐 C 端 .sf-*（label 间距 / 输入内距 / 选项行距 / 圆点直径 / 提交按钮） */
+.r-sf-real-comp :deep(.cmpv-label) { margin-bottom: 8px; }
+.r-sf-real-comp :deep(.cmpv-input),
+.r-sf-real-comp :deep(.cmpv-loc),
+.r-sf-real-comp :deep(.cmpv-auth),
+.r-sf-real-comp :deep(.cmpv-download) { padding-top: 10px; padding-bottom: 10px; }
+.r-sf-real-comp :deep(.cmpv-opt-row) { margin: 0; padding: 8px 0; }
+.r-sf-real-comp :deep(.cmpv-circle),
+.r-sf-real-comp :deep(.cmpv-square) { width: 18px; height: 18px; }
+.r-sf-real-comp :deep(.cmpv-circle.on::after) { inset: 4px; }
+/* 提交按钮：与 C 端 .sf-submit 同源（L 档 96rpx/34rpx → 48px/17px，height 锁定 + flex 居中） */
+.r-sf-real-comp :deep(.cmpv-submit) { height: 48px; padding: 0 12px; font-size: 17px; line-height: 1.2; display: flex; align-items: center; justify-content: center; box-sizing: border-box; margin-top: 6px; }
+/* 组件风格（框/线）：由内层 ComponentPreview 的 .cmpv.sfv-box/.sfv-plain/.sfv-line 自身规则处理，
+   画布层不再重复挂 class/写规则（此前 .r-sf-real-comp.cs-line 与预览规则分属两处，易不一致）。 */
+/* 与 C 端 .sf-submit 完全同源（padding 12px / font-size 16px / line-height 1.2 / box-sizing border-box），
+   保证装修画布预览的按钮高度、圆角、字号与小程序端一致；颜色/圆角由 sfBtnStyle 按表单真实样式覆盖。 */
+/* 与 C 端 .sf-submit 同源：C 端 96rpx 高 / 34rpx 字号 / 24rpx 左右内距 → 此处 48px / 17px / 12px。 */
+.r-sf-btn { width: 100%; box-sizing: border-box; padding: 0 12px; height: 48px; font-size: 17px; line-height: 1.2; text-align: center; color: #fff; border-radius: 22px; display: flex; align-items: center; justify-content: center; }
 .r-video { position: relative; border-radius: 8px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
 .r-video img { width: 100%; height: 100%; object-fit: cover; }
 .r-video-empty { opacity: .6; display: flex; align-items: center; justify-content: center; }
@@ -1787,7 +1878,7 @@ const nativeGridItems = [
 .r-ch-body { flex: 1; min-width: 0; }
 .r-ch-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .r-ch-desc { font-size: 12px; color: #86909c; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.r-ch-btn { flex-shrink: 0; font-size: 12px; color: #165dff; border: 1px solid #165dff; border-radius: 20px; padding: 4px 12px; background: #fff; }
+.r-ch-btn { flex-shrink: 0; font-size: 14px; color: #165dff; border: 1px solid #165dff; border-radius: 4px; padding: 0 12px; height: 28px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; background: #fff; }
 /* 视频号视频 */
 .r-chvideo { border-radius: 8px; overflow: hidden; border: 1px solid #f0f1f3; }
 .r-chv-cover { position: relative; aspect-ratio: 16/9; background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
@@ -1871,7 +1962,7 @@ const nativeGridItems = [
 /* 搜索框 */
 .r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; min-width: 0; }
 .r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.r-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 12px; padding: 3px 12px; border-radius: 12px; }
+.r-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 14px; padding: 0 12px; border-radius: 4px; height: 28px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 .r-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .r-search-hot-item { font-size: 11px; color: #86909c; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 10px; padding: 2px 8px; }
 /* 选项卡 */
@@ -1884,12 +1975,12 @@ const nativeGridItems = [
 .r-contact-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .r-contact-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .r-contact-line { font-size: 12px; color: #86909c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.r-contact-btn { flex-shrink: 0; color: #fff; font-size: 12px; border-radius: 20px; padding: 6px 14px; }
+.r-contact-btn { flex-shrink: 0; color: #fff; font-size: 14px; border-radius: 8px; padding: 0 14px; height: 40px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 /* 悬浮按钮 */
 .r-float-wrap { position: relative; width: 100%; box-sizing: border-box; }
-.r-float { position: absolute; color: #fff; font-size: 13px; border-radius: 24px; padding: 10px 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.r-float { position: absolute; color: #fff; font-size: 14px; border-radius: 24px; padding: 0 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .r-float img { width: 22px; height: 22px; object-fit: contain; }
-.r-float-square { border-radius: 10px; padding: 8px 14px; }
+.r-float-square { border-radius: 24px; padding: 0 16px; }
 .r-titlebar { display: flex; align-items: center; }
 .r-tb-title { font-size: 16px; line-height: 1.4; }
 .r-tb-sub { font-size: 12px; color: #86909C; margin-left: 8px; }
@@ -1904,7 +1995,7 @@ const nativeGridItems = [
 .r-tb-s9 { background: #1D2129 !important; }
 .r-tb-s9 .r-tb-title, .r-tb-s9 .r-tb-en, .r-tb-s9 .r-tb-more { color: #fff !important; }
 .r-chl-time { font-size: 12px; margin-top: 4px; }
-.r-chl-btn { display: inline-block; margin-top: 8px; font-size: 12px; padding: 4px 14px; border-radius: 14px; }
+.r-chl-btn { display: inline-flex; align-items: center; justify-content: center; margin-top: 8px; font-size: 14px; padding: 0 14px; border-radius: 6px; height: 32px; box-sizing: border-box; text-align: center; }
 .r-float-round { border-radius: 50%; width: 52px; height: 52px; padding: 0; }
 .r-article-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
 .r-article-grid { display: grid; gap: 10px; }
@@ -1927,7 +2018,10 @@ const nativeGridItems = [
 .r-follow-qr { width: 48px; height: 48px; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
 .r-follow-qr img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .r-follow-qr-empty { background: #f7f8fa; display: flex; align-items: center; justify-content: center; }
-.r-follow-btn { font-size: 11px; color: #165dff; border: 1px solid #165dff; border-radius: 6px; padding: 4px 10px; flex-shrink: 0; }
+/* 与 C 端 .dp-follow-btn 同源：C 端 56rpx/8rpx/28rpx/24rpx → 此处 28px/4px/14px/12px。
+   此前本规则是手抄 C 端的，抄漏成 11px/6px/4px 10px，装修预览与实际效果不一致。
+   改这里必须同步改 DesignPage.vue 的 .dp-follow-btn。 */
+.r-follow-btn { height: 28px; padding: 0 12px; box-sizing: border-box; font-size: 14px; color: #165dff; border: 1px solid #165dff; border-radius: 4px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; line-height: 1.2; }
 .r-vfeed-title { font-size: 14px; font-weight: 600; color: #1d2129; margin-bottom: 8px; }
 .r-vfeed-grid { display: grid; gap: 8px; }
 .r-vfeed-item { border: 1px solid #f0f1f3; border-radius: 8px; overflow: hidden; }

@@ -79,3 +79,55 @@
 
 // ---------- 卡片阴影 ----------
 .shadow-card { box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04); }
+
+// ---------- 按钮（装修中心专用，对齐微信官方 WeUI） ----------
+// 规范见 docs/规范/08-装修中心按钮规范.md；尺寸令牌见 src/utils/btnTokens.js（C 端与画布共用）。
+//
+// ⚠️ 前缀用 .dbtn- 而不是 .btn-：全局 .btn 会污染既存页面 —— 实测
+//    pages/card/visitors.vue:148 用了 class="btn" 但页面内未定义（scoped 也拦不住全局类），
+//    裸写 .btn 会让它意外变成主色按钮。member.vue 虽有自定义 .btn，但它是 scoped +
+//    自带 [data-v] 属性选择器优先级更高，不受影响。
+//
+// 【必须】用 <view> 渲染按钮，禁用 <button>：uni-button 内部元素自带 line-height:2.55
+//   （H5 ≈ 40.89px），宿主 class 覆盖不到，会导致 H5 / 小程序 / 装修画布三端高度不一致。
+//   换 view 后必须自己补回 button 的两个默认样式：text-align:center + 显式 line-height。
+// 【必须】height + box-sizing 锁定高度，不要用 padding 撑高（padding 撑会随字号漂移）。
+// 颜色只是默认值：装修组件的颜色由用户在面板配置，内联样式会覆盖这里。
+.dbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-align: center;
+  line-height: 1.2;
+  color: #ffffff;
+  background: var(--primary);
+}
+.dbtn-l {
+  height: $btn-h; line-height: $btn-h;
+  padding: 0 $btn-pad-x; border-radius: $btn-radius;
+  font-size: $btn-font; font-weight: $btn-weight;
+}
+.dbtn-m {
+  height: $btn-h-m; line-height: $btn-h-m;
+  padding: 0 $btn-pad-x; border-radius: $btn-radius;
+  font-size: $btn-font-sm; font-weight: $btn-weight;
+}
+.dbtn-s {
+  height: $btn-h-s; line-height: $btn-h-s;
+  padding: 0 $btn-pad-x-s; border-radius: $btn-radius-s;
+  font-size: $btn-font-sm; font-weight: $btn-weight-s;
+}
+.dbtn-xs {
+  height: $btn-h-xs; line-height: $btn-h-xs;
+  padding: 0 $btn-pad-x-s; border-radius: $btn-radius-xs;
+  font-size: $btn-font-sm; font-weight: $btn-weight;
+}
+.dbtn-block { display: flex; width: 100%; }
+.dbtn-outline {
+  background: transparent;
+  color: var(--primary);
+  border: 2rpx solid var(--primary); // 2rpx = 1px（375 基准），WeUI 描边款为 1px
+}
+.dbtn-disabled { opacity: 0.5; }
+.dbtn-round { border-radius: 50%; padding: 0; }

@@ -63,21 +63,28 @@
             @drop="onDrop(components.length, $event)"
           >
             <div v-for="(comp, idx) in components" :key="comp.id" class="sf-comp-wrap"
-                 :class="{ 'cs-line': comp.style && comp.style.styleType === 'line' }" :style="compWrapStyle(comp)">
+                 :class="{ active: comp.id === selectedId, 'is-hidden': !compVisible(comp) }" :style="compWrapStyle(comp)"
+                 @click="selectComp(comp.id)">
               <div v-if="dragOverIdx === idx" class="sf-drop-line" />
+              <!-- 组件操作条：hover / 选中显示，1:1 对齐装修中心画布（序号 + 组件名 + 上移/下移/复制/删除）
+                   挂在 .sf-comp-wrap 上（而非内层 .sf-comp），使「选中框 ↔ 操作条」与装修中心同为组件外框同级。 -->
+              <div class="sf-comp-ops" @click.stop @mousedown.stop>
+                <span class="sf-comp-idx">{{ idx + 1 }}</span>
+                <span class="sf-comp-type">{{ COMPONENT_LABEL[comp.type] || '组件' }}</span>
+                <span class="sf-tool" :class="{ disabled: idx === 0 }" title="上移" @click.stop="moveComp(idx, -1)">↑</span>
+                <span class="sf-tool" :class="{ disabled: idx === components.length - 1 }" title="下移" @click.stop="moveComp(idx, 1)">↓</span>
+                <span class="sf-tool" title="复制" @click.stop="dupComp(idx)">⧉</span>
+                <span class="sf-tool sf-tool-del" title="删除" @click.stop="remove(idx)">✕</span>
+              </div>
+              <!-- 内层只做拖拽命中区；点击选中由外层 .sf-comp-wrap 统一处理（含 16px 内距空白区） -->
               <div
                 class="sf-comp"
-                :class="{ active: comp.id === selectedId, 'is-hidden': !compVisible(comp) }"
                 draggable="true"
-                @click="selectComp(comp.id)"
                 @dragstart="onCompDrag(comp.id, $event)"
                 @dragend="resetDrag"
                 @dragover.prevent.stop="dragOverIdx = idx"
                 @drop.stop="onDrop(idx, $event)"
               >
-                <div class="sf-comp-ops" v-if="comp.id === selectedId">
-                  <span @click.stop="remove(idx)">✕</span>
-                </div>
                 <ComponentPreview :comp="comp" :layout="settings.layout" />
               </div>
               <div v-if="!compVisible(comp)" class="sf-hidden-badge">已隐藏</div>
@@ -96,6 +103,13 @@
           <div class="sf-seg">
             <div class="sf-seg-item" :class="{ on: propTab === 'content' }" @click="propTab = 'content'">内容设置</div>
             <div class="sf-seg-item" :class="{ on: propTab === 'style' }" @click="propTab = 'style'">样式设置</div>
+          </div>
+          <!-- 组件级「上下布局 / 左右布局」（对标站组件面板顶部第二组 tab，
+               对应 field-wrapper-radio-top / field-wrapper-radio-left）。
+               切换只改 content.optLayout，不影响面板字段（与对标站实测一致）。 -->
+          <div v-if="supportsLayout" class="sf-seg sf-seg-layout">
+            <div class="sf-seg-item" :class="{ on: optLayoutOf(selected) === 'top' }" @click="setOptLayout('top')">上下布局</div>
+            <div class="sf-seg-item" :class="{ on: optLayoutOf(selected) === 'left' }" @click="setOptLayout('left')">左右布局</div>
           </div>
           <div v-if="propTab === 'content'" class="sf-prop-form">
             <el-form label-width="92px" size="small">
@@ -266,24 +280,59 @@
                   <span class="sf-hint">开启校验则相同内容无法重复提交</span>
                 </el-form-item>
                 <el-form-item v-if="selected.type === 'radio' || selected.type === 'checkbox'" label="选项类型">
-                  <el-radio-group v-model="selected.content.optionType">
+                  <el-radio-group v-model="selected.content.optionType" @change="onOptionTypeChange">
                     <el-radio value="text">文字选项</el-radio>
                     <el-radio value="image">图片选项</el-radio>
                     <el-radio value="imageText">图文选项</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item v-if="selected.type !== 'select' || selected.content.presetType === 'normal'" label="选项">
-                  <div v-for="(opt, oi) in selected.content.options" :key="oi" class="sf-opt-row">
-                    <template v-if="selected.content.optionType === 'image'">
-                      <el-input v-model="opt.image" placeholder="图片URL" style="width: 200px" />
-                    </template>
-                    <template v-else>
-                      <el-input v-model="opt.label" placeholder="选项文案" style="width: 160px" />
-                    </template>
-                    <el-button text type="danger" @click="selected.content.options.splice(oi, 1)">删</el-button>
+                <el-form-item v-if="selected.type !== 'select' || selected.content.presetType === 'normal'" label="添加选项">
+                  <div class="sf-opts-editor">
+                    <div
+                      v-for="(opt, oi) in selected.content.options"
+                      :key="oi"
+                      class="sf-opt-row"
+                      :class="{ dragover: optDragIndex === oi }"
+                      draggable="true"
+                      @dragstart="optDragIndex = oi"
+                      @dragover.prevent="optDragOver = oi"
+                      @drop="onOptDrop(oi)"
+                      @dragend="optDragIndex = -1; optDragOver = -1"
+                    >
+                      <!-- 拖拽手柄（对标站 .icon-drag_2）：选项可拖拽排序 -->
+                      <span class="sf-opt-drag" title="拖拽排序">⋮⋮</span>
+                      <!-- 序号 prefix（对标站 .el-input__prefix「选项」） -->
+                      <span v-if="!isImgOptionType(selected)" class="sf-opt-prefix">选项</span>
+                      <template v-if="isImgOptionType(selected)">
+                        <el-input v-model="opt.image" placeholder="选择图片" style="width: 150px" size="small" />
+                        <el-input v-if="selected.content.optionType !== 'image'" v-model="opt.label" placeholder="选项文案" style="width: 120px" size="small" />
+                      </template>
+                      <template v-else>
+                        <el-input v-model="opt.label" :placeholder="'选项'" style="width: 150px" size="small" />
+                      </template>
+                      <span class="sf-opt-del" @click="selected.content.options.splice(oi, 1)">删除</span>
+                    </div>
+                    <div class="sf-opts-actions">
+                      <span class="sf-opts-link" @click="addOption()">新增选项</span>
+                      <!-- 对标站实测：「添加其他选项」「批量添加」仅在文字选项时出现（图片/图文时整块隐藏） -->
+                      <template v-if="!isImgOptionType(selected)">
+                        <span class="sf-opts-div"></span>
+                        <span class="sf-opts-link" @click="addOtherOption()">添加其他选项</span>
+                        <span class="sf-opts-div"></span>
+                        <span class="sf-opts-link" @click="batchAddVisible = true">批量添加</span>
+                      </template>
+                    </div>
                   </div>
-                  <el-button size="small" @click="selected.content.options.push({ label: '新选项', value: String(selected.content.options.length + 1), image: '' })">+ 添加选项</el-button>
                 </el-form-item>
+                <!-- 批量添加选项弹窗（对标站：textarea 逐行输入，每个选项单列一行，单个不超过 100 字） -->
+                <el-dialog v-model="batchAddVisible" title="批量添加选项" width="460px" append-to-body>
+                  <div class="sf-hint" style="margin-bottom: 8px">每个选项请单列一行，单个选项长度不能超过 100 个字</div>
+                  <el-input v-model="batchAddText" type="textarea" :rows="8" placeholder="请输入选项内容" maxlength="100" />
+                  <template #footer>
+                    <el-button @click="batchAddVisible = false">取消</el-button>
+                    <el-button type="primary" @click="confirmBatchAdd">确定</el-button>
+                  </template>
+                </el-dialog>
                 <template v-if="selected.type === 'select'">
                   <el-form-item label="预设类型">
                     <el-radio-group v-model="selected.content.presetType">
@@ -811,17 +860,44 @@
                 <el-slider v-model="selected.style.outMarginTop" :min="0" :max="100" class="sf-inline-slider" />
                 <el-input-number v-model="selected.style.outMarginTop" :min="0" :max="100" size="small" style="width: 96px" /> px
               </el-form-item>
-              <el-form-item label="上下边距">
+              <el-form-item label="左右外边距">
+                <el-slider v-model="selected.style.outMarginX" :min="0" :max="100" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.outMarginX" :min="0" :max="100" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="上下内边距">
                 <el-slider v-model="selected.style.marginY" :min="0" :max="100" class="sf-inline-slider" />
                 <el-input-number v-model="selected.style.marginY" :min="0" :max="100" size="small" style="width: 96px" /> px
               </el-form-item>
-              <el-form-item label="左右边距">
+              <el-form-item label="左右内边距">
                 <el-slider v-model="selected.style.marginX" :min="0" :max="100" class="sf-inline-slider" />
                 <el-input-number v-model="selected.style.marginX" :min="0" :max="100" size="small" style="width: 96px" /> px
               </el-form-item>
-              <el-form-item label="组件圆角"><el-input-number v-model="selected.style.radius" :min="0" :max="40" /> px</el-form-item>
+              <!-- 组件圆角：ew 为「四角独立圆角选择器」（对标笔记第 86 行）。
+                   radius = 四角统一快捷值（设 >0 时覆盖四角）；radiusTL/TR/BR/BL = 四角独立。 -->
+              <el-form-item label="四角统一">
+                <el-slider v-model="selected.style.radius" :min="0" :max="40" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.radius" :min="0" :max="40" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="左上角">
+                <el-slider v-model="selected.style.radiusTL" :min="0" :max="40" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.radiusTL" :min="0" :max="40" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="右上角">
+                <el-slider v-model="selected.style.radiusTR" :min="0" :max="40" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.radiusTR" :min="0" :max="40" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="右下角">
+                <el-slider v-model="selected.style.radiusBR" :min="0" :max="40" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.radiusBR" :min="0" :max="40" size="small" style="width: 96px" /> px
+              </el-form-item>
+              <el-form-item label="左下角">
+                <el-slider v-model="selected.style.radiusBL" :min="0" :max="40" class="sf-inline-slider" />
+                <el-input-number v-model="selected.style.radiusBL" :min="0" :max="40" size="small" style="width: 96px" /> px
+              </el-form-item>
 
-              <div class="sf-sec">组件风格</div>
+              <!-- 组件风格：对标站实测「图片/图文选项」下这一整块（含三档风格卡）**整块消失**，
+                   此时风格切换失效、只保留 左右边距/输入框圆角/标题大小。对标站自身行为，照抄不做修好。 -->
+              <div v-if="!isImgOptionType(selected)" class="sf-sec">组件风格</div>
               <template v-if="selected.type === 'swiper'">
                 <el-form-item label="风格">
                   <div class="sf-style-cards">
@@ -896,11 +972,15 @@
                   </el-radio-group>
                 </el-form-item>
               </template>
-              <template v-if="Array.isArray(curStyleSchema.boxLine) && curStyleSchema.boxLine.length && (!curStyleSchema.hOnlyBoxLine || settings.layout === 'horizontal')">
+              <template v-if="Array.isArray(curStyleSchema.boxLine) && curStyleSchema.boxLine.length && (!curStyleSchema.hOnlyBoxLine || settings.layout === 'horizontal') && !isImgOptionType(selected)">
                 <div class="sf-style-cards">
                   <div v-for="bl in curStyleSchema.boxLine" :key="bl.value" class="sf-style-card" :class="{ on: selected.style.styleType === bl.value }" @click="selected.style.styleType = bl.value">
                     <div class="sf-style-demo">
-                      <span v-if="bl.value === 'box' || bl.value === 'box1' || bl.value === 's1'" class="sd-bar sd-long" />
+                      <!-- 选择类（s1/s2/s3）：用对标站原版 PNG 缩略图（禁止自创 SVG / CSS 近似图） -->
+                      <img v-if="radioStyleThumb(bl.value)" class="sf-style-thumb" :src="radioStyleThumb(bl.value)" :alt="bl.label" />
+                      <template v-else-if="bl.value === 'box' || bl.value === 'box1' || bl.value === 's1'">
+                        <span class="sd-bar sd-long" />
+                      </template>
                       <template v-else-if="bl.value === 'box2' || bl.value === 's2'">
                         <span class="sd-bar sd-sm" />
                         <span class="sd-line" />
@@ -930,8 +1010,14 @@
                 </div>
               </template>
               <el-form-item v-for="row in curStyleRows" :key="row.key" :label="row.label">
-                <el-slider v-model="selected.style[row.key]" :min="0" :max="row.max" class="sf-inline-slider" />
-                <el-input-number v-model="selected.style[row.key]" :min="0" :max="row.max" size="small" style="width: 96px" /> px
+                <!-- 字符串枚举行（如「选项文字对齐」对标站 --align-items）：用下拉，不用滑块 -->
+                <el-select v-if="row.type === 'select'" v-model="selected.style[row.key]" size="small" style="width: 140px">
+                  <el-option v-for="o in (row.options || [])" :key="o.value" :label="o.label" :value="o.value" />
+                </el-select>
+                <template v-else>
+                  <el-slider v-model="selected.style[row.key]" :min="0" :max="row.max" class="sf-inline-slider" />
+                  <el-input-number v-model="selected.style[row.key]" :min="0" :max="row.max" size="small" style="width: 96px" /> px
+                </template>
               </el-form-item>
 
               <template v-if="curColorRows.length">
@@ -1187,11 +1273,22 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getSuperForm, updateSuperForm } from '../../../../api/index.js';
+// 跨工具实时同步：保存后通知装修中心画布刷新超级表单提交按钮样式
+import { markSfMetaUpdated } from '../../../../utils/sfMetaBus.js';
 import {
-  COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, styleSchema, migrateStyle, migrateContent, componentStyleVars, COMPONENT_LABEL,
+  COMPONENT_PALETTE, COMPONENT_ICONS, createComponent, defaultSettings, styleSchema, migrateStyle, migrateContent, componentStyleVars, COMPONENT_LABEL, genId,
+  optLayout, supportsOptLayout, isImgOptionType as sfIsImgOptionType,
 } from './components.js';
 import ComponentPreview from './ComponentPreview.vue';
 import MaterialPicker from '../design/MaterialPicker.vue';
+// 对标站原版风格缩略图（从 ew 面板 .style-editor > img 的 base64 下载存档，勿自创 SVG）
+import radioS1Thumb from '../../../../assets/superform/style/radio-s1.png';
+import radioS2Thumb from '../../../../assets/superform/style/radio-s2.png';
+import radioS3Thumb from '../../../../assets/superform/style/radio-s3.png';
+
+const RADIO_STYLE_THUMBS = { s1: radioS1Thumb, s2: radioS2Thumb, s3: radioS3Thumb };
+/** 选择类组件（radio/checkbox）的风格卡用原版缩略图，其余组件走 CSS 近似图 */
+const radioStyleThumb = (v) => (['radio', 'checkbox'].includes(selected.value?.type) ? RADIO_STYLE_THUMBS[v] || '' : '');
 
 const props = defineProps({ formId: [Number, String], formName: String });
 const emit = defineEmits(['close']);
@@ -1240,11 +1337,97 @@ function onImgTypeChange(t) {
 }
 
 const selected = computed(() => components.value.find((c) => c.id === selectedId.value) || null);
+// 选择类的「选项类型」是否为图片/图文。统一走 sfComponentStyle 的同源实现，
+// 避免设计器/C端/预览端三处各写一份口径（值域之外的写法会漏）。
+const isImgOptionType = (comp) => sfIsImgOptionType(comp);
+
+// ── 组件级「上下布局 / 左右布局」（对标站组件面板顶部第二组 tab）──────────
+const supportsLayout = computed(() => supportsOptLayout(selected.value?.type));
+const optLayoutOf = (comp) => optLayout(comp);
+function setOptLayout(v) {
+  if (!selected.value) return;
+  if (!selected.value.content) selected.value.content = {};
+  selected.value.content.optLayout = v;
+}
+onMounted(() => {
+  // 老数据补齐 optLayout 字段，避免面板上读不到（缺省视为 top）
+  components.value.forEach((c) => {
+    if (c.content && c.content.optLayout === undefined) c.content.optLayout = 'top';
+  });
+});
+
+// ── 选项编辑：拖拽排序 / 新增 / 添加其他 / 批量添加 / 切类型重置 ──────────
+const optDragIndex = ref(-1);
+const optDragOver = ref(-1);
+const batchAddVisible = ref(false);
+const batchAddText = ref('');
+
+function onOptDrop(to) {
+  const from = optDragIndex.value;
+  optDragIndex.value = -1;
+  optDragOver.value = -1;
+  if (from < 0 || to < 0 || from === to) return;
+  const arr = selected.value.content.options;
+  const [moved] = arr.splice(from, 1);
+  arr.splice(to, 0, moved);
+}
+
+/** 新增一个空选项（对标站实测：追加一行空 value，前缀仍是「选项」） */
+function addOption() {
+  const arr = selected.value.content.options;
+  arr.push({ label: '', value: String(arr.length + 1), image: '' });
+}
+
+/**
+ * 「添加其他选项」（对标站实测：**不是弹窗**，直接追加一行 value='其他' 的普通可编辑选项，
+ * 没有"其他"专属的填空输入框 —— 别做成开关或弹窗）。
+ */
+function addOtherOption() {
+  const arr = selected.value.content.options;
+  if (arr.some((o) => o.value === 'other')) return;
+  arr.push({ label: '其他', value: 'other', image: '' });
+}
+
+/** 批量添加：按换行 split，去空行与首尾空格 */
+function confirmBatchAdd() {
+  const lines = String(batchAddText.value || '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const arr = selected.value.content.options;
+  lines.forEach((label) => {
+    if (arr.some((o) => o.label === label)) return;
+    arr.push({ label, value: label, image: '' });
+  });
+  batchAddVisible.value = false;
+  batchAddText.value = '';
+}
+
+/**
+ * 切换「选项类型」（对标站实测：**选项列表被重置为 1 行**，不是保留原选项）。
+ * value 不按索引生成，避免与已有选项重复。
+ */
+function onOptionTypeChange(t) {
+  const c = selected.value;
+  if (!c) return;
+  c.content.optionType = t;
+  c.content.options = [{ label: '', value: '1', image: '' }];
+}
 // 当前组件类型的样式 schema（ew 每种组件都有独立的 组件风格 / 组件颜色 行，不可共用一套）
 const curStyleSchema = computed(() => styleSchema(selected.value?.type));
 // ew 部分行仅左右布局显示（如图片上传的 上传框大小/图片圆角/图片背景/图片边框），按当前布局过滤
-const curStyleRows = computed(() => (curStyleSchema.value.styleRows || []).filter((r) => !r.hOnly || settings.layout === 'horizontal'));
-const curColorRows = computed(() => (curStyleSchema.value.colorRows || []).filter((r) => !r.hOnly || settings.layout === 'horizontal'));
+// hOnly：仅左右布局显示（图片组件的框/线风格差异）；optImgOnly：仅「选项类型」为图片/图文时显示
+const curStyleRows = computed(() => (curStyleSchema.value.styleRows || []).filter((r) => {
+  if (r.hOnly && settings.layout !== 'horizontal') return false;
+  if (r.optImgOnly && !isImgOptionType(selected.value)) return false;
+  return true;
+}));
+const curColorRows = computed(() => (curStyleSchema.value.colorRows || []).filter((r) => {
+  if (r.hOnly && settings.layout !== 'horizontal') return false;
+  // 对标站实测：图片/图文选项下 底框背景/底框边框/提示文本/选项文字/其他线条 整块隐藏
+  if (r.optImgHide && isImgOptionType(selected.value)) return false;
+  return true;
+}));
 // 选择类字段（对齐 ew：含评分）
 const choiceComponents = computed(() => components.value.filter((c) => ['radio', 'checkbox', 'select', 'rate'].includes(c.type)));
 // 提交按钮上下文提示（对齐 ew：不同业务场景按钮功能说明）
@@ -1315,7 +1498,7 @@ const phoneStyle = computed(() => {
 });
 // 组件级样式：对齐 ew 四段（组件背景 / 组件整体 / 组件风格 / 组件颜色），按类型 schema 逐组件生效
 function compWrapStyle(comp) {
-  const s = componentStyleVars(comp, settings.globalStyle || {});
+  const s = componentStyleVars(comp, settings.globalStyle || {}, settings.layout);
   // 评分额外别名（预览沿用旧变量名）
   const st = comp.style || {};
   if (comp.type === 'rate') {
@@ -1425,6 +1608,26 @@ function remove(idx) {
   }
 }
 
+// —— 组件操作条：上移 / 下移 / 复制（1:1 对齐装修中心画布 pe-comp-tools）——
+// 上移/下移：dir=-1 往前，+1 往后；到顶/到底直接返回（按钮同时置灰）。
+function moveComp(idx, dir) {
+  const to = idx + dir;
+  if (to < 0 || to > components.value.length - 1) return;
+  const arr = components.value;
+  const [item] = arr.splice(idx, 1);
+  arr.splice(to, 0, item);
+}
+// 复制：深拷贝 content/style 并换新 id（genId 自带序列号，复制品 id 必唯一，避免 v-for key 冲突串行）
+function dupComp(idx) {
+  const src = components.value[idx];
+  if (!src) return;
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = genId();
+  components.value.splice(idx + 1, 0, copy);
+  selectedId.value = copy.id;
+  panelMode.value = 'props';
+}
+
 // ——— 真·拖拽：组件库拖入画布 / 画布内重排 ———
 const dragType = ref(null); // 从组件库拖入的类型
 const dragId = ref(null);   // 画布内拖动的组件 id
@@ -1516,6 +1719,8 @@ async function save(publish) {
   try {
     await updateSuperForm(props.formId, payload);
     ElMessage.success(publish ? '已保存并发布' : '已保存草稿');
+    // 广播：超级表单提交按钮样式已变更，装修中心画布需实时同步（跨工具事件总线）
+    markSfMetaUpdated(Number(props.formId));
     if (publish) emit('close');
   } catch (e) { ElMessage.error(e.message || '保存失败'); }
   finally { saving.value = false; }
@@ -1562,28 +1767,52 @@ onMounted(load);
 .sf-phone-nav { height: 36px; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
 .sf-phone-nav-title { font-size: 14px; font-weight: 500; color: #303133; }
 .sf-phone-capsule { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: #606266; border: 1px solid #e8e8e8; border-radius: 10px; padding: 1px 8px; background: #fafafa; }
-.sf-phone-body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; align-content: flex-start; background: #f2f3f5; }
-.sf-phone-body.horizontal { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; }
-/* 左右布局：每个字段约占半行（对齐 C 端 .sf-field 的 flex:1 1 45%） */
+/* 「组件即卡片」：竖排容器不强制 gap，组件卡片由自身白底(inline backgroundColor) + 上下 marginY 内距构成，
+   卡间灰缝由 componentStyleVars 内联 marginTop(=顶外边距) 让画布灰底(#f2f3f5)透出。
+   三端均不再写死 margin-bottom，否则「顶外边距=0」无法真正紧贴上一组件（此前的 bug）。对齐 C 端 .sf-field 与画布 .r-sf-real-comp。 */
+/* padding 0：画布左右留白改由每个组件的「左右外边距」(outMarginX, 内联 margin) 单独控制，
+   对齐 ew 组件级 outLeftRightMargin 与 C 端 .sf-page。若保留 16px 会与之叠加成 26px。 */
+.sf-phone-body { flex: 1; padding: 0; display: flex; flex-direction: column; align-content: flex-start; background: #f2f3f5; }
+.sf-phone-body.horizontal { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 12px; }
+/* 左右布局：每个字段约占半行（对齐 C 端 .sf-field 的 flex:1 1 45%）；横向与行距均由 gap 提供 */
 .sf-phone-body.horizontal .sf-comp-wrap { flex: 1 1 45%; box-sizing: border-box; min-width: 0; }
-/* 线风格：输入类控件去边框，仅保留底线（对齐 ew 组件风格） */
-.sf-comp-wrap.cs-line :deep(.cmpv-input),
-.sf-comp-wrap.cs-line :deep(.cmpv-select),
-.sf-comp-wrap.cs-line :deep(.cmpv-loc),
-.sf-comp-wrap.cs-line :deep(.cmpv-auth),
-.sf-comp-wrap.cs-line :deep(.cmpv-download),
-.sf-comp-wrap.cs-line :deep(.cmpv-upload) { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
-.sf-comp-wrap { position: relative; }
+/* 组件风格（框1/框2/线）：class 由内层 ComponentPreview 挂载（.cmpv.sfv-box/.sfv-plain/.sfv-line）
+   并自带视觉规则，此处不再重复判定 styleType —— 此前三处各判一次，易出现「某端风格失效」。 */
+/* 横向内距不设：卡片左右内距完全由 componentStyleVars 内联 marginX 决定
+   （默认值 16px 已下沉到 COMMON_WHOLE.marginX，此处归 0 避免与内联抢权重 → 「设 0」才能真正贴边）。
+   margin 不设：卡片间距完全由 componentStyleVars 内联 marginTop(顶外边距) 控制。
+   选中框画在本层（= 卡片本体）而非内层 .sf-comp：对齐装修中心 .pe-comp「选中框紧贴组件外沿」，
+   否则内层 16px 内距会让虚线框内缩在白卡里（用户反馈的框位不一致）。 */
+/* border-radius 用 var 兜底：实际四角由 componentStyleVars 内联发射（始终发射，0 也发）。
+   此处 8px 只是「未迁移老数据无内联圆角」时的兜底，且内联优先级更高会正确覆盖它。 */
+.sf-comp-wrap { position: relative; padding: 0; border: 1px dashed transparent; border-radius: var(--c-wrap-radius, 8px); transition: border-color .15s, box-shadow .15s, background .15s; }
+.sf-comp-wrap:hover { border-color: #c9cdd4; }
+/* 选中态：虚线蓝框 + 蓝色光晕（对齐装修中心 .pe-comp.active） */
+.sf-comp-wrap.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }
 .sf-drop-line { height: 0; border-top: 2px solid #409eff; margin: 3px 2px; }
-.sf-comp { position: relative; border: 1px solid transparent; border-radius:8px; padding: 8px; cursor: grab; transition: opacity .15s; }
+/* 内层 .sf-comp 只负责拖拽命中区，不再画选中框（已上移到 .sf-comp-wrap），padding 0 由外层承担内距 */
+.sf-comp { position: relative; cursor: grab; }
 .sf-comp:active { cursor: grabbing; }
-.sf-comp.active { border-color: #409eff; }
 /* 设计器画布：是否显示=隐藏 的组件半透明 + 虚线框（保留仍可点选改回显示） */
-.sf-comp.is-hidden { opacity: .32; border: 1px dashed #c0c4cc; outline: 1px dashed #c0c4cc; outline-offset: 2px; }
-.sf-comp.is-hidden.active { opacity: 1; }
+.sf-comp-wrap.is-hidden { opacity: .32; border: 1px dashed #c0c4cc; outline: 1px dashed #c0c4cc; outline-offset: 2px; }
+.sf-comp-wrap.is-hidden.active { opacity: 1; }
 .sf-hidden-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(144,147,153,.92); color: #fff; font-size: 12px; padding: 2px 10px; border-radius: 10px; pointer-events: none; z-index: 3; white-space: nowrap; }
-.sf-comp-ops { position: absolute; top: -12px; right: 6px; display: flex; gap: 6px; background: #409eff; color: #fff; border-radius: 4px; padding: 2px 6px; font-size: 12px; z-index: 2; }
-.sf-comp-ops span { cursor: pointer; }
+/* 组件操作条：hover / 选中即显（1:1 对齐装修中心 .pe-comp-tools：蓝底 #165dff、圆角 6px、11px 字号、
+   序号胶囊半透明白底、四个 18×18 图标按钮、删除 hover 变红、到顶/到底按钮置灰不可点）。 */
+.sf-comp-ops {
+  display: none; position: absolute; top: -22px; right: 4px; background: #165dff; color: #fff;
+  border-radius: 6px; font-size: 11px; padding: 2px 8px; z-index: 2; align-items: center; gap: 6px;
+  box-shadow: 0 2px 6px rgba(22,93,255,.3); white-space: nowrap;
+}
+.sf-comp-wrap:hover .sf-comp-ops, .sf-comp-wrap.active .sf-comp-ops { display: flex; }
+.sf-comp-idx { background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 5px; }
+.sf-comp-type { color: #fff; }
+.sf-tool { cursor: pointer; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background .15s; font-size: 12px; line-height: 1; }
+.sf-tool:hover { background: rgba(255,255,255,.25); }
+/* 到顶/到底：置灰且不可点（比装修中心多做的可用性细节） */
+.sf-tool.disabled { opacity: .4; cursor: not-allowed; }
+.sf-tool.disabled:hover { background: transparent; }
+.sf-tool-del:hover { background: #f53f3f; }
 .sf-empty { color: #c0c4cc; font-size: 13px; text-align: center; margin-top: 60px; }
 .sf-props { background: #fff; border-left: 1px solid #ebeef5; overflow: auto; padding: 14px; }
 .sf-prop-form { margin-top: 8px; }
@@ -1599,7 +1828,10 @@ onMounted(load);
 .sf-limit-row { display: flex; align-items: center; gap: 10px; width: 100%; }
 .sf-limit-label { font-size: 13px; color: #606266; white-space: nowrap; }
 .sf-limit-slider { flex: 1; }
-.sf-limit-slider .el-slider__input { width: 60px; }
+/* 必须用 :deep()：.el-slider__input 在 ElSlider 组件内部、不带父级 scope 属性，
+   裸写后代选择器永不生效 → 输入框保持 EP 默认 130px，runway 被压成 0 宽，
+   滑杆只剩拖动圆点露在 label 右侧（曾被误认为单选圆圈）。 */
+.sf-limit-slider :deep(.el-slider__input) { width: 60px; }
 /* —— 图片上传「上传-示例 / 未上传-示例」引导卡（对齐 ew 内容面板普通类型） —— */
 .sf-img-demo { display: flex; gap: 10px; width: 100%; }
 .sf-img-demo-card { flex: 1; min-width: 0; border: 1px solid #e4e7ed; background: #fff; }
@@ -1644,6 +1876,28 @@ onMounted(load);
 .sd-line { display: block; width: 100%; height: 1px; background: #c0c4cc; margin-top: 8px; }
 .sd-slider { display: block; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(to right, #d9e4ff 60%, #e4e7ed 60%); margin-top: 4px; }
 .sf-style-card-name { font-size: 12px; color: #606266; margin-top: 6px; }
+/* 对标站原版 PNG 缩略图（radio/checkbox 风格1/2/3） */
+.sf-style-thumb { width: 100%; height: auto; display: block; border-radius: 3px; }
+
+/* —— 组件级「上下布局 / 左右布局」分段（对标站组件面板顶部第二组 tab）—— */
+.sf-seg-layout { margin-top: 8px; }
+.sf-seg-layout .sf-seg-item { flex: 1; text-align: center; }
+
+/* —— 选项编辑区（对标站 radio-list__item 复刻，2026-10-04）——
+   对标站每行结构：icon-drag_2 拖拽手柄 + 「选项」prefix 标签 + 输入框/选择图片 + 删除 */
+.sf-opts-editor { width: 100%; }
+.sf-opt-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; }
+.sf-opt-row:hover { border-color: #ebeef5; background: #fafbfc; }
+.sf-opt-row.dragover { border-color: #409eff; background: #ecf5ff; }
+.sf-opt-drag { cursor: grab; color: #c0c4cc; font-size: 13px; letter-spacing: -2px; user-select: none; flex-shrink: 0; }
+.sf-opt-drag:active { cursor: grabbing; }
+.sf-opt-prefix { flex-shrink: 0; font-size: 12px; color: #909399; background: #f4f4f5; border-radius: 3px; padding: 0 6px; line-height: 24px; }
+.sf-opt-del { flex-shrink: 0; font-size: 12px; color: #f56c6c; cursor: pointer; }
+.sf-opt-del:hover { color: #c45656; }
+.sf-opts-actions { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.sf-opts-link { font-size: 12px; color: #409eff; cursor: pointer; }
+.sf-opts-link:hover { color: #66b1ff; }
+.sf-opts-div { width: 1px; height: 11px; background: #dcdfe6; }
 /* —— 逻辑规则 —— */
 .sf-logic-tip { font-size: 12px; color: #909399; margin-bottom: 10px; line-height: 1.7; }
 .sf-rule { border: 1px solid #ebeef5; border-radius: 6px; padding: 10px; margin-bottom: 10px; }

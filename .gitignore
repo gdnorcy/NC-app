@@ -10,3 +10,4 @@ node_modules/
 /server/public/card/
 /server/public/mall/
 _tmp_
+vite.config.js.timestamp-*.mjs

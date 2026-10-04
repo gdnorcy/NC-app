@@ -306,10 +306,11 @@ onMounted(async () => {
     designStyle.value = config?.style || null;
     // 分享进入 + 主题设置「返回上页」开启 → 顶部显示返回首页按钮
     shareBack.value = shouldShowShareBack(pageOptions, designTheme.value);
-    // 编辑预览（iframe 画布）下不弹草稿提示，避免干扰真实渲染观感
-    if (preview) {
-      if (!designComps.value.length) uni.showToast({ title: '草稿暂无组件', icon: 'none' });
-      else uni.showToast({ title: '草稿预览模式', icon: 'none' });
+    // 编辑预览（iframe 画布）下不弹「草稿」类提示，避免干扰真实渲染观感（原「草稿暂无组件」
+    // 在已发布页面会误弹——预览已改为草稿空时回退发布版，见 card.js 预览分支）。
+    // 仅当草稿与发布版皆空（确实无任何组件）时给出中性提示。
+    if (preview && !designComps.value.length) {
+      uni.showToast({ title: '暂无内容', icon: 'none' });
     }
   } catch (e) { console.error('[design-load-error]', e && e.message ? e.message : e); }
 

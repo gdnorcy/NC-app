@@ -167,7 +167,7 @@
                 <span class="pe-tool" title="复制" @click.stop="dupComp(c)">⧉</span>
                 <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(c.id)">✕</span>
               </div>
-              <ComponentRender :comp="c" :global="meta.global || {}" />
+              <ComponentRender :comp="c" :global="meta.global || {}" :sf-meta="sfMetaMap" />
             </div>
             <div v-if="!components.length" class="pe-empty">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
@@ -199,7 +199,7 @@
                 <span class="pe-tool" title="复制" @click.stop="dupComp(c)">⧉</span>
                 <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(c.id)">✕</span>
               </div>
-              <ComponentRender :comp="c" :global="meta.global || {}" :navBarH="navBarH" />
+              <ComponentRender :comp="c" :global="meta.global || {}" :sf-meta="sfMetaMap" :navBarH="navBarH" />
             </div>
           </div>
         </div>
@@ -980,9 +980,11 @@ import buyBtn3 from '../../../../assets/design-thumbs/buyBtn3.png';
 import buyBtn4 from '../../../../assets/design-thumbs/buyBtn4.png';
 import otherGoodsThree from '../../../../assets/design-thumbs/otherGoods_three.png';
 import otherGoodsThree2 from '../../../../assets/design-thumbs/otherGoods_three2.png';
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, onActivated, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall, fetchSuperForms, getSuperForm } from '../../../../api';
+// 组件样式 → CSS 变量映射与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
+import { componentStyleVars } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
@@ -998,6 +1000,8 @@ import SIcon from '../../../../components/SIcon.vue';
 import { cubeBlocksForStyle } from './cubeLayouts';
 import { mergeEwHeader } from '../../../../utils/designHeader';
 import { COMPONENT_LABEL } from '../superForm/components';
+// 跨工具实时同步：超级表单设计器改样式保存后，画布提交按钮样式自动刷新
+import { onSfMetaUpdated, takeDirtySfFormIds } from '../../../../utils/sfMetaBus';
 
 const props = defineProps({
   pageType: { type: String, default: 'home' },
@@ -1977,6 +1981,87 @@ function clearSuperformSel() {
   selectedComp.value.props.fields = [];
 }
 
+// ---- 画布提交按钮与 C 端同步 ----
+// C 端提交按钮（.sf-submit）的文字与样式来自表单里 submit 组件自身的配置
+// （文字 = content.label；样式 = componentStyleVars → --c-input-bg / --c-input-radius /
+// --c-border-color / --c-title-color）。装修组件的 btnText/btnColor 在 C 端不生效，
+// 画布预览必须用同一数据源才所见即所得。sfMetaMap 仅运行时缓存（不写入装修草稿 JSON）。
+const sfMetaMap = reactive({});
+
+function extractSfMeta(config) {
+  const allComps = (config?.components || []).filter((c) => c && c.type && c.content);
+  // 与 C 端 isVisible 同规则：content.visible === false 的组件不渲染
+  const comps = allComps.filter((c) => !(c.content && c.content.visible === false));
+  const submit = comps.find((c) => c.type === 'submit');
+  const vars = componentStyleVars(submit || {}, config?.settings?.globalStyle || {});
+  return {
+    label: submit?.content?.label || '确认',
+    btn: {
+      bg: vars['--c-input-bg'] || '#0076F0',
+      radius: vars['--c-input-radius'] || '22px',
+      border: vars['--c-border-color'] || '',
+      color: vars['--c-title-color'] || '#FFFFFF',
+    },
+    // —— 画布真实渲染（所见即所得）所需：完整可见组件树 + 全局样式 + 布局，
+    // 与设计器预览/C 端 embed 同一套 ComponentPreview + --c-* 变量。仅存运行时缓存，不写装修草稿。
+    comps,
+    globalStyle: config?.settings?.globalStyle || {},
+    layout: config?.settings?.layout === 'horizontal' ? 'horizontal' : 'vertical',
+  };
+}
+
+const sfMetaPending = new Set();
+async function ensureSfMeta(formId, force) {
+  const id = Number(formId);
+  if (!id) return;
+  // force=true 时即使已缓存也重新拉取（如用户在超级表单设计器改了提交按钮样式后回到装修中心重新绑定），
+  // 保证画布预览的按钮大小/圆角/颜色实时同步超级表单里的设置。
+  if (!force && sfMetaMap[id] !== undefined) return;
+  if (sfMetaPending.has(id)) return;
+  sfMetaPending.add(id);
+  try {
+    const detail = await getSuperForm(id);
+    sfMetaMap[id] = extractSfMeta(detail?.config || {});
+  } catch (e) {
+    // 表单已删 / 加载失败：占位为 null，避免反复请求；画布回退旧渲染
+    sfMetaMap[id] = null;
+  } finally {
+    sfMetaPending.delete(id);
+  }
+}
+
+// 画布中出现（历史草稿加载 / 切页 / 新绑定）带 formId 的超级表单组件时补拉 meta
+watch(() => (components.value || [])
+  .map((c) => (c && c.type === 'superform' ? c.props?.formId : ''))
+  .join(','), (ids) => {
+  String(ids || '').split(',').forEach((id) => { if (id) ensureSfMeta(id); });
+}, { immediate: true });
+
+// —— 跨工具实时同步：超级表单设计器改样式保存后，画布提交按钮样式自动秒更 ——
+// 设计器通过 sfMetaBus 广播 formId；此处订阅并在挂载/激活时补偿刷新「期间被改过」的表单，
+// 保证用户在另一路由/标签页改完样式回到装修中心时，画面立即反映最新提交按钮样式。
+function curSuperformIds() {
+  const set = new Set();
+  (components.value || []).forEach((c) => {
+    if (c && c.type === 'superform' && c.props?.formId) set.add(Number(c.props.formId));
+  });
+  return set;
+}
+function refreshDirtySuperForms() {
+  const cur = curSuperformIds();
+  takeDirtySfFormIds().forEach((id) => { if (cur.has(id)) ensureSfMeta(id, true); });
+}
+let offSfMetaBus = null;
+onMounted(() => {
+  refreshDirtySuperForms(); // 挂载时补偿：消费「本会话期间在别处改过」的脏表单
+  offSfMetaBus = onSfMetaUpdated((id) => {
+    if (curSuperformIds().has(Number(id))) ensureSfMeta(Number(id), true);
+  });
+});
+onBeforeUnmount(() => { if (offSfMetaBus) offSfMetaBus(); });
+// keep-alive 场景（若外层包了 keep-alive）激活时也要补偿刷新期间被改过的表单
+onActivated(() => { refreshDirtySuperForms(); });
+
 async function pickSuperform(row) {
   if (!selectedComp.value || !row) return;
   const p = selectedComp.value.props;
@@ -1984,6 +2069,9 @@ async function pickSuperform(row) {
   p.formName = row.name;
   p.fields = [];
   sfSel.show = false;
+  // 强制刷新该表单的提交按钮样式缓存：用户在超级表单设计器改过提交按钮样式后重新绑定时，
+  // 画布预览需实时同步最新的按钮大小/圆角/颜色（见 ensureSfMeta 的 force 参数）。
+  ensureSfMeta(row.id, true);
   // 拉取表单配置，仅提取字段摘要用于画布预览（label / 必填），不整份存下来
   try {
     const detail = await getSuperForm(row.id);

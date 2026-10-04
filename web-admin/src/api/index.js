@@ -228,6 +228,10 @@ designApi.interceptors.response.use(
 );
 export const designCall = designApi;
 
+// 设计中心 - 全景方案只读列表（链接选择器用）
+// 注意：不能用 api/plans（公开且不带客户过滤，会返回所有客户的方案），必须走租户内的 /design/plans
+export const fetchCustomerPlans = () => designApi.get('/design/plans');
+
 // 客户后台 - 全端渠道
 export const fetchCustomerChannels = () => customerApi.get('/channels');
 export const updateCustomerChannel = (type, data) => customerApi.put(`/channels/${type}`, data);
