@@ -155,6 +155,16 @@ function goBack() {
   padding-bottom: 60rpx;
   box-sizing: border-box;
 }
+/* 消息分类 Tab（sticky 顶栏：top 需让开 PageNav 高度，此处紧贴其下） */
+.msg-tabs {
+  display: flex;
+  gap: 8rpx;
+  padding: 16rpx 32rpx;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 .mt-item {
   flex: 1;
   text-align: center;

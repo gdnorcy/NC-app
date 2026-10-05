@@ -189,6 +189,17 @@ onLoad((o) => {
   overflow: hidden;
   box-sizing: border-box;
 }
+/* 订单状态头：按状态着色（:class="'hd-' + order.status"） */
+.status-head { padding: 48rpx 32rpx; color: #fff; }
+.hd-pending { background: #f53f3f; }
+.hd-paid { background: #ff7d00; }
+.hd-shipped { background: #165dff; }
+.hd-done { background: #00b42a; }
+.hd-closed { background: #86909c; }
+.hd-refunding { background: #ff7d00; }
+.hd-refunded { background: #86909c; }
+.status-title { font-size: 38rpx; font-weight: 600; }
+.status-desc { font-size: 26rpx; margin-top: 8rpx; opacity: 0.85; }
 .card-title { font-size: 30rpx; font-weight: 600; color: #1d2129; margin-bottom: 16rpx; }
 .info-row {
   display: flex; padding: 12rpx 0; align-items: flex-start;

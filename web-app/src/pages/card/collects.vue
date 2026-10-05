@@ -182,6 +182,8 @@ function goBack() {
 
 <style scoped>
 .col-page { min-height: 100vh; background: var(--bg-page); padding-bottom: 80rpx; }
+/* PageNav 右侧插槽的「刷新」文字按钮 */
+.mn-clear { font-size: 28rpx; color: var(--t3); }
 .group-scroll { flex: 1; min-width: 0; }
 .group-tabs { display: flex; gap: 12rpx; white-space: nowrap; }
 .g-tab {

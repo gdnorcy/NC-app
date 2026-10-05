@@ -625,9 +625,11 @@ function shareCard() {
 }
 
 /* ===== hero（demo g4 橙色渐变）===== */
+/* 沉浸式：状态栏占位按机型动态取，右侧留胶囊宽度（最小化 + 三个点） */
 .hero {
   position: relative;
-  padding: calc(88rpx + 30rpx) 40rpx 52rpx;
+  padding: calc(var(--pnv-status-bar, 20px) + 30rpx) 40rpx 52rpx;
+  padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
   color: #fff;
   background: linear-gradient(155deg, #b45309, #f59e0b);
   overflow: hidden;

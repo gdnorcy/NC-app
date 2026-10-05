@@ -5,8 +5,11 @@
     </view>
     <!-- 顶部标题 -->
     <view class="header">
-<!-- PageNav -->
-      <PageNav :title="isEdit ? '编辑名片' : '创建名片'" back></PageNav>
+      <!-- 沉浸式导航：背景透明融入 header 渐变；负 margin 抵消 .header 的 32rpx 左右内边距实现通栏
+           （否则 PageNav 白底只覆盖中间区域，渐变 header 两侧露白 → 视觉"白块"） -->
+      <view class="header-nav">
+        <PageNav :title="isEdit ? '编辑名片' : '创建名片'" back bg="transparent" :color="hdText" font-size="30rpx" />
+      </view>
       <view class="row1">
         <view class="row1-l">
           <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
@@ -432,6 +435,8 @@ const stepSubtitle = computed(() => {
   return m[currentStep.value] || m[0];
 });
 const skinSerif = computed(() => !!lpTheme.value && skinVars.value['--sk-skin'] === 'dark');
+// 导航标题/返回箭头颜色：跟随皮肤（深色皮肤白字，浅色皮肤深字），否则浅色皮肤上白字不可见
+const hdText = computed(() => skinVars.value['--sk-hd-text'] || '#ffffff');
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
 const heroEn = computed(() => (currentTemplate.value ? (skinEnMap[currentTemplate.value.id] || 'CREATE YOUR CARD') : 'CREATE YOUR CARD'));
 function hexLuma(color) {
@@ -549,12 +554,6 @@ function clearVoice() {
   form.voiceUrl = '';
   form.voiceName = '';
   voiceSrc.value = '';
-}
-
-function goBack() {
-  const pages = getCurrentPages();
-  if (pages.length > 1) uni.navigateBack();
-  else uni.switchTab({ url: '/pages/cardMain/home' });
 }
 
 function goMember() {
@@ -702,40 +701,14 @@ async function submit() {
   background: var(--sk-header, linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4));
   padding: 0 32rpx 32rpx;
 }
-.page-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20rpx 0 16rpx;
-}
-.bar-back {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-.bar-back-arrow {
-  font-size: 56rpx;
-  line-height: 1;
-  color: #fff;
-  font-weight: 300;
-}
-.bar-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #fff;
-  flex: 1;
-  text-align: center;
-  margin-right: 64rpx;
-}
-.bar-right {
-  width: 64rpx;
+/* PageNav 通栏：抵消 .header 的左右内边距，使导航背景/点击区真正铺满整行 */
+.header-nav {
+  margin: 0 -32rpx;
 }
 .row1 {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
 }
 .row1-l {
   flex: 1;
@@ -746,6 +719,7 @@ async function submit() {
   font-weight: 800;
   color: var(--sk-hd-text, #fff);
   letter-spacing: 1rpx;
+  line-height: 1.3;
 }
 .stepnum {
   font-size: 30rpx;
@@ -754,6 +728,9 @@ async function submit() {
   letter-spacing: 1rpx;
   flex-shrink: 0;
   margin-left: 20rpx;
+  /* 与大标题顶部对齐（此前 align-items:baseline 会把步数拉到大标题基线，视觉上像浮在标题中间） */
+  line-height: 1.3;
+  padding-top: 6rpx;
 }
 .hero-en {
   font-size: 20rpx;
@@ -804,7 +781,7 @@ async function submit() {
 .card {
   background: var(--sk-card-bg, #fff);
   border-radius: 32rpx;
-  padding: 20rpx 36rpx;
+  padding: 20rpx 36rpx 32rpx;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card + .card {
@@ -941,6 +918,7 @@ async function submit() {
 }
 .form-input {
   height: 96rpx;
+  line-height: 96rpx;
   background: var(--sk-input-bg, var(--bg-card));
   border-radius: 24rpx;
   padding: 0 32rpx;
@@ -948,6 +926,7 @@ async function submit() {
   color: var(--sk-input-text, var(--t1));
   border: var(--sk-input-border, 2rpx solid transparent);
   box-shadow: var(--sk-input-shadow, none);
+  box-sizing: border-box;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .form-input:focus {
@@ -1040,19 +1019,14 @@ async function submit() {
   border-radius: 28rpx;
   border: none;
   line-height: 96rpx;
-  box-shadow: var(--sk-btn-glow, 0 4rpx 12rpx rgba(7,193,96,0.3));
-  position: relative;
+  /* 顶部内高光：用真实 box-shadow 实现（此前误用 background 传 inset 语法 → 声明无效） */
+  box-shadow: var(--sk-btn-shine, none), var(--sk-btn-glow, 0 4rpx 12rpx rgba(7,193,96,0.3));
 }
-.btn-primary::after {
-  content: '';
-  position: absolute;
-  left: 24rpx;
-  right: 24rpx;
-  top: 6rpx;
-  height: 2rpx;
-  border-radius: 2rpx;
-  background: var(--sk-btn-shine, transparent);
-  pointer-events: none;
+/* 抹掉微信原生 button::after 的 1px 黑色边框（即用户看到的"黑线"） */
+.btn-primary::after,
+.btn-secondary::after,
+.btn-skip::after {
+  border: none;
 }
 .btn-primary[disabled] {
   opacity: 0.6;
@@ -1111,6 +1085,13 @@ async function submit() {
   padding: 24rpx; color: #b8860b; font-size: 26rpx; margin-top: 16rpx;
 }
 
-.picker-value { display: flex; align-items: center; min-height: 88rpx; }
+/* picker 容器与 .form-input 完全同高同内边距（此前 88rpx vs 96rpx，同一表单内出现两种高度） */
+.picker-value {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  line-height: 96rpx;
+  box-sizing: border-box;
+}
 .picker-value.ph { color: #9a9a9a; }
 </style>

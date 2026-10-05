@@ -484,11 +484,6 @@ function leaveTenant() {
   background: linear-gradient(135deg, var(--design-primary, var(--primary)), var(--design-gradient, var(--design-primary, var(--primary))));
   color: var(--design-text, #fff); font-size: 28rpx;
 }
-.owner-nav { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 88rpx 32rpx 0; background: #fff; position: sticky; top: 0; z-index: 10; }
-.on-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; }
-.on-title { font-size: 34rpx; font-weight: 600; color: var(--t5); }
-.on-edit { font-size: 28rpx; color: var(--success); padding: 8rpx 16rpx; }
-
 .owner-switch { display: flex; gap: 16rpx; padding: 20rpx 24rpx 0; }
 .os-chip { font-size: 24rpx; color: #5b5b5b; background: #fff; border: 1rpx solid #eeeeee; padding: 10rpx 28rpx; border-radius: 999rpx; }
 .os-chip.on { color: #fff; background: var(--success); border-color: var(--success); font-weight: 500; }

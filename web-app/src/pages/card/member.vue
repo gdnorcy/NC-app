@@ -1,8 +1,5 @@
 <template>
   <view class="member-page">
-<!-- PageNav -->
-<PageNav title="会员中心" back overlay :sticky="false" bg="transparent" color="#ffffff" />
-    <!-- hero（demo g3 青绿渐变） -->
     <view class="hero g3" :style="heroStyle">
       <view class="row1">
         <view class="mb-back" @click="goBack"><SIcon name="back" size="large" color="#ffffff" /></view>
@@ -371,9 +368,12 @@ async function openMember(pkg) {
 }
 
 /* ===== hero（demo g3 青绿渐变）===== */
+/* 沉浸式：状态栏占位按机型动态取（刘海机 ~44px / 非刘海 ~20px），
+   右侧留出胶囊宽度（最小化 + 三个点），不再用写死的 88rpx。 */
 .hero.g3 {
   position: relative;
-  padding: calc(88rpx + 30rpx) 40rpx 44rpx;
+  padding: calc(var(--pnv-status-bar, 20px) + 30rpx) 40rpx 44rpx;
+  padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
   color: #fff;
   background: linear-gradient(155deg, #0f766e, #14b8a6);
   overflow: hidden;

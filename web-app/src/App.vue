@@ -26,9 +26,14 @@ export default {
   },
   methods: {
     /**
-     * 启动时预热导航度量缓存。
-     * 度量本身由 PageNav 组件按需读取（内联样式注入），小程序端不支持动态 style 标签，
-     * 所以这里只做一次缓存预热 + 便于真机调试查看各机型实际数值。
+     * 启动时预热导航度量缓存，并做一次真机调试输出。
+     *
+     * 注意：沉浸式页面里**渐变 hero 类的 padding** 用的是 CSS 变量
+     * （`var(--pnv-status-bar)` / `var(--pnv-capsule-pad)`），因为它们写在 scoped CSS 里
+     * 不能像 PageNav 那样用内联 :style 绑定。小程序端不支持运行时注入 <style>，
+     * 所以 App.vue 的全局样式给出**保守 fallback 值**（20px 状态栏 / 7px 胶囊），
+     * 真实机型值由 PageNav 组件（用内联样式）负责精确控制。
+     * 两处并存时以 PageNav 的内联值为准。
      */
     initNavVars() {
       const m = getNavMetrics();
@@ -105,5 +110,38 @@ export default {
 page {
   background-color: #f5f7fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 沉浸式导航度量（保守 fallback）
+   真实机型值由 PageNav 组件用内联样式精确注入；这里给默认值，供写在 scoped CSS 里
+   无法用内联样式的渐变 hero（名片详情/会员中心等）消费。
+   ⚠️ 小程序端不支持运行时注入 <style>，所以这里只能是固定值；
+      若要精确适配刘海机，应把这些 padding 也改成 :style 内联绑定。 */
+page {
+  --pnv-status-bar: 20px;
+  --pnv-capsule-pad: 7px;
+}
+
+/* ===== 小程序原生 <button> 重置（关键）=====
+   微信原生 button 自带三处样式，会在自定义按钮上露出破绽：
+   1) ::after 有 1px solid rgba(0,0,0,.2) 边框 → 按钮上出现一条"黑线"
+      （页面若自定义了 ::after 的高光层但没写 border:none，原生边框会跟着高光层一起显示）
+   2) margin-left/right: auto → 在 flex 行里会吸收剩余空间，破坏 flex:1 与 gap 布局
+   3) padding-left/right: 14px + line-height: 2.5555 → 文字不居中、按钮变高
+   统一在此抹平，各页面的自定义样式即可只管视觉。 */
+button {
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+  box-sizing: border-box;
+}
+button::after {
+  border: none;
+}
+
+/* placeholder-class="ph" 的通用色（小程序端 placeholder 是独立节点，
+   不继承 input 的 color，必须显式给色，否则浅色皮肤上会显示为深色） */
+.ph {
+  color: #9a9a9a;
 }
 </style>

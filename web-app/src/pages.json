@@ -127,7 +127,8 @@
         {
           "path": "collects",
           "style": {
-            "navigationBarTitleText": "我的收藏"
+            "navigationBarTitleText": "我的收藏",
+            "navigationStyle": "custom"
           }
         },
         {
@@ -252,7 +253,8 @@
         {
           "path": "radarConfig",
           "style": {
-            "navigationBarTitleText": "雷达配置"
+            "navigationBarTitleText": "雷达配置",
+            "navigationStyle": "custom"
           }
         }
       ]

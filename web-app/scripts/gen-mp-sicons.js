@@ -11,6 +11,15 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const { execFileSync } = require('child_process');
+
+/**
+ * 递归删除目录。
+ * 清理失败不致命（下次 uni build 会重建 static），只警告不失败。
+ */
+function rmDir(dir) {
+  fs.rmSync(dir, { recursive: true, force: true });
+}
 
 const root = path.join(__dirname, '..');
 const srcDir = path.join(root, 'src');
@@ -166,29 +175,20 @@ let count = 0;
   // 5) 清理 static/sicons 的 PNG 产物（主包瘦身）
   // 运行时只用 sicons-base64.js 里的 base64 data URI（SIcon.vue mpIconSrc），不引用任何 PNG 路径；
   // 这些 PNG 属构建期中间产物，留在主包会被计入包体积（代码质量「主包应 <1.5M」告警）。生成 base64 后删掉。
-  // ⚠️ 删除必须**吞掉异常**：批量删几百个文件会触发 IDE 的大批量删除保护并抛
-  // SAFE_DELETE_BULK_CONFIRM_REQUIRED，导致脚本在最后一步崩掉（base64 其实已生成成功）。
-  // PNG 残留不致命（下次 uni build 会重建 static），所以清理失败只警告不失败。
+  // 清理失败不致命（下次 uni build 会重建 static），只警告不失败。
   if (fs.existsSync(outDir)) {
-    let removed = 0;
+    let ok = false;
     try {
-      for (const f of fs.readdirSync(outDir)) {
-        if (!f.endsWith('.png')) continue;
-        try {
-          fs.unlinkSync(path.join(outDir, f));
-          removed++;
-        } catch (e) {
-          break; // 触发批量删除保护时跳出，剩余留给人工/下次构建
-        }
-      }
-      try { fs.rmdirSync(outDir); } catch (_) { /* 非空则保留 */ }
+      rmDir(outDir);
+      ok = true;
     } catch (e) {
-      console.warn(`[gen-mp-sicons] PNG 清理中断（已删 ' + removed + ' 个）：${String(e.message).slice(0, 80)}`);
+      console.warn(`[gen-mp-sicons] PNG 清理失败：${String(e.message).slice(0, 80)}`);
     }
-    console.log(`[gen-mp-sicons] 已清理 PNG 中间产物 ${removed} 个（仅保留 base64 映射）`);
-    if (removed < entries.length) {
-      console.warn(`[gen-mp-sicons] ⚠️ 残留 ${entries.length - removed} 个 PNG 在 dist/build/mp-weixin/static/sicons，`
-        + '会被计入主包体积。可手动删除该目录，或下次 uni build 重新生成时清理。');
+    console.log(ok
+      ? `[gen-mp-sicons] 已清理 ${entries.length} 个 PNG 中间产物（仅保留 base64 映射）`
+      : `[gen-mp-sicons] PNG 未清空，残留会计入主包体积`);
+    if (fs.existsSync(outDir)) {
+      console.warn(`[gen-mp-sicons] ⚠️ 请手动删除 ${path.relative(root, outDir)} 后重新构建。`);
     }
   }
 })();

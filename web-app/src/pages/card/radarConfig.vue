@@ -174,6 +174,13 @@ function goBack() {
 
 <style scoped>
 .rc-page { min-height: 100vh; background: var(--bg-page); padding-bottom: 80rpx; }
+/* PageNav 右侧插槽的「刷新」文字按钮 */
+.mn-clear { font-size: 28rpx; color: var(--t3); }
+/* 内容卡片（曾被 clean-obsolete-navcss 误删，导致整页失去卡片容器样式） */
+.rc-card {
+  background: var(--bg-card); border-radius: 24rpx; padding: 28rpx;
+  margin: 20rpx 28rpx; border: 1px solid var(--border);
+}
 .rc-head { font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .rc-pad { padding: 12rpx 0 8rpx; }
 .rc-desc { font-size: 24rpx; color: var(--t3); }

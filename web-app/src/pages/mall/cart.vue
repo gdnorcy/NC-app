@@ -196,6 +196,8 @@ onShow(() => {
   overflow: hidden;
   box-sizing: border-box;
 }
+/* PageNav 右侧插槽的「清空」文字按钮 */
+.nav-clear { font-size: 26rpx; color: #4e5969; padding: 8rpx; }
 .cart-item.off { opacity: 0.6; }
 .check {
   width: 36rpx; height: 36rpx; border-radius: 50%;

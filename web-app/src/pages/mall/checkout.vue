@@ -307,6 +307,8 @@ onLoad((o) => {
   overflow: hidden;
   box-sizing: border-box;
 }
+/* flex 布局下的滚动区：必须 flex:1 + height:0，否则在小程序端不滚动 */
+.checkout-scroll { flex: 1; height: 0; }
 .card-title { font-size: 30rpx; font-weight: 600; color: #1d2129; margin-bottom: 20rpx; }
 .delivery-options { display: flex; }
 .delivery-option {

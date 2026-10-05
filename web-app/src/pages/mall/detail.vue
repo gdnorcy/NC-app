@@ -252,6 +252,13 @@ onLoad((o) => {
   overflow: hidden;
   box-sizing: border-box;
 }
+/* PageNav 右侧插槽：购物车图标 + 角标 */
+.nav-cart { width: 60rpx; position: relative; display: flex; align-items: center; justify-content: flex-end; }
+.cart-badge {
+  position: absolute; top: -8rpx; right: -12rpx; min-width: 30rpx; height: 30rpx;
+  padding: 0 6rpx; border-radius: 15rpx; background: #f53f3f; color: #fff;
+  font-size: 20rpx; line-height: 30rpx; text-align: center; box-sizing: border-box;
+}
 .detail-scroll { flex: 1; height: 0; }
 .banner { position: relative; width: 100%; height: 750rpx; background: #f2f3f5; }
 .swiper, .swiper-img { width: 100%; height: 100%; }
