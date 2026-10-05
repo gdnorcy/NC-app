@@ -170,6 +170,29 @@
       </div>
     </template>
     <!-- 宫格导航 -->
+    <template v-else-if="comp.type === 'menu-group'">
+      <div :class="menuRootClass(comp.props)" :style="menuRootStyle(comp.props)">
+        <div class="mg-inner">
+          <div
+            v-for="(it, i) in menuVisibleItems(comp.props)"
+            :key="i"
+            class="mg-item"
+            :style="menuItemStyle(comp.props)"
+          >
+            <div v-if="menuParts(comp.props).img" class="mg-icon" :style="menuIconStyle(comp.props)">
+              <div class="mg-img" :style="menuImgStyle(comp.props)">
+                <img v-if="it.imgUrl" :src="it.imgUrl" :style="{ borderRadius: menuImgRadius(comp.props), width: menuImgPx(comp.props), height: menuImgPx(comp.props) }" />
+              </div>
+              <span v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</span>
+            </div>
+            <div v-if="menuParts(comp.props).text" class="mg-text" :style="menuTextStyle(comp.props)">{{ it.text || '按钮文字' }}</div>
+          </div>
+        </div>
+        <div v-if="comp.props.showStyle === 'swiper'" class="mg-dots">
+          <span v-for="(p, pi) in menuPageCount(comp.props)" :key="pi" class="mg-dot" :class="{ active: pi === menuPageIndex }"></span>
+        </div>
+      </div>
+    </template>
     <template v-else-if="comp.type === 'grid-nav'">
       <div class="r-grid" :style="gridStyle(comp.props)">
         <div v-for="(it, i) in comp.props.items || []" :key="i" class="r-grid-item">
@@ -789,6 +812,13 @@ import { componentStyleVars } from '../../../../../../web-app/src/utils/sfCompon
 import { containerStyle as sharedContainerStyle } from '../../../../../../web-app/src/utils/containerStyle.js';
 // 示例图清单同样共用 C 端那份，避免两端各写死一个路径后悄悄漂移
 import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
+// 按钮组（menu-group）样式同样共用 C 端那份：数值全部来自对标站 CDP 实测，
+// 写在共享文件里才能保证「画布看到的 = 真机渲染的」。改任一端必须改这里。
+import {
+  MENU_SHAPE_RADIUS, MENU_STYLE_PARTS,
+  menuRootClass, menuRootStyle, menuItemStyle,
+  menuIconStyle, menuImgStyle, menuMarkStyle, menuTextStyle,
+} from '../../../../../../web-app/src/utils/menuGroupStyle.js';
 
 /**
  * 图片组件的**默认示例图**：与 C 端 DesignPage.vue **共用同一份清单**
@@ -1376,6 +1406,39 @@ function gridStyle(p) {
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
 }
+
+// ── 按钮组（menu-group）────────────────────────────────────────────
+// 共享样式在 web-app/src/utils/menuGroupStyle.js（对标站实测数值的唯一事实来源）。
+// 这里只放「画布特有」的逻辑：分页滑动的当前页状态。
+function menuParts(p) {
+  return MENU_STYLE_PARTS[p.navStyle || 'style1'] || MENU_STYLE_PARTS.style1;
+}
+function menuImgRadius(p) {
+  const r = MENU_SHAPE_RADIUS[p.navShape || 'circle'];
+  return typeof r === 'number' ? r + 'px' : r;
+}
+function menuImgPx(p) {
+  return Math.min(80, Math.max(16, Number(p.imgSize) || 43)) + 'px';
+}
+/** 分页滑动每页行数（对标站 params.pageRowNum，默认 2） */
+const menuPageRows = 2;
+const menuPageIndex = ref(0);
+/** 固定/单行滑动：全部项都渲染；分页滑动：只渲染当前页（对标站是真实分页，非无限滚动） */
+function menuVisibleItems(p) {
+  const all = (p.items || []).filter(Boolean);
+  if (p.showStyle !== 'swiper') return all;
+  const per = Math.max(1, menuPageRows) * Math.min(5, Math.max(1, Number(p.columns) || 4));
+  return all.slice(menuPageIndex.value * per, (menuPageIndex.value + 1) * per);
+}
+function menuPageCount(p) {
+  const all = (p.items || []).filter(Boolean);
+  if (p.showStyle !== 'swiper') return [];
+  const per = Math.max(1, menuPageRows) * Math.min(5, Math.max(1, Number(p.columns) || 4));
+  return new Array(Math.max(1, Math.ceil(all.length / per))).fill(0);
+}
+// 切换组件 / 项数变化时把页码收回合法范围，否则切回固定显示再切回来会停在空页
+// ⚠️ `comp` 是 prop（不是 ref），要通过 props.comp 访问才能保持响应式
+watch(() => [props.comp && props.comp.type, props.comp && props.comp.props && props.comp.props.showStyle, ((props.comp && props.comp.props && props.comp.props.items) || []).length], () => { menuPageIndex.value = 0; });
 function resolveFloatPos(p, tabH) {
   // 统一悬浮组件定位：四角锚点 position + 横向偏移 offsetX + 纵向偏移 offsetY
   let pos = p.position || 'bottom-right';
@@ -1877,6 +1940,33 @@ const nativeGridItems = [
 .r-mycard-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
 .r-mycard-arrow { color: #c9cdd4; font-size: 20px; }
 /* 宫格导航 */
+/* ── 按钮组（menu-group）·对标站 ew 内部键名 menu，CDP 实测 ──────────────
+   实测基准（375 逻辑宽· 每项 93.75 = 375/4 · 根 99 高 · 项 91 高）：
+   根 padding 4px 0 / 项 padding 8px 0 / 图区 50×50 / 图 43×43 / 文字 lh 21 margin-top 4
+   ⚠️ 尺寸一律用 px（不是 rpx）：画布与 C 端共用 menuGroupStyle.js 的实测数值，
+   两端必须逐项一致，改任一端都要改那份共享文件。*/
+.mg-root { overflow: hidden; position: relative; }
+.mg-inner { display: flex; flex-wrap: wrap; align-items: flex-start; }
+/* 单行滑动：横向滚动、不换行。实测列宽固定 64.61px（由 menuItemStyle 内联给出） */
+.mg-root.mg-scroll .mg-inner { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.mg-root.mg-scroll .mg-inner::-webkit-scrollbar { display: none; }
+.mg-item { padding: 8px 0; box-sizing: border-box; text-align: center; }
+.mg-icon { position: relative; margin: 0 auto; }
+.mg-img { width: 43px; height: 43px; margin: 3.5px; background-size: cover; background-position: center; background-repeat: no-repeat; overflow: hidden; }
+.mg-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* 角标：实测 29×14· radius 16px 16px 16px 0（右下角贴图）· 1px solid #fff 内描边 */
+.mg-mark {
+  position: absolute; top: -2px; right: -6px; z-index: 2;
+  box-sizing: border-box; padding: 0; height: 14px; line-height: 14px;
+  font-size: 8px; font-weight: 700; color: #fff; white-space: nowrap;
+  border: 1px solid #fff; border-radius: 8px 8px 8px 0;
+}
+.mg-text { margin: 4px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 分页滑动的指示点：实测 5×5 · margin 0 4px · 容器 375×30 absolute bottom */
+.mg-dots { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; display: flex; align-items: center; justify-content: center; }
+.mg-dot { width: 5px; height: 5px; border-radius: 50%; margin: 0 4px; background: #DCDFE6; }
+.mg-dot.active { background: #FF5555; }
+
 .r-grid { display: grid; gap: 4px; }
 .r-grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; }
 .r-grid-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; background: rgba(22,93,255,.08); }

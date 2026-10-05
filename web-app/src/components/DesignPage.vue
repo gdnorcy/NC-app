@@ -204,6 +204,53 @@
         <text class="dp-mc-arrow">›</text>
       </view>
       <!-- 宫格导航 -->
+      <!-- 按钮组（menu-group，对标站 ew 内部键名 menu） -->
+      <view v-else-if="c.type === 'menu-group'" :class="menuRootClass(c.props)" :style="menuRootStyle(c.props)">
+        <scroll-view
+          v-if="c.props.showStyle === 'scroll' || c.props.showStyle === 'swiper'"
+          class="mg-scrollbox"
+          scroll-x
+          :style="menuSwiperItemStyle(c.props)"
+        >
+          <view class="mg-inner">
+            <view
+              v-for="(it, i) in menuVisibleItems(c.props)"
+              :key="i"
+              class="mg-item"
+              :style="menuItemStyle(c.props)"
+              @click="onJump(it.url)"
+            >
+              <view v-if="menuParts(c.props).img" class="mg-icon" :style="menuIconStyle(c.props)">
+                <view class="mg-img" :style="menuImgStyle(c.props)">
+                  <image v-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
+                </view>
+                <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</text>
+              </view>
+              <text v-if="menuParts(c.props).text" class="mg-text" :style="menuTextStyle(c.props)">{{ it.text || '按钮文字' }}</text>
+            </view>
+          </view>
+        </scroll-view>
+        <view v-else class="mg-inner">
+          <view
+            v-for="(it, i) in menuVisibleItems(c.props)"
+            :key="i"
+            class="mg-item"
+            :style="menuItemStyle(c.props)"
+            @click="onJump(it.url)"
+          >
+            <view v-if="menuParts(c.props).img" class="mg-icon" :style="menuIconStyle(c.props)">
+              <view class="mg-img" :style="menuImgStyle(c.props)">
+                <image v-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
+              </view>
+              <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</text>
+            </view>
+            <text v-if="menuParts(c.props).text" class="mg-text" :style="menuTextStyle(c.props)">{{ it.text || '按钮文字' }}</text>
+          </view>
+        </view>
+        <view v-if="c.props.showStyle === 'swiper'" class="mg-dots">
+          <view v-for="(p, pi) in menuPageCount(c.props)" :key="pi" class="mg-dot" :class="{ active: pi === menuPage }" @click="menuPage = pi"></view>
+        </view>
+      </view>
       <view v-else-if="c.type === 'grid-nav'" class="dp-grid" :style="dpGridStyle(c.props)">
         <view v-for="(it, i) in c.props.items || []" :key="i" class="dp-grid-item" @click="onJump(it.url)">
           <view v-if="c.props.showIcon !== false" class="dp-grid-icon-wrap" :style="dpGridIconStyle(c.props)">
@@ -717,6 +764,13 @@ import SuperFormRender from './SuperFormRender.vue';
 // 容器层样式：与 admin 设计器画布共用（跨端同一份实现，避免「画布没底色、真机有」）
 import { containerStyle } from '../utils/containerStyle.js';
 import { sampleUrl } from '../utils/sampleImages.js';
+// 按钮组（menu-group）样式：与 admin 画布共用同一份实现（对标站实测数值的唯一事实来源），
+// 保证「画布看到的 = 真机渲染的」。改样式只改那份文件，不要在本文件另写一份。
+import {
+  MENU_SHAPE_RADIUS, MENU_STYLE_PARTS,
+  menuRootClass, menuRootStyle, menuItemStyle,
+  menuIconStyle, menuImgStyle, menuMarkStyle, menuTextStyle,
+} from '../utils/menuGroupStyle.js';
 
 // 价格优先级：新人价 > 会员价 > 原价
 // 会员价memberPrice是{mode,priceMap:{levelId:value}}对象，一期简化为取priceMap第一个值
@@ -996,6 +1050,39 @@ function dpGridIconStyle(p) {
     height: (p.iconSize || 40) + 'px',
     borderRadius: (p.shape === 'rounded' ? (p.iconRadius ?? 12) : 999) + 'px',
   };
+}
+
+// ── 按钮组（menu-group）────────────────────────────────────────────
+// 共享样式在 utils/menuGroupStyle.js。这里只放 C 端特有逻辑：分页滑动的当前页。
+const MENU_PAGE_ROWS = 2;
+const menuPage = ref(0);
+function menuParts(p) {
+  return MENU_STYLE_PARTS[p.navStyle || 'style1'] || MENU_STYLE_PARTS.style1;
+}
+function menuImgRadius(p) {
+  const r = MENU_SHAPE_RADIUS[p.navShape || 'circle'];
+  return typeof r === 'number' ? r + 'px' : r;
+}
+function menuImgPx(p) {
+  return Math.min(80, Math.max(16, Number(p.imgSize) || 43)) + 'px';
+}
+function menuPerPage(p) {
+  return Math.max(1, MENU_PAGE_ROWS) * Math.min(5, Math.max(1, Number(p.columns) || 4));
+}
+function menuVisibleItems(p) {
+  const all = (p.items || []).filter(Boolean);
+  if (p.showStyle !== 'swiper') return all;
+  const per = menuPerPage(p);
+  return all.slice(menuPage.value * per, (menuPage.value + 1) * per);
+}
+function menuPageCount(p) {
+  if (p.showStyle !== 'swiper') return [];
+  const per = menuPerPage(p);
+  return new Array(Math.max(1, Math.ceil((p.items || []).filter(Boolean).length / per))).fill(0);
+}
+function menuSwiperItemStyle(p) {
+  // 🔴 小程序端<scroll-view> 必须用 inline style给width，不能靠 class（见记忆：v-for 元素靠 scoped class 设尺寸不生效）
+  return p.showStyle === 'swiper' ? { width: '100%' } : {};
 }
 function dpSearchStyle(p) {
   const s = {
@@ -1945,6 +2032,34 @@ function openChannel(kind, p) {
 .dp-mc-sub { font-size: 12px; color: #86909c; }
 .dp-mc-arrow { color: #c9cdd4; font-size: 20px; }
 /* 宫格导航 */
+/* ── 按钮组（menu-group）·对标站 ew 内部键名 menu，CDP 实测 ──────────────
+   实测基准（375 逻辑宽 · 每项 93.75 = 375/4 · 根 99 高 · 项 91 高）：
+   根 padding 4px 0 / 项 padding 8px 0 / 图区 50×50 / 图 43×43 / 文字 lh 21 margin-top 4
+   ⚠️ 类名/尺寸与 admin 画布 ComponentRender.vue 的 `.mg-*` **逐项一致**，
+   共享数值在 utils/menuGroupStyle.js，改任一端必须同步另一端（否则画布 ≠ 真机）。*/
+.mg-root { overflow: hidden; position: relative; }
+.mg-inner { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.mg-scrollbox { width: 100%; white-space: nowrap; }
+.mg-scrollbox .mg-inner { flex-wrap: nowrap; display: inline-flex; }
+.mg-item { padding: 8px 0; box-sizing: border-box; text-align: center; }
+.mg-icon { position: relative; margin: 0 auto; }
+.mg-img { width: 43px; height: 43px; margin: 3.5px; overflow: hidden; }
+.mg-img-el { display: block; width: 100%; height: 100%; }
+/* 角标：实测 29×14 · 整块 scale(0.5)（真实 fs 16px / lh 28px → 视觉 8px/14px）
+   · radius 视觉 8px 8px 8px 0（真实 16px）· padding 0（我方按视觉值直写，不做缩放）
+   · 1px solid #fff 内描边 · 右下角贴图 */
+.mg-mark {
+  position: absolute; top: -2px; right: -6px; z-index: 2;
+  box-sizing: border-box; padding: 0; height: 14px; line-height: 14px;
+  font-size: 8px; font-weight: 700; color: #fff; white-space: nowrap;
+  border: 1px solid #fff; border-radius: 8px 8px 8px 0;
+}
+.mg-text { display: block; margin: 4px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 分页滑动的指示点：实测 5×5 · margin 0 4px · 容器 375×30 absolute bottom */
+.mg-dots { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; display: flex; align-items: center; justify-content: center; }
+.mg-dot { width: 5px; height: 5px; border-radius: 50%; margin: 0 4px; background: #DCDFE6; }
+.mg-dot.active { background: #FF5555; }
+
 .dp-grid { display: grid; gap: 4px; }
 .dp-grid-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 2px; }
 .dp-grid-icon-wrap { position: relative; background: rgba(22,93,255,.08); display: flex; align-items: center; justify-content: center; }

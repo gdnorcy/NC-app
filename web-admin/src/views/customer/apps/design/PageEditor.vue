@@ -267,6 +267,10 @@
                         <rect x="3" y="3" width="38" height="38" rx="9" fill="#F2F3F5"/>
                         <rect x="10" y="10" width="24" height="24" rx="6" fill="#C9CDD4"/>
                       </svg>
+                      <svg v-else-if="o.shapePreview" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="2" y="2" width="40" height="40" rx="5" fill="#F2F3F5"/>
+                        <rect x="10" y="10" width="24" height="24" :rx="o.shapePreview === 999 ? 12 : o.shapePreview" fill="#C9CDD4"/>
+                      </svg>
                       <svg v-else-if="o.value === 'single'" class="pe-graphic-svg" viewBox="0 0 88 56">
                         <rect x="4" y="4" width="80" height="48" rx="6" fill="#F2F3F5"/>
                         <rect x="12" y="12" width="64" height="32" rx="4" fill="#C9CDD4"/>
@@ -2201,8 +2205,22 @@ function removeListItem(comp, key, idx) {
 }
 // 列表项字段条件显示（when 依赖 item 自身值；期望 true 时 undefined 视为 true，兼容旧数据）
 function listFieldVisible(sf, it) {
+  // `whenProps`：**组件级**联（读 selectedComp.props），支持数组值表示「多档任一命中」。
+  // 与 `when`（只读项自身字段 `it`）分工明确，两者可并存 —— 都满足才显示。
+  // 为什么需要它：按钮组的「图片」字段要同时看组件的 `iconType`（按钮类型）
+  // 与 `navStyle`（按钮样式），这两个字段不在**项**上，只在项里的 `when` 永远读不到。
+  if (sf.whenProps) {
+    const p = (selectedComp.value && selectedComp.value.props) || {};
+    const ok = Object.entries(sf.whenProps).every(([k, v]) => {
+      if (Array.isArray(v)) return v.some((x) => String(p[k]) === String(x));
+      if (v === true) return p[k] === true || p[k] === undefined || String(p[k]) === 'true';
+      return String(p[k]) === String(v);
+    });
+    if (!ok) return false;
+  }
   if (!sf.when) return true;
   return Object.entries(sf.when).every(([k, v]) => {
+    if (Array.isArray(v)) return v.some((x) => String(it[k]) === String(x));
     if (v === true) return it[k] === true || it[k] === undefined || String(it[k]) === 'true';
     return String(it[k]) === String(v);
   });

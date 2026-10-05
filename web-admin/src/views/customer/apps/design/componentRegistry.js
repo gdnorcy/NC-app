@@ -188,6 +188,100 @@ export const componentRegistry = [
     ],
   },
   {
+    /**
+     * 按钮组（eweishop 图文类，内部键名 `menu`，图标 menu.png —— 与「按钮」同图，
+     * 这是对标站的原样，不是复制错；两者在ew 里就是同一个图标文件）。
+     *
+     *🔴 字段名全部照抄对标站 `decorateItem[].params` / `.style` 的真实键名，
+     *    由 CDP 实测「逐档切换 radio → 读组件 data → diff」得出，不是猜的：
+     *    - params.rowNum      "3"|"4"|"5"   每行数量（注意是**字符串**）
+     *    - style.navStyle     style1|style2|style3按钮样式（图+文 / 仅图 / 仅文）
+     *    - style.navShape     square|arc|circle  按钮形状（只改 .img 的 border-radius）
+     *    - style.style        "1"|"2"        按钮类型（图片 / 图标）
+     *    - style.newStyle     ""|shadow|border  组件样式（加根 class，阴影/边框落**根容器**）
+     *    - style.showStyle    ""|scroll|swiper  组件风格（固定 / 单行滑动 / 分页滑动）
+     * 实测值：投影 `box-shadow: rgba(226,231,244,.7) 0 0 10px`；描边 `border: 1px solid #ededed`
+     * （落在根 `.es-menu-group` 上，故根高 99→101）；形状圆角 0 / 10px / 50%；
+     * 图标区固定 50×50、图 43×43、列 padding 8px 0、宽 = 375/列数、文字 lh 21px。
+     */
+    type: 'menu-group',
+    name: '按钮组',
+    group: 'basic',
+    icon: 'button',
+    defaultProps: {
+      navStyle: 'style1', navShape: 'circle', iconType: '1',
+      newStyle: '', showStyle: '',
+      columns: 4, imgSize: 43, fontSize: 14, bold: false,
+      bgColor: 'transparent', compBgColor: '', itemBgColor: 'transparent',
+      textColor: '#333333', borderColor: '#EDEDED',
+      marginTop: 8, marginBottom: 8, marginLR: 0,
+      radiusTop: 0, radiusBottom: 0,
+      memberLevel: 'all',
+      items: [
+        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: true, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
+        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: false, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
+        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: false, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
+        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: false, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
+      ],
+    },
+    schema: [
+      // ── 内容 ──
+      { key: 'navStyle', label: '按钮样式', control: 'radio', graphic: true, section: 'content', options: [
+        { label: '图片+文字', value: 'style1' },
+        { label: '图片', value: 'style2' },
+        { label: '文字', value: 'style3' },
+      ] },
+      // 形状用图形预览（对标站就是图形预览 radio，不是纯文字 —— 见反模式清单）。
+      // `shapePreview` 是预览圆角（999=圆形），如实反映实测值：0 / 10px / 50%。
+      { key: 'navShape', label: '按钮形状', control: 'radio', graphic: true, section: 'content', options: [
+        { label: '方形', value: 'square', shapePreview: 0 },
+        { label: '圆角', value: 'arc', shapePreview: 5 },
+        { label: '圆形', value: 'circle', shapePreview: 999 },
+      ] },
+      { key: 'iconType', label: '按钮类型', control: 'radio', section: 'content', options: [
+        { label: '图片', value: '1' }, { label: '图标', value: '2' },
+      ] },
+      {
+        key: 'items', label: '图标设置', control: 'list', section: 'content', listMax: 30,
+        itemFields: [
+          // ⚠️ `when` 只能读**项自身字段**（见 listFieldVisible），组件级联用 `whenProps`。
+          // 对标站实测：图片字段要同时满足「按钮类型=图片」且「按钮样式≠仅文字」才出现。
+          { key: 'imgUrl', label: '图片', control: 'image', whenProps: { iconType: '1', navStyle: ['style1', 'style2'] } },
+          { key: 'text', label: '文字', control: 'input', maxlength: 5, whenProps: { navStyle: ['style1', 'style3'] } },
+          { key: 'url', label: '链接', control: 'link' },
+          { key: 'labelStatus', label: '标签', control: 'switch' },
+          { key: 'label', label: '标签内容', control: 'input', maxlength: 2, when: { labelStatus: true } },
+          { key: 'labelBgColor', label: '标签背景', control: 'color', when: { labelStatus: true } },
+          { key: 'labelTextColor', label: '标签文字', control: 'color', when: { labelStatus: true } },
+        ],
+      },
+      // ── 组件样式 / 组件风格：对标站是 radio-button 段控件 ──
+      { key: 'newStyle', label: '组件样式', control: 'radioButton', section: 'style', options: [
+        { label: '默认', value: '' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' },
+      ] },
+      { key: 'borderColor', label: '描边颜色', control: 'color', section: 'style', when: { newStyle: 'border' } },
+      { key: 'showStyle', label: '组件风格', control: 'radioButton', section: 'style', options: [
+        { label: '固定显示', value: '' }, { label: '单行滑动', value: 'scroll' }, { label: '分页滑动', value: 'swiper' },
+      ] },
+      { key: 'columns', label: '每行数量', control: 'radio', section: 'style', options: [
+        { label: '3个', value: 3 }, { label: '4个', value: 4 }, { label: '5个', value: 5 },
+      ] },
+      { key: 'fontSize', label: '字体设置', control: 'slider', section: 'style', min: 8, max: 17, when: { navStyle: ['style1', 'style3'] } },
+      { key: 'bold', label: '加粗', control: 'switch', section: 'style', when: { navStyle: ['style1', 'style3'] } },
+      { key: 'imgSize', label: '图标大小', control: 'slider', section: 'style', min: 20, max: 60, when: { navStyle: ['style1', 'style2'] } },
+      // ── 颜色：对标站「颜色选择」组三个色，顺序为 底部背景 / 组件背景 / 文字颜色 ──
+      { key: 'itemBgColor', label: '底部背景', control: 'color', section: 'style' },
+      { key: 'compBgColor', label: '组件背景', control: 'color', section: 'style' },
+      { key: 'textColor', label: '文字颜色', control: 'color', section: 'style', when: { navStyle: ['style1', 'style3'] } },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 50 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 50 },
+      { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 50 },
+      { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 20 },
+      { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 20 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
+    ],
+  },
+  {
     type: 'button',
     name: '按钮',
     group: 'basic',
