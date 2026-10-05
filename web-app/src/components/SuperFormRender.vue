@@ -320,18 +320,24 @@
           </view>
 
           <!-- 车牌号 -->
-          <!-- 车牌号：对标站是 8 格分位输入（省简称 + 发牌机关 + 6 位序号，ew-carplate 画布 8 个 input），
-               值仍是完整车牌字符串。此前单个 input 与对标站交互形态完全不同。 -->
+          <!-- 车牌号：对标站 8 格分位输入（省简称 + 发牌机关 + 6 位序号），值仍是完整车牌字符串。
+               对标站实测（car-number-widget 源码 + scoped CSS）：8 格独立圆角卡片（高 49px、文字居中、
+               卡间留缝），卡 1/卡 2 之间有 4px 圆点分隔符（div.point，left:23%），
+               最后一格为新能源位：绿框绿字 + placeholder「新能源」（rgb(0,181,0)）。 -->
           <view v-else-if="comp.type === 'carplate'" class="sf-plate">
             <input
               v-for="n in 8"
               :key="n"
               class="sf-plate-cell"
+              :class="{ 'sf-plate-cell--ne': n === 8 }"
               :value="plateCellOf(comp.id, n - 1)"
               :maxlength="1"
+              :placeholder="n === 8 ? '新能源' : ''"
+              placeholder-style="color: rgb(0, 181, 0)"
               :disabled="comp.content.readonly"
               @input="setPlateCell(comp.id, n - 1, $event)"
             />
+            <view class="sf-plate-dot" />
           </view>
 
           <!-- 标题 -->
@@ -1433,7 +1439,6 @@ async function submit() {
 .sfv-box .sf-realtime,
 .sfv-box .sf-image-h,
 .sfv-box .sf-id-box,
-.sfv-box .sf-plate,
 .sfv-box .sf-opts { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
 .sfv-plain .sf-input,
 .sfv-plain .sf-loc,
@@ -1457,7 +1462,6 @@ async function submit() {
 .sfv-line .sf-realtime,
 .sfv-line .sf-image-h,
 .sfv-line .sf-id-box,
-.sfv-line .sf-plate,
 .sfv-line .sf-opts { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 /* 线风格下多行文本不该被压成单行高度：去掉底线方向的内距塌陷 */
 .sfv-line .sf-image-h.is-line { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); }
@@ -1506,12 +1510,18 @@ async function submit() {
 .sf-range { display: flex; align-items: center; gap: 8px; }
 .sf-range .sf-range-cell { flex: 1; min-width: 0; }
 .sf-range .sf-range-sep { color: var(--c-prompt-color, #999999); flex-shrink: 0; }
-/* 车牌号：8 格分位输入（对标站 field-wrapper-car-number，每格 1 字符）。
-   框风格由外层 .sf-plate 容器承担（浅底+描边，随 sfv-box/sfv-line 切换），
-   格子本身只做分隔，避免容器+格子双重描边。 */
-.sf-plate { display: flex; gap: 0; }
-.sf-plate .sf-plate-cell { width: 0; flex: 1; min-width: 0; height: 40px; text-align: center; font-size: 15px; background: transparent; border: none; border-right: 1px solid var(--c-border-color, #F5F2F2); border-radius: 0; box-sizing: border-box; }
-.sf-plate .sf-plate-cell:last-child { border-right: none; }
+/* 车牌号：8 格分位输入（对标站 car-number-widget）。
+   对标站实测：**每格是独立圆角卡片**（高 49px、文字居中、卡间留缝 2.5%），
+   不是相连格子 —— 卡片样式（浅底+描边+圆角）由格子自己承担，容器透明，
+   卡 1/卡 2 之间有 4px 圆点分隔符（left:23%），最后一格新能源位绿框绿字。 */
+.sf-plate { position: relative; display: flex; gap: 2.5%; }
+.sf-plate .sf-plate-cell { width: 0; flex: 1; min-width: 0; height: 49px; text-align: center; font-size: var(--c-input-size, 14px); padding: 0; background: transparent; border: none; border-radius: 0; overflow: hidden; box-sizing: border-box; }
+.sfv-box .sf-plate .sf-plate-cell { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
+.sfv-line .sf-plate .sf-plate-cell { background: transparent; border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; }
+/* 最后一格 = 新能源位：对标站固定绿框绿字（scoped CSS !important，与所选配色无关） */
+.sf-plate .sf-plate-cell--ne { border-color: rgb(0, 181, 0) !important; color: rgb(0, 181, 0) !important; }
+/* 分隔圆点：对标站 .point 4×4px 圆形，绝对定位 left:23%（卡 2 右侧缝内），颜色 = 输入文字色 */
+.sf-plate-dot { position: absolute; left: 23%; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%; background: var(--c-input-color, #333333); }
 /* 选择类的三种风格作用在**选项区**（s1/s2/s3），与输入类的 box/line 语义不同：
      sfx-optbox   描边 + 浅底（整块一个框，行间有分隔线）
      sfx-optplain 纯白底、去框，每个选项独立成卡（行间距拉开）

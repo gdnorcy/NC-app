@@ -578,4 +578,35 @@ describe('图片/图文选项排布 optImgLayout', () => {
         .toBeLessThan(phIdx);
     });
   });
+
+  // 回归：车牌号曾做成「相连格子 + border-right 分隔」，与对标站
+  // （8 格独立圆角卡片 + 卡间留缝 + 圆点分隔符 + 末格绿色新能源位）不符，用户实测指出。
+  // 这里锁死 CSS 源码形态：格子卡片化、无 border-right、有圆点与绿色新能源位。
+  it('车牌号 8 格是独立卡片（无 border-right 相连），含圆点分隔符与绿色新能源位', () => {
+    const files = [
+      path.resolve(__dirname, '../components/SuperFormRender.vue'),
+      path.resolve(__dirname, '../../../web-admin/src/views/customer/apps/superForm/ComponentPreview.vue'),
+    ];
+    files.forEach((f) => {
+      const raw = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      const styleIdx = raw.search(/<style[^>]*>/);
+      expect(styleIdx, `${path.basename(f)} 应有 <style> 段`).toBeGreaterThan(-1);
+      const css = raw.slice(styleIdx);
+      // 1) 格子规则里不允许再出现 border-right 相连写法
+      const cellRules = css.match(/\.[a-z-]*plate-cell[^{}]*\{[^}]*\}/g) || [];
+      expect(cellRules.length, `${path.basename(f)} 应有车牌格子规则`).toBeGreaterThan(0);
+      cellRules.forEach((r) => {
+        expect(r, `${path.basename(f)} 车牌格子不得用 border-right 相连：\n${r}`)
+          .not.toMatch(/border-right/);
+      });
+      // 2) 卡间必须留缝（gap 不能是 0）
+      const plateRule = (css.match(/[^{}]*plate \{[^}]*\}/g) || []).join('');
+      expect(plateRule, `${path.basename(f)} .plate 容器应声明卡间 gap：\n${plateRule}`)
+        .toMatch(/gap:\s*(?!0)/);
+      // 3) 末格新能源位：绿色 rgb(0, 181, 0)（对标站 scoped CSS 固定值）
+      expect(css, `${path.basename(f)} 应有绿色新能源位规则`).toMatch(/plate-cell--ne[^{}]*\{[^}]*rgb\(0,\s*181,\s*0\)/);
+      // 4) 圆点分隔符：left:23%（对标站 .point 实测值）
+      expect(css, `${path.basename(f)} 应有圆点分隔符规则 left:23%`).toMatch(/plate-dot[^{}]*\{[^}]*left:\s*23%/);
+    });
+  });
 });

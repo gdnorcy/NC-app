@@ -177,9 +177,11 @@
     </template>
 
     <template v-else-if="comp.type === 'carplate'">
-      <!-- 对标站：8 格分位输入（省简称 + 发牌机关 + 6 位序号），无线风格 -->
+      <!-- 对标站画布实测（car-number-widget data 预填 + scoped CSS）：格 1 预填「苏」，
+           格 8 新能源位绿框绿字「新能源」，卡 1/卡 2 之间 4px 圆点分隔符 -->
       <div class="cmpv-plate">
-        <span v-for="n in 8" :key="n" class="cmpv-plate-cell" />
+        <span v-for="n in 8" :key="n" class="cmpv-plate-cell" :class="{ 'cmpv-plate-cell--ne': n === 8 }">{{ n === 1 ? '苏' : (n === 8 ? '新能源' : '') }}</span>
+        <i class="cmpv-plate-dot" />
       </div>
     </template>
 
@@ -374,7 +376,6 @@ function sliderPct(comp) {
 .cmpv.sfv-box .cmpv-realtime,
 .cmpv.sfv-box .cmpv-image-h,
 .cmpv.sfv-box .cmpv-id-box,
-.cmpv.sfv-box .cmpv-plate,
 .cmpv.sfv-box .cmpv-opt-box { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
 .cmpv.sfv-plain .cmpv-input,
 .cmpv.sfv-plain .cmpv-loc,
@@ -396,7 +397,6 @@ function sliderPct(comp) {
 .cmpv.sfv-line .cmpv-realtime,
 .cmpv.sfv-line .cmpv-image-h,
 .cmpv.sfv-line .cmpv-id-box,
-.cmpv.sfv-line .cmpv-plate,
 .cmpv.sfv-line .cmpv-opt-box { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 /* 选择类三态（s1 描边整块 / s2 每项独立成卡 / s3 仅行间底线），与 C 端 sfx-opt* 同语义 */
 .cmpv.sfx-optbox .cmpv-opt-box { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-inactive-border, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
@@ -483,9 +483,14 @@ function sliderPct(comp) {
 .cmpv-range { display: flex; align-items: center; gap: 8px; }
 .cmpv-range .cmpv-range-cell { flex: 1; min-width: 0; }
 .cmpv-range .cmpv-range-sep { color: var(--c-prompt-color, #CCCCCC); flex-shrink: 0; }
-.cmpv-plate { display: flex; gap: 0; }
-.cmpv-plate .cmpv-plate-cell { flex: 1; min-width: 0; height: 40px; background: transparent; border: none; border-right: 1px solid var(--c-border-color, #F5F2F2); border-radius: 0; box-sizing: border-box; }
-.cmpv-plate .cmpv-plate-cell:last-child { border-right: none; }
+/* 车牌号：与 C 端 .sf-plate 同构 —— 每格独立圆角卡片（高 49px、居中、卡间留缝 2.5%），
+   格 1 预填「苏」、格 8 新能源位绿框绿字、卡 1/2 之间 4px 圆点分隔符（对标站画布实测）。 */
+.cmpv-plate { position: relative; display: flex; gap: 2.5%; }
+.cmpv-plate .cmpv-plate-cell { width: 0; flex: 1; min-width: 0; height: 49px; display: flex; align-items: center; justify-content: center; font-size: var(--c-input-size, 14px); background: transparent; border: none; border-radius: 0; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
+.cmpv.sfv-box .cmpv-plate .cmpv-plate-cell { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
+.cmpv.sfv-line .cmpv-plate .cmpv-plate-cell { background: transparent; border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; }
+.cmpv-plate .cmpv-plate-cell--ne { border-color: rgb(0, 181, 0) !important; color: rgb(0, 181, 0) !important; }
+.cmpv-plate-dot { position: absolute; left: 23%; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%; background: var(--c-input-color, #333333); }
 .cmpv-agree { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--c-input-color, #333333); }
 .cmpv-agree a { color: var(--c-agree-btn, #2667EC); }
 .cmpv-rate { display: flex; font-size: 20px; letter-spacing: 2px; }
