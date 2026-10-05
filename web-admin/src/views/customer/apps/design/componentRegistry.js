@@ -1399,7 +1399,7 @@ export const componentRegistry = [
     icon: 'native-grid',
     defaultProps: {
       marginTop: 0, marginBottom: 0,
-      columns: 4, shape: 'rounded', iconSize: 40, iconRadius: 14,
+      columns: 4, shape: 'rounded', iconSize: 46, iconRadius: 14,
       fontSize: 12, bold: false, gap: 0,
       items: [
         { icon: 'card', text: '我的名片', url: '/pages/card/myCard', bg: 'linear-gradient(135deg,#2979ff,#00b0ff)', badge: '', visible: true },
@@ -1410,7 +1410,7 @@ export const componentRegistry = [
         { icon: 'dist', text: '分销中心', url: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)', badge: '', visible: true },
         { icon: 'crown', text: '会员中心', url: '/pages/card/member', bg: 'linear-gradient(135deg,#ffb300,#ff8f00)', badge: '', visible: true },
         { icon: 'dynamic', text: '我的动态', url: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#ec407a,#ab47bc)', badge: '', visible: true },
-        { icon: 'apps', text: '更多', url: '/pages/card/profile', bg: 'linear-gradient(135deg,#13c2c2,#00d0c7)', badge: '', visible: true },
+        { icon: 'apps', text: '更多', url: '/pages/card/profile', bg: 'linear-gradient(135deg,#78909c,#546e7a)', badge: '', visible: true },
       ],
     },
     schema: [

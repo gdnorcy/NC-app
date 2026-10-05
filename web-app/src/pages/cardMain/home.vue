@@ -219,9 +219,15 @@ function gridIconStyle(props, item) {
     borderRadius: shape === 'circle' ? '50%' : ((p.iconRadius ?? 14) + 'px'),
   };
 }
-// 图标本体尺寸：跟随 iconSize 滑块（SIcon 数值尺寸）
+// 图标本体尺寸：**不能等于框大小**。
+// 「名片宫格图标方案 v5」的规格是 46px 圆角方块 + 内含 32px 描边图标
+// （图标占框 32/46 ≈ 69.6%，四周留白 7px）。此前 iconSize 同时充当框与图标尺寸，
+// 图标几乎撑满方块（43px 框内 40px 图标 = 93%），显得拥挤且描边被挤到边缘。
+// 这里按方案比例内缩，iconSize 只控制方块大小。
+const GRID_ICON_RATIO = 32 / 46;
 function gridIconSize(props) {
-  return Number((props && props.iconSize) || 40);
+  const box = Number((props && props.iconSize) || 40);
+  return Math.round(box * GRID_ICON_RATIO);
 }
 function gridLabelStyle(props) {
   const p = props || {};
@@ -309,7 +315,7 @@ const features = [
   { key: 'distribution', icon: 'dist', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)' },
   { key: 'member', icon: 'crown', label: '会员中心', path: '/pages/card/member', bg: 'linear-gradient(135deg,#ffb300,#ff8f00)' },
   { key: 'dynamic', icon: 'dynamic', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#ec407a,#ab47bc)' },
-  { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#13c2c2,#00d0c7)' },
+  { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#78909c,#546e7a)' },
 ];
 
 onMounted(async () => {
