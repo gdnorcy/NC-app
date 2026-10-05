@@ -240,3 +240,12 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 - **但`super_form_template.name` 仍是占位名「未命名表单」时，后台表单列表 + 设计器
   「选择超级表单」弹窗（`.pe-sf-picked-name`）会显示它** —— 改模板名，不要指望改 DOM
 - `super_form_template` 的 `config` 是 `{components, settings}` JSON，字段在 `config.components`
+
+## 装修配置真机不更新的三处排查点（2026-10-05 踩坑）
+- `web-app/src/utils/design.js` 的 `const TTL = 5 * 60 * 1000` 是**装修配置本地缓存**，
+  `fetchDesignConfig(force=false)` 命中即return不发请求。
+  **「重启小程序 / reLaunch 重建页面」无法绕过**——onMounted 传的仍是 force=false。
+  唯一解：下拉强刷新（`pages/cardMain/home` 已实现 `loadHomeData(force)`）或等 5 分钟。
+- **页面级配置在产物里位于 `pages/xxx/xxx.json`，不在 `app.json`**（后者只有路径数组）。
+- 全项目 `onPullDownRefresh` 曾为 0 处（云菜鸟的下拉强刷新原先没复刻），
+  现仅 `pages/cardMain/home` 开启，`login` 等页不引入无关交互。
