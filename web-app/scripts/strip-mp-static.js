@@ -19,7 +19,43 @@ function rmDir(dir) {
 
 const mpDir = path.join(__dirname, '..', 'dist', 'build', 'mp-weixin');
 // 剔除目录：小程序端确定无引用（已核对源码 grep，勿随意追加——误删会破坏小程序资源）
+//
+// 🔴 2026-10-05 教训：图片组件的默认示例图曾放在 `static/images/`，构建时被本脚本整目录删掉，
+//   真机图裂不出来。**新增任何被源码引用的静态资源时，不要放进这四个目录**。
+//   - `static/images` 被剔除的原因是「H5 时代遗留、小程序端无源码引用」——
+//     但源码里`/card/static/images/countdown-banner.png` 这类引用**确实存在**，
+//     它们在小程序端实际是坏的（只是没人报，因为倒计时默认样式另有兜底色）。
+//     新资源请放 `static/sample/`（本脚本不剔除）。
 const STRIP_DIRS = ['static/three', 'static/icons', 'static/images', 'static/sicons'];
+
+/** 剔除后自检：产物里若仍有代码引用被删目录下的文件，打印告警（避免静默图裂）
+ *  引用形态：`/card/static/images/xxx.png` → 产物 `static/images/xxx.png`
+ */
+function warnIfReferencedAssetsDropped(failed) {
+  const dropped = failed.map((f) => f.rel.replace(/^static\//, ''));
+  if (!dropped.length) return;
+  const jsFiles = [];
+  const walk = (d) => {
+    for (const name of fs.readdirSync(d)) {
+      const p = path.join(d, name);
+      if (fs.statSync(p).isDirectory()) walk(p);
+      else if (/\.(js|wxml|json)$/.test(name)) jsFiles.push(p);
+    }
+  };
+  walk(mpDir);
+  const hits = [];
+  for (const f of jsFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const rel of dropped) {
+      if (src.includes(rel)) hits.push(`  ${path.relative(mpDir, f)} 引用了 static/${rel}`);
+    }
+  }
+  if (hits.length) {
+    console.warn('[strip-mp-static] ⚠️ 以下资源被剔除但产物代码仍在引用（真机可能图裂）：');
+    [...new Set(hits)].forEach((h) => console.warn(h));
+    console.warn('[strip-mp-static]   → 把该资源移出被剔除目录（如改放 static/sample/）后重新构建');
+  }
+}
 
 function sizeK(dir) {
   let total = 0;
@@ -71,4 +107,5 @@ if (removedTotal > 0) {
 }
 if (failed.length) {
   console.warn(`[strip-mp-static] 有 ${failed.length} 个目录未能剔除，小程序主包可能超出 2MB 限制，请手动删除后重建`);
+  warnIfReferencedAssetsDropped(failed);
 }

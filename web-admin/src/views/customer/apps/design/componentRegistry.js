@@ -199,12 +199,15 @@ export const componentRegistry = [
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
       { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
-      // ⚠️ 按钮的 bgColor 是**按钮自身底色**（`dpBtnStyle` 消费），与外层 `.dp-item` 容器的
-      // 背景无关（容器背景另由 `containerStyle` 的 p.bgColor 决定，同名字段但作用对象不同）。
-      // PeColorPicker 支持渐变预设（与宫格共用同一套 11 色），选中渐变会原样存进bgColor，
-      // 小程序端能正常渲染——**若发现按钮底色变成了宫格某项的颜色，是误选了同名预设**，
-      // 在这里改回纯色即可（如 #165DFF），不是渲染 bug。
-      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      // 🔴 这里是**按钮自身的填充色**，故label 是「按钮色」而不是「背景色」——
+      // 组件**外层容器**的底色是另一个独立字段 `compBgColor`（见 commonStyleSchema
+      // 的「组件背景色」），两者并存、互不影响。2026-10-05 用户明确要求拆分：
+      // 之前两者共用 `bgColor`，改一个字段容器和按钮一起变，无法单独设置。
+      //
+      // ⚠️ PeColorPicker 的渐变预设 11 色与名片宫格方案 A 的 9 色是同一套，
+      // 在别的组件上容易误选宫格色。若按钮色变成某个宫格色，是误选预设，
+      // 改回纯色即可（如 #165DFF），不是渲染 bug。
+      { key: 'bgColor', label: '按钮色', control: 'color', section: 'style' },
       { key: 'radius', label: '按钮圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
@@ -1528,12 +1531,22 @@ export const componentRegistry = [
 export const commonStyleSchema = [
   { key: 'padding', label: '内边距', control: 'slider', min: 0, max: 24 },
   { key: 'radius', label: '圆角', control: 'slider', min: 0, max: 24 },
-  { key: 'bgColor', label: '背景色', control: 'color' },
+  // 🔴 组件**外层容器**的底色，语义独立于组件自身底色（2026-10-05 用户要求拆分）。
+  // 此前这里用 `bgColor`，与 button 等组件自身的 `bgColor` 同名 →
+  // 面板按 key 去重（PageEditor 的 ownKeys 过滤）后**只会露出一个**「背景色」，
+  // 而它在不同组件上又分别指向不同层：button 指向按钮自身、superform 指向容器。
+  // 结果是「同一个控件有时改自身、有时改容器」，用户完全无法预期 → 拆成两个字段：
+  //   - 组件自身底色 = 组件 schema 里的 `bgColor`（button 的 label 改为「按钮色」）
+  //   - 组件容器底色 = 本行的 `compBgColor`
+  // 两个字段并存、互不影响，可以分别设置。
+  { key: 'compBgColor', label: '组件背景色', control: 'color' },
   { key: 'marginTop', label: '上边距', control: 'slider', min: 0, max: 40 },
   { key: 'marginBottom', label: '下边距', control: 'slider', min: 0, max: 40 },
   { key: 'marginLR', label: '左右边距', control: 'slider', min: 0, max: 40 },
 ];
-export const commonStyleProps = { padding: 0, radius: 8, bgColor: '', marginTop: 0, marginLR: 0 };
+// `compBgColor` 默认 **空串**（不是 '#FFFFFF'）：默认不上色，让页面灰底/卡片缝透出，
+// 与「组件即卡片」的视觉语义一致。存量迁移见 PageEditor 的 migrateLegacyBgColor。
+export const commonStyleProps = { padding: 0, radius: 8, compBgColor: '', marginTop: 0, marginLR: 0 };
 
 export function findComponent(type) {
   return componentRegistry.find((c) => c.type === type) || null;

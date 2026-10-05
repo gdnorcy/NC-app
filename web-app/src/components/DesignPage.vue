@@ -11,7 +11,10 @@
         <template v-if="c.props.mode === 'hotzone' && c.props.items && c.props.items.length">
           <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-item" :style="{ marginBottom: ii < c.props.items.length - 1 ? (c.props.gap || 0) + 'px' : 0, borderRadius: dpImageRadius(c.props) }">
             <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
-            <view v-else class="dp-image-empty"><text>图片</text></view>
+            <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
+              <image :src="IMAGE_SAMPLE" :mode="'aspectFill'" class="dp-image-empty-img" />
+              <text class="dp-image-empty-tip">示例图· 点击替换</text>
+            </view>
             <view
               v-for="(h, hi) in it.hotspots || []" :key="hi"
               class="dp-image-hotspot"
@@ -25,7 +28,10 @@
           <view class="dp-image-row" :style="{ gap: (c.props.gap || 0) + 'px' }">
             <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-row-item" :style="{ borderRadius: dpImageRadius(c.props) }">
               <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" @click="onJump(it.link)" />
-              <view v-else class="dp-image-empty"><text>图片</text></view>
+              <view v-else class="dp-image-empty" @click.stop="onJump(it.link)">
+                <image :src="IMAGE_SAMPLE" :mode="'aspectFill'" class="dp-image-empty-img" />
+                <text class="dp-image-empty-tip">示例图 · 点击替换</text>
+              </view>
             </view>
           </view>
         </template>
@@ -34,7 +40,10 @@
           <view v-if="c.props.url" class="dp-image-single" :style="{ borderRadius: dpImageRadius(c.props) }" @click="onJump(c.props.link)">
             <image :src="resolveUrl(c.props.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
           </view>
-          <view v-else class="dp-image-empty"><text>图片</text></view>
+          <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
+            <image :src="IMAGE_SAMPLE" :mode="'aspectFill'" class="dp-image-empty-img" />
+            <text class="dp-image-empty-tip">示例图 · 点击替换</text>
+          </view>
         </template>
       </view>
       <!-- 按钮 -->
@@ -1172,6 +1181,26 @@ function dpFloatIconName(p) {
   const n = p.iconName || 'wechat';
   return DP_FLOAT_ICON_NAMES.includes(n) ? n : 'wechat';
 }
+
+/**
+ * 图片组件的**默认示例图**（2026-10-05 用户提供）。
+ *
+ * 之前未配置图片时只显示一个虚线占位块 + 「图片」二字：
+ *   - 运营在后台看不出这个位置会是什么效果、也不知道该配多大图
+ *   - 占位块高度靠 `aspect-ratio` 撑，真机上有时对不齐预期
+ * 改为直接铺一张真实示例图（**尺寸就是 710×388**，即用户约定的比例），
+ * 铺满整块占位区域 + 底部「示例图 · 点击替换」提示：
+ *   - 视觉上立刻知道「这里放一张 710×388 的图」
+ *   - 比例与真图 `widthFix` 撑出的高度完全一致 → 配图后页面高度不变，无跳动
+ *
+ * ⚠️ 路径前缀 `/card/static/` 与既有内置素材（countdown-banner.png 等）一致，
+ *   小程序端不要走 `resolveUrl()`（那会拼 API_DOMAIN，static 目录不在那里）。
+ *   ⚠️ 目录必须是 `static/sample/` 而**不是 `static/images/`**：
+ *     `build:mp-weixin` 后的 `scripts/strip-mp-static.js` 会把
+ *     `static/images` 整目录剔除（曾导致本示例图真机图裂）。
+ *     `static/sample/` 不在剔除名单里。
+ */
+const IMAGE_SAMPLE = '/card/static/sample/image-sample-710x388.jpg';
 function dpChannelLiveStyle(p) {
   const s = { background: p.bgColor || '#F7F8FA' };
   s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
@@ -1700,29 +1729,44 @@ function openChannel(kind, p) {
 .dp-image-item { position: relative; overflow: hidden; }
 .dp-image-item .dp-image-img { border-radius: 0; }
 .dp-image-hotspot { position: absolute; z-index: 2; }
-/* 未配置图片时的占位块。之前 C 端**完全没有**这条规则（设计器侧有 .r-image-empty），
-   占位 view 无高度 → 在小程序端高度塌成 0，整块「看不见」，运营在后台预览到的是虚线框、
-   C 端却什么都看不到。此处按设计器侧规格补齐，并对齐 1:1。
-   ⚠️ 别再改回固定 88px：图片组件的占位应按容器比例撑开（710×388 ≈ 16:9），
-   与真图 widthFix 撑出的高度一致，避免「配图后页面突然变高」造成布局跳动。 */
+/* 未配置图片时的占位块：**直接铺一张真实示例图**（IMAGE_SAMPLE，710×388），
+   而不是虚线框 + 「图片」二字。
+   - 用户诉求（2026-10-05）：「这些组件需要一默认填充图片，更直观」。
+     虚线框看不出实际效果，也不知道该配多大图。
+   - 高度用 `aspect-ratio: 710/388`，与示例图自身比例、也与真图 `widthFix`
+     撑出的高度三者完全一致 → 运营从示例图换成真图时**页面高度不变、无跳动**。
+   ⚠️ 别再改回固定 88px：那样配图后页面会突然变高。 */
 .dp-image-empty {
+  position: relative;
   width: 100%;
   aspect-ratio: 710 / 388;
   min-height: 88px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  overflow: hidden;
   box-sizing: border-box;
-  color: #86909c;
-  font-size: 12px;
   background: #f7f8fa;
-  border: 1px dashed #c9cdd4;
   border-radius: 8px;
 }
+.dp-image-empty-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+/* 「示例图·点击替换」提示条：压在图底部，半透明黑底白字，不遮挡图片主体 */
+.dp-image-empty-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8rpx 0;
+  text-align: center;
+  font-size: 22rpx;
+  line-height: 1.4;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+}
 .dp-image-item .dp-image-empty { border-radius: 8px; }
-/* 双图行内的占位块跟着行高走，不按16:9撑（否则两列各撑一半宽高，行内高低不齐） */
+/* 双图行内的占位块跟着行高走，不按 16:9 撑（否则两列各撑一半宽高，行内高低不齐） */
 .dp-image-row .dp-image-empty { aspect-ratio: auto; height: 100%; min-height: 88px; border-radius: 0; }
 
 .dp-card-shadow { box-shadow: 0 2px 8px rgba(31,35,41,0.1); }

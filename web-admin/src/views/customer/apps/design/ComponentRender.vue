@@ -9,7 +9,7 @@
         <template v-if="comp.props.mode === 'hotzone' && comp.props.items?.length">
           <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :class="imgFillCls(comp.props)" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
             <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
-            <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片</div>
+            <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /><span class="r-image-empty-tip">示例图 · 点击替换</span></div>
             <div
               v-for="(h, hi) in it.hotspots || []" :key="hi"
               class="r-image-hotspot"
@@ -24,7 +24,7 @@
           <div class="r-image-row" :style="{ gap: (comp.props.gap ?? 0) + 'px' }">
             <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-row-item" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
               <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
-              <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片</div>
+              <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /><span class="r-image-empty-tip">示例图 · 点击替换</span></div>
             </div>
           </div>
         </template>
@@ -33,7 +33,7 @@
           <div v-if="comp.props.url" class="r-image-single" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
             <img :src="resolveUrl(comp.props.url)" :style="imgFillStyle(comp.props)" />
           </div>
-          <div v-else class="r-image-empty"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#86909C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 17l5-6 4 5 3-3 4 4"/></svg>图片</div>
+          <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /><span class="r-image-empty-tip">示例图 · 点击替换</span></div>
         </template>
       </div>
     </template>
@@ -783,6 +783,16 @@ import { COMPONENT_ICONS as SF_ICONS } from '../superForm/components';
 // 样式翻译与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
 import ComponentPreview from '../superForm/ComponentPreview.vue';
 import { componentStyleVars } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
+// 容器层样式与 C 端 DesignPage.vue **共用同一份实现**：
+// 此前本文件私藏一份containerStyle 副本（漏了 bgColor 语义区分），
+// 导致「admin 预览的容器底色与真机不一致」。跨包 import 模式沿用 sfComponentStyle.js。
+import { containerStyle as sharedContainerStyle } from '../../../../../../web-app/src/utils/containerStyle.js';
+
+/**
+ * 图片组件的**默认示例图**（2026-10-05 用户提供，尺寸正好 710×388）。
+ * 与 C 端 DesignPage.vue 的 `IMAGE_SAMPLE` 必须指向同一个文件，否则画布与真机不一致。
+ */
+const IMAGE_SAMPLE = '/card/static/sample/image-sample-710x388.jpg';
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
 const tbOuterStyle = (p) => {
@@ -1207,29 +1217,22 @@ function sfBtnStyle() {
 const isFloatComp = computed(() => props.comp.type === 'fab-cart' || props.comp.type === 'float-btn');
 const containerStyle = computed(() => {
   const p = props.comp.props || {};
-  const g = props.global || {};
   const cardGap = 12;
   const cardRadius = 8;
-  const s = {};
   // 悬浮组件（购物车/悬浮按钮）：容器撑满预览壳组件区——按钮 top/bottom/right 才相对预览壳真悬浮
   // （画布内 .pe-comp-float 已撑满，此处容器同样撑满，避免 .comp-render{position:relative} 抢占定位祖先）
   if (props.comp.type === 'fab-cart' || props.comp.type === 'float-btn') {
     return { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 };
   }
-  // 有「左右边距」参数、属性面板不注入「内边距」滑块的组件：忽略容器 p.padding（防止存量冗余 padding 造成左右隐藏间隔）
-  const HIDDEN_PADDING_TYPES = ['image', 'countdown', 'countdown2', 'image-text', 'cube', 'title-bar'];
-  if (p.padding !== undefined && p.padding !== '' && !HIDDEN_PADDING_TYPES.includes(props.comp.type)) s.padding = `${p.padding}px`;
-  const r = p.radius ?? cardRadius;
-  if (r !== '') s.borderRadius = `${r}px`;
-  if (p.bgColor) s.background = p.bgColor;
-  // 边距统一收敛到容器（标题栏特例：padding 露底部颜色，见 tbOuterStyle）
-  if (props.comp.type !== 'title-bar') {
-    s.marginTop = `${p.marginTop ?? 0}px`;
-    s.marginBottom = `${p.marginBottom ?? cardGap}px`;
-    s.marginLeft = `${p.marginLR ?? p.marginLeft ?? 0}px`;
-    s.marginRight = `${p.marginLR ?? p.marginRight ?? 0}px`;
-  }
-  return s;
+  // 🔴 容器底色/圆角/内边距/外边距统一走**共享实现**（与 C 端 DesignPage.vue、
+  //   PageEditor.vue 的 compBoxStyle 同一份），不再在本文件私藏一份副本。
+  // 此前这里自己抄了一份且**漏了 bgColor 的语义区分**，导致：
+  //   - 画布 `.comp-render` 上容器底色，而 C 端 `.dp-item` 上没有（或反过来）
+  //     → admin 预览与真机不一致
+  //   - 还在这里输出 borderRadius，与 PageEditor刻意规避的「内联圆角压坏选中框」冲突
+  // ⚠️ withRadius:false —— 画布选中框自带8px 圆角 + 虚线边，内联圆角会让选中框变形；
+  //   withPadding:false —— 内边距由各组件自身负责，画布容器不重复加。
+  return sharedContainerStyle(props.comp, { withPadding: false, withRadius: false });
 });
 
 function resolveUrl(u) {
@@ -1690,13 +1693,39 @@ const nativeGridItems = [
 .r-image-single img { border-radius: 0; }
 .r-image-row { display: flex; width: 100%; }
 .r-image-row-item { flex: 1; min-width: 0; overflow: hidden; }
-.r-image-row .r-image-empty { border-radius: 0; }
 .r-image-item { position: relative; }
 .r-image-item img { width: 100%; display: block; }
 .r-image-item .r-image-empty { border-radius: 8px; }
 .r-image-hotspot { position: absolute; border: 1.5px solid #165DFF; background: rgba(22, 93, 255, 0.18); box-sizing: border-box; pointer-events: none; }
 .r-image-hotspot-idx { position: absolute; top: 0; left: 0; background: #165DFF; color: #fff; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 0 0 4px 0; }
-.r-image-empty { height: 88px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: #86909c; font-size: 12px; background: #f7f8fa; border: 1px dashed #c9cdd4; border-radius: 8px; }
+/* 未配置图片时的占位块。
+   ⚠️ 2026-10-05 用户指出「710×388 其实没有实现」—— 本规则此前写的是**固定 88px**，
+   画布里占位块是扁扁一条，与真图（aspect-ratio 撑出的高度）完全不同，
+   运营在后台看到的比例 ≠ 真机效果。现改为铺**真实示例图**（IMAGE_SAMPLE，710×388）
+   + 用 `aspect-ratio: 710/388` 撑高，与 C 端 DesignPage.vue 的 `.dp-image-empty` 1:1 对齐。
+   ⚠️ 别再改回固定 88px。 */
+.r-image-empty {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 710 / 388;
+  min-height: 88px;
+  overflow: hidden;
+  background: #f7f8fa;
+  border-radius: 8px;
+}
+.r-image-empty-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.r-image-empty-tip {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 4px 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+}
+/* 双图行内的占位块跟着行高走，不按 16:9 撑（否则两列各撑一半宽高，行内高低不齐） */
+.r-image-row .r-image-empty { aspect-ratio: auto; height: 100%; border-radius: 0; }
 .r-btn { display: inline-block; height: 40px; line-height: 40px; padding: 0 24px; border-radius: 8px; font-size: 14px; text-align: center; box-sizing: border-box; }
 .r-btn.auto { height: 32px; line-height: 32px; padding: 0 12px; border-radius: 6px; font-size: 14px; }
 .r-divider { height: 0; margin: 14px 0; position: relative; }

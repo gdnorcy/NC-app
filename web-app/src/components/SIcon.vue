@@ -1,10 +1,12 @@
 <template>
   <!-- 小程序端：image 组件不支持 SVG data-URI，改用构建期预生成的 PNG（scripts/gen-mp-sicons.js） -->
   <!-- #ifdef MP-WEIXIN -->
+  <!-- 🔴 小程序端**只**绑numStyle：iconStyle 是 SVG data URI（小程序 image 不认、也白占体积）。
+       ⚠️ 排序写成 `[numStyle, blockStyle]`：blockStyle 必须在后面才能覆盖 block prop 的诉求。 -->
   <image
     class="s-icon"
-    :class="sizeClass"
-    :style="numStyle"
+    :class="[sizeClass, block ? 's-icon--block' : '']"
+    :style="[numStyle, block ? blockStyle : null]"
     :src="mpIconSrc"
     mode="aspectFit"
   />
@@ -12,8 +14,8 @@
   <!-- #ifndef MP-WEIXIN -->
   <view
     class="s-icon"
-    :class="sizeClass"
-    :style="[iconStyle, numStyle]"
+    :class="[sizeClass, block ? 's-icon--block' : '']"
+    :style="[iconStyle, numStyle, block ? blockStyle : null]"
   />
   <!-- #endif -->
 </template>
@@ -31,6 +33,12 @@ const props = defineProps({
   size: { type: [String, Number], default: 'default' },
   color: { type: String, default: '' }, // 图标颜色，如 '#ffffff'、'#165dff'
   disabled: { type: Boolean, default: false },
+  /**
+   * 在 flex 容器里可靠水平居中（2026-10-05 新增）。
+   * 父组件**无法**用 CSS 穿透到本组件根节点（小程序组件样式作用域隔离），
+   * 故由本组件自己出内联样式。见 blockStyle 处的完整说明。
+   */
+  block: { type: Boolean, default: false },
 });
 
 const sizeClass = computed(() => (typeof props.size === 'string' ? `s-icon--${props.size}` : ''));
@@ -129,6 +137,25 @@ const iconStyle = computed(() => {
   if (!url) return {};
   return { backgroundImage: `url("${url}")` };
 });
+
+/**
+ * `block` prop 的样式：让图标在**flex 容器**里可靠地水平居中。
+ *
+ * 🔴 为什么需要它（2026-10-05 真机踩坑，用户报「图标不居中」修了两轮都没好）：
+ *  调用方（底部菜单 CardTabBar）此前用 `.mtb :deep(.s-icon){ flex:none; align-self:center }`
+ *  想居中，但**在小程序端这条规则永远不生效**：
+ *  1. `:deep(.s-icon)` 编译成后代选择器 `.mtb.data-v-x .s-icon`，
+ *     要求 `.s-icon` 是 `.mtb` 的**后代**；而 `<SIcon>` 是 `.mtb` 的**直接子元素**。
+ *  2. 更关键：小程序自定义组件有**独立样式作用域**（`<s-icon class="data-v-x">`），
+ *     父组件 wxss 里无论写 `.s-icon` 还是 `:deep(.s-icon)` 都**跨不过组件边界**。
+ *  产物 WXML 实证：`<s-icon class="data-v-70ba87a9" .../>`，
+ *  而产物 WXSS 是 `.mtb.data-v-70ba87a9 .s-icon{...}` —— 永不匹配。
+ *
+ *内联 style 是**唯一**能可靠穿透组件边界的手段，故由此 prop 显式表达诉求。
+ * 用 `display:block` 而非 `margin:0 auto`：小程序原生 `<image>` 的 auto margin 不可靠。
+ * `align-self:center` 兜住父容器若是 `align-items: stretch` 的情况。
+ */
+const blockStyle = { display: 'block', margin: '0', alignSelf: 'center', flex: 'none' };
 </script>
 
 <style scoped>

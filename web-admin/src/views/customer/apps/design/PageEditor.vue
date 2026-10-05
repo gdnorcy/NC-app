@@ -988,7 +988,7 @@ import { designCall, fetchSuperForms, getSuperForm } from '../../../../api';
 import { componentStyleVars } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
 // 容器层样式与 C 端共用同一份实现：此前画布 `.pe-comp` 完全不绑背景/圆角，
 // 导致「画布看不到容器底色、真机却有一层」→ 背景色改不动、分不清改的是哪一层。
-import { containerStyle as compContainerStyle } from '../../../../../../web-app/src/utils/containerStyle.js';
+import { containerStyle as compContainerStyle, migrateLegacyBgColor } from '../../../../../../web-app/src/utils/containerStyle.js';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
@@ -1477,7 +1477,9 @@ const schemaSections = computed(() => {
   const ownKeys = ownSchema.map((f) => f.key);
   // 悬浮组件（购物车/悬浮按钮）：外观/边距由自身 schema 管理，通用样式（内边距/圆角/左右边距等）无用途且不生效，整区跳过
   const isFloatComp = selectedComp.value.type === 'fab-cart' || selectedComp.value.type === 'float-btn';
-  const common = isFloatComp ? [] : commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))) && !(selectedComp.value.type === 'rich-text' && f.key === 'bgColor'));
+  // 容器底色 key 用常量（containerStyle.js 的 CONTAINER_BG_KEY），避免两处字符串写岔。
+  // 富文本自带 `compBgColor`（自己的「背景设置」分组，key 相同）→ ownKeys 过滤已能正确去重。
+  const common = isFloatComp ? [] : commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))));
   const props = selectedComp.value.props || {};
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;
@@ -1568,7 +1570,12 @@ function newComp(type) {
   const def = findComponent(type);
   // 富文本使用专属字段(marginLR/radiusTop/radiusBottom/compBgColor/bottomBg)，不合并通用样式字段
   const base = type === 'rich-text' ? {} : commonStyleProps;
-  return { id: `c${Date.now()}-${uid++}`, type, props: { ...base, ...(def?.defaultProps || {}) } };
+  const comp = { id: `c${Date.now()}-${uid++}`, type, props: { ...base, ...(def?.defaultProps || {}) } };
+  // 容器底色字段迁移（2026-10-05，与加载草稿时同一套逻辑）：
+  // 容器型组件的 registry defaultProps 里若还留着 bgColor（语义=容器底色），搬进 compBgColor，
+  // 否则新建的组件会「自带一个组件自身底色」而组件根节点根本不读它 → 改了没反应。
+  migrateLegacyBgColor(comp);
+  return comp;
 }
 // 魔方存量迁移：旧 items/rows/cols 数据 → blocks/styleType
 function migrateCube(c) {
@@ -1669,6 +1676,11 @@ async function load() {
         const props = { ...base, ...(def?.defaultProps || {}), ...(c.props || {}) };
         // 富文本旧通用字段(padding/radius/bgColor)已废弃，加载时清除
         if (c.type === 'rich-text') { delete props.padding; delete props.radius; delete props.bgColor; }
+        // 容器底色字段迁移（2026-10-05）：bgColor 拆成「组件自身底色」+「容器底色 compBgColor」。
+        // 拆分前，不自带 bgColor 的容器型组件（superform / goods-group 等）
+        // 其 bgColor 实际是打在**容器**上的，而它们的根节点并不读 bgColor →
+        // 不搬的话运营之前设的底色会直接消失。自身着色的类型（button/notice/...）不动。
+        migrateLegacyBgColor({ type: c.type, props });
         // 旧 marginLeft/marginRight → marginLR 迁移（2026-09-11 边距统一）
         if (props.marginLeft != null || props.marginRight != null) {
           props.marginLR = Math.max(props.marginLeft ?? 0, props.marginRight ?? 0);
@@ -2239,16 +2251,16 @@ function compIndex(comp) {
   return components.value.findIndex((x) => x.id === comp.id) + 1;
 }
 /**
- * 画布组件容器样式（与 C 端 DesignPage.containerStyle 同一实现）。
+ * 画布组件容器样式（与 C 端 DesignPage 的 containerStyle 同一实现）。
  *
  * ⚠️ 与真机的**有意差异**：画布只取 `background` 与外边距，
  * **不取 borderRadius / padding** —— `.pe-comp` 自带 `border-radius:8px` +
- * 虚线选中框（hover/active 换色），被内联圆角覆盖会让选中框变形；
- * `.pe-comp.active` 的 `background: rgba(22,93,255,.02)` 也会被内联背景盖掉
- * → 选中态高亮失效。真机上是纯展示，不需要选中框，故可安全取全部字段。
+ * 虚线选中框（hover/active 换色），被内联圆角覆盖会让选中框变形。
+ * 选中态已改用 `outline + box-shadow` 表达（都不吃背景色），
+ * 所以这里输出 background 不会盖掉高亮。
  */
 function compBoxStyle(c) {
-  const s = compContainerStyle(c, { withPadding: false });
+  const s = compContainerStyle(c, { withPadding: false, withRadius: false });
   return { background: s.background, marginTop: s.marginTop, marginBottom: s.marginBottom, marginLeft: s.marginLeft, marginRight: s.marginRight };
 }
 /** 上下移动选中组件（仿 ew：画布内不拖拽，工具条排序） */

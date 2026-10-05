@@ -45,7 +45,7 @@
           >
             <view class="mp-mid-btn" :style="midBtnStyle">
               <image v-if="useItemImg(it)" :src="iconUrl(itemImgSrc(it))" class="mp-mid-img" mode="aspectFit" />
-              <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" />
+              <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="large" color="#ffffff" block />
             </view>
             <text class="mp-mid-txt" :class="{ on: isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </view>
@@ -53,7 +53,12 @@
           <!-- 常规项（含 slider 滑块项） -->
           <template v-else>
             <image v-if="useItemImg(it)" :src="iconUrl(itemImgSrc(it))" class="tab-icon-img" mode="aspectFit" />
-            <SIcon v-else :name="it.icon || fallbackTabIcon(it.text)" size="default" :style="tabIconStyle" :color="tabStyle === 'slider' && isOn(it) ? '#ffffff' : tabColor(it)" />
+            <!-- 🔴 SIcon 必须传 block：父组件的 CSS 穿不透小程序自定义组件的样式作用域
+                 （`.mtb :deep(.s-icon)` 编译成后代选择器且跨不过组件边界，永不命中），
+                 居中只能由 SIcon 自己出内联样式。详见 SIcon.vue 的 blockStyle 注释。
+                 `mtb-icon` 这个 class 供 slider 态用 `top:-24rpx` 上移（同样是直接选 class，
+                 不能用后代选择器）。 -->
+            <SIcon v-else class="mtb-icon" :name="it.icon || fallbackTabIcon(it.text)" size="default" block :style="tabIconStyle" :color="tabStyle === 'slider' && isOn(it) ? '#ffffff' : tabColor(it)" />
             <text class="mp-tab-txt" :class="{ 'mp-tab-bold': isOn(it) }" :style="{ color: tabColor(it) }">{{ it.text }}</text>
           </template>
         </view>
@@ -350,15 +355,13 @@ function hexA(hex, alpha) {
 }
 .mtb.on { font-weight: 500; }
 .mp-tab-txt { line-height: 1.2; font-size: 24rpx; }
-/* 图标水平居中：
-   SIcon 根节点自带 `flex: 0 0 auto`（小程序端是 `<image>` **原生组件**），
-   而 `margin: 0 auto` 对原生 `<image>` 的水平居中**不可靠**——H5 端量到
-   `margin:0px 68.3px` 能居中，小程序端同一份样式却不居中（原生组件不吃 auto margin）。
-   → 改由**父容器** `.mtb` 的 `align-items:center` 负责水平居中（已在 .mtb 里），
-     图标自身只需 `display:block`（去掉 `display:inline-block` 的基线对齐问题），
-     并显式 `flex: none` + `align-self:center` 防止 flex-shrink 把它压窄。
-   SIcon 是子组件，须用 :deep() 穿透 scoped 才能命中其根节点。 */
-.mtb :deep(.s-icon),
+/* 图标水平居中（2026-10-05 第二次修，务必读 SIcon.vue 的 blockStyle 注释）：
+   SIcon 是**小程序自定义组件，有独立样式作用域**，父组件 wxss 里的
+   `.mtb :deep(.s-icon)` 编译成后代选择器 `.mtb.data-v-x .s-icon`，
+   既要求 .s-icon 是后代节点（它其实是直接子元素）、又跨不过组件边界 → **永不生效**。
+   之前两轮都在这里加 CSS（margin:0 auto / align-self:center），全是无效功。
+   现改为：给 `<SIcon>` 传 `block` prop，由组件自己出内联样式
+   （内联是唯一能穿透小程序组件边界的手段）。父容器 `.mtb` 的 align-items 负责另一轴。 */
 .mtb .tab-icon-img { display: block; flex: none; align-self: center; margin: 0; }
 .mp-tab-txt { display: block; width: 100%; text-align: center; }
 .mp-tab-bold { font-weight: 600; }
@@ -376,9 +379,14 @@ function hexA(hex, alpha) {
   z-index: 0;
   box-shadow: 0 0 0 6rpx #ffffff, 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
 }
-/* slider 选中项：图标上移居中到圆钮中央（对齐云菜鸟） */
-.mtb-slider.on :deep(.s-icon), .mtb-slider.on .tab-icon-img { position: relative; top: -24rpx; z-index: 1; }
-.mp-slider + image, .mp-slider + :deep(.s-icon), .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
+/* slider 选中项：图标上移居中到圆钮中央（对齐云菜鸟）
+   🔴 直接选 `.mtb-icon`（由模板显式加在<SIcon> 上的 class）。
+   此前写的是 `.mtb-slider.on :deep(.s-icon)` —— 小程序端 **永不命中**：
+   自定义组件样式作用域隔离，父组件 wxss 穿不过去（详见 SIcon.vue blockStyle 注释）。
+   好在 SIcon 未设 inheritAttrs:false，Vue 会把父传的 class 合并到根节点，
+   所以「模板加 class + 父组件直接选该class」是跨端通用的正确写法。 */
+.mtb-slider.on .mtb-icon, .mtb-slider.on .tab-icon-img { position: relative; top: -24rpx; z-index: 1; }
+.mp-slider + image, .mp-slider + .mtb-icon, .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
 
 /* 按钮凸起/嵌入：云菜鸟 1:1 图层与排版修正 */
 .mp-tabbar.mp-st-btnRaise, .mp-tabbar.mp-st-btnInset { overflow: visible; }
@@ -422,8 +430,10 @@ function hexA(hex, alpha) {
   box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.18);
   align-self: center;
 }
-/* 中钮图标同样要`flex:none`，否则 SIcon 的 flex-basis 在小程序 `<image>` 上不居中 */
-.mp-mid-btn :deep(.s-icon) { margin: 0; flex: none; align-self: center; }
+/* 中钮图标：`.mp-mid-btn` 已是 flex + align-items:center，横向与纵向都由它居中；
+   SIcon 传了 block prop（自身出内联 display:block/margin:0/align-self:center）。
+   ⚠️ 此处**不要**再写 `.mp-mid-btn :deep(.s-icon)`——小程序端跨不过自定义组件样式作用域，
+   写了也不生效（曾白写一条）。 */
 .mp-mid-img { width: 44rpx; height: 44rpx; }
 .mp-mid-txt { font-size: 20rpx; line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
 .mp-mid-txt.on { font-weight: 600; }
