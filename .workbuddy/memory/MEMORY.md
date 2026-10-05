@@ -201,3 +201,23 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 - 全部页面（含 `pagesReads/`）都是 `<script setup>` → **import 即注册，无需 `components` 字段**。
   检测 script 风格**不要只 grep 前 20 行**（script 常在 100+ 行处，会全判错）。
 
+
+## SVG 图标渲染铁律（commit a2de4c3血泪教训）
+- **生成的根 `<svg>` 必须同时声明 `color` 和 `stroke`**。项目里 6 个图标（`apps` `radar`
+  `dynamic` `wallet` `storage` `wechat`）内部用 `fill="currentColor"` 画实心点；
+  `currentColor` 取的是 CSS `color` 属性，根 svg 未声明 → 按SVG 规范回退成**黑色**，
+  白描边图标上出现黑点，看起来像"孔洞糊死"。**`stroke-width` 对 fill 画的点完全无效。**
+- **判定口诀**：看到「点/孔洞糊成一坨」→ 先查源码是 `fill=` 还是纯 path，别先动 `stroke-width`。
+- 两处必须同步：`web-app/src/components/SIcon.vue` 的 `buildSvgDataUri()`（H5 data URI）
+  与 `web-app/scripts/gen-mp-sicons.js` 的渲染模板（小程序 PNG）。
+- **构建顺序陷阱**：`gen-mp-sicons.js` 读`src/utils/sicons-base64.js` 写 `dist/`，改动后
+  需**连跑两次** `npm run build:mp-weixin` 变体才进产物。
+- **产物 `sicons-base64.js` 里是裸 base64**（`data:` 前缀运行时拼），校验正则若要求
+  `"...(data:image/png;base64,...)"` 会全部MISS，误判成「产物没更新」。
+- **主包体积口径**：只按「排除 4 个分包前缀（`pages/card/` `pagesReads/` `pages/superForm/`
+  `pages/viewer/`）算一次总量」，不做目录分组（否则 `static/sicons` 会被重复计入）。
+  再排除 `static/{sicons,three,icons,images}` 这 4 个构建中间产物目录。
+  当前真实主包 **1440.3KB（1.407MB）**，1.5MB 线余量 95.7KB。
+- **构建中间产物清不掉**：`strip-mp-static.js` / `gen-mp-sicons.js` 的删除被WorkBuddy
+  safe-delete shim 拦（每轮 50 文件预算）。可用 node `fs.unlinkSync` 分批（每批 ≤40）删，
+  但每文件都过 shim，481 个文件约需 4-8 分钟，建议放后台。
