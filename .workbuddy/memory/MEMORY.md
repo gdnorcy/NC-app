@@ -217,7 +217,7 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 - **主包体积口径**：只按「排除 4 个分包前缀（`pages/card/` `pagesReads/` `pages/superForm/`
   `pages/viewer/`）算一次总量」，不做目录分组（否则 `static/sicons` 会被重复计入）。
   再排除 `static/{sicons,three,icons,images}` 这 4 个构建中间产物目录。
-  当前真实主包 **1441.1KB（1.407MB）**，1.5MB 线余量约 95KB。
+  当前真实主包 **1478.3KB（1.444MB）**，1.5MB 线余量 57.7KB（+37KB 是图片组件示例图 JPEG）。
 - **构建中间产物清不掉**：`strip-mp-static.js` / `gen-mp-sicons.js` 的删除被 WorkBuddy
   safe-delete shim 拦（每轮 50 文件预算，且**是每轮总量不是单次**——额度用尽后连删一个文件都被拒）。
   用 shell `/bin/rm -rf static/{three,icons,images,sicons}` 可绕过（受 shim 管的是 node 侧的删除）。
@@ -333,26 +333,81 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 运营容易在别的组件上误选宫格色（曾出现按钮底色 = 宫格「会员中心」的橙色渐变，
 短期内**复发两次**）。排查这类「颜色串了」先确认是不是误选预设，而不是先怀疑字段用错。
 
-### 🔴 只解释「为什么共用」不算修好——用户要的是「能单独设置」（2026-10-05 用户两次追问）
-用户原话「这个按钮还是不能单独设置组件的背景色呀」——上一轮我只解释了机制，**没实现分离**。
-**判据：凡是「一个字段被两处消费」，用户抱怨的就是「必须拆开」，不是「给我讲清楚原因」。**
-- **已实现（commit `aea2afc`）**：新增 `web-app/src/utils/containerStyle.js` 作**唯一实现**，
-  `HIDDEN_BG_TYPES`（28 个「根节点自身就是色块」的类型）容器不再上background/borderRadius，
-  `bgColor` 语义收敛为「组件自身底色」。
-  - 判据只看**根节点自身是否消费 bgColor**；子元素着色**不算**
-    （goods-* 的 `buyBtnBg`、channel-* 的 `btnBg`、表单的 `btnColor`）。
-  - `channel-profile` 根节点确实内联 `background: c.props.bgColor` → **在表里是对的**，
-    我曾误加/误删它，被单测当场拦下。
-  - `goods-all`/`goods-group`/`goods-swiper`/`goods-rank`/`goods-like` 是**容器型**反例，不得进表。
-- **admin 画布此前 `.pe-comp` 完全不绑background/borderRadius** → 同一个组件
-  「画布没底色、真机有一层」→ 这才是用户体感「背景色改不动/ 分不清改的是哪一层」的直接原因。
-  画布接同一份实现，但**有意不取 borderRadius/padding**（`.pe-comp` 自带 8px 圆角 + 虚线选中框，
-  被内联圆角覆盖会让选中框变形）。
-- 🔴 **内联背景会盖掉选中态高亮**：`.pe-comp.active` 改用 `outline + box-shadow` 表达选中
-  （都不吃背景色）。**不要用 `.active { background: !important }`** —— 那会把组件真实底色也盖掉。
-- ⚠️ **不要在被 import 的模块旁边再定义同名 `function containerStyle`**（哪怕想做薄封装）：
-  报 `Identifier 'containerStyle' has already been declared`，
-  而 **uni 会把它显示成极具误导的「连接服务器超时，点击屏幕重试」**。
-  定位用 `node scripts/check-sfc.cjs src/components/Xxx.vue`（秒级，比全量 build 快）。
-- **跨端共享实现放`web-app/src/utils/`，admin 跨包 import**（已有先例：
-  `PageEditor.vue` import `sfComponentStyle.js`），别在两端各抄一份。
+### 🔴 背景色必须拆成两个独立字段（2026-10-05 定规，勿回退）
+
+用户两次追问后才做对：「这个按钮还是不能单独设置组件的背景色呀」
+→「现在的这个背景色，应该改名为**按钮色**，并增加真正的**组件背景底色**」。
+
+**最终方案（commit `2e44353`）**：
+- `bgColor` = 组件**自身**底色；button 的 label 从「背景色」→**「按钮色」**
+- `compBgColor` = 组件**容器**底色；`commonStyleSchema` label =**「组件背景色」**
+- 单一事实来源：`containerStyle.js` 的 `CONTAINER_BG_KEY` 常量
+
+**🔴 关键洞察：属性面板的通用项按 `key` 去重**（`PageEditor.vue:1480` 的 `ownKeys` 过滤），
+这是隐形陷阱：
+  - button 自带 `bgColor` → 通用「背景色」被跳过 → 面板只有一个「背景色」，指向**按钮自身**
+  - superform 不带 `bgColor` → 通用项生效 → 面板只有一个「背景色」，指向**容器**
+**同一个控件在不同组件上指向不同层**，用户完全无法预期。
+新增面板字段时必须想清楚：这个 key 是否会与别的组件的同key 项撞车。
+
+**❌ 已被废弃的错路（我走过，勿复活）**：`HIDDEN_BG_TYPES` 黑名单「让容器不上色」。
+它是逐类型手工维护的易腐清单（28 项），实际漏判 goods-list / goods-featured / goods-tabs、
+误伤 goods-show，还让 13 个单测里 9 个依赖黑名单。**本质是把上面那个key 撞车问题藏起来。**
+
+- 存量迁移 `migrateLegacyBgColor()`：容器型组件（根节点不读 bgColor 者）的旧 `bgColor`
+  搬进 `compBgColor`。**幂等**（新字段已有值则不搬）。挂载点两处：加载草稿 + `newComp()`。
+  判据表 `SELF_COLORED_TYPES`——**加类型前必须确认该类型根节点真的不读 props.bgColor**。
+- **跨端三处共用同一份实现**：C 端 `DesignPage.vue` / `PageEditor.vue` /
+  `ComponentRender.vue`。⚠️ `ComponentRender.vue` 曾私藏一份副本导致 admin 预览与真机不一致，
+  **新增共享样式时务必检查这三处都接上了**。
+- 🔴 **内联背景会盖掉选中态高亮**：`.pe-comp.active` 用 `outline + box-shadow` 表达选中
+  （都不吃背景色）。**不要用 `.active { background: !important }`**——会盖掉组件真实底色。
+- ⚠️ **不要在被 import 的模块旁再定义同名 `function containerStyle`**（哪怕只是薄封装）：
+  报 `Identifier ... has already been declared`，而 **uni 会把它显示成极具误导的
+  「连接服务器超时，点击屏幕重试」**。定位用 `node scripts/check-sfc.cjs src/components/Xxx.vue`（秒级）。
+- **跨端共享实现放 `web-app/src/utils/`，admin 跨包 import**（先例：`PageEditor.vue`
+  import `sfComponentStyle.js`），别在两端各抄一份。
+
+## 🔴 小程序自定义组件：父组件 CSS 穿不透子组件根节点（2026-10-05 立规）
+
+底部菜单图标不居中，用户**连报两轮**我都没修好—— 因为我一直在父组件里加
+`.mtb :deep(.s-icon){...}`，**全是无效功**。产物实证一眼看出：
+
+```
+WXSS: .mtb.data-v-70ba87a9 .s-icon{...}      ← 后代选择器
+WXML: <s-icon class="data-v-70ba87a9" .../>   ← 直接子元素 + 独立样式作用域
+```
+
+**双重失效**：
+1. `:deep()` 编译成**后代选择器**，要求 `.s-icon` 是后代；而 `<SIcon>` 是**直接子元素**
+2. 更关键：小程序自定义组件**样式作用域隔离**，父组件 wxss 的 `.s-icon` / `:deep(.s-icon)`
+   **都跨不过组件边界**（H5 端能过→ 又一次「H5 正常 ≠ 小程序正常」）
+
+**两条正确写法**：
+- **要居中/改布局 → 传 prop 让组件自己出内联 style**（内联是唯一能穿透组件边界的手段）。
+  实例：`SIcon` 的 `block` prop → 内联 `display:block;margin:0;align-self:center;flex:none`，
+  产物已确认编译为 `alignSelf:"center",flex:"none"`。
+- **要加 class 效果 → 模板显式加 class + 父组件直接选该 class**，**不要写 `:deep()`**。
+  依据：子组件未设 `inheritAttrs:false` 时，Vue 会把父传 class 合并到根节点（产物 WXML 可见），
+  **跨端通用**。实例：slider 态 `top:-24rpx` 改选 `.mtb-icon`。
+
+**排查口诀**：小程序端「H5 上写了这行样式却没效果」→ 先问这行选择器**有没有跨组件边界**，
+别急着调数值。
+
+## 构建脚本会静默删掉被引用的静态资源（2026-10-05 踩坑）
+`scripts/strip-mp-static.js` 把 `static/{three,icons,images,sicons}` **整目录剔除**，
+而源码里 `/card/static/images/countdown-banner.png` 这类引用**确实存在** → 小程序端一直是坏的。
+- **新增被源码引用的资源，不要放进这四个目录**。放 `static/sample/`（不在剔除名单）。
+- 该脚本已加自检：剔除失败时扫产物代码是否仍引用被删目录资源并告警。
+- ⚠️ **倒计时内置图（countdown-banner / countdown2-main）在小程序端疑似图裂**，
+  因另有 `cdBgColor` 兜底色所以一直没人报。**待排查。**
+
+## 占位/示例资源用 aspect-ratio 对齐真图（2026-10-05）
+图片组件占位块用 `aspect-ratio: 710/388`，与示例图自身比例、真图 `widthFix` 撑出的高度
+**三者一致** → 换真图时页面高度不变、无跳动。
+- ⚠️ **admin 画布与C 端必须同时改**：画布曾写死 `height:88px`（扁扁一条），
+  与真机比例完全不同 → 用户看到「和真机不一样」但查不出原因。
+- 多列布局（如双图行）要覆盖为 `height:100%`，否则各列各撑比例导致高低不齐。
+- **静态示例图必须压缩**：PNG 93KB → JPEG(q45) 36.7KB，尺寸不变。
+  `sips -s format jpeg -s formatOptions 45 in.png --out out.jpg`（macOS 自带）。
+  ⚠️ 用 `sips -g pixelWidth` 读 JPEG 尺寸，不要手搓二进制偏移（会读出乱码）。
