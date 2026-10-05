@@ -13,7 +13,11 @@
         class="plan-card"
         @tap="openPlan(plan)"
       >
-        <image class="plan-cover" :src="plan.cover || '/static/default-cover.jpg'" mode="aspectFill" />
+        <!-- 兜底封面：原写 '/static/default-cover.jpg'，但该文件在 src/static 下**根本不存在**
+             → 真机图裂（2026-10-05 由 strip-mp-static.js 的自检发现，该脚本会扫出
+             「代码引用了但产物里没有」的静态资源）。
+             改为复用已存在的示例图；后续若要专用兜底封面，把文件真放进 src/static/ 再改回来。 -->
+        <image class="plan-cover" :src="plan.cover || '/static/sample/image-sample-710x388.jpg'" mode="aspectFill" />
         <view class="plan-info">
           <text class="plan-name">{{ plan.name }}</text>
           <text class="plan-desc">{{ plan.description || '点击查看全景' }}</text>

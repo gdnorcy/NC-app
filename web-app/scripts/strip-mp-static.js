@@ -1,6 +1,6 @@
 // 小程序构建后瘦身：
 //  - 剔除 H5 专用的 static/three（小程序端用 npm 的 threejs-miniprogram，此目录纯冗余）
-//  - 剔除 H5 时代遗留、小程序端无源码引用的 static/icons（51 个 SVG）与 static/images（4 个 png）
+//  - 剔除 H5 时代遗留、小程序端无源码引用的 static/icons（51 个 SVG）
 //  - 剔除 static/sicons（gen-mp-sicons.js 的构建期 PNG 中间产物，运行时只用 base64 data URI）
 // 用法：uni build -p mp-weixin 成功后执行（已挂进 web-app/package.json build:mp-weixin）
 // 只影响小程序构建产物，不影响 H5 构建。
@@ -18,57 +18,65 @@ function rmDir(dir) {
 }
 
 const mpDir = path.join(__dirname, '..', 'dist', 'build', 'mp-weixin');
-// 剔除目录：小程序端确定无引用（已核对源码 grep，勿随意追加——误删会破坏小程序资源）
-//
-// 🔴 2026-10-05 教训：图片组件的默认示例图曾放在 `static/images/`，构建时被本脚本整目录删掉，
-//   真机图裂不出来。**新增任何被源码引用的静态资源时，不要放进这四个目录**。
-//   - `static/images` 被剔除的原因是「H5 时代遗留、小程序端无源码引用」——
-//     但源码里`/card/static/images/countdown-banner.png` 这类引用**确实存在**，
-//     它们在小程序端实际是坏的（只是没人报，因为倒计时默认样式另有兜底色）。
-//     新资源请放 `static/sample/`（本脚本不剔除）。
-const STRIP_DIRS = ['static/three', 'static/icons', 'static/images', 'static/sicons'];
 
-/** 剔除后自检：产物里若仍有代码引用被删目录下的文件，打印告警（避免静默图裂）
- *  引用形态：`/card/static/images/xxx.png` → 产物 `static/images/xxx.png`
- */
-function warnIfReferencedAssetsDropped(failed) {
-  const dropped = failed.map((f) => f.rel.replace(/^static\//, ''));
-  if (!dropped.length) return;
-  const jsFiles = [];
-  const walk = (d) => {
+// 剔除目录：**必须**是「源码里真的没有任何引用的目录」。
+//
+// 🔴🔴 2026-10-05 血的教训：`static/images` 曾被列为「H5 时代遗留、小程序端无引用」
+//   而整目录剔除，**但 `componentRegistry.js` 的倒计时 defaultProps 里就引用着它们**：
+//     countdown   → countdown-banner.png（主图）+ countdown-bar.png（背景条）
+//     countdown02 → countdown2-main.png（主图）+ countdown2-sub.jpg（两处子图）
+//   这四个文件**新增倒计时组件时默认就会引用**，所以小程序端倒计时**一直图裂**
+//   （表现被 `cdBgColor: 'rgba(0,0,0,0.4)'` 这类兜底色掩盖，容易误判成"正常"）。
+//   只有 25KB，代价与收益完全不成比例 → **已从剔除名单移除。**
+//
+//   加新资源时的规矩：
+//   - 放`static/` 下、且**不在本名单**的目录（`static/images`、`static/sample/` 都可以）
+//   - 放进来之前先 grep 确认源码是否引用它；**被引用的一律不能剔除**
+const STRIP_DIRS = ['static/three', 'static/icons', 'static/sicons'];
+
+/** 收集产物里所有 js/wxml/json 文本文件 */
+function collectCodeFiles() {
+  const files = [];
+  (function walk(d) {
     for (const name of fs.readdirSync(d)) {
       const p = path.join(d, name);
       if (fs.statSync(p).isDirectory()) walk(p);
-      else if (/\.(js|wxml|json)$/.test(name)) jsFiles.push(p);
+      else if (/\.(js|wxml|json)$/.test(name)) files.push(p);
     }
-  };
-  walk(mpDir);
-  const hits = [];
-  for (const f of jsFiles) {
-    const src = fs.readFileSync(f, 'utf8');
-    for (const rel of dropped) {
-      if (src.includes(rel)) hits.push(`  ${path.relative(mpDir, f)} 引用了 static/${rel}`);
-    }
-  }
-  if (hits.length) {
-    console.warn('[strip-mp-static] ⚠️ 以下资源被剔除但产物代码仍在引用（真机可能图裂）：');
-    [...new Set(hits)].forEach((h) => console.warn(h));
-    console.warn('[strip-mp-static]   → 把该资源移出被剔除目录（如改放 static/sample/）后重新构建');
-  }
+  })(mpDir);
+  return files;
 }
 
-function sizeK(dir) {
-  let total = 0;
-  const walk = (d) => {
-    for (const name of fs.readdirSync(d)) {
-      const p = path.join(d, name);
-      const st = fs.statSync(p);
-      if (st.isDirectory()) walk(p);
-      else total += st.size;
+/**
+ * 剔除后**自检**（不论删除成功还是失败都要跑）：
+ * 扫产物代码，找出「仍引用 static 下资源、但该资源已不在产物里」的引用 → 打印告警。
+ *
+ * 🔴 2026-10-05：自检原先**只在剔除失败时触发**（因为当时恰好被 safe-delete 拦截才注意到），
+ *   而实际上**剔除成功才是常态** —— 于是这个 bug 静默存在了 10 天没人发现。
+ *   **判定条件必须是「代码引用了但文件不在」，不是「删除有没有报错」。**
+ */
+function warnIfReferencedAssetsDropped() {
+  // 产物代码里出现的所有 static 相对路径（形如 static/images/xxx.png）
+  const referenced = new Map(); // relPath -> [引用它的文件]
+  const re = /static\/[A-Za-z0-9_\-./]+\.(?:png|jpe?g|gif|webp|svg|mp4)/g;
+  for (const f of collectCodeFiles()) {
+    const src = fs.readFileSync(f, 'utf8');
+    let m;
+    while ((m = re.exec(src))) {
+      if (!referenced.has(m[0])) referenced.set(m[0], new Set());
+      referenced.get(m[0]).add(path.relative(mpDir, f));
     }
-  };
-  walk(dir);
-  return total;
+  }
+  const missing = [...referenced.entries()].filter(([rel]) => !fs.existsSync(path.join(mpDir, rel)));
+  if (!missing.length) {
+    console.log(`[strip-mp-static] 自检：产物代码引用的 ${referenced.size} 个 static 资源均存在 ✓`);
+    return;
+  }
+  console.warn(`[strip-mp-static] ⚠️ 自检发现 ${missing.length} 个「代码引用但产物缺失」的静态资源（真机会图裂）：`);
+  for (const [rel, files] of missing) {
+    console.warn(`  ${rel}  ← 被 ${[...files].slice(0, 3).join(', ')} 引用`);
+  }
+  console.warn('[strip-mp-static]   → 要么把资源移出 STRIP_DIRS，要么从 defaultProps 里移除该默认图');
 }
 
 if (!fs.existsSync(mpDir)) {
@@ -107,5 +115,20 @@ if (removedTotal > 0) {
 }
 if (failed.length) {
   console.warn(`[strip-mp-static] 有 ${failed.length} 个目录未能剔除，小程序主包可能超出 2MB 限制，请手动删除后重建`);
-  warnIfReferencedAssetsDropped(failed);
+}
+// 无论剔除成功还是失败都要自检（2026-10-05：静默图裂 10 天未被发现）
+warnIfReferencedAssetsDropped();
+
+function sizeK(dir) {
+  let total = 0;
+  const walk = (d) => {
+    for (const name of fs.readdirSync(d)) {
+      const p = path.join(d, name);
+      const st = fs.statSync(p);
+      if (st.isDirectory()) walk(p);
+      else total += st.size;
+    }
+  };
+  walk(dir);
+  return total;
 }

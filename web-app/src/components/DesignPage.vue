@@ -64,7 +64,17 @@
       </view>
       <!-- 倒计时 -->
       <view v-else-if="c.type === 'countdown'" class="dp-countdown" :class="'dp-cd-s' + (c.props.styleId || 1) + ' ' + dpCdStyleClass(c.props)" :style="cdBoxStyle(c.props)">
-        <image v-if="c.props.image" :src="resolveUrl(c.props.image)" mode="widthFix" class="dp-cd-mainimg" />
+        <image v-if="c.props.image" :src="assetUrl(c.props.image)" mode="widthFix" class="dp-cd-mainimg" />
+        <!-- 🔴 倒计时内容区背景图：改用真正的<image> 层而不是 background-image: url()。
+             原因：**小程序端 background-image 不支持本地包内路径**，只认网络图/ base64，
+             走 url(/card/static/...) 必然图裂（2026-10-05 修「倒计时图一直是坏的」）。
+             `cdBgColor` 仍作为不透明底色垫在下面（image 透明时兜底，且不透明度可调仍生效）。 -->
+        <image
+          v-if="c.props.cdBgType === 'image' && c.props.cdBgImage"
+          :src="assetUrl(c.props.cdBgImage)"
+          mode="scaleToFill"
+          class="dp-cd-bgbg"
+        />
         <view class="dp-cd-content" :style="cdContentStyle(c.props)">
           <text class="dp-cd-title" :style="{ color: c.props.cdTitleColor || '#ffffff' }">{{ cdTitle(c.props) }}</text>
           <view class="dp-cd-cols">
@@ -84,7 +94,11 @@
       </view>
       <!-- 倒计时02（eweishop 复刻：左图文+数字倒计时 + 右双图） -->
       <view v-else-if="c.type === 'countdown2'" class="dp-cd2" :class="'dp-cd2-' + (c.props.style || 'default')" :style="cd2BoxStyle(c.props)">
+        <!-- 🔴 三处图（左侧主图 + 右侧两格）都改用真正的<image> 层，不再 background-image: url()：
+             小程序端 background-image 不支持包内本地路径，走 url(/card/static/...) 必然图裂。
+             各自原有的border/shadow 效果仍由 cd2ImgEffect 的内联 style 挂在宿主 view 上。 -->
         <view class="dp-cd2-left" :style="cd2MainStyle(c.props)" @click="onJump(c.props.mainLink)">
+          <image v-if="c.props.mainImage" :src="assetUrl(c.props.mainImage)" class="dp-cd2-bgimg" mode="scaleToFill" />
           <text class="dp-cd2-title" :style="{ color: c.props.mainColor || '#333333' }">{{ c.props.mainTitle || '这里是标题' }}</text>
           <text v-if="c.props.mainSub" class="dp-cd2-subtitle" :style="{ color: c.props.mainColor || '#333333' }">{{ c.props.mainSub }}</text>
           <view class="dp-cd2-sub">
@@ -96,11 +110,13 @@
           </view>
         </view>
         <view class="dp-cd2-right">
-          <view class="dp-cd2-cell" :style="cd2CellStyle(c.props, c.props.sub1Image)" @click="onJump(c.props.sub1Link)">
+          <view class="dp-cd2-cell" :style="cd2CellStyle(c.props)" @click="onJump(c.props.sub1Link)">
+            <image v-if="c.props.sub1Image" :src="assetUrl(c.props.sub1Image)" class="dp-cd2-bgimg" mode="scaleToFill" />
             <text class="dp-cd2-cell-title" :style="{ color: c.props.sub1Color || '#333333' }">{{ c.props.sub1Title || '这里是标题' }}</text>
             <text class="dp-cd2-cell-sub" :style="{ color: c.props.sub1SubColor || '#666666' }">{{ c.props.sub1Sub || '这里是副标题' }}</text>
           </view>
-          <view class="dp-cd2-cell" :style="cd2CellStyle(c.props, c.props.sub2Image)" @click="onJump(c.props.sub2Link)">
+          <view class="dp-cd2-cell" :style="cd2CellStyle(c.props)" @click="onJump(c.props.sub2Link)">
+            <image v-if="c.props.sub2Image" :src="assetUrl(c.props.sub2Image)" class="dp-cd2-bgimg" mode="scaleToFill" />
             <text class="dp-cd2-cell-title" :style="{ color: c.props.sub2Color || '#333333' }">{{ c.props.sub2Title || '这里是标题' }}</text>
             <text class="dp-cd2-cell-sub" :style="{ color: c.props.sub2SubColor || '#666666' }">{{ c.props.sub2Sub || '这里是副标题' }}</text>
           </view>
@@ -811,11 +827,12 @@ function cdBoxStyle(p) {
 }
 function cdContentStyle(p) {
   const s = {};
+  // 🔴 背景图**不再走 background-image**（小程序端不支持包内本地路径），
+  //   已改为模板里的 `<image class="dp-cd-bgbg">` 层。
+  // 这里只保留背景色作为不透明垫底（image 透明/未配图时兜底，也支持运营设半透明色）。
   if (p.cdBgType === 'image') {
-    if (p.cdBgImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.cdBgImage)).slice(1, -1)})`;
-    s.backgroundSize = '100% 100%';
-    s.backgroundPosition = '50% 50%';
-    s.backgroundRepeat = 'no-repeat';
+    // 半透明蒙层效果：配图时压一层 rgba 让文字可读（等价于原来的 rgba(0,0,0,0.4) 兜底）
+    s.background = p.cdBgColor || 'rgba(0,0,0,0.4)';
   } else if (p.cdBgColor) {
     s.background = p.cdBgColor;
   }
@@ -861,14 +878,14 @@ function cd2ImgEffect(p) {
   return s;
 }
 function cd2MainStyle(p) {
-  const s = { backgroundSize: 'cover', backgroundPosition: 'center', ...cd2ImgEffect(p) };
-  if (p.mainImage) s.backgroundImage = `url(${JSON.stringify(resolveUrl(p.mainImage)).slice(1, -1)})`;
-  return s;
+  // 🔴 背景图已改为模板里的 <image class="dp-cd2-bgimg"> 层（小程序端 background-image
+  //   不支持包内本地路径，走 url(/card/static/...) 必然 404 图裂）。
+  //   这里只保留描边/投影效果。
+  return { ...cd2ImgEffect(p) };
 }
-function cd2CellStyle(p, img) {
-  const s = { backgroundSize: 'cover', backgroundPosition: 'center', ...cd2ImgEffect(p) };
-  if (img) s.backgroundImage = `url(${JSON.stringify(resolveUrl(img)).slice(1, -1)})`;
-  return s;
+function cd2CellStyle(p) {
+  // 同上：sub1Image / sub2Image 各自渲染成 <image> 层，不再走 background-image
+  return { ...cd2ImgEffect(p) };
 }
 onMounted(() => {
   tickCountdown();
@@ -1303,6 +1320,37 @@ function dpCubeBlocks(c) {
     url: it.url || '',
     link: it.link || '',
   }));
+}
+/**
+ * 解析**包内静态资源**路径（`src/static/` 下的东西）。
+ *
+ * 🔴🔴 与 `resolveUrl()` 的区别（2026-10-05 修「倒计时图一直是坏的」的关键）：
+ *   `resolveUrl()` 假设资源在**后端服务器**上（`/uploads/xxx`），所以会拼 `API_DOMAIN`。
+ *   但 `src/static/` 下的资源是**打进小程序包**的，必须原样使用相对路径。
+ *   走 `resolveUrl()` 会得到 `http://<后端>/card/static/images/xxx.png`
+ *   → 后端根本没有这个路径 → **404 图裂**。
+ *
+ * 判定：路径以 `/static/` 或 `/card/static/` 开头 = 包内资源 → 原样返回。
+ * 其余（`/uploads/...`、相对路径）才交给 `resolveUrl()` 拼服务器地址。
+ *
+ * ⚠️ 小程序端 `<image src>` 接受 `/static/xxx.png` 这类包内相对路径；
+ *   H5 端 uni 会基于 base（`/card/`）解析，所以 H5 端仍需拼 origin →
+ *   故两端都要在这里统一处理，不能只改小程序端。
+ */
+function isBundledAsset(u) {
+  return typeof u === 'string' && (u.startsWith('/static/') || u.startsWith('/card/static/') || u.startsWith('static/'));
+}
+function assetUrl(u) {
+  if (!u) return '';
+  if (/^https?:|^data:|^blob:/.test(u)) return u;
+  if (!isBundledAsset(u)) return resolveUrl(u);
+  // 包内资源：H5 拼 origin（uni H5 base 是 /card/），小程序端原样返回
+  // #ifdef H5
+  return window.location.origin + (u.startsWith('/card/') ? u : '/card' + (u.startsWith('/') ? u : '/' + u));
+  // #endif
+  // #ifndef H5
+  return u;
+  // #endif
 }
 function resolveUrl(u) {
   if (!u) return '';
@@ -1782,7 +1830,19 @@ function openChannel(kind, p) {
 .dp-notice-text { flex: 1; }
 .dp-countdown { background: transparent; display: flex; flex-direction: column; position: relative; overflow: hidden; }
 .dp-cd-mainimg { display: block; width: 100%; height: auto; }
-.dp-cd-content { position: relative; padding: 9px 62px 9px 14px; }
+/* 🔴 倒计时内容区背景图层（替代原 background-image: url()，小程序端不支持包内本地路径）。
+   宿主 .dp-countdown 是 relative定位，本层铺满并压在内容下（z-index:0），
+   上面的 .dp-cd-content 用 z-index:1 浮起。 */
+.dp-cd-bgbg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: block;
+}
+.dp-cd-content { position: relative; padding: 9px 62px 9px 14px; z-index: 1; }
 .dp-cd-title { font-size: 14px; font-weight: 600; color: #ffffff; display: block; }
 .dp-cd-cols { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
 .dp-cd-digit { font-size: 13px; font-weight: 700; color: #FC5917; background: #ffffff; border-radius: 3px; padding: 2px 4px; line-height: 1.4; min-width: 16px; text-align: center; display: inline-block; }
@@ -1806,6 +1866,20 @@ function openChannel(kind, p) {
 .dp-cd2-right { flex: 1; display: flex; flex-direction: column; gap: 5px; min-height: 0; }
 .dp-cd2-cell { flex: 1; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 3px; box-sizing: border-box; background-size: cover; background-position: center; min-height: 0; overflow: hidden; }
 .dp-cd2-cell-title { font-size: 18px; font-weight: 700; color: #333333; line-height: 1.3; word-break: break-all; text-align: center; }
+/* 🔴 倒计时02 的背景图层（替代原 background-image: url()，小程序端不支持包内本地路径）。
+   宿主 .dp-cd2-left / .dp-cd2-cell 已是 relative + overflow:hidden，本层铺满并z-index:0，
+   内部文字靠 z-index:1 浮起。 */
+.dp-cd2-bgimg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: block;
+}
+.dp-cd2-left > text, .dp-cd2-left > .dp-cd2-sub,
+.dp-cd2-cell > text { position: relative; z-index: 1; }
 .dp-cd2-cell-sub { font-size: 13px; color: #666666; line-height: 1.3; word-break: break-all; text-align: center; }
 /* 样式效果由图片块（left/cell）承担 */
 .dp-form { padding: 14px; border-radius: 8px; border: 1px solid #f0f1f3; display: flex; flex-direction: column; gap: 10px; background: #fff; }
