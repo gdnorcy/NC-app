@@ -83,17 +83,17 @@
         </view>
         <view class="visitor-stats">
           <view class="visitor-stat" v-if="c.props.showToday !== false">
-            <view class="visitor-num" :style="{ color: c.props.numColor || '#165dff' }">{{ visitorStats.today || 0 }}</view>
+            <view class="visitor-num" :style="{ color: (c.props.numColor && c.props.numColor !== '#165dff') ? c.props.numColor : 'var(--design-primary, #165dff)' }">{{ visitorStats.today || 0 }}</view>
             <view class="visitor-label">{{ c.props.todayText || '今日访客' }}</view>
           </view>
           <view class="visitor-divider" v-if="c.props.showToday !== false && c.props.showTotal !== false"></view>
           <view class="visitor-stat" v-if="c.props.showTotal !== false">
-            <view class="visitor-num" :style="{ color: c.props.numColor || '#165dff' }">{{ visitorStats.total || 0 }}</view>
+            <view class="visitor-num" :style="{ color: (c.props.numColor && c.props.numColor !== '#165dff') ? c.props.numColor : 'var(--design-primary, #165dff)' }">{{ visitorStats.total || 0 }}</view>
             <view class="visitor-label">{{ c.props.totalText || '累计访客' }}</view>
           </view>
           <view class="visitor-divider" v-if="c.props.showTotal !== false && c.props.showExchange !== false"></view>
           <view class="visitor-stat" v-if="c.props.showExchange !== false">
-            <view class="visitor-num" :style="{ color: c.props.numColor || '#165dff' }">{{ visitorStats.exchange || 0 }}</view>
+            <view class="visitor-num" :style="{ color: (c.props.numColor && c.props.numColor !== '#165dff') ? c.props.numColor : 'var(--design-primary, #165dff)' }">{{ visitorStats.exchange || 0 }}</view>
             <view class="visitor-label">{{ c.props.exchangeText || '名片交换' }}</view>
           </view>
         </view>
@@ -671,7 +671,8 @@ function viewMarketCard(item) {
   align-items: center;
   gap: 20rpx;
   padding: 24rpx;
-  background: linear-gradient(135deg, #165dff, #4080ff);
+  /* 跟随系统主题色：主色→渐变辅助色（tenant 主题设置 primaryColor/gradientColor） */
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
   border-radius: 16rpx;
 }
 .my-card.create {

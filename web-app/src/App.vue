@@ -87,9 +87,11 @@ export default {
         console.error('渠道初始化失败:', e);
       }
     },
-    // 设计中心：登录态拉取租户发布配置（风格/导航/首页），H5 注入 CSS 变量
+    // 设计中心：拉取租户发布配置（风格/导航/首页），H5 注入 CSS 变量
     async initDesignConfig() {
-      if (!uni.getStorageSync('card_token')) return;
+      // ⚠️ 不卡登录态：名片首页常经「分享链接」进入（无 card_token），
+      // 若仅登录后注入主题变量，访客看到的页面会回落硬编码蓝色，与「系统主题设置颜色」不一致。
+      // 设计配置接口本身公开，无需登录即可拉取并注入主题（--design-primary 等）。
       try {
         const config = await fetchDesignConfig(false);
         if (config) {

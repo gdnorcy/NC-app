@@ -65,22 +65,22 @@
       </template>
     </template>
 
-    <!-- 默认导航（未发布设计配置） -->
+    <!-- 默认导航（未发布设计配置）：选中色跟随系统主题主色（--design-primary） -->
     <template v-else>
       <view class="mtb" :class="{ on: active === 'card' }" @click="goCard">
-        <SIcon name="card" size="default" :color="active === 'card' ? '#07c160' : '#9a9a9a'" />
+        <SIcon name="card" size="default" :color="active === 'card' ? themeColor : '#9a9a9a'" />
         <text class="mtb-txt">名片</text>
       </view>
       <view class="mtb" :class="{ on: active === 'radar' }" @click="goPage('/pages/card/visitors', 'radar')">
-        <SIcon name="radar" size="default" :color="active === 'radar' ? '#07c160' : '#9a9a9a'" />
+        <SIcon name="radar" size="default" :color="active === 'radar' ? themeColor : '#9a9a9a'" />
         <text class="mtb-txt">雷达</text>
       </view>
       <view class="mtb" :class="{ on: active === 'market' }" @click="goPage('/pages/card/market', 'market')">
-        <SIcon name="market" size="default" :color="active === 'market' ? '#07c160' : '#9a9a9a'" />
+        <SIcon name="market" size="default" :color="active === 'market' ? themeColor : '#9a9a9a'" />
         <text class="mtb-txt">集市</text>
       </view>
       <view class="mtb" :class="{ on: active === 'member' }" @click="goPage('/pages/card/member', 'member')">
-        <SIcon name="crown" size="default" :color="active === 'member' ? '#07c160' : '#9a9a9a'" />
+        <SIcon name="crown" size="default" :color="active === 'member' ? themeColor : '#9a9a9a'" />
         <text class="mtb-txt">会员</text>
       </view>
     </template>
@@ -119,10 +119,17 @@ const isColorBg = computed(() => {
   const st = ['normal', 'slider', 'btnCenter'].includes(tabStyle.value);
   return tabType.value === 'fan' || st;
 });
-// 选中色：优先导航方案「已选中色」，空则回退主题主色（现状）
+// 主题主色（hex，跨端可靠）：SIcon 把 color 烘焙进 SVG data-URI（H5）/ 构建期 PNG（小程序），
+// 无法消费 CSS var()，故必须用「设计配置里的真实 hex」而非 var()。
+// designConfig.style.primaryColor 即 applyDesignStyle 注入 --design-primary 的来源，二者同源。
+// 兜底 #07c160：未拉到配置时的微信原生绿（不会变黑），拉到配置即精确跟随租户主题。
+const themeColor = computed(() => designConfig.value?.style?.primaryColor || '#07c160');
+// 选中色：优先导航方案「已选中色」（真实 hex），空则回退系统主题主色（themeColor，跨端可靠跟随主题）。
+// ⚠️ 此前此处给 SIcon 传 var(--design-primary)：H5 生成非法 SVG 色 → 黑图标；
+//    小程序端未命中烘焙 PNG → 回退黑色 PNG。统一改用 themeColor（hex）后两端均正常且跟随主题。
 const activeColor = computed(() => {
   const s = tabStyleCfg.value.colors?.selected;
-  return (s && s !== 'transparent') ? s : '#ff4d4f';
+  return (s && s !== 'transparent') ? s : themeColor.value;
 });
 const inactiveColor = computed(() => tabStyleCfg.value.colors?.unselected || '#9a9a9a');
 // 突出色：优先导航方案「突出颜色」，空则回退选中色

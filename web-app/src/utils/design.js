@@ -247,18 +247,32 @@ export async function fetchDesignConfig(force = false, preview = false, pageType
   return config;
 }
 
+/**
+ * hex(#rrggbb) → "r, g, b" 字符串，供 `rgba(var(--design-primary-rgb), a)` 做主题色半透明背景。
+ * 小程序端 SIcon 的图标色是构建期按 hex 烘焙的 PNG（无法运行时跟随主题），
+ * 所以只有「CSS 背景/颜色」类元素能可靠跟随系统主题色，半透明底色也走这个 var。
+ */
+function hexToRgbStr(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return '22, 93, 255';
+  const n = parseInt(h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+
 /** H5 端把系统风格主题注入 CSS 变量（--design-primary 等），页面 var() 兜底；字段语义与菜鸟云 1:1 */
 export function applyDesignStyle(config, scope) {
   const style = config?.style;
   if (!style) return;
   const root = scope || (typeof document !== 'undefined' ? document.documentElement : null);
   if (!root || !root.style || typeof root.style.setProperty !== 'function') return;
-  root.style.setProperty('--design-primary', style.primaryColor || '#FE0137');
+  const primary = style.primaryColor || '#FE0137';
+  root.style.setProperty('--design-primary', primary);
+  root.style.setProperty('--design-primary-rgb', hexToRgbStr(primary));
   root.style.setProperty('--design-gradient', style.gradientColor || '#FF5169');
   root.style.setProperty('--design-secondary', style.secondaryColor || '#FFE5EB');
   root.style.setProperty('--design-text', style.textColor || '#FFFFFF');
-  root.style.setProperty('--design-subtext', style.subTextColor || '#FE0137');
-  root.style.setProperty('--design-headcolor', style.headColor === '2' ? '#FFFFFF' : (style.primaryColor || '#FE0137'));
+  root.style.setProperty('--design-subtext', style.subTextColor || primary);
+  root.style.setProperty('--design-headcolor', style.headColor === '2' ? '#FFFFFF' : primary);
   root.style.setProperty('--design-headtext', style.headColor === '2' ? '#000000' : (style.headText || '#ffffff'));
 }
 

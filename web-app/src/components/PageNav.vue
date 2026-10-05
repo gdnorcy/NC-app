@@ -72,7 +72,6 @@ export default {
     // 无历史栈时的兜底页
     fallback: { type: String, default: '/pages/cardMain/home' },
   },
-  emits: ['back'],
   computed: {
     rootStyle() {
       const s = navRootStyle({ bg: this.bg, color: this.color });
@@ -86,8 +85,8 @@ export default {
   },
   methods: {
     onBack() {
-      // 有监听则交给页面自己处理（部分页面返回后需要刷新列表）
-      if (this.$listeners.back) {
+      // Vue3：$listeners 已移除，原生事件监听落在 $attrs.onBack（故 back 不再声明于 emits，否则会被剔除）
+      if (this.$attrs.onBack) {
         this.$emit('back');
         return;
       }

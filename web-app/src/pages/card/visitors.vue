@@ -135,7 +135,7 @@
     <view class="visitor-list" v-if="visitors.length">
       <view class="card-row visitor" v-for="v in visitors" :key="v.id" @click="viewTimeline(v)">
         <view class="v-av" :style="{ background: v.tagColor + '22', color: v.tagColor }">
-          {{ v.nickname[0] || '访' }}
+          {{ (v.nickname || '')[0] || '访' }}
           <view class="red" v-if="v.unread"></view>
         </view>
         <view class="v-info">
@@ -181,7 +181,7 @@
       <view class="sheet-title">转为客户</view>
       <view class="sheet-sub">已自动回填访客来源与访问信息</view>
       <view class="card-row" style="display: flex; align-items: center; gap: 20rpx; margin: 24rpx 0">
-        <view class="v-av" :style="{ background: current.tagColor + '22', color: current.tagColor }">{{ current.nickname[0] }}</view>
+        <view class="v-av" :style="{ background: (current.tagColor || '') + '22', color: current.tagColor }">{{ (current.nickname || '')[0] }}</view>
         <view style="flex: 1">
           <view class="sheet-name">{{ current.nickname }}</view>
           <view class="sheet-src">来源：名片访问 · {{ current.behavior }}</view>
