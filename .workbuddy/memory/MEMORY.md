@@ -247,5 +247,44 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
   **「重启小程序 / reLaunch 重建页面」无法绕过**——onMounted 传的仍是 force=false。
   唯一解：下拉强刷新（`pages/cardMain/home` 已实现 `loadHomeData(force)`）或等 5 分钟。
 - **页面级配置在产物里位于 `pages/xxx/xxx.json`，不在 `app.json`**（后者只有路径数组）。
-- 全项目 `onPullDownRefresh` 曾为 0 处（云菜鸟的下拉强刷新原先没复刻），
+- 全项目 `onPullDownRefresh` 曾为0 处（云菜鸟的下拉强刷新原先没复刻），
   现仅 `pages/cardMain/home` 开启，`login` 等页不引入无关交互。
+
+## 🔴 平台能力误判：先找项目内反例，别急着归因「平台不支持」（2026-10-05 血泪）
+我曾断言「微信小程序 `<view>` 不支持 CSS 渐变」，据此写了 `mpSafeBg()` 把渐变降级成纯色，
+**批量包装 30 处背景绑定**。若提交，等于凭空制造 regression（把设计好的渐变全变纯色）。
+**证伪只需三条**：
+1. **同一项目另一处用了同样特性且正常** —— 宫格 9 图标的渐变底色从未包 `mpSafeBg`，一直显示正常
+2. 实测序列化函数：`normalizeStyle({background:'linear-gradient(...)'})` → **逗号原样保留**
+3. 产物 WXSS 里本来就有 8 条 `linear-gradient` 规则正常使用
+
+**结论：小程序完全支持 `linear-gradient`（WXSS + 内联 style 都支持）。**
+- **元规则**：从「A 端现象」推不出「平台能力缺失」。**先在项目内搜反例**（grep 同一特性），
+  再考虑平台限制。
+- 改「降级/兼容」类代码前，先问：**这个降级是在解决真问题，还是在解决我以为存在的问题？**
+
+## `/uploads` 静态资源 MIME 兜底（存量项目通用）
+- `express.static` **靠扩展名推断 MIME**。前端拼 filename 丢后缀 → 存储 key 变`...-400`
+  这类**无扩展名文件** → `Content-Type: application/octet-stream`
+  → **微信小程序 `<image>` 只接受合法图片 MIME** → 真机不显示（开发者工具可能侥幸显示）。
+- 双保险：① 上传时 `ensureExtension(name, mime, buffer)` 补后缀（MIME 映射 + **内容嗅探兜底**：
+  PNG `89 50 4E 47` / JPEG `FF D8 FF` / GIF `47 49 46` / WEBP `RIFF….WEBP`）
+  ② 静态托管中间件给**存量坏数据**兜底。
+- 🔴 **中间件必须注册在 `express.static` 之前**——static 命中即 `sendFile`，
+  放它后面永远拿不到控制权。
+- ⚠️ **`curl -I`（HEAD）对 express.static 无响应**，验 MIME 用 `curl -D -o /dev/null`（GET）。
+  macOS zsh 下 `curl | grep` 易静默吞输出 → 改用 `-D /tmp/h.txt` 再 node 读文件。
+- 排查这类问题时先确认用户 IP：`cardApi.js` 的 HOST 是平台感知的，
+  **「localhost」在真机上已修过，别再当成万能理由**。
+
+## 跨端 CSS 缺失：用「设计器侧 vs C 端同类选择器」对扫（2026-10-05 立规）
+图片组件未配图时的占位块，设计器侧有 `.r-image-empty { height:88px; 虚线框 }`，
+**C 端 `.dp-image-empty` 一条规则都没有** → 占位 view 高度塌成 0，
+「后台预览看得到、C 端什么都看不到」。
+- **排查手法**：拿设计器侧选择器名（`r-*`）到 C 端搜同名（`dp-*`），
+  **搜不到任何定义就是缺失**，比逐个类比对快得多。
+- ⚠️ 用grep 搜「某class 是否被定义」时，**空结果先确认工具没静默失效**（中文路径下 Grep 工具会静默返回空），
+  用 node fs 逐行 `includes` 复核。
+- 占位高度优先用 `aspect-ratio`（如 `710/388` ≈16:9）而非固定 px，
+  **与真图 `widthFix` 撑出的高度对齐**，避免「配图后页面突然变高」造成布局跳动。
+  多列布局（如双图行）要覆盖为 `height:100%`，否则各列各撑比例导致高低不齐。
