@@ -692,6 +692,8 @@ import { yuanFmt } from '../utils/mallUtil.js';
 import SIcon from './SIcon.vue';
 // 超级表单渲染器（与独立填表页 /pages/superForm/fill 共用同一套表单逻辑）
 import SuperFormRender from './SuperFormRender.vue';
+// 容器层样式：与 admin 设计器画布共用（跨端同一份实现，避免「画布没底色、真机有」）
+import { containerStyle } from '../utils/containerStyle.js';
 
 // 价格优先级：新人价 > 会员价 > 原价
 // 会员价memberPrice是{mode,priceMap:{levelId:value}}对象，一期简化为取priceMap第一个值
@@ -1317,27 +1319,12 @@ function titleAsset(key, compProps) {
   if (remote) return resolveUrl(remote);
   return '/static/design-styles/title/' + (TITLE_ASSET_KEYS[key] || key) + '.png';
 }
-// 有「左右边距」参数、属性面板不注入「内边距」滑块的组件：渲染时忽略容器 p.padding（防止存量冗余 padding 造成左右隐藏间隔）
-const HIDDEN_PADDING_TYPES = ['image', 'countdown', 'countdown2', 'image-text', 'cube', 'title-bar'];
-function containerStyle(c) {
-  const p = c.props || {};
-  const g = props.global || {};
-  const cardGap = 12;
-  const cardRadius = 8;
-  const s = {};
-  if (p.padding !== undefined && p.padding !== '' && !HIDDEN_PADDING_TYPES.includes(c.type)) s.padding = `${p.padding}px`;
-  const r = p.radius ?? cardRadius;
-  if (r !== '') s.borderRadius = `${r}px`;
-  if (p.bgColor) s.background = p.bgColor;
-  // 边距统一收敛到容器（标题栏特例：padding 露底部颜色，见 tbOuterStyle）
-  if (c.type !== 'title-bar') {
-    s.marginTop = `${p.marginTop ?? 0}px`;
-    s.marginBottom = `${p.marginBottom ?? cardGap}px`;
-    s.marginLeft = `${p.marginLR ?? p.marginLeft ?? 0}px`;
-    s.marginRight = `${p.marginLR ?? p.marginRight ?? 0}px`;
-  }
-  return s;
-}
+// 容器层样式（padding/圆角/背景色/外边距）直接用共享实现，见 utils/containerStyle.js：
+// 背景色只由「自身根节点是色块」的组件自己消费，容器不再二次上色，
+// 否则改「背景色」时容器和自身两层一起变，无法单独设置组件底色。
+// ⚠️ 不要在此处再定义同名 `function containerStyle` —— 会与 import 冲突，
+//    报 "Identifier 'containerStyle' has already been declared"，
+//    而 uni 会把它显示成极具误导的「连接服务器超时」。
 // 全景场景组件：按组件下标拉取租户全景方案（避免同页多个实例重复加载）
 const panoPlans = reactive({});
 const panoLoaded = {};

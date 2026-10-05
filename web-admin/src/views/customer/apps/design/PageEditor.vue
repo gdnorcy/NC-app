@@ -152,6 +152,7 @@
               :key="c.id"
               class="pe-comp"
               :class="{ active: selected === c.id }"
+              :style="compBoxStyle(c)"
               draggable="true"
               @dragstart="onCompDragStart($event, i)"
               @dragover.prevent="onCompDragOver(i)"
@@ -985,6 +986,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { designCall, fetchSuperForms, getSuperForm } from '../../../../api';
 // 组件样式 → CSS 变量映射与 C 端渲染器共用（web-app/src/utils/sfComponentStyle.js）
 import { componentStyleVars } from '../../../../../../web-app/src/utils/sfComponentStyle.js';
+// 容器层样式与 C 端共用同一份实现：此前画布 `.pe-comp` 完全不绑背景/圆角，
+// 导致「画布看不到容器底色、真机却有一层」→ 背景色改不动、分不清改的是哪一层。
+import { containerStyle as compContainerStyle } from '../../../../../../web-app/src/utils/containerStyle.js';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
@@ -2234,6 +2238,19 @@ watch(() => props.pageType, () => { selected.value = null; load(); });
 function compIndex(comp) {
   return components.value.findIndex((x) => x.id === comp.id) + 1;
 }
+/**
+ * 画布组件容器样式（与 C 端 DesignPage.containerStyle 同一实现）。
+ *
+ * ⚠️ 与真机的**有意差异**：画布只取 `background` 与外边距，
+ * **不取 borderRadius / padding** —— `.pe-comp` 自带 `border-radius:8px` +
+ * 虚线选中框（hover/active 换色），被内联圆角覆盖会让选中框变形；
+ * `.pe-comp.active` 的 `background: rgba(22,93,255,.02)` 也会被内联背景盖掉
+ * → 选中态高亮失效。真机上是纯展示，不需要选中框，故可安全取全部字段。
+ */
+function compBoxStyle(c) {
+  const s = compContainerStyle(c, { withPadding: false });
+  return { background: s.background, marginTop: s.marginTop, marginBottom: s.marginBottom, marginLeft: s.marginLeft, marginRight: s.marginRight };
+}
 /** 上下移动选中组件（仿 ew：画布内不拖拽，工具条排序） */
 function moveComp(comp, dir) {
   const i = components.value.findIndex((x) => x.id === comp.id);
@@ -2401,7 +2418,11 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 0; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
-.pe-comp.active { border-color: #165dff; box-shadow: 0 0 0 1px rgba(22,93,255,.25); background: rgba(22,93,255,.02); }
+/* `.pe-comp` 现在内联组件自己的容器背景色，会盖掉 `.active` 的淡蓝高亮
+   → 选中态看不出选中了。用 **outline + box-shadow** 表达选中（两者都不吃背景色），
+   而不是给 `.active` 加 background !important（那会把组件真实底色也盖掉）。
+   优先级：outline 描边在外圈、box-shadow 紧贴，两者叠加即清晰可见。 */
+.pe-comp.active { border-color: #165dff; outline: 1px solid #165dff; box-shadow: 0 0 0 3px rgba(22,93,255,.16); }
 /* hover / 选中即显工具条（仿 eweishop/nshop） */
 .pe-comp-tools {
   display: none; position: absolute; top: -22px; right: 4px; background: #165dff; color: #fff;
