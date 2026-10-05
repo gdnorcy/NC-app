@@ -178,9 +178,15 @@
 
     <template v-else-if="comp.type === 'carplate'">
       <!-- 对标站画布实测（car-number-widget data 预填 + scoped CSS）：格 1 预填演示省份字（粤），
-           格 8 新能源位绿框绿字「新能源」，卡 1/卡 2 之间 4px 圆点分隔符 -->
+           新能源开启时格 8 为绿框绿字「新能源」位，卡 1/卡 2 之间 4px 圆点分隔符。
+           关闭新能源时渲染 7 位普通车牌（无绿框/无新能源占位）。 -->
       <div class="cmpv-plate">
-        <span v-for="n in 8" :key="n" class="cmpv-plate-cell" :class="{ 'cmpv-plate-cell--ne': n === 8 }">{{ n === 1 ? '粤' : (n === 8 ? '新能源' : '') }}</span>
+        <span
+          v-for="n in (comp.content.newEnergy !== false ? 8 : 7)"
+          :key="n"
+          class="cmpv-plate-cell"
+          :class="{ 'cmpv-plate-cell--ne': n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false }"
+        >{{ n === 1 ? '粤' : ((n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false) ? '新能源' : '') }}</span>
         <i class="cmpv-plate-dot" />
       </div>
     </template>

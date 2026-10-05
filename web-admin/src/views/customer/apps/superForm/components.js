@@ -191,7 +191,9 @@ export function defaultContent(type) {
     case 'sms':
       return { ...base, placeholder: '请输入手机号', buttonText: '获取验证码', readonly: false, verifyRepeat: false };
     case 'carplate':
-      return { ...base, placeholder: '请输入车牌号' };
+      // newEnergy：新能源车牌（第 8 格绿框，填 D/F）。默认 true 以兼容既有表单（无此字段视为新能源），
+      // 表单设计器关闭后渲染 7 位普通车牌。
+      return { ...base, placeholder: '请输入车牌号', newEnergy: true };
     case 'pagebreak':
       // 分页：上一步/下一步按钮文案 + 禁止返回（级联影响 C 端翻页导航）
       return { label: '分页', noReturn: false, prevText: '上一步', nextText: '下一页' };

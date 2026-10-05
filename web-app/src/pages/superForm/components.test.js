@@ -19,6 +19,12 @@ describe('defaultContent 与校验/面板字段对齐', () => {
     expect(c.maxSelect).toBeUndefined();
   });
 
+  it('carplate 默认 newEnergy=true（8 格新能源车牌），关闭后渲染 7 位普通车牌', () => {
+    const c = defaultContent('carplate');
+    expect(c.newEnergy).toBe(true);
+    expect(c.label).toBe('车牌号');
+  });
+
   it('number 含 step 默认值，C 端 step 校验才会生效', () => {
     const c = defaultContent('number');
     expect(c.step).toBe(1);

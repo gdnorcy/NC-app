@@ -323,16 +323,18 @@
           <!-- 车牌号：对标站 8 格分位输入（省简称 + 发牌机关 + 6 位序号），值仍是完整车牌字符串。
                对标站实测（car-number-widget 源码 + scoped CSS）：8 格独立圆角卡片（高 49px、文字居中、
                卡间留缝），卡 1/卡 2 之间有 4px 圆点分隔符（div.point，left:23%），
-               最后一格为新能源位：绿框绿字 + placeholder「新能源」（rgb(0,181,0)）。 -->
+               最后一格为新能源位：绿框绿字 + placeholder「新能源」（rgb(0,181,0)）。
+               2026-10-05：新增「新能源车牌」开关 —— 关闭时渲染 7 位普通车牌（无绿框/无新能源占位）。
+               旧数据无 newEnergy 字段时视为新能源（true），保持 8 格外观不变。 -->
           <view v-else-if="comp.type === 'carplate'" class="sf-plate">
             <input
-              v-for="n in 8"
+              v-for="n in (comp.content.newEnergy !== false ? 8 : 7)"
               :key="n"
               class="sf-plate-cell"
-              :class="{ 'sf-plate-cell--ne': n === 8 }"
+              :class="{ 'sf-plate-cell--ne': n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false }"
               :value="plateCellOf(comp.id, n - 1)"
               :maxlength="1"
-              :placeholder="n === 8 ? '新能源' : ''"
+              :placeholder="(n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false) ? '新能源' : ''"
               placeholder-style="color: rgb(0, 181, 0)"
               :disabled="comp.content.readonly"
               @input="setPlateCell(comp.id, n - 1, $event)"

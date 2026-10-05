@@ -624,8 +624,12 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <!-- 对标站实测（ew-carplate-01）：车牌号组件属性只有「是否显示/是否必填」，
-                     没有 placeholder / 只读 / 内容校验；C 端渲染是 8 格分位输入，无占位文案。 -->
+                <el-form-item label="新能源车牌">
+                  <el-switch :value="selected.content.newEnergy !== false" @change="(v) => (selected.content.newEnergy = v)" />
+                  <span class="sf-hint">开启后第 8 格为新能源位（绿框，填 D/F）；关闭则为 7 位普通车牌。</span>
+                </el-form-item>
+                <!-- 对标站实测（ew-carplate-01）：车牌号组件属性只有「是否显示/是否必填」，无 placeholder/只读/内容校验；
+                     C 端渲染是 8 格（或 7 格普通车牌）分位输入，无占位文案。2026-10-05 增补「新能源车牌」开关（类型切换）。 -->
               </template>
 
               <template v-else-if="selected.type === 'title'">
