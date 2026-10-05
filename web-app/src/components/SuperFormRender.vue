@@ -325,21 +325,53 @@
                卡间留缝），卡 1/卡 2 之间有 4px 圆点分隔符（div.point，left:23%），
                最后一格为新能源位：绿框绿字 + placeholder「新能源」（rgb(0,181,0)）。
                2026-10-05：新增「新能源车牌」开关 —— 关闭时渲染 7 位普通车牌（无绿框/无新能源占位）。
-               旧数据无 newEnergy 字段时视为新能源（true），保持 8 格外观不变。 -->
-          <view v-else-if="comp.type === 'carplate'" class="sf-plate">
-            <input
-              v-for="n in (comp.content.newEnergy !== false ? 8 : 7)"
-              :key="n"
-              class="sf-plate-cell"
-              :class="{ 'sf-plate-cell--ne': n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false }"
-              :value="plateCellOf(comp.id, n - 1)"
-              :maxlength="1"
-              :placeholder="(n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false) ? '新能源' : ''"
-              placeholder-style="color: rgb(0, 181, 0)"
-              :disabled="comp.content.readonly"
-              @input="setPlateCell(comp.id, n - 1, $event)"
-            />
-            <view class="sf-plate-dot" />
+               旧数据无 newEnergy 字段时视为新能源（true），保持 8 格外观不变。
+               2026-10-05（四轮）：点击格子弹自定义软键盘 —— 第 1 格省份键盘，其余格字母数字键盘，
+               选省后自动切到字母键盘（对标站交互）；用自定义 view 格 + 底部键盘，不弹系统键盘。 -->
+          <view v-else-if="comp.type === 'carplate'" class="sf-plate-wrap">
+            <view class="sf-plate">
+              <view
+                v-for="n in (comp.content.newEnergy !== false ? 8 : 7)"
+                :key="n"
+                class="sf-plate-cell"
+                :class="{
+                  'sf-plate-cell--ne': n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false,
+                  'is-active': activePlate.id === comp.id && activePlate.index === n - 1
+                }"
+                @click="focusPlate(comp.id, n - 1)"
+              >
+                <text v-if="plateCellOf(comp.id, n - 1)">{{ plateCellOf(comp.id, n - 1) }}</text>
+                <text v-else-if="isPlateNePlaceholder(comp, n)" class="sf-plate-ph">新能源</text>
+              </view>
+              <view class="sf-plate-dot" />
+            </view>
+
+            <!-- 自定义软键盘：仅当前激活的车牌组件展示 -->
+            <view v-if="activePlate.id === comp.id" class="sf-plate-kb">
+              <!-- 省份键盘 -->
+              <view v-if="plateKbType() === 'province'" class="sf-kb sf-kb-prov">
+                <view class="sf-kb-row" v-for="(row, ri) in PROVINCE_ROWS" :key="'p' + ri">
+                  <view class="sf-kb-key" v-for="p in row" :key="p" @click="pressPlateKey(p)">{{ p }}</view>
+                </view>
+                <view class="sf-kb-actions">
+                  <view class="sf-kb-key sf-kb-back" @click="backspacePlate()">⌫</view>
+                  <view class="sf-kb-key sf-kb-done" @click="closePlateKb()">完成</view>
+                </view>
+              </view>
+              <!-- 字母数字键盘 -->
+              <view v-else class="sf-kb sf-kb-alpha">
+                <view class="sf-kb-row" v-for="(row, ri) in LETTER_ROWS" :key="'l' + ri">
+                  <view class="sf-kb-key" v-for="k in row" :key="k" @click="pressPlateKey(k)">{{ k }}</view>
+                </view>
+                <view class="sf-kb-row sf-kb-digits">
+                  <view class="sf-kb-key" v-for="d in PLATE_DIGITS" :key="d" @click="pressPlateKey(d)">{{ d }}</view>
+                </view>
+                <view class="sf-kb-actions">
+                  <view class="sf-kb-key sf-kb-back" @click="backspacePlate()">⌫</view>
+                  <view class="sf-kb-key sf-kb-done" @click="closePlateKb()">完成</view>
+                </view>
+              </view>
+            </view>
           </view>
 
           <!-- 标题 -->
@@ -480,6 +512,7 @@ import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { cardApi } from '../utils/cardApi.js';
 import { componentStyleVars, isVisible, styleVariant, optType as optTypeOf, isImgOptionType } from '../utils/sfComponentStyle.js';
 import { regionProvinces, regionCities, regionDistricts, dateYears, dateDays } from '../utils/sfRegionData.js';
+import { PLATE_PROVINCES, PLATE_LETTERS, PLATE_DIGITS, plateKeyType, provinceRows, letterRows } from '../utils/plateKeyboard.js';
 
 /**
  * 超级表单渲染器（C 端唯一实现）
@@ -879,6 +912,53 @@ function setPlateCell(id, idx, ev) {
   const cur = (typeof values[id] === 'string' ? values[id] : '').padEnd(8, ' ').split('');
   cur[idx] = val.slice(-1);
   values[id] = cur.join('').replace(/\s+$/, '');
+}
+
+/** 车牌软键盘状态：当前激活的车牌组件 id 与格索引（null/-1 表示未激活）。 */
+const activePlate = reactive({ id: null, index: -1 });
+// 静态键位布局（一次计算，模板复用）
+const PROVINCE_ROWS = provinceRows();
+const LETTER_ROWS = letterRows();
+
+// 末格（仅新能源）空值显示「新能源」绿字占位
+function isPlateNePlaceholder(comp, n) {
+  const last = comp.content.newEnergy !== false ? 8 : 7;
+  return comp.content.newEnergy !== false && n === last;
+}
+// 当前键盘类型：第 1 格省份键盘，其余字母数字键盘
+function plateKbType() {
+  if (!activePlate.id) return null;
+  return plateKeyType(activePlate.index);
+}
+function focusPlate(id, idx) {
+  const c = compById(id);
+  if (!c || c.content.readonly) return;
+  activePlate.id = id;
+  activePlate.index = idx;
+}
+function closePlateKb() {
+  activePlate.id = null;
+  activePlate.index = -1;
+}
+function pressPlateKey(ch) {
+  const id = activePlate.id;
+  if (!id) return;
+  const idx = activePlate.index;
+  setPlateCell(id, idx, { detail: { value: ch } });
+  const last = (compById(id).content.newEnergy !== false ? 8 : 7) - 1;
+  if (idx < last) activePlate.index = idx + 1; // 自动前进；选省后（index 0→1）键盘自动切字母
+}
+function backspacePlate() {
+  const id = activePlate.id;
+  if (!id) return;
+  const idx = activePlate.index;
+  const cur = (typeof values[id] === 'string' ? values[id] : '').split('');
+  if (cur[idx]) {
+    cur[idx] = '';
+    values[id] = cur.join('').replace(/\s+$/, '');
+  } else if (idx > 0) {
+    activePlate.index = idx - 1;
+  }
 }
 
 // 级联选择变更：上级变更时清空下级，并即时拼装完整文本写入 values[comp.id]
@@ -1524,6 +1604,21 @@ async function submit() {
 .sf-plate .sf-plate-cell--ne { border-color: rgb(0, 181, 0) !important; color: rgb(0, 181, 0) !important; }
 /* 分隔圆点：对标站 .point 4×4px 圆形，绝对定位 left:23%（卡 2 右侧缝内），颜色 = 输入文字色 */
 .sf-plate-dot { position: absolute; left: 23%; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%; background: var(--c-input-color, #333333); }
+/* 激活格高亮（点击弹键盘时） */
+.sf-plate .sf-plate-cell { display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color .15s, box-shadow .15s; user-select: none; }
+.sf-plate .sf-plate-cell.is-active { border-color: var(--c-active-color, #0076F0) !important; box-shadow: 0 0 0 2px rgba(0, 118, 240, 0.15); }
+.sf-plate-ph { color: rgb(0, 181, 0); }
+
+/* 车牌自定义软键盘（对标站：点格子弹键盘，不弹系统键盘） */
+.sf-plate-kb { margin-top: 10px; background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 3px); padding: 8px; }
+.sf-kb-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px; justify-content: center; }
+.sf-kb-row.sf-kb-digits .sf-kb-key { flex: 1 1 0; min-width: 0; }
+.sf-kb-key { min-width: 30px; height: 38px; padding: 0 6px; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--c-border-color, #EBEEF5); border-radius: 4px; font-size: 15px; color: var(--c-input-color, #333333); box-sizing: border-box; }
+.sf-kb-prov .sf-kb-key { flex: 1 1 28px; }
+.sf-kb-key:active { background: var(--c-active-color, #0076F0); color: #fff; border-color: var(--c-active-color, #0076F0); }
+.sf-kb-actions { display: flex; gap: 8px; margin-top: 4px; }
+.sf-kb-actions .sf-kb-key { flex: 1; font-size: 14px; }
+.sf-kb-done { background: var(--c-active-color, #0076F0); color: #fff; border-color: var(--c-active-color, #0076F0); }
 /* 选择类的三种风格作用在**选项区**（s1/s2/s3），与输入类的 box/line 语义不同：
      sfx-optbox   描边 + 浅底（整块一个框，行间有分隔线）
      sfx-optplain 纯白底、去框，每个选项独立成卡（行间距拉开）
