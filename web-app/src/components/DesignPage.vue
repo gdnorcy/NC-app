@@ -408,9 +408,9 @@
         <!-- 未绑定表单：给运营提示，不渲染空壳 -->
         <view v-if="!c.props.formId" class="dp-sf-none">请在设计中心为该组件选择一个超级表单</view>
         <template v-else>
-          <view v-if="c.props.formName" class="dp-sf-head">
-            <text class="dp-sf-title">{{ c.props.formName }}</text>
-          </view>
+          <!-- 修复⑤：去掉表单名头。设计器画布早已删除 r-sf-head（1:1 对齐 C 端 embed），
+               C 端此前漏改，导致真机仍显示「未命名表单」。embed 模式下
+               SuperFormRender 也不渲染 .sf-form-name，此处标题纯属冗余。 -->
           <!-- 每个组件实例按 formId+组件 id 独立加载与隔离状态（同一页面可放多个表单） -->
           <SuperFormRender
             :key="c.props.formId + '_' + c.id"
@@ -1762,8 +1762,7 @@ function openChannel(kind, p) {
 .dp-form-btn { height: 96rpx; border-radius: 16rpx; color: #fff; font-size: 34rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 /* 超级表单入口卡片 */
 .dp-sf { display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
-.dp-sf-head { display: flex; align-items: center; gap: 8px; }
-.dp-sf-title { font-size: 15px; font-weight: 500; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* .dp-sf-head / .dp-sf-title 随「修复⑤」表单名头一并移除（设计器画布早已删除 r-sf-head） */
 .dp-sf-none { font-size: 12px; color: #86909c; border: 1px dashed #e5e6eb; border-radius: 6px; padding: 10px 12px; text-align: center; }
 .dp-video { border-radius: 8px; overflow: hidden; background: #000; position: relative; }
 .dp-video-player { width: 100%; height: 200px; display: block; }
