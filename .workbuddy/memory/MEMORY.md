@@ -158,3 +158,17 @@
 - **通用判据**：加任何「类型/类别」开关前先问——**这是表单的配置，还是填表人的属性？**
   属填表人属性 → 不该在设计器锁死，应在 C 端让填表人自选（或用可选槽位承载）。
 - **落到车牌的标准口径**：固定 8 格、末格恒为绿框「新能源」**可选**位；校验正则在 7/8 位自适应放行。
+
+## 小程序端两个高频坑（2026-10-05 真机实测踩出，勿回退）
+1. **真机访问不到 `localhost`**：任何硬编码 `localhost:3000` 的 API 基址，在**真机上是「手机自己」**，
+   请求必失败（表现为登录/接口报「网络错误」「登录出错」）。`web-app/src/utils/cardApi.js` 已改平台感知
+   （`#ifdef MP-WEIXIN` → 电脑局域网 IP，`#ifndef` → localhost）。**新增 API 模块务必沿用此写法**。
+   局域网 IP 由 DHCP 分配，换网络会变；正式发布换已备案 HTTPS 域名 + 小程序后台配 request 合法域名；
+   真机调 http+IP 需在 DevTools 勾「不校验合法域名」。
+2. **构建必须用项目本地 uni**：`npx uni build` 会拉到 `~/.npm/_npx` 缓存里的**错误版本** uni
+   （报 `Cannot assign to read only property 'name'`）。**用 `./node_modules/.bin/uni` 或 `npm run build:mp-weixin`**。
+3. **`code2Session` 目前是假实现**（`server/src/app.js` 里 `TODO`，直接 `return { openid:'mock_'+code }`）。
+   小程序「登录」当前只造 mock 用户、非真实微信身份；接真实登录需 AppID + **AppSecret**（用户未提供前无法接）。
+4. **主包体积**：`gen-mp-sicons.js` 生成的 `static/sicons/*.png` 运行时不引用（只用 base64），
+   已在脚本里生成后自动清理（主包 ~3.6M→~1.7M）。若未来又出现主包超限，**先查是否有「构建期中间产物
+   留在主包」或大 base64 映射**（如 `utils/sicons-base64.js` 277KB）。
