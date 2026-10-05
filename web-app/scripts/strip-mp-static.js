@@ -1,6 +1,7 @@
 // 小程序构建后瘦身：
 //  - 剔除 H5 专用的 static/three（小程序端用 npm 的 threejs-miniprogram，此目录纯冗余）
 //  - 剔除 H5 时代遗留、小程序端无源码引用的 static/icons（51 个 SVG）与 static/images（4 个 png）
+//  - 剔除 static/sicons（gen-mp-sicons.js 的构建期 PNG 中间产物，运行时只用 base64 data URI）
 // 用法：uni build -p mp-weixin 成功后执行（已挂进 web-app/package.json build:mp-weixin）
 // 只影响小程序构建产物，不影响 H5 构建。
 const fs = require('fs');
@@ -8,7 +9,7 @@ const path = require('path');
 
 const mpDir = path.join(__dirname, '..', 'dist', 'build', 'mp-weixin');
 // 剔除目录：小程序端确定无引用（已核对源码 grep，勿随意追加——误删会破坏小程序资源）
-const STRIP_DIRS = ['static/three', 'static/icons', 'static/images'];
+const STRIP_DIRS = ['static/three', 'static/icons', 'static/images', 'static/sicons'];
 
 function sizeK(dir) {
   let total = 0;

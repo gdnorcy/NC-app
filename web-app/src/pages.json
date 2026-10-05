@@ -78,13 +78,6 @@
       }
     },
     {
-      "path": "pages/viewer/viewer",
-      "style": {
-        "navigationBarTitleText": "全景浏览",
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/live/list",
       "style": {
         "navigationBarTitleText": "直播间",
@@ -311,6 +304,18 @@
           "path": "fill",
           "style": {
             "navigationBarTitleText": "超级表单",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/viewer",
+      "pages": [
+        {
+          "path": "viewer",
+          "style": {
+            "navigationBarTitleText": "全景浏览",
             "navigationStyle": "custom"
           }
         }

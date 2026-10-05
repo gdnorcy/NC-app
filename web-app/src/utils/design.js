@@ -137,7 +137,11 @@ export function normalizeHeader(raw, globalDefault) {
       layers: mergeLayers(),
       copyright: pEw.copyright ?? gEw.copyright ?? 'default',
     };
-    return { scheme: 2, ew };
+    // 标题：方案二的标题可能配在 ew.titleText，也可能配在顶层 raw.titleText
+    //（历史数据与方案一共用同一字段）。两者都取，页面配置优先 —— 此前这个字段
+    // 在 scheme===2 分支被整个丢弃，导致后台设的标题在小程序端不生效。
+    const titleText = (followGlobal ? '' : raw?.titleText) || pEw.titleText || gEw.titleText || gd.titleText || '';
+    return { scheme: 2, ew, titleText };
   }
   if (!raw) return null;
   const normItem = (it) => {

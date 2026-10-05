@@ -10,7 +10,7 @@
     <DesignNavEw v-else-if="designHeader" :header="designHeader" page-name="首页" :scrolled="headerScrolled" @search="goSearch" />
     <!-- 无页面头部配置时：系统风格「头部颜色/头部文字」全局默认头部（页面装修头部设置可单页覆盖） -->
     <view v-else-if="sysHeadStyle" class="sys-head" :style="[sysHeadStyle, { paddingTop: sysHeadPadTop, paddingRight: sysHeadPadRight }]" @click="goPage('/pages/card/profile')">
-      <text class="sys-head-title" :style="{ color: sysHeadText }">{{ designTheme.shareTitle || '首页' }}</text>
+      <text class="sys-head-title" :style="{ color: sysHeadText }">{{ headerTitle || '首页' }}</text>
       <view class="sys-head-avatar" :style="{ background: sysHeadText }">
         <SIcon name="user" size="small" color="#ffffff" />
       </view>
@@ -248,6 +248,12 @@ const sysHeadText = computed(() => {
 const sysHeadPadTop = computed(() => getNavMetrics().statusBarHeight + 'px');
 const sysHeadPadRight = computed(() => getNavMetrics().capsuleRightPad + 8 + 'px');
 const shareBackTop = computed(() => getNavMetrics().statusBarHeight + 8 + 'px');
+// 头部标题：后台「头部标题」设置优先，其次分享标题，最后「首页」。
+// 三条渲染路径（DesignNav / DesignNavEw / sys-head 兜底）必须同源，否则标题会各显示各的。
+const headerTitle = computed(() => {
+  const h = designHeader.value;
+  return h?.titleText || designTheme.value?.shareTitle || '首页';
+});
 // 页面背景 = 页面装修「全局设置」的背景色/背景图（C 端真机渲染，编辑端 phoneStyle 同源）
 const pageBgStyle = computed(() => {
   const g = designGlobal.value || {};

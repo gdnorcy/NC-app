@@ -4,7 +4,7 @@
     <view class="dn-status" :style="{ height: statusBarHeight + 'px' }"></view>
     <!-- 功能模块 = 无：仅标题 + 文字颜色 -->
     <view v-if="ew.funcModule === 'none'" class="dnew-line dnew-line-none" :style="capsuleStyle">
-      <text class="dnew-title-text" :style="{ color: titleColor }">{{ pageName || '首页' }}</text>
+      <text class="dnew-title-text" :style="{ color: titleColor }">{{ displayTitle }}</text>
     </view>
 
     <!-- 单层 / 双层模块：每层左/中/右三段 -->
@@ -24,7 +24,7 @@
           </view>
           <view v-else-if="layer.left.type === 'city'" class="dnew-side-item" @click="tapLink(layer.left.link)">
             <SIcon name="location" :color="layer.left.color || '#1d2129'" size="small" />
-            <text class="dnew-city-text" :style="{ color: layer.left.color || '#1d2129' }">{{ pageName || '首页' }}</text>
+            <text class="dnew-city-text" :style="{ color: layer.left.color || '#1d2129' }">{{ displayTitle }}</text>
           </view>
         </view>
 
@@ -36,7 +36,7 @@
             <text class="dnew-search-txt" :style="{ color: layer.middle.search.textColor || '#3d404d' }">{{ layer.middle.search.placeholder || '请输入关键字' }}</text>
             <view v-if="layer.middle.search.showBtn" class="dnew-search-btn" :style="{ background: layer.middle.search.borderBg || '#ffffff', color: layer.middle.search.iconColor || '#3d404d' }">搜索</view>
           </view>
-          <text v-else class="dnew-title-text" :style="{ color: titleColor }">{{ pageName || '首页' }}</text>
+          <text v-else class="dnew-title-text" :style="{ color: titleColor }">{{ displayTitle }}</text>
         </view>
 
         <!-- 右侧部分 -->
@@ -91,6 +91,14 @@ export default {
       if (!ew) return [];
       const layers = Array.isArray(ew.layers) ? ew.layers : [];
       return ew.funcModule === 'double' ? layers : [layers[0] || {}];
+    },
+    /**
+     * 标题取值顺序：后台「头部标题」设置 → 页面名 → 「首页」。
+     * 此前只读 pageName，导致后台改了标题 C 端不跟着变（用户反馈「标题没跟后台同步」）。
+     */
+    displayTitle() {
+      const h = this.header || {};
+      return h.titleText || this.pageName || '首页';
     },
     navStyle() {
       const ew = this.ew || {};

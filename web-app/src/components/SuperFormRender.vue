@@ -1475,9 +1475,16 @@ async function submit() {
 .sf-label { font-size: var(--c-title-size, 14px); color: var(--c-title-color, #000000); margin-bottom: 8px; }
 .sf-req { color: var(--c-error-color, #ED4F4F); margin-left: 2px; }
 .sf-input { width: 100%; border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); box-sizing: border-box; background: var(--c-input-bg, #F7F9FA); color: var(--c-input-color, #333333); }
+/* 单行输入框高度锁定：与 .sf-picker-val / .sf-loc 等「等高兄弟」对齐。
+   小程序端 <input> 是原生组件，有内置行高与默认高度，仅靠 padding 撑高会让
+   文字偏上、整体显矮（用户反馈「输入框太窄高、跟别的框不一致」）。
+   统一 min-height + 固定 line-height，保证 H5 与小程序端视觉一致。
+   38px = 10px padding×2 + 16px 行高 + 2px 边框，与 .sf-loc/.sf-picker-val 同源。 */
+.sf-input:not(.sf-textarea) { min-height: 38px; line-height: 16px; }
 /* 小程序 picker 下拉（view 模拟，等高分毫不差） */
 .sf-picker { display: flex; align-items: center; padding: 0; }
-.sf-picker-val { width: 100%; padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); box-sizing: border-box; color: var(--c-input-color, #333333); }
+/* 与 .sf-input 同高（38px：10px padding×2 + 16px 行高 + 2px 边框）—— 两者同屏出现必须等高 */
+.sf-picker-val { width: 100%; min-height: 38px; display: flex; align-items: center; padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); line-height: 16px; box-sizing: border-box; color: var(--c-input-color, #333333); }
 .sf-picker-val.ph { color: #999999; }
 /* 多行文本：外层 relative 供右下角字数统计定位；高度走 --c-input-height（与预览端同源）。
    ⚠️ 计数必须自绘而非依赖 uni H5 <textarea> 的内置 confirm-bar：
@@ -1719,7 +1726,7 @@ async function submit() {
 .sf-submit { width: 100%; box-sizing: border-box; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 24px); padding: 0 24rpx; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); height: 96rpx; font-size: 34rpx; display: flex; align-items: center; justify-content: center; line-height: 1.2; text-align: center; margin-top: 6px; }
 .sf-ended { text-align: center; color: #909399; padding: 30px; }
 .sf-empty { text-align: center; color: #c0c4cc; padding: 30px; }
-.sf-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); text-align: center; }
+.sf-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px var(--c-input-pad-x, 10px); min-height: 38px; line-height: 16px; box-sizing: border-box; font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); text-align: center; }
 .sf-agree { display: flex; align-items: flex-start; gap: 8px; font-size: var(--c-input-size, 13px); color: var(--c-input-color, #333333); flex-wrap: wrap; }
 .sf-check { width: 18px; height: 18px; border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: 4px; text-align: center; line-height: 18px; color: #fff; flex-shrink: 0; }
 .sf-check.on { background: var(--c-check-color, #4385FF); border-color: var(--c-check-color, #4385FF); }

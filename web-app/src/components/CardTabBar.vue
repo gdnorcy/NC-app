@@ -350,6 +350,12 @@ function hexA(hex, alpha) {
 }
 .mtb.on { font-weight: 500; }
 .mp-tab-txt { line-height: 1.2; font-size: 24rpx; }
+/* 图标与文字水平居中：SIcon 组件默认是 inline-block + vertical-align:middle，
+   在 column flex 容器里会按基线对齐导致视觉偏移（小程序端尤其明显）→ 强制 block + 居中。
+   SIcon 是子组件，须用 :deep() 穿透 scoped 才能命中其根节点。 */
+.mtb :deep(.s-icon),
+.mtb .tab-icon-img { display: block; margin: 0 auto; }
+.mp-tab-txt { display: block; width: 100%; text-align: center; }
 .mp-tab-bold { font-weight: 600; }
 .tab-icon-img { width: 44rpx; height: 44rpx; }
 
@@ -366,8 +372,8 @@ function hexA(hex, alpha) {
   box-shadow: 0 0 0 6rpx #ffffff, 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
 }
 /* slider 选中项：图标上移居中到圆钮中央（对齐云菜鸟） */
-.mtb-slider.on .s-icon, .mtb-slider.on .tab-icon-img { position: relative; top: -24rpx; z-index: 1; }
-.mp-slider + image, .mp-slider + .s-icon, .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
+.mtb-slider.on :deep(.s-icon), .mtb-slider.on .tab-icon-img { position: relative; top: -24rpx; z-index: 1; }
+.mp-slider + image, .mp-slider + :deep(.s-icon), .mp-slider ~ .mp-tab-txt { position: relative; z-index: 1; }
 
 /* 按钮凸起/嵌入：云菜鸟 1:1 图层与排版修正 */
 .mp-tabbar.mp-st-btnRaise, .mp-tabbar.mp-st-btnInset { overflow: visible; }
@@ -411,7 +417,7 @@ function hexA(hex, alpha) {
   box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.18);
   align-self: center;
 }
-.mp-mid-btn .s-icon { margin: 0; }
+.mp-mid-btn :deep(.s-icon) { margin: 0; }
 .mp-mid-img { width: 44rpx; height: 44rpx; }
 .mp-mid-txt { font-size: 20rpx; line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
 .mp-mid-txt.on { font-weight: 600; }
