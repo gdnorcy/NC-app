@@ -295,16 +295,21 @@ function isPreviewMode() {
   return false;
 }
 
+// 无装修配置时的默认宫格（items 缺失/为空时回退）
+// 底色与图标必须与「名片宫格图标方案 v5」的**方案 A（品牌多彩渐变）**一致 ——
+// 该方案 2026-09-26 由用户确认：渐变底 + 圆角方形，9 图标已定稿，差异只在底色。
+// 权威副本：componentRegistry.js native-grid 默认 items、DB tenant_page_design.home.design_json
+//            （三者当前已核对为 9/9 一致，改这里前先对齐那两处）
 const features = [
-  { key: 'card', icon: 'card', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },
-  { key: 'visitors', icon: 'radar', label: '访客雷达', path: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b42a,#23c343)' },
-  { key: 'customers', icon: 'customer', label: '客户管理', path: '/pages/card/customers', bg: 'linear-gradient(135deg,#ff7d00,#ff9a2e)' },
-  { key: 'market', icon: 'market', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#722ed1,#9254de)' },
-  { key: 'exchange', icon: 'exchange', label: '名片交换', path: '/pages/card/connections', bg: 'linear-gradient(135deg,#13c2c2,#36cfc9)' },
-  { key: 'distribution', icon: 'wallet', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#f5222d,#ff4d4f)' },
-  { key: 'member', icon: 'crown', label: '会员中心', path: '/pages/card/member', bg: 'linear-gradient(135deg,#faad14,#ffc53d)' },
-  { key: 'dynamic', icon: 'dynamic', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#eb2f96,#f759ab)' },
-  { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#86909c,#a9aeb8)' },
+  { key: 'card', icon: 'card', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#2979ff,#00b0ff)' },
+  { key: 'visitors', icon: 'radar', label: '访客雷达', path: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b8a9,#00d68f)' },
+  { key: 'customers', icon: 'customer', label: '客户管理', path: '/pages/card/customers', bg: 'linear-gradient(135deg,#ff6b35,#ff9800)' },
+  { key: 'market', icon: 'market', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#7c4dff,#b388ff)' },
+  { key: 'exchange', icon: 'exchange', label: '名片交换', path: '/pages/card/connections', bg: 'linear-gradient(135deg,#00b0ff,#536dfe)' },
+  { key: 'distribution', icon: 'dist', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)' },
+  { key: 'member', icon: 'crown', label: '会员中心', path: '/pages/card/member', bg: 'linear-gradient(135deg,#ffb300,#ff8f00)' },
+  { key: 'dynamic', icon: 'dynamic', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#ec407a,#ab47bc)' },
+  { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#13c2c2,#00d0c7)' },
 ];
 
 onMounted(async () => {
