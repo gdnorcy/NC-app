@@ -288,3 +288,45 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 - 占位高度优先用 `aspect-ratio`（如 `710/388` ≈16:9）而非固定 px，
   **与真图 `widthFix` 撑出的高度对齐**，避免「配图后页面突然变高」造成布局跳动。
   多列布局（如双图行）要覆盖为 `height:100%`，否则各列各撑比例导致高低不齐。
+
+## 🔴 TDZ 铁律：watch/computed 里引用 const ref，必须写在声明之后（2026-10-05 立规）
+`PageEditor.vue` 曾把 `watch(() => selectedComp.value?.props, ...)` 写在文件前部，而
+`const selectedComp = ref(null)` 声明在下方 300+ 行 → watch **立即执行 getter**，
+此刻该 const 在 `<script setup>` 的 **TDZ（暂时性死区）** → 抛
+`ReferenceError: Cannot access 'selectedComp' before initialization`
+→ **setup 失败 → 整个设计器白屏**（用户表现为「改了列数/底色，预览区完全没变化」）。
+- **规则**：setup 内 `watch` / `computed` / `onMounted`引用 `const x = ref(...)` 时，
+  必须写在那个 ref 声明**之后**。`function` 声明会提升，不受影响。
+- **只扫这一类**（`const xxx = ref(...)`）；标识符要精确匹配，`props.` 会命中 `p` 之类子串导致误报。
+- ⚠️ **「页面空白/改了没反应」第一件事是抓运行时异常**，不是查数据存取链路——
+  本次绕了一大圈查 `columns`/`bg`/saveDraft/后端status，全部正常，真因是这一行。
+
+## 小程序原生组件不接受 H5 的 auto margin（2026-10-05）
+`SIcon` 根节点带 `flex: 0 0 auto`，小程序端是**原生 `<image>` 组件**。
+`display:block; margin:0 auto` 在 H5 能算出居中 margin（实测 `0px 68.3px`，偏移 0），
+**但小程序端不居中**。
+- **修法**：水平居中交回父容器的 `align-items:center`，图标自身只写
+  `display:block; flex:none; align-self:center; margin:0`。
+- ⚠️ H5 正常 ≠ 小程序正常。凡是依赖 `margin:auto` / `inline-block` 基线对齐的居中技巧，
+  小程序端都要重测。
+
+## 「页面空白」类问题：先抓异常，再查数据
+用 CDP 无头浏览器（Node 22 内置 `WebSocket`，**无需装 ws**）：
+- `/json/new` 必须用 **PUT**（GET 报 `unsafe HTTP verb`）
+- 赋值 input 用 `Object.getPrototypeOf(el)` 取原生 setter，比 `HTMLInputElement.prototype` 更稳
+- **先注入 `window.__errs` 收集 `error`/`unhandledrejection`/`console.error`，再操作** → 比看截图快几个数量级
+- admin 路由跳转必须用
+  `document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(...)`，
+  **直接改 `location.hash` 不会重挂载**（同页复用）
+- 前端「有控件但没生效」类问题，先量**实际渲染**（innerHTML 长度 / getComputedStyle），
+  再看属性串是否同步。
+
+## 同名字段、不同作用对象（易误判为「改错字段」）
+装修组件的 `bgColor` 被**两处**消费：
+- `dpBtnStyle()` → **按钮自身底色**
+- `containerStyle()` → **外层 `.dp-item` 容器背景**
+
+两者读同一个 `props.bgColor`，改一个会同时影响两处。
+另外 `PeColorPicker` 的**渐变预设 11 色与名片宫格方案 A 的 9 色是同一套**——
+运营容易在别的组件上误选宫格色（曾出现按钮底色 = 宫格「会员中心」的橙色渐变）。
+排查这类「颜色串了」先确认是不是误选预设，而不是先怀疑字段用错。
