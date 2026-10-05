@@ -100,17 +100,27 @@ function onPick(url) {
 /* 迷你模式（非紧凑）：图区收成 40×40 缩略图，整块不再横向铺满整行。
    ⚠️ 仅约束「非 compact」：宫格自定义图标是 compact+mini，走上面的紧凑排版，不受影响。 */
 /* 迷你模式（非紧凑）：缩略图 64×64，操作按钮默认隐藏、悬停时以浮层出现（2026-10-06 用户反馈：
-   40px 太小、替换/清除常驻占空间）。⚠️ 仅约束「非 compact」：宫格自定义图标是 compact+mini，不受影响。 */
+   40px 太小、替换/清除常驻占空间）。⚠️ 仅约束「非 compact」：宫格自定义图标是 compact+mini，不受影响。
+   v2（同日二轮反馈）：按钮必须与浮层同高（否则白色按钮块高出浮层、文字被挡），
+   且两个按钮统一为白字扁平样式 —— 「清除」是 el text danger，默认 hover 会变浅色底+变白字，
+   与浮层底色混在一起（用户：字样色和选中色块同色）。这里整体压平：hover 只加深浮层。 */
 .pe-img--mini:not(.pe-img--compact) .pe-img-box { position: relative; display: inline-flex; flex-direction: column; }
 .pe-img--mini:not(.pe-img--compact) .pe-img-main { width: 64px; height: 64px; object-fit: cover; }
 .pe-img--mini:not(.pe-img--compact) .pe-img-ops {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
-  display: none; justify-content: center; align-items: center; gap: 2px;
-  padding: 3px 0; border-top: none; background: rgba(0, 0, 0, .45);
+  height: 24px; display: none; justify-content: center; align-items: stretch; gap: 0;
+  padding: 0; border-top: none; background: rgba(0, 0, 0, .45); overflow: hidden;
 }
 .pe-img--mini:not(.pe-img--compact) .pe-img-box:hover .pe-img-ops { display: flex; }
-.pe-img--mini:not(.pe-img--compact) .pe-img-ops .el-button { padding: 0 5px; font-size: 10px; height: 18px; }
-.pe-img--mini:not(.pe-img--compact) .pe-img-ops .el-button.is-text { color: #fff; }
+/* 两个按钮统一压平：无底色无边框、白字、占满浮层高度；hover 仅加一层暗色（不出白块/彩字） */
+.pe-img--mini:not(.pe-img--compact) .pe-img-ops .el-button {
+  height: 24px; padding: 0 8px; font-size: 11px; margin: 0;
+  color: #fff !important; background: transparent !important; border: none !important;
+}
+.pe-img--mini:not(.pe-img--compact) .pe-img-ops .el-button:hover,
+.pe-img--mini:not(.pe-img--compact) .pe-img-ops .el-button:focus {
+  color: #fff !important; background: rgba(0, 0, 0, .35) !important;
+}
 .pe-img--mini:not(.pe-img--compact) .pe-img-empty { width: 64px; height: 64px; }
 .pe-img--mini:not(.pe-img--compact) .pe-img-empty svg { width: 18px; height: 18px; }
 </style>
