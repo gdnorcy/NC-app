@@ -791,6 +791,12 @@ import { containerStyle as sharedContainerStyle } from '../../../../../../web-ap
 /**
  * 图片组件的**默认示例图**（2026-10-05 用户提供，尺寸正好 710×388）。
  * 与 C 端 DesignPage.vue 的 `IMAGE_SAMPLE` 必须指向同一个文件，否则画布与真机不一致。
+ *
+ * 🔴 该资源**后端托管**（`server/public/card/static/sample/`，由 H5 构建时
+ *   `scripts/sync-mobile-dist.mjs` 同步），**不进小程序包**（`strip-mp-static.js`
+ *   会剔除 `static/sample`）。C 端小程序运行时用 `assetUrl()` 拼绝对 URL。
+ *   本文件跑在浏览器（admin dev :5175 / 线上同源），同源相对路径可直接解析，
+ *   故**不需要走 assetUrl**，保持原样即可。
  */
 const IMAGE_SAMPLE = '/card/static/sample/image-sample-710x388.jpg';
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）

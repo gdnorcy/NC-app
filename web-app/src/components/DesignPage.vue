@@ -12,7 +12,7 @@
           <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-item" :style="{ marginBottom: ii < c.props.items.length - 1 ? (c.props.gap || 0) + 'px' : 0, borderRadius: dpImageRadius(c.props) }">
             <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
             <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
-              <image :src="IMAGE_SAMPLE" :mode="'aspectFill'" class="dp-image-empty-img" />
+              <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
               <text class="dp-image-empty-tip">示例图· 点击替换</text>
             </view>
             <view
@@ -29,7 +29,7 @@
             <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-row-item" :style="{ borderRadius: dpImageRadius(c.props) }">
               <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" @click="onJump(it.link)" />
               <view v-else class="dp-image-empty" @click.stop="onJump(it.link)">
-                <image :src="IMAGE_SAMPLE" :mode="'aspectFill'" class="dp-image-empty-img" />
+                <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
                 <text class="dp-image-empty-tip">示例图 · 点击替换</text>
               </view>
             </view>
@@ -41,7 +41,7 @@
             <image :src="resolveUrl(c.props.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
           </view>
           <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
-            <image :src="IMAGE_SAMPLE" :mode="'aspectFill'" class="dp-image-empty-img" />
+            <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
             <text class="dp-image-empty-tip">示例图 · 点击替换</text>
           </view>
         </template>
@@ -1210,12 +1210,16 @@ function dpFloatIconName(p) {
  *   - 视觉上立刻知道「这里放一张 710×388 的图」
  *   - 比例与真图 `widthFix` 撑出的高度完全一致 → 配图后页面高度不变，无跳动
  *
- * ⚠️ 路径前缀 `/card/static/` 与既有内置素材（countdown-banner.png 等）一致，
- *   小程序端不要走 `resolveUrl()`（那会拼 API_DOMAIN，static 目录不在那里）。
- *   ⚠️ 目录必须是 `static/sample/` 而**不是 `static/images/`**：
- *     `build:mp-weixin` 后的 `scripts/strip-mp-static.js` 会把
- *     `static/images` 整目录剔除（曾导致本示例图真机图裂）。
- *     `static/sample/` 不在剔除名单里。
+ * 🔴 存放位置：**走网络图，不进小程序包**（2026-10-05 用户决定）。
+ *   路径 `/card/static/sample/...` 是**后端托管目录**（H5 构建时由
+ *   `scripts/sync-mobile-dist.mjs` 同步到 `server/public/card/static/`），
+ *   运行时用 `assetUrl()` 拼成绝对 URL（小程序端 = `API_DOMAIN + 路径`）。
+ *   相比打进包里的好处：主包少 36.7KB、不占 2MB 额度。
+ *   代价：首屏依赖网络，且需在小程序后台配request 合法域名。
+ *
+ *   ⚠️ 源文件放在 `web-app/src/static/sample/`，但**必须排除在小程序产物之外**，
+ *   否则「网络图」只是换了个名字、文件照样进包。
+ *   由 `scripts/strip-mp-static.js` 的 STRIP_DIRS 负责剔除。
  */
 const IMAGE_SAMPLE = '/card/static/sample/image-sample-710x388.jpg';
 function dpChannelLiveStyle(p) {
@@ -1322,23 +1326,32 @@ function dpCubeBlocks(c) {
   }));
 }
 /**
- * 解析**包内静态资源**路径（`src/static/` 下的东西）。
+ * 解析**静态资源**路径，区分「包内资源」与「后端托管资源」两种。
  *
- * 🔴🔴 与 `resolveUrl()` 的区别（2026-10-05 修「倒计时图一直是坏的」的关键）：
- *   `resolveUrl()` 假设资源在**后端服务器**上（`/uploads/xxx`），所以会拼 `API_DOMAIN`。
- *   但 `src/static/` 下的资源是**打进小程序包**的，必须原样使用相对路径。
- *   走 `resolveUrl()` 会得到 `http://<后端>/card/static/images/xxx.png`
- *   → 后端根本没有这个路径 → **404 图裂**。
+ * 🔴🔴 为什么必须区分（2026-10-05 两次踩坑）：
+ *  1. `resolveUrl()` 假设资源在**后端服务器**上（`/uploads/xxx`），会拼 `API_DOMAIN`。
+ *     `src/static/` 下的东西是**打进小程序包**的，走`resolveUrl()` 会得到
+ *     `http://<后端>/card/static/images/xxx.png` → **404 图裂**（文件明明在包里）。
+ *  2. 反过来，**后端托管**的资源（走网络）必须拼绝对 URL，否则小程序端
+ *     `/card/xxx` 会被当包内路径去找，找不到 →图裂。
  *
- * 判定：路径以 `/static/` 或 `/card/static/` 开头 = 包内资源 → 原样返回。
- * 其余（`/uploads/...`、相对路径）才交给 `resolveUrl()` 拼服务器地址。
+ * 判定规则（按目录区分，语义明确）：
+ *  - `static/sample/`   → **后端托管**（H5 构建时同步到 server/public/card/static/）
+ *                          运行时走绝对 URL；小程序产物里**不保留**该文件
+ *  - 其余 `/static/`、`/card/static/` → **包内资源**，小程序端原样返回相对路径
+ *  - 其他（`/uploads/...`、http(s) 开头）→ 交给 `resolveUrl()`
  *
  * ⚠️ 小程序端 `<image src>` 接受 `/static/xxx.png` 这类包内相对路径；
- *   H5 端 uni 会基于 base（`/card/`）解析，所以 H5 端仍需拼 origin →
+ *   H5 端 uni 会基于 base（`/card/`）解析，所以 H5 端包内资源仍需拼 origin →
  *   故两端都要在这里统一处理，不能只改小程序端。
  */
+/** 后端托管、不进小程序包的静态目录（相对 src/static/） */
+const NETWORK_ASSET_DIRS = ['/static/sample/', '/card/static/sample/'];
+
 function isBundledAsset(u) {
-  return typeof u === 'string' && (u.startsWith('/static/') || u.startsWith('/card/static/') || u.startsWith('static/'));
+  if (typeof u !== 'string') return false;
+  if (NETWORK_ASSET_DIRS.some((d) => u.startsWith(d) || u.startsWith(d.replace(/^\/card/, '')))) return false;
+  return u.startsWith('/static/') || u.startsWith('/card/static/') || u.startsWith('static/');
 }
 function assetUrl(u) {
   if (!u) return '';

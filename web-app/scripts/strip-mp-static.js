@@ -19,9 +19,9 @@ function rmDir(dir) {
 
 const mpDir = path.join(__dirname, '..', 'dist', 'build', 'mp-weixin');
 
-// 剔除目录：**必须**是「源码里真的没有任何引用的目录」。
+// 剔除目录：**要么源码零引用，要么是刻意走网络、故意不进包**。
 //
-// 🔴🔴 2026-10-05 血的教训：`static/images` 曾被列为「H5 时代遗留、小程序端无引用」
+// 🔴🔴 2026-10-05 血的教训（`static/images`）：曾被列为「H5 时代遗留、小程序端无引用」
 //   而整目录剔除，**但 `componentRegistry.js` 的倒计时 defaultProps 里就引用着它们**：
 //     countdown   → countdown-banner.png（主图）+ countdown-bar.png（背景条）
 //     countdown02 → countdown2-main.png（主图）+ countdown2-sub.jpg（两处子图）
@@ -29,10 +29,16 @@ const mpDir = path.join(__dirname, '..', 'dist', 'build', 'mp-weixin');
 //   （表现被 `cdBgColor: 'rgba(0,0,0,0.4)'` 这类兜底色掩盖，容易误判成"正常"）。
 //   只有 25KB，代价与收益完全不成比例 → **已从剔除名单移除。**
 //
-//   加新资源时的规矩：
-//   - 放`static/` 下、且**不在本名单**的目录（`static/images`、`static/sample/` 都可以）
-//   - 放进来之前先 grep 确认源码是否引用它；**被引用的一律不能剔除**
-const STRIP_DIRS = ['static/three', 'static/icons', 'static/sicons'];
+// 🔴 `static/sample`（2026-10-05，用户决定）：图片组件的默认示例图 36.7KB。
+//   它是**刻意走网络**的——运行时用 `assetUrl()` 拼绝对 URL，
+//   真正托管在后端 `server/public/card/static/sample/`（H5 构建时由
+//   `scripts/sync-mobile-dist.mjs` 同步过去），小程序包里**不需要**这份文件。
+//   故剔除，与 `DesignPage.vue` 的 `NETWORK_ASSET_DIRS` 保持一致。
+//
+//   ⚠️ 两条相反的规矩，别混：
+//   - 剔除会让**包内引用**图裂 → 加进名单前grep 确认没人按包内路径用它
+//   - 剔除会让**网络引用**少一份冗余备份（无妨）→ 前提是该资源确实已在后端托管
+const STRIP_DIRS = ['static/three', 'static/icons', 'static/sicons', 'static/sample'];
 
 /** 收集产物里所有 js/wxml/json 文本文件 */
 function collectCodeFiles() {
@@ -67,9 +73,19 @@ function warnIfReferencedAssetsDropped() {
       referenced.get(m[0]).add(path.relative(mpDir, f));
     }
   }
-  const missing = [...referenced.entries()].filter(([rel]) => !fs.existsSync(path.join(mpDir, rel)));
+  // 刻意走网络、故意不进包的资源不算缺失（由后端 server/public 托管）。
+  // 需与 DesignPage.vue 的 NETWORK_ASSET_DIRS 保持一致。
+  const NETWORK_PREFIXES = ['static/sample/'];
+  const isNetworkAsset = (rel) => NETWORK_PREFIXES.some((p) => rel.startsWith(p));
+  const missing = [...referenced.entries()].filter(
+    ([rel]) => !isNetworkAsset(rel) && !fs.existsSync(path.join(mpDir, rel))
+  );
+  const netAssets = [...referenced.keys()].filter(isNetworkAsset);
   if (!missing.length) {
-    console.log(`[strip-mp-static] 自检：产物代码引用的 ${referenced.size} 个 static 资源均存在 ✓`);
+    console.log(
+      `[strip-mp-static] 自检：产物代码引用的 ${referenced.size} 个 static 资源均存在 ✓` +
+        (netAssets.length ? `（另有 ${netAssets.length} 个走网络、不进包：${netAssets.join(', ')}）` : '')
+    );
     return;
   }
   console.warn(`[strip-mp-static] ⚠️ 自检发现 ${missing.length} 个「代码引用但产物缺失」的静态资源（真机会图裂）：`);
