@@ -78,6 +78,40 @@ app.use((req, res, next) => {
   });
 
   // 全景图静态服务
+  //
+  // 无扩展名文件的 MIME 兜底：历史素材存的是无扩展名文件（如 `...-400`），
+  // express.static 无法推断 MIME → 返回 application/octet-stream，
+  // 而**微信小程序 <image> 只接受合法图片 MIME**，真机直接不显示
+  // （开发者工具可能侥幸显示，容易误判为「只有手机有问题」）。
+  // 这个中间件必须在 express.static **之前**注册——static 命中后立刻 sendFile，
+  // 放在它后面永远拿不到控制权。
+  app.use('/uploads', (req, res, next) => {
+    if (res.headersSent) return next();
+    const rel = decodeURIComponent(String(req.path || '').replace(/^\/+/, ''));
+    if (!rel || rel.includes('..')) return next();
+    if (path.extname(rel)) return next(); // 有扩展名：交给 express.static 自己判断
+    const root = path.resolve(config.uploadsDir);
+    const abs = path.resolve(path.join(root, rel));
+    if (abs !== root && !abs.startsWith(root + path.sep)) return next();
+    let fd;
+    try {
+      fd = fs.openSync(abs, 'r');
+      const buf = Buffer.alloc(12);
+      fs.readSync(fd, buf, 0, 12, 0);
+      let mime = '';
+      if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) mime = 'image/png';
+      else if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) mime = 'image/jpeg';
+      else if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) mime = 'image/gif';
+      else if (buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') mime = 'image/webp';
+      else if (buf.slice(4, 8).toString('ascii') === 'ftyp') mime = 'video/mp4';
+      if (mime) res.setHeader('Content-Type', mime);
+    } catch {
+      /* 文件不存在或无权限，交给 express.static 处理 404 */
+    } finally {
+      if (fd !== undefined) { try { fs.closeSync(fd); } catch { /* ignore */ } }
+    }
+    next();
+  });
   app.use('/uploads', express.static(config.uploadsDir, { fallthrough: true }));
 
   // 登录 / 方案 / 场景 / 客户项目 / 用户 API

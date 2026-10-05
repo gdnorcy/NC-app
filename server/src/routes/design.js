@@ -24,6 +24,39 @@ const IMG_WHITELIST = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const VIDEO_WHITELIST = ['video/mp4'];
 const IMG_EXT_RE = /\.(gif|jpe?g|png|webp)$/i;
 
+/** MIME → 扩展名（缺扩展名时用于补全存储 key） */
+const MIME_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'video/mp4': '.mp4',
+};
+
+/**
+ * 补全文件名的扩展名。
+ *
+ * 背景：上传的 originalname 常常没有扩展名（前端拼的 filename 丢失后缀），
+ * 存储 key 变成 `...-400` 这类无扩展名文件。此时 `express.static` 无法推断
+ * MIME，`Content-Type` 回落成 `application/octet-stream`，
+ * 而**微信小程序 `<image>` 只接受合法图片 MIME** → 真机不显示（开发者工具可能侥幸显示）。
+ * 故按已知 MIME 补后缀；MIME 也不认识时按内容嗅探兜底。
+ */
+function ensureExtension(filename, mimetype, buffer) {
+  const name = String(filename || '').replace(/[^\w.\-]/g, '_');
+  if (/\.[a-z0-9]{2,5}$/i.test(name)) return name;
+  let ext = MIME_EXT[String(mimetype || '').toLowerCase().split(';')[0]];
+  if (!ext && buffer && buffer.length >= 12) {
+    // PNG: 89 50 4E 47 | JPEG: FF D8 FF | GIF: 47 49 46 38 | WEBP: RIFF....WEBP
+    const b = buffer;
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) ext = '.png';
+    else if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) ext = '.jpg';
+    else if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) ext = '.gif';
+    else if (b.slice(0, 4).toString('ascii') === 'RIFF' && b.slice(8, 12).toString('ascii') === 'WEBP') ext = '.webp';
+  }
+  return name + (ext || '');
+}
+
 /** 校验图片体积（按租户配置，单位 MB） */
 function checkImgSize(buffer, maxMb) {
   const max = maxMb * 1024 * 1024;
@@ -106,7 +139,7 @@ export default function createDesignRouter(db, deps = {}) {
       }
       try {
         const storage = await getStorage(db);
-        const key = `material/${req.customerId}/${Date.now()}-${req.file.originalname.replace(/[^\w.\-]/g, '_')}`;
+        const key = `material/${req.customerId}/${Date.now()}-${ensureExtension(req.file.originalname, mt, req.file.buffer)}`;
         const fileUrl = await storage.put(req.file.buffer, key);
         const r = svc.addMaterial(req.customerId, {
           categoryId: req.body?.categoryId, fileName: req.file.originalname,
@@ -143,9 +176,11 @@ export default function createDesignRouter(db, deps = {}) {
         const chk = checkImgSize(buf, limits.maxImageSize);
         if (!chk.ok) return res.status(400).json({ error: chk.error });
       }
-      const storage = await getStorage(db);
-      const name = decodeURIComponent(url.split('/').pop() || '').replace(/[^\w.\-]/g, '_') || `net-${Date.now()}`;
-      const key = `material/${req.customerId}/${Date.now()}-${name}`;
+    const storage = await getStorage(db);
+      // 网络 URL 常常没有可用的文件名（无扩展名 / 无文件名），统一用 ensureExtension 补全
+      const rawName = decodeURIComponent(url.split('/').pop() || '').replace(/[^\w.\-]/g, '_');
+      const name = rawName && rawName !== '_' ? rawName : `net-${Date.now()}`;
+      const key = `material/${req.customerId}/${Date.now()}-${ensureExtension(name, ctype, buf)}`;
       const fileUrl = await storage.put(buf, key);
       const type = isVid ? 'mp4' : (ctype.split('/')[1] || (IMG_EXT_RE.exec(url) ? IMG_EXT_RE.exec(url)[1].replace('jpeg', 'jpg') : 'jpg'));
       const r = svc.addMaterial(req.customerId, {

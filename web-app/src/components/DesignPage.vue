@@ -1713,6 +1713,30 @@ function openChannel(kind, p) {
 .dp-image-item { position: relative; overflow: hidden; }
 .dp-image-item .dp-image-img { border-radius: 0; }
 .dp-image-hotspot { position: absolute; z-index: 2; }
+/* 未配置图片时的占位块。之前 C 端**完全没有**这条规则（设计器侧有 .r-image-empty），
+   占位 view 无高度 → 在小程序端高度塌成 0，整块「看不见」，运营在后台预览到的是虚线框、
+   C 端却什么都看不到。此处按设计器侧规格补齐，并对齐 1:1。
+   ⚠️ 别再改回固定 88px：图片组件的占位应按容器比例撑开（710×388 ≈ 16:9），
+   与真图 widthFix 撑出的高度一致，避免「配图后页面突然变高」造成布局跳动。 */
+.dp-image-empty {
+  width: 100%;
+  aspect-ratio: 710 / 388;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  color: #86909c;
+  font-size: 12px;
+  background: #f7f8fa;
+  border: 1px dashed #c9cdd4;
+  border-radius: 8px;
+}
+.dp-image-item .dp-image-empty { border-radius: 8px; }
+/* 双图行内的占位块跟着行高走，不按16:9撑（否则两列各撑一半宽高，行内高低不齐） */
+.dp-image-row .dp-image-empty { aspect-ratio: auto; height: 100%; min-height: 88px; border-radius: 0; }
 
 .dp-card-shadow { box-shadow: 0 2px 8px rgba(31,35,41,0.1); }
 .dp-card-border { border: 1px solid #E5E6EB; }
