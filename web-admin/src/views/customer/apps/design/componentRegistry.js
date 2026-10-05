@@ -214,6 +214,8 @@ export const componentRegistry = [
       columns: 4, imgSize: 43, fontSize: 14, bold: false,
       bgColor: 'transparent', compBgColor: '', itemBgColor: 'transparent',
       textColor: '#333333', borderColor: '#EDEDED',
+      // 标签（角标）组件级尺寸：默认 = 实测视觉值（高 14 / 字 8），存量数据无此键回落同值零变化
+      markSize: 14, markFontSize: 8,
       marginTop: 8, marginBottom: 8, marginLR: 0,
       radiusTop: 0, radiusBottom: 0,
       memberLevel: 'all',
@@ -233,14 +235,17 @@ export const componentRegistry = [
     },
     schema: [
       // ── 内容 ──
-      { key: 'navStyle', label: '按钮样式', control: 'radio', graphic: true, section: 'content', options: [
-        { label: '图片+文字', value: 'style1' },
-        { label: '图片', value: 'style2' },
-        { label: '文字', value: 'style3' },
+      // graphicLabel=true：图形化 radio 也显示字段名（2026-10-06 用户反馈：两排示意图都没有标题，
+      // 不知道各自在设什么）；graphicSmall=true：示意图收小（56px→36px 高）。
+      // 按钮样式示意图按「图片+文字 / 仅图片 / 仅文字」重画（旧图三张几乎一样，体现不出含义）。
+      { key: 'navStyle', label: '按钮样式', control: 'radio', graphic: true, graphicLabel: true, graphicSmall: true, section: 'content', options: [
+        { label: '图片+文字', value: 'style1', menuStyle: 'style1' },
+        { label: '图片', value: 'style2', menuStyle: 'style2' },
+        { label: '文字', value: 'style3', menuStyle: 'style3' },
       ] },
       // 形状用图形预览（对标站就是图形预览 radio，不是纯文字 —— 见反模式清单）。
       // `shapePreview` 是预览圆角（999=圆形），如实反映实测值：0 / 10px / 50%。
-      { key: 'navShape', label: '按钮形状', control: 'radio', graphic: true, section: 'content', options: [
+      { key: 'navShape', label: '按钮形状', control: 'radio', graphic: true, graphicLabel: true, graphicSmall: true, section: 'content', options: [
         { label: '方形', value: 'square', shapePreview: 0 },
         { label: '圆角', value: 'arc', shapePreview: 5 },
         { label: '圆形', value: 'circle', shapePreview: 999 },
@@ -255,15 +260,16 @@ export const componentRegistry = [
           // 对标站实测：图片/图标字段随「按钮类型」互斥出现，文字字段随「按钮样式」出现。
           // 🔴 `mini: true` = 40px 缩略图（用户 2026-10-05 反馈 130px 大图 + 说明文字太占空间）；
           //    `help: ''` = 去掉「建议图片宽度750…」说明文字（list 控件里 undefined 才给默认文案）。
-          { key: 'imgUrl', label: '图片', control: 'image', mini: true, help: '', whenProps: { iconType: '1', navStyle: ['style1', 'style2'] } },
+          // 🔴 `inline: true` = 参数名与参数左右排列（2026-10-06 用户反馈：上下排列太占高度）。
+          { key: 'imgUrl', label: '图片', control: 'image', mini: true, inline: true, help: '', whenProps: { iconType: '1', navStyle: ['style1', 'style2'] } },
           // 「按钮类型=图标」时选 SIcon 图标名（与宫格导航同一套 ICON_OPTIONS）
-          { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS, whenProps: { iconType: '2' } },
-          { key: 'text', label: '文字', control: 'input', maxlength: 5, whenProps: { navStyle: ['style1', 'style3'] } },
-          { key: 'url', label: '链接', control: 'link' },
-          { key: 'labelStatus', label: '标签', control: 'switch' },
-          { key: 'label', label: '标签内容', control: 'input', maxlength: 2, when: { labelStatus: true } },
-          { key: 'labelBgColor', label: '标签背景', control: 'color', when: { labelStatus: true } },
-          { key: 'labelTextColor', label: '标签文字', control: 'color', when: { labelStatus: true } },
+          { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS, inline: true, whenProps: { iconType: '2' } },
+          { key: 'text', label: '文字', control: 'input', maxlength: 5, inline: true, whenProps: { navStyle: ['style1', 'style3'] } },
+          { key: 'url', label: '链接', control: 'link', inline: true },
+          { key: 'labelStatus', label: '标签', control: 'switch', inline: true },
+          { key: 'label', label: '标签内容', control: 'input', maxlength: 2, inline: true, when: { labelStatus: true } },
+          { key: 'labelBgColor', label: '标签背景', control: 'color', inline: true, when: { labelStatus: true } },
+          { key: 'labelTextColor', label: '标签文字', control: 'color', inline: true, when: { labelStatus: true } },
         ],
       },
       // ── 组件样式 / 组件风格：对标站是 radio-button 段控件 ──
@@ -284,6 +290,9 @@ export const componentRegistry = [
       { key: 'itemBgColor', label: '底部背景', control: 'color', section: 'style' },
       { key: 'compBgColor', label: '组件背景', control: 'color', section: 'style' },
       { key: 'textColor', label: '文字颜色', control: 'color', section: 'style', when: { navStyle: ['style1', 'style3'] } },
+      // 标签（角标）尺寸：组件级，默认 = 实测视觉值（高 14 / 字 8）。角标只出现在含图的档位。
+      { key: 'markSize', label: '标签大小', control: 'slider', section: 'style', min: 10, max: 28, when: { navStyle: ['style1', 'style2'] } },
+      { key: 'markFontSize', label: '标签文字大小', control: 'slider', section: 'style', min: 6, max: 16, when: { navStyle: ['style1', 'style2'] } },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 50 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 50 },
       { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 50 },

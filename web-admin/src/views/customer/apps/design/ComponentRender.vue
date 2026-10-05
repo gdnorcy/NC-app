@@ -185,7 +185,7 @@
                 <PeSIcon v-if="comp.props.iconType === '2'" class="mg-ico" :name="it.icon || 'card'" :size="menuIconPx(comp.props)" :color="MENU_ICON_COLOR" />
                 <img v-else-if="it.imgUrl" :src="it.imgUrl" :style="{ borderRadius: menuImgRadius(comp.props), width: menuImgPx(comp.props), height: menuImgPx(comp.props) }" />
               </div>
-              <span v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</span>
+              <span v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it, comp.props)">{{ it.label }}</span>
             </div>
             <div v-if="menuParts(comp.props).text" class="mg-text" :style="menuTextStyle(comp.props)">{{ it.text || '按钮文字' }}</div>
           </div>

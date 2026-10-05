@@ -215,7 +215,7 @@
               <div v-if="sec.fields.length" class="pe-sec">
                 <div v-if="sec.label" class="pe-sec-name">{{ sec.label }}</div>
                 <div v-if="sec.desc" style="font-size:12px;color:#86909C;margin:-6px 0 8px;line-height:1.5;">{{ sec.desc }}</div>
-                <el-form-item v-for="(f, fi) in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'pe-label-top': f.label === '选择商品', 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint', 'pe-when-field': !!f.when && /^buyBtn|^btnColorMode/.test(f.key), 'pe-when-group-start': !!f.when && /^buyBtn|^btnColorMode/.test(f.key) && (!sec.fields[fi-1] || !(/^buyBtn|^btnColorMode/.test(sec.fields[fi-1].key))), 'pe-when-group-end': !!f.when && /^buyBtn|^btnColorMode/.test(f.key) && (!sec.fields[fi+1] || !(/^buyBtn|^btnColorMode/.test(sec.fields[fi+1].key))) }">
+                <el-form-item v-for="(f, fi) in sec.fields" :key="f.key" :label="(f.control === 'hint' || (f.control === 'radio' && f.graphic && !f.graphicLabel) || f.control === 'richtext') ? '' : f.label" :class="{ required: f.required, 'pe-label-top': f.label === '选择商品' || (f.control === 'radio' && f.graphic && f.graphicLabel), 'prop-list': f.control === 'list' || f.control === 'cube-cell-fill' || f.control === 'cube-cell-pos' || f.control === 'fill' || f.control === 'pos', 'pe-form-hint': f.control === 'hint', 'pe-when-field': !!f.when && /^buyBtn|^btnColorMode/.test(f.key), 'pe-when-group-start': !!f.when && /^buyBtn|^btnColorMode/.test(f.key) && (!sec.fields[fi-1] || !(/^buyBtn|^btnColorMode/.test(sec.fields[fi-1].key))), 'pe-when-group-end': !!f.when && /^buyBtn|^btnColorMode/.test(f.key) && (!sec.fields[fi+1] || !(/^buyBtn|^btnColorMode/.test(sec.fields[fi+1].key))) }">
                   <el-alert v-if="f.control === 'hint'" :title="f.label" type="warning" :closable="false" class="pe-hint" />
                   <el-input v-else-if="f.control === 'input'" v-model="selectedComp.props[f.key]" :placeholder="f.placeholder || ''" :maxlength="f.maxlength || undefined" :show-word-limit="!!f.maxlength" />
                   <el-input v-else-if="f.control === 'textarea'" v-model="selectedComp.props[f.key]" type="textarea" :rows="f.rows || 4" :placeholder="f.placeholder || ''" />
@@ -244,7 +244,7 @@
                     @select-cell="onCubeLayoutSelect"
                   />
                   <!-- 图形化单选（选择风格：一列/两列并排，仿 eweishop 图形卡片） -->
-                  <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic">
+                  <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic" :class="{ 'pe-graphic-sm': f.graphicSmall }">
                     <div
                       v-for="o in f.options" :key="o.value"
                       class="pe-graphic-item" :class="{ active: String(selectedComp.props[f.key]) === String(o.value) }"
@@ -287,6 +287,21 @@
                         <template v-else-if="String(o.value)==='4'"><rect x="2" y="8" width="50" height="40" rx="4" fill="#F2F3F5"/><rect x="56" y="8" width="30" height="40" rx="4" fill="#F2F3F5"/><rect x="6" y="12" width="42" height="24" rx="2" fill="#C9CDD4"/><rect x="60" y="12" width="22" height="24" rx="2" fill="#C9CDD4"/></template>
                         <template v-else-if="String(o.value)==='5'"><rect x="2" y="4" width="84" height="22" rx="4" fill="#F2F3F5"/><rect x="6" y="8" width="18" height="14" rx="2" fill="#C9CDD4"/><rect x="28" y="9" width="40" height="3" rx="1.5" fill="#C9CDD4"/><rect x="28" y="15" width="25" height="3" rx="1.5" fill="#E5E6EB"/><rect x="6" y="30" width="18" height="14" rx="2" fill="#C9CDD4"/><rect x="28" y="31" width="40" height="3" rx="1.5" fill="#C9CDD4"/><rect x="28" y="37" width="25" height="3" rx="1.5" fill="#E5E6EB"/></template>
                         <template v-else-if="String(o.value)==='6'"><rect x="2" y="4" width="84" height="16" rx="4" fill="#F2F3F5"/><rect x="6" y="7" width="10" height="10" rx="2" fill="#C9CDD4"/><rect x="20" y="8" width="50" height="3" rx="1.5" fill="#C9CDD4"/><rect x="6" y="24" width="80" height="16" rx="4" fill="#F2F3F5"/><rect x="10" y="27" width="10" height="10" rx="2" fill="#C9CDD4"/><rect x="24" y="28" width="50" height="3" rx="1.5" fill="#C9CDD4"/></template><template v-else-if="String(o.value)==='7'"><rect x="2" y="4" width="40" height="22" rx="4" fill="#F2F3F5"/><rect x="46" y="4" width="40" height="22" rx="4" fill="#F2F3F5"/><rect x="6" y="8" width="32" height="14" rx="2" fill="#C9CDD4"/><rect x="50" y="8" width="32" height="14" rx="2" fill="#C9CDD4"/><rect x="6" y="30" width="80" height="22" rx="4" fill="#F2F3F5"/><rect x="10" y="34" width="72" height="14" rx="2" fill="#C9CDD4"/></template>
+                      </svg>
+                      <!-- 按钮组·按钮样式（menuStyle）：按「图片+文字 / 仅图片 / 仅文字」直画，蓝色块 =
+                           该档位实际渲染的部分，三档一眼可辨（旧图三张几乎一样被判「体现不出含义"） -->
+                      <svg v-else-if="o.menuStyle === 'style1'" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="5" y="5" width="34" height="34" rx="6" fill="#F2F3F5"/>
+                        <rect x="15" y="9" width="14" height="14" rx="3" fill="#165DFF" opacity=".75"/>
+                        <rect x="12" y="28" width="20" height="4" rx="2" fill="#C9CDD4"/>
+                      </svg>
+                      <svg v-else-if="o.menuStyle === 'style2'" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="5" y="5" width="34" height="34" rx="6" fill="#F2F3F5"/>
+                        <rect x="15" y="15" width="14" height="14" rx="3" fill="#165DFF" opacity=".75"/>
+                      </svg>
+                      <svg v-else-if="o.menuStyle === 'style3'" class="pe-graphic-svg" viewBox="0 0 44 44">
+                        <rect x="5" y="5" width="34" height="34" rx="6" fill="#F2F3F5"/>
+                        <rect x="10" y="20" width="24" height="4" rx="2" fill="#165DFF" opacity=".75"/>
                       </svg>
                       <svg v-else class="pe-graphic-svg" viewBox="0 0 88 56">
                         <rect x="2" y="4" width="40" height="48" rx="6" fill="#F2F3F5"/>
@@ -480,7 +495,7 @@
                           <details v-if="grp.section === 'opt'" class="pe-list-details">
                             <summary class="pe-list-fold-btn">选填项（{{ grp.fields.map((x) => x.label).join('、') }}）</summary>
                             <div class="pe-list-fold-body">
-                              <div v-for="(sf, si) in grp.fields" :key="si" class="pe-list-field" :class="sf.compact ? 'pe-list-compact' : ''">
+                              <div v-for="(sf, si) in grp.fields" :key="si" class="pe-list-field" :class="[sf.compact ? 'pe-list-compact' : '', sf.inline ? 'pe-list-inline' : '']">
                                 <div class="pe-list-label">{{ sf.label }}</div>
                                 <div class="pe-list-ctr">
                                   <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
@@ -504,7 +519,7 @@
                             </div>
                           </details>
                           <template v-else>
-                            <div v-for="(sf, si) in grp.fields" :key="si" class="pe-list-field" :class="sf.compact ? 'pe-list-compact' : ''">
+                            <div v-for="(sf, si) in grp.fields" :key="si" class="pe-list-field" :class="[sf.compact ? 'pe-list-compact' : '', sf.inline ? 'pe-list-inline' : '']">
                               <div class="pe-list-label">{{ sf.label }}</div>
                               <div class="pe-list-ctr">
                                 <el-radio-group v-if="sf.control === 'radio'" :model-value="listVal(it, sf)" @update:model-value="it[sf.key] = $event" size="small">
@@ -2523,6 +2538,10 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-graphic-item:hover { border-color: #c9cdd4; }
 .pe-graphic-item.active { border-color: #165dff; background: #f7fbff; box-shadow: 0 0 0 1px #165dff; }
 .pe-graphic-svg { width: 100%; height: 56px; display: block; }
+/* 小示意图档（graphicSmall）：按钮组「按钮样式/按钮形状」等两字短标题场景，56px 太占高度 */
+.pe-graphic-sm .pe-graphic-svg { height: 36px; }
+.pe-graphic-sm .pe-graphic-item { padding: 6px 4px 4px; }
+.pe-graphic-sm .pe-graphic-name { font-size: 11px; }
 .pe-graphic-name { font-size: 12px; color: #4e5969; white-space: nowrap; }
 .pe-graphic-item.active .pe-graphic-name { color: #165dff; font-weight: 500; }
 .pe-graphic-check { position: absolute; top: 4px; right: 6px; width: 16px; height: 16px; border-radius: 50%; background: #165dff; color: #fff; font-size: 10px; line-height: 16px; text-align: center; display: none; }
@@ -2572,6 +2591,10 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pe-list-drag { color: #c9cdd4; font-size: 16px; line-height: 1.2; cursor: grab; user-select: none; flex-shrink: 0; }
 .pe-list-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .pe-list-field { display: flex; flex-direction: column; gap: 2px; }
+/* 左右排列档（inline）：参数名固定 56px 在左、控件在右，省高度（按钮组图标设置等） */
+.pe-list-field.pe-list-inline { flex-direction: row; align-items: center; gap: 8px; }
+.pe-list-field.pe-list-inline .pe-list-label { width: 56px; flex-shrink: 0; margin: 0; }
+.pe-list-field.pe-list-inline .pe-list-ctr { flex: 1; min-width: 0; }
 .pe-list-field.pe-list-compact { flex-direction: row; align-items: center; gap: 8px; }
 .pe-list-field.pe-list-compact .pe-list-label { width: 56px; flex-shrink: 0; margin: 0; }
 .pe-list-ctr { flex: 1; min-width: 0; display: flex; align-items: center; }

@@ -71,4 +71,34 @@ describe('按钮组 menu-group schema', () => {
     expect(comp.defaultProps.iconType).toBe('1');
     expect(comp.defaultProps.navStyle).toBe('style1');
   });
+
+  // ── 2026-10-06 三条反馈 ──
+  it('样式区新增 标签大小/标签文字大小 滑杆（组件级，仅含图档位显示）', () => {
+    const mark = comp.schema.filter((f) => f.key === 'markSize' || f.key === 'markFontSize');
+    expect(mark.map((f) => f.key)).toEqual(['markSize', 'markFontSize']);
+    for (const f of mark) {
+      expect(f.control).toBe('slider');
+      expect(f.section).toBe('style');
+      expect(f.when).toEqual({ navStyle: ['style1', 'style2'] });
+    }
+    expect(comp.defaultProps.markSize).toBe(14); // 实测视觉值，存量数据零变化
+    expect(comp.defaultProps.markFontSize).toBe(8);
+  });
+
+  it('图标设置的字段全部左右排列（inline）', () => {
+    for (const f of itemsField.itemFields) expect(f.inline).toBe(true);
+  });
+
+  it('按钮样式/按钮形状 显示标题 + 小示意图，样式示意图三档可辨', () => {
+    const navStyle = comp.schema.find((f) => f.key === 'navStyle');
+    const navShape = comp.schema.find((f) => f.key === 'navShape');
+    for (const f of [navStyle, navShape]) {
+      expect(f.graphic).toBe(true);
+      expect(f.graphicLabel).toBe(true); // 图形化 radio 也显示字段名
+      expect(f.graphicSmall).toBe(true); // 示意图收小（56→36px）
+    }
+    // 三档各带 menuStyle 预览标识，值与档位一一对应
+    expect(navStyle.options.map((o) => o.menuStyle)).toEqual(['style1', 'style2', 'style3']);
+    expect(navShape.options.every((o) => 'shapePreview' in o)).toBe(true);
+  });
 });

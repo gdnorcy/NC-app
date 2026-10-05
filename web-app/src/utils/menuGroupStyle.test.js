@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   MENU_SHAPE_RADIUS, MENU_STYLE_PARTS, MENU_LIMITS,
   menuRootClass, menuRootStyle, menuItemStyle,
-  menuIconStyle, menuImgStyle, menuTextStyle,
+  menuIconStyle, menuImgStyle, menuTextStyle, menuMarkStyle,
 } from './menuGroupStyle.js';
 
 // 基准值全部来自对标站（eweishop，内部键名 menu）CDP 实测，改动前请先复核对标站
@@ -112,5 +112,30 @@ describe('menuGroupStyle · 对标站实测值锁定', () => {
     expect(MENU_LIMITS.radius).toEqual({ min: 0, max: 20 });
     expect(MENU_LIMITS.fontSize).toEqual({ min: 8, max: 17 });
     expect(MENU_LIMITS.imgSize).toEqual({ min: 20, max: 60 });
+  });
+
+  // ── 标签（角标）尺寸：2026-10-06 新增组件级参数 markSize / markFontSize ──
+  it('角标默认尺寸 = 实测视觉值（高 14 / 字 8），props 缺省也回落同值', () => {
+    const it = { labelBgColor: '#F83287', labelTextColor: '#FFFFFF' };
+    for (const p of [{}, undefined, { markSize: 14, markFontSize: 8 }]) {
+      const s = menuMarkStyle(it, p);
+      expect(s.height).toBe('14px');
+      expect(s.lineHeight).toBe('14px');
+      expect(s.fontSize).toBe('8px');
+    }
+    // 单参缺省另一参也各自兜底
+    expect(menuMarkStyle(it, { markSize: 20 }).height).toBe('20px');
+    expect(menuMarkStyle(it, { markSize: 20 }).fontSize).toBe('8px');
+    expect(menuMarkStyle(it, { markFontSize: 12 }).height).toBe('14px');
+    expect(menuMarkStyle(it, { markFontSize: 12 }).fontSize).toBe('12px');
+  });
+
+  it('角标尺寸夹紧到滑杆范围（高 10~28 / 字 6~16），颜色仍取项级字段', () => {
+    const s = menuMarkStyle({ labelBgColor: '#FF0000', labelTextColor: '#00FF00' }, { markSize: 99, markFontSize: 1 });
+    expect(s.height).toBe('28px');
+    expect(s.fontSize).toBe('6px');
+    expect(s.background).toBe('#FF0000');
+    expect(s.color).toBe('#00FF00');
+    expect(menuMarkStyle({}, { markSize: 5 }).height).toBe('10px');
   });
 });

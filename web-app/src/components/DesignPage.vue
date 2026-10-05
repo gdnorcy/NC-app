@@ -225,7 +225,7 @@
                   <SIcon v-if="c.props.iconType === '2'" class="mg-ico" :name="it.icon || 'card'" :size="menuIconPx(c.props)" :color="MENU_ICON_COLOR" />
                   <image v-else-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
                 </view>
-                <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</text>
+                <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it, c.props)">{{ it.label }}</text>
               </view>
               <text v-if="menuParts(c.props).text" class="mg-text" :style="menuTextStyle(c.props)">{{ it.text || '按钮文字' }}</text>
             </view>
@@ -244,7 +244,7 @@
                 <SIcon v-if="c.props.iconType === '2'" class="mg-ico" :name="it.icon || 'card'" :size="menuIconPx(c.props)" :color="MENU_ICON_COLOR" />
                 <image v-else-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
               </view>
-              <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</text>
+              <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it, c.props)">{{ it.label }}</text>
             </view>
             <text v-if="menuParts(c.props).text" class="mg-text" :style="menuTextStyle(c.props)">{{ it.text || '按钮文字' }}</text>
           </view>

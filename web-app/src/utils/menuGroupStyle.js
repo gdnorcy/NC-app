@@ -135,13 +135,22 @@ export function menuImgStyle(p) {
   return s;
 }
 
-/** 角标（.mark）样式：实测 29×14 · radius 16px 16px 16px 0 · 1px solid #fff 内描边 */
-export function menuMarkStyle(it) {
-  const s = {
+/**
+ * 角标（.mark）样式：实测 29×14 · radius 16px 16px 16px 0 · 1px solid #fff 内描边
+ * 标签大小 markSize（高，默认 14=实测视觉值）与标签文字大小 markFontSize（默认 8=实测视觉值）
+ * 是组件级参数（2026-10-06 用户新增，对标站没有），颜色仍是项级 labelBgColor/labelTextColor。
+ * 🔴 p 缺省时回落实测默认值 —— 两端 CSS 基础值与之保持一致，存量数据无此键也不变形。
+ */
+export function menuMarkStyle(it, p = {}) {
+  const h = Math.min(28, Math.max(10, Math.round(Number(p.markSize) || 14)));
+  const fs = Math.min(16, Math.max(6, Math.round(Number(p.markFontSize) || 8)));
+  return {
     background: it.labelBgColor || '#F83287',
     color: it.labelTextColor || '#FFFFFF',
+    height: h + 'px',
+    lineHeight: h + 'px',
+    fontSize: fs + 'px',
   };
-  return s;
 }
 
 /** 文字样式：实测 lh = fontSize + 7（14→21），margin-top 恒 4px */
