@@ -5,13 +5,8 @@
     </view>
     <!-- 顶部标题 -->
     <view class="header">
-      <view class="page-bar">
-        <view class="bar-back" @click="goBack">
-          <text class="bar-back-arrow">‹</text>
-        </view>
-        <view class="bar-title">{{ isEdit ? '编辑名片' : '创建名片' }}</view>
-        <view class="bar-right"></view>
-      </view>
+<!-- PageNav -->
+      <PageNav :title="isEdit ? '编辑名片' : '创建名片'" back></PageNav>
       <view class="row1">
         <view class="row1-l">
           <view class="title">{{ isEdit ? '编辑名片' : '创建你的名片' }}</view>
@@ -242,6 +237,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';

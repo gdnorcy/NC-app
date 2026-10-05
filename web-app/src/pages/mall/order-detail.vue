@@ -1,10 +1,7 @@
 <template>
   <view class="order-detail-page">
-    <view class="mall-nav">
-      <view class="nav-back" @click="goBack"><text>‹</text></view>
-      <text class="nav-title">订单详情</text>
-      <view class="nav-side"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="订单详情" back></PageNav>
 
     <scroll-view class="detail-scroll" scroll-y :show-scrollbar="false">
       <template v-if="order">
@@ -90,6 +87,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
@@ -190,32 +188,6 @@ onLoad((o) => {
   background: #f7f8fa;
   overflow: hidden;
   box-sizing: border-box;
-}
-.mall-nav {
-  display: flex;
-  align-items: center;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #ffffff;
-  border-bottom: 1rpx solid #f2f3f5;
-  box-sizing: border-box;
-}
-.nav-back { width: 60rpx; font-size: 44rpx; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.nav-side { width: 60rpx; }
-.detail-scroll { flex: 1; height: 0; }
-.status-head { padding: 48rpx 32rpx; color: #fff; }
-.hd-pending { background: #f53f3f; }
-.hd-paid { background: #ff7d00; }
-.hd-shipped { background: #165dff; }
-.hd-done { background: #00b42a; }
-.hd-closed { background: #86909c; }
-.hd-refunding { background: #ff7d00; }
-.hd-refunded { background: #86909c; }
-.status-title { font-size: 38rpx; font-weight: 600; }
-.status-desc { font-size: 26rpx; margin-top: 8rpx; opacity: 0.85; }
-.card {
-  background: #fff; border-radius: 16rpx; margin: 16rpx; padding: 24rpx;
 }
 .card-title { font-size: 30rpx; font-weight: 600; color: #1d2129; margin-bottom: 16rpx; }
 .info-row {

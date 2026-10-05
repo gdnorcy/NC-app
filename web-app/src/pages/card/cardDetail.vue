@@ -2,6 +2,8 @@
   <!-- ===== 名片详情页（全局对外展示落地页｜所有人可见） =====
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
   <view class="profile-page">
+<!-- PageNav -->
+<PageNav title="名片详情" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
     <view class="hero" :class="layoutFull ? 'hero-full' : 'hero-' + heroLayout" :style="heroStyle">
       <!-- 模板主题 overlay：纹理 + 顶部渐变条 -->
@@ -285,6 +287,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted } from 'vue';
 import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';

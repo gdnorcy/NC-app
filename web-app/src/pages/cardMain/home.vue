@@ -1,7 +1,7 @@
 <template>
   <view class="home-page" :style="pageBgStyle">
     <!-- 分享进入 + 主题设置「返回上页」开启：顶部返回首页按钮（小程序端） -->
-    <view v-if="shareBack" class="share-back" @click="goHomeByShare">
+    <view v-if="shareBack" class="share-back" :style="{ top: shareBackTop }" @click="goHomeByShare">
       <text class="share-back-arrow">‹</text>
       <text class="share-back-text">返回首页</text>
     </view>
@@ -9,7 +9,7 @@
     <DesignNav v-if="designHeader && designHeader.scheme !== 2" :header="designHeader" page-name="首页" />
     <DesignNavEw v-else-if="designHeader" :header="designHeader" page-name="首页" :scrolled="headerScrolled" @search="goSearch" />
     <!-- 无页面头部配置时：系统风格「头部颜色/头部文字」全局默认头部（页面装修头部设置可单页覆盖） -->
-    <view v-else-if="sysHeadStyle" class="sys-head" :style="sysHeadStyle" @click="goPage('/pages/card/profile')">
+    <view v-else-if="sysHeadStyle" class="sys-head" :style="[sysHeadStyle, { paddingTop: sysHeadPadTop, paddingRight: sysHeadPadRight }]" @click="goPage('/pages/card/profile')">
       <text class="sys-head-title" :style="{ color: sysHeadText }">{{ designTheme.shareTitle || '首页' }}</text>
       <view class="sys-head-avatar" :style="{ background: sysHeadText }">
         <SIcon name="user" size="small" color="#ffffff" />
@@ -19,7 +19,7 @@
     <!-- 装修组件区：DIY 组件与名片模块组件按配置顺序渲染（可穿插排序） -->
     <template v-if="designComps.length" v-for="(c, i) in designComps" :key="i">
       <!-- 名片搜索栏 -->
-      <view v-if="c.type === 'native-search'" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }" :style="nativeMargin(c.props)">
+      <view v-if="c.type === 'native-search'" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }" :style="topBarStyle(c.props)">
         <view class="search-box" :style="searchBoxStyle(c.props)" @click="goSearch">
           <SIcon name="dynamic" size="small" :color="c.props.textColor || '#86909c'" />
           <text class="search-placeholder" :style="{ color: c.props.textColor || '#86909c' }">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
@@ -146,6 +146,7 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { onShow, onLoad, onPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
+import { getNavMetrics } from '../../utils/navMetrics.js';
 import { qsParse } from '../../utils/qs.js';
 import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
@@ -175,6 +176,19 @@ function nativeMargin(props) {
   const s = {};
   if (p.marginTop) s.marginTop = p.marginTop + 'px';
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  return s;
+}
+
+/**
+ * 搜索栏样式 = 组件配置的上下外边距 +（无设计导航时）状态栏占位。
+ * 状态栏高度必须按机型动态取（getNavMetrics），不能用 88rpx 写死：
+ * 刘海机状态栏约 44px、非刘海约 20px，写死必然一头高一头低。
+ * with-design-nav 时设计导航已占位，不再重复加。
+ */
+function topBarStyle(props) {
+  const s = nativeMargin(props);
+  const hasDesignNav = (designHeader.value && designHeader.value.type !== 'immersive') || sysHeadStyle.value;
+  if (!hasDesignNav) s.paddingTop = getNavMetrics().statusBarHeight + 'px';
   return s;
 }
 // 名片宫格：配置 items 优先；无配置（旧数据）回退系统默认宫格
@@ -230,6 +244,10 @@ const sysHeadText = computed(() => {
   if (!st) return '#ffffff';
   return st.headColor === '2' ? '#000000' : st.headText;
 });
+// 沉浸式：状态栏高度按机型动态取（刘海机 ~44px / 非刘海 ~20px），并预留右侧胶囊宽度
+const sysHeadPadTop = computed(() => getNavMetrics().statusBarHeight + 'px');
+const sysHeadPadRight = computed(() => getNavMetrics().capsuleRightPad + 8 + 'px');
+const shareBackTop = computed(() => getNavMetrics().statusBarHeight + 8 + 'px');
 // 页面背景 = 页面装修「全局设置」的背景色/背景图（C 端真机渲染，编辑端 phoneStyle 同源）
 const pageBgStyle = computed(() => {
   const g = designGlobal.value || {};
@@ -427,7 +445,7 @@ function viewMarketCard(item) {
 /* 分享进入 + 「返回上页」开启：顶部返回首页按钮 */
 .share-back {
   position: fixed;
-  top: calc(var(--status-bar-height, 0px) + 8px);
+  top: calc(var(--pnv-status-bar, 20px) + 8px);
   left: 10px;
   z-index: 300;
   display: flex;
@@ -448,18 +466,20 @@ function viewMarketCard(item) {
   padding-bottom: 120rpx;
 }
 
-/* 顶部搜索栏 */
+/* 顶部搜索栏：无设计导航时状态栏占位由 topBarStyle() 内联注入（按机型动态算） */
 .top-bar {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  padding: 88rpx 24rpx 24rpx;
+  padding: 24rpx;
   background: #fff;
 }
-/* 系统风格全局默认头部（无页面头部配置时）：背景=头部颜色，文字=头部文字 */
+/* 系统风格全局默认头部（无页面头部配置时）：背景=头部颜色，文字=头部文字
+   状态栏占位与右侧胶囊避让由 sysHeadPadTop / sysHeadPadRight 内联注入 */
 .sys-head {
   display: flex; align-items: center; justify-content: space-between;
-  height: 88rpx; padding: 88rpx 32rpx 0;
+  height: 88rpx;
+  padding-left: 32rpx;
   box-sizing: content-box;
 }
 .sys-head-title { font-size: 34rpx; font-weight: 600; }

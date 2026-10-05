@@ -1,11 +1,8 @@
 <template>
   <view class="art-list-page">
     <!-- 自定义导航 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack"><text class="back-arrow">‹</text></view>
-      <view class="nav-title">文章列表</view>
-      <view class="nav-right"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="文章列表" back></PageNav>
 
     <!-- 分类 tab -->
     <scroll-view scroll-x class="cate-tabs" :show-scrollbar="false">
@@ -45,6 +42,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi';
@@ -110,11 +108,6 @@ function goBack() { uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/
 
 <style scoped>
 .art-list-page { min-height: 100vh; background: #f7f8fa; }
-.nav-bar { display: flex; align-items: center; height: 44px; padding: 0 8px; background: #fff; position: sticky; top: 0; z-index: 10; }
-.nav-back { width: 44px; height: 44px; display: flex; align-items: center; }
-.back-arrow { font-size: 28px; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 16px; font-weight: 600; color: #1d2129; }
-.nav-right { width: 44px; }
 .cate-tabs { white-space: nowrap; background: #fff; padding: 8px 4px; border-bottom: 1px solid #f2f3f5; }
 .cate-tab { display: inline-block; padding: 6px 14px; margin: 0 4px; font-size: 13px; color: #4e5969; background: #f7f8fa; border-radius: 16px; }
 .cate-tab.on { color: #165dff; background: #e8f3ff; font-weight: 500; }

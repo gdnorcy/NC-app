@@ -25,7 +25,7 @@
       </scroll-view>
     </view>
     <!-- 返回按钮 -->
-    <view class="back-btn" @tap="goBack">
+    <view class="back-btn" :style="{ top: backTop }" @tap="goBack">
       <text>←</text>
     </view>
   </view>
@@ -33,6 +33,7 @@
 
 <script>
 import PanoramaViewer from '@/components/PanoramaViewer.vue';
+import { getNavMetrics } from '@/utils/navMetrics.js';
 
 export default {
   components: { PanoramaViewer },
@@ -45,6 +46,10 @@ export default {
     };
   },
   computed: {
+    // 沉浸式：状态栏高度按机型动态取（刘海机 ~44px / 非刘海 ~20px），不能写死
+    backTop() {
+      return getNavMetrics().statusBarHeight + 8 + 'px';
+    },
     currentScene() {
       return this.scenes.find(s => s.id === this.currentSceneId);
     },
@@ -133,7 +138,7 @@ export default {
 }
 .back-btn {
   position: absolute;
-  top: 44px;
+  /* 沉浸式：状态栏高度由 navMetrics 按机型算出，top 由 backTop 内联注入 */
   left: 16px;
   width: 36px;
   height: 36px;

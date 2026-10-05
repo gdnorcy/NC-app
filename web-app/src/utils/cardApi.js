@@ -9,12 +9,13 @@ import { DEFAULT_TENANT_ID } from '../config.js';
 // - H5：浏览器与服务器同机，用 localhost 即可。
 // - 小程序真机：手机上的 localhost 指向「手机自己」，访问不到电脑服务器 → 必须用电脑的局域网 IP。
 //   （此 IP 由路由器 DHCP 分配，可能变化；换网络后需回来改这里。手机与电脑须在同一局域网/同一 WiFi。）
-// #ifdef MP-WEIXIN
-const HOST = 'http://192.168.3.19:3000'; // 电脑局域网 IP（真机调试用）
-// #endif
-// #ifndef MP-WEIXIN
-const HOST = 'http://localhost:3000'; // H5 同机开发
-// #endif
+//
+// 这里不用 // #ifdef MP-WEIXIN 条件编译，而是运行时探测：
+// 条件编译只在 uni 编译链生效，vitest / node 直接跑源码时两个分支会同时保留，
+// 写成两个 const 会抛「重复声明」SyntaxError，改成 let 又会让非小程序分支被错误覆盖。
+// 运行时判据与条件编译等价：非小程序端有 window，微信小程序端没有。
+const IS_MP_WEIXIN = typeof window === 'undefined' && typeof wx !== 'undefined' && typeof uni !== 'undefined' && !!uni.getSystemInfoSync;
+const HOST = IS_MP_WEIXIN ? 'http://192.168.3.19:3000' : 'http://localhost:3000';
 
 const BASE_URL = HOST + '/api/card';
 const MARKET_BASE_URL = HOST + '/api/card-market';

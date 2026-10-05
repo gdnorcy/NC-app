@@ -1,11 +1,8 @@
 <template>
   <view class="tpl-select-page">
     <!-- 导航 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="uni.navigateBack()">‹</view>
-      <view class="nav-title">更换模板</view>
-      <view class="nav-right"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="更换模板" back></PageNav>
 
     <view class="cur-tpl" v-if="card.templateId">
       <text class="cur-label">当前模板</text>
@@ -45,6 +42,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
@@ -142,10 +140,6 @@ onLoad((options) => {
 
 <style scoped>
 .tpl-select-page { min-height: 100vh; background: #f6f7fb; display: flex; flex-direction: column; padding-bottom: 40rpx; }
-.nav-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; padding: 20rpx 24rpx; background: #fff; }
-.nav-back { font-size: 44rpx; color: #1d2129; width: 60rpx; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.nav-right { width: 60rpx; }
 .cur-tpl { margin: 20rpx 24rpx 0; padding: 20rpx 24rpx; background: #fff; border-radius: 16rpx; display: flex; align-items: center; gap: 16rpx; }
 .cur-label { font-size: 26rpx; color: #86909c; }
 .cur-name { font-size: 28rpx; font-weight: 600; color: #165dff; }

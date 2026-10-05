@@ -3,10 +3,7 @@
        对外展示统一走 /pages/card/cardDetail -->
   <!-- 加载骨架（小程序/H5 通用）：带返回按钮，弱网时不至于无路可退 -->
   <view class="page-loading" v-if="loading">
-    <view class="sk-nav">
-      <view class="sk-back" @click="goBack"><SIcon name="dynamic" size="default" color="#1a1a1a" /></view>
-      <view class="sk-title"></view>
-    </view>
+    <PageNav title="我的名片" back></PageNav>
     <view class="sk-card">
       <view class="sk-avatar"></view>
       <view class="sk-lines">
@@ -32,11 +29,11 @@
 
   <view class="owner-page" v-else>
     <!-- 导航栏 -->
-    <view class="owner-nav">
-      <view class="on-back" @click="goBack"><SIcon name="dynamic" size="default" color="#1a1a1a" /></view>
-      <view class="on-title">我的名片</view>
-      <view class="on-edit" @click="editCard">编辑</view>
-    </view>
+    <PageNav title="我的名片" back>
+      <template #right>
+        <view class="on-edit" @click="editCard">编辑</view>
+      </template>
+    </PageNav>
 
     <!-- 身份切换器（入驻个人/企业员工，双身份时显示） -->
     <view class="owner-switch" v-if="subjectList.length > 1">
@@ -178,6 +175,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
@@ -459,7 +457,7 @@ function leaveTenant() {
 
 /* 加载骨架（小程序/H5 通用） */
 .page-loading { min-height: 100vh; background: var(--bg-page); padding: 0 24rpx; }
-.sk-nav { height: 88rpx; display: flex; align-items: center; gap: 24rpx; padding-top: 88rpx; }
+.sk-nav { height: 88rpx; display: flex; align-items: center; gap: 24rpx; }
 .sk-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; flex-shrink: 0; }
 .sk-title { width: 200rpx; height: 36rpx; border-radius: 8rpx; background: linear-gradient(90deg,#f0f1f3 25%,#e8eaed 37%,#f0f1f3 63%); background-size: 400% 100%; animation: sk-loading 1.4s ease infinite; }
 .sk-card {

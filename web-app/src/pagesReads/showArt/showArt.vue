@@ -1,10 +1,7 @@
 <template>
   <view class="art-detail-page">
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack"><text class="back-arrow">‹</text></view>
-      <view class="nav-title">文章详情</view>
-      <view class="nav-right" @click="share"><text class="share-btn">分享</text></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="文章详情" back></PageNav>
 
     <view v-if="art.id" class="detail-body">
       <view class="d-title">{{ art.title }}</view>
@@ -66,6 +63,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi';
@@ -152,11 +150,6 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 
 <style scoped>
 .art-detail-page { min-height: 100vh; background: #fff; padding-bottom: 60px; }
-.nav-bar { display: flex; align-items: center; height: 44px; padding: 0 8px; background: #fff; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #f2f3f5; }
-.nav-back { width: 44px; height: 44px; display: flex; align-items: center; }
-.back-arrow { font-size: 28px; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 16px; font-weight: 600; color: #1d2129; }
-.nav-right { width: 44px; text-align: right; }
 .share-btn { font-size: 13px; color: #165dff; }
 .detail-body { padding: 16px; }
 .d-title { font-size: 20px; font-weight: 700; color: #1d2129; line-height: 1.4; }

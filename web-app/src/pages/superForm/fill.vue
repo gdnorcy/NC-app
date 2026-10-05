@@ -1,4 +1,6 @@
 <template>
+<!-- PageNav -->
+<PageNav title="超级表单" back />
   <!--
     超级表单独立填表页（薄壳）
     表单渲染 / 校验 / 条件显隐 / 分页 / 支付 / 协议与视频弹层等全部逻辑
@@ -14,6 +16,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import SuperFormRender from '../../components/SuperFormRender.vue';

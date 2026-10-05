@@ -1,14 +1,15 @@
 <template>
   <view class="mall-page">
     <!-- 顶部栏：返回(有来源时) + 标题 + 购物车入口 -->
-    <view class="mall-nav" v-if="!designComps.length">
-      <view class="nav-back" @click="goBack" v-if="canBack"><text>‹</text></view>
-      <text class="nav-title">商城</text>
-      <view class="nav-cart" @click="goCart">
-        <SIcon name="cart" size="default" color="#1d2129" />
-        <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
-      </view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="商城" :back="canBack">
+      <template #right>
+        <view class="nav-cart" @click="goCart">
+          <SIcon name="cart" size="default" color="#1d2129" />
+          <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
+        </view>
+      </template>
+    </PageNav>
 
     <!-- 首页装修区（商品管理-首页装修；未配置/未发布时为空，走下方瀑布流兜底） -->
     <view v-if="designComps.length" class="design-zone">
@@ -81,6 +82,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, nextTick } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
@@ -245,28 +247,6 @@ onShow(() => {
 /* 编辑预览（设计中心 iframe）：页面自然撑高，滚动交给父容器 */
 .mp-editor .goods-scroll { height: auto !important; flex: none; }
 /* 编辑预览组件槽：点击选中高亮 */
-.mall-nav {
-  display: flex;
-  align-items: center;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #ffffff;
-  border-bottom: 1rpx solid #f2f3f5;
-  box-sizing: border-box;
-}
-.nav-back {
-  width: 60rpx;
-  font-size: 44rpx;
-  color: #1d2129;
-  line-height: 1;
-}
-.nav-title {
-  flex: 1;
-  text-align: center;
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #1d2129;
-}
 .nav-cart {
   width: 60rpx;
   position: relative;

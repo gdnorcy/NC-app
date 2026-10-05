@@ -1,6 +1,7 @@
 <script>
 import { fetchDesignConfig, applyDesignStyle } from './utils/design.js';
 import { getTid } from './utils/mallUtil.js';
+import { getNavMetrics } from './utils/navMetrics.js';
 
 export default {
   globalData: {
@@ -13,6 +14,7 @@ export default {
     // 记录租户上下文（供模板/商城/全景按租户加载）：
     // 小程序：分享/扫码进入带 tid；H5：getTid 内部直读顶层 query（/mall/?tid=1 与 /pano 对齐）
     getTid(options);
+    this.initNavVars();
     this.initChannel();
     this.initDesignConfig();
   },
@@ -23,6 +25,15 @@ export default {
     console.log('App Hide');
   },
   methods: {
+    /**
+     * 启动时预热导航度量缓存。
+     * 度量本身由 PageNav 组件按需读取（内联样式注入），小程序端不支持动态 style 标签，
+     * 所以这里只做一次缓存预热 + 便于真机调试查看各机型实际数值。
+     */
+    initNavVars() {
+      const m = getNavMetrics();
+      console.log('[nav] 状态栏高度=' + m.statusBarHeight + 'px 导航栏高度=' + m.navBarHeight + 'px 胶囊右侧避让=' + m.capsuleRightPad + 'px');
+    },
     async initChannel() {
       try {
         // 获取当前小程序的appid

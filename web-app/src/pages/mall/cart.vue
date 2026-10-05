@@ -1,10 +1,11 @@
 <template>
   <view class="cart-page">
-    <view class="mall-nav">
-      <view class="nav-back" @click="goBack"><text>‹</text></view>
-      <text class="nav-title">购物车</text>
-      <view class="nav-clear" @click="clearAll" v-if="list.length">清空</view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="购物车" back>
+      <template #right>
+        <view class="nav-clear" @click="clearAll" v-if="list.length">清空</view>
+      </template>
+    </PageNav>
 
     <scroll-view class="cart-scroll" scroll-y :show-scrollbar="false">
       <view v-if="list.length" class="cart-list">
@@ -53,6 +54,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
@@ -193,29 +195,6 @@ onShow(() => {
   background: #f7f8fa;
   overflow: hidden;
   box-sizing: border-box;
-}
-.mall-nav {
-  display: flex;
-  align-items: center;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #ffffff;
-  border-bottom: 1rpx solid #f2f3f5;
-  box-sizing: border-box;
-}
-.nav-back { width: 60rpx; font-size: 44rpx; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.nav-clear { font-size: 26rpx; color: #4e5969; padding: 8rpx; }
-.cart-scroll { flex: 1; height: 0; }
-.cart-list { padding: 16rpx; }
-.cart-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 16rpx;
 }
 .cart-item.off { opacity: 0.6; }
 .check {

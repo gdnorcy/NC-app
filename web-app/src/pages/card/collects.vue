@@ -1,10 +1,11 @@
 <template>
   <view class="col-page">
-    <view class="msg-nav">
-      <view class="mn-back" @click="goBack"><SIcon name="dynamic" size="default" color="#1a1a1a" /></view>
-      <view class="mn-title">我的收藏</view>
-      <view class="mn-clear" @click="load" v-if="collects.length">刷新</view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="我的收藏" back>
+      <template #right>
+        <view class="mn-clear" @click="load" v-if="collects.length">刷新</view>
+      </template>
+    </PageNav>
 
     <!-- 分组 Tab -->
     <view class="group-bar" v-if="groups.length">
@@ -50,6 +51,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 
@@ -180,20 +182,6 @@ function goBack() {
 
 <style scoped>
 .col-page { min-height: 100vh; background: var(--bg-page); padding-bottom: 80rpx; }
-.msg-nav {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24rpx 28rpx; background: #fff;
-  position: sticky; top: 0; z-index: 10;
-}
-.mn-back, .mn-clear { font-size: 28rpx; color: var(--t5); }
-.mn-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
-.mn-clear { color: var(--t3); }
-.group-bar {
-  display: flex; align-items: center; gap: 12rpx;
-  background: #fff; padding: 0 28rpx 16rpx;
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 88rpx; z-index: 9;
-}
 .group-scroll { flex: 1; min-width: 0; }
 .group-tabs { display: flex; gap: 12rpx; white-space: nowrap; }
 .g-tab {

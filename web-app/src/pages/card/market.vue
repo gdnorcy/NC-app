@@ -1,22 +1,26 @@
 <template>
   <view class="market-page">
     <!-- 顶部导航栏 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <SIcon name="dynamic" size="default" color="#1a1a1a" />
-      </view>
-      <view class="nav-title">{{ settings.title || '人脉集市' }}</view>
-      <view class="nav-tag" v-if="tenantName">{{ tenantName }}</view>
-      <view class="nav-right">
-        <view class="nav-icon" @click="goRequests">
-          <SIcon name="exchange" size="default" color="#1a1a1a" />
-          <view v-if="unreadCount > 0" class="red-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+<!-- PageNav -->
+    <PageNav back>
+      <template #title>
+        <view class="pnv-title-group">
+          <text class="nav-title">{{ settings.title || '人脉集市' }}</text>
+          <text class="nav-tag" v-if="tenantName">{{ tenantName }}</text>
         </view>
-        <view class="nav-icon" @click="goConnections">
-          <SIcon name="market" size="default" color="#1a1a1a" />
+      </template>
+      <template #right>
+        <view class="nav-right">
+          <view class="nav-icon" @click="goRequests">
+            <SIcon name="exchange" size="default" color="#1a1a1a" />
+            <view v-if="unreadCount > 0" class="red-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+          </view>
+          <view class="nav-icon" @click="goConnections">
+            <SIcon name="market" size="default" color="#1a1a1a" />
+          </view>
         </view>
-      </view>
-    </view>
+      </template>
+    </PageNav>
 
     <!-- 搜索 -->
     <view class="search-bar">
@@ -277,6 +281,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';
@@ -501,11 +506,9 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .market-page { min-height: 100vh; background: #f5f6f7; padding-bottom: 160rpx; }
 
 /* 顶部导航栏 */
-.nav-bar { display: flex; align-items: center; height: 88rpx; padding: 88rpx 32rpx 0; background: #fff; position: sticky; top: 0; z-index: 10; }
 .nav-right { display: flex; align-items: center; gap: 20rpx; }
 .nav-icon { position: relative; width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .red-dot { position: absolute; top: -4rpx; right: -8rpx; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: 999rpx; background: #ff4d4f; color: #fff; font-size: 20rpx; text-align: center; padding: 0 6rpx; box-sizing: border-box; }
-.nav-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
 .nav-tag { margin-left: 12rpx; font-size: 20rpx; color: #1d4e8f; background: #e9f1fb; padding: 4rpx 12rpx; border-radius: 8rpx; }
 .nav-right { width: 64rpx; }

@@ -1,13 +1,8 @@
 <template>
   <view class="req-page">
     <!-- 顶部导航栏 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <SIcon name="dynamic" size="default" color="#1a1a1a" />
-      </view>
-      <view class="nav-title">交换申请</view>
-      <view class="nav-right"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="交换申请" back></PageNav>
 
     <view class="req-tabs">
       <view class="req-tab" :class="{ on: activeTab === 'incoming' }" @click="activeTab = 'incoming'">
@@ -50,6 +45,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
@@ -139,10 +135,6 @@ onMounted(load);
 <style scoped>
 .req-page { min-height: 100vh; background: var(--bg, #f5f6f7); padding-bottom: 60rpx; }
 
-.nav-bar { display: flex; align-items: center; height: 88rpx; padding: 88rpx 32rpx 0; background: #fff; position: sticky; top: 0; z-index: 10; }
-.nav-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; margin-left: -12rpx; }
-.nav-title { flex: 1; font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
-.nav-right { width: 64rpx; }
 
 .req-tabs { display: flex; margin: 20rpx 24rpx 0; background: #fff; border-radius: 999rpx; padding: 6rpx; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.06)); }
 .req-tab { flex: 1; text-align: center; padding: 16rpx 0; border-radius: 999rpx; font-size: 28rpx; color: #5b5b5b; position: relative; }

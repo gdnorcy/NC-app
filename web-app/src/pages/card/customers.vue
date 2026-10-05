@@ -1,5 +1,7 @@
 <template>
   <view class="customers-page">
+<!-- PageNav -->
+<PageNav title="客户管理" back />
     <view class="header">
       <view class="title">客户管理</view>
       <view class="subtitle">沉淀私域客户资产</view>
@@ -92,6 +94,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';

@@ -1,11 +1,8 @@
 <template>
   <view class="live-list-page">
     <!-- 自定义导航 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack"><text class="back-arrow">‹</text></view>
-      <view class="nav-title">直播间</view>
-      <view class="nav-right"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="直播间" back></PageNav>
 
     <!-- 列表 -->
     <view class="list" v-if="list.length">
@@ -39,6 +36,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi';
@@ -102,11 +100,6 @@ function goBack() {
 
 <style>
 .live-list-page { min-height: 100vh; background: #F7F8FA; padding-bottom: 40rpx; }
-.nav-bar { display: flex; align-items: center; height: 88rpx; padding: 0 24rpx; background: #fff; position: sticky; top: 0; z-index: 10; }
-.nav-back { width: 72rpx; }
-.back-arrow { font-size: 40rpx; color: #1D2129; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1D2129; }
-.nav-right { width: 72rpx; }
 .list { padding: 20rpx 24rpx 0; }
 .live-card { background: #fff; border-radius: 16rpx; overflow: hidden; margin-bottom: 20rpx; }
 .live-cover { position: relative; }

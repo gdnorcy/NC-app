@@ -1,11 +1,8 @@
 <template>
   <view class="live-page">
     <!-- 自定义导航 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack"><text class="back-arrow">‹</text></view>
-      <view class="nav-title">直播</view>
-      <view class="nav-right"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="直播" back bg="rgba(0,0,0,0.85)" color="#ffffff"></PageNav>
 
     <view class="body">
       <!-- 小程序端：微信直播播放器（room-id = 微信直播间ID） -->
@@ -44,6 +41,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 
@@ -87,11 +85,6 @@ function goBack() {
 
 <style>
 .live-page { min-height: 100vh; background: #000; }
-.nav-bar { display: flex; align-items: center; height: 88rpx; padding: 0 24rpx; background: rgba(0,0,0,0.85); color: #fff; }
-.nav-back { width: 72rpx; }
-.back-arrow { font-size: 40rpx; color: #fff; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; }
-.nav-right { width: 72rpx; }
 .body { padding: 20rpx; }
 .player-wrap { background: #000; border-radius: 16rpx; overflow: hidden; }
 .live-player { width: 100%; height: 840rpx; }

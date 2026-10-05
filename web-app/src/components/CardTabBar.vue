@@ -331,6 +331,9 @@ function hexA(hex, alpha) {
 /* 底部悬浮（radius 由内联样式控制） */
 .mp-tabbar-float { border-top: none; }
 
+/* 菜单项文字：官方原生 tabBar 文字 10px 固定不可配；官方字号梯度 22/17/15/14/12pt，
+   18px(36rpx) 不在梯度内且远大于原生观感。这里取 12pt(24rpx)——在官方梯度内，
+   同时与云菜鸟后台实测的菜单文字 12px 一致（下方 btnRaise/btnInset 覆盖值同源）。 */
 .mtb {
   flex: 1;
   display: flex;
@@ -338,7 +341,7 @@ function hexA(hex, alpha) {
   align-items: center;
   justify-content: flex-start;
   gap: 6rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #9a9a9a;
   background: none;
   border: none;
@@ -346,7 +349,7 @@ function hexA(hex, alpha) {
   position: relative;
 }
 .mtb.on { font-weight: 500; }
-.mp-tab-txt { line-height: 1.2; font-size: 36rpx; }
+.mp-tab-txt { line-height: 1.2; font-size: 24rpx; }
 .mp-tab-bold { font-weight: 600; }
 .tab-icon-img { width: 44rpx; height: 44rpx; }
 
@@ -379,10 +382,9 @@ function hexA(hex, alpha) {
 /* 菜单项：云菜鸟 .item 为 flex 居中（无 gap），常规图标 26px→52rpx，文字 12px→24rpx */
 .mp-tabbar.mp-st-btnRaise .mtb,
 .mp-tabbar.mp-st-btnInset .mtb { justify-content: center; gap: 0; position: relative; z-index: 1; }
+/* 字号已与基础 .mp-tab-txt 同为 24rpx（12pt 官方梯度内），此处只补行高 */
 .mp-tabbar.mp-st-btnRaise .mp-tab-txt,
-.mp-tabbar.mp-st-btnInset .mp-tab-txt,
-.mp-tabbar.mp-st-btnRaise .mp-mid-txt,
-.mp-tabbar.mp-st-btnInset .mp-mid-txt { font-size: 24rpx; line-height: 36rpx; }
+.mp-tabbar.mp-st-btnInset .mp-tab-txt { line-height: 36rpx; }
 .mp-tabbar.mp-st-btnRaise .tab-icon-img,
 .mp-tabbar.mp-st-btnInset .tab-icon-img { width: 56rpx; height: 56rpx; }
 /* 中钮：云菜鸟 navNum_icon 43×43px → 86rpx，阴影 0 3px 2px rgba(165,178,195,.22)

@@ -1,5 +1,7 @@
 <template>
   <view class="detail-page">
+<!-- PageNav -->
+<PageNav title="客户详情" back />
     <view class="header">
       <view class="avatar">{{ customer.name?.[0] || '客' }}</view>
       <view class="info">
@@ -82,6 +84,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';

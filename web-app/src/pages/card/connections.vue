@@ -1,13 +1,8 @@
 <template>
   <view class="conn-page">
     <!-- 顶部导航栏 -->
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <SIcon name="dynamic" size="default" color="#1a1a1a" />
-      </view>
-      <view class="nav-title">我的人脉库</view>
-      <view class="nav-right"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="我的人脉库" back></PageNav>
 
     <!-- 统计与筛选 -->
     <view class="stats-row">
@@ -91,6 +86,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
@@ -227,10 +223,6 @@ onMounted(load);
 <style scoped>
 .conn-page { min-height: 100vh; background: var(--bg, #f5f6f7); padding-bottom: 60rpx; }
 
-.nav-bar { display: flex; align-items: center; height: 88rpx; padding: 88rpx 32rpx 0; background: #fff; position: sticky; top: 0; z-index: 10; }
-.nav-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; margin-left: -12rpx; }
-.nav-title { flex: 1; font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
-.nav-right { width: 64rpx; }
 
 .stats-row { display: flex; background: #fff; margin: 20rpx 24rpx 0; border-radius: 24rpx; padding: 28rpx 0; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
 .stat-item { flex: 1; text-align: center; }

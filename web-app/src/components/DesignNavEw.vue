@@ -1,13 +1,15 @@
 <template>
   <view v-if="ew" class="dnew-nav" :style="navStyle">
+    <!-- 状态栏占位：custom 导航下必须自行让出刘海/信号栏高度 -->
+    <view class="dn-status" :style="{ height: statusBarHeight + 'px' }"></view>
     <!-- 功能模块 = 无：仅标题 + 文字颜色 -->
-    <view v-if="ew.funcModule === 'none'" class="dnew-line dnew-line-none">
+    <view v-if="ew.funcModule === 'none'" class="dnew-line dnew-line-none" :style="capsuleStyle">
       <text class="dnew-title-text" :style="{ color: titleColor }">{{ pageName || '首页' }}</text>
     </view>
 
     <!-- 单层 / 双层模块：每层左/中/右三段 -->
     <template v-else>
-      <view v-for="(layer, li) in shownLayers" :key="li" class="dnew-line" :style="lineStyle">
+      <view v-for="(layer, li) in shownLayers" :key="li" class="dnew-line" :style="[lineStyle, capsuleStyle]">
         <!-- 左侧部分 -->
         <view class="dnew-side">
           <view v-if="layer.left.type === 'image' && layer.left.image" class="dnew-side-item" @click="tapLink(layer.left.link)">
@@ -53,6 +55,7 @@
 
 <script>
 import { API_DOMAIN } from '../utils/cardApi.js';
+import { getNavMetrics } from '../utils/navMetrics.js';
 import SIcon from './SIcon.vue';
 
 export default {
@@ -64,6 +67,14 @@ export default {
     scrolled: { type: Boolean, default: false },
   },
   computed: {
+    statusBarHeight() {
+      return getNavMetrics().statusBarHeight;
+    },
+    /** 右侧胶囊避让（微信原生控件区，官方要求预留） */
+    capsuleStyle() {
+      const pad = getNavMetrics().capsuleRightPad;
+      return pad > 0 ? { paddingRight: pad + 'px' } : {};
+    },
     ew() {
       const h = this.header || {};
       if (h.scheme === 2 && h.ew) return h.ew;
@@ -135,12 +146,13 @@ export default {
   right: 0;
   z-index: 30;
 }
+.dn-status { width: 100%; flex: 0 0 auto; }
 .dnew-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 88rpx;
-  padding: 0 24rpx;
+  padding-left: 24rpx;
   box-sizing: border-box;
   width: 100%;
 }

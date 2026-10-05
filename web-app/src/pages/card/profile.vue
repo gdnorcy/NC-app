@@ -1,5 +1,7 @@
 <template>
   <view class="profile-page">
+<!-- PageNav -->
+<PageNav title="个人中心" back />
     <!-- 用户信息头部 -->
     <view class="header">
       <view class="user-info">
@@ -87,6 +89,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';

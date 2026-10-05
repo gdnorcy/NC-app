@@ -1,10 +1,7 @@
 <template>
   <view class="video-list-page">
-    <view class="nav-bar">
-      <view class="nav-back" @click="goBack"><text class="back-arrow">‹</text></view>
-      <view class="nav-title">视频列表</view>
-      <view class="nav-right"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="视频列表" back></PageNav>
 
     <view class="list" v-if="list.length">
       <view v-for="v in list" :key="v.id" class="video-card">
@@ -44,6 +41,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi, API_DOMAIN } from '../../utils/cardApi';
@@ -106,11 +104,6 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 
 <style scoped>
 .video-list-page { min-height: 100vh; background: #f7f8fa; }
-.nav-bar { display: flex; align-items: center; height: 44px; padding: 0 8px; background: #fff; position: sticky; top: 0; z-index: 10; }
-.nav-back { width: 44px; height: 44px; display: flex; align-items: center; }
-.back-arrow { font-size: 28px; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 16px; font-weight: 600; color: #1d2129; }
-.nav-right { width: 44px; }
 .list { padding: 12px; }
 .video-card { background: #fff; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .video-player { width: 100%; background: #000; }

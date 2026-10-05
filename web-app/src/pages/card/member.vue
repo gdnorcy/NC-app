@@ -1,5 +1,7 @@
 <template>
   <view class="member-page">
+<!-- PageNav -->
+<PageNav title="会员中心" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- hero（demo g3 青绿渐变） -->
     <view class="hero g3" :style="heroStyle">
       <view class="row1">
@@ -107,6 +109,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';

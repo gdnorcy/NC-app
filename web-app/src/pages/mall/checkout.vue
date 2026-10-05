@@ -1,10 +1,7 @@
 <template>
   <view class="checkout-page">
-    <view class="mall-nav">
-      <view class="nav-back" @click="goBack"><text>‹</text></view>
-      <text class="nav-title">确认订单</text>
-      <view class="nav-side"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="确认订单" back></PageNav>
 
     <scroll-view class="checkout-scroll" scroll-y :show-scrollbar="false">
       <!-- 配送方式 -->
@@ -114,6 +111,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
@@ -308,22 +306,6 @@ onLoad((o) => {
   background: #f7f8fa;
   overflow: hidden;
   box-sizing: border-box;
-}
-.mall-nav {
-  display: flex;
-  align-items: center;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #ffffff;
-  border-bottom: 1rpx solid #f2f3f5;
-  box-sizing: border-box;
-}
-.nav-back { width: 60rpx; font-size: 44rpx; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.nav-side { width: 60rpx; }
-.checkout-scroll { flex: 1; height: 0; }
-.card {
-  background: #fff; border-radius: 16rpx; margin: 16rpx; padding: 24rpx;
 }
 .card-title { font-size: 30rpx; font-weight: 600; color: #1d2129; margin-bottom: 20rpx; }
 .delivery-options { display: flex; }

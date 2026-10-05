@@ -5,8 +5,10 @@
     :class="{ 'dn-immersive': header.type === 'immersive' }"
     :style="navStyle"
   >
+    <!-- 状态栏占位：custom 导航下内容会顶到屏幕最上方，必须自行让出刘海/信号栏高度 -->
+    <view class="dn-status" :style="{ height: statusBarHeight + 'px' }"></view>
     <!-- 第一行 -->
-    <view class="dn-line">
+    <view class="dn-line" :style="lineStyle">
       <view class="dn-side" @click="tapPos('left', 'content')">
         <pos-item :item="header.content.left" :pos="'left'" :header="header" :resolve="resolveUrl" />
       </view>
@@ -19,7 +21,7 @@
     </view>
 
     <!-- 第二行（两行内容） -->
-    <view v-if="header.lines === 2 && header.type === 'custom'" class="dn-line dn-line2">
+    <view v-if="header.lines === 2 && header.type === 'custom'" class="dn-line dn-line2" :style="lineStyle2">
       <view class="dn-side" @click="tapPos('left', 'content2')">
         <pos-item :item="header.content2.left" :pos="'left'" :header="header" :resolve="resolveUrl" />
       </view>
@@ -36,6 +38,7 @@
 <script>
 import { h } from 'vue';
 import { API_DOMAIN } from '../utils/cardApi.js';
+import { getNavMetrics } from '../utils/navMetrics.js';
 
 // 左/右单项：文字（加粗/字号）/图片/搜索/图标+文字
 const PosItem = {
@@ -134,6 +137,22 @@ export default {
     pageName: { type: String, default: '' },
   },
   computed: {
+    statusBarHeight() {
+      // 沉浸式/custom 导航：状态栏高度按机型动态取（H5 端为 0，保持原视觉）
+      return getNavMetrics().statusBarHeight;
+    },
+    /** 右侧胶囊（最小化 + 三个点）避让：微信原生控件不可覆盖，官方要求预留其区域 */
+    capsulePadRight() {
+      const m = getNavMetrics();
+      return m.capsuleRightPad > 0 ? m.capsuleRightPad + 'px' : '0px';
+    },
+    lineStyle() {
+      return { paddingRight: this.capsulePadRight };
+    },
+    lineStyle2() {
+      // 第二行通常不是标题行，仍避让以免右侧操作项被压
+      return { paddingRight: this.capsulePadRight };
+    },
     navStyle() {
       const h = this.header || {};
       const s = {};
@@ -197,12 +216,13 @@ export default {
   right: 0;
   z-index: 30;
 }
+.dn-status { width: 100%; flex: 0 0 auto; }
 .dn-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 88rpx;
-  padding: 0 24rpx;
+  padding-left: 24rpx;
   box-sizing: border-box;
   width: 100%;
 }

@@ -1,5 +1,7 @@
 <template>
   <view class="dynamic-page">
+<!-- PageNav -->
+<PageNav title="我的动态" back />
     <view class="header">
       <view class="title">我的动态</view>
       <view class="publish-btn" @click="showPublish = true">+ 发布</view>
@@ -54,6 +56,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';

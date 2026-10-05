@@ -1,11 +1,8 @@
 <template>
   <view class="msg-page">
     <!-- 导航栏 -->
-    <view class="msg-nav">
-      <view class="mn-back" @click="goBack"><SIcon name="dynamic" size="default" color="#1a1a1a" /></view>
-      <view class="mn-title">消息中心</view>
-      <view class="mn-clear" @click="readAll" v-if="messages.length">全部已读</view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="消息中心" back></PageNav>
 
     <!-- 类型页签 -->
     <view class="msg-tabs">
@@ -43,6 +40,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
@@ -156,34 +154,6 @@ function goBack() {
   background: var(--bg-page);
   padding-bottom: 60rpx;
   box-sizing: border-box;
-}
-.msg-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx 32rpx 16rpx;
-  background: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-.mn-back {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-}
-.mn-title { font-size: 34rpx; font-weight: 600; color: var(--t5); }
-.mn-clear { font-size: 26rpx; color: var(--success); }
-
-.msg-tabs {
-  display: flex;
-  gap: 8rpx;
-  padding: 16rpx 32rpx;
-  background: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 .mt-item {
   flex: 1;

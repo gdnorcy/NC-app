@@ -1,5 +1,7 @@
 <template>
   <view class="dist-page">
+<!-- PageNav -->
+<PageNav title="分销中心" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 顶部主视觉卡：用户信息 + 上级推广员 + 已邀请 + 收益总览 -->
     <view class="hero g3" :style="heroStyle">
       <view class="hero-top">
@@ -299,6 +301,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';

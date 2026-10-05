@@ -1,10 +1,11 @@
 <template>
   <view class="rc-page">
-    <view class="msg-nav">
-      <view class="mn-back" @click="goBack"><SIcon name="dynamic" size="default" color="#1a1a1a" /></view>
-      <view class="mn-title">雷达配置</view>
-      <view class="mn-clear" @click="load">刷新</view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="雷达配置" back>
+      <template #right>
+        <view class="mn-clear" @click="load">刷新</view>
+      </template>
+    </PageNav>
 
     <!-- 推送开关 -->
     <view class="rc-card">
@@ -72,6 +73,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
@@ -172,18 +174,6 @@ function goBack() {
 
 <style scoped>
 .rc-page { min-height: 100vh; background: var(--bg-page); padding-bottom: 80rpx; }
-.msg-nav {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 24rpx 28rpx; background: #fff;
-  position: sticky; top: 0; z-index: 10;
-}
-.mn-back, .mn-clear { font-size: 28rpx; color: var(--t5); }
-.mn-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
-.mn-clear { color: var(--t3); }
-.rc-card {
-  background: #fff; border-radius: 24rpx; padding: 28rpx;
-  margin: 20rpx 28rpx; border: 1px solid var(--border);
-}
 .rc-head { font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .rc-pad { padding: 12rpx 0 8rpx; }
 .rc-desc { font-size: 24rpx; color: var(--t3); }

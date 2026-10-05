@@ -1,10 +1,7 @@
 <template>
   <view class="orders-page">
-    <view class="mall-nav">
-      <view class="nav-back" @click="goBack"><text>‹</text></view>
-      <text class="nav-title">我的订单</text>
-      <view class="nav-side"></view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="我的订单" back></PageNav>
 
     <!-- 状态筛选 -->
     <scroll-view class="status-scroll" scroll-x :show-scrollbar="false">
@@ -60,6 +57,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
@@ -193,24 +191,6 @@ onShow(() => {
   background: #f7f8fa;
   overflow: hidden;
   box-sizing: border-box;
-}
-.mall-nav {
-  display: flex;
-  align-items: center;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #ffffff;
-  border-bottom: 1rpx solid #f2f3f5;
-  box-sizing: border-box;
-}
-.nav-back { width: 60rpx; font-size: 44rpx; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.nav-side { width: 60rpx; }
-.status-scroll { background: #fff; white-space: nowrap; border-bottom: 1rpx solid #f2f3f5; }
-.status-list { display: inline-flex; padding: 0 8rpx; }
-.status-item {
-  padding: 24rpx 28rpx; font-size: 26rpx; color: #4e5969;
-  border-bottom: 4rpx solid transparent;
 }
 .status-item.active {
   color: #165dff; font-weight: 500; border-bottom-color: #165dff;

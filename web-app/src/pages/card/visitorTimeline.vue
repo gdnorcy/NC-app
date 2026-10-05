@@ -1,5 +1,7 @@
 <template>
   <view class="timeline-page">
+<!-- PageNav -->
+<PageNav title="访客行为" back />
     <view class="header">
       <view class="title">访客行为时间线</view>
       <view class="subtitle">{{ visitorOpenid === 'anonymous' ? '匿名访客' : '实名用户' }}</view>
@@ -25,6 +27,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';

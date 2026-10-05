@@ -1,5 +1,7 @@
 <template>
   <view class="index-page">
+<!-- PageNav -->
+<PageNav title="360全景" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <view class="header">
       <text class="title">360°全景</text>
       <text class="subtitle">沉浸式全景展示平台</text>
@@ -26,6 +28,7 @@
 </template>
 
 <script>
+import PageNav from '../../components/PageNav.vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { qsParse } from '../../utils/qs.js';
 
@@ -38,6 +41,7 @@ function tidFromHash() {
 }
 
 export default {
+  components: { PageNav },
   data() {
     return { plans: [] };
   },

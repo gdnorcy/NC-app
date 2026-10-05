@@ -1,5 +1,7 @@
 <template>
   <view class="radar-page">
+<!-- PageNav -->
+<PageNav title="访客雷达" back />
     <!-- 付费解锁引导（免费/过期用户） -->
     <view class="radar-locked" v-if="locked">
       <view class="lock-card">
@@ -198,6 +200,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';

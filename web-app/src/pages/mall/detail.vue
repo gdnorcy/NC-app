@@ -1,13 +1,14 @@
 <template>
   <view class="detail-page">
-    <view class="mall-nav">
-      <view class="nav-back" @click="goBack"><text>‹</text></view>
-      <text class="nav-title">商品详情</text>
-      <view class="nav-cart" @click="goCart">
-        <SIcon name="cart" size="default" color="#1d2129" />
-        <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
-      </view>
-    </view>
+<!-- PageNav -->
+    <PageNav title="商品详情" back>
+      <template #right>
+        <view class="nav-cart" @click="goCart">
+          <SIcon name="cart" size="default" color="#1d2129" />
+          <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
+        </view>
+      </template>
+    </PageNav>
 
     <scroll-view class="detail-scroll" scroll-y :show-scrollbar="false">
       <!-- 商品图 -->
@@ -103,6 +104,7 @@
 </template>
 
 <script setup>
+import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
@@ -249,23 +251,6 @@ onLoad((o) => {
   background: #f7f8fa;
   overflow: hidden;
   box-sizing: border-box;
-}
-.mall-nav {
-  display: flex;
-  align-items: center;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: #ffffff;
-  border-bottom: 1rpx solid #f2f3f5;
-  box-sizing: border-box;
-}
-.nav-back { width: 60rpx; font-size: 44rpx; color: #1d2129; line-height: 1; }
-.nav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.nav-cart { width: 60rpx; position: relative; display: flex; align-items: center; justify-content: flex-end; }
-.cart-badge {
-  position: absolute; top: -8rpx; right: -12rpx; min-width: 30rpx; height: 30rpx;
-  padding: 0 6rpx; border-radius: 15rpx; background: #f53f3f; color: #fff;
-  font-size: 20rpx; line-height: 30rpx; text-align: center; box-sizing: border-box;
 }
 .detail-scroll { flex: 1; height: 0; }
 .banner { position: relative; width: 100%; height: 750rpx; background: #f2f3f5; }

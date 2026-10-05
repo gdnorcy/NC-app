@@ -1,9 +1,6 @@
 <template>
   <view class="pano-home">
-    <view class="ph-topbar">
-      <view class="ph-back" @tap="goBack">‹ 返回</view>
-      <text class="ph-title">全景首页</text>
-    </view>
+    <PageNav title="全景首页" back></PageNav>
     <template v-if="comps.length">
       <DesignPage v-for="(c, i) in comps" :key="i" :comps="[c]" :tenant-id="Number(tid)" :global="designGlobal" />
     </template>
@@ -14,13 +11,14 @@
 </template>
 
 <script>
+import PageNav from '../../components/PageNav.vue';
 import DesignPage from '../../components/DesignPage.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { normalizeDesignConfig } from '../../utils/design.js';
 
 export default {
-  components: { DesignPage },
+  components: { DesignPage, PageNav },
   data() {
     return { comps: [], tid: '', designGlobal: {}, pageType: '' };
   },
