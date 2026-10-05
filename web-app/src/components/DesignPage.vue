@@ -13,7 +13,6 @@
             <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
             <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
               <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
-              <text class="dp-image-empty-tip">示例图· 点击替换</text>
             </view>
             <view
               v-for="(h, hi) in it.hotspots || []" :key="hi"
@@ -30,7 +29,6 @@
               <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" @click="onJump(it.link)" />
               <view v-else class="dp-image-empty" @click.stop="onJump(it.link)">
                 <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
-                <text class="dp-image-empty-tip">示例图 · 点击替换</text>
               </view>
             </view>
           </view>
@@ -42,7 +40,6 @@
           </view>
           <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
             <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
-            <text class="dp-image-empty-tip">示例图 · 点击替换</text>
           </view>
         </template>
       </view>
@@ -719,6 +716,7 @@ import SIcon from './SIcon.vue';
 import SuperFormRender from './SuperFormRender.vue';
 // 容器层样式：与 admin 设计器画布共用（跨端同一份实现，避免「画布没底色、真机有」）
 import { containerStyle } from '../utils/containerStyle.js';
+import { sampleUrl } from '../utils/sampleImages.js';
 
 // 价格优先级：新人价 > 会员价 > 原价
 // 会员价memberPrice是{mode,priceMap:{levelId:value}}对象，一期简化为取priceMap第一个值
@@ -1200,28 +1198,17 @@ function dpFloatIconName(p) {
 }
 
 /**
- * 图片组件的**默认示例图**（2026-10-05 用户提供）。
+ * 图片组件的**默认示例图**：未配置图片时铺一张真实示例图，而不是虚线框 + 「图片」二字。
+ *   - 运营在后台一眼看出「这里放一张 710×388 的图」
+ *   - 占位块用 `aspect-ratio: 710/388` 撑高，与示例图自身比例、
+ *     真图 `widthFix` 撑出的高度**三者一致** → 换真图时页面不跳动
  *
- * 之前未配置图片时只显示一个虚线占位块 + 「图片」二字：
- *   - 运营在后台看不出这个位置会是什么效果、也不知道该配多大图
- *   - 占位块高度靠 `aspect-ratio` 撑，真机上有时对不齐预期
- * 改为直接铺一张真实示例图（**尺寸就是 710×388**，即用户约定的比例），
- * 铺满整块占位区域 + 底部「示例图 · 点击替换」提示：
- *   - 视觉上立刻知道「这里放一张 710×388 的图」
- *   - 比例与真图 `widthFix` 撑出的高度完全一致 → 配图后页面高度不变，无跳动
- *
- * 🔴 存放位置：**走网络图，不进小程序包**（2026-10-05 用户决定）。
- *   路径 `/card/static/sample/...` 是**后端托管目录**（H5 构建时由
- *   `scripts/sync-mobile-dist.mjs` 同步到 `server/public/card/static/`），
- *   运行时用 `assetUrl()` 拼成绝对 URL（小程序端 = `API_DOMAIN + 路径`）。
- *   相比打进包里的好处：主包少 36.7KB、不占 2MB 额度。
- *   代价：首屏依赖网络，且需在小程序后台配request 合法域名。
- *
- *   ⚠️ 源文件放在 `web-app/src/static/sample/`，但**必须排除在小程序产物之外**，
- *   否则「网络图」只是换了个名字、文件照样进包。
- *   由 `scripts/strip-mp-static.js` 的 STRIP_DIRS 负责剔除。
+ * 🔴 路径与「是否进包」的完整约定见 `utils/sampleImages.js`（唯一事实来源）。
+ *   要点：示例图**一律走网络图、不进小程序包**；本文件只负责用
+ *   `assetUrl()` 把它拼成可加载的绝对 URL。
+ *   ⚠️ admin 画布 `ComponentRender.vue` 引用的是**同一份清单**，别在此处另写死路径。
  */
-const IMAGE_SAMPLE = '/card/static/sample/image-sample-710x388.jpg';
+const IMAGE_SAMPLE = sampleUrl('banner');
 function dpChannelLiveStyle(p) {
   const s = { background: p.bgColor || '#F7F8FA' };
   s.borderRadius = (p.radiusTop || 0) + 'px ' + (p.radiusTop || 0) + 'px ' + (p.radiusBottom || 0) + 'px ' + (p.radiusBottom || 0) + 'px';
@@ -1812,19 +1799,6 @@ function openChannel(kind, p) {
   width: 100%;
   height: 100%;
   border-radius: 0;
-}
-/* 「示例图·点击替换」提示条：压在图底部，半透明黑底白字，不遮挡图片主体 */
-.dp-image-empty-tip {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 8rpx 0;
-  text-align: center;
-  font-size: 22rpx;
-  line-height: 1.4;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.45);
 }
 .dp-image-item .dp-image-empty { border-radius: 8px; }
 /* 双图行内的占位块跟着行高走，不按 16:9 撑（否则两列各撑一半宽高，行内高低不齐） */

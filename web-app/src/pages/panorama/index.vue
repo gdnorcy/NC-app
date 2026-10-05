@@ -17,7 +17,7 @@
              → 真机图裂（2026-10-05 由 strip-mp-static.js 的自检发现，该脚本会扫出
              「代码引用了但产物里没有」的静态资源）。
              改为复用已存在的示例图；后续若要专用兜底封面，把文件真放进 src/static/ 再改回来。 -->
-        <image class="plan-cover" :src="plan.cover || '/static/sample/image-sample-710x388.jpg'" mode="aspectFill" />
+        <image class="plan-cover" :src="plan.cover ? assetUrl(plan.cover) : assetUrl(sampleUrl('banner'))" mode="aspectFill" />
         <view class="plan-info">
           <text class="plan-name">{{ plan.name }}</text>
           <text class="plan-desc">{{ plan.description || '点击查看全景' }}</text>
@@ -35,6 +35,11 @@
 import PageNav from '../../components/PageNav.vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { qsParse } from '../../utils/qs.js';
+// 示例图清单（网络图，不进小程序包）—— 见 utils/sampleImages.js的完整约定
+import { sampleUrl } from '../../utils/sampleImages.js';
+// 资源路径解析：H5 拼 origin / 小程序拼 API_DOMAIN（与 DesignPage.resolveUrl 同构）
+import { resolveAssetUrl } from '../../utils/design.js';
+const assetUrl = resolveAssetUrl;
 
 function tidFromHash() {
   if (typeof window === 'undefined' || !window.location || !window.location.hash) return '';

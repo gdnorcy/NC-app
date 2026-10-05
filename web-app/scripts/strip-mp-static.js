@@ -29,15 +29,21 @@ const mpDir = path.join(__dirname, '..', 'dist', 'build', 'mp-weixin');
 //   （表现被 `cdBgColor: 'rgba(0,0,0,0.4)'` 这类兜底色掩盖，容易误判成"正常"）。
 //   只有 25KB，代价与收益完全不成比例 → **已从剔除名单移除。**
 //
-// 🔴 `static/sample`（2026-10-05，用户决定）：图片组件的默认示例图 36.7KB。
+// 🔴 `static/sample`（2026-10-05，用户决定）：**组件的默认示例图**目录。
+//   目录里现有 3 枚（banner 710×388 / square 400×400 / portrait 600×800，共约 100KB），
+//   清单与「谁用哪枚」见 `web-app/src/utils/sampleImages.js`（唯一事实来源）。
 //   它是**刻意走网络**的——运行时用 `assetUrl()` 拼绝对 URL，
 //   真正托管在后端 `server/public/card/static/sample/`（H5 构建时由
 //   `scripts/sync-mobile-dist.mjs` 同步过去），小程序包里**不需要**这份文件。
 //   故剔除，与 `DesignPage.vue` 的 `NETWORK_ASSET_DIRS` 保持一致。
 //
+//   🔴 **用户明确要求：后续给任何组件加示例图，都必须走这个规范（网络图、不进包）**，
+//      不要图省事直接 `import` 一张图进包。
+//
 //   ⚠️ 两条相反的规矩，别混：
 //   - 剔除会让**包内引用**图裂 → 加进名单前grep 确认没人按包内路径用它
 //   - 剔除会让**网络引用**少一份冗余备份（无妨）→ 前提是该资源确实已在后端托管
+//     （新增示例图后要确认 `server/public/card/static/sample/` 里有对应文件）
 const STRIP_DIRS = ['static/three', 'static/icons', 'static/sicons', 'static/sample'];
 
 /** 收集产物里所有 js/wxml/json 文本文件 */
@@ -81,11 +87,42 @@ function warnIfReferencedAssetsDropped() {
     ([rel]) => !isNetworkAsset(rel) && !fs.existsSync(path.join(mpDir, rel))
   );
   const netAssets = [...referenced.keys()].filter(isNetworkAsset);
+
+  // 🔴 2026-10-05 补：网络图**路径写错**同样会图裂，而上面的自检查不出来
+  //   （它只判「文件在不在包里」，而网络图本来就不在包里 → 永远通过）。
+  //   实例：`pages/panorama/index.vue` 曾写 `/static/sample/xxx.jpg`（漏 `/card` 前缀），
+  //   后端实际托管在 `/card/static/sample/` → HTTP 404，且无任何构建期提示。
+  //   判定：抽出的文件名能在 `src/static/` 找到（说明是本项目的资源、路径写错了），
+  //   但产物里的引用路径**与源文件相对 src/static/ 的真实路径不一致** → 告警。
+  const srcStatic = path.join(__dirname, '..', 'src', 'static');
+  const realByName = new Map();
+  (function walk(d) {
+    for (const name of fs.readdirSync(d)) {
+      const f = path.join(d, name);
+      if (fs.statSync(f).isDirectory()) walk(f);
+      else if (!realByName.has(name)) realByName.set(name, path.relative(srcStatic, f).split(path.sep).join('/'));
+    }
+  })(srcStatic);
+  const pathMismatches = [];
+  for (const rel of netAssets) {
+    const name = rel.split('/').pop();
+    const real = realByName.get(name);
+    // 正确写法必须与源文件真实相对路径一致（含 card/ 前缀的挂载段）
+    if (real && !rel.endsWith(real) && !rel.endsWith(real.replace(/^static\//, 'card/static/'))) {
+      pathMismatches.push({ 引用: rel, 实际应为: real });
+    }
+  }
+
   if (!missing.length) {
     console.log(
       `[strip-mp-static] 自检：产物代码引用的 ${referenced.size} 个 static 资源均存在 ✓` +
         (netAssets.length ? `（另有 ${netAssets.length} 个走网络、不进包：${netAssets.join(', ')}）` : '')
     );
+    if (pathMismatches.length) {
+      console.warn(`[strip-mp-static] ⚠️ 发现 ${pathMismatches.length} 个网络图路径写错（后端会 404、真机图裂）：`);
+      for (const m of pathMismatches) console.warn(`  产物里写的是 ${m.引用}  →  源文件实际在 ${m.实际应为}`);
+      console.warn('[strip-mp-static]   → 用 utils/sampleImages.js 的 sampleUrl() 取路径，不要手写字符串');
+    }
     return;
   }
   console.warn(`[strip-mp-static] ⚠️ 自检发现 ${missing.length} 个「代码引用但产物缺失」的静态资源（真机会图裂）：`);

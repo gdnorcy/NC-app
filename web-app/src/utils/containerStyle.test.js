@@ -99,8 +99,38 @@ describe('containerStyle 边距 / 内边距（原语义不变）', () => {
     expect(s.marginRight).toBe('20px');
   });
 
-  it('withPadding:false 时不输出 padding（admin 画布用）', () => {
+  it('withPadding:false 时不输出 padding（显式关闭时）', () => {
     expect(containerStyle({ type: 'superform', props: { padding: 10 } }, { withPadding: false }).padding).toBeUndefined();
+  });
+
+  // 🔴 2026-10-05 用户反馈：「无法设置按钮所在的完全背景」。
+  // 根因：容器 padding 默认 0 + 满宽按钮（width:100%）→ 底色被完全遮住。
+  it('🔴 设了容器底色但内边距为 0 → 兜 MIN_BG_PADDING，让底色能露出来', () => {
+    const s = containerStyle({ type: 'button', props: { compBgColor: '#FF8A00', padding: 0 } });
+    expect(s.padding).toBe('8px');
+    expect(s.background).toBe('#FF8A00');
+  });
+
+  it('没设容器底色时 padding=0 仍原样输出（不兜底、视觉不变）', () => {
+    expect(containerStyle({ type: 'button', props: { padding: 0 } }).padding).toBe('0px');
+  });
+
+  it('设了底色 + 用户显式给了非 0 内边距 → 尊重用户，不兜底', () => {
+    expect(containerStyle({ type: 'button', props: { compBgColor: '#FF8A00', padding: 20 } }).padding).toBe('20px');
+  });
+
+  it('设了底色但组件在 HIDDEN_PADDING_TYPES 里 → 不输出 padding（图片类自带铺满语义）', () => {
+    for (const t of HIDDEN_PADDING_TYPES) {
+      const s = containerStyle({ type: t, props: { compBgColor: '#FF8A00', padding: 0 } });
+      expect(s.padding).toBeUndefined();
+      expect(s.background).toBe('#FF8A00');
+    }
+  });
+
+  it('HIDDEN_PADDING_TYPES 的组件即使 padding 非 0 也不输出', () => {
+    for (const t of HIDDEN_PADDING_TYPES) {
+      expect(containerStyle({ type: t, props: { padding: 20, compBgColor: '#eee' } }).padding).toBeUndefined();
+    }
   });
 
   it('无 comp / 无 props 不抛异常', () => {

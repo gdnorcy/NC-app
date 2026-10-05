@@ -2253,15 +2253,21 @@ function compIndex(comp) {
 /**
  * 画布组件容器样式（与 C 端 DesignPage 的 containerStyle 同一实现）。
  *
- * ⚠️ 与真机的**有意差异**：画布只取 `background` 与外边距，
- * **不取 borderRadius / padding** —— `.pe-comp` 自带 `border-radius:8px` +
- * 虚线选中框（hover/active 换色），被内联圆角覆盖会让选中框变形。
+ * ⚠️ 与真机的**有意差异**：画布**不取 borderRadius**——
+ * `.pe-comp` 自带 `border-radius:8px` + 虚线选中框（hover/active 换色），
+ * 被内联圆角覆盖会让选中框变形。
  * 选中态已改用 `outline + box-shadow` 表达（都不吃背景色），
  * 所以这里输出 background 不会盖掉高亮。
+ *
+ * 🔴 padding **必须取**（不能像borderRadius 那样排除）：
+ *   「设了容器底色时兜一个最小内边距」这条规则（`containerStyle.js` 的
+ *   `MIN_BG_PADDING`）正是为了让底色能被看见 —— 画布若不取 padding，
+ *   运营在画布上看到的仍是「底色被满宽按钮完全遮住」，
+ *   **与真机不一致，且会再次被误判成 bug**。
  */
 function compBoxStyle(c) {
-  const s = compContainerStyle(c, { withPadding: false, withRadius: false });
-  return { background: s.background, marginTop: s.marginTop, marginBottom: s.marginBottom, marginLeft: s.marginLeft, marginRight: s.marginRight };
+  const s = compContainerStyle(c, { withRadius: false });
+  return { background: s.background, padding: s.padding, marginTop: s.marginTop, marginBottom: s.marginBottom, marginLeft: s.marginLeft, marginRight: s.marginRight };
 }
 /** 上下移动选中组件（仿 ew：画布内不拖拽，工具条排序） */
 function moveComp(comp, dir) {
@@ -2428,6 +2434,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 /* B1：真实 C 端页面 iframe 画布 */
 .pe-live-frame { width: 100%; border: 0; display: block; background: #fff; min-height: 420px; }
 .pe-toolbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+/* padding 的基础值兜底：正常由 `compBoxStyle` 内联下发（与真机同一实现）。
+   设了容器底色时会下发 MIN_BG_PADDING=8px，让底色能露出来 —— 这与真机一致，
+   且此时虚线选中框正好贴合「容器/底色」边界（真机上也是这个边界），不是错位。 */
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 0; transition: border-color .15s; }
 .pe-comp:hover { border-color: #c9cdd4; }
 /* `.pe-comp` 现在内联组件自己的容器背景色，会盖掉 `.active` 的淡蓝高亮

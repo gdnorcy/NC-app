@@ -6,6 +6,7 @@
  *
  * 组件图标：直接使用 eweishop 原版 PNG 图标（用户指定照抄），76×76。
  */
+import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 import iconTitle from '../../../../assets/comp-icons/title.png';
 import iconText from '../../../../assets/comp-icons/richtext.png';
 import iconImage from '../../../../assets/comp-icons/picture.png';
@@ -146,7 +147,7 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: '', link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
         { label: '单图', value: 'single' },
@@ -235,7 +236,7 @@ export const componentRegistry = [
     name: '公告',
     group: 'basic',
     icon: 'notice',
-    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: '', dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 0, marginBottom: 0, radiusTop: 8, radiusBottom: 8, memberLevel: 'all' },
+    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 0, marginBottom: 0, radiusTop: 8, radiusBottom: 8, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
@@ -359,12 +360,12 @@ export const componentRegistry = [
     defaultProps: {
       source: 'local',
       // 本地视频
-      url: '', poster: '', ratio: '16:9', displayMode: 'direct', autoplayLocal: false, loopLocal: false,
+      url: '', poster: sampleUrl('banner'), ratio: '16:9', displayMode: 'direct', autoplayLocal: false, loopLocal: false,
       // 视频号视频（eweishop 复刻）：风格一列/两列、相同主体、视频号id/视频id、自动播放+静音+循环、多视频、背景色/背景图、间距/高度/上圆角/下圆角
       style: 'single',
       videos: [],
       chRatio: '16:9',
-      bgType: 'color', bgColor: '', bgImage: '',
+      bgType: 'color', bgColor: '', bgImage: sampleUrl('banner'),
       vSpacing: 0, spaceTop: 0, spaceBottom: 0, hMargin: 0, height: 0, radiusTop: false, radiusBottom: false,
     },
     schema: [
@@ -426,7 +427,7 @@ export const componentRegistry = [
     name: '图文卡片',
     group: 'basic',
     icon: 'image-text',
-    defaultProps: { url: '', title: '图文标题', desc: '描述文字', link: '', textPos: 'below', ratio: '1:1', align: 'left', style: 'default', borderColor: '#E5E6EB', bgColor: '', marginTop: 0, marginBottom: 0, marginLR: 0, contentPadding: 12, radiusTop: 0, radiusBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    defaultProps: { url: sampleUrl('square'), title: '图文标题', desc: '描述文字', link: '', textPos: 'below', ratio: '1:1', align: 'left', style: 'default', borderColor: '#E5E6EB', bgColor: '', marginTop: 0, marginBottom: 0, marginLR: 0, contentPadding: 12, radiusTop: 0, radiusBottom: 0, imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content', required: true },
       { key: 'title', label: '标题', control: 'input', section: 'content' },
@@ -607,7 +608,7 @@ export const componentRegistry = [
     group: 'marketing',
     icon: 'channel-profile',
     badge: 'new',
-    defaultProps: { finderUserName: '', nickname: '', avatar: '', desc: '', bgColor: '#F7F8FA' },
+    defaultProps: { finderUserName: '', nickname: '', avatar: sampleUrl('square'), desc: '', bgColor: '#F7F8FA' },
     schema: [
       { key: 'finderUserName', label: '视频号ID', control: 'input', section: 'content', required: true, placeholder: '如 sPh7vD5...' },
       { key: 'nickname', label: '昵称', control: 'input', section: 'content' },
@@ -623,7 +624,7 @@ export const componentRegistry = [
     group: 'marketing',
     icon: 'channel-video',
     badge: 'new',
-    defaultProps: { finderUserName: '', feedId: '', cover: '', title: '', desc: '', bgColor: '#F7F8FA' },
+    defaultProps: { finderUserName: '', feedId: '', cover: sampleUrl('banner'), title: '', desc: '', bgColor: '#F7F8FA' },
     schema: [
       { key: 'finderUserName', label: '视频号ID', control: 'input', section: 'content', required: true, placeholder: '如 sPh7vD5...' },
       { key: 'feedId', label: '视频ID', control: 'input', section: 'content', required: true, placeholder: '如 106511204134634884' },
@@ -1329,7 +1330,7 @@ export const componentRegistry = [
     name: '商品展播',
     group: 'mall',
     icon: 'bannerGoods',
-    defaultProps: { source:'manual', goodsIds:'', bgImage:'',
+    defaultProps: { source:'manual', goodsIds:'', bgImage:sampleUrl('banner'),
       mainTitle:'买买买不用看价格', mainTitleColor:'#37383A',
       subTitle:'79元任选5件', subTitleColor:'#18a918',
       btnText:'查看更多', btnColor:'#5ec01f', btnTextColor:'#ffffff', link:'',
@@ -1358,7 +1359,7 @@ export const componentRegistry = [
     name: '精品推荐',
     group: 'mall',
     icon: 'ceramics',
-    defaultProps: { style:'default', bgImage:'',
+    defaultProps: { style:'default', bgImage:sampleUrl('banner'),
       mainTitle:'缤纷水果任你挑', mainTitleColor:'#ffffff',
       subTitle:'35元特价中', subTitleColor:'#ffffff',
       btnText:'查看更多', btnColor:'#0446b4', btnTextColor:'#ffffff', link:'',

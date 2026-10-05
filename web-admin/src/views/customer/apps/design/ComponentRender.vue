@@ -9,7 +9,7 @@
         <template v-if="comp.props.mode === 'hotzone' && comp.props.items?.length">
           <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :class="imgFillCls(comp.props)" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
             <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
-            <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /><span class="r-image-empty-tip">示例图 · 点击替换</span></div>
+            <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /></div>
             <div
               v-for="(h, hi) in it.hotspots || []" :key="hi"
               class="r-image-hotspot"
@@ -24,7 +24,7 @@
           <div class="r-image-row" :style="{ gap: (comp.props.gap ?? 0) + 'px' }">
             <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-row-item" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
               <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
-              <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /><span class="r-image-empty-tip">示例图 · 点击替换</span></div>
+              <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /></div>
             </div>
           </div>
         </template>
@@ -33,7 +33,7 @@
           <div v-if="comp.props.url" class="r-image-single" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
             <img :src="resolveUrl(comp.props.url)" :style="imgFillStyle(comp.props)" />
           </div>
-          <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /><span class="r-image-empty-tip">示例图 · 点击替换</span></div>
+          <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /></div>
         </template>
       </div>
     </template>
@@ -787,18 +787,18 @@ import { componentStyleVars } from '../../../../../../web-app/src/utils/sfCompon
 // 此前本文件私藏一份containerStyle 副本（漏了 bgColor 语义区分），
 // 导致「admin 预览的容器底色与真机不一致」。跨包 import 模式沿用 sfComponentStyle.js。
 import { containerStyle as sharedContainerStyle } from '../../../../../../web-app/src/utils/containerStyle.js';
+// 示例图清单同样共用 C 端那份，避免两端各写死一个路径后悄悄漂移
+import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 
 /**
- * 图片组件的**默认示例图**（2026-10-05 用户提供，尺寸正好 710×388）。
- * 与 C 端 DesignPage.vue 的 `IMAGE_SAMPLE` 必须指向同一个文件，否则画布与真机不一致。
+ * 图片组件的**默认示例图**：与 C 端 DesignPage.vue **共用同一份清单**
+ *（`web-app/src/utils/sampleImages.js`），否则画布与真机会显示不同的图。
  *
- * 🔴 该资源**后端托管**（`server/public/card/static/sample/`，由 H5 构建时
- *   `scripts/sync-mobile-dist.mjs` 同步），**不进小程序包**（`strip-mp-static.js`
- *   会剔除 `static/sample`）。C 端小程序运行时用 `assetUrl()` 拼绝对 URL。
- *   本文件跑在浏览器（admin dev :5175 / 线上同源），同源相对路径可直接解析，
+ *🔴 「后端托管 + 不进小程序包」的完整约定见该清单文件的注释。
+ *   本文件跑在浏览器（admin dev:5175 / 线上同源），同源相对路径可直接解析，
  *   故**不需要走 assetUrl**，保持原样即可。
  */
-const IMAGE_SAMPLE = '/card/static/sample/image-sample-710x388.jpg';
+const IMAGE_SAMPLE = sampleUrl('banner');
 // 标题栏外层（ew 1:1 实测）：底部颜色=外层全宽容器背景（仅S1）
 // 2026-09-11 修复：上/下边距=外层 padding、左右边距=外层左右 padding，四周边距区域均露出底部颜色（此前上下边距在内层被背景色覆盖，底部颜色不生效；左右边距缺失）
 const tbOuterStyle = (p) => {
@@ -1720,16 +1720,6 @@ const nativeGridItems = [
   border-radius: 8px;
 }
 .r-image-empty-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.r-image-empty-tip {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  padding: 4px 0;
-  text-align: center;
-  font-size: 11px;
-  line-height: 1.4;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.45);
-}
 /* 双图行内的占位块跟着行高走，不按 16:9 撑（否则两列各撑一半宽高，行内高低不齐） */
 .r-image-row .r-image-empty { aspect-ratio: auto; height: 100%; border-radius: 0; }
 .r-btn { display: inline-block; height: 40px; line-height: 40px; padding: 0 24px; border-radius: 8px; font-size: 14px; text-align: center; box-sizing: border-box; }
