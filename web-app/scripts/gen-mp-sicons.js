@@ -111,6 +111,63 @@ for (const hex of dynColors) {
 // 黑色兜底：全图标 × #000000（SIcon 默认 currentColor，小程序无继承，按黑渲染）
 for (const iconName of Object.keys(svgMap)) pairs.add(`${iconName}-000000`);
 
+// 3.5) 分级渲染尺寸（关键：主包体积与清晰度的平衡点）
+//
+// 问题背景：产物固定 24×24，但名片宫格 iconSize 默认 40px —— 24px 图拉伸到 40px
+// 显示（1.67倍），描边边缘发虚有毛刺、密集细节（apps 九宫点）糊成一团。
+// 用户反馈「图标变得很难看」，两张同款截图像素级比对证实：形状完全一致，
+// 差别只在清晰度 → 根因是产物分辨率不足，而非图标路径本身。
+//
+// 为什么不全量提到 72px：PNG 面积随边长平方增长，24→72 是 9 倍像素。
+// 全量 base64 会从 ~175KB 涨到 ~1.5MB，主包直接爆掉（上限 1.5MB）。
+//
+// 策略：只给「大尺寸使用」的图标出高清，其余保持 24px。
+//   - 大尺寸判定：静态 <SIcon size="..."> 里 size ≥32px（xlarge=32/large=24 也含）
+//     或宫格组件 iconSize 数值驱动（默认 40）涉及的图标。
+//   - 实测需高清 18 个 / 共 60 个 → base64 约 +60KB，主包仍在预算内。
+const SIZE_PRESETS = { small: 18, default: 20, large: 24, xlarge: 32 };
+const HI_RES_MIN = 32; // ≥ 此像素视为大尺寸
+
+// 收集静态用法里的大尺寸图标
+const bigIcons = new Set();
+// 宫格/应用中心等通过 iconSize 数值驱动的组件会用到的图标（组件 props 决定大小，运行期才知道）
+const GRID_ICONS = new Set([
+  'card', 'radar', 'customer', 'market', 'exchange', 'dist', 'crown', 'dynamic', 'apps',
+  'wallet', 'team', 'user', 'settings', 'chart', 'orders', 'voucher', 'star', 'like', 'comment',
+  'template', 'pool', 'share', 'partner', 'logs', 'analytics', 'back', 'badge', 'show', 'enterprise',
+]);
+for (const n of GRID_ICONS) if (svgMap[n]) bigIcons.add(n);
+
+function walkSizes(dir) {
+  for (const name of fs.readdirSync(dir)) {
+    const p = path.join(dir, name);
+    const st = fs.statSync(p);
+    if (st.isDirectory()) walkSizes(p);
+    else if (/\.(vue|js|ts)$/.test(name)) {
+      const content = fs.readFileSync(p, 'utf8');
+      const tagRe = /<SIcon\b[^>]*>/g;
+      let tm;
+      while ((tm = tagRe.exec(content)) !== null) {
+        const tag = tm[0];
+        const nameAttr = tag.match(/\sname="([a-z0-9-]+)"/);
+        if (!nameAttr || !svgMap[nameAttr[1]]) continue;
+        const sizeAttr = tag.match(/\ssize="([^"]*)"/);
+        if (!sizeAttr) continue;
+        const raw = sizeAttr[1];
+        const px = SIZE_PRESETS[raw] !== undefined ? SIZE_PRESETS[raw] : Number(raw);
+        if (Number.isFinite(px) && px >= HI_RES_MIN) bigIcons.add(nameAttr[1]);
+      }
+    }
+  }
+}
+walkSizes(srcDir);
+
+const RENDER_HI = 72;  // 高清产物边长（40px 显示仍有 1.8x 余量）
+const RENDER_LO = 24;  // 常规产物边长（≤32px 显示场景够用）
+console.log(
+  `[gen-mp-sicons] 分级渲染：高清 ${RENDER_HI}px×${bigIcons.size} 图标 / 常规 ${RENDER_LO}px×${Object.keys(svgMap).length - bigIcons.size} 图标`
+);
+
 console.log(
   `[gen-mp-sicons] 图标=${Object.keys(svgMap).length}，静态组合=${[...pairs].filter((k) => !k.endsWith('-000000')).length - dynColors.size * Object.keys(svgMap).length}，动态兜底色=${dynColors.size}，待生成=${pairs.size}`
 );
@@ -128,14 +185,16 @@ let count = 0;
     const idx = key.lastIndexOf('-');
     const iconName = key.slice(0, idx);
     const hex = key.slice(idx + 1);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#${hex}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgMap[iconName]}</svg>`;
+    // 分级：宫格等大尺寸场景用的图标出 72px，其余保持 24px（详见上方3.5 节）
+    const render = bigIcons.has(iconName) ? RENDER_HI : RENDER_LO;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${render}" height="${render}" viewBox="0 0 24 24" fill="none" stroke="#${hex}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgMap[iconName]}</svg>`;
     const file = path.join(outDir, `${iconName}-${hex}.png`);
     try {
       // quality:80 —— 图标是纯色描边（无渐变/无照片），PNG 量化损失肉眼不可见，
       // 实测单图标 base64 从 512 → 384 字符（省 25%），482 条合计省约 60KB 主包体积。
       // main包体积是「未通过」告警项，这项是当前唯一不牺牲渲染质量的优化点。
       await sharp(Buffer.from(svg), { density: 96 })
-        .resize(24, 24)
+        .resize(render, render)
         .png({ quality: 80, compressionLevel: 9, effort: 8 })
         .toFile(file);
       count++;
