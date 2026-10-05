@@ -99,7 +99,18 @@ function onPick(url) {
 .pe-img--mini .pe-img-ops .el-button { padding: 0 5px; font-size: 10px; height: 20px; }
 /* 迷你模式（非紧凑）：图区收成 40×40 缩略图，整块不再横向铺满整行。
    ⚠️ 仅约束「非 compact」：宫格自定义图标是 compact+mini，走上面的紧凑排版，不受影响。 */
-.pe-img--mini:not(.pe-img--compact) .pe-img-box { display: inline-flex; flex-direction: column; }
-.pe-img--mini:not(.pe-img--compact) .pe-img-main { width: 40px; }
-.pe-img--mini:not(.pe-img--compact) .pe-img-ops { justify-content: flex-start; }
+/* 迷你模式（非紧凑）：缩略图 64×64，操作按钮默认隐藏、悬停时以浮层出现（2026-10-06 用户反馈：
+   40px 太小、替换/清除常驻占空间）。⚠️ 仅约束「非 compact」：宫格自定义图标是 compact+mini，不受影响。 */
+.pe-img--mini:not(.pe-img--compact) .pe-img-box { position: relative; display: inline-flex; flex-direction: column; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-main { width: 64px; height: 64px; object-fit: cover; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-ops {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: none; justify-content: center; align-items: center; gap: 2px;
+  padding: 3px 0; border-top: none; background: rgba(0, 0, 0, .45);
+}
+.pe-img--mini:not(.pe-img--compact) .pe-img-box:hover .pe-img-ops { display: flex; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-ops .el-button { padding: 0 5px; font-size: 10px; height: 18px; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-ops .el-button.is-text { color: #fff; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-empty { width: 64px; height: 64px; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-empty svg { width: 18px; height: 18px; }
 </style>

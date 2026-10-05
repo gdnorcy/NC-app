@@ -137,19 +137,26 @@ export function menuImgStyle(p) {
 
 /**
  * 角标（.mark）样式：实测 29×14 · radius 16px 16px 16px 0 · 1px solid #fff 内描边
- * 标签大小 markSize（高，默认 14=实测视觉值）与标签文字大小 markFontSize（默认 8=实测视觉值）
- * 是组件级参数（2026-10-06 用户新增，对标站没有），颜色仍是项级 labelBgColor/labelTextColor。
+ * 两个组件级参数（2026-10-06 用户新增，对标站没有）：
+ *   markSize     标签大小 = 整块缩放：**宽高都变**（宽 = 高 × 2.07，14→29 与实测吻合）。
+ *                用户反馈 v1 只调高度不正确 → v2 改为宽高同步。
+ *   markFontSize 标签文字大小 = 只改字号，**标签盒子尺寸完全不动**（宽高都锁死，
+ *                文字超宽由 overflow hidden 裁掉；用户明确：文字大小不能带动画布角标）。
  * 🔴 p 缺省时回落实测默认值 —— 两端 CSS 基础值与之保持一致，存量数据无此键也不变形。
  */
 export function menuMarkStyle(it, p = {}) {
   const h = Math.min(28, Math.max(10, Math.round(Number(p.markSize) || 14)));
   const fs = Math.min(16, Math.max(6, Math.round(Number(p.markFontSize) || 8)));
+  const w = Math.round(h * 2.07);
   return {
     background: it.labelBgColor || '#F83287',
     color: it.labelTextColor || '#FFFFFF',
+    width: w + 'px',
     height: h + 'px',
     lineHeight: h + 'px',
     fontSize: fs + 'px',
+    textAlign: 'center',
+    overflow: 'hidden',
   };
 }
 

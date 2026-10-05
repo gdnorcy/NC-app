@@ -115,19 +115,36 @@ describe('menuGroupStyle · 对标站实测值锁定', () => {
   });
 
   // ── 标签（角标）尺寸：2026-10-06 新增组件级参数 markSize / markFontSize ──
-  it('角标默认尺寸 = 实测视觉值（高 14 / 字 8），props 缺省也回落同值', () => {
+  // 语义（用户 2026-10-06 二次纠正）：标签大小 = 整块缩放（**宽高都变**，宽=高×2.07）；
+  // 标签文字大小 = 只改字号，标签盒子（宽+高）完全不动。
+  it('角标默认尺寸 = 实测视觉值（29×14 / 字 8），props 缺省也回落同值', () => {
     const it = { labelBgColor: '#F83287', labelTextColor: '#FFFFFF' };
     for (const p of [{}, undefined, { markSize: 14, markFontSize: 8 }]) {
       const s = menuMarkStyle(it, p);
+      expect(s.width).toBe('29px');   // round(14*2.07)=29，与实测 29×14 吻合
       expect(s.height).toBe('14px');
       expect(s.lineHeight).toBe('14px');
       expect(s.fontSize).toBe('8px');
+      expect(s.textAlign).toBe('center');
+      expect(s.overflow).toBe('hidden');
     }
-    // 单参缺省另一参也各自兜底
-    expect(menuMarkStyle(it, { markSize: 20 }).height).toBe('20px');
-    expect(menuMarkStyle(it, { markSize: 20 }).fontSize).toBe('8px');
-    expect(menuMarkStyle(it, { markFontSize: 12 }).height).toBe('14px');
-    expect(menuMarkStyle(it, { markFontSize: 12 }).fontSize).toBe('12px');
+  });
+
+  it('标签大小整块缩放：宽高同步变大（宽=高×2.07）', () => {
+    const s = menuMarkStyle({}, { markSize: 28 });
+    expect(s.height).toBe('28px');
+    expect(s.width).toBe('58px'); // round(28*2.07)
+    expect(s.lineHeight).toBe('28px');
+    expect(menuMarkStyle({}, { markSize: 10 }).width).toBe('21px');
+  });
+
+  it('标签文字大小只改字号：标签盒子（宽+高）纹丝不动', () => {
+    const s = menuMarkStyle({}, { markFontSize: 16 });
+    expect(s.fontSize).toBe('16px');
+    expect(s.width).toBe('29px');
+    expect(s.height).toBe('14px');
+    expect(menuMarkStyle({}, { markSize: 20 }).width).toBe('41px'); // round(20*2.07)
+    expect(menuMarkStyle({}, { markSize: 20 }).fontSize).toBe('8px');
   });
 
   it('角标尺寸夹紧到滑杆范围（高 10~28 / 字 6~16），颜色仍取项级字段', () => {
