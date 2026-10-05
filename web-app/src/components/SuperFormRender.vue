@@ -63,13 +63,21 @@
             <input v-else class="sf-input" type="number" v-model="values[comp.id]" :placeholder="comp.content.placeholder" :disabled="comp.content.readonly" />
           </view>
 
-          <!-- 时间：时间点 = 单 input；时间段 = 双 input（对标站 el-date-editor--timerange，
-               H5 原生 input 无 timerange 类型，用两个 time 输入 + ~ 分隔；值存 'HH:mm~HH:mm' 字符串） -->
-          <input v-else-if="comp.type === 'time' && comp.content.dateType !== 'timerange'" class="sf-input" :type="timeType(comp.content.dateType)" v-model="values[comp.id]" :disabled="comp.content.readonly" />
+          <!-- 时间：时间点 = 单 picker；时间段 = 双 picker + ~（对标站 el-date-editor--timerange）。
+               ⚠️ 必须用 uni <picker>，不能用 <input type="time">：H5 原生 input 支持 type=time，
+               但**小程序端 input 不支持 type="time"/"date"**（H5 专属属性），真机不弹选择器。
+               picker 在 H5/小程序两端都弹（与 select 组件同一范式）。值存 'HH:mm' / 'HH:mm~HH:mm'。 -->
+          <picker v-else-if="comp.type === 'time' && comp.content.dateType !== 'timerange'" class="sf-input sf-picker" mode="time" :value="values[comp.id]" :disabled="comp.content.readonly" @change="onDateTimePick(comp.id, $event)">
+            <view class="sf-picker-val" :class="{ ph: !values[comp.id] }">{{ values[comp.id] || '请选择时间' }}</view>
+          </picker>
           <view v-else-if="comp.type === 'time' && comp.content.dateType === 'timerange'" class="sf-range">
-            <input class="sf-input sf-range-cell" type="time" :value="rangePartOf(comp.id, 'start')" @input="setRangePart(comp.id, 'start', $event)" :disabled="comp.content.readonly" />
+            <picker class="sf-input sf-range-cell sf-picker" mode="time" :value="rangePartOf(comp.id, 'start')" :disabled="comp.content.readonly" @change="onDateTimePick(comp.id, $event, 'start')">
+              <view class="sf-picker-val" :class="{ ph: !rangePartOf(comp.id, 'start') }">{{ rangePartOf(comp.id, 'start') || '开始时间' }}</view>
+            </picker>
             <text class="sf-range-sep">~</text>
-            <input class="sf-input sf-range-cell" type="time" :value="rangePartOf(comp.id, 'end')" @input="setRangePart(comp.id, 'end', $event)" :disabled="comp.content.readonly" />
+            <picker class="sf-input sf-range-cell sf-picker" mode="time" :value="rangePartOf(comp.id, 'end')" :disabled="comp.content.readonly" @change="onDateTimePick(comp.id, $event, 'end')">
+              <view class="sf-picker-val" :class="{ ph: !rangePartOf(comp.id, 'end') }">{{ rangePartOf(comp.id, 'end') || '结束时间' }}</view>
+            </picker>
           </view>
 
           <!-- 图片上传（ew picture-upload：普通/身份证/营业执照 三种模式联动）
@@ -246,11 +254,17 @@
                值存 { start, end } 对象；同步生日开关在提交侧换算生日字段（syncBirthday）。
                此前 dateType='time' 语义是「日期时间」，与对标站的「日期范围」冲突 —— 范围优先判断。 -->
           <view v-else-if="comp.type === 'date' && comp.content.dateType === 'range'" class="sf-range">
-            <input class="sf-input sf-range-cell" type="date" :value="rangePartOf(comp.id, 'start')" @input="setRangePart(comp.id, 'start', $event)" :disabled="comp.content.readonly" />
+            <picker class="sf-input sf-range-cell sf-picker" mode="date" :value="rangePartOf(comp.id, 'start')" :disabled="comp.content.readonly" @change="onDateTimePick(comp.id, $event, 'start')">
+              <view class="sf-picker-val" :class="{ ph: !rangePartOf(comp.id, 'start') }">{{ rangePartOf(comp.id, 'start') || '开始日期' }}</view>
+            </picker>
             <text class="sf-range-sep">~</text>
-            <input class="sf-input sf-range-cell" type="date" :value="rangePartOf(comp.id, 'end')" @input="setRangePart(comp.id, 'end', $event)" :disabled="comp.content.readonly" />
+            <picker class="sf-input sf-range-cell sf-picker" mode="date" :value="rangePartOf(comp.id, 'end')" :disabled="comp.content.readonly" @change="onDateTimePick(comp.id, $event, 'end')">
+              <view class="sf-picker-val" :class="{ ph: !rangePartOf(comp.id, 'end') }">{{ rangePartOf(comp.id, 'end') || '结束日期' }}</view>
+            </picker>
           </view>
-          <input v-else-if="comp.type === 'date'" class="sf-input" type="date" v-model="values[comp.id]" :disabled="comp.content.readonly" />
+          <picker v-else-if="comp.type === 'date'" class="sf-input sf-picker" mode="date" :value="values[comp.id]" :disabled="comp.content.readonly" @change="onDateTimePick(comp.id, $event)">
+            <view class="sf-picker-val" :class="{ ph: !values[comp.id] }">{{ values[comp.id] || '请选择日期' }}</view>
+          </picker>
 
           <!-- 定位（定位点 / 点到点） -->
           <view v-else-if="comp.type === 'location'" class="sf-loc">
@@ -455,10 +469,12 @@
               <text class="sf-pay-qty-val">{{ (values[comp.id] || {}).qty || 1 }}</text>
               <view class="sf-step-btn sf-step-plus" @click="stepPay(comp.id, 1)">+</view>
             </view>
-            <!-- 日期选择 -->
+            <!-- 日期选择（picker：小程序端 input 不支持 type=date，不弹选择器） -->
             <view v-if="comp.content.dateSelect" class="sf-pay-date">
               <text class="sf-pay-date-label">参与日期</text>
-              <input class="sf-input" type="date" v-model="values[comp.id + '__date']" :disabled="comp.content.readonly" />
+              <picker class="sf-input sf-picker" mode="date" :value="values[comp.id + '__date']" :disabled="comp.content.readonly" @change="onDateTimePick(comp.id + '__date', $event)">
+                <view class="sf-picker-val" :class="{ ph: !values[comp.id + '__date'] }">{{ values[comp.id + '__date'] || '请选择日期' }}</view>
+              </picker>
             </view>
             <!-- 库存展示 -->
             <view v-if="comp.content.showStock" class="sf-pay-stock" :class="{ out: comp.content.stock <= 0 }">{{ comp.content.stock > 0 ? ('剩余库存：' + comp.content.stock + ' 件') : '已售罄' }}</view>
@@ -882,11 +898,8 @@ function limitText(ct) {
   return '数量不限';
 }
 
-function timeType(dt) {
-  if (dt === 'time') return 'time';
-  if (dt === 'datetime') return 'datetime-local';
-  return 'date';
-}
+// 注：原 timeType(dt)→input[type] 映射已移除。时间/日期改用 uni <picker>（小程序端 input 不支持
+// type=date/time，真机不弹选择器）；面板只提供 time/timerange/date/range，均一一对应 picker mode。
 
 /** 日期范围 / 时间段的分位读写：值存 'start~end' 字符串（提交侧无需特判，
  *  一个字符串天然兼容旧数据；对象形态会让 payload 出现结构差异）。 */
@@ -901,6 +914,13 @@ function setRangePart(id, part, ev) {
   const cur = typeof values[id] === 'string' ? values[id].split('~') : ['', ''];
   const next = part === 'start' ? [val, cur[1] || ''] : [cur[0] || '', val];
   values[id] = next.join('~');
+}
+/** 日期/时间 picker 变更：part 为空=单值写 values[id]；part='start'/'end' 写范围（'起~止'）。 */
+function onDateTimePick(id, ev, part) {
+  const v = ev && ev.detail && ev.detail.value != null ? String(ev.detail.value) : '';
+  if (!v) return;
+  if (part) setRangePart(id, part, { detail: { value: v } });
+  else values[id] = v;
 }
 
 /** 车牌号分位读写：值 = 完整车牌字符串（8 格各 1 字符）。 */
