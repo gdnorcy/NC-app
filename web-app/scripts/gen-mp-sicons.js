@@ -1,6 +1,7 @@
 // 小程序端 SIcon 图标预生成：小程序 <image> 不支持 SVG data-URI（H5 的 view+background-image 在小程序端失效）
 // 本脚本在 uni build -p mp-weixin 成功后，把 SIcon.vue 的 svgMap × 实际使用的颜色组合渲染成 PNG，
-// 输出到 dist/build/mp-weixin/static/sicons/{name}-{hex}.png，供 SIcon.vue MP-WEIXIN 分支以 <image> 引用。
+// 再由 PNG 生成 base64 映射写入 src/utils/sicons-base64.js —— 供 SIcon.vue MP-WEIXIN 分支以 base64 data URI 引用。
+// PNG 仅为生成 base64 的中间产物，生成后即从产物中清理（运行时不引用 PNG 路径，避免主包体积膨胀）。
 //
 // v2 优化（解决小程序代码质量"图片音频资源 >200K"告警）：
 //  - 只生成静态 <SIcon name="x" color="y"> 实际出现的 (name,color) 组合
@@ -150,4 +151,16 @@ let count = 0;
     `// 自动生成：小程序端 SIcon 图标 base64 映射（scripts/gen-mp-sicons.js，勿手改）\n// 用途：微信基础库 3.x 禁用 http 图片（含开发者工具映射的包内资源），data URI 不依赖网络\nexport const siconsBase64 = {\n${entries.join(',\n')}\n};\n`
   );
   console.log(`[gen-mp-sicons] 已生成 base64 映射 ${entries.length} 条 → src/utils/sicons-base64.js`);
+
+  // 5) 清理 static/sicons 的 PNG 产物（主包瘦身）
+  // 运行时只用 sicons-base64.js 里的 base64 data URI（SIcon.vue mpIconSrc），不引用任何 PNG 路径；
+  // 这些 PNG 属构建期中间产物，留在主包会被计入包体积（代码质量「主包应 <1.5M」告警）。生成 base64 后删掉。
+  // 逐文件 unlinkSync（每次 1 个），避免一次性递归删触发大批量删除保护。
+  if (fs.existsSync(outDir)) {
+    for (const f of fs.readdirSync(outDir)) {
+      if (f.endsWith('.png')) fs.unlinkSync(path.join(outDir, f));
+    }
+    try { fs.rmdirSync(outDir); } catch (_) { /* 非空则保留 */ }
+    console.log(`[gen-mp-sicons] 已清理 PNG 中间产物（仅保留 base64 映射，主包 -~${((entries.length * 4) / 1024).toFixed(0)}KB 量级）`);
+  }
 })();

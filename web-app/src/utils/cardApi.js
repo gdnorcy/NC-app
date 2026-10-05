@@ -4,14 +4,24 @@ import { getTid } from './mallUtil.js';
 import { qsStringify, qsParse } from './qs.js';
 import { DEFAULT_TENANT_ID } from '../config.js';
 
-const BASE_URL = 'http://localhost:3000/api/card';
-const MARKET_BASE_URL = 'http://localhost:3000/api/card-market';
+// ===== 服务器基址 =====
+// ⚠️ 均为**开发占位**，正式发布必须替换为已备案的 HTTPS 域名（微信正式版强制 HTTPS，且需在小程序后台配置 request 合法域名）。
+// - H5：浏览器与服务器同机，用 localhost 即可。
+// - 小程序真机：手机上的 localhost 指向「手机自己」，访问不到电脑服务器 → 必须用电脑的局域网 IP。
+//   （此 IP 由路由器 DHCP 分配，可能变化；换网络后需回来改这里。手机与电脑须在同一局域网/同一 WiFi。）
+// #ifdef MP-WEIXIN
+const HOST = 'http://192.168.3.19:3000'; // 电脑局域网 IP（真机调试用）
+// #endif
+// #ifndef MP-WEIXIN
+const HOST = 'http://localhost:3000'; // H5 同机开发
+// #endif
+
+const BASE_URL = HOST + '/api/card';
+const MARKET_BASE_URL = HOST + '/api/card-market';
 // 支付API基址：H5（含 /mall 独立产物）走同源相对路径，任意域名/端口部署可用；
-// 小程序端 uni.request 要求完整 URL，开发占位 localhost:3000，发布时替换实际 HTTPS 域名
+// 小程序端 uni.request 要求完整 URL（用电脑局域网 IP 真机可达）
 const PAYMENT_BASE_URL =
-  typeof window !== 'undefined' && window.location
-    ? '/api/payment'
-    : 'http://localhost:3000/api/payment';
+  typeof window !== 'undefined' && window.location ? '/api/payment' : HOST + '/api/payment';
 
 // 公共请求层（token 注入 / 401 跳登录 / 响应解包），行为与原 request 完全一致
 const { request } = createApiClient(BASE_URL);
