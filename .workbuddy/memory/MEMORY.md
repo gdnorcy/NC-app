@@ -221,3 +221,14 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 - **构建中间产物清不掉**：`strip-mp-static.js` / `gen-mp-sicons.js` 的删除被WorkBuddy
   safe-delete shim 拦（每轮 50 文件预算）。可用 node `fs.unlinkSync` 分批（每批 ≤40）删，
   但每文件都过 shim，481 个文件约需 4-8 分钟，建议放后台。
+
+## 名片宫格 v5 定稿规格（不要凭「听起来更合理」改动）
+- 权威原文：仓库根目录 `名片宫格图标方案.html`（v5，2026-09-26 定稿）
+- 规格：**46px 圆角方块（r=14）+ 内含 32px 描边图标（占框 69.6%）**，`stroke-width: 2`，`gap: 10px`
+- 会员中心＝**对勾圆**（圆环＋对勾），**不是皇冠**（我曾误改成皇冠，2026-10-05 已回归）
+- 「更多」底色＝`#78909c→#546e7a` **灰蓝**（不是青绿）
+- 方案 A/B/C **只有底色不同**，9 个图标路径完全相同；用户选 **A（品牌多彩渐变）**
+- 宫格 `iconSize` 只控**方块**大小，图标按 `GRID_ICON_RATIO = 32/46` 内缩（两者必须解耦）
+- **DB（`server/data/panorama.db`）在 .gitignore 里**，改装修配置改完只本地生效、不进 commit，
+  改前务必 `cp` 备份；`tenant_page_design.is_home=1` 是名片首页
+- **验证方案类 HTML 直接用无头 Chrome 截图**，不要正则抽svg 路径（原文是残缺 HTML）
