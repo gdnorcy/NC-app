@@ -143,7 +143,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { onShow, onLoad, onPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
+import { onShow, onLoad, onPageScroll, onShareAppMessage, onPullDownRefresh } from '@dcloudio/uni-app';
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
@@ -318,7 +318,10 @@ const features = [
   { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#78909c,#546e7a)' },
 ];
 
-onMounted(async () => {
+// 首页数据加载（onMounted 首屏 + 下拉强刷新共用）
+// force=true 时跳过 design.js 的 5 分钟本地缓存直连服务端 —— 后台改装修后
+// 小程序「重新进入」仍命中缓存导致看到旧内容（云菜鸟靠下拉强刷新解决，本项目原先没复刻）。
+async function loadHomeData(force = false) {
   try {
     const res = await cardApi.getProfile();
     user.value = res.user;
@@ -330,7 +333,8 @@ onMounted(async () => {
   try {
     const preview = isPreviewMode();
     const pageType = String(pageOptions.pageType || '').trim();
-    const config = await fetchDesignConfig(preview, preview, pageType);
+    // force 与 preview 同为 true 时才绕过缓存；预览模式本就直连草稿，不受影响
+    const config = await fetchDesignConfig(force || preview, preview, pageType);
     const comps = config?.pages?.components || [];
     designComps.value = Array.isArray(comps) ? comps : [];
     designTenantId.value = config?.tenantId || 0;
@@ -370,7 +374,26 @@ onMounted(async () => {
       const market = await cardApi.getMarketList({ type: 'all' });
       marketList.value = (market.items || []).slice(0, 6);
     } catch (e) {}
-});
+}
+
+onMounted(() => loadHomeData(false));
+
+// 下拉强刷新（复刻云菜鸟）：绕过 design.js 的 5 分钟本地缓存直连服务端，
+// 让后台「设计中心」刚保存/发布的装修配置立刻在真机生效，无需等缓存过期或重装。
+// H5 端无此交互（浏览器刷新即重新请求），故只在 MP 端注册。
+// eslint-disable-next-line no-undef
+if (typeof onPullDownRefresh === 'function') {
+  onPullDownRefresh(async () => {
+    try {
+      await loadHomeData(true);
+    } catch (e) {
+      uni.showToast({ title: '刷新失败，请重试', icon: 'none' });
+    } finally {
+      // 必须无条件停止：否则下拉动画卡住不消失（即使抛错）
+      uni.stopPullDownRefresh();
+    }
+  });
+}
 
 // 我的名片头像/卡片品牌色渐变（租户 brandColor，无则默认蓝）
 const avatarStyle = computed(() => {

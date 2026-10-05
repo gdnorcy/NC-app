@@ -11,7 +11,10 @@
       "path": "pages/cardMain/home",
       "style": {
         "navigationBarTitleText": "智能名片",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true,
+        "backgroundTextStyle": "dark",
+        "backgroundColorTop": "#F2F3F5"
       }
     },
     {
