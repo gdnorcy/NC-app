@@ -232,3 +232,11 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 - **DB（`server/data/panorama.db`）在 .gitignore 里**，改装修配置改完只本地生效、不进 commit，
   改前务必 `cp` 备份；`tenant_page_design.is_home=1` 是名片首页
 - **验证方案类 HTML 直接用无头 Chrome 截图**，不要正则抽svg 路径（原文是残缺 HTML）
+
+## 超级表单在装修页的标题规则（修复⑤）
+- **装修页嵌入的超级表单不显示表单名头**。设计器画布（`ComponentRender.vue`）与
+  C 端（`DesignPage.vue`）**两端都已删除**标题 DOM，1:1 对齐 `SuperFormRender mode="embed"`
+  （embed 模式本身也不渲染 `.sf-form-name`）
+- **但`super_form_template.name` 仍是占位名「未命名表单」时，后台表单列表 + 设计器
+  「选择超级表单」弹窗（`.pe-sf-picked-name`）会显示它** —— 改模板名，不要指望改 DOM
+- `super_form_template` 的 `config` 是 `{components, settings}` JSON，字段在 `config.components`
