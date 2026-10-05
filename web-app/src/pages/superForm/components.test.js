@@ -19,10 +19,11 @@ describe('defaultContent 与校验/面板字段对齐', () => {
     expect(c.maxSelect).toBeUndefined();
   });
 
-  it('carplate 默认 newEnergy=true（8 格新能源车牌），关闭后渲染 7 位普通车牌', () => {
+  it('carplate 固定 8 格、末格新能源位可选（无类型开关字段）', () => {
     const c = defaultContent('carplate');
-    expect(c.newEnergy).toBe(true);
     expect(c.label).toBe('车牌号');
+    // 五轮决策：取消 newEnergy 类型开关（不限制车型，概念错位），改为末格绿位可选
+    expect(c.newEnergy).toBeUndefined();
   });
 
   it('number 含 step 默认值，C 端 step 校验才会生效', () => {

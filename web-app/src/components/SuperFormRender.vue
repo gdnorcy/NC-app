@@ -324,24 +324,25 @@
                对标站实测（car-number-widget 源码 + scoped CSS）：8 格独立圆角卡片（高 49px、文字居中、
                卡间留缝），卡 1/卡 2 之间有 4px 圆点分隔符（div.point，left:23%），
                最后一格为新能源位：绿框绿字 + placeholder「新能源」（rgb(0,181,0)）。
-               2026-10-05：新增「新能源车牌」开关 —— 关闭时渲染 7 位普通车牌（无绿框/无新能源占位）。
-               旧数据无 newEnergy 字段时视为新能源（true），保持 8 格外观不变。
+               2026-10-05（五轮）：取消「新能源车牌」类型开关，改为**固定 8 格、末格绿位可选** ——
+               普通蓝牌填 7 格、末格留空；新能源绿牌填满 8 格。类型由 C 端填表人自行决定（设计器不锁类型），
+               校验正则在 7/8 位间自适应放行。
                2026-10-05（四轮）：点击格子弹自定义软键盘 —— 第 1 格省份键盘，其余格字母数字键盘，
                选省后自动切到字母键盘（对标站交互）；用自定义 view 格 + 底部键盘，不弹系统键盘。 -->
           <view v-else-if="comp.type === 'carplate'" class="sf-plate-wrap">
             <view class="sf-plate">
               <view
-                v-for="n in (comp.content.newEnergy !== false ? 8 : 7)"
+                v-for="n in 8"
                 :key="n"
                 class="sf-plate-cell"
                 :class="{
-                  'sf-plate-cell--ne': n === (comp.content.newEnergy !== false ? 8 : 7) && comp.content.newEnergy !== false,
+                  'sf-plate-cell--ne': n === 8,
                   'is-active': activePlate.id === comp.id && activePlate.index === n - 1
                 }"
                 @click="focusPlate(comp.id, n - 1)"
               >
                 <text v-if="plateCellOf(comp.id, n - 1)">{{ plateCellOf(comp.id, n - 1) }}</text>
-                <text v-else-if="isPlateNePlaceholder(comp, n)" class="sf-plate-ph">新能源</text>
+                <text v-else-if="n === 8" class="sf-plate-ph">新能源</text>
               </view>
               <view class="sf-plate-dot" />
             </view>
@@ -920,11 +921,7 @@ const activePlate = reactive({ id: null, index: -1 });
 const PROVINCE_ROWS = provinceRows();
 const LETTER_ROWS = letterRows();
 
-// 末格（仅新能源）空值显示「新能源」绿字占位
-function isPlateNePlaceholder(comp, n) {
-  const last = comp.content.newEnergy !== false ? 8 : 7;
-  return comp.content.newEnergy !== false && n === last;
-}
+// 末格（绿色「新能源」位）空值时在模板内联显示占位（见上方 n === 8 分支）
 // 当前键盘类型：第 1 格省份键盘，其余字母数字键盘
 function plateKbType() {
   if (!activePlate.id) return null;
@@ -945,8 +942,7 @@ function pressPlateKey(ch) {
   if (!id) return;
   const idx = activePlate.index;
   setPlateCell(id, idx, { detail: { value: ch } });
-  const last = (compById(id).content.newEnergy !== false ? 8 : 7) - 1;
-  if (idx < last) activePlate.index = idx + 1; // 自动前进；选省后（index 0→1）键盘自动切字母
+  if (idx < 7) activePlate.index = idx + 1; // 自动前进；选省后（index 0→1）键盘自动切字母
 }
 function backspacePlate() {
   const id = activePlate.id;
