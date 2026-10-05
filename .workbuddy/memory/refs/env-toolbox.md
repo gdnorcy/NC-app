@@ -16,6 +16,13 @@
 - ⚠️ **测 uni H5 的 `<image>` 必须取内部 `e.querySelector('img')`** —— 外层 `<uni-image>` 没有 `complete`/`naturalWidth`/`src`。
 - ⚠️ 连测多个 formId / pageType 时**改query 而非 hash**（hash 跳转不重载组件，会测到上一个页面）。
 - admin 侧登录态键名是 `customer_token` / `customer_user`（**不是** `token`/`user`，那是 `/admin` 侧），注入错键会静默跳回 `/login`。
+- 🔴 **客户后台 CDP 入口只有 `http://127.0.0.1:3000/customer.html`**（`#/design/edit` 等）。
+  `/admin/customer.html` 虽然磁盘上引用 `customer-*.js`，但**服务端实际返回总后台 `admin-*.js`**
+  → 读 `panorama_token` → 写 `customer_token` 永远无效 → 任何路由都被 `beforeEach` 改回 `/login`
+  （`NavigationFailure type:16`，连 `/dashboard` 也拦）。
+  一步判定：`[...document.querySelectorAll('script[src]')].map(s=>s.getAttribute('src'))`。
+  排查「守卫一直跳登录」的正解：用 `Page.addScriptToEvaluateOnNewDocument`（早于 app 启动）
+  hook `Storage.prototype.getItem` 记录读了哪些键 —— 读到 `panorama_token` 而 `customer_token` 0 次即入口错。
 - admin 验证前用 `open "...?cb=$RANDOM#/apps/super-form"` 硬刷新，否则浏览器复用旧 JS（曾误判为回归）。
 - 临时脚本放`/tmp` 时 `__dirname` 拼仓库路径会错（变成 `/private/...`）→ 直接写绝对路径常量。
 - 表达式里含 `$` 会被 zsh 解释（报 `failed to load module zsh/parameter`）→ 把表达式写进 `.js` 文件再读入执行。
