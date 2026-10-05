@@ -105,7 +105,11 @@ function buildSvgDataUri() {
   const content = svgMap[props.name];
   if (!content) return '';
   const strokeColor = props.color || 'currentColor';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${content}</svg>`;
+  // ⚠️ 必须同时给 color 属性：apps 九宫点 / dynamic 气泡点 / radar 中心点内部用
+  // fill="currentColor" 画实心点。currentColor 取 CSS `color` 属性，SVG 根元素
+  // 未声明 color 时回退成 SVG 默认黑色 → 白描边图标上出现黑点（看起来像"孔洞糊死"）。
+  // 与 scripts/gen-mp-sicons.js 的同名修复保持一致。
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" color="${strokeColor}" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${content}</svg>`;
   return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 }
 const iconSrc = computed(() => buildSvgDataUri());

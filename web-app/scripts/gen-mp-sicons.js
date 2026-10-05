@@ -187,7 +187,12 @@ let count = 0;
     const hex = key.slice(idx + 1);
     // 分级：宫格等大尺寸场景用的图标出 72px，其余保持 24px（详见上方3.5 节）
     const render = bigIcons.has(iconName) ? RENDER_HI : RENDER_LO;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${render}" height="${render}" viewBox="0 0 24 24" fill="none" stroke="#${hex}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgMap[iconName]}</svg>`;
+    // ⚠️ 必须同时给 color 属性：部分图标（apps 九宫点 / dynamic 气泡点 / radar 中心点）
+    // 内部用 fill="currentColor" 画实心点。currentColor 取的是 CSS `color` 属性，
+    // SVG 根元素未声明 color 时会回退成 SVG 默认的**黑色** → 白描边图标上出现黑点，
+    // 视觉上就是"孔洞糊死"。声明 color 后 currentColor 才正确继承描边色。
+    // SIcon.vue 的 buildSvgDataUri 有同一处修复，两边必须同步。
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${render}" height="${render}" viewBox="0 0 24 24" fill="none" color="#${hex}" stroke="#${hex}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svgMap[iconName]}</svg>`;
     const file = path.join(outDir, `${iconName}-${hex}.png`);
     try {
       // quality:80 —— 图标是纯色描边（无渐变/无照片），PNG 量化损失肉眼不可见，
