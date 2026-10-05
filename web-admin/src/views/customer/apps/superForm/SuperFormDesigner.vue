@@ -400,7 +400,8 @@
                     <el-radio value="range">日期范围</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="同步生日">
+                <!-- 对标站实测（ew-date-01）：「同步生日」只在单个日期时显示，范围模式下整行消失 -->
+                <el-form-item v-if="selected.content.dateType !== 'range'" label="同步生日">
                   <el-radio-group v-model="selected.content.syncBirthday">
                     <el-radio :value="false">关闭</el-radio>
                     <el-radio :value="true">开启</el-radio>
@@ -452,7 +453,7 @@
                 </el-form-item>
                 <el-form-item label="内容类型">
                   <el-radio-group v-model="selected.content.dateType">
-                    <el-radio value="time">单个时间</el-radio>
+                    <el-radio value="time">时间点</el-radio>
                     <el-radio value="timerange">时间段</el-radio>
                   </el-radio-group>
                 </el-form-item>
@@ -623,7 +624,8 @@
                     <el-radio :value="true">必填</el-radio><el-radio :value="false">非必填</el-radio>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="提示文字"><el-input v-model="selected.content.placeholder" /></el-form-item>
+                <!-- 对标站实测（ew-carplate-01）：车牌号组件属性只有「是否显示/是否必填」，
+                     没有 placeholder / 只读 / 内容校验；C 端渲染是 8 格分位输入，无占位文案。 -->
               </template>
 
               <template v-else-if="selected.type === 'title'">

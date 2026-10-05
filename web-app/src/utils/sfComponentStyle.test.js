@@ -237,9 +237,13 @@ describe('componentStyleVars', () => {
       ['date', 'line'], ['time', 'box1'],
       ['radio', 's1'], ['radio', 's2'], ['radio', 's3'],
       ['checkbox', 's1'], ['checkbox', 's2'], ['checkbox', 's3'],
-      ['select', 's1'], ['select', 's2'], ['select', 's3'],
+      ['select', 'box1'], ['select', 'line'],
+      // select 存量数据兼容：s3 ≙ 线风格，s1/s2 ≙ 框风格（对标站只有框/线两档）
+      ['select', 's3'], ['select', 's1'], ['select', 's2'],
       ['number', 'step'], ['number', 'slider'],
       ['filedownload', 's1'], ['filedownload', 's2'],
+      ['location', 'box1'], ['location', 'box2'], ['location', 'line'],
+      ['carplate', 'box'], ['carplate', 'line'],
     ];
     // 语义 class 全集（渲染端只认这些）
     const SEMANTIC = ['sfv-box', 'sfv-plain', 'sfv-line', 'sfv-step', 'sfv-slider'];
@@ -253,11 +257,15 @@ describe('componentStyleVars', () => {
         seen[type + '.' + st + '→' + k] = true;
       });
     });
-    // 同类型不同档必须映射出不同视觉，否则两个风格卡看起来一样（= 用户说的「无效」）
+    // 同类型不同档必须映射出不同视觉，否则两个风格卡看起来一样（= 用户说的「无效」）。
+    // 只检查 schema 声明的面板档位（boxLine）；存量兼容值（如 select 的 s1/s2）
+    // 允许与在档值撞视觉 —— 它们不在面板上，只是老数据不丢样。
     const byType = {};
-    ALL.forEach(([type, st]) => {
-      byType[type] = byType[type] || [];
-      byType[type].push(JSON.stringify(Object.keys(styleVariant({ type, style: { styleType: st } })).sort()));
+    Object.entries(STYLE_SCHEMA).forEach(([type, schema]) => {
+      (schema.boxLine || []).forEach((opt) => {
+        byType[type] = byType[type] || [];
+        byType[type].push(JSON.stringify(Object.keys(styleVariant({ type, style: { styleType: opt.value } })).sort()));
+      });
     });
     Object.keys(byType).forEach((type) => {
       if (byType[type].length < 2) return;
@@ -284,10 +292,19 @@ describe('componentStyleVars', () => {
     // 是「background: var(--active-color); color: #fff」—— 选中态填色，是独立于 sfx-optline 的语义
     expect(styleVariant({ type: 'radio', style: { styleType: 's3' } })).toEqual({ 'sfv-line': true, 'sfx-optline': true, 'sfx-optfill': true });
     expect(styleVariant({ type: 'checkbox', style: { styleType: 's2' } })['sfx-optplain']).toBe(true);
-    // select 渲染的是下拉输入框（.sf-input），没有选项区 → 不能挂 sfx-opt*，否则三档全落空
+    // select 渲染的是下拉输入框（.sf-input），没有选项区 → 不能挂 sfx-opt*，否则三档全落空。
+    // 对标站实测只有框(box1)/线(line)两档；存量 s3 ≙ 线、s1/s2 ≙ 框。
+    expect(styleVariant({ type: 'select', style: { styleType: 'line' } })).toEqual({ 'sfv-line': true });
+    expect(styleVariant({ type: 'select', style: { styleType: 'box1' } })).toEqual({ 'sfv-box': true });
     expect(styleVariant({ type: 'select', style: { styleType: 's3' } })).toEqual({ 'sfv-line': true });
     expect(styleVariant({ type: 'select', style: { styleType: 's1' } })).toEqual({ 'sfv-box': true });
-    expect(styleVariant({ type: 'select', style: { styleType: 's2' } })).toEqual({ 'sfv-plain': true });
+    expect(styleVariant({ type: 'select', style: { styleType: 's2' } })).toEqual({ 'sfv-box': true });
+    // location 对标站三档（框1/框2/线）；carplate 仅框风格（存量 line 仍按线渲染不丢样）
+    expect(styleVariant({ type: 'location', style: { styleType: 'box1' } })).toEqual({ 'sfv-box': true });
+    expect(styleVariant({ type: 'location', style: { styleType: 'box2' } })).toEqual({ 'sfv-plain': true });
+    expect(styleVariant({ type: 'location', style: { styleType: 'line' } })).toEqual({ 'sfv-line': true });
+    expect(styleVariant({ type: 'carplate', style: { styleType: 'box' } })).toEqual({ 'sfv-box': true });
+    expect(styleVariant({ type: 'carplate', style: { styleType: 'line' } })).toEqual({ 'sfv-line': true });
     // number：步进器 / 滑块互斥，且不挂选项区 class
     expect(styleVariant({ type: 'number', style: { styleType: 'step' } })).toEqual({ 'sfv-step': true });
     expect(styleVariant({ type: 'number', style: { styleType: 'slider' } })).toEqual({ 'sfv-slider': true });
@@ -482,6 +499,20 @@ describe('图片/图文选项排布 optImgLayout', () => {
     const r = styleSchema('checkbox').styleRows;
     expect(r.find((x) => x.key === 'optImgLayout')).toBeTruthy();
     expect(r.find((x) => x.key === 'optImgPerRow')).toBeTruthy();
+  });
+
+  // 单项选择与多项选择在结构上完全同源：同样的选项类型三态、同样的排布参数、同样的颜色字段。
+  // 历史上多次出现「改了 radio 忘了 checkbox」的漂移，这里用全量 schema 比对锁死。
+  it('checkbox 与 radio 的 styleRows/colorRows 必须完全同构（防漂移）', () => {
+    const r = styleSchema('radio');
+    const c = styleSchema('checkbox');
+    const norm = (rows) => (rows || []).map((x) => ({ ...x, label: undefined }));
+    expect(norm(c.styleRows)).toEqual(norm(r.styleRows));
+    expect(norm(c.colorRows)).toEqual(norm(r.colorRows));
+    // 默认值也要一致（否则同一参数在两个组件上表现不同）
+    expect(defaultStyle('checkbox').optImgLayout).toBe(defaultStyle('radio').optImgLayout);
+    expect(defaultStyle('checkbox').optImgPerRow).toBe(defaultStyle('radio').optImgPerRow);
+    expect(defaultStyle('checkbox').optionImgSize).toBe(defaultStyle('radio').optionImgSize);
   });
 
   it('网格模式图片大小可调，默认 64px（列表模式固定 95px 高，由 CSS 兜底）', () => {

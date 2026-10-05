@@ -134,7 +134,9 @@ export const STYLE_SCHEMA = {
     { key: 'activeColor', label: '选中颜色', def: '#2667EC' },
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
   ] },
-  select: { boxLine: [{value:'s1',label:'风格1'},{value:'s2',label:'风格2'},{value:'s3',label:'风格3'}], styleRows: [
+  // 对标站实测：下拉选择只有「框风格(box1) / 线风格(line)」两档（ew-select-02 截图）。
+  // 旧数据 s1/s2/s3：s3 是线风格，s1/s2 都视为框风格（见 styleVariant 分派）。
+  select: { boxLine: [{value:'box1',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '输入框左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -190,7 +192,9 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'iconColor', label: '图标颜色', def: '#FFFFFF' },
   ] },
-  location: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
+  // 对标站实测：定位有「框风格1 / 框风格2 / 线风格」三档（ew-location-01 截图）。
+  // 旧数据 box ≙ box1（都是描边浅底），styleVariant 兜底已兼容。
+  location: { boxLine: [{value:'box1',label:'框风格1'},{value:'box2',label:'框风格2'},{value:'line',label:'线风格'}], styleRows: [
     { key: 'inputMarginX', label: '输入框左右边距', def: 10, max: 40 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
     { key: 'titleSize', label: '标题大小', def: 16, max: 24 },
@@ -285,7 +289,9 @@ export const STYLE_SCHEMA = {
     { key: 'errorColor', label: '错误提示', def: '#ED4F4F' },
     { key: 'empowerColor', label: '授权按钮', def: '#4385FF' },
   ] },
-  carplate: { boxLine: [{value:'box',label:'框风格'},{value:'line',label:'线风格'}], styleRows: [
+  // 对标站实测：车牌号只有「框风格」一档，无线风格（ew-carplate-02 截图）。
+  // 旧数据 line 仍按线风格渲染（styleVariant 兜底），但面板不再提供该选项。
+  carplate: { boxLine: [{value:'box',label:'框风格'}], styleRows: [
     { key: 'inputMarginX', label: '输入框左右边距', def: 10, max: 40 },
     { key: 'innerMargin', label: '内部间距', def: 15, max: 60 },
     { key: 'inputRadius', label: '输入框圆角', def: 3, max: 20 },
@@ -467,6 +473,11 @@ export function styleVariant(comp) {
     if (st === 'slider') return { 'sfv-slider': true };
     if (st === 'step') return { 'sfv-step': true };
     return { 'sfv-box': true };                        // 未知/空值兜底
+  }
+  // 对标站实测：下拉选择只有框/线两档。存量 s3 ≙ 线风格，s1/s2 ≙ 框风格。
+  if (type === 'select') {
+    if (st === 'line' || st === 's3') return { 'sfv-line': true };
+    return { 'sfv-box': true };
   }
   // 非选择类的 s1/s2（目前仅 filedownload：风格1/风格2）按输入类语义分派，
   // 否则两档都落到 sfv-box = 视觉完全相同 = 风格2 是死参数（单测已捕获）。

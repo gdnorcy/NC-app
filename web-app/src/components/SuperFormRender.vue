@@ -63,8 +63,14 @@
             <input v-else class="sf-input" type="number" v-model="values[comp.id]" :placeholder="comp.content.placeholder" :disabled="comp.content.readonly" />
           </view>
 
-          <!-- 时间 -->
-          <input v-else-if="comp.type === 'time'" class="sf-input" :type="timeType(comp.content.dateType)" v-model="values[comp.id]" :disabled="comp.content.readonly" />
+          <!-- 时间：时间点 = 单 input；时间段 = 双 input（对标站 el-date-editor--timerange，
+               H5 原生 input 无 timerange 类型，用两个 time 输入 + ~ 分隔；值存 'HH:mm~HH:mm' 字符串） -->
+          <input v-else-if="comp.type === 'time' && comp.content.dateType !== 'timerange'" class="sf-input" :type="timeType(comp.content.dateType)" v-model="values[comp.id]" :disabled="comp.content.readonly" />
+          <view v-else-if="comp.type === 'time' && comp.content.dateType === 'timerange'" class="sf-range">
+            <input class="sf-input sf-range-cell" type="time" :value="rangePartOf(comp.id, 'start')" @input="setRangePart(comp.id, 'start', $event)" :disabled="comp.content.readonly" />
+            <text class="sf-range-sep">~</text>
+            <input class="sf-input sf-range-cell" type="time" :value="rangePartOf(comp.id, 'end')" @input="setRangePart(comp.id, 'end', $event)" :disabled="comp.content.readonly" />
+          </view>
 
           <!-- 图片上传（ew picture-upload：普通/身份证/营业执照 三种模式联动）
                上下布局：rowsShow 等分正方形框（ew getImgHeight 令高=宽），边框/背景走 底框边框/背景颜色；
@@ -235,8 +241,16 @@
             <!-- #endif -->
           </template>
 
-          <!-- 日期 -->
-          <input v-else-if="comp.type === 'date'" class="sf-input" :type="comp.content.dateType === 'time' ? 'datetime-local' : 'date'" v-model="values[comp.id]" :disabled="comp.content.readonly" />
+          <!-- 日期：对标站内容类型 = 单个日期 / 日期范围（ew-date-01）。
+               单个日期走原生 input；日期范围 = 双 date input + ~ 分隔（对标站 el-date-editor daterange），
+               值存 { start, end } 对象；同步生日开关在提交侧换算生日字段（syncBirthday）。
+               此前 dateType='time' 语义是「日期时间」，与对标站的「日期范围」冲突 —— 范围优先判断。 -->
+          <view v-else-if="comp.type === 'date' && comp.content.dateType === 'range'" class="sf-range">
+            <input class="sf-input sf-range-cell" type="date" :value="rangePartOf(comp.id, 'start')" @input="setRangePart(comp.id, 'start', $event)" :disabled="comp.content.readonly" />
+            <text class="sf-range-sep">~</text>
+            <input class="sf-input sf-range-cell" type="date" :value="rangePartOf(comp.id, 'end')" @input="setRangePart(comp.id, 'end', $event)" :disabled="comp.content.readonly" />
+          </view>
+          <input v-else-if="comp.type === 'date'" class="sf-input" type="date" v-model="values[comp.id]" :disabled="comp.content.readonly" />
 
           <!-- 定位（定位点 / 点到点） -->
           <view v-else-if="comp.type === 'location'" class="sf-loc">
@@ -306,7 +320,19 @@
           </view>
 
           <!-- 车牌号 -->
-          <input v-else-if="comp.type === 'carplate'" class="sf-input" v-model="values[comp.id]" :placeholder="comp.content.placeholder || '请输入车牌号'" :disabled="comp.content.readonly" />
+          <!-- 车牌号：对标站是 8 格分位输入（省简称 + 发牌机关 + 6 位序号，ew-carplate 画布 8 个 input），
+               值仍是完整车牌字符串。此前单个 input 与对标站交互形态完全不同。 -->
+          <view v-else-if="comp.type === 'carplate'" class="sf-plate">
+            <input
+              v-for="n in 8"
+              :key="n"
+              class="sf-plate-cell"
+              :value="plateCellOf(comp.id, n - 1)"
+              :maxlength="1"
+              :disabled="comp.content.readonly"
+              @input="setPlateCell(comp.id, n - 1, $event)"
+            />
+          </view>
 
           <!-- 标题 -->
           <!-- 标题：组件样式的主标题大小/颜色优先，回退内容配置 -->
@@ -818,6 +844,33 @@ function timeType(dt) {
   if (dt === 'time') return 'time';
   if (dt === 'datetime') return 'datetime-local';
   return 'date';
+}
+
+/** 日期范围 / 时间段的分位读写：值存 'start~end' 字符串（提交侧无需特判，
+ *  一个字符串天然兼容旧数据；对象形态会让 payload 出现结构差异）。 */
+function rangePartOf(id, part) {
+  const v = values[id];
+  if (typeof v !== 'string') return '';
+  const [s, e] = v.split('~');
+  return part === 'start' ? (s || '') : (e || '');
+}
+function setRangePart(id, part, ev) {
+  const val = (ev && ev.detail && ev.detail.value !== undefined) ? ev.detail.value : (ev.target ? ev.target.value : '');
+  const cur = typeof values[id] === 'string' ? values[id].split('~') : ['', ''];
+  const next = part === 'start' ? [val, cur[1] || ''] : [cur[0] || '', val];
+  values[id] = next.join('~');
+}
+
+/** 车牌号分位读写：值 = 完整车牌字符串（8 格各 1 字符）。 */
+function plateCellOf(id, idx) {
+  const v = values[id];
+  return (typeof v === 'string' && v[idx]) || '';
+}
+function setPlateCell(id, idx, ev) {
+  const val = (ev && ev.detail && ev.detail.value !== undefined) ? String(ev.detail.value) : String(ev.target ? ev.target.value : '');
+  const cur = (typeof values[id] === 'string' ? values[id] : '').padEnd(8, ' ').split('');
+  cur[idx] = val.slice(-1);
+  values[id] = cur.join('').replace(/\s+$/, '');
 }
 
 // 级联选择变更：上级变更时清空下级，并即时拼装完整文本写入 values[comp.id]
@@ -1380,6 +1433,7 @@ async function submit() {
 .sfv-box .sf-realtime,
 .sfv-box .sf-image-h,
 .sfv-box .sf-id-box,
+.sfv-box .sf-plate,
 .sfv-box .sf-opts { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
 .sfv-plain .sf-input,
 .sfv-plain .sf-loc,
@@ -1403,6 +1457,7 @@ async function submit() {
 .sfv-line .sf-realtime,
 .sfv-line .sf-image-h,
 .sfv-line .sf-id-box,
+.sfv-line .sf-plate,
 .sfv-line .sf-opts { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 /* 线风格下多行文本不该被压成单行高度：去掉底线方向的内距塌陷 */
 .sfv-line .sf-image-h.is-line { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); }
@@ -1447,6 +1502,16 @@ async function submit() {
 .sf-opts.opts-img.opts-img-grid .sf-opt-row .sf-opt-img-ph { width: var(--c-option-img-size, 64px); max-width: 100%; height: auto; aspect-ratio: 1; max-height: none; }
 .sf-opts.opts-img.opts-img-grid .sf-opt-row .sf-opt-label { text-align: center; }
 .sf-opts.opts-img .sf-opt-row + .sf-opt-row { border-top: none; }
+/* 日期范围 / 时间段：双输入 + ~ 分隔（对标站 el-date-editor--*range 形态） */
+.sf-range { display: flex; align-items: center; gap: 8px; }
+.sf-range .sf-range-cell { flex: 1; min-width: 0; }
+.sf-range .sf-range-sep { color: var(--c-prompt-color, #999999); flex-shrink: 0; }
+/* 车牌号：8 格分位输入（对标站 field-wrapper-car-number，每格 1 字符）。
+   框风格由外层 .sf-plate 容器承担（浅底+描边，随 sfv-box/sfv-line 切换），
+   格子本身只做分隔，避免容器+格子双重描边。 */
+.sf-plate { display: flex; gap: 0; }
+.sf-plate .sf-plate-cell { width: 0; flex: 1; min-width: 0; height: 40px; text-align: center; font-size: 15px; background: transparent; border: none; border-right: 1px solid var(--c-border-color, #F5F2F2); border-radius: 0; box-sizing: border-box; }
+.sf-plate .sf-plate-cell:last-child { border-right: none; }
 /* 选择类的三种风格作用在**选项区**（s1/s2/s3），与输入类的 box/line 语义不同：
      sfx-optbox   描边 + 浅底（整块一个框，行间有分隔线）
      sfx-optplain 纯白底、去框，每个选项独立成卡（行间距拉开）

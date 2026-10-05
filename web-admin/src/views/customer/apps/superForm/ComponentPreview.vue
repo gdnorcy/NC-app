@@ -102,7 +102,13 @@
     </template>
 
     <template v-else-if="comp.type === 'date'">
-      <div class="cmpv-input">选择{{ comp.content.dateType === 'time' ? '日期时间' : '日期' }}</div>
+      <!-- 对标站：单个日期 / 日期范围（范围 = 双输入 + ~） -->
+      <div v-if="comp.content.dateType === 'range'" class="cmpv-range">
+        <div class="cmpv-input cmpv-range-cell">开始日期</div>
+        <span class="cmpv-range-sep">~</span>
+        <div class="cmpv-input cmpv-range-cell">结束日期</div>
+      </div>
+      <div v-else class="cmpv-input">{{ comp.content.prefill || '选择日期' }}</div>
     </template>
 
     <template v-else-if="comp.type === 'number'">
@@ -123,7 +129,13 @@
     </template>
 
     <template v-else-if="comp.type === 'time'">
-      <div class="cmpv-input">选择{{ comp.content.dateType === 'time' ? '时间' : (comp.content.dateType === 'datetime' ? '日期时间' : '日期') }}</div>
+      <!-- 对标站：时间点 / 时间段 -->
+      <div v-if="comp.content.dateType === 'timerange'" class="cmpv-range">
+        <div class="cmpv-input cmpv-range-cell">开始时间</div>
+        <span class="cmpv-range-sep">~</span>
+        <div class="cmpv-input cmpv-range-cell">结束时间</div>
+      </div>
+      <div v-else class="cmpv-input">{{ comp.content.prefill || '选择时间' }}</div>
     </template>
 
     <template v-else-if="comp.type === 'location'">
@@ -165,7 +177,10 @@
     </template>
 
     <template v-else-if="comp.type === 'carplate'">
-      <input class="cmpv-input" :placeholder="comp.content.placeholder || '请输入车牌号'" disabled />
+      <!-- 对标站：8 格分位输入（省简称 + 发牌机关 + 6 位序号），无线风格 -->
+      <div class="cmpv-plate">
+        <span v-for="n in 8" :key="n" class="cmpv-plate-cell" />
+      </div>
     </template>
 
             <template v-else-if="comp.type === 'title'">
@@ -359,6 +374,7 @@ function sliderPct(comp) {
 .cmpv.sfv-box .cmpv-realtime,
 .cmpv.sfv-box .cmpv-image-h,
 .cmpv.sfv-box .cmpv-id-box,
+.cmpv.sfv-box .cmpv-plate,
 .cmpv.sfv-box .cmpv-opt-box { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
 .cmpv.sfv-plain .cmpv-input,
 .cmpv.sfv-plain .cmpv-loc,
@@ -380,6 +396,7 @@ function sliderPct(comp) {
 .cmpv.sfv-line .cmpv-realtime,
 .cmpv.sfv-line .cmpv-image-h,
 .cmpv.sfv-line .cmpv-id-box,
+.cmpv.sfv-line .cmpv-plate,
 .cmpv.sfv-line .cmpv-opt-box { border: none; border-bottom: 1px solid var(--c-border-color, #dcdfe6); border-radius: 0; background: transparent; }
 /* 选择类三态（s1 描边整块 / s2 每项独立成卡 / s3 仅行间底线），与 C 端 sfx-opt* 同语义 */
 .cmpv.sfx-optbox .cmpv-opt-box { background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-inactive-border, #dcdfe6); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); }
@@ -462,6 +479,13 @@ function sliderPct(comp) {
 .cmpv-square.on::after { content: '✓'; position: absolute; inset: 0; color: #fff; font-size: 11px; line-height: 14px; text-align: center; }
 .cmpv-submit { width: 100%; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 24px); padding: 10px; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); font-size: 15px; }
 .cmpv-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 3px)); padding: 8px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); box-sizing: border-box; }
+/* 日期范围 / 时间段 / 车牌号（对标站形态） */
+.cmpv-range { display: flex; align-items: center; gap: 8px; }
+.cmpv-range .cmpv-range-cell { flex: 1; min-width: 0; }
+.cmpv-range .cmpv-range-sep { color: var(--c-prompt-color, #CCCCCC); flex-shrink: 0; }
+.cmpv-plate { display: flex; gap: 0; }
+.cmpv-plate .cmpv-plate-cell { flex: 1; min-width: 0; height: 40px; background: transparent; border: none; border-right: 1px solid var(--c-border-color, #F5F2F2); border-radius: 0; box-sizing: border-box; }
+.cmpv-plate .cmpv-plate-cell:last-child { border-right: none; }
 .cmpv-agree { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--c-input-color, #333333); }
 .cmpv-agree a { color: var(--c-agree-btn, #2667EC); }
 .cmpv-rate { display: flex; font-size: 20px; letter-spacing: 2px; }
