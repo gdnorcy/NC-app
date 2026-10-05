@@ -303,7 +303,7 @@
       <view v-else-if="c.type === 'title-bar'" class="dp-tb-box" :style="dpTbOuterStyle(c.props)">
       <view class="dp-titlebar" :class="'dp-tb-s' + (c.props.styleType || 1)" :style="dpTbWrapStyle(c.props)">
         <block v-if="(c.props.styleType || 1) === 1">
-          <image v-if="c.props.imgEnabled !== false" class="dp-tb-deco" :src="c.props.img ? resolveUrl(c.props.img) : '/static/design-styles/title/title3.png'" mode="aspectFit"></image>
+          <image v-if="c.props.imgEnabled !== false" class="dp-tb-deco" :src="c.props.img ? resolveUrl(c.props.img) : titleAsset('deco', c.props)" mode="aspectFit"></image>
           <view class="dp-tb-mid">
             <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
             <text v-if="c.props.subEnabled !== false" class="dp-tb-en" :style="{ color: c.props.subColor || '#b7bcd2', fontSize: (c.props.subFontSize || 12) + 'px' }">{{ c.props.subText || 'RECOMMEND' }}</text>
@@ -319,16 +319,16 @@
           <text v-if="c.props.subEnabled !== false" class="dp-tb-en-line" :style="{ color: c.props.subColor || '#333333', fontSize: (c.props.subFontSize || 12) + 'px' }">{{ c.props.subText || 'RECOMMEND' }}</text>
         </block>
         <block v-else-if="(c.props.styleType || 1) === 3">
-          <image class="dp-tb-bub" src="/static/design-styles/title/bubble.png" mode="aspectFit"></image>
+          <image class="dp-tb-bub" :src="titleAsset('bubble', c.props)" mode="aspectFit"></image>
           <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
-          <image class="dp-tb-bub dp-tb-bub-r" src="/static/design-styles/title/bubble.png" mode="aspectFit"></image>
+          <image class="dp-tb-bub dp-tb-bub-r" :src="titleAsset('bubble', c.props)" mode="aspectFit"></image>
         </block>
         <block v-else-if="(c.props.styleType || 1) === 4">
           <view class="dp-tb-top">
             <view class="dp-tb-title-row">
-              <image class="dp-tb-img" src="/static/design-styles/title/s4_l.png" mode="aspectFit"></image>
+              <image class="dp-tb-img" :src="titleAsset('s4l', c.props)" mode="aspectFit"></image>
               <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
-              <image class="dp-tb-img" src="/static/design-styles/title/s4_r.png" mode="aspectFit"></image>
+              <image class="dp-tb-img" :src="titleAsset('s4r', c.props)" mode="aspectFit"></image>
             </view>
             <text v-if="c.props.moreEnabled !== false" class="dp-tb-more" :style="{ color: c.props.moreColor || '#b0b3bf' }" @click="onJump(c.props.moreLink)">{{ c.props.moreText || '查看更多' }}&nbsp;›</text>
           </view>
@@ -337,10 +337,10 @@
         <block v-else-if="(c.props.styleType || 1) === 5">
           <view class="dp-tb-top">
             <view class="dp-tb-title-row">
-              <image class="dp-tb-img" src="/static/design-styles/title/s5_l.png" mode="aspectFit"></image>
+              <image class="dp-tb-img" :src="titleAsset('s5l', c.props)" mode="aspectFit"></image>
               <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
-              <image class="dp-tb-img" src="/static/design-styles/title/s5_r.png" mode="aspectFit"></image>
-              <image class="dp-tb-center" src="/static/design-styles/title/s5_c.png" mode="aspectFit"></image>
+              <image class="dp-tb-img" :src="titleAsset('s5r', c.props)" mode="aspectFit"></image>
+              <image class="dp-tb-center" :src="titleAsset('s5c', c.props)" mode="aspectFit"></image>
             </view>
             <text v-if="c.props.moreEnabled !== false" class="dp-tb-more" :style="{ color: c.props.moreColor || '#b0b3bf' }" @click="onJump(c.props.moreLink)">{{ c.props.moreText || '查看更多' }}&nbsp;›</text>
           </view>
@@ -350,8 +350,8 @@
           <view class="dp-tb-top">
             <view class="dp-tb-title-row">
               <text class="dp-tb-title" :style="dpTbTextStyle(c.props)">{{ c.props.text || '标题栏' }}</text>
-              <image class="dp-tb-img dp-tb-img-l" src="/static/design-styles/title/s6_l.png" mode="aspectFit"></image>
-              <image class="dp-tb-img dp-tb-img-r" src="/static/design-styles/title/s6_r.png" mode="aspectFit"></image>
+              <image class="dp-tb-img dp-tb-img-l" :src="titleAsset('s6l', c.props)" mode="aspectFit"></image>
+              <image class="dp-tb-img dp-tb-img-r" :src="titleAsset('s6r', c.props)" mode="aspectFit"></image>
             </view>
             <text v-if="c.props.moreEnabled !== false" class="dp-tb-more" :style="{ color: c.props.moreColor || '#b0b3bf' }" @click="onJump(c.props.moreLink)">{{ c.props.moreText || '查看更多' }}&nbsp;›</text>
           </view>
@@ -715,6 +715,9 @@ const props = defineProps({
   stats: { type: Object, default: () => ({}) },
   tenantId: { type: Number, default: 0 },
   global: { type: Object, default: () => ({}) },
+  // 可远程覆盖的装修素材映射，如 { title: { deco: '/uploads/x.png' } }。
+  // 与 global.assets.title 二选一传入均可（前者随页面 meta.global 走，后者由 normalizeDesignConfig 归一化产出）。
+  assets: { type: Object, default: null },
 });
 
 // 页面背景 = 全局设置（背景色/背景图），与编辑端 phoneStyle 一致
@@ -1281,6 +1284,38 @@ function resolveUrl(u) {
   // 小程序端 createImage/image 不能解析相对路径，必须拼 API_DOMAIN
   return (u.startsWith('/') ? API_DOMAIN + u : API_DOMAIN + '/' + u);
   // #endif
+}
+
+// ===== title-bar 内置装饰素材（可远程覆盖）=====
+// 背景：这 8 张装饰 PNG 原本硬编码 /static/design-styles/title/*.png，会随小程序包一起发布（约 31KB）。
+// 运营在后台替换标题栏样式时，无法同步替换这些装饰图 → 改素材必须重新发版。
+// 做法：三级回落——组件 props（设计器「装饰素材」组上传，粒度最细、随组件复制）
+//   → 全局装修配置 meta.global.assets.title（整页统一样式）
+//   → 包内默认图（未配置/弱网时仍能正常显示）。
+// 素材本体通过已有的 POST /api/design/material（上传）或 /import（URL 提取）入库，
+// 存储走 getStorage()，本地/OSS/七牛自动切换，无需额外后端。
+const TITLE_ASSET_KEYS = {
+  deco: 'title3',      // styleType 1 标题左侧装饰
+  bubble: 'bubble',    // styleType 3 两侧气泡
+  s4l: 's4_l', s4r: 's4_r',
+  s5l: 's5_l', s5r: 's5_r', s5c: 's5_c',
+  s6l: 's6_l', s6r: 's6_r',
+};
+// 组件 props 里的字段名 → 素材键（与 web-admin componentRegistry.js 的 assetSchema 一一对应）
+const TITLE_ASSET_PROPS = {
+  deco: 'assetDeco', bubble: 'assetBubble',
+  s4l: 'assetS4l', s4r: 'assetS4r',
+  s5l: 'assetS5l', s5r: 'assetS5r', s5c: 'assetS5c',
+  s6l: 'assetS6l', s6r: 'assetS6r',
+};
+// 解析装饰素材地址：组件 props → 全局 assets → 包内默认图
+function titleAsset(key, compProps) {
+  const p = compProps || {};
+  const remote = p[TITLE_ASSET_PROPS[key]]
+    || props.global?.assets?.title?.[key]
+    || props.assets?.title?.[key];
+  if (remote) return resolveUrl(remote);
+  return '/static/design-styles/title/' + (TITLE_ASSET_KEYS[key] || key) + '.png';
 }
 // 有「左右边距」参数、属性面板不注入「内边距」滑块的组件：渲染时忽略容器 p.padding（防止存量冗余 padding 造成左右隐藏间隔）
 const HIDDEN_PADDING_TYPES = ['image', 'countdown', 'countdown2', 'image-text', 'cube', 'title-bar'];

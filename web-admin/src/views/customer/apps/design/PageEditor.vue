@@ -1457,7 +1457,10 @@ const schemaSections = computed(() => {
   if (!selectedComp.value) return [];
   const def = findComponent(selectedComp.value.type);
   if (!def) return [];
-  const ownKeys = def.schema.map((f) => f.key);
+  // 组件字段 = schema + assetSchema（内置装饰素材的远程替换项，如标题栏 styleType 3/4/5/6 的装饰图）。
+  // 两者结构一致（都用 group / whenStyle 控制显隐），合并后走同一套分组渲染逻辑。
+  const ownSchema = [...def.schema, ...(def.assetSchema || [])];
+  const ownKeys = ownSchema.map((f) => f.key);
   // 悬浮组件（购物车/悬浮按钮）：外观/边距由自身 schema 管理，通用样式（内边距/圆角/左右边距等）无用途且不生效，整区跳过
   const isFloatComp = selectedComp.value.type === 'fab-cart' || selectedComp.value.type === 'float-btn';
   const common = isFloatComp ? [] : commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))) && !(selectedComp.value.type === 'rich-text' && f.key === 'bgColor'));
@@ -1471,19 +1474,19 @@ const schemaSections = computed(() => {
       return pv === v || String(pv) === String(v) || (v === 1 && pv === true) || (v === 0 && pv === false);
     });
   };
-  const grpFields = def.schema.filter((f) => f.group && whenOk(f));
+  const grpFields = ownSchema.filter((f) => f.group && whenOk(f));
   if (grpFields.length) {
     // 按 group 分组（保持 schema 出现顺序），组内字段按 ew 面板顺序
     const groups = [];
     const seen = new Set();
-    for (const f of def.schema) {
+    for (const f of ownSchema) {
       if (!f.group || !whenOk(f)) continue;
       if (!seen.has(f.group)) { seen.add(f.group); groups.push({ key: 'g' + groups.length, label: f.group, desc: f.groupDesc || '', fields: [] }); }
       groups[groups.length - 1].fields.push(f);
     }
     // 顶部字段（选择风格等）置于分组前；无分组的普通字段（会员等级等）置于分组后，与 ew 面板顺序一致
-    const topPlain = def.schema.filter((f) => !f.group && (f.control === 'stylePicker' || f.section === 'style') && whenOk(f));
-    const bottomPlain = def.schema.filter((f) => !f.group && f.control !== 'stylePicker' && f.section !== 'style' && !f.whenStyle && !f.whenNotStyle && whenOk(f));
+    const topPlain = ownSchema.filter((f) => !f.group && (f.control === 'stylePicker' || f.section === 'style') && whenOk(f));
+    const bottomPlain = ownSchema.filter((f) => !f.group && f.control !== 'stylePicker' && f.section !== 'style' && !f.whenStyle && !f.whenNotStyle && whenOk(f));
     const merged = [];
     if (topPlain.length) merged.push({ key: 'plain', label: '样式', fields: topPlain });
     merged.push(...groups);

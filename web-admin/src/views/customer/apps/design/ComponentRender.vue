@@ -824,6 +824,34 @@ const tbTextStyle2 = (comp) => ({ color: comp.props.titleColor2 || '#333333', fo
 const tbTitleText = (comp) => comp.props.titleText || comp.props.text || '标题文字';
 const props = defineProps({ comp: { type: Object, required: true }, global: { type: Object, default: null }, cubeSel: { type: Object, default: null }, navBarH: { type: Number, default: 0 }, sfMeta: { type: Object, default: null } });
 
+// ===== 标题栏内置装饰素材（与 C 端 web-app DesignPage.vue 的 TITLE_ASSET_KEYS 保持一致）=====
+// 三级回落：组件 props（设计器「装饰素材」组上传）→ 全局 assets → 包内默认图。
+// ⚠️ 这些 computed 之前**从未定义**，导致设计器预览里风格 3/4/5/6 的装饰图 src=""（空图），
+//    而 C 端却能正常显示 —— 预览与实机不一致。定义在此后两端才一致。
+const TB_ASSET_FILES = {
+  deco: 'title3', bubble: 'bubble',
+  s4l: 's4_l', s4r: 's4_r', s5l: 's5_l', s5r: 's5_r', s5c: 's5_c', s6l: 's6_l', s6r: 's6_r',
+};
+const TB_ASSET_PROPS = {
+  deco: 'assetDeco', bubble: 'assetBubble',
+  s4l: 'assetS4l', s4r: 'assetS4r', s5l: 'assetS5l', s5r: 'assetS5r', s5c: 'assetS5c',
+  s6l: 'assetS6l', s6r: 'assetS6r',
+};
+function tbAsset(key) {
+  const remote = (props.comp.props || {})[TB_ASSET_PROPS[key]] || props.global?.assets?.title?.[key];
+  if (remote) return fixDecoImg(remote);
+  return '/admin-assets/static/design-styles/title/' + TB_ASSET_FILES[key] + '.png';
+}
+const tbDecoUrl = computed(() => tbAsset('deco'));
+const tbBubbleUrl = computed(() => tbAsset('bubble'));
+const tbS4L = computed(() => tbAsset('s4l'));
+const tbS4R = computed(() => tbAsset('s4r'));
+const tbS5L = computed(() => tbAsset('s5l'));
+const tbS5R = computed(() => tbAsset('s5r'));
+const tbS5C = computed(() => tbAsset('s5c'));
+const tbS6L = computed(() => tbAsset('s6l'));
+const tbS6R = computed(() => tbAsset('s6r'));
+
 // 轮播图状态
 const sIdx = ref(0);
 let swTimer = null;

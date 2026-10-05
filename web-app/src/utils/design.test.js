@@ -42,8 +42,20 @@ describe('设计中心 C 端渲染工具', () => {
     expect(cfg.homePage).toBe('market');
   });
 
+  it('P2.2c 装修素材映射 assets 透传：来自 pages.meta.global.assets.title（白名单易漏字段，需锁死）', () => {
+    const cfg = normalizeDesignConfig({
+      pages: { meta: { global: { assets: { title: { deco: '/uploads/deco.png', bubble: 'https://cdn.x.com/b.png' } } } } },
+    });
+    expect(cfg.assets).toEqual({ title: { deco: '/uploads/deco.png', bubble: 'https://cdn.x.com/b.png' } });
+    // 无配置时为 null（DesignPage 回落包内默认图），不是空对象
+    expect(normalizeDesignConfig(null).assets).toBeNull();
+    expect(normalizeDesignConfig({ pages: { meta: { global: {} } } }).assets).toBeNull();
+    // 非字符串值应被过滤，避免把脏数据塞进 <image src>
+    const dirty = normalizeDesignConfig({ pages: { meta: { global: { assets: { title: { a: 123, b: '', c: '/uploads/c.png' } } } } } });
+    expect(dirty.assets).toEqual({ title: { c: '/uploads/c.png' } });
+  });
+
   it('P2.2b 首页跳转按应用维度化：homePages.card 优先，兼容旧 homePage 单值', () => {
-    // 新版：homePages 对象，card 应用单独配置
     const cfg = normalizeDesignConfig({ homePages: { card: '/pages/cardMain/home?pageType=home', panorama: '/pages/panorama/index' }, homePage: 'market' });
     expect(cfg.homePage).toBe('/pages/cardMain/home?pageType=home'); // homePages.card 优先
     // 旧版：无 homePages 时回退 homePage 单值

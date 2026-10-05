@@ -6,16 +6,24 @@
  * 小程序端实际走 npm 的 threejs-miniprogram），构建后由 scripts/strip-mp-static.js
  * 从产物里剔除。
  *
- * 剔除属于「事后补救」，更彻底的做法是把这类资源放到 CDN / 远程附件，
- * 由本模块统一改写 `/static/xxx` → `${CDN_BASE}/static/xxx`。
+ * ⚠️ 现状（2026-10-05 实测）：主包 1355KB，PNG 文件仅 12 个共 45.5KB
+ *    （design-styles 页头素材 31KB + superform 证件底图 14KB）。
+ *    **真正的大头是 utils/sicons-base64.js 的 174KB**（60 图标 × 21 色，
+ *    其中 7 个「全量色」× 60 = 151KB 占 87%）。
+ *    → 把 PNG 全上 CDN 只省 3.4%，性价比很低；图标才是优化重点。
  *
- * 用法：
- *   在 src/config.js 里配置 CDN_BASE（留空 = 走包内资源，行为与现在一致），
- *   模板/代码里把写死的 '/static/xxx' 改成 assetUrl('/static/xxx')。
+ * 真正需要远程化的是「运营可替换的素材」，这类应该走**后台下发**而非 CDN 基址：
+ *   - 标题栏装饰图：已实现组件级替换（componentRegistry.js 的 assetSchema →
+ *     DesignPage.vue 的 titleAsset()），素材经 POST /api/design/material 上传，
+ *     存本地/OSS/七牛（getStorage 自动切换）。
+ *   - 其他页面图片：后台「内容」里传 URL 即可（DesignPage 的 resolveUrl 已支持）。
+ *
+ * 本模块保留作为「整站静态资源迁 CDN」的开关：配置后 `/static/xxx` 会被改写到 CDN。
  *
  * 注意：
- *   - 必须是**同域或已配置到小程序 downloadFile 合法域名**的资源，否则真机加载失败；
- *   - 图标类资源（SIcon）走 base64 data URI，不走本模块（见 scripts/gen-mp-sicons.js）。
+ *   - 必须是**已配置到小程序 downloadFile 合法域名**的资源，否则真机加载失败；
+ *   - 首屏 LCP 元素（如装修页头）远程化会拖慢首屏，不建议迁；
+ *   - 图标（SIcon）走 base64 data URI，不走本模块（见 scripts/gen-mp-sicons.js）。
  */
 
 /** CDN 基址；为空字符串表示不启用远程化（保持包内资源） */

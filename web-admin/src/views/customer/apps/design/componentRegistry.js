@@ -778,6 +778,20 @@ export const componentRegistry = [
       { key: 'radiusBottom', label: '下圆角', control: 'slider', group: '圆角设置', min: 0, max: 50, when: { styleType: 1 } },
       { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
     ],
+    // 内置装饰素材的远程替换（styleType 3/4/5/6 的标题栏装饰图）。
+    // 这些图原本硬编码在小程序包里，运营换图必须重新发版；这里开放成可上传替换。
+    // 存组件 props（而非全局配置）→ 天然跟随组件复制/粘贴/模板导出，不与其它组件串味。
+    // assetKey 对应 web-app DesignPage.vue 的 TITLE_ASSET_KEYS；留空 = 用包内默认图。
+    assetSchema: [
+      { key: 'assetBubble', label: '气泡装饰图', control: 'image', group: '装饰素材', assetKey: 'bubble', whenStyle: [3] },
+      { key: 'assetS4l', label: '左侧装饰图', control: 'image', group: '装饰素材', assetKey: 's4l', whenStyle: [4] },
+      { key: 'assetS4r', label: '右侧装饰图', control: 'image', group: '装饰素材', assetKey: 's4r', whenStyle: [4] },
+      { key: 'assetS5l', label: '左侧装饰图', control: 'image', group: '装饰素材', assetKey: 's5l', whenStyle: [5] },
+      { key: 'assetS5r', label: '右侧装饰图', control: 'image', group: '装饰素材', assetKey: 's5r', whenStyle: [5] },
+      { key: 'assetS5c', label: '中间装饰图', control: 'image', group: '装饰素材', assetKey: 's5c', whenStyle: [5] },
+      { key: 'assetS6l', label: '左侧装饰图', control: 'image', group: '装饰素材', assetKey: 's6l', whenStyle: [6] },
+      { key: 'assetS6r', label: '右侧装饰图', control: 'image', group: '装饰素材', assetKey: 's6r', whenStyle: [6] },
+    ],
   },
   {    type: 'search',
     name: '搜索框',

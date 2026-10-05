@@ -69,6 +69,19 @@ export function normalizeDesignConfig(raw) {
   const homePage = (typeof homePageRaw === 'string' && (homePageRaw.startsWith('/') || HOME_PAGE_MAP[homePageRaw])) ? homePageRaw : 'card';
   const pageMeta = cfg.pages?.meta || {};
   const globalDefault = pageMeta.global?.headerDefault || {};
+  // 可远程覆盖的装修素材映射（如标题栏装饰图）。
+  // 本函数是**逐字段白名单重建**，未显式透传的字段会在这里被丢弃 ——
+  // 新增配置字段必须同时在此透传，否则后台配了前端也拿不到。
+  // 数据来源：/design/config 返回的 pages（即 design_json 全量）里的 meta.global.assets，
+  // 由装修页「页面设置」写入，运营用素材中心上传后把 URL 填进来即可替换小程序包内的默认装饰图。
+  // 形如 { assets: { title: { deco: '/uploads/xxx.png', bubble: '...' } } }
+  const rawTitleAssets = pageMeta.global?.assets?.title || {};
+  const titleAssets = {};
+  for (const k of Object.keys(rawTitleAssets)) {
+    const v = rawTitleAssets[k];
+    if (typeof v === 'string' && v) titleAssets[k] = v;
+  }
+  const assets = Object.keys(titleAssets).length ? { title: titleAssets } : null;
   return {
     tenantId: cfg.tenantId || 0,
     style: {
@@ -94,6 +107,7 @@ export function normalizeDesignConfig(raw) {
     })),
     homePage,
     pages: cfg.pages || null,
+    assets,
   };
 }
 
