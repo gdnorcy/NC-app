@@ -217,7 +217,7 @@ ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `
 - **主包体积口径**：只按「排除 4 个分包前缀（`pages/card/` `pagesReads/` `pages/superForm/`
   `pages/viewer/`）算一次总量」，不做目录分组（否则 `static/sicons` 会被重复计入）。
   再排除 `static/{sicons,three,icons,images}` 这 4 个构建中间产物目录。
-  当前真实主包 **1478.3KB（1.444MB）**，1.5MB 线余量 57.7KB（+37KB 是图片组件示例图 JPEG）。
+  当前真实主包 **1504.4KB（1.469MB）**，2MB 线余量 543.6KB（+26KB 是倒计时内置图，+37KB 是图片组件示例图 JPEG）。
 - **构建中间产物清不掉**：`strip-mp-static.js` / `gen-mp-sicons.js` 的删除被 WorkBuddy
   safe-delete shim 拦（每轮 50 文件预算，且**是每轮总量不是单次**——额度用尽后连删一个文件都被拒）。
   用 shell `/bin/rm -rf static/{three,icons,images,sicons}` 可绕过（受 shim 管的是 node 侧的删除）。
@@ -394,13 +394,38 @@ WXML: <s-icon class="data-v-70ba87a9" .../>   ← 直接子元素 + 独立样式
 **排查口诀**：小程序端「H5 上写了这行样式却没效果」→ 先问这行选择器**有没有跨组件边界**，
 别急着调数值。
 
-## 构建脚本会静默删掉被引用的静态资源（2026-10-05 踩坑）
-`scripts/strip-mp-static.js` 把 `static/{three,icons,images,sicons}` **整目录剔除**，
-而源码里 `/card/static/images/countdown-banner.png` 这类引用**确实存在** → 小程序端一直是坏的。
-- **新增被源码引用的资源，不要放进这四个目录**。放 `static/sample/`（不在剔除名单）。
-- 该脚本已加自检：剔除失败时扫产物代码是否仍引用被删目录资源并告警。
-- ⚠️ **倒计时内置图（countdown-banner / countdown2-main）在小程序端疑似图裂**，
-  因另有 `cdBgColor` 兜底色所以一直没人报。**待排查。**
+## 🔴 包内资源 vs 后端资源：两种路径两种解析（2026-10-05 立规）
+
+小程序端倒计时图**一直坏着**，而 H5/admin 画布正常——因为它们请求的是后端
+`server/public/card/static/images/`（那四个文件一直在），**只有小程序端坏**。
+自 `dd84fd1`(2026-09-25 主包瘦身) 起坏，因当时没在真机新建倒计时组件而没暴露。
+
+**小程序端图裂的三层原因（缺一层都照样裂）**：
+1. **构建脚本剔除资源**：`strip-mp-static.js` 的 `STRIP_DIRS` 曾含 `static/images`，
+   注释写「H5 时代遗留、无源码引用」——**但 registry 的 countdown defaultProps 就引用它们**。
+   → 任何目录进 `STRIP_DIRS` 前必须 grep 确认**真的零引用**（defaultProps 里的引用也算）。
+2. **路径解析器用错**：`resolveUrl()` 假设资源在后端，会给相对路径拼 `API_DOMAIN`：
+   `/card/static/images/x.png` → `http://<后端>/card/static/...` → **404（哪怕文件在包里）**。
+   → **`src/static/` 下的资源是小程序包内资源，必须原样用相对路径**。
+   已新增 `assetUrl()`：`/static/` `/card/static/` 开头 → 小程序端原样返回、
+   H5 端拼 origin（uni H5 base 是 `/card/`）；其余走 `resolveUrl()`。
+3. **`background-image: url()` 不支持包内路径**（只认网络图/base64）：
+   → 包内图必须用真正的 `<image>` 层。倒计时三处已改（`.dp-cd-bgbg` / `.dp-cd2-bgimg`×3），
+   配 `position:absolute;z-index:0` + 文字 `z-index:1` 浮起。
+   ⚠️ 网络图（`/uploads/` 运营上传）用 background-image 是**对的**，别一起改掉。
+
+**判据口诀：问「这个文件在后端有吗」——有就用 `resolveUrl`/background-image，
+只在 `src/static` 里就用 `assetUrl`/<image>。**
+
+## 构建脚本自检必须「不论成败都跑」（2026-10-05 踩坑）
+`strip-mp-static.js` 的 `warnIfReferencedAssetsDropped()` 原先**只在删除失败时触发**
+（因为当时恰好被 safe-delete 拦截才注意到），而**删除成功才是常态** →
+这个 bug 静默存在 10 天。
+- **判定条件必须是「代码引用了但产物里没有」，不是「删除有没有报错」。**
+- 修完立刻抓出第二个同类问题：`pages/panorama/index.vue` 引用
+  `/static/default-cover.jpg`，该文件**源码里根本不存在**。
+- **通用做法**：写完构建脚本后加一条「产物完整性自检」——
+  扫产物代码里的静态资源引用，逐个 `fs.existsSync` 断言文件存在。
 
 ## 占位/示例资源用 aspect-ratio 对齐真图（2026-10-05）
 图片组件占位块用 `aspect-ratio: 710/388`，与示例图自身比例、真图 `widthFix` 撑出的高度
