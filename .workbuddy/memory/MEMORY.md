@@ -172,3 +172,32 @@
 4. **主包体积**：`gen-mp-sicons.js` 生成的 `static/sicons/*.png` 运行时不引用（只用 base64），
    已在脚本里生成后自动清理（主包 ~3.6M→~1.7M）。若未来又出现主包超限，**先查是否有「构建期中间产物
    留在主包」或大 base64 映射**（如 `utils/sicons-base64.js` 277KB）。
+   现状（2026-10-05）：代码 1399KB/1536KB，vendor.js(Vue3 运行时) 716KB 不可压缩，
+   sicons-base64 272KB（**60 图标 × 21 色 = 482 条**）。裁颜色到 7 色可省 175KB 但牺牲 15 种精确色，**未做**。
+
+## 小程序沉浸式导航：统一组件 + 两条跨端铁律（2026-10-05 立规，勿回退）
+全站 43 页曾有 7 套各自为政的自绘导航（mall-nav/msg-nav/nav-bar/owner-nav/sk-nav/
+ph-topbar/page-bar），全部无状态栏占位与胶囊避让，部分还用 `padding:88rpx` 硬编码假状态栏。
+现统一为 `components/PageNav.vue` + `utils/navMetrics.js`。
+- **`navigationStyle:'custom'` 时微信原生 navigationBar 完全不渲染**（`navigationBarTitleText` 也不显示）。
+  41/43 页都配了 custom → 标题必须页面自绘，否则「自定义标题不出现」。新增页面时
+  **要么去掉 custom 交给原生，要么必须挂 `<PageNav title="...">`**，二选一，不能都不管。
+- **胶囊（最小化+三个点）是微信原生控件**：不可覆盖、点击会冲突，官方设计指南要求「预留该区域空间」。
+  任何自绘头部都必须做两件事：`paddingTop = statusBarHeight` + `paddingRight = capsuleRightPad`。
+  度量公式 `navBarHeight = (胶囊top - statusBarHeight) * 2 + 胶囊height`（保证纵向居中）。
+- 🔴 **`lazyCodeLoading` 必须放 `manifest.json` 的 `mp-weixin` 节点下**（与 `appid` 同级）。
+  放 `pages.json` 的 `mp-weixin` 下**无效**；误放进 `setting` 里也**无效**（setting 是开发者工具项目配置，会被过滤）。
+  源码依据：`uni-cli-shared/dist/json/mp/pages.js` 的 `mergeMiniProgramAppJson(appJson, manifestJson[platform])`
+  —— 合并的是 **manifest.json** 的平台节点，且只放行非 `projectKeys` 白名单的键。
+- 🔴 **条件编译双分支会「重复声明」**：`// #ifdef MP-WEIXIN const X=... // #endif` + `// #ifndef const X=...`
+  这种写法在 **vitest / node 直跑源码时两个分支都在** → `SyntaxError: Identifier 'X' has already been declared`。
+  正确改法：**改运行时探测**（小程序端无 `window`、有 `wx`/`uni`）
+  `const IS_MP_WEIXIN = typeof window==='undefined' && typeof wx!=='undefined'`；
+  **不要改 `let`**（非小程序分支会被错误覆盖，测试断言 localhost 全挂）。
+- ⚠️ **小程序端不支持动态 `<style>` 注入** → 需要按机型算的值（状态栏高度等）必须走
+  **内联 `:style` 绑定**，不能靠 CSS 变量 + App.vue 注入。变量名统一 `--pnv-*` 前缀。
+- ⚠️ **迁移脚本清废弃 CSS 时，正则必须兼容单行块**（`.nav-bar { display:flex; ... }` 声明与 `}` 同行）。
+  只匹配 `^\}` 会整块漏掉（曾漏 11 个页面）。
+- 全部页面（含 `pagesReads/`）都是 `<script setup>` → **import 即注册，无需 `components` 字段**。
+  检测 script 风格**不要只 grep 前 20 行**（script 常在 100+ 行处，会全判错）。
+
