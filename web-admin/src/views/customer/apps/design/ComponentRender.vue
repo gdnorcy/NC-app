@@ -181,7 +181,9 @@
           >
             <div v-if="menuParts(comp.props).img" class="mg-icon" :style="menuIconStyle(comp.props)">
               <div class="mg-img" :style="menuImgStyle(comp.props)">
-                <img v-if="it.imgUrl" :src="it.imgUrl" :style="{ borderRadius: menuImgRadius(comp.props), width: menuImgPx(comp.props), height: menuImgPx(comp.props) }" />
+                <!-- 按钮类型=图标：画 SIcon 图标名（与宫格导航同一套）；=图片：画 img -->
+                <PeSIcon v-if="comp.props.iconType === '2'" class="mg-ico" :name="it.icon || 'card'" :size="menuIconPx(comp.props)" :color="MENU_ICON_COLOR" />
+                <img v-else-if="it.imgUrl" :src="it.imgUrl" :style="{ borderRadius: menuImgRadius(comp.props), width: menuImgPx(comp.props), height: menuImgPx(comp.props) }" />
               </div>
               <span v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</span>
             </div>
@@ -815,7 +817,7 @@ import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 // 按钮组（menu-group）样式同样共用 C 端那份：数值全部来自对标站 CDP 实测，
 // 写在共享文件里才能保证「画布看到的 = 真机渲染的」。改任一端必须改这里。
 import {
-  MENU_SHAPE_RADIUS, MENU_STYLE_PARTS,
+  MENU_SHAPE_RADIUS, MENU_STYLE_PARTS, MENU_ICON_COLOR,
   menuRootClass, menuRootStyle, menuItemStyle,
   menuIconStyle, menuImgStyle, menuMarkStyle, menuTextStyle,
 } from '../../../../../../web-app/src/utils/menuGroupStyle.js';
@@ -1420,6 +1422,10 @@ function menuImgRadius(p) {
 function menuImgPx(p) {
   return Math.min(80, Math.max(16, Number(p.imgSize) || 43)) + 'px';
 }
+/** 图标类型下 SIcon 的边长：与图（imgSize）同尺寸，容器（imgSize+7）居中容下 */
+function menuIconPx(p) {
+  return Math.min(80, Math.max(16, Number(p.imgSize) || 43));
+}
 /** 分页滑动每页行数（对标站 params.pageRowNum，默认 2） */
 const menuPageRows = 2;
 const menuPageIndex = ref(0);
@@ -1952,7 +1958,9 @@ const nativeGridItems = [
 .mg-root.mg-scroll .mg-inner::-webkit-scrollbar { display: none; }
 .mg-item { padding: 8px 0; box-sizing: border-box; text-align: center; }
 .mg-icon { position: relative; margin: 0 auto; }
-.mg-img { width: 43px; height: 43px; margin: 3.5px; background-size: cover; background-position: center; background-repeat: no-repeat; overflow: hidden; }
+.mg-img { width: 43px; height: 43px; margin: 3.5px; background-size: cover; background-position: center; background-repeat: no-repeat; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+/* 图标类型（iconType=2）：SIcon 在图区容器内居中（容器 imgSize+7、图标 imgSize） */
+.mg-ico { flex: none; }
 .mg-img img { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* 角标：实测 29×14· radius 16px 16px 16px 0（右下角贴图）· 1px solid #fff 内描边 */
 .mg-mark {

@@ -58,3 +58,18 @@ export function sampleRatio(key) {
   const it = SAMPLE_IMAGES[key] || SAMPLE_IMAGES.banner;
   return it.w + ' / ' + it.h;
 }
+
+/**
+ * 按钮组（menu-group）默认图标：100×100，来自对标站 default_btn1~10 的同款素材
+ * （用户 2026-10-05 指定，源文件在仓库根 `icon/`，已按示例图规范转存 `static/sample/`）。
+ * 「按钮组」组件默认 10 项按序取用：第 n 项 → menuIconUrl(n)。
+ * 🔴 同样走网络图不进包；新增/替换时三处同步：① 本清单 ② `src/static/sample/`
+ *   ③ 后端 `server/public/card/static/sample/`（构建不同步这里，要手动放）。
+ */
+export const MENU_ICON_COUNT = 10;
+
+/** 按钮组第 n 项（1 起）的默认图标 URL；越界时按 10 取模循环复用 */
+export function menuIconUrl(n) {
+  const i = ((Number(n) || 1) - 1) % MENU_ICON_COUNT + 1;
+  return SAMPLE_BASE + 'menu-icon-' + i + '.jpg';
+}

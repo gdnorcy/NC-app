@@ -6,7 +6,7 @@
  *
  * 组件图标：直接使用 eweishop 原版 PNG 图标（用户指定照抄），76×76。
  */
-import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
+import { sampleUrl, menuIconUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 import iconTitle from '../../../../assets/comp-icons/title.png';
 import iconText from '../../../../assets/comp-icons/richtext.png';
 import iconImage from '../../../../assets/comp-icons/picture.png';
@@ -217,12 +217,19 @@ export const componentRegistry = [
       marginTop: 8, marginBottom: 8, marginLR: 0,
       radiusTop: 0, radiusBottom: 0,
       memberLevel: 'all',
-      items: [
-        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: true, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
-        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: false, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
-        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: false, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
-        { imgUrl: sampleUrl('square'), text: '按钮文字', url: '', labelStatus: false, label: '热门', labelBgColor: '#F83287', labelTextColor: '#FFFFFF' },
-      ],
+      // 🔴 默认 10 项（用户 2026-10-05 指定），默认图标 = 对标站 default_btn1~10 同款素材
+      // （menuIconUrl 见 sampleImages.js 清单，走网络图不进包）。
+      // 第 1 项默认开角标「热门」演示角标能力；文字统一占位「按钮文字」。
+      items: Array.from({ length: 10 }, (_, i) => ({
+        imgUrl: menuIconUrl(i + 1),
+        icon: 'card',
+        text: '按钮文字',
+        url: '',
+        labelStatus: i === 0,
+        label: '热门',
+        labelBgColor: '#F83287',
+        labelTextColor: '#FFFFFF',
+      })),
     },
     schema: [
       // ── 内容 ──
@@ -245,8 +252,12 @@ export const componentRegistry = [
         key: 'items', label: '图标设置', control: 'list', section: 'content', listMax: 30,
         itemFields: [
           // ⚠️ `when` 只能读**项自身字段**（见 listFieldVisible），组件级联用 `whenProps`。
-          // 对标站实测：图片字段要同时满足「按钮类型=图片」且「按钮样式≠仅文字」才出现。
-          { key: 'imgUrl', label: '图片', control: 'image', whenProps: { iconType: '1', navStyle: ['style1', 'style2'] } },
+          // 对标站实测：图片/图标字段随「按钮类型」互斥出现，文字字段随「按钮样式」出现。
+          // 🔴 `mini: true` = 40px 缩略图（用户 2026-10-05 反馈 130px 大图 + 说明文字太占空间）；
+          //    `help: ''` = 去掉「建议图片宽度750…」说明文字（list 控件里 undefined 才给默认文案）。
+          { key: 'imgUrl', label: '图片', control: 'image', mini: true, help: '', whenProps: { iconType: '1', navStyle: ['style1', 'style2'] } },
+          // 「按钮类型=图标」时选 SIcon 图标名（与宫格导航同一套 ICON_OPTIONS）
+          { key: 'icon', label: '图标', control: 'select', options: ICON_OPTIONS, whenProps: { iconType: '2' } },
           { key: 'text', label: '文字', control: 'input', maxlength: 5, whenProps: { navStyle: ['style1', 'style3'] } },
           { key: 'url', label: '链接', control: 'link' },
           { key: 'labelStatus', label: '标签', control: 'switch' },

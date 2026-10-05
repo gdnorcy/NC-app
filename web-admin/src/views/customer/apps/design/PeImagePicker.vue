@@ -97,4 +97,9 @@ function onPick(url) {
 .pe-img--mini .pe-img-main { height: 40px; }
 .pe-img--mini .pe-img-empty { padding: 2px; }
 .pe-img--mini .pe-img-ops .el-button { padding: 0 5px; font-size: 10px; height: 20px; }
+/* 迷你模式（非紧凑）：图区收成 40×40 缩略图，整块不再横向铺满整行。
+   ⚠️ 仅约束「非 compact」：宫格自定义图标是 compact+mini，走上面的紧凑排版，不受影响。 */
+.pe-img--mini:not(.pe-img--compact) .pe-img-box { display: inline-flex; flex-direction: column; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-main { width: 40px; }
+.pe-img--mini:not(.pe-img--compact) .pe-img-ops { justify-content: flex-start; }
 </style>

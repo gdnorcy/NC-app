@@ -222,7 +222,8 @@
             >
               <view v-if="menuParts(c.props).img" class="mg-icon" :style="menuIconStyle(c.props)">
                 <view class="mg-img" :style="menuImgStyle(c.props)">
-                  <image v-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
+                  <SIcon v-if="c.props.iconType === '2'" class="mg-ico" :name="it.icon || 'card'" :size="menuIconPx(c.props)" :color="MENU_ICON_COLOR" />
+                  <image v-else-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
                 </view>
                 <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</text>
               </view>
@@ -240,7 +241,8 @@
           >
             <view v-if="menuParts(c.props).img" class="mg-icon" :style="menuIconStyle(c.props)">
               <view class="mg-img" :style="menuImgStyle(c.props)">
-                <image v-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
+                <SIcon v-if="c.props.iconType === '2'" class="mg-ico" :name="it.icon || 'card'" :size="menuIconPx(c.props)" :color="MENU_ICON_COLOR" />
+                <image v-else-if="it.imgUrl" class="mg-img-el" :src="resolveUrl(it.imgUrl)" mode="aspectFill" />
               </view>
               <text v-if="it.labelStatus && it.label" class="mg-mark" :style="menuMarkStyle(it)">{{ it.label }}</text>
             </view>
@@ -767,7 +769,7 @@ import { sampleUrl } from '../utils/sampleImages.js';
 // 按钮组（menu-group）样式：与 admin 画布共用同一份实现（对标站实测数值的唯一事实来源），
 // 保证「画布看到的 = 真机渲染的」。改样式只改那份文件，不要在本文件另写一份。
 import {
-  MENU_SHAPE_RADIUS, MENU_STYLE_PARTS,
+  MENU_SHAPE_RADIUS, MENU_STYLE_PARTS, MENU_ICON_COLOR,
   menuRootClass, menuRootStyle, menuItemStyle,
   menuIconStyle, menuImgStyle, menuMarkStyle, menuTextStyle,
 } from '../utils/menuGroupStyle.js';
@@ -1065,6 +1067,10 @@ function menuImgRadius(p) {
 }
 function menuImgPx(p) {
   return Math.min(80, Math.max(16, Number(p.imgSize) || 43)) + 'px';
+}
+/** 图标类型下 SIcon 的边长：与图（imgSize）同尺寸，容器（imgSize+7）居中容下 */
+function menuIconPx(p) {
+  return Math.min(80, Math.max(16, Number(p.imgSize) || 43));
 }
 function menuPerPage(p) {
   return Math.max(1, MENU_PAGE_ROWS) * Math.min(5, Math.max(1, Number(p.columns) || 4));
@@ -2045,6 +2051,9 @@ function openChannel(kind, p) {
 .mg-icon { position: relative; margin: 0 auto; }
 .mg-img { width: 43px; height: 43px; margin: 3.5px; overflow: hidden; }
 .mg-img-el { display: block; width: 100%; height: 100%; }
+/* 图标类型（iconType=2）：SIcon 在图区容器内居中（容器 imgSize+7、图标 imgSize） */
+.mg-img { display: flex; align-items: center; justify-content: center; }
+.mg-ico { flex: none; }
 /* 角标：实测 29×14 · 整块 scale(0.5)（真实 fs 16px / lh 28px → 视觉 8px/14px）
    · radius 视觉 8px 8px 8px 0（真实 16px）· padding 0（我方按视觉值直写，不做缩放）
    · 1px solid #fff 内描边 · 右下角贴图 */

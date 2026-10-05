@@ -28,6 +28,13 @@
 /** 实测：形状 → 圆角（px）。50% 是圆形，单独标记避免被当数值用 */
 export const MENU_SHAPE_RADIUS = { square: 0, arc: 10, circle: '50%' };
 
+/**
+ * 图标类型（按钮类型=2）的图标颜色。
+ * 来源：对标站 `style.iconColor` 的默认值 `#666666`（该字段未在属性面板暴露，是隐藏配置，
+ * 面板「颜色选择」只有 底部背景/组件背景/文字颜色 三项），故本端先固定用此值。
+ */
+export const MENU_ICON_COLOR = '#666666';
+
 /** 实测：按钮样式 → 是否显示图 / 是否显示文字 */
 export const MENU_STYLE_PARTS = {
   style1: { img: true, text: true },
