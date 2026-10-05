@@ -1141,9 +1141,6 @@ function measureNavBar() {
   });
 }
 watch(previewNavItems, measureNavBar, { immediate: true });
-// 悬浮组件选中 / 属性变化（偏移、大小等）时重算工具条位置
-watch(selected, () => nextTick(positionFloatTools));
-watch(() => selectedComp.value?.props, () => nextTick(positionFloatTools), { deep: true });
 onMounted(() => {
   const wrap = document.querySelector('.pe-canvas-wrap');
   if (wrap) { floatToolsScrollEl = wrap; wrap.addEventListener('scroll', positionFloatTools, { passive: true }); }
@@ -1443,6 +1440,19 @@ function positionFloatTools() {
   toolsEl.style.right = 'auto';
   toolsEl.style.bottom = 'auto';
 }
+// 悬浮组件选中 / 属性变化（偏移、大小等）时重算工具条位置
+//
+//🔴 位置很敏感：这两个 watch **必须放在 `selectedComp` 与 `positionFloatTools`
+//   声明之后**。原先放在文件前部（`onMounted` 之前）时，`watch` 会立即执行 getter，
+//   而 getter 里的 `selectedComp.value` 此刻还在 `<script setup>` 的 TDZ 区间
+//   （`const selectedComp` 在下方数百行才声明）→抛
+//   `ReferenceError: Cannot access 'selectedComp' before initialization`。
+//   该异常发生在 setup 阶段，会让**整个 PageEditor 组件渲染失败、画布白屏**
+//   （表现为「改了列数/底色，预览区完全没变化」）。
+//   规则：setup 内引用 ref 的 watch，必须写在那个 ref 声明之后。
+watch(selected, () => nextTick(positionFloatTools));
+watch(() => selectedComp.value?.props, () => nextTick(positionFloatTools), { deep: true });
+
 function setProp(key, val) {
   if (!selectedComp.value) return;
   const real = components.value.find((c) => c.id === selectedComp.value.id);

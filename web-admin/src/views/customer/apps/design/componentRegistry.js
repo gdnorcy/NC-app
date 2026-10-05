@@ -199,6 +199,11 @@ export const componentRegistry = [
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
       { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
+      // ⚠️ 按钮的 bgColor 是**按钮自身底色**（`dpBtnStyle` 消费），与外层 `.dp-item` 容器的
+      // 背景无关（容器背景另由 `containerStyle` 的 p.bgColor 决定，同名字段但作用对象不同）。
+      // PeColorPicker 支持渐变预设（与宫格共用同一套 11 色），选中渐变会原样存进bgColor，
+      // 小程序端能正常渲染——**若发现按钮底色变成了宫格某项的颜色，是误选了同名预设**，
+      // 在这里改回纯色即可（如 #165DFF），不是渲染 bug。
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'radius', label: '按钮圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },

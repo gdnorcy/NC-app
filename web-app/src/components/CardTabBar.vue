@@ -350,11 +350,16 @@ function hexA(hex, alpha) {
 }
 .mtb.on { font-weight: 500; }
 .mp-tab-txt { line-height: 1.2; font-size: 24rpx; }
-/* 图标与文字水平居中：SIcon 组件默认是 inline-block + vertical-align:middle，
-   在 column flex 容器里会按基线对齐导致视觉偏移（小程序端尤其明显）→ 强制 block + 居中。
+/* 图标水平居中：
+   SIcon 根节点自带 `flex: 0 0 auto`（小程序端是 `<image>` **原生组件**），
+   而 `margin: 0 auto` 对原生 `<image>` 的水平居中**不可靠**——H5 端量到
+   `margin:0px 68.3px` 能居中，小程序端同一份样式却不居中（原生组件不吃 auto margin）。
+   → 改由**父容器** `.mtb` 的 `align-items:center` 负责水平居中（已在 .mtb 里），
+     图标自身只需 `display:block`（去掉 `display:inline-block` 的基线对齐问题），
+     并显式 `flex: none` + `align-self:center` 防止 flex-shrink 把它压窄。
    SIcon 是子组件，须用 :deep() 穿透 scoped 才能命中其根节点。 */
 .mtb :deep(.s-icon),
-.mtb .tab-icon-img { display: block; margin: 0 auto; }
+.mtb .tab-icon-img { display: block; flex: none; align-self: center; margin: 0; }
 .mp-tab-txt { display: block; width: 100%; text-align: center; }
 .mp-tab-bold { font-weight: 600; }
 .tab-icon-img { width: 44rpx; height: 44rpx; }
@@ -417,7 +422,8 @@ function hexA(hex, alpha) {
   box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.18);
   align-self: center;
 }
-.mp-mid-btn :deep(.s-icon) { margin: 0; }
+/* 中钮图标同样要`flex:none`，否则 SIcon 的 flex-basis 在小程序 `<image>` 上不居中 */
+.mp-mid-btn :deep(.s-icon) { margin: 0; flex: none; align-self: center; }
 .mp-mid-img { width: 44rpx; height: 44rpx; }
 .mp-mid-txt { font-size: 20rpx; line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
 .mp-mid-txt.on { font-weight: 600; }
