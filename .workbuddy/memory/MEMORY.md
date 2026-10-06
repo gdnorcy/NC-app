@@ -72,4 +72,10 @@
 
 ## 对标站 eweishop 抓数（详见 `refs/env-toolbox.md`）
 - **禁止凭组件名字猜布局、靠眼睛估风格数**（`docs/复刻规范/反模式.md` 明确列为反模式）。必须点开对标站量真实 DOM + 计算样式。
+
+## 小程序主包体积（2026-10-06 实测，限 1.5M 质量线 / 2M 硬上限）
+- 🔴 **每次 MP 构建后必手动清理**：`gen-mp-sicons`+`strip-mp-static` 的删除被 safe-delete 守卫拦（>50 文件），481 个 sicons PNG ≈2MB 会留在主包计重（实测 3824K vs 清理后 1676K）。构建后跑 `mv dist/build/mp-weixin/static/sicons /tmp/ && mv dist/build/mp-weixin/static/icons /tmp/`。**量体积前必先清理，否则数据全是假的。**
+- 瘦身有效手段：pages.json 把独立应用移入 subPackages（**root=目录名，页面路径完全不变，零代码改动**）；仅分包引用的组件放进 `<root>/components/`。
+- ❌ **three.js 移不出主包**（已实验证）：`optimization.subPackages` 在 uni-app vite 下**不拆 node_modules**；组件移进分包、甚至改 `await import()` 动态导入，three 仍进主包 `common/vendor.js`。再降只能压 sicons/网络化 static，或小程序端全景改 2D canvas（产品决策）。
+
 - 已知：Vue **2**；hash SPA **必须先「选店铺」**才能进装修页；组件库 `data-id` 是内部键名（按钮组 = `menu`）；属性面板 radio 的 `value` 通常是真实字段值，但「组件样式/组件风格」是占位 `on`，须从渲染结果反推。
