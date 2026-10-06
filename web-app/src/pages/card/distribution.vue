@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page">
+  <view class="dist-page" :style="[navVars, themeStyle]">
 <!-- PageNav -->
 <PageNav title="分销中心" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 顶部主视觉卡：用户信息 + 上级推广员 + 已邀请 + 收益总览 -->
@@ -309,9 +309,13 @@ import { heroGradient } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import { navVarsStyle } from '../../utils/navMetrics.js';
+import { useDesignTheme } from '../../utils/design.js';
 
+const navVars = navVarsStyle();
+const themeStyle = useDesignTheme();
 const brandColor = ref('');
-const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
+const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });
@@ -644,7 +648,7 @@ onShow(() => {
 <style scoped>
 .dist-page { min-height: 100vh; background: #f5f6f7; padding-bottom: 120rpx; }
 .g3 { background: linear-gradient(155deg, #0f766e, #14b8a6); }
-.hero { padding: 32rpx 32rpx 36rpx; color: #fff; border-radius: 0 0 32rpx 32rpx; }
+.hero { padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 16rpx) 32rpx 36rpx; color: #fff; border-radius: 0 0 32rpx 32rpx; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; }
 .hero-title { font-size: 38rpx; font-weight: 700; }
 .hero-top-r { display: flex; align-items: center; gap: 24rpx; }

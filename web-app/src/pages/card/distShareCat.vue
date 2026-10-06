@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page">
+  <view class="dist-page" :style="[navVars, themeStyle]">
 <!-- PageNav -->
 <PageNav title="类目股东" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 顶部 -->
@@ -117,9 +117,13 @@ import { heroGradient } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import { navVarsStyle } from '../../utils/navMetrics.js';
+import { useDesignTheme } from '../../utils/design.js';
 
+const navVars = navVarsStyle();
+const themeStyle = useDesignTheme();
 const brandColor = ref('');
-const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
+const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, shareTags: [], sharePending: 0, shareTotal: 0, shareCatGroups: [] });
@@ -161,7 +165,7 @@ onShow(() => {
 <style scoped>
 .dist-page { min-height: 100vh; background: #f5f6f7; padding-bottom: 120rpx; }
 .g3 { background: linear-gradient(155deg, #0f766e, #14b8a6); }
-.hero { padding: 32rpx 32rpx 36rpx; color: #fff; border-radius: 0 0 32rpx 32rpx; }
+.hero { padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 16rpx) 32rpx 36rpx; color: #fff; border-radius: 0 0 32rpx 32rpx; }
 .hero-top { display: flex; align-items: center; justify-content: space-between; }
 .hero-title { font-size: 38rpx; font-weight: 700; }
 .hero-top-r { display: flex; align-items: center; gap: 24rpx; }

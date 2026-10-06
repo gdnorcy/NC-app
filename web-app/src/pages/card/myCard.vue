@@ -2,7 +2,7 @@
   <!-- ===== 我的名片·商务增强版（本人视角管理控制台｜仅本人可见） =====
        对外展示统一走 /pages/card/cardDetail -->
   <!-- 加载骨架（小程序/H5 通用）：带返回按钮，弱网时不至于无路可退 -->
-  <view class="page-loading" v-if="loading">
+  <view class="page-loading" v-if="loading" :style="themeStyle">
     <PageNav title="我的名片" back></PageNav>
     <view class="sk-card">
       <view class="sk-avatar"></view>
@@ -15,19 +15,19 @@
     <view class="sk-block"><view class="sk-line w30"></view></view>
   </view>
   <!-- 加载失败（弱网/接口异常） -->
-  <view class="page-error" v-else-if="loadFailed">
+  <view class="page-error" v-else-if="loadFailed" :style="themeStyle">
     <view class="pe-icon"><SIcon name="logs" size="xlarge" color="#c9cdd4" /></view>
     <view class="pe-text">{{ loadFailedMsg }}</view>
     <view class="pe-btn" @click="reloadPage">重新加载</view>
   </view>
   <!-- 未登录引导 -->
-  <view class="page-error" v-else-if="notLogin">
+  <view class="page-error" v-else-if="notLogin" :style="themeStyle">
     <view class="pe-icon"><SIcon name="user" size="xlarge" color="#c9cdd4" /></view>
     <view class="pe-text">登录后即可查看和管理你的名片</view>
     <view class="pe-btn" @click="goApply">去登录</view>
   </view>
 
-  <view class="owner-page" v-else>
+  <view class="owner-page" v-else :style="themeStyle">
     <!-- 导航栏 -->
     <PageNav title="我的名片" back>
       <template #right>
@@ -83,8 +83,8 @@
       </view>
     </view>
 
-    <!-- 集市状态专属卡片 -->
-    <view class="owner-market">
+    <!-- 集市状态专属卡片（整卡可点：未上架去上架，已上架看位置） -->
+    <view class="owner-market" @click="locateInMarket">
       <view class="om-title"><SIcon name="market" size="default" color="#1d4e8f" /><text>集市状态</text></view>
       <view class="om-status" :class="marketStatusClass">{{ marketStatusText }}</view>
       <view class="om-desc">{{ marketStatusDesc }}</view>
@@ -166,8 +166,10 @@
 
     <CardTabBar active="card" />
 
-    <!-- 雷达悬浮球 + 未读角标 -->
+    <!-- 雷达悬浮球 + 未读角标（脉冲圈动效 + 抬高避开底部Tab） -->
     <view class="radar-float" @click="goVisitors">
+      <view class="radar-pulse"></view>
+      <view class="radar-pulse delay"></view>
       <SIcon name="radar" size="xlarge" color="#ffffff" />
       <Badge v-if="msgUnread > 0" :count="msgUnread" :max="99" />
     </view>
@@ -185,6 +187,8 @@ import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import { useDesignTheme } from '../../utils/design.js';
+const themeStyle = useDesignTheme();
 
 const card = ref({});
 const loading = ref(true);
@@ -310,12 +314,26 @@ onMounted(async () => {
     }
   }
   const pages = getCurrentPages();
-  const id = pages[pages.length - 1].options.id;
   const opts = pages[pages.length - 1].options;
+  const explicitId = opts.id || '';
   // 本页仅服务本人管理台；preview/他人统一跳转对外展示页 cardDetail
-  if (opts && opts.preview && id) {
-    uni.redirectTo({ url: `/pages/card/cardDetail?id=${id}` });
+  if (opts && opts.preview && explicitId) {
+    uni.redirectTo({ url: `/pages/card/cardDetail?id=${explicitId}` });
     return;
+  }
+  // 未登录直接引导登录（不依赖 id，覆盖从底部Tab进入无 id 的场景）
+  if (!decodeTokenUid()) {
+    loading.value = false;
+    notLogin.value = true;
+    return;
+  }
+  // 从底部Tab/首页进入不带 id 时，按本人名片兜底解析 pageCardId
+  let id = explicitId || uni.getStorageSync('cardLastViewId') || '';
+  if (!id) {
+    try {
+      const safe = await cardApi.getCardsSafe();
+      id = (safe.cards && safe.cards[0] && safe.cards[0].id) || '';
+    } catch (e) {}
   }
   pageCardId.value = id || null;
   if (id) {
@@ -323,12 +341,6 @@ onMounted(async () => {
     restoreScrollTop('myCard');
     loading.value = true;
     loadFailed.value = false;
-    // 未登录：不进入加载流程，直接引导登录（避免白页）
-    if (!decodeTokenUid()) {
-      loading.value = false;
-      notLogin.value = true;
-      return;
-    }
     try {
       const res = await withTimeout(cardApi.getCard(id), 8000);
       card.value = res.card;
@@ -575,11 +587,27 @@ function leaveTenant() {
 .ov-empty { font-size: 24rpx; color: var(--t4); padding: 20rpx 0; }
 .ov-more { font-size: 24rpx; color: var(--primary-deep); padding: 16rpx 0 8rpx; text-align: center; }
 .radar-float {
-  position: fixed; right: 32rpx; bottom: 140rpx; z-index: 100;
+  position: fixed; right: 32rpx; bottom: calc(160rpx + env(safe-area-inset-bottom)); z-index: 100;
   width: 96rpx; height: 96rpx; border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  background: linear-gradient(135deg, var(--design-primary), var(--design-gradient));
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(22, 93, 255, 0.35);
+  box-shadow: 0 8rpx 24rpx rgba(var(--design-primary-rgb), 0.35);
+  animation: radarBreathe 2.4s ease-in-out infinite;
 }
 .radar-float .bd-wrap { position: absolute; top: -6rpx; right: -6rpx; }
+/* 雷达脉冲圈：扩散+淡出，让悬浮球一眼可见 */
+.radar-float .radar-pulse {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%; border: 2rpx solid var(--design-primary);
+  opacity: 0; animation: radarPulse 2s ease-out infinite; pointer-events: none;
+}
+.radar-float .radar-pulse.delay { animation-delay: 1s; }
+@keyframes radarPulse {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+@keyframes radarBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
 </style>

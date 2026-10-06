@@ -1,5 +1,5 @@
 <template>
-  <view class="profile-page">
+  <view class="profile-page" :style="themeStyle">
 <!-- PageNav -->
 <PageNav title="个人中心" back />
     <!-- 用户信息头部 -->
@@ -95,7 +95,9 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
+import { useDesignTheme } from '../../utils/design.js';
 
+const themeStyle = useDesignTheme();
 const user = ref({});
 const isMember = ref(false);
 const memberLevel = ref('free');
@@ -160,8 +162,8 @@ function logout() {
   padding-bottom: 40rpx;
 }
 .header {
-  background: linear-gradient(135deg, #165dff, #4080ff);
-  padding: 88px 32rpx 40rpx;
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
+  padding: 32rpx 32rpx 40rpx;
 }
 .user-info {
   display: flex;
@@ -173,7 +175,7 @@ function logout() {
   height: 120rpx;
   border-radius: 50%;
   background: #fff;
-  color: #165dff;
+  color: var(--design-primary, #165dff);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,4 +1,5 @@
 // 设计中心 C 端渲染工具：读取租户发布配置（风格/底部导航/首页跳转），带本地缓存与兜底
+import { reactive, computed } from 'vue';
 import { cardApi, API_DOMAIN } from './cardApi.js';
 
 /** 默认底部导航（无配置/未发布时兜底，与首页硬编码 Tab 一致） */
@@ -259,21 +260,44 @@ function hexToRgbStr(hex) {
   return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
 }
 
+/**
+ * 主题 CSS 变量映射（跨端单一事实来源）。
+ * H5：applyDesignStyle 写入 document.documentElement；
+ * 小程序：由各 page 根视图用 :style="themeStyle" 内联注入（CSS 自定义属性向下继承）。
+ */
+export function designThemeVars(config) {
+  const style = config?.style;
+  if (!style) return {};
+  const primary = style.primaryColor || '#FE0137';
+  return {
+    '--design-primary': primary,
+    '--design-primary-rgb': hexToRgbStr(primary),
+    '--design-gradient': style.gradientColor || '#FF5169',
+    '--design-secondary': style.secondaryColor || '#FFE5EB',
+    '--design-text': style.textColor || '#FFFFFF',
+    '--design-subtext': style.subTextColor || primary,
+    '--design-headcolor': style.headColor === '2' ? '#FFFFFF' : primary,
+    '--design-headtext': style.headColor === '2' ? '#000000' : (style.headText || '#ffffff'),
+  };
+}
+
+// 跨端响应式主题变量：App 拉到配置后写入，各页面 useDesignTheme() 读取并绑定到根视图
+export const designThemeState = reactive({ vars: {} });
+export function setDesignTheme(config) {
+  designThemeState.vars = designThemeVars(config);
+}
+export function useDesignTheme() {
+  return computed(() => designThemeState.vars);
+}
+
 /** H5 端把系统风格主题注入 CSS 变量（--design-primary 等），页面 var() 兜底；字段语义与菜鸟云 1:1 */
 export function applyDesignStyle(config, scope) {
   const style = config?.style;
   if (!style) return;
   const root = scope || (typeof document !== 'undefined' ? document.documentElement : null);
   if (!root || !root.style || typeof root.style.setProperty !== 'function') return;
-  const primary = style.primaryColor || '#FE0137';
-  root.style.setProperty('--design-primary', primary);
-  root.style.setProperty('--design-primary-rgb', hexToRgbStr(primary));
-  root.style.setProperty('--design-gradient', style.gradientColor || '#FF5169');
-  root.style.setProperty('--design-secondary', style.secondaryColor || '#FFE5EB');
-  root.style.setProperty('--design-text', style.textColor || '#FFFFFF');
-  root.style.setProperty('--design-subtext', style.subTextColor || primary);
-  root.style.setProperty('--design-headcolor', style.headColor === '2' ? '#FFFFFF' : primary);
-  root.style.setProperty('--design-headtext', style.headColor === '2' ? '#000000' : (style.headText || '#ffffff'));
+  const vars = designThemeVars(config);
+  for (const k in vars) root.style.setProperty(k, vars[k]);
 }
 
 /** 小程序分享卡片：标题取分享标题（默认页面名），配图取分享图片（空则微信默认截屏） */

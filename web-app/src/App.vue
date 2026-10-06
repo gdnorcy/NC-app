@@ -1,5 +1,5 @@
 <script>
-import { fetchDesignConfig, applyDesignStyle } from './utils/design.js';
+import { fetchDesignConfig, applyDesignStyle, setDesignTheme } from './utils/design.js';
 import { getTid } from './utils/mallUtil.js';
 import { getNavMetrics } from './utils/navMetrics.js';
 
@@ -95,8 +95,9 @@ export default {
       try {
         const config = await fetchDesignConfig(false);
         if (config) {
+          setDesignTheme(config); // 跨端：填充响应式主题变量，小程序由各 page 根视图内联 style 消费
           // #ifdef H5
-          applyDesignStyle(config);
+          applyDesignStyle(config); // H5 同时注入 documentElement，覆盖 portal/弹层等根外元素
           // #endif
         }
       } catch (e) {

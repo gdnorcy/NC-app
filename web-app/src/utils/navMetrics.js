@@ -88,6 +88,25 @@ export function getNavMetrics() {
  * @param {string} opt.color 前景色（默认 #1d2129）
  * @param {boolean} opt.sticky 是否 sticky 定位（默认 true，保持原页面行为）
  */
+/**
+ * 沉浸式 hero 避让变量（内联 CSS 自定义属性，跨端唯一可靠的精确注入方式）：
+ * 小程序不支持运行时注入 <style>，App.vue 全局 page 规则只有 20px 保守兜底；
+ * 真实机型值必须由页面根视图 :style 内联下发（CSS 自定义属性随 DOM 向下继承）。
+ * 消费端写法（scoped CSS）：
+ *   padding-top: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 间距);
+ *   padding-right: calc(var(--pnv-capsule-pad, 7px) + 原值);
+ * ⚠️ 页面根视图必须绑定本返回值（可与 themeStyle 合并 :style="[navVars, themeStyle]"），
+ *    否则变量仍回落 App.vue 的 20px 兜底 —— 真机上避让不足、内容顶进状态栏/胶囊。
+ */
+export function navVarsStyle() {
+  const m = getNavMetrics();
+  return {
+    '--pnv-status-bar': m.statusBarHeight + 'px',
+    '--pnv-nav-h': m.navBarHeight + 'px',
+    '--pnv-capsule-pad': m.capsuleRightPad + 'px',
+  };
+}
+
 export function navRootStyle(opt = {}) {
   const m = getNavMetrics();
   return {

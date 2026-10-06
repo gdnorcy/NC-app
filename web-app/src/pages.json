@@ -25,62 +25,6 @@
       }
     },
     {
-      "path": "pages/panorama/home",
-      "style": {
-        "navigationBarTitleText": "全景首页",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/panorama/index",
-      "style": {
-        "navigationBarTitleText": "360全景",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/mall/index",
-      "style": {
-        "navigationBarTitleText": "商城",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/mall/detail",
-      "style": {
-        "navigationBarTitleText": "商品详情",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/mall/cart",
-      "style": {
-        "navigationBarTitleText": "购物车",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/mall/checkout",
-      "style": {
-        "navigationBarTitleText": "确认订单",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/mall/orders",
-      "style": {
-        "navigationBarTitleText": "我的订单",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/mall/order-detail",
-      "style": {
-        "navigationBarTitleText": "订单详情",
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/live/list",
       "style": {
         "navigationBarTitleText": "直播间",
@@ -96,6 +40,72 @@
     }
   ],
   "subPackages": [
+    {
+      "root": "pages/panorama",
+      "pages": [
+        {
+          "path": "home",
+          "style": {
+            "navigationBarTitleText": "全景首页",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "360全景",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pages/mall",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "商城",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "detail",
+          "style": {
+            "navigationBarTitleText": "商品详情",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "cart",
+          "style": {
+            "navigationBarTitleText": "购物车",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "checkout",
+          "style": {
+            "navigationBarTitleText": "确认订单",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "orders",
+          "style": {
+            "navigationBarTitleText": "我的订单",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "order-detail",
+          "style": {
+            "navigationBarTitleText": "订单详情",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
     {
       "root": "pages/card",
       "pages": [

@@ -34,7 +34,10 @@
       "minifyWXSS": true,
       "minifyWXML": true
     },
-    "usingComponents": true
+    "usingComponents": true,
+    "optimization": {
+      "subPackages": true
+    }
   },
   "h5": {
     "title": "360全景",

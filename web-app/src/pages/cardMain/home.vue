@@ -1,5 +1,5 @@
 <template>
-  <view class="home-page" :style="pageBgStyle">
+  <view class="home-page" :style="[pageBgStyle, themeStyle]">
     <!-- 分享进入 + 主题设置「返回上页」开启：顶部返回首页按钮（小程序端） -->
     <view v-if="shareBack" class="share-back" :style="{ top: shareBackTop }" @click="goHomeByShare">
       <text class="share-back-arrow">‹</text>
@@ -148,7 +148,7 @@ import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
 import { qsParse } from '../../utils/qs.js';
-import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl } from '../../utils/design.js';
+import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl, useDesignTheme } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
@@ -261,6 +261,7 @@ const headerTitle = computed(() => {
   return h?.titleText || designTheme.value?.shareTitle || '首页';
 });
 // 页面背景 = 页面装修「全局设置」的背景色/背景图（C 端真机渲染，编辑端 phoneStyle 同源）
+const themeStyle = useDesignTheme();
 const pageBgStyle = computed(() => {
   const g = designGlobal.value || {};
   const s = {};

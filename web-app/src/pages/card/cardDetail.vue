@@ -1,7 +1,7 @@
 <template>
   <!-- ===== 名片详情页（全局对外展示落地页｜所有人可见） =====
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
-  <view class="profile-page">
+  <view class="profile-page" :style="navVars">
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
@@ -300,6 +300,9 @@ import {
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import { navVarsStyle } from '../../utils/navMetrics.js';
+
+const navVars = navVarsStyle();
 
 const card = ref({});
 const layoutFull = computed(() => card.value?.templateLayout === 'full');
@@ -628,10 +631,11 @@ function shareCard() {
 /* 沉浸式：状态栏占位按机型动态取，右侧留胶囊宽度（最小化 + 三个点） */
 .hero {
   position: relative;
-  padding: calc(var(--pnv-status-bar, 20px) + 30rpx) 40rpx 52rpx;
+  /* 完整避让：状态栏 + 导航行高（PageNav overlay 悬浮 + 右侧胶囊同高区域） */
+  padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 16rpx) 40rpx 52rpx;
   padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
   color: #fff;
-  background: linear-gradient(155deg, #b45309, #f59e0b);
+  background: linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b));
   overflow: hidden;
 }
 .row1 {

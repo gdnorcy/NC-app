@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import PanoramaViewer from '@/components/PanoramaViewer.vue';
+import PanoramaViewer from './components/PanoramaViewer.vue';
 import { getNavMetrics } from '@/utils/navMetrics.js';
 
 export default {

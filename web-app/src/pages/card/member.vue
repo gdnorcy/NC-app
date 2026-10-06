@@ -1,5 +1,5 @@
 <template>
-  <view class="member-page">
+  <view class="member-page" :style="[navVars, themeStyle]">
     <view class="hero g3" :style="heroStyle">
       <view class="row1">
         <view class="mb-back" @click="goBack"><SIcon name="back" size="large" color="#ffffff" /></view>
@@ -14,7 +14,7 @@
     <!-- 分销中心入口 -->
     <view class="dist-entry" @click="goDistribution">
       <view class="de-left">
-        <view class="de-icon"><SIcon name="dist" size="large" color="#165dff" /></view>
+        <view class="de-icon"><SIcon name="dist" size="large" :color="themeColor" /></view>
         <view>
           <view class="de-title">分销中心</view>
           <view class="de-sub">推广赚佣金 · 查看收益与提现</view>
@@ -83,15 +83,15 @@
         <view class="price">¥{{ formatPrice(p.price) }}<text class="price-unit"> / 月</text></view>
         <view class="plan-features">
           <view class="pf" v-for="f in getFeatureTexts(p.features)" :key="f">
-            <view class="check"><SIcon name="badge" size="small" color="#07c160" /></view>
+            <view class="check"><SIcon name="badge" size="small" :color="themeColor" /></view>
             <text>{{ f }}</text>
           </view>
           <view class="pf" v-if="p.voice_enabled === 1">
-            <view class="check"><SIcon name="badge" size="small" color="#07c160" /></view>
+            <view class="check"><SIcon name="badge" size="small" :color="themeColor" /></view>
             <text>语音简介</text>
           </view>
           <view class="pf" v-if="p.discount && p.discount > 0 && p.discount < 1">
-            <view class="check"><SIcon name="badge" size="small" color="#07c160" /></view>
+            <view class="check"><SIcon name="badge" size="small" :color="themeColor" /></view>
             <text>名片模板 {{ Math.round(p.discount * 10) }} 折</text>
           </view>
         </view>
@@ -116,7 +116,13 @@ import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import { navVarsStyle } from '../../utils/navMetrics.js';
+import { useDesignTheme } from '../../utils/design.js';
 
+const navVars = navVarsStyle();
+const themeStyle = useDesignTheme();
+// SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：优先文字辅色，回落品牌蓝
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-subtext']) || '#165dff');
 const packages = ref([]);
 const isMember = ref(false);
 const memberLevel = ref('free');
@@ -128,7 +134,7 @@ const signing = ref(false);
 const applyStatus = ref(null);
 const showTenantMember = computed(() => !!memberCard.value || tenantLevels.value.length > 0);
 // 品牌色 hero：租户配置 brandColor，无则回退 demo g3 青绿渐变（对象形式，与 cardDetail 一致）
-const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
+const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))') }));
 const brandColor = ref('');
 const paying = ref(false);
 
@@ -136,7 +142,7 @@ const paying = ref(false);
 const cardBg = computed(() => {
   const c = memberCard.value;
   if (c && c.levelBgColor) return { background: c.levelBgColor };
-  return { background: 'linear-gradient(135deg, #2f6bff, #5b8cff)' };
+  return { background: 'linear-gradient(135deg, var(--design-primary, #2f6bff), var(--design-gradient, #5b8cff))' };
 });
 
 const applyTipText = computed(() => {
@@ -372,10 +378,11 @@ async function openMember(pkg) {
    右侧留出胶囊宽度（最小化 + 三个点），不再用写死的 88rpx。 */
 .hero.g3 {
   position: relative;
-  padding: calc(var(--pnv-status-bar, 20px) + 30rpx) 40rpx 44rpx;
+  /* 完整避让：状态栏 + 导航行高。右上 FREE 徽章与胶囊同高，只避状态栏(+30rpx)会撞胶囊 */
+  padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 8rpx) 40rpx 44rpx;
   padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
-  color: #fff;
-  background: linear-gradient(155deg, #0f766e, #14b8a6);
+  color: var(--design-text, #fff);
+  background: linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6));
   overflow: hidden;
 }
 .mb-back { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; margin-right: 8rpx; flex-shrink: 0; }
@@ -438,8 +445,8 @@ async function openMember(pkg) {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .plan.hot {
-  border-color: var(--success);
-  box-shadow: 0 4px 16px rgba(7,193,96,0.08);
+  border-color: var(--design-primary);
+  box-shadow: 0 4px 16px rgba(var(--design-primary-rgb), 0.08);
 }
 .pn {
   font-size: 28rpx;
@@ -451,13 +458,13 @@ async function openMember(pkg) {
 }
 .cur-tag {
   font-size: 22rpx;
-  color: var(--success);
+  color: var(--design-primary);
   font-weight: 400;
 }
 .hot-tag {
   font-size: 20rpx;
-  color: var(--success);
-  background: #e7f7ee;
+  color: var(--design-primary);
+  background: var(--design-secondary);
   padding: 4rpx 14rpx;
   border-radius: 12rpx;
   font-weight: 400;
@@ -465,7 +472,7 @@ async function openMember(pkg) {
 .price {
   font-size: 44rpx;
   font-weight: 700;
-  color: #2e6bb8;
+  color: var(--design-primary);
   margin: 16rpx 0 8rpx;
 }
 .price-unit {
@@ -504,12 +511,12 @@ async function openMember(pkg) {
   transition: opacity 0.15s;
 }
 .btn.buy {
-  background: var(--success);
-  color: #fff;
+  background: var(--design-primary);
+  color: var(--design-text, #fff);
 }
 .btn.on {
-  background: #e7f7ee;
-  color: var(--success);
+  background: var(--design-secondary);
+  color: var(--design-primary);
 }
 .btn:active {
   opacity: 0.75;
@@ -517,11 +524,11 @@ async function openMember(pkg) {
 
 .dist-entry {
   display: flex; justify-content: space-between; align-items: center;
-  margin: 12px 20px 0; background: linear-gradient(90deg, #e8f3ff, #fff);
-  border: 1px solid #d3e5ff; border-radius: 12px; padding: 14px 16px;
+  margin: 12px 20px 0; background: linear-gradient(90deg, var(--design-secondary), #fff);
+  border: 1px solid rgba(var(--design-primary-rgb), 0.2); border-radius: 12px; padding: 14px 16px;
 }
 .de-left { display: flex; align-items: center; gap: 12px; }
-.de-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(22,93,255,0.08); display: flex; align-items: center; justify-content: center; }
+.de-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(var(--design-primary-rgb), 0.08); display: flex; align-items: center; justify-content: center; }
 .de-title { font-size: 15px; font-weight: 600; color: var(--t1); }
 .de-sub { font-size: 12px; color: var(--t3); margin-top: 2px; }
 .de-arrow { font-size: 22px; color: var(--border-strong); }
@@ -529,7 +536,7 @@ async function openMember(pkg) {
 /* ===== 租户会员卡 ===== */
 .tcard {
   margin: 28rpx 28rpx 0; border-radius: 24rpx; padding: 36rpx 32rpx;
-  color: #fff; position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(47,107,255,0.18);
+  color: #fff; position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(var(--design-primary-rgb), 0.18);
 }
 .tcard::after {
   content: ''; position: absolute; right: -60rpx; top: -60rpx; width: 240rpx; height: 240rpx;
@@ -550,19 +557,20 @@ async function openMember(pkg) {
 }
 .si-title { font-size: 28rpx; font-weight: 600; color: var(--t5); }
 .si-sub { font-size: 22rpx; color: var(--t4); margin-top: 6rpx; }
-.sign-btn { background: var(--primary); color: #fff; font-size: 26rpx; font-weight: 600; padding: 16rpx 44rpx; border-radius: 999rpx; }
+.sign-btn { background: var(--design-primary); color: var(--design-text, #fff); font-size: 26rpx; font-weight: 600; padding: 16rpx 44rpx; border-radius: 999rpx; }
 .sign-btn:active { opacity: 0.8; }
 .tlevels { margin: 0 28rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .tlv { background: #fff; border-radius: 20rpx; padding: 28rpx; border: 1.5px solid var(--border); }
-.tlv.cur { border-color: var(--primary); background: #f7fbff; }
+.tlv.cur { border-color: var(--design-primary); background: var(--design-secondary); }
 .tlv-head { display: flex; align-items: center; justify-content: space-between; }
 .tlv-name { font-size: 30rpx; font-weight: 700; color: var(--t5); }
-.tlv-no { font-size: 22rpx; color: var(--primary); background: #e8f3ff; padding: 4rpx 16rpx; border-radius: 10rpx; }
+.tlv-no { font-size: 22rpx; color: var(--design-primary); background: var(--design-secondary); padding: 4rpx 16rpx; border-radius: 10rpx; }
 .tlv-desc { font-size: 23rpx; color: var(--t4); margin-top: 10rpx; line-height: 1.5; }
 .tlv-btn { margin-top: 20rpx; text-align: center; padding: 18rpx; border-radius: 16rpx; font-size: 27rpx; font-weight: 600; }
-.tlv-btn.buy { background: var(--primary); color: #fff; }
-.tlv-btn.apply { background: var(--brand-orange); color: #fff; }
-.tlv-btn.on { background: #e8f3ff; color: var(--primary); }
+.tlv-btn.buy { background: var(--design-primary); color: var(--design-text, #fff); }
+/* b 案：申请开通改次级样式（辅助色底 + 主色字），实心主色为整页唯一强 CTA */
+.tlv-btn.apply { background: var(--design-secondary); color: var(--design-primary); border: 1px solid rgba(var(--design-primary-rgb), 0.35); }
+.tlv-btn.on { background: var(--design-secondary); color: var(--design-primary); }
 .tlv-btn.disabled { background: var(--bg-hover); color: var(--border-strong); }
 .tlv-btn:active { opacity: 0.8; }
 .apply-tip { margin: 20rpx 28rpx 0; padding: 20rpx 24rpx; border-radius: 16rpx; font-size: 24rpx; line-height: 1.5; }

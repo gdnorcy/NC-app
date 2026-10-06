@@ -1,5 +1,5 @@
 <template>
-  <view class="dynamic-page">
+  <view class="dynamic-page" :style="themeStyle">
 <!-- PageNav -->
 <PageNav title="我的动态" back />
     <view class="header">
@@ -62,6 +62,9 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 
 const dynamics = ref([]);
 const user = ref({});
@@ -104,8 +107,8 @@ async function publish() {
   padding-bottom: 40rpx;
 }
 .header {
-  background: linear-gradient(135deg, #eb2f96, #f759ab);
-  padding: 88px 32rpx 32rpx;
+  background: linear-gradient(135deg, var(--design-primary, #eb2f96), var(--design-gradient, #f759ab));
+  padding: 32rpx 32rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -143,7 +146,7 @@ async function publish() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #eb2f96, #f759ab);
+  background: linear-gradient(135deg, var(--design-primary, #eb2f96), var(--design-gradient, #f759ab));
   color: #fff;
   display: flex;
   align-items: center;
@@ -243,13 +246,13 @@ async function publish() {
   border: 2px solid transparent;
 }
 .visibility-option.active {
-  background: #e8f3ff;
-  color: #165dff;
-  border-color: #165dff;
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  color: var(--design-primary, #165dff);
+  border-color: var(--design-primary, #165dff);
 }
 .sheet-footer { padding: 0 32rpx 36px; }
 .submit-btn {
-  background: #eb2f96;
+  background: var(--design-primary, #eb2f96);
   color: #fff;
   border-radius: 40rpx;
   height: 88rpx;
