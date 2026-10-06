@@ -246,8 +246,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
-import { parseTheme } from '../../utils/templateTheme.js';
-import { shadeHex } from '../../utils/color.js';
+import { buildCreateSkinVars } from '../../utils/createSkin.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { navVarsStyle } from '../../utils/navMetrics.js';
@@ -267,13 +266,8 @@ const skinType = ref('live');
 // 小程序端不能运行时注入 <style>，故必须由根视图内联下发（CSS 变量向下继承）。
 const themeStyle = useDesignTheme();
 const navVars = navVarsStyle();
-// SIcon 不能消费 var()（构建期烘焙 hex），开关/SIcon 这类需真实 hex 的地方用这个
+// SIcon / switch 不能消费 var()（构建期烘焙 hex），这类需真实 hex 的地方用这个
 const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
-const themeGradient = computed(() => {
-  const p = themeColor.value;
-  const g = (themeStyle.value && themeStyle.value['--design-gradient']) || '';
-  return g ? `linear-gradient(135deg, ${p}, ${g})` : p;
-});
 
 const form = reactive({
   id: null,
@@ -365,124 +359,23 @@ async function loadTemplates(force = false) {
     console.warn('模板加载失败', e);
   }
 }
-// ===== 名片实时预览卡（live 顶部 / split 固定区共用；随选中模板换肤、随输入更新）=====
+// 当前选中模板（仅用于英文副标题映射；配色已不再跟随模板，见下方skinVars 注释）
 const currentTemplate = computed(() => templates.value.find((t) => t.id === form.templateId) || null);
-const lpTheme = computed(() => parseTheme(currentTemplate.value?.themeConfig));
 
-// 方案A：live 皮肤跟随选中模板整体换肤（页面背景/标题区/按钮/卡片/文字 token 联动）
-const skinVars = computed(() => {
-  const t = lpTheme.value;
-  if (!t) return {};
-  const accent = t.accent || themeColor.value;
-  const bg = t.bgStart || themeColor.value;
-  const bgEnd = t.bgEnd || bg;
-  const light = hexLuma(bg) > 160;
-  const vars = {};
-  vars['--primary'] = accent;
-  vars['--success'] = accent;
-  if (light) {
-    vars['--sk-bg'] = `linear-gradient(180deg, ${hexA(bg, 0.14)}, transparent 280rpx), #f6f7fb`;
-    vars['--sk-header'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
-    vars['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
-    vars['--sk-btn-text'] = '#ffffff';
-    vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.35)}`;
-    vars['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
-    vars['--bg-card'] = '#ffffff';
-    vars['--sk-card-bg'] = '#ffffff';
-    vars['--sk-hd-text'] = '#1d2129';
-    vars['--sk-hd-sub'] = '#a2a9b5';
-    vars['--t1'] = '#1d2129';
-    vars['--t2'] = '#4e5969';
-    vars['--t3'] = '#86909c';
-    vars['--border'] = '#e5e6eb';
-    vars['--border-strong'] = '#c9cdd4';
-    vars['--sk-skin'] = 'light';
-    vars['--sk-input-border'] = '1px solid ' + hexA(accent, 0.45);
-    vars['--sk-input-shadow'] = '0 2rpx 8rpx rgba(0,0,0,0.04)';
-    vars['--sk-input-bg'] = '#ffffff';
-    vars['--sk-input-text'] = '#1d2129';
-    vars['--sk-input-ph'] = '#a8b1bd';
-    vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.16)}, 0 10rpx 24rpx ${hexA(accent, 0.12)}`;
-    vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
-    // step 皮肤（品牌方案）：跟随系统主题色（tenant 配色方案），浅色下脱离模板主题色
-    if (skinType.value === 'step') {
-      vars['--primary'] = themeColor.value;
-      vars['--success'] = themeColor.value;
-      vars['--sk-btn'] = themeGradient.value;
-      vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(themeColor.value, 0.25)}`;
-      vars['--sk-input-border'] = '1px solid #e5e6eb';
-      vars['--sk-input-shadow'] = '0 2rpx 8rpx rgba(0,0,0,0.03)';
-      vars['--sk-header'] = 'linear-gradient(180deg, #f6f7fb, #f6f7fb)';
-    }
-  } else {
-    vars['--sk-bg'] = `radial-gradient(120% 55% at 85% -8%, ${hexA(accent, 0.16)}, transparent 62%), radial-gradient(90% 50% at -8% 22%, ${hexA(accent, 0.1)}, transparent 55%), linear-gradient(180deg, ${shadeHex(bg, 0.06)}, ${shadeHex(bgEnd, 0.02)})`;
-    vars['--sk-header'] = `linear-gradient(155deg, ${bg}, ${bgEnd})`;
-    vars['--sk-btn'] = `linear-gradient(135deg, ${hexA(accent, 0.92)}, ${hexA(accent, 0.55)} 48%, ${shadeHex(accent, 0.1)})`;
-    // 鎏金/亮色点缀按钮配深色文字（黑金=金钮深字，方案3 G 同款）
-    vars['--sk-btn-text'] = hexLuma(accent) > 170 ? '#1d2129' : '#ffffff';
-    vars['--sk-btn-glow'] = `0 6rpx 18rpx ${hexA(accent, 0.4)}`;
-    vars['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
-    vars['--bg-card'] = 'rgba(255,255,255,0.09)';
-    vars['--sk-card-bg'] = 'rgba(255,255,255,0.08)';
-    vars['--sk-hd-text'] = t.textColor || '#ffffff';
-    vars['--sk-hd-sub'] = t.text2Color || 'rgba(255,255,255,0.8)';
-    vars['--sk-title-font'] = '"Songti SC", "Noto Serif SC", serif';
-    vars['--t1'] = t.textColor || '#ffffff';
-    vars['--t2'] = t.text2Color || 'rgba(255,255,255,0.8)';
-    vars['--t3'] = 'rgba(255,255,255,0.55)';
-    vars['--border'] = 'rgba(255,255,255,0.22)';
-    vars['--border-strong'] = 'rgba(255,255,255,0.45)';
-    vars['--sk-skin'] = 'dark';
-    vars['--sk-input-border'] = '1px solid ' + hexA(accent, 0.45);
-    vars['--sk-input-shadow'] = 'inset 0 2rpx 10rpx rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)';
-    vars['--sk-input-bg'] = 'rgba(255,255,255,0.07)';
-    vars['--sk-input-text'] = '#ffffff';
-    vars['--sk-input-ph'] = 'rgba(255,255,255,0.45)';
-    vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.2)}, 0 0 26rpx ${hexA(accent, 0.16)}, inset 0 0 0 1px ${hexA(accent, 0.3)}`;
-    vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
-  }
-  return vars;
-});
+// 创建页整体配色 = 系统主题（设计中心「系统风格」），逻辑见 utils/createSkin.js
+// （原本取自名片模板 themeConfig，但预览卡已删除，页面里已无「按模板真实色渲染」的元素）
+const skinVars = computed(() => buildCreateSkinVars(themeStyle.value));
 const stepSubtitle = computed(() => {
   const m = ['填写基本信息，2 分钟完成发布', '方便客户找到你', '预览无误，即可发布'];
   return m[currentStep.value] || m[0];
 });
-const skinSerif = computed(() => !!lpTheme.value && skinVars.value['--sk-skin'] === 'dark');
+// 衬线装饰 + 英文小标题：仅暗色皮肤启用（原本还要求选了模板，现在只由系统主题明暗决定）
+const skinSerif = computed(() => skinVars.value['--sk-skin'] === 'dark');
 // 导航标题/返回箭头颜色：跟随皮肤（深色皮肤白字，浅色皮肤深字），否则浅色皮肤上白字不可见
 const hdText = computed(() => skinVars.value['--sk-hd-text'] || '#ffffff');
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
 const heroEn = computed(() => (currentTemplate.value ? (skinEnMap[currentTemplate.value.id] || 'CREATE YOUR CARD') : 'CREATE YOUR CARD'));
-function hexLuma(color) {
-  let c = String(color || '').trim();
-  if (c.startsWith('#')) {
-    c = c.slice(1);
-    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
-    const n = parseInt(c, 16);
-    if (!Number.isNaN(n) && c.length === 6) {
-      return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255));
-    }
-  }
-  return 200; // 非 hex（rgba 等）按浅色处理
-}
-function hexA(color, alpha) {
-  if (!color) return `rgba(22,93,255,${alpha})`;
-  let c = String(color).trim();
-  if (c.startsWith('#')) {
-    c = c.slice(1);
-    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
-    const n = parseInt(c, 16);
-    if (!Number.isNaN(n) && c.length === 6) {
-      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
-    }
-  }
-  // rgba(255,255,255,.85) 等：解析原透明度并覆盖
-  const m = String(color).match(/rgba?\(([^)]+)\)/);
-  if (m) {
-    const parts = m[1].split(',').map((x) => x.trim());
-    return `rgba(${parts[0]},${parts[1]},${parts[2]},${alpha})`;
-  }
-  return color;
-}
+// hexLuma / hexA 已随配色逻辑一并移入 utils/createSkin.js（勿在此重复定义）
 
 onShow(() => {
   trackPageView('/pages/card/create');
@@ -660,14 +553,15 @@ async function submit() {
 </script>
 
 <style scoped>
+/* 入驻审核状态横幅：pending=信息态（跟随系统文字辅色），rejected=警示态（语义橙，不跟主题） */
 .apply-banner {
   margin: 16px 16px 0;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.6;
-  color: #165DFF;
-  background: #E8F3FF;
+  color: var(--design-subtext, #165DFF);
+  background: var(--theme-tint, #E8F3FF);
 }
 .apply-banner--reject {
   color: #D25F00;
@@ -768,17 +662,6 @@ async function submit() {
   letter-spacing: 2rpx;
   color: var(--sk-hd-text, #1d2129);
 }
-.hero-badge {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  background: rgba(255,255,255,0.18);
-  border: 1px solid rgba(255,255,255,0.25);
-  padding: 8rpx 16rpx;
-  border-radius: 999px;
-  font-size: 22rpx;
-  color: #fff;
-}
 .subtitle {
   font-size: 26rpx;
   color: var(--sk-hd-sub, rgba(255,255,255,0.8));
@@ -835,7 +718,7 @@ async function submit() {
 }
 .type-card.active {
   border-color: var(--primary);
-  background: rgba(22,93,255,0.06);
+  background: var(--theme-tint, rgba(22, 93, 255, 0.06));
 }
 .type-icon {
   width: 88rpx;
@@ -846,10 +729,11 @@ async function submit() {
   justify-content: center;
   flex-shrink: 0;
   margin-bottom: 20rpx;
-  box-shadow: 0 6rpx 16rpx rgba(22,93,255,0.22);
+  box-shadow: 0 6rpx 16rpx rgba(var(--design-primary-rgb, 22, 93, 255), 0.22);
 }
+/* 个人/企业两枚类型图标同源：企业=主色压深（避免整页只剩一个色相、失去区分） */
 .type-icon--personal { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); }
-.type-icon--enterprise { background: linear-gradient(135deg, #1D4E8F, #3b7bd4); }
+.type-icon--enterprise { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); filter: brightness(0.72); }
 .type-name {
   font-size: 28rpx;
   font-weight: 600;
@@ -911,7 +795,7 @@ async function submit() {
 
 .need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
 .need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t3); font-size: 26rpx; border: 2rpx dashed var(--border-strong); }
-.need-item.on { background: rgba(22,93,255,0.08); color: var(--primary); border-color: var(--primary); font-weight: 500; }
+.need-item.on { background: var(--theme-tint, rgba(22,93,255,0.08)); color: var(--primary); border-color: var(--primary); font-weight: 500; }
 
 /* 表单 */
 .form-item {
@@ -943,8 +827,8 @@ async function submit() {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .form-input:focus {
-  border-color: var(--sk-input-focus, #2f6bff) !important;
-  box-shadow: 0 0 0 6rpx rgba(47,107,255,0.12);
+  border-color: var(--sk-input-focus, var(--primary)) !important;
+  box-shadow: 0 0 0 6rpx rgba(var(--design-primary-rgb, 22, 93, 255), 0.12);
 }
 .form-input.ph, .picker-value.ph {
   color: var(--sk-input-ph, #9a9a9a);
@@ -1012,7 +896,8 @@ async function submit() {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
+  /* 跟皮肤走：暗色主题下写死 #fff 会横出一条白带（--sk-card-bg 在明暗两支都有值） */
+  background: var(--sk-card-bg, #fff);
   padding: 16rpx 24rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
   box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.06);
@@ -1033,7 +918,7 @@ async function submit() {
   border: none;
   line-height: 96rpx;
   /* 顶部内高光：用真实 box-shadow 实现（此前误用 background 传 inset 语法 → 声明无效） */
-  box-shadow: var(--sk-btn-shine, none), var(--sk-btn-glow, 0 4rpx 12rpx rgba(7,193,96,0.3));
+  box-shadow: var(--sk-btn-shine, none), var(--sk-btn-glow, 0 4rpx 12rpx rgba(var(--design-primary-rgb, 22, 93, 255), 0.3));
 }
 /* 抹掉微信原生 button::after 的 1px 黑色边框（即用户看到的"黑线"） */
 .btn-primary::after,
@@ -1060,7 +945,8 @@ async function submit() {
   width: 144rpx;
   height: 96rpx;
   padding: 0;
-  background: #fff;
+  /* 原写死 #fff → 暗色皮肤下白底白字 */
+  background: var(--sk-card-bg, #fff);
   color: var(--t3);
   font-size: 26rpx;
   font-weight: 500;
@@ -1106,5 +992,7 @@ async function submit() {
   line-height: 96rpx;
   box-sizing: border-box;
 }
-.picker-value.ph { color: #9a9a9a; }
+/* 占位文字：必须走 --sk-input-ph，否则暗色皮肤下浅灰字配深色输入框看不清
+   （旧代码写死 #9a9a9a，与上面 .form-input.ph 的变量化不一致 → 同一表单两种占位色） */
+.picker-value.ph { color: var(--sk-input-ph, #9a9a9a); }
 </style>
