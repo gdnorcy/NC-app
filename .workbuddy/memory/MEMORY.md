@@ -72,5 +72,6 @@
 - 🔴 **每次 MP 构建后必手动清理**：`gen-mp-sicons`+`strip-mp-static` 删除被 safe-delete 守卫拦（>50 文件），481 个 sicons PNG≈2MB 留主包计重（实测 3824K vs 清理后 1676K）。构建后 `mv dist/build/mp-weixin/static/sicons /tmp/ && mv dist/build/mp-weixin/static/icons /tmp/`。**量体积前必先清理，否则数据全假。**
 - 瘦身：pages.json 把独立应用移入 subPackages（**root=目录名、页面路径不变、零代码改动**）；仅分包引用的组件放 `<root>/components/`。
 - ❌ **three.js 移不出主包**（已实验）：`optimization.subPackages` 在 uni-app vite 下**不拆 node_modules**；组件移分包、改 `await import()` 动态导入仍进主包 `common/vendor.js`。再降只能压 sicons/网络化 static，或 MP 全景改 2D canvas（产品决策）。
+- 🔴 **真机全量 `ERR_CONNECTION_TIMED_OUT` = 局域网 IP 变了**：MP API 基址写死在 `web-app/src/utils/cardApi.js:18`，DHCP 换网必失效（服务端没事，别查服务）。改后重建；验证新 IP 是否进产物要 grep 构建产物的 `utils/cardApi.js`——**grep vendor.js 恒为 0（该模块不并入 vendor），会误判失败**。
 
 - 已知：Vue **2**；hash SPA **必须先「选店铺」**才能进装修页；组件库 `data-id` 是内部键名（按钮组=`menu`）；属性面板 radio 的 `value` 通常是真实字段值，但「组件样式/组件风格」是占位 `on`，须从渲染结果反推。
