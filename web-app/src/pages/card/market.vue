@@ -511,7 +511,8 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .red-dot { position: absolute; top: -4rpx; right: -8rpx; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: 999rpx; background: #ff4d4f; color: #fff; font-size: 20rpx; text-align: center; padding: 0 6rpx; box-sizing: border-box; }
 .nav-title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
 .nav-tag { margin-left: 12rpx; font-size: 20rpx; color: #1d4e8f; background: #e9f1fb; padding: 4rpx 12rpx; border-radius: 8rpx; }
-.nav-right { width: 64rpx; }
+/* 两个图标 + 间距实际约 132rpx，勿再用单图标时代的 64rpx 固定宽（会撑破页面产生横向滚动） */
+.nav-right { width: auto; }
 
 /* 搜索 */
 .search-bar { padding: 20rpx 24rpx; background: #fff; }

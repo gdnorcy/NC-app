@@ -1,5 +1,5 @@
 <template>
-  <view class="create-page" :class="'skin-' + skinType" :style="skinVars">
+  <view class="create-page" :class="'skin-' + skinType" :style="[skinVars, themeStyle, navVars]">
     <view v-if="applyMsg" class="apply-banner" :class="{ 'apply-banner--reject': applyStatus === 'rejected' }">
       {{ applyMsg }}
     </view>
@@ -177,13 +177,13 @@
 
         <view class="form-item switch-item">
           <view class="form-label">公开到人脉集市</view>
-          <switch :checked="form.isPublic" @change="form.isPublic = $event.detail.value" color="#165dff" />
+          <switch :checked="form.isPublic" @change="form.isPublic = $event.detail.value" :color="themeColor" />
         </view>
         <!-- 高级选项（默认收起：语音简介 + 视频号ID） -->
         <view class="bind-section adv-section" style="margin-top: 40rpx;">
           <view class="bind-header" @click="showAdv = !showAdv">
             <view class="bind-title">
-              <SIcon name="settings" size="small" color="#165dff" />
+              <SIcon name="settings" size="small" :color="themeColor" />
               高级选项
             </view>
             <view class="bind-arrow">{{ showAdv ? '收起' : '展开' }}</view>
@@ -196,7 +196,7 @@
                 <text class="voice-text">上传音频</text>
               </view>
               <view class="voice-file" v-else>
-                <SIcon name="dynamic" size="large" color="#165dff" />
+                <SIcon name="dynamic" size="large" :color="themeColor" />
                 <view class="vf-info">
                   <view class="vf-name">{{ form.voiceName || '语音简介' }}</view>
                   <view class="vf-tip">点击播放试听</view>
@@ -249,6 +249,8 @@ import { track, trackPageView } from '../../utils/analytics.js';
 import { parseTheme } from '../../utils/templateTheme.js';
 import { shadeHex } from '../../utils/color.js';
 import SIcon from '../../components/SIcon.vue';
+import { useDesignTheme } from '../../utils/design.js';
+import { navVarsStyle } from '../../utils/navMetrics.js';
 
 const isEdit = ref(false);
 const submitting = ref(false);
@@ -261,6 +263,17 @@ const showAdv = ref(false);
 const steps = ['基本信息', '联系方式', '确认发布'];
 // 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导 / split 沉浸双分区
 const skinType = ref('live');
+// 系统主题（设计中心「系统风格」）：表单 UI 外壳跟随它；名片预览卡仍按所选模板真实配色渲染。
+// 小程序端不能运行时注入 <style>，故必须由根视图内联下发（CSS 变量向下继承）。
+const themeStyle = useDesignTheme();
+const navVars = navVarsStyle();
+// SIcon 不能消费 var()（构建期烘焙 hex），开关/SIcon 这类需真实 hex 的地方用这个
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const themeGradient = computed(() => {
+  const p = themeColor.value;
+  const g = (themeStyle.value && themeStyle.value['--design-gradient']) || '';
+  return g ? `linear-gradient(135deg, ${p}, ${g})` : p;
+});
 
 const form = reactive({
   id: null,
@@ -360,8 +373,8 @@ const lpTheme = computed(() => parseTheme(currentTemplate.value?.themeConfig));
 const skinVars = computed(() => {
   const t = lpTheme.value;
   if (!t) return {};
-  const accent = t.accent || '#165dff';
-  const bg = t.bgStart || '#165dff';
+  const accent = t.accent || themeColor.value;
+  const bg = t.bgStart || themeColor.value;
   const bgEnd = t.bgEnd || bg;
   const light = hexLuma(bg) > 160;
   const vars = {};
@@ -391,12 +404,12 @@ const skinVars = computed(() => {
     vars['--sk-input-ph'] = '#a8b1bd';
     vars['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.16)}, 0 10rpx 24rpx ${hexA(accent, 0.12)}`;
     vars['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
-    // step 皮肤（品牌方案）：浅色下脱离模板主题色，统一品牌蓝 + Notion 中性细边
+    // step 皮肤（品牌方案）：跟随系统主题色（tenant 配色方案），浅色下脱离模板主题色
     if (skinType.value === 'step') {
-      vars['--primary'] = '#165dff';
-      vars['--success'] = '#165dff';
-      vars['--sk-btn'] = 'linear-gradient(135deg, #165dff, #3b7bff)';
-      vars['--sk-btn-glow'] = '0 4rpx 12rpx rgba(22,93,255,0.25)';
+      vars['--primary'] = themeColor.value;
+      vars['--success'] = themeColor.value;
+      vars['--sk-btn'] = themeGradient.value;
+      vars['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(themeColor.value, 0.25)}`;
       vars['--sk-input-border'] = '1px solid #e5e6eb';
       vars['--sk-input-shadow'] = '0 2rpx 8rpx rgba(0,0,0,0.03)';
       vars['--sk-header'] = 'linear-gradient(180deg, #f6f7fb, #f6f7fb)';
@@ -835,7 +848,7 @@ async function submit() {
   margin-bottom: 20rpx;
   box-shadow: 0 6rpx 16rpx rgba(22,93,255,0.22);
 }
-.type-icon--personal { background: linear-gradient(135deg, #165dff, #4d8dff); }
+.type-icon--personal { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); }
 .type-icon--enterprise { background: linear-gradient(135deg, #1D4E8F, #3b7bd4); }
 .type-name {
   font-size: 28rpx;

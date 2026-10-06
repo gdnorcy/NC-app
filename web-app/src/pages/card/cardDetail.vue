@@ -1,7 +1,7 @@
 <template>
   <!-- ===== 名片详情页（全局对外展示落地页｜所有人可见） =====
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
-  <view class="profile-page" :style="navVars">
+  <view class="profile-page" :style="[navVars, themeStyle]">
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
@@ -111,7 +111,7 @@
       <view class="sec-t">个人简介</view>
       <!-- 语音简介（阶段C：上传音频展示） -->
       <view class="voice-box" v-if="card.voiceUrl" @click="toggleVoice">
-        <view class="vb-play"><SIcon :name="voicePlaying ? 'pause' : 'play'" size="default" color="#165dff" /></view>
+        <view class="vb-play"><SIcon :name="voicePlaying ? 'pause' : 'play'" size="default" :color="themeColor" /></view>
         <view class="vb-info">
           <view class="vb-name">{{ card.voiceName || '语音简介' }}</view>
           <view class="vb-tip">{{ voicePlaying ? '播放中…' : '点击播放' }}</view>
@@ -185,7 +185,7 @@
           <image v-if="d.images && d.images.length" class="dyn-img" :src="d.images[0]" mode="aspectFill" @click="previewDyn(d)" />
           <view class="dyn-meta">
             <text class="dyn-act" :class="{ liked: d.likedByMe }" @click.stop="toggleLike(d)">
-              <SIcon name="like" size="small" :color="d.likedByMe ? '#165dff' : '#9a9a9a'" /> {{ d.likeCount || 0 }}
+              <SIcon name="like" size="small" :color="d.likedByMe ? themeColor : '#9a9a9a'" /> {{ d.likeCount || 0 }}
             </text>
             <text class="dyn-act" @click.stop="openComments(d)">
               <SIcon name="comment" size="small" color="#9a9a9a" /> {{ d.commentCount || 0 }}
@@ -249,7 +249,7 @@
 
     <!-- 访客表单（租户启用时展示；线索回流） -->
     <view class="form-entry" v-if="activeForm" @click="openForm">
-      <view class="fe-icon"><SIcon name="template" size="large" color="#165dff" /></view>
+      <view class="fe-icon"><SIcon name="template" size="large" :color="themeColor" /></view>
       <view class="fe-body">
         <view class="fe-title">{{ activeForm.title || '填写表单' }}</view>
         <view class="fe-desc">{{ activeForm.description || '填写信息，方便与对方进一步沟通' }}</view>
@@ -301,8 +301,13 @@ import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTab
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { navVarsStyle } from '../../utils/navMetrics.js';
+import { useDesignTheme } from '../../utils/design.js';
 
 const navVars = navVarsStyle();
+// 小程序端不能运行时注入 <style>，系统主题色必须由根视图内联下发（否则回落 CSS 兜底色）
+const themeStyle = useDesignTheme();
+// SIcon 不能消费 var()（构建期烘焙 hex），需真实 hex 的图标/开关用这个
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const card = ref({});
 const layoutFull = computed(() => card.value?.templateLayout === 'full');

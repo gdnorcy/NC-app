@@ -123,6 +123,9 @@ page {
 page {
   --pnv-status-bar: 20px;
   --pnv-capsule-pad: 7px;
+  /* 全局横向溢出防护：任意子元素超宽都会让整页左右可拖动（集市页 nav-right 曾把
+     64rpx 固定宽用在 132rpx 内容上）。子元素用 scroll-view 做的横向列表不受影响。 */
+  overflow-x: hidden;
 }
 
 /* ===== 小程序原生 <button> 重置（关键）=====

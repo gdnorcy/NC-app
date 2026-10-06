@@ -21,8 +21,8 @@
         <slot name="title"></slot>
       </view>
 
-      <!-- 右侧：页面级操作（购物车/刷新/…）；padRight 已含胶囊避让 -->
-      <view class="pnv-side pnv-right">
+      <!-- 右侧：页面级操作（购物车/刷新/…）；胶囊避让见 rightStyle（仅在有右插槽时才占位） -->
+      <view class="pnv-side pnv-right" :style="rightStyle">
         <slot name="right"></slot>
       </view>
     </view>
@@ -35,7 +35,7 @@
 </template>
 
 <script>
-import { navRootStyle, navBarRowStyle, goBack as navGoBack } from '../utils/navMetrics.js';
+import { navRootStyle, navBarRowStyle, getNavMetrics, goBack as navGoBack } from '../utils/navMetrics.js';
 
 /**
  * 全站统一导航条（沉浸式）
@@ -81,6 +81,16 @@ export default {
     },
     barStyle() {
       return navBarRowStyle();
+    },
+    /**
+     * 右侧胶囊避让：微信「最小化 + 三个点」是原生控件、不可覆盖，
+     * 右插槽若不额外让出胶囊宽度就会被压住（myCard「编辑」、集市页两个图标都被挡过）。
+     * 只在**确实有右插槽内容**时占位，否则空插槽的 margin 也会把标题挤偏。
+     */
+    rightStyle() {
+      if (!this.$slots.right) return {};
+      const m = getNavMetrics();
+      return m.isMp ? { marginRight: m.capsuleWidth + 'px' } : {};
     },
   },
   methods: {
