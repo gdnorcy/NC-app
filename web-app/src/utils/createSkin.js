@@ -12,8 +12,11 @@
  *    - v1 整页泼主题色：高饱和色（红/橙）整页泼彩，不可看；
  *    - v2 墨色画布：太暗、与 C 端其它浅色页面脱节，「跟系统不同步」；
  *    - v3 终案：#f6f7fb 系统灰底 + 顶部主题色晕染 + 白卡，与 C 端同一观感；
- *      主题色主场 = hero 头部渐变 / 主按钮 / 焦点圈 / 分隔线 / 输入框描边(淡)。
- *    - 文字对色按主色亮度：主色偏浅（浅金 luma>160）时头部/按钮用深字。
+ *      主题色主场 = 主按钮 / 焦点圈 / 分隔线 / 输入框描边(淡)。
+ *    - v3.1（用户反馈「头部红色渐变与浅色页面不配」）：**头部透明化**——不再发
+ *      头部渐变（--sk-header=transparent），主题色顶部氛围只由 --sk-bg 的晕染承担，
+ *      标题/副标题恒深字；主按钮仍是主题色渐变（按钮≠墙，不刺眼）。
+ *    - 文字对色按主色亮度：只用于**按钮**文字（浅金 luma>160 时按钮用深字）。
  *    - 兜底主色仍是品牌蓝 #165dff；未配置配色时本页=浅色皮肤（v2 及以前是 dark，已变）。
  * 语义色（成功绿/警示橙/VIP 金/钥匙绿/免费标签绿）刻意**不**跟随主题。
  */
@@ -71,8 +74,9 @@ export function buildCreateSkinVars(theme) {
   v['--theme-tint'] = tint;
   // 浅色画布：顶部主题色晕染过渡到系统灰底
   v['--sk-bg'] = `linear-gradient(180deg, ${hexA(accent, 0.16)}, transparent 300rpx), #f6f7fb`;
-  // hero 头部与主按钮：主题色渐变（主题色的主场）
-  v['--sk-header'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
+  // v3.1 头部透明：不再发头部渐变（整块主题色渐变与浅色页面不配），氛围交给上面的晕染
+  v['--sk-header'] = 'transparent';
+  // 主按钮：主题色渐变（按钮≠墙，小面积主题色不刺眼）
   v['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
   v['--sk-btn-text'] = onAccent ? '#1d2129' : '#ffffff';
   v['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.35)}`;
@@ -80,9 +84,9 @@ export function buildCreateSkinVars(theme) {
   v['--bg-card'] = '#ffffff';
   v['--bg-hover'] = '#f2f3f5';
   v['--sk-card-bg'] = '#ffffff';
-  // 头部文字坐在主题色渐变上 → 按主色亮度对色（skin-step 透明头部的深字由 create.vue 覆写）
-  v['--sk-hd-text'] = onAccent ? '#1d2129' : '#ffffff';
-  v['--sk-hd-sub'] = onAccent ? '#4e5969' : 'rgba(255,255,255,0.8)';
+  // 头部文字：透明头部落在浅色晕染上 → 恒深字（不再随主色对色）
+  v['--sk-hd-text'] = '#1d2129';
+  v['--sk-hd-sub'] = '#4e5969';
   v['--t1'] = '#1d2129';
   v['--t2'] = '#4e5969';
   v['--t3'] = '#86909c';

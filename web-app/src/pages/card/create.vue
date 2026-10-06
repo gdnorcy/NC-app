@@ -61,7 +61,7 @@
         <view class="form-item" :class="{ error: errors.phone }">
           <view class="form-label">手机号 <text class="required">*</text></view>
           <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.phone">请输入手机号</view>
+          <view class="error-tip" v-if="errors.phone">{{ phoneErrorMsg }}</view>
         </view>
 
         <view class="form-item">
@@ -372,9 +372,10 @@ const stepSubtitle = computed(() => {
 // 衬线装饰 + 英文小标题：仅暗色皮肤启用（原本还要求选了模板，现在只由系统主题明暗决定）
 const skinSerif = computed(() => skinVars.value['--sk-skin'] === 'dark');
 // 导航标题/返回箭头颜色：跟随皮肤（深色皮肤白字，浅色皮肤深字），否则浅色皮肤上白字不可见
-// PageNav 文字色：live/split 皮肤头部是主题色渐变 → 用 --sk-hd-text（对色后的白/深字）；
-// step 皮肤头部透明、直接落在浅色画布上 → 固定深字（白字会消失）
-const hdText = computed(() => (skinType.value === 'step' ? '#1d2129' : (skinVars.value['--sk-hd-text'] || '#ffffff')));
+// PageNav 文字色：v3.1 起头部透明、--sk-hd-text 恒深字（三皮肤一致，不再需要 step 特判）
+const hdText = computed(() => (skinVars.value['--sk-hd-text'] || '#1d2129'));
+// 手机号报错文案：空 →「请输入手机号」；填了但格式不对 →「请输入正确的手机号」
+const phoneErrorMsg = computed(() => (form.phone.trim() ? '请输入正确的手机号' : '请输入手机号'));
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
 const heroEn = computed(() => (currentTemplate.value ? (skinEnMap[currentTemplate.value.id] || 'CREATE YOUR CARD') : 'CREATE YOUR CARD'));
 // hexLuma / hexA 已随配色逻辑一并移入 utils/createSkin.js（勿在此重复定义）
@@ -482,7 +483,9 @@ function validateStep(step) {
     return !errors.name;
   }
   if (step === 1) {
-    errors.phone = !form.phone.trim();
+    // 真机反馈：原先只查非空不查格式。11 位、1[3-9] 开头才放行（input type=number 挡不住乱填）
+    const phone = form.phone.trim();
+    errors.phone = !phone || !/^1[3-9]\d{9}$/.test(phone);
     errors.businessField = !form.businessField.trim();
     return !errors.phone && !errors.businessField;
   }
@@ -572,8 +575,9 @@ async function submit() {
 
 /* ===== 三皮肤布局差异 ===== */
 /* step 分步引导：卡片全屏化 + 焦点感 */
-.skin-step .header { padding-top: 56rpx; background: transparent; }
-.skin-step .cards-container { padding: 0 24rpx; }
+.skin-step .header { padding-top: 56rpx; }
+/* （cards-container 的顶部间隔已在基础样式统一为 24rpx，step/split 不再各写一份 ——
+    曾 split 只给 8rpx、step 为 0，同一页面换步/换皮肤灰缝忽有忽无） */
 .skin-step .card {
   border-radius: 24rpx;
   padding: 40rpx 32rpx;
@@ -588,8 +592,6 @@ async function submit() {
 }
 .skin-step .btn-secondary,
 .skin-step .btn-skip { height: 104rpx; border-radius: 28rpx; }
-/* split：表单全屏 */
-.skin-split .cards-container { padding-top: 8rpx; }
 /* live：紧凑表单 */
 .skin-live .form-item { margin-top: 16rpx; }
 .skin-live .card-title { font-size: 28rpx; }
@@ -605,9 +607,9 @@ async function submit() {
   /* #endif */
 }
 
-/* 顶部标题 */
+/* 顶部标题（v3.1 头部透明：主题色氛围由页面 --sk-bg 顶部晕染承担，标题恒深字） */
 .header {
-  background: var(--sk-header, linear-gradient(155deg, #0e2a4e, var(--primary-deep) 55%, #3b7bd4));
+  background: var(--sk-header, transparent);
   padding: 0 32rpx 32rpx;
 }
 /* PageNav 通栏：抵消 .header 的左右内边距，使导航背景/点击区真正铺满整行 */
@@ -675,9 +677,9 @@ async function submit() {
   color: #4e5969;
 }
 
-/* 卡片容器 */
+/* 卡片容器：顶部 24rpx 间隔——白卡与头部之间必须留出灰缝（真机反馈：贴死看不出层次） */
 .cards-container {
-  padding: 0 24rpx;
+  padding: 24rpx 24rpx 0;
   position: relative;
   min-height: 560rpx;
 }
@@ -685,7 +687,8 @@ async function submit() {
   background: var(--sk-card-bg, #fff);
   border-radius: 32rpx;
   padding: 20rpx 36rpx 32rpx;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 勿加 transition：卡片显隐靠 display:none 切换，过渡从未生效；且真机上容器带 transition
+     时插入 v-if 节点（校验报错）会因合成滞后把后续内容画在旧位置 → 提示词错位（开发者工具不复现） */
 }
 .card + .card {
   margin-top: 28rpx;
@@ -738,9 +741,10 @@ async function submit() {
   margin-bottom: 20rpx;
   box-shadow: 0 6rpx 16rpx rgba(var(--design-primary-rgb, 22, 93, 255), 0.22);
 }
-/* 个人/企业两枚类型图标同源：企业=主色压深（避免整页只剩一个色相、失去区分） */
+/* 个人/企业两枚类型图标同源同色（v3.1：企业原先 brightness(0.72) 压深被用户否——
+   「太暗」，红主题下成暗红更难看；区分靠下方名称/描述与选中勾，不靠图标色） */
 .type-icon--personal { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); }
-.type-icon--enterprise { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); filter: brightness(0.72); }
+.type-icon--enterprise { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); }
 .type-name {
   font-size: 28rpx;
   font-weight: 600;
@@ -841,7 +845,10 @@ async function submit() {
   color: var(--sk-input-ph, #9a9a9a);
 }
 .error-tip {
+  display: block;
+  width: 100%;
   font-size: 22rpx;
+  line-height: 1.5;
   color: var(--danger);
   margin-top: 6rpx;
 }

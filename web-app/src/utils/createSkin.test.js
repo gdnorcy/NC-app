@@ -1,12 +1,14 @@
 /**
  * 创建名片页配色 token 测试（2026-10-06 抽出；2026-10-07 改统一浅色画布）
  *
- * 锁定三件事：
+ * 锁定四件事：
  * 1. 配色**源**是系统主题（--design-*），不是名片模板 themeConfig
  *    —— 历史 bug：原本取模板色，换模板就整页换色；预览卡删了后已无理由。
  * 2. 画布统一浅色（v3 定稿）：v1 整页泼主题色（高饱和色刺眼）、v2 墨色画布（太暗、
  *    与 C 端浅色页面脱节）先后被否 → 现在任何主色都是 #f6f7fb 浅底 + 白卡 + 主题色点缀。
- * 3. 文字对色按主色亮度：主色偏浅（浅金 luma>160）时头部/按钮文字转深色。
+ * 3. 头部透明（v3.1 定稿）：红色渐变头与浅色页面不配（用户反馈）→ --sk-header=transparent，
+ *    主题色氛围只由 --sk-bg 顶部晕染承担，标题/副标题恒深字。
+ * 4. 文字对色按主色亮度：只用于**按钮**文字（主色偏浅（浅金 luma>160）时按钮文字转深色）。
  */
 import { describe, it, expect } from 'vitest';
 import { buildCreateSkinVars, hexLuma, hexA } from './createSkin.js';
@@ -44,8 +46,8 @@ describe('buildCreateSkinVars（配色源= 系统主题，统一浅色画布）'
     expect(v['--primary']).toBe('#FE0137');
     expect(v['--success']).toBe('#FE0137');
     expect(v['--theme-tint']).toBe('#FFE5EB');
-    // 主题色主场：hero 头部 / 主按钮 / 聚焦圈 / 分隔线 含主色原文
-    expect(v['--sk-header']).toContain('#FE0137');
+    // 主题色主场：主按钮 / 聚焦圈 / 分隔线 含主色原文；头部透明（v3.1）
+    expect(v['--sk-header']).toBe('transparent');
     expect(v['--sk-btn']).toContain('#FE0137');
     expect(v['--sk-input-focus']).toBe('#FE0137');
     expect(v['--sk-line']).toContain('#FE0137');
@@ -55,12 +57,14 @@ describe('buildCreateSkinVars（配色源= 系统主题，统一浅色画布）'
     expect(JSON.stringify(v)).not.toContain('7,193,96');
   });
 
-  it('统一浅色画布（v3）：任何主色都是 #f6f7fb 浅底 + 白卡 + 深字层级', () => {
+  it('统一浅色画布（v3）：任何主色都是 #f6f7fb 浅底 + 白卡 + 深字层级 + 透明头部', () => {
     for (const primary of ['#FE0137', '#165dff', '#1a1a2e', '#c9a25e', '#f5f7fa']) {
       const v = buildCreateSkinVars(theme(primary));
       expect(v['--sk-skin']).toBe('light');
       expect(v['--sk-bg']).toContain('#f6f7fb'); // 系统灰底
       expect(v['--sk-bg']).not.toContain('radial-gradient'); // v2 墨色画布勿复活
+      expect(v['--sk-header']).toBe('transparent'); // v3.1 红渐变头勿复活
+      expect(v['--sk-hd-text']).toBe('#1d2129'); // 透明头部 → 标题恒深字
       expect(v['--sk-card-bg']).toBe('#ffffff');
       expect(v['--t1']).toBe('#1d2129');
       expect(v['--sk-title-font']).toBeUndefined(); // 衬线标题随 dark 皮肤一并移除
@@ -69,13 +73,13 @@ describe('buildCreateSkinVars（配色源= 系统主题，统一浅色画布）'
     expect(buildCreateSkinVars(theme('#FE0137'))['--sk-bg']).toContain('rgba(254,1,55,0.16)');
   });
 
-  it('文字对色：饱和主色白字，浅主色（luma>160）深字', () => {
-    // 红（亮度~83）→ 头部/按钮白字
+  it('文字对色（v3.1）：头部恒深字；按钮文字按主色亮度对色', () => {
+    // 红（亮度~83）→ 按钮白字；头部恒深字（透明头部落浅底，与主色无关）
     const red = buildCreateSkinVars(theme('#FE0137'));
-    expect(red['--sk-hd-text']).toBe('#ffffff');
+    expect(red['--sk-hd-text']).toBe('#1d2129');
+    expect(red['--sk-hd-sub']).toBe('#4e5969');
     expect(red['--sk-btn-text']).toBe('#ffffff');
-    expect(red['--sk-hd-sub']).toBe('rgba(255,255,255,0.8)');
-    // 浅金（亮度 162>160）→ 深字（白字在浅金上看不清）
+    // 浅金（亮度 162>160）→ 按钮也用深字（白字在浅金上看不清）
     const gold = buildCreateSkinVars(theme('#c9a25e'));
     expect(gold['--sk-hd-text']).toBe('#1d2129');
     expect(gold['--sk-btn-text']).toBe('#1d2129');
