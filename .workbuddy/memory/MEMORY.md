@@ -21,12 +21,13 @@
 - `designThemeVars(config)` 产全套 `--design-*`(primary/rgb/gradient/secondary/text/subtext/headcolor/headtext)；`setDesignTheme(config)` 跨端填充响应式 + `useDesignTheme()` 供页面读。
 - **H5**：`App.vue.initDesignConfig` 调 `setDesignTheme` 后 `// #ifdef H5` 跑 `applyDesignStyle` 写 `documentElement`。
 - **MP**：不支持运行时注 `<style>`，须 page 根视图 `:style="[pageBgStyle, themeStyle]"`（themeStyle=useDesignTheme()）内联下发，变量向下继承。App.vue 的 `setDesignTheme` 已跨端填充，MP 只需页面绑根视图。
-- ⚠️ **消费 `var(--design-` 的页面必须绑 `themeStyle`**，否则 MP 回落 fallback 色。已接：home/myCard/分销5页/member/cardDetail/create/templateSelect/dynamic/profile（dist+member+create 还绑 `navVars`）。
+- ⚠️ **消费 `var(--design-` 的页面必须绑 `themeStyle`**，否则 MP 回落 fallback 色。已接：home/myCard/分销5页/member/cardDetail/create/templateSelect/dynamic/profile/market（dist+member+create 还绑 `navVars`）。
 - 🔧 **自查命令**（两集合须完全一致，差集=漏接）：`grep -rl "var(--design-" pages/ components/` 与 `grep -rl "useDesignTheme" pages/`。
 - ⚠️ **SIcon 的 `color` 不能消费 `var()`**（H5 烘焙进 SVG data-URI 不认 var → 非法色变黑；MP 按 `name-hex` 查构建期 PNG 命中不了运行期主题色 → 回退黑 PNG）。只能传**真实 hex**：`themeColor = computed(() => designConfig.style.primaryColor)`；文字/CSS 背景用 `var(--design-primary)`。
 - 🔴 **配色源归属元规则**：给元素定配色先问「这是平台 UI，还是被展示对象的真实外观？」前者跟系统主题，后者保留自身色（如 templateSelect 模板缩略图是要卖的东西，改主题色=货不对板）。语义色（成功绿/警示橙/VIP 金）刻意不跟随。**create.vue 曾误取名片模板 `themeConfig` 配色，预览卡删后理由失效，已改 `utils/createSkin.js buildCreateSkinVars()` 取 `--design-*`。**
-🔴 **创建页画布定稿（v3/v3.1，2026-10-07 用户三轮反馈后）**：**统一浅色画布 `#f6f7fb` + 顶部主题色晕染（accent 0.16 渐隐）+ 白卡 + 透明头部**，与 C 端其它浅色页同一观感；**取消明暗双分支**（v2 dark 墨色被否「太暗」）、**头部不再发渐变**（红渐变头被否「跟页面不配」，`--sk-header='transparent'`，标题恒深字）。主题色主场 = 主按钮 / 焦点圈 / 分隔线 / 输入框描边(淡)；**文字对色（浅金 luma>160→深字）只管按钮**。**教训链**：v1 整页泼主题色（刺眼）→ v2 墨色画布（太暗脱节）→ v3 浅色+红渐变头（不配）→ v3.1 头部透明收尾。回归测试 `createSkin.test.js` 7 例已锁（含 `--sk-header='transparent'` 勿复活）。⚠️ v3 删 dark 分支后 `skinSerif` 恒 false → `hero-en`/`hero-line` 衬线英文装饰不再显示。
-🔴 **真机专属坑：容器带 `transition` + `v-if` 插入节点 → 真机内容错位，开发者工具永不复现**（create.vue 报错提示词错位根因：`.card{transition:all}` 合成滞后，删掉即愈；该过渡因卡片 display:none 切换本就是死代码）。加 transition 前先问「它有没有可能真的被触发」，别留装饰性过渡。另：报错文案块级化（display:block+width:100%+line-height）加固。
+🔴 **创建页画布定稿（v3.2，2026-10-07 用户四轮反馈后）**：**统一浅色画布 `#f6f7fb` + 顶部主题色晕染（accent 0.16 渐隐）+ 白卡 + 主题色渐变头部**，与 C 端其它浅色页同一观感；**取消明暗双分支**（v2 dark 墨色被否「太暗」）。主题色主场 = **头部渐变** / 主按钮 / 焦点圈 / 分隔线 / 输入框描边(淡)；文字按主色亮度对色（浅金 luma>160→深字）。**步骤数字「1/3」消费 `--sk-hd-sub`**（渐变头上半透明白，浅金/step 透明头深灰），**勿用灰 `--t3`**（用户在红头上说「灰色不配」）。
+🔴 **需求理解教训**：用户说「这个色不对/跟页面不配」时**先确认指的是哪个元素**，别直接改大片背景——我曾把「1/3 步骤数字的灰色」误判成整个红色渐变头部而删成透明（v3.1），用户复核「之前同步主题色是正确的」才回退（v3.2）。**教训链**：v1 整页泼主题色（刺眼）→ v2 墨色画布（太暗脱节）→ v3 浅色+红渐变头（不配）→ v3.1 头部透明收尾。回归测试 `createSkin.test.js` 7 例已锁（含 `--sk-header='transparent'` 勿复活）。⚠️ v3 删 dark 分支后 `skinSerif` 恒 false → `hero-en`/`hero-line` 衬线英文装饰不再显示。
+🔴 **真机专属坑：动态插入节点（`v-if`）→ 真机后续内容错位，开发者工具永不复现**。create.vue 校验报错提示与下一字段标签重叠即此。**唯一根治方案：让节点常驻 + 预留固定高度，用 visibility/class 切换**，从根上消灭重排（`.error-tip{height:34rpx;line-height:34rpx;visibility:hidden}` + `:class="{on:...}"`）。⚠️ **删容器的 `transition` 治不住（已实测无效）**——别止步于此。另：容器带装饰性 `transition:all` 本身也是死代码（卡片 display:none 切换永不触发过渡），顺手清理即可。
 - **沉浸页顶部避让**：PageNav overlay / 自绘 hero 的 padding-top 须消费 `--pnv-status-bar`/`--pnv-nav-h`/`--pnv-capsule-pad`，真实值只由 `navVarsStyle()`（utils/navMetrics.js）内联注入。根视图 `:style="[navVars, themeStyle]"`；右侧有徽章/按钮的 hero 必须避到导航行之下（member 曾「只避状态栏+30rpx」致 FREE 徽章与胶囊相撞）。
 - 🔧 **H5 重建被沙箱 safe-delete 拦**（uni clean 删 >50 文件 → SAFE_DELETE_BULK_CONFIRM_REQUIRED）：先 `mv dist/build/h5 /tmp/...` 清空再构建。dist 可再生产；server/public/card 已同步则无需重建。
 
@@ -72,7 +73,8 @@
 
 ## 小程序主包体积（2026-10-06 实测：1.5M 质量线 / 2M 硬上限）
 - 🔴 **每次 MP 构建后必手动清理**：`gen-mp-sicons`+`strip-mp-static` 删除被 safe-delete 守卫拦（>50 文件），481 个 sicons PNG≈2MB 留主包计重（实测 3824K vs 清理后 1676K）。构建后 `mv dist/build/mp-weixin/static/sicons /tmp/ && mv dist/build/mp-weixin/static/icons /tmp/`。**量体积前必先清理，否则数据全假。**
-- 瘦身：pages.json 把独立应用移入 subPackages（**root=目录名、页面路径不变、零代码改动**）；仅分包引用的组件放 `<root>/components/`。
+- 瘦身：pages.json 把独立应用移入 subPackages（**root=目录名、页面路径不变、零代码改动**）；仅分包引用的组件放 `<root>/components/`、**utils 移 `<root>/utils/`**（开发者工具「主包内不应存在主包未使用的JS文件」即指这类）。⚠️ 被**两个及以上分包**共用的 util 必须留主包（移进任一分包都会交叉引用/复制），工具的该条告警属误报性质，向用户说明即可。
+- ⚠️ **移源码后重建，`dist` 里的旧产物是 emptyOutDir 被 safe-delete 守卫拦下没删的残留**（用时间戳比对本轮构建时间即可分辨），不清掉 devtools 依旧报警。
 - ❌ **three.js 移不出主包**（已实验）：`optimization.subPackages` 在 uni-app vite 下**不拆 node_modules**；组件移分包、改 `await import()` 动态导入仍进主包 `common/vendor.js`。再降只能压 sicons/网络化 static，或 MP 全景改 2D canvas（产品决策）。
 - 🔴 **真机全量 `ERR_CONNECTION_TIMED_OUT` = 局域网 IP 变了**：MP API 基址写死在 `web-app/src/utils/cardApi.js:18`，DHCP 换网必失效（服务端没事，别查服务）。改后重建；验证新 IP 是否进产物要 grep 构建产物的 `utils/cardApi.js`——**grep vendor.js 恒为 0（该模块不并入 vendor），会误判失败**。
 

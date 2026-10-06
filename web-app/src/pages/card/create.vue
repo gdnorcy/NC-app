@@ -30,7 +30,7 @@
         <view class="form-item">
           <view class="form-label">姓名 <text class="required">*</text></view>
           <input class="form-input" v-model="form.name" placeholder="请输入你的姓名" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.name">请输入姓名</view>
+          <view class="error-tip" :class="{ on: errors.name }">请输入姓名</view>
         </view>
 
         <view class="form-item">
@@ -61,7 +61,7 @@
         <view class="form-item" :class="{ error: errors.phone }">
           <view class="form-label">手机号 <text class="required">*</text></view>
           <input class="form-input" v-model="form.phone" type="number" placeholder="请输入手机号" placeholder-class="ph" />
-          <view class="error-tip" v-if="errors.phone">{{ phoneErrorMsg }}</view>
+          <view class="error-tip" :class="{ on: errors.phone }">{{ phoneErrorMsg }}</view>
         </view>
 
         <view class="form-item">
@@ -79,7 +79,7 @@
           <picker mode="selector" :range="INDUSTRIES" @change="onBusinessChange">
             <view class="form-input picker-value" :class="{ ph: !form.businessField }">{{ form.businessField || '请选择业务领域' }}</view>
           </picker>
-          <view class="error-tip" v-if="errors.businessField">请选择业务领域</view>
+          <view class="error-tip" :class="{ on: errors.businessField }">请选择业务领域</view>
         </view>
 
         <view class="form-item">
@@ -372,8 +372,9 @@ const stepSubtitle = computed(() => {
 // 衬线装饰 + 英文小标题：仅暗色皮肤启用（原本还要求选了模板，现在只由系统主题明暗决定）
 const skinSerif = computed(() => skinVars.value['--sk-skin'] === 'dark');
 // 导航标题/返回箭头颜色：跟随皮肤（深色皮肤白字，浅色皮肤深字），否则浅色皮肤上白字不可见
-// PageNav 文字色：v3.1 起头部透明、--sk-hd-text 恒深字（三皮肤一致，不再需要 step 特判）
-const hdText = computed(() => (skinVars.value['--sk-hd-text'] || '#1d2129'));
+// PageNav 文字色：live/split 头部是主题色渐变 → 用 --sk-hd-text（对色后的白/深字）；
+// step 皮肤头部透明、直接落在浅色画布上 → 固定深字（白字会消失）
+const hdText = computed(() => (skinType.value === 'step' ? '#1d2129' : (skinVars.value['--sk-hd-text'] || '#ffffff')));
 // 手机号报错文案：空 →「请输入手机号」；填了但格式不对 →「请输入正确的手机号」
 const phoneErrorMsg = computed(() => (form.phone.trim() ? '请输入正确的手机号' : '请输入手机号'));
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
@@ -635,7 +636,9 @@ async function submit() {
 .stepnum {
   font-size: 30rpx;
   font-weight: 700;
-  color: var(--t3, #86909c);
+  /* 步骤数字与头部同色系（用户反馈：灰色在渐变头上「跟页面不配」）——
+     渐变头部=半透明白，浅金主色/step 透明头部=深灰，随 --sk-hd-sub 走 */
+  color: var(--sk-hd-sub, var(--t3, #86909c));
   letter-spacing: 1rpx;
   flex-shrink: 0;
   margin-left: 20rpx;
@@ -844,13 +847,22 @@ async function submit() {
 .form-input.ph, .picker-value.ph {
   color: var(--sk-input-ph, #9a9a9a);
 }
+/* 报错行：常驻节点 + 预留固定高度，visibility 切换（勿改回 v-if 插入/移除！）
+   真机（仅真机）上 v-if 插入节点引发重排时，后续内容会被画到旧位置——报错提示词
+   与下一字段标签重叠；删 .card transition 治不住，开发者工具永不复现。
+   visibility 隐藏不改变布局，显示时零重排；文案更新走既有文本节点。 */
 .error-tip {
   display: block;
   width: 100%;
+  height: 34rpx;
+  line-height: 34rpx;
   font-size: 22rpx;
-  line-height: 1.5;
   color: var(--danger);
-  margin-top: 6rpx;
+  margin-top: 4rpx;
+  visibility: hidden;
+}
+.error-tip.on {
+  visibility: visible;
 }
 .form-item.error .form-input {
   border: 2rpx solid var(--danger);
