@@ -372,7 +372,9 @@ const stepSubtitle = computed(() => {
 // 衬线装饰 + 英文小标题：仅暗色皮肤启用（原本还要求选了模板，现在只由系统主题明暗决定）
 const skinSerif = computed(() => skinVars.value['--sk-skin'] === 'dark');
 // 导航标题/返回箭头颜色：跟随皮肤（深色皮肤白字，浅色皮肤深字），否则浅色皮肤上白字不可见
-const hdText = computed(() => skinVars.value['--sk-hd-text'] || '#ffffff');
+// PageNav 文字色：live/split 皮肤头部是主题色渐变 → 用 --sk-hd-text（对色后的白/深字）；
+// step 皮肤头部透明、直接落在浅色画布上 → 固定深字（白字会消失）
+const hdText = computed(() => (skinType.value === 'step' ? '#1d2129' : (skinVars.value['--sk-hd-text'] || '#ffffff')));
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
 const heroEn = computed(() => (currentTemplate.value ? (skinEnMap[currentTemplate.value.id] || 'CREATE YOUR CARD') : 'CREATE YOUR CARD'));
 // hexLuma / hexA 已随配色逻辑一并移入 utils/createSkin.js（勿在此重复定义）
@@ -660,12 +662,17 @@ async function submit() {
 .skin-step .title {
   font-family: var(--sk-title-font, inherit);
   letter-spacing: 2rpx;
-  color: var(--sk-hd-text, #1d2129);
+  /* step 皮肤头部透明，标题落在浅色画布上 → 固定深字（--sk-hd-text 是渐变头部的对色，浅底上会看不清） */
+  color: #1d2129;
 }
 .subtitle {
   font-size: 26rpx;
   color: var(--sk-hd-sub, rgba(255,255,255,0.8));
   margin-top: 10rpx;
+}
+/* step 皮肤：副标题同标题一样落在浅底上 → 深灰 */
+.skin-step .subtitle {
+  color: #4e5969;
 }
 
 /* 卡片容器 */
