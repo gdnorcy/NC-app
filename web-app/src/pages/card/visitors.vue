@@ -451,12 +451,9 @@ async function saveConvert() {
 }
 
 /* ===== 付费解锁引导 ===== */
+/* 顶对齐（勿用 min-height:100vh 垂直居中——全面屏真机上卡片上方留白近半屏，视觉像空页面） */
 .radar-locked {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48rpx 40rpx;
+  padding: 24rpx 40rpx 48rpx;
   box-sizing: border-box;
 }
 .lock-card {

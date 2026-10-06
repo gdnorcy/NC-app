@@ -20,7 +20,7 @@
  *    - 兜底主色仍是品牌蓝 #165dff；未配置配色时本页=浅色皮肤（v2 及以前是 dark，已变）。
  * 语义色（成功绿/警示橙/VIP 金/钥匙绿/免费标签绿）刻意**不**跟随主题。
  */
-import { shadeHex } from './color.js';
+import { shadeHex } from '../../../utils/color.js';
 
 /** 颜色亮度（0~255）。非 hex（rgba 等）按浅色 200 处理，与历史行为一致 */
 export function hexLuma(color) {

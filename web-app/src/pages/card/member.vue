@@ -4,10 +4,13 @@
       <view class="row1">
         <view class="mb-back" @click="goBack"><SIcon name="back" size="large" color="#ffffff" /></view>
         <view class="hero-left">
-          <view class="hero-title">会员中心</view>
+          <view class="hero-title-row">
+            <view class="hero-title">会员中心</view>
+            <!-- FREE/等级徽章放标题旁（原先挂 row1 右端与胶囊同排，避让后仍显突兀） -->
+            <view class="hero-badge"><SIcon name="crown" size="small" color="#ffffff" /> {{ memberLevel === 'free' ? 'FREE' : memberLevel.toUpperCase() }}</view>
+          </view>
           <view class="hero-sub">当前：{{ currentLevelText }}{{ isMember ? ' · 有效期至 ' + memberExpire : ' · 尚未开通' }}</view>
         </view>
-        <view class="hero-badge"><SIcon name="crown" size="small" color="#ffffff" /> {{ memberLevel === 'free' ? 'FREE' : memberLevel.toUpperCase() }}</view>
       </view>
     </view>
 
@@ -74,7 +77,8 @@
     <view class="sec-t">选择套餐<small>解锁更多能力</small></view>
     <view class="plan-grid">
       <view class="plan" v-for="p in packages" :key="p.level"
-            :class="{ hot: p.level === 'gold', cur: isCurrent(p.level) }">
+            :class="{ hot: p.level === 'gold', cur: isCurrent(p.level), sel: selectedLevel === p.level }"
+            @click="selectPlan(p.level)">
         <view class="pn">
           {{ p.name }}
           <text v-if="isCurrent(p.level)" class="cur-tag">· 当前</text>
@@ -127,6 +131,9 @@ const packages = ref([]);
 const isMember = ref(false);
 const memberLevel = ref('free');
 const memberExpire = ref('');
+// 套餐点选态（cur=真实会员等级，sel=点选高亮——用户反馈「选中状态不会变化」）
+const selectedLevel = ref('free');
+function selectPlan(level) { selectedLevel.value = level; }
 // 租户会员卡（1:1 复刻菜鸟云）
 const memberCard = ref(null);
 const tenantLevels = ref([]);
@@ -189,6 +196,7 @@ onMounted(async () => {
     if (myCard0?.brandColor) brandColor.value = myCard0.brandColor;
     isMember.value = memberRes.isMember;
     memberLevel.value = memberRes.level;
+    selectedLevel.value = memberRes.level || 'free';
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
     // 租户会员卡：未入驻租户不展示区块
     if (tCardRes && !tCardRes.unbound) {
@@ -307,6 +315,12 @@ function getFeatureTexts(features) {
     badge: '会员专属标识',
     priority_support: '专属客服',
     advanced_stats: '商机数据分析',
+    // VIP 权益扩展（db.js featureMigrate 新增枚举，缺映射会在套餐里直接显示英文 key）
+    ai_report: 'AI 意向报告',
+    ai_words: 'AI 沟通话术',
+    quota_lead: '留资线索额度',
+    quota_push: '访客动态推送',
+    enterprise: '企业团队管理',
   };
   return (features || []).map((f) => map[f] || f);
 }
@@ -386,6 +400,8 @@ async function openMember(pkg) {
   overflow: hidden;
 }
 .mb-back { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; margin-right: 8rpx; flex-shrink: 0; }
+.hero-left { flex: 1; min-width: 0; }
+.hero-title-row { display: flex; align-items: center; gap: 14rpx; }
 .row1 {
   display: flex;
   align-items: center;
@@ -447,6 +463,11 @@ async function openMember(pkg) {
 .plan.hot {
   border-color: var(--design-primary);
   box-shadow: 0 4px 16px rgba(var(--design-primary-rgb), 0.08);
+}
+/* 点选高亮（sel）：cur=真实当前等级（含「· 当前」文案），sel 只跟随点按 */
+.plan.sel {
+  border-color: var(--design-primary);
+  box-shadow: 0 0 0 2px var(--design-primary), 0 4px 16px rgba(var(--design-primary-rgb), 0.12);
 }
 .pn {
   font-size: 28rpx;

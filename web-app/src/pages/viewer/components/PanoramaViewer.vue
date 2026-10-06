@@ -95,8 +95,8 @@
 </template>
 
 <script>
-import { hotspotDir, projectHotspots } from '@/utils/panorama.js';
-import { normalizeHotspotStyle, hotspotColor } from '@/utils/hotspot-style.js';
+import { hotspotDir, projectHotspots } from '../utils/panorama.js';
+import { normalizeHotspotStyle, hotspotColor } from '../utils/hotspot-style.js';
 import { track } from '@/utils/analytics';
 import { API_DOMAIN } from '@/utils/cardApi';
 // #ifdef MP-WEIXIN

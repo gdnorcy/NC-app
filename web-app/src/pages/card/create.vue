@@ -246,7 +246,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
-import { buildCreateSkinVars } from '../../utils/createSkin.js';
+import { buildCreateSkinVars } from './utils/createSkin.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { navVarsStyle } from '../../utils/navMetrics.js';
@@ -362,7 +362,7 @@ async function loadTemplates(force = false) {
 // 当前选中模板（仅用于英文副标题映射；配色已不再跟随模板，见下方skinVars 注释）
 const currentTemplate = computed(() => templates.value.find((t) => t.id === form.templateId) || null);
 
-// 创建页整体配色 = 系统主题（设计中心「系统风格」），逻辑见 utils/createSkin.js
+// 创建页整体配色 = 系统主题（设计中心「系统风格」），逻辑见 ./utils/createSkin.js
 // （原本取自名片模板 themeConfig，但预览卡已删除，页面里已无「按模板真实色渲染」的元素）
 const skinVars = computed(() => buildCreateSkinVars(themeStyle.value));
 const stepSubtitle = computed(() => {
@@ -378,7 +378,7 @@ const hdText = computed(() => (skinVars.value['--sk-hd-text'] || '#1d2129'));
 const phoneErrorMsg = computed(() => (form.phone.trim() ? '请输入正确的手机号' : '请输入手机号'));
 const skinEnMap = { 1: 'CLASSIC BLUE', 3: 'PREMIUM GOLD', 6: 'ELEGANT BUSINESS', 7: 'LIVE EFFECT', 8: 'FOCUS SHOW', 9: 'BLACK & GOLD', 10: 'NIGHT EDITION', 11: 'PAPER ART' };
 const heroEn = computed(() => (currentTemplate.value ? (skinEnMap[currentTemplate.value.id] || 'CREATE YOUR CARD') : 'CREATE YOUR CARD'));
-// hexLuma / hexA 已随配色逻辑一并移入 utils/createSkin.js（勿在此重复定义）
+// hexLuma / hexA 已随配色逻辑一并移入 ./utils/createSkin.js（勿在此重复定义）
 
 onShow(() => {
   trackPageView('/pages/card/create');

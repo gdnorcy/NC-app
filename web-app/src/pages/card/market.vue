@@ -1,26 +1,28 @@
 <template>
-  <view class="market-page">
-    <!-- 顶部导航栏 -->
+  <view class="market-page" :style="themeStyle">
+    <!-- 顶部导航栏：主题色 hero（与会员中心一致），PageNav 透明融入 -->
 <!-- PageNav -->
-    <PageNav back>
-      <template #title>
-        <view class="pnv-title-group">
-          <text class="nav-title">{{ settings.title || '人脉集市' }}</text>
-          <text class="nav-tag" v-if="tenantName">{{ tenantName }}</text>
-        </view>
-      </template>
-      <template #right>
-        <view class="nav-right">
-          <view class="nav-icon" @click="goRequests">
-            <SIcon name="exchange" size="default" color="#1a1a1a" />
-            <view v-if="unreadCount > 0" class="red-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+    <view class="market-hero">
+      <PageNav back bg="transparent" color="#ffffff">
+        <template #title>
+          <view class="pnv-title-group">
+            <text class="nav-title">{{ settings.title || '人脉集市' }}</text>
+            <text class="nav-tag" v-if="tenantName">{{ tenantName }}</text>
           </view>
-          <view class="nav-icon" @click="goConnections">
-            <SIcon name="market" size="default" color="#1a1a1a" />
+        </template>
+        <template #right>
+          <view class="nav-right">
+            <view class="nav-icon" @click="goRequests">
+              <SIcon name="exchange" size="default" color="#ffffff" />
+              <view v-if="unreadCount > 0" class="red-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+            </view>
+            <view class="nav-icon" @click="goConnections">
+              <SIcon name="market" size="default" color="#ffffff" />
+            </view>
           </view>
-        </view>
-      </template>
-    </PageNav>
+        </template>
+      </PageNav>
+    </view>
 
     <!-- 搜索 -->
     <view class="search-bar">
@@ -290,6 +292,9 @@ import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, loadCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 
 const items = ref([]);
 const keyword = ref('');
@@ -504,13 +509,16 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 
 <style scoped>
 .market-page { min-height: 100vh; background: #f5f6f7; padding-bottom: 160rpx; }
+/* 顶部主题色 hero（用户反馈「集市顶部没色彩」→ 与会员中心同一套渐变）；
+   PageNav 透明融入，SIcon 传真实 #ffffff（不能消费 var()） */
+.market-hero { background: linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6)); }
 
 /* 顶部导航栏 */
 .nav-right { display: flex; align-items: center; gap: 20rpx; }
 .nav-icon { position: relative; width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
 .red-dot { position: absolute; top: -4rpx; right: -8rpx; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: 999rpx; background: #ff4d4f; color: #fff; font-size: 20rpx; text-align: center; padding: 0 6rpx; box-sizing: border-box; }
-.nav-title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
-.nav-tag { margin-left: 12rpx; font-size: 20rpx; color: #1d4e8f; background: #e9f1fb; padding: 4rpx 12rpx; border-radius: 8rpx; }
+.nav-title { font-size: 34rpx; font-weight: 600; color: #ffffff; }
+.nav-tag { margin-left: 12rpx; font-size: 20rpx; color: #ffffff; background: rgba(255,255,255,0.2); padding: 4rpx 12rpx; border-radius: 8rpx; }
 /* 两个图标 + 间距实际约 132rpx，勿再用单图标时代的 64rpx 固定宽（会撑破页面产生横向滚动） */
 .nav-right { width: auto; }
 
