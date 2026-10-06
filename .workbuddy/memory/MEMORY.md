@@ -68,6 +68,8 @@
 - 图标规范 `docs/规范/07-UI设计.md`：三层蜜桃橙、填充非描边、大圆角扁平、透明底；禁绿紫蓝分类色。面板图标须 56×56 8-bit RGBA PNG，未映射进 `COMP_ICONS` 会 fallback 线性 `SIcon`（违反规范）。
 - **按钮规范** `docs/规范/08-装修中心按钮规范.md`：装修中心取微信官方 WeUI **方角**、**不动商城**。四档 L 96rpx(48px)/M 80rpx(40px)/S 64rpx(32px)/XS 56rpx(28px)，字号 34/28/28/28rpx，圆角按档递减 L/M 16rpx·S 12rpx·XS 8rpx（**能命中现有令牌** `$radius-sm/md`，胶囊 40rpx 在令牌体系外须新造）。新写装修按钮一律 rpx、用 `<view>` 不用 `<button>`、锁 height+line-height。尺寸单一事实来源 `web-app/src/utils/btnTokens.js`。⚠️ **全局类名禁用 `.btn`**（`pages/card/visitors.vue` 用了但未定义，scoped 拦不住全局类）→ 用 `.dbtn-`；**加全局工具类前必须 grep `class="该名"` 全量检查**。
 - **共享样式实现放 `web-app/src/utils/`，admin 跨包 import**。⚠️ 被import 模块旁**不得再定义同名函数**（`Identifier has already been declared`，uni 会显示成极具误导的「连接服务器超时」；定位 `node scripts/check-sfc.cjs <file>`）。
+- 🔴 **沉浸页导航栏胶囊避让**（`PageNav.vue` + `navMetrics.js`）：`navBarRowStyle` 的 `paddingRight` 只是 `capsuleRightPad`（≈7px），**胶囊本身宽 87px 就压在这 7px 内** → 全站 `#right` 插槽（编辑/购物车/集市两图标）都被挡。正确做法：`.pnv-right` 在**插槽非空时**加 `marginRight = capsuleWidth`。⚠️ 必须判空，否则空插槽的 margin 也会把标题挤偏。
+- ⚠️ **macOS 的 grep 不支持 `\|` 分支**（BRE 无交替），必须用 `grep -E`。本轮因它连续误判 3 次：`hexA` 误报"未定义"（实际 create.vue:467 有函数声明）、`heroStyle` 误报"不存在"、重复选择器审计全部漏检。**凡用 `\|` 的结论一律不可信，须用 `-E` 复核。**
 - 名片宫格 v5 定稿（权威原文：仓库根 `名片宫格图标方案.html`）：46px 方块（r=14）+ 32px 描边图标（占框 69.6%）、`stroke-width:2`、`gap:10px`；会员中心＝**对勾圆**不是皇冠；「更多」底色 `#78909c→#546e7a`；方案 A/B/C 只差底色、9 图标路径相同，用户选 **A**。⚠️ `PeColorPicker` 渐变预设 11 色与宫格方案 A 的 9 色**是同一套** → 运营易误选（曾两次把按钮底色设成宫格橙色渐变），排查「颜色串了」先确认是否误选预设。
 
 ## 对标站 eweishop 抓数（详见 `refs/env-toolbox.md`）
