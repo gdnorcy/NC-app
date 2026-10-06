@@ -15,7 +15,7 @@ import { DEFAULT_TENANT_ID } from '../config.js';
 // 写成两个 const 会抛「重复声明」SyntaxError，改成 let 又会让非小程序分支被错误覆盖。
 // 运行时判据与条件编译等价：非小程序端有 window，微信小程序端没有。
 const IS_MP_WEIXIN = typeof window === 'undefined' && typeof wx !== 'undefined' && typeof uni !== 'undefined' && !!uni.getSystemInfoSync;
-const HOST = IS_MP_WEIXIN ? 'http://192.168.3.19:3000' : 'http://localhost:3000';
+const HOST = IS_MP_WEIXIN ? 'http://192.168.110.196:3000' : 'http://localhost:3000';
 
 const BASE_URL = HOST + '/api/card';
 const MARKET_BASE_URL = HOST + '/api/card-market';
