@@ -109,4 +109,22 @@ describe('buildCreateSkinVars（配色源= 系统主题）', () => {
     expect(buildCreateSkinVars(theme('#e8e8e8'))['--sk-skin']).toBe('light'); // 232
     expect(buildCreateSkinVars(theme('#8a8a8a'))['--sk-skin']).toBe('dark'); // 138
   });
+
+  it('dark 画布=中性墨色，主题色只作光晕/按钮/焦点（2026-10-07 反馈：整页泼主题色不可看）', () => {
+    const v = buildCreateSkinVars(theme('#FE0137', { gradient: '#FF5169' }));
+    // 画布底是墨色（任何主色都成立），主题色仅作顶部光晕
+    expect(v['--sk-bg']).toContain('#17171e');
+    expect(v['--sk-bg']).toContain('rgba(254,1,55,0.26)');
+    // 输入框描边改中性发丝线（曾每个框一圈主题色），焦点圈才是主题色主场
+    expect(v['--sk-input-border']).toBe('1px solid rgba(255,255,255,0.16)');
+    expect(v['--sk-input-border']).not.toContain('rgba(254,1,55');
+    expect(v['--sk-input-focus']).toBe('#FE0137');
+    // 卡片描边去三层 accent 光晕，改品牌发丝线 + 深投影
+    expect(v['--sk-card-frame']).not.toContain('inset');
+    expect(v['--sk-card-frame']).not.toContain('26rpx');
+    // 主题色主场仍在：hero 头部渐变 / 主按钮 / 分隔线
+    expect(v['--sk-header']).toContain('#FE0137');
+    expect(v['--sk-btn']).toContain('rgba(254,1,55');
+    expect(v['--sk-line']).toContain('#FE0137');
+  });
 });

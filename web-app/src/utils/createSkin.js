@@ -8,10 +8,15 @@
  * 已在 d467254 删除，页面里已不存在「需按模板真实色渲染」的元素 → 配色源改为**系统主题**
  *（设计中心「系统风格」），用户改配色方案时本页立即跟随。
  *
- * 明暗分支按主色亮度判定（深色主题 →鎏金/暗色皮肤），与原行为一致。
+ * 明暗分支按主色亮度判定（深色主题 →暗色皮肤），与原行为一致。
  * ⚠️ 兜底主色是品牌蓝 `#165dff`（亮度 92 < 160）→ **未配置配色时本页走 dark 皮肤**。
  *    这是历史行为；若想改成浅色兜底，必须同时确认视觉稿，不要只改这一个色值。
  * 语义色（成功绿/警示橙/VIP 金/钥匙绿/免费标签绿）刻意**不**跟随主题。
+ *
+ * 🎨 dark 皮肤画布原则（2026-10-07 用户反馈定稿）：**中性墨色画布 + 主题色只作点缀**。
+ *    曾把整页背景铺成主色（shadeHex(accent,0.06)），蓝色时代勉强像「暗夜科技」，
+ *    换高饱和红/橙就是整页泼彩，不可看。主题色的主场 = hero 头部、主按钮、焦点圈、
+ *    分隔线、顶部光晕；画布/卡片/输入框一律中性（墨色底、白色发丝线），任何主色都成立。
  */
 import { shadeHex } from './color.js';
 
@@ -67,7 +72,8 @@ export function buildCreateSkinVars(theme) {
   v['--theme-tint'] = tint;
   v['--sk-bg'] = light
     ? `linear-gradient(180deg, ${hexA(accent, 0.12)}, transparent 280rpx), #f6f7fb`
-    : `radial-gradient(120% 55% at 85% -8%, ${hexA(accent, 0.16)}, transparent 62%), radial-gradient(90% 50% at -8% 22%, ${hexA(accent, 0.1)}, transparent 55%), linear-gradient(180deg, ${shadeHex(accent, 0.06)}, ${shadeHex(bgEnd, 0.02)})`;
+    // 中性墨色画布 + 主题色顶部光晕（呼应 hero 头部色），不再整页泼主题色
+    : `radial-gradient(120% 42% at 85% -6%, ${hexA(accent, 0.26)}, transparent 58%), radial-gradient(85% 38% at -10% 16%, ${hexA(accent, 0.12)}, transparent 55%), linear-gradient(180deg, #17171e, #0b0b0f)`;
 
   if (light) {
     v['--sk-header'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
@@ -113,13 +119,14 @@ export function buildCreateSkinVars(theme) {
     v['--border'] = 'rgba(255,255,255,0.22)';
     v['--border-strong'] = 'rgba(255,255,255,0.45)';
     v['--sk-skin'] = 'dark';
-    v['--sk-input-border'] = `1px solid ${hexA(accent, 0.45)}`;
-    v['--sk-input-shadow'] = 'inset 0 2rpx 10rpx rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)';
+    v['--sk-input-border'] = '1px solid rgba(255,255,255,0.16)';
+    v['--sk-input-shadow'] = 'inset 0 2rpx 10rpx rgba(0,0,0,0.45)';
     v['--sk-input-bg'] = 'rgba(255,255,255,0.07)';
     v['--sk-input-text'] = '#ffffff';
     v['--sk-input-ph'] = 'rgba(255,255,255,0.45)';
     v['--sk-input-focus'] = accent;
-    v['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.2)}, 0 0 26rpx ${hexA(accent, 0.16)}, inset 0 0 0 1px ${hexA(accent, 0.3)}`;
+    // 品牌发丝线 + 深投影（曾发三层 accent 光晕，高饱和色下描边比内容还抢眼）
+    v['--sk-card-frame'] = `0 0 0 1px ${hexA(accent, 0.22)}, 0 14rpx 34rpx rgba(0,0,0,0.38)`;
   }
   // 两支共用的分隔线渐变
   v['--sk-line'] = `linear-gradient(90deg, transparent, ${accent}, transparent)`;
