@@ -24,7 +24,7 @@
 - ⚠️ **消费 `var(--design-` 的页面必须绑 `themeStyle`**，否则 MP 回落 fallback 色。已接：home/myCard/分销5页/member/cardDetail/create/templateSelect/dynamic/profile（dist+member+create 还绑 `navVars`）。
 - 🔧 **自查命令**（两集合须完全一致，差集=漏接）：`grep -rl "var(--design-" pages/ components/` 与 `grep -rl "useDesignTheme" pages/`。
 - ⚠️ **SIcon 的 `color` 不能消费 `var()`**（H5 烘焙进 SVG data-URI 不认 var → 非法色变黑；MP 按 `name-hex` 查构建期 PNG 命中不了运行期主题色 → 回退黑 PNG）。只能传**真实 hex**：`themeColor = computed(() => designConfig.style.primaryColor)`；文字/CSS 背景用 `var(--design-primary)`。
-- 🔴 **配色源归属元规则**：给元素定配色先问「这是平台 UI，还是被展示对象的真实外观？」前者跟系统主题，后者保留自身色（如 templateSelect 模板缩略图是要卖的东西，改主题色=货不对板）。语义色（成功绿/警示橙/VIP 金）刻意不跟随。**create.vue 曾误取名片模板 `themeConfig` 配色，预览卡删后理由失效，已改 `utils/createSkin.js buildCreateSkinVars()` 取 `--design-*`。**
+- 🔴 **配色源归属元规则**：给元素定配色先问「这是平台 UI，还是被展示对象的真实外观？」前者跟系统主题，后者保留自身色（如 templateSelect 模板缩略图是要卖的东西，改主题色=货不对板）。语义色（成功绿/警示橙/VIP 金）刻意不跟随。**create.vue 曾误取名片模板 `themeConfig` 配色，预览卡删后理由失效，已改 `utils/createSkin.js buildCreateSkinVars()` 取 `--design-*`。**另定稿（2026-10-07）：**主题同步 ≠ 整页泼主题色**——dark 皮肤画布一律中性墨色，主题色只进 hero/按钮/焦点/光晕（高饱和红橙整页铺色不可看，回归测试已锁）。
 - **沉浸页顶部避让**：PageNav overlay / 自绘 hero 的 padding-top 须消费 `--pnv-status-bar`/`--pnv-nav-h`/`--pnv-capsule-pad`，真实值只由 `navVarsStyle()`（utils/navMetrics.js）内联注入。根视图 `:style="[navVars, themeStyle]"`；右侧有徽章/按钮的 hero 必须避到导航行之下（member 曾「只避状态栏+30rpx」致 FREE 徽章与胶囊相撞）。
 - 🔧 **H5 重建被沙箱 safe-delete 拦**（uni clean 删 >50 文件 → SAFE_DELETE_BULK_CONFIRM_REQUIRED）：先 `mv dist/build/h5 /tmp/...` 清空再构建。dist 可再生产；server/public/card 已同步则无需重建。
 
