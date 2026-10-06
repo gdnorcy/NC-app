@@ -1,11 +1,19 @@
 # 小程序端坑位与后端数据（MEMORY.md 展开，勿重复写）
 
 ## 主包体积口径与余量
-- 算法：排除 4 个分包前缀（`pages/card/` `pagesReads/` `pages/superForm/` `pages/viewer/`）算总量，再排除构建中间产物 `static/{sicons,three,icons,images,sample}`。
-- 现状 **1467.8KB，2MB 余量 580.2KB**。vendor.js(Vue3) 716KB 不可压缩。
-- `utils/sicons-base64.js` 272KB（482 条），裁到 7 色可省 175KB 但牺牲 15 种精确色，**未做**（待用户决定）。
+- 🔴 **测主包的正确算法**：分包 root 是**顶层目录名**（`pages/card` 是 root，但它在 `pages/` 里面！）→ **递归遍历时按相对路径匹配 root 集合**，不要用 `du -sh --exclude=pages`（会把整个 pages/ 全算进主包，虚高 500K+）。最简可靠做法：从产物 `app.json` 读 `subPackages[].root` 组成 Set，递归 walk 跳过命中项。
+- 现状（2026-10-06 清干净 sicons/icons/three/sample 后）**主包 1395K / 总包 2.5M**，低于微信 2M 硬上限可发布；过不了 devtools「代码质量」1.5M 建议线。
+  ⚠️ 之前记的 1467K / 1672K 都是**清理口径不一致**时的数，以清干净后的为准。
+- 构成：vendor.js(Vue3+three) **716K 不可压缩**（three 移不进分包，见下）、sicons-base64.js 270K、DesignPage 133K、SuperFormRender 73K、static 71K。
+- 🔴 **每次 MP 构建后必须手动清理**（safe-delete 守卫拦 >50 文件的删除），否则残留计入主包：
+  `mv dist/build/mp-weixin/static/{sicons,icons,sample,three} /tmp/`
+  **H5 重建同理**：清 `dist/build/h5` 前先 `mv` 到 /tmp，否则 vite 清空 assets 失败 → `Build failed`。
 - ⚠️ 主包页面**无法引用分包资源**，但可以「不进包」（走网络图）。
 - base64 内联注意：36.7KB JPEG → 48.9KB（**膨胀 33%**），不划算。
+
+## 分包化（2026-10-06 落地，访问路径不变）
+- `pages.json` 中 `root` = 目录名，把整目录移进 `subPackages` 后**页面访问路径完全不变**，调用方零改动。已分包：`pages/panorama`(2) `pages/mall`(6) `pages/card`(23) `pagesReads`(5) `pages/superForm`(1) `pages/viewer`(1)；主包剩 5 页。
+- 🔴 **`optimization.subPackages` 对 node_modules 无效**（已实验证）：three.js 始终进主包 `common/vendor.js`；把组件移进分包、甚至 `await import()` 动态导入都无效（uni-app vite 不拆预构建的 node_modules）。要再降主包只能去掉 three.js。
 
 ## 沉浸式导航 / 页面注册
 - 统一 `components/PageNav.vue` + `utils/navMetrics.js`。

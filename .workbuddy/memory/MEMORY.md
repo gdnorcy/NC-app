@@ -11,6 +11,12 @@
 5. **「页面空白 / 改了没反应」先抓运行时异常**，不是查数据链路。`watch`/`computed` 引用 `const x = ref(...)` 必须写在声明**之后**，否则 TDZ `ReferenceError` → setup 失败整个设计器白屏（曾绕大圈查columns/bg/saveDraft/后端 status 全正常，真因是这一行）。
 6. **`defaultProps` 只对「新建/复制」生效**：手写 DB 插组件是**无效验证**（绕过 `PageEditor.load()` 的 `{...commonStyleProps, ...defaultProps, ...c.props}` 合并），存量组件走空态分支是预期行为。正确验证 = 设计器里真点 `.pe-lib-card`。预填时**必须排除三类字段**：链接类（`button.url`、`web-container.url`）、图标名类（`grid-nav.icon`/`native-grid.icon`/`float-btn.icon`，是 SIcon 名不是图片）、已有包内内置图的（`countdown`/`countdown2`）。
 
+## 「点了没反应」的三类静默失败（2026-10-06 登录 bug 沉淀）
+1. **跳到不存在的页**：`uni.reLaunch/navigateTo` 到未注册页面**无报错、无跳转**。新增页面后必须 grep `pages.json` 确认注册。
+2. **目标页 onShow 有自动跳转 → 把用户弹走**：`pages/cardMain/login` 兼任**冷启动首页**，`onShow → checkGlobalHome()` 检测到装修首页配置就 `reLaunch` 走。任何**主动**跳登录都会被弹走。修法：URL 带 `manual=1` 让路 → 单一事实来源 `web-app/src/utils/loginEntry.js` 的 `loginEntryUrl()`（**全站跳登录一律走它，别手拼字符串**）。⚠️ 判据用 `String(manual)==='1'`（H5 hash 与小程序 options 的 query 类型不一致）。
+3. **登录/退出后丢上下文**：跳登录统一带 `redirect=<站内绝对路径>`，`safeRedirect()` 排除 `//` 外链。401 踢回时由 `apiClient.currentPath()` 自动带当前页。
+**元规则：一个页面兼任两种角色时，其生命周期里的自动跳转/自动兜底会污染另一角色 —— 每次新增「主动跳转到它」的地方，都要能让它的自动逻辑让路。**
+
 ## SIcon 不能消费 CSS var()（跨端主题色必踩，2026-10-06 名片宫格回归）
 - SIcon 的 `color` prop：H5 烘焙进 SVG data-URI（`buildSvgDataUri` 拼 `color="..."`/`stroke="..."`），SVG 属性不认 `var()` → 非法色 → 图标变黑/不可见；小程序端按 `name-hex` 查构建期 PNG，命中不了运行期主题色 → 回退 `name-000000` 黑 PNG。
 - ⚠️ 任何「想让图标跟随系统主题」处都**不能** `:color="var(--design-primary)"`，只能传**真实 hex**。
