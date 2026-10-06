@@ -51,11 +51,27 @@ describe('cardApi 请求封装', () => {
     await expect(cardApi.getTemplates()).rejects.toThrow('服务器内部错误');
   });
 
-  it('401 清空凭证并跳登录页', async () => {
+  it('401 清空凭证并跳登录页（带 manual=1 防被冷启动弹走）', async () => {
     mockResponse(401, { error: '未登录' });
     await expect(cardApi.getProfile()).rejects.toThrow('未登录');
     expect(uniMock.removeStorageSync).toHaveBeenCalledWith('card_token');
-    expect(uniMock.reLaunch).toHaveBeenCalledWith({ url: '/pages/cardMain/login' });
+    expect(uniMock.reLaunch).toHaveBeenCalledWith({ url: '/pages/cardMain/login?manual=1' });
+  });
+
+  it('401 跳登录时带 redirect 回跳当前页（登录后不丢上下文）', async () => {
+    globalThis.getCurrentPages = () => [
+      { route: 'pages/card/cardDetail', options: { id: '77' } },
+    ];
+    try {
+      mockResponse(401, { error: '未登录' });
+      await expect(cardApi.getProfile()).rejects.toThrow('未登录');
+      const url = uniMock.reLaunch.mock.calls[0][0].url;
+      expect(url).toContain('manual=1');
+      expect(url).toContain('redirect=');
+      expect(decodeURIComponent(url.split('redirect=')[1])).toBe('/pages/card/cardDetail?id=77');
+    } finally {
+      delete globalThis.getCurrentPages;
+    }
   });
 
   it('无 token 时 Authorization 为空', async () => {

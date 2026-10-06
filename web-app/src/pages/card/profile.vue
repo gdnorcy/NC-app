@@ -94,6 +94,7 @@ import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
+import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
 
@@ -148,7 +149,8 @@ function logout() {
       if (res.confirm) {
         uni.removeStorageSync('card_token');
         uni.removeStorageSync('card_user');
-        uni.reLaunch({ url: '/pages/cardMain/login' });
+        // manual=1：登录页同时是冷启动首页，不带这个标记会被 onShow 的首页联动立刻弹走
+        uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH) });
       }
     },
   });

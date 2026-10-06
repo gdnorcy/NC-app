@@ -183,6 +183,7 @@ import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { shadeHex } from '../../utils/color.js';
+import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
@@ -382,7 +383,11 @@ function reloadPage() {
   if (id) uni.redirectTo({ url: `/pages/card/myCard?id=${id}` });
 }
 function goApply() {
-  uni.reLaunch({ url: '/pages/card/apply' });
+  // ⚠️ 旧实现跳 `/pages/card/apply`——该页从未存在（文件无、pages.json 未注册），
+  // reLaunch 到不存在的页会**静默失败**，表现为「点去登录没反应」。真实登录页是
+  // pages/cardMain/login，用 loginEntryUrl 统一拼（必带 manual=1 让冷启动首页联动让路，
+  // redirect 让登录后回到本页，而不是被丢到首页）。
+  uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/myCard') });
 }
 
 // 离开时保存滚动位置，切Tab返回后恢复
@@ -456,7 +461,7 @@ function leaveTenant() {
       if (r.confirm) {
         uni.removeStorageSync('card_token');
         uni.removeStorageSync('card_user');
-        uni.reLaunch({ url: '/pages/card/apply' });
+        uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH) });
       }
     },
   });

@@ -293,6 +293,7 @@ import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app'
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient } from '../../utils/color.js';
+import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import {
   parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
   heroBarTopStyle, heroTextureBg, heroLayoutClass, heroRadius,
@@ -602,7 +603,9 @@ async function toggleCollect() {
   if (!id) return;
   if (!uni.getStorageSync('card_token')) {
     uni.showToast({ title: '请先登录后收藏', icon: 'none' });
-    uni.navigateTo({ url: '/pages/cardMain/login' });
+    // 走 loginEntryUrl：必带 manual=1（登录页同时是冷启动首页，不带会被 onShow 首页联动
+    // 立刻弹走，连登录按钮都点不到）+ redirect 回跳本页
+    uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, `/pages/card/cardDetail?id=${id}`) });
     return;
   }
   try {

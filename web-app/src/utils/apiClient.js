@@ -4,10 +4,14 @@
  * - cardApi = createApiClient('/api/card')，mallApi = createApiClient('/api/mall')
  *   逻辑一份代码，各自前缀；未来新增 C 端应用（live/store/content）同法生成
  * - 登录态统一：默认读 uni storage 'card_token'（H5/小程序一致），避免多套 token 不同步
+ * - 401 跳登录统一走 loginEntryUrl()（必带 manual=1）：登录页同时是冷启动首页，
+ *   不带该标记会被它onShow 的首页联动立刻弹走（「点登录没反应」）
  */
+import { loginEntryUrl, LOGIN_PATH } from './loginEntry.js';
+
 export function createApiClient(baseURL, options = {}) {
   const tokenKey = options.tokenKey || 'card_token';
-  const loginPath = options.loginPath || '/pages/cardMain/login';
+  const loginPath = options.loginPath || LOGIN_PATH;
 
   // 读登录态：H5 端 uni storage 与 localStorage 直写可能不同步（uni H5 有内存缓存），
   // 优先直读 localStorage（同源，token 字符串一致）；小程序端无 localStorage 走 uni 原生。
@@ -26,6 +30,21 @@ export function createApiClient(baseURL, options = {}) {
       if (typeof localStorage !== 'undefined') localStorage.removeItem(tokenKey);
     } catch { /* 忽略 */ }
     try { uni.removeStorageSync(tokenKey); } catch { /* 忽略 */ }
+  }
+
+  /** 当前页站内路径（用于登录后回跳），取不到返回空 */
+  function currentPath() {
+    try {
+      const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+      const cur = pages[pages.length - 1];
+      if (!cur || !cur.route) return '';
+      const q = cur.options || {};
+      const qs2 = Object.keys(q)
+        .filter((k) => q[k] !== undefined && q[k] !== null && q[k] !== '')
+        .map((k) => `${k}=${encodeURIComponent(q[k])}`)
+        .join('&');
+      return '/' + cur.route + (qs2 ? '?' + qs2 : '');
+    } catch { return ''; }
   }
 
   function request(url, method = 'GET', data = {}, opts = {}) {
@@ -51,7 +70,8 @@ export function createApiClient(baseURL, options = {}) {
             }
             clearToken();
             try { uni.removeStorageSync('card_user'); } catch { /* 忽略 */ }
-            uni.reLaunch({ url: loginPath });
+            const back = currentPath();
+            uni.reLaunch({ url: loginEntryUrl(loginPath, back) });
             reject(new Error('未登录'));
             return;
           }

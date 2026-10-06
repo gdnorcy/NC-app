@@ -27,6 +27,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { getTid } from '../../utils/mallUtil.js';
 import { buildGlobalHomeRedirect } from '../../utils/globalHome.js';
+import { isManualEntry as isManual, safeRedirect } from '../../utils/loginEntry.js';
 import { JUMP_DONE_KEY } from '../../utils/design.js';
 import { DEFAULT_TENANT_ID } from '../../config.js';
 
@@ -39,6 +40,10 @@ onShow(() => {
 });
 
 async function checkGlobalHome() {
+  if (isManualEntry()) {
+    console.log('[global-home] 人为进入登录页，跳过冷启动首页跳转');
+    return;
+  }
   try {
     // 冷启动跳转按「部署默认租户」的装修首页配置（单租户部署 DEFAULT_TENANT_ID>0），
     // 显式传租户避免登录态被解析到无装修配置的租户导致不跳转；分享/URL 带 tid 时优先
@@ -76,6 +81,34 @@ function handleWxLogin() {
   // #endif
 }
 
+/** 读取当前页 query 参数 */
+function pageOptions() {
+  try {
+    const pages = getCurrentPages();
+    return (pages[pages.length - 1] && pages[pages.length - 1].options) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+/**
+ * 是否「人为进入登录页」（如未登录引导点「去登录」、退出平台后跳登录）。
+ * 登录页同时是**冷启动首页**，onShow 里 checkGlobalHome 会在检测到装修首页配置时
+ * 立刻 reLaunch 走 —— 那样用户刚到登录页就被弹去首页，按钮根本点不到（表现为
+ * 「点登录没反应」）。带 manual=1 时让冷启动跳转让路。
+ */
+function isManualEntry() {
+  return isManual(pageOptions());
+}
+
+/**
+ * 登录后回跳目标（如「我的名片」未登录引导 → 登录后回到名片页，而不是被丢到首页）。
+ * 校验逻辑在 utils/loginEntry.js（safeRedirect：只接受站内绝对路径，排除 '//'）。
+ */
+function getRedirectTarget() {
+  return safeRedirect(pageOptions().redirect);
+}
+
 async function doLogin(code) {
   try {
     const parentId = uni.getStorageSync('share_parent_id') || '';
@@ -84,9 +117,11 @@ async function doLogin(code) {
     uni.setStorageSync('card_user', result.user);
     
     if (result.isNew || !result.hasCard) {
+      // 新用户/没名片：必须先建名片，忽略 redirect（否则会跳回一个空壳页）
       uni.reLaunch({ url: '/pages/card/create' });
     } else {
-      uni.reLaunch({ url: '/pages/cardMain/home' });
+      const redirect = getRedirectTarget();
+      uni.reLaunch({ url: redirect || '/pages/cardMain/home' });
     }
   } catch (e) {
     uni.showToast({ title: e.message || '登录失败', icon: 'none' });
