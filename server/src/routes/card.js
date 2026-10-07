@@ -1586,6 +1586,13 @@ export function createCardRouter(db, wxService) {
     if (row.template_theme) {
       try { templateTheme = JSON.parse(row.template_theme); } catch {}
     }
+    // 模板已删/无效时回退平台默认模板（is_default=1），保证旧名片不落入空白默认
+    if (!templateTheme) {
+      try {
+        const def = db.prepare('SELECT theme_config FROM card_templates WHERE tenant_id = 0 AND is_default = 1 AND enabled = 1 LIMIT 1').get();
+        if (def && def.theme_config) templateTheme = JSON.parse(def.theme_config);
+      } catch {}
+    }
     // 多公司（JSON 数组: [{name, position}]）
     let companies = [];
     if (row.companies) {
