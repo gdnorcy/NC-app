@@ -5,10 +5,10 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "NODE_ENV=production node src/index.js",
+    "dev": "node --env-file-if-exists=.env --watch src/index.js",
+    "start": "NODE_ENV=production node --env-file-if-exists=.env src/index.js",
     "test": "node --test --test-concurrency=1",
-    "restart": "pkill -f 'node src/index.js' || true; sleep 1; nohup node src/index.js > /tmp/panorama-server.log 2>&1 &"
+    "restart": "pkill -f 'node src/index.js' || true; sleep 1; nohup node --env-file-if-exists=.env src/index.js > /tmp/panorama-server.log 2>&1 &"
   },
   "dependencies": {
     "ali-oss": "^6.23.0",
