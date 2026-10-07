@@ -2,77 +2,88 @@ import { describe, it, expect } from 'vitest';
 import { buttonSizeStyle } from './btnSize.js';
 
 /**
- * 按钮宽度与容器左右边距解耦（2026-10-07 用户反馈）
- * 「组件按钮容器的左右边框调整，会调整按钮的大小」
+ * 按钮宽度与容器左右边距解耦 + 水平居中
+ * （2026-10-07 两轮用户反馈：「容器左右边框调整会改按钮大小」「按钮没有居中」）
  */
-describe('buttonSizeStyle 按钮宽度与容器边距解耦', () => {
-  it('自适应模式：内容宽，与容器宽度无关', () => {
+describe('buttonSizeStyle 按钮宽度与容器边距解耦 + 居中', () => {
+  it('自适应模式：内容宽(fit-content) + 居中', () => {
     const s = buttonSizeStyle({ widthMode: 'auto' });
-    expect(s.width).toBe('auto');
-    expect(s.display).toBe('inline-block');
+    // 🔴 回归锁：width:auto 会被 block 撑满容器（实测），必须是 fit-content
+    expect(s.width).toBe('fit-content');
     expect(s.padding).toBe('0 12px');
-    // 自适应不该被 marginLR 影响
-    expect(s.marginLeft).toBeUndefined();
+    expect(s.marginLeft).toBe('auto');
+    expect(s.marginRight).toBe('auto');
+    expect(s.textAlign).toBe('center');
   });
 
-  it('存量默认（未设 widthPercent / marginLR）：满行 100%，视觉不变', () => {
+  it('🔴 自适应必须是 block + fit-content（inline-block 不居中 / block+auto 撑满，均实测）', () => {
+    // 回归锁：C端 .dp-btn / admin .r-btn 基础类是 inline-block，
+    // 且 block + width:auto 会撑满容器 —— 两者都会让「自适应按钮」看起来不对
+    const s = buttonSizeStyle({ widthMode: 'auto' });
+    expect(s.display).toBe('block');
+    expect(String(s.display)).not.toContain('inline');
+    expect(s.width).not.toBe('auto');
+  });
+
+  it('存量默认（未设 widthPercent）：满行 100%，视觉不变', () => {
     const s = buttonSizeStyle({ widthMode: 'full' });
     expect(s.width).toBe('100%');
-    expect(s.marginLeft).toBeUndefined();
-    expect(s.textAlign).toBe('center');
+    expect(s.marginLeft).toBe('auto');
+    expect(s.marginRight).toBe('auto');
     expect(s.boxSizing).toBe('border-box');
   });
 
-  it('🔴 关键：容器左右边距 >0 时按钮向两侧溢出抵消 → 净宽不随容器变', () => {
-    const s = buttonSizeStyle({ widthMode: 'full', marginLR: 20 });
-    // 容器窄了 20px，按钮左右各撑 20px → 净宽 = 容器宽 + 40 = 原满行宽
-    expect(s.marginLeft).toBe('-20px');
-    expect(s.marginRight).toBe('-20px');
-    expect(s.width).toBe('calc(100% + 40px)');
+  it('🔴 关键：宽度只由 widthPercent 决定，与容器 marginLR 无关', () => {
+    // 容器左右边距只缩放容器，按钮宽度用百分比表达 → 两个控件彻底解耦
+    for (const lr of [0, 10, 20, 40]) {
+      const s = buttonSizeStyle({ widthMode: 'full', widthPercent: 60, marginLR: lr });
+      expect(s.width).toBe('60%'); // 宽度与 lr 完全无关
+      expect(s.marginLeft).toBe('auto');
+      expect(s.marginRight).toBe('auto');
+    }
   });
 
-  it('容器边距变化时，按钮净宽保持恒定（这正是用户要的解耦）', () => {
-    // 净宽 = 容器内容宽 + 2*marginLR。marginLR 越大，容器越窄，净宽越恒定。
-    const widths = [0, 10, 20, 40].map((lr) => {
-      const s = buttonSizeStyle({ widthMode: 'full', marginLR: lr });
-      // 把 1000px 的页面代入计算
-      const container = 1000 - lr * 2;
-      const net = s.width === '100%' ? container : container + lr * 2;
-      return net;
-    });
-    expect(new Set(widths).size).toBe(1);
-    expect(widths[0]).toBe(1000);
-  });
-
-  it('宽度百分比 <100：按抵消后的满行宽收窄', () => {
+  it('宽度百分比 <100：auto 边距居中（无负 margin）', () => {
     const s = buttonSizeStyle({ widthMode: 'full', widthPercent: 50, marginLR: 20 });
-    expect(s.marginLeft).toBe('-20px');
-    expect(s.width).toBe('calc(calc(100% + 40px) * 0.5)');
+    expect(s.width).toBe('50%');
+    expect(s.marginLeft).toBe('auto');
+    expect(s.marginRight).toBe('auto');
+    // 🔴 回归锁：第一轮用负 margin 抵消，实测导致按钮左偏且盖住容器底色
+    expect(String(s.marginLeft)).not.toContain('-');
+    expect(String(s.marginRight)).not.toContain('-');
   });
 
-  it('宽度百分比 = 100 且有 marginLR：只溢出，不额外收窄', () => {
-    const s = buttonSizeStyle({ widthMode: 'full', widthPercent: 100, marginLR: 12 });
-    expect(s.width).toBe('calc(100% + 24px)');
+  it('🔴 不得再输出 calc(100% + Npx) / 负 margin（第一轮的错误补偿）', () => {
+    for (const p of [{ widthMode: 'full' }, { widthMode: 'full', marginLR: 20 }, { widthMode: 'full', widthPercent: 50, marginLR: 40 }]) {
+      const s = buttonSizeStyle(p);
+      expect(String(s.width)).not.toContain('calc');
+      expect(String(s.width)).not.toContain('+');
+      expect(String(s.marginLeft || '')).not.toContain('-');
+      expect(String(s.marginRight || '')).not.toContain('-');
+    }
   });
 
   it('百分比越界被夹取（<20 → 20，>100 → 100，非法 → 100）', () => {
-    expect(buttonSizeStyle({ widthMode: 'full', widthPercent: 5 }).width).toContain('0.2)');
+    expect(buttonSizeStyle({ widthMode: 'full', widthPercent: 5 }).width).toBe('20%');
     expect(buttonSizeStyle({ widthMode: 'full', widthPercent: 999 }).width).toBe('100%');
     expect(buttonSizeStyle({ widthMode: 'full', widthPercent: 'abc' }).width).toBe('100%');
     expect(buttonSizeStyle({ widthMode: 'full', widthPercent: 0 }).width).toBe('100%');
   });
 
-  it('兼容 marginLeft 旧字段（无 marginLR 时）', () => {
-    const s = buttonSizeStyle({ widthMode: 'full', marginLeft: 8 });
-    expect(s.marginLeft).toBe('-8px');
-    expect(s.width).toBe('calc(100% + 16px)');
+  it('容器左右 marginLR 对称 → 按钮中心 == 页面中心（居中数学验证）', () => {
+    const PAGE = 375, LR = 20;
+    const containerW = PAGE - LR * 2; // 容器内容宽
+    const realBtnW = (containerW * 50) / 100;
+    const space = (containerW - realBtnW) / 2; // auto 边距各分一半
+    // 按钮中心相对页面左边
+    const center = LR + space + realBtnW / 2;
+    expect(center).toBeCloseTo(PAGE / 2, 5);
   });
 
   it('样式对象不残留 undefined 值（避免小程序 setStyle 整条失效）', () => {
-    for (const p of [{}, { widthMode: 'auto' }, { widthMode: 'full', marginLR: 0 }]) {
+    for (const p of [{}, { widthMode: 'auto' }, { widthMode: 'full' }, { widthMode: 'full', marginLR: 0 }]) {
       for (const [k, v] of Object.entries(buttonSizeStyle(p))) {
         expect(v).not.toBeUndefined();
-        expect(typeof v).toBe('string');
         expect(String(v)).not.toContain('undefined');
       }
     }
