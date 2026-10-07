@@ -342,7 +342,8 @@ const heroLayout = computed(() => (layoutFull.value ? '' : heroLayoutClass(card.
 const heroStyle = computed(() => {
   const t = heroTheme.value;
   if (t) return { ...heroBgStyle(t), color: t.textColor };
-  return { background: heroGradient(card.value.brandColor), color: '#fff' };
+  // 分层回落：名片详情头部 = 租户品牌主色（后台「品牌外观」）> 装修中心主题色 > 内置默认
+  return { background: heroGradient(card.value.brandColor, 'linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b))'), color: '#fff' };
 });
 const nmStyle = computed(() => {
   const t = heroTheme.value;
@@ -583,6 +584,9 @@ function goTemplateSelect() {
 function ensureLogin() {
   if (!uni.getStorageSync('card_token')) {
     uni.showToast({ title: '请先登录', icon: 'none' });
+    // 与收藏同款：loginEntryUrl 必带 manual=1 + redirect 回跳本页（登录页兼任冷启动首页）
+    const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id || '';
+    uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, `/pages/card/cardDetail?id=${id}`) });
     return false;
   }
   return true;

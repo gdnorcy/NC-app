@@ -98,7 +98,7 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 
 const brandColor = ref('');
-const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, #0f766e, #14b8a6)') }));
+const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, shareTags: [], sharePending: 0, shareTotal: 0 });

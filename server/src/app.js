@@ -42,6 +42,29 @@ import { default as createDesignRouter } from './routes/design.js';import { crea
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 import { hasSolution, tenantState } from './tenant.js';
 
+/**
+ * 微信 code2session 通道：
+ * - 配置了 WX_APPID + WX_APPSECRET → 走真实 jscode2session（真机小程序登录必需）。
+ *   ⚠️ mock 通道（openid='mock_'+code）在真机上每次 code 都不同 → 每次登录都创建
+ *   新用户，名片/入驻/会员关系全部「丢失」——表现为登录后仍提示登录/未开通。
+ * - 未配置 → 回落 mock（H5 演示、本地开发不受影响）。
+ */
+function createWxCode2Session() {
+  const appid = process.env.WX_APPID || 'wxad6266942ba2d35c';
+  const secret = process.env.WX_APPSECRET || '';
+  return async (code) => {
+    if (!secret) {
+      console.warn('[wx-login] 未配置 WX_APPSECRET，回落 mock 通道（真机登录会每次建新用户）');
+      return { openid: 'mock_' + code, unionid: '' };
+    }
+    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appid}&secret=${secret}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.errcode) throw new Error(`微信code2session失败(${data.errcode}): ${data.errmsg}`);
+    return { openid: data.openid, unionid: data.unionid || '' };
+  };
+}
+
 export function createApp({ db, deps = {} } = {}) {
   const database = db || createDb();
   const app = express();
@@ -174,10 +197,7 @@ app.use((req, res, next) => {
   app.use('/api/admin/oauth', createOAuthAppsRouter(database));
   app.use('/api/channel', createChannelRouter(database));
   app.use('/api/card', createCardRouter(database, {
-    code2Session: async (code) => {
-      // TODO: 接入微信code2session，暂时返回mock数据
-      return { openid: 'mock_' + code, unionid: '' };
-    },
+    code2Session: createWxCode2Session(),
   }));
   // 支付回调不需要认证（第三方支付平台调用）
   app.use('/api/payment/notify', createPaymentRouter(database));

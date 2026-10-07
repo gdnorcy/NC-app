@@ -333,8 +333,8 @@
       </div>
     </el-dialog>
 
-    <!-- 素材选择器（背景图/自定义图标上传） -->
-    <MaterialPicker v-model="imgSel.show" @confirm="confirmImgSel" />
+    <!-- 素材选择器（背景图/自定义图标上传）：背景图时附带内置默认图库 -->
+    <MaterialPicker v-model="imgSel.show" :presets="imgSel.target === 'bg' ? bgPresets : []" @confirm="confirmImgSel" />
     <!-- 链接选择器（选择链接） -->
     <LinkPicker v-model="linkSel.show" :model-link="linkVal" @confirm="confirmLink" />
   </div>
@@ -465,6 +465,23 @@ const isColorBg = computed(() => {
   const st = ['normal', 'slider', 'btnCenter'].includes(form.style);
   return form.type === 'fan' || (form.type === 'flat' && st) || (form.type === 'float' && st);
 });
+/**
+ * 内置导航背景默认图库（后端托管 server/public/images/tabbar-bg，C 端 CardTabBar
+ * 对含 /images/tabbar-bg/btn- 前缀的 bg 会按当前 类型×风格×圆角 自动回正渲染图，
+ * 所以选中任一默认图后切换风格都无需重新选）。
+ */
+const bgPresets = [
+  { url: '/images/tabbar-bg/btn-raise-flat.png', label: '平铺 · 凸起' },
+  { url: '/images/tabbar-bg/btn-inset-flat.png', label: '平铺 · 嵌入' },
+  { url: '/images/tabbar-bg/btn-raise-float.png', label: '悬浮凸起 · 直角' },
+  { url: '/images/tabbar-bg/btn-raise-float-square.png', label: '悬浮凸起 · 圆角' },
+  { url: '/images/tabbar-bg/btn-raise-float-arc.png', label: '悬浮凸起 · 弧形' },
+  { url: '/images/tabbar-bg/btn-inset-float.png', label: '悬浮嵌入 · 直角' },
+  { url: '/images/tabbar-bg/btn-inset-float-square.png', label: '悬浮嵌入 · 圆角' },
+  { url: '/images/tabbar-bg/btn-inset-float-arc.png', label: '悬浮嵌入 · 弧形' },
+  { url: '/images/tabbar-bg/btn-raise.png', label: '凸起 · 通用' },
+  { url: '/images/tabbar-bg/btn-inset.png', label: '嵌入 · 通用' },
+];
 /**
  * 按钮凸起/嵌入几何（云菜鸟后台实测，预览宽 375px）
  * footnav_4=凸起 / footnav_5=嵌入；foot_styleBox1=普通平铺 / foot_styleBox2=底部悬浮

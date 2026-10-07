@@ -7,7 +7,7 @@
 
     <div class="card">
       <div class="card-title">品牌主色</div>
-      <p class="card-desc">选择品牌主色后，名片详情头部会按该色渲染；留空时使用默认橙色风格。</p>
+      <p class="card-desc">品牌主色仅作用于名片详情头部（名片业务域的对外观感）；留空时跟随装修中心「配色方案」的主题色。语义色（成功/警示/VIP）不跟随品牌色。</p>
       <el-form label-width="100px" size="default">
         <el-form-item label="品牌主色">
           <div class="brand-row">

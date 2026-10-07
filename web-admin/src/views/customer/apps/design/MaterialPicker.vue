@@ -10,12 +10,29 @@
     <!-- 顶部：模式 + 提示 + 搜索 -->
     <div class="mp-head">
       <div class="mp-tabs">
+        <span v-if="presets.length" class="mp-tab" :class="{ active: mode === 'preset' }" @click="switchMode('preset')">默认图</span>
         <span class="mp-tab" :class="{ active: mode === 'upload' }" @click="switchMode('upload')">本地上传</span>
         <span class="mp-tab" :class="{ active: mode === 'net' }" @click="switchMode('net')">网络提取</span>
       </div>
       <span class="mp-limit">大小不要超过 {{ props.fileType === 'video' ? limits.maxVideoSize : limits.maxImageSize }}M</span>
       <el-input v-model="q.keyword" :placeholder="props.fileType === 'video' ? '搜索视频名称' : '搜索图片名称'" size="small" clearable style="width: 150px" @keyup.enter="reload(1)" @clear="reload(1)" />
       <el-date-picker v-model="q.dateRange" type="daterange" size="small" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 230px" @change="reload(1)" />
+    </div>
+
+    <!-- 默认图模式（如导航背景内置图库）：点选直接确定，无需入库 -->
+    <div v-if="mode === 'preset'" class="mp-preset">
+      <div
+        v-for="p in presets"
+        :key="p.url"
+        class="mp-preset-item"
+        :class="{ picked: pickedPreset === p.url }"
+        @click="pickedPreset = p.url"
+      >
+        <img :src="resolveUrl(p.url)" :alt="p.label" />
+        <span class="mp-preset-name">{{ p.label }}</span>
+        <span v-if="pickedPreset === p.url" class="mp-check">✓</span>
+      </div>
+      <div v-if="!presets.length" class="mp-empty">无默认图</div>
     </div>
 
     <!-- 本地上传 / 网络提取 模式体 -->
@@ -36,7 +53,7 @@
       <div class="mp-net-help">{{ props.fileType === 'video' ? `需要 http://…… 大小不要超过 ${limits.maxVideoSize}M，支持 mp4 视频` : `需要 http://…… 大小不要超过 ${limits.maxImageSize}M，支持图片类型 .gif，.jpg，.png，.jpeg` }}</div>
     </div>
 
-    <div class="mp-body">
+    <div class="mp-body" v-if="mode !== 'preset'">
       <!-- 左侧分类 -->
       <div class="mp-side">
         <div class="mp-cat" :class="{ active: q.categoryId === '' }" @click="q.categoryId = ''; reload(1)">全部</div>
@@ -73,7 +90,7 @@
 
     <!-- 底部：分页 + 按钮 -->
     <div class="mp-foot">
-      <div class="mp-page">
+      <div class="mp-page" v-if="mode !== 'preset'">
         每页显示 {{ pageSize }}
         <el-pagination
           v-model:current-page="page"
@@ -88,7 +105,7 @@
       </div>
       <div class="mp-ops">
         <el-button @click="emit('update:modelValue', false)">取消</el-button>
-        <el-button type="primary" :disabled="!pick" @click="doConfirm">确定</el-button>
+        <el-button type="primary" :disabled="!pick && !(mode === 'preset' && pickedPreset)" @click="doConfirm">确定</el-button>
       </div>
     </div>
   </el-dialog>
@@ -103,12 +120,14 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   // 素材类型过滤：all=全部（默认，保持原行为）| image | video(mp4)
   fileType: { type: String, default: 'all' },
+  // 默认图列表（可选）：[{ url, label }]，非空时显示「默认图」页签（如导航背景内置图库）
+  presets: { type: Array, default: () => [] },
 });
 const emit = defineEmits(['update:modelValue', 'confirm']);
 
 const acceptStr = props.fileType === 'video' ? 'video/*' : props.fileType === 'image' ? 'image/*' : 'image/*,video/*';
 
-const mode = ref('upload'); // upload | net
+const mode = ref(props.presets.length ? 'preset' : 'upload'); // preset | upload | net
 const limits = reactive({ maxImageSize: 2, maxVideoSize: 50 });
 const q = reactive({ keyword: '', dateRange: null, categoryId: '' });
 const cats = ref([]);
@@ -118,6 +137,7 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = 18;
 const pick = ref(null);
+const pickedPreset = ref('');
 const netUrl = ref('');
 const netLoading = ref(false);
 const uploadRef = ref(null);
@@ -131,6 +151,7 @@ function resolveUrl(u) {
 function switchMode(m) {
   mode.value = m;
   if (m === 'net') { pick.value = null; }
+  if (m !== 'preset') { pickedPreset.value = ''; }
 }
 
 async function loadCats() {
@@ -190,12 +211,17 @@ async function doImport() {
 }
 
 function doConfirm() {
+  if (mode.value === 'preset' && pickedPreset.value) {
+    emit('confirm', pickedPreset.value);
+    emit('update:modelValue', false);
+    return;
+  }
   const m = mats.value.find((x) => x.id === pick.value);
   if (m) { emit('confirm', m.file_url, m.id); emit('update:modelValue', false); }
 }
 
 watch(() => props.modelValue, (v) => {
-  if (v) { pick.value = null; loadCats(); reload(1); }
+  if (v) { pick.value = null; pickedPreset.value = ''; mode.value = props.presets.length ? 'preset' : 'upload'; loadCats(); reload(1); }
 });
 </script>
 
@@ -212,6 +238,16 @@ watch(() => props.modelValue, (v) => {
 .mp-upload-sub { font-size: 12px; color: #86909C; }
 .mp-net { margin-bottom: 10px; }
 .mp-net-help { font-size: 12px; color: #86909C; margin-top: 6px; }
+.mp-preset { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; height: 330px; overflow-y: auto; }
+.mp-preset-item { position: relative; border: 2px solid #E5E6EB; border-radius: 8px; overflow: hidden; cursor: pointer; background: #FAFBFC; transition: border-color .2s; }
+.mp-preset-item:hover { border-color: #94BFFF; }
+.mp-preset-item.picked { border-color: #165DFF; }
+.mp-preset-item img { width: 100%; height: 86px; object-fit: cover; display: block; }
+.mp-preset-name { display: block; padding: 5px 8px; font-size: 12px; color: #4E5969; text-align: center; }
+.mp-preset-item .mp-check {
+  position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; line-height: 18px;
+  background: #165DFF; color: #fff; border-radius: 50%; font-size: 12px; text-align: center;
+}
 .mp-body { display: flex; gap: 12px; height: 330px; }
 .mp-side { width: 130px; flex-shrink: 0; border-right: 1px solid #E5E6EB; padding-right: 8px; overflow-y: auto; }
 .mp-cat {

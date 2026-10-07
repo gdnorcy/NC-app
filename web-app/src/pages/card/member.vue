@@ -115,6 +115,7 @@ import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { heroGradient } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
@@ -219,6 +220,16 @@ function isCurrent(level) {
 }
 
 // ===== 租户会员卡：购买 / 申请 / 签到 =====
+/**
+ * 未登录引导：toast + 跳登录页（loginEntryUrl 必带 manual=1，登录页兼任冷启动首页，
+ * 不带会被 onShow 首页联动立刻弹走）+ redirect 回跳本页——与 cardDetail.ensureLogin 同款。
+ */
+function gotoLogin() {
+  uni.showToast({ title: '请先登录', icon: 'none' });
+  uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/member') });
+  return false;
+}
+
 async function refreshMemberCard() {
   try {
     const res = await cardApi.memberMyCard();
@@ -229,7 +240,7 @@ async function refreshMemberCard() {
 async function buyLevel(lv) {
   if (paying.value) return;
   const userInfo = uni.getStorageSync('card_user') || {};
-  if (!userInfo.id) return uni.showToast({ title: '请先登录', icon: 'none' });
+  if (!userInfo.id) return gotoLogin();
   paying.value = true;
   uni.showLoading({ title: '创建订单...' });
   try {
@@ -263,7 +274,7 @@ async function buyLevel(lv) {
 
 async function applyLevel(lv) {
   const userInfo = uni.getStorageSync('card_user') || {};
-  if (!userInfo.id) return uni.showToast({ title: '请先登录', icon: 'none' });
+  if (!userInfo.id) return gotoLogin();
   uni.showModal({
     title: '申请开通',
     content: `确认申请开通「${lv.name}」会员？审核通过后自动开卡。`,
