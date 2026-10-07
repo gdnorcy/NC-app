@@ -814,7 +814,7 @@ import { componentStyleVars } from '../../../../../../web-app/src/utils/sfCompon
 import { containerStyle as sharedContainerStyle } from '../../../../../../web-app/src/utils/containerStyle.js';
 // 按钮宽度同样共用 C 端那份：满宽按钮必须抵消容器 marginLR，
 // 否则「容器左右边距」会连带改按钮大小（两端各写一份必然漂移）。
-import { buttonSizeStyle } from '../../../../../../web-app/src/utils/btnSize.js';
+import { buttonSizeStyle, searchBoxSizeStyle } from '../../../../../../web-app/src/utils/containerChildSize.js';
 // 示例图清单同样共用 C 端那份，避免两端各写死一个路径后悄悄漂移
 import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 // 按钮组（menu-group）样式同样共用 C 端那份：数值全部来自对标站 CDP 实测，
@@ -1504,6 +1504,12 @@ function noticeStyle(p) {
   return s;
 }
 // 名片搜索栏预览样式（native-search 自定义：高/圆角/背景/文字色/风格）
+//
+// 🔴 2026-10-07 用户反馈「容器左右边距调了会同步调小搜索框，没有单独调搜索框大小的了」：
+//   本函数原先**只输出外观**，宽度完全交给 CSS `.r-native-search .r-search{flex:1}`
+//   → 容器边距一变搜索框就被挤着变，两个控件缠死。
+//   解法与 button 同源（见 web-app/src/utils/containerChildSize.js）：宽度由
+//   widthMode/widthPercent 决定，并**必须覆盖 flex**（flex:1 会把 width 压掉）。
 function searchBoxPreviewStyle(p) {
   const s = {
     background: p.bgColor || '#F2F3F5',
@@ -1512,7 +1518,8 @@ function searchBoxPreviewStyle(p) {
   };
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.08)';
   if (p.style === 'border') s.border = '1px solid #E5E6EB';
-  return s;
+  // 宽度：与容器左右边距解耦（flexChild=true → 额外覆盖 flex）
+  return Object.assign(s, searchBoxSizeStyle(p));
 }
 // 我的名片卡片预览样式（圆角/阴影）
 function myCardPreviewStyle(p) {
@@ -2347,7 +2354,11 @@ const nativeGridItems = [
 .r-tab{font-size:11px;color:#86909C;padding-bottom:2px;}
 .r-tab.active{color:#165DFF;font-weight:600;border-bottom:2px solid #165DFF;}
 /* 名片组件（完整版原生模块）预览 */
-.r-native-search{display:flex;align-items:center;gap:8px;}.r-native-search .r-search{flex:1;min-width:0;}
+.r-native-search{display:flex;align-items:center;gap:8px;}
+/* 🔴 `flex:1` 只是**兜底**；正常路径由 searchBoxPreviewStyle() 内联下发
+   `flex:none` + `width:%` + auto 边距，让「搜索框宽度」与「容器左右边距」解耦
+   （2026-10-07 用户反馈「调边距会同步调小搜索框」）。勿删那条 flex:none。 */
+.r-native-search .r-search{flex:1;min-width:0;}
 .r-native-msg{flex-shrink:0;}
 .r-native-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px 6px;background:#fff;border-radius:8px;padding:12px 8px;}
 .r-native-grid-item{display:flex;flex-direction:column;align-items:center;gap:4px;}

@@ -1509,7 +1509,7 @@ export const componentRegistry = [
     name: '名片搜索栏',
     group: 'card',
     icon: 'native-search',
-    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0 },
+    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0, widthMode: 'full', widthPercent: 100 },
     schema: [
       { key: 'placeholder', label: '占位文案', control: 'input', section: 'content', placeholder: '如 搜索名片、客户、人脉' },
       { key: 'style', label: '搜索框风格', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '阴影', value: 'shadow' }, { label: '描边', value: 'border' }] },
@@ -1521,10 +1521,15 @@ export const componentRegistry = [
       //   而容器底色（compBgColor）虽在通用项里、却没被渲染层消费 → 表现为「没有地方设置」。
       { key: 'bgColor', label: '搜索框色', control: 'color', section: 'style', tips: '只改搜索框自身的底色；容器底色请用下方通用项的「组件背景色」' },
       { key: 'textColor', label: '文字颜色', control: 'color', section: 'style' },
+      // 🔴 与「容器左右边距」解耦（2026-10-07 用户反馈：「容器左右边距调了会同步调小搜索框，
+      //   没有单独调搜索框大小的了」）。病根：搜索框用 `flex:1` 撑满容器 → 调边距即改宽度。
+      //   修法同 button：宽度用百分比 + auto 边距，并覆盖 flex（flex:1 会压掉 width）。
+      { key: 'widthMode', label: '搜索框宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }], tips: '与下方「容器左右边距」互不影响：那个只缩窗口，这个只改搜索框自身' },
+      { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对搜索框所在窗口的可用宽度计算' },
       { key: 'radiusContainer', label: '容器圆角', control: 'slider', section: 'style', min: 0, max: 24, tips: '搜索框所在整块区域的圆角。与「搜索框圆角」是两个独立控件' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
-      { key: 'marginLR', label: '容器左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginLR', label: '容器左右边距', control: 'slider', section: 'style', min: 0, max: 40, tips: '只缩放搜索框所在的窗口（容器），不影响搜索框自身大小' },
     ],
   },
   {

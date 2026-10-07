@@ -147,6 +147,7 @@ import { onShow, onLoad, onPageScroll, onShareAppMessage, onPullDownRefresh } fr
 import { shadeHex } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
+import { searchBoxSizeStyle } from '../../utils/containerChildSize.js';
 import { qsParse } from '../../utils/qs.js';
 import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl, useDesignTheme } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
@@ -471,6 +472,12 @@ onShow(() => {
 });
 
 // 名片搜索栏样式（可自定义：高/圆角/背景/文字色/风格）
+//
+// 🔴 2026-10-07 用户反馈「容器左右边距调了会同步调小搜索框，没有单独调搜索框大小的了」：
+//   本函数原先**只输出外观**（底色/圆角/高），搜索框宽度完全由 CSS `.search-box{flex:1}` 决定
+//   → 容器左右边距一变，它就被挤着一起变，**两个控件缠死**。
+//   解法与 button 同源（见 utils/containerChildSize.js）：宽度改由 widthMode/widthPercent 决定，
+//   并**必须覆盖 flex**（`flex:1` 会把 width 压掉 → 表现为「宽度滑块完全没反应」）。
 function searchBoxStyle(p) {
   const s = {
     background: p.bgColor || '#f2f3f5',
@@ -479,7 +486,8 @@ function searchBoxStyle(p) {
   };
   if (p.style === 'shadow') s.boxShadow = '0 2rpx 8rpx rgba(31,35,41,0.08)';
   if (p.style === 'border') s.border = '1rpx solid #E5E6EB';
-  return s;
+  // 宽度：与容器左右边距解耦（flexChild=true → 额外覆盖 flex）
+  return Object.assign(s, searchBoxSizeStyle(p));
 }
 // 我的名片卡片样式（圆角/阴影）
 function myCardStyle(p) {
@@ -573,6 +581,10 @@ function viewMarketCard(item) {
   padding-top: 16rpx;
 }
 .search-box {
+  /* 🔴 `flex:1` 只是**兜底**（未设widthPercent 时的历史视觉）；
+     正常路径由 `searchBoxStyle()` 内联下发 `flex:none` + `width:%` + auto 边距，
+     让「搜索框宽度」与「容器左右边距」解耦（用户 2026-10-07 反馈：调边距会同步调小搜索框）。
+     ⚠️ 勿删 `flex:none` 那条内联 —— 留着 flex:1 会把 width 压掉、滑块完全没反应。 */
   flex: 1;
   min-width: 0; /* 防止占位文案把搜索框撑破（flex 子项默认 min-width:auto） */
   display: flex;
