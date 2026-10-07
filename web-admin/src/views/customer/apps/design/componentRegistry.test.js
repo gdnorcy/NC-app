@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { componentRegistry as COMPONENTS } from './componentRegistry.js';
 import { menuIconUrl, MENU_ICON_COUNT } from '../../../../../../web-app/src/utils/sampleImages.js';
 
@@ -100,5 +102,45 @@ describe('按钮组 menu-group schema', () => {
     // 三档各带 menuStyle 预览标识，值与档位一一对应
     expect(navStyle.options.map((o) => o.menuStyle)).toEqual(['style1', 'style2', 'style3']);
     expect(navShape.options.every((o) => 'shapePreview' in o)).toBe(true);
+  });
+});
+
+/**
+ * 🔴 2026-10-08「容器圆角在容器透明时无效」回归锁：
+ *   border-radius 只在绘制背景/边框时可见 → 容器未设底色 / 显式透明时圆角零视觉，
+ *   面板应**隐藏**该控件（whenHas），而不是留一个「调了没反应」的开关。
+ *   ⚠️ whenOk 从 PageEditor.vue 源码正则提取执行（抄副本锁不住真实实现）。
+ */
+describe('容器圆角 radiusContainer 条件显示（whenHas）', () => {
+  const PE = path.resolve(process.cwd(), 'src/views/customer/apps/design/PageEditor.vue');
+  const src = fs.readFileSync(PE, 'utf8');
+  const m = src.match(/const whenOk = \(f\) => \{([\s\S]*?)\n  \};/);
+  const whenOk = new Function('props', 'f', m[1]);
+
+  const searchComp = COMPONENTS.find((c) => c.type === 'native-search');
+  const radiusField = searchComp.schema.find((f) => f.key === 'radiusContainer');
+  // ⚠️ 提取到的是 whenOk 的**函数体**，故直接用 (props, f) 调用，不是柯里化
+  const ok = (props) => whenOk(props, radiusField);
+
+  it('能从 PageEditor.vue 提取到 whenOk（提取失败则本组测试失去意义）', () => {
+    expect(m).toBeTruthy();
+  });
+
+  it('radiusContainer 声明 whenHas = compBgColor', () => {
+    expect(radiusField.whenHas).toBe('compBgColor');
+  });
+
+  it('四态判定：未设 / 空串 / 显式透明 → 隐藏；有色 / 渐变 → 显示', () => {
+    expect(ok({})).toBe(false);                              // 未设底色
+    expect(ok({ compBgColor: '' })).toBe(false);             // 空串
+    expect(ok({ compBgColor: 'transparent' })).toBe(false);  // 显式透明
+    expect(ok({ compBgColor: '#ffffff' })).toBe(true);       // 白卡
+    expect(ok({ compBgColor: 'linear-gradient(135deg,#2979ff,#00b0ff)' })).toBe(true); // 渐变底
+  });
+
+  it('无 whenHas 的字段不受影响（when 精确匹配照常生效）', () => {
+    const f = { when: { widthMode: 'full' } };
+    expect(whenOk({ widthMode: 'full' }, f)).toBe(true);
+    expect(whenOk({ widthMode: 'auto' }, f)).toBe(false);
   });
 });

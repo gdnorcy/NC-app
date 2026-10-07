@@ -7,6 +7,8 @@
  * 组件图标：直接使用 eweishop 原版 PNG 图标（用户指定照抄），76×76。
  */
 import { sampleUrl, menuIconUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
+// 容器底色字段名（compBgColor）：面板 whenHas 条件引用它，避免与渲染层写岔
+import { CONTAINER_BG_KEY } from '../../../../../../web-app/src/utils/containerStyle.js';
 import iconTitle from '../../../../assets/comp-icons/title.png';
 import iconText from '../../../../assets/comp-icons/richtext.png';
 import iconImage from '../../../../assets/comp-icons/picture.png';
@@ -1542,7 +1544,10 @@ export const componentRegistry = [
       //   宽度改成视口单位后，搜索框左边 = 容器左边（跟容器边距走），没法单独微调去跟宫格/卡片对齐。
       //   命名带 box 前缀：悬浮组件已有 `offsetX`（语义=距右偏移），不能同名不同义。
       { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '搜索框相对容器左边再平移。用来跟其他组件左边对齐；不影响宽度' },
-      { key: 'radiusContainer', label: '容器圆角', control: 'slider', section: 'style', min: 0, max: 24, tips: '搜索框所在整块区域的圆角。与「搜索框圆角」是两个独立控件' },
+      // 🔴 只在**容器有底色**时显示（whenHas）：border-radius 只在绘制背景/边框时可见，
+      //   容器透明（未设底色或显式 transparent）时圆角零视觉 → 显示出来等于「调了没反应」。
+      //   ⚠️ 渲染层（两端 nativeMargin）照旧消费该值，隐藏只是面板层的引导，不删功能。
+      { key: 'radiusContainer', label: '容器圆角', control: 'slider', section: 'style', min: 0, max: 24, whenHas: CONTAINER_BG_KEY, tips: '搜索框所在整块区域的圆角。与「搜索框圆角」是两个独立控件；容器底色为透明/未设置时圆角不可见，故此时本项隐藏' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginLR', label: '容器左右边距', control: 'slider', section: 'style', min: 0, max: 40, tips: '只缩放搜索框所在的窗口（容器），不影响搜索框自身大小' },

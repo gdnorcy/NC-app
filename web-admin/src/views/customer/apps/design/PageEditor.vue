@@ -1571,6 +1571,15 @@ const schemaSections = computed(() => {
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;
     if (f.whenNotStyle && f.whenNotStyle.includes(Number(props.styleType))) return false;
+    // 🔴 whenHas：字段**有实值**才显示（2026-10-08 `when` 只支持精确值匹配，
+    //   表达不了「非空/非透明」这种区间条件）。
+    //   用于「容器圆角」这类**只在有底色时才有视觉**的控件：
+    //   border-radius 只在绘制背景/边框时可见 → 容器未设底色('') 或显式透明('transparent')
+    //   时圆角零视觉，显示出来只会让人以为「控件无效」→ 隐藏。
+    if (f.whenHas) {
+      const hv = props[f.whenHas];
+      if (hv === undefined || hv === null || hv === '' || hv === 'transparent') return false;
+    }
     return !f.when || Object.entries(f.when).every(([k, v]) => {
       const pv = props[k];
       if (Array.isArray(v)) return v.some(x => pv === x || String(pv) === String(x));
