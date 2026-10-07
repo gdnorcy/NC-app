@@ -151,7 +151,7 @@
               v-for="(c, i) in normalComps"
               :key="c.id"
               class="pe-comp"
-              :class="{ active: selected === c.id, 'pe-comp-first': i === 0 }"
+              :class="{ active: selected === c.id }"
               :style="compBoxStyle(c)"
               draggable="true"
               @dragstart="onCompDragStart($event, i)"
@@ -2458,7 +2458,16 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
-.pe-canvas { flex: 1 1 0%; min-height: 420px; padding: 0; background: transparent; position: relative; overflow-y: auto; }
+/* 🔴 `padding-top:22px` 不是「给内容留白」，而是给**首个组件的操作条**留位。
+   `.pe-comp-tools` 用 `top:-22px` 向上绝对定位（贴在被选中组件上方，这是对的、符合直觉），
+   但它会溢出 `.pe-canvas`，被 `overflow-y:auto` 裁掉一半 → 表现为「标题栏下插着一条
+   被切掉上半的蓝条」，且点不到（2026-10-07 用户截图）。
+
+   为什么 `padding` 能解决：`overflow` 裁剪的是 **padding box**，padding 区域本身可见。
+   给 canvas 加 22px 顶部内边距后，首个组件的 `-22px` 正好落在 padding 区里 → 不被裁。
+   ⚠️ 不要改成「首个组件的操作条翻到组件下方」（曾这样修，用户明确否决）：
+   破坏了「操作条贴着选中组件上方」的统一直觉，且首组件本就在画布最顶，往下翻更怪。 */
+.pe-canvas { flex: 1 1 0%; min-height: 420px; padding: 22px 0 0; background: transparent; position: relative; overflow-y: auto; }
 /* 悬浮组件视口层：覆盖整个预览壳，模拟 C 端 fixed 视口定位；容器穿透点击，仅组件按钮可点 */
 .pe-float-layer { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
 /* 容器穿透点击（组件撑满层也不拦截画布），仅悬浮按钮自身与操作条可点（按钮可点由 ComponentRender .comp-float 规则保证） */
@@ -2483,11 +2492,6 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
   border-radius: 6px; font-size: 11px; padding: 2px 8px; z-index: 2; align-items: center; gap: 6px;
   box-shadow: 0 2px 6px rgba(22,93,255,.3); white-space: nowrap;
 }
-/* 🔴 画布**第一个**组件的操作条必须翻到组件下方（`.pe-comp-first`）。
-   否则 `top:-22px` 向上溢出 `.pe-canvas`，被 `.pe-phone{overflow:hidden}` 裁掉一半，
-   正好卡在导航栏与画布之间 → 用户看到「一条蓝色横条插在标题栏下面」且点不到。
-   （悬停非首组件仍走上方，符合「操作条贴着选中组件」的直觉。） */
-.pe-comp.pe-comp-first .pe-comp-tools { top: auto; bottom: -22px; border-radius: 6px 6px 0 0; }
 .pe-comp:hover .pe-comp-tools, .pe-comp.active .pe-comp-tools { display: flex; }
 .pe-comp-idx { background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 5px; }
 .pe-comp-type { color: #fff; }
