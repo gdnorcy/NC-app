@@ -43,6 +43,26 @@ describe('buttonSizeStyle 按钮宽度与容器边距解耦 + 居中', () => {
     }
   });
 
+  it('🔴🔴 整行模式也必须 display:block（2026-10-07 第三次实测：漏了它按钮贴左边）', () => {
+    // 病根：组件自带 CSS 类 .r-btn / .dp-btn 是 display:inline-block，
+    // 而 **inline-block 的 margin-left/right:auto 会被当成 0** → 居中完全失效。
+    // 症状隐蔽：widthPercent=100 时看起来正常，拖到 <100 才暴露 → 易误判成「百分比算错」。
+    // 修复前实测：整行 50% 中心偏移 -179px；加 display:block 后 -8px（8 = 容器 padding 视觉差）。
+    for (const pct of [20, 50, 80, 100]) {
+      const s = buttonSizeStyle({ widthMode: 'full', widthPercent: pct });
+      expect(s.display, `widthPercent=${pct} 必须显式 block`).toBe('block');
+      expect(String(s.display), '不得为 inline-*（auto 边距会失效）').not.toContain('inline');
+      expect(s.marginLeft).toBe('auto');
+      expect(s.marginRight).toBe('auto');
+    }
+  });
+
+  it('🔴 两个分支都必须显式声明 display（漏任一分支即回归）', () => {
+    for (const p of [{}, { widthMode: 'auto' }, { widthMode: 'full' }, { widthMode: 'full', widthPercent: 50 }]) {
+      expect(buttonSizeStyle(p).display, JSON.stringify(p)).toBe('block');
+    }
+  });
+
   it('宽度百分比 <100：auto 边距居中（无负 margin）', () => {
     const s = buttonSizeStyle({ widthMode: 'full', widthPercent: 50, marginLR: 20 });
     expect(s.width).toBe('50%');

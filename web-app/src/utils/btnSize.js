@@ -24,6 +24,16 @@
  *   —— 实测确认：inline-block 的 auto 边距在 shrink-to-fit 下按内容宽算，
  *   两侧 auto 被当成 0。必须显式给一个块级上下文（见下方 auto 分支）。
  *
+ * 🔴 为什么**两个分支都必须显式写 `display:block`**（2026-10-07 第三次实测）：
+ *   组件自带 CSS 类 `.r-btn` 是 `display:inline-block`（admin 与 C 端各有一份），
+ *   而 **inline-block / inline-flex 的 `margin-left/right:auto` 会被当成 0** ——
+ *   于是「整行 + 宽度百分比 < 100」时，按钮直接**贴左边**（实测偏移 -179px）。
+ *   ⚠️ 之前只在自适应分支写了 `display:block`、整行分支漏了 → 用户反馈「还是不居中」。
+ *   ⚠️ 且这跟 `width:100%` 无关（100% 时看起来正常，只有 <100% 才暴露），
+ *   所以「宽度百分比拖小一点」就能复现 —— 别以为是百分比算错了。
+ *
+ * ⚠️ `display:inline-block` + `width:auto` 时 shrink-to-fit，两侧 auto 同样按 0 处理。
+ *
  * ⚠️ 三端必须共用本函数，否则「设计器预览」与「真机」会再次不一致
  *   （这个项目已因各处私藏一份副本踩过多次）。
  */
@@ -38,9 +48,8 @@ export function buttonSizeStyle(p) {
 
   // 自适应：内容宽 + 左右内边距 + 居中
   if (props.widthMode === 'auto') {
-    // 🔴 `inline-block` 的 `margin:auto` **实测不居中**（两侧 auto 被当 0）→ 保持内容宽左对齐。
-    //   `block` 虽能居中，但 `width:auto` 会撑满容器 → 必须配`width:fit-content`
-    //   才能「内容宽 + 居中」两者兼得。
+    // 🔴 `block` 是**居中的前提**：配 `width:fit-content` 才有「内容宽 + 居中」两者兼得。
+    //   只给 fit-content 不给 block → 仍是 `.r-btn` 的 inline-block，auto 边距被当0 → 贴左边。
     s.display = 'block';
     s.width = 'fit-content';
     s.padding = '0 12px';
@@ -52,6 +61,9 @@ export function buttonSizeStyle(p) {
 
   // 整行：百分比宽度 + auto 边距居中（与容器左右边距解耦）
   const pct = clampPercent(props.widthPercent);
+  // 🔴 同样必须 `display:block` —— 见文件头「两个分支都必须显式写 display:block」。
+  //   漏了它，widthPercent < 100 时按钮会贴左边（inline-block 的 auto 边距无效）。
+  s.display = 'block';
   s.width = `${pct}%`;
   s.marginLeft = 'auto';
   s.marginRight = 'auto';
