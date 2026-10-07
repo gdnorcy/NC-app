@@ -5,7 +5,7 @@
 
 ## 🔴 六条最易反复踩
 1. **装修组件改一处必须同步三处**：`componentRegistry.js`（数据源）→ `ComponentRender.vue`（v-if 链，**链尾无 v-else 兜底**，只加 registry 会静默空白）→ `PageEditor.vue`（schema + control 硬编码分发）。C 端 `DesignPage.vue` 独立重复实现。⚠️ 同 v-if 链多个 `v-else` 互斥同级；画布 `.r-*` 尺寸手抄 C 端 `.dp-*`，已漏一次。
-2. **H5 正常 ≠ 小程序正常**：①组件**样式作用域隔离**，父 wxss 穿不透子根（`:deep()` 也不行）→ 传 prop 让子组件出内联 style；② `margin:auto` 居中、`background-image:url()` 包内路径 MP 不 work。凡「H5 没效果」→ 先问**跨没跨组件边界**，别调数值。
+2. **H5 正常 ≠ 小程序正常**：①组件**样式作用域隔离**，父 wxss 穿不透子根（`:deep()` 也不行）→ 传 prop 让子组件出内联 style；② `margin:auto` 居中、`background-image:url()` 包内路径 MP 不 work；③ 🔴 **MP 无全局 `atob`/`btoa`/`Buffer`**（H5 才有）——解析 token 用 atob 会抛错被 catch 吞成「未登录/空列表」（myCard 恒跳登录、exchangeRequests 列表空即此）。跨端解码统一用 `uni.base64ToArrayBuffer` + 逐字节 `String.fromCharCode`；优先读缓存 `card_user.id`。凡「H5 没效果」→ 先问**跨没跨组件边界**、**用了哪个端才有的 API**，别调数值。
 3. **属性面板通用项按 `key` 去重**（`PageEditor.vue` 的 `ownKeys`）：组件自带某 key 时通用项被跳过 → 同控件在不同组件指不同层。加面板字段前先确认 key 不撞车。
 4. **变量注入了 ≠ 生效**：`--c-*` 须有元素消费，`getComputedStyle` 量**消费元素**。**参数若允许 0 就无条件内联**，默认值放 schema、三端基础值归 0；三端 CSS 不得写 `16px` 兜底或写死 `margin-bottom` 补缝。
 5. **「页面空白/改了没反应」先抓运行时异常**，不是查数据链路。`watch`/`computed` 引用 `const x = ref(...)` 必须写在声明**之后**，否则 TDZ `ReferenceError` → setup 失败整页白屏。
@@ -41,6 +41,7 @@
 - **设计器选中框挂「持白底/内容的那一层」**：装修 `.pe-comp`、表单 `.sf-comp-wrap`；`@click` 挂 wrap，内层只留 draggable。
 - **「组件风格」**：`styleVariant(comp)` 三端统一调，只认语义 class（`sfv-box/plain/line/step/slider`+`sfx-opt*`）。⚠️ styleType 跨组件撞名（radio 的 `s1` 作用选项区、filedownload 的 `s1` 作用下载框）→ 映射**按 type 分派**。⚠️ 「组件即卡片」下不能用「白底+无边框」做风格档。
 - 🎯 改 `STYLE_SCHEMA.boxLine`/`styleVariant()`/任一端 `sfv-*` CSS 后必跑 `node scripts/audit-sf-style-coverage.mjs`（非 0 = 死参数）。加新风格时三端选择器组须加新组件容器 class。
+- ⚠️ **取「名片字段」别调错接口**：`memberMyCard()`（`//member/my-card`）= **租户会员卡**（无 city/名片字段），`getCardsSafe()`（`/cards`）/ `getProfile()` 才是**个人名片**（toCard 带 city）。market 的同城城市曾误取前者 → 恒空 → 误报「请先完善所在城市」。
 - **面板控件 ≠ 功能已复刻**，三层缺一不可：数据层默认 content 声明字段（老数据 undefined，**须写存量迁移**）→ 渲染层两端消费+兜底 → 样式 schema 映射。**判定开关有用没用，去校验/提交路径确认是否真 gate 了什么。**
 - 边距四件套：`outMarginTop`(10)/`outMarginX`(10)/`marginY`(padding-tb,10)/`marginX`(padding-lr,16)/`radiusTL/TR/BR/BL`(四角独立)。外左右改 margin 后**三端容器 padding 必须归 0**。改 schema 默认值须**定向迁移存量**（只改等于旧默认的，改前 `cp` 备份 DB）。
 
