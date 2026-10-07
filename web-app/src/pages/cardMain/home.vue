@@ -25,7 +25,7 @@
              导致铃铛被推到中间 —— 用户反馈「一直居左，感觉是多余的」。 -->
         <view class="search-box" :style="searchBoxStyle(c.props)" @click="goSearch">
           <SIcon name="dynamic" size="small" :color="c.props.textColor || '#86909c'" />
-          <text class="search-placeholder" :style="{ color: c.props.textColor || '#86909c', textAlign: (c.props.textAlign || 'center') }">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
+          <text class="search-placeholder" :style="placeholderStyle(c.props)">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
         </view>
         <view class="msg-icon" v-if="c.props.showMsg !== false" :class="{ 'has-unread': unreadCount > 0 }" @click="goMessages">
           <view class="msg-icon-inner"><SIcon name="bell" size="default" color="#4e5969" /></view>
@@ -492,6 +492,25 @@ function searchBoxStyle(p) {
   // 宽度：与容器左右边距解耦（flexChild=true → 额外覆盖 flex）
   return Object.assign(s, searchBoxSizeStyle(p));
 }
+// 占位文案样式：颜色 + 横向对齐 + **行高等于搜索框高**（垂直居中的唯一正解）
+//
+// 🔴 2026-10-07 用户反馈「框中的文字还是没有垂直居中，还是偏上」：
+//   上一轮加的 `line-height:1` 是错的。像素实测（框高36/字号13）：
+//     line-height:1      → 上 -1 / 下 22（文字顶出框外，最偏）
+//     line-height:normal → 上  2 / 下 19（仍偏上 17px）
+//     line-height:36px   → 上 10 / 下 11（✅ 真居中）
+//   `align-items:center` 居中的是**行盒**，行盒高 = line-height；
+//   line-height < 容器高 → 行盒贴上边 → 视觉偏上。
+//   ✅ 所以 line-height 必须**等于搜索框高度** → 行盒撑满整个框，必然居中。
+//   ⚠️ 须与 admin `placeholderStyle()` 保持一致，否则后台预览与真机错位。
+function placeholderStyle(p) {
+  const h = (p && p.height) || 36;      // 搜索框高度（px 语义）
+  return {
+    color: (p && p.textColor) || '#86909c',
+    textAlign: (p && p.textAlign) || 'center',
+    lineHeight: (h * 2) + 'rpx',        // 与 searchBoxStyle 的 height 同源（×2 转 rpx）
+  };
+}
 // 我的名片卡片样式（圆角/阴影）
 function myCardStyle(p) {
   const s = { borderRadius: (p.radius ?? 12) + 'px' };
@@ -598,6 +617,16 @@ function viewMarketCard(item) {
   border-radius: 36rpx;
   padding: 0 28rpx;
 }
+/* 🔴 垂直居中（用户反馈「框中的文字还是没有垂直居中，还是偏上」）：
+   ⚠️ 上一轮加的 `line-height:1` **是错的** —— 像素实测（框高36/字号13）：
+        line-height:1     → 上间距 -1px、下间距 22px（文字顶出框外，偏得最厉害）
+        line-height:normal→ 上间距  2px、下间距 19px（仍偏上 17px）
+        line-height:36px  → 上间距 10px、下间距 11px（✅ 真居中）
+   根因：`align-items:center` 居中的是**行盒**，而行盒高度 = line-height。
+   line-height 比字号小 → 行盒比容器矮，居中后行盒贴上边 → 视觉偏上。
+   ✅ 正解：让 line-height **等于搜索框高度**（由 `searchBoxStyle()` 按height 参数内联下发），
+      行盒撑满整个框 → 文字必然垂直居中，且不依赖 align-items。
+   ⚠️ 两端必须一致：admin 预览也用同一函数下发 line-height，否则后台与真机错位。 */
 .search-placeholder {
   flex: 1;
   min-width: 0;
@@ -606,13 +635,6 @@ function viewMarketCard(item) {
   white-space: nowrap;
   font-size: 26rpx;
   color: #86909c;
-  /* 🔴 垂直居中：容器已是 `align-items:center`，这里再显式 `align-self:center` +
-     `line-height:1` 兜底 —— 用户反馈「框中的文字没有垂直居中」。
-     原因是 `<text>` 在小程序里按 inline 布局、行高走字体默认，行盒会比容器高一截，
-     视觉上偏下。`line-height:1` 让行盒等于字号，再由 align-self 精确居中。
-     ⚠️ 勿删 line-height：删掉真机又会偏下（开发者工具不一定复现）。 */
-  align-self: center;
-  line-height: 1;
 }
 .msg-icon {
   width: 56rpx;

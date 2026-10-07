@@ -736,7 +736,7 @@
       <div class="r-native-search" :style="nativeMargin(comp.props)">
         <div class="r-search" :style="searchBoxPreviewStyle(comp.props)">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" :stroke="comp.props.textColor || '#86909C'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
-          <span class="r-search-ph" :style="{ color: comp.props.textColor || '#86909C', textAlign: comp.props.textAlign || 'center' }">{{ comp.props.placeholder || '搜索名片、客户、人脉' }}</span>
+          <span class="r-search-ph" :style="placeholderStyle(comp.props)">{{ comp.props.placeholder || '搜索名片、客户、人脉' }}</span>
         </div>
         <div v-if="comp.props.showMsg !== false" class="r-native-msg"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
       </div>
@@ -1371,7 +1371,11 @@ function btnStyle(p) {
   // 🔴 宽度基准统一走共享实现（与 C 端 DesignPage.vue 同一份）：
   //   满宽时按钮向两侧抵消容器 marginLR → 「容器左右边距」只缩窗口、不改按钮大小。
   // 详见 utils/btnSize.js 的病根说明（勿在本文件私藏副本）。
-  return Object.assign(s, buttonSizeStyle(p));
+  // 🔴 宽度基准统一走共享实现（与 C 端同一份），用 `unit:'px'` 以 375px 设计稿换算：
+  //   宽度只由 widthPercent 决定，**「容器左右边距」只缩窗口、不改按钮大小**。
+  //   ⚠️ 历史病根：第一轮负 margin 抵消、第二轮百分比 —— 都失败（百分比永远参照容器内容宽）。
+  //   详见 web-app/src/utils/containerChildSize.js 顶部实测记录。
+  return Object.assign(s, buttonSizeStyle(p, { unit: 'px' }));
 }
 function noticeList(p) {
   const arr = (p.items || []).filter((it) => it && it.text);
@@ -1519,7 +1523,28 @@ function searchBoxPreviewStyle(p) {
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.08)';
   if (p.style === 'border') s.border = '1px solid #E5E6EB';
   // 宽度：与容器左右边距解耦（flexChild=true → 额外覆盖 flex）
-  return Object.assign(s, searchBoxSizeStyle(p));
+  // 🔴 `unit:'px'`：admin 画布手机壳固定 375px，用像素换算最直观，且与 C 端的 `60vw`
+  //    指同一个设计稿位置 → 后台预览与真机一致。
+  return Object.assign(s, searchBoxSizeStyle(p, { unit: 'px' }));
+}
+// 占位文案样式：颜色 + 横向对齐 + **行高等于搜索框高**（垂直居中的唯一正解）
+//
+// 🔴 2026-10-07 用户反馈「框中的文字还是没有垂直居中，还是偏上」：
+//   上一轮加的 `line-height:1` 是错的。像素实测（框高36/字号13）：
+//     line-height:1      → 上 -1 / 下 22（文字顶出框外，最偏）
+//     line-height:normal → 上  2 / 下 19（仍偏上 17px）
+//     line-height:36px   → 上 10 / 下 11（✅ 真居中）
+//   `align-items:center` 居中的是**行盒**，行盒高 = line-height；
+//   line-height < 容器高 → 行盒贴上边 → 视觉偏上。
+//   ✅ line-height 必须**等于搜索框高度** → 行盒撑满框，必然居中。
+//   ⚠️ 须与 C 端 `placeholderStyle()` 完全一致，否则后台预览与真机错位。
+function placeholderStyle(p) {
+  const h = (p && p.height) || 36;
+  return {
+    color: (p && p.textColor) || '#86909C',
+    textAlign: (p && p.textAlign) || 'center',
+    lineHeight: h + 'px',
+  };
 }
 // 我的名片卡片预览样式（圆角/阴影）
 function myCardPreviewStyle(p) {
@@ -2147,12 +2172,15 @@ const nativeGridItems = [
 .r-gallery { display: grid; width: 100%; }
 .r-gallery-cell { aspect-ratio: 1; overflow: hidden; background: #f7f8fa; }
 .r-gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-/* 搜索框 */
+/* 搜索框（通用 `search` 组件用，兜底 38px）
+   🔴 `native-search`（名片搜索栏）**不沿用这里的 height/padding**，而是在下方
+      `.r-native-search .r-search` 单独覆盖成与 C 端一致的值 —— 见该处注释。 */
 .r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; min-width: 0; }
-/* 🔴 垂直居中：`.r-search` 已是 `align-items:center`，这里 `line-height:1` 兜底 ——
-   span 默认行高按字体算，行盒比容器高一截会显得偏下（用户反馈「框中文字没有垂直居中」）。
-   须与 C 端 `.search-placeholder` 的 `line-height:1` 保持一致，否则后台预览与真机错位。 */
-.r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1; }
+/* 🔴 不在这里写死 line-height —— 会覆盖内联下发的「行高等于搜索框高」。
+   垂直居中由 `placeholderStyle()`（native-search）/ `searchStyle()` 路径按实际高度内联，
+   C 端 `.search-placeholder` 同样不写 line-height，两端保持一致。
+   ⚠️ 上一轮曾在此写 `line-height:1`，实测导致文字偏上 23px（行盒比容器矮 → 贴上边）。 */
+.r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .r-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 14px; padding: 0 12px; border-radius: 4px; height: 28px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 .r-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .r-search-hot-item { font-size: 11px; color: #86909c; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 10px; padding: 2px 8px; }
@@ -2357,11 +2385,18 @@ const nativeGridItems = [
 .r-tab{font-size:11px;color:#86909C;padding-bottom:2px;}
 .r-tab.active{color:#165DFF;font-weight:600;border-bottom:2px solid #165DFF;}
 /* 名片组件（完整版原生模块）预览 */
-.r-native-search{display:flex;align-items:center;gap:8px;}
+/* 🔴 gap 必须 = 6px（对应 C 端 `.top-bar{gap:12rpx}`，12rpx÷2=6px）。
+   原为 8px → 后台预览里「搜索框↔铃铛」比真机宽 2px，叠加其他差异后
+   用户反馈「开发者工具的预览和设计中心的预览不同步」。
+   回归锁：nativeSearchParity.test.js 的「容器 gap 两端等值」。 */
+.r-native-search{display:flex;align-items:center;gap:6px;}
 /* 🔴 `flex:1` 只是**兜底**；正常路径由 searchBoxPreviewStyle() 内联下发
-   `flex:none` + `width:%` + auto 边距，让「搜索框宽度」与「容器左右边距」解耦
-   （2026-10-07 用户反馈「调边距会同步调小搜索框」）。勿删那条 flex:none。 */
-.r-native-search .r-search{flex:1;min-width:0;}
+   `flex:none` + 视口宽度 + auto 边距，让「搜索框宽度」与「容器左右边距」彻底解耦
+   （用户反馈两轮：「容器左右边距调了会同步调小搜索框」→「还是会影响，还是之前的坑」；
+    病根是**百分比永远参照容器内容宽**，见 web-app/src/utils/containerChildSize.js 顶部实测）。
+   下面同时覆盖 height/padding 为与 C 端等值（36px / 0 14px），
+   避免「内联失效时靠 CSS 兜底」时两端兜底值不同（36 vs 38 → 又一处不同步）。 */
+.r-native-search .r-search{flex:1;min-width:0;height:36px;padding:0 14px;}
 /* 铃铛：与 C 端 `.msg-icon` 同一套设计 —— 贴右（由 searchBoxPreviewStyle 的 margin-right:auto 保证），
    后台预览**不模拟**未读态（预览时恒为「无新消息」的安静态：半透明 + 缩小），
    有未读时的抖动/角标脉冲只在 C 端真机出现。 */

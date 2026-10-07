@@ -306,20 +306,26 @@ export const componentRegistry = [
     name: '按钮',
     group: 'basic',
     icon: 'button',
-    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 0, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
-      // 🔴 宽度基准 = **页面/窗口的可用宽度**，不是容器内容宽度。
+      // 🔴 宽度基准 = **整屏宽度**（视口单位），不是容器内容宽度。
       // 此前「整行」是 `width:100%`，而百分比是相对**容器**解析的 →
       // 调通用项的「容器左右边距」会让容器变窄、按钮跟着一起变窄，
       // 用户无法单独调按钮大小（2026-10-07 反馈：「组件按钮容器的左右边框调整，
-      // 会调整按钮的大小」）。修法见 utils/btnSize.js：满宽时用负 margin
-      // 抵消容器左右边距，使按钮宽度真正独立于 marginLR。
+      // 会调整按钮的大小」）。
+      // ⚠️ 中间试过「负 margin 抵消 marginLR」和「百分比」，**都失败** ——
+      //   百分比永远参照容器内容宽（实测：边距 0/20/40 → 宽 225/201/177px）。
+      //   ✅ 现在用视口单位（admin 侧按 375px 设计稿换算 px），与容器边距彻底无关。
+      //   详见 web-app/src/utils/containerChildSize.js 顶部实测记录。
       { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
-      { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对页面可用宽度计算，与「容器左右边距」互不影响' },
+      { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对**整屏宽度**计算（不是相对容器），所以调容器边距不会影响它' },
+      // 🔴 按钮自身左边偏移：宽度改成视口单位后，按钮左边 = 容器左边（跟容器边距走），
+      //   没法单独微调去跟别的组件左边对齐。命名带 box 前缀：悬浮组件已有 `offsetX`（距右偏移）。
+      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '按钮相对容器左边再平移。用来跟其他组件左边对齐；不影响宽度' },
       { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
       // 🔴 这里是**按钮自身的填充色**，故label 是「按钮色」而不是「背景色」——
       // 组件**外层容器**的底色是另一个独立字段 `compBgColor`（见 commonStyleSchema
@@ -1509,7 +1515,7 @@ export const componentRegistry = [
     name: '名片搜索栏',
     group: 'card',
     icon: 'native-search',
-    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0, widthMode: 'full', widthPercent: 100, textAlign: 'center' },
+    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0, widthMode: 'full', widthPercent: 100, boxOffsetX: 0, textAlign: 'center' },
     schema: [
       { key: 'placeholder', label: '占位文案', control: 'input', section: 'content', placeholder: '如 搜索名片、客户、人脉' },
       // 🔴 占位文案对齐（2026-10-07 用户反馈「框中的文字没有垂直居中」+ 横向对齐不可调）。
@@ -1524,11 +1530,18 @@ export const componentRegistry = [
       //   而容器底色（compBgColor）虽在通用项里、却没被渲染层消费 → 表现为「没有地方设置」。
       { key: 'bgColor', label: '搜索框色', control: 'color', section: 'style', tips: '只改搜索框自身的底色；容器底色请用下方通用项的「组件背景色」' },
       { key: 'textColor', label: '文字颜色', control: 'color', section: 'style' },
-      // 🔴 与「容器左右边距」解耦（2026-10-07 用户反馈：「容器左右边距调了会同步调小搜索框，
-      //   没有单独调搜索框大小的了」）。病根：搜索框用 `flex:1` 撑满容器 → 调边距即改宽度。
-      //   修法同 button：宽度用百分比 + auto 边距，并覆盖 flex（flex:1 会压掉 width）。
+      // 🔴 与「容器左右边距」解耦（2026-10-07 用户反馈三轮：「容器左右边距调了会同步调小搜索框」
+      //   →「还是会影响搜索框的大小，还是之前的坑」）。
+      //   病根：搜索框用 `flex:1` 撑满容器 → 调边距即改宽度。
+      //   第一轮改**百分比**也失败 —— 百分比永远参照「容器内容宽」，容器一变窄搜索框就跟着变窄
+      //   （实测：边距 0/20/40 → 宽 225/201/177px）。
+      //   ✅ 现在宽度用**视口单位**（admin 侧按 375px 设计稿换算成 px），与容器边距彻底无关。
       { key: 'widthMode', label: '搜索框宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }], tips: '与下方「容器左右边距」互不影响：那个只缩窗口，这个只改搜索框自身' },
-      { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对搜索框所在窗口的可用宽度计算' },
+      { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对**整屏宽度**计算（不是相对容器），所以调容器边距不会影响它' },
+      // 🔴 搜索框自身左边偏移（用户反馈「宽度百分比调小时左边位置固定，没法跟别的组件左边对齐」）。
+      //   宽度改成视口单位后，搜索框左边 = 容器左边（跟容器边距走），没法单独微调去跟宫格/卡片对齐。
+      //   命名带 box 前缀：悬浮组件已有 `offsetX`（语义=距右偏移），不能同名不同义。
+      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '搜索框相对容器左边再平移。用来跟其他组件左边对齐；不影响宽度' },
       { key: 'radiusContainer', label: '容器圆角', control: 'slider', section: 'style', min: 0, max: 24, tips: '搜索框所在整块区域的圆角。与「搜索框圆角」是两个独立控件' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },

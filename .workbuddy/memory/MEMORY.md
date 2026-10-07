@@ -20,15 +20,17 @@
 - 🔴 **「越界浮层被 overflow 裁掉」的正解是「把浮层移出滚动容器 + JS 定位」，不是给容器加 padding**。裁剪边界属于**滚动容器自己**（`.pe-canvas{overflow-y:auto}`），父级/祖先加多少 padding 都不生效 —— 已像素实测：`.pe-phone{padding-top:22px}` 时工具条**仍被裁掉半条、根本不显示**。给画布自己加 padding 虽不被裁，但会在页面顶部凭空造一条空白带，运营误读成「容器上下边距没生效」「蓝条占了位置」→ 预览与真机不符，**用户明确否决**。✅ 权威实现：`.pe-tools-layer`（画布的平级兄弟，`absolute/inset:0/pointer-events:none/z-index:60`）+ `positionCompTools()` 按 `getBoundingClientRect()` 算 top/left。回归测试 `compToolsLayer.test.js`（8 例）已锁。回归测试断言 CSS 时**必须先剥注释**（注释里出现的 `padding-top` 字样会误判）。
   - **元规则：修「被裁」先问「能不能让容器给它留位」，留位会改变内容区观感时就改成移出容器。翻边只作为最后手段。**
   - ❌ **勿复活「首个组件翻到下方」**（曾用 `.pe-comp-first{bottom:-22px}`，**用户明确否决**）。❌ 也别用首组件 `padding-top`（推不动边框盒，绝对定位基准是边框盒）或 `margin-top`（首组件位置与真机不符）。
-- 🔴 **「组件自身大小」与「容器边距」是两个控件时，用「百分比宽度 + `margin:0 auto`」**：百分比参照容器内容宽、容器左右边距对称 → 容器中心==页面中心 → auto 边距即正确居中；组件大小只由百分比决定。权威实现 `utils/containerChildSize.js`（button/search 共用，`btnSize.js` 只转发 —— **勿再各写一份**）。
-  - ❌ **勿复活负 margin 溢出补偿**（`marginLeft:-LR` + `width:calc(100% + 2*LR)`）：只在容器**无 padding** 时成立。本项目容器有 `MIN_BG_PADDING=8` → 会盖住底色并溢出、还偏左。`calc(100%+Npx)` 同理不适用。
-  - 🔴 **凡用 `margin:auto` 居中，必须同时显式写 `display:block`**：inline-block/inline-flex 的 auto 边距**被当成 0**。组件自带 CSS 类（admin `.r-btn`、C 端 `.dp-btn`）**就是 `display:inline-block`** → 内联 `marginLeft/Right:'auto'` 静默失效，`width:100%` 时看不出、`<100%` 立刻贴左（实测 50% 偏移 -179px）。
-  - 🔴 **flex 子项必须覆盖 `flex`**：只内联 `width` 会被 `flex:1` 压掉 → 表现为「宽度滑块完全没反应」。发 `flex:none` + `width:%` + `margin` + `max-width:100%`。
-  - 🔴 **兄弟元素有「剩余空间该给谁」的要求时，不要两侧 auto**：`margin:0 auto` 会平分剩余空间。搜索框右侧有铃铛 → 必须 `marginLeft:0` + `marginRight:auto`（铃铛贴右），否则铃铛被推到中间（用户反馈「一直居左、感觉多余」）。
-  - 🔧 **实测「偏移 -8px」是容器 padding 的视觉差、不是 bug**。
-  - 🔧 **CSS 几何问题必须像素实测**：写独立 HTML 复刻真实结构（容器 padding/背景色/有无 text-align 全要还原），用无头 Chrome 截图。**单测全绿 ≠ 视觉正确**（本项目已三次「单测过、真机错」）。⚠️ 无头 Chrome 需 `--headless=new --no-sandbox`；`--dump-dom` 读 `<pre>` 常拿到空内容，**优先用 `--screenshot`**；**`:hover` 在无头下不触发**，要验证 hover 元素得改用 `.active` 或直接算 rect 数值渲染到页面。
-  - 🔴 **用户的提示里往往已含答案**：「A 模式可以、B 模式不行，你参考一下」⇒ 病根就在两分支的代码差异，先读代码再动手。曾为一个「不居中」浪费 15+ 次调用被用户当面点破。**同一函数内两分支写法不一致 = 高危信号**。
-  - 🔴 **「文字没垂直居中」先查行盒**：`align-items:center` 到位但 `<text>`/`span` 按字体默认行高走，行盒比容器高一截 → 视觉偏下。修法是给文字元素补 `line-height:1`（+ `align-self:center` 兜底），**两端必须同步**，否则后台预览与真机错位。
+- 🔴 **「组件自身大小」与「容器边距」是两个控件时，宽度必须用「视口单位」，永远不要用百分比**。百分比**永远参照容器内容宽** → 容器一变窄子组件必然跟着变窄，两个控件必然缠死。像素实测（375px 容器 + 60% 宽搜索框）：marginLR=0/20/40 → 宽 225/201/177px。正解：C 端发 `60vw`、admin 按 375px 设计稿发 `225px`，两者同指一个设计稿位置。权威实现 `utils/containerChildSize.js`（button/search 共用，`btnSize.js` 只转发）。回归测试 `containerChildSize.test.js`（17 例，**已并入原 `btnSize.test.js` 的断言后删掉该重复文件**）。
+  - 🔴🔴 **`max-width:100%` 也是耦合源**（它同样参照容器内容宽）：解耦后加这一条兜底，实测 marginLR=40 时宽 300→295px 被压 5px。要防溢出只能用 `max-width:100vw` / `375px`（视口基准）。
+  - ❌ **勿复活负 margin 溢出补偿**（`marginLeft:-LR` + `width:calc(100% + 2*LR)`）：只在容器**无 padding** 时成立，本项目有 `MIN_BG_PADDING=8` → 盖底色/溢出/偏左。
+  - 🔴 **凡用 `margin:auto` 居中，必须同时显式写 `display:block`**：inline-block/inline-flex 的 auto 边距**被当成 0**。组件基础类（`.r-btn`/`.dp-btn`）**就是 `inline-block`** → 内联 `marginLeft/Right:'auto'` 静默失效，`width:100%` 时看不出、`<100%` 立刻贴左（实测 50% 偏移 -179px）。
+  - 🔴 **flex 子项必须覆盖 `flex`**：只内联 `width` 会被 `flex:1` 压掉 → 「宽度滑块完全没反应」。发 `flex:none` + `width` + `margin` + `max-width`。
+  - 🔴 **兄弟元素有「剩余空间给谁」的要求时不要两侧 auto**：`margin:0 auto` 会平分。搜索框右侧有铃铛 → 必须 `marginLeft:0` + `marginRight:auto`。
+  - 🔴 **「文字没垂直居中」的根因常是行盒而非对齐**：`align-items:center` 居中的是**行盒**，行盒高 = `line-height`。实测（框高36/字号13）：`line-height:1` → 上 -1/下 22（**顶出框外，最偏**）；`normal` → 上 2/下 19（仍偏 17px）；`=框高` → 上 10/下 11（✅）。✅ 正解：**`line-height` 等于容器高度**（内联下发，勿写死在 CSS 兜底里，否则会覆盖内联值）。
+  - 🔧 **CSS 几何问题必须像素实测**：写独立 HTML 复刻真实结构（容器 padding/背景色/有无 text-align 全要还原），用无头 Chrome 截图。**单测全绿 ≠ 视觉正确**（本项目已四次「单测过、真机错」）。⚠️ 无头 Chrome 需 `--headless=new --no-sandbox`；**`:hover` 在无头下不触发**，验证 hover 元素要改用 `.active`；`--dump-dom` 读 `<pre>` 常空，**要么 `--screenshot`，要么把结果写进 `document.title` 再抓 title**（写 DOM 常因时序拿不到）。
+  - 🔴 **用户的提示里往往已含答案**：「A 模式可以、B 模式不行，你参考一下」⇒ 病根就在两分支代码差异，先读代码再动手。曾为一个「不居中」浪费 15+ 次调用被用户当面点破。**同一函数内两分支写法不一致 = 高危信号**。⚠️ 但**用户说「还是之前的坑」= 方案层面选错了，别在同一个错方案上再加声明** —— 先质疑方案本身（本项目百分比宽度连改两轮都错，第三次换视口单位才对）。
+- 🔴 **同一功能两端各写一份 CSS/样式函数 = 必然漂移**（本项目已多次）。判据：只要发现「开发者工具预览与设计中心不同步」，先**逐项比对两端的量**再改代码。`nativeSearchParity.test.js`（8 例）用「rpx÷2 === px」逐项比对盒模型/gap/padding/兜底高度，已抓到 gap 8px vs 6px、兜底高 38px vs 36px 两处真实不同步。
+  - 🔴 **写这类测试的三条纪律**：① 函数实现用正则从 `.vue` **源码提取** + `new Function` 执行（抄副本锁不住）；② 取 CSS **必须先剥注释、且只取 `<style>` 块内** —— 否则会匹到 **JS 注释里手写的 CSS 片段**（本项目 `searchBoxStyle` 上方注释里就有 `.search-box{flex:1}`，导致误报「C端没有 height」）；③ 比对**实际生效值**（admin `.r-search` 是通用组件兜底，native-search 真正生效的是更高特异的 `.r-native-search .r-search`）。
 - ⚠️ schema 字段的说明属性名是 **`tips`（复数）**，不是 `tip`（`PageEditor.vue` 的 `f.tips`）。
 
 ## 「点了没反应」三类静默失败
