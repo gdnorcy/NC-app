@@ -736,7 +736,7 @@
       <div class="r-native-search" :style="nativeMargin(comp.props)">
         <div class="r-search" :style="searchBoxPreviewStyle(comp.props)">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" :stroke="comp.props.textColor || '#86909C'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
-          <span class="r-search-ph" :style="{ color: comp.props.textColor || '#86909C' }">{{ comp.props.placeholder || '搜索名片、客户、人脉' }}</span>
+          <span class="r-search-ph" :style="{ color: comp.props.textColor || '#86909C', textAlign: comp.props.textAlign || 'center' }">{{ comp.props.placeholder || '搜索名片、客户、人脉' }}</span>
         </div>
         <div v-if="comp.props.showMsg !== false" class="r-native-msg"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#4e5969" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
       </div>
@@ -2149,7 +2149,10 @@ const nativeGridItems = [
 .r-gallery-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* 搜索框 */
 .r-search { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13px; color: #86909c; min-width: 0; }
-.r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 🔴 垂直居中：`.r-search` 已是 `align-items:center`，这里 `line-height:1` 兜底 ——
+   span 默认行高按字体算，行盒比容器高一截会显得偏下（用户反馈「框中文字没有垂直居中」）。
+   须与 C 端 `.search-placeholder` 的 `line-height:1` 保持一致，否则后台预览与真机错位。 */
+.r-search-ph { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1; }
 .r-search-btn { flex-shrink: 0; color: #fff; background: #165dff; font-size: 14px; padding: 0 12px; border-radius: 4px; height: 28px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-align: center; }
 .r-search-hot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .r-search-hot-item { font-size: 11px; color: #86909c; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 10px; padding: 2px 8px; }
@@ -2359,7 +2362,10 @@ const nativeGridItems = [
    `flex:none` + `width:%` + auto 边距，让「搜索框宽度」与「容器左右边距」解耦
    （2026-10-07 用户反馈「调边距会同步调小搜索框」）。勿删那条 flex:none。 */
 .r-native-search .r-search{flex:1;min-width:0;}
-.r-native-msg{flex-shrink:0;}
+/* 铃铛：与 C 端 `.msg-icon` 同一套设计 —— 贴右（由 searchBoxPreviewStyle 的 margin-right:auto 保证），
+   后台预览**不模拟**未读态（预览时恒为「无新消息」的安静态：半透明 + 缩小），
+   有未读时的抖动/角标脉冲只在 C 端真机出现。 */
+.r-native-msg{flex-shrink:0;opacity:.45;transform:scale(.88);}
 .r-native-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px 6px;background:#fff;border-radius:8px;padding:12px 8px;}
 .r-native-grid-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
 .r-native-grid-icon{position:relative;width:28px;height:28px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;}.r-native-grid-icon-img{width:72%;height:72%;object-fit:contain;}.r-native-grid-badge{position:absolute;top:-5px;right:-8px;min-width:14px;height:14px;padding:0 3px;border-radius:99px;background:#f53f3f;color:#fff;font-size:8px;line-height:14px;font-style:normal;text-align:center;}

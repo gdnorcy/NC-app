@@ -20,9 +20,12 @@
     <template v-if="designComps.length" v-for="(c, i) in designComps" :key="i">
       <!-- 名片搜索栏 -->
       <view v-if="c.type === 'native-search'" class="top-bar" :class="{ 'with-design-nav': (designHeader && designHeader.type !== 'immersive') || sysHeadStyle }" :style="topBarStyle(c.props)">
+        <!-- 🔴 铃铛永远贴右：给搜索框 `margin-right:auto`（把剩余空间让给铃铛），
+             搜索框自己靠左。原先用 `margin:0auto`（两侧auto）会把剩余空间平分，
+             导致铃铛被推到中间 —— 用户反馈「一直居左，感觉是多余的」。 -->
         <view class="search-box" :style="searchBoxStyle(c.props)" @click="goSearch">
           <SIcon name="dynamic" size="small" :color="c.props.textColor || '#86909c'" />
-          <text class="search-placeholder" :style="{ color: c.props.textColor || '#86909c' }">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
+          <text class="search-placeholder" :style="{ color: c.props.textColor || '#86909c', textAlign: (c.props.textAlign || 'center') }">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
         </view>
         <view class="msg-icon" v-if="c.props.showMsg !== false" :class="{ 'has-unread': unreadCount > 0 }" @click="goMessages">
           <view class="msg-icon-inner"><SIcon name="bell" size="default" color="#4e5969" /></view>
@@ -603,6 +606,13 @@ function viewMarketCard(item) {
   white-space: nowrap;
   font-size: 26rpx;
   color: #86909c;
+  /* 🔴 垂直居中：容器已是 `align-items:center`，这里再显式 `align-self:center` +
+     `line-height:1` 兜底 —— 用户反馈「框中的文字没有垂直居中」。
+     原因是 `<text>` 在小程序里按 inline 布局、行高走字体默认，行盒会比容器高一截，
+     视觉上偏下。`line-height:1` 让行盒等于字号，再由 align-self 精确居中。
+     ⚠️ 勿删 line-height：删掉真机又会偏下（开发者工具不一定复现）。 */
+  align-self: center;
+  line-height: 1;
 }
 .msg-icon {
   width: 56rpx;
@@ -611,8 +621,18 @@ function viewMarketCard(item) {
   align-items: center;
   justify-content: center;
   position: relative;
+  flex-shrink: 0; /* 有未读角标时不能被搜索框挤压变形 */
 }
-.msg-icon-inner { display: flex; }
+.msg-icon-inner { display: flex; align-items: center; justify-content: center; }
+/* 🔴 优化「无新消息时铃铛显得多余、一直居左」（2026-10-07 用户反馈）：
+   ① 位置：`searchBoxSizeStyle()` 给搜索框 `margin-right:auto`，剩余空间全让给铃铛 → 铃铛贴右。
+      原来两侧 auto 会平分剩余空间，把铃铛推到中间。
+   ② 观感：无未读时降到 45% 透明 + 缩到 88%，退成一个「安静的入口」；
+      有未读立刻恢复全不透明并放大回 100%（配 badge-pulse 呼吸 + bell-shake 抖动）。
+      → 有新信息时它自己会跳出来，不需要一个常驻抢眼的存在。 */
+.msg-icon { transition: opacity .2s; }
+.msg-icon:not(.has-unread) { opacity: .45; transform: scale(.88); }
+.msg-icon.has-unread { opacity: 1; }
 /* 有新未读：铃铛每 4s 抖动一次 + 徽章呼吸脉冲 */
 .msg-icon.has-unread .msg-icon-inner { animation: bell-shake 1s ease-in-out 3s infinite; }
 @keyframes bell-shake {
@@ -639,6 +659,8 @@ function viewMarketCard(item) {
   box-sizing: border-box;
   z-index: 2;
   animation: badge-pulse 2s ease-in-out infinite;
+  /* 角标挂在铃铛上，铃铛缩放时角标跟着缩，避免「小铃铛配大角标」的怪比例 */
+  transform-origin: center;
 }
 
 @keyframes badge-pulse {

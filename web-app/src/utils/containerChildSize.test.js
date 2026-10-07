@@ -30,8 +30,24 @@ describe('containerChildSizeStyle 容器内子组件宽度', () => {
       const s = searchBoxSizeStyle(p);
       expect(s.display, JSON.stringify(p)).toBe('block');
       expect(String(s.display)).not.toContain('inline');
-      expect(s.marginLeft).toBe('auto');
+      // 搜索框：左侧不auto，剩余空间全让给右侧铃铛（见下方「铃铛贴右」用例）
+      expect(s.marginLeft).toBe('0');
       expect(s.marginRight).toBe('auto');
+      // 按钮：容器内居中，两侧 auto
+      const b = buttonSizeStyle(p);
+      expect(b.display, JSON.stringify(p)).toBe('block');
+      expect(b.marginLeft).toBe('auto');
+      expect(b.marginRight).toBe('auto');
+    }
+  });
+
+  it('🔴 搜索框 margin-right:auto 把剩余空间让给铃铛（否则铃铛被推到中间/居左）', () => {
+    // 用户反馈「搜索框右边的信息提示图标一直居左，感觉是多余的」：
+    // 两侧 auto 会平分剩余空间 → 铃铛既不贴右也不贴左。
+    for (const p of [{ widthMode: 'full' }, { widthMode: 'full', widthPercent: 60 }, { widthMode: 'auto' }]) {
+      const s = searchBoxSizeStyle(p);
+      expect(s.marginLeft, JSON.stringify(p)).toBe('0');
+      expect(s.marginRight, JSON.stringify(p)).toBe('auto');
     }
   });
 
@@ -43,12 +59,17 @@ describe('containerChildSizeStyle 容器内子组件宽度', () => {
     }
   });
 
-  it('auto 模式：fit-content + flex:none（内容宽且居中）', () => {
+  it('auto 模式：fit-content + flex:none（内容宽；搜索框靠左、按钮居中）', () => {
     const s = searchBoxSizeStyle({ widthMode: 'auto' });
     expect(s.width).toBe('fit-content');
     expect(s.flex).toBe('none');
-    expect(s.marginLeft).toBe('auto');
+    expect(s.marginLeft).toBe('0');
     expect(s.textAlign).toBe('center');
+    // 按钮是容器里唯一元素 → 仍然居中
+    const b = buttonSizeStyle({ widthMode: 'auto' });
+    expect(b.width).toBe('fit-content');
+    expect(b.marginLeft).toBe('auto');
+    expect(b.marginRight).toBe('auto');
   });
 
   it('max-width:100% 兜底（百分比 +铃铛图标时别溢出）', () => {

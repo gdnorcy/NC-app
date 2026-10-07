@@ -17,14 +17,18 @@
 7. 🔴 **「浅色/深色」类判断必须按背景色，不能按文字色**。纸艺类模板是「深色文字 `#2b2723` + 浅色纸底 `#fdfcf9`」，按文字算 luma=39 → 误判深色 → 标题/按钮/徽章全走白字、在浅底上完全消失（名片详情 hero 真机复现）。判据用 `bgStart`、阈值 luma>180；全屏图+深遮罩的版式恒判深色。**同理：凡「明暗」分支的布尔量，先问「判的是前景还是背景」。**
 
 ## 浮层与几何（元规则，跨装修/表单/画布通用）
-- 🔴 **负值浮层被裁 → 给容器补 padding，不要给元素「翻边」**：`.pe-comp-tools{top:-22px}`（贴选中组件上方，符合直觉）曾溢出 `.pe-canvas` 被 `overflow-y:auto` 裁掉半条 → 表现为「标题栏下插着一条被切掉上半的蓝条」且点不到（2026-10-07 用户截图）。正解 `.pe-canvas{padding-top:22px}` —— **`overflow` 裁剪的是 padding box，padding 区域本身可见**，于是 `-22px` 落进 padding 区，不被裁且**位置一点不动**。
-  - ❌ **勿复活「首个组件翻到下方」**（曾用 `.pe-comp-first{bottom:-22px}`，**用户明确否决**）：破坏「操作条贴着选中组件上方」的统一直觉，且首组件本就在画布最顶、往下翻更怪。**元规则：修「被裁」先问「能不能让容器给它留位」，翻边只作为最后手段。** 末尾元素向下溢出的同类代码要一起检查。
-- 🔴 **「组件自身大小」与「容器边距」是两个控件时，用「百分比宽度 + `margin:0 auto`」**：百分比参照容器内容宽、容器左右边距对称 → 容器中心==页面中心 → auto 边距即正确居中；组件大小只由百分比决定，与容器边距无关。权威实现 `utils/btnSize.js:buttonSizeStyle()`。
-  - ❌ **勿复活负 margin 溢出补偿**（`marginLeft:-LR` + `width:calc(100% + 2*LR)`）：只在容器**无 padding** 时成立。本项目容器有 `MIN_BG_PADDING=8` → 按钮会**盖住容器底色并溢出、还偏左**（曾因此被用户指出「按钮没有居中」）。`calc(100%+Npx)` 溢出法同理不适用于有内边距的容器。
-  - 🔴 **凡用 `margin:auto` 居中，必须同时显式写 `display:block`**：inline-block/inline-flex 的 auto 边距**被当成 0**。而组件自带 CSS 类（admin `.r-btn`、C 端 `.dp-btn`）**就是 `display:inline-block`** → 内联的 `marginLeft/Right:'auto'` 静默失效，**`width:100%` 时看不出、`width<100%` 立刻贴左边**（实测 50% 偏移 -179px）。曾只在 auto 分支写、漏了整行分支，用户两次反馈才定位。
-  - 🔧 **实测「偏移 -8px」是容器 padding 的视觉差、不是 bug** —— 判据问「按钮是否在**内容区**居中」，别为不存在的问题加 padding。
-  - 🔧 **CSS 几何问题必须像素实测**：写独立 HTML 复刻真实结构（容器 padding/背景色/有无 text-align 全要还原），用无头 Chrome 截图或 `getBoundingClientRect()` 打印数值。**单测全绿 ≠ 视觉正确**（本项目已三次「单测过、真机错」）。⚠️ 无头 Chrome 的 `--dump-dom` 读 `<pre>` 常拿到空内容，**优先用 `--screenshot`**；headless 需 `--headless=new --no-sandbox`，旧 `--headless` 会 exit 133。
-  - 🔴 **用户的提示里往往已含答案**：「A 模式可以、B 模式不行，你参考一下」⇒ 病根就在两分支的代码差异，先读代码再动手。曾为一个「不居中」浪费 15+ 次调用（反复复刻/查 DB/试图 CDP 登录）被用户当面点破。**同一函数内两分支写法不一致 = 高危信号**，要么都写全要么都别写。
+- 🔴 **「越界浮层被 overflow 裁掉」的正解是「把浮层移出滚动容器 + JS 定位」，不是给容器加 padding**。裁剪边界属于**滚动容器自己**（`.pe-canvas{overflow-y:auto}`），父级/祖先加多少 padding 都不生效 —— 已像素实测：`.pe-phone{padding-top:22px}` 时工具条**仍被裁掉半条、根本不显示**。给画布自己加 padding 虽不被裁，但会在页面顶部凭空造一条空白带，运营误读成「容器上下边距没生效」「蓝条占了位置」→ 预览与真机不符，**用户明确否决**。✅ 权威实现：`.pe-tools-layer`（画布的平级兄弟，`absolute/inset:0/pointer-events:none/z-index:60`）+ `positionCompTools()` 按 `getBoundingClientRect()` 算 top/left。回归测试 `compToolsLayer.test.js`（8 例）已锁。回归测试断言 CSS 时**必须先剥注释**（注释里出现的 `padding-top` 字样会误判）。
+  - **元规则：修「被裁」先问「能不能让容器给它留位」，留位会改变内容区观感时就改成移出容器。翻边只作为最后手段。**
+  - ❌ **勿复活「首个组件翻到下方」**（曾用 `.pe-comp-first{bottom:-22px}`，**用户明确否决**）。❌ 也别用首组件 `padding-top`（推不动边框盒，绝对定位基准是边框盒）或 `margin-top`（首组件位置与真机不符）。
+- 🔴 **「组件自身大小」与「容器边距」是两个控件时，用「百分比宽度 + `margin:0 auto`」**：百分比参照容器内容宽、容器左右边距对称 → 容器中心==页面中心 → auto 边距即正确居中；组件大小只由百分比决定。权威实现 `utils/containerChildSize.js`（button/search 共用，`btnSize.js` 只转发 —— **勿再各写一份**）。
+  - ❌ **勿复活负 margin 溢出补偿**（`marginLeft:-LR` + `width:calc(100% + 2*LR)`）：只在容器**无 padding** 时成立。本项目容器有 `MIN_BG_PADDING=8` → 会盖住底色并溢出、还偏左。`calc(100%+Npx)` 同理不适用。
+  - 🔴 **凡用 `margin:auto` 居中，必须同时显式写 `display:block`**：inline-block/inline-flex 的 auto 边距**被当成 0**。组件自带 CSS 类（admin `.r-btn`、C 端 `.dp-btn`）**就是 `display:inline-block`** → 内联 `marginLeft/Right:'auto'` 静默失效，`width:100%` 时看不出、`<100%` 立刻贴左（实测 50% 偏移 -179px）。
+  - 🔴 **flex 子项必须覆盖 `flex`**：只内联 `width` 会被 `flex:1` 压掉 → 表现为「宽度滑块完全没反应」。发 `flex:none` + `width:%` + `margin` + `max-width:100%`。
+  - 🔴 **兄弟元素有「剩余空间该给谁」的要求时，不要两侧 auto**：`margin:0 auto` 会平分剩余空间。搜索框右侧有铃铛 → 必须 `marginLeft:0` + `marginRight:auto`（铃铛贴右），否则铃铛被推到中间（用户反馈「一直居左、感觉多余」）。
+  - 🔧 **实测「偏移 -8px」是容器 padding 的视觉差、不是 bug**。
+  - 🔧 **CSS 几何问题必须像素实测**：写独立 HTML 复刻真实结构（容器 padding/背景色/有无 text-align 全要还原），用无头 Chrome 截图。**单测全绿 ≠ 视觉正确**（本项目已三次「单测过、真机错」）。⚠️ 无头 Chrome 需 `--headless=new --no-sandbox`；`--dump-dom` 读 `<pre>` 常拿到空内容，**优先用 `--screenshot`**；**`:hover` 在无头下不触发**，要验证 hover 元素得改用 `.active` 或直接算 rect 数值渲染到页面。
+  - 🔴 **用户的提示里往往已含答案**：「A 模式可以、B 模式不行，你参考一下」⇒ 病根就在两分支的代码差异，先读代码再动手。曾为一个「不居中」浪费 15+ 次调用被用户当面点破。**同一函数内两分支写法不一致 = 高危信号**。
+  - 🔴 **「文字没垂直居中」先查行盒**：`align-items:center` 到位但 `<text>`/`span` 按字体默认行高走，行盒比容器高一截 → 视觉偏下。修法是给文字元素补 `line-height:1`（+ `align-self:center` 兜底），**两端必须同步**，否则后台预览与真机错位。
 - ⚠️ schema 字段的说明属性名是 **`tips`（复数）**，不是 `tip`（`PageEditor.vue` 的 `f.tips`）。
 
 ## 「点了没反应」三类静默失败

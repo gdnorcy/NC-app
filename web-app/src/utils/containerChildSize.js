@@ -99,11 +99,21 @@ export function buttonSizeStyle(p) {
  *   解法与按钮同源：改用百分比宽度 + auto 边距，且**必须覆盖 `flex`**，
  *   否则 `flex:1` 会把 width 压掉、表现为「宽度百分比滑块完全没反应」。
  *
+ * 🔴 边距策略与按钮不同（2026-10-07 用户反馈「铃铛一直居左，感觉是多余的」）：
+ *   搜索框**右边有铃铛**。若沿用按钮的两侧 `margin:0 auto`，剩余空间被平分 →
+ *   铃铛被推到中间（截图里就是这样）。所以这里只给 **margin-right:auto**，
+ *   把全部剩余空间让给铃铛 → **铃铛永远贴右**、搜索框靠左。
+ *   ⚠️ 这是「同一模块、两套边距」，改前先确认调用方是按钮还是搜索框。
+ *
  * @param {object} p 组件 props
  * @returns {object}
  */
 export function searchBoxSizeStyle(p) {
-  return containerChildSizeStyle(p, { flexChild: true });
+  const s = containerChildSizeStyle(p, { flexChild: true });
+  // 🔴 覆盖通用实现的两侧 auto → 改成只有右侧 auto，把剩余空间全让给铃铛（贴右）
+  s.marginLeft = '0';
+  s.marginRight = 'auto';
+  return s;
 }
 
 /** 百分比夹取到 20~100；未设/非法一律 100（保持存量「整行」视觉不变） */

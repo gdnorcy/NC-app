@@ -1509,11 +1509,14 @@ export const componentRegistry = [
     name: '名片搜索栏',
     group: 'card',
     icon: 'native-search',
-    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0, widthMode: 'full', widthPercent: 100 },
+    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0, widthMode: 'full', widthPercent: 100, textAlign: 'center' },
     schema: [
       { key: 'placeholder', label: '占位文案', control: 'input', section: 'content', placeholder: '如 搜索名片、客户、人脉' },
+      // 🔴 占位文案对齐（2026-10-07 用户反馈「框中的文字没有垂直居中」+ 横向对齐不可调）。
+      //   ⚠️ 用`textAlign` 而不是 `align`：与 title 组件的 `align` 区分，避免面板去重后语义串味。
+      { key: 'textAlign', label: '文字对齐', control: 'radio', section: 'content', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '占位文案的横向对齐方式' },
       { key: 'style', label: '搜索框风格', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '阴影', value: 'shadow' }, { label: '描边', value: 'border' }] },
-      { key: 'showMsg', label: '消息图标', control: 'switch', section: 'content' },
+      { key: 'showMsg', label: '消息图标', control: 'switch', section: 'content', tips: '右侧铃铛，固定贴右。静默时半透明缩小；收到新消息会抖动并显示未读数' },
       { key: 'height', label: '高度', control: 'slider', section: 'style', min: 32, max: 48 },
       { key: 'radius', label: '搜索框圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       // 🔴 label 必须写清作用层，否则与通用项的「组件背景色」混淆。

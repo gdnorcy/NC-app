@@ -151,28 +151,41 @@
               v-for="(c, i) in normalComps"
               :key="c.id"
               class="pe-comp"
+              :data-cid="c.id"
               :class="{ active: selected === c.id }"
               :style="compBoxStyle(c)"
               draggable="true"
+              @mouseenter="hoverCompId = c.id"
+              @mouseleave="hoverCompId = null"
               @dragstart="onCompDragStart($event, i)"
               @dragover.prevent="onCompDragOver(i)"
               @drop.prevent="onCompDrop()"
               @click.stop="selectComp(c)"
             >
-              <!-- 组件操作条（组件内嵌，hover/选中显示，对齐 ew） -->
-              <div class="pe-comp-tools" @click.stop>
-                <span class="pe-comp-idx">{{ compIndex(c) }}</span>
-                <span class="pe-comp-type">{{ c.name }}</span>
-                <span class="pe-tool" title="上移" @click.stop="moveComp(c, -1)">↑</span>
-                <span class="pe-tool" title="下移" @click.stop="moveComp(c, 1)">↓</span>
-                <span class="pe-tool" title="复制" @click.stop="dupComp(c)">⧉</span>
-                <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(c.id)">✕</span>
-              </div>
               <ComponentRender :comp="c" :global="meta.global || {}" :sf-meta="sfMetaMap" />
             </div>
             <div v-if="!components.length" class="pe-empty">
               <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#86909C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
               <span>从左侧组件库点击添加组件，画布即时渲染真实效果</span>
+            </div>
+          </div>
+          <!-- 组件操作条图层（画布**外面**的兄弟节点）：
+               🔴 为什么不用「组件内绝对定位 top:-22px」：`.pe-canvas` 是 `overflow-y:auto`，
+               裁剪边界属于它自己，**父级/兄弟给多少 padding 都不起作用**（已像素实测：
+               挂 `.pe-phone` padding-top 无效，工具条仍被裁掉半条）。
+               而挂 `.pe-canvas{padding-top}` 虽不被裁，却会在页面顶部凭空多一条空白带 →
+               运营误读成「容器上下边距没生效」「蓝条占了位置」（用户明确否决，预览必须=真机）。
+               ✅ 解法：操作条移出画布，放进这个 `position:absolute; inset:0` 的图层，
+                  坐标由 `positionCompTools()` 按组件真实 rect 算 → 零裁剪、零占位，
+                  且天然「贴在组件上方」「z-index 置顶」。 -->
+          <div class="pe-tools-layer">
+            <div v-if="toolsComp" class="pe-comp-tools" :style="toolsStyle" @click.stop>
+              <span class="pe-comp-idx">{{ compIndex(toolsComp) }}</span>
+              <span class="pe-comp-type">{{ toolsComp.name }}</span>
+              <span class="pe-tool" title="上移" @click.stop="moveComp(toolsComp, -1)">↑</span>
+              <span class="pe-tool" title="下移" @click.stop="moveComp(toolsComp, 1)">↓</span>
+              <span class="pe-tool" title="复制" @click.stop="dupComp(toolsComp)">⧉</span>
+              <span class="pe-tool pe-tool-del" title="删除" @click.stop="removeComp(toolsComp.id)">✕</span>
             </div>
           </div>
           <!-- 底部导航预览：按页面「底部导航」设置渲染（使用默认/独立方案/关闭导航），编辑画布所见即所得 -->
@@ -1166,7 +1179,12 @@ function measureNavBar() {
 watch(previewNavItems, measureNavBar, { immediate: true });
 onMounted(() => {
   const wrap = document.querySelector('.pe-canvas-wrap');
-  if (wrap) { floatToolsScrollEl = wrap; wrap.addEventListener('scroll', positionFloatTools, { passive: true }); }
+  if (wrap) {
+    floatToolsScrollEl = wrap;
+    // 操作条坐标依赖组件 rect，外层滚动同样要跟随（函数声明提升，调用时才求值）
+    wrap.addEventListener('scroll', positionFloatTools, { passive: true });
+    wrap.addEventListener('scroll', positionCompTools, { passive: true });
+  }
   window.addEventListener('resize', positionFloatTools);
 });
 onBeforeUnmount(() => {
@@ -1475,6 +1493,56 @@ function positionFloatTools() {
 //   规则：setup 内引用 ref 的 watch，必须写在那个 ref 声明之后。
 watch(selected, () => nextTick(positionFloatTools));
 watch(() => selectedComp.value?.props, () => nextTick(positionFloatTools), { deep: true });
+
+// ---- 普通组件操作条（hover / 选中显示，贴在组件上方）----
+// 🔴 为什么不放在 `.pe-comp` 里用 `position:absolute; top:-22px`：
+//   `.pe-canvas` 是 `overflow-y:auto`，**裁剪边界属于它自己**，父级 `.pe-phone` 加多少
+//   padding 都不起作用（已像素实测：挂 padding-top 后工具条仍被裁掉半条、显示不出来）。
+//   而挂 `.pe-canvas{padding-top}` 虽不被裁，却会在页面顶部凭空多一条空白带，
+//   运营会误读成「容器上下边距没生效」「蓝条占了位置」→ 预览与真机不符（用户明确否决）。
+//   ✅ 所以操作条移出画布，放进平级的 `.pe-tools-layer`（absolute/inset:0），
+//      坐标按组件真实 rect 算：零裁剪、零占位、零假间距，且天然置顶。
+// hover 优先于选中：鼠标移到哪个组件就显示哪个；移出后回落到选中项。
+const hoverCompId = ref(null);
+const toolsComp = computed(() => {
+  const id = hoverCompId.value || selected.value;
+  return components.value.find((c) => c.id === id) || null;
+});
+const toolsStyle = ref({ top: '0px', left: '0px' });
+function positionCompTools() {
+  const c = toolsComp.value;
+  if (!c) return;
+  const layer = document.querySelector('.pe-tools-layer');
+  const compEl = layer && document.querySelector(`.pe-canvas .pe-comp[data-cid="${c.id}"]`);
+  const toolsEl = layer && layer.querySelector('.pe-comp-tools');
+  if (!layer || !compEl || !toolsEl) return;
+  const lr = layer.getBoundingClientRect();
+  const cr = compEl.getBoundingClientRect();
+  const tr = toolsEl.getBoundingClientRect();
+  // 贴在组件**上方**；上方不够就翻到内侧顶（首组件上方是状态栏/导航栏，翻出去会被壳遮住）
+  let top = cr.top - lr.top - tr.height - 2;
+  if (top < 2) top = cr.top - lr.top + 2;
+  // 右对齐组件右沿（与原 `right:4px` 观感一致），并夹在壳内
+  let left = cr.right - lr.left - tr.width - 4;
+  left = Math.max(4, Math.min(left, lr.width - tr.width - 4));
+  toolsStyle.value = { top: top + 'px', left: left + 'px' };
+}
+// 组件增删/排序/属性变化/画布滚动都会让操作条坐标失效，统一重算
+watch(toolsComp, () => nextTick(positionCompTools));
+watch(() => selectedComp.value?.props, () => nextTick(positionCompTools), { deep: true });
+watch(components, () => nextTick(positionCompTools), { deep: true });
+// 画布自身滚动（`.pe-canvas` overflow-y:auto）也要跟随
+let canvasScrollEl = null;
+onMounted(() => {
+  canvasScrollEl = document.querySelector('.pe-canvas');
+  if (canvasScrollEl) canvasScrollEl.addEventListener('scroll', positionCompTools, { passive: true });
+  window.addEventListener('resize', positionCompTools);
+  nextTick(positionCompTools);
+});
+onBeforeUnmount(() => {
+  if (canvasScrollEl) canvasScrollEl.removeEventListener('scroll', positionCompTools);
+  window.removeEventListener('resize', positionCompTools);
+});
 
 function setProp(key, val) {
   if (!selectedComp.value) return;
@@ -2417,6 +2485,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
   flex-shrink: 0;
   position: relative;
   display: flex; flex-direction: column; /* 状态栏/导航/画布/底部导航纵向排布，画布底部紧贴底部导航，与 C 端视口结构一致 */
+  /* ⚠️ 这里**不能**加 padding-top 去给操作条留位：裁剪者是 `.pe-canvas`（overflow-y:auto），
+     父级 padding 改变不了它的裁剪边界 → 工具条照样被裁（已像素实测验证）。
+     操作条改用 `position:fixed` + JS 定位，见 `.pe-comp-tools`。 */
 }
 /* 顶部状态栏：模拟真实小程序（时间/信号/WiFi/电池固定，参考图7） */
 .pe-status-bar {
@@ -2462,12 +2533,9 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
-/* ⚠️ 画布**不能**有 padding-top：曾为让首组件的操作条（向上溢出 22px）不被
-   `overflow-y:auto` 裁掉而加 `padding-top:22px`，代价是画布顶部凭空多一条空白带 →
-   用户误读成「容器上下边距没生效」「蓝条占了位置」，**预览与真机不符**（已否决）。
-   ✅ 现在操作条改为 `top:0` 贴组件上沿**内侧**（见 `.pe-comp-tools`），
-      零溢出、零占位、零裁剪 → 画布 padding 必须是 0。
-   ⚠️ 不要改成「首个组件的操作条翻到组件下方」（用户明确否决）：破坏「操作条贴着选中组件」的直觉。 */
+/* ⚠️ 画布**不能**有 padding-top：画布就是页面内容区，任何顶部留白都会被运营误读成
+   「容器上下边距没生效」「蓝条占了位置」，预览与真机不符（2026-10-07 用户明确否决）。
+   操作条向上溢出的留白改挂在**壳上** `.pe-phone{padding-top:22px}`，见该CSS 处注释。 */
 .pe-canvas { flex: 1 1 0%; min-height: 420px; padding: 0; background: transparent; position: relative; overflow-y: auto; }
 /* 悬浮组件视口层：覆盖整个预览壳，模拟 C 端 fixed 视口定位；容器穿透点击，仅组件按钮可点 */
 .pe-float-layer { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
@@ -2481,27 +2549,28 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
    设了容器底色时会下发 MIN_BG_PADDING=8px，让底色能露出来 —— 这与真机一致，
    且此时虚线选中框正好贴合「容器/底色」边界（真机上也是这个边界），不是错位。 */
 .pe-comp { position: relative; border: 1px dashed transparent; border-radius: 8px; margin-bottom: 0; padding: 0; transition: border-color .15s; }
-.pe-comp:hover { border-color: #c9cdd4; }
+/* hover 预选框：用户反馈「颜色要明显一点」。原先 `#c9cdd4` 几乎看不出。
+   用主题蓝的浅调（#7aa2ff 虚线）+ 一圈淡蓝外发光，既明显又与 `.active`（实线 + 双层描边）区分得开。 */
+.pe-comp:hover { border-color: #7aa2ff; box-shadow: 0 0 0 2px rgba(22,93,255,.10); }
 /* `.pe-comp` 现在内联组件自己的容器背景色，会盖掉 `.active` 的淡蓝高亮
    → 选中态看不出选中了。用 **outline + box-shadow** 表达选中（两者都不吃背景色），
    而不是给 `.active` 加 background !important（那会把组件真实底色也盖掉）。
    优先级：outline 描边在外圈、box-shadow 紧贴，两者叠加即清晰可见。 */
 .pe-comp.active { border-color: #165dff; outline: 1px solid #165dff; box-shadow: 0 0 0 3px rgba(22,93,255,.16); }
+/* 操作条图层：与 `.pe-canvas` 平级、在它**上面**，覆盖整个预览壳。
+   画布自身 `overflow-y:auto` 会裁掉一切越界内容（含子元素），父级 padding 改不动这个边界，
+   所以操作条只能移出画布来定位。`pointer-events:none` 让空白处点击穿透到画布。 */
+.pe-tools-layer { position: absolute; inset: 0; pointer-events: none; z-index: 60; }
 /* hover / 选中即显工具条（仿 eweishop/nshop）
-   🔴 定位用 `top:0`（贴组件**上沿内侧**），不要 `top:-22px`（上沿外侧）：
-   外侧定位会溢出 `.pe-canvas`（overflow-y:auto）被裁 → 首组件表现为「标题栏下插一条
-   被切掉上半的蓝条」且点不到。
-   ⚠️ 曾试过三种绕法，全部否决（2026-10-07用户反馈「蓝条占了位置，上部有间隔，会误导用户」）：
-   ① `.pe-canvas{padding-top:22px}` → 画布顶部多一条空白带，预览与真机不符；
-   ② 首组件 `padding-top:22px` → **无效**：padding 只推内容不推边框盒，工具条定位基准仍是边框盒，照样被裁；
-   ③ 首组件 `margin-top:22px` → 有效但会让首组件位置与真机不符（真机没这段留白）。
-   内侧定位零占位、零裁剪、首尾组件一致，最干净。 */
+   🔴 定位：`.pe-tools-layer` 是 `position:absolute; inset:0`，故这里用 top/left 即可，
+      坐标由 `positionCompTools()` 按组件真实 rect 计算（贴在组件**上方**，用户要的直觉）。
+   🔴 顶部 clamp 到壳内：首组件上方就是状态栏/导航栏，操作条压在上面会像"被手机壳挡住"，
+      贴到壳内 4px 即可完整可见（`positionCompTools` 里的 `Math.max` 处理）。 */
 .pe-comp-tools {
-  display: none; position: absolute; top: 0; right: 4px; background: #165dff; color: #fff;
-  border-radius: 6px; font-size: 11px; padding: 2px 8px; z-index: 2; align-items: center; gap: 6px;
-  box-shadow: 0 2px 6px rgba(22,93,255,.3); white-space: nowrap;
+  display: flex; position: absolute; background: #165dff; color: #fff;
+  border-radius: 6px; font-size: 11px; padding: 2px 8px; align-items: center; gap: 6px;
+  box-shadow: 0 2px 6px rgba(22,93,255,.3); white-space: nowrap; pointer-events: auto;
 }
-.pe-comp:hover .pe-comp-tools, .pe-comp.active .pe-comp-tools { display: flex; }
 .pe-comp-idx { background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 5px; }
 .pe-comp-type { color: #fff; }
 .pe-tool { cursor: pointer; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: background .15s; font-size: 12px; line-height: 1; }
