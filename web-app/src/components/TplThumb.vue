@@ -11,8 +11,8 @@
           <view class="tt-bar tt-bar-dim" :style="barDimStyle"></view>
         </view>
       </view>
-      <!-- 居中展示：头像/名字居中 -->
-      <view v-else-if="layout === 'ctr'" class="tt-ctr">
+      <!-- 居中展示：头像/名字居中（royal/pano 形象照版无 cover 时的近似缩略图） -->
+      <view v-else-if="layout === 'ctr' || photoLike" class="tt-ctr">
         <view class="tt-avatar tt-avatar-lg" :style="avatarStyle"></view>
         <view class="tt-bar tt-bar-w" :style="barStyle"></view>
         <view class="tt-bar tt-bar-dim tt-bar-w" :style="barDimStyle"></view>
@@ -54,6 +54,9 @@ const props = defineProps({
 const theme = computed(() => parseTheme(props.template?.themeConfig) || {});
 
 const layout = computed(() => theme.value.heroLayout || 'cls');
+
+// 形象照版/曜石黑金（royal/pano1-6）：无 cover 时按居中迷你卡近似渲染
+const photoLike = computed(() => ['royal', 'pano1', 'pano2', 'pano3', 'pano4', 'pano5', 'pano6'].includes(layout.value));
 
 // 容器：渐变/纯色 + 描边 + 纹理（纹理与渐变合并为多层 background）
 const boxStyle = computed(() => {

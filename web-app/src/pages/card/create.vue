@@ -43,6 +43,22 @@
           <input class="form-input" v-model="form.companyName" placeholder="请输入公司名称" placeholder-class="ph" />
         </view>
 
+        <!-- 多公司任职（本期新增：模板市场多公司展示的数据来源） -->
+        <view class="form-item" v-if="form.companies.length">
+          <view class="form-label">其他任职公司</view>
+          <view class="co-list">
+            <view class="co-row" v-for="(c, i) in form.companies" :key="i">
+              <input class="form-input co-name" v-model="c.name" placeholder="公司名称" placeholder-class="ph" />
+              <input class="form-input co-pos" v-model="c.position" placeholder="职务（选填）" placeholder-class="ph" />
+              <view class="co-del" @click="removeCompany(i)"><SIcon name="close" size="small" color="#8a8f99" /></view>
+            </view>
+          </view>
+        </view>
+        <view class="form-item" v-if="form.companies.length < 5">
+          <view class="form-label"></view>
+          <view class="add-co" @click="addCompany">＋ 添加任职公司</view>
+        </view>
+
         <view class="form-item">
           <view class="form-label">所在城市</view>
           <picker mode="multiSelector" :range="[provinceList, regionCities]" :value="[provinceIndex, cityIndex]" @change="onCityChange" @columnchange="onCityColumnChange">
@@ -276,7 +292,16 @@ const form = reactive({
   phone: '', wechat: '', email: '', businessField: '', videoChannel: '', isPublic: true, needTags: [],
   bindCode: '', enterpriseName: '', industry: '',
   voiceUrl: '', voiceName: '',
+  companyName: '', companies: [],
 });
+// 多公司：公司名+职务，最多 5 个
+function addCompany() {
+  if (form.companies.length >= 5) return;
+  form.companies.push({ name: '', position: '' });
+}
+function removeCompany(i) {
+  form.companies.splice(i, 1);
+}
 const voiceAllowed = ref(false);
 const voiceSrc = ref('');
 
@@ -413,6 +438,9 @@ onMounted(async () => {
       const res = await cardApi.getCard(id);
       Object.assign(form, res.card);
       form.needTags = parseNeedTags(form.needTags);
+      // 公司回填：单公司 companyName + 多公司 companies（后端已解析为数组）
+      if (res.card.company) form.companyName = res.card.company;
+      if (!Array.isArray(form.companies)) form.companies = [];
       syncCityIndex();
     } catch (e) {}
   } else {
@@ -531,13 +559,17 @@ async function submit() {
   }
   submitting.value = true;
   let newCardId = null;
+  // 多公司：过滤空行后提交（name 非空才保留）
+  const cleanCompanies = form.companies
+    .map((c) => ({ name: String(c.name || '').trim(), position: String(c.position || '').trim() }))
+    .filter((c) => c.name);
   try {
     if (isEdit.value) {
-      await cardApi.updateCard(form.id, { ...form, needTags: JSON.stringify(form.needTags) });
+      await cardApi.updateCard(form.id, { ...form, companies: cleanCompanies, needTags: JSON.stringify(form.needTags) });
       uni.showToast({ title: '保存成功', icon: 'success' });
       track('form_submit', { cardId: form.id || newCardId || 0, page: '/pages/card/create', extra: { isEdit: isEdit.value } });
     } else {
-      const payload = { ...form, needTags: JSON.stringify(form.needTags) };
+      const payload = { ...form, companies: cleanCompanies, needTags: JSON.stringify(form.needTags) };
       // 入驻绑定：填了口令才同时入驻
       if (payload.bindCode) {
         payload.applyType = cardType.value;
@@ -1031,4 +1063,36 @@ async function submit() {
 /* 占位文字：必须走 --sk-input-ph，否则暗色皮肤下浅灰字配深色输入框看不清
    （旧代码写死 #9a9a9a，与上面 .form-input.ph 的变量化不一致 → 同一表单两种占位色） */
 .picker-value.ph { color: var(--sk-input-ph, #9a9a9a); }
+/* 多公司任职（本期新增：模板市场多公司展示的数据来源） */
+.co-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.co-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.co-name {
+  flex: 1.4;
+}
+.co-pos {
+  flex: 1;
+}
+.co-del {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.add-co {
+  font-size: 26rpx;
+  color: var(--design-primary, #165dff);
+  padding: 10rpx 0;
+}
 </style>

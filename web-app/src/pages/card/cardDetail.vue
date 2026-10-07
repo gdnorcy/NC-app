@@ -5,7 +5,7 @@
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" :color="navFgColor" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
-    <view class="hero" :class="[layoutFull ? 'hero-full' : 'hero-' + heroLayout, heroFontCls]" :style="heroStyle">
+    <view class="hero" :class="[layoutFull ? 'hero-full' : 'hero-' + heroLayout, heroFontCls, squareCls, nameBigCls]" :style="heroStyle">
       <!-- 模板主题 overlay：纹理 + 顶部渐变条 -->
       <view v-if="!layoutFull && textureBg" class="hero-texture" :style="{ backgroundImage: textureBg }"></view>
       <view v-if="!layoutFull && barTopStyle" class="hero-bartop" :style="barTopStyle"></view>
@@ -50,12 +50,115 @@
         <view class="hero-badge ctr-badge" v-if="memberLevel !== 'free'" :style="{ color: heroColor, background: isLightHero ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)', borderColor: isLightHero ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)' }"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
       </view>
       <!-- tp1-3 杂志大字（mag）：左对齐大字 · 衬线 · 细线 -->
-      <view class="hero-mag" v-else>
+      <view class="hero-mag" v-else-if="heroLayout === 'mag'">
         <view class="mag-name" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
         <view class="mag-rule" :style="accentStyle"></view>
         <view class="mag-pos" :style="subStyle">{{ card.position || '—' }}</view>
         <view class="mag-co" :style="subStyle">{{ cityLine }}</view>
-        <view class="hero-badge mag-badge" v-if="memberLevel !== 'free'" :style="{ color: heroColor, background: isLightHero ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)', borderColor: isLightHero ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)' }"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+        <view class="hero-badge mag-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+      </view>
+      <!-- tp1-4 曜石黑金（royal）：金描边居中 · 公司右上角竖排 · 徽章姓名右侧 -->
+      <view class="hero-royal" v-else-if="heroLayout === 'royal'">
+        <view class="royal-top">
+          <view class="royal-ava" :style="avatarStyle">
+            <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+            <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
+          </view>
+          <view class="royal-cos" v-if="cosList.length">
+            <view class="rco" v-for="(c, i) in cosList" :key="i">
+              <view class="rdot"></view>
+              <view class="rc-txt"><text class="rcn">{{ c.name }}</text><text class="rcp" v-if="c.position">{{ c.position }}</text></view>
+            </view>
+          </view>
+        </view>
+        <view class="royal-name" :style="nmStyle">{{ card.name || '您的姓名' }}<text class="badge-inline" v-if="memberLevel !== 'free'" :style="badgeInlineStyle"><SIcon name="crown" size="small" :color="badgeInlineAccent" />{{ memberLevelText }}</text></view>
+        <view class="royal-pos" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="royal-fl" :style="subStyle">{{ cityLine }}</view>
+      </view>
+      <!-- pano1 全幅晨光：形象照全幅 + 底部遮罩 + 信息贴底 -->
+      <view class="hero-pano1" v-else-if="heroLayout === 'pano1'">
+        <image class="pano-bg" :src="card.avatar" mode="aspectFill" />
+        <view class="pano-mask-b"></view>
+        <view class="pano-top">
+          <view class="pano-ava" :style="avatarStyle">
+            <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+            <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
+          </view>
+          <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+        </view>
+        <view class="pano-info">
+          <view class="pano-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+          <view class="pano-ps" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="pano-fl" :style="subStyle">{{ cityLine }}</view>
+        </view>
+      </view>
+      <!-- pano2 黑金尊享：形象照全幅右移 + 左侧渐变蒙版 + 多公司 -->
+      <view class="hero-pano2" v-else-if="heroLayout === 'pano2'">
+        <image class="pano-bg pano-bg-shift" :src="card.avatar" mode="aspectFill" />
+        <view class="pano-mask-l"></view>
+        <view class="pano2-info">
+          <view class="pano2-nm" :style="nmStyle">{{ card.name || '您的姓名' }}<text class="badge-inline" v-if="memberLevel !== 'free'" :style="badgeInlineStyle"><SIcon name="crown" size="small" :color="badgeInlineAccent" />{{ memberLevelText }}</text></view>
+          <view class="pano2-ps" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="pano2-fl" :style="subStyle">{{ cityLine }}</view>
+          <view class="pano2-cos" v-if="cosList.length">
+            <view class="pco" v-for="(c, i) in cosList" :key="i"><view class="pdot"></view><text class="pcn">{{ c.name }}</text><text class="pcp" v-if="c.position"> · {{ c.position }}</text></view>
+          </view>
+        </view>
+      </view>
+      <!-- pano3 圆像明净：圆形大形象照居中（浅底） -->
+      <view class="hero-pano3" v-else-if="heroLayout === 'pano3'">
+        <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+        <view class="p3-ava" :style="avatarStyle">
+          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
+        </view>
+        <view class="p3-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+        <view class="p3-ps" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="p3-fl" :style="subStyle">{{ cityLine }}</view>
+      </view>
+      <!-- pano4 左照右文：左侧形象照整卡 + 右侧信息 -->
+      <view class="hero-pano4" v-else-if="heroLayout === 'pano4'">
+        <view class="p4-hin">
+          <view class="p4-ph">
+            <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+            <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
+          </view>
+          <view class="p4-rin">
+            <view class="p4-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+            <view class="p4-ps" :style="subStyle">{{ card.position || '—' }}</view>
+            <view class="p4-fl" :style="subStyle">{{ cityLine }}</view>
+            <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+          </view>
+        </view>
+      </view>
+      <!-- pano5 杂志文艺：左文右图整卡（米白纸底） -->
+      <view class="hero-pano5" v-else-if="heroLayout === 'pano5'">
+        <view class="p5-rin">
+          <view class="p5-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+          <view class="p5-ps" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="p5-fl" :style="subStyle">{{ cityLine }}</view>
+          <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+        </view>
+        <view class="p5-ph">
+          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
+        </view>
+      </view>
+      <!-- pano6 圆角大图·暗夜：暗底 + 中央大图圆角卡 -->
+      <view class="hero-pano6" v-else-if="heroLayout === 'pano6'">
+        <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
+        <view class="p6-big" :style="avatarStyle">
+          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
+        </view>
+        <view class="p6-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
+        <view class="p6-ps" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="p6-fl" :style="subStyle">{{ cityLine }}</view>
+      </view>
+      <!-- hero 引导条：保存名片 / 关注TA（主题 guide=true 时显示） -->
+      <view class="hero-guide" v-if="showGuide" :class="[isLightHero ? 'hg-light' : '', guideSolidCls]">
+        <view class="hg-btn" @click="toggleCollect">{{ collected ? '已保存' : '＋ 保存名片' }}</view>
+        <view class="hg-btn hg-primary" @click="followCard">关注 TA</view>
       </view>
       <!-- quickbar（快速操作四键+） -->
       <view class="quickbar" :class="isLightHero ? 'qb-light' : ''">
@@ -83,6 +186,15 @@
           <SIcon name="template" size="default" :color="heroColor" />
           <text>换模板</text>
         </view>
+      </view>
+    </view>
+
+    <!-- 任职公司列表卡（极简明净 companiesCard：hero 下方独立列表） -->
+    <view class="cos-card" v-if="showCompaniesCard && cosList.length">
+      <view class="cos-t">任职公司</view>
+      <view class="coco" v-for="(c, i) in cosList" :key="i">
+        <view class="cdot"></view>
+        <view class="coco-txt"><text class="cn">{{ c.name }}</text><text class="cp" v-if="c.position">{{ c.position }}</text></view>
       </view>
     </view>
 
@@ -370,6 +482,35 @@ const textureBg = computed(() => (heroTheme.value ? heroTextureBg(heroTheme.valu
 const heroColor = computed(() => (heroTheme.value?.textColor || '#ffffff'));
 // 衬线字体类名（font-family 必须走 CSS 类，不能内联，见 templateTheme.js 注释）
 const heroFontCls = computed(() => heroFontClass(card.value.templateTheme));
+// ===== 新皮肤（11套）附加字段 =====
+// 多公司列表：card.companies 优先，回退单公司 company
+const cosList = computed(() => {
+  const cs = card.value.companies;
+  if (Array.isArray(cs) && cs.length) return cs;
+  if (card.value.company) return [{ name: card.value.company, position: card.value.position || '' }];
+  return [];
+});
+// 引导条（保存名片/关注TA）——主题 guide=true 且非 full 全屏式
+const showGuide = computed(() => !layoutFull.value && heroTheme.value?.guide);
+const guideSolidCls = computed(() => (heroTheme.value?.guideSolid ? 'hg-solid' : ''));
+// 暗夜极光增强：方形图标 + 大姓名
+const squareCls = computed(() => (heroTheme.value?.quickSquare ? 'hero-square' : ''));
+const nameBigCls = computed(() => (heroTheme.value?.nameBig ? 'hero-namebig' : ''));
+// 极简明净：hero 下方任职公司列表卡
+const showCompaniesCard = computed(() => !layoutFull.value && heroTheme.value?.companiesCard);
+// 徽章样式（复用现有内联写法）
+const badgeStyle = computed(() => ({
+  color: heroColor.value,
+  background: isLightHero.value ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)',
+  borderColor: isLightHero.value ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)',
+}));
+// 姓名右侧小徽章（曜石黑金/黑金尊享）
+const badgeInlineAccent = computed(() => (heroTheme.value?.accent || '#c9a25e'));
+const badgeInlineStyle = computed(() => ({
+  color: badgeInlineAccent.value,
+  background: isLightHero.value ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.14)',
+  borderColor: heroTheme.value?.borderColor || badgeInlineAccent.value,
+}));
 // 浅色 hero（白/纸艺等）：quickbar / PageNav 标题改深色，避免白色文字不可见
 // 🔴 判据必须是**背景色**亮度，不是文字色！纸艺雅致是「深色文字 #2b2723 + 浅色纸底
 // #fdfcf9」，按文字色算 luma=39 会误判成深色 hero → 白字白底按钮 → 整块看不见。
@@ -658,6 +799,17 @@ async function toggleCollect() {
 function shareCard() {
   uni.showToast({ title: '请点击右上角分享', icon: 'none' });
 }
+
+// 关注 TA：交换名片/建立连接（card.js POST /exchange）
+async function followCard() {
+  if (!card.value.id) return;
+  try {
+    await cardApi.exchange({ toCardId: card.value.id, sharePhone: false });
+    uni.showToast({ title: '已交换名片', icon: 'success' });
+  } catch (e) {
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' });
+  }
+}
 </script>
 
 <style scoped>
@@ -828,6 +980,454 @@ function shareCard() {
 .mag-badge {
   margin-top: 18rpx;
 }
+/* ===== 曜石黑金（royal）：金描边居中 · 公司右上角竖排 · 徽章姓名右侧 ===== */
+.hero-royal {
+  position: relative;
+  z-index: 1;
+}
+.royal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.royal-ava {
+  width: 112rpx;
+  height: 112rpx;
+  overflow: hidden;
+  border: 2rpx solid rgba(201,162,94,0.75);
+  box-shadow: 0 10rpx 26rpx rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.royal-cos {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  align-items: flex-end;
+  padding-top: 8rpx;
+  max-width: 60%;
+}
+.rco {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+}
+.rdot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #c9a25e;
+  margin-top: 12rpx;
+  flex-shrink: 0;
+}
+.rc-txt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.rcn {
+  font-size: 23rpx;
+  letter-spacing: 1rpx;
+}
+.rcp {
+  font-size: 20rpx;
+  opacity: 0.72;
+  margin-top: 2rpx;
+}
+.royal-name {
+  font-size: 46rpx;
+  font-weight: 700;
+  letter-spacing: 3rpx;
+  margin-top: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+.badge-inline {
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid;
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  white-space: nowrap;
+}
+.royal-pos {
+  font-size: 25rpx;
+  opacity: 0.88;
+  margin-top: 8rpx;
+}
+.royal-fl {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
+}
+/* ===== 形象照 hero（pano1/pano2 全幅照片固定高） ===== */
+.hero-pano1,
+.hero-pano2 {
+  height: 640rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.pano-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.pano-bg-shift {
+  object-position: 60% 18%;
+  transform: translateX(20%);
+}
+.pano-mask-b {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8,6,10,0) 32%, rgba(8,6,10,0.72) 100%);
+  z-index: 1;
+}
+.pano-mask-l {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, #08060a 0%, #08060a 32%, rgba(8,6,10,0.62) 46%, rgba(8,6,10,0.18) 62%, rgba(8,6,10,0) 78%);
+  z-index: 1;
+}
+.pano-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 22rpx;
+}
+.pano-ava {
+  width: 84rpx;
+  height: 84rpx;
+  overflow: hidden;
+  border: 2rpx solid rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pano-info,
+.pano2-info {
+  position: relative;
+  z-index: 2;
+}
+.pano-nm {
+  font-size: 44rpx;
+  font-weight: 700;
+}
+.pano-ps {
+  font-size: 26rpx;
+  opacity: 0.9;
+  margin-top: 6rpx;
+}
+.pano-fl {
+  font-size: 24rpx;
+  opacity: 0.72;
+  margin-top: 8rpx;
+}
+.pano2-info {
+  padding-right: 120rpx;
+}
+.pano2-nm {
+  font-size: 44rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+.pano2-ps {
+  font-size: 26rpx;
+  opacity: 0.9;
+  margin-top: 6rpx;
+}
+.pano2-fl {
+  font-size: 24rpx;
+  opacity: 0.78;
+  margin-top: 8rpx;
+}
+.pano2-cos {
+  margin-top: 14rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.pco {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 22rpx;
+}
+.pdot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #d9bc78;
+  flex-shrink: 0;
+}
+.pcn {
+  opacity: 0.92;
+}
+.pcp {
+  opacity: 0.68;
+}
+/* ===== pano3 圆像明净：圆形大形象照居中 ===== */
+.hero-pano3 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.p3-ava {
+  width: 240rpx;
+  height: 240rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2rpx solid rgba(22,93,255,0.25);
+  box-shadow: 0 14rpx 36rpx rgba(0,0,0,0.12);
+  margin-top: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.p3-nm {
+  font-size: 42rpx;
+  font-weight: 700;
+  margin-top: 20rpx;
+}
+.p3-ps {
+  font-size: 25rpx;
+  opacity: 0.88;
+  margin-top: 8rpx;
+}
+.p3-fl {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
+}
+/* ===== pano4 左照右文：左侧形象照整卡 + 右侧信息 ===== */
+.hero-pano4 {
+  position: relative;
+  z-index: 1;
+}
+.p4-hin {
+  display: flex;
+  gap: 30rpx;
+  align-items: center;
+}
+.p4-ph {
+  width: 250rpx;
+  height: 330rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2rpx solid rgba(201,162,94,0.4);
+  box-shadow: 0 12rpx 30rpx rgba(0,0,0,0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.p4-rin {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.p4-nm {
+  font-size: 40rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+.p4-ps {
+  font-size: 25rpx;
+  opacity: 0.88;
+  margin-top: 8rpx;
+}
+.p4-fl {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
+}
+.p4-rin .hero-badge {
+  margin-top: 16rpx;
+}
+/* ===== pano5 杂志文艺：左文右图整卡 ===== */
+.hero-pano5 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 28rpx;
+  align-items: flex-end;
+}
+.p5-rin {
+  flex: 1;
+  padding-bottom: 6rpx;
+}
+.p5-nm {
+  font-size: 44rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+.p5-ps {
+  font-size: 25rpx;
+  opacity: 0.88;
+  margin-top: 8rpx;
+}
+.p5-fl {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
+}
+.p5-rin .hero-badge {
+  margin-top: 16rpx;
+}
+.p5-ph {
+  width: 300rpx;
+  height: 360rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2rpx solid rgba(138,122,92,0.35);
+  box-shadow: 0 12rpx 28rpx rgba(0,0,0,0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* ===== pano6 圆角大图·暗夜：暗底中央大图圆角卡 ===== */
+.hero-pano6 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.p6-big {
+  width: 300rpx;
+  height: 380rpx;
+  border-radius: 26rpx;
+  overflow: hidden;
+  margin-top: 22rpx;
+  border: 2rpx solid rgba(217,188,120,0.45);
+  box-shadow: 0 16rpx 40rpx rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.p6-nm {
+  font-size: 42rpx;
+  font-weight: 700;
+  margin-top: 20rpx;
+}
+.p6-ps {
+  font-size: 25rpx;
+  opacity: 0.88;
+  margin-top: 8rpx;
+}
+.p6-fl {
+  font-size: 23rpx;
+  opacity: 0.72;
+  margin-top: 10rpx;
+}
+/* ===== hero 引导条（保存名片/关注TA） ===== */
+.hero-guide {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 18rpx;
+  margin-top: 26rpx;
+}
+.hg-btn {
+  flex: 1;
+  height: 78rpx;
+  border-radius: 39rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 27rpx;
+  background: rgba(255,255,255,0.16);
+  border: 1rpx solid rgba(255,255,255,0.3);
+}
+.hg-btn.hg-primary {
+  background: linear-gradient(135deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b));
+  border: none;
+  color: #fff;
+}
+.hero-guide.hg-light .hg-btn {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.1);
+  color: #1d2129;
+}
+.hero-guide.hg-solid .hg-btn.hg-primary {
+  background: #2b2723;
+  color: #fdfcf9;
+}
+/* ===== 任职公司列表卡（极简明净 companiesCard） ===== */
+.cos-card {
+  margin: 24rpx 24rpx 0;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.06);
+  padding: 26rpx 28rpx;
+}
+.cos-t {
+  font-size: 24rpx;
+  color: #8a8f99;
+  margin-bottom: 18rpx;
+}
+.coco {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  padding: 12rpx 0;
+}
+.coco + .coco {
+  border-top: 1rpx solid #f2f3f5;
+}
+.cdot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #165dff;
+  margin-top: 12rpx;
+  flex-shrink: 0;
+}
+.coco-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+}
+.cn {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1d2129;
+}
+.cp {
+  font-size: 22rpx;
+  color: #8a8f99;
+}
+/* ===== 暗夜极光增强（mag + quickSquare/nameBig/guideSolid） ===== */
+.hero-square .qb {
+  border-radius: 18rpx;
+  padding: 16rpx 0 14rpx;
+}
+.hero-namebig .mag-name {
+  font-size: 60rpx;
+}
+.hero-namebig .mag-rule {
+  width: 72rpx;
+  height: 5rpx;
+}
 /* ===== 浅色 hero（白/纸艺）：导航标题 + quickbar 文字改深色，避免白字不可见 ===== */
 .hero .quickbar.qb-light .qb {
   background: rgba(0,0,0,0.05);
@@ -845,7 +1445,14 @@ function shareCard() {
 .hero-serif .nm,
 .hero-serif .ctr-name,
 .hero-serif .mag-name,
-.hero-serif .hfi-name {
+.hero-serif .hfi-name,
+.hero-serif .royal-name,
+.hero-serif .pano-nm,
+.hero-serif .pano2-nm,
+.hero-serif .p3-nm,
+.hero-serif .p4-nm,
+.hero-serif .p5-nm,
+.hero-serif .p6-nm {
   font-family: 'Songti SC', 'STSong', 'SimSun', serif;
 }
 

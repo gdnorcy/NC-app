@@ -198,6 +198,7 @@ export const cardApi = {
   getMarketMyStats: () => request(MARKET_BASE_URL + '/market/my-stats'),
 
   // 名片交换
+  exchange: (data) => request('/exchange', 'POST', data),
   exchangeRequest: (data) => request(MARKET_BASE_URL + '/exchange/request', 'POST', data),
   exchangeHandle: (data) => request(MARKET_BASE_URL + '/exchange/handle', 'POST', data),
   getExchangeList: () => request(MARKET_BASE_URL + '/exchange/list'),

@@ -1012,6 +1012,7 @@ function migrate(db) {
       wechat TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL DEFAULT '',
       company TEXT NOT NULL DEFAULT '',
+      companies TEXT NOT NULL DEFAULT '',
       bio TEXT NOT NULL DEFAULT '',
       business_field TEXT NOT NULL DEFAULT '',
       need_tags TEXT NOT NULL DEFAULT '', -- 供需标签 JSON: ["找渠道","求合作",...]
@@ -1023,7 +1024,13 @@ function migrate(db) {
       exchange_count INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'active',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      slogan TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '',
+      customer_id INTEGER,
+      voice_url TEXT NOT NULL DEFAULT '',
+      voice_name TEXT NOT NULL DEFAULT '',
+      industry TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_card_user ON card_profile(user_id);
     CREATE INDEX IF NOT EXISTS idx_card_enterprise ON card_profile(enterprise_id);

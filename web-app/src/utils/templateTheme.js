@@ -9,7 +9,7 @@ export function parseTheme(tc) {
   t.primary = t.primary || '';
   t.background = t.background || '';
   t.radius = t.radius ?? 18;
-  t.heroLayout = ['cls', 'ctr', 'mag'].includes(t.heroLayout) ? t.heroLayout : 'cls';
+  t.heroLayout = ['cls', 'ctr', 'mag', 'royal', 'pano1', 'pano2', 'pano3', 'pano4', 'pano5', 'pano6'].includes(t.heroLayout) ? t.heroLayout : 'cls';
   t.bgType = ['solid', 'gradient', 'glass', 'paper'].includes(t.bgType) ? t.bgType : 'gradient';
   t.bgStart = t.bgStart || t.background || t.primary || '#165dff';
   const dark = shadeHex(t.bgStart, -0.3);
@@ -24,6 +24,21 @@ export function parseTheme(tc) {
   t.texture = ['spots', 'dots', 'grid', 'none'].includes(t.texture) ? t.texture : 'none';
   t.barTop = !!t.barTop;
   t.cardStyle = t.cardStyle === 'glass' ? 'glass' : 'solid';
+  // 新皮肤开关（5版效果图 + 6款形象照版）
+  t.guide = !!t.guide;
+  t.companyCorner = !!t.companyCorner;
+  t.companiesCard = !!t.companiesCard;
+  t.cleanCard = !!t.cleanCard;
+  t.quickSquare = !!t.quickSquare;
+  t.nameBig = !!t.nameBig;
+  t.guideSolid = !!t.guideSolid;
+  t.maskLeft = !!t.maskLeft;
+  t.maskBottom = !!t.maskBottom;
+  t.photoFull = !!t.photoFull;
+  t.circlePhoto = !!t.circlePhoto;
+  t.photoLeft = !!t.photoLeft;
+  t.magazineCard = !!t.magazineCard;
+  t.bigPhoto = !!t.bigPhoto;
   return t;
 }
 
@@ -113,10 +128,11 @@ export function heroRadius(theme, avatar = false) {
   const t = parseTheme(theme);
   if (!t) return avatar ? '32rpx' : '24rpx';
   const base = Number(t.radius) || 18;
-  // 头像圆角比卡片略大，杂志版式用圆形
+  // 头像圆角比卡片略大，杂志版式/圆像明净用圆形
   if (avatar) {
-    return t.heroLayout === 'mag' ? '50%' : `${Math.min(base + 14, 36)}rpx`;
+    return t.heroLayout === 'mag' || t.heroLayout === 'pano3' ? '50%' : `${Math.min(base + 14, 36)}rpx`;
   }
+  if (t.heroLayout === 'pano6') return `${Math.min(base + 6, 26)}rpx`;
   return `${Math.min(base, 24)}rpx`;
 }
 
