@@ -438,7 +438,8 @@ async function openMember(pkg) {
   font-weight: 600;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* 副标题内联跟在标题后（勿用 space-between 顶到最右侧——悬空在卡片右上角不和谐） */
+  gap: 12rpx;
   color: var(--t5);
 }
 .sec-t small {
@@ -460,9 +461,10 @@ async function openMember(pkg) {
   position: relative;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-/* 「最受欢迎」只保留角标文案，不再默认加边框高亮（用户反馈：默认红框像已被选中） */
+/* 「最受欢迎」保留常驻主题色边框（用户复评：仅角标文案不显眼；选中环 sel 更粗可区分） */
 .plan.hot {
-  border-color: var(--border);
+  border-color: var(--design-primary);
+  box-shadow: 0 4px 16px rgba(var(--design-primary-rgb), 0.08);
 }
 /* 点选高亮（sel）：cur=真实当前等级（含「· 当前」文案），sel 只跟随点按 */
 .plan.sel {
@@ -484,8 +486,9 @@ async function openMember(pkg) {
 }
 .hot-tag {
   font-size: 20rpx;
-  color: var(--design-primary);
-  background: var(--design-secondary);
+  /* 实底主题色白字（用户反馈描边角标不明显） */
+  color: var(--design-text, #fff);
+  background: var(--design-primary);
   padding: 4rpx 14rpx;
   border-radius: 12rpx;
   font-weight: 400;
