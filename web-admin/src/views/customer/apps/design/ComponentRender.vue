@@ -812,6 +812,9 @@ import { componentStyleVars } from '../../../../../../web-app/src/utils/sfCompon
 // 此前本文件私藏一份containerStyle 副本（漏了 bgColor 语义区分），
 // 导致「admin 预览的容器底色与真机不一致」。跨包 import 模式沿用 sfComponentStyle.js。
 import { containerStyle as sharedContainerStyle } from '../../../../../../web-app/src/utils/containerStyle.js';
+// 按钮宽度同样共用 C 端那份：满宽按钮必须抵消容器 marginLR，
+// 否则「容器左右边距」会连带改按钮大小（两端各写一份必然漂移）。
+import { buttonSizeStyle } from '../../../../../../web-app/src/utils/btnSize.js';
 // 示例图清单同样共用 C 端那份，避免两端各写死一个路径后悄悄漂移
 import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 // 按钮组（menu-group）样式同样共用 C 端那份：数值全部来自对标站 CDP 实测，
@@ -1365,16 +1368,10 @@ function btnStyle(p) {
     s.color = p.textColor || '#ffffff';
     s.background = p.bgColor || '#165DFF';
   }
-  if (p.widthMode === 'auto') {
-    s.display = 'inline-block';
-    s.padding = '0 12px';
-    s.width = 'auto';
-  } else {
-    s.width = '100%';
-    s.boxSizing = 'border-box';
-    s.textAlign = 'center';
-  }
-  return s;
+  // 🔴 宽度基准统一走共享实现（与 C 端 DesignPage.vue 同一份）：
+  //   满宽时按钮向两侧抵消容器 marginLR → 「容器左右边距」只缩窗口、不改按钮大小。
+  // 详见 utils/btnSize.js 的病根说明（勿在本文件私藏副本）。
+  return Object.assign(s, buttonSizeStyle(p));
 }
 function noticeList(p) {
   const arr = (p.items || []).filter((it) => it && it.text);

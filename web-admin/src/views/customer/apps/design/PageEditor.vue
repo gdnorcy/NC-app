@@ -151,7 +151,7 @@
               v-for="(c, i) in normalComps"
               :key="c.id"
               class="pe-comp"
-              :class="{ active: selected === c.id }"
+              :class="{ active: selected === c.id, 'pe-comp-first': i === 0 }"
               :style="compBoxStyle(c)"
               draggable="true"
               @dragstart="onCompDragStart($event, i)"
@@ -2483,6 +2483,11 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
   border-radius: 6px; font-size: 11px; padding: 2px 8px; z-index: 2; align-items: center; gap: 6px;
   box-shadow: 0 2px 6px rgba(22,93,255,.3); white-space: nowrap;
 }
+/* 🔴 画布**第一个**组件的操作条必须翻到组件下方（`.pe-comp-first`）。
+   否则 `top:-22px` 向上溢出 `.pe-canvas`，被 `.pe-phone{overflow:hidden}` 裁掉一半，
+   正好卡在导航栏与画布之间 → 用户看到「一条蓝色横条插在标题栏下面」且点不到。
+   （悬停非首组件仍走上方，符合「操作条贴着选中组件」的直觉。） */
+.pe-comp.pe-comp-first .pe-comp-tools { top: auto; bottom: -22px; border-radius: 6px 6px 0 0; }
 .pe-comp:hover .pe-comp-tools, .pe-comp.active .pe-comp-tools { display: flex; }
 .pe-comp-idx { background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 5px; }
 .pe-comp-type { color: #fff; }

@@ -765,6 +765,7 @@ import SIcon from './SIcon.vue';
 import SuperFormRender from './SuperFormRender.vue';
 // 容器层样式：与 admin 设计器画布共用（跨端同一份实现，避免「画布没底色、真机有」）
 import { containerStyle } from '../utils/containerStyle.js';
+import { buttonSizeStyle } from '../utils/btnSize.js';
 import { sampleUrl } from '../utils/sampleImages.js';
 // 按钮组（menu-group）样式：与 admin 画布共用同一份实现（对标站实测数值的唯一事实来源），
 // 保证「画布看到的 = 真机渲染的」。改样式只改那份文件，不要在本文件另写一份。
@@ -1007,11 +1008,10 @@ function dpBtnStyle(p) {
     s.color = p.textColor || '#ffffff';
     s.background = p.bgColor || '#165DFF';
   }
-  if (p.widthMode !== 'auto') {
-    s.width = '100%';
-    s.textAlign = 'center';
-  }
-  return s;
+  // 🔴 宽度统一走共享实现（与 admin ComponentRender.vue 同一份）：
+  //   满宽时按钮向两侧抵消容器 marginLR → 「容器左右边距」只缩窗口、不改按钮大小。
+  //   详见 utils/btnSize.js。改任一端必须改那里，勿在此私藏副本。
+  return Object.assign(s, buttonSizeStyle(p));
 }
 function dpNoticeStyle(p) {
   const s = { background: p.bgColor, color: p.color, fontSize: (p.fontSize || 14) + 'px' };

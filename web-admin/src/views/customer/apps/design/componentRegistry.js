@@ -306,13 +306,20 @@ export const componentRegistry = [
     name: '按钮',
     group: 'basic',
     icon: 'button',
-    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, marginTop: 0, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
+      // 🔴 宽度基准 = **页面/窗口的可用宽度**，不是容器内容宽度。
+      // 此前「整行」是 `width:100%`，而百分比是相对**容器**解析的 →
+      // 调通用项的「容器左右边距」会让容器变窄、按钮跟着一起变窄，
+      // 用户无法单独调按钮大小（2026-10-07 反馈：「组件按钮容器的左右边框调整，
+      // 会调整按钮的大小」）。修法见 utils/btnSize.js：满宽时用负 margin
+      // 抵消容器左右边距，使按钮宽度真正独立于 marginLR。
       { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
+      { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对页面可用宽度计算，与「容器左右边距」互不影响' },
       { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
       // 🔴 这里是**按钮自身的填充色**，故label 是「按钮色」而不是「背景色」——
       // 组件**外层容器**的底色是另一个独立字段 `compBgColor`（见 commonStyleSchema
@@ -1657,7 +1664,11 @@ export const commonStyleSchema = [
   { key: 'compBgColor', label: '组件背景色', control: 'color' },
   { key: 'marginTop', label: '上边距', control: 'slider', min: 0, max: 40 },
   { key: 'marginBottom', label: '下边距', control: 'slider', min: 0, max: 40 },
-  { key: 'marginLR', label: '左右边距', control: 'slider', min: 0, max: 40 },
+  // 🔴 标签明确是「**容器**左右边距」而不是「左右边距」（2026-10-07 用户反馈）：
+  // 面板里同时存在「容器左右边距」「按钮宽度百分比」两个控件，旧名会让运营以为
+  // 调这一个就能改按钮大小 → 「组件按钮容器的左右边框调整，会调整按钮的大小」。
+  // 语义边界：它只缩**窗口（容器）**；按钮自身大小只由组件 schema 的宽度项决定。
+  { key: 'marginLR', label: '容器左右边距', control: 'slider', min: 0, max: 40, tips: '只缩放组件所在的窗口（容器），不影响按钮/图标等组件自身的大小' },
 ];
 // `compBgColor` 默认 **空串**（不是 '#FFFFFF'）：默认不上色，让页面灰底/卡片缝透出，
 // 与「组件即卡片」的视觉语义一致。存量迁移见 PageEditor 的 migrateLegacyBgColor。
