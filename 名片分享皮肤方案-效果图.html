@@ -48,6 +48,10 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
 .skin-gold .name{margin-top:14px;font-size:22px;font-weight:700;font-family:"Noto Serif SC",serif;letter-spacing:.5px}
 .skin-gold .pos{font-size:11px;color:rgba(244,236,212,.78);margin-top:5px;font-family:"Noto Serif SC",serif}
 .skin-gold .field{margin-top:4px;font-size:11px;color:rgba(244,236,212,.58)}
+.skin-gold .cos{margin-top:14px;display:flex;flex-direction:column;gap:7px;align-items:center}
+.skin-gold .co{display:flex;align-items:center;gap:7px;font-size:10.5px;color:rgba(244,236,212,.82);font-family:"Noto Serif SC",serif;letter-spacing:.3px}
+.skin-gold .co .dot{width:4px;height:4px;border-radius:50%;background:#c9a25e;flex:none;box-shadow:0 0 4px rgba(201,162,94,.8)}
+.skin-gold .co .sep{color:rgba(201,162,94,.7);margin:0 2px}
 .skin-gold .guide{display:flex;gap:8px;margin-top:16px}
 .skin-gold .g-btn{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:99px;border:1px solid rgba(233,223,194,.4);color:#efe6c9;background:rgba(233,223,194,.08)}
 .skin-gold .g-btn.primary{background:linear-gradient(120deg,#c9a25e,#a57f42);border-color:transparent;color:#1c1608;font-weight:600}
@@ -213,6 +217,12 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
 .skin-clean .q-item .qi{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f2f4f8}
 .skin-clean .qi svg{width:15px;height:15px;fill:#5a5e6b}
 .skin-clean .body{background:#ffffff}
+.skin-clean .cos-card{margin:14px 18px 0;background:#fff;border:1px solid #eceef2;border-radius:16px;padding:2px 16px;box-shadow:0 2px 10px rgba(30,40,80,.05)}
+.skin-clean .co{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f0f1f4}
+.skin-clean .co:last-child{border-bottom:none}
+.skin-clean .cdot{width:6px;height:6px;border-radius:50%;background:#165dff;flex:none;box-shadow:0 0 0 3px rgba(22,93,255,.12)}
+.skin-clean .cn{font-size:13px;font-weight:600;color:#1c1d24}
+.skin-clean .cp{margin-left:auto;font-size:11px;color:#7a7d89}
 .skin-clean .stats{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;font-size:10.5px;color:#9da1ab;border-bottom:1px solid #f0f1f4}
 .skin-clean .stats .n b{color:#1c1d24;font-weight:600}
 .skin-clean .tabs{display:flex;padding:10px 18px 0;gap:22px;border-bottom:1px solid #f0f1f4;background:#ffffff}
@@ -239,7 +249,7 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
 <div class="page">
   <div class="head">
     <h1>名片详情页 · 分享皮肤方案</h1>
-    <div class="sub">名片主人分享后，客户打开 <b>cardDetail</b> 看到的落地样式。5 版皮肤 × 统一新增「保存名片 / 关注TA」引导条（<b>方案B</b>，可开关）。数据为真实卡片（陈晨 · 产品负责人）。<br>深色 3 版（黑金 / 暗夜 / 深海）由现有高端模板 <b>微调配置</b> 实现；浅色 2 版（纸艺 / 明净）需新增或微调浅色模板。</div>
+    <div class="sub">名片主人分享后，客户打开 <b>cardDetail</b> 看到的落地样式。5 版皮肤 × 统一新增「保存名片 / 关注TA」引导条（<b>方案B</b>，可开关）。数据为真实卡片（陈晨 · 产品负责人）。<br>深色 3 版（黑金 / 暗夜 / 深海）由现有高端模板 <b>微调配置</b> 实现；浅色 2 版（纸艺 / 明净）需新增或微调浅色模板。<b>其中「曜石黑金」「极简明净」两款已改造为多公司版</b>，支持展示多家任职公司（演示数据，多公司字段需后端支持）。</div>
     <div class="legend">
       <span class="tag hot">推荐 · 深色高端</span>
       <span class="tag">浅色轻奢</span>
@@ -261,6 +271,11 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
                 <div class="name">陈晨</div>
                 <div class="pos">产品负责人</div>
                 <div class="field">东莞 · 约拍 · 商业摄影</div>
+                <div class="cos">
+                  <div class="co"><span class="dot"></span>东莞市揭阳商会<span class="sep">·</span>副会长兼秘书长</div>
+                  <div class="co"><span class="dot"></span>东莞市饶平商会<span class="sep">·</span>常务副会长</div>
+                  <div class="co"><span class="dot"></span>中山市饶平商会<span class="sep">·</span>副会长</div>
+                </div>
                 <div class="guide"><div class="g-btn">＋ 保存名片</div><div class="g-btn primary">关注 TA</div></div>
                 <div class="hairline"></div>
                 <div class="quick">
@@ -287,9 +302,9 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
         </div>
       </div>
       <div class="cap">
-        <div class="name"><span class="no">01</span>曜石黑金</div>
+        <div class="name"><span class="no">01</span>曜石黑金 · 多公司版</div>
         <div class="pos">ctr 居中版式 · 深棕底 + 金描边 + 衬线字 · 气质商务贵气，适合商会/协会/高端服务</div>
-        <div class="imp">模板9黑金奢华微调：加深底色、强化金描边、引导条金渐变</div>
+        <div class="imp">★ 多公司版：hero 区新增任职公司列表（金色圆点 + 公司名·职务），可展示多家公司；模板9黑金奢华微调</div>
       </div>
     </div>
 
@@ -449,6 +464,11 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
                 </div>
               </div>
             </div>
+            <div class="cos-card">
+              <div class="co"><span class="cdot"></span><span class="cn">东莞市揭阳商会</span><span class="cp">副会长兼秘书长</span></div>
+              <div class="co"><span class="cdot"></span><span class="cn">东莞市饶平商会</span><span class="cp">常务副会长</span></div>
+              <div class="co"><span class="cdot"></span><span class="cn">中山市饶平商会</span><span class="cp">副会长</span></div>
+            </div>
             <div class="stats"><span class="n"><b>50</b>人浏览 · <b>2</b>人收藏</span><span>分享卡片封面：明净 hero 缩略图</span></div>
             <div class="tabs"><div class="tab on">简介</div><div class="tab">作品</div><div class="tab">动态</div><div class="tab">视频</div></div>
             <div class="sec">
@@ -464,9 +484,9 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
         </div>
       </div>
       <div class="cap">
-        <div class="name"><span class="no">05</span>极简明净</div>
+        <div class="name"><span class="no">05</span>极简明净 · 多公司版</div>
         <div class="pos">浅色极简新方案 · 纯白 + 单一品牌蓝 + 大留白 · 现代干净，适合科技/咨询/个人品牌</div>
-        <div class="imp">需新增浅色模板：白底圆角卡片 hero、品牌色点缀、引导条品牌蓝实底</div>
+        <div class="imp">★ 多公司版：hero 卡片下方新增「任职公司」列表卡（品牌蓝圆点 + 公司名 + 职务右对齐），可展示多家公司；需新增浅色模板</div>
       </div>
     </div>
   </div>
