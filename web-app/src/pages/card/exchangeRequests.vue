@@ -60,19 +60,30 @@ const outgoing = computed(() => requests.value.filter((r) => r.from_user_id === 
 const filtered = computed(() => (activeTab.value === 'incoming' ? incoming.value : outgoing.value));
 
 let myUidCache = null;
+/**
+ * 当前登录用户 id。
+ * ⚠️ 小程序端既没有全局 atob 也没有 Buffer，旧实现两条路都取不到 → JSON.parse('') 抛错 →
+ * uid 恒为 0 → 收到的/发出的交换请求列表全空（真机专属，开发者工具不复现）。
+ * 改为：优先读登录缓存的 card_user.id，token 解析兜底用跨端可用的 uni.base64ToArrayBuffer。
+ */
 function myUid() {
   if (myUidCache) return myUidCache;
+  const me = uni.getStorageSync('card_user');
+  if (me && me.id) { myUidCache = Number(me.id); return myUidCache; }
   try {
     const token = uni.getStorageSync('card_token');
     if (!token) return 0;
-    // card_token 格式 base64({uid}).sig；H5 无 Buffer，用 atob（与 myCard.decodeTokenUid 一致）
+    // card_token 格式 base64({uid}).sig
     const payload = token.split('.')[0];
-    const json = typeof atob === 'function'
-      ? decodeURIComponent(escape(atob(payload)))
-      : (typeof Buffer !== 'undefined' ? Buffer.from(payload, 'base64').toString('utf8') : '');
-    myUidCache = JSON.parse(json).uid || 0;
+    if (!payload) return 0;
+    if (typeof uni.base64ToArrayBuffer === 'function') {
+      const bytes = new Uint8Array(uni.base64ToArrayBuffer(payload));
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      myUidCache = Number(JSON.parse(bin).uid) || 0;
+    }
   } catch (e) { myUidCache = 0; }
-  return myUidCache;
+  return myUidCache || 0;
 }
 
 const statusText = (s) => ({ pending: '待处理', accepted: '已接受', rejected: '已拒绝' }[s] || s);

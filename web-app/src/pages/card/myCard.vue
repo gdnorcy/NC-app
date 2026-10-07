@@ -248,14 +248,26 @@ const needTagList = computed(() => {
   } catch { return []; }
 });
 
+/**
+ * 当前登录用户 id。
+ * ⚠️ 旧实现用 atob 解析 token —— **小程序端没有全局 atob**（只有 H5 有），真机上抛错被
+ * catch 吞成 null → 恒判定「未登录」，表现为「每次点我的名片都跳去登录页」；开发者工具
+ * 常带 polyfill 所以不复现。改为优先读登录时缓存的 card_user.id（跨端可靠），
+ * token 解析只作兜底且用 uni.base64ToArrayBuffer（跨端可用）。
+ */
 function decodeTokenUid() {
+  const me = uni.getStorageSync('card_user');
+  if (me && me.id) return Number(me.id);
+  const token = uni.getStorageSync('card_token');
+  if (!token) return null;
   try {
-    const token = uni.getStorageSync('card_token');
-    if (!token) return null;
     // card_token 格式为 base64({uid}).signature，payload 在前（与后端 comboAuth 一致）
     const payload = token.split('.')[0];
-    if (!payload) return null;
-    return JSON.parse(decodeURIComponent(escape(atob(payload)))).uid || null;
+    if (!payload || typeof uni.base64ToArrayBuffer !== 'function') return null;
+    const bytes = new Uint8Array(uni.base64ToArrayBuffer(payload));
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return Number(JSON.parse(bin).uid) || null;
   } catch { return null; }
 }
 

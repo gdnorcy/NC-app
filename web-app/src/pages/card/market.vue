@@ -396,9 +396,12 @@ async function loadAll() {
       banners.value = settings.value.banners || [];
     }
     // 本人名片城市（同城筛选基准）
+    // ⚠️ 必须取**个人名片** /cards（toCard 带 city）；/member/my-card 是租户会员卡，没有 city 字段
+    // → 用它会导致「明明填了所在城市，却一直提示先完善城市」
     try {
-      const mc = await cardApi.memberMyCard();
-      myCity.value = (mc && mc.card && mc.card.city) || '';
+      const safe = await cardApi.getCardsSafe();
+      const c = (safe && safe.cards && safe.cards[0]) || null;
+      myCity.value = (c && c.city) || '';
     } catch (e2) {}
     if (statusRes.status === 'fulfilled') myStatus.value = statusRes.value;
     if (connRes.status === 'fulfilled' && connRes.value.connections) {
