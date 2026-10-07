@@ -38,6 +38,9 @@
 - **H5**：`App.vue.initDesignConfig` 调 `setDesignTheme` 后 `// #ifdef H5` 跑 `applyDesignStyle` 写 `documentElement`。**MP**：不支持运行时注 `<style>`，须 page 根视图 `:style="[pageBgStyle, themeStyle]"` 内联下发，变量向下继承。
 - ⚠️ **消费 `var(--design-` 的页面必须绑 `themeStyle`**，否则 MP 回落 fallback 色。🔧 自查：两集合须完全一致（差集=漏接）`grep -rl "var(--design-" pages/ components/` vs `grep -rl "useDesignTheme" pages/`。
 - ⚠️ **SIcon 的 `color` 不能消费 `var()`**（H5 烘焙进 SVG data-URI 不认 var → 非法色变黑；MP 按 `name-hex` 查构建期 PNG 命中不了运行期主题色 → 回退黑 PNG）。只能传**真实 hex**；文字/CSS 背景用 `var(--design-primary)`。
+- 🔴 **「一端有边距、一端没有」先查存量数据里哪个值是异类**，比读代码快 10 倍。病根通常是**特例组件不走共享样式函数**：原生组件（`native-*` 在 `pages/cardMain/home.vue`）边距由 `nativeMargin()` 显式下发，它**只输出上下、漏了 marginLR** → 小程序贴边；而 admin 画布因 `.pe-comp` 自身有内缩**掩盖**了缺失，看起来「正常」。🔴 元规则：**画布看起来对 ≠ C 端对**，跨端问题必须看真机/开发者工具截图。判据：「这个组件的容器边距是谁输出的？」答不上来就是漏。
+- 🔴 补 `marginLR` 类字段时用 **`??` 而非 `||`**（0 是合法值＝故意通栏）。
+- 🔴 **`.mjs` 迁移脚本里 `import {DatabaseSync} from '.../xxx.db'` 会报 `ERR_UNKNOWN_FILE_EXTENSION`** → 必须 `from 'node:sqlite'`。⚠️ SQLite 中 `datetime("now")` 双引号被当标识符（`no such column: "now"`）→ 必须单引号。⚠️ `tenant_page_version` **无 `page_id` 列**，按 `tenant_id+page_type` 取 MAX(version)。
 - 🔴 **配色源归属元规则**：先问「这是平台 UI，还是被展示对象的真实外观？」前者跟系统主题，后者保留自身色（templateSelect 模板缩略图是要卖的东西，改主题色=货不对板）。语义色（成功绿/警示橙/VIP 金）刻意不跟随。
 - **沉浸页顶部避让**：真实值只由 `navVarsStyle()`（utils/navMetrics.js）内联注入；但**沉浸式 hero 自己要真实 px 内联**（见七条②）。右侧有徽章/按钮的 hero 须避到导航行之下（member 曾致 FREE 徽章与胶囊相撞）。
 - 🔴 **胶囊避让**：`navBarRowStyle` 的 `paddingRight` 只是 `capsuleRightPad`(≈7px)，**胶囊宽 87px 压在这 7px 内** → 全站 `#right` 插槽被挡。正确：`.pnv-right` 在**插槽非空时**加 `marginRight=capsuleWidth`，且须判空。
