@@ -360,8 +360,11 @@ const features = [
 // force=true 时跳过 design.js 的 5 分钟本地缓存直连服务端 —— 后台改装修后
 // 小程序「重新进入」仍命中缓存导致看到旧内容（云菜鸟靠下拉强刷新解决，本项目原先没复刻）。
 async function loadHomeData(force = false) {
+  // 🔴 首屏/分享场景用 `getProfileSafe`（401 不跳登录）：
+  //    游客点分享名片进来时本地可能残留过期 card_token，若用 getProfile 会被全局踢到登录页，
+  //    与「名片可被匿名浏览」的产品语义直接冲突。取不到就按未登录渲染，其余照常。
   try {
-    const res = await cardApi.getProfile();
+    const res = await cardApi.getProfileSafe();
     user.value = res.user;
     myCard.value = res.card;
   } catch (e) {}
@@ -397,15 +400,20 @@ async function loadHomeData(force = false) {
       unreadCount.value = unread.count || 0;
     } catch (e) {}
 
-    // 加载访客统计
-    try {
-      const summary = await cardApi.getVisitorSummary();
-      visitorStats.value = {
-        today: summary.todayCount || 0,
-        total: summary.totalCount || 0,
-        exchange: summary.exchangeCount || 0,
-      };
-    } catch (e) {}
+  // 加载访客统计
+  // 🔴 字段名必须与后端对齐：后端 `GET /visitors/summary` 返回
+  //    `{ today, week, total, diff, exchange, visitors, trend }`（非会员/无名片时为全 0 空列表）。
+  //    原实现读 `todayCount/totalCount/exchangeCount` —— 三个字段后端根本没有 →
+  //    「今日访客/累计访客/名片交换」恒为 0，且 `visitorList` 从未被赋值 → 雷达列表永远命中空态。
+  try {
+    const summary = await cardApi.getVisitorSummary();
+    visitorStats.value = {
+      today: Number(summary.today) || 0,
+      total: Number(summary.total) || 0,
+      exchange: Number(summary.exchange) || 0,
+    };
+    visitorList.value = Array.isArray(summary.visitors) ? summary.visitors : [];
+  } catch (e) {}
 
     // 加载人脉集市推荐
     try {

@@ -75,6 +75,9 @@ export const cardApi = {
   wxLogin: (code, parentId, tid) => request('/auth/wx-login', 'POST', { code, parentId, tid }),
 
   // 用户信息
+  // 🔴 游客可降级版本：首页/分享/预览等**未登录也要能看**的场景必须用它，
+  //    否则本地残留过期 token → 401 → 全局 reLaunch 登录页，把游客从分享名片里踢走。
+  getProfileSafe: () => request('/user/profile', 'GET', {}, { skipAuthRedirect: true }),
   getProfile: () => request('/user/profile'),
   updateProfile: (data) => request('/user/profile', 'PUT', data),
 

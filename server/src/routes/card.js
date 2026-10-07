@@ -650,12 +650,12 @@ export function createCardRouter(db, wxService) {
         locked: true,
         memberLevel: req.user.member_level || 'free',
         memberExpireAt: req.user.member_expire_at || null,
-        today: 0, week: 0, total: 0, diff: 0, visitors: []
+        today: 0, week: 0, total: 0, diff: 0, exchange: 0, visitors: []
       });
     }
 
     const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
-    if (!card) return res.json({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
+    if (!card) return res.json({ today: 0, week: 0, total: 0, diff: 0, exchange: 0, visitors: [] });
 
     const today = new Date().toISOString().slice(0, 10);
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -725,7 +725,11 @@ export function createCardRouter(db, wxService) {
       };
     });
 
-    res.json({ today: todayCount, week: weekCount, total, diff, visitors: enriched, trend: buildVisitorTrend(db, card.id) });
+    // 名片交换数：与该名片相关的交换记录（发出或收到都算）
+    // ⚠️ 前端 native-radar 的「名片交换」直接读 summary.exchange，缺字段会恒显示 0。
+    const exchange = db.prepare('SELECT COUNT(*) as c FROM card_exchange WHERE from_card_id=? OR to_card_id=?').get(card.id, card.id).c;
+
+    res.json({ today: todayCount, week: weekCount, total, diff, exchange, visitors: enriched, trend: buildVisitorTrend(db, card.id) });
   });
 
   // 访客已读标记（红点消失）

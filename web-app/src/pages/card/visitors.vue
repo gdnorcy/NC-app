@@ -332,9 +332,14 @@ function closeLeadIntent() {
 
 function convertFromIntent() {
   if (!leadIntent.value) return;
-  const v = (visitors.value || []).find((x) => x.visitorOpenid === (leadIntent.value.visitorOpenid || ''));
+  // 🔴 必须先取快照：`closeLeadIntent()` 会把 leadIntent 置 null，
+  //    而下面 setTimeout 里再读 `leadIntent.value.visitorName` 必抛 TypeError（原实现），
+  //    表现为「高潜榜 → 转为客户」弹层永远打不开。
+  const snapshot = leadIntent.value;
+  const v = (visitors.value || []).find((x) => x.visitorOpenid === (snapshot.visitorOpenid || ''));
   closeLeadIntent();
-  setTimeout(() => convert(v || { nickname: leadIntent.value.visitorName, tag: '高意向' }), 250);
+  const fallback = { nickname: snapshot.visitorName, tag: '高意向' };
+  setTimeout(() => convert(v || fallback), 250);
 }
 
 // 离开时保存滚动位置，切Tab返回后恢复

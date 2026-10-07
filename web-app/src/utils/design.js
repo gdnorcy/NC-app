@@ -229,6 +229,22 @@ export function readDesignConfig(key = STORAGE_KEY) {
   return null;
 }
 
+/**
+ * 缓存键必须带上**租户**：分享链接带 `?tid=`，不同租户的装修/导航/主题完全不同。
+ * 原实现只用 pageType 做键 → 先以 tid=2 进入、5 分钟内再以 tid=1 进入，
+ * 会读到租户 2 的导航与主题（跨租户串数据）。
+ * ⚠️ 与 PageEditor 保存无关，纯客户端读取侧；租户不可知时落到 'default' 单键。
+ */
+function cacheKeyOf(pageType) {
+  let tid = '';
+  try {
+    const u = uni.getStorageSync('card_user') || {};
+    tid = String(u.tenantId ?? uni.getStorageSync('card_tid') ?? '');
+  } catch { /* 存储不可用则退化为无租户键 */ }
+  const base = tid ? `${STORAGE_KEY}@t${tid}` : STORAGE_KEY;
+  return pageType ? `${base}:${pageType}` : base;
+}
+
 /** 拉取并缓存设计配置；force=true 强制刷新（发布后生效）；preview=true 拉取首页草稿用于「保存并预览」 */
 export async function fetchDesignConfig(force = false, preview = false, pageType = '') {
   const opts = { preview: !!preview, pageType };
@@ -236,7 +252,7 @@ export async function fetchDesignConfig(force = false, preview = false, pageType
     const raw = await cardApi.designConfig(true, pageType);
     return normalizeDesignConfig(raw);
   }
-  const cacheKey = pageType ? `${STORAGE_KEY}:${pageType}` : STORAGE_KEY;
+  const cacheKey = cacheKeyOf(pageType);
   const cached = readDesignConfig(cacheKey);
   if (cached && !force) return cached;
   const raw = await cardApi.designConfig(false, pageType);

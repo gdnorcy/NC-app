@@ -1,6 +1,6 @@
 // 设计中心 C 端渲染工具测试：规范化/兜底图标/首页映射/缓存读取
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, resolveAssetUrl, applyDesignStyle, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY } from './design.js';
+import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, resolveAssetUrl, applyDesignStyle, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY, fetchDesignConfig } from './design.js';
 
 const store = {};
 const uniMock = {
@@ -349,5 +349,62 @@ describe('设计中心 C 端渲染工具', () => {
     expect(legacy.tabStyle.corner).toBe('square');
     expect(legacy.tabStyle.colors.selected).toBe('');
     expect(legacy.tabStyle.colors.highlight).toBe('');
+  });
+});
+
+describe('🔴 装修配置缓存键必须按租户隔离（2026-10-08 审查）', () => {
+  beforeEach(() => {
+    Object.keys(store).forEach((k) => delete store[k]);
+  });
+
+  it('同一租户会命中缓存（第二次不再打网络）', async () => {
+    store.card_user = { tenantId: 7 };
+    let calls = 0;
+    vi.doMock('./cardApi.js', () => ({
+      cardApi: {
+        designConfig: async () => {
+          calls += 1;
+          return { pages: { components: [{ type: 'native-grid' }] } };
+        },
+      },
+    }));
+    const { fetchDesignConfig: fetch } = await import('./design.js?tenant-a');
+    await fetch(false, false, 'home');
+    await fetch(false, false, 'home');
+    expect(calls).toBe(1);
+    vi.doUnmock('./cardApi.js');
+  });
+
+  it('🔴 不同租户不得共用缓存（否则前一个租户的导航/主题串到后一个）', async () => {
+    let calls = 0;
+    vi.doMock('./cardApi.js', () => ({
+      cardApi: {
+        designConfig: async () => {
+          calls += 1;
+          return { pages: { components: [{ type: 'native-grid' }] } };
+        },
+      },
+    }));
+    const { fetchDesignConfig: fetch } = await import('./design.js?tenant-b');
+    store.card_user = { tenantId: 7 };
+    await fetch(false, false, 'home');
+    store.card_user = { tenantId: 9 };
+    await fetch(false, false, 'home');
+    // 缓存键不同 → 第二次必须真的去服务端取（原实现键只含 pageType，会误命中 → 串租户数据）
+    expect(calls).toBe(2);
+    vi.doUnmock('./cardApi.js');
+  });
+
+  it('缓存键含租户标记，且不同 pageType 仍各自独立', async () => {
+    vi.doMock('./cardApi.js', () => ({
+      cardApi: { designConfig: async () => ({ pages: { components: [{ type: 'native-grid' }] } }) },
+    }));
+    const { fetchDesignConfig: fetch } = await import('./design.js?tenant-c');
+    store.card_user = { tenantId: 3 };
+    await fetch(false, false, 'home');
+    const keys = Object.keys(store);
+    expect(keys.some((k) => k.startsWith(STORAGE_KEY) && k.includes('@t3'))).toBe(true);
+    expect(keys.some((k) => k.includes('@t3:home'))).toBe(true);
+    vi.doUnmock('./cardApi.js');
   });
 });

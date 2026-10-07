@@ -359,29 +359,36 @@ async function openMember(pkg) {
     const order = orderRes.order;
     uni.hideLoading();
 
-    uni.showModal({
-      title: '确认支付',
-      content: `确认支付 ¥${formatPrice(pkg.price)} 开通${pkg.name}？`,
-      success: async (res) => {
-        if (res.confirm) {
-          uni.showLoading({ title: '支付中...' });
-          try {
-            await paymentApi.mockPay(order.orderNo);
-            uni.hideLoading();
-            uni.showToast({ title: '支付成功', icon: 'success' });
-            setTimeout(async () => {
-              const memberRes = await cardApi.getMemberStatus();
-              isMember.value = memberRes.isMember;
-              memberLevel.value = memberRes.level;
-              memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
-            }, 500);
-          } catch (e) {
-            uni.hideLoading();
-            uni.showToast({ title: e.message || '支付失败', icon: 'none' });
-          }
-        }
-      },
+    // 🔴 支付确认必须 await：`try{} finally{ paying=false }` 只包住「创建订单」的同步段，
+    //    showModal 是异步的 → 弹窗还没点，`paying` 锁已释放 → 用户再点另一个套餐会重复下单。
+    //    ✅ 把 showModal 包成 Promise，让锁覆盖到「支付回调结束」为止。
+    const payConfirmed = await new Promise((resolve) => {
+      uni.showModal({
+        title: '确认支付',
+        content: `确认支付 ¥${formatPrice(pkg.price)} 开通${pkg.name}？`,
+        success: (res) => resolve(!!res.confirm),
+        fail: () => resolve(false),
+      });
     });
+    if (!payConfirmed) return;
+
+    uni.showLoading({ title: '支付中...' });
+    try {
+      await paymentApi.mockPay(order.orderNo);
+      uni.hideLoading();
+      uni.showToast({ title: '支付成功', icon: 'success' });
+      setTimeout(async () => {
+        try {
+          const memberRes = await cardApi.getMemberStatus();
+          isMember.value = memberRes.isMember;
+          memberLevel.value = memberRes.level;
+          memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
+        } catch (e) {}
+      }, 500);
+    } catch (e) {
+      uni.hideLoading();
+      uni.showToast({ title: e.message || '支付失败', icon: 'none' });
+    }
   } catch (e) {
     uni.hideLoading();
     uni.showToast({ title: e.message || '创建订单失败', icon: 'none' });

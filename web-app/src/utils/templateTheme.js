@@ -8,13 +8,19 @@ export function parseTheme(tc) {
   const t = { ...tc };
   t.primary = t.primary || '';
   t.background = t.background || '';
-  t.radius = t.radius ?? 18;
+  // 🔴 同样是 0 值陷阱：`Number(t.radius) || 18` 让「零圆角」永远设不出来。
+  //    统一在解析层做数值规范化 + 夹取（0~48），下游所有位置共享同一口径。
+  const radiusRaw = Number(t.radius);
+  t.radius = Number.isFinite(radiusRaw) ? Math.max(0, Math.min(48, radiusRaw)) : 18;
   t.heroLayout = ['cls', 'ctr', 'mag', 'royal', 'pano1', 'pano2', 'pano3', 'pano4', 'pano5', 'pano6'].includes(t.heroLayout) ? t.heroLayout : 'cls';
   t.bgType = ['solid', 'gradient', 'glass', 'paper'].includes(t.bgType) ? t.bgType : 'gradient';
   t.bgStart = t.bgStart || t.background || t.primary || '#165dff';
   const dark = shadeHex(t.bgStart, -0.3);
   t.bgEnd = t.bgEnd || dark || t.bgStart;
-  t.bgAngle = Number(t.bgAngle) || 160;
+  // 🔴 0 是合法值（0deg 渐变角 / 零圆角）：`Number(x) || 默认` 会把 0 吞成默认值，
+  //   必须用 Number.isFinite 判定，非法值才回落。
+  const angle = Number(t.bgAngle);
+  t.bgAngle = Number.isFinite(angle) ? Math.max(0, Math.min(360, angle)) : 160;
   t.textColor = t.textColor || '#ffffff';
   t.text2Color = t.text2Color || 'rgba(255,255,255,.85)';
   t.accent = t.accent || t.primary || '#165dff';
@@ -127,7 +133,9 @@ export function heroLayoutClass(theme) {
 export function heroRadius(theme, avatar = false) {
   const t = parseTheme(theme);
   if (!t) return avatar ? '32rpx' : '24rpx';
-  const base = Number(t.radius) || 18;
+  // 🔴 同上：`Number(t.radius) || 18` 让「零圆角」永远设不出来（模板明确配 0 会被改成 18）。
+  const radiusRaw = Number(t.radius);
+  const base = Number.isFinite(radiusRaw) ? Math.max(0, Math.min(48, radiusRaw)) : 18;
   // 头像圆角比卡片略大，杂志版式/圆像明净用圆形
   if (avatar) {
     return t.heroLayout === 'mag' || t.heroLayout === 'pano3' ? '50%' : `${Math.min(base + 14, 36)}rpx`;
