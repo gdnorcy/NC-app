@@ -244,6 +244,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { buildCreateSkinVars } from './utils/createSkin.js';
@@ -386,6 +387,15 @@ onShow(() => {
 });
 
 onMounted(async () => {
+  // 🔴 门禁：创建/编辑名片必须有登录态。游客可以浏览名片首页，但名片归属账号，
+  // 放开会导致「填完三步提交才 401 失败」。未登录统一跳登录页（manual=1 + redirect 回跳本页，
+  // 编辑场景必须带上 id，否则登录后会变成新建名片）。
+  const curOpts = (getCurrentPages()[getCurrentPages().length - 1] || {}).options || {};
+  const cachedMe = uni.getStorageSync('card_user') || {};
+  if (!cachedMe.id && !uni.getStorageSync('card_token')) {
+    uni.redirectTo({ url: loginEntryUrl(LOGIN_PATH, curOpts.id ? `/pages/card/create?id=${curOpts.id}` : '/pages/card/create') });
+    return;
+  }
   // 语音简介会员权限（阶段C）
   if (uni.getStorageSync('card_token')) {
     try {

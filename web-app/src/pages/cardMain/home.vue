@@ -67,7 +67,7 @@
           <view class="create-icon"><SIcon name="card" size="xlarge" color="#165dff" /></view>
           <view class="create-info">
             <view class="create-title">创建我的名片</view>
-            <view class="create-desc">三步完成，快速创建专属名片</view>
+            <view class="create-desc">{{ hasLogin ? '三步完成，快速创建专属名片' : '登录后三步完成，快速创建专属名片' }}</view>
           </view>
           <view class="create-arrow">›</view>
         </view>
@@ -377,7 +377,14 @@ async function loadHomeData(force = false) {
     } catch (e) {}
 }
 
-onMounted(() => loadHomeData(false));
+// 是否已登录（仅驱动引导文案；真正的门禁在 create.vue 入口，覆盖所有入口）
+const hasLogin = ref(false);
+function refreshLoginFlag() {
+  const me = uni.getStorageSync('card_user') || {};
+  hasLogin.value = !!me.id || !!uni.getStorageSync('card_token');
+}
+
+onMounted(() => { refreshLoginFlag(); loadHomeData(false); });
 
 // 下拉强刷新（复刻云菜鸟）：绕过 design.js 的 5 分钟本地缓存直连服务端，
 // 让后台「设计中心」刚保存/发布的装修配置立刻在真机生效，无需等缓存过期或重装。
@@ -407,6 +414,7 @@ const avatarStyle = computed(() => {
 // 设计中心首页跳转：配置了非默认首页时，首次进入自动跳转到对应页面
 const homeJumpChecked = ref(false);
 onShow(() => {
+  refreshLoginFlag(); // 登录后返回首页时刷新「是否需先登录」的引导文案
   uni.$emit('cart:changed'); // 购物车组件（fab-cart）数量刷新
   if (isPreviewMode()) return; // 预览模式不触发首页跳转
   if (homeJumpChecked.value) return;
