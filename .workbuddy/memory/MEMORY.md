@@ -77,3 +77,9 @@
 ## 对标站 eweishop 抓数（详见 `refs/env-toolbox.md`）
 **禁止凭组件名字猜布局、靠眼睛估风格数**（`docs/复刻规范/反模式.md`）。必须点开量真实 DOM + 计算样式。
 已知：Vue **2**；hash SPA **必须先「选店铺」**才能进装修页；组件库 `data-id` 是内部键名（按钮组=`menu`）；属性面板 radio 的 `value` 通常是真实字段值，但「组件样式/组件风格」是占位 `on`，须从渲染结果反推。
+
+## 登录与配色（2026-10-07 批次四定稿）
+- 🔴 **微信登录真机根因**：`code2Session` 曾是 mock（`openid='mock_'+code`）→ 真机每次 code 不同 = **每次登录建新用户**（名片/入驻/会员全丢）。已修：`server/src/app.js` 的 `createWxCode2Session()`，配 `WX_APPSECRET` 环境变量走真实 jscode2session，未配置回落 mock。**查「登录后各种不对劲」先确认服务端走的是哪条通道。**
+- **未登录引导统一姿势**：toast + `loginEntryUrl(LOGIN_PATH, redirect)`（manual=1 + 回跳），member/cardDetail 已统一；勿只 toast 不跳。
+- **导航背景默认图库**：MaterialPicker 新增 `presets` prop（`[{url,label}]`，非空显示「默认图」页签）；TabNavEditor 仅 `target==='bg'` 时传 `bgPresets`（10 张 `server/public/images/tabbar-bg/btn-*.png`）。⚠️ C 端 CardTabBar 对含 `/images/tabbar-bg/btn-` 前缀的 bg **按当前 类型×风格×圆角 自动回正**——选默认图后切风格无需重选。vite proxy 须含 `/images`。
+- **品牌色三层定稿（方案A）**：语义色不跟随 → 平台主题（装修中心 `--design-*`）全站默认 → 品牌主色（租户 `brand_color`）只在名片业务域覆盖。名片 hero 回落链：**名片自身色 > 租户品牌色（仅详情头部）> `var(--design-primary/gradient)` > 内置默认**；新页面 hero 禁止硬编码 fallback 渐变。
