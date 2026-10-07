@@ -77,5 +77,7 @@
 - ⚠️ **移源码后重建，`dist` 里的旧产物是 emptyOutDir 被 safe-delete 守卫拦下没删的残留**（用时间戳比对本轮构建时间即可分辨），不清掉 devtools 依旧报警。
 - ❌ **three.js 移不出主包**（已实验）：`optimization.subPackages` 在 uni-app vite 下**不拆 node_modules**；组件移分包、改 `await import()` 动态导入仍进主包 `common/vendor.js`。再降只能压 sicons/网络化 static，或 MP 全景改 2D canvas（产品决策）。
 - 🔴 **真机全量 `ERR_CONNECTION_TIMED_OUT` = 局域网 IP 变了**：MP API 基址写死在 `web-app/src/utils/cardApi.js:18`，DHCP 换网必失效（服务端没事，别查服务）。改后重建；验证新 IP 是否进产物要 grep 构建产物的 `utils/cardApi.js`——**grep vendor.js 恒为 0（该模块不并入 vendor），会误判失败**。
+- ⚠️ **MP 产物 JS 中文被 unicode 转义**（grep 中文=0）：验证用 ASCII 标识（接口路径/变量名）或查 `.wxml`（保留 UTF-8）。
+- 🔴 **底部导航配置真身 = `tenant_tab_scheme.tab_json`**（/design/tab/save，/design/config 按 is_default 返回 cfg.tab）；`tenant_page_design.meta.nav` 只有 mode/schemeId 别去那儿找。gen-mp-sicons 烘 MP 图标色时读前者。**共享路径/工具必须提模块级 try 外**（块内 const + 静默 catch 会吞掉后续块、零日志——曾让导航配色烘焙完全不生效）。
 
 - 已知：Vue **2**；hash SPA **必须先「选店铺」**才能进装修页；组件库 `data-id` 是内部键名（按钮组=`menu`）；属性面板 radio 的 `value` 通常是真实字段值，但「组件样式/组件风格」是占位 `on`，须从渲染结果反推。
