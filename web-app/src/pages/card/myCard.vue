@@ -340,8 +340,10 @@ onMounted(async () => {
     notLogin.value = true;
     return;
   }
-  // 从底部Tab/首页进入不带 id 时，按本人名片兜底解析 pageCardId
-  let id = explicitId || uni.getStorageSync('cardLastViewId') || '';
+  // 从底部Tab/首页进入不带 id 时，按本人名片兜底解析 pageCardId。
+  // 🔴 不带 id 时**绝不能**用 cardLastViewId：它可能是浏览过的他人名片（历史上 cardDetail
+  // 无条件写入），会让「我的名片」打开别人的名片（表现为跳到「测试用户」）。
+  let id = explicitId || '';
   if (!id) {
     try {
       const safe = await cardApi.getCardsSafe();

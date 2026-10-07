@@ -456,12 +456,17 @@ onMounted(async () => {
     } catch (e) {}
   }
   if (id) {
-    // 记住最近查看的名片，供底部"名片"Tab切回时使用
-    uni.setStorageSync('cardLastViewId', id);
     restoreScrollTop('cardDetail');
     try {
       const res = await cardApi.getCard(id);
       card.value = res.card;
+      // 记住最近查看的名片，供底部"名片"Tab切回时使用。
+      // 🔴 只记**本人**的名片：本页是对外展示页，浏览他人名片也会进这里，
+      // 无条件写入会让底部"名片"Tab / 「我的名片」跳到别人名片上。
+      const me = uni.getStorageSync('card_user') || {};
+      if (me.id && Number(res.card.userId) === Number(me.id)) {
+        uni.setStorageSync('cardLastViewId', id);
+      }
       memberLevel.value = res.card.ownerMemberLevel || 'free';
       activeForm.value = res.activeForm || null;
       // 采集访客行为

@@ -101,6 +101,8 @@ const props = defineProps({
 });
 
 const myCardId = ref(null);
+// 本人全部名片 id（用于校验「最近查看」是不是自己的名片）
+const myCardIds = ref([]);
 const fanOpen = ref(true); // 扇形子菜单默认展开（云菜鸟 1:1）
 
 // 设计中心配置：优先响应式本地值（挂载时拉取），回退 storage 缓存
@@ -292,7 +294,10 @@ async function loadNav() {
   } catch (e) { /* 拉取失败保持兜底 */ }
   try {
     const res = await cardApi.getCardsSafe();
-    if (res.cards && res.cards.length) myCardId.value = res.cards[0].id;
+    if (res.cards && res.cards.length) {
+      myCardId.value = res.cards[0].id;
+      myCardIds.value = res.cards.map((c) => String(c.id));
+    }
   } catch (e) {}
 }
 
@@ -301,9 +306,13 @@ onMounted(loadNav);
 function goCard() {
   if (!navJumpEnabled.value) return;
   if (props.active === 'card') return;
-  // 优先回到最近查看的名片，避免多张名片时固定跳第一张
+  // 优先回到最近查看的名片，避免多张名片时固定跳第一张。
+  // 🔴 但 cardLastViewId 可能是浏览过的**他人**名片（历史缓存曾由 cardDetail 无条件写入），
+  // 直接用会让「我的名片」跳到别人名片上 → 必须校验它属于本人，否则回落到本人名片。
   const lastId = uni.getStorageSync('cardLastViewId');
-  if (lastId) {
+  // 严格要求「属于本人」才用：本人名片列表没拉到时也不用缓存（宁可跳第一张，也不能跳到别人名片）
+  const lastIsMine = lastId && myCardIds.value.includes(String(lastId));
+  if (lastIsMine) {
     uni.reLaunch({ url: `/pages/card/myCard?id=${lastId}` });
   } else if (myCardId.value) {
     uni.reLaunch({ url: `/pages/card/myCard?id=${myCardId.value}` });
