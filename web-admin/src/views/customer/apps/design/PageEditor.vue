@@ -2301,6 +2301,10 @@ function compIndex(comp) {
 function compBoxStyle(c) {
   const s = compContainerStyle(c, { withRadius: false });
   return { background: s.background, padding: s.padding, marginTop: s.marginTop, marginBottom: s.marginBottom, marginLeft: s.marginLeft, marginRight: s.marginRight };
+  // ⚠️ 这里**不要**为首组件加任何「上留白」（padding-top 或 margin-top 都试过）——
+  //   两种做法都会让首组件在画布上的位置与真机不符（真机没有这段留白），
+  //   运营会误判成「容器上下边距没生效」「蓝条占了位置」，预览失去参考价值（2026-10-07 用户否决）。
+  //   操作条的可见性改由 `.pe-comp-tools` 自身解决（贴组件上沿、不溢出），见该CSS 处注释。
 }
 /** 上下移动选中组件（仿 ew：画布内不拖拽，工具条排序） */
 function moveComp(comp, dir) {
@@ -2458,16 +2462,13 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
 .pmc-dots i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #1d2129; }
 .pmc-div { width: .5px; height: 12px; background: rgba(0, 0, 0, .1); }
 .pmc-circle { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #1d2129; box-sizing: border-box; }
-/* 🔴 `padding-top:22px` 不是「给内容留白」，而是给**首个组件的操作条**留位。
-   `.pe-comp-tools` 用 `top:-22px` 向上绝对定位（贴在被选中组件上方，这是对的、符合直觉），
-   但它会溢出 `.pe-canvas`，被 `overflow-y:auto` 裁掉一半 → 表现为「标题栏下插着一条
-   被切掉上半的蓝条」，且点不到（2026-10-07 用户截图）。
-
-   为什么 `padding` 能解决：`overflow` 裁剪的是 **padding box**，padding 区域本身可见。
-   给 canvas 加 22px 顶部内边距后，首个组件的 `-22px` 正好落在 padding 区里 → 不被裁。
-   ⚠️ 不要改成「首个组件的操作条翻到组件下方」（曾这样修，用户明确否决）：
-   破坏了「操作条贴着选中组件上方」的统一直觉，且首组件本就在画布最顶，往下翻更怪。 */
-.pe-canvas { flex: 1 1 0%; min-height: 420px; padding: 22px 0 0; background: transparent; position: relative; overflow-y: auto; }
+/* ⚠️ 画布**不能**有 padding-top：曾为让首组件的操作条（向上溢出 22px）不被
+   `overflow-y:auto` 裁掉而加 `padding-top:22px`，代价是画布顶部凭空多一条空白带 →
+   用户误读成「容器上下边距没生效」「蓝条占了位置」，**预览与真机不符**（已否决）。
+   ✅ 现在操作条改为 `top:0` 贴组件上沿**内侧**（见 `.pe-comp-tools`），
+      零溢出、零占位、零裁剪 → 画布 padding 必须是 0。
+   ⚠️ 不要改成「首个组件的操作条翻到组件下方」（用户明确否决）：破坏「操作条贴着选中组件」的直觉。 */
+.pe-canvas { flex: 1 1 0%; min-height: 420px; padding: 0; background: transparent; position: relative; overflow-y: auto; }
 /* 悬浮组件视口层：覆盖整个预览壳，模拟 C 端 fixed 视口定位；容器穿透点击，仅组件按钮可点 */
 .pe-float-layer { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
 /* 容器穿透点击（组件撑满层也不拦截画布），仅悬浮按钮自身与操作条可点（按钮可点由 ComponentRender .comp-float 规则保证） */
@@ -2486,9 +2487,17 @@ defineExpose({ saveDraft, publish, saveAndPreview, loadVersions, saveAsTemplate,
    而不是给 `.active` 加 background !important（那会把组件真实底色也盖掉）。
    优先级：outline 描边在外圈、box-shadow 紧贴，两者叠加即清晰可见。 */
 .pe-comp.active { border-color: #165dff; outline: 1px solid #165dff; box-shadow: 0 0 0 3px rgba(22,93,255,.16); }
-/* hover / 选中即显工具条（仿 eweishop/nshop） */
+/* hover / 选中即显工具条（仿 eweishop/nshop）
+   🔴 定位用 `top:0`（贴组件**上沿内侧**），不要 `top:-22px`（上沿外侧）：
+   外侧定位会溢出 `.pe-canvas`（overflow-y:auto）被裁 → 首组件表现为「标题栏下插一条
+   被切掉上半的蓝条」且点不到。
+   ⚠️ 曾试过三种绕法，全部否决（2026-10-07用户反馈「蓝条占了位置，上部有间隔，会误导用户」）：
+   ① `.pe-canvas{padding-top:22px}` → 画布顶部多一条空白带，预览与真机不符；
+   ② 首组件 `padding-top:22px` → **无效**：padding 只推内容不推边框盒，工具条定位基准仍是边框盒，照样被裁；
+   ③ 首组件 `margin-top:22px` → 有效但会让首组件位置与真机不符（真机没这段留白）。
+   内侧定位零占位、零裁剪、首尾组件一致，最干净。 */
 .pe-comp-tools {
-  display: none; position: absolute; top: -22px; right: 4px; background: #165dff; color: #fff;
+  display: none; position: absolute; top: 0; right: 4px; background: #165dff; color: #fff;
   border-radius: 6px; font-size: 11px; padding: 2px 8px; z-index: 2; align-items: center; gap: 6px;
   box-shadow: 0 2px 6px rgba(22,93,255,.3); white-space: nowrap;
 }
