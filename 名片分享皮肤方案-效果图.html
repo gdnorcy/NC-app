@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名片分享皮肤方案 · 效果图</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%2316507a'/><text x='12' y='17' font-size='13' text-anchor='middle' fill='white' font-family='serif'>名</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;color:#202024;padding:48px 24px 80px}
+.page{max-width:1320px;margin:0 auto}
+.head{margin-bottom:40px}
+.head h1{font-size:30px;font-weight:700;letter-spacing:.5px}
+.head .sub{margin-top:12px;font-size:14px;color:#5c5c66;line-height:1.8}
+.head .sub b{color:#1d4f8c}
+.legend{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+.tag{font-size:12px;padding:4px 10px;border-radius:99px;background:#fff;border:1px solid #d8d4ca;color:#4a4a52}
+.tag.hot{background:#1d4f8c;border-color:#1d4f8c;color:#fff}
+.grid{display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+.card{width:390px;background:#fbfaf7;border:1px solid #dcd7cb;border-radius:18px;padding:18px 18px 16px;box-shadow:0 6px 24px rgba(30,25,10,.06)}
+.card .cap{padding:14px 2px 4px}
+.card .cap .name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card .cap .name .no{font-size:11px;font-weight:600;color:#fff;background:#202024;border-radius:6px;padding:2px 7px;letter-spacing:.5px}
+.card .cap .pos{font-size:12.5px;color:#5c5c66;margin-top:4px;line-height:1.6}
+.card .cap .imp{margin-top:6px;font-size:11.5px;color:#8a8678}
+.phone{width:354px;min-height:720px;background:#fff;border-radius:34px;border:7px solid #17171a;overflow:hidden;position:relative;margin:0 auto;box-shadow:0 14px 34px rgba(20,15,5,.14)}
+.inner{min-height:706px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+/* 状态栏 */
+.sb{height:30px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:10px;font-weight:600}
+.sb .time{letter-spacing:.3px}
+.sb .ic{display:flex;gap:3px;align-items:center}
+.sb .ic svg{width:11px;height:11px}
+/* 主体滚动区 */
+.body{flex:1;overflow:visible;position:relative}
+/* PageNav */
+.nav{position:absolute;top:6px;left:0;right:0;z-index:5;display:flex;align-items:center;gap:8px;padding:4px 12px;pointer-events:none}
+.nav .back{width:24px;height:24px}
+.nav .t{font-size:14px;font-weight:600;opacity:.95}
+/* ============ 皮肤 ============ */
+/* 1 曜石黑金 */
+.skin-gold .sb{background:#12100c;color:#e9dfc2}
+.skin-gold .hero{background:linear-gradient(165deg,#14110d 0%,#241e14 55%,#2d261a 100%);color:#f4ecd4}
+.skin-gold .nav .t{color:#f0e7c8}
+.skin-gold .hero-inner{padding:56px 20px 22px}
+.skin-gold .h-top{display:flex;align-items:flex-end;justify-content:space-between}
+.skin-gold .avatar{width:64px;height:64px;border-radius:12px;background:linear-gradient(150deg,#c9a25e,#8a6d33);display:flex;align-items:center;justify-content:center;font-size:24px;font-family:"Noto Serif SC",serif;font-weight:700;color:#1c1608;border:1px solid #e6c57e}
+.skin-gold .badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;color:#d9bc78;border:1px solid rgba(201,162,94,.65);border-radius:99px;padding:2px 8px;background:rgba(201,162,94,.12)}
+.skin-gold .name{margin-top:14px;font-size:22px;font-weight:700;font-family:"Noto Serif SC",serif;letter-spacing:.5px}
+.skin-gold .pos{font-size:11px;color:rgba(244,236,212,.78);margin-top:5px;font-family:"Noto Serif SC",serif}
+.skin-gold .field{margin-top:4px;font-size:11px;color:rgba(244,236,212,.58)}
+.skin-gold .guide{display:flex;gap:8px;margin-top:16px}
+.skin-gold .g-btn{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:99px;border:1px solid rgba(233,223,194,.4);color:#efe6c9;background:rgba(233,223,194,.08)}
+.skin-gold .g-btn.primary{background:linear-gradient(120deg,#c9a25e,#a57f42);border-color:transparent;color:#1c1608;font-weight:600}
+.skin-gold .hairline{height:1px;background:linear-gradient(90deg,transparent,rgba(201,162,94,.5),transparent);margin:16px 0 12px}
+.skin-gold .quick{display:flex;justify-content:space-around}
+.skin-gold .q-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9.5px;color:rgba(244,236,212,.85)}
+.skin-gold .q-item .qi{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(244,236,212,.1);border:1px solid rgba(244,236,212,.16)}
+.skin-gold .qi svg{width:15px;height:15px;fill:rgba(244,236,212,.9)}
+.skin-gold .body{background:#f4f1ea}
+.skin-gold .stats{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;font-size:10.5px;color:#7a7566;border-bottom:1px solid #e5e0d3}
+.skin-gold .stats .n b{color:#2a241c;font-weight:600}
+.skin-gold .tabs{display:flex;padding:10px 18px 0;gap:22px;border-bottom:1px solid #e5e0d3;background:#f4f1ea}
+.skin-gold .tab{font-size:12.5px;color:#7a7566;padding-bottom:8px;position:relative}
+.skin-gold .tab.on{color:#1c1812;font-weight:600}
+.skin-gold .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,#c9a25e,#a57f42);border-radius:2px}
+.skin-gold .sec{padding:16px 18px;background:#f4f1ea}
+.skin-gold .row{display:flex;gap:12px;font-size:11.5px;margin-bottom:12px}
+.skin-gold .row .k{flex:none;width:44px;color:#9a947f;font-family:"Noto Serif SC",serif}
+.skin-gold .row .v{color:#3a362c;line-height:1.55}
+.skin-gold .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.skin-gold .chip{font-size:10px;color:#4a4434;background:#ece7d8;border:1px solid #ddd6c2;border-radius:99px;padding:2px 9px}
+.skin-gold .form{margin:2px 18px 14px;background:#fff;border:1px solid #e5e0d3;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.skin-gold .form .f1{font-size:12.5px;font-weight:600;color:#2a241c}
+.skin-gold .form .f2{font-size:10.5px;color:#9a947f;margin-top:2px}
+.skin-gold .form .go{font-size:11px;color:#a57f42;font-weight:600}
+.skin-gold .tabbar{flex:none;display:flex;justify-content:space-around;padding:10px 6px 12px;background:#f4f1ea;border-top:1px solid #e5e0d3}
+.skin-gold .tb{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#9a947f}
+.skin-gold .tb.on{color:#1c1812;font-weight:600}
+.skin-gold .tb svg{width:16px;height:16px;fill:currentColor}
+/* 2 暗夜极光 */
+.skin-aurora .sb{background:#0e1a30;color:#cfe0ff}
+.skin-aurora .hero{background:linear-gradient(168deg,#0f1d38 0%,#1c2a52 52%,#2c2050 100%);color:#e8f0ff;box-shadow:inset 0 0 0 1px rgba(93,158,255,.55),inset 0 0 60px rgba(60,110,220,.18);border-radius:0}
+.skin-aurora .nav .t{color:#e8f0ff}
+.skin-aurora .hero-inner{padding:48px 22px 22px}
+.skin-aurora .avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(150deg,#4d8dff,#2450b8);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;border:1px solid rgba(140,180,255,.7);box-shadow:0 0 14px rgba(77,141,255,.45)}
+.skin-aurora .badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;color:#a9c8ff;border:1px solid rgba(93,158,255,.55);border-radius:99px;padding:2px 8px;background:rgba(77,141,255,.14)}
+.skin-aurora .name{margin-top:14px;font-size:26px;font-weight:800;letter-spacing:.5px}
+.skin-aurora .pos{font-size:11px;color:rgba(232,240,255,.8);margin-top:4px}
+.skin-aurora .field{margin-top:4px;font-size:10.5px;color:rgba(232,240,255,.55)}
+.skin-aurora .guide{display:flex;gap:8px;margin-top:16px}
+.skin-aurora .g-btn{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:99px;border:1px solid rgba(140,180,255,.45);color:#dbe7ff;background:rgba(77,141,255,.1)}
+.skin-aurora .g-btn.primary{background:linear-gradient(120deg,#4d8dff,#2f62cf);border-color:transparent;color:#fff;font-weight:600;box-shadow:0 4px 14px rgba(77,141,255,.4)}
+.skin-aurora .quick{display:flex;justify-content:space-around;margin-top:16px;padding-top:12px;border-top:1px solid rgba(140,180,255,.16)}
+.skin-aurora .q-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9.5px;color:rgba(232,240,255,.85)}
+.skin-aurora .q-item .qi{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(77,141,255,.14)}
+.skin-aurora .qi svg{width:15px;height:15px;fill:rgba(190,215,255,.95)}
+.skin-aurora .body{background:#f2f5fb}
+.skin-aurora .stats{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;font-size:10.5px;color:#7b8494;border-bottom:1px solid #e2e7f1}
+.skin-aurora .stats .n b{color:#16304f;font-weight:600}
+.skin-aurora .tabs{display:flex;padding:10px 18px 0;gap:22px;border-bottom:1px solid #e2e7f1;background:#f2f5fb}
+.skin-aurora .tab{font-size:12.5px;color:#7b8494;padding-bottom:8px;position:relative}
+.skin-aurora .tab.on{color:#16304f;font-weight:600}
+.skin-aurora .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#4d8dff;border-radius:2px}
+.skin-aurora .sec{padding:16px 18px;background:#f2f5fb}
+.skin-aurora .row{display:flex;gap:12px;font-size:11.5px;margin-bottom:12px}
+.skin-aurora .row .k{flex:none;width:44px;color:#8d96a6}
+.skin-aurora .row .v{color:#333d4e;line-height:1.55}
+.skin-aurora .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.skin-aurora .chip{font-size:10px;color:#3a4a66;background:#e6edf9;border:1px solid #d4dfee;border-radius:99px;padding:2px 9px}
+.skin-aurora .form{margin:2px 18px 14px;background:#fff;border:1px solid #e2e7f1;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.skin-aurora .form .f1{font-size:12.5px;font-weight:600;color:#16304f}
+.skin-aurora .form .f2{font-size:10.5px;color:#8d96a6;margin-top:2px}
+.skin-aurora .form .go{font-size:11px;color:#2f62cf;font-weight:600}
+.skin-aurora .tabbar{flex:none;display:flex;justify-content:space-around;padding:10px 6px 12px;background:#f2f5fb;border-top:1px solid #e2e7f1}
+.skin-aurora .tb{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#8d96a6}
+.skin-aurora .tb.on{color:#16304f;font-weight:600}
+.skin-aurora .tb svg{width:16px;height:16px;fill:currentColor}
+/* 3 深海商务 */
+.skin-deep .sb{background:#0e2a4e;color:#d8e8ff}
+.skin-deep .hero{background:linear-gradient(160deg,#0e2a4e 0%,#2c66b0 70%,#3b7bd4 100%);color:#fff;position:relative}
+.skin-deep .hero::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1.2px,transparent 1.2px);background-size:14px 14px;opacity:.5;pointer-events:none}
+.skin-deep .nav .t{color:#fff}
+.skin-deep .hero-inner{padding:50px 20px 22px;position:relative;z-index:1}
+.skin-deep .h-top{display:flex;align-items:flex-end;justify-content:space-between}
+.skin-deep .avatar{width:62px;height:62px;border-radius:20px;background:linear-gradient(150deg,#5a8fd6,#2f5f9e);display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.5)}
+.skin-deep .badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;color:#d8e8ff;border:1px solid rgba(255,255,255,.55);border-radius:99px;padding:2px 8px;background:rgba(255,255,255,.14)}
+.skin-deep .name{margin-top:13px;font-size:21px;font-weight:700;letter-spacing:.5px}
+.skin-deep .pos{font-size:11px;color:rgba(255,255,255,.85);margin-top:5px}
+.skin-deep .field{margin-top:4px;font-size:11px;color:rgba(255,255,255,.6)}
+.skin-deep .guide{display:flex;gap:8px;margin-top:15px}
+.skin-deep .g-btn{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:99px;border:1px solid rgba(255,255,255,.45);color:#fff;background:rgba(255,255,255,.1)}
+.skin-deep .g-btn.primary{background:linear-gradient(120deg,#3b7bd4,#2458a4);border-color:transparent;color:#fff;font-weight:600}
+.skin-deep .quick{display:flex;justify-content:space-around;margin-top:15px}
+.skin-deep .q-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9.5px;color:rgba(255,255,255,.9)}
+.skin-deep .q-item .qi{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.14)}
+.skin-deep .qi svg{width:15px;height:15px;fill:#fff}
+.skin-deep .body{background:#f4f7fb}
+.skin-deep .stats{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;font-size:10.5px;color:#7c8aa0;border-bottom:1px solid #e3e9f2}
+.skin-deep .stats .n b{color:#0e2a4e;font-weight:600}
+.skin-deep .tabs{display:flex;padding:10px 18px 0;gap:22px;border-bottom:1px solid #e3e9f2;background:#f4f7fb}
+.skin-deep .tab{font-size:12.5px;color:#7c8aa0;padding-bottom:8px;position:relative}
+.skin-deep .tab.on{color:#0e2a4e;font-weight:600}
+.skin-deep .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#3b7bd4;border-radius:2px}
+.skin-deep .sec{padding:16px 18px;background:#f4f7fb}
+.skin-deep .row{display:flex;gap:12px;font-size:11.5px;margin-bottom:12px}
+.skin-deep .row .k{flex:none;width:44px;color:#8b97ab}
+.skin-deep .row .v{color:#2c3a4f;line-height:1.55}
+.skin-deep .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.skin-deep .chip{font-size:10px;color:#33537a;background:#e7eef8;border:1px solid #d5e0ee;border-radius:99px;padding:2px 9px}
+.skin-deep .form{margin:2px 18px 14px;background:#fff;border:1px solid #e3e9f2;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.skin-deep .form .f1{font-size:12.5px;font-weight:600;color:#0e2a4e}
+.skin-deep .form .f2{font-size:10.5px;color:#8b97ab;margin-top:2px}
+.skin-deep .form .go{font-size:11px;color:#2f6ec0;font-weight:600}
+.skin-deep .tabbar{flex:none;display:flex;justify-content:space-around;padding:10px 6px 12px;background:#f4f7fb;border-top:1px solid #e3e9f2}
+.skin-deep .tb{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#8b97ab}
+.skin-deep .tb.on{color:#0e2a4e;font-weight:600}
+.skin-deep .tb svg{width:16px;height:16px;fill:currentColor}
+/* 4 纸艺雅致 */
+.skin-paper .sb{background:#f7f4ee;color:#5c5748}
+.skin-paper .hero{background:#fdfcf9;color:#2b2723;box-shadow:inset 0 0 0 1px #e2dccd;border-radius:0;margin:0 12px;margin-top:40px;position:relative}
+.skin-paper .nav .t{color:#2b2723}
+.skin-paper .hero-inner{padding:26px 18px 20px}
+.skin-paper .avatar{width:58px;height:58px;border-radius:50%;background:linear-gradient(150deg,#e8e2d3,#d5cdb8);display:flex;align-items:center;justify-content:center;font-size:22px;font-family:"Noto Serif SC",serif;font-weight:700;color:#6b6350;border:1px solid #d8d0bc}
+.skin-paper .badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;color:#7d7460;border:1px solid #d8d0bc;border-radius:99px;padding:2px 8px;background:#f5f1e8}
+.skin-paper .name{margin-top:12px;font-size:21px;font-weight:700;font-family:"Noto Serif SC",serif;letter-spacing:1px}
+.skin-paper .pos{font-size:11px;color:#6b6350;margin-top:4px;font-family:"Noto Serif SC",serif}
+.skin-paper .field{margin-top:4px;font-size:11px;color:#8d8672}
+.skin-paper .guide{display:flex;gap:8px;margin-top:15px}
+.skin-paper .g-btn{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:99px;border:1px solid #d8d0bc;color:#6b6350;background:#f8f5ee}
+.skin-paper .g-btn.primary{background:#2b2723;border-color:#2b2723;color:#fdfcf9;font-weight:600}
+.skin-paper .hairline{height:1px;background:#e7e1d2;margin:15px 0 12px}
+.skin-paper .quick{display:flex;justify-content:space-around}
+.skin-paper .q-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9.5px;color:#7d7460}
+.skin-paper .q-item .qi{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f4f0e5;border:1px solid #e7e1d2}
+.skin-paper .qi svg{width:15px;height:15px;fill:#7d7460}
+.skin-paper .body{background:#faf8f3}
+.skin-paper .stats{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;font-size:10.5px;color:#8d8672;border-bottom:1px solid #ece7db}
+.skin-paper .stats .n b{color:#2b2723;font-weight:600}
+.skin-paper .tabs{display:flex;padding:10px 18px 0;gap:22px;border-bottom:1px solid #ece7db;background:#faf8f3}
+.skin-paper .tab{font-size:12.5px;color:#8d8672;padding-bottom:8px;position:relative}
+.skin-paper .tab.on{color:#2b2723;font-weight:600}
+.skin-paper .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#2b2723;border-radius:2px}
+.skin-paper .sec{padding:16px 18px;background:#faf8f3}
+.skin-paper .row{display:flex;gap:12px;font-size:11.5px;margin-bottom:12px}
+.skin-paper .row .k{flex:none;width:44px;color:#a49c85}
+.skin-paper .row .v{color:#4a4538;line-height:1.55}
+.skin-paper .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.skin-paper .chip{font-size:10px;color:#6b6350;background:#f1ece0;border:1px solid #e5dfcf;border-radius:99px;padding:2px 9px}
+.skin-paper .form{margin:2px 18px 14px;background:#fff;border:1px solid #ece7db;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.skin-paper .form .f1{font-size:12.5px;font-weight:600;color:#2b2723}
+.skin-paper .form .f2{font-size:10.5px;color:#a49c85;margin-top:2px}
+.skin-paper .form .go{font-size:11px;color:#6b6350;font-weight:600}
+.skin-paper .tabbar{flex:none;display:flex;justify-content:space-around;padding:10px 6px 12px;background:#faf8f3;border-top:1px solid #ece7db}
+.skin-paper .tb{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#a49c85}
+.skin-paper .tb.on{color:#2b2723;font-weight:600}
+.skin-paper .tb svg{width:16px;height:16px;fill:currentColor}
+/* 5 极简明净 */
+.skin-clean .sb{background:#ffffff;color:#33343d}
+.skin-clean .hero{background:#ffffff;color:#1c1d24;margin:0 18px;border-radius:16px;margin-top:40px;box-shadow:0 2px 10px rgba(30,40,80,.05),0 0 0 1px #eceef2;position:relative}
+.skin-clean .nav .t{color:#1c1d24}
+.skin-clean .hero-inner{padding:22px 18px 18px}
+.skin-clean .h-top{display:flex;align-items:flex-end;justify-content:space-between}
+.skin-clean .avatar{width:58px;height:58px;border-radius:50%;background:linear-gradient(150deg,#3f6ff0,#165dff);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff}
+.skin-clean .badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;color:#165dff;border:1px solid #d6e2ff;border-radius:99px;padding:2px 8px;background:#eef3ff}
+.skin-clean .name{margin-top:12px;font-size:20px;font-weight:700;letter-spacing:.5px}
+.skin-clean .pos{font-size:11px;color:#7a7d89;margin-top:4px}
+.skin-clean .field{margin-top:4px;font-size:11px;color:#a0a3ad}
+.skin-clean .guide{display:flex;gap:8px;margin-top:14px}
+.skin-clean .g-btn{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:99px;border:1px solid #e2e5ec;color:#4a4d58;background:#f7f8fa}
+.skin-clean .g-btn.primary{background:#165dff;border-color:#165dff;color:#fff;font-weight:600}
+.skin-clean .quick{display:flex;justify-content:space-around;margin-top:14px;padding-top:12px;border-top:1px solid #f0f1f4}
+.skin-clean .q-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9.5px;color:#7a7d89}
+.skin-clean .q-item .qi{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f2f4f8}
+.skin-clean .qi svg{width:15px;height:15px;fill:#5a5e6b}
+.skin-clean .body{background:#ffffff}
+.skin-clean .stats{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;font-size:10.5px;color:#9da1ab;border-bottom:1px solid #f0f1f4}
+.skin-clean .stats .n b{color:#1c1d24;font-weight:600}
+.skin-clean .tabs{display:flex;padding:10px 18px 0;gap:22px;border-bottom:1px solid #f0f1f4;background:#ffffff}
+.skin-clean .tab{font-size:12.5px;color:#9da1ab;padding-bottom:8px;position:relative}
+.skin-clean .tab.on{color:#1c1d24;font-weight:600}
+.skin-clean .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#165dff;border-radius:2px}
+.skin-clean .sec{padding:16px 18px;background:#ffffff}
+.skin-clean .row{display:flex;gap:12px;font-size:11.5px;margin-bottom:12px}
+.skin-clean .row .k{flex:none;width:44px;color:#a0a3ad}
+.skin-clean .row .v{color:#3a3c45;line-height:1.55}
+.skin-clean .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.skin-clean .chip{font-size:10px;color:#5a5e6b;background:#f4f6fa;border:1px solid #e8eaf0;border-radius:99px;padding:2px 9px}
+.skin-clean .form{margin:2px 18px 14px;background:#f7f8fa;border:1px solid #eceef2;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+.skin-clean .form .f1{font-size:12.5px;font-weight:600;color:#1c1d24}
+.skin-clean .form .f2{font-size:10.5px;color:#a0a3ad;margin-top:2px}
+.skin-clean .form .go{font-size:11px;color:#165dff;font-weight:600}
+.skin-clean .tabbar{flex:none;display:flex;justify-content:space-around;padding:10px 6px 12px;background:#ffffff;border-top:1px solid #f0f1f4}
+.skin-clean .tb{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#a0a3ad}
+.skin-clean .tb.on{color:#165dff;font-weight:600}
+.skin-clean .tb svg{width:16px;height:16px;fill:currentColor}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <h1>名片详情页 · 分享皮肤方案</h1>
+    <div class="sub">名片主人分享后，客户打开 <b>cardDetail</b> 看到的落地样式。5 版皮肤 × 统一新增「保存名片 / 关注TA」引导条（<b>方案B</b>，可开关）。数据为真实卡片（陈晨 · 产品负责人）。<br>深色 3 版（黑金 / 暗夜 / 深海）由现有高端模板 <b>微调配置</b> 实现；浅色 2 版（纸艺 / 明净）需新增或微调浅色模板。</div>
+    <div class="legend">
+      <span class="tag hot">推荐 · 深色高端</span>
+      <span class="tag">浅色轻奢</span>
+      <span class="tag">引导条 = 方案B 新增</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- ============ 1 曜石黑金 ============ -->
+    <div class="card">
+      <div class="phone skin-gold">
+        <div class="inner">
+          <div class="sb"><span class="time">09:41</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v4a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/><path d="M4 10a8 8 0 0 0 16 0h-2a6 6 0 0 1-12 0H4z" opacity=".6"/></svg></span></div>
+          <div class="body">
+            <div class="nav"><svg class="back" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="t">名片详情</span></div>
+            <div class="hero">
+              <div class="hero-inner">
+                <div class="h-top"><div class="avatar">陈</div><div class="badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="#d9bc78"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17.2 6.1 20.2l1.3-6.6L2.5 9l6.6-.8z"/></svg> 黄金会员</div></div>
+                <div class="name">陈晨</div>
+                <div class="pos">产品负责人</div>
+                <div class="field">东莞 · 约拍 · 商业摄影</div>
+                <div class="guide"><div class="g-btn">＋ 保存名片</div><div class="g-btn primary">关注 TA</div></div>
+                <div class="hairline"></div>
+                <div class="quick">
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2-2a1 1 0 0 1 1-.3 8.5 8.5 0 0 0 2.7.4 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 8.5 8.5 0 0 0 .4 2.7 1 1 0 0 1-.3 1z"/></svg></div>拨号</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M4 6l8 5 8-5v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></div>复制微信</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 14h-2v-6h2zm0-8h-2V6h2z"/></svg></div>导航</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M18 8a4 4 0 0 1 4 4c0 3-4 7-10 12C6 19 2 15 2 12a4 4 0 0 1 7-2.6A4 4 0 0 1 18 8z"/></svg></div>分享</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9A5.2 5.2 0 0 1 12 6.4 5.2 5.2 0 0 1 21.5 12c-2.5 4.4-9.5 9-9.5 9z"/></svg></div>收藏</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats"><span class="n"><b>50</b>人浏览 · <b>2</b>人收藏</span><span>分享卡片封面：黑金 hero 缩略图</span></div>
+            <div class="tabs"><div class="tab on">简介</div><div class="tab">作品</div><div class="tab">动态</div><div class="tab">视频</div></div>
+            <div class="sec">
+              <div class="row"><span class="k">身份</span><span class="v">产品负责人</span></div>
+              <div class="row"><span class="k">简介</span><span class="v">6年商业摄影经验，专注品牌视觉、人像写真与产品拍摄。</span></div>
+              <div class="row"><span class="k">专注</span><span class="v">商业摄影 · 人像写真 · 视频创作</span></div>
+              <div class="row"><span class="k">供需</span><span class="v"><span class="chips"><span class="chip">找渠道</span><span class="chip">求合作</span></span></span></div>
+              <div class="row"><span class="k">标签</span><span class="v"><span class="chips"><span class="chip">约拍</span><span class="chip">品牌视觉</span><span class="chip">视频</span><span class="chip">商业合作</span></span></span></div>
+            </div>
+            <div class="form"><div><div class="f1">预约咨询</div><div class="f2">填写信息，方便与对方进一步沟通</div></div><div class="go">去填写</div></div>
+          </div>
+          <div class="tabbar"><div class="tb on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>首页</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>我的名片</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3.6 13.4l-5-2.4V7h2v4.6l4 1.9z"/></svg>集市</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.5 14.5l-5.3-2.5V7h2v5.4l4 1.9z"/></svg>会员</div></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="name"><span class="no">01</span>曜石黑金</div>
+        <div class="pos">ctr 居中版式 · 深棕底 + 金描边 + 衬线字 · 气质商务贵气，适合商会/协会/高端服务</div>
+        <div class="imp">模板9黑金奢华微调：加深底色、强化金描边、引导条金渐变</div>
+      </div>
+    </div>
+
+    <!-- ============ 2 暗夜极光 ============ -->
+    <div class="card">
+      <div class="phone skin-aurora">
+        <div class="inner">
+          <div class="sb"><span class="time">09:41</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v4a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/><path d="M4 10a8 8 0 0 0 16 0h-2a6 6 0 0 1-12 0H4z" opacity=".6"/></svg></span></div>
+          <div class="body">
+            <div class="nav"><svg class="back" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="t">名片详情</span></div>
+            <div class="hero">
+              <div class="hero-inner">
+                <div class="badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="#a9c8ff"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17.2 6.1 20.2l1.3-6.6L2.5 9l6.6-.8z"/></svg> 黄金会员</div>
+                <div class="name">陈晨</div>
+                <div class="pos">产品负责人</div>
+                <div class="field">东莞 · 约拍 · 商业摄影</div>
+                <div class="guide"><div class="g-btn">＋ 保存名片</div><div class="g-btn primary">关注 TA</div></div>
+                <div class="quick">
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2-2a1 1 0 0 1 1-.3 8.5 8.5 0 0 0 2.7.4 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 8.5 8.5 0 0 0 .4 2.7 1 1 0 0 1-.3 1z"/></svg></div>拨号</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M4 6l8 5 8-5v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></div>复制微信</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 14h-2v-6h2zm0-8h-2V6h2z"/></svg></div>导航</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M18 8a4 4 0 0 1 4 4c0 3-4 7-10 12C6 19 2 15 2 12a4 4 0 0 1 7-2.6A4 4 0 0 1 18 8z"/></svg></div>分享</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9A5.2 5.2 0 0 1 12 6.4 5.2 5.2 0 0 1 21.5 12c-2.5 4.4-9.5 9-9.5 9z"/></svg></div>收藏</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats"><span class="n"><b>50</b>人浏览 · <b>2</b>人收藏</span><span>分享卡片封面：暗夜 hero 缩略图</span></div>
+            <div class="tabs"><div class="tab on">简介</div><div class="tab">作品</div><div class="tab">动态</div><div class="tab">视频</div></div>
+            <div class="sec">
+              <div class="row"><span class="k">身份</span><span class="v">产品负责人</span></div>
+              <div class="row"><span class="k">简介</span><span class="v">6年商业摄影经验，专注品牌视觉、人像写真与产品拍摄。</span></div>
+              <div class="row"><span class="k">专注</span><span class="v">商业摄影 · 人像写真 · 视频创作</span></div>
+              <div class="row"><span class="k">供需</span><span class="v"><span class="chips"><span class="chip">找渠道</span><span class="chip">求合作</span></span></span></div>
+              <div class="row"><span class="k">标签</span><span class="v"><span class="chips"><span class="chip">约拍</span><span class="chip">品牌视觉</span><span class="chip">视频</span><span class="chip">商业合作</span></span></span></div>
+            </div>
+            <div class="form"><div><div class="f1">预约咨询</div><div class="f2">填写信息，方便与对方进一步沟通</div></div><div class="go">去填写</div></div>
+          </div>
+          <div class="tabbar"><div class="tb on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>首页</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>我的名片</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3.6 13.4l-5-2.4V7h2v4.6l4 1.9z"/></svg>集市</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.5 14.5l-5.3-2.5V7h2v5.4l4 1.9z"/></svg>会员</div></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="name"><span class="no">02</span>暗夜极光</div>
+        <div class="pos">mag 大字版式 · 深空蓝黑渐变 + 霓虹描边 · 科技新锐，适合互联网/设计/年轻创业者</div>
+        <div class="imp">模板10暗夜科技微调：增大姓名字号、引导条霓虹渐变、quickbar 方形图标</div>
+      </div>
+    </div>
+
+    <!-- ============ 3 深海商务 ============ -->
+    <div class="card">
+      <div class="phone skin-deep">
+        <div class="inner">
+          <div class="sb"><span class="time">09:41</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v4a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/><path d="M4 10a8 8 0 0 0 16 0h-2a6 6 0 0 1-12 0H4z" opacity=".6"/></svg></span></div>
+          <div class="body">
+            <div class="nav"><svg class="back" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="t">名片详情</span></div>
+            <div class="hero">
+              <div class="hero-inner">
+                <div class="h-top"><div class="avatar">陈</div><div class="badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="#d8e8ff"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17.2 6.1 20.2l1.3-6.6L2.5 9l6.6-.8z"/></svg> 黄金会员</div></div>
+                <div class="name">陈晨</div>
+                <div class="pos">产品负责人</div>
+                <div class="field">东莞 · 约拍 · 商业摄影</div>
+                <div class="guide"><div class="g-btn">＋ 保存名片</div><div class="g-btn primary">关注 TA</div></div>
+                <div class="quick">
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2-2a1 1 0 0 1 1-.3 8.5 8.5 0 0 0 2.7.4 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 8.5 8.5 0 0 0 .4 2.7 1 1 0 0 1-.3 1z"/></svg></div>拨号</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M4 6l8 5 8-5v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></div>复制微信</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 14h-2v-6h2zm0-8h-2V6h2z"/></svg></div>导航</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M18 8a4 4 0 0 1 4 4c0 3-4 7-10 12C6 19 2 15 2 12a4 4 0 0 1 7-2.6A4 4 0 0 1 18 8z"/></svg></div>分享</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9A5.2 5.2 0 0 1 12 6.4 5.2 5.2 0 0 1 21.5 12c-2.5 4.4-9.5 9-9.5 9z"/></svg></div>收藏</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats"><span class="n"><b>50</b>人浏览 · <b>2</b>人收藏</span><span>分享卡片封面：深海 hero 缩略图</span></div>
+            <div class="tabs"><div class="tab on">简介</div><div class="tab">作品</div><div class="tab">动态</div><div class="tab">视频</div></div>
+            <div class="sec">
+              <div class="row"><span class="k">身份</span><span class="v">产品负责人</span></div>
+              <div class="row"><span class="k">简介</span><span class="v">6年商业摄影经验，专注品牌视觉、人像写真与产品拍摄。</span></div>
+              <div class="row"><span class="k">专注</span><span class="v">商业摄影 · 人像写真 · 视频创作</span></div>
+              <div class="row"><span class="k">供需</span><span class="v"><span class="chips"><span class="chip">找渠道</span><span class="chip">求合作</span></span></span></div>
+              <div class="row"><span class="k">标签</span><span class="v"><span class="chips"><span class="chip">约拍</span><span class="chip">品牌视觉</span><span class="chip">视频</span><span class="chip">商业合作</span></span></span></div>
+            </div>
+            <div class="form"><div><div class="f1">预约咨询</div><div class="f2">填写信息，方便与对方进一步沟通</div></div><div class="go">去填写</div></div>
+          </div>
+          <div class="tabbar"><div class="tb on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>首页</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>我的名片</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3.6 13.4l-5-2.4V7h2v4.6l4 1.9z"/></svg>集市</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.5 14.5l-5.3-2.5V7h2v5.4l4 1.9z"/></svg>会员</div></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="name"><span class="no">03</span>深海商务</div>
+        <div class="pos">cls 横排版式 · 深蓝渐变 + 细腻点纹 · 专业稳重，适合企业主/商务服务/团队负责人</div>
+        <div class="imp">模板6精致商务微调：点纹纹理加深、引导条蓝渐变、头像加大圆角</div>
+      </div>
+    </div>
+
+    <!-- ============ 4 纸艺雅致 ============ -->
+    <div class="card">
+      <div class="phone skin-paper">
+        <div class="inner">
+          <div class="sb"><span class="time">09:41</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v4a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/><path d="M4 10a8 8 0 0 0 16 0h-2a6 6 0 0 1-12 0H4z" opacity=".6"/></svg></span></div>
+          <div class="body">
+            <div class="nav"><svg class="back" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="t">名片详情</span></div>
+            <div class="hero">
+              <div class="hero-inner">
+                <div class="h-top"><div class="avatar">陈</div><div class="badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="#7d7460"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17.2 6.1 20.2l1.3-6.6L2.5 9l6.6-.8z"/></svg> 黄金会员</div></div>
+                <div class="name">陈晨</div>
+                <div class="pos">产品负责人</div>
+                <div class="field">东莞 · 约拍 · 商业摄影</div>
+                <div class="guide"><div class="g-btn">＋ 保存名片</div><div class="g-btn primary">关注 TA</div></div>
+                <div class="hairline"></div>
+                <div class="quick">
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2-2a1 1 0 0 1 1-.3 8.5 8.5 0 0 0 2.7.4 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 8.5 8.5 0 0 0 .4 2.7 1 1 0 0 1-.3 1z"/></svg></div>拨号</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M4 6l8 5 8-5v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></div>复制微信</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 14h-2v-6h2zm0-8h-2V6h2z"/></svg></div>导航</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M18 8a4 4 0 0 1 4 4c0 3-4 7-10 12C6 19 2 15 2 12a4 4 0 0 1 7-2.6A4 4 0 0 1 18 8z"/></svg></div>分享</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9A5.2 5.2 0 0 1 12 6.4 5.2 5.2 0 0 1 21.5 12c-2.5 4.4-9.5 9-9.5 9z"/></svg></div>收藏</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats"><span class="n"><b>50</b>人浏览 · <b>2</b>人收藏</span><span>分享卡片封面：纸艺 hero 缩略图</span></div>
+            <div class="tabs"><div class="tab on">简介</div><div class="tab">作品</div><div class="tab">动态</div><div class="tab">视频</div></div>
+            <div class="sec">
+              <div class="row"><span class="k">身份</span><span class="v">产品负责人</span></div>
+              <div class="row"><span class="k">简介</span><span class="v">6年商业摄影经验，专注品牌视觉、人像写真与产品拍摄。</span></div>
+              <div class="row"><span class="k">专注</span><span class="v">商业摄影 · 人像写真 · 视频创作</span></div>
+              <div class="row"><span class="k">供需</span><span class="v"><span class="chips"><span class="chip">找渠道</span><span class="chip">求合作</span></span></span></div>
+              <div class="row"><span class="k">标签</span><span class="v"><span class="chips"><span class="chip">约拍</span><span class="chip">品牌视觉</span><span class="chip">视频</span><span class="chip">商业合作</span></span></span></div>
+            </div>
+            <div class="form"><div><div class="f1">预约咨询</div><div class="f2">填写信息，方便与对方进一步沟通</div></div><div class="go">去填写</div></div>
+          </div>
+          <div class="tabbar"><div class="tb on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>首页</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>我的名片</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3.6 13.4l-5-2.4V7h2v4.6l4 1.9z"/></svg>集市</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.5 14.5l-5.3-2.5V7h2v5.4l4 1.9z"/></svg>会员</div></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="name"><span class="no">04</span>纸艺雅致</div>
+        <div class="pos">mag/paper 版式 · 米白纸底 + 墨色衬线 + 细描边 · 轻奢文艺，适合设计师/文化/生活方式</div>
+        <div class="imp">模板11纸艺雅致强化：内描边卡纸层次、引导条墨色实底、深色文字</div>
+      </div>
+    </div>
+
+    <!-- ============ 5 极简明净 ============ -->
+    <div class="card">
+      <div class="phone skin-clean">
+        <div class="inner">
+          <div class="sb"><span class="time">09:41</span><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 0-4 4v4a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/><path d="M4 10a8 8 0 0 0 16 0h-2a6 6 0 0 1-12 0H4z" opacity=".6"/></svg></span></div>
+          <div class="body">
+            <div class="nav"><svg class="back" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="t">名片详情</span></div>
+            <div class="hero">
+              <div class="hero-inner">
+                <div class="h-top"><div class="avatar">陈</div><div class="badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="#165dff"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17.2 6.1 20.2l1.3-6.6L2.5 9l6.6-.8z"/></svg> 黄金会员</div></div>
+                <div class="name">陈晨</div>
+                <div class="pos">产品负责人</div>
+                <div class="field">东莞 · 约拍 · 商业摄影</div>
+                <div class="guide"><div class="g-btn">＋ 保存名片</div><div class="g-btn primary">关注 TA</div></div>
+                <div class="quick">
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2-2a1 1 0 0 1 1-.3 8.5 8.5 0 0 0 2.7.4 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 8.5 8.5 0 0 0 .4 2.7 1 1 0 0 1-.3 1z"/></svg></div>拨号</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M4 6l8 5 8-5v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg></div>复制微信</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 14h-2v-6h2zm0-8h-2V6h2z"/></svg></div>导航</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M18 8a4 4 0 0 1 4 4c0 3-4 7-10 12C6 19 2 15 2 12a4 4 0 0 1 7-2.6A4 4 0 0 1 18 8z"/></svg></div>分享</div>
+                  <div class="q-item"><div class="qi"><svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9A5.2 5.2 0 0 1 12 6.4 5.2 5.2 0 0 1 21.5 12c-2.5 4.4-9.5 9-9.5 9z"/></svg></div>收藏</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats"><span class="n"><b>50</b>人浏览 · <b>2</b>人收藏</span><span>分享卡片封面：明净 hero 缩略图</span></div>
+            <div class="tabs"><div class="tab on">简介</div><div class="tab">作品</div><div class="tab">动态</div><div class="tab">视频</div></div>
+            <div class="sec">
+              <div class="row"><span class="k">身份</span><span class="v">产品负责人</span></div>
+              <div class="row"><span class="k">简介</span><span class="v">6年商业摄影经验，专注品牌视觉、人像写真与产品拍摄。</span></div>
+              <div class="row"><span class="k">专注</span><span class="v">商业摄影 · 人像写真 · 视频创作</span></div>
+              <div class="row"><span class="k">供需</span><span class="v"><span class="chips"><span class="chip">找渠道</span><span class="chip">求合作</span></span></span></div>
+              <div class="row"><span class="k">标签</span><span class="v"><span class="chips"><span class="chip">约拍</span><span class="chip">品牌视觉</span><span class="chip">视频</span><span class="chip">商业合作</span></span></span></div>
+            </div>
+            <div class="form"><div><div class="f1">预约咨询</div><div class="f2">填写信息，方便与对方进一步沟通</div></div><div class="go">去填写</div></div>
+          </div>
+          <div class="tabbar"><div class="tb on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>首页</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/></svg>我的名片</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm3.6 13.4l-5-2.4V7h2v4.6l4 1.9z"/></svg>集市</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.5 14.5l-5.3-2.5V7h2v5.4l4 1.9z"/></svg>会员</div></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="name"><span class="no">05</span>极简明净</div>
+        <div class="pos">浅色极简新方案 · 纯白 + 单一品牌蓝 + 大留白 · 现代干净，适合科技/咨询/个人品牌</div>
+        <div class="imp">需新增浅色模板：白底圆角卡片 hero、品牌色点缀、引导条品牌蓝实底</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
