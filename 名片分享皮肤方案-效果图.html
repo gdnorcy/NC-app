@@ -42,16 +42,21 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
 .skin-gold .hero{background:linear-gradient(165deg,#14110d 0%,#241e14 55%,#2d261a 100%);color:#f4ecd4}
 .skin-gold .nav .t{color:#f0e7c8}
 .skin-gold .hero-inner{padding:56px 20px 22px}
-.skin-gold .h-top{display:flex;align-items:flex-end;justify-content:space-between}
+.skin-gold .h-top{display:flex;align-items:flex-start;justify-content:space-between}
 .skin-gold .avatar{width:64px;height:64px;border-radius:12px;background:linear-gradient(150deg,#c9a25e,#8a6d33);display:flex;align-items:center;justify-content:center;font-size:24px;font-family:"Noto Serif SC",serif;font-weight:700;color:#1c1608;border:1px solid #e6c57e}
+.skin-gold .cos-right{display:flex;flex-direction:column;gap:7px;align-items:flex-end;max-width:190px}
+.skin-gold .co{display:flex;align-items:flex-start;gap:6px;font-size:10px;line-height:1.5;color:rgba(244,236,212,.88);font-family:"Noto Serif SC",serif;letter-spacing:.2px;text-align:right}
+.skin-gold .co .dot{width:4px;height:4px;border-radius:50%;background:#c9a25e;flex:none;margin-top:4px;box-shadow:0 0 4px rgba(201,162,94,.8)}
+.skin-gold .co .cp{display:block;color:rgba(244,236,212,.52);font-size:9px}
+.skin-gold .badge-inline{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;color:#d9bc78;border:1px solid rgba(201,162,94,.65);border-radius:99px;padding:2px 8px;background:rgba(201,162,94,.12);vertical-align:middle;margin-left:8px;font-family:"PingFang SC",sans-serif}
 .skin-gold .badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;color:#d9bc78;border:1px solid rgba(201,162,94,.65);border-radius:99px;padding:2px 8px;background:rgba(201,162,94,.12)}
 .skin-gold .name{margin-top:14px;font-size:22px;font-weight:700;font-family:"Noto Serif SC",serif;letter-spacing:.5px}
 .skin-gold .pos{font-size:11px;color:rgba(244,236,212,.78);margin-top:5px;font-family:"Noto Serif SC",serif}
 .skin-gold .field{margin-top:4px;font-size:11px;color:rgba(244,236,212,.58)}
 .skin-gold .cos{margin-top:14px;display:flex;flex-direction:column;gap:7px;align-items:center}
-.skin-gold .co{display:flex;align-items:center;gap:7px;font-size:10.5px;color:rgba(244,236,212,.82);font-family:"Noto Serif SC",serif;letter-spacing:.3px}
-.skin-gold .co .dot{width:4px;height:4px;border-radius:50%;background:#c9a25e;flex:none;box-shadow:0 0 4px rgba(201,162,94,.8)}
-.skin-gold .co .sep{color:rgba(201,162,94,.7);margin:0 2px}
+.skin-gold .cos .co{display:flex;align-items:center;gap:7px;font-size:10.5px;color:rgba(244,236,212,.82);font-family:"Noto Serif SC",serif;letter-spacing:.3px}
+.skin-gold .cos .co .dot{width:4px;height:4px;border-radius:50%;background:#c9a25e;flex:none;box-shadow:0 0 4px rgba(201,162,94,.8)}
+.skin-gold .cos .co .sep{color:rgba(201,162,94,.7);margin:0 2px}
 .skin-gold .guide{display:flex;gap:8px;margin-top:16px}
 .skin-gold .g-btn{flex:1;text-align:center;font-size:11.5px;padding:7px 0;border-radius:99px;border:1px solid rgba(233,223,194,.4);color:#efe6c9;background:rgba(233,223,194,.08)}
 .skin-gold .g-btn.primary{background:linear-gradient(120deg,#c9a25e,#a57f42);border-color:transparent;color:#1c1608;font-weight:600}
@@ -267,15 +272,16 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
             <div class="nav"><svg class="back" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="t">名片详情</span></div>
             <div class="hero">
               <div class="hero-inner">
-                <div class="h-top"><div class="avatar">陈</div><div class="badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="#d9bc78"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17.2 6.1 20.2l1.3-6.6L2.5 9l6.6-.8z"/></svg> 黄金会员</div></div>
-                <div class="name">陈晨</div>
+                <div class="h-top"><div class="avatar">陈</div>
+                  <div class="cos-right">
+                    <div class="co"><span class="dot"></span>东莞市揭阳商会<span class="cp">副会长兼秘书长</span></div>
+                    <div class="co"><span class="dot"></span>东莞市饶平商会<span class="cp">常务副会长</span></div>
+                    <div class="co"><span class="dot"></span>中山市饶平商会<span class="cp">副会长</span></div>
+                  </div>
+                </div>
+                <div class="name">陈晨<span class="badge-inline"><svg width="9" height="9" viewBox="0 0 24 24" fill="#d9bc78"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17.2 6.1 20.2l1.3-6.6L2.5 9l6.6-.8z"/></svg> 黄金会员</span></div>
                 <div class="pos">产品负责人</div>
                 <div class="field">东莞 · 约拍 · 商业摄影</div>
-                <div class="cos">
-                  <div class="co"><span class="dot"></span>东莞市揭阳商会<span class="sep">·</span>副会长兼秘书长</div>
-                  <div class="co"><span class="dot"></span>东莞市饶平商会<span class="sep">·</span>常务副会长</div>
-                  <div class="co"><span class="dot"></span>中山市饶平商会<span class="sep">·</span>副会长</div>
-                </div>
                 <div class="guide"><div class="g-btn">＋ 保存名片</div><div class="g-btn primary">关注 TA</div></div>
                 <div class="hairline"></div>
                 <div class="quick">
@@ -304,7 +310,7 @@ body{background:#e9e7e1;font-family:"PingFang SC","Noto Sans SC","Microsoft YaHe
       <div class="cap">
         <div class="name"><span class="no">01</span>曜石黑金 · 多公司版</div>
         <div class="pos">ctr 居中版式 · 深棕底 + 金描边 + 衬线字 · 气质商务贵气，适合商会/协会/高端服务</div>
-        <div class="imp">★ 多公司版：hero 区新增任职公司列表（金色圆点 + 公司名·职务），可展示多家公司；模板9黑金奢华微调</div>
+        <div class="imp">★ 多公司版：任职公司列表置于 hero 右上角（原「黄金会员」徽章位，右对齐金点竖排，公司名+职务两行小字），徽章移至姓名右侧；可容纳 3 家左右；模板9黑金奢华微调</div>
       </div>
     </div>
 
