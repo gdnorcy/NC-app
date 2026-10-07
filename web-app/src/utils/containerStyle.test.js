@@ -190,4 +190,23 @@ describe('存量迁移 migrateLegacyBgColor（2026-10-05）', () => {
       expect(selfColored(t)).toBe(false);
     }
   });
+
+  // 🔴 2026-10-07「保存发布后设计中心自己把容器填充成渐变」回归锁：
+  //   native-* 诞生于拆字段之后，bgColor 从第一天就是自身语义，整体不参与迁移。
+  //   事故链：加载草稿 → 迁移把搜索框渐变 bgColor 搬进 compBgColor → 容器被填充，
+  //   用户再保存即污染库 → C 端跟着坏。
+  it('native-search 的 bgColor（搜索框色）绝不搬进 compBgColor', () => {
+    const c = { type: 'native-search', props: { bgColor: 'linear-gradient(135deg,#00b0ff,#536dfe)', compBgColor: '' } };
+    expect(migrateLegacyBgColor(c)).toBe(false);
+    expect(c.props.compBgColor).toBe('');
+    expect(c.props.bgColor).toBe('linear-gradient(135deg,#00b0ff,#536dfe)');
+  });
+
+  it('native-* 全家族跳过（含无 compBgColor 字段的 native-grid）', () => {
+    for (const t of ['native-search', 'native-grid', 'native-mycard', 'native-radar', 'native-market']) {
+      const c = { type: t, props: { bgColor: '#123456' } };
+      expect(migrateLegacyBgColor(c)).toBe(false);
+      expect(c.props.compBgColor).toBeUndefined();
+    }
+  });
 });

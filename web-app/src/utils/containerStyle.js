@@ -144,6 +144,12 @@ export function selfColored(type) {
 export function migrateLegacyBgColor(comp) {
   if (!comp || !comp.props) return false;
   const p = comp.props;
+  // 🔴 native-* 名片原生组件**整体跳过**（2026-10-07「保存发布后设计中心自己把容器
+  //   填充成渐变」的根因）：这批组件诞生于本次拆字段**之后**，从第一天起 bgColor 就是
+  //   自身语义（native-search =「搜索框色」）、compBgColor 独立存在 —— 没有旧数据可迁。
+  //   漏判后果：加载草稿时 `migrateLegacyBgColor` 把搜索框渐变色搬进 compBgColor →
+  //   容器被填充（admin 立刻可见）；用户再点保存会把污染值写库 → **C 端也跟着坏**。
+  if (String(comp.type || '').startsWith('native-')) return false;
   if (selfColored(comp.type)) return false;
   if (p[CONTAINER_BG_KEY]) return false;
   if (!p.bgColor) return false;
