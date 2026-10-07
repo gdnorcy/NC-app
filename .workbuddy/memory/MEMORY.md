@@ -26,6 +26,7 @@
 - **沉浸页顶部避让**：PageNav overlay / 自绘 hero 的 padding-top 须消费 `--pnv-status-bar`/`--pnv-nav-h`/`--pnv-capsule-pad`，真实值只由 `navVarsStyle()`（utils/navMetrics.js）内联注入。右侧有徽章/按钮的 hero 须避到导航行之下（member 曾致 FREE 徽章与胶囊相撞）。
 - 🔴 **胶囊避让**：`navBarRowStyle` 的 `paddingRight` 只是 `capsuleRightPad`(≈7px)，**胶囊宽 87px 压在这 7px 内** → 全站 `#right` 插槽被挡。正确：`.pnv-right` 在**插槽非空时**加 `marginRight=capsuleWidth`，且须判空。
 - 🔧 **H5 重建被沙箱 safe-delete 拦**（uni clean 删 >50 文件）：先 `mv dist/build/h5 /tmp/...` 清空再构建。
+- 🔴 **真机「不是最新包」三因**（新增 `scripts/stamp-build.js` → 产物根 `BUILD.txt` 记录时间+git HEAD 用于对账）：① 扫的是**体验版**码——体验版必须开发者工具「上传」才更新，本地构建永远不更新体验版；② **预览二维码是旧的**——每次构建后必须重新点「预览」生成；③ 开发者工具**项目目录**必须是 `web-app/dist/build/mp-weixin`，不能是 `web-app` 根目录。产物 `project.config.json` 已带正式 appid 且 `urlCheck:false`；开发者工具切「测试号」会导致 code 与 appid 不匹配、登录失败。
 
 ## 创建页画布定稿（v3.2）
 统一浅色画布 `#f6f7fb` + 顶部主题色晕染 + 白卡 + **主题色渐变头部**；取消明暗双分支。主题色主场 = 头部渐变/主按钮/焦点圈/分隔线/输入框描边。**步骤数字「1/3」消费 `--sk-hd-sub`**，勿用灰 `--t3`。
