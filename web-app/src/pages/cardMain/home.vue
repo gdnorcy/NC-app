@@ -181,8 +181,12 @@ const headerScrolled = ref(false);
 function nativeMargin(props) {
   const p = props || {};
   const s = {};
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  // ⚠️ 下边距给 8px 兜底（= 原 `.section{margin-bottom:16rpx}` 的值）：
+  //   清理 CSS 里的写死 margin 后，卡间白缝靠这里保证，不会因marginBottom=0 而全部贴死。
+  const mb = p.marginBottom ?? 8;
+  if (mb) s.marginBottom = mb + 'px';
+  const mt = p.marginTop;
+  if (mt) s.marginTop = mt + 'px';
   // 左右边距：与 admin 画布/共享 containerStyle 的 marginLR 语义一致。
   // ⚠️ 允许 0：0 是合法值（组件可以故意通栏），故用 ?? 而非 ||。
   const lr = p.marginLR ?? p.marginLeft ?? p.marginRight;
@@ -534,7 +538,10 @@ function viewMarketCard(item) {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  padding: 24rpx;
+  /* 🔴 横向内缩原先写死 24rpx，与 `nativeMargin()` 内联的 marginLeft/Right **叠加**，
+     导致搜索框比后台设计器多缩一层（用户反馈「搜索框没按后台设计的显示」）。
+     横向交给 marginLR 单独控制，这里只留纵向。 */
+  padding: 24rpx 0;
   background: #fff;
 }
 /* 系统风格全局默认头部（无页面头部配置时）：背景=头部颜色，文字=头部文字
@@ -618,6 +625,10 @@ function viewMarketCard(item) {
   background: #fff;
   padding: 32rpx 16rpx;
   margin-bottom: 16rpx;
+  /* 🔴 圆角原先漏写 → 真机四个角是硬直角，而 admin 的 .r-native-grid 有 border-radius:8px，
+     两端不一致（2026-10-07 用户反馈「四个角没有圆角」）。
+     与 .section 保持同一量级（16rpx = 8px），且不写死——由 nativeRadiusStyle 注入覆盖。 */
+  border-radius: 16rpx;
 }
 .grid {
   display: grid;
@@ -665,7 +676,10 @@ function viewMarketCard(item) {
 /* 通用区块 */
 .section {
   background: #fff;
-  margin: 0 24rpx 16rpx;
+  /* 🔴 横向 margin 交给 `nativeMargin()` 内联下发（读marginLR），CSS 不再写死 ——
+     否则与内联的 marginLeft/Right 抢同一属性，且运营在后台调「左右边距」时
+     只有一半生效（上下仍被这里锁死）。上下边距同理走内联。 */
+  margin: 0;
   border-radius: 16rpx;
   padding: 28rpx;
 }
