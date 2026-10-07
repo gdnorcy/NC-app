@@ -5,6 +5,7 @@ import {
   selfColored,
   CONTAINER_BG_KEY,
   HIDDEN_PADDING_TYPES,
+  MIN_BG_PADDING,
 } from './containerStyle.js';
 
 /**
@@ -46,6 +47,22 @@ describe('containerStyle 容器层（compBgColor）', () => {
     const g = 'linear-gradient(135deg,#2979ff,#00b0ff)';
     const s = containerStyle({ type: 'superform', props: { compBgColor: g } });
     expect(s.background).toBe(g);
+  });
+
+  // 🔴 2026-10-08「组件背景色设了透明，设计中心还是白色」回归锁：
+  //   取色器「透明」按钮下发 'transparent'（显式透明），必须照常输出 background
+  //   才能内联盖掉组件 CSS 的白底兜底；但**不算「设了底色」**，不触发 MIN_BG_PADDING。
+  it("compBgColor='transparent' 显式输出 background（盖掉 CSS 白底）", () => {
+    const s = containerStyle({ type: 'superform', props: { compBgColor: 'transparent' } });
+    expect(s.background).toBe('transparent');
+  });
+
+  it("compBgColor='transparent' 不触发 MIN_BG_PADDING 兜底（透明底色看不见，兜 padding 只会白缩内容）", () => {
+    const s = containerStyle({ type: 'superform', props: { compBgColor: 'transparent' } });
+    expect(s.padding).toBeUndefined();
+    // 对照组：真设了底色 + padding 0 → 兜 MIN_BG_PADDING
+    const s2 = containerStyle({ type: 'superform', props: { compBgColor: '#EEF3FF' } });
+    expect(s2.padding).toBe(`${MIN_BG_PADDING}px`);
   });
 
   it('withBg:false 时不输出 background（需要只取边距的调用方）', () => {

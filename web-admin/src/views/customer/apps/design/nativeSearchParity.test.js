@@ -164,6 +164,12 @@ describe('搜索栏两端一致（后台预览 === 开发者工具/真机）', (
     // 默认（未设底色）两端都不输出 background —— 保留各自白底，不互相覆盖
     expect(cM({})).not.toHaveProperty('background');
     expect(aM({})).not.toHaveProperty('background');
+    // 🔴 'transparent'（取色器「透明」按钮，2026-10-08）= **显式透明**，两端都必须输出，
+    //    内联盖掉各自 CSS 白底兜底（C 端 .top-bar / admin .r-native-search）——
+    //    若误当「未设」，用户设透明后容器仍是白色。
+    const p3 = { compBgColor: 'transparent' };
+    expect(cM(p3).background).toBe('transparent');
+    expect(aM(p3).background).toBe('transparent');
   });
 
   it('🔴 搜索框色 bgColor 两端都下发给搜索框（searchBoxStyle / searchBoxPreviewStyle）', () => {

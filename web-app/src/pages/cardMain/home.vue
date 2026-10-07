@@ -208,6 +208,7 @@ function nativeMargin(props) {
   // 🔴 容器底色：消费面板「组件背景色」。未设/空串 → **不输出 background**，
   //   保持各组件自己的白底（.top-bar / .section / .grid-section 都有 background:#fff）；
   //   无条件输出会把组件自身底色也覆盖掉。
+  //   ⚠️ 'transparent' 是**显式透明**（取色器「透明」按钮），truthy → 会输出并盖掉 CSS 白底，勿排除。
   if (p.compBgColor) s.background = p.compBgColor;
   // 容器圆角：独立字段 radiusContainer，与组件自身 radius（搜索框圆角）互不影响。
   const rc = p.radiusContainer;

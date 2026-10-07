@@ -1771,6 +1771,7 @@ function nativeMargin(p) {
   }
   // 🔴 容器底色：消费面板的「组件背景色」。未设/空串 → 不输出 background（保持透明），
   // 与 containerStyle.js 的 CONTAINER_BG_KEY 语义一致。
+  // ⚠️ 'transparent' 是**显式透明**（取色器「透明」按钮），truthy → 会输出并盖掉 CSS 白底兜底（.r-native-search{background:#fff}），勿排除。
   if (p.compBgColor) s.background = p.compBgColor;
   // 容器圆角：native-search 自身有 radius（圆角搜索框），容器的圆角用独立字段 radiusContainer
   // 避免与组件自身圆角撞名导致「调一个动两个」。

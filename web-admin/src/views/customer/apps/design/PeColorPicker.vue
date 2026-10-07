@@ -28,7 +28,7 @@
         <span class="pc-hex-label">#</span>
         <input ref="hexRef" class="pc-hex-input" :value="hexInput" spellcheck="false" @input="onHexInput" @keydown.enter="onHexEnter" />
         <span class="pc-sp"></span>
-        <button class="pc-btn" type="button" @click="onClear">清空</button>
+        <button class="pc-btn" type="button" @click="onClear" title="显式设为透明（区别于未设置的默认色）">透明</button>
         <button class="pc-btn pc-btn-primary" type="button" @click="onConfirm">确定</button>
       </div>
     </div>
@@ -146,7 +146,11 @@ function onHexEnter() {
 }
 function onClear() {
   cur.value = '';
-  emit('update:modelValue', '');
+  // 🔴 必须发 'transparent'（显式透明），不能发 ''（未设置）：
+  //   渲染层普遍把 '' 当「未设 → 回落 CSS 默认（白卡/灰底）」，空串永远表达不了透明
+  //   ——用户反馈「组件背景色设了透明，设计中心还是白色」的根因。
+  //   'transparent' 是合法 CSS 值且为 truthy → 内联下发后盖掉 CSS 白底兜底。
+  emit('update:modelValue', 'transparent');
   open.value = false;
 }
 function onConfirm() {

@@ -73,15 +73,19 @@ export function containerStyle(comp, opts = {}) {
   const s = {};
 
   // 容器底色（先算：内边距兜底依赖它）
-  // 未设/空串 → 不输出 background（透明），让页面底色或卡片缝透出。
+  // 未设/空串 → 不输出 background（回落组件 CSS 默认，如白卡）。
+  // 🔴 'transparent' 是**显式透明**（取色器「透明」按钮下发，2026-10-08）：
+  //   必须**照常输出** background 才能内联盖掉组件 CSS 的白底兜底，
+  //   但**不算「设了底色」**——不触发下方 MIN_BG_PADDING（透明底色看不见，兜 padding 只会白缩内容）。
   const bg = withBg ? p[CONTAINER_BG_KEY] : '';
+  const hasBg = !!bg && bg !== 'transparent';
   if (bg) s.background = bg;
 
   if (withPadding && !HIDDEN_PADDING_TYPES.includes(type)) {
-    if (p.padding !== undefined && p.padding !== '' && !(bg && Number(p.padding) === 0)) {
+    if (p.padding !== undefined && p.padding !== '' && !(hasBg && Number(p.padding) === 0)) {
       // 用户显式设了非 0 值 → 尊重用户
       s.padding = `${p.padding}px`;
-    } else if (bg) {
+    } else if (hasBg) {
       // 🔴 设了底色但内边距是 0/未设 → 兜一个最小值，否则满宽组件会把底色全遮住。
       //⚠️ 为什么把 0 也当作「未设」：schema 的 `commonStyleProps.padding` 默认就是 0，
       //   意味着**所有存量与新建组件的 padding 都是 0**，若只兜 undefined 则永不生效
