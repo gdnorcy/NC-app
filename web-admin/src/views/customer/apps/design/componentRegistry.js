@@ -1528,7 +1528,7 @@ export const componentRegistry = [
     group: 'card',
     icon: 'native-grid',
     defaultProps: {
-      marginTop: 0, marginBottom: 0,
+      marginTop: 0, marginBottom: 0, marginLR: 12,
       columns: 4, shape: 'rounded', iconSize: 46, iconRadius: 14,
       fontSize: 12, bold: false, gap: 0,
       items: [
@@ -1565,6 +1565,10 @@ export const componentRegistry = [
       { key: 'gap', label: '宫格间距', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      {
+        key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40,
+        tips: '白卡离屏幕左右边缘的距离。小程序端此前不读这个值 → 真机贴边、设计器有边距，两端不一致',
+      },
     ],
   },
   {

@@ -21,8 +21,10 @@
   - ❌ **勿复活「首个组件翻到下方」**（曾用 `.pe-comp-first{bottom:-22px}`，**用户明确否决**）：破坏「操作条贴着选中组件上方」的统一直觉，且首组件本就在画布最顶、往下翻更怪。**元规则：修「被裁」先问「能不能让容器给它留位」，翻边只作为最后手段。** 末尾元素向下溢出的同类代码要一起检查。
 - 🔴 **「组件自身大小」与「容器边距」是两个控件时，用「百分比宽度 + `margin:0 auto`」**：百分比参照容器内容宽、容器左右边距对称 → 容器中心==页面中心 → auto 边距即正确居中；组件大小只由百分比决定，与容器边距无关。权威实现 `utils/btnSize.js:buttonSizeStyle()`。
   - ❌ **勿复活负 margin 溢出补偿**（`marginLeft:-LR` + `width:calc(100% + 2*LR)`）：只在容器**无 padding** 时成立。本项目容器有 `MIN_BG_PADDING=8` → 按钮会**盖住容器底色并溢出、还偏左**（曾因此被用户指出「按钮没有居中」）。`calc(100%+Npx)` 溢出法同理不适用于有内边距的容器。
-  - 🔴 **自适应/内容宽组件居中**：`display:inline-block` 的 `margin:auto` **实测不居中**（两侧 auto 被当 0）；改 `block` 后 `width:auto`又**撑满**容器 → 唯一正解是 **`display:block` + `width:fit-content` + `margin:0 auto`**。
-  - 🔧 **CSS 几何问题必须像素实测**：写独立 HTML 复刻真实结构（容器 padding/背景色/有无 text-align 全要还原），用无头 Chrome 截图或 `getBoundingClientRect()` 打印数值。**单测全绿 ≠ 视觉正确**（本项目已两次「单测过、真机错」：负 margin 方案、inline-block auto margin）。⚠️ 无头 Chrome 的 `--dump-dom` 读 `<pre>` 常拿到空内容（脚本时序），**优先用 `--screenshot` 肉眼验**。
+  - 🔴 **凡用 `margin:auto` 居中，必须同时显式写 `display:block`**：inline-block/inline-flex 的 auto 边距**被当成 0**。而组件自带 CSS 类（admin `.r-btn`、C 端 `.dp-btn`）**就是 `display:inline-block`** → 内联的 `marginLeft/Right:'auto'` 静默失效，**`width:100%` 时看不出、`width<100%` 立刻贴左边**（实测 50% 偏移 -179px）。曾只在 auto 分支写、漏了整行分支，用户两次反馈才定位。
+  - 🔧 **实测「偏移 -8px」是容器 padding 的视觉差、不是 bug** —— 判据问「按钮是否在**内容区**居中」，别为不存在的问题加 padding。
+  - 🔧 **CSS 几何问题必须像素实测**：写独立 HTML 复刻真实结构（容器 padding/背景色/有无 text-align 全要还原），用无头 Chrome 截图或 `getBoundingClientRect()` 打印数值。**单测全绿 ≠ 视觉正确**（本项目已三次「单测过、真机错」）。⚠️ 无头 Chrome 的 `--dump-dom` 读 `<pre>` 常拿到空内容，**优先用 `--screenshot`**；headless 需 `--headless=new --no-sandbox`，旧 `--headless` 会 exit 133。
+  - 🔴 **用户的提示里往往已含答案**：「A 模式可以、B 模式不行，你参考一下」⇒ 病根就在两分支的代码差异，先读代码再动手。曾为一个「不居中」浪费 15+ 次调用（反复复刻/查 DB/试图 CDP 登录）被用户当面点破。**同一函数内两分支写法不一致 = 高危信号**，要么都写全要么都别写。
 - ⚠️ schema 字段的说明属性名是 **`tips`（复数）**，不是 `tip`（`PageEditor.vue` 的 `f.tips`）。
 
 ## 「点了没反应」三类静默失败

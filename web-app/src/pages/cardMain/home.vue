@@ -170,12 +170,26 @@ const navMode = ref('default');
 const designStyle = ref(null);
 const shareBack = ref(false);
 const headerScrolled = ref(false);
-// 名片模块组件外边距（schema 上边距/下边距）
+// 名片模块组件外边距（schema 上边距/下边距/左右边距）
+//
+// 🔴 2026-10-07 用户反馈「小程序端左右边距没渲染出来，后台预览有」：
+//   本函数原先**只输出上下**，`marginLR` 被完全丢弃 → 宫格（.grid-section 通栏白底）
+//   直接贴到屏幕左右边缘；而 admin 画布因为 `.pe-comp` 自身有内缩，看起来「有边距」。
+//   同一份数据两端表现不一致的根因就在这里。
+//   ⚠️ 原生组件（native-*）不走共享 containerStyle.js，边距必须在这里显式下发；
+//      漏一处就会「某一端有、另一端没有」。
 function nativeMargin(props) {
   const p = props || {};
   const s = {};
   if (p.marginTop) s.marginTop = p.marginTop + 'px';
   if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  // 左右边距：与 admin 画布/共享 containerStyle 的 marginLR 语义一致。
+  // ⚠️ 允许 0：0 是合法值（组件可以故意通栏），故用 ?? 而非 ||。
+  const lr = p.marginLR ?? p.marginLeft ?? p.marginRight;
+  if (lr !== undefined && lr !== '' && lr !== null) {
+    s.marginLeft = lr + 'px';
+    s.marginRight = lr + 'px';
+  }
   return s;
 }
 
