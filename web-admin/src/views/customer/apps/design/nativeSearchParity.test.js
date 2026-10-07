@@ -31,12 +31,12 @@ function styleOf(src) {
 
 /** 取 C 端函数源码（用正则从 .vue 里抠出来执行，避免抄副本锁不住） */
 function cFn(name) {
-  const m = C.match(new RegExp(`function ${name}\\(p\\) \\{([\\s\\S]*?)\\n\\}`));
+  const m = C.match(new RegExp(`function ${name}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`));
   expect(m, `C 端应能找到 ${name}()`).toBeTruthy();
   return m[0];
 }
 function aFn(name) {
-  const m = A.match(new RegExp(`function ${name}\\(p\\) \\{([\\s\\S]*?)\\n\\}`));
+  const m = A.match(new RegExp(`function ${name}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`));
   expect(m, `admin 应能找到 ${name}()`).toBeTruthy();
   return m[0];
 }
@@ -148,5 +148,44 @@ describe('搜索栏两端一致（后台预览 === 开发者工具/真机）', (
     const cPhBlock = cssOf(C, '.search-placeholder');
     expect(cPhBlock, 'C 端应有 .search-placeholder').toBeTruthy();
     expect(cPhBlock).not.toMatch(/line-height/);
+  });
+
+  it('🔴 容器层字段 radiusContainer / compBgColor 两端都下发给容器（nativeMargin）', () => {
+    const cM = runFn(cFn('nativeMargin'));
+    const aM = runFn(aFn('nativeMargin'));
+    // 容器圆角：两端都用 px，必须等值
+    const p1 = { radiusContainer: 16, marginLR: 0 };
+    expect(cM(p1).borderRadius).toBe('16px');
+    expect(aM(p1).borderRadius).toBe('16px');
+    // 容器底色（compBgColor）：两端都必须消费
+    const p2 = { compBgColor: '#123456' };
+    expect((cM(p2).background || '').toLowerCase()).toBe('#123456');
+    expect((aM(p2).background || '').toLowerCase()).toBe('#123456');
+    // 默认（未设底色）两端都不输出 background —— 保留各自白底，不互相覆盖
+    expect(cM({})).not.toHaveProperty('background');
+    expect(aM({})).not.toHaveProperty('background');
+  });
+
+  it('🔴 搜索框色 bgColor 两端都下发给搜索框（searchBoxStyle / searchBoxPreviewStyle）', () => {
+    const cS = runFn(cFn('searchBoxStyle'));
+    const aS = runFn(aFn('searchBoxPreviewStyle'));
+    const p = { bgColor: '#abcdef' };
+    expect((cS(p).background || '').toLowerCase()).toBe('#abcdef');
+    expect((aS(p).background || '').toLowerCase()).toBe('#abcdef');
+    // 兜底灰（与两端 CSS 兜底一致）
+    expect((cS({}).background || '').toLowerCase()).toBe('#f2f3f5');
+    expect((aS({}).background || '').toLowerCase()).toBe('#f2f3f5');
+  });
+
+  it('🔴 文字对齐 textAlign 两端都下发到占位文案且尊重用户选择（不强制 center）', () => {
+    const cPh = runFn(cFn('placeholderStyle'));
+    const aPh = runFn(aFn('placeholderStyle'));
+    for (const v of ['left', 'center', 'right']) {
+      expect(cPh({ textAlign: v }).textAlign, `C 端 ${v}`).toBe(v);
+      expect(aPh({ textAlign: v }).textAlign, `admin ${v}`).toBe(v);
+    }
+    // 默认兜底 center
+    expect(cPh({}).textAlign).toBe('center');
+    expect(aPh({}).textAlign).toBe('center');
   });
 });

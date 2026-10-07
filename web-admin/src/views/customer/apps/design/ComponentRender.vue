@@ -2389,7 +2389,12 @@ const nativeGridItems = [
    原为 8px → 后台预览里「搜索框↔铃铛」比真机宽 2px，叠加其他差异后
    用户反馈「开发者工具的预览和设计中心的预览不同步」。
    回归锁：nativeSearchParity.test.js 的「容器 gap 两端等值」。 */
-.r-native-search{display:flex;align-items:center;gap:6px;}
+/* 🔴 必须给容器一个底色（与兄弟原生组件 `.r-native-grid`/`.r-native-section` 的 `#fff` 一致）：
+   否则 `radiusContainer`（容器圆角）和 `compBgColor`（容器底色）在后台预览里**完全看不见**
+   —— 透明盒子没有可圆角/可上色的区域，用户调了「容器圆角」却看到毫无变化，
+   误以为控件失效（2026-10-07 第 5 组反馈「容器圆角也是无效的」）。
+   内联的 `compBgColor` 会覆盖这里的 `#fff`。C 端 `.top-bar` 本身就有 `background:#fff`。 */
+.r-native-search{display:flex;align-items:center;gap:6px;background:#fff;}
 /* 🔴 `flex:1` 只是**兜底**；正常路径由 searchBoxPreviewStyle() 内联下发
    `flex:none` + 视口宽度 + auto 边距，让「搜索框宽度」与「容器左右边距」彻底解耦
    （用户反馈两轮：「容器左右边距调了会同步调小搜索框」→「还是会影响，还是之前的坑」；

@@ -25,7 +25,7 @@
              导致铃铛被推到中间 —— 用户反馈「一直居左，感觉是多余的」。 -->
         <view class="search-box" :style="searchBoxStyle(c.props)" @click="goSearch">
           <SIcon name="dynamic" size="small" :color="c.props.textColor || '#86909c'" />
-          <text class="search-placeholder" :style="placeholderStyle(c.props)">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</text>
+          <view class="search-placeholder" :style="placeholderStyle(c.props)">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</view>
         </view>
         <view class="msg-icon" v-if="c.props.showMsg !== false" :class="{ 'has-unread': unreadCount > 0 }" @click="goMessages">
           <view class="msg-icon-inner"><SIcon name="bell" size="default" color="#4e5969" /></view>
