@@ -47,14 +47,20 @@ export function heroBgStyle(theme) {
   return style;
 }
 
-// hero 主文字样式（颜色+字体）
+// hero 主文字样式（颜色）
+// 🔴 只返回 color：**font-family 绝不能放内联**。小程序 setStyle 对含双引号的值
+// （'"Songti SC","STSong","SimSun",serif'）会让**整条 style 失效** → 浅色 hero 上的
+// 深色文字退回 CSS 的 #fff 变白字（真机才复现）。衬线体改走 CSS 类 hero-serif。
 export function heroTextStyle(theme) {
   const t = parseTheme(theme);
   if (!t) return {};
-  return {
-    color: t.textColor,
-    fontFamily: t.fontFamily === 'serif' ? '"Songti SC","STSong","SimSun",serif' : 'inherit',
-  };
+  return { color: t.textColor };
+}
+
+// hero 衬线字体类名（配合页面 CSS：.hero-serif .nm/.ctr-name/.mag-name 等）
+export function heroFontClass(theme) {
+  const t = parseTheme(theme);
+  return t && t.fontFamily === 'serif' ? 'hero-serif' : '';
 }
 
 // hero 次级文字样式

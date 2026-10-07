@@ -3,9 +3,9 @@
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
   <view class="profile-page" :style="[navVars, themeStyle]">
 <!-- PageNav -->
-<PageNav title="名片详情" back overlay :sticky="false" bg="transparent" color="#ffffff" />
+<PageNav title="名片详情" back overlay :sticky="false" bg="transparent" :color="navFgColor" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
-    <view class="hero" :class="layoutFull ? 'hero-full' : 'hero-' + heroLayout" :style="heroStyle">
+    <view class="hero" :class="[layoutFull ? 'hero-full' : 'hero-' + heroLayout, heroFontCls]" :style="heroStyle">
       <!-- 模板主题 overlay：纹理 + 顶部渐变条 -->
       <view v-if="!layoutFull && textureBg" class="hero-texture" :style="{ backgroundImage: textureBg }"></view>
       <view v-if="!layoutFull && barTopStyle" class="hero-bartop" :style="barTopStyle"></view>
@@ -296,12 +296,12 @@ import { heroGradient } from '../../utils/color.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import {
   parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
-  heroBarTopStyle, heroTextureBg, heroLayoutClass, heroRadius,
+  heroBarTopStyle, heroTextureBg, heroLayoutClass, heroRadius, heroFontClass,
 } from '../../utils/templateTheme.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
-import { navVarsStyle } from '../../utils/navMetrics.js';
+import { getNavMetrics, navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme } from '../../utils/design.js';
 
 const navVars = navVarsStyle();
@@ -339,11 +339,23 @@ const heroTheme = computed(() => parseTheme(card.value.templateTheme));
 // hero 版式：cls 经典横排 / ctr 居中展示 / mag 杂志大字（full 全屏分支单独处理）
 const heroLayout = computed(() => (layoutFull.value ? '' : heroLayoutClass(card.value.templateTheme)));
 // hero 背景：模板主题优先（渐变/纯色/描边），无模板时回退租户品牌色渐变
+// 沉浸式 hero 顶部避让：直接用 navMetrics 的**真实 px** 内联 padding，不走 CSS
+// `calc(var(--pnv-*) …)` —— 小程序对 calc 内混用 var 的支持不稳，声明被整条丢弃会让
+// 姓名/职位顶进状态栏并与 PageNav 标题叠在一起（H5 正常、真机错乱的根因之一）。
+const heroPadStyle = computed(() => {
+  // full 全屏大图式的内容是绝对定位贴底，避让由 .hero-full-info 自己负责，不需要 padding
+  if (layoutFull.value) return {};
+  const m = getNavMetrics();
+  return {
+    paddingTop: m.statusBarHeight + m.navBarHeight + 8 + 'px',
+    paddingRight: m.capsuleRightPad + 20 + 'px',
+  };
+});
 const heroStyle = computed(() => {
   const t = heroTheme.value;
-  if (t) return { ...heroBgStyle(t), color: t.textColor };
+  if (t) return { ...heroPadStyle.value, ...heroBgStyle(t), color: t.textColor };
   // 分层回落：名片详情头部 = 租户品牌主色（后台「品牌外观」）> 装修中心主题色 > 内置默认
-  return { background: heroGradient(card.value.brandColor, 'linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b))'), color: '#fff' };
+  return { ...heroPadStyle.value, background: heroGradient(card.value.brandColor, 'linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b))'), color: '#fff' };
 });
 const nmStyle = computed(() => {
   const t = heroTheme.value;
@@ -356,13 +368,24 @@ const avatarStyle = computed(() => (heroTheme.value ? { borderRadius: heroRadius
 const barTopStyle = computed(() => (heroTheme.value ? heroBarTopStyle(heroTheme.value) : null));
 const textureBg = computed(() => (heroTheme.value ? heroTextureBg(heroTheme.value) : ''));
 const heroColor = computed(() => (heroTheme.value?.textColor || '#ffffff'));
-// 浅色 hero（白/纸艺等）：quickbar 用深色半透明底，避免白色文字不可见
+// 衬线字体类名（font-family 必须走 CSS 类，不能内联，见 templateTheme.js 注释）
+const heroFontCls = computed(() => heroFontClass(card.value.templateTheme));
+// 浅色 hero（白/纸艺等）：quickbar / PageNav 标题改深色，避免白色文字不可见
+// 🔴 判据必须是**背景色**亮度，不是文字色！纸艺雅致是「深色文字 #2b2723 + 浅色纸底
+// #fdfcf9」，按文字色算 luma=39 会误判成深色 hero → 白字白底按钮 → 整块看不见。
 const isLightHero = computed(() => {
-  const c = String(heroColor.value || '#ffffff').replace('#', '');
+  // full 全屏大图式是「头像图 + 深色遮罩」，无论模板怎么配都按深色处理
+  if (layoutFull.value) return false;
+  const t = heroTheme.value;
+  if (!t) return false;
+  const c = String(t.bgStart || '').replace('#', '');
   if (c.length !== 6) return false;
   const n = parseInt(c, 16);
   return (((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) > 180;
 });
+// PageNav 悬浮在 hero 之上，标题/返回箭头颜色必须跟 hero 文字色走，
+// 否则浅色 hero（纸艺/白底）上白字标题完全看不见（截图症状）。
+const navFgColor = computed(() => (isLightHero.value ? '#1d2129' : '#ffffff'));
 const works = ref([]);
 const dynamics = ref([]);
 const videos = ref([]);
@@ -805,10 +828,25 @@ function shareCard() {
 .mag-badge {
   margin-top: 18rpx;
 }
-/* ===== 浅色 hero（白/纸艺）：quickbar 深色半透明底 ===== */
+/* ===== 浅色 hero（白/纸艺）：导航标题 + quickbar 文字改深色，避免白字不可见 ===== */
 .hero .quickbar.qb-light .qb {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.09);
+  /* .qb 自身 color 是 #fff，图标走 heroColor 内联（本就正确），但 <text> 靠继承 → 必须显式改 */
+  color: #1d2129;
+}
+.hero .quickbar.qb-light .qb text {
+  color: #1d2129;
+}
+/* ===== 衬线字体（模板 fontFamily=serif，如「纸艺雅致」）=====
+   🔴 必须走 CSS 类，**不能内联 font-family**：小程序 setStyle 对含双引号的值
+   （'"Songti SC","STSong","SimSun",serif'）会让整条 style 失效 → 浅色 hero 上
+   深色文字退回 CSS 的 #fff 变白字（真机复现，H5 正常）。见 utils/templateTheme.js */
+.hero-serif .nm,
+.hero-serif .ctr-name,
+.hero-serif .mag-name,
+.hero-serif .hfi-name {
+  font-family: 'Songti SC', 'STSong', 'SimSun', serif;
 }
 
 /* ===== quickbar（demo四键）===== */
