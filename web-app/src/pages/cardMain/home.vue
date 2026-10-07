@@ -170,14 +170,21 @@ const navMode = ref('default');
 const designStyle = ref(null);
 const shareBack = ref(false);
 const headerScrolled = ref(false);
-// 名片模块组件外边距（schema 上边距/下边距/左右边距）
+// 名片模块组件的**容器**样式（边距 + 底色 + 圆角）
 //
-// 🔴 2026-10-07 用户反馈「小程序端左右边距没渲染出来，后台预览有」：
+// 🔴 2026-10-07 用户反馈「这个名片搜索框组件的参数是有问题的，跟之前的『按钮』有同样的问题，
+//   背景设置，也是设置按钮本身，对于容器的背景设置是没有地方设置的」：
+//   面板通用项里有「组件背景色（compBgColor）」，但**本函数原先完全不消费它** →
+//   控件能拖、预览不变 = **参数被架空**，与 button 当年「一个『背景色』两层含义」同类。
+//   ⚠️ admin 侧 `ComponentRender.vue` 的 `nativeMargin()` 同样问题；两端同源手写、互不共享
+//      —— 改一处必须同步另一处（本项目已因此只修一端、留半边 bug 两次）。
+//
+// 🔴 2026-10-07 另一则：「小程序端左右边距没渲染出来，后台预览有」——
 //   本函数原先**只输出上下**，`marginLR` 被完全丢弃 → 宫格（.grid-section 通栏白底）
 //   直接贴到屏幕左右边缘；而 admin 画布因为 `.pe-comp` 自身有内缩，看起来「有边距」。
-//   同一份数据两端表现不一致的根因就在这里。
-//   ⚠️ 原生组件（native-*）不走共享 containerStyle.js，边距必须在这里显式下发；
-//      漏一处就会「某一端有、另一端没有」。
+//
+// ⚠️ 原生组件（native-*）不走共享 containerStyle.js，容器样式必须在这里显式下发；
+//   漏一个字段就「某一端有、另一端没有」。
 function nativeMargin(props) {
   const p = props || {};
   const s = {};
@@ -185,7 +192,7 @@ function nativeMargin(props) {
   //   清理 CSS 里的写死 margin 后，卡间白缝靠这里保证，不会因marginBottom=0 而全部贴死。
   const mb = p.marginBottom ?? 8;
   if (mb) s.marginBottom = mb + 'px';
-  const mt = p.marginTop;
+  const mt = p.marginTop ?? 0;
   if (mt) s.marginTop = mt + 'px';
   // 左右边距：与 admin 画布/共享 containerStyle 的 marginLR 语义一致。
   // ⚠️ 允许 0：0 是合法值（组件可以故意通栏），故用 ?? 而非 ||。
@@ -194,6 +201,13 @@ function nativeMargin(props) {
     s.marginLeft = lr + 'px';
     s.marginRight = lr + 'px';
   }
+  // 🔴 容器底色：消费面板「组件背景色」。未设/空串 → **不输出 background**，
+  //   保持各组件自己的白底（.top-bar / .section / .grid-section 都有 background:#fff）；
+  //   无条件输出会把组件自身底色也覆盖掉。
+  if (p.compBgColor) s.background = p.compBgColor;
+  // 容器圆角：独立字段 radiusContainer，与组件自身 radius（搜索框圆角）互不影响。
+  const rc = p.radiusContainer;
+  if (rc !== undefined && rc !== '') s.borderRadius = rc + 'px';
   return s;
 }
 

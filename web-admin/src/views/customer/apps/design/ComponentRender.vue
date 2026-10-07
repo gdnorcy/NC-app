@@ -1707,10 +1707,43 @@ function fabCartStyle(p) {
   st.height = (Number(p.size) || 44) + 'px';
   return st;
 }
+/**
+ * 原生组件（native-*）的容器样式。
+ *
+ * 🔴 2026-10-07 用户反馈：「这个名片搜索框组件的参数是有问题的，跟之前的『按钮』有同样的问题，
+ *   背景设置，也是设置按钮本身，对于容器的背景设置是没有地方设置的。」
+ *
+ * 病根：原生组件**不走**共享 `containerStyle()`（那份读 marginLR/compBgColor/padding 等），
+ *   而这里手写了一个只输出上下边距的版本 → 面板上「组件背景色（compBgColor）」虽然存在，
+ *   **但设了不生效**（没有任何渲染层消费它），运营看到控件能拖、预览却不变 → 参数被架空。
+ *   与 button 当年「同一个『背景色』有时指自身有时指容器」是同一类病：
+ *   **容器层与组件自身层必须各自可设，且渲染层真的消费它。**
+ *
+ * ⚠️ 改这里必须同步 C 端 `pages/cardMain/home.vue` 的 `nativeMargin()`
+ *    （两端同为手写、互不共享 —— 已两次只改一端）。
+ */
 function nativeMargin(p) {
   const s = {};
-  if (p.marginTop) s.marginTop = p.marginTop + 'px';
-  if (p.marginBottom) s.marginBottom = p.marginBottom + 'px';
+  // 上下边距：⚠️ 下边距给 8px 兜底（与 C 端 home.vue 同一语义）——
+  //   0 是合法值（故意贴边），故用 ??；但**缺省**时兜 8 而不是 0，
+  //   否则四个区块会全部贴死、失去卡片间的呼吸感（真机上由 .section 的 margin-bottom 兜）。
+  const mb = p.marginBottom ?? 8;
+  if (mb) s.marginBottom = mb + 'px';
+  const mt = p.marginTop ?? 0;
+  if (mt) s.marginTop = mt + 'px';
+  // 左右边距：与 C 端同一语义（兼容历史字段 marginLeft/marginRight）
+  const lr = p.marginLR ?? p.marginLeft ?? p.marginRight;
+  if (lr !== undefined && lr !== '' && lr !== null) {
+    s.marginLeft = lr + 'px';
+    s.marginRight = lr + 'px';
+  }
+  // 🔴 容器底色：消费面板的「组件背景色」。未设/空串 → 不输出 background（保持透明），
+  // 与 containerStyle.js 的 CONTAINER_BG_KEY 语义一致。
+  if (p.compBgColor) s.background = p.compBgColor;
+  // 容器圆角：native-search 自身有 radius（圆角搜索框），容器的圆角用独立字段 radiusContainer
+  // 避免与组件自身圆角撞名导致「调一个动两个」。
+  const rc = p.radiusContainer;
+  if (rc !== undefined && rc !== '') s.borderRadius = rc + 'px';
   return s;
 }
 // 名片宫格预览：items 配置优先（与 C 端 gridItems 同规则），无配置回退默认宫格

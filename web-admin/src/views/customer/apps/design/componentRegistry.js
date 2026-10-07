@@ -1509,17 +1509,22 @@ export const componentRegistry = [
     name: '名片搜索栏',
     group: 'card',
     icon: 'native-search',
-    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0 },
+    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0 },
     schema: [
       { key: 'placeholder', label: '占位文案', control: 'input', section: 'content', placeholder: '如 搜索名片、客户、人脉' },
       { key: 'style', label: '搜索框风格', control: 'radio', section: 'content', options: [{ label: '默认', value: 'default' }, { label: '阴影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'showMsg', label: '消息图标', control: 'switch', section: 'content' },
       { key: 'height', label: '高度', control: 'slider', section: 'style', min: 32, max: 48 },
-      { key: 'radius', label: '圆角', control: 'slider', section: 'style', min: 0, max: 24 },
-      { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
+      { key: 'radius', label: '搜索框圆角', control: 'slider', section: 'style', min: 0, max: 24 },
+      // 🔴 label 必须写清作用层，否则与通用项的「组件背景色」混淆。
+      //   历史 bug：本项叫「背景色」→ 用户以为改的是容器底色，实际改的是搜索框自身；
+      //   而容器底色（compBgColor）虽在通用项里、却没被渲染层消费 → 表现为「没有地方设置」。
+      { key: 'bgColor', label: '搜索框色', control: 'color', section: 'style', tips: '只改搜索框自身的底色；容器底色请用下方通用项的「组件背景色」' },
       { key: 'textColor', label: '文字颜色', control: 'color', section: 'style' },
+      { key: 'radiusContainer', label: '容器圆角', control: 'slider', section: 'style', min: 0, max: 24, tips: '搜索框所在整块区域的圆角。与「搜索框圆角」是两个独立控件' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginLR', label: '容器左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
   },
   {
