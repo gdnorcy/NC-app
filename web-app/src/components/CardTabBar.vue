@@ -262,7 +262,9 @@ function tabbarStyle() {
     st.left = '32rpx';
     st.right = '32rpx';
     st.bottom = '28rpx';
-    st.borderRadius = '48rpx';
+    // 边框圆角真实生效（原写死 48rpx，「直角」配置完全无效）：
+    // 仅颜色背景（普通/滑块/居中）时由容器承担圆角；凸起/嵌入的圆角由背景图自带
+    st.borderRadius = tabCorner.value === 'square' ? '0' : (tabCorner.value === 'arc' ? '999rpx' : '48rpx');
     st.boxShadow = '0 8rpx 32rpx rgba(0,0,0,0.12)';
   }
   // 导航横线（云菜鸟：平铺 普通/滑块/居中 配置项；有值=显示配置色，空=隐藏）

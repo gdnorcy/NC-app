@@ -460,9 +460,9 @@ async function openMember(pkg) {
   position: relative;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+/* 「最受欢迎」只保留角标文案，不再默认加边框高亮（用户反馈：默认红框像已被选中） */
 .plan.hot {
-  border-color: var(--design-primary);
-  box-shadow: 0 4px 16px rgba(var(--design-primary-rgb), 0.08);
+  border-color: var(--border);
 }
 /* 点选高亮（sel）：cur=真实当前等级（含「· 当前」文案），sel 只跟随点按 */
 .plan.sel {

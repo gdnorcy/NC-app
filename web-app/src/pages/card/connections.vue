@@ -140,7 +140,13 @@ const load = async () => {
     const res = await cardApi.getConnections();
     list.value = res.connections || [];
   } catch (e) {
-    uni.showToast({ title: String(e || '加载失败'), icon: 'none' });
+    const msg = String((e && e.message) || e || '');
+    if (msg.includes('未入驻')) {
+      // 未入驻租户的 403：正常业务态（新微信账号），展示空态引导即可，不弹原始报错
+      list.value = [];
+    } else {
+      uni.showToast({ title: msg || '加载失败', icon: 'none' });
+    }
   } finally {
     loading.value = false;
   }

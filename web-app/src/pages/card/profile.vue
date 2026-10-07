@@ -4,14 +4,15 @@
 <PageNav title="个人中心" back />
     <!-- 用户信息头部 -->
     <view class="header">
-      <view class="user-info">
-        <view class="avatar">{{ user.nickname?.[0] || '用' }}</view>
-        <view class="info">
-          <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
-          <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#faad14" /> {{ memberLevelText }}</view>
+        <view class="user-info">
+          <image v-if="user.avatar" class="avatar-img" :src="user.avatar" mode="aspectFill" />
+          <view v-else class="avatar">{{ user.nickname?.[0] || '用' }}</view>
+          <view class="info">
+            <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
+            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#faad14" /> {{ memberLevelText }}</view>
+          </view>
+          <view class="edit-btn" @click="openEdit">编辑</view>
         </view>
-        <view class="edit-btn" @click="goEdit">编辑</view>
-      </view>
 
       <!-- 数据看板 -->
       <view class="stats-row">
@@ -85,6 +86,32 @@
         </view>
       </view>
     </view>
+
+    <!-- 编辑资料弹层：头像 + 昵称（用户反馈：原「编辑」跳创建名片，应为编辑头像/昵称） -->
+    <view v-if="showEdit" class="mask" @click="closeEdit">
+      <view class="sheet" @click.stop>
+        <view class="sheet-title">编辑资料</view>
+        <!-- MP：open-type=chooseAvatar 拉起微信头像选择；H5：点击走 uni.chooseImage 相册 -->
+        <button
+          class="avatar-choose"
+          open-type="chooseAvatar"
+          @chooseavatar="onChooseAvatar"
+          @click="h5ChooseAvatar"
+        >
+          <image v-if="editForm.avatar" class="ac-img" :src="editForm.avatar" mode="aspectFill" />
+          <view v-else class="ac-img ac-ph">{{ user.nickname?.[0] || '用' }}</view>
+          <view class="ac-tip">点击更换头像</view>
+        </button>
+        <view class="field">
+          <view class="field-label">昵称</view>
+          <input class="field-input" type="nickname" v-model="editForm.nickname" placeholder="填写昵称" placeholder-class="ph" />
+        </view>
+        <view class="sheet-actions">
+          <view class="sheet-btn cancel" @click="closeEdit">取消</view>
+          <view class="sheet-btn ok" @click="saveProfile">{{ saving ? '保存中…' : '保存' }}</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -128,8 +155,66 @@ onMounted(async () => {
 function goPage(path) {
   uni.navigateTo({ url: path });
 }
-function goEdit() {
-  uni.navigateTo({ url: '/pages/card/create' });
+
+// ===== 编辑资料（头像/昵称） =====
+const showEdit = ref(false);
+const saving = ref(false);
+const editForm = ref({ nickname: '', avatar: '', avatarTemp: '' });
+
+function openEdit() {
+  editForm.value = { nickname: user.value.nickname || '', avatar: user.value.avatar || '', avatarTemp: '' };
+  showEdit.value = true;
+}
+function closeEdit() {
+  showEdit.value = false;
+}
+// MP 微信头像选择（button open-type=chooseAvatar）
+function onChooseAvatar(e) {
+  const url = e?.detail?.avatarUrl;
+  if (url) editForm.value.avatar = url;
+}
+// H5 相册选择兜底（open-type 在 H5 无效）；MP 端空实现避免与 chooseAvatar 双触发。
+// ⚠️ 勿拆成两个 #ifdef 同名函数：uni 编译报 Identifier already declared（check-sfc 可定位）
+function h5ChooseAvatar() {
+  // #ifdef H5
+  uni.chooseImage({
+    count: 1,
+    success: (res) => {
+      const p = res.tempFilePaths && res.tempFilePaths[0];
+      if (p) editForm.value.avatar = p;
+    },
+  });
+  // #endif
+}
+
+async function saveProfile() {
+  if (saving.value) return;
+  const nickname = (editForm.value.nickname || '').trim();
+  if (!nickname) return uni.showToast({ title: '请填写昵称', icon: 'none' });
+  saving.value = true;
+  try {
+    let avatar = user.value.avatar || '';
+    // 头像被更换且是本地临时路径 → 先上传换 URL（网络图直接透传）
+    const cur = editForm.value.avatar;
+    if (cur && cur !== user.value.avatar) {
+      if (/^https?:/.test(cur)) avatar = cur;
+      else {
+        const up = await cardApi.uploadUserAvatar(cur);
+        avatar = up.url;
+      }
+    }
+    const res = await cardApi.updateProfile({ nickname, avatar });
+    user.value = res.user || user.value;
+    // 同步本地登录缓存，避免分销中心等页面回退显示旧昵称/旧头像
+    const cached = uni.getStorageSync('card_user') || {};
+    uni.setStorageSync('card_user', { ...cached, nickname: user.value.nickname, avatar: user.value.avatar });
+    uni.showToast({ title: '已保存', icon: 'success' });
+    closeEdit();
+  } catch (e) {
+    uni.showToast({ title: String((e && e.message) || e || '保存失败'), icon: 'none' });
+  } finally {
+    saving.value = false;
+  }
 }
 function showSettings() {
   uni.showToast({ title: '设置功能开发中', icon: 'none' });
@@ -268,4 +353,31 @@ function logout() {
   color: #f5222d;
   text-align: center;
 }
+
+/* 头像（真实图片与文字占位同尺寸） */
+.avatar-img {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+/* 编辑资料弹层 */
+.mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 100; display: flex; align-items: flex-end; }
+.sheet { width: 100%; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 36rpx 32rpx calc(40rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.sheet-title { font-size: 32rpx; font-weight: 600; color: #1a1a1a; text-align: center; margin-bottom: 28rpx; }
+.avatar-choose { display: flex; flex-direction: column; align-items: center; gap: 12rpx; background: transparent; padding: 0; margin: 0 auto 24rpx; line-height: 1.4; border: none; }
+.avatar-choose::after { border: none; }
+.ac-img { width: 128rpx; height: 128rpx; border-radius: 50%; background: #f2f3f5; }
+.ac-ph { display: flex; align-items: center; justify-content: center; font-size: 44rpx; font-weight: 600; color: #fff; background: var(--design-primary, #165dff); }
+.ac-tip { font-size: 22rpx; color: #86909c; }
+.field { margin-bottom: 24rpx; }
+.field-label { font-size: 24rpx; color: #4e5969; margin-bottom: 12rpx; }
+.field-input { background: #f5f6f7; border-radius: 16rpx; padding: 20rpx 24rpx; font-size: 28rpx; color: #1a1a1a; }
+.ph { color: #9a9a9a; }
+.sheet-actions { display: flex; gap: 20rpx; margin-top: 32rpx; }
+.sheet-btn { flex: 1; text-align: center; padding: 22rpx 0; border-radius: 999rpx; font-size: 30rpx; }
+.sheet-btn.cancel { background: #f5f6f7; color: #4e5969; }
+.sheet-btn.ok { background: var(--design-primary, #165dff); color: #fff; font-weight: 500; }
 </style>

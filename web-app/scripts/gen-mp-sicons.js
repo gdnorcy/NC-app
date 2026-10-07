@@ -81,9 +81,11 @@ walk(srcDir);
 // 租户主题色兜底：读取 server/data/panorama.db 的 tenant_style_config，
 // 把各租户主色/渐变/辅助/文字色加入动态色板（设计中心 14 套预设任选其一都会命中；
 // 无 DB / 无 sqlite3 环境时跳过，仅保留静态色与黑色兜底）
+// ⚠️ dbPath 必须声明在两个 try 块之外：nav 兜底块也用它，块内 const 会让后者
+//    ReferenceError 被 catch 静默吞掉（曾导致导航配色兜底完全不生效且无任何日志）
+const { execSync } = require('child_process');
+const dbPath = path.join(__dirname, '..', '..', 'server', 'data', 'panorama.db');
 try {
-  const { execSync } = require('child_process');
-  const dbPath = path.join(__dirname, '..', '..', 'server', 'data', 'panorama.db');
   if (fs.existsSync(dbPath)) {
     const rows = execSync(`sqlite3 "${dbPath}" "SELECT style_json FROM tenant_style_config;"`, { maxBuffer: 1 << 22 }).toString().trim();
     const COLOR_KEYS = ['primaryColor', 'gradientColor', 'secondaryColor', 'textColor', 'subTextColor'];
@@ -103,6 +105,31 @@ try {
 } catch (e) {
   console.log('[gen-mp-sicons] 租户主题色读取跳过（无 sqlite3/DB）：', String(e.message).slice(0, 60));
 }
+
+// 底部导航自定义配色兜底：TabNavEditor 颜色设置（已选中/未选中/突出/菜单背景/菜单文字/导航横线）
+// 是运营任选的 hex，不在 tenant_style_config 主题色里 → 不烘焙则 MP 端 SIcon 按 name-hex
+// 查 base64/PNG 落空，图标不跟色（用户反馈「颜色只对文字生效」）。
+// ⚠️ 配置真身在 tenant_tab_scheme.tab_json（/design/tab/save 保存，/design/config 按
+// is_default 返回为 cfg.tab）——不是 tenant_page_design.meta.nav（那里只有 mode/schemeId）。
+// 全部启用方案都烘（切换方案无需重新构建）；重复色靠 Set 去重。
+try {
+  const navRows = execSync(`sqlite3 "${dbPath}" "SELECT tab_json FROM tenant_tab_scheme WHERE enabled = 1;"`, { maxBuffer: 1 << 23 }).toString().trim();
+  const NAV_COLOR_KEYS = ['selected', 'unselected', 'highlight', 'menuBg', 'menuText', 'navLine'];
+  let navCount = 0;
+  for (const line of navRows.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const cs = (JSON.parse(line).colors) || {};
+      for (const k of NAV_COLOR_KEYS) {
+        const v = String(cs[k] || '');
+        if (!v || v === 'transparent') continue;
+        const hm = v.match(/#[0-9a-fA-F]{3,8}/i);
+        if (hm) { dynColors.add(hm[0].toLowerCase()); navCount++; }
+      }
+    } catch { /* 单行解析失败跳过 */ }
+  }
+  if (navCount) console.log(`[gen-mp-sicons] 底部导航配色兜底：并入 ${navCount} 处颜色引用`);
+} catch (e) { /* 无 tenant_tab_scheme 表时跳过 */ }
 
 // 动态 name 兜底：全图标 × 动态处静态颜色
 for (const hex of dynColors) {

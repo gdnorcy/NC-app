@@ -103,6 +103,26 @@ export const cardApi = {
       return data;
     }));
   },
+  // 用户头像上传（个人中心编辑资料；入参为本地临时路径，跨端走 uni.uploadFile）
+  uploadUserAvatar: (filePath) => {
+    const token = uni.getStorageSync('card_token');
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE_URL + '/user/avatar-upload',
+        filePath,
+        name: 'file',
+        header: token ? { Authorization: `Bearer ${token}` } : {},
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data || '{}');
+            if (res.statusCode >= 200 && res.statusCode < 300 && data.url) resolve(data);
+            else reject(new Error(data.error || '头像上传失败'));
+          } catch (e) { reject(new Error('头像上传失败')); }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '头像上传失败')),
+      });
+    });
+  },
   // 名片模板（平台公共 + 本租户私有；小程序端由入口 tid 指定租户，H5 端走登录态）
   getTemplates: () => {
     const tid = getTid();

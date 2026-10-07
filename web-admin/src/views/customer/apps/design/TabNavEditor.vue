@@ -518,6 +518,12 @@ watch(
   ],
   () => { if (currentId.value !== null || form.items.length) dirty.value = true; }
 );
+
+// 边框圆角是「底部悬浮」专属参数：切回平铺/扇形时重置为直角，
+// 否则残留的 round/arc 会跟到平铺模式（运营反馈「圆角被带过来」）
+watch(() => form.type, (t) => {
+  if (t !== 'float' && form.corner !== 'square') form.corner = 'square';
+});
 // 切到扇形类型时默认展开子菜单（云菜鸟 1:1）
 watch(() => form.type, (t) => { if (t === 'fan') fanOpen.value = true; });
 // 凸起/嵌入切风格时自动带默认背景图（云菜鸟 1:1：风格×类型×圆角联动默认 footerbg；已有自定义 bg 不覆盖）

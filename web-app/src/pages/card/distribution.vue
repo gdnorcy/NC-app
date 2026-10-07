@@ -209,7 +209,8 @@
         <view class="app-desc">{{ shareAreaTag ? '待分红 ¥' + fen(summary.shareAreaPending) + ' · 累计 ¥' + fen(summary.shareAreaTotal) : '按地区维度分红' }}</view>
       </view>
     </view>
-    <view v-if="!hasAnyApp" class="empty-box">当前租户未开通分销应用，请先联系租户管理员开通</view>
+    <!-- 未入驻（新微信账号没绑定租户）≠ 租户没开通应用，文案要区分，否则新用户被误导去找管理员 -->
+    <view v-if="!hasAnyApp" class="empty-box">{{ summary.unbound ? '未入驻企业，暂无法使用分销应用；创建名片并加入企业后即可开通' : '当前租户未开通分销应用，请先联系租户管理员开通' }}</view>
 
     <!-- 累计业绩弹层 -->
     <view v-if="showTotal" class="qr-mask" @click="showTotal = false">
@@ -371,6 +372,10 @@ async function loadAll() {
   } catch (e) {
     summary.value = { wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: true };
   }
+  // 头像/昵称兜底：新微信账号服务端无资料时回退登录缓存（否则恒显示「我」）
+  const cachedUser = uni.getStorageSync('card_user') || {};
+  if ((!summary.value.selfName || summary.value.selfName === '我') && cachedUser.nickname) summary.value.selfName = cachedUser.nickname;
+  if (!summary.value.selfAvatar && cachedUser.avatar) summary.value.selfAvatar = cachedUser.avatar;
   if (summary.value.isEnableDist) { loadLogs(); loadSubs(); }
 }
 

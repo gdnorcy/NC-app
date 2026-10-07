@@ -399,6 +399,30 @@ export function createCardRouter(db, wxService) {
     });
   });
 
+  // 用户头像上传（个人中心「编辑资料」）：图片 ≤5MB，存对象存储返回 URL
+  router.post('/user/avatar-upload', auth, (req, res) => {
+    voiceUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? '图片不能超过 5MB' : err.message;
+        return res.status(400).json({ error: message });
+      }
+      if (!req.file) return res.status(400).json({ error: '未收到图片文件' });
+      const mime = (req.file.mimetype || '').toLowerCase();
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) {
+        return res.status(400).json({ error: '仅支持 png/jpg/webp 图片' });
+      }
+      const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
+      try {
+        const storage = await getStorage(db);
+        const url = await storage.put(req.file.buffer, `avatar-u${req.user.id}-${Date.now()}${ext}`);
+        res.status(201).json({ url });
+      } catch (e) {
+        console.error('头像上传失败:', e);
+        res.status(500).json({ error: '头像上传失败' });
+      }
+    });
+  });
+
   router.post('/cards', auth, (req, res) => {
     const { name, position, city, industry, phone, wechat, email, company, bio, businessField, needTags, avatar, isPublic, templateId, voiceUrl, voiceName } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });

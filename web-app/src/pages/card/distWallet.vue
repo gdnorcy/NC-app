@@ -43,7 +43,8 @@
       </view>
       <view class="wd-input-row">
         <text class="wd-label">收款方式</text>
-        <picker class="wd-picker" :range="acctTypes" @change="onAcctType">
+        <!-- 选择列表必须给中文（原样传 acctTypes，弹层里直接显示 wx/alipay/bank 英文） -->
+        <picker class="wd-picker" :range="acctTypeLabels" @change="onAcctType">
           <view class="wd-picker-val">{{ acctTypeLabel }}<text class="wd-caret">▾</text></view>
         </picker>
       </view>
@@ -100,6 +101,7 @@ const withdraws = ref([]);
 const withdrawAmount = ref('');
 const withdrawing = ref(false);
 const acctTypes = ['wx', 'alipay', 'bank'];
+const acctTypeLabels = ['微信收款码', '支付宝', '银行卡'];
 const acctType = ref('wx');
 const acctTypeLabel = computed(() => ({ wx: '微信收款码', alipay: '支付宝', bank: '银行卡' })[acctType.value]);
 const payAccountValue = ref('');
@@ -183,7 +185,7 @@ onShow(() => {
 .wd-val { font-size: 30rpx; font-weight: 600; color: #1d2129; }
 .wd-input-row { margin-top: 24rpx; display: flex; align-items: center; gap: 20rpx; }
 .wd-input { flex: 1; background: #f7f8fa; border-radius: 12rpx; padding: 18rpx 24rpx; font-size: 30rpx; }
-.primary-btn { margin-top: 28rpx; background: #165dff; color: #fff; font-size: 30rpx; font-weight: 600; border-radius: 999rpx; line-height: 2.6; }
+.primary-btn { margin-top: 28rpx; background: var(--design-primary, #165dff); color: #fff; font-size: 30rpx; font-weight: 600; border-radius: 999rpx; line-height: 2.6; }
 .primary-btn[disabled] { opacity: 0.5; }
 .sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
 .withdraw-list { margin: 0 32rpx; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
