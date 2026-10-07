@@ -112,7 +112,8 @@ function getRedirectTarget() {
 async function doLogin(code) {
   try {
     const parentId = uni.getStorageSync('share_parent_id') || '';
-    const result = await cardApi.wxLogin(code, parentId);
+    // 带上部署默认租户：否则小程序登录的新用户没有租户归属 → 装修首页配置读不到 → 首页空白
+    const result = await cardApi.wxLogin(code, parentId, DEFAULT_TENANT_ID || '');
     uni.setStorageSync('card_token', result.token);
     uni.setStorageSync('card_user', result.user);
     

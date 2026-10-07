@@ -66,10 +66,14 @@ export function createCardRouter(db, wxService) {
         user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(result.lastInsertRowid);
       }
 
-      // H5 演示/无微信环境：URL 携带 tid 时，将无归属用户自动绑定到该租户（建 enterprise + 写 customer_id）
-      // 使 mock 登录用户能正常参与购物车/下单（租户上下文一致），真实微信登录不受影响。
-      if (!user.customer_id && Number(tid)) {
-        const cid = Number(tid);
+      // 租户归属兜底：URL 携带 tid 优先；否则（小程序登录不带 tid）回落到部署的默认租户
+      // config.defaultTenantId（单租户/独立域名部署）。
+      // 🔴 不兜底的后果：小程序登录的新用户 customer_id 恒为空 → 装修首页配置、分销、
+      // 人脉库、集市都按租户取数 → **首页一片空白**、各处报「未入驻/未开通」。
+      // 多租户平台部署时把 DEFAULT_TENANT_ID 设为 0 即关闭兜底。
+      const bindTid = Number(tid) || Number(config.defaultTenantId || 0);
+      if (!user.customer_id && bindTid) {
+        const cid = bindTid;
         const ent = db.prepare(
           "SELECT id FROM tenant_enterprises WHERE customer_id = ? AND name = ?"
         ).get(cid, 'H5演示用户_' + user.id);

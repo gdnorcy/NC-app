@@ -71,7 +71,8 @@ function paymentRequest(url, method = 'GET', data = {}) {
 
 export const cardApi = {
   // 微信登录
-  wxLogin: (code, parentId) => request('/auth/wx-login', 'POST', { code, parentId }),
+  // tid：单租户部署时把新用户落到默认租户（后端还有 config.defaultTenantId 兜底）
+  wxLogin: (code, parentId, tid) => request('/auth/wx-login', 'POST', { code, parentId, tid }),
 
   // 用户信息
   getProfile: () => request('/user/profile'),
