@@ -180,7 +180,7 @@
         </view>
         <view class="qb" @click="toggleCollect">
           <SIcon name="star" size="default" :color="collected ? '#ffd21e' : heroColor" />
-          <text :style="collected ? 'color:var(--gold)' : ''">{{ collected ? '已收藏' : '收藏' }}</text>
+          <text :style="collected ? 'color:#ffd21e' : ''">{{ collected ? '已收藏' : '收藏' }}</text>
         </view>
         <view class="qb" @click="goTemplateSelect" v-if="isMine">
           <SIcon name="template" size="default" :color="heroColor" />
@@ -1193,7 +1193,7 @@ async function followCard() {
   height: 240rpx;
   border-radius: 50%;
   overflow: hidden;
-  border: 2rpx solid rgba(22,93,255,0.25);
+  border: 2rpx solid rgba(var(--design-primary-rgb, 22, 93, 255), 0.25);
   box-shadow: 0 14rpx 36rpx rgba(0,0,0,0.12);
   margin-top: 20rpx;
   display: flex;
@@ -1398,7 +1398,7 @@ async function followCard() {
   width: 10rpx;
   height: 10rpx;
   border-radius: 50%;
-  background: #165dff;
+  background: var(--design-primary, #165dff);
   margin-top: 12rpx;
   flex-shrink: 0;
 }
@@ -1499,7 +1499,7 @@ async function followCard() {
   transition: color 0.2s;
 }
 .mp-tab.on {
-  color: var(--success);
+  color: var(--design-primary, #165dff);
   font-weight: 600;
 }
 .bar {
@@ -1509,7 +1509,7 @@ async function followCard() {
   width: 44rpx;
   height: 6rpx;
   border-radius: 6rpx;
-  background: var(--success);
+  background: var(--design-primary, #165dff);
   transform: translateX(-50%) scaleX(0);
   transition: transform 0.28s;
 }
@@ -1564,7 +1564,7 @@ async function followCard() {
   line-height: 1.6;
 }
 .vl.link {
-  color: var(--primary);
+  color: var(--design-primary, #165dff);
 }
 .skill-tags {
   display: flex;
@@ -1572,10 +1572,11 @@ async function followCard() {
   gap: 14rpx;
   margin-top: 4rpx;
 }
-.skill-tag.need { background: rgba(245, 158, 11, 0.12); color: #b45309; }
-.skill-tag {
-  background: rgba(7,193,96,0.1);
-  color: var(--success);
+/* 供需/标签 chip：跟随租户主题 tint（与 myCard .oc-need 同款），
+   收敛前是「普通标签绿底 + 供需琥珀底」两套色 —— 同屏双色相无区分度 */
+.skill-tag.need, .skill-tag {
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  color: var(--design-primary, #165dff);
   font-size: 22rpx;
   padding: 6rpx 18rpx;
   border-radius: 24rpx;
@@ -1776,7 +1777,7 @@ async function followCard() {
 .cmt-list { flex: 1; overflow: hidden; padding: 8rpx 32rpx; }
 .cmt-empty { text-align: center; color: var(--t3); font-size: 26rpx; padding: 48rpx 0; }
 .cmt-item { display: flex; gap: 18rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--bg-card); }
-.cmt-av { width: 64rpx; height: 64rpx; border-radius: 50%; background: linear-gradient(135deg,var(--success),#1edc87); color: #fff; font-size: 28rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.cmt-av { width: 64rpx; height: 64rpx; border-radius: 50%; background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); color: #fff; font-size: 28rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .cmt-av image { width: 100%; height: 100%; }
 .cmt-body { flex: 1; min-width: 0; }
 .cmt-name { font-size: 26rpx; color: var(--t2); font-weight: 500; }
@@ -1784,19 +1785,19 @@ async function followCard() {
 .cmt-time { font-size: 22rpx; color: var(--border-strong); margin-top: 6rpx; }
 .cmt-input-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f0f0f0; background: #fff; }
 .cmt-input { flex: 1; height: 72rpx; background: var(--bg-card); border-radius: 36rpx; padding: 0 28rpx; font-size: 28rpx; }
-.cmt-send { width: 140rpx; height: 72rpx; line-height: 72rpx; background: var(--success); color: #fff; font-size: 28rpx; border-radius: 36rpx; padding: 0; margin: 0; }
+.cmt-send { width: 140rpx; height: 72rpx; line-height: 72rpx; background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx; border-radius: 36rpx; padding: 0; margin: 0; }
 .cmt-send[disabled] { opacity: 0.5; }
 .dyn-act { display: inline-flex; align-items: center; gap: 6rpx; padding: 8rpx 14rpx; border-radius: 24rpx; }
-.dyn-act.liked { color: var(--primary); font-weight: 600; background: rgba(22,93,255,0.06); }
+.dyn-act.liked { color: var(--design-primary, #165dff); font-weight: 600; background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06); }
 
 
 /* ===== 访客表单 ===== */
 .form-entry { display: flex; align-items: center; gap: 16rpx; margin: 24rpx 24rpx 8rpx; padding: 24rpx; background: #fff; border-radius: 16rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.fe-icon { width: 72rpx; height: 72rpx; border-radius: 14rpx; background: rgba(22,93,255,0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fe-icon { width: 72rpx; height: 72rpx; border-radius: 14rpx; background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .fe-body { flex: 1; min-width: 0; }
 .fe-title { font-size: 28rpx; font-weight: 600; color: var(--t1); }
 .fe-desc { font-size: 22rpx; color: var(--t3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fe-btn { flex-shrink: 0; font-size: 24rpx; color: var(--primary); border: 1rpx solid var(--primary); border-radius: 28rpx; padding: 8rpx 24rpx; }
+.fe-btn { flex-shrink: 0; font-size: 24rpx; color: var(--design-primary, #165dff); border: 1rpx solid var(--design-primary, #165dff); border-radius: 28rpx; padding: 8rpx 24rpx; }
 .form-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 920; }
 .form-panel { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 24rpx 24rpx 0 0; z-index: 921; display: flex; flex-direction: column; max-height: 72vh; }
 .fp-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 28rpx 16rpx; border-bottom: 1rpx solid var(--bg-hover); }
@@ -1812,7 +1813,7 @@ async function followCard() {
 .fp-select { background: var(--bg-card); border-radius: 12rpx; padding: 18rpx 20rpx; font-size: 26rpx; color: var(--t2); }
 .fp-foot { display: flex; gap: 16rpx; padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--bg-hover); }
 .fp-cancel { flex: 1; background: var(--bg-hover); color: var(--t2); font-size: 28rpx; border-radius: 12rpx; }
-.fp-submit { flex: 1; background: var(--primary); color: #fff; font-size: 28rpx; border-radius: 12rpx; }
+.fp-submit { flex: 1; background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx; border-radius: 12rpx; }
 .fp-submit[disabled] { opacity: 0.6; }
 
 .voice-box {
