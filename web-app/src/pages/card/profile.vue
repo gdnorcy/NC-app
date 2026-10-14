@@ -112,6 +112,12 @@
         </view>
       </view>
     </view>
+    <!-- 底部TabBar（公共组件） -->
+    <!-- 🔴 底部菜单的「个人中心/我的」指向本页（design.js DEFAULT_DESIGN_TABS 与租户发布
+         方案同指），漏挂就会「点个人中心进来后底部菜单消失」（2026-10-15 真机报修）。
+         active 留空：默认导航四键（名片/雷达/集市/会员）不含本页，不硬造高亮；
+         设计配置模式下 CardTabBar 按路由匹配自动高亮。 -->
+    <CardTabBar />
   </view>
 </template>
 
@@ -123,6 +129,7 @@ import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import SIcon from '../../components/SIcon.vue';
+import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme } from '../../utils/design.js';
 
 const themeStyle = useDesignTheme();
@@ -246,7 +253,8 @@ function logout() {
 .profile-page {
   min-height: 100vh;
   background: #f2f3f5;
-  padding-bottom: 40rpx;
+  /* 底部TabBar避让：fixed 导航条 ≈110rpx + 安全区，160rpx 与 member 等同批页面一致 */
+  padding-bottom: 160rpx;
 }
 .header {
   background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
