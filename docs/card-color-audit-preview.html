@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>「我的名片」页配色审计 & 优化效果图</title>
+<style>
+  :root{
+    /* 租户主题（红，取自截图近似） */
+    --p:#ef4056; --p-soft:rgba(239,64,86,.08); --p-soft2:rgba(239,64,86,.14);
+    /* 现状杂色 */
+    --gold:#c99a2e; --gold2:#e6b84c;
+    --amber:#f59e0b; --amber-bg:#fef3e2;
+    --green:#07c160; --navy:#1d4e8f;
+    /* 中性 */
+    --ink1:#1d2129; --ink3:#5c6470; --ink4:#86909c; --line:#eef0f3;
+    --page:#f6f7fb; --card:#fff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#eceef2;color:var(--ink1);padding:26px 20px 56px}
+  h1{font-size:20px;text-align:center}
+  .sub{max-width:940px;margin:8px auto 22px;text-align:center;color:var(--ink4);font-size:13px;line-height:1.6}
+  .sub b{color:var(--p)}
+  .cols{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+  .col{width:312px}
+  .col h2{font-size:15px;text-align:center;margin-bottom:4px}
+  .badge{display:inline-block;font-size:11px;padding:2px 10px;border-radius:999px;margin:0 auto 12px;text-align:center}
+  .now .badge{background:#fdecec;color:#d54941}
+  .after .badge{background:#e8f7ee;color:#0f9d58}
+  .why{font-size:12px;color:var(--ink4);text-align:center;margin-bottom:10px;line-height:1.5;min-height:42px}
+  .phone{background:var(--page);border-radius:24px;padding:12px 12px 14px;box-shadow:0 10px 28px rgba(31,35,41,.12)}
+  /* nav */
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:6px 4px 12px}
+  .nav .l{font-size:15px;font-weight:600}
+  .nav .r{font-size:13px;color:var(--ink3)}
+  .card{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(31,35,41,.05)}
+  /* identity */
+  .idc{display:flex;gap:12px;align-items:center}
+  .ava{width:56px;height:56px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700}
+  .now .ava{background:linear-gradient(135deg,var(--gold2),var(--gold))}
+  .after .ava{background:linear-gradient(135deg,var(--p),#ff7a8a)}
+  .idm{flex:1;min-width:0}
+  .nm{font-size:17px;font-weight:700}
+  .ps{font-size:12px;color:var(--ink3);margin-top:2px}
+  .co{font-size:11px;color:var(--ink4);margin-top:1px}
+  .tags{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .tg{font-size:11px;padding:3px 9px;border-radius:6px}
+  .now .tg{color:var(--amber);background:var(--amber-bg)}
+  .after .tg{color:var(--p);background:var(--p-soft)}
+  .acts{display:flex;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .act{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--ink3)}
+  .ico{width:20px;height:20px;display:flex;align-items:center;justify-content:center}
+  .now .act .ico{color:var(--green)}
+  .after .act .ico{color:var(--ink3)}
+  /* stats */
+  .stats{display:flex;text-align:center}
+  .st{flex:1}
+  .st .n{font-size:20px;font-weight:700;color:var(--ink1)}
+  .st .l{font-size:10px;color:var(--ink4);margin-top:2px}
+  .st+.st{border-left:1px solid var(--line)}
+  /* market */
+  .mk-t{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+  .now .mk-t .ico{color:var(--navy)}
+  .after .mk-t .ico{color:var(--p)}
+  .mk-s{font-size:15px;font-weight:700;margin-top:8px;color:var(--ink4)}
+  .mk-d{font-size:11px;color:var(--ink4);margin-top:4px;line-height:1.5}
+  /* rows */
+  .sec-t{font-size:13px;font-weight:600;padding:2px 0 8px}
+  .row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .ric{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .now .ric{background:rgba(22,93,255,.06);color:var(--navy)}
+  .after .ric{background:var(--p-soft);color:var(--p)}
+  .rm{flex:1;min-width:0}
+  .rn{font-size:13px}
+  .rd{font-size:10px;color:var(--ink4);margin-top:1px}
+  .ar{color:#c9cdd4;font-size:16px}
+  /* tab */
+  .tab{display:flex;background:#fff;border-radius:0 0 20px 20px;margin:0 -12px -14px;padding:9px 0 12px;box-shadow:0 -2px 10px rgba(31,35,41,.05)}
+  .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--ink4)}
+  .tb .ico{width:20px;height:20px}
+  .now .tb.on{color:var(--p)}
+  .after .tb.on{color:var(--p)}
+  /* legend */
+  .lg{margin-top:14px;background:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 2px 8px rgba(31,35,41,.05)}
+  .lg h4{font-size:12px;margin-bottom:8px}
+  .lg .it{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink3);padding:3px 0}
+  .sw{width:14px;height:14px;border-radius:4px;flex-shrink:0}
+  /* rules panel */
+  .rules{max-width:940px;margin:26px auto 0;background:#fff;border-radius:16px;padding:20px 22px}
+  .rules h3{font-size:15px;margin-bottom:14px}
+  .rgrid{display:flex;gap:16px;flex-wrap:wrap}
+  .rcell{flex:1;min-width:200px;border-radius:12px;padding:14px;background:var(--page)}
+  .rcell .cap{font-size:12px;font-weight:600;margin-bottom:6px}
+  .rcell .d{font-size:11px;color:var(--ink3);line-height:1.6}
+  .rcell .row-sw{display:flex;gap:6px;margin-top:8px}
+  .foot{max-width:940px;margin:18px auto 0;font-size:11px;color:var(--ink4);line-height:1.7;text-align:center}
+</style>
+</head>
+<body>
+  <h1>「我的名片」页配色审计 & 优化效果图</h1>
+  <div class="sub">现状问题：一屏混用 <b>5 种互不相干的强调色相</b>（金 / 琥珀 / 绿 / 藏蓝 / 红），远超「一主色 + 中性 + 语义克制」的现代设计底线，显得杂乱、不专业。<br>优化方向：<b>单一主题色（跟随租户）</b>统领所有交互/身份元素 + 中性色承载工具型操作 + 语义色只用于真实状态。</div>
+
+  <div class="cols">
+    <!-- 现状 -->
+    <div class="col now">
+      <h2>现状</h2>
+      <div class="badge">5 种强调色相</div>
+      <div class="why">头像金、供需标签琥珀、预览/分享绿、列表图标藏蓝、主题/CTA 红 —— 五种色相在同一屏互相打架。</div>
+      <div class="phone">
+        <div class="nav"><span class="l">‹ 我的名片</span><span class="r">编辑</span></div>
+        <div class="card">
+          <div class="idc">
+            <div class="ava">林</div>
+            <div class="idm"><div class="nm">林平</div><div class="ps">顾问</div><div class="co">东莞市揭阳商会</div></div>
+          </div>
+          <div class="tags"><span class="tg">找渠道</span><span class="tg">求合作</span><span class="tg">招合伙人</span></div>
+          <div class="acts">
+            <div class="act"><span class="ico">▣</span>预览</div>
+            <div class="act"><span class="ico">⇗</span>分享</div>
+            <div class="act"><span class="ico">▤</span>二维码/链接</div>
+          </div>
+        </div>
+        <div class="card stats">
+          <div class="st"><div class="n">51</div><div class="l">总访问</div></div>
+          <div class="st"><div class="n">0</div><div class="l">被交换</div></div>
+          <div class="st"><div class="n">0</div><div class="l">集市曝光</div></div>
+        </div>
+        <div class="card">
+          <div class="mk-t"><span class="ico">◆</span>集市状态</div>
+          <div class="mk-s">未上架</div>
+          <div class="mk-d">开启后将你的名片展示给平台所有人，可在集市页一键上架</div>
+        </div>
+        <div class="card">
+          <div class="sec-t">名片内容</div>
+          <div class="row"><div class="ric">▭</div><div class="rm"><div class="rn">名片资料</div><div class="rd">姓名、职位、企业、联系方式</div></div><span class="ar">›</span></div>
+          <div class="row"><div class="ric">◎</div><div class="rm"><div class="rn">供需标签</div><div class="rd">找渠道/求合作/招合伙人等</div></div><span class="ar">›</span></div>
+          <div class="row"><div class="ric">⚙</div><div class="rm"><div class="rn">展示设置</div><div class="rd">公开状态、模板样式</div></div><span class="ar">›</span></div>
+        </div>
+        <div class="tab">
+          <div class="tb"><span class="ico">▦</span>首页</div>
+          <div class="tb on"><span class="ico">▣</span>我的名片</div>
+          <div class="tb"><span class="ico">◈</span>集市</div>
+          <div class="tb"><span class="ico">☺</span>会员</div>
+        </div>
+      </div>
+      <div class="lg">
+        <h4>混用的 5 种强调色</h4>
+        <div class="it"><span class="sw" style="background:linear-gradient(135deg,var(--gold2),var(--gold))"></span>头像 · 金</div>
+        <div class="it"><span class="sw" style="background:var(--amber)"></span>供需标签 · 琥珀 #f59e0b</div>
+        <div class="it"><span class="sw" style="background:var(--green)"></span>预览/分享 · 微信绿 #07c160</div>
+        <div class="it"><span class="sw" style="background:var(--navy)"></span>列表图标/链接 · 藏蓝 #1d4e8f</div>
+        <div class="it"><span class="sw" style="background:var(--p)"></span>主题/CTA · 红（仅少数位）</div>
+      </div>
+    </div>
+
+    <!-- 优化后 -->
+    <div class="col after">
+      <h2>优化后</h2>
+      <div class="badge">1 主色 + 中性 + 语义克制</div>
+      <div class="why">主题红统领头像/标签/列表图标/链接/CTA；预览/分享等工具操作降为中性；语义色只留给真实状态（已上架=绿、待审=琥珀、退出=红）。</div>
+      <div class="phone">
+        <div class="nav"><span class="l">‹ 我的名片</span><span class="r" style="color:var(--p)">编辑</span></div>
+        <div class="card">
+          <div class="idc">
+            <div class="ava">林</div>
+            <div class="idm"><div class="nm">林平</div><div class="ps">顾问</div><div class="co">东莞市揭阳商会</div></div>
+          </div>
+          <div class="tags"><span class="tg">找渠道</span><span class="tg">求合作</span><span class="tg">招合伙人</span></div>
+          <div class="acts">
+            <div class="act"><span class="ico">▣</span>预览</div>
+            <div class="act"><span class="ico">⇗</span>分享</div>
+            <div class="act"><span class="ico">▤</span>二维码/链接</div>
+          </div>
+        </div>
+        <div class="card stats">
+          <div class="st"><div class="n">51</div><div class="l">总访问</div></div>
+          <div class="st"><div class="n">0</div><div class="l">被交换</div></div>
+          <div class="st"><div class="n">0</div><div class="l">集市曝光</div></div>
+        </div>
+        <div class="card">
+          <div class="mk-t"><span class="ico">◆</span>集市状态</div>
+          <div class="mk-s">未上架</div>
+          <div class="mk-d">开启后将你的名片展示给平台所有人，可在集市页一键上架</div>
+        </div>
+        <div class="card">
+          <div class="sec-t">名片内容</div>
+          <div class="row"><div class="ric">▭</div><div class="rm"><div class="rn">名片资料</div><div class="rd">姓名、职位、企业、联系方式</div></div><span class="ar">›</span></div>
+          <div class="row"><div class="ric">◎</div><div class="rm"><div class="rn">供需标签</div><div class="rd">找渠道/求合作/招合伙人等</div></div><span class="ar">›</span></div>
+          <div class="row"><div class="ric">⚙</div><div class="rm"><div class="rn">展示设置</div><div class="rd">公开状态、模板样式</div></div><span class="ar">›</span></div>
+        </div>
+        <div class="tab">
+          <div class="tb"><span class="ico">▦</span>首页</div>
+          <div class="tb on"><span class="ico">▣</span>我的名片</div>
+          <div class="tb"><span class="ico">◈</span>集市</div>
+          <div class="tb"><span class="ico">☺</span>会员</div>
+        </div>
+      </div>
+      <div class="lg">
+        <h4>收敛后的用色</h4>
+        <div class="it"><span class="sw" style="background:var(--p)"></span>主色（主题红）· 头像/标签/图标/链接/CTA/激活态</div>
+        <div class="it"><span class="sw" style="background:var(--ink3)"></span>中性深灰 · 工具型操作图标（预览/分享/复制）</div>
+        <div class="it"><span class="sw" style="background:var(--line);border:1px solid #dfe2e7"></span>中性浅灰 · 分割线/次要文字/占位</div>
+        <div class="it"><span class="sw" style="background:var(--green)"></span>语义绿 · 仅「已上架/成功」状态</div>
+        <div class="it"><span class="sw" style="background:var(--amber)"></span>语义琥珀 · 仅「待审核/警告」状态</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <h3>配色体系（贯穿全站，一次性收敛）</h3>
+    <div class="rgrid">
+      <div class="rcell">
+        <div class="cap" style="color:var(--p)">① 单一主色</div>
+        <div class="d">租户主题 <b>--design-primary</b> 作为唯一强调色，接管所有交互/身份元素：列表图标、文字链接、激活态、CTA、头像兜底、标签底色。</div>
+        <div class="row-sw"><span class="sw" style="background:var(--p)"></span><span class="sw" style="background:var(--p-soft)"></span><span class="sw" style="background:var(--p-soft2)"></span></div>
+      </div>
+      <div class="rcell">
+        <div class="cap" style="color:var(--ink1)">② 中性承载</div>
+        <div class="d">预览/分享/复制/导出等工具型操作改用中性深灰，不再用绿色；大量留白 + 白卡 + 细分割线 + 柔和阴影，质感靠排版不靠彩色。</div>
+        <div class="row-sw"><span class="sw" style="background:var(--ink1)"></span><span class="sw" style="background:var(--ink3)"></span><span class="sw" style="background:var(--ink4)"></span><span class="sw" style="background:var(--line)"></span></div>
+      </div>
+      <div class="rcell">
+        <div class="cap" style="color:var(--green)">③ 语义克制</div>
+        <div class="d">绿=成功/已上架、琥珀=待审/警告、红=危险/退出 —— 只用于真实状态提示，绝不作装饰色。一屏内语义色 ≤ 1~2 处。</div>
+        <div class="row-sw"><span class="sw" style="background:var(--green)"></span><span class="sw" style="background:var(--amber)"></span><span class="sw" style="background:#d54941"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    令牌来源：主色=--design-primary / --design-primary-rgb（design.js，随租户主题）；语义与中性沿用 token.scss。<br>
+    关键动作：把散落全站的平台蓝 #165dff / #1d4e8f（--primary / --primary-deep）从「强调色」位撤下，仅留作无主题时的兜底 —— 这是红/绿等自定义主题下「蓝图标撞红 CTA」的根因。
+  </div>
+</body>
+</html>

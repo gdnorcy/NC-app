@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>首页「我的名片」配色和谐方案预览</title>
+<style>
+  :root {
+    /* 当前主题（红粉系，取自截图近似值） */
+    --p: #ef4056; --g: #ff7a8a;
+    --page: #f6f7fb; --card: #ffffff;
+    --t1: #1d2129; --t3: #5c6470; --t4: #86909c;
+    --border: #e5e6eb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #eceef2; color: var(--t1); padding: 28px 20px 60px; }
+  h1 { font-size: 20px; text-align: center; margin-bottom: 6px; }
+  .sub { text-align: center; color: var(--t4); font-size: 13px; margin-bottom: 24px; }
+  .cols { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+  .col { width: 270px; }
+  .col h2 { font-size: 15px; text-align: center; margin-bottom: 4px; }
+  .col .why { font-size: 12px; color: var(--t4); text-align: center; margin-bottom: 10px; line-height: 1.5; min-height: 36px; }
+  .phone { background: var(--page); border-radius: 22px; padding: 14px 12px 16px; box-shadow: 0 8px 24px rgba(31,35,41,.10); }
+  .sec-hd { display: flex; justify-content: space-between; align-items: center; margin: 14px 2px 8px; }
+  .sec-hd .t { font-size: 14px; font-weight: 600; }
+  .sec-hd .m { font-size: 11px; color: var(--t4); }
+  .sec-hd .t .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 4px;
+    background: linear-gradient(135deg,#00b42a,#23c343); }
+  /* ===== 卡片三方案 ===== */
+  .mycard { display: flex; align-items: center; gap: 10px; border-radius: 12px; padding: 12px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 17px; font-weight: 600; background: linear-gradient(135deg, var(--p), var(--g)); }
+  .info { flex: 1; min-width: 0; }
+  .name { font-size: 15px; font-weight: 700; }
+  .pos { font-size: 11px; color: var(--t4); margin-top: 2px; }
+  .edit { font-size: 11px; padding: 5px 10px; border-radius: 999px; display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  /* 方案A：白卡 + 主题点缀 */
+  .a .mycard { background: #fff; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(31,35,41,.05); }
+  .a .name { color: var(--t1); }
+  .a .edit { background: rgba(239,64,86,.08); color: var(--p); font-weight: 500; }
+  /* 方案B：主题 tint 浅底 */
+  .b .mycard { background: linear-gradient(135deg, rgba(239,64,86,.10), rgba(239,64,86,.03)); border: 1px solid rgba(239,64,86,.14); }
+  .b .name { color: var(--t1); }
+  .b .edit { background: var(--p); color: #fff; }
+  /* 方案C：深墨身份卡 */
+  .c .mycard { background: linear-gradient(135deg, #232a36, #3c4a61); }
+  .c .avatar { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25); }
+  .c .name, .c .pos { color: #fff; }
+  .c .pos { opacity: .75; }
+  .c .edit { background: rgba(255,255,255,.16); color: #fff; }
+  /* 现状对照 */
+  .now .mycard { background: linear-gradient(135deg, var(--p), var(--g)); }
+  .now .name, .now .pos { color: #fff; }
+  .now .pos { opacity: .85; }
+  .now .edit { background: rgba(255,255,255,.2); color: #fff; }
+  /* ===== 访客雷达 ===== */
+  .stats { background: #fff; border-radius: 12px; padding: 12px 0; display: flex; box-shadow: 0 2px 8px rgba(31,35,41,.04); }
+  .stat { flex: 1; text-align: center; }
+  .stat .n { font-size: 19px; font-weight: 700; }
+  .stat .l { font-size: 10px; color: var(--t4); margin-top: 2px; }
+  .divider { width: 1px; background: #f0f1f3; margin: 8px 0; }
+  .now .n { color: var(--p); }
+  /* 数字策略：墨色为主 + 首位主题色 */
+  .calm .n { color: var(--t1); }
+  .calm .stat:first-child .n { color: var(--p); }
+  .tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 999px; margin-top: 8px; }
+  /* 底部换主题验证 */
+  .verify { max-width: 900px; margin: 30px auto 0; background: #fff; border-radius: 16px; padding: 20px; }
+  .verify h3 { font-size: 15px; margin-bottom: 12px; }
+  .vrow { display: flex; gap: 14px; flex-wrap: wrap; }
+  .vcell { flex: 1; min-width: 220px; border-radius: 12px; padding: 12px; background: var(--page); }
+  .vcell .cap { font-size: 11px; color: var(--t4); margin-bottom: 8px; text-align: center; }
+  .mini { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px; box-shadow: 0 1px 4px rgba(31,35,41,.04); }
+  .mini .avatar { width: 32px; height: 32px; font-size: 13px; }
+  .mini .name { font-size: 13px; }
+  .legend { display: flex; gap: 18px; justify-content: center; margin-top: 22px; font-size: 12px; color: var(--t4); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+</style>
+</head>
+<body>
+  <h1>首页「我的名片」卡 + 访客雷达数字 · 配色和谐方案</h1>
+  <div class="sub">当前主题 = 红粉系（var(--design-primary)）。问题：主题色大面积铺满名片卡 + 红色数字，撞上绿色搜索栏与 9 彩宫格，页面色彩浓度过高。<br><b style="color:#ef4056">✅ 已采用「方案B · 主题 tint 浅底」</b>：代码已落地（C 端 home.vue + 后台设计预览 ComponentRender.vue 同步），并由 myCardThemeHarmony.test.js 锁定回归。访客数字保留主题色（红）。</div>
+
+  <div class="cols">
+    <!-- 现状 -->
+    <div class="col now">
+      <h2>现状（对照）</h2>
+      <div class="why">主题色铺满整卡，红色浓度过高；与绿搜索栏、9 彩宫格互相打架。</div>
+      <div class="phone">
+        <div class="sec-hd"><span class="t">我的名片</span><span class="m">查看详情 ›</span></div>
+        <div class="mycard">
+          <div class="avatar"><svg viewBox="0 0 100 100" width="100%" height="100%" style="border-radius:50%"><rect width="100" height="100" fill="#b8c6e0"/><circle cx="50" cy="38" r="15" fill="#fff"/><path d="M24 94 Q50 62 76 94 Z" fill="#fff"/></svg></div>
+          <div class="info"><div class="name">林平</div><div class="pos">顾问 · 未设置公司</div></div>
+          <div class="edit">✎ 编辑</div>
+        </div>
+        <div class="sec-hd"><span class="t"><span class="dot"></span>访客雷达</span><span class="m">查看全部 ›</span></div>
+        <div class="stats">
+          <div class="stat"><div class="n">6</div><div class="l">今日访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">47</div><div class="l">累计访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">0</div><div class="l">名片交换</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 方案A -->
+    <div class="col a calm">
+      <h2>方案A · 白卡 + 主题点缀（备选）</h2>
+      <div class="why">与页面白卡体系统一；主题色只出现在头像、编辑按钮、首位数字。任何主题色都不打架。数字改「墨色为主、今日访客用主题色」。</div>
+      <div class="phone">
+        <div class="sec-hd"><span class="t">我的名片</span><span class="m">查看详情 ›</span></div>
+        <div class="mycard">
+          <div class="avatar"><svg viewBox="0 0 100 100" width="100%" height="100%" style="border-radius:50%"><rect width="100" height="100" fill="#b8c6e0"/><circle cx="50" cy="38" r="15" fill="#fff"/><path d="M24 94 Q50 62 76 94 Z" fill="#fff"/></svg></div>
+          <div class="info"><div class="name">林平</div><div class="pos">顾问 · 未设置公司</div></div>
+          <div class="edit">✎ 编辑</div>
+        </div>
+        <div class="sec-hd"><span class="t"><span class="dot"></span>访客雷达</span><span class="m">查看全部 ›</span></div>
+        <div class="stats">
+          <div class="stat"><div class="n">6</div><div class="l">今日访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">47</div><div class="l">累计访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">0</div><div class="l">名片交换</div></div>
+        </div>
+      </div>
+      <span class="tag" style="background:#e8f7ee;color:#00b42a;">改动最小 · 最稳</span>
+    </div>
+
+    <!-- 方案B -->
+    <div class="col b">
+      <h2>方案B · 主题 tint 浅底（✅ 已采用）</h2>
+      <div class="why">主题色 10% 透明度做浅底 + 同色系细边框，保留一点主题氛围；文字仍深色。比 A 多一分品牌感，浓度远低于现状。</div>
+      <div class="phone">
+        <div class="sec-hd"><span class="t">我的名片</span><span class="m">查看详情 ›</span></div>
+        <div class="mycard">
+          <div class="avatar"><svg viewBox="0 0 100 100" width="100%" height="100%" style="border-radius:50%"><rect width="100" height="100" fill="#b8c6e0"/><circle cx="50" cy="38" r="15" fill="#fff"/><path d="M24 94 Q50 62 76 94 Z" fill="#fff"/></svg></div>
+          <div class="info"><div class="name">林平</div><div class="pos">顾问 · 未设置公司</div></div>
+          <div class="edit">✎ 编辑</div>
+        </div>
+        <div class="sec-hd"><span class="t"><span class="dot"></span>访客雷达</span><span class="m">查看全部 ›</span></div>
+        <div class="stats">
+          <div class="stat"><div class="n">6</div><div class="l">今日访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">47</div><div class="l">累计访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">0</div><div class="l">名片交换</div></div>
+        </div>
+      </div>
+      <span class="tag" style="background:rgba(239,64,86,.08);color:var(--p);">主题氛围 · 中庸 · 已落地</span>
+    </div>
+
+    <!-- 方案C -->
+    <div class="col c calm">
+      <h2>方案C · 深墨身份卡</h2>
+      <div class="why">名片是「被展示对象」，用固定深墨渐变（不随主题），白字高级感；主题色只做头像/编辑按钮点缀。换任何主题都稳，但深色块在浅色页里存在感强。</div>
+      <div class="phone">
+        <div class="sec-hd"><span class="t">我的名片</span><span class="m">查看详情 ›</span></div>
+        <div class="mycard">
+          <div class="avatar"><svg viewBox="0 0 100 100" width="100%" height="100%" style="border-radius:50%"><rect width="100" height="100" fill="#b8c6e0"/><circle cx="50" cy="38" r="15" fill="#fff"/><path d="M24 94 Q50 62 76 94 Z" fill="#fff"/></svg></div>
+          <div class="info"><div class="name">林平</div><div class="pos">顾问 · 未设置公司</div></div>
+          <div class="edit">✎ 编辑</div>
+        </div>
+        <div class="sec-hd"><span class="t"><span class="dot"></span>访客雷达</span><span class="m">查看全部 ›</span></div>
+        <div class="stats">
+          <div class="stat"><div class="n">6</div><div class="l">今日访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">47</div><div class="l">累计访客</div></div><div class="divider"></div>
+          <div class="stat"><div class="n">0</div><div class="l">名片交换</div></div>
+        </div>
+      </div>
+      <span class="tag" style="background:#eceef2;color:#3c4a61;">身份感 · 高级</span>
+    </div>
+  </div>
+
+  <div class="verify">
+    <h3>换主题验证（方案B 在不同主题下都和谐）</h3>
+    <div class="vrow">
+      <div class="vcell" style="--p:#165dff;--g:#4080ff;">
+        <div class="cap">蓝色主题</div>
+        <div class="mini" style="background:linear-gradient(135deg, rgba(22,93,255,.10), rgba(22,93,255,.03)); border-color:rgba(22,93,255,.18);"><div class="avatar"><svg viewBox="0 0 100 100" width="100%" height="100%" style="border-radius:50%"><rect width="100" height="100" fill="#b8c6e0"/><circle cx="50" cy="38" r="15" fill="#fff"/><path d="M24 94 Q50 62 76 94 Z" fill="#fff"/></svg></div><div style="flex:1"><div class="name">林平</div><div class="pos">顾问 · 未设置公司</div></div><div class="edit" style="background:#165dff;color:#fff;">✎ 编辑</div></div>
+      </div>
+      <div class="vcell" style="--p:#00b42a;--g:#23c343;">
+        <div class="cap">绿色主题</div>
+        <div class="mini" style="background:linear-gradient(135deg, rgba(0,180,42,.10), rgba(0,180,42,.03)); border-color:rgba(0,180,42,.18);"><div class="avatar"><svg viewBox="0 0 100 100" width="100%" height="100%" style="border-radius:50%"><rect width="100" height="100" fill="#b8c6e0"/><circle cx="50" cy="38" r="15" fill="#fff"/><path d="M24 94 Q50 62 76 94 Z" fill="#fff"/></svg></div><div style="flex:1"><div class="name">林平</div><div class="pos">顾问 · 未设置公司</div></div><div class="edit" style="background:#00b42a;color:#fff;">✎ 编辑</div></div>
+      </div>
+      <div class="vcell" style="--p:#722ed1;--g:#9254de;">
+        <div class="cap">紫色主题</div>
+        <div class="mini" style="background:linear-gradient(135deg, rgba(114,46,209,.10), rgba(114,46,209,.03)); border-color:rgba(114,46,209,.18);"><div class="avatar"><svg viewBox="0 0 100 100" width="100%" height="100%" style="border-radius:50%"><rect width="100" height="100" fill="#b8c6e0"/><circle cx="50" cy="38" r="15" fill="#fff"/><path d="M24 94 Q50 62 76 94 Z" fill="#fff"/></svg></div><div style="flex:1"><div class="name">林平</div><div class="pos">顾问 · 未设置公司</div></div><div class="edit" style="background:#722ed1;color:#fff;">✎ 编辑</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:linear-gradient(135deg,var(--p),var(--g))"></i>主题色大面积（现状）</span>
+    <span><i style="background:rgba(239,64,86,.12)"></i>主题色点缀</span>
+    <span><i style="background:#fff;border:1px solid var(--border)"></i>白卡/中性色</span>
+  </div>
+</body>
+</html>
