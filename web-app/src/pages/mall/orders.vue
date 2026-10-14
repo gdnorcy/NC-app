@@ -1,5 +1,5 @@
 <template>
-  <view class="orders-page">
+  <view class="orders-page" :style="themeStyle">
 <!-- PageNav -->
     <PageNav title="我的订单" back></PageNav>
 
@@ -63,6 +63,9 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
 import { fen2yuan, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 import { paymentApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
 
@@ -193,7 +196,7 @@ onShow(() => {
   box-sizing: border-box;
 }
 .status-item.active {
-  color: #165dff; font-weight: 500; border-bottom-color: #165dff;
+  color: var(--design-primary, #165dff); font-weight: 500; border-bottom-color: var(--design-primary, #165dff);
 }
 .order-scroll { flex: 1; height: 0; }
 .order-list { padding: 16rpx; }
@@ -243,7 +246,7 @@ onShow(() => {
   padding: 10rpx 32rpx; border-radius: 30rpx; font-size: 26rpx; margin-left: 16rpx;
 }
 .mini-btn.cancel { border: 1rpx solid #e5e6eb; color: #4e5969; }
-.mini-btn.pay { background: #165dff; color: #fff; }
+.mini-btn.pay { background: var(--design-primary); color: var(--design-text, #fff); }
 .empty-box {
   padding: 180rpx 0;
   display: flex; flex-direction: column; align-items: center;

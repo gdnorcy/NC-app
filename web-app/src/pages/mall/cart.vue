@@ -1,5 +1,5 @@
 <template>
-  <view class="cart-page">
+  <view class="cart-page" :style="themeStyle">
 <!-- PageNav -->
     <PageNav title="购物车" back>
       <template #right>
@@ -60,6 +60,9 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
 import { fen2yuan, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 import SIcon from '../../components/SIcon.vue';
 
 const tid = ref('');
@@ -206,7 +209,7 @@ onShow(() => {
   position: relative;
 }
 .check.checked {
-  background: #165dff; border-color: #165dff;
+  background: var(--design-primary); border-color: var(--design-primary);
 }
 .check.checked::after {
   content: '';
@@ -255,8 +258,8 @@ onShow(() => {
 }
 .empty-text { font-size: 26rpx; color: #86909c; margin-bottom: 32rpx; }
 .empty-btn {
-  padding: 16rpx 56rpx; border-radius: 40rpx; background: #165dff;
-  color: #fff; font-size: 28rpx;
+  padding: 16rpx 56rpx; border-radius: 40rpx; background: var(--design-primary);
+  color: var(--design-text, #fff); font-size: 28rpx;
 }
 .settle-bar {
   display: flex; align-items: center;
@@ -269,7 +272,7 @@ onShow(() => {
 .total-num { font-size: 36rpx; font-weight: 600; color: #f53f3f; }
 .settle-btn {
   padding: 0 48rpx; height: 76rpx; line-height: 76rpx;
-  background: #165dff; color: #fff; border-radius: 38rpx; font-size: 28rpx; font-weight: 500;
+  background: var(--design-primary); color: var(--design-text, #fff); border-radius: 38rpx; font-size: 28rpx; font-weight: 500;
 }
 .settle-btn.disabled { opacity: 0.5; }
 </style>

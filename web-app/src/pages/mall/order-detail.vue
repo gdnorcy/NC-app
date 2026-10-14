@@ -1,5 +1,5 @@
 <template>
-  <view class="order-detail-page">
+  <view class="order-detail-page" :style="themeStyle">
 <!-- PageNav -->
     <PageNav title="订单详情" back></PageNav>
 
@@ -93,6 +93,9 @@ import { onLoad } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
 import { fen2yuan, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 import { paymentApi } from '../../utils/cardApi.js';
 
 const tid = ref('');
@@ -210,7 +213,7 @@ onLoad((o) => {
 .info-value { flex: 1; font-size: 26rpx; color: #1d2129; line-height: 1.5; word-break: break-all; }
 .pickup-code { align-items: center; }
 .code-value {
-  font-size: 44rpx; font-weight: 700; color: #165dff; letter-spacing: 6rpx;
+  font-size: 44rpx; font-weight: 700; color: var(--design-primary, #165dff); letter-spacing: 6rpx;
 }
 .goods-item { display: flex; align-items: center; padding: 14rpx 0; }
 .goods-img { width: 110rpx; height: 110rpx; border-radius: 10rpx; background: #f2f3f5; flex-shrink: 0; }
@@ -246,5 +249,5 @@ onLoad((o) => {
   padding: 14rpx 44rpx; border-radius: 34rpx; font-size: 28rpx; margin-left: 16rpx;
 }
 .mini-btn.cancel { border: 1rpx solid #e5e6eb; color: #4e5969; }
-.mini-btn.pay { background: #165dff; color: #fff; }
+.mini-btn.pay { background: var(--design-primary); color: var(--design-text, #fff); }
 </style>

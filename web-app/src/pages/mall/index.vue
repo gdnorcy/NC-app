@@ -1,5 +1,5 @@
 <template>
-  <view class="mall-page">
+  <view class="mall-page" :style="themeStyle">
     <!-- 顶部栏：返回(有来源时) + 标题 + 购物车入口 -->
 <!-- PageNav -->
     <PageNav title="商城" :back="canBack">
@@ -88,6 +88,9 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
 import { yuanFmt, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
@@ -287,8 +290,8 @@ onShow(() => {
   background: #f2f3f5;
 }
 .cate-item.active {
-  background: #e8f3ff;
-  color: #165dff;
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  color: var(--design-primary, #165dff);
   font-weight: 500;
 }
 .sort-bar {
@@ -304,7 +307,7 @@ onShow(() => {
   color: #4e5969;
 }
 .sort-item.active {
-  color: #165dff;
+  color: var(--design-primary, #165dff);
   font-weight: 500;
 }
 .sort-arrow { font-size: 22rpx; margin-left: 4rpx; }

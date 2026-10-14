@@ -1,5 +1,5 @@
 <template>
-  <view class="detail-page">
+  <view class="detail-page" :style="themeStyle">
 <!-- PageNav -->
     <PageNav title="商品详情" back>
       <template #right>
@@ -13,7 +13,7 @@
     <scroll-view class="detail-scroll" scroll-y :show-scrollbar="false">
       <!-- 商品图 -->
       <view class="banner" v-if="goods">
-        <swiper v-if="images.length" class="swiper" circular :indicator-dots="images.length > 1" indicator-active-color="#165dff">
+        <swiper v-if="images.length" class="swiper" circular :indicator-dots="images.length > 1" :indicator-active-color="themeColor">
           <swiper-item v-for="(img, i) in images" :key="i">
             <image :src="resolveUrl(img)" class="swiper-img" mode="aspectFill" />
           </swiper-item>
@@ -110,6 +110,11 @@ import { onLoad } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
 import { yuanFmt, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
+import { useDesignTheme } from '../../utils/design.js';
+
+// swiper indicator-active-color 是 prop 不吃 var()，主题主色喂真实 hex：回落品牌蓝
+const themeStyle = useDesignTheme();
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 import SIcon from '../../components/SIcon.vue';
 
 const tid = ref('');
@@ -277,7 +282,7 @@ onLoad((o) => {
 .sales { margin-left: auto; font-size: 24rpx; color: #86909c; }
 .title-row { display: flex; align-items: center; margin-top: 12rpx; }
 .goods-title { flex: 1; font-size: 32rpx; font-weight: 500; color: #1d2129; line-height: 1.4; }
-.type-tag { padding: 4rpx 14rpx; border-radius: 8rpx; background: #e8f3ff; color: #165dff; font-size: 22rpx; }
+.type-tag { padding: 4rpx 14rpx; border-radius: 8rpx; background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); font-size: 22rpx; }
 .delivery-row { display: flex; align-items: center; margin-top: 16rpx; }
 .delivery-label { font-size: 24rpx; color: #86909c; margin-right: 12rpx; }
 .delivery-tag { margin-right: 10rpx; padding: 4rpx 14rpx; border-radius: 8rpx; background: #f2f3f5; color: #4e5969; font-size: 22rpx; }
@@ -295,8 +300,8 @@ onLoad((o) => {
   flex: 1; height: 80rpx; line-height: 80rpx; text-align: center;
   border-radius: 40rpx; font-size: 28rpx; font-weight: 500;
 }
-.action-btn.add { background: #ffb400; color: #fff; margin-right: 16rpx; }
-.action-btn.buy { background: #165dff; color: #fff; }
+.action-btn.add { background: var(--design-secondary); color: var(--design-primary); margin-right: 16rpx; }
+.action-btn.buy { background: var(--design-primary); color: var(--design-text, #fff); }
 .action-btn.disabled { opacity: 0.5; }
 .mask {
   position: fixed; left: 0; top: 0; right: 0; bottom: 0;
@@ -318,7 +323,7 @@ onLoad((o) => {
   padding: 12rpx 28rpx; margin: 0 12rpx 12rpx 0; border-radius: 10rpx;
   background: #f2f3f5; color: #4e5969; font-size: 26rpx;
 }
-.sku-option.active { background: #e8f3ff; color: #165dff; border: 1rpx solid #165dff; }
+.sku-option.active { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border: 1rpx solid var(--design-primary, #165dff); }
 .sku-option.disabled { opacity: 0.4; }
 .num-stepper { display: flex; align-items: center; }
 .step-btn {

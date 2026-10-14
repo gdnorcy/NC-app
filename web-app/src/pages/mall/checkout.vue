@@ -1,5 +1,5 @@
 <template>
-  <view class="checkout-page">
+  <view class="checkout-page" :style="themeStyle">
 <!-- PageNav -->
     <PageNav title="确认订单" back></PageNav>
 
@@ -117,6 +117,9 @@ import { onLoad } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
 import { fen2yuan, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 import { paymentApi } from '../../utils/cardApi.js';
 
 const tid = ref('');
@@ -315,7 +318,7 @@ onLoad((o) => {
   padding: 14rpx 36rpx; border-radius: 30rpx; background: #f2f3f5;
   color: #4e5969; font-size: 26rpx; margin-right: 16rpx;
 }
-.delivery-option.active { background: #e8f3ff; color: #165dff; font-weight: 500; }
+.delivery-option.active { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); font-weight: 500; }
 .form-box { margin-top: 20rpx; }
 .form-row {
   display: flex; align-items: center;
@@ -358,7 +361,7 @@ onLoad((o) => {
 .total-num { font-size: 40rpx; font-weight: 600; color: #f53f3f; }
 .submit-btn {
   flex: 1; height: 80rpx; line-height: 80rpx; text-align: center;
-  background: #165dff; color: #fff; border-radius: 40rpx;
+  background: var(--design-primary); color: var(--design-text, #fff); border-radius: 40rpx;
   font-size: 30rpx; font-weight: 500;
 }
 .submit-btn.loading { opacity: 0.6; }
@@ -377,12 +380,12 @@ onLoad((o) => {
   padding: 20rpx; border-radius: 12rpx; background: #f7f8fa;
   margin-bottom: 12rpx; border: 2rpx solid transparent;
 }
-.store-item.active { border-color: #165dff; background: #e8f3ff; }
+.store-item.active { border-color: var(--design-primary); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); }
 .store-name { font-size: 28rpx; color: #1d2129; font-weight: 500; }
 .store-addr { font-size: 24rpx; color: #86909c; margin-top: 6rpx; }
 .store-empty { text-align: center; color: #c9cdd4; font-size: 26rpx; padding: 60rpx 0; }
 .panel-close {
   margin-top: 16rpx; text-align: center; padding: 20rpx 0;
-  color: #165dff; font-size: 28rpx;
+  color: var(--design-primary, #165dff); font-size: 28rpx;
 }
 </style>
