@@ -24,6 +24,7 @@
 import { computed } from 'vue';
 // #ifdef MP-WEIXIN
 import { siconsBase64 } from '../utils/sicons-base64.js';
+import { API_DOMAIN } from '../utils/cardApi.js';
 // #endif
 
 const props = defineProps({
@@ -123,14 +124,24 @@ function buildSvgDataUri() {
   return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 }
 const iconSrc = computed(() => buildSvgDataUri());
-// 小程序端图标：构建期生成的 base64 data URI（scripts/gen-mp-sicons.js 产出 sicons-base64.js）
-// 基础库 3.x 禁用 http 图片（含开发者工具映射的包内资源），data URI 不依赖网络、真机/工具均正常
+// 小程序端图标：优先构建期烘焙的 base64 data URI（scripts/gen-mp-sicons.js 产出
+// sicons-base64.js，离线零请求）；未烘焙的运行期颜色（主题色/设计中心自定义色）
+// 走服务端按需渲染（GET /api/card/sicon，sharp 同管线，任意颜色全支持）。
+// 🔴 2026-10-15 真机报修：此前「未预生成的颜色兜底到黑色变体」——租户切换主题色
+//    （玫红→草绿）后运行期颜色不在构建期烘焙表里 → MP 端图标全黑不跟主题。
+//    只烘 14 套预设不够：设计中心支持自定义取色，且全量预设会撑爆主包（+150KB）。
+//    精确命中走离线 base64、未命中走服务端，两端合一；H5 分支本就是 SVG data-URI，
+//    任意颜色无此问题（本 bug 仅 MP）。
 const mpIconSrc = computed(() => {
   const hex = (props.color || '#000000').replace(/^#/, '').toLowerCase();
-  let b64 = siconsBase64[`${props.name}-${hex}`];
-  // 未预生成的颜色（如运行期主题色）兜底到黑色变体，避免小程序端空白占位
-  if (!b64) b64 = siconsBase64[`${props.name}-000000`];
-  return b64 ? `data:image/png;base64,${b64}` : '';
+  const b64 = siconsBase64[`${props.name}-${hex}`];
+  if (b64) return `data:image/png;base64,${b64}`;
+  // 非 hex 脏值（配置异常时）服务端无法渲染 → 回落黑色烘焙变体，至少可见
+  if (!/^[0-9a-f]{3,8}$/.test(hex)) {
+    const black = siconsBase64[`${props.name}-000000`];
+    return black ? `data:image/png;base64,${black}` : '';
+  }
+  return API_DOMAIN + '/api/card/sicon?name=' + encodeURIComponent(props.name) + '&color=' + encodeURIComponent(hex);
 });
 const iconStyle = computed(() => {
   const url = buildSvgDataUri();

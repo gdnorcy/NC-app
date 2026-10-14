@@ -5,8 +5,10 @@
 import { Router } from 'express';
 import { config } from '../config.js';
 import multer from 'multer';
+import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
+import sharp from 'sharp';
 import { getStorage } from '../storage/index.js';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
@@ -33,6 +35,74 @@ export function createCardRouter(db, wxService) {
   const member = createMemberService(db);
   const radar = createRadarService(db);
   const quota = createQuotaService(db);
+
+  // ============================================================
+  // SIcon 服务端按需渲染（小程序运行期主题色，2026-10-15）
+  // ============================================================
+  // 背景：小程序 <image> 不支持 SVG data-URI，SIcon 的 MP 分支用构建期烘焙的
+  //   base64 PNG（scripts/gen-mp-sicons.js → src/utils/sicons-base64.js）。
+  //   烘焙色板只来自「构建那一刻」的源码静态色 + DB 租户主题色；而设计中心
+  //   支持自定义取色，租户切换主题色（如玫红→草绿）后运行期颜色不在烘焙表里
+  //   → SIcon 兜底黑色 → 真机「名片内容等图标全黑，不跟主题色」。
+  //   本路由用同一套 sharp 管线按需渲染任意 (name,color)：SIcon 精确命中走
+  //   离线 base64（零请求），未命中走本端点（任意颜色/自定义色全支持）。
+  // ⚠️ svgMap 单一事实来源是 web-app/src/components/SIcon.vue 源码（与
+  //   gen-mp-sicons 读同一份），禁在此处复制一份——双份必然漂移。
+  const SICON_CACHE_CAP = 1000;
+  const siconCache = new Map(); // `${name}-${hex}` → PNG Buffer（FIFO）
+  let siconSvgMap = null;
+
+  function loadSiconSvgMap() {
+    if (siconSvgMap) return siconSvgMap;
+    const map = {};
+    try {
+      // 路由文件在 server/src/routes/，仓库根 = 上三级
+      const siconVue = fs.readFileSync(new URL('../../../web-app/src/components/SIcon.vue', import.meta.url), 'utf8');
+      const mapRe = /^\s*(?:'([a-z0-9-]+)'|([a-z0-9-]+)):\s*'([^']*)',$/gm;
+      let m;
+      while ((m = mapRe.exec(siconVue)) !== null) {
+        const name = m[1] || m[2];
+        if (name && m[3]) map[name] = m[3];
+      }
+    } catch (e) { /* SIcon.vue 不在部署树 → 空 map，端点整体 404，客户端仍走烘焙兜底 */ }
+    siconSvgMap = map;
+    return map;
+  }
+
+  // GET /api/card/sicon?name=card&color=4FA140 → PNG（免鉴权静态渲染器）
+  router.get('/sicon', async (req, res) => {
+    const name = String(req.query.name || '');
+    const color = String(req.query.color || '').replace(/^#/, '');
+    if (!/^[a-z0-9-]+$/.test(name) || !/^[0-9a-fA-F]{3,8}$/.test(color)) {
+      return res.status(400).json({ error: '参数不合法' });
+    }
+    const paths = loadSiconSvgMap()[name];
+    if (!paths) return res.status(404).json({ error: '图标不存在' });
+    const hex = color.toLowerCase();
+    const key = `${name}-${hex}`;
+    let png = siconCache.get(key);
+    if (!png) {
+      // 与 gen-mp-sicons.js 的 SVG 模板保持一致：color 属性必须给——
+      // apps/dynamic/radar 等图标内部 fill="currentColor"，不声明会回落 SVG 默认黑
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" color="#${hex}" stroke="#${hex}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+      try {
+        png = await sharp(Buffer.from(svg), { density: 96 })
+          .resize(72, 72)
+          .png({ quality: 80, compressionLevel: 9, effort: 8 })
+          .toBuffer();
+      } catch (e) {
+        return res.status(500).json({ error: '渲染失败' });
+      }
+      if (siconCache.size >= SICON_CACHE_CAP) {
+        const oldest = siconCache.keys().next().value;
+        if (oldest !== undefined) siconCache.delete(oldest);
+      }
+      siconCache.set(key, png);
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    res.send(png);
+  });
 
   // ============================================================
   // 微信授权登录/注册
