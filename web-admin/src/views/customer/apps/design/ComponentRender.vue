@@ -1818,16 +1818,20 @@ function gridPreviewTextStyle(props) {
   const p = props || {};
   return { fontSize: (p.fontSize || 10) + 'px', fontWeight: p.bold ? '600' : '400' };
 }
+// 名片宫格预览兜底（无 items 配置的旧数据回退）：
+// 2026-10-14 起与 C 端 home.vue features / componentRegistry 默认项同用 **4 业务域色**
+// （身份#3b6ef7→#6a4bf5 / 关系#0a9f8f→#10b981 / 经营#e8590c→#f59e0b / 工具#5c6470→#3d424b），
+// 修掉这里曾独立持一套色（预览与 C 端不一致）的漂移；回归锁 gridDomainPalette.test.js。
 const nativeGridItems = [
-  { label: '我的名片', bg: 'linear-gradient(135deg,#165dff,#4080ff)' },
-  { label: '访客雷达', bg: 'linear-gradient(135deg,#00b42a,#23c343)' },
-  { label: '客户管理', bg: 'linear-gradient(135deg,#ff7d00,#ff9a2e)' },
-  { label: '人脉集市', bg: 'linear-gradient(135deg,#722ed1,#9254de)' },
-  { label: '名片交换', bg: 'linear-gradient(135deg,#f5319d,#ff7d9b)' },
-  { label: '分销中心', bg: 'linear-gradient(135deg,#0fc6c2,#35e0e0)' },
-  { label: '会员中心', bg: 'linear-gradient(135deg,#f7ba1e,#ffd666)' },
-  { label: '我的动态', bg: 'linear-gradient(135deg,#4080ff,#7cc5ff)' },
-  { label: '更多', bg: 'linear-gradient(135deg,#86909c,#a9b0bb)' },
+  { label: '我的名片', bg: 'linear-gradient(135deg,#3b6ef7,#6a4bf5)' },
+  { label: '访客雷达', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)' },
+  { label: '客户管理', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)' },
+  { label: '人脉集市', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)' },
+  { label: '名片交换', bg: 'linear-gradient(135deg,#3b6ef7,#6a4bf5)' },
+  { label: '分销中心', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)' },
+  { label: '会员中心', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)' },
+  { label: '我的动态', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)' },
+  { label: '更多', bg: 'linear-gradient(135deg,#5c6470,#3d424b)' },
 ];
 </script>
 

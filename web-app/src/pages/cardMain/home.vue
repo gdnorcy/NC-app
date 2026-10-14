@@ -342,20 +342,27 @@ function isPreviewMode() {
 }
 
 // 无装修配置时的默认宫格（items 缺失/为空时回退）
-// 底色与图标必须与「名片宫格图标方案 v5」的**方案 A（品牌多彩渐变）**一致 ——
-// 该方案 2026-09-26 由用户确认：渐变底 + 圆角方形，9 图标已定稿，差异只在底色。
-// 权威副本：componentRegistry.js native-grid 默认 items、DB tenant_page_design.home.design_json
-//            （三者当前已核对为 9/9 一致，改这里前先对齐那两处）
+// 2026-10-14 配色收敛（用户确认）：9 彩各自为政 → **4 业务域同域同色**，
+// 缓解「一屏 9 种色相」的杂乱感；每个宫格项的底色仍可在设计中心逐项自定义
+// （schema items.bg 取色器，用户明确「宫格配色可自己配，不跟随租户主题」）。
+//   身份域 #3b6ef7→#6a4bf5：我的名片 · 名片交换
+//   关系域 #0a9f8f→#10b981：访客雷达 · 人脉集市 · 我的动态
+//   经营域 #e8590c→#f59e0b：客户管理 · 分销中心 · 会员中心（橙起点 3.4:1，见 gridOrangeContrast）
+//   工具域 #5c6470→#3d424b：更多
+// 🔴 权威副本有五处，改前必须对齐：① 本文件 features ② componentRegistry.js native-grid 默认 items
+//    ③ ComponentRender.vue nativeGridItems（后台画布预览兜底）④ PeColorPicker.vue 渐变预设
+//    ⑤ DB tenant_page_design.home.design_json（存量已迁移，见 2026-10-14 日志）
+//    回归测试 gridDomainPalette.test.js 锁死四副本一致 + 图标→域映射 + 白图标对比度 ≥3:1。
 const features = [
-  { key: 'card', icon: 'card', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#2979ff,#00b0ff)' },
-  { key: 'visitors', icon: 'radar', label: '访客雷达', path: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b8a9,#00d68f)' },
+  { key: 'card', icon: 'card', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#3b6ef7,#6a4bf5)' },
+  { key: 'visitors', icon: 'radar', label: '访客雷达', path: '/pages/card/visitors', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)' },
   { key: 'customers', icon: 'customer', label: '客户管理', path: '/pages/card/customers', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)' },
-  { key: 'market', icon: 'market', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#7c4dff,#b388ff)' },
-  { key: 'exchange', icon: 'exchange', label: '名片交换', path: '/pages/card/connections', bg: 'linear-gradient(135deg,#00b0ff,#536dfe)' },
-  { key: 'distribution', icon: 'dist', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)' },
-  { key: 'member', icon: 'crown', label: '会员中心', path: '/pages/card/member', bg: 'linear-gradient(135deg,#cc7a00,#f0a500)' },
-  { key: 'dynamic', icon: 'dynamic', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#ec407a,#ab47bc)' },
-  { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#78909c,#546e7a)' },
+  { key: 'market', icon: 'market', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)' },
+  { key: 'exchange', icon: 'exchange', label: '名片交换', path: '/pages/card/connections', bg: 'linear-gradient(135deg,#3b6ef7,#6a4bf5)' },
+  { key: 'distribution', icon: 'dist', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)' },
+  { key: 'member', icon: 'crown', label: '会员中心', path: '/pages/card/member', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)' },
+  { key: 'dynamic', icon: 'dynamic', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)' },
+  { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#5c6470,#3d424b)' },
 ];
 
 // 首页数据加载（onMounted 首屏 + 下拉强刷新共用）

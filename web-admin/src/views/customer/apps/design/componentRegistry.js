@@ -1563,15 +1563,18 @@ export const componentRegistry = [
       columns: 4, shape: 'rounded', iconSize: 46, iconRadius: 14,
       fontSize: 12, bold: false, gap: 0,
       items: [
-        { icon: 'card', text: '我的名片', url: '/pages/card/myCard', bg: 'linear-gradient(135deg,#2979ff,#00b0ff)', badge: '', visible: true },
-        { icon: 'radar', text: '访客雷达', url: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b8a9,#00d68f)', badge: '', visible: true },
+        // 2026-10-14 配色收敛：9 彩 → 4 业务域同域同色（身份/关系/经营/工具）。
+        // 与 C 端 home.vue features、后台预览兜底 ComponentRender.nativeGridItems、
+        // PeColorPicker 渐变预设、DB 存量 五处对齐；逐项底色仍可自定义（items.bg 取色器）。
+        { icon: 'card', text: '我的名片', url: '/pages/card/myCard', bg: 'linear-gradient(135deg,#3b6ef7,#6a4bf5)', badge: '', visible: true },
+        { icon: 'radar', text: '访客雷达', url: '/pages/card/visitors', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)', badge: '', visible: true },
         { icon: 'customer', text: '客户管理', url: '/pages/card/customers', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)', badge: '', visible: true },
-        { icon: 'market', text: '人脉集市', url: '/pages/card/market', bg: 'linear-gradient(135deg,#7c4dff,#b388ff)', badge: '', visible: true },
-        { icon: 'exchange', text: '名片交换', url: '/pages/card/connections', bg: 'linear-gradient(135deg,#00b0ff,#536dfe)', badge: '', visible: true },
-        { icon: 'dist', text: '分销中心', url: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)', badge: '', visible: true },
-        { icon: 'crown', text: '会员中心', url: '/pages/card/member', bg: 'linear-gradient(135deg,#cc7a00,#f0a500)', badge: '', visible: true },
-        { icon: 'dynamic', text: '我的动态', url: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#ec407a,#ab47bc)', badge: '', visible: true },
-        { icon: 'apps', text: '更多', url: '/pages/card/profile', bg: 'linear-gradient(135deg,#78909c,#546e7a)', badge: '', visible: true },
+        { icon: 'market', text: '人脉集市', url: '/pages/card/market', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)', badge: '', visible: true },
+        { icon: 'exchange', text: '名片交换', url: '/pages/card/connections', bg: 'linear-gradient(135deg,#3b6ef7,#6a4bf5)', badge: '', visible: true },
+        { icon: 'dist', text: '分销中心', url: '/pages/card/distribution', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)', badge: '', visible: true },
+        { icon: 'crown', text: '会员中心', url: '/pages/card/member', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)', badge: '', visible: true },
+        { icon: 'dynamic', text: '我的动态', url: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#0a9f8f,#10b981)', badge: '', visible: true },
+        { icon: 'apps', text: '更多', url: '/pages/card/profile', bg: 'linear-gradient(135deg,#5c6470,#3d424b)', badge: '', visible: true },
       ],
     },
     schema: [

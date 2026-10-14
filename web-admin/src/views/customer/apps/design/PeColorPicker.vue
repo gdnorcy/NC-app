@@ -63,13 +63,15 @@ const isTransparent = computed(() => !cur.value || cur.value === 'transparent');
 const isGradient = computed(() => /^linear-gradient/i.test(cur.value || ''));
 const display = computed(() => (isTransparent.value ? 'transparent' : (isGradient.value ? '渐变' : cur.value)));
 const boxStyle = computed(() => (isTransparent.value ? {} : { background: cur.value }));
-// 渐变预设（方案 A 9 色 + 通用 2 色）
+// 渐变预设：前 4 个 = 宫格 4 业务域色（2026-10-14 收敛，与 home.vue/componentRegistry 对齐），
+// 其余为通用备选（深金 #cc7a00 起点 3.31:1 达标；浅金 #ffb300 系白图标 1.79:1 已禁入预设）。
+// 宫格底色仍由用户逐项自选（「可自己配，不跟随租户」），预设只降低选色成本。
 const gradPresets = [
-  'linear-gradient(135deg,#2979ff,#00b0ff)', 'linear-gradient(135deg,#00b8a9,#00d68f)',
-  'linear-gradient(135deg,#e8590c,#f59e0b)', 'linear-gradient(135deg,#7c4dff,#b388ff)',
-  'linear-gradient(135deg,#00b0ff,#536dfe)', 'linear-gradient(135deg,#ff3d3d,#ff7043)',
-  'linear-gradient(135deg,#cc7a00,#f0a500)', 'linear-gradient(135deg,#ec407a,#ab47bc)',
-  'linear-gradient(135deg,#78909c,#546e7a)', 'linear-gradient(135deg,#00b42a,#52c41a)',
+  'linear-gradient(135deg,#3b6ef7,#6a4bf5)', 'linear-gradient(135deg,#0a9f8f,#10b981)',
+  'linear-gradient(135deg,#e8590c,#f59e0b)', 'linear-gradient(135deg,#5c6470,#3d424b)',
+  'linear-gradient(135deg,#7c4dff,#b388ff)', 'linear-gradient(135deg,#00b0ff,#536dfe)',
+  'linear-gradient(135deg,#ff3d3d,#ff7043)', 'linear-gradient(135deg,#cc7a00,#f0a500)',
+  'linear-gradient(135deg,#ec407a,#ab47bc)', 'linear-gradient(135deg,#00b42a,#52c41a)',
   'linear-gradient(135deg,#13c2c2,#00d0c7)',
 ];
 function onGrad(g) { cur.value = g; emit('update:modelValue', g); open.value = false; }
