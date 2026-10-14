@@ -61,9 +61,9 @@
         <text class="oc-need" v-for="t in needTagList" :key="t">{{ t }}</text>
       </view>
       <view class="oc-actions">
-        <view class="oc-act" @click="previewCard"><SIcon name="card" size="default" color="#07c160" /><text>预览</text></view>
-        <view class="oc-act" @click="shareOwnerCard"><SIcon name="channel" size="default" color="#07c160" /><text>分享</text></view>
-        <view class="oc-act" @click="copyLink"><SIcon name="devices" size="default" color="#07c160" /><text>二维码/链接</text></view>
+        <view class="oc-act" @click="previewCard"><SIcon name="card" size="default" color="#5b5b5b" /><text>预览</text></view>
+        <view class="oc-act" @click="shareOwnerCard"><SIcon name="channel" size="default" color="#5b5b5b" /><text>分享</text></view>
+        <view class="oc-act" @click="copyLink"><SIcon name="devices" size="default" color="#5b5b5b" /><text>二维码/链接</text></view>
       </view>
     </view>
 
@@ -85,7 +85,7 @@
 
     <!-- 集市状态专属卡片（整卡可点：未上架去上架，已上架看位置） -->
     <view class="owner-market" @click="locateInMarket">
-      <view class="om-title"><SIcon name="market" size="default" color="#1d4e8f" /><text>集市状态</text></view>
+      <view class="om-title"><SIcon name="market" size="default" :color="themeColor" /><text>集市状态</text></view>
       <view class="om-status" :class="marketStatusClass">{{ marketStatusText }}</view>
       <view class="om-desc">{{ marketStatusDesc }}</view>
       <view class="om-locate" v-if="marketOn" @click="locateInMarket">查看我在集市的位置 ›</view>
@@ -95,17 +95,17 @@
     <view class="owner-section">
       <view class="os-t">名片内容</view>
       <view class="os-row" @click="editCard">
-        <view class="osr-icon"><SIcon name="card" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="card" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">名片资料</view><view class="osr-desc">姓名、职位、企业、联系方式</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="goNeedTags">
-        <view class="osr-icon"><SIcon name="radar" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="radar" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">供需标签</view><view class="osr-desc">找渠道/求合作/招合伙人等</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="goDisplaySettings">
-        <view class="osr-icon"><SIcon name="settings" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="settings" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">展示设置</view><view class="osr-desc">公开状态、模板样式</view></view>
         <text class="osr-arrow">›</text>
       </view>
@@ -132,28 +132,28 @@
     <view class="owner-section">
       <view class="os-t">高级工具</view>
       <view class="os-row" @click="goConnections">
-        <view class="osr-icon"><SIcon name="market" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="market" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">我的人脉库</view><view class="osr-desc">管理交换得来的人脉，可转为客户线索</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="goMessages">
-        <view class="osr-icon"><SIcon name="dynamic" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="dynamic" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">消息中心</view><view class="osr-desc">交换申请、访客动态等通知</view></view>
         <Badge v-if="msgUnread > 0" :count="msgUnread" :max="99" />
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="goCollects">
-        <view class="osr-icon"><SIcon name="star" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="star" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">我的收藏</view><view class="osr-desc">收藏的名片，随时回访</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="saveCardInfo">
-        <view class="osr-icon"><SIcon name="storage" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="storage" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">保存名片</view><view class="osr-desc">复制名片信息，可保存到手机通讯录</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="exportData">
-        <view class="osr-icon"><SIcon name="analytics" size="default" color="#1d4e8f" /></view>
+        <view class="osr-icon"><SIcon name="analytics" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">导出数据</view><view class="osr-desc">复制我的名片与访客数据</view></view>
         <text class="osr-arrow">›</text>
       </view>
@@ -190,6 +190,8 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme } from '../../utils/design.js';
 const themeStyle = useDesignTheme();
+// 租户主题色：SIcon 的 color 是 prop、不能吃 var()，取真实 hex（与 create/displaySettings 同款）
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const card = ref({});
 const loading = ref(true);
@@ -518,23 +520,24 @@ function leaveTenant() {
 .pe-text { font-size: 26rpx; color: var(--t3); }
 .pe-btn {
   margin-top: 12rpx; padding: 16rpx 56rpx; border-radius: 40rpx;
-  background: linear-gradient(135deg, var(--design-primary, var(--primary)), var(--design-gradient, var(--design-primary, var(--primary))));
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, var(--design-primary, #165dff)));
   color: var(--design-text, #fff); font-size: 28rpx;
 }
 .owner-switch { display: flex; gap: 16rpx; padding: 20rpx 24rpx 0; }
 .os-chip { font-size: 24rpx; color: #5b5b5b; background: #fff; border: 1rpx solid #eeeeee; padding: 10rpx 28rpx; border-radius: 999rpx; }
-.os-chip.on { color: #fff; background: var(--success); border-color: var(--success); font-weight: 500; }
+.os-chip.on { color: #fff; background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
+.on-edit { font-size: 28rpx; color: var(--design-primary, #165dff); font-weight: 500; }
 
 .owner-card { background: #fff; border-radius: 20rpx; margin: 20rpx 24rpx; padding: 28rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
 .oc-head { display: flex; gap: 20rpx; align-items: center; }
-.oc-avatar { width: 120rpx; height: 120rpx; border-radius: 50%; background: linear-gradient(135deg, var(--primary-deep), #2e6bb8); color: #fff; font-size: 44rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.oc-avatar { width: 120rpx; height: 120rpx; border-radius: 50%; background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); color: #fff; font-size: 44rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .oc-avatar-img { width: 100%; height: 100%; }
 .oc-id { flex: 1; min-width: 0; }
 .oc-name { font-size: 38rpx; font-weight: 700; color: var(--t5); }
 .oc-pos { font-size: 26rpx; color: #5b5b5b; margin-top: 6rpx; }
 .oc-co { font-size: 24rpx; color: var(--t4); margin-top: 4rpx; }
 .oc-needs { display: flex; gap: 10rpx; margin-top: 20rpx; flex-wrap: wrap; }
-.oc-need { font-size: 22rpx; color: #f59e0b; background: #fef3e2; padding: 6rpx 16rpx; border-radius: 8rpx; }
+.oc-need { font-size: 22rpx; color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); padding: 6rpx 16rpx; border-radius: 8rpx; }
 .oc-actions { display: flex; margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid #f0f0f0; }
 .oc-act { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; font-size: 22rpx; color: #5b5b5b; }
 
@@ -550,41 +553,17 @@ function leaveTenant() {
 .om-status.pend { color: #f59e0b; }
 .om-status.off { color: var(--t4); }
 .om-desc { font-size: 22rpx; color: #5b5b5b; margin-top: 8rpx; line-height: 1.5; }
-.om-locate { margin-top: 16rpx; font-size: 24rpx; color: var(--primary-deep); }
+.om-locate { margin-top: 16rpx; font-size: 24rpx; color: var(--design-primary, #165dff); }
 
 .owner-section { background: #fff; border-radius: 20rpx; margin: 0 24rpx 20rpx; padding: 8rpx 28rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
-.mb-banner {
-  display: flex; align-items: center; justify-content: space-between; gap: 20rpx;
-  margin-top: 20rpx; background: var(--bg-card); border-radius: 20rpx; padding: 24rpx;
-  border: 1px solid var(--border);
-}
-.mb-banner.on { background: rgba(22, 93, 255, 0.06); border-color: var(--primary); }
-.mb-left { flex: 1; min-width: 0; }
-.mb-title { font-size: 28rpx; font-weight: 600; color: var(--t1); }
-.mb-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 14rpx; }
-.mb-tag {
-  font-size: 20rpx; color: var(--primary); background: rgba(22, 93, 255, 0.08);
-  border-radius: 8rpx; padding: 4rpx 14rpx;
-}
-.mb-banner.on .mb-tag { color: var(--success); background: rgba(7, 193, 96, 0.1); }
-.mb-btn {
-  font-size: 24rpx; color: #fff; background: var(--primary);
-  border-radius: 999rpx; padding: 12rpx 28rpx; flex-shrink: 0;
-}
-.mb-banner.on .mb-btn { background: var(--success); }
-.mb-quota { display: flex; gap: 16rpx; margin-top: 20rpx; }
-.mbq-item {
-  flex: 1; background: #fff; border: 1px solid var(--border); border-radius: 16rpx;
-  padding: 20rpx 16rpx; text-align: center;
-}
-.mbq-n { font-size: 30rpx; font-weight: 600; color: var(--t1); }
-.mbq-l { font-size: 22rpx; color: var(--t3); margin-top: 6rpx; }
+/* 会员横幅 mb-* 为死代码（模板未引用），移除以免配色漂移 */
+
 .os-t { font-size: 28rpx; font-weight: 600; color: var(--t5); padding: 24rpx 0 8rpx; }
 .os-t small { font-size: 20rpx; color: var(--t4); font-weight: 400; }
 .os-row { display: flex; align-items: center; gap: 16rpx; padding: 24rpx 0; border-bottom: 1rpx solid #f0f0f0; }
 .os-row:last-child { border-bottom: none; }
 .os-row.danger .osr-name { color: var(--danger); }
-.osr-icon { width: 72rpx; height: 72rpx; border-radius: 16rpx; background: rgba(22,93,255,.06); display: flex; align-items: center; justify-content: center; }
+.osr-icon { width: 72rpx; height: 72rpx; border-radius: 16rpx; background: rgba(var(--design-primary-rgb, 22, 93, 255), .06); display: flex; align-items: center; justify-content: center; }
 .osr-main { flex: 1; }
 .osr-name { font-size: 28rpx; color: var(--t5); }
 .osr-desc { font-size: 22rpx; color: var(--t4); margin-top: 4rpx; }
@@ -605,12 +584,12 @@ function leaveTenant() {
 
 .ov-list { padding: 8rpx 0; }
 .ov-item { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; }
-.ov-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #e9f1fb; color: var(--primary-deep); font-size: 26rpx; display: flex; align-items: center; justify-content: center; }
+.ov-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: rgba(var(--design-primary-rgb, 22, 93, 255), .08); color: var(--design-primary, #165dff); font-size: 26rpx; display: flex; align-items: center; justify-content: center; }
 .ov-info { flex: 1; }
 .ov-name { font-size: 26rpx; color: var(--t5); }
 .ov-time { font-size: 22rpx; color: var(--t4); margin-top: 4rpx; }
 .ov-empty { font-size: 24rpx; color: var(--t4); padding: 20rpx 0; }
-.ov-more { font-size: 24rpx; color: var(--primary-deep); padding: 16rpx 0 8rpx; text-align: center; }
+.ov-more { font-size: 24rpx; color: var(--design-primary, #165dff); padding: 16rpx 0 8rpx; text-align: center; }
 .radar-float {
   position: fixed; right: 32rpx; bottom: calc(160rpx + env(safe-area-inset-bottom)); z-index: 100;
   width: 96rpx; height: 96rpx; border-radius: 50%;
