@@ -99,12 +99,12 @@
         <view class="osr-main"><view class="osr-name">名片资料</view><view class="osr-desc">姓名、职位、企业、联系方式</view></view>
         <text class="osr-arrow">›</text>
       </view>
-      <view class="os-row" @click="editCard">
+      <view class="os-row" @click="goNeedTags">
         <view class="osr-icon"><SIcon name="radar" size="default" color="#1d4e8f" /></view>
         <view class="osr-main"><view class="osr-name">供需标签</view><view class="osr-desc">找渠道/求合作/招合伙人等</view></view>
         <text class="osr-arrow">›</text>
       </view>
-      <view class="os-row" @click="editCard">
+      <view class="os-row" @click="goDisplaySettings">
         <view class="osr-icon"><SIcon name="settings" size="default" color="#1d4e8f" /></view>
         <view class="osr-main"><view class="osr-name">展示设置</view><view class="osr-desc">公开状态、模板样式</view></view>
         <text class="osr-arrow">›</text>
@@ -415,9 +415,15 @@ function editCard() {
   if (!pageCardId.value) return;
   uni.navigateTo({ url: `/pages/card/create?id=${pageCardId.value}` });
 }
-function goTemplateSelect() {
+// 「名片内容」入口分流：三个入口不再同跳 create 向导
+// （历史上三行全是 editCard()，供需标签要从第1步翻两页、展示设置描述是空头支票）
+function goNeedTags() {
   if (!pageCardId.value) return;
-  uni.navigateTo({ url: `/pages/card/templateSelect?cardId=${pageCardId.value}` });
+  uni.navigateTo({ url: `/pages/card/needTagsEdit?id=${pageCardId.value}` });
+}
+function goDisplaySettings() {
+  if (!pageCardId.value) return;
+  uni.navigateTo({ url: `/pages/card/displaySettings?id=${pageCardId.value}` });
 }
 function previewCard() {
   // 他人视角预览：跳对外展示页

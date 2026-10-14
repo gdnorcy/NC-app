@@ -131,6 +131,20 @@
           }
         },
         {
+          "path": "needTagsEdit",
+          "style": {
+            "navigationBarTitleText": "供需标签",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "displaySettings",
+          "style": {
+            "navigationBarTitleText": "展示设置",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "cardDetail",
           "style": {
             "navigationBarTitleText": "名片详情",
