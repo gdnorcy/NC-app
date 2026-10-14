@@ -1525,7 +1525,13 @@ function searchBoxPreviewStyle(p) {
   // 宽度：与容器左右边距解耦（flexChild=true → 额外覆盖 flex）
   // 🔴 `unit:'px'`：admin 画布手机壳固定 375px，用像素换算最直观，且与 C 端的 `60vw`
   //    指同一个设计稿位置 → 后台预览与真机一致。
-  return Object.assign(s, searchBoxSizeStyle(p, { unit: 'px' }));
+  const merged = Object.assign(s, searchBoxSizeStyle(p, { unit: 'px' }));
+  // 🔴 同 C 端 searchBoxStyle()（2026-10-14）：恢复内部 flex 行布局。
+  //    containerChildSizeStyle 下发的 display:block 会覆盖 .r-search 的 flex ——
+  //    admin 现在没爆只是因为子元素恰好都是 inline（svg+span），属同款隐患，必须与 C 端一致。
+  merged.display = 'flex';
+  merged.alignItems = 'center';
+  return merged;
 }
 // 占位文案样式：颜色 + 横向对齐 + **行高等于搜索框高**（垂直居中的唯一正解）
 //

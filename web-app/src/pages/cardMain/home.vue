@@ -24,7 +24,9 @@
              搜索框自己靠左。原先用 `margin:0auto`（两侧auto）会把剩余空间平分，
              导致铃铛被推到中间 —— 用户反馈「一直居左，感觉是多余的」。 -->
         <view class="search-box" :style="searchBoxStyle(c.props)" @click="goSearch">
-          <SIcon name="dynamic" size="small" :color="c.props.textColor || '#86909c'" />
+          <!-- 🔴 图标必须是 search（放大镜）：曾误用 dynamic（聊天气泡），与 admin 预览的内联放大镜 SVG 不同形。
+               size=14 与 admin 的 14px SVG 等值（SIcon small 档是 18px，会偏大）。 -->
+          <SIcon name="search" :size="14" :color="c.props.textColor || '#86909c'" />
           <view class="search-placeholder" :style="placeholderStyle(c.props)">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</view>
         </view>
         <view class="msg-icon" v-if="c.props.showMsg !== false" :class="{ 'has-unread': unreadCount > 0 }" @click="goMessages">
@@ -499,7 +501,16 @@ function searchBoxStyle(p) {
   if (p.style === 'shadow') s.boxShadow = '0 2rpx 8rpx rgba(31,35,41,0.08)';
   if (p.style === 'border') s.border = '1rpx solid #E5E6EB';
   // 宽度：与容器左右边距解耦（flexChild=true → 额外覆盖 flex）
-  return Object.assign(s, searchBoxSizeStyle(p));
+  const merged = Object.assign(s, searchBoxSizeStyle(p));
+  // 🔴 搜索框**内部**必须保持 flex 行布局（2026-10-14 真机+H5 双端复现「图标一行、文字一行」）：
+  //    containerChildSizeStyle 为解耦宽度下发了 `display:block` + `textAlign:center`
+  //    （按钮在块级流里 auto 边距需要），内联会覆盖 `.search-box{display:flex}` →
+  //    图标(inline-block)被 text-align 居中占第一行、placeholder(块级 view) 换到第二行。
+  //    搜索框是 flex 子项（flexChild=true），auto 边距不依赖自身 display，恢复 flex 不影响宽度解耦。
+  //    ⚠️ admin searchBoxPreviewStyle() 同步恢复，两端必须一致。
+  merged.display = 'flex';
+  merged.alignItems = 'center';
+  return merged;
 }
 // 占位文案样式：颜色 + 横向对齐 + **行高等于搜索框高**（垂直居中的唯一正解）
 //

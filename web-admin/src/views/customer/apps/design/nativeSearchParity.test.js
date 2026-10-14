@@ -194,4 +194,29 @@ describe('搜索栏两端一致（后台预览 === 开发者工具/真机）', (
     expect(cPh({}).textAlign).toBe('center');
     expect(aPh({}).textAlign).toBe('center');
   });
+
+  it('🔴 合并宽度解耦 style 后，搜索框内部必须保持 flex 行布局（2026-10-14 回归）', () => {
+    // 病根：containerChildSizeStyle 为解耦宽度下发 display:block + textAlign:center（按钮场景需要），
+    // 内联覆盖 .search-box/.r-search 的 display:flex → 图标(inline-block)被居中占一行、
+    // 占位文案(块级)换到第二行（admin 因子元素恰好都是 inline 才没显形，属同款隐患）。
+    // 搜索框是 flex 子项，auto 边距不依赖自身 display → 两端合并后必须恢复 display:flex。
+    const cSearch = runFn(cFn('searchBoxStyle'));
+    const aSearch = runFn(aFn('searchBoxPreviewStyle'));
+    for (const p of [{}, { widthMode: 'full', widthPercent: 60 }, { widthMode: 'auto' }]) {
+      const tag = JSON.stringify(p);
+      expect(cSearch(p).display, `C 端 display ${tag}`).toBe('flex');
+      expect(cSearch(p).alignItems, `C 端 alignItems ${tag}`).toBe('center');
+      expect(aSearch(p).display, `admin display ${tag}`).toBe('flex');
+      expect(aSearch(p).alignItems, `admin alignItems ${tag}`).toBe('center');
+    }
+  });
+
+  it('🔴 搜索栏图标两端必须同形（C 端 SIcon name=search，不得回退成别的图标）', () => {
+    // 曾误用 name="dynamic"（聊天气泡）→ 真机/H5 图标与设计端放大镜不同形。
+    expect(C).toMatch(/type === 'native-search'[\s\S]*?SIcon name="search"/);
+    expect(C).not.toMatch(/type === 'native-search'[\s\S]*?SIcon name="dynamic"/);
+    // 尺寸与 admin 的 14px 内联 SVG 等值（SIcon small 档 18px 会偏大）
+    expect(C).toMatch(/SIcon name="search" :size="14"/);
+    expect(A).toMatch(/type === 'native-search'[\s\S]*?viewBox="0 0 24 24" width="14" height="14"/);
+  });
 });
