@@ -1,17 +1,17 @@
 <template>
-  <view class="radar-page">
+  <view class="radar-page" :style="themeStyle">
 <!-- PageNav -->
 <PageNav title="访客雷达" back />
     <!-- 付费解锁引导（免费/过期用户） -->
     <view class="radar-locked" v-if="locked">
       <view class="lock-card">
-        <view class="lock-icon"><SIcon name="radar" size="xlarge" color="#07c160" /></view>
+        <view class="lock-icon"><SIcon name="radar" size="xlarge" :color="themeColor" /></view>
         <view class="lock-title">访客雷达</view>
         <view class="lock-desc">解锁后查看谁看过你的名片</view>
         <view class="lock-benefits">
-          <view class="lb-item"><SIcon name="chart" size="small" color="#07c160" /><text>今日/本周访问统计</text></view>
-          <view class="lb-item"><SIcon name="customer" size="small" color="#07c160" /><text>访客行为轨迹追踪</text></view>
-          <view class="lb-item"><SIcon name="exchange" size="small" color="#07c160" /><text>高意向访客识别</text></view>
+          <view class="lb-item"><SIcon name="chart" size="small" :color="themeColor" /><text>今日/本周访问统计</text></view>
+          <view class="lb-item"><SIcon name="customer" size="small" :color="themeColor" /><text>访客行为轨迹追踪</text></view>
+          <view class="lb-item"><SIcon name="exchange" size="small" :color="themeColor" /><text>高意向访客识别</text></view>
         </view>
         <view class="btn-main" @click="goMember">立即解锁</view>
         <view class="lock-foot">开通黄金会员 · 全部功能畅享</view>
@@ -24,7 +24,7 @@
         <view class="lbl">今日访问</view>
         <view class="num"><text class="n">{{ displayToday }}</text><text class="num-unit">人</text></view>
         <view class="sub">
-          <SIcon name="chart" size="small" color="#07c160" />
+          <SIcon name="chart" size="small" :color="themeColor" />
           <text>较昨日 {{ diffText }}</text>
         </view>
       </view>
@@ -32,7 +32,7 @@
         <view class="lbl">本周访问</view>
         <view class="num"><text class="n">{{ displayWeek }}</text><text class="num-unit">人</text></view>
         <view class="sub">
-          <SIcon name="radar" size="small" color="#07c160" />
+          <SIcon name="radar" size="small" :color="themeColor" />
           <text>累计访问 {{ displayTotal }} 人</text>
         </view>
       </view>
@@ -210,6 +210,11 @@ import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTab
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import Skeleton from '../../components/Skeleton.vue';
+import { useDesignTheme } from '../../utils/design.js';
+
+// SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
+const themeStyle = useDesignTheme();
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const summary = ref({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
 const visitors = ref([]);
@@ -473,7 +478,7 @@ async function saveConvert() {
   width: 128rpx;
   height: 128rpx;
   margin: 0 auto 28rpx;
-  background: rgba(7, 193, 96, 0.08);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -547,7 +552,7 @@ async function saveConvert() {
 }
 .rstat .sub {
   font-size: 22rpx;
-  color: var(--success);
+  color: var(--design-primary, #165dff);
   margin-top: 10rpx;
   display: flex;
   align-items: center;
@@ -599,11 +604,11 @@ async function saveConvert() {
 .tbar-fill {
   width: 24rpx;
   border-radius: 6rpx 6rpx 2rpx 2rpx;
-  background: rgba(22, 93, 255, 0.25);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.25);
   min-height: 2rpx;
   transition: height 0.3s ease;
 }
-.tbar-fill.hot { background: #165DFF; }
+.tbar-fill.hot { background: var(--design-primary); }
 .tbar-lbl { font-size: 20rpx; color: var(--t3); }
 
 /* ===== 访客记录（demo card-row 独立卡片）===== */
@@ -635,8 +640,8 @@ async function saveConvert() {
   width: 84rpx;
   height: 84rpx;
   border-radius: 50%;
-  background: #e7f7ee;
-  color: var(--success);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  color: var(--design-primary, #165dff);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -692,8 +697,8 @@ async function saveConvert() {
   color: #0b8f4a;
 }
 .v-tag.blue {
-  background: #e9f1fb;
-  color: #2e6bb8;
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  color: var(--design-primary, #165dff);
 }
 .v-tag.gray {
   background: #f0f0f0;
@@ -712,8 +717,8 @@ async function saveConvert() {
   font-weight: 600;
   padding: 14rpx 26rpx;
   border-radius: 18rpx;
-  background: #e7f7ee;
-  color: var(--success);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  color: var(--design-primary, #165dff);
 }
 
 /* ===== 空状态 ===== */
@@ -820,7 +825,7 @@ async function saveConvert() {
   background: #c9cdd3;
 }
 .tl-dot.blue {
-  background: #2e6bb8;
+  background: var(--design-primary);
 }
 .tl-dot.green {
   background: var(--success);
@@ -864,8 +869,8 @@ async function saveConvert() {
 .btn-main {
   width: 100%;
   box-sizing: border-box;
-  background: var(--success);
-  color: #fff;
+  background: var(--design-primary);
+  color: var(--design-text, #fff);
   font-size: 30rpx;
   font-weight: 600;
   padding: 28rpx;
@@ -874,8 +879,10 @@ async function saveConvert() {
   text-align: center;
   transition: opacity 0.15s;
 }
+/* 弹层次要钮（知道了/时间线转为客户）：次级样式，实底主色为整页唯一强 CTA */
 .btn-main.blue {
-  background: #2e6bb8;
+  background: var(--design-secondary);
+  color: var(--design-primary);
 }
 .btn-main:active {
   opacity: 0.75;
@@ -910,8 +917,8 @@ async function saveConvert() {
 .lead-sec small { color: var(--t3); }
 .lead-ai {
   font-size: 24rpx;
-  color: var(--success);
-  background: rgba(7, 193, 96, 0.08);
+  color: var(--design-primary, #165dff);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
   border-radius: 999rpx;
   padding: 8rpx 22rpx;
 }
@@ -938,7 +945,7 @@ async function saveConvert() {
   justify-content: center;
   flex-shrink: 0;
 }
-.lead-rank.hot { background: rgba(7, 193, 96, 0.12); color: var(--success); }
+.lead-rank.hot { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.12); color: var(--design-primary, #165dff); }
 .lead-info { flex: 1; min-width: 0; }
 .lead-name {
   font-size: 30rpx;
@@ -955,7 +962,7 @@ async function saveConvert() {
   font-weight: 400;
 }
 .lead-lv.green { color: var(--success); background: rgba(7,193,96,.1); }
-.lead-lv.blue { color: var(--primary); background: rgba(22,93,255,.1); }
+.lead-lv.blue { color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), .1); }
 .lead-lv.gray { color: var(--t3); background: var(--bg-hover); }
 .lead-meta { font-size: 24rpx; color: var(--t3); margin-top: 8rpx; }
 .lead-words {
@@ -1002,7 +1009,7 @@ async function saveConvert() {
   flex-shrink: 0;
 }
 .li-dot.green { background: var(--success); }
-.li-dot.blue { background: var(--primary); }
+.li-dot.blue { background: var(--design-primary); }
 .li-t { font-size: 28rpx; color: var(--t1); }
 .li-s { font-size: 24rpx; color: var(--t3); }
 .li-words { margin: 8rpx 0 20rpx; }
