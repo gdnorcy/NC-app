@@ -612,7 +612,7 @@ async function submit() {
   font-size: 13px;
   line-height: 1.6;
   color: var(--design-subtext, #165DFF);
-  background: var(--theme-tint, #E8F3FF);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06);
 }
 .apply-banner--reject {
   color: #D25F00;
@@ -775,8 +775,8 @@ async function submit() {
   transition: all 0.2s;
 }
 .type-card.active {
-  border-color: var(--primary);
-  background: var(--theme-tint, rgba(22, 93, 255, 0.06));
+  border-color: var(--design-primary, #165dff);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06);
 }
 .type-icon {
   width: 88rpx;
@@ -810,7 +810,7 @@ async function submit() {
   width: 36rpx;
   height: 36rpx;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--design-primary, #165dff);
   color: #fff;
   display: flex;
   align-items: center;
@@ -854,7 +854,7 @@ async function submit() {
 
 .need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
 .need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t3); font-size: 26rpx; border: 2rpx dashed var(--border-strong); }
-.need-item.on { background: var(--theme-tint, rgba(22,93,255,0.08)); color: var(--primary); border-color: var(--primary); font-weight: 500; }
+.need-item.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
 
 /* 表单 */
 .form-item {
@@ -886,7 +886,7 @@ async function submit() {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .form-input:focus {
-  border-color: var(--sk-input-focus, var(--primary)) !important;
+  border-color: var(--sk-input-focus, var(--design-primary, #165dff)) !important;
   box-shadow: 0 0 0 6rpx rgba(var(--design-primary-rgb, 22, 93, 255), 0.12);
 }
 .form-input.ph, .picker-value.ph {
@@ -1047,7 +1047,7 @@ async function submit() {
 .vf-tip { font-size: 22rpx; color: var(--t3); margin-top: 4rpx; }
 .vf-actions { display: flex; flex-direction: column; gap: 8rpx; }
 .vf-del { font-size: 22rpx; color: var(--danger); }
-.vf-re { font-size: 22rpx; color: var(--primary); }
+.vf-re { font-size: 22rpx; color: var(--design-primary, #165dff); }
 .voice-audio { width: 200rpx; height: 64rpx; }
 .voice-locked {
   display: flex; align-items: center; gap: 12rpx;

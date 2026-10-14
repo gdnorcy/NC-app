@@ -133,18 +133,18 @@ onMounted(() => {
 .nt-desc { font-size: 22rpx; color: var(--t3); margin-top: 8rpx; line-height: 1.5; }
 .need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 28rpx; }
 .need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t3); font-size: 26rpx; border: 2rpx dashed var(--border-strong); }
-.need-item.on { background: var(--theme-tint, rgba(22,93,255,0.08)); color: var(--primary); border-color: var(--primary); font-weight: 500; }
+.need-item.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
 .nt-count { margin-top: 24rpx; font-size: 22rpx; color: var(--t4); text-align: right; }
 .nt-count.max { color: var(--warning); }
 .nt-save {
   margin-top: 40rpx; height: 88rpx; line-height: 88rpx; border-radius: 44rpx;
-  background: var(--primary); color: #fff; font-size: 30rpx; border: none;
+  background: var(--design-primary, #165dff); color: #fff; font-size: 30rpx; border: none;
 }
 .nt-save[disabled] { opacity: 0.5; }
 .pg-error { padding: 200rpx 60rpx; text-align: center; }
 .pg-err-text { font-size: 26rpx; color: var(--t3); }
 .pg-btn {
   margin: 24rpx auto 0; display: inline-block; padding: 16rpx 56rpx; border-radius: 40rpx;
-  background: var(--primary); color: #fff; font-size: 28rpx;
+  background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx;
 }
 </style>

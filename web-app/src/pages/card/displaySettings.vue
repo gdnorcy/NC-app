@@ -16,7 +16,7 @@
       <view class="ds-card">
         <view class="ds-sec-title">模板样式</view>
         <view class="ds-row" @click="goTemplateSelect">
-          <view class="dsr-icon"><SIcon name="card" size="default" color="#1d4e8f" /></view>
+          <view class="dsr-icon"><SIcon name="card" size="default" :color="themeColor" /></view>
           <view class="dsr-main">
             <view class="dsr-name">当前模板</view>
             <view class="dsr-desc">{{ currentTemplateName }}</view>
@@ -34,7 +34,7 @@
             <view class="dsr-name">公开到人脉集市</view>
             <view class="dsr-desc">开启后你的名片可在集市页被所有人发现</view>
           </view>
-          <switch :checked="isPublic" @change="onPublicChange" color="#165dff" />
+          <switch :checked="isPublic" @change="onPublicChange" :color="themeColor" />
         </view>
       </view>
     </view>
@@ -44,12 +44,14 @@
 <script setup>
 import PageNav from '../../components/PageNav.vue';
 import SIcon from '../../components/SIcon.vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { useDesignTheme } from '../../utils/design.js';
 const themeStyle = useDesignTheme();
+// 租户主题色（platform UI 跟随系统主题）；无主题时回落品牌蓝
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const cardId = ref(null);
 const isPublic = ref(true);
@@ -134,7 +136,7 @@ function reloadPage() { load(); }
 }
 .ds-sec-title { font-size: 28rpx; font-weight: 600; color: var(--t5); padding: 8rpx 0 16rpx; }
 .ds-row { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; }
-.dsr-icon { width: 72rpx; height: 72rpx; border-radius: 16rpx; background: rgba(22,93,255,.06); display: flex; align-items: center; justify-content: center; }
+.dsr-icon { width: 72rpx; height: 72rpx; border-radius: 16rpx; background: rgba(var(--design-primary-rgb, 22, 93, 255), .06); display: flex; align-items: center; justify-content: center; }
 .dsr-main { flex: 1; min-width: 0; }
 .dsr-name { font-size: 28rpx; color: var(--t5); }
 .dsr-desc { font-size: 22rpx; color: var(--t4); margin-top: 4rpx; }
@@ -145,6 +147,6 @@ function reloadPage() { load(); }
 .pg-err-text { font-size: 26rpx; color: var(--t3); }
 .pg-btn {
   margin: 24rpx auto 0; display: inline-block; padding: 16rpx 56rpx; border-radius: 40rpx;
-  background: var(--primary); color: #fff; font-size: 28rpx;
+  background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx;
 }
 </style>
