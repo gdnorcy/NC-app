@@ -178,6 +178,14 @@ export function createCardMarketRouter(db) {
     return { enabled: !!s.enabled, allowExchange: !!s.allow_exchange };
   }
 
+  // 集市开关 ↔ card_profile.is_public 双向闭环（2026-10-15）：
+  // C 端「公开到人脉集市」开关写 is_public 并联动 card_market_items（utils/marketLink.js），
+  // 反向（market.vue 上架/下架、管理端强制下架）也必须把 is_public 落下来，
+  // 否则两张皮：用户在此下架后再进展示设置页，会被存量自愈重新上架。
+  function syncCardsPublic(userId, isPublic) {
+    db.prepare('UPDATE card_profile SET is_public = ? WHERE user_id = ?').run(isPublic ? 1 : 0, userId);
+  }
+
   // ===== 集市配置 =====
   // 集市风格资产（含租户购买状态）
   function styleAssets(customerId) {
@@ -467,6 +475,7 @@ export function createCardMarketRouter(db) {
     const existing = db.prepare('SELECT id FROM card_market_items WHERE customer_id = ? AND subject_type = ? AND subject_id = ?').get(req.customerId, subjectType, subjectId);
     if (existing) {
       db.prepare('DELETE FROM card_market_items WHERE id = ?').run(existing.id);
+      syncCardsPublic(userId, false); // 闭环：下架同步名片公开 flag，防止展示设置页自愈复活
       res.json({ success: true, inMarket: false });
     } else {
       const q = checkTenantQuota(db, req.customerId, 'max_market_items');
@@ -485,6 +494,7 @@ export function createCardMarketRouter(db) {
       }
       db.prepare(`INSERT INTO card_market_items (customer_id, subject_type, subject_id, user_id, enterprise_id, audit_status, city)
         VALUES (?, ?, ?, ?, ?, ?, ?)`).run(req.customerId, subjectType, subjectId, userId, enterpriseId, auditStatus, city);
+      syncCardsPublic(userId, true); // 闭环：上架同步名片公开 flag，两端状态一致
       res.json({ success: true, inMarket: true, auditStatus });
       audit(db, req, 'toggle_market_item', 'market_item', existing?.id ?? null, `${subjectType}#${subjectId} 上架集市，审核=${auditStatus}`);
     }
@@ -530,6 +540,7 @@ export function createCardMarketRouter(db) {
     const item = belongsToTenant('card_market_items', itemId, req.customerId);
     if (!item || item.__crossTenant) return res.status(403).json({ error: '无权操作' });
     db.prepare('DELETE FROM card_market_items WHERE id = ?').run(itemId);
+    syncCardsPublic(item.user_id, false); // 闭环：管理端下架也要落 is_public，防展示设置页自愈复活
     audit(db, req, 'force_remove_market_item', 'market_item', itemId, '强制下架集市名片');
     res.json({ success: true });
   });

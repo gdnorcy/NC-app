@@ -260,6 +260,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { syncMarketWithIsPublic } from '../../utils/marketLink.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
@@ -587,6 +588,10 @@ async function submit() {
         track('form_submit', { cardId: newCardId || 0, page: '/pages/card/create', extra: { isEdit: false } });
       }
     }
+    // 集市联动：表单「公开到人脉集市」与 displaySettings 是同款开关——只写 is_public
+    // 不上架 = 空头支票（myCard 集市状态恒「未上架」，2026-10-15 真机报修）。
+    // 与 displaySettings 共用 utils/marketLink.js，防止两端各写一份漂移。
+    syncMarketAfterSave(!!form.isPublic);
     setTimeout(() => {
       if (newCardId) {
         // 创建成功直达名片详情；登录页reLaunch进入本页时无返回栈，不能navigateBack
@@ -600,6 +605,25 @@ async function submit() {
   } finally {
     submitting.value = false;
   }
+}
+
+/**
+ * 保存成功后把「公开到人脉集市」开关同步到集镇上架记录（与 displaySettings 同一联动模块）。
+ * best-effort：名片已保存成功，集市同步不阻断导航，仅延迟补一条轻提示；
+ * no-subject（未入驻/审核中）静默——主体还不存在，本就不能上架，myCard 的「未上架」就是真实状态。
+ */
+async function syncMarketAfterSave(isPublic) {
+  try {
+    const r = await syncMarketWithIsPublic(cardApi, isPublic);
+    if (r.ok && r.changed) {
+      setTimeout(() => uni.showToast({
+        title: isPublic ? (r.auditStatus === 'pending' ? '集市上架申请已提交，等待审核' : '已同步上架到集市') : '已同步关闭集市展示',
+        icon: 'none',
+      }), 1000);
+    } else if (!r.ok && !r.soft && r.reason !== 'no-subject') {
+      setTimeout(() => uni.showToast({ title: `名片已保存，${r.error || '集市同步失败'}`, icon: 'none' }), 1000);
+    }
+  } catch (e) { /* 静默：集市状态以 myCard 为准 */ }
 }
 </script>
 

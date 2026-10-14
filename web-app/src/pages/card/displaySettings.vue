@@ -1,7 +1,9 @@
 <template>
   <!-- ===== 展示设置·轻量页（我的名片「名片内容」入口分流）
        两项真实功能：模板样式（复用 templateSelect 页）+ 公开状态（isPublic 即时保存）。
-       之前该入口与「名片资料」同跳 create 向导，描述是空头支票——本页让它变成真话。 ===== -->
+       之前该入口与「名片资料」同跳 create 向导，描述是空头支票——本页让它变成真话。
+       ⚠️ 2026-10-15：公开状态开关必须联动 card_market_items（见 onPublicChange/syncMarket），
+       只写 is_public 会让「开关已开」与「myCard 集市状态未上架」永久不一致。 ===== -->
   <view class="ds-page" :style="themeStyle">
     <PageNav title="展示设置" back></PageNav>
 
@@ -47,6 +49,7 @@ import SIcon from '../../components/SIcon.vue';
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { syncMarketWithIsPublic } from '../../utils/marketLink.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { useDesignTheme } from '../../utils/design.js';
 const themeStyle = useDesignTheme();
@@ -83,6 +86,10 @@ async function load() {
     if (cardRes.status !== 'fulfilled') throw cardRes.reason;
     const card = cardRes.value.card;
     isPublic.value = !!card.isPublic;
+    // 存量自愈：旧版开关只写 is_public、从不建 card_market_items → 存在一大批
+    // 「开着开关却从未上架」的存量数据（真机表现：myCard 集市状态一直「未上架」）。
+    // 本页加载时按同款联动逻辑补建一次（幂等，只补「开着但没上架」这一个方向）。
+    if (isPublic.value) await healMarketLink();
     const tpls = tplRes.status === 'fulfilled' ? (tplRes.value.templates || []) : [];
     const cur = tpls.find((t) => t.id === Number(card.templateId));
     currentTemplateName.value = cur ? cur.name : (card.templateId ? '自定义模板' : '默认模板');
@@ -110,18 +117,81 @@ function goTemplateSelect() {
   uni.navigateTo({ url: `/pages/card/templateSelect?cardId=${cardId.value}` });
 }
 
-// 公开状态即时保存（PUT /cards/:id 支持部分字段更新，未传字段不受影响）
+// 公开状态即时保存（PUT /cards/:id 支持部分字段更新，未传字段不受影响）。
+// ⚠️ 开关文案承诺「可在集市页被所有人发现」——只写 is_public 是空头支票：myCard 的集市状态
+// 与 market 列表只认 card_market_items，不建记录就永远显示「未上架」（2026-10-15 真机报修）。
+// 故保存 is_public 后必须联动集市，主体解析与 myCard 同源（utils/marketLink.js）。
 async function onPublicChange(e) {
   const val = e.detail.value;
   isPublic.value = val; // 乐观更新，失败回滚
   if (!cardId.value) return;
   try {
     await cardApi.updateCard(cardId.value, { isPublic: val });
-    uni.showToast({ title: val ? '已公开到集市' : '已关闭公开', icon: 'none' });
   } catch (err) {
     isPublic.value = !val;
     uni.showToast({ title: '保存失败，请重试', icon: 'none' });
+    return;
   }
+  await syncMarket(val);
+}
+
+/**
+ * 开关 ↔ 上架记录联动。不变量：开关为开 ⇔ 主体有上架记录（或审核中）。
+ * 达不到就把 is_public 回滚、开关回到真实状态——绝不留下「开着但没上架」的空头支票。
+ */
+async function syncMarket(val) {
+  const r = await syncMarketWithIsPublic(cardApi, val);
+  if (r.reason === 'no-subject') {
+    // 无 active 主体（未入驻/审核中）：开方向无法兑现承诺 → 回滚 is_public，开关保持关
+    if (val) {
+      await rollbackPublic(false);
+      uni.showToast({ title: '入驻审核通过后才能上架集市', icon: 'none' });
+    }
+    // 关方向无记录可下架，is_public 已保存即可
+    return;
+  }
+  if (r.soft) {
+    // my-status 网络失败：is_public 保存有效（下次访问本页会自愈补齐），不回滚
+    uni.showToast({ title: '已保存，集市状态同步失败请稍后重试', icon: 'none' });
+    return;
+  }
+  if (!r.ok) {
+    await rollbackPublic(!val);
+    uni.showToast({ title: r.error || '集市操作失败，请重试', icon: 'none' });
+    return;
+  }
+  uni.showToast({
+    title: val ? (r.auditStatus === 'pending' ? '已提交上架申请，等待审核' : '已公开到集市') : '已关闭公开',
+    icon: 'none',
+  });
+}
+
+/** 存量自愈：开着开关却没上架记录时补建；无主体/硬失败则回滚开关，让开关只说真话 */
+async function healMarketLink() {
+  const r = await syncMarketWithIsPublic(cardApi, true);
+  if (r.ok && r.changed) {
+    uni.showToast({ title: r.auditStatus === 'pending' ? '已补齐上架申请，等待审核' : '已补齐集镇上架', icon: 'none' });
+    return;
+  }
+  if (r.reason === 'no-subject') {
+    // 存量「开着但从未上架」且无 active 主体（未入驻/审核中）→ 回滚成关并说明原因
+    await rollbackPublic(false);
+    uni.showToast({ title: '入驻审核通过后才能上架集市', icon: 'none' });
+    return;
+  }
+  if (!r.ok && !r.soft) {
+    // 集市未开启/配额满等硬失败：开着也上不了 → 回滚成关
+    await rollbackPublic(false);
+    uni.showToast({ title: r.error || '集市未开启', icon: 'none' });
+  }
+  // soft（网络失败）/ 已一致：静默，myCard 会展示真实状态
+}
+
+async function rollbackPublic(v) {
+  if (cardId.value) {
+    try { await cardApi.updateCard(cardId.value, { isPublic: v }); } catch (e) { /* 本地态已回滚 */ }
+  }
+  isPublic.value = v;
 }
 
 function reloadPage() { load(); }
