@@ -1,5 +1,5 @@
 <template>
-  <view class="msg-page">
+  <view class="msg-page" :style="themeStyle">
     <!-- 导航栏 -->
 <!-- PageNav -->
     <PageNav title="消息中心" back></PageNav>
@@ -47,6 +47,9 @@ import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import Badge from '../../components/Badge.vue';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 
 const messages = ref([]);
 const unreadTotal = ref(0);
@@ -174,7 +177,7 @@ function goBack() {
   border-radius: 12rpx;
   position: relative;
 }
-.mt-item.on { background: rgba(7, 193, 96, 0.08); color: var(--success); font-weight: 600; }
+.mt-item.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); font-weight: 600; }
 .mt-dot {
   display: inline-block;
   min-width: 28rpx;
@@ -208,8 +211,8 @@ function goBack() {
   justify-content: center;
   flex-shrink: 0;
 }
-.m-ic.exchange { background: linear-gradient(135deg, var(--success), #05a050); }
-.m-ic.visitor { background: linear-gradient(135deg, var(--primary-deep), #2e6bb8); }
+.m-ic.exchange { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); }
+.m-ic.visitor { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); }
 .m-ic.system { background: linear-gradient(135deg, #8c8c8c, #6b6b6b); }
 .m-body { flex: 1; min-width: 0; }
 .m-row { display: flex; align-items: center; justify-content: space-between; }

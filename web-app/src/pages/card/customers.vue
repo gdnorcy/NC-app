@@ -1,5 +1,5 @@
 <template>
-  <view class="customers-page">
+  <view class="customers-page" :style="themeStyle">
 <!-- PageNav -->
 <PageNav title="客户管理" back />
     <view class="header">
@@ -100,6 +100,9 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
+import { useDesignTheme } from '../../utils/design.js';
+
+const themeStyle = useDesignTheme();
 
 const customers = ref([]);
 const keyword = ref('');
@@ -160,7 +163,7 @@ async function addCustomer() {
   padding-bottom: 40rpx;
 }
 .header {
-  background: linear-gradient(135deg, #ff7d00, #ff9a2e);
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
   padding: 88px 32rpx 40rpx;
 }
 .title {
@@ -213,7 +216,7 @@ async function addCustomer() {
   white-space: nowrap;
 }
 .tag.active {
-  background: #ff7d00;
+  background: var(--design-primary);
   color: #fff;
 }
 .customer-list {
@@ -234,7 +237,7 @@ async function addCustomer() {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ff7d00, #ff9a2e);
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
   color: #fff;
   display: flex;
   align-items: center;
@@ -302,12 +305,12 @@ async function addCustomer() {
   bottom: 60rpx;
   width: 100rpx;
   height: 100rpx;
-  background: linear-gradient(135deg, #ff7d00, #ff9a2e);
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(255,125,0,0.4);
+  box-shadow: 0 8px 24px rgba(var(--design-primary-rgb, 22, 93, 255), 0.4);
 }
 .fab-icon {
   font-size: 48rpx;
@@ -350,7 +353,7 @@ async function addCustomer() {
 }
 .sheet-footer { padding: 0 32rpx 36px; }
 .submit-btn {
-  background: #ff7d00;
+  background: var(--design-primary);
   color: #fff;
   border-radius: 40rpx;
   height: 88rpx;
