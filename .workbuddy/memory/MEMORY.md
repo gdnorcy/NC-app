@@ -15,6 +15,7 @@
 - 🔴 **越界浮层被 overflow 裁 → 移出滚动容器 + JS 定位，不靠容器 padding**。裁剪边界是滚动容器(`.pe-canvas{overflow-y:auto}`)，祖先加 padding 不生效(实测 `.pe-phone{padding-top}` 工具条仍被裁)。✅ `.pe-tools-layer`(画布平级兄弟,`absolute/inset:0/pointer-events:none/z-index:60`)+`positionCompTools()` 按 `getBoundingClientRect()` 定位。回归 `compToolsLayer.test.js`(8例)。❌ 勿复活 `.pe-comp-first{bottom:-22px}`(用户否决)。
 - 🔴 **「组件大小」与「容器边距」是两控件时，宽度用视口单位(vw/设计稿px)，绝不用百分比**：百分比永远参照容器内容宽 → 容器一变窄子组件必变窄，两控件缠死(实测 60% 在 marginLR=0/20/40 → 225/201/177px)。C 端发 `60vw`、admin 按 375 设计稿发 `225px`。权威 `utils/containerChildSize.js`(button/search 共用，`btnSize.js` 只转发)。回归 `containerChildSize.test.js`(17例)。
   - 🔴🔴 **`max-width:100%` 也是耦合源**(参照容器)→ 用 `max-width:100vw`/`375px`。
+  - 🔴 **`containerChildSizeStyle()` 会内联下发 `display:block`+`textAlign:center`（按钮在块级流需要）**：凡自身需要内部布局的调用方（搜索框需 flex 行布局）合并后**必须恢复** `display:flex`，否则图标/文案被压成两行（2026-10-14 真机+H5 双端复现；admin 靠 inline 子元素侥幸未显形）。两端调用方必须同步改，回归 `nativeSearchParity.test.js`。
   - ❌ 勿复活负 margin 溢出补偿(容器有 `MIN_BG_PADDING=8` → 盖底色/溢出/偏左)。
   - 🔴 `margin:auto` 居中必须 `display:block`：基础类 `.r-btn`/`.dp-btn` 是 inline-block → auto 边距静默失效。
   - 🔴 flex 子项必须 `flex:none`+`width`+`margin`+`max-width`，否则 `flex:1` 压掉宽度。
@@ -35,6 +36,7 @@
 ## 跨端主题跟随（单一事实来源 `web-app/src/utils/design.js`）
 - `setDesignTheme(config)` + `useDesignTheme()` 供页面读。H5 写 `documentElement`；MP 须 page 根 `:style="[pageBgStyle,themeStyle]"` 内联下发。
 - 🔴 消费 `var(--design-` 的页面**必须绑 `themeStyle`**，否则 MP 回落 fallback。自查两集合差集。
+- 🔴 **主题化强调色只能用 `--design-primary` / `--design-primary-rgb`**；`--primary` 是 token.scss `$primary=#165dff` 编译期固定蓝（不随主题），`--theme-tint` 全仓无定义（写它必回落硬编码蓝）——二者是配色漂移陷阱，禁用于跟随主题处。回归 `cardEntryThemeConsistency.test.js`。
 - 🔴 SIcon 的 `color` 不能消费 `var()`(H5 烘焙 data-URI 不认 var→黑；MP 按 name-hex 查构建期 PNG→回退黑)→ 只传真实 hex。
 - 🔴 **「一端有边距一端没有」先查存量数据异类**：病根常是特例组件不走共享样式函数。`native-*` 在 `home.vue` 边距由 `nativeMargin()` 显式下发，**曾只输出上下漏 marginLR** → 小程序贴边；admin 因 `.pe-comp` 内缩掩盖。元规则：**画布看起来对 ≠ C 端对**，跨端须看真机截图。
 - 🔴 补 marginLR 用 `??` 非 `||`(0=故意通栏)。
@@ -58,10 +60,20 @@
 - 面板控件 ≠ 功能复刻：数据层默认 content 声明字段(老数据须存量迁移)→ 渲染层消费+兜底 → schema 映射。**判定开关是否有用，去校验/提交路径确认是否真 gate。**
 - 边距四件套：`outMarginTop(10)/outMarginX(10)/marginY(10)/marginX(16)/radiusTL/TR/BR/BL`。外左右改 margin 后三端容器 padding 归 0。
 
+## 两个入口 & 构建（验证修复前必看）
+- 设计中心有两个入口：**dev `http://localhost:5173/admin-assets/customer.html#/design/edit`**（vite，改完即生效）｜**生产 `http://localhost:3000/admin`**（`server/public/admin` 构建产物，**必须重建才含新代码**）。
+- 🔴 **用户说「修完还是老问题」先问/确认他访问的是哪个入口**——曾因跑 3000 旧产物（22:23 构建 < 23:20 修复）而误判「还有第二路径」，白查一轮。
+- ⚠️ `npm run build:admin` 的 `rm -rf` 会被 safe-delete 拦(>50 文件) → 先 `mv` 旧产物到 /tmp，再 `npm run build -w web-admin`；改完让用户**硬刷新**绕开旧 html 缓存。
+- 启动服务：`npm run dev -w server`(3000) + `npm run dev -w web-admin`(5173)；admin 的 `/api` 已 vite proxy 到 3000。查库用 `node:sqlite` + `server/data/panorama.db`（⚠️ 不是 `server/src/data/` 旧库）。
+
 ## 背景色拆两字段（`2e44353`）
 `bgColor`=组件自身底色(label「按钮色」)；`compBgColor`=容器底色(label「组件背景色」)。单一来源 `containerStyle.js` 的 `CONTAINER_BG_KEY`；存量迁移 `migrateLegacyBgColor()`(幂等，挂加载草稿+`newComp()`)。
 - 🔴 内联背景盖选中高亮：`.pe-comp.active` 用 `outline+box-shadow`，勿写 `.active{background:!important}`。
 - 🔴 满宽组件完全遮容器底色：修法 `MIN_BG_PADDING=8`，仅设底色才兜；**0 也当「未设」**(滑块 `props[key]??0`)。
+- 🔴 **某状态下无效的控件优先「条件隐藏」，不要删**（删=作废存量数据+堵死真实场景）。面板新增 `whenHas`（`when` 只支持精确值匹配，`whenHas` 表达「字段有实值」，如 compBgColor 非空非透明才显示「容器圆角」b5641ce）。面板控件只做引导，**不动渲染层消费、不动存量数据**。
+- 🔴 **「清空/透明」类控件绝不能 emit 空串表示透明**——空串已被「未设置→默认兜底」占用，透明意图永远无法表达(9166359「设了透明还是白色」)。颜色控件三态：`''`=未设(默认白卡)、`'transparent'`=显式透明(照常输出 background 盖 CSS 白底，但不算「设了底色」不触发 MIN_BG_PADDING)、有色值。
+- 🔴 **「保存/发布后预览才变」⇒ 病根在「重新加载」路径(迁移/合并)，不在渲染函数**。先查库(`server/data/panorama.db`，⚠️ 非 `server/src/data/` 旧库)区分「数据坏了」vs「内存被改」。
+- 🔴 **新增组件族必须审 `SELF_COLORED_TYPES`**：bgColor=自身色的组件漏加白名单 → 迁移把它搬进 compBgColor 污染容器；再保存即写库、C 端跟着坏。native-* 出生即新范式，已整体 `startsWith('native-')` 跳过迁移(a296b27)。
 
 ## 包内 vs 后端资源（判据：文件在后端有吗）
 有 → `resolveUrl()`/`background-image`；只在 `src/static` → `assetUrl()`/真 `<image>`。
@@ -75,6 +87,8 @@
 - 按钮规范：装修中心取 WeUI 方角、不动商城；新按钮一律 rpx、`<view>` 非 `<button>`、锁 height+line-height，尺寸来源 `utils/btnTokens.js`。⚠️ 全局类名禁用 `.btn`(scoped 拦不住)→ 用 `.dbtn-`。
 - 共享样式放 `web-app/src/utils/`，admin 跨包 import。⚠️ 被 import 模块旁不得再定义同名函数(`Identifier has already been declared`；`node scripts/check-sfc.cjs <file>` 定位)。
 - ⚠️ macOS grep 不支持 `\|`(BRE 无交替)→ 用 `grep -E`。
+- 🔴 **CSS token 单一事实来源=`web-app/src/styles/token.scss`**（`:root,page` 暴露 CSS 变量）。⚠️ **页面级 inline 会覆盖全局**：`pages/card/utils/createSkin.js`(创建页浅色皮肤) 曾 `v['--t3']='#86909c'`/`v['--border-strong']='#c9cdd4'` 回退旧值，架空全局 token 修复 → **改 token 后须 grep 全仓同名 `--t3`/`--border-strong`/`--ink-3` 等下发点一并改**。
+- 🔴 **新增测试须先确认 vitest include 覆盖该目录**：原 `vitest.config.js` include 只含 `utils/components/pages`，`src/styles/**` 的测试从未执行（静默全绿却没跑）。加测试改完顺手把目录加进 include。
 
 ## 小程序主包体积（1.5M 质量线/2M 硬上限）
 - 🔴 每次 MP 构建后手动清 4 目录(脚本删被 safe-delete 拦>50)：`static/{sicons,icons,sample,three}`(three 704KB 只服务 H5)。⚠️ `du` 会把已移空目录算进体积 → 量完先 `find dist/build/mp-weixin -type d -empty -delete`。
