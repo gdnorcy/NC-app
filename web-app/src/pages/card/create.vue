@@ -565,11 +565,14 @@ async function submit() {
     .filter((c) => c.name);
   try {
     if (isEdit.value) {
-      await cardApi.updateCard(form.id, { ...form, companies: cleanCompanies, needTags: JSON.stringify(form.needTags) });
+      // 表单字段为 companyName，后端列名是 company —— 必须显式映射，否则 {...form} 只带
+      // companyName 而缺 company，服务端 company ?? card.company 永远回落旧值，公司名无法保存
+      await cardApi.updateCard(form.id, { ...form, company: form.companyName, companies: cleanCompanies, needTags: JSON.stringify(form.needTags) });
       uni.showToast({ title: '保存成功', icon: 'success' });
       track('form_submit', { cardId: form.id || newCardId || 0, page: '/pages/card/create', extra: { isEdit: isEdit.value } });
     } else {
-      const payload = { ...form, companies: cleanCompanies, needTags: JSON.stringify(form.needTags) };
+      // 表单字段 companyName → 后端列 company（同 edit 分支，缺映射则不保存）
+      const payload = { ...form, company: form.companyName, companies: cleanCompanies, needTags: JSON.stringify(form.needTags) };
       // 入驻绑定：填了口令才同时入驻
       if (payload.bindCode) {
         payload.applyType = cardType.value;
