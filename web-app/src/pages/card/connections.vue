@@ -1,5 +1,5 @@
 <template>
-  <view class="conn-page">
+  <view class="conn-page" :style="themeStyle">
     <!-- 顶部导航栏 -->
 <!-- PageNav -->
     <PageNav title="我的人脉库" back></PageNav>
@@ -91,6 +91,12 @@ import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
+import SIcon from '../../components/SIcon.vue';
+import { useDesignTheme } from '../../utils/design.js';
+
+// showModal confirmColor 是 prop 不吃 var()，主题主色喂真实 hex：回落品牌蓝
+const themeStyle = useDesignTheme();
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const list = ref([]);
 const loading = ref(true);
@@ -183,7 +189,7 @@ const convert = (c) => {
     title: '转为客户线索',
     content: `将「${c.contact_name}」转为我的客户线索？转为客户后仍可保留人脉关系。`,
     confirmText: '转为客户',
-    confirmColor: '#07C160',
+    confirmColor: themeColor.value,
     success: async (r) => {
       if (!r.confirm) return;
       try {
@@ -227,7 +233,7 @@ onMounted(load);
 </script>
 
 <style scoped>
-.conn-page { min-height: 100vh; background: var(--bg, #f5f6f7); padding-bottom: 60rpx; }
+.conn-page { min-height: 100vh; background: var(--bg-page); padding-bottom: 60rpx; }
 
 
 .stats-row { display: flex; background: #fff; margin: 20rpx 24rpx 0; border-radius: 24rpx; padding: 28rpx 0; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
@@ -237,29 +243,29 @@ onMounted(load);
 
 .filter-tabs { display: flex; gap: 12rpx; padding: 20rpx 24rpx 4rpx; }
 .filter-tab { padding: 10rpx 30rpx; border-radius: 999rpx; background: #fff; font-size: 24rpx; color: #5b5b5b; border: 1rpx solid #eee; }
-.filter-tab.on { background: var(--blue-soft, #e9f1fb); color: var(--blue, #1d4e8f); border-color: transparent; font-weight: 500; }
+.filter-tab.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border-color: transparent; font-weight: 500; }
 
 .empty { padding: 120rpx 40rpx; text-align: center; }
 .empty-icon { width: 96rpx; height: 96rpx; margin: 0 auto 24rpx; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
 .empty-title { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .empty-desc { font-size: 24rpx; color: var(--t3); margin-top: 10rpx; }
-.empty-btn { display: inline-block; margin-top: 36rpx; padding: 16rpx 56rpx; background: var(--wx, #07c160); color: #fff; font-size: 28rpx; border-radius: 999rpx; }
+.empty-btn { display: inline-block; margin-top: 36rpx; padding: 16rpx 56rpx; background: var(--design-primary); color: #fff; font-size: 28rpx; border-radius: 999rpx; }
 
 .conn-list { padding: 16rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .conn-item { background: #fff; border-radius: 24rpx; padding: 24rpx; display: flex; align-items: center; gap: 20rpx; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.06)); }
 .avatar { width: 88rpx; height: 88rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .avatar-img { width: 100%; height: 100%; }
-.avatar-text { font-size: 34rpx; font-weight: 600; color: var(--blue, #1d4e8f); }
+.avatar-text { font-size: 34rpx; font-weight: 600; color: var(--design-primary, #165dff); }
 .info { flex: 1; min-width: 0; }
 .name-row { display: flex; align-items: center; gap: 12rpx; }
 .c-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
-.group-tag { font-size: 20rpx; color: var(--blue, #1d4e8f); background: var(--blue-soft, #e9f1fb); padding: 4rpx 14rpx; border-radius: 999rpx; }
+.group-tag { font-size: 20rpx; color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); padding: 4rpx 14rpx; border-radius: 999rpx; }
 .c-sub { font-size: 24rpx; color: #5b5b5b; margin-top: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-sub .dim { color: var(--t3); }
 .c-time { font-size: 20rpx; color: var(--t3); margin-top: 6rpx; }
 .ops { display: flex; flex-direction: column; gap: 12rpx; flex-shrink: 0; }
 .op-btn { font-size: 24rpx; padding: 10rpx 26rpx; border-radius: 999rpx; text-align: center; }
-.op-btn.primary { color: #07c160; background: #e8f7ef; }
+.op-btn.primary { color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); }
 .op-btn.danger { color: #ff4d4f; background: #fdecec; }
 
 .mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 100; display: flex; align-items: flex-end; }
@@ -269,11 +275,11 @@ onMounted(load);
 .field-label { font-size: 24rpx; color: #5b5b5b; margin-bottom: 12rpx; }
 .group-options { display: flex; flex-wrap: wrap; gap: 14rpx; margin-bottom: 16rpx; }
 .group-opt { padding: 10rpx 28rpx; border-radius: 999rpx; background: #f5f6f7; font-size: 24rpx; color: #5b5b5b; border: 1rpx solid #eee; }
-.group-opt.on { background: var(--blue-soft, #e9f1fb); color: var(--blue, #1d4e8f); border-color: transparent; }
+.group-opt.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border-color: transparent; }
 .field-input { background: #f5f6f7; border-radius: 16rpx; padding: 20rpx 24rpx; font-size: 28rpx; color: #1a1a1a; }
 .ph { color: #9a9a9a; }
 .sheet-actions { display: flex; gap: 20rpx; margin-top: 32rpx; }
 .sheet-btn { flex: 1; text-align: center; padding: 22rpx 0; border-radius: 999rpx; font-size: 30rpx; }
 .sheet-btn.cancel { background: #f5f6f7; color: #5b5b5b; }
-.sheet-btn.ok { background: var(--wx, #07c160); color: #fff; font-weight: 500; }
+.sheet-btn.ok { background: var(--design-primary); color: #fff; font-weight: 500; }
 </style>
