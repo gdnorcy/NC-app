@@ -68,7 +68,7 @@ const gradPresets = [
   'linear-gradient(135deg,#2979ff,#00b0ff)', 'linear-gradient(135deg,#00b8a9,#00d68f)',
   'linear-gradient(135deg,#e8590c,#f59e0b)', 'linear-gradient(135deg,#7c4dff,#b388ff)',
   'linear-gradient(135deg,#00b0ff,#536dfe)', 'linear-gradient(135deg,#ff3d3d,#ff7043)',
-  'linear-gradient(135deg,#ffb300,#ff8f00)', 'linear-gradient(135deg,#ec407a,#ab47bc)',
+  'linear-gradient(135deg,#cc7a00,#f0a500)', 'linear-gradient(135deg,#ec407a,#ab47bc)',
   'linear-gradient(135deg,#78909c,#546e7a)', 'linear-gradient(135deg,#00b42a,#52c41a)',
   'linear-gradient(135deg,#13c2c2,#00d0c7)',
 ];

@@ -353,7 +353,7 @@ const features = [
   { key: 'market', icon: 'market', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#7c4dff,#b388ff)' },
   { key: 'exchange', icon: 'exchange', label: '名片交换', path: '/pages/card/connections', bg: 'linear-gradient(135deg,#00b0ff,#536dfe)' },
   { key: 'distribution', icon: 'dist', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)' },
-  { key: 'member', icon: 'crown', label: '会员中心', path: '/pages/card/member', bg: 'linear-gradient(135deg,#ffb300,#ff8f00)' },
+  { key: 'member', icon: 'crown', label: '会员中心', path: '/pages/card/member', bg: 'linear-gradient(135deg,#cc7a00,#f0a500)' },
   { key: 'dynamic', icon: 'dynamic', label: '我的动态', path: '/pages/card/dynamic', bg: 'linear-gradient(135deg,#ec407a,#ab47bc)' },
   { key: 'more', icon: 'apps', label: '更多', path: '/pages/card/profile', bg: 'linear-gradient(135deg,#78909c,#546e7a)' },
 ];
