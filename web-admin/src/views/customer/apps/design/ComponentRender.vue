@@ -765,6 +765,7 @@
             <div class="r-mycard-name">我的名片</div>
             <div class="r-mycard-sub">创建名片后展示姓名、职位、公司</div>
           </div>
+          <div class="r-mycard-edit" v-if="comp.props.showEdit !== false">编辑</div>
           <div class="r-mycard-arrow">›</div>
         </div>
       </div>
@@ -1554,7 +1555,11 @@ function placeholderStyle(p) {
 }
 // 我的名片卡片预览样式（圆角/阴影）
 function myCardPreviewStyle(p) {
-  const s = { background: '#F0F7FF', borderRadius: (p.radius ?? 12) + 'px' };
+  const s = {
+    background: p.bgColor || 'linear-gradient(135deg, rgba(22,93,255,0.10), rgba(22,93,255,0.03))',
+    border: '1px solid rgba(22,93,255,0.14)',
+    borderRadius: (p.radius ?? 12) + 'px',
+  };
   if (p.shadow !== false) s.boxShadow = '0 4px 16px rgba(31,35,41,0.06)';
   return s;
 }
@@ -2013,6 +2018,7 @@ const nativeGridItems = [
 .r-mycard-body { flex: 1; min-width: 0; }
 .r-mycard-name { font-size: 15px; font-weight: 600; color: #1d2129; }
 .r-mycard-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
+.r-mycard-edit { background: #165DFF; color: #fff; font-size: 12px; line-height: 1; padding: 6px 12px; border-radius: 14px; flex-shrink: 0; }
 .r-mycard-arrow { color: #c9cdd4; font-size: 20px; }
 /* 宫格导航 */
 /* ── 按钮组（menu-group）·对标站 ew 内部键名 menu，CDP 实测 ──────────────

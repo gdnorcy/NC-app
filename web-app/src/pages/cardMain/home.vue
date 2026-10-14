@@ -64,7 +64,7 @@
             <view class="card-company" v-if="c.props.showCompany !== false">{{ myCard.company || '未设置公司' }}</view>
           </view>
           <view class="card-edit" v-if="c.props.showEdit !== false" @click.stop="goEdit">
-            <SIcon name="template" size="small" color="#165dff" />
+            <SIcon name="template" size="small" color="#ffffff" />
             <text>编辑</text>
           </view>
         </view>
@@ -455,7 +455,7 @@ const avatarStyle = computed(() => {
   const c = myCard.value?.brandColor;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
   const dark = shadeHex(c, -0.3);
-  return { background: `linear-gradient(135deg, ${dark}, ${c})` };
+  return { background: `linear-gradient(135deg, ${dark}, ${c})`, color: '#fff' };
 });
 
 // 设计中心首页跳转：配置了非默认首页时，首次进入自动跳转到对应页面
@@ -798,8 +798,9 @@ function viewMarketCard(item) {
   align-items: center;
   gap: 20rpx;
   padding: 24rpx;
-  /* 跟随系统主题色：主色→渐变辅助色（tenant 主题设置 primaryColor/gradientColor） */
-  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
+  /* 方案B：主题 tint 浅底 + 同色细边框，不再满铺主题色，整页更和谐 */
+  background: linear-gradient(135deg, rgba(var(--design-primary-rgb), 0.10), rgba(var(--design-primary-rgb), 0.03));
+  border: 2rpx solid rgba(var(--design-primary-rgb), 0.14);
   border-radius: 16rpx;
 }
 .my-card.create {
@@ -810,13 +811,13 @@ function viewMarketCard(item) {
   width: 96rpx;
   height: 96rpx;
   border-radius: 48rpx;
-  background: rgba(255,255,255,0.2);
+  background: rgba(var(--design-primary-rgb), 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
   font-weight: 600;
-  color: #fff;
+  color: var(--design-primary, #165dff);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -831,23 +832,23 @@ function viewMarketCard(item) {
 .card-name {
   font-size: 32rpx;
   font-weight: 600;
-  color: #fff;
+  color: #1d2129;
 }
 .card-position {
   font-size: 24rpx;
-  color: rgba(255,255,255,0.85);
+  color: #4e5969;
   margin-top: 4rpx;
 }
 .card-company {
   font-size: 22rpx;
-  color: rgba(255,255,255,0.65);
+  color: var(--ink-3);
   margin-top: 4rpx;
 }
 .card-edit {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  background: rgba(255,255,255,0.2);
+  background: var(--design-primary, #165dff);
   padding: 10rpx 20rpx;
   border-radius: 24rpx;
   font-size: 24rpx;
