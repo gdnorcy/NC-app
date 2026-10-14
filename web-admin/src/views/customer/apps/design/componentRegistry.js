@@ -1565,7 +1565,7 @@ export const componentRegistry = [
       items: [
         { icon: 'card', text: '我的名片', url: '/pages/card/myCard', bg: 'linear-gradient(135deg,#2979ff,#00b0ff)', badge: '', visible: true },
         { icon: 'radar', text: '访客雷达', url: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b8a9,#00d68f)', badge: '', visible: true },
-        { icon: 'customer', text: '客户管理', url: '/pages/card/customers', bg: 'linear-gradient(135deg,#ff6b35,#ff9800)', badge: '', visible: true },
+        { icon: 'customer', text: '客户管理', url: '/pages/card/customers', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)', badge: '', visible: true },
         { icon: 'market', text: '人脉集市', url: '/pages/card/market', bg: 'linear-gradient(135deg,#7c4dff,#b388ff)', badge: '', visible: true },
         { icon: 'exchange', text: '名片交换', url: '/pages/card/connections', bg: 'linear-gradient(135deg,#00b0ff,#536dfe)', badge: '', visible: true },
         { icon: 'dist', text: '分销中心', url: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)', badge: '', visible: true },

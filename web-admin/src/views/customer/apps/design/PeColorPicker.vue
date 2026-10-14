@@ -66,7 +66,7 @@ const boxStyle = computed(() => (isTransparent.value ? {} : { background: cur.va
 // 渐变预设（方案 A 9 色 + 通用 2 色）
 const gradPresets = [
   'linear-gradient(135deg,#2979ff,#00b0ff)', 'linear-gradient(135deg,#00b8a9,#00d68f)',
-  'linear-gradient(135deg,#ff6b35,#ff9800)', 'linear-gradient(135deg,#7c4dff,#b388ff)',
+  'linear-gradient(135deg,#e8590c,#f59e0b)', 'linear-gradient(135deg,#7c4dff,#b388ff)',
   'linear-gradient(135deg,#00b0ff,#536dfe)', 'linear-gradient(135deg,#ff3d3d,#ff7043)',
   'linear-gradient(135deg,#ffb300,#ff8f00)', 'linear-gradient(135deg,#ec407a,#ab47bc)',
   'linear-gradient(135deg,#78909c,#546e7a)', 'linear-gradient(135deg,#00b42a,#52c41a)',

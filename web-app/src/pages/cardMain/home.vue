@@ -347,7 +347,7 @@ function isPreviewMode() {
 const features = [
   { key: 'card', icon: 'card', label: '我的名片', path: '/pages/card/myCard', bg: 'linear-gradient(135deg,#2979ff,#00b0ff)' },
   { key: 'visitors', icon: 'radar', label: '访客雷达', path: '/pages/card/visitors', bg: 'linear-gradient(135deg,#00b8a9,#00d68f)' },
-  { key: 'customers', icon: 'customer', label: '客户管理', path: '/pages/card/customers', bg: 'linear-gradient(135deg,#ff6b35,#ff9800)' },
+  { key: 'customers', icon: 'customer', label: '客户管理', path: '/pages/card/customers', bg: 'linear-gradient(135deg,#e8590c,#f59e0b)' },
   { key: 'market', icon: 'market', label: '人脉集市', path: '/pages/card/market', bg: 'linear-gradient(135deg,#7c4dff,#b388ff)' },
   { key: 'exchange', icon: 'exchange', label: '名片交换', path: '/pages/card/connections', bg: 'linear-gradient(135deg,#00b0ff,#536dfe)' },
   { key: 'distribution', icon: 'dist', label: '分销中心', path: '/pages/card/distribution', bg: 'linear-gradient(135deg,#ff3d3d,#ff7043)' },
