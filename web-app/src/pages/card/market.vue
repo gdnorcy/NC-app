@@ -535,7 +535,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 /* 我的集市开关 */
 .market-switch-row { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 20rpx 24rpx; margin-top: 2rpx; }
 .switch-title { font-size: 28rpx; color: #1a1a1a; font-weight: 500; }
-.switch-desc { font-size: 22rpx; color: #9a9a9a; margin-top: 4rpx; }
+.switch-desc { font-size: 22rpx; color: var(--ink-3); margin-top: 4rpx; }
 
 /* 公告 */
 .notice-bar { display: flex; align-items: center; gap: 10rpx; background: #e9f1fb; margin: 16rpx 24rpx; padding: 16rpx 20rpx; border-radius: 12rpx; }
@@ -568,27 +568,27 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .type-employee { color: #07c160; background: #e6f9ef; }
 .m-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .m-position { font-size: 22rpx; color: #5b5b5b; margin-top: 4rpx; }
-.m-company { font-size: 22rpx; color: #9a9a9a; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-company { font-size: 22rpx; color: var(--ink-3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-need { display: flex; gap: 8rpx; margin-top: 12rpx; flex-wrap: wrap; }
 .need-tag { font-size: 20rpx; color: #f59e0b; background: #fef3e2; padding: 4rpx 12rpx; border-radius: 8rpx; }
 .m-tags { margin-top: 10rpx; }
 .m-industry { font-size: 20rpx; color: #5b5b5b; background: #f5f6f7; padding: 4rpx 12rpx; border-radius: 8rpx; }
 .m-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid #f0f0f0; }
-.m-views { font-size: 20rpx; color: #9a9a9a; }
+.m-views { font-size: 20rpx; color: var(--ink-3); }
 .m-exchange { font-size: 22rpx; color: #fff; background: #07c160; padding: 8rpx 22rpx; border-radius: 999rpx; font-weight: 500; }
 .m-exchange.done { background: #9a9a9a; }
 
 /* 折叠面板 */
 .fold-panel { margin: 8rpx 24rpx 24rpx; background: #fff; border-radius: 16rpx; padding: 24rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
 .fold-title { display: flex; justify-content: space-between; font-size: 26rpx; font-weight: 600; color: #1a1a1a; }
-.fold-arrow { font-size: 22rpx; color: #9a9a9a; font-weight: 400; }
+.fold-arrow { font-size: 22rpx; color: var(--ink-3); font-weight: 400; }
 .fold-body { margin-top: 16rpx; }
 .rank-row { display: flex; align-items: center; gap: 16rpx; padding: 14rpx 0; border-bottom: 1rpx solid #f0f0f0; }
 .rank-row:last-child { border-bottom: none; }
 .rank-no { width: 36rpx; height: 36rpx; border-radius: 8rpx; background: #f5f6f7; color: #9a9a9a; font-size: 22rpx; display: flex; align-items: center; justify-content: center; font-weight: 600; }
 .rank-no.top { background: #1d4e8f; color: #fff; }
 .rank-name { flex: 1; font-size: 26rpx; color: #1a1a1a; }
-.rank-num { font-size: 22rpx; color: #9a9a9a; }
+.rank-num { font-size: 22rpx; color: var(--ink-3); }
 
 /* ===== 方案B 重点会员横滚 ===== */
 .b-section-title { font-size: 28rpx; font-weight: 600; color: #1a1a1a; padding: 24rpx 24rpx 8rpx; }
@@ -599,7 +599,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .b-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 600; }
 .b-name { font-size: 26rpx; font-weight: 600; color: #1a1a1a; margin-top: 12rpx; }
 .b-position { font-size: 20rpx; color: #5b5b5b; margin-top: 4rpx; }
-.b-company { font-size: 20rpx; color: #9a9a9a; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.b-company { font-size: 20rpx; color: var(--ink-3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .b-exchange { margin-top: 14rpx; font-size: 22rpx; color: #fff; background: #07c160; text-align: center; padding: 10rpx 0; border-radius: 999rpx; }
 
 /* ===== 方案C 分类页签 ===== */
@@ -615,25 +615,25 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .c-info { flex: 1; }
 .c-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .c-position { font-size: 24rpx; color: #5b5b5b; margin-top: 4rpx; }
-.c-company { font-size: 22rpx; color: #9a9a9a; margin-top: 4rpx; }
+.c-company { font-size: 22rpx; color: var(--ink-3); margin-top: 4rpx; }
 .c-tags { display: flex; gap: 8rpx; margin-top: 14rpx; flex-wrap: wrap; }
 .tag-need { font-size: 20rpx; color: #f59e0b; background: #fef3e2; padding: 4rpx 12rpx; border-radius: 8rpx; }
 .c-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid #f0f0f0; }
-.c-type { font-size: 22rpx; color: #9a9a9a; }
+.c-type { font-size: 22rpx; color: var(--ink-3); }
 .exchange-btn { font-size: 22rpx; color: #fff; background: #07c160; padding: 10rpx 26rpx; border-radius: 999rpx; font-weight: 500; }
 .exchange-btn.done { background: #9a9a9a; }
 
 /* 空状态 */
 .empty-state { display: flex; flex-direction: column; align-items: center; padding: 120rpx 40rpx; }
 .empty-text { font-size: 30rpx; color: #5b5b5b; margin-top: 24rpx; }
-.empty-hint { font-size: 24rpx; color: #9a9a9a; margin-top: 8rpx; }
+.empty-hint { font-size: 24rpx; color: var(--ink-3); margin-top: 8rpx; }
 
 .banner-swiper { height: 240rpx; margin: 16rpx 24rpx; border-radius: 16rpx; overflow: hidden; }
 .banner-img { width: 100%; height: 100%; border-radius: 16rpx; }
 .banner-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #eef1f5; color: #9a9a9a; font-size: 26rpx; border-radius: 16rpx; }
 .samecity-row { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 24rpx 4rpx; }
-.sc-pill { display: inline-flex; align-items: center; gap: 6rpx; font-size: 24rpx; color: var(--t3); background: #fff; border: 1px solid var(--border); border-radius: 999rpx; padding: 10rpx 22rpx; }
+.sc-pill { display: inline-flex; align-items: center; gap: 6rpx; font-size: 24rpx; color: var(--ink-3); background: #fff; border: 1px solid var(--border); border-radius: 999rpx; padding: 10rpx 22rpx; }
 .sc-pill.on { color: #fff; background: #165dff; border-color: #165dff; }
 .sc-city { font-size: 22rpx; opacity: 0.8; }
-.sc-tip { font-size: 22rpx; color: var(--t3); }
+.sc-tip { font-size: 22rpx; color: var(--ink-3); }
 </style>

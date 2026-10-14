@@ -233,7 +233,7 @@ onMounted(load);
 .stats-row { display: flex; background: #fff; margin: 20rpx 24rpx 0; border-radius: 24rpx; padding: 28rpx 0; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
 .stat-item { flex: 1; text-align: center; }
 .stat-num { font-size: 40rpx; font-weight: 700; color: #1a1a1a; }
-.stat-label { font-size: 22rpx; color: #9a9a9a; margin-top: 4rpx; }
+.stat-label { font-size: 22rpx; color: var(--t3); margin-top: 4rpx; }
 
 .filter-tabs { display: flex; gap: 12rpx; padding: 20rpx 24rpx 4rpx; }
 .filter-tab { padding: 10rpx 30rpx; border-radius: 999rpx; background: #fff; font-size: 24rpx; color: #5b5b5b; border: 1rpx solid #eee; }
@@ -242,7 +242,7 @@ onMounted(load);
 .empty { padding: 120rpx 40rpx; text-align: center; }
 .empty-icon { width: 96rpx; height: 96rpx; margin: 0 auto 24rpx; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
 .empty-title { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
-.empty-desc { font-size: 24rpx; color: #9a9a9a; margin-top: 10rpx; }
+.empty-desc { font-size: 24rpx; color: var(--t3); margin-top: 10rpx; }
 .empty-btn { display: inline-block; margin-top: 36rpx; padding: 16rpx 56rpx; background: var(--wx, #07c160); color: #fff; font-size: 28rpx; border-radius: 999rpx; }
 
 .conn-list { padding: 16rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
@@ -255,8 +255,8 @@ onMounted(load);
 .c-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .group-tag { font-size: 20rpx; color: var(--blue, #1d4e8f); background: var(--blue-soft, #e9f1fb); padding: 4rpx 14rpx; border-radius: 999rpx; }
 .c-sub { font-size: 24rpx; color: #5b5b5b; margin-top: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c-sub .dim { color: #9a9a9a; }
-.c-time { font-size: 20rpx; color: #9a9a9a; margin-top: 6rpx; }
+.c-sub .dim { color: var(--t3); }
+.c-time { font-size: 20rpx; color: var(--t3); margin-top: 6rpx; }
 .ops { display: flex; flex-direction: column; gap: 12rpx; flex-shrink: 0; }
 .op-btn { font-size: 24rpx; padding: 10rpx 26rpx; border-radius: 999rpx; text-align: center; }
 .op-btn.primary { color: #07c160; background: #e8f7ef; }

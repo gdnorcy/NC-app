@@ -220,7 +220,7 @@ async function addFollow() {
 .info-row:last-child { border-bottom: none; }
 .info-label {
   font-size: 26rpx;
-  color: #86909c;
+  color: var(--t3);
 }
 .info-value {
   font-size: 26rpx;
@@ -263,7 +263,7 @@ async function addFollow() {
   text-align: center;
   padding: 40rpx 0;
   font-size: 24rpx;
-  color: #86909c;
+  color: var(--t3);
 }
 .footer {
   position: fixed;
@@ -304,7 +304,7 @@ async function addFollow() {
   border-bottom: 1px solid #f2f3f5;
 }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.sheet-close { font-size: 32rpx; color: #86909c; }
+.sheet-close { font-size: 32rpx; color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .follow-input {
   width: 100%;

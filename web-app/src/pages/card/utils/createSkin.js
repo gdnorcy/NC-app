@@ -90,9 +90,9 @@ export function buildCreateSkinVars(theme) {
   v['--sk-hd-sub'] = onAccent ? '#4e5969' : 'rgba(255,255,255,0.8)';
   v['--t1'] = '#1d2129';
   v['--t2'] = '#4e5969';
-  v['--t3'] = '#86909c';
+  v['--t3'] = '#5c6470';   // 可读次要文本：原 #86909c 仅 2.92:1 不达标，收敛到 #5c6470 过 WCAG AA（见 docs/card-visual-audit.html）
   v['--border'] = '#e5e6eb';
-  v['--border-strong'] = '#c9cdd4';
+  v['--border-strong'] = '#e5e6eb';   // 原 #c9cdd4：1.59:1 边界不可辨，提亮至 #e5e6eb（层级由 --card-shadow 撑）
   v['--sk-skin'] = 'light';
   v['--sk-input-border'] = `1px solid ${hexA(accent, 0.32)}`;
   v['--sk-input-shadow'] = '0 2rpx 8rpx rgba(0,0,0,0.04)';

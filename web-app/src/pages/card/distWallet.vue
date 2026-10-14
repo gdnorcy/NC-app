@@ -195,7 +195,7 @@ onShow(() => {
 .wd-no { font-size: 24rpx; color: #4e5969; }
 .wd-status { font-size: 24rpx; }
 .st-p { color: #ff7d00; } .st-s { color: #165dff; } .st-c { color: #f53f3f; } .st-d { color: #00b42a; }
-.wd-mid { margin-top: 10rpx; font-size: 24rpx; color: #86909c; }
+.wd-mid { margin-top: 10rpx; font-size: 24rpx; color: var(--t3); }
 .wd-reason { margin-top: 8rpx; font-size: 22rpx; color: #f53f3f; }
-.empty { padding: 40rpx 0; text-align: center; color: #86909c; font-size: 26rpx; }
+.empty { padding: 40rpx 0; text-align: center; color: var(--t3); font-size: 26rpx; }
 </style>

@@ -15,12 +15,24 @@ $gold: #ffd21e;               // 会员金
 
 $t1: #1d2129;                 // 主文本
 $t2: #4e5969;                 // 次文本
-$t3: #86909c;                 // 辅助文本/次级图标
-$t4: #9a9a9a;                 // 占位/弱提示
+$t3: #5c6470;                 // 可读次要文本（原 #86909c 仅 2.92:1 不达标；见 docs/card-visual-audit.html，统一收敛到 #5c6470 过 WCAG AA）
+$t4: #5c6470;                 // 可读次要文本（原 #9a9a9a 仅 2.81:1 不达标；统一收敛到 #5c6470）
 $t5: #1a1a1a;                 // 深文本（历史遗留高频）
 
+// ---------- 可读性次要文字色（对比度收敛，详见 docs/card-visual-audit.html） ----------
+// $t3/$t4 现在就是「可读次要文本」(#5c6470，白底 5.78:1 / 灰底 #f2f3f5 上 5.39:1，均过 WCAG AA)。
+// ⚠️ 输入框 placeholder、空态图标、禁用按钮字等**非阅读**装饰仍用字面 #86909c / #9a9a9a（不套 WCAG 文字标准）。
+$ink-3: #5c6470;              // $t3 的语义别名，新代码优先用 --ink-3 表达「可读次要文本」
+
+// ---------- 卡片层级 token：白卡浮起靠「阴影 + 弱描边」撑层级 ----------
+// 页底与白卡亮度差仅 1.17（浅色体系常态，Material/iOS 同），层级不靠亮度差，靠 shadow + 1px 描边。
+$card-bg: #ffffff;
+$card-radius: 12px;
+$card-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+$card-border: 1px solid rgba(16, 24, 40, 0.04);
+
 $border: #e5e6eb;             // 普通边框
-$border-strong: #c9cdd4;      // 强调边框/分割
+$border-strong: #e5e6eb;      // 强调边框/分割（原 #c9cdd4：1.59:1 边界不可辨，提亮至 #e5e6eb；层级由 --card-shadow 撑）
 $bg-page: #f5f6f7;            // 页面背景
 $bg-card: #f7f8fa;            // 卡片/浅灰块
 $bg-hover: #f2f3f5;           // hover/按压
@@ -89,6 +101,11 @@ $btn-weight-s: 400;
   --t5: #{$t5};
   --border: #{$border};
   --border-strong: #{$border-strong};
+  --ink-3: #{$ink-3};
+  --card-bg: #{$card-bg};
+  --card-radius: #{$card-radius};
+  --card-shadow: #{$card-shadow};
+  --card-border: #{$card-border};
   --bg-page: #{$bg-page};
   --bg-card: #{$bg-card};
   --bg-hover: #{$bg-hover};

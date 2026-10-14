@@ -371,7 +371,7 @@ function logout() {
 .avatar-choose::after { border: none; }
 .ac-img { width: 128rpx; height: 128rpx; border-radius: 50%; background: #f2f3f5; }
 .ac-ph { display: flex; align-items: center; justify-content: center; font-size: 44rpx; font-weight: 600; color: #fff; background: var(--design-primary, #165dff); }
-.ac-tip { font-size: 22rpx; color: #86909c; }
+.ac-tip { font-size: 22rpx; color: var(--t3); }
 .field { margin-bottom: 24rpx; }
 .field-label { font-size: 24rpx; color: #4e5969; margin-bottom: 12rpx; }
 .field-input { background: #f5f6f7; border-radius: 16rpx; padding: 20rpx 24rpx; font-size: 28rpx; color: #1a1a1a; }

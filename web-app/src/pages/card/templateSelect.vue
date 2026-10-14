@@ -162,7 +162,7 @@ onLoad((options) => {
 <style scoped>
 .tpl-select-page { min-height: 100vh; background: #f6f7fb; display: flex; flex-direction: column; padding-bottom: 40rpx; }
 .cur-tpl { margin: 20rpx 24rpx 0; padding: 20rpx 24rpx; background: #fff; border-radius: 16rpx; display: flex; align-items: center; gap: 16rpx; }
-.cur-label { font-size: 26rpx; color: #86909c; }
+.cur-label { font-size: 26rpx; color: var(--t3); }
 .cur-name { font-size: 28rpx; font-weight: 600; color: var(--design-primary, #165dff); }
 .tpl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; padding: 24rpx; }
 .tpl-item { background: #fff; border-radius: 16rpx; overflow: hidden; border: 2rpx solid transparent; }
@@ -180,6 +180,6 @@ onLoad((options) => {
 /* 默认底色由内联 themeGradient 给（跟随系统主题）；使用中/应用中态回落到 --design-primary */
 .tpl-apply { margin: 0 16rpx 16rpx; padding: 14rpx 0; text-align: center; border-radius: 12rpx; background: var(--design-primary, #165dff); color: #fff; font-size: 24rpx; }
 .tpl-apply.disabled { opacity: 0.6; }
-.empty { text-align: center; color: #86909c; font-size: 26rpx; padding: 60rpx 0; }
-.bind-hint { text-align: center; color: #86909c; font-size: 22rpx; padding: 0 40rpx; }
+.empty { text-align: center; color: var(--t3); font-size: 26rpx; padding: 60rpx 0; }
+.bind-hint { text-align: center; color: var(--t3); font-size: 22rpx; padding: 0 40rpx; }
 </style>

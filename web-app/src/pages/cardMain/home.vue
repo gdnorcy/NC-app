@@ -778,7 +778,7 @@ function viewMarketCard(item) {
 }
 .section-more {
   font-size: 24rpx;
-  color: #86909c;
+  color: var(--ink-3);
 }
 
 /* 我的名片卡片 */
@@ -793,7 +793,7 @@ function viewMarketCard(item) {
 }
 .my-card.create {
   background: #f7f8fa;
-  border: 2rpx dashed #c9cdd4;
+  border: 2rpx dashed var(--border);
 }
 .card-avatar {
   width: 96rpx;
@@ -862,7 +862,7 @@ function viewMarketCard(item) {
 }
 .create-desc {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--ink-3);
   margin-top: 4rpx;
 }
 .create-arrow {
@@ -890,7 +890,7 @@ function viewMarketCard(item) {
 }
 .visitor-label {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--ink-3);
   margin-top: 4rpx;
 }
 .visitor-divider {
@@ -930,7 +930,7 @@ function viewMarketCard(item) {
 }
 .visitor-time {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--ink-3);
   margin-top: 2rpx;
 }
 .visitor-action {
@@ -987,7 +987,7 @@ function viewMarketCard(item) {
 }
 .market-company {
   font-size: 20rpx;
-  color: #86909c;
+  color: var(--ink-3);
   margin-top: 2rpx;
   white-space: nowrap;
   overflow: hidden;
@@ -997,7 +997,7 @@ function viewMarketCard(item) {
 .empty-hint {
   text-align: center;
   font-size: 24rpx;
-  color: #c9cdd4;
+  color: var(--ink-3);
   padding: 32rpx 0;
 }
 .bottom-space {

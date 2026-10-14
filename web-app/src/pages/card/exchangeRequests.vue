@@ -155,7 +155,7 @@ onMounted(load);
 .empty { padding: 120rpx 40rpx; text-align: center; }
 .empty-icon { width: 96rpx; height: 96rpx; margin: 0 auto 24rpx; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
 .empty-title { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
-.empty-desc { font-size: 24rpx; color: #9a9a9a; margin-top: 10rpx; }
+.empty-desc { font-size: 24rpx; color: var(--t3); margin-top: 10rpx; }
 .empty-btn { display: inline-block; margin-top: 36rpx; padding: 16rpx 56rpx; background: var(--wx, #07c160); color: #fff; font-size: 28rpx; border-radius: 999rpx; }
 
 .req-list { padding: 16rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
@@ -167,12 +167,12 @@ onMounted(load);
 .req-status { font-size: 20rpx; padding: 4rpx 14rpx; border-radius: 999rpx; }
 .st-pending { color: var(--orange, #f59e0b); background: #fdf3e3; }
 .st-accepted { color: #07c160; background: #e8f7ef; }
-.st-rejected { color: #9a9a9a; background: #f5f6f7; }
+.st-rejected { color: var(--t3); background: #f5f6f7; }
 .req-msg { font-size: 24rpx; color: #5b5b5b; margin-top: 6rpx; }
-.req-time { font-size: 20rpx; color: #9a9a9a; margin-top: 6rpx; }
+.req-time { font-size: 20rpx; color: var(--t3); margin-top: 6rpx; }
 .req-ops { display: flex; gap: 12rpx; flex-shrink: 0; }
 .req-btn { font-size: 24rpx; padding: 10rpx 26rpx; border-radius: 999rpx; text-align: center; }
 .req-btn.accept { color: #07c160; background: #e8f7ef; }
 .req-btn.reject { color: #ff4d4f; background: #fdecec; }
-.req-btn.waiting { color: #9a9a9a; background: #f5f6f7; font-size: 22rpx; }
+.req-btn.waiting { color: var(--t3); background: #f5f6f7; font-size: 22rpx; }
 </style>

@@ -121,7 +121,7 @@ function formatTime(time) {
 }
 .action-detail {
   font-size: 24rpx;
-  color: #86909c;
+  color: var(--t3);
   margin-bottom: 6rpx;
 }
 .action-time {
@@ -133,5 +133,5 @@ function formatTime(time) {
   padding: 120rpx 0;
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
-.empty-text { font-size: 28rpx; color: #86909c; }
+.empty-text { font-size: 28rpx; color: var(--t3); }
 </style>

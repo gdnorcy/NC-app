@@ -569,7 +569,7 @@ async function saveConvert() {
   margin-bottom: 16rpx;
 }
 .trend-t { font-size: 28rpx; font-weight: 600; color: #1D2129; }
-.trend-peak { font-size: 22rpx; color: #86909C; }
+.trend-peak { font-size: 22rpx; color: var(--t3); }
 .trend-bars {
   display: flex;
   align-items: flex-end;
@@ -604,7 +604,7 @@ async function saveConvert() {
   transition: height 0.3s ease;
 }
 .tbar-fill.hot { background: #165DFF; }
-.tbar-lbl { font-size: 20rpx; color: #86909C; }
+.tbar-lbl { font-size: 20rpx; color: var(--t3); }
 
 /* ===== 访客记录（demo card-row 独立卡片）===== */
 .sec-t {

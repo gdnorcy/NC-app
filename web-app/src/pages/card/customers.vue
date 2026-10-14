@@ -261,7 +261,7 @@ async function addCustomer() {
 .status-tag.pending { background: #fff7e6; color: #ff7d00; }
 .status-tag.following { background: #e8f3ff; color: #165dff; }
 .status-tag.converted { background: #e8ffea; color: #00b42a; }
-.status-tag.lost { background: #f2f3f5; color: #86909c; }
+.status-tag.lost { background: #f2f3f5; color: var(--t3); }
 .follow-dot {
   width: 14rpx;
   height: 14rpx;
@@ -270,7 +270,7 @@ async function addCustomer() {
 }
 .customer-meta {
   font-size: 24rpx;
-  color: #86909c;
+  color: var(--t3);
   display: flex;
   align-items: center;
   gap: 8rpx;
@@ -282,7 +282,7 @@ async function addCustomer() {
   font-size: 20rpx;
   padding: 4rpx 12rpx;
   background: #f2f3f5;
-  color: #86909c;
+  color: var(--t3);
   border-radius: 6rpx;
 }
 .customer-arrow {
@@ -295,7 +295,7 @@ async function addCustomer() {
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
 .empty-text { font-size: 28rpx; color: #4e5969; margin-bottom: 8rpx; }
-.empty-hint { font-size: 24rpx; color: #86909c; }
+.empty-hint { font-size: 24rpx; color: var(--t3); }
 .fab {
   position: fixed;
   right: 32rpx;
@@ -336,7 +336,7 @@ async function addCustomer() {
   border-bottom: 1px solid #f2f3f5;
 }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.sheet-close { font-size: 32rpx; color: #86909c; }
+.sheet-close { font-size: 32rpx; color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .form-item { margin-bottom: 28rpx; }
 .form-label { font-size: 26rpx; color: #4e5969; margin-bottom: 12rpx; }

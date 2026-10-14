@@ -167,7 +167,7 @@ async function publish() {
 }
 .visibility-tag {
   font-size: 20rpx;
-  color: #86909c;
+  color: var(--t3);
   background: #f2f3f5;
   padding: 6rpx 16rpx;
   border-radius: 8rpx;
@@ -194,7 +194,7 @@ async function publish() {
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
 .empty-text { font-size: 28rpx; color: #4e5969; margin-bottom: 8rpx; }
-.empty-hint { font-size: 24rpx; color: #86909c; }
+.empty-hint { font-size: 24rpx; color: var(--t3); }
 .modal-mask {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -216,7 +216,7 @@ async function publish() {
   border-bottom: 1px solid #f2f3f5;
 }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1d2129; }
-.sheet-close { font-size: 32rpx; color: #86909c; }
+.sheet-close { font-size: 32rpx; color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .publish-input {
   width: 100%;
