@@ -39,7 +39,7 @@
         <view class="switch-title">将我的名片展示到集市</view>
         <view class="switch-desc">{{ switchDesc }}</view>
       </view>
-      <switch :checked="myOn" color="#07c160" @change="toggleMyCard" style="transform: scale(0.8);" />
+      <switch :checked="myOn" :color="themeColor" @change="toggleMyCard" style="transform: scale(0.8);" />
     </view>
 
     <!-- 公告 -->
@@ -295,6 +295,8 @@ import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme } from '../../utils/design.js';
 
 const themeStyle = useDesignTheme();
+// SIcon/switch 的 color 是 prop，不能消费 var()（构建期烘焙 hex）→ 传真实 hex
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const items = ref([]);
 const keyword = ref('');
@@ -538,17 +540,18 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .switch-desc { font-size: 22rpx; color: var(--ink-3); margin-top: 4rpx; }
 
 /* 公告 */
-.notice-bar { display: flex; align-items: center; gap: 10rpx; background: #e9f1fb; margin: 16rpx 24rpx; padding: 16rpx 20rpx; border-radius: 12rpx; }
+.notice-bar { display: flex; align-items: center; gap: 10rpx; background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06); margin: 16rpx 24rpx; padding: 16rpx 20rpx; border-radius: 12rpx; }
 .notice-icon { font-size: 24rpx; }
-.notice-text { font-size: 24rpx; color: #1d4e8f; flex: 1; }
+.notice-text { font-size: 24rpx; color: var(--design-primary, #165dff); flex: 1; }
 
 /* 筛选栏 */
 .filter-bar { padding: 16rpx 0 4rpx; background: #f5f6f7; }
 .filter-scroll { white-space: nowrap; }
 .filter-inner { display: inline-flex; gap: 16rpx; padding: 0 24rpx; }
 .filter-chip { padding: 10rpx 26rpx; border-radius: 999rpx; font-size: 24rpx; color: #5b5b5b; background: #fff; border: 1rpx solid #eeeeee; }
-.filter-chip.on { color: #fff; background: #07c160; border-color: #07c160; font-weight: 500; }
-.filter-chip.has-need.on { background: #1d4e8f; border-color: #1d4e8f; }
+/* 筛选激活态：跟随租户主题（收敛前绿 #07c160 / 藏蓝 #1d4e8f 双色相） */
+.filter-chip.on { color: #fff; background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
+.filter-chip.has-need.on { background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); }
 
 /* ===== 方案A 双列卡片 ===== */
 .dual-list { display: flex; gap: 16rpx; padding: 16rpx 24rpx; }
@@ -556,26 +559,31 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .m-card { background: #fff; border-radius: 16rpx; padding: 20rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); position: relative; }
 .m-badges { position: absolute; top: 16rpx; right: 16rpx; display: flex; gap: 8rpx; z-index: 2; }
 .badge-top { font-size: 18rpx; color: #fff; background: #ff4d4f; padding: 4rpx 10rpx; border-radius: 8rpx; font-weight: 500; }
-.badge-new { font-size: 18rpx; color: #fff; background: #1d4e8f; padding: 4rpx 10rpx; border-radius: 8rpx; font-weight: 500; }
+.badge-new { font-size: 18rpx; color: #fff; background: var(--design-primary, #165dff); padding: 4rpx 10rpx; border-radius: 8rpx; font-weight: 500; }
 .m-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 14rpx; }
 .m-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 600; }
-.avatar-individual { background: linear-gradient(135deg, #1d4e8f, #2e6bb8); }
-.avatar-enterprise { background: linear-gradient(135deg, #7c3aed, #9d5cff); }
-.avatar-employee { background: linear-gradient(135deg, #07c160, #2fd47d); }
+/* 身份头像渐变：个人/企业/员工三分收敛为同一主题渐变（类型区分靠 .type-* 徽章文字，
+   收敛前蓝 #1d4e8f / 紫 #7c3aed / 绿 #07c160 三色相是集市页最杂的一处） */
+.avatar-individual { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); }
+.avatar-enterprise { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); }
+.avatar-employee { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); }
 .m-type-tag { font-size: 18rpx; padding: 4rpx 12rpx; border-radius: 8rpx; }
-.type-individual { color: #1d4e8f; background: #e9f1fb; }
-.type-enterprise { color: #7c3aed; background: #f3eeff; }
-.type-employee { color: #07c160; background: #e6f9ef; }
+/* 身份类型徽章：三分统一主题 tint（类型靠文字表达，不再靠三色相） */
+.type-individual { color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); }
+.type-enterprise { color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); }
+.type-employee { color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); }
 .m-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .m-position { font-size: 22rpx; color: #5b5b5b; margin-top: 4rpx; }
 .m-company { font-size: 22rpx; color: var(--ink-3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-need { display: flex; gap: 8rpx; margin-top: 12rpx; flex-wrap: wrap; }
-.need-tag { font-size: 20rpx; color: #f59e0b; background: #fef3e2; padding: 4rpx 12rpx; border-radius: 8rpx; }
+/* 需求标签：跟随租户主题 tint（与 myCard .oc-need / cardDetail .skill-tag 同款，
+   收敛前琥珀 #f59e0b + #fef3e2） */
+.need-tag { font-size: 20rpx; color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); padding: 4rpx 12rpx; border-radius: 8rpx; }
 .m-tags { margin-top: 10rpx; }
 .m-industry { font-size: 20rpx; color: #5b5b5b; background: #f5f6f7; padding: 4rpx 12rpx; border-radius: 8rpx; }
 .m-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid #f0f0f0; }
 .m-views { font-size: 20rpx; color: var(--ink-3); }
-.m-exchange { font-size: 22rpx; color: #fff; background: #07c160; padding: 8rpx 22rpx; border-radius: 999rpx; font-weight: 500; }
+.m-exchange { font-size: 22rpx; color: #fff; background: var(--design-primary, #165dff); padding: 8rpx 22rpx; border-radius: 999rpx; font-weight: 500; }
 .m-exchange.done { background: #9a9a9a; }
 
 /* 折叠面板 */
@@ -586,7 +594,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .rank-row { display: flex; align-items: center; gap: 16rpx; padding: 14rpx 0; border-bottom: 1rpx solid #f0f0f0; }
 .rank-row:last-child { border-bottom: none; }
 .rank-no { width: 36rpx; height: 36rpx; border-radius: 8rpx; background: #f5f6f7; color: #9a9a9a; font-size: 22rpx; display: flex; align-items: center; justify-content: center; font-weight: 600; }
-.rank-no.top { background: #1d4e8f; color: #fff; }
+.rank-no.top { background: var(--design-primary, #165dff); color: #fff; }
 .rank-name { flex: 1; font-size: 26rpx; color: #1a1a1a; }
 .rank-num { font-size: 22rpx; color: var(--ink-3); }
 
@@ -600,13 +608,13 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .b-name { font-size: 26rpx; font-weight: 600; color: #1a1a1a; margin-top: 12rpx; }
 .b-position { font-size: 20rpx; color: #5b5b5b; margin-top: 4rpx; }
 .b-company { font-size: 20rpx; color: var(--ink-3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.b-exchange { margin-top: 14rpx; font-size: 22rpx; color: #fff; background: #07c160; text-align: center; padding: 10rpx 0; border-radius: 999rpx; }
+.b-exchange { margin-top: 14rpx; font-size: 22rpx; color: #fff; background: var(--design-primary, #165dff); text-align: center; padding: 10rpx 0; border-radius: 999rpx; }
 
 /* ===== 方案C 分类页签 ===== */
 .c-tabs { display: flex; background: #fff; padding: 16rpx 24rpx; gap: 24rpx; }
 .c-tab { font-size: 28rpx; color: #5b5b5b; padding: 8rpx 4rpx; position: relative; }
-.c-tab.on { color: #07c160; font-weight: 600; }
-.c-tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6rpx; border-radius: 3rpx; background: #07c160; }
+.c-tab.on { color: var(--design-primary, #165dff); font-weight: 600; }
+.c-tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6rpx; border-radius: 3rpx; background: var(--design-primary, #165dff); }
 .c-list { padding: 16rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .c-card { background: #fff; border-radius: 16rpx; padding: 24rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); position: relative; }
 .c-badges { position: absolute; top: 20rpx; right: 20rpx; display: flex; gap: 8rpx; }
@@ -617,10 +625,10 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .c-position { font-size: 24rpx; color: #5b5b5b; margin-top: 4rpx; }
 .c-company { font-size: 22rpx; color: var(--ink-3); margin-top: 4rpx; }
 .c-tags { display: flex; gap: 8rpx; margin-top: 14rpx; flex-wrap: wrap; }
-.tag-need { font-size: 20rpx; color: #f59e0b; background: #fef3e2; padding: 4rpx 12rpx; border-radius: 8rpx; }
+.tag-need { font-size: 20rpx; color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); padding: 4rpx 12rpx; border-radius: 8rpx; }
 .c-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid #f0f0f0; }
 .c-type { font-size: 22rpx; color: var(--ink-3); }
-.exchange-btn { font-size: 22rpx; color: #fff; background: #07c160; padding: 10rpx 26rpx; border-radius: 999rpx; font-weight: 500; }
+.exchange-btn { font-size: 22rpx; color: #fff; background: var(--design-primary, #165dff); padding: 10rpx 26rpx; border-radius: 999rpx; font-weight: 500; }
 .exchange-btn.done { background: #9a9a9a; }
 
 /* 空状态 */
@@ -633,7 +641,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .banner-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #eef1f5; color: #9a9a9a; font-size: 26rpx; border-radius: 16rpx; }
 .samecity-row { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 24rpx 4rpx; }
 .sc-pill { display: inline-flex; align-items: center; gap: 6rpx; font-size: 24rpx; color: var(--ink-3); background: #fff; border: 1px solid var(--border); border-radius: 999rpx; padding: 10rpx 22rpx; }
-.sc-pill.on { color: #fff; background: #165dff; border-color: #165dff; }
+.sc-pill.on { color: #fff; background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); }
 .sc-city { font-size: 22rpx; opacity: 0.8; }
 .sc-tip { font-size: 22rpx; color: var(--ink-3); }
 </style>
