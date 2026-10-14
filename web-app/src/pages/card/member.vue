@@ -126,8 +126,9 @@ import { useDesignTheme } from '../../utils/design.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
-// SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：优先文字辅色，回落品牌蓝
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-subtext']) || '#165dff');
+// SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
+// （勿改 --design-subtext：那是租户可配文字辅色，配了会与其他页图标色漂移）
+const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 const packages = ref([]);
 const isMember = ref(false);
 const memberLevel = ref('free');
@@ -141,8 +142,8 @@ const tenantLevels = ref([]);
 const signing = ref(false);
 const applyStatus = ref(null);
 const showTenantMember = computed(() => !!memberCard.value || tenantLevels.value.length > 0);
-// 品牌色 hero：租户配置 brandColor，无则回退 demo g3 青绿渐变（对象形式，与 cardDetail 一致）
-const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))') }));
+// 品牌色 hero：租户配置 brandColor，无则回退品牌蓝渐变（对象形式，与 cardDetail 一致）
+const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));
 const brandColor = ref('');
 const paying = ref(false);
 
@@ -150,7 +151,7 @@ const paying = ref(false);
 const cardBg = computed(() => {
   const c = memberCard.value;
   if (c && c.levelBgColor) return { background: c.levelBgColor };
-  return { background: 'linear-gradient(135deg, var(--design-primary, #2f6bff), var(--design-gradient, #5b8cff))' };
+  return { background: 'linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))' };
 });
 
 const applyTipText = computed(() => {
@@ -405,7 +406,7 @@ async function openMember(pkg) {
   padding-bottom: 160rpx;
 }
 
-/* ===== hero（demo g3 青绿渐变）===== */
+/* ===== hero（主题渐变；内联 heroStyle 恒定覆盖此兜底，保持一致防内联失效露 demo 色）===== */
 /* 沉浸式：状态栏占位按机型动态取（刘海机 ~44px / 非刘海 ~20px），
    右侧留出胶囊宽度（最小化 + 三个点），不再用写死的 88rpx。 */
 .hero.g3 {
@@ -414,7 +415,7 @@ async function openMember(pkg) {
   padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 8rpx) 40rpx 44rpx;
   padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
   color: var(--design-text, #fff);
-  background: linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6));
+  background: linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
   overflow: hidden;
 }
 .mb-back { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; margin-right: 8rpx; flex-shrink: 0; }
