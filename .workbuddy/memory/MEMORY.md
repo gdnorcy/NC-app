@@ -101,3 +101,4 @@
 - 🔴 微信登录真机根因：`code2Session` 曾 mock(`openid='mock_'+code`)→ 真机每次 code 不同=每次建新用户。已修 `server/src/app.js` 的 `createWxCode2Session()`，密钥 `server/.env`。
 - 未登录引导：toast + `loginEntryUrl(LOGIN_PATH, redirect)`(manual=1+回跳)。
 - 品牌色三层(方案A)：语义色不跟随 → 平台主题全站默认 → 品牌主色仅在名片业务域覆盖。名片 hero 回落：自身色>租户品牌色(仅详情头)>var(--design-primary/gradient)>内置默认。
+- 🔴 **宫格配色是例外（用户 2026-10-14 明确「可自己配，不跟随租户」）**：首页 native-grid 九项底色收敛为 4 业务域默认色（身份 #3b6ef7→#6a4bf5 / 关系 #0a9f8f→#10b981 / 经营 #e8590c→#f59e0b / 工具 #5c6470→#3d424b），**只落默认值**，items.bg 取色器保留、渲染逻辑零改。副本五处必须对齐：home.vue features / componentRegistry 默认项 / ComponentRender.nativeGridItems（后台预览兜底）/ PeColorPicker 渐变预设 / DB tenant_page_design（迁移 `scripts/migrate-grid-domain-colors.mjs`，只迁历史默认色板命中项）。回归 `gridDomainPalette.test.js`。白图标对比度底线 3:1（浅金 #ffb300 1.79:1、旧橙 #ff6b35 2.1:1 禁回潮）。
