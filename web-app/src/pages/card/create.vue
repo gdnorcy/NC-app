@@ -146,7 +146,7 @@
         <view v-if="!isEdit" class="bind-section">
           <view class="bind-header" @click="showBind = !showBind">
             <view class="bind-title">
-              <SIcon name="key" size="small" color="#07c160" />
+              <SIcon name="key" size="small" :color="themeColor" />
               入驻绑定（选填）
             </view>
             <view class="bind-arrow">{{ showBind ? '收起' : '展开' }}</view>
@@ -226,7 +226,7 @@
               <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
             </view>
             <view class="voice-locked" v-else @click="goMember">
-              <SIcon name="crown" size="small" color="#ffd21e" />
+              <SIcon name="crown" size="small" :color="themeColor" />
               <text>开通会员解锁语音简介</text>
             </view>
         <view class="form-item">
@@ -1026,10 +1026,6 @@ async function submit() {
   line-height: 96rpx;
 }
 
-.vip-tag {
-  display: inline-block; font-size: 20rpx; color: #fff; background: var(--gold);
-  border-radius: 6rpx; padding: 2rpx 10rpx; margin-left: 12rpx; vertical-align: middle;
-}
 .voice-row { margin-top: 16rpx; }
 .voice-upload {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1051,8 +1047,9 @@ async function submit() {
 .voice-audio { width: 200rpx; height: 64rpx; }
 .voice-locked {
   display: flex; align-items: center; gap: 12rpx;
-  background: #fffbe8; border: 2rpx dashed var(--gold); border-radius: 16rpx;
-  padding: 24rpx; color: #b8860b; font-size: 26rpx; margin-top: 16rpx;
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06);
+  border: 2rpx dashed var(--design-primary, #165dff); border-radius: 16rpx;
+  padding: 24rpx; color: var(--design-primary, #165dff); font-size: 26rpx; margin-top: 16rpx;
 }
 
 /* picker 容器与 .form-input 完全同高同内边距（此前 88rpx vs 96rpx，同一表单内出现两种高度） */
