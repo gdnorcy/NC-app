@@ -81,9 +81,9 @@
           <div v-else>
             <div
               v-for="it in currentItems"
-              :key="it.value"
+              :key="it.key || it.value"
               class="lk-item"
-              :class="{ active: pick === it.value, disabled: it.disabled }"
+              :class="{ active: pickKey === itemKey(it), disabled: it.disabled }"
               @click="pickItem(it)"
             >
               <span class="lk-dot"></span>
@@ -95,7 +95,7 @@
                 <div class="lk-item-value">{{ it.value }}</div>
                 <div v-if="it.desc" class="lk-item-desc">{{ it.desc }}</div>
               </div>
-              <span v-if="pick === it.value" class="lk-check">✓</span>
+              <span v-if="pickKey === itemKey(it)" class="lk-check">✓</span>
             </div>
             <div v-if="!currentItems.length" class="lk-empty">
               <template v-if="dynEmptyText">
@@ -142,6 +142,10 @@ const title = computed(() => {
 
 const activeCat = ref(CUSTOM_LINK.name);
 const pick = ref('');
+// 选中态唯一键：item.key || item.value。⚠️ 选中态不能用 value 单值匹配——
+// value 允许跨分类/同分类重复（「智能名片首页」与「首页」同路径、「会员中心」
+// 与「套餐与续费」同路径），单值匹配会「一齐选中」；v-for :key 同此。
+const pickKey = ref('');
 const customVal = ref('');
 
 // 商品模式
@@ -231,9 +235,11 @@ function togglePick(id) {
 }
 
 /** 灰显项（草稿/未发布）不可选，避免选了 C 端打不开 */
+function itemKey(it) { return it.key || it.value; }
 function pickItem(it) {
   if (it.disabled) return;
   pick.value = it.value;
+  pickKey.value = itemKey(it);
 }
 
 function goManage() {
@@ -342,20 +348,23 @@ function resolveLink(link) {
     const it = c.items.find((x) => x.value === link);
     if (it) { matched = { cat: c.name, it }; break; }
   }
-  if (matched) { activeCat.value = matched.cat; pick.value = matched.it.value; return null; }
+  if (matched) { activeCat.value = matched.cat; pick.value = matched.it.value; pickKey.value = itemKey(matched.it); return null; }
 
   for (const c of LINK_CATALOG) {
     if (!c.dynamic) continue;
     const hit = parseDynamicLink(c.dynamic, link);
     if (!hit) continue;
     // 先切分类并回填，异步数据到位后由 syncDynamicPick 校正选中态
+    // （动态项无 key，回落 value——动态 value 带唯一 id，不会重复）
     activeCat.value = c.name;
     pick.value = link;
+    pickKey.value = link;
     return c.dynamic;
   }
 
   activeCat.value = CUSTOM_LINK.name;
   pick.value = '';
+  pickKey.value = '';
   customVal.value = link;
   return null;
 }
@@ -368,6 +377,7 @@ function syncDynamicPick(key, link) {
   if (!cached.items.some((it) => it.value === link)) {
     activeCat.value = CUSTOM_LINK.name;
     pick.value = '';
+    pickKey.value = '';
     customVal.value = link;
     ElMessage.warning('原来选中的目标已不存在，已切换到自定义链接（值已保留）');
   }
