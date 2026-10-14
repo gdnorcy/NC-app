@@ -527,14 +527,27 @@ export function createCardRouter(db, wxService) {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
     const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName } = req.body;
-    // 模板校验（C 端可见 + 免费或已购）
+    // 模板校验（C 端可见 + 免费或已购）。
+    // 🔴 存量死引用自愈：模板库重建/重排后（如旧 id 4、11 已删），存量名片仍挂死 template_id，
+    // 编辑向导把该 id 原样发回 → 若一律 400「模板不存在或不可用」，名片将永远无法保存。
+    // 故：提交的 templateId 与库中存量一致（用户没动模板）但校验失败时，不阻断保存，
+    // 自动迁移到平台默认模板（is_default=1）；用户主动改成另一个不可用模板仍拒绝。
+    let effectiveTemplateId = templateId;
     if (templateId !== undefined && templateId) {
       const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
-      if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
+      if (!chkTpl.ok) {
+        if (String(templateId) === String(card.template_id)) {
+          const def = db.prepare("SELECT id FROM card_templates WHERE tenant_id = 0 AND enabled = 1 AND is_default = 1 ORDER BY id LIMIT 1").get();
+          if (!def) return res.status(400).json({ error: chkTpl.error });
+          effectiveTemplateId = def.id;
+        } else {
+          return res.status(400).json({ error: chkTpl.error });
+        }
+      }
     }
     db.prepare(
       `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? templateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, card.id);
+    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, card.id);
     const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
       FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });
