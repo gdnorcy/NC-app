@@ -1,14 +1,14 @@
 <template>
   <view class="dist-page" :style="[navVars, themeStyle, brandVars]">
 <!-- PageNav -->
-<PageNav title="分销中心" back overlay :sticky="false" bg="transparent" color="#ffffff" />
+<PageNav title="分销中心" back overlay :sticky="false" bg="transparent" :color="heroInk" />
     <!-- 顶部主视觉卡：用户信息 + 上级推广员 + 已邀请 + 收益总览 -->
     <view class="hero g3" :style="heroStyle">
       <view class="hero-top">
         <view class="hero-title">分销中心</view>
         <view class="hero-top-r">
-          <view class="rule-link" @click="showRules = true"><SIcon name="audit" size="small" color="#ffffff" /><text>规则</text></view>
-          <view class="id-switch" @click="switchIdentity"><SIcon name="exchange" size="small" color="#ffffff" /><text>{{ identityLabel }}</text></view>
+          <view class="rule-link" @click="showRules = true"><SIcon name="audit" size="small" :color="heroInk" /><text>规则</text></view>
+          <view class="id-switch" @click="switchIdentity"><SIcon name="exchange" size="small" :color="heroInk" /><text>{{ identityLabel }}</text></view>
         </view>
       </view>
       <!-- 用户信息 -->
@@ -302,6 +302,7 @@
 </template>
 
 <script setup>
+import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
@@ -321,7 +322,10 @@ const { brandVars, brandPrimary } = useBrandOverride();
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 // 品牌 5 色 hero：本人名片优先，无则回落主题渐变（曾 ref('') 恒空 → 品牌链路断）
 const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
-const heroStyle = computed(() => ({ background: heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));
+// hero 前景（SIcon / PageNav 需要真实 hex，吃不了 var()）：与 heroStyle 同判据产出，
+// 品牌亮黄时自动转深灰，避免白图标白字消失在黄底上
+const heroInk = computed(() => heroStyle.value.color);
+const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))'));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });

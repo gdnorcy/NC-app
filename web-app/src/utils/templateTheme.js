@@ -1,6 +1,6 @@
 // 名片模板主题工具：新 Schema（heroLayout + 视觉字段）+ 旧 Schema（primary/background/radius）兼容
 // 供名片详情页 hero、创建页实时预览卡、模板缩略图复用
-import { shadeHex } from './color.js';
+import { shadeHex, mixHex, isReadableOn, hexLuma, heroGradient } from './color.js';
 
 // 解析并归一化模板主题配置
 export function parseTheme(tc) {
@@ -46,6 +46,53 @@ export function parseTheme(tc) {
   t.magazineCard = !!t.magazineCard;
   t.bigPhoto = !!t.bigPhoto;
   return t;
+}
+
+/**
+ * 🔴 hero 前景色唯一裁决口（2026-10-15 新增）：背景「实际亮度」决定明暗方向，
+ * 再对配置色（模板 textColor / 租户品牌 text·subText·secondary）做对比度校验，
+ * 不合格就用自动推导值。全站 hero 前景（姓名/职务/图标/徽章/分隔线/描边/导航栏）
+ * 必须全部走这里，禁止各处自行取品牌色另判断据——否则「一部分按背景算、一部分照抄配置」
+ * 就会出现同屏「黑字 + 白图标 + 黄职务色」的混搭（真机截图报修）。
+ *
+ * 典型场景：租户配 primary=#FCB801 亮黄 + text=#FFFFFF 白（自相矛盾的五色）
+ *   → 背景判浅色 → text 白 对比度 1.75 不达标 → 自动回落 #1d2129 深灰；
+ *     subText 黄字压黄底（1.03）→ 自动回落半透明深灰；secondary 奶油点缀（1.3）→ 回落主色暗阶。
+ *
+ * @param {string} bgStart hero 背景起点色 @param {string} bgEnd hero 背景终点色
+ * @param {object} cfg { text, text2, accent } 期望前景（可为空，缺失即自动）
+ * @returns {{ light, bg, text, text2, accent, border }}
+ */
+export function heroForeground(bgStart, bgEnd, cfg = {}) {
+  const bg = mixHex(bgStart, bgEnd, 0.5) || shadeHex(bgStart, 0) || '#165dff';
+  const l = hexLuma(bg);
+  const light = l !== null && l > 180;
+  const c = cfg || {};
+  return {
+    light,
+    bg,
+    // 主文字/次级文字按可读线 3.0 裁决；点缀/描边是装饰，1.6 可见即可（否则误杀深色描边）
+    text: isReadableOn(c.text, bg, 3) ? c.text : (light ? '#1d2129' : '#ffffff'),
+    text2: isReadableOn(c.text2, bg, 2.4) ? c.text2 : (light ? 'rgba(29,33,41,.78)' : 'rgba(255,255,255,.85)'),
+    accent: isReadableOn(c.accent, bg, 1.6) ? c.accent : (light ? (shadeHex(bgStart, -0.45) || '#8a6f00') : (shadeHex(bgStart, 0.35) || '#ffffff')),
+    border: light ? 'rgba(0,0,0,.14)' : (isReadableOn(c.accent, bg, 1.6) ? c.accent : 'rgba(255,255,255,.38)'),
+  };
+}
+
+/**
+ * 品牌渐变 hero 的统一出口（会员中心 / 分销各页等「非模板 hero」）：
+ * 背景 = heroGradient（品牌渐变），前景 = heroForeground 裁决出的可读文字色。
+ * 🔴 这些页过去把 SIcon color 写死 #ffffff、CSS 写死 color:#fff——品牌色一旦是亮黄
+ *    （如 #FCB801）就变成白字压黄底，对比度只剩 1.67，不可读。统一走这里后深浅自动。
+ * @returns {{ background: string, color: string }} 直接喂给 hero 根 :style
+ */
+export function heroBrandStyle(b, fallbackBg = '') {
+  const primary = (b && b.primary) || '';
+  const fg = heroForeground(primary || '#165dff', (b && b.gradient) || primary || '#165dff', { text: '#ffffff' });
+  return {
+    background: heroGradient(primary, (b && b.gradient) || '', fallbackBg),
+    color: fg.text,
+  };
 }
 
 // hero 背景 + 描边（内联 style）

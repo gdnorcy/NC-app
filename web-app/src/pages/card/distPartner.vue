@@ -1,14 +1,14 @@
 <template>
   <view class="dist-page" :style="[navVars, themeStyle, brandVars]">
 <!-- PageNav -->
-<PageNav title="合伙人分红" back overlay :sticky="false" bg="transparent" color="#ffffff" />
+<PageNav title="合伙人分红" back overlay :sticky="false" bg="transparent" :color="heroInk" />
     <!-- 顶部 -->
     <view class="hero g3" :style="heroStyle">
       <view class="hero-top">
         <view class="hero-title">合伙人分红</view>
         <view class="hero-top-r">
-          <view class="rule-link" @click="showRules = true"><SIcon name="audit" size="small" color="#ffffff" /><text>规则</text></view>
-          <view class="id-switch" @click="switchIdentity"><SIcon name="exchange" size="small" color="#ffffff" /><text>{{ identityLabel }}</text></view>
+          <view class="rule-link" @click="showRules = true"><SIcon name="audit" size="small" :color="heroInk" /><text>规则</text></view>
+          <view class="id-switch" @click="switchIdentity"><SIcon name="exchange" size="small" :color="heroInk" /><text>{{ identityLabel }}</text></view>
         </view>
       </view>
       <view class="user-row">
@@ -130,6 +130,7 @@
 </template>
 
 <script setup>
+import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
@@ -147,7 +148,10 @@ const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
 // 品牌 5 色 hero：本人名片优先，无则回落主题渐变（曾 ref('') 恒空 → 品牌链路断）
 const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
-const heroStyle = computed(() => ({ background: heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))') }));
+// hero 前景（SIcon / PageNav 需要真实 hex，吃不了 var()）：与 heroStyle 同判据产出，
+// 品牌亮黄时自动转深灰，避免白图标白字消失在黄底上
+const heroInk = computed(() => heroStyle.value.color);
+const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))'));
 // 本人名片品牌 5 色（失败静默保持回落态）
 async function loadBrand() {
   const b = await fetchBrandPalette();

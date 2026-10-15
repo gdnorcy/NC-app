@@ -28,9 +28,13 @@ describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', ()
     // 品牌色盖过模板配色字段
     expect(SRC).toContain('bgStart: b.primary,');
     expect(SRC).toContain('bgEnd: grad,');
-    expect(SRC).toContain('textColor: b.text || (lightBg ? ');
-    expect(SRC).toContain('accent: b.secondary || t.accent,');
-    expect(SRC).toContain('borderColor: b.secondary || t.borderColor,');
+    // 🔴 前景色不再照抄品牌配置（五色可能自相矛盾：亮黄底+白字），统一走 heroForeground 裁决：
+    //    按 hero 背景亮度判明暗 + 对配置色做对比度校验，不合格自动回落可读前景。
+    expect(SRC).toContain('const fg = heroForeground(b.primary, grad, { text: b.text, text2: b.subText, accent: b.secondary });');
+    expect(SRC).toContain('textColor: fg.text,');
+    expect(SRC).toContain('text2Color: fg.text2,');
+    expect(SRC).toContain('accent: fg.accent,');
+    expect(SRC).toContain('borderColor: fg.border,');
   });
 
   test('heroStyle 改用 resolvedTheme（模板+品牌合并后渲染）', () => {
@@ -39,7 +43,8 @@ describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', ()
     expect(SRC).toContain('if (t) return { ...heroPadStyle.value, ...heroBgStyle(t), color: t.textColor };');
     // 无模板分支仍消费 brand 5 色
     expect(SRC).toContain('background: heroGradient(b.primary, b.gradient,');
-    expect(SRC).toContain('color: b.text || \'#fff\'');
+    // 无模板分支同样走 heroForeground（否则与有模板分支两个判据 → 同屏黑字+白图标混搭）
+    expect(SRC).toContain('color: brandFg.value.text');
   });
 
   test('nmStyle / subStyle / accentStyle / avatarStyle / barTopStyle / textureBg 均改用 resolvedTheme', () => {
@@ -52,7 +57,7 @@ describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', ()
   });
 
   test('heroColor 改用 resolvedTheme.textColor', () => {
-    expect(SRC).toContain("const heroColor = computed(() => (resolvedTheme.value?.textColor || brand.value.secondary || '#ffffff'));");
+    expect(SRC).toContain('const heroColor = computed(() => (resolvedTheme.value?.textColor || brandFg.value.text));');
   });
 
   test('badgeInlineAccent / badgeInlineStyle 改用 resolvedTheme', () => {
@@ -63,8 +68,8 @@ describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', ()
   test('isLightHero 按 resolvedTheme（品牌主色）亮度翻转，而非裸模板', () => {
     expect(SRC).toContain('const t = resolvedTheme.value;');
     expect(SRC).toContain('if (!t) {');
-    expect(SRC).toContain('const l = hexLuma(brand.value.primary);');
-    expect(SRC).toContain('return l !== null && l > 180;');
+    // 无模板分支复用 brandFg.light：此处曾重复实现一遍 hexLuma 判据 → 与 heroForeground 漂移
+    expect(SRC).toContain('return brandFg.value.light;');
   });
 
   test('布局开关仍来自裸 heroTheme（品牌只覆盖配色，不抢布局）', () => {

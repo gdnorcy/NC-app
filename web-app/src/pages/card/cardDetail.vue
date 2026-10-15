@@ -407,7 +407,7 @@ import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient, brandPalette, hexLuma } from '../../utils/color.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import {
-  parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
+  parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle, heroForeground,
   heroBarTopStyle, heroTextureBg, heroLayoutClass, heroRadius, heroFontClass,
 } from '../../utils/templateTheme.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
@@ -479,17 +479,28 @@ const resolvedTheme = computed(() => {
   if (!t || !b.primary) return t; // 无模板 / 未设品牌主色 → 原样（模板或兜底）
   const grad = /^#[0-9a-fA-F]{3,6}$/.test(String(b.gradient || '').trim())
     ? String(b.gradient).trim() : shadeHex(b.primary, -0.3);
-  const lightBg = (() => { const l = hexLuma(b.primary); return l !== null && l > 180; })();
+  // 🔴 前景（姓名/职务/图标/徽章/分隔线/描边）唯一来源 heroForeground：
+  //    按 hero 背景实际亮度判明暗 + 对配置色做对比度校验。此前「配置色照抄 + 别处另判背景」
+  //    导致同一张 hero 里黑字/白图标/黄职务色混搭（2026-10-15 真机报修）。
+  const fg = heroForeground(b.primary, grad, { text: b.text, text2: b.subText, accent: b.secondary });
   return {
     ...t,
     bgStart: b.primary,
     bgEnd: grad,
     bgType: grad.toLowerCase() !== b.primary.toLowerCase() ? 'gradient' : t.bgType,
-    textColor: b.text || (lightBg ? '#1d2129' : t.textColor),
-    text2Color: b.subText || (lightBg ? 'rgba(29,33,41,.7)' : t.text2Color),
-    accent: b.secondary || t.accent,
-    borderColor: b.secondary || t.borderColor,
+    textColor: fg.text,
+    text2Color: fg.text2,
+    accent: fg.accent,
+    borderColor: fg.border,
   };
+});
+// 无模板时 hero 由品牌 5 色接管，前景同样走 heroForeground（与有模板分支共享判据）。
+// heroStyle / nmStyle / subStyle / accentStyle 的兜底色统一取这里，避免各处各不相同。
+const brandFg = computed(() => {
+  const b = brand.value;
+  const grad = /^#[0-9a-fA-F]{3,6}$/.test(String(b.gradient || '').trim())
+    ? String(b.gradient).trim() : (shadeHex(b.primary, -0.3) || b.primary || '#165dff');
+  return heroForeground(b.primary || '#165dff', grad, { text: b.text, text2: b.subText, accent: b.secondary });
 });
 const heroStyle = computed(() => {
   const t = resolvedTheme.value;
@@ -499,20 +510,20 @@ const heroStyle = computed(() => {
   return {
     ...heroPadStyle.value,
     background: heroGradient(b.primary, b.gradient, 'linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b))'),
-    color: b.text || '#fff',
+    color: brandFg.value.text,
   };
 });
 const nmStyle = computed(() => {
   const t = resolvedTheme.value;
   if (t) return { ...heroTextStyle(t), fontWeight: t.heroLayout === 'mag' ? 500 : 700 };
-  return { color: brand.value.text || '#fff', fontWeight: 700 };
+  return { color: brandFg.value.text, fontWeight: 700 };
 });
-const subStyle = computed(() => (resolvedTheme.value ? heroText2Style(resolvedTheme.value) : { color: brand.value.subText || 'rgba(255,255,255,.88)' }));
-const accentStyle = computed(() => (resolvedTheme.value ? heroAccentStyle(resolvedTheme.value) : { color: brand.value.secondary || '#fff' }));
+const subStyle = computed(() => (resolvedTheme.value ? heroText2Style(resolvedTheme.value) : { color: brandFg.value.text2 }));
+const accentStyle = computed(() => (resolvedTheme.value ? heroAccentStyle(resolvedTheme.value) : { color: brandFg.value.accent }));
 const avatarStyle = computed(() => (resolvedTheme.value ? { borderRadius: heroRadius(resolvedTheme.value, true) } : {}));
 const barTopStyle = computed(() => (resolvedTheme.value ? heroBarTopStyle(resolvedTheme.value) : null));
 const textureBg = computed(() => (resolvedTheme.value ? heroTextureBg(resolvedTheme.value) : ''));
-const heroColor = computed(() => (resolvedTheme.value?.textColor || brand.value.secondary || '#ffffff'));
+const heroColor = computed(() => (resolvedTheme.value?.textColor || brandFg.value.text));
 // 衬线字体类名（font-family 必须走 CSS 类，不能内联，见 templateTheme.js 注释）
 const heroFontCls = computed(() => heroFontClass(card.value.templateTheme));
 // ===== 新皮肤（11套）附加字段 =====
@@ -552,9 +563,8 @@ const isLightHero = computed(() => {
   if (layoutFull.value) return false;
   const t = resolvedTheme.value;
   if (!t) {
-    // 无模板（品牌 5 色接管 hero）：按品牌主色亮度判据（>180 浅色 → 徽章/quickbar/导航改深色，避免白字消失）
-    const l = hexLuma(brand.value.primary);
-    return l !== null && l > 180;
+    // 无模板（品牌 5 色接管 hero）：与 heroForeground 同判据（此处过去是 hexLuma(primary)>180 的重复实现）
+    return brandFg.value.light;
   }
   const c = String(t.bgStart || '').replace('#', '');
   if (c.length !== 6) return false;

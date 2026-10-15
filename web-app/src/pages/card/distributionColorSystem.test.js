@@ -116,8 +116,10 @@ describe('distribution themeColor 与 canvas/radio 主题化', () => {
 });
 
 describe('distribution 品牌 5 色 hero 链路', () => {
-  test('heroStyle 品牌色优先（双参：主色+渐变）+ 品牌蓝兜底', () => {
-    expect(src).toContain("heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))')");
+  test('heroStyle 走 heroBrandStyle（品牌渐变 + 可读性前景）+ 品牌蓝兜底', () => {
+    expect(src).toContain("import { heroBrandStyle } from '../../utils/templateTheme.js';");
+    expect(src).toContain("const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))'));");
+    expect(src).toContain('const heroInk = computed(() => heroStyle.value.color);');
   });
   test('品牌 5 色从本人名片归一化取值（brandPalette，曾恒空导致 hero 永远走 fallback）', () => {
     expect(src).toContain('const cardsRes = await cardApi.getCardsSafe();');

@@ -2,12 +2,12 @@
   <view class="member-page" :style="[navVars, themeStyle, brandVars]">
     <view class="hero g3" :style="heroStyle">
       <view class="row1">
-        <view class="mb-back" @click="goBack"><SIcon name="back" size="large" color="#ffffff" /></view>
+        <view class="mb-back" @click="goBack"><SIcon name="back" size="large" :color="heroInk" /></view>
         <view class="hero-left">
           <view class="hero-title-row">
             <view class="hero-title">会员中心</view>
             <!-- FREE/等级徽章放标题旁（原先挂 row1 右端与胶囊同排，避让后仍显突兀） -->
-            <view class="hero-badge"><SIcon name="crown" size="small" color="#ffffff" /> {{ memberLevel === 'free' ? 'FREE' : memberLevel.toUpperCase() }}</view>
+            <view class="hero-badge"><SIcon name="crown" size="small" :color="heroInk" /> {{ memberLevel === 'free' ? 'FREE' : memberLevel.toUpperCase() }}</view>
           </view>
           <view class="hero-sub">当前：{{ currentLevelText }}{{ isMember ? ' · 有效期至 ' + memberExpire : ' · 尚未开通' }}</view>
         </view>
@@ -110,6 +110,7 @@
 </template>
 
 <script setup>
+import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
@@ -146,7 +147,10 @@ const applyStatus = ref(null);
 const showTenantMember = computed(() => !!memberCard.value || tenantLevels.value.length > 0);
 // 品牌 5 色 hero：本人名片优先，无则回退品牌蓝渐变（对象形式，与 cardDetail 一致）
 const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
-const heroStyle = computed(() => ({ background: heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));
+// hero 前景（SIcon / PageNav 需要真实 hex，吃不了 var()）：与 heroStyle 同判据产出，
+// 品牌亮黄时自动转深灰，避免白图标白字消失在黄底上
+const heroInk = computed(() => heroStyle.value.color);
+const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))'));
 const paying = ref(false);
 
 // 会员卡背景：等级背景色 → 默认蓝渐变

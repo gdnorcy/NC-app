@@ -128,8 +128,12 @@ describe('member 语义色与中性保留', () => {
     expect(src).toContain('rgba(255,255,255,0.18)');
     expect(src).toContain('rgba(255,255,255,0.12)');
   });
-  test('hero 白色图标保留（back / crown 在主题渐变上）', () => {
-    expect(src).toContain('color="#ffffff"');
+  test('hero 图标改吃 heroInk（back / crown）：品牌亮黄时自动转深灰，不留白图标', () => {
+    // 🔴 反例（真机截图报修）：SIcon color="#ffffff" 写死 → 白图标压在 #FCB801 亮黄 hero 上消失
+    expect(src).not.toContain('color="#ffffff"');
+    expect(src).toContain('const heroInk = computed(() => heroStyle.value.color);');
+    expect(src).toContain('<SIcon name="back" size="large" :color="heroInk" />');
+    expect(src).toContain('<SIcon name="crown" size="small" :color="heroInk" />');
   });
 });
 
@@ -137,7 +141,8 @@ describe('member 被展示对象不动', () => {
   test('租户会员卡 levelBgColor 优先（租户自配等级色=被展示对象）', () => {
     expect(src).toContain('if (c && c.levelBgColor) return { background: c.levelBgColor };');
   });
-  test('hero 品牌 5 色 heroGradient(brand.value.primary, brand.value.gradient) 优先链路保留', () => {
-    expect(src).toContain('heroGradient(brand.value.primary, brand.value.gradient');
+  test('hero 品牌 5 色链路保留（heroBrandStyle：渐变背景 + 可读性前景统一产出）', () => {
+    expect(src).toContain("import { heroBrandStyle } from '../../utils/templateTheme.js';");
+    expect(src).toContain("const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))'));");
   });
 });
