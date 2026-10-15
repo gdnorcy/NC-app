@@ -45,11 +45,14 @@ describe('fetchBrandPalette 会话级缓存', () => {
     expect(b.primary).toBe('#FCB801');
   });
 
-  test('失败/无名片返回 null 且不抛错；null 也进缓存（不重复打失败请求）', async () => {
-    cardApiMock.getCardsSafe.mockRejectedValue(new Error('network'));
+  test('失败/无名片返回 null 且不抛错；🔴 失败不进缓存（下次调用重试）', async () => {
+    // 🔴 反例（真机已踩 2026-10-15）：把 null 也缓存 → 冷启动 401 后登录成功也永远蓝
+    cardApiMock.getCardsSafe.mockRejectedValueOnce(new Error('未登录'));
     expect(await fetchBrandPalette()).toBe(null);
-    expect(await fetchBrandPalette()).toBe(null);
-    expect(cardApiMock.getCardsSafe).toHaveBeenCalledTimes(1);
+    cardApiMock.getCardsSafe.mockResolvedValue({ cards: [{ brandColors: { primary: '#FCB801' } }] });
+    const b = await fetchBrandPalette();
+    expect(b.primary).toBe('#FCB801');
+    expect(cardApiMock.getCardsSafe).toHaveBeenCalledTimes(2);
   });
 
   test('resetBrandCache 后重新拉取', async () => {
@@ -72,8 +75,28 @@ describe('品牌主色跟随锁（home 首页 / CardTabBar 底部导航）', () 
     const s = src('../components/CardTabBar.vue');
     // 🔴 反例（曾踩）：只覆盖页面 CSS var，CardTabBar 的激活色是 JS 层 designConfig.primaryColor
     //   → tab 图标/文字仍蓝。组件内须品牌优先喂真实 hex。
-    expect(s).toContain("import { fetchBrandPalette } from '../utils/brand.js';");
-    expect(s).toContain('const brandPrimary = ref(\'\');');
+    // 🔴 反例（真机已踩）：组件内一次性 fetchBrandPalette → 冷启动 401 后永远蓝；
+    //   必须走 useBrandOverride（共享状态 + 退避重试），登录后响应式自愈。
+    expect(s).toContain("import { useBrandOverride } from '../utils/brand.js';");
+    expect(s).toContain('const { brandPrimary } = useBrandOverride();');
     expect(s).toContain("const themeColor = computed(() => brandPrimary.value || designConfig.value?.style?.primaryColor || '#07c160');");
+  });
+
+  test('useBrandOverride 自愈三件套：失败不缓存 + 退避重试 + 登录后清缓存', () => {
+    const s = src('./brand.js');
+    // ① fetchBrandPalette 失败路径不得写 _brandCache
+    expect(s).toMatch(/catch \(e\) \{[\s\S]*?_brandPromise = null;[\s\S]*?_brandCacheKey = '';[\s\S]*?return null;/);
+    // ② 未拿到 palette 时按退避延迟重试（登录晚于首次挂载也能自愈）
+    expect(s).toContain('const RETRY_DELAYS = [2000, 5000, 10000];');
+    expect(s).toContain('_retryTimer = setTimeout(ensureBrandLoaded, delay);');
+    // ③ 共享模块级状态：所有页面/组件同一份 ref，任一处成功全站响应式更新
+    expect(s).toContain('const _brandRef = ref(null);');
+    expect(s).toContain('return { brand: _brandRef, brandVars, brandPrimary };');
+  });
+
+  test('login.vue：登录成功后 resetBrandCache（reLaunch 后各页带新 token 重拉品牌色）', () => {
+    const s = src('../pages/cardMain/login.vue');
+    expect(s).toContain("import { resetBrandCache } from '../../utils/brand.js';");
+    expect(s).toContain('    resetBrandCache();');
   });
 });

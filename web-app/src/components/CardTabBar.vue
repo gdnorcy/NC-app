@@ -125,9 +125,10 @@ const isColorBg = computed(() => {
 // 无法消费 CSS var()，故必须用「真实 hex」而非 var()。
 // 🔴 品牌主色优先（后台「品牌外观」设了 tab 激活态就跟随），否则用设计配置 primaryColor，
 // 二者即 applyDesignStyle 注入 --design-primary 的同源值；兜底 #07c160 微信原生绿。
-import { fetchBrandPalette } from '../utils/brand.js';
-const brandPrimary = ref('');
-fetchBrandPalette().then((b) => { if (b && b.primary) brandPrimary.value = b.primary; });
+// 用共享 useBrandOverride（模块级状态 + 失败退避重试）：冷启动未登录时先回落，
+// 登录后拿到品牌色全站（含各页 TabBar）响应式自动变——一次性 fetch 会永远蓝（真机已踩）。
+import { useBrandOverride } from '../utils/brand.js';
+const { brandPrimary } = useBrandOverride();
 const themeColor = computed(() => brandPrimary.value || designConfig.value?.style?.primaryColor || '#07c160');
 // 选中色：优先导航方案「已选中色」（真实 hex），空则回退系统主题主色（themeColor，跨端可靠跟随主题）。
 // ⚠️ 此前此处给 SIcon 传 var(--design-primary)：H5 生成非法 SVG 色 → 黑图标；

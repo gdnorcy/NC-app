@@ -30,6 +30,7 @@ import { buildGlobalHomeRedirect } from '../../utils/globalHome.js';
 import { isManualEntry as isManual, safeRedirect } from '../../utils/loginEntry.js';
 import { JUMP_DONE_KEY } from '../../utils/design.js';
 import { DEFAULT_TENANT_ID } from '../../config.js';
+import { resetBrandCache } from '../../utils/brand.js';
 
 // 冷启动首页联动：装修中心「首页」（is_home=1）配置谁就跳谁（商城/全景/名片/自定义页）
 // 仅小程序冷启动页检查；游客自动带默认租户读取公开配置；跳转目标页自身不重复检查，无死循环
@@ -116,6 +117,9 @@ async function doLogin(code) {
     const result = await cardApi.wxLogin(code, parentId, DEFAULT_TENANT_ID || '');
     uni.setStorageSync('card_token', result.token);
     uni.setStorageSync('card_user', result.user);
+    // 🔴 冷启动时 useBrandOverride 可能已在未登录态拉过品牌色（401 失败不缓存但重试链有限），
+    //    登录成功必须清缓存，reLaunch 后各页才会带着新 token 重新拉取品牌色
+    resetBrandCache();
     
     if (result.isNew || !result.hasCard) {
       // 新用户/没名片：必须先建名片，忽略 redirect（否则会跳回一个空壳页）
