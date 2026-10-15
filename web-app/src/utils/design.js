@@ -306,6 +306,24 @@ export function useDesignTheme() {
   return computed(() => designThemeState.vars);
 }
 
+/**
+ * 品牌主色覆盖（名片业务域）：后台「品牌外观」设了品牌主色时，页面根在 themeStyle
+ * 之后合并本覆盖 → 全页 var(--design-primary / -rgb / gradient) 消费点（标签按钮/
+ * 图标底/悬浮球/tab 激活态等）跟随品牌色；未设或 primary 非法返回 {}（不覆盖，
+ * 回落设计中心系统主题色）。SIcon 的 color prop 不吃 var()，页面须另用
+ * `brand.primary || themeStyle['--design-primary']` 喂真实 hex。
+ */
+export function brandThemeOverride(brand) {
+  const p = String((brand && brand.primary) || '').trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(p)) return {};
+  const g = String((brand && brand.gradient) || '').trim();
+  return {
+    '--design-primary': p,
+    '--design-primary-rgb': hexToRgbStr(p),
+    '--design-gradient': /^#[0-9a-fA-F]{6}$/.test(g) ? g : p,
+  };
+}
+
 /** H5 端把系统风格主题注入 CSS 变量（--design-primary 等），页面 var() 兜底；字段语义与菜鸟云 1:1 */
 export function applyDesignStyle(config, scope) {
   const style = config?.style;

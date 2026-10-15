@@ -1,7 +1,7 @@
 <template>
   <!-- ===== 名片详情页（全局对外展示落地页｜所有人可见） =====
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
-  <view class="profile-page" :style="[navVars, themeStyle]">
+  <view class="profile-page" :style="[navVars, themeStyle, brandVars]">
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" :color="navFgColor" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
@@ -414,7 +414,7 @@ import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTab
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { getNavMetrics, navVarsStyle } from '../../utils/navMetrics.js';
-import { useDesignTheme } from '../../utils/design.js';
+import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
 
 const navVars = navVarsStyle();
 // 小程序端不能运行时注入 <style>，系统主题色必须由根视图内联下发（否则回落 CSS 兜底色）
@@ -465,6 +465,9 @@ const heroPadStyle = computed(() => {
 });
 // 品牌 5 色（服务端 toCard 出口；无模板时各色=''，按 hero 语义回落）
 const brand = computed(() => brandPalette(card.value));
+// 🔴 品牌主色覆盖页面主题变量：hero 之下的页面主体（quickbar/评论区/表单按钮等
+// var(--design-primary) 消费点）也跟随品牌色；未设回落设计中心系统主题色
+const brandVars = computed(() => brandThemeOverride(brand.value));
 // 🔴 品牌色覆盖模板配色、保留模板布局（用户要求：后台「品牌外观」设了就要生效）。
 // 真实名片几乎都带 template_id → 模板主题恒非空，所以必须让品牌色盖过模板配色，
 // 而非「模板优先」把品牌色盖死。布局字段（heroLayout/bgType/texture/radius/guide 等）仍取自模板。

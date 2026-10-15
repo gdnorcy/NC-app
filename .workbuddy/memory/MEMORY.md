@@ -64,6 +64,8 @@
 - 设计中心有两个入口：**dev `http://localhost:5173/admin-assets/customer.html#/design/edit`**（vite，改完即生效）｜**生产 `http://localhost:3000/admin`**（`server/public/admin` 构建产物，**必须重建才含新代码**）。
 - 🔴 **用户说「修完还是老问题」先问/确认他访问的是哪个入口**——曾因跑 3000 旧产物（22:23 构建 < 23:20 修复）而误判「还有第二路径」，白查一轮。
 - ⚠️ `npm run build:admin` 的 `rm -rf` 会被 safe-delete 拦(>50 文件) → 先 `mv` 旧产物到 /tmp，再 `npm run build -w web-admin`；改完让用户**硬刷新**绕开旧 html 缓存。
+- 🔴 **H5 名片运行目录 `server/public/card/` 与构建产物 `web-app/dist/build/h5` 是两份、不会自动同步**（vite outDir 指向 dist/build/h5，非运行目录；admin 相反——outDir 直指 server/public/admin，构建即覆盖）。凡「前端改完 H5 没变」先 `ls -la` + `grep 标志串` 对比两者**构建时间**，旧包即根因 → `cp -rf web-app/dist/build/h5/assets/. server/public/card/assets/ && cp -f web-app/dist/build/h5/index.html server/public/card/index.html && cp -rf web-app/dist/build/h5/static/. server/public/card/static/`（服务端 `node --watch` 实时读静态文件，无需重启；cp 用 `src/. dest/` 语法避免目录嵌套）。【2026-10-15 四次品牌色报修根因：代码+数据都对，只因部署目录是旧包】
+- 🔴 **H5「不是最新包」第四因（浏览器端）**：除 MP 真机三因外，H5 还可能因 `server/public/card/` 是旧部署包而显示旧样式（与 `web-app/dist/build/h5` 不同步）。验证：`curl http://localhost:3000/card/assets/<chunk>.js` 应返回新构建 size，且部署目录 `grep` 命中修复标志串。
 - 启动服务：`npm run dev -w server`(3000) + `npm run dev -w web-admin`(5173)；admin 的 `/api` 已 vite proxy 到 3000。查库用 `node:sqlite` + `server/data/panorama.db`（⚠️ 不是 `server/src/data/` 旧库）。
 
 ## 背景色拆两字段（`2e44353`）

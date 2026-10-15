@@ -118,8 +118,8 @@ describe('cardDetail 被展示对象与语义色保留', () => {
     expect(src).toContain('color="#c9cdd4"');
   });
 
-  test('根视图绑 themeStyle（MP 端 CSS 变量注入前提）', () => {
-    expect(src).toMatch(/<view class="profile-page" :style="\[navVars, themeStyle\]"/);
+  test('根视图绑 [navVars, themeStyle, brandVars]（MP 端 CSS 变量注入 + 品牌覆盖前提）', () => {
+    expect(src).toMatch(/<view class="profile-page" :style="\[navVars, themeStyle, brandVars\]"/);
   });
 
   test('themeColor computed 存在且兜底 #165dff（SIcon prop 不吃 var()）', () => {

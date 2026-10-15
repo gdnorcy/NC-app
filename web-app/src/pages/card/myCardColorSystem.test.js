@@ -62,8 +62,17 @@ describe('我的名片 myCard 配色收敛（跟随租户主题）', () => {
     expect(src).toContain('#f53f3f');
   });
 
-  test('根视图绑定 themeStyle（MP 端注入主题 var 的前提）', () => {
-    expect(src).toMatch(/:style="themeStyle"/);
+  test('根视图绑定 [themeStyle, brandVars]（MP 端注入主题 var + 品牌覆盖的前提）', () => {
+    expect((src.match(/:style="\[themeStyle, brandVars\]"/g) || []).length).toBe(4);
+  });
+
+  test('品牌主色覆盖全页主题变量（设了品牌外观，标签/图标/悬浮球/tab 都跟随品牌色）', () => {
+    // 🔴 反例（曾踩）：只覆盖 hero/头像层，页面主体仍消费 --design-primary（设计中心系统色）
+    //   → 截图报「头像黄了但标签/图标/悬浮球/tab 还是蓝」。品牌变量覆盖必须合并进页面根 style。
+    expect(src).toContain("import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';");
+    expect(src).toContain('const brandVars = computed(() => brandThemeOverride(brand.value));');
+    // SIcon 不吃 var() → themeColor 品牌主色优先喂真实 hex
+    expect(src).toContain("const themeColor = computed(() => brand.value.primary || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');");
   });
 
   test('头像背景：品牌主色优先于模板配色（设了品牌外观就要生效）', () => {

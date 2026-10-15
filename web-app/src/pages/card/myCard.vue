@@ -2,7 +2,7 @@
   <!-- ===== 我的名片·商务增强版（本人视角管理控制台｜仅本人可见） =====
        对外展示统一走 /pages/card/cardDetail -->
   <!-- 加载骨架（小程序/H5 通用）：带返回按钮，弱网时不至于无路可退 -->
-  <view class="page-loading" v-if="loading" :style="themeStyle">
+  <view class="page-loading" v-if="loading" :style="[themeStyle, brandVars]">
     <PageNav title="我的名片" back></PageNav>
     <view class="sk-card">
       <view class="sk-avatar"></view>
@@ -15,19 +15,19 @@
     <view class="sk-block"><view class="sk-line w30"></view></view>
   </view>
   <!-- 加载失败（弱网/接口异常） -->
-  <view class="page-error" v-else-if="loadFailed" :style="themeStyle">
+  <view class="page-error" v-else-if="loadFailed" :style="[themeStyle, brandVars]">
     <view class="pe-icon"><SIcon name="logs" size="xlarge" color="#c9cdd4" /></view>
     <view class="pe-text">{{ loadFailedMsg }}</view>
     <view class="pe-btn" @click="reloadPage">重新加载</view>
   </view>
   <!-- 未登录引导 -->
-  <view class="page-error" v-else-if="notLogin" :style="themeStyle">
+  <view class="page-error" v-else-if="notLogin" :style="[themeStyle, brandVars]">
     <view class="pe-icon"><SIcon name="user" size="xlarge" color="#c9cdd4" /></view>
     <view class="pe-text">登录后即可查看和管理你的名片</view>
     <view class="pe-btn" @click="goApply">去登录</view>
   </view>
 
-  <view class="owner-page" v-else :style="themeStyle">
+  <view class="owner-page" v-else :style="[themeStyle, brandVars]">
     <!-- 导航栏 -->
     <PageNav title="我的名片" back>
       <template #right>
@@ -188,10 +188,8 @@ import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
-import { useDesignTheme } from '../../utils/design.js';
+import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
 const themeStyle = useDesignTheme();
-// 租户主题色：SIcon 的 color 是 prop、不能吃 var()，取真实 hex（与 create/displaySettings 同款）
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const card = ref({});
 const loading = ref(true);
@@ -199,9 +197,16 @@ const loadFailed = ref(false);
 const loadFailedMsg = ref('名片加载失败，请检查网络后重试');
 const notLogin = ref(false);
 // 品牌 5 色：头像背景用品牌色渐变（无配置回退默认蓝）
+const brand = computed(() => brandPalette(card.value));
+// 🔴 品牌主色覆盖页面主题变量（--design-primary/-rgb/gradient）：后台「品牌外观」设了，
+// 全页主题色消费点（标签按钮/图标底/悬浮球/tab 激活态等）跟随品牌色；未设回落设计中心系统主题色
+const brandVars = computed(() => brandThemeOverride(brand.value));
+// 租户主题色：SIcon 的 color 是 prop、不能吃 var()，取真实 hex（与 create/displaySettings 同款）
+// 🔴 品牌主色优先（SIcon 不吃 var()，必须喂真实 hex）
+const themeColor = computed(() => brand.value.primary || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 const avatarStyle = computed(() => {
   // 🔴 品牌色优先于模板配色（后台「品牌外观」设了就要生效），保留模板布局
-  const b = brandPalette(card.value);
+  const b = brand.value;
   const c = b.primary || card.value.templateTheme?.primary;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
   const dark = b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3);

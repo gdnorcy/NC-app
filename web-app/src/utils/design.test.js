@@ -1,6 +1,6 @@
 // 设计中心 C 端渲染工具测试：规范化/兜底图标/首页映射/缓存读取
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, resolveAssetUrl, applyDesignStyle, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY, fetchDesignConfig } from './design.js';
+import { normalizeDesignConfig, normalizeHeader, fallbackTabIcon, resolveHomePath, readDesignConfig, buildShareCard, shouldShowShareBack, resolveAssetUrl, applyDesignStyle, DEFAULT_DESIGN_TABS, HOME_PAGE_MAP, STORAGE_KEY, fetchDesignConfig, brandThemeOverride } from './design.js';
 
 const store = {};
 const uniMock = {
@@ -406,5 +406,27 @@ describe('🔴 装修配置缓存键必须按租户隔离（2026-10-08 审查）
     expect(keys.some((k) => k.startsWith(STORAGE_KEY) && k.includes('@t3'))).toBe(true);
     expect(keys.some((k) => k.includes('@t3:home'))).toBe(true);
     vi.doUnmock('./cardApi.js');
+  });
+});
+
+describe('brandThemeOverride（品牌主色覆盖页面主题变量）', () => {
+  it('合法 6 位 hex：覆盖 primary/-rgb/gradient', () => {
+    const v = brandThemeOverride({ primary: '#FCB801', gradient: '#FCC601' });
+    expect(v['--design-primary']).toBe('#FCB801');
+    expect(v['--design-primary-rgb']).toBe('252, 184, 1');
+    expect(v['--design-gradient']).toBe('#FCC601');
+  });
+
+  it('gradient 非法时回落 primary（渐变退化为纯色，不回落系统色）', () => {
+    const v = brandThemeOverride({ primary: '#FCB801', gradient: '' });
+    expect(v['--design-gradient']).toBe('#FCB801');
+  });
+
+  it('primary 为空/非法 → 返回 {}（不覆盖，回落设计中心系统主题色）', () => {
+    expect(brandThemeOverride(null)).toEqual({});
+    expect(brandThemeOverride({})).toEqual({});
+    expect(brandThemeOverride({ primary: '' })).toEqual({});
+    expect(brandThemeOverride({ primary: 'blue' })).toEqual({});
+    expect(brandThemeOverride({ primary: '#FCB80' })).toEqual({});
   });
 });
