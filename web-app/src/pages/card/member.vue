@@ -116,7 +116,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
-import { heroGradient } from '../../utils/color.js';
+import { heroGradient, brandPalette } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
@@ -142,9 +142,9 @@ const tenantLevels = ref([]);
 const signing = ref(false);
 const applyStatus = ref(null);
 const showTenantMember = computed(() => !!memberCard.value || tenantLevels.value.length > 0);
-// 品牌色 hero：租户配置 brandColor，无则回退品牌蓝渐变（对象形式，与 cardDetail 一致）
-const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));
-const brandColor = ref('');
+// 品牌 5 色 hero：本人名片优先，无则回退品牌蓝渐变（对象形式，与 cardDetail 一致）
+const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
+const heroStyle = computed(() => ({ background: heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));
 const paying = ref(false);
 
 // 会员卡背景：等级背景色 → 默认蓝渐变
@@ -195,7 +195,7 @@ onMounted(async () => {
       cardApi.memberLevels(),
     ]);
     const myCard0 = (cardsRes.cards || [])[0];
-    if (myCard0?.brandColor) brandColor.value = myCard0.brandColor;
+    if (myCard0) { const b = brandPalette(myCard0); if (b.primary) Object.assign(brand.value, b); }
     isMember.value = memberRes.isMember;
     memberLevel.value = memberRes.level;
     selectedLevel.value = memberRes.level || 'free';

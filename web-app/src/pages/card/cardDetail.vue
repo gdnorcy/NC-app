@@ -404,7 +404,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
-import { heroGradient } from '../../utils/color.js';
+import { heroGradient, brandPalette, hexLuma } from '../../utils/color.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import {
   parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,
@@ -463,23 +463,30 @@ const heroPadStyle = computed(() => {
     paddingRight: m.capsuleRightPad + 20 + 'px',
   };
 });
+// 品牌 5 色（服务端 toCard 出口；无模板时各色=''，按 hero 语义回落）
+const brand = computed(() => brandPalette(card.value));
 const heroStyle = computed(() => {
   const t = heroTheme.value;
   if (t) return { ...heroPadStyle.value, ...heroBgStyle(t), color: t.textColor };
-  // 分层回落：名片详情头部 = 租户品牌主色（后台「品牌外观」）> 装修中心主题色 > 内置默认
-  return { ...heroPadStyle.value, background: heroGradient(card.value.brandColor, 'linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b))'), color: '#fff' };
+  // 分层回落：名片详情头部 = 自选模板 > 租户品牌 5 色（后台「品牌外观」）> 装修中心主题色 > 内置默认
+  const b = brand.value;
+  return {
+    ...heroPadStyle.value,
+    background: heroGradient(b.primary, b.gradient, 'linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b))'),
+    color: b.text || '#fff',
+  };
 });
 const nmStyle = computed(() => {
   const t = heroTheme.value;
   if (t) return { ...heroTextStyle(t), fontWeight: t.heroLayout === 'mag' ? 500 : 700 };
-  return { color: '#fff', fontWeight: 700 };
+  return { color: brand.value.text || '#fff', fontWeight: 700 };
 });
-const subStyle = computed(() => (heroTheme.value ? heroText2Style(heroTheme.value) : { color: 'rgba(255,255,255,.88)' }));
-const accentStyle = computed(() => (heroTheme.value ? heroAccentStyle(heroTheme.value) : { color: '#fff' }));
+const subStyle = computed(() => (heroTheme.value ? heroText2Style(heroTheme.value) : { color: brand.value.subText || 'rgba(255,255,255,.88)' }));
+const accentStyle = computed(() => (heroTheme.value ? heroAccentStyle(heroTheme.value) : { color: brand.value.secondary || '#fff' }));
 const avatarStyle = computed(() => (heroTheme.value ? { borderRadius: heroRadius(heroTheme.value, true) } : {}));
 const barTopStyle = computed(() => (heroTheme.value ? heroBarTopStyle(heroTheme.value) : null));
 const textureBg = computed(() => (heroTheme.value ? heroTextureBg(heroTheme.value) : ''));
-const heroColor = computed(() => (heroTheme.value?.textColor || '#ffffff'));
+const heroColor = computed(() => (heroTheme.value?.textColor || brand.value.secondary || '#ffffff'));
 // 衬线字体类名（font-family 必须走 CSS 类，不能内联，见 templateTheme.js 注释）
 const heroFontCls = computed(() => heroFontClass(card.value.templateTheme));
 // ===== 新皮肤（11套）附加字段 =====
@@ -518,7 +525,11 @@ const isLightHero = computed(() => {
   // full 全屏大图式是「头像图 + 深色遮罩」，无论模板怎么配都按深色处理
   if (layoutFull.value) return false;
   const t = heroTheme.value;
-  if (!t) return false;
+  if (!t) {
+    // 无模板（品牌 5 色接管 hero）：按品牌主色亮度判据（>180 浅色 → 徽章/quickbar/导航改深色，避免白字消失）
+    const l = hexLuma(brand.value.primary);
+    return l !== null && l > 180;
+  }
   const c = String(t.bgStart || '').replace('#', '');
   if (c.length !== 6) return false;
   const n = parseInt(c, 16);

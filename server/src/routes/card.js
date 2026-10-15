@@ -253,7 +253,7 @@ export function createCardRouter(db, wxService) {
         SELECT COALESCE(
           (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
-          0)
+          cp.customer_id, 0)
       )
       LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.user_id = ?`).get(req.user.id);
@@ -374,7 +374,7 @@ export function createCardRouter(db, wxService) {
         SELECT COALESCE(
           (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
-          0)
+          cp.customer_id, 0)
       )
       LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.user_id = ? ORDER BY cp.created_at DESC`).all(req.user.id);
@@ -389,8 +389,8 @@ export function createCardRouter(db, wxService) {
       LEFT JOIN projects pj ON pj.id = (
         SELECT COALESCE(
           (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
-          (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1)
-        )
+          (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
+          cp.customer_id, 0)
       )
       LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.id = ?`).get(req.params.id);
@@ -1659,22 +1659,39 @@ export function createCardRouter(db, wxService) {
     };
   }
 
+  // 品牌 5 色键名映射：projects.config 键 → toCard 出口键（与设计中心 STYLE_SCHEMES 语义对应）
+  const BRAND_KEYS = [
+    { cfg: 'brand_color', out: 'primary' },
+    { cfg: 'brand_gradient', out: 'gradient' },
+    { cfg: 'brand_secondary', out: 'secondary' },
+    { cfg: 'brand_text', out: 'text' },
+    { cfg: 'brand_subtext', out: 'subText' },
+  ];
+
   function toCard(row) {
     if (!row) return null;
     let ownerMemberLevel = 'free';
     if (row.owner_member_level !== undefined) ownerMemberLevel = row.owner_member_level || 'free';
-    // 租户品牌色（projects.config.brand_color）
-    let brandColor = '';
+    // 租户品牌 5 色（projects.config：brand_color 主色 + gradient/secondary/text/subText），
+    // 语义与设计中心系统风格「主题/渐变/辅助/文字/文字辅」一一对应；未配置='' 由 C 端回落
+    let brandColors = { primary: '', gradient: '', secondary: '', text: '', subText: '' };
     if (row.tenant_config) {
-      try { const cfg = JSON.parse(row.tenant_config); brandColor = cfg.brand_color || ''; } catch {}
+      try {
+        const cfg = JSON.parse(row.tenant_config);
+        BRAND_KEYS.forEach((k) => { brandColors[k.out] = String(cfg[k.cfg] || '').trim(); });
+      } catch {}
     }
+    const brandColor = brandColors.primary;
     // 模板主题（card_templates.theme_config）
     let templateTheme = null;
     if (row.template_theme) {
       try { templateTheme = JSON.parse(row.template_theme); } catch {}
     }
-    // 模板已删/无效时回退平台默认模板（is_default=1），保证旧名片不落入空白默认
-    if (!templateTheme) {
+    // 模板已删/无效时回退平台默认模板（is_default=1），保证旧名片不落入空白默认。
+    // 🔴 但租户配了品牌主色时兜底模板必须让位：否则默认模板 theme 恒非空，
+    // C 端 heroStyle「模板优先」分支永远命中，品牌主色设了也不显示（死代码 bug）。
+    // 分层：自选模板 > 品牌主色 > 兜底模板 > 装修中心主题色。
+    if (!templateTheme && !brandColor) {
       try {
         const def = db.prepare('SELECT theme_config FROM card_templates WHERE tenant_id = 0 AND is_default = 1 AND enabled = 1 LIMIT 1').get();
         if (def && def.theme_config) templateTheme = JSON.parse(def.theme_config);
@@ -1696,6 +1713,7 @@ export function createCardRouter(db, wxService) {
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
       ownerMemberLevel,
       brandColor,
+      brandColors,
       createdAt: row.created_at, updatedAt: row.updated_at,
     };
   }

@@ -182,7 +182,7 @@ import { ref, computed, onMounted } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
-import { shadeHex } from '../../utils/color.js';
+import { shadeHex, brandPalette } from '../../utils/color.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
@@ -198,12 +198,13 @@ const loading = ref(true);
 const loadFailed = ref(false);
 const loadFailedMsg = ref('名片加载失败，请检查网络后重试');
 const notLogin = ref(false);
-// 品牌色：头像背景用品牌色渐变（无配置回退默认蓝）
+// 品牌 5 色：头像背景用品牌色渐变（无配置回退默认蓝）
 const avatarStyle = computed(() => {
-  // 模板主题 primary 优先，其次租户品牌色
-  const c = card.value.templateTheme?.primary || card.value.brandColor;
+  // 模板主题 primary 优先，其次租户品牌 5 色
+  const b = brandPalette(card.value);
+  const c = card.value.templateTheme?.primary || b.primary;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
-  const dark = shadeHex(c, -0.3);
+  const dark = b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3);
   return { brand: 1, background: `linear-gradient(135deg, ${dark}, ${c})` };
 });
 const currentUserId = ref(null);

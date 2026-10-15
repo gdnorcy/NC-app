@@ -137,7 +137,7 @@ describe('member 被展示对象不动', () => {
   test('租户会员卡 levelBgColor 优先（租户自配等级色=被展示对象）', () => {
     expect(src).toContain('if (c && c.levelBgColor) return { background: c.levelBgColor };');
   });
-  test('hero 品牌色 heroGradient(brandColor) 优先链路保留', () => {
-    expect(src).toContain('heroGradient(brandColor.value');
+  test('hero 品牌 5 色 heroGradient(brand.value.primary, brand.value.gradient) 优先链路保留', () => {
+    expect(src).toContain('heroGradient(brand.value.primary, brand.value.gradient');
   });
 });

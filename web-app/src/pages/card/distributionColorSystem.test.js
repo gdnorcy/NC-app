@@ -115,13 +115,13 @@ describe('distribution themeColor 与 canvas/radio 主题化', () => {
   });
 });
 
-describe('distribution brandColor hero 链路', () => {
-  test('heroStyle 品牌色优先 + 品牌蓝兜底', () => {
-    expect(src).toContain("heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))')");
+describe('distribution 品牌 5 色 hero 链路', () => {
+  test('heroStyle 品牌色优先（双参：主色+渐变）+ 品牌蓝兜底', () => {
+    expect(src).toContain("heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))')");
   });
-  test('brandColor 从本人名片取值（曾恒空导致 hero 永远走 fallback）', () => {
+  test('品牌 5 色从本人名片归一化取值（brandPalette，曾恒空导致 hero 永远走 fallback）', () => {
     expect(src).toContain('const cardsRes = await cardApi.getCardsSafe();');
-    expect(src).toContain('if (myCard0?.brandColor) brandColor.value = myCard0.brandColor;');
+    expect(src).toContain('Object.assign(brand.value, b);');
   });
 });
 

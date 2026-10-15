@@ -306,7 +306,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
-import { heroGradient, shadeHex } from '../../utils/color.js';
+import { heroGradient, brandPalette } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -317,8 +317,9 @@ const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
 // SIcon/radio/canvas 不能消费 var()（构建期烘焙 hex / canvas 只吃真实色），主题主色喂真实 hex：回落品牌蓝
 const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
-const brandColor = ref('');
-const heroStyle = computed(() => ({ background: heroGradient(brandColor.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));
+// 品牌 5 色 hero：本人名片优先，无则回落主题渐变（曾 ref('') 恒空 → 品牌链路断）
+const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
+const heroStyle = computed(() => ({ background: heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });
@@ -383,7 +384,7 @@ async function loadAll() {
   try {
     const cardsRes = await cardApi.getCardsSafe();
     const myCard0 = (cardsRes.cards || [])[0];
-    if (myCard0?.brandColor) brandColor.value = myCard0.brandColor;
+    if (myCard0) { const b = brandPalette(myCard0); if (b.primary) Object.assign(brand.value, b); }
   } catch (e) {}
   if (summary.value.isEnableDist) { loadLogs(); loadSubs(); }
 }

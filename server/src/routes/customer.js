@@ -670,7 +670,10 @@ router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
   if (updates.storage) config.storage = { ...(config.storage || {}), ...updates.storage };
   if (updates.sms) config.sms = { ...(config.sms || {}), ...updates.sms };
   if (updates.copyright !== undefined) config.copyright = updates.copyright;
-  if (updates.brand_color !== undefined) config.brand_color = String(updates.brand_color).trim();
+  // 品牌 5 色（与设计中心系统风格「主题/渐变/辅助/文字/文字辅」语义对应；'' = 清除回落）
+  for (const k of ['brand_color', 'brand_gradient', 'brand_secondary', 'brand_text', 'brand_subtext']) {
+    if (updates[k] !== undefined) config[k] = String(updates[k]).trim();
+  }
   if (updates.card_create_skin !== undefined) config.card_create_skin = ['live', 'step', 'split'].includes(updates.card_create_skin) ? updates.card_create_skin : 'live';
   if (updates.payment) config.payment = { ...(config.payment || {}), ...updates.payment };
   if (updates.upload_limits) config.upload_limits = { ...(config.upload_limits || {}), ...updates.upload_limits };

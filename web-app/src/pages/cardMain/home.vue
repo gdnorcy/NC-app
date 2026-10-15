@@ -149,7 +149,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { onShow, onLoad, onPageScroll, onShareAppMessage, onPullDownRefresh } from '@dcloudio/uni-app';
-import { shadeHex } from '../../utils/color.js';
+import { shadeHex, brandPalette } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
 import { searchBoxSizeStyle } from '../../utils/containerChildSize.js';
@@ -457,11 +457,12 @@ if (typeof onPullDownRefresh === 'function') {
   });
 }
 
-// 我的名片头像/卡片品牌色渐变（租户 brandColor，无则默认蓝）
+// 我的名片头像/卡片品牌 5 色渐变（租户 brandColors，无则默认蓝）
 const avatarStyle = computed(() => {
-  const c = myCard.value?.brandColor;
+  const b = brandPalette(myCard.value || {});
+  const c = b.primary;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
-  const dark = shadeHex(c, -0.3);
+  const dark = b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3);
   return { background: `linear-gradient(135deg, ${dark}, ${c})`, color: '#fff' };
 });
 
