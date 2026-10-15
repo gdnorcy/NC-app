@@ -65,4 +65,10 @@ describe('我的名片 myCard 配色收敛（跟随租户主题）', () => {
   test('根视图绑定 themeStyle（MP 端注入主题 var 的前提）', () => {
     expect(src).toMatch(/:style="themeStyle"/);
   });
+
+  test('头像背景：品牌主色优先于模板配色（设了品牌外观就要生效）', () => {
+    // 🔴 反例（曾踩）：const c = card.value.templateTheme?.primary || b.primary;
+    //   真实名片几乎都带 template_id → 模板 primary 恒非空 → 品牌色被盖死、视觉上「没生效」。
+    expect(src).toContain('const c = b.primary || card.value.templateTheme?.primary;');
+  });
 });

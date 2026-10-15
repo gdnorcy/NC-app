@@ -465,10 +465,31 @@ const heroPadStyle = computed(() => {
 });
 // 品牌 5 色（服务端 toCard 出口；无模板时各色=''，按 hero 语义回落）
 const brand = computed(() => brandPalette(card.value));
-const heroStyle = computed(() => {
+// 🔴 品牌色覆盖模板配色、保留模板布局（用户要求：后台「品牌外观」设了就要生效）。
+// 真实名片几乎都带 template_id → 模板主题恒非空，所以必须让品牌色盖过模板配色，
+// 而非「模板优先」把品牌色盖死。布局字段（heroLayout/bgType/texture/radius/guide 等）仍取自模板。
+const resolvedTheme = computed(() => {
   const t = heroTheme.value;
+  const b = brand.value;
+  if (!t || !b.primary) return t; // 无模板 / 未设品牌主色 → 原样（模板或兜底）
+  const grad = /^#[0-9a-fA-F]{3,6}$/.test(String(b.gradient || '').trim())
+    ? String(b.gradient).trim() : shadeHex(b.primary, -0.3);
+  const lightBg = (() => { const l = hexLuma(b.primary); return l !== null && l > 180; })();
+  return {
+    ...t,
+    bgStart: b.primary,
+    bgEnd: grad,
+    bgType: grad.toLowerCase() !== b.primary.toLowerCase() ? 'gradient' : t.bgType,
+    textColor: b.text || (lightBg ? '#1d2129' : t.textColor),
+    text2Color: b.subText || (lightBg ? 'rgba(29,33,41,.7)' : t.text2Color),
+    accent: b.secondary || t.accent,
+    borderColor: b.secondary || t.borderColor,
+  };
+});
+const heroStyle = computed(() => {
+  const t = resolvedTheme.value;
   if (t) return { ...heroPadStyle.value, ...heroBgStyle(t), color: t.textColor };
-  // 分层回落：名片详情头部 = 自选模板 > 租户品牌 5 色（后台「品牌外观」）> 装修中心主题色 > 内置默认
+  // 无模板（品牌 5 色接管 hero）：名片详情头部 = 租户品牌 5 色（后台「品牌外观」）> 装修中心主题色 > 内置默认
   const b = brand.value;
   return {
     ...heroPadStyle.value,
@@ -477,16 +498,16 @@ const heroStyle = computed(() => {
   };
 });
 const nmStyle = computed(() => {
-  const t = heroTheme.value;
+  const t = resolvedTheme.value;
   if (t) return { ...heroTextStyle(t), fontWeight: t.heroLayout === 'mag' ? 500 : 700 };
   return { color: brand.value.text || '#fff', fontWeight: 700 };
 });
-const subStyle = computed(() => (heroTheme.value ? heroText2Style(heroTheme.value) : { color: brand.value.subText || 'rgba(255,255,255,.88)' }));
-const accentStyle = computed(() => (heroTheme.value ? heroAccentStyle(heroTheme.value) : { color: brand.value.secondary || '#fff' }));
-const avatarStyle = computed(() => (heroTheme.value ? { borderRadius: heroRadius(heroTheme.value, true) } : {}));
-const barTopStyle = computed(() => (heroTheme.value ? heroBarTopStyle(heroTheme.value) : null));
-const textureBg = computed(() => (heroTheme.value ? heroTextureBg(heroTheme.value) : ''));
-const heroColor = computed(() => (heroTheme.value?.textColor || brand.value.secondary || '#ffffff'));
+const subStyle = computed(() => (resolvedTheme.value ? heroText2Style(resolvedTheme.value) : { color: brand.value.subText || 'rgba(255,255,255,.88)' }));
+const accentStyle = computed(() => (resolvedTheme.value ? heroAccentStyle(resolvedTheme.value) : { color: brand.value.secondary || '#fff' }));
+const avatarStyle = computed(() => (resolvedTheme.value ? { borderRadius: heroRadius(resolvedTheme.value, true) } : {}));
+const barTopStyle = computed(() => (resolvedTheme.value ? heroBarTopStyle(resolvedTheme.value) : null));
+const textureBg = computed(() => (resolvedTheme.value ? heroTextureBg(resolvedTheme.value) : ''));
+const heroColor = computed(() => (resolvedTheme.value?.textColor || brand.value.secondary || '#ffffff'));
 // 衬线字体类名（font-family 必须走 CSS 类，不能内联，见 templateTheme.js 注释）
 const heroFontCls = computed(() => heroFontClass(card.value.templateTheme));
 // ===== 新皮肤（11套）附加字段 =====
@@ -512,11 +533,11 @@ const badgeStyle = computed(() => ({
   borderColor: isLightHero.value ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)',
 }));
 // 姓名右侧小徽章（曜石黑金/黑金尊享）
-const badgeInlineAccent = computed(() => (heroTheme.value?.accent || '#c9a25e'));
+const badgeInlineAccent = computed(() => (resolvedTheme.value?.accent || '#c9a25e'));
 const badgeInlineStyle = computed(() => ({
   color: badgeInlineAccent.value,
   background: isLightHero.value ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.14)',
-  borderColor: heroTheme.value?.borderColor || badgeInlineAccent.value,
+  borderColor: resolvedTheme.value?.borderColor || badgeInlineAccent.value,
 }));
 // 浅色 hero（白/纸艺等）：quickbar / PageNav 标题改深色，避免白色文字不可见
 // 🔴 判据必须是**背景色**亮度，不是文字色！纸艺雅致是「深色文字 #2b2723 + 浅色纸底
@@ -524,7 +545,7 @@ const badgeInlineStyle = computed(() => ({
 const isLightHero = computed(() => {
   // full 全屏大图式是「头像图 + 深色遮罩」，无论模板怎么配都按深色处理
   if (layoutFull.value) return false;
-  const t = heroTheme.value;
+  const t = resolvedTheme.value;
   if (!t) {
     // 无模板（品牌 5 色接管 hero）：按品牌主色亮度判据（>180 浅色 → 徽章/quickbar/导航改深色，避免白字消失）
     const l = hexLuma(brand.value.primary);

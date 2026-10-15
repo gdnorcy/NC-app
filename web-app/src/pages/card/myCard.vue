@@ -200,9 +200,9 @@ const loadFailedMsg = ref('名片加载失败，请检查网络后重试');
 const notLogin = ref(false);
 // 品牌 5 色：头像背景用品牌色渐变（无配置回退默认蓝）
 const avatarStyle = computed(() => {
-  // 模板主题 primary 优先，其次租户品牌 5 色
+  // 🔴 品牌色优先于模板配色（后台「品牌外观」设了就要生效），保留模板布局
   const b = brandPalette(card.value);
-  const c = card.value.templateTheme?.primary || b.primary;
+  const c = b.primary || card.value.templateTheme?.primary;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
   const dark = b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3);
   return { brand: 1, background: `linear-gradient(135deg, ${dark}, ${c})` };
