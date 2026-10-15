@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page" :style="[navVars, themeStyle]">
+  <view class="dist-page" :style="[navVars, themeStyle, brandVars]">
 <!-- PageNav -->
 <PageNav title="合伙人分红" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 顶部 -->
@@ -135,7 +135,7 @@ import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { heroGradient } from '../../utils/color.js';
-import { fetchBrandPalette } from '../../utils/brand.js';
+import { fetchBrandPalette, useBrandOverride } from '../../utils/brand.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -144,6 +144,7 @@ import { useDesignTheme } from '../../utils/design.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 // 品牌 5 色 hero：本人名片优先，无则回落主题渐变（曾 ref('') 恒空 → 品牌链路断）
 const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
 const heroStyle = computed(() => ({ background: heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6))') }));

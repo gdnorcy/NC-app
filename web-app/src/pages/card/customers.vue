@@ -1,5 +1,5 @@
 <template>
-  <view class="customers-page" :style="themeStyle">
+  <view class="customers-page" :style="[themeStyle, brandVars]">
 <!-- PageNav -->
 <PageNav title="客户管理" back />
     <view class="header">
@@ -101,8 +101,10 @@ import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 
 const customers = ref([]);
 const keyword = ref('');

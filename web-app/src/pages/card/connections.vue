@@ -1,5 +1,5 @@
 <template>
-  <view class="conn-page" :style="themeStyle">
+  <view class="conn-page" :style="[themeStyle, brandVars]">
     <!-- 顶部导航栏 -->
 <!-- PageNav -->
     <PageNav title="我的人脉库" back></PageNav>
@@ -93,10 +93,12 @@ import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 // showModal confirmColor 是 prop 不吃 var()，主题主色喂真实 hex：回落品牌蓝
 const themeStyle = useDesignTheme();
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const { brandVars, brandPrimary } = useBrandOverride();
+const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const list = ref([]);
 const loading = ref(true);

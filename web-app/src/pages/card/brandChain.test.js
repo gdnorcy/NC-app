@@ -19,7 +19,7 @@ describe('分销/分享各页品牌 5 色接通（恒空 bug 不再复现）', (
   for (const p of PAGES) {
     const s = src(p);
     test(`${p}：导入 fetchBrandPalette`, () => {
-      expect(s).toContain("import { fetchBrandPalette } from '../../utils/brand.js';");
+      expect(s).toContain("import { fetchBrandPalette, useBrandOverride } from '../../utils/brand.js';");
     });
     test(`${p}：brand palette ref（5 色）`, () => {
       expect(s).toContain("const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });");

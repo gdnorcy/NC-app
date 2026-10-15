@@ -1,5 +1,5 @@
 <template>
-  <view class="dynamic-page" :style="themeStyle">
+  <view class="dynamic-page" :style="[themeStyle, brandVars]">
 <!-- PageNav -->
 <PageNav title="我的动态" back />
     <view class="header">
@@ -63,8 +63,10 @@ import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 
 const dynamics = ref([]);
 const user = ref({});

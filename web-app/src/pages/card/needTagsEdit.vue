@@ -2,7 +2,7 @@
   <!-- ===== 供需标签·轻量编辑页（我的名片「名片内容」入口分流）
        只编辑 needTags 一个字段，即时定位、即改即存，不再穿越三步向导。
        数据源与保存接口与 create.vue 完全一致（PUT /cards/:id 支持部分字段更新）。 ===== -->
-  <view class="nt-page" :style="themeStyle">
+  <view class="nt-page" :style="[themeStyle, brandVars]">
     <PageNav title="供需标签" back></PageNav>
 
     <!-- 加载失败 -->
@@ -40,7 +40,9 @@ import { ref, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 
 // 与 create.vue 保持同一份选项（改动时两处同步；量大后可抽 utils）
 const NEED_OPTIONS = ['找渠道', '求合作', '招合伙人', '寻资源', '招代理', '找投资'];

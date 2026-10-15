@@ -97,10 +97,10 @@ describe('distribution 平台 UI 强调位归主题', () => {
 
 describe('distribution themeColor 与 canvas/radio 主题化', () => {
   test('themeColor computed 存在且吃 --design-primary', () => {
-    expect(src).toMatch(/const themeColor = computed\(\(\) => \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
+    expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
   test('根视图绑 themeStyle（MP 注入前提）', () => {
-    expect(src).toMatch(/<view class="dist-page" :style="\[navVars, themeStyle\]">/);
+    expect(src).toMatch(/<view class="dist-page" :style="\[navVars, themeStyle, brandVars\]">/);
   });
   test('协议 radio 绑 themeColor（prop 不吃 var()）', () => {
     expect(src).toContain(':color="themeColor"');

@@ -1,5 +1,5 @@
 <template>
-  <view class="tpl-select-page" :style="themeStyle">
+  <view class="tpl-select-page" :style="[themeStyle, brandVars]">
     <!-- 导航 -->
 <!-- PageNav -->
     <PageNav title="更换模板" back></PageNav>
@@ -49,10 +49,12 @@ import { onLoad } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import TplThumb from '../../components/TplThumb.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 // 系统主题（设计中心「系统风格」）。小程序端不能运行时注入 <style>，故必须由根视图
 // 内联下发（CSS 变量向下继承）；之前本页完全没接 → 整页写死 #165dff，与主题脱节。
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 // 模板缩略图必须保持模板真实配色（那是用户要买的东西），但「应用此模板」按钮是平台 UI → 跟主题
 const themeGradient = computed(() => {
   const s = themeStyle.value || {};

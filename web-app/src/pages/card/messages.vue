@@ -1,5 +1,5 @@
 <template>
-  <view class="msg-page" :style="themeStyle">
+  <view class="msg-page" :style="[themeStyle, brandVars]">
     <!-- 导航栏 -->
 <!-- PageNav -->
     <PageNav title="消息中心" back></PageNav>
@@ -48,8 +48,10 @@ import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import Badge from '../../components/Badge.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 
 const messages = ref([]);
 const unreadTotal = ref(0);

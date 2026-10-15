@@ -419,8 +419,10 @@ import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
 const navVars = navVarsStyle();
 // 小程序端不能运行时注入 <style>，系统主题色必须由根视图内联下发（否则回落 CSS 兜底色）
 const themeStyle = useDesignTheme();
-// SIcon 不能消费 var()（构建期烘焙 hex），需真实 hex 的图标/开关用这个
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+// SIcon 不能消费 var()（构建期烘焙 hex），需真实 hex 的图标/开关用这个。
+// 品牌主色优先：与下面 brandVars 同源（取被查看名片自身的品牌色），保证同页不出现两种色。
+// ⚠️ brand 声明在下方，computed 惰性求值（首次渲染时已过 setup），不存在 TDZ。
+const themeColor = computed(() => (brand.value && brand.value.primary) || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const card = ref({});
 const layoutFull = computed(() => card.value?.templateLayout === 'full');

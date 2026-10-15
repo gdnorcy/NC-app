@@ -1,5 +1,5 @@
 <template>
-  <view class="member-page" :style="[navVars, themeStyle]">
+  <view class="member-page" :style="[navVars, themeStyle, brandVars]">
     <view class="hero g3" :style="heroStyle">
       <view class="row1">
         <view class="mb-back" @click="goBack"><SIcon name="back" size="large" color="#ffffff" /></view>
@@ -123,12 +123,14 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 // SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
 // （勿改 --design-subtext：那是租户可配文字辅色，配了会与其他页图标色漂移）
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 const packages = ref([]);
 const isMember = ref(false);
 const memberLevel = ref('free');

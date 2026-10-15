@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page">
+  <view class="dist-page" :style="brandVars">
 <!-- PageNav -->
 <PageNav title="全民股东" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 顶部 -->
@@ -93,7 +93,7 @@ import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { heroGradient } from '../../utils/color.js';
-import { fetchBrandPalette } from '../../utils/brand.js';
+import { fetchBrandPalette, useBrandOverride } from '../../utils/brand.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
@@ -106,6 +106,8 @@ async function loadBrand() {
   const b = await fetchBrandPalette();
   if (b && b.primary) Object.assign(brand.value, b);
 }
+// 🔴 品牌主色覆盖页面主题变量：页面主体（var(--design-primary) 消费点）跟随品牌色
+const { brandVars } = useBrandOverride();
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, shareTags: [], sharePending: 0, shareTotal: 0 });

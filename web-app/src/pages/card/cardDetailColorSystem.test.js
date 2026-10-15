@@ -122,7 +122,9 @@ describe('cardDetail 被展示对象与语义色保留', () => {
     expect(src).toMatch(/<view class="profile-page" :style="\[navVars, themeStyle, brandVars\]"/);
   });
 
-  test('themeColor computed 存在且兜底 #165dff（SIcon prop 不吃 var()）', () => {
-    expect(src).toMatch(/const themeColor = computed\(\(\) => \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
+  test('themeColor computed 存在、被查看名片品牌主色优先且兜底 #165dff（SIcon prop 不吃 var()）', () => {
+    // 🔴 必与 brandVars 同源：brandVars 取 brandPalette(card)（被查看名片自身品牌色），
+    //    themeColor 若另取设计中心色 → 同页出现「页面主体品牌色 + 图标系统色」两种色。
+    expect(src).toMatch(/const themeColor = computed\(\(\) => \(brand\.value && brand\.value\.primary\) \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
 });

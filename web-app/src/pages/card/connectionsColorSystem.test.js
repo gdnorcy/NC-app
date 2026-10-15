@@ -68,10 +68,10 @@ describe('connections 平台 UI 强调位归主题', () => {
     });
   }
   test('themeColor computed 存在且吃 --design-primary（showModal prop 需要真实 hex）', () => {
-    expect(src).toMatch(/const themeColor = computed\(\(\) => \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
+    expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
   test('根视图绑 themeStyle（MP 注入前提）', () => {
-    expect(src).toMatch(/<view class="conn-page" :style="themeStyle">/);
+    expect(src).toMatch(/<view class="conn-page" :style="\[themeStyle, brandVars\]">/);
   });
 });
 

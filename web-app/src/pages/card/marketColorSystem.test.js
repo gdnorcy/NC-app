@@ -119,9 +119,9 @@ describe('market 语义色与中性保留', () => {
     expect(src).toContain('#1a1a1a');
   });
   test('根视图绑 themeStyle（MP 注入前提）', () => {
-    expect(src).toMatch(/<view class="market-page" :style="themeStyle">/);
+    expect(src).toMatch(/<view class="market-page" :style="\[themeStyle, brandVars\]">/);
   });
   test('themeColor computed 存在且兜底 #165dff', () => {
-    expect(src).toMatch(/const themeColor = computed\(\(\) => \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
+    expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
 });

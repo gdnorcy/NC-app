@@ -4,7 +4,7 @@
        之前该入口与「名片资料」同跳 create 向导，描述是空头支票——本页让它变成真话。
        ⚠️ 2026-10-15：公开状态开关必须联动 card_market_items（见 onPublicChange/syncMarket），
        只写 is_public 会让「开关已开」与「myCard 集市状态未上架」永久不一致。 ===== -->
-  <view class="ds-page" :style="themeStyle">
+  <view class="ds-page" :style="[themeStyle, brandVars]">
     <PageNav title="展示设置" back></PageNav>
 
     <!-- 加载失败 -->
@@ -52,9 +52,11 @@ import { cardApi } from '../../utils/cardApi.js';
 import { syncMarketWithIsPublic } from '../../utils/marketLink.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 // 租户主题色（platform UI 跟随系统主题）；无主题时回落品牌蓝
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const cardId = ref(null);
 const isPublic = ref(true);

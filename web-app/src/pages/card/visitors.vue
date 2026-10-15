@@ -1,5 +1,5 @@
 <template>
-  <view class="radar-page" :style="themeStyle">
+  <view class="radar-page" :style="[themeStyle, brandVars]">
 <!-- PageNav -->
 <PageNav title="访客雷达" back />
     <!-- 付费解锁引导（免费/过期用户） -->
@@ -211,10 +211,12 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import Skeleton from '../../components/Skeleton.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 // SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
 const themeStyle = useDesignTheme();
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const { brandVars, brandPrimary } = useBrandOverride();
+const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const summary = ref({ today: 0, week: 0, total: 0, diff: 0, visitors: [] });
 const visitors = ref([]);

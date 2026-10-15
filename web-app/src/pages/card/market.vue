@@ -1,5 +1,5 @@
 <template>
-  <view class="market-page" :style="themeStyle">
+  <view class="market-page" :style="[themeStyle, brandVars]">
     <!-- 顶部导航栏：主题色 hero（与会员中心一致），PageNav 透明融入 -->
 <!-- PageNav -->
     <view class="market-hero">
@@ -293,10 +293,12 @@ import { saveCardTabState, loadCardTabState, restoreScrollTop, h5ScrollTop } fro
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 // SIcon/switch 的 color 是 prop，不能消费 var()（构建期烘焙 hex）→ 传真实 hex
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const items = ref([]);
 const keyword = ref('');

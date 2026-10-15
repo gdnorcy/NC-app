@@ -57,7 +57,7 @@ describe('messages 平台 UI 强调位归主题', () => {
     }
   });
   test('根视图绑 themeStyle（MP 注入前提）', () => {
-    expect(src).toMatch(/<view class="msg-page" :style="themeStyle">/);
+    expect(src).toMatch(/<view class="msg-page" :style="\[themeStyle, brandVars\]">/);
     expect(src).toContain('const themeStyle = useDesignTheme();');
   });
 });

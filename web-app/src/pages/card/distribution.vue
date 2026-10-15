@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page" :style="[navVars, themeStyle]">
+  <view class="dist-page" :style="[navVars, themeStyle, brandVars]">
 <!-- PageNav -->
 <PageNav title="分销中心" back overlay :sticky="false" bg="transparent" color="#ffffff" />
     <!-- 顶部主视觉卡：用户信息 + 上级推广员 + 已邀请 + 收益总览 -->
@@ -312,11 +312,13 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 // SIcon/radio/canvas 不能消费 var()（构建期烘焙 hex / canvas 只吃真实色），主题主色喂真实 hex：回落品牌蓝
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 // 品牌 5 色 hero：本人名片优先，无则回落主题渐变（曾 ref('') 恒空 → 品牌链路断）
 const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
 const heroStyle = computed(() => ({ background: heroGradient(brand.value.primary, brand.value.gradient, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))') }));

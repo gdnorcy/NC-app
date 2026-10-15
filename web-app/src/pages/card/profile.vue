@@ -1,5 +1,5 @@
 <template>
-  <view class="profile-page" :style="themeStyle">
+  <view class="profile-page" :style="[themeStyle, brandVars]">
 <!-- PageNav -->
 <PageNav title="个人中心" back />
     <!-- 用户信息头部 -->
@@ -131,8 +131,10 @@ import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 const user = ref({});
 const isMember = ref(false);
 const memberLevel = ref('free');

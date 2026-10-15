@@ -61,10 +61,10 @@ describe('create 平台位归主题', () => {
     expect(src).toContain('<SIcon name="crown" size="small" :color="themeColor" />');
   });
   test('themeColor computed 存在且吃 --design-primary', () => {
-    expect(src).toMatch(/const themeColor = computed\(\(\) => \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
+    expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
-  test('根视图绑 [skinVars, themeStyle, navVars]（皮肤 + 主题 + 导航三源）', () => {
-    expect(src).toMatch(/<view class="create-page" :class="'skin-' \+ skinType" :style="\[skinVars, themeStyle, navVars\]">/);
+  test('根视图绑 [skinVars, themeStyle, brandVars, navVars]（皮肤 + 主题 + 品牌覆盖 + 导航四源）', () => {
+    expect(src).toMatch(/<view class="create-page" :class="'skin-' \+ skinType" :style="\[skinVars, themeStyle, brandVars, navVars\]">/);
   });
   test('voice-locked 会员引导改主题系（原金色提示消费无定义 --gold）', () => {
     const block = ruleBlock(src, '.voice-locked');

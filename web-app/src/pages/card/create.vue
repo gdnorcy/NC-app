@@ -1,5 +1,5 @@
 <template>
-  <view class="create-page" :class="'skin-' + skinType" :style="[skinVars, themeStyle, navVars]">
+  <view class="create-page" :class="'skin-' + skinType" :style="[skinVars, themeStyle, brandVars, navVars]">
     <view v-if="applyMsg" class="apply-banner" :class="{ 'apply-banner--reject': applyStatus === 'rejected' }">
       {{ applyMsg }}
     </view>
@@ -267,6 +267,7 @@ import { track, trackPageView } from '../../utils/analytics.js';
 import { buildCreateSkinVars } from './utils/createSkin.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
+import { useBrandOverride } from '../../utils/brand.js';
 import { navVarsStyle } from '../../utils/navMetrics.js';
 
 const isEdit = ref(false);
@@ -283,9 +284,10 @@ const skinType = ref('live');
 // 系统主题（设计中心「系统风格」）：表单 UI 外壳跟随它；名片预览卡仍按所选模板真实配色渲染。
 // 小程序端不能运行时注入 <style>，故必须由根视图内联下发（CSS 变量向下继承）。
 const themeStyle = useDesignTheme();
+const { brandVars, brandPrimary } = useBrandOverride();
 const navVars = navVarsStyle();
 // SIcon / switch 不能消费 var()（构建期烘焙 hex），这类需真实 hex 的地方用这个
-const themeColor = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const form = reactive({
   id: null,
