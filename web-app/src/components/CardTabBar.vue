@@ -122,10 +122,13 @@ const isColorBg = computed(() => {
   return tabType.value === 'fan' || st;
 });
 // 主题主色（hex，跨端可靠）：SIcon 把 color 烘焙进 SVG data-URI（H5）/ 构建期 PNG（小程序），
-// 无法消费 CSS var()，故必须用「设计配置里的真实 hex」而非 var()。
-// designConfig.style.primaryColor 即 applyDesignStyle 注入 --design-primary 的来源，二者同源。
-// 兜底 #07c160：未拉到配置时的微信原生绿（不会变黑），拉到配置即精确跟随租户主题。
-const themeColor = computed(() => designConfig.value?.style?.primaryColor || '#07c160');
+// 无法消费 CSS var()，故必须用「真实 hex」而非 var()。
+// 🔴 品牌主色优先（后台「品牌外观」设了 tab 激活态就跟随），否则用设计配置 primaryColor，
+// 二者即 applyDesignStyle 注入 --design-primary 的同源值；兜底 #07c160 微信原生绿。
+import { fetchBrandPalette } from '../utils/brand.js';
+const brandPrimary = ref('');
+fetchBrandPalette().then((b) => { if (b && b.primary) brandPrimary.value = b.primary; });
+const themeColor = computed(() => brandPrimary.value || designConfig.value?.style?.primaryColor || '#07c160');
 // 选中色：优先导航方案「已选中色」（真实 hex），空则回退系统主题主色（themeColor，跨端可靠跟随主题）。
 // ⚠️ 此前此处给 SIcon 传 var(--design-primary)：H5 生成非法 SVG 色 → 黑图标；
 //    小程序端未命中烘焙 PNG → 回退黑色 PNG。统一改用 themeColor（hex）后两端均正常且跟随主题。

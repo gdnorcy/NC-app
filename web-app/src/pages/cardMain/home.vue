@@ -1,5 +1,5 @@
 <template>
-  <view class="home-page" :style="[pageBgStyle, themeStyle]">
+  <view class="home-page" :style="[pageBgStyle, themeStyle, brandVars]">
     <!-- 分享进入 + 主题设置「返回上页」开启：顶部返回首页按钮（小程序端） -->
     <view v-if="shareBack" class="share-back" :style="{ top: shareBackTop }" @click="goHomeByShare">
       <text class="share-back-arrow">‹</text>
@@ -154,7 +154,7 @@ import { cardApi } from '../../utils/cardApi.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
 import { searchBoxSizeStyle } from '../../utils/containerChildSize.js';
 import { qsParse } from '../../utils/qs.js';
-import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl, useDesignTheme } from '../../utils/design.js';
+import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl, useDesignTheme, brandThemeOverride } from '../../utils/design.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
@@ -465,6 +465,9 @@ const avatarStyle = computed(() => {
   const dark = b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3);
   return { background: `linear-gradient(135deg, ${dark}, ${c})`, color: '#fff' };
 });
+// 🔴 品牌主色覆盖页面主题变量：编辑按钮/访客数字/查看名片链接/各强调位（--design-primary
+// 消费点）跟随品牌色；未设回落设计中心系统主题色。SIcon 语义色/个体识别色不受影响。
+const brandVars = computed(() => brandThemeOverride(brandPalette(myCard.value || {})));
 
 // 设计中心首页跳转：配置了非默认首页时，首次进入自动跳转到对应页面
 const homeJumpChecked = ref(false);
