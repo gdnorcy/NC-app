@@ -249,12 +249,12 @@ export function createCardRouter(db, wxService) {
       ct.theme_config as template_theme
       FROM card_profile cp
       LEFT JOIN platform_user pu ON cp.user_id = pu.id
-      LEFT JOIN projects pj ON pj.id = (
-        SELECT COALESCE(
+      LEFT JOIN projects pj ON pj.id = COALESCE(
+        (SELECT id FROM projects WHERE id = COALESCE(
           (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
-          cp.customer_id, 0)
-      )
+          cp.customer_id, pu.customer_id, 0) LIMIT 1),
+        (SELECT id FROM projects ORDER BY id ASC LIMIT 1))
       LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.user_id = ?`).get(req.user.id);
     res.json({ user: toUser(req.user), card: card ? toCard(card) : null });
@@ -370,12 +370,12 @@ export function createCardRouter(db, wxService) {
     const cards = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config
       FROM card_profile cp
       LEFT JOIN platform_user pu ON cp.user_id = pu.id
-      LEFT JOIN projects pj ON pj.id = (
-        SELECT COALESCE(
+      LEFT JOIN projects pj ON pj.id = COALESCE(
+        (SELECT id FROM projects WHERE id = COALESCE(
           (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
-          cp.customer_id, 0)
-      )
+          cp.customer_id, pu.customer_id, 0) LIMIT 1),
+        (SELECT id FROM projects ORDER BY id ASC LIMIT 1))
       LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.user_id = ? ORDER BY cp.created_at DESC`).all(req.user.id);
     res.json({ cards: cards.map(toCard) });
@@ -386,12 +386,12 @@ export function createCardRouter(db, wxService) {
       ct.theme_config as template_theme, ct.layout as template_layout
       FROM card_profile cp
       LEFT JOIN platform_user pu ON cp.user_id = pu.id
-      LEFT JOIN projects pj ON pj.id = (
-        SELECT COALESCE(
+      LEFT JOIN projects pj ON pj.id = COALESCE(
+        (SELECT id FROM projects WHERE id = COALESCE(
           (SELECT customer_id FROM tenant_individuals WHERE user_id = cp.user_id LIMIT 1),
           (SELECT customer_id FROM tenant_enterprise_employees WHERE user_id = cp.user_id LIMIT 1),
-          cp.customer_id, 0)
-      )
+          cp.customer_id, pu.customer_id, 0) LIMIT 1),
+        (SELECT id FROM projects ORDER BY id ASC LIMIT 1))
       LEFT JOIN card_templates ct ON ct.id = cp.template_id
       WHERE cp.id = ?`).get(req.params.id);
     if (card) card.template_layout = card.template_layout || 'card';

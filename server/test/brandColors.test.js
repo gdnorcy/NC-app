@@ -15,7 +15,9 @@ import { issueToken } from '../src/auth.js';
  * 2. 名片出口 toCard 输出 brandColors 5 键；
  * 3. join 经 card_profile.customer_id 命中租户配置（无 tenant_individuals/employees 行也能拿到）；
  * 4. 模板兜底「让位」品牌色：配了品牌色时 templateTheme 不套默认模板（否则 brandColor 成死代码）；
- * 5. 无品牌色时兜底默认模板仍生效（旧名片不落空白默认）。
+ * 5. 无品牌色时兜底默认模板仍生效（旧名片不落空白默认）；
+ * 6. 🔴 join 落空兜底：完全无租户关联（card_profile.customer_id=null、无 tenant 行、platform_user.customer_id=null）
+ *    的孤儿名片，也必须回落默认项目品牌色，否则 brandColors 全空 → C 端回落设计中心主题色（真机报修「设了品牌仍跟随系统配色」）。
  */
 
 let app;
@@ -126,4 +128,43 @@ test('无品牌色时兜底默认模板仍生效（旧名片不落空白默认�
   const c = res.body.card;
   assert.equal(c.brandColor, '');
   assert.ok(c.templateTheme, '无品牌色时应回退平台默认模板（templateTheme 非空）');
+});
+
+// 建一个「完全无租户关联」的孤儿名片：card_profile.customer_id=NULL、无 tenant 行、
+// platform_user.customer_id=NULL —— 复刻真机「新名片/未绑定租户」场景，join 解析会落到 0。
+async function makeOrphanUser(openid) {
+  const token = await wxLogin(openid);
+  const u = db.prepare('SELECT id FROM platform_user WHERE openid = ?').get('mock_' + openid);
+  // 清掉可能自动建的租户行与名片，制造「零关联」场景
+  db.prepare('DELETE FROM tenant_individuals WHERE user_id = ?').run(u.id);
+  db.prepare('DELETE FROM tenant_enterprise_employees WHERE user_id = ?').run(u.id);
+  db.prepare('DELETE FROM card_profile WHERE user_id = ?').run(u.id);
+  db.prepare('UPDATE platform_user SET customer_id = NULL WHERE id = ?').run(u.id);
+  db.prepare("INSERT INTO card_profile (user_id, name, status) VALUES (?, ?, 'active')").run(u.id, '孤儿名片用户');
+  return { token, uid: u.id };
+}
+
+test('孤儿名片（零租户关联）仍回落默认项目品牌色：/user/profile', async () => {
+  setProjectConfig({ brand_color: '#FA8C16', brand_gradient: '#FFD8A8', brand_secondary: '#FFE8D6', brand_text: '#3a2a1a', brand_subtext: '#7a5c3a' });
+  const { token, uid } = await makeOrphanUser('orphan_profile');
+  const res = await request(app).get('/api/card/user/profile').set(bearer(token));
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  const c = res.body.card;
+  assert.ok(c, '应有名片');
+  assert.equal(c.brandColor, '#FA8C16', '孤儿名片 brandColor 应回落默认项目品牌色（join 落空兜底）');
+  assert.equal(c.brandColors.primary, '#FA8C16');
+  assert.equal(c.brandColors.gradient, '#FFD8A8');
+  assert.equal(c.brandColors.text, '#3a2a1a');
+});
+
+test('孤儿名片（零租户关联）仍回落默认项目品牌色：/cards/:id（名片详情）', async () => {
+  setProjectConfig({ brand_color: '#FA8C16', brand_gradient: '#FFD8A8', brand_secondary: '#FFE8D6', brand_text: '#3a2a1a', brand_subtext: '#7a5c3a' });
+  const { uid } = await makeOrphanUser('orphan_detail');
+  const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ?').get(uid);
+  const res = await request(app).get('/api/card/cards/' + card.id);
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.card.brandColor, '#FA8C16', '名片详情 brandColor 应回落默认项目品牌色（join 落空兜底）');
+  assert.equal(res.body.card.brandColors.primary, '#FA8C16');
+  assert.equal(res.body.card.brandColors.gradient, '#FFD8A8');
+  assert.equal(res.body.card.brandColors.subText, '#7a5c3a');
 });
