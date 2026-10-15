@@ -67,16 +67,12 @@ describe('distribution demo 遗留色清零', () => {
 });
 
 describe('distribution 平台 UI 强调位归主题', () => {
+  // 实底品牌色（背景=品牌色，文字另按 heroForeground 裁决）→ 直接用 --design-primary
   const themed = [
     '.apply-btn',           // 申请成为分销商 CTA
-    '.withdraw-btn',        // 提现按钮（白底主题字）
-    '.invite-btn.solid',    // 生成海报实底按钮（白底主题字）
-    '.dqr-cell.on',         // 装饰二维码格子
-    '.level-item.cur',      // 当前分销等级
-    '.level-cur',           // 当前等级徽章
-    '.sub-tab.on',          // 直推/间推 Tab 激活
-    '.tab.on',              // 佣金明细 Tab 激活
-    '.poster-tpl-item.on',  // 海报模板选中
+    '.invite-btn.solid',    // 生成海报实底按钮（内联 heroStyle 提供渐变+可读文字）
+    '.level-item.cur',      // 当前分销等级（描边）
+    '.poster-tpl-item.on',  // 海报模板选中（描边）
   ];
   for (const sel of themed) {
     test(`${sel} 用 --design-primary`, () => {
@@ -85,13 +81,45 @@ describe('distribution 平台 UI 强调位归主题', () => {
       expect(block).toContain('var(--design-primary)');
     });
   }
-  test('应用图标底色四分（橙/紫/绿/青）统一主题 tint', () => {
-    for (const sel of ['.ic-orange', '.ic-purple', '.ic-green', '.ic-cyan']) {
-      expect(ruleBlock(src, sel)).toContain('var(--design-secondary)');
+  // 🔴 白底/浅底上的品牌文字 → 必须用 --brand-ink（亮黄主色在白底仅 1.75:1，写死主色等于隐形）
+  const onLight = [
+    '.withdraw-btn',        // 白药丸提现按钮
+    '.level-cur',           // 当前等级徽章
+    '.sub-tab.on',          // 直推/间推 Tab 激活
+    '.tab.on',              // 佣金明细 Tab 激活
+  ];
+  for (const sel of onLight) {
+    test(`${sel} 品牌文字走 --brand-ink（白底可读）`, () => {
+      const block = ruleBlock(src, sel);
+      expect(block, `${sel} 规则块应存在`).not.toBe('');
+      expect(block).toContain('var(--brand-ink');
+      expect(block).not.toMatch(/color:\s*var\(--design-primary\)/);
+    });
+  }
+  test('浅底激活背景用 --brand-tint（不再借系统主题 --design-secondary）', () => {
+    for (const sel of ['.level-item.cur', '.level-cur', '.sub-tab.on', '.tab.on']) {
+      expect(ruleBlock(src, sel)).toContain('var(--brand-tint');
     }
   });
-  test('应用图标本身保持中性 #4e5969（类型区分靠文案）', () => {
-    expect(ruleBlock(src, '.app-ic :deep(.s-icon)')).toContain('#4e5969');
+  test('应用图标底色四分（全仓 4 业务域色板，四色互不相同）', () => {
+    const DOMAIN = [
+      'linear-gradient(135deg,#e8590c,#f59e0b)', // 经营域
+      'linear-gradient(135deg,#3b6ef7,#6a4bf5)', // 身份域
+      'linear-gradient(135deg,#0a9f8f,#10b981)', // 关系域
+      'linear-gradient(135deg,#5c6470,#3d424b)', // 工具域
+    ];
+    const sels = ['.ic-orange', '.ic-purple', '.ic-green', '.ic-cyan'];
+    const got = sels.map((sel) => ruleBlock(src, sel));
+    got.forEach((block, i) => {
+      expect(block, `${sels[i]} 规则块应存在`).not.toBe('');
+      expect(block).toContain(DOMAIN[i]);
+    });
+    // 🔴 旧病根：四个类全写 var(--design-secondary) → 四张卡一模一样（默认还是粉底）
+    expect(new Set(got).size, '四类底色必须互不相同').toBe(4);
+    for (const block of got) expect(block).not.toContain('var(--design-secondary)');
+  });
+  test('应用图标改白（坐在深色域色渐变上，中性灰图标会糊）', () => {
+    expect(ruleBlock(src, '.app-ic :deep(.s-icon)')).toContain('#ffffff');
   });
 });
 
@@ -100,7 +128,7 @@ describe('distribution themeColor 与 canvas/radio 主题化', () => {
     expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
   test('根视图绑 themeStyle（MP 注入前提）', () => {
-    expect(src).toMatch(/<view class="dist-page" :style="\[navVars, themeStyle, brandVars\]">/);
+    expect(src).toMatch(/<view class="dist-page" :style="\[navVars, themeStyle, brandVars, brandInkVars, tabBarPad\]">/);
   });
   test('协议 radio 绑 themeColor（prop 不吃 var()）', () => {
     expect(src).toContain(':color="themeColor"');
@@ -118,7 +146,7 @@ describe('distribution themeColor 与 canvas/radio 主题化', () => {
 describe('distribution 品牌 5 色 hero 链路', () => {
   test('heroStyle 走 heroBrandStyle（品牌渐变 + 可读性前景）+ 品牌蓝兜底', () => {
     expect(src).toContain("import { heroBrandStyle } from '../../utils/templateTheme.js';");
-    expect(src).toContain("const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))'));");
+    expect(src).toContain("const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))', themeColor.value));");
     expect(src).toContain('const heroInk = computed(() => heroStyle.value.color);');
   });
   test('品牌 5 色从本人名片归一化取值（brandPalette，曾恒空导致 hero 永远走 fallback）', () => {
@@ -153,8 +181,36 @@ describe('distribution 语义色与中性保留', () => {
       expect(src, `中性色 ${c} 应保留`).toContain(c);
     }
   });
-  test('hero/invite-box 白装饰保留（rgba(255,255,255 在深渐变上）', () => {
-    expect(src).toContain('rgba(255,255,255,0.25)');
-    expect(src).toContain('rgba(255,255,255,0.2)');
+  test('hero 白装饰保留（rgba(255,255,255 在深渐变上）', () => {
+    expect(ruleBlock(src, '.user-avatar')).toContain('rgba(255,255,255,0.25)');
+    expect(ruleBlock(src, '.user-level')).toContain('rgba(255,255,255,0.22)');
+  });
+});
+
+describe('distribution 邀请码块白卡化 + 头像首字母对比度（2026-10-16 报修）', () => {
+  test('邀请码块不再是第二块品牌渐变（去掉 g3 / 内联 heroStyle / 装饰假二维码）', () => {
+    const box = ruleBlock(src, '.invite-box');
+    expect(box).toContain('background: #fff;');
+    expect(src).not.toContain('class="invite-box g3"');
+    expect(src).not.toContain('deco-qr');
+    expect(src).not.toContain('qrCellCls');
+    expect(src).not.toContain('QR_PATTERN');
+    expect(src).not.toContain('dqr-cell');
+    // 品牌色收敛到唯一主按钮上（内联 heroStyle 提供渐变 + 可读文字）
+    expect(src).toContain('class="mini-btn invite-btn solid" :style="heroStyle"');
+  });
+  test('次按钮用 --brand-ink（白底可读主色），不许直接写 var(--design-primary)', () => {
+    const ghost = ruleBlock(src, '.invite-btn.ghost');
+    expect(ghost).toContain('var(--brand-ink');
+    expect(ghost).not.toContain('var(--design-primary)');
+  });
+  test('占位头像首字母：白底 + --brand-ink，不许在品牌渐变上写死白字', () => {
+    const ph = ruleBlock(src, '.user-avatar.placeholder');
+    expect(ph).toContain('color: var(--brand-ink');
+    expect(ph).not.toContain('color: #fff;');
+  });
+  test('页面根下发 brandInkVars（--brand-ink / --brand-tint 的来源）', () => {
+    expect(src).toContain('const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();');
+    expect(src).toContain(':style="[navVars, themeStyle, brandVars, brandInkVars, tabBarPad]"');
   });
 });

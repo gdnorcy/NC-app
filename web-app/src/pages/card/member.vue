@@ -1,5 +1,5 @@
 <template>
-  <view class="member-page" :style="[navVars, themeStyle, brandVars]">
+  <view class="member-page" :style="[navVars, themeStyle, brandVars, tabBarPad]">
     <view class="hero g3" :style="heroStyle">
       <view class="row1">
         <view class="mb-back" @click="goBack"><SIcon name="back" size="large" :color="heroInk" /></view>
@@ -110,6 +110,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
@@ -128,6 +129,8 @@ import { useBrandOverride } from '../../utils/brand.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
 const { brandVars, brandPrimary } = useBrandOverride();
 // SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
 // （勿改 --design-subtext：那是租户可配文字辅色，配了会与其他页图标色漂移）
@@ -409,6 +412,9 @@ async function openMember(pkg) {
 .member-page {
   min-height: 100vh;
   background: var(--bg-page);
+  /* 兜底值：真实占位由根视图内联的 tabBarPad 给出（CardTabBar 实测高度 + 24rpx 呼吸间隙）。
+     🔴 旧版只靠这个写死的 160rpx，而导航条在「凸起/嵌入 + 安全区」下可达 190rpx+
+        → 最后一个套餐卡被导航条压住（真机报修）。勿删内联 tabBarPad。 */
   padding-bottom: 160rpx;
 }
 

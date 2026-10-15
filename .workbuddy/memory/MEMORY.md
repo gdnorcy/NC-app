@@ -103,6 +103,13 @@
 - 🔴 微信登录真机根因：`code2Session` 曾 mock(`openid='mock_'+code`)→ 真机每次 code 不同=每次建新用户。已修 `server/src/app.js` 的 `createWxCode2Session()`，密钥 `server/.env`。
 - 未登录引导：toast + `loginEntryUrl(LOGIN_PATH, redirect)`(manual=1+回跳)。
 - 品牌色三层(方案A)：语义色不跟随 → 平台主题全站默认 → 品牌主色仅在名片业务域覆盖。名片 hero 回落：自身色>租户品牌色(仅详情头)>var(--design-primary/gradient)>内置默认。
+- 🔴 **品牌色落地三条通道，缺一就会出现「一半蓝一半黄」**（2026-10-15 六次报修总结）：
+  ① 页面根合并 `brandVars`（`useBrandOverride()`）→ 覆盖全页 `var(--design-primary)` 消费点；
+  ② **JS 取色点**（SIcon color prop / canvas / showModal / tab 激活色）**不吃 var()**，页面根覆盖传导不到 → 必须用 `brandPrimary` 品牌优先喂真实 hex；
+  ③ 卡脉动地形 / 他人名片页要保证 **themeColor 与 brandVars 同源**（cardDetail 取 `brandPalette(card)`），否则同页两种色。
+- 🔴 **新增页面/组件是天然漏接点**：凡消费 `--design-primary` 的页面必须过 `brandCoverage.test.js` 守护（根绑 brandVars + 单一来源 + themeColor 品牌优先）。**别等用户截图报修——按业务域一次铺齐。**
+- ⚠️ 脚本跨文件改写表达式后，必查运算符优先级与判空是否仍成立（曾 7 页生成 `a && b || a[x]` → themeStyle 为空时 TypeError）。
+- 🔴 **品牌色数据源 `fetchBrandPalette` 三条自愈铁律**（真机踩坑 e535ba1）：失败**绝不缓存 null**（冷启动 401 是瞬态，缓存住=整个会话永远蓝）；`useBrandOverride` 用**模块级共享 ref**（全站一份，任一处成功全站响应式变）+ 退避重试 [2s,5s,10s]；登录成功必须 `resetBrandCache()`。判别口诀：**「走 fetch 的全蓝、页面自带数据路径的全正常」= fetch 链路病**；真机诊断看 `[brand]` / `[apiClient-401]` 日志。
 - 🔴 **品牌主色优先级铁律（2026-10-15 两度修正）**：用户语义＝「后台品牌外观设了就要在名片相关页生效」＝**品牌色覆盖模板配色、保留模板布局**（不是简单排队）。C 端实现：有品牌主色时 `resolvedTheme = { ...templateTheme, bgStart:brand.primary, bgEnd:brand.gradient||shadeHex(primary,-0.3), textColor:brand.text||t.text, text2Color:brand.subText||t.text2, accent:brand.secondary||t.accent, borderColor:品牌辅色||t.border }`；布局字段（heroLayout/bgType/texture/radius/guide 开关）仍取自模板。cardDetail 走 `resolvedTheme`；myCard 头像走 `b.primary || templateTheme?.primary`。**🔴 反例（曾两度踩，是「设了不生效」的真因）：把品牌色排在「自选模板」之后（即 `if (templateTheme) return 模板` 永命中）→ 真实名片几乎都带 `template_id` → `templateTheme` 恒非空 → 品牌色被盖死。凡「品牌色不显示」先查 C 端 `heroStyle` 等是否仍在 `if (heroTheme) return 模板` 分支、未先与 `brandPalette` 合并。** 另：`toCard` 的模板兜底只应在「无品牌色且未自选模板」时挡道；任何让 `templateTheme` 恒非空的逻辑都会把 brandColor 变死代码。
 - 🔴 **品牌色已扩为 5 色**（与设计中心 STYLE_SCHEMES 同源：primary/gradient/secondary/text/subText）：存 `projects.config` 五键（brand_color/brand_gradient/brand_secondary/brand_text/brand_subtext）；toCard 出口 `brandColors`(5 色)+`brandColor`(后向兼容 primary)；admin BrandAppearance.vue 14 套 STYLE_SCHEMES 预设 + hero 预览；C 端消费经 `web-app/src/utils/color.js` 的 `brandPalette()` 归一化 + `utils/brand.js` 的 `fetchBrandPalette()`（单一加载来源，**新增消费点禁止各页各写一份**）。`heroGradient(primary, gradient, fallback)` 三参签名，调用方必须显式传 fallback（第二参作渐变色，旧两参会把 fallback 误当渐变）。
 - 🔴 **品牌配置经 projects join 落库/出库（server 三处：/user/profile、/cards、/cards/:id），join 落空是经典复发点**：`pj.id = COALESCE(tenant_individuals/tenant_enterprise_employees/card_profile.customer_id, 0)` 落到 **0** → `projects.id=0` 不存在 → `tenant_config` undefined → `brandColors` 全空 → C 端回落设计中心 `var(--design-primary)`。🔴 **正确写法**：`COALESCE((SELECT id FROM projects WHERE id = COALESCE(个体,员工,cp.customer_id, pu.customer_id, 0) LIMIT 1), (SELECT id FROM projects ORDER BY id ASC LIMIT 1))` —— 补 `platform_user.customer_id` 兜底，再兜底到默认项目（唯一默认客户项目收纳全部存量方案）。`platform_user.customer_id` 比 tenant 行更可靠（用户常无后者行）。**新增/改品牌消费必须含「零关联孤儿名片」回归用例**，否则静默复发。
@@ -114,3 +121,10 @@
 - 「公开状态」`card_profile.is_public` ≠ 「集市状态」`card_market_items`：前者服务端仅 admin 客户列表消费；后者才是 myCard 集市状态/market 列表的唯一数据源。旧代码开关只写前者 → 空头支票（myCard 恒「未上架」）。
 - 模型：**开关=集市场上架控制，is_public=可见性派生 flag**。单一来源 `web-app/src/utils/marketLink.js` 的 `syncMarketWithIsPublic(api, isPublic)`（displaySettings/create 共用）；主体解析必须与 myCard 同源（active 个体优先）。服务端 `/market/toggle`、`/market/force-remove` 增删记录时 `syncCardsPublic` 反向同步 is_public（防 market.vue 下架被展示设置页 heal 复活）；**PUT /cards/:id 不代建 item**（联动归 C 端，带审核/配额语义）。
 - 存量自愈在 displaySettings `load()` 的 `healMarketLink()`：只补「开着却没上架」方向，无主体/硬失败回滚开关。回归 `marketLinkSync.test.js`(29) + server `market-ispublic-sync.test.js`(5)。
+
+## hero 前景配色（2026-10-15 审美报修沉淀）
+- 🔴 **hero 前景必须走唯一裁决口**：模板页用 `heroForeground(bgStart,bgEnd,cfg)`，会员/分销等非模板 hero 用 `heroBrandStyle(b, fallback)`（都在 `utils/templateTheme.js`）。流程：背景代表色=渐变中值 `mixHex` → 按 luma>180 判明暗 → 对配置色做 WCAG 对比度校验（主文字≥3、次文字≥2.4、点缀/描边≥1.6）→ **不合格自动回落、合格才尊重配置**。
+- 🔴 **禁止「部分元素按背景算 + 部分照抄品牌/模板前景色」**：多判据并行 = 同屏「黑字 + 白图标 + 黄职务色」混搭。**同一区块出现深浅混搭，第一反应应是「有几个判据源头」，不是逐个元素调色值。**
+- 后台五色可能自相矛盾（亮黄 primary + 白 text），所以**人工配置必须经数值校验才能落到前景**，否则必然不可读。
+- 🔧 浅底有效回落值：主文字 `#1d2129`、次文字 `rgba(29,33,41,.78)`（用 .72 对比度仅 2.82，不够）、点缀 `shadeHex(primary,-0.45)`、描边 `rgba(0,0,0,.14)`。
+- SIcon / PageNav / canvas / showModal 都**不吃 var()**，必须从同一裁决口取真实 hex（各页约定变量名 `heroInk`）。

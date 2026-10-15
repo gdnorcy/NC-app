@@ -61,8 +61,8 @@ describe('customers 平台 UI 强调位归主题', () => {
     expect(block).toContain('linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))');
     expect(block).toContain('rgba(var(--design-primary-rgb, 22, 93, 255), 0.4)');
   });
-  test('根视图绑 themeStyle（MP 注入前提）', () => {
-    expect(src).toMatch(/<view class="customers-page" :style="\[themeStyle, brandVars\]">/);
+  test('根视图绑 themeStyle + brandVars + brandInkVars（MP 注入前提）', () => {
+    expect(src).toMatch(/<view class="customers-page" :style="\[themeStyle, brandVars, brandInkVars\]">/);
     expect(src).toContain('const themeStyle = useDesignTheme();');
   });
 });

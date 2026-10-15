@@ -1,5 +1,5 @@
 <template>
-  <view class="profile-page" :style="[themeStyle, brandVars]">
+  <view class="profile-page" :style="[themeStyle, brandVars, tabBarPad, brandInkVars]">
 <!-- PageNav -->
 <PageNav title="个人中心" back />
     <!-- 用户信息头部 -->
@@ -9,7 +9,7 @@
           <view v-else class="avatar">{{ user.nickname?.[0] || '用' }}</view>
           <view class="info">
             <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
-            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#faad14" /> {{ memberLevelText }}</view>
+            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#7a4b00" /> {{ memberLevelText }}</view>
           </view>
           <view class="edit-btn" @click="openEdit">编辑</view>
         </view>
@@ -122,6 +122,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
@@ -134,7 +135,9 @@ import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
-const { brandVars, brandPrimary } = useBrandOverride();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
+const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 const user = ref({});
 const isMember = ref(false);
 const memberLevel = ref('free');
@@ -271,8 +274,9 @@ function logout() {
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
+  /* 占位首字母：白底圆 + --brand-ink（亮黄主色在白底只有 1.75:1，写死主色=隐形） */
   background: #fff;
-  color: var(--design-primary, #165dff);
+  color: var(--brand-ink, var(--design-primary, #165dff));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,13 +291,15 @@ function logout() {
   color: #fff;
   margin-bottom: 8rpx;
 }
+/* 会员等级徽章：金色渐变上白字/金图标都不可读（金徽章压金底 ≈1.3:1）→ 统一深棕前景 5.3:1 */
 .member-tag {
   display: inline-block;
   background: linear-gradient(135deg, #ffd700, #ffaa00);
-  color: #fff;
+  color: #7a4b00;
   padding: 4rpx 16rpx;
   border-radius: 20rpx;
   font-size: 20rpx;
+  font-weight: 600;
 }
 .edit-btn {
   background: rgba(255,255,255,0.2);

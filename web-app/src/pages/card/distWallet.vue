@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page" :style="[navVars, themeStyle, brandVars]">
+  <view class="dist-page" :style="[navVars, themeStyle, brandVars, tabBarPad]">
 <!-- PageNav -->
 <PageNav title="我的钱包" back overlay :sticky="false" bg="transparent" :color="heroInk" />
     <!-- 顶部 -->
@@ -79,6 +79,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
@@ -94,6 +95,8 @@ import { useDesignTheme } from '../../utils/design.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
 const { brandVars, brandPrimary } = useBrandOverride();
 // 品牌 5 色 hero：本人名片优先，无则回落主题渐变（曾 ref('') 恒空 → 品牌链路断）
 const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });

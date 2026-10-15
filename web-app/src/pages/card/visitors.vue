@@ -1,5 +1,5 @@
 <template>
-  <view class="radar-page" :style="[themeStyle, brandVars]">
+  <view class="radar-page" :style="[themeStyle, brandVars, tabBarPad]">
 <!-- PageNav -->
 <PageNav title="访客雷达" back />
     <!-- 付费解锁引导（免费/过期用户） -->
@@ -200,6 +200,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
@@ -215,6 +216,8 @@ import { useBrandOverride } from '../../utils/brand.js';
 
 // SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
 const themeStyle = useDesignTheme();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
 const { brandVars, brandPrimary } = useBrandOverride();
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 

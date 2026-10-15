@@ -91,10 +91,28 @@ describe('create 保留位不动', () => {
   test('hdText step 皮肤文字色保留', () => {
     expect(src).toContain("skinType.value === 'step' ? '#1d2129'");
   });
-  test('中性承载保留（#8a8f99/#9a9a9a/#1d2129/#4e5969/#fff）', () => {
+  test('中性承载保留（#8a8f99/#9a9a9a/#1d2129/#4e5969）', () => {
     for (const c of ['#8a8f99', '#9a9a9a', '#1d2129', '#4e5969']) {
       expect(src, `中性色 ${c} 应保留`).toContain(c);
     }
-    expect(src).toContain('color="#ffffff"');
+  });
+});
+
+describe('create 品牌色生效链路（2026-10-16 真机报修：创建页整页仍是设计中心蓝）', () => {
+  test('皮肤必须吃「品牌覆盖后的主题」，否则 --sk-header/--sk-btn 渐变串永远停在蓝', () => {
+    // 🔴 --sk-header/--sk-btn 是**已烘焙的渐变串**（linear-gradient 里写死 hex），
+    //    brandVars 在 :style 数组里排得再靠后也盖不掉渐变内部的颜色 →
+    //    必须让 buildCreateSkinVars 的输入本身就已经含品牌覆盖。
+    expect(src).toMatch(/const\s+skinTheme\s*=\s*computed\(\(\)\s*=>\s*\(\{\s*\.\.\.\(themeStyle\.value\s*\|\|\s*\{\}\),\s*\.\.\.\(brandVars\.value\s*\|\|\s*\{\}\)\s*\}\)\)/);
+    expect(src).toContain('buildCreateSkinVars(skinTheme.value)');
+    expect(src).not.toContain('buildCreateSkinVars(themeStyle.value)');
+  });
+  test('坐在品牌渐变上的图标/勾选不能写死白（亮黄底白图标会消失）', () => {
+    expect(src).not.toContain('color="#ffffff"');
+    expect(src).toContain(':color="brandInk"');
+    expect(ruleBlock(src, '.type-check')).toContain('var(--sk-btn-text');
+  });
+  test('brandInk 与按钮文字同源（--sk-btn-text 由 heroForeground 裁决）', () => {
+    expect(src).toContain("const brandInk = computed(() => skinVars.value['--sk-btn-text']");
   });
 });

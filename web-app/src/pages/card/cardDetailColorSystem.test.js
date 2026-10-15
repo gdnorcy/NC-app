@@ -118,8 +118,8 @@ describe('cardDetail 被展示对象与语义色保留', () => {
     expect(src).toContain('color="#c9cdd4"');
   });
 
-  test('根视图绑 [navVars, themeStyle, brandVars]（MP 端 CSS 变量注入 + 品牌覆盖前提）', () => {
-    expect(src).toMatch(/<view class="profile-page" :style="\[navVars, themeStyle, brandVars\]"/);
+  test('根视图绑 [navVars, themeStyle, brandVars, tabBarPad]（MP 端 CSS 变量注入 + 品牌覆盖 + 底部导航实测占位）', () => {
+    expect(src).toMatch(/<view class="profile-page" :style="\[navVars, themeStyle, brandVars, tabBarPad\]"/);
   });
 
   test('themeColor computed 存在、被查看名片品牌主色优先且兜底 #165dff（SIcon prop 不吃 var()）', () => {

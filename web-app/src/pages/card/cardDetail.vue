@@ -1,7 +1,7 @@
 <template>
   <!-- ===== 名片详情页（全局对外展示落地页｜所有人可见） =====
        所有对外入口统一进入本页：人脉集市点卡片、扫码、微信分享、人脉库查看他人、我的名片-预览 -->
-  <view class="profile-page" :style="[navVars, themeStyle, brandVars]">
+  <view class="profile-page" :style="[navVars, themeStyle, brandVars, tabBarPad]">
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" :color="navFgColor" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
@@ -399,6 +399,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted } from 'vue';
 import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
@@ -419,6 +420,8 @@ import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
 const navVars = navVarsStyle();
 // 小程序端不能运行时注入 <style>，系统主题色必须由根视图内联下发（否则回落 CSS 兜底色）
 const themeStyle = useDesignTheme();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
 // SIcon 不能消费 var()（构建期烘焙 hex），需真实 hex 的图标/开关用这个。
 // 品牌主色优先：与下面 brandVars 同源（取被查看名片自身的品牌色），保证同页不出现两种色。
 // ⚠️ brand 声明在下方，computed 惰性求值（首次渲染时已过 setup），不存在 TDZ。

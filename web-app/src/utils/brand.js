@@ -1,7 +1,8 @@
 // 品牌 5 色加载（web-app 侧单一来源）：本人名片 → 归一化 palette，各页 hero 共用
 import { ref, computed } from 'vue';
 import { cardApi } from './cardApi.js';
-import { brandPalette } from './color.js';
+import { brandPalette, inkOnLightBg, hexA } from './color.js';
+import { heroForeground } from './templateTheme.js';
 import { brandThemeOverride } from './design.js';
 
 /**
@@ -76,7 +77,28 @@ export function useBrandOverride() {
   }
   const brandVars = computed(() => brandThemeOverride(_brandRef.value || {}));
   const brandPrimary = computed(() => (_brandRef.value && _brandRef.value.primary) || '');
-  return { brand: _brandRef, brandVars, brandPrimary };
+  /**
+   * 🔴 白底上的品牌衍生色（与 brandVars 一起挂在页面根 :style）。
+   *    --brand-ink     ：白卡/白底占位头像上**可读**的主色文字（亮黄自动压暗，见 inkOnLightBg）
+   *    --brand-tint    ：主色 10% 淡底（激活态背景/图标底），避免借用系统主题的
+   *                      --design-secondary（那是设计中心配的粉/蓝，跟品牌色不同源）
+   *    --brand-hero-ink：**坐在品牌渐变上**的前景色（占位头像白字/渐变徽章文字/渐变卡图标）。
+   *                      CSS 里写死 #fff 的话，主色一换成亮黄就整片消失
+   *                      （真机报修「圆形头像整个填充白的了，中间是否少了东西」）。
+   *                      判据与 cardDetail 的 hero 完全同源（heroForeground），不另起一套。
+   *    未设品牌色时返回空对象 → 消费点各自 var() 兜底，不影响回落链路。
+   */
+  const brandInkVars = computed(() => {
+    const p = brandPrimary.value;
+    if (!p) return {};
+    const g = (_brandRef.value && _brandRef.value.gradient) || '';
+    return {
+      '--brand-ink': inkOnLightBg(p),
+      '--brand-tint': hexA(p, 0.1),
+      '--brand-hero-ink': heroForeground(p, g || p, { text: '#ffffff' }).text,
+    };
+  });
+  return { brand: _brandRef, brandVars, brandPrimary, brandInkVars };
 }
 
 /** 清空会话缓存与共享状态（测试用；登录成功后调用可强制下次重新拉取） */

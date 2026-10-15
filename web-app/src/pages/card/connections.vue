@@ -1,5 +1,5 @@
 <template>
-  <view class="conn-page" :style="[themeStyle, brandVars]">
+  <view class="conn-page" :style="[themeStyle, brandVars, brandInkVars]">
     <!-- 顶部导航栏 -->
 <!-- PageNav -->
     <PageNav title="我的人脉库" back></PageNav>
@@ -97,7 +97,7 @@ import { useBrandOverride } from '../../utils/brand.js';
 
 // showModal confirmColor 是 prop 不吃 var()，主题主色喂真实 hex：回落品牌蓝
 const themeStyle = useDesignTheme();
-const { brandVars, brandPrimary } = useBrandOverride();
+const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const list = ref([]);
@@ -257,7 +257,8 @@ onMounted(load);
 .conn-item { background: #fff; border-radius: 24rpx; padding: 24rpx; display: flex; align-items: center; gap: 20rpx; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.06)); }
 .avatar { width: 88rpx; height: 88rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .avatar-img { width: 100%; height: 100%; }
-.avatar-text { font-size: 34rpx; font-weight: 600; color: var(--design-primary, #165dff); }
+/* 头像底色是固定浅色膏片（avatarBg 五色卡）→ 主色文字必须过 --brand-ink 压暗才可读 */
+.avatar-text { font-size: 34rpx; font-weight: 600; color: var(--brand-ink, var(--design-primary, #165dff)); }
 .info { flex: 1; min-width: 0; }
 .name-row { display: flex; align-items: center; gap: 12rpx; }
 .c-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }

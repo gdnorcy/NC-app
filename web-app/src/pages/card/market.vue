@@ -1,5 +1,5 @@
 <template>
-  <view class="market-page" :style="[themeStyle, brandVars]">
+  <view class="market-page" :style="[themeStyle, brandVars, tabBarPad, brandInkVars]">
     <!-- 顶部导航栏：主题色 hero（与会员中心一致），PageNav 透明融入 -->
 <!-- PageNav -->
     <view class="market-hero">
@@ -283,6 +283,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
@@ -296,7 +297,9 @@ import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
-const { brandVars, brandPrimary } = useBrandOverride();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
+const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 // SIcon/switch 的 color 是 prop，不能消费 var()（构建期烘焙 hex）→ 传真实 hex
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
@@ -563,7 +566,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .badge-top { font-size: 18rpx; color: #fff; background: #ff4d4f; padding: 4rpx 10rpx; border-radius: 8rpx; font-weight: 500; }
 .badge-new { font-size: 18rpx; color: #fff; background: var(--design-primary, #165dff); padding: 4rpx 10rpx; border-radius: 8rpx; font-weight: 500; }
 .m-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 14rpx; }
-.m-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 600; }
+.m-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; color: var(--brand-hero-ink, #fff); display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 600; }
 /* 身份头像渐变：个人/企业/员工三分收敛为同一主题渐变（类型区分靠 .type-* 徽章文字，
    收敛前蓝 #1d4e8f / 紫 #7c3aed / 绿 #07c160 三色相是集市页最杂的一处） */
 .avatar-individual { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); }
@@ -606,7 +609,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .b-inner { display: inline-flex; gap: 16rpx; padding: 0 24rpx; }
 .b-card { width: 220rpx; background: #fff; border-radius: 16rpx; padding: 20rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); position: relative; display: inline-block; white-space: normal; vertical-align: top; }
 .b-badges { position: absolute; top: 12rpx; right: 12rpx; display: flex; gap: 6rpx; }
-.b-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 600; }
+.b-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; color: var(--brand-hero-ink, #fff); display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 600; }
 .b-name { font-size: 26rpx; font-weight: 600; color: #1a1a1a; margin-top: 12rpx; }
 .b-position { font-size: 20rpx; color: #5b5b5b; margin-top: 4rpx; }
 .b-company { font-size: 20rpx; color: var(--ink-3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -621,7 +624,8 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .c-card { background: #fff; border-radius: 16rpx; padding: 24rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); position: relative; }
 .c-badges { position: absolute; top: 20rpx; right: 20rpx; display: flex; gap: 8rpx; }
 .c-main { display: flex; gap: 16rpx; align-items: center; }
-.c-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 34rpx; font-weight: 600; }
+/* 头像底色是品牌渐变 → 白字在亮黄主色上只剩 1.75:1，改走 hero 同源裁决的 --brand-hero-ink */
+.c-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; color: var(--brand-hero-ink, #fff); display: flex; align-items: center; justify-content: center; font-size: 34rpx; font-weight: 600; }
 .c-info { flex: 1; }
 .c-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .c-position { font-size: 24rpx; color: #5b5b5b; margin-top: 4rpx; }

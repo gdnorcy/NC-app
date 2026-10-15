@@ -114,7 +114,7 @@
           <view class="type-card" :class="{ active: cardType === 'individual' }" @click="cardType = 'individual'">
             <view class="type-check" v-if="cardType === 'individual'">✓</view>
             <view class="type-icon type-icon--personal">
-              <SIcon name="user" size="large" color="#ffffff" />
+              <SIcon name="user" size="large" :color="brandInk" />
             </view>
             <view class="type-name">个人名片</view>
             <view class="type-desc">自由职业者 / 个体从业者 / 普通人</view>
@@ -122,7 +122,7 @@
           <view class="type-card" :class="{ active: cardType === 'enterprise' }" @click="cardType = 'enterprise'">
             <view class="type-check" v-if="cardType === 'enterprise'">✓</view>
             <view class="type-icon type-icon--enterprise">
-              <SIcon name="enterprise" size="large" color="#ffffff" />
+              <SIcon name="enterprise" size="large" :color="brandInk" />
             </view>
             <view class="type-name">企业名片</view>
             <view class="type-desc">企业主体 / 团队 / 门店</view>
@@ -288,6 +288,10 @@ const { brandVars, brandPrimary } = useBrandOverride();
 const navVars = navVarsStyle();
 // SIcon / switch 不能消费 var()（构建期烘焙 hex），这类需真实 hex 的地方用这个
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+// 🔴 皮肤必须吃「品牌覆盖后的主题」：--sk-header / --sk-btn 是**已烘焙的渐变串**
+//    （linear-gradient(...) 里写死了 hex），若仍按系统主题生成，brandVars 在 :style 里
+//    排得再靠后也盖不掉渐变内部的颜色 → 创建页永远停在设计中心蓝（真机报修）。
+const skinTheme = computed(() => ({ ...(themeStyle.value || {}), ...(brandVars.value || {}) }));
 
 const form = reactive({
   id: null,
@@ -391,9 +395,12 @@ async function loadTemplates(force = false) {
 // 当前选中模板（仅用于英文副标题映射；配色已不再跟随模板，见下方skinVars 注释）
 const currentTemplate = computed(() => templates.value.find((t) => t.id === form.templateId) || null);
 
-// 创建页整体配色 = 系统主题（设计中心「系统风格」），逻辑见 ./utils/createSkin.js
+// 创建页整体配色 = 品牌主色覆盖后的系统主题，逻辑见 ./utils/createSkin.js
 // （原本取自名片模板 themeConfig，但预览卡已删除，页面里已无「按模板真实色渲染」的元素）
-const skinVars = computed(() => buildCreateSkinVars(themeStyle.value));
+const skinVars = computed(() => buildCreateSkinVars(skinTheme.value));
+// 坐在品牌渐变上的前景色（类型图标 / 勾选徽章）：亮黄底用深字，深底用白字。
+// 🔴 SIcon 的 color 不能消费 var()（构建期烘焙 hex）→ 必须由 JS 给出真实 hex
+const brandInk = computed(() => skinVars.value['--sk-btn-text'] || '#ffffff');
 const stepSubtitle = computed(() => {
   const m = ['填写基本信息，2 分钟完成发布', '方便客户找到你', '预览无误，即可发布'];
   return m[currentStep.value] || m[0];
@@ -837,7 +844,8 @@ async function syncMarketAfterSave(isPublic) {
   height: 36rpx;
   border-radius: 50%;
   background: var(--design-primary, #165dff);
-  color: #fff;
+  /* 品牌色为亮色（如亮黄）时白勾会消失 → 跟主按钮文字同一裁决口径 */
+  color: var(--sk-btn-text, #fff);
   display: flex;
   align-items: center;
   justify-content: center;

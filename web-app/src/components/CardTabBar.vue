@@ -88,9 +88,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick, getCurrentInstance } from 'vue';
 import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
 import { readDesignConfig, fetchDesignConfig, fallbackTabIcon } from '../utils/design.js';
+import { setTabBarSpace } from '../utils/cardTabBarSpace.js';
 import SIcon from './SIcon.vue';
 
 const props = defineProps({
@@ -305,7 +306,38 @@ async function loadNav() {
   } catch (e) {}
 }
 
-onMounted(loadNav);
+/**
+ * 🔴 实测「视口底部被导航条占掉多高」并广播给页面（见 utils/cardTabBarSpace.js）。
+ *    用 `windowHeight - rect.top` 而不是 rect.height：前者天然含**悬浮型的 bottom 偏移**
+ *    与安全区，后者不含 → 悬浮型会算少 28rpx，正好是「最后一张卡贴住导航条」的量。
+ *    配置是异步拉的、字体/图片也会改变高度 → 挂载后、配置到位后、样式变更后再测各一次。
+ */
+const instance = getCurrentInstance();
+async function measure() {
+  try {
+    const sys = uni.getSystemInfoSync ? uni.getSystemInfoSync() : null;
+    if (!sys || !sys.windowWidth) return;
+    const q = uni.createSelectorQuery();
+    if (!q) return;
+    if (instance) q.in(instance);
+    const rect = await new Promise((resolve) => {
+      try {
+        q.select('.mp-tabbar').boundingClientRect((r) => resolve(r)).exec();
+      } catch (e) { resolve(null); }
+    });
+    // rect.top=0 是「还没布局/测量失败」，不能用（会把占位算成整屏）
+    if (!rect || !rect.top || !rect.height) return;
+    setTabBarSpace((sys.windowHeight - rect.top) * 750 / sys.windowWidth);
+  } catch (e) { /* 测量失败保持兜底值 */ }
+}
+function scheduleMeasure() {
+  nextTick(() => { measure(); setTimeout(measure, 260); });
+}
+
+onMounted(() => { loadNav(); scheduleMeasure(); });
+// 导航方案（平铺/悬浮 × 普通/滑块/居中/凸起/嵌入/扇形）或菜单项数变化 → 高度会变，重测
+watch([tabType, tabStyle, tabCorner, () => designItems.value.length], scheduleMeasure);
+watch(() => localCfg.value, scheduleMeasure);
 
 function goCard() {
   if (!navJumpEnabled.value) return;

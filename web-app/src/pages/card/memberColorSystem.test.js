@@ -66,8 +66,8 @@ describe('member themeColor 与其余四页对齐', () => {
   test('themeColor 吃 --design-primary（勿回退 --design-subtext：租户可配文字辅色会漂移）', () => {
     expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
-  test('根视图绑 themeStyle（MP 注入前提）', () => {
-    expect(src).toMatch(/<view class="member-page" :style="\[navVars, themeStyle, brandVars\]">/);
+  test('根视图绑 themeStyle + brandVars + tabBarPad（MP 注入前提）', () => {
+    expect(src).toMatch(/<view class="member-page" :style="\[navVars, themeStyle, brandVars, tabBarPad\]">/);
   });
 });
 

@@ -20,7 +20,14 @@
  *    - 兜底主色仍是品牌蓝 #165dff；未配置配色时本页=浅色皮肤（v2 及以前是 dark，已变）。
  * 语义色（成功绿/警示橙/VIP 金/钥匙绿/免费标签绿）刻意**不**跟随主题。
  */
-import { shadeHex } from '../../../utils/color.js';
+import { shadeHex, hexA } from '../../../utils/color.js';
+// hexA 已上收为全仓单一事实来源（utils/color.js），此处转出以兼容既有引用
+export { hexA };
+// 🔴 明暗判据必须与名片详情 hero 同源（utils/templateTheme.js 的 heroForeground）：
+//    此前本模块自定「主色 luma>160」，详情 hero 用「渐变中值 luma>180」→ 同一品牌色
+//    两页可能一个深字一个白字（真机混搭报修）。创建页头部/按钮同样是主色渐变，
+//    判的是**渐变中值**这一背景亮度，故直接复用同一裁决口。
+import { heroForeground } from '../../../utils/templateTheme.js';
 
 /** 颜色亮度（0~255）。非 hex（rgba 等）按浅色 200 处理，与历史行为一致 */
 export function hexLuma(color) {
@@ -36,26 +43,6 @@ export function hexLuma(color) {
   return 200; // 非 hex（rgba 等）按浅色处理
 }
 
-/** hex/rgba → rgba(..., alpha)，覆盖原透明度 */
-export function hexA(color, alpha) {
-  if (!color) return `rgba(22,93,255,${alpha})`;
-  let c = String(color).trim();
-  if (c.startsWith('#')) {
-    c = c.slice(1);
-    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
-    const n = parseInt(c, 16);
-    if (!Number.isNaN(n) && c.length === 6) {
-      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
-    }
-  }
-  const m = String(color).match(/rgba?\(([^)]+)\)/);
-  if (m) {
-    const parts = m[1].split(',').map((x) => x.trim());
-    return `rgba(${parts[0]},${parts[1]},${parts[2]},${alpha})`;
-  }
-  return color;
-}
-
 /**
  * 生成创建页全套 CSS 变量（单一浅色分支，任何主色都成立）。
  * @param {object} theme designThemeVars() 的产物（--design-* ）
@@ -64,9 +51,12 @@ export function hexA(color, alpha) {
 export function buildCreateSkinVars(theme) {
   const t = theme || {};
   const accent = t['--design-primary'] || '#165dff';
-  const tint = t['--design-secondary'] || '#E8F3FF';
-  // 主色偏浅（浅金等）→ 头部/按钮上的文字改深色，白字会看不清
-  const onAccent = hexLuma(accent) > 160;
+  // 辅助浅底：品牌方配色里本就配好的淡底优先；缺失时由主色现调，
+  // 🔴 绝不能兜 #E8F3FF（那是品牌蓝的淡底，品牌色一换就成了「蓝底配黄按钮」）
+  const tint = t['--design-secondary'] || hexA(accent, 0.1);
+  // 头部/按钮背景 = 主色 → 主色亮化 28% 的渐变；前景按**渐变中值**裁决（同源 heroForeground）
+  const gradEnd = shadeHex(accent, 0.28) || accent;
+  const fg = heroForeground(accent, gradEnd, { text: '#ffffff' });
   const v = {};
   v['--primary'] = accent;
   v['--success'] = accent;
@@ -75,10 +65,10 @@ export function buildCreateSkinVars(theme) {
   // 浅色画布：顶部主题色晕染过渡到系统灰底
   v['--sk-bg'] = `linear-gradient(180deg, ${hexA(accent, 0.16)}, transparent 300rpx), #f6f7fb`;
   // v3.2 恢复头部主题色渐变（v3.1 透明化被否——用户指的其实是步骤数字的灰色）
-  v['--sk-header'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
+  v['--sk-header'] = `linear-gradient(135deg, ${accent}, ${gradEnd})`;
   // 主按钮：主题色渐变
-  v['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${shadeHex(accent, 0.28)})`;
-  v['--sk-btn-text'] = onAccent ? '#1d2129' : '#ffffff';
+  v['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${gradEnd})`;
+  v['--sk-btn-text'] = fg.text;
   v['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.35)}`;
   v['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
   v['--bg-card'] = '#ffffff';
@@ -86,8 +76,8 @@ export function buildCreateSkinVars(theme) {
   v['--sk-card-bg'] = '#ffffff';
   // 头部文字坐在主题色渐变上 → 按主色亮度对色（step 透明头部深字由 create.vue 覆写；
   // 「1/3」步骤数字同用 --sk-hd-sub——渐变头上是半透明白，与标题/副标题同体系）
-  v['--sk-hd-text'] = onAccent ? '#1d2129' : '#ffffff';
-  v['--sk-hd-sub'] = onAccent ? '#4e5969' : 'rgba(255,255,255,0.8)';
+  v['--sk-hd-text'] = fg.text;
+  v['--sk-hd-sub'] = fg.light ? '#4e5969' : 'rgba(255,255,255,0.8)';
   v['--t1'] = '#1d2129';
   v['--t2'] = '#4e5969';
   v['--t3'] = '#5c6470';   // 可读次要文本：原 #86909c 仅 2.92:1 不达标，收敛到 #5c6470 过 WCAG AA（见 docs/card-visual-audit.html）

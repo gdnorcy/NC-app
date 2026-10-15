@@ -1,5 +1,5 @@
 <template>
-  <view class="customers-page" :style="[themeStyle, brandVars]">
+  <view class="customers-page" :style="[themeStyle, brandVars, brandInkVars]">
 <!-- PageNav -->
 <PageNav title="客户管理" back />
     <view class="header">
@@ -104,7 +104,7 @@ import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
-const { brandVars, brandPrimary } = useBrandOverride();
+const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 
 const customers = ref([]);
 const keyword = ref('');
@@ -240,7 +240,8 @@ async function addCustomer() {
   height: 80rpx;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
-  color: #fff;
+  /* 品牌渐变圆上的首字母：亮黄主色配白字只有 1.75:1 → 走 hero 同源裁决 */
+  color: var(--brand-hero-ink, #fff);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -82,6 +82,6 @@ describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', ()
   test('品牌主色覆盖页面主题变量：hero 之下的页面主体（评论区等 var(--design-primary) 消费点）也跟随品牌色', () => {
     expect(SRC).toContain("import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';");
     expect(SRC).toContain('const brandVars = computed(() => brandThemeOverride(brand.value));');
-    expect(SRC).toContain(':style="[navVars, themeStyle, brandVars]"');
+    expect(SRC).toContain(':style="[navVars, themeStyle, brandVars, tabBarPad]"');
   });
 });

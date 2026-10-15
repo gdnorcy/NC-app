@@ -27,13 +27,11 @@
     <view class="pe-btn" @click="goApply">去登录</view>
   </view>
 
-  <view class="owner-page" v-else :style="[themeStyle, brandVars]">
+  <view class="owner-page" v-else :style="[themeStyle, brandVars, tabBarPad]">
     <!-- 导航栏 -->
-    <PageNav title="我的名片" back>
-      <template #right>
-        <view class="on-edit" @click="editCard">编辑</view>
-      </template>
-    </PageNav>
+    <!-- 右上角「编辑」入口已移除（2026-10-16）：本页下方已有完整的「名片内容编辑列表」，
+         顶部再挂一个入口属重复；且该位置正对微信胶囊右侧，容易被遮挡/误触。 -->
+    <PageNav title="我的名片" back />
 
     <!-- 身份切换器（入驻个人/企业员工，双身份时显示） -->
     <view class="owner-switch" v-if="subjectList.length > 1">
@@ -183,13 +181,17 @@ import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { shadeHex, brandPalette } from '../../utils/color.js';
+import { heroForeground } from '../../utils/templateTheme.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 const themeStyle = useDesignTheme();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
 
 const card = ref({});
 const loading = ref(true);
@@ -210,7 +212,10 @@ const avatarStyle = computed(() => {
   const c = b.primary || card.value.templateTheme?.primary;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
   const dark = b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3);
-  return { brand: 1, background: `linear-gradient(135deg, ${dark}, ${c})` };
+  // 🔴 首字母前景必须与这张渐变同判据：CSS 里写死 #fff，主色一换成亮黄（#FCB801）
+  //    白字就整个消失（真机报修「圆形头像整个填充白的了」）。与 cardDetail hero 同源裁决。
+  const fg = heroForeground(dark, c, { text: '#ffffff' });
+  return { brand: 1, background: `linear-gradient(135deg, ${dark}, ${c})`, color: fg.text };
 });
 const currentUserId = ref(null);
 const myStatus = ref(null);   // { items, subjects }
@@ -532,7 +537,7 @@ function leaveTenant() {
 .owner-switch { display: flex; gap: 16rpx; padding: 20rpx 24rpx 0; }
 .os-chip { font-size: 24rpx; color: #5b5b5b; background: #fff; border: 1rpx solid #eeeeee; padding: 10rpx 28rpx; border-radius: 999rpx; }
 .os-chip.on { color: #fff; background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
-.on-edit { font-size: 28rpx; color: var(--design-primary, #165dff); font-weight: 500; }
+/* .on-edit（右上角「编辑」）已随入口一并移除，勿复活：下方「名片内容编辑列表」已覆盖该能力 */
 
 .owner-card { background: #fff; border-radius: 20rpx; margin: 20rpx 24rpx; padding: 28rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
 .oc-head { display: flex; gap: 20rpx; align-items: center; }

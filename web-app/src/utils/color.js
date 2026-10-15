@@ -48,6 +48,30 @@ export function mixHex(a, b, w = 0.5) {
 }
 
 /**
+ * hex/rgba → rgba(..., alpha)，覆盖原透明度（单一事实来源）。
+ * ⚠️ 全仓曾有三份同名副本（TplThumb / CardTabBar / createSkin），
+ *    规则各自略异 → 新代码一律从这里取，旧副本逐步收敛。
+ */
+export function hexA(color, alpha) {
+  if (!color) return `rgba(22,93,255,${alpha})`;
+  let c = String(color).trim();
+  if (c.startsWith('#')) {
+    c = c.slice(1);
+    if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+    const n = parseInt(c, 16);
+    if (!Number.isNaN(n) && c.length === 6) {
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+    }
+  }
+  const m = String(color).match(/rgba?\(([^)]+)\)/);
+  if (m) {
+    const parts = m[1].split(',').map((x) => x.trim());
+    return `rgba(${parts[0]},${parts[1]},${parts[2]},${alpha})`;
+  }
+  return color;
+}
+
+/**
  * WCAG 相对亮度（0~1）与对比度（1~21）。用于「配置色是否真能在该底色上读得清」，
  * 替代肉眼判断——后台能配出自相矛盾的五色（亮黄底 + 白字），必须靠数值裁掉。
  */
@@ -86,6 +110,28 @@ export function contrastOn(fg, bgHex) {
 export function isReadableOn(fg, bgHex, min = 3) {
   const c = contrastOn(fg, bgHex);
   return c !== null && c >= min;
+}
+
+/**
+ * 🔴 浅底（白卡 / 白底占位头像）上**可读**的主色文字。
+ *
+ * 存在原因：品牌主色一换，白卡上照抄 var(--design-primary) 的文字就可能不可读
+ * （亮黄 #FCB801 在白底只有 1.75:1，肉眼几乎消失——真机报修「头像里的白字/黄字看不见」）。
+ * 判据是**文字所坐的那块底**（白卡/白圆），不是页面 hero 背景——沿用
+ * 「凡是明暗/可读性布尔量，先问判的是前景还是背景」这条元规则。
+ *
+ * @param {string} primary 品牌主色 @param {string} bg 文字所坐底色（默认白）
+ * @returns {string} 白底上达 WCAG 3.0 的可读色（主色本身达标则原样返回）
+ */
+export function inkOnLightBg(primary, bg = '#ffffff', fallback = '#165dff') {
+  const p = /^#[0-9a-fA-F]{6}$/.test(String(primary || '').trim()) ? String(primary).trim() : fallback;
+  if (isReadableOn(p, bg, 3)) return p;
+  // 太浅 → 逐级压暗直到达标（亮黄 #FCB801 压到 -0.45 ≈ #894501，约 7.2:1）
+  for (const k of [-0.3, -0.45, -0.6, -0.75]) {
+    const d = shadeHex(p, k);
+    if (d && isReadableOn(d, bg, 3)) return d;
+  }
+  return fallback;
 }
 
 /**

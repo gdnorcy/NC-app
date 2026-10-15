@@ -1,5 +1,5 @@
 <template>
-  <view class="dynamic-page" :style="[themeStyle, brandVars]">
+  <view class="dynamic-page" :style="[themeStyle, brandVars, brandInkVars]">
 <!-- PageNav -->
 <PageNav title="我的动态" back />
     <view class="header">
@@ -66,7 +66,7 @@ import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 
 const themeStyle = useDesignTheme();
-const { brandVars, brandPrimary } = useBrandOverride();
+const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 
 const dynamics = ref([]);
 const user = ref({});
@@ -149,7 +149,8 @@ async function publish() {
   height: 72rpx;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--design-primary, #eb2f96), var(--design-gradient, #f759ab));
-  color: #fff;
+  /* 同上：渐变圆上的首字母改走 --brand-hero-ink */
+  color: var(--brand-hero-ink, #fff);
   display: flex;
   align-items: center;
   justify-content: center;

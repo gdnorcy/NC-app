@@ -62,8 +62,9 @@ describe('我的名片 myCard 配色收敛（跟随租户主题）', () => {
     expect(src).toContain('#f53f3f');
   });
 
-  test('根视图绑定 [themeStyle, brandVars]（MP 端注入主题 var + 品牌覆盖的前提）', () => {
-    expect((src.match(/:style="\[themeStyle, brandVars\]"/g) || []).length).toBe(4);
+  test('根视图绑定 [themeStyle, brandVars, tabBarPad]（MP 端注入主题 var + 品牌覆盖 + 底部导航实测占位）', () => {
+    expect((src.match(/:style="\[themeStyle, brandVars\]"/g) || []).length).toBe(3); // 加载/失败/未登录三个态；正文态另加 tabBarPad
+    expect(src).toContain(':style="[themeStyle, brandVars, tabBarPad]"');
   });
 
   test('品牌主色覆盖全页主题变量（设了品牌外观，标签/图标/悬浮球/tab 都跟随品牌色）', () => {

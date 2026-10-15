@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page" :style="brandVars">
+  <view class="dist-page" :style="[brandVars, brandInkVars, tabBarPad]">
 <!-- PageNav -->
 <PageNav title="全民股东" back overlay :sticky="false" bg="transparent" :color="heroInk" />
     <!-- 顶部 -->
@@ -88,6 +88,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
@@ -111,7 +112,9 @@ async function loadBrand() {
   if (b && b.primary) Object.assign(brand.value, b);
 }
 // 🔴 品牌主色覆盖页面主题变量：页面主体（var(--design-primary) 消费点）跟随品牌色
-const { brandVars } = useBrandOverride();
+const { brandVars, brandInkVars } = useBrandOverride();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, shareTags: [], sharePending: 0, shareTotal: 0 });
@@ -156,7 +159,13 @@ onShow(() => {
 .user-row { margin-top: 30rpx; }
 .user-line { display: flex; align-items: center; gap: 16rpx; }
 .user-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: rgba(255,255,255,0.25); border: 2rpx solid rgba(255,255,255,0.6); }
-.user-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-size: 36rpx; color: #fff; }
+/* 占位首字母：白底圆 + --brand-ink。判据是**头像自己的白底**而非 hero 背景——
+   旧版写死 #fff 白字直接坐在品牌渐变上，主色一换成亮黄就整个消失（真机报修） */
+.user-avatar.placeholder {
+  display: flex; align-items: center; justify-content: center; font-size: 36rpx; font-weight: 600;
+  background: rgba(255,255,255,0.92); border-color: rgba(255,255,255,0.9);
+  color: var(--brand-ink, #165dff);
+}
 .user-name { font-size: 34rpx; font-weight: 600; }
 .user-level { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); }
 .money-row { margin-top: 32rpx; display: flex; align-items: flex-end; justify-content: space-between; }

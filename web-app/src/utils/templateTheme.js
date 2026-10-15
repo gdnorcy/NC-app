@@ -86,9 +86,12 @@ export function heroForeground(bgStart, bgEnd, cfg = {}) {
  *    （如 #FCB801）就变成白字压黄底，对比度只剩 1.67，不可读。统一走这里后深浅自动。
  * @returns {{ background: string, color: string }} 直接喂给 hero 根 :style
  */
-export function heroBrandStyle(b, fallbackBg = '') {
+export function heroBrandStyle(b, fallbackBg = '', fallbackPrimary = '') {
   const primary = (b && b.primary) || '';
-  const fg = heroForeground(primary || '#165dff', (b && b.gradient) || primary || '#165dff', { text: '#ffffff' });
+  // 前景判据必须跟「实际画出来的背景」同源：有品牌色按品牌色，没有就按兜底主色
+  // （不传兜底主色时会拿 #165dff 判白字，而背景却是系统主题色 → 系统配浅色即白字消失）
+  const judge = primary || fallbackPrimary || '#165dff';
+  const fg = heroForeground(judge, (b && b.gradient) || judge, { text: '#ffffff' });
   return {
     background: heroGradient(primary, (b && b.gradient) || '', fallbackBg),
     color: fg.text,

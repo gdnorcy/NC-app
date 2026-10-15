@@ -11,6 +11,10 @@ const { cardApiMock } = vi.hoisted(() => ({ cardApiMock: { getCardsSafe: vi.fn()
 vi.mock('./cardApi.js', () => ({ cardApi: cardApiMock }));
 
 import { fetchBrandPalette, resetBrandCache } from './brand.js';
+import { contrastOn } from './color.js';
+
+/** 对比度（供 inkOnLightBg 断言用；非法色返回 null） */
+function contrastOf(fg, bg) { return contrastOn(fg, bg); }
 
 function src(rel) {
   return readFileSync(fileURLToPath(new URL(rel, here)), 'utf8');
@@ -91,7 +95,32 @@ describe('品牌主色跟随锁（home 首页 / CardTabBar 底部导航）', () 
     expect(s).toContain('_retryTimer = setTimeout(ensureBrandLoaded, delay);');
     // ③ 共享模块级状态：所有页面/组件同一份 ref，任一处成功全站响应式更新
     expect(s).toContain('const _brandRef = ref(null);');
-    expect(s).toContain('return { brand: _brandRef, brandVars, brandPrimary };');
+    expect(s).toContain('return { brand: _brandRef, brandVars, brandPrimary, brandInkVars };');
+  });
+
+  test('brandInkVars：白底可读主色 + 主色淡底（亮黄主色白底不可读的根治口）', () => {
+    const s = src('./brand.js');
+    expect(s).toContain("import { brandPalette, inkOnLightBg, hexA } from './color.js';");
+    expect(s).toContain("'--brand-ink': inkOnLightBg(p)");
+    expect(s).toContain("'--brand-tint': hexA(p, 0.1)");
+    // 坐在品牌渐变上的前景（占位头像白字/渐变徽章）：与 cardDetail hero 同源裁决
+    expect(s).toContain("'--brand-hero-ink': heroForeground(p, g || p, { text: '#ffffff' }).text");
+    expect(s).toContain("import { heroForeground } from './templateTheme.js';");
+    // 未设品牌色 → 空对象，消费点各自 var() 兜底，不污染回落链路
+    expect(s).toMatch(/const p = brandPrimary\.value;[\s\S]*?if \(!p\) return \{\};/);
+  });
+
+  test('inkOnLightBg：亮黄主色压暗到可读，深色主色原样保留', () => {
+    const { inkOnLightBg } = require('./color.js');
+    // #FCB801 在白底仅 1.75:1 → 必须被压暗
+    const yellow = inkOnLightBg('#FCB801');
+    expect(yellow).not.toBe('#FCB801');
+    expect(contrastOf(yellow, '#ffffff')).toBeGreaterThanOrEqual(3);
+    // 深蓝在白底 5.19:1 → 原样保留，不许乱改
+    expect(inkOnLightBg('#165dff')).toBe('#165dff');
+    // 非法输入回落兜底蓝
+    expect(inkOnLightBg('')).toBe('#165dff');
+    expect(inkOnLightBg('rgba(0,0,0,.5)')).toBe('#165dff');
   });
 
   test('login.vue：登录成功后 resetBrandCache（reLaunch 后各页带新 token 重拉品牌色）', () => {

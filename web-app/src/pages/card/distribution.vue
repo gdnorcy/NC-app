@@ -1,5 +1,5 @@
 <template>
-  <view class="dist-page" :style="[navVars, themeStyle, brandVars]">
+  <view class="dist-page" :style="[navVars, themeStyle, brandVars, brandInkVars, tabBarPad]">
 <!-- PageNav -->
 <PageNav title="分销中心" back overlay :sticky="false" bg="transparent" :color="heroInk" />
     <!-- 顶部主视觉卡：用户信息 + 上级推广员 + 已邀请 + 收益总览 -->
@@ -99,21 +99,17 @@
         <text v-else>当前为指定商品门槛：购买指定商品并支付完成后自动获得分销资格</text>
       </view>
 
-      <!-- 生成专属邀请码（渐变模块） -->
-      <view class="invite-box g3" :style="heroStyle">
-        <view class="invite-left">
-          <view class="invite-title">生成专属邀请码</view>
-          <view class="invite-desc">分享名片给客户，绑定后付费即可获得佣金</view>
-          <view class="invite-btns">
-            <button class="mini-btn invite-btn" @click="openQr">推广二维码</button>
-            <button class="mini-btn invite-btn solid" @click="openPoster">生成海报</button>
-            <button class="mini-btn invite-btn ghost wide" @click="copyShareUrl">复制链接</button>
-          </view>
-        </view>
-        <view class="invite-right" @click="openQr">
-          <view class="deco-qr">
-            <view v-for="n in 49" :key="n" class="dqr-cell" :class="qrCellCls(n)" />
-          </view>
+      <!-- 生成专属邀请码（白卡：与页面其它卡同一观感）
+           旧版是「第二块品牌渐变 + 装饰性假二维码」→ 整页两块大面积品牌色，观感廉价
+           （用户报修「太黄了，太多黄的色块」）。改为白卡 + 单一主按钮承载品牌色，
+           假二维码删除（真码在点「推广二维码」后的弹层里生成）。 -->
+      <view class="invite-box">
+        <view class="invite-title">生成专属邀请码</view>
+        <view class="invite-desc">分享名片给客户，绑定后付费即可获得佣金</view>
+        <view class="invite-btns">
+          <button class="mini-btn invite-btn solid" :style="heroStyle" @click="openPoster">生成海报</button>
+          <button class="mini-btn invite-btn ghost" @click="openQr">推广二维码</button>
+          <button class="mini-btn invite-btn ghost" @click="copyShareUrl">复制链接</button>
         </view>
       </view>
 
@@ -302,6 +298,7 @@
 </template>
 
 <script setup>
+import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
@@ -317,7 +314,9 @@ import { useBrandOverride } from '../../utils/brand.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
-const { brandVars, brandPrimary } = useBrandOverride();
+// 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
+const tabBarPad = useTabBarPadding();
+const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 // SIcon/radio/canvas 不能消费 var()（构建期烘焙 hex / canvas 只吃真实色），主题主色喂真实 hex：回落品牌蓝
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 // 品牌 5 色 hero：本人名片优先，无则回落主题渐变（曾 ref('') 恒空 → 品牌链路断）
@@ -325,7 +324,9 @@ const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText:
 // hero 前景（SIcon / PageNav 需要真实 hex，吃不了 var()）：与 heroStyle 同判据产出，
 // 品牌亮黄时自动转深灰，避免白图标白字消失在黄底上
 const heroInk = computed(() => heroStyle.value.color);
-const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))'));
+// 第三个参数：无品牌色时按**系统主题主色**裁决前景（否则背景走了系统主题、文字却按
+// 兜底蓝判白字 → 系统配浅色时白字消失）。背景兜底仍是 var() 渐变，跟着设计中心走。
+const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))', themeColor.value));
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });
@@ -350,16 +351,6 @@ const nextGap = computed(() => {
   return '即将达成';
 });
 
-const QR_PATTERN = [
-  1,1,1,0,1,1,1,
-  1,0,1,0,1,0,1,
-  1,1,1,0,1,1,1,
-  0,0,0,1,0,0,0,
-  1,0,1,1,1,0,1,
-  1,1,0,0,1,1,0,
-  0,1,1,0,0,1,1,
-];
-function qrCellCls(n) { return QR_PATTERN[n - 1] ? 'on' : ''; }
 function scrollTo(anchor) { uni.pageScrollTo({ selector: `#anchor-${anchor}`, duration: 300 }); }
 
 const logs = ref([]);
@@ -678,16 +669,22 @@ onShow(() => {
 .user-row { margin-top: 30rpx; }
 .user-line { display: flex; align-items: center; gap: 16rpx; }
 .user-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: rgba(255,255,255,0.25); border: 2rpx solid rgba(255,255,255,0.6); }
-.user-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-size: 36rpx; color: #fff; }
+/* 占位首字母：白底圆 + --brand-ink 文字。判据是**头像自己的白底**而非 hero 背景——
+   旧版写死 #fff 白字直接坐在品牌渐变上，品牌色一换成亮黄就整个消失（真机报修） */
+.user-avatar.placeholder {
+  display: flex; align-items: center; justify-content: center; font-size: 36rpx; font-weight: 600;
+  background: rgba(255,255,255,0.92); border-color: rgba(255,255,255,0.9);
+  color: var(--brand-ink, #165dff);
+}
 .user-name { font-size: 34rpx; font-weight: 600; }
 .user-level { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); }
 .user-level-link { margin-top: 12rpx; font-size: 24rpx; opacity: 0.92; display: inline-flex; align-items: center; }
 .level-list { display: flex; flex-direction: column; gap: 14rpx; }
 .level-item { border: 1rpx solid #e5e6eb; border-radius: 12rpx; padding: 18rpx 20rpx; background: #fff; }
-.level-item.cur { border-color: var(--design-primary); background: var(--design-secondary); }
+.level-item.cur { border-color: var(--design-primary); background: var(--brand-tint, var(--design-secondary)); }
 .level-head { display: flex; align-items: center; gap: 12rpx; }
 .level-name { font-size: 28rpx; font-weight: 600; color: #1d2129; }
-.level-cur { font-size: 20rpx; color: var(--design-primary); background: var(--design-secondary); padding: 2rpx 12rpx; border-radius: 999rpx; }
+.level-cur { font-size: 20rpx; color: var(--brand-ink, var(--design-primary)); background: var(--brand-tint, var(--design-secondary)); padding: 2rpx 12rpx; border-radius: 999rpx; }
 .level-meta { margin-top: 6rpx; font-size: 22rpx; color: var(--t3); }
 .level-benefit { margin-top: 8rpx; padding: 10rpx 14rpx; background: #f7f8fa; border-radius: 10rpx; font-size: 24rpx; color: #4e5969; line-height: 1.6; }
 .level-tip { margin-top: 16rpx; color: var(--t3); }
@@ -700,7 +697,8 @@ onShow(() => {
 .money-sub { display: flex; gap: 20rpx; margin-top: 8rpx; font-size: 22rpx; opacity: 0.9; }
 .money-right { display: flex; flex-direction: column; align-items: flex-end; gap: 14rpx; }
 .wd-detail-link { font-size: 22rpx; opacity: 0.9; }
-.withdraw-btn { background: #fff; color: var(--design-primary); font-size: 28rpx; font-weight: 600; padding: 14rpx 44rpx; border-radius: 999rpx; box-shadow: 0 6rpx 16rpx rgba(0,0,0,0.12); }
+/* 白药丸按钮：文字坐在**白底**上 → 用 --brand-ink（亮黄主色在白底只有 1.75:1，必须压暗） */
+.withdraw-btn { background: #fff; color: var(--brand-ink, var(--design-primary)); font-size: 28rpx; font-weight: 600; padding: 14rpx 44rpx; border-radius: 999rpx; box-shadow: 0 6rpx 16rpx rgba(0,0,0,0.12); }
 .perf-cards { margin: 24rpx 32rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
 .perf-card { background: #fff; border-radius: 20rpx; padding: 26rpx 24rpx; }
 .perf-card.perf-click { cursor: pointer; }
@@ -720,20 +718,16 @@ onShow(() => {
 .apply-agreement { margin-top: 20rpx; }
 .agreement-box { background: #f7f8fa; border-radius: 12rpx; padding: 20rpx; font-size: 24rpx; color: #4e5969; max-height: 240rpx; overflow: auto; }
 .agreement-check { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; font-size: 24rpx; color: #4e5969; }
-.invite-box { margin: 32rpx; border-radius: 24rpx; padding: 32rpx; display: flex; align-items: center; gap: 24rpx; color: #fff; }
-.invite-left { flex: 1; min-width: 0; }
-.invite-title { font-size: 32rpx; font-weight: 700; }
-.invite-desc { margin-top: 24rpx; font-size: 24rpx; opacity: 0.9; }
-.invite-btns { margin-top: 24rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
-.mini-btn { font-size: 26rpx; border-radius: 999rpx; line-height: 2.3; padding: 0 20rpx; }
-.invite-btn { background: rgba(255,255,255,0.2); color: #fff; border: 1rpx solid rgba(255,255,255,0.5); }
-.invite-btn.solid { background: #fff; color: var(--design-primary); font-weight: 600; border: none; }
-.invite-btn.ghost { background: transparent; }
-.invite-btn.wide { grid-column: span 2; }
-.invite-right { flex-shrink: 0; }
-.deco-qr { width: 150rpx; height: 150rpx; border-radius: 16rpx; background: #fff; padding: 14rpx; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr); gap: 3rpx; }
-.dqr-cell { background: transparent; }
-.dqr-cell.on { background: var(--design-primary); border-radius: 2rpx; }
+.invite-box { margin: 32rpx; border-radius: 24rpx; padding: 32rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.05); }
+.invite-title { font-size: 32rpx; font-weight: 700; color: #1d2129; }
+.invite-desc { margin-top: 12rpx; font-size: 24rpx; color: var(--t3); line-height: 1.6; }
+.invite-btns { margin-top: 28rpx; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.mini-btn { font-size: 26rpx; border-radius: 999rpx; line-height: 2.4; padding: 0 20rpx; }
+/* 描边次按钮：文字/描边用 --brand-ink（白底上可读的主色），亮黄主色会自动压暗，
+   直接用 var(--design-primary) 的话黄字压白底只有 1.75:1，等于看不见 */
+.invite-btn.ghost { background: transparent; border: 1rpx solid var(--brand-ink, #165dff); color: var(--brand-ink, #165dff); }
+/* 主按钮：品牌渐变 + 由 heroForeground 裁决的可读文字（内联 heroStyle 覆盖此处兜底） */
+.invite-btn.solid { grid-column: span 2; background: var(--design-primary); color: var(--design-text, #fff); border: none; font-weight: 600; }
 .sec-t { margin: 40rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: #1d2129; }
 .stat-cards { margin: 0 32rpx; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; }
 .s-card { background: #fff; border-radius: 16rpx; padding: 24rpx 12rpx; text-align: center; }
@@ -742,7 +736,7 @@ onShow(() => {
 .sub-box, .log-list { margin: 16rpx 32rpx 0; background: #fff; border-radius: 20rpx; padding: 8rpx 24rpx; }
 .sub-tabs { display: flex; align-items: center; gap: 8rpx; padding: 20rpx 0 12rpx; }
 .sub-tab { font-size: 28rpx; color: var(--t3); padding: 8rpx 20rpx; border-radius: 999rpx; }
-.sub-tab.on { color: var(--design-primary); background: var(--design-secondary); font-weight: 600; }
+.sub-tab.on { color: var(--brand-ink, var(--design-primary)); background: var(--brand-tint, var(--design-secondary)); font-weight: 600; }
 .sub-count { margin-left: auto; font-size: 24rpx; color: #c9cdd4; }
 .sub-empty { padding: 40rpx 0; text-align: center; color: var(--t3); font-size: 26rpx; }
 .sub-item { display: flex; align-items: center; gap: 20rpx; padding: 22rpx 0; border-top: 1rpx solid #f2f3f5; }
@@ -756,7 +750,7 @@ onShow(() => {
 .sub-arrow { color: #c9cdd4; font-size: 32rpx; }
 .tabs { margin: 0 32rpx; display: flex; gap: 12rpx; overflow-x: auto; }
 .tab { flex-shrink: 0; font-size: 26rpx; color: #4e5969; background: #fff; border-radius: 999rpx; padding: 10rpx 28rpx; }
-.tab.on { color: var(--design-primary); background: var(--design-secondary); font-weight: 600; }
+.tab.on { color: var(--brand-ink, var(--design-primary)); background: var(--brand-tint, var(--design-secondary)); font-weight: 600; }
 .log-item { padding: 24rpx 0; border-top: 1rpx solid #f2f3f5; }
 .log-item:first-child { border-top: none; }
 .log-top { display: flex; justify-content: space-between; align-items: center; }
@@ -772,10 +766,16 @@ onShow(() => {
 .app-grid { margin: 16rpx 32rpx 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
 .app-card { background: #fff; border-radius: 20rpx; padding: 26rpx 24rpx; display: flex; flex-direction: column; gap: 12rpx; }
 .app-ic { width: 64rpx; height: 64rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; }
-/* 应用图标底色四分（橙/紫/绿/青）统一主题 tint——图标本身中性 #4e5969，类型区分靠文案 */
-.ic-orange { background: var(--design-secondary); } .ic-purple { background: var(--design-secondary); }
-.ic-green { background: var(--design-secondary); } .ic-cyan { background: var(--design-secondary); }
-.app-ic :deep(.s-icon) { color: #4e5969; }
+/* 🔴 应用图标底色四分（2026-10-16 修）：旧版四个类全写 var(--design-secondary)
+      → 四张卡一模一样（默认还是粉底），类名承诺的橙/紫/绿/青一个没生效。
+      改用全仓统一的「4 业务域色板」（见 pages/cardMain/gridDomainPalette.test.js），
+      与首页宫格同一套语义：不跟随租户主题，四域互不相同、一眼可分。
+      白图标在四域起点对比度均 ≥3:1（橙 3.58 / 蓝紫 4.3 / 青绿 3.30 / 石墨 8+）。 */
+.ic-orange { background: linear-gradient(135deg,#e8590c,#f59e0b); }  /* 经营域：合伙人分红 */
+.ic-purple { background: linear-gradient(135deg,#3b6ef7,#6a4bf5); }  /* 身份域：全民股东 */
+.ic-green  { background: linear-gradient(135deg,#0a9f8f,#10b981); }  /* 关系域：类目股东 */
+.ic-cyan   { background: linear-gradient(135deg,#5c6470,#3d424b); }  /* 工具域：区域股东 */
+.app-ic :deep(.s-icon) { color: #ffffff; }
 .app-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; }
 .app-name { font-size: 28rpx; font-weight: 600; color: #1d2129; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-state { flex-shrink: 0; font-size: 20rpx; padding: 2rpx 12rpx; border-radius: 999rpx; }
