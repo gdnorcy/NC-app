@@ -290,9 +290,9 @@ const { brandVars, brandPrimary } = useBrandOverride();
 const navVars = navVarsStyle();
 // SIcon / switch 不能消费 var()（构建期烘焙 hex），这类需真实 hex 的地方用这个
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
-// 🔴 皮肤必须吃「品牌覆盖后的主题」：--sk-header / --sk-btn 是**已烘焙的渐变串**
-//    （linear-gradient(...) 里写死了 hex），若仍按系统主题生成，brandVars 在 :style 里
-//    排得再靠后也盖不掉渐变内部的颜色 → 创建页永远停在设计中心蓝（真机报修）。
+// 🔴 皮肤必须吃「品牌覆盖后的主题」：--sk-header / --sk-btn 是**已烘焙的色值串**
+//    （hex 在 createSkin.js 里就写死了），若仍按系统主题生成，brandVars 在 :style 里
+//    排得再靠后也盖不掉 → 创建页永远停在设计中心蓝（真机报修）。
 const skinTheme = computed(() => ({ ...(themeStyle.value || {}), ...(brandVars.value || {}) }));
 
 const form = reactive({
