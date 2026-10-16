@@ -172,6 +172,21 @@ describe('nativeMargin 容器圆角（2026-10-16「圆角为 0，预览图及小
     expect(block).not.toContain("key: 'marginLR'");
   });
 
+  it('🔴 集市 schema 不得暴露「卡片圆角」控件（预览恒空态看不到效果，被判与通用圆角重复）', () => {
+    // cardRadius 只作用于 C 端集市列表里的人脉小卡（有数据才有），admin 预览恒为空态
+    // → 滑块拖了永远不变 =「参数被架空」感知。控件移除，字段与 C 端消费保留（存量兼容）。
+    const reg = fs.readFileSync(
+      path.join(ROOT, 'web-admin/src/views/customer/apps/design/componentRegistry.js'), 'utf8');
+    const start = reg.indexOf("type: 'native-market'");
+    expect(start).toBeGreaterThan(-1);
+    const block = reg.slice(start, reg.indexOf('];', start));
+    expect(block).not.toContain("key: 'cardRadius'");
+    // 字段与消费必须保留：defaultProps 仍带 cardRadius，C 端 market-card 仍读它
+    expect(block).toMatch(/cardRadius: 12/);
+    const cSrc = fs.readFileSync(SRC.cEnd, 'utf8');
+    expect(cSrc).toMatch(/cardRadius \?\? 12/);
+  });
+
   it('🔴 native-* 不显示「内边距」控件（渲染层不消费 props.padding，显示即架空）', () => {
     const pe = fs.readFileSync(
       path.join(ROOT, 'web-admin/src/views/customer/apps/design/PageEditor.vue'), 'utf8');

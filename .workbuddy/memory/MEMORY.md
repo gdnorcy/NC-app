@@ -77,6 +77,7 @@
 - 🔴 **「清空/透明」类控件绝不能 emit 空串表示透明**——空串已被「未设置→默认兜底」占用，透明意图永远无法表达(9166359「设了透明还是白色」)。颜色控件三态：`''`=未设(默认白卡)、`'transparent'`=显式透明(照常输出 background 盖 CSS 白底，但不算「设了底色」不触发 MIN_BG_PADDING)、有色值。
 - 🔴 **「保存/发布后预览才变」⇒ 病根在「重新加载」路径(迁移/合并)，不在渲染函数**。先查库(`server/data/panorama.db`，⚠️ 非 `server/src/data/` 旧库)区分「数据坏了」vs「内存被改」。
 - 🔴 **新增组件族必须审 `SELF_COLORED_TYPES`**：bgColor=自身色的组件漏加白名单 → 迁移把它搬进 compBgColor 污染容器；再保存即写库、C 端跟着坏。native-* 出生即新范式，已整体 `startsWith('native-')` 跳过迁移(a296b27)。
+- 🔴 **admin 画布组件是三层套壳：`.pe-comp`(compBoxStyle→shared containerStyle 带 padding) → `.comp-render`(containerStyle computed→margins/bg) → 组件根**。native-* 自包含组件必须**三层全跳过**(`startsWith('native-')` 返回 `{}`，c1b0446)，漏一层=双重生效(存量 padding=11 让预览多一圈灰边、marginLR 7px 画成 14px)；「C 端好了预览不对」先 `node:sqlite` 读 `tenant_page_version.design_json` 实锤存量 props，别靠猜。
 
 ## 包内 vs 后端资源（判据：文件在后端有吗）
 有 → `resolveUrl()`/`background-image`；只在 `src/static` → `assetUrl()`/真 `<image>`。

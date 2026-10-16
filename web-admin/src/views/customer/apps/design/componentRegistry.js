@@ -1680,7 +1680,10 @@ export const componentRegistry = [
       { key: 'moreText', label: '按钮文案', control: 'input', section: 'content', placeholder: '默认 进入集市' },
       { key: 'moreUrl', label: '按钮跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
       { key: 'emptyText', label: '空态文案', control: 'input', section: 'content', placeholder: '默认 暂无人脉推荐' },
-      { key: 'cardRadius', label: '卡片圆角', control: 'slider', section: 'style', min: 0, max: 24 },
+      // 🔴 不再暴露「卡片圆角」（2026-10-16 用户反馈「跟通用样式的圆角重复了」）：
+      //   cardRadius 只作用于集市列表里的**人脉名片小卡**（C 端 market-card，有数据才有），
+      //   admin 预览恒为空态 → 滑块拖了永远看不到效果，被感知成与下方通用「圆角」重复。
+      //   字段本身保留：defaultProps.cardRadius 与 C 端消费不动，存量集市小卡外观不变。
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
