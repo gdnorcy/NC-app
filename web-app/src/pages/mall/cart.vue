@@ -196,16 +196,16 @@ onShow(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f7f8fa;
+  background: var(--bg-card);
   overflow: hidden;
   box-sizing: border-box;
 }
 /* PageNav 右侧插槽的「清空」文字按钮 */
-.nav-clear { font-size: 26rpx; color: #4e5969; padding: 8rpx; }
+.nav-clear { font-size: 26rpx; color: var(--t2); padding: 8rpx; }
 .cart-item.off { opacity: 0.6; }
 .check {
   width: 36rpx; height: 36rpx; border-radius: 50%;
-  border: 2rpx solid #c9cdd4; box-sizing: border-box;
+  border: 2rpx solid var(--border); box-sizing: border-box;
   margin-right: 16rpx; flex-shrink: 0;
   position: relative;
 }
@@ -216,61 +216,61 @@ onShow(() => {
   content: '';
   position: absolute; left: 11rpx; top: 5rpx;
   width: 10rpx; height: 18rpx;
-  border-right: 3rpx solid #fff; border-bottom: 3rpx solid #fff;
+  border-right: 3rpx solid var(--white); border-bottom: 3rpx solid var(--white);
   transform: rotate(45deg);
 }
-.item-img { width: 160rpx; height: 160rpx; border-radius: 12rpx; background: #f2f3f5; flex-shrink: 0; }
+.item-img { width: 160rpx; height: 160rpx; border-radius: 12rpx; background: var(--bg-hover); flex-shrink: 0; }
 .item-info { flex: 1; margin-left: 16rpx; min-width: 0; }
 .item-title {
-  font-size: 28rpx; color: #1d2129; display: block;
+  font-size: 28rpx; color: var(--t1); display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .item-spec {
   display: inline-block; margin-top: 8rpx; padding: 4rpx 12rpx;
-  background: #f2f3f5; border-radius: 8rpx; font-size: 22rpx; color: #86909c;
+  background: var(--bg-hover); border-radius: 8rpx; font-size: 22rpx; color: var(--decor);
 }
 .item-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; }
 .item-price { display: flex; align-items: baseline; }
-.price-symbol { font-size: 22rpx; color: #f53f3f; }
-.price-num { font-size: 32rpx; font-weight: 600; color: #f53f3f; }
+.price-symbol { font-size: 22rpx; color: var(--danger); }
+.price-num { font-size: 32rpx; font-weight: 600; color: var(--danger); }
 .num-stepper { display: flex; align-items: center; }
 .step-btn {
-  width: 48rpx; height: 48rpx; border-radius: 8rpx; background: #f2f3f5;
-  color: #1d2129; font-size: 28rpx; display: flex; align-items: center; justify-content: center;
+  width: 48rpx; height: 48rpx; border-radius: 8rpx; background: var(--bg-hover);
+  color: var(--t1); font-size: 28rpx; display: flex; align-items: center; justify-content: center;
 }
 .step-num { min-width: 60rpx; text-align: center; font-size: 26rpx; }
 .item-off-tag {
   position: absolute; right: 16rpx; top: 16rpx;
-  background: rgba(0,0,0,0.5); color: #fff; font-size: 20rpx;
+  background: rgba(0,0,0,0.5); color: var(--white); font-size: 20rpx;
   padding: 4rpx 12rpx; border-radius: 8rpx;
 }
 .item-del {
   position: absolute; right: 10rpx; top: 10rpx;
   width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center;
-  color: #c9cdd4; font-size: 26rpx; z-index: 2;
+  color: var(--border); font-size: 26rpx; z-index: 2;
 }
 .empty-box {
   padding: 180rpx 0;
   display: flex; flex-direction: column; align-items: center;
 }
 .empty-icon {
-  width: 140rpx; height: 140rpx; border-radius: 28rpx; background: #f2f3f5;
+  width: 140rpx; height: 140rpx; border-radius: 28rpx; background: var(--bg-hover);
   display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx;
 }
-.empty-text { font-size: 26rpx; color: #86909c; margin-bottom: 32rpx; }
+.empty-text { font-size: 26rpx; color: var(--decor); margin-bottom: 32rpx; }
 .empty-btn {
   padding: 16rpx 56rpx; border-radius: 40rpx; background: var(--design-primary);
   color: var(--design-text, #fff); font-size: 28rpx;
 }
 .settle-bar {
   display: flex; align-items: center;
-  background: #fff; padding: 16rpx 24rpx;
-  border-top: 1rpx solid #f2f3f5;
+  background: var(--white); padding: 16rpx 24rpx;
+  border-top: 1rpx solid var(--bg-hover);
 }
-.check-all { display: flex; align-items: center; font-size: 26rpx; color: #4e5969; }
+.check-all { display: flex; align-items: center; font-size: 26rpx; color: var(--t2); }
 .total { margin-left: auto; display: flex; align-items: baseline; margin-right: 24rpx; }
-.total-label { font-size: 24rpx; color: #4e5969; }
-.total-num { font-size: 36rpx; font-weight: 600; color: #f53f3f; }
+.total-label { font-size: 24rpx; color: var(--t2); }
+.total-num { font-size: 36rpx; font-weight: 600; color: var(--danger); }
 .settle-btn {
   padding: 0 48rpx; height: 76rpx; line-height: 76rpx;
   background: var(--design-primary); color: var(--design-text, #fff); border-radius: 38rpx; font-size: 28rpx; font-weight: 500;

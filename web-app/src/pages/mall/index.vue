@@ -244,7 +244,7 @@ onShow(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--bg-card);
   overflow: visible;
   box-sizing: border-box;
 }
@@ -266,17 +266,17 @@ onShow(() => {
   height: 30rpx;
   padding: 0 6rpx;
   border-radius: 15rpx;
-  background: #f53f3f;
-  color: #fff;
+  background: var(--danger);
+  color: var(--white);
   font-size: 20rpx;
   line-height: 30rpx;
   text-align: center;
   box-sizing: border-box;
 }
 .cate-scroll {
-  background: #ffffff;
+  background: var(--white);
   white-space: nowrap;
-  border-bottom: 1rpx solid #f2f3f5;
+  border-bottom: 1rpx solid var(--bg-hover);
 }
 .cate-list {
   display: inline-flex;
@@ -287,8 +287,8 @@ onShow(() => {
   margin: 0 8rpx;
   border-radius: 30rpx;
   font-size: 26rpx;
-  color: #4e5969;
-  background: #f2f3f5;
+  color: var(--t2);
+  background: var(--bg-hover);
 }
 .cate-item.active {
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
@@ -297,15 +297,15 @@ onShow(() => {
 }
 .sort-bar {
   display: flex;
-  background: #ffffff;
-  border-bottom: 1rpx solid #f2f3f5;
+  background: var(--white);
+  border-bottom: 1rpx solid var(--bg-hover);
 }
 .sort-item {
   flex: 1;
   text-align: center;
   padding: 20rpx 0;
   font-size: 26rpx;
-  color: #4e5969;
+  color: var(--t2);
 }
 .sort-item.active {
   color: var(--design-primary, #165dff);
@@ -324,7 +324,7 @@ onShow(() => {
 .goods-card {
   width: calc(50% - 12rpx);
   margin: 6rpx;
-  background: #ffffff;
+  background: var(--white);
   border-radius: 16rpx;
   overflow: hidden;
 }
@@ -341,7 +341,7 @@ onShow(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f2f3f5;
+  background: var(--bg-hover);
 }
 .soldout-mask {
   position: absolute;
@@ -353,7 +353,7 @@ onShow(() => {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.6);
-  color: #4e5969;
+  color: var(--t2);
   font-size: 28rpx;
 }
 .goods-info {
@@ -361,7 +361,7 @@ onShow(() => {
 }
 .goods-title {
   font-size: 28rpx;
-  color: #1d2129;
+  color: var(--t1);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -376,15 +376,15 @@ onShow(() => {
   margin-top: 8rpx;
 }
 .goods-price { display: flex; align-items: baseline; }
-.price-symbol { font-size: 22rpx; color: #f53f3f; }
-.price-num { font-size: 34rpx; font-weight: 600; color: #f53f3f; }
+.price-symbol { font-size: 22rpx; color: var(--danger); }
+.price-num { font-size: 34rpx; font-weight: 600; color: var(--danger); }
 .price-market {
   font-size: 22rpx;
-  color: #86909c;
+  color: var(--decor);
   text-decoration: line-through;
   margin-left: 8rpx;
 }
-.goods-sales { font-size: 22rpx; color: #86909c; }
+.goods-sales { font-size: 22rpx; color: var(--decor); }
 .empty-box {
   padding: 160rpx 0;
   display: flex;
@@ -395,20 +395,20 @@ onShow(() => {
   width: 140rpx;
   height: 140rpx;
   border-radius: 28rpx;
-  background: #f2f3f5;
+  background: var(--bg-hover);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 24rpx;
 }
-.empty-text { font-size: 26rpx; color: #86909c; }
+.empty-text { font-size: 26rpx; color: var(--decor); }
 .load-more {
   text-align: center;
   padding: 24rpx 0 40rpx;
   font-size: 24rpx;
-  color: #c9cdd4;
+  color: var(--border);
 }
 
-.design-zone { background: #f7f8fa; }
+.design-zone { background: var(--bg-card); }
 
 </style>

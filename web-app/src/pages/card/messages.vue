@@ -166,7 +166,7 @@ function goBack() {
   display: flex;
   gap: 8rpx;
   padding: 16rpx 32rpx;
-  background: #fff;
+  background: var(--white);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -188,7 +188,7 @@ function goBack() {
   line-height: 28rpx;
   border-radius: 14rpx;
   background: var(--danger);
-  color: #fff;
+  color: var(--white);
   font-size: 20rpx;
   padding: 0 6rpx;
   margin-left: 6rpx;
@@ -199,7 +199,7 @@ function goBack() {
 .msg-item {
   display: flex;
   gap: 20rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 20rpx;
   padding: 24rpx;
   margin-bottom: 16rpx;
@@ -223,7 +223,7 @@ function goBack() {
 .m-time { font-size: 22rpx; color: var(--t4); }
 .m-content {
   font-size: 25rpx;
-  color: #5b5b5b;
+  color: var(--t2);
   margin-top: 8rpx;
   line-height: 1.5;
   display: -webkit-box;

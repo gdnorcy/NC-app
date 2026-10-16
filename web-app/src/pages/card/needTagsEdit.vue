@@ -128,7 +128,7 @@ onMounted(() => {
 .nt-page { min-height: 100vh; background: var(--bg-page); }
 .nt-body { padding: 20rpx 24rpx 60rpx; }
 .nt-card {
-  background: #fff; border-radius: 20rpx; padding: 32rpx 28rpx;
+  background: var(--white); border-radius: 20rpx; padding: 32rpx 28rpx;
   box-shadow: 0 4px 14px rgba(20,40,70,.08);
 }
 .nt-title { font-size: 32rpx; font-weight: 600; color: var(--t5); }
@@ -140,13 +140,13 @@ onMounted(() => {
 .nt-count.max { color: var(--warning); }
 .nt-save {
   margin-top: 40rpx; height: 88rpx; line-height: 88rpx; border-radius: 44rpx;
-  background: var(--design-primary, #165dff); color: #fff; font-size: 30rpx; border: none;
+  background: var(--design-primary, #165dff); color: var(--white); font-size: 30rpx; border: none;
 }
 .nt-save[disabled] { opacity: 0.5; }
 .pg-error { padding: 200rpx 60rpx; text-align: center; }
 .pg-err-text { font-size: 26rpx; color: var(--t3); }
 .pg-btn {
   margin: 24rpx auto 0; display: inline-block; padding: 16rpx 56rpx; border-radius: 40rpx;
-  background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx;
+  background: var(--design-primary, #165dff); color: var(--white); font-size: 28rpx;
 }
 </style>

@@ -148,32 +148,32 @@ onMounted(load);
 .req-page { min-height: 100vh; background: var(--bg, #f5f6f7); padding-bottom: 60rpx; }
 
 
-.req-tabs { display: flex; margin: 20rpx 24rpx 0; background: #fff; border-radius: 999rpx; padding: 6rpx; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.06)); }
-.req-tab { flex: 1; text-align: center; padding: 16rpx 0; border-radius: 999rpx; font-size: 28rpx; color: #5b5b5b; position: relative; }
-.req-tab.on { background: var(--wx, #07c160); color: #fff; font-weight: 500; }
-.tab-badge { display: inline-block; min-width: 32rpx; height: 32rpx; line-height: 32rpx; border-radius: 999rpx; background: #ff4d4f; color: #fff; font-size: 20rpx; text-align: center; margin-left: 6rpx; padding: 0 8rpx; }
+.req-tabs { display: flex; margin: 20rpx 24rpx 0; background: var(--white); border-radius: 999rpx; padding: 6rpx; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.06)); }
+.req-tab { flex: 1; text-align: center; padding: 16rpx 0; border-radius: 999rpx; font-size: 28rpx; color: var(--t2); position: relative; }
+.req-tab.on { background: var(--wx, #07c160); color: var(--white); font-weight: 500; }
+.tab-badge { display: inline-block; min-width: 32rpx; height: 32rpx; line-height: 32rpx; border-radius: 999rpx; background: #ff4d4f; color: var(--white); font-size: 20rpx; text-align: center; margin-left: 6rpx; padding: 0 8rpx; }
 
 .empty { padding: 120rpx 40rpx; text-align: center; }
-.empty-icon { width: 96rpx; height: 96rpx; margin: 0 auto 24rpx; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
-.empty-title { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
+.empty-icon { width: 96rpx; height: 96rpx; margin: 0 auto 24rpx; background: var(--white); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.08)); }
+.empty-title { font-size: 30rpx; font-weight: 600; color: var(--t5); }
 .empty-desc { font-size: 24rpx; color: var(--t3); margin-top: 10rpx; }
-.empty-btn { display: inline-block; margin-top: 36rpx; padding: 16rpx 56rpx; background: var(--wx, #07c160); color: #fff; font-size: 28rpx; border-radius: 999rpx; }
+.empty-btn { display: inline-block; margin-top: 36rpx; padding: 16rpx 56rpx; background: var(--wx, #07c160); color: var(--white); font-size: 28rpx; border-radius: 999rpx; }
 
 .req-list { padding: 16rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
-.req-item { background: #fff; border-radius: 24rpx; padding: 24rpx; display: flex; align-items: center; gap: 20rpx; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.06)); }
+.req-item { background: var(--white); border-radius: 24rpx; padding: 24rpx; display: flex; align-items: center; gap: 20rpx; box-shadow: var(--shadow, 0 4rpx 14rpx rgba(20, 40, 70, 0.06)); }
 .req-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: var(--blue-soft, #e9f1fb); color: var(--blue, #1d4e8f); font-size: 32rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .req-info { flex: 1; min-width: 0; }
 .req-name-row { display: flex; align-items: center; gap: 12rpx; }
-.req-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
+.req-name { font-size: 30rpx; font-weight: 600; color: var(--t5); }
 .req-status { font-size: 20rpx; padding: 4rpx 14rpx; border-radius: 999rpx; }
 .st-pending { color: var(--orange, #f59e0b); background: #fdf3e3; }
-.st-accepted { color: #07c160; background: #e8f7ef; }
-.st-rejected { color: var(--t3); background: #f5f6f7; }
-.req-msg { font-size: 24rpx; color: #5b5b5b; margin-top: 6rpx; }
+.st-accepted { color: var(--success); background: #e8f7ef; }
+.st-rejected { color: var(--t3); background: var(--bg-page); }
+.req-msg { font-size: 24rpx; color: var(--t2); margin-top: 6rpx; }
 .req-time { font-size: 20rpx; color: var(--t3); margin-top: 6rpx; }
 .req-ops { display: flex; gap: 12rpx; flex-shrink: 0; }
 .req-btn { font-size: 24rpx; padding: 10rpx 26rpx; border-radius: 999rpx; text-align: center; }
-.req-btn.accept { color: #07c160; background: #e8f7ef; }
+.req-btn.accept { color: var(--success); background: #e8f7ef; }
 .req-btn.reject { color: #ff4d4f; background: #fdecec; }
-.req-btn.waiting { color: var(--t3); background: #f5f6f7; font-size: 22rpx; }
+.req-btn.waiting { color: var(--t3); background: var(--bg-page); font-size: 22rpx; }
 </style>

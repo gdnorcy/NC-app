@@ -474,7 +474,7 @@ async function saveConvert() {
 }
 .lock-card {
   width: 100%;
-  background: #ffffff;
+  background: var(--white);
   border-radius: 24rpx;
   padding: 64rpx 40rpx 48rpx;
   text-align: center;
@@ -527,7 +527,7 @@ async function saveConvert() {
   margin: 24rpx 28rpx 8rpx;
 }
 .rstat {
-  background: #fff;
+  background: var(--white);
   border-radius: 32rpx;
   padding: 30rpx;
   border: 1px solid var(--border);
@@ -568,7 +568,7 @@ async function saveConvert() {
 /* ===== 近7日访问趋势 ===== */
 .trend-card {
   margin: 24rpx 28rpx 0;
-  background: #fff;
+  background: var(--white);
   border-radius: 16rpx;
   padding: 24rpx 24rpx 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(31, 42, 68, 0.05);
@@ -579,7 +579,7 @@ async function saveConvert() {
   align-items: center;
   margin-bottom: 16rpx;
 }
-.trend-t { font-size: 28rpx; font-weight: 600; color: #1D2129; }
+.trend-t { font-size: 28rpx; font-weight: 600; color: var(--t1); }
 .trend-peak { font-size: 22rpx; color: var(--t3); }
 .trend-bars {
   display: flex;
@@ -604,7 +604,7 @@ async function saveConvert() {
 }
 .tbar-val {
   font-size: 18rpx;
-  color: #4E5969;
+  color: var(--t2);
   margin-bottom: 4rpx;
 }
 .tbar-fill {
@@ -635,7 +635,7 @@ async function saveConvert() {
 .card-row.visitor {
   display: flex;
   align-items: center;
-  background: #fff;
+  background: var(--white);
   margin: 0 28rpx 24rpx;
   border-radius: 32rpx;
   padding: 30rpx;
@@ -664,7 +664,7 @@ async function saveConvert() {
   height: 9px;
   border-radius: 50%;
   background: #ff4d4f;
-  border: 2px solid #fff;
+  border: 2px solid var(--white);
   animation: blink 1.6s infinite;
 }
 @keyframes blink {
@@ -764,7 +764,7 @@ async function saveConvert() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #fff;
+  background: var(--white);
   border-radius: 56rpx 56rpx 0 0;
   padding: 40rpx 64rpx calc(40rpx + env(safe-area-inset-bottom));
   z-index: 91;
@@ -838,7 +838,7 @@ async function saveConvert() {
 }
 .tl-t {
   font-size: 26rpx;
-  color: #5b5b5b;
+  color: var(--t2);
 }
 .tl-s {
   font-size: 22rpx;
@@ -855,7 +855,7 @@ async function saveConvert() {
   border-radius: 22rpx;
   padding: 24rpx 26rpx;
   font-size: 28rpx;
-  background: #fff;
+  background: var(--white);
   color: var(--t5);
   width: auto;
 }
@@ -866,7 +866,7 @@ async function saveConvert() {
   font-size: 28rpx;
   width: auto;
   min-height: 120rpx;
-  background: #fff;
+  background: var(--white);
   color: var(--t5);
   resize: none;
 }
@@ -897,7 +897,7 @@ async function saveConvert() {
   width: 100%;
   box-sizing: border-box;
   background: var(--bg-page);
-  color: #5b5b5b;
+  color: var(--t2);
   font-size: 28rpx;
   padding: 26rpx;
   border-radius: 26rpx;
@@ -908,7 +908,7 @@ async function saveConvert() {
 /* ===== 高潜榜（阶段C）===== */
 .lead-card {
   margin: 8rpx 28rpx 24rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 32rpx;
   padding: 28rpx;
   border: 1px solid var(--border);

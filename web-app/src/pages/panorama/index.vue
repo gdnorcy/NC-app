@@ -119,7 +119,7 @@ export default {
   gap: 16px;
 }
 .plan-card {
-  background: #fff;
+  background: var(--white);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
@@ -145,7 +145,7 @@ export default {
 }
 .plan-count {
   font-size: 12px;
-  color: #165DFF;
+  color: var(--primary);
   margin-top: 8px;
   display: block;
 }

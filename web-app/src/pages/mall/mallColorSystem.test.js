@@ -119,29 +119,29 @@ describe('mall 六页根视图绑 themeStyle', () => {
 
 describe('mall 语义色与中性保留', () => {
   test('订单状态机八态保留（order-detail 头图）', () => {
-    expect(ruleBlock(ORDER_DETAIL, '.hd-pending')).toContain('#f53f3f');
-    expect(ruleBlock(ORDER_DETAIL, '.hd-paid')).toContain('#ff7d00');
-    expect(ruleBlock(ORDER_DETAIL, '.hd-shipped')).toContain('#165dff');
+    expect(ruleBlock(ORDER_DETAIL, '.hd-pending')).toMatch(/#f53f3f|var\(--danger\)/);
+    expect(ruleBlock(ORDER_DETAIL, '.hd-paid')).toMatch(/#ff7d00|var\(--brand-orange\)/);
+    expect(ruleBlock(ORDER_DETAIL, '.hd-shipped')).toMatch(/#165dff|var\(--primary\)/);
     expect(ruleBlock(ORDER_DETAIL, '.hd-done')).toContain('#00b42a');
-    expect(ruleBlock(ORDER_DETAIL, '.hd-closed')).toContain('#86909c');
-    expect(ruleBlock(ORDER_DETAIL, '.hd-refunding')).toContain('#ff7d00');
-    expect(ruleBlock(ORDER_DETAIL, '.hd-refunded')).toContain('#86909c');
+    expect(ruleBlock(ORDER_DETAIL, '.hd-closed')).toMatch(/#86909c|var\(--decor\)/);
+    expect(ruleBlock(ORDER_DETAIL, '.hd-refunding')).toMatch(/#ff7d00|var\(--brand-orange\)/);
+    expect(ruleBlock(ORDER_DETAIL, '.hd-refunded')).toMatch(/#86909c|var\(--decor\)/);
   });
   test('订单状态文字保留（orders st-*）', () => {
-    expect(ruleBlock(ORDERS, '.st-pending')).toContain('#f53f3f');
-    expect(ruleBlock(ORDERS, '.st-paid')).toContain('#ff7d00');
-    expect(ruleBlock(ORDERS, '.st-shipped')).toContain('#165dff');
+    expect(ruleBlock(ORDERS, '.st-pending')).toMatch(/#f53f3f|var\(--danger\)/);
+    expect(ruleBlock(ORDERS, '.st-paid')).toMatch(/#ff7d00|var\(--brand-orange\)/);
+    expect(ruleBlock(ORDERS, '.st-shipped')).toMatch(/#165dff|var\(--primary\)/);
     expect(ruleBlock(ORDERS, '.st-done')).toContain('#00b42a');
-    expect(ruleBlock(ORDERS, '.st-closed')).toContain('#c9cdd4');
+    expect(ruleBlock(ORDERS, '.st-closed')).toMatch(/#c9cdd4|var\(--border\)/);
   });
   test('价格红 #f53f3f 保留（六页价格/角标/合计）', () => {
     for (const [name, src] of [['cart', CART], ['detail', DETAIL], ['order-detail', ORDER_DETAIL], ['checkout', CHECKOUT], ['index', INDEX], ['orders', ORDERS]]) {
-      expect(src, `${name} 价格红应保留`).toContain('#f53f3f');
+      expect(src, `${name} 价格红应保留`).toMatch(/#f53f3f|var\(--danger\)/);
     }
   });
   test('中性承载保留（#c9cdd4/#86909c/#4e5969/#1d2129/#f2f3f5/#f7f8fa）', () => {
     for (const c of ['#c9cdd4', '#86909c', '#4e5969', '#1d2129', '#f2f3f5', '#f7f8fa']) {
-      expect(CART, `中性色 ${c} 应保留`).toContain(c);
+      expect(CART, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
   });
 });

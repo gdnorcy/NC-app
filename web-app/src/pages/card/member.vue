@@ -485,7 +485,7 @@ async function openMember(pkg) {
   margin: 0 28rpx;
 }
 .plan {
-  background: #fff;
+  background: var(--white);
   border-radius: 32rpx;
   padding: 36rpx;
   border: 1.5px solid var(--border);
@@ -540,7 +540,7 @@ async function openMember(pkg) {
 .plan-features {
   list-style: none;
   font-size: 24rpx;
-  color: #5b5b5b;
+  color: var(--t2);
   line-height: 2;
   margin-top: 8rpx;
 }
@@ -591,7 +591,7 @@ async function openMember(pkg) {
 /* ===== 租户会员卡 ===== */
 .tcard {
   margin: 28rpx 28rpx 0; border-radius: 24rpx; padding: 36rpx 32rpx;
-  color: #fff; position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(var(--design-primary-rgb), 0.18);
+  color: var(--white); position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(var(--design-primary-rgb), 0.18);
 }
 .tcard::after {
   content: ''; position: absolute; right: -60rpx; top: -60rpx; width: 240rpx; height: 240rpx;
@@ -607,7 +607,7 @@ async function openMember(pkg) {
 .tc-val { display: block; font-size: 28rpx; font-weight: 600; margin-top: 6rpx; }
 .sign-row {
   display: flex; align-items: center; justify-content: space-between;
-  margin: 24rpx 28rpx 0; background: #fff; border-radius: 20rpx; padding: 26rpx 28rpx;
+  margin: 24rpx 28rpx 0; background: var(--white); border-radius: 20rpx; padding: 26rpx 28rpx;
   border: 1px solid var(--border);
 }
 .si-title { font-size: 28rpx; font-weight: 600; color: var(--t5); }
@@ -615,7 +615,7 @@ async function openMember(pkg) {
 .sign-btn { background: var(--design-primary); color: var(--design-text, #fff); font-size: 26rpx; font-weight: 600; padding: 16rpx 44rpx; border-radius: 999rpx; }
 .sign-btn:active { opacity: 0.8; }
 .tlevels { margin: 0 28rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.tlv { background: #fff; border-radius: 20rpx; padding: 28rpx; border: 1.5px solid var(--border); }
+.tlv { background: var(--white); border-radius: 20rpx; padding: 28rpx; border: 1.5px solid var(--border); }
 .tlv.cur { border-color: var(--design-primary); background: var(--design-secondary); }
 .tlv-head { display: flex; align-items: center; justify-content: space-between; }
 .tlv-name { font-size: 30rpx; font-weight: 700; color: var(--t5); }

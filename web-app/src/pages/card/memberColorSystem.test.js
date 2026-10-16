@@ -122,7 +122,7 @@ describe('member 语义色与中性保留', () => {
     expect(rejected).toContain('#b42318');
   });
   test('中性工具色 #5b5b5b 保留（权益列表正文）', () => {
-    expect(src).toContain('#5b5b5b');
+    expect(src).toMatch(/#5b5b5b|var\(--t2\)/);
   });
   test('hero/tcard 白装饰保留（rgba(255,255,255 在深色渐变卡上）', () => {
     expect(src).toContain('rgba(255,255,255,0.18)');

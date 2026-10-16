@@ -62,7 +62,7 @@ function formatTime(time) {
 <style scoped>
 .timeline-page {
   min-height: 100vh;
-  background: #f2f3f5;
+  background: var(--bg-hover);
 }
 .header {
   background: linear-gradient(135deg, #00b42a, #23c343);
@@ -71,7 +71,7 @@ function formatTime(time) {
 .title {
   font-size: 36rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
   margin-bottom: 8rpx;
 }
 .subtitle {
@@ -80,7 +80,7 @@ function formatTime(time) {
 }
 .timeline {
   margin: 24rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 20px;
   padding: 32rpx 24rpx;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
@@ -95,13 +95,13 @@ function formatTime(time) {
   width: 24rpx;
   height: 24rpx;
   border-radius: 50%;
-  background: #165dff;
+  background: var(--primary);
   margin-right: 24rpx;
   margin-top: 8rpx;
   flex-shrink: 0;
   z-index: 1;
 }
-.timeline-dot.view { background: #165dff; }
+.timeline-dot.view { background: var(--primary); }
 .timeline-dot.exchange { background: #00b42a; }
 .timeline-dot.video { background: #f5222d; }
 .timeline-dot.dynamic { background: #722ed1; }
@@ -111,13 +111,13 @@ function formatTime(time) {
   top: 40rpx;
   bottom: 0;
   width: 2rpx;
-  background: #e5e6eb;
+  background: var(--border);
 }
 .timeline-content { flex: 1; }
 .action-title {
   font-size: 28rpx;
   font-weight: 500;
-  color: #1d2129;
+  color: var(--t1);
   margin-bottom: 6rpx;
 }
 .action-detail {
@@ -127,7 +127,7 @@ function formatTime(time) {
 }
 .action-time {
   font-size: 22rpx;
-  color: #c9cdd4;
+  color: var(--border);
 }
 .empty-state {
   text-align: center;

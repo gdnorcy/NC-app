@@ -61,7 +61,7 @@ export default {
   padding: 20px;
 }
 .share-card {
-  background: #fff;
+  background: var(--white);
   border-radius: 16px;
   padding: 32px 24px;
   text-align: center;
@@ -93,8 +93,8 @@ export default {
 }
 .share-btn {
   width: 100%;
-  background: #165DFF;
-  color: #fff;
+  background: var(--primary);
+  color: var(--white);
   border-radius: 8px;
   font-size: 15px;
 }

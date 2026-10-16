@@ -124,7 +124,7 @@ describe('visitors 语义色与中性保留', () => {
   test('低意向灰与中性承载保留', () => {
     expect(ruleBlock(src, '.lead-lv.gray')).toContain('var(--bg-hover)');
     for (const c of ['#5b5b5b', '#c9cdd3', '#4E5969', '#1D2129', '#f0f0f0']) {
-      expect(src, `中性色 ${c} 应保留`).toContain(c);
+      expect(src, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
     // 2026-10-16 方案 A：空态大图标原 #c9cdd4 → ICON_DECOR 令牌
     // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）

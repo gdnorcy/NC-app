@@ -198,7 +198,7 @@ function goBack() {
   flex-shrink: 0;
 }
 .rc-btn.on { color: var(--success); background: rgba(7, 193, 96, 0.1); }
-.rc-btn.main { color: #fff; background: var(--success); text-align: center; margin-top: 16rpx; }
+.rc-btn.main { color: var(--white); background: var(--success); text-align: center; margin-top: 16rpx; }
 .rc-group { margin-top: 24rpx; border-top: 1px solid var(--bg-hover); padding-top: 20rpx; }
 .rc-group-t { font-size: 26rpx; font-weight: 600; color: var(--t2); margin-bottom: 12rpx; }
 .rc-imp { font-size: 22rpx; color: #ff8800; font-weight: 400; }

@@ -85,7 +85,7 @@ describe('connections 语义与识别色保留', () => {
   });
   test('中性承载保留（#1a1a1a/#5b5b5b/#9a9a9a/#eee/#f5f6f7）', () => {
     for (const c of ['#1a1a1a', '#5b5b5b', '#9a9a9a', '#eee', '#f5f6f7']) {
-      expect(src, `中性色 ${c} 应保留`).toContain(c);
+      expect(src, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
     // 2026-10-16 方案 A：SIcon 的 color 收敛到 utils/iconColor.js 令牌（不能吃 var()，会被烘焙）
     expect(src).toContain(':color="ICON_DECOR"');

@@ -75,15 +75,15 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 </script>
 
 <style scoped>
-.pic-detail-page { min-height: 100vh; background: #fff; }
-.share-btn { font-size: 13px; color: #165dff; }
+.pic-detail-page { min-height: 100vh; background: var(--white); }
+.share-btn { font-size: 13px; color: var(--primary); }
 .detail-body { padding: 16px; }
-.d-title { font-size: 19px; font-weight: 700; color: #1d2129; line-height: 1.4; }
-.d-meta { display: flex; align-items: center; margin-top: 8px; font-size: 12px; color: #86909c; }
+.d-title { font-size: 19px; font-weight: 700; color: var(--t1); line-height: 1.4; }
+.d-meta { display: flex; align-items: center; margin-top: 8px; font-size: 12px; color: var(--decor); }
 .dot { margin: 0 6px; }
-.d-intro { margin-top: 10px; font-size: 14px; color: #4e5969; line-height: 1.6; }
+.d-intro { margin-top: 10px; font-size: 14px; color: var(--t2); line-height: 1.6; }
 .pic-wall { margin-top: 14px; }
 .wall-img { width: 100%; border-radius: 8px; margin-bottom: 10px; }
-.empty { padding: 100px 0; text-align: center; color: #86909c; font-size: 13px; }
+.empty { padding: 100px 0; text-align: center; color: var(--decor); font-size: 13px; }
 .empty-icon { display: block; font-size: 36px; margin-bottom: 8px; }
 </style>

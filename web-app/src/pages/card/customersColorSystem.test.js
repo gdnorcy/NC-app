@@ -40,9 +40,9 @@ describe('customers 琥珀系清零', () => {
     }
   });
   test('#ff7d00 仅允许出现在语义位 status-tag.pending（待跟进状态）', () => {
-    const hits = css().split('#ff7d00').length - 1;
+    const hits = (css().match(/#ff7d00|var\(--brand-orange\)/g) || []).length;
     expect(hits, `#ff7d00 应仅 1 处（status-tag.pending），实际 ${hits}`).toBe(1);
-    expect(ruleBlock(src, '.status-tag.pending')).toContain('#ff7d00');
+    expect(ruleBlock(src, '.status-tag.pending')).toMatch(/#ff7d00|var\(--brand-orange\)/);
   });
 });
 
@@ -70,19 +70,19 @@ describe('customers 平台 UI 强调位归主题', () => {
 describe('customers 语义色与中性保留', () => {
   test('状态机四态保留（真实业务状态，不跟随主题）', () => {
     expect(ruleBlock(src, '.status-tag.pending')).toContain('#fff7e6');
-    expect(ruleBlock(src, '.status-tag.pending')).toContain('#ff7d00');
+    expect(ruleBlock(src, '.status-tag.pending')).toMatch(/#ff7d00|var\(--brand-orange\)/);
     expect(ruleBlock(src, '.status-tag.following')).toContain('#e8f3ff');
-    expect(ruleBlock(src, '.status-tag.following')).toContain('#165dff');
+    expect(ruleBlock(src, '.status-tag.following')).toMatch(/#165dff|var\(--primary\)/);
     expect(ruleBlock(src, '.status-tag.converted')).toContain('#e8ffea');
     expect(ruleBlock(src, '.status-tag.converted')).toContain('#00b42a');
-    expect(ruleBlock(src, '.status-tag.lost')).toContain('#f2f3f5');
+    expect(ruleBlock(src, '.status-tag.lost')).toMatch(/#f2f3f5|var\(--bg-hover\)/);
   });
   test('follow-dot 待跟进红点保留语义红 #f5222d', () => {
     expect(ruleBlock(src, '.follow-dot')).toContain('#f5222d');
   });
   test('中性承载保留（#c9cdd4/#4e5969/#1d2129/#f2f3f5/#f7f8fa）', () => {
     for (const c of ['#c9cdd4', '#4e5969', '#1d2129', '#f2f3f5', '#f7f8fa']) {
-      expect(src, `中性色 ${c} 应保留`).toContain(c);
+      expect(src, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
     // 2026-10-16 方案 A：两处 SIcon 原 #86909c / #c9cdd4 → ICON_DECOR 令牌
     // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）

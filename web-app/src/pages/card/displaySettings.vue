@@ -203,7 +203,7 @@ function reloadPage() { load(); }
 .ds-page { min-height: 100vh; background: var(--bg-page); }
 .ds-body { padding: 20rpx 24rpx 60rpx; }
 .ds-card {
-  background: #fff; border-radius: 20rpx; padding: 24rpx 28rpx; margin-bottom: 20rpx;
+  background: var(--white); border-radius: 20rpx; padding: 24rpx 28rpx; margin-bottom: 20rpx;
   box-shadow: 0 4px 14px rgba(20,40,70,.08);
 }
 .ds-sec-title { font-size: 28rpx; font-weight: 600; color: var(--t5); padding: 8rpx 0 16rpx; }
@@ -219,6 +219,6 @@ function reloadPage() { load(); }
 .pg-err-text { font-size: 26rpx; color: var(--t3); }
 .pg-btn {
   margin: 24rpx auto 0; display: inline-block; padding: 16rpx 56rpx; border-radius: 40rpx;
-  background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx;
+  background: var(--design-primary, #165dff); color: var(--white); font-size: 28rpx;
 }
 </style>

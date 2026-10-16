@@ -148,6 +148,6 @@ button::after {
 /* placeholder-class="ph" 的通用色（小程序端 placeholder 是独立节点，
    不继承 input 的 color，必须显式给色，否则浅色皮肤上会显示为深色） */
 .ph {
-  color: #9a9a9a;
+  color: var(--decor-2);
 }
 </style>

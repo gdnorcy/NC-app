@@ -38,12 +38,12 @@ export default {
   padding: 0 8rpx;
   border-radius: 32rpx;
   box-sizing: border-box;
-  color: #ffffff;
+  color: var(--white);
   font-size: 20rpx;
   line-height: 1;
 }
 .bd-text {
-  color: #ffffff;
+  color: var(--white);
   font-size: 20rpx;
   line-height: 1;
 }

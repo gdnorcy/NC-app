@@ -258,7 +258,7 @@ function logout() {
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background: #f2f3f5;
+  background: var(--bg-hover);
   /* 底部TabBar避让：fixed 导航条 ≈110rpx + 安全区，160rpx 与 member 等同批页面一致 */
   padding-bottom: 160rpx;
 }
@@ -276,7 +276,7 @@ function logout() {
   height: 120rpx;
   border-radius: 50%;
   /* 占位首字母：白底圆 + --brand-ink（亮黄主色在白底只有 1.75:1，写死主色=隐形） */
-  background: #fff;
+  background: var(--white);
   color: var(--brand-ink, var(--design-primary, #165dff));
   display: flex;
   align-items: center;
@@ -289,7 +289,7 @@ function logout() {
 .nickname {
   font-size: 36rpx;
   font-weight: 600;
-  color: #fff;
+  color: var(--white);
   margin-bottom: 8rpx;
 }
 /* 会员等级徽章：金色渐变上白字/金图标都不可读（金徽章压金底 ≈1.3:1）→ 统一深棕前景 5.3:1 */
@@ -304,7 +304,7 @@ function logout() {
 }
 .edit-btn {
   background: rgba(255,255,255,0.2);
-  color: #fff;
+  color: var(--white);
   padding: 12rpx 28rpx;
   border-radius: 32rpx;
   font-size: 24rpx;
@@ -322,7 +322,7 @@ function logout() {
 .stat-num {
   font-size: 36rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
   margin-bottom: 6rpx;
 }
 .stat-label {
@@ -336,7 +336,7 @@ function logout() {
   gap: 16rpx;
 }
 .menu-group {
-  background: #fff;
+  background: var(--white);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
@@ -345,7 +345,7 @@ function logout() {
   display: flex;
   align-items: center;
   padding: 28rpx 24rpx;
-  border-bottom: 1px solid #f7f8fa;
+  border-bottom: 1px solid var(--bg-card);
 }
 .menu-item:last-child { border-bottom: none; }
 .menu-icon {
@@ -355,16 +355,16 @@ function logout() {
 .menu-label {
   flex: 1;
   font-size: 28rpx;
-  color: #1d2129;
+  color: var(--t1);
 }
 .menu-value {
   font-size: 24rpx;
-  color: #ff7d00;
+  color: var(--brand-orange);
   margin-right: 12rpx;
 }
 .menu-arrow {
   font-size: 32rpx;
-  color: #c9cdd4;
+  color: var(--border);
 }
 .menu-item.logout .menu-label {
   color: #f5222d;
@@ -377,24 +377,24 @@ function logout() {
   height: 100rpx;
   border-radius: 50%;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--white);
 }
 
 /* 编辑资料弹层 */
 .mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 100; display: flex; align-items: flex-end; }
-.sheet { width: 100%; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 36rpx 32rpx calc(40rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
-.sheet-title { font-size: 32rpx; font-weight: 600; color: #1a1a1a; text-align: center; margin-bottom: 28rpx; }
+.sheet { width: 100%; background: var(--white); border-radius: 32rpx 32rpx 0 0; padding: 36rpx 32rpx calc(40rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.sheet-title { font-size: 32rpx; font-weight: 600; color: var(--t5); text-align: center; margin-bottom: 28rpx; }
 .avatar-choose { display: flex; flex-direction: column; align-items: center; gap: 12rpx; background: transparent; padding: 0; margin: 0 auto 24rpx; line-height: 1.4; border: none; }
 .avatar-choose::after { border: none; }
-.ac-img { width: 128rpx; height: 128rpx; border-radius: 50%; background: #f2f3f5; }
-.ac-ph { display: flex; align-items: center; justify-content: center; font-size: 44rpx; font-weight: 600; color: #fff; background: var(--design-primary, #165dff); }
+.ac-img { width: 128rpx; height: 128rpx; border-radius: 50%; background: var(--bg-hover); }
+.ac-ph { display: flex; align-items: center; justify-content: center; font-size: 44rpx; font-weight: 600; color: var(--white); background: var(--design-primary, #165dff); }
 .ac-tip { font-size: 22rpx; color: var(--t3); }
 .field { margin-bottom: 24rpx; }
-.field-label { font-size: 24rpx; color: #4e5969; margin-bottom: 12rpx; }
-.field-input { background: #f5f6f7; border-radius: 16rpx; padding: 20rpx 24rpx; font-size: 28rpx; color: #1a1a1a; }
-.ph { color: #9a9a9a; }
+.field-label { font-size: 24rpx; color: var(--t2); margin-bottom: 12rpx; }
+.field-input { background: var(--bg-page); border-radius: 16rpx; padding: 20rpx 24rpx; font-size: 28rpx; color: var(--t5); }
+.ph { color: var(--decor-2); }
 .sheet-actions { display: flex; gap: 20rpx; margin-top: 32rpx; }
 .sheet-btn { flex: 1; text-align: center; padding: 22rpx 0; border-radius: 999rpx; font-size: 30rpx; }
-.sheet-btn.cancel { background: #f5f6f7; color: #4e5969; }
-.sheet-btn.ok { background: var(--design-primary, #165dff); color: #fff; font-weight: 500; }
+.sheet-btn.cancel { background: var(--bg-page); color: var(--t2); }
+.sheet-btn.ok { background: var(--design-primary, #165dff); color: var(--white); font-weight: 500; }
 </style>

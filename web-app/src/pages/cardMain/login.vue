@@ -166,7 +166,7 @@ async function doLogin(code) {
 .title {
   font-size: 48rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
   margin-bottom: 16rpx;
 }
 .subtitle {
@@ -180,8 +180,8 @@ async function doLogin(code) {
   margin-bottom: 80rpx;
 }
 .wx-login-btn {
-  background: #fff;
-  color: #165dff;
+  background: var(--white);
+  color: var(--primary);
   border-radius: 48rpx;
   height: 96rpx;
   line-height: 96rpx;

@@ -62,25 +62,25 @@ export default {
   align-items: center;
   height: 88rpx;
   padding: 0 24rpx;
-  background: #ffffff;
+  background: var(--white);
   border-bottom: 1rpx solid #eee;
   box-sizing: border-box;
 }
 .ph-back {
   font-size: 28rpx;
-  color: #165dff;
+  color: var(--primary);
   margin-right: 16rpx;
 }
 .ph-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .ph-empty {
   padding: 120rpx 0;
   text-align: center;
   font-size: 26rpx;
-  color: #86909c;
+  color: var(--decor);
 }
 /* 编辑预览组件槽：点击选中高亮 */
 </style>

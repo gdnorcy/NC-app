@@ -747,7 +747,7 @@ async function syncMarketAfterSave(isPublic) {
   font-family: var(--sk-title-font, inherit);
   letter-spacing: 2rpx;
   /* step 皮肤头部透明，标题落在浅色画布上 → 固定深字（--sk-hd-text 是渐变头部的对色，浅底上会看不清） */
-  color: #1d2129;
+  color: var(--t1);
 }
 .subtitle {
   font-size: 26rpx;
@@ -756,7 +756,7 @@ async function syncMarketAfterSave(isPublic) {
 }
 /* step 皮肤：副标题同标题一样落在浅底上 → 深灰 */
 .skin-step .subtitle {
-  color: #4e5969;
+  color: var(--t2);
 }
 
 /* 卡片容器：顶部 24rpx 间隔——白卡与头部之间必须留出灰缝（真机反馈：贴死看不出层次） */

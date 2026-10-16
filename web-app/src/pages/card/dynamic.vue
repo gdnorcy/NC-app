@@ -106,7 +106,7 @@ async function publish() {
 <style scoped>
 .dynamic-page {
   min-height: 100vh;
-  background: #f2f3f5;
+  background: var(--bg-hover);
   padding-bottom: 40rpx;
 }
 .header {
@@ -119,11 +119,11 @@ async function publish() {
 .title {
   font-size: 36rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
 }
 .publish-btn {
   background: rgba(255,255,255,0.2);
-  color: #fff;
+  color: var(--white);
   padding: 12rpx 28rpx;
   border-radius: 32rpx;
   font-size: 26rpx;
@@ -135,7 +135,7 @@ async function publish() {
   gap: 16rpx;
 }
 .dynamic-item {
-  background: #fff;
+  background: var(--white);
   border-radius: 16px;
   padding: 28rpx 24rpx;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
@@ -162,23 +162,23 @@ async function publish() {
 .dynamic-name {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
   margin-bottom: 4rpx;
 }
 .dynamic-time {
   font-size: 22rpx;
-  color: #c9cdd4;
+  color: var(--border);
 }
 .visibility-tag {
   font-size: 20rpx;
   color: var(--t3);
-  background: #f2f3f5;
+  background: var(--bg-hover);
   padding: 6rpx 16rpx;
   border-radius: 8rpx;
 }
 .dynamic-content {
   font-size: 28rpx;
-  color: #1d2129;
+  color: var(--t1);
   line-height: 1.7;
   margin-bottom: 16rpx;
 }
@@ -197,7 +197,7 @@ async function publish() {
   padding: 120rpx 0;
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
-.empty-text { font-size: 28rpx; color: #4e5969; margin-bottom: 8rpx; }
+.empty-text { font-size: 28rpx; color: var(--t2); margin-bottom: 8rpx; }
 .empty-hint { font-size: 24rpx; color: var(--t3); }
 .modal-mask {
   position: fixed;
@@ -209,7 +209,7 @@ async function publish() {
 }
 .bottom-sheet {
   width: 100%;
-  background: #fff;
+  background: var(--white);
   border-radius: 32rpx 32rpx 0 0;
 }
 .sheet-header {
@@ -217,24 +217,24 @@ async function publish() {
   justify-content: space-between;
   align-items: center;
   padding: 32rpx;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--bg-hover);
 }
-.sheet-title { font-size: 32rpx; font-weight: 600; color: #1d2129; }
+.sheet-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
 .sheet-close { font-size: 32rpx; color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .publish-input {
   width: 100%;
   height: 240rpx;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 20rpx 24rpx;
   font-size: 28rpx;
   box-sizing: border-box;
   margin-bottom: 24rpx;
 }
-.ph { color: #c9cdd4; }
+.ph { color: var(--border); }
 .form-item { margin-bottom: 20rpx; }
-.form-label { font-size: 26rpx; color: #4e5969; margin-bottom: 12rpx; }
+.form-label { font-size: 26rpx; color: var(--t2); margin-bottom: 12rpx; }
 .visibility-options {
   display: flex;
   gap: 16rpx;
@@ -243,10 +243,10 @@ async function publish() {
   flex: 1;
   text-align: center;
   padding: 20rpx;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12px;
   font-size: 26rpx;
-  color: #4e5969;
+  color: var(--t2);
   border: 2px solid transparent;
 }
 .visibility-option.active {
@@ -257,7 +257,7 @@ async function publish() {
 .sheet-footer { padding: 0 32rpx 36px; }
 .submit-btn {
   background: var(--design-primary, #eb2f96);
-  color: #fff;
+  color: var(--white);
   border-radius: 40rpx;
   height: 88rpx;
   line-height: 88rpx;

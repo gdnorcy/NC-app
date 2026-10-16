@@ -877,7 +877,7 @@ async function followCard() {
   /* 完整避让：状态栏 + 导航行高（PageNav overlay 悬浮 + 右侧胶囊同高区域） */
   padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 16rpx) 40rpx 52rpx;
   padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
-  color: #fff;
+  color: var(--white);
   background: linear-gradient(155deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b));
   overflow: hidden;
 }
@@ -908,7 +908,7 @@ async function followCard() {
 .avatar-txt {
   font-size: 48rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
 }
 .hero-id {
   flex: 1;
@@ -1412,12 +1412,12 @@ async function followCard() {
 .hg-btn.hg-primary {
   background: linear-gradient(135deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b));
   border: none;
-  color: #fff;
+  color: var(--white);
 }
 .hero-guide.hg-light .hg-btn {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.1);
-  color: #1d2129;
+  color: var(--t1);
 }
 .hero-guide.hg-solid .hg-btn.hg-primary {
   background: #2b2723;
@@ -1426,7 +1426,7 @@ async function followCard() {
 /* ===== 任职公司列表卡（极简明净 companiesCard） ===== */
 .cos-card {
   margin: 24rpx 24rpx 0;
-  background: #fff;
+  background: var(--white);
   border-radius: 20rpx;
   box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.06);
   padding: 26rpx 28rpx;
@@ -1443,7 +1443,7 @@ async function followCard() {
   padding: 12rpx 0;
 }
 .coco + .coco {
-  border-top: 1rpx solid #f2f3f5;
+  border-top: 1rpx solid var(--bg-hover);
 }
 .cdot {
   width: 10rpx;
@@ -1461,7 +1461,7 @@ async function followCard() {
 .cn {
   font-size: 26rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .cp {
   font-size: 22rpx;
@@ -1484,10 +1484,10 @@ async function followCard() {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.09);
   /* .qb 自身 color 是 #fff，图标走 heroColor 内联（本就正确），但 <text> 靠继承 → 必须显式改 */
-  color: #1d2129;
+  color: var(--t1);
 }
 .hero .quickbar.qb-light .qb text {
-  color: #1d2129;
+  color: var(--t1);
 }
 /* ===== 衬线字体（模板 fontFamily=serif，如「纸艺雅致」）=====
    🔴 必须走 CSS 类，**不能内联 font-family**：小程序 setStyle 对含双引号的值
@@ -1525,7 +1525,7 @@ async function followCard() {
   flex-direction: column;
   align-items: center;
   gap: 8rpx;
-  color: #fff;
+  color: var(--white);
   font-size: 22rpx;
 }
 
@@ -1588,7 +1588,7 @@ async function followCard() {
 }
 .card-row {
   margin: 0 28rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 20rpx;
   padding: 8rpx 24rpx;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
@@ -1664,7 +1664,7 @@ async function followCard() {
 /* ===== 视频 ===== */
 .video-card {
   margin: 0 28rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 20rpx;
   padding: 24rpx;
   display: flex;
@@ -1697,7 +1697,7 @@ async function followCard() {
   padding: 0 28rpx;
 }
 .dyn-card {
-  background: #fff;
+  background: var(--white);
   border-radius: 20rpx;
   padding: 24rpx;
   margin-bottom: 20rpx;
@@ -1805,7 +1805,7 @@ async function followCard() {
   left: 16rpx;
   right: 16rpx;
   bottom: 16rpx;
-  color: #fff;
+  color: var(--white);
   font-size: 22rpx;
   line-height: 1.4;
 }
@@ -1814,7 +1814,7 @@ async function followCard() {
   right: 10rpx;
   top: 10rpx;
   background: rgba(0,0,0,0.55);
-  color: #fff;
+  color: var(--white);
   font-size: 20rpx;
   padding: 2rpx 10rpx;
   border-radius: 8rpx;
@@ -1822,35 +1822,35 @@ async function followCard() {
 
 /* ===== 动态评论面板 ===== */
 .cmt-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 900; }
-.cmt-panel { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 24rpx 24rpx 0 0; z-index: 901; display: flex; flex-direction: column; max-height: 60vh; }
+.cmt-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: 24rpx 24rpx 0 0; z-index: 901; display: flex; flex-direction: column; max-height: 60vh; }
 .cmt-head { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 32rpx; border-bottom: 1rpx solid #f0f0f0; font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .cmt-close { color: var(--t3); font-size: 32rpx; font-weight: 400; padding: 4rpx 12rpx; }
 .cmt-list { flex: 1; overflow: hidden; padding: 8rpx 32rpx; }
 .cmt-empty { text-align: center; color: var(--t3); font-size: 26rpx; padding: 48rpx 0; }
 .cmt-item { display: flex; gap: 18rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--bg-card); }
-.cmt-av { width: 64rpx; height: 64rpx; border-radius: 50%; background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); color: #fff; font-size: 28rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.cmt-av { width: 64rpx; height: 64rpx; border-radius: 50%; background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); color: var(--white); font-size: 28rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .cmt-av image { width: 100%; height: 100%; }
 .cmt-body { flex: 1; min-width: 0; }
 .cmt-name { font-size: 26rpx; color: var(--t2); font-weight: 500; }
 .cmt-text { font-size: 28rpx; color: var(--t1); margin-top: 4rpx; word-break: break-all; }
 .cmt-time { font-size: 22rpx; color: var(--border-strong); margin-top: 6rpx; }
-.cmt-input-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f0f0f0; background: #fff; }
+.cmt-input-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f0f0f0; background: var(--white); }
 .cmt-input { flex: 1; height: 72rpx; background: var(--bg-card); border-radius: 36rpx; padding: 0 28rpx; font-size: 28rpx; }
-.cmt-send { width: 140rpx; height: 72rpx; line-height: 72rpx; background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx; border-radius: 36rpx; padding: 0; margin: 0; }
+.cmt-send { width: 140rpx; height: 72rpx; line-height: 72rpx; background: var(--design-primary, #165dff); color: var(--white); font-size: 28rpx; border-radius: 36rpx; padding: 0; margin: 0; }
 .cmt-send[disabled] { opacity: 0.5; }
 .dyn-act { display: inline-flex; align-items: center; gap: 6rpx; padding: 8rpx 14rpx; border-radius: 24rpx; }
 .dyn-act.liked { color: var(--design-primary, #165dff); font-weight: 600; background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06); }
 
 
 /* ===== 访客表单 ===== */
-.form-entry { display: flex; align-items: center; gap: 16rpx; margin: 24rpx 24rpx 8rpx; padding: 24rpx; background: #fff; border-radius: 16rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
+.form-entry { display: flex; align-items: center; gap: 16rpx; margin: 24rpx 24rpx 8rpx; padding: 24rpx; background: var(--white); border-radius: 16rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 .fe-icon { width: 72rpx; height: 72rpx; border-radius: 14rpx; background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .fe-body { flex: 1; min-width: 0; }
 .fe-title { font-size: 28rpx; font-weight: 600; color: var(--t1); }
 .fe-desc { font-size: 22rpx; color: var(--t3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fe-btn { flex-shrink: 0; font-size: 24rpx; color: var(--design-primary, #165dff); border: 1rpx solid var(--design-primary, #165dff); border-radius: 28rpx; padding: 8rpx 24rpx; }
 .form-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 920; }
-.form-panel { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 24rpx 24rpx 0 0; z-index: 921; display: flex; flex-direction: column; max-height: 72vh; }
+.form-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: 24rpx 24rpx 0 0; z-index: 921; display: flex; flex-direction: column; max-height: 72vh; }
 .fp-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 28rpx 16rpx; border-bottom: 1rpx solid var(--bg-hover); }
 .fp-title { font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .fp-close { font-size: 28rpx; color: var(--t3); padding: 4rpx 8rpx; }
@@ -1864,7 +1864,7 @@ async function followCard() {
 .fp-select { background: var(--bg-card); border-radius: 12rpx; padding: 18rpx 20rpx; font-size: 26rpx; color: var(--t2); }
 .fp-foot { display: flex; gap: 16rpx; padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--bg-hover); }
 .fp-cancel { flex: 1; background: var(--bg-hover); color: var(--t2); font-size: 28rpx; border-radius: 12rpx; }
-.fp-submit { flex: 1; background: var(--design-primary, #165dff); color: #fff; font-size: 28rpx; border-radius: 12rpx; }
+.fp-submit { flex: 1; background: var(--design-primary, #165dff); color: var(--white); font-size: 28rpx; border-radius: 12rpx; }
 .fp-submit[disabled] { opacity: 0.6; }
 
 .voice-box {
@@ -1882,7 +1882,7 @@ async function followCard() {
 .vb-dur { font-size: 22rpx; color: var(--t3); flex-shrink: 0; }
 .visitor-strip {
   display: flex; align-items: center; justify-content: space-between;
-  background: #ffffff; margin: 16rpx 32rpx 0; padding: 20rpx 24rpx;
+  background: var(--white); margin: 16rpx 32rpx 0; padding: 20rpx 24rpx;
   border-radius: 16rpx;
 }
 .vs-avs { display: flex; gap: 12rpx; overflow: hidden; }
@@ -1890,17 +1890,17 @@ async function followCard() {
 .vs-count { font-size: 22rpx; color: var(--t3); white-space: nowrap; }
 .vs-num { font-weight: 600; color: var(--t1); }
 .vs-dot { margin: 0 8rpx; color: var(--border-strong); }
-.hero-full { position: relative; overflow: hidden; height: 640rpx; background: #1a1a1a; }
+.hero-full { position: relative; overflow: hidden; height: 640rpx; background: var(--t5); }
 .hero-bg { position: absolute; left: 0; top: 0; width: 100%; height: 120%; }
 .hero-shade { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55)); }
-.hero-full-info { position: absolute; left: 0; right: 0; bottom: 232rpx; padding: 0 48rpx; color: #fff; z-index: 2; }
-.hfi-name { font-size: 48rpx; font-weight: 700; color: #fff; }
+.hero-full-info { position: absolute; left: 0; right: 0; bottom: 232rpx; padding: 0 48rpx; color: var(--white); z-index: 2; }
+.hfi-name { font-size: 48rpx; font-weight: 700; color: var(--white); }
 .hfi-pos { font-size: 26rpx; color: rgba(255,255,255,0.85); margin-top: 8rpx; }
 .hfi-line { display: flex; align-items: center; gap: 10rpx; font-size: 24rpx; color: rgba(255,255,255,0.9); margin-top: 12rpx; }
 .hero-counts { position: absolute; left: 0; right: 0; bottom: 0; height: 96rpx; display: flex; background: rgba(255,255,255,0.16); backdrop-filter: blur(12rpx); z-index: 2; }
 .hero-full .quickbar { position: absolute; left: 0; right: 0; bottom: 104rpx; z-index: 2; margin-top: 0; }
-.hero-full .quickbar .qb { color: #fff; }
+.hero-full .quickbar .qb { color: var(--white); }
 .hc-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.hc-num { font-size: 30rpx; font-weight: 700; color: #fff; }
+.hc-num { font-size: 30rpx; font-weight: 700; color: var(--white); }
 .hc-lab { font-size: 20rpx; color: rgba(255,255,255,0.8); margin-top: 2rpx; }
 </style>

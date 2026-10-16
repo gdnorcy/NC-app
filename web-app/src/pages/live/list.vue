@@ -99,20 +99,20 @@ function goBack() {
 </script>
 
 <style>
-.live-list-page { min-height: 100vh; background: #F7F8FA; padding-bottom: 40rpx; }
+.live-list-page { min-height: 100vh; background: var(--bg-card); padding-bottom: 40rpx; }
 .list { padding: 20rpx 24rpx 0; }
-.live-card { background: #fff; border-radius: 16rpx; overflow: hidden; margin-bottom: 20rpx; }
+.live-card { background: var(--white); border-radius: 16rpx; overflow: hidden; margin-bottom: 20rpx; }
 .live-cover { position: relative; }
 .cover-img { width: 100%; height: 360rpx; display: block; }
-.cover-empty { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #F2F3F5, #E5E6EB); color: #86909C; font-size: 30rpx; }
-.live-tag { position: absolute; left: 16rpx; top: 16rpx; display: flex; align-items: center; gap: 8rpx; padding: 6rpx 16rpx; border-radius: 999rpx; background: rgba(0,0,0,0.55); color: #fff; font-size: 22rpx; }
+.cover-empty { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #F2F3F5, #E5E6EB); color: var(--decor); font-size: 30rpx; }
+.live-tag { position: absolute; left: 16rpx; top: 16rpx; display: flex; align-items: center; gap: 8rpx; padding: 6rpx 16rpx; border-radius: 999rpx; background: rgba(0,0,0,0.55); color: var(--white); font-size: 22rpx; }
 .live-tag.off { background: rgba(0,0,0,0.45); }
-.tag-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #F53F3F; }
-.live-viewer { position: absolute; right: 16rpx; bottom: 16rpx; padding: 4rpx 12rpx; border-radius: 999rpx; background: rgba(0,0,0,0.5); color: #fff; font-size: 20rpx; }
+.tag-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--danger); }
+.live-viewer { position: absolute; right: 16rpx; bottom: 16rpx; padding: 4rpx 12rpx; border-radius: 999rpx; background: rgba(0,0,0,0.5); color: var(--white); font-size: 20rpx; }
 .live-info { padding: 20rpx 24rpx 24rpx; }
-.live-title { font-size: 30rpx; font-weight: 600; color: #1D2129; line-height: 1.4; }
-.live-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 10rpx; font-size: 24rpx; color: #86909C; }
-.empty { display: flex; flex-direction: column; align-items: center; padding: 160rpx 0; color: #86909C; font-size: 26rpx; }
+.live-title { font-size: 30rpx; font-weight: 600; color: var(--t1); line-height: 1.4; }
+.live-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 10rpx; font-size: 24rpx; color: var(--decor); }
+.empty { display: flex; flex-direction: column; align-items: center; padding: 160rpx 0; color: var(--decor); font-size: 26rpx; }
 .empty-icon { font-size: 64rpx; margin-bottom: 16rpx; }
-.load-more { text-align: center; padding: 24rpx; color: #86909C; font-size: 24rpx; }
+.load-more { text-align: center; padding: 24rpx; color: var(--decor); font-size: 24rpx; }
 </style>

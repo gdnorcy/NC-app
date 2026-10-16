@@ -563,14 +563,14 @@ export default {
   height: 22px;
   border-radius: 50%;
   background: rgba(22, 93, 255, 0.85);
-  border: 2px solid #fff;
+  border: 2px solid var(--white);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .dot-i {
-  color: #fff;
+  color: var(--white);
   font-size: 13px;
   font-weight: 700;
   line-height: 1;
@@ -584,7 +584,7 @@ export default {
   margin-left: -6px;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 11px solid #ffffff;
+  border-bottom: 11px solid var(--white);
   transform-origin: 6px 18px;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
   z-index: 2;
@@ -598,7 +598,7 @@ export default {
   margin-left: -13px;
   margin-top: -13px;
   border-radius: 50%;
-  border: 2px solid #165dff;
+  border: 2px solid var(--primary);
   opacity: 0;
   pointer-events: none;
 }
@@ -620,7 +620,7 @@ export default {
   margin-top: 3px;
   padding: 1px 7px;
   background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+  color: var(--white);
   font-size: 11px;
   border-radius: 8px;
   white-space: nowrap;
@@ -639,13 +639,13 @@ export default {
   width: 40px;
   height: 40px;
   border: 3px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
+  border-top-color: var(--white);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text {
-  color: #fff;
+  color: var(--white);
   margin-top: 12px;
   font-size: 14px;
 }
@@ -666,7 +666,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--white);
   font-size: 16px;
 }
 /* 热点信息弹窗 */
@@ -684,12 +684,12 @@ export default {
 .hotspot-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1D2129;
+  color: var(--t1);
 }
 .hotspot-content {
   margin-top: 8px;
   font-size: 14px;
-  color: #4E5969;
+  color: var(--t2);
   line-height: 1.6;
 }
 .hotspot-close {
@@ -697,7 +697,7 @@ export default {
   top: 8px;
   right: 14px;
   font-size: 20px;
-  color: #86909C;
+  color: var(--decor);
   padding: 4px;
 }
 .hotspot-form-field {
@@ -706,18 +706,18 @@ export default {
 .hotspot-form-label {
   display: block;
   font-size: 13px;
-  color: #4E5969;
+  color: var(--t2);
   margin-bottom: 4px;
 }
 .hotspot-form-input {
   width: 100%;
   box-sizing: border-box;
   height: 40px;
-  border: 1px solid #E5E6EB;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0 12px;
   font-size: 14px;
-  background: #fff;
+  background: var(--white);
 }
 .hotspot-form-field textarea.hotspot-form-input {
   height: 72px;
@@ -732,8 +732,8 @@ export default {
   margin-top: 8px;
   height: 40px;
   border-radius: 8px;
-  background: #165DFF;
-  color: #fff;
+  background: var(--primary);
+  color: var(--white);
   font-size: 14px;
   font-weight: 500;
   display: flex;

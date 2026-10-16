@@ -59,7 +59,7 @@ export default {
 }
 .popup-panel {
   position: absolute;
-  background: #ffffff;
+  background: var(--white);
   transition: transform 0.3s ease;
 }
 .pos-bottom {

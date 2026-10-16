@@ -192,14 +192,14 @@ function goBack() {
   background: var(--bg-page); border-radius: 999rpx;
   padding: 10rpx 24rpx; border: 1px solid var(--border);
 }
-.g-tab.on { color: #fff; background: #165dff; border-color: #165dff; }
+.g-tab.on { color: var(--white); background: var(--primary); border-color: var(--primary); }
 .g-count { font-size: 22rpx; opacity: 0.75; margin-left: 4rpx; }
 .group-ops { display: flex; gap: 8rpx; flex-shrink: 0; }
-.g-op { font-size: 24rpx; color: #165dff; padding: 10rpx 12rpx; }
+.g-op { font-size: 24rpx; color: var(--primary); padding: 10rpx 12rpx; }
 .col-list { padding: 20rpx 28rpx; }
 .col-item {
   display: flex; align-items: center; gap: 22rpx;
-  background: #fff; border-radius: 24rpx; padding: 26rpx;
+  background: var(--white); border-radius: 24rpx; padding: 26rpx;
   margin-bottom: 18rpx; border: 1px solid var(--border);
 }
 .c-av {
@@ -213,7 +213,7 @@ function goBack() {
 .c-name { font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .c-sub { font-size: 24rpx; color: var(--t3); margin-top: 6rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-time { font-size: 22rpx; color: var(--border-strong); margin-top: 8rpx; }
-.c-grp { color: #165dff; }
+.c-grp { color: var(--primary); }
 .c-act {
   display: flex; align-items: center; gap: 8rpx;
   font-size: 22rpx; color: var(--t3);

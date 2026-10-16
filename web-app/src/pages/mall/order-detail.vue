@@ -188,66 +188,66 @@ onLoad((o) => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f7f8fa;
+  background: var(--bg-card);
   overflow: hidden;
   box-sizing: border-box;
 }
 /* 订单状态头：按状态着色（:class="'hd-' + order.status"） */
-.status-head { padding: 48rpx 32rpx; color: #fff; }
-.hd-pending { background: #f53f3f; }
-.hd-paid { background: #ff7d00; }
-.hd-shipped { background: #165dff; }
+.status-head { padding: 48rpx 32rpx; color: var(--white); }
+.hd-pending { background: var(--danger); }
+.hd-paid { background: var(--brand-orange); }
+.hd-shipped { background: var(--primary); }
 .hd-done { background: #00b42a; }
-.hd-closed { background: #86909c; }
-.hd-refunding { background: #ff7d00; }
-.hd-refunded { background: #86909c; }
+.hd-closed { background: var(--decor); }
+.hd-refunding { background: var(--brand-orange); }
+.hd-refunded { background: var(--decor); }
 .status-title { font-size: 38rpx; font-weight: 600; }
 .status-desc { font-size: 26rpx; margin-top: 8rpx; opacity: 0.85; }
-.card-title { font-size: 30rpx; font-weight: 600; color: #1d2129; margin-bottom: 16rpx; }
+.card-title { font-size: 30rpx; font-weight: 600; color: var(--t1); margin-bottom: 16rpx; }
 .info-row {
   display: flex; padding: 12rpx 0; align-items: flex-start;
 }
 .info-label {
-  width: 140rpx; font-size: 26rpx; color: #86909c; flex-shrink: 0;
+  width: 140rpx; font-size: 26rpx; color: var(--decor); flex-shrink: 0;
 }
-.info-value { flex: 1; font-size: 26rpx; color: #1d2129; line-height: 1.5; word-break: break-all; }
+.info-value { flex: 1; font-size: 26rpx; color: var(--t1); line-height: 1.5; word-break: break-all; }
 .pickup-code { align-items: center; }
 .code-value {
   font-size: 44rpx; font-weight: 700; color: var(--design-primary, #165dff); letter-spacing: 6rpx;
 }
 .goods-item { display: flex; align-items: center; padding: 14rpx 0; }
-.goods-img { width: 110rpx; height: 110rpx; border-radius: 10rpx; background: #f2f3f5; flex-shrink: 0; }
+.goods-img { width: 110rpx; height: 110rpx; border-radius: 10rpx; background: var(--bg-hover); flex-shrink: 0; }
 .goods-info { flex: 1; margin-left: 14rpx; min-width: 0; }
 .goods-title {
-  font-size: 28rpx; color: #1d2129; display: block;
+  font-size: 28rpx; color: var(--t1); display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .goods-spec {
   display: inline-block; margin-top: 6rpx; padding: 2rpx 10rpx;
-  background: #f2f3f5; border-radius: 6rpx; font-size: 20rpx; color: #86909c;
+  background: var(--bg-hover); border-radius: 6rpx; font-size: 20rpx; color: var(--decor);
 }
 .goods-right { text-align: right; }
 .goods-price { display: flex; align-items: baseline; justify-content: flex-end; }
-.price-symbol { font-size: 20rpx; color: #f53f3f; }
-.price-num { font-size: 28rpx; font-weight: 600; color: #f53f3f; }
-.goods-qty { font-size: 22rpx; color: #86909c; }
+.price-symbol { font-size: 20rpx; color: var(--danger); }
+.price-num { font-size: 28rpx; font-weight: 600; color: var(--danger); }
+.goods-qty { font-size: 22rpx; color: var(--decor); }
 .amount-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding-top: 16rpx; border-top: 1rpx solid #f2f3f5;
+  padding-top: 16rpx; border-top: 1rpx solid var(--bg-hover);
 }
-.amount-label { font-size: 26rpx; color: #4e5969; }
+.amount-label { font-size: 26rpx; color: var(--t2); }
 .amount-val { display: flex; align-items: baseline; }
-.amount-num { font-size: 34rpx; font-weight: 600; color: #f53f3f; }
+.amount-num { font-size: 34rpx; font-weight: 600; color: var(--danger); }
 .bottom-space { height: 140rpx; }
 .empty-box { padding: 200rpx 0; text-align: center; }
-.empty-text { font-size: 28rpx; color: #c9cdd4; }
+.empty-text { font-size: 28rpx; color: var(--border); }
 .action-bar {
   display: flex; justify-content: flex-end; padding: 16rpx 24rpx;
-  background: #fff; border-top: 1rpx solid #f2f3f5;
+  background: var(--white); border-top: 1rpx solid var(--bg-hover);
 }
 .mini-btn {
   padding: 14rpx 44rpx; border-radius: 34rpx; font-size: 28rpx; margin-left: 16rpx;
 }
-.mini-btn.cancel { border: 1rpx solid #e5e6eb; color: #4e5969; }
+.mini-btn.cancel { border: 1rpx solid var(--border); color: var(--t2); }
 .mini-btn.pay { background: var(--design-primary); color: var(--design-text, #fff); }
 </style>

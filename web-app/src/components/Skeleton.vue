@@ -30,7 +30,7 @@ export default {
 .sk-wrap {
   display: flex;
   padding: 24rpx;
-  background: #ffffff;
+  background: var(--white);
   border-radius: 16rpx;
 }
 .sk-avatar {

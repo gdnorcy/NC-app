@@ -146,7 +146,7 @@ async function addFollow() {
 <style scoped>
 .detail-page {
   min-height: 100vh;
-  background: #f2f3f5;
+  background: var(--bg-hover);
   padding-bottom: 140rpx;
 }
 .header {
@@ -159,8 +159,8 @@ async function addFollow() {
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
-  background: #fff;
-  color: #ff7d00;
+  background: var(--white);
+  color: var(--brand-orange);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -172,7 +172,7 @@ async function addFollow() {
 .name {
   font-size: 36rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
   margin-bottom: 6rpx;
 }
 .meta {
@@ -181,14 +181,14 @@ async function addFollow() {
 }
 .status-tag {
   background: rgba(255,255,255,0.2);
-  color: #fff;
+  color: var(--white);
   padding: 8rpx 20rpx;
   border-radius: 24rpx;
   font-size: 22rpx;
 }
 .section {
   margin: 24rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 16px;
   padding: 28rpx 24rpx;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
@@ -202,20 +202,20 @@ async function addFollow() {
 .section-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
   margin-bottom: 20rpx;
 }
 .section-header .section-title { margin-bottom: 0; }
 .add-btn {
   font-size: 24rpx;
-  color: #ff7d00;
+  color: var(--brand-orange);
 }
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20rpx 0;
-  border-bottom: 1px solid #f7f8fa;
+  border-bottom: 1px solid var(--bg-card);
 }
 .info-row:last-child { border-bottom: none; }
 .info-label {
@@ -224,14 +224,14 @@ async function addFollow() {
 }
 .info-value {
   font-size: 26rpx;
-  color: #1d2129;
+  color: var(--t1);
 }
 .tags { display: flex; gap: 8rpx; flex-wrap: wrap; }
 .tag {
   font-size: 20rpx;
   padding: 4rpx 12rpx;
   background: #fff7e6;
-  color: #ff7d00;
+  color: var(--brand-orange);
   border-radius: 6rpx;
 }
 .follow-list { position: relative; }
@@ -244,20 +244,20 @@ async function addFollow() {
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
-  background: #ff7d00;
+  background: var(--brand-orange);
   margin-right: 20rpx;
   margin-top: 8rpx;
   flex-shrink: 0;
 }
 .follow-text {
   font-size: 26rpx;
-  color: #1d2129;
+  color: var(--t1);
   margin-bottom: 6rpx;
   line-height: 1.6;
 }
 .follow-time {
   font-size: 22rpx;
-  color: #c9cdd4;
+  color: var(--border);
 }
 .empty {
   text-align: center;
@@ -270,13 +270,13 @@ async function addFollow() {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
+  background: var(--white);
   padding: 24rpx 32rpx 36px;
-  border-top: 1px solid #f2f3f5;
+  border-top: 1px solid var(--bg-hover);
 }
 .footer-btn {
-  background: #ff7d00;
-  color: #fff;
+  background: var(--brand-orange);
+  color: var(--white);
   border-radius: 40rpx;
   height: 88rpx;
   line-height: 88rpx;
@@ -293,7 +293,7 @@ async function addFollow() {
 }
 .bottom-sheet {
   width: 100%;
-  background: #fff;
+  background: var(--white);
   border-radius: 32rpx 32rpx 0 0;
 }
 .sheet-header {
@@ -301,37 +301,37 @@ async function addFollow() {
   justify-content: space-between;
   align-items: center;
   padding: 32rpx;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--bg-hover);
 }
-.sheet-title { font-size: 32rpx; font-weight: 600; color: #1d2129; }
+.sheet-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
 .sheet-close { font-size: 32rpx; color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .follow-input {
   width: 100%;
   height: 200rpx;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 20rpx 24rpx;
   font-size: 28rpx;
   box-sizing: border-box;
   margin-bottom: 24rpx;
 }
-.ph { color: #c9cdd4; }
+.ph { color: var(--border); }
 .form-item { margin-bottom: 20rpx; }
-.form-label { font-size: 26rpx; color: #4e5969; margin-bottom: 12rpx; }
+.form-label { font-size: 26rpx; color: var(--t2); margin-bottom: 12rpx; }
 .picker-value {
   height: 80rpx;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 0 24rpx;
   line-height: 80rpx;
   font-size: 28rpx;
-  color: #1d2129;
+  color: var(--t1);
 }
 .sheet-footer { padding: 0 32rpx 36px; }
 .submit-btn {
-  background: #ff7d00;
-  color: #fff;
+  background: var(--brand-orange);
+  color: var(--white);
   border-radius: 40rpx;
   height: 88rpx;
   line-height: 88rpx;

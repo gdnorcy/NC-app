@@ -11,8 +11,9 @@ const root = path.join(process.cwd(), 'src');
 const tokenScss = path.join(root, 'styles', 'token.scss');
 
 // ---------- 基线（2026-10-16 首次扫描；迁移一批后下调） ----------
+// B-2 灰阶色值→令牌后：裸 hex 1542→573（剩 573 为非映射色：品牌橙/绿/红、黑、杂灰等，待后续令牌化）
 const BASELINE = {
-  hex: 1542,
+  hex: 573,
   rgba: 275,
   fontKinds: 74,
   radiusKinds: 73,

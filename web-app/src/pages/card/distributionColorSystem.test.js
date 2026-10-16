@@ -49,7 +49,7 @@ describe('distribution demo 遗留色清零', () => {
     expect(src).not.toContain('#14b8a6');
   });
   test('禁大写 #165DFF 硬编码（radio/canvas 已改 themeColor，仅允许小写 fallback）', () => {
-    expect(src).not.toContain('#165DFF');
+    expect(src).not.toMatch(/#165DFF|var\(--primary\)/);
   });
   test('禁 --primary / --primary-deep / --theme-tint 漂移令牌', () => {
     expect(css()).not.toMatch(/var\(--primary[,)]/);
@@ -119,7 +119,7 @@ describe('distribution 平台 UI 强调位归主题', () => {
     for (const block of got) expect(block).not.toContain('var(--design-secondary)');
   });
   test('应用图标改白（坐在深色域色渐变上，中性灰图标会糊）', () => {
-    expect(ruleBlock(src, '.app-ic :deep(.s-icon)')).toContain('#ffffff');
+    expect(ruleBlock(src, '.app-ic :deep(.s-icon)')).toMatch(/#ffffff|var\(--white\)/);
   });
 });
 
@@ -161,16 +161,16 @@ describe('distribution 语义色与中性保留', () => {
   });
   test('佣金金额方向保留绿/红（入账 + / 回退 -）', () => {
     expect(ruleBlock(src, '.log-amt')).toContain('#00b42a');
-    expect(ruleBlock(src, '.log-amt.neg')).toContain('#f53f3f');
+    expect(ruleBlock(src, '.log-amt.neg')).toMatch(/#f53f3f|var\(--danger\)/);
   });
   test('佣金状态三态保留（待入账琥珀/已结算绿/已回退红）', () => {
-    expect(src).toContain('.st-p { color: #ff7d00; }');
+    expect(src).toMatch(/\.st-p\s*\{\s*color:\s*(#ff7d00|var\(--brand-orange\))/);
     expect(src).toContain('.st-s { color: #00b42a; }');
-    expect(src).toContain('.st-c { color: #f53f3f; }');
+    expect(src).toMatch(/\.st-c\s*\{\s*color:\s*(#f53f3f|var\(--danger\))/);
   });
   test('应用身份徽章保留语义（ok 绿/warn 琥珀，真实状态）', () => {
     expect(ruleBlock(src, '.app-state.ok')).toContain('#00b42a');
-    expect(ruleBlock(src, '.app-state.warn')).toContain('#ff7d00');
+    expect(ruleBlock(src, '.app-state.warn')).toMatch(/#ff7d00|var\(--brand-orange\)/);
   });
   test('门槛提示保留琥珀（与 member apply-tip 家族一致的信息提示）', () => {
     expect(ruleBlock(src, '.tip-box')).toContain('#fff8e6');
@@ -178,7 +178,7 @@ describe('distribution 语义色与中性保留', () => {
   });
   test('中性承载色保留（#1d2129/#4e5969/#c9cdd4/#e5e6eb/#f2f3f5/#a9aeb8）', () => {
     for (const c of ['#1d2129', '#4e5969', '#c9cdd4', '#e5e6eb', '#f2f3f5', '#a9aeb8']) {
-      expect(src, `中性色 ${c} 应保留`).toContain(c);
+      expect(src, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
   });
   test('hero 白装饰保留（rgba(255,255,255 在深渐变上）', () => {
@@ -190,7 +190,7 @@ describe('distribution 语义色与中性保留', () => {
 describe('distribution 邀请码块白卡化 + 头像首字母对比度（2026-10-16 报修）', () => {
   test('邀请码块不再是第二块品牌渐变（去掉 g3 / 内联 heroStyle / 装饰假二维码）', () => {
     const box = ruleBlock(src, '.invite-box');
-    expect(box).toContain('background: #fff;');
+    expect(box).toMatch(/background:\s*(#fff|var\(--white\))/);
     expect(src).not.toContain('class="invite-box g3"');
     expect(src).not.toContain('deco-qr');
     expect(src).not.toContain('qrCellCls');

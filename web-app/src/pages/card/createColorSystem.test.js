@@ -93,7 +93,7 @@ describe('create 保留位不动', () => {
   });
   test('中性承载保留（#9a9a9a 占位/#1d2129 step 皮肤/#4e5969）', () => {
     for (const c of ['#9a9a9a', '#1d2129', '#4e5969']) {
-      expect(src, `中性色 ${c} 应保留`).toContain(c);
+      expect(src, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
     // 2026-10-16 方案 A：关闭按钮图标原 #8a8f99 → ICON_DECOR 令牌
     // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）

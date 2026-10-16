@@ -599,7 +599,7 @@ function viewMarketCard(item) {
   border-radius: 18px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
   font-size: 13px;
-  color: #1d2129;
+  color: var(--t1);
 }
 .share-back-arrow { font-size: 18px; line-height: 1; margin-right: 2px; }
 .share-back-text { font-size: 13px; }
@@ -618,7 +618,7 @@ function viewMarketCard(item) {
      导致搜索框比后台设计器多缩一层（用户反馈「搜索框没按后台设计的显示」）。
      横向交给 marginLR 单独控制，这里只留纵向。 */
   padding: 24rpx 0;
-  background: #fff;
+  background: var(--white);
 }
 /* 系统风格全局默认头部（无页面头部配置时）：背景=头部颜色，文字=头部文字
    状态栏占位与右侧胶囊避让由 sysHeadPadTop / sysHeadPadRight 内联注入 */
@@ -645,7 +645,7 @@ function viewMarketCard(item) {
   align-items: center;
   gap: 12rpx;
   height: 72rpx;
-  background: #f2f3f5;
+  background: var(--bg-hover);
   border-radius: 36rpx;
   padding: 0 28rpx;
 }
@@ -666,7 +666,7 @@ function viewMarketCard(item) {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 26rpx;
-  color: #86909c;
+  color: var(--decor);
 }
 .msg-icon {
   width: 56rpx;
@@ -705,8 +705,8 @@ function viewMarketCard(item) {
   height: 28rpx;
   padding: 0 8rpx;
   border-radius: 14rpx;
-  background: #f53f3f;
-  color: #fff;
+  background: var(--danger);
+  color: var(--white);
   font-size: 18rpx;
   line-height: 28rpx;
   text-align: center;
@@ -724,7 +724,7 @@ function viewMarketCard(item) {
 
 /* 功能九宫格 */
 .grid-section {
-  background: #fff;
+  background: var(--white);
   padding: 32rpx 16rpx;
   margin-bottom: 16rpx;
   /* 🔴 圆角原先漏写 → 真机四个角是硬直角，而 admin 的 .r-native-grid 有 border-radius:8px，
@@ -764,20 +764,20 @@ function viewMarketCard(item) {
   height: 30rpx;
   padding: 0 8rpx;
   border-radius: 999rpx;
-  background: #f53f3f;
-  color: #fff;
+  background: var(--danger);
+  color: var(--white);
   font-size: 18rpx;
   line-height: 30rpx;
   text-align: center;
 }
 .grid-label {
   font-size: 24rpx;
-  color: #4e5969;
+  color: var(--t2);
 }
 
 /* 通用区块 */
 .section {
-  background: #fff;
+  background: var(--white);
   /* 🔴 横向 margin 交给 `nativeMargin()` 内联下发（读marginLR），CSS 不再写死 ——
      否则与内联的 marginLeft/Right 抢同一属性，且运营在后台调「左右边距」时
      只有一半生效（上下仍被这里锁死）。上下边距同理走内联。 */
@@ -797,7 +797,7 @@ function viewMarketCard(item) {
   gap: 10rpx;
   font-size: 30rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .section-more {
   font-size: 24rpx;
@@ -816,7 +816,7 @@ function viewMarketCard(item) {
   border-radius: 16rpx;
 }
 .my-card.create {
-  background: #f7f8fa;
+  background: var(--bg-card);
   border: 2rpx dashed var(--border);
 }
 .card-avatar {
@@ -844,11 +844,11 @@ function viewMarketCard(item) {
 .card-name {
   font-size: 32rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .card-position {
   font-size: 24rpx;
-  color: #4e5969;
+  color: var(--t2);
   margin-top: 4rpx;
 }
 .card-company {
@@ -864,7 +864,7 @@ function viewMarketCard(item) {
   padding: 10rpx 20rpx;
   border-radius: 24rpx;
   font-size: 24rpx;
-  color: #fff;
+  color: var(--white);
   flex-shrink: 0;
 }
 .create-icon {
@@ -882,7 +882,7 @@ function viewMarketCard(item) {
 .create-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
 }
 .create-desc {
   font-size: 22rpx;
@@ -891,7 +891,7 @@ function viewMarketCard(item) {
 }
 .create-arrow {
   font-size: 36rpx;
-  color: #c9cdd4;
+  color: var(--border);
 }
 
 /* 访客雷达 */
@@ -899,7 +899,7 @@ function viewMarketCard(item) {
   display: flex;
   align-items: center;
   padding: 20rpx 0;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12rpx;
   margin-bottom: 20rpx;
 }
@@ -920,7 +920,7 @@ function viewMarketCard(item) {
 .visitor-divider {
   width: 2rpx;
   height: 48rpx;
-  background: #e5e6eb;
+  background: var(--border);
 }
 .visitor-list {
   display: flex;
@@ -938,7 +938,7 @@ function viewMarketCard(item) {
   height: 64rpx;
   border-radius: 32rpx;
   background: linear-gradient(135deg, #00b42a, #23c343);
-  color: #fff;
+  color: var(--white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -950,7 +950,7 @@ function viewMarketCard(item) {
 }
 .visitor-name {
   font-size: 26rpx;
-  color: #1d2129;
+  color: var(--t1);
 }
 .visitor-time {
   font-size: 22rpx;
@@ -974,7 +974,7 @@ function viewMarketCard(item) {
 }
 .market-card {
   width: 200rpx;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12rpx;
   padding: 20rpx;
   text-align: center;
@@ -985,7 +985,7 @@ function viewMarketCard(item) {
   height: 72rpx;
   border-radius: 36rpx;
   background: linear-gradient(135deg, #722ed1, #9254de);
-  color: #fff;
+  color: var(--white);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -996,14 +996,14 @@ function viewMarketCard(item) {
 .market-name {
   font-size: 26rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .market-position {
   font-size: 22rpx;
-  color: #4e5969;
+  color: var(--t2);
   margin-top: 4rpx;
   white-space: nowrap;
   overflow: hidden;

@@ -22,7 +22,7 @@
 .c-success { color: var(--success); }
 .c-danger { color: var(--danger); }
 .c-warning { color: var(--warning); }
-.c-white { color: #ffffff; }
+.c-white { color: var(--white); }
 
 // ---------- 间距（8 的倍数） ----------
 .mt-4 { margin-top: 4px; } .mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; } .mt-32 { margin-top: 32px; }
@@ -66,7 +66,7 @@
 .ellipsis-3 { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
 // ---------- 列表单元格（iOS 风格） ----------
-.cell-list { background: #ffffff; border-radius: 16rpx; overflow: hidden; }
+.cell-list { background: var(--white); border-radius: 16rpx; overflow: hidden; }
 .cell-item {
   display: flex; align-items: center; padding: 24rpx;
   position: relative; font-size: $font-paragraph; color: var(--t1);
@@ -100,7 +100,7 @@
   box-sizing: border-box;
   text-align: center;
   line-height: 1.2;
-  color: #ffffff;
+  color: var(--white);
   background: var(--primary);
 }
 .dbtn-l {

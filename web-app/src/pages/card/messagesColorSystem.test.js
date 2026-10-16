@@ -70,7 +70,7 @@ describe('messages 语义色与中性保留', () => {
     expect(ruleBlock(src, '.m-dot')).toContain('var(--danger)');
   });
   test('中性承载保留（#5b5b5b 正文 + SIcon 空态图标走 ICON_DECOR 令牌）', () => {
-    expect(src).toContain('#5b5b5b');
+    expect(src).toMatch(/#5b5b5b|var\(--t2\)/);
     expect(src).toContain('color="#ffffff"');
     // 2026-10-16 方案 A：空态 SIcon 原 #c9cdd4 → ICON_DECOR 令牌
     // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）

@@ -130,11 +130,11 @@ export default {
   background: rgba(0,0,0,0.5);
   border-radius: 20px;
   margin-right: 8px;
-  color: #fff;
+  color: var(--white);
   font-size: 13px;
 }
 .tab-item.active {
-  background: #165DFF;
+  background: var(--primary);
 }
 .back-btn {
   position: absolute;
@@ -147,7 +147,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--white);
   font-size: 18px;
 }
 </style>

@@ -378,10 +378,10 @@ function hexA(hex, alpha) {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
+  background: var(--white);
   display: flex;
   padding: 14rpx 0 calc(14rpx + env(safe-area-inset-bottom));
-  border-top: 1px solid #f2f3f5;
+  border-top: 1px solid var(--bg-hover);
   z-index: 50;
 }
 /* 边框圆角：圆角 / 弧形 */
@@ -401,7 +401,7 @@ function hexA(hex, alpha) {
   justify-content: flex-start;
   gap: 6rpx;
   font-size: 24rpx;
-  color: #9a9a9a;
+  color: var(--decor-2);
   background: none;
   border: none;
   padding: 0;
@@ -431,7 +431,7 @@ function hexA(hex, alpha) {
   height: 80rpx;
   border-radius: 50%;
   z-index: 0;
-  box-shadow: 0 0 0 6rpx #ffffff, 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 6rpx var(--white), 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
 }
 /* slider 选中项：图标上移居中到圆钮中央（对齐云菜鸟）
    🔴 直接选 `.mtb-icon`（由模板显式加在<SIcon> 上的 class）。
@@ -480,7 +480,7 @@ function hexA(hex, alpha) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--white);
   box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.18);
   align-self: center;
 }
@@ -509,13 +509,13 @@ function hexA(hex, alpha) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--white);
   box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.25);
   z-index: 12;
 }
 .mp-fan-main-icon { display: flex; flex-direction: column; gap: 7rpx; align-items: center; }
-.mp-fan-main-icon i { display: block; width: 34rpx; height: 4rpx; border-radius: 2rpx; background: #fff; }
-.mp-fan-main-txt { font-size: 20rpx; color: #fff; line-height: 1.3; margin-top: 4rpx; }
+.mp-fan-main-icon i { display: block; width: 34rpx; height: 4rpx; border-radius: 2rpx; background: var(--white); }
+.mp-fan-main-txt { font-size: 20rpx; color: var(--white); line-height: 1.3; margin-top: 4rpx; }
 .mp-tabbar-fan { background: transparent !important; border-top: none; box-shadow: none !important; }
 .mp-tabbar.mp-st-btnRaise, .mp-tabbar.mp-st-btnInset {
   background: transparent;

@@ -162,7 +162,7 @@ async function addCustomer() {
 <style scoped>
 .customers-page {
   min-height: 100vh;
-  background: #f2f3f5;
+  background: var(--bg-hover);
   padding-bottom: 40rpx;
 }
 .header {
@@ -172,7 +172,7 @@ async function addCustomer() {
 .title {
   font-size: 40rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--white);
   margin-bottom: 8rpx;
 }
 .subtitle {
@@ -183,7 +183,7 @@ async function addCustomer() {
   margin: -20rpx 24rpx 16rpx;
 }
 .search-box {
-  background: #fff;
+  background: var(--white);
   border-radius: 40rpx;
   padding: 0 24rpx;
   height: 72rpx;
@@ -198,9 +198,9 @@ async function addCustomer() {
 .search-input {
   flex: 1;
   font-size: 26rpx;
-  color: #1d2129;
+  color: var(--t1);
 }
-.ph { color: #c9cdd4; }
+.ph { color: var(--border); }
 .tag-scroll {
   white-space: nowrap;
   padding: 0 24rpx;
@@ -212,19 +212,19 @@ async function addCustomer() {
 }
 .tag {
   padding: 12rpx 28rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 32rpx;
   font-size: 24rpx;
-  color: #4e5969;
+  color: var(--t2);
   white-space: nowrap;
 }
 .tag.active {
   background: var(--design-primary);
-  color: #fff;
+  color: var(--white);
 }
 .customer-list {
   margin: 0 24rpx;
-  background: #fff;
+  background: var(--white);
   border-radius: 20px;
   padding: 0 24rpx;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
@@ -233,7 +233,7 @@ async function addCustomer() {
   display: flex;
   align-items: center;
   padding: 28rpx 0;
-  border-bottom: 1px solid #f7f8fa;
+  border-bottom: 1px solid var(--bg-card);
 }
 .customer-item:last-child { border-bottom: none; }
 .customer-avatar {
@@ -254,7 +254,7 @@ async function addCustomer() {
 .customer-name {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--t1);
   display: flex;
   align-items: center;
   gap: 12rpx;
@@ -265,10 +265,10 @@ async function addCustomer() {
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
 }
-.status-tag.pending { background: #fff7e6; color: #ff7d00; }
-.status-tag.following { background: #e8f3ff; color: #165dff; }
+.status-tag.pending { background: #fff7e6; color: var(--brand-orange); }
+.status-tag.following { background: #e8f3ff; color: var(--primary); }
 .status-tag.converted { background: #e8ffea; color: #00b42a; }
-.status-tag.lost { background: #f2f3f5; color: var(--t3); }
+.status-tag.lost { background: var(--bg-hover); color: var(--t3); }
 .follow-dot {
   width: 14rpx;
   height: 14rpx;
@@ -283,25 +283,25 @@ async function addCustomer() {
   gap: 8rpx;
   margin-bottom: 8rpx;
 }
-.dot { color: #c9cdd4; }
+.dot { color: var(--border); }
 .customer-tags { display: flex; gap: 8rpx; }
 .mini-tag {
   font-size: 20rpx;
   padding: 4rpx 12rpx;
-  background: #f2f3f5;
+  background: var(--bg-hover);
   color: var(--t3);
   border-radius: 6rpx;
 }
 .customer-arrow {
   font-size: 36rpx;
-  color: #c9cdd4;
+  color: var(--border);
 }
 .empty-state {
   text-align: center;
   padding: 120rpx 0;
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
-.empty-text { font-size: 28rpx; color: #4e5969; margin-bottom: 8rpx; }
+.empty-text { font-size: 28rpx; color: var(--t2); margin-bottom: 8rpx; }
 .empty-hint { font-size: 24rpx; color: var(--t3); }
 .fab {
   position: fixed;
@@ -318,7 +318,7 @@ async function addCustomer() {
 }
 .fab-icon {
   font-size: 48rpx;
-  color: #fff;
+  color: var(--white);
   font-weight: 300;
 }
 .modal-mask {
@@ -331,7 +331,7 @@ async function addCustomer() {
 }
 .bottom-sheet {
   width: 100%;
-  background: #fff;
+  background: var(--white);
   border-radius: 32rpx 32rpx 0 0;
   max-height: 80vh;
 }
@@ -340,25 +340,25 @@ async function addCustomer() {
   justify-content: space-between;
   align-items: center;
   padding: 32rpx;
-  border-bottom: 1px solid #f2f3f5;
+  border-bottom: 1px solid var(--bg-hover);
 }
-.sheet-title { font-size: 32rpx; font-weight: 600; color: #1d2129; }
+.sheet-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
 .sheet-close { font-size: 32rpx; color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .form-item { margin-bottom: 28rpx; }
-.form-label { font-size: 26rpx; color: #4e5969; margin-bottom: 12rpx; }
+.form-label { font-size: 26rpx; color: var(--t2); margin-bottom: 12rpx; }
 .form-input {
   height: 80rpx;
-  background: #f7f8fa;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 0 24rpx;
   font-size: 28rpx;
-  color: #1d2129;
+  color: var(--t1);
 }
 .sheet-footer { padding: 0 32rpx 36px; }
 .submit-btn {
   background: var(--design-primary);
-  color: #fff;
+  color: var(--white);
   border-radius: 40rpx;
   height: 88rpx;
   line-height: 88rpx;

@@ -88,19 +88,19 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 </script>
 
 <style scoped>
-.pic-list-page { min-height: 100vh; background: #f7f8fa; }
-.cate-tabs { white-space: nowrap; background: #fff; padding: 8px 4px; border-bottom: 1px solid #f2f3f5; }
-.cate-tab { display: inline-block; padding: 6px 14px; margin: 0 4px; font-size: 13px; color: #4e5969; background: #f7f8fa; border-radius: 16px; }
-.cate-tab.on { color: #165dff; background: #e8f3ff; font-weight: 500; }
+.pic-list-page { min-height: 100vh; background: var(--bg-card); }
+.cate-tabs { white-space: nowrap; background: var(--white); padding: 8px 4px; border-bottom: 1px solid var(--bg-hover); }
+.cate-tab { display: inline-block; padding: 6px 14px; margin: 0 4px; font-size: 13px; color: var(--t2); background: var(--bg-card); border-radius: 16px; }
+.cate-tab.on { color: var(--primary); background: #e8f3ff; font-weight: 500; }
 .list { padding: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; }
-.pic-card { width: calc(50% - 6px); background: #fff; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.pic-card { width: calc(50% - 6px); background: var(--white); border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .pic-thumb { width: 100%; height: 160px; }
-.pic-thumb-empty { background: #f2f3f5; display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 12px; }
+.pic-thumb-empty { background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 12px; }
 .pic-info { padding: 10px; }
-.pic-title { font-size: 14px; font-weight: 600; color: #1d2129; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.pic-meta { font-size: 11px; color: #86909c; margin-top: 6px; }
+.pic-title { font-size: 14px; font-weight: 600; color: var(--t1); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pic-meta { font-size: 11px; color: var(--decor); margin-top: 6px; }
 .dot { margin: 0 4px; }
-.empty { padding: 80px 0; text-align: center; color: #86909c; font-size: 13px; }
+.empty { padding: 80px 0; text-align: center; color: var(--decor); font-size: 13px; }
 .empty-icon { display: block; font-size: 36px; margin-bottom: 8px; }
-.load-more { text-align: center; padding: 12px 0 24px; font-size: 12px; color: #86909c; }
+.load-more { text-align: center; padding: 12px 0 24px; font-size: 12px; color: var(--decor); }
 </style>
