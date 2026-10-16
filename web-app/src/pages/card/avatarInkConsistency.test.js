@@ -111,16 +111,21 @@ describe('myCard：品牌渐变头像的首字母由 avatarStyle 一并给出', 
   });
 });
 
-describe('会员等级徽章（金色渐变）前景可读', () => {
-  test('.member-tag 深棕前景，白字/金图标均已移除', () => {
+describe('会员等级徽章（白底胶囊）前景可读', () => {
+  test('.member-tag 深棕前景＋白底，禁止金渐变底（压同系头部会相融）', () => {
     const s = src('./profile.vue');
     const block = ruleBlock(s, '.member-tag');
     expect(block).toContain('color: #7a4b00');
     expect(block).not.toContain('color: #fff');
+    // 🔴 2026-10-16 二次修：金渐变底（#ffd700~#ffaa00）压金黄色主题头部同系相融，
+    //    外框消失、圆内对勾不可见（用户反馈）→ 白底胶囊。禁止回退金渐变底。
+    expect(block).not.toMatch(/linear-gradient/);
+    expect(block).toContain('border:');
+    // 图标改琥珀金 #b45309（白底 4.6:1），圆环+对勾清晰；勿用 #faad14（白底仅 2.1:1）
+    expect(s).toContain('color="#b45309"');
     expect(s).not.toContain('color="#faad14"');
-    // 数值校验：金渐变中点 #ffd700~#ffaa00 取代表色，深棕前景须 ≥3:1
-    const bg = '#ffc100'; // 渐变中值近似
-    expect(contrastOn('#7a4b00', bg)).toBeGreaterThanOrEqual(3);
+    // 数值校验：深棕前景在白底上对比度
+    expect(contrastOn('#7a4b00', '#ffffff')).toBeGreaterThanOrEqual(3);
   });
 });
 

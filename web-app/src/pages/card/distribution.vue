@@ -170,7 +170,7 @@
     <view class="sec-t">我的分销应用</view>
     <view class="app-grid">
       <view v-if="summary.isEnablePartner" class="app-card" @click="go('distPartner')">
-        <view class="app-ic ic-orange"><SIcon name="crown" size="large" /></view>
+        <view class="app-ic ic-orange"><SIcon name="partner" size="large" color="#e8590c" /></view>
         <view class="app-name-row">
           <text class="app-name">合伙人分红</text>
           <text class="app-state" :class="summary.isPartner ? 'ok' : 'warn'">{{ summary.isPartner ? '已获身份' : '未获身份' }}</text>
@@ -179,7 +179,7 @@
       </view>
 
       <view v-if="summary.isEnableShareAll" class="app-card" @click="go('distShareAll')">
-        <view class="app-ic ic-purple"><SIcon name="badge" size="large" /></view>
+        <view class="app-ic ic-purple"><SIcon name="solutions" size="large" color="#3b6ef7" /></view>
         <view class="app-name-row">
           <text class="app-name">全民股东</text>
           <text class="app-state" :class="shareAllTag ? 'ok' : 'warn'">{{ shareAllTag ? '已获身份' : '未获身份' }}</text>
@@ -188,7 +188,7 @@
       </view>
 
       <view v-if="summary.isEnableShareCat" class="app-card" @click="go('distShareCat')">
-        <view class="app-ic ic-green"><SIcon name="dynamic" size="large" /></view>
+        <view class="app-ic ic-green"><SIcon name="category" size="large" color="#0a9f8f" /></view>
         <view class="app-name-row">
           <text class="app-name">类目股东</text>
           <text class="app-state" :class="shareCatTag ? 'ok' : 'warn'">{{ shareCatTag ? '已获身份' : '未获身份' }}</text>
@@ -197,7 +197,7 @@
       </view>
 
       <view v-if="summary.isEnableShareArea" class="app-card" @click="go('distShareArea')">
-        <view class="app-ic ic-cyan"><SIcon name="pool" size="large" /></view>
+        <view class="app-ic ic-cyan"><SIcon name="area" size="large" color="#5c6470" /></view>
         <view class="app-name-row">
           <text class="app-name">区域股东</text>
           <text class="app-state" :class="shareAreaTag ? 'ok' : 'warn'">{{ shareAreaTag ? '已获身份' : '未获身份' }}</text>
@@ -766,16 +766,18 @@ onShow(() => {
 .app-grid { margin: 16rpx 32rpx 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
 .app-card { background: var(--white); border-radius: 20rpx; padding: 26rpx 24rpx; display: flex; flex-direction: column; gap: 12rpx; }
 .app-ic { width: 64rpx; height: 64rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; }
-/* 🔴 应用图标底色四分（2026-10-16 修）：旧版四个类全写 var(--design-secondary)
-      → 四张卡一模一样（默认还是粉底），类名承诺的橙/紫/绿/青一个没生效。
-      改用全仓统一的「4 业务域色板」（见 pages/cardMain/gridDomainPalette.test.js），
-      与首页宫格同一套语义：不跟随租户主题，四域互不相同、一眼可分。
-      白图标在四域起点对比度均 ≥3:1（橙 3.58 / 蓝紫 4.3 / 青绿 3.30 / 石墨 8+）。 */
-.ic-orange { background: linear-gradient(135deg,#e8590c,#f59e0b); }  /* 经营域：合伙人分红 */
-.ic-purple { background: linear-gradient(135deg,#3b6ef7,#6a4bf5); }  /* 身份域：全民股东 */
-.ic-green  { background: linear-gradient(135deg,#0a9f8f,#10b981); }  /* 关系域：类目股东 */
-.ic-cyan   { background: linear-gradient(135deg,#5c6470,#3d424b); }  /* 工具域：区域股东 */
-.app-ic :deep(.s-icon) { color: var(--white); }
+/* 🔴 应用图标四分（2026-10-16 二次修，用户定稿方案A「浅底彩图标」）：
+   首版四色满铺渐变（橙/蓝紫/青绿/石墨）被用户反馈「不好看」——四个高饱和色块挤在
+   2×2 网格里过重，且石墨灰死气、crown/badge 还是同一字形（前两张卡图标一模一样）。
+   改同域色相的浅 tint 底＋同色图标，与全站「主题 tint 浅底」风格一致（home.vue
+   .my-card.create 同款思路）；色相仍取「4 业务域色板」同源，域间语义不变。
+   图标 prop 显式传色：SIcon 的 color 不吃 var()，CSS color 既跨不了 MP 组件边界、
+   也穿不进背景图 SVG（无 color prop 时 MP 按黑色烘焙、H5 currentColor 回落黑），
+   显式 hex 才能两端确定性命中构建期烘焙（gen-mp-sicons 静态扫描 name+color）。 */
+.ic-orange { background: rgba(232,89,12,0.10); }  /* 经营域：合伙人分红 */
+.ic-purple { background: rgba(59,110,247,0.10); }  /* 身份域：全民股东 */
+.ic-green  { background: rgba(10,159,143,0.10); }  /* 关系域：类目股东 */
+.ic-cyan   { background: rgba(92,100,112,0.10); }  /* 工具域：区域股东 */
 .app-name-row { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; }
 .app-name { font-size: var(--fs-5); font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-state { flex-shrink: 0; font-size: var(--fs-1); padding: 2rpx 12rpx; border-radius: var(--radius-pill); }

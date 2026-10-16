@@ -101,12 +101,12 @@ describe('distribution 平台 UI 强调位归主题', () => {
       expect(ruleBlock(src, sel)).toContain('var(--brand-tint');
     }
   });
-  test('应用图标底色四分（全仓 4 业务域色板，四色互不相同）', () => {
+  test('应用图标浅底四分（同域色相 tint，四色互不相同）', () => {
     const DOMAIN = [
-      'linear-gradient(135deg,#e8590c,#f59e0b)', // 经营域
-      'linear-gradient(135deg,#3b6ef7,#6a4bf5)', // 身份域
-      'linear-gradient(135deg,#0a9f8f,#10b981)', // 关系域
-      'linear-gradient(135deg,#5c6470,#3d424b)', // 工具域
+      'rgba(232,89,12,0.10)',  // 经营域（#e8590c 同相）
+      'rgba(59,110,247,0.10)', // 身份域（#3b6ef7 同相）
+      'rgba(10,159,143,0.10)', // 关系域（#0a9f8f 同相）
+      'rgba(92,100,112,0.10)', // 工具域（#5c6470 同相）
     ];
     const sels = ['.ic-orange', '.ic-purple', '.ic-green', '.ic-cyan'];
     const got = sels.map((sel) => ruleBlock(src, sel));
@@ -114,12 +114,28 @@ describe('distribution 平台 UI 强调位归主题', () => {
       expect(block, `${sels[i]} 规则块应存在`).not.toBe('');
       expect(block).toContain(DOMAIN[i]);
     });
-    // 🔴 旧病根：四个类全写 var(--design-secondary) → 四张卡一模一样（默认还是粉底）
+    // 🔴 旧病根1：四个类全写 var(--design-secondary) → 四张卡一模一样（默认还是粉底）
     expect(new Set(got).size, '四类底色必须互不相同').toBe(4);
     for (const block of got) expect(block).not.toContain('var(--design-secondary)');
+    // 🔴 旧病根2（2026-10-16 二次修）：满铺高饱和渐变在 2×2 网格里过重（用户反馈「不好看」）
+    //     → 定稿方案A「浅底彩图标」，禁止回退满铺渐变
+    for (const block of got) expect(block).not.toMatch(/linear-gradient/);
   });
-  test('应用图标改白（坐在深色域色渐变上，中性灰图标会糊）', () => {
-    expect(ruleBlock(src, '.app-ic :deep(.s-icon)')).toMatch(/#ffffff|var\(--white\)/);
+  test('应用图标显式传色＋贴题字形（SIcon color prop 不吃 var()，MP 按 name-hex 烘焙）', () => {
+    // 无 color prop 的 SIcon：MP 端按黑色烘焙渲染、H5 currentColor 回落黑 → 必须显式传 hex
+    const PAIRS = [
+      ['partner', '#e8590c'],   // 经营域：合伙人分红（双人+星）
+      ['solutions', '#3b6ef7'], // 身份域：全民股东（星徽）
+      ['category', '#0a9f8f'],  // 关系域：类目股东（四宫格）
+      ['area', '#5c6470'],      // 工具域：区域股东（地图钉）
+    ];
+    for (const [name, color] of PAIRS) {
+      expect(src).toContain(`name="${name}"`);
+      expect(src).toContain(`color="${color}"`);
+    }
+    // crown/badge 同字形 → 不得再同时出现在四宫格（首版前两个图标一模一样）
+    expect(src).not.toMatch(/app-ic ic-orange"><SIcon name="crown"/);
+    expect(src).not.toMatch(/app-ic ic-purple"><SIcon name="badge"/);
   });
 });
 

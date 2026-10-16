@@ -69,7 +69,7 @@
           </view>
         </view>
         <view class="my-card create" v-else @click="goCreate">
-          <view class="create-icon"><SIcon name="card" size="xlarge" color="#165dff" /></view>
+          <view class="create-icon"><SIcon name="card" size="xlarge" :color="designPrimaryHex" /></view>
           <view class="create-info">
             <view class="create-title">创建我的名片</view>
             <view class="create-desc">{{ hasLogin ? '三步完成，快速创建专属名片' : '登录后三步完成，快速创建专属名片' }}</view>
@@ -302,6 +302,11 @@ const headerTitle = computed(() => {
 });
 // 页面背景 = 页面装修「全局设置」的背景色/背景图（C 端真机渲染，编辑端 phoneStyle 同源）
 const themeStyle = useDesignTheme();
+// 🔴 SIcon 的 color prop 不吃 var()（烘焙链路硬约束）：创建名片入口此前写死 #165dff，
+//    租户主题/品牌色生效后入口仍是全局蓝（用户反馈「创建名片三步也是[全局蓝]」）。
+//    从主题 vars 取解析后的真实 hex 喂 prop（与 distribution.vue themeColor 同模式），
+//    未配置/未登录回落全局蓝。CSS 侧 .create-icon 底色走 rgba(var(--design-primary-rgb))。
+const designPrimaryHex = computed(() => (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 const pageBgStyle = computed(() => {
   const g = designGlobal.value || {};
   const s = {};
@@ -870,7 +875,8 @@ function viewMarketCard(item) {
 .create-icon {
   width: 80rpx;
   height: 80rpx;
-  background: rgba(22,93,255,0.1);
+  /* 跟随主题色（未配置回落全局蓝 22,93,255），与图标 :color="designPrimaryHex" 同源 */
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.1);
   border-radius: 20rpx;
   display: flex;
   align-items: center;

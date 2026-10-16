@@ -9,7 +9,7 @@
           <view v-else class="avatar">{{ user.nickname?.[0] || '用' }}</view>
           <view class="info">
             <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
-            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#7a4b00" /> {{ memberLevelText }}</view>
+            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#b45309" /><text>{{ memberLevelText }}</text></view>
           </view>
           <view class="edit-btn" @click="openEdit">编辑</view>
         </view>
@@ -292,13 +292,21 @@ function logout() {
   color: var(--white);
   margin-bottom: 8rpx;
 }
-/* 会员等级徽章：金色渐变上白字/金图标都不可读（金徽章压金底 ≈1.3:1）→ 统一深棕前景 5.3:1 */
+/* 会员等级徽章（2026-10-16 二次修）：头部背景是主题色渐变（随租户可变黄/蓝/绿），
+   首版「金渐变底+深棕字」压金黄色头部时同系相融——外框消失、圆内对勾看不见
+   （用户反馈「圆形图标里的字没显示、外框不明显」）。
+   改白底胶囊＋同系细边框：任何主题色头部上都清晰；深棕字 #7a4b00 白底上 8:1+；
+   图标琥珀金 #b45309（白底 4.6:1，圆环+对勾清晰可辨）。crown 字形勿改（会员徽章
+   圆环对勾是 v5 定稿，见 SIcon.vue crown 注释）。 */
 .member-tag {
-  display: inline-block;
-  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  background: rgba(255,255,255,0.95);
   color: #7a4b00;
+  border: 2rpx solid rgba(122,75,0,0.28);
   padding: 4rpx 16rpx;
-  border-radius: 20rpx;
+  border-radius: var(--radius-pill);
   font-size: var(--fs-1);
   font-weight: 600;
 }
