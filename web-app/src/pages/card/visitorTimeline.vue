@@ -104,7 +104,8 @@ function formatTime(time) {
 .timeline-dot.view { background: var(--primary); }
 .timeline-dot.exchange { background: #00b42a; }
 .timeline-dot.video { background: #f5222d; }
-.timeline-dot.dynamic { background: #722ed1; }
+/* 我的动态属关系域（#0a9f8f→#10b981），圆点取域起点；原写死紫色是收敛前旧 9 彩遗留 */
+.timeline-dot.dynamic { background: #0a9f8f; }
 .timeline-line {
   position: absolute;
   left: 11rpx;
