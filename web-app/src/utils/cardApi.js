@@ -5,24 +5,20 @@ import { qsStringify, qsParse } from './qs.js';
 import { DEFAULT_TENANT_ID } from '../config.js';
 
 // ===== 服务器基址 =====
-// ⚠️ 均为**开发占位**，正式发布必须替换为已备案的 HTTPS 域名（微信正式版强制 HTTPS，且需在小程序后台配置 request 合法域名）。
-// - H5：浏览器与服务器同机，用 localhost 即可。
-// - 小程序真机：手机上的 localhost 指向「手机自己」，访问不到电脑服务器 → 必须用电脑的局域网 IP。
-//   （此 IP 由路由器 DHCP 分配，可能变化；换网络后需回来改这里。手机与电脑须在同一局域网/同一 WiFi。）
-//
-// 这里不用 // #ifdef MP-WEIXIN 条件编译，而是运行时探测：
-// 条件编译只在 uni 编译链生效，vitest / node 直接跑源码时两个分支会同时保留，
-// 写成两个 const 会抛「重复声明」SyntaxError，改成 let 又会让非小程序分支被错误覆盖。
-// 运行时判据与条件编译等价：非小程序端有 window，微信小程序端没有。
-const IS_MP_WEIXIN = typeof window === 'undefined' && typeof wx !== 'undefined' && typeof uni !== 'undefined' && !!uni.getSystemInfoSync;
-const HOST = IS_MP_WEIXIN ? 'http://192.168.110.196:3000' : 'http://localhost:3000';
+// 单一来源 utils/apiBase.js（2026-10-17 收敛）：web-app/.env 配置，构建期生效。
+//   VITE_MP_API_BASE  小程序端完整 URL，默认 https://zero.nshop.mobi（线上服务器，
+//                     库已同步本地数据便于测试调试；要改回本地开发机就填局域网 IP，
+//                     DHCP 换网会变，手机与电脑须同一 WiFi）
+//   VITE_H5_API_BASE  H5 端默认空 = 同源相对路径（任意域名部署均可；dev 走 vite 代理）
+// 小程序真机访问不到电脑的 localhost，必须完整 URL——这是 MP 与 H5 基址不同的原因。
+import { API_HOST } from './apiBase.js';
+
+const HOST = API_HOST;
 
 const BASE_URL = HOST + '/api/card';
 const MARKET_BASE_URL = HOST + '/api/card-market';
-// 支付API基址：H5（含 /mall 独立产物）走同源相对路径，任意域名/端口部署可用；
-// 小程序端 uni.request 要求完整 URL（用电脑局域网 IP 真机可达）
-const PAYMENT_BASE_URL =
-  typeof window !== 'undefined' && window.location ? '/api/payment' : HOST + '/api/payment';
+// 支付API基址：H5 同源相对路径（任意域名/端口部署可用）；小程序端 uni.request 要求完整 URL
+const PAYMENT_BASE_URL = HOST + '/api/payment';
 
 // 公共请求层（token 注入 / 401 跳登录 / 响应解包），行为与原 request 完全一致
 const { request } = createApiClient(BASE_URL);
@@ -222,10 +218,11 @@ export const cardApi = {
   getEnterpriseEmployees: (id) => request(`/card-market/enterprises/${id}/employees`),
   submitApply: (data) => request(MARKET_BASE_URL + '/apply', 'POST', data),
   // 本人入驻申请状态（独立 URL：/api/card-market 域，未绑定租户也可查询）
+  // 🔴 基址必须走 MARKET_BASE_URL——曾写死 http://localhost:3000，小程序端直接失效
   getApplyStatus: () => new Promise((resolve, reject) => {
     const token = uni.getStorageSync('card_token');
     uni.request({
-      url: 'http://localhost:3000/api/card-market/apply/status',
+      url: MARKET_BASE_URL + '/apply/status',
       method: 'GET',
       header: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
       success: (res) => (res.statusCode === 200 ? resolve(res.data) : reject(new Error(res.data?.error || '请求失败'))),

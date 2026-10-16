@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createApiClient, qs } from './apiClient.js';
 import { mallApi } from './mallApi.js';
+import { API_HOST } from './apiBase.js';
 
 function setupUniMock() {
   const uniMock = {
@@ -90,17 +91,17 @@ describe('mallApi 方法映射', () => {
     uniMock.getStorageSync.mockReturnValue('t');
     uniMock.request.mockImplementation((args) => args.success({ statusCode: 200, data: { list: [] } }));
     await mallApi.getGoods({ page: 1, pageSize: 10 });
-    expect(uniMock.request.mock.calls[0][0].url).toBe('http://localhost:3000/api/mall/goods?page=1&pageSize=10');
+    expect(uniMock.request.mock.calls[0][0].url).toBe(API_HOST + '/api/mall/goods?page=1&pageSize=10');
   });
 
   it('购物车/订单接口走 /api/mall 前缀', async () => {
     uniMock.getStorageSync.mockReturnValue('t');
     uniMock.request.mockImplementation((args) => args.success({ statusCode: 200, data: {} }));
     await mallApi.addCart({ goodsId: 1, quantity: 2 });
-    expect(uniMock.request.mock.calls[0][0].url).toBe('http://localhost:3000/api/mall/cart');
+    expect(uniMock.request.mock.calls[0][0].url).toBe(API_HOST + '/api/mall/cart');
     expect(uniMock.request.mock.calls[0][0].method).toBe('POST');
     await mallApi.createOrder({ items: [] });
-    expect(uniMock.request.mock.calls[1][0].url).toBe('http://localhost:3000/api/mall/orders');
+    expect(uniMock.request.mock.calls[1][0].url).toBe(API_HOST + '/api/mall/orders');
     expect(uniMock.request.mock.calls[1][0].method).toBe('POST');
   });
 

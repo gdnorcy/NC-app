@@ -20,6 +20,11 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      // H5 走同源相对路径后，本地存储资源 /uploads/{file} 也需代理到后端
+      '/uploads': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 });

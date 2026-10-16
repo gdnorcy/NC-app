@@ -5,8 +5,12 @@
  * - 登录用户自动携带 card_token，租户由服务端结算
  * 用法：import { track } from '@/utils/analytics';
  *       track('page_view', { page: '/pages/card/myCard', cardId: 1 });
+ * 🔴 基址走单一来源 utils/apiBase.js：小程序端 uni.request 必须完整 URL
+ *    （曾写死相对路径 '/api/...'，MP 下静默发不出去，fail 只进缓冲重试）
  */
-const EVENTS_URL = '/api/card/analytics/events';
+import { API_HOST } from './apiBase.js';
+
+const EVENTS_URL = API_HOST + '/api/card/analytics/events';
 
 function getVisitorKey() {
   let key = uni.getStorageSync('visitor_key');

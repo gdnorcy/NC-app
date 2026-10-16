@@ -2,6 +2,7 @@
 import { fetchDesignConfig, applyDesignStyle, setDesignTheme } from './utils/design.js';
 import { getTid } from './utils/mallUtil.js';
 import { getNavMetrics } from './utils/navMetrics.js';
+import { API_HOST } from './utils/apiBase.js';
 
 export default {
   globalData: {
@@ -60,13 +61,9 @@ export default {
         }
         // #endif
 
-        // 构建API基础地址
-        // #ifdef MP-WEIXIN
-        this.globalData.apiBase = 'http://localhost:3000'; // 开发默认本地；发布时替换为实际 HTTPS 域名
-        // #endif
-        // #ifdef H5
-        this.globalData.apiBase = location.origin;
-        // #endif
+        // 构建API基础地址：单一来源 utils/apiBase.js（web-app/.env 配置，构建期生效）
+        // MP=完整域名（uni.request 必须）；H5='' = 同源相对路径（任意域名部署均可）
+        this.globalData.apiBase = API_HOST;
 
         // 调用渠道初始化接口
         if (appid) {

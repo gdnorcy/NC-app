@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { cardApi } from './cardApi.js';
+import { API_HOST } from './apiBase.js';
 
 // ============================================================
 // cardApi：URL 前缀、鉴权头、响应解包、错误 reject（AGENTS.md 前端 API 规范）
+// 基址期望值从 apiBase.js 取（2026-10-17 起 .env 可配，H5 默认同源相对路径），
+// 不再写死 localhost——改 .env 后测试自动跟随
 // ============================================================
 const uniMock = {
   getStorageSync: vi.fn(),
@@ -26,7 +29,7 @@ describe('cardApi 请求封装', () => {
     mockResponse(200, { cards: [] });
     await cardApi.getCards();
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/cards',
+      url: API_HOST + '/api/card/cards',
       method: 'GET',
     }));
   });
@@ -94,7 +97,7 @@ describe('cardApi 请求封装', () => {
     mockResponse(200, { ok: true });
     await cardApi.distApply();
     const args = uniMock.request.mock.calls[0][0];
-    expect(args.url).toBe('http://localhost:3000/api/card/distribution/apply');
+    expect(args.url).toBe(API_HOST + '/api/card/distribution/apply');
     expect(args.method).toBe('POST');
   });
 
@@ -102,7 +105,7 @@ describe('cardApi 请求封装', () => {
     mockResponse(200, { ok: true, message: '提交成功' });
     await cardApi.designLead({ tenantId: 1, formTitle: '留资表单', fields: [{ label: '姓名', value: '李四' }] });
     const args = uniMock.request.mock.calls[0][0];
-    expect(args.url).toBe('http://localhost:3000/api/card/design/leads');
+    expect(args.url).toBe(API_HOST + '/api/card/design/leads');
     expect(args.method).toBe('POST');
     expect(args.data).toEqual({ tenantId: 1, formTitle: '留资表单', fields: [{ label: '姓名', value: '李四' }] });
   });
@@ -112,7 +115,7 @@ describe('cardApi 请求封装', () => {
     uniMock.getStorageSync.mockImplementation((k) => (k === 'mall_tid' ? '2' : 'test-token'));
     await cardApi.getTemplates();
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/templates?tid=2',
+      url: API_HOST + '/api/card/templates?tid=2',
       method: 'GET',
     }));
   });
@@ -126,7 +129,7 @@ describe('cardApi 请求封装', () => {
     });
     await cardApi.getTemplates();
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/templates',
+      url: API_HOST + '/api/card/templates',
       method: 'GET',
     }));
   });
@@ -139,14 +142,14 @@ describe('阶段C 雷达/收藏方法', () => {
   it('getRadarFeatures → GET /radar/features', async () => {
     mockResponse(200, { isMember: true });
     await cardApi.getRadarFeatures();
-    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/radar/features', method: 'GET' }));
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: API_HOST + '/api/card/radar/features', method: 'GET' }));
   });
 
   it('collectCard → POST /collect 带 cardId', async () => {
     mockResponse(200, { ok: true, collected: true });
     await cardApi.collectCard(7);
     const args = uniMock.request.mock.calls[0][0];
-    expect(args.url).toBe('http://localhost:3000/api/card/collect');
+    expect(args.url).toBe(API_HOST + '/api/card/collect');
     expect(args.method).toBe('POST');
     expect(args.data.cardId).toBe(7);
   });
@@ -154,26 +157,26 @@ describe('阶段C 雷达/收藏方法', () => {
   it('uncollectCard → DELETE /collect?cardId=', async () => {
     mockResponse(200, { ok: true, collected: false });
     await cardApi.uncollectCard(7);
-    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/collect?cardId=7', method: 'DELETE' }));
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: API_HOST + '/api/card/collect?cardId=7', method: 'DELETE' }));
   });
 
   it('getMyCollects → GET /collects?limit=', async () => {
     mockResponse(200, { collects: [] });
     await cardApi.getMyCollects(200);
-    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/collects?limit=200', method: 'GET' }));
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: API_HOST + '/api/card/collects?limit=200', method: 'GET' }));
   });
 
   it('readRadarNotify → POST /radar/notifies/:id/read', async () => {
     mockResponse(200, { ok: true });
     await cardApi.readRadarNotify(9);
-    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://localhost:3000/api/card/radar/notifies/9/read', method: 'POST' }));
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({ url: API_HOST + '/api/card/radar/notifies/9/read', method: 'POST' }));
   });
 
   it('saveRadarConfig → POST /radar/config 带数据', async () => {
     mockResponse(200, { ok: true });
     await cardApi.saveRadarConfig({ switch: 1 });
     const args = uniMock.request.mock.calls[0][0];
-    expect(args.url).toBe('http://localhost:3000/api/card/radar/config');
+    expect(args.url).toBe(API_HOST + '/api/card/radar/config');
     expect(args.method).toBe('POST');
     expect(args.data.switch).toBe(1);
   });
@@ -198,7 +201,7 @@ describe('阶段C 语音简介上传', () => {
     expect(res.url).toBe('/uploads/voice-a.mp3');
     expect(res.name).toBe('intro.mp3');
     const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe('http://localhost:3000/api/card/voice-upload');
+    expect(url).toBe(API_HOST + '/api/card/voice-upload');
     expect(opts.method).toBe('POST');
     expect(opts.headers.Authorization).toBe('Bearer test-token');
     expect(opts.body).toBeInstanceOf(FormData);
@@ -221,7 +224,7 @@ describe('阶段C 语音简介上传', () => {
     mockResponse(200, { pages: { components: [] } });
     await cardApi.designConfig(false, '');
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: expect.stringMatching(/^http:\/\/localhost:3000\/api\/card\/design\/config\?(_t=\d+&)?tid=1$/),
+      url: expect.stringMatching(new RegExp('^' + API_HOST + '/api/card/design/config\\?(_t=\\d+&)?tid=1$')),
     }));
   });
 
@@ -230,7 +233,7 @@ describe('阶段C 语音简介上传', () => {
     mockResponse(200, { pages: { components: [] } });
     await cardApi.designConfig(false, '');
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: expect.stringMatching(/^http:\/\/localhost:3000\/api\/card\/design\/config\?(_t=\d+&)?tid=1$/),
+      url: expect.stringMatching(new RegExp('^' + API_HOST + '/api/card/design/config\\?(_t=\\d+&)?tid=1$')),
     }));
   });
 
@@ -239,7 +242,7 @@ describe('阶段C 语音简介上传', () => {
     mockResponse(200, { pages: { components: [] } });
     await cardApi.designConfig(false, 'mall-home', '2');
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: expect.stringMatching(/^http:\/\/localhost:3000\/api\/card\/design\/config\?(_t=\d+&)?pageType=mall-home&tid=2$/),
+      url: expect.stringMatching(new RegExp('^' + API_HOST + '/api/card/design/config\\?(_t=\\d+&)?pageType=mall-home&tid=2$')),
     }));
   });
 });
@@ -249,7 +252,7 @@ describe('B期 live C 端：liveRooms 直播列表', () => {
     mockResponse(200, { list: [{ id: 1, title: '直播间A', cover: '/c.jpg', viewer: 88 }], total: 1 });
     const res = await cardApi.liveRooms({ tid: 1, page: 1, pageSize: 20 });
     expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://localhost:3000/api/card/live/rooms?tid=1&page=1&pageSize=20',
+      url: API_HOST + '/api/card/live/rooms?tid=1&page=1&pageSize=20',
       method: 'GET',
     }));
     expect(res.list[0].title).toBe('直播间A');
@@ -259,6 +262,6 @@ describe('B期 live C 端：liveRooms 直播列表', () => {
     mockResponse(200, { list: [], total: 0 });
     await cardApi.liveRooms();
     const url = uniMock.request.mock.calls[0][0].url;
-    expect(url).toBe('http://localhost:3000/api/card/live/rooms');
+    expect(url).toBe(API_HOST + '/api/card/live/rooms');
   });
 });
