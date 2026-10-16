@@ -13,3 +13,5 @@ _tmp_
 vite.config.js.timestamp-*.mjs
 vitest.config.js.timestamp-*.mjs
 .env
+# web-app/.env 是 API 基址配置（非密钥，需随仓库共享）；server/.env 含密钥保持忽略
+!web-app/.env

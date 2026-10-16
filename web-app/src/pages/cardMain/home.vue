@@ -160,6 +160,7 @@ import { getNavMetrics } from '../../utils/navMetrics.js';
 import { searchBoxSizeStyle } from '../../utils/containerChildSize.js';
 import { qsParse } from '../../utils/qs.js';
 import { fetchDesignConfig, resolveHomePath, JUMP_DONE_KEY, buildShareCard, shouldShowShareBack, resolveAssetUrl, useDesignTheme, brandThemeOverride } from '../../utils/design.js';
+import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
@@ -501,7 +502,12 @@ const homeJumpChecked = ref(false);
 onShow(() => {
   refreshLoginFlag(); // 登录后返回首页时刷新「是否需先登录」的引导文案
   uni.$emit('cart:changed'); // 购物车组件（fab-cart）数量刷新
-  if (isPreviewMode()) return; // 预览模式不触发首页跳转
+  const preview = isPreviewMode();
+  // 首页曝光埋点（2026-10-17 补：此前主包唯一流量入口无埋点，是最大盲区；
+  // 同时 analytics.js 只被分包引用会占主包却被 devtools 判「主包未使用」）。
+  // 预览模式（设计中心）不上报，避免污染真实数据
+  if (!preview) trackPageView('/pages/cardMain/home');
+  if (preview) return; // 预览模式不触发首页跳转
   if (homeJumpChecked.value) return;
   homeJumpChecked.value = true;
   (async () => {

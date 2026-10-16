@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { describe, test, expect, vi } from 'vitest';
-import { pickPrimarySubject, findMarketItem, syncMarketWithIsPublic } from '../../utils/marketLink.js';
+import { pickPrimarySubject, findMarketItem, syncMarketWithIsPublic } from './utils/marketLink.js';
 
 // 「公开到人脉集市」开关 ↔ 集市场上架记录联动回归（2026-10-15 真机报修）。
 // 病根：displaySettings/create 的开关只写 card_profile.is_public（服务端仅 admin 客户列表消费），
@@ -178,7 +178,9 @@ describe('syncMarketWithIsPublic（开关值 ⇔ 上架记录）', () => {
 // ===== displaySettings.vue：开关必须联动集市（防回退成只写 is_public） =====
 describe('displaySettings.vue 开关联动', () => {
   test('引入共用联动模块 marketLink.js', () => {
-    expect(dsSrc).toMatch(/import\s*\{\s*syncMarketWithIsPublic\s*\}\s*from\s*'\.\.\/\.\.\/utils\/marketLink\.js'/);
+    // 2026-10-17：模块移入 card 分包（pages/card/utils/）——只被本分包使用，
+    // 放主包会被 devtools 判「主包未使用 JS」且占主包体积
+    expect(dsSrc).toMatch(/import\s*\{\s*syncMarketWithIsPublic\s*\}\s*from\s*'\.\/utils\/marketLink\.js'/);
   });
 
   test('onPublicChange 保存 is_public 后必须调 syncMarket（不能只 updateCard 就 toast）', () => {
@@ -212,7 +214,9 @@ describe('displaySettings.vue 开关联动', () => {
 // ===== create.vue：保存后同源联动（与 displaySettings 不漂移） =====
 describe('create.vue 保存后集市联动', () => {
   test('引入共用联动模块 marketLink.js', () => {
-    expect(createSrc).toMatch(/import\s*\{\s*syncMarketWithIsPublic\s*\}\s*from\s*'\.\.\/\.\.\/utils\/marketLink\.js'/);
+    // 2026-10-17：模块移入 card 分包（pages/card/utils/）——只被本分包使用，
+    // 放主包会被 devtools 判「主包未使用 JS」且占主包体积
+    expect(createSrc).toMatch(/import\s*\{\s*syncMarketWithIsPublic\s*\}\s*from\s*'\.\/utils\/marketLink\.js'/);
   });
 
   test('submit 成功路径（三种保存）后调 syncMarketAfterSave(form.isPublic)', () => {

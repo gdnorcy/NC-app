@@ -261,7 +261,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
-import { syncMarketWithIsPublic } from '../../utils/marketLink.js';
+import { syncMarketWithIsPublic } from './utils/marketLink.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
