@@ -328,7 +328,7 @@ export function createCardRouter(db, wxService) {
         const proj = db.prepare('SELECT config FROM projects WHERE id = ?').get(customerId);
         if (proj && proj.config) {
           const cfg = JSON.parse(proj.config || '{}');
-          if (['live', 'step', 'split'].includes(cfg.card_create_skin)) skin = cfg.card_create_skin;
+          if (['live', 'step'].includes(cfg.card_create_skin)) skin = cfg.card_create_skin;
         }
       } catch {}
       res.json({ templates: list.map((t) => ({ ...t, purchased: owned.has(Number(t.id)) })), skin });

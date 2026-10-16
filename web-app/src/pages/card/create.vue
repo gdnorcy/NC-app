@@ -280,7 +280,8 @@ const cardType = ref('individual');
 const showBind = ref(false);
 const showAdv = ref(false);
 const steps = ['基本信息', '联系方式', '确认发布'];
-// 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导 / split 沉浸双分区
+// 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导
+// （原第三档 split「沉浸双分区」从未实现布局、与 live 视觉无差，2026-10-16 移除）
 const skinType = ref('live');
 // 系统主题（设计中心「系统风格」）：表单 UI 外壳跟随它；名片预览卡仍按所选模板真实配色渲染。
 // 小程序端不能运行时注入 <style>，故必须由根视图内联下发（CSS 变量向下继承）。
@@ -374,7 +375,7 @@ async function loadTemplates(force = false) {
   try {
     const res = await cardApi.getTemplates();
     templates.value = res.templates || [];
-    if (['live', 'step', 'split'].includes(res.skin)) skinType.value = res.skin;
+    if (['live', 'step'].includes(res.skin)) skinType.value = res.skin;
     // 支持 URL ?tpl=<id> 指定模板（深链/验证）；否则默认第一个可用模板（跳过付费未购）
     const pages = getCurrentPages();
     const opts = pages[pages.length - 1].options || {};
@@ -409,7 +410,7 @@ const stepSubtitle = computed(() => {
 // 衬线装饰 + 英文小标题：仅暗色皮肤启用（原本还要求选了模板，现在只由系统主题明暗决定）
 const skinSerif = computed(() => skinVars.value['--sk-skin'] === 'dark');
 // 导航标题/返回箭头颜色：跟随皮肤（深色皮肤白字，浅色皮肤深字），否则浅色皮肤上白字不可见
-// PageNav 文字色：live/split 头部是主题色渐变 → 用 --sk-hd-text（对色后的白/深字）；
+// PageNav 文字色：live 头部是主题色渐变 → 用 --sk-hd-text（对色后的白/深字）；
 // step 皮肤头部透明、直接落在浅色画布上 → 固定深字（白字会消失）
 const hdText = computed(() => (skinType.value === 'step' ? '#1d2129' : (skinVars.value['--sk-hd-text'] || '#ffffff')));
 // 手机号报错文案：空 →「请输入手机号」；填了但格式不对 →「请输入正确的手机号」
@@ -738,8 +739,7 @@ async function syncMarketAfterSave(isPublic) {
   background: var(--sk-line, rgba(255,255,255,0.5));
   margin-top: 14rpx;
 }
-.skin-live .title,
-.skin-split .title {
+.skin-live .title {
   font-family: "Songti SC", "Noto Serif SC", serif;
   letter-spacing: 4rpx;
 }

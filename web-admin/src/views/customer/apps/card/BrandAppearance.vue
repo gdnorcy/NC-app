@@ -73,7 +73,7 @@
               <div class="skin-desc">{{ sk.desc }}</div>
             </div>
           </div>
-          <div class="form-tip">实时预览：中央名片卡实时预览+紧凑表单（推荐）；分步引导：三步全屏；沉浸双分区：上展示下编辑。</div>
+          <div class="form-tip">实时预览：中央名片卡实时预览+紧凑表单（推荐）；分步引导：三步全屏，一屏一焦点。</div>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="saveSkin" :loading="savingSkin">保存皮肤设置</el-button>
@@ -148,7 +148,6 @@ const savingSkin = ref(false);
 const skinOptions = [
   { value: 'live', name: '实时预览', desc: '中央名片实时预览 + 紧凑表单' },
   { value: 'step', name: '分步引导', desc: '三步全屏，一屏一焦点' },
-  { value: 'split', name: '沉浸双分区', desc: '上展示下编辑' },
 ];
 
 onMounted(async () => {
@@ -156,7 +155,7 @@ onMounted(async () => {
     const cfg = await customerApiCall.get('/config');
     const c = cfg.config || {};
     BRAND_FIELDS.forEach((f) => { brand.value[f.key] = c[f.key] || ''; });
-    createSkin.value = ['live', 'step', 'split'].includes(c.card_create_skin) ? c.card_create_skin : 'live';
+    createSkin.value = ['live', 'step'].includes(c.card_create_skin) ? c.card_create_skin : 'live';
   } catch (e) {}
 });
 
@@ -180,7 +179,7 @@ async function saveSkin() {
   savingSkin.value = true;
   try {
     const res = await customerApiCall.put('/config', { card_create_skin: createSkin.value });
-    createSkin.value = ['live', 'step', 'split'].includes((res.config || {}).card_create_skin) ? res.config.card_create_skin : 'live';
+    createSkin.value = ['live', 'step'].includes((res.config || {}).card_create_skin) ? res.config.card_create_skin : 'live';
     ElMessage.success('皮肤设置已保存');
   } catch (e) {
     ElMessage.error(e || '保存失败');

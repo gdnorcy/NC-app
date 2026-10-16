@@ -674,7 +674,7 @@ router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
   for (const k of ['brand_color', 'brand_gradient', 'brand_secondary', 'brand_text', 'brand_subtext']) {
     if (updates[k] !== undefined) config[k] = String(updates[k]).trim();
   }
-  if (updates.card_create_skin !== undefined) config.card_create_skin = ['live', 'step', 'split'].includes(updates.card_create_skin) ? updates.card_create_skin : 'live';
+  if (updates.card_create_skin !== undefined) config.card_create_skin = ['live', 'step'].includes(updates.card_create_skin) ? updates.card_create_skin : 'live';
   if (updates.payment) config.payment = { ...(config.payment || {}), ...updates.payment };
   if (updates.upload_limits) config.upload_limits = { ...(config.upload_limits || {}), ...updates.upload_limits };
   if (updates.open_platform) config.open_platform = { ...(config.open_platform || {}), ...updates.open_platform };
