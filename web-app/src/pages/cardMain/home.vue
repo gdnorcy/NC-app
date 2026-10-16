@@ -120,7 +120,9 @@
       <view v-else-if="c.type === 'native-market'" class="section" :style="nativeMargin(c.props, { containerRadius: true })">
         <view class="section-header" v-if="c.props.showTitle !== false">
           <view class="section-title">
-            <SIcon name="market" size="default" color="#722ed1" />
+            <!-- 关系域色 #0a9f8f：与宫格「人脉集市」项同域同色（2026-10-14 四域收敛）；
+                 原写死紫色是收敛前 9 彩遗留，曾因禁色测试只匹配无空格串而漏网） -->
+            <SIcon name="market" size="default" color="#0a9f8f" />
             <text>{{ c.props.title || '人脉集市' }}</text>
           </view>
           <view class="section-more" @click="goMarket">{{ c.props.moreText || '进入集市' }} ›</view>
@@ -1014,7 +1016,8 @@ function viewMarketCard(item) {
   width: 72rpx;
   height: 72rpx;
   border-radius: 36rpx;
-  background: linear-gradient(135deg, #722ed1, #9254de);
+  /* 关系域 #0a9f8f→#10b981（与宫格 market 项同域同色；原写死紫色渐变是收敛前遗留） */
+  background: linear-gradient(135deg, #0a9f8f, #10b981);
   color: var(--white);
   display: flex;
   align-items: center;

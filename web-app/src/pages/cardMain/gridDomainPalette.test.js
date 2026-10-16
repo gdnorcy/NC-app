@@ -142,3 +142,27 @@ describe('宫格 4 业务域色板：白图标对比度', () => {
     });
   }
 });
+
+describe('native-market 区块与宫格同域同色（2026-10-16 补漏，真机截图报修）', () => {
+  // 病根：上面 OLD_GRADIENTS 禁令只匹配**无空格**渐变串，而 .market-avatar 写的是
+  // **带空格**变体、区块头部图标是**裸 hex** 旧紫 —— 两头躲过禁令，紫色遗留到真机。
+  // 本锁按「效果」断言：头像渐变=关系域、图标=关系域起点、home.vue 零旧紫残留。
+  test('home.vue .market-avatar 背景用关系域渐变', () => {
+    const src = readFileSync(HOME, 'utf8');
+    const avatar = src.match(/\.market-avatar\s*\{[^}]*\}/);
+    expect(avatar, '.market-avatar 规则块应存在').not.toBeNull();
+    // 剥 CSS 注释 + 逗号后空格归一化，避免「带空格写法」绕过域色断言（旧紫正是钻这个空子）
+    const norm = avatar[0].replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*/g, ',');
+    expect(norm).toContain(RELATION);
+  });
+  test('home.vue 集市头部图标用关系域起点 #0a9f8f', () => {
+    const src = readFileSync(HOME, 'utf8');
+    expect(src).toMatch(/name="market"[^>]*color="#0a9f8f"/);
+  });
+  test('home.vue 零旧紫残留（带空格/无空格渐变 + 裸 hex，含注释）', () => {
+    const src = readFileSync(HOME, 'utf8');
+    for (const bad of ['#722ed1', '#9254de', 'linear-gradient(135deg, #722ed1, #9254de)', 'linear-gradient(135deg,#722ed1,#9254de)']) {
+      expect(src, `不得残留旧紫 ${bad}`).not.toContain(bad);
+    }
+  });
+});
