@@ -2382,6 +2382,13 @@ function compIndex(comp) {
  *   **与真机不一致，且会再次被误判成 bug**。
  */
 function compBoxStyle(c) {
+  // 🔴 native-* 自包含（2026-10-16 用户反馈「容器左右边距=0 小程序正常、设计中心预览仍有边距」）：
+  //   容器样式（边距/底色/圆角/内边距）全部由内部 nativeMargin 下发（与 C 端一致），
+  //   外层 .pe-comp 不再套 shared containerStyle —— 否则双重生效：
+  //   实测存量 native-grid.props.padding=11（旧「内边距」滑块留下的值）让 wrapper 凭空
+  //   多一圈 11px 灰边，而 C 端 nativeMargin 不读 padding → 真机正常、预览不对；
+  //   marginLR 也会 wrapper+inner 双重叠加（搜索栏 7px 被画成 14px 的隐性漂移）。
+  if (String(c.type || '').startsWith('native-')) return {};
   const s = compContainerStyle(c, { withRadius: false });
   return { background: s.background, padding: s.padding, marginTop: s.marginTop, marginBottom: s.marginBottom, marginLeft: s.marginLeft, marginRight: s.marginRight };
   // ⚠️ 这里**不要**为首组件加任何「上留白」（padding-top 或 margin-top 都试过）——

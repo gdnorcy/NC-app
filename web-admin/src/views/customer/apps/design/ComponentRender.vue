@@ -1268,6 +1268,10 @@ const containerStyle = computed(() => {
   if (props.comp.type === 'fab-cart' || props.comp.type === 'float-btn') {
     return { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 };
   }
+  // 🔴 native-* 自包含（2026-10-16）：几何全部由内部 nativeMargin 下发，外层 .comp-render
+  //   不输出 containerStyle —— 否则 marginLR/marginBottom 与 inner 双重叠加
+  //   （与 PageEditor.vue compBoxStyle 的 native 跳过配套，两端行为对齐 C 端）。
+  if (String(props.comp.type || '').startsWith('native-')) return {};
   // 🔴 容器底色/圆角/内边距/外边距统一走**共享实现**（与 C 端 DesignPage.vue、
   //   PageEditor.vue 的 compBoxStyle 同一份），不再在本文件私藏一份副本。
   // 此前这里自己抄了一份且**漏了 bgColor 的语义区分**，导致：

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { containerStyle as sharedContainerStyle } from './containerStyle.js';
 
 /**
  * 原生组件（native-*）容器样式 —— **直接从真实源码提取执行**（2026-10-07）
@@ -176,5 +177,58 @@ describe('nativeMargin 容器圆角（2026-10-16「圆角为 0，预览图及小
       path.join(ROOT, 'web-admin/src/views/customer/apps/design/PageEditor.vue'), 'utf8');
     expect(pe).toMatch(/nativeNoPadding/);
     expect(pe).toMatch(/startsWith\('native-'\)/);
+  });
+});
+
+describe('画布 wrapper 不给 native-* 套 shared containerStyle（2026-10-16「marginLR=0 小程序正常、预览仍有边距」）', () => {
+  // 病根：admin 画布对每个组件有三层容器样式 —— .pe-comp（compBoxStyle → containerStyle
+  // 带 padding）→ .comp-render（containerStyle computed → margins/bg）→ .r-native-grid
+  // （nativeMargin）。前两层是给**非原生**组件准备的；native-* 的几何全由内部 nativeMargin
+  // 下发（与 C 端一致），wrapper 再套一层 = 双重生效：
+  //   ① 存量 native-grid.props.padding=11（旧「内边距」滑块留下的值）让 wrapper 凭空多一圈
+  //      11px 灰边 —— C 端不读 padding 所以真机正常、预览不对；
+  //   ② marginLR 在 wrapper+inner 双重叠加（搜索栏 7px 被画成 14px 的隐性漂移）。
+  // 修法：两层 wrapper 对 native-* 一律返回 {}（自包含），nativeMargin 全权负责。
+  function loadCompBoxStyle() {
+    const src = fs.readFileSync(
+      path.join(ROOT, 'web-admin/src/views/customer/apps/design/PageEditor.vue'), 'utf8');
+    const m = src.match(/function compBoxStyle\(c\)\s*\{[\s\S]*?\n\}/);
+    if (!m) throw new Error('未匹配到 compBoxStyle()');
+    // eslint-disable-next-line no-new-func
+    return new Function('compContainerStyle', 'return (' + m[0] + ')')(sharedContainerStyle);
+  }
+
+  function loadAdminContainerComputed() {
+    const src = fs.readFileSync(SRC.admin, 'utf8');
+    const m = src.match(/const containerStyle = computed\(\(\) => \{([\s\S]*?)\n\}\);/);
+    if (!m) throw new Error('未匹配到 containerStyle computed');
+    // eslint-disable-next-line no-new-func
+    return new Function('props', 'sharedContainerStyle', m[1]);
+  }
+
+  const compBoxStyle = loadCompBoxStyle();
+  const adminContainer = loadAdminContainerComputed();
+
+  it('🔴 compBoxStyle 对 native-* 必须返回空（wrapper 不吃 padding/margin/bg）', () => {
+    // 存量实测数据：native-grid props.padding=11（旧滑块遗留）→ wrapper 曾输出 padding:11px
+    expect(compBoxStyle({ type: 'native-grid', props: { padding: 11, marginLR: 0 } })).toEqual({});
+    expect(compBoxStyle({ type: 'native-search', props: { marginLR: 7 } })).toEqual({});
+    expect(compBoxStyle({ type: 'native-mycard', props: { compBgColor: '#fff' } })).toEqual({});
+  });
+
+  it('非 native 组件的 wrapper 行为不变（button 的 padding/marginLR 照常下发）', () => {
+    const s = compBoxStyle({ type: 'button', props: { padding: 11, marginLR: 10 } });
+    expect(s.padding).toBe('11px');
+    expect(s.marginLeft).toBe('10px');
+  });
+
+  it('🔴 ComponentRender 的 containerStyle computed 对 native-* 必须返回空（marginLR 不再双重叠加）', () => {
+    expect(adminContainer({ comp: { type: 'native-search', props: { marginLR: 7 } } }, sharedContainerStyle)).toEqual({});
+    expect(adminContainer({ comp: { type: 'native-grid', props: { marginLR: 0 } } }, sharedContainerStyle)).toEqual({});
+  });
+
+  it('非 native 组件的 .comp-render 容器行为不变', () => {
+    const s = adminContainer({ comp: { type: 'button', props: { marginLR: 10 } } }, sharedContainerStyle);
+    expect(s.marginLeft).toBe('10px');
   });
 });
