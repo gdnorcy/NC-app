@@ -125,15 +125,16 @@ describe('member 语义色与中性保留', () => {
     expect(src).toMatch(/#5b5b5b|var\(--t2\)/);
   });
   test('hero/tcard 白装饰保留（rgba(255,255,255 在深色渐变卡上）', () => {
-    expect(src).toContain('rgba(255,255,255,0.18)');
+    // 注：原 .hero-badge 的 0.18 随英文等级徽章删除（2026-10-16 去重），
+    // hero 徽章位不再有白装饰；tcard 权益图标底 0.12 保留
     expect(src).toContain('rgba(255,255,255,0.12)');
   });
-  test('hero 图标改吃 heroInk（back / crown）：品牌亮黄时自动转深灰，不留白图标', () => {
+  test('hero 图标改吃 heroInk（back）：品牌亮黄时自动转深灰，不留白图标', () => {
     // 🔴 反例（真机截图报修）：SIcon color="#ffffff" 写死 → 白图标压在 #FCB801 亮黄 hero 上消失
+    // （原 hero 还有 crown 徽章图标，2026-10-16 等级徽章去重时一并删除）
     expect(src).not.toContain('color="#ffffff"');
     expect(src).toContain('const heroInk = computed(() => heroStyle.value.color);');
     expect(src).toContain('<SIcon name="back" size="large" :color="heroInk" />');
-    expect(src).toContain('<SIcon name="crown" size="small" :color="heroInk" />');
   });
 });
 

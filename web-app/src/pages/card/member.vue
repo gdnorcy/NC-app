@@ -4,11 +4,8 @@
       <view class="row1">
         <view class="mb-back" @click="goBack"><SIcon name="back" size="large" :color="heroInk" /></view>
         <view class="hero-left">
-          <view class="hero-title-row">
-            <view class="hero-title">会员中心</view>
-            <!-- FREE/等级徽章放标题旁（原先挂 row1 右端与胶囊同排，避让后仍显突兀） -->
-            <view class="hero-badge"><SIcon name="crown" size="small" :color="heroInk" /> {{ memberLevel === 'free' ? 'FREE' : memberLevel.toUpperCase() }}</view>
-          </view>
+          <view class="hero-title">会员中心</view>
+          <!-- 等级只在此行展示一次：原标题旁英文徽章（crown + DIAMOND）与下行「钻石会员」重复且与个人中心「✓钻石」割裂，2026-10-16 删 -->
           <view class="hero-sub">当前：{{ currentLevelText }}{{ isMember ? ' · 有效期至 ' + memberExpire : ' · 尚未开通' }}</view>
         </view>
       </view>
@@ -423,7 +420,7 @@ async function openMember(pkg) {
    右侧留出胶囊宽度（最小化 + 三个点），不再用写死的 88rpx。 */
 .hero.g3 {
   position: relative;
-  /* 完整避让：状态栏 + 导航行高。右上 FREE 徽章与胶囊同高，只避状态栏(+30rpx)会撞胶囊 */
+  /* 完整避让：状态栏 + 导航行高（原右上 FREE 徽章与胶囊同排会撞胶囊，徽章已删、避让值保留） */
   padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 8rpx) 40rpx 44rpx;
   padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
   color: var(--design-text, #fff);
@@ -432,7 +429,6 @@ async function openMember(pkg) {
 }
 .mb-back { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; margin-right: 8rpx; flex-shrink: 0; }
 .hero-left { flex: 1; min-width: 0; }
-.hero-title-row { display: flex; align-items: center; gap: 14rpx; }
 .row1 {
   display: flex;
   align-items: center;
@@ -448,18 +444,6 @@ async function openMember(pkg) {
   font-size: var(--fs-3);
   opacity: 0.85;
   margin-top: 12rpx;
-}
-.hero-badge {
-  font-size: 21rpx;
-  background: rgba(255,255,255,0.18);
-  border: 1px solid rgba(255,255,255,0.25);
-  padding: 8rpx 18rpx;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  gap: 6rpx;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 /* ===== 套餐列表（demo plan-grid）===== */

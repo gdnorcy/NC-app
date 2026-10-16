@@ -65,9 +65,12 @@ export function buildCreateSkinVars(theme) {
   // 浅色画布：顶部主题色晕染过渡到系统灰底
   v['--sk-bg'] = `linear-gradient(180deg, ${hexA(accent, 0.16)}, transparent 300rpx), #f6f7fb`;
   // v3.2 恢复头部主题色渐变（v3.1 透明化被否——用户指的其实是步骤数字的灰色）
-  v['--sk-header'] = `linear-gradient(135deg, ${accent}, ${gradEnd})`;
-  // 主按钮：主题色渐变
-  v['--sk-btn'] = `linear-gradient(135deg, ${accent}, ${gradEnd})`;
+  // 2026-10-16 渐变方向 135deg（斜切）→ 180deg（从上往下）：符合自然光照直觉、顺着表单
+  // 自上而下的阅读流，且与 --sk-bg 的 180deg 顶部晕染语言统一；斜切在窄屏与水平状态栏/
+  // 胶囊/按钮排布冲突，左右边缘还会出现突兀明暗分界。按钮同理（主流 App 主按钮皆纵向）。
+  v['--sk-header'] = `linear-gradient(180deg, ${accent}, ${gradEnd})`;
+  // 主按钮：主题色渐变（纵向，同上）
+  v['--sk-btn'] = `linear-gradient(180deg, ${accent}, ${gradEnd})`;
   v['--sk-btn-text'] = fg.text;
   v['--sk-btn-glow'] = `0 4rpx 12rpx ${hexA(accent, 0.35)}`;
   v['--sk-btn-shine'] = 'inset 0 2rpx 0 rgba(255,255,255,0.35)';
