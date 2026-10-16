@@ -10,6 +10,7 @@
 5. **「空白/没反应」先抓运行时异常**：`watch/computed` 引用 `const x=ref()` 须在声明**之后**，否则 TDZ `ReferenceError` → setup 失败白屏。
 6. **`defaultProps` 只对新建/复制生效**：手写 DB 插组件是**无效验证**(绕过 `PageEditor.load()` 合并)。正确验证＝设计器真点 `.pe-lib-card`。预填排除：链接类(`button.url`)、图标名类(`grid-nav.icon`)、内置图(`countdown`)。
 7. 🔴 **明暗判断必须按背景色非文字色**：纸艺模板「深字+浅纸底」按文字算误判深色 → 标题/按钮/徽章走白字在浅底消失。判据用 `bgStart`、luma>180；全屏图+深遮罩恒判深色。**凡「明暗」布尔量先问判的是前景还是背景。**
+   - 🔴 精确化为**「先问判的是哪一块底」**：白底圆头像的判据是**圆自己的白底**，不是它所在的 hero 背景。两条规则 —— ① 坐在品牌渐变上 → `var(--brand-hero-ink)`（`heroForeground` 同源）；② 坐在白卡/浅底上 → `var(--brand-ink)`（`inkOnLightBg` 自动压暗到 WCAG 3.0）。均由 `useBrandOverride().brandInkVars` 挂页面根下发，判定口只有 `utils/templateTheme.js` 的 `heroForeground` 一个（曾出现 createSkin `luma>160` vs hero `中值>180` 两套口径 → 同色两页一深一白）。
 
 ## 浮层与几何（元规则）
 - 🔴 **越界浮层被 overflow 裁 → 移出滚动容器 + JS 定位，不靠容器 padding**。裁剪边界是滚动容器(`.pe-canvas{overflow-y:auto}`)，祖先加 padding 不生效(实测 `.pe-phone{padding-top}` 工具条仍被裁)。✅ `.pe-tools-layer`(画布平级兄弟,`absolute/inset:0/pointer-events:none/z-index:60`)+`positionCompTools()` 按 `getBoundingClientRect()` 定位。回归 `compToolsLayer.test.js`(8例)。❌ 勿复活 `.pe-comp-first{bottom:-22px}`(用户否决)。
