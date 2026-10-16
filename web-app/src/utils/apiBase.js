@@ -6,20 +6,28 @@
  *   VITE_H5_API_BASE   H5 端基址，默认空 = 同源相对路径（任意域名/端口部署均可；
  *                     vite dev 5174 已把 /api 与 /uploads 代理到 localhost:3000）
  *
+ * 🔴 MP 编译红线（2026-10-17 真机崩溃换来的）：只能 `import.meta.env` 直接访问，
+ *    **严禁 `typeof import.meta !== 'undefined' && import.meta.env` 防御式写法**——
+ *    vite 在 MP（CJS 输出）下会把裸 import.meta 垫片成
+ *    `{url: require("url").pathToFileURL(__filename).href}`：H5 有 document 走浏览器分支无事，
+ *    MP 无 document → 编译出 require("url") → 微信运行时无此 Node 内置模块 →
+ *    app.js 启动即崩（module 'utils/url.js' is not defined，连带全部页面未注册）。
+ *    直接访问 import.meta.env 才会被 vite define 整体替换成字面量，不留裸 import.meta。
+ *
  * 🔴 运行时探测而非条件编译：条件编译只在 uni 编译链生效，vitest / node 直接跑源码时
  *    两个分支会同时保留 → 写两个 const 抛「重复声明」。判据与条件编译等价：
- *    非小程序端有 window，微信小程序端没有。
+ *    非小程序端有 window，微信小程序端没有（微信内 H5 也有 window，不受误判）。
  */
 
-const env = (typeof import.meta !== 'undefined' && import.meta.env) || {};
+const env = import.meta.env || {};
 
 /** 小程序端 API 基址（完整 URL，不含 /api 路径段） */
 export const MP_API_BASE = env.VITE_MP_API_BASE || 'https://zero.nshop.mobi';
 /** H5 端 API 基址：空串 = 同源相对路径 */
 export const H5_API_BASE = env.VITE_H5_API_BASE || '';
 
-export const IS_MP_WEIXIN =
-  typeof window === 'undefined' && typeof wx !== 'undefined' && typeof uni !== 'undefined' && !!uni.getSystemInfoSync;
+/** 微信小程序端判定：MP 无 window 有 wx；H5（含微信内浏览器）有 window → false */
+export const IS_MP_WEIXIN = typeof window === 'undefined' && typeof wx !== 'undefined';
 
 /** 当前平台 API 基址（不含 /api 路径段）：MP=完整域名，H5='' = 同源相对 */
 export const API_HOST = IS_MP_WEIXIN ? MP_API_BASE : H5_API_BASE;
