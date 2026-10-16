@@ -641,7 +641,13 @@ function viewMarketCard(item) {
   /* 🔴 横向内缩原先写死 24rpx，与 `nativeMargin()` 内联的 marginLeft/Right **叠加**，
      导致搜索框比后台设计器多缩一层（用户反馈「搜索框没按后台设计的显示」）。
      横向交给 marginLR 单独控制，这里只留纵向。 */
-  padding: 24rpx 0;
+  /* 🔴 纵向 padding 曾写死 24rpx（with-design-nav 再改 16rpx）——搜索框的「上边距」
+     参数被这层 CSS 顶开/吞掉：面板设 3px 实际是 8px+3px，且与 admin 预览
+     （.r-native-search 无 padding）结构不一致 → 2026-10-16 用户反馈
+     「预览是正确的，小程序的上边距不对」。纵向间距全部交给面板
+     marginTop/marginBottom（nativeMargin 内联下发，显式 0 也会输出 0px）；
+     无设计导航（沉浸头部）时由 topBarStyle() 内联注入 statusBarHeight 顶距，不受影响。 */
+  padding: 0;
   background: var(--white);
 }
 /* 系统风格全局默认头部（无页面头部配置时）：背景=头部颜色，文字=头部文字
@@ -654,10 +660,9 @@ function viewMarketCard(item) {
 }
 .sys-head-title { font-size: 34rpx; font-weight: 600; }
 .sys-head-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: .2; }
-/* 有设计导航（custom/official 占文档流）时去掉顶部安全距，由导航占位 */
-.top-bar.with-design-nav {
-  padding-top: 16rpx;
-}
+/* 🔴 `.top-bar.with-design-nav{padding-top:16rpx}` 已删（2026-10-16）：有设计导航时的
+   顶部呼吸感改由面板「上边距」参数下发（topBarStyle → nativeMargin 内联），
+   写死 CSS 会顶开/吞掉参数 → 与 admin 预览（.r-native-search 无 padding）不一致。 */
 .search-box {
   /* 🔴 `flex:1` 只是**兜底**（未设widthPercent 时的历史视觉）；
      正常路径由 `searchBoxStyle()` 内联下发 `flex:none` + `width:%` + auto 边距，

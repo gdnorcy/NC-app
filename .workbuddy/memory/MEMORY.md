@@ -78,6 +78,7 @@
 - 🔴 **「保存/发布后预览才变」⇒ 病根在「重新加载」路径(迁移/合并)，不在渲染函数**。先查库(`server/data/panorama.db`，⚠️ 非 `server/src/data/` 旧库)区分「数据坏了」vs「内存被改」。
 - 🔴 **新增组件族必须审 `SELF_COLORED_TYPES`**：bgColor=自身色的组件漏加白名单 → 迁移把它搬进 compBgColor 污染容器；再保存即写库、C 端跟着坏。native-* 出生即新范式，已整体 `startsWith('native-')` 跳过迁移(a296b27)。
 - 🔴 **admin 画布组件是三层套壳：`.pe-comp`(compBoxStyle→shared containerStyle 带 padding) → `.comp-render`(containerStyle computed→margins/bg) → 组件根**。native-* 自包含组件必须**三层全跳过**(`startsWith('native-')` 返回 `{}`，c1b0446)，漏一层=双重生效(存量 padding=11 让预览多一圈灰边、marginLR 7px 画成 14px)；「C 端好了预览不对」先 `node:sqlite` 读 `tenant_page_version.design_json` 实锤存量 props，别靠猜。
+- 🔴 **「用户可设 0」的样式参数，渲染层显式 0 必须内联输出**（0px/0），`if (x)`/truthy 判断会把 0 拱手让给 CSS 兜底，而各组件类的 CSS 兜底几乎必然不一致 → 同一面板值不同视觉(71d96b1：nativeMargin `if (mb)` 吞掉 mb=0 → .grid-section 兜 8px、.section 兜 0 → 「上边距都设 3 我的名片缝明显大」)。缺省兜底只许在 undefined/'' 时发生。判别：面板滑块写数字，**0 就是用户设的，不是没设**。
 
 ## 包内 vs 后端资源（判据：文件在后端有吗）
 有 → `resolveUrl()`/`background-image`；只在 `src/static` → `assetUrl()`/真 `<image>`。
