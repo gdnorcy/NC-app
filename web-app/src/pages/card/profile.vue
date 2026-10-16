@@ -39,17 +39,17 @@
     <view class="menu-section">
       <view class="menu-group">
         <view class="menu-item" @click="goPage('/pages/card/myCard')">
-          <view class="menu-icon"><SIcon name="card" size="default" color="#4e5969" /></view>
+          <view class="menu-icon"><SIcon name="card" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">我的名片</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="goPage('/pages/card/create')">
-          <view class="menu-icon"><SIcon name="template" size="default" color="#4e5969" /></view>
+          <view class="menu-icon"><SIcon name="template" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">编辑名片</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="goPage('/pages/card/distribution')">
-          <view class="menu-icon"><SIcon name="wallet" size="default" color="#4e5969" /></view>
+          <view class="menu-icon"><SIcon name="wallet" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">分销中心</view>
           <view class="menu-arrow">›</view>
         </view>
@@ -57,13 +57,13 @@
 
       <view class="menu-group">
         <view class="menu-item" @click="goPage('/pages/card/member')">
-          <view class="menu-icon"><SIcon name="crown" size="default" color="#4e5969" /></view>
+          <view class="menu-icon"><SIcon name="crown" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">会员中心</view>
           <view class="menu-value" v-if="isMember">{{ memberLevelText }}</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="goPage('/pages/card/dynamic')">
-          <view class="menu-icon"><SIcon name="dynamic" size="default" color="#4e5969" /></view>
+          <view class="menu-icon"><SIcon name="dynamic" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">我的动态</view>
           <view class="menu-arrow">›</view>
         </view>
@@ -71,12 +71,12 @@
 
       <view class="menu-group">
         <view class="menu-item" @click="showSettings">
-          <view class="menu-icon"><SIcon name="settings" size="default" color="#4e5969" /></view>
+          <view class="menu-icon"><SIcon name="settings" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">设置</view>
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="showAbout">
-          <view class="menu-icon"><SIcon name="audit" size="default" color="#4e5969" /></view>
+          <view class="menu-icon"><SIcon name="audit" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">关于我们</view>
           <view class="menu-arrow">›</view>
         </view>
@@ -122,6 +122,7 @@
 </template>
 
 <script setup>
+import { ICON_T2 } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';

@@ -5,7 +5,7 @@
     <PageNav title="商城" :back="canBack">
       <template #right>
         <view class="nav-cart" @click="goCart">
-          <SIcon name="cart" size="default" color="#1d2129" />
+          <SIcon name="cart" size="default" :color="ICON_T1" />
           <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
         </view>
       </template>
@@ -53,7 +53,7 @@
         <view class="goods-card" v-for="g in goodsList" :key="g.id" @click="goDetail(g.id)">
           <view class="goods-img-wrap">
             <image v-if="g.thumb" :src="resolveUrl(g.thumb)" class="goods-img" mode="aspectFill" />
-            <view v-else class="goods-img goods-img-empty"><SIcon name="show" size="large" color="#c9cdd4" /></view>
+            <view v-else class="goods-img goods-img-empty"><SIcon name="show" size="large" :color="ICON_DECOR" /></view>
             <view class="soldout-mask" v-if="g.soldout">已售罄</view>
           </view>
           <view class="goods-info">
@@ -70,7 +70,7 @@
         </view>
       </view>
       <view v-else-if="!loading" class="empty-box">
-        <view class="empty-icon"><SIcon name="show" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-icon"><SIcon name="show" size="xlarge" :color="ICON_DECOR" /></view>
         <text class="empty-text">{{ loadError || '暂无商品' }}</text>
       </view>
       <view class="load-more" v-if="goodsList.length">{{ noMore ? '没有更多了' : '加载中…' }}</view>
@@ -82,6 +82,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR, ICON_T1 } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, nextTick } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';

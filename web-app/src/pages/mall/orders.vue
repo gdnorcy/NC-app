@@ -48,7 +48,7 @@
         </view>
       </view>
       <view v-else-if="!loading" class="empty-box">
-        <view class="empty-icon"><SIcon name="show" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-icon"><SIcon name="show" size="xlarge" :color="ICON_DECOR" /></view>
         <text class="empty-text">暂无订单</text>
       </view>
       <view class="load-more" v-if="orders.length">{{ noMore ? '没有更多了' : '加载中…' }}</view>
@@ -57,6 +57,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';

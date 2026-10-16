@@ -13,7 +13,7 @@
 
     <!-- 空状态 -->
     <view v-if="!loading && filtered.length === 0" class="empty">
-      <view class="empty-icon"><SIcon name="exchange" size="large" color="#9a9a9a" /></view>
+      <view class="empty-icon"><SIcon name="exchange" size="large" :color="ICON_DECOR" /></view>
       <view class="empty-title">{{ activeTab === 'incoming' ? '暂无交换申请' : '暂无发出的申请' }}</view>
       <view class="empty-desc" v-if="activeTab === 'incoming'">有人向你发起名片交换时会显示在这里</view>
       <view class="empty-desc" v-else>去集市逛逛，向感兴趣的人发起名片交换</view>
@@ -45,6 +45,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';

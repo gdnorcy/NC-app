@@ -28,7 +28,7 @@
 
     <!-- 空状态 -->
     <view v-if="!loading && filtered.length === 0" class="empty">
-      <view class="empty-icon"><SIcon name="market" size="large" color="#9a9a9a" /></view>
+      <view class="empty-icon"><SIcon name="market" size="large" :color="ICON_DECOR" /></view>
       <view class="empty-title">还没有人脉</view>
       <view class="empty-desc">去集市逛逛，向感兴趣的人发起名片交换</view>
       <view class="empty-btn" @click="goMarket">去人脉集市</view>
@@ -86,6 +86,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';

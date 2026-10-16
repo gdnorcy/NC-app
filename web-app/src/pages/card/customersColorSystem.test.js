@@ -80,10 +80,12 @@ describe('customers 语义色与中性保留', () => {
   test('follow-dot 待跟进红点保留语义红 #f5222d', () => {
     expect(ruleBlock(src, '.follow-dot')).toContain('#f5222d');
   });
-  test('中性承载保留（#c9cdd4/#4e5969/#1d2129/#f2f3f5/#f7f8fa/#86909c）', () => {
+  test('中性承载保留（#c9cdd4/#4e5969/#1d2129/#f2f3f5/#f7f8fa）', () => {
     for (const c of ['#c9cdd4', '#4e5969', '#1d2129', '#f2f3f5', '#f7f8fa']) {
       expect(src, `中性色 ${c} 应保留`).toContain(c);
     }
-    expect(src).toContain('color="#86909c"');
+    // 2026-10-16 方案 A：两处 SIcon 原 #86909c / #c9cdd4 → ICON_DECOR 令牌
+    // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）
+    expect(src).toContain(':color="ICON_DECOR"');
   });
 });

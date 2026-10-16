@@ -91,10 +91,13 @@ describe('create 保留位不动', () => {
   test('hdText step 皮肤文字色保留', () => {
     expect(src).toContain("skinType.value === 'step' ? '#1d2129'");
   });
-  test('中性承载保留（#8a8f99/#9a9a9a/#1d2129/#4e5969）', () => {
-    for (const c of ['#8a8f99', '#9a9a9a', '#1d2129', '#4e5969']) {
+  test('中性承载保留（#9a9a9a 占位/#1d2129 step 皮肤/#4e5969）', () => {
+    for (const c of ['#9a9a9a', '#1d2129', '#4e5969']) {
       expect(src, `中性色 ${c} 应保留`).toContain(c);
     }
+    // 2026-10-16 方案 A：关闭按钮图标原 #8a8f99 → ICON_DECOR 令牌
+    // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）
+    expect(src).toContain(':color="ICON_DECOR"');
   });
 });
 

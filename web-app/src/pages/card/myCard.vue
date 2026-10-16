@@ -16,13 +16,13 @@
   </view>
   <!-- 加载失败（弱网/接口异常） -->
   <view class="page-error" v-else-if="loadFailed" :style="[themeStyle, brandVars]">
-    <view class="pe-icon"><SIcon name="logs" size="xlarge" color="#c9cdd4" /></view>
+    <view class="pe-icon"><SIcon name="logs" size="xlarge" :color="ICON_DECOR" /></view>
     <view class="pe-text">{{ loadFailedMsg }}</view>
     <view class="pe-btn" @click="reloadPage">重新加载</view>
   </view>
   <!-- 未登录引导 -->
   <view class="page-error" v-else-if="notLogin" :style="[themeStyle, brandVars]">
-    <view class="pe-icon"><SIcon name="user" size="xlarge" color="#c9cdd4" /></view>
+    <view class="pe-icon"><SIcon name="user" size="xlarge" :color="ICON_DECOR" /></view>
     <view class="pe-text">登录后即可查看和管理你的名片</view>
     <view class="pe-btn" @click="goApply">去登录</view>
   </view>
@@ -59,9 +59,9 @@
         <text class="oc-need" v-for="t in needTagList" :key="t">{{ t }}</text>
       </view>
       <view class="oc-actions">
-        <view class="oc-act" @click="previewCard"><SIcon name="card" size="default" color="#5b5b5b" /><text>预览</text></view>
-        <view class="oc-act" @click="shareOwnerCard"><SIcon name="channel" size="default" color="#5b5b5b" /><text>分享</text></view>
-        <view class="oc-act" @click="copyLink"><SIcon name="devices" size="default" color="#5b5b5b" /><text>二维码/链接</text></view>
+        <view class="oc-act" @click="previewCard"><SIcon name="card" size="default" :color="ICON_T1" /><text>预览</text></view>
+        <view class="oc-act" @click="shareOwnerCard"><SIcon name="channel" size="default" :color="ICON_T1" /><text>分享</text></view>
+        <view class="oc-act" @click="copyLink"><SIcon name="devices" size="default" :color="ICON_T1" /><text>二维码/链接</text></view>
       </view>
     </view>
 
@@ -175,6 +175,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR, ICON_T1 } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';

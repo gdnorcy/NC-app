@@ -4,7 +4,7 @@
     <PageNav title="商品详情" back>
       <template #right>
         <view class="nav-cart" @click="goCart">
-          <SIcon name="cart" size="default" color="#1d2129" />
+          <SIcon name="cart" size="default" :color="ICON_T1" />
           <view class="cart-badge" v-if="cartCount > 0">{{ cartCount > 99 ? '99+' : cartCount }}</view>
         </view>
       </template>
@@ -18,7 +18,7 @@
             <image :src="resolveUrl(img)" class="swiper-img" mode="aspectFill" />
           </swiper-item>
         </swiper>
-        <view v-else class="banner-empty"><SIcon name="show" size="xlarge" color="#c9cdd4" /></view>
+        <view v-else class="banner-empty"><SIcon name="show" size="xlarge" :color="ICON_DECOR" /></view>
         <view class="soldout-tag" v-if="goods.soldout">已售罄</view>
       </view>
 
@@ -54,7 +54,7 @@
     <!-- 底部操作栏 -->
     <view class="action-bar" v-if="goods">
       <view class="action-cart" @click="openSku('cart')">
-        <SIcon name="cart" size="default" color="#1d2129" />
+        <SIcon name="cart" size="default" :color="ICON_T1" />
         <text>购物车</text>
       </view>
       <view class="action-btn add" @click="openSku('cart')" :class="{ disabled: goods.soldout }">加入购物车</view>
@@ -104,6 +104,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR, ICON_T1 } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';

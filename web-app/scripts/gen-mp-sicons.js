@@ -46,8 +46,27 @@ if (!Object.keys(svgMap).length) {
 const pairs = new Set();
 const dynColors = new Set();
 
+// SIcon 颜色令牌表：从 src/utils/iconColor.js 提取 ICON_* = '#hex'。
+// 🔴 为什么需要：模板写 :color="ICON_DECOR" 时运行期由 Vue 求值成 hex，但本脚本是
+//   **静态**文本扫描，看不到求值结果。不解析就会按 #000000 烘焙，而运行期 SIcon 查的是
+//   `name-86909c` → 落空 → 回落服务端 /api/card/sicon，丢离线 base64 + 多一次请求。
+//   与 SIcon.vue 的 buildSvgDataUri / mpIconSrc 是同一份值的三个消费点，改一处需同步。
+const ICON_TOKENS = (() => {
+  const out = {};
+  try {
+    const src = fs.readFileSync(path.join(srcDir, 'utils', 'iconColor.js'), 'utf8');
+    const re = /export\s+const\s+(ICON_[A-Z0-9_]+)\s*=\s*'(#[0-9a-fA-F]{3,8})'/g;
+    let m;
+    while ((m = re.exec(src)) !== null) out[m[1]] = m[2].toLowerCase();
+  } catch (e) { /* iconColor.js 不在树里 → 空表，仅影响令牌名场景 */ }
+  return out;
+})();
+
 function hexListOf(colorExpr) {
-  return (colorExpr.match(/#[0-9a-fA-F]{3,8}/g) || []).map((h) => h.toLowerCase());
+  const hexes = (colorExpr.match(/#[0-9a-fA-F]{3,8}/g) || []).map((h) => h.toLowerCase());
+  if (hexes.length) return hexes;
+  const tokens = colorExpr.match(/\bICON_[A-Z0-9_]+\b/g) || [];
+  return tokens.map((t) => ICON_TOKENS[t]).filter(Boolean);
 }
 
 function walk(dir) {
@@ -152,6 +171,10 @@ for (const iconName of Object.keys(svgMap)) pairs.add(`${iconName}-000000`);
 //   - 大尺寸判定：静态 <SIcon size="..."> 里 size ≥32px（xlarge=32/large=24 也含）
 //     或宫格组件 iconSize 数值驱动（默认 40）涉及的图标。
 //   - 实测需高清 18 个 / 共 60 个 → base64 约 +60KB，主包仍在预算内。
+// ⚠️ 这里是「375 设计稿宽度下的等效 px」代理值，用于判断是否需要出 72px 高清。
+//    SIcon 的尺寸 class 已改成 rpx（36/40/48/64rpx，2026-10-16 前端审查收敛），
+//    在 375 设计稿宽度下正好等于 18/20/24/32px，故本表继续有效、无需改；
+//    换设计稿基准宽度时才需要同步改这里。
 const SIZE_PRESETS = { small: 18, default: 20, large: 24, xlarge: 32 };
 const HI_RES_MIN = 32; // ≥ 此像素视为大尺寸
 

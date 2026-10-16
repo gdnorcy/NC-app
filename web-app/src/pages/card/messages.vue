@@ -32,7 +32,7 @@
       </view>
     </view>
     <view class="msg-empty" v-else>
-      <view class="me-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
+      <view class="me-icon"><SIcon name="dynamic" size="xlarge" :color="ICON_DECOR" /></view>
       <view class="me-text">暂无消息</view>
       <view class="me-hint">交换申请、访客动态等通知会显示在这里</view>
     </view>
@@ -40,6 +40,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';

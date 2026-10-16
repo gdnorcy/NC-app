@@ -32,7 +32,7 @@
         </view>
       </view>
       <view v-else class="empty-box">
-        <view class="empty-icon"><SIcon name="show" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-icon"><SIcon name="show" size="xlarge" :color="ICON_DECOR" /></view>
         <text class="empty-text">购物车还是空的</text>
         <view class="empty-btn" @click="goHome">去逛逛</view>
       </view>
@@ -54,6 +54,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';

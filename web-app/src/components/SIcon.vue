@@ -29,8 +29,11 @@ import { API_DOMAIN } from '../utils/cardApi.js';
 
 const props = defineProps({
   name: { type: String, required: true },
-  // 预设档位：small(18px) / default(20px) / large(24px) / xlarge(32px)；
-  // 数值：自定义像素尺寸（如 40 → 40px，装修组件 iconSize 滑块驱动）
+  // 预设档位：small(36rpx) / default(40rpx) / large(48rpx) / xlarge(64rpx)；
+  // 🔴 档位一律 rpx：与全局 rpx 设计体系同单位，随屏宽缩放；早期是 px(18/20/24/32)，
+  //    与 rpx 页面元素混排时在宽屏手机上尺寸漂移（前端审查 2026-10-16 收敛）。
+  // 数值：自定义像素尺寸（如 40 → 40px，装修组件 iconSize 滑块驱动，见 utils/btnTokens.js
+  //    与 utils/containerChildSize.js 的「宽度不用百分比」同源问题——数值档只服务设计器画布）
   size: { type: [String, Number], default: 'default' },
   color: { type: String, default: '' }, // 图标颜色，如 '#ffffff'、'#165dff'
   disabled: { type: Boolean, default: false },
@@ -55,24 +58,28 @@ const svgMap = {
   enterprise: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 7v11"/><path d="M10 21v-3h4v3"/>',
   market: '<circle cx="8.5" cy="8.5" r="3.4"/><circle cx="15.8" cy="9.2" r="2.8"/><path d="M3 19.5c.4-3.2 2.8-5 5.2-5s4.8 1.8 5.2 5"/><path d="M14.4 14.8c2.7.4 4.8 2 5.2 4.7"/>',
   exchange: '<path d="M8 6.5h8l-2.5-2.5"/><path d="M16 17.5H8l2.5 2.5"/><rect x="2" y="8" width="8" height="5.5" rx="1.5"/><rect x="14" y="10.5" width="8" height="5.5" rx="1.5"/>',
-  back: '<path d="M15 18l-6-6 6-6"/>',
+  back: '<g transform="translate(12 12) scale(1.371) translate(-12 -12)"><path d="M15 18l-6-6 6-6"/></g>',
   pool: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   radar: '<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><path d="M12 12l6.7-6.7"/>',
   customer: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9.5" r="2.4"/><path d="M6 16.5c.5-2 1.9-3 3-3s2.5 1 3 3"/><path d="M15 8.5h3.5M15 12h3.5M15 15.5h2.5"/>',
   audit: '<path d="M9 11l2 2 4-4"/><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v4M16 3v4"/>',
   key: '<circle cx="8" cy="12" r="4"/><path d="M12 12h9"/><path d="M17 12v3M20 12v2"/>',
+  // ⚠️ chart 与 analytics 是同一字形（柱状图）。两行业务入口不同（宫格/空态/时间线），
+  //    但 gen-mp-sicons.js 与 server/src/routes/card.js 都用正则逐行解析本表，值必须是
+  //    单行单引号字面量，**不能**写成 JS 变量别名，故只能重复字面量。
+  //    两行必须同步修改，由 siconGeometry.test.js 锁定（不同步即测试失败）。
   chart: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="12" y="8" width="3" height="10" rx="1"/><rect x="17" y="5" width="3" height="13" rx="1"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
   template: '<rect x="3" y="4" width="18" height="16" rx="2"/><rect x="7" y="8" width="4" height="4" rx="1"/><path d="M13 9h6M13 13h6M7 16h10"/>',
   dynamic: '<path d="M21 11.5c0 4.3-4 7.8-9 7.8-1.2 0-2.4-.2-3.4-.6L4 21l1.6-3.4C4.2 16.2 3 14.3 3 11.5 3 7.2 7 3.7 12 3.7s9 3.5 9 7.8z"/><circle cx="8.2" cy="11.5" r="0.9" fill="currentColor"/><circle cx="12" cy="11.5" r="0.9" fill="currentColor"/><circle cx="15.8" cy="11.5" r="0.9" fill="currentColor"/>',
-  play: '<path d="M8 5v14l11-7z"/>',
-  pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+  play: '<g transform="translate(12 12) scale(1.2) translate(-13.5 -12)"><path d="M8 5v14l11-7z"/></g>',
+  pause: '<g transform="translate(12 12) scale(1.2) translate(-12 -12)"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></g>',
   dashboard: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   apps: '<circle cx="6" cy="6" r="1.8" fill="currentColor"/><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="18" cy="6" r="1.8" fill="currentColor"/><circle cx="6" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="18" cy="12" r="1.8" fill="currentColor"/><circle cx="6" cy="18" r="1.8" fill="currentColor"/><circle cx="12" cy="18" r="1.8" fill="currentColor"/><circle cx="18" cy="18" r="1.8" fill="currentColor"/>',
   orders: '<path d="M6 2h12l2 4v15a1 1 0 01-1 1H5a1 1 0 01-1-1V6l2-4z"/><path d="M6 6h12"/><path d="M9 12h6M9 16h4"/>',
-  wallet: '<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="15" r="1.5" fill="currentColor"/>',
-  storage: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/><circle cx="12" cy="5" r="1" fill="currentColor"/>',
-  sms: '<rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 9h10M7 13h6"/><path d="M8 18l-2 3v-3"/>',
+  wallet: '<g transform="translate(0 -1)"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="15" r="1.5" fill="currentColor"/></g>',
+  storage: '<g transform="translate(0 1)"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/><circle cx="12" cy="5" r="1" fill="currentColor"/></g>',
+  sms: '<g transform="translate(0 -1)"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M7 9h10M7 13h6"/><path d="M8 18l-2 3v-3"/></g>',
   dist: '<circle cx="12" cy="12" r="2.8"/><circle cx="4.5" cy="5.5" r="2.2"/><circle cx="19.5" cy="5.5" r="2.2"/><circle cx="4.5" cy="18.5" r="2.2"/><circle cx="19.5" cy="18.5" r="2.2"/><path d="M10.4 10.4L6 6M13.6 10.4l4.4-4.4M10.4 13.6l-4.4 4.4M13.6 13.6l4.4 4.4"/>',
   partner: '<circle cx="8" cy="7" r="3"/><circle cx="16" cy="7" r="3"/><path d="M3 19c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M14 19c0-1.8 1-3.4 2.4-4.3"/><path d="M19.5 15.5l1 2 2 .3"/>',
   share: '<circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><path d="M12 9.2L6.8 7"/><path d="M12 9.2l5.2-2.2"/><path d="M12 14.8l-6 2"/><path d="M12 14.8l5.4-1"/>',
@@ -81,19 +88,25 @@ const svgMap = {
   panorama: '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
   card: '<rect x="1.5" y="4" width="21" height="16" rx="3"/><circle cx="7" cy="10.5" r="2"/><path d="M5 16.5c.5-1.6 1.3-2.3 2-2.3s1.5.7 2 2.3"/><path d="M13 8.5h7M13 12h7M13 15.5h5"/>',
   channel: '<circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M6.5 6.5l3 3M17.5 6.5l-3 3M6.5 17.5l3-3M17.5 17.5l-3-3"/>',
-  solutions: '<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.5 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/>',
+  solutions: '<g transform="translate(0 2.4)"><path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.5 7.1 17.2l.9-5.5-4-3.9L9.5 7z"/></g>',
   users: '<circle cx="12" cy="7" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/><path d="M2 12c.5-2 2-3.5 4-3.5"/><path d="M22 12c-.5-2-2-3.5-4-3.5"/>',
   logs: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/><path d="M8 3v2M16 3v2"/>',
   // 名片宫格「会员中心」= 会员徽章（圆环＋对勾），见名片宫格图标方案.html v5 定稿。
   // ⚠️ 勿改回皇冠：3f0208c 曾把它改成真皇冠，与v5 定稿不符，已回滚。
+  // ⚠️ badge 与 crown 是同一字形（两处业务语义不同但图形一致）——gen-mp-sicons.js 与
+  //    server/src/routes/card.js 都用正则逐行解析本表，值必须是单行单引号字面量，
+  //    **不能**写成 JS 变量别名，故此处只能重复字面量。
+  //    两行必须同步修改，由 siconGeometry.test.js 锁定（不同步即测试失败）。
   crown: '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
   'no-ads': '<circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  // ⚠️ 与 crown 同字形，见上方 crown 注释。改一处必须改另一处。
   badge: '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
   voucher: '<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M3 10.5h18"/><circle cx="12" cy="10.5" r="1.7"/>',
+  // ⚠️ analytics 与 chart 是同一字形，见下方 chart 注释。改一处必须改另一处。
   analytics: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="12" y="8" width="3" height="10" rx="1"/><rect x="17" y="5" width="3" height="13" rx="1"/>',
   palette: '<path d="M12 2a10 10 0 000 20c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-1.5 2-1.5h2a4 4 0 004-4c0-5-4-10-9-10z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/>',
-  delivery: '<rect x="2" y="7" width="11" height="10" rx="2"/><path d="M13 9.5h3.2c.3 0 .6.1.8.3l2.5 2.4c.2.2.3.5.3.8V16h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
+  delivery: '<g transform="translate(1.1 -1.3)"><rect x="2" y="7" width="11" height="10" rx="2"/><path d="M13 9.5h3.2c.3 0 .6.1.8.3l2.5 2.4c.2.2.3.5.3.8V16h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></g>',
   verify: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12.5l2.8 2.8 5.2-6"/>',
   show: '<path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.6"/>',
   devices: '<rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M2 17h10"/><rect x="16" y="9" width="6" height="11" rx="1.5"/><path d="M18 18h2"/>',
@@ -102,9 +115,9 @@ const svgMap = {
   mobile: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 18h4"/><path d="M9 6h6"/>',
   official: '<path d="M3 11v2a1 1 0 001 1h3l5 4V6L7 10H4a1 1 0 00-1 1z"/><path d="M16 8a5 5 0 010 8"/><path d="M19 5a9 9 0 010 14"/>',
   pc: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
-  location: '<path d="M12 21c5-5 8-8.5 8-12a8 8 0 1 0-16 0c0 3.5 3 7 8 12z"/><circle cx="12" cy="9" r="3"/>',
+  location: '<g transform="translate(0 1)"><path d="M12 21c5-5 8-8.5 8-12a8 8 0 1 0-16 0c0 3.5 3 7 8 12z"/><circle cx="12" cy="9" r="3"/></g>',
   doc: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/>',
-  star: '<path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.2l5.9-.8z"/>',
+  star: '<g transform="translate(0 0.95)"><path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.5 9.2l5.9-.8z"/></g>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
   cart: '<path d="M2 3h2.6l2.7 12.4a2 2 0 0 0 2 1.6h8.3a2 2 0 0 0 2-1.6L21.5 8H6"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17.5" cy="20" r="1.4"/>',
@@ -179,9 +192,9 @@ const blockStyle = { display: 'block', margin: '0', alignSelf: 'center', flex: '
   background-size: contain;
   background-position: center;
 }
-.s-icon--small { width: 18px; height: 18px; }
-.s-icon--default { width: 20px; height: 20px; }
-.s-icon--large { width: 24px; height: 24px; }
-.s-icon--xlarge { width: 32px; height: 32px; }
+.s-icon--small { width: 36rpx; height: 36rpx; }
+.s-icon--default { width: 40rpx; height: 40rpx; }
+.s-icon--large { width: 48rpx; height: 48rpx; }
+.s-icon--xlarge { width: 64rpx; height: 64rpx; }
 .s-icon--disabled { opacity: 0.4; }
 </style>

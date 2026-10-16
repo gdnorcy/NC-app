@@ -30,7 +30,7 @@
           <view class="search-placeholder" :style="placeholderStyle(c.props)">{{ c.props.placeholder || '搜索名片、客户、人脉' }}</view>
         </view>
         <view class="msg-icon" v-if="c.props.showMsg !== false" :class="{ 'has-unread': unreadCount > 0 }" @click="goMessages">
-          <view class="msg-icon-inner"><SIcon name="bell" size="default" color="#4e5969" /></view>
+          <view class="msg-icon-inner"><SIcon name="bell" size="default" :color="ICON_T2" /></view>
           <view class="msg-badge" v-if="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
         </view>
       </view>
@@ -147,6 +147,7 @@
 </template>
 
 <script setup>
+import { ICON_T2 } from '../../utils/iconColor.js';
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { onShow, onLoad, onPageScroll, onShareAppMessage, onPullDownRefresh } from '@dcloudio/uni-app';
 import { shadeHex, brandPalette } from '../../utils/color.js';

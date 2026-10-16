@@ -10,7 +10,7 @@
     <!-- 搜索和筛选 -->
     <view class="toolbar">
       <view class="search-box">
-        <SIcon name="dynamic" size="small" color="#86909c" />
+        <SIcon name="dynamic" size="small" :color="ICON_DECOR" />
         <input class="search-input" v-model="keyword" placeholder="搜索客户姓名/公司" placeholder-class="ph" @confirm="loadCustomers"/>
       </view>
     </view>
@@ -50,7 +50,7 @@
     </view>
 
     <view class="empty-state" v-else>
-      <view class="empty-icon"><SIcon name="customer" size="xlarge" color="#c9cdd4" /></view>
+      <view class="empty-icon"><SIcon name="customer" size="xlarge" :color="ICON_DECOR" /></view>
       <view class="empty-text">暂无客户</view>
       <view class="empty-hint">交换名片后，客户将自动添加到这里</view>
     </view>
@@ -94,6 +94,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';

@@ -25,7 +25,7 @@
     </view>
 
     <view class="empty-state" v-else>
-      <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
+      <view class="empty-icon"><SIcon name="dynamic" size="xlarge" :color="ICON_DECOR" /></view>
       <view class="empty-text">暂无动态</view>
       <view class="empty-hint">发布第一条动态吧</view>
     </view>
@@ -56,6 +56,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';

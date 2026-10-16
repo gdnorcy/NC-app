@@ -448,7 +448,7 @@
       <!-- 搜索框 -->
       <view v-else-if="c.type === 'search'">
         <view class="dp-search" :class="c.props.style === 'shadow' ? 'shadow' : c.props.style === 'border' ? 'border' : ''" :style="dpSearchStyle(c.props)" @click="onSearch(c.props)">
-          <SIcon name="search" size="small" color="#c9cdd4" />
+          <SIcon name="search" size="small" :color="ICON_DECOR" />
           <text v-if="c.props.showPlaceholder !== false" class="dp-search-ph">{{ c.props.placeholder || '搜索名片 / 内容' }}</text>
           <text v-if="c.props.showBtn" class="dp-search-btn">搜索</text>
         </view>
@@ -756,6 +756,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../utils/iconColor.js';
 import { reactive, ref, computed, onMounted, onUnmounted } from 'vue';
 import { cardApi, API_DOMAIN } from '../utils/cardApi.js';
 import { mallApi } from '../utils/mallApi.js';

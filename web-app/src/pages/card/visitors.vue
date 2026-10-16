@@ -152,7 +152,7 @@
       </view>
     </view>
     <view class="empty-state" v-else>
-      <view class="empty-icon"><SIcon name="analytics" size="xlarge" color="#c9cdd4" /></view>
+      <view class="empty-icon"><SIcon name="analytics" size="xlarge" :color="ICON_DECOR" /></view>
       <view class="empty-text">暂无访客记录</view>
       <view class="empty-hint">分享名片后，访客行为将在这里展示</view>
     </view>
@@ -200,6 +200,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';

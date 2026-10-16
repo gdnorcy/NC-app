@@ -42,7 +42,9 @@ describe('我的名片 myCard 配色收敛（跟随租户主题）', () => {
   });
 
   test('工具型操作（预览/分享/二维码）图标降中性深灰，不再用绿', () => {
-    expect(src).toContain('size="default" color="#5b5b5b"');
+    // 2026-10-16 方案 A：原 #5b5b5b → ICON_T1 令牌（= token.scss $t1 #1d2129）
+    // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）
+    expect(src).toContain('size="default" :color="ICON_T1"');
     expect(src).not.toContain('color="#07c160"');
   });
 

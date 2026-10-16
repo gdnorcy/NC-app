@@ -27,7 +27,7 @@
     <!-- 搜索 -->
     <view class="search-bar">
       <view class="search-box">
-        <SIcon name="dynamic" size="small" color="#9a9a9a" />
+        <SIcon name="dynamic" size="small" :color="ICON_DECOR" />
         <input class="search-input" v-model="keyword" placeholder="搜索姓名/公司/职位" placeholder-class="ph" @confirm="search" />
         <view v-if="keyword" class="search-clear" @click="clearSearch">✕</view>
       </view>
@@ -272,7 +272,7 @@
 
     <!-- 空状态 -->
     <view class="empty-state" v-if="!shownItems.length && !loading">
-      <SIcon name="market" size="xlarge" color="#c9cdd4" />
+      <SIcon name="market" size="xlarge" :color="ICON_DECOR" />
       <view class="empty-text">暂无公开名片</view>
       <view class="empty-hint">成为第一个公开名片的人吧</view>
     </view>
@@ -283,6 +283,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';

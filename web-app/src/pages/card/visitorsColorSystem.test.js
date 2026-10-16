@@ -123,9 +123,12 @@ describe('visitors 语义色与中性保留', () => {
   });
   test('低意向灰与中性承载保留', () => {
     expect(ruleBlock(src, '.lead-lv.gray')).toContain('var(--bg-hover)');
-    for (const c of ['#5b5b5b', '#c9cdd4', '#c9cdd3', '#4E5969', '#1D2129', '#f0f0f0']) {
+    for (const c of ['#5b5b5b', '#c9cdd3', '#4E5969', '#1D2129', '#f0f0f0']) {
       expect(src, `中性色 ${c} 应保留`).toContain(c);
     }
+    // 2026-10-16 方案 A：空态大图标原 #c9cdd4 → ICON_DECOR 令牌
+    // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）
+    expect(src).toContain(':color="ICON_DECOR"');
   });
   test('时间线/意向详情白图标保留（color="#ffffff" 在彩色圆点上）', () => {
     expect(src.match(/color="#ffffff"/g) || []).toHaveLength(2);

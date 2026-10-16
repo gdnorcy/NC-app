@@ -50,7 +50,7 @@
             <view class="co-row" v-for="(c, i) in form.companies" :key="i">
               <input class="form-input co-name" v-model="c.name" placeholder="公司名称" placeholder-class="ph" />
               <input class="form-input co-pos" v-model="c.position" placeholder="职务（选填）" placeholder-class="ph" />
-              <view class="co-del" @click="removeCompany(i)"><SIcon name="close" size="small" color="#8a8f99" /></view>
+              <view class="co-del" @click="removeCompany(i)"><SIcon name="close" size="small" :color="ICON_DECOR" /></view>
             </view>
           </view>
         </view>
@@ -256,6 +256,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';

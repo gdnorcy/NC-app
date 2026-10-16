@@ -43,7 +43,7 @@
       </view>
     </view>
     <view class="msg-empty" v-else>
-      <view class="me-icon"><SIcon name="star" size="xlarge" color="#c9cdd4" /></view>
+      <view class="me-icon"><SIcon name="star" size="xlarge" :color="ICON_DECOR" /></view>
       <view class="me-text">{{ activeGroup === 'all' ? '暂无收藏' : '该分组暂无名片' }}</view>
       <view class="me-hint" v-if="activeGroup === 'all'">浏览名片时点击"收藏"，会出现在这里；长按收藏可移动分组</view>
     </view>
@@ -51,6 +51,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';

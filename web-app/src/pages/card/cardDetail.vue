@@ -232,29 +232,29 @@
       </view>
       <view class="card-row">
         <view class="intro-line" v-if="card.position">
-          <SIcon name="user" size="small" color="#86909c" />
+          <SIcon name="user" size="small" :color="ICON_DECOR" />
           <text class="lb">身份</text>
           <text class="vl">{{ card.position }}</text>
         </view>
         <view class="intro-line" v-if="card.bio">
-          <SIcon name="doc" size="small" color="#86909c" />
+          <SIcon name="doc" size="small" :color="ICON_DECOR" />
           <text class="lb">简介</text>
           <text class="vl">{{ card.bio }}</text>
         </view>
         <view class="intro-line" v-if="card.businessField">
-          <SIcon name="radar" size="small" color="#86909c" />
+          <SIcon name="radar" size="small" :color="ICON_DECOR" />
           <text class="lb">专注</text>
           <text class="vl">{{ card.businessField }}</text>
         </view>
         <view class="intro-line" v-if="needTagList.length">
-          <SIcon name="exchange" size="small" color="#86909c" />
+          <SIcon name="exchange" size="small" :color="ICON_DECOR" />
           <text class="lb">供需</text>
           <view class="skill-tags">
             <view class="skill-tag need" v-for="(tag, i) in needTagList" :key="i">{{ tag }}</view>
           </view>
         </view>
         <view class="intro-line" v-if="tagList.length">
-          <SIcon name="star" size="small" color="#86909c" />
+          <SIcon name="star" size="small" :color="ICON_DECOR" />
           <text class="lb">标签</text>
           <view class="skill-tags">
             <view class="skill-tag" v-for="(tag, i) in tagList" :key="i">{{ tag }}</view>
@@ -270,7 +270,7 @@
         <image v-for="w in works" :key="w.id" class="gall-img" :src="w.imageUrl" mode="aspectFill" @click="previewWork(w)" />
       </view>
       <view class="empty-state" v-else>
-        <view class="empty-icon"><SIcon name="template" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-icon"><SIcon name="template" size="xlarge" :color="ICON_DECOR" /></view>
         <view class="empty-text">暂无作品案例</view>
       </view>
     </view>
@@ -300,13 +300,13 @@
               <SIcon name="like" size="small" :color="d.likedByMe ? themeColor : '#9a9a9a'" /> {{ d.likeCount || 0 }}
             </text>
             <text class="dyn-act" @click.stop="openComments(d)">
-              <SIcon name="comment" size="small" color="#9a9a9a" /> {{ d.commentCount || 0 }}
+              <SIcon name="comment" size="small" :color="ICON_DECOR" /> {{ d.commentCount || 0 }}
             </text>
           </view>
         </view>
       </view>
       <view class="empty-state" v-else>
-        <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-icon"><SIcon name="dynamic" size="xlarge" :color="ICON_DECOR" /></view>
         <view class="empty-text">暂无动态</view>
       </view>
     </view>
@@ -347,7 +347,7 @@
         </view>
       </view>
       <view class="empty-state" v-else-if="!card.videoChannel">
-        <view class="empty-icon"><SIcon name="dynamic" size="xlarge" color="#c9cdd4" /></view>
+        <view class="empty-icon"><SIcon name="dynamic" size="xlarge" :color="ICON_DECOR" /></view>
         <view class="empty-text">暂无视频作品</view>
       </view>
       <view class="video-card" v-else @click="openVideo">
@@ -399,6 +399,7 @@
 </template>
 
 <script setup>
+import { ICON_DECOR } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted } from 'vue';

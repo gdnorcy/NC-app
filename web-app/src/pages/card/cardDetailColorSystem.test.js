@@ -112,10 +112,11 @@ describe('cardDetail 被展示对象与语义色保留', () => {
     expect(ruleBlock(src, '.fp-req')).toContain('var(--danger)');
   });
 
-  test('中性工具图标保留（#86909c/#9a9a9a/#c9cdd4）', () => {
-    expect(src).toContain('color="#86909c"');
+  test('中性工具图标保留（SIcon 走 ICON_DECOR 令牌；点赞未选中仍是 #9a9a9a）', () => {
+    // 2026-10-16 方案 A：SIcon 的 color 不能吃 var()（会被烘焙进产物），灰色统一收敛到
+    // utils/iconColor.js 的令牌；#9a9a9a 是 ternary 里的运行期分支，仍写字面量。
+    expect(src).toContain(':color="ICON_DECOR"');
     expect(src).toContain("'#9a9a9a'");
-    expect(src).toContain('color="#c9cdd4"');
   });
 
   test('根视图绑 [navVars, themeStyle, brandVars, tabBarPad]（MP 端 CSS 变量注入 + 品牌覆盖 + 底部导航实测占位）', () => {

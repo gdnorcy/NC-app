@@ -112,11 +112,13 @@ describe('market 语义色与中性保留', () => {
     expect(ruleBlock(src, '.m-exchange.done')).toContain('#9a9a9a');
     expect(ruleBlock(src, '.exchange-btn.done')).toContain('#9a9a9a');
   });
-  test('中性工具色保留（#9a9a9a/#5b5b5b/#c9cdd4/#1a1a1a）', () => {
-    expect(src).toContain('color="#9a9a9a"');
+  test('中性工具色保留（#9a9a9a/#5b5b5b/#1a1a1a + SIcon 走 ICON_DECOR 令牌）', () => {
+    expect(src).toContain('#9a9a9a');
     expect(src).toContain('#5b5b5b');
-    expect(src).toContain('color="#c9cdd4"');
     expect(src).toContain('#1a1a1a');
+    // 2026-10-16 方案 A：两处 SIcon 原 #9a9a9a / #c9cdd4 → ICON_DECOR 令牌
+    // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）
+    expect(src).toContain(':color="ICON_DECOR"');
   });
   test('根视图绑 themeStyle + brandVars + tabBarPad + brandInkVars（MP 注入前提）', () => {
     expect(src).toMatch(/<view class="market-page" :style="\[themeStyle, brandVars, tabBarPad, brandInkVars\]">/);
