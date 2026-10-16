@@ -167,7 +167,7 @@ async function addCustomer() {
 }
 .header {
   background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
-  padding: 88px 32rpx 40rpx;
+  padding: 176rpx 32rpx 40rpx;
 }
 .title {
   font-size: 40rpx;
@@ -189,7 +189,7 @@ async function addCustomer() {
   height: 72rpx;
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .search-icon {
   font-size: var(--fs-5);
@@ -225,9 +225,9 @@ async function addCustomer() {
 .customer-list {
   margin: 0 24rpx;
   background: var(--white);
-  border-radius: 20px;
+  border-radius: 40rpx;
   padding: 0 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .customer-item {
   display: flex;
@@ -355,7 +355,7 @@ async function addCustomer() {
   font-size: var(--fs-5);
   color: var(--t1);
 }
-.sheet-footer { padding: 0 32rpx 36px; }
+.sheet-footer { padding: 0 32rpx 72rpx; }
 .submit-btn {
   background: var(--design-primary);
   color: var(--white);

@@ -116,22 +116,22 @@ export default {
 }
 .scene-tabs {
   position: absolute;
-  bottom: 100px;
+  bottom: 200rpx;
   left: 0;
   right: 0;
-  padding: 0 16px;
+  padding: 0 32rpx;
 }
 .tabs-scroll {
   white-space: nowrap;
 }
 .tab-item {
   display: inline-block;
-  padding: 8px 16px;
+  padding: 16rpx 32rpx;
   background: rgba(0,0,0,0.5);
-  border-radius: 20px;
-  margin-right: 8px;
+  border-radius: 40rpx;
+  margin-right: 16rpx;
   color: var(--white);
-  font-size: 13px;
+  font-size: 26rpx;
 }
 .tab-item.active {
   background: var(--primary);
@@ -139,15 +139,15 @@ export default {
 .back-btn {
   position: absolute;
   /* 沉浸式：状态栏高度由 navMetrics 按机型算出，top 由 backTop 内联注入 */
-  left: 16px;
-  width: 36px;
-  height: 36px;
+  left: 32rpx;
+  width: 72rpx;
+  height: 72rpx;
   background: rgba(0,0,0,0.5);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--white);
-  font-size: 18px;
+  font-size: 36rpx;
 }
 </style>

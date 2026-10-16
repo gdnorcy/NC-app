@@ -25,15 +25,15 @@
 .c-white { color: var(--white); }
 
 // ---------- 间距（8 的倍数） ----------
-.mt-4 { margin-top: 4px; } .mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; } .mt-32 { margin-top: 32px; }
-.mb-4 { margin-bottom: 4px; } .mb-8 { margin-bottom: 8px; } .mb-16 { margin-bottom: 16px; } .mb-24 { margin-bottom: 24px; }
-.ml-4 { margin-left: 4px; } .ml-8 { margin-left: 8px; } .ml-16 { margin-left: 16px; }
-.mr-4 { margin-right: 4px; } .mr-8 { margin-right: 8px; } .mr-16 { margin-right: 16px; }
-.pd-4 { padding: 4px; } .pd-8 { padding: 8px; } .pd-16 { padding: 16px; } .pd-24 { padding: 24px; }
-.pt-8 { padding-top: 8px; } .pt-16 { padding-top: 16px; }
-.pb-8 { padding-bottom: 8px; } .pb-16 { padding-bottom: 16px; }
-.pl-8 { padding-left: 8px; } .pl-16 { padding-left: 16px; }
-.pr-8 { padding-right: 8px; } .pr-16 { padding-right: 16px; }
+.mt-4 { margin-top: 8rpx; } .mt-8 { margin-top: 16rpx; } .mt-16 { margin-top: 32rpx; } .mt-24 { margin-top: 48rpx; } .mt-32 { margin-top: 64rpx; }
+.mb-4 { margin-bottom: 8rpx; } .mb-8 { margin-bottom: 16rpx; } .mb-16 { margin-bottom: 32rpx; } .mb-24 { margin-bottom: 48rpx; }
+.ml-4 { margin-left: 8rpx; } .ml-8 { margin-left: 16rpx; } .ml-16 { margin-left: 32rpx; }
+.mr-4 { margin-right: 8rpx; } .mr-8 { margin-right: 16rpx; } .mr-16 { margin-right: 32rpx; }
+.pd-4 { padding: 8rpx; } .pd-8 { padding: 16rpx; } .pd-16 { padding: 32rpx; } .pd-24 { padding: 48rpx; }
+.pt-8 { padding-top: 16rpx; } .pt-16 { padding-top: 32rpx; }
+.pb-8 { padding-bottom: 16rpx; } .pb-16 { padding-bottom: 32rpx; }
+.pl-8 { padding-left: 16rpx; } .pl-16 { padding-left: 32rpx; }
+.pr-8 { padding-right: 16rpx; } .pr-16 { padding-right: 32rpx; }
 
 // ---------- Flex / 布局 ----------
 .flex { display: flex; }

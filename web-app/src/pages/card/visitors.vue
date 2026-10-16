@@ -531,7 +531,7 @@ async function saveConvert() {
   border-radius: 32rpx;
   padding: 30rpx;
   border: 1px solid var(--border);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.04);
 }
 .rstat .lbl {
   font-size: var(--fs-3);
@@ -639,7 +639,7 @@ async function saveConvert() {
   margin: 0 28rpx 24rpx;
   border-radius: 32rpx;
   padding: 30rpx;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.04);
   border: 1px solid var(--border);
 }
 .v-av {
@@ -658,10 +658,10 @@ async function saveConvert() {
 }
 .v-av .red {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 9px;
-  height: 9px;
+  top: -4rpx;
+  right: -4rpx;
+  width: 18rpx;
+  height: 18rpx;
   border-radius: 50%;
   background: #ff4d4f;
   border: 2px solid var(--white);
@@ -912,7 +912,7 @@ async function saveConvert() {
   border-radius: 32rpx;
   padding: 28rpx;
   border: 1px solid var(--border);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.04);
 }
 .lead-sec {
   display: flex;

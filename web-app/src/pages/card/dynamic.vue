@@ -136,9 +136,9 @@ async function publish() {
 }
 .dynamic-item {
   background: var(--white);
-  border-radius: 16px;
+  border-radius: 32rpx;
   padding: 28rpx 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .dynamic-header {
   display: flex;
@@ -247,14 +247,14 @@ async function publish() {
   border-radius: var(--radius-xs);
   font-size: var(--fs-4);
   color: var(--t2);
-  border: 2px solid transparent;
+  border: 4rpx solid transparent;
 }
 .visibility-option.active {
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
   color: var(--design-primary, #165dff);
   border-color: var(--design-primary, #165dff);
 }
-.sheet-footer { padding: 0 32rpx 36px; }
+.sheet-footer { padding: 0 32rpx 72rpx; }
 .submit-btn {
   background: var(--design-primary, #eb2f96);
   color: var(--white);

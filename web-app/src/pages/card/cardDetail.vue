@@ -893,7 +893,7 @@ async function followCard() {
   height: 132rpx;
   border-radius: 36rpx;
   overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.35);
+  border: 4rpx solid rgba(255,255,255,0.35);
   box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.25);
   flex-shrink: 0;
   background: rgba(255,255,255,0.25);
@@ -975,7 +975,7 @@ async function followCard() {
   height: 148rpx;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.4);
+  border: 4rpx solid rgba(255,255,255,0.4);
   box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.25);
   background: rgba(255,255,255,0.25);
   display: flex;
@@ -1591,7 +1591,7 @@ async function followCard() {
   background: var(--white);
   border-radius: 20rpx;
   padding: 8rpx 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .intro-line {
   display: flex;
@@ -1670,7 +1670,7 @@ async function followCard() {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .video-cover {
   width: 120rpx;
@@ -1701,7 +1701,7 @@ async function followCard() {
   border-radius: 20rpx;
   padding: 24rpx;
   margin-bottom: 20rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .dyn-head {
   display: flex;

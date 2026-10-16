@@ -312,7 +312,7 @@ function logout() {
 .stats-row {
   display: flex;
   background: rgba(255,255,255,0.15);
-  border-radius: 16px;
+  border-radius: 32rpx;
   padding: 24rpx 0;
 }
 .stat-item {
@@ -337,9 +337,9 @@ function logout() {
 }
 .menu-group {
   background: var(--white);
-  border-radius: 16px;
+  border-radius: 32rpx;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .menu-item {
   display: flex;

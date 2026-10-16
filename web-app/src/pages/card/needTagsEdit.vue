@@ -129,7 +129,7 @@ onMounted(() => {
 .nt-body { padding: 20rpx 24rpx 60rpx; }
 .nt-card {
   background: var(--white); border-radius: 20rpx; padding: 32rpx 28rpx;
-  box-shadow: 0 4px 14px rgba(20,40,70,.08);
+  box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08);
 }
 .nt-title { font-size: var(--fs-6); font-weight: 600; color: var(--t5); }
 .nt-desc { font-size: var(--fs-2); color: var(--t3); margin-top: 8rpx; line-height: 1.5; }

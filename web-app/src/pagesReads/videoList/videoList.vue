@@ -104,18 +104,18 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 
 <style scoped>
 .video-list-page { min-height: 100vh; background: var(--bg-card); }
-.list { padding: 12px; }
-.video-card { background: var(--white); border-radius: var(--radius-sm); margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.list { padding: 24rpx; }
+.video-card { background: var(--white); border-radius: var(--radius-sm); margin-bottom: 24rpx; overflow: hidden; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04); }
 .video-player { width: 100%; background: #000; }
-.video-el { width: 100%; height: 200px; display: block; }
-.video-empty { position: relative; width: 100%; height: 200px; }
+.video-el { width: 100%; height: 400rpx; display: block; }
+.video-empty { position: relative; width: 100%; height: 400rpx; }
 .video-cover { width: 100%; height: 100%; }
-.play-icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 20px; padding-left: 4px; }
-.video-info { padding: 10px 12px; }
-.v-title { font-size: 15px; font-weight: 600; color: var(--t1); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.v-meta { font-size: 11px; color: var(--decor); margin-top: 6px; }
-.dot { margin: 0 4px; }
-.empty { padding: 80px 0; text-align: center; color: var(--decor); font-size: 13px; }
-.empty-icon { display: block; font-size: 36px; margin-bottom: 8px; }
-.load-more { text-align: center; padding: 12px 0 24px; font-size: 12px; color: var(--decor); }
+.play-icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 96rpx; height: 96rpx; border-radius: 50%; background: rgba(0,0,0,0.45); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 40rpx; padding-left: 8rpx; }
+.video-info { padding: 20rpx 24rpx; }
+.v-title { font-size: 30rpx; font-weight: 600; color: var(--t1); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.v-meta { font-size: 22rpx; color: var(--decor); margin-top: 12rpx; }
+.dot { margin: 0 8rpx; }
+.empty { padding: 160rpx 0; text-align: center; color: var(--decor); font-size: 26rpx; }
+.empty-icon { display: block; font-size: 72rpx; margin-bottom: 16rpx; }
+.load-more { text-align: center; padding: 24rpx 0 48rpx; font-size: 24rpx; color: var(--decor); }
 </style>

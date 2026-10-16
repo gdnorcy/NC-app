@@ -540,7 +540,7 @@ function leaveTenant() {
 .os-chip.on { color: var(--white); background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
 /* .on-edit（右上角「编辑」）已随入口一并移除，勿复活：下方「名片内容编辑列表」已覆盖该能力 */
 
-.owner-card { background: var(--white); border-radius: 20rpx; margin: 20rpx 24rpx; padding: 28rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
+.owner-card { background: var(--white); border-radius: 20rpx; margin: 20rpx 24rpx; padding: 28rpx; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); }
 .oc-head { display: flex; gap: 20rpx; align-items: center; }
 .oc-avatar { width: 120rpx; height: 120rpx; border-radius: 50%; background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff)); color: var(--white); font-size: var(--fs-8); font-weight: 600; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .oc-avatar-img { width: 100%; height: 100%; }
@@ -553,12 +553,12 @@ function leaveTenant() {
 .oc-actions { display: flex; margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid #f0f0f0; }
 .oc-act { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; font-size: var(--fs-2); color: var(--t2); }
 
-.owner-stats { display: flex; background: var(--white); border-radius: 20rpx; margin: 0 24rpx; padding: 28rpx 0; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
+.owner-stats { display: flex; background: var(--white); border-radius: 20rpx; margin: 0 24rpx; padding: 28rpx 0; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); }
 .os-item { flex: 1; text-align: center; }
 .os-num { font-size: var(--fs-7); font-weight: 700; color: var(--t5); }
 .os-label { font-size: var(--fs-2); color: var(--t4); margin-top: 6rpx; }
 
-.owner-market { background: var(--white); border-radius: 20rpx; margin: 20rpx 24rpx; padding: 28rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
+.owner-market { background: var(--white); border-radius: 20rpx; margin: 20rpx 24rpx; padding: 28rpx; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); }
 .om-title { display: flex; align-items: center; gap: 10rpx; font-size: var(--fs-5); font-weight: 600; color: var(--t5); }
 .om-status { display: inline-block; margin-top: 16rpx; font-size: 30rpx; font-weight: 700; }
 .om-status.on { color: var(--success); }
@@ -567,7 +567,7 @@ function leaveTenant() {
 .om-desc { font-size: var(--fs-2); color: var(--t2); margin-top: 8rpx; line-height: 1.5; }
 .om-locate { margin-top: 16rpx; font-size: var(--fs-3); color: var(--design-primary, #165dff); }
 
-.owner-section { background: var(--white); border-radius: 20rpx; margin: 0 24rpx 20rpx; padding: 8rpx 28rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
+.owner-section { background: var(--white); border-radius: 20rpx; margin: 0 24rpx 20rpx; padding: 8rpx 28rpx; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); }
 /* 会员横幅 mb-* 为死代码（模板未引用），移除以免配色漂移 */
 
 .os-t { font-size: var(--fs-5); font-weight: 600; color: var(--t5); padding: 24rpx 0 8rpx; }

@@ -142,8 +142,8 @@ async function doLogin(code) {
   align-items: center;
   justify-content: center;
   padding: 0 40rpx;
-  padding-top: 88px;
-  padding-bottom: 36px;
+  padding-top: 176rpx;
+  padding-bottom: 72rpx;
 }
 .login-bg {
   position: absolute;

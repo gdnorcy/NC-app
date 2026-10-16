@@ -151,7 +151,7 @@ async function addFollow() {
 }
 .header {
   background: linear-gradient(135deg, #ff7d00, #ff9a2e);
-  padding: 88px 32rpx 40rpx;
+  padding: 176rpx 32rpx 40rpx;
   display: flex;
   align-items: center;
 }
@@ -189,9 +189,9 @@ async function addFollow() {
 .section {
   margin: 24rpx;
   background: var(--white);
-  border-radius: 16px;
+  border-radius: 32rpx;
   padding: 28rpx 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .section-header {
   display: flex;
@@ -271,7 +271,7 @@ async function addFollow() {
   left: 0;
   right: 0;
   background: var(--white);
-  padding: 24rpx 32rpx 36px;
+  padding: 24rpx 32rpx 72rpx;
   border-top: 1px solid var(--bg-hover);
 }
 .footer-btn {
@@ -328,7 +328,7 @@ async function addFollow() {
   font-size: var(--fs-5);
   color: var(--t1);
 }
-.sheet-footer { padding: 0 32rpx 36px; }
+.sheet-footer { padding: 0 32rpx 72rpx; }
 .submit-btn {
   background: var(--brand-orange);
   color: var(--white);

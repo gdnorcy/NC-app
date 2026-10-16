@@ -95,63 +95,63 @@ export default {
 .index-page {
   min-height: 100vh;
   background: #f5f7fa;
-  padding: 20px 16px;
+  padding: 40rpx 32rpx;
 }
 .header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 48rpx;
 }
 .title {
-  font-size: 28px;
+  font-size: 56rpx;
   font-weight: 700;
   color: #1a1b1c;
   display: block;
 }
 .subtitle {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #909399;
-  margin-top: 4px;
+  margin-top: 8rpx;
   display: block;
 }
 .plan-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 32rpx;
 }
 .plan-card {
   background: var(--white);
   border-radius: var(--radius-xs);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
 }
 .plan-cover {
   width: 100%;
-  height: 160px;
+  height: 320rpx;
 }
 .plan-info {
-  padding: 16px;
+  padding: 32rpx;
 }
 .plan-name {
-  font-size: 16px;
+  font-size: 32rpx;
   font-weight: 600;
   color: #1a1b1c;
   display: block;
 }
 .plan-desc {
-  font-size: 13px;
+  font-size: 26rpx;
   color: #909399;
-  margin-top: 4px;
+  margin-top: 8rpx;
   display: block;
 }
 .plan-count {
-  font-size: 12px;
+  font-size: 24rpx;
   color: var(--primary);
-  margin-top: 8px;
+  margin-top: 16rpx;
   display: block;
 }
 .empty {
   text-align: center;
-  padding: 60px 0;
+  padding: 120rpx 0;
   color: #c0c4cc;
 }
 </style>

@@ -58,45 +58,45 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 40rpx;
 }
 .share-card {
   background: var(--white);
-  border-radius: 16px;
-  padding: 32px 24px;
+  border-radius: 32rpx;
+  padding: 64rpx 48rpx;
   text-align: center;
   width: 100%;
-  max-width: 360px;
+  max-width: 720rpx;
 }
 .qrcode {
-  width: 200px;
-  height: 200px;
-  margin: 0 auto 20px;
+  width: 400rpx;
+  height: 400rpx;
+  margin: 0 auto 40rpx;
 }
 .share-title {
-  font-size: 18px;
+  font-size: 36rpx;
   font-weight: 600;
   color: #1a1b1c;
   display: block;
 }
 .share-desc {
-  font-size: 14px;
+  font-size: 28rpx;
   color: #909399;
-  margin-top: 8px;
+  margin-top: 16rpx;
   display: block;
 }
 .share-buttons {
-  margin-top: 24px;
+  margin-top: 48rpx;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 24rpx;
 }
 .share-btn {
   width: 100%;
   background: var(--primary);
   color: var(--white);
   border-radius: var(--radius-sm);
-  font-size: 15px;
+  font-size: 30rpx;
 }
 .share-btn.secondary {
   background: #f0f2f5;

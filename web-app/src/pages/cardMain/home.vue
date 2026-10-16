@@ -589,20 +589,20 @@ function viewMarketCard(item) {
 .share-back {
   position: fixed;
   top: calc(var(--pnv-status-bar, 20px) + 8px);
-  left: 10px;
+  left: 20rpx;
   z-index: 300;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 5px 12px 5px 8px;
+  gap: 4rpx;
+  padding: 10rpx 24rpx 10rpx 16rpx;
   background: rgba(255, 255, 255, 0.94);
-  border-radius: 18px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
-  font-size: 13px;
+  border-radius: 36rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.12);
+  font-size: 26rpx;
   color: var(--t1);
 }
-.share-back-arrow { font-size: 18px; line-height: 1; margin-right: 2px; }
-.share-back-text { font-size: 13px; }
+.share-back-arrow { font-size: 36rpx; line-height: 1; margin-right: 4rpx; }
+.share-back-text { font-size: 26rpx; }
 .home-page {
   min-height: 100vh;
   background: #f5f7fa;

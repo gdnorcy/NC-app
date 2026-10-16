@@ -562,7 +562,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 /* ===== 方案A 双列卡片 ===== */
 .dual-list { display: flex; gap: 16rpx; padding: 16rpx 24rpx; }
 .dual-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16rpx; }
-.m-card { background: var(--white); border-radius: var(--radius-md); padding: 20rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); position: relative; }
+.m-card { background: var(--white); border-radius: var(--radius-md); padding: 20rpx; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); position: relative; }
 .m-badges { position: absolute; top: 16rpx; right: 16rpx; display: flex; gap: 8rpx; z-index: 2; }
 .badge-top { font-size: 18rpx; color: var(--white); background: #ff4d4f; padding: 4rpx 10rpx; border-radius: var(--radius-sm); font-weight: 500; }
 .badge-new { font-size: 18rpx; color: var(--white); background: var(--design-primary, #165dff); padding: 4rpx 10rpx; border-radius: var(--radius-sm); font-weight: 500; }
@@ -593,7 +593,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .m-exchange.done { background: var(--decor-2); }
 
 /* 折叠面板 */
-.fold-panel { margin: 8rpx 24rpx 24rpx; background: var(--white); border-radius: var(--radius-md); padding: 24rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); }
+.fold-panel { margin: 8rpx 24rpx 24rpx; background: var(--white); border-radius: var(--radius-md); padding: 24rpx; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); }
 .fold-title { display: flex; justify-content: space-between; font-size: var(--fs-4); font-weight: 600; color: var(--t5); }
 .fold-arrow { font-size: var(--fs-2); color: var(--ink-3); font-weight: 400; }
 .fold-body { margin-top: 16rpx; }
@@ -608,7 +608,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .b-section-title { font-size: var(--fs-5); font-weight: 600; color: var(--t5); padding: 24rpx 24rpx 8rpx; }
 .b-scroll { white-space: nowrap; padding: 8rpx 0 16rpx; }
 .b-inner { display: inline-flex; gap: 16rpx; padding: 0 24rpx; }
-.b-card { width: 220rpx; background: var(--white); border-radius: var(--radius-md); padding: 20rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); position: relative; display: inline-block; white-space: normal; vertical-align: top; }
+.b-card { width: 220rpx; background: var(--white); border-radius: var(--radius-md); padding: 20rpx; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); position: relative; display: inline-block; white-space: normal; vertical-align: top; }
 .b-badges { position: absolute; top: 12rpx; right: 12rpx; display: flex; gap: 6rpx; }
 .b-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; color: var(--brand-hero-ink, #fff); display: flex; align-items: center; justify-content: center; font-size: var(--fs-5); font-weight: 600; }
 .b-name { font-size: var(--fs-4); font-weight: 600; color: var(--t5); margin-top: 12rpx; }
@@ -622,7 +622,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .c-tab.on { color: var(--design-primary, #165dff); font-weight: 600; }
 .c-tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6rpx; border-radius: 3rpx; background: var(--design-primary, #165dff); }
 .c-list { padding: 16rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
-.c-card { background: var(--white); border-radius: var(--radius-md); padding: 24rpx; box-shadow: 0 4px 14px rgba(20,40,70,.08); position: relative; }
+.c-card { background: var(--white); border-radius: var(--radius-md); padding: 24rpx; box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08); position: relative; }
 .c-badges { position: absolute; top: 20rpx; right: 20rpx; display: flex; gap: 8rpx; }
 .c-main { display: flex; gap: 16rpx; align-items: center; }
 /* 头像底色是品牌渐变 → 白字在亮黄主色上只剩 1.75:1，改走 hero 同源裁决的 --brand-hero-ink */

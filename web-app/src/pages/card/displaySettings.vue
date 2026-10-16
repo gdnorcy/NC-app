@@ -204,7 +204,7 @@ function reloadPage() { load(); }
 .ds-body { padding: 20rpx 24rpx 60rpx; }
 .ds-card {
   background: var(--white); border-radius: 20rpx; padding: 24rpx 28rpx; margin-bottom: 20rpx;
-  box-shadow: 0 4px 14px rgba(20,40,70,.08);
+  box-shadow: 0 8rpx 28rpx rgba(20,40,70,.08);
 }
 .ds-sec-title { font-size: var(--fs-5); font-weight: 600; color: var(--t5); padding: 8rpx 0 16rpx; }
 .ds-row { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; }

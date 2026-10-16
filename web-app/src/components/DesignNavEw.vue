@@ -200,8 +200,8 @@ export default {
   max-width: 100%;
 }
 .dnew-img { display: block; }
-.dnew-img-45 { width: 45px; height: 45px; }
-.dnew-img-96 { width: 96px; height: 30px; }
+.dnew-img-45 { width: 90rpx; height: 90rpx; }
+.dnew-img-96 { width: 192rpx; height: 60rpx; }
 .dnew-store { display: flex; align-items: center; gap: 6rpx; }
 .dnew-store-name { font-size: var(--fs-3); white-space: nowrap; }
 .dnew-city-text { font-size: var(--fs-3); white-space: nowrap; }

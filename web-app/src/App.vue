@@ -121,8 +121,8 @@ page {
    ⚠️ 小程序端不支持运行时注入 <style>，所以这里只能是固定值；
       若要精确适配刘海机，应把这些 padding 也改成 :style 内联绑定。 */
 page {
-  --pnv-status-bar: 20px;
-  --pnv-capsule-pad: 7px;
+  --pnv-status-bar: 40rpx;
+  --pnv-capsule-pad: 14rpx;
   /* 全局横向溢出防护：任意子元素超宽都会让整页左右可拖动（集市页 nav-right 曾把
      64rpx 固定宽用在 132rpx 内容上）。子元素用 scroll-view 做的横向列表不受影响。 */
   overflow-x: hidden;

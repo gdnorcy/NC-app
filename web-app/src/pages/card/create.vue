@@ -640,10 +640,10 @@ async function syncMarketAfterSave(isPublic) {
 <style scoped>
 /* 入驻审核状态横幅：pending=信息态（跟随系统文字辅色），rejected=警示态（语义橙，不跟主题） */
 .apply-banner {
-  margin: 16px 16px 0;
-  padding: 10px 14px;
+  margin: 32rpx 32rpx 0;
+  padding: 20rpx 28rpx;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 26rpx;
   line-height: 1.6;
   color: var(--design-subtext, #165DFF);
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06);

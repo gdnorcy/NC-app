@@ -579,14 +579,14 @@ async function openMember(pkg) {
 
 .dist-entry {
   display: flex; justify-content: space-between; align-items: center;
-  margin: 12px 20px 0; background: linear-gradient(90deg, var(--design-secondary), #fff);
-  border: 1px solid rgba(var(--design-primary-rgb), 0.2); border-radius: var(--radius-xs); padding: 14px 16px;
+  margin: 24rpx 40rpx 0; background: linear-gradient(90deg, var(--design-secondary), #fff);
+  border: 1px solid rgba(var(--design-primary-rgb), 0.2); border-radius: var(--radius-xs); padding: 28rpx 32rpx;
 }
-.de-left { display: flex; align-items: center; gap: 12px; }
-.de-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(var(--design-primary-rgb), 0.08); display: flex; align-items: center; justify-content: center; }
-.de-title { font-size: 15px; font-weight: 600; color: var(--t1); }
-.de-sub { font-size: 12px; color: var(--t3); margin-top: 2px; }
-.de-arrow { font-size: 22px; color: var(--border-strong); }
+.de-left { display: flex; align-items: center; gap: 24rpx; }
+.de-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: rgba(var(--design-primary-rgb), 0.08); display: flex; align-items: center; justify-content: center; }
+.de-title { font-size: 30rpx; font-weight: 600; color: var(--t1); }
+.de-sub { font-size: 24rpx; color: var(--t3); margin-top: 4rpx; }
+.de-arrow { font-size: 44rpx; color: var(--border-strong); }
 
 /* ===== 租户会员卡 ===== */
 .tcard {

@@ -559,44 +559,44 @@ export default {
 }
 .hotspot-dot {
   position: relative;
-  width: 22px;
-  height: 22px;
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
   background: rgba(22, 93, 255, 0.85);
   border: 2px solid var(--white);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .dot-i {
   color: var(--white);
-  font-size: 13px;
+  font-size: 26rpx;
   font-weight: 700;
   line-height: 1;
 }
 .hotspot-arrow {
   position: absolute;
   left: 50%;
-  top: -7px;
+  top: -14rpx;
   width: 0;
   height: 0;
-  margin-left: -6px;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  margin-left: -12rpx;
+  border-left: 12rpx solid transparent;
+  border-right: 12rpx solid transparent;
   border-bottom: 11px solid var(--white);
-  transform-origin: 6px 18px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  transform-origin: 12rpx 36rpx;
+  filter: drop-shadow(0 1px 4rpx rgba(0, 0, 0, 0.45));
   z-index: 2;
 }
 .hs-ring {
   position: absolute;
   left: 50%;
-  top: 11px;
-  width: 26px;
-  height: 26px;
-  margin-left: -13px;
-  margin-top: -13px;
+  top: 22rpx;
+  width: 52rpx;
+  height: 52rpx;
+  margin-left: -26rpx;
+  margin-top: -26rpx;
   border-radius: 50%;
   border: 2px solid var(--primary);
   opacity: 0;
@@ -617,11 +617,11 @@ export default {
   100% { transform: scale(1.9); opacity: 0; }
 }
 .hotspot-label {
-  margin-top: 3px;
-  padding: 1px 7px;
+  margin-top: 6rpx;
+  padding: 1px 14rpx;
   background: rgba(0, 0, 0, 0.6);
   color: var(--white);
-  font-size: 11px;
+  font-size: 22rpx;
   border-radius: var(--radius-sm);
   white-space: nowrap;
 }
@@ -636,9 +636,9 @@ export default {
   z-index: 20;
 }
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255,255,255,0.3);
+  width: 80rpx;
+  height: 80rpx;
+  border: 6rpx solid rgba(255,255,255,0.3);
   border-top-color: var(--white);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -646,95 +646,95 @@ export default {
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text {
   color: var(--white);
-  margin-top: 12px;
-  font-size: 14px;
+  margin-top: 24rpx;
+  font-size: 28rpx;
 }
 .controls {
   position: absolute;
-  bottom: 60px;
-  right: 16px;
+  bottom: 120rpx;
+  right: 32rpx;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 24rpx;
   z-index: 15;
 }
 .control-btn {
-  width: 44px;
-  height: 44px;
+  width: 88rpx;
+  height: 88rpx;
   background: rgba(0,0,0,0.5);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--white);
-  font-size: 16px;
+  font-size: 32rpx;
 }
 /* 热点信息弹窗 */
 .hotspot-popup {
   position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 120px;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: 240rpx;
   background: rgba(255, 255, 255, 0.96);
   border-radius: var(--radius-xs);
-  padding: 16px;
+  padding: 32rpx;
   z-index: 30;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
 }
 .hotspot-title {
-  font-size: 16px;
+  font-size: 32rpx;
   font-weight: 600;
   color: var(--t1);
 }
 .hotspot-content {
-  margin-top: 8px;
-  font-size: 14px;
+  margin-top: 16rpx;
+  font-size: 28rpx;
   color: var(--t2);
   line-height: 1.6;
 }
 .hotspot-close {
   position: absolute;
-  top: 8px;
-  right: 14px;
-  font-size: 20px;
+  top: 16rpx;
+  right: 28rpx;
+  font-size: 40rpx;
   color: var(--decor);
-  padding: 4px;
+  padding: 8rpx;
 }
 .hotspot-form-field {
-  margin-top: 12px;
+  margin-top: 24rpx;
 }
 .hotspot-form-label {
   display: block;
-  font-size: 13px;
+  font-size: 26rpx;
   color: var(--t2);
-  margin-bottom: 4px;
+  margin-bottom: 8rpx;
 }
 .hotspot-form-input {
   width: 100%;
   box-sizing: border-box;
-  height: 40px;
+  height: 80rpx;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 0 12px;
-  font-size: 14px;
+  padding: 0 24rpx;
+  font-size: 28rpx;
   background: var(--white);
 }
 .hotspot-form-field textarea.hotspot-form-input {
-  height: 72px;
-  padding: 8px 12px;
+  height: 144rpx;
+  padding: 16rpx 24rpx;
 }
 .hotspot-form-msg {
-  margin-top: 8px;
-  font-size: 12px;
-  min-height: 16px;
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  min-height: 32rpx;
 }
 .hotspot-form-submit {
-  margin-top: 8px;
-  height: 40px;
+  margin-top: 16rpx;
+  height: 80rpx;
   border-radius: var(--radius-sm);
   background: var(--primary);
   color: var(--white);
-  font-size: 14px;
+  font-size: 28rpx;
   font-weight: 500;
   display: flex;
   align-items: center;

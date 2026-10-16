@@ -66,7 +66,7 @@ function formatTime(time) {
 }
 .header {
   background: linear-gradient(135deg, #00b42a, #23c343);
-  padding: 88px 32rpx 40rpx;
+  padding: 176rpx 32rpx 40rpx;
 }
 .title {
   font-size: var(--fs-7);
@@ -81,9 +81,9 @@ function formatTime(time) {
 .timeline {
   margin: 24rpx;
   background: var(--white);
-  border-radius: 20px;
+  border-radius: 40rpx;
   padding: 32rpx 24rpx;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
 .timeline-item {
   display: flex;

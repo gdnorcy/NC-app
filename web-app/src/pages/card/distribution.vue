@@ -798,7 +798,7 @@ onShow(() => {
 .poster-tpl-item { flex: 0 0 auto; width: 96rpx; height: 96rpx; border-radius: var(--radius-xs); border: 3rpx solid transparent; overflow: hidden; }
 .poster-tpl-item.on { border-color: var(--design-primary); }
 .poster-tpl-thumb { width: 100%; height: 100%; display: block; }
-.poster-canvas { width: 300px; height: 450px; background: var(--bg-hover); border-radius: var(--radius-md); }
+.poster-canvas { width: 600rpx; height: 900rpx; background: var(--bg-hover); border-radius: var(--radius-md); }
 .mini-btn.ghost { background: var(--white); color: var(--t2); border: 1rpx solid var(--border); }
 .total-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
 .t-card { background: var(--bg-card); border-radius: var(--radius-md); padding: 28rpx 20rpx; text-align: center; }
