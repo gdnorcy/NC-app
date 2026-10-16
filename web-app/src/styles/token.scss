@@ -84,6 +84,56 @@ $btn-font-sm: 28rpx;   // M/S/XS 字号 14px
 $btn-weight: 500;
 $btn-weight-s: 400;
 
+// ============================================================
+// 方案 B 扩展令牌（均衡）— 全部「加法」，不破坏现有渲染
+// B 目标：字号 8 档、圆角 4 档、间距 4pt 栅格、阴影 3 档、z-index 6 层、灰阶语义化。
+// 新增令牌暴露为 CSS 变量后供 var() 使用；旧 px 令牌保留为 legacy，
+// 迁移（裸值→令牌）按品类分批（见 B-2/B-3/B-4），每批过构建 + 真机回归。
+// ============================================================
+
+// ---------- 字号 8 档（rpx；375 设计稿下 = 10/11/12/13/14/16/18/22px） ----------
+// ⚠️ 与上方 px 字号令牌并存：旧 $font-* 为 legacy，新页面/迁移统一用下方 rpx 档（var(--fs-n)）。
+$fs-1: 20rpx;   // ≈10px 最小辅助
+$fs-2: 22rpx;   // ≈11px 图标旁文字
+$fs-3: 24rpx;   // ≈12px 辅助说明
+$fs-4: 26rpx;   // ≈13px 次级正文
+$fs-5: 28rpx;   // ≈14px 正文
+$fs-6: 32rpx;   // ≈16px 标题
+$fs-7: 36rpx;   // ≈18px 大标题
+$fs-8: 44rpx;   // ≈22px 显示级
+
+// ---------- 圆角第 4 档（B 4 档 = 8/12/16/24rpx + pill） ----------
+$radius-xs: 12rpx;   // 中圆角（卡片内小组件）；pill 用 var(--radius-pill)
+
+// ---------- 间距 4pt 栅格（rpx；375 下 = 4/6/8/10/12/16px） ----------
+// 与旧 px 间距令牌（$space-*）并存：旧为 legacy，迁移统一用下方 rpx 栅格。
+$space-r1: 8rpx;
+$space-r2: 12rpx;
+$space-r3: 16rpx;
+$space-r4: 20rpx;
+$space-r5: 24rpx;
+$space-r6: 32rpx;
+
+// ---------- 阴影 3 档（B：xs/sm/md）+ 统一聚焦环 ----------
+$shadow-xs: 0 1px 3px rgba(16, 24, 40, 0.04);
+$shadow-sm: 0 2px 8px rgba(16, 24, 40, 0.06);   // = 旧 $card-shadow
+$shadow-md: 0 4px 16px rgba(16, 24, 40, 0.10);
+$focus-ring: 0 0 0 3px rgba(22, 93, 255, 0.18);  // 统一聚焦/选中环
+
+// ---------- z-index 6 层（B） ----------
+$z-base: 0;
+$z-content: 10;
+$z-sticky: 100;
+$z-nav: 200;
+$z-popup: 1000;
+$z-toast: 2000;
+
+// ---------- 灰阶语义补充（B：155 hex→~24 令牌） ----------
+$white: #ffffff;          // #fff（349 处）→ var(--white)
+$decor: #86909c;          // 非阅读装饰灰（#86909c 96 处，保持，不套 WCAG）
+$decor-2: #9a9a9a;        // 非阅读装饰灰（#9a9a9a，保持）
+$bg-card-2: #f0f1f3;      // 浅灰块第 4 种（#f0f1f3）→ 归并浅灰体系
+
 // ---------- 暴露为 CSS 自定义属性（全局可用） ----------
 // 微信小程序 wxss 不支持 :root（根选择器为 page），双挂 page 保证两端变量生效
 :root, page {
@@ -125,4 +175,36 @@ $btn-weight-s: 400;
   --btn-pad-x-s: #{$btn-pad-x-s};
   --btn-font: #{$btn-font};
   --btn-font-sm: #{$btn-font-sm};
+
+  // ---------- 方案 B 新增 CSS 变量 ----------
+  --white: #{$white};
+  --decor: #{$decor};
+  --decor-2: #{$decor-2};
+  --bg-card-2: #{$bg-card-2};
+  --radius-xs: #{$radius-xs};
+  --radius-pill: 999rpx;
+  --space-r1: #{$space-r1};
+  --space-r2: #{$space-r2};
+  --space-r3: #{$space-r3};
+  --space-r4: #{$space-r4};
+  --space-r5: #{$space-r5};
+  --space-r6: #{$space-r6};
+  --fs-1: #{$fs-1};
+  --fs-2: #{$fs-2};
+  --fs-3: #{$fs-3};
+  --fs-4: #{$fs-4};
+  --fs-5: #{$fs-5};
+  --fs-6: #{$fs-6};
+  --fs-7: #{$fs-7};
+  --fs-8: #{$fs-8};
+  --shadow-xs: #{$shadow-xs};
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --focus-ring: #{$focus-ring};
+  --z-base: #{$z-base};
+  --z-content: #{$z-content};
+  --z-sticky: #{$z-sticky};
+  --z-nav: #{$z-nav};
+  --z-popup: #{$z-popup};
+  --z-toast: #{$z-toast};
 }
