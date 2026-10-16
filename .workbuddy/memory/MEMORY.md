@@ -3,7 +3,7 @@
 > 只放元规则；细节在日志与 refs/。勿超 3000 字符。
 
 ## 装修组件
-- 🔴 改一处同步三处：`componentRegistry.js` → `ComponentRender.vue`(v-if 链尾无兜底) → `PageEditor.vue`(schema+control)；C 端 `DesignPage.vue` 独立重复；`.r-*` 手抄 `.dp-*`；同名异组件函数别误改。
+- 🔴 改一处同步三处：`componentRegistry.js` → `ComponentRender.vue`(v-if 链尾无兜底) → `PageEditor.vue`(schema+control)；C 端 `DesignPage.vue` 独立重复；`.r-*` 手抄 `.dp-*`。
 - 🔴 native-* 三层全跳过（`.pe-comp`/`.comp-render`/组件根都判 `startsWith('native-')`），漏一层=双重生效。
 - 背景两字段：bgColor=自身色 / compBgColor=容器色（`containerStyle.js`）。「可设 0」显式 0 必须内联；透明三态 `''`/`'transparent'`/有色值，禁空串表透明。
 - 条件隐藏优于删控件（`whenHas`）；`defaultProps` 只对新建生效，验证=真点 `.pe-lib-card`。
@@ -16,8 +16,8 @@
 
 ## 配色元规则
 - 🔴 明暗先问「判的是哪一块底」：坐品牌渐变→`--brand-hero-ink`；坐白卡/浅底→`--brand-ink`。唯一裁决口 `utils/templateTheme.js` 的 `heroForeground`（mixHex→luma>180→WCAG 校验，不合格回落）；禁多判据并行。
-- 品牌色三通道缺一即「一半蓝一半黄」：① 页面根合 `brandVars` ② JS 取色点喂 `brandPrimary` ③ themeColor 与 brandVars 同源。新页面必过 `brandCoverage.test.js`。品牌色覆盖模板配色、保留模板布局（勿把 templateTheme 排品牌前）。projects join 兜底默认项目。宫格例外（可自配）：四域默认色只落默认值。
-- 创建页 `createSkin.js`：浅色画布 #f6f7fb+顶部晕染+白卡；**v3.3 头部/按钮改纯主色**（渐变被否）；文字对色仍走 heroForeground 中值口径（灰区主色按纯色判误落白字）。
+- 品牌色三通道缺一即「一半蓝一半黄」：① 页面根合 `brandVars` ② JS 取色点喂 `brandPrimary` ③ themeColor 与 brandVars 同源。新页面必过 `brandCoverage.test.js`。品牌色覆盖模板配色、保留布局。projects join 兜底默认项目。宫格例外（可自配）：四域默认色只落默认值。
+- 创建页 `createSkin.js`：浅色画布 #f6f7fb+顶部晕染+白卡；**v3.3 头部/按钮改纯主色**（渐变被否）；文字对色仍走 heroForeground 中值口径。
 
 ## 几何与浮层
 - 越界浮层被裁→移出滚动容器+`.pe-tools-layer` JS 定位，勿靠容器 padding。
@@ -26,12 +26,13 @@
 - 🔴 用户提示常含答案：「A可B不可」⇒病根在两分支差异。「还是之前的坑」=方案选错。
 
 ## 静默失败
-- 跳未注册页（grep `pages.json`）；onShow 自动跳转弹走（跳登录带 `manual=1`，`utils/loginEntry.js`）；登录丢上下文（`redirect` 站内绝对路径，`safeRedirect()` 排 `//`）。
+- 跳未注册页（grep `pages.json`）；onShow 自动跳转弹走（跳登录带 `manual=1`）；登录丢上下文（`redirect` 站内绝对路径，`safeRedirect()` 排 `//`）。
 - 「空白/没反应」先抓运行时异常：watch/computed 引用须在声明后（TDZ→白屏）。
 
 ## 构建与部署
 - 两个入口：dev `localhost:5173`｜生产 `localhost:3000/admin`；用户说「没变」先确认他访问哪个。
-- 部署：推 `deploy` 分支（含 `server/public/{admin,card,mall}` 产物+后端，force-add）→ 服务器 `/opt/app` git pull + `systemctl restart panorama`；DB 不在分支。
+- 🔴 SaaS 架构定方向（10-17）：每客户一个小程序，走微信第三方平台代开发（平台凭证+租户授权两层配置，代码模板代发布），jscode2session 改 component token 模式；细节见 10-17 日志。
+- 部署：推 `deploy` 分支（含 server/public 产物，force-add）→ 服务器 `/opt/app` git pull + `systemctl restart panorama`；DB 不在分支。
 - 🔴 构建顺序坑：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧）；必须切 deploy 再 `npm run build:mobile`。
 - H5 运行目录=`server/public/card`（build:mobile 同步 card+mall）；「不是最新包」curl 验 chunk size。safe-delete 拦 rm>50 → 先 mv /tmp。
 - 查库：`node:sqlite` + `server/data/panorama.db`（非 `server/src/data/` 旧库）。
@@ -40,5 +41,5 @@
 - 🔴 服务器库同步（10-17）：backup API 快照→留 admin 凭证、户口重置 admin123→ghfast 镜像传文件→停服换库。
 
 ## 杂项
-- schema 说明是 `tips` 复数；新测试确认 vitest include；macOS grep 用 `-E`；CSS token 源 token.scss。
+- schema 说明是 `tips` 复数；macOS grep 用 `-E`；CSS token 源 token.scss。
 - 集市两套状态：开关=`card_market_items`、is_public=可见性派生；单一来源 `utils/marketLink.js`。超级表单见 refs/decoration-form.md。
