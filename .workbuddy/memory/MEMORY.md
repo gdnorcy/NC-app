@@ -15,7 +15,7 @@
 - API 基址单一来源 `utils/apiBase.js`：.env 配（VITE_MP_API_BASE 默认域名 / VITE_H5_API_BASE 空=同源），改后须重建；🔴 import.meta.env 直接访问，typeof 防御在 MP 被垫片成 require("url") 崩 app.js。
 
 ## 配色元规则
-- 🔴 明暗先问「判的是哪一块底」：坐品牌渐变→`--brand-hero-ink`；坐白卡/浅底→`--brand-ink`。唯一裁决口 `utils/templateTheme.js` 的 `heroForeground`（mixHex→luma>180→WCAG 校验，不合格自动回落）；禁多判据并行。
+- 🔴 明暗先问「判的是哪一块底」：坐品牌渐变→`--brand-hero-ink`；坐白卡/浅底→`--brand-ink`。唯一裁决口 `utils/templateTheme.js` 的 `heroForeground`（mixHex→luma>180→WCAG 校验，不合格回落）；禁多判据并行。
 - 品牌色三通道缺一即「一半蓝一半黄」：① 页面根合 `brandVars` ② JS 取色点喂 `brandPrimary` ③ themeColor 与 brandVars 同源。新页面必过 `brandCoverage.test.js`。品牌色覆盖模板配色、保留模板布局（勿把 templateTheme 排品牌前）。projects join 兜底默认项目。宫格例外（可自配）：四域默认色只落默认值。
 - 创建页 `createSkin.js`：浅色画布 #f6f7fb+顶部晕染+白卡；**v3.3 头部/按钮改纯主色**（渐变被否）；文字对色仍走 heroForeground 中值口径（灰区主色按纯色判误落白字）。
 
