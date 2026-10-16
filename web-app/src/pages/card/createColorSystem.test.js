@@ -102,10 +102,10 @@ describe('create 保留位不动', () => {
 });
 
 describe('create 品牌色生效链路（2026-10-16 真机报修：创建页整页仍是设计中心蓝）', () => {
-  test('皮肤必须吃「品牌覆盖后的主题」，否则 --sk-header/--sk-btn 渐变串永远停在蓝', () => {
-    // 🔴 --sk-header/--sk-btn 是**已烘焙的渐变串**（linear-gradient 里写死 hex），
-    //    brandVars 在 :style 数组里排得再靠后也盖不掉渐变内部的颜色 →
-    //    必须让 buildCreateSkinVars 的输入本身就已经含品牌覆盖。
+  test('皮肤必须吃「品牌覆盖后的主题」，否则 --sk-header/--sk-btn 色值永远停在蓝', () => {
+    // 🔴 --sk-header/--sk-btn 是**已烘焙的色值**（hex 在 createSkin.js 里写死，v3.3 起为纯色），
+    //    brandVars 在 :style 数组里排得再靠后也盖不掉 → 必须让 buildCreateSkinVars 的输入
+    //    本身就已经含品牌覆盖。
     expect(src).toMatch(/const\s+skinTheme\s*=\s*computed\(\(\)\s*=>\s*\(\{\s*\.\.\.\(themeStyle\.value\s*\|\|\s*\{\}\),\s*\.\.\.\(brandVars\.value\s*\|\|\s*\{\}\)\s*\}\)\)/);
     expect(src).toContain('buildCreateSkinVars(skinTheme.value)');
     expect(src).not.toContain('buildCreateSkinVars(themeStyle.value)');

@@ -6,9 +6,10 @@
  *    —— 历史 bug：原本取模板色，换模板就整页换色；预览卡删了后已无理由。
  * 2. 画布统一浅色（v3 定稿）：v1 整页泼主题色（高饱和色刺眼）、v2 墨色画布（太暗、
  *    与 C 端浅色页面脱节）先后被否 → 现在任何主色都是 #f6f7fb 浅底 + 白卡 + 主题色点缀。
- * 3. 头部是主题色渐变（v3.2 定稿）：v3.1 曾透明化，但用户澄清「渐变头部本身是对的，
- *    他指是 1/3 步骤数字的灰色」→ 恢复渐变；步骤数字用 --sk-hd-sub 同色系。
- * 4. 文字对色按主色亮度：头部/按钮文字（主色偏浅（浅金 luma>160）时转深色）。
+ * 3. 头部是主题色**纯色**（v3.3 定稿）：v3.1 透明化被否 → v3.2 恢复渐变（135→180deg）
+ *    → v3.3 用户反馈「渐变不太美观」改纯色；步骤数字用 --sk-hd-sub 同色系。
+ * 4. 文字对色按主色亮度：头部/按钮文字（主色偏浅（浅金 luma≈166）时转深字）——
+ *    判据走 heroForeground 的渐变中值口径，纯色也不改口（灰区主色按纯色判会误落白字）。
  */
 import { describe, it, expect } from 'vitest';
 import { buildCreateSkinVars, hexLuma, hexA } from './createSkin.js';
@@ -46,7 +47,7 @@ describe('buildCreateSkinVars（配色源= 系统主题，统一浅色画布）'
     expect(v['--primary']).toBe('#FE0137');
     expect(v['--success']).toBe('#FE0137');
     expect(v['--theme-tint']).toBe('#FFE5EB');
-    // 主题色主场：头部渐变 / 主按钮 / 聚焦圈 / 分隔线 含主色原文（v3.2 恢复渐变头）
+    // 主题色主场：头部纯色 / 主按钮 / 聚焦圈 / 分隔线 含主色原文（v3.3 纯色头）
     expect(v['--sk-header']).toContain('#FE0137');
     expect(v['--sk-btn']).toContain('#FE0137');
     expect(v['--sk-input-focus']).toBe('#FE0137');
@@ -57,13 +58,19 @@ describe('buildCreateSkinVars（配色源= 系统主题，统一浅色画布）'
     expect(JSON.stringify(v)).not.toContain('7,193,96');
   });
 
-  it('统一浅色画布（v3）：任何主色都是 #f6f7fb 浅底 + 白卡 + 深字层级 + 渐变头部', () => {
+  it('统一浅色画布（v3）：任何主色都是 #f6f7fb 浅底 + 白卡 + 深字层级 + 纯色头部', () => {
     for (const primary of ['#FE0137', '#165dff', '#1a1a2e', '#c9a25e', '#f5f7fa']) {
       const v = buildCreateSkinVars(theme(primary));
       expect(v['--sk-skin']).toBe('light');
       expect(v['--sk-bg']).toContain('#f6f7fb'); // 系统灰底
       expect(v['--sk-bg']).not.toContain('radial-gradient'); // v2 墨色画布勿复活
-      expect(v['--sk-header']).toContain(primary); // v3.2 渐变头部（勿回透明，也别整页泼色）
+      expect(v['--sk-header']).toContain(primary); // v3.3 纯色头部（勿回透明，也别整页泼色）
+      // v3.3（2026-10-16 用户反馈「渐变不太美观」）：头部/按钮恒等于主色本身，
+      // 不是 linear-gradient——防回退渐变（渐变方向 135→180deg 那两轮也一并封死）
+      expect(v['--sk-header']).toBe(primary);
+      expect(v['--sk-btn']).toBe(primary);
+      expect(v['--sk-header']).not.toContain('gradient');
+      expect(v['--sk-btn']).not.toContain('gradient');
       expect(v['--sk-card-bg']).toBe('#ffffff');
       expect(v['--t1']).toBe('#1d2129');
       expect(v['--sk-title-font']).toBeUndefined(); // 衬线标题随 dark 皮肤一并移除
@@ -72,13 +79,14 @@ describe('buildCreateSkinVars（配色源= 系统主题，统一浅色画布）'
     expect(buildCreateSkinVars(theme('#FE0137'))['--sk-bg']).toContain('rgba(254,1,55,0.16)');
   });
 
-  it('文字对色（v3.2）：饱和主色头部/按钮白字，浅主色（luma>160）转深字', () => {
+  it('文字对色（v3.3 同口径）：饱和主色头部/按钮白字，浅主色（浅金 luma≈166）转深字', () => {
     // 红（亮度~83）→ 头部/按钮白字
     const red = buildCreateSkinVars(theme('#FE0137'));
     expect(red['--sk-hd-text']).toBe('#ffffff');
     expect(red['--sk-btn-text']).toBe('#ffffff');
     expect(red['--sk-hd-sub']).toBe('rgba(255,255,255,0.8)');
-    // 浅金（亮度 162>160）→ 深字（白字在浅金上看不清）
+    // 浅金（亮度 162，落在 140~180 灰区）→ 深字（按纯主色判会误落白字：白/浅金仅 2.4:1；
+    // 渐变中值口径 ≈199>180 才正确落深字 6.8:1）——v3.3 改纯色也不改这个判据
     const gold = buildCreateSkinVars(theme('#c9a25e'));
     expect(gold['--sk-hd-text']).toBe('#1d2129');
     expect(gold['--sk-btn-text']).toBe('#1d2129');
