@@ -95,3 +95,86 @@ describe('nativeMargin 原生组件容器样式（真实源码）', () => {
     }
   });
 });
+
+describe('nativeMargin 容器圆角（2026-10-16「圆角为 0，预览图及小程序还是有圆角」）', () => {
+  // 病根：白卡类 native-* 的容器圆角只有 CSS 写死（C端 var(--radius-md)=16rpx=8px /
+  // admin .r-native-* 8px），面板「圆角」滑块设 0 完全不生效 = 参数被架空。
+  // 修法：nativeMargin 增加第二参 opts，调用方 opt-in（containerRadius: true）消费 props.radius。
+  const OPTS = { containerRadius: true };
+
+  it('opt-in 后消费 props.radius，0 必须生效（方角）', () => {
+    for (const fn of [adminMargin, cEndMargin]) {
+      expect(fn({ radius: 0 }, OPTS).borderRadius).toBe('0px');
+      expect(fn({ radius: 12 }, OPTS).borderRadius).toBe('12px');
+    }
+  });
+
+  it('未 opt-in（搜索框等）不消费 radius —— 自身圆角语义不得误伤容器', () => {
+    for (const fn of [adminMargin, cEndMargin]) {
+      expect(fn({ radius: 12 }).borderRadius).toBeUndefined();
+      expect(fn({ radius: 12 }, {}).borderRadius).toBeUndefined();
+    }
+  });
+
+  it('radiusContainer 优先级仍高于 opt-in 的 radius（搜索容器不受影响）', () => {
+    for (const fn of [adminMargin, cEndMargin]) {
+      expect(fn({ radius: 0, radiusContainer: 10 }, OPTS).borderRadius).toBe('10px');
+    }
+  });
+
+  it('radius 未设置/空串 → 不输出（CSS 兜底 8px 仍生效，两端兜底值一致）', () => {
+    for (const fn of [adminMargin, cEndMargin]) {
+      expect(fn({}, OPTS).borderRadius).toBeUndefined();
+      expect(fn({ radius: '' }, OPTS).borderRadius).toBeUndefined();
+    }
+  });
+
+  it('🔴 两端 opt-in 后输出仍一致', () => {
+    const cases = [
+      [{ radius: 0 }, OPTS], [{ radius: 12 }, OPTS], [{ radius: '' }, OPTS], [{}, OPTS],
+      [{ radius: 0, radiusContainer: 10 }, OPTS],
+      [{ radius: 8, marginLR: 10, compBgColor: '#fff' }, OPTS],
+    ];
+    for (const [props, opts] of cases) {
+      const a = adminMargin(props, opts);
+      const b = cEndMargin(props, opts);
+      for (const k of ['marginLeft', 'marginRight', 'background', 'borderRadius']) {
+        expect(String(a[k]), `两端 ${k} 不一致: ${JSON.stringify(props)}`).toBe(String(b[k]));
+      }
+    }
+  });
+
+  it('🔴 四个白卡调用点必须 opt-in（宫格/我的名片/访客雷达/人脉集市，两端各 4 处）', () => {
+    const cSrc = fs.readFileSync(SRC.cEnd, 'utf8');
+    const aSrc = fs.readFileSync(SRC.admin, 'utf8');
+    // 漏挂 = 该组件容器圆角继续被 CSS 写死架空（本项目已两次只改一端）
+    expect((cSrc.match(/containerRadius: true/g) || []).length).toBe(4);
+    expect((aSrc.match(/containerRadius: true/g) || []).length).toBe(4);
+    // 搜索栏不得 opt-in：radius 是搜索框自身圆角（C端走 topBarStyle 内部单参调用，
+    // admin 是 native-search 模板的单参调用）
+    expect(cSrc).toMatch(/nativeMargin\(props\);/);
+    expect(aSrc).toMatch(/nativeMargin\(comp\.props\)"/);
+  });
+
+  it('🔴 admin 宫格容器必须挂 nativeMargin（曾漏挂 → 预览不消费边距/底色/圆角）', () => {
+    const aSrc = fs.readFileSync(SRC.admin, 'utf8');
+    expect(aSrc).toMatch(/class="r-native-grid" :style="\[nativeMargin\(comp\.props, \{ containerRadius: true \}\), gridPreviewStyle\(comp\.props\)\]"/);
+  });
+
+  it('🔴 宫格 schema 不得自带 marginLR（同名 key 会把通用「容器左右边距」去重隐藏）', () => {
+    const reg = fs.readFileSync(
+      path.join(ROOT, 'web-admin/src/views/customer/apps/design/componentRegistry.js'), 'utf8');
+    const start = reg.indexOf("type: 'native-grid'");
+    expect(start).toBeGreaterThan(-1);
+    const end = reg.indexOf("type: 'native-mycard'");
+    const block = reg.slice(start, end);
+    expect(block).not.toContain("key: 'marginLR'");
+  });
+
+  it('🔴 native-* 不显示「内边距」控件（渲染层不消费 props.padding，显示即架空）', () => {
+    const pe = fs.readFileSync(
+      path.join(ROOT, 'web-admin/src/views/customer/apps/design/PageEditor.vue'), 'utf8');
+    expect(pe).toMatch(/nativeNoPadding/);
+    expect(pe).toMatch(/startsWith\('native-'\)/);
+  });
+});

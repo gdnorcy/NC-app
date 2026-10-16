@@ -35,7 +35,7 @@
         </view>
       </view>
       <!-- 名片宫格（系统功能快捷入口，可自定义：宫格项/列数/形状/图标/角标/字号） -->
-      <view v-else-if="c.type === 'native-grid'" class="grid-section" :style="nativeMargin(c.props)">
+      <view v-else-if="c.type === 'native-grid'" class="grid-section" :style="nativeMargin(c.props, { containerRadius: true })">
         <view class="grid" :style="gridStyle(c.props)">
           <view class="grid-item" v-for="(item, i) in gridItems(c.props)" :key="i" @click="goPage(item.url || item.path)">
             <view class="grid-icon" :style="gridIconStyle(c.props, item)">
@@ -48,7 +48,7 @@
         </view>
       </view>
       <!-- 我的名片 -->
-      <view v-else-if="c.type === 'native-mycard'" class="section" :style="nativeMargin(c.props)">
+      <view v-else-if="c.type === 'native-mycard'" class="section" :style="nativeMargin(c.props, { containerRadius: true })">
         <view class="section-header" v-if="c.props.showTitle !== false">
           <view class="section-title">{{ c.props.title || '我的名片' }}</view>
           <view class="section-more" v-if="c.props.showMore !== false" @click="goMyCard">{{ c.props.moreText || '查看详情' }} ›</view>
@@ -68,7 +68,9 @@
             <text>编辑</text>
           </view>
         </view>
-        <view class="my-card create" v-else @click="goCreate">
+        <!-- 🔴 创建态卡同样绑 myCardStyle：卡片圆角=0 时两个状态都必须是方角
+             （曾漏绑 → 有名片方角、创建态仍圆角，「圆角为 0 还是有圆角」） -->
+        <view class="my-card create" v-else :style="myCardStyle(c.props)" @click="goCreate">
           <view class="create-icon"><SIcon name="card" size="xlarge" :color="designPrimaryHex" /></view>
           <view class="create-info">
             <view class="create-title">创建我的名片</view>
@@ -78,7 +80,7 @@
         </view>
       </view>
       <!-- 访客雷达 -->
-      <view v-else-if="c.type === 'native-radar'" class="section" :style="nativeMargin(c.props)">
+      <view v-else-if="c.type === 'native-radar'" class="section" :style="nativeMargin(c.props, { containerRadius: true })">
         <view class="section-header" v-if="c.props.showTitle !== false">
           <view class="section-title">
             <SIcon name="radar" size="default" color="#00b42a" />
@@ -115,7 +117,7 @@
         <view class="empty-hint" v-else>暂无访客记录</view>
       </view>
       <!-- 人脉集市 -->
-      <view v-else-if="c.type === 'native-market'" class="section" :style="nativeMargin(c.props)">
+      <view v-else-if="c.type === 'native-market'" class="section" :style="nativeMargin(c.props, { containerRadius: true })">
         <view class="section-header" v-if="c.props.showTitle !== false">
           <view class="section-title">
             <SIcon name="market" size="default" color="#722ed1" />
@@ -192,7 +194,7 @@ const headerScrolled = ref(false);
 //
 // ⚠️ 原生组件（native-*）不走共享 containerStyle.js，容器样式必须在这里显式下发；
 //   漏一个字段就「某一端有、另一端没有」。
-function nativeMargin(props) {
+function nativeMargin(props, opts) {
   const p = props || {};
   const s = {};
   // ⚠️ 下边距给 8px 兜底（= 原 `.section{margin-bottom:16rpx}` 的值）：
@@ -213,6 +215,18 @@ function nativeMargin(props) {
   //   无条件输出会把组件自身底色也覆盖掉。
   //   ⚠️ 'transparent' 是**显式透明**（取色器「透明」按钮），truthy → 会输出并盖掉 CSS 白底，勿排除。
   if (p.compBgColor) s.background = p.compBgColor;
+  // 🔴 容器圆角（2026-10-16 用户反馈「圆角为 0，预览图及小程序还是有圆角」）：
+  //   白卡类 native-*（宫格/我的名片/访客雷达/人脉集市）的容器圆角此前只有 CSS 写死
+  //   （.section/.grid-section 的 var(--radius-md)），面板「圆角」滑块设 0 完全不生效
+  //   —— 本文件下方注释里提到的 nativeRadiusStyle 注入从未实现，参数被架空。
+  //   现按**调用方 opt-in**（第二参 containerRadius）消费 props.radius：
+  //   0 是合法值（方角）必须内联输出；未设置 → 不输出，保留 CSS 兜底
+  //   （C端 var(--radius-md)=16rpx=8px = admin .r-native-* 的 8px，两端一致）。
+  //   ⚠️ 必须 opt-in：native-search 自身的 radius 是「搜索框圆角」，
+  //      不能被通用逻辑误伤容器（容器圆角仍走 radiusContainer，优先级更高）。
+  if (opts && opts.containerRadius && p.radius !== undefined && p.radius !== '') {
+    s.borderRadius = p.radius + 'px';
+  }
   // 容器圆角：独立字段 radiusContainer，与组件自身 radius（搜索框圆角）互不影响。
   const rc = p.radiusContainer;
   if (rc !== undefined && rc !== '') s.borderRadius = rc + 'px';

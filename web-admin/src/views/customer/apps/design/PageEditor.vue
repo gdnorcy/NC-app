@@ -1566,7 +1566,13 @@ const schemaSections = computed(() => {
   const isFloatComp = selectedComp.value.type === 'fab-cart' || selectedComp.value.type === 'float-btn';
   // 容器底色 key 用常量（containerStyle.js 的 CONTAINER_BG_KEY），避免两处字符串写岔。
   // 富文本自带 `compBgColor`（自己的「背景设置」分组，key 相同）→ ownKeys 过滤已能正确去重。
-  const common = isFloatComp ? [] : commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')))) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))));
+  // 🔴 内边距（padding）：native-* 白卡组件（宫格/我的名片/访客雷达/人脉集市/搜索栏）的
+  //    渲染层**不消费** props.padding（两端 nativeMargin 都不读它，卡内留白是 CSS 写死且
+  //    各组件不同：宫格 32rpx 16rpx / 区块 28rpx，单滑块也表达不了非对称值）→
+  //    控件显示出来就是「参数被架空」（2026-10-16 随「圆角=0 不生效」一并清理）。
+  //    按元规则**条件隐藏而非删字段**：存量 props.padding 数据原样保留。
+  const nativeNoPadding = selectedComp.value.type.startsWith('native-');
+  const common = isFloatComp ? [] : commonStyleSchema.filter((f) => !ownKeys.includes(f.key) && !(f.key === 'padding' && (ownKeys.includes('marginLeft') || ownKeys.includes('marginRight') || ownKeys.includes('marginLR') || (selectedComp.value.type === 'title-bar' && ownKeys.includes('marginTop')) || nativeNoPadding)) && !(f.key === 'radius' && (ownKeys.includes('radiusTop') || ownKeys.includes('radiusBottom'))));
   const props = selectedComp.value.props || {};
   const whenOk = (f) => {
     if (f.whenStyle && !f.whenStyle.includes(Number(props.styleType))) return false;

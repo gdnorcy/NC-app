@@ -743,7 +743,9 @@
     </template>
     <!-- 名片宫格（系统功能快捷入口，预览：items 配置优先，回退默认宫格） -->
     <template v-else-if="comp.type === 'native-grid'">
-      <div class="r-native-grid" :style="gridPreviewStyle(comp.props)">
+      <!-- 🔴 容器必须走 nativeMargin：曾漏挂 → admin 预览不消费 marginLR/compBgColor/圆角
+           （C 端有边距、admin 预览没有；圆角=0 在预览里也永远是 8px 圆角） -->
+      <div class="r-native-grid" :style="[nativeMargin(comp.props, { containerRadius: true }), gridPreviewStyle(comp.props)]">
         <div v-for="(it, i) in gridPreviewItems(comp.props)" :key="i" class="r-native-grid-item">
           <div class="r-native-grid-icon" :style="gridPreviewIconStyle(comp.props, it)">
             <img v-if="it.iconImage" :src="it.iconImage" class="r-native-grid-icon-img" />
@@ -757,7 +759,7 @@
     </template>
     <!-- 我的名片（完整版原生模块） -->
     <template v-else-if="comp.type === 'native-mycard'">
-      <div class="r-native-section" :style="nativeMargin(comp.props)">
+      <div class="r-native-section" :style="nativeMargin(comp.props, { containerRadius: true })">
         <div v-if="comp.props.showTitle !== false" class="r-native-title">{{ comp.props.title || '我的名片' }}<em v-if="comp.props.showMore !== false">{{ comp.props.moreText || '查看详情' }} ›</em></div>
         <div class="r-mycard" :style="myCardPreviewStyle(comp.props)">
           <div class="r-mycard-avatar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#165DFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3 4-4.5 7-4.5s5.5 1.5 7 4.5"/></svg></div>
@@ -772,7 +774,7 @@
     </template>
     <!-- 访客雷达（完整版原生模块） -->
     <template v-else-if="comp.type === 'native-radar'">
-      <div class="r-native-section" :style="nativeMargin(comp.props)">
+      <div class="r-native-section" :style="nativeMargin(comp.props, { containerRadius: true })">
         <div v-if="comp.props.showTitle !== false" class="r-native-title">{{ comp.props.title || '访客雷达' }}<em v-if="comp.props.showMore !== false">{{ comp.props.moreText || '查看全部' }} ›</em></div>
         <div class="r-stats" :style="{ '--st': comp.props.numColor || '#165DFF' }">
           <div v-if="comp.props.showToday" class="r-stats-item"><b>0</b><span>{{ comp.props.todayText || '今日访客' }}</span></div>
@@ -783,7 +785,7 @@
     </template>
     <!-- 人脉集市（完整版原生模块） -->
     <template v-else-if="comp.type === 'native-market'">
-      <div class="r-native-section" :style="nativeMargin(comp.props)">
+      <div class="r-native-section" :style="nativeMargin(comp.props, { containerRadius: true })">
         <div v-if="comp.props.showTitle !== false" class="r-native-title">{{ comp.props.title || '人脉集市' }}<em>{{ comp.props.moreText || '进入集市' }} ›</em></div>
         <div class="r-native-market-empty">{{ comp.props.emptyText || '暂无人脉推荐' }}</div>
       </div>
@@ -1765,7 +1767,7 @@ function fabCartStyle(p) {
  * ⚠️ 改这里必须同步 C 端 `pages/cardMain/home.vue` 的 `nativeMargin()`
  *    （两端同为手写、互不共享 —— 已两次只改一端）。
  */
-function nativeMargin(p) {
+function nativeMargin(p, opts) {
   const s = {};
   // 上下边距：⚠️ 下边距给 8px 兜底（与 C 端 home.vue 同一语义）——
   //   0 是合法值（故意贴边），故用 ??；但**缺省**时兜 8 而不是 0，
@@ -1784,6 +1786,16 @@ function nativeMargin(p) {
   // 与 containerStyle.js 的 CONTAINER_BG_KEY 语义一致。
   // ⚠️ 'transparent' 是**显式透明**（取色器「透明」按钮），truthy → 会输出并盖掉 CSS 白底兜底（.r-native-search{background:#fff}），勿排除。
   if (p.compBgColor) s.background = p.compBgColor;
+  // 🔴 容器圆角（2026-10-16 用户反馈「圆角为 0，预览图及小程序还是有圆角」）：
+  //   白卡类 native-* 的容器圆角此前只有 CSS 写死（.r-native-section/.r-native-grid 的
+  //   border-radius:8px），面板「圆角」滑块设 0 完全不生效 → 参数被架空。
+  //   与 C 端 home.vue nativeMargin 同步：按**调用方 opt-in**（第二参 containerRadius）
+  //   消费 props.radius，0 必须内联输出；未设置 → 不输出，保留 CSS 兜底 8px。
+  //   ⚠️ 必须 opt-in：native-search 自身的 radius 是「搜索框圆角」，不能误伤容器
+  //      （容器圆角仍走 radiusContainer，优先级更高）。改这里必须同步 C 端。
+  if (opts && opts.containerRadius && p.radius !== undefined && p.radius !== '') {
+    s.borderRadius = p.radius + 'px';
+  }
   // 容器圆角：native-search 自身有 radius（圆角搜索框），容器的圆角用独立字段 radiusContainer
   // 避免与组件自身圆角撞名导致「调一个动两个」。
   const rc = p.radiusContainer;

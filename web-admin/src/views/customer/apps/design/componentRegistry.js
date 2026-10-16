@@ -1599,10 +1599,10 @@ export const componentRegistry = [
       { key: 'gap', label: '宫格间距', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
-      {
-        key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40,
-        tips: '白卡离屏幕左右边缘的距离。小程序端此前不读这个值 → 真机贴边、设计器有边距，两端不一致',
-      },
+      // 🔴 宫格不再自带 marginLR（2026-10-16 用户反馈「名片宫格没有容器左右边距参数」）：
+      //   组件自带同名 key 会把通用样式里的「容器左右边距」按 ownKeys 去重隐藏，
+      //   用户在宫格面板里找不到这个参数。key 本来就是同一个 marginLR、消费同一处
+      //   （两端 nativeMargin），删掉自带行后通用控件接管 → 存量数据直接兼容，无需迁移。
     ],
   },
   {
