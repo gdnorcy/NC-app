@@ -98,7 +98,7 @@ function walk(dir) {
 walk(srcDir);
 
 // 租户主题色兜底：读取 server/data/panorama.db 的 tenant_style_config，
-// 把各租户主色/渐变/辅助/文字色加入动态色板（设计中心 14 套预设任选其一都会命中；
+// 把各租户主色/渐变/辅助/文字色加入动态色板（设计中心 15 套预设任选其一都会命中；
 // 无 DB / 无 sqlite3 环境时跳过，仅保留静态色与黑色兜底）
 // ⚠️ dbPath 必须声明在两个 try 块之外：nav 兜底块也用它，块内 const 会让后者
 //    ReferenceError 被 catch 静默吞掉（曾导致导航配色兜底完全不生效且无任何日志）

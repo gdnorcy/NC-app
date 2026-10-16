@@ -1,10 +1,10 @@
-// 系统风格（1:1 菜鸟云）工具测试：14 套预设色值 / applyScheme / 头部预览联动 / hexA
+// 系统风格（1:1 菜鸟云）工具测试：15 套预设色值 / applyScheme / 头部预览联动 / hexA
 import { describe, it, expect } from 'vitest';
 import { STYLE_SCHEMES, DEFAULT_STYLE, applyScheme, headPreviewStyle, hexA } from './designStyle.js';
 
 describe('系统风格（1:1 菜鸟云）', () => {
-  it('14 套预设全量色值（主题/渐变/辅助/文字/文字辅色，与对标 colors_arr 实测一致）', () => {
-    expect(STYLE_SCHEMES).toHaveLength(14);
+  it('15 套预设全量色值（主题/渐变/辅助/文字/文字辅色，与对标 colors_arr 实测一致）', () => {
+    expect(STYLE_SCHEMES).toHaveLength(15);
     expect(STYLE_SCHEMES[0]).toEqual({ name: '碳黑', primaryColor: '#373C46', gradientColor: '#484D58', secondaryColor: '#EBEBEC', textColor: '#FFFFFF', subTextColor: '#373C46' });
     expect(STYLE_SCHEMES[1]).toEqual({ name: '克莱因蓝', primaryColor: '#002FA4', gradientColor: '#1149D2', secondaryColor: '#E5EAF6', textColor: '#FFFFFF', subTextColor: '#002FA4' });
     expect(STYLE_SCHEMES[2]).toEqual({ name: '琉璃蓝', primaryColor: '#165AE2', gradientColor: '#407cf6', secondaryColor: '#D0DEF9', textColor: '#FFFFFF', subTextColor: '#165AE2' });
@@ -19,6 +19,7 @@ describe('系统风格（1:1 菜鸟云）', () => {
     expect(STYLE_SCHEMES[11]).toEqual({ name: '粉红', primaryColor: '#FF3A68', gradientColor: '#FF547C', secondaryColor: '#FFEBF0', textColor: '#FFFFFF', subTextColor: '#FF3A68' });
     expect(STYLE_SCHEMES[12]).toEqual({ name: '深紫', primaryColor: '#722ED1', gradientColor: '#7C72E0', secondaryColor: '#E3D5F6', textColor: '#FFFFFF', subTextColor: '#722ED1' });
     expect(STYLE_SCHEMES[13]).toEqual({ name: '蓝紫', primaryColor: '#6954F0', gradientColor: '#4068F9', secondaryColor: '#DBD5FF', textColor: '#FFFFFF', subTextColor: '#6954F0' });
+    expect(STYLE_SCHEMES[14]).toEqual({ name: '微信绿', primaryColor: '#07C160', gradientColor: '#09BB07', secondaryColor: '#D9F6E7', textColor: '#FFFFFF', subTextColor: '#07C160' });
   });
 
   it('默认系统风格 = 玫红 11 号方案（头部跟随主色/白字）', () => {
@@ -28,7 +29,7 @@ describe('系统风格（1:1 菜鸟云）', () => {
     expect(DEFAULT_STYLE.headText).toBe('#ffffff');
   });
 
-  it('applyScheme：n=1-14 填充对应方案 5 色；n=0 仅标记自定义保留当前色', () => {
+  it('applyScheme：n=1-15 填充对应方案 5 色；n=0 仅标记自定义保留当前色', () => {
     const s1 = applyScheme(DEFAULT_STYLE, 3);
     expect(s1.colorScheme).toBe(3);
     expect(s1.primaryColor).toBe('#165AE2');
@@ -36,6 +37,13 @@ describe('系统风格（1:1 菜鸟云）', () => {
     expect(s1.secondaryColor).toBe('#D0DEF9');
     expect(s1.textColor).toBe('#FFFFFF');
     expect(s1.subTextColor).toBe('#165AE2');
+    const s15 = applyScheme(DEFAULT_STYLE, 15);
+    expect(s15.colorScheme).toBe(15);
+    expect(s15.primaryColor).toBe('#07C160');
+    expect(s15.gradientColor).toBe('#09BB07');
+    expect(s15.secondaryColor).toBe('#D9F6E7');
+    expect(s15.textColor).toBe('#FFFFFF');
+    expect(s15.subTextColor).toBe('#07C160');
     const custom = applyScheme(DEFAULT_STYLE, 0);
     expect(custom.colorScheme).toBe(0);
     expect(custom.primaryColor).toBe(DEFAULT_STYLE.primaryColor);

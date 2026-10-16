@@ -984,7 +984,7 @@ async function batchDelete() {
 }
 
 // ============ 系统风格（1:1 菜鸟云） ============
-// 14 套预设配色 / 默认玫红 / applyScheme / 头部预览联动 见 utils/designStyle.js（配测试）
+// 15 套预设配色 / 默认玫红 / applyScheme / 头部预览联动 见 utils/designStyle.js（配测试）
 const style = reactive({ ...DEFAULT_STYLE });
 const styleSaving = ref(false);
 function pickScheme(n) {

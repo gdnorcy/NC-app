@@ -1,4 +1,4 @@
-// 设计中心「系统风格」1:1 复刻菜鸟云：14 套预设配色 + 方案应用纯函数
+// 设计中心「系统风格」1:1 复刻菜鸟云：15 套预设配色 + 方案应用纯函数
 // 色值顺序 = 主题/渐变/辅助/文字/文字辅色，与对标 stylediy 页 colors_arr 实测一致
 
 export const STYLE_SCHEMES = [
@@ -16,6 +16,7 @@ export const STYLE_SCHEMES = [
   { name: '粉红', primaryColor: '#FF3A68', gradientColor: '#FF547C', secondaryColor: '#FFEBF0', textColor: '#FFFFFF', subTextColor: '#FF3A68' },
   { name: '深紫', primaryColor: '#722ED1', gradientColor: '#7C72E0', secondaryColor: '#E3D5F6', textColor: '#FFFFFF', subTextColor: '#722ED1' },
   { name: '蓝紫', primaryColor: '#6954F0', gradientColor: '#4068F9', secondaryColor: '#DBD5FF', textColor: '#FFFFFF', subTextColor: '#6954F0' },
+  { name: '微信绿', primaryColor: '#07C160', gradientColor: '#09BB07', secondaryColor: '#D9F6E7', textColor: '#FFFFFF', subTextColor: '#07C160' },
 ];
 
 /** 默认系统风格 = 玫红（11 号方案）；headColor 1=跟随主色 / 2=白色头部 */
@@ -25,7 +26,7 @@ export const DEFAULT_STYLE = {
   textColor: '#FFFFFF', subTextColor: '#FE0137',
 };
 
-/** 应用配色方案：n=1-14 预设 / n=0 自定义（保留当前 5 色，仅标记自定义） */
+/** 应用配色方案：n=1-15 预设 / n=0 自定义（保留当前 5 色，仅标记自定义） */
 export function applyScheme(style, n) {
   if (n === 0) return { ...style, colorScheme: 0 };
   const s = STYLE_SCHEMES[n - 1];
