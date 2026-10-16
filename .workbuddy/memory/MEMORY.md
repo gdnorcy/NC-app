@@ -11,7 +11,8 @@
 ## 真机与跨端
 - H5 正常≠MP 正常，按序查：① 父 wxss 穿不透子组件根(`:deep()` 也不行)→传 prop 出内联；② MP 无 atob/Buffer→`uni.base64ToArrayBuffer`；③ 内联 font-family 含双引号→setStyle 整条丢弃；④ 明暗判据搞反。
 - 主题跟随：消费 `var(--design-` 的页面必绑 themeStyle（MP 内联下发）；强调色只用 `--design-primary`（`--primary` 是固定蓝、`--theme-tint` 无定义）；SIcon/canvas/showModal 等不吃 var()→喂真实 hex；补 marginLR 用 `??`；**画布对≠C端对**。
-- MP 主包：构建后清 `static/{sicons,icons,sample,three}`（safe-delete 拦就 mv）；API 基址写死 `cardApi.js`，换局域网失效。主包 1982KB 贴 2M 硬线。
+- MP 主包：构建后清 `static/{sicons,icons,sample,three}`（safe-delete 拦就 mv）。
+- API 基址单一来源 `utils/apiBase.js`：web-app/.env 配（VITE_MP_API_BASE 默认域名 / VITE_H5_API_BASE 默认空=同源），改后须重新构建。
 
 ## 配色元规则
 - 🔴 明暗先问「判的是哪一块底」：坐品牌渐变→`--brand-hero-ink`；坐白卡/浅底→`--brand-ink`。唯一裁决口 `utils/templateTheme.js` 的 `heroForeground`（mixHex→luma>180→WCAG 校验，不合格自动回落）；禁多判据并行。
@@ -25,7 +26,7 @@
 - 🔴 用户提示常含答案：「A可B不可」⇒病根在两分支差异。「还是之前的坑」=方案选错。
 
 ## 静默失败
-- 跳未注册页（grep `pages.json`）；目标页 onShow 自动跳转弹走（跳登录带 `manual=1`，来源 `utils/loginEntry.js`）；登录丢上下文（`redirect` 站内绝对路径，`safeRedirect()` 排 `//`）。
+- 跳未注册页（grep `pages.json`）；onShow 自动跳转弹走（跳登录带 `manual=1`，`utils/loginEntry.js`）；登录丢上下文（`redirect` 站内绝对路径，`safeRedirect()` 排 `//`）。
 - 「空白/没反应」先抓运行时异常：watch/computed 引用须在声明后（TDZ→白屏）。
 
 ## 构建与部署
@@ -35,9 +36,9 @@
 - H5 运行目录=`server/public/card`（build:mobile 同步 card+mall）；「不是最新包」curl 验 chunk size。safe-delete 拦 rm>50 → 先 mv /tmp。
 - 查库：`node:sqlite` + `server/data/panorama.db`（非 `server/src/data/` 旧库）。
 - 服务器：Lighthouse ap-guangzhou `lhins-bvw7p0gb`（TAT 禁 rm-rf/内外网 IP/域名入命令）。域名 zero.nshop.mobi 已 SSL；BT 面板 1.12.250.126:8888/tencentcloud。
-- 🔴 「进入客户」报错=数据非代码：新部署只有 admin、种子不建租户口；建号须关联 customer_id。
-- 🔴 服务器库同步（10-17 已做）：backup API 快照→保留服务器 admin 凭证、租户口重置 admin123→临时分支传文件（raw 慢，走 ghfast fetch）→停服+mv 备份→换库重启→删分支。
+- 🔴 「进入客户」报错=数据非代码：新部署只有 admin、种子不建租户口，建号须挂 customer_id。
+- 🔴 服务器库同步（10-17）：backup API 快照→留 admin 凭证、户口重置 admin123→ghfast 镜像传文件→停服换库。
 
 ## 杂项
-- schema 说明是 `tips` 复数；新测试先确认 vitest include；macOS grep 用 `-E`；CSS token 源 `styles/token.scss`。
+- schema 说明是 `tips` 复数；新测试确认 vitest include；macOS grep 用 `-E`；CSS token 源 token.scss。
 - 集市两套状态：开关=`card_market_items`、is_public=可见性派生；单一来源 `utils/marketLink.js`。超级表单见 refs/decoration-form.md。
