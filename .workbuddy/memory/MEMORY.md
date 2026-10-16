@@ -10,14 +10,14 @@
 
 ## 真机与跨端
 - H5 正常≠MP 正常，按序查：① 父 wxss 穿不透子组件根(`:deep()` 也不行)→传 prop 出内联；② MP 无 atob/Buffer→`uni.base64ToArrayBuffer`；③ 内联 font-family 含双引号→setStyle 整条丢弃；④ 明暗判据搞反。
-- 主题跟随：消费 `var(--design-` 的页面必绑 themeStyle（MP 内联下发）；强调色只用 `--design-primary`（`--primary` 是固定蓝、`--theme-tint` 无定义）；SIcon/canvas/showModal 等不吃 var()→喂真实 hex；补 marginLR 用 `??`；**画布对≠C端对**。
+- 主题跟随：消费 `var(--design-` 的页面必绑 themeStyle（MP 内联下发）；强调色只用 `--design-primary`（`--primary` 固定蓝）；SIcon/canvas/showModal 等不吃 var()→喂真实 hex；补 marginLR 用 `??`；**画布对≠C端对**。
 - MP 主包：构建后清 `static/{sicons,icons,sample,three}`（safe-delete 拦就 mv）。
-- API 基址单一来源 `utils/apiBase.js`：web-app/.env 配（VITE_MP_API_BASE 默认域名 / VITE_H5_API_BASE 默认空=同源），改后须重新构建。
+- API 基址单一来源 `utils/apiBase.js`：.env 配（VITE_MP_API_BASE 默认域名 / VITE_H5_API_BASE 空=同源），改后须重建；🔴 import.meta.env 直接访问，typeof 防御在 MP 被垫片成 require("url") 崩 app.js。
 
 ## 配色元规则
 - 🔴 明暗先问「判的是哪一块底」：坐品牌渐变→`--brand-hero-ink`；坐白卡/浅底→`--brand-ink`。唯一裁决口 `utils/templateTheme.js` 的 `heroForeground`（mixHex→luma>180→WCAG 校验，不合格自动回落）；禁多判据并行。
 - 品牌色三通道缺一即「一半蓝一半黄」：① 页面根合 `brandVars` ② JS 取色点喂 `brandPrimary` ③ themeColor 与 brandVars 同源。新页面必过 `brandCoverage.test.js`。品牌色覆盖模板配色、保留模板布局（勿把 templateTheme 排品牌前）。projects join 兜底默认项目。宫格例外（可自配）：四域默认色只落默认值。
-- 创建页 `createSkin.js`：浅色画布 #f6f7fb+顶部晕染+白卡；**v3.3（10-17）头部/按钮改纯主色**（渐变被否）；文字对色仍走 heroForeground 中值口径（灰区主色按纯色判误落白字）。
+- 创建页 `createSkin.js`：浅色画布 #f6f7fb+顶部晕染+白卡；**v3.3 头部/按钮改纯主色**（渐变被否）；文字对色仍走 heroForeground 中值口径（灰区主色按纯色判误落白字）。
 
 ## 几何与浮层
 - 越界浮层被裁→移出滚动容器+`.pe-tools-layer` JS 定位，勿靠容器 padding。
@@ -30,9 +30,9 @@
 - 「空白/没反应」先抓运行时异常：watch/computed 引用须在声明后（TDZ→白屏）。
 
 ## 构建与部署
-- 两个入口：dev `localhost:5173`｜生产 `localhost:3000/admin`（须重建）；用户说「没变」先确认他访问哪个。
+- 两个入口：dev `localhost:5173`｜生产 `localhost:3000/admin`；用户说「没变」先确认他访问哪个。
 - 部署：推 `deploy` 分支（含 `server/public/{admin,card,mall}` 产物+后端，force-add）→ 服务器 `/opt/app` git pull + `systemctl restart panorama`；DB 不在分支。
-- 🔴 构建顺序坑：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧、index.html 停留旧引用）；必须切 deploy 再 `npm run build:mobile`。
+- 🔴 构建顺序坑：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧）；必须切 deploy 再 `npm run build:mobile`。
 - H5 运行目录=`server/public/card`（build:mobile 同步 card+mall）；「不是最新包」curl 验 chunk size。safe-delete 拦 rm>50 → 先 mv /tmp。
 - 查库：`node:sqlite` + `server/data/panorama.db`（非 `server/src/data/` 旧库）。
 - 服务器：Lighthouse ap-guangzhou `lhins-bvw7p0gb`（TAT 禁 rm-rf/内外网 IP/域名入命令）。域名 zero.nshop.mobi 已 SSL；BT 面板 1.12.250.126:8888/tencentcloud。
