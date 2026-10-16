@@ -14,7 +14,7 @@
       <!-- 用户信息 -->
       <view class="user-row">
         <view class="user-line">
-          <image v-if="summary.selfAvatar" class="user-avatar" :src="summary.selfAvatar" mode="aspectFill" />
+          <image v-if="summary.selfAvatar && !selfAvatarError" class="user-avatar" :src="summary.selfAvatar" mode="aspectFill" @error="selfAvatarError = true" />
           <view v-else class="user-avatar placeholder">{{ (summary.selfName || '我')[0] }}</view>
           <view class="user-name">{{ summary.selfName || '我' }}</view>
           <view class="user-level">{{ summary.currentLevelName || summary.defaultLevel || '默认等级' }}</view>
@@ -131,7 +131,7 @@
         <view v-else-if="!subs.length" class="sub-empty">还没有通过你的名片带来的客户，多多分享名片即可获得客户</view>
         <view v-else class="sub-list">
           <view v-for="s in subs" :key="s.userId" class="sub-item" @click="goSubCard(s.userId)">
-            <image v-if="s.avatar" class="sub-avatar" :src="s.avatar" mode="aspectFill" />
+            <image v-if="s.avatar && !failedSubs.has(s.userId)" class="sub-avatar" :src="s.avatar" mode="aspectFill" @error="markSubFailed(s.userId)" />
             <view v-else class="sub-avatar placeholder">{{ (s.nickname || '客')[0] }}</view>
             <view class="sub-info">
               <view class="sub-name">{{ s.nickname }}<text v-if="s.paid" class="sub-paid">已付费</text></view>
@@ -301,7 +301,7 @@
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { heroGradient, brandPalette } from '../../utils/color.js';
@@ -330,6 +330,15 @@ const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(15
 const identity = ref('individual');
 const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });
+// 头像破图兜底（2026-10-16 真机报修「分销头像全黄」）：服务端 selfAvatar 常是非空但加载失败的外链
+// （DB 多为 EMPTY 或 aka.doubaocdn.com 破图），v-if="summary.selfAvatar" 因「非空」走 <image> 分支、
+// 破图后只剩 .user-avatar 的 rgba(255,255,255,0.25) 环压在黄色 hero 渐变上 ≈ 全黄。
+// 加 @error 回落到 v-else 白底首字母占位（与 profile.vue 同源）。
+const selfAvatarError = ref(false);
+watch(() => summary.value.selfAvatar, () => { selfAvatarError.value = false; });
+// 下线列表头像同样破图风险：每个 userId 独立标记
+const failedSubs = ref(new Set());
+function markSubFailed(id) { const n = new Set(failedSubs.value); n.add(id); failedSubs.value = n; }
 
 const showRules = ref(false);
 const showLevels = ref(false);
@@ -387,6 +396,7 @@ async function loadAll() {
 }
 
 async function loadSubs() {
+  failedSubs.value = new Set();
   if (summary.value.unbound) return;
   subLoading.value = true;
   try {

@@ -5,11 +5,11 @@
     <!-- 用户信息头部 -->
     <view class="header">
         <view class="user-info">
-          <image v-if="user.avatar" class="avatar-img" :src="user.avatar" mode="aspectFill" />
+          <image v-if="user.avatar && !avatarError" class="avatar-img" :src="user.avatar" mode="aspectFill" @error="avatarError = true" />
           <view v-else class="avatar">{{ user.nickname?.[0] || '用' }}</view>
           <view class="info">
             <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
-            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#b45309" /><text>{{ memberLevelText }}</text></view>
+            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#ffffff" /><text>{{ memberLevelText }}</text></view>
           </view>
           <view class="edit-btn" @click="openEdit">编辑</view>
         </view>
@@ -98,7 +98,7 @@
           @chooseavatar="onChooseAvatar"
           @click="h5ChooseAvatar"
         >
-          <image v-if="editForm.avatar" class="ac-img" :src="editForm.avatar" mode="aspectFill" />
+          <image v-if="editForm.avatar && !editAvatarError" class="ac-img" :src="editForm.avatar" mode="aspectFill" @error="editAvatarError = true" />
           <view v-else class="ac-img ac-ph">{{ user.nickname?.[0] || '用' }}</view>
           <view class="ac-tip">点击更换头像</view>
         </button>
@@ -125,7 +125,7 @@
 import { ICON_T2 } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
@@ -140,6 +140,11 @@ const themeStyle = useDesignTheme();
 const tabBarPad = useTabBarPadding();
 const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 const user = ref({});
+// 头像破图兜底：服务端返回的 avatar 常是非空但加载失败的外链（DB 多为 EMPTY 或 aka.doubaocdn.com 破图），
+// 若只判 v-if="user.avatar" 会因「非空」而走 <image> 分支、破图后只剩底色、首字母永远不渲染。
+// 加 @error 回落到 v-else 首字母占位（与分销中心 user-avatar 同源处理，2026-10-16 真机报修「头像全黄/无字」）。
+const avatarError = ref(false);
+watch(() => user.value && user.value.avatar, () => { avatarError.value = false; });
 const isMember = ref(false);
 const memberLevel = ref('free');
 const stats = ref({ cardCount: 0, visitorCount: 0, customerCount: 0, exchangeCount: 0 });
@@ -173,6 +178,9 @@ function goPage(path) {
 const showEdit = ref(false);
 const saving = ref(false);
 const editForm = ref({ nickname: '', avatar: '', avatarTemp: '' });
+// 编辑资料弹层头像同样存在破图风险（editForm.avatar 可能承接破图外链）→ 兜底回落首字母
+const editAvatarError = ref(false);
+watch(() => editForm.value && editForm.value.avatar, () => { editAvatarError.value = false; });
 
 function openEdit() {
   editForm.value = { nickname: user.value.nickname || '', avatar: user.value.avatar || '', avatarTemp: '' };
@@ -292,21 +300,21 @@ function logout() {
   color: var(--white);
   margin-bottom: 8rpx;
 }
-/* 会员等级徽章（2026-10-16 二次修）：头部背景是主题色渐变（随租户可变黄/蓝/绿），
-   首版「金渐变底+深棕字」压金黄色头部时同系相融——外框消失、圆内对勾看不见
-   （用户反馈「圆形图标里的字没显示、外框不明显」）。
-   改白底胶囊＋同系细边框：任何主题色头部上都清晰；深棕字 #7a4b00 白底上 8:1+；
-   图标琥珀金 #b45309（白底 4.6:1，圆环+对勾清晰可辨）。crown 字形勿改（会员徽章
-   圆环对勾是 v5 定稿，见 SIcon.vue crown 注释）。 */
+/* 会员等级徽章（2026-10-16 三修）：头部其余药丸（.edit-btn / .user-level）都是
+   frosted 半透明白（rgba(255,255,255,0.2) + 白字 + 32rpx 圆角）。第二版改成的
+   实心白胶囊（0.95 不透明＋深棕字＋边框）虽然可读，但与头部整体「磨砂玻璃」风格不搭
+   （用户反馈「钻石不搭、跟总体样式不搭」）。
+   本版与 .edit-btn 完全同源：半透明白底＋白字＋白图标＋32rpx 圆角，坐进任意主题色
+   头部都一致。SIcon color 不吃 var()（MP 按 name-ffffff 烘焙 / H5 currentColor 回落
+   白），故显式 #ffffff。crown 字形勿改（会员徽章圆环对勾 v5 定稿）。 */
 .member-tag {
   display: inline-flex;
   align-items: center;
   gap: 6rpx;
-  background: rgba(255,255,255,0.95);
-  color: #7a4b00;
-  border: 2rpx solid rgba(122,75,0,0.28);
+  background: rgba(255,255,255,0.2);
+  color: var(--white);
   padding: 4rpx 16rpx;
-  border-radius: var(--radius-pill);
+  border-radius: 32rpx;
   font-size: var(--fs-1);
   font-weight: 600;
 }

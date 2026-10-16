@@ -111,21 +111,24 @@ describe('myCard：品牌渐变头像的首字母由 avatarStyle 一并给出', 
   });
 });
 
-describe('会员等级徽章（白底胶囊）前景可读', () => {
-  test('.member-tag 深棕前景＋白底，禁止金渐变底（压同系头部会相融）', () => {
+describe('会员等级徽章（frosted 半透白药丸，与头部 edit-btn/user-level 同源）', () => {
+  test('.member-tag 走 frosted 半透白 + 白字白图标，与头部其它药丸同源（不搭的实心白胶囊已淘汰）', () => {
     const s = src('./profile.vue');
     const block = ruleBlock(s, '.member-tag');
-    expect(block).toContain('color: #7a4b00');
-    expect(block).not.toContain('color: #fff');
-    // 🔴 2026-10-16 二次修：金渐变底（#ffd700~#ffaa00）压金黄色主题头部同系相融，
-    //    外框消失、圆内对勾不可见（用户反馈）→ 白底胶囊。禁止回退金渐变底。
+    // 与 .edit-btn / .user-level 完全同源：半透明白底 + 白字 + 32rpx 圆角 + 无边框
+    expect(block, '.member-tag 规则块应存在').not.toBe('');
+    expect(block).toContain('background: rgba(255,255,255,0.2)');
+    expect(block).toContain('color: var(--white)');
+    expect(block).toContain('border-radius: 32rpx');
+    expect(block).not.toContain('border:');
+    // 🔴 2026-10-16 三修：首轮实心白胶囊（0.95 不透明 + 深棕字 #7a4b00 + 边框）与头部
+    //    frosted 风格不搭（用户反馈「钻石不搭、跟总体样式不搭」）→ 已淘汰，禁止回退
+    expect(block).not.toContain('rgba(255,255,255,0.95)');
+    expect(block).not.toContain('#7a4b00');
     expect(block).not.toMatch(/linear-gradient/);
-    expect(block).toContain('border:');
-    // 图标改琥珀金 #b45309（白底 4.6:1），圆环+对勾清晰；勿用 #faad14（白底仅 2.1:1）
-    expect(s).toContain('color="#b45309"');
-    expect(s).not.toContain('color="#faad14"');
-    // 数值校验：深棕前景在白底上对比度
-    expect(contrastOn('#7a4b00', '#ffffff')).toBeGreaterThanOrEqual(3);
+    // 图标白：SIcon color 不吃 var()（MP 按 name-ffffff 烘焙 / H5 currentColor 回落白）→ 显式 #ffffff
+    expect(s).toContain('color="#ffffff"');
+    expect(s).not.toContain('color="#b45309"');
   });
 });
 
