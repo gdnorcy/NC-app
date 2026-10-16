@@ -176,7 +176,7 @@ async function addCustomer() {
   margin-bottom: 8rpx;
 }
 .subtitle {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: rgba(255,255,255,0.8);
 }
 .toolbar {
@@ -192,12 +192,12 @@ async function addCustomer() {
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
 }
 .search-icon {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   margin-right: 12rpx;
 }
 .search-input {
   flex: 1;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t1);
 }
 .ph { color: var(--border); }
@@ -214,7 +214,7 @@ async function addCustomer() {
   padding: 12rpx 28rpx;
   background: var(--white);
   border-radius: 32rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t2);
   white-space: nowrap;
 }
@@ -246,7 +246,7 @@ async function addCustomer() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   font-weight: 600;
   margin-right: 20rpx;
 }
@@ -261,9 +261,9 @@ async function addCustomer() {
   margin-bottom: 8rpx;
 }
 .status-tag {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   padding: 4rpx 12rpx;
-  border-radius: 8rpx;
+  border-radius: var(--radius-sm);
 }
 .status-tag.pending { background: #fff7e6; color: var(--brand-orange); }
 .status-tag.following { background: #e8f3ff; color: var(--primary); }
@@ -276,7 +276,7 @@ async function addCustomer() {
   border-radius: 50%;
 }
 .customer-meta {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t3);
   display: flex;
   align-items: center;
@@ -286,14 +286,14 @@ async function addCustomer() {
 .dot { color: var(--border); }
 .customer-tags { display: flex; gap: 8rpx; }
 .mini-tag {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   padding: 4rpx 12rpx;
   background: var(--bg-hover);
   color: var(--t3);
   border-radius: 6rpx;
 }
 .customer-arrow {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   color: var(--border);
 }
 .empty-state {
@@ -301,8 +301,8 @@ async function addCustomer() {
   padding: 120rpx 0;
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
-.empty-text { font-size: 28rpx; color: var(--t2); margin-bottom: 8rpx; }
-.empty-hint { font-size: 24rpx; color: var(--t3); }
+.empty-text { font-size: var(--fs-5); color: var(--t2); margin-bottom: 8rpx; }
+.empty-hint { font-size: var(--fs-3); color: var(--t3); }
 .fab {
   position: fixed;
   right: 32rpx;
@@ -342,17 +342,17 @@ async function addCustomer() {
   padding: 32rpx;
   border-bottom: 1px solid var(--bg-hover);
 }
-.sheet-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
-.sheet-close { font-size: 32rpx; color: var(--t3); }
+.sheet-title { font-size: var(--fs-6); font-weight: 600; color: var(--t1); }
+.sheet-close { font-size: var(--fs-6); color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .form-item { margin-bottom: 28rpx; }
-.form-label { font-size: 26rpx; color: var(--t2); margin-bottom: 12rpx; }
+.form-label { font-size: var(--fs-4); color: var(--t2); margin-bottom: 12rpx; }
 .form-input {
   height: 80rpx;
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   padding: 0 24rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t1);
 }
 .sheet-footer { padding: 0 32rpx 36px; }

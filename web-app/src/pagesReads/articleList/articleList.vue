@@ -112,7 +112,7 @@ function goBack() { uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/
 .cate-tab { display: inline-block; padding: 6px 14px; margin: 0 4px; font-size: 13px; color: var(--t2); background: var(--bg-card); border-radius: 16px; }
 .cate-tab.on { color: var(--primary); background: #e8f3ff; font-weight: 500; }
 .list { padding: 12px; }
-.art-card { display: flex; background: var(--white); border-radius: 8px; margin-bottom: 12px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.art-card { display: flex; background: var(--white); border-radius: var(--radius-sm); margin-bottom: 12px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .art-thumb { width: 96px; height: 72px; border-radius: 6px; flex-shrink: 0; }
 .art-thumb-empty { background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 12px; }
 .art-info { flex: 1; margin-left: 10px; overflow: hidden; }

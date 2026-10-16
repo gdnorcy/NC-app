@@ -120,7 +120,7 @@ export default {
 }
 .plan-card {
   background: var(--white);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }

@@ -31,12 +31,12 @@ export default {
   display: flex;
   padding: 24rpx;
   background: var(--white);
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
 }
 .sk-avatar {
   width: 96rpx;
   height: 96rpx;
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
   background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-card) 37%, var(--bg-hover) 63%);
   background-size: 400% 100%;
@@ -51,7 +51,7 @@ export default {
   height: 32rpx;
   width: 40%;
   margin-bottom: 20rpx;
-  border-radius: 8rpx;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-card) 37%, var(--bg-hover) 63%);
   background-size: 400% 100%;
   animation: sk-shine 1.4s ease infinite;
@@ -59,7 +59,7 @@ export default {
 .sk-line {
   height: 28rpx;
   margin-top: 16rpx;
-  border-radius: 8rpx;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-card) 37%, var(--bg-hover) 63%);
   background-size: 400% 100%;
   animation: sk-shine 1.4s ease infinite;

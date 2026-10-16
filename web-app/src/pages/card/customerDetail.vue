@@ -170,21 +170,21 @@ async function addFollow() {
 }
 .info { flex: 1; }
 .name {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   font-weight: 700;
   color: var(--white);
   margin-bottom: 6rpx;
 }
 .meta {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: rgba(255,255,255,0.8);
 }
 .status-tag {
   background: rgba(255,255,255,0.2);
   color: var(--white);
   padding: 8rpx 20rpx;
-  border-radius: 24rpx;
-  font-size: 22rpx;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-2);
 }
 .section {
   margin: 24rpx;
@@ -200,14 +200,14 @@ async function addFollow() {
   margin-bottom: 20rpx;
 }
 .section-title {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t1);
   margin-bottom: 20rpx;
 }
 .section-header .section-title { margin-bottom: 0; }
 .add-btn {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--brand-orange);
 }
 .info-row {
@@ -219,16 +219,16 @@ async function addFollow() {
 }
 .info-row:last-child { border-bottom: none; }
 .info-label {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t3);
 }
 .info-value {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t1);
 }
 .tags { display: flex; gap: 8rpx; flex-wrap: wrap; }
 .tag {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   padding: 4rpx 12rpx;
   background: #fff7e6;
   color: var(--brand-orange);
@@ -250,19 +250,19 @@ async function addFollow() {
   flex-shrink: 0;
 }
 .follow-text {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t1);
   margin-bottom: 6rpx;
   line-height: 1.6;
 }
 .follow-time {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--border);
 }
 .empty {
   text-align: center;
   padding: 40rpx 0;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t3);
 }
 .footer {
@@ -303,29 +303,29 @@ async function addFollow() {
   padding: 32rpx;
   border-bottom: 1px solid var(--bg-hover);
 }
-.sheet-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
-.sheet-close { font-size: 32rpx; color: var(--t3); }
+.sheet-title { font-size: var(--fs-6); font-weight: 600; color: var(--t1); }
+.sheet-close { font-size: var(--fs-6); color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .follow-input {
   width: 100%;
   height: 200rpx;
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   padding: 20rpx 24rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   box-sizing: border-box;
   margin-bottom: 24rpx;
 }
 .ph { color: var(--border); }
 .form-item { margin-bottom: 20rpx; }
-.form-label { font-size: 26rpx; color: var(--t2); margin-bottom: 12rpx; }
+.form-label { font-size: var(--fs-4); color: var(--t2); margin-bottom: 12rpx; }
 .picker-value {
   height: 80rpx;
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   padding: 0 24rpx;
   line-height: 80rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t1);
 }
 .sheet-footer { padding: 0 32rpx 36px; }

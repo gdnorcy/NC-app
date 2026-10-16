@@ -202,15 +202,15 @@ onShow(() => {
 .order-scroll { flex: 1; height: 0; }
 .order-list { padding: 16rpx; }
 .order-card {
-  background: var(--white); border-radius: 16rpx; padding: 20rpx;
+  background: var(--white); border-radius: var(--radius-md); padding: 20rpx;
   margin-bottom: 16rpx;
 }
 .order-head {
   display: flex; align-items: center; justify-content: space-between;
   padding-bottom: 16rpx; border-bottom: 1rpx solid var(--bg-hover);
 }
-.order-no { font-size: 24rpx; color: var(--decor); }
-.order-status { font-size: 26rpx; font-weight: 500; }
+.order-no { font-size: var(--fs-3); color: var(--decor); }
+.order-status { font-size: var(--fs-4); font-weight: 500; }
 .st-pending { color: var(--danger); }
 .st-paid { color: var(--brand-orange); }
 .st-shipped { color: var(--primary); }
@@ -223,28 +223,28 @@ onShow(() => {
 .goods-img { width: 110rpx; height: 110rpx; border-radius: 10rpx; background: var(--bg-hover); flex-shrink: 0; }
 .goods-info { flex: 1; margin-left: 14rpx; min-width: 0; }
 .goods-title {
-  font-size: 28rpx; color: var(--t1); display: block;
+  font-size: var(--fs-5); color: var(--t1); display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .goods-spec {
   display: inline-block; margin-top: 6rpx; padding: 2rpx 10rpx;
-  background: var(--bg-hover); border-radius: 6rpx; font-size: 20rpx; color: var(--decor);
+  background: var(--bg-hover); border-radius: 6rpx; font-size: var(--fs-1); color: var(--decor);
 }
 .goods-right { text-align: right; }
 .goods-price { display: flex; align-items: baseline; justify-content: flex-end; }
-.price-symbol { font-size: 20rpx; color: var(--danger); }
-.price-num { font-size: 28rpx; font-weight: 600; color: var(--danger); }
-.goods-qty { font-size: 22rpx; color: var(--decor); }
+.price-symbol { font-size: var(--fs-1); color: var(--danger); }
+.price-num { font-size: var(--fs-5); font-weight: 600; color: var(--danger); }
+.goods-qty { font-size: var(--fs-2); color: var(--decor); }
 .order-foot {
   display: flex; align-items: center; justify-content: space-between;
   padding-top: 16rpx; border-top: 1rpx solid var(--bg-hover);
 }
-.order-time { font-size: 22rpx; color: var(--border); }
-.order-amount { font-size: 24rpx; color: var(--t2); }
+.order-time { font-size: var(--fs-2); color: var(--border); }
+.order-amount { font-size: var(--fs-3); color: var(--t2); }
 .amount-num { font-size: 30rpx; font-weight: 600; color: var(--danger); }
 .order-actions { display: flex; justify-content: flex-end; padding-top: 16rpx; }
 .mini-btn {
-  padding: 10rpx 32rpx; border-radius: 30rpx; font-size: 26rpx; margin-left: 16rpx;
+  padding: 10rpx 32rpx; border-radius: 30rpx; font-size: var(--fs-4); margin-left: 16rpx;
 }
 .mini-btn.cancel { border: 1rpx solid var(--border); color: var(--t2); }
 .mini-btn.pay { background: var(--design-primary); color: var(--design-text, #fff); }
@@ -256,6 +256,6 @@ onShow(() => {
   width: 140rpx; height: 140rpx; border-radius: 28rpx; background: var(--bg-hover);
   display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx;
 }
-.empty-text { font-size: 26rpx; color: var(--decor); }
-.load-more { text-align: center; padding: 24rpx 0 40rpx; font-size: 24rpx; color: var(--border); }
+.empty-text { font-size: var(--fs-4); color: var(--decor); }
+.load-more { text-align: center; padding: 24rpx 0 40rpx; font-size: var(--fs-3); color: var(--border); }
 </style>

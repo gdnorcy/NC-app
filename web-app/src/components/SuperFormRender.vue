@@ -1824,12 +1824,12 @@ async function submit() {
 .sf-video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 48px; height: 48px; line-height: 48px; text-align: center; background: rgba(0, 0, 0, 0.5); border-radius: 50%; color: var(--white); font-size: 20px; }
 /* 弹层（协议正文 / 视频弹出） */
 .sf-mask { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.55); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
-.sf-modal { width: 100%; max-width: 480px; max-height: 76vh; background: var(--white); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+.sf-modal { width: 100%; max-width: 480px; max-height: 76vh; background: var(--white); border-radius: var(--radius-xs); display: flex; flex-direction: column; overflow: hidden; }
 .sf-modal-title { font-size: 16px; font-weight: 600; padding: 16px; border-bottom: 1px solid #f0f0f0; }
 .sf-modal-body { flex: 1; padding: 16px; font-size: 14px; line-height: 1.7; color: #303133; white-space: pre-wrap; }
 .sf-modal-btn { padding: 14px; text-align: center; color: var(--white); background: var(--c-active-color, #2667EC); font-size: 15px; }
 .sf-video-modal { background: transparent; max-width: 560px; }
-.sf-video-pop-el { width: 100%; border-radius: 8px; }
+.sf-video-pop-el { width: 100%; border-radius: var(--radius-sm); }
 
 /* ---- 内嵌模式（装修组件内）覆盖 ----
    page 模式：整页灰底 + 16px 外边距，组件自成一卡

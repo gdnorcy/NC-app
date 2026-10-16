@@ -93,7 +93,7 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 .cate-tab { display: inline-block; padding: 6px 14px; margin: 0 4px; font-size: 13px; color: var(--t2); background: var(--bg-card); border-radius: 16px; }
 .cate-tab.on { color: var(--primary); background: #e8f3ff; font-weight: 500; }
 .list { padding: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; }
-.pic-card { width: calc(50% - 6px); background: var(--white); border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.pic-card { width: calc(50% - 6px); background: var(--white); border-radius: var(--radius-sm); margin-bottom: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .pic-thumb { width: 100%; height: 160px; }
 .pic-thumb-empty { background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 12px; }
 .pic-info { padding: 10px; }

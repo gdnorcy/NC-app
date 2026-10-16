@@ -170,12 +170,12 @@ async function doLogin(code) {
   margin-bottom: 16rpx;
 }
 .subtitle {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: rgba(255,255,255,0.9);
   margin-bottom: 12rpx;
 }
 .slogan {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: rgba(255,255,255,0.7);
   margin-bottom: 80rpx;
 }
@@ -185,7 +185,7 @@ async function doLogin(code) {
   border-radius: 48rpx;
   height: 96rpx;
   line-height: 96rpx;
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -194,10 +194,10 @@ async function doLogin(code) {
   margin-bottom: 40rpx;
 }
 .wx-icon {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
 }
 .tips {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: rgba(255,255,255,0.6);
 }
 .link {

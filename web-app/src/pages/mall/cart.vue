@@ -201,7 +201,7 @@ onShow(() => {
   box-sizing: border-box;
 }
 /* PageNav 右侧插槽的「清空」文字按钮 */
-.nav-clear { font-size: 26rpx; color: var(--t2); padding: 8rpx; }
+.nav-clear { font-size: var(--fs-4); color: var(--t2); padding: 8rpx; }
 .cart-item.off { opacity: 0.6; }
 .check {
   width: 36rpx; height: 36rpx; border-radius: 50%;
@@ -219,35 +219,35 @@ onShow(() => {
   border-right: 3rpx solid var(--white); border-bottom: 3rpx solid var(--white);
   transform: rotate(45deg);
 }
-.item-img { width: 160rpx; height: 160rpx; border-radius: 12rpx; background: var(--bg-hover); flex-shrink: 0; }
+.item-img { width: 160rpx; height: 160rpx; border-radius: var(--radius-xs); background: var(--bg-hover); flex-shrink: 0; }
 .item-info { flex: 1; margin-left: 16rpx; min-width: 0; }
 .item-title {
-  font-size: 28rpx; color: var(--t1); display: block;
+  font-size: var(--fs-5); color: var(--t1); display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .item-spec {
   display: inline-block; margin-top: 8rpx; padding: 4rpx 12rpx;
-  background: var(--bg-hover); border-radius: 8rpx; font-size: 22rpx; color: var(--decor);
+  background: var(--bg-hover); border-radius: var(--radius-sm); font-size: var(--fs-2); color: var(--decor);
 }
 .item-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; }
 .item-price { display: flex; align-items: baseline; }
-.price-symbol { font-size: 22rpx; color: var(--danger); }
-.price-num { font-size: 32rpx; font-weight: 600; color: var(--danger); }
+.price-symbol { font-size: var(--fs-2); color: var(--danger); }
+.price-num { font-size: var(--fs-6); font-weight: 600; color: var(--danger); }
 .num-stepper { display: flex; align-items: center; }
 .step-btn {
-  width: 48rpx; height: 48rpx; border-radius: 8rpx; background: var(--bg-hover);
-  color: var(--t1); font-size: 28rpx; display: flex; align-items: center; justify-content: center;
+  width: 48rpx; height: 48rpx; border-radius: var(--radius-sm); background: var(--bg-hover);
+  color: var(--t1); font-size: var(--fs-5); display: flex; align-items: center; justify-content: center;
 }
-.step-num { min-width: 60rpx; text-align: center; font-size: 26rpx; }
+.step-num { min-width: 60rpx; text-align: center; font-size: var(--fs-4); }
 .item-off-tag {
   position: absolute; right: 16rpx; top: 16rpx;
-  background: rgba(0,0,0,0.5); color: var(--white); font-size: 20rpx;
-  padding: 4rpx 12rpx; border-radius: 8rpx;
+  background: rgba(0,0,0,0.5); color: var(--white); font-size: var(--fs-1);
+  padding: 4rpx 12rpx; border-radius: var(--radius-sm);
 }
 .item-del {
   position: absolute; right: 10rpx; top: 10rpx;
   width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center;
-  color: var(--border); font-size: 26rpx; z-index: 2;
+  color: var(--border); font-size: var(--fs-4); z-index: 2;
 }
 .empty-box {
   padding: 180rpx 0;
@@ -257,23 +257,23 @@ onShow(() => {
   width: 140rpx; height: 140rpx; border-radius: 28rpx; background: var(--bg-hover);
   display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx;
 }
-.empty-text { font-size: 26rpx; color: var(--decor); margin-bottom: 32rpx; }
+.empty-text { font-size: var(--fs-4); color: var(--decor); margin-bottom: 32rpx; }
 .empty-btn {
   padding: 16rpx 56rpx; border-radius: 40rpx; background: var(--design-primary);
-  color: var(--design-text, #fff); font-size: 28rpx;
+  color: var(--design-text, #fff); font-size: var(--fs-5);
 }
 .settle-bar {
   display: flex; align-items: center;
   background: var(--white); padding: 16rpx 24rpx;
   border-top: 1rpx solid var(--bg-hover);
 }
-.check-all { display: flex; align-items: center; font-size: 26rpx; color: var(--t2); }
+.check-all { display: flex; align-items: center; font-size: var(--fs-4); color: var(--t2); }
 .total { margin-left: auto; display: flex; align-items: baseline; margin-right: 24rpx; }
-.total-label { font-size: 24rpx; color: var(--t2); }
-.total-num { font-size: 36rpx; font-weight: 600; color: var(--danger); }
+.total-label { font-size: var(--fs-3); color: var(--t2); }
+.total-num { font-size: var(--fs-7); font-weight: 600; color: var(--danger); }
 .settle-btn {
   padding: 0 48rpx; height: 76rpx; line-height: 76rpx;
-  background: var(--design-primary); color: var(--design-text, #fff); border-radius: 38rpx; font-size: 28rpx; font-weight: 500;
+  background: var(--design-primary); color: var(--design-text, #fff); border-radius: 38rpx; font-size: var(--fs-5); font-weight: 500;
 }
 .settle-btn.disabled { opacity: 0.5; }
 </style>

@@ -69,13 +69,13 @@ function formatTime(time) {
   padding: 88px 32rpx 40rpx;
 }
 .title {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   font-weight: 700;
   color: var(--white);
   margin-bottom: 8rpx;
 }
 .subtitle {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: rgba(255,255,255,0.8);
 }
 .timeline {
@@ -115,18 +115,18 @@ function formatTime(time) {
 }
 .timeline-content { flex: 1; }
 .action-title {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 500;
   color: var(--t1);
   margin-bottom: 6rpx;
 }
 .action-detail {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t3);
   margin-bottom: 6rpx;
 }
 .action-time {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--border);
 }
 .empty-state {
@@ -134,5 +134,5 @@ function formatTime(time) {
   padding: 120rpx 0;
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
-.empty-text { font-size: 28rpx; color: var(--t3); }
+.empty-text { font-size: var(--fs-5); color: var(--t3); }
 </style>

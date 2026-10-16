@@ -175,48 +175,48 @@ function goBack() {
 <style scoped>
 .rc-page { min-height: 100vh; background: var(--bg-page); padding-bottom: 80rpx; }
 /* PageNav 右侧插槽的「刷新」文字按钮 */
-.mn-clear { font-size: 28rpx; color: var(--t3); }
+.mn-clear { font-size: var(--fs-5); color: var(--t3); }
 /* 内容卡片（曾被 clean-obsolete-navcss 误删，导致整页失去卡片容器样式） */
 .rc-card {
-  background: var(--bg-card); border-radius: 24rpx; padding: 28rpx;
+  background: var(--bg-card); border-radius: var(--radius-lg); padding: 28rpx;
   margin: 20rpx 28rpx; border: 1px solid var(--border);
 }
 .rc-head { font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .rc-pad { padding: 12rpx 0 8rpx; }
-.rc-desc { font-size: 24rpx; color: var(--t3); }
-.rc-sub { font-size: 22rpx; color: var(--border-strong); margin-top: 12rpx; }
+.rc-desc { font-size: var(--fs-3); color: var(--t3); }
+.rc-sub { font-size: var(--fs-2); color: var(--border-strong); margin-top: 12rpx; }
 .rc-row {
   display: flex; align-items: center; justify-content: space-between;
   gap: 20rpx; margin-top: 20rpx;
 }
 .rc-row-main { flex: 1; min-width: 0; }
-.rc-name { font-size: 28rpx; color: var(--t1); }
+.rc-name { font-size: var(--fs-5); color: var(--t1); }
 .rc-row-main .rc-desc { margin-top: 6rpx; }
 .rc-btn {
-  font-size: 24rpx; color: var(--t3);
-  background: var(--bg-hover); border-radius: 999rpx; padding: 12rpx 28rpx;
+  font-size: var(--fs-3); color: var(--t3);
+  background: var(--bg-hover); border-radius: var(--radius-pill); padding: 12rpx 28rpx;
   flex-shrink: 0;
 }
 .rc-btn.on { color: var(--success); background: rgba(7, 193, 96, 0.1); }
 .rc-btn.main { color: var(--white); background: var(--success); text-align: center; margin-top: 16rpx; }
 .rc-group { margin-top: 24rpx; border-top: 1px solid var(--bg-hover); padding-top: 20rpx; }
-.rc-group-t { font-size: 26rpx; font-weight: 600; color: var(--t2); margin-bottom: 12rpx; }
-.rc-imp { font-size: 22rpx; color: #ff8800; font-weight: 400; }
+.rc-group-t { font-size: var(--fs-4); font-weight: 600; color: var(--t2); margin-bottom: 12rpx; }
+.rc-imp { font-size: var(--fs-2); color: #ff8800; font-weight: 400; }
 .rc-word {
-  font-size: 24rpx; color: var(--t2); background: var(--bg-card);
-  border-radius: 12rpx; padding: 14rpx 18rpx; margin-bottom: 10rpx; line-height: 1.5;
+  font-size: var(--fs-3); color: var(--t2); background: var(--bg-card);
+  border-radius: var(--radius-xs); padding: 14rpx 18rpx; margin-bottom: 10rpx; line-height: 1.5;
 }
 .rc-word.empty { color: var(--border-strong); background: none; }
 .rc-word-t { display: block; }
-.rc-word-time { font-size: 20rpx; color: var(--t3); }
+.rc-word-time { font-size: var(--fs-1); color: var(--t3); }
 .rc-add { margin-top: 24rpx; border-top: 1px solid var(--bg-hover); padding-top: 20rpx; }
 .rc-pick {
-  font-size: 26rpx; color: var(--t1); background: var(--bg-card);
-  border-radius: 12rpx; padding: 16rpx 20rpx; margin-bottom: 14rpx;
+  font-size: var(--fs-4); color: var(--t1); background: var(--bg-card);
+  border-radius: var(--radius-xs); padding: 16rpx 20rpx; margin-bottom: 14rpx;
 }
 .rc-ta {
-  width: 100%; box-sizing: border-box; font-size: 26rpx; color: var(--t1);
-  background: var(--bg-card); border-radius: 12rpx; padding: 16rpx 20rpx; min-height: 100rpx;
+  width: 100%; box-sizing: border-box; font-size: var(--fs-4); color: var(--t1);
+  background: var(--bg-card); border-radius: var(--radius-xs); padding: 16rpx 20rpx; min-height: 100rpx;
 }
 .rc-share { margin-top: 20rpx; }
 .rc-share-item {
@@ -229,7 +229,7 @@ function goBack() {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .rs-body { flex: 1; min-width: 0; }
-.rs-t { font-size: 28rpx; color: var(--t1); }
-.rs-s { font-size: 22rpx; color: var(--t3); margin-top: 6rpx; }
-.rc-share.empty { font-size: 24rpx; color: var(--border-strong); text-align: center; padding: 24rpx 0; }
+.rs-t { font-size: var(--fs-5); color: var(--t1); }
+.rs-s { font-size: var(--fs-2); color: var(--t3); margin-top: 6rpx; }
+.rc-share.empty { font-size: var(--fs-3); color: var(--border-strong); text-align: center; padding: 24rpx 0; }
 </style>

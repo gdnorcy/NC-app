@@ -203,8 +203,8 @@ export default {
 .dnew-img-45 { width: 45px; height: 45px; }
 .dnew-img-96 { width: 96px; height: 30px; }
 .dnew-store { display: flex; align-items: center; gap: 6rpx; }
-.dnew-store-name { font-size: 24rpx; white-space: nowrap; }
-.dnew-city-text { font-size: 24rpx; white-space: nowrap; }
+.dnew-store-name { font-size: var(--fs-3); white-space: nowrap; }
+.dnew-city-text { font-size: var(--fs-3); white-space: nowrap; }
 .dnew-search {
   display: flex;
   align-items: center;
@@ -215,12 +215,12 @@ export default {
   box-sizing: border-box;
   width: 100%;
 }
-.dnew-search-txt { font-size: 24rpx; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.dnew-search-txt { font-size: var(--fs-3); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
 .dnew-search-btn {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   line-height: 1.2;
   padding: 0 24rpx;
-  border-radius: 8rpx;
+  border-radius: var(--radius-sm);
   height: 56rpx;
   display: inline-flex;
   align-items: center;

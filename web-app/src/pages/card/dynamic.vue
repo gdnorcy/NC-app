@@ -117,7 +117,7 @@ async function publish() {
   align-items: center;
 }
 .title {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   font-weight: 700;
   color: var(--white);
 }
@@ -126,7 +126,7 @@ async function publish() {
   color: var(--white);
   padding: 12rpx 28rpx;
   border-radius: 32rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
 }
 .dynamic-list {
   padding: 24rpx;
@@ -155,29 +155,29 @@ async function publish() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   margin-right: 16rpx;
 }
 .dynamic-info { flex: 1; }
 .dynamic-name {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t1);
   margin-bottom: 4rpx;
 }
 .dynamic-time {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--border);
 }
 .visibility-tag {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   color: var(--t3);
   background: var(--bg-hover);
   padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+  border-radius: var(--radius-sm);
 }
 .dynamic-content {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t1);
   line-height: 1.7;
   margin-bottom: 16rpx;
@@ -190,15 +190,15 @@ async function publish() {
 .dynamic-img {
   width: 100%;
   height: 180rpx;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 .empty-state {
   text-align: center;
   padding: 120rpx 0;
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
-.empty-text { font-size: 28rpx; color: var(--t2); margin-bottom: 8rpx; }
-.empty-hint { font-size: 24rpx; color: var(--t3); }
+.empty-text { font-size: var(--fs-5); color: var(--t2); margin-bottom: 8rpx; }
+.empty-hint { font-size: var(--fs-3); color: var(--t3); }
 .modal-mask {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -219,22 +219,22 @@ async function publish() {
   padding: 32rpx;
   border-bottom: 1px solid var(--bg-hover);
 }
-.sheet-title { font-size: 32rpx; font-weight: 600; color: var(--t1); }
-.sheet-close { font-size: 32rpx; color: var(--t3); }
+.sheet-title { font-size: var(--fs-6); font-weight: 600; color: var(--t1); }
+.sheet-close { font-size: var(--fs-6); color: var(--t3); }
 .sheet-body { padding: 32rpx; }
 .publish-input {
   width: 100%;
   height: 240rpx;
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   padding: 20rpx 24rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   box-sizing: border-box;
   margin-bottom: 24rpx;
 }
 .ph { color: var(--border); }
 .form-item { margin-bottom: 20rpx; }
-.form-label { font-size: 26rpx; color: var(--t2); margin-bottom: 12rpx; }
+.form-label { font-size: var(--fs-4); color: var(--t2); margin-bottom: 12rpx; }
 .visibility-options {
   display: flex;
   gap: 16rpx;
@@ -244,8 +244,8 @@ async function publish() {
   text-align: center;
   padding: 20rpx;
   background: var(--bg-card);
-  border-radius: 12px;
-  font-size: 26rpx;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-4);
   color: var(--t2);
   border: 2px solid transparent;
 }

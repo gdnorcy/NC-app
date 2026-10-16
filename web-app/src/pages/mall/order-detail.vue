@@ -202,51 +202,51 @@ onLoad((o) => {
 .hd-refunding { background: var(--brand-orange); }
 .hd-refunded { background: var(--decor); }
 .status-title { font-size: 38rpx; font-weight: 600; }
-.status-desc { font-size: 26rpx; margin-top: 8rpx; opacity: 0.85; }
+.status-desc { font-size: var(--fs-4); margin-top: 8rpx; opacity: 0.85; }
 .card-title { font-size: 30rpx; font-weight: 600; color: var(--t1); margin-bottom: 16rpx; }
 .info-row {
   display: flex; padding: 12rpx 0; align-items: flex-start;
 }
 .info-label {
-  width: 140rpx; font-size: 26rpx; color: var(--decor); flex-shrink: 0;
+  width: 140rpx; font-size: var(--fs-4); color: var(--decor); flex-shrink: 0;
 }
-.info-value { flex: 1; font-size: 26rpx; color: var(--t1); line-height: 1.5; word-break: break-all; }
+.info-value { flex: 1; font-size: var(--fs-4); color: var(--t1); line-height: 1.5; word-break: break-all; }
 .pickup-code { align-items: center; }
 .code-value {
-  font-size: 44rpx; font-weight: 700; color: var(--design-primary, #165dff); letter-spacing: 6rpx;
+  font-size: var(--fs-8); font-weight: 700; color: var(--design-primary, #165dff); letter-spacing: 6rpx;
 }
 .goods-item { display: flex; align-items: center; padding: 14rpx 0; }
 .goods-img { width: 110rpx; height: 110rpx; border-radius: 10rpx; background: var(--bg-hover); flex-shrink: 0; }
 .goods-info { flex: 1; margin-left: 14rpx; min-width: 0; }
 .goods-title {
-  font-size: 28rpx; color: var(--t1); display: block;
+  font-size: var(--fs-5); color: var(--t1); display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .goods-spec {
   display: inline-block; margin-top: 6rpx; padding: 2rpx 10rpx;
-  background: var(--bg-hover); border-radius: 6rpx; font-size: 20rpx; color: var(--decor);
+  background: var(--bg-hover); border-radius: 6rpx; font-size: var(--fs-1); color: var(--decor);
 }
 .goods-right { text-align: right; }
 .goods-price { display: flex; align-items: baseline; justify-content: flex-end; }
-.price-symbol { font-size: 20rpx; color: var(--danger); }
-.price-num { font-size: 28rpx; font-weight: 600; color: var(--danger); }
-.goods-qty { font-size: 22rpx; color: var(--decor); }
+.price-symbol { font-size: var(--fs-1); color: var(--danger); }
+.price-num { font-size: var(--fs-5); font-weight: 600; color: var(--danger); }
+.goods-qty { font-size: var(--fs-2); color: var(--decor); }
 .amount-row {
   display: flex; align-items: center; justify-content: space-between;
   padding-top: 16rpx; border-top: 1rpx solid var(--bg-hover);
 }
-.amount-label { font-size: 26rpx; color: var(--t2); }
+.amount-label { font-size: var(--fs-4); color: var(--t2); }
 .amount-val { display: flex; align-items: baseline; }
 .amount-num { font-size: 34rpx; font-weight: 600; color: var(--danger); }
 .bottom-space { height: 140rpx; }
 .empty-box { padding: 200rpx 0; text-align: center; }
-.empty-text { font-size: 28rpx; color: var(--border); }
+.empty-text { font-size: var(--fs-5); color: var(--border); }
 .action-bar {
   display: flex; justify-content: flex-end; padding: 16rpx 24rpx;
   background: var(--white); border-top: 1rpx solid var(--bg-hover);
 }
 .mini-btn {
-  padding: 14rpx 44rpx; border-radius: 34rpx; font-size: 28rpx; margin-left: 16rpx;
+  padding: 14rpx 44rpx; border-radius: 34rpx; font-size: var(--fs-5); margin-left: 16rpx;
 }
 .mini-btn.cancel { border: 1rpx solid var(--border); color: var(--t2); }
 .mini-btn.pay { background: var(--design-primary); color: var(--design-text, #fff); }

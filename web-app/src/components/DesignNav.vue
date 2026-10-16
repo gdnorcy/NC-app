@@ -248,7 +248,7 @@ export default {
   min-width: 0;
 }
 .dn-title-text { font-size: 34rpx; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.dn-text { font-size: 28rpx; line-height: 1; white-space: nowrap; }
+.dn-text { font-size: var(--fs-5); line-height: 1; white-space: nowrap; }
 .dn-img { width: 64rpx; height: 56rpx; }
 .dn-center-img { width: 200rpx; height: 52rpx; }
 .dn-search {
@@ -258,8 +258,8 @@ export default {
   border-radius: 26rpx;
   padding: 8rpx 20rpx;
 }
-.dn-search-ico { font-size: 24rpx; line-height: 1; }
-.dn-search-txt { font-size: 24rpx; line-height: 1.4; }
+.dn-search-ico { font-size: var(--fs-3); line-height: 1; }
+.dn-search-txt { font-size: var(--fs-3); line-height: 1.4; }
 .dn-icon-text { display: flex; align-items: center; gap: 8rpx; }
 .dn-ico-dot { font-size: 18rpx; line-height: 1; }
 </style>

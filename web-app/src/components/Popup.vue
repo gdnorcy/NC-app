@@ -84,7 +84,7 @@ export default {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%) scale(0.9);
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
   min-width: 560rpx;
   max-width: 86%;
 }

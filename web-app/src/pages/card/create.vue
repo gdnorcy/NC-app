@@ -642,7 +642,7 @@ async function syncMarketAfterSave(isPublic) {
 .apply-banner {
   margin: 16px 16px 0;
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   line-height: 1.6;
   color: var(--design-subtext, #165DFF);
@@ -659,14 +659,14 @@ async function syncMarketAfterSave(isPublic) {
 /* （cards-container 的顶部间隔已在基础样式统一为 24rpx，step/split 不再各写一份 ——
     曾 split 只给 8rpx、step 为 0，同一页面换步/换皮肤灰缝忽有忽无） */
 .skin-step .card {
-  border-radius: 24rpx;
+  border-radius: var(--radius-lg);
   padding: 40rpx 32rpx;
   min-height: 640rpx;
   box-shadow: 0 12rpx 40rpx rgba(0,0,0,0.08);
 }
 .skin-step .btn-primary {
   height: 104rpx;
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   border-radius: 28rpx;
   letter-spacing: 4rpx;
 }
@@ -674,7 +674,7 @@ async function syncMarketAfterSave(isPublic) {
 .skin-step .btn-skip { height: 104rpx; border-radius: 28rpx; }
 /* live：紧凑表单 */
 .skin-live .form-item { margin-top: 16rpx; }
-.skin-live .card-title { font-size: 28rpx; }
+.skin-live .card-title { font-size: var(--fs-5); }
 .create-page {
   min-height: 100vh;
   box-sizing: border-box;
@@ -726,7 +726,7 @@ async function syncMarketAfterSave(isPublic) {
   padding-top: 6rpx;
 }
 .hero-en {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   letter-spacing: 8rpx;
   color: var(--sk-en-c, rgba(255,255,255,0.72));
   margin-bottom: 10rpx;
@@ -750,7 +750,7 @@ async function syncMarketAfterSave(isPublic) {
   color: var(--t1);
 }
 .subtitle {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--sk-hd-sub, rgba(255,255,255,0.8));
   margin-top: 10rpx;
 }
@@ -784,7 +784,7 @@ async function syncMarketAfterSave(isPublic) {
   color: var(--t1);
 }
 .card-desc {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t3);
   margin-top: 4rpx;
 }
@@ -802,7 +802,7 @@ async function syncMarketAfterSave(isPublic) {
   align-items: center;
   text-align: center;
   border: 2rpx solid var(--border);
-  border-radius: 24rpx;
+  border-radius: var(--radius-lg);
   padding: 32rpx 16rpx 28rpx;
   background: var(--sk-input-bg, var(--bg-card));
   position: relative;
@@ -828,12 +828,12 @@ async function syncMarketAfterSave(isPublic) {
 .type-icon--personal { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); }
 .type-icon--enterprise { background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, #4d8dff)); }
 .type-name {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t1);
 }
 .type-desc {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t3);
   margin-top: 4rpx;
 }
@@ -850,7 +850,7 @@ async function syncMarketAfterSave(isPublic) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   flex-shrink: 0;
 }
 
@@ -870,25 +870,25 @@ async function syncMarketAfterSave(isPublic) {
   display: flex;
   align-items: center;
   gap: 8rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--t1);
 }
 .bind-arrow {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t3);
 }
 .bind-body {
   margin-top: 16rpx;
 }
 .bind-hint {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   color: var(--t3);
   margin-top: 8rpx;
 }
 
 .need-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
-.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t3); font-size: 26rpx; border: 2rpx dashed var(--border-strong); }
+.need-item { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card); color: var(--t3); font-size: var(--fs-4); border: 2rpx dashed var(--border-strong); }
 .need-item.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
 
 /* 表单 */
@@ -899,7 +899,7 @@ async function syncMarketAfterSave(isPublic) {
   margin-top: 0;
 }
 .form-label {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t2);
   margin-bottom: 12rpx;
   letter-spacing: 1rpx;
@@ -911,9 +911,9 @@ async function syncMarketAfterSave(isPublic) {
   height: 96rpx;
   line-height: 96rpx;
   background: var(--sk-input-bg, var(--bg-card));
-  border-radius: 24rpx;
+  border-radius: var(--radius-lg);
   padding: 0 32rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--sk-input-text, var(--t1));
   border: var(--sk-input-border, 2rpx solid transparent);
   box-shadow: var(--sk-input-shadow, none);
@@ -936,7 +936,7 @@ async function syncMarketAfterSave(isPublic) {
   width: 100%;
   height: 34rpx;
   line-height: 34rpx;
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--danger);
   margin-top: 4rpx;
   visibility: hidden;
@@ -964,7 +964,7 @@ async function syncMarketAfterSave(isPublic) {
 .avatar-upload {
   width: 112rpx;
   height: 112rpx;
-  border-radius: 24rpx;
+  border-radius: var(--radius-lg);
   background: var(--bg-card);
   border: 2rpx dashed var(--border-strong);
   display: flex;
@@ -983,7 +983,7 @@ async function syncMarketAfterSave(isPublic) {
   color: var(--t3);
 }
 .avatar-text {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   color: var(--t3);
 }
 .avatar-img {
@@ -991,7 +991,7 @@ async function syncMarketAfterSave(isPublic) {
   height: 100%;
 }
 .avatar-hint {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t3);
 }
 
@@ -1041,7 +1041,7 @@ async function syncMarketAfterSave(isPublic) {
   padding: 0;
   background: var(--bg-hover);
   color: var(--t2);
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   font-weight: 500;
   border-radius: 28rpx;
   border: none;
@@ -1054,7 +1054,7 @@ async function syncMarketAfterSave(isPublic) {
   /* 原写死 #fff → 暗色皮肤下白底白字 */
   background: var(--sk-card-bg, #fff);
   color: var(--t3);
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   font-weight: 500;
   border-radius: 28rpx;
   border: 2rpx solid var(--border);
@@ -1064,27 +1064,27 @@ async function syncMarketAfterSave(isPublic) {
 .voice-row { margin-top: 16rpx; }
 .voice-upload {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 100%; height: 160rpx; border: 2rpx dashed var(--border-strong); border-radius: 16rpx;
+  width: 100%; height: 160rpx; border: 2rpx dashed var(--border-strong); border-radius: var(--radius-md);
   background: var(--bg-card); gap: 8rpx;
 }
 .voice-plus { font-size: 48rpx; color: var(--t3); line-height: 1; }
-.voice-text { font-size: 26rpx; color: var(--t3); }
+.voice-text { font-size: var(--fs-4); color: var(--t3); }
 .voice-file {
   display: flex; align-items: center; gap: 18rpx;
-  background: var(--bg-card); border-radius: 16rpx; padding: 20rpx 24rpx;
+  background: var(--bg-card); border-radius: var(--radius-md); padding: 20rpx 24rpx;
 }
 .vf-info { flex: 1; min-width: 0; }
-.vf-name { font-size: 28rpx; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vf-tip { font-size: 22rpx; color: var(--t3); margin-top: 4rpx; }
+.vf-name { font-size: var(--fs-5); font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vf-tip { font-size: var(--fs-2); color: var(--t3); margin-top: 4rpx; }
 .vf-actions { display: flex; flex-direction: column; gap: 8rpx; }
-.vf-del { font-size: 22rpx; color: var(--danger); }
-.vf-re { font-size: 22rpx; color: var(--design-primary, #165dff); }
+.vf-del { font-size: var(--fs-2); color: var(--danger); }
+.vf-re { font-size: var(--fs-2); color: var(--design-primary, #165dff); }
 .voice-audio { width: 200rpx; height: 64rpx; }
 .voice-locked {
   display: flex; align-items: center; gap: 12rpx;
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06);
-  border: 2rpx dashed var(--design-primary, #165dff); border-radius: 16rpx;
-  padding: 24rpx; color: var(--design-primary, #165dff); font-size: 26rpx; margin-top: 16rpx;
+  border: 2rpx dashed var(--design-primary, #165dff); border-radius: var(--radius-md);
+  padding: 24rpx; color: var(--design-primary, #165dff); font-size: var(--fs-4); margin-top: 16rpx;
 }
 
 /* picker 容器与 .form-input 完全同高同内边距（此前 88rpx vs 96rpx，同一表单内出现两种高度） */
@@ -1126,7 +1126,7 @@ async function syncMarketAfterSave(isPublic) {
   flex-shrink: 0;
 }
 .add-co {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--design-primary, #165dff);
   padding: 10rpx 0;
 }

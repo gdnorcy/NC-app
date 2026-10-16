@@ -169,15 +169,15 @@ function goBack() {
   background: var(--white);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-content);
 }
 .mt-item {
   flex: 1;
   text-align: center;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t2);
   padding: 14rpx 0;
-  border-radius: 12rpx;
+  border-radius: var(--radius-xs);
   position: relative;
 }
 .mt-item.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); font-weight: 600; }
@@ -189,7 +189,7 @@ function goBack() {
   border-radius: 14rpx;
   background: var(--danger);
   color: var(--white);
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   padding: 0 6rpx;
   margin-left: 6rpx;
   box-sizing: border-box;
@@ -219,8 +219,8 @@ function goBack() {
 .m-ic.system { background: linear-gradient(135deg, #8c8c8c, #6b6b6b); }
 .m-body { flex: 1; min-width: 0; }
 .m-row { display: flex; align-items: center; justify-content: space-between; }
-.m-title { font-size: 28rpx; font-weight: 600; color: var(--t5); }
-.m-time { font-size: 22rpx; color: var(--t4); }
+.m-title { font-size: var(--fs-5); font-weight: 600; color: var(--t5); }
+.m-time { font-size: var(--fs-2); color: var(--t4); }
 .m-content {
   font-size: 25rpx;
   color: var(--t2);
@@ -246,5 +246,5 @@ function goBack() {
 }
 .me-icon { width: 120rpx; height: 120rpx; margin: 0 auto 24rpx; }
 .me-text { font-size: 30rpx; color: var(--t5); font-weight: 500; }
-.me-hint { font-size: 24rpx; color: var(--t4); margin-top: 12rpx; }
+.me-hint { font-size: var(--fs-3); color: var(--t4); margin-top: 12rpx; }
 </style>

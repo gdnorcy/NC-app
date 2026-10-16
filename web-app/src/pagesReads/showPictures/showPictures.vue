@@ -83,7 +83,7 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 .dot { margin: 0 6px; }
 .d-intro { margin-top: 10px; font-size: 14px; color: var(--t2); line-height: 1.6; }
 .pic-wall { margin-top: 14px; }
-.wall-img { width: 100%; border-radius: 8px; margin-bottom: 10px; }
+.wall-img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 10px; }
 .empty { padding: 100px 0; text-align: center; color: var(--decor); font-size: 13px; }
 .empty-icon { display: block; font-size: 36px; margin-bottom: 8px; }
 </style>

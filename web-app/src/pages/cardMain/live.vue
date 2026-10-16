@@ -86,16 +86,16 @@ function goBack() {
 <style>
 .live-page { min-height: 100vh; background: #000; }
 .body { padding: 20rpx; }
-.player-wrap { background: #000; border-radius: 16rpx; overflow: hidden; }
+.player-wrap { background: #000; border-radius: var(--radius-md); overflow: hidden; }
 .live-player { width: 100%; height: 840rpx; }
-.player-empty { display: flex; align-items: center; justify-content: center; height: 840rpx; color: var(--white); font-size: 28rpx; }
-.h5-cover { position: relative; height: 840rpx; border-radius: 16rpx; overflow: hidden; }
+.player-empty { display: flex; align-items: center; justify-content: center; height: 840rpx; color: var(--white); font-size: var(--fs-5); }
+.h5-cover { position: relative; height: 840rpx; border-radius: var(--radius-md); overflow: hidden; }
 .h5-mask { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); color: var(--white); padding: 0 48rpx; }
 .h5-icon { font-size: 72rpx; margin-bottom: 20rpx; }
 .h5-tip { font-size: 30rpx; font-weight: 600; text-align: center; }
-.h5-sub { font-size: 24rpx; opacity: 0.8; margin-top: 12rpx; text-align: center; }
+.h5-sub { font-size: var(--fs-3); opacity: 0.8; margin-top: 12rpx; text-align: center; }
 .room-info { padding: 28rpx 8rpx; }
 .room-title { font-size: 34rpx; font-weight: 600; color: var(--white); }
-.room-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 12rpx; font-size: 26rpx; color: var(--border); }
+.room-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 12rpx; font-size: var(--fs-4); color: var(--border); }
 .status.live { color: var(--danger); }
 </style>

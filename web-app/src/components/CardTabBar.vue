@@ -400,7 +400,7 @@ function hexA(hex, alpha) {
   align-items: center;
   justify-content: flex-start;
   gap: 6rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--decor-2);
   background: none;
   border: none;
@@ -408,7 +408,7 @@ function hexA(hex, alpha) {
   position: relative;
 }
 .mtb.on { font-weight: 500; }
-.mp-tab-txt { line-height: 1.2; font-size: 24rpx; }
+.mp-tab-txt { line-height: 1.2; font-size: var(--fs-3); }
 /* 图标水平居中（2026-10-05 第二次修，务必读 SIcon.vue 的 blockStyle 注释）：
    SIcon 是**小程序自定义组件，有独立样式作用域**，父组件 wxss 里的
    `.mtb :deep(.s-icon)` 编译成后代选择器 `.mtb.data-v-x .s-icon`，
@@ -430,7 +430,7 @@ function hexA(hex, alpha) {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  z-index: 0;
+  z-index: var(--z-base);
   box-shadow: 0 0 0 6rpx var(--white), 0 8rpx 20rpx rgba(0, 0, 0, 0.2);
 }
 /* slider 选中项：图标上移居中到圆钮中央（对齐云菜鸟）
@@ -449,7 +449,7 @@ function hexA(hex, alpha) {
   left: 0;
   right: 0;
   top: 0;
-  z-index: 0;
+  z-index: var(--z-base);
   pointer-events: none;
 }
 /* 菜单项：云菜鸟 .item 为 flex 居中（无 gap），常规图标 26px→52rpx，文字 12px→24rpx */
@@ -489,7 +489,7 @@ function hexA(hex, alpha) {
    ⚠️ 此处**不要**再写 `.mp-mid-btn :deep(.s-icon)`——小程序端跨不过自定义组件样式作用域，
    写了也不生效（曾白写一条）。 */
 .mp-mid-img { width: 44rpx; height: 44rpx; }
-.mp-mid-txt { font-size: 20rpx; line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
+.mp-mid-txt { font-size: var(--fs-1); line-height: 1.2; margin-top: 2rpx; white-space: nowrap; }
 .mp-mid-txt.on { font-weight: 600; }
 .mp-mid-btnRaise .mp-mid-txt, .mp-mid-btnInset .mp-mid-txt { margin-top: 0; }
 /* 按钮居中：红色pill圆角矩形 */
@@ -515,7 +515,7 @@ function hexA(hex, alpha) {
 }
 .mp-fan-main-icon { display: flex; flex-direction: column; gap: 7rpx; align-items: center; }
 .mp-fan-main-icon i { display: block; width: 34rpx; height: 4rpx; border-radius: 2rpx; background: var(--white); }
-.mp-fan-main-txt { font-size: 20rpx; color: var(--white); line-height: 1.3; margin-top: 4rpx; }
+.mp-fan-main-txt { font-size: var(--fs-1); color: var(--white); line-height: 1.3; margin-top: 4rpx; }
 .mp-tabbar-fan { background: transparent !important; border-top: none; box-shadow: none !important; }
 .mp-tabbar.mp-st-btnRaise, .mp-tabbar.mp-st-btnInset {
   background: transparent;
@@ -539,7 +539,7 @@ function hexA(hex, alpha) {
   line-height: 1.2;
 }
 .mp-fan-item-img { width: 40rpx; height: 40rpx; }
-.mp-fan-item-txt { font-size: 20rpx; }
+.mp-fan-item-txt { font-size: var(--fs-1); }
 /* 子按钮以主按钮圆心为基准沿左半圆弧均匀分布，互不重叠（对齐新菜鸟 1:1，与 admin 预览同比例） */
 .mp-fan-pos-0 { right: 40rpx; bottom: 630rpx; }   /* 右上：选中态 */
 .mp-fan-pos-1 { right: 160rpx; bottom: 600rpx; } /* 正上偏左 */

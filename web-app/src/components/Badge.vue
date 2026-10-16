@@ -39,12 +39,12 @@ export default {
   border-radius: 32rpx;
   box-sizing: border-box;
   color: var(--white);
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   line-height: 1;
 }
 .bd-text {
   color: var(--white);
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   line-height: 1;
 }
 .bd-dot {

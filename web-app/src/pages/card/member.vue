@@ -441,11 +441,11 @@ async function openMember(pkg) {
   z-index: 1;
 }
 .hero-title {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   font-weight: 700;
 }
 .hero-sub {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   opacity: 0.85;
   margin-top: 12rpx;
 }
@@ -454,7 +454,7 @@ async function openMember(pkg) {
   background: rgba(255,255,255,0.18);
   border: 1px solid rgba(255,255,255,0.25);
   padding: 8rpx 18rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   gap: 6rpx;
@@ -465,7 +465,7 @@ async function openMember(pkg) {
 /* ===== 套餐列表（demo plan-grid）===== */
 .sec-t {
   margin: 36rpx 32rpx 20rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -474,7 +474,7 @@ async function openMember(pkg) {
   color: var(--t5);
 }
 .sec-t small {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t4);
   font-weight: 400;
 }
@@ -503,7 +503,7 @@ async function openMember(pkg) {
   box-shadow: 0 0 0 2px var(--design-primary), 0 4px 16px rgba(var(--design-primary-rgb), 0.12);
 }
 .pn {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t5);
   display: flex;
@@ -511,35 +511,35 @@ async function openMember(pkg) {
   gap: 12rpx;
 }
 .cur-tag {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--design-primary);
   font-weight: 400;
 }
 .hot-tag {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   /* 实底主题色白字（用户反馈描边角标不明显） */
   color: var(--design-text, #fff);
   background: var(--design-primary);
   padding: 4rpx 14rpx;
-  border-radius: 12rpx;
+  border-radius: var(--radius-xs);
   font-weight: 400;
 }
 .price {
-  font-size: 44rpx;
+  font-size: var(--fs-8);
   font-weight: 700;
   color: var(--design-primary);
   margin: 16rpx 0 8rpx;
 }
 .price-unit {
   font-style: normal;
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   font-weight: 400;
   color: var(--t4);
   margin-left: 4rpx;
 }
 .plan-features {
   list-style: none;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t2);
   line-height: 2;
   margin-top: 8rpx;
@@ -560,7 +560,7 @@ async function openMember(pkg) {
   margin-top: 24rpx;
   padding: 22rpx;
   border-radius: 20rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   text-align: center;
   transition: opacity 0.15s;
@@ -580,7 +580,7 @@ async function openMember(pkg) {
 .dist-entry {
   display: flex; justify-content: space-between; align-items: center;
   margin: 12px 20px 0; background: linear-gradient(90deg, var(--design-secondary), #fff);
-  border: 1px solid rgba(var(--design-primary-rgb), 0.2); border-radius: 12px; padding: 14px 16px;
+  border: 1px solid rgba(var(--design-primary-rgb), 0.2); border-radius: var(--radius-xs); padding: 14px 16px;
 }
 .de-left { display: flex; align-items: center; gap: 12px; }
 .de-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(var(--design-primary-rgb), 0.08); display: flex; align-items: center; justify-content: center; }
@@ -590,7 +590,7 @@ async function openMember(pkg) {
 
 /* ===== 租户会员卡 ===== */
 .tcard {
-  margin: 28rpx 28rpx 0; border-radius: 24rpx; padding: 36rpx 32rpx;
+  margin: 28rpx 28rpx 0; border-radius: var(--radius-lg); padding: 36rpx 32rpx;
   color: var(--white); position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(var(--design-primary-rgb), 0.18);
 }
 .tcard::after {
@@ -599,36 +599,36 @@ async function openMember(pkg) {
 }
 .tc-top { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
 .tc-level { font-size: 40rpx; font-weight: 700; }
-.tc-badge { font-size: 22rpx; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); padding: 6rpx 18rpx; border-radius: 999rpx; }
-.tc-no { font-size: 24rpx; opacity: 0.9; margin-top: 10rpx; position: relative; z-index: 1; }
+.tc-badge { font-size: var(--fs-2); background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); padding: 6rpx 18rpx; border-radius: var(--radius-pill); }
+.tc-no { font-size: var(--fs-3); opacity: 0.9; margin-top: 10rpx; position: relative; z-index: 1; }
 .tc-foot { display: flex; margin-top: 36rpx; position: relative; z-index: 1; }
 .tc-cell { flex: 1; }
 .tc-label { display: block; font-size: 21rpx; opacity: 0.8; }
-.tc-val { display: block; font-size: 28rpx; font-weight: 600; margin-top: 6rpx; }
+.tc-val { display: block; font-size: var(--fs-5); font-weight: 600; margin-top: 6rpx; }
 .sign-row {
   display: flex; align-items: center; justify-content: space-between;
   margin: 24rpx 28rpx 0; background: var(--white); border-radius: 20rpx; padding: 26rpx 28rpx;
   border: 1px solid var(--border);
 }
-.si-title { font-size: 28rpx; font-weight: 600; color: var(--t5); }
-.si-sub { font-size: 22rpx; color: var(--t4); margin-top: 6rpx; }
-.sign-btn { background: var(--design-primary); color: var(--design-text, #fff); font-size: 26rpx; font-weight: 600; padding: 16rpx 44rpx; border-radius: 999rpx; }
+.si-title { font-size: var(--fs-5); font-weight: 600; color: var(--t5); }
+.si-sub { font-size: var(--fs-2); color: var(--t4); margin-top: 6rpx; }
+.sign-btn { background: var(--design-primary); color: var(--design-text, #fff); font-size: var(--fs-4); font-weight: 600; padding: 16rpx 44rpx; border-radius: var(--radius-pill); }
 .sign-btn:active { opacity: 0.8; }
 .tlevels { margin: 0 28rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .tlv { background: var(--white); border-radius: 20rpx; padding: 28rpx; border: 1.5px solid var(--border); }
 .tlv.cur { border-color: var(--design-primary); background: var(--design-secondary); }
 .tlv-head { display: flex; align-items: center; justify-content: space-between; }
 .tlv-name { font-size: 30rpx; font-weight: 700; color: var(--t5); }
-.tlv-no { font-size: 22rpx; color: var(--design-primary); background: var(--design-secondary); padding: 4rpx 16rpx; border-radius: 10rpx; }
+.tlv-no { font-size: var(--fs-2); color: var(--design-primary); background: var(--design-secondary); padding: 4rpx 16rpx; border-radius: 10rpx; }
 .tlv-desc { font-size: 23rpx; color: var(--t4); margin-top: 10rpx; line-height: 1.5; }
-.tlv-btn { margin-top: 20rpx; text-align: center; padding: 18rpx; border-radius: 16rpx; font-size: 27rpx; font-weight: 600; }
+.tlv-btn { margin-top: 20rpx; text-align: center; padding: 18rpx; border-radius: var(--radius-md); font-size: 27rpx; font-weight: 600; }
 .tlv-btn.buy { background: var(--design-primary); color: var(--design-text, #fff); }
 /* b 案：申请开通改次级样式（辅助色底 + 主色字），实心主色为整页唯一强 CTA */
 .tlv-btn.apply { background: var(--design-secondary); color: var(--design-primary); border: 1px solid rgba(var(--design-primary-rgb), 0.35); }
 .tlv-btn.on { background: var(--design-secondary); color: var(--design-primary); }
 .tlv-btn.disabled { background: var(--bg-hover); color: var(--border-strong); }
 .tlv-btn:active { opacity: 0.8; }
-.apply-tip { margin: 20rpx 28rpx 0; padding: 20rpx 24rpx; border-radius: 16rpx; font-size: 24rpx; line-height: 1.5; }
+.apply-tip { margin: 20rpx 28rpx 0; padding: 20rpx 24rpx; border-radius: var(--radius-md); font-size: var(--fs-3); line-height: 1.5; }
 .apply-tip.st-pending { background: #fff7e6; color: #ad6800; border: 1px solid #ffd591; }
 .apply-tip.st-approved { background: #e7f7ee; color: #07893c; border: 1px solid #a9e7c1; }
 .apply-tip.st-rejected { background: #fdecec; color: #b42318; border: 1px solid #f8c4c4; }

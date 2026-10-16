@@ -57,7 +57,7 @@ export default {
 .ph-topbar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-content);
   display: flex;
   align-items: center;
   height: 88rpx;
@@ -67,7 +67,7 @@ export default {
   box-sizing: border-box;
 }
 .ph-back {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--primary);
   margin-right: 16rpx;
 }
@@ -79,7 +79,7 @@ export default {
 .ph-empty {
   padding: 120rpx 0;
   text-align: center;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--decor);
 }
 /* 编辑预览组件槽：点击选中高亮 */

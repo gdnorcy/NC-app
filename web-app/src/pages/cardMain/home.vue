@@ -665,7 +665,7 @@ function viewMarketCard(item) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--decor);
 }
 .msg-icon {
@@ -730,7 +730,7 @@ function viewMarketCard(item) {
   /* 🔴 圆角原先漏写 → 真机四个角是硬直角，而 admin 的 .r-native-grid 有 border-radius:8px，
      两端不一致（2026-10-07 用户反馈「四个角没有圆角」）。
      与 .section 保持同一量级（16rpx = 8px），且不写死——由 nativeRadiusStyle 注入覆盖。 */
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
 }
 .grid {
   display: grid;
@@ -746,7 +746,7 @@ function viewMarketCard(item) {
   position: relative;
   width: 88rpx;
   height: 88rpx;
-  border-radius: 24rpx;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -763,7 +763,7 @@ function viewMarketCard(item) {
   min-width: 30rpx;
   height: 30rpx;
   padding: 0 8rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   background: var(--danger);
   color: var(--white);
   font-size: 18rpx;
@@ -771,7 +771,7 @@ function viewMarketCard(item) {
   text-align: center;
 }
 .grid-label {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t2);
 }
 
@@ -782,7 +782,7 @@ function viewMarketCard(item) {
      否则与内联的 marginLeft/Right 抢同一属性，且运营在后台调「左右边距」时
      只有一半生效（上下仍被这里锁死）。上下边距同理走内联。 */
   margin: 0;
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
   padding: 28rpx;
 }
 .section-header {
@@ -800,7 +800,7 @@ function viewMarketCard(item) {
   color: var(--t1);
 }
 .section-more {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--ink-3);
 }
 
@@ -813,7 +813,7 @@ function viewMarketCard(item) {
   /* 方案B：主题 tint 浅底 + 同色细边框，不再满铺主题色，整页更和谐 */
   background: linear-gradient(135deg, rgba(var(--design-primary-rgb), 0.10), rgba(var(--design-primary-rgb), 0.03));
   border: 2rpx solid rgba(var(--design-primary-rgb), 0.14);
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
 }
 .my-card.create {
   background: var(--bg-card);
@@ -827,7 +827,7 @@ function viewMarketCard(item) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   font-weight: 600;
   color: var(--design-primary, #165dff);
   overflow: hidden;
@@ -842,17 +842,17 @@ function viewMarketCard(item) {
   min-width: 0;
 }
 .card-name {
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   font-weight: 600;
   color: var(--t1);
 }
 .card-position {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t2);
   margin-top: 4rpx;
 }
 .card-company {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--ink-3);
   margin-top: 4rpx;
 }
@@ -862,8 +862,8 @@ function viewMarketCard(item) {
   gap: 6rpx;
   background: var(--design-primary, #165dff);
   padding: 10rpx 20rpx;
-  border-radius: 24rpx;
-  font-size: 24rpx;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-3);
   color: var(--white);
   flex-shrink: 0;
 }
@@ -880,17 +880,17 @@ function viewMarketCard(item) {
   flex: 1;
 }
 .create-title {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t1);
 }
 .create-desc {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--ink-3);
   margin-top: 4rpx;
 }
 .create-arrow {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   color: var(--border);
 }
 
@@ -900,7 +900,7 @@ function viewMarketCard(item) {
   align-items: center;
   padding: 20rpx 0;
   background: var(--bg-card);
-  border-radius: 12rpx;
+  border-radius: var(--radius-xs);
   margin-bottom: 20rpx;
 }
 .visitor-stat {
@@ -908,12 +908,12 @@ function viewMarketCard(item) {
   text-align: center;
 }
 .visitor-num {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   font-weight: 700;
   color: var(--design-primary, #165dff);
 }
 .visitor-label {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--ink-3);
   margin-top: 4rpx;
 }
@@ -942,23 +942,23 @@ function viewMarketCard(item) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   font-weight: 600;
 }
 .visitor-info {
   flex: 1;
 }
 .visitor-name {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t1);
 }
 .visitor-time {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--ink-3);
   margin-top: 2rpx;
 }
 .visitor-action {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--design-primary, #165dff);
 }
 
@@ -975,7 +975,7 @@ function viewMarketCard(item) {
 .market-card {
   width: 200rpx;
   background: var(--bg-card);
-  border-radius: 12rpx;
+  border-radius: var(--radius-xs);
   padding: 20rpx;
   text-align: center;
   display: inline-block;
@@ -989,12 +989,12 @@ function viewMarketCard(item) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   margin: 0 auto 12rpx;
 }
 .market-name {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--t1);
   white-space: nowrap;
@@ -1002,7 +1002,7 @@ function viewMarketCard(item) {
   text-overflow: ellipsis;
 }
 .market-position {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t2);
   margin-top: 4rpx;
   white-space: nowrap;
@@ -1010,7 +1010,7 @@ function viewMarketCard(item) {
   text-overflow: ellipsis;
 }
 .market-company {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   color: var(--ink-3);
   margin-top: 2rpx;
   white-space: nowrap;
@@ -1020,7 +1020,7 @@ function viewMarketCard(item) {
 
 .empty-hint {
   text-align: center;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--ink-3);
   padding: 32rpx 0;
 }

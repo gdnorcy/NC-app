@@ -95,7 +95,7 @@ export default {
   width: 100%;
   background: var(--primary);
   color: var(--white);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 15px;
 }
 .share-btn.secondary {

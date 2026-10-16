@@ -66,7 +66,7 @@
 .ellipsis-3 { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
 // ---------- 列表单元格（iOS 风格） ----------
-.cell-list { background: var(--white); border-radius: 16rpx; overflow: hidden; }
+.cell-list { background: var(--white); border-radius: var(--radius-md); overflow: hidden; }
 .cell-item {
   display: flex; align-items: center; padding: 24rpx;
   position: relative; font-size: $font-paragraph; color: var(--t1);

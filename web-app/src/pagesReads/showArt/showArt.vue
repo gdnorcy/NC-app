@@ -158,9 +158,9 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 .time { margin-left: 8px; }
 .views { margin-left: 8px; }
 .d-thumb { margin-top: 12px; }
-.d-thumb-img { width: 100%; border-radius: 8px; }
+.d-thumb-img { width: 100%; border-radius: var(--radius-sm); }
 .d-slider { margin-top: 8px; }
-.d-slider-img { width: 100%; border-radius: 8px; margin-bottom: 8px; }
+.d-slider-img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 8px; }
 .d-content { display: block; margin-top: 14px; font-size: 15px; color: var(--t1); line-height: 1.8; word-break: break-all; }
 .d-actions { display: flex; justify-content: center; gap: 48px; margin: 24px 0 8px; }
 .act { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--t2); }

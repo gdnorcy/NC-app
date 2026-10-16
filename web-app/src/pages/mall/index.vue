@@ -268,7 +268,7 @@ onShow(() => {
   border-radius: 15rpx;
   background: var(--danger);
   color: var(--white);
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   line-height: 30rpx;
   text-align: center;
   box-sizing: border-box;
@@ -286,7 +286,7 @@ onShow(() => {
   padding: 10rpx 28rpx;
   margin: 0 8rpx;
   border-radius: 30rpx;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t2);
   background: var(--bg-hover);
 }
@@ -304,14 +304,14 @@ onShow(() => {
   flex: 1;
   text-align: center;
   padding: 20rpx 0;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t2);
 }
 .sort-item.active {
   color: var(--design-primary, #165dff);
   font-weight: 500;
 }
-.sort-arrow { font-size: 22rpx; margin-left: 4rpx; }
+.sort-arrow { font-size: var(--fs-2); margin-left: 4rpx; }
 .goods-scroll {
   flex: 1;
   height: 0;
@@ -325,7 +325,7 @@ onShow(() => {
   width: calc(50% - 12rpx);
   margin: 6rpx;
   background: var(--white);
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 .goods-img-wrap {
@@ -354,13 +354,13 @@ onShow(() => {
   justify-content: center;
   background: rgba(255, 255, 255, 0.6);
   color: var(--t2);
-  font-size: 28rpx;
+  font-size: var(--fs-5);
 }
 .goods-info {
   padding: 16rpx;
 }
 .goods-title {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t1);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -376,15 +376,15 @@ onShow(() => {
   margin-top: 8rpx;
 }
 .goods-price { display: flex; align-items: baseline; }
-.price-symbol { font-size: 22rpx; color: var(--danger); }
+.price-symbol { font-size: var(--fs-2); color: var(--danger); }
 .price-num { font-size: 34rpx; font-weight: 600; color: var(--danger); }
 .price-market {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--decor);
   text-decoration: line-through;
   margin-left: 8rpx;
 }
-.goods-sales { font-size: 22rpx; color: var(--decor); }
+.goods-sales { font-size: var(--fs-2); color: var(--decor); }
 .empty-box {
   padding: 160rpx 0;
   display: flex;
@@ -401,11 +401,11 @@ onShow(() => {
   justify-content: center;
   margin-bottom: 24rpx;
 }
-.empty-text { font-size: 26rpx; color: var(--decor); }
+.empty-text { font-size: var(--fs-4); color: var(--decor); }
 .load-more {
   text-align: center;
   padding: 24rpx 0 40rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--border);
 }
 

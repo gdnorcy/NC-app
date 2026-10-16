@@ -622,7 +622,7 @@ export default {
   background: rgba(0, 0, 0, 0.6);
   color: var(--white);
   font-size: 11px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 .loading-overlay {
@@ -676,7 +676,7 @@ export default {
   right: 16px;
   bottom: 120px;
   background: rgba(255, 255, 255, 0.96);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   padding: 16px;
   z-index: 30;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
@@ -714,7 +714,7 @@ export default {
   box-sizing: border-box;
   height: 40px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 0 12px;
   font-size: 14px;
   background: var(--white);
@@ -731,7 +731,7 @@ export default {
 .hotspot-form-submit {
   margin-top: 8px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--primary);
   color: var(--white);
   font-size: 14px;

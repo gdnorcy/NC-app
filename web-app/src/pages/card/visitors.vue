@@ -475,7 +475,7 @@ async function saveConvert() {
 .lock-card {
   width: 100%;
   background: var(--white);
-  border-radius: 24rpx;
+  border-radius: var(--radius-lg);
   padding: 64rpx 40rpx 48rpx;
   text-align: center;
   box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.06);
@@ -496,7 +496,7 @@ async function saveConvert() {
   color: var(--t1);
 }
 .lock-desc {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t3);
   margin-top: 12rpx;
 }
@@ -508,13 +508,13 @@ async function saveConvert() {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t2);
   padding: 16rpx 8rpx;
 }
 .lb-item text { flex: 1; }
 .lock-foot {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t3);
   margin-top: 24rpx;
 }
@@ -534,7 +534,7 @@ async function saveConvert() {
   box-shadow: 0 2px 10px rgba(0,0,0,0.04);
 }
 .rstat .lbl {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t4);
 }
 .rstat .num {
@@ -551,13 +551,13 @@ async function saveConvert() {
 }
 .rstat .num .num-unit {
   font-style: normal;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   font-weight: 500;
   color: var(--t4);
   margin-left: 4rpx;
 }
 .rstat .sub {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--design-primary, #165dff);
   margin-top: 10rpx;
   display: flex;
@@ -569,7 +569,7 @@ async function saveConvert() {
 .trend-card {
   margin: 24rpx 28rpx 0;
   background: var(--white);
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
   padding: 24rpx 24rpx 20rpx;
   box-shadow: 0 2rpx 12rpx rgba(31, 42, 68, 0.05);
 }
@@ -579,8 +579,8 @@ async function saveConvert() {
   align-items: center;
   margin-bottom: 16rpx;
 }
-.trend-t { font-size: 28rpx; font-weight: 600; color: var(--t1); }
-.trend-peak { font-size: 22rpx; color: var(--t3); }
+.trend-t { font-size: var(--fs-5); font-weight: 600; color: var(--t1); }
+.trend-peak { font-size: var(--fs-2); color: var(--t3); }
 .trend-bars {
   display: flex;
   align-items: flex-end;
@@ -615,12 +615,12 @@ async function saveConvert() {
   transition: height 0.3s ease;
 }
 .tbar-fill.hot { background: var(--design-primary); }
-.tbar-lbl { font-size: 20rpx; color: var(--t3); }
+.tbar-lbl { font-size: var(--fs-1); color: var(--t3); }
 
 /* ===== 访客记录（demo card-row 独立卡片）===== */
 .sec-t {
   margin: 36rpx 28rpx 20rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -628,7 +628,7 @@ async function saveConvert() {
   color: var(--t5);
 }
 .sec-t small {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t4);
   font-weight: 400;
 }
@@ -652,7 +652,7 @@ async function saveConvert() {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   flex-shrink: 0;
   position: relative;
 }
@@ -677,7 +677,7 @@ async function saveConvert() {
   min-width: 0;
 }
 .v-name {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t5);
   display: flex;
@@ -686,14 +686,14 @@ async function saveConvert() {
   flex-wrap: wrap;
 }
 .v-tag {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   padding: 4rpx 14rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   font-weight: 500;
   white-space: nowrap;
 }
 .v-score {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   font-weight: 600;
   margin-left: 8rpx;
   white-space: nowrap;
@@ -711,7 +711,7 @@ async function saveConvert() {
   color: var(--t4);
 }
 .v-behav {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t4);
   margin-top: 6rpx;
 }
@@ -719,7 +719,7 @@ async function saveConvert() {
   flex-shrink: 0;
 }
 .v-act .btn {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   font-weight: 600;
   padding: 14rpx 26rpx;
   border-radius: 18rpx;
@@ -736,12 +736,12 @@ async function saveConvert() {
   margin-bottom: 20rpx;
 }
 .empty-text {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t2);
   margin-bottom: 8rpx;
 }
 .empty-hint {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t4);
 }
 
@@ -782,25 +782,25 @@ async function saveConvert() {
   margin: 0 auto 28rpx;
 }
 .sheet-title {
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   font-weight: 700;
   text-align: center;
   color: var(--t5);
 }
 .sheet-sub {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t4);
   text-align: center;
   margin-top: 10rpx;
   line-height: 1.6;
 }
 .sheet-name {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t5);
 }
 .sheet-src {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t4);
   margin-top: 4rpx;
 }
@@ -837,11 +837,11 @@ async function saveConvert() {
   background: var(--success);
 }
 .tl-t {
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t2);
 }
 .tl-s {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t4);
   margin-top: 4rpx;
 }
@@ -854,7 +854,7 @@ async function saveConvert() {
   border: 1px solid var(--border);
   border-radius: 22rpx;
   padding: 24rpx 26rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   background: var(--white);
   color: var(--t5);
   width: auto;
@@ -863,7 +863,7 @@ async function saveConvert() {
   border: 1px solid var(--border);
   border-radius: 22rpx;
   padding: 24rpx 26rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   width: auto;
   min-height: 120rpx;
   background: var(--white);
@@ -898,7 +898,7 @@ async function saveConvert() {
   box-sizing: border-box;
   background: var(--bg-page);
   color: var(--t2);
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   padding: 26rpx;
   border-radius: 26rpx;
   margin-top: 20rpx;
@@ -922,10 +922,10 @@ async function saveConvert() {
 }
 .lead-sec small { color: var(--t3); }
 .lead-ai {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--design-primary, #165dff);
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   padding: 8rpx 22rpx;
 }
 .lead-ai.locked { color: var(--t3); background: var(--bg-hover); }
@@ -941,10 +941,10 @@ async function saveConvert() {
 .lead-rank {
   width: 56rpx;
   height: 56rpx;
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
   background: var(--bg-hover);
   color: var(--t3);
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -962,20 +962,20 @@ async function saveConvert() {
   gap: 14rpx;
 }
 .lead-lv {
-  font-size: 20rpx;
+  font-size: var(--fs-1);
   padding: 4rpx 14rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   font-weight: 400;
 }
 .lead-lv.green { color: var(--success); background: rgba(7,193,96,.1); }
 .lead-lv.blue { color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), .1); }
 .lead-lv.gray { color: var(--t3); background: var(--bg-hover); }
-.lead-meta { font-size: 24rpx; color: var(--t3); margin-top: 8rpx; }
+.lead-meta { font-size: var(--fs-3); color: var(--t3); margin-top: 8rpx; }
 .lead-words {
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   color: var(--t2);
   background: var(--bg-card);
-  border-radius: 12rpx;
+  border-radius: var(--radius-xs);
   padding: 10rpx 16rpx;
   margin-top: 12rpx;
   overflow: hidden;
@@ -993,8 +993,8 @@ async function saveConvert() {
   border-bottom: 1px solid var(--bg-hover);
 }
 .ai-row:last-child { border-bottom: none; }
-.ai-k { font-size: 28rpx; color: var(--t2); }
-.ai-v { font-size: 28rpx; font-weight: 600; color: var(--t1); }
+.ai-k { font-size: var(--fs-5); color: var(--t2); }
+.ai-v { font-size: var(--fs-5); font-weight: 600; color: var(--t1); }
 
 /* ===== 意向详情 ===== */
 .li-box { margin: 28rpx 0; }
@@ -1016,15 +1016,15 @@ async function saveConvert() {
 }
 .li-dot.green { background: var(--success); }
 .li-dot.blue { background: var(--design-primary); }
-.li-t { font-size: 28rpx; color: var(--t1); }
-.li-s { font-size: 24rpx; color: var(--t3); }
+.li-t { font-size: var(--fs-5); color: var(--t1); }
+.li-s { font-size: var(--fs-3); color: var(--t3); }
 .li-words { margin: 8rpx 0 20rpx; }
-.li-words-t { font-size: 26rpx; font-weight: 600; color: var(--t1); margin-bottom: 12rpx; }
+.li-words-t { font-size: var(--fs-4); font-weight: 600; color: var(--t1); margin-bottom: 12rpx; }
 .li-words-c {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--t2);
   background: var(--bg-card);
-  border-radius: 12rpx;
+  border-radius: var(--radius-xs);
   padding: 14rpx 18rpx;
   margin-bottom: 10rpx;
   line-height: 1.5;

@@ -316,7 +316,7 @@ onLoad((o) => {
 .delivery-options { display: flex; }
 .delivery-option {
   padding: 14rpx 36rpx; border-radius: 30rpx; background: var(--bg-hover);
-  color: var(--t2); font-size: 26rpx; margin-right: 16rpx;
+  color: var(--t2); font-size: var(--fs-4); margin-right: 16rpx;
 }
 .delivery-option.active { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); font-weight: 500; }
 .form-box { margin-top: 20rpx; }
@@ -325,31 +325,31 @@ onLoad((o) => {
   padding: 20rpx 0; border-bottom: 1rpx solid var(--bg-hover);
 }
 .form-row:last-child { border-bottom: none; }
-.form-label { width: 140rpx; font-size: 28rpx; color: var(--t1); }
-.form-input { flex: 1; font-size: 28rpx; color: var(--t1); }
+.form-label { width: 140rpx; font-size: var(--fs-5); color: var(--t1); }
+.form-input { flex: 1; font-size: var(--fs-5); color: var(--t1); }
 .ph { color: var(--border); }
-.store-value { flex: 1; font-size: 28rpx; color: var(--t1); }
+.store-value { flex: 1; font-size: var(--fs-5); color: var(--t1); }
 .store-value.placeholder { color: var(--border); }
-.form-arrow { color: var(--border); font-size: 32rpx; }
-.form-tip { font-size: 24rpx; color: var(--decor); margin-top: 12rpx; }
+.form-arrow { color: var(--border); font-size: var(--fs-6); }
+.form-tip { font-size: var(--fs-3); color: var(--decor); margin-top: 12rpx; }
 .goods-item { display: flex; align-items: center; padding: 16rpx 0; }
 .goods-item:first-of-type { padding-top: 0; }
-.item-img { width: 120rpx; height: 120rpx; border-radius: 12rpx; background: var(--bg-hover); flex-shrink: 0; }
+.item-img { width: 120rpx; height: 120rpx; border-radius: var(--radius-xs); background: var(--bg-hover); flex-shrink: 0; }
 .item-info { flex: 1; margin-left: 16rpx; min-width: 0; }
 .item-title {
-  font-size: 28rpx; color: var(--t1); display: block;
+  font-size: var(--fs-5); color: var(--t1); display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .item-spec {
   display: inline-block; margin-top: 8rpx; padding: 4rpx 12rpx;
-  background: var(--bg-hover); border-radius: 8rpx; font-size: 22rpx; color: var(--decor);
+  background: var(--bg-hover); border-radius: var(--radius-sm); font-size: var(--fs-2); color: var(--decor);
 }
 .item-right { text-align: right; }
 .item-price { display: flex; align-items: baseline; justify-content: flex-end; }
-.price-symbol { font-size: 22rpx; color: var(--danger); }
+.price-symbol { font-size: var(--fs-2); color: var(--danger); }
 .price-num { font-size: 30rpx; font-weight: 600; color: var(--danger); }
-.item-qty { font-size: 24rpx; color: var(--decor); }
-.remark-input { font-size: 28rpx; color: var(--t1); padding: 8rpx 0; }
+.item-qty { font-size: var(--fs-3); color: var(--decor); }
+.remark-input { font-size: var(--fs-5); color: var(--t1); padding: 8rpx 0; }
 .bottom-space { height: 140rpx; }
 .submit-bar {
   display: flex; align-items: center;
@@ -357,7 +357,7 @@ onLoad((o) => {
   border-top: 1rpx solid var(--bg-hover);
 }
 .total { margin-right: 24rpx; display: flex; align-items: baseline; }
-.total-label { font-size: 26rpx; color: var(--t2); }
+.total-label { font-size: var(--fs-4); color: var(--t2); }
 .total-num { font-size: 40rpx; font-weight: 600; color: var(--danger); }
 .submit-btn {
   flex: 1; height: 80rpx; line-height: 80rpx; text-align: center;
@@ -377,15 +377,15 @@ onLoad((o) => {
 .panel-title { font-size: 30rpx; font-weight: 600; color: var(--t1); text-align: center; margin-bottom: 16rpx; }
 .store-list { flex: 1; min-height: 200rpx; }
 .store-item {
-  padding: 20rpx; border-radius: 12rpx; background: var(--bg-card);
+  padding: 20rpx; border-radius: var(--radius-xs); background: var(--bg-card);
   margin-bottom: 12rpx; border: 2rpx solid transparent;
 }
 .store-item.active { border-color: var(--design-primary); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); }
-.store-name { font-size: 28rpx; color: var(--t1); font-weight: 500; }
-.store-addr { font-size: 24rpx; color: var(--decor); margin-top: 6rpx; }
-.store-empty { text-align: center; color: var(--border); font-size: 26rpx; padding: 60rpx 0; }
+.store-name { font-size: var(--fs-5); color: var(--t1); font-weight: 500; }
+.store-addr { font-size: var(--fs-3); color: var(--decor); margin-top: 6rpx; }
+.store-empty { text-align: center; color: var(--border); font-size: var(--fs-4); padding: 60rpx 0; }
 .panel-close {
   margin-top: 16rpx; text-align: center; padding: 20rpx 0;
-  color: var(--design-primary, #165dff); font-size: 28rpx;
+  color: var(--design-primary, #165dff); font-size: var(--fs-5);
 }
 </style>

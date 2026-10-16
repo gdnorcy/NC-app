@@ -144,7 +144,7 @@ export default {
   align-items: center;
   justify-content: center;
 }
-.pnv-back-ico { font-size: 44rpx; line-height: 1; }
+.pnv-back-ico { font-size: var(--fs-8); line-height: 1; }
 .pnv-hover { opacity: 0.6; }
 
 .pnv-title-wrap {

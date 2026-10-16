@@ -155,51 +155,51 @@ onShow(() => {
 .hero-top { display: flex; align-items: center; justify-content: space-between; }
 .hero-title { font-size: 38rpx; font-weight: 700; }
 .hero-top-r { display: flex; align-items: center; gap: 24rpx; }
-.rule-link, .id-switch { display: flex; align-items: center; gap: 8rpx; font-size: 24rpx; opacity: 0.92; }
+.rule-link, .id-switch { display: flex; align-items: center; gap: 8rpx; font-size: var(--fs-3); opacity: 0.92; }
 .user-row { margin-top: 30rpx; }
 .user-line { display: flex; align-items: center; gap: 16rpx; }
 .user-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: rgba(255,255,255,0.25); border: 2rpx solid rgba(255,255,255,0.6); }
 /* 占位首字母：白底圆 + --brand-ink。判据是**头像自己的白底**而非 hero 背景——
    旧版写死 #fff 白字直接坐在品牌渐变上，主色一换成亮黄就整个消失（真机报修） */
 .user-avatar.placeholder {
-  display: flex; align-items: center; justify-content: center; font-size: 36rpx; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; font-size: var(--fs-7); font-weight: 600;
   background: rgba(255,255,255,0.92); border-color: rgba(255,255,255,0.9);
   color: var(--brand-ink, #165dff);
 }
 .user-name { font-size: 34rpx; font-weight: 600; }
-.user-level { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); }
+.user-level { font-size: var(--fs-2); padding: 4rpx 16rpx; border-radius: var(--radius-pill); background: rgba(255,255,255,0.22); }
 .money-row { margin-top: 32rpx; display: flex; align-items: flex-end; justify-content: space-between; }
-.money-label { font-size: 24rpx; opacity: 0.85; }
+.money-label { font-size: var(--fs-3); opacity: 0.85; }
 .money-val { font-size: 56rpx; font-weight: 700; line-height: 1.2; }
 .money-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; }
 .money-right-item { display: flex; flex-direction: column; align-items: flex-end; gap: 6rpx; }
-.mr-lb { font-size: 22rpx; opacity: 0.85; }
-.mr-val { font-size: 32rpx; font-weight: 600; }
-.tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: 26rpx; border-radius: 16rpx; line-height: 1.6; }
-.benefit-card { margin: 0 32rpx 24rpx; padding: 28rpx; background: #f0f7ff; border: 1rpx solid #c8e0ff; border-radius: 16rpx; }
-.benefit-title { font-size: 28rpx; font-weight: 600; color: var(--primary); margin-bottom: 14rpx; }
+.mr-lb { font-size: var(--fs-2); opacity: 0.85; }
+.mr-val { font-size: var(--fs-6); font-weight: 600; }
+.tip-box { margin: 24rpx 32rpx; padding: 24rpx; background: #fff8e6; color: #ad6800; font-size: var(--fs-4); border-radius: var(--radius-md); line-height: 1.6; }
+.benefit-card { margin: 0 32rpx 24rpx; padding: 28rpx; background: #f0f7ff; border: 1rpx solid #c8e0ff; border-radius: var(--radius-md); }
+.benefit-title { font-size: var(--fs-5); font-weight: 600; color: var(--primary); margin-bottom: 14rpx; }
 .benefit-line { font-size: 25rpx; color: var(--t2); line-height: 1.8; }
 .benefit-em { color: var(--primary); font-weight: 500; }
-.benefit-cta { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx dashed #c8e0ff; font-size: 24rpx; color: var(--t3); }
+.benefit-cta { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx dashed #c8e0ff; font-size: var(--fs-3); color: var(--t3); }
 .sec-t { margin: 32rpx 32rpx 16rpx; font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .log-list { margin: 0 32rpx; background: var(--white); border-radius: 20rpx; padding: 8rpx 24rpx; }
 .log-item { padding: 24rpx 0; border-top: 1rpx solid var(--bg-hover); }
 .log-item:first-child { border-top: none; }
 .log-top { display: flex; justify-content: space-between; align-items: center; }
-.log-type { font-size: 28rpx; color: var(--t1); }
+.log-type { font-size: var(--fs-5); color: var(--t1); }
 .log-amt { font-size: 30rpx; font-weight: 700; color: #00b42a; }
 .log-amt.neg { color: var(--danger); }
 .log-mid { margin-top: 8rpx; display: flex; justify-content: space-between; align-items: center; }
-.log-no { font-size: 22rpx; color: var(--t3); }
-.log-st { font-size: 22rpx; }
+.log-no { font-size: var(--fs-2); color: var(--t3); }
+.log-st { font-size: var(--fs-2); }
 .st-p { color: var(--brand-orange); } .st-s { color: #00b42a; } .st-c { color: var(--danger); }
-.log-bot { margin-top: 8rpx; font-size: 22rpx; color: var(--border); display: flex; gap: 16rpx; }
-.empty { padding: 40rpx 0; text-align: center; color: var(--t3); font-size: 26rpx; }
+.log-bot { margin-top: 8rpx; font-size: var(--fs-2); color: var(--border); display: flex; gap: 16rpx; }
+.empty { padding: 40rpx 0; text-align: center; color: var(--t3); font-size: var(--fs-4); }
 .qr-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 99; display: flex; align-items: center; justify-content: center; }
-.qr-panel { width: 600rpx; background: var(--white); border-radius: 24rpx; padding: 40rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; max-height: 80vh; }
-.qr-title { font-size: 32rpx; font-weight: 600; text-align: center; color: var(--t1); }
+.qr-panel { width: 600rpx; background: var(--white); border-radius: var(--radius-lg); padding: 40rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; max-height: 80vh; }
+.qr-title { font-size: var(--fs-6); font-weight: 600; text-align: center; color: var(--t1); }
 .rules-scroll { max-height: 46vh; }
-.rules-text { font-size: 26rpx; color: var(--t2); line-height: 2; }
+.rules-text { font-size: var(--fs-4); color: var(--t2); line-height: 2; }
 .rule-p { padding: 4rpx 0; }
 .mini-btn.ghost { background: var(--white); color: var(--t2); border: 1rpx solid var(--border); }
 </style>
