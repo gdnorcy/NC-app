@@ -73,6 +73,20 @@ describe('nativeMargin 原生组件容器样式（真实源码）', () => {
     expect(cEndMargin({}).marginBottom).toBe('8px');
   });
 
+  it('🔴 marginBottom=0 / marginTop=0 必须输出 0px（2026-10-16「上边距都设 3，我的名片上边距明显大了」）', () => {
+    // 病根：曾用 if (mb) 把 0 吞掉 → C 端落到 CSS 兜底，而 .grid-section 兜底 16rpx(8px)、
+    // .section 是 margin:0 → 同值不同缝（宫格→我的名片 8px，其余 3px）。
+    // 0 = 故意贴边，必须内联 0px 压过 CSS 兜底。
+    for (const fn of [adminMargin, cEndMargin]) {
+      expect(fn({ marginBottom: 0 }).marginBottom).toBe('0px');
+      expect(fn({ marginTop: 0 }).marginTop).toBe('0px');
+      expect(fn({ marginTop: 3, marginBottom: 0 })).toMatchObject({ marginTop: '3px', marginBottom: '0px' });
+      // 空串按缺省处理（mb 兜 8px，mt 不输出）
+      expect(fn({ marginBottom: '' }).marginBottom).toBe('8px');
+      expect(fn({ marginTop: '' }).marginTop).toBeUndefined();
+    }
+  });
+
   it('🔴 两端实现一致（marginLR / compBgColor / radiusContainer 的输出必须相同）', () => {
     const cases = [
       {}, { marginLR: 0 }, { marginLR: 12 }, { marginTop: 6, marginBottom: 10 },

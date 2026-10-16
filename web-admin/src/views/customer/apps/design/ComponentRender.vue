@@ -1773,13 +1773,15 @@ function fabCartStyle(p) {
  */
 function nativeMargin(p, opts) {
   const s = {};
-  // 上下边距：⚠️ 下边距给 8px 兜底（与 C 端 home.vue 同一语义）——
-  //   0 是合法值（故意贴边），故用 ??；但**缺省**时兜 8 而不是 0，
-  //   否则四个区块会全部贴死、失去卡片间的呼吸感（真机上由 .section 的 margin-bottom 兜）。
-  const mb = p.marginBottom ?? 8;
-  if (mb) s.marginBottom = mb + 'px';
-  const mt = p.marginTop ?? 0;
-  if (mt) s.marginTop = mt + 'px';
+  // 🔴 下边距：显式值（**含 0**）无条件内联输出；仅缺省（undefined/''）兜 8px（与 C 端同一语义）。
+  //   2026-10-16 用户反馈「上边距都设 3，小程序我的名片上边距明显大了」的根因：
+  //   曾用 `if (mb)` 把 0 吞掉 → C 端落到 CSS 兜底（.grid-section 16rpx=8px、.section 是 0）
+  //   → 同值不同缝。0 = 故意贴边，必须内联 0px。改这里必须同步 C 端。
+  const mbRaw = p.marginBottom;
+  s.marginBottom = (mbRaw === undefined || mbRaw === '') ? '8px' : mbRaw + 'px';
+  // 上边距：显式值（含 0）内联输出；缺省不输出（各容器 CSS 均无 margin-top，行为不变）。
+  const mtRaw = p.marginTop;
+  if (mtRaw !== undefined && mtRaw !== '') s.marginTop = mtRaw + 'px';
   // 左右边距：与 C 端同一语义（兼容历史字段 marginLeft/marginRight）
   const lr = p.marginLR ?? p.marginLeft ?? p.marginRight;
   if (lr !== undefined && lr !== '' && lr !== null) {

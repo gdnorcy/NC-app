@@ -197,12 +197,17 @@ const headerScrolled = ref(false);
 function nativeMargin(props, opts) {
   const p = props || {};
   const s = {};
-  // ⚠️ 下边距给 8px 兜底（= 原 `.section{margin-bottom:16rpx}` 的值）：
-  //   清理 CSS 里的写死 margin 后，卡间白缝靠这里保证，不会因marginBottom=0 而全部贴死。
-  const mb = p.marginBottom ?? 8;
-  if (mb) s.marginBottom = mb + 'px';
-  const mt = p.marginTop ?? 0;
-  if (mt) s.marginTop = mt + 'px';
+  // 🔴 下边距：显式值（**含 0**）无条件内联输出；仅缺省（undefined/''）兜 8px
+  //   （= 原 `.section{margin-bottom:16rpx}` 的值，保证老数据卡间白缝）。
+  //   2026-10-16 用户反馈「上边距都设 3，小程序我的名片上边距明显大了」的根因：
+  //   曾用 `if (mb)` 把 0 吞掉不输出 → 落到 CSS 兜底，而 .grid-section 兜底 16rpx(8px)、
+  //   .section 是 margin:0 → 同样设 0 产生不同的缝（宫格→我的名片 8px，其余 3px）。
+  //   0 = 故意贴边，必须内联 0px 压过 CSS 兜底，才同值同缝。
+  const mbRaw = p.marginBottom;
+  s.marginBottom = (mbRaw === undefined || mbRaw === '') ? '8px' : mbRaw + 'px';
+  // 上边距：显式值（含 0）内联输出；缺省不输出（各容器 CSS 均无 margin-top，行为不变）。
+  const mtRaw = p.marginTop;
+  if (mtRaw !== undefined && mtRaw !== '') s.marginTop = mtRaw + 'px';
   // 左右边距：与 admin 画布/共享 containerStyle 的 marginLR 语义一致。
   // ⚠️ 允许 0：0 是合法值（组件可以故意通栏），故用 ?? 而非 ||。
   const lr = p.marginLR ?? p.marginLeft ?? p.marginRight;
