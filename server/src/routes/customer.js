@@ -7,6 +7,7 @@ import { toPlan, toScene, toUser, toOrder, toCustomer, genOrderNo, genShareToken
 import { getStorage } from '../storage/index.js';
 import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
+import { ciUploadMini } from '../services/mini-ci.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
 import { checkTenantSolutionQuota } from '../services/billing.js';
 import { calcFunnel, trendSeries, eventDistribution, topTargets, calcHealthScore } from '../services/analytics.js';
@@ -782,17 +783,39 @@ router.put('/channels/sort', requireTenant, requireTenantAdmin, (req, res) => {
 router.put('/channels/:type', requireTenant, requireTenantAdmin, (req, res) => {
   const cid = req.customerId;
   const type = req.params.type;
-  const { brandName, primaryColor, customDomain, enabled, page, originalId, uploadKey } = req.body || {};
-  const existing = db.prepare('SELECT id FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, type);
+  const b = req.body || {};
+  // 🔴 channel_apps 全列 NOT NULL：空值必须落 '' 而非 null（否则 NOT NULL constraint failed）；
+  // 🔴 部分更新语义：只覆盖请求体里出现的字段（saveBrand 只传品牌字段时，
+  //    不得把 original_id/upload_key/app_secret 等未传字段清空）
+  const existing = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, type);
   if (existing) {
+    if ('brandName' in b) existing.brand_name = b.brandName || '';
+    if ('primaryColor' in b) existing.primary_color = b.primaryColor || '';
+    if ('customDomain' in b) existing.custom_domain = b.customDomain || '';
+    if ('enabled' in b) existing.enabled = b.enabled ? 1 : 0;
+    if ('page' in b) existing.page = b.page || '';
+    if ('originalId' in b) existing.original_id = b.originalId || '';
+    if ('uploadKey' in b) existing.upload_key = b.uploadKey || '';
+    // 自运营 AppID 仅在未走第三方授权时允许客户自填（授权态的 appid 由授权回调管理，不可覆盖）
+    if ('selfAppid' in b && existing.auth_status !== 'authorized') existing.appid = b.selfAppid || '';
+    if ('appSecret' in b) existing.app_secret = b.appSecret || '';
     db.prepare(`UPDATE channel_apps SET brand_name=?, primary_color=?, custom_domain=?, enabled=?, page=?,
-      original_id=?, upload_key=?, updated_at=datetime('now') WHERE id=?`)
-      .run(brandName || null, primaryColor || null, customDomain || null, enabled ? 1 : 0, page || null,
-        originalId || null, uploadKey || null, existing.id);
+      original_id=?, upload_key=?, appid=?, app_secret=?, updated_at=datetime('now') WHERE id=?`)
+      .run(existing.brand_name, existing.primary_color, existing.custom_domain, existing.enabled, existing.page,
+        existing.original_id, existing.upload_key, existing.appid, existing.app_secret, existing.id);
   } else {
-    db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, brand_name, primary_color, custom_domain, enabled, page, original_id, upload_key)
-      VALUES (?,?,?,?,?,?,?,?,?)`)
-      .run(cid, type, brandName || null, primaryColor || null, customDomain || null, enabled ? 1 : 0, page || null, originalId || null, uploadKey || null);
+    db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, brand_name, primary_color, custom_domain, enabled, page, original_id, upload_key, appid, app_secret)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(cid, type,
+        'brandName' in b ? (b.brandName || '') : '',
+        'primaryColor' in b ? (b.primaryColor || '') : '',
+        'customDomain' in b ? (b.customDomain || '') : '',
+        'enabled' in b ? (b.enabled ? 1 : 0) : 1,
+        'page' in b ? (b.page || '') : '',
+        'originalId' in b ? (b.originalId || '') : '',
+        'uploadKey' in b ? (b.uploadKey || '') : '',
+        'selfAppid' in b ? (b.selfAppid || '') : '',
+        'appSecret' in b ? (b.appSecret || '') : '');
   }
   auditCust(db, req, 'update_channel_config', 'channel_app', req.customerId, `更新渠道配置: ${type}`);
   res.json({ message: '配置已保存' });
@@ -826,12 +849,22 @@ router.post('/channels/mini/auth-url', requireTenant, requireTenantAdmin, async 
 });
 
 // 小程序：从模板上传代码（创建草稿）
+// 双模式：① 第三方授权 → 平台代码模板代上传；② 自运营（appid+上传密钥）→ miniprogram-ci 本地工程上传
 router.post('/channels/mini/upload', requireTenant, requireTenantAdmin, async (req, res) => {
   try {
     const { templateId, userVersion, userDesc } = req.body || {};
     const cid = req.customerId;
     const channel = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, 'mini');
-    if (!channel?.authorizer_appid) return res.status(400).json({ error: '小程序未授权' });
+    if (!channel?.authorizer_appid) {
+      // 自运营分支：未走第三方授权，但客户填了自己的 AppID + 代码上传密钥
+      if (channel?.appid && channel?.upload_key && channel.auth_status !== 'authorized') {
+        await ciUploadMini({ appid: channel.appid, uploadKey: channel.upload_key, version: userVersion, desc: userDesc });
+        db.prepare(`UPDATE channel_apps SET audit_status='draft', version=?, updated_at=datetime('now') WHERE id=?`).run(userVersion || '', channel.id);
+        new WxComponentService(db).logDeploy(channel.id, 'upload', 'success', '', userVersion || '');
+        return res.json({ message: '代码上传成功（自运营 miniprogram-ci 通道）' });
+      }
+      return res.status(400).json({ error: '小程序未授权，且自运营参数（AppID/代码上传密钥）未配置完整' });
+    }
     const wxService = new WxComponentService(db);
     // 服务层按 channel_apps.id 取 token，必须传 id 不是 appid
     await wxService.uploadCode(channel.id, templateId, userVersion, userDesc);

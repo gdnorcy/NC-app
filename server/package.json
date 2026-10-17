@@ -14,6 +14,7 @@
     "ali-oss": "^6.23.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "miniprogram-ci": "^2.1.31",
     "multer": "^2.3.0",
     "qiniu": "^7.15.2",
     "qrcode": "^1.5.4",

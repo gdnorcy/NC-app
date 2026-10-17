@@ -19,7 +19,7 @@ import { PaymentService } from '../services/payment.js';
 import { createRadarService } from '../services/radar.js';
 import { createQuotaService } from '../services/quota.js';
 import { normalizeTabJson } from '../services/design.js';
-import { WxComponentService } from '../services/wx-component.js';
+import { WxComponentService, standaloneCode2Session } from '../services/wx-component.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -115,19 +115,30 @@ export function createCardRouter(db, wxService) {
 
       // 按租户登录（微信第三方平台代开发模式）：
       // 小程序端携带自身 appid（uni.getAccountInfoSync().miniProgram.appId）。
-      // 该 appid 若已在本平台完成授权（channel_apps.mini + authorized），
-      // 走 component 模式 sns/component/jscode2session —— openid 以「租户小程序」
-      // 为命名空间，与平台单 appid 通道的 openid 体系不同，**绝不能互串**：
-      // component 通道失败时直接报错，不回落单 appid（否则会建出错误归属的用户）。
-      // 未带 appid（H5）/ appid 未授权（平台自有小程序）→ 回落既有单 appid 通道。
+      // 三级通道，openid 命名空间互不相通、**绝不能互串**：
+      // ① component 授权租户（channel_apps.mini + authorized）→ sns/component/jscode2session；
+      //    失败直接报错，不回落（否则会建出错误归属的用户）。
+      // ② 自运营租户（未授权但填了自己的 AppID+AppSecret）→ 标准 sns/jscode2session，
+      //    openid 属租户自己的小程序。
+      // ③ 未带 appid（H5）/ 无匹配渠道 → 回落平台单 appid 通道。
       let openid, unionid, channelTenantId = 0;
       const channel = appid
-        ? db.prepare("SELECT * FROM channel_apps WHERE appid = ? AND channel_type = 'mini' AND auth_status = 'authorized'").get(appid)
+        ? db.prepare("SELECT * FROM channel_apps WHERE appid = ? AND channel_type = 'mini'").get(appid)
         : null;
-      if (channel) {
+      if (channel && channel.auth_status === 'authorized') {
         try {
           const wx = new WxComponentService(db);
           const r = await wx.componentCode2Session(channel.appid, code);
+          openid = r.openid;
+          unionid = r.unionid || '';
+          channelTenantId = Number(channel.customer_id) || 0;
+        } catch (e) {
+          return res.status(400).json({ error: '微信登录失败: ' + e.message });
+        }
+      } else if (channel && channel.app_secret) {
+        // 自运营模式：客户在「参数设置」填了自己的 AppID/AppSecret（未走第三方授权）
+        try {
+          const r = await standaloneCode2Session(channel.appid, channel.app_secret, code);
           openid = r.openid;
           unionid = r.unionid || '';
           channelTenantId = Number(channel.customer_id) || 0;

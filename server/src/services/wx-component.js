@@ -381,3 +381,18 @@ export class WxCrypto {
     return sha1 === signature;
   }
 }
+
+/**
+ * 自运营模式登录：租户自有小程序 appid + AppSecret 的标准 jscode2session。
+ * 与 component 模式（sns/component/jscode2session）的关键差异：
+ * - 标准 GET 请求，appid/secret 走 query 参数（component 版是 POST body）；
+ * - openid 命名空间属于租户自己的小程序，与平台单 appid / 其他租户互不相通。
+ */
+export async function standaloneCode2Session(appid, secret, code) {
+  if (!appid || !secret) throw new Error('缺少小程序 appid / AppSecret');
+  const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${encodeURIComponent(appid)}&secret=${encodeURIComponent(secret)}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
+  const resp = await fetch(url);
+  const data = await resp.json();
+  if (data.errcode) throw new Error(`微信code2session失败(${data.errcode}): ${data.errmsg}`);
+  return { openid: data.openid, unionid: data.unionid || '' };
+}
