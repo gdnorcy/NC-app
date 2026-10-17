@@ -243,11 +243,15 @@ const brandVars = computed(() => brandThemeOverride(brand.value));
 // 🔴 品牌主色优先（SIcon 不吃 var()，必须喂真实 hex）
 const themeColor = computed(() => brand.value.primary || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 const avatarStyle = computed(() => {
-  // 🔴 品牌色优先于模板配色（后台「品牌外观」设了就要生效），保留模板布局
+  // 🔴 2026-10-18 模板分层对齐（自选模板 > 品牌主色，与 cardDetail resolvedTheme 同口径）：
+  // 用户选了模板（如曜石黑金）→ 头像底色跟模板 primary，管理台与详情页观感一致；
+  // 无模板才回落品牌色/系统主题。
   const b = brand.value;
-  const c = b.primary || card.value.templateTheme?.primary;
+  const c = card.value.templateTheme?.primary || b.primary;
   if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return {};
-  const dark = b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3);
+  const dark = card.value.templateTheme?.bgEnd && /^#[0-9a-fA-F]{3,6}$/.test(card.value.templateTheme.bgEnd)
+    ? card.value.templateTheme.bgEnd
+    : (b.gradient && /^#[0-9a-fA-F]{3,6}$/.test(b.gradient) ? b.gradient : shadeHex(c, -0.3));
   // 🔴 首字母前景必须与这张渐变同判据：CSS 里写死 #fff，主色一换成亮黄（#FCB801）
   //    白字就整个消失（真机报修「圆形头像整个填充白的了」）。与 cardDetail hero 同源裁决。
   const fg = heroForeground(dark, c, { text: '#ffffff' });
@@ -647,9 +651,16 @@ async function shareOwnerCard() {
   try {
     const qrData = await fetchCardQr();
     const c = card.value;
-    const b = brand.value || {};
-    const primary = b.primary || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff';
-    const gradient = b.gradient || shadeHex(primary, -0.25);
+    // 🔴 海报配色跟「当前模板」（用户原话：生成当前模板带二维码的名片图）：
+    // 有模板用模板 bgStart/bgEnd（如曜石黑金=黑金海报），无模板回落品牌/系统主题
+    const tt = card.value.templateTheme || {};
+    const themePrimary = (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff';
+    const primary = (card.value.templateId && /^#[0-9a-fA-F]{3,6}$/.test(String(tt.bgStart || '')))
+      ? tt.bgStart
+      : (brand.value.primary || themePrimary);
+    const gradient = (card.value.templateId && /^#[0-9a-fA-F]{3,6}$/.test(String(tt.bgEnd || '')))
+      ? tt.bgEnd
+      : (brand.value.gradient || shadeHex(primary, -0.25));
     const ink = heroForeground(shadeHex(primary, -0.25), primary, { text: '#ffffff' }).text;
     const W = 600, H = 960;
     // #ifdef MP-WEIXIN

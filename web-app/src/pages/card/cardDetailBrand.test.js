@@ -2,15 +2,15 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { describe, test, expect } from 'vitest';
 
-// 名片详情品牌 5 色消费回归（2026-10-15 真机报修「品牌配色-品牌外观没生效」根因修复）：
-// 真实名片几乎都带 template_id → templateTheme 恒非空，原「模板优先」把品牌色盖死。
-// 修复后：新增 resolvedTheme = 品牌色覆盖模板配色、保留模板布局（布局开关仍来自模板）；
-// 所有 color 类 computed（heroStyle/nmStyle/subStyle/accentStyle/avatarStyle/barTopStyle/
-// textureBg/heroColor/badgeInline*/isLightHero）改用 resolvedTheme，而非裸 heroTheme。
+// 名片详情品牌 5 色消费回归：
+// 2026-10-15 真机报修「品牌配色没生效」→ 曾改为品牌覆盖模板配色；
+// 2026-10-18 用户报修「名片模板不对，对应不上」（选曜石黑金显示品牌绿）→
+// 最终分层 = 自选模板 > 品牌主色：有自选模板时模板配色原样生效，
+// 品牌色只在无自选模板时接管 hero（heroStyle else 分支，仍走 heroForeground 裁决前景）。
 const here = import.meta.url;
 const SRC = readFileSync(fileURLToPath(new URL('./cardDetail.vue', here)), 'utf8');
 
-describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', () => {
+describe('cardDetail hero 配色分层（自选模板 > 品牌主色）', () => {
   test('引入 brandPalette + hexLuma + shadeHex', () => {
     // 🔴 2026-10-XX 真机报修「预览空白」根因：resolvedTheme/brandFg 用到 shadeHex 但漏 import，
     //    computed 惰性求值 → 渲染数据函数首字段即 ReferenceError → 整页空 data（静态在、数据全灭）。
@@ -24,20 +24,16 @@ describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', ()
     expect(SRC).toContain('const brand = computed(() => brandPalette(card.value));');
   });
 
-  test('resolvedTheme：品牌主色覆盖模板配色、保留布局', () => {
+  test('resolvedTheme：自选模板配色原样生效（品牌不再覆盖），分层=自选模板>品牌主色', () => {
+    // 🔴 2026-10-18 用户报修「名片模板不对，对应不上」：旧实现让品牌 5 色盖掉自选模板配色
+    //    （bgStart/bgEnd/accent/textColor 全换品牌色只留布局）→ 模板市场 6 套配色在详情页
+    //    全变品牌绿，换模板形同虚设。改为与 server toCard 分层注释一致：
+    //    自选模板 > 品牌主色 > 兜底模板 > 装修中心主题色。品牌色只在无自选模板时接管。
     expect(SRC).toContain('const resolvedTheme = computed(() => {');
-    // 无模板 / 未设品牌主色 → 原样（模板或兜底）
-    expect(SRC).toContain('if (!t || !b.primary) return t;');
-    // 品牌色盖过模板配色字段
-    expect(SRC).toContain('bgStart: b.primary,');
-    expect(SRC).toContain('bgEnd: grad,');
-    // 🔴 前景色不再照抄品牌配置（五色可能自相矛盾：亮黄底+白字），统一走 heroForeground 裁决：
-    //    按 hero 背景亮度判明暗 + 对配置色做对比度校验，不合格自动回落可读前景。
-    expect(SRC).toContain('const fg = heroForeground(b.primary, grad, { text: b.text, text2: b.subText, accent: b.secondary });');
-    expect(SRC).toContain('textColor: fg.text,');
-    expect(SRC).toContain('text2Color: fg.text2,');
-    expect(SRC).toContain('accent: fg.accent,');
-    expect(SRC).toContain('borderColor: fg.border,');
+    expect(SRC).toContain('if (!t) return null;');
+    // 有自选模板 → 模板原样（不再被品牌改写）
+    expect(SRC).toContain('if (!card.value.templateId) return t;');
+    expect(SRC).toContain('return t;');
   });
 
   test('heroStyle 改用 resolvedTheme（模板+品牌合并后渲染）', () => {
