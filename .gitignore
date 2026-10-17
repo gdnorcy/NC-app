@@ -9,6 +9,8 @@ node_modules/
 /server/src/data/
 /server/public/card/
 /server/public/mall/
+# 自运营上传工程目录（miniprogram-ci 用）：main 忽略，deploy 分支 force-add
+/server/mini-template/
 _tmp_
 vite.config.js.timestamp-*.mjs
 vitest.config.js.timestamp-*.mjs
