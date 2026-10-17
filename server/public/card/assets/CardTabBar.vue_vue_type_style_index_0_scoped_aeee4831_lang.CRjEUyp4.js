@@ -1,0 +1,1 @@
+import{E as n,C as t}from"./index-Bimsb1-K.js";const o=t(160);function r(n){const t=Number(n);Number.isFinite(t)&&t>=80&&t<=400&&(o.value=Math.round(t))}function u(t=0){return n(()=>function(n=0){return{paddingBottom:`${o.value+24+n}rpx`}}(t))}export{r as s,u};
