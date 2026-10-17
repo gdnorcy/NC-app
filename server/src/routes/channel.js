@@ -312,16 +312,29 @@ export function createChannelRouter(db) {
     if (!appid) return res.status(400).json({ error: '缺少appid' });
 
     const channel = db.prepare('SELECT * FROM channel_apps WHERE appid = ? AND channel_type = ?').get(appid, 'mini');
-    if (!channel) return res.status(404).json({ error: '渠道未配置' });
-    if (channel.auth_status !== 'authorized') return res.status(403).json({ error: '渠道未授权' });
+    // 活跃渠道两种形态：① 第三方平台授权（component 模式）② 自运营（客户自填 AppID+AppSecret，未授权态）
+    // 自运营行同样携带 customer_id/品牌配置，/init 必须服务，否则自运营租户拿不到渠道初始化数据
+    const active = channel && (
+      channel.auth_status === 'authorized' ||
+      (channel.auth_status === 'none' && !!channel.app_secret)
+    );
+    if (!active) {
+      // 非错误态：平台自有小程序（单 appid 多租户）/ 未配置 / 已取消授权 → 明确回「无渠道」。
+      // 🔴 不要用 403/404：devtools 会把非 2xx 标红，平台自有 appid 每次冷启动都红一条，
+      //    且真机无意义报错噪音。前端见 customerId 为假即静默回落默认配置。
+      return res.json({ configured: false, customerId: 0 });
+    }
 
-    const customer = db.prepare('SELECT id, name, logo FROM projects WHERE id = ?').get(channel.customer_id);
+    // 🔴 projects 列名是 customer_name / logo_path（曾误写 name/logo → no such column，/init 对授权租户也 500，
+    //    被 App.vue try/catch 静默吞掉——「静默失败」又一例）
+    const customer = db.prepare('SELECT id, customer_name, logo_path FROM projects WHERE id = ?').get(channel.customer_id);
     res.json({
+      configured: true,
       customerId: channel.customer_id,
-      customerName: customer?.name || '',
-      customerLogo: customer?.logo || '',
-      brandName: channel.brand_name || customer?.name || '',
-      brandLogo: channel.brand_logo || customer?.logo || '',
+      customerName: customer?.customer_name || '',
+      customerLogo: customer?.logo_path || '',
+      brandName: channel.brand_name || customer?.customer_name || '',
+      brandLogo: channel.brand_logo || customer?.logo_path || '',
       primaryColor: channel.primary_color || '#165DFF',
       apiBase: `${req.protocol}://${req.get('host')}`,
     });
