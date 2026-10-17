@@ -18,7 +18,7 @@ const BASELINE = {
   fontKinds: 74,
   radiusKinds: 73,
   shadowKinds: 46,
-  zKinds: 26,
+  zKinds: 27, // 2026-10-21 myCard 二维码/海报弹层有意 +1：var(--z-popup)（mask 与 sheet 同层靠 DOM 顺序）
 };
 
 // ---------- 令牌定义硬保证 ----------

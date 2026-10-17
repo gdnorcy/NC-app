@@ -1,5 +1,5 @@
 <template>
-  <view class="create-page" :class="'skin-' + skinType" :style="[skinVars, themeStyle, brandVars, navVars]">
+  <view class="create-page" :class="['skin-' + skinType, { 'is-edit': isEdit }]" :style="[skinVars, themeStyle, brandVars, navVars]">
     <view v-if="applyMsg" class="apply-banner" :class="{ 'apply-banner--reject': applyStatus === 'rejected' }">
       {{ applyMsg }}
     </view>
@@ -50,7 +50,10 @@
             <view class="co-row" v-for="(c, i) in form.companies" :key="i">
               <input class="form-input co-name" v-model="c.name" placeholder="公司名称" placeholder-class="ph" />
               <input class="form-input co-pos" v-model="c.position" placeholder="职务（选填）" placeholder-class="ph" />
-              <view class="co-del" @click="removeCompany(i)"><SIcon name="close" size="small" :color="ICON_DECOR" /></view>
+              <!-- 删除任职公司：X 用 ICON_T2（次文本级）而非 ICON_DECOR ——
+                   DECOR 语义是「空态/占位/禁用」，可交互控件用它会被读成「按钮是灰的/点不了」
+                   （2026-10-21 用户反馈「后面的删除按钮是全灰，是设计还是误」）。 -->
+              <view class="co-del" @click="removeCompany(i)"><SIcon name="close" size="small" :color="ICON_T2" /></view>
             </view>
           </view>
         </view>
@@ -256,7 +259,7 @@
 </template>
 
 <script setup>
-import { ICON_DECOR } from '../../utils/iconColor.js';
+import { ICON_T2 } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
@@ -656,7 +659,11 @@ async function syncMarketAfterSave(isPublic) {
 
 /* ===== 三皮肤布局差异 ===== */
 /* step 分步引导：卡片全屏化 + 焦点感 */
-.skin-step .header { padding-top: 56rpx; }
+/* 🔴 2026-10-21 真机报修「标题栏和返回键换行」：这 56rpx 原是给旧版扁平 .page-bar
+   （无状态栏占位）的呼吸感；2b85bd1 换成 PageNav 后它自带 44px 状态栏占位，
+   两者叠加把导航条推到胶囊行下方 28px → 返回键/标题独立成行、与大标题重复。
+   修正：额外间距只作用于标题区 .row1，导航条保持与胶囊行对齐。 */
+.skin-step .row1 { padding-top: 56rpx; }
 /* （cards-container 的顶部间隔已在基础样式统一为 24rpx，step/split 不再各写一份 ——
     曾 split 只给 8rpx、step 为 0，同一页面换步/换皮肤灰缝忽有忽无） */
 .skin-step .card {

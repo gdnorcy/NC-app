@@ -1462,6 +1462,41 @@ export function createCardRouter(db, wxService) {
     }
   });
 
+  // 我的名片小程序码（2026-10-21 用户需求：二维码/链接 → 可生成单独的小程序码供下载印刷）
+  // 优先取当前租户已授权小程序的真·小程序码（scene 携带名片 id，扫码直达该名片详情）；
+  // 租户未授权小程序 / 小程序码生成失败（如页面未发布）时降级返回 H5 名片页二维码。
+  router.get('/wxacode', auth, async (req, res) => {
+    try {
+      const cardId = Number(req.query.cardId || 0);
+      if (!cardId) return res.status(400).json({ error: '缺少 cardId' });
+      const host = req.get('host') || `localhost:${process.env.PORT || 3000}`;
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      const h5Url = `${proto}://${host}/card/#/pages/card/cardDetail?id=${cardId}`;
+      const fallback = async () => {
+        const QRCode = (await import('qrcode')).default;
+        const image = await QRCode.toDataURL(h5Url, { margin: 1, width: 600, errorCorrectionLevel: 'M' });
+        return { ok: true, type: 'h5', image, url: h5Url };
+      };
+      // 找当前租户的小程序渠道（SaaS：每客户一小程序，customer_id 挂 channel_apps）
+      let channel = null;
+      try {
+        channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mini' AND auth_status = 'authorized' ORDER BY id DESC LIMIT 1").get(req.customerId || 0);
+      } catch (e) {}
+      if (channel && wxService) {
+        try {
+          const envVersion = channel.audit_status === 'released' ? 'release' : 'trial';
+          const buf = await wxService.getWxacode(channel.id, `id=${cardId}`, 'pages/card/cardDetail', envVersion);
+          return res.json({ ok: true, type: 'wxacode', image: `data:image/png;base64,${buf.toString('base64')}` });
+        } catch (e) {
+          // 小程序码失败（未发布/未配置等）→ 降级 H5 二维码，绝不让用户拿到空结果
+        }
+      }
+      res.json(await fallback());
+    } catch (e) {
+      res.status(500).json({ error: '二维码生成失败' });
+    }
+  });
+
   // 我的推广二维码（PRD：名片ID + 租户归属，扫码跳名片自动绑定上下级）
   router.get('/distribution/qrcode', auth, async (req, res) => {
     try {

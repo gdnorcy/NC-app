@@ -304,7 +304,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
-import { heroGradient, brandPalette } from '../../utils/color.js';
+import { heroGradient, brandPalette, shadeHex } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';

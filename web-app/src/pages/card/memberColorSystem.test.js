@@ -131,10 +131,10 @@ describe('member 语义色与中性保留', () => {
   });
   test('hero 图标改吃 heroInk（back）：品牌亮黄时自动转深灰，不留白图标', () => {
     // 🔴 反例（真机截图报修）：SIcon color="#ffffff" 写死 → 白图标压在 #FCB801 亮黄 hero 上消失
-    // （原 hero 还有 crown 徽章图标，2026-10-16 等级徽章去重时一并删除）
+    // 2026-10-21 换行修复：返回键改由 PageNav 承担（与 create/cardDetail 同方案），heroInk 仍喂 PageNav color
     expect(src).not.toContain('color="#ffffff"');
     expect(src).toContain('const heroInk = computed(() => heroStyle.value.color);');
-    expect(src).toContain('<SIcon name="back" size="large" :color="heroInk" />');
+    expect(src).toContain('<PageNav title="会员中心" back bg="transparent" :color="heroInk" font-size="30rpx" />');
   });
 });
 

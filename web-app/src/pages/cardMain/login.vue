@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onReady } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { getTid } from '../../utils/mallUtil.js';
 import { buildGlobalHomeRedirect } from '../../utils/globalHome.js';
@@ -31,6 +31,16 @@ import { isManualEntry as isManual, safeRedirect } from '../../utils/loginEntry.
 import { JUMP_DONE_KEY } from '../../utils/design.js';
 import { DEFAULT_TENANT_ID } from '../../config.js';
 import { resetBrandCache } from '../../utils/brand.js';
+
+// 🔴 冷启动 reLaunch 竞态防护（2026-10-21 真机报修「扫体验码打开是空白，要点左上角
+//   回首页才会加载出首页」）：onShow 里 designConfig 请求返回后立刻 reLaunch，可能
+//   早于本页首帧渲染完成；WeChat 在该时机处理 reLaunch，目标页（装修首页）会停在
+//   空白首帧，必须二次进入（回首页→login→再跳）才恢复。
+//   解法：reLaunch 延到本页 onReady（首帧渲染完成）之后；网络慢时登录页先完整
+//   渲染出来再跳，用户也不再面对空白。
+let resolveFirstRender;
+const firstRenderDone = new Promise((r) => { resolveFirstRender = r; });
+onReady(() => resolveFirstRender());
 
 // 冷启动首页联动：装修中心「首页」（is_home=1）配置谁就跳谁（商城/全景/名片/自定义页）
 // 仅小程序冷启动页检查；游客自动带默认租户读取公开配置；跳转目标页自身不重复检查，无死循环
@@ -57,6 +67,8 @@ async function checkGlobalHome() {
     if (target) {
       // 已按装修中心「首页」完成冷启动跳转：置位会话内首页跳转标记，home 页老逻辑不再二次跳
       uni.setStorageSync(JUMP_DONE_KEY, '1');
+      // 等本页首帧渲染完成再跳：规避冷启动 reLaunch 竞态（目标页空白首帧）
+      await firstRenderDone;
       uni.reLaunch({ url: target });
     }
     else console.log('[global-home] 无首页配置或已在本页，跳过跳转', raw && raw.homePageUrl, cur);

@@ -113,12 +113,15 @@
     <view class="owner-section">
       <view class="os-t">访客雷达 <small>最近访客</small></view>
       <view class="ov-list" v-if="visitorTop.length">
-        <view class="ov-item" v-for="v in visitorTop" :key="v.id">
+        <!-- 2026-10-21 用户反馈：最近访客应可直接点击查看详情 → 跳访客雷达（列表页内
+             有行为轨迹弹层 + 转为客户等完整操作；此处不重复实现弹层） -->
+        <view class="ov-item" v-for="v in visitorTop" :key="v.id" @click="goVisitors">
           <view class="ov-avatar">{{ (v.nickname || '客')[0] }}</view>
           <view class="ov-info">
             <view class="ov-name">{{ v.nickname || '匿名访客' }}</view>
             <view class="ov-time">{{ timeText(v.lastVisitAt) }} · {{ v.visitCount }}次</view>
           </view>
+          <text class="ov-arrow">›</text>
         </view>
       </view>
       <view class="ov-empty" v-else>还没有访客，快去分享你的名片吧</view>
@@ -147,12 +150,12 @@
       </view>
       <view class="os-row" @click="saveCardInfo">
         <view class="osr-icon"><SIcon name="storage" size="default" :color="themeColor" /></view>
-        <view class="osr-main"><view class="osr-name">保存名片</view><view class="osr-desc">复制名片信息，可保存到手机通讯录</view></view>
+        <view class="osr-main"><view class="osr-name">保存名片</view><view class="osr-desc">一键写入手机通讯录</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row" @click="exportData">
         <view class="osr-icon"><SIcon name="analytics" size="default" :color="themeColor" /></view>
-        <view class="osr-main"><view class="osr-name">导出数据</view><view class="osr-desc">复制我的名片与访客数据</view></view>
+        <view class="osr-main"><view class="osr-name">导出数据</view><view class="osr-desc">导出名片与访客数据为 CSV 文件</view></view>
         <text class="osr-arrow">›</text>
       </view>
       <view class="os-row danger" @click="leaveTenant">
@@ -163,6 +166,38 @@
     </view>
 
     <CardTabBar active="card" />
+
+    <!-- 二维码/链接弹层（2026-10-21 重做：原「复制 H5 链接」→ 真二维码 + 保存按钮，供下载印刷） -->
+    <view class="sheet-mask" v-if="showQr" @click="showQr = false"></view>
+    <view class="qr-sheet" v-if="showQr">
+      <view class="grip"></view>
+      <view class="qs-title">名片二维码</view>
+      <view class="qs-sub">{{ qrType === 'wxacode' ? '微信扫一扫，直达名片详情' : '扫码打开网页版名片（当前小程序渠道未接入，暂用网页链接码）' }}</view>
+      <view class="qs-img-wrap">
+        <image v-if="qrImage" class="qs-img" :src="qrImage" mode="aspectFit" show-menu-by-longpress />
+        <view v-else class="qs-loading">生成中…</view>
+      </view>
+      <button class="qs-save" :disabled="!qrImage" @click="saveQrImage">保存到相册（可下载印刷）</button>
+      <view class="qs-close" @click="showQr = false">关闭</view>
+    </view>
+
+    <!-- 分享海报弹层（2026-10-21 新增：生成当前模板配色的带二维码名片图，可保存/印刷） -->
+    <view class="sheet-mask" v-if="showPoster" @click="showPoster = false"></view>
+    <view class="qr-sheet" v-if="showPoster">
+      <view class="grip"></view>
+      <view class="qs-title">名片分享海报</view>
+      <view class="qs-sub">保存图片后可发朋友圈或印刷，扫码直达名片</view>
+      <view class="qs-img-wrap" :class="{ 'poster-wrap': true }">
+        <image v-if="posterPath" class="qs-img poster" :src="posterPath" mode="aspectFit" show-menu-by-longpress />
+        <view v-else class="qs-loading">海报生成中…</view>
+      </view>
+      <button class="qs-save" :disabled="!posterPath" @click="savePosterImage">保存到相册</button>
+      <view class="qs-close" @click="showPoster = false">关闭</view>
+    </view>
+    <!-- 离屏海报画布（移出屏幕；H5 不渲染，直接用内存 canvas） -->
+    <!-- #ifdef MP-WEIXIN -->
+    <canvas id="posterCanvas" type="2d" class="poster-canvas"></canvas>
+    <!-- #endif -->
 
     <!-- 雷达悬浮球 + 未读角标（脉冲圈动效 + 抬高避开底部Tab） -->
     <view class="radar-float" @click="goVisitors">
@@ -177,7 +212,7 @@
 <script setup>
 import { ICON_DECOR, ICON_T1 } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
@@ -443,24 +478,251 @@ function previewCard() {
   // 他人视角预览：跳对外展示页
   uni.navigateTo({ url: `/pages/card/cardDetail?id=${pageCardId.value}` });
 }
-function shareOwnerCard() {
-  const href = typeof window !== 'undefined' ? window.location.href.split('#')[0] + '#/pages/card/cardDetail?id=' + pageCardId.value : '';
-  if (href) {
-    uni.setClipboardData({ data: href, success: () => uni.showToast({ title: '名片链接已复制，可分享给好友', icon: 'none' }) });
-  } else {
-    uni.showToast({ title: '当前环境暂不支持分享', icon: 'none' });
+
+/* ===== 分享 / 二维码（2026-10-21 重做 =====
+   原「分享」「二维码/链接」在 MP 端都退化为复制 H5 链接甚至「暂不支持」toast。
+   现在：
+   - 分享 → 生成「当前模板配色 + 姓名/职位/公司 + 名片二维码」的海报图（canvas 绘制），
+     弹层预览 + 保存到相册，可发朋友圈/印刷。
+   - 二维码/链接 → 服务端 /card/wxacode：租户已授权小程序时返回真·小程序码
+     （scene 携名片 id 扫码直达），否则降级 H5 链接二维码；弹层内一键保存。 */
+const showQr = ref(false);
+const qrImage = ref('');
+const qrType = ref('');
+const showPoster = ref(false);
+const posterPath = ref('');
+
+async function fetchCardQr() {
+  // 已取过直接复用（同一张名片码不变；换名片时 pageCardId 变 → 缓存键不匹配就重取）
+  if (qrImage.value && qrForCard.value === pageCardId.value) return qrImage.value;
+  const res = await cardApi.getWxacode(pageCardId.value);
+  qrImage.value = res.image || '';
+  qrType.value = res.type || 'h5';
+  qrForCard.value = pageCardId.value;
+  return qrImage.value;
+}
+const qrForCard = ref('');
+
+async function copyLink() {
+  showQr.value = true;
+  qrImage.value = '';
+  try {
+    await fetchCardQr();
+  } catch (e) {
+    showQr.value = false;
+    uni.showToast({ title: '二维码生成失败，请稍后重试', icon: 'none' });
   }
 }
-function copyLink() {
-  const href = typeof window !== 'undefined' ? window.location.href.split('#')[0] + '#/pages/card/cardDetail?id=' + pageCardId.value : '';
-  uni.setClipboardData({ data: href, success: () => uni.showToast({ title: '名片链接已复制', icon: 'success' }) });
+
+// dataURL → 本地文件（MP 端 saveImageToPhotosAlbum 需要文件路径；H5 直接用 dataURL 下载）
+function dataUrlToFile(dataUrl, name) {
+  return new Promise((resolve, reject) => {
+    // #ifdef MP-WEIXIN
+    const fs = uni.getFileSystemManager();
+    const path = `${wx.env.USER_DATA_PATH}/${name}-${Date.now()}.png`;
+    fs.writeFile({
+      filePath: path,
+      data: dataUrl.replace(/^data:image\/\w+;base64,/, ''),
+      encoding: 'base64',
+      success: () => resolve(path),
+      fail: reject,
+    });
+    // #endif
+    // #ifndef MP-WEIXIN
+    resolve(dataUrl);
+    // #endif
+  });
+}
+function saveImageCommon(filePath, tipName) {
+  // #ifdef MP-WEIXIN
+  uni.saveImageToPhotosAlbum({
+    filePath,
+    success: () => uni.showToast({ title: '已保存到相册', icon: 'success' }),
+    fail: (e) => {
+      const msg = (e && e.errMsg) || '';
+      if (msg.indexOf('auth') >= 0 || msg.indexOf('denied') >= 0) {
+        uni.showModal({ title: '需要相册权限', content: '请在设置中允许保存图片到相册', confirmText: '去设置', success: (r) => { if (r.confirm) uni.openSetting({}); } });
+      } else if (msg.indexOf('cancel') < 0) {
+        uni.showToast({ title: '保存失败，请重试', icon: 'none' });
+      }
+    },
+  });
+  // #endif
+  // #ifndef MP-WEIXIN
+  if (typeof document !== 'undefined') {
+    const a = document.createElement('a');
+    a.href = filePath;
+    a.download = `${tipName}.png`;
+    a.click();
+    uni.showToast({ title: '已下载', icon: 'success' });
+  }
+  // #endif
+}
+async function saveQrImage() {
+  if (!qrImage.value) return;
+  try {
+    saveImageCommon(await dataUrlToFile(qrImage.value, 'card-qrcode'), '名片二维码');
+  } catch (e) {
+    uni.showToast({ title: '保存失败，请重试', icon: 'none' });
+  }
+}
+async function savePosterImage() {
+  if (!posterPath.value) return;
+  // MP：posterPath 已是临时文件；H5：是 dataURL
+  saveImageCommon(posterPath.value, '名片海报');
+}
+
+/* —— 海报绘制 —— */
+// 跨端取图：MP 用 canvas.createImage，H5 用 Image
+function loadImage(canvas, src) {
+  return new Promise((resolve, reject) => {
+    // #ifdef MP-WEIXIN
+    const img = canvas.createImage();
+    // #endif
+    // #ifndef MP-WEIXIN
+    const img = new Image();
+    // #endif
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+function drawPoster(ctx, W, H, c, primary, gradient, ink, qrImg) {
+  // 白底
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  // 顶部品牌渐变头（当前模板/品牌主色）
+  const g = ctx.createLinearGradient(0, 0, W * 0.35, 330);
+  g.addColorStop(0, primary);
+  g.addColorStop(1, gradient);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, 330);
+  // 头部文字：颜色按渐变亮度裁决（亮主色转深字，与 heroForeground 同判据）
+  ctx.fillStyle = ink;
+  ctx.font = 'bold 64px sans-serif';
+  ctx.fillText(c.name || '电子名片', 48, 130);
+  ctx.globalAlpha = 0.9;
+  ctx.font = '30px sans-serif';
+  ctx.fillText(c.position || '', 48, 185);
+  ctx.fillText([c.company, c.city].filter(Boolean).join(' · '), 48, 235);
+  ctx.globalAlpha = 0.75;
+  ctx.fillText((c.businessField || ''), 48, 285);
+  ctx.globalAlpha = 1;
+  // 需求标签
+  let tags = [];
+  try { const a = JSON.parse(c.needTags || '[]'); tags = Array.isArray(a) ? a.slice(0, 3) : []; } catch (e) {}
+  if (tags.length) {
+    let tx = 48;
+    ctx.font = '24px sans-serif';
+    tags.forEach((t) => {
+      const tw = ctx.measureText(t).width + 32;
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = ink;
+      ctx.fillRect(tx, 320 - 60, tw, 40);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = ink;
+      ctx.fillText(t, tx + 16, 320 - 32);
+      tx += tw + 16;
+    });
+  }
+  // 引导语 + 二维码
+  ctx.fillStyle = '#1d2129';
+  ctx.font = 'bold 34px sans-serif';
+  ctx.fillText('扫码查看电子名片', 48, 430);
+  ctx.fillStyle = '#86909c';
+  ctx.font = '24px sans-serif';
+  ctx.fillText('长按或微信扫一扫', 48, 475);
+  if (qrImg) ctx.drawImage(qrImg, W / 2 - 190, 520, 380, 380);
+  // 底部署名
+  ctx.fillStyle = '#c9cdd4';
+  ctx.font = '22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(c.phone ? `电话 ${c.phone}` : '', W / 2, H - 40);
+  ctx.textAlign = 'left';
+}
+async function shareOwnerCard() {
+  if (!pageCardId.value) return;
+  showPoster.value = true;
+  posterPath.value = '';
+  try {
+    const qrData = await fetchCardQr();
+    const c = card.value;
+    const b = brand.value || {};
+    const primary = b.primary || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff';
+    const gradient = b.gradient || shadeHex(primary, -0.25);
+    const ink = heroForeground(shadeHex(primary, -0.25), primary, { text: '#ffffff' }).text;
+    const W = 600, H = 960;
+    // #ifdef MP-WEIXIN
+    const inst = getCurrentInstance();
+    uni.createSelectorQuery().in(inst.proxy).select('#posterCanvas').fields({ node: true, size: true }).exec(async (res) => {
+      if (!res || !res[0] || !res[0].node) { uni.showToast({ title: '海报绘制失败', icon: 'none' }); return; }
+      const canvas = res[0].node;
+      const dpr = (uni.getWindowInfo && uni.getWindowInfo().pixelRatio) || 2;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      try {
+        const qrImg = await loadImage(canvas, qrData);
+        drawPoster(ctx, W, H, c, primary, gradient, ink, qrImg);
+      } catch (e) {
+        drawPoster(ctx, W, H, c, primary, gradient, ink, null);
+      }
+      uni.canvasToTempFilePath({
+        canvas,
+        success: (r) => { posterPath.value = r.tempFilePath; },
+        fail: () => uni.showToast({ title: '海报导出失败', icon: 'none' }),
+      });
+    });
+    // #endif
+    // #ifndef MP-WEIXIN
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    let qrImg = null;
+    try { qrImg = await loadImage(null, qrData); } catch (e) {}
+    drawPoster(ctx, W, H, c, primary, gradient, ink, qrImg);
+    posterPath.value = canvas.toDataURL('image/png');
+    // #endif
+  } catch (e) {
+    showPoster.value = false;
+    uni.showToast({ title: '海报生成失败，请稍后重试', icon: 'none' });
+  }
 }
 function locateInMarket() {
   uni.navigateTo({ url: '/pages/card/market' });
 }
 function goVisitors() { uni.navigateTo({ url: '/pages/card/visitors' }); }
 function goRadarConfig() { uni.navigateTo({ url: '/pages/card/radarConfig' }); }
+/* ===== 高级工具（2026-10-21 重做：原两行都只是「复制文本」，用户反馈功能不合理 =====
+   保存名片：小程序端直接调系统通讯录写入（wx.addPhoneContact），不再是复制后手动粘贴；
+             H5 无该 API，降级为复制 vCard 格式文本。
+   导出数据：生成 CSV 文件——小程序端写用户目录后调 shareFileMessage 让用户发给
+             自己/电脑（文件可存档）；H5 直接触发浏览器下载。复制文本仅作失败降级。 */
 function saveCardInfo() {
+  const c = card.value;
+  // #ifdef MP-WEIXIN
+  uni.addPhoneContact({
+    firstName: c.name || '名片联系人',
+    mobilePhoneNumber: c.phone || '',
+    weChatNumber: c.wechat || '',
+    organization: c.company || '',
+    title: c.position || '',
+    email: c.email || '',
+    success: () => uni.showToast({ title: '已保存到手机通讯录', icon: 'success' }),
+    fail: (e) => {
+      // 用户取消不提示；授权拒绝/其他失败降级为复制
+      if (e && e.errMsg && e.errMsg.indexOf('cancel') >= 0) return;
+      copyCardText();
+    },
+  });
+  // #endif
+  // #ifndef MP-WEIXIN
+  copyCardText();
+  // #endif
+}
+function copyCardText() {
   const c = card.value;
   const lines = [
     `姓名：${c.name || ''}`,
@@ -470,18 +732,70 @@ function saveCardInfo() {
     c.wechat ? `微信：${c.wechat}` : '',
     c.email ? `邮箱：${c.email}` : '',
   ].filter(Boolean).join('\n');
-  uni.setClipboardData({ data: lines, success: () => uni.showToast({ title: '名片信息已复制，可粘贴到通讯录', icon: 'none' }) });
+  uni.setClipboardData({ data: lines, success: () => uni.showToast({ title: '名片信息已复制', icon: 'none' }) });
 }
-function exportData() {
+function buildExportCsv(visitors) {
   const c = card.value;
-  const text = [
-    `我的名片（${c.name || ''}）`,
-    `职位：${c.position || '-'}｜企业：${c.company || '-'}`,
-    `电话：${c.phone || '-'}｜微信：${c.wechat || '-'}`,
-    `总访问：${stats.value.totalViews || 0}｜被交换：${stats.value.totalExchanges || 0}｜集市曝光：${stats.value.marketViews || 0}`,
-    `最近访客：${visitorTop.value.map((v) => v.nickname || '匿名').join('、') || '暂无'}`,
-  ].join('\n');
-  uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '名片与访客数据已复制', icon: 'none' }) });
+  const esc = (v) => {
+    const s = v === undefined || v === null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = [
+    ['字段', '值'].map(esc).join(','),
+    ['姓名', c.name || ''].map(esc).join(','),
+    ['职位', c.position || ''].map(esc).join(','),
+    ['公司', c.company || ''].map(esc).join(','),
+    ['电话', c.phone || ''].map(esc).join(','),
+    ['微信', c.wechat || ''].map(esc).join(','),
+    ['邮箱', c.email || ''].map(esc).join(','),
+    ['总访问', stats.value.totalViews || 0].map(esc).join(','),
+    ['被交换', stats.value.totalExchanges || 0].map(esc).join(','),
+    ['集市曝光', stats.value.marketViews || 0].map(esc).join(','),
+    '',
+    ['访客昵称', '访问次数', '最近访问'].map(esc).join(','),
+  ];
+  (visitors || []).forEach((v) => {
+    rows.push([v.nickname || '匿名访客', v.visitCount || 0, v.lastVisitAt || ''].map(esc).join(','));
+  });
+  return rows.join('\n');
+}
+function copyExport(csv) {
+  uni.setClipboardData({ data: csv, success: () => uni.showToast({ title: '数据已复制为文本', icon: 'none' }) });
+}
+async function exportData() {
+  // 导出前拉一次完整访客列表（myCard 页常驻的只有 TOP3）
+  let allVisitors = visitorTop.value;
+  try {
+    const res = await cardApi.getVisitorSummary();
+    if (res && res.visitors && res.visitors.length) allVisitors = res.visitors;
+  } catch (e) {}
+  const csv = buildExportCsv(allVisitors);
+  // #ifdef MP-WEIXIN
+  try {
+    const fs = uni.getFileSystemManager();
+    const path = `${wx.env.USER_DATA_PATH}/card-data-${Date.now()}.csv`;
+    fs.writeFileSync(path, '\ufeff' + csv, 'utf8');
+    uni.shareFileMessage({
+      filePath: path,
+      fileName: '我的名片数据.csv',
+      success: () => uni.showToast({ title: '已导出，可发送给好友或电脑', icon: 'none' }),
+      fail: () => copyExport(csv),
+    });
+  } catch (e) { copyExport(csv); }
+  // #endif
+  // #ifndef MP-WEIXIN
+  if (typeof document !== 'undefined') {
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '我的名片数据.csv';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    uni.showToast({ title: 'CSV 文件已下载', icon: 'success' });
+  } else {
+    copyExport(csv);
+  }
+  // #endif
 }
 const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 const goCollects = () => uni.navigateTo({ url: '/pages/card/collects' });
@@ -596,12 +910,52 @@ function leaveTenant() {
 
 .ov-list { padding: 8rpx 0; }
 .ov-item { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; }
+.ov-arrow { font-size: var(--fs-6); color: var(--border-strong); flex-shrink: 0; }
 .ov-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: rgba(var(--design-primary-rgb, 22, 93, 255), .08); color: var(--design-primary, #165dff); font-size: var(--fs-4); display: flex; align-items: center; justify-content: center; }
 .ov-info { flex: 1; }
 .ov-name { font-size: var(--fs-4); color: var(--t5); }
 .ov-time { font-size: var(--fs-2); color: var(--t4); margin-top: 4rpx; }
 .ov-empty { font-size: var(--fs-3); color: var(--t4); padding: 20rpx 0; }
 .ov-more { font-size: var(--fs-3); color: var(--design-primary, #165dff); padding: 16rpx 0 8rpx; text-align: center; }
+
+/* ===== 二维码 / 海报弹层 ===== */
+.sheet-mask {
+  position: fixed; left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5); z-index: var(--z-popup);
+}
+.qr-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--white); border-radius: 28rpx 28rpx 0 0;
+  /* 与 mask 同层（--z-popup）：DOM 顺序在后自然盖住遮罩；--z-toast 让给系统 toast */
+  z-index: var(--z-popup);
+  padding: 16rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center;
+}
+.grip { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: #e5e6eb; margin-bottom: 20rpx; }
+.qs-title { font-size: var(--fs-6); font-weight: 600; color: var(--t5); }
+.qs-sub { font-size: var(--fs-2); color: var(--t4); margin-top: 8rpx; text-align: center; }
+.qs-img-wrap {
+  margin-top: 24rpx; width: 460rpx; height: 460rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-page); border-radius: 20rpx; overflow: hidden;
+}
+.qs-img { width: 440rpx; height: 440rpx; }
+.qs-img.poster { height: 640rpx; }
+.qs-img-wrap.poster-wrap { height: 660rpx; }
+.qs-loading { font-size: var(--fs-3); color: var(--t4); }
+.qs-save {
+  margin-top: 28rpx; width: 100%; height: 88rpx; line-height: 88rpx;
+  border-radius: 44rpx; border: none;
+  background: linear-gradient(135deg, var(--design-primary, #165dff), var(--design-gradient, var(--design-primary, #165dff)));
+  color: var(--white); font-size: var(--fs-5);
+}
+.qs-save[disabled] { opacity: 0.5; }
+.qs-close { margin-top: 16rpx; font-size: var(--fs-3); color: var(--t4); padding: 12rpx 40rpx; }
+/* 离屏海报画布：type=2d canvas 不能 display:none（节点不布局会拿不到 node），移出屏幕即可 */
+.poster-canvas {
+  position: fixed; left: -9999rpx; top: 0;
+  width: 600px; height: 960px;
+}
 .radar-float {
   position: fixed; right: 32rpx; bottom: calc(160rpx + env(safe-area-inset-bottom)); z-index: var(--z-sticky);
   width: 96rpx; height: 96rpx; border-radius: 50%;

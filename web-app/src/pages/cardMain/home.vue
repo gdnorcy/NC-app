@@ -153,7 +153,7 @@
 <script setup>
 import { ICON_T2 } from '../../utils/iconColor.js';
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { onShow, onLoad, onPageScroll, onShareAppMessage, onPullDownRefresh } from '@dcloudio/uni-app';
+import { onShow, onLoad, onReady, onPageScroll, onShareAppMessage, onPullDownRefresh } from '@dcloudio/uni-app';
 import { shadeHex, brandPalette } from '../../utils/color.js';
 import { cardApi } from '../../utils/cardApi.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
@@ -498,7 +498,13 @@ const avatarStyle = computed(() => {
 const brandVars = computed(() => brandThemeOverride(brandPalette(myCard.value || {})));
 
 // 设计中心首页跳转：配置了非默认首页时，首次进入自动跳转到对应页面
+// 🔴 冷启动 reLaunch 竞态防护（2026-10-21 真机报修「空白首帧」）：onShow 里跳转
+//    同样可能早于本页首帧渲染完成 → 目标页空白。reLaunch 延到 onReady 之后。
+//    （homeJumpChecked 已保证只跳一次；生产配置 target 即本页，通常走上面的 return 分支）
 const homeJumpChecked = ref(false);
+let resolveHomeFirstRender;
+const homeFirstRenderDone = new Promise((r) => { resolveHomeFirstRender = r; });
+onReady(() => resolveHomeFirstRender());
 onShow(() => {
   refreshLoginFlag(); // 登录后返回首页时刷新「是否需先登录」的引导文案
   uni.$emit('cart:changed'); // 购物车组件（fab-cart）数量刷新
@@ -524,6 +530,7 @@ onShow(() => {
         return;
       }
       uni.setStorageSync(JUMP_DONE_KEY, '1');
+      await homeFirstRenderDone; // 等本页首帧渲染完成再跳，规避冷启动 reLaunch 竞态
       uni.reLaunch({ url: target });
     } catch (e) { /* 配置拉取失败不阻断首页 */ }
   })();

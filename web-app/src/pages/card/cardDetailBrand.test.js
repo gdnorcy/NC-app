@@ -12,9 +12,12 @@ const SRC = readFileSync(fileURLToPath(new URL('./cardDetail.vue', here)), 'utf8
 
 describe('cardDetail 品牌 5 色覆盖模板（设了品牌就要生效）', () => {
   test('引入 brandPalette + hexLuma + shadeHex', () => {
-    expect(SRC).toContain("import { heroGradient, brandPalette, hexLuma } from '../../utils/color.js';");
+    // 🔴 2026-10-XX 真机报修「预览空白」根因：resolvedTheme/brandFg 用到 shadeHex 但漏 import，
+    //    computed 惰性求值 → 渲染数据函数首字段即 ReferenceError → 整页空 data（静态在、数据全灭）。
+    //    原测试逐字钉死了漏 import 的错误语句，谁修谁挂 —— 改为钉正确语句。
+    expect(SRC).toContain("import { heroGradient, brandPalette, hexLuma, shadeHex } from '../../utils/color.js';");
     // resolvedTheme 用到 shadeHex（派生渐变深端），必须已导入
-    expect(SRC).toContain("parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,");
+    expect(SRC).toContain('parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle,');
   });
 
   test('brand 归一化 computed = brandPalette(card.value)', () => {

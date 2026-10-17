@@ -64,7 +64,8 @@ describe('create 平台位归主题', () => {
     expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
   test('根视图绑 [skinVars, themeStyle, brandVars, navVars]（皮肤 + 主题 + 品牌覆盖 + 导航四源）', () => {
-    expect(src).toMatch(/<view class="create-page" :class="'skin-' \+ skinType" :style="\[skinVars, themeStyle, brandVars, navVars\]">/);
+    // 2026-10-21 供需标签空白修复：追加 is-edit class（编辑模式关掉 .skin-step .card 的 640rpx min-height）
+    expect(src).toMatch(/<view class="create-page" :class="\['skin-' \+ skinType, \{ 'is-edit': isEdit \}\]" :style="\[skinVars, themeStyle, brandVars, navVars\]">/);
   });
   test('voice-locked 会员引导改主题系（原金色提示消费无定义 --gold）', () => {
     const block = ruleBlock(src, '.voice-locked');
@@ -95,9 +96,11 @@ describe('create 保留位不动', () => {
     for (const c of ['#9a9a9a', '#1d2129', '#4e5969']) {
       expect(src, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
-    // 2026-10-16 方案 A：关闭按钮图标原 #8a8f99 → ICON_DECOR 令牌
+    // 2026-10-16 方案 A：关闭按钮图标原 #8a8f99 → 语义令牌
     // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）
-    expect(src).toContain(':color="ICON_DECOR"');
+    // 2026-10-21 真机反馈「删除按钮全灰，是设计还是误」：ICON_DECOR 语义是
+    // 「空态/占位/禁用」，可交互控件用它会被读成禁用 → 改 ICON_T2（次文本级）。
+    expect(src).toContain(':color="ICON_T2"');
   });
 });
 

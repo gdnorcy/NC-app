@@ -1,14 +1,14 @@
 <template>
   <view class="member-page" :style="[navVars, themeStyle, brandVars, tabBarPad]">
     <view class="hero g3" :style="heroStyle">
-      <view class="row1">
-        <view class="mb-back" @click="goBack"><SIcon name="back" size="large" :color="heroInk" /></view>
-        <view class="hero-left">
-          <view class="hero-title">会员中心</view>
-          <!-- 等级只在此行展示一次：原标题旁英文徽章（crown + DIAMOND）与下行「钻石会员」重复且与个人中心「✓钻石」割裂，2026-10-16 删 -->
-          <view class="hero-sub">当前：{{ currentLevelText }}{{ isMember ? ' · 有效期至 ' + memberExpire : ' · 尚未开通' }}</view>
-        </view>
+      <!-- 🔴 2026-10-21 真机报修「会员中心也有上轮的换行问题」：原 hero 用
+           padding-top(状态栏+导航行高) 把「返回+标题」整体推到胶囊行下方，
+           与上轮 cardDetail/create 修复前同病。改为 PageNav 沉浸式导航行
+           （返回+标题与胶囊同排，bg 透明融入渐变），hero 渐变区只留副标题。 -->
+      <view class="hero-nav">
+        <PageNav title="会员中心" back bg="transparent" :color="heroInk" font-size="30rpx" />
       </view>
+      <view class="hero-sub">当前：{{ currentLevelText }}{{ isMember ? ' · 有效期至 ' + memberExpire : ' · 尚未开通' }}</view>
     </view>
 
     <!-- 分销中心入口 -->
@@ -169,11 +169,6 @@ const applyTipText = computed(() => {
 });
 
 
-function goBack() {
-  const pages = getCurrentPages();
-  if (pages.length > 1) uni.navigateBack();
-  else uni.reLaunch({ url: '/pages/cardMain/home' });
-}
 function goDistribution() {
   uni.navigateTo({ url: '/pages/card/distribution' });
 }
@@ -420,31 +415,17 @@ async function openMember(pkg) {
    右侧留出胶囊宽度（最小化 + 三个点），不再用写死的 88rpx。 */
 .hero.g3 {
   position: relative;
-  /* 完整避让：状态栏 + 导航行高（原右上 FREE 徽章与胶囊同排会撞胶囊，徽章已删、避让值保留） */
-  padding: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 8rpx) 40rpx 44rpx;
+  /* 状态栏+导航行占位由 PageNav 自理（与 create/cardDetail 同方案）；
+     hero 渐变区只留副标题行。右侧仍避让胶囊宽度。 */
+  padding: 0 40rpx 36rpx;
   padding-right: calc(var(--pnv-capsule-pad, 7px) + 40rpx);
   color: var(--design-text, #fff);
   background: linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff));
   overflow: hidden;
 }
-.mb-back { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; margin-right: 8rpx; flex-shrink: 0; }
-.hero-left { flex: 1; min-width: 0; }
-.row1 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-  z-index: 1;
-}
-.hero-title {
-  font-size: var(--fs-7);
-  font-weight: 700;
-}
-.hero-sub {
-  font-size: var(--fs-3);
-  opacity: 0.85;
-  margin-top: 12rpx;
-}
+/* PageNav 负 margin 通栏：抵消 hero 的 40rpx 左右内边距，让导航条背景（透明）通栏 */
+.hero-nav { margin: 0 -40rpx; }
+.hero-sub { font-size: var(--fs-3); opacity: 0.85; padding-top: 8rpx; }
 
 /* ===== 套餐列表（demo plan-grid）===== */
 .sec-t {
