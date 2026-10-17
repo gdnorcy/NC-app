@@ -78,9 +78,10 @@ describe('我的名片 myCard 配色收敛（跟随租户主题）', () => {
     expect(src).toContain("const themeColor = computed(() => brand.value.primary || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');");
   });
 
-  test('头像背景：品牌主色优先于模板配色（设了品牌外观就要生效）', () => {
-    // 🔴 反例（曾踩）：const c = card.value.templateTheme?.primary || b.primary;
-    //   真实名片几乎都带 template_id → 模板 primary 恒非空 → 品牌色被盖死、视觉上「没生效」。
-    expect(src).toContain('const c = b.primary || card.value.templateTheme?.primary;');
+  test('头像背景：自选模板配色优先（与 cardDetail 分层对齐），无模板回落品牌主色', () => {
+    // 🔴 2026-10-18 用户报修「名片模板不对，对应不上」→ 全局分层改为 自选模板 > 品牌主色。
+    //   （反例史：2026-10-15 曾反向钉死 b.primary 优先，当时为了「设了品牌就要生效」；
+    //    现品牌生效路径=无自选模板时的接管分支，两需求不再冲突。）
+    expect(src).toContain('const c = card.value.templateTheme?.primary || b.primary;');
   });
 });

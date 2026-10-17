@@ -486,29 +486,16 @@ const brand = computed(() => brandPalette(card.value));
 // 🔴 品牌主色覆盖页面主题变量：hero 之下的页面主体（quickbar/评论区/表单按钮等
 // var(--design-primary) 消费点）也跟随品牌色；未设回落设计中心系统主题色
 const brandVars = computed(() => brandThemeOverride(brand.value));
-// 🔴 品牌色覆盖模板配色、保留模板布局（用户要求：后台「品牌外观」设了就要生效）。
-// 真实名片几乎都带 template_id → 模板主题恒非空，所以必须让品牌色盖过模板配色，
-// 而非「模板优先」把品牌色盖死。布局字段（heroLayout/bgType/texture/radius/guide 等）仍取自模板。
+// 🔴 分层（与 server toCard 注释一致）：自选模板 > 品牌主色 > 兜底模板 > 装修中心主题色。
+// 2026-10-18 用户报修「名片模板不对，对应不上」：旧实现让品牌 5 色盖掉自选模板的
+// 配色（bgStart/bgEnd/accent/textColor 全换品牌绿，只留布局）→ 模板市场 6 套配色
+// 在详情页全变品牌绿，换模板形同虚设。改为：有自选模板（templateId 非空且解析出
+// theme）→ 模板配色原样生效；品牌色只在无自选模板时接管（heroStyle else 分支）。
 const resolvedTheme = computed(() => {
   const t = heroTheme.value;
-  const b = brand.value;
-  if (!t || !b.primary) return t; // 无模板 / 未设品牌主色 → 原样（模板或兜底）
-  const grad = /^#[0-9a-fA-F]{3,6}$/.test(String(b.gradient || '').trim())
-    ? String(b.gradient).trim() : shadeHex(b.primary, -0.3);
-  // 🔴 前景（姓名/职务/图标/徽章/分隔线/描边）唯一来源 heroForeground：
-  //    按 hero 背景实际亮度判明暗 + 对配置色做对比度校验。此前「配置色照抄 + 别处另判背景」
-  //    导致同一张 hero 里黑字/白图标/黄职务色混搭（2026-10-15 真机报修）。
-  const fg = heroForeground(b.primary, grad, { text: b.text, text2: b.subText, accent: b.secondary });
-  return {
-    ...t,
-    bgStart: b.primary,
-    bgEnd: grad,
-    bgType: grad.toLowerCase() !== b.primary.toLowerCase() ? 'gradient' : t.bgType,
-    textColor: fg.text,
-    text2Color: fg.text2,
-    accent: fg.accent,
-    borderColor: fg.border,
-  };
+  if (!t) return null;
+  if (!card.value.templateId) return t; // 无自选模板（兜底/空）时不在此层接管，交 heroStyle 品牌分支
+  return t;
 });
 // 无模板时 hero 由品牌 5 色接管，前景同样走 heroForeground（与有模板分支共享判据）。
 // heroStyle / nmStyle / subStyle / accentStyle 的兜底色统一取这里，避免各处各不相同。
