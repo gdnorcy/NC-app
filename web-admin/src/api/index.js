@@ -243,6 +243,8 @@ export const customerMiniAuditStatus = () => customerApi.get('/channels/mini/aud
 export const customerMiniRelease = () => customerApi.post('/channels/mini/release');
 export const customerMiniRollback = () => customerApi.post('/channels/mini/rollback');
 export const fetchCustomerMiniDeployLogs = () => customerApi.get('/channels/mini/deploy-logs');
+// 取消授权（解绑小程序，回到未授权状态；品牌配置保留供重新授权）
+export const deleteCustomerChannelMini = () => customerApi.delete('/channels/mini');
 // 阶段B：运营型雷达后台
 export const fetchRadarEvents = () => adminApi.get('/radar/events');
 export const createRadarEvent = (data) => adminApi.post('/radar/events', data);

@@ -88,10 +88,14 @@ export function createChannelRouter(db) {
           console.log(`[Channel] 租户授权: appid=${appidMatch[1]}`);
         }
       } else if (infoType === 'unauthorized') {
-        // 租户取消授权
+        // 租户取消授权（微信推送）：清授权态，appid 一并清空——
+        // 客户侧页面按 appid 是否为空判定「未授权」，不清会仍显示已授权
         const appidMatch = message.match(/<AuthorizerAppid><!\[CDATA\[(.+?)\]\]><\/AuthorizerAppid>/);
         if (appidMatch) {
-          db.prepare("UPDATE channel_apps SET auth_status = 'revoked', authorizer_access_token = '', authorizer_refresh_token = '' WHERE appid = ?")
+          db.prepare(`UPDATE channel_apps SET auth_status = 'revoked', appid = '',
+            authorizer_access_token = '', authorizer_refresh_token = '', token_expires_at = NULL,
+            version = '', template_id = '', draft_id = NULL, audit_id = '', audit_status = 'none',
+            updated_at = datetime('now') WHERE appid = ?`)
             .run(appidMatch[1]);
         }
       }
@@ -258,8 +262,9 @@ export function createChannelRouter(db) {
   router.get('/tenants/:id/audit-status', requireAuth, async (req, res) => {
     try {
       const channel = db.prepare('SELECT * FROM channel_apps WHERE id = ?').get(Number(req.params.id));
-      if (!channel?.draft_id) return res.json({ status: 'none' });
-      const result = await wxService.getAuditStatus(Number(req.params.id), channel.draft_id);
+      // 必须用 submit_audit 落库的 auditid 查状态（draft_id 是草稿id，不是审核单id）
+      if (!channel?.audit_id) return res.json({ status: 'none' });
+      const result = await wxService.getAuditStatus(Number(req.params.id), channel.audit_id);
       const statusMap = { 0: 'approved', 1: 'auditing', 2: 'rejected', 3: 'revoked' };
       const auditStatus = statusMap[result.status] || 'unknown';
       db.prepare('UPDATE channel_apps SET audit_status = ? WHERE id = ?').run(auditStatus, Number(req.params.id));

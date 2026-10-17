@@ -130,6 +130,45 @@ export class WxComponentService {
     return data.authorization_info;
   }
 
+  // —— component 模式 jscode2session（按租户小程序换 openid） ——
+  // 与普通 jscode2session 的区别：必须带 component_access_token + authorizer_appid，
+  // 返回的 openid 是「该租户小程序内」的 openid（同一用户在不同授权小程序下 openid 不同，
+  // 天然形成租户间用户隔离；unionid 需同主体开放平台才一致）。
+  async componentCode2Session(authorizerAppid, jsCode) {
+    const token = await this.getComponentAccessToken();
+    const cfg = this.getConfig();
+    const res = await fetch(`https://api.weixin.qq.com/sns/component/jscode2session?component_access_token=${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        component_appid: cfg.component_appid,
+        authorizer_appid: authorizerAppid,
+        js_code: jsCode,
+        grant_type: 'authorization_code',
+      }),
+    });
+    const data = await res.json();
+    if (data.errcode) throw new Error(`component code2session失败(${data.errcode}): ${data.errmsg}`);
+    return { openid: data.openid, unionid: data.unionid || '' };
+  }
+
+  // —— 取消授权（租户侧解绑小程序） ——
+  async unauthorize(appid) {
+    const token = await this.getComponentAccessToken();
+    const cfg = this.getConfig();
+    const res = await fetch(`https://api.weixin.qq.com/cgi-bin/component/api_unauthorize?component_access_token=${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        component_appid: cfg.component_appid,
+        authorizer_appid: appid,
+      }),
+    });
+    const data = await res.json();
+    if (data.errcode) throw new Error(`取消授权失败: ${data.errmsg}`);
+    return data;
+  }
+
   // —— 刷新 authorizer_access_token ——
   async refreshAuthorizerToken(appid, refreshToken) {
     const token = await this.getComponentAccessToken();
@@ -235,6 +274,9 @@ export class WxComponentService {
     });
     const data = await res.json();
     if (data.errcode && data.errcode !== 0) throw new Error(`提交审核失败: ${data.errmsg}`);
+    // auditid 落库：审核状态轮询必须用它（draft_id 不是 auditid，误传会查不到状态）
+    this.db.prepare("UPDATE channel_apps SET audit_id = ?, audit_status = 'auditing', updated_at = datetime('now') WHERE id = ?")
+      .run(String(data.auditid || ''), channelAppId);
     return { auditId: data.auditid, draftId };
   }
 
@@ -262,6 +304,9 @@ export class WxComponentService {
     });
     const data = await res.json();
     if (data.errcode && data.errcode !== 0) throw new Error(`发布失败: ${data.errmsg}`);
+    // 状态落库（与 submitAudit 一致：服务层拥有状态机，路由无需再更）
+    this.db.prepare("UPDATE channel_apps SET audit_status = 'released', updated_at = datetime('now') WHERE id = ?")
+      .run(channelAppId);
     return { success: true };
   }
 

@@ -69,12 +69,20 @@ async function checkGlobalHome() {
 function handleWxLogin() {
   // #ifdef H5
   // H5端不支持微信登录，使用模拟code直接登录
-  doLogin('h5_mock_' + Date.now());
+  doLogin('h5_mock_' + Date.now(), '');
   // #endif
   // #ifndef H5
   uni.login({
     provider: 'weixin',
-    success: (res) => doLogin(res.code),
+    success: (res) => {
+      // 携带小程序自身 appid：后端据此走第三方平台 component 模式按租户登录
+      // （该 appid 未在本平台授权时，后端自动回落平台单 appid 通道，行为不变）
+      let appid = '';
+      try {
+        appid = uni.getAccountInfoSync().miniProgram.appId || '';
+      } catch (e) {}
+      doLogin(res.code, appid);
+    },
     fail: () => {
       uni.showToast({ title: '微信登录失败', icon: 'none' });
     },
@@ -110,11 +118,11 @@ function getRedirectTarget() {
   return safeRedirect(pageOptions().redirect);
 }
 
-async function doLogin(code) {
+async function doLogin(code, appid = '') {
   try {
     const parentId = uni.getStorageSync('share_parent_id') || '';
     // 带上部署默认租户：否则小程序登录的新用户没有租户归属 → 装修首页配置读不到 → 首页空白
-    const result = await cardApi.wxLogin(code, parentId, DEFAULT_TENANT_ID || '');
+    const result = await cardApi.wxLogin(code, parentId, DEFAULT_TENANT_ID || '', appid);
     uni.setStorageSync('card_token', result.token);
     uni.setStorageSync('card_user', result.user);
     // 🔴 冷启动时 useBrandOverride 可能已在未登录态拉过品牌色（401 失败不缓存但重试链有限），

@@ -68,7 +68,8 @@ function paymentRequest(url, method = 'GET', data = {}) {
 export const cardApi = {
   // 微信登录
   // tid：单租户部署时把新用户落到默认租户（后端还有 config.defaultTenantId 兜底）
-  wxLogin: (code, parentId, tid) => request('/auth/wx-login', 'POST', { code, parentId, tid }),
+  // appid：小程序端携带自身 appid（第三方平台代开发按租户登录；H5 不传）
+  wxLogin: (code, parentId, tid, appid) => request('/auth/wx-login', 'POST', { code, parentId, tid, appid: appid || '' }),
 
   // 用户信息
   // 🔴 游客可降级版本：首页/分享/预览等**未登录也要能看**的场景必须用它，

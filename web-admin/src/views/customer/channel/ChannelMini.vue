@@ -33,9 +33,29 @@
             <el-tag :type="auditStatusType(miniChannel.audit_status)" size="small">{{ auditStatusText(miniChannel.audit_status) }}</el-tag>
           </div>
           <div style="margin-left:auto;">
+            <el-button @click="cancelAuth" type="danger" plain>取消授权</el-button>
             <el-button @click="refreshAuditStatus">刷新状态</el-button>
           </div>
         </div>
+      </div>
+
+      <!-- 小程序参数设置（对标云菜鸟 wxset：原始id / 上传密钥，授权态可编辑） -->
+      <div class="page-card">
+        <h3 style="margin-bottom:16px;">小程序参数设置</h3>
+        <el-form :model="paramForm" label-width="100px">
+          <el-form-item label="原始ID">
+            <el-input v-model="paramForm.originalId" placeholder="gh_ 开头的原始ID（授权后由平台回填，可手动修正）" />
+          </el-form-item>
+          <el-form-item label="AppID">
+            <el-input :model-value="miniChannel.authorizer_appid" disabled />
+          </el-form-item>
+          <el-form-item label="上传密钥">
+            <el-input v-model="paramForm.uploadKey" type="password" show-password placeholder="代码上传密钥 / 私有_token（IP白名单场景使用）" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="saveParams" :loading="savingParams">保存参数</el-button>
+          </el-form-item>
+        </el-form>
       </div>
 
       <!-- 发布操作 -->
@@ -116,6 +136,7 @@ import {
   fetchCustomerMiniTemplates, getCustomerMiniAuthUrl,
   customerMiniUpload, customerMiniSubmitAudit, customerMiniAuditStatus,
   customerMiniRelease, customerMiniRollback, fetchCustomerMiniDeployLogs,
+  deleteCustomerChannelMini,
 } from '../../../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
@@ -127,9 +148,11 @@ const submitting = ref(false);
 const releasing = ref(false);
 const rolling = ref(false);
 const brandChanged = ref(false);
+const savingParams = ref(false);
 
 const publishForm = reactive({ templateId: null, userVersion: '', userDesc: '' });
 const brandForm = reactive({ brandName: '', primaryColor: '#165DFF', enabled: false });
+const paramForm = reactive({ originalId: '', uploadKey: '' });
 
 onMounted(async () => {
   await loadData();
@@ -145,6 +168,8 @@ async function loadData() {
       brandForm.brandName = miniChannel.value.brand_name || '';
       brandForm.primaryColor = miniChannel.value.primary_color || '#165DFF';
       brandForm.enabled = !!miniChannel.value.enabled;
+      paramForm.originalId = miniChannel.value.original_id || '';
+      paramForm.uploadKey = miniChannel.value.upload_key || '';
     }
   } catch (e) {}
 }
@@ -233,6 +258,26 @@ async function saveBrand() {
     brandChanged.value = false;
     await loadData();
   } catch (e) { ElMessage.error(e); }
+}
+
+async function saveParams() {
+  try {
+    savingParams.value = true;
+    // 后端 PUT /channels/:type 接受 originalId / uploadKey 字段
+    await updateCustomerChannel('mini', { originalId: paramForm.originalId, uploadKey: paramForm.uploadKey });
+    ElMessage.success('小程序参数已保存');
+  } catch (e) { ElMessage.error(e); }
+  finally { savingParams.value = false; }
+}
+
+async function cancelAuth() {
+  try {
+    await ElMessageBox.confirm('确认取消该小程序的授权？取消后需重新授权才能发布。', '取消授权', { type: 'warning' });
+    await deleteCustomerChannelMini();
+    ElMessage.success('已取消授权');
+    await loadData();
+    await loadDeployLogs();
+  } catch (e) { if (e !== 'cancel') ElMessage.error(e); }
 }
 
 function auditStatusText(s) {
