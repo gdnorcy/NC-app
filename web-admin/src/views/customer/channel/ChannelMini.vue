@@ -5,6 +5,36 @@
       <h2 class="page-title">微信小程序</h2>
     </div>
 
+    <!-- 小程序参数设置（对标云菜鸟 wxset：原始id/AppId/AppSecret/上传密钥；授权态与未授权态共用） -->
+    <div class="page-card" style="margin-bottom:16px;">
+      <h3 style="margin-bottom:16px;">小程序参数设置</h3>
+      <el-alert
+        v-if="!miniChannel?.authorizer_appid && paramForm.selfAppid && paramForm.appSecret"
+        type="success" :closable="false" show-icon style="margin-bottom:16px;"
+        title="自运营模式已启用"
+        description="C 端登录将使用你自己的 AppID/AppSecret（标准 jscode2session，openid 属你自己的小程序）；上传代码走 miniprogram-ci 通道；提交审核/发布需在微信公众平台后台手动操作（官方仅对第三方平台开放该 API）。" />
+      <el-form :model="paramForm" label-width="140px">
+        <el-form-item label="小程序原始id">
+          <el-input v-model="paramForm.originalId" placeholder="gh_ 开头（请在小程序后台查看原始id）" />
+        </el-form-item>
+        <el-form-item label="小程序AppID">
+          <el-input v-if="!miniChannel?.authorizer_appid" v-model="paramForm.selfAppid" placeholder="应用ID以wx开头，请正确填写（自运营模式必填）" />
+          <el-input v-else :model-value="miniChannel.authorizer_appid" disabled />
+        </el-form-item>
+        <el-form-item label="小程序AppSecret">
+          <el-input v-if="!miniChannel?.authorizer_appid" v-model="paramForm.appSecret" type="password" show-password placeholder="应用密钥，请正确填写（自运营模式登录用）" />
+          <el-alert v-else type="info" :closable="false" title="第三方授权模式：登录走平台 component 通道，无需 AppSecret" />
+        </el-form-item>
+        <el-form-item label="小程序代码上传密钥">
+          <el-input v-model="paramForm.uploadKey" type="textarea" :rows="4"
+            placeholder="开发管理→小程序代码上传→小程序代码上传密钥（关闭IP白名单保护）；第三方授权模式无需填写" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="saveParams" :loading="savingParams">保存参数</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
     <!-- 未授权状态 -->
     <div class="page-card" v-if="!miniChannel?.authorizer_appid">
       <el-empty description="尚未授权微信小程序">
@@ -39,24 +69,7 @@
         </div>
       </div>
 
-      <!-- 小程序参数设置（对标云菜鸟 wxset：原始id / 上传密钥，授权态可编辑） -->
-      <div class="page-card">
-        <h3 style="margin-bottom:16px;">小程序参数设置</h3>
-        <el-form :model="paramForm" label-width="100px">
-          <el-form-item label="原始ID">
-            <el-input v-model="paramForm.originalId" placeholder="gh_ 开头的原始ID（授权后由平台回填，可手动修正）" />
-          </el-form-item>
-          <el-form-item label="AppID">
-            <el-input :model-value="miniChannel.authorizer_appid" disabled />
-          </el-form-item>
-          <el-form-item label="上传密钥">
-            <el-input v-model="paramForm.uploadKey" type="password" show-password placeholder="代码上传密钥 / 私有_token（IP白名单场景使用）" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="saveParams" :loading="savingParams">保存参数</el-button>
-          </el-form-item>
-        </el-form>
-      </div>
+      <!-- 小程序参数设置已上移为两态共用卡片 -->
 
       <!-- 发布操作 -->
       <div class="page-card">
@@ -152,7 +165,7 @@ const savingParams = ref(false);
 
 const publishForm = reactive({ templateId: null, userVersion: '', userDesc: '' });
 const brandForm = reactive({ brandName: '', primaryColor: '#165DFF', enabled: false });
-const paramForm = reactive({ originalId: '', uploadKey: '' });
+const paramForm = reactive({ originalId: '', uploadKey: '', selfAppid: '', appSecret: '' });
 
 onMounted(async () => {
   await loadData();
@@ -170,6 +183,8 @@ async function loadData() {
       brandForm.enabled = !!miniChannel.value.enabled;
       paramForm.originalId = miniChannel.value.original_id || '';
       paramForm.uploadKey = miniChannel.value.upload_key || '';
+      paramForm.selfAppid = miniChannel.value.appid || '';
+      paramForm.appSecret = miniChannel.value.app_secret || '';
     }
   } catch (e) {}
 }
@@ -263,8 +278,14 @@ async function saveBrand() {
 async function saveParams() {
   try {
     savingParams.value = true;
-    // 后端 PUT /channels/:type 接受 originalId / uploadKey 字段
-    await updateCustomerChannel('mini', { originalId: paramForm.originalId, uploadKey: paramForm.uploadKey });
+    // 后端 PUT /channels/:type 接受 originalId / uploadKey / selfAppid / appSecret
+    // （自运营 AppID/Secret 仅在未授权态生效；授权态由授权回调管理，后端有守卫）
+    await updateCustomerChannel('mini', {
+      originalId: paramForm.originalId,
+      uploadKey: paramForm.uploadKey,
+      selfAppid: paramForm.selfAppid,
+      appSecret: paramForm.appSecret,
+    });
     ElMessage.success('小程序参数已保存');
   } catch (e) { ElMessage.error(e); }
   finally { savingParams.value = false; }

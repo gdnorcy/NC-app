@@ -6,11 +6,14 @@ import path from 'node:path';
 import request from 'supertest';
 import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
-import { createDb } from '../src/db.js';
+import { createDb, hashPassword } from '../src/db.js';
+import { issueToken } from '../src/auth.js';
 
 /**
- * 微信第三方平台（代开发）闭环专项测试
- * 覆盖：component_code2session / 按租户 wx-login / 客户侧取消授权 / 客户侧发布流程签名修正
+ * 微信第三方平台（代开发）+ 自运营模式 专项测试
+ * 覆盖：component_code2session / 按租户 wx-login（component + 自运营双通道）/
+ *       客户侧取消授权 / 发布流程签名 / 参数设置（AppID/AppSecret + NOT NULL 守卫）/
+ *       自运营 miniprogram-ci 上传分支
  * 微信 API 用全局 fetch mock 拦截，不触网。
  */
 let app;
@@ -24,6 +27,11 @@ function mockFetch() {
     const u = String(url);
     if (u.includes('api_component_token')) {
       return { json: async () => ({ component_access_token: 'COMP_TOKEN_X', expires_in: 7200 }) };
+    }
+    if (u.includes('/sns/jscode2session')) {
+      // 自运营模式：标准 GET，appid/secret 在 query —— openid 用 appid 区分命名空间
+      const appid = new URL(u).searchParams.get('appid');
+      return { json: async () => ({ openid: 'OPENID_SELF_' + appid, unionid: 'UNION_SELF' }) };
     }
     if (u.includes('jscode2session')) {
       // component 模式：authorizer_appid 决定租户命名空间 openid
@@ -150,4 +158,67 @@ test('客户侧发布流程：upload→submit→release 均以 id 调用服务�
   assert.equal(row.audit_status, 'released');
   assert.equal(row.audit_id, '12345');
   assert.equal(row.version, '1.0.0');
+});
+
+// —— 自运营模式登录：租户自有 AppID+AppSecret 走标准 jscode2session 并绑定租户 ——
+test('wx-login 自运营模式：租户自有 AppID+AppSecret 走标准通道并绑定租户', async () => {
+  db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, appid, app_secret, auth_status)
+    VALUES (2, 'mini', 'wxself001', 'SELF_SECRET', 'none')`).run();
+  const res = await request(app)
+    .post('/api/card/auth/wx-login')
+    .send({ code: 'JSCODE_SELF', appid: 'wxself001' });
+  assert.equal(res.status, 200);
+  assert.ok(res.body.token);
+  const user = db.prepare('SELECT openid, customer_id FROM platform_user WHERE openid = ?').get('OPENID_SELF_wxself001');
+  assert.ok(user, '应存在自运营命名空间 openid 的用户');
+  assert.equal(user.customer_id, 2, '应绑定到自运营租户2');
+});
+
+// —— 客户侧参数设置：自运营 AppID/Secret 保存 + 授权态守卫 + 空值不撞 NOT NULL ——
+test('客户侧参数设置：自运营参数保存、授权态守卫、空值保存不撞 NOT NULL', async () => {
+  const { hash, salt } = hashPassword('Test@123');
+  db.prepare('INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id) VALUES (?,?,?,?,?,?,?)')
+    .run('chan_adm1', '13800001003', hash, salt, 'tenant_admin', 'active', 1);
+  const adm = db.prepare('SELECT * FROM users WHERE username = ?').get('chan_adm1');
+  const headers = { Authorization: `Bearer ${issueToken(adm)}` };
+
+  // 授权态守卫：selfAppid 不允许覆盖授权回调写入的 appid
+  const put1 = await request(app).put('/api/customer/channels/mini').set(headers)
+    .send({ selfAppid: 'wxhack001', appSecret: 'S_NEW', originalId: 'gh_t1', uploadKey: 'KEY_T1' });
+  assert.equal(put1.status, 200);
+  const row1 = db.prepare("SELECT appid, app_secret, original_id, upload_key FROM channel_apps WHERE customer_id=1 AND channel_type='mini'").get();
+  assert.equal(row1.appid, TENANT_APPID, '授权态下 selfAppid 不得覆盖 appid');
+  assert.equal(row1.app_secret, 'S_NEW');
+  assert.equal(row1.original_id, 'gh_t1');
+  assert.equal(row1.upload_key, 'KEY_T1');
+
+  // 模拟取消授权后的非授权态：selfAppid 应可写入（自运营参数）
+  db.prepare("UPDATE channel_apps SET auth_status='none' WHERE customer_id=1 AND channel_type='mini'").run();
+  const put2 = await request(app).put('/api/customer/channels/mini').set(headers)
+    .send({ selfAppid: 'wxself_t1', appSecret: 'S_T1' });
+  assert.equal(put2.status, 200);
+  const row2 = db.prepare("SELECT appid, app_secret FROM channel_apps WHERE customer_id=1 AND channel_type='mini'").get();
+  assert.equal(row2.appid, 'wxself_t1', '非授权态下 selfAppid 应写入');
+  assert.equal(row2.app_secret, 'S_T1');
+
+  // 只传品牌字段（如 saveBrand）：空 customDomain/page 等落 '' 而非 null，不撞 NOT NULL
+  const put3 = await request(app).put('/api/customer/channels/mini').set(headers)
+    .send({ brandName: '品牌B', primaryColor: '#165DFF', enabled: false });
+  assert.equal(put3.status, 200);
+  const row3 = db.prepare("SELECT appid, app_secret, brand_name, custom_domain, page FROM channel_apps WHERE customer_id=1 AND channel_type='mini'").get();
+  assert.equal(row3.appid, 'wxself_t1', '未传 selfAppid 时保留原 appid');
+  assert.equal(row3.app_secret, 'S_T1', '未传 appSecret 时保留原值');
+  assert.equal(row3.brand_name, '品牌B');
+  assert.equal(row3.custom_domain, '');
+  assert.equal(row3.page, '');
+});
+
+// —— 自运营上传分支：路由接线验证（未配置工程目录时返回明确错误，不触网） ——
+test('自运营上传：未配置 MP_CI_PROJECT_DIR 时返回明确错误', async () => {
+  const adm = db.prepare('SELECT * FROM users WHERE username = ?').get('chan_adm1');
+  const headers = { Authorization: `Bearer ${issueToken(adm)}` };
+  const res = await request(app).post('/api/customer/channels/mini/upload').set(headers)
+    .send({ userVersion: '1.0.1', userDesc: 't' });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /MP_CI_PROJECT_DIR/);
 });
