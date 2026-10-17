@@ -1,0 +1,1 @@
+<view wx:if="{{a}}" class="bd-wrap data-v-f06d6f84" style="{{'background:' + e}}"><view wx:if="{{b}}" class="bd-dot data-v-f06d6f84"></view><text wx:elif="{{c}}" class="bd-text data-v-f06d6f84">{{d}}</text></view>

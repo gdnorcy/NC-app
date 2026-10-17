@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "我的名片",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav",
+    "badge": "../../components/Badge",
+    "s-icon": "../../components/SIcon",
+    "card-tab-bar": "../../components/CardTabBar"
+  }
+}

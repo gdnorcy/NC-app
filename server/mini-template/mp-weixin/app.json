@@ -1,0 +1,89 @@
+{
+  "pages": [
+    "pages/cardMain/login",
+    "pages/cardMain/home",
+    "pages/cardMain/live",
+    "pages/live/list",
+    "pages/share/share"
+  ],
+  "subPackages": [
+    {
+      "root": "pages/panorama",
+      "pages": [
+        "home",
+        "index"
+      ]
+    },
+    {
+      "root": "pages/mall",
+      "pages": [
+        "index",
+        "detail",
+        "cart",
+        "checkout",
+        "orders",
+        "order-detail"
+      ]
+    },
+    {
+      "root": "pages/card",
+      "pages": [
+        "create",
+        "myCard",
+        "templateSelect",
+        "needTagsEdit",
+        "displaySettings",
+        "cardDetail",
+        "collects",
+        "connections",
+        "exchangeRequests",
+        "messages",
+        "visitors",
+        "visitorTimeline",
+        "customers",
+        "customerDetail",
+        "market",
+        "member",
+        "profile",
+        "distribution",
+        "distPartner",
+        "distShareAll",
+        "distShareCat",
+        "distShareArea",
+        "distWallet",
+        "dynamic",
+        "radarConfig"
+      ]
+    },
+    {
+      "root": "pagesReads",
+      "pages": [
+        "articleList/articleList",
+        "showArt/showArt",
+        "picList/picList",
+        "showPictures/showPictures",
+        "videoList/videoList"
+      ]
+    },
+    {
+      "root": "pages/superForm",
+      "pages": [
+        "fill"
+      ]
+    },
+    {
+      "root": "pages/viewer",
+      "pages": [
+        "viewer"
+      ]
+    }
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "智能名片",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F2F3F5"
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {}
+}

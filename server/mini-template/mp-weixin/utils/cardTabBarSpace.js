@@ -1,0 +1,1 @@
+"use strict";const e=require("../common/vendor.js"),r=e.ref(160);exports.setTabBarSpace=function(e){const t=Number(e);Number.isFinite(t)&&t>=80&&t<=400&&(r.value=Math.round(t))},exports.useTabBarPadding=function(t=0){return e.computed(()=>function(e=0){return{paddingBottom:`${r.value+24+e}rpx`}}(t))};

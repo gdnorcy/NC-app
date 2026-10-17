@@ -1,0 +1,1 @@
+"use strict";const o=require("../common/vendor.js");const _={VITE_MP_API_BASE:"https://zero.nshop.mobi",VITE_H5_API_BASE:""}||{},e=_.VITE_MP_API_BASE||"https://zero.nshop.mobi",s=_.VITE_H5_API_BASE||"",t="undefined"==typeof window&&void 0!==o.wx$1?e:s;exports.API_HOST=t;

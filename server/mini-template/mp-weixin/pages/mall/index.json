@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "商城",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav",
+    "s-icon": "../../components/SIcon",
+    "card-tab-bar": "../../components/CardTabBar",
+    "design-page": "../../components/DesignPage"
+  }
+}

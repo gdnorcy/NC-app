@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "直播",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav"
+  }
+}

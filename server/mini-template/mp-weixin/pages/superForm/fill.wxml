@@ -1,0 +1,1 @@
+<page-nav wx:if="{{a}}" u-i="76c71e5a-0" bind:__l="__l" u-p="{{a}}"/><super-form-render wx:if="{{c}}" bindsubmitSuccess="{{b}}" u-i="76c71e5a-1" bind:__l="__l" u-p="{{c}}"/>

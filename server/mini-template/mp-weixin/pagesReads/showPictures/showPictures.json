@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "组图详情",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav"
+  }
+}
