@@ -2128,6 +2128,25 @@ function migrate(db) {
   if (!colExists(db, 'card_market_settings', 'banners')) {
     db.exec("ALTER TABLE card_market_settings ADD COLUMN banners TEXT NOT NULL DEFAULT '[]'");
   }
+
+  // —— 全端渠道 channel_apps 补列（租户小程序参数 + 审核链，幂等） ——
+  // 背景：95e7305 客户侧渠道管理引用了 page 列但漏加迁移；用户设计的小程序参数设置
+  // 还需 original_id（原始id）/upload_key（上传密钥）；submit_audit 返回的 auditid
+  // 需落库供审核状态轮询（此前平台侧误传 draft_id 当 auditid）。
+  if (tableExists(db, 'channel_apps')) {
+    if (!colExists(db, 'channel_apps', 'original_id')) {
+      db.exec("ALTER TABLE channel_apps ADD COLUMN original_id TEXT NOT NULL DEFAULT ''");
+    }
+    if (!colExists(db, 'channel_apps', 'upload_key')) {
+      db.exec("ALTER TABLE channel_apps ADD COLUMN upload_key TEXT NOT NULL DEFAULT ''");
+    }
+    if (!colExists(db, 'channel_apps', 'page')) {
+      db.exec("ALTER TABLE channel_apps ADD COLUMN page TEXT NOT NULL DEFAULT ''");
+    }
+    if (!colExists(db, 'channel_apps', 'audit_id')) {
+      db.exec("ALTER TABLE channel_apps ADD COLUMN audit_id TEXT NOT NULL DEFAULT ''");
+    }
+  }
 }
 
 /** 存量租户 solutions 规范化（见 createDb 调用处注释） */

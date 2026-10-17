@@ -19,6 +19,7 @@ import { PaymentService } from '../services/payment.js';
 import { createRadarService } from '../services/radar.js';
 import { createQuotaService } from '../services/quota.js';
 import { normalizeTabJson } from '../services/design.js';
+import { WxComponentService } from '../services/wx-component.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -109,17 +110,39 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   router.post('/auth/wx-login', async (req, res) => {
     try {
-      const { code, parentId, tid } = req.body;
+      const { code, parentId, tid, appid } = req.body;
       if (!code) return res.status(400).json({ error: 'code不能为空' });
 
-      // 调用微信code2session
-      let openid, unionid;
-      try {
-        const result = await wxService.code2Session(code);
-        openid = result.openid;
-        unionid = result.unionid || '';
-      } catch (e) {
-        return res.status(400).json({ error: '微信登录失败: ' + e.message });
+      // 按租户登录（微信第三方平台代开发模式）：
+      // 小程序端携带自身 appid（uni.getAccountInfoSync().miniProgram.appId）。
+      // 该 appid 若已在本平台完成授权（channel_apps.mini + authorized），
+      // 走 component 模式 sns/component/jscode2session —— openid 以「租户小程序」
+      // 为命名空间，与平台单 appid 通道的 openid 体系不同，**绝不能互串**：
+      // component 通道失败时直接报错，不回落单 appid（否则会建出错误归属的用户）。
+      // 未带 appid（H5）/ appid 未授权（平台自有小程序）→ 回落既有单 appid 通道。
+      let openid, unionid, channelTenantId = 0;
+      const channel = appid
+        ? db.prepare("SELECT * FROM channel_apps WHERE appid = ? AND channel_type = 'mini' AND auth_status = 'authorized'").get(appid)
+        : null;
+      if (channel) {
+        try {
+          const wx = new WxComponentService(db);
+          const r = await wx.componentCode2Session(channel.appid, code);
+          openid = r.openid;
+          unionid = r.unionid || '';
+          channelTenantId = Number(channel.customer_id) || 0;
+        } catch (e) {
+          return res.status(400).json({ error: '微信登录失败: ' + e.message });
+        }
+      } else {
+        // 调用微信code2session（平台单 appid 通道）
+        try {
+          const result = await wxService.code2Session(code);
+          openid = result.openid;
+          unionid = result.unionid || '';
+        } catch (e) {
+          return res.status(400).json({ error: '微信登录失败: ' + e.message });
+        }
       }
 
       // 查找或创建用户
@@ -136,12 +159,13 @@ export function createCardRouter(db, wxService) {
         user = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(result.lastInsertRowid);
       }
 
-      // 租户归属兜底：URL 携带 tid 优先；否则（小程序登录不带 tid）回落到部署的默认租户
-      // config.defaultTenantId（单租户/独立域名部署）。
+      // 租户归属兜底：按租户小程序登录 → 授权关系决定的 customer_id 最优先；
+      // 其次 URL 携带 tid；最后回落部署默认租户 config.defaultTenantId
+      // （单租户/独立域名部署）。
       // 🔴 不兜底的后果：小程序登录的新用户 customer_id 恒为空 → 装修首页配置、分销、
       // 人脉库、集市都按租户取数 → **首页一片空白**、各处报「未入驻/未开通」。
       // 多租户平台部署时把 DEFAULT_TENANT_ID 设为 0 即关闭兜底。
-      const bindTid = Number(tid) || Number(config.defaultTenantId || 0);
+      const bindTid = channelTenantId || Number(tid) || Number(config.defaultTenantId || 0);
       if (!user.customer_id && bindTid) {
         const cid = bindTid;
         const ent = db.prepare(

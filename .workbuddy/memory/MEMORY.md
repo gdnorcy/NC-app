@@ -32,6 +32,7 @@
 ## 构建与部署
 - 两个入口：dev `localhost:5173`｜生产 `localhost:3000/admin`；用户说「没变」先确认他访问哪个。
 - 🔴 SaaS 架构定方向（10-17）：每客户一个小程序，走微信第三方平台代开发（平台凭证+租户授权两层配置，代码模板代发布），jscode2session 改 component token 模式；细节见 10-17 日志。
+- 渠道系统已于 `0109fec` 建成（component/apps/deploy_logs/sorts 四表+平台配置 UI）；本次补齐：① `channel_apps` 补 `original_id/upload_key/page/audit_id` 四列 ② 客户侧 5 处必炸路由修复（签名错配/不存在列/NULL 撞 NOT NULL）③ `wx-login` 走 `componentCode2Session` 按租户隔离 ④ 新增取消授权端点+管理端参数设置 UI。测试 `server/test/channel.test.js` 5/5。
 - 部署：推 `deploy` 分支（含 server/public 产物，force-add）→ 服务器 `/opt/app` git pull + `systemctl restart panorama`；DB 不在分支。
 - 🔴 构建顺序坑：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧）；必须切 deploy 再 `npm run build:mobile`。
 - H5 运行目录=`server/public/card`（build:mobile 同步 card+mall）；「不是最新包」curl 验 chunk size。safe-delete 拦 rm>50 → 先 mv /tmp。
