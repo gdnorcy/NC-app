@@ -95,9 +95,11 @@ describe('create 保留位不动', () => {
     for (const c of ['#9a9a9a', '#1d2129', '#4e5969']) {
       expect(src, `中性色 ${c} 应保留`).toMatch(new RegExp(c + '|var\\(--[a-z0-9-]+\\)'));
     }
-    // 2026-10-16 方案 A：关闭按钮图标原 #8a8f99 → ICON_DECOR 令牌
+    // 2026-10-16 方案 A：关闭按钮图标原 #8a8f99 → 语义令牌
     // （SIcon 的 color 不能吃 var()，会被烘焙进 SVG data-URI / 构建期 PNG）
-    expect(src).toContain(':color="ICON_DECOR"');
+    // 2026-10-21 真机反馈「删除按钮全灰，是设计还是误」：ICON_DECOR 语义是
+    // 「空态/占位/禁用」，可交互控件用它会被读成禁用 → 改 ICON_T2（次文本级）。
+    expect(src).toContain(':color="ICON_T2"');
   });
 });
 

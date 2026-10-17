@@ -406,7 +406,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
-import { heroGradient, brandPalette, hexLuma } from '../../utils/color.js';
+import { heroGradient, brandPalette, hexLuma, shadeHex } from '../../utils/color.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import {
   parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle, heroForeground,

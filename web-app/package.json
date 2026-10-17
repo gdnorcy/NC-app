@@ -7,7 +7,8 @@
     "dev:mp-weixin": "uni -p mp-weixin",
     "build:h5": "uni build",
     "build:mp-weixin": "uni build -p mp-weixin && node scripts/strip-mp-static.js && node scripts/gen-mp-sicons.js && node scripts/stamp-build.js mp-weixin && node ../scripts/sync-mini-template.mjs",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "audit:imports": "node scripts/audit-imports.mjs src"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5020420260813003",
