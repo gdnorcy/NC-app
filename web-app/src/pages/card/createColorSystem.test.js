@@ -64,7 +64,8 @@ describe('create 平台位归主题', () => {
     expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
   test('根视图绑 [skinVars, themeStyle, brandVars, navVars]（皮肤 + 主题 + 品牌覆盖 + 导航四源）', () => {
-    expect(src).toMatch(/<view class="create-page" :class="'skin-' \+ skinType" :style="\[skinVars, themeStyle, brandVars, navVars\]">/);
+    // 2026-10-21 供需标签空白修复：追加 is-edit class（编辑模式关掉 .skin-step .card 的 640rpx min-height）
+    expect(src).toMatch(/<view class="create-page" :class="\['skin-' \+ skinType, \{ 'is-edit': isEdit \}\]" :style="\[skinVars, themeStyle, brandVars, navVars\]">/);
   });
   test('voice-locked 会员引导改主题系（原金色提示消费无定义 --gold）', () => {
     const block = ruleBlock(src, '.voice-locked');

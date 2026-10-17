@@ -403,7 +403,7 @@ import { ICON_DECOR } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted } from 'vue';
-import { onUnload, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
+import { onUnload, onShow, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient, brandPalette, hexLuma, shadeHex } from '../../utils/color.js';
@@ -452,6 +452,18 @@ function toggleVoice() {
   else { voiceCtx.play(); voicePlaying.value = true; }
 }
 onUnload(() => { if (voiceCtx) { voiceCtx.destroy(); voiceCtx = null; } });
+// 🔴 2026-10-21 用户反馈「预览名片模板出 bug，重新选模板也无效」：换模板链路本身是通的
+// （templateSelect 成功 updateCard 后 navigateBack），但本页只在 onMounted 拉数据，
+// 返回时**不重新加载** → 界面永远是旧模板 → 用户体感「换了无效」。
+// 修复：onShow 静默重拉（首次进入跳过，交给 onMounted 完整初始化，避免双请求）。
+let detailShownOnce = false;
+onShow(() => {
+  if (!detailShownOnce) { detailShownOnce = true; return; }
+  const pages = getCurrentPages();
+  const id = (pages[pages.length - 1].options || {}).id;
+  if (!id) return;
+  cardApi.getCard(id).then((res) => { card.value = res.card; }).catch(() => {});
+});
 // ===== 模板主题（新 Schema：heroLayout 版式 + 视觉；兼容旧 primary/background/radius）=====
 const heroTheme = computed(() => parseTheme(card.value.templateTheme));
 // hero 版式：cls 经典横排 / ctr 居中展示 / mag 杂志大字（full 全屏分支单独处理）

@@ -322,12 +322,14 @@ export class WxComponentService {
   }
 
   // —— 生成小程序码 ——
-  async getWxacode(channelAppId, scene = '', page = 'pages/index/index') {
+  // envVersion: 'release'(已发布) | 'trial'(体验版) | 'develop'(开发版)。
+  // 未发布租户传 release 会报 41030（page 不存在），C 端按租户发布状态传值。
+  async getWxacode(channelAppId, scene = '', page = 'pages/index/index', envVersion = 'release') {
     const token = await this.getAuthorizerAccessToken(channelAppId);
     const res = await fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scene, page, width: 430, auto_color: false, line_color: { r: 0, g: 0, b: 0 } }),
+      body: JSON.stringify({ scene, page, width: 430, auto_color: false, line_color: { r: 0, g: 0, b: 0 }, env_version: envVersion }),
     });
     const buffer = Buffer.from(await res.arrayBuffer());
     // 检查是否返回错误JSON

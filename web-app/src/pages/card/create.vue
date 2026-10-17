@@ -1,5 +1,5 @@
 <template>
-  <view class="create-page" :class="'skin-' + skinType" :style="[skinVars, themeStyle, brandVars, navVars]">
+  <view class="create-page" :class="['skin-' + skinType, { 'is-edit': isEdit }]" :style="[skinVars, themeStyle, brandVars, navVars]">
     <view v-if="applyMsg" class="apply-banner" :class="{ 'apply-banner--reject': applyStatus === 'rejected' }">
       {{ applyMsg }}
     </view>

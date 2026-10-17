@@ -142,6 +142,9 @@ export const cardApi = {
   getVisitorSummary: () => request('/visitors/summary'),
   getVisitorTimeline: (openid) => request(`/visitors/${openid}/timeline`),
 
+  // 我的名片小程序码（type=wxacode 真·小程序码 | h5 降级 H5 链接二维码；image 为 dataURL）
+  getWxacode: (cardId) => request(`/wxacode?cardId=${Number(cardId) || 0}`),
+
   // ===== 运营型雷达（阶段C：高潜榜/意向/AI报告/配置/话术/转发/导出/站内提醒）=====
   getRadarTopLeads: (limit) => request(`/radar/top-leads?limit=${limit || 20}`),
   getRadarIntent: (openid) => request(`/radar/intent/${openid}`),
