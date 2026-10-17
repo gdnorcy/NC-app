@@ -222,3 +222,20 @@ test('自运营上传：未配置 MP_CI_PROJECT_DIR 时返回明确错误', asyn
   assert.equal(res.status, 400);
   assert.match(res.body.error, /MP_CI_PROJECT_DIR/);
 });
+
+// —— /init 渠道初始化：自运营租户也要能拿到渠道数据（此前只服务授权态 → 自运营 403 丢数据） ——
+test('/init 自运营渠道：返回 configured + customerId + 品牌配置', async () => {
+  const res = await request(app).get('/api/channel/init').query({ appid: 'wxself001' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.configured, true);
+  assert.equal(res.body.customerId, 2);
+  assert.ok(res.body.primaryColor, '应带回主色（自运营行同样可配品牌）');
+});
+
+// —— /init 未知 appid（平台自有小程序/未配置）：200 + configured:false，不制造红字错误 ——
+test('/init 未知 appid：200 configured:false（替代 403/404，避免控制台红字）', async () => {
+  const res = await request(app).get('/api/channel/init').query({ appid: 'wx_unknown_999' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.configured, false);
+  assert.equal(res.body.customerId, 0);
+});
