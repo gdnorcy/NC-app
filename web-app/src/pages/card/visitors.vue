@@ -157,19 +157,37 @@
       <view class="empty-hint">分享名片后，访客行为将在这里展示</view>
     </view>
 
-    <!-- 行为时间线弹层（demo openVisitor） -->
+    <!-- 行为时间线弹层（2026-10-18 重构：真实动作+时间+画像摘要+可滚动） -->
     <view class="sheet-mask" :class="{ on: showTimeline }" @click="closeTimeline"></view>
     <view class="sheet" :class="{ on: showTimeline }">
       <view class="grip"></view>
-      <view class="sheet-title">{{ timelineName }} · 行为轨迹</view>
-      <view class="sheet-sub">访客来源：微信名片分享</view>
-      <view class="tline">
-        <view class="tl-item" v-for="(t, i) in timelineItems" :key="i">
-          <view class="tl-dot" :class="t.cls"><SIcon :name="t.icon" size="small" color="#ffffff" /></view>
-          <view class="tl-t">{{ t.t }}</view>
-          <view class="tl-s">{{ t.s }}</view>
+      <view class="sheet-title">行为轨迹</view>
+      <!-- 访客画像摘要：全部取 summary 真实字段，不再编造 -->
+      <view class="tl-profile" v-if="timelineVisitor">
+        <view class="tl-av" :style="{ background: (timelineVisitor.tagColor || '') + '22', color: timelineVisitor.tagColor || themeColor }">{{ (timelineVisitor.nickname || '')[0] || '访' }}</view>
+        <view class="tl-pinfo">
+          <view class="tl-pname">
+            {{ timelineVisitor.nickname || '匿名访客' }}
+            <text class="v-tag" :class="tagCls(timelineVisitor.tag)">{{ timelineVisitor.tag }}</text>
+          </view>
+          <view class="tl-pstats">{{ timelineVisitor.behavior }} · 意向 {{ timelineVisitor.score }} 分</view>
         </view>
       </view>
+      <scroll-view scroll-y class="tl-scroll">
+        <view class="tline" v-if="timelineItems.length">
+          <view class="tl-item" v-for="(t, i) in timelineItems" :key="i">
+            <view class="tl-dot" :class="t.cls"><SIcon :name="t.icon" size="small" color="#ffffff" /></view>
+            <view class="tl-main">
+              <view class="tl-t">{{ t.t }}</view>
+              <view class="tl-s" v-if="t.s">{{ t.s }}</view>
+            </view>
+          </view>
+        </view>
+        <view class="tl-empty" v-else>
+          <view class="tl-empty-t">暂无详细行为记录</view>
+          <view class="tl-empty-s">访客后续的浏览、交换等行为会自动补充到这里</view>
+        </view>
+      </scroll-view>
       <view class="btn-main blue" @click="timelineToConvert">转为客户</view>
       <view class="btn-ghost" @click="closeTimeline">关闭</view>
     </view>
@@ -243,6 +261,8 @@ const convPhone = ref('');
 const convRemark = ref('');
 const timelineName = ref('');
 const timelineItems = ref([]);
+// 时间线弹层头部画像：取 summary 真实字段（昵称/标签/访问行为/意向分），不编造任何内容
+const timelineVisitor = ref(null);
 // 首页访客雷达列表点击带 openid 跳过来时，自动展开该访客轨迹（deep-link 进详情）
 const pendingOpenid = ref('');
 
@@ -381,26 +401,31 @@ function animateNumber(key, target) {
 }
 
 function tagCls(tag) {
-  return { '高意向': 'green', '已交换名片': 'green', '观看视频': 'blue', '新访客': 'gray' }[tag] || 'gray';
+  // 🔴 2026-10-18：标签只表「行为」（已交换名片/观看视频/回访客/新访客），
+  //    意向强弱唯一由「意向分」徽标表达——避免与中意向/高意向 同屏自相矛盾。
+  return { '高意向': 'green', '已交换名片': 'green', '观看视频': 'blue', '回访客': 'blue', '新访客': 'gray' }[tag] || 'gray';
 }
 
 async function viewTimeline(v) {
   // 🔴 2026-10-21 用户反馈：匿名访客点击只弹"暂无轨迹"且不进详情、红点也不消失。
   //    根因是这里对 anonymous 直接 return —— 既不展开轨迹、也不清未读红点。
   //    匿名访客虽无身份，但后端仍有 visit_count/duration/last_visit 等行为数据，
-  //    应照常展开"行为轨迹"弹层（默认时间线展示访问/停留/交换等信息），并在展开时清红点。
+  //    应照常展开"行为轨迹"弹层（默认时间线展示访问/停留信息），并在展开时清红点。
   // 标记已读（红点消失）
   if (v.unread) {
     v.unread = false;
     try { await cardApi.markVisitorRead(v.visitorOpenid); } catch (e) {}
   }
+  // 画像摘要：直接取 summary 真实字段；原 timelineName（昵称）已由画像块承担
+  timelineVisitor.value = v;
   timelineName.value = v.nickname;
   timelineItems.value = buildDefaultTimeline(v);
   showTimeline.value = true;
   try {
     const res = await cardApi.getVisitorTimeline(v.visitorOpenid);
     if (res.actions && res.actions.length) {
-      timelineItems.value = res.actions.map(mapAction);
+      // 同类型相邻动作聚合（避免 231 条 view 刷屏），再映射真实时间
+      timelineItems.value = mergeSameActions(res.actions).map(mapAction);
     }
   } catch (e) {}
 }
@@ -413,27 +438,65 @@ function tryAutoOpenTimeline() {
   if (target) viewTimeline(target);
 }
 
-function mapAction(a) {
-  const map = {
-    exchange: { t: a.actionDetail || '交换电子名片', s: '已获取联系方式', cls: 'green', icon: 'card' },
-    video: { t: a.actionDetail || '观看视频', s: a.duration ? `观看 ${a.duration} 秒` : '', cls: 'blue', icon: 'doc' },
-    doc: { t: a.actionDetail || '浏览作品 / 简介', s: '来源：微信分享', cls: 'blue', icon: 'doc' },
-    visit: { t: a.actionDetail || '访问了你的名片', s: '来源：微信分享', cls: 'gray', icon: 'analytics' },
-  };
-  return map[a.actionType] || { t: '访问了你的名片', s: '来源：微信分享', cls: 'gray', icon: 'analytics' };
+// 行为时间格式（手动解析，规避 iOS JSCore 对 'YYYY-MM-DD HH:mm:ss' 解析差异）
+// 今天→今天 HH:mm；昨天→昨天 HH:mm；今年→MM-DD HH:mm；跨年→YYYY-MM-DD HH:mm
+function formatActionTime(s) {
+  const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return '';
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => (n < 10 ? '0' + n : '' + n);
+  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const now = new Date();
+  const day0 = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((day0(now) - day0(d)) / 86400000);
+  if (diffDays === 0) return `今天 ${hm}`;
+  if (diffDays === 1) return `昨天 ${hm}`;
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}-${d.getDate()} ${hm}`;
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()} ${hm}`;
 }
 
+// 同类型相邻动作聚合（消除 231 条 view 同质刷屏；合并项保留最近/最早时间用于展示）
+function mergeSameActions(actions) {
+  const out = [];
+  for (const a of actions) {
+    const prev = out[out.length - 1];
+    if (prev && prev.actionType === a.actionType) {
+      prev.count = (prev.count || 1) + 1;
+      prev.earliestCreatedAt = a.createdAt;
+    } else {
+      out.push({ ...a, count: 1, latestCreatedAt: a.createdAt, earliestCreatedAt: a.createdAt });
+    }
+  }
+  return out;
+}
+
+function mapAction(a) {
+  const latest = formatActionTime(a.latestCreatedAt || a.createdAt);
+  const first = formatActionTime(a.earliestCreatedAt || a.createdAt);
+  // 聚合项：显示「最近时间 · 共 N 次」；单条：显示真实时间
+  const time = a.count > 1 ? `最近 ${latest} · 共 ${a.count} 次` : latest;
+  const map = {
+    view: { t: '浏览了你的名片', s: time, cls: 'gray', icon: 'analytics' },
+    visit: { t: a.actionDetail || '访问了你的名片', s: time, cls: 'gray', icon: 'analytics' },
+    doc: { t: a.actionDetail || '浏览作品 / 简介', s: time, cls: 'blue', icon: 'doc' },
+    video: { t: a.actionDetail || '观看视频', s: time, cls: 'blue', icon: 'doc' },
+    exchange: { t: a.actionDetail || '交换电子名片', s: time || '已获取联系方式', cls: 'green', icon: 'card' },
+  };
+  return map[a.actionType] || { t: a.actionDetail || '浏览了你的名片', s: time, cls: 'gray', icon: 'analytics' };
+}
+
+// 默认时间线：只展示 summary 真实字段，绝不编造未发生的行为（如未交换却显示"已获取联系方式"）
 function buildDefaultTimeline(v) {
   return [
-    { t: '访问了你的名片', s: v.timeAgo, cls: 'gray', icon: 'analytics' },
-    { t: v.behavior, s: '来源：微信分享', cls: 'blue', icon: 'doc' },
-    { t: `停留 ${v.duration || 0} 秒`, s: '行为：浏览内容', cls: 'gray', icon: 'chart' },
-    { t: '交换电子名片', s: '已获取联系方式', cls: 'green', icon: 'card' },
+    { t: '最近访问', s: v.timeAgo || '刚刚', cls: 'gray', icon: 'analytics' },
+    { t: v.behavior || '首次访问', s: '', cls: 'blue', icon: 'chart' },
   ];
 }
 
 function timelineToConvert() {
-  const v = visitors.value.find((x) => x.nickname === timelineName.value) || {};
+  // 直接用画像里的真实访客对象（原按 nickname 匹配：多个"匿名访客"会错配首条）
+  const v = timelineVisitor.value || {};
   closeTimeline();
   setTimeout(() => convert(v), 250);
 }
@@ -822,8 +885,60 @@ async function saveConvert() {
 }
 
 /* ===== 时间线（demo tline）===== */
+.tl-profile {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 24rpx 0 4rpx;
+  text-align: left;
+}
+.tl-av {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--fs-5);
+  flex-shrink: 0;
+}
+.tl-pinfo { flex: 1; min-width: 0; }
+.tl-pname {
+  font-size: var(--fs-5);
+  font-weight: 600;
+  color: var(--t5);
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+.tl-pstats {
+  font-size: var(--fs-3);
+  color: var(--t4);
+  margin-top: 6rpx;
+}
+/* 弹层列表可滚动：动作多时按钮不再被顶出屏（MP 用 scroll-view） */
+.tl-scroll {
+  max-height: 46vh;
+  margin-top: 8rpx;
+}
+.tl-empty {
+  text-align: center;
+  padding: 60rpx 0 30rpx;
+}
+.tl-empty-t {
+  font-size: var(--fs-4);
+  color: var(--t3);
+}
+.tl-empty-s {
+  font-size: var(--fs-2);
+  color: var(--t4);
+  margin-top: 10rpx;
+  line-height: 1.5;
+}
 .tline {
-  margin: 28rpx 0 0;
+  margin: 24rpx 0 0;
 }
 .tl-item {
   position: relative;
@@ -851,6 +966,10 @@ async function saveConvert() {
 }
 .tl-dot.green {
   background: var(--success);
+}
+.tl-main {
+  flex: 1;
+  min-width: 0;
 }
 .tl-t {
   font-size: var(--fs-4);
