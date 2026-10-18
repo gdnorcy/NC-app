@@ -72,7 +72,8 @@ describe('cardDetail hero 配色分层（自选模板 > 品牌主色）', () => 
   });
 
   test('布局开关仍来自裸 heroTheme（品牌只覆盖配色，不抢布局）', () => {
-    expect(SRC).toContain('const showGuide = computed(() => !layoutFull.value && heroTheme.value?.guide);');
+    // 注：原先的 showGuide（hero 引导条开关）已随「拨号/收藏并入统一操作栏栅格」下线，
+    //     拨号/收藏改由 !isMine && card.phone 判定，不再受模板 guide 开关影响。
     expect(SRC).toContain('const squareCls = computed(() => (heroTheme.value?.quickSquare ? ');
     expect(SRC).toContain('const nameBigCls = computed(() => (heroTheme.value?.nameBig ? ');
     expect(SRC).toContain('const showCompaniesCard = computed(() => !layoutFull.value && heroTheme.value?.companiesCard);');

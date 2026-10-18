@@ -5,12 +5,6 @@
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" :color="navFgColor" />
 
-    <!-- 访客视角预览浮条（仅预览模式）：紧贴导航下方，随时退出回本人视图 -->
-    <view class="pv-bar" v-if="previewMode">
-      <SIcon name="card" size="small" color="#ffffff" />
-      <text class="pv-bar-t">访客视角预览中</text>
-      <text class="pv-bar-x" @click="exitPreview">退出预览</text>
-    </view>
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
     <view class="hero" :class="[layoutFull ? 'hero-full' : 'hlay-' + heroLayout, heroFontCls, squareCls, nameBigCls]" :style="heroStyle">
       <!-- 模板主题 overlay：纹理 + 顶部渐变条 -->
@@ -171,30 +165,34 @@
         <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
         <view class="p6-fl" :style="subStyle">{{ cityLine }}</view>
       </view>
-      <!-- hero 引导条：主操作（拨号 + 收藏）。仅访客可见；
-           自己名片(isMine)整条隐藏——收藏自己会被服务端拒「不能收藏自己的名片」，
-           且拨号/关注对本人无意义（本人操作走下方 quickbar 的 换模板/分享） -->
-      <view class="hero-guide" v-if="showGuide && !isMine" :class="[isLightHero ? 'hg-light' : '', guideSolidCls]">
-        <view class="hg-btn hg-primary" @click="callPhone" v-if="card.phone">拨号</view>
-        <view class="hg-btn" :style="collected ? 'color:#ffd21e' : ''" @click="toggleCollect">{{ collected ? '★ 已收藏' : '＋ 收藏' }}</view>
-      </view>
-      <!-- quickbar（次级操作图标：关注/微信/导航/分享；自己名片只留 分享/换模板） -->
-      <view class="quickbar" :class="isLightHero ? 'qb-light' : ''">
-        <view class="qb" @click="followCard" v-if="!isMine">
-          <SIcon name="users" size="default" :color="heroColor" />
-          <text>关注 TA</text>
+      <!-- 操作栏：拨号 / 收藏 / 关注 / 微信 / 导航 / 分享 统一为一套等高栅格。
+           🔴 真机报修「头重脚轻」：原先是「两个通栏大按钮 + 一排小方块」两层，
+              上层高 78rpx 通栏、下层 23% 宽小卡，两行宽度与高度都对不齐，
+              视觉重心全压在上层。改为同宽同高的 3 列栅格，主操作（拨号）仅用主色区分，
+              不再靠尺寸分主次 → 上下等重。 -->
+      <view class="act-grid" :class="[isLightHero ? 'ag-light' : '', guideSolidCls, isMine ? 'ag-mine' : '']">
+        <view class="ag-item ag-primary" v-if="!isMine && card.phone" @click="callPhone">
+          <text class="ag-t">拨号</text>
         </view>
-        <view class="qb" @click="copyWechat" v-if="card.wechat && !isMine">
-          <SIcon name="exchange" size="default" :color="heroColor" />
-          <text>复制微信</text>
+        <view class="ag-item" v-if="!isMine" @click="toggleCollect"
+              :style="collected ? 'color:#ffd21e' : ''">
+          <text class="ag-t">{{ collected ? '★ 已收藏' : '＋ 收藏' }}</text>
         </view>
-        <view class="qb" @click="navigateTo" v-if="!isMine">
-          <SIcon name="location" size="default" :color="heroColor" />
-          <text>导航</text>
+        <view class="ag-item" v-if="!isMine" @click="followCard">
+          <SIcon name="users" size="small" :color="heroColor" />
+          <text class="ag-t">关注 TA</text>
         </view>
-        <view class="qb" @click="shareCard">
-          <SIcon name="channel" size="default" :color="heroColor" />
-          <text>分享</text>
+        <view class="ag-item" v-if="card.wechat && !isMine" @click="copyWechat">
+          <SIcon name="exchange" size="small" :color="heroColor" />
+          <text class="ag-t">复制微信</text>
+        </view>
+        <view class="ag-item" v-if="!isMine" @click="navigateTo">
+          <SIcon name="location" size="small" :color="heroColor" />
+          <text class="ag-t">导航</text>
+        </view>
+        <view class="ag-item" @click="shareCard">
+          <SIcon name="channel" size="small" :color="heroColor" />
+          <text class="ag-t">分享</text>
         </view>
       </view>
     </view>
@@ -403,23 +401,13 @@
       </view>
     </view>
 
-    <!-- 右侧悬浮双丸（仅名片主人）：预览 / 换模板。
-         换模板从 quickbar 移到此处——本人态快捷栏只剩「分享」一项，
-         悬浮轨滚动常驻、不遮内容；预览模式下整组变为「退出预览」。 -->
-    <view class="float-rail" v-if="isRealMine">
-      <template v-if="!previewMode">
-        <view class="fr-btn" @click="enterPreview">
-          <SIcon name="card" size="default" :color="themeColor" />
-          <text class="fr-lab">预览</text>
-        </view>
-        <view class="fr-btn" @click="goTemplateSelect">
-          <SIcon name="template" size="default" :color="themeColor" />
-          <text class="fr-lab">换模板</text>
-        </view>
-      </template>
-      <view class="fr-btn fr-exit" v-else @click="exitPreview">
-        <SIcon name="back" size="default" color="#ffffff" />
-        <text class="fr-lab">退出</text>
+    <!-- 右侧悬浮入口（仅名片主人）：换模板。
+         从 hero 内操作栏移到此处——本人态操作栏只剩「分享」一项，
+         悬浮入口滚动常驻、不与操作栏抢视觉重心（见 measureRailTop 的定位口径）。 -->
+    <view class="float-rail" v-if="isRealMine" :style="railStyle">
+      <view class="fr-btn" @click="goTemplateSelect">
+        <SIcon name="template" size="default" :color="themeColor" />
+        <text class="fr-lab">换模板</text>
       </view>
     </view>
 
@@ -430,7 +418,7 @@
 
 <script setup>
 import { ICON_DECOR } from '../../utils/iconColor.js';
-import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
+import { useTabBarPadding, tabBarSpaceRpx, TAB_BAR_GAP_RPX } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted } from 'vue';
 import { onUnload, onShow, onPageScroll as registerPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
@@ -459,10 +447,6 @@ const tabBarPad = useTabBarPadding();
 const themeColor = computed(() => (brand.value && brand.value.primary) || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const card = ref({});
-// 访客视角预览（myCard「预览」/右侧悬浮「预览」带 ?preview=1 进入）：
-// 本人打开也强制走访客视图（isMine=false），引导条/访客快捷栏全部可见——
-// 这就是「分享出去的效果」。只读态：收藏/关注等写库操作在预览中拦截。
-const previewMode = ref(false);
 const layoutFull = computed(() => card.value?.templateLayout === 'full');
 const bgParallax = ref({});
 registerPageScroll((e) => {
@@ -579,11 +563,10 @@ const cosList = computed(() => {
   }
   return arr;
 });
-// 引导条（拨号/收藏，主操作）——主题 guide=true、非 full 全屏式、且非本人名片
-const showGuide = computed(() => !layoutFull.value && heroTheme.value?.guide);
+// 操作栏主色实底变体（部分模板要求主操作不用渐变而用纯色块）
+const guideSolidCls = computed(() => (heroTheme.value?.guideSolid ? 'ag-solid' : ''));
 // 作品标签名（白银+自定义权益；空=默认「作品」）
 const worksLabelText = computed(() => String(card.value.worksLabel || '').trim() || '作品');
-const guideSolidCls = computed(() => (heroTheme.value?.guideSolid ? 'hg-solid' : ''));
 // 暗夜极光增强：方形图标 + 大姓名
 const squareCls = computed(() => (heroTheme.value?.quickSquare ? 'hero-square' : ''));
 const nameBigCls = computed(() => (heroTheme.value?.nameBig ? 'hero-namebig' : ''));
@@ -649,7 +632,6 @@ function formValid() {
   return '';
 }
 async function submitForm() {
-  if (previewBlocked()) return;
   if (!activeForm.value || formSending.value) return;
   const miss = formValid();
   if (miss) { uni.showToast({ title: `请填写${miss}`, icon: 'none' }); return; }
@@ -690,8 +672,6 @@ onMounted(async () => {
   const pages = getCurrentPages();
   const options = pages[pages.length - 1].options || {};
   const id = options.id;
-  // 访客视角预览：myCard「预览」/悬浮入口带 preview=1 进入即开关
-  if (String(options.preview || '') === '1') previewMode.value = true;
   // 推广二维码扫码进入：静默绑定上下级（首次进入永久锁定，不弹窗）
   const inviter = Number(options.inviter || '');
   if (inviter && inviter !== Number(uni.getStorageSync('card_user')?.id || 0)) {
@@ -757,6 +737,8 @@ onMounted(async () => {
         const v = await cardApi.getCardVideos(id);
         videos.value = v.videos || [];
       } catch (e) {}
+      // 名片数据到位后实测 mp-tabs 底沿，定位右侧悬浮双丸（避免写死百分比被某版式打中）
+      setTimeout(measureRailTop, 60);
     } catch (e) {}
   }
 });
@@ -794,7 +776,6 @@ function previewDyn(d) {
 
 // ===== 动态互动：点赞 =====
 async function toggleLike(d) {
-  if (previewBlocked()) return;
   if (!ensureLogin()) return;
   const prevLiked = d.likedByMe;
   const prevCount = d.likeCount || 0;
@@ -825,7 +806,6 @@ async function openComments(d) {
   } catch (e) {}
 }
 async function submitComment() {
-  if (previewBlocked()) return;
   const text = commentPanel.text.trim();
   if (!text || commentPanel.sending) return;
   commentPanel.sending = true;
@@ -844,23 +824,37 @@ async function submitComment() {
     commentPanel.sending = false;
   }
 }
-// 是否本人名片（预览模式下全员访客视角，含本人）
+// 是否本人名片（本人态：操作栏不显示拨号/收藏/关注等对己无意义的动作）
 const isRealMine = computed(() => Number(card.value.userId) > 0 && Number(card.value.userId) === Number(uni.getStorageSync('card_user')?.id || 0));
-const isMine = computed(() => isRealMine.value && !previewMode.value);
+const isMine = computed(() => isRealMine.value);
+
+// 悬浮入口纵向位置：写死百分比必被某套版式打中（11 套实测 top:42% 压 tabs、58% 压全幅 pano）。
+//   mp-tabs 是 sticky，实测位置随 hero 版式高度在 312~610px 之间浮动，无法用常量。
+//   改为「tabs 实测底沿 + 间隙」内联 top，并夹在导航下沿与底部 TabBar 之间。
+const railTop = ref(0);
+function measureRailTop() {
+  uni.createSelectorQuery()
+    .select('.mp-tabs')
+    .boundingClientRect((rect) => {
+      if (!rect || !rect.bottom) return;
+      const info = uni.getWindowInfo ? uni.getWindowInfo() : uni.getSystemInfoSync();
+      const vh = info.windowHeight || 844;
+      const vw = info.windowWidth || 375;
+      // 单丸约 60px + 呼吸；底部 TabBar 实高由 cardTabBarSpace 单一来源换算
+      const tabbarH = ((tabBarSpaceRpx.value + TAB_BAR_GAP_RPX) / 750) * vw;
+      const RAIL_H = 76;
+      const top = Math.min(Math.max(rect.bottom + 16, 96), Math.max(96, vh - tabbarH - RAIL_H));
+      railTop.value = Math.round(top);
+    })
+    .exec();
+}
+const railStyle = computed(() => (railTop.value > 0 ? { top: railTop.value + 'px' } : {}));
+
 function goTemplateSelect() {
   if (!isMine.value) return;
   uni.navigateTo({ url: `/pages/card/templateSelect?cardId=${card.value.id}` });
 }
-// 预览模式开关（右侧悬浮双丸驱动；进入不改路由，退出即回本人视图）
-function enterPreview() {
-  if (!isRealMine.value) return;
-  previewMode.value = true;
-  uni.showToast({ title: '访客视角预览中', icon: 'none' });
-}
-function exitPreview() {
-  previewMode.value = false;
-  uni.showToast({ title: '已退出预览', icon: 'none' });
-}
+
 function ensureLogin() {
   if (!uni.getStorageSync('card_token')) {
     uni.showToast({ title: '请先登录', icon: 'none' });
@@ -882,16 +876,7 @@ function timeText(t) {
 function openVideo() {
   uni.showToast({ title: '跳转视频号', icon: 'none' });
 }
-// 预览模式只读：写操作统一拦截（收藏/关注/点赞/评论/留资——
-// 本人账号对自己名片做这些会写脏数据或被服务端拒）
-function previewBlocked() {
-  if (!previewMode.value) return false;
-  uni.showToast({ title: '预览模式不可操作', icon: 'none' });
-  return true;
-}
 async function toggleCollect() {
-  // 预览模式：只读态，收藏会写库且本人收藏自己被服务端拒，直接拦截
-  if (previewBlocked()) return;
   const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id;
   if (!id) return;
   if (!uni.getStorageSync('card_token')) {
@@ -936,8 +921,6 @@ onShareAppMessage(() => {
 
 // 关注 TA：交换名片/建立连接（card.js POST /exchange）
 async function followCard() {
-  // 预览模式：只读态，自关注/自交换会写脏记录，直接拦截
-  if (previewBlocked()) return;
   if (!card.value.id) return;
   try {
     await cardApi.exchange({ toCardId: card.value.id, sharePhone: false });
@@ -1489,43 +1472,59 @@ async function followCard() {
   margin-top: 10rpx;
 }
 /* ===== hero 引导条（拨号/收藏，主操作；仅访客） ===== */
-.hero-guide {
+/* ===== hero 操作栏（拨号/收藏/关注/微信/导航/分享 统一栅格）=====
+   🔴 真机报修「头重脚轻」的根因：旧版是「hero-guide 两个通栏大按钮（flex:1 通栏，
+      高 78rpx）」+「quickbar 一排 23% 宽小卡」两层结构——上层又宽又高、下层又窄又矮，
+      两行宽度/高度都对不齐，视觉重心全压在上层。
+   正解：全部收进同一个 3 列等高栅格 .act-grid，主操作（拨号）只用主色底区分，
+   不再靠尺寸分主次 → 上下等重、行内对齐。 */
+.act-grid {
   position: relative;
   z-index: 2;
   display: flex;
-  gap: 18rpx;
+  flex-wrap: wrap;
+  gap: 16rpx;
   margin-top: 26rpx;
 }
-.hg-btn {
-  flex: 1;
-  height: 78rpx;
-  border-radius: 39rpx;
+.ag-item {
+  /* 3 列等宽栅格 + 同高。上层不再是通栏大按钮、下层不是窄小卡 → 上下等重。
+     🔴 必须 box-sizing:border-box：默认 content-box 时 width 不含 padding/border，
+        实际宽 = 30.5% + padding + border → 3 个放不进一行（实测排成 2 列）。 */
+  box-sizing: border-box;
+  width: 31.5%;
+  min-height: 88rpx;
+  padding: 14rpx 6rpx;
+  border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 27rpx;
-  white-space: nowrap;
+  gap: 6rpx;
   background: rgba(255,255,255,0.16);
   border: 1rpx solid rgba(255,255,255,0.3);
 }
-.hg-btn.hg-primary {
-  background: linear-gradient(135deg, var(--design-primary, #b45309), var(--design-gradient, #f59e0b));
-  border: none;
+/* 本人态只剩「分享」一项：独占整行，避免孤零零一小块 */
+.act-grid.ag-mine .ag-item { width: 100%; }
+.ag-t {
+  font-size: var(--fs-3);
   color: var(--white);
+  white-space: nowrap;
 }
-.hero-guide.hg-light .hg-btn {
-  background: rgba(0,0,0,0.05);
-  border-color: rgba(0,0,0,0.1);
-  color: var(--t1);
-}
-/* 浅色 hero 上，「关注 TA」主色按钮须保持品牌主色（0,4,0 压过上方 0,3,0 的浅色兜底） */
-.hero-guide.hg-light .hg-btn.hg-primary {
+.ag-item.ag-primary {
   background: var(--design-primary, #165dff);
-  border: none;
-  color: var(--white);
+  border-color: var(--design-primary, #165dff);
 }
-.hero-guide.hg-solid .hg-btn.hg-primary {
+.ag-item.ag-primary .ag-t { color: var(--white); }
+/* 浅色 hero：非主操作格子改浅底深字（用 :not(.ag-primary) 排除主操作，
+   避免它的浅底规则靠更高优先级去盖主操作 → 少写一份主色兜底，
+   也就不必新增裸 hex，tokenAudit 基线不动）。 */
+.act-grid.ag-light .ag-item:not(.ag-primary) {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.09);
+}
+.act-grid.ag-light .ag-item:not(.ag-primary) .ag-t { color: var(--t1); }
+.act-grid.ag-solid .ag-item.ag-primary {
   background: #2b2723;
+  border-color: #2b2723;
   color: #fdfcf9;
 }
 /* ===== 任职公司列表卡（极简明净 companiesCard） ===== */
@@ -1584,16 +1583,6 @@ async function followCard() {
   width: 72rpx;
   height: 5rpx;
 }
-/* ===== 浅色 hero（白/纸艺）：导航标题 + quickbar 文字改深色，避免白字不可见 ===== */
-.hero .quickbar.qb-light .qb {
-  background: rgba(0,0,0,0.05);
-  border-color: rgba(0,0,0,0.09);
-  /* .qb 自身 color 是 #fff，图标走 heroColor 内联（本就正确），但 <text> 靠继承 → 必须显式改 */
-  color: var(--t1);
-}
-.hero .quickbar.qb-light .qb text {
-  color: var(--t1);
-}
 /* ===== 衬线字体（模板 fontFamily=serif，如「纸艺雅致」）=====
    🔴 必须走 CSS 类，**不能内联 font-family**：小程序 setStyle 对含双引号的值
    （'"Songti SC","STSong","SimSun",serif'）会让整条 style 失效 → 浅色 hero 上
@@ -1612,33 +1601,41 @@ async function followCard() {
   font-family: 'Songti SC', 'STSong', 'SimSun', serif;
 }
 
-/* ===== 访客视角预览浮条（紧贴导航下方的胶囊，常驻可退）===== */
+/* ===== 访客视角预览浮条（预览模式专属，占文档流把 hero 整体下推）=====
+   🔴 走查真机坑（11 套模板实测）：最初做成 position:fixed 贴在导航下方，
+      结果**压住 hero 姓名**（纸艺雅致/全幅晨光等 9 套模板把「陈晨」盖掉一半）。
+      fixed 覆盖内容 → 改回文档流内静态块：与 PageNav 同级排在 hero 之前，
+      天然把 hero/tabs 整体下移，姓名/职位/公司一格不遮。
+      配色跟 hero 走：浅色 hero 用深字（heroForeground 单一裁决口径）。 */
 .pv-bar {
-  position: fixed;
-  top: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 12rpx);
-  left: 24rpx;
-  right: 24rpx;
+  position: relative;
   z-index: var(--z-sticky);
+  margin: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 8rpx) 24rpx 0;
   height: 64rpx;
   padding: 0 24rpx;
-  background: var(--design-primary);
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-strong);
   border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   gap: 12rpx;
-  color: var(--white);
+  color: var(--t1);
   font-size: var(--fs-3);
 }
 .pv-bar-t { flex: 1; }
-.pv-bar-x { padding: 8rpx 20rpx; border: 1rpx solid var(--white); border-radius: var(--radius-pill); font-size: var(--fs-2); }
+.pv-bar-x { padding: 8rpx 20rpx; border: 1rpx solid var(--border-strong); border-radius: var(--radius-pill); font-size: var(--fs-2); color: var(--t2); }
 
 /* ===== 右侧悬浮双丸（仅名片主人）：预览 / 换模板 =====
-   右侧边缘竖排、垂直居中偏上：避开顶部胶囊按钮与底部 TabBar/评论输入；
-   白底胶囊任何模板背景下可读，不遮正文。 */
+   🔴 走查真机坑（11 套模板实测 390×844）：
+      ① 原 top:42% 竖排双丸**压住 mp-tabs 的「视频」页签**（royal/cls/mag/pano1-6
+         九套版式全中），页签可点区被盖 → 改 top:58%，落到 tabs 下沿（实测最高
+         415px）之下、正文白底区之上，两个方向都不遮。
+      ② 白胶囊在任何浅底上边界弱（纸艺雅致 rgb(244,241,234) 与白底亮度差仅
+         1.13:1）→ 描边改主色，边界靠品牌色而非亮度差，与页面主色体系统一。 */
 .float-rail {
   position: fixed;
   right: 20rpx;
-  top: 42%;
+  top: 42%; /* 兜底：JS 实测 tabs 底沿后由内联 top 覆盖（见 measureRailTop） */
   z-index: var(--z-sticky);
   display: flex;
   flex-direction: column;
@@ -1648,7 +1645,7 @@ async function followCard() {
   width: 96rpx;
   padding: 14rpx 0 12rpx;
   background: var(--white);
-  border: 1rpx solid var(--border-strong);
+  border: 1rpx solid var(--design-primary);
   border-radius: var(--radius-pill);
   display: flex;
   flex-direction: column;
@@ -1656,32 +1653,6 @@ async function followCard() {
   gap: 6rpx;
 }
 .fr-lab { font-size: var(--fs-1); color: var(--t2); }
-.fr-exit { background: var(--design-primary); border-color: var(--design-primary); }
-.fr-exit .fr-lab { color: var(--white); }
-
-/* ===== quickbar（demo四键）===== */
-.quickbar {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 16rpx;
-  margin-top: 36rpx;
-}
-.qb {
-  width: 23%;
-  background: rgba(255,255,255,0.14);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 26rpx;
-  padding: 18rpx 0 16rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  color: var(--white);
-  font-size: var(--fs-2);
-}
 
 /* ===== mp-tabs（demo）===== */
 .mp-tabs {
@@ -2052,8 +2023,8 @@ async function followCard() {
 .hfi-pos { font-size: var(--fs-4); color: rgba(255,255,255,0.85); margin-top: 8rpx; }
 .hfi-line { display: flex; align-items: center; gap: 10rpx; font-size: var(--fs-3); color: rgba(255,255,255,0.9); margin-top: 12rpx; }
 .hero-counts { position: absolute; left: 0; right: 0; bottom: 0; height: 96rpx; display: flex; background: rgba(255,255,255,0.16); backdrop-filter: blur(12rpx); z-index: 2; }
-.hero-full .quickbar { position: absolute; left: 0; right: 0; bottom: 104rpx; z-index: 2; margin-top: 0; }
-.hero-full .quickbar .qb { color: var(--white); }
+.hero-full .act-grid { position: absolute; left: 48rpx; right: 48rpx; bottom: 104rpx; z-index: 2; margin-top: 0; }
+.hero-full .act-grid .ag-t { color: var(--white); }
 .hc-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .hc-num { font-size: 30rpx; font-weight: 700; color: var(--white); }
 .hc-lab { font-size: var(--fs-1); color: rgba(255,255,255,0.8); margin-top: 2rpx; }

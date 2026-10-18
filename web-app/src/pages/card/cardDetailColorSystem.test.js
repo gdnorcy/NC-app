@@ -103,7 +103,7 @@ describe('cardDetail 被展示对象与语义色保留', () => {
     expect(src).toContain('#c9a25e');
     expect(src).toContain('#d9bc78');
     expect(src).toContain('.pano-mask-l');
-    expect(src).toContain('.hero-guide.hg-solid .hg-btn.hg-primary');
+    expect(src).toContain('.act-grid.ag-solid .ag-item.ag-primary');
     // hero 渐变仍走租户主题兜底（无模板时）
     expect(src).toContain('var(--design-primary, #b45309)');
   });

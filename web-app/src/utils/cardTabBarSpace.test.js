@@ -70,7 +70,9 @@ describe('12 个挂 CardTabBar 的页面全部接入 tabBarPad', () => {
   for (const f of PAGES) {
     test(`${f} 根视图带 tabBarPad + 引入 useTabBarPadding`, () => {
       const t = src(DIR + f);
-      expect(t).toContain("import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';");
+      // cardDetail 还额外导入 tabBarSpaceRpx/TAB_BAR_GAP_RPX（右侧悬浮入口要按 TabBar 实高定位），
+      // 故此处只要求 useTabBarPadding 在导入列表里，不要求是唯一项。
+      expect(t).toMatch(/import \{[^}]*useTabBarPadding[^}]*\} from '\.\.\/\.\.\/utils\/cardTabBarSpace\.js';/);
       expect(t).toContain('const tabBarPad = useTabBarPadding();');
       expect(t).toMatch(/:style="\[[^\]]*tabBarPad[^\]]*\]">/);
       // 页面里必须真的挂了 CardTabBar，否则不该吃这个占位

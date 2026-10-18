@@ -390,13 +390,8 @@ onMounted(async () => {
     }
   }
   const pages = getCurrentPages();
-  const opts = pages[pages.length - 1].options;
+  const opts = pages[pages.length - 1].options || {};
   const explicitId = opts.id || '';
-  // 本页仅服务本人管理台；preview/他人统一跳转对外展示页 cardDetail
-  if (opts && opts.preview && explicitId) {
-    uni.redirectTo({ url: `/pages/card/cardDetail?id=${explicitId}` });
-    return;
-  }
   // 未登录直接引导登录（不依赖 id，覆盖从底部Tab进入无 id 的场景）
   if (!decodeTokenUid()) {
     loading.value = false;
@@ -497,10 +492,9 @@ function goVideosEdit() {
   uni.navigateTo({ url: `/pages/card/videosEdit?id=${pageCardId.value}` });
 }
 function previewCard() {
-  // 他人视角预览：带 preview=1 跳转——cardDetail 据此强制走访客视图
-  // （引导条拨号/收藏、访客快捷栏全部可见，即「分享出去的效果」）。
-  // 🔴 曾经不带参数：isMine 判定不变，看到的还是本人视图，「预览看不到操作栏」。
-  uni.navigateTo({ url: `/pages/card/cardDetail?id=${pageCardId.value}&preview=1` });
+  // 打开对外展示页 cardDetail（本人会看到本人态：操作栏只留「分享」，
+  // 右侧悬浮入口可换模板）。访客视角预览已按用户要求下线，不再传 preview=1。
+  uni.navigateTo({ url: `/pages/card/cardDetail?id=${pageCardId.value}` });
 }
 
 /* ===== 分享 / 二维码（2026-10-21 重做 =====
