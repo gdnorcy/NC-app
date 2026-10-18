@@ -10,7 +10,13 @@ import { describe, test, expect } from 'vitest';
 //    → 用户纠正：**预览 ≡ 访客视角，访客看到什么预览里就有什么**，唯一多出来的装饰
 //      是右上角悬浮的换模板丸。本条务必别再退回去；
 // 3) 操作栏拨号/收藏大按钮 + 小图标两层结构合并为等高栅格（修「头重脚轻」）；
-// 4) 新增「视频号主页」入口，服务端下发 ownerIsVip 裁决。
+// 4) 新增「视频号」入口，服务端下发 ownerIsVip 裁决；
+// 5) 2026-10-22 用户明确「我要的是真实的功能，不要有这样的提示」：
+//    - 删掉 ownerPreviewHint 整套假提示（改为真实执行 + 后端真错误回填）；
+//    - 导航走 uni.openLocation 唤起手机地图 App（需主人选点落库的经纬度）；
+//    - 分享走 MP button[open-type=share] 原生面板，不再 toast「请点击右上角分享」；
+//    - 「关注 TA」正名为「交换名片」（它调的是 POST /exchange，语义与收藏完全不同）；
+//    - 补回用户记得但缺失的「保存到通讯录」，MP 用 uni.addPhoneContact。
 
 const src = readFileSync(fileURLToPath(new URL('./cardDetail.vue', import.meta.url)), 'utf8');
 const mySrc = readFileSync(fileURLToPath(new URL('./myCard.vue', import.meta.url)), 'utf8');
@@ -25,19 +31,24 @@ describe('预览 ≡ 访客视角（2026-10-18 用户明确，勿退成主人态
     expect(src).not.toMatch(/\.act-grid\.ag-mine[\s{]/);
   });
 
-  test('七个操作项统一进 .act-grid 同一栅格（不再有主人态特例）', () => {
+  test('八个操作项统一进 .act-grid 同一栅格（不再有主人态特例）', () => {
     expect(src).toMatch(/class="act-grid"/);
-    for (const item of ['callPhone', 'toggleCollect', 'followCard', 'copyWechat', 'navigateTo', 'openVideoChannel', 'shareCard']) {
+    // 4 列 × 2 行：拨号/收藏/交换名片/复制微信 + 导航/视频号/存通讯录/分享
+    for (const item of ['callPhone', 'toggleCollect', 'followCard', 'copyWechat', 'navigateTo', 'openVideoChannel', 'saveContact', 'shareCard']) {
       expect(src, `${item} 未进 act-grid`).toMatch(new RegExp(`class="ag-item[^"]*"[^>]*@click="${item}"`));
     }
   });
 
-  test('主人预览只拦副作用不改视觉：ownerPreviewHint 存在且被访客向操作调用', () => {
-    // 视觉一律按访客态渲染，但自己拨自己电话/收藏自己名片会写脏数据。
-    expect(src).toMatch(/function ownerPreviewHint\(/);
+  test('🔴 主人预览不拦任何操作：全真实执行，脏数据由后端真错误拦（2026-10-22 用户明确）', () => {
+    // 用户原文：「我要的是真实的功能，不要有这样的提示」。
+    // 曾经为了防「自拨号/自收藏/自交换」在前端塞 ownerPreviewHint 假提示，被否决。
+    // 现在的口径：动作一律真跑，自操作由后端拒绝（/collect 与 /exchange 均已加自操作
+    // 校验），前端 catch 后把后端真错误原样提示 —— 是「错误」而不是「演示」。
+    expect(src).not.toMatch(/ownerPreviewHint/);
+    expect(src).not.toMatch(/预览视角/);
     for (const fn of ['callPhone', 'copyWechat', 'navigateTo', 'toggleCollect', 'followCard']) {
-      const body = src.slice(src.indexOf(`function ${fn}(`), src.indexOf(`function ${fn}(`) + 300);
-      expect(body, `${fn} 未拦主人预览副作用`).toMatch(/ownerPreviewHint\(/);
+      const body = src.slice(src.indexOf(`function ${fn}(`), src.indexOf(`function ${fn}(`) + 400);
+      expect(body, `${fn} 被前端假提示拦住了`).not.toMatch(/ownerPreviewHint\(/);
     }
   });
 
@@ -86,7 +97,7 @@ describe('视频号主页入口（按名片主人是否会员裁决）', () => {
     expect(src).toMatch(/function openVideoChannel\(\)/);
     // ① 主人非会员：访客被告知未开通，主人自己进则引导开会员
     expect(src).toMatch(/名片主人暂未开通视频号/);
-    expect(src).toMatch(/视频号主页为会员权益，开通后自动展示/);
+    expect(src).toMatch(/视频号为会员权益，开通后自动展示/);
     // ② 会员但没填视频号
     expect(src).toMatch(/名片主人暂未设置视频号/);
     expect(src).toMatch(/请先在名片资料里填写视频号/);
@@ -105,14 +116,77 @@ describe('hero 操作栏：等高栅格（修「头重脚轻」）', () => {
     expect(src).not.toMatch(/^\.quickbar \{/m);
   });
 
-  test('格子等高：min-height + 居中 + border-box，主操作只靠主色区分而非尺寸', () => {
+  test('格子等高 + 4 列宽度换算正确，主操作只靠主色区分而非尺寸', () => {
     const block = src.slice(src.indexOf('.ag-item {'), src.indexOf('.ag-t {'));
     expect(block).toMatch(/min-height:\s*88rpx/);
     expect(block).toMatch(/justify-content:\s*center/);
-    // 🔴 content-box 下 width:31.5% 不含 padding+border → 三列排成两列
+    // 🔴 content-box 下百分比宽度不含 padding+border → 4 列排成 3 列（3 列版已踩过一次）
     expect(block).toMatch(/box-sizing:\s*border-box/);
+    // 4 列：4×(25% - 12rpx) + 3 个 16rpx 间隙 = 100%（间隙见 .act-grid 的 gap:16rpx）
+    expect(block).toMatch(/width:\s*calc\(25% - 12rpx\)/);
+    expect(src).toMatch(/gap:\s*16rpx/);
     expect(src).not.toMatch(/^\.hg-btn \{/m);
     expect(src).toMatch(/\.ag-item\.ag-primary \{/);
+  });
+
+  test('分享格是 button[open-type=share]，且抹掉了按钮自带样式', () => {
+    // 🔴 小程序里 API 无法主动拉起转发面板，必须用 button open-type="share"；
+    //    H5 没有该能力 → 降级复制链接，两条分支都不能退化成 toast。
+    expect(src).toMatch(/<button class="ag-item ag-share" open-type="share"/);
+    expect(src).toMatch(/\.ag-item\.ag-share \{/);
+    expect(src).toMatch(/\.ag-item\.ag-share::after \{ border: none; \}/);
+  });
+});
+
+describe('操作栏八格都是真动作（2026-10-22 用户明确：不要假提示）', () => {
+  test('文案正名：视频号（不再「视频号主页」）、交换名片（不再「关注 TA」）', () => {
+    expect(src).toMatch(/<text class="ag-t">视频号<\/text>/);
+    expect(src).not.toMatch(/<text class="ag-t">视频号主页<\/text>/);
+    expect(src).toMatch(/<text class="ag-t">交换名片<\/text>/);
+    expect(src).not.toMatch(/<text class="ag-t">关注 TA<\/text>/);
+    // 用户记得但确实缺的那格：保存到通讯录
+    expect(src).toMatch(/<text class="ag-t">存通讯录<\/text>/);
+  });
+
+  test('导航：有经纬度走 uni.openLocation 唤起地图 App，无走向为大家熟悉的复制地址降级', () => {
+    const body = src.slice(src.indexOf('function navigateTo('), src.indexOf('function navigateTo(') + 900);
+    expect(body).toMatch(/uni\.openLocation\(\{/);
+    expect(body).toMatch(/latitude:\s*lat/);
+    expect(body).toMatch(/longitude:\s*lng/);
+    // 坐标来自服务端下发的 card.latitude/longitude（名片主人在创建页用 chooseLocation 选点）
+    expect(body).toMatch(/Number\(card\.value\.latitude\)/);
+    expect(body).toMatch(/Number\(card\.value\.longitude\)/);
+    // 🔴 非数字坐标在 MP 是静默失败（点了没反应），不能放行
+    expect(body).toMatch(/Number\.isFinite\(lat\) && Number\.isFinite\(lng\)/);
+    expect(body).toMatch(/uni\.setClipboardData/);
+  });
+
+  test('保存到通讯录：MP 走 uni.addPhoneContact，H5 降级复制名片文本', () => {
+    expect(src).toMatch(/function saveContact\(\)/);
+    expect(src).toMatch(/uni\.addPhoneContact\(\{/);
+    expect(src).toMatch(/function copyCardText\(\)/);
+    // 用户主动取消不打扰，其余失败降级复制
+    expect(src).toMatch(/indexOf\('cancel'\) >= 0\) return;/);
+  });
+
+  test('分享：不再 toast「请点击右上角分享」，H5 复制真实链接', () => {
+    expect(src).not.toMatch(/请点击右上角分享/);
+    const body = src.slice(src.indexOf('function shareCard('), src.indexOf('function shareCard(') + 500);
+    expect(body).toMatch(/uni\.setClipboardData/);
+    expect(body).toMatch(/pages\/card\/cardDetail\?id=/);
+  });
+
+  test('视频号：MP 走 wx.openChannelsUserProfile 真跳转，失败给真原因', () => {
+    const body = src.slice(src.indexOf('function openVideo('), src.indexOf('function openVideo(') + 700);
+    expect(body).toMatch(/wx\.openChannelsUserProfile/);
+    expect(body).toMatch(/finderUserName:\s*ch/);
+    expect(body).not.toMatch(/跳转视频号/);
+    expect(body).toMatch(/视频号不存在/);
+  });
+
+  test('交换名片与收藏是两件事（语义写进代码注释，防止再被合成一格）', () => {
+    expect(src).toMatch(/cardApi\.exchange/);
+    expect(src).toMatch(/收藏=单向存进名片夹/);
   });
 });
 

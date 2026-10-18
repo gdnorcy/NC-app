@@ -2151,6 +2151,21 @@ function migrate(db) {
       db.exec("ALTER TABLE channel_apps ADD COLUMN audit_id TEXT NOT NULL DEFAULT ''");
     }
   }
+
+  // —— 名片「导航到公司」真实能力（2026-10-22）——
+  // 背景：C 端详情页「导航」原本没有真实坐标可跳，只能 toast。uni.openLocation 必须
+  //   拿到经纬度才能唤起系统地图/导航 App，故把 chooseLocation 的结果落到名片本体。
+  //   三列含义：address=地图选点的详细地址文案，lat/lng=WGS84 坐标（0=未设置）。
+  // ⚠️ 默认 0 而非 NULL：SQLite NUMERIC 与 JS 判空混用易出「0 被当有效坐标」误跳。
+  if (!colExists(db, 'card_profile', 'latitude')) {
+    db.exec('ALTER TABLE card_profile ADD COLUMN latitude REAL NOT NULL DEFAULT 0');
+  }
+  if (!colExists(db, 'card_profile', 'longitude')) {
+    db.exec('ALTER TABLE card_profile ADD COLUMN longitude REAL NOT NULL DEFAULT 0');
+  }
+  if (!colExists(db, 'card_profile', 'address')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN address TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 /** 存量租户 solutions 规范化（见 createDb 调用处注释） */

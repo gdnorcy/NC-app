@@ -10,26 +10,26 @@
             <text class="nav-tag" v-if="tenantName">{{ tenantName }}</text>
           </view>
         </template>
-        <template #right>
-          <view class="nav-right">
-            <view class="nav-icon" @click="goRequests">
-              <SIcon name="exchange" size="default" color="#ffffff" />
-              <view v-if="unreadCount > 0" class="red-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
-            </view>
-            <view class="nav-icon" @click="goConnections">
-              <SIcon name="market" size="default" color="#ffffff" />
-            </view>
-          </view>
-        </template>
+        <!-- 🔴 右上角不再挂图标（2026-10-22 用户反馈：上面太拥挤、容易点错）。
+             交换请求 / 人脉库两个入口下沉到搜索框右侧（见 .sb-icon），
+             既缩短拇指行程，也把「未读红点」放到真正会被看到的位置。 -->
       </PageNav>
     </view>
 
-    <!-- 搜索 -->
+    <!-- 搜索 + 集市入口（搜索框三段式：放大镜｜输入框｜交换请求/人脉库） -->
     <view class="search-bar">
       <view class="search-box">
         <SIcon name="dynamic" size="small" :color="ICON_DECOR" />
         <input class="search-input" v-model="keyword" placeholder="搜索姓名/公司/职位" placeholder-class="ph" @confirm="search" />
         <view v-if="keyword" class="search-clear" @click="clearSearch">✕</view>
+        <view class="sb-sep"></view>
+        <view class="sb-icon" @click="goRequests">
+          <SIcon name="exchange" size="small" :color="themeColor" />
+          <view v-if="unreadCount > 0" class="red-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
+        </view>
+        <view class="sb-icon" @click="goConnections">
+          <SIcon name="market" size="small" :color="themeColor" />
+        </view>
       </view>
     </view>
 
@@ -528,18 +528,21 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .market-hero { background: linear-gradient(155deg, var(--design-primary, #0f766e), var(--design-gradient, #14b8a6)); }
 
 /* 顶部导航栏 */
-.nav-right { display: flex; align-items: center; gap: 20rpx; }
-.nav-icon { position: relative; width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.red-dot { position: absolute; top: -4rpx; right: -8rpx; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: var(--radius-pill); background: #ff4d4f; color: var(--white); font-size: var(--fs-1); text-align: center; padding: 0 6rpx; box-sizing: border-box; }
+/* 旧导航栏右上角的图标区已随本次下沉一并删除（勿复活：上面挤且易点错）。
+   🔴 彻栏空出来后 PageNav 右侧不再占位；若以后要把功能图标放回导航栏，
+      必须同步恢复 PageNav 的 #right 插槽，否则会被微信胶囊压住。 */
 .nav-title { font-size: 34rpx; font-weight: 600; color: var(--white); }
 .nav-tag { margin-left: 12rpx; font-size: var(--fs-1); color: var(--white); background: rgba(255,255,255,0.2); padding: 4rpx 12rpx; border-radius: var(--radius-sm); }
-/* 两个图标 + 间距实际约 132rpx，勿再用单图标时代的 64rpx 固定宽（会撑破页面产生横向滚动） */
-.nav-right { width: auto; }
-
 /* 搜索 */
 .search-bar { padding: 20rpx 24rpx; background: var(--white); }
 .search-box { background: var(--bg-page); border-radius: var(--radius-xs); padding: 16rpx 20rpx; display: flex; align-items: center; gap: 12rpx; }
-.search-input { flex: 1; font-size: var(--fs-5); }
+.search-input { flex: 1; min-width: 0; font-size: var(--fs-5); }
+/* 交换请求 / 人脉库：从导航栏下沉到搜索框内右侧。
+   🔴 touch 目标 ≥56rpx（旧 56rpx 图标在导航栏里与胶囊挤在一起易误触，
+      下沉后四周是搜索框留白，误触率显著下降）。 */
+.sb-sep { width: 2rpx; height: 32rpx; background: var(--bg-hover); flex-shrink: 0; }
+.sb-icon { position: relative; flex-shrink: 0; width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
+.red-dot { position: absolute; top: -4rpx; right: -8rpx; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: var(--radius-pill); background: #ff4d4f; color: var(--white); font-size: var(--fs-1); text-align: center; padding: 0 6rpx; box-sizing: border-box; }
 .ph { color: var(--decor-2); }
 .search-clear { font-size: var(--fs-3); color: var(--decor-2); padding: 0 8rpx; }
 

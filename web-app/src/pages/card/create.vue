@@ -105,6 +105,17 @@
           <view class="form-label">一句话介绍</view>
           <input class="form-input" v-model="form.bio" placeholder="你专注什么、能提供什么" placeholder-class="ph" />
         </view>
+
+        <!-- 地图位置：访客点「导航」时依赖这里的经纬度唤起地图软件；
+             没选坐标也允许只填文字地址（详情页降级为复制地址）。 -->
+        <view class="form-item">
+          <view class="form-label">办公/门店位置</view>
+          <view class="loc-row">
+            <input class="form-input loc-input" v-model="form.address" placeholder="详细地址，方便客户导航到访" placeholder-class="ph" />
+            <view class="loc-btn" @click="chooseLocation">地图选点</view>
+          </view>
+          <view class="form-hint" v-if="hasLatLng">已选坐标：可直接唤起地图导航</view>
+        </view>
       </view>
 
       <!-- 卡片3：名片配置 -->
@@ -305,7 +316,36 @@ const form = reactive({
   bindCode: '', enterpriseName: '', industry: '',
   voiceUrl: '', voiceName: '',
   companyName: '', companies: [],
+  // 地图位置（2026-10-22 新增）：访客在名片详情页点「导航」要能唤起地图 App，
+  // 光有城市不成立——uni.openLocation 必须有经纬度。latitude/longitude 为 0 表示
+  // 只填了文字地址（详情页会自动降级为「复制地址」）。
+  address: '', latitude: 0, longitude: 0,
 });
+// 地图选点：MP 端 uni.chooseLocation 打开微信内置地图，返回真实坐标 + 详细地址。
+// 🔴 H5 端该 API 需要地图厂商 key 才能用，失败不能静默——提示用户手填地址，
+//    至少留下可被复制/可被地图搜索的文案（详情页据此走降级分支）。
+function chooseLocation() {
+  if (typeof uni.chooseLocation !== 'function') {
+    uni.showToast({ title: '当前环境不支持地图选点，请手动填写详细地址', icon: 'none' });
+    return;
+  }
+  uni.chooseLocation({
+    latitude: Number(form.latitude) || undefined,
+    longitude: Number(form.longitude) || undefined,
+    success: (r) => {
+      form.address = r.address || r.name || form.address || '';
+      form.latitude = Number(r.latitude) || 0;
+      form.longitude = Number(r.longitude) || 0;
+    },
+    fail: (e) => {
+      const msg = String((e && e.errMsg) || '');
+      if (msg.indexOf('cancel') >= 0) return; // 用户主动取消，不打扰
+      uni.showToast({ title: '地图选点失败，可手动填写详细地址', icon: 'none' });
+    },
+  });
+}
+// 是否已选到坐标（决定详情页「导航」是真唤起地图还是降级复制）
+const hasLatLng = computed(() => Number.isFinite(Number(form.latitude)) && Number.isFinite(Number(form.longitude)) && (Number(form.latitude) !== 0 || Number(form.longitude) !== 0));
 // 多公司：公司名+职务，最多 5 个
 function addCompany() {
   if (form.companies.length >= 5) return;
@@ -456,6 +496,11 @@ onMounted(async () => {
       // 公司回填：单公司 companyName + 多公司 companies（后端已解析为数组）
       if (res.card.company) form.companyName = res.card.company;
       if (!Array.isArray(form.companies)) form.companies = [];
+      // 位置三件套：旧名片/缓存数据可能缺字段，Object.assign 会把 undefined 带进来，
+      // 提交后 normalizeLatLng 虽然兜得住，但输入框会显示 undefined → 这里收敛一次
+      form.latitude = Number(res.card.latitude) || 0;
+      form.longitude = Number(res.card.longitude) || 0;
+      form.address = res.card.address || '';
       syncCityIndex();
     } catch (e) {}
   } else {
@@ -1143,5 +1188,31 @@ async function syncMarketAfterSave(isPublic) {
   font-size: var(--fs-4);
   color: var(--design-primary, #165dff);
   padding: 10rpx 0;
+}
+/* 地图位置：输入框 + 「地图选点」按钮同一行，避免单独一行按钮被误认为必填下一步 */
+.loc-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.loc-input {
+  flex: 1;
+  min-width: 0;
+}
+.loc-btn {
+  flex-shrink: 0;
+  height: 96rpx;
+  line-height: 96rpx;
+  padding: 0 24rpx;
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-4);
+  color: var(--sk-btn-text, var(--white));
+  background: var(--design-primary, #165dff);
+  white-space: nowrap;
+}
+.form-hint {
+  margin-top: 10rpx;
+  font-size: var(--fs-2);
+  color: var(--t3);
 }
 </style>

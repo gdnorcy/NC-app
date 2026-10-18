@@ -27,6 +27,40 @@ const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 
 const AUDIO_MIME = new Set(['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/x-m4a', 'audio/m4a', 'audio/webm', 'audio/x-mpeg']);
 
+/**
+ * 经纬度归一化（名片「导航到公司」）。
+ * uni.openLocation 只吃有限数字的 latitude/longitude；传 undefined/'abc'/NaN 时
+ * 小程序端不会报错、而是静默失败（点了没反应）——这类 bug 在真机上极难定位，
+ * 所以在落库前统一收敛：非法值一律 0（0 = 未设置，C 端据此走「复制地址」降级）。
+ */
+function normalizeLatLng(lat, lng) {
+  const a = Number(lat);
+  const b = Number(lng);
+  return {
+    latitude: Number.isFinite(a) ? a : 0,
+    longitude: Number.isFinite(b) ? b : 0,
+  };
+}
+
+/**
+ * 更新场景的经纬度合并：字段没传就保持库里的旧值（PATCH 语义），传了就按新值收敛。
+ * 返回 [latitude, longitude] 直接喂给 UPDATE 的占位符。
+ * ⚠️ 不能退化成 `Number(row.latitude)`：老库迁移前该列可能是 NULL，Number(null)=0 尚可，
+ *    但 Number(undefined)=NaN 会写进 REAL 列，C 端 openLocation 直接静默失败。
+ */
+function coalesceLatLng(row, lat, lng) {
+  const oldLat = Number(row.latitude);
+  const oldLng = Number(row.longitude);
+  if (lat === undefined && lng === undefined) {
+    return [Number.isFinite(oldLat) ? oldLat : 0, Number.isFinite(oldLng) ? oldLng : 0];
+  }
+  const n = normalizeLatLng(lat, lng);
+  return [
+    lat === undefined ? (Number.isFinite(oldLat) ? oldLat : 0) : n.latitude,
+    lng === undefined ? (Number.isFinite(oldLng) ? oldLng : 0) : n.longitude,
+  ];
+}
+
 export function createCardRouter(db, wxService) {
   const router = Router();
   const voiceUpload = multer({
@@ -539,14 +573,17 @@ export function createCardRouter(db, wxService) {
   });
 
   router.post('/cards', auth, (req, res) => {
-    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, templateId, voiceUrl, voiceName } = req.body;
+    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, templateId, voiceUrl, voiceName, latitude, longitude, address } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
+    // 位置三件套（详情页「导航」唤起地图用）：坐标必须是有限数字，脏数据一律落 0，
+    // 否则 C 端 Number.isFinite 判过的脏值会让 uni.openLocation 抛参、点了没反应。
+    const loc = normalizeLatLng(latitude, longitude);
     const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
     if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, city, industry, phone, wechat, email, company, companies, bio, business_field, need_tags, avatar, is_public, template_id, voice_url, voice_name)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', city || '', industry || '', phone || '', wechat || '', email || '', company || '', companies !== undefined ? JSON.stringify(companies) : '', bio || '', businessField || '', Array.isArray(needTags) ? JSON.stringify(needTags) : (needTags || ''), avatar || '', isPublic ? 1 : 0, templateId || '', voiceUrl || '', voiceName || '');
+      `INSERT INTO card_profile (user_id, name, position, city, industry, phone, wechat, email, company, companies, bio, business_field, need_tags, avatar, is_public, template_id, voice_url, voice_name, latitude, longitude, address)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', industry || '', phone || '', wechat || '', email || '', company || '', companies !== undefined ? JSON.stringify(companies) : '', bio || '', businessField || '', Array.isArray(needTags) ? JSON.stringify(needTags) : (needTags || ''), avatar || '', isPublic ? 1 : 0, templateId || '', voiceUrl || '', voiceName || '', loc.latitude, loc.longitude, String(address || '').slice(0, 200));
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(result.lastInsertRowid);
     res.json({ card: toCard(card) });
   });
@@ -555,17 +592,18 @@ export function createCardRouter(db, wxService) {
   router.post('/cards/create-with-apply', auth, (req, res) => {
     const { name, position, city, phone, wechat, email, bio, businessField, avatar, isPublic, videoChannel,
             slogan, tags, templateId, voiceUrl, voiceName, companies,
-            bindCode, applyType, enterpriseName, industry } = req.body;
+            bindCode, applyType, enterpriseName, industry, latitude, longitude, address } = req.body;
     if (!name) return res.status(400).json({ error: '姓名不能为空' });
+    const loc0 = normalizeLatLng(latitude, longitude);
     const chkTpl = canCUseTemplate(req.customerId, req.user.id, templateId);
     if (!chkTpl.ok) return res.status(400).json({ error: chkTpl.error });
 
     // 1. 创建名片
     const cardType = applyType === 'enterprise' ? 'company' : 'personal';
     const result = db.prepare(
-      `INSERT INTO card_profile (user_id, name, position, city, industry, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags, template_id, voice_url, voice_name, companies)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(req.user.id, name, position || '', city || '', industry || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '', templateId || '', voiceUrl || '', voiceName || '', companies !== undefined ? JSON.stringify(companies) : '');
+      `INSERT INTO card_profile (user_id, name, position, city, industry, phone, wechat, email, bio, business_field, avatar, is_public, video_channel, card_type, slogan, tags, template_id, voice_url, voice_name, companies, latitude, longitude, address)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(req.user.id, name, position || '', city || '', industry || '', phone || '', wechat || '', email || '', bio || '', businessField || '', avatar || '', isPublic ? 1 : 0, videoChannel || '', cardType, slogan || '', tags || '', templateId || '', voiceUrl || '', voiceName || '', companies !== undefined ? JSON.stringify(companies) : '', loc0.latitude, loc0.longitude, String(address || '').slice(0, 200));
     const cardId = result.lastInsertRowid;
 
     // 2. 处理入驻申请（填了口令才入驻）
@@ -637,7 +675,7 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName, worksLabel } = req.body;
+    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName, worksLabel, latitude, longitude, address } = req.body;
     // 自定义作品标签名（白银+权益）：仅拦截「设非空值」；清空（''）一律放行——
     // 会员过期后仍允许把标签改回默认「作品」，不做能力降级惩罚。
     let effectiveWorksLabel = card.works_label;
@@ -667,8 +705,8 @@ export function createCardRouter(db, wxService) {
       }
     }
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, works_label=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, effectiveWorksLabel, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, works_label=?, latitude=?, longitude=?, address=?, updated_at=datetime('now') WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, effectiveWorksLabel, ...coalesceLatLng(card, latitude, longitude), address !== undefined ? String(address || '').slice(0, 200) : card.address, card.id);
     const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
       FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });
@@ -1428,24 +1466,28 @@ export function createCardRouter(db, wxService) {
     const { toCardId, sharePhone } = req.body;
     const myCard = db.prepare('SELECT * FROM card_profile WHERE user_id=? ORDER BY id DESC LIMIT 1').get(req.user.id);
     if (!myCard) return res.status(400).json({ error: '请先创建名片' });
-    const toCard = db.prepare('SELECT * FROM card_profile WHERE id=?').get(toCardId);
-    if (!toCard) return res.status(404).json({ error: '对方名片不存在' });
+    const toCardRow = db.prepare('SELECT * FROM card_profile WHERE id=?').get(toCardId);
+    if (!toCardRow) return res.status(404).json({ error: '对方名片不存在' });
+    // 🔴 自交换校验（与 POST /collect 同口径）：主人预览自己的名片时操作栏就是访客视角，
+    //    第 3 格「交换名片」对本人是可见可点的；若不拦，会往自己的客户池里插一条自己的
+    //    记录 + 自己的 exchange_count +1（数据自污染，且我的名片集里出现「自己」）。
+    if (Number(toCardRow.user_id) === req.user.id) return res.status(400).json({ error: '不能与自己的名片交换' });
 
     db.prepare(
       'INSERT INTO card_exchange (from_user_id, to_user_id, from_card_id, to_card_id, phone_shared) VALUES (?,?,?,?,?)'
-    ).run(req.user.id, toCard.user_id, myCard.id, toCardId, sharePhone ? 1 : 0);
+    ).run(req.user.id, toCardRow.user_id, myCard.id, toCardId, sharePhone ? 1 : 0);
 
     db.prepare('UPDATE card_profile SET exchange_count=exchange_count+1 WHERE id=?').run(toCardId);
 
     // 自动转为客户
-    const exists = db.prepare('SELECT id FROM card_customer WHERE owner_user_id=? AND name=?').get(req.user.id, toCard.name);
+    const exists = db.prepare('SELECT id FROM card_customer WHERE owner_user_id=? AND name=?').get(req.user.id, toCardRow.name);
     if (!exists) {
       db.prepare(
         'INSERT INTO card_customer (owner_user_id, name, phone, wechat, company, source, source_card_id) VALUES (?,?,?,?,?,?,?)'
-      ).run(req.user.id, toCard.name, sharePhone ? toCard.phone : '', toCard.wechat, toCard.company, 'exchange', toCardId);
+      ).run(req.user.id, toCardRow.name, sharePhone ? toCardRow.phone : '', toCardRow.wechat, toCardRow.company, 'exchange', toCardId);
     }
 
-    res.json({ ok: true, exchangedCard: toCard(toCard) });
+    res.json({ ok: true, exchangedCard: toCard(toCardRow) });
   });
 
   // ============================================================
@@ -1979,6 +2021,11 @@ export function createCardRouter(db, wxService) {
       ownerIsVip,
       brandColor,
       brandColors,
+      // 位置（「导航」唤起系统地图用）：latitude/longitude 为 0 表示主人没选过位置，
+      // C 端据此走「复制地址」降级；保留 city/company 作为兜底地址文案。
+      latitude: Number(row.latitude) || 0,
+      longitude: Number(row.longitude) || 0,
+      address: row.address || '',
       createdAt: row.created_at, updatedAt: row.updated_at,
     };
   }

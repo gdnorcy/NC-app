@@ -165,15 +165,21 @@
         <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
         <view class="p6-fl" :style="subStyle">{{ cityLine }}</view>
       </view>
-      <!-- 操作栏：拨号 / 收藏 / 关注 / 微信 / 导航 / 分享 统一为一套等高栅格。
+      <!-- 操作栏：拨号 / 收藏 / 交换名片 / 复制微信 / 导航 / 视频号 / 存通讯录 / 分享
+           统一为一套等高栅格（4 列 × 2 行）。
            🔴 真机报修「头重脚轻」：原先是「两个通栏大按钮 + 一排小方块」两层，
               上层高 78rpx 通栏、下层 23% 宽小卡，两行宽度与高度都对不齐，
-              视觉重心全压在上层。改为同宽同高的 3 列栅格，主操作（拨号）仅用主色区分，
+              视觉重心全压在上层。改为同宽同高的栅格，主操作（拨号）仅用主色区分，
               不再靠尺寸分主次 → 上下等重。 -->
       <!-- 🔴 预览 ≡ 访客视角（2026-10-18 用户明确）：名片主人看自己名片时，这里必须
            原样呈现访客看到的形态——访客能看到什么，预览里就是什么。曾经做成「主人态
            只留分享一格」，用户反馈这不对。唯一多余的装饰只有右上角悬浮的换模板丸。
            因此所有格子都不再判 isMine，只按数据有无决定显示与否。 -->
+      <!-- 4 列 × 2 行等高栅格（8 格）：主人态与访客态完全一致「所见即访客所见」。
+           🔴 全部是真动作，没有任何「请到某某地方做某某事」的假提示：
+             拨号=makePhoneCall｜收藏=card_collect｜交换名片=POST /exchange
+             复制微信=剪贴板｜导航=uni.openLocation 唤起地图 App
+             视频号=视频号主页｜保存通讯录=uni.addPhoneContact｜分享=MP 原生转发面板 -->
       <view class="act-grid" :class="[isLightHero ? 'ag-light' : '', guideSolidCls]">
         <view class="ag-item ag-primary" v-if="card.phone" @click="callPhone">
           <text class="ag-t">拨号</text>
@@ -183,27 +189,35 @@
           <text class="ag-t">{{ collected ? '★ 已收藏' : '＋ 收藏' }}</text>
         </view>
         <view class="ag-item" @click="followCard">
-          <SIcon name="users" size="small" :color="heroColor" />
-          <text class="ag-t">关注 TA</text>
+          <text class="ag-t">交换名片</text>
         </view>
         <view class="ag-item" v-if="card.wechat" @click="copyWechat">
-          <SIcon name="exchange" size="small" :color="heroColor" />
           <text class="ag-t">复制微信</text>
         </view>
         <view class="ag-item" @click="navigateTo">
-          <SIcon name="location" size="small" :color="heroColor" />
           <text class="ag-t">导航</text>
         </view>
-        <!-- 视频号主页：入口恒显示，不做会员锁灰——它反映的是「名片主人」有没有开通，
+        <!-- 视频号：入口恒显示，不做会员锁灰——它反映的是「名片主人」有没有开通，
              不是给访客设门槛。判别分支见 openVideoChannel()。 -->
         <view class="ag-item" @click="openVideoChannel">
-          <SIcon name="dynamic" size="small" :color="heroColor" />
-          <text class="ag-t">视频号主页</text>
+          <text class="ag-t">视频号</text>
         </view>
+        <view class="ag-item" @click="saveContact">
+          <text class="ag-t">存通讯录</text>
+        </view>
+        <!-- 分享：小程序必须用 button[open-type=share] 才能拉起原生转发面板
+             （API 无法主动触发；旧实现的「请去下拉菜单里找分享」式提示已被明确否决）。
+             H5 没有该能力，降级为复制分享链接。 -->
+        <!-- #ifdef MP-WEIXIN -->
+        <button class="ag-item ag-share" open-type="share" hover-class="none">
+          <text class="ag-t">分享</text>
+        </button>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
         <view class="ag-item" @click="shareCard">
-          <SIcon name="channel" size="small" :color="heroColor" />
           <text class="ag-t">分享</text>
         </view>
+        <!-- #endif -->
       </view>
     </view>
 
@@ -759,20 +773,32 @@ onUnload(() => {
 });
 
 function callPhone() {
-  if (ownerPreviewHint()) return;
   if (card.value.phone) uni.makePhoneCall({ phoneNumber: card.value.phone });
 }
 function copyWechat() {
-  if (ownerPreviewHint()) return;
   if (card.value.wechat) {
     uni.setClipboardData({ data: card.value.wechat, success: () => uni.showToast({ title: '微信号已复制', icon: 'success' }) });
   }
 }
+// 导航：优先用名片落库的经纬度唤起**手机里的地图软件**（uni.openLocation → 系统/已装地图 App
+// 选一个，自带「导航」按钮，不是网页地图）。坐标由主人在创建/编辑名片时用地图选点写入。
+// 🔴 没有真实坐标时才降级复制地址（老名片迁移前没有位置字段，不能直接报「未设置位置」）。
 function navigateTo() {
-  if (ownerPreviewHint()) return;
-  const addr = [card.value.city, card.value.businessField || card.value.company].filter(Boolean).join(' · ');
+  const lat = Number(card.value.latitude);
+  const lng = Number(card.value.longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) {
+    uni.openLocation({
+      latitude: lat,
+      longitude: lng,
+      name: card.value.company || card.value.name || '目的地',
+      address: card.value.address || [card.value.city, card.value.businessField].filter(Boolean).join(' · '),
+      scale: 18,
+    });
+    return;
+  }
+  const addr = [card.value.city, card.value.address, card.value.businessField || card.value.company].filter(Boolean).join(' · ');
   if (!addr) {
-    uni.showToast({ title: '名片未设置位置', icon: 'none' });
+    uni.showToast({ title: '名片暂未提供地址', icon: 'none' });
     return;
   }
   uni.setClipboardData({
@@ -940,18 +966,41 @@ function timeText(t) {
   if (diff < 172800) return '昨天';
   return new Date(t).toLocaleDateString('zh-CN');
 }
+// 打开视频号主页：小程序端走微信原生 openChannelsUserProfile（与 DesignPage.openChannel 同口径），
+// 传 finderUserName=视频号ID，直接进主人视频号主页；失败给真原因提示 + H5 端降级复制 ID。
+// 🔴 不再是 toast「跳转视频号」——用户明确否决了这类提示性假动作。
 function openVideo() {
-  uni.showToast({ title: '跳转视频号', icon: 'none' });
+  const ch = card.value.videoChannel || '';
+  // #ifdef MP-WEIXIN
+  if (typeof wx !== 'undefined' && wx.openChannelsUserProfile) {
+    uni.showLoading({ title: '打开视频号…' });
+    wx.openChannelsUserProfile({
+      finderUserName: ch,
+      success: () => uni.hideLoading(),
+      complete: () => uni.hideLoading(),
+      fail: (err) => {
+        uni.hideLoading();
+        uni.showModal({
+          title: '提示',
+          content: err && err.errMsg && String(err.errMsg).indexOf('not exist') > -1
+            ? '视频号不存在，请检查视频号ID是否正确'
+            : '打开失败，请确认小程序已关联视频号',
+          showCancel: false,
+        });
+      },
+    });
+    return;
+  }
+  // #endif
+  copyVideoChannelId(ch);
 }
-// 名片主人预览自己名片时：页面仍按访客视角渲染（所见即访客所见），但访客向操作不能
-// 真的打到自己身上——否则会自己拨自己电话、收藏自己的名片、和自己交换名片，全是脏数据。
-// 因此**视觉一律不动**，只拦副作用并给一句提示。
-function ownerPreviewHint(tip) {
-  if (!isRealMine.value) return false;
-  uni.showToast({ title: tip || '预览视角｜该操作需由访客访问时触发', icon: 'none' });
-  return true;
+function copyVideoChannelId(ch) {
+  uni.setClipboardData({
+    data: ch,
+    success: () => uni.showModal({ title: '提示', content: '已复制视频号ID，请在微信中搜索查看', showCancel: false }),
+  });
 }
-// ===== 视频号主页（会员能力）=====
+// ===== 视频号（按名片主人会员状态裁决）=====
 // ownerIsVip 由服务端算好下发（/cards/:id 的 toCard）：非 free 且未过期，单一裁决。
 // 入口**恒显示**、不置灰不加锁——它反映的是「名片主人」有没有开通，不是给访客设门槛。
 const ownerIsVip = computed(() => !!card.value.ownerIsVip);
@@ -959,7 +1008,7 @@ function openVideoChannel() {
   const ch = card.value.videoChannel;
   if (!ownerIsVip.value) {
     uni.showToast({
-      title: isRealMine.value ? '视频号主页为会员权益，开通后自动展示' : '名片主人暂未开通视频号',
+      title: isRealMine.value ? '视频号为会员权益，开通后自动展示' : '名片主人暂未开通视频号',
       icon: 'none',
     });
     if (isRealMine.value) setTimeout(() => uni.navigateTo({ url: '/pages/card/member' }), 900);
@@ -973,11 +1022,9 @@ function openVideoChannel() {
     if (isRealMine.value) setTimeout(() => uni.navigateTo({ url: '/pages/card/profile' }), 900);
     return;
   }
-  // 服务端已确认主人有效会员；这里沿用原有视频号跳转（打开视频号主页）
   openVideo();
 }
 async function toggleCollect() {
-  if (ownerPreviewHint('预览视角｜收藏需由访客访问时触发')) return;
   const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id;
   if (!id) return;
   if (!uni.getStorageSync('card_token')) {
@@ -1002,8 +1049,60 @@ async function toggleCollect() {
   }
 }
 
+// 分享（H5 分支）：MP 端由模板里的 button[open-type=share] 直接拉起原生转发面板，
+// 不经过这里。H5 没有原生转发能力 → 复制详情链接，是真能发出去的东西。
 function shareCard() {
-  uni.showToast({ title: '请点击右上角分享', icon: 'none' });
+  // #ifdef MP-WEIXIN
+  // 理论上到不了这里（MP 端由 button[open-type=share] 处理）；留个兜底，防止哪天
+  // H5 分支的 @click 被误挂到 MP 模板上时出现「点了没反应」。
+  uni.showToast({ title: '请通过转发面板分享', icon: 'none' });
+  // #endif
+  // #ifndef MP-WEIXIN
+  const id = card.value.id || (getCurrentPages()[getCurrentPages().length - 1].options || {}).id;
+  const link = `${location.origin}${location.pathname}#/pages/card/cardDetail?id=${id}`;
+  uni.setClipboardData({
+    data: link,
+    success: () => uni.showToast({ title: '名片链接已复制，可直接发给朋友', icon: 'none' }),
+  });
+  // #endif
+}
+
+// ===== 保存到通讯录 =====
+// MP：uni.addPhoneContact 直接写系统通讯录（与 myCard 的「保存名片」同口径）；
+// H5 无该 API → 降级复制名片文本/VCard。用户取消（cancel）不提示。
+function saveContact() {
+  const c = card.value;
+  // #ifdef MP-WEIXIN
+  uni.addPhoneContact({
+    firstName: c.name || '名片联系人',
+    mobilePhoneNumber: c.phone || '',
+    weChatNumber: c.wechat || '',
+    organization: c.company || '',
+    title: c.position || '',
+    email: c.email || '',
+    success: () => uni.showToast({ title: '已保存到手机通讯录', icon: 'success' }),
+    fail: (e) => {
+      if (e && e.errMsg && String(e.errMsg).indexOf('cancel') >= 0) return;
+      copyCardText();
+    },
+  });
+  return;
+  // #endif
+  // #ifndef MP-WEIXIN
+  copyCardText();
+  // #endif
+}
+function copyCardText() {
+  const c = card.value;
+  const lines = [
+    `姓名：${c.name || ''}`,
+    c.position ? `职位：${c.position}` : '',
+    c.company ? `公司：${c.company}` : '',
+    c.phone ? `电话：${c.phone}` : '',
+    c.wechat ? `微信：${c.wechat}` : '',
+    c.email ? `邮箱：${c.email}` : '',
+  ].filter(Boolean).join('\n');
+  uni.setClipboardData({ data: lines, success: () => uni.showToast({ title: '名片信息已复制', icon: 'none' }) });
 }
 
 // 转发名片（MP 右上角菜单）：标题「姓名·职位·公司」+ 路径带名片 id，
@@ -1020,9 +1119,11 @@ onShareAppMessage(() => {
   };
 });
 
-// 关注 TA：交换名片/建立连接（card.js POST /exchange）
+// 交换名片：调 POST /exchange（对方自动进我的客户池）。与「收藏」是两件事——
+// 收藏=单向存进名片夹（可分组、有会员配额）；交换=双向建立连接。
+// 主人预览自名片时点了也不脏数据：后端已加「不能与自己的名片交换」自操作校验，
+// 这里的 catch 会把后端真错误原样提示出来。
 async function followCard() {
-  if (ownerPreviewHint('预览视角｜关注需由访客访问时触发')) return;
   if (!card.value.id) return;
   try {
     await cardApi.exchange({ toCardId: card.value.id, sharePhone: false });
@@ -1574,12 +1675,12 @@ async function followCard() {
   margin-top: 10rpx;
 }
 /* ===== hero 引导条（拨号/收藏，主操作；仅访客） ===== */
-/* ===== hero 操作栏（拨号/收藏/关注/微信/导航/分享 统一栅格）=====
+/* ===== hero 操作栏（拨号/收藏/交换名片/复制微信/导航/视频号/存通讯录/分享 统一栅格）=====
    🔴 真机报修「头重脚轻」的根因：旧版是「hero-guide 两个通栏大按钮（flex:1 通栏，
       高 78rpx）」+「quickbar 一排 23% 宽小卡」两层结构——上层又宽又高、下层又窄又矮，
       两行宽度/高度都对不齐，视觉重心全压在上层。
-   正解：全部收进同一个 3 列等高栅格 .act-grid，主操作（拨号）只用主色底区分，
-   不再靠尺寸分主次 → 上下等重、行内对齐。 */
+   正解：全部收进同一个等高栅格 .act-grid，主操作（拨号）只用主色底区分，
+   不再靠尺寸分主次 → 上下等重、行内对齐。列数随功能数演进：3 列(7 格) → 4 列(8 格)。 */
 .act-grid {
   position: relative;
   z-index: 2;
@@ -1589,13 +1690,14 @@ async function followCard() {
   margin-top: 26rpx;
 }
 .ag-item {
-  /* 3 列等宽栅格 + 同高。上层不再是通栏大按钮、下层不是窄小卡 → 上下等重。
+  /* 4 列 × 2 行等高栅格（8 格：拨号/收藏/交换名片/复制微信 + 导航/视频号/存通讯录/分享）。
+     宽度换算：4 格 ×(25% - 12rpx) + 3 个间隙 ×16rpx = 100%（gap 由 .act-grid 提供）。
      🔴 必须 box-sizing:border-box：默认 content-box 时 width 不含 padding/border，
-        实际宽 = 30.5% + padding + border → 3 个放不进一行（实测排成 2 列）。 */
+        实际宽会超出行宽 → 4 列排成 3 列（这个坑在 3 列版已踩过一次）。 */
   box-sizing: border-box;
-  width: 31.5%;
+  width: calc(25% - 12rpx);
   min-height: 88rpx;
-  padding: 14rpx 6rpx;
+  padding: 14rpx 4rpx;
   border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
@@ -1604,6 +1706,17 @@ async function followCard() {
   background: rgba(255,255,255,0.16);
   border: 1rpx solid rgba(255,255,255,0.3);
 }
+/* 分享格（MP 端是 button[open-type=share]）：抹掉按钮自带样式，保持与 .ag-item 完全一致。
+   🔴 uni-button 自带 padding/边框/::after 描边，不抹会比其他格子大一圈、多一圈边框。 */
+.ag-item.ag-share {
+  margin: 0;
+  padding: 14rpx 4rpx;
+  min-width: 0;
+  line-height: normal;
+  font-size: inherit;
+  background: rgba(255,255,255,0.16);
+}
+.ag-item.ag-share::after { border: none; }
 .ag-t {
   font-size: var(--fs-3);
   color: var(--white);

@@ -91,6 +91,21 @@ const PROBE = `(() => {
     hSpread: rects.length ? Math.max(...rects.map((r) => r.h)) - Math.min(...rects.map((r) => r.h)) : null,
     // 同排检查：第一行与第二行的 y 是否对齐（栅格换行是否整齐）
     rows: rects.reduce((acc, r) => { (acc[r.t] = acc[r.t] || []).push(r.w); return acc; }, {}),
+    // 2026-10-22：8 格改 4 列 × 2 行。直接按 y 分组数出真实行数与每行格数，
+    // 比「总格数 / 假设列数」可靠——缺 phone/wechat 时总格数会变，行数才是版式本身的事。
+    rowStats: (() => {
+      const map = new Map();
+      for (const r of rects) {
+        const k = Math.round(r.y / 8) * 8;
+        map.set(k, (map.get(k) || 0) + 1);
+      }
+      const counts = Array.from(map.values());
+      return { rowCount: counts.length, maxPerRow: counts.length ? Math.max(...counts) : 0, minPerRow: counts.length ? Math.min(...counts) : 0 };
+    })(),
+    // 宽度一致性（同一行内等宽）：所有格子的宽度极差
+    wSpread: rects.length ? Math.max(...rects.map((r) => r.w)) - Math.min(...rects.map((r) => r.w)) : null,
+    hasSave: rects.some((r) => r.t.includes('存通讯录')),
+    hasExchange: rects.some((r) => r.t.includes('交换名片')),
     railHitHero: hit(rr, hero && hero.getBoundingClientRect()),
     railHitTabs: hit(rr, tabs && tabs.getBoundingClientRect()),
     railHitTabbar: hit(rr, tabbar && tabbar.getBoundingClientRect()),
@@ -145,7 +160,8 @@ try {
     ab(['screenshot', path.join(OUT, `act-tpl${tpl}-${name}.png`)]);
     report.push({ tpl, name, ...p });
     console.log(
-      `tpl${tpl} ${name}: 格数=${p.itemCount} 视频号=${p.hasVideoChannel} 高度极差=${p.hSpread}` +
+      `tpl${tpl} ${name}: 格数=${p.itemCount} 行=${p.rowStats.rowCount}(每行${p.rowStats.maxPerRow})` +
+      ` 视频号=${p.hasVideoChannel} 存通讯录=${p.hasSave} 交换=${p.hasExchange} 宽极差=${p.wSpread} 高极差=${p.hSpread}` +
       ` 遮hero=${p.railHitHero} 遮tabs=${p.railHitTabs} 遮tabbar=${p.railHitTabbar}` +
       ` grid压姓名=${p.gridHitName} 溢出上=${p.gridOverflowTop} 溢出下=${p.gridOverflowBottom}` +
       ` 悬浮丸=${p.railCount}(${p.railLabel})`
@@ -159,8 +175,9 @@ fs.writeFileSync(path.join(OUT, 'act-report.json'), JSON.stringify(report, null,
 console.log(`\n===== 汇总（${MODE}）=====`);
 for (const r of report) {
   console.log(
-    `tpl${String(r.tpl).padEnd(3)} ${String(r.name).padEnd(8)} 格数=${r.itemCount} 视频号=${r.hasVideoChannel ? 'Y' : 'N'}` +
-    ` 高度极差=${r.hSpread}px 遮hero=${r.railHitHero} 遮tabs=${r.railHitTabs} 遮tabbar=${r.railHitTabbar}` +
+    `tpl${String(r.tpl).padEnd(3)} ${String(r.name).padEnd(8)} 格数=${r.itemCount} 行=${r.rowStats.rowCount}(每行${r.rowStats.maxPerRow})` +
+    ` 视频号=${r.hasVideoChannel ? 'Y' : 'N'} 存通讯录=${r.hasSave ? 'Y' : 'N'} 高极差=${r.hSpread}px 宽极差=${r.wSpread}px` +
+    ` 遮hero=${r.railHitHero} 遮tabs=${r.railHitTabs} 遮tabbar=${r.railHitTabbar}` +
     ` grid压姓名=${r.gridHitName} 溢出上=${r.gridOverflowTop}`
   );
 }

@@ -127,3 +127,33 @@ describe('market 语义色与中性保留', () => {
     expect(src).toMatch(/const themeColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\)/);
   });
 });
+
+// 2026-10-22 用户报修：导航栏右上角「交换请求/人脉库」两枚图标太挤、容易点错，
+// 方案：下沉到搜索框内右侧（保留未读红点）。此处钉住布局归属，防止又被搬回导航栏。
+describe('market 图标下沉到搜索框（修「顶部太拥挤易点错」）', () => {
+  test('PageNav 不再带 #right 插槽，旧 .nav-right/.nav-icon 样式死代码已删', () => {
+    expect(src).not.toMatch(/<template #right>/);
+    expect(src).not.toMatch(/class="nav-right"/);
+    expect(src).not.toMatch(/class="nav-icon"/);
+    // 🔴 只断言模板查不到样式死代码：元素删了 CSS 还在，产物里照样命中
+    expect(src).not.toMatch(/\.nav-right[\s{]/);
+    expect(src).not.toMatch(/\.nav-icon[\s{]/);
+  });
+  test('两枚图标在 search-box 内，且红点随未读计数保留', () => {
+    const box = src.slice(src.indexOf('<view class="search-box">'), src.indexOf('<!-- 我的集市开关 -->'));
+    expect(box).toMatch(/@click="goRequests"/);
+    expect(box).toMatch(/@click="goConnections"/);
+    expect(box).toMatch(/v-if="unreadCount > 0" class="red-dot"/);
+  });
+  test('搜索框内的图标用真实 hex（SIcon 不能吃 var()，会烘焙成黑）', () => {
+    expect(src).toMatch(/<SIcon name="exchange" size="small" :color="themeColor" \/>/);
+    expect(src).toMatch(/<SIcon name="market" size="small" :color="themeColor" \/>/);
+  });
+  test('touch 目标 ≥56rpx + 输入框 flex 收缩不挤爆行', () => {
+    const block = ruleBlock(src, '.sb-icon');
+    expect(block).toMatch(/width:\s*6[0-9]rpx/);
+    expect(block).toMatch(/height:\s*6[0-9]rpx/);
+    expect(ruleBlock(src, '.search-input')).toMatch(/flex:\s*1/);
+    expect(ruleBlock(src, '.search-input')).toMatch(/min-width:\s*0/);
+  });
+});

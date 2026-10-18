@@ -380,11 +380,13 @@
     },
     "usingComponents": true,
     "requiredPrivateInfos": [
-      "getLocation"
+      "getLocation",
+      "chooseLocation",
+      "openLocation"
     ],
     "permission": {
       "scope.userLocation": {
-        "desc": "用于全景场景定位"
+        "desc": "用于全景场景定位，以及选择名片上的办公/门店位置（方便客户导航到访）"
       }
     }
   },
