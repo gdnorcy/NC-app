@@ -4,6 +4,13 @@
   <view class="profile-page" :style="[navVars, themeStyle, brandVars, tabBarPad]">
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" :color="navFgColor" />
+
+    <!-- 访客视角预览浮条（仅预览模式）：紧贴导航下方，随时退出回本人视图 -->
+    <view class="pv-bar" v-if="previewMode">
+      <SIcon name="card" size="small" color="#ffffff" />
+      <text class="pv-bar-t">访客视角预览中</text>
+      <text class="pv-bar-x" @click="exitPreview">退出预览</text>
+    </view>
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
     <view class="hero" :class="[layoutFull ? 'hero-full' : 'hlay-' + heroLayout, heroFontCls, squareCls, nameBigCls]" :style="heroStyle">
       <!-- 模板主题 overlay：纹理 + 顶部渐变条 -->
@@ -188,10 +195,6 @@
         <view class="qb" @click="shareCard">
           <SIcon name="channel" size="default" :color="heroColor" />
           <text>分享</text>
-        </view>
-        <view class="qb" @click="goTemplateSelect" v-if="isMine">
-          <SIcon name="template" size="default" :color="heroColor" />
-          <text>换模板</text>
         </view>
       </view>
     </view>
@@ -400,6 +403,26 @@
       </view>
     </view>
 
+    <!-- 右侧悬浮双丸（仅名片主人）：预览 / 换模板。
+         换模板从 quickbar 移到此处——本人态快捷栏只剩「分享」一项，
+         悬浮轨滚动常驻、不遮内容；预览模式下整组变为「退出预览」。 -->
+    <view class="float-rail" v-if="isRealMine">
+      <template v-if="!previewMode">
+        <view class="fr-btn" @click="enterPreview">
+          <SIcon name="card" size="default" :color="themeColor" />
+          <text class="fr-lab">预览</text>
+        </view>
+        <view class="fr-btn" @click="goTemplateSelect">
+          <SIcon name="template" size="default" :color="themeColor" />
+          <text class="fr-lab">换模板</text>
+        </view>
+      </template>
+      <view class="fr-btn fr-exit" v-else @click="exitPreview">
+        <SIcon name="back" size="default" color="#ffffff" />
+        <text class="fr-lab">退出</text>
+      </view>
+    </view>
+
     <!-- 底部TabBar（公共组件：名片/雷达/集市/会员） -->
     <CardTabBar active="card" />
   </view>
@@ -410,7 +433,7 @@ import { ICON_DECOR } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted } from 'vue';
-import { onUnload, onShow, onPageScroll as registerPageScroll } from '@dcloudio/uni-app';
+import { onUnload, onShow, onPageScroll as registerPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient, brandPalette, hexLuma, shadeHex } from '../../utils/color.js';
@@ -436,6 +459,10 @@ const tabBarPad = useTabBarPadding();
 const themeColor = computed(() => (brand.value && brand.value.primary) || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const card = ref({});
+// 访客视角预览（myCard「预览」/右侧悬浮「预览」带 ?preview=1 进入）：
+// 本人打开也强制走访客视图（isMine=false），引导条/访客快捷栏全部可见——
+// 这就是「分享出去的效果」。只读态：收藏/关注等写库操作在预览中拦截。
+const previewMode = ref(false);
 const layoutFull = computed(() => card.value?.templateLayout === 'full');
 const bgParallax = ref({});
 registerPageScroll((e) => {
@@ -622,6 +649,7 @@ function formValid() {
   return '';
 }
 async function submitForm() {
+  if (previewBlocked()) return;
   if (!activeForm.value || formSending.value) return;
   const miss = formValid();
   if (miss) { uni.showToast({ title: `请填写${miss}`, icon: 'none' }); return; }
@@ -662,6 +690,8 @@ onMounted(async () => {
   const pages = getCurrentPages();
   const options = pages[pages.length - 1].options || {};
   const id = options.id;
+  // 访客视角预览：myCard「预览」/悬浮入口带 preview=1 进入即开关
+  if (String(options.preview || '') === '1') previewMode.value = true;
   // 推广二维码扫码进入：静默绑定上下级（首次进入永久锁定，不弹窗）
   const inviter = Number(options.inviter || '');
   if (inviter && inviter !== Number(uni.getStorageSync('card_user')?.id || 0)) {
@@ -764,6 +794,7 @@ function previewDyn(d) {
 
 // ===== 动态互动：点赞 =====
 async function toggleLike(d) {
+  if (previewBlocked()) return;
   if (!ensureLogin()) return;
   const prevLiked = d.likedByMe;
   const prevCount = d.likeCount || 0;
@@ -794,6 +825,7 @@ async function openComments(d) {
   } catch (e) {}
 }
 async function submitComment() {
+  if (previewBlocked()) return;
   const text = commentPanel.text.trim();
   if (!text || commentPanel.sending) return;
   commentPanel.sending = true;
@@ -812,10 +844,22 @@ async function submitComment() {
     commentPanel.sending = false;
   }
 }
-const isMine = computed(() => Number(card.value.userId) > 0 && Number(card.value.userId) === Number(uni.getStorageSync('card_user')?.id || 0));
+// 是否本人名片（预览模式下全员访客视角，含本人）
+const isRealMine = computed(() => Number(card.value.userId) > 0 && Number(card.value.userId) === Number(uni.getStorageSync('card_user')?.id || 0));
+const isMine = computed(() => isRealMine.value && !previewMode.value);
 function goTemplateSelect() {
   if (!isMine.value) return;
   uni.navigateTo({ url: `/pages/card/templateSelect?cardId=${card.value.id}` });
+}
+// 预览模式开关（右侧悬浮双丸驱动；进入不改路由，退出即回本人视图）
+function enterPreview() {
+  if (!isRealMine.value) return;
+  previewMode.value = true;
+  uni.showToast({ title: '访客视角预览中', icon: 'none' });
+}
+function exitPreview() {
+  previewMode.value = false;
+  uni.showToast({ title: '已退出预览', icon: 'none' });
 }
 function ensureLogin() {
   if (!uni.getStorageSync('card_token')) {
@@ -838,7 +882,16 @@ function timeText(t) {
 function openVideo() {
   uni.showToast({ title: '跳转视频号', icon: 'none' });
 }
+// 预览模式只读：写操作统一拦截（收藏/关注/点赞/评论/留资——
+// 本人账号对自己名片做这些会写脏数据或被服务端拒）
+function previewBlocked() {
+  if (!previewMode.value) return false;
+  uni.showToast({ title: '预览模式不可操作', icon: 'none' });
+  return true;
+}
 async function toggleCollect() {
+  // 预览模式：只读态，收藏会写库且本人收藏自己被服务端拒，直接拦截
+  if (previewBlocked()) return;
   const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id;
   if (!id) return;
   if (!uni.getStorageSync('card_token')) {
@@ -867,8 +920,24 @@ function shareCard() {
   uni.showToast({ title: '请点击右上角分享', icon: 'none' });
 }
 
+// 转发名片（MP 右上角菜单）：标题「姓名·职位·公司」+ 路径带名片 id，
+// 缩略图用头像（需完整 URL，相对路径 MP 会静默失败→不带）。
+// 🔴 2026-10-21 前本页没有 onShareAppMessage：转发走系统默认（无标题/无图），
+//    「分享出去的效果」不可控；补上之后转发卡片与名片详情页一致。
+onShareAppMessage(() => {
+  const c = card.value || {};
+  const title = [c.name, c.position, c.company].filter(Boolean).join(' · ') || '这是我的名片';
+  return {
+    title,
+    path: `/pages/card/cardDetail?id=${c.id || ''}`,
+    imageUrl: /^https?:/.test(c.avatar || '') ? c.avatar : '',
+  };
+});
+
 // 关注 TA：交换名片/建立连接（card.js POST /exchange）
 async function followCard() {
+  // 预览模式：只读态，自关注/自交换会写脏记录，直接拦截
+  if (previewBlocked()) return;
   if (!card.value.id) return;
   try {
     await cardApi.exchange({ toCardId: card.value.id, sharePhone: false });
@@ -1542,6 +1611,53 @@ async function followCard() {
 .hero-serif .p6-nm {
   font-family: 'Songti SC', 'STSong', 'SimSun', serif;
 }
+
+/* ===== 访客视角预览浮条（紧贴导航下方的胶囊，常驻可退）===== */
+.pv-bar {
+  position: fixed;
+  top: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 12rpx);
+  left: 24rpx;
+  right: 24rpx;
+  z-index: var(--z-sticky);
+  height: 64rpx;
+  padding: 0 24rpx;
+  background: var(--design-primary);
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  color: var(--white);
+  font-size: var(--fs-3);
+}
+.pv-bar-t { flex: 1; }
+.pv-bar-x { padding: 8rpx 20rpx; border: 1rpx solid var(--white); border-radius: var(--radius-pill); font-size: var(--fs-2); }
+
+/* ===== 右侧悬浮双丸（仅名片主人）：预览 / 换模板 =====
+   右侧边缘竖排、垂直居中偏上：避开顶部胶囊按钮与底部 TabBar/评论输入；
+   白底胶囊任何模板背景下可读，不遮正文。 */
+.float-rail {
+  position: fixed;
+  right: 20rpx;
+  top: 42%;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.fr-btn {
+  width: 96rpx;
+  padding: 14rpx 0 12rpx;
+  background: var(--white);
+  border: 1rpx solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+.fr-lab { font-size: var(--fs-1); color: var(--t2); }
+.fr-exit { background: var(--design-primary); border-color: var(--design-primary); }
+.fr-exit .fr-lab { color: var(--white); }
 
 /* ===== quickbar（demo四键）===== */
 .quickbar {

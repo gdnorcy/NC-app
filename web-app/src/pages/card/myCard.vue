@@ -497,8 +497,10 @@ function goVideosEdit() {
   uni.navigateTo({ url: `/pages/card/videosEdit?id=${pageCardId.value}` });
 }
 function previewCard() {
-  // 他人视角预览：跳对外展示页
-  uni.navigateTo({ url: `/pages/card/cardDetail?id=${pageCardId.value}` });
+  // 他人视角预览：带 preview=1 跳转——cardDetail 据此强制走访客视图
+  // （引导条拨号/收藏、访客快捷栏全部可见，即「分享出去的效果」）。
+  // 🔴 曾经不带参数：isMine 判定不变，看到的还是本人视图，「预览看不到操作栏」。
+  uni.navigateTo({ url: `/pages/card/cardDetail?id=${pageCardId.value}&preview=1` });
 }
 
 /* ===== 分享 / 二维码（2026-10-21 重做 =====
