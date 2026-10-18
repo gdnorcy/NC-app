@@ -170,25 +170,35 @@
               上层高 78rpx 通栏、下层 23% 宽小卡，两行宽度与高度都对不齐，
               视觉重心全压在上层。改为同宽同高的 3 列栅格，主操作（拨号）仅用主色区分，
               不再靠尺寸分主次 → 上下等重。 -->
-      <view class="act-grid" :class="[isLightHero ? 'ag-light' : '', guideSolidCls, isMine ? 'ag-mine' : '']">
-        <view class="ag-item ag-primary" v-if="!isMine && card.phone" @click="callPhone">
+      <!-- 🔴 预览 ≡ 访客视角（2026-10-18 用户明确）：名片主人看自己名片时，这里必须
+           原样呈现访客看到的形态——访客能看到什么，预览里就是什么。曾经做成「主人态
+           只留分享一格」，用户反馈这不对。唯一多余的装饰只有右上角悬浮的换模板丸。
+           因此所有格子都不再判 isMine，只按数据有无决定显示与否。 -->
+      <view class="act-grid" :class="[isLightHero ? 'ag-light' : '', guideSolidCls]">
+        <view class="ag-item ag-primary" v-if="card.phone" @click="callPhone">
           <text class="ag-t">拨号</text>
         </view>
-        <view class="ag-item" v-if="!isMine" @click="toggleCollect"
+        <view class="ag-item" @click="toggleCollect"
               :style="collected ? 'color:#ffd21e' : ''">
           <text class="ag-t">{{ collected ? '★ 已收藏' : '＋ 收藏' }}</text>
         </view>
-        <view class="ag-item" v-if="!isMine" @click="followCard">
+        <view class="ag-item" @click="followCard">
           <SIcon name="users" size="small" :color="heroColor" />
           <text class="ag-t">关注 TA</text>
         </view>
-        <view class="ag-item" v-if="card.wechat && !isMine" @click="copyWechat">
+        <view class="ag-item" v-if="card.wechat" @click="copyWechat">
           <SIcon name="exchange" size="small" :color="heroColor" />
           <text class="ag-t">复制微信</text>
         </view>
-        <view class="ag-item" v-if="!isMine" @click="navigateTo">
+        <view class="ag-item" @click="navigateTo">
           <SIcon name="location" size="small" :color="heroColor" />
           <text class="ag-t">导航</text>
+        </view>
+        <!-- 视频号主页：入口恒显示，不做会员锁灰——它反映的是「名片主人」有没有开通，
+             不是给访客设门槛。判别分支见 openVideoChannel()。 -->
+        <view class="ag-item" @click="openVideoChannel">
+          <SIcon name="dynamic" size="small" :color="heroColor" />
+          <text class="ag-t">视频号主页</text>
         </view>
         <view class="ag-item" @click="shareCard">
           <SIcon name="channel" size="small" :color="heroColor" />
@@ -737,8 +747,8 @@ onMounted(async () => {
         const v = await cardApi.getCardVideos(id);
         videos.value = v.videos || [];
       } catch (e) {}
-      // 名片数据到位后实测 mp-tabs 底沿，定位右侧悬浮双丸（避免写死百分比被某版式打中）
-      setTimeout(measureRailTop, 60);
+      // 名片数据到位后实测 mp-tabs 底沿，定位右侧悬浮丸（避免写死百分比被某版式打中）
+      scheduleRailMeasure();
     } catch (e) {}
   }
 });
@@ -749,14 +759,17 @@ onUnload(() => {
 });
 
 function callPhone() {
+  if (ownerPreviewHint()) return;
   if (card.value.phone) uni.makePhoneCall({ phoneNumber: card.value.phone });
 }
 function copyWechat() {
+  if (ownerPreviewHint()) return;
   if (card.value.wechat) {
     uni.setClipboardData({ data: card.value.wechat, success: () => uni.showToast({ title: '微信号已复制', icon: 'success' }) });
   }
 }
 function navigateTo() {
+  if (ownerPreviewHint()) return;
   const addr = [card.value.city, card.value.businessField || card.value.company].filter(Boolean).join(' · ');
   if (!addr) {
     uni.showToast({ title: '名片未设置位置', icon: 'none' });
@@ -832,23 +845,77 @@ const isMine = computed(() => isRealMine.value);
 //   mp-tabs 是 sticky，实测位置随 hero 版式高度在 312~610px 之间浮动，无法用常量。
 //   改为「tabs 实测底沿 + 间隙」内联 top，并夹在导航下沿与底部 TabBar 之间。
 const railTop = ref(0);
-function measureRailTop() {
+function measureRailTop(onBottom) {
+  // 一次查三个节点：tabs 底沿（起点）、TabBar 顶沿（上限参照）、丸自身高（占位）。
+  // 🔴 不能再用 tabbarH 估算上限：估算值约 72px 比 TabBar 实际占位 60px 大，
+  //    把上限压到 696px，恰好落进 tabs(652~698) 区间 → 丸压住「视频」页签。
+  //    （最初误判为「图片异步加载导致测量过期」，加了轮询到稳定也没解决——
+  //     实测 DOM 三个时间点 tabs.bottom 恒为 698，根因是 clamp 而非时序。）
   uni.createSelectorQuery()
     .select('.mp-tabs')
-    .boundingClientRect((rect) => {
-      if (!rect || !rect.bottom) return;
+    .boundingClientRect()
+    .select('.mp-tabbar')
+    .boundingClientRect()
+    .select('.float-rail')
+    .boundingClientRect()
+    .exec((res) => {
+      const tabsRect = Array.isArray(res) ? res[0] : null;
+      if (!tabsRect || !tabsRect.bottom) return;
+      if (onBottom) onBottom(tabsRect.bottom);
+      const barRect = Array.isArray(res) ? res[1] : null;
+      const railRect = Array.isArray(res) ? res[2] : null;
       const info = uni.getWindowInfo ? uni.getWindowInfo() : uni.getSystemInfoSync();
       const vh = info.windowHeight || 844;
       const vw = info.windowWidth || 375;
-      // 单丸约 60px + 呼吸；底部 TabBar 实高由 cardTabBarSpace 单一来源换算
+      // 底部 TabBar 实高由 cardTabBarSpace 单一来源换算（仅作无节点时的兜底）
       const tabbarH = ((tabBarSpaceRpx.value + TAB_BAR_GAP_RPX) / 750) * vw;
-      const RAIL_H = 76;
-      const top = Math.min(Math.max(rect.bottom + 16, 96), Math.max(96, vh - tabbarH - RAIL_H));
+      const RAIL_H = railRect && railRect.height ? railRect.height : 76;
+      const TOP_MIN = 96;
+      const GAP = 8;
+      // 上限优先走实测 TabBar 顶沿，拿不到节点才退回估算
+      const upperByBar = barRect && barRect.top ? barRect.top - RAIL_H - GAP : null;
+      const upperByEst = vh - tabbarH - RAIL_H;
+      const upper = Math.max(TOP_MIN, upperByBar || upperByEst);
+      const desired = tabsRect.bottom + GAP * 2;
+      const top = Math.min(Math.max(desired, TOP_MIN), Math.max(TOP_MIN, upper));
       railTop.value = Math.round(top);
-    })
-    .exec();
+    });
 }
 const railStyle = computed(() => (railTop.value > 0 ? { top: railTop.value + 'px' } : {}));
+
+// 🔴 悬浮丸不能只测一次就定死：hero 会随头像/背景图异步加载继续变高，tabs 底沿跟着
+//    下移，按旧值算出的 top 会压住「视频」页签——tpl22（圆角大图·暗夜）实测在 60ms 时
+//    测得 bottom=680（→ top 696），图片到位后 bottom 涨到 698，正好重叠 2px。
+//    阶梯延时到 700ms 仍不够（大图可能更慢），一律改成**轮询到稳定为止**：
+//    小程序没有 ResizeObserver，setInterval + 相邻两次一致收尾是两端都可用的写法。
+let railTimer = null;
+function scheduleRailMeasure() {
+  if (railTimer) clearInterval(railTimer);
+  let last = 0;
+  let stableTimes = 0;
+  let rounds = 0;
+  const stop = () => {
+    if (railTimer) clearInterval(railTimer);
+    railTimer = null;
+  };
+  railTimer = setInterval(() => {
+    rounds += 1;
+    // measureRailTop 的 boundingClientRect 是异步回调，稳定性比对必须在回调里做
+    measureRailTop((btm) => {
+      if (!btm) return;
+      stableTimes = Math.abs(btm - last) < 1 ? stableTimes + 1 : 0;
+      last = btm;
+      if (stableTimes >= 2) stop();
+    });
+    // 兜底：大图超时 / 回调始终不来，最多轮询 ~1.7s 后收手
+    if (rounds >= 14) stop();
+  }, 120);
+}
+// onUnload：uni-app 页级卸载钩子（本文件不引 vue 的 onUnmounted，
+// 🔴 引错或未 import 会让 setup 直接抛 → 整页白屏且数据全灭）
+onUnload(() => {
+  if (railTimer) clearInterval(railTimer);
+});
 
 function goTemplateSelect() {
   if (!isMine.value) return;
@@ -876,7 +943,41 @@ function timeText(t) {
 function openVideo() {
   uni.showToast({ title: '跳转视频号', icon: 'none' });
 }
+// 名片主人预览自己名片时：页面仍按访客视角渲染（所见即访客所见），但访客向操作不能
+// 真的打到自己身上——否则会自己拨自己电话、收藏自己的名片、和自己交换名片，全是脏数据。
+// 因此**视觉一律不动**，只拦副作用并给一句提示。
+function ownerPreviewHint(tip) {
+  if (!isRealMine.value) return false;
+  uni.showToast({ title: tip || '预览视角｜该操作需由访客访问时触发', icon: 'none' });
+  return true;
+}
+// ===== 视频号主页（会员能力）=====
+// ownerIsVip 由服务端算好下发（/cards/:id 的 toCard）：非 free 且未过期，单一裁决。
+// 入口**恒显示**、不置灰不加锁——它反映的是「名片主人」有没有开通，不是给访客设门槛。
+const ownerIsVip = computed(() => !!card.value.ownerIsVip);
+function openVideoChannel() {
+  const ch = card.value.videoChannel;
+  if (!ownerIsVip.value) {
+    uni.showToast({
+      title: isRealMine.value ? '视频号主页为会员权益，开通后自动展示' : '名片主人暂未开通视频号',
+      icon: 'none',
+    });
+    if (isRealMine.value) setTimeout(() => uni.navigateTo({ url: '/pages/card/member' }), 900);
+    return;
+  }
+  if (!ch) {
+    uni.showToast({
+      title: isRealMine.value ? '请先在名片资料里填写视频号' : '名片主人暂未设置视频号',
+      icon: 'none',
+    });
+    if (isRealMine.value) setTimeout(() => uni.navigateTo({ url: '/pages/card/profile' }), 900);
+    return;
+  }
+  // 服务端已确认主人有效会员；这里沿用原有视频号跳转（打开视频号主页）
+  openVideo();
+}
 async function toggleCollect() {
+  if (ownerPreviewHint('预览视角｜收藏需由访客访问时触发')) return;
   const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id;
   if (!id) return;
   if (!uni.getStorageSync('card_token')) {
@@ -921,6 +1022,7 @@ onShareAppMessage(() => {
 
 // 关注 TA：交换名片/建立连接（card.js POST /exchange）
 async function followCard() {
+  if (ownerPreviewHint('预览视角｜关注需由访客访问时触发')) return;
   if (!card.value.id) return;
   try {
     await cardApi.exchange({ toCardId: card.value.id, sharePhone: false });
@@ -1502,8 +1604,6 @@ async function followCard() {
   background: rgba(255,255,255,0.16);
   border: 1rpx solid rgba(255,255,255,0.3);
 }
-/* 本人态只剩「分享」一项：独占整行，避免孤零零一小块 */
-.act-grid.ag-mine .ag-item { width: 100%; }
 .ag-t {
   font-size: var(--fs-3);
   color: var(--white);

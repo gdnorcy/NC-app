@@ -25,13 +25,27 @@ fs.mkdirSync(OUT, { recursive: true });
 const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts });
 const ab = (args) => sh(AB, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 const sql = (stmt) => {
-  const out = sh(NODE, ['-e', `
+  // 🔴 本地服务也在写同一个 db（trackVisitor），写 UPDATE 会撞锁且失败点随机——
+  //    重试几次即可，不是脚本 bug。
+  let lastErr = null;
+  for (let i = 0; i < 6; i += 1) {
+    try {
+      const out = sh(NODE, ['-e', `
+try {
 const {DatabaseSync}=require('node:sqlite');
 const db=new DatabaseSync('server/data/panorama.db');
+db.exec('PRAGMA busy_timeout=3000');
 const r=db.prepare(${JSON.stringify(stmt)}).get();
 console.log(JSON.stringify(r||{}));
-db.close();`], { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] });
-  return JSON.parse(out.trim());
+db.close();
+} catch (e) { console.error('DBERR:' + e.message); process.exit(3); }`], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+      return JSON.parse(out.trim());
+    } catch (e) {
+      lastErr = e;
+      try { execFileSync('sleep', ['0.4']); } catch {}
+    }
+  }
+  throw lastErr;
 };
 function evalJs(js) {
   const out = ab(['eval', '-b', Buffer.from(js, 'utf8').toString('base64')]);
@@ -56,11 +70,23 @@ const PROBE = `(() => {
   const tabbar = document.querySelector('.mp-tabbar');
   const rr = rail && rail.getBoundingClientRect();
   const hit = (a, b) => !!(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+  const isFull = !!document.querySelector('.hero-full');
+  const gridRect = grid && grid.getBoundingClientRect();
+  const heroRect = hero && hero.getBoundingClientRect();
+  const nameEl = document.querySelector('.hero-full .hfi-name, .p6-nm, .p3-nm, .p4-nm, .p5-nm, .hero-name');
   return {
     vw: innerWidth, vh: innerHeight,
     grid: box(grid),
     items: rects,
     itemCount: rects.length,
+    labels: rects.map((r) => r.t),
+    hasVideoChannel: rects.some((r) => r.t.includes('视频号')),
+    isFull,
+    // 🔴 全幅版式 act-grid 是 absolute + bottom 定位：从 6 格(2行) 变 7 格(3行)
+    //    会多出一行高度，可能向上溢出 hero 顶沿或被 hero 内容压住。
+    gridOverflowTop: gridRect && heroRect ? Math.round(heroRect.top - gridRect.top) : null,
+    gridOverflowBottom: gridRect && heroRect ? Math.round(gridRect.bottom - heroRect.bottom) : null,
+    gridHitName: hit(gridRect, nameEl && nameEl.getBoundingClientRect()),
     // 等高检查：所有格子高度极差
     hSpread: rects.length ? Math.max(...rects.map((r) => r.h)) - Math.min(...rects.map((r) => r.h)) : null,
     // 同排检查：第一行与第二行的 y 是否对齐（栅格换行是否整齐）
@@ -118,7 +144,12 @@ try {
     const p = evalJs(PROBE);
     ab(['screenshot', path.join(OUT, `act-tpl${tpl}-${name}.png`)]);
     report.push({ tpl, name, ...p });
-    console.log(`tpl${tpl} ${name}: 格数=${p.itemCount} 高度极差=${p.hSpread} 遮hero=${p.railHitHero} 遮tabs=${p.railHitTabs} 遮tabbar=${p.railHitTabbar} 悬浮丸=${p.railCount}(${p.railLabel}) 预览浮条=${p.hasPvBar}`);
+    console.log(
+      `tpl${tpl} ${name}: 格数=${p.itemCount} 视频号=${p.hasVideoChannel} 高度极差=${p.hSpread}` +
+      ` 遮hero=${p.railHitHero} 遮tabs=${p.railHitTabs} 遮tabbar=${p.railHitTabbar}` +
+      ` grid压姓名=${p.gridHitName} 溢出上=${p.gridOverflowTop} 溢出下=${p.gridOverflowBottom}` +
+      ` 悬浮丸=${p.railCount}(${p.railLabel})`
+    );
   }
 } finally {
   sql(`UPDATE card_profile SET template_id=${ORIG_TPL} WHERE id=${CARD_ID}`);
@@ -127,5 +158,9 @@ try {
 fs.writeFileSync(path.join(OUT, 'act-report.json'), JSON.stringify(report, null, 2));
 console.log(`\n===== 汇总（${MODE}）=====`);
 for (const r of report) {
-  console.log(`tpl${String(r.tpl).padEnd(3)} ${String(r.name).padEnd(8)} 格数=${r.itemCount} 高度极差=${r.hSpread}px 遮hero=${r.railHitHero} 遮tabs=${r.railHitTabs} 遮tabbar=${r.railHitTabbar}`);
+  console.log(
+    `tpl${String(r.tpl).padEnd(3)} ${String(r.name).padEnd(8)} 格数=${r.itemCount} 视频号=${r.hasVideoChannel ? 'Y' : 'N'}` +
+    ` 高度极差=${r.hSpread}px 遮hero=${r.railHitHero} 遮tabs=${r.railHitTabs} 遮tabbar=${r.railHitTabbar}` +
+    ` grid压姓名=${r.gridHitName} 溢出上=${r.gridOverflowTop}`
+  );
 }

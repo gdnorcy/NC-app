@@ -419,7 +419,11 @@ export function createCardRouter(db, wxService) {
   });
 
   router.get('/cards/:id', (req, res) => {
-    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level, pj.config as tenant_config,
+    // owner_member_expire_at：供 toCard 算 ownerIsVip（视频号主页等会员能力的开关）。
+    // 会员判定必须在服务端出布尔结果，不能让 C 端拿过期时间自己判——
+    // SQLite 存的是 'YYYY-MM-DD HH:MM:SS'（空格分隔），MP 端 new Date() 解析该格式会失败。
+    const card = db.prepare(`SELECT cp.*, pu.member_level as owner_member_level,
+      pu.member_expire_at as owner_member_expire_at, pj.config as tenant_config,
       ct.theme_config as template_theme, ct.layout as template_layout
       FROM card_profile cp
       LEFT JOIN platform_user pu ON cp.user_id = pu.id
@@ -1923,6 +1927,14 @@ export function createCardRouter(db, wxService) {
     if (!row) return null;
     let ownerMemberLevel = 'free';
     if (row.owner_member_level !== undefined) ownerMemberLevel = row.owner_member_level || 'free';
+    // 名片主人的会员能力开关（视频号主页入口等）。
+    // 🔴 单一裁决口径：与 radarMember() 一致（非 free 且未过期），且在服务端算成布尔下发。
+    //    C 端只消费 ownerIsVip，不许自己判过期——date 解析跨端不等价（SQLite 空格分隔的
+    //    'YYYY-MM-DD HH:MM:SS' 在 MP 端 new Date() 会 Invalid Date）。
+    const ownerIsVip =
+      ownerMemberLevel !== 'free' &&
+      !!row.owner_member_expire_at &&
+      new Date(String(row.owner_member_expire_at).replace(' ', 'T')) > new Date();
     // 租户品牌 5 色（projects.config：brand_color 主色 + gradient/secondary/text/subText），
     // 语义与设计中心系统风格「主题/渐变/辅助/文字/文字辅」一一对应；未配置='' 由 C 端回落
     let brandColors = { primary: '', gradient: '', secondary: '', text: '', subText: '' };
@@ -1964,6 +1976,7 @@ export function createCardRouter(db, wxService) {
       voiceUrl: row.voice_url || '', voiceName: row.voice_name || '',
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
       ownerMemberLevel,
+      ownerIsVip,
       brandColor,
       brandColors,
       createdAt: row.created_at, updatedAt: row.updated_at,
