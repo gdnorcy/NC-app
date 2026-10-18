@@ -485,7 +485,7 @@ async function toggleMyCard(e) {
     myStatus.value = st;
     loadMarket();
   } catch (err) {
-    uni.showToast({ title: typeof err === 'string' ? err : '操作失败', icon: 'none' });
+    uni.showToast({ title: (err && err.message) || '操作失败', icon: 'none' });
   }
 }
 
@@ -509,7 +509,10 @@ async function quickExchange(item) {
     await cardApi.exchangeRequest({ toUserId: item.userId });
     uni.showToast({ title: '交换请求已发送', icon: 'none' });
   } catch (err) {
-    uni.showToast({ title: typeof err === 'string' ? err : '交换失败', icon: 'none' });
+    // 🔴 apiClient 永远 reject Error 对象（非字符串），旧代码 `typeof err==='string'`
+    //    恒为 false → 把后端真实错误（或偶发网络/403）一律显示成"交换失败"，掩盖真相。
+    //    改用 err.message 透传真实原因（后端会返回"已是人脉关系"等可读信息）。
+    uni.showToast({ title: (err && err.message) || '交换失败', icon: 'none' });
   }
 }
 

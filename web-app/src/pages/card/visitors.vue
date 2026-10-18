@@ -204,8 +204,7 @@ import { ICON_DECOR } from '../../utils/iconColor.js';
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
-import { onUnload } from '@dcloudio/uni-app';
+import { onShow, onLoad, onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
@@ -244,6 +243,8 @@ const convPhone = ref('');
 const convRemark = ref('');
 const timelineName = ref('');
 const timelineItems = ref([]);
+// 首页访客雷达列表点击带 openid 跳过来时，自动展开该访客轨迹（deep-link 进详情）
+const pendingOpenid = ref('');
 
 const diffText = computed(() => {
   const d = summary.value.diff || 0;
@@ -260,6 +261,11 @@ function barHeight(count) {
 
 onShow(() => { trackPageView('/pages/card/visitors'); });
 
+onLoad((o) => {
+  // 首页访客雷达列表项点击带 openid 进来（openVisitor 跳转），记下待展开访客
+  pendingOpenid.value = (o && o.openid) || '';
+});
+
 onMounted(async () => {
   restoreScrollTop('visitors');
   try {
@@ -268,6 +274,8 @@ onMounted(async () => {
     summary.value = res;
     visitors.value = res.visitors || [];
     trend.value = res.trend || [];
+    // 首页 deep-link：自动展开首页点进来的那位访客轨迹
+    tryAutoOpenTimeline();
     animateNumber('today', res.today);
     animateNumber('week', res.week);
     animateNumber('total', res.total);
@@ -377,10 +385,10 @@ function tagCls(tag) {
 }
 
 async function viewTimeline(v) {
-  if (v.visitorOpenid === 'anonymous') {
-    uni.showToast({ title: '匿名访客暂无轨迹', icon: 'none' });
-    return;
-  }
+  // 🔴 2026-10-21 用户反馈：匿名访客点击只弹"暂无轨迹"且不进详情、红点也不消失。
+  //    根因是这里对 anonymous 直接 return —— 既不展开轨迹、也不清未读红点。
+  //    匿名访客虽无身份，但后端仍有 visit_count/duration/last_visit 等行为数据，
+  //    应照常展开"行为轨迹"弹层（默认时间线展示访问/停留/交换等信息），并在展开时清红点。
   // 标记已读（红点消失）
   if (v.unread) {
     v.unread = false;
@@ -395,6 +403,14 @@ async function viewTimeline(v) {
       timelineItems.value = res.actions.map(mapAction);
     }
   } catch (e) {}
+}
+
+// 首页访客雷达列表点击 deep-link：自动展开对应访客轨迹（仅一次）
+function tryAutoOpenTimeline() {
+  if (!pendingOpenid.value) return;
+  const target = (visitors.value || []).find((x) => x.visitorOpenid === pendingOpenid.value);
+  pendingOpenid.value = '';
+  if (target) viewTimeline(target);
 }
 
 function mapAction(a) {
