@@ -127,7 +127,7 @@ import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { cardApi } from '../../utils/cardApi.js';
+import { cardApi, hasCardToken } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import SIcon from '../../components/SIcon.vue';
@@ -182,7 +182,25 @@ const editForm = ref({ nickname: '', avatar: '', avatarTemp: '' });
 const editAvatarError = ref(false);
 watch(() => editForm.value && editForm.value.avatar, () => { editAvatarError.value = false; });
 
+// 未登录入口守卫（2026-10-18 报修：游客能一路编辑头像/昵称到「保存」才被后端 401 弹
+// 「未登录」——apiClient 对无 token 的 401 按游客模式只降级不跳登录，属有意设计，
+// 所以编辑入口必须在本页自行拦截）。
+function guideLogin() {
+  uni.showModal({
+    title: '尚未登录',
+    content: '登录后才能编辑头像和昵称',
+    confirmText: '去登录',
+    success: (r) => {
+      if (r.confirm) {
+        // manual=1 让登录页冷启动联动让路；redirect 登录成功后回跳本页
+        uni.navigateTo({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/profile') });
+      }
+    },
+  });
+}
+
 function openEdit() {
+  if (!hasCardToken()) return guideLogin();
   editForm.value = { nickname: user.value.nickname || '', avatar: user.value.avatar || '', avatarTemp: '' };
   showEdit.value = true;
 }
@@ -210,6 +228,11 @@ function h5ChooseAvatar() {
 
 async function saveProfile() {
   if (saving.value) return;
+  // 双保险：弹层开着时 token 被清（如他页 401 清凭证）→ 关弹层引导登录，而不是让后端报「未登录」
+  if (!hasCardToken()) {
+    closeEdit();
+    return guideLogin();
+  }
   const nickname = (editForm.value.nickname || '').trim();
   if (!nickname) return uni.showToast({ title: '请填写昵称', icon: 'none' });
   saving.value = true;
