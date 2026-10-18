@@ -24,7 +24,8 @@ const PAYMENT_BASE_URL = HOST + '/api/payment';
 const { request } = createApiClient(BASE_URL);
 
 // 是否已登录：H5 优先直读 localStorage（与 apiClient.readToken 一致），小程序端走 uni 原生
-function hasCardToken() {
+// （2026-10-18 导出供页面做登录入口守卫用，如个人中心「编辑资料」未登录拦截）
+export function hasCardToken() {
   try {
     if (typeof localStorage !== 'undefined' && localStorage.getItem('card_token')) return true;
   } catch { /* 忽略 */ }
