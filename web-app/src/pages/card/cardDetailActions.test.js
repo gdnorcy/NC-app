@@ -19,6 +19,10 @@ describe('访客视角预览已下线（2026-10-21 用户决策）', () => {
     expect(src).not.toMatch(/previewBlocked/);
     expect(src).not.toMatch(/class="pv-bar"/);
     expect(src).not.toMatch(/enterPreview|exitPreview/);
+    // 🔴 只断言模板 class 查不到 CSS 死代码：上线后产物 CSS 里仍残留 .pv-bar
+    //    三条规则（模板已无对应元素 = 死样式，白占 token）。样式也必须清干净。
+    expect(src).not.toMatch(/\.pv-bar[\s{]/);
+    expect(src).not.toMatch(/\.fr-exit[\s{]/);
     // 路由不再解析 preview=1（注释里允许提及）
     expect(src.replace(/\/\/[^\n]*/g, '')).not.toMatch(/options\.preview/);
   });

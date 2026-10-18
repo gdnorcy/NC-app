@@ -1601,37 +1601,17 @@ async function followCard() {
   font-family: 'Songti SC', 'STSong', 'SimSun', serif;
 }
 
-/* ===== 访客视角预览浮条（预览模式专属，占文档流把 hero 整体下推）=====
-   🔴 走查真机坑（11 套模板实测）：最初做成 position:fixed 贴在导航下方，
-      结果**压住 hero 姓名**（纸艺雅致/全幅晨光等 9 套模板把「陈晨」盖掉一半）。
-      fixed 覆盖内容 → 改回文档流内静态块：与 PageNav 同级排在 hero 之前，
-      天然把 hero/tabs 整体下移，姓名/职位/公司一格不遮。
-      配色跟 hero 走：浅色 hero 用深字（heroForeground 单一裁决口径）。 */
-.pv-bar {
-  position: relative;
-  z-index: var(--z-sticky);
-  margin: calc(var(--pnv-status-bar, 20px) + var(--pnv-nav-h, 44px) + 8rpx) 24rpx 0;
-  height: 64rpx;
-  padding: 0 24rpx;
-  background: var(--bg-card);
-  border: 1rpx solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  color: var(--t1);
-  font-size: var(--fs-3);
-}
-.pv-bar-t { flex: 1; }
-.pv-bar-x { padding: 8rpx 20rpx; border: 1rpx solid var(--border-strong); border-radius: var(--radius-pill); font-size: var(--fs-2); color: var(--t2); }
-
-/* ===== 右侧悬浮双丸（仅名片主人）：预览 / 换模板 =====
+/* ===== 右侧悬浮入口（仅名片主人）：换模板 =====
    🔴 走查真机坑（11 套模板实测 390×844）：
-      ① 原 top:42% 竖排双丸**压住 mp-tabs 的「视频」页签**（royal/cls/mag/pano1-6
-         九套版式全中），页签可点区被盖 → 改 top:58%，落到 tabs 下沿（实测最高
-         415px）之下、正文白底区之上，两个方向都不遮。
+      ① 写死 top 百分比必被某套版式打中。mp-tabs 是 position:sticky;top:0，
+         其底沿随 hero 版式高度在 312~610px 之间浮动（royal 415 / cls 358 /
+         mag 428 / pano1 516 / pano3 536 / pano6 610）。top:42%（354px）压住
+         9 套版式的「视频」页签；改 top:58%（490px）又压住 4 套全幅 pano。
+         正解 = measureRailTop() 实测 .mp-tabs 底沿 + 16px，再夹在导航下沿与
+         底部 TabBar 之间，内联 top 覆盖下面的兜底值。
       ② 白胶囊在任何浅底上边界弱（纸艺雅致 rgb(244,241,234) 与白底亮度差仅
-         1.13:1）→ 描边改主色，边界靠品牌色而非亮度差，与页面主色体系统一。 */
+         1.13:1，杂志文艺 1.18:1）→ 描边改主色，边界靠品牌色而非亮度差，
+         与页面主色体系统一。 */
 .float-rail {
   position: fixed;
   right: 20rpx;
