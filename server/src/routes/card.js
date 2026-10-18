@@ -808,11 +808,13 @@ export function createCardRouter(db, wxService) {
       const actions = db.prepare('SELECT action_type, action_detail FROM card_visitor_action WHERE card_id=? AND visitor_openid=?').all(card.id, v.visitor_openid);
       const actionTypes = new Set(actions.map(a => a.action_type));
 
-      // 标签推断（按最近动作优先）：已交换名片 > 观看视频 > 高意向 > 新访客
+      // 标签推断（只表「行为」，单一口径）：已交换名片 > 观看视频 > 回访客 > 新访客
+      // 🔴 2026-10-18：原 visit_count>=2 也标「高意向」，与下方 score 徽标「中意向55分」
+      //    同屏自相矛盾。意向强弱自此唯一由 score/level 表达，标签只承载客观行为。
       let tag = '新访客', tagColor = '#9a9a9a';
       if (actionType === 'exchange') { tag = '已交换名片'; tagColor = '#07c160'; }
       else if (actionType === 'video' || (actionDetail || '').includes('视频')) { tag = '观看视频'; tagColor = '#1d4e8f'; }
-      else if (v.visit_count >= 2) { tag = '高意向'; tagColor = '#07c160'; }
+      else if (v.visit_count >= 2) { tag = '回访客'; tagColor = '#1d4e8f'; }
 
       // ===== AI 意向评分（本地规则引擎，0-100） =====
       let score = 0;
