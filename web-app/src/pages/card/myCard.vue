@@ -790,7 +790,13 @@ async function exportData() {
       filePath: path,
       fileName: '我的名片数据.csv',
       success: () => uni.showToast({ title: '已导出，可发送给好友或电脑', icon: 'none' }),
-      fail: () => copyExport(csv),
+      fail: (e) => {
+        // 🔴 用户主动取消转发（errMsg 含 'cancel'）不应提示"数据已复制为文本"——
+        //   那是真实失败时的降级文案。仅真正失败才降级复制，取消则静默回到页面。
+        const msg = (e && e.errMsg) || '';
+        if (msg.indexOf('cancel') >= 0) return;
+        copyExport(csv);
+      },
     });
   } catch (e) { copyExport(csv); }
   // #endif

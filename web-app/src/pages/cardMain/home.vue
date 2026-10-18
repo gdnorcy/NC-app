@@ -105,13 +105,16 @@
           </view>
         </view>
         <view class="visitor-list" v-if="c.props.showList !== false && visitorList.length">
-          <view class="visitor-item" v-for="v in visitorList" :key="v.id">
-            <view class="visitor-avatar">{{ v.name?.[0] || '访' }}</view>
+          <!-- 🔴 2026-10-21 用户反馈「首页访客雷达列表点击无法进入详情」：原列表项没有
+               任何 @click，点了没反应。改为点击进入访客雷达（带行为轨迹详情），并带 openid
+               让雷达页自动展开该访客轨迹；标签由「查看名片」改为「查看详情」（列的是访客，非名片）。 -->
+          <view class="visitor-item" v-for="v in visitorList" :key="v.id" @click="openVisitor(v)">
+            <view class="visitor-avatar">{{ v.nickname?.[0] || '访' }}</view>
             <view class="visitor-info">
-              <view class="visitor-name">{{ v.name || '匿名访客' }}</view>
-              <view class="visitor-time">{{ v.visitTime || '刚刚' }}</view>
+              <view class="visitor-name">{{ v.nickname || '匿名访客' }}</view>
+              <view class="visitor-time">{{ v.timeAgo || '刚刚' }}</view>
             </view>
-            <view class="visitor-action">查看名片</view>
+            <view class="visitor-action">查看详情 ›</view>
           </view>
         </view>
         <view class="empty-hint" v-else>暂无访客记录</view>
@@ -618,8 +621,20 @@ function goSearch() {
 function goMessages() {
   uni.navigateTo({ url: '/pages/card/messages' });
 }
+// 首页人脉集市卡片 → 名片详情页。🔴 必须用 cardId（对方名片的 id），不能传 userId：
+// 后端 card_market_items 同时有 userId 与 cardId，cardDetail 按 cardId 查名片。
+// 曾误传 userId（陈晨=15/林小雨=16/测试用户=2），而 card_profile 里这些 user_id 对应的
+// 名片 id 是 12/19/1，字段用错 → 陈晨/林小雨打开无数据、测试用户串到别人（集市页本身用
+// 的是 cardId 故正常，唯独首页这条入口错）。market.vue 的 viewCard 已正确用 cardId。
 function viewMarketCard(item) {
-  uni.navigateTo({ url: `/pages/card/cardDetail?id=${item.userId || item.id}` });
+  const id = item.cardId || item.id;
+  uni.navigateTo({ url: `/pages/card/cardDetail?id=${id}` });
+}
+// 首页访客雷达列表项点击 → 进入访客雷达页，并带上 openid 让雷达页自动展开该访客轨迹。
+// 首页 summary 返回的访客字段是 nickname / visitorOpenid（后端 enriched 结构），与访客雷达页同源。
+function openVisitor(v) {
+  const openid = v.visitorOpenid || '';
+  uni.navigateTo({ url: `/pages/card/visitors?openid=${encodeURIComponent(openid)}` });
 }
 </script>
 
