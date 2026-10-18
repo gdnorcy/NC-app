@@ -5,7 +5,7 @@
 <!-- PageNav -->
 <PageNav title="名片详情" back overlay :sticky="false" bg="transparent" :color="navFgColor" />
     <!-- 沉浸式hero：card=卡片头式（渐变） / full=全屏大图式（头像背景+视差+计数条） -->
-    <view class="hero" :class="[layoutFull ? 'hero-full' : 'hero-' + heroLayout, heroFontCls, squareCls, nameBigCls]" :style="heroStyle">
+    <view class="hero" :class="[layoutFull ? 'hero-full' : 'hlay-' + heroLayout, heroFontCls, squareCls, nameBigCls]" :style="heroStyle">
       <!-- 模板主题 overlay：纹理 + 顶部渐变条 -->
       <view v-if="!layoutFull && textureBg" class="hero-texture" :style="{ backgroundImage: textureBg }"></view>
       <view v-if="!layoutFull && barTopStyle" class="hero-bartop" :style="barTopStyle"></view>
@@ -34,6 +34,7 @@
         <view class="hero-id">
           <view class="nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
           <view class="pos" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
           <view class="co" :style="subStyle">{{ cityLine }}</view>
         </view>
         <view class="hero-badge" v-if="memberLevel !== 'free'" :style="{ color: heroColor, background: isLightHero ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)', borderColor: isLightHero ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)' }"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
@@ -46,6 +47,7 @@
         </view>
         <view class="ctr-name" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
         <view class="ctr-pos" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
         <view class="ctr-co" :style="subStyle">{{ cityLine }}</view>
         <view class="hero-badge ctr-badge" v-if="memberLevel !== 'free'" :style="{ color: heroColor, background: isLightHero ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.16)', borderColor: isLightHero ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.25)' }"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
       </view>
@@ -54,6 +56,7 @@
         <view class="mag-name" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
         <view class="mag-rule" :style="accentStyle"></view>
         <view class="mag-pos" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
         <view class="mag-co" :style="subStyle">{{ cityLine }}</view>
         <view class="hero-badge mag-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
       </view>
@@ -89,6 +92,7 @@
         <view class="pano-info">
           <view class="pano-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
           <view class="pano-ps" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
           <view class="pano-fl" :style="subStyle">{{ cityLine }}</view>
         </view>
       </view>
@@ -99,6 +103,7 @@
         <view class="pano2-info">
           <view class="pano2-nm" :style="nmStyle">{{ card.name || '您的姓名' }}<text class="badge-inline" v-if="memberLevel !== 'free'" :style="badgeInlineStyle"><SIcon name="crown" size="small" :color="badgeInlineAccent" />{{ memberLevelText }}</text></view>
           <view class="pano2-ps" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
           <view class="pano2-fl" :style="subStyle">{{ cityLine }}</view>
           <view class="pano2-cos" v-if="cosList.length">
             <view class="pco" v-for="(c, i) in cosList" :key="i"><view class="pdot"></view><text class="pcn">{{ c.name }}</text><text class="pcp" v-if="c.position"> · {{ c.position }}</text></view>
@@ -114,6 +119,7 @@
         </view>
         <view class="p3-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
         <view class="p3-ps" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
         <view class="p3-fl" :style="subStyle">{{ cityLine }}</view>
       </view>
       <!-- pano4 左照右文：左侧形象照整卡 + 右侧信息 -->
@@ -126,6 +132,7 @@
           <view class="p4-rin">
             <view class="p4-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
             <view class="p4-ps" :style="subStyle">{{ card.position || '—' }}</view>
+            <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
             <view class="p4-fl" :style="subStyle">{{ cityLine }}</view>
             <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
           </view>
@@ -136,6 +143,7 @@
         <view class="p5-rin">
           <view class="p5-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
           <view class="p5-ps" :style="subStyle">{{ card.position || '—' }}</view>
+          <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
           <view class="p5-fl" :style="subStyle">{{ cityLine }}</view>
           <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
         </view>
@@ -153,6 +161,7 @@
         </view>
         <view class="p6-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
         <view class="p6-ps" :style="subStyle">{{ card.position || '—' }}</view>
+        <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
         <view class="p6-fl" :style="subStyle">{{ cityLine }}</view>
       </view>
       <!-- hero 引导条：保存名片 / 关注TA（主题 guide=true 时显示） -->
@@ -621,10 +630,10 @@ async function submitForm() {
 }
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
-// demo: 东莞 · 约拍·商业摄影（城市 · slogan/业务）
+// demo: 东莞 · 约拍·商业摄影（城市 · slogan/业务）；公司名走专属行，不在此兜底混排
 const cityLine = computed(() => {
   const city = card.value.city || '';
-  const biz = card.value.slogan || card.value.businessField || card.value.company || '';
+  const biz = card.value.slogan || card.value.businessField || '';
   return [city, biz].filter(Boolean).join(' · ') || '—';
 });
 // 标签：优先独立tags字段，回退业务领域拆分
@@ -930,6 +939,15 @@ async function followCard() {
   align-items: center;
   gap: 10rpx;
 }
+/* 名片专属公司行：可选（card.company 存在才显示），与城市/业务行分离 */
+.hero-co {
+  font-size: 23rpx;
+  opacity: 0.82;
+  margin-top: 8rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
 .hero-badge {
   display: inline-flex;
   align-items: center;
@@ -1115,9 +1133,13 @@ async function followCard() {
   opacity: 0.72;
   margin-top: 10rpx;
 }
-/* ===== 形象照 hero（pano1/pano2 全幅照片固定高） ===== */
+/* ===== 形象照 hero（pano1/pano2 全幅照片固定高） =====
+   根节点改用 hlay-* 解耦，避免与内层版式类同名导致布局泄漏；
+   此处 hlay-* 仅作用于根节点（内层块保留 hero-* 自身布局） */
 .hero-pano1,
-.hero-pano2 {
+.hero-pano2,
+.hlay-pano1,
+.hlay-pano2 {
   height: 640rpx;
   display: flex;
   flex-direction: column;
@@ -1405,6 +1427,7 @@ async function followCard() {
   align-items: center;
   justify-content: center;
   font-size: 27rpx;
+  white-space: nowrap;
   background: rgba(255,255,255,0.16);
   border: 1rpx solid rgba(255,255,255,0.3);
 }
@@ -1417,6 +1440,12 @@ async function followCard() {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.1);
   color: var(--t1);
+}
+/* 浅色 hero 上，「关注 TA」主色按钮须保持品牌主色（0,4,0 压过上方 0,3,0 的浅色兜底） */
+.hero-guide.hg-light .hg-btn.hg-primary {
+  background: var(--design-primary, #165dff);
+  border: none;
+  color: var(--white);
 }
 .hero-guide.hg-solid .hg-btn.hg-primary {
   background: #2b2723;
@@ -1510,12 +1539,14 @@ async function followCard() {
 .quickbar {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 16rpx;
   margin-top: 36rpx;
 }
 .qb {
+  width: 23%;
   background: rgba(255,255,255,0.14);
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 26rpx;
