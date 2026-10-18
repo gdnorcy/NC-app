@@ -2112,6 +2112,10 @@ function migrate(db) {
   if (!colExists(db, 'card_profile', 'industry')) {
     db.exec("ALTER TABLE card_profile ADD COLUMN industry TEXT NOT NULL DEFAULT ''");
   }
+  // card_profile 补 works_label（作品标签自定义名，白银+会员权益；空=默认「作品」）
+  if (!colExists(db, 'card_profile', 'works_label')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN works_label TEXT NOT NULL DEFAULT ''");
+  }
   // card_collect 补 group_name（名片夹分组：默认未分组）
   if (!colExists(db, 'card_collect', 'group_name')) {
     db.exec("ALTER TABLE card_collect ADD COLUMN group_name TEXT NOT NULL DEFAULT '未分组'");

@@ -672,6 +672,13 @@ async function syncMarketAfterSave(isPublic) {
   min-height: 640rpx;
   box-shadow: 0 12rpx 40rpx rgba(0,0,0,0.08);
 }
+/* 编辑模式撤掉 640rpx min-height：编辑态各卡内容量差异大——「名片配置」卡的
+   类型选择/入驻绑定均 v-if="!isEdit" 隐藏、只剩供需标签，640rpx 会撑出大片
+   空白（用户报：供需标签下大红框空卡，误以为"高级功能不见了"）。
+   🔴 光在根视图绑 is-edit 类不够，必须有这条 CSS 覆盖：.skin-step .card 是 (0,2,0)，
+      .create-page.is-edit .card 是 (0,3,0) 稳定压过（测试只钉了类绑定、没钉视觉，
+      正是"单测全绿≠视觉正确"的坑）。 */
+.create-page.is-edit .card { min-height: 0; }
 .skin-step .btn-primary {
   height: 104rpx;
   font-size: var(--fs-6);

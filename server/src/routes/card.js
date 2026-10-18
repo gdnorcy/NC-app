@@ -18,6 +18,7 @@ import { createGoodsOrderService } from '../services/goodsOrder.js';
 import { PaymentService } from '../services/payment.js';
 import { createRadarService } from '../services/radar.js';
 import { createQuotaService } from '../services/quota.js';
+import { createBenefitsService, WORKS_LABEL_MAX } from '../services/benefits.js';
 import { normalizeTabJson } from '../services/design.js';
 import { WxComponentService, standaloneCode2Session } from '../services/wx-component.js';
 
@@ -36,6 +37,7 @@ export function createCardRouter(db, wxService) {
   const member = createMemberService(db);
   const radar = createRadarService(db);
   const quota = createQuotaService(db);
+  const benefits = createBenefitsService(db);
 
   // ============================================================
   // SIcon 服务端按需渲染（小程序运行期主题色，2026-10-15）
@@ -631,7 +633,17 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName } = req.body;
+    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName, worksLabel } = req.body;
+    // 自定义作品标签名（白银+权益）：仅拦截「设非空值」；清空（''）一律放行——
+    // 会员过期后仍允许把标签改回默认「作品」，不做能力降级惩罚。
+    let effectiveWorksLabel = card.works_label;
+    if (worksLabel !== undefined) {
+      const v = String(worksLabel || '').trim().slice(0, WORKS_LABEL_MAX);
+      if (v && !benefits.canCustomWorksLabel(req.user.id)) {
+        return res.status(403).json({ error: '自定义作品标签名需白银及以上会员', code: 'labelLocked' });
+      }
+      effectiveWorksLabel = v;
+    }
     // 模板校验（C 端可见 + 免费或已购）。
     // 🔴 存量死引用自愈：模板库重建/重排后（如旧 id 4、11 已删），存量名片仍挂死 template_id，
     // 编辑向导把该 id 原样发回 → 若一律 400「模板不存在或不可用」，名片将永远无法保存。
@@ -651,8 +663,8 @@ export function createCardRouter(db, wxService) {
       }
     }
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, works_label=?, updated_at=datetime('now') WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, effectiveWorksLabel, card.id);
     const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
       FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });
@@ -669,6 +681,171 @@ export function createCardRouter(db, wxService) {
   router.get('/cards/:id/works', (req, res) => {
     const works = db.prepare('SELECT id, card_id, image_url, title, sort_order FROM card_works WHERE card_id = ? ORDER BY sort_order ASC, id ASC').all(req.params.id);
     res.json({ works: works.map((w) => ({ id: w.id, cardId: w.card_id, imageUrl: w.image_url, title: w.title, sortOrder: w.sort_order })) });
+  });
+
+  // ============================================================
+  // 名片作品集管理（增/改/删/排序）——仅名片归属人可操作
+  //   ⚠️ 历史上 card_works 只有 seed 写入 + 公开 GET，用户/运营均无管理入口；
+  //      此处补齐归属校验的写路由，C 端 worksEdit.vue 与后台共用。
+  // ============================================================
+  const WORK_IMG_MIME = ['image/png', 'image/jpeg', 'image/webp'];
+  // 新增作品（图片直传 + 标题，一次请求）：multipart file + title
+  router.post('/cards/:id/works', auth, (req, res) => {
+    voiceUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? '图片不能超过 5MB' : err.message;
+        return res.status(400).json({ error: message });
+      }
+      try {
+        const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+        if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+        if (!req.file) return res.status(400).json({ error: '未收到图片文件' });
+        const mime = (req.file.mimetype || '').toLowerCase();
+        if (!WORK_IMG_MIME.includes(mime)) return res.status(400).json({ error: '仅支持 png/jpg/webp 图片' });
+        // 会员分级门禁（benefits.js 单一来源）：跨用户名下所有名片累计计数，
+        // 先校验再落盘，避免传了图才被拒。超限 403 + limitHit 供 C 端弹升级引导。
+        const gate = benefits.canAddWork(req.user.id);
+        if (!gate.ok) {
+          return res.status(403).json({
+            error: `作品数量已达上限（${gate.used}/${gate.limit} 张），升级会员可添加更多`,
+            code: 'limitHit', kind: 'works', limit: gate.limit, used: gate.used,
+          });
+        }
+        const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
+        const storage = await getStorage(db);
+        const url = await storage.put(req.file.buffer, `work-c${card.id}-${Date.now()}${ext}`);
+        const title = String(req.body.title || '').trim();
+        const maxSort = db.prepare('SELECT MAX(sort_order) AS m FROM card_works WHERE card_id = ?').get(card.id);
+        const sort = (maxSort && maxSort.m != null ? Number(maxSort.m) : 0) + 1;
+        const info = db.prepare('INSERT INTO card_works (card_id, image_url, title, sort_order) VALUES (?,?,?,?)')
+          .run(card.id, url, title, sort);
+        res.status(201).json({ work: { id: Number(info.lastInsertRowid), cardId: card.id, imageUrl: url, title, sortOrder: sort } });
+      } catch (e) {
+        console.error('新增作品失败:', e);
+        res.status(500).json({ error: '新增作品失败' });
+      }
+    });
+  });
+
+  // 作品排序（批量）：body { ids:[workId,...] } 按数组顺序重排 sort_order
+  // ⚠️ 必须定义在 /:workId 之前，否则 sort 会被当成 workId。
+  router.put('/cards/:id/works/sort', auth, (req, res) => {
+    try {
+      const card = db.prepare('SELECT id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      const upd = db.prepare('UPDATE card_works SET sort_order = ? WHERE id = ? AND card_id = ?');
+      ids.forEach((wid, idx) => upd.run(idx + 1, wid, card.id));
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 修改作品标题
+  router.put('/cards/:id/works/:workId', auth, (req, res) => {
+    try {
+      const card = db.prepare('SELECT id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const work = db.prepare('SELECT * FROM card_works WHERE id = ? AND card_id = ?').get(req.params.workId, card.id);
+      if (!work) return res.status(404).json({ error: '作品不存在' });
+      const title = String(req.body.title != null ? req.body.title : work.title).trim();
+      db.prepare('UPDATE card_works SET title = ? WHERE id = ?').run(title, work.id);
+      res.json({ work: { id: work.id, cardId: card.id, imageUrl: work.image_url, title, sortOrder: work.sort_order } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 删除作品
+  router.delete('/cards/:id/works/:workId', auth, (req, res) => {
+    try {
+      const card = db.prepare('SELECT id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const work = db.prepare('SELECT id FROM card_works WHERE id = ? AND card_id = ?').get(req.params.workId, card.id);
+      if (!work) return res.status(404).json({ error: '作品不存在' });
+      db.prepare('DELETE FROM card_works WHERE id = ?').run(work.id);
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ============================================================
+  // 名片视频号作品管理（增/改/删/排序）——镜像 card_works 归属模型
+  //   card_videos 为纯元数据（封面图 + 标题 + 时长），无视频文件；C 端点击跳转视频号。
+  //   数量门禁走 benefits.js（free=0/silver=2/gold=6/diamond=20，跨名片累计）。
+  // ============================================================
+  const VIDEO_IMG_MIME = ['image/png', 'image/jpeg', 'image/webp'];
+  // 新增视频条目（封面直传 + 标题 + 时长，一次请求）
+  router.post('/cards/:id/videos', auth, (req, res) => {
+    voiceUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? '图片不能超过 5MB' : err.message;
+        return res.status(400).json({ error: message });
+      }
+      try {
+        const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+        if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+        if (!req.file) return res.status(400).json({ error: '未收到封面图片' });
+        const mime = (req.file.mimetype || '').toLowerCase();
+        if (!VIDEO_IMG_MIME.includes(mime)) return res.status(400).json({ error: '仅支持 png/jpg/webp 图片' });
+        // 会员分级门禁（先校验再落盘）：free 无视频位，引导升级
+        const gate = benefits.canAddVideo(req.user.id);
+        if (!gate.ok) {
+          return res.status(403).json({
+            error: `视频号作品数量已达上限（${gate.used}/${gate.limit} 个），升级会员可添加更多`,
+            code: 'limitHit', kind: 'videos', limit: gate.limit, used: gate.used,
+          });
+        }
+        const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
+        const storage = await getStorage(db);
+        const url = await storage.put(req.file.buffer, `video-c${card.id}-${Date.now()}${ext}`);
+        const title = String(req.body.title || '').trim().slice(0, 40);
+        const duration = String(req.body.duration || '').trim().slice(0, 16);
+        const maxSort = db.prepare('SELECT MAX(sort_order) AS m FROM card_videos WHERE card_id = ?').get(card.id);
+        const sort = (maxSort && maxSort.m != null ? Number(maxSort.m) : 0) + 1;
+        const info = db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration, sort_order) VALUES (?,?,?,?,?)')
+          .run(card.id, title, url, duration, sort);
+        res.status(201).json({ video: { id: Number(info.lastInsertRowid), cardId: card.id, title, coverUrl: url, duration, sortOrder: sort } });
+      } catch (e) {
+        console.error('新增视频失败:', e);
+        res.status(500).json({ error: '新增视频失败' });
+      }
+    });
+  });
+
+  // 视频排序（批量）：body { ids:[videoId,...] }
+  // ⚠️ 必须定义在 /:videoId 之前，否则 sort 会被当成 videoId。
+  router.put('/cards/:id/videos/sort', auth, (req, res) => {
+    try {
+      const card = db.prepare('SELECT id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      const upd = db.prepare('UPDATE card_videos SET sort_order = ? WHERE id = ? AND card_id = ?');
+      ids.forEach((vid, idx) => upd.run(idx + 1, vid, card.id));
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 修改视频标题/时长
+  router.put('/cards/:id/videos/:videoId', auth, (req, res) => {
+    try {
+      const card = db.prepare('SELECT id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const video = db.prepare('SELECT * FROM card_videos WHERE id = ? AND card_id = ?').get(req.params.videoId, card.id);
+      if (!video) return res.status(404).json({ error: '视频不存在' });
+      const title = String(req.body.title != null ? req.body.title : video.title).trim().slice(0, 40);
+      const duration = String(req.body.duration != null ? req.body.duration : video.duration).trim().slice(0, 16);
+      db.prepare('UPDATE card_videos SET title = ?, duration = ? WHERE id = ?').run(title, duration, video.id);
+      res.json({ video: { id: video.id, cardId: card.id, title, coverUrl: video.cover_url, duration, sortOrder: video.sort_order } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 删除视频条目
+  router.delete('/cards/:id/videos/:videoId', auth, (req, res) => {
+    try {
+      const card = db.prepare('SELECT id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const video = db.prepare('SELECT id FROM card_videos WHERE id = ? AND card_id = ?').get(req.params.videoId, card.id);
+      if (!video) return res.status(404).json({ error: '视频不存在' });
+      db.prepare('DELETE FROM card_videos WHERE id = ?').run(video.id);
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   // ============================================================
@@ -1297,6 +1474,8 @@ export function createCardRouter(db, wxService) {
       level: isMember ? req.user.member_level : 'free',
       expireAt: req.user.member_expire_at,
       isMember,
+      // 会员分级权益快照（作品/视频数量上限 + 自定义标签名开关；C 端 worksEdit/videosEdit 消费）
+      benefits: benefits.snapshot(req.user.id),
     });
   });
 
@@ -1780,6 +1959,7 @@ export function createCardRouter(db, wxService) {
       company: row.company, companies, bio: row.bio, businessField: row.business_field, industry: row.industry || '', avatar: row.avatar,
       slogan: row.slogan || '', tags: row.tags || '', needTags: row.need_tags || '',
       templateId: row.template_id, templateTheme, templateLayout: row.template_layout || 'card', videoChannel: row.video_channel, isPublic: !!row.is_public,
+      worksLabel: row.works_label || '',
       collectCount: row.collectCount || 0, recentVisitors: row.recentVisitors || [],
       voiceUrl: row.voice_url || '', voiceName: row.voice_name || '',
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,

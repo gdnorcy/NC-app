@@ -107,6 +107,16 @@
         <view class="osr-main"><view class="osr-name">展示设置</view><view class="osr-desc">公开状态、模板样式</view></view>
         <text class="osr-arrow">›</text>
       </view>
+      <view class="os-row" @click="goWorksEdit">
+        <view class="osr-icon"><SIcon name="category" size="default" :color="themeColor" /></view>
+        <view class="osr-main"><view class="osr-name">作品管理</view><view class="osr-desc">上传 / 排序作品图，展示在名片「作品」标签</view></view>
+        <text class="osr-arrow">›</text>
+      </view>
+      <view class="os-row" @click="goVideosEdit">
+        <view class="osr-icon"><SIcon name="dynamic" size="default" :color="themeColor" /></view>
+        <view class="osr-main"><view class="osr-name">视频管理</view><view class="osr-desc">视频号作品（封面 / 标题 / 时长），白银+ 可添加</view></view>
+        <text class="osr-arrow">›</text>
+      </view>
     </view>
 
     <!-- 访客雷达 TOP3 -->
@@ -477,6 +487,14 @@ function goNeedTags() {
 function goDisplaySettings() {
   if (!pageCardId.value) return;
   uni.navigateTo({ url: `/pages/card/displaySettings?id=${pageCardId.value}` });
+}
+function goWorksEdit() {
+  if (!pageCardId.value) return;
+  uni.navigateTo({ url: `/pages/card/worksEdit?id=${pageCardId.value}` });
+}
+function goVideosEdit() {
+  if (!pageCardId.value) return;
+  uni.navigateTo({ url: `/pages/card/videosEdit?id=${pageCardId.value}` });
 }
 function previewCard() {
   // 他人视角预览：跳对外展示页

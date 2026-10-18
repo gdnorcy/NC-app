@@ -138,6 +138,20 @@
           }
         },
         {
+          "path": "worksEdit",
+          "style": {
+            "navigationBarTitleText": "作品管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "videosEdit",
+          "style": {
+            "navigationBarTitleText": "视频管理",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "displaySettings",
           "style": {
             "navigationBarTitleText": "展示设置",

@@ -89,6 +89,56 @@ export const cardApi = {
   updateCard: (id, data) => request(`/cards/${id}`, 'PUT', data),
   deleteCard: (id) => request(`/cards/${id}`, 'DELETE'),
   getCardWorks: (id) => request(`/cards/${id}/works`),
+  // ===== 作品集管理（仅名片归属人；服务端 card.js 有归属校验）=====
+  // 新增作品：图片直传(multipart file) + 标题(formData.title)，跨端走 uni.uploadFile
+  addCardWork: (cardId, filePath, title) => {
+    const token = uni.getStorageSync('card_token');
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE_URL + `/cards/${cardId}/works`,
+        filePath,
+        name: 'file',
+        formData: { title: title || '' },
+        header: token ? { Authorization: `Bearer ${token}` } : {},
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data || '{}');
+            if (res.statusCode >= 200 && res.statusCode < 300 && data.work) resolve(data);
+            else reject(new Error(data.error || '新增作品失败'));
+          } catch (e) { reject(new Error('新增作品失败')); }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '新增作品失败')),
+      });
+    });
+  },
+  updateCardWork: (cardId, workId, title) => request(`/cards/${cardId}/works/${workId}`, 'PUT', { title }),
+  deleteCardWork: (cardId, workId) => request(`/cards/${cardId}/works/${workId}`, 'DELETE'),
+  sortCardWorks: (cardId, ids) => request(`/cards/${cardId}/works/sort`, 'PUT', { ids }),
+  // ===== 视频号作品管理（仅名片归属人；card_videos 纯元数据：封面+标题+时长）=====
+  // 新增视频条目：封面直传(multipart file) + 标题/时长(formData)，跨端走 uni.uploadFile
+  addCardVideo: (cardId, filePath, title, duration) => {
+    const token = uni.getStorageSync('card_token');
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE_URL + `/cards/${cardId}/videos`,
+        filePath,
+        name: 'file',
+        formData: { title: title || '', duration: duration || '' },
+        header: token ? { Authorization: `Bearer ${token}` } : {},
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data || '{}');
+            if (res.statusCode >= 200 && res.statusCode < 300 && data.video) resolve(data);
+            else reject(new Error(data.error || '新增视频失败'));
+          } catch (e) { reject(new Error('新增视频失败')); }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '新增视频失败')),
+      });
+    });
+  },
+  updateCardVideo: (cardId, videoId, data) => request(`/cards/${cardId}/videos/${videoId}`, 'PUT', data || {}),
+  deleteCardVideo: (cardId, videoId) => request(`/cards/${cardId}/videos/${videoId}`, 'DELETE'),
+  sortCardVideos: (cardId, ids) => request(`/cards/${cardId}/videos/sort`, 'PUT', { ids }),
   getCardDynamics: (id) => request(`/cards/${id}/dynamics`),
   getCardVideos: (id) => request(`/cards/${id}/videos`),
   // 语音简介上传（阶段C：上传音频；克隆语音后续新增；H5 端 FormData，小程序端走 uni.uploadFile）

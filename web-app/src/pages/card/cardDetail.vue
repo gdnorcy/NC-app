@@ -164,32 +164,30 @@
         <view class="hero-co" :style="subStyle" v-if="card.company"><SIcon name="building" size="small" :color="heroColor" /><text>{{ card.company }}</text></view>
         <view class="p6-fl" :style="subStyle">{{ cityLine }}</view>
       </view>
-      <!-- hero 引导条：保存名片 / 关注TA（主题 guide=true 时显示） -->
-      <view class="hero-guide" v-if="showGuide" :class="[isLightHero ? 'hg-light' : '', guideSolidCls]">
-        <view class="hg-btn" @click="toggleCollect">{{ collected ? '已保存' : '＋ 保存名片' }}</view>
-        <view class="hg-btn hg-primary" @click="followCard">关注 TA</view>
+      <!-- hero 引导条：主操作（拨号 + 收藏）。仅访客可见；
+           自己名片(isMine)整条隐藏——收藏自己会被服务端拒「不能收藏自己的名片」，
+           且拨号/关注对本人无意义（本人操作走下方 quickbar 的 换模板/分享） -->
+      <view class="hero-guide" v-if="showGuide && !isMine" :class="[isLightHero ? 'hg-light' : '', guideSolidCls]">
+        <view class="hg-btn hg-primary" @click="callPhone" v-if="card.phone">拨号</view>
+        <view class="hg-btn" :style="collected ? 'color:#ffd21e' : ''" @click="toggleCollect">{{ collected ? '★ 已收藏' : '＋ 收藏' }}</view>
       </view>
-      <!-- quickbar（快速操作四键+） -->
+      <!-- quickbar（次级操作图标：关注/微信/导航/分享；自己名片只留 分享/换模板） -->
       <view class="quickbar" :class="isLightHero ? 'qb-light' : ''">
-        <view class="qb" @click="callPhone" v-if="card.phone">
-          <SIcon name="mobile" size="default" :color="heroColor" />
-          <text>拨号</text>
+        <view class="qb" @click="followCard" v-if="!isMine">
+          <SIcon name="users" size="default" :color="heroColor" />
+          <text>关注 TA</text>
         </view>
-        <view class="qb" @click="copyWechat" v-if="card.wechat">
+        <view class="qb" @click="copyWechat" v-if="card.wechat && !isMine">
           <SIcon name="exchange" size="default" :color="heroColor" />
           <text>复制微信</text>
         </view>
-        <view class="qb" @click="navigateTo">
+        <view class="qb" @click="navigateTo" v-if="!isMine">
           <SIcon name="location" size="default" :color="heroColor" />
           <text>导航</text>
         </view>
         <view class="qb" @click="shareCard">
           <SIcon name="channel" size="default" :color="heroColor" />
           <text>分享</text>
-        </view>
-        <view class="qb" @click="toggleCollect">
-          <SIcon name="star" size="default" :color="collected ? '#ffd21e' : heroColor" />
-          <text :style="collected ? 'color:#ffd21e' : ''">{{ collected ? '已收藏' : '收藏' }}</text>
         </view>
         <view class="qb" @click="goTemplateSelect" v-if="isMine">
           <SIcon name="template" size="default" :color="heroColor" />
@@ -222,7 +220,7 @@
     <!-- Tab切换（demo mp-tabs） -->
     <view class="mp-tabs">
       <view class="mp-tab" :class="{ on: activeTab === 'intro' }" @click="activeTab='intro'">简介<text class="bar"></text></view>
-      <view class="mp-tab" :class="{ on: activeTab === 'works' }" @click="activeTab='works'">作品<text class="bar"></text></view>
+      <view class="mp-tab" :class="{ on: activeTab === 'works' }" @click="activeTab='works'">{{ worksLabelText }}<text class="bar"></text></view>
       <view class="mp-tab" :class="{ on: activeTab === 'dynamic' }" @click="activeTab='dynamic'">动态<text class="bar"></text></view>
       <view class="mp-tab" :class="{ on: activeTab === 'video' }" @click="activeTab='video'">视频<text class="bar"></text></view>
     </view>
@@ -274,13 +272,13 @@
 
     <!-- 作品面板 -->
     <view class="tab-panel" v-if="activeTab === 'works'">
-      <view class="sec-t">我的作品<small>品牌案例</small></view>
+      <view class="sec-t">{{ worksLabelText }}<small>品牌案例</small></view>
       <view class="gall" v-if="works.length">
         <image v-for="w in works" :key="w.id" class="gall-img" :src="w.imageUrl" mode="aspectFill" @click="previewWork(w)" />
       </view>
       <view class="empty-state" v-else>
         <view class="empty-icon"><SIcon name="template" size="xlarge" :color="ICON_DECOR" /></view>
-        <view class="empty-text">暂无作品案例</view>
+        <view class="empty-text">暂无{{ worksLabelText }}案例</view>
       </view>
     </view>
 
@@ -539,15 +537,25 @@ const heroColor = computed(() => (resolvedTheme.value?.textColor || brandFg.valu
 // 衬线字体类名（font-family 必须走 CSS 类，不能内联，见 templateTheme.js 注释）
 const heroFontCls = computed(() => heroFontClass(card.value.templateTheme));
 // ===== 新皮肤（11套）附加字段 =====
-// 多公司列表：card.companies 优先，回退单公司 company
+// 多公司列表：主公司(company)置顶 + 其他任职(companies数组)合并，按名称去重
 const cosList = computed(() => {
-  const cs = card.value.companies;
-  if (Array.isArray(cs) && cs.length) return cs;
-  if (card.value.company) return [{ name: card.value.company, position: card.value.position || '' }];
-  return [];
+  const arr = Array.isArray(card.value.companies)
+    ? card.value.companies
+        .map((c) => ({ name: String(c.name || '').trim(), position: String(c.position || '').trim() }))
+        .filter((c) => c.name)
+    : [];
+  const primary = String(card.value.company || '').trim();
+  // 🔴 主公司必须置顶合并：旧逻辑 companies 非空就整体 return、把单公司 company 丢了，
+  // 导致 royal 只显示「其他任职」不显示「公司名称」（用户报：显示第二个、不显示第一个）。
+  if (primary && !arr.some((c) => c.name === primary)) {
+    arr.unshift({ name: primary, position: card.value.position || '' });
+  }
+  return arr;
 });
-// 引导条（保存名片/关注TA）——主题 guide=true 且非 full 全屏式
+// 引导条（拨号/收藏，主操作）——主题 guide=true、非 full 全屏式、且非本人名片
 const showGuide = computed(() => !layoutFull.value && heroTheme.value?.guide);
+// 作品标签名（白银+自定义权益；空=默认「作品」）
+const worksLabelText = computed(() => String(card.value.worksLabel || '').trim() || '作品');
 const guideSolidCls = computed(() => (heroTheme.value?.guideSolid ? 'hg-solid' : ''));
 // 暗夜极光增强：方形图标 + 大姓名
 const squareCls = computed(() => (heroTheme.value?.quickSquare ? 'hero-square' : ''));
@@ -1411,7 +1419,7 @@ async function followCard() {
   opacity: 0.72;
   margin-top: 10rpx;
 }
-/* ===== hero 引导条（保存名片/关注TA） ===== */
+/* ===== hero 引导条（拨号/收藏，主操作；仅访客） ===== */
 .hero-guide {
   position: relative;
   z-index: 2;

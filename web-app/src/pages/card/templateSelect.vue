@@ -21,12 +21,13 @@
         class="tpl-item"
         :class="{ active: applyingId === t.id || card.templateId === t.id }"
       >
-        <view class="tpl-cover">
-          <TplThumb :template="t" class="tpl-thumb" />
+        <view class="tpl-cover" @click="openPreview(t)">
+          <TplThumb :template="t" :card="card" class="tpl-thumb" />
           <text class="tpl-layout" v-if="t.layout === 'full'">全屏大图</text>
           <text class="tpl-price-tag" :class="Number(t.price) > 0 ? 'paid' : 'free'">{{ Number(t.price) > 0 ? '¥' + Number(t.price) : '免费' }}</text>
           <view class="tpl-owned" v-if="t.purchased">已购</view>
           <view class="tpl-check" v-if="applyingId === t.id || (card.templateId === t.id && !applyingId)">✓</view>
+          <text class="tpl-preview-hint" v-else>预览</text>
         </view>
         <view class="tpl-name">{{ t.name }}</view>
         <view
@@ -38,7 +39,14 @@
       </view>
     </view>
     <view class="empty" v-if="!templates.length">暂无可用模板</view>
-    <view class="bind-hint">付费模板购买后永久解锁，可随时更换；免费模板可直接应用</view>
+    <view class="bind-hint">点封面可全屏预览（用你的真实名片数据）；付费模板购买后永久解锁，免费模板可直接应用</view>
+    <TplPreviewModal
+      v-if="previewTpl"
+      :template="previewTpl"
+      :card="card"
+      @apply="onPreviewApply"
+      @close="previewTpl = null"
+    />
   </view>
 </template>
 
@@ -48,6 +56,7 @@ import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
 import TplThumb from '../../components/TplThumb.vue';
+import TplPreviewModal from '../../components/TplPreviewModal.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 
@@ -75,6 +84,14 @@ const cardId = ref(null);
 const card = ref({});
 const templates = ref([]);
 const applyingId = ref(null);
+const previewTpl = ref(null);
+
+function openPreview(t) { previewTpl.value = t; }
+function onPreviewApply() {
+  const t = previewTpl.value;
+  previewTpl.value = null;
+  if (t) applyTemplate(t);
+}
 
 const currentName = computed(() => {
   const t = templates.value.find((x) => x.id === Number(card.value.templateId));
@@ -178,6 +195,7 @@ onLoad((options) => {
 .tpl-price-tag.paid { background: rgba(255,125,0,0.92); }
 .tpl-owned { position: absolute; right: 8rpx; bottom: 8rpx; font-size: 18rpx; color: var(--white); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.85); padding: 4rpx 10rpx; border-radius: var(--radius-sm); }
 .tpl-check { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--design-primary, #165dff); color: var(--white); font-size: var(--fs-3); display: flex; align-items: center; justify-content: center; }
+.tpl-preview-hint { position: absolute; top: 8rpx; right: 8rpx; font-size: 18rpx; color: var(--white); background: rgba(0,0,0,0.45); padding: 4rpx 14rpx; border-radius: var(--radius-sm); }
 .tpl-name { padding: 14rpx 16rpx 8rpx; font-size: var(--fs-4); color: var(--t1); text-align: center; white-space: normal; word-break: break-all; }
 /* 默认底色由内联 themeGradient 给（跟随系统主题）；使用中/应用中态回落到 --design-primary */
 .tpl-apply { margin: 0 16rpx 16rpx; padding: 14rpx 0; text-align: center; border-radius: var(--radius-xs); background: var(--design-primary, #165dff); color: var(--white); font-size: var(--fs-3); }
