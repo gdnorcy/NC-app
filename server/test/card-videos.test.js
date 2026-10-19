@@ -119,14 +119,21 @@ test('parse 链接解析：合法链接提取 sph + feedId，脏数据 400 parse
     assert.equal(r.body.code, 'parseFail');
   }
 
-  // 5. 视频号主页分享短链（weixin.qq.com/sph/xxxx）：无具体视频 → 400 channelHomeLink 专门引导
+  // 5. 微信 sph 加密短链（weixin.qq.com/sph/xxxx）：短码是路由密文、无法反解
+  //    → 400 channelHomeLink，且文案不得再称它为「主页链接」（2026-10-19 实测核实：
+  //    它 301 到 finder-preview/pages/sph?id=xxx，落地页无 feedId/finderUserName）
   const home = await request(app)
     .post('/api/card/cards/1/videos/parse')
     .set('Authorization', `Bearer ${token}`)
     .send({ link: 'https://weixin.qq.com/sph/A6FgtKSMRw' });
   assert.equal(home.status, 400, JSON.stringify(home.body));
   assert.equal(home.body.code, 'channelHomeLink');
-  assert.ok(String(home.body.error).includes('主页'));
+  assert.ok(String(home.body.error).includes('加密'), `应说明是加密短链: ${home.body.error}`);
+  assert.ok(String(home.body.error).includes('视频号助手'), `应引导到助手获取: ${home.body.error}`);
+  // 🔴 回归护栏：旧文案把 sph 短链称为「主页链接」并让用户去复制「单条视频链接」，
+  //    而微信改版后分享任何单条视频都是这个形态 → 照做永远找不到。禁止回退。
+  assert.ok(!String(home.body.error).includes('主页'), `不得再称 sph 短链为主页链接: ${home.body.error}`);
+  assert.ok(!String(home.body.error).includes('复制链接'), `不得再引导去复制 sph 链接: ${home.body.error}`);
 
   // 6. 带 feedId 参数的 sph 短链不走主页分支（有参数即按参数解析：缺 finderUserName → parseFail）
   const sphWithFeed = await request(app)

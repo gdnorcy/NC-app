@@ -67,43 +67,54 @@
       </view>
     </view>
 
-    <!-- ===== 添加弹窗：粘贴链接解析 / 手动填 ID 兜底 ===== -->
+    <!-- ===== 添加弹窗：手动填 ID 为主 / 粘贴链接为次 =====
+         🔴 2026-10-19 方向修正（实测 + 官方文档核实）：
+         微信 2026 年改版后，「分享 → 复制链接」给的是加密短链 weixin.qq.com/sph/xxxx，
+         它 301 到 channels.weixin.qq.com/finder-preview/pages/sph?id=xxx（实测落地页
+         feedId/finderUserName 命中 0 处），短码是路由密文不是 ID 本身，无法解析出作品。
+         曾以为「单条视频链接」是 channels.weixin.qq.com/...?finderUserName=&feedId= 明文参数，
+         那是旧版形态、微信已不再对外分享——照旧教程操作只会让用户找不到该复制的链接。
+         openChannelsActivity 所需两值，合规来源只有视频号助手（官方文档唯一口径）：
+         finderUserName = 助手首页「视频号ID」（sph 开头）；feedId = 助手「内容管理」单条作品复制。
+         故默认落在 id 模式，链接模式降级为次要入口（仅兼容带明文参数的旧链接/助手网页链接）。 -->
     <view class="wk-mask" v-if="popup.show" @click="closePopup"></view>
     <view class="wk-popup" v-if="popup.show">
       <view class="wk-pop-title">添加视频号视频</view>
 
       <view class="wk-mode">
-        <view class="wk-mode-item" :class="{ on: popup.mode === 'link' }" @click="popup.mode = 'link'">粘贴分享链接（推荐）</view>
-        <view class="wk-mode-item" :class="{ on: popup.mode === 'id' }" @click="popup.mode = 'id'">手动填写 ID</view>
+        <view class="wk-mode-item" :class="{ on: popup.mode === 'id' }" @click="popup.mode = 'id'">填写视频号 ID</view>
+        <view class="wk-mode-item" :class="{ on: popup.mode === 'link' }" @click="popup.mode = 'link'">粘贴链接</view>
       </view>
 
-      <!-- 链接模式 -->
-      <block v-if="popup.mode === 'link'">
+      <!-- 手动填 ID 模式（默认）：唯一合规且真实可用的路径 -->
+      <block v-if="popup.mode === 'id'">
+        <view class="wk-hint">
+          <text class="wk-hint-t">在电脑端「视频号助手」获取：首页复制视频号ID（sph 开头），内容管理里复制对应作品的 feedId</text>
+          <text class="wk-help-btn wk-help-btn--inline" @click="showIdHelp">查看图文教程</text>
+        </view>
+        <input class="wk-id-input" v-model="popup.finder" placeholder="视频号ID（finderUserName，sph 开头）" placeholder-class="ph" />
+        <input class="wk-id-input" v-model="popup.feed" placeholder="作品ID（feedId）" placeholder-class="ph" />
+      </block>
+
+      <!-- 链接模式（次要）：仅对带 finderUserName/feedId 明文参数的链接有效 -->
+      <block v-else>
+        <view class="wk-hint wk-hint--warn">
+          <text class="wk-hint-t">微信里复制的 weixin.qq.com/sph/ 短链是加密链接，无法解析出作品，请改用「填写视频号 ID」。仅支持带 finderUserName 与 feedId 参数的链接。</text>
+        </view>
         <textarea
           class="wk-link-input"
           v-model="popup.link"
-          placeholder="粘贴视频号的「单条视频」分享链接"
+          placeholder="粘贴带 finderUserName 与 feedId 参数的视频号链接"
           placeholder-class="ph"
           :maxlength="500"
         />
-        <!-- 解析行：主按钮 + 右侧「帮助」按钮（用户反馈「链接从哪来？看不懂教程」） -->
         <view class="wk-parse-row">
           <view class="wk-parse-btn" @click="doParse">
             <text v-if="!popup.parsing">解析链接</text>
             <text v-else>解析中…</text>
           </view>
-          <view class="wk-help-btn" @click="showLinkHelp">帮助</view>
+          <view class="wk-help-btn" @click="showLinkHelp">说明</view>
         </view>
-      </block>
-
-      <!-- 手动填 ID 模式 -->
-      <block v-else>
-        <view class="wk-hint">
-          <text class="wk-hint-t">ID 获取：视频号助手 → 首页复制「视频号ID」（sph 开头）；内容管理 → 单条视频复制 feedId</text>
-          <text class="wk-help-btn wk-help-btn--inline" @click="showIdHelp">查看图文教程</text>
-        </view>
-        <input class="wk-id-input" v-model="popup.finder" placeholder="finderUserName（视频号ID，sph 开头）" placeholder-class="ph" />
-        <input class="wk-id-input" v-model="popup.feed" placeholder="feedId（视频唯一标识）" placeholder-class="ph" />
       </block>
 
       <!-- 预览卡：既是「访客看到的封面」，也是 ID 回显（原 wk-parsed 独立块已并入，
@@ -150,14 +161,14 @@
     <view class="wk-help" v-if="help.show">
       <view class="wk-help-title">{{ helpTitle }}</view>
       <view class="wk-help-body">
-        <view class="wk-help-step" v-for="(s, i) in (help.tab === 'link' ? HELP_LINK : HELP_ID)" :key="i">
+        <view class="wk-help-step" v-for="(s, i) in HELP_STEPS" :key="i">
           <view class="wk-help-n">{{ i + 1 }}</view>
           <view class="wk-help-txt">
             <view class="wk-help-t">{{ s.t }}</view>
             <view class="wk-help-d">{{ s.d }}</view>
           </view>
         </view>
-        <view class="wk-help-warn" v-if="help.tab === 'link'">{{ HELP_LINK_WARN }}</view>
+        <view class="wk-help-warn">{{ help.tab === 'link' ? HELP_LINK_NOTE : HELP_WARN }}</view>
       </view>
       <view class="wk-help-btn" @click="closeHelp">知道了</view>
     </view>
@@ -241,7 +252,7 @@ function goUpgrade() {
 // ===== 添加弹窗 =====
 const popup = reactive({
   show: false,
-  mode: 'link',     // link=粘贴链接解析 / id=手动填写
+  mode: 'id',       // id=手动填 ID（默认，唯一合规路径）/ link=粘贴带明文参数的链接（次要）
   link: '',
   finder: '',
   feed: '',
@@ -260,7 +271,7 @@ function openPopup() {
     return;
   }
   popup.show = true;
-  popup.mode = 'link';
+  popup.mode = 'id';   // 默认给手动填 ID：链接解析对微信 sph 短链无效（见弹窗顶部注释）
   popup.link = '';
   popup.finder = '';
   popup.feed = '';
@@ -274,22 +285,25 @@ function closePopup() {
   popup.show = false;
 }
 
-// ===== 获取链接/ID 的教程（2026-10-19 用户报「分享链接从哪获取」）=====
-// 自绘浮层而非 uni.showModal：showModal 的 content 在小程序端会截断长文本，
-// 教程必须完整可读。z-index 高于添加弹窗（--z-popup + 10），DOM 在其后保证压住。
-const help = reactive({ show: false, tab: 'link' });
-const HELP_LINK = [
-  { t: '第 1 步：打开要添加的那条视频', d: '微信里进入你的视频号主页 → 点开目标视频。' },
-  { t: '第 2 步：复制链接', d: '视频右下角「···」→ 分享 → 复制链接。' },
-  { t: '第 3 步：回来粘贴并解析', d: '粘贴到上方输入框 → 点「解析链接」，成功后会自动填好 ID。' },
+// ===== 获取 ID 的教程 =====
+// 🔴 2026-10-19 修正：上一版教程把 weixin.qq.com/sph/ 短链说成「主页链接、不能用」，
+// 是错的。实测该形态 301 → channels.weixin.qq.com/finder-preview/pages/sph?id=xxx，
+// 落地页无 feedId/finderUserName（0 命中），它是微信 2026 改版后的**统一加密短链**，
+// 分享任何单条视频都长这样，短码是路由密文不是 ID。
+// openChannelsActivity 的两值，官方唯一合规来源就是视频号助手，故教程只讲助手路径。
+// 帮助浮层状态：自绘而非 uni.showModal —— showModal 的 content 在小程序端会截断长文本，
+// 教程必须完整可读。DOM 在添加弹窗之后 → 同用 --z-popup 天然压住上一层。
+const help = reactive({ show: false, tab: 'id' });
+const HELP_STEPS = [
+  { t: '第 1 步：电脑上打开视频号助手', d: '浏览器访问 channels.weixin.qq.com，用该视频号的管理员微信扫码登录。' },
+  { t: '第 2 步：复制视频号ID', d: '登录后首页顶部会直接显示「视频号ID」，形如 sph4cDqEd8vU0AB，复制它 → 填入第一个输入框。' },
+  { t: '第 3 步：复制作品ID', d: '进入「内容管理」→ 找到要添加的那条作品 → 点右侧「···」→ 复制视频ID（feedId）→ 填入第二个输入框。' },
+  { t: '第 4 步：回本页保存', d: '两个都填好后可先点「测试预览」验证能正常跳转，再点底部「保存到名片」。' },
 ];
-const HELP_LINK_WARN = '一定要复制「单条视频」的链接，不能复制视频号主页链接（形如 weixin.qq.com/sph/xxxx）。主页链接指向整个号、不含具体视频，平台无法定位要跳转的那一条。';
-const HELP_ID = [
-  { t: 'finderUserName（视频号ID，sph 开头）', d: '电脑端打开「视频号助手」→ 登录 → 首页顶部的「视频号ID」，形如 sph4cDqEd8vU0AB。' },
-  { t: 'feedId（单条视频标识）', d: '视频号助手 → 内容管理 → 点开目标视频 → 分享链接里 feedId 参数后面那串字符。' },
-];
+const HELP_WARN = '为什么不能直接粘贴微信里的分享链接？\n\n微信现在分享单条视频复制到的是 weixin.qq.com/sph/ 开头的加密短链，它是跳转路由、不含作品 ID，平台无法从中定位到具体作品。请按上面四步到视频号助手获取，这是微信官方文档给出的唯一途径。';
+const HELP_LINK_NOTE = '这个入口只支持带 finderUserName 与 feedId 明文参数的链接（例如视频号助手网页端复制的作品地址）。\n\n微信里「分享 → 复制链接」得到的是 sph 加密短链，解析不出作品，请改用「填写视频号 ID」标签页——那里有图文教程。';
 
-const helpTitle = computed(() => (help.tab === 'link' ? '如何获取视频号分享链接' : '如何获取视频号 ID'));
+const helpTitle = computed(() => (help.tab === 'link' ? '关于链接解析' : '如何获取视频号 ID'));
 
 function showLinkHelp() {
   help.show = true;
@@ -305,12 +319,19 @@ function closeHelp() {
   help.show = false;
 }
 
-// 链接解析：失败自动切手动模式兜底（开发文档 3.2 降级链）；
-// 主页短链（/sph/xxxx）单独引导——它拿不到具体视频，需用户复制「单条视频」的分享链接
+// 链接解析：只对带 finderUserName/feedId 明文参数的链接有效。
+// 微信 sph 加密短链由服务端识别为 channelHomeLink（见 card.js parseChannelLink），
+// 失败一律回落到手动填 ID 并给出「为什么不行」的解释，不再让用户以为是操作错了。
 async function doParse() {
   const link = String(popup.link || '').trim();
   if (!link) {
-    uni.showToast({ title: '请先粘贴分享链接', icon: 'none' });
+    uni.showToast({ title: '请先粘贴链接', icon: 'none' });
+    return;
+  }
+  // 前端先拦最常见的一类：微信 sph 短链，服务端也会拦，这里省一次往返并给更准的话术
+  if (/\/sph\/[A-Za-z0-9_-]+/.test(link)) {
+    popup.mode = 'id';
+    uni.showModal({ title: '微信分享链接已加密', content: HELP_WARN, showCancel: false, confirmText: '看教程' });
     return;
   }
   popup.parsing = true;
@@ -322,7 +343,7 @@ async function doParse() {
   } catch (e) {
     popup.mode = 'id';
     if (e.data && e.data.code === 'channelHomeLink') {
-      uni.showModal({ title: '这是视频号主页链接', content: e.message, showCancel: false });
+      uni.showModal({ title: '该链接无法解析', content: e.message, showCancel: false, confirmText: '看教程' });
     } else {
       uni.showToast({ title: e.message || '解析失败，请手动填写ID', icon: 'none' });
     }
@@ -557,6 +578,8 @@ onMounted(() => {
   background: var(--bg-card); border-radius: var(--radius-xs); padding: 16rpx 20rpx;
 }
 .wk-hint-t { display: block; }
+/* 警示态：链接模式置顶说明「sph 短链无法解析」，避免用户误以为粘贴分享链接是主路径 */
+.wk-hint--warn { background: rgba(255, 138, 0, 0.08); color: var(--t1); }
 /* 解析行：主按钮撑满 + 右侧「帮助」（2026-10-19 用户要求在解析链接后加帮助按钮） */
 .wk-parse-row { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; }
 .wk-parse-btn {

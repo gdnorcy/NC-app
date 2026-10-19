@@ -30,8 +30,30 @@ describe('videosEdit.vue · ①解析按钮与输入框的间距', () => {
   });
 });
 
-describe('videosEdit.vue · ②帮助按钮 + 教程', () => {
-  test('解析链接按钮旁有「帮助」入口，两种模式都能打开教程', () => {
+describe('videosEdit.vue · 默认入口是「填写视频号 ID」（2026-10-19 方向修正）', () => {
+  test('默认 mode 为 id，标签顺序也是 ID 在前', () => {
+    expect(vid).toMatch(/const popup = reactive\(\{[\s\S]*?mode:\s*'id',/);
+    expect(vid).toMatch(/popup\.mode = 'id';\s*\/\/ 默认给手动填 ID/);
+    const idxId = vid.indexOf("@click=\"popup.mode = 'id'\">填写视频号 ID");
+    const idxLink = vid.indexOf("@click=\"popup.mode = 'link'\">粘贴链接");
+    expect(idxId).toBeGreaterThan(-1);
+    expect(idxLink).toBeGreaterThan(idxId);
+  });
+
+  test('🔴 链接模式必须前置警告「sph 短链无法解析」', () => {
+    // 否则用户会以为「粘贴链接」是主路径，反复粘贴分享短链失败
+    expect(vid).toContain('wk-hint--warn');
+    expect(vid).toMatch(/weixin\.qq\.com\/sph\/ 短链是加密链接，无法解析出作品/);
+  });
+
+  test('前端对 sph 短链先行拦截（省一次往返 + 更准话术）', () => {
+    expect(vid).toContain("if (/\\/sph\\/[A-Za-z0-9_-]+/.test(link)) {");
+    expect(vid).toContain('微信分享链接已加密');
+  });
+});
+
+describe('videosEdit.vue · ②帮助教程（2026-10-19 事实修正）', () => {
+  test('解析链接旁有「说明」入口，手动填 ID 有「图文教程」入口', () => {
     expect(vid).toContain('@click="showLinkHelp"');
     expect(vid).toContain('@click="showIdHelp"');
     expect(vid).toMatch(/function showLinkHelp\(\)\s*\{\s*help\.show = true;/);
@@ -45,10 +67,18 @@ describe('videosEdit.vue · ②帮助按钮 + 教程', () => {
     expect(vid).not.toMatch(/z-index:\s*calc\(/);
   });
 
-  test('教程含关键区分：单条视频链接 vs 主页短链', () => {
-    expect(vid).toContain('HELP_LINK_WARN');
-    expect(vid).toContain('单条视频');
-    expect(vid).toContain('weixin.qq.com/sph/xxxx');
+  test('🔴 教程不得再把 sph 短链称作「主页链接」或让用户去复制它', () => {
+    // 事实：sph 是微信 2026 改版后的统一加密短链（分享任何单条视频都是），
+    // 落地页 0 命中 feedId，服务端无法反解。旧文案会让用户永远找不到「该复制的链接」。
+    expect(vid).toContain('加密');
+    expect(vid).toContain('视频号助手');
+    expect(vid).not.toMatch(/不能复制视频号主页链接/);
+    expect(vid).not.toMatch(/一定要复制「单条视频」的链接/);
+  });
+
+  test('教程第一步是打开视频号助手（合规唯一来源）', () => {
+    expect(vid).toContain('channels.weixin.qq.com');
+    expect(vid).toContain('内容管理');
   });
 });
 

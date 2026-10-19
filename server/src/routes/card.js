@@ -73,6 +73,10 @@ function parseChannelLink(link) {
   const text = String(link || '').trim();
   if (!text) return null;
   const hasParams = /finderUserName=/.test(text) || /feedId=/.test(text);
+  // 🔴 weixin.qq.com/sph/xxxx 不是「视频号主页链接」，而是微信 2026 改版后的**统一加密短链**
+  // （分享任何单条视频都长这样）。实测 301 → channels.weixin.qq.com/finder-preview/pages/sph?id=xxx，
+  // 落地页无 feedId/finderUserName（0 命中），短码是路由密文，服务端无法反解出作品。
+  // 不要再引导用户「去复制单条视频链接」——那就是这个形态，改版后已不存在明文参数链接。
   if (!hasParams && /\/sph\/[A-Za-z0-9_-]{4,32}/.test(text)) {
     return { channelHome: true };
   }
@@ -856,12 +860,12 @@ export function createCardRouter(db, wxService) {
     try {
       const parsed = parseChannelLink(req.body && req.body.link);
       if (!parsed) {
-        return res.status(400).json({ error: '解析失败，请手动填写 finderUserName 与 feedId', code: 'parseFail' });
+        return res.status(400).json({ error: '无法从链接中提取视频号ID与作品ID，请改用「填写视频号 ID」（视频号助手获取）', code: 'parseFail' });
       }
-      // 主页分享短链：只有主页ID，拿不到具体视频（开发文档 8.3 边界场景：分类错误提示）
+      // 微信 sph 加密短链：短码是路由密文，无法反解（2026-10-19 实测核实，勿再写「主页链接」）
       if (parsed.channelHome) {
         return res.status(400).json({
-          error: '识别到视频号主页链接，但无法从中获取具体视频。请打开要添加的那条视频 → 分享 → 复制链接；或到视频号助手获取视频号ID（sph 开头）与视频 feedId',
+          error: '微信现在分享复制到的是 weixin.qq.com/sph/ 开头的加密短链，它只用于跳转、不含作品ID，无法解析。请到「视频号助手」获取：首页复制视频号ID（sph开头），内容管理里复制作品的feedId',
           code: 'channelHomeLink',
         });
       }
