@@ -55,10 +55,14 @@
 ## 杂项
 - schema 说明是 `tips` 复数；macOS grep 用 `-E`；CSS token 源 token.scss。
 - 集市两套状态：开关=`card_market_items`，is_public=可见性派生；单一来源 `utils/marketLink.js`。超级表单见 refs/decoration-form.md。
-- 🔴 名片归属/身份 SQL（`customer.js` 的 `TENANT_CARD_SCOPE_SQL`/`CARD_IDENTITY_SQL`）
-  查 `tenant_enterprises` **必带 `status='active'`**（②企业名片③成员挂靠两通道 + overview/
-  customers 口径，共 6 处）。能力真值是名册表（`tenant_individuals`/`tenant_enterprise_employees`
-  active），identity 枚举只是派生展示——新增能力判定读名册，勿读 identity。
+- 🔴 名片身份单一事实来源 `services/cardIdentity.js`（2026-10-20 重构 A+B+C）：
+  identity 四值 employee/individual/enterprise/personal（「挂靠成员/租户名片」两类已取消，
+  账号挂靠企业并入 personal）；能力判据只读名册（tenant_individuals/employees active），
+  **不读 identity**；交换对所有人开放（防骚扰走频控，禁在这里补身份门禁）。
+  查 tenant_enterprises 必带 status='active'。`/card/manage` subject 默认 person（企业名片显式切换）。
+- 🔴 分支纪律：源码提交落 **main**，deploy 只做 `merge --no-ff main` + 重建产物提交；
+  上次部署后记得 `git checkout main`。误提交到 deploy 的纠正：main 上
+  `git checkout <误提交> -- server/src server/test web-admin/src`（server/test 不在 src 下，易漏）。
 - 🔴 server 全量单进程 `node --test` 会被 OOM kill（exit 137）：用 `awk 'NR%4==n'` 分 4 批跑；
   macOS `split` 无 `-n l/4`。
 
