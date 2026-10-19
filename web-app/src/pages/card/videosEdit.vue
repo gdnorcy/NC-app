@@ -370,7 +370,11 @@ function testPreview(finder, feed) {
   wx.openChannelsActivity({
     finderUserName: finder,
     feedId: feed,
-    fail: () => uni.showToast({ title: '视频不存在或已被删除', icon: 'none' }),
+    fail: (err) => {
+      // 取消预览（看了就返回）不是失败，不提示
+      if (err && err.errMsg && /cancel/i.test(String(err.errMsg))) return;
+      uni.showToast({ title: '视频不存在或已被删除', icon: 'none' });
+    },
   });
   // #endif
   // #ifndef MP-WEIXIN

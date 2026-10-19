@@ -15,6 +15,8 @@ const here = import.meta.url;
 const vid = readFileSync(fileURLToPath(new URL('./videosEdit.vue', here)), 'utf8');
 const create = readFileSync(fileURLToPath(new URL('./create.vue', here)), 'utf8');
 const profile = readFileSync(fileURLToPath(new URL('./profile.vue', here)), 'utf8');
+const cd = readFileSync(fileURLToPath(new URL('./cardDetail.vue', here)), 'utf8');
+const dp = readFileSync(fileURLToPath(new URL('../../components/DesignPage.vue', here)), 'utf8');
 
 describe('videosEdit.vue · ①解析按钮与输入框的间距', () => {
   test('解析按钮在独立的 .wk-parse-row 容器里，与 textarea 之间有间距', () => {
@@ -92,6 +94,45 @@ describe('videosEdit.vue · ②帮助教程（2026-10-19 事实修正）', () =>
     expect(steps).toContain('不用电脑');
     // 作品ID 仍只在助手拿，教程要如实区分，不能统称「两个都能手机拿」
     expect(steps).toMatch(/作品ID 只有这里能拿|复制视频ID/);
+  });
+});
+
+describe('视频号唤起 · 取消不算失败（2026-10-20 用户反馈）', () => {
+  // 🔴 用户打开视频号后主动返回也走 fail（errMsg 含 cancel），
+  // 旧代码一律弹「打开失败，请确认小程序已关联视频号」——取消是正常路径。
+  // 护栏钉法：每处 wx.openChannels* 的 fail 回调都必须先拦 /cancel/i 再谈失败。
+  const CANCEL_GUARD = /\/cancel\/i\.test\(String\(err\.errMsg\)\)\) return;/;
+
+  test('cardDetail.vue 两处（主页入口 + 具体视频）都先拦 cancel', () => {
+    const fails = cd.match(/fail: \(err\) => \{[\s\S]*?\n      \},/g) || [];
+    const guards = cd.match(/\/cancel\/i\.test\(String\(err\.errMsg\)\)/g) || [];
+    // 两处 openChannels* fail：openVideo（主页）+ openChannelVideo（视频卡片）
+    expect(guards.length).toBeGreaterThanOrEqual(2);
+    expect(CANCEL_GUARD.test(cd)).toBe(true);
+  });
+
+  test('DesignPage.vue 装修组件的 openChannel fail 也先拦 cancel', () => {
+    expect(dp).toMatch(/\/cancel\/i\.test\(String\(err\.errMsg\)\)/);
+    expect(dp).toContain('取消是正常路径');
+  });
+
+  test('videosEdit.vue 测试预览的 fail 同样不把取消当失败', () => {
+    expect(vid).toMatch(/取消预览（看了就返回）不是失败/);
+    expect(vid).toMatch(/\/cancel\/i\.test\(String\(err\.errMsg\)\)/);
+  });
+});
+
+describe('cardDetail.vue · 导航无坐标时引导主人去补坐标（2026-10-20）', () => {
+  test('🔴 降级分支区分主人/访客：主人弹引导跳编辑页，访客才复制地址', () => {
+    // 旧代码无坐标一律复制地址 → 主人自己测试时「导航还是复制地址」，体验像坏的。
+    // 真因是名片没落库经纬度（openLocation 必须坐标），主人补一次即永久直开地图。
+    const nav = cd.match(/function navigateTo\(\) \{[\s\S]*?\n\}/);
+    expect(nav).toBeTruthy();
+    expect(nav[0]).toContain('isRealMine.value');
+    expect(nav[0]).toContain('名片还没设置位置');
+    expect(nav[0]).toMatch(/\/pages\/card\/create\?id=/);
+    // 访客降级复制仍保留
+    expect(nav[0]).toContain('地址已复制');
   });
 });
 

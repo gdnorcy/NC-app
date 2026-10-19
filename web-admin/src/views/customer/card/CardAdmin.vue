@@ -88,6 +88,7 @@
               <td>{{ formatDate(emp.createdAt) }}</td>
               <td>
                 <button class="link-btn" @click="previewCard(emp)">预览名片</button>
+                <button class="link-btn" style="margin-left:12px;" @click="openEdit(emp)">编辑</button>
               </td>
             </tr>
             <tr v-if="employees.length === 0">
@@ -97,6 +98,9 @@
         </table>
       </div>
     </div>
+
+    <!-- 代编辑名片弹窗：与「名片管理」页共用同一组件与同一接口 -->
+    <CardEditDialog v-model="editVisible" :card-id="editId" @saved="loadEmployees" />
   </div>
 </template>
 
@@ -107,6 +111,7 @@ import { useRouter } from 'vue-router';
 import { customerApiCall } from '../../../api';
 import SIcon from '../../../components/SIcon.vue';
 import CardTabs from '../apps/card/CardTabs.vue';
+import CardEditDialog from '../apps/card/CardEditDialog.vue';
 
 const router = useRouter();
 const overview = ref({});
@@ -144,6 +149,14 @@ function previewCard(emp) {
   // 新窗口打开 H5 名片预览
   const base = window.location.origin;
   window.open(`${base}/card/#/pages/card/myCard?id=${emp.id}`, '_blank');
+}
+
+// 代编辑名片
+const editVisible = ref(false);
+const editId = ref('');
+function openEdit(emp) {
+  editId.value = emp.id;
+  editVisible.value = true;
 }
 
 onMounted(() => {

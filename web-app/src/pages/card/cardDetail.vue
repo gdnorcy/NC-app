@@ -782,7 +782,9 @@ function copyWechat() {
 }
 // 导航：优先用名片落库的经纬度唤起**手机里的地图软件**（uni.openLocation → 系统/已装地图 App
 // 选一个，自带「导航」按钮，不是网页地图）。坐标由主人在创建/编辑名片时用地图选点写入。
-// 🔴 没有真实坐标时才降级复制地址（老名片迁移前没有位置字段，不能直接报「未设置位置」）。
+// 🔴 没有真实坐标时才降级（老名片迁移前没有位置字段）。2026-10-20 用户反馈「导航还是复制地址」
+// ——根因就是名片没坐标。两种人分开处理：主人本人 → 弹引导去补坐标（一次设置永久直开地图）；
+// 访客 → 复制地址（访客侧无法凭空变出坐标）。
 function navigateTo() {
   const lat = Number(card.value.latitude);
   const lng = Number(card.value.longitude);
@@ -799,6 +801,17 @@ function navigateTo() {
   const addr = [card.value.city, card.value.address, card.value.businessField || card.value.company].filter(Boolean).join(' · ');
   if (!addr) {
     uni.showToast({ title: '名片暂未提供地址', icon: 'none' });
+    return;
+  }
+  if (isRealMine.value) {
+    uni.showModal({
+      title: '名片还没设置位置',
+      content: '设置位置坐标后，访客点「导航」可直接唤起手机地图导航，不用再复制地址。现在去设置吗？',
+      confirmText: '去设置',
+      success: (r) => {
+        if (r.confirm) uni.navigateTo({ url: `/pages/card/create?id=${card.value.id}` });
+      },
+    });
     return;
   }
   uni.setClipboardData({
@@ -980,6 +993,9 @@ function openVideo() {
       complete: () => uni.hideLoading(),
       fail: (err) => {
         uni.hideLoading();
+        // 🔴 2026-10-20 用户反馈：打开视频号后主动返回，也走 fail（errMsg 含 cancel），
+        // 被当成「打开失败，请确认小程序已关联视频号」弹窗——取消是正常操作，静默即可。
+        if (err && err.errMsg && /cancel/i.test(String(err.errMsg))) return;
         uni.showModal({
           title: '提示',
           content: err && err.errMsg && String(err.errMsg).indexOf('not exist') > -1
@@ -1012,6 +1028,8 @@ function openChannelVideo(v) {
       finderUserName: v.finderUserName,
       feedId: v.feedId,
       fail: (err) => {
+        // 取消观看也是正常路径，不弹「打开失败」（同 openVideo 的 cancel 处理）
+        if (err && err.errMsg && /cancel/i.test(String(err.errMsg))) return;
         uni.showModal({
           title: '提示',
           content: err && err.errMsg && String(err.errMsg).indexOf('not exist') > -1

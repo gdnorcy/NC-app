@@ -123,9 +123,10 @@
         <el-table-column label="创建时间" width="120">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" size="small" link @click="previewCard(row)">预览</el-button>
+            <el-button type="primary" size="small" link @click="openEdit(row)">编辑</el-button>
             <template v-if="row.marketStatus === 'pending'">
               <el-button type="success" size="small" link @click="auditItem(row, 'approve')">通过</el-button>
               <el-button type="danger" size="small" link @click="auditItem(row, 'reject')">拒绝</el-button>
@@ -152,6 +153,9 @@
         />
       </div>
     </div>
+
+    <!-- 代编辑名片弹窗：与「员工名片」页共用同一组件与同一接口 -->
+    <CardEditDialog v-model="editVisible" :card-id="editId" @saved="loadCards" />
   </div>
 </template>
 
@@ -162,6 +166,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
 import { customerApiCall, publicApi } from '../../../../api';
 import CardTabs from './CardTabs.vue';
+import CardEditDialog from './CardEditDialog.vue';
 
 const cards = ref([]);
 const total = ref(0);
@@ -230,6 +235,14 @@ function onPageChange(p) {
 function previewCard(row) {
   const base = window.location.origin;
   window.open(`${base}/card/#/pages/card/myCard?id=${row.id}`, '_blank');
+}
+
+// 代编辑名片
+const editVisible = ref(false);
+const editId = ref('');
+function openEdit(row) {
+  editId.value = row.id;
+  editVisible.value = true;
 }
 
 async function auditItem(row, action) {

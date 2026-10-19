@@ -1170,6 +1170,64 @@ router.get('/card/manage', requireTenant, (req, res) => {
   })), total, stats, page: Number(page), pageSize: Number(pageSize) });
 });
 
+// 名片详情（后台编辑弹窗回填用）：租户作用域内单条全字段。
+// 列表接口（上面）只回展示字段，编辑表单需要 wechat/email/bio/slogan/address 等，单独拉。
+router.get('/card/manage/:id', requireTenant, (req, res) => {
+  const cid = req.customerId;
+  const card = db.prepare(
+    `SELECT c.* FROM card_profile c WHERE c.id = ? AND c.status = 'active' AND (${TENANT_CARD_SCOPE_SQL})`
+  ).get(req.params.id, ...tenantCardScopeParams(cid));
+  if (!card) return res.status(404).json({ error: '名片不存在或不属于本租户' });
+  res.json({ card: {
+    id: card.id, name: card.name, position: card.position, company: card.company,
+    phone: card.phone, wechat: card.wechat, email: card.email, city: card.city,
+    industry: card.industry, bio: card.bio, slogan: card.slogan, address: card.address,
+    videoChannel: card.video_channel, isPublic: !!card.is_public,
+    latitude: card.latitude, longitude: card.longitude,
+  } });
+});
+
+// 租户管理员代编辑名片（后台「名片管理 / 员工名片」→ 编辑）。
+// 🔴 与用户自编辑（card.js PUT /cards/:id）刻意分离：这里是管理动作，
+// 不做会员门禁（自定义作品标签/模板校验都是「用户能力」，管理员代改不适用），
+// 只开放基础资料字段；头像/作品/视频列表等多媒体内容仍归主人自己维护。
+// 租户作用域校验与列表同一套 SQL，防止跨租户改别人的名片。
+router.put('/card/manage/:id', requireTenant, (req, res) => {
+  const cid = req.customerId;
+  const card = db.prepare(
+    `SELECT c.* FROM card_profile c WHERE c.id = ? AND c.status = 'active' AND (${TENANT_CARD_SCOPE_SQL})`
+  ).get(req.params.id, ...tenantCardScopeParams(cid));
+  if (!card) return res.status(404).json({ error: '名片不存在或不属于本租户' });
+  const b = req.body || {};
+  const strFields = {
+    name: 'name', position: 'position', company: 'company', phone: 'phone',
+    wechat: 'wechat', email: 'email', city: 'city', industry: 'industry',
+    bio: 'bio', slogan: 'slogan', address: 'address', videoChannel: 'video_channel',
+  };
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries(strFields)) {
+    if (b[k] !== undefined) { sets.push(`${col} = ?`); params.push(String(b[k] ?? '').slice(0, 2000)); }
+  }
+  if (b.isPublic !== undefined) { sets.push('is_public = ?'); params.push(b.isPublic ? 1 : 0); }
+  // 经纬度：必须成对提供且合法才写——只写一个会把「导航」从可用改成坏（openLocation 需要两个都有效）
+  if (b.latitude !== undefined && b.longitude !== undefined) {
+    const lat = Number(b.latitude);
+    const lng = Number(b.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) {
+      sets.push('latitude = ?, longitude = ?');
+      params.push(lat, lng);
+    }
+  }
+  if (!sets.length) return res.status(400).json({ error: '没有可更新的字段' });
+  db.prepare(`UPDATE card_profile SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ?`).run(...params, card.id);
+  const updated = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(card.id);
+  res.json({ ok: true, card: {
+    id: updated.id, name: updated.name, position: updated.position,
+    company: updated.company, phone: updated.phone, updatedAt: updated.updated_at,
+  } });
+});
+
 // 企业客户列表
 router.get('/card/customers', requireTenant, (req, res) => {
   const cid = req.customerId;

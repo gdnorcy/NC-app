@@ -148,8 +148,10 @@ describe('操作栏八格都是真动作（2026-10-22 用户明确：不要假�
     expect(src).toMatch(/<text class="ag-t">存通讯录<\/text>/);
   });
 
-  test('导航：有经纬度走 uni.openLocation 唤起地图 App，无走向为大家熟悉的复制地址降级', () => {
-    const body = src.slice(src.indexOf('function navigateTo('), src.indexOf('function navigateTo(') + 900);
+  test('导航：有经纬度走 uni.openLocation 唤起地图 App；无坐标时主人弹引导去补、访客降级复制', () => {
+    // 🔴 截取到下一个函数为止（旧版写死 +900 字符，函数加长后尾部断言会假红）
+    const navStart = src.indexOf('function navigateTo(');
+    const body = src.slice(navStart, src.indexOf('function previewWork(', navStart));
     expect(body).toMatch(/uni\.openLocation\(\{/);
     expect(body).toMatch(/latitude:\s*lat/);
     expect(body).toMatch(/longitude:\s*lng/);
@@ -159,6 +161,11 @@ describe('操作栏八格都是真动作（2026-10-22 用户明确：不要假�
     // 🔴 非数字坐标在 MP 是静默失败（点了没反应），不能放行
     expect(body).toMatch(/Number\.isFinite\(lat\) && Number\.isFinite\(lng\)/);
     expect(body).toMatch(/uni\.setClipboardData/);
+    // 2026-10-20 用户反馈「导航还是复制地址」：根因是名片没坐标。
+    // 主人本人点导航 → 引导去编辑页补坐标（一次设置永久直开地图）；访客才复制地址。
+    expect(body).toMatch(/isRealMine\.value/);
+    expect(body).toMatch(/名片还没设置位置/);
+    expect(body).toMatch(/\/pages\/card\/create\?id=/);
   });
 
   test('保存到通讯录：MP 走 uni.addPhoneContact，H5 降级复制名片文本', () => {
@@ -177,11 +184,15 @@ describe('操作栏八格都是真动作（2026-10-22 用户明确：不要假�
   });
 
   test('视频号：MP 走 wx.openChannelsUserProfile 真跳转，失败给真原因', () => {
-    const body = src.slice(src.indexOf('function openVideo('), src.indexOf('function openVideo(') + 700);
+    // 🔴 截到下一个函数为止（写死宽度在 fail 回调加 cancel 守卫后会假红）
+    const ovStart = src.indexOf('function openVideo(');
+    const body = src.slice(ovStart, src.indexOf('function copyVideoChannelId(', ovStart));
     expect(body).toMatch(/wx\.openChannelsUserProfile/);
     expect(body).toMatch(/finderUserName:\s*ch/);
     expect(body).not.toMatch(/跳转视频号/);
     expect(body).toMatch(/视频号不存在/);
+    // 取消（看一眼就返回）不算失败，静默返回
+    expect(body).toMatch(/\/cancel\/i\.test\(String\(err\.errMsg\)\)/);
   });
 
   test('交换名片与收藏是两件事（语义写进代码注释，防止再被合成一格）', () => {

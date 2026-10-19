@@ -1836,6 +1836,9 @@ function openChannel(kind, p) {
       success: () => uni.hideLoading(),
       fail: (err) => {
         uni.hideLoading();
+        // 🔴 用户在视频号页主动返回也走 fail（cancel），取消是正常路径，静默即可
+        //（2026-10-20 用户反馈：看一眼就退出却弹「打开失败」，体验不合理）
+        if (err && err.errMsg && /cancel/i.test(String(err.errMsg))) return;
         const msg = err && err.errMsg && err.errMsg.indexOf('not exist') > -1
           ? '视频号不存在，请检查视频号ID是否正确'
           : '打开失败，请确认小程序已关联视频号';
