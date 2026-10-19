@@ -293,3 +293,59 @@ test('名片管理：keyword 搜索与员工名片一致', async () => {
   assert.equal(res.body.total, 2);
   assert.deepEqual(res.body.cards.map((c) => c.name).sort(), ['企业员工丙', '企业成员甲']);
 });
+
+// ============================================================
+// 停用企业（影子企业治理 SQL 兜底，2026-10-20）
+// 背景：登录兜底曾自动建「H5演示用户_<userId>」企业并挂靠账号。
+// 数据层已 cleanupDemoEnterprises 止血，但归属/身份 SQL 若不过滤
+// tenant_enterprises.status，理论上停用企业仍能提供 ②③ 两条归属通道。
+// ============================================================
+test('停用企业不再提供归属通道：列表/统计/客户/身份全收口', async () => {
+  // 造一家已停用企业 + 只靠它进入租户视野的数据（customer_id 置 NULL 隔离其他通道）
+  const entDead = db.prepare("INSERT INTO tenant_enterprises (customer_id, name, status) VALUES (1, '已停用企业', 'disabled')").run().lastInsertRowid;
+  const uEntCard = db.prepare("INSERT INTO platform_user (openid, nickname, status) VALUES ('scope_dead_ent', '停用企业名片作者', 'active')").run().lastInsertRowid;
+  const uBound = db.prepare("INSERT INTO platform_user (openid, nickname, status) VALUES ('scope_dead_bound', '停用企业成员', 'active')").run().lastInsertRowid;
+  db.prepare('UPDATE platform_user SET enterprise_id = ? WHERE id = ?').run(entDead, uBound);
+  const cardEnt = db.prepare(`INSERT INTO card_profile (user_id, enterprise_id, name, status, is_public)
+    VALUES (?, ?, '停用企业名片', 'active', 1)`).run(uEntCard, entDead).lastInsertRowid;
+  const cardBound = db.prepare(`INSERT INTO card_profile (user_id, name, status, is_public)
+    VALUES (?, '停用企业成员名片', 'active', 1)`).run(uBound).lastInsertRowid;
+  db.prepare('INSERT INTO card_customer (enterprise_id, owner_user_id, name, phone) VALUES (?, ?, ?, ?)')
+    .run(entDead, uEntCard, '停用企业客户', '13800006666');
+
+  try {
+    // ② 通道（企业名片）与 ③ 通道（成员名片）都不应出现在任何租户列表
+    const list = await request(app).get('/api/customer/card/employees?pageSize=100').set(bearer(adm1));
+    assert.equal(list.status, 200);
+    assert.ok(!list.body.cards.some((c) => c.name === '停用企业名片'), '② 通道：停用企业的企业名片不应出现');
+    assert.ok(!list.body.cards.some((c) => c.name === '停用企业成员名片'), '③ 通道：停用企业的成员名片不应出现');
+    assert.equal(list.body.total, 5);
+
+    const manage = await request(app).get('/api/customer/card/manage?pageSize=100').set(bearer(adm1));
+    assert.ok(!manage.body.cards.some((c) => c.name === '停用企业名片'));
+    assert.ok(!manage.body.cards.some((c) => c.name === '停用企业成员名片'));
+    assert.equal(manage.body.stats.cardCount, 5, '统计卡不受停用企业数据影响');
+
+    // 概览：成员数与客户数都不应掺入停用企业口径
+    const ov = await request(app).get('/api/customer/card/overview').set(bearer(adm1));
+    assert.equal(ov.body.employeeCount, 6, '停用企业的挂靠用户不计入企业成员');
+    assert.equal(ov.body.customerCount, 2, '停用企业口径客户不计入');
+
+    // 客户列表：enterprise_id 指向停用企业时不可见
+    const cust = await request(app).get('/api/customer/card/customers?pageSize=50').set(bearer(adm1));
+    assert.equal(cust.body.total, 2);
+    assert.ok(!cust.body.customers.some((c) => c.name === '停用企业客户'), '停用企业口径客户不应出现');
+
+    // 身份兜底：名片显式补 customer_id=1 后可见，但身份不得再落 enterprise/ent_member
+    db.prepare('UPDATE card_profile SET customer_id = 1 WHERE id IN (?, ?)').run(cardEnt, cardBound);
+    const list2 = await request(app).get('/api/customer/card/manage?pageSize=100').set(bearer(adm1));
+    const byName = Object.fromEntries(list2.body.cards.map((c) => [c.name, c]));
+    assert.equal(byName['停用企业名片'].identity, 'tenant', '停用企业名片只能按租户直挂算');
+    assert.equal(byName['停用企业成员名片'].identity, 'tenant', '停用企业成员名片只能按租户直挂算');
+  } finally {
+    db.prepare('DELETE FROM card_profile WHERE id IN (?, ?)').run(cardEnt, cardBound);
+    db.prepare('DELETE FROM card_customer WHERE name = ?').run('停用企业客户');
+    db.prepare('DELETE FROM platform_user WHERE id IN (?, ?)').run(uEntCard, uBound);
+    db.prepare('DELETE FROM tenant_enterprises WHERE id = ?').run(entDead);
+  }
+});

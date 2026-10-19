@@ -154,15 +154,16 @@ function countTenantAdmins(customerId) {
 // 租户ID 的历史数据能命中，其余全部漏空。
 // 现在统一用「并集」判定一张名片是否属于本租户：
 //   ① card_profile.customer_id = 租户        （创建/申请时显式写入）
-//   ② card_profile.enterprise_id ∈ 本租户企业 （企业名片）
-//   ③ card_profile.user_id 的用户 enterprise_id ∈ 本租户企业（企业成员本人名片）
+//   ② card_profile.enterprise_id ∈ 本租户 active 企业 （企业名片）
+//   ③ card_profile.user_id 的用户 enterprise_id ∈ 本租户 active 企业（企业成员本人名片）
 //   ④ card_profile.user_id ∈ 入驻个人（tenant_individuals active）
 //   ⑤ card_profile.user_id ∈ 企业员工（tenant_enterprise_employees active）
+// 🔴 ②③ 必须过滤 tenant_enterprises.status='active'：影子企业/停用企业不得再提供归属通道
 // ============================================================
 const TENANT_CARD_SCOPE_SQL = `(
     c.customer_id = ?
-    OR c.enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)
-    OR c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?))
+    OR c.enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active')
+    OR c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active'))
     OR c.user_id IN (SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active')
     OR c.user_id IN (SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active')
   )`;
@@ -177,8 +178,8 @@ function tenantCardScopeParams(customerId) {
 const CARD_IDENTITY_SQL = `CASE
     WHEN c.user_id IN (SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active') THEN 'employee'
     WHEN c.user_id IN (SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active') THEN 'individual'
-    WHEN c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)) THEN 'ent_member'
-    WHEN c.enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?) THEN 'enterprise'
+    WHEN c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active')) THEN 'ent_member'
+    WHEN c.enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active') THEN 'enterprise'
     ELSE 'tenant'
   END`;
 
@@ -1052,14 +1053,15 @@ router.get('/card/overview', requireTenant, (req, res) => {
       SELECT id FROM platform_user WHERE customer_id = ?
       UNION SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active'
       UNION SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active'
-      UNION SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)
+      UNION SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active')
     )`).get(cid, cid, cid, cid).n;
   const cardCount = db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${scope} AND c.status = ?`).get(...sp, 'active').n;
   const totalViews = db.prepare(`SELECT COALESCE(SUM(c.view_count),0) AS s FROM card_profile c WHERE ${scope} AND c.status = ?`).get(...sp, 'active').s;
   const exchangeCount = db.prepare(`SELECT COALESCE(SUM(c.exchange_count),0) AS s FROM card_profile c WHERE ${scope} AND c.status = ?`).get(...sp, 'active').s;
   // 企业客户：customer_id 是租户归属（enterprise_id 全是 NULL，旧口径恒 0）
+  // 🔴 同名片口径：enterprise_id 仅认 active 企业，停用/影子企业不再提供归属
   const customerCount = db.prepare(`SELECT COUNT(*) AS n FROM card_customer WHERE customer_id = ?
-     OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)`).get(cid, cid).n;
+     OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active')`).get(cid, cid).n;
   res.json({ employeeCount, cardCount, totalViews, customerCount, exchangeCount });
 });
 
@@ -1236,8 +1238,8 @@ router.get('/card/customers', requireTenant, (req, res) => {
   const cid = req.customerId;
   const { page = 1, pageSize = 20, keyword = '', status = '' } = req.query;
   const offset = (page - 1) * pageSize;
-  // 同名片口径：customer_id 是租户归属，enterprise_id 仅作企业维度的补充
-  let where = 'WHERE (customer_id = ? OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?))';
+  // 同名片口径：customer_id 是租户归属，enterprise_id 仅作 active 企业的补充
+  let where = 'WHERE (customer_id = ? OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = \'active\'))';
   const params = [cid, cid];
   if (keyword) {
     where += ' AND (name LIKE ? OR company LIKE ? OR phone LIKE ?)';
@@ -1261,7 +1263,7 @@ router.get('/card/customers', requireTenant, (req, res) => {
 // 企业客户跟进记录（租户视角，仅本租户客户可见）
 router.get('/card/customers/:id/follows', requireTenant, (req, res) => {
   const cid = req.customerId;
-  const customer = db.prepare('SELECT id FROM card_customer WHERE id = ? AND (customer_id = ? OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?))').get(req.params.id, cid, cid);
+  const customer = db.prepare('SELECT id FROM card_customer WHERE id = ? AND (customer_id = ? OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = \'active\'))').get(req.params.id, cid, cid);
   if (!customer) return res.status(404).json({ error: '客户不存在' });
   const follows = db.prepare('SELECT * FROM card_customer_follow WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50').all(req.params.id);
   res.json({ follows: follows.map(f => ({
