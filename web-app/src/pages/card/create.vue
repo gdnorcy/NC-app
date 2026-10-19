@@ -23,7 +23,10 @@
 
     <!-- 卡片容器 -->
     <view class="cards-container">
-      <view class="card" :class="{ active: currentStep === 0, prev: currentStep > 0 }">
+      <!-- 编辑态（isEdit）不分步：所有卡片平铺同页，避免来回翻页（2026-10-19 用户反馈
+           「切来切去太麻烦」）。class 判定统一加 isEdit 短路，否则 .card:not(.active){display:none}
+           会把编辑态的后几张卡全部藏掉。 -->
+      <view class="card" :class="{ active: isEdit || currentStep === 0, prev: !isEdit && currentStep > 0 }">
         <view class="card-title">填写基本信息</view>
         <view class="card-desc">姓名、职位与城市，名片即刻预览</view>
 
@@ -73,7 +76,7 @@
 
       <!-- 卡片2：联系方式 -->
 
-      <view class="card" :class="{ active: currentStep === 1, prev: currentStep > 1 }">
+      <view class="card" :class="{ active: isEdit || currentStep === 1, prev: !isEdit && currentStep > 1 }">
         <view class="card-title">联系方式</view>
         <view class="card-desc">方便客户找到你</view>
 
@@ -119,7 +122,7 @@
       </view>
 
       <!-- 卡片3：名片配置 -->
-      <view class="card" :class="{ active: currentStep === 2, prev: currentStep > 2 }">
+      <view class="card" :class="{ active: isEdit || currentStep === 2, prev: !isEdit && currentStep > 2 }">
         <view v-if="!isEdit" class="card-title" style="margin-top: 20rpx;">选择名片类型</view>
         <view v-if="!isEdit" class="card-desc">个人也可以创建，无需企业账号</view>
 
@@ -187,7 +190,7 @@
       </view>
 
       <!-- 卡片4：发布设置（并入第2步确认发布） -->
-      <view class="card" :class="{ active: currentStep === 2, prev: currentStep > 2 }">
+      <view class="card" :class="{ active: isEdit || currentStep === 2, prev: !isEdit && currentStep > 2 }">
         <!-- 头像上传 -->
         <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
         <view class="avatar-row">
@@ -258,12 +261,20 @@
     <!-- 底部操作栏 -->
     <view class="footer">
       <view class="footer-btns">
-        <button v-if="currentStep > 0" class="btn-secondary" @click="prevStep">上一步</button>
-        <button v-if="currentStep === 1" class="btn-skip" @click="skipDetail">跳过</button>
-        <button v-if="currentStep < 2" class="btn-primary" @click="nextStep">{{ currentStep === 0 ? '下一步 · 填写联系方式' : '下一步 · 确认发布' }}</button>
-        <button v-if="currentStep === 2" class="btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? '提交中...' : (isEdit ? '保存修改' : '创建名片') }}
-        </button>
+        <!-- 编辑态不分步：只有「保存修改」一个动作，无上一步/下一步 -->
+        <template v-if="isEdit">
+          <button class="btn-primary" @click="submit" :disabled="submitting">
+            {{ submitting ? '提交中...' : '保存修改' }}
+          </button>
+        </template>
+        <template v-else>
+          <button v-if="currentStep > 0" class="btn-secondary" @click="prevStep">上一步</button>
+          <button v-if="currentStep === 1" class="btn-skip" @click="skipDetail">跳过</button>
+          <button v-if="currentStep < 2" class="btn-primary" @click="nextStep">{{ currentStep === 0 ? '下一步 · 填写联系方式' : '下一步 · 确认发布' }}</button>
+          <button v-if="currentStep === 2" class="btn-primary" @click="submit" :disabled="submitting">
+            {{ submitting ? '提交中...' : '创建名片' }}
+          </button>
+        </template>
       </view>
     </view>
   </view>

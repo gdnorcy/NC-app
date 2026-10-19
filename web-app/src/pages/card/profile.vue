@@ -43,7 +43,7 @@
           <view class="menu-label">我的名片</view>
           <view class="menu-arrow">›</view>
         </view>
-        <view class="menu-item" @click="goPage('/pages/card/create')">
+        <view class="menu-item" @click="goEditCard">
           <view class="menu-icon"><SIcon name="template" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">编辑名片</view>
           <view class="menu-arrow">›</view>
@@ -148,12 +148,18 @@ watch(() => user.value && user.value.avatar, () => { avatarError.value = false; 
 const isMember = ref(false);
 const memberLevel = ref('free');
 const stats = ref({ cardCount: 0, visitorCount: 0, customerCount: 0, exchangeCount: 0 });
+// 本人名片 id：/user/profile 已随 onMounted 拉回 res.card，「编辑名片」必须带 id 进编辑态
+// （2026-10-19 用户报「点编辑名片是新创建了一张名片？」——原菜单直接跳 create 无 id，
+//  落进新建向导；真编辑入口是 myCard:474 / home:606 的 create?id=xxx）
+const myCardId = ref(null);
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
 
-onShow(() => { trackPageView('/pages/card/profile'); });
-
-onMounted(async () => {
+// 资料加载放 onShow：从「编辑名片」页返回时昵称/头像/名片数要跟着刷新，
+// 挂在 onMounted 上会导致本页只拉一次、回退后显示旧值。
+// firstShow 跳过一次 onShow（首帧与 onMounted 重复触发 → 白拉一遍接口）。
+let firstShow = true;
+async function loadProfile() {
   try {
     const res = await cardApi.getProfile();
     user.value = res.user;
@@ -161,6 +167,7 @@ onMounted(async () => {
       stats.value.cardCount = 1;
       stats.value.visitorCount = res.card.viewCount;
       stats.value.exchangeCount = res.card.exchangeCount;
+      myCardId.value = res.card.id || null;
     }
     const member = await cardApi.getMemberStatus();
     isMember.value = member.isMember;
@@ -168,10 +175,32 @@ onMounted(async () => {
     const customers = await cardApi.getCustomers();
     stats.value.customerCount = customers.customers?.length || 0;
   } catch (e) {}
+}
+
+onMounted(() => { loadProfile(); });
+
+onShow(() => {
+  trackPageView('/pages/card/profile');
+  if (firstShow) { firstShow = false; return; }
+  loadProfile();
 });
 
 function goPage(path) {
   uni.navigateTo({ url: path });
+}
+
+// 编辑名片：带 id 进编辑态（单页平铺全部资料）。
+// onMounted 尚未拉到 profile 时会走懒加载补取；确实还没有名片才回落新建（走三步向导）。
+async function goEditCard() {
+  if (!hasCardToken()) return guideLogin();
+  if (!myCardId.value) {
+    try {
+      const res = await cardApi.getProfile();
+      myCardId.value = (res && res.card && res.card.id) || null;
+    } catch (e) { myCardId.value = null; }
+  }
+  if (myCardId.value) goPage(`/pages/card/create?id=${myCardId.value}`);
+  else goPage('/pages/card/create');
 }
 
 // ===== 编辑资料（头像/昵称） =====

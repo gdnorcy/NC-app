@@ -82,30 +82,49 @@
         <textarea
           class="wk-link-input"
           v-model="popup.link"
-          placeholder="粘贴视频号分享链接，如 https://channels.weixin.qq.com/web/pages/feed-detail/index?finderUserName=sphxxx&feedId=xxx"
+          placeholder="粘贴视频号的「单条视频」分享链接"
           placeholder-class="ph"
           :maxlength="500"
         />
-        <view class="wk-parse-btn" @click="doParse">
-          <text v-if="!popup.parsing">解析链接</text>
-          <text v-else>解析中…</text>
+        <!-- 解析行：主按钮 + 右侧「帮助」按钮（用户反馈「链接从哪来？看不懂教程」） -->
+        <view class="wk-parse-row">
+          <view class="wk-parse-btn" @click="doParse">
+            <text v-if="!popup.parsing">解析链接</text>
+            <text v-else>解析中…</text>
+          </view>
+          <view class="wk-help-btn" @click="showLinkHelp">帮助</view>
         </view>
       </block>
 
       <!-- 手动填 ID 模式 -->
       <block v-else>
-        <view class="wk-hint">ID 获取：视频号助手 → 首页复制视频号ID（sph 开头）；动态管理 → 单条视频复制 feedId</view>
+        <view class="wk-hint">
+          <text class="wk-hint-t">ID 获取：视频号助手 → 首页复制「视频号ID」（sph 开头）；内容管理 → 单条视频复制 feedId</text>
+          <text class="wk-help-btn wk-help-btn--inline" @click="showIdHelp">查看图文教程</text>
+        </view>
         <input class="wk-id-input" v-model="popup.finder" placeholder="finderUserName（视频号ID，sph 开头）" placeholder-class="ph" />
         <input class="wk-id-input" v-model="popup.feed" placeholder="feedId（视频唯一标识）" placeholder-class="ph" />
       </block>
 
-      <!-- 解析结果 / 手动填写回显 -->
-      <view class="wk-parsed" v-if="popup.finder && popup.feed">
-        <text class="wk-parsed-ok">✓ 已识别</text>
-        <text class="wk-parsed-ids">{{ popup.finder }} · {{ popup.feed }}</text>
+      <!-- 预览卡：既是「访客看到的封面」，也是 ID 回显（原 wk-parsed 独立块已并入，
+           两块紧邻内容重复）。未填 ID 时为虚线占位提示，填好后转实线。 -->
+      <view class="wk-prev" :class="{ ready: popup.finder && popup.feed }">
+        <view class="wk-prev-label">访客看到的封面</view>
+        <view class="wk-prev-row">
+          <view class="wk-cover wk-cover--sm">
+            <view class="wk-play"></view>
+          </view>
+          <view class="wk-prev-txt">
+            <view class="wk-prev-title">{{ popup.title || '（未填标题）' }}</view>
+            <view class="wk-prev-ids" v-if="popup.finder && popup.feed">{{ popup.finder }} · {{ popup.feed }}</view>
+            <view class="wk-prev-tip">
+              {{ popup.finder && popup.feed ? (popup.mode === 'link' ? '✓ 链接解析成功，可先「测试预览」验证' : '✓ ID 已填写，可先「测试预览」验证') : '填写上方 ID 后此处即为最终效果' }}
+            </view>
+          </view>
+        </view>
       </view>
 
-      <input class="wk-id-input" v-model="popup.title" placeholder="视频标题（选填）" placeholder-class="ph" />
+      <input class="wk-id-input" v-model="popup.title" placeholder="视频标题（选填，访客点封面后看到）" placeholder-class="ph" />
 
       <view class="wk-test" @click="testPopup">测试预览（跳转视频号验证）</view>
 
@@ -115,20 +134,39 @@
         <text class="wk-agree-t">我承诺拥有该视频内容版权、内容合法合规，平台仅做跳转、不存储视频</text>
       </view>
 
+      <!-- 保存条：sticky 吸底（弹窗内容可滚动，滚动时按钮若跟着走会让人以为「没有保存按钮」，
+           2026-10-19 用户反馈）。文案直说「保存到名片」，不用含糊的「提交」。 -->
       <view class="wk-pop-btns">
         <view class="wk-pop-btn cancel" @click="closePopup">取消</view>
         <view class="wk-pop-btn ok" @click="saveVideo">
-          <text v-if="!popup.saving">保存</text>
+          <text v-if="!popup.saving">保存到名片</text>
           <text v-else>保存中…</text>
         </view>
       </view>
+    </view>
+
+    <!-- ===== 帮助浮层：教程文本自绘（showModal 在 MP 会截断长文） ===== -->
+    <view class="wk-mask" v-if="help.show" @click="closeHelp"></view>
+    <view class="wk-help" v-if="help.show">
+      <view class="wk-help-title">{{ helpTitle }}</view>
+      <view class="wk-help-body">
+        <view class="wk-help-step" v-for="(s, i) in (help.tab === 'link' ? HELP_LINK : HELP_ID)" :key="i">
+          <view class="wk-help-n">{{ i + 1 }}</view>
+          <view class="wk-help-txt">
+            <view class="wk-help-t">{{ s.t }}</view>
+            <view class="wk-help-d">{{ s.d }}</view>
+          </view>
+        </view>
+        <view class="wk-help-warn" v-if="help.tab === 'link'">{{ HELP_LINK_WARN }}</view>
+      </view>
+      <view class="wk-help-btn" @click="closeHelp">知道了</view>
     </view>
   </view>
 </template>
 
 <script setup>
 import PageNav from '../../components/PageNav.vue';
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { useDesignTheme } from '../../utils/design.js';
@@ -234,6 +272,37 @@ function openPopup() {
 
 function closePopup() {
   popup.show = false;
+}
+
+// ===== 获取链接/ID 的教程（2026-10-19 用户报「分享链接从哪获取」）=====
+// 自绘浮层而非 uni.showModal：showModal 的 content 在小程序端会截断长文本，
+// 教程必须完整可读。z-index 高于添加弹窗（--z-popup + 10），DOM 在其后保证压住。
+const help = reactive({ show: false, tab: 'link' });
+const HELP_LINK = [
+  { t: '第 1 步：打开要添加的那条视频', d: '微信里进入你的视频号主页 → 点开目标视频。' },
+  { t: '第 2 步：复制链接', d: '视频右下角「···」→ 分享 → 复制链接。' },
+  { t: '第 3 步：回来粘贴并解析', d: '粘贴到上方输入框 → 点「解析链接」，成功后会自动填好 ID。' },
+];
+const HELP_LINK_WARN = '一定要复制「单条视频」的链接，不能复制视频号主页链接（形如 weixin.qq.com/sph/xxxx）。主页链接指向整个号、不含具体视频，平台无法定位要跳转的那一条。';
+const HELP_ID = [
+  { t: 'finderUserName（视频号ID，sph 开头）', d: '电脑端打开「视频号助手」→ 登录 → 首页顶部的「视频号ID」，形如 sph4cDqEd8vU0AB。' },
+  { t: 'feedId（单条视频标识）', d: '视频号助手 → 内容管理 → 点开目标视频 → 分享链接里 feedId 参数后面那串字符。' },
+];
+
+const helpTitle = computed(() => (help.tab === 'link' ? '如何获取视频号分享链接' : '如何获取视频号 ID'));
+
+function showLinkHelp() {
+  help.show = true;
+  help.tab = 'link';
+}
+
+function showIdHelp() {
+  help.show = true;
+  help.tab = 'id';
+}
+
+function closeHelp() {
+  help.show = false;
 }
 
 // 链接解析：失败自动切手动模式兜底（开发文档 3.2 降级链）；
@@ -483,14 +552,41 @@ onMounted(() => {
   background: var(--bg-card); border-radius: var(--radius-xs);
   padding: 0 24rpx; font-size: var(--fs-5); color: var(--t1); margin-bottom: 20rpx;
 }
-.wk-parse-btn {
-  margin-top: 16rpx; text-align: center; font-size: var(--fs-4); color: var(--design-primary);
-  border: 1rpx solid var(--design-primary); border-radius: 12rpx; padding: 14rpx 0;
+.wk-hint {
+  font-size: var(--fs-2); color: var(--t3); line-height: 1.5; margin-bottom: 16rpx;
+  background: var(--bg-card); border-radius: var(--radius-xs); padding: 16rpx 20rpx;
 }
-.wk-hint { font-size: var(--fs-2); color: var(--t3); line-height: 1.5; margin-bottom: 16rpx; }
-.wk-parsed { margin-top: 20rpx; background: rgba(0, 0, 0, 0.04); border-radius: 12rpx; padding: 16rpx; }
-.wk-parsed-ok { font-size: var(--fs-3); color: var(--design-primary); font-weight: 500; }
-.wk-parsed-ids { display: block; font-size: var(--fs-1); color: var(--t3); margin-top: 8rpx; word-break: break-all; }
+.wk-hint-t { display: block; }
+/* 解析行：主按钮撑满 + 右侧「帮助」（2026-10-19 用户要求在解析链接后加帮助按钮） */
+.wk-parse-row { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; }
+.wk-parse-btn {
+  flex: 1; text-align: center; font-size: var(--fs-4); color: var(--design-primary);
+  border: 1rpx solid var(--design-primary); border-radius: 12rpx; padding: 18rpx 0;
+}
+.wk-help-btn {
+  flex-shrink: 0; font-size: var(--fs-3); color: var(--t3);
+  border: 1rpx solid var(--border-strong); border-radius: 12rpx; padding: 18rpx 28rpx;
+}
+.wk-help-btn--inline {
+  display: inline-block; margin-top: 10rpx; padding: 8rpx 20rpx; color: var(--design-primary);
+  border-color: var(--design-primary);
+}
+/* 弹窗内预览卡：把「封面长什么样」提前给用户看（微信不开放封面接口，只能默认图） */
+.wk-prev {
+  margin-top: 20rpx; background: var(--bg-card); border-radius: 14rpx; padding: 20rpx;
+  border: 2rpx dashed var(--border-strong);
+}
+.wk-prev.ready { border-style: solid; border-color: var(--design-primary); }
+.wk-prev-label { font-size: var(--fs-1); color: var(--t3); margin-bottom: 14rpx; }
+.wk-prev-row { display: flex; align-items: center; gap: 16rpx; }
+.wk-cover--sm { width: 96rpx; height: 96rpx; }
+.wk-cover--sm .wk-play {
+  border-top-width: 13rpx; border-bottom-width: 13rpx; border-left-width: 21rpx; margin-left: 6rpx;
+}
+.wk-prev-txt { flex: 1; min-width: 0; }
+.wk-prev-title { font-size: var(--fs-4); color: var(--t1); }
+.wk-prev-ids { display: block; font-size: var(--fs-1); color: var(--t3); margin-top: 8rpx; word-break: break-all; }
+.wk-prev-tip { font-size: var(--fs-1); color: var(--t3); margin-top: 8rpx; line-height: 1.5; }
 .wk-test { margin-top: 24rpx; text-align: center; font-size: var(--fs-3); color: var(--design-primary); text-decoration: underline; }
 .wk-agree { display: flex; align-items: flex-start; gap: 12rpx; margin-top: 28rpx; }
 .wk-checkbox {
@@ -503,8 +599,45 @@ onMounted(() => {
   border-right: 4rpx solid var(--white); border-bottom: 4rpx solid var(--white); transform: rotate(45deg);
 }
 .wk-agree-t { font-size: var(--fs-2); color: var(--t3); line-height: 1.5; }
-.wk-pop-btns { display: flex; gap: 20rpx; margin-top: 32rpx; }
-.wk-pop-btn { flex: 1; text-align: center; font-size: var(--fs-4); border-radius: 14rpx; padding: 18rpx 0; }
+/* 保存条：sticky 吸底——弹窗 max-height 82vh 且可滚动，按钮随内容滚走会让人以为
+   「没有保存按钮」（2026-10-19 用户反馈）。负 margin 顶掉自身 margin-top，
+   sticky 的 bottom:0 让它在滚动容器内恒可见。 */
+.wk-pop-btns {
+  position: sticky; bottom: 0;
+  display: flex; gap: 20rpx; margin: 32rpx -28rpx -36rpx;
+  padding: 20rpx 28rpx 28rpx;
+  background: var(--white);
+  border-top: 1rpx solid var(--border-strong);
+}
+.wk-pop-btn { flex: 1; text-align: center; font-size: var(--fs-4); border-radius: 14rpx; padding: 20rpx 0; }
 .wk-pop-btn.cancel { color: var(--t3); background: var(--bg-page); }
 .wk-pop-btn.ok { color: var(--white); background: var(--design-primary); }
+
+/* ===== 帮助浮层（教程） ===== */
+/* 同用 --z-popup（帮助层 DOM 在添加弹窗之后 → 天然压住 mask 与弹窗，同 myCard 海报弹层模式）。
+   🔴 不要为「再高一层」引入 calc(var(--z-popup) + 10) 或 --z-toast：tokenAudit 按
+   z-index 写法「种类」计数，新写法会顶破基线。 */
+.wk-help {
+  position: fixed; left: 40rpx; right: 40rpx; top: 50%; transform: translateY(-50%);
+  background: var(--white); border-radius: 24rpx; padding: 36rpx 28rpx 28rpx;
+  z-index: var(--z-popup); max-height: 80vh; overflow-y: auto;
+}
+.wk-help-title { font-size: var(--fs-5); font-weight: 600; color: var(--t1); text-align: center; margin-bottom: 28rpx; }
+.wk-help-step { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
+.wk-help-n {
+  width: 40rpx; height: 40rpx; border-radius: 50%; flex-shrink: 0;
+  background: var(--design-primary); color: var(--white);
+  font-size: var(--fs-3); text-align: center; line-height: 40rpx;
+}
+.wk-help-txt { flex: 1; min-width: 0; }
+.wk-help-t { font-size: var(--fs-4); color: var(--t1); line-height: 1.5; }
+.wk-help-d { font-size: var(--fs-2); color: var(--t3); margin-top: 8rpx; line-height: 1.6; }
+.wk-help-warn {
+  font-size: var(--fs-2); color: var(--t1); line-height: 1.6;
+  background: rgba(255, 138, 0, 0.08); border-radius: 14rpx; padding: 20rpx;
+}
+.wk-help-btn {
+  margin-top: 32rpx; text-align: center; font-size: var(--fs-4); color: var(--white);
+  background: var(--design-primary); border-radius: 14rpx; padding: 20rpx 0;
+}
 </style>
