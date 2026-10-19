@@ -46,12 +46,12 @@
         </el-table-column>
         <el-table-column prop="company" label="公司" min-width="140" />
         <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column label="来源" width="150">
+        <el-table-column label="来源" width="180">
           <template #default="{ row }">
-            <el-tag :type="row.sourceType === 'individual' ? '' : 'warning'" size="small">
-              {{ row.sourceType === 'individual' ? '个人' : '企业' }}
+            <el-tag :type="sourceTagType(row.sourceType)" size="small">
+              {{ row.sourceLabel || '其他来源' }}
             </el-tag>
-            <div v-if="row.sourceEnterpriseName" class="src-ent">{{ row.sourceEnterpriseName }}</div>
+            <div v-if="row.sourceDetail" class="src-detail">{{ row.sourceDetail }}</div>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="100">
@@ -148,6 +148,13 @@ async function loadPool() {
   }
 }
 
+// 来源类型配色：企业回收=橙、个人停用=蓝、员工离职=紫
+function sourceTagType(sourceType) {
+  if (sourceType === 'individual') return '';
+  if (sourceType === 'employee') return 'info';
+  return 'warning';
+}
+
 async function claimCustomer(row) {
   try {
     await ElMessageBox.confirm(`确定领取「${row.name || '该客户'}」吗？领取后将进入您的客户列表。`, '领取确认', { type: 'info' });
@@ -209,7 +216,7 @@ async function confirmAssign() {
 .cell-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
 
 .claimed-by { font-size: 12px; color: #86909c; }
-.src-ent { font-size: 12px; color: #86909c; margin-top: 2px; }
+.src-detail { font-size: 12px; color: #86909c; margin-top: 2px; }
 
 .assign-tip { font-size: 13px; color: #4e5969; margin-bottom: 12px; }
 

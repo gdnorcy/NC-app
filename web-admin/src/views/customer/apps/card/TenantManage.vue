@@ -183,7 +183,10 @@ const filteredEnterprises = computed(() => {
 });
 
 onMounted(() => {
+  // 两个 Tab 的徽章数量进页面就要有数：旧实现只在点击 Tab 时才加载 enterprises，
+  // 导致「入驻企业 0」与实际不符（员工名片里明明有企业员工），看起来数据对不上。
   loadIndividuals();
+  loadEnterprises();
 });
 
 async function loadIndividuals() {

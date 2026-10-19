@@ -146,6 +146,68 @@ function countTenantAdmins(customerId) {
     .get(customerId).n;
 }
 
+// ============================================================
+// 租户名片归属口径（单一事实来源）
+// ------------------------------------------------------------
+// 历史坑：card_profile.enterprise_id 语义是「所属企业（tenant_enterprises.id）」，
+// 但旧代码拿它跟 req.customerId（租户ID）直接比 → 只有 enterprise_id 恰好等于
+// 租户ID 的历史数据能命中，其余全部漏空。
+// 现在统一用「并集」判定一张名片是否属于本租户：
+//   ① card_profile.customer_id = 租户        （创建/申请时显式写入）
+//   ② card_profile.enterprise_id ∈ 本租户企业 （企业名片）
+//   ③ card_profile.user_id 的用户 enterprise_id ∈ 本租户企业（企业成员本人名片）
+//   ④ card_profile.user_id ∈ 入驻个人（tenant_individuals active）
+//   ⑤ card_profile.user_id ∈ 企业员工（tenant_enterprise_employees active）
+// ============================================================
+const TENANT_CARD_SCOPE_SQL = `(
+    c.customer_id = ?
+    OR c.enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)
+    OR c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?))
+    OR c.user_id IN (SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active')
+    OR c.user_id IN (SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active')
+  )`;
+
+// 上面 5 个占位符对应的参数（重复 5 次租户ID）
+function tenantCardScopeParams(customerId) {
+  return [customerId, customerId, customerId, customerId, customerId];
+}
+
+// 名片身份判定（SQL 单一事实来源，优先级从高到低）
+// 与 IDENTITY_LABEL 一一对应；前端筛选/徽章都认这几个 key
+const CARD_IDENTITY_SQL = `CASE
+    WHEN c.user_id IN (SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active') THEN 'employee'
+    WHEN c.user_id IN (SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active') THEN 'individual'
+    WHEN c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)) THEN 'ent_member'
+    WHEN c.enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?) THEN 'enterprise'
+    ELSE 'tenant'
+  END`;
+
+// 身份 key → 4 个占位符参数
+function cardIdentityParams(customerId) {
+  return [customerId, customerId, customerId, customerId];
+}
+
+const IDENTITY_LABEL = {
+  employee: '企业员工',
+  individual: '入驻个人',
+  ent_member: '企业成员',
+  enterprise: '企业名片',
+  tenant: '租户名片',
+};
+
+// 租户企业 id → 名称（供「所属企业」列展示）
+function loadTenantEnterpriseNames(cid) {
+  return new Map(
+    db.prepare('SELECT id, name FROM tenant_enterprises WHERE customer_id = ?').all(cid).map((e) => [e.id, e.name])
+  );
+}
+
+// 企业名：优先名片自带 enterprise_id，其次名片主人 platform_user.enterprise_id
+function cardEnterpriseName(entNameById, card) {
+  const entId = Number(card.enterprise_id) || Number(card.user_enterprise_id) || 0;
+  return entId ? (entNameById.get(entId) || '') : '';
+}
+
 // 获取当前租户信息
 router.get('/profile', requireTenant, (req, res) => {
   const cust = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.customerId);
@@ -981,49 +1043,141 @@ router.get('/channels/mini/deploy-logs', requireTenant, (req, res) => {
 
 // 企业概览统计
 router.get('/card/overview', requireTenant, (req, res) => {
-  const eid = req.customerId;
-  const employeeCount = db.prepare('SELECT COUNT(*) AS n FROM platform_user WHERE enterprise_id = ?').get(eid).n;
-  const cardCount = db.prepare('SELECT COUNT(*) AS n FROM card_profile WHERE enterprise_id = ? AND status = ?').get(eid, 'active').n;
-  const totalViews = db.prepare('SELECT COALESCE(SUM(view_count),0) AS s FROM card_profile WHERE enterprise_id = ?').get(eid).s;
-  const customerCount = db.prepare('SELECT COUNT(*) AS n FROM card_customer WHERE enterprise_id = ?').get(eid).n;
-  const exchangeCount = db.prepare('SELECT COALESCE(SUM(exchange_count),0) AS s FROM card_profile WHERE enterprise_id = ?').get(eid).s;
+  const cid = req.customerId;
+  const scope = TENANT_CARD_SCOPE_SQL;
+  const sp = tenantCardScopeParams(cid);
+  // 企业成员 = 归属本租户的去重自然人（C端用户 + 后台成员）
+  const employeeCount = db.prepare(`
+    SELECT COUNT(*) AS n FROM (
+      SELECT id FROM platform_user WHERE customer_id = ?
+      UNION SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active'
+      UNION SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active'
+      UNION SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)
+    )`).get(cid, cid, cid, cid).n;
+  const cardCount = db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${scope} AND c.status = ?`).get(...sp, 'active').n;
+  const totalViews = db.prepare(`SELECT COALESCE(SUM(c.view_count),0) AS s FROM card_profile c WHERE ${scope} AND c.status = ?`).get(...sp, 'active').s;
+  const exchangeCount = db.prepare(`SELECT COALESCE(SUM(c.exchange_count),0) AS s FROM card_profile c WHERE ${scope} AND c.status = ?`).get(...sp, 'active').s;
+  // 企业客户：customer_id 是租户归属（enterprise_id 全是 NULL，旧口径恒 0）
+  const customerCount = db.prepare(`SELECT COUNT(*) AS n FROM card_customer WHERE customer_id = ?
+     OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?)`).get(cid, cid).n;
   res.json({ employeeCount, cardCount, totalViews, customerCount, exchangeCount });
 });
 
 // 员工名片列表
 router.get('/card/employees', requireTenant, (req, res) => {
-  const eid = req.customerId;
+  const cid = req.customerId;
   const { page = 1, pageSize = 20, keyword = '' } = req.query;
   const offset = (page - 1) * pageSize;
-  let where = 'WHERE c.enterprise_id = ? AND c.status = ?';
-  const params = [eid, 'active'];
+  let where = `WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`;
+  const params = [...tenantCardScopeParams(cid), 'active'];
   if (keyword) {
     where += ' AND (c.name LIKE ? OR c.position LIKE ? OR c.company LIKE ?)';
     params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
   }
+  // SELECT 列表里的身份 CASE 占位符排在 WHERE 之前，故 cid 参数放最前
   const cards = db.prepare(`
-    SELECT c.*, u.nickname, u.avatar as user_avatar, u.member_level
+    SELECT c.*, u.nickname, u.avatar as user_avatar, u.member_level, u.enterprise_id as user_enterprise_id,
+      ${CARD_IDENTITY_SQL} AS identity
     FROM card_profile c
     LEFT JOIN platform_user u ON c.user_id = u.id
     ${where}
     ORDER BY c.created_at DESC
     LIMIT ? OFFSET ?
-  `).all(...params, Number(pageSize), offset);
+  `).all(...cardIdentityParams(cid), ...params, Number(pageSize), offset);
   const total = db.prepare(`SELECT COUNT(*) AS n FROM card_profile c ${where}`).get(...params).n;
+  const entNames = loadTenantEnterpriseNames(cid);
   res.json({ cards: cards.map(c => ({
     id: c.id, userId: c.user_id, name: c.name, position: c.position, company: c.company,
     phone: c.phone, avatar: c.avatar, viewCount: c.view_count, exchangeCount: c.exchange_count,
     isPublic: c.is_public, memberLevel: c.member_level, createdAt: c.created_at,
+    identity: c.identity, identityLabel: IDENTITY_LABEL[c.identity] || '租户名片',
+    enterpriseName: cardEnterpriseName(entNames, c),
   })), total, page: Number(page), pageSize: Number(pageSize) });
+});
+
+// 名片管理（租户统一视图：身份归属 + 公开状态 + 集市上下架）
+// 解决的困惑：后台各页口径不同（员工名片按人、集市按上架记录、入驻管理按账号），
+// 这里用同一套并集口径把「名片」这一层一次说清。
+// 集市状态用子查询落到 SQL 里（而不是查出来再 JS 过滤），否则筛选会破坏分页。
+const MARKET_STATUS_SQL = `(SELECT mi.audit_status FROM card_market_items mi
+    WHERE mi.customer_id = ? AND mi.user_id = c.user_id
+    ORDER BY (mi.audit_status = 'approved') DESC, (mi.audit_status = 'pending') DESC, mi.id DESC
+    LIMIT 1)`;
+router.get('/card/manage', requireTenant, (req, res) => {
+  const cid = req.customerId;
+  const { page = 1, pageSize = 20, keyword = '', identity = '', market = '' } = req.query;
+  const offset = (page - 1) * pageSize;
+  // SELECT 列表占位符：身份 CASE ×4 + 集市状态/记录ID/置顶 ×3
+  const selectParams = [...cardIdentityParams(cid), cid, cid, cid];
+  let where = `WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`;
+  const params = [...tenantCardScopeParams(cid), 'active'];
+  if (keyword) {
+    where += ' AND (c.name LIKE ? OR c.position LIKE ? OR c.company LIKE ?)';
+    params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+  }
+  // 身份筛选直接压在 SQL 的同一个 CASE 上，避免 JS 二次筛选破坏分页
+  if (identity && IDENTITY_LABEL[identity]) {
+    where += ` AND ${CARD_IDENTITY_SQL} = ?`;
+    params.push(...cardIdentityParams(cid), identity);
+  }
+  // 集市状态筛选：none = 从未申请上架
+  if (market === 'none') {
+    where += ` AND COALESCE(${MARKET_STATUS_SQL}, '') = ''`;
+    params.push(cid);
+  } else if (['approved', 'pending', 'rejected'].includes(market)) {
+    where += ` AND ${MARKET_STATUS_SQL} = ?`;
+    params.push(cid, market);
+  }
+  const cards = db.prepare(`
+    SELECT c.*, u.nickname, u.avatar as user_avatar, u.member_level, u.enterprise_id as user_enterprise_id,
+      ${CARD_IDENTITY_SQL} AS identity,
+      ${MARKET_STATUS_SQL} AS market_status,
+      (SELECT mi.id FROM card_market_items mi
+        WHERE mi.customer_id = ? AND mi.user_id = c.user_id
+        ORDER BY (mi.audit_status = 'approved') DESC, (mi.audit_status = 'pending') DESC, mi.id DESC
+        LIMIT 1) AS market_item_id,
+      (SELECT mi.is_top FROM card_market_items mi
+        WHERE mi.customer_id = ? AND mi.user_id = c.user_id
+        ORDER BY (mi.audit_status = 'approved') DESC, (mi.audit_status = 'pending') DESC, mi.id DESC
+        LIMIT 1) AS market_is_top
+    FROM card_profile c
+    LEFT JOIN platform_user u ON c.user_id = u.id
+    ${where}
+    ORDER BY c.created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...selectParams, ...params, Number(pageSize), offset);
+  // COUNT 的 where 与列表完全一致，参数也完全一致（SELECT 列表的占位符不参与）
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM card_profile c ${where}`).get(...params).n;
+  // 顶部统计卡：与列表筛选无关（同一套并集口径），cardCount 用不过滤的基数，
+  // 否则一筛选「名片总数」就跟着变，和其它三张全局卡自相矛盾
+  const sp0 = tenantCardScopeParams(cid);
+  const stats = {
+    cardCount: db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`).get(...sp0, 'active').n,
+    publicCount: db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ? AND c.is_public = 1`).get(...sp0, 'active').n,
+    marketApproved: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'approved').n,
+    marketPending: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'pending').n,
+  };
+  const entNames = loadTenantEnterpriseNames(cid);
+  res.json({ cards: cards.map(c => ({
+    id: c.id, userId: c.user_id, name: c.name, position: c.position, company: c.company,
+    phone: c.phone, avatar: c.avatar, viewCount: c.view_count, exchangeCount: c.exchange_count,
+    isPublic: !!c.is_public, memberLevel: c.member_level, createdAt: c.created_at,
+    identity: c.identity, identityLabel: IDENTITY_LABEL[c.identity] || '租户名片',
+    enterpriseName: cardEnterpriseName(entNames, c),
+    marketItemId: c.market_item_id || null,
+    marketStatus: c.market_status || '',   // '' 表示从未申请上架
+    marketIsTop: !!c.market_is_top,
+  })), total, stats, page: Number(page), pageSize: Number(pageSize) });
 });
 
 // 企业客户列表
 router.get('/card/customers', requireTenant, (req, res) => {
-  const eid = req.customerId;
+  const cid = req.customerId;
   const { page = 1, pageSize = 20, keyword = '', status = '' } = req.query;
   const offset = (page - 1) * pageSize;
-  let where = 'WHERE enterprise_id = ?';
-  const params = [eid];
+  // 同名片口径：customer_id 是租户归属，enterprise_id 仅作企业维度的补充
+  let where = 'WHERE (customer_id = ? OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?))';
+  const params = [cid, cid];
   if (keyword) {
     where += ' AND (name LIKE ? OR company LIKE ? OR phone LIKE ?)';
     params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
@@ -1045,8 +1199,8 @@ router.get('/card/customers', requireTenant, (req, res) => {
 
 // 企业客户跟进记录（租户视角，仅本租户客户可见）
 router.get('/card/customers/:id/follows', requireTenant, (req, res) => {
-  const eid = req.customerId;
-  const customer = db.prepare('SELECT id FROM card_customer WHERE id = ? AND enterprise_id = ?').get(req.params.id, eid);
+  const cid = req.customerId;
+  const customer = db.prepare('SELECT id FROM card_customer WHERE id = ? AND (customer_id = ? OR enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ?))').get(req.params.id, cid, cid);
   if (!customer) return res.status(404).json({ error: '客户不存在' });
   const follows = db.prepare('SELECT * FROM card_customer_follow WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50').all(req.params.id);
   res.json({ follows: follows.map(f => ({
@@ -1056,15 +1210,15 @@ router.get('/card/customers/:id/follows', requireTenant, (req, res) => {
 
 // 企业名片访问趋势（近7天）
 router.get('/card/trends', requireTenant, (req, res) => {
-  const eid = req.customerId;
+  const cid = req.customerId;
   const rows = db.prepare(`
     SELECT visit_date, SUM(visit_count) as views
     FROM card_visitor
-    WHERE card_id IN (SELECT id FROM card_profile WHERE enterprise_id = ?)
+    WHERE card_id IN (SELECT c.id FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL})
     AND visit_date >= date('now', '-7 days')
     GROUP BY visit_date
     ORDER BY visit_date
-  `).all(eid);
+  `).all(...tenantCardScopeParams(cid));
   res.json({ trends: rows });
 });
 
@@ -1302,9 +1456,12 @@ router.get('/card/trends', requireTenant, (req, res) => {
   function floatUpOne(db, row, customerId, enterpriseId, audit, req) {
     const dup = db.prepare('SELECT id FROM tenant_public_pool WHERE customer_id = ? AND phone = ?').get(customerId, row.phone || '');
     if (dup) return { ok: false, reason: '项目客户公海已存在该客户，无需重复上浮' };
+    // source_id 统一记「来源企业（tenant_enterprises.id）」：
+    // 旧实现写 row.source_id（card_customer.id），与 cardMarket 侧停用企业时写的
+    // 企业ID 语义不一致，后台按 tenant_enterprises.id 反查企业名会张冠李戴。
     db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position, remark)
       VALUES (?, 'enterprise', ?, ?, ?, ?, ?, ?)`)
-      .run(customerId, row.source_id || null, row.name, row.phone || '', row.company || '', row.position || '', row.remark || '');
+      .run(customerId, enterpriseId, row.name, row.phone || '', row.company || '', row.position || '', row.remark || '');
     const market = db.prepare('SELECT pool_float_mode FROM card_market_settings WHERE customer_id = ?').get(customerId);
     const mode = market?.pool_float_mode || 'soft';
     if (mode === 'hard') {

@@ -144,6 +144,8 @@ describe('isAppRouteAllowed 应用路由守卫', () => {
   it('应用中心子路由对租户管理员放行', () => {
     expect(isAppRouteAllowed(tenantAdmin, '/apps/panorama')).toBe(true);
     expect(isAppRouteAllowed(tenantAdmin, '/apps/card/employees')).toBe(true);
+    // 名片管理（租户名片统一视图）同属应用中心子路由
+    expect(isAppRouteAllowed(tenantAdmin, '/apps/card/manage')).toBe(true);
   });
 
   it('应用中心子路由对入驻企业管理员放行', () => {

@@ -1143,12 +1143,22 @@ export function createCardMarketRouter(db) {
     try { cfg = JSON.parse(proj?.quota || '{}'); } catch {}
     checkTimeoutRecycle(req.customerId, cfg.pool_recycle_days || 30);
     // 全量状态返回（含已领取），并 JOIN 领取人昵称便于列表展示
-    const pool = db.prepare(`SELECT p.*, u.nickname AS claimedByName, e.name AS sourceEnterpriseName
+    // 来源列只给「类型 + 回收原因」：旧实现用 source_id 直接 JOIN tenant_enterprises，
+    // 但 source_id 在不同写入路径下语义不一致（企业ID / card_customer.id），
+    // 会张冠李戴成毫不相干的企业名，故不再反查企业名。
+    const pool = db.prepare(`SELECT p.*, u.nickname AS claimedByName
       FROM tenant_public_pool p
       LEFT JOIN platform_user u ON u.id = p.claimed_by
-      LEFT JOIN tenant_enterprises e ON e.id = p.source_id AND p.source_type = 'enterprise'
       WHERE p.customer_id = ? ORDER BY p.recycled_at DESC`).all(req.customerId);
-    res.json({ pool });
+    res.json({ pool: pool.map((r) => ({
+      ...r,
+      sourceLabel: r.source_type === 'individual' ? '个人停用'
+        : r.source_type === 'employee' ? '员工离职'
+        : r.source_type === 'enterprise' ? '企业回收'
+        : '其他来源',
+      // 回收原因（如「移出企业回收」「移出企业回收 [超时自动回收]」）
+      sourceDetail: (r.remark || '').trim(),
+    })) });
   });
 
   // 公海可分配成员列表（管理员分配用）：本租户活跃入驻个人 + 企业员工

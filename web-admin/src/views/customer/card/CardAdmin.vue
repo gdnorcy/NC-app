@@ -4,7 +4,7 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <AppPageHeader title="员工名片" desc="员工通过小程序/H5 创建名片后自动展示，可查看名片公开状态与访问数据" />
+    <AppPageHeader title="员工名片" desc="归属本租户的全部名片：租户名片 / 企业名片 / 入驻个人 / 企业员工，按创建时间倒序展示" />
 
     <!-- 统计卡片 -->
     <div class="stats-row">
@@ -13,6 +13,7 @@
         <div class="stat-info">
           <div class="stat-value">{{ overview.employeeCount || 0 }}</div>
           <div class="stat-label">企业成员</div>
+          <div class="stat-sub">归属本租户的去重自然人</div>
         </div>
       </div>
       <div class="stat-card">
@@ -20,6 +21,7 @@
         <div class="stat-info">
           <div class="stat-value">{{ overview.cardCount || 0 }}</div>
           <div class="stat-label">名片总数</div>
+          <div class="stat-sub">在册名片（不含已停用）</div>
         </div>
       </div>
       <div class="stat-card">
@@ -27,6 +29,7 @@
         <div class="stat-info">
           <div class="stat-value">{{ overview.totalViews || 0 }}</div>
           <div class="stat-label">总访问量</div>
+          <div class="stat-sub">在册名片累计访问</div>
         </div>
       </div>
       <div class="stat-card">
@@ -34,6 +37,7 @@
         <div class="stat-info">
           <div class="stat-value">{{ overview.customerCount || 0 }}</div>
           <div class="stat-label">企业客户</div>
+          <div class="stat-sub">本租户客户线索</div>
         </div>
       </div>
     </div>
@@ -49,6 +53,8 @@
           <thead>
             <tr>
               <th>员工</th>
+              <th>身份</th>
+              <th>所属企业</th>
               <th>职位</th>
               <th>公司</th>
               <th>手机号</th>
@@ -67,6 +73,8 @@
                   <span>{{ emp.name }}</span>
                 </div>
               </td>
+              <td><span class="badge" :class="identityBadgeCls(emp.identity)">{{ emp.identityLabel || '租户名片' }}</span></td>
+              <td>{{ emp.enterpriseName || '-' }}</td>
               <td>{{ emp.position || '-' }}</td>
               <td>{{ emp.company || '-' }}</td>
               <td>{{ emp.phone || '-' }}</td>
@@ -83,7 +91,7 @@
               </td>
             </tr>
             <tr v-if="employees.length === 0">
-              <td colspan="9" class="empty-cell">暂无员工名片，员工通过小程序/H5创建名片后将自动展示</td>
+              <td colspan="11" class="empty-cell">暂无名片，员工通过小程序/H5创建名片后将自动展示</td>
             </tr>
           </tbody>
         </table>
@@ -124,6 +132,14 @@ function formatDate(d) {
   return d.substring(0, 10);
 }
 
+// 身份徽章配色：租户名片=蓝、企业名片=青、入驻个人=橙、企业员工=紫
+function identityBadgeCls(identity) {
+  if (identity === 'individual') return 'warning';
+  if (identity === 'employee') return 'purple';
+  if (identity === 'enterprise') return 'teal';
+  return 'info';
+}
+
 function previewCard(emp) {
   // 新窗口打开 H5 名片预览
   const base = window.location.origin;
@@ -143,7 +159,7 @@ onMounted(() => {
 });
 
 function routePathValid(p) {
-  return ['/apps/card/customers', '/apps/card/market', '/apps/card/tenant', '/apps/card/pool'].includes(p);
+  return ['/apps/card/manage', '/apps/card/customers', '/apps/card/market', '/apps/card/tenant', '/apps/card/pool'].includes(p);
 }
 </script>
 
@@ -158,6 +174,7 @@ function routePathValid(p) {
 .stat-icon-wrap.icon-purple { background: rgba(114,46,209,0.1); }
 .stat-value { font-size: 24px; font-weight: 600; color: #1d2129; }
 .stat-label { font-size: 13px; color: #86909c; margin-top: 2px; }
+.stat-sub { font-size: 12px; color: #a9aeb8; margin-top: 1px; }
 .content-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .tab-content { padding: 20px; }
 .toolbar { display: flex; gap: 12px; margin-bottom: 16px; }
@@ -177,6 +194,8 @@ function routePathValid(p) {
 .badge.warning { background: rgba(255,125,0,0.1); color: #ff7d00; }
 .badge.info { background: rgba(22,93,255,0.1); color: #165dff; }
 .badge.danger { background: rgba(245,63,63,0.1); color: #f53f3f; }
+.badge.purple { background: rgba(114,46,209,0.1); color: #722ed1; }
+.badge.teal { background: rgba(0,194,174,0.12); color: #0d9e8a; }
 .tag { display: inline-block; padding: 2px 8px; background: #f2f3f5; border-radius: 4px; font-size: 12px; color: #4e5969; margin-right: 4px; }
 .link-btn { background: none; border: none; color: #165dff; font-size: 13px; cursor: pointer; padding: 0; }
 .link-btn:hover { text-decoration: underline; }

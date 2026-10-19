@@ -441,8 +441,12 @@ test('P2-13 租户视角跟进记录：仅本租户客户可见，跨租户404�
   const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
   const headers = bearer(issueToken(adm1));
   // 造数据：本租户客户+跟进；他租户客户
-  const c1 = db.prepare("INSERT INTO card_customer (enterprise_id, owner_user_id, name) VALUES (1, 999888, '租户一客户')").run().lastInsertRowid;
-  const c2 = db.prepare("INSERT INTO card_customer (enterprise_id, owner_user_id, name) VALUES (2, 999887, '租户二客户')").run().lastInsertRowid;
+  // card_customer.enterprise_id 指向 tenant_enterprises.id（不是租户ID），
+  // 跨租户必须造一个归属租户2 的企业，否则 enterprise_id 会落在本租户范围内
+  const ent1 = db.prepare("INSERT INTO tenant_enterprises (customer_id, name, admin_user_id, status) VALUES (1, '跟进隔离企业甲', NULL, 'active')").run().lastInsertRowid;
+  const ent2 = db.prepare("INSERT INTO tenant_enterprises (customer_id, name, admin_user_id, status) VALUES (2, '跟进隔离企业乙', NULL, 'active')").run().lastInsertRowid;
+  const c1 = db.prepare("INSERT INTO card_customer (enterprise_id, owner_user_id, name) VALUES (?, 999888, '租户一客户')").run(ent1).lastInsertRowid;
+  const c2 = db.prepare("INSERT INTO card_customer (enterprise_id, owner_user_id, name) VALUES (?, 999887, '租户二客户')").run(ent2).lastInsertRowid;
   db.prepare('INSERT INTO card_customer_follow (customer_id, user_id, content) VALUES (?, 999888, ?)').run(c1, '首次电话跟进');
   db.prepare('INSERT INTO card_customer_follow (customer_id, user_id, content) VALUES (?, 999887, ?)').run(c2, '他人租户跟进');
 
@@ -457,6 +461,7 @@ test('P2-13 租户视角跟进记录：仅本租户客户可见，跨租户404�
 
   db.prepare('DELETE FROM card_customer_follow WHERE customer_id IN (?,?)').run(c1, c2);
   db.prepare('DELETE FROM card_customer WHERE id IN (?,?)').run(c1, c2);
+  db.prepare('DELETE FROM tenant_enterprises WHERE id IN (?,?)').run(ent1, ent2);
 });
 
 test('P2-14 comboAuth 企业回退：仅绑定企业（无customer_id）的C端用户可访问集市', async () => {
