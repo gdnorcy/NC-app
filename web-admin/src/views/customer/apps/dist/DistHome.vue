@@ -344,7 +344,7 @@
           <el-table-column label="身份" width="110">
             <template #default="{ row }">
               <el-tag size="small" :type="row.identity_type === 'employee' ? 'warning' : 'success'">
-                {{ row.identity_type === 'employee' ? '企业员工' : '入驻个人' }}
+                {{ row.identity_type === 'employee' ? '企业员工' : '认证个人' }}
               </el-tag>
             </template>
           </el-table-column>
@@ -364,7 +364,7 @@
             <div class="wl-ops">
               <el-input v-model="wlUserId" placeholder="用户ID" class="w120" clearable />
               <el-select v-model="wlIdentity" class="w120">
-                <el-option label="入驻个人" value="individual" />
+                <el-option label="认证个人" value="individual" />
                 <el-option label="企业员工" value="employee" />
               </el-select>
               <el-button type="primary" @click="addWhitelist">添加</el-button>
@@ -385,7 +385,7 @@
           <el-table-column label="身份" width="110">
             <template #default="{ row }">
               <el-tag size="small" :type="row.identityType === 'employee' ? 'warning' : 'success'">
-                {{ row.identityType === 'employee' ? '企业员工' : '入驻个人' }}
+                {{ row.identityType === 'employee' ? '企业员工' : '认证个人' }}
               </el-tag>
             </template>
           </el-table-column>
@@ -412,7 +412,7 @@
           <el-table-column label="身份" width="100">
             <template #default="{ row }">
               <el-tag size="small" :type="row.identity_type === 'employee' ? 'warning' : 'success'">
-                {{ row.identity_type === 'employee' ? '企业员工' : '入驻个人' }}
+                {{ row.identity_type === 'employee' ? '企业员工' : '认证个人' }}
               </el-tag>
             </template>
           </el-table-column>
@@ -523,7 +523,7 @@
           <el-table-column label="身份" width="100">
             <template #default="{ row }">
               <el-tag size="small" :type="row.identity_type === 'employee' ? 'warning' : 'success'">
-                {{ row.identity_type === 'employee' ? '企业员工' : '入驻个人' }}
+                {{ row.identity_type === 'employee' ? '企业员工' : '认证个人' }}
               </el-tag>
             </template>
           </el-table-column>

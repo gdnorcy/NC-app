@@ -496,7 +496,7 @@ describe('分销体系（分销裂变底座）', () => {
     assert.ok(csv.includes('12.34') && csv.includes('12.00'), '金额应分转元两位小数');
     assert.ok(csv.includes('已完成') && csv.includes('已驳回'), '状态应中文化');
     assert.ok(csv.includes('"ALI""001"'), '含引号字段应转义');
-    assert.ok(csv.includes('企业员工') && csv.includes('入驻个人'), '身份应中文化');
+    assert.ok(csv.includes('企业员工') && csv.includes('认证个人'), '身份应中文化');
   });
 
   it('P3 批量审核：approve 多笔通过 / reject 需原因', () => {

@@ -1758,7 +1758,7 @@ export function buildWithdrawCsv(rows) {
   const lines = [head.map(esc).join(',')];
   for (const r of rows) {
     lines.push([
-      r.withdraw_no, r.nickname || '微信用户', r.identity_type === 'employee' ? '企业员工' : '入驻个人',
+      r.withdraw_no, r.nickname || '微信用户', r.identity_type === 'employee' ? '企业员工' : '认证个人',
       (r.amount / 100).toFixed(2), (r.service_fee / 100).toFixed(2), (r.actual_amount / 100).toFixed(2),
       WITHDRAW_STATUS_ZH[r.status] || r.status, acctLabel(r), r.created_at, r.paid_at || '', r.pay_no || '', r.pay_remark || '', r.reject_reason || ''
     ].map(esc).join(','));
@@ -1793,7 +1793,7 @@ export function buildStatementCsv(summary) {
   const head = ['用户', '身份', ...TYPES.map((t) => t[1] + '(元)'), '扣回(元)', '实得(元)', '提现(元)'];
   const lines = [head.map(esc).join(',')];
   for (const u of summary.byUser) {
-    const cells = [u.nickname, u.identityType === 'employee' ? '企业员工' : '入驻个人'];
+    const cells = [u.nickname, u.identityType === 'employee' ? '企业员工' : '认证个人'];
     for (const [k] of TYPES) cells.push((u[k] / 100).toFixed(2));
     cells.push((u.chargedBack / 100).toFixed(2));
     cells.push((u.total / 100).toFixed(2));
@@ -1815,7 +1815,7 @@ export function buildStatementHtml(summary, opts = {}) {
   const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const fmt = (v) => (Number(v) / 100).toFixed(2);
   const rowsHtml = summary.byUser.map((u) => {
-    const tds = [`<td>${esc(u.nickname)}</td>`, `<td>${u.identityType === 'employee' ? '企业员工' : '入驻个人'}</td>`]
+    const tds = [`<td>${esc(u.nickname)}</td>`, `<td>${u.identityType === 'employee' ? '企业员工' : '认证个人'}</td>`]
       .concat(TYPES.map(([k]) => `<td>${fmt(u[k])}</td>`))
       .concat([`<td class="neg">${fmt(u.chargedBack)}</td>`, `<td><b>${fmt(u.total)}</b></td>`, `<td>${fmt(u.withdraw)}</td>`]);
     return `<tr>${tds.join('')}</tr>`;
@@ -1874,7 +1874,7 @@ export function buildLogCsv(rows) {
   const lines = [head.map(esc).join(',')];
   for (const r of rows) {
     lines.push([
-      r.nickname || '微信用户', r.identity_type === 'employee' ? '企业员工' : '入驻个人',
+      r.nickname || '微信用户', r.identity_type === 'employee' ? '企业员工' : '认证个人',
       LOG_TYPE_ZH[r.type] || r.type, (r.amount / 100).toFixed(2),
       LOG_STATUS_ZH[r.status] || r.status, r.order_no || '', r.created_at || ''
     ].map(esc).join(','));

@@ -33,12 +33,12 @@
          顶部再挂一个入口属重复；且该位置正对微信胶囊右侧，容易被遮挡/误触。 -->
     <PageNav title="我的名片" back />
 
-    <!-- 身份切换器（入驻个人/企业员工，双身份时显示） -->
+    <!-- 身份切换器（认证个人/企业员工，双身份时显示） -->
     <view class="owner-switch" v-if="subjectList.length > 1">
       <view class="os-chip" v-for="sub in subjectList" :key="sub.subjectType + sub.subjectId"
             :class="{ on: activeSubject?.subjectType === sub.subjectType && activeSubject?.subjectId === sub.subjectId }"
             @click="activeSubject = sub">
-        {{ sub.subjectType === 'individual' ? '入驻个人' : '企业员工' }}
+        {{ sub.subjectType === 'individual' ? '认证个人' : '企业员工' }}
       </view>
     </view>
 
@@ -302,7 +302,7 @@ const marketStatusDesc = computed(() => {
   if (!it) return '开启后将你的名片展示给平台所有人，可在集市页一键上架';
   if (it.auditStatus === 'pending') return '已提交上架申请，等待管理员审核';
   if (it.auditStatus === 'rejected') return '上架申请未通过，可联系管理员或修改名片后重新申请';
-  return '你的名片正在集市展示' + (it.isNew ? '（新入驻7天角标）' : '');
+  return '你的名片正在集市展示' + (it.isNew ? '（新上架7天角标）' : '');
 });
 const needTagList = computed(() => {
   try {

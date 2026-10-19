@@ -328,7 +328,7 @@ const heroInk = computed(() => heroStyle.value.color);
 // 兜底蓝判白字 → 系统配浅色时白字消失）。背景兜底仍是 var() 渐变，跟着设计中心走。
 const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))', themeColor.value));
 const identity = ref('individual');
-const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
+const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '认证个人身份'));
 const summary = ref({ wallet: null, directCount: 0, indirectCount: 0, monthCommission: 0, monthNew: 0, todayCommission: 0, todayOrder: 0, todayNew: 0, totalCommission: 0, totalOrders: 0, withdrawing: 0, selfName: '我', selfAvatar: '', unbound: false, isEnableDist: false, isEnablePartner: false, isEnableShareAll: false, isEnableShareCat: false, isEnableShareArea: false, isPartner: false, shareTags: [], partnerPending: 0, partnerTotal: 0, sharePending: 0, shareTotal: 0, gate: 0, inWhitelist: false, canApply: false, applyStatus: null, rejectReason: '', distName: '推广员', subName: '下级', applyTopImg: '', applyTip: '', shareTitle: '', shareImg: '', applyAgreement: '', distNotice: '', ratio1: 0.2, ratio2: 0.05, settleDay: 7, showPhone: false, becomeAmount: 0, showParent: false, parent: null, posterBadge: true, defaultLevel: '默认等级' });
 // 头像破图兜底（2026-10-16 真机报修「分销头像全黄」）：服务端 selfAvatar 常是非空但加载失败的外链
 // （DB 多为 EMPTY 或 aka.doubaocdn.com 破图），v-if="summary.selfAvatar" 因「非空」走 <image> 分支、

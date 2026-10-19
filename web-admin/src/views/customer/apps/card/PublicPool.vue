@@ -74,19 +74,19 @@
       <div class="empty-state" v-if="!pool.length">
         <SIcon name="pool" size="xlarge" color="#c9cdd4" />
         <div class="empty-text">公海池暂无客户</div>
-        <div class="empty-hint">停用入驻个人/企业时，其客户将自动回收至公海池</div>
+        <div class="empty-hint">停用认证个人/入驻企业时，其客户将自动回收至公海池</div>
       </div>
     </div>
 
     <!-- 分配弹窗（管理员） -->
     <el-dialog v-model="assignVisible" title="分配公海客户" width="480px" align-center>
       <div class="assign-tip">将「{{ assignRow?.name || '该客户' }}」分配给以下成员：</div>
-      <el-select v-model="assigneeUserId" placeholder="请选择入驻个人 / 企业员工" style="width: 100%;" filterable>
+      <el-select v-model="assigneeUserId" placeholder="请选择认证个人 / 企业员工" style="width: 100%;" filterable>
         <el-option
           v-for="m in assignMembers"
           :key="m.userId"
           :value="m.userId"
-          :label="`${m.displayName || m.nickname || '未命名'}（${m.type === 'individual' ? '入驻个人' : '企业员工'}）`"
+          :label="`${m.displayName || m.nickname || '未命名'}（${m.type === 'individual' ? '认证个人' : '企业员工'}）`"
         />
       </el-select>
       <template #footer>
@@ -173,7 +173,7 @@ async function openAssign(row) {
     const res = await publicApi.get('/card-market/public-pool/members');
     assignMembers.value = res.members || [];
     if (!assignMembers.value.length) {
-      ElMessage.warning('暂无活跃的入驻个人或企业员工可分配');
+      ElMessage.warning('暂无活跃的认证个人或企业员工可分配');
     }
   } catch (e) {
     console.error('加载分配成员失败', e);

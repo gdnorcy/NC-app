@@ -144,20 +144,20 @@ test('身份列：identityLabel / subjectType / identityHint 与来源一致', a
   const res = await request(app).get('/api/customer/card/employees?pageSize=100').set(bearer(adm1));
   const byName = Object.fromEntries(res.body.cards.map((c) => [c.name, c]));
   assert.equal(byName['直挂租户名片'].identity, 'personal');
-  assert.equal(byName['直挂租户名片'].identityLabel, '个人名片');
+  assert.equal(byName['直挂租户名片'].identityLabel, '未认证个人');
   assert.equal(byName['直挂租户名片'].subjectType, 'person');
   assert.equal(byName['归一科技'].identity, 'enterprise');
   assert.equal(byName['归一科技'].identityLabel, '企业名片');
   assert.equal(byName['归一科技'].subjectType, 'enterprise');
   assert.equal(byName['归一科技'].enterpriseName, '归一科技');
-  // 2026-10-20 重构：账号挂靠企业不再单独成类（ent_member 取消），并入个人名片；
+  // 2026-10-20 重构：账号挂靠企业不再单独成类（ent_member 取消），并入未认证个人；
   // 所属企业列不受影响，仍按 名片enterprise_id → 用户enterprise_id 取
   assert.equal(byName['企业成员甲'].identity, 'personal');
-  assert.equal(byName['企业成员甲'].identityLabel, '个人名片');
+  assert.equal(byName['企业成员甲'].identityLabel, '未认证个人');
   assert.equal(byName['企业成员甲'].subjectType, 'person');
   assert.equal(byName['企业成员甲'].enterpriseName, '归一科技');
   assert.equal(byName['入驻个人乙'].identity, 'individual');
-  assert.equal(byName['入驻个人乙'].identityLabel, '入驻个人');
+  assert.equal(byName['入驻个人乙'].identityLabel, '认证个人');
   assert.equal(byName['企业员工丙'].identity, 'employee');
   assert.equal(byName['企业员工丙'].identityLabel, '企业员工');
   // 徽章可解释：每个身份都带「为什么 + 怎么升级」

@@ -55,7 +55,7 @@
         <el-table-column prop="identity_type" label="身份" width="100">
           <template #default="{ row }">
             <el-tag size="small" :type="row.identity_type === 'employee' ? 'primary' : 'success'">
-              {{ row.identity_type === 'employee' ? '企业员工' : '入驻个人' }}
+              {{ row.identity_type === 'employee' ? '企业员工' : '认证个人' }}
             </el-tag>
           </template>
         </el-table-column>

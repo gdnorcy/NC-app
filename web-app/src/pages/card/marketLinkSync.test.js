@@ -190,7 +190,7 @@ describe('displaySettings.vue 开关联动', () => {
 
   test('无主体时回滚 is_public=false + 明确 toast（开关不说空话）', () => {
     expect(dsSrc).toMatch(/await rollbackPublic\(false\)/);
-    expect(dsSrc).toMatch(/入驻审核通过后才能上架集市/);
+    expect(dsSrc).toMatch(/完成认证后才能上架集市/);
   });
 
   test('manual 审核模式 toast「已提交上架申请，等待审核」', () => {

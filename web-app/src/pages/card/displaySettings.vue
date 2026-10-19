@@ -144,10 +144,10 @@ async function onPublicChange(e) {
 async function syncMarket(val) {
   const r = await syncMarketWithIsPublic(cardApi, val);
   if (r.reason === 'no-subject') {
-    // 无 active 主体（未入驻/审核中）：开方向无法兑现承诺 → 回滚 is_public，开关保持关
+    // 无 active 主体（未认证/审核中）：开方向无法兑现承诺 → 回滚 is_public，开关保持关
     if (val) {
       await rollbackPublic(false);
-      uni.showToast({ title: '入驻审核通过后才能上架集市', icon: 'none' });
+      uni.showToast({ title: '完成认证后才能上架集市', icon: 'none' });
     }
     // 关方向无记录可下架，is_public 已保存即可
     return;
@@ -176,9 +176,9 @@ async function healMarketLink() {
     return;
   }
   if (r.reason === 'no-subject') {
-    // 存量「开着但从未上架」且无 active 主体（未入驻/审核中）→ 回滚成关并说明原因
+    // 存量「开着但从未上架」且无 active 主体（未认证/审核中）→ 回滚成关并说明原因
     await rollbackPublic(false);
-    uni.showToast({ title: '入驻审核通过后才能上架集市', icon: 'none' });
+    uni.showToast({ title: '完成认证后才能上架集市', icon: 'none' });
     return;
   }
   if (!r.ok && !r.soft) {

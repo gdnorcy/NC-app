@@ -66,7 +66,7 @@
       </div>
     </div>
 
-    <!-- 口径说明 + 身份图例（2026-10-20 身份模型重构：三组，无「挂靠成员」） -->
+    <!-- 口径说明 + 身份图例（2026-10-20 命名统一：徽章回答「认证了没」；入驻降级为流程词） -->
     <div class="scope-note">
       <SIcon name="dynamic" size="small" color="#ff7d00" />
       <span>
@@ -75,8 +75,8 @@
       </span>
     </div>
     <div class="identity-legend">
-      <span class="lg-dot lg-green"></span><span><strong>正式成员</strong>（企业员工 / 入驻个人）＝已认证：可上架集市、可交换名片</span>
-      <span class="lg-dot lg-grey"></span><span><strong>个人名片</strong>＝未认证个人：完成入驻认证后可上架集市（交换名片随时可用）</span>
+      <span class="lg-dot lg-green"></span><span><strong>正式成员</strong>（企业员工 / 认证个人）＝已认证：可上架集市、可交换名片</span>
+      <span class="lg-dot lg-grey"></span><span><strong>未认证个人</strong>＝未认证：完成认证后可上架集市（交换名片随时可用）</span>
       <span class="lg-dot lg-purple"></span><span><strong>企业名片</strong>＝企业主体档案，不是某个人的，不参与成员统计</span>
     </div>
 
@@ -93,10 +93,10 @@
         <el-select v-model="identity" placeholder="身份" style="width: 150px;" clearable @change="loadCards">
           <el-option-group label="正式成员（已认证）">
             <el-option label="企业员工" value="employee" />
-            <el-option label="入驻个人" value="individual" />
+            <el-option label="认证个人" value="individual" />
           </el-option-group>
           <el-option-group label="未认证 / 主体档案">
-            <el-option label="个人名片（未认证）" value="personal" />
+            <el-option label="未认证个人" value="personal" />
             <el-option label="企业名片" value="enterprise" />
           </el-option-group>
         </el-select>
@@ -127,9 +127,9 @@
         </el-table-column>
         <el-table-column label="身份" width="110">
           <template #default="{ row }">
-            <!-- 🔴 2026-10-20 身份模型重构：徽章显示细粒度身份（企业员工/入驻个人/个人名片/企业名片），
+            <!-- 🔴 2026-10-20 身份模型重构 + 命名统一：徽章显示细粒度身份（企业员工/认证个人/未认证个人/企业名片），
                  颜色只分三组（绿=已认证 / 灰=未认证个人 / 紫=企业档案）；
-                 「挂靠成员」类别已取消（账号挂靠企业并入个人名片）；
+                 「挂靠成员」类别已取消（账号挂靠企业并入未认证个人）；
                  悬停展示 identityHint：为什么是这个身份 + 怎么升级。 -->
             <el-tag :type="identityGroup(row.identity).type" size="small" effect="plain" :title="row.identityHint || row.identityLabel">
               {{ row.identityLabel }}
@@ -234,7 +234,7 @@ function formatDate(d) {
 
 // 身份三组配色（2026-10-20 重构后 identity 四值：employee/individual/enterprise/personal）
 // 运营只看颜色：绿=已认证能干活 / 灰=未认证个人 / 紫=企业档案。
-// 细粒度身份（企业员工/入驻个人）直接显示 identityLabel，悬停有 identityHint 解释。
+// 细粒度身份（企业员工/认证个人）直接显示 identityLabel，悬停有 identityHint 解释。
 function identityGroup(id) {
   if (id === 'employee' || id === 'individual') return { label: '正式成员', type: 'success' };
   if (id === 'enterprise') return { label: '企业名片', type: 'danger' };

@@ -90,7 +90,7 @@
           </div>
           <el-radio :model-value="picked" :value="c.userId" class="cand-radio" />
         </div>
-        <div v-if="!filteredCands.length" class="empty small">暂无可添加人员（未入驻个人，或均已加入企业）</div>
+        <div v-if="!filteredCands.length" class="empty small">暂无可添加人员（未认证个人，或均已加入企业）</div>
       </div>
       <div class="role-row">
         <span class="role-label">加入身份：</span>

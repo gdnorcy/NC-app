@@ -69,7 +69,7 @@
       <view class="c-tabs">
         <view class="c-tab" :class="{ on: cTab === 'all' }" @click="switchCTab('all')">全部人脉</view>
         <view class="c-tab" :class="{ on: cTab === 'top' }" @click="switchCTab('top')">置顶会员</view>
-        <view class="c-tab" :class="{ on: cTab === 'new' }" @click="switchCTab('new')">新入驻</view>
+        <view class="c-tab" :class="{ on: cTab === 'new' }" @click="switchCTab('new')">新上架</view>
       </view>
       <view class="c-list">
         <view class="c-card" v-for="item in shownItems" :key="item.id" @click="viewCard(item)">
@@ -105,11 +105,11 @@
         <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
           <view class="filter-inner">
             <view class="filter-chip" :class="{ on: filterType === 'all' }" @click="selectType('all')">全部</view>
-            <view class="filter-chip" :class="{ on: filterType === 'individual' }" @click="selectType('individual')">入驻个人</view>
+            <view class="filter-chip" :class="{ on: filterType === 'individual' }" @click="selectType('individual')">认证个人</view>
             <view class="filter-chip" :class="{ on: filterType === 'enterprise' }" @click="selectType('enterprise')">企业主体</view>
             <view class="filter-chip" :class="{ on: filterType === 'employee' }" @click="selectType('employee')">企业员工</view>
             <view class="filter-chip has-need" :class="{ on: needFilter }" @click="toggleNeed">有供需</view>
-            <view class="filter-chip" :class="{ on: sort === 'newest' }" @click="toggleSort">排序：{{ sort === 'newest' ? '新入驻' : '综合' }}</view>
+            <view class="filter-chip" :class="{ on: sort === 'newest' }" @click="toggleSort">排序：{{ sort === 'newest' ? '新上架' : '综合' }}</view>
           </view>
         </scroll-view>
       </view>
@@ -212,7 +212,7 @@
         <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
           <view class="filter-inner">
             <view class="filter-chip" :class="{ on: filterType === 'all' }" @click="selectType('all')">全部</view>
-            <view class="filter-chip" :class="{ on: filterType === 'individual' }" @click="selectType('individual')">入驻个人</view>
+            <view class="filter-chip" :class="{ on: filterType === 'individual' }" @click="selectType('individual')">认证个人</view>
             <view class="filter-chip" :class="{ on: filterType === 'enterprise' }" @click="selectType('enterprise')">企业主体</view>
             <view class="filter-chip" :class="{ on: filterType === 'employee' }" @click="selectType('employee')">企业员工</view>
             <view class="filter-chip has-need" :class="{ on: needFilter }" @click="toggleNeed">有供需</view>

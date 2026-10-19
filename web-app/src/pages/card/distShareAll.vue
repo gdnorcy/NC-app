@@ -116,7 +116,7 @@ const { brandVars, brandInkVars } = useBrandOverride();
 // 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
 const tabBarPad = useTabBarPadding();
 const identity = ref('individual');
-const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
+const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '认证个人身份'));
 const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, shareTags: [], sharePending: 0, shareTotal: 0 });
 const showRules = ref(false);
 const logs = ref([]);

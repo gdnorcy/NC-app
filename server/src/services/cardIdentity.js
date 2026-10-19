@@ -14,20 +14,22 @@
  *   - 轴3 归属：只进可见性（TENANT_CARD_SCOPE_SQL），永不进能力判定
  *   - identity 降级为纯展示派生值，四值：
  *       employee   企业员工（花名册 active）
- *       individual 入驻个人（入驻审核 active）
+ *       individual 认证个人（入驻认证 active）
  *       enterprise 企业名片（企业主体档案，不是人）
- *       personal   个人名片（未认证个人，含旧 ent_member/tenant 两种来源）
+ *       personal   未认证个人（含旧 ent_member/tenant 两种来源）
  *
  * 🔴 能力判定一律走本文件的 isCertifiedUser / cardCapabilities，读名册，
  *    不再读 identity；新增能力只改 cardCapabilities 一处。
  */
 
 // 展示标签（与前端徽章一一对应）
+// 2026-10-20 命名统一（方案一：认证）：徽章回答「认证了没」——这是唯一影响能力的属性；
+// 「入驻」降级为流程词（入驻申请/入驻管理页），不再做身份标签。
 export const IDENTITY_LABEL = {
   employee: '企业员工',
-  individual: '入驻个人',
+  individual: '认证个人',
   enterprise: '企业名片',
-  personal: '个人名片',
+  personal: '未认证个人',
 };
 
 // 运营视角的三组（前端图例/筛选用）：能干活 / 待认证 / 主体档案
@@ -40,15 +42,15 @@ export const IDENTITY_GROUP = {
 
 export const IDENTITY_GROUP_LABEL = {
   certified: '正式成员',
-  personal: '个人名片',
+  personal: '未认证个人',
   enterprise: '企业名片',
 };
 
 // 徽章可解释：每个身份都回答「为什么 + 能干嘛 + 怎么升级」
 export const IDENTITY_HINT = {
-  employee: '企业员工：已认证，可上架集市、可交换名片',
-  individual: '入驻个人：已认证，可上架集市、可交换名片',
-  personal: '个人名片：未认证。通过入驻认证后可上架集市',
+  employee: '企业员工：已认证（在企业花名册内），可上架集市、可交换名片',
+  individual: '认证个人：已通过入驻认证，可上架集市、可交换名片',
+  personal: '未认证个人：完成认证后可上架集市，交换名片随时可用',
   enterprise: '企业名片：企业主体档案，非个人成员，不参与成员统计',
 };
 

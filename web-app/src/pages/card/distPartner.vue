@@ -161,7 +161,7 @@ async function loadBrand() {
   if (b && b.primary) Object.assign(brand.value, b);
 }
 const identity = ref('individual');
-const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '入驻个人身份'));
+const identityLabel = computed(() => (identity.value === 'employee' ? '企业员工身份' : '认证个人身份'));
 const summary = ref({ wallet: null, selfName: '我', selfAvatar: '', unbound: false, isPartner: false, partnerPending: 0, partnerTotal: 0, shareTags: [], partnerMode: 0 });
 const showRules = ref(false);
 const logs = ref([]);

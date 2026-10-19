@@ -48,7 +48,7 @@
         <el-switch v-model="settings.enabled" :active-value="1" :inactive-value="0" @change="saveSettings" />
       </div>
       <div class="card-body">
-        <p class="hint-text">开启后，入驻个人、企业、员工可将名片上架到人脉集市。关闭后所有人无法进入集市页面。</p>
+        <p class="hint-text">开启后，认证个人、企业、员工可将名片上架到人脉集市。关闭后所有人无法进入集市页面。</p>
       </div>
     </div>
 
