@@ -43,7 +43,7 @@
         "desc": "用于选择名片上的办公/门店位置，方便客户导航到访"
       }
     },
-    "requiredPrivateInfos": ["getLocation", "chooseLocation", "openLocation"]
+    "requiredPrivateInfos": ["getLocation", "chooseLocation"]
   },
   "h5": {
     "title": "360全景",
