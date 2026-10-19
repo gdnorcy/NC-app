@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>视频号作品 ID / 封面提取 · 使用说明</title>
+<style>
+  body { font: 14px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 820px; margin: 0 auto; padding: 32px 24px 64px; color: #1d2129; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 16px; margin: 28px 0 10px; padding-top: 14px; border-top: 1px solid #eee; }
+  .sub { color: #86909c; font-size: 13px; margin-bottom: 18px; }
+  .box { background: #f7f8fa; border-radius: 8px; padding: 14px 16px; margin: 10px 0; }
+  .warn { background: #fff7e8; border-left: 3px solid #ff8a00; }
+  .ok { background: #eaf7ee; border-left: 3px solid #07c160; }
+  code { background: #f2f3f5; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  button { font: inherit; padding: 8px 16px; border: 0; border-radius: 6px; cursor: pointer;
+           background: #07c160; color: #fff; }
+  button.ghost { background: #f2f3f5; color: #1d2129; }
+  ol li { margin: 6px 0; }
+  .bm { display: block; width: 100%; box-sizing: border-box; font-family: monospace; font-size: 11px;
+        padding: 8px; border: 1px solid #e5e6eb; border-radius: 6px; background: #fff; color: #4e5969; }
+</style>
+</head>
+<body>
+
+<h1>视频号作品 ID / 封面提取</h1>
+<div class="sub">给名片挂视频号作品时，免掉手工抄 ID 的步骤</div>
+
+<div class="box ok">
+  <strong>它做什么：</strong>在你<strong>已经登录</strong>的视频号助手页面里，读取当前页面的作品数据，
+  列出每条作品的 <code>feedId</code> 和封面，点一下就复制。
+</div>
+
+<div class="box warn">
+  <strong>安全边界：</strong>只在你自己的浏览器里<strong>读取</strong>页面数据并显示出来，
+  <strong>不上传</strong>到任何服务器、<strong>不改写</strong>任何请求、不碰你的账号。
+  和「res-downloader」那类装根证书做中间人代理的思路完全不同——不需要装证书、不需要配代理。
+</div>
+
+<h2>方式一：油猴脚本（推荐，一次安装长期可用）</h2>
+<ol>
+  <li>浏览器装 <strong>Tampermonkey</strong>（油猴）扩展：Chrome / Edge 应用商店搜 "Tampermonkey"</li>
+  <li>点扩展图标 → 创建/导入新脚本 → 把 <code>feedid-helper.user.js</code> 内容粘进去并保存</li>
+  <li>打开 <code>channels.weixin.qq.com</code> 并登录，页面右侧会出现绿色「提取作品 ID」按钮，点它</li>
+</ol>
+
+<h2>方式二：书签小工具（零依赖，任意浏览器）</h2>
+<ol>
+  <li>点下面按钮复制代码</li>
+  <li>在书签栏<span style="color:#86909c">（Ctrl/⌘ + Shift + B 可显示）</span>右键 → 添加网页/书签</li>
+  <li>名称随便起（如「提取作品ID」），<strong>网址栏粘贴刚才复制的代码</strong></li>
+  <li>登录视频号助手后，点一下这个书签</li>
+</ol>
+
+<button onclick="copyBm()">复制书签代码</button>
+<span id="tip" style="margin-left:10px;color:#07c160"></span>
+<textarea class="bm" id="bm" rows="3" readonly style="margin-top:10px">javascript:(function(){'use strict';/** * 视频号助手「作品 ID / 封面」提取器（2026-10-19） * * 背景：名片挂视频号作品需要 finderUserName + feedId，官方唯一合规来源是视频号助手， * 但要求商家在电脑端手工抄两个 ID，门槛高、易抄错。本工具在**用户自己已登录的** * channels.weixin.qq.com 页面上下文里运行（同源、无代理、无逆向），读取数据后本地展示， * 用户复制粘贴即可。 * * 设计原则： * - 🔴 不劫持、不改写页面，不拦截改写任何请求（区别于 res-downloader 的 MITM 注入思路） * - 🔴 只读：不 POST、不外传任何数据（商家账号数据敏感，必须本地闭环） * - 多路径兜底：页面结构随时可能变，单一路径必然失效。三条路并行： * ① 被动监听接口响应（用户翻页时自然产生）→ 最可靠 * ② 遍历 Vue/React 组件树里的内存数据 * ③ 扫描 window 上的全局对象 * - 拿不到就如实说，并把「扫到了什么」诊断出来，便于基于真实结构迭代 * * 运行方式（由 build-feedid-helper.mjs 注入到油猴脚本/书签小工具，勿在此写死包装）： * __WXCH_EXTRACTOR__() 启动浮层 */ 'use strict'; const FEED_KEY = /(feed[_]?id|object[_]?id|export[_]?id|eid|^id$)/i; const FEED_VAL = /^(export\/|\d{12,25}$|[A-Za-z0-9_\-]{16,}$)/; const FINDER_KEY = /(finder[_]?user[_]?name|finderusername|username|^nickname$)/i; const FINDER_VAL = /^sph|^v2_.*@finder$/; const COVER_KEY = /(cover[_]?url|thumb[_]?url|head[_]?url|cover|thumb|picurl)/i; const TITLE_KEY = /(title|description|desc|object_desc)/i; const isStr = (v) => typeof v === 'string' && v.length > 0; const isUrl = (v) => isStr(v) && /^https?:\/\ /** * 纯函数：从任意对象里扫出作品条目。 * 🔴 独立成顶层函数是为了可测——测试直接调它，而不是把正则抄一份去测 * （抄一份 = 测试与实现各写一遍，必然漂移，且会「锁死 bug」）。 * @returns {{feeds: Array&lt;{feedId,title,cover,finder}>, finder: string[], scanned: number}} */ function scanForFeeds(data) { const feeds = new Map(); const finder = new Set(); let scanned = 0; function add(bucket) { if (!bucket.feedId) return; const e = feeds.get(bucket.feedId) || {}; feeds.set(bucket.feedId, { feedId: bucket.feedId, title: bucket.title || e.title || '', cover: bucket.cover || e.cover || '', finder: bucket.finder || e.finder || '', }); } function walk(node, depth, seen) { if (depth > 8 || !node || typeof node !== 'object') return null; if (seen.has(node)) return null; seen.add(node); scanned += 1; const bucket = { feedId: '', title: '', cover: '', finder: '' }; const entries = Array.isArray(node) ? node.map((v, i) => [String(i), v]) : Object.entries(node); for (const [k, v] of entries) { if (v === null || v === undefined) continue; if (isStr(v)) { if (FEED_KEY.test(k) && FEED_VAL.test(v)) bucket.feedId = v; else if (FINDER_KEY.test(k) && FINDER_VAL.test(v)) { bucket.finder = v; finder.add(v); } else if (COVER_KEY.test(k) && isUrl(v)) bucket.cover = v; else if (TITLE_KEY.test(k) && v.length > 1 && !isUrl(v)) bucket.title = v.slice(0, 120); } else if (typeof v === 'object') { const sub = walk(v, depth + 1, seen); if (sub) { bucket.feedId = bucket.feedId || sub.feedId; bucket.cover = bucket.cover || sub.cover; bucket.title = bucket.title || sub.title; bucket.finder = bucket.finder || sub.finder; } } } if (bucket.feedId) add(bucket); return bucket; } walk(data, 0, new WeakSet()); return { feeds: [...feeds.values()], finder: [...finder], scanned }; } function extractorMain() { if (window.__wxchRunning) return; window.__wxchRunning = true; const store = { feeds: new Map(), finder: new Set(), raw: [], scanned: 0, }; function scanRoot(root) { if (!root || typeof root !== 'object') return; try { const r = scanForFeeds(root); store.scanned += r.scanned; for (const f of r.feeds) { const e = store.feeds.get(f.feedId) || {}; store.feeds.set(f.feedId, { feedId: f.feedId, title: f.title || e.title || '', cover: f.cover || e.cover || '', finder: f.finder || e.finder || '', }); } for (const x of r.finder) store.finder.add(x); } catch (e) { /* 单个根异常不影响其他来源 */ } } function hookNetwork() { const KEY_API = /(finder|feed|object|channels)/i; const tryParse = (text) => { if (!text || text.length > 4e6) return null; if (text[0] !== '{' && text[0] !== '[') return null; try { return JSON.parse(text); } catch { return null; } }; const record = (url, data) => { if (!data) return; store.raw.push({ url: String(url).slice(0, 120), t: Date.now() }); scanRoot(data, 'net'); render(); }; const of = window.fetch; if (of) { window.fetch = function (...a) { const u = (a[0] && a[0].url) || a[0] || ''; return of.apply(this, a).then((res) => { try { if (KEY_API.test(String(u))) { res.clone().text().then((t) => record(u, tryParse(t))).catch(() => {}); } } catch (e) {} return res; }); }; } const OXML = window.XMLHttpRequest; if (OXML) { const open = OXML.prototype.open; const send = OXML.prototype.send; OXML.prototype.open = function (m, u, ...r) { this.__u = u; return open.call(this, m, u, ...r); }; OXML.prototype.send = function (...a) { try { this.addEventListener('load', () => { try { if (KEY_API.test(String(this.__u))) record(this.__u, tryParse(this.responseText)); } catch (e) {} }); } catch (e) {} return send.apply(this, a); }; } } function scanComponents() { const nodes = document.querySelectorAll('*'); let n = 0; for (const el of nodes) { if (n > 4000) break; n += 1; if (el.__vue__) scanRoot(el.__vue__.$data ? el.__vue__.$data : el.__vue__, 'vue2'); let c = el.__vueParentComponent; let d = 0; while (c && d &lt; 4) { if (c.proxy) scanRoot(c.proxy, 'vue3'); if (c.setupState) scanRoot(c.setupState, 'vue3setup'); c = c.parent; d += 1; } const rk = Object.keys(el).find((k) => k.startsWith('__reactProps$') || k.startsWith('__reactFiber$')); if (rk && el[rk]) scanRoot(el[rk], 'react'); } } function scanGlobals() { const keys = Object.keys(window).filter((k) => !/^(webkit|chrome|moz|ms|on)/i.test(k)); for (const k of keys) { let v; try { v = window[k]; } catch (e) { continue; } if (v && typeof v === 'object') scanRoot(v, 'win.' + k); } } let panel = null; function render() { if (!panel) return; const list = [...store.feeds.values()]; const box = panel.querySelector('#wxch-list'); const meta = panel.querySelector('#wxch-meta'); meta.textContent = `已捕获 ${list.length} 条作品 · 视频号ID ${store.finder.size} 个 · 接口 ${store.raw.length} 次`; if (!list.length) { box.innerHTML = `&lt;div style="padding:10px;color:#86909c;font-size:12px;line-height:1.7"> 还没抓到数据。&lt;br>请在本页&lt;strong>滚动/翻页&lt;/strong>作品列表（让接口跑一次），&lt;br> 或点「重新扫描页面」。&lt;br> &lt;span style="color:#c9cdd4">已扫描对象 ${store.scanned} 个 / 接口 ${store.raw.length} 次&lt;/span> &lt;/div>`; return; } box.innerHTML = list.map((f, i) => ` &lt;div style="display:flex;gap:8px;padding:8px;border-bottom:1px solid #f0f0f0;align-items:flex-start"> ${f.cover ? `&lt;img src="${f.cover}" style="width:56px;height:56px;object-fit:cover;border-radius:4px;flex:none" onerror="this.style.display='none'">` : `&lt;div style="width:56px;height:56px;background:#f2f3f5;border-radius:4px;flex:none">&lt;/div>`} &lt;div style="flex:1;min-width:0;font-size:12px"> &lt;div style="color:#1d2129;line-height:1.4;word-break:break-all">${(f.title || '（无标题）').replace(/&lt;/g, '&lt;')}&lt;/div> &lt;div style="color:#86909c;margin-top:3px;word-break:break-all;font-family:monospace;font-size:11px">${f.feedId}&lt;/div> &lt;div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap"> &lt;button data-i="${i}" data-k="feedId" style="font-size:11px;padding:2px 8px;cursor:pointer">复制 feedId&lt;/button> ${f.cover ? `&lt;button data-i="${i}" data-k="cover" style="font-size:11px;padding:2px 8px;cursor:pointer">复制封面&lt;/button>` : ''} &lt;/div> &lt;/div> &lt;/div>`).join(''); box.querySelectorAll('button[data-i]').forEach((b) => { b.onclick = () => { const f = list[+b.dataset.i]; copy(b.dataset.k === 'cover' ? f.cover : f.feedId); b.textContent = '已复制 ✓'; setTimeout(() => { b.textContent = b.dataset.k === 'cover' ? '复制封面' : '复制 feedId'; }, 1500); }; }); } function copy(text) { try { if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text); } catch (e) {} const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta); } function buildPanel() { panel = document.createElement('div'); panel.id = 'wxch-helper'; panel.style.cssText = 'position:fixed;top:12px;right:12px;width:340px;max-height:76vh;z-index:2147483000;' + 'background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(0,0,0,.18);font:13px/1.5 -apple-system,"PingFang SC",sans-serif;' + 'display:flex;flex-direction:column;overflow:hidden;color:#1d2129'; panel.innerHTML = ` &lt;div style="padding:10px 12px;background:#f7f8fa;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px"> &lt;strong style="flex:1;font-size:13px">视频号作品提取&lt;/strong> &lt;span id="wxch-close" style="cursor:pointer;color:#86909c;padding:0 4px">✕&lt;/span> &lt;/div> &lt;div id="wxch-meta" style="padding:6px 12px;color:#86909c;font-size:11px;background:#fafbfc">&lt;/div> &lt;div id="wxch-list" style="flex:1;overflow:auto">&lt;/div> &lt;div style="padding:8px 12px;border-top:1px solid #eee;display:flex;gap:6px;flex-wrap:wrap"> &lt;button id="wxch-scan" style="font-size:12px;padding:4px 10px;cursor:pointer">重新扫描页面&lt;/button> &lt;button id="wxch-all" style="font-size:12px;padding:4px 10px;cursor:pointer">复制全部 JSON&lt;/button> &lt;/div> &lt;div style="padding:6px 12px 10px;color:#a9aeb8;font-size:10px;line-height:1.6;border-top:1px solid #f5f5f5"> 仅在本机读取当前页面数据，不上传、不改写任何请求。 &lt;/div>`; document.body.appendChild(panel); panel.querySelector('#wxch-close').onclick = () => { panel.remove(); panel = null; window.__wxchRunning = false; }; panel.querySelector('#wxch-scan').onclick = () => { store.scanned = 0; scanComponents(); scanGlobals(); render(); }; panel.querySelector('#wxch-all').onclick = () => { const arr = [...store.feeds.values()]; copy(JSON.stringify({ list: arr, finder: [...store.finder] }, null, 2)); const b = panel.querySelector('#wxch-all'); b.textContent = '已复制 ✓'; setTimeout(() => { b.textContent = '复制全部 JSON'; }, 1500); }; render(); } hookNetwork(); buildPanel(); setTimeout(() => { scanComponents(); scanGlobals(); render(); }, 600); return { store, scanComponents, scanGlobals, render }; }extractorMain();})();</textarea>
+
+<h2>怎么用</h2>
+<ol>
+  <li>电脑浏览器打开 <code>https://channels.weixin.qq.com</code>，扫码登录（必须是该视频号的管理员）</li>
+  <li>进入<strong>内容管理</strong>的作品列表，如果数据没自动出来，<strong>滚动一下列表或翻页</strong>（让列表接口跑一次）</li>
+  <li>面板会列出作品：封面缩略图 + 标题 + feedId，点「复制 feedId」</li>
+  <li>视频号ID（<code>sph</code> 开头）在助手<strong>首页</strong>顶部能看到，复制到名片的第一个输入框</li>
+</ol>
+
+<h2>如果没抓到</h2>
+<ul>
+  <li>先点面板上的<strong>「重新扫描页面」</strong>，再滚动列表让它刷一次接口</li>
+  <li>确认登录的是<strong>该视频号的管理员微信</strong>（运营者需管理员先授权）</li>
+  <li>面板底部会显示「已扫描对象数 / 接口次数」——把这两个数字和截图反馈过来，
+      就能按真实页面结构补上对应提取路径（视频号页面结构会随版本变化，本工具做了三条兜底路径）</li>
+</ul>
+
+<div class="box" style="color:#86909c;font-size:12px">
+  注：本工具只是<strong>省掉抄 ID 的手工活</strong>，不改变数据来源——feedId 与视频号ID 的合规来源仍然是
+  微信官方的视频号助手。微信未开放「由分享短链反查 feedId」的接口（weixin.qq.com/sph/ 是加密路由短链），
+  服务端无法解析，所以这一步必须由用户在自己登录态下完成。
+</div>
+
+<script>
+function copyBm() {
+  var t = document.getElementById('bm');
+  t.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  var tip = document.getElementById('tip');
+  tip.textContent = '已复制 ✓ 去书签栏新建书签，粘贴到「网址」栏';
+  setTimeout(function () { tip.textContent = ''; }, 4000);
+}
+</script>
+</body>
+</html>
