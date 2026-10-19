@@ -251,16 +251,15 @@ export function createCardRouter(db, wxService) {
       const bindTid = channelTenantId || Number(tid) || Number(config.defaultTenantId || 0);
       if (!user.customer_id && bindTid) {
         const cid = bindTid;
-        const ent = db.prepare(
-          "SELECT id FROM tenant_enterprises WHERE customer_id = ? AND name = ?"
-        ).get(cid, 'H5演示用户_' + user.id);
-        const entId = ent ? ent.id : db.prepare(
-          "INSERT INTO tenant_enterprises (customer_id, name) VALUES (?, ?)"
-        ).run(cid, 'H5演示用户_' + user.id).lastInsertRowid;
-        db.prepare('UPDATE platform_user SET enterprise_id = ?, customer_id = ? WHERE id = ?')
-          .run(entId, cid, user.id);
+        // 🔴 2026-10-20 改造：这里曾给每个新用户自动建一家「H5演示用户_<userId>」企业
+        // 并把账号挂到它下面。后果有二：
+        //   ① 租户的「旗下企业」被这些演示企业占满（线上实测 8 家里 6 家是它）；
+        //   ② 正常注册用户被身份判定为「挂靠成员」（橙），本应是「租户名片」——
+        //      他自己创建名片却显示"挂靠"，用户当场质疑。
+        // 兜底只需绑租户（customer_id），企业归属应走正式的入驻/员工流程，
+        // 不该由登录兜底凭空造企业。历史脏数据由 cleanupDemoEnterprises() 迁移清理。
+        db.prepare('UPDATE platform_user SET customer_id = ? WHERE id = ?').run(cid, user.id);
         user.customer_id = cid;
-        user.enterprise_id = entId;
       }
 
       // 生成token

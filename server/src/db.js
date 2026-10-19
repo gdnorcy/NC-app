@@ -4231,6 +4231,50 @@ function seedMemberSystem(db) {
   if (!colExists(db, 'goods_order', 'verify_by')) {
     db.exec('ALTER TABLE goods_order ADD COLUMN verify_by INTEGER NOT NULL DEFAULT 0');
   }
+
+  // 历史脏数据清理：登录兜底造出的「H5演示用户_*」影子企业（见 cleanupDemoEnterprises）
+  cleanupDemoEnterprises(db);
+}
+
+/**
+ * 清理「H5演示用户_*」影子企业及其账号挂靠（2026-10-20，幂等）
+ *
+ * 历史坑：微信登录的租户兜底曾给每个新用户自动建一家名为『H5演示用户_<userId>』的
+ * 企业，并把账号的 enterprise_id 指向它。后果：
+ *   ① 租户「旗下企业」被演示企业占满（线上实测 8 家里 6 家是它，admin 全空）；
+ *   ② 正常注册用户因此被身份判定为「挂靠成员」（橙），他自己创建的名片却显示
+ *      "账号挂靠企业"，用户当场质疑——本应是「租户名片」。
+ * 源头已改（登录兜底只绑 customer_id，不再造企业），这里清理存量脏数据。
+ *
+ * 🔴 顺序绝不能反：先补名片归属，再解挂靠。
+ * 这些名片自身 customer_id / enterprise_id 都是空的，此前完全靠「账号挂靠企业」
+ * 这条归属通道才在租户后台可见；若先解挂靠，名片会从后台彻底消失，
+ * 比"挂靠成员"这个难看的标签严重得多。
+ *
+ * @returns {number} 清理掉的影子企业数量
+ */
+export function cleanupDemoEnterprises(db) {
+  const demoEnts = db
+    .prepare("SELECT id FROM tenant_enterprises WHERE name LIKE 'H5演示用户%'")
+    .all()
+    .map((r) => r.id);
+  if (!demoEnts.length) return 0;
+  const ph = demoEnts.map(() => '?').join(',');
+  // ① 先把这些人名片的 customer_id 补成其账号所属租户，保住归属通道
+  const users = db
+    .prepare(`SELECT id, customer_id FROM platform_user WHERE enterprise_id IN (${ph})`)
+    .all(...demoEnts);
+  const fillCard = db.prepare(
+    "UPDATE card_profile SET customer_id = ? WHERE user_id = ? AND (customer_id IS NULL OR customer_id = '')"
+  );
+  for (const u of users) {
+    if (u.customer_id) fillCard.run(u.customer_id, u.id);
+  }
+  // ② 再解挂靠
+  db.prepare(`UPDATE platform_user SET enterprise_id = NULL WHERE enterprise_id IN (${ph})`).run(...demoEnts);
+  // ③ 影子企业停用（不从后台企业列表消失得靠 status；不物理删除，留痕）
+  db.prepare(`UPDATE tenant_enterprises SET status = 'disabled', updated_at = datetime('now') WHERE id IN (${ph})`).run(...demoEnts);
+  return demoEnts.length;
 }
 
 export function resolveMemberRoles(db, memberId) {
