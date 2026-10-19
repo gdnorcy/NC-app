@@ -6,7 +6,7 @@
     <!-- 页面标题 -->
     <AppPageHeader title="名片管理" desc="本租户全部名片的统一视图：身份归属、公开状态、集市上下架一页说清" />
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片（2026-10-20 合并「员工名片」页：补它独有的两个统计） -->
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-icon-wrap icon-blue"><SIcon name="card" size="default" color="#165dff" /></div>
@@ -22,6 +22,22 @@
           <div class="stat-value">{{ stats.publicCount || 0 }}</div>
           <div class="stat-label">已公开</div>
           <div class="stat-sub">H5/小程序可被访客查看</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap icon-teal"><SIcon name="team" size="default" color="#0d9e8a" /></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.employeeCount || 0 }}</div>
+          <div class="stat-label">企业成员</div>
+          <div class="stat-sub">归属本租户的去重自然人</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap icon-cyan"><SIcon name="analytics" size="default" color="#0aa5a5" /></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.totalViews || 0 }}</div>
+          <div class="stat-label">总访问量</div>
+          <div class="stat-sub">在册名片累计访问</div>
         </div>
       </div>
       <div class="stat-card">
@@ -42,7 +58,7 @@
       </div>
     </div>
 
-    <!-- 口径说明：解释各页数字为什么不一样 -->
+    <!-- 口径说明 + 身份图例（2026-10-20 身份徽章 5→3 组：运营只看颜色即可） -->
     <div class="scope-note">
       <SIcon name="dynamic" size="small" color="#ff7d00" />
       <span>
@@ -50,18 +66,28 @@
         「入驻管理」里的入驻个人/入驻企业是<strong>账号维度</strong>。三个数字口径不同，对不上是正常的。
       </span>
     </div>
+    <div class="identity-legend">
+      <span class="lg-dot lg-green"></span><span><strong>正式成员</strong>（企业员工 / 入驻个人）＝可上架集市、可交换名片，是真正有用的名单</span>
+      <span class="lg-dot lg-orange"></span><span><strong>挂靠成员</strong>（账号挂靠企业）＝仅归属展示，用不了集市，需转正式成员</span>
+      <span class="lg-dot lg-blue"></span><span><strong>主体名片</strong>（企业名片 / 租户名片）＝非个人名片</span>
+    </div>
 
     <!-- 名片列表 -->
     <div class="content-card">
       <div class="toolbar">
         <el-input v-model="keyword" placeholder="搜索姓名/职位/公司" style="width: 240px;" clearable @keyup.enter="loadCards" @clear="loadCards" />
-        <el-select v-model="identity" placeholder="身份" style="width: 140px;" clearable @change="loadCards">
-          <el-option label="全部身份" value="" />
-          <el-option label="入驻个人" value="individual" />
-          <el-option label="企业员工" value="employee" />
-          <el-option label="企业成员" value="ent_member" />
-          <el-option label="企业名片" value="enterprise" />
-          <el-option label="租户名片" value="tenant" />
+        <el-select v-model="identity" placeholder="身份" style="width: 160px;" clearable @change="loadCards">
+          <el-option-group label="正式成员（能上集市/交换）">
+            <el-option label="企业员工" value="employee" />
+            <el-option label="入驻个人" value="individual" />
+          </el-option-group>
+          <el-option-group label="挂靠成员（仅归属）">
+            <el-option label="挂靠成员（账号挂靠）" value="ent_member" />
+          </el-option-group>
+          <el-option-group label="主体名片">
+            <el-option label="企业名片" value="enterprise" />
+            <el-option label="租户名片" value="tenant" />
+          </el-option-group>
         </el-select>
         <el-select v-model="market" placeholder="集市状态" style="width: 150px;" clearable @change="loadCards">
           <el-option label="全部状态" value="" />
@@ -90,9 +116,17 @@
         </el-table-column>
         <el-table-column label="身份" width="110">
           <template #default="{ row }">
-            <el-tag :type="identityTagType(row.identity)" size="small" effect="plain">
-              {{ row.identityLabel }}
+            <!-- 🔴 2026-10-20 徽章 5→3 组（数据层 5 种身份保留不动，只简化展示）：
+                 正式成员=企业员工/入驻个人（绿，能上集市能交换）；挂靠成员=企业成员（橙，仅归属）；
+                 主体名片=企业/租户名片（蓝）。悬停可见原始身份。 -->
+            <el-tag :type="identityGroup(row.identity).type" size="small" effect="plain" :title="row.identityLabel">
+              {{ identityGroup(row.identity).label }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="手机号" width="130">
+          <template #default="{ row }">
+            <span>{{ row.phone || '—' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="所属企业" min-width="140">
@@ -192,6 +226,14 @@ function identityTagType(id) {
   return 'info';
 }
 
+// 身份 5 → 3 组展示（2026-10-20）：运营只看颜色——绿的能干活、橙的待转正、蓝的是主体名片。
+// 数据层 5 种身份判定（CARD_IDENTITY_SQL）不动，筛选仍按原始 key，随时可还原。
+function identityGroup(id) {
+  if (id === 'employee' || id === 'individual') return { label: '正式成员', type: 'success' };
+  if (id === 'ent_member') return { label: '挂靠成员', type: 'warning' };
+  return { label: '主体名片', type: 'primary' };
+}
+
 function marketTagType(s) {
   if (s === 'approved') return 'success';
   if (s === 'pending') return 'warning';
@@ -288,6 +330,15 @@ async function forceRemove(row) {
 .stat-icon-wrap.icon-green { background: rgba(0,180,42,0.1); }
 .stat-icon-wrap.icon-orange { background: rgba(255,125,0,0.1); }
 .stat-icon-wrap.icon-purple { background: rgba(114,46,209,0.1); }
+.stat-icon-wrap.icon-teal { background: rgba(13,158,138,0.1); }
+.stat-icon-wrap.icon-cyan { background: rgba(10,165,165,0.1); }
+/* 身份三组图例（2026-10-20 徽章 5→3 组） */
+.identity-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 8px; padding: 10px 16px; font-size: 12px; color: #4e5969; margin-bottom: 16px; line-height: 1.6; }
+.identity-legend strong { color: #1d2129; }
+.lg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.lg-green { background: #00b42a; }
+.lg-orange { background: #ff7d00; }
+.lg-blue { background: #165dff; }
 .stat-value { font-size: 24px; font-weight: 600; color: #1d2129; }
 .stat-label { font-size: 13px; color: #86909c; margin-top: 2px; }
 .stat-sub { font-size: 12px; color: #a9aeb8; margin-top: 1px; }

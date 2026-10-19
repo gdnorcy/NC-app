@@ -1156,6 +1156,9 @@ router.get('/card/manage', requireTenant, (req, res) => {
     publicCount: db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ? AND c.is_public = 1`).get(...sp0, 'active').n,
     marketApproved: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'approved').n,
     marketPending: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'pending').n,
+    // 2026-10-20 合并「员工名片」页进来：补它独有的两个统计（去重自然人 / 累计访问）
+    employeeCount: db.prepare(`SELECT COUNT(DISTINCT c.user_id) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`).get(...sp0, 'active').n,
+    totalViews: db.prepare(`SELECT COALESCE(SUM(c.view_count), 0) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`).get(...sp0, 'active').n,
   };
   const entNames = loadTenantEnterpriseNames(cid);
   res.json({ cards: cards.map(c => ({
