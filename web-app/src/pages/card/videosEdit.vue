@@ -94,6 +94,7 @@
 
       <!-- 手动填 ID 模式 -->
       <block v-else>
+        <view class="wk-hint">ID 获取：视频号助手 → 首页复制视频号ID（sph 开头）；动态管理 → 单条视频复制 feedId</view>
         <input class="wk-id-input" v-model="popup.finder" placeholder="finderUserName（视频号ID，sph 开头）" placeholder-class="ph" />
         <input class="wk-id-input" v-model="popup.feed" placeholder="feedId（视频唯一标识）" placeholder-class="ph" />
       </block>
@@ -235,7 +236,8 @@ function closePopup() {
   popup.show = false;
 }
 
-// 链接解析：失败自动切手动模式兜底（开发文档 3.2 降级链）
+// 链接解析：失败自动切手动模式兜底（开发文档 3.2 降级链）；
+// 主页短链（/sph/xxxx）单独引导——它拿不到具体视频，需用户复制「单条视频」的分享链接
 async function doParse() {
   const link = String(popup.link || '').trim();
   if (!link) {
@@ -249,8 +251,12 @@ async function doParse() {
     popup.feed = data.feedId || '';
     uni.showToast({ title: '解析成功', icon: 'success' });
   } catch (e) {
-    uni.showToast({ title: e.message || '解析失败，请手动填写ID', icon: 'none' });
     popup.mode = 'id';
+    if (e.data && e.data.code === 'channelHomeLink') {
+      uni.showModal({ title: '这是视频号主页链接', content: e.message, showCancel: false });
+    } else {
+      uni.showToast({ title: e.message || '解析失败，请手动填写ID', icon: 'none' });
+    }
   } finally {
     popup.parsing = false;
   }
@@ -465,18 +471,23 @@ onMounted(() => {
   border: 1rpx solid var(--border-strong); border-radius: 12rpx; padding: 14rpx 0;
 }
 .wk-mode-item.on { color: var(--design-primary); border-color: var(--design-primary); background: rgba(0, 0, 0, 0.04); }
+/* 输入框对齐 customers.vue .form-input / customerDetail.vue .picker-value 规范：
+   height 80rpx + line-height 80rpx（MP 原生 input 垂直 padding 不生效，必须显式高度，
+   否则塌成一行矮盒——2026-10-19 开发者工具实测反馈）+ fs-5 + radius-xs */
 .wk-link-input {
-  width: 100%; min-height: 140rpx; box-sizing: border-box; font-size: var(--fs-3); color: var(--t1);
-  background: var(--bg-page); border-radius: 12rpx; padding: 16rpx; line-height: 1.5;
+  width: 100%; height: 160rpx; box-sizing: border-box; font-size: var(--fs-5); color: var(--t1);
+  background: var(--bg-card); border-radius: var(--radius-xs); padding: 20rpx 24rpx; line-height: 1.5;
 }
 .wk-id-input {
-  width: 100%; box-sizing: border-box; font-size: var(--fs-3); color: var(--t1);
-  background: var(--bg-page); border-radius: 12rpx; padding: 18rpx 16rpx; margin-bottom: 16rpx;
+  width: 100%; box-sizing: border-box; height: 80rpx; line-height: 80rpx;
+  background: var(--bg-card); border-radius: var(--radius-xs);
+  padding: 0 24rpx; font-size: var(--fs-5); color: var(--t1); margin-bottom: 20rpx;
 }
 .wk-parse-btn {
   margin-top: 16rpx; text-align: center; font-size: var(--fs-4); color: var(--design-primary);
   border: 1rpx solid var(--design-primary); border-radius: 12rpx; padding: 14rpx 0;
 }
+.wk-hint { font-size: var(--fs-2); color: var(--t3); line-height: 1.5; margin-bottom: 16rpx; }
 .wk-parsed { margin-top: 20rpx; background: rgba(0, 0, 0, 0.04); border-radius: 12rpx; padding: 16rpx; }
 .wk-parsed-ok { font-size: var(--fs-3); color: var(--design-primary); font-weight: 500; }
 .wk-parsed-ids { display: block; font-size: var(--fs-1); color: var(--t3); margin-top: 8rpx; word-break: break-all; }

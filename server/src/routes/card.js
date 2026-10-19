@@ -66,10 +66,16 @@ function coalesceLatLng(row, lat, lng) {
  * 微信无官方解析 API，只能正则提取（页面改版时可能失效 → 前端降级手动填 ID）。
  * 注意：微信对 channels.weixin.qq.com 网页抓取有反爬（errCode 10012 非法请求），
  * 封面/标题无法服务端抓取，统一走「默认封面 + 播放键」（已与产品确认）。
+ * 主页短链（weixin.qq.com/sph/xxxx）只有主页短ID，既无 feedId 也无 sph 形态的
+ * finderUserName（官方要求 sph 开头），返回 channelHome 让上层给专门引导。
  */
 function parseChannelLink(link) {
   const text = String(link || '').trim();
   if (!text) return null;
+  const hasParams = /finderUserName=/.test(text) || /feedId=/.test(text);
+  if (!hasParams && /\/sph\/[A-Za-z0-9_-]{4,32}/.test(text)) {
+    return { channelHome: true };
+  }
   const f = text.match(/finderUserName=([^&\s"']+)/);
   const d = text.match(/feedId=([^&\s"']+)/);
   if (!f || !d) return null;
@@ -851,6 +857,13 @@ export function createCardRouter(db, wxService) {
       const parsed = parseChannelLink(req.body && req.body.link);
       if (!parsed) {
         return res.status(400).json({ error: '解析失败，请手动填写 finderUserName 与 feedId', code: 'parseFail' });
+      }
+      // 主页分享短链：只有主页ID，拿不到具体视频（开发文档 8.3 边界场景：分类错误提示）
+      if (parsed.channelHome) {
+        return res.status(400).json({
+          error: '识别到视频号主页链接，但无法从中获取具体视频。请打开要添加的那条视频 → 分享 → 复制链接；或到视频号助手获取视频号ID（sph 开头）与视频 feedId',
+          code: 'channelHomeLink',
+        });
       }
       res.json({ finderUserName: parsed.finderUserName, feedId: parsed.feedId });
     } catch (e) { res.status(500).json({ error: e.message }); }

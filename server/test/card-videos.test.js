@@ -119,7 +119,24 @@ test('parse 链接解析：合法链接提取 sph + feedId，脏数据 400 parse
     assert.equal(r.body.code, 'parseFail');
   }
 
-  // 5. 未登录不能解析（401）
+  // 5. 视频号主页分享短链（weixin.qq.com/sph/xxxx）：无具体视频 → 400 channelHomeLink 专门引导
+  const home = await request(app)
+    .post('/api/card/cards/1/videos/parse')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ link: 'https://weixin.qq.com/sph/A6FgtKSMRw' });
+  assert.equal(home.status, 400, JSON.stringify(home.body));
+  assert.equal(home.body.code, 'channelHomeLink');
+  assert.ok(String(home.body.error).includes('主页'));
+
+  // 6. 带 feedId 参数的 sph 短链不走主页分支（有参数即按参数解析：缺 finderUserName → parseFail）
+  const sphWithFeed = await request(app)
+    .post('/api/card/cards/1/videos/parse')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ link: 'https://weixin.qq.com/sph/A6FgtKSMRw?feedId=MTY3ODQ5MTIzNDU2' });
+  assert.equal(sphWithFeed.status, 400);
+  assert.equal(sphWithFeed.body.code, 'parseFail');
+
+  // 7. 未登录不能解析（401）
   const noAuth = await request(app).post('/api/card/cards/1/videos/parse').send({ link: shareLink(FINDER, FEED1) });
   assert.equal(noAuth.status, 401);
 });
