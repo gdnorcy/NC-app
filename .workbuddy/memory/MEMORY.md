@@ -11,6 +11,7 @@
 ## 真机与跨端
 - H5 正常≠MP 正常，依次查：① 父 wxss 穿不透子组件根(`:deep()` 也无效)→传 prop 出内联；② MP 无 atob/Buffer→`uni.base64ToArrayBuffer`；③ 内联 font-family 含双引号→setStyle 整条丢弃；④ 明暗判据搞反。
 - 主题跟随：消费 `var(--design-` 的页面必绑 themeStyle；强调色只用 `--design-primary`；SIcon/canvas/showModal 不吃 var()→喂真实 hex；补 marginLR 用 `??`；**画布对≠C端对**。
+- 🔴 Vue 模板裸 hex 只能写静态属性：`color="#ffffff"` 合法；`:color="#ffffff"` 绑定式会被编译器当私有字段语法（`obj.#ffffff`）→ 整包 build failed。绑定要传 hex 必须 `:color="'#ffffff'"`。
 - MP 主包构建后清 `static/{sicons,icons,sample,three}`：先 grep 静态路径确认 0 命中（sicons 已走 `sicons-base64.js` 内联）。
 - 🔴 浮层定位禁写死百分比：`sticky` 元素底沿随版式浮动（实测 312~610px），必 JS 实测 + 内联 top，夹在导航与 TabBar 之间。
 - 🔴 uni H5 无头走查三坑：`getStorageSync` 读对象须 `{type,data}` 包装；同路径换 query 不重跑 `onLoad` 须 reload；`open` 新页丢 localStorage 须补注入。时序 `open→wait800→reload→wait2500`。
