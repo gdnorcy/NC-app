@@ -309,8 +309,8 @@
           <!-- 视频号（finderUserName + feedId；H5 端 openChannelVideo 内提示去微信打开） -->
           <view v-else-if="c.type === 'channel-video'" class="cc-video" :style="ccStyle(c)" @click="openChannelVideo(c.props)">
             <image v-if="c.props.cover" class="cc-video-cover" :src="c.props.cover" mode="aspectFill" />
-            <view v-else class="cc-video-cover cc-video-empty"><SIcon name="dynamic" size="large" :color="#ffffff" /></view>
-            <view class="cc-video-play"><SIcon name="play" size="default" :color="#ffffff" /></view>
+            <view v-else class="cc-video-cover cc-video-empty"><SIcon name="dynamic" size="large" color="#ffffff" /></view>
+            <view class="cc-video-play"><SIcon name="play" size="default" color="#ffffff" /></view>
             <view class="cc-video-info" v-if="c.props.title || c.props.desc">
               <text class="cc-video-t" v-if="c.props.title">{{ c.props.title }}</text>
               <text class="cc-video-d" v-if="c.props.desc">{{ c.props.desc }}</text>
