@@ -55,6 +55,12 @@
 ## 杂项
 - schema 说明是 `tips` 复数；macOS grep 用 `-E`；CSS token 源 token.scss。
 - 集市两套状态：开关=`card_market_items`，is_public=可见性派生；单一来源 `utils/marketLink.js`。超级表单见 refs/decoration-form.md。
+- 🔴 名片归属/身份 SQL（`customer.js` 的 `TENANT_CARD_SCOPE_SQL`/`CARD_IDENTITY_SQL`）
+  查 `tenant_enterprises` **必带 `status='active'`**（②企业名片③成员挂靠两通道 + overview/
+  customers 口径，共 6 处）。能力真值是名册表（`tenant_individuals`/`tenant_enterprise_employees`
+  active），identity 枚举只是派生展示——新增能力判定读名册，勿读 identity。
+- 🔴 server 全量单进程 `node --test` 会被 OOM kill（exit 137）：用 `awk 'NR%4==n'` 分 4 批跑；
+  macOS `split` 无 `-n l/4`。
 
 ## 令牌与产物（2026-10-19 新增）
 - 🔴 `tokenAudit` 按「写法**种类**」计数（z-index/font-size/radius…），不是次数：
