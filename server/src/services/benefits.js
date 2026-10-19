@@ -5,7 +5,7 @@
  *   面向运营可调的后台配额；而作品/视频是重资源位，免费用户也必须有上限
  *   （否则一名片可传无限图），故本服务用**中心化代码配置**并服务端强制：
  *   - worksLimit：作品图上限（跨该用户名下所有名片累计，防建多名片绕过）
- *   - videosLimit：视频号条目上限（card_videos 纯元数据：封面+标题+时长）
+ *   - videosLimit：视频号条目上限（card_videos 链接调用元数据：finderUserName + feedId）
  *   - customWorksLabel：是否允许自定义作品标签名（card_profile.works_label）
  *
  * 🔴 与 quota.js 的分层：quota=运营后台可调配额（member_package 列）；

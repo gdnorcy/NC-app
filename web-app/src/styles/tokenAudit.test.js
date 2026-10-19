@@ -14,7 +14,7 @@ const tokenScss = path.join(root, 'styles', 'token.scss');
 // B-2 灰阶色值→令牌后：裸 hex 1542→573（剩 573 为非映射色：品牌橙/绿/红、黑、杂灰等，待后续令牌化）
 const BASELINE = {
   hex: 573,
-  rgba: 281, // B-2/B-3/B-4 后 275；2026-10-16 视觉得分修（方案A 浅底彩图标）有意 +6：分销四图标 tint 底×4、会员徽章白底/细边框×2
+  rgba: 289, // B-2/B-3/B-4 后 275；2026-10-16 视觉得分修（方案A 浅底彩图标）有意 +6：分销四图标 tint 底×4、会员徽章白底/细边框×2；2026-10-22 视频号链接调用有意 +8：默认封面斜向光影渐变×2（videosEdit/cardDetail 同款）、播放键白 0.92×1、选中/解析底 0.04×2
   fontKinds: 74,
   radiusKinds: 73,
   shadowKinds: 46,

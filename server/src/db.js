@@ -1226,6 +1226,14 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_card_videos_card ON card_videos(card_id);
   `);
+  // 视频号链接调用改造：finderUserName + feedId 定位具体视频；is_show 控制 C 端可见性
+  try { db.exec("ALTER TABLE card_videos ADD COLUMN finder_user_name TEXT NOT NULL DEFAULT ''"); } catch (e) { /* 已存在则忽略 */ }
+  try { db.exec("ALTER TABLE card_videos ADD COLUMN feed_id TEXT NOT NULL DEFAULT ''"); } catch (e) { /* 已存在则忽略 */ }
+  try { db.exec("ALTER TABLE card_videos ADD COLUMN is_show INTEGER NOT NULL DEFAULT 1"); } catch (e) { /* 已存在则忽略 */ }
+  // 旧「相册封面」数据无法映射到视频号视频（无 finder/feedId），直接清空
+  db.exec("DELETE FROM card_videos WHERE feed_id = '' OR feed_id IS NULL");
+  // 同卡同视频去重兜底（应用层已有 409 校验，这里防并发/历史脏数据）
+  try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_card_videos_dedupe ON card_videos(card_id, finder_user_name, feed_id)"); } catch (e) { /* 有重复数据时建不上，忽略 */ }
 
   // —— 客户资源表 ——
   db.exec(`

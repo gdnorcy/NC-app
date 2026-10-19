@@ -95,16 +95,17 @@ if (dynCount === 0) {
   console.log('+ 动态 2条');
 }
 
-// ============ 5. 视频（demo vids 2条）============
+// ============ 5. 视频（demo vids 2条；视频号链接调用：finderUserName + feedId）============
 const vidCount = db.prepare('SELECT COUNT(*) as c FROM card_videos WHERE card_id=?').get(cardId).c;
 if (vidCount === 0) {
+  // 演示用视频号ID（sph 开头）；封面走默认图 + 播放键（微信反爬致封面无法服务端抓取）
   const vids = [
-    { title: '我的工作室 · 日常', cover: IMG.studio, dur: '01:12', sort: 1 },
-    { title: '作品集 · 摄影展', cover: IMG.gallery, dur: '00:48', sort: 2 },
+    { title: '我的工作室 · 日常', finder: 'sph4cDqEd8vU0AB', feed: 'MTY3ODQ5MTIzNDU2', sort: 1 },
+    { title: '作品集 · 摄影展', finder: 'sph4cDqEd8vU0AB', feed: 'NzEyMzQ1Njc4OTAxMjM0NTY3ODkw', sort: 2 },
   ];
   for (const v of vids) {
-    db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration, sort_order) VALUES (?,?,?,?,?)')
-      .run(cardId, v.title, v.cover, v.dur, v.sort);
+    db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration, finder_user_name, feed_id, sort_order, is_show) VALUES (?,?,?,?,?,?,?,1)')
+      .run(cardId, v.title, '', '', v.finder, v.feed, v.sort);
   }
   console.log('+ 视频 2条');
 }

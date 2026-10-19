@@ -371,11 +371,11 @@
     <view class="tab-panel" v-if="activeTab === 'video'">
       <view class="sec-t">视频作品<small>对接视频号</small></view>
       <view class="vids-row" v-if="videos.length">
-        <view class="vid-card" v-for="v in videos" :key="v.id" @click="openVideo">
-          <image class="vid-cover" :src="v.coverUrl" mode="aspectFill" />
+        <view class="vid-card" v-for="v in videos" :key="v.id" @click="openChannelVideo(v)">
+          <image class="vid-cover" v-if="v.coverUrl" :src="v.coverUrl" mode="aspectFill" />
+          <view class="vid-cover vid-cover-default" v-else></view>
           <view class="vid-play"><SIcon name="dynamic" size="large" color="#ffffff" /></view>
-          <view class="vid-title">{{ v.title }}</view>
-          <view class="vid-dur" v-if="v.duration">{{ v.duration }}</view>
+          <view class="vid-title">{{ v.title || '视频号作品' }}</view>
         </view>
       </view>
       <view class="empty-state" v-else-if="!card.videoChannel">
@@ -999,6 +999,32 @@ function copyVideoChannelId(ch) {
     data: ch,
     success: () => uni.showModal({ title: '提示', content: '已复制视频号ID，请在微信中搜索查看', showCancel: false }),
   });
+}
+// 打开视频号具体视频（名片「视频」Tab 的卡片）：wx.openChannelsActivity 携带
+// finderUserName + feedId，无主体限制，任何人的视频号都能跳。
+// 🔴 与上面 openVideo（主页入口）分工：列表卡片=具体视频；下方 video-card=主页。
+// H5 无 Weixin JS-SDK 挂载，降级为提示去小程序观看（不做假动作）。
+function openChannelVideo(v) {
+  if (!v || !v.finderUserName || !v.feedId) return;
+  // #ifdef MP-WEIXIN
+  if (typeof wx !== 'undefined' && wx.openChannelsActivity) {
+    wx.openChannelsActivity({
+      finderUserName: v.finderUserName,
+      feedId: v.feedId,
+      fail: (err) => {
+        uni.showModal({
+          title: '提示',
+          content: err && err.errMsg && String(err.errMsg).indexOf('not exist') > -1
+            ? '该视频已删除或设为私密，请联系名片主人更新'
+            : '打开失败，请稍后重试',
+          showCancel: false,
+        });
+      },
+    });
+    return;
+  }
+  // #endif
+  uni.showModal({ title: '提示', content: '请在微信中打开该名片小程序观看视频', showCancel: false });
 }
 // ===== 视频号（按名片主人会员状态裁决）=====
 // ownerIsVip 由服务端算好下发（/cards/:id 的 toCard）：非 free 且未过期，单一裁决。
@@ -2110,6 +2136,11 @@ async function followCard() {
   object-fit: cover;
   display: block;
 }
+/* 默认封面（无上传封面时）：品牌色 + 斜向光影，与 videosEdit 编辑页同款语言 */
+.vid-cover-default {
+  background-color: var(--design-primary);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.32));
+}
 .vid-play {
   position: absolute;
   inset: 0;
@@ -2126,16 +2157,6 @@ async function followCard() {
   color: var(--white);
   font-size: var(--fs-2);
   line-height: 1.4;
-}
-.vid-dur {
-  position: absolute;
-  right: 10rpx;
-  top: 10rpx;
-  background: rgba(0,0,0,0.55);
-  color: var(--white);
-  font-size: var(--fs-1);
-  padding: 2rpx 10rpx;
-  border-radius: var(--radius-sm);
 }
 
 /* ===== 动态评论面板 ===== */

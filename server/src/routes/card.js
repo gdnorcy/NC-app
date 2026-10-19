@@ -61,6 +61,32 @@ function coalesceLatLng(row, lat, lng) {
   ];
 }
 
+/**
+ * 视频号分享链接解析：提取 finderUserName（sph 开头）与 feedId。
+ * 微信无官方解析 API，只能正则提取（页面改版时可能失效 → 前端降级手动填 ID）。
+ * 注意：微信对 channels.weixin.qq.com 网页抓取有反爬（errCode 10012 非法请求），
+ * 封面/标题无法服务端抓取，统一走「默认封面 + 播放键」（已与产品确认）。
+ */
+function parseChannelLink(link) {
+  const text = String(link || '').trim();
+  if (!text) return null;
+  const f = text.match(/finderUserName=([^&\s"']+)/);
+  const d = text.match(/feedId=([^&\s"']+)/);
+  if (!f || !d) return null;
+  let finderUserName;
+  let feedId;
+  try {
+    finderUserName = decodeURIComponent(f[1]);
+    feedId = decodeURIComponent(d[1]);
+  } catch {
+    finderUserName = f[1];
+    feedId = d[1];
+  }
+  if (!/^sph/i.test(finderUserName)) return null;
+  if (finderUserName.length > 64 || feedId.length < 4 || feedId.length > 128) return null;
+  return { finderUserName, feedId };
+}
+
 export function createCardRouter(db, wxService) {
   const router = Router();
   const voiceUpload = multer({
@@ -514,12 +540,18 @@ export function createCardRouter(db, wxService) {
     res.json({ dynamics: rows.map((d) => toDynamic(d, liked.has(d.id))) });
   });
 
-  // 名片视频列表（公开）
-  router.get('/cards/:id/videos', (req, res) => {
+  // 名片视频号作品列表：主人（带本人 token）看全部；访客仅 is_show=1
+  router.get('/cards/:id/videos', authOptional, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ?').get(req.params.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const videos = db.prepare('SELECT id, card_id, title, cover_url, duration, sort_order FROM card_videos WHERE card_id = ? ORDER BY sort_order ASC, id ASC').all(card.id);
-    res.json({ videos: videos.map((v) => ({ id: v.id, cardId: v.card_id, title: v.title, coverUrl: v.cover_url, duration: v.duration, sortOrder: v.sort_order })) });
+    const isOwner = !!(req.user && card.user_id === req.user.id);
+    const videos = isOwner
+      ? db.prepare('SELECT id, card_id, title, cover_url, duration, sort_order, finder_user_name, feed_id, is_show FROM card_videos WHERE card_id = ? ORDER BY sort_order ASC, id ASC').all(card.id)
+      : db.prepare("SELECT id, card_id, title, cover_url, duration, sort_order, finder_user_name, feed_id, is_show FROM card_videos WHERE card_id = ? AND is_show = 1 AND feed_id != '' ORDER BY sort_order ASC, id ASC").all(card.id);
+    res.json({ videos: videos.map((v) => ({
+      id: v.id, cardId: v.card_id, title: v.title, coverUrl: v.cover_url, duration: v.duration,
+      sortOrder: v.sort_order, finderUserName: v.finder_user_name, feedId: v.feed_id, isShow: !!v.is_show,
+    })) });
   });
 
   // ============================================================
@@ -809,46 +841,65 @@ export function createCardRouter(db, wxService) {
 
   // ============================================================
   // 名片视频号作品管理（增/改/删/排序）——镜像 card_works 归属模型
-  //   card_videos 为纯元数据（封面图 + 标题 + 时长），无视频文件；C 端点击跳转视频号。
+  //   视频号链接调用方案：存 finderUserName + feedId，C 端点击 wx.openChannelsActivity
+  //   跳转具体视频（无主体限制）；封面统一默认图 + 播放键（微信反爬致封面无法抓取）。
   //   数量门禁走 benefits.js（free=0/silver=2/gold=6/diamond=20，跨名片累计）。
   // ============================================================
-  const VIDEO_IMG_MIME = ['image/png', 'image/jpeg', 'image/webp'];
-  // 新增视频条目（封面直传 + 标题 + 时长，一次请求）
+  // 链接解析：粘贴视频号分享链接 → finderUserName + feedId（失败前端降级手动填）
+  router.post('/cards/:id/videos/parse', auth, (req, res) => {
+    try {
+      const parsed = parseChannelLink(req.body && req.body.link);
+      if (!parsed) {
+        return res.status(400).json({ error: '解析失败，请手动填写 finderUserName 与 feedId', code: 'parseFail' });
+      }
+      res.json({ finderUserName: parsed.finderUserName, feedId: parsed.feedId });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 新增视频条目（JSON：finderUserName + feedId + 标题）
   router.post('/cards/:id/videos', auth, (req, res) => {
-    voiceUpload.single('file')(req, res, async (err) => {
-      if (err) {
-        const message = err.code === 'LIMIT_FILE_SIZE' ? '图片不能超过 5MB' : err.message;
-        return res.status(400).json({ error: message });
+    try {
+      const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const body = req.body || {};
+      const finder = String(body.finderUserName || '').trim();
+      const feed = String(body.feedId || '').trim();
+      if (!/^sph/i.test(finder)) return res.status(400).json({ error: 'finderUserName 需以 sph 开头（视频号ID）' });
+      if (!feed) return res.status(400).json({ error: 'feedId 不能为空（视频唯一标识）' });
+      if (finder.length > 64 || feed.length > 128) return res.status(400).json({ error: 'ID 长度超出限制' });
+      // 去重先于门禁：已添加过的视频重复提交应提示「请勿重复」而非误导为「达上限」
+      const dup = db.prepare('SELECT id FROM card_videos WHERE card_id = ? AND finder_user_name = ? AND feed_id = ?').get(card.id, finder, feed);
+      if (dup) return res.status(409).json({ error: '该视频已添加，请勿重复添加', code: 'duplicated' });
+      // 会员分级门禁（先校验再落库）：free 无视频位，引导升级
+      const gate = benefits.canAddVideo(req.user.id);
+      if (!gate.ok) {
+        return res.status(403).json({
+          error: `视频号作品数量已达上限（${gate.used}/${gate.limit} 个），升级会员可添加更多`,
+          code: 'limitHit', kind: 'videos', limit: gate.limit, used: gate.used,
+        });
       }
+      const title = String(body.title || '').trim().slice(0, 40);
+      const maxSort = db.prepare('SELECT MAX(sort_order) AS m FROM card_videos WHERE card_id = ?').get(card.id);
+      const sort = (maxSort && maxSort.m != null ? Number(maxSort.m) : 0) + 1;
+      let videoId;
       try {
-        const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-        if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
-        if (!req.file) return res.status(400).json({ error: '未收到封面图片' });
-        const mime = (req.file.mimetype || '').toLowerCase();
-        if (!VIDEO_IMG_MIME.includes(mime)) return res.status(400).json({ error: '仅支持 png/jpg/webp 图片' });
-        // 会员分级门禁（先校验再落盘）：free 无视频位，引导升级
-        const gate = benefits.canAddVideo(req.user.id);
-        if (!gate.ok) {
-          return res.status(403).json({
-            error: `视频号作品数量已达上限（${gate.used}/${gate.limit} 个），升级会员可添加更多`,
-            code: 'limitHit', kind: 'videos', limit: gate.limit, used: gate.used,
-          });
-        }
-        const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg';
-        const storage = await getStorage(db);
-        const url = await storage.put(req.file.buffer, `video-c${card.id}-${Date.now()}${ext}`);
-        const title = String(req.body.title || '').trim().slice(0, 40);
-        const duration = String(req.body.duration || '').trim().slice(0, 16);
-        const maxSort = db.prepare('SELECT MAX(sort_order) AS m FROM card_videos WHERE card_id = ?').get(card.id);
-        const sort = (maxSort && maxSort.m != null ? Number(maxSort.m) : 0) + 1;
-        const info = db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration, sort_order) VALUES (?,?,?,?,?)')
-          .run(card.id, title, url, duration, sort);
-        res.status(201).json({ video: { id: Number(info.lastInsertRowid), cardId: card.id, title, coverUrl: url, duration, sortOrder: sort } });
+        const info = db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration, finder_user_name, feed_id, sort_order, is_show) VALUES (?,?,?,?,?,?,?,1)')
+          .run(card.id, title, '', '', finder, feed, sort);
+        videoId = Number(info.lastInsertRowid);
       } catch (e) {
-        console.error('新增视频失败:', e);
-        res.status(500).json({ error: '新增视频失败' });
+        // 唯一索引兜底：并发/极端时序下的重复提交
+        if (String(e.message).includes('UNIQUE')) {
+          return res.status(409).json({ error: '该视频已添加，请勿重复添加', code: 'duplicated' });
+        }
+        throw e;
       }
-    });
+      res.status(201).json({
+        video: { id: videoId, cardId: card.id, title, coverUrl: '', duration: '', finderUserName: finder, feedId: feed, isShow: true, sortOrder: sort },
+      });
+    } catch (e) {
+      console.error('新增视频失败:', e);
+      res.status(500).json({ error: '新增视频失败' });
+    }
   });
 
   // 视频排序（批量）：body { ids:[videoId,...] }
@@ -864,7 +915,7 @@ export function createCardRouter(db, wxService) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // 修改视频标题/时长
+  // 修改视频标题/时长/启停
   router.put('/cards/:id/videos/:videoId', auth, (req, res) => {
     try {
       const card = db.prepare('SELECT id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
@@ -873,8 +924,9 @@ export function createCardRouter(db, wxService) {
       if (!video) return res.status(404).json({ error: '视频不存在' });
       const title = String(req.body.title != null ? req.body.title : video.title).trim().slice(0, 40);
       const duration = String(req.body.duration != null ? req.body.duration : video.duration).trim().slice(0, 16);
-      db.prepare('UPDATE card_videos SET title = ?, duration = ? WHERE id = ?').run(title, duration, video.id);
-      res.json({ video: { id: video.id, cardId: card.id, title, coverUrl: video.cover_url, duration, sortOrder: video.sort_order } });
+      const isShow = req.body.isShow != null ? (req.body.isShow ? 1 : 0) : video.is_show;
+      db.prepare('UPDATE card_videos SET title = ?, duration = ?, is_show = ? WHERE id = ?').run(title, duration, isShow, video.id);
+      res.json({ video: { id: video.id, cardId: card.id, title, coverUrl: video.cover_url, duration, finderUserName: video.finder_user_name, feedId: video.feed_id, isShow: !!isShow, sortOrder: video.sort_order } });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 

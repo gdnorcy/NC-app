@@ -158,9 +158,9 @@ test('名片动态/视频API+ownerMemberLevel', async () => {
   assert.equal(dyn.body.dynamics[0].likeCount, 3);
   assert.equal(dyn.body.dynamics[0].commentCount, 1);
 
-  // 视频
-  db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration) VALUES (?,?,?,?)')
-    .run(cardId, '测试视频', 'https://example.com/v1.jpg', '00:30');
+  // 视频（视频号链接调用模型：finderUserName + feedId；访客仅见 is_show=1 且 feedId 非空）
+  db.prepare('INSERT INTO card_videos (card_id, title, cover_url, duration, finder_user_name, feed_id) VALUES (?,?,?,?,?,?)')
+    .run(cardId, '测试视频', 'https://example.com/v1.jpg', '00:30', 'sphTest000001', 'MTY3ODQ5MTIzNDU2');
   const vid = await request(app).get(`/api/card/cards/${cardId}/videos`);
   assert.equal(vid.status, 200);
   assert.equal(vid.body.videos.length, 1);

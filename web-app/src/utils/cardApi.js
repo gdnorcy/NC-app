@@ -114,28 +114,15 @@ export const cardApi = {
   updateCardWork: (cardId, workId, title) => request(`/cards/${cardId}/works/${workId}`, 'PUT', { title }),
   deleteCardWork: (cardId, workId) => request(`/cards/${cardId}/works/${workId}`, 'DELETE'),
   sortCardWorks: (cardId, ids) => request(`/cards/${cardId}/works/sort`, 'PUT', { ids }),
-  // ===== 视频号作品管理（仅名片归属人；card_videos 纯元数据：封面+标题+时长）=====
-  // 新增视频条目：封面直传(multipart file) + 标题/时长(formData)，跨端走 uni.uploadFile
-  addCardVideo: (cardId, filePath, title, duration) => {
-    const token = uni.getStorageSync('card_token');
-    return new Promise((resolve, reject) => {
-      uni.uploadFile({
-        url: BASE_URL + `/cards/${cardId}/videos`,
-        filePath,
-        name: 'file',
-        formData: { title: title || '', duration: duration || '' },
-        header: token ? { Authorization: `Bearer ${token}` } : {},
-        success: (res) => {
-          try {
-            const data = JSON.parse(res.data || '{}');
-            if (res.statusCode >= 200 && res.statusCode < 300 && data.video) resolve(data);
-            else reject(new Error(data.error || '新增视频失败'));
-          } catch (e) { reject(new Error('新增视频失败')); }
-        },
-        fail: (e) => reject(new Error((e && e.errMsg) || '新增视频失败')),
-      });
-    });
-  },
+  // ===== 视频号作品管理（仅名片归属人；视频号链接调用：finderUserName + feedId）=====
+  // 链接解析：粘贴视频号分享链接 → 自动提取 finderUserName(sph) + feedId（失败降级手动填）
+  parseChannelLink: (cardId, link) => request(`/cards/${cardId}/videos/parse`, 'POST', { link }),
+  // 新增视频条目：JSON（finderUserName + feedId + 标题）；封面统一默认图 + 播放键
+  addCardVideo: (cardId, payload) => request(`/cards/${cardId}/videos`, 'POST', {
+    finderUserName: payload.finderUserName,
+    feedId: payload.feedId,
+    title: payload.title || '',
+  }),
   updateCardVideo: (cardId, videoId, data) => request(`/cards/${cardId}/videos/${videoId}`, 'PUT', data || {}),
   deleteCardVideo: (cardId, videoId) => request(`/cards/${cardId}/videos/${videoId}`, 'DELETE'),
   sortCardVideos: (cardId, ids) => request(`/cards/${cardId}/videos/sort`, 'PUT', { ids }),

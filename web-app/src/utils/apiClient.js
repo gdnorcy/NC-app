@@ -78,7 +78,11 @@ export function createApiClient(baseURL, options = {}) {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(res.data);
           } else {
-            reject(new Error(res.data?.error || '请求失败'));
+            // 挂上 status/data：调用方可按业务 code 分支（如 videos 409 duplicated / 403 limitHit）
+            const err = new Error(res.data?.error || '请求失败');
+            err.status = res.statusCode;
+            err.data = res.data;
+            reject(err);
           }
         },
         fail: (err) => reject(err),
