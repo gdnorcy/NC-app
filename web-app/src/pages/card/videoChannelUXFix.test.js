@@ -76,9 +76,22 @@ describe('videosEdit.vue · ②帮助教程（2026-10-19 事实修正）', () =>
     expect(vid).not.toMatch(/一定要复制「单条视频」的链接/);
   });
 
-  test('教程第一步是打开视频号助手（合规唯一来源）', () => {
+  test('教程覆盖「电脑端助手」路径（作品ID 唯一来源）', () => {
     expect(vid).toContain('channels.weixin.qq.com');
     expect(vid).toContain('内容管理');
+  });
+
+  test('🔴 教程第 1 步必须是手机端取视频号ID，不得再写成「必须开电脑」', () => {
+    // 2026-10-19 二次修正：曾把 finderUserName 与 feedId 都写成「只能开电脑 + 视频号助手」，
+    // 用户真机截图证伪——手机「我 → 视频号 → 右上角人像 → 点头像进资料页」即可复制视频号ID。
+    // 护栏目的：钉住「手机端可拿视频号ID」这个事实，防止后续又被改回全电脑路径。
+    const m = vid.match(/const HELP_STEPS = \[([\s\S]*?)\n\];/);
+    expect(m).toBeTruthy();
+    const steps = m[1];
+    expect(steps).toMatch(/手机上复制视频号ID/);
+    expect(steps).toContain('不用电脑');
+    // 作品ID 仍只在助手拿，教程要如实区分，不能统称「两个都能手机拿」
+    expect(steps).toMatch(/作品ID 只有这里能拿|复制视频ID/);
   });
 });
 

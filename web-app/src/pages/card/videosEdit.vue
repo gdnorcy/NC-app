@@ -74,8 +74,13 @@
          feedId/finderUserName 命中 0 处），短码是路由密文不是 ID 本身，无法解析出作品。
          曾以为「单条视频链接」是 channels.weixin.qq.com/...?finderUserName=&feedId= 明文参数，
          那是旧版形态、微信已不再对外分享——照旧教程操作只会让用户找不到该复制的链接。
-         openChannelsActivity 所需两值，合规来源只有视频号助手（官方文档唯一口径）：
-         finderUserName = 助手首页「视频号ID」（sph 开头）；feedId = 助手「内容管理」单条作品复制。
+         openChannelsActivity 所需两值的获取途径（2026-10-19 二次修正，此前误写成「只能开电脑」）：
+         🔴 finderUserName（视频号ID，sph 开头）：手机端即可复制 —— 微信「我 → 视频号 →
+         右上角人像 → 点头像/名字进资料页 → 视频号ID → 点击复制」（用户真机截图实证：sphJXxSYwt39JX5）；
+         电脑端视频号助手首页也能复制。
+         🔴 feedId（作品ID）：手机端无官方入口，必须视频号助手 —— 内容管理 → 视频 →
+         该条作品「分享」→ 复制视频ID。官方社区文档原文为「动态管理模块复制 feedId」，
+         与内容管理是同一处的不同时期叫法。
          故默认落在 id 模式，链接模式降级为次要入口（仅兼容带明文参数的旧链接/助手网页链接）。 -->
     <view class="wk-mask" v-if="popup.show" @click="closePopup"></view>
     <view class="wk-popup" v-if="popup.show">
@@ -89,11 +94,11 @@
       <!-- 手动填 ID 模式（默认）：唯一合规且真实可用的路径 -->
       <block v-if="popup.mode === 'id'">
         <view class="wk-hint">
-          <text class="wk-hint-t">在电脑端「视频号助手」获取：首页复制视频号ID（sph 开头），内容管理里复制对应作品的 feedId</text>
+          <text class="wk-hint-t">视频号ID 手机端即可复制；作品ID 需到「视频号助手」复制（见教程）</text>
           <text class="wk-help-btn wk-help-btn--inline" @click="showIdHelp">查看图文教程</text>
         </view>
-        <input class="wk-id-input" v-model="popup.finder" placeholder="视频号ID（finderUserName，sph 开头）" placeholder-class="ph" />
-        <input class="wk-id-input" v-model="popup.feed" placeholder="作品ID（feedId）" placeholder-class="ph" />
+        <input class="wk-id-input" v-model="popup.finder" placeholder="视频号ID（sph 开头，手机端可复制）" placeholder-class="ph" />
+        <input class="wk-id-input" v-model="popup.feed" placeholder="作品ID（视频号助手里复制）" placeholder-class="ph" />
       </block>
 
       <!-- 链接模式（次要）：仅对带 finderUserName/feedId 明文参数的链接有效 -->
@@ -290,17 +295,20 @@ function closePopup() {
 // 是错的。实测该形态 301 → channels.weixin.qq.com/finder-preview/pages/sph?id=xxx，
 // 落地页无 feedId/finderUserName（0 命中），它是微信 2026 改版后的**统一加密短链**，
 // 分享任何单条视频都长这样，短码是路由密文不是 ID。
-// openChannelsActivity 的两值，官方唯一合规来源就是视频号助手，故教程只讲助手路径。
 // 帮助浮层状态：自绘而非 uni.showModal —— showModal 的 content 在小程序端会截断长文本，
 // 教程必须完整可读。DOM 在添加弹窗之后 → 同用 --z-popup 天然压住上一层。
 const help = reactive({ show: false, tab: 'id' });
+// 🔴 2026-10-19 二次修正：上一版把两个 ID 都写成「必须开电脑 + 视频号助手」，是错的。
+// 用户真机截图实证：手机端「我 → 视频号 → 右上角人像 → 点头像进资料页」即可看到并复制
+// 视频号ID（sph 开头，实测 sphJXxSYwt39JX5）。只有 feedId 手机端无官方入口，仍需助手。
+// 教程因此拆成「手机端拿视频号ID」+「电脑端拿作品ID」两段，不再一律要求开电脑。
 const HELP_STEPS = [
-  { t: '第 1 步：电脑上打开视频号助手', d: '浏览器访问 channels.weixin.qq.com，用该视频号的管理员微信扫码登录。' },
-  { t: '第 2 步：复制视频号ID', d: '登录后首页顶部会直接显示「视频号ID」，形如 sph4cDqEd8vU0AB，复制它 → 填入第一个输入框。' },
-  { t: '第 3 步：复制作品ID', d: '进入「内容管理」→ 找到要添加的那条作品 → 点右侧「···」→ 复制视频ID（feedId）→ 填入第二个输入框。' },
-  { t: '第 4 步：回本页保存', d: '两个都填好后可先点「测试预览」验证能正常跳转，再点底部「保存到名片」。' },
+  { t: '手机上复制视频号ID（不用电脑）', d: '微信 →「我」→「视频号」→ 右上角人像图标 → 点头像或名字进资料页 →「视频号ID」→ 点一下即复制。形如 sphJXxSYwt39JX5，粘贴到第一个输入框。' },
+  { t: '电脑上打开视频号助手', d: '作品ID 只有这里能拿。浏览器访问 channels.weixin.qq.com，用该视频号的管理员微信扫码登录。（这里首页也能复制视频号ID，若已开电脑可两个一起拿）' },
+  { t: '复制作品ID', d: '进入「内容管理」→「视频」→ 找到要添加的那条作品 → 点「分享」→「复制视频ID」，粘贴到第二个输入框。' },
+  { t: '回本页保存', d: '两个都填好后可先点「测试预览」验证能正常跳转，再点底部「保存到名片」。' },
 ];
-const HELP_WARN = '为什么不能直接粘贴微信里的分享链接？\n\n微信现在分享单条视频复制到的是 weixin.qq.com/sph/ 开头的加密短链，它是跳转路由、不含作品 ID，平台无法从中定位到具体作品。请按上面四步到视频号助手获取，这是微信官方文档给出的唯一途径。';
+const HELP_WARN = '为什么不能直接粘贴微信里的分享链接？\n\n微信现在分享单条视频复制到的是 weixin.qq.com/sph/ 开头的加密短链，它是跳转路由、不含作品 ID，平台无法从中定位到具体作品。\n\n视频号ID 用手机就能复制（第 1 步，不必开电脑）；作品ID 目前只有视频号助手提供，需要在电脑上拿一次。';
 const HELP_LINK_NOTE = '这个入口只支持带 finderUserName 与 feedId 明文参数的链接（例如视频号助手网页端复制的作品地址）。\n\n微信里「分享 → 复制链接」得到的是 sph 加密短链，解析不出作品，请改用「填写视频号 ID」标签页——那里有图文教程。';
 
 const helpTitle = computed(() => (help.tab === 'link' ? '关于链接解析' : '如何获取视频号 ID'));
