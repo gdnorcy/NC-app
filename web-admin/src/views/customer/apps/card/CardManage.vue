@@ -69,7 +69,8 @@
     <div class="identity-legend">
       <span class="lg-dot lg-green"></span><span><strong>正式成员</strong>（企业员工 / 入驻个人）＝可上架集市、可交换名片，是真正有用的名单</span>
       <span class="lg-dot lg-orange"></span><span><strong>挂靠成员</strong>（账号挂靠企业）＝仅归属展示，用不了集市，需转正式成员</span>
-      <span class="lg-dot lg-blue"></span><span><strong>主体名片</strong>（企业名片 / 租户名片）＝非个人名片</span>
+      <span class="lg-dot lg-purple"></span><span><strong>企业名片</strong>＝企业主体的名片，不是某个人的</span>
+      <span class="lg-dot lg-grey"></span><span><strong>个人名片</strong>＝直接归属本租户的个人用户名片</span>
     </div>
 
     <!-- 名片列表 -->
@@ -84,9 +85,9 @@
           <el-option-group label="挂靠成员（仅归属）">
             <el-option label="挂靠成员（账号挂靠）" value="ent_member" />
           </el-option-group>
-          <el-option-group label="主体名片">
+          <el-option-group label="企业/个人名片">
             <el-option label="企业名片" value="enterprise" />
-            <el-option label="租户名片" value="tenant" />
+            <el-option label="个人名片（直挂租户）" value="tenant" />
           </el-option-group>
         </el-select>
         <el-select v-model="market" placeholder="集市状态" style="width: 150px;" clearable @change="loadCards">
@@ -231,7 +232,8 @@ function identityTagType(id) {
 function identityGroup(id) {
   if (id === 'employee' || id === 'individual') return { label: '正式成员', type: 'success' };
   if (id === 'ent_member') return { label: '挂靠成员', type: 'warning' };
-  return { label: '主体名片', type: 'primary' };
+  if (id === 'enterprise') return { label: '企业名片', type: 'danger' };
+  return { label: '个人名片', type: 'info' };
 }
 
 function marketTagType(s) {
@@ -338,7 +340,8 @@ async function forceRemove(row) {
 .lg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 .lg-green { background: #00b42a; }
 .lg-orange { background: #ff7d00; }
-.lg-blue { background: #165dff; }
+.lg-purple { background: #722ed1; }
+.lg-grey { background: #86909c; }
 .stat-value { font-size: 24px; font-weight: 600; color: #1d2129; }
 .stat-label { font-size: 13px; color: #86909c; margin-top: 2px; }
 .stat-sub { font-size: 12px; color: #a9aeb8; margin-top: 1px; }
