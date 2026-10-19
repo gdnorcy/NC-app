@@ -579,8 +579,7 @@ onMounted(() => {
 }
 .wk-hint-t { display: block; }
 /* 警示态：链接模式置顶说明「sph 短链无法解析」，避免用户误以为粘贴分享链接是主路径 */
-.wk-hint--warn { background: rgba(255, 138, 0, 0.08); color: var(--t1); }
-/* 解析行：主按钮撑满 + 右侧「帮助」（2026-10-19 用户要求在解析链接后加帮助按钮） */
+.wk-hint--warn { background: rgba(255, 138, 0, 0.08); color: var(--t1); }/* 解析行：主按钮撑满 + 右侧「帮助」（2026-10-19 用户要求在解析链接后加帮助按钮） */
 .wk-parse-row { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; }
 .wk-parse-btn {
   flex: 1; text-align: center; font-size: var(--fs-4); color: var(--design-primary);
@@ -590,9 +589,12 @@ onMounted(() => {
   flex-shrink: 0; font-size: var(--fs-3); color: var(--t3);
   border: 1rpx solid var(--border-strong); border-radius: 12rpx; padding: 18rpx 28rpx;
 }
+/* 内联变体：说明文字块里的次级入口，做成下划线文字链而不是绿色实心块
+   （实心块 + 上方灰底说明文字，视觉上会误读成「主操作按钮」，且挤在一起很重） */
 .wk-help-btn--inline {
-  display: inline-block; margin-top: 10rpx; padding: 8rpx 20rpx; color: var(--design-primary);
-  border-color: var(--design-primary);
+  display: inline-block; margin-top: 12rpx; padding: 0;
+  color: var(--design-primary); border: 0; border-bottom: 1rpx solid currentColor;
+  border-radius: 0; font-size: var(--fs-2);
 }
 /* 弹窗内预览卡：把「封面长什么样」提前给用户看（微信不开放封面接口，只能默认图） */
 .wk-prev {
