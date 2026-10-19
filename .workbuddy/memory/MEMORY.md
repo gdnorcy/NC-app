@@ -39,7 +39,8 @@
 
 ## 构建与部署
 - 两个入口：dev `localhost:5173`｜生产 `localhost:3000/admin`；用户说「没变」先确认他访问哪个。
-- 部署：源码 main → deploy `reset --hard main` → 构建 → force-add 产物 → 强推 deploy → 服务器 `/opt/app` fetch+reset + `systemctl restart panorama`；DB 不在分支。
+- 部署：源码 main → deploy `reset --hard main` → 构建 → **`git add -f` 产物** → 强推 deploy → 服务器 `/opt/app` fetch+reset + `systemctl restart panorama`；DB 不在分支。
+- 🔴 产物必须 `git add -f server/public`：`.gitignore` 忽略 `server/public/{admin,card,mall}`，普通 add **静默跳过所有新 chunk**，只提交已追踪文件改/删 → index.html 引用 404 主 chunk，/card/ 白屏（2026-10-20 实踩）。且 SPA 兜底让 404 也返 200，**验证必须比 chunk size/内容，不能只看状态码**；admin 正确前缀是 `/admin-assets/assets/`。
 - 🔴 构建顺序：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧）。
 - 🔴 safe-delete 拦删 >50 文件：`uni build`/`sync-*.mjs` 都会撞。正解=先把旧产物 `mv` 到 /tmp 再构建；需挪 `dist/build/h5`、`server/public/{card,mall}/{assets,static}`、`server/mini-template/mp-weixin`、MP `static/{icons,sicons}`。
 - 🔴 `git checkout` 会吞掉未提交改动：切分支前先 commit。
