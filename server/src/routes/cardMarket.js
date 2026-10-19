@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { checkTenantAccess } from '../tenant.js';
 import { addOperationLog } from '../db.js';
 import { checkTenantQuota, checkTenantSolutionQuota } from '../services/billing.js';
+import { getUserSubjects } from '../services/cardIdentity.js';
 
 /** 审计日志 helper：租户域操作统一带租户ID前缀，actor 兼容管理端 JWT 与 C 端 card_token */
 function audit(db, req, action, targetType, targetId, detail) {
@@ -423,12 +424,8 @@ export function createCardMarketRouter(db) {
   // 我的名片：集市状态 + 位置定位（上架状态/审核态/置顶/NEW/集市内位置）
   router.get('/market/my-status', tenant, (req, res) => {
     const userId = req.user.id;
-    const individuals = db.prepare("SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ?").all(req.customerId, userId);
-    const employees = db.prepare("SELECT emp.id, emp.status FROM tenant_enterprise_employees emp WHERE emp.customer_id = ? AND emp.user_id = ?").all(req.customerId, userId);
-    const subjects = [
-      ...individuals.map((i) => ({ subjectType: 'individual', subjectId: i.id, status: i.status })),
-      ...employees.map((e) => ({ subjectType: 'employee', subjectId: e.id, status: e.status })),
-    ];
+    // 名册主体（认证状态真值）：单一事实来源 services/cardIdentity.js
+    const { subjects } = getUserSubjects(db, req.customerId, userId);
     const items = db.prepare(
       `SELECT mi.*, mi.is_top, mi.audit_status,
         CASE WHEN mi.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END as is_new

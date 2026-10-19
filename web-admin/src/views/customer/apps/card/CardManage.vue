@@ -6,14 +6,22 @@
     <!-- 页面标题 -->
     <AppPageHeader title="名片管理" desc="本租户全部名片的统一视图：身份归属、公开状态、集市上下架一页说清" />
 
-    <!-- 统计卡片（2026-10-20 合并「员工名片」页：补它独有的两个统计） -->
+    <!-- 统计卡片（2026-10-20 主体拆分：个人名片=成员名单，企业名片=主体档案，不再混算） -->
     <div class="stats-row">
       <div class="stat-card">
-        <div class="stat-icon-wrap icon-blue"><SIcon name="card" size="default" color="#165dff" /></div>
+        <div class="stat-icon-wrap icon-blue"><SIcon name="team" size="default" color="#165dff" /></div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.cardCount || 0 }}</div>
-          <div class="stat-label">名片总数</div>
-          <div class="stat-sub">归属本租户的在册名片</div>
+          <div class="stat-value">{{ stats.personCardCount || 0 }}</div>
+          <div class="stat-label">个人名片</div>
+          <div class="stat-sub">成员名单（含未认证）</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap icon-purple"><SIcon name="card" size="default" color="#722ed1" /></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ stats.enterpriseCardCount || 0 }}</div>
+          <div class="stat-label">企业名片</div>
+          <div class="stat-sub">企业主体档案，不是人</div>
         </div>
       </div>
       <div class="stat-card">
@@ -58,36 +66,38 @@
       </div>
     </div>
 
-    <!-- 口径说明 + 身份图例（2026-10-20 身份徽章 5→3 组：运营只看颜色即可） -->
+    <!-- 口径说明 + 身份图例（2026-10-20 身份模型重构：三组，无「挂靠成员」） -->
     <div class="scope-note">
       <SIcon name="dynamic" size="small" color="#ff7d00" />
       <span>
-        「名片总数」按<strong>名片</strong>统计；「已上架集市」按<strong>上架记录</strong>统计（一个人可有多张名片，但只会上架一条）；
-        「入驻管理」里的入驻个人/入驻企业是<strong>账号维度</strong>。三个数字口径不同，对不上是正常的。
+        「个人名片 / 企业名片」按<strong>名片主体</strong>统计；「已上架集市」按<strong>上架记录</strong>统计（一个人可有多张名片，但只会上架一条）；
+        「入驻管理」里的入驻个人/入驻企业是<strong>账号维度</strong>。几个数字口径不同，对不上是正常的。
       </span>
     </div>
     <div class="identity-legend">
-      <span class="lg-dot lg-green"></span><span><strong>正式成员</strong>（企业员工 / 入驻个人）＝可上架集市、可交换名片，是真正有用的名单</span>
-      <span class="lg-dot lg-orange"></span><span><strong>挂靠成员</strong>（账号挂靠企业）＝仅归属展示，用不了集市，需转正式成员</span>
-      <span class="lg-dot lg-purple"></span><span><strong>企业名片</strong>＝企业主体的名片，不是某个人的</span>
-      <span class="lg-dot lg-grey"></span><span><strong>个人名片</strong>＝直接归属本租户的个人用户名片</span>
+      <span class="lg-dot lg-green"></span><span><strong>正式成员</strong>（企业员工 / 入驻个人）＝已认证：可上架集市、可交换名片</span>
+      <span class="lg-dot lg-grey"></span><span><strong>个人名片</strong>＝未认证个人：完成入驻认证后可上架集市（交换名片随时可用）</span>
+      <span class="lg-dot lg-purple"></span><span><strong>企业名片</strong>＝企业主体档案，不是某个人的，不参与成员统计</span>
     </div>
 
     <!-- 名片列表 -->
     <div class="content-card">
       <div class="toolbar">
         <el-input v-model="keyword" placeholder="搜索姓名/职位/公司" style="width: 240px;" clearable @keyup.enter="loadCards" @clear="loadCards" />
-        <el-select v-model="identity" placeholder="身份" style="width: 160px;" clearable @change="loadCards">
-          <el-option-group label="正式成员（能上集市/交换）">
+        <!-- 主体切换（2026-10-20 方案 C）：默认只看个人名片（成员），企业名片是档案显式切换 -->
+        <el-radio-group v-model="subject" @change="loadCards">
+          <el-radio-button value="person">个人名片</el-radio-button>
+          <el-radio-button value="enterprise">企业名片</el-radio-button>
+          <el-radio-button value="all">全部</el-radio-button>
+        </el-radio-group>
+        <el-select v-model="identity" placeholder="身份" style="width: 150px;" clearable @change="loadCards">
+          <el-option-group label="正式成员（已认证）">
             <el-option label="企业员工" value="employee" />
             <el-option label="入驻个人" value="individual" />
           </el-option-group>
-          <el-option-group label="挂靠成员（仅归属）">
-            <el-option label="挂靠成员（账号挂靠）" value="ent_member" />
-          </el-option-group>
-          <el-option-group label="企业/个人名片">
+          <el-option-group label="未认证 / 主体档案">
+            <el-option label="个人名片（未认证）" value="personal" />
             <el-option label="企业名片" value="enterprise" />
-            <el-option label="个人名片（直挂租户）" value="tenant" />
           </el-option-group>
         </el-select>
         <el-select v-model="market" placeholder="集市状态" style="width: 150px;" clearable @change="loadCards">
@@ -117,11 +127,12 @@
         </el-table-column>
         <el-table-column label="身份" width="110">
           <template #default="{ row }">
-            <!-- 🔴 2026-10-20 徽章 5→3 组（数据层 5 种身份保留不动，只简化展示）：
-                 正式成员=企业员工/入驻个人（绿，能上集市能交换）；挂靠成员=企业成员（橙，仅归属）；
-                 主体名片=企业/租户名片（蓝）。悬停可见原始身份。 -->
-            <el-tag :type="identityGroup(row.identity).type" size="small" effect="plain" :title="row.identityLabel">
-              {{ identityGroup(row.identity).label }}
+            <!-- 🔴 2026-10-20 身份模型重构：徽章显示细粒度身份（企业员工/入驻个人/个人名片/企业名片），
+                 颜色只分三组（绿=已认证 / 灰=未认证个人 / 紫=企业档案）；
+                 「挂靠成员」类别已取消（账号挂靠企业并入个人名片）；
+                 悬停展示 identityHint：为什么是这个身份 + 怎么升级。 -->
+            <el-tag :type="identityGroup(row.identity).type" size="small" effect="plain" :title="row.identityHint || row.identityLabel">
+              {{ row.identityLabel }}
             </el-tag>
           </template>
         </el-table-column>
@@ -210,8 +221,9 @@ const pageSize = ref(20);
 const keyword = ref('');
 const identity = ref('');
 const market = ref('');
+const subject = ref('person');
 const loading = ref(false);
-const stats = ref({ cardCount: 0, publicCount: 0, marketApproved: 0, marketPending: 0 });
+const stats = ref({ cardCount: 0, personCardCount: 0, enterpriseCardCount: 0, publicCount: 0, marketApproved: 0, marketPending: 0 });
 
 onMounted(() => loadCards());
 
@@ -220,18 +232,11 @@ function formatDate(d) {
   return String(d).substring(0, 10);
 }
 
-function identityTagType(id) {
-  if (id === 'individual') return 'warning';
-  if (id === 'employee') return 'success';
-  if (id === 'ent_member') return 'primary';
-  return 'info';
-}
-
-// 身份 5 → 3 组展示（2026-10-20）：运营只看颜色——绿的能干活、橙的待转正、蓝的是主体名片。
-// 数据层 5 种身份判定（CARD_IDENTITY_SQL）不动，筛选仍按原始 key，随时可还原。
+// 身份三组配色（2026-10-20 重构后 identity 四值：employee/individual/enterprise/personal）
+// 运营只看颜色：绿=已认证能干活 / 灰=未认证个人 / 紫=企业档案。
+// 细粒度身份（企业员工/入驻个人）直接显示 identityLabel，悬停有 identityHint 解释。
 function identityGroup(id) {
   if (id === 'employee' || id === 'individual') return { label: '正式成员', type: 'success' };
-  if (id === 'ent_member') return { label: '挂靠成员', type: 'warning' };
   if (id === 'enterprise') return { label: '企业名片', type: 'danger' };
   return { label: '个人名片', type: 'info' };
 }
@@ -258,6 +263,7 @@ async function loadCards() {
         keyword: keyword.value,
         identity: identity.value,
         market: market.value,
+        subject: subject.value,
       },
     });
     cards.value = res.cards || [];
@@ -334,12 +340,11 @@ async function forceRemove(row) {
 .stat-icon-wrap.icon-purple { background: rgba(114,46,209,0.1); }
 .stat-icon-wrap.icon-teal { background: rgba(13,158,138,0.1); }
 .stat-icon-wrap.icon-cyan { background: rgba(10,165,165,0.1); }
-/* 身份三组图例（2026-10-20 徽章 5→3 组） */
+/* 身份三组图例（2026-10-20 身份模型重构：绿=已认证 / 灰=未认证个人 / 紫=企业档案） */
 .identity-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; background: #f7f8fa; border: 1px solid #e5e6eb; border-radius: 8px; padding: 10px 16px; font-size: 12px; color: #4e5969; margin-bottom: 16px; line-height: 1.6; }
 .identity-legend strong { color: #1d2129; }
 .lg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 .lg-green { background: #00b42a; }
-.lg-orange { background: #ff7d00; }
 .lg-purple { background: #722ed1; }
 .lg-grey { background: #86909c; }
 .stat-value { font-size: 24px; font-weight: 600; color: #1d2129; }

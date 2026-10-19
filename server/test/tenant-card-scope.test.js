@@ -140,19 +140,29 @@ test('隔离：他租户名片与离职员工名片不可见', async () => {
   assert.deepEqual(res2.body.cards.map((c) => c.name), ['他租户名片']);
 });
 
-test('身份列：identityLabel / enterpriseName 与来源一致', async () => {
+test('身份列：identityLabel / subjectType / identityHint 与来源一致', async () => {
   const res = await request(app).get('/api/customer/card/employees?pageSize=100').set(bearer(adm1));
   const byName = Object.fromEntries(res.body.cards.map((c) => [c.name, c]));
-  assert.equal(byName['直挂租户名片'].identity, 'tenant');
-  assert.equal(byName['直挂租户名片'].identityLabel, '租户名片');
+  assert.equal(byName['直挂租户名片'].identity, 'personal');
+  assert.equal(byName['直挂租户名片'].identityLabel, '个人名片');
+  assert.equal(byName['直挂租户名片'].subjectType, 'person');
   assert.equal(byName['归一科技'].identity, 'enterprise');
+  assert.equal(byName['归一科技'].identityLabel, '企业名片');
+  assert.equal(byName['归一科技'].subjectType, 'enterprise');
   assert.equal(byName['归一科技'].enterpriseName, '归一科技');
-  assert.equal(byName['企业成员甲'].identity, 'ent_member');
+  // 2026-10-20 重构：账号挂靠企业不再单独成类（ent_member 取消），并入个人名片；
+  // 所属企业列不受影响，仍按 名片enterprise_id → 用户enterprise_id 取
+  assert.equal(byName['企业成员甲'].identity, 'personal');
+  assert.equal(byName['企业成员甲'].identityLabel, '个人名片');
+  assert.equal(byName['企业成员甲'].subjectType, 'person');
   assert.equal(byName['企业成员甲'].enterpriseName, '归一科技');
   assert.equal(byName['入驻个人乙'].identity, 'individual');
   assert.equal(byName['入驻个人乙'].identityLabel, '入驻个人');
   assert.equal(byName['企业员工丙'].identity, 'employee');
   assert.equal(byName['企业员工丙'].identityLabel, '企业员工');
+  // 徽章可解释：每个身份都带「为什么 + 怎么升级」
+  assert.match(byName['企业成员甲'].identityHint, /未认证/);
+  assert.match(byName['企业员工丙'].identityHint, /已认证/);
 });
 
 test('概览统计：与列表口径一致（含企业成员数）', async () => {
@@ -207,14 +217,17 @@ test('访问趋势只统计本租户名片', async () => {
   assert.equal(total, 60, '不应掺入他租户与离职名片的访问量');
 });
 
-test('名片管理：与员工名片同一套并集口径，且带集市上架状态', async () => {
+test('名片管理：主体拆分（默认只看个人名片），与员工名片同一套并集口径，且带集市上架状态', async () => {
+  // 默认 subject=person：企业名片（归一科技）是主体档案不是成员，不混在成员名单里
   const res = await request(app).get('/api/customer/card/manage?pageSize=50').set(bearer(adm1));
   assert.equal(res.status, 200);
-  assert.equal(res.body.total, 5);
+  assert.equal(res.body.total, 4);
   const names = res.body.cards.map((c) => c.name).sort();
-  assert.deepEqual(names, ['企业员工丙', '企业成员甲', '入驻个人乙', '归一科技', '直挂租户名片']);
-  // 顶部统计卡：与 /card/overview 名片总数一致（且不受筛选影响）
+  assert.deepEqual(names, ['企业员工丙', '企业成员甲', '入驻个人乙', '直挂租户名片']);
+  // 顶部统计卡：与列表筛选无关；主体口径拆分（方案 C）
   assert.equal(res.body.stats.cardCount, 5);
+  assert.equal(res.body.stats.personCardCount, 4);
+  assert.equal(res.body.stats.enterpriseCardCount, 1);
   // 未造任何上架记录 → 全部「未申请上架」，统计卡为 0
   assert.equal(res.body.stats.marketApproved, 0);
   assert.equal(res.body.stats.marketPending, 0);
@@ -222,8 +235,20 @@ test('名片管理：与员工名片同一套并集口径，且带集市上架�
     assert.equal(c.marketStatus, '');
     assert.equal(c.marketItemId, null);
     assert.equal(c.marketIsTop, false);
+    assert.equal(c.subjectType, 'person');
     assert.equal(typeof c.isPublic, 'boolean');
   });
+
+  // subject=enterprise：只看企业名片（1 张）
+  const ent = await request(app).get('/api/customer/card/manage?subject=enterprise&pageSize=50').set(bearer(adm1));
+  assert.equal(ent.body.total, 1);
+  assert.deepEqual(ent.body.cards.map((c) => c.name), ['归一科技']);
+  assert.equal(ent.body.cards[0].subjectType, 'enterprise');
+  assert.equal(ent.body.cards[0].identity, 'enterprise');
+
+  // subject=all：全量（与员工名片页一致）
+  const all = await request(app).get('/api/customer/card/manage?subject=all&pageSize=50').set(bearer(adm1));
+  assert.equal(all.body.total, 5);
 });
 
 test('名片管理：集市状态筛选在 SQL 层完成，total 与列表一致', async () => {
@@ -259,9 +284,10 @@ test('名片管理：集市状态筛选在 SQL 层完成，total 与列表一致
   assert.equal(fP.body.total, 1);
   assert.equal(fP.body.cards[0].name, '入驻个人乙');
 
+  // market=none：默认 subject=person 基数 4 张，扣掉已上架/待审 2 张 = 2
   const fN = await request(app).get('/api/customer/card/manage?market=none&pageSize=50').set(bearer(adm1));
-  assert.equal(fN.body.total, 3);
-  assert.equal(fN.body.cards.length, 3);
+  assert.equal(fN.body.total, 2);
+  assert.equal(fN.body.cards.length, 2);
   assert.ok(!fN.body.cards.some((c) => c.marketStatus), '未申请上架的名片 marketStatus 应为空');
 
   // 他租户的上架记录不能串到本租户来
@@ -280,12 +306,16 @@ test('名片管理：身份筛选压在 SQL 上，分页不受影响', async () 
   assert.equal(f.body.total, 1);
   assert.deepEqual(f.body.cards.map((c) => c.name), ['入驻个人乙']);
 
-  // 分页：pageSize=2 时第 2 页应拿到剩下的 3 条中的 2 条
+  // 挂靠成员类别已取消：ent_member 不再被接受为合法筛选值（前端选项也已下线）
+  const fOld = await request(app).get('/api/customer/card/manage?identity=ent_member&pageSize=50').set(bearer(adm1));
+  assert.equal(fOld.body.total, 4, 'ent_member 不再是合法 identity，筛选条件被忽略，回到 person 基数');
+
+  // 分页：默认 person 基数 4，pageSize=2 时第 2 页应拿到 2 条
   const p2 = await request(app).get('/api/customer/card/manage?page=2&pageSize=2').set(bearer(adm1));
-  assert.equal(p2.body.total, 5);
+  assert.equal(p2.body.total, 4);
   assert.equal(p2.body.cards.length, 2);
   const p3 = await request(app).get('/api/customer/card/manage?page=3&pageSize=2').set(bearer(adm1));
-  assert.equal(p3.body.cards.length, 1);
+  assert.equal(p3.body.cards.length, 0);
 });
 
 test('名片管理：keyword 搜索与员工名片一致', async () => {
@@ -325,6 +355,8 @@ test('停用企业不再提供归属通道：列表/统计/客户/身份全收�
     assert.ok(!manage.body.cards.some((c) => c.name === '停用企业名片'));
     assert.ok(!manage.body.cards.some((c) => c.name === '停用企业成员名片'));
     assert.equal(manage.body.stats.cardCount, 5, '统计卡不受停用企业数据影响');
+    assert.equal(manage.body.stats.personCardCount, 4);
+    assert.equal(manage.body.stats.enterpriseCardCount, 1);
 
     // 概览：成员数与客户数都不应掺入停用企业口径
     const ov = await request(app).get('/api/customer/card/overview').set(bearer(adm1));
@@ -336,12 +368,14 @@ test('停用企业不再提供归属通道：列表/统计/客户/身份全收�
     assert.equal(cust.body.total, 2);
     assert.ok(!cust.body.customers.some((c) => c.name === '停用企业客户'), '停用企业口径客户不应出现');
 
-    // 身份兜底：名片显式补 customer_id=1 后可见，但身份不得再落 enterprise/ent_member
+    // 身份兜底：名片显式补 customer_id=1 后可见，但身份不得再落 enterprise
+    // （2026-10-20 重构后 personal 取代旧 tenant/ent_member 两个值）
     db.prepare('UPDATE card_profile SET customer_id = 1 WHERE id IN (?, ?)').run(cardEnt, cardBound);
-    const list2 = await request(app).get('/api/customer/card/manage?pageSize=100').set(bearer(adm1));
+    const list2 = await request(app).get('/api/customer/card/manage?subject=all&pageSize=100').set(bearer(adm1));
     const byName = Object.fromEntries(list2.body.cards.map((c) => [c.name, c]));
-    assert.equal(byName['停用企业名片'].identity, 'tenant', '停用企业名片只能按租户直挂算');
-    assert.equal(byName['停用企业成员名片'].identity, 'tenant', '停用企业成员名片只能按租户直挂算');
+    assert.equal(byName['停用企业名片'].identity, 'personal', '停用企业名片只能按个人名片算');
+    assert.equal(byName['停用企业名片'].subjectType, 'person');
+    assert.equal(byName['停用企业成员名片'].identity, 'personal', '停用企业成员名片只能按个人名片算');
   } finally {
     db.prepare('DELETE FROM card_profile WHERE id IN (?, ?)').run(cardEnt, cardBound);
     db.prepare('DELETE FROM card_customer WHERE name = ?').run('停用企业客户');

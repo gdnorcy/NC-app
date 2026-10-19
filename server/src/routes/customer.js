@@ -13,6 +13,9 @@ import { checkTenantSolutionQuota } from '../services/billing.js';
 import { calcFunnel, trendSeries, eventDistribution, topTargets, calcHealthScore } from '../services/analytics.js';
 import { encryptSecret, decryptSecret } from '../crypto.js';
 import { createMemberService } from '../services/member.js';
+import {
+  CARD_IDENTITY_SQL, cardIdentityParams, IDENTITY_LABEL, IDENTITY_HINT, subjectTypeOf,
+} from '../services/cardIdentity.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -173,28 +176,9 @@ function tenantCardScopeParams(customerId) {
   return [customerId, customerId, customerId, customerId, customerId];
 }
 
-// 名片身份判定（SQL 单一事实来源，优先级从高到低）
-// 与 IDENTITY_LABEL 一一对应；前端筛选/徽章都认这几个 key
-const CARD_IDENTITY_SQL = `CASE
-    WHEN c.user_id IN (SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active') THEN 'employee'
-    WHEN c.user_id IN (SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active') THEN 'individual'
-    WHEN c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active')) THEN 'ent_member'
-    WHEN c.enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active') THEN 'enterprise'
-    ELSE 'tenant'
-  END`;
-
-// 身份 key → 4 个占位符参数
-function cardIdentityParams(customerId) {
-  return [customerId, customerId, customerId, customerId];
-}
-
-const IDENTITY_LABEL = {
-  employee: '企业员工',
-  individual: '入驻个人',
-  ent_member: '企业成员',
-  enterprise: '企业名片',
-  tenant: '租户名片',
-};
+// 名片身份判定与标签：单一事实来源在 services/cardIdentity.js（2026-10-20 重构）
+// 两轴模型：主体类型（person/enterprise）× 认证状态（名册 active，唯一能力判据）；
+// 归属通道只进上面的 TENANT_CARD_SCOPE_SQL（可见性），永不进身份与能力。
 
 // 租户企业 id → 名称（供「所属企业」列展示）
 function loadTenantEnterpriseNames(cid) {
@@ -1092,7 +1076,9 @@ router.get('/card/employees', requireTenant, (req, res) => {
     id: c.id, userId: c.user_id, name: c.name, position: c.position, company: c.company,
     phone: c.phone, avatar: c.avatar, viewCount: c.view_count, exchangeCount: c.exchange_count,
     isPublic: c.is_public, memberLevel: c.member_level, createdAt: c.created_at,
-    identity: c.identity, identityLabel: IDENTITY_LABEL[c.identity] || '租户名片',
+    identity: c.identity, identityLabel: IDENTITY_LABEL[c.identity] || '个人名片',
+    identityHint: IDENTITY_HINT[c.identity] || IDENTITY_HINT.personal,
+    subjectType: subjectTypeOf(c.identity),
     enterpriseName: cardEnterpriseName(entNames, c),
   })), total, page: Number(page), pageSize: Number(pageSize) });
 });
@@ -1101,21 +1087,32 @@ router.get('/card/employees', requireTenant, (req, res) => {
 // 解决的困惑：后台各页口径不同（员工名片按人、集市按上架记录、入驻管理按账号），
 // 这里用同一套并集口径把「名片」这一层一次说清。
 // 集市状态用子查询落到 SQL 里（而不是查出来再 JS 过滤），否则筛选会破坏分页。
+// 2026-10-20 身份模型重构（方案 C）：主体拆分——默认只看个人名片（成员），
+// 企业名片是主体档案不是人，用 subject=enterprise 显式切换查看；
+// 统计卡同步拆 personCardCount / enterpriseCardCount，不再一个 cardCount 混算。
 const MARKET_STATUS_SQL = `(SELECT mi.audit_status FROM card_market_items mi
     WHERE mi.customer_id = ? AND mi.user_id = c.user_id
     ORDER BY (mi.audit_status = 'approved') DESC, (mi.audit_status = 'pending') DESC, mi.id DESC
     LIMIT 1)`;
 router.get('/card/manage', requireTenant, (req, res) => {
   const cid = req.customerId;
-  const { page = 1, pageSize = 20, keyword = '', identity = '', market = '' } = req.query;
+  const { page = 1, pageSize = 20, keyword = '', identity = '', market = '', subject = 'person' } = req.query;
   const offset = (page - 1) * pageSize;
-  // SELECT 列表占位符：身份 CASE ×4 + 集市状态/记录ID/置顶 ×3
+  // SELECT 列表占位符：身份 CASE ×3 + 集市状态/记录ID/置顶 ×3
   const selectParams = [...cardIdentityParams(cid), cid, cid, cid];
   let where = `WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`;
   const params = [...tenantCardScopeParams(cid), 'active'];
   if (keyword) {
     where += ' AND (c.name LIKE ? OR c.position LIKE ? OR c.company LIKE ?)';
     params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+  }
+  // 主体筛选（默认 person）：企业名片是档案不是成员，显式切换才看
+  if (subject === 'enterprise') {
+    where += ` AND ${CARD_IDENTITY_SQL} = 'enterprise'`;
+    params.push(...cardIdentityParams(cid));
+  } else if (subject !== 'all') {
+    where += ` AND ${CARD_IDENTITY_SQL} <> 'enterprise'`;
+    params.push(...cardIdentityParams(cid));
   }
   // 身份筛选直接压在 SQL 的同一个 CASE 上，避免 JS 二次筛选破坏分页
   if (identity && IDENTITY_LABEL[identity]) {
@@ -1143,18 +1140,25 @@ router.get('/card/manage', requireTenant, (req, res) => {
         ORDER BY (mi.audit_status = 'approved') DESC, (mi.audit_status = 'pending') DESC, mi.id DESC
         LIMIT 1) AS market_is_top
     FROM card_profile c
-    LEFT JOIN platform_user u ON c.user_id = u.id
+    LEFT JOIN platform_user u ON u.id = c.user_id
     ${where}
     ORDER BY c.created_at DESC
     LIMIT ? OFFSET ?
   `).all(...selectParams, ...params, Number(pageSize), offset);
   // COUNT 的 where 与列表完全一致，参数也完全一致（SELECT 列表的占位符不参与）
   const total = db.prepare(`SELECT COUNT(*) AS n FROM card_profile c ${where}`).get(...params).n;
-  // 顶部统计卡：与列表筛选无关（同一套并集口径），cardCount 用不过滤的基数，
-  // 否则一筛选「名片总数」就跟着变，和其它三张全局卡自相矛盾
+  // 顶部统计卡：与列表筛选无关（同一套并集口径），用不过滤的基数，
+  // 否则一筛选「名片总数」就跟着变，和其它全局卡自相矛盾
   const sp0 = tenantCardScopeParams(cid);
+  const cardCount = db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`).get(...sp0, 'active').n;
+  // 主体拆分（2026-10-20 方案 C）：企业名片是主体档案，不与成员名片混算
+  const enterpriseCardCount = db.prepare(
+    `SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ? AND ${CARD_IDENTITY_SQL} = 'enterprise'`
+  ).get(...sp0, 'active', ...cardIdentityParams(cid)).n;
   const stats = {
-    cardCount: db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`).get(...sp0, 'active').n,
+    cardCount,
+    personCardCount: cardCount - enterpriseCardCount,
+    enterpriseCardCount,
     publicCount: db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ? AND c.is_public = 1`).get(...sp0, 'active').n,
     marketApproved: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'approved').n,
     marketPending: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'pending').n,
@@ -1167,7 +1171,9 @@ router.get('/card/manage', requireTenant, (req, res) => {
     id: c.id, userId: c.user_id, name: c.name, position: c.position, company: c.company,
     phone: c.phone, avatar: c.avatar, viewCount: c.view_count, exchangeCount: c.exchange_count,
     isPublic: !!c.is_public, memberLevel: c.member_level, createdAt: c.created_at,
-    identity: c.identity, identityLabel: IDENTITY_LABEL[c.identity] || '租户名片',
+    identity: c.identity, identityLabel: IDENTITY_LABEL[c.identity] || '个人名片',
+    identityHint: IDENTITY_HINT[c.identity] || IDENTITY_HINT.personal,
+    subjectType: subjectTypeOf(c.identity),
     enterpriseName: cardEnterpriseName(entNames, c),
     marketItemId: c.market_item_id || null,
     marketStatus: c.market_status || '',   // '' 表示从未申请上架
