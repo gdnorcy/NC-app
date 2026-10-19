@@ -55,3 +55,15 @@
 ## 杂项
 - schema 说明是 `tips` 复数；macOS grep 用 `-E`；CSS token 源 token.scss。
 - 集市两套状态：开关=`card_market_items`，is_public=可见性派生；单一来源 `utils/marketLink.js`。超级表单见 refs/decoration-form.md。
+
+## 令牌与产物（2026-10-19 新增）
+- 🔴 `tokenAudit` 按「写法**种类**」计数（z-index/font-size/radius…），不是次数：
+  为「再高一层 z」写 `calc(var(--z-popup)+10)` 或改用 `--z-toast` 都会**新增一种写法直接顶破基线**。
+  正确做法：浮层叠放复用 `--z-popup`，靠 **DOM 顺序**决定谁压谁（同 myCard 海报弹层模式）。
+- 🔴 可滚动容器里的主操作按钮要 `position:sticky; bottom:0`：内容一长按钮滚走，
+  用户会报「没找到保存按钮」。同理，根节点绑个修饰类**不等于**生效——若隐藏靠
+  `.card:not(.active){display:none}`，必须改 class **绑定表达式**（加 `isEdit ||` 短路），改类无效。
+- 验证构建产物：JS 已压缩+变量名 mangle，grep 函数名必 0 命中 → 查**字符串字面量**；
+  `curl` 出来的中文串要过 python3 UTF-8 解码再 count，否则恒 0（假阴性）。
+- safe-delete 拦的路径是 **`web-app/dist/build/h5/assets`**（不是仓库根 `dist/`）；推 deploy 用
+  `git push -f origin deploy`（写 `git push -f deploy deploy` 报权限错）。
