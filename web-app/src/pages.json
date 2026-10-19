@@ -145,6 +145,13 @@
           }
         },
         {
+          "path": "cardEdit",
+          "style": {
+            "navigationBarTitleText": "装修我的名片",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "videosEdit",
           "style": {
             "navigationBarTitleText": "视频管理",

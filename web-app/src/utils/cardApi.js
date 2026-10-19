@@ -114,6 +114,10 @@ export const cardApi = {
   updateCardWork: (cardId, workId, title) => request(`/cards/${cardId}/works/${workId}`, 'PUT', { title }),
   deleteCardWork: (cardId, workId) => request(`/cards/${cardId}/works/${workId}`, 'DELETE'),
   sortCardWorks: (cardId, ids) => request(`/cards/${cardId}/works/sort`, 'PUT', { ids }),
+  // ===== 名片自定义装修组件（V1：仅归属人可存；母版由服务端注入 isLock）=====
+  // 整存语义：components 数组顺序即展示顺序；服务端剥离 source/isLock 防伪造母版
+  getCardComponents: (id) => request(`/cards/${id}/components`),
+  saveCardComponents: (id, components) => request(`/cards/${id}/components`, 'PUT', { components }),
   // ===== 视频号作品管理（仅名片归属人；视频号链接调用：finderUserName + feedId）=====
   // 链接解析：粘贴视频号分享链接 → 自动提取 finderUserName(sph) + feedId（失败降级手动填）
   parseChannelLink: (cardId, link) => request(`/cards/${cardId}/videos/parse`, 'POST', { link }),

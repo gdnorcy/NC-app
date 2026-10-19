@@ -1087,6 +1087,29 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_card_works_card ON card_works(card_id);
   `);
 
+  // —— 名片自定义装修组件表（2026-10-20 个人名片组件装修 V1）——
+  // 与 card_works/card_videos 同风格：card_id + sort_order；多两列支撑「企业母版」：
+  //   source='master' 且 card_id=0 → 租户级母版组件（customer_id 定位），
+  //   对租户内所有名片只读注入（isLock），成员不可改；V1.1 再做 PC 母版管理页。
+  //   source='user'   → 名片归属人自建组件，PUT 整存（增/删/排序一次提交）。
+  // type/props 与 web-admin componentRegistry 对齐（channel-video 用 finderUserName+feedId）。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS card_components (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL DEFAULT 0,
+      customer_id INTEGER,
+      type TEXT NOT NULL,
+      props TEXT NOT NULL DEFAULT '{}',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT 'user',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_card_comp_card ON card_components(card_id);
+    CREATE INDEX IF NOT EXISTS idx_card_comp_master ON card_components(customer_id, source);
+  `);
+
   // —— 名片交换记录表 ——
   db.exec(`
     CREATE TABLE IF NOT EXISTS card_exchange (

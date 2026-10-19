@@ -2016,6 +2016,61 @@ export function createCardRouter(db, wxService) {
   });
 
   // ============================================================
+  // 名片自定义装修组件（2026-10-20 V1：个人名片组件装修）
+  //   数据 card_components：source='user' 归属人自建（PUT 整存）；
+  //   source='master' 租户母版（card_id=0 + customer_id），只读注入实现「企业母版锁定」。
+  //   type/props 与 web-admin componentRegistry 对齐；母版 PC 管理页在 V1.1。
+  // ============================================================
+  const COMP_TYPES = ['image', 'channel-video', 'notice', 'divider', 'spacer'];
+  const COMP_MAX = 20;
+  const compProps = (raw) => { try { const p = JSON.parse(raw); return p && typeof p === 'object' ? p : {}; } catch { return {}; } };
+
+  // 组件列表（公开读：名片详情页渲染；母版 isLock 在前，个人组件随后）
+  router.get('/cards/:id/components', (req, res) => {
+    try {
+      const card = db.prepare('SELECT id, customer_id FROM card_profile WHERE id = ?').get(req.params.id);
+      if (!card) return res.status(404).json({ error: '名片不存在' });
+      const master = card.customer_id
+        ? db.prepare(`SELECT * FROM card_components WHERE customer_id = ? AND source = 'master' AND status = 'active'
+            ORDER BY sort_order ASC, id ASC`).all(card.customer_id)
+        : [];
+      const own = db.prepare(`SELECT * FROM card_components WHERE card_id = ? AND source = 'user' AND status = 'active'
+          ORDER BY sort_order ASC, id ASC`).all(card.id);
+      const dto = (row, isLock) => ({
+        id: row.id, cardId: row.card_id, type: row.type,
+        props: compProps(row.props), sortOrder: row.sort_order, isLock,
+      });
+      res.json({ components: [...master.map((m) => dto(m, true)), ...own.map((o) => dto(o, false))] });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // 整存个人组件（仅归属人）：body { components:[{type, props}] }，数组顺序即展示顺序。
+  // 服务端强制：type 白名单 + 剥离 source/isLock/cardId/customerId（防伪造母版）+ 数量上限。
+  router.put('/cards/:id/components', auth, (req, res) => {
+    try {
+      const card = db.prepare('SELECT id, customer_id FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+      if (!card) return res.status(404).json({ error: '名片不存在或无权操作' });
+      const list = Array.isArray(req.body && req.body.components) ? req.body.components : null;
+      if (!list) return res.status(400).json({ error: 'components 必须为数组' });
+      if (list.length > COMP_MAX) return res.status(400).json({ error: `自定义组件最多 ${COMP_MAX} 个` });
+      const clean = [];
+      for (const c of list) {
+        const type = String((c && c.type) || '');
+        if (!COMP_TYPES.includes(type)) return res.status(400).json({ error: `不支持的组件类型: ${type}` });
+        const props = c && c.props && typeof c.props === 'object' ? c.props : {};
+        clean.push({ type, props: JSON.stringify(props).slice(0, 20000) });
+      }
+      // 整存：先删后插（本项目不用显式事务，SQLite 逐句自动提交，与 card_works 等同风格）；
+      // 个人名片单编辑场景，中途失败概率极低，真失败用户再存一次即自愈
+      db.prepare(`DELETE FROM card_components WHERE card_id = ? AND source = 'user'`).run(card.id);
+      const ins = db.prepare(`INSERT INTO card_components (card_id, customer_id, type, props, sort_order, source)
+        VALUES (?, ?, ?, ?, ?, 'user')`);
+      clean.forEach((c, i) => ins.run(card.id, card.customer_id ?? null, c.type, c.props, i + 1));
+      res.json({ ok: true, count: clean.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ============================================================
   // 工具函数
   // ============================================================
   function toUser(row) {

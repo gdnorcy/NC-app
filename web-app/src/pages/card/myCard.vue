@@ -117,6 +117,11 @@
         <view class="osr-main"><view class="osr-name">视频管理</view><view class="osr-desc">视频号作品（封面 / 标题 / 时长），白银+ 可添加</view></view>
         <text class="osr-arrow">›</text>
       </view>
+      <view class="os-row" @click="goCardEdit">
+        <view class="osr-icon"><SIcon name="template" size="default" :color="themeColor" /></view>
+        <view class="osr-main"><view class="osr-name">装修我的名片</view><view class="osr-desc">图片 / 视频号 / 文本等组件，企业母版不可改</view></view>
+        <text class="osr-arrow">›</text>
+      </view>
     </view>
 
     <!-- 访客雷达 TOP3 -->
@@ -490,6 +495,10 @@ function goWorksEdit() {
 function goVideosEdit() {
   if (!pageCardId.value) return;
   uni.navigateTo({ url: `/pages/card/videosEdit?id=${pageCardId.value}` });
+}
+function goCardEdit() {
+  if (!pageCardId.value) return;
+  uni.navigateTo({ url: `/pages/card/cardEdit?id=${pageCardId.value}` });
 }
 function previewCard() {
   // 打开对外展示页 cardDetail（本人会看到本人态：操作栏只留「分享」，

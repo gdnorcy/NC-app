@@ -293,6 +293,51 @@
           </view>
         </view>
       </view>
+
+      <!-- 自定义装修组件（母版+个人；cardEdit.vue 管理，type/props 对齐 componentRegistry） -->
+      <view v-if="cardComps.length" class="cc-list">
+        <view v-for="(c, i) in cardComps" :key="i" class="cc-item">
+          <!-- 图片 -->
+          <image
+            v-if="c.type === 'image' && c.props.url"
+            class="cc-img"
+            :src="c.props.url"
+            mode="widthFix"
+            :style="ccStyle(c)"
+            @click="jumpCompLink(c.props.link)"
+          />
+          <!-- 视频号（finderUserName + feedId；H5 端 openChannelVideo 内提示去微信打开） -->
+          <view v-else-if="c.type === 'channel-video'" class="cc-video" :style="ccStyle(c)" @click="openChannelVideo(c.props)">
+            <image v-if="c.props.cover" class="cc-video-cover" :src="c.props.cover" mode="aspectFill" />
+            <view v-else class="cc-video-cover cc-video-empty"><SIcon name="dynamic" size="large" :color="#ffffff" /></view>
+            <view class="cc-video-play"><SIcon name="play" size="default" :color="#ffffff" /></view>
+            <view class="cc-video-info" v-if="c.props.title || c.props.desc">
+              <text class="cc-video-t" v-if="c.props.title">{{ c.props.title }}</text>
+              <text class="cc-video-d" v-if="c.props.desc">{{ c.props.desc }}</text>
+            </view>
+          </view>
+          <!-- 文本（notice 组件） -->
+          <view
+            v-else-if="c.type === 'notice'"
+            class="cc-notice"
+            :style="[ccStyle(c), { background: c.props.bgColor || 'transparent', color: c.props.color || '#1d2129', fontSize: (c.props.fontSize || 14) + 'px', fontWeight: c.props.bold ? 600 : 400 }]"
+            @click="jumpCompLink(c.props.url)"
+          >
+            <text class="cc-notice-dot"></text>
+            <text class="cc-notice-text">{{ c.props.text }}</text>
+          </view>
+          <!-- 分割线 -->
+          <view v-else-if="c.type === 'divider'" class="cc-divider" :style="ccStyle(c)">
+            <view class="cc-divider-line" :style="{ borderTopWidth: (c.props.thickness || 1) + 'px', borderTopStyle: c.props.lineStyle || 'solid', borderTopColor: c.props.color || '#e5e6eb' }"></view>
+            <text v-if="c.props.text" class="cc-divider-text">{{ c.props.text }}</text>
+          </view>
+          <!-- 空白占位 -->
+          <view
+            v-else-if="c.type === 'spacer'"
+            :style="[ccStyle(c), { height: (c.props.height == null ? 20 : c.props.height) + 'px', background: c.props.bgColor || 'transparent' }]"
+          ></view>
+        </view>
+      </view>
     </view>
 
     <!-- 作品面板 -->
@@ -631,6 +676,8 @@ const navFgColor = computed(() => (isLightHero.value ? '#1d2129' : '#ffffff'));
 const works = ref([]);
 const dynamics = ref([]);
 const videos = ref([]);
+// 自定义装修组件（cardEdit.vue 管理；母版 isLock 与个人组件一起由服务端下发）
+const cardComps = ref([]);
 const activeTab = ref('intro');
 const memberLevel = ref('free');
 const activeForm = ref(null);
@@ -760,6 +807,11 @@ onMounted(async () => {
       try {
         const v = await cardApi.getCardVideos(id);
         videos.value = v.videos || [];
+      } catch (e) {}
+      // 加载自定义装修组件（母版+个人；失败静默，不影响名片主体）
+      try {
+        const cc = await cardApi.getCardComponents(id);
+        cardComps.value = cc.components || [];
       } catch (e) {}
       // 名片数据到位后实测 mp-tabs 底沿，定位右侧悬浮丸（避免写死百分比被某版式打中）
       scheduleRailMeasure();
@@ -1020,6 +1072,22 @@ function copyVideoChannelId(ch) {
 // finderUserName + feedId，无主体限制，任何人的视频号都能跳。
 // 🔴 与上面 openVideo（主页入口）分工：列表卡片=具体视频；下方 video-card=主页。
 // H5 无 Weixin JS-SDK 挂载，降级为提示去小程序观看（不做假动作）。
+// ===== 自定义装修组件渲染助手（cardEdit.vue 管理）=====
+// 边距/圆角走 props（registry 里是 px 数值）；V1 不渲染会员权限/高级模式，
+// 那些字段由 PC 编辑器设置，移动端组件保持简单形态。
+function ccStyle(c) {
+  const p = c.props || {};
+  const st = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
+  if (c.type === 'image' && p.radius) st.borderRadius = p.radius + 'px';
+  return st;
+}
+// 组件内链接：站内页面路径跳转；外链/空值忽略（V1 不做外链浏览器打开）
+function jumpCompLink(link) {
+  const l = String(link || '').trim();
+  if (!l) return;
+  if (l.startsWith('/')) uni.navigateTo({ url: l });
+}
+
 function openChannelVideo(v) {
   if (!v || !v.finderUserName || !v.feedId) return;
   // #ifdef MP-WEIXIN
@@ -1955,6 +2023,62 @@ async function followCard() {
   padding: 8rpx 24rpx;
   box-shadow: 0 4rpx 24rpx rgba(0,0,0,0.04);
 }
+
+/* ===== 自定义装修组件（cardEdit.vue 管理；母版+个人同权渲染）===== */
+.cc-list {
+  margin: 0 28rpx;
+  display: flex;
+  flex-direction: column;
+}
+.cc-item { width: 100%; }
+.cc-img { width: 100%; display: block; }
+.cc-video {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--t1);
+}
+.cc-video-cover { width: 100%; height: 360rpx; display: block; }
+.cc-video-empty { display: flex; align-items: center; justify-content: center; background: var(--t2); }
+.cc-video-play {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 72rpx; height: 72rpx;
+  border-radius: var(--radius-pill);
+  background: var(--bg-mask);
+  display: flex; align-items: center; justify-content: center;
+}
+.cc-video-info {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 40rpx var(--space-r4) var(--space-r3);
+  background: linear-gradient(transparent, var(--bg-mask));
+  display: flex; flex-direction: column; gap: var(--space-r1);
+}
+.cc-video-t { font-size: var(--fs-4); color: var(--white); font-weight: 500; }
+.cc-video-d { font-size: var(--fs-2); color: var(--white); }
+.cc-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-r2);
+  padding: var(--space-r3) var(--space-r4);
+  border-radius: var(--radius-xs);
+  line-height: 1.5;
+}
+.cc-notice-dot {
+  width: 8rpx; height: 8rpx;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  flex-shrink: 0;
+}
+.cc-notice-text { flex: 1; }
+.cc-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-r3);
+}
+.cc-divider-line { flex: 1; border-top-width: 1px; }
+.cc-divider-text { font-size: var(--fs-2); color: var(--decor); flex-shrink: 0; }
 .intro-line {
   display: flex;
   gap: 16rpx;
