@@ -930,7 +930,11 @@ export function createCardMarketRouter(db) {
 
   // 入驻个人列表（租户管理员）
   router.get('/individuals', tenant, requireTenantAdmin, (req, res) => {
-    const individuals = db.prepare(`SELECT i.*, u.phone, u.avatar
+    // 🔴 u.phone 必须起别名：platform_user.phone 与 tenant_individuals.phone 同名列，
+    //    `SELECT i.*, u.phone` 会让 u.phone（账号表常为 NULL）覆盖 i.phone（入驻申请时电话）
+    //    → 后台手机号列全空 + 前端按手机号搜索失效（2026-10-20 线上实测复现）。
+    //    展示口径以入驻申请电话（i.phone）为准，账号级电话另走 user_phone。
+    const individuals = db.prepare(`SELECT i.*, u.phone AS user_phone, u.avatar
       FROM tenant_individuals i
       LEFT JOIN platform_user u ON u.id = i.user_id
       WHERE i.customer_id = ? ORDER BY i.created_at DESC`).all(req.customerId);

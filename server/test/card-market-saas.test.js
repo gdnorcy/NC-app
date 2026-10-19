@@ -154,6 +154,24 @@ test('P0-3 租户隔离：跨租户交换请求被拒，各自列表互不可见
   assert.ok(!names2.includes('租一甲'), '租户2列表不得包含租户1成员');
 });
 
+test('P0-4 入驻个人列表电话不被同名列覆盖（u.phone 不得遮掉 i.phone）', async () => {
+  // 回归：2026-10-20 线上实测——`SELECT i.*, u.phone` 让 platform_user.phone（NULL）
+  // 覆盖 tenant_individuals.phone，后台手机号列全空且按手机号搜索失效。
+  const token = await wxLogin('phone_shadow');
+  await request(app)
+    .post('/api/card/cards/create-with-apply')
+    .set(bearer(token))
+    .send({ name: '电话回归', phone: '13911112222', bindCode: '1001', applyType: 'individual' });
+
+  const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
+  const list = await request(app).get('/api/card-market/individuals').set(bearer(makeJwt(adm1)));
+  assert.equal(list.status, 200);
+  const row = list.body.individuals.find((i) => i.name === '电话回归');
+  assert.ok(row, '列表应含刚申请的入驻个人');
+  assert.equal(row.phone, '13911112222', 'phone 必须是入驻申请电话（tenant_individuals.phone），不得被 u.phone 覆盖成 null');
+  assert.ok('user_phone' in row, '账号级电话应走 user_phone 字段');
+});
+
 test('P1-1 公海领取原子性：并发领取同一条客户仅一人成功', async () => {
   // 租1公海插入一条客户
   db.prepare(`INSERT INTO tenant_public_pool (customer_id, source_type, source_id, name, phone, company, position)
