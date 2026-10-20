@@ -14,12 +14,6 @@ const cardDetailSrc = readFileSync(fileURLToPath(new URL('./cardDetail.vue', imp
 const cardCompItemSrc = readFileSync(fileURLToPath(new URL('../../components/CardCompItem.vue', import.meta.url)), 'utf8');
 const myCardSrc = readFileSync(fileURLToPath(new URL('./myCard.vue', import.meta.url)), 'utf8');
 const serverCard = readFileSync(fileURLToPath(new URL('../../../../server/src/routes/card.js', import.meta.url)), 'utf8');
-const tokenSrc = readFileSync(fileURLToPath(new URL('../../styles/token.scss', import.meta.url)), 'utf8');
-// 取 token.scss 里的 rpx 数值（用于算装修页左右留白，验证与真实页一致）
-const rpxOf = (name) => {
-  const m = tokenSrc.match(new RegExp(`\\$${name}:\\s*(\\d+)rpx`));
-  return m ? Number(m[1]) : null;
-};
 
 describe('cardEdit.vue 装修编辑页', () => {
   test('数据来源：getCardComponents / saveCardComponents（整存 PUT）', () => {
@@ -290,16 +284,20 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
     expect(cardEditSrc).toMatch(/\.ce-dup-f \{[^}]*background: var\(--design-primary\)/);
   });
 
-  test('组件宽度与真实名片页逐像素一致：装修页左右留白 = .cc-list 的 28rpx', () => {
-    // 用户报「组件中内容与容器的间距太大，感觉不真实」。
-    // 根因是装修页给组件套了三层外壳（ce-body 12px + ce-card 12px + ce-render 6px = 左右各 30px），
-    // 而真实名片详情页只有 `.cc-list { margin: 0 28rpx }`（14px）→ 组件被捏窄 32px，
-    // 还多一圈白底圆角框，看着像「装在盒子里预览」。
-    // 口径：ce-body(--space-r4=20rpx) + ce-card(--space-r1=8rpx) = 28rpx，与真实页相等。
-    expect(rpxOf('space-r4') + rpxOf('space-r1')).toBe(28);
+  test('组件几何与真实名片页逐像素一致：左右 28rpx + 间距只由组件 marginTop 决定', () => {
+    // 用户报「设计和预览差距还是有点大，主要是组件与组件的间隔」。
+    // headless 实测（375px 视口）定位到病根不是某个值偏大，而是**外壳层叠**：
+    //   真实页 .cc-list{margin:0 28rpx} + 组件 marginTop(默认6px)      → 间距 6px
+    //   旧编辑器 .ce-card{padding:4px; margin-bottom:6px} 架在中间      → 间距 20px
+    //   旧预览   .ce-preview-canvas 左右 24rpx（比真实页窄 2px/侧）      → 组件宽 4px
+    // 修法：ce-body 左右写 28rpx（补偿卡片原 4px padding），ce-card 零 padding 零 margin-bottom，
+    //      预览画布左右也 28rpx。三场景（编辑器/预览/真实页）x/width/gap 全等。
     expect(cardDetailSrc).toMatch(/\.cc-list \{[\s\S]*?margin: 0 28rpx/);
-    expect(cardEditSrc).toMatch(/\.ce-body \{ padding: var\(--space-r5\) var\(--space-r4\) 160rpx; \}/);
-    expect(cardEditSrc).toMatch(/\.ce-card \{[\s\S]*?padding: var\(--space-r1\)/);
+    // 编辑器：左右留白 28rpx（不再靠 body+card 两层拼）
+    expect(cardEditSrc).toMatch(/\.ce-body \{ padding: var\(--space-r5\) 28rpx 160rpx; \}/);
+    // 卡片零 padding 零 margin-bottom：间距 100% 来自组件自身 marginTop
+    expect(cardEditSrc).not.toMatch(/\.ce-card \{[^}]*padding:/);
+    expect(cardEditSrc).not.toMatch(/\.ce-card \{[^}]*margin-bottom:/);
     // 卡片无底色、无边框（选中框在独立的 .ce-ring 上，不占布局）
     expect(cardEditSrc).not.toMatch(/\.ce-card \{\s*background: var\(--white\)/);
     expect(cardEditSrc).not.toMatch(/\.ce-card \{[^}]*border:/);
@@ -309,6 +307,10 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
       cardEditSrc.indexOf('.ce-render {') + 200
     );
     expect(renderRule).not.toMatch(/padding:|margin:|background:|border-radius/);
+    // 预览画布左右同为 28rpx：预览 = 真实页宽（旧值 space-r5=24rpx 会让组件宽 4px）
+    expect(cardEditSrc).toMatch(/\.ce-preview-canvas \{ padding: var\(--space-r2\) 28rpx var\(--space-r6\); \}/);
+    // 预览列表项不另加间距（间距同样只由组件 marginTop 决定）
+    expect(cardEditSrc).toMatch(/\.pv-item \{ width: 100%; \}/);
   });
 
   test('配置弹窗按 section 分组：内容段展开、样式段默认折叠', () => {
