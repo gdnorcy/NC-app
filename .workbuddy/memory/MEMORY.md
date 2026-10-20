@@ -79,3 +79,31 @@
   `curl` 出来的中文串要过 python3 UTF-8 解码再 count，否则恒 0（假阴性）。
 - safe-delete 拦的路径是 **`web-app/dist/build/h5/assets`**（不是仓库根 `dist/`）；推 deploy 用
   `git push -f origin deploy`（写 `git push -f deploy deploy` 报权限错）。
+
+## 线上排查通道（2026-10-20 新增，重要）
+- 🔴 沙箱**能直连服务器 HTTPS**：`https://zero.nshop.mobi`（443 通）→ 之前记忆里「curl :3000 返 000」
+  只是**直连端口**被拦，域名+443 可用。用途：登录后台 API **复现线上问题**、验证部署。
+  登录口 `POST /api/auth/login`（`admin/admin123`；**admin 无租户身份 → 客户后台 403**，
+  要用 `tenant1/admin123` 才有 req.customerId=1）。
+- 🔴 `mcp__lighthouse-ops__execute_command` 的 `toolName` 在**主代理调用链上会被丢弃**
+  （报 "missing required parameter(s): toolName"）→ 改派 `general-purpose` 子代理执行即可，
+  把工具名/参数结构原样给它，并强调 Region=`ap-guangzhou`（写 ap-shanghai 返「暂无数据」）。
+- 公开只读接口免登录：`GET /api/card/cards/:id`（含 card 详情）、`GET /api/card/cards/:id/components`。
+- 后台租户接口：`/api/customer/card/manage`（名片管理）、`/api/customer/card/employees`、`/api/customer/card/overview`。
+
+## 小程序主包质检（2026-10-20 新增）
+- 微信开发者工具代码质量「主包内不应存在主包未使用的 JS 文件」＝**只有分包用的模块被放进了主包**。
+  修法：源文件挪进分包源码目录（`src/pages/card/xxx.js` → 落到 `pages/card/xxx.js`），
+  连带改 import 与相对深度；`uni build` 产物随之落到分包内。
+  连带注意：被挪文件若 import 了主包 utils（如 sampleImages.js），主包那份仍需有**主包页面在用**，
+  否则改完会换一个文件再报同样的告警。
+- 小程序建卡/改卡的**卡种**字段与「是否有装修入口」是两件事：入口在 `pages/card/myCard` 的跳转里。
+
+## 租户名片归属口径（6 通道）
+- `TENANT_CARD_SCOPE_SQL`（customer.js）是后台名片可见性的单一事实来源，6 条通道：
+  ①card.customer_id ②card.enterprise_id∈本租户active企业 ③用户的enterprise_id∈本租户active企业
+  ④用户∈tenant_individuals(active) ⑤用户∈tenant_enterprise_employees(active)
+  ⑥**用户platform_user.customer_id=本租户**且**无任何非active名册记录**（离职status='left'/停用）。
+- 🔴 根因模式：`POST /api/card/cards`（小程序建卡）**不写 card_profile.customer_id**
+  （只有「建卡+入驻」create-with-apply 才写）→ 小程序自建卡在后台完全查不到。
+  修法用 ⑥ 通道（不需回写数据），别去 UPDATE 存量卡。
