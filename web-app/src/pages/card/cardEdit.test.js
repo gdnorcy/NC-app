@@ -14,6 +14,12 @@ const cardDetailSrc = readFileSync(fileURLToPath(new URL('./cardDetail.vue', imp
 const cardCompItemSrc = readFileSync(fileURLToPath(new URL('../../components/CardCompItem.vue', import.meta.url)), 'utf8');
 const myCardSrc = readFileSync(fileURLToPath(new URL('./myCard.vue', import.meta.url)), 'utf8');
 const serverCard = readFileSync(fileURLToPath(new URL('../../../../server/src/routes/card.js', import.meta.url)), 'utf8');
+const tokenSrc = readFileSync(fileURLToPath(new URL('../../styles/token.scss', import.meta.url)), 'utf8');
+// 取 token.scss 里的 rpx 数值（用于算装修页左右留白，验证与真实页一致）
+const rpxOf = (name) => {
+  const m = tokenSrc.match(new RegExp(`\\$${name}:\\s*(\\d+)rpx`));
+  return m ? Number(m[1]) : null;
+};
 
 describe('cardEdit.vue 装修编辑页', () => {
   test('数据来源：getCardComponents / saveCardComponents（整存 PUT）', () => {
@@ -30,7 +36,7 @@ describe('cardEdit.vue 装修编辑页', () => {
   });
 
   test('母版锁定：isLock 项操作按钮置灰 + 锁标记常驻（不随选中态隐掉）', () => {
-    expect(cardEditSrc).toMatch(/:class="\{ lock: c\.isLock, off: c\.props && c\.props\.hidden, active: activeKey === c\.key \}"/);
+    expect(cardEditSrc).toMatch(/:class="\{ lock: c\.isLock, off: c\.props && c\.props\.hidden \}"/);
     expect(cardEditSrc).toMatch(/off: c\.isLock \|\|/);
     // 锁标记常驻左上角：操作条是「选中才浮现」的，锁状态不能跟着隐掉，
     // 否则用户不知道这张为何不能改（旧的「不可修改」文字行已由它取代）
@@ -243,8 +249,12 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
     // 渲染区绑 tapCard：点一下选中，再点一次才进配置
     expect(cardEditSrc).toMatch(/@click="tapCard\(c\)"/);
     expect(cardEditSrc).toMatch(/if \(activeKey\.value === c\.key\) \{ openEdit\(c\); return; \}/);
-    // 选中态有描边反馈（对齐 PC .pe-comp.active）
-    expect(cardEditSrc).toMatch(/\.ce-card\.active \{ border-color: var\(--design-primary\)/);
+    // 选中态有描边反馈（对齐 PC .pe-comp.active）——但画在独立的 .ce-ring 上，
+    // 不画卡片边框：边框会各占 0.5px 把组件捏窄，破坏与真实页的像素对齐
+    expect(cardEditSrc).toMatch(/<view v-if="activeKey === c\.key" class="ce-ring"><\/view>/);
+    expect(cardEditSrc).toMatch(/\.ce-ring \{[\s\S]*?border: 1rpx solid var\(--design-primary\)/);
+    expect(cardEditSrc).toMatch(/\.ce-ring \{[\s\S]*?pointer-events: none/);
+    expect(cardEditSrc).not.toMatch(/\.ce-card \{[^}]*border:/);
     // 胶囊条/文字按钮那套旧类名必须清零
     expect(cardEditSrc).not.toMatch(/class="ce-bar-wrap"/);
     expect(cardEditSrc).not.toMatch(/class="ce-bar"/);
@@ -278,6 +288,27 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
     expect(cardEditSrc).toMatch(/class="ce-dup-b"/);
     expect(cardEditSrc).toMatch(/class="ce-dup-f"/);
     expect(cardEditSrc).toMatch(/\.ce-dup-f \{[^}]*background: var\(--design-primary\)/);
+  });
+
+  test('组件宽度与真实名片页逐像素一致：装修页左右留白 = .cc-list 的 28rpx', () => {
+    // 用户报「组件中内容与容器的间距太大，感觉不真实」。
+    // 根因是装修页给组件套了三层外壳（ce-body 12px + ce-card 12px + ce-render 6px = 左右各 30px），
+    // 而真实名片详情页只有 `.cc-list { margin: 0 28rpx }`（14px）→ 组件被捏窄 32px，
+    // 还多一圈白底圆角框，看着像「装在盒子里预览」。
+    // 口径：ce-body(--space-r4=20rpx) + ce-card(--space-r1=8rpx) = 28rpx，与真实页相等。
+    expect(rpxOf('space-r4') + rpxOf('space-r1')).toBe(28);
+    expect(cardDetailSrc).toMatch(/\.cc-list \{[\s\S]*?margin: 0 28rpx/);
+    expect(cardEditSrc).toMatch(/\.ce-body \{ padding: var\(--space-r5\) var\(--space-r4\) 160rpx; \}/);
+    expect(cardEditSrc).toMatch(/\.ce-card \{[\s\S]*?padding: var\(--space-r1\)/);
+    // 卡片无底色、无边框（选中框在独立的 .ce-ring 上，不占布局）
+    expect(cardEditSrc).not.toMatch(/\.ce-card \{\s*background: var\(--white\)/);
+    expect(cardEditSrc).not.toMatch(/\.ce-card \{[^}]*border:/);
+    // 渲染区自身不再带内外距/底色/圆角——那才是"盒子感"的来源
+    const renderRule = cardEditSrc.slice(
+      cardEditSrc.indexOf('.ce-render {'),
+      cardEditSrc.indexOf('.ce-render {') + 200
+    );
+    expect(renderRule).not.toMatch(/padding:|margin:|background:|border-radius/);
   });
 
   test('配置弹窗按 section 分组：内容段展开、样式段默认折叠', () => {
