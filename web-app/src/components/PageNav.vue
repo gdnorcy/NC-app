@@ -19,7 +19,7 @@
            左右对称安全区由 navTitleSafePad 下发，避免压到返回键/胶囊） -->
       <view class="pnv-title-wrap" :style="titlePadStyle">
         <text v-if="title" class="pnv-title" :style="{ color: color, fontSize: fontSize }">{{ title }}</text>
-        <slot name="title"></slot>
+        <view v-if="$slots.title" class="pnv-title-slot"><slot name="title"></slot></view>
       </view>
 
       <!-- 右侧：页面级操作（购物车/刷新/…）；胶囊避让见 rightStyle（仅在有右插槽时才占位） -->
@@ -171,7 +171,10 @@ export default {
   pointer-events: none;
 }
 /* 标题自身（含 #title 插槽内容）恢复可点击 */
-.pnv-title-wrap > * { pointer-events: auto; }
+/* 🔴 WXSS 不支持 `*` / `>` 选择器（开发者工具会报 "error at token *"），
+   这里只能按类名给：标题与 #title 插槽容器各自恢复可点击 */
+.pnv-title { pointer-events: auto; }
+.pnv-title-slot { pointer-events: auto; display: flex; align-items: center; }
 .pnv-title {
   font-weight: 600;
   white-space: nowrap;

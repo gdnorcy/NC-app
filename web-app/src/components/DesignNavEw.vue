@@ -198,7 +198,10 @@ export default {
   overflow: hidden;
   pointer-events: none;
 }
-.dnew-title > * { pointer-events: auto; }
+/* 🔴 同上：WXSS 不支持 `*` / `>`；按标题层可能的子元素类名逐个恢复点击 */
+.dnew-title-text,
+.dnew-search,
+.dnew-img { pointer-events: auto; }
 .dnew-title-text {
   font-size: 34rpx;
   font-weight: 600;
