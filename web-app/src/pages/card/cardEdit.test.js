@@ -195,12 +195,62 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
 
   test('显示/隐藏开关：hidden 存 props，列表可切换，cardDetail 渲染过滤', () => {
     expect(cardEditSrc).toMatch(/function toggleHide\(c\)/);
-    expect(cardEditSrc).toMatch(/@click="toggleHide\(c\)"/);
+    // .stop：操作条在卡片内，冒泡会让「点隐藏」顺带触发卡片 openEdit（卡片已有点进配置的绑定）
+    expect(cardEditSrc).toMatch(/@click\.stop="toggleHide\(c\)"/);
     expect(cardEditSrc).toMatch(/c\.props && c\.props\.hidden \? '显示' : '隐藏'/);
     expect(cardDetailSrc).toMatch(
       /const shownComps = computed\(\(\) => cardComps\.value\.filter\(\(c\) => !\(c\.props && c\.props\.hidden\)\)\)/
     );
     expect(cardDetailSrc).toMatch(/v-for="\(c, i\) in shownComps"/);
+  });
+
+  test('操作条 = 主色胶囊条（对齐设计中心 .pe-comp-tools 观感），放渲染区下方右对齐', () => {
+    // 主色底 + 胶囊圆角；右对齐靠 wrap 的 justify-content（不用 float，MP 更稳）
+    expect(cardEditSrc).toMatch(/\.ce-bar \{[^}]*background: var\(--design-primary\)/);
+    expect(cardEditSrc).toMatch(/\.ce-bar-wrap \{[^}]*justify-content: flex-end/);
+    // 序号徽标：PC 边条同款（半透明白底 + 圆角）
+    expect(cardEditSrc).toMatch(/class="ce-bar-idx"/);
+    expect(cardEditSrc).toMatch(/\.ce-bar-idx \{[^}]*background: rgba\(255,255,255,\.25\)/);
+  });
+
+  test('操作条按钮点击区 ≥ 64rpx(≈32px)：PC 的 18px 手指点不中', () => {
+    expect(cardEditSrc).toMatch(/\.ce-bar-btn \{[^}]*width: 64rpx; height: 64rpx/);
+  });
+
+  test('操作条不遮挡渲染区：不是绝对定位浮层，是渲染区之后的普通兄弟节点', () => {
+    // 模板里 ce-bar-wrap 必须排在 ce-render 之后（DOM 顺序 = 视觉顺序，浮层会盖住所见即所得）
+    const iRender = cardEditSrc.indexOf('class="ce-render"');
+    const iBar = cardEditSrc.indexOf('class="ce-bar-wrap"');
+    expect(iRender).toBeGreaterThan(-1);
+    expect(iBar).toBeGreaterThan(iRender);
+    // 且不得用 absolute/fixed 定位到渲染区上方
+    expect(cardEditSrc).not.toMatch(/\.ce-bar-wrap \{[^}]*position:\s*(absolute|fixed)/);
+  });
+
+  test('「编辑」按钮已移除：点渲染区即进配置，胶囊条里不再有编辑入口', () => {
+    expect(cardEditSrc).toMatch(/@click="openEdit\(c\)"/);
+    expect(cardEditSrc).not.toMatch(/class="ce-op"[^>]*openEdit/);
+    expect(cardEditSrc).not.toMatch(/上移<\/text>/);
+    expect(cardEditSrc).not.toMatch(/下移<\/text>/);
+  });
+
+  test('复制：dup 插到原组件后面、props 深拷贝、母版禁复制、受 COMP_MAX 约束', () => {
+    expect(cardEditSrc).toMatch(/function dup\(i, c\)/);
+    expect(cardEditSrc).toMatch(/if \(c\.isLock\) return;/);
+    expect(cardEditSrc).toMatch(/if \(mine\.value\.length >= COMP_MAX\)/);
+    expect(cardEditSrc).toMatch(/props: JSON\.parse\(JSON\.stringify\(c\.props \|\| \{\}\)\)/);
+    expect(cardEditSrc).toMatch(/arr\.splice\(i \+ 1, 0, item\)/);
+  });
+
+  test('复制图标不用 U+29C9 双联方框字符，也不用伪元素（MP 字体豆腐块 / WXSS 伪元素不可靠）', () => {
+    // 🔴 断言的是**码点**而不是字面量：写字面量会连本测试文件自己的注释一起命中（假阴性），
+    //    而且注释里留着字形，后人复制回代码就前功尽弃。
+    expect(cardEditSrc).not.toContain('\u29C9');
+    expect(cardEditSrc).not.toMatch(/\.ce-dup-[bf]:{1,2}(before|after)/);
+    // 用两个真实 view 叠出，前块背景 = 胶囊底色才能遮出 L 形边
+    expect(cardEditSrc).toMatch(/class="ce-dup-b"/);
+    expect(cardEditSrc).toMatch(/class="ce-dup-f"/);
+    expect(cardEditSrc).toMatch(/\.ce-dup-f \{[^}]*background: var\(--design-primary\)/);
   });
 
   test('配置弹窗按 section 分组：内容段展开、样式段默认折叠', () => {
