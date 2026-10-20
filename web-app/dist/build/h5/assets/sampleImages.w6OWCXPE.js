@@ -1,1 +1,0 @@
-const a="/card/static/sample/",r={banner:{url:a+"image-sample-710x388.jpg",w:710,h:388},square:{url:a+"image-sample-square-400x400.jpg",w:400,h:400},portrait:{url:a+"image-sample-600x800.jpg",w:600,h:800}};function e(a){return(r[a]||r.banner).url}export{e as s};

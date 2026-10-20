@@ -1,7 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "s-icon": "./SIcon",
-    "super-form-render": "./SuperFormRender"
-  }
-}

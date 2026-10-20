@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "全景首页",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav",
-    "design-page": "../../components/DesignPage"
-  }
-}

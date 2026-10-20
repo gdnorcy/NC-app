@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "360全景",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav"
-  }
-}

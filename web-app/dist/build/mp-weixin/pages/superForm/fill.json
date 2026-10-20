@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "超级表单",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav",
-    "super-form-render": "../../components/SuperFormRender"
-  }
-}

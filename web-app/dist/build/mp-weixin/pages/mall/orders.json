@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "我的订单",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav",
-    "s-icon": "../../components/SIcon"
-  }
-}

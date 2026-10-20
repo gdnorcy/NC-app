@@ -1,1 +1,0 @@
-<view wx:if="{{a}}" class="sk-wrap data-v-938420de"><view wx:if="{{b}}" class="sk-avatar data-v-938420de"></view><view class="sk-body data-v-938420de"><view wx:if="{{c}}" class="sk-title data-v-938420de"></view><view wx:for="{{d}}" wx:for-item="i" wx:key="a" class="sk-line data-v-938420de" style="{{'width:' + i.b}}"></view></view></view><slot wx:else></slot>

@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "全景浏览",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "panorama-viewer": "./components/PanoramaViewer"
-  }
-}

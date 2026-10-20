@@ -1,1 +1,0 @@
-"use strict";const r="/card/static/sample/",a={banner:{url:r+"image-sample-710x388.jpg",w:710,h:388},square:{url:r+"image-sample-square-400x400.jpg",w:400,h:400},portrait:{url:r+"image-sample-600x800.jpg",w:600,h:800}};exports.sampleUrl=function(r){return(a[r]||a.banner).url};

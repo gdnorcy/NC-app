@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "文章列表",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav"
-  }
-}

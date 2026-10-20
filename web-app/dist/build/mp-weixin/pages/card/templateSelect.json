@@ -1,9 +1,0 @@
-{
-  "navigationBarTitleText": "更换模板",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav",
-    "tpl-thumb": "../../components/TplThumb",
-    "tpl-preview-modal": "../../components/TplPreviewModal"
-  }
-}

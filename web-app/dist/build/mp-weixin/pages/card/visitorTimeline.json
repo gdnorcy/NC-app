@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "访客行为",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav",
-    "s-icon": "../../components/SIcon"
-  }
-}
