@@ -90,9 +90,10 @@ describe('会员中心 member.vue：支付并发锁', () => {
 
   it('用户取消支付时直接 return，不再发起支付请求', () => {
     const { body } = extractFn('member.vue', 'openMember');
-    const idx = body.indexOf('mockPay');
+    // 锚点用发起支付的调用（接入真实微信支付后是 payOrder，此前是 mockPay）
+    const idx = Math.max(body.indexOf('payOrder'), body.indexOf('mockPay'));
     expect(idx).toBeGreaterThan(-1);
-    // mockPay 之前必须存在一道「未确认就返回」的闸门
+    // 支付调用之前必须存在一道「未确认就返回」的闸门
     const before = body.slice(0, idx);
     expect(before).toMatch(/if\s*\(!\s*(payConfirmed|confirmed)[\s\S]{0,20}\)\s*return/);
   });

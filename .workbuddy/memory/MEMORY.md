@@ -79,3 +79,80 @@
   `curl` 出来的中文串要过 python3 UTF-8 解码再 count，否则恒 0（假阴性）。
 - safe-delete 拦的路径是 **`web-app/dist/build/h5/assets`**（不是仓库根 `dist/`）；推 deploy 用
   `git push -f origin deploy`（写 `git push -f deploy deploy` 报权限错）。
+
+## 线上排查通道（2026-10-20 新增，重要）
+- 🔴 沙箱**能直连服务器 HTTPS**：`https://zero.nshop.mobi`（443 通）→ 之前记忆里「curl :3000 返 000」
+  只是**直连端口**被拦，域名+443 可用。用途：登录后台 API **复现线上问题**、验证部署。
+  登录口 `POST /api/auth/login`（`admin/admin123`；**admin 无租户身份 → 客户后台 403**，
+  要用 `tenant1/admin123` 才有 req.customerId=1）。
+- 🔴 `mcp__lighthouse-ops__execute_command` 的 `toolName` 在**主代理调用链上会被丢弃**
+  （报 "missing required parameter(s): toolName"）→ 改派 `general-purpose` 子代理执行即可，
+  把工具名/参数结构原样给它，并强调 Region=`ap-guangzhou`（写 ap-shanghai 返「暂无数据」）。
+- 公开只读接口免登录：`GET /api/card/cards/:id`（含 card 详情）、`GET /api/card/cards/:id/components`。
+- 后台租户接口：`/api/customer/card/manage`（名片管理）、`/api/customer/card/employees`、`/api/customer/card/overview`。
+
+## 小程序主包质检（2026-10-20 新增）
+- 微信开发者工具代码质量「主包内不应存在主包未使用的 JS 文件」＝**只有分包用的模块被放进了主包**。
+  修法：源文件挪进分包源码目录（`src/pages/card/xxx.js` → 落到 `pages/card/xxx.js`），
+  连带改 import 与相对深度；`uni build` 产物随之落到分包内。
+  连带注意：被挪文件若 import 了主包 utils（如 sampleImages.js），主包那份仍需有**主包页面在用**，
+  否则改完会换一个文件再报同样的告警。
+- 小程序建卡/改卡的**卡种**字段与「是否有装修入口」是两件事：入口在 `pages/card/myCard` 的跳转里。
+
+## 租户名片归属口径（6 通道）
+- `TENANT_CARD_SCOPE_SQL`（customer.js）是后台名片可见性的单一事实来源，6 条通道：
+  ①card.customer_id ②card.enterprise_id∈本租户active企业 ③用户的enterprise_id∈本租户active企业
+  ④用户∈tenant_individuals(active) ⑤用户∈tenant_enterprise_employees(active)
+  ⑥**用户platform_user.customer_id=本租户**且**无任何非active名册记录**（离职status='left'/停用）。
+- 🔴 根因模式：`POST /api/card/cards`（小程序建卡）**不写 card_profile.customer_id**
+  （只有「建卡+入驻」create-with-apply 才写）→ 小程序自建卡在后台完全查不到。
+  修法用 ⑥ 通道（不需回写数据），别去 UPDATE 存量卡。
+
+## 🔴 密钥落库纪律（2026-10-21 定，跨会话长期有效）
+**分界线是「归属」，不是「类型」**——用户拿菜鸟云「参数设置」（原始id/AppId/AppSecret/
+代码上传秘钥四个明文框）质疑过我「密钥绝不能进后台」的结论，我认同用户并纠正自己：
+- **租户自己的**小程序/商户号密钥 → **后台明文填写**（行业惯例，租户看自己的密钥天经地义，
+  泄漏影响面仅限该租户自己）。落库前必须 `encryptSecret`，回显必须 `maskSecretValue`。
+- **平台自己的**密钥 → 只走 env / 服务器文件，**永不入库**（入库等于交给每个能读库的人）。
+
+配套纪律：
+1. 🔴 **嵌套字段是加密盲区**：`encryptConfigSecrets`/`CONFIG_SECRET_SECTIONS` 只扫 section **顶层**，
+   而 `payment.wechat.apiV3Key` 是嵌套层 → 静默明文落库。凡新增 section 的密钥，
+   必须验证「加密循环真的扫得到」，不能假设。
+2. 🔴 **脱敏占位符判定用 `includes('****')` 不能用 `startsWith`**：`maskSecretValue` 回显形态是
+   `S_T1****`（前缀+****+后缀）。只判前缀 → 前端把展示值原样提交 → 密钥被占位符覆盖（静默清空凭据）。
+   语义统一在 `crypto.js` 的 `mergeSecretInput`：空/占位符 = 不修改。
+3. **所有读密钥处必须 `readSecret()`**（自动兼容历史明文），直接 SELECT 送微信必失败。
+   已知消费方：`wechatLive.getMiniConfig`、`card.js` 自运营登录、`customer.js` 自运营上传。
+4. 🔴 **`channel_apps.upload_key` 是租户小程序的 RSA 私钥**（代码上传密钥），权限=可上传任意代码，
+   与 appSecret 同级敏感。用户以为它只是普通字段，实则不是。
+5. `projects.config` 被**两处**写（`/customer/config` 与 `/payment/tenant-config`），
+   写 payment 段必须统一走 `paymentConfig.mergePaymentIntoConfig`，禁止各写一套加密逻辑。
+6. `STORAGE_KEY`（加密主密钥）**首次部署即固定并备份**，改了所有已存密钥解不开。
+
+## 支付接入约定
+- 金额**全链路单位是「分」**：`payment_orders.amount` / `goods_order.pay_amount` / 微信 `amount.total`。
+  建单 `price*100` 或 `yuan2fen()`，**调用微信前不得再乘 100**（曾写错成 1000 倍多收）。
+- 支付回调 URL 只能是 `https://域名/api/payment/notify/wechat`（**一层 notify**）。
+  挂载点必须是 `/api/payment` + 路径守卫放行 `/notify/`，否则要么多一层 `/notify/notify/`，
+  要么整段 payment 失去鉴权（`/tenant-config` 会 403→200 裸奔）。
+- 回调验签必须基于 **rawBody**（`express.json({verify})` 捕获原始 Buffer），
+  parse 再 stringify 会因键序/空白变化导致验签必失败且极难排查。
+- 验签用**平台证书**（验回调），签名用**商户 API 证书+私钥**（发请求）——方向相反，别混。
+- 兜底原则：**只有「压根没配」才允许回落 mock**。一旦配了真实商户号而配置不全 → 直接报错，
+  绝不静默 mock（mock = 点了支付钱没扣订单却成功，资金与权益双错账）。
+- `/mock-pay` 在真实 mchId 下必须 403；判定要用**明文**配置（脱敏后的 mchId 匹配不上 `/^mock/i`）。
+- 🔴 **真实支付前提**：库里 openid 必须是真机登录产生的真 openid。测试数据
+  （`rebuild_openid_*` / `mock_*`）下单时会明确报错，不得静默。
+
+## 测试环境坑（复用可省时间）
+- openssl 生成测试证书：① 必须 `stdio:['pipe','pipe','ignore']`（genpkey 进度点 `....+++`
+  混入 stdout → PEM 污染 → "no start line"）；② 最稳是全程 `-out` 文件，别用 stdin/stdout 传 PEM；
+  ③ `x509 -req` 输入是 **CSR**（`-signkey` 才给私钥路径）；④ 必须是真 X.509 证书
+  （`serialFromCertPem` 靠它算 serial），公钥 PEM 会报错。
+- supertest 测「按字节签名」的接口（支付回调）必须 `.send(rawString)`：传对象时 supertest 自己
+  JSON.stringify，键序与签名原文不一致 → 明明实现正确却失败（假象）。
+- node:sqlite 用 `DatabaseSync`（`new Database()` 非构造函数）；macOS 上 `stat -c%s` 非法用 `wc -c`。
+- 基线已知失败（stash 对照证实，与新改动无关）：card-apply 审核流 ×2、card-radar 访客标签、
+  card-market-saas P0-1 未入驻 403、高潜榜会员门槛 —— 共 5 项。
+

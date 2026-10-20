@@ -11,7 +11,8 @@ import { ciUploadMini } from '../services/mini-ci.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
 import { checkTenantSolutionQuota } from '../services/billing.js';
 import { calcFunnel, trendSeries, eventDistribution, topTargets, calcHealthScore } from '../services/analytics.js';
-import { encryptSecret, decryptSecret } from '../crypto.js';
+import { encryptSecret, decryptSecret, maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
+import { mergePaymentIntoConfig, maskConfigPayment } from '../services/paymentConfig.js';
 import { createMemberService } from '../services/member.js';
 import {
   CARD_IDENTITY_SQL, cardIdentityParams, IDENTITY_LABEL, IDENTITY_HINT, subjectTypeOf,
@@ -51,6 +52,10 @@ export function decryptConfigSecrets(cfg) {
   }
   return cfg;
 }
+
+// 脱敏/密钥合并的实现在 crypto.js（服务层也需要，如 wechatLive 读 app_secret）
+// 这里仅做 re-export，保持本文件原有的对外导出面不变。
+export { maskSecretValue, mergeSecretInput, readSecret };
 
 function auditCust(db, req, action, targetType, targetId, detail) {
   addOperationLog(db, {
@@ -210,7 +215,10 @@ router.get('/profile', requireTenant, (req, res) => {
   const cust = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.customerId);
   if (!cust) return res.status(404).json({ error: '客户项目不存在' });
   const customer = toCustomer(cust);
-  if (customer.config) decryptConfigSecrets(customer.config);
+  // payment.wechat.apiV3Key / privateKey 是**嵌套**在 wechat 下的，
+  // decryptConfigSecrets 只扫顶层字段 → 必须再用 maskConfigPayment 脱敏，
+  // 否则 API 会把支付密钥明文发给浏览器（这条接口是租户成员都能调的）。
+  if (customer.config) customer.config = maskConfigPayment(decryptConfigSecrets(customer.config));
   res.json({ customer, user: toUser(req.user) });
 });
 
@@ -735,11 +743,17 @@ router.put('/config', requireTenant, requireTenantAdmin, (req, res) => {
     if (updates[k] !== undefined) config[k] = String(updates[k]).trim();
   }
   if (updates.card_create_skin !== undefined) config.card_create_skin = ['live', 'step'].includes(updates.card_create_skin) ? updates.card_create_skin : 'live';
-  if (updates.payment) config.payment = { ...(config.payment || {}), ...updates.payment };
+  // 🔴 payment 段必须走 mergePaymentIntoConfig（paymentConfig）：
+  //    ① 密钥在 payment.wechat.apiV3Key / payment.wechat.privateKey 等**嵌套**层，
+  //       下面的 CONFIG_SECRET_SECTIONS 循环只扫顶层字段，扫不到 → 会明文落库；
+  //    ② 直接 {...旧, ...新} 覆盖会丢掉本次未提交的渠道字段。
+  if (updates.payment) mergePaymentIntoConfig(config, updates.payment);
   if (updates.upload_limits) config.upload_limits = { ...(config.upload_limits || {}), ...updates.upload_limits };
   if (updates.open_platform) config.open_platform = { ...(config.open_platform || {}), ...updates.open_platform };
   // 敏感密钥字段落库前加密（仅加密本次提交的新值，历史密文保持）
+  // 注：payment 已由上面的 mergePaymentIntoConfig 处理，此处跳过避免二次加密
   for (const section of CONFIG_SECRET_SECTIONS) {
+    if (section === 'payment') continue;
     const sec = updates[section];
     if (!sec || typeof sec !== 'object') continue;
     for (const k of Object.keys(sec)) {
@@ -807,7 +821,18 @@ router.post('/upload', requireTenant, requireTenantAdmin, (req, res) => {
 router.get('/channels', requireTenant, (req, res) => {
   const cid = req.customerId;
   const channels = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ?').all(cid);
-  res.json({ channels });
+  // 🔴 app_secret / upload_key 一律脱敏回显：这条接口 requireTenant（租户成员也能调），
+  // 明文返回等于把「小程序密钥 + 代码上传私钥」发给所有租户子账号。
+  // 前端展示为 ****，留空即不修改（后端 mergeSecretInput 语义）。
+  res.json({
+    channels: channels.map((c) => ({
+      ...c,
+      app_secret: maskSecretValue(readSecret(c.app_secret)),
+      has_app_secret: !!readSecret(c.app_secret),
+      upload_key: maskSecretValue(readSecret(c.upload_key)),
+      has_upload_key: !!readSecret(c.upload_key),
+    })),
+  });
 });
 
 // 获取渠道拖拽排序（按 sort_order 升序；未设置过返回空数组，前端用默认顺序）
@@ -854,10 +879,16 @@ router.put('/channels/:type', requireTenant, requireTenantAdmin, (req, res) => {
     if ('enabled' in b) existing.enabled = b.enabled ? 1 : 0;
     if ('page' in b) existing.page = b.page || '';
     if ('originalId' in b) existing.original_id = b.originalId || '';
-    if ('uploadKey' in b) existing.upload_key = b.uploadKey || '';
+    // 🔴 upload_key 是「小程序代码上传密钥」——租户自己小程序的 RSA **私钥**（PEM 全文）。
+    //    它的权限等价于「能往该小程序上传任意代码」，属最高敏感级凭据，
+    //    与 appSecret 同等对待：落库加密、回显脱敏、留空即不改。
+    if ('uploadKey' in b) existing.upload_key = mergeSecretInput(b.uploadKey, existing.upload_key);
     // 自运营 AppID 仅在未走第三方授权时允许客户自填（授权态的 appid 由授权回调管理，不可覆盖）
     if ('selfAppid' in b && existing.auth_status !== 'authorized') existing.appid = b.selfAppid || '';
-    if ('appSecret' in b) existing.app_secret = b.appSecret || '';
+    // 🔴 app_secret 落库必须加密：这是租户自己名下小程序的 AppSecret，
+    // 允许在后台明文填写（对齐菜鸟云），但**数据库里不能是明文**——
+    // 明文密钥会随数据库备份一起泄漏。空/脱敏占位符 = 不修改，保留原密文。
+    if ('appSecret' in b) existing.app_secret = mergeSecretInput(b.appSecret, existing.app_secret);
     db.prepare(`UPDATE channel_apps SET brand_name=?, primary_color=?, custom_domain=?, enabled=?, page=?,
       original_id=?, upload_key=?, appid=?, app_secret=?, updated_at=datetime('now') WHERE id=?`)
       .run(existing.brand_name, existing.primary_color, existing.custom_domain, existing.enabled, existing.page,
@@ -872,9 +903,9 @@ router.put('/channels/:type', requireTenant, requireTenantAdmin, (req, res) => {
         'enabled' in b ? (b.enabled ? 1 : 0) : 1,
         'page' in b ? (b.page || '') : '',
         'originalId' in b ? (b.originalId || '') : '',
-        'uploadKey' in b ? (b.uploadKey || '') : '',
+        'uploadKey' in b && b.uploadKey ? mergeSecretInput(b.uploadKey, '') : '',
         'selfAppid' in b ? (b.selfAppid || '') : '',
-        'appSecret' in b ? (b.appSecret || '') : '');
+        'appSecret' in b && b.appSecret ? mergeSecretInput(b.appSecret, '') : '');
   }
   auditCust(db, req, 'update_channel_config', 'channel_app', req.customerId, `更新渠道配置: ${type}`);
   res.json({ message: '配置已保存' });
@@ -916,8 +947,10 @@ router.post('/channels/mini/upload', requireTenant, requireTenantAdmin, async (r
     const channel = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(cid, 'mini');
     if (!channel?.authorizer_appid) {
       // 自运营分支：未走第三方授权，但客户填了自己的 AppID + 代码上传密钥
-      if (channel?.appid && channel?.upload_key && channel.auth_status !== 'authorized') {
-        await ciUploadMini({ appid: channel.appid, uploadKey: channel.upload_key, version: userVersion, desc: userDesc });
+      // 🔴 upload_key 落库是密文，必须 readSecret 解密后交给 miniprogram-ci
+      const uploadKey = readSecret(channel?.upload_key);
+      if (channel?.appid && uploadKey && channel.auth_status !== 'authorized') {
+        await ciUploadMini({ appid: channel.appid, uploadKey, version: userVersion, desc: userDesc });
         db.prepare(`UPDATE channel_apps SET audit_status='draft', version=?, updated_at=datetime('now') WHERE id=?`).run(userVersion || '', channel.id);
         new WxComponentService(db).logDeploy(channel.id, 'upload', 'success', '', userVersion || '');
         return res.json({ message: '代码上传成功（自运营 miniprogram-ci 通道）' });

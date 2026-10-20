@@ -41,23 +41,34 @@ import { createDistributionRouter } from './routes/distribution.js';
 import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';import { createSuperFormRouter } from './routes/superForm.js';
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 import { hasSolution, tenantState } from './tenant.js';
+import { resolveMiniCredential } from './services/wx-config.js';
 
 /**
  * 微信 code2session 通道：
- * - 配置了 WX_APPID + WX_APPSECRET → 走真实 jscode2session（真机小程序登录必需）。
+ * - 租户自运营小程序（channel_apps.mini 填了自己的 AppID+AppSecret）→ 该租户的凭据
+ * - 平台自有小程序（env WX_APPID + WX_APPSECRET）→ 平台凭据
  *   ⚠️ mock 通道（openid='mock_'+code）在真机上每次 code 都不同 → 每次登录都创建
  *   新用户，名片/入驻/会员关系全部「丢失」——表现为登录后仍提示登录/未开通。
- * - 未配置 → 回落 mock（H5 演示、本地开发不受影响）。
+ * - 两者都没有 → 回落 mock（H5 演示、本地开发不受影响）。
+ *
+ * 凭据来源见 services/wx-config.js：租户配置在后台填（落库密文），
+ * 平台配置只走 env。**两者都不硬编码 appid**——原代码里那个
+ * `|| 'wxad6266942ba2d35c'` 兜底会让「换了小程序」时静默用错 appid 去换 code。
  */
-function createWxCode2Session() {
-  const appid = process.env.WX_APPID || 'wxad6266942ba2d35c';
-  const secret = process.env.WX_APPSECRET || '';
+function createWxCode2Session(database) {
   return async (code) => {
-    if (!secret) {
-      console.warn('[wx-login] 未配置 WX_APPSECRET，回落 mock 通道（真机登录会每次建新用户）');
+    // 平台单 appid 通道：只认 env，不做租户定位
+    // （按租户定位是 card.js /api/card/auth/wx-login 的职责，它带 appid 参数）
+    const { appId, appSecret } = resolveMiniCredential(database, {});
+    if (!appSecret) {
+      console.warn('[wx-login] 未配置任何可用 AppSecret（租户后台参数设置 或 env WX_APPSECRET），回落 mock 通道（真机登录会每次建新用户）');
       return { openid: 'mock_' + code, unionid: '' };
     }
-    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appid}&secret=${secret}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
+    if (!appId) {
+      console.warn('[wx-login] 已配置 AppSecret 但缺 AppID，无法走真实通道，回落 mock');
+      return { openid: 'mock_' + code, unionid: '' };
+    }
+    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${appId}&secret=${appSecret}&js_code=${encodeURIComponent(code)}&grant_type=authorization_code`;
     const resp = await fetch(url);
     const data = await resp.json();
     if (data.errcode) throw new Error(`微信code2session失败(${data.errcode}): ${data.errmsg}`);
@@ -87,6 +98,16 @@ app.use((req, res, next) => {
   app.use('/api/channel/wx-callback', express.text({ type: '*/xml' }));
   app.use('/api/channel/wx-message', express.text({ type: '*/xml' }));
 
+  // 微信支付回调验签需要**原始报文字节**：验签串是 timestamp\nnonce\nbody\n，
+  // 其中 body 必须与微信发来的字节完全一致。若先 JSON.parse 再 JSON.stringify，
+  // 键顺序/空白/转义都可能变化 → 验签必然失败（且失败原因极难排查）。
+  // 故在此处捕获 Buffer 到 req.rawBody，供 /api/payment/notify 使用。
+  app.use('/api/payment/notify', express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => { req.rawBody = buf && buf.length ? buf.toString('utf8') : ''; },
+  }));
+  // 其它 payment 子路由（prepay/mock-pay 等）走下面这条普通解析即可
+  app.use('/api/payment', express.json({ limit: '1mb' }));
   app.use(express.json({ limit: '1mb' }));
 
   // —— 统一请求日志 + requestId（仅记录 API，静态资源不刷屏） ——
@@ -197,12 +218,23 @@ app.use((req, res, next) => {
   app.use('/api/admin/oauth', createOAuthAppsRouter(database));
   app.use('/api/channel', createChannelRouter(database));
   app.use('/api/card', createCardRouter(database, {
-    code2Session: createWxCode2Session(),
+    code2Session: createWxCode2Session(database),
   }));
   // 支付回调不需要认证（第三方支付平台调用）
-  app.use('/api/payment/notify', createPaymentRouter(database));
+  // ⚠️ 挂载点必须正好是路由前缀：router 内是 '/notify/:channel'，
+  //    若挂 '/api/payment/notify' 则实际路径变成 /api/payment/notify/notify/wechat，
+  //    而 /api/payment/notify/wechat 会落到下面的 comboAuth 上（返回 401 未登录），
+  //    导致微信回调永远 401。
+  //    同一 router 里的 /tenant-config、/prepay 等**必须**鉴权，
+  //    所以这里不能整体免鉴权挂载——只放行 notify 前缀，其余交给 comboAuth。
+  app.use('/api/payment/notify', (req, res, next) => {
+    req.skipPaymentAuth = true;
+    next();
+  });
   // 支付API使用组合认证：支持JWT（租户/平台）和card_token（个人用户）
   const comboAuth = (req, res, next) => {
+    // 支付回调由微信服务端调用，无 Authorization 头，必须放行
+    if (req.skipPaymentAuth || /^\/notify\//.test(req.path)) return next();
     // 公开路径白名单（访客免认证）：表单提交
     // 注意：super-form 挂在 /api/card-market 之下，comboAuth 可能以两种上下文运行：
     //   /api/card-market 上下文 → req.path = /super-form/<id>/(submit|public)

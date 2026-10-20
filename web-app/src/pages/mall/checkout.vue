@@ -120,7 +120,7 @@ import { resolveAssetUrl } from '../../utils/design.js';
 import { useDesignTheme } from '../../utils/design.js';
 
 const themeStyle = useDesignTheme();
-import { paymentApi } from '../../utils/cardApi.js';
+import { payOrder } from '../../utils/cardApi.js';
 
 const tid = ref('');
 const deliveryMode = ref('express');
@@ -257,9 +257,16 @@ function submitOrder() {
 
   submitting.value = true;
   mallApi.createOrder(payload)
-    .then((order) => {
-      // 一期 mock 支付：创建支付单后直接模拟支付成功（正式微信支付另行排期）
-      return paymentApi.mockPay(order.payOrderNo).then(() => order);
+    .then(async (order) => {
+      // 真实微信支付：预下单 → 调起支付（未配置真实商户号时服务端回落 mock）
+      const pay = await payOrder(order.payOrderNo, { allowMock: true });
+      if (!pay.paid) {
+        const err = new Error(pay.canceled ? '已取消支付' : (pay.message || '支付失败'));
+        err.canceled = !!pay.canceled;
+        throw err;
+      }
+      order.mockPaid = !!pay.mock;
+      return order;
     })
     .then((order) => {
       submitting.value = false;
@@ -267,14 +274,16 @@ function submitOrder() {
       if (cartIds.value) {
         cartIds.value.split(',').filter(Boolean).forEach((id) => mallApi.removeCart(id).catch(() => {}));
       }
-      uni.showToast({ title: '支付成功', icon: 'success' });
+      uni.showToast({ title: order.mockPaid ? '支付成功（模拟）' : '支付成功', icon: 'success' });
       setTimeout(() => {
         uni.redirectTo({ url: `/pages/mall/order-detail?id=${order.id}${tid.value ? `&tid=${tid.value}` : ''}` });
       }, 600);
     })
     .catch((e) => {
       submitting.value = false;
-      uni.showToast({ title: e || '下单失败', icon: 'none' });
+      // 用户主动取消不是错误，不必弹「失败」
+      if (e && e.canceled) return;
+      uni.showToast({ title: (e && e.message) || '下单失败', icon: 'none' });
     });
 }
 

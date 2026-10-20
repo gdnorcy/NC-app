@@ -8,6 +8,7 @@ import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { createDb, hashPassword } from '../src/db.js';
 import { issueToken } from '../src/auth.js';
+import { readSecret } from '../src/crypto.js';
 
 /**
  * 微信第三方平台（代开发）+ 自运营模式 专项测试
@@ -188,9 +189,12 @@ test('客户侧参数设置：自运营参数保存、授权态守卫、空值�
   assert.equal(put1.status, 200);
   const row1 = db.prepare("SELECT appid, app_secret, original_id, upload_key FROM channel_apps WHERE customer_id=1 AND channel_type='mini'").get();
   assert.equal(row1.appid, TENANT_APPID, '授权态下 selfAppid 不得覆盖 appid');
-  assert.equal(row1.app_secret, 'S_NEW');
+  // 🔴 密钥类字段落库必须是密文（数据库会进备份，明文=凭据裸奔）
+  assert.notEqual(row1.app_secret, 'S_NEW', 'app_secret 不得明文落库');
+  assert.equal(readSecret(row1.app_secret), 'S_NEW', 'app_secret 解密后应为原值');
+  assert.notEqual(row1.upload_key, 'KEY_T1', 'upload_key（RSA 私钥）不得明文落库');
+  assert.equal(readSecret(row1.upload_key), 'KEY_T1', 'upload_key 解密后应为原值');
   assert.equal(row1.original_id, 'gh_t1');
-  assert.equal(row1.upload_key, 'KEY_T1');
 
   // 模拟取消授权后的非授权态：selfAppid 应可写入（自运营参数）
   db.prepare("UPDATE channel_apps SET auth_status='none' WHERE customer_id=1 AND channel_type='mini'").run();
@@ -199,7 +203,7 @@ test('客户侧参数设置：自运营参数保存、授权态守卫、空值�
   assert.equal(put2.status, 200);
   const row2 = db.prepare("SELECT appid, app_secret FROM channel_apps WHERE customer_id=1 AND channel_type='mini'").get();
   assert.equal(row2.appid, 'wxself_t1', '非授权态下 selfAppid 应写入');
-  assert.equal(row2.app_secret, 'S_T1');
+  assert.equal(readSecret(row2.app_secret), 'S_T1');
 
   // 只传品牌字段（如 saveBrand）：空 customDomain/page 等落 '' 而非 null，不撞 NOT NULL
   const put3 = await request(app).put('/api/customer/channels/mini').set(headers)
@@ -207,10 +211,18 @@ test('客户侧参数设置：自运营参数保存、授权态守卫、空值�
   assert.equal(put3.status, 200);
   const row3 = db.prepare("SELECT appid, app_secret, brand_name, custom_domain, page FROM channel_apps WHERE customer_id=1 AND channel_type='mini'").get();
   assert.equal(row3.appid, 'wxself_t1', '未传 selfAppid 时保留原 appid');
-  assert.equal(row3.app_secret, 'S_T1', '未传 appSecret 时保留原值');
+  assert.equal(readSecret(row3.app_secret), 'S_T1', '未传 appSecret 时保留原值');
   assert.equal(row3.brand_name, '品牌B');
   assert.equal(row3.custom_domain, '');
   assert.equal(row3.page, '');
+
+  // 前端回显的是脱敏占位符；把它原样提交回来不得把密钥擦成空（对齐菜鸟云表单体验）
+  const put4 = await request(app).put('/api/customer/channels/mini').set(headers)
+    .send({ brandName: '品牌C', appSecret: 'S_T1****', uploadKey: 'KEY_T1' });
+  assert.equal(put4.status, 200);
+  const row4 = db.prepare("SELECT app_secret, upload_key FROM channel_apps WHERE customer_id=1 AND channel_type='mini'").get();
+  assert.equal(readSecret(row4.app_secret), 'S_T1', '提交脱敏占位符不得覆盖真实密钥');
+  assert.equal(readSecret(row4.upload_key), 'KEY_T1', '提交原值不得破坏 upload_key');
 });
 
 // —— 自运营上传分支：路由接线验证（未配置工程目录时返回明确错误，不触网） ——

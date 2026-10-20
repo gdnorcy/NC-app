@@ -314,6 +314,8 @@ export function createChannelRouter(db) {
     const channel = db.prepare('SELECT * FROM channel_apps WHERE appid = ? AND channel_type = ?').get(appid, 'mini');
     // 活跃渠道两种形态：① 第三方平台授权（component 模式）② 自运营（客户自填 AppID+AppSecret，未授权态）
     // 自运营行同样携带 customer_id/品牌配置，/init 必须服务，否则自运营租户拿不到渠道初始化数据
+    // 🔴 app_secret 落库是密文，这里只判断「是否配置过」（密文非空即已配置），
+    // 真正使用明文的地方（wechatLive / card.js 登录）各自 readSecret 解密。
     const active = channel && (
       channel.auth_status === 'authorized' ||
       (channel.auth_status === 'none' && !!channel.app_secret)

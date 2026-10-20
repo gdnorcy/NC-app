@@ -339,11 +339,76 @@ export const cardApi = {
   contentSettings: (tid) => request(`/content/settings?tid=${tid || ''}`),
 };
 
+/**
+ * 调起微信支付（小程序端）
+ * ------------------------------------------------------------
+ * 为什么必须有这层封装而不是让页面各写各的：
+ *   ① 参数名跨端不一致——后端给的是 `package`（微信原生名），但小程序/H5 都有
+ *      各自的传参约定，写错一个字母就是「支付已调起但没扣钱/直接失败」；
+ *   ② 「用户取消」在微信里是 resolve 而非 reject，各页面若按 reject 处理会弹
+ *      「支付失败」——实际只是用户主动关掉，提示错误会造成误解；
+ *   ③ 后端返回 mock 时不能让用户走到 requestPayment（会报错），必须提前分流。
+ *
+ * @returns {{ok:true}|{ok:false, canceled?:boolean, message:string}}
+ */
+function requestWechatPay(payParams) {
+  return new Promise((resolve) => {
+    // #ifdef MP-WEIXIN
+    uni.requestPayment({
+      provider: 'wxpay',
+      timeStamp: String(payParams.timeStamp),
+      nonceStr: payParams.nonceStr,
+      package: payParams.package,
+      signType: payParams.signType || 'RSA',
+      paySign: payParams.paySign,
+      success: () => resolve({ ok: true }),
+      fail: (err) => {
+        const msg = (err && err.errMsg) || '';
+        // 用户主动取消是正常路径，不应当作支付失败提示
+        if (/cancel/i.test(msg)) resolve({ ok: false, canceled: true, message: '已取消支付' });
+        else resolve({ ok: false, message: msg.replace(/^requestPayment:fail\s*/i, '') || '支付失败' });
+      },
+    });
+    return;
+    // #endif
+
+    // #ifndef MP-WEIXIN
+    resolve({ ok: false, message: '当前端不支持微信支付，请在小程序内完成支付' });
+    // #endif
+  });
+}
+
+/**
+ * 完整的支付流程：预下单 → 调起支付。
+ * 页面只需 await 这一个函数，不必关心 mock/真实/取消三种分支。
+ *
+ * @param {string} orderNo
+ * @param {object} [opts]
+ * @param {boolean} [opts.silentMock] mock 模式下不提示（默认不提示，页面自行决定）
+ * @returns {Promise<{paid:boolean, canceled?:boolean, mock?:boolean, message?:string}>}
+ */
+export async function payOrder(orderNo, opts = {}) {
+  const r = await paymentApi.prepay(orderNo);
+  if (r.mock) {
+    // 未配置真实支付：仅在明确允许时才走 mock（服务端已关闭真实配置下的 mock）
+    if (r.mock === false) return { paid: false, message: r.message };
+    if (opts.allowMock) {
+      await paymentApi.mockPay(orderNo);
+      return { paid: true, mock: true };
+    }
+    return { paid: false, mock: true, message: r.message || '当前为模拟支付模式' };
+  }
+  const res = await requestWechatPay(r.payParams || {});
+  return { paid: !!res.ok, canceled: res.canceled, message: res.message };
+}
+
 // 支付API
 export const paymentApi = {
   // 创建支付订单
   createOrder: (data) => paymentRequest('/create', 'POST', data),
-  // 模拟支付成功（开发环境）
+  // 预下单：换小程序调起支付所需的 5 参数（真实微信支付入口）
+  prepay: (orderNo) => paymentRequest('/prepay', 'POST', { orderNo }),
+  // 模拟支付成功（仅服务端未配置真实商户号时可用；配置后服务端返回 403）
   mockPay: (orderNo) => paymentRequest('/mock-pay', 'POST', { orderNo }),
   // 查询订单
   getOrder: (orderNo) => paymentRequest(`/orders/${orderNo}`),

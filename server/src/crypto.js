@@ -33,3 +33,39 @@ export function decryptSecret(encoded) {
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
+
+/**
+ * 安全读取：自动兼容历史明文数据，解密失败不抛（返回原值）。
+ * 所有「读密钥」的地方都必须走这个函数，而不是直接用库里的字符串。
+ */
+export function readSecret(cipher) {
+  if (!cipher) return '';
+  try { return decryptSecret(cipher); } catch { return String(cipher); }
+}
+
+/** 脱敏回显：前端展示用，永不把明文密钥送回浏览器 */
+export function maskSecretValue(plain) {
+  if (!plain) return '';
+  const s = String(plain);
+  if (s.length <= 8) return '****';
+  return s.slice(0, 4) + '****' + s.slice(-4);
+}
+
+/**
+ * 合并「本次提交的密钥」到「库中已有密文」。
+ * 语义：空串或**脱敏占位符** = 「不修改」，保留原密文。
+ * 占位符判定用 contains('****') 而不是 startsWith —— maskSecretValue 回显的是
+ * `S_T1****` / `KEY****1234` 这种前缀+****+后缀形态，只判前缀会漏判，
+ * 导致前端把展示值原样提交 → 密钥被占位符覆盖（等于静默清空凭据）。
+ * 这样后台可以像菜鸟云那样把 AppSecret/私钥做成可回显的输入框，
+ * 而前端保存其它字段时不会把密钥擦空。
+ */
+export function mergeSecretInput(submitted, existingCipher) {
+  const v = typeof submitted === 'string' ? submitted.trim() : '';
+  if (!v || v.includes('****')) return existingCipher || '';
+  // 值未改动时原样保留密文（避免二次加密导致历史数据膨胀）
+  try {
+    if (existingCipher && decryptSecret(existingCipher) === v) return existingCipher;
+  } catch { /* 非密文历史数据，继续加密 */ }
+  return encryptSecret(v);
+}
