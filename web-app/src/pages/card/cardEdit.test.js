@@ -198,6 +198,34 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
       /const previewComps = computed\(\(\) => comps\.value\.filter\(\(c\) => !\(c\.props && c\.props\.hidden\)\)\)/
     );
     expect(cardEditSrc).toContain('class="ce-preview-layer"');
-    expect(cardEditSrc).toMatch(/<rich-text :nodes="c\.props\.html \|\| ''"><\/rich-text>/);
+    expect(cardEditSrc).toMatch(/:nodes="sanitizeRichHtml\(c\.props\.html/);
+    expect(cardEditSrc).toMatch(/:style="pvRichStyle\(c\.props\)"/);
+  });
+
+  test('预览层可用性：custom nav 避让 + 返回入口 + 物理返回键拦截 + 滚动区定高', () => {
+    // 头部避让：状态栏占位 + 胶囊右侧避让必须 JS 实测内联（写死百分比真机必压）
+    expect(cardEditSrc).toMatch(/import \{ getNavMetrics \} from '\.\.\/\.\.\/utils\/navMetrics\.js'/);
+    expect(cardEditSrc).toMatch(/const pvHeadStyle = \{ paddingTop: navM\.statusBarHeight \+ 'px', paddingRight: navM\.capsuleRightPad \+ 'px' \}/);
+    expect(cardEditSrc).toMatch(/:style="pvHeadStyle"/);
+    // 返回入口双保险：左上「‹ 返回」+ 右侧「完成」
+    expect(cardEditSrc).toMatch(/class="ce-preview-back" @click="closePreview"/);
+    expect(cardEditSrc).toMatch(/class="ce-preview-done" @click="closePreview"/);
+    // Android 物理返回/侧滑：先关预览层，不直接丢掉未保存修改退页
+    expect(cardEditSrc).toMatch(/import \{ onBackPress \} from '@dcloudio\/uni-app'/);
+    expect(cardEditSrc).toMatch(/onBackPress\(\(\) => \{/);
+    expect(cardEditSrc).toMatch(/if \(showPreview\.value\) \{ showPreview\.value = false; return true; \}/);
+    // MP 滚动区显式定高（flex:1+min-height:0 在 MP 无效，同弹窗 46vh 的坑）
+    expect(cardEditSrc).toMatch(/height: `calc\(100vh - \$\{navM\.statusBarHeight \+ navM\.navBarHeight\}px\)`/);
+    expect(cardEditSrc).toMatch(/:style="pvBodyStyle"/);
+  });
+
+  test('预览渲染与 cardDetail 同口径：notice 圆点 / divider 单线 / 按钮共享尺寸 / 图片失败占位', () => {
+    expect(cardEditSrc).toMatch(/import \{ buttonSizeStyle \} from '\.\.\/\.\.\/utils\/btnSize\.js'/);
+    expect(cardEditSrc).toMatch(/Object\.assign\(s, buttonSizeStyle\(p\), \{ maxWidth: '100%' \}\)/);
+    expect(cardEditSrc).toMatch(/class="pv-notice-dot"/);
+    expect(cardEditSrc).toMatch(/@error="pvImgFail\('pv:' \+ c\.key\)"/);
+    expect(cardEditSrc).toMatch(/class="pv-img-fallback"/);
+    // 预览内可试跳站内链接（按钮/图片/公告）
+    expect(cardEditSrc).toMatch(/function pvJump\(link\)/);
   });
 });
