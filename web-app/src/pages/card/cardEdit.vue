@@ -440,11 +440,13 @@ onMounted(load);
 .ce-modal-body { padding: var(--space-r3) var(--space-r6) var(--space-r1); flex: 1; min-height: 0; }
 .ce-field { margin-bottom: var(--space-r5); }
 .ce-label { display: block; font-size: var(--fs-4); color: var(--t1); margin-bottom: var(--space-r2); }
-/* 🔴 input 形态对齐 customers.vue 表单（生产已验证）：显式 height + padding 只给水平。
-   MP 原生 input 不吃「垂直 padding 撑高」，只设 padding 会矮到一行字；
-   width:100% + box-sizing:border-box + max-width 兜住包含块，防超出弹窗。 */
+/* 🔴 input 形态对齐 customers.vue 表单（生产已验证）：显式 height + 只给水平 padding。
+   MP 原生 input 不吃「垂直 padding 撑高」；且对 width:100%+box-sizing:border-box
+   组合不可靠——会按 100%+padding 撑宽溢出弹窗（用户报「宽度还是溢出」）。
+   正确形态是不设 width：原生 input 默认填满父容器（block 自动撑满 .ce-field），
+   弹窗 scroll-view 的 padding 内不会溢出。 */
 .ce-input {
-  width: 100%; max-width: 100%; box-sizing: border-box; display: block;
+  display: block;
   height: 80rpx; line-height: 80rpx;
   border: 1rpx solid var(--border); border-radius: var(--radius-sm);
   padding: 0 var(--space-r4); font-size: var(--fs-4); background: var(--white);
@@ -454,7 +456,7 @@ onMounted(load);
 /* 富文本内容：HTML 源码多行输入（MP textarea 需显式宽高约束） */
 .ce-rt-row { width: 100%; }
 .ce-textarea {
-  width: 100%; max-width: 100%; box-sizing: border-box; display: block;
+  display: block;
   min-height: 180rpx; border: 1rpx solid var(--border); border-radius: var(--radius-sm);
   padding: var(--space-r3) var(--space-r4); font-size: var(--fs-4); background: var(--white);
   line-height: 1.5;
@@ -480,7 +482,8 @@ onMounted(load);
 .ce-sw { width: 40rpx; height: 40rpx; border-radius: var(--radius-sm); border: 1rpx solid var(--border); }
 .ce-sw.on { outline: 3rpx solid var(--design-primary); }
 .ce-sw.none { background: var(--white); border-style: dashed; }
-.ce-hex { width: 200rpx; flex-shrink: 0; }
+/* hex 输入框显式定宽：补 box-sizing 让 200rpx 含边框+内边距，避免内容盒叠加 padding 后总宽溢出弹窗 */
+.ce-hex { width: 200rpx; flex-shrink: 0; box-sizing: border-box; }
 
 .ce-slider-row { display: flex; align-items: center; gap: var(--space-r4); }
 .ce-slider { flex: 1; }
