@@ -32,6 +32,9 @@
         "myCard",
         "templateSelect",
         "needTagsEdit",
+        "worksEdit",
+        "cardEdit",
+        "videosEdit",
         "displaySettings",
         "cardDetail",
         "collects",
@@ -85,5 +88,14 @@
     "backgroundColor": "#F2F3F5"
   },
   "lazyCodeLoading": "requiredComponents",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于选择名片上的办公/门店位置，方便客户导航到访"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ],
   "usingComponents": {}
 }
