@@ -58,8 +58,8 @@ describe('cardDetail.vue 组件渲染', () => {
     expect(cardDetailSrc).toContain('class="cc-list"');
   });
 
-  test('五种组件都有渲染分支（与注册表类型一一对应）', () => {
-    for (const t of ['image', 'channel-video', 'notice', 'divider', 'spacer']) {
+  test('七种组件都有渲染分支（与注册表类型一一对应）', () => {
+    for (const t of ['image', 'channel-video', 'notice', 'divider', 'spacer', 'button', 'rich-text']) {
       expect(cardDetailSrc, `cardDetail 缺少 ${t} 渲染分支`).toContain(`c.type === '${t}'`);
     }
   });
@@ -93,6 +93,64 @@ describe('注册表与页面消费一致', () => {
     p.text = '改坏了';
     expect(compDefaultProps('notice').text).not.toBe('改坏了');
     expect(getCompDef('notice').defaultProps.text).not.toBe('改坏了');
-    expect(CARD_COMP_REGISTRY).toHaveLength(5);
+    expect(CARD_COMP_REGISTRY).toHaveLength(7);
+  });
+});
+
+describe('配置弹窗控件形态（2026-10-22 样式报修回归锁）', () => {
+  test('input 显式高度 + 水平 padding（MP 原生 input 不吃垂直 padding 撑高）', () => {
+    // 病根：原 .ce-input 只设 padding: var(--space-r3) var(--space-r4) → MP 端矮到一行字；
+    // 正确形态对齐 customers.vue 生产表单：height:80rpx + padding:0 水平
+    const style = cardEditSrc.slice(cardEditSrc.indexOf('<style scoped>'));
+    expect(style).toMatch(/\.ce-input\s*\{[^}]*height:\s*80rpx/);
+    expect(style).toMatch(/\.ce-input\s*\{[^}]*padding:\s*0\s+var\(--space-r4\)/);
+    expect(style).toMatch(/\.ce-input\s*\{[^}]*max-width:\s*100%/);
+  });
+
+  test('richtext 控件已实现（textarea 输 HTML 源码）', () => {
+    expect(cardEditSrc).toMatch(/f\.control === 'richtext'/);
+    expect(cardEditSrc).toContain('class="ce-textarea"');
+  });
+
+  test('schema when 条件显隐：v-for 拆 template 包裹 + fieldVisible', () => {
+    // 病根：同元素 v-for+v-if 拿不到作用域变量；条件字段（描边色/宽度百分比）必须整行隐藏
+    expect(cardEditSrc).toMatch(/<template v-for="f in schemaOf\(editing\.type\)"/);
+    expect(cardEditSrc).toMatch(/<view v-if="fieldVisible\(f\)" class="ce-field">/);
+    expect(cardEditSrc).toMatch(/function fieldVisible\(f\)[\s\S]*?f\.when/);
+  });
+
+  test('图片加载失败回退上传占位（示例图走网络图，真机域名没配会裂）', () => {
+    expect(cardEditSrc).toMatch(/@error="onImgError\(f\.key\)"/);
+    expect(cardEditSrc).toMatch(/const imgFailed = ref\(new Set\(\)\)/);
+    expect(cardEditSrc).toMatch(/function onImgError\(key\)/);
+  });
+
+  test('弹窗滚动区 flex:1 + min-height:0（MP scroll-view 不定高不滚动）', () => {
+    const style = cardEditSrc.slice(cardEditSrc.indexOf('<style scoped>'));
+    expect(style).toMatch(/\.ce-modal-body\s*\{[^}]*flex:\s*1/);
+    expect(style).toMatch(/\.ce-modal-body\s*\{[^}]*min-height:\s*0/);
+  });
+});
+
+describe('cardDetail 新组件渲染助手', () => {
+  test('按钮宽度走共享 buttonSizeStyle（禁私藏副本）', () => {
+    expect(cardDetailSrc).toMatch(/import \{ buttonSizeStyle \} from '\.\.\/\.\.\/utils\/btnSize\.js'/);
+    expect(cardDetailSrc).toMatch(/function ccBtnStyle\(p\)[\s\S]*?buttonSizeStyle\(p\)/);
+    // cardDetail 容器窄于视口：max-width 只在本页调用点夹，共享实现里禁加
+    expect(cardDetailSrc).toMatch(/Object\.assign\(s, buttonSizeStyle\(p\), \{ maxWidth: '100%' \}\)/);
+  });
+
+  test('富文本渲染前消毒（剥 script/style/on*/javascript:）', () => {
+    expect(cardDetailSrc).toMatch(/function sanitizeRichHtml\(h\)/);
+    // 分组+反向引用形态：禁拆成含 <script>/<style 字面量的两条（测试提取会误吞 script 段）
+    expect(cardDetailSrc).toMatch(/<\(script\|style\)\[\\s\\S\]\*\?<\\\/\\1>/i);
+    expect(cardDetailSrc).toMatch(/\\son\[a-z\]\+\\s\*=/);
+    expect(cardDetailSrc).toMatch(/javascript\\s\*:/);
+    expect(cardDetailSrc).toMatch(/:nodes="sanitizeRichHtml\(/);
+  });
+
+  test('富文本样式与 admin richTextStyle 对齐（compBgColor/圆角/投影/描边）', () => {
+    expect(cardDetailSrc).toMatch(/function ccRichStyle\(p\)/);
+    expect(cardDetailSrc).toMatch(/background: p\.compBgColor \|\| 'transparent'/);
   });
 });

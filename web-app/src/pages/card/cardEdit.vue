@@ -62,20 +62,40 @@
     <view v-if="editing" class="ce-modal">
       <view class="ce-modal-t">{{ nameOf(editing.type) }}配置</view>
       <scroll-view scroll-y class="ce-modal-body">
-        <view v-for="f in schemaOf(editing.type)" :key="f.key" class="ce-field">
-          <text class="ce-label">{{ f.label }}</text>
-          <input
-            v-if="f.control === 'input' || f.control === 'link'"
-            class="ce-input"
-            v-model="editing.props[f.key]"
-            :placeholder="f.placeholder || ('请输入' + f.label)"
-            placeholder-class="ph"
-          />
-          <view v-else-if="f.control === 'image'" class="ce-img-row" @click="pickImage(f.key)">
-            <image v-if="editing.props[f.key]" :src="editing.props[f.key]" class="ce-img" mode="aspectFill" />
-            <view v-else class="ce-img-empty">＋ 上传图片</view>
-            <text class="ce-img-tip">点击更换</text>
-          </view>
+        <!-- v-for + v-if 拆成 template 包裹：同元素上 v-if 拿不到 v-for 作用域变量 -->
+        <template v-for="f in schemaOf(editing.type)" :key="f.key">
+          <view v-if="fieldVisible(f)" class="ce-field">
+            <text class="ce-label">{{ f.label }}</text>
+            <input
+              v-if="f.control === 'input' || f.control === 'link'"
+              class="ce-input"
+              v-model="editing.props[f.key]"
+              :placeholder="f.placeholder || ('请输入' + f.label)"
+              placeholder-class="ph"
+            />
+            <view v-else-if="f.control === 'richtext'" class="ce-rt-row">
+              <textarea
+                class="ce-textarea"
+                v-model="editing.props[f.key]"
+                :placeholder="f.placeholder || '支持 <p> <b> <a> 等简单 HTML'"
+                placeholder-class="ph"
+              />
+              <text class="ce-rt-tip">换行请用 &lt;p&gt; 或 &lt;br&gt; 标签</text>
+            </view>
+            <view v-else-if="f.control === 'image'" class="ce-img-row" @click="pickImage(f.key)">
+              <image
+                v-if="editing.props[f.key] && !imgFailed.has(f.key)"
+                :src="editing.props[f.key]"
+                class="ce-img"
+                mode="aspectFill"
+                @error="onImgError(f.key)"
+              />
+              <view v-else class="ce-img-empty">
+                <text class="ce-img-empty-ico">📷</text>
+                <text class="ce-img-empty-t">上传图片</text>
+              </view>
+              <text class="ce-img-tip">{{ editing.props[f.key] && !imgFailed.has(f.key) ? '点击更换' : '点击上传' }}</text>
+            </view>
           <view v-else-if="f.control === 'color'" class="ce-color-row">
             <view class="ce-swatches">
               <view
@@ -114,7 +134,8 @@
           <view v-else-if="f.control === 'switch'" class="ce-switch-row">
             <switch :checked="!!editing.props[f.key]" :color="activeColor" @change="editing.props[f.key] = $event.detail.value" />
           </view>
-        </view>
+          </view>
+        </template>
       </scroll-view>
       <view class="ce-modal-btns">
         <view class="ce-mbtn cancel" @click="closeEdit">取消</view>
@@ -140,7 +161,7 @@ const activeColor = computed(() => brandPrimary.value || themeStyle.value['--des
 // 服务端 card.js COMP_MAX 同源（超限 400）；单测钉两边一致
 const COMP_MAX = 20;
 
-const ICONS = { image: '🖼️', 'channel-video': '🎬', notice: '📝', divider: '➖', spacer: '▭' };
+const ICONS = { image: '🖼️', 'channel-video': '🎬', notice: '📝', divider: '➖', spacer: '▭', button: '🔘', 'rich-text': '📄' };
 const SWATCHES = [
   { name: 'transparent', value: '' },
   { name: 'white', value: '#FFFFFF' },
@@ -162,6 +183,9 @@ const loadFailedMsg = ref('加载失败，请检查网络后重试');
 const showPanel = ref(false);
 const editing = ref(null); // { key, type, props } 编辑中的副本
 const saving = ref(false);
+// 图片加载失败的 key 集合：示例图走网络图（需 request 合法域名），真机域名没配时
+// <image> 会露出 background 灰底像「灰块」——失败即回退到上传占位，不展示灰块
+const imgFailed = ref(new Set());
 
 // 个人自建组件（母版不含）；保存只提交这部分
 const mine = computed(() => comps.value.filter((c) => !c.isLock));
@@ -178,8 +202,20 @@ function previewOf(c) {
     case 'notice': return p.text || '未设置文字';
     case 'divider': return p.text ? `分割线（${p.text}）` : '分割线';
     case 'spacer': return `空白 ${p.height ?? 20}px`;
+    case 'button': return p.text || '按钮';
+    case 'rich-text': {
+      const t = String(p.html || '').replace(/<[^>]*>/g, '').trim();
+      return t ? (t.length > 24 ? t.slice(0, 24) + '…' : t) : '未设置内容';
+    }
     default: return '';
   }
+}
+
+// schema 条件显隐（对齐 admin 的 when：依赖字段不匹配时整行隐藏，如「描边色」仅描边样式显示）
+function fieldVisible(f) {
+  if (!f || !f.when) return true;
+  const p = (editing.value && editing.value.props) || {};
+  return Object.keys(f.when).every((k) => String(p[k]) === String(f.when[k]));
 }
 
 // 母版永远排在个人组件前（服务端注入顺序），上移/下移只在个人组件区间内发生
@@ -278,6 +314,11 @@ function onSlide(key, e) {
   if (editing.value) editing.value.props[key] = e.detail.value;
 }
 
+function onImgError(key) {
+  imgFailed.value.add(key);
+  imgFailed.value = new Set(imgFailed.value); // 触发响应式（Set 原地改不更新）
+}
+
 async function pickImage(key) {
   uni.chooseMedia({
     count: 1,
@@ -291,7 +332,11 @@ async function pickImage(key) {
         // 复用通用图片上传（/user/avatar-upload 只做存储，返回 URL）
         const data = await cardApi.uploadUserAvatar(f.tempFilePath);
         uni.hideLoading();
-        if (data && data.url && editing.value) editing.value.props[key] = data.url;
+        if (data && data.url && editing.value) {
+          editing.value.props[key] = data.url;
+          imgFailed.value.delete(key); // 新图可能加载成功，清失败标记
+          imgFailed.value = new Set(imgFailed.value);
+        }
       } catch (e) {
         uni.hideLoading();
         uni.showToast({ title: e.message || '上传失败', icon: 'none' });
@@ -391,22 +436,43 @@ onMounted(load);
   background: var(--white); border-radius: var(--radius-lg); display: flex; flex-direction: column;
 }
 .ce-modal-t { text-align: center; font-size: var(--fs-6); font-weight: 500; color: var(--t1); padding: var(--space-r6) 0 var(--space-r1); }
-.ce-modal-body { padding: var(--space-r3) var(--space-r6) var(--space-r1); }
+/* flex 列布局里 scroll-view 必须显式 flex:1 + min-height:0，否则 MP 端不定高不滚动 */
+.ce-modal-body { padding: var(--space-r3) var(--space-r6) var(--space-r1); flex: 1; min-height: 0; }
 .ce-field { margin-bottom: var(--space-r5); }
 .ce-label { display: block; font-size: var(--fs-4); color: var(--t1); margin-bottom: var(--space-r2); }
+/* 🔴 input 形态对齐 customers.vue 表单（生产已验证）：显式 height + padding 只给水平。
+   MP 原生 input 不吃「垂直 padding 撑高」，只设 padding 会矮到一行字；
+   width:100% + box-sizing:border-box + max-width 兜住包含块，防超出弹窗。 */
 .ce-input {
-  width: 100%; box-sizing: border-box; border: 1rpx solid var(--border); border-radius: var(--radius-sm);
-  padding: var(--space-r3) var(--space-r4); font-size: var(--fs-4); background: var(--white);
+  width: 100%; max-width: 100%; box-sizing: border-box; display: block;
+  height: 80rpx; line-height: 80rpx;
+  border: 1rpx solid var(--border); border-radius: var(--radius-sm);
+  padding: 0 var(--space-r4); font-size: var(--fs-4); background: var(--white);
 }
 .ph { color: var(--decor-2); }
 
-.ce-img-row { display: flex; align-items: center; gap: var(--space-r4); }
-.ce-img { width: 160rpx; height: 120rpx; border-radius: var(--radius-sm); background: var(--bg-hover); }
-.ce-img-empty {
-  width: 160rpx; height: 120rpx; border-radius: var(--radius-sm); border: 1rpx dashed var(--border);
-  display: flex; align-items: center; justify-content: center;
-  font-size: var(--fs-2); color: var(--decor);
+/* 富文本内容：HTML 源码多行输入（MP textarea 需显式宽高约束） */
+.ce-rt-row { width: 100%; }
+.ce-textarea {
+  width: 100%; max-width: 100%; box-sizing: border-box; display: block;
+  min-height: 180rpx; border: 1rpx solid var(--border); border-radius: var(--radius-sm);
+  padding: var(--space-r3) var(--space-r4); font-size: var(--fs-4); background: var(--white);
+  line-height: 1.5;
 }
+.ce-rt-tip { display: block; font-size: var(--fs-2); color: var(--decor); margin-top: var(--space-r1); }
+
+.ce-img-row { display: flex; align-items: center; gap: var(--space-r4); }
+.ce-img { width: 160rpx; height: 120rpx; border-radius: var(--radius-sm); flex-shrink: 0; }
+/* 无图/加载失败占位：浅底 + 虚线框 + 相机图标 + 文案，明确「可点击上传」，
+   不再是不带背景的空白块（真机域名没配时示例图裂了也走这里） */
+.ce-img-empty {
+  width: 160rpx; height: 120rpx; border-radius: var(--radius-sm);
+  border: 1rpx dashed var(--border); background: var(--bg-card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-r1); flex-shrink: 0;
+}
+.ce-img-empty-ico { font-size: var(--fs-5); }
+.ce-img-empty-t { font-size: var(--fs-2); color: var(--decor); }
 .ce-img-tip { font-size: var(--fs-2); color: var(--decor); }
 
 .ce-color-row { display: flex; align-items: center; gap: var(--space-r3); }
@@ -414,7 +480,7 @@ onMounted(load);
 .ce-sw { width: 40rpx; height: 40rpx; border-radius: var(--radius-sm); border: 1rpx solid var(--border); }
 .ce-sw.on { outline: 3rpx solid var(--design-primary); }
 .ce-sw.none { background: var(--white); border-style: dashed; }
-.ce-hex { width: 200rpx; }
+.ce-hex { width: 200rpx; flex-shrink: 0; }
 
 .ce-slider-row { display: flex; align-items: center; gap: var(--space-r4); }
 .ce-slider { flex: 1; }

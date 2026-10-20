@@ -4,8 +4,8 @@
  * 与 web-admin 的 componentRegistry 是「同一套组件、两端复用」：
  * - defaultProps 与 admin 逐字一致（一致性单测 cardCompRegistry.test.js 钉死，防漂移）；
  * - schema 只收移动端装修页（cardEdit.vue）实际渲染的控件子集
- *   （input/image/color/slider/radio/switch/link），键必须存在于 admin schema
- *   （单测同样钉死：mobile schema key ⊆ admin schema key）。
+ *   （input/image/color/slider/radio/switch/link/richtext），键必须存在于 admin schema
+ *   （单测同样钉死：mobile schema key ⊆ admin schema key）；`when` 条件显隐同 admin 语义。
  * - 不含 admin 的 PNG 图标资产（移动端用 SIcon/emoji 呈现，避免把 admin 构建物拖进分包）。
  *
  * 🔴 新增组件类型时必须同步：admin componentRegistry + 本文件 + server card.js 的
@@ -47,6 +47,40 @@ export const CARD_COMP_REGISTRY = [
       { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'color', label: '文字色', control: 'color', section: 'style' },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
+  {
+    type: 'button',
+    name: '按钮',
+    // defaultProps 与 admin 逐字一致（含 widthPercent/boxOffsetX：C 端渲染走共享
+    // buttonSizeStyle，宽度基准=视口，与 admin 画布同语义，防两端漂移）
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    schema: [
+      { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
+      { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
+      { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
+      { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
+      { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对整屏宽度计算（不是相对容器），所以调容器边距不会影响它' },
+      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '按钮相对容器左边再平移。用来跟其他组件左边对齐；不影响宽度' },
+      { key: 'bgColor', label: '按钮色', control: 'color', section: 'style' },
+      { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
+      { key: 'radius', label: '按钮圆角', control: 'slider', section: 'style', min: 0, max: 24 },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
+  {
+    type: 'rich-text',
+    name: '富文本',
+    defaultProps: { html: '<p>富文本内容</p>', bottomBg: 'transparent', compBgColor: '#ffffff', style: 'default', borderColor: '#E5E6EB', marginTop: 0, marginBottom: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, memberLevel: 'all' },
+    schema: [
+      { key: 'html', label: '内容', control: 'richtext', section: 'content' },
+      { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
+      { key: 'borderColor', label: '描边颜色', control: 'color', section: 'style', when: { style: 'border' } },
+      { key: 'compBgColor', label: '组件背景', control: 'color', section: 'style' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],

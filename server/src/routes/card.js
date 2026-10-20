@@ -2032,7 +2032,7 @@ export function createCardRouter(db, wxService) {
   //   source='master' 租户母版（card_id=0 + customer_id），只读注入实现「企业母版锁定」。
   //   type/props 与 web-admin componentRegistry 对齐；母版 PC 管理页在 V1.1。
   // ============================================================
-  const COMP_TYPES = ['image', 'channel-video', 'notice', 'divider', 'spacer'];
+  const COMP_TYPES = ['image', 'channel-video', 'notice', 'divider', 'spacer', 'button', 'rich-text'];
   const COMP_MAX = 20;
   const compProps = (raw) => { try { const p = JSON.parse(raw); return p && typeof p === 'object' ? p : {}; } catch { return {}; } };
 

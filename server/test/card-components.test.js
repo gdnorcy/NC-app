@@ -127,6 +127,24 @@ test('PUT 非法组件类型 400（白名单外）', async () => {
   assert.match(put.body.error, /不支持的组件类型/);
 });
 
+test('PUT 新增组件类型：button / rich-text 过白名单且 props 原样往返', async () => {
+  const put = await request(app).put('/api/card/cards/201/components')
+    .set(cardTok(201))
+    .send({ components: [
+      { type: 'button', props: { text: '立即查看', url: '/pages/card/market', widthMode: 'full', widthPercent: 80 } },
+      // 富文本内容含 HTML 与中文：原样存取（消毒在 C 端渲染层，服务端不做内容审查）
+      { type: 'rich-text', props: { html: '<p>欢迎<b>合作</b></p>', compBgColor: '#ffffff', style: 'border' } },
+    ] });
+  assert.equal(put.status, 200, put.body?.error);
+  const r = await request(app).get('/api/card/cards/201/components');
+  const mine = r.body.components.filter((c) => !c.isLock);
+  assert.deepEqual(mine.map((c) => c.type), ['button', 'rich-text']);
+  assert.equal(mine[0].props.text, '立即查看');
+  assert.equal(mine[0].props.widthPercent, 80);
+  assert.equal(mine[1].props.html, '<p>欢迎<b>合作</b></p>');
+  await request(app).put('/api/card/cards/201/components').set(cardTok(201)).send({ components: [] });
+});
+
 test('PUT 超过数量上限 400（服务端 COMP_MAX=20）', async () => {
   const many = Array.from({ length: 21 }, () => ({ type: 'spacer', props: { height: 10 } }));
   const put = await request(app).put('/api/card/cards/201/components')

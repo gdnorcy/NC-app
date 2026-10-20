@@ -336,6 +336,18 @@
             v-else-if="c.type === 'spacer'"
             :style="[ccStyle(c), { height: (c.props.height == null ? 20 : c.props.height) + 'px', background: c.props.bgColor || 'transparent' }]"
           ></view>
+          <!-- 跳转按钮（宽度/偏移走共享 buttonSizeStyle，颜色圆角按 props） -->
+          <view v-else-if="c.type === 'button'" class="cc-btn-wrap" :style="ccStyle(c)">
+            <view class="cc-btn" :style="ccBtnStyle(c.props)" @click="jumpCompLink(c.props.url)">{{ c.props.text || '按钮' }}</view>
+          </view>
+          <!-- 富文本（HTML 渲染前消毒：租户自填但访客可见，防 H5 端注入） -->
+          <view
+            v-else-if="c.type === 'rich-text'"
+            class="cc-rt-wrap"
+            :style="[ccStyle(c), { background: (c.props.bottomBg && c.props.bottomBg !== 'transparent') ? c.props.bottomBg : 'transparent' }]"
+          >
+            <rich-text class="cc-richtext" :nodes="sanitizeRichHtml(c.props.html || '<p>富文本内容</p>')" :style="ccRichStyle(c.props)"></rich-text>
+          </view>
         </view>
       </view>
     </view>
@@ -504,9 +516,14 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { getNavMetrics, navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
+// 按钮宽度走共享实现（与 admin 画布 / C 端 DesignPage 同一份）：vw 视口基准，
+// 勿在本页私藏副本——项目已因各处私藏导致「设计器与真机不一致」多次
+import { buttonSizeStyle } from '../../utils/btnSize.js';
 
 const navVars = navVarsStyle();
-// 小程序端不能运行时注入 <style>，系统主题色必须由根视图内联下发（否则回落 CSS 兜底色）
+// 小程序端不能运行时注入 style 元素，系统主题色必须由根视图内联下发（否则回落 CSS 兜底色）
+// 🔴 注释里禁写 style 开标签字面量：tokenAudit/cardDetailColorSystem 的样式块提取正则会从
+//    注释误匹配到文件尾，把整段 script 的 hex 当 CSS 裸值计数（2026-10-22 实踩）
 const themeStyle = useDesignTheme();
 // 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
 const tabBarPad = useTabBarPadding();
@@ -1080,6 +1097,42 @@ function ccStyle(c) {
   const st = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
   if (c.type === 'image' && p.radius) st.borderRadius = p.radius + 'px';
   return st;
+}
+// 按钮内联样式：颜色/圆角按 props + 宽度/偏移走共享 buttonSizeStyle（vw 基准）。
+// 🔴 max-width:100% 只在本页加：cardDetail 的 cc-list 容器窄于视口，
+//   「整行」(100vw) 不夹会溢出名片卡；夹后视觉=撑满容器（仍保留 widthPercent 的解耦语义）。
+//   共享实现里禁加 max-width（会破坏与容器边距的解耦），详见 containerChildSize.js 实测记录。
+function ccBtnStyle(p) {
+  const s = {};
+  if (p.btnStyle === 'outline') {
+    s.color = p.strokeColor || '#165DFF';
+    s.background = 'transparent';
+    s.border = '1px solid ' + (p.strokeColor || '#165DFF');
+  } else {
+    s.color = p.textColor || '#ffffff';
+    s.background = p.bgColor || '#165DFF';
+  }
+  s.borderRadius = (p.radius == null ? 8 : p.radius) + 'px';
+  return Object.assign(s, buttonSizeStyle(p), { maxWidth: '100%' });
+}
+// 富文本内层样式（对齐 admin richTextStyle：组件背景/圆角只在内层）
+function ccRichStyle(p) {
+  const s = { background: p.compBgColor || 'transparent' };
+  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
+  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
+  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  return s;
+}
+// 富文本 HTML 消毒：内容由租户在后台填写、但被所有访客渲染，必须防注入。
+// MP 的 rich-text 本就不执行脚本，这里是防 H5 端解析 nodes 时带入 on* 事件/javascript: 协议。
+// 🔴 正则用 (script|style) 分组 + \1 反向引用，勿拆成两条含 script/style 开标签字面量的正则——
+//    测试的样式块提取会误匹配这些字面量（把 script 段吞进「CSS」计数）。
+function sanitizeRichHtml(h) {
+  let s = String(h || '');
+  s = s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '');
+  s = s.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  s = s.replace(/javascript\s*:/gi, '');
+  return s;
 }
 // 组件内链接：站内页面路径跳转；外链/空值忽略（V1 不做外链浏览器打开）
 function jumpCompLink(link) {
@@ -2032,6 +2085,16 @@ async function followCard() {
 }
 .cc-item { width: 100%; }
 .cc-img { width: 100%; display: block; }
+/* 跳转按钮：静态尺寸走令牌类，颜色/宽度由 ccBtnStyle 内联（props 驱动） */
+.cc-btn-wrap { width: 100%; }
+.cc-btn {
+  height: 72rpx; line-height: 72rpx; font-size: var(--fs-4); font-weight: 500;
+  border-radius: var(--radius-sm); overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+}
+/* 富文本：外层 bottomBg、内层 compBgColor（与 admin 两层结构一致） */
+.cc-rt-wrap { width: 100%; }
+.cc-richtext { display: block; font-size: var(--fs-4); line-height: 1.6; }
 .cc-video {
   position: relative;
   border-radius: var(--radius-md);
