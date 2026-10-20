@@ -11,6 +11,7 @@
 ## 真机与跨端
 - H5 正常≠MP 正常，依次查：① 父 wxss 穿不透子组件根(`:deep()` 也无效)→传 prop 出内联；② MP 无 atob/Buffer→`uni.base64ToArrayBuffer`；③ 内联 font-family 含双引号→setStyle 整条丢弃；④ 明暗判据搞反。
 - 主题跟随：消费 `var(--design-` 的页面必绑 themeStyle；强调色只用 `--design-primary`；SIcon/canvas/showModal 不吃 var()→喂真实 hex；补 marginLR 用 `??`；**画布对≠C端对**。
+- 🔴 **小程序图标字符有豆腐块风险**：`⧉`(U+29C9 双联方框) PC 端能显示、小程序系统字体大概率豆腐块；`↑↓✕` 实测正常。**SIcon 的 MP 端是预生成 PNG，颜色写死在文件名**（`show-ffffff`），没有现成白色箭头/复制/删除 → 做不出白色变体，只能用真实 view 画（前块背景=容器底色才能遮出 L 形边）。别用 `::before/::after`（WXSS 在普通 view 上不可靠）。禁字形测试要写**码点** `\u29C9`，写字面量会连注释一起命中。
 - 🔴 **WXSS 不支持通用选择器 `*`**（报错 `error at token *`）：`uni build` 与 H5 全程不报，只有微信开发者工具编译才炸 → 属「构建绿、真机编译红」。穿透写法必须逐个类名 `pointer-events:auto`，别图省事写 `.x > *`。`>` / `+` 组合器可用，别过度收紧。扫描验证要**先剥 CSS 注释**（注释里的 `*` 误伤），且 `calc(100% - 2*var(--x))` 里的 `*` 是乘号、合法。回归测试 `src/components/navTitleCenter.test.js`。
 - 🔴 Vue 模板裸 hex 只能写静态属性：`color="#ffffff"` 合法；`:color="#ffffff"` 绑定式会被编译器当私有字段语法（`obj.#ffffff`）→ 整包 build failed。绑定要传 hex 必须 `:color="'#ffffff'"`。
 - MP 主包构建后清 `static/{sicons,icons,sample,three}`：先 grep 静态路径确认 0 命中（sicons 已走 `sicons-base64.js` 内联）。
