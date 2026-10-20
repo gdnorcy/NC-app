@@ -75,6 +75,10 @@ before(() => {
   // 离职员工：不应再算本租户员工名片
   const uLeft = db.prepare("INSERT INTO platform_user (openid, nickname, customer_id, status) VALUES ('scope_left', '离职员工丁', 1, 'active')").run().lastInsertRowid;
   db.prepare("INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, role, status) VALUES (?, 1, ?, '离职员工丁', 'member', 'left')").run(ent1, uLeft);
+  // ⑥ 小程序自建卡用户：platform_user 已绑租户，但**没有任何名册记录**，
+  //    且小程序建卡（POST /api/card/cards）根本不写 card.customer_id →
+  //    只能靠第 ⑥ 条通道（platform_user.customer_id）被后台看到
+  const uMini = db.prepare("INSERT INTO platform_user (openid, nickname, customer_id, status) VALUES ('scope_mini', '自建名片用户', 1, 'active')").run().lastInsertRowid;
 
   // —— 租户2 的隔离数据 ——
   const ent2 = db.prepare("INSERT INTO tenant_enterprises (customer_id, name, admin_user_id, status) VALUES (2, '他租户企业', NULL, 'active')").run().lastInsertRowid;
@@ -93,6 +97,7 @@ before(() => {
   mkCard(uInd, '入驻个人乙', { view_count: 40, exchange_count: 4 });
   mkCard(uEmp, '企业员工丙', { view_count: 50, exchange_count: 5 });
   mkCard(uLeft, '离职员工丁', { view_count: 60, exchange_count: 6 });
+  mkCard(uMini, '自建名片用户', { view_count: 15, exchange_count: 1 });
   mkCard(uOther, '他租户名片', { enterprise_id: ent2, customer_id: 2, view_count: 999, exchange_count: 9 });
   mkCard(uDirect, '已删除名片', { customer_id: 1, status: 'deleted', view_count: 777 });
 
@@ -120,12 +125,12 @@ after(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-test('并集：五种归属来源的名片全部出现在租户1 员工名片列表', async () => {
+test('并集：六种归属来源的名片全部出现在租户1 员工名片列表', async () => {
   const res = await request(app).get('/api/customer/card/employees').set(bearer(adm1));
   assert.equal(res.status, 200);
   const names = res.body.cards.map((c) => c.name).sort();
-  assert.deepEqual(names, ['企业员工丙', '企业成员甲', '入驻个人乙', '归一科技', '直挂租户名片']);
-  assert.equal(res.body.total, 5);
+  assert.deepEqual(names, ['企业员工丙', '企业成员甲', '入驻个人乙', '归一科技', '直挂租户名片', '自建名片用户']);
+  assert.equal(res.body.total, 6);
 });
 
 test('隔离：他租户名片与离职员工名片不可见', async () => {
@@ -138,6 +143,20 @@ test('隔离：他租户名片与离职员工名片不可见', async () => {
   // 租户2 视角：只能看到自己的
   const res2 = await request(app).get('/api/customer/card/employees?pageSize=100').set(bearer(adm2));
   assert.deepEqual(res2.body.cards.map((c) => c.name), ['他租户名片']);
+});
+
+test('⑥ 小程序自建卡可见（platform_user 已绑租户且无失效名册），且不破坏离职/跨租户隔离', async () => {
+  // 回归：2026-10-20 实测——小程序里新建的名片在后台「名片管理」查不到，
+  // 根因是 POST /api/card/cards 建卡时根本不写 card.customer_id（那是「建卡+入驻」
+  // 合并流程才写的），原 5 条归属通道全部落空 → 补第 ⑥ 条（platform_user.customer_id）。
+  const res = await request(app).get('/api/customer/card/employees?pageSize=100').set(bearer(adm1));
+  const names = res.body.cards.map((c) => c.name);
+  assert.ok(names.includes('自建名片用户'), '小程序自建卡用户应出现在租户1 列表');
+  // 离职员工有非 active 名册记录（status='left'）→ 第 ⑥ 条必须排除他，隔离不破
+  assert.ok(!names.includes('离职员工丁'), '离职员工（名册 status=left）仍不可见');
+  // 租户2 视角看不到租户1 的自建卡用户
+  const res2 = await request(app).get('/api/customer/card/employees?pageSize=100').set(bearer(adm2));
+  assert.ok(!res2.body.cards.map((c) => c.name).includes('自建名片用户'), '他租户不可见本租户的自建卡');
 });
 
 test('身份列：identityLabel / subjectType / identityHint 与来源一致', async () => {
@@ -160,6 +179,10 @@ test('身份列：identityLabel / subjectType / identityHint 与来源一致', a
   assert.equal(byName['入驻个人乙'].identityLabel, '认证个人');
   assert.equal(byName['企业员工丙'].identity, 'employee');
   assert.equal(byName['企业员工丙'].identityLabel, '企业员工');
+  // ⑥ 小程序自建卡用户：不在任何名册上 → 未认证个人（不是认证个人/企业员工）
+  assert.equal(byName['自建名片用户'].identity, 'personal');
+  assert.equal(byName['自建名片用户'].identityLabel, '未认证个人');
+  assert.equal(byName['自建名片用户'].subjectType, 'person');
   // 徽章可解释：每个身份都带「为什么 + 怎么升级」
   assert.match(byName['企业成员甲'].identityHint, /未认证/);
   assert.match(byName['企业员工丙'].identityHint, /已认证/);
@@ -168,15 +191,15 @@ test('身份列：identityLabel / subjectType / identityHint 与来源一致', a
 test('概览统计：与列表口径一致（含企业成员数）', async () => {
   const res = await request(app).get('/api/customer/card/overview').set(bearer(adm1));
   assert.equal(res.status, 200);
-  // 名片总数 = 5 张 active（不含离职/删除/他租户）
-  assert.equal(res.body.cardCount, 5);
-  // 总访问 = 10+20+30+40+50
-  assert.equal(res.body.totalViews, 150);
-  // 总交换 = 2+1+3+4+5
-  assert.equal(res.body.exchangeCount, 15);
-  // 企业成员 = 归属本租户的去重自然人：直挂租户/公司卡作者/企业成员甲/入驻个人乙/企业员工丙/离职员工丁
+  // 名片总数 = 6 张 active（不含离职/删除/他租户，含小程序自建卡）
+  assert.equal(res.body.cardCount, 6);
+  // 总访问 = 10+20+30+40+50+15
+  assert.equal(res.body.totalViews, 165);
+  // 总交换 = 2+1+3+4+5+1
+  assert.equal(res.body.exchangeCount, 16);
+  // 企业成员 = 归属本租户的去重自然人：直挂租户/公司卡作者/企业成员甲/入驻个人乙/企业员工丙/离职员工丁/小程序自建卡
   // （离职员工只是离开企业，仍在本租户名册上，故计入成员数；其名片已不在列表中）
-  assert.equal(res.body.employeeCount, 6);
+  assert.equal(res.body.employeeCount, 7);
   // 企业客户：customer_id 口径 1 条 + 企业口径 1 条 = 2（他租户不计）
   assert.equal(res.body.customerCount, 2);
 });
@@ -188,9 +211,9 @@ test('并集下 keyword 搜索与分页仍生效', async () => {
 
   const p1 = await request(app).get('/api/customer/card/employees?page=1&pageSize=2').set(bearer(adm1));
   assert.equal(p1.body.cards.length, 2);
-  assert.equal(p1.body.total, 5);
+  assert.equal(p1.body.total, 6);
   const p3 = await request(app).get('/api/customer/card/employees?page=3&pageSize=2').set(bearer(adm1));
-  assert.equal(p3.body.cards.length, 1);
+  assert.equal(p3.body.cards.length, 2);
 });
 
 test('客户列表与跟进记录同口径：跨租户 404', async () => {
@@ -221,12 +244,12 @@ test('名片管理：主体拆分（默认只看个人名片），与员工名�
   // 默认 subject=person：企业名片（归一科技）是主体档案不是成员，不混在成员名单里
   const res = await request(app).get('/api/customer/card/manage?pageSize=50').set(bearer(adm1));
   assert.equal(res.status, 200);
-  assert.equal(res.body.total, 4);
+  assert.equal(res.body.total, 5);
   const names = res.body.cards.map((c) => c.name).sort();
-  assert.deepEqual(names, ['企业员工丙', '企业成员甲', '入驻个人乙', '直挂租户名片']);
+  assert.deepEqual(names, ['企业员工丙', '企业成员甲', '入驻个人乙', '直挂租户名片', '自建名片用户']);
   // 顶部统计卡：与列表筛选无关；主体口径拆分（方案 C）
-  assert.equal(res.body.stats.cardCount, 5);
-  assert.equal(res.body.stats.personCardCount, 4);
+  assert.equal(res.body.stats.cardCount, 6);
+  assert.equal(res.body.stats.personCardCount, 5);
   assert.equal(res.body.stats.enterpriseCardCount, 1);
   // 未造任何上架记录 → 全部「未申请上架」，统计卡为 0
   assert.equal(res.body.stats.marketApproved, 0);
@@ -248,7 +271,7 @@ test('名片管理：主体拆分（默认只看个人名片），与员工名�
 
   // subject=all：全量（与员工名片页一致）
   const all = await request(app).get('/api/customer/card/manage?subject=all&pageSize=50').set(bearer(adm1));
-  assert.equal(all.body.total, 5);
+  assert.equal(all.body.total, 6);
 });
 
 test('名片管理：集市状态筛选在 SQL 层完成，total 与列表一致', async () => {
@@ -277,17 +300,17 @@ test('名片管理：集市状态筛选在 SQL 层完成，total 与列表一致
   assert.equal(fA.body.cards.length, 1);
   assert.equal(fA.body.cards[0].name, '企业员工丙');
   // 统计卡是全局口径，不随筛选变化
-  assert.equal(fA.body.stats.cardCount, 5);
+  assert.equal(fA.body.stats.cardCount, 6);
   assert.equal(fA.body.stats.marketApproved, 1);
 
   const fP = await request(app).get('/api/customer/card/manage?market=pending&pageSize=50').set(bearer(adm1));
   assert.equal(fP.body.total, 1);
   assert.equal(fP.body.cards[0].name, '入驻个人乙');
 
-  // market=none：默认 subject=person 基数 4 张，扣掉已上架/待审 2 张 = 2
+  // market=none：默认 subject=person 基数 5 张（含小程序自建卡），扣掉已上架/待审 2 张 = 3
   const fN = await request(app).get('/api/customer/card/manage?market=none&pageSize=50').set(bearer(adm1));
-  assert.equal(fN.body.total, 2);
-  assert.equal(fN.body.cards.length, 2);
+  assert.equal(fN.body.total, 3);
+  assert.equal(fN.body.cards.length, 3);
   assert.ok(!fN.body.cards.some((c) => c.marketStatus), '未申请上架的名片 marketStatus 应为空');
 
   // 他租户的上架记录不能串到本租户来
@@ -308,14 +331,14 @@ test('名片管理：身份筛选压在 SQL 上，分页不受影响', async () 
 
   // 挂靠成员类别已取消：ent_member 不再被接受为合法筛选值（前端选项也已下线）
   const fOld = await request(app).get('/api/customer/card/manage?identity=ent_member&pageSize=50').set(bearer(adm1));
-  assert.equal(fOld.body.total, 4, 'ent_member 不再是合法 identity，筛选条件被忽略，回到 person 基数');
+  assert.equal(fOld.body.total, 5, 'ent_member 不再是合法 identity，筛选条件被忽略，回到 person 基数');
 
-  // 分页：默认 person 基数 4，pageSize=2 时第 2 页应拿到 2 条
+  // 分页：默认 person 基数 5，pageSize=2 时第 2 页应拿到 2 条
   const p2 = await request(app).get('/api/customer/card/manage?page=2&pageSize=2').set(bearer(adm1));
-  assert.equal(p2.body.total, 4);
+  assert.equal(p2.body.total, 5);
   assert.equal(p2.body.cards.length, 2);
   const p3 = await request(app).get('/api/customer/card/manage?page=3&pageSize=2').set(bearer(adm1));
-  assert.equal(p3.body.cards.length, 0);
+  assert.equal(p3.body.cards.length, 1);
 });
 
 test('名片管理：keyword 搜索与员工名片一致', async () => {
@@ -349,18 +372,18 @@ test('停用企业不再提供归属通道：列表/统计/客户/身份全收�
     assert.equal(list.status, 200);
     assert.ok(!list.body.cards.some((c) => c.name === '停用企业名片'), '② 通道：停用企业的企业名片不应出现');
     assert.ok(!list.body.cards.some((c) => c.name === '停用企业成员名片'), '③ 通道：停用企业的成员名片不应出现');
-    assert.equal(list.body.total, 5);
+    assert.equal(list.body.total, 6);
 
     const manage = await request(app).get('/api/customer/card/manage?pageSize=100').set(bearer(adm1));
     assert.ok(!manage.body.cards.some((c) => c.name === '停用企业名片'));
     assert.ok(!manage.body.cards.some((c) => c.name === '停用企业成员名片'));
-    assert.equal(manage.body.stats.cardCount, 5, '统计卡不受停用企业数据影响');
-    assert.equal(manage.body.stats.personCardCount, 4);
+    assert.equal(manage.body.stats.cardCount, 6, '统计卡不受停用企业数据影响');
+    assert.equal(manage.body.stats.personCardCount, 5);
     assert.equal(manage.body.stats.enterpriseCardCount, 1);
 
     // 概览：成员数与客户数都不应掺入停用企业口径
     const ov = await request(app).get('/api/customer/card/overview').set(bearer(adm1));
-    assert.equal(ov.body.employeeCount, 6, '停用企业的挂靠用户不计入企业成员');
+    assert.equal(ov.body.employeeCount, 7, '停用企业的挂靠用户不计入企业成员');
     assert.equal(ov.body.customerCount, 2, '停用企业口径客户不计入');
 
     // 客户列表：enterprise_id 指向停用企业时不可见

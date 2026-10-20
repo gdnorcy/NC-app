@@ -161,7 +161,14 @@ function countTenantAdmins(customerId) {
 //   ③ card_profile.user_id 的用户 enterprise_id ∈ 本租户 active 企业（企业成员本人名片）
 //   ④ card_profile.user_id ∈ 入驻个人（tenant_individuals active）
 //   ⑤ card_profile.user_id ∈ 企业员工（tenant_enterprise_employees active）
+//   ⑥ card_profile.user_id 的用户 platform_user.customer_id = 租户（小程序注册用户，
+//      且**没有任何非 active 的名册记录**）
 // 🔴 ②③ 必须过滤 tenant_enterprises.status='active'：影子企业/停用企业不得再提供归属通道
+// 🔴 ⑥ 的由来（2026-10-20）：小程序端 POST /api/card/cards 建名片时**不写 card.customer_id**
+//   （那是「建卡+入驻」合并流程才写的），于是「在租户小程序注册并自己建了名片」的 C 端用户
+//   在后台「名片管理」里完全查不到（实测：小程序新建的「林平」卡在库里但列表查不出）。
+//   ⑥ 用 platform_user.customer_id 补这条通道，并显式排除「有非 active 名册记录」的人
+//   （离职员工 status='left' / 停用入驻个人），保证离职隔离不被破坏。
 // ============================================================
 const TENANT_CARD_SCOPE_SQL = `(
     c.customer_id = ?
@@ -169,11 +176,16 @@ const TENANT_CARD_SCOPE_SQL = `(
     OR c.user_id IN (SELECT id FROM platform_user WHERE enterprise_id IN (SELECT id FROM tenant_enterprises WHERE customer_id = ? AND status = 'active'))
     OR c.user_id IN (SELECT user_id FROM tenant_individuals WHERE customer_id = ? AND status = 'active')
     OR c.user_id IN (SELECT user_id FROM tenant_enterprise_employees WHERE customer_id = ? AND status = 'active')
+    OR (
+      c.user_id IN (SELECT id FROM platform_user WHERE customer_id = ?)
+      AND NOT EXISTS (SELECT 1 FROM tenant_enterprise_employees e WHERE e.user_id = c.user_id AND e.status <> 'active')
+      AND NOT EXISTS (SELECT 1 FROM tenant_individuals i WHERE i.user_id = c.user_id AND i.status <> 'active')
+    )
   )`;
 
-// 上面 5 个占位符对应的参数（重复 5 次租户ID）
+// 上面 6 个占位符对应的参数（重复 6 次租户ID）
 function tenantCardScopeParams(customerId) {
-  return [customerId, customerId, customerId, customerId, customerId];
+  return [customerId, customerId, customerId, customerId, customerId, customerId];
 }
 
 // 名片身份判定与标签：单一事实来源在 services/cardIdentity.js（2026-10-20 重构）
