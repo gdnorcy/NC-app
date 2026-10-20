@@ -28,10 +28,10 @@
            改什么一眼看到什么，不再隔着一套「预览版」自己写的值 = 必然漂移 -->
       <view class="ce-list">
         <block v-for="(c, i) in comps" :key="c.key">
-          <view
-            class="ce-card"
-            :class="{ lock: c.isLock, off: c.props && c.props.hidden, active: activeKey === c.key }"
-          >
+          <view class="ce-card" :class="{ lock: c.isLock, off: c.props && c.props.hidden }">
+            <!-- 选中环：独立绝对定位元素，**不画在卡片边框上**——
+                 边框会各占 0.5px 把组件捏窄 1px，破坏与真实页的像素对齐 -->
+            <view v-if="activeKey === c.key" class="ce-ring"></view>
             <!-- 母版标记**常驻**：操作条只在选中时浮现（对齐 PC 的 hover），
                  但锁状态不能跟着一起隐掉，否则用户不知道这张为何不能改 -->
             <text v-if="c.isLock" class="ce-lock-badge">企业母版</text>
@@ -525,7 +525,7 @@ onMounted(load);
 /* 设计令牌纪律：新页面一律 var(--token)（tokenAudit.test.js 扫裸值）；
    --design-primary 由页面根 themeStyle/brandVars 注入，无需 hex 兜底 */
 .ce-page { min-height: 100vh; background: var(--bg-page); }
-.ce-body { padding: var(--space-r5) var(--space-r5) 160rpx; }
+.ce-body { padding: var(--space-r5) var(--space-r4) 160rpx; }
 
 .ce-desc {
   font-size: var(--fs-3); color: var(--decor); line-height: 1.6;
@@ -538,23 +538,28 @@ onMounted(load);
 .ce-empty-t { font-size: var(--fs-5); color: var(--t2); font-weight: 500; }
 .ce-empty-d { font-size: var(--fs-3); color: var(--decor); margin-top: var(--space-r2); }
 
+/* 🔴 卡片不再是「预览盒子」：无底色、无边框。
+   左右留白 = --space-r4(10px) + --space-r1(4px) = 14px = 28rpx，
+   与真实名片详情页 `.cc-list { margin: 0 28rpx }` **逐像素一致** ——
+   旧版左右各 30px（12+12+6），组件被捏窄 32px 还多一圈白底圆角框，
+   看着像「装在盒子里预览」而不是真实名片，用户报「间距太大、不真实」。
+   🔴 选中框**不画在卡片边框上**：那会各占 0.5px 把组件捏窄 1px，
+     改用独立绝对定位的 .ce-ring（见下），零布局影响。 */
 .ce-card {
-  background: var(--white); border: 1rpx solid var(--border); border-radius: var(--radius-md);
-  padding: var(--space-r5); margin-bottom: var(--space-r4);
-  position: relative; /* 操作条浮层的定位基准（.ce-render 有 overflow:hidden，不能当基准） */
-}
-/* 选中态：主色描边（对齐 PC `.pe-comp.active` 的选中框），
-   让「点一下选中、浮条浮现」这个交互有明确反馈 */
-.ce-card.active { border-color: var(--design-primary); }
-/* 所见即所得：列表里直接渲染真实组件（同名片详情页），点组件即进配置 */
-.ce-render {
   position: relative;
-  margin: var(--space-r2) 0;
-  padding: var(--space-r2);
+  padding: var(--space-r1); margin-bottom: var(--space-r2);
   border-radius: var(--radius-sm);
-  background: var(--white);
-  overflow: hidden;
 }
+/* 选中环：absolute + inset 0，只描边不占布局（对齐 PC `.pe-comp.active` 的选中框）。
+   pointer-events:none 让点击穿过去打到卡片；z-index 1 压在渲染区之上、操作条(3)之下 */
+.ce-ring {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  border: 1rpx solid var(--design-primary); border-radius: var(--radius-sm);
+  pointer-events: none; z-index: 1;
+}
+/* 渲染区不再自带「盒子」：无背景、无圆角、无内外距——
+   组件直接贴在卡片内沿，与真实渲染（.cc-item { width:100% }）完全一致 */
+.ce-render { position: relative; overflow: hidden; }
 .ce-card.off .ce-render { opacity: 0.5; }
 .ce-render-mask {
   position: absolute; left: 0; right: 0; top: 0; bottom: 0;
@@ -566,7 +571,8 @@ onMounted(load);
 .ce-card.lock { background: var(--bg-card); }
 /* 母版标记常驻左上角：操作条是选中才浮现的，锁状态不能跟着隐掉 */
 .ce-lock-badge {
-  position: absolute; left: var(--space-r5); top: var(--space-r1); z-index: 2;
+  /* 贴卡片内沿：卡片内距只剩 4px，徽标再往里就跑进组件内容里了 */
+  position: absolute; left: var(--space-r1); top: var(--space-r1); z-index: 2;
   font-size: var(--fs-1); color: var(--brand-orange); background: var(--bg-hover);
   border-radius: var(--radius-sm); padding: 2rpx 8rpx;
 }
