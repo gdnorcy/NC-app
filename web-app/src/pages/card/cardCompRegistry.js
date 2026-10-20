@@ -11,7 +11,7 @@
  * 🔴 新增组件类型时必须同步：admin componentRegistry + 本文件 + server card.js 的
  *    COMP_TYPES 白名单 + cardDetail.vue 渲染分支，五处一致（单测会抓漂移）。
  */
-import { sampleUrl } from './sampleImages.js';
+import { sampleUrl } from '../../utils/sampleImages.js';
 
 export const CARD_COMP_REGISTRY = [
   {

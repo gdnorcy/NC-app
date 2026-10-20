@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
 // admin 注册表是数据真源（PNG 图标由 vite 转 URL，测试环境可解析）
-import { componentRegistry } from '../../../web-admin/src/views/customer/apps/design/componentRegistry.js';
+import { componentRegistry } from '../../../../web-admin/src/views/customer/apps/design/componentRegistry.js';
 
-const root = path.resolve(__dirname, '../../..');
+const root = path.resolve(__dirname, '../../../..');
 
 describe('移动端轻量注册表 ↔ admin componentRegistry 一致性', () => {
   const adminByType = Object.fromEntries(componentRegistry.map((c) => [c.type, c]));

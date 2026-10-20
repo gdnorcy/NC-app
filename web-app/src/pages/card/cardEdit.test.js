@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { describe, test, expect } from 'vitest';
-import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from '../../utils/cardCompRegistry.js';
+import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
 
 // 名片自定义装修组件（2026-10-20 V1）回归：
 //  - cardEdit.vue 结构：母版置灰、整存只提交个人组件、品牌链完整、数量上限同源

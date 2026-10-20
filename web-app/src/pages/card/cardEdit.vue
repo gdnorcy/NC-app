@@ -130,7 +130,7 @@ import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
-import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from '../../utils/cardCompRegistry.js';
+import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
