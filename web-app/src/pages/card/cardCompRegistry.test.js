@@ -10,9 +10,9 @@ const root = path.resolve(__dirname, '../../../..');
 describe('移动端轻量注册表 ↔ admin componentRegistry 一致性', () => {
   const adminByType = Object.fromEntries(componentRegistry.map((c) => [c.type, c]));
 
-  test('移动端开放的 5 种组件必须存在于 admin 注册表', () => {
+  test('移动端开放的 7 种组件必须存在于 admin 注册表', () => {
     const types = CARD_COMP_REGISTRY.map((c) => c.type);
-    expect(types.sort()).toEqual(['channel-video', 'divider', 'image', 'notice', 'spacer']);
+    expect(types.sort()).toEqual(['button', 'channel-video', 'divider', 'image', 'notice', 'rich-text', 'spacer']);
     for (const t of types) expect(adminByType[t], `admin 缺少 ${t}`).toBeTruthy();
   });
 
@@ -32,7 +32,7 @@ describe('移动端轻量注册表 ↔ admin componentRegistry 一致性', () =>
   });
 
   test('控件类型只用移动端装修页已实现的集合', () => {
-    const allowed = new Set(['input', 'image', 'color', 'slider', 'radio', 'switch', 'link']);
+    const allowed = new Set(['input', 'image', 'color', 'slider', 'radio', 'switch', 'link', 'richtext']);
     for (const c of CARD_COMP_REGISTRY) {
       for (const s of c.schema) expect(allowed.has(s.control), `${c.type}.${s.key} 控件 ${s.control} 未实现`).toBe(true);
     }
