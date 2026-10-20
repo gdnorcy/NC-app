@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "展示设置",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav",
+    "s-icon": "../../components/SIcon"
+  }
+}

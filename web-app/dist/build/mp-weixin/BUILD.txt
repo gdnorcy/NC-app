@@ -1,0 +1,6 @@
+built at : 2026/10/20 16:29:15
+git HEAD : 20b11798
+target   : mp-weixin
+
+真机仍是旧包？→ 微信开发者工具里点「预览」重新生成二维码（旧二维码指向旧包）；
+项目目录必须是 web-app/dist/build/mp-weixin（不是 web-app 根目录）。

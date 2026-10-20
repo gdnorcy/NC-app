@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "供需标签",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav"
+  }
+}

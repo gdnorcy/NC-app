@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "交换申请",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav"
+  }
+}
