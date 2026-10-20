@@ -38,7 +38,7 @@
 <script>
 import { h } from 'vue';
 import { API_DOMAIN } from '../utils/cardApi.js';
-import { getNavMetrics } from '../utils/navMetrics.js';
+import { getNavMetrics, navTitleSafePad } from '../utils/navMetrics.js';
 
 // 左/右单项：文字（加粗/字号）/图片/搜索/图标+文字
 const PosItem = {
@@ -192,7 +192,8 @@ export default {
       const h = this.header || {};
       const c = (h[rowKey] && h[rowKey].center) || {};
       const align = (c.align || 'center') === 'left' ? 'flex-start' : 'center';
-      return { justifyContent: align };
+      // 左右对称安全区：标题虽是绝对定位按屏宽居中，但不对称的 padding 会把中心再拉偏
+      return { justifyContent: align, padding: '0 ' + navTitleSafePad() + 'px' };
     },
     tapPos(pos, rowKey) {
       const h = this.header || {};
@@ -218,6 +219,7 @@ export default {
 }
 .dn-status { width: 100%; flex: 0 0 auto; }
 .dn-line {
+  position: relative; /* 标题绝对定位的包含块 */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -235,18 +237,21 @@ export default {
 }
 .dn-right { justify-content: flex-end; }
 .dn-title {
-  flex: 1;
+  /* 绝对定位覆盖整行 → 标题按屏宽居中（微信原生口径），而不是左右操作之间的剩余宽度居中。
+     左右对称 padding 由 centerStyle 内联下发；pointer-events:none 让点击穿透给左右操作项。 */
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
   font-size: 34rpx;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 16rpx;
   min-width: 0;
+  pointer-events: none;
 }
+.dn-title > * { pointer-events: auto; }
 .dn-title-text { font-size: 34rpx; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .dn-text { font-size: var(--fs-5); line-height: 1; white-space: nowrap; }
 .dn-img { width: 64rpx; height: 56rpx; }
