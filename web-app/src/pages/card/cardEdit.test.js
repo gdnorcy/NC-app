@@ -10,6 +10,8 @@ import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegi
 //  - server COMP_MAX 与前端常量一致（跨包钉）
 const cardEditSrc = readFileSync(fileURLToPath(new URL('./cardEdit.vue', import.meta.url)), 'utf8');
 const cardDetailSrc = readFileSync(fileURLToPath(new URL('./cardDetail.vue', import.meta.url)), 'utf8');
+// 装修组件的唯一渲染源（详情页 + 装修页共用）
+const cardCompItemSrc = readFileSync(fileURLToPath(new URL('../../components/CardCompItem.vue', import.meta.url)), 'utf8');
 const myCardSrc = readFileSync(fileURLToPath(new URL('./myCard.vue', import.meta.url)), 'utf8');
 const serverCard = readFileSync(fileURLToPath(new URL('../../../../server/src/routes/card.js', import.meta.url)), 'utf8');
 
@@ -28,7 +30,7 @@ describe('cardEdit.vue 装修编辑页', () => {
   });
 
   test('母版锁定：isLock 项操作按钮置灰 + 锁定提示', () => {
-    expect(cardEditSrc).toMatch(/:class="\{ lock: c\.isLock \}"/);
+    expect(cardEditSrc).toMatch(/:class="\{ lock: c\.isLock, off: c\.props && c\.props\.hidden \}"/);
     expect(cardEditSrc).toMatch(/off: c\.isLock \|\|/);
     expect(cardEditSrc).toContain('企业母版组件，不可修改');
   });
@@ -58,19 +60,27 @@ describe('cardDetail.vue 组件渲染', () => {
     expect(cardDetailSrc).toContain('class="cc-list"');
   });
 
-  test('七种组件都有渲染分支（与注册表类型一一对应）', () => {
+  test('七种组件都有渲染分支（与注册表类型一一对应；渲染已迁到共享组件）', () => {
     for (const t of ['image', 'channel-video', 'notice', 'divider', 'spacer', 'button', 'rich-text']) {
-      expect(cardDetailSrc, `cardDetail 缺少 ${t} 渲染分支`).toContain(`c.type === '${t}'`);
+      expect(cardCompItemSrc, `CardCompItem 缺少 ${t} 渲染分支`).toContain(`type === '${t}'`);
     }
   });
 
-  test('视频号组件走 openChannelVideo（finderUserName + feedId）', () => {
-    expect(cardDetailSrc).toMatch(/openChannelVideo\(c\.props\)/);
+  test('详情页不再自带一份渲染：用共享组件，防两端漂移', () => {
+    expect(cardDetailSrc).toMatch(/<CardCompItem v-for="\(c, i\) in shownComps"/);
+    expect(cardDetailSrc).toMatch(/import CardCompItem from '\.\.\/\.\.\/components\/CardCompItem\.vue'/);
+    // 负向：cc-* 结构与 cc* 助手函数不允许再留在详情页（删了 panel 忘删代码会被测试放过）
+    for (const dead of ['function ccStyle(', 'function ccBtnStyle(', 'function ccRichStyle(', 'function sanitizeRichHtml(', 'function jumpCompLink(']) {
+      expect(cardDetailSrc, `cardDetail 仍残留 ${dead}`).not.toContain(dead);
+    }
   });
 
-  test('组件边距助手 ccStyle 存在（props px → 内联样式）', () => {
-    expect(cardDetailSrc).toMatch(/function ccStyle\(c\)/);
-    expect(cardDetailSrc).toMatch(/marginTop: \(p\.marginTop \|\| 0\) \+ 'px'/);
+  test('视频号走 openChannelVideo（finderUserName + feedId）', () => {
+    expect(cardCompItemSrc).toMatch(/openChannelVideo\(props\.value\)/);
+  });
+
+  test('组件边距助手存在（props px → 内联样式）', () => {
+    expect(cardCompItemSrc).toMatch(/marginTop: \(p\.marginTop \|\| 0\) \+ 'px'/);
   });
 });
 
@@ -139,26 +149,33 @@ describe('配置弹窗控件形态（2026-10-22 样式报修回归锁）', () =>
   });
 });
 
-describe('cardDetail 新组件渲染助手', () => {
+describe('共享渲染组件 CardCompItem（详情页与装修页唯一渲染源）', () => {
   test('按钮宽度走共享 buttonSizeStyle（禁私藏副本）', () => {
-    expect(cardDetailSrc).toMatch(/import \{ buttonSizeStyle \} from '\.\.\/\.\.\/utils\/btnSize\.js'/);
-    expect(cardDetailSrc).toMatch(/function ccBtnStyle\(p\)[\s\S]*?buttonSizeStyle\(p\)/);
-    // cardDetail 容器窄于视口：max-width 只在本页调用点夹，共享实现里禁加
-    expect(cardDetailSrc).toMatch(/Object\.assign\(s, buttonSizeStyle\(p\), \{ maxWidth: '100%' \}\)/);
+    expect(cardCompItemSrc).toMatch(/import \{ buttonSizeStyle \} from '\.\.\/utils\/btnSize\.js'/);
+    expect(cardCompItemSrc).toMatch(/Object\.assign\(s, buttonSizeStyle\(p\), \{ maxWidth: '100%' \}\)/);
   });
 
   test('富文本渲染前消毒（剥 script/style/on*/javascript:）', () => {
-    expect(cardDetailSrc).toMatch(/function sanitizeRichHtml\(h\)/);
+    expect(cardCompItemSrc).toMatch(/function sanitizeRichHtml\(h\)/);
     // 分组+反向引用形态：禁拆成含 <script>/<style 字面量的两条（测试提取会误吞 script 段）
-    expect(cardDetailSrc).toMatch(/<\(script\|style\)\[\\s\\S\]\*\?<\\\/\\1>/i);
-    expect(cardDetailSrc).toMatch(/\\son\[a-z\]\+\\s\*=/);
-    expect(cardDetailSrc).toMatch(/javascript\\s\*:/);
-    expect(cardDetailSrc).toMatch(/:nodes="sanitizeRichHtml\(/);
+    expect(cardCompItemSrc).toMatch(/<\(script\|style\)\[\\s\\S\]\*\?<\\\/\\1>/i);
+    expect(cardCompItemSrc).toMatch(/\\son\[a-z\]\+\\s\*=/);
+    expect(cardCompItemSrc).toMatch(/javascript\\s\*:/);
+    expect(cardCompItemSrc).toMatch(/:nodes="sanitizeRichHtml\(/);
   });
 
   test('富文本样式与 admin richTextStyle 对齐（compBgColor/圆角/投影/描边）', () => {
-    expect(cardDetailSrc).toMatch(/function ccRichStyle\(p\)/);
-    expect(cardDetailSrc).toMatch(/background: p\.compBgColor \|\| 'transparent'/);
+    expect(cardCompItemSrc).toMatch(/background: p\.compBgColor \|\| 'transparent'/);
+  });
+
+  test('装修页：列表即渲染（所见即所得）+ 预览层复用同一组件', () => {
+    expect(cardEditSrc).toMatch(/import CardCompItem from '\.\.\/\.\.\/components\/CardCompItem\.vue'/);
+    expect(cardEditSrc).toMatch(/<CardCompItem :comp="c" :interactive="false" \/>/);
+    expect(cardEditSrc).toMatch(/<CardCompItem :comp="c" \/>/);
+    // 负向：装修页不再自带渲染分支（否则 = 第三份实现，必漂移）
+    for (const dead of ["v-if=\"c.type === 'image'", "v-else-if=\"c.type === 'button'", 'pvMarginStyle', 'pvBtnStyle', 'pvRichStyle', 'function sanitizeRichHtml(']) {
+      expect(cardEditSrc, `cardEdit 仍残留 ${dead}`).not.toContain(dead);
+    }
   });
 });
 
@@ -198,8 +215,7 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
       /const previewComps = computed\(\(\) => comps\.value\.filter\(\(c\) => !\(c\.props && c\.props\.hidden\)\)\)/
     );
     expect(cardEditSrc).toContain('class="ce-preview-layer"');
-    expect(cardEditSrc).toMatch(/:nodes="sanitizeRichHtml\(c\.props\.html/);
-    expect(cardEditSrc).toMatch(/:style="pvRichStyle\(c\.props\)"/);
+    // 渲染不再写在本页：预览/列表/详情页共用 CardCompItem（消毒等契约见该组件的 describe）
   });
 
   test('预览层可用性：custom nav 避让 + 返回入口 + 物理返回键拦截 + 滚动区定高', () => {
@@ -230,13 +246,13 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
     expect(cardEditSrc).toMatch(/\.ce-preview-bar-wrap \{[\s\S]*?background: var\(--bg-page\);/);
   });
 
-  test('预览渲染与 cardDetail 同口径：notice 圆点 / divider 单线 / 按钮共享尺寸 / 图片失败占位', () => {
-    expect(cardEditSrc).toMatch(/import \{ buttonSizeStyle \} from '\.\.\/\.\.\/utils\/btnSize\.js'/);
-    expect(cardEditSrc).toMatch(/Object\.assign\(s, buttonSizeStyle\(p\), \{ maxWidth: '100%' \}\)/);
-    expect(cardEditSrc).toMatch(/class="pv-notice-dot"/);
-    expect(cardEditSrc).toMatch(/@error="pvImgFail\('pv:' \+ c\.key\)"/);
-    expect(cardEditSrc).toMatch(/class="pv-img-fallback"/);
-    // 预览内可试跳站内链接（按钮/图片/公告）
-    expect(cardEditSrc).toMatch(/function pvJump\(link\)/);
+  test('预览/列表渲染走共享组件：结构与详情页一致 + 图片失败占位', () => {
+    expect(cardCompItemSrc).toMatch(/class="cc-notice-dot"/);
+    expect(cardCompItemSrc).toMatch(/class="cc-img-fallback"/);
+    expect(cardCompItemSrc).toMatch(/@error="imgFailed = true"/);
+    // divider 单线 + 右侧文字（早期预览层写成双线，是漂移的典型案例）
+    expect(cardCompItemSrc).toMatch(/class="cc-divider-line"/);
+    expect(cardCompItemSrc).toMatch(/class="cc-divider-text"/);
+    expect(cardCompItemSrc).not.toMatch(/v-if="c\.props\.text" class="cc-divider-line"/);
   });
 });

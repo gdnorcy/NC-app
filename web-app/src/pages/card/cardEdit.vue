@@ -24,16 +24,24 @@
         <view class="ce-empty-d">点击下方「添加组件」，放图片、视频号、文本等到名片里</view>
       </view>
 
+      <!-- 所见即所得：列表里直接用名片详情页那套渲染组件（CardCompItem），
+           改什么一眼看到什么，不再隔着一套「预览版」自己写的值 = 必然漂移 -->
       <view class="ce-list">
         <block v-for="(c, i) in comps" :key="c.key">
-          <view class="ce-card" :class="{ lock: c.isLock }">
+          <view class="ce-card" :class="{ lock: c.isLock, off: c.props && c.props.hidden }">
             <view class="ce-head">
               <text class="ce-icon">{{ iconOf(c.type) }}</text>
               <text class="ce-name">{{ nameOf(c.type) }}</text>
               <text v-if="c.props && c.props.hidden" class="ce-hidden-tag">已隐藏</text>
               <text v-if="c.isLock" class="ce-lock-tag">企业母版</text>
             </view>
-            <view class="ce-preview">{{ previewOf(c) }}</view>
+            <!-- 真实渲染区：hidden 的组件按半透明折叠态显示，仍知道它排在哪 -->
+            <view class="ce-render" @click="openEdit(c)">
+              <CardCompItem :comp="c" :interactive="false" />
+              <view v-if="c.props && c.props.hidden" class="ce-render-mask">
+                <text class="ce-render-mask-t">已隐藏 · 名片上不显示</text>
+              </view>
+            </view>
             <view class="ce-ops">
               <text class="ce-op" :class="{ off: c.isLock }" @click="toggleHide(c)">{{ c.props && c.props.hidden ? '显示' : '隐藏' }}</text>
               <text class="ce-op" :class="{ off: c.isLock || !canMove(i, -1) }" @click="move(i, -1)">上移</text>
@@ -195,79 +203,10 @@
       <scroll-view scroll-y class="ce-preview-body" :style="pvBodyStyle">
         <view class="ce-preview-canvas">
           <view class="ce-preview-hint">含未保存修改 · 已隐藏组件不显示 · 点「返回/完成」退出预览</view>
-          <template v-for="c in previewComps" :key="c.key">
-            <!-- 图片（对齐 cc-img：widthFix + 内联边距；加载失败给占位，不露灰块/白块） -->
-            <image
-              v-if="c.type === 'image' && c.props.url && !imgFailed.has('pv:' + c.key)"
-              class="pv-img"
-              :src="c.props.url"
-              mode="widthFix"
-              :style="pvMarginStyle(c)"
-              @error="pvImgFail('pv:' + c.key)"
-              @click="pvJump(c.props.link)"
-            />
-            <view v-else-if="c.type === 'image'" class="pv-img-fallback" :style="pvMarginStyle(c)">
-              <text>图片加载失败，请检查图片地址</text>
-            </view>
-            <!-- 视频号（对齐 cc-video：深底封面 + 白圈播放键 + 底部渐变标题） -->
-            <view
-              v-else-if="c.type === 'channel-video'"
-              class="pv-video"
-              :style="pvMarginStyle(c)"
-              @click="pvOpenChannel(c.props)"
-            >
-              <image
-                v-if="c.props.cover && !imgFailed.has('pvc:' + c.key)"
-                class="pv-video-cover"
-                :src="c.props.cover"
-                mode="aspectFill"
-                @error="pvImgFail('pvc:' + c.key)"
-              />
-              <view v-else class="pv-video-cover pv-video-empty"><SIcon name="dynamic" size="large" color="#ffffff" /></view>
-              <view class="pv-video-play"><SIcon name="play" size="default" color="#ffffff" /></view>
-              <view v-if="c.props.title || c.props.desc" class="pv-video-info">
-                <text v-if="c.props.title" class="pv-video-t">{{ c.props.title }}</text>
-                <text v-if="c.props.desc" class="pv-video-d">{{ c.props.desc }}</text>
-              </view>
-            </view>
-            <!-- 文本（对齐 cc-notice：圆点 + 文本，圆角固定 radius-xs 不吃 props） -->
-            <view
-              v-else-if="c.type === 'notice'"
-              class="pv-notice"
-              :style="[pvMarginStyle(c), { background: c.props.bgColor || 'transparent', color: c.props.color || '#1d2129', fontSize: (c.props.fontSize || 14) + 'px', fontWeight: c.props.bold ? 600 : 400 }]"
-              @click="pvJump(c.props.url)"
-            >
-              <text class="pv-notice-dot"></text>
-              <text class="pv-notice-text">{{ c.props.text }}</text>
-            </view>
-            <!-- 分割线（对齐 cc-divider：单线 + 右侧可选文字） -->
-            <view
-              v-else-if="c.type === 'divider'"
-              class="pv-divider"
-              :style="pvMarginStyle(c)"
-            >
-              <view class="pv-divider-line" :style="{ borderTopWidth: (c.props.thickness || 1) + 'px', borderTopStyle: c.props.lineStyle || 'solid', borderTopColor: c.props.color || '#e5e6eb' }"></view>
-              <text v-if="c.props.text" class="pv-divider-text">{{ c.props.text }}</text>
-            </view>
-            <!-- 空白占位 -->
-            <view
-              v-else-if="c.type === 'spacer'"
-              :style="[pvMarginStyle(c), { height: (c.props.height == null ? 20 : c.props.height) + 'px', background: c.props.bgColor || 'transparent' }]"
-            ></view>
-            <!-- 跳转按钮（尺寸走共享 buttonSizeStyle，颜色圆角按 props，可试跳站内链接） -->
-            <view v-else-if="c.type === 'button'" class="pv-btn-wrap" :style="pvMarginStyle(c)">
-              <view class="pv-btn" :style="pvBtnStyle(c.props)" @click="pvJump(c.props.url)">{{ c.props.text || '按钮' }}</view>
-            </view>
-            <!-- 富文本（对齐 cc-rt-wrap：外层 bottomBg、内层 compBgColor+圆角/描边，HTML 先消毒） -->
-            <view
-              v-else-if="c.type === 'rich-text'"
-              class="pv-rt-wrap"
-              :style="[pvMarginStyle(c), { background: (c.props.bottomBg && c.props.bottomBg !== 'transparent') ? c.props.bottomBg : 'transparent' }]"
-            >
-              <rich-text class="pv-richtext" :nodes="sanitizeRichHtml(c.props.html || '<p>富文本内容</p>')" :style="pvRichStyle(c.props)"></rich-text>
-            </view>
-          </template>
-          <view v-if="!previewComps.length" class="ce-preview-empty">还没有可显示的组件</view>
+          <!-- 与列表、名片详情页同一套渲染组件：预览 = 真实效果，不存在「预览看着对、发出去不对」 -->
+          <view v-for="c in previewComps" :key="c.key" class="pv-item">
+            <CardCompItem :comp="c" />
+          </view>
         </view>
       </scroll-view>
     </view>
@@ -276,14 +215,13 @@
 
 <script setup>
 import PageNav from '../../components/PageNav.vue';
-import SIcon from '../../components/SIcon.vue';
+import CardCompItem from '../../components/CardCompItem.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onBackPress } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
-import { buttonSizeStyle } from '../../utils/btnSize.js';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
 
 const themeStyle = useDesignTheme();
@@ -354,39 +292,7 @@ function iconOf(type) { return ICONS[type] || '📦'; }
 function nameOf(type) { const d = getCompDef(type); return d ? d.name : '组件'; }
 function schemaOf(type) { const d = getCompDef(type); return d ? d.schema : []; }
 
-function previewOf(c) {
-  const p = c.props || {};
-  switch (c.type) {
-    case 'image': return p.url ? '图片' : '未设置图片';
-    case 'channel-video': return p.title || (p.finderUserName ? `视频号 ${p.finderUserName}` : '未设置视频号');
-    case 'notice': return p.text || '未设置文字';
-    case 'divider': return p.text ? `分割线（${p.text}）` : '分割线';
-    case 'spacer': return `空白 ${p.height ?? 20}px`;
-    case 'button': return p.text || '按钮';
-    case 'rich-text': {
-      const t = String(p.html || '').replace(/<[^>]*>/g, '').trim();
-      return t ? (t.length > 24 ? t.slice(0, 24) + '…' : t) : '未设置内容';
-    }
-    default: return '';
-  }
-}
 
-// 预览按钮样式（与 cardDetail.ccBtnStyle 完全同口径：颜色/描边/圆角按 props，
-// 尺寸/偏移走共享 buttonSizeStyle——预览和详情页两套算法必然漂移，必须共用一份）
-function pvBtnStyle(p) {
-  p = p || {};
-  const s = {};
-  if (p.btnStyle === 'outline') {
-    s.color = p.strokeColor || '#165DFF';
-    s.background = 'transparent';
-    s.border = '1px solid ' + (p.strokeColor || '#165DFF');
-  } else {
-    s.color = p.textColor || '#ffffff';
-    s.background = p.bgColor || '#165DFF';
-  }
-  s.borderRadius = (p.radius == null ? 8 : p.radius) + 'px';
-  return Object.assign(s, buttonSizeStyle(p), { maxWidth: '100%' });
-}
 
 // schema 条件显隐（对齐 admin 的 when：依赖字段不匹配时整行隐藏，如「描边色」仅描边样式显示）
 function fieldVisible(f) {
@@ -498,49 +404,6 @@ onBackPress(() => {
   return false;
 });
 
-// 预览画布渲染辅助（与 cardDetail cc-* 同口径）
-function pvMarginStyle(c) {
-  const p = c.props || {};
-  return { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
-}
-function pvImgFail(key) {
-  imgFailed.value.add(key);
-  imgFailed.value = new Set(imgFailed.value); // 触发响应式（Set 原地改不更新）
-}
-// 预览内可试跳站内链接（与 cardDetail.jumpCompLink 同口径：仅站内路径，外链忽略）
-function pvJump(link) {
-  const l = String(link || '').trim();
-  if (!l || !l.startsWith('/')) return;
-  uni.navigateTo({ url: l, fail: () => {} });
-}
-// 视频号试跳：MP 直接拉起视频号活动页（与 cardDetail.openChannelsActivity 同参）
-function pvOpenChannel(p) {
-  if (!p || !p.finderUserName || !p.feedId) return;
-  // #ifdef MP-WEIXIN
-  if (typeof wx !== 'undefined' && wx.openChannelsActivity) {
-    wx.openChannelsActivity({ finderUserName: p.finderUserName, feedId: p.feedId, fail: () => {} });
-  }
-  // #endif
-}
-// 富文本消毒：与 cardDetail.sanitizeRichHtml 同一份逻辑（预览看到的也是消毒后的最终效果）。
-// 🔴 正则用 (script|style) 分组 + \1 反向引用，勿拆成两条含 script/style 开标签字面量的正则——
-//    测试的样式块提取会误匹配这些字面量（把 script 段吞进「CSS」计数）。
-function sanitizeRichHtml(h) {
-  let s = String(h || '');
-  s = s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '');
-  s = s.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  s = s.replace(/javascript\s*:/gi, '');
-  return s;
-}
-// 对齐 cardDetail.ccRichStyle：内层背景/圆角/描边/投影按 props
-function pvRichStyle(p) {
-  p = p || {};
-  const s = { background: p.compBgColor || 'transparent' };
-  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
-  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
-  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
-  return s;
-}
 
 function saveEdit() {
   const target = comps.value.find((x) => x.key === editing.value.key);
@@ -628,6 +491,23 @@ onMounted(load);
   background: var(--white); border: 1rpx solid var(--border); border-radius: var(--radius-md);
   padding: var(--space-r5); margin-bottom: var(--space-r4);
 }
+/* 所见即所得：列表里直接渲染真实组件（同名片详情页），点组件即进配置 */
+.ce-render {
+  position: relative;
+  margin: var(--space-r2) 0;
+  padding: var(--space-r2);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  overflow: hidden;
+}
+.ce-card.off .ce-render { opacity: 0.5; }
+.ce-render-mask {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-mask);
+}
+.ce-render-mask-t { font-size: var(--fs-3); color: var(--white); }
+.pv-item { width: 100%; }
 .ce-card.lock { background: var(--bg-card); }
 .ce-head { display: flex; align-items: center; }
 .ce-icon { font-size: var(--fs-7); margin-right: var(--space-r2); }
@@ -636,7 +516,7 @@ onMounted(load);
   font-size: var(--fs-1); color: var(--brand-orange); background: var(--bg-hover);
   border-radius: var(--radius-sm); padding: var(--space-r1) var(--space-r2);
 }
-.ce-preview { font-size: var(--fs-3); color: var(--decor); margin: var(--space-r2) 0 var(--space-r3); }
+
 .ce-ops { display: flex; gap: var(--space-r2); }
 .ce-op {
   font-size: var(--fs-3); color: var(--design-primary);
@@ -810,45 +690,4 @@ onMounted(load);
 .ce-preview-hint { font-size: var(--fs-2); color: var(--decor); text-align: center; padding: var(--space-r2) 0 var(--space-r4); }
 .ce-preview-empty { text-align: center; color: var(--decor); font-size: var(--fs-3); padding: 120rpx 0; }
 
-/* 预览画布内的轻量渲染（与 cardDetail cc-* 同口径：结构/边距/配色一致；
-   差异点：图片加载失败给占位框，不露灰块/白块——示例图走网络图，域名没配真机必挂） */
-.pv-img { width: 100%; display: block; }
-.pv-img-fallback {
-  width: 100%; height: 200rpx; display: flex; align-items: center; justify-content: center;
-  background: var(--bg-card); color: var(--decor); font-size: var(--fs-3);
-  border: 1rpx dashed var(--border); border-radius: var(--radius-sm); box-sizing: border-box;
-}
-.pv-video { position: relative; border-radius: var(--radius-md); overflow: hidden; background: var(--t1); }
-.pv-video-cover { width: 100%; height: 360rpx; display: block; }
-.pv-video-empty { display: flex; align-items: center; justify-content: center; background: var(--t2); }
-.pv-video-play {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 72rpx; height: 72rpx; border-radius: var(--radius-pill);
-  background: var(--bg-mask); display: flex; align-items: center; justify-content: center;
-}
-.pv-video-info {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 40rpx var(--space-r4) var(--space-r3);
-  background: linear-gradient(transparent, var(--bg-mask));
-  display: flex; flex-direction: column; gap: var(--space-r1);
-}
-.pv-video-t { font-size: var(--fs-4); color: var(--white); font-weight: 500; }
-.pv-video-d { font-size: var(--fs-2); color: var(--white); }
-.pv-notice {
-  display: flex; align-items: center; gap: var(--space-r2);
-  padding: var(--space-r3) var(--space-r4);
-  border-radius: var(--radius-xs); line-height: 1.5;
-}
-.pv-notice-dot { width: 8rpx; height: 8rpx; border-radius: var(--radius-pill); background: currentColor; flex-shrink: 0; }
-.pv-notice-text { flex: 1; }
-.pv-divider { display: flex; align-items: center; gap: var(--space-r3); }
-.pv-divider-line { flex: 1; border-top-width: 1px; }
-.pv-divider-text { font-size: var(--fs-2); color: var(--decor); flex-shrink: 0; }
-.pv-btn-wrap { width: 100%; }
-.pv-btn {
-  height: 72rpx; line-height: 72rpx; font-size: var(--fs-4); font-weight: 500; text-align: center;
-  border-radius: var(--radius-sm); overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-}
-.pv-rt-wrap { width: 100%; }
-.pv-richtext { display: block; font-size: var(--fs-4); line-height: 1.6; }
 </style>

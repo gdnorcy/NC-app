@@ -294,64 +294,12 @@
         </view>
       </view>
 
-      <!-- 自定义装修组件（母版+个人；cardEdit.vue 管理，type/props 对齐 componentRegistry） -->
+      <!-- 自定义装修组件（母版+个人；cardEdit.vue 管理，type/props 对齐 componentRegistry）
+           🔴 渲染只此一份：与装修页共用 <CardCompItem>，改渲染必须改那里，
+             否则又会出现「预览看着对、详情页不对」的两端漂移（已多次踩） -->
       <view v-if="shownComps.length" class="cc-list">
-        <view v-for="(c, i) in shownComps" :key="i" class="cc-item">
-          <!-- 图片 -->
-          <image
-            v-if="c.type === 'image' && c.props.url"
-            class="cc-img"
-            :src="c.props.url"
-            mode="widthFix"
-            :style="ccStyle(c)"
-            @click="jumpCompLink(c.props.link)"
-          />
-          <!-- 视频号（finderUserName + feedId；H5 端 openChannelVideo 内提示去微信打开） -->
-          <view v-else-if="c.type === 'channel-video'" class="cc-video" :style="ccStyle(c)" @click="openChannelVideo(c.props)">
-            <image v-if="c.props.cover" class="cc-video-cover" :src="c.props.cover" mode="aspectFill" />
-            <view v-else class="cc-video-cover cc-video-empty"><SIcon name="dynamic" size="large" color="#ffffff" /></view>
-            <view class="cc-video-play"><SIcon name="play" size="default" color="#ffffff" /></view>
-            <view class="cc-video-info" v-if="c.props.title || c.props.desc">
-              <text class="cc-video-t" v-if="c.props.title">{{ c.props.title }}</text>
-              <text class="cc-video-d" v-if="c.props.desc">{{ c.props.desc }}</text>
-            </view>
-          </view>
-          <!-- 文本（notice 组件） -->
-          <view
-            v-else-if="c.type === 'notice'"
-            class="cc-notice"
-            :style="[ccStyle(c), { background: c.props.bgColor || 'transparent', color: c.props.color || '#1d2129', fontSize: (c.props.fontSize || 14) + 'px', fontWeight: c.props.bold ? 600 : 400 }]"
-            @click="jumpCompLink(c.props.url)"
-          >
-            <text class="cc-notice-dot"></text>
-            <text class="cc-notice-text">{{ c.props.text }}</text>
-          </view>
-          <!-- 分割线 -->
-          <view v-else-if="c.type === 'divider'" class="cc-divider" :style="ccStyle(c)">
-            <view class="cc-divider-line" :style="{ borderTopWidth: (c.props.thickness || 1) + 'px', borderTopStyle: c.props.lineStyle || 'solid', borderTopColor: c.props.color || '#e5e6eb' }"></view>
-            <text v-if="c.props.text" class="cc-divider-text">{{ c.props.text }}</text>
-          </view>
-          <!-- 空白占位 -->
-          <view
-            v-else-if="c.type === 'spacer'"
-            :style="[ccStyle(c), { height: (c.props.height == null ? 20 : c.props.height) + 'px', background: c.props.bgColor || 'transparent' }]"
-          ></view>
-          <!-- 跳转按钮（宽度/偏移走共享 buttonSizeStyle，颜色圆角按 props） -->
-          <view v-else-if="c.type === 'button'" class="cc-btn-wrap" :style="ccStyle(c)">
-            <view class="cc-btn" :style="ccBtnStyle(c.props)" @click="jumpCompLink(c.props.url)">{{ c.props.text || '按钮' }}</view>
-          </view>
-          <!-- 富文本（HTML 渲染前消毒：租户自填但访客可见，防 H5 端注入） -->
-          <view
-            v-else-if="c.type === 'rich-text'"
-            class="cc-rt-wrap"
-            :style="[ccStyle(c), { background: (c.props.bottomBg && c.props.bottomBg !== 'transparent') ? c.props.bottomBg : 'transparent' }]"
-          >
-            <rich-text class="cc-richtext" :nodes="sanitizeRichHtml(c.props.html || '<p>富文本内容</p>')" :style="ccRichStyle(c.props)"></rich-text>
-          </view>
-        </view>
+        <CardCompItem v-for="(c, i) in shownComps" :key="i" :comp="c" class="cc-item" />
       </view>
-    </view>
-
     <!-- 作品面板 -->
     <view class="tab-panel" v-if="activeTab === 'works'">
       <view class="sec-t">{{ worksLabelText }}<small>品牌案例</small></view>
@@ -513,12 +461,12 @@ import {
 } from '../../utils/templateTheme.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
+import CardCompItem from '../../components/CardCompItem.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { getNavMetrics, navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
 // 按钮宽度走共享实现（与 admin 画布 / C 端 DesignPage 同一份）：vw 视口基准，
 // 勿在本页私藏副本——项目已因各处私藏导致「设计器与真机不一致」多次
-import { buttonSizeStyle } from '../../utils/btnSize.js';
 
 const navVars = navVarsStyle();
 // 小程序端不能运行时注入 style 元素，系统主题色必须由根视图内联下发（否则回落 CSS 兜底色）
@@ -1091,57 +1039,10 @@ function copyVideoChannelId(ch) {
 // finderUserName + feedId，无主体限制，任何人的视频号都能跳。
 // 🔴 与上面 openVideo（主页入口）分工：列表卡片=具体视频；下方 video-card=主页。
 // H5 无 Weixin JS-SDK 挂载，降级为提示去小程序观看（不做假动作）。
-// ===== 自定义装修组件渲染助手（cardEdit.vue 管理）=====
-// 边距/圆角走 props（registry 里是 px 数值）；V1 不渲染会员权限/高级模式，
-// 那些字段由 PC 编辑器设置，移动端组件保持简单形态。
-function ccStyle(c) {
-  const p = c.props || {};
-  const st = { marginTop: (p.marginTop || 0) + 'px', marginBottom: (p.marginBottom || 0) + 'px' };
-  if (c.type === 'image' && p.radius) st.borderRadius = p.radius + 'px';
-  return st;
-}
-// 按钮内联样式：颜色/圆角按 props + 宽度/偏移走共享 buttonSizeStyle（vw 基准）。
-// 🔴 max-width:100% 只在本页加：cardDetail 的 cc-list 容器窄于视口，
-//   「整行」(100vw) 不夹会溢出名片卡；夹后视觉=撑满容器（仍保留 widthPercent 的解耦语义）。
-//   共享实现里禁加 max-width（会破坏与容器边距的解耦），详见 containerChildSize.js 实测记录。
-function ccBtnStyle(p) {
-  const s = {};
-  if (p.btnStyle === 'outline') {
-    s.color = p.strokeColor || '#165DFF';
-    s.background = 'transparent';
-    s.border = '1px solid ' + (p.strokeColor || '#165DFF');
-  } else {
-    s.color = p.textColor || '#ffffff';
-    s.background = p.bgColor || '#165DFF';
-  }
-  s.borderRadius = (p.radius == null ? 8 : p.radius) + 'px';
-  return Object.assign(s, buttonSizeStyle(p), { maxWidth: '100%' });
-}
-// 富文本内层样式（对齐 admin richTextStyle：组件背景/圆角只在内层）
-function ccRichStyle(p) {
-  const s = { background: p.compBgColor || 'transparent' };
-  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
-  if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
-  if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
-  return s;
-}
-// 富文本 HTML 消毒：内容由租户在后台填写、但被所有访客渲染，必须防注入。
-// MP 的 rich-text 本就不执行脚本，这里是防 H5 端解析 nodes 时带入 on* 事件/javascript: 协议。
-// 🔴 正则用 (script|style) 分组 + \1 反向引用，勿拆成两条含 script/style 开标签字面量的正则——
-//    测试的样式块提取会误匹配这些字面量（把 script 段吞进「CSS」计数）。
-function sanitizeRichHtml(h) {
-  let s = String(h || '');
-  s = s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, '');
-  s = s.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-  s = s.replace(/javascript\s*:/gi, '');
-  return s;
-}
-// 组件内链接：站内页面路径跳转；外链/空值忽略（V1 不做外链浏览器打开）
-function jumpCompLink(link) {
-  const l = String(link || '').trim();
-  if (!l) return;
-  if (l.startsWith('/')) uni.navigateTo({ url: l });
-}
+// 自定义装修组件的渲染（含 ccStyle/ccBtnStyle/ccRichStyle/sanitizeRichHtml/jumpCompLink）
+// 已全部迁到 components/CardCompItem.vue —— 详情页与装修页共用一份，避免两端漂移。
+// 🔴 max-width:100% 的由来：cc-list 容器窄于视口，「整行」(100vw) 不夹会溢出名片卡。
+//   该夹取保留在共享渲染组件里（详见 containerChildSize.js 实测记录）。
 
 function openChannelVideo(v) {
   if (!v || !v.finderUserName || !v.feedId) return;
@@ -2086,64 +1987,6 @@ async function followCard() {
   flex-direction: column;
 }
 .cc-item { width: 100%; }
-.cc-img { width: 100%; display: block; }
-/* 跳转按钮：静态尺寸走令牌类，颜色/宽度由 ccBtnStyle 内联（props 驱动） */
-.cc-btn-wrap { width: 100%; }
-.cc-btn {
-  height: 72rpx; line-height: 72rpx; font-size: var(--fs-4); font-weight: 500;
-  border-radius: var(--radius-sm); overflow: hidden;
-  white-space: nowrap; text-overflow: ellipsis;
-}
-/* 富文本：外层 bottomBg、内层 compBgColor（与 admin 两层结构一致） */
-.cc-rt-wrap { width: 100%; }
-.cc-richtext { display: block; font-size: var(--fs-4); line-height: 1.6; }
-.cc-video {
-  position: relative;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--t1);
-}
-.cc-video-cover { width: 100%; height: 360rpx; display: block; }
-.cc-video-empty { display: flex; align-items: center; justify-content: center; background: var(--t2); }
-.cc-video-play {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 72rpx; height: 72rpx;
-  border-radius: var(--radius-pill);
-  background: var(--bg-mask);
-  display: flex; align-items: center; justify-content: center;
-}
-.cc-video-info {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 40rpx var(--space-r4) var(--space-r3);
-  background: linear-gradient(transparent, var(--bg-mask));
-  display: flex; flex-direction: column; gap: var(--space-r1);
-}
-.cc-video-t { font-size: var(--fs-4); color: var(--white); font-weight: 500; }
-.cc-video-d { font-size: var(--fs-2); color: var(--white); }
-.cc-notice {
-  display: flex;
-  align-items: center;
-  gap: var(--space-r2);
-  padding: var(--space-r3) var(--space-r4);
-  border-radius: var(--radius-xs);
-  line-height: 1.5;
-}
-.cc-notice-dot {
-  width: 8rpx; height: 8rpx;
-  border-radius: var(--radius-pill);
-  background: currentColor;
-  flex-shrink: 0;
-}
-.cc-notice-text { flex: 1; }
-.cc-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-r3);
-}
-.cc-divider-line { flex: 1; border-top-width: 1px; }
-.cc-divider-text { font-size: var(--fs-2); color: var(--decor); flex-shrink: 0; }
 .intro-line {
   display: flex;
   gap: 16rpx;
