@@ -32,6 +32,11 @@ function styleBlock(src) {
   return m ? m[1] : '';
 }
 
+/** 剥掉 CSS 注释：注释里出现 `*`/`>` 是允许的（WXSS 只卡选择器本身） */
+function stripComments(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
 /**
  * 精确取某条 CSS 规则的声明体。
  * 🔴 不能写 /\.cls \{[\s\S]*?xxx/：非贪婪匹配会跨过 `}` 吃到后面无关规则里的声明
@@ -95,14 +100,38 @@ describe('导航标题居中：统一走「屏宽居中」口径', () => {
   });
 
   test('标题层需点击穿透：长按左/右操作区不被标题层吃掉', () => {
-    for (const [name, css] of [
-      ['PageNav', styleBlock(pageNavSrc)],
-      ['DesignNav', styleBlock(designNavSrc)],
-      ['DesignNavEw', styleBlock(designNavEwSrc)],
+    for (const [name, css, cls] of [
+      ['PageNav', styleBlock(pageNavSrc), '.pnv-title-wrap'],
+      ['DesignNav', styleBlock(designNavSrc), '.dn-title'],
+      ['DesignNavEw', styleBlock(designNavEwSrc), '.dnew-title'],
     ]) {
-      const cls = name === 'PageNav' ? '.pnv-title-wrap' : name === 'DesignNav' ? '.dn-title' : '.dnew-title';
-      expect(cssRule(css, cls)).toContain('pointer-events: none');
-      expect(cssRule(css, cls + ' > *')).toContain('pointer-events: auto');
+      expect(cssRule(css, cls), `${name} 标题层应点击穿透`).toContain('pointer-events: none');
+    }
+    // 穿透后要恢复可点击的目标必须按类名给（WXSS 不支持 `*`/`>`，见下一条）
+    expect(styleBlock(pageNavSrc)).toMatch(/\.pnv-title \{[^}]*pointer-events: auto/);
+    expect(styleBlock(pageNavSrc)).toMatch(/\.pnv-title-slot \{[^}]*pointer-events: auto/);
+    expect(styleBlock(designNavSrc)).toMatch(/\.dn-title-inner \{ pointer-events: auto; \}/);
+    expect(styleBlock(designNavEwSrc)).toMatch(/\.dnew-title-text,[\s\S]*?pointer-events: auto/);
+  });
+
+  test('🔴 不得出现 WXSS 不支持的通用选择器 *（uni 构建不拦，开发者工具才报）', () => {
+    // 病根复盘：为做点击穿透写了 `.dn-title > * { pointer-events:auto }`，
+    // uni 构建/H5 全绿，**只有微信开发者工具**报
+    // `./components/DesignNav.wxss(1:744): error at token *` → 小程序直接编译失败。
+    // 口径澄清：项目里早就存在 `>` 与 `+`（DesignPage/SuperFormRender/CardTabBar）且能正常编译，
+    // 所以真正不被 WXSS 接受的只有通用选择器 `*`（含 `.a > *` 这种组合）。别过度收紧到禁 `>`。
+    for (const [name, src] of [
+      ['PageNav', pageNavSrc],
+      ['DesignNav', designNavSrc],
+      ['DesignNavEw', designNavEwSrc],
+    ]) {
+      const css = stripComments(styleBlock(src));
+      const bad = [];
+      for (const sel of css.split('}')) {
+        const head = (sel.split('{')[0] || '').trim();
+        if (head && head.includes('*')) bad.push(head.slice(0, 40));
+      }
+      expect(bad, `${name} 含通用选择器 *`).toEqual([]);
     }
   });
 });

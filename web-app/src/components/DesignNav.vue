@@ -108,8 +108,8 @@ const PosCenter = {
     if (!this.hasContent) {
       const base = this.header && this.header.type === 'immersive' ? '#ffffff' : ((this.header && this.header.textColor) || '#1d2129');
       // fallback 为空字符串（第二行/未配中心内容）时不兜底显示「首页」，避免与第一行标题重复；仅 fallback 有值时显示
-      if (!this.fallback) return h('text', { class: 'dn-title-text', style: `color:${base}` });
-      return h('text', { class: 'dn-title-text', style: `color:${base}` }, this.fallback);
+      if (!this.fallback) return h('text', { class: 'dn-title-text dn-title-inner', style: `color:${base}` });
+      return h('text', { class: 'dn-title-text dn-title-inner', style: `color:${base}` }, this.fallback);
     }
     let inner = null;
     if (it.type === 'text') {
@@ -125,7 +125,7 @@ const PosCenter = {
     if (it.width) box.push(`width:${it.width}px`);
     if (typeof it.radius === 'number') box.push(`border-radius:${it.radius}px`);
     box.push('display:inline-flex;align-items:center;justify-content:center;height:56rpx;padding:0 16rpx;box-sizing:border-box;max-width:100%');
-    return h('view', { style: box.join(';') }, [inner]);
+    return h('view', { class: 'dn-title-inner', style: box.join(';') }, [inner]);
   },
 };
 
@@ -251,7 +251,8 @@ export default {
   min-width: 0;
   pointer-events: none;
 }
-.dn-title > * { pointer-events: auto; }
+/* 🔴 同上：WXSS 不支持 `*` / `>`；中心内容统一带 .dn-title-inner 类恢复点击 */
+.dn-title-inner { pointer-events: auto; }
 .dn-title-text { font-size: 34rpx; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .dn-text { font-size: var(--fs-5); line-height: 1; white-space: nowrap; }
 .dn-img { width: 64rpx; height: 56rpx; }
