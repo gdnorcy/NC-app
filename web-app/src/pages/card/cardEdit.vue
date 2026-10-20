@@ -15,7 +15,7 @@
 
     <view class="ce-body">
       <view class="ce-desc">
-        组件展示在名片详情页「简介」标签下方。企业母版组件由租户统一设置，不可修改。点组件内容即可编辑。
+        组件展示在名片详情页「简介」标签下方。点组件可编辑；选中组件后可移动、复制、删除、隐藏。
         <text class="ce-quota" :class="{ full: mine.length >= COMP_MAX }">已添加 {{ mine.length }}/{{ COMP_MAX }} 个</text>
       </view>
 
@@ -28,45 +28,42 @@
            改什么一眼看到什么，不再隔着一套「预览版」自己写的值 = 必然漂移 -->
       <view class="ce-list">
         <block v-for="(c, i) in comps" :key="c.key">
-          <view class="ce-card" :class="{ lock: c.isLock, off: c.props && c.props.hidden }">
-            <view class="ce-head">
-              <text class="ce-icon">{{ iconOf(c.type) }}</text>
-              <text class="ce-name">{{ nameOf(c.type) }}</text>
-              <text v-if="c.props && c.props.hidden" class="ce-hidden-tag">已隐藏</text>
-              <text v-if="c.isLock" class="ce-lock-tag">企业母版</text>
-            </view>
+          <view
+            class="ce-card"
+            :class="{ lock: c.isLock, off: c.props && c.props.hidden, active: activeKey === c.key }"
+          >
+            <!-- 母版标记**常驻**：操作条只在选中时浮现（对齐 PC 的 hover），
+                 但锁状态不能跟着一起隐掉，否则用户不知道这张为何不能改 -->
+            <text v-if="c.isLock" class="ce-lock-badge">企业母版</text>
             <!-- 真实渲染区：hidden 的组件按半透明折叠态显示，仍知道它排在哪 -->
-            <view class="ce-render" @click="openEdit(c)">
+            <view class="ce-render" @click="tapCard(c)">
               <CardCompItem :comp="c" :interactive="false" />
               <view v-if="c.props && c.props.hidden" class="ce-render-mask">
                 <text class="ce-render-mask-t">已隐藏 · 名片上不显示</text>
               </view>
             </view>
-            <!-- 操作条：观感对齐设计中心画布那条蓝条（主色胶囊 + 图标），形态按手机端改了三处——
-                 ① 位置放渲染区**下方**（PC 是浮在组件上方）：手机没有 hover，常驻才点得到；
-                    且卡片上半部分是所见即所得渲染区，浮条压上去等于把刚做的核心遮掉。
-                 ② 点击区 64rpx(≈32px)：PC 那套是 18px，鼠标够用、手指点不中且易误触相邻按钮。
-                 ③ 「编辑」按钮去掉：点渲染区即进配置（`@click="openEdit"` 原本就绑着），
-                    省一个位置让胶囊更短，组件名不被挤。
+            <!-- 操作条：1:1 对齐设计中心画布的 `.pe-comp-tools` —— 主色浮条 + 序号 + 组件名 + 图标，
+                 **浮在卡片右上角**（不另占空间，渲染区不会被推走 = 真所见即所得），
+                 **选中才浮现**（PC 靠 hover，手机没有 hover，用点选代替）。
+                 🔴 为什么不贴卡片外沿：卡片间距只有 20rpx，而浮条约 46rpx 高，
+                    贴外沿会压到上一张卡；也不放进 .ce-render（它有 overflow:hidden 会被裁）。
                  🔴 复制图标用两个真实 view 叠出，不用 U+29C9 那个「双联方框」字符：
-                    它在小程序系统字体里大概率是豆腐块；SIcon 的 MP 端又是预生成 PNG、
+                    它在小程序系统字体里大概率是豆腐块；SIcon 的 MP 端是预生成 PNG、
                     颜色写死在文件名里，做不出白色变体。（测试禁止本文件出现该字形，
                     注释里也别写——写了就会被后人复制回代码里） -->
-            <view class="ce-bar-wrap">
-              <view class="ce-bar">
-                <text class="ce-bar-idx">{{ i + 1 }}</text>
-                <view class="ce-bar-txt" :class="{ off: c.isLock }" @click.stop="toggleHide(c)">
-                  <text class="ce-bar-lbl">{{ c.props && c.props.hidden ? '显示' : '隐藏' }}</text>
-                </view>
-                <view class="ce-bar-btn" :class="{ off: c.isLock || !canMove(i, -1) }" @click.stop="move(i, -1)"><text class="ce-bar-ico">↑</text></view>
-                <view class="ce-bar-btn" :class="{ off: c.isLock || !canMove(i, 1) }" @click.stop="move(i, 1)"><text class="ce-bar-ico">↓</text></view>
-                <view class="ce-bar-btn" :class="{ off: c.isLock }" @click.stop="dup(i, c)">
-                  <view class="ce-ico-dup"><view class="ce-dup-b"></view><view class="ce-dup-f"></view></view>
-                </view>
-                <view class="ce-bar-btn del" :class="{ off: c.isLock }" @click.stop="remove(c)"><text class="ce-bar-ico">✕</text></view>
+            <view v-if="activeKey === c.key" class="ce-tools" @click.stop>
+              <text class="ce-tools-idx">{{ i + 1 }}</text>
+              <text class="ce-tools-name">{{ nameOf(c.type) }}</text>
+              <view class="ce-tool" :class="{ off: c.isLock }" @click.stop="toggleHide(c)">
+                <text class="ce-tool-lbl">{{ c.props && c.props.hidden ? '显示' : '隐藏' }}</text>
               </view>
+              <view class="ce-tool" :class="{ off: c.isLock || !canMove(i, -1) }" @click.stop="move(i, -1)"><text class="ce-tool-ico">↑</text></view>
+              <view class="ce-tool" :class="{ off: c.isLock || !canMove(i, 1) }" @click.stop="move(i, 1)"><text class="ce-tool-ico">↓</text></view>
+              <view class="ce-tool" :class="{ off: c.isLock }" @click.stop="dup(i, c)">
+                <view class="ce-ico-dup"><view class="ce-dup-b"></view><view class="ce-dup-f"></view></view>
+              </view>
+              <view class="ce-tool del" :class="{ off: c.isLock }" @click.stop="remove(c)"><text class="ce-tool-ico">✕</text></view>
             </view>
-            <view v-if="c.isLock" class="ce-lock-tip">企业母版组件，不可修改</view>
           </view>
         </block>
       </view>
@@ -265,6 +262,8 @@ const SWATCHES = [
 
 const cardId = ref(null);
 const comps = ref([]); // 合并列表：母版(isLock) 在前，个人组件随后（与服务端返回顺序一致）
+// 当前选中组件的 key：操作条只在选中时浮现（对齐 PC 的 hover 触发）
+const activeKey = ref(null);
 const loading = ref(false);
 const loadFailed = ref(false);
 const loadFailedMsg = ref('加载失败，请检查网络后重试');
@@ -305,7 +304,8 @@ const editFields = computed(() => {
   return out;
 });
 
-function iconOf(type) { return ICONS[type] || '📦'; }
+// 组件名进了浮条（对齐 PC `.pe-comp-type`），不再有独立标题行，故 iconOf 已无用：
+// 列表里认类型靠浮条上的文字名 + 组件自身渲染结果，比一个 emoji 图标更准。
 function nameOf(type) { const d = getCompDef(type); return d ? d.name : '组件'; }
 function schemaOf(type) { const d = getCompDef(type); return d ? d.schema : []; }
 
@@ -367,7 +367,18 @@ function add(type) {
   // hidden 显式初始化：显示/隐藏开关的数据位（服务端 props 整包透传，无需白名单变更）
   const item = { key: `n${Date.now()}${keySeq++}`, type, props: { ...compDefaultProps(type), hidden: false }, isLock: false };
   comps.value.push(item);
+  activeKey.value = item.key; // 新增后选中它，操作条直接可见（对齐 PC 复制后选中新组件）
   openEdit(item); // 新增后直接进配置，必填项（视频号ID/视频ID）当场补
+}
+
+/**
+ * 点卡片：手机没有 hover，用「点选」代替 PC 的 hover 浮现。
+ * 已选中时再点一次 = 进配置（保留原来「点组件即编辑」的手感，只是先确认选中）。
+ * 母版也允许选中——浮条整体置灰，比一句「不可修改」的文字更能说明它为何动不了。
+ */
+function tapCard(c) {
+  if (activeKey.value === c.key) { openEdit(c); return; }
+  activeKey.value = c.key;
 }
 
 // 显示/隐藏开关：hidden 存 props（cardDetail 渲染过滤），母版不可切换
@@ -396,6 +407,8 @@ function remove(c) {
     success: async (r) => {
       if (!r.confirm) return;
       comps.value = comps.value.filter((x) => x.key !== c.key);
+      // 删的正是选中项：选中态跟着清掉，否则浮条会挂在一个已不存在的 key 上
+      if (activeKey.value === c.key) activeKey.value = null;
       saveAll('已删除');
     },
   });
@@ -418,6 +431,7 @@ function dup(i, c) {
   const arr = comps.value.slice();
   arr.splice(i + 1, 0, item);
   comps.value = arr;
+  activeKey.value = item.key; // 选中新复制的这份（对齐 PC dupComp 后 selected = 新组件）
   saveAll('已复制');
 }
 
@@ -527,7 +541,11 @@ onMounted(load);
 .ce-card {
   background: var(--white); border: 1rpx solid var(--border); border-radius: var(--radius-md);
   padding: var(--space-r5); margin-bottom: var(--space-r4);
+  position: relative; /* 操作条浮层的定位基准（.ce-render 有 overflow:hidden，不能当基准） */
 }
+/* 选中态：主色描边（对齐 PC `.pe-comp.active` 的选中框），
+   让「点一下选中、浮条浮现」这个交互有明确反馈 */
+.ce-card.active { border-color: var(--design-primary); }
 /* 所见即所得：列表里直接渲染真实组件（同名片详情页），点组件即进配置 */
 .ce-render {
   position: relative;
@@ -546,53 +564,56 @@ onMounted(load);
 .ce-render-mask-t { font-size: var(--fs-3); color: var(--white); }
 .pv-item { width: 100%; }
 .ce-card.lock { background: var(--bg-card); }
-.ce-head { display: flex; align-items: center; }
-.ce-icon { font-size: var(--fs-7); margin-right: var(--space-r2); }
-.ce-name { font-size: var(--fs-5); color: var(--t1); font-weight: 500; flex: 1; }
-.ce-lock-tag {
+/* 母版标记常驻左上角：操作条是选中才浮现的，锁状态不能跟着隐掉 */
+.ce-lock-badge {
+  position: absolute; left: var(--space-r5); top: var(--space-r1); z-index: 2;
   font-size: var(--fs-1); color: var(--brand-orange); background: var(--bg-hover);
-  border-radius: var(--radius-sm); padding: var(--space-r1) var(--space-r2);
+  border-radius: var(--radius-sm); padding: 2rpx 8rpx;
 }
 
-/* 操作条：主色胶囊 + 图标，右对齐（观感对齐设计中心画布的 `.pe-comp-tools`）
-   🔴 不写 margin-top：.ce-render 自带 `margin: var(--space-r2) 0`（含底部），
-      再加一份会叠成双倍间距（原 .ce-ops 就是这个间距，别悄悄改变版式） */
-.ce-bar-wrap { display: flex; justify-content: flex-end; }
-.ce-bar {
+/* 操作条：1:1 对齐设计中心画布的 `.pe-comp-tools`（主色浮条 + 序号 + 组件名 + 图标）。
+   🔴 浮在卡片**右上角**而不是另起一行：渲染区不会被推走，才是真所见即所得；
+      也不贴卡片外沿——卡片间距仅 20rpx，浮条约 46rpx 高会压到上一张卡。
+   🔴 整条只有 46rpx 高（PC 同款量级）：图标 26rpx、按钮 40rpx，
+      比上一版 84rpx 的胶囊条小一半，手指点选时它是刻意交互而非常驻噪音。 */
+.ce-tools {
+  position: absolute; top: var(--space-r1); right: var(--space-r1); z-index: 3;
   display: flex; align-items: center; gap: var(--space-r1);
-  background: var(--design-primary); border-radius: var(--radius-pill);
-  padding: 4rpx 8rpx;
+  background: var(--design-primary); color: #fff;
+  border-radius: var(--radius-sm); padding: 3rpx 6rpx;
+  white-space: nowrap;
+  /* 🔴 复用项目已有的「卡片浮起」投影写法（0 4rpx 16rpx rgba(0,0,0,.04)，白卡同款），
+     不另写一种：tokenAudit 按写法**种类**计数，为一个小浮条新增一种投影会直接顶破基线。 */
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
 }
-.ce-bar-idx {
-  font-size: var(--fs-2); color: #fff; background: rgba(255,255,255,.25);
-  border-radius: var(--radius-sm); padding: 2rpx 10rpx;
+.ce-tools-idx {
+  font-size: var(--fs-2); background: rgba(255,255,255,.25);
+  border-radius: 4rpx; padding: 0 6rpx;
 }
-.ce-bar-txt { display: flex; align-items: center; height: 64rpx; padding: 0 6rpx; }
-.ce-bar-lbl { font-size: var(--fs-3); color: #fff; }
-/* 🔴 点击区 64rpx ≈ 32px：PC 那套 18px 图标鼠标够用、手指点不中且易误触相邻按钮 */
-.ce-bar-btn {
-  width: 64rpx; height: 64rpx; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+.ce-tools-name { font-size: var(--fs-3); }
+.ce-tool {
+  height: 40rpx; min-width: 40rpx; padding: 0 4rpx;
+  display: flex; align-items: center; justify-content: center; border-radius: 6rpx;
 }
-.ce-bar-ico { font-size: 30rpx; color: #fff; line-height: 1; }
-.ce-bar-btn.del { background: var(--danger); }
-/* 置灰：母版组件整条不可操作（沿用 .ce-op.off 的 pointer-events 写法，MP 实测有效）
-   🔴 置灰时删除键退回透明底：否则 opacity 会把红底混成暗紫（红+蓝=脏色），
-      整条一起变灰才读得出「不可用」。 */
-.ce-bar-btn.off, .ce-bar-txt.off { opacity: 0.35; pointer-events: none; }
-.ce-bar-btn.del.off { background: transparent; }
+.ce-tool-ico { font-size: 26rpx; color: #fff; line-height: 1; }
+.ce-tool-lbl { font-size: var(--fs-2); color: #fff; }
+.ce-tool.del { background: var(--danger); }
+/* 置灰：母版组件整条不可操作（pointer-events 写法 MP 实测有效）
+   🔴 置灰时删除键退回透明底：否则 opacity 会把红底混成暗紫（红+蓝=脏色） */
+.ce-tool.off { opacity: 0.35; pointer-events: none; }
+.ce-tool.del.off { background: transparent; }
 /* 复制图标：两个方框叠出「两份」的意向。
    🔴 用真实 view，不用伪元素也不用 U+29C9 那个「双联方框」字符：WXSS 伪元素在普通
-      view 上不可靠，而该字符在系统字体里常是豆腐块。前块背景必须 = 胶囊底色，
+      view 上不可靠，而该字符在系统字体里常是豆腐块。前块背景必须 = 浮条底色，
       才能遮出 L 形边。 */
-.ce-ico-dup { position: relative; width: 28rpx; height: 28rpx; }
+.ce-ico-dup { position: relative; width: 24rpx; height: 24rpx; }
 .ce-dup-b {
-  position: absolute; left: 0; top: 0; width: 20rpx; height: 20rpx;
-  border: 2rpx solid #fff; border-radius: 4rpx; box-sizing: border-box;
+  position: absolute; left: 0; top: 0; width: 16rpx; height: 16rpx;
+  border: 2rpx solid #fff; border-radius: 3rpx; box-sizing: border-box;
 }
 .ce-dup-f {
-  position: absolute; left: 8rpx; top: 8rpx; width: 20rpx; height: 20rpx;
-  border: 2rpx solid #fff; border-radius: 4rpx; box-sizing: border-box;
+  position: absolute; left: 8rpx; top: 8rpx; width: 16rpx; height: 16rpx;
+  border: 2rpx solid #fff; border-radius: 3rpx; box-sizing: border-box;
   background: var(--design-primary);
 }
 .ce-lock-tip { font-size: var(--fs-2); color: var(--danger); margin-top: var(--space-r2); }

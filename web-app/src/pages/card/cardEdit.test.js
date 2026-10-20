@@ -29,10 +29,13 @@ describe('cardEdit.vue 装修编辑页', () => {
     expect(style).not.toContain('#07c160');
   });
 
-  test('母版锁定：isLock 项操作按钮置灰 + 锁定提示', () => {
-    expect(cardEditSrc).toMatch(/:class="\{ lock: c\.isLock, off: c\.props && c\.props\.hidden \}"/);
+  test('母版锁定：isLock 项操作按钮置灰 + 锁标记常驻（不随选中态隐掉）', () => {
+    expect(cardEditSrc).toMatch(/:class="\{ lock: c\.isLock, off: c\.props && c\.props\.hidden, active: activeKey === c\.key \}"/);
     expect(cardEditSrc).toMatch(/off: c\.isLock \|\|/);
-    expect(cardEditSrc).toContain('企业母版组件，不可修改');
+    // 锁标记常驻左上角：操作条是「选中才浮现」的，锁状态不能跟着隐掉，
+    // 否则用户不知道这张为何不能改（旧的「不可修改」文字行已由它取代）
+    expect(cardEditSrc).toMatch(/<text v-if="c\.isLock" class="ce-lock-badge">企业母版<\/text>/);
+    expect(cardEditSrc).toMatch(/\.ce-lock-badge \{[\s\S]*?position: absolute/);
   });
 
   test('母版永在个人组件前（canMove 不允许穿越母版）', () => {
@@ -204,34 +207,58 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
     expect(cardDetailSrc).toMatch(/v-for="\(c, i\) in shownComps"/);
   });
 
-  test('操作条 = 主色胶囊条（对齐设计中心 .pe-comp-tools 观感），放渲染区下方右对齐', () => {
-    // 主色底 + 胶囊圆角；右对齐靠 wrap 的 justify-content（不用 float，MP 更稳）
-    expect(cardEditSrc).toMatch(/\.ce-bar \{[^}]*background: var\(--design-primary\)/);
-    expect(cardEditSrc).toMatch(/\.ce-bar-wrap \{[^}]*justify-content: flex-end/);
-    // 序号徽标：PC 边条同款（半透明白底 + 圆角）
-    expect(cardEditSrc).toMatch(/class="ce-bar-idx"/);
-    expect(cardEditSrc).toMatch(/\.ce-bar-idx \{[^}]*background: rgba\(255,255,255,\.25\)/);
+  test('操作条 = 主色浮条（1:1 对齐设计中心 .pe-comp-tools）：序号+组件名+图标，浮在卡片右上角', () => {
+    // 主色底 + 小圆角（PC 是 6px 圆角，不是胶囊）
+    expect(cardEditSrc).toMatch(/\.ce-tools \{[^}]*background: var\(--design-primary\)/);
+    expect(cardEditSrc).toMatch(/\.ce-tools \{[^}]*border-radius: var\(--radius-sm\)/);
+    // 序号徽标：PC 边条同款（半透明白底）
+    expect(cardEditSrc).toMatch(/class="ce-tools-idx"/);
+    expect(cardEditSrc).toMatch(/\.ce-tools-idx \{[^}]*background: rgba\(255,255,255,\.25\)/);
+    // 🔴 组件名在浮条里（PC 的 .pe-comp-type）：不再有独立标题行，
+    //    少占一行 = 渲染区更大 = 所见即所得
+    expect(cardEditSrc).toMatch(/class="ce-tools-name">\{\{ nameOf\(c\.type\) \}\}/);
+    expect(cardEditSrc).not.toMatch(/class="ce-head"/);
+    expect(cardEditSrc).not.toMatch(/class="ce-name"/);
   });
 
-  test('操作条按钮点击区 ≥ 64rpx(≈32px)：PC 的 18px 手指点不中', () => {
-    expect(cardEditSrc).toMatch(/\.ce-bar-btn \{[^}]*width: 64rpx; height: 64rpx/);
+  test('操作条是绝对定位浮层：不另占空间，渲染区不会被推走（真所见即所得）', () => {
+    expect(cardEditSrc).toMatch(/\.ce-tools \{[^}]*position: absolute/);
+    // 定位基准是 .ce-card（.ce-render 有 overflow:hidden 会裁掉浮条）
+    expect(cardEditSrc).toMatch(/\.ce-card \{[\s\S]*?position: relative/);
+    // 只覆盖右上角，不全宽铺顶
+    expect(cardEditSrc).toMatch(/\.ce-tools \{[^}]*right: var\(--space-r1\)/);
   });
 
-  test('操作条不遮挡渲染区：不是绝对定位浮层，是渲染区之后的普通兄弟节点', () => {
-    // 模板里 ce-bar-wrap 必须排在 ce-render 之后（DOM 顺序 = 视觉顺序，浮层会盖住所见即所得）
-    const iRender = cardEditSrc.indexOf('class="ce-render"');
-    const iBar = cardEditSrc.indexOf('class="ce-bar-wrap"');
-    expect(iRender).toBeGreaterThan(-1);
-    expect(iBar).toBeGreaterThan(iRender);
-    // 且不得用 absolute/fixed 定位到渲染区上方
-    expect(cardEditSrc).not.toMatch(/\.ce-bar-wrap \{[^}]*position:\s*(absolute|fixed)/);
+  test('操作条紧凑：整条 ≤ 48rpx（PC 量级），不是上一版 84rpx 的大胶囊', () => {
+    expect(cardEditSrc).toMatch(/\.ce-tool \{[^}]*height: 40rpx/);
+    // 图标 26rpx、文字 fs-2，与 PC 的 18px 图标/11px 字同量级
+    expect(cardEditSrc).toMatch(/\.ce-tool-ico \{[^}]*font-size: 26rpx/);
+    expect(cardEditSrc).not.toMatch(/\.ce-tool \{[^}]*height: 64rpx/);
   });
 
-  test('「编辑」按钮已移除：点渲染区即进配置，胶囊条里不再有编辑入口', () => {
-    expect(cardEditSrc).toMatch(/@click="openEdit\(c\)"/);
-    expect(cardEditSrc).not.toMatch(/class="ce-op"[^>]*openEdit/);
+  test('操作条选中才浮现（hover 的手机等价物）：v-if activeKey + 点选进配置', () => {
+    expect(cardEditSrc).toMatch(/<view v-if="activeKey === c\.key" class="ce-tools"/);
+    expect(cardEditSrc).toMatch(/const activeKey = ref\(null\)/);
+    expect(cardEditSrc).toMatch(/function tapCard\(c\)/);
+    // 渲染区绑 tapCard：点一下选中，再点一次才进配置
+    expect(cardEditSrc).toMatch(/@click="tapCard\(c\)"/);
+    expect(cardEditSrc).toMatch(/if \(activeKey\.value === c\.key\) \{ openEdit\(c\); return; \}/);
+    // 选中态有描边反馈（对齐 PC .pe-comp.active）
+    expect(cardEditSrc).toMatch(/\.ce-card\.active \{ border-color: var\(--design-primary\)/);
+    // 胶囊条/文字按钮那套旧类名必须清零
+    expect(cardEditSrc).not.toMatch(/class="ce-bar-wrap"/);
+    expect(cardEditSrc).not.toMatch(/class="ce-bar"/);
     expect(cardEditSrc).not.toMatch(/上移<\/text>/);
     expect(cardEditSrc).not.toMatch(/下移<\/text>/);
+  });
+
+  test('选中态跟着组件走：新增/复制后选中新项，删掉选中项则清空', () => {
+    // add：push 后 activeKey = 新项
+    expect(cardEditSrc).toMatch(/comps\.value\.push\(item\);[\s\S]*?activeKey\.value = item\.key/);
+    // dup：插入后 activeKey = 新项（对齐 PC dupComp 后 selected = 新组件）
+    expect(cardEditSrc).toMatch(/arr\.splice\(i \+ 1, 0, item\);[\s\S]*?activeKey\.value = item\.key/);
+    // remove：删的正是选中项时清掉，否则浮条会挂在一个已不存在的 key 上
+    expect(cardEditSrc).toMatch(/if \(activeKey\.value === c\.key\) activeKey\.value = null;/);
   });
 
   test('复制：dup 插到原组件后面、props 深拷贝、母版禁复制、受 COMP_MAX 约束', () => {
