@@ -98,13 +98,19 @@ describe('注册表与页面消费一致', () => {
 });
 
 describe('配置弹窗控件形态（2026-10-22 样式报修回归锁）', () => {
-  test('input 显式高度 + 水平 padding（MP 原生 input 不吃垂直 padding 撑高）', () => {
-    // 病根：原 .ce-input 只设 padding: var(--space-r3) var(--space-r4) → MP 端矮到一行字；
-    // 正确形态对齐 customers.vue 生产表单：height:80rpx + padding:0 水平
+  test('input 用视图包层承载边框/box-sizing，内层原生控件去边框只 width:100%（防 MP 溢出）', () => {
+    // 病根演进：① 只设 padding → MP 矮到一行；② width:100%+box-sizing:border-box → MP 按 100%+padding 撑宽溢出；
+    //   ③ 去掉 width（对齐 customers.vue）→ MP 原生 input 不设宽反而默认更宽仍溢出。
+    // 终解：用 .ce-input-wrap 视图包一层，边框/圆角/box-sizing 落在 view（MP 对 view 可靠），
+    //   原生 input/textarea 去边框去 padding、只 width:100% 填满包层，MP/H5 都不溢出。
     const style = cardEditSrc.slice(cardEditSrc.indexOf('<style scoped>'));
+    expect(style).toMatch(/\.ce-input-wrap\s*\{[^}]*box-sizing:\s*border-box/);
+    expect(style).toMatch(/\.ce-input-wrap\s*\{[^}]*border:\s*1rpx solid var\(--border\)/);
     expect(style).toMatch(/\.ce-input\s*\{[^}]*height:\s*80rpx/);
     expect(style).toMatch(/\.ce-input\s*\{[^}]*padding:\s*0\s+var\(--space-r4\)/);
-    expect(style).toMatch(/\.ce-input\s*\{[^}]*max-width:\s*100%/);
+    expect(style).toMatch(/\.ce-input\s*\{[^}]*border:\s*none/);
+    // 水平 padding 改由内层 ce-modal-pad 承载，scroll-view 不再直接 padding（避免 MP 尺寸退化）
+    expect(style).toMatch(/\.ce-modal-pad\s*\{[^}]*padding:\s*var\(--space-r3\)\s+var\(--space-r6\)/);
   });
 
   test('richtext 控件已实现（textarea 输 HTML 源码）', () => {

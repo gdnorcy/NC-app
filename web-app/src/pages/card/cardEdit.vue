@@ -62,24 +62,32 @@
     <view v-if="editing" class="ce-modal">
       <view class="ce-modal-t">{{ nameOf(editing.type) }}配置</view>
       <scroll-view scroll-y class="ce-modal-body">
-        <!-- v-for + v-if 拆成 template 包裹：同元素上 v-if 拿不到 v-for 作用域变量 -->
+        <!-- v-for + v-if 拆成 template 包裹：同元素上 v-if 拿不到 v-for 作用域变量。
+             ce-modal-pad 在 scroll-view 内承载水平 padding（避免 scroll-view 直接 padding
+             在 MP 端让子元素尺寸基准退化、输入框溢出）；原生 input/textarea 再用 .ce-input-wrap
+             视图包一层：边框/圆角/box-sizing 落在「普通 view」上（MP 对 view 的 box-sizing 可靠），
+             原生控件本身去边框去 padding、只 width:100% 填满包层，MP/H5 都不会溢出。 -->
+        <view class="ce-modal-pad">
         <template v-for="f in schemaOf(editing.type)" :key="f.key">
           <view v-if="fieldVisible(f)" class="ce-field">
             <text class="ce-label">{{ f.label }}</text>
-            <input
-              v-if="f.control === 'input' || f.control === 'link'"
-              class="ce-input"
-              v-model="editing.props[f.key]"
-              :placeholder="f.placeholder || ('请输入' + f.label)"
-              placeholder-class="ph"
-            />
-            <view v-else-if="f.control === 'richtext'" class="ce-rt-row">
-              <textarea
-                class="ce-textarea"
+            <view v-if="f.control === 'input' || f.control === 'link'" class="ce-input-wrap">
+              <input
+                class="ce-input"
                 v-model="editing.props[f.key]"
-                :placeholder="f.placeholder || '支持 <p> <b> <a> 等简单 HTML'"
+                :placeholder="f.placeholder || ('请输入' + f.label)"
                 placeholder-class="ph"
               />
+            </view>
+            <view v-else-if="f.control === 'richtext'" class="ce-rt-row">
+              <view class="ce-input-wrap">
+                <textarea
+                  class="ce-textarea"
+                  v-model="editing.props[f.key]"
+                  :placeholder="f.placeholder || '支持 <p> <b> <a> 等简单 HTML'"
+                  placeholder-class="ph"
+                />
+              </view>
               <text class="ce-rt-tip">换行请用 &lt;p&gt; 或 &lt;br&gt; 标签</text>
             </view>
             <view v-else-if="f.control === 'image'" class="ce-img-row" @click="pickImage(f.key)">
@@ -107,7 +115,9 @@
                 @click="editing.props[f.key] = col.value"
               ></view>
             </view>
-            <input class="ce-input ce-hex" v-model="editing.props[f.key]" placeholder="留空=透明，或 #RRGGBB" placeholder-class="ph" />
+            <view class="ce-input-wrap ce-hex-wrap">
+              <input class="ce-hex" v-model="editing.props[f.key]" placeholder="留空=透明，或 #RRGGBB" placeholder-class="ph" />
+            </view>
           </view>
           <view v-else-if="f.control === 'slider'" class="ce-slider-row">
             <slider
@@ -136,6 +146,7 @@
           </view>
           </view>
         </template>
+        </view>
       </scroll-view>
       <view class="ce-modal-btns">
         <view class="ce-mbtn cancel" @click="closeEdit">取消</view>
@@ -437,29 +448,32 @@ onMounted(load);
 }
 .ce-modal-t { text-align: center; font-size: var(--fs-6); font-weight: 500; color: var(--t1); padding: var(--space-r6) 0 var(--space-r1); }
 /* flex 列布局里 scroll-view 必须显式 flex:1 + min-height:0，否则 MP 端不定高不滚动 */
-.ce-modal-body { padding: var(--space-r3) var(--space-r6) var(--space-r1); flex: 1; min-height: 0; }
+/* scroll-view 直接 padding 在 MP 端会让子元素尺寸基准退化、输入框溢出；
+   水平 padding 改由内层 .ce-modal-pad 承载 */
+.ce-modal-body { flex: 1; min-height: 0; }
+.ce-modal-pad { padding: var(--space-r3) var(--space-r6) var(--space-r1); }
 .ce-field { margin-bottom: var(--space-r5); }
 .ce-label { display: block; font-size: var(--fs-4); color: var(--t1); margin-bottom: var(--space-r2); }
-/* 🔴 input 形态对齐 customers.vue 表单（生产已验证）：显式 height + 只给水平 padding。
-   MP 原生 input 不吃「垂直 padding 撑高」；且对 width:100%+box-sizing:border-box
-   组合不可靠——会按 100%+padding 撑宽溢出弹窗（用户报「宽度还是溢出」）。
-   正确形态是不设 width：原生 input 默认填满父容器（block 自动撑满 .ce-field），
-   弹窗 scroll-view 的 padding 内不会溢出。 */
+/* 🔴 原生 input/textarea 不吃 box-sizing:border-box、也不吃「父 scroll-view 的 padding」，
+   width:100% 或「不设宽」在 MP 上都溢出弹窗。解法是「视图包一层」：边框/背景/圆角/box-sizing
+   落在普通 view（.ce-input-wrap，MP 对 view 的 box-sizing 可靠），原生控件本身去边框去 padding、
+   只 width:100% 填满包层，MP/H5 都不会溢出。 */
+.ce-input-wrap {
+  width: 100%; box-sizing: border-box; display: flex;
+  border: 1rpx solid var(--border); border-radius: var(--radius-sm); background: var(--white);
+}
 .ce-input {
-  display: block;
-  height: 80rpx; line-height: 80rpx;
-  border: 1rpx solid var(--border); border-radius: var(--radius-sm);
-  padding: 0 var(--space-r4); font-size: var(--fs-4); background: var(--white);
+  flex: 1; width: 100%; box-sizing: border-box;
+  height: 80rpx; line-height: 80rpx; border: none;
+  padding: 0 var(--space-r4); font-size: var(--fs-4); background: transparent; color: var(--t1);
 }
 .ph { color: var(--decor-2); }
 
-/* 富文本内容：HTML 源码多行输入（MP textarea 需显式宽高约束） */
 .ce-rt-row { width: 100%; }
 .ce-textarea {
-  display: block;
-  min-height: 180rpx; border: 1rpx solid var(--border); border-radius: var(--radius-sm);
-  padding: var(--space-r3) var(--space-r4); font-size: var(--fs-4); background: var(--white);
-  line-height: 1.5;
+  flex: 1; width: 100%; box-sizing: border-box;
+  min-height: 180rpx; border: none; padding: var(--space-r3) var(--space-r4);
+  font-size: var(--fs-4); background: transparent; line-height: 1.5;
 }
 .ce-rt-tip { display: block; font-size: var(--fs-2); color: var(--decor); margin-top: var(--space-r1); }
 
@@ -483,7 +497,13 @@ onMounted(load);
 .ce-sw.on { outline: 3rpx solid var(--design-primary); }
 .ce-sw.none { background: var(--white); border-style: dashed; }
 /* hex 输入框显式定宽：补 box-sizing 让 200rpx 含边框+内边距，避免内容盒叠加 padding 后总宽溢出弹窗 */
-.ce-hex { width: 200rpx; flex-shrink: 0; box-sizing: border-box; }
+/* hex 输入框显式定宽：包层 ce-hex-wrap 用 box-sizing 让 200rpx 为总宽，内层 .ce-hex 去边框去 padding 不会溢出 */
+.ce-hex-wrap { width: 200rpx; flex: none; flex-shrink: 0; }
+.ce-hex {
+  flex: 1; width: 100%; box-sizing: border-box;
+  height: 80rpx; line-height: 80rpx; border: none;
+  padding: 0 var(--space-r4); font-size: var(--fs-4); background: transparent; color: var(--t1);
+}
 
 .ce-slider-row { display: flex; align-items: center; gap: var(--space-r4); }
 .ce-slider { flex: 1; }
