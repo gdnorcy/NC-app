@@ -4,7 +4,7 @@
        （已多次出现 notice 少圆点 / divider 双线 / rich-text 用错背景字段等）。
        抽成本组件后：详情页与装修页共用同一份结构与样式，装修页就是所见即所得。
        interactive=false 时（装修页）不触发跳转/拉起视频号，只把点击冒泡给父级处理。 -->
-  <block>
+  <view class="cci-root">
     <!-- 图片 -->
     <image
       v-if="type === 'image' && props.url && !imgFailed"
@@ -66,7 +66,7 @@
     >
       <rich-text class="cc-richtext" :nodes="sanitizeRichHtml(props.html || '<p>富文本内容</p>')" :style="richStyle"></rich-text>
     </view>
-  </block>
+  </view>
 </template>
 
 <script setup>
@@ -117,7 +117,7 @@ const btnStyle = computed(() => {
 const richStyle = computed(() => {
   const p = props.value;
   const s = { background: p.compBgColor || 'transparent' };
-  s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
+  s.borderRadius = (p.radiusTop == null ? 0 : p.radiusTop) + 'px ' + (p.radiusTop == null ? 0 : p.radiusTop) + 'px ' + (p.radiusBottom == null ? 0 : p.radiusBottom) + 'px ' + (p.radiusBottom == null ? 0 : p.radiusBottom) + 'px';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
   return s;
@@ -160,6 +160,7 @@ function onTap(kind, extra) {
 </script>
 
 <style scoped>
+.cci-root { width: 100%; display: block; }
 .cc-img { width: 100%; display: block; }
 /* 图片失败占位：真机没配图片域名时不再露白块 */
 .cc-img-fallback {
