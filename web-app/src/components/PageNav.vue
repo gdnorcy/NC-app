@@ -15,8 +15,9 @@
         </slot>
       </view>
 
-      <!-- 中间：标题（超长省略） -->
-      <view class="pnv-title-wrap">
+      <!-- 中间：标题（绝对定位覆盖整行 → 按屏宽居中，不是按剩余空间居中；
+           左右对称安全区由 navTitleSafePad 下发，避免压到返回键/胶囊） -->
+      <view class="pnv-title-wrap" :style="titlePadStyle">
         <text v-if="title" class="pnv-title" :style="{ color: color, fontSize: fontSize }">{{ title }}</text>
         <slot name="title"></slot>
       </view>
@@ -35,7 +36,7 @@
 </template>
 
 <script>
-import { navRootStyle, navBarRowStyle, getNavMetrics, goBack as navGoBack } from '../utils/navMetrics.js';
+import { navRootStyle, navBarRowStyle, getNavMetrics, navTitleSafePad, goBack as navGoBack } from '../utils/navMetrics.js';
 
 /**
  * 全站统一导航条（沉浸式）
@@ -83,6 +84,14 @@ export default {
       return navBarRowStyle();
     },
     /**
+     * 标题左右**对称**安全区：自带防御——只让出一侧就会重演「标题偏向返回键」。
+     * 居中本身由 CSS 绝对定位覆盖整行保证（按屏宽居中，与微信原生口径一致）。
+     */
+    titlePadStyle() {
+      const pad = navTitleSafePad();
+      return { padding: '0 ' + pad + 'px' };
+    },
+    /**
      * 右侧胶囊避让：微信「最小化 + 三个点」是原生控件、不可覆盖，
      * 右插槽若不额外让出胶囊宽度就会被压住（myCard「编辑」、集市页两个图标都被挡过）。
      * 只在**确实有右插槽内容**时占位，否则空插槽的 margin 也会把标题挤偏。
@@ -120,6 +129,7 @@ export default {
 .pnv-overlay { position: absolute; top: 0; left: 0; right: 0; }
 
 .pnv-bar {
+  position: relative; /* 标题绝对定位的包含块（abs 参照 padding box → 覆盖整行含左右 padding） */
   display: flex;
   align-items: center;
   width: 100%;
@@ -148,14 +158,20 @@ export default {
 .pnv-hover { opacity: 0.6; }
 
 .pnv-title-wrap {
-  flex: 1;
+  /* 绝对定位覆盖整行：居中的基准是「行宽=屏宽」，而不是「左右操作之间的剩余宽度」
+     —— 后者两侧不等宽（返回键≈26px vs 胶囊区≈94px），标题必然偏。
+     左右对称 padding 兜住重叠；pointer-events:none 让点击穿透给左右侧按钮。 */
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
   min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8rpx;
   overflow: hidden;
+  pointer-events: none;
 }
+/* 标题自身（含 #title 插槽内容）恢复可点击 */
+.pnv-title-wrap > * { pointer-events: auto; }
 .pnv-title {
   font-weight: 600;
   white-space: nowrap;

@@ -219,6 +219,17 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
     expect(cardEditSrc).toMatch(/:style="pvBodyStyle"/);
   });
 
+  test('预览入口不必滚到列表末尾：导航栏常驻 + 底部吸底双入口', () => {
+    // 组件一多，只放在列表最末就得滑到底才能预览（用户反馈）
+    expect(cardEditSrc).toMatch(/<PageNav title="装修我的名片" back>/);
+    expect(cardEditSrc).toMatch(/<template #right>\s*\n\s*<text class="ce-nav-preview" @click="openPreview">预览<\/text>/);
+    // 底部入口改为吸底（包裹层自带底色，防止列表内容从按钮两侧透出）
+    expect(cardEditSrc).toMatch(/class="ce-preview-bar-wrap"/);
+    expect(cardEditSrc).toMatch(/\.ce-preview-bar-wrap \{[\s\S]*?position: sticky;/);
+    expect(cardEditSrc).toMatch(/\.ce-preview-bar-wrap \{[\s\S]*?bottom: 0;/);
+    expect(cardEditSrc).toMatch(/\.ce-preview-bar-wrap \{[\s\S]*?background: var\(--bg-page\);/);
+  });
+
   test('预览渲染与 cardDetail 同口径：notice 圆点 / divider 单线 / 按钮共享尺寸 / 图片失败占位', () => {
     expect(cardEditSrc).toMatch(/import \{ buttonSizeStyle \} from '\.\.\/\.\.\/utils\/btnSize\.js'/);
     expect(cardEditSrc).toMatch(/Object\.assign\(s, buttonSizeStyle\(p\), \{ maxWidth: '100%' \}\)/);

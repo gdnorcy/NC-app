@@ -128,6 +128,28 @@ export function navBarRowStyle(opt = {}) {
   };
 }
 
+/**
+ * 导航「标题对称安全区」（px）——自绘导航标题居中问题的唯一口径。
+ *
+ * 病根（2026-10-21 用户反馈「很多页面的标题都不是居中的」）：
+ *   自绘导航行用 flex 摆放「左操作 / 标题 / 右操作 + 右侧胶囊避让」，标题 flex:1 居中时
+ *   是**按剩余空间居中**：左侧让出的是返回键（≈26px），右侧让出的是整块胶囊区（≈94px），
+ *   两边不等宽 → 标题视觉中心必然偏向返回键那一侧，且左右内容越不一样宽偏得越多。
+ *   微信原生 navigationBar 的口径是**按屏宽居中**，用户心里的「居中」也是这个。
+ *
+ * 正确做法：标题绝对定位到整行（left:0/right:0 覆盖含 padding 的整行宽）→ 天然按屏宽居中；
+ * 再用本函数返回的值做**左右对称** padding，兜住返回键/胶囊的重叠风险。
+ * ⚠️ 两侧必须同值：一边大一边小等于把刚才的偏移又写回来了。
+ *
+ * @returns {number} 左右各留出的 px（非小程序端无胶囊，取能避开返回键的保守值）
+ */
+export function navTitleSafePad() {
+  const m = getNavMetrics();
+  if (!m.isMp) return 56;
+  // 右侧：胶囊右侧避让 + 胶囊自身宽度；左侧：返回键命中区（64rpx≈32px）
+  return Math.max(m.capsuleRightPad + m.capsuleWidth, 56);
+}
+
 /** 页面内容需要额外让出的头部总高度（供 scroll-view / sticky 元素使用） */
 export function navTotalHeight() {
   const m = getNavMetrics();

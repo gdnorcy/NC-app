@@ -5,7 +5,13 @@
        （视频号是 finderUserName+feedId，不是旧文档的 feedToken）；母版组件由服务端
        注入 isLock，本页只读置灰；保存走 PUT 整存（server card.js 归属校验+白名单）。 ===== -->
   <view class="ce-page" :style="[themeStyle, brandVars]">
-    <PageNav title="装修我的名片" back></PageNav>
+    <!-- 预览入口放导航栏右侧：组件一多，底部按钮要滚到最后才能点到（用户反馈）。
+         PageNav 是 sticky 的（标题层已绝对居中，加右插槽不会把标题挤偏），任何滚动位置都可达。 -->
+    <PageNav title="装修我的名片" back>
+      <template #right>
+        <text class="ce-nav-preview" @click="openPreview">预览</text>
+      </template>
+    </PageNav>
 
     <view class="ce-body">
       <view class="ce-desc">
@@ -40,9 +46,13 @@
         </block>
       </view>
 
-      <view class="ce-preview-btn" @click="openPreview">
-        <text class="ce-preview-btn-ico">👁</text>
-        <text>预览效果（含未保存修改）</text>
+      <!-- 底部入口保留并改为吸底：列表再长也不用滚到最后。
+           现两个常驻入口：导航栏右侧「预览」（滚动位置无关）+ 本吸底按钮 -->
+      <view class="ce-preview-bar-wrap">
+        <view class="ce-preview-btn" @click="openPreview">
+          <text class="ce-preview-btn-ico">👁</text>
+          <text>预览效果（含未保存修改）</text>
+        </view>
       </view>
 
       <view class="ce-add" @click="showPanel = true">
@@ -761,6 +771,20 @@ onMounted(load);
 .ce-section-arrow { font-size: var(--fs-2); }
 
 /* ===== 页内预览按钮 + 全屏预览层（z 与弹窗同层 var(--z-popup)，DOM 顺序靠后自然压顶） ===== */
+/* 导航栏右侧「预览」入口：列表再长也不用滚，PageNav 是 sticky 的 */
+.ce-nav-preview {
+  font-size: var(--fs-4);
+  color: var(--design-primary);
+  padding: var(--space-r3) var(--space-r2);
+}
+/* 底部入口吸底包裹层：自带页面底色，避免列表内容从胶囊按钮两侧透出来 */
+.ce-preview-bar-wrap {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: var(--space-r3) 0;
+  background: var(--bg-page);
+}
 .ce-preview-btn {
   margin-top: var(--space-r4); margin-bottom: var(--space-r3); height: 80rpx;
   border-radius: var(--radius-pill); background: var(--white);

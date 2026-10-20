@@ -29,7 +29,7 @@
         </view>
 
         <!-- 中间部分 -->
-        <view class="dnew-title" @click="tapLink(layer.middle.link)">
+        <view class="dnew-title" :style="titlePadStyle" @click="tapLink(layer.middle.link)">
           <image v-if="layer.middle.type === 'image' && layer.middle.image" class="dnew-img dnew-img-96" :src="resolveUrl(layer.middle.image)" mode="aspectFit" />
           <view v-else-if="layer.middle.type === 'search'" class="dnew-search" :style="searchStyle(layer)" @click.stop="goSearch">
             <SIcon name="dynamic" :color="layer.middle.search.iconColor || '#3d404d'" size="small" />
@@ -55,7 +55,7 @@
 
 <script>
 import { API_DOMAIN } from '../utils/cardApi.js';
-import { getNavMetrics } from '../utils/navMetrics.js';
+import { getNavMetrics, navTitleSafePad } from '../utils/navMetrics.js';
 import SIcon from './SIcon.vue';
 
 export default {
@@ -79,6 +79,10 @@ export default {
       const h = this.header || {};
       if (h.scheme === 2 && h.ew) return h.ew;
       return null;
+    },
+    // 标题左右对称安全区（同 PageNav/DesignNav 口径）：叠在绝对居中上防止压到左右操作区
+    titlePadStyle() {
+      return { padding: '0 ' + navTitleSafePad() + 'px' };
     },
     titleColor() {
       const ew = this.ew;
@@ -156,6 +160,7 @@ export default {
 }
 .dn-status { width: 100%; flex: 0 0 auto; }
 .dnew-line {
+  position: relative; /* 标题绝对定位的包含块 */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -183,19 +188,25 @@ export default {
   overflow: hidden;
 }
 .dnew-title {
-  flex: 1;
+  /* 绝对定位覆盖整行 → 按屏宽居中（同 PageNav/DesignNav 口径）；居中不再取决于左右两侧内容的宽度 */
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;
-  padding: 0 16rpx;
   overflow: hidden;
+  pointer-events: none;
 }
+.dnew-title > * { pointer-events: auto; }
 .dnew-title-text {
   font-size: 34rpx;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
+  /* width:100% 会撑满标题层 → flex 的 justify-content 失去作用，必须靠 text-align 真正居中 */
+  text-align: center;
+  text-overflow: ellipsis;
   text-overflow: ellipsis;
   max-width: 100%;
 }
