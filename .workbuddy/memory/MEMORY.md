@@ -4,7 +4,7 @@
 
 ## 装修组件
 - 🔴 改一处同步三处：`componentRegistry.js`→`ComponentRender.vue`(v-if 链尾无兜底)→`PageEditor.vue`(schema+control)；C 端 `DesignPage.vue` 独立重复。
-- 🔴 **「间距/大小不真实」先数壳层数**：曾三层壳（body 12px+card 10px+render 6px）把组件捏窄 32px+白底圆角，像装在盒子里。调参永远调不对，要**删壳**，WYSIWYG 只留一层边距对齐真实页。选中环禁画卡片边框（1rpx 各占 0.5px 破坏像素对齐）→ 独立绝对定位+`pointer-events:none`。
+- 🔴 **「间距/大小不真实」先数壳层数**：装修页曾三层壳（body 12px + card 10px + render 6px）把组件捏窄 32px+白底圆角，像装在盒子里；第四轮又抓出 `.ce-card{padding:4px;margin-bottom:6px}` 把组件间距撑到 20px（真实页 6px）。调参永远调不对，要**删壳**——间距 100% 由组件自身 marginTop 决定，容器只保留一层边距（ce-body 左右 28rpx = 真实页 `.cc-list`）。选中环禁画卡片边框（1rpx 各占 0.5px 破坏像素对齐）→ 独立绝对定位+`pointer-events:none`。**「A 和 B 不一致」先各测再改**：最小化测量页+headless 实测五场景，别三个一起瞎调；spec 记忆与实测冲突时信实测（flex column 子项并不吞子元素 margin）。
 - 🔴 同步需求要连机制一起搬：「对齐设计中心边条」= 浮在组件上不占空间+名字进条省标题行+hover 浮现**一整套**，只搬皮会做出更占地方的常驻大条（返工三次）。手机无 hover→`activeKey`+tapCard，选中再点=进配置；锁标记常驻不随浮条隐。
 - 背景两字段：bgColor=自身色/compBgColor=容器色（`containerStyle.js`）。显式 0 必须内联。
 
