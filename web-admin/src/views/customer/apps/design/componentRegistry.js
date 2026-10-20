@@ -149,7 +149,7 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 0, marginTop: 0, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
         { label: '单图', value: 'single' },
@@ -308,7 +308,7 @@ export const componentRegistry = [
     name: '按钮',
     group: 'basic',
     icon: 'button',
-    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 8, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 0, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
@@ -349,7 +349,7 @@ export const componentRegistry = [
     name: '分割线',
     group: 'basic',
     icon: 'divider',
-    defaultProps: { text: '', color: '#E5E6EB', thickness: 1, lineStyle: 'solid', marginTop: 14, marginBottom: 14, memberLevel: 'all' },
+    defaultProps: { text: '', color: '#E5E6EB', thickness: 1, lineStyle: 'solid', marginTop: 6, marginBottom: 14, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', placeholder: '选填，显示在分割线中间' },
       { key: 'color', label: '颜色', control: 'color', section: 'style' },
@@ -365,7 +365,7 @@ export const componentRegistry = [
     name: '公告',
     group: 'basic',
     icon: 'notice',
-    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 0, marginBottom: 0, radiusTop: 8, radiusBottom: 8, memberLevel: 'all' },
+    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
@@ -802,7 +802,7 @@ export const componentRegistry = [
       html: '<p>富文本内容</p>',
       bottomBg: 'transparent', compBgColor: '#ffffff',
       style: 'default', borderColor: '#E5E6EB',
-      marginTop: 0, marginBottom: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0,
+      marginTop: 6, marginBottom: 0, marginLR: 0, radiusTop: 6, radiusBottom: 6,
       memberLevel: 'all',
     },
     schema: [

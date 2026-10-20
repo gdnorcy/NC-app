@@ -24,10 +24,12 @@
             <view class="ce-head">
               <text class="ce-icon">{{ iconOf(c.type) }}</text>
               <text class="ce-name">{{ nameOf(c.type) }}</text>
+              <text v-if="c.props && c.props.hidden" class="ce-hidden-tag">已隐藏</text>
               <text v-if="c.isLock" class="ce-lock-tag">企业母版</text>
             </view>
             <view class="ce-preview">{{ previewOf(c) }}</view>
             <view class="ce-ops">
+              <text class="ce-op" :class="{ off: c.isLock }" @click="toggleHide(c)">{{ c.props && c.props.hidden ? '显示' : '隐藏' }}</text>
               <text class="ce-op" :class="{ off: c.isLock || !canMove(i, -1) }" @click="move(i, -1)">上移</text>
               <text class="ce-op" :class="{ off: c.isLock || !canMove(i, 1) }" @click="move(i, 1)">下移</text>
               <text class="ce-op" :class="{ off: c.isLock }" @click="openEdit(c)">编辑</text>
@@ -36,6 +38,11 @@
             <view v-if="c.isLock" class="ce-lock-tip">企业母版组件，不可修改</view>
           </view>
         </block>
+      </view>
+
+      <view class="ce-preview-btn" @click="openPreview">
+        <text class="ce-preview-btn-ico">👁</text>
+        <text>预览效果（含未保存修改）</text>
       </view>
 
       <view class="ce-add" @click="showPanel = true">
@@ -68,8 +75,14 @@
              视图包一层：边框/圆角/box-sizing 落在「普通 view」上（MP 对 view 的 box-sizing 可靠），
              原生控件本身去边框去 padding、只 width:100% 填满包层，MP/H5 都不会溢出。 -->
         <view class="ce-modal-pad">
-        <template v-for="f in schemaOf(editing.type)" :key="f.key">
-          <view v-if="fieldVisible(f)" class="ce-field">
+        <!-- 字段按 section 分组：内容段默认展开，样式段默认折叠（按钮配置 12 个字段一屏放不下，
+             折叠后默认只露 文字/跳转）；editFields 在样式段前插入一个折叠开关行 -->
+        <template v-for="f in editFields" :key="f.__toggle ? '__style-toggle' : f.key">
+          <view v-if="f.__toggle" class="ce-section-toggle" @click="styleOpen = !styleOpen">
+            <text class="ce-section-t">{{ styleOpen ? '收起样式设置' : '样式设置（颜色/边距/圆角等）' }}</text>
+            <text class="ce-section-arrow">{{ styleOpen ? '▴' : '▾' }}</text>
+          </view>
+          <view v-else-if="fieldVisible(f) && (f.section !== 'style' || styleOpen)" class="ce-field">
             <text class="ce-label">{{ f.label }}</text>
             <view v-if="f.control === 'input' || f.control === 'link'" class="ce-input-wrap">
               <input
@@ -153,6 +166,83 @@
         <view class="ce-mbtn save" @click="saveEdit">保存</view>
       </view>
     </view>
+
+    <!-- 页内实时预览：全屏遮罩按 comps 内存态渲染（不用退到名片详情页）；
+         与 cardDetail 渲染同口径：hidden 组件不显示，母版+个人按序排列 -->
+    <view v-if="showPreview" class="ce-mask" @click="showPreview = false"></view>
+    <view v-if="showPreview" class="ce-preview-layer">
+      <view class="ce-preview-head">
+        <text class="ce-preview-title">预览效果</text>
+        <text class="ce-preview-tip">含未保存修改 · 已隐藏组件不显示</text>
+        <text class="ce-preview-close" @click="showPreview = false">完成</text>
+      </view>
+      <scroll-view scroll-y class="ce-preview-body">
+        <view class="ce-preview-canvas">
+          <template v-for="c in previewComps" :key="c.key">
+            <!-- 图片 -->
+            <image
+              v-if="c.type === 'image' && c.props.url"
+              class="pv-img"
+              :src="c.props.url"
+              mode="widthFix"
+              :style="{ marginTop: (c.props.marginTop || 0) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px', borderRadius: (c.props.radius || 0) + 'px' }"
+            />
+            <!-- 视频号（封面+标题示意） -->
+            <view
+              v-else-if="c.type === 'channel-video'"
+              class="pv-video"
+              :style="{ marginTop: (c.props.marginTop || 0) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px', background: c.props.bgColor || 'transparent' }"
+            >
+              <image v-if="c.props.cover" class="pv-video-cover" :src="c.props.cover" mode="aspectFill" />
+              <view v-else class="pv-video-cover pv-video-empty"><text>🎬</text></view>
+              <view class="pv-video-play"><text>▶</text></view>
+              <view v-if="c.props.title || c.props.desc" class="pv-video-info">
+                <text v-if="c.props.title" class="pv-video-t">{{ c.props.title }}</text>
+                <text v-if="c.props.desc" class="pv-video-d">{{ c.props.desc }}</text>
+              </view>
+            </view>
+            <!-- 文本 -->
+            <view
+              v-else-if="c.type === 'notice'"
+              class="pv-notice"
+              :style="{ marginTop: (c.props.marginTop || 0) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px', background: c.props.bgColor || 'transparent', color: c.props.color || '#1d2129', fontSize: (c.props.fontSize || 14) + 'px', fontWeight: c.props.bold ? 600 : 400, borderRadius: (c.props.radiusTop || 0) + 'px ' + (c.props.radiusTop || 0) + 'px ' + (c.props.radiusBottom || 0) + 'px ' + (c.props.radiusBottom || 0) + 'px' }"
+            >{{ c.props.text }}</view>
+            <!-- 分割线 -->
+            <view
+              v-else-if="c.type === 'divider'"
+              class="pv-divider"
+              :style="{ marginTop: (c.props.marginTop || 0) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }"
+            >
+              <view class="pv-divider-line" :style="{ borderTopWidth: (c.props.thickness || 1) + 'px', borderTopStyle: c.props.lineStyle || 'solid', borderTopColor: c.props.color || '#E5E6EB' }"></view>
+              <text v-if="c.props.text" class="pv-divider-text">{{ c.props.text }}</text>
+              <view v-if="c.props.text" class="pv-divider-line" :style="{ borderTopWidth: (c.props.thickness || 1) + 'px', borderTopStyle: c.props.lineStyle || 'solid', borderTopColor: c.props.color || '#E5E6EB' }"></view>
+            </view>
+            <!-- 空白占位 -->
+            <view
+              v-else-if="c.type === 'spacer'"
+              :style="{ height: (c.props.height || 20) + 'px', background: c.props.bgColor || 'transparent' }"
+            ></view>
+            <!-- 按钮 -->
+            <view
+              v-else-if="c.type === 'button'"
+              class="pv-btn-row"
+              :style="{ marginTop: (c.props.marginTop || 0) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px' }"
+            >
+              <view class="pv-btn" :style="pvBtnStyle(c)">{{ c.props.text || '按钮' }}</view>
+            </view>
+            <!-- 富文本 -->
+            <view
+              v-else-if="c.type === 'rich-text'"
+              class="pv-richtext"
+              :style="{ marginTop: (c.props.marginTop || 0) + 'px', marginBottom: (c.props.marginBottom || 0) + 'px', background: c.props.compBgColor || 'transparent', borderRadius: (c.props.radiusTop || 0) + 'px ' + (c.props.radiusTop || 0) + 'px ' + (c.props.radiusBottom || 0) + 'px ' + (c.props.radiusBottom || 0) + 'px' }"
+            >
+              <rich-text :nodes="c.props.html || ''"></rich-text>
+            </view>
+          </template>
+          <view v-if="!previewComps.length" class="ce-preview-empty">还没有可显示的组件</view>
+        </view>
+      </scroll-view>
+    </view>
   </view>
 </template>
 
@@ -194,12 +284,31 @@ const loadFailedMsg = ref('加载失败，请检查网络后重试');
 const showPanel = ref(false);
 const editing = ref(null); // { key, type, props } 编辑中的副本
 const saving = ref(false);
+// 弹窗样式段折叠态（每次打开重置为收起，默认只露内容字段）
+const styleOpen = ref(false);
+// 页内实时预览（含未保存修改，不用退到名片详情页）
+const showPreview = ref(false);
 // 图片加载失败的 key 集合：示例图走网络图（需 request 合法域名），真机域名没配时
 // <image> 会露出 background 灰底像「灰块」——失败即回退到上传占位，不展示灰块
 const imgFailed = ref(new Set());
 
 // 个人自建组件（母版不含）；保存只提交这部分
 const mine = computed(() => comps.value.filter((c) => !c.isLock));
+
+// 预览列表：过滤掉隐藏组件（与 cardDetail 渲染口径一致）
+const previewComps = computed(() => comps.value.filter((c) => !(c.props && c.props.hidden)));
+
+// 弹窗字段按 section 分组：在第一个样式字段前插入折叠开关行（无样式段的组件如视频号不插）
+const editFields = computed(() => {
+  if (!editing.value) return [];
+  const out = [];
+  let toggleAdded = false;
+  for (const f of schemaOf(editing.value.type)) {
+    if (f.section === 'style' && !toggleAdded) { out.push({ __toggle: true }); toggleAdded = true; }
+    out.push(f);
+  }
+  return out;
+});
 
 function iconOf(type) { return ICONS[type] || '📦'; }
 function nameOf(type) { const d = getCompDef(type); return d ? d.name : '组件'; }
@@ -220,6 +329,24 @@ function previewOf(c) {
     }
     default: return '';
   }
+}
+
+// 预览按钮样式（近似 cardDetail 的 buttonSizeStyle：宽度基准=视口百分比）
+function pvBtnStyle(c) {
+  const p = c.props || {};
+  const s = {
+    borderRadius: (p.radius || 0) + 'px',
+    color: p.textColor || '#ffffff',
+    width: p.widthMode === 'auto' ? 'auto' : (p.widthPercent || 100) + '%',
+    marginLeft: (p.boxOffsetX || 0) + 'px',
+  };
+  if (p.btnStyle === 'outline') {
+    s.background = 'transparent';
+    s.border = '1px solid ' + (p.strokeColor || '#165DFF');
+  } else {
+    s.background = p.bgColor || '#165DFF';
+  }
+  return s;
 }
 
 // schema 条件显隐（对齐 admin 的 when：依赖字段不匹配时整行隐藏，如「描边色」仅描边样式显示）
@@ -275,9 +402,18 @@ function add(type) {
     return;
   }
   showPanel.value = false;
-  const item = { key: `n${Date.now()}${keySeq++}`, type, props: compDefaultProps(type), isLock: false };
+  // hidden 显式初始化：显示/隐藏开关的数据位（服务端 props 整包透传，无需白名单变更）
+  const item = { key: `n${Date.now()}${keySeq++}`, type, props: { ...compDefaultProps(type), hidden: false }, isLock: false };
   comps.value.push(item);
   openEdit(item); // 新增后直接进配置，必填项（视频号ID/视频ID）当场补
+}
+
+// 显示/隐藏开关：hidden 存 props（cardDetail 渲染过滤），母版不可切换
+function toggleHide(c) {
+  if (c.isLock) return;
+  const next = !(c.props && c.props.hidden);
+  c.props = { ...(c.props || {}), hidden: next };
+  saveAll(next ? '已隐藏' : '已显示');
 }
 
 function move(i, dir) {
@@ -307,8 +443,11 @@ function openEdit(c) {
   if (c.isLock) return;
   // 深拷贝 props：弹窗内改动不直接落列表，点保存才生效
   editing.value = { key: c.key, type: c.type, props: JSON.parse(JSON.stringify(c.props || {})) };
+  styleOpen.value = false; // 每次打开默认收起样式段
 }
 function closeEdit() { editing.value = null; }
+
+function openPreview() { showPreview.value = true; }
 
 function saveEdit() {
   const target = comps.value.find((x) => x.key === editing.value.key);
@@ -447,10 +586,10 @@ onMounted(load);
   background: var(--white); border-radius: var(--radius-lg); display: flex; flex-direction: column;
 }
 .ce-modal-t { text-align: center; font-size: var(--fs-6); font-weight: 500; color: var(--t1); padding: var(--space-r6) 0 var(--space-r1); }
-/* flex 列布局里 scroll-view 必须显式 flex:1 + min-height:0，否则 MP 端不定高不滚动 */
-/* scroll-view 直接 padding 在 MP 端会让子元素尺寸基准退化、输入框溢出；
-   水平 padding 改由内层 .ce-modal-pad 承载 */
-.ce-modal-body { flex: 1; min-height: 0; }
+/* MP 的 scroll-view 必须显式定高才滚动：flex:1+min-height:0 在 MP 端不定高 → 不滚、
+   内容顶出弹窗压住底部按钮（真机截图实证）。46vh ≈ 弹窗 max-height 76vh 减标题/按钮区；
+   样式段默认折叠后内容更短，多余空间在滚动区内留白即可 */
+.ce-modal-body { flex: none; height: 46vh; }
 .ce-modal-pad { padding: var(--space-r3) var(--space-r6) var(--space-r1); }
 .ce-field { margin-bottom: var(--space-r5); }
 .ce-label { display: block; font-size: var(--fs-4); color: var(--t1); margin-bottom: var(--space-r2); }
@@ -522,4 +661,69 @@ onMounted(load);
 .ce-mbtn { flex: 1; height: 80rpx; line-height: 80rpx; text-align: center; border-radius: var(--radius-sm); font-size: var(--fs-5); }
 .ce-mbtn.cancel { background: var(--bg-hover); color: var(--t2); }
 .ce-mbtn.save { background: var(--design-primary); color: var(--white); }
+
+/* ===== 组件显示/隐藏开关 ===== */
+.ce-hidden-tag {
+  font-size: var(--fs-1); color: var(--decor-2); background: var(--bg-hover);
+  border-radius: var(--radius-sm); padding: var(--space-r1) var(--space-r2); margin-right: var(--space-r2);
+}
+
+/* ===== 弹窗 section 折叠开关行 ===== */
+.ce-section-toggle {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-r1);
+  padding: var(--space-r3) 0; margin-bottom: var(--space-r4);
+  border-top: 1rpx dashed var(--border);
+  color: var(--design-primary); font-size: var(--fs-3);
+}
+.ce-section-arrow { font-size: var(--fs-2); }
+
+/* ===== 页内预览按钮 + 全屏预览层（z 与弹窗同层 var(--z-popup)，DOM 顺序靠后自然压顶） ===== */
+.ce-preview-btn {
+  margin-top: var(--space-r4); margin-bottom: var(--space-r3); height: 80rpx;
+  border-radius: var(--radius-pill); background: var(--white);
+  border: 1rpx solid var(--design-primary); color: var(--design-primary);
+  display: flex; align-items: center; justify-content: center; gap: var(--space-r2);
+  font-size: var(--fs-4);
+}
+.ce-preview-btn-ico { font-size: var(--fs-5); }
+.ce-preview-layer {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: var(--z-popup); background: var(--bg-page);
+  display: flex; flex-direction: column;
+}
+.ce-preview-head {
+  display: flex; align-items: center; padding: var(--space-r4) var(--space-r5);
+  background: var(--white); border-bottom: 1rpx solid var(--border);
+}
+.ce-preview-title { font-size: var(--fs-5); color: var(--t1); font-weight: 500; }
+.ce-preview-tip { flex: 1; text-align: center; font-size: var(--fs-2); color: var(--decor); }
+.ce-preview-close { font-size: var(--fs-4); color: var(--design-primary); }
+.ce-preview-body { flex: 1; min-height: 0; }
+.ce-preview-canvas { padding: var(--space-r5); }
+.ce-preview-empty { text-align: center; color: var(--decor); font-size: var(--fs-3); padding: 120rpx 0; }
+
+/* 预览画布内的轻量渲染（近似 cardDetail 真实渲染：边距/圆角/颜色走 props 内联） */
+.pv-img { width: 100%; display: block; }
+.pv-video { position: relative; border-radius: var(--radius-md); overflow: hidden; }
+.pv-video-cover { width: 100%; height: 360rpx; display: block; }
+.pv-video-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-card); font-size: var(--fs-8); }
+.pv-video-play {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 96rpx; height: 96rpx; border-radius: var(--radius-pill);
+  background: var(--bg-mask); display: flex; align-items: center; justify-content: center;
+  color: var(--white); font-size: var(--fs-6);
+}
+.pv-video-info { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--space-r3) var(--space-r4); background: var(--bg-mask); }
+.pv-video-t { display: block; color: var(--white); font-size: var(--fs-4); font-weight: 500; }
+.pv-video-d { display: block; color: var(--white); font-size: var(--fs-2); margin-top: var(--space-r1); }
+.pv-notice { padding: var(--space-r3) var(--space-r4); line-height: 1.6; }
+.pv-divider { display: flex; align-items: center; gap: var(--space-r3); }
+.pv-divider-line { flex: 1; border-top: 1px solid var(--border); }
+.pv-divider-text { font-size: var(--fs-2); color: var(--decor); }
+.pv-btn-row { display: flex; }
+.pv-btn {
+  height: 88rpx; line-height: 88rpx; text-align: center; font-size: var(--fs-4);
+  padding: 0 var(--space-r6); box-sizing: border-box;
+}
+.pv-richtext { padding: var(--space-r4); font-size: var(--fs-3); color: var(--t1); line-height: 1.6; overflow: hidden; }
 </style>
