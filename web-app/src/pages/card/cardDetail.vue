@@ -295,11 +295,13 @@
       </view>
 
       <!-- 自定义装修组件（母版+个人；cardEdit.vue 管理，type/props 对齐 componentRegistry）
-           🔴 渲染只此一份：与装修页共用 <CardCompItem>，改渲染必须改那里，
+           🔴 渲染只此一份：与装修页共用「CardCompItem」，改渲染必须改那里，
              否则又会出现「预览看着对、详情页不对」的两端漂移（已多次踩） -->
       <view v-if="shownComps.length" class="cc-list">
         <CardCompItem v-for="(c, i) in shownComps" :key="i" :comp="c" class="cc-item" />
       </view>
+    </view>
+
     <!-- 作品面板 -->
     <view class="tab-panel" v-if="activeTab === 'works'">
       <view class="sec-t">{{ worksLabelText }}<small>品牌案例</small></view>
