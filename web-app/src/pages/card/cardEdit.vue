@@ -43,10 +43,12 @@
               </view>
             </view>
             <!-- 操作条：1:1 对齐设计中心画布的 `.pe-comp-tools` —— 主色浮条 + 序号 + 组件名 + 图标，
-                 **浮在卡片右上角**（不另占空间，渲染区不会被推走 = 真所见即所得），
+                 **浮在组件右上角**（不另占空间，渲染区不会被推走 = 真所见即所得），
                  **选中才浮现**（PC 靠 hover，手机没有 hover，用点选代替）。
-                 🔴 为什么不贴卡片外沿：卡片间距只有 20rpx，而浮条约 46rpx 高，
-                    贴外沿会压到上一张卡；也不放进 .ce-render（它有 overflow:hidden 会被裁）。
+                 🔴 为什么不贴组件外沿：组件间距只有 6px（组件自身 marginTop），
+                    浮条约 46rpx 高，贴外沿会压到上一张卡；也不放进 .ce-render（它有 overflow:hidden 会被裁）。
+                    浮条 4px 内嵌是「压角浮标」：与 PC 设计中心一样允许短暂遮住组件一角，
+                    这是选中态才有的临时态，不影响未选中时的所见即所得。
                  🔴 复制图标用两个真实 view 叠出，不用 U+29C9 那个「双联方框」字符：
                     它在小程序系统字体里大概率是豆腐块；SIcon 的 MP 端是预生成 PNG、
                     颜色写死在文件名里，做不出白色变体。（测试禁止本文件出现该字形，
@@ -525,7 +527,13 @@ onMounted(load);
 /* 设计令牌纪律：新页面一律 var(--token)（tokenAudit.test.js 扫裸值）；
    --design-primary 由页面根 themeStyle/brandVars 注入，无需 hex 兜底 */
 .ce-page { min-height: 100vh; background: var(--bg-page); }
-.ce-body { padding: var(--space-r5) var(--space-r4) 160rpx; }
+/* 🔴 间距口径（2026-10-21 三轮返工后定稿）：装修页 = 预览层 = 真实名片页，三者逐像素一致。
+   真实页 `.cc-list { margin: 0 28rpx }`（14px）+ 组件自身 marginTop（默认 6px）就是全部间距。
+   本页曾因 `.ce-card` 带 padding(4px)×2 + margin-bottom(6px)，组件间距被撑到 20px，
+   用户报「设计和预览差距大，主要是组件与组件的间隔」——**外壳每层都合理，加起来就失真**。
+   所以：ce-body 左右直接写 28rpx（与 .cc-list 同值，补偿掉卡片原有的 4px padding），
+   ce-card 零 padding 零 margin-bottom，间距只由组件自身 marginTop 决定。 */
+.ce-body { padding: var(--space-r5) 28rpx 160rpx; }
 
 .ce-desc {
   font-size: var(--fs-3); color: var(--decor); line-height: 1.6;
@@ -538,16 +546,14 @@ onMounted(load);
 .ce-empty-t { font-size: var(--fs-5); color: var(--t2); font-weight: 500; }
 .ce-empty-d { font-size: var(--fs-3); color: var(--decor); margin-top: var(--space-r2); }
 
-/* 🔴 卡片不再是「预览盒子」：无底色、无边框。
-   左右留白 = --space-r4(10px) + --space-r1(4px) = 14px = 28rpx，
-   与真实名片详情页 `.cc-list { margin: 0 28rpx }` **逐像素一致** ——
-   旧版左右各 30px（12+12+6），组件被捏窄 32px 还多一圈白底圆角框，
-   看着像「装在盒子里预览」而不是真实名片，用户报「间距太大、不真实」。
+/* 🔴 卡片不再是「预览盒子」，也不再是「间距外壳」：无底色（母版 lock 除外）、无边框、
+   **零 padding、零 margin-bottom**。组件间距 100% 由组件自身 marginTop（默认 6px）决定，
+   与真实名片页 `.cc-list` 逐像素一致（headless 实测：三场景 x/width/gap 全等）。
+   旧版 padding 4px×2 + margin-bottom 6px 把间距撑到 20px（真实页 6px）→「设计预览两张皮」。
    🔴 选中框**不画在卡片边框上**：那会各占 0.5px 把组件捏窄 1px，
      改用独立绝对定位的 .ce-ring（见下），零布局影响。 */
 .ce-card {
   position: relative;
-  padding: var(--space-r1); margin-bottom: var(--space-r2);
   border-radius: var(--radius-sm);
 }
 /* 选中环：absolute + inset 0，只描边不占布局（对齐 PC `.pe-comp.active` 的选中框）。
@@ -569,9 +575,9 @@ onMounted(load);
 .ce-render-mask-t { font-size: var(--fs-3); color: var(--white); }
 .pv-item { width: 100%; }
 .ce-card.lock { background: var(--bg-card); }
-/* 母版标记常驻左上角：操作条是选中才浮现的，锁状态不能跟着隐掉 */
+/* 母版标记常驻左上角：操作条是选中才浮现的，锁状态不能跟着隐掉。
+   卡片已零 padding，徽标 4px 内嵌 = 压角浮标（与操作条同思路，PC 设计中心的锁标记也是压角的） */
 .ce-lock-badge {
-  /* 贴卡片内沿：卡片内距只剩 4px，徽标再往里就跑进组件内容里了 */
   position: absolute; left: var(--space-r1); top: var(--space-r1); z-index: 2;
   font-size: var(--fs-1); color: var(--brand-orange); background: var(--bg-hover);
   border-radius: var(--radius-sm); padding: 2rpx 8rpx;
@@ -782,7 +788,9 @@ onMounted(load);
 .ce-preview-title { flex: 1; text-align: center; font-size: var(--fs-5); color: var(--t1); font-weight: 500; }
 .ce-preview-done { font-size: var(--fs-4); color: var(--design-primary); padding: var(--space-r3); }
 .ce-preview-body { flex: none; }
-.ce-preview-canvas { padding: var(--space-r2) var(--space-r5) var(--space-r6); }
+/* 预览画布：左右 28rpx 与真实页 `.cc-list { margin: 0 28rpx }` 同值——
+   预览 = 真实效果的最后一块拼图（旧值 24rpx 会让组件比真实页宽 4px） */
+.ce-preview-canvas { padding: var(--space-r2) 28rpx var(--space-r6); }
 .ce-preview-hint { font-size: var(--fs-2); color: var(--decor); text-align: center; padding: var(--space-r2) 0 var(--space-r4); }
 .ce-preview-empty { text-align: center; color: var(--decor); font-size: var(--fs-3); padding: 120rpx 0; }
 
