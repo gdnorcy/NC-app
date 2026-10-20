@@ -86,8 +86,8 @@ describe('注册表与页面消费一致', () => {
     expect(cardEditSrc).toMatch(/v-for="t in CARD_COMP_REGISTRY"/);
   });
 
-  test('新增组件用 compDefaultProps 深拷贝默认值', () => {
-    expect(cardEditSrc).toMatch(/props: compDefaultProps\(type\)/);
+  test('新增组件用 compDefaultProps 深拷贝默认值（含 hidden 初始位）', () => {
+    expect(cardEditSrc).toMatch(/props: \{ \.\.\.compDefaultProps\(type\), hidden: false \}/);
     // 深拷贝验证：改返回值不污染注册表
     const p = compDefaultProps('notice');
     p.text = '改坏了';
@@ -118,10 +118,10 @@ describe('配置弹窗控件形态（2026-10-22 样式报修回归锁）', () =>
     expect(cardEditSrc).toContain('class="ce-textarea"');
   });
 
-  test('schema when 条件显隐：v-for 拆 template 包裹 + fieldVisible', () => {
+  test('schema when 条件显隐：editFields 分组渲染 + fieldVisible', () => {
     // 病根：同元素 v-for+v-if 拿不到作用域变量；条件字段（描边色/宽度百分比）必须整行隐藏
-    expect(cardEditSrc).toMatch(/<template v-for="f in schemaOf\(editing\.type\)"/);
-    expect(cardEditSrc).toMatch(/<view v-if="fieldVisible\(f\)" class="ce-field">/);
+    expect(cardEditSrc).toMatch(/<template v-for="f in editFields"/);
+    expect(cardEditSrc).toMatch(/v-else-if="fieldVisible\(f\) && \(f\.section !== 'style' \|\| styleOpen\)"/);
     expect(cardEditSrc).toMatch(/function fieldVisible\(f\)[\s\S]*?f\.when/);
   });
 
@@ -131,10 +131,11 @@ describe('配置弹窗控件形态（2026-10-22 样式报修回归锁）', () =>
     expect(cardEditSrc).toMatch(/function onImgError\(key\)/);
   });
 
-  test('弹窗滚动区 flex:1 + min-height:0（MP scroll-view 不定高不滚动）', () => {
+  test('弹窗滚动区显式定高（MP scroll-view 需确定高度才滚动，flex:1 不定高会顶出弹窗压住按钮）', () => {
+    // 病根：flex:1+min-height:0 在 H5 有效，MP 端 scroll-view 不定高 → 不滚、内容溢出弹窗
     const style = cardEditSrc.slice(cardEditSrc.indexOf('<style scoped>'));
-    expect(style).toMatch(/\.ce-modal-body\s*\{[^}]*flex:\s*1/);
-    expect(style).toMatch(/\.ce-modal-body\s*\{[^}]*min-height:\s*0/);
+    expect(style).toMatch(/\.ce-modal-body\s*\{[^}]*flex:\s*none/);
+    expect(style).toMatch(/\.ce-modal-body\s*\{[^}]*height:\s*46vh/);
   });
 });
 
@@ -158,5 +159,45 @@ describe('cardDetail 新组件渲染助手', () => {
   test('富文本样式与 admin richTextStyle 对齐（compBgColor/圆角/投影/描边）', () => {
     expect(cardDetailSrc).toMatch(/function ccRichStyle\(p\)/);
     expect(cardDetailSrc).toMatch(/background: p\.compBgColor \|\| 'transparent'/);
+  });
+});
+
+describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () => {
+  test('新组件默认值：上边距 6、圆角 6（两端 toEqual 已钉一致，这里钉业务值）', () => {
+    expect(compDefaultProps('image').marginTop).toBe(6);
+    expect(compDefaultProps('image').radius).toBe(6);
+    expect(compDefaultProps('button').marginTop).toBe(6);
+    expect(compDefaultProps('button').radius).toBe(6);
+    expect(compDefaultProps('notice').marginTop).toBe(6);
+    expect(compDefaultProps('notice').radiusTop).toBe(6);
+    expect(compDefaultProps('notice').radiusBottom).toBe(6);
+    expect(compDefaultProps('rich-text').marginTop).toBe(6);
+    expect(compDefaultProps('rich-text').radiusTop).toBe(6);
+    expect(compDefaultProps('divider').marginTop).toBe(6);
+  });
+
+  test('显示/隐藏开关：hidden 存 props，列表可切换，cardDetail 渲染过滤', () => {
+    expect(cardEditSrc).toMatch(/function toggleHide\(c\)/);
+    expect(cardEditSrc).toMatch(/@click="toggleHide\(c\)"/);
+    expect(cardEditSrc).toMatch(/c\.props && c\.props\.hidden \? '显示' : '隐藏'/);
+    expect(cardDetailSrc).toMatch(
+      /const shownComps = computed\(\(\) => cardComps\.value\.filter\(\(c\) => !\(c\.props && c\.props\.hidden\)\)\)/
+    );
+    expect(cardDetailSrc).toMatch(/v-for="\(c, i\) in shownComps"/);
+  });
+
+  test('配置弹窗按 section 分组：内容段展开、样式段默认折叠', () => {
+    expect(cardEditSrc).toMatch(/const editFields = computed/);
+    expect(cardEditSrc).toMatch(/__toggle/);
+    expect(cardEditSrc).toMatch(/styleOpen\.value = false; \/\/ 每次打开默认收起样式段/);
+  });
+
+  test('页内预览：预览按钮 + 全屏层 + 过滤隐藏组件（不用退出到名片详情）', () => {
+    expect(cardEditSrc).toMatch(/@click="openPreview"/);
+    expect(cardEditSrc).toMatch(
+      /const previewComps = computed\(\(\) => comps\.value\.filter\(\(c\) => !\(c\.props && c\.props\.hidden\)\)\)/
+    );
+    expect(cardEditSrc).toContain('class="ce-preview-layer"');
+    expect(cardEditSrc).toMatch(/<rich-text :nodes="c\.props\.html \|\| ''"><\/rich-text>/);
   });
 });

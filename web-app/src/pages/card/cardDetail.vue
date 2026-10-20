@@ -295,8 +295,8 @@
       </view>
 
       <!-- 自定义装修组件（母版+个人；cardEdit.vue 管理，type/props 对齐 componentRegistry） -->
-      <view v-if="cardComps.length" class="cc-list">
-        <view v-for="(c, i) in cardComps" :key="i" class="cc-item">
+      <view v-if="shownComps.length" class="cc-list">
+        <view v-for="(c, i) in shownComps" :key="i" class="cc-item">
           <!-- 图片 -->
           <image
             v-if="c.type === 'image' && c.props.url"
@@ -695,6 +695,8 @@ const dynamics = ref([]);
 const videos = ref([]);
 // 自定义装修组件（cardEdit.vue 管理；母版 isLock 与个人组件一起由服务端下发）
 const cardComps = ref([]);
+// 隐藏过滤：装修页「隐藏」开关写 props.hidden，名片上不渲染该组件
+const shownComps = computed(() => cardComps.value.filter((c) => !(c.props && c.props.hidden)));
 const activeTab = ref('intro');
 const memberLevel = ref('free');
 const activeForm = ref(null);
