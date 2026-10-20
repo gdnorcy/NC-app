@@ -15,7 +15,7 @@
 
     <view class="ce-body">
       <view class="ce-desc">
-        组件展示在名片详情页「简介」标签下方。企业母版组件由租户统一设置，不可修改。
+        组件展示在名片详情页「简介」标签下方。企业母版组件由租户统一设置，不可修改。点组件内容即可编辑。
         <text class="ce-quota" :class="{ full: mine.length >= COMP_MAX }">已添加 {{ mine.length }}/{{ COMP_MAX }} 个</text>
       </view>
 
@@ -42,12 +42,29 @@
                 <text class="ce-render-mask-t">已隐藏 · 名片上不显示</text>
               </view>
             </view>
-            <view class="ce-ops">
-              <text class="ce-op" :class="{ off: c.isLock }" @click="toggleHide(c)">{{ c.props && c.props.hidden ? '显示' : '隐藏' }}</text>
-              <text class="ce-op" :class="{ off: c.isLock || !canMove(i, -1) }" @click="move(i, -1)">上移</text>
-              <text class="ce-op" :class="{ off: c.isLock || !canMove(i, 1) }" @click="move(i, 1)">下移</text>
-              <text class="ce-op" :class="{ off: c.isLock }" @click="openEdit(c)">编辑</text>
-              <text class="ce-op del" :class="{ off: c.isLock }" @click="remove(c)">删除</text>
+            <!-- 操作条：观感对齐设计中心画布那条蓝条（主色胶囊 + 图标），形态按手机端改了三处——
+                 ① 位置放渲染区**下方**（PC 是浮在组件上方）：手机没有 hover，常驻才点得到；
+                    且卡片上半部分是所见即所得渲染区，浮条压上去等于把刚做的核心遮掉。
+                 ② 点击区 64rpx(≈32px)：PC 那套是 18px，鼠标够用、手指点不中且易误触相邻按钮。
+                 ③ 「编辑」按钮去掉：点渲染区即进配置（`@click="openEdit"` 原本就绑着），
+                    省一个位置让胶囊更短，组件名不被挤。
+                 🔴 复制图标用两个真实 view 叠出，不用 U+29C9 那个「双联方框」字符：
+                    它在小程序系统字体里大概率是豆腐块；SIcon 的 MP 端又是预生成 PNG、
+                    颜色写死在文件名里，做不出白色变体。（测试禁止本文件出现该字形，
+                    注释里也别写——写了就会被后人复制回代码里） -->
+            <view class="ce-bar-wrap">
+              <view class="ce-bar">
+                <text class="ce-bar-idx">{{ i + 1 }}</text>
+                <view class="ce-bar-txt" :class="{ off: c.isLock }" @click.stop="toggleHide(c)">
+                  <text class="ce-bar-lbl">{{ c.props && c.props.hidden ? '显示' : '隐藏' }}</text>
+                </view>
+                <view class="ce-bar-btn" :class="{ off: c.isLock || !canMove(i, -1) }" @click.stop="move(i, -1)"><text class="ce-bar-ico">↑</text></view>
+                <view class="ce-bar-btn" :class="{ off: c.isLock || !canMove(i, 1) }" @click.stop="move(i, 1)"><text class="ce-bar-ico">↓</text></view>
+                <view class="ce-bar-btn" :class="{ off: c.isLock }" @click.stop="dup(i, c)">
+                  <view class="ce-ico-dup"><view class="ce-dup-b"></view><view class="ce-dup-f"></view></view>
+                </view>
+                <view class="ce-bar-btn del" :class="{ off: c.isLock }" @click.stop="remove(c)"><text class="ce-bar-ico">✕</text></view>
+              </view>
             </view>
             <view v-if="c.isLock" class="ce-lock-tip">企业母版组件，不可修改</view>
           </view>
@@ -384,6 +401,26 @@ function remove(c) {
   });
 }
 
+// 复制：对齐 PC 端 dupComp——插到原组件**后面**、props 深拷贝、母版不可复制、受 COMP_MAX 约束。
+// 不自动弹配置（不同于 add）：复制通常是「改一点」，弹窗会打断连续复制；列表里已能直接看到结果。
+function dup(i, c) {
+  if (c.isLock) return;
+  if (mine.value.length >= COMP_MAX) {
+    uni.showToast({ title: `自定义组件最多 ${COMP_MAX} 个`, icon: 'none' });
+    return;
+  }
+  const item = {
+    key: `n${Date.now()}${keySeq++}`,
+    type: c.type,
+    props: JSON.parse(JSON.stringify(c.props || {})),
+    isLock: false,
+  };
+  const arr = comps.value.slice();
+  arr.splice(i + 1, 0, item);
+  comps.value = arr;
+  saveAll('已复制');
+}
+
 function openEdit(c) {
   if (c.isLock) return;
   // 深拷贝 props：弹窗内改动不直接落列表，点保存才生效
@@ -517,15 +554,47 @@ onMounted(load);
   border-radius: var(--radius-sm); padding: var(--space-r1) var(--space-r2);
 }
 
-.ce-ops { display: flex; gap: var(--space-r2); }
-.ce-op {
-  font-size: var(--fs-3); color: var(--design-primary);
-  border: 1rpx solid var(--design-primary); border-radius: var(--radius-sm);
-  padding: var(--space-r1) var(--space-r5);
+/* 操作条：主色胶囊 + 图标，右对齐（观感对齐设计中心画布的 `.pe-comp-tools`）
+   🔴 不写 margin-top：.ce-render 自带 `margin: var(--space-r2) 0`（含底部），
+      再加一份会叠成双倍间距（原 .ce-ops 就是这个间距，别悄悄改变版式） */
+.ce-bar-wrap { display: flex; justify-content: flex-end; }
+.ce-bar {
+  display: flex; align-items: center; gap: var(--space-r1);
+  background: var(--design-primary); border-radius: var(--radius-pill);
+  padding: 4rpx 8rpx;
 }
-.ce-op.off { color: var(--decor-2); border-color: var(--border); pointer-events: none; }
-.ce-op.del { color: var(--danger); border-color: var(--danger); }
-.ce-op.del.off { color: var(--decor-2); border-color: var(--border); }
+.ce-bar-idx {
+  font-size: var(--fs-2); color: #fff; background: rgba(255,255,255,.25);
+  border-radius: var(--radius-sm); padding: 2rpx 10rpx;
+}
+.ce-bar-txt { display: flex; align-items: center; height: 64rpx; padding: 0 6rpx; }
+.ce-bar-lbl { font-size: var(--fs-3); color: #fff; }
+/* 🔴 点击区 64rpx ≈ 32px：PC 那套 18px 图标鼠标够用、手指点不中且易误触相邻按钮 */
+.ce-bar-btn {
+  width: 64rpx; height: 64rpx; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.ce-bar-ico { font-size: 30rpx; color: #fff; line-height: 1; }
+.ce-bar-btn.del { background: var(--danger); }
+/* 置灰：母版组件整条不可操作（沿用 .ce-op.off 的 pointer-events 写法，MP 实测有效）
+   🔴 置灰时删除键退回透明底：否则 opacity 会把红底混成暗紫（红+蓝=脏色），
+      整条一起变灰才读得出「不可用」。 */
+.ce-bar-btn.off, .ce-bar-txt.off { opacity: 0.35; pointer-events: none; }
+.ce-bar-btn.del.off { background: transparent; }
+/* 复制图标：两个方框叠出「两份」的意向。
+   🔴 用真实 view，不用伪元素也不用 U+29C9 那个「双联方框」字符：WXSS 伪元素在普通
+      view 上不可靠，而该字符在系统字体里常是豆腐块。前块背景必须 = 胶囊底色，
+      才能遮出 L 形边。 */
+.ce-ico-dup { position: relative; width: 28rpx; height: 28rpx; }
+.ce-dup-b {
+  position: absolute; left: 0; top: 0; width: 20rpx; height: 20rpx;
+  border: 2rpx solid #fff; border-radius: 4rpx; box-sizing: border-box;
+}
+.ce-dup-f {
+  position: absolute; left: 8rpx; top: 8rpx; width: 20rpx; height: 20rpx;
+  border: 2rpx solid #fff; border-radius: 4rpx; box-sizing: border-box;
+  background: var(--design-primary);
+}
 .ce-lock-tip { font-size: var(--fs-2); color: var(--danger); margin-top: var(--space-r2); }
 
 .ce-add {
