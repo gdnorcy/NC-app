@@ -1160,8 +1160,11 @@ router.get('/card/manage', requireTenant, (req, res) => {
     personCardCount: cardCount - enterpriseCardCount,
     enterpriseCardCount,
     publicCount: db.prepare(`SELECT COUNT(*) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ? AND c.is_public = 1`).get(...sp0, 'active').n,
-    marketApproved: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'approved').n,
-    marketPending: db.prepare('SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(cid, 'pending').n,
+    // 🔴 集市统计按「去重主体」计数，不按原始记录数：下架再申请 / 一人挂多主体不会让统计虚高。
+    // 任一时刻同一 (subject_type, subject_id) 至多一条在市记录，DISTINCT 既防历史脏数据累积，
+    // 也和「已上架名片」展示口径对齐（2026-10-20 修复）。
+    marketApproved: db.prepare(`SELECT COUNT(*) AS n FROM (SELECT DISTINCT subject_type, subject_id FROM card_market_items WHERE customer_id = ? AND audit_status = ?)`).get(cid, 'approved').n,
+    marketPending: db.prepare(`SELECT COUNT(*) AS n FROM (SELECT DISTINCT subject_type, subject_id FROM card_market_items WHERE customer_id = ? AND audit_status = ?)`).get(cid, 'pending').n,
     // 2026-10-20 合并「员工名片」页进来：补它独有的两个统计（去重自然人 / 累计访问）
     employeeCount: db.prepare(`SELECT COUNT(DISTINCT c.user_id) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`).get(...sp0, 'active').n,
     totalViews: db.prepare(`SELECT COALESCE(SUM(c.view_count), 0) AS n FROM card_profile c WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`).get(...sp0, 'active').n,

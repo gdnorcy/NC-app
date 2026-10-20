@@ -290,8 +290,9 @@ export function createCardMarketRouter(db) {
 
   // 集市数据统计（租户管理员）
   router.get('/market/stats', tenant, requireTenantAdmin, (req, res) => {
-    const itemCount = db.prepare('SELECT COUNT(*) as cnt FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(req.customerId, 'approved')?.cnt || 0;
-    const pendingCount = db.prepare('SELECT COUNT(*) as cnt FROM card_market_items WHERE customer_id = ? AND audit_status = ?').get(req.customerId, 'pending')?.cnt || 0;
+    // 🔴 去重主体计数（与后台一致）：防下架再申请 / 一人多主体导致集市统计虚高
+    const itemCount = db.prepare('SELECT COUNT(*) as cnt FROM (SELECT DISTINCT subject_type, subject_id FROM card_market_items WHERE customer_id = ? AND audit_status = ?)').get(req.customerId, 'approved')?.cnt || 0;
+    const pendingCount = db.prepare('SELECT COUNT(*) as cnt FROM (SELECT DISTINCT subject_type, subject_id FROM card_market_items WHERE customer_id = ? AND audit_status = ?)').get(req.customerId, 'pending')?.cnt || 0;
     const exchangeCount = db.prepare('SELECT COUNT(*) as cnt FROM card_connections WHERE customer_id = ? AND status = ?').get(req.customerId, 'accepted')?.cnt || 0;
     const visitCount = db.prepare('SELECT COALESCE(SUM(view_count), 0) as total FROM card_market_items WHERE customer_id = ?').get(req.customerId)?.total || 0;
     res.json({ stats: { visitCount, exchangeCount, itemCount, pendingCount } });

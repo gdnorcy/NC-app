@@ -327,7 +327,8 @@ export function calcHealthScore(db, tenantId, solution = 'card') {
   if (views > 0 && conv < 0.02) advice.push('名片浏览转化为线索的比例偏低：可在名片上增加「一键留资」表单入口。');
 
   // 5. 集市参与
-  const marketItems = db.prepare("SELECT COUNT(*) AS n FROM card_market_items WHERE customer_id = ? AND audit_status='approved'").get(tenantId).n || 0;
+  // 🔴 集市参与按去重主体计数（与后台统计口径一致：防下架再申请 / 一人多主体虚高）
+  const marketItems = db.prepare(`SELECT COUNT(*) AS n FROM (SELECT DISTINCT subject_type, subject_id FROM card_market_items WHERE customer_id = ? AND audit_status='approved')`).get(tenantId).n || 0;
   const exchanges = db.prepare(`SELECT COUNT(*) AS n FROM analytics_events WHERE tenant_id = ? ${solWhere} AND event_type='exchange_success'`).get(tenantId).n || 0;
   const marketScore = Math.min(20, marketItems * 2 + exchanges);
   dims.push(marketScore);

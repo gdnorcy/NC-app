@@ -682,6 +682,9 @@ export function createCardRouter(db, wxService) {
         if (applyType === 'individual') {
           db.prepare("UPDATE tenant_individuals SET status = 'pending', name = ?, phone = ?, position = ?, company = ?, updated_at = datetime('now') WHERE id = ?")
             .run(name, phone || '', position || '', city || '', already.id);
+          // 🔴 拒绝后重申请：把最新 phone/name/position 同步回名片，防止名片与入驻个人手机号分叉（2026-10-20 修复）
+          db.prepare("UPDATE card_profile SET phone=?, name=?, position=?, updated_at=datetime('now') WHERE user_id = ? AND status='active'")
+            .run(phone || '', name, position || '', req.user.id);
         } else {
           db.prepare("UPDATE tenant_enterprises SET status = 'pending', name = ?, industry = ?, updated_at = datetime('now') WHERE id = ?")
             .run(enterpriseName, industry || '', already.id);
@@ -747,7 +750,13 @@ export function createCardRouter(db, wxService) {
     }
     db.prepare(
       `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, works_label=?, latitude=?, longitude=?, address=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, effectiveWorksLabel, ...coalesceLatLng(card, latitude, longitude), address !== undefined ? String(address || '').slice(0, 200) : card.address, card.id);
+    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, effectiveWorksLabel,       ...coalesceLatLng(card, latitude, longitude), address !== undefined ? String(address || '').slice(0, 200) : card.address, card.id);
+    // 🔴 姓名/手机号双表同步：名片是个人/企业主体在 C 端唯一可编辑入口，入驻个人档案
+    // (tenant_individuals) 的 phone/name/position 必须随名片保持一致，否则后台「入驻个人」
+    // 与「名片管理」同一人手机号对不上（2026-10-20 修复：原「一个有手机号一个没有」根因）。
+    db.prepare(`UPDATE tenant_individuals SET phone=?, name=?, position=?, updated_at=datetime('now')
+      WHERE customer_id = ? AND user_id = ? AND status != 'disabled'`)
+      .run(phone ?? card.phone, name || card.name, position ?? card.position, card.customer_id, req.user.id);
     const updated = db.prepare(`SELECT cp.*, ct.theme_config as template_theme
       FROM card_profile cp LEFT JOIN card_templates ct ON ct.id = cp.template_id WHERE cp.id = ?`).get(card.id);
     res.json({ card: toCard(updated) });
