@@ -10,6 +10,8 @@ import { randomBytes } from 'node:crypto';
 import { createDistributionService } from './distribution.js';
 import { createMemberService } from './member.js';
 import { createGoodsOrderService } from './goodsOrder.js';
+import { readPlatformPaymentConfig, readTenantPaymentConfig } from './paymentConfig.js';
+import { buildClientConfig, createClientFromConfig } from './wechatpay.js';
 
 export class PaymentService {
   constructor(db) {
@@ -23,22 +25,23 @@ export class PaymentService {
   // 配置管理
   // ============================================================
 
-  /** 获取平台支付配置 */
+  /**
+   * 获取平台支付配置（明文）。
+   * 🔴 密钥字段（apiV3Key/privateKey）落库是密文，必须经 paymentConfig 解密，
+   *    直接 JSON.parse 出来的是密文，会导致签名/解密静默失败。
+   */
   getPlatformConfig() {
     try {
-      const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get('payment');
-      return row ? JSON.parse(row.value) : { wechat: { enabled: false }, alipay: { enabled: false } };
+      return readPlatformPaymentConfig(this.db);
     } catch {
       return { wechat: { enabled: false }, alipay: { enabled: false } };
     }
   }
 
-  /** 获取租户支付配置 */
+  /** 获取租户支付配置（明文） */
   getTenantConfig(customerId) {
     try {
-      const row = this.db.prepare('SELECT config FROM projects WHERE id = ?').get(customerId);
-      const config = row ? JSON.parse(row.config || '{}') : {};
-      return config.payment || { mode: 'platform', wechat: { enabled: false }, alipay: { enabled: false } };
+      return readTenantPaymentConfig(this.db, customerId);
     } catch {
       return { mode: 'platform', wechat: { enabled: false }, alipay: { enabled: false } };
     }
@@ -243,6 +246,77 @@ export class PaymentService {
   // ============================================================
 
   /**
+   * 构造微信支付客户端。
+   * @returns {{ok:true, client:object, cfg:object} | {ok:false, missing:string[]}}
+   *   刻意**不抛错**：调用方需要区分「没配支付」（可回落 mock 演示）
+   *   与「配了但证书读不到」（必须报错，否则等于静默免单）。
+   */
+  getWechatClient(resolved) {
+    const cfg = buildClientConfig({ settingsWechat: resolved?.config || {}, env: process.env });
+    if (cfg.missing) return { ok: false, missing: cfg.missing };
+    try {
+      return { ok: true, client: createClientFromConfig(cfg), cfg };
+    } catch (e) {
+      return { ok: false, error: e.message, missing: ['证书/私钥读取失败'] };
+    }
+  }
+
+  /** 取付款人 openid：JSAPI 支付的 payer 必须与下单 appid 同属一个小程序 */
+  getPayerOpenid(order) {
+    if (!order?.userId) return '';
+    const u = this.db.prepare('SELECT openid FROM platform_user WHERE id = ?').get(order.userId);
+    const openid = String(u?.openid || '');
+    // mock_ 前缀是未配置真实登录时的占位（app.js wxLogin 回落通道），
+    // 拿它下单微信必然失败，不如在这里给出可操作的提示
+    if (!openid || openid.startsWith('mock_')) return '';
+    return openid;
+  }
+
+  /**
+   * 生成小程序调起支付所需参数。
+   * 三种结果：
+   *   ① 真实配置齐全 → { mock:false, payParams:{...5 参数}, appId }
+   *   ② 支付未配置   → { mock:true, message }（演示/自测形态）
+   *   ③ 配了但 openid 不可用 → 抛错（真实支付不能静默 mock）
+   */
+  async prepay(order, resolved) {
+    const clientRes = this.getWechatClient(resolved);
+    if (!clientRes.ok) {
+      const detail = clientRes.error || clientRes.missing.join('、');
+      // 意图判定：**只有「压根没配」才允许回落 mock**。
+      // 回落 mock 的后果是「用户点了支付、钱没扣、订单标记成功」——资金与权益双错账，
+      // 所以一旦检测到运营在用真实商户号（mchId 非 MOCK 占位），配不全就必须报错。
+      const declaredReal = !!resolved?.config?.enabled
+        && !!String(resolved?.config?.mchId || '').trim()
+        && !/^mock/i.test(String(resolved.config.mchId).trim());
+      if (declaredReal) {
+        throw new Error(`微信支付配置不完整：${detail}`);
+      }
+      return { mock: true, message: `未配置真实微信支付（${detail}），当前为模拟支付`, missing: clientRes.missing };
+    }
+
+    const openid = this.getPayerOpenid(order);
+    if (!openid) {
+      throw new Error('未获取到付款人 openid：请在小程序端重新登录后再支付（H5 端无法使用微信 JSAPI 支付）');
+    }
+
+    const { client, cfg } = clientRes;
+    const prepayId = await client.jsapiOrder({
+      openid,
+      outTradeNo: order.orderNo,
+      // 🔴 单位是分：payment_orders.amount 全链路存分（card.js price*100 / yuan2fen）
+      amountFen: order.amount,
+      description: order.productName || '名片服务',
+    });
+    return {
+      mock: false,
+      appId: cfg.appId,
+      payParams: { ...client.buildPayParams(prepayId), appId: cfg.appId },
+      prepayId,
+    };
+  }
+
+  /**
    * 统一下单
    * @returns 支付参数（前端用于调起微信/支付宝支付）
    */
@@ -254,26 +328,23 @@ export class PaymentService {
       throw new Error('该支付渠道暂未启用');
     }
 
-    // TODO: 接入真实微信支付/支付宝SDK
-    // 当前返回mock支付参数，前端可模拟支付成功
     if (order.payChannel === 'wechat') {
+      const r = await this.prepay(order, resolved);
       return {
         orderNo: order.orderNo,
         amount: order.amount,
         payMode: resolved.mode,
-        // 微信小程序支付参数（mock）
-        mock: true,
-        message: '当前为模拟支付模式，接入真实微信支付后返回真实支付参数',
-      };
-    } else {
-      return {
-        orderNo: order.orderNo,
-        amount: order.amount,
-        payMode: resolved.mode,
-        mock: true,
-        message: '当前为模拟支付模式，接入真实支付宝后返回真实支付参数',
+        ...r,
       };
     }
+    // 支付宝尚未接入：显式说明，不假装 mock 能收款
+    return {
+      orderNo: order.orderNo,
+      amount: order.amount,
+      payMode: resolved.mode,
+      mock: true,
+      message: '支付宝支付尚未接入，请使用微信支付',
+    };
   }
 
   // ============================================================

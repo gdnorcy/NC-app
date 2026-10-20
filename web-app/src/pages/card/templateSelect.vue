@@ -54,7 +54,7 @@
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { cardApi, payOrder } from '../../utils/cardApi.js';
 import TplThumb from '../../components/TplThumb.vue';
 import TplPreviewModal from '../../components/TplPreviewModal.vue';
 import { useDesignTheme } from '../../utils/design.js';
@@ -133,9 +133,15 @@ async function buyThenApply(t) {
             if (!r2.confirm) return;
             uni.showLoading({ title: '支付中...' });
             try {
-              await paymentApi.mockPay(res.orderNo);
+              // 真实微信支付：预下单 → 调起支付（未配置真实商户号时服务端回落 mock）
+              const pay = await payOrder(res.orderNo, { allowMock: true });
               uni.hideLoading();
-              uni.showToast({ title: '购买成功', icon: 'success' });
+              if (!pay.paid) {
+                if (pay.canceled) uni.showToast({ title: '已取消支付', icon: 'none' });
+                else uni.showToast({ title: pay.message || '支付失败', icon: 'none' });
+                return;
+              }
+              uni.showToast({ title: pay.mock ? '购买成功（模拟）' : '购买成功', icon: 'success' });
               await loadTemplates();
               applyTemplate(t);
             } catch (e) {

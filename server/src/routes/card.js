@@ -21,6 +21,7 @@ import { createQuotaService } from '../services/quota.js';
 import { createBenefitsService, WORKS_LABEL_MAX } from '../services/benefits.js';
 import { normalizeTabJson } from '../services/design.js';
 import { WxComponentService, standaloneCode2Session } from '../services/wx-component.js';
+import { readSecret } from '../crypto.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -207,10 +208,11 @@ export function createCardRouter(db, wxService) {
         } catch (e) {
           return res.status(400).json({ error: '微信登录失败: ' + e.message });
         }
-      } else if (channel && channel.app_secret) {
+      } else if (channel && readSecret(channel.app_secret)) {
         // 自运营模式：客户在「参数设置」填了自己的 AppID/AppSecret（未走第三方授权）
+        // 🔴 app_secret 落库是密文，必须 readSecret 解密后再送微信（原文是明文时代遗留）
         try {
-          const r = await standaloneCode2Session(channel.appid, channel.app_secret, code);
+          const r = await standaloneCode2Session(channel.appid, readSecret(channel.app_secret), code);
           openid = r.openid;
           unionid = r.unionid || '';
           channelTenantId = Number(channel.customer_id) || 0;

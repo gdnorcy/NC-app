@@ -113,7 +113,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { onUnload } from '@dcloudio/uni-app';
-import { cardApi, paymentApi } from '../../utils/cardApi.js';
+import { cardApi, paymentApi, payOrder } from '../../utils/cardApi.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { heroGradient, brandPalette } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
@@ -256,10 +256,17 @@ async function buyLevel(lv) {
         if (!r.confirm) return;
         uni.showLoading({ title: '支付中...' });
         try {
-          await paymentApi.mockPay(orderNo);
+          // 真实微信支付：预下单 → 调起支付（未配置真实商户号时服务端回落 mock）
+          const pay = await payOrder(orderNo, { allowMock: true });
           uni.hideLoading();
-          uni.showToast({ title: '开通成功', icon: 'success' });
-          setTimeout(refreshMemberCard, 600);
+          if (pay.paid) {
+            uni.showToast({ title: pay.mock ? '开通成功（模拟）' : '开通成功', icon: 'success' });
+            setTimeout(refreshMemberCard, 600);
+          } else if (pay.canceled) {
+            uni.showToast({ title: '已取消支付', icon: 'none' });
+          } else {
+            uni.showToast({ title: pay.message || '支付失败', icon: 'none' });
+          }
         } catch (e) {
           uni.hideLoading();
           uni.showToast({ title: e.message || '支付失败', icon: 'none' });
@@ -376,9 +383,14 @@ async function openMember(pkg) {
 
     uni.showLoading({ title: '支付中...' });
     try {
-      await paymentApi.mockPay(order.orderNo);
+      const pay = await payOrder(order.orderNo, { allowMock: true });
       uni.hideLoading();
-      uni.showToast({ title: '支付成功', icon: 'success' });
+      if (!pay.paid) {
+        if (pay.canceled) uni.showToast({ title: '已取消支付', icon: 'none' });
+        else uni.showToast({ title: pay.message || '支付失败', icon: 'none' });
+        return;
+      }
+      uni.showToast({ title: pay.mock ? '支付成功（模拟）' : '支付成功', icon: 'success' });
       setTimeout(async () => {
         try {
           const memberRes = await cardApi.getMemberStatus();

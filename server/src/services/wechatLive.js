@@ -11,6 +11,7 @@
  *   - 商品审核状态    POST /wxa/business/goods/audit-status（按商品名/audit_id 查询）
  */
 import { config } from '../config.js';
+import { readSecret } from '../crypto.js';
 
 const WX_API = 'https://api.weixin.qq.com';
 
@@ -34,10 +35,13 @@ export function createWechatLiveService(db) {
   // 读取租户微信小程序渠道配置（appid/app_secret）
   function getMiniConfig(customerId) {
     const row = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mini'").get(customerId);
-    if (!row || !row.appid || !row.app_secret) {
+    // 🔴 app_secret 落库是 AES-256-GCM 密文（后台可明文填写，但库里不能是明文），
+    // 直接拿 row.app_secret 去换 access_token 会拿到「密钥数据损坏」/401。
+    const secret = row ? readSecret(row.app_secret) : '';
+    if (!row || !row.appid || !secret) {
       throw new Error('未配置微信小程序 appid/app_secret，请先在「全端渠道-微信小程序」中配置');
     }
-    return row;
+    return { ...row, app_secret: secret };
   }
 
   async function getAccessToken(customerId) {
