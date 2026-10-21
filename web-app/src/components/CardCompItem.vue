@@ -9,7 +9,7 @@
     <image
       v-if="type === 'image' && props.url && !imgFailed"
       class="cc-img"
-      :src="props.url"
+      :src="resolveAssetUrl(props.url)"
       mode="widthFix"
       :style="ccStyle"
       @error="imgFailed = true"
@@ -21,7 +21,7 @@
 
     <!-- 视频号（finderUserName + feedId） -->
     <view v-else-if="type === 'channel-video'" class="cc-video" :style="ccStyle" @click="onTap('video')">
-      <image v-if="props.cover && !coverFailed" class="cc-video-cover" :src="props.cover" mode="aspectFill" @error="coverFailed = true" />
+      <image v-if="props.cover && !coverFailed" class="cc-video-cover" :src="resolveAssetUrl(props.cover)" mode="aspectFill" @error="coverFailed = true" />
       <view v-else class="cc-video-cover cc-video-empty"><SIcon name="dynamic" size="large" color="#ffffff" /></view>
       <view class="cc-video-play"><SIcon name="play" size="default" color="#ffffff" /></view>
       <view v-if="props.title || props.desc" class="cc-video-info">
@@ -58,6 +58,18 @@
       <view class="cc-btn" :style="btnStyle" @click="onTap('link', props.url)">{{ props.text || '按钮' }}</view>
     </view>
 
+    <!-- 按钮组（2-5 个横排操作按钮，明细由装修页专属编辑器维护） -->
+    <view v-else-if="type === 'button-group'" class="cc-btngrp" :style="btnGrpStyle">
+      <view
+        v-for="(b, bi) in (props.buttons || [])"
+        :key="bi"
+        class="cc-btngrp-btn"
+        :class="{ outline: b.btnStyle === 'outline' }"
+        :style="btnGrpItemStyle(b)"
+        @click="onTap('link', b.url)"
+      >{{ b.text || '按钮' }}</view>
+    </view>
+
     <!-- 富文本（HTML 渲染前消毒：租户自填但访客可见，防 H5 端注入） -->
     <view
       v-else-if="type === 'rich-text'"
@@ -73,6 +85,7 @@
 import { ref, computed, watch } from 'vue';
 import SIcon from './SIcon.vue';
 import { buttonSizeStyle } from '../utils/btnSize.js';
+import { resolveAssetUrl } from '../utils/design.js';
 
 const propsDef = defineProps({
   /** { type, props } 单个装修组件 */
@@ -113,6 +126,28 @@ const btnStyle = computed(() => {
   s.borderRadius = (p.radius == null ? 8 : p.radius) + 'px';
   return Object.assign(s, buttonSizeStyle(p), { maxWidth: '100%' });
 });
+
+// 按钮组：外层横向 flex + 间距；每个按钮等分宽度、按自身样式着色
+const btnGrpStyle = computed(() => {
+  const p = props.value;
+  return {
+    marginTop: (p.marginTop || 0) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+    gap: (p.gap || 0) + 'px',
+  };
+});
+function btnGrpItemStyle(b) {
+  const s = { flex: '1 1 0', minWidth: 0, borderRadius: '8px' };
+  if (b.btnStyle === 'outline') {
+    s.color = b.bgColor || '#165DFF';
+    s.border = '1px solid ' + (b.bgColor || '#165DFF');
+    s.background = 'transparent';
+  } else {
+    s.color = b.textColor || '#ffffff';
+    s.background = b.bgColor || '#165DFF';
+  }
+  return s;
+}
 
 const richStyle = computed(() => {
   const p = props.value;
@@ -174,6 +209,13 @@ function onTap(kind, extra) {
 .cc-btn {
   height: 72rpx; line-height: 72rpx; font-size: var(--fs-4); font-weight: 500;
   border-radius: var(--radius-sm); overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+}
+/* 按钮组：横排等分，间距由 props.gap 驱动 */
+.cc-btngrp { width: 100%; display: flex; }
+.cc-btngrp-btn {
+  height: 72rpx; line-height: 72rpx; font-size: var(--fs-4); font-weight: 500;
+  border-radius: var(--radius-sm); text-align: center; overflow: hidden;
   white-space: nowrap; text-overflow: ellipsis;
 }
 /* 富文本：外层 bottomBg、内层 compBgColor（与 admin 两层结构一致） */

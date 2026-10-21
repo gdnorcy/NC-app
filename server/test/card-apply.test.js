@@ -258,7 +258,7 @@ test('访客标签按最近动作推断(video→观看视频, visit2次→高意
   assert.equal(v3.tag, '高意向');
 });
 
-test('访客已读标记：summary未读→标记已读→红点消失', async () => {
+test('访客已读标记：按行 id 标记，仅清该条红点（匿名访客 openid 相同也不能串）', async () => {
   const token = await wxLogin('merge_radar_3');
   const created = await request(app)
     .post('/api/card/cards')
@@ -268,22 +268,30 @@ test('访客已读标记：summary未读→标记已读→红点消失', async (
   const { createDb } = await import('../src/db.js');
   const db = createDb(config.dbPath);
   db.prepare("UPDATE platform_user SET member_level='gold', member_expire_at='2030-01-01 00:00:00' WHERE id=?").run(created.body.card.userId);
-  const u = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
-    .run('mock_read_v1', '周先生', new Date().toISOString(), new Date().toISOString());
+
   const today = new Date().toISOString().slice(0, 10);
-  db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visitor_user_id, visit_date, visit_count, duration, pages, last_visit_at)
-    VALUES (?,?,?,?,?,?,?,datetime('now'))`)
-    .run(cardId, 'mock_read_v1', Number(u.lastInsertRowid), today, 1, 10, '[]');
+  // 两条访客记录：openid 都是 'anonymous'（真实流量里匿名访客共享同一 openid）。
+  // 旧实现按 visitor_openid 标记已读 → 一次会清掉所有匿名访客红点（用户反馈：只看一条、红点全没）。
+  const a1 = db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visit_date, visit_count, duration, pages, last_visit_at)
+    VALUES (?,?,?,?,?,?,datetime('now'))`).run(cardId, 'anonymous', today, 1, 10, '[]');
+  const a2 = db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visit_date, visit_count, duration, pages, last_visit_at)
+    VALUES (?,?,?,?,?,?,datetime('now'))`).run(cardId, 'anonymous', today, 1, 20, '[]');
+  const id1 = Number(a1.lastInsertRowid);
+  const id2 = Number(a2.lastInsertRowid);
 
   const before = await request(app).get('/api/card/visitors/summary').set('Authorization', `Bearer ${token}`);
-  const v = before.body.visitors.find((x) => x.visitorOpenid === 'mock_read_v1');
-  assert.equal(v.unread, true, '初始应未读');
+  const anon = before.body.visitors.filter((x) => x.visitorOpenid === 'anonymous');
+  assert.equal(anon.length, 2, '应有两个匿名访客条目');
+  assert.ok(anon.every((x) => x.unread === true), '初始都应未读');
 
-  const mark = await request(app).post('/api/card/visitors/mock_read_v1/read').set('Authorization', `Bearer ${token}`);
+  // 只标记第一条已读（按行 id，不是 openid）
+  const mark = await request(app).post(`/api/card/visitors/${id1}/read`).set('Authorization', `Bearer ${token}`);
   assert.equal(mark.status, 200);
   assert.equal(mark.body.ok, true);
 
   const after = await request(app).get('/api/card/visitors/summary').set('Authorization', `Bearer ${token}`);
-  const v2 = after.body.visitors.find((x) => x.visitorOpenid === 'mock_read_v1');
-  assert.equal(v2.unread, false, '标记后应已读');
+  const after1 = after.body.visitors.find((x) => x.id === id1);
+  const after2 = after.body.visitors.find((x) => x.id === id2);
+  assert.equal(after1.unread, false, '被标记的第一条应已读');
+  assert.equal(after2.unread, true, '同 openid 的第二条红点不应被误清（修复前会全清）');
 });

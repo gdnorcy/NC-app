@@ -208,6 +208,10 @@
       <view class="sheet-input-wrap"><input class="sheet-input" v-model="convName" placeholder="姓名" /></view>
       <view class="sheet-input-wrap"><input class="sheet-input" v-model="convPhone" type="number" placeholder="联系电话" /></view>
       <view class="sheet-input-wrap"><textarea class="sheet-textarea" v-model="convRemark" placeholder="备注（可选）" rows="2" /></view>
+      <view class="sheet-label">客户阶段</view>
+      <view class="stage-group">
+        <view class="stage-chip" v-for="s in STAGES" :key="s" :class="{ active: convStage === s }" @click="convStage = s">{{ s }}</view>
+      </view>
       <view class="btn-main" @click="saveConvert">保存并转为客户</view>
       <view class="btn-ghost" @click="closeConvert">取消</view>
     </view>
@@ -259,6 +263,9 @@ const current = ref({});
 const convName = ref('');
 const convPhone = ref('');
 const convRemark = ref('');
+// 客户阶段常用标签：转为客户时选择，写入客户 tags，便于在客户管理页识别阶段
+const STAGES = ['初步接触', '跟进中', '报价阶段', '已合作', '暂不跟进'];
+const convStage = ref('');
 const timelineName = ref('');
 const timelineItems = ref([]);
 // 时间线弹层头部画像：取 summary 真实字段（昵称/标签/访问行为/意向分），不编造任何内容
@@ -414,7 +421,7 @@ async function viewTimeline(v) {
   // 标记已读（红点消失）
   if (v.unread) {
     v.unread = false;
-    try { await cardApi.markVisitorRead(v.visitorOpenid); } catch (e) {}
+    try { await cardApi.markVisitorRead(v.id); } catch (e) {}
   }
   // 画像摘要：直接取 summary 真实字段；原 timelineName（昵称）已由画像块承担
   timelineVisitor.value = v;
@@ -506,6 +513,7 @@ function convert(v) {
   convName.value = v.nickname && v.nickname !== '匿名访客' ? v.nickname : '';
   convPhone.value = '';
   convRemark.value = '';
+  convStage.value = '';
   showConvert.value = true;
 }
 
@@ -523,12 +531,14 @@ async function saveConvert() {
     return;
   }
   try {
+    const tags = ['访客转化'];
+    if (convStage.value) tags.push(convStage.value);
     await cardApi.createCustomer({
       name: convName.value,
       phone: convPhone.value,
       source: 'visitor',
       sourceCardId: current.value.cardId,
-      tags: ['访客转化'],
+      tags,
     });
     showConvert.value = false;
     uni.showToast({ title: '已转为客户', icon: 'success' });
@@ -1004,6 +1014,32 @@ async function saveConvert() {
   background: var(--white);
   color: var(--t5);
   resize: none;
+}
+.sheet-label {
+  font-size: var(--fs-5);
+  color: var(--t2);
+  font-weight: 600;
+  margin: 8rpx 4rpx 16rpx;
+}
+.stage-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.stage-chip {
+  font-size: var(--fs-5);
+  color: var(--t3);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 999rpx;
+  padding: 14rpx 28rpx;
+  line-height: 1;
+}
+.stage-chip.active {
+  color: var(--design-primary, #165dff);
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  border-color: var(--design-primary, #165dff);
 }
 
 /* ===== 按钮（demo btn-main / btn-ghost）===== */

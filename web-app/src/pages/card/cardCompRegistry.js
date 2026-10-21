@@ -6,17 +6,28 @@
  * - schema 只收移动端装修页（cardEdit.vue）实际渲染的控件子集
  *   （input/image/color/slider/radio/switch/link/richtext），键必须存在于 admin schema
  *   （单测同样钉死：mobile schema key ⊆ admin schema key）；`when` 条件显隐同 admin 语义。
- * - 不含 admin 的 PNG 图标资产（移动端用 SIcon/emoji 呈现，避免把 admin 构建物拖进分包）。
+ * - 图标复用设计中心（web-admin componentRegistry）同款 PNG 资产：反馈 #279 要求
+ *   「添加组件」面板图标与设计中心一致，同类型直接取设计中心的图标。源 PNG 拷贝到
+ *   web-app/src/assets/comp-icons/（非 admin 构建物，仅 6 个约 11KB，不进分包体积风险区），
+ *   通过 import 以 URL 形式注入，渲染层用 <image> 呈现（不再用 emoji）。
  *
  * 🔴 新增组件类型时必须同步：admin componentRegistry + 本文件 + server card.js 的
  *    COMP_TYPES 白名单 + cardDetail.vue 渲染分支，五处一致（单测会抓漂移）。
  */
 import { sampleUrl } from '../../utils/sampleImages.js';
+// 设计中心同款组件图标（copy from web-admin/src/assets/comp-icons），与设计中心「添加组件」面板一致
+import iconPicture from '../../assets/comp-icons/picture.png';
+import iconChannelVideo from '../../assets/comp-icons/channelvideo.png';
+import iconNotice from '../../assets/comp-icons/notice.png';
+import iconMenu from '../../assets/comp-icons/menu.png';
+import iconRichtext from '../../assets/comp-icons/richtext.png';
+import iconLine from '../../assets/comp-icons/line.png';
 
 export const CARD_COMP_REGISTRY = [
   {
     type: 'image',
     name: '图片',
+    icon: iconPicture,
     defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content' },
@@ -28,6 +39,7 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'channel-video',
     name: '视频号',
+    icon: iconChannelVideo,
     defaultProps: { finderUserName: '', feedId: '', cover: sampleUrl('banner'), title: '', desc: '', bgColor: '#F7F8FA' },
     schema: [
       { key: 'finderUserName', label: '视频号ID', control: 'input', section: 'content', required: true, placeholder: '如 sPh7vD5...' },
@@ -40,6 +52,7 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'notice',
     name: '文本',
+    icon: iconNotice,
     defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
@@ -54,6 +67,7 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'button',
     name: '按钮',
+    icon: iconMenu,
     // defaultProps 与 admin 逐字一致（含 widthPercent/boxOffsetX：C 端渲染走共享
     // buttonSizeStyle，宽度基准=视口，与 admin 画布同语义，防两端漂移）
     defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
@@ -75,6 +89,7 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'rich-text',
     name: '富文本',
+    icon: iconRichtext,
     defaultProps: { html: '<p>富文本内容</p>', bottomBg: 'transparent', compBgColor: '#ffffff', style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, marginLR: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all' },
     schema: [
       { key: 'html', label: '内容', control: 'richtext', section: 'content' },
@@ -88,6 +103,7 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'divider',
     name: '分割线',
+    icon: iconLine,
     defaultProps: { text: '', color: '#E5E6EB', thickness: 1, lineStyle: 'solid', marginTop: 6, marginBottom: 14, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', placeholder: '选填，显示在分割线中间' },
@@ -101,10 +117,33 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'spacer',
     name: '空白占位',
+    icon: iconLine,
     defaultProps: { height: 20, bgColor: '', memberLevel: 'all' },
     schema: [
       { key: 'height', label: '空白高度', control: 'slider', section: 'content', min: 4, max: 120 },
       { key: 'bgColor', label: '颜色选择', control: 'color', section: 'style' },
+    ],
+  },
+  {
+    type: 'button-group',
+    name: '按钮组',
+    icon: iconMenu,
+    // 2-5 个按钮的横排操作组；buttons 由装修页自定义编辑器维护（移动端 schema 不含 list 控件，
+    // 故按钮明细走 cardEdit 的专属编辑器，间距/边距走通用滑块）。defaultProps 与 admin 逐字一致。
+    defaultProps: {
+      buttons: [
+        { text: '按钮一', url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+        { text: '按钮二', url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+      ],
+      gap: 16,
+      marginTop: 6,
+      marginBottom: 0,
+      memberLevel: 'all',
+    },
+    schema: [
+      { key: 'gap', label: '按钮间距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
     ],
   },
 ];
