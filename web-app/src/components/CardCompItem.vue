@@ -6,15 +6,18 @@
        interactive=false 时（装修页）不触发跳转/拉起视频号，只把点击冒泡给父级处理。 -->
   <view class="cci-root">
     <!-- 图片 -->
-    <!-- 图片：maxHeight>0 时改用 aspectFit + maxHeight 实现「按比例缩放到不超过限高」
+    <!-- 图片：maxHeight>0 时改用 aspectFit + 显式盒高实现「按比例缩放到不超过限高」
          （widthFix 是宽度固定、高度自适应，**无法限高**；aspectFit 等比缩放不裁切不变形）。
-         maxHeight=0 → 保持原 widthFix 行为（向后兼容存量配置）。 -->
+         🔴 #326 修复：原实现写 width:auto/height:auto —— uni 的 image 组件不是替换元素，
+            没有内在尺寸，auto 会**塌缩成 0**（H5 的 uni-image 是 div 包裹层同理）→ 整图消失。
+            必须给显式盒高：宽 100%、高=限高，内容 aspectFit 在盒内等比居中。
+         maxHeight 未设（历史数据）→ 默认 350（用户 #326 指定）；显式 0 = 不限制。 -->
     <image
       v-if="type === 'image' && props.url && !imgFailed"
       class="cc-img"
       :src="resolveAssetUrl(props.url)"
       :mode="imgMaxHeight > 0 ? 'aspectFit' : 'widthFix'"
-      :style="[ccStyle, imgMaxHeight > 0 ? { maxHeight: imgMaxHeight + 'px', width: 'auto', height: 'auto', maxWidth: '100%', margin: '0 auto' } : null]"
+      :style="[ccStyle, imgMaxHeight > 0 ? { height: imgMaxHeight + 'px', margin: '0 auto' } : null]"
       @error="imgFailed = true"
       @click="onTap('link', props.link)"
     />
@@ -78,6 +81,29 @@
       >{{ b.text || '按钮' }}</view>
     </view>
 
+    <!-- 图形按钮组（图标+文字横排，最多 5 个；🔴 反馈 #326 新增） -->
+    <view v-else-if="type === 'icon-menu'" class="cc-iconmenu" :style="ccIconMenuStyle">
+      <view
+        v-for="(it, ii) in (props.items || [])"
+        :key="ii"
+        class="cc-iconmenu-item"
+        @click="onTap('link', it.url, it)"
+      >
+        <image
+          v-if="it.iconUrl"
+          :src="resolveAssetUrl(it.iconUrl)"
+          mode="aspectFit"
+          class="cc-iconmenu-ico"
+          :style="{ width: (props.iconSize || 28) + 'px', height: (props.iconSize || 28) + 'px' }"
+        />
+        <text
+          v-if="it.text"
+          class="cc-iconmenu-text"
+          :style="{ fontSize: (props.fontSize || 12) + 'px', color: props.textColor || '#333333' }"
+        >{{ it.text }}</text>
+      </view>
+    </view>
+
     <!-- 富文本（HTML 渲染前消毒：租户自填但访客可见，防 H5 端注入） -->
     <view
       v-else-if="type === 'rich-text'"
@@ -138,9 +164,13 @@ const noticeAlign = computed(() => {
 //   也不要按symbol 值自己 if/else（加符号时必漏另两处渲染）。
 //   shape 类（dot/square/arrow/diamond/bar）用真实 view 画（WXSS 伪元素不可靠）；
 //   字符类（check/star）直接输出字符（★ 可显示，⧉ 那种才会豆腐块）。
-const { shape: noticeSymbolShape, text: noticeSymbolText } = computed(() =>
-  noticeSymbolParts(props.value.symbol)
-);
+// 🔴🔴 #326 修复：上一轮写成 `const { shape, text } = computed(...)` —— 对 ref 对象
+//   解构 .shape/.text 拿到的是 undefined（ref 上没有这两个属性，要 .value 才有），
+//   v-if 永远为假 → 符号永远不渲染（用户报「前置符号没有生效」）。
+//   源码正则单测抓不住这种 Vue 运行时语义错误，只能靠真机/浏览器实测。
+const noticeSym = computed(() => noticeSymbolParts(props.value.symbol));
+const noticeSymbolShape = computed(() => noticeSym.value.shape);
+const noticeSymbolText = computed(() => noticeSym.value.text);
 
 const noticeStyle = computed(() => {
   const p = props.value;
@@ -160,9 +190,14 @@ const noticeStyle = computed(() => {
 });
 
 // 🔴 反馈 #299：图片组件限高（按比例缩放）
-//   maxHeight = 0 → 不限制（保持原 mode="widthFix" 行为，向后兼容存量配置）
-//   maxHeight > 0 → 固定高容器 + aspectFit 等比缩放（不裁切、不变形）
-const imgMaxHeight = computed(() => Math.max(0, Number(props.value.maxHeight) || 0));
+//   maxHeight = 0 → 不限制（保持原 mode="widthFix" 行为）
+//   maxHeight > 0 → 显式盒高 + aspectFit 等比缩放（不裁切、不变形）
+//   🔴 #326：字段**未设**（历史数据无此键）→ 默认 350（用户指定），显式 0 才是不限制。
+const imgMaxHeight = computed(() => {
+  const raw = props.value.maxHeight;
+  if (raw == null || raw === '') return 350;
+  return Math.max(0, Number(raw) || 0);
+});
 
 const btnStyle = computed(() => {
   const p = props.value;
@@ -200,6 +235,16 @@ function btnGrpItemStyle(b) {
   }
   return s;
 }
+
+// 图形按钮组（🔴 #326 新增）：横排均布 + 间距；图标/文字尺寸组件级
+const ccIconMenuStyle = computed(() => {
+  const p = props.value;
+  return {
+    marginTop: (p.marginTop || 0) + 'px',
+    marginBottom: (p.marginBottom || 0) + 'px',
+    gap: (p.gap || 0) + 'px',
+  };
+});
 
 const richStyle = computed(() => {
   const p = props.value;
@@ -346,6 +391,20 @@ function onTap(kind, extra, linkCfg) {
 .cc-notice-text { flex: 1; }
 /* 🔴 反馈 #299：居中/居右时文字区不再 flex:1 撑满（否则文字永远贴左，等于没生效） */
 .cc-notice-text-inline { flex: none; }
+
+/* 图形按钮组（🔴 #326 新增）：横排均布，图标在上文字在下 */
+.cc-iconmenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+.cc-iconmenu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cc-iconmenu-ico { display: block; }
+.cc-iconmenu-text { margin-top: 6rpx; line-height: 1.3; }
 
 .cc-divider {
   display: flex;

@@ -247,7 +247,7 @@
               v-for="o in f.options"
               :key="String(o.value)"
               class="ce-radio"
-              :class="{ on: String(editing.props[f.key]) === String(o.value) }"
+              :class="{ on: String(radioVal(f)) === String(o.value) }"
               @click="editing.props[f.key] = o.value"
             >{{ o.label }}</view>
           </view>
@@ -344,6 +344,80 @@
           </view>
           <view v-if="editing.props.buttons.length < 5" class="ce-btn-add" @click="addButton">+ 添加按钮</view>
         </view>
+
+        <!-- 图形按钮组专属编辑器：图标+文字，最多 5 个（🔴 反馈 #326 新增）。
+             图标走预设格（设计中心按钮组同款素材 menuIconUrl），也可后续扩展自定义上传。 -->
+        <view v-if="editing && editing.type === 'icon-menu'" class="ce-btns-editor">
+          <view class="ce-section-t">图形按钮（{{ editing.props.items.length }}/5）</view>
+          <view v-for="(b, bi) in editing.props.items" :key="bi" class="ce-btn-card">
+            <view class="ce-btn-card-head">
+              <text class="ce-btn-card-t">按钮 {{ bi + 1 }}</text>
+              <text v-if="editing.props.items.length > 1" class="ce-btn-del" @click="removeIconItem(bi)">删除</text>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">图标</text>
+              <view class="ce-icon-grid">
+                <view
+                  v-for="(pUrl, pi) in ICON_PRESETS"
+                  :key="pi"
+                  class="ce-icon-cell"
+                  :class="{ on: b.iconUrl === pUrl }"
+                  @click="b.iconUrl = pUrl"
+                >
+                  <image :src="pUrl" mode="aspectFit" class="ce-icon-cell-img" />
+                </view>
+              </view>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">文字</text>
+              <view class="ce-input-wrap"><input class="ce-input" v-model="b.text" placeholder="按钮文字" placeholder-class="ph" /></view>
+            </view>
+            <!-- 跳转配置与 button 组件完全同步（同 #321 按钮组的做法）；
+                 🔴 记忆规则「子组件自身配置 ≠ 父级配置」：改的是 items[bi]，不是组件级 props。 -->
+            <view class="ce-field">
+              <text class="ce-label">跳转类型</text>
+              <view class="ce-radios">
+                <view
+                  v-for="t in LINK_TYPES"
+                  :key="t.value"
+                  class="ce-radio"
+                  :class="{ on: linkTypeOf({ scope: 'item', index: bi }) === t.value }"
+                  @click="onLinkTypeChange({ scope: 'item', index: bi }, t.value)"
+                >{{ t.label }}</view>
+              </view>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">跳转</text>
+              <view class="ce-input-wrap">
+                <input
+                  class="ce-input"
+                  v-model="b.url"
+                  :placeholder="linkPlaceholder({ scope: 'item', index: bi })"
+                  placeholder-class="ph"
+                />
+              </view>
+            </view>
+            <template v-if="linkTypeOf({ scope: 'item', index: bi }) === 'miniapp'">
+              <view class="ce-field">
+                <text class="ce-label">小程序 AppID</text>
+                <view class="ce-input-wrap">
+                  <input class="ce-input" v-model="b.miniAppId" placeholder="wx1234567890abcdef" placeholder-class="ph" />
+                </view>
+              </view>
+              <view class="ce-field">
+                <text class="ce-label">小程序页面路径</text>
+                <view class="ce-input-wrap">
+                  <input class="ce-input" v-model="b.miniAppPath" placeholder="pages/index/index，可留空进首页" placeholder-class="ph" />
+                </view>
+              </view>
+            </template>
+            <view v-if="linkTypeOf({ scope: 'item', index: bi }) === 'web'" class="ce-note">
+              <text class="ce-note-t">网页链接注意事项</text>
+              <text class="ce-note-l">· 小程序端无法直接打开外部网页，点击后会把链接复制到剪贴板，需到微信里打开</text>
+            </view>
+          </view>
+          <view v-if="editing.props.items.length < 5" class="ce-btn-add" @click="addIconItem">+ 添加按钮</view>
+        </view>
         </view>
       </scroll-view>
       <view class="ce-modal-btns">
@@ -393,6 +467,8 @@ import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegi
 // 🔴 链接模型单一事实来源（#321：内部链接恢复为一等类型 + 选择器下线）
 //   LINK_TYPES / LINK_ENVS 直接当 UI 选项渲染，禁在本文件另抄一份（会与模型漂移）。
 import { LINK_TYPES, LINK_ENVS, normalizeLinkType } from '../../utils/compLinkModel.js';
+// 图形按钮组预设图标（设计中心按钮组同款素材，网络图不进包；🔴 #326）
+import { menuIconUrl } from '../../utils/sampleImages.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
@@ -493,6 +569,11 @@ function linkHostOf(target) {
     const list = editing.value.props && editing.value.props.buttons;
     return list && list[t.index] ? list[t.index] : null;
   }
+  // 🔴 #326：图形按钮组（icon-menu）的明细在 items[] 里，与 buttons[] 同构不同名
+  if (t.scope === 'item') {
+    const list = editing.value.props && editing.value.props.items;
+    return list && list[t.index] ? list[t.index] : null;
+  }
   return editing.value.props || null;
 }
 
@@ -500,6 +581,17 @@ function linkHostOf(target) {
 function linkTypeOf(target) {
   const host = linkHostOf(target);
   return normalizeLinkType(host && host.linkType);
+}
+
+/**
+ * radio 当前**显示值**：空/未设时回落 schema default。
+ * 🔴 #326：按钮的跳转类型存量数据是 ''（#301 时期建的），裸绑定 `props[f.key]`
+ *   匹配不到任何选项 → 四个都不亮（用户报「默认是内部链接，默认是选中状态」）。
+ *   渲染端 C 端有 normalizeLinkType 兜底，面板端此前没有——显示归一，不改存量数据。
+ */
+function radioVal(f) {
+  const v = editing.value.props[f.key];
+  return (v === undefined || v === null || v === '') && f.default !== undefined ? f.default : v;
 }
 
 /**
@@ -648,6 +740,28 @@ function addButton() {
 function removeButton(i) {
   const list = editing.value && editing.value.props && editing.value.props.buttons;
   if (!list || list.length <= 2) return;
+  list.splice(i, 1);
+}
+
+// ===== 图形按钮组（icon-menu）专属编辑（🔴 #326 新增） =====
+// 预设图标 = 设计中心「按钮组」（menu-group）同款素材，网络图不进包
+const ICON_PRESETS = Array.from({ length: 10 }, (_, i) => menuIconUrl(i + 1));
+function addIconItem() {
+  const list = editing.value && editing.value.props && editing.value.props.items;
+  if (!list || list.length >= 5) return;
+  list.push({
+    iconUrl: menuIconUrl(list.length + 1),
+    text: '按钮' + (list.length + 1),
+    url: '',
+    linkType: '',
+    miniAppId: '',
+    miniAppPath: '',
+    miniAppEnv: 'release',
+  });
+}
+function removeIconItem(i) {
+  const list = editing.value && editing.value.props && editing.value.props.items;
+  if (!list || list.length <= 1) return;
   list.splice(i, 1);
 }
 
@@ -970,6 +1084,18 @@ onMounted(() => {
 .ce-btn-card-t { font-size: var(--fs-4); font-weight: 600; color: var(--t1); }
 .ce-btn-del { font-size: var(--fs-3); color: var(--danger, #f53f3f); }
 .ce-btn-add { text-align: center; padding: var(--space-r4); border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--primary, #165dff); font-size: var(--fs-4); }
+/* 图形按钮组预设图标格（🔴 #326）：5 列网格，选中描边 */
+.ce-icon-grid {
+  display: flex; flex-wrap: wrap; gap: var(--space-r2);
+}
+.ce-icon-cell {
+  width: 96rpx; height: 96rpx; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  border: 2rpx solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+.ce-icon-cell.on { border-color: var(--primary); border-width: 4rpx; }
+.ce-icon-cell-img { width: 64rpx; height: 64rpx; }
 /* 🔴 原生 input/textarea 不吃 box-sizing:border-box、也不吃「父 scroll-view 的 padding」，
    width:100% 或「不设宽」在 MP 上都溢出弹窗。解法是「视图包一层」：边框/背景/圆角/box-sizing
    落在普通 view（.ce-input-wrap，MP 对 view 的 box-sizing 可靠），原生控件本身去边框去 padding、

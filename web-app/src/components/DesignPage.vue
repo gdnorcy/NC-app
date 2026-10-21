@@ -10,7 +10,7 @@
         <!-- 高级(热区)模式：多图 + 热区点击跳转 -->
         <template v-if="c.props.mode === 'hotzone' && c.props.items && c.props.items.length">
           <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-item" :style="{ marginBottom: ii < c.props.items.length - 1 ? (c.props.gap || 0) + 'px' : 0, borderRadius: dpImageRadius(c.props) }">
-            <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
+            <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props, true)" />
             <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
               <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
             </view>
@@ -26,7 +26,7 @@
         <template v-else-if="c.props.style === 'double' && c.props.items && c.props.items.length">
           <view class="dp-image-row" :style="{ gap: (c.props.gap || 0) + 'px' }">
             <view v-for="(it, ii) in c.props.items" :key="ii" class="dp-image-row-item" :style="{ borderRadius: dpImageRadius(c.props) }">
-              <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" @click="onJump(it.link)" />
+              <image v-if="it.url" :src="resolveUrl(it.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props, true)" @click="onJump(it.link)" />
               <view v-else class="dp-image-empty" @click.stop="onJump(it.link)">
                 <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
               </view>
@@ -36,7 +36,7 @@
         <!-- 标准模式：单图 -->
         <template v-else>
           <view v-if="c.props.url" class="dp-image-single" :style="{ borderRadius: dpImageRadius(c.props) }" @click="onJump(c.props.link)">
-            <image :src="resolveUrl(c.props.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props)" />
+            <image :src="resolveUrl(c.props.url)" :mode="dpImgMode(c.props)" class="dp-image-img" :style="dpImgStyle(c.props, true)" />
           </view>
           <view v-else class="dp-image-empty" @click.stop="onJump(c.props.link)">
             <image :src="assetUrl(IMAGE_SAMPLE)" :mode="'aspectFill'" class="dp-image-empty-img" />
@@ -46,6 +46,13 @@
       <!-- 按钮 -->
       <view v-else-if="c.type === 'button'" class="dp-btn" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpBtnStyle(c.props)" @click="onJump(compLink(c.props))">
         <text>{{ c.props.text || '按钮' }}</text>
+      </view>
+      <!-- 图形按钮组（图标+文字横排，最多 5 个；🔴 反馈 #326 新增） -->
+      <view v-else-if="c.type === 'icon-menu'" class="dp-iconmenu" :style="dpIconMenuStyle(c.props)">
+        <view v-for="(it, ii) in (c.props.items || [])" :key="ii" class="dp-iconmenu-item" @click="onJump(compLink(it))">
+          <image v-if="it.iconUrl" :src="resolveUrl(it.iconUrl)" mode="aspectFit" class="dp-iconmenu-ico" :style="{ width: (c.props.iconSize || 28) + 'px', height: (c.props.iconSize || 28) + 'px' }" />
+          <text v-if="it.text" class="dp-iconmenu-text" :style="{ fontSize: (c.props.fontSize || 12) + 'px', color: c.props.textColor || '#333333' }">{{ it.text }}</text>
+        </view>
       </view>
       <!-- 分割线 -->
       <view v-else-if="c.type === 'divider'" class="dp-divider" :style="dpDividerStyle(c.props)">
@@ -1043,6 +1050,14 @@ function dpNoticeList(p) {
 function dpNoticeSym(p) {
   return noticeSymbolParts(p && p.symbol);
 }
+/** 图形按钮组（🔴 #326 新增）：横排均布 + 间距 */
+function dpIconMenuStyle(p) {
+  return {
+    marginTop: ((p && p.marginTop) || 0) + 'px',
+    marginBottom: ((p && p.marginBottom) || 0) + 'px',
+    gap: ((p && p.gap) || 0) + 'px',
+  };
+}
 function dpSwiperStyle(p) {
   const s = { overflow: 'hidden', height: (p.height || 160) + 'px' };
   s.borderRadius = (p.radiusTop ?? 0) + 'px ' + (p.radiusTop ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px ' + (p.radiusBottom ?? 0) + 'px';
@@ -1161,7 +1176,7 @@ function dpImgMode(p) {
   const fill = p.imgFill || 'cover';
   return { cover: 'aspectFill', contain: 'aspectFit', fill: 'scaleToFill', none: 'aspectFit' }[fill] || 'aspectFill';
 }
-function dpImgStyle(p) {
+function dpImgStyle(p, useMhDefault) {
   const fill = p.imgFill || 'cover';
   const pos = p.imgPos || 'center';
   const s = { objectPosition: pos };
@@ -1169,13 +1184,17 @@ function dpImgStyle(p) {
     s.width = 'auto'; s.height = 'auto'; s.maxWidth = '100%'; s.maxHeight = '100%'; s.margin = '0 auto';
   }
   // 🔴 反馈 #299：限高（按比例缩放到不超过该高度，不裁切不变形）
-  //   maxHeight=0 → 不限制（保持存量行为，向后兼容）
-  const mh = Number(p.maxHeight) || 0;
+  //   🔴 #326 修复：原 width:auto/height:auto 在 uni image 上塌缩成 0（整图消失）
+  //     → 改显式盒高（宽 100%、高=限高，内容 aspectFit 盒内等比居中，与 CardCompItem 同口径）。
+  //   ⚠️ 「未设→350」只对**图片组件**生效（useMhDefault）：本函数被图文/轮播/图集共用，
+  //     它们没有 maxHeight 字段，误给默认会把高度钉死成 350 破坏比例布局。
+  //   显式 0 = 不限制（三端同口径）。
+  const mh = useMhDefault && (p.maxHeight == null || p.maxHeight === '')
+    ? 350
+    : Math.max(0, Number(p.maxHeight) || 0);
   if (mh > 0) {
-    s.maxHeight = mh + 'px';
-    s.width = 'auto';
-    s.height = 'auto';
-    s.maxWidth = '100%';
+    s.width = '100%';
+    s.height = mh + 'px';
     s.margin = '0 auto';
   }
   return s;
@@ -1978,6 +1997,11 @@ function openChannel(kind, p) {
   border-left: 11rpx solid currentColor;
 }
 .dp-notice-text { flex: 1; }
+/* 图形按钮组（🔴 #326 新增）：横排均布，图标在上文字在下 */
+.dp-iconmenu { display: flex; align-items: center; justify-content: space-around; }
+.dp-iconmenu-item { display: flex; flex-direction: column; align-items: center; }
+.dp-iconmenu-ico { display: block; }
+.dp-iconmenu-text { margin-top: 6rpx; line-height: 1.3; }
 /* 🔴 反馈 #299：居中/居右时文字不撑满（否则永远贴左） */
 .dp-notice-text-inline { flex: none; }
 .dp-countdown { background: transparent; display: flex; flex-direction: column; position: relative; overflow: hidden; }
