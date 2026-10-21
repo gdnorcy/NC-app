@@ -847,6 +847,8 @@ import { buttonSizeStyle, searchBoxSizeStyle } from '../../../../../../web-app/s
 import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 // 🔴 #321 收尾：公告前置符号共享表（与 C 端渲染同一份，避免三端各抄一套）
 import { noticeSymbolParts } from '../../../../../../web-app/src/utils/noticeSymbol.js';
+// 🔴 #327：公告「对齐基准 + 左边偏移叠加」共享实现（与 C 端 CardCompItem / DesignPage 同一份）
+import { offsetShiftStyle } from '../../../../../../web-app/src/utils/boxAlignOffset.js';
 // 按钮组（menu-group）样式同样共用 C 端那份：数值全部来自对标站 CDP 实测，
 // 写在共享文件里才能保证「画布看到的 = 真机渲染的」。改任一端必须改这里。
 import {
@@ -1566,8 +1568,8 @@ function noticeStyle(p) {
   // 🔴 反馈 #299：对齐（整条公告）+ 左边偏移（与 C 端 CardCompItem/DesignPage 同语义）
   if (p.align === 'center') s.justifyContent = 'center';
   else if (p.align === 'right') s.justifyContent = 'flex-end';
-  const off = Number(p.offsetX) || 0;
-  if (off) s.marginLeft = off + 'px';
+  // 🔴 #327：偏移叠加在对齐基准之上（共享实现，禁在本文件另写一份 marginLeft）
+  Object.assign(s, offsetShiftStyle(p.offsetX));
   return s;
 }
 // 名片搜索栏预览样式（native-search 自定义：高/圆角/背景/文字色/风格）

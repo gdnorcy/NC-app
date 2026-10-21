@@ -248,7 +248,7 @@
               :key="String(o.value)"
               class="ce-radio"
               :class="{ on: String(radioVal(f)) === String(o.value) }"
-              @click="editing.props[f.key] = o.value"
+              @click="onRadioPick(f, o.value)"
             >{{ o.label }}</view>
           </view>
           <view v-else-if="f.control === 'switch'" class="ce-switch-row">
@@ -467,6 +467,8 @@ import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegi
 // 🔴 链接模型单一事实来源（#321：内部链接恢复为一等类型 + 选择器下线）
 //   LINK_TYPES / LINK_ENVS 直接当 UI 选项渲染，禁在本文件另抄一份（会与模型漂移）。
 import { LINK_TYPES, LINK_ENVS, normalizeLinkType } from '../../utils/compLinkModel.js';
+// 🔴 #327：切「对齐」→ 配对的「左边偏移」清零（共享语义，与 admin 面板同一份）
+import { ALIGN_KEY, clearedOffsetsFor } from '../../utils/boxAlignOffset.js';
 // 图形按钮组预设图标（设计中心按钮组同款素材，网络图不进包；🔴 #326）
 import { menuIconUrl } from '../../utils/sampleImages.js';
 
@@ -592,6 +594,19 @@ function linkTypeOf(target) {
 function radioVal(f) {
   const v = editing.value.props[f.key];
   return (v === undefined || v === null || v === '') && f.default !== undefined ? f.default : v;
+}
+
+/**
+ * radio 点选（#327）。
+ * 🔴 普通字段照旧写值；**对齐**字段额外把配对的「左边偏移」清零 ——
+ *   用户口径：偏移是相对**当前对齐**调出来的，换基准后旧数值没有意义。
+ *   ⚠️ 只在值**真的变化**时才清：点已选中的那一项不该把用户调好的偏移清掉。
+ */
+function onRadioPick(f, val) {
+  if (!editing.value) return;
+  if (String(editing.value.props[f.key]) === String(val)) return;
+  editing.value.props[f.key] = val;
+  if (f.key === ALIGN_KEY) Object.assign(editing.value.props, clearedOffsetsFor(editing.value.props));
 }
 
 /**

@@ -124,6 +124,7 @@ import SIcon from './SIcon.vue';
 import { buttonSizeStyle } from '../utils/btnSize.js';
 import { resolveAssetUrl } from '../utils/design.js';
 import { noticeSymbolParts } from '../utils/noticeSymbol.js';
+import { offsetShiftStyle } from '../utils/boxAlignOffset.js';
 
 const propsDef = defineProps({
   /** { type, props } 单个装修组件 */
@@ -182,10 +183,12 @@ const noticeStyle = computed(() => {
   };
   if (noticeAlign.value === 'center') st.justifyContent = 'center';
   else if (noticeAlign.value === 'right') st.justifyContent = 'flex-end';
-  // 左边偏移：整条公告相对容器左边平移（负数向左）。用 marginLeft 而非 transform，
-  // 避免 transform 造层叠上下文影响点击热区。
-  const off = Number(p.offsetX) || 0;
-  if (off) st.marginLeft = off + 'px';
+  // 🔴 #327：左边偏移**叠加**在对齐基准之上（公告是整条 bar，align 走 justify-content
+  //   管 bar 内部，偏移管整条 bar 平移 → 两者天然不冲突）。
+  //   ⚠️ 原来用 marginLeft：block 元素 marginLeft 会在平移的同时**把 bar 挤窄**，
+  //     与 schema tips 写的「不影响宽度」不符。改用共享 offsetShiftStyle（relative+left）
+  //     → 只平移不改宽度，且与 DesignPage / admin ComponentRender 同一份实现。
+  Object.assign(st, offsetShiftStyle(p.offsetX));
   return st;
 });
 

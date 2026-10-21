@@ -784,6 +784,8 @@ import { execCompLink } from '../utils/compLink.js';
 import { normalizeLink } from '../utils/compLinkModel.js';
 // 🔴 #321 收尾：公告前置符号共享表（与 CardCompItem / admin 画布同一份）
 import { noticeSymbolParts } from '../utils/noticeSymbol.js';
+// 🔴 #327：公告「对齐基准 + 左边偏移叠加」共享实现（与 CardCompItem / admin 同一份）
+import { offsetShiftStyle } from '../utils/boxAlignOffset.js';
 // 按钮组（menu-group）样式：与 admin 画布共用同一份实现（对标站实测数值的唯一事实来源），
 // 保证「画布看到的 = 真机渲染的」。改样式只改那份文件，不要在本文件另写一份。
 import {
@@ -1039,8 +1041,8 @@ function dpNoticeStyle(p) {
   // 🔴 反馈 #299：对齐（整条公告）+ 左边偏移（与 CardCompItem 同语义，防两端漂移）
   if (p.align === 'center') s.justifyContent = 'center';
   else if (p.align === 'right') s.justifyContent = 'flex-end';
-  const off = Number(p.offsetX) || 0;
-  if (off) s.marginLeft = off + 'px';
+  // 🔴 #327：偏移叠加在对齐基准之上（共享实现，禁在本文件另写一份 marginLeft）
+  Object.assign(s, offsetShiftStyle(p.offsetX));
   return s;
 }
 function dpNoticeList(p) {
