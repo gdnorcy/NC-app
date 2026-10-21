@@ -1,22 +1,28 @@
 /**
- * 装修组件链接模型（🔴 2026-10-21 反馈 #301 后的唯一口径）
+ * 装修组件链接模型（🔴 2026-10-21 反馈 #321 后的唯一口径）
  *
- * ## 变更：内部页面不再是「一种类型」
- * 原来 linkType 有四个值：internal / miniapp / web / phone，其中 internal 是默认值，
- * 存量数据全靠它。用户反馈「把内部页面取消吧」——因为选类型再选页面是两步操作，
- * 而内部页面跳转本质上就是「链接框里填一个 /pages/xxx 路径」。
+ * ## 变更：内部页面**恢复为一种类型**（#321 明确推翻 #301 的做法）
+ * #301 我把 internal 从类型里删掉，理由是「内部页面= 链接框填 /pages/xxx」。
+ * 但用户反馈点是：① 点链接框会**弹出内部链接选择器**（要去掉，手填即可）；
+ * ②「类型那里还是增加一个内部链接吧」。即用户要的是**内联手填**，
+ * 不是**取消这一类型** —— 两者不冲突：
+ *   ① 去掉弹窗选择器（CardLinkPicker 不再被调用）；
+ *   ② 类型里显式列出「内部链接」，不再靠「不选」隐式表达；
+ *   ③ 链接框改成**可直接输入**（外链类型时不再置灰）。
  *
- * 新模型：
- *   linkType: ''（默认=内部页面，**靠链接框填路径表达**）| 'miniapp' | 'web' | 'phone'
+ * 当前模型：
+ *   linkType: 'internal'（内部页面）| 'miniapp' | 'web' | 'phone'
  *   url:        内部页面路径 / 网页地址 / 电话号码（按 linkType 复用同一字段）
  *   miniAppId:  外部小程序 AppID
  *   miniAppPath:外部小程序页面路径（可空 = 首页）
  *   miniAppEnv: 'release'（默认）| 'trial' | 'develop'（**折叠进高级选项**，日常不用改）
  *
- * ⚠️ 向后兼容（存量数据）：
- *   - 存量 props 没有 linkType → 视为 ''（= 内部页面），行为不变；
- *   - 存量 props 有 linkType='internal' → 也归一为 ''（**不是未知值，行为一致**）；
- *   - 存量 props 有 url 且无 linkType → 仍按内部页面跳（路径）。
+ * ⚠️ 向后兼容（存量数据是线上真实数据，归一化错了 = 已配好的链接全跳不动）：
+ *   - 没有 linkType → 'internal'（行为不变）；
+ *   - linkType=''（#301 期间新建的）→ 同样 'internal'；
+ *   - linkType='internal' → 保持 'internal'。
+ *   🔴 **归一化必须吸收 '' 与 'internal' 两个写法**：两者语义相同，
+ *     若让 '' 继续存在，UI「当前选中哪个类型」会分裂（值为空时四个选项都不亮）。
  *
  * ⚠️ 「空链接」语义：url 为空且非外链类型 → 组件是纯展示按钮，点击不跳任何地方
  *   （execCompLink 返回 false → 调用方不做任何处理，不是报错）。
@@ -24,8 +30,12 @@
  * ⚠️ 本文件是**纯函数、无端依赖**，admin 与移动端共用同一套判定（防两端漂移）。
  */
 
-/** 链接类型选项（UI 展示用；不含「内部页面」——它由链接框填路径隐式表达） */
+/** 内部链接的类型值（多处复用，避免手写字符串漂移） */
+export const LINK_INTERNAL = 'internal';
+
+/** 链接类型选项（UI 展示用；「内部链接」是一等类型，不再靠「不选」隐式表达） */
 export const LINK_TYPES = [
+  { value: 'internal', label: '内部链接' },
   { value: 'miniapp', label: '外部小程序' },
   { value: 'web', label: '网页链接' },
   { value: 'phone', label: '拨打电话' },
@@ -40,18 +50,19 @@ export const LINK_ENVS = [
 
 /**
  * 归一化 linkType。
- * 'internal'（存量值）与 ''（新默认值）都表示「内部页面」，统一归为 ''。
+ * 🔴 吸收两个「内部页面」写法：''（未设 / #301 期间新建）与 'internal'（原始值）。
+ * 未设/未知值一律降级为 internal（不崩、不产生无效跳转）。
  */
 export function normalizeLinkType(type) {
   const t = String(type || '').trim();
-  if (!t || t === 'internal') return '';
+  if (!t || t === LINK_INTERNAL) return LINK_INTERNAL;
   if (t === 'miniapp' || t === 'web' || t === 'phone') return t;
-  return '';
+  return LINK_INTERNAL;
 }
 
-/** 是否为「外链类型」（需要填 AppID / 网页地址 / 电话，而不是内部路径） */
+/** 是否为「外链类型」（填 AppID / 网页地址 / 电话，而不是内部路径） */
 export function isExternalType(type) {
-  return normalizeLinkType(type) !== '';
+  return normalizeLinkType(type) !== LINK_INTERNAL;
 }
 
 /**
@@ -78,7 +89,7 @@ export function normalizeLink(p) {
  */
 export function isValidLink(link) {
   const l = normalizeLink(link);
-  if (!l.linkType) return !!l.url;
+  if (!isExternalType(l.linkType)) return !!l.url;
   if (l.linkType === 'miniapp') return /^wx[0-9a-f]{16}$/i.test(l.miniAppId);
   if (l.linkType === 'web') return /^https?:\/\//i.test(l.url);
   if (l.linkType === 'phone') return /^[\d\-+\s]{5,20}$/.test(l.url);
@@ -90,7 +101,7 @@ export function isValidLink(link) {
  */
 export function linkIssue(link) {
   const l = normalizeLink(link);
-  if (!l.linkType) {
+  if (!isExternalType(l.linkType)) {
     return l.url ? null : '未设置跳转目标';
   }
   if (l.linkType === 'miniapp') {

@@ -11,7 +11,12 @@ import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegi
 const cardEditSrc = readFileSync(fileURLToPath(new URL('./cardEdit.vue', import.meta.url)), 'utf8');
 const cardDetailSrc = readFileSync(fileURLToPath(new URL('./cardDetail.vue', import.meta.url)), 'utf8');
 // 装修组件的唯一渲染源（详情页 + 装修页共用）
-const cardCompItemSrc = readFileSync(fileURLToPath(new URL('../../components/CardCompItem.vue', import.meta.url)), 'utf8');
+// 🔴 断言「旧实现已移除」时必须用剥注释版：源码里那段「原来是 .cc-notice-dot」的
+//    说明注释含同样字面量，直接正则会连注释一起命中 → 假失败。
+const cardCompItemSrcRaw = readFileSync(fileURLToPath(new URL('../../components/CardCompItem.vue', import.meta.url)), 'utf8');
+const cardCompItemSrc = cardCompItemSrcRaw
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '');
 const myCardSrc = readFileSync(fileURLToPath(new URL('./myCard.vue', import.meta.url)), 'utf8');
 const serverCard = readFileSync(fileURLToPath(new URL('../../../../server/src/routes/card.js', import.meta.url)), 'utf8');
 
@@ -376,7 +381,11 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
   });
 
   test('预览/列表渲染走共享组件：结构与详情页一致 + 图片失败占位', () => {
-    expect(cardCompItemSrc).toMatch(/class="cc-notice-dot"/);
+    // 🔴 #321：文本组件原来写死一个 .cc-notice-dot 圆点（用户输入文字后左边凭空多个点），
+    //   改成按 symbol 配置渲染、默认无符号。钉「旧圆点已移除 + 新符号受配置控制」。
+    expect(cardCompItemSrc).not.toContain('cc-notice-dot');
+    expect(cardCompItemSrc).toMatch(/class="cc-notice-sym"/);
+    expect(cardCompItemSrc).toMatch(/noticeSymbolShape/);
     expect(cardCompItemSrc).toMatch(/class="cc-img-fallback"/);
     expect(cardCompItemSrc).toMatch(/@error="imgFailed = true"/);
     // divider 单线 + 右侧文字（早期预览层写成双线，是漂移的典型案例）

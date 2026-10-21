@@ -1,28 +1,30 @@
 /**
- * 链接模型单元测试（🔴 反馈 #301）
+ * 链接模型单元测试（🔴 反馈 #321）
  *
- * 变更：内部页面不再是「一种类型」。
- *   linkType: ''（默认=内部页面，靠链接框填路径）| 'miniapp' | 'web' | 'phone'
- *   存量 props 的 linkType='internal' 必须归一为 ''（行为不变）。
+ * #321 变更：内部链接**恢复为一等类型**（#321 推翻 #301）。
+ *   linkType: 'internal' | 'miniapp' | 'web' | 'phone'
+ *   🔴 归一化必须**同时吸收两个「内部页面」写法**：''（未设 / #301 期间新建）
+ *      与 'internal'（原始值）。存量数据两种都有，只归一其一会分裂。
  *
  * 这组测试锁的是**数据兼容**——存量装修数据是线上真实数据，
  * 归一化错了 = 用户已配好的内部链接全部跳不动。
  */
 import { describe, test, expect } from 'vitest';
 import {
-  LINK_TYPES, LINK_ENVS, normalizeLinkType, isExternalType,
+  LINK_TYPES, LINK_ENVS, LINK_INTERNAL, normalizeLinkType, isExternalType,
   normalizeLink, isValidLink, linkIssue, describeLink,
 } from './compLinkModel.js';
 
-describe('normalizeLinkType：内部页面降级', () => {
-  test('空值 / undefined → 内部页面（空串）', () => {
-    expect(normalizeLinkType('')).toBe('');
-    expect(normalizeLinkType(undefined)).toBe('');
-    expect(normalizeLinkType(null)).toBe('');
+describe('normalizeLinkType：内部链接是一等类型', () => {
+  test('空值 / undefined → internal（内部链接是一等类型，不是「没选」）', () => {
+    expect(normalizeLinkType('')).toBe('internal');
+    expect(normalizeLinkType(undefined)).toBe('internal');
+    expect(normalizeLinkType(null)).toBe('internal');
   });
 
-  test("存量 'internal' 归一为 ''（不是保留为 internal，否则两端判定分裂）", () => {
-    expect(normalizeLinkType('internal')).toBe('');
+  test("存量 'internal' 保持 internal（UI 上四个选项里要有一个是亮的）", () => {
+    expect(normalizeLinkType('internal')).toBe('internal');
+    expect(normalizeLinkType(LINK_INTERNAL)).toBe('internal');
   });
 
   test('三种外链类型原样保留', () => {
@@ -31,26 +33,29 @@ describe('normalizeLinkType：内部页面降级', () => {
     expect(normalizeLinkType('phone')).toBe('phone');
   });
 
-  test('未知值一律降级为内部页面（不崩、不产生无效跳转）', () => {
-    expect(normalizeLinkType('weird')).toBe('');
-    expect(normalizeLinkType('INTERNAL')).toBe('');
+  test('未知值一律降级为内部链接（不崩、不产生无效跳转）', () => {
+    expect(normalizeLinkType('weird')).toBe('internal');
+    expect(normalizeLinkType('INTERNAL')).toBe('internal');
   });
 
   test('isExternalType 与 normalize 一致', () => {
     expect(isExternalType('')).toBe(false);
     expect(isExternalType('internal')).toBe(false);
     expect(isExternalType('miniapp')).toBe(true);
+    expect(isExternalType('web')).toBe(true);
+    expect(isExternalType('phone')).toBe(true);
   });
 });
 
-describe('LINK_TYPES 不含「内部页面」', () => {
-  test('类型选项只有三种外链', () => {
-    expect(LINK_TYPES.map((t) => t.value)).toEqual(['miniapp', 'web', 'phone']);
+describe('LINK_TYPES 含「内部链接」', () => {
+  test('类型选项四种，内部链接排第一（= 默认选中项）', () => {
+    expect(LINK_TYPES.map((t) => t.value)).toEqual(['internal', 'miniapp', 'web', 'phone']);
   });
 
-  test('选项里不含 internal / 内部页面字样', () => {
-    expect(LINK_TYPES.some((t) => t.value === 'internal')).toBe(false);
-    expect(LINK_TYPES.some((t) => /内部/.test(t.label))).toBe(false);
+  test('🔴 default 与 options[0].value 必须同值（admin 表单引擎会取options[0]）', () => {
+    // admin 的 addListItem/listVal 在值为空时取 options[0].value。
+    // 若 default 与 options[0] 不同值，UI 显示的默认值与实际存进去的值会分裂。
+    expect(LINK_TYPES[0].value).toBe(LINK_INTERNAL);
   });
 
   test('跳转版本选项仍是三档（正式/体验/开发）', () => {
@@ -59,16 +64,20 @@ describe('LINK_TYPES 不含「内部页面」', () => {
 });
 
 describe('normalizeLink：归一化整个链接配置', () => {
-  test('存量数据（无 linkType + 有 url）→ 内部页面 + 保留路径', () => {
+  test('存量数据（无 linkType + 有 url）→ 内部链接 + 保留路径', () => {
     const l = normalizeLink({ url: '/pages/card/market' });
-    expect(l.linkType).toBe('');
+    expect(l.linkType).toBe('internal');
     expect(l.url).toBe('/pages/card/market');
   });
 
-  test("存量 linkType='internal' → 归一为 ''，url 保留", () => {
+  test("存量 linkType='internal' → 保持 internal，url 保留", () => {
     const l = normalizeLink({ url: '/pages/card/market', linkType: 'internal' });
-    expect(l.linkType).toBe('');
+    expect(l.linkType).toBe('internal');
     expect(l.url).toBe('/pages/card/market');
+  });
+
+  test("🔴 #301 期间新建的空串 linkType 也归一为 internal（线上真实数据）", () => {
+    expect(normalizeLink({ url: '/pages/card/market', linkType: '' }).linkType).toBe('internal');
   });
 
   test('字符串裁剪空白（手机输入常带空格）', () => {
@@ -84,7 +93,7 @@ describe('normalizeLink：归一化整个链接配置', () => {
 
   test('undefined 输入不崩', () => {
     expect(normalizeLink(undefined).url).toBe('');
-    expect(normalizeLink(null).linkType).toBe('');
+    expect(normalizeLink(null).linkType).toBe('internal');
   });
 });
 

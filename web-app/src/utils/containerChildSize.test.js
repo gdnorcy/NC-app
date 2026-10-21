@@ -199,3 +199,80 @@ describe('containerChildSizeStyle 容器内子组件宽度', () => {
     });
   });
 });
+
+// 🔴 反馈 #321：按钮横向对齐（居左/居中/居右）与左边偏移的联动
+describe('align：按钮横向对齐（#321）', () => {
+  it('居中（默认，未设 align 时也居中）：两侧 auto', () => {
+    for (const p of [{}, { align: undefined }, { align: 'center' }]) {
+      const s = containerChildSizeStyle(p);
+      expect(s.marginLeft, JSON.stringify(p)).toBe('auto');
+      expect(s.marginRight, JSON.stringify(p)).toBe('auto');
+    }
+  });
+
+  it('居左：左贴容器左边（marginLeft=0，剩余空间全让给右侧）', () => {
+    const s = containerChildSizeStyle({ align: 'left' });
+    expect(s.marginLeft).toBe('0');
+    expect(s.marginRight).toBe('auto');
+  });
+
+  it('居右：右贴容器右边（marginRight=0）', () => {
+    const s = containerChildSizeStyle({ align: 'right' });
+    expect(s.marginLeft).toBe('auto');
+    expect(s.marginRight).toBe('0');
+  });
+
+  it('非法 align 一律回落居中（不崩、不产生无效边距）', () => {
+    for (const bad of ['weird', 'center ', null, 123]) {
+      const s = containerChildSizeStyle({ align: bad });
+      expect(s.marginLeft, String(bad)).toBe('auto');
+      expect(s.marginRight, String(bad)).toBe('auto');
+    }
+  });
+
+  it('🔴 与左边偏移联动：设了 boxOffsetX 时以偏移为准（align 让位）', () => {
+    // 用户调「左边偏移」就是为了精确对位，此时再被 align 拽回去 = 两个控件打架。
+    for (const align of ['left', 'center', 'right']) {
+      const s = containerChildSizeStyle({ align, boxOffsetX: 12 });
+      expect(s.marginLeft, align).toBe('24rpx');   // C 端 px→rpx（×2）
+      expect(s.marginRight, align).toBe(align === 'right' ? '0' : 'auto');
+    }
+    // admin 侧用 px 基准
+    const px = containerChildSizeStyle({ align: 'left', boxOffsetX: 12 }, { unit: 'px' });
+    expect(px.marginLeft).toBe('12px');
+  });
+
+  it('boxOffsetX=0 或非法时不偏移（保持 align 给的边距）', () => {
+    for (const v of [0, null, undefined, 'abc', NaN]) {
+      const s = containerChildSizeStyle({ align: 'left', boxOffsetX: v });
+      expect(s.marginLeft, String(v)).toBe('0');
+    }
+  });
+
+  it('textAlign 仍是 center（管按钮内文字，与 align 是两件事，别删）', () => {
+    // 🔴 历史行为：按钮内部文字居中。删掉它会让 align=left 时按钮内文字贴左。
+    for (const align of ['left', 'center', 'right']) {
+      expect(containerChildSizeStyle({ align }).textAlign, align).toBe('center');
+      expect(containerChildSizeStyle({ align, widthMode: 'auto' }).textAlign, align).toBe('center');
+    }
+  });
+
+  it('auto 模式下 align 同样生效（fit-content + 横向位置）', () => {
+    const l = containerChildSizeStyle({ align: 'left', widthMode: 'auto' });
+    expect(l.width).toBe('fit-content');
+    expect(l.marginLeft).toBe('0');
+  });
+
+  it('buttonSizeStyle 与通用实现同口径（对齐 + 偏移都在）', () => {
+    const s = buttonSizeStyle({ align: 'right', boxOffsetX: 8, widthMode: 'full' });
+    expect(s.marginLeft).toBe('16rpx');    // 偏移优先
+    expect(s.marginRight).toBe('0');       // align=right 仍生效
+  });
+
+  it('宽度仍用视口单位（align 不许把解耦破坏掉）', () => {
+    const s = containerChildSizeStyle({ align: 'left', widthPercent: 60 });
+    expect(s.width).toBe('60vw');
+    const px = containerChildSizeStyle({ align: 'left', widthPercent: 60 }, { unit: 'px' });
+    expect(px.width).toBe('225px');       // 375 × 60%
+  });
+});
