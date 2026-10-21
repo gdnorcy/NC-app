@@ -53,8 +53,12 @@
         <text v-if="c.props.text" class="dp-divider-text" :style="{ color: c.props.color || '#86909C' }">{{ c.props.text }}</text>
       </view>
       <!-- 公告 -->
+      <!-- 🔴 #321 收尾：symbol 之前只有名片渲染认，首页/商场装修配了不显示。
+           符号表走 utils/noticeSymbol.js 共享，两端三处渲染不许各抄一份。 -->
       <view v-else-if="c.type === 'notice'" class="dp-notice" :style="dpNoticeStyle(c.props)" @click="onJump(compLink(c.props))">
-        <image v-if="c.props.iconType === 'custom' && c.props.iconImage" :src="resolveUrl(c.props.iconImage)" mode="aspectFit" class="dp-notice-ico" />
+        <view v-if="dpNoticeSym(c.props).shape" class="dp-notice-sym" :class="dpNoticeSym(c.props).shape"></view>
+        <text v-else-if="dpNoticeSym(c.props).text" class="dp-notice-sym-text">{{ dpNoticeSym(c.props).text }}</text>
+        <image v-else-if="c.props.iconType === 'custom' && c.props.iconImage" :src="resolveUrl(c.props.iconImage)" mode="aspectFit" class="dp-notice-ico" />
         <text v-else-if="c.props.iconType !== 'custom'" class="dp-notice-tag">公告</text>
         <text v-if="dpNoticeList(c.props).length" class="dp-notice-text" :class="{ 'dp-notice-text-inline': c.props.align && c.props.align !== 'left' }">{{ dpNoticeList(c.props)[0].text }}</text>
         <text v-else class="dp-notice-text" :class="{ 'dp-notice-text-inline': c.props.align && c.props.align !== 'left' }">{{ c.props.text || '公告内容' }}</text>
@@ -771,6 +775,8 @@ import { sampleUrl } from '../utils/sampleImages.js';
 // 🔴 反馈 #298：统一跳转执行（外部小程序/网页/电话）
 import { execCompLink } from '../utils/compLink.js';
 import { normalizeLink } from '../utils/compLinkModel.js';
+// 🔴 #321 收尾：公告前置符号共享表（与 CardCompItem / admin 画布同一份）
+import { noticeSymbolParts } from '../utils/noticeSymbol.js';
 // 按钮组（menu-group）样式：与 admin 画布共用同一份实现（对标站实测数值的唯一事实来源），
 // 保证「画布看到的 = 真机渲染的」。改样式只改那份文件，不要在本文件另写一份。
 import {
@@ -1032,6 +1038,10 @@ function dpNoticeStyle(p) {
 }
 function dpNoticeList(p) {
   return (p.items || []).filter((it) => it && it.text).slice(0, 10);
+}
+/** 🔴 #321 收尾：前置符号走共享表（与名片/admin 画布同一份解析） */
+function dpNoticeSym(p) {
+  return noticeSymbolParts(p && p.symbol);
 }
 function dpSwiperStyle(p) {
   const s = { overflow: 'hidden', height: (p.height || 160) + 'px' };
@@ -1952,6 +1962,21 @@ function openChannel(kind, p) {
 .dp-divider-text { position: absolute; background: var(--white); padding: 0 20rpx; font-size: 24rpx; color: var(--decor); }
 .dp-notice { padding: 20rpx 28rpx; border-radius: var(--radius-sm); font-size: 26rpx; display: flex; align-items: center; gap: 16rpx; }
 .dp-notice-tag { font-weight: 600; flex-shrink: 0; }
+/* 🔴 #321 收尾：前置符号。类名来自共享表 utils/noticeSymbol.js，
+   尺寸与 CardCompItem 的 .cc-notice-sym 同口径（rpx），颜色一律 currentColor 跟随文字色。 */
+.dp-notice-sym { flex-shrink: 0; }
+.dp-notice-sym-text { flex-shrink: 0; }
+.dp-notice-sym.is-dot { width: 8rpx; height: 8rpx; border-radius: var(--radius-pill); background: currentColor; }
+.dp-notice-sym.is-square { width: 10rpx; height: 10rpx; background: currentColor; }
+.dp-notice-sym.is-bar { width: 4rpx; height: 20rpx; background: currentColor; }
+.dp-notice-sym.is-diamond { width: 9rpx; height: 9rpx; background: currentColor; transform: rotate(45deg); }
+/* 箭头：border 画实心三角（WXSS 可靠，伪元素不可靠） */
+.dp-notice-sym.is-arrow {
+  width: 0; height: 0;
+  border-top: 7rpx solid transparent;
+  border-bottom: 7rpx solid transparent;
+  border-left: 11rpx solid currentColor;
+}
 .dp-notice-text { flex: 1; }
 /* 🔴 反馈 #299：居中/居右时文字不撑满（否则永远贴左） */
 .dp-notice-text-inline { flex: none; }

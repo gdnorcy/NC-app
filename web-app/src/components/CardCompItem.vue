@@ -97,6 +97,7 @@ import { normalizeLink } from '../utils/compLinkModel.js';
 import SIcon from './SIcon.vue';
 import { buttonSizeStyle } from '../utils/btnSize.js';
 import { resolveAssetUrl } from '../utils/design.js';
+import { noticeSymbolParts } from '../utils/noticeSymbol.js';
 
 const propsDef = defineProps({
   /** { type, props } 单个装修组件 */
@@ -132,21 +133,14 @@ const noticeAlign = computed(() => {
   return a === 'center' || a === 'right' ? a : 'left';
 });
 
-// 🔴 #321：前置符号（8 种+ 无）。分两类：
-//   - shape 类（dot/square/arrow/diamond/bar）：用真实 view 画，形状与尺寸可控；
-//   - 字符类（check/star）：直接输出字符（★ 在小程序字体里可显示，⧉ 那种才会豆腐块）。
-const NOTICE_SYMBOLS = {
-  dot: { shape: 'is-dot' },
-  square: { shape: 'is-square' },
-  arrow: { shape: 'is-arrow' },
-  diamond: { shape: 'is-diamond' },
-  bar: { shape: 'is-bar' },
-  check: { text: '\u2713' },
-  star: { text: '\u2605' },
-};
-const noticeSymbol = computed(() => NOTICE_SYMBOLS[props.value.symbol] || null);
-const noticeSymbolShape = computed(() => (noticeSymbol.value && noticeSymbol.value.shape) || '');
-const noticeSymbolText = computed(() => (noticeSymbol.value && noticeSymbol.value.text) || '');
+// 🔴 #321：前置符号。符号表与解析逻辑在 utils/noticeSymbol.js（两端共用），
+//   这里只做「把共享结果绑到模板」的薄壳—— 不要在本组件私藏一份符号表，
+//   也不要按symbol 值自己 if/else（加符号时必漏另两处渲染）。
+//   shape 类（dot/square/arrow/diamond/bar）用真实 view 画（WXSS 伪元素不可靠）；
+//   字符类（check/star）直接输出字符（★ 可显示，⧉ 那种才会豆腐块）。
+const { shape: noticeSymbolShape, text: noticeSymbolText } = computed(() =>
+  noticeSymbolParts(props.value.symbol)
+);
 
 const noticeStyle = computed(() => {
   const p = props.value;

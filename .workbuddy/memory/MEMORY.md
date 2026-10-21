@@ -26,8 +26,19 @@
 
 ## 几何与浮层
 - 两端各写一份 CSS=必然漂移：parity 三纪律（源码正则提取；剥注释只取 style 块；比实际生效值）；CSS 几何须无头实测，**单测全绿≠视觉正确（已五次）**。
+- 🔴 **新页面必过 tokenAudit，破了靠映射既有令牌不靠上调基线**（实测新页面 +38 处全可映射：`--white/--t3/--border/--bg-card-2/--decor/--decor-2/--gold/--danger/--primary-deep/--bg-page/--bg-hover/--brand-orange`，嵌套 fallback `var(--x, var(--y))` 可行）。**「旧实现已移除」类断言必须先剥注释**——源码里「原实现如何如何」的说明注释含同样字面量，正则会连注释一起命中。
 - 🔴 取 CSS 规则体别用非贪婪 `/\.cls \{[\s\S]*?xxx/`（会跨过 `}` 吃到后面无关规则，通过/失败都是假的）→ 按大括号切到本规则 `}` 为止。
 - 🔴 用户提示常含答案：「A可B不可」⇒病根在两分支差异。「还是之前的坑」=方案选错。
+- 🔴 **「取消 A 的实现方式」≠「取消 A 这个概念」**：#301 把「内部页面」从跳转类型里删掉，
+  #321 用户要回「类型那里还是增加一个内部链接」——他要的只是**别弹选择器**（手填即可），
+  不是取消这一类型。听到「去掉/取消 X」先确认 X 是**做法**还是**概念**。
+- 🔴 **「置灰」要先问灰掉的是哪个字段的语义**：#301 我按「外链时把跳转框置灰」实现，
+  #321 用户报「切到网页/电话后输入框是灰的」——网页/电话恰恰要把网址/号码填进去，
+  **灰掉=不让填**。禁用态必须区分「这个字段在此类型下不生效」与「暂时不可编辑」。
+- 🔴 **字段值归一化要吸收所有历史写法**（如 `''` 与 `'internal'` 都表示内部页面）：
+  只归一其一会让 UI「四个选项一个都不亮」。且 `options[0].value` 必须与 schema `default` 同值。
+- 🔴 「组件内自带的装饰元素」（写死的圆点/图标）用户会当成配置项来问「怎么去掉」
+  → 把它变成可选配置（默认无），别只解释「这是设计如此」。
 - 🔴 「测量会过期」先证伪再下药：轮询到稳定仍错→非时序；对比原生 DOM 与 query 值定位真因。阶梯延时是无效药。
 - 会员等属性判据服务端算好下发布尔（SQLite 空格日期 MP 端 new Date() 会 Invalid）；「A 的能力」入口恒显示，差异在点击后文案与引导，不加锁不置灰。
 - 组件宽度用 vw/设计稿 px，禁百分比；栅格 `width:%` 必配 `box-sizing:border-box`。
@@ -45,14 +56,18 @@
 - 🔴 构建顺序：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧）。干净做法：新产物先 `cp -a` 到 /tmp，main 只提源码，deploy 上整目录替换。
 - 🔴 **「产物挪到 /tmp → checkout main → 放回」这条纪律自带嵌套陷阱**：`git checkout` 会按索引把 `server/public/{card,mall,admin}`、`server/mini-template/mp-weixin` **恢复成旧版**，随后 `mv /tmp/新产物 server/public/card` 因目标已存在 → 变成 `card/card/`（外旧内新），症状像「部署没生效」（只看到旧 `assets/*.png`、新 `utils/compIconsBase64.js` 消失）。**放回前先 `mv` 走同名旧目录**；判据 `ls <产物目录>` 是否出现与自身同名的子目录。
 - 🔴 safe-delete 拦删 >50 文件：正解=先把旧产物 `mv` 到 /tmp 再构建；需挪 `dist/build/h5`、`server/public/{card,mall}/{assets,static}`、`server/mini-template/mp-weixin`、MP `static/{icons,sicons}`。推 deploy 用 `git push -f origin deploy`。
+- 🔴 **切 deploy 前必先 `git checkout -- server/mini-template/mp-weixin`**：构建脚本会把产物写回工作区（main 上是旧版），这些未暂存改动会直接**阻塞 checkout deploy**（Aborting）。换产物目录时**别把 card 的产物放进 mall**——mall 是另一个应用，本轮无 mall 源码改动就必须还原，否则等于用错产物部署。
 - 🔴 TAT：`reset --hard origin/deploy` 前必须先 `fetch`；带外网域名的命令被 AccessDeny 拦→拆步+本地 curl。判构建成功禁用 `cmd | tail`（tail 的 exit 恒 0），用 `> log 2>&1; echo $?`。
 - 🔴 **外网校验按各站点自己的挂载前缀走**：card/mall 是 `/{prefix}/assets/`，**admin 是 `/admin-assets/assets/`**（`app.js` 里 admin 另有 `req.path.startsWith('/admin/')`→sendFile(admin.html) 兜底 680B）。用 `/admin/assets/x.js` 探测必得 680B HTML 且 HTTP 200 —— 又一张「SPA 兜底让 404 也返 200」的脸。
 - 🔴 **验接口是否上线要用正确的 HTTP 方法**：只支持 POST 的路由用 GET 探必返 404（正常！不是没部署），换 POST 得 401（鉴权生效）才算注册；另拿一个真不存在的路由确认 404 基准。**C 端 `/api/card/*` 用租户后台 token 一律 401**（鉴权不同域），返回条数 0 是鉴权失败不是没数据。
 - 🔴 **vitest 不编译 SFC → setup 里「同一标识符声明两次」只有 `uni build` 照得出**（994 例单测全绿 + `audit:imports` 过，`build:mobile` 仍报 "already been declared"）。改过 SFC 就必须跑完整构建，单测绿灯不能替代。
 - 🔴 server 全量单进程 `node --test` 会被 OOM kill（exit 137）：`awk 'NR%4==n'` 分 4 批跑。查库：`node:sqlite`+`server/data/panorama.db`。
+- 🔴 **vitest 报 "no tests" 不是通过**：`test()` 未导入（文件用的是 `it`）时**静默跳过**该 describe，
+  看起来"全绿"实则一条没跑。追加用例到旧文件前先看它导的是 `test` 还是 `it`。
 
 ## 令牌与产物
 - 🔴 `tokenAudit` 按「写法**种类**」计数（z-index/font-size/radius…），不是次数：写 `calc(var(--z-popup)+10)` 或改 `--z-toast` 都**新增一种写法直接顶破基线**。正解：复用 `--z-popup`，靠 **DOM 顺序**决定谁压谁。box-shadow 同理复用已有字面量（`--shadow-*` token 全工程没人用过，用了也算新写法）。
+- 🔴 **hex/rgba 指标按「处数」计数**（与上面按种类不同）：新页面 `<style>` 一把裸 hex 就能顶破几十处，同样靠映射既有令牌压回去，**不许上调基线**。`z-index 27/27`、`box-shadow 46/46` 已**零余量**，任何新增写法直接破。
 - 🔴 可滚动容器里的主操作按钮要 `position:sticky; bottom:0`：内容一长按钮滚走，用户会报「没找到保存按钮」。同理，根节点绑个修饰类**不等于**生效——若隐藏靠 `.card:not(.active){display:none}`，必须改 class **绑定表达式**（加 `isEdit ||` 短路），改类无效。
 - 验证产物：JS 已压缩+mangle，grep 函数名必 0 命中 → 查**字符串字面量**；curl 出的中文串要过 python3 UTF-8 解码再 count。H5 构建 rpx→rem（`1rpx→.03125rem`）+scope 后缀（`ce-card[data-v-xxx]`），grep `.cls{` 恒 0 是假阴性。
 

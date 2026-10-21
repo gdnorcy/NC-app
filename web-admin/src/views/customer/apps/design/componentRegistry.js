@@ -9,6 +9,8 @@
 import { sampleUrl, menuIconUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
 // 容器底色字段名（compBgColor）：面板 whenHas 条件引用它，避免与渲染层写岔
 import { CONTAINER_BG_KEY } from '../../../../../../web-app/src/utils/containerStyle.js';
+// 🔴 #321 收尾：公告前置符号面板选项引用共享表（与两端渲染同一份，杜绝「配了没反应」）
+import { NOTICE_SYMBOL_OPTIONS } from '../../../../../../web-app/src/utils/noticeSymbol.js';
 import iconTitle from '../../../../assets/comp-icons/title.png';
 import iconText from '../../../../assets/comp-icons/richtext.png';
 import iconImage from '../../../../assets/comp-icons/picture.png';
@@ -429,7 +431,7 @@ export const componentRegistry = [
       { key: 'dataSource', label: '数据显示', control: 'radio', section: 'content', options: [{ label: '读取系统', value: 'system' }, { label: '自定义', value: 'custom' }] },
       { key: 'fontSize', label: '字号', control: 'slider', section: 'style', min: 12, max: 20 },
       { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
-      { key: 'symbol', label: '前置符号', control: 'radio', default: 'none', section: 'style', options: [{ label: '无', value: 'none' }, { label: '圆点', value: 'dot' }, { label: '方块', value: 'square' }, { label: '箭头', value: 'arrow' }, { label: '菱形', value: 'diamond' }, { label: '对勾', value: 'check' }, { label: '星号', value: 'star' }, { label: '竖线', value: 'bar' }], tips: '显示在文字前面的符号。选「无」则只有文字（默认）' },
+      { key: 'symbol', label: '前置符号', control: 'radio', default: 'none', section: 'style', options: NOTICE_SYMBOL_OPTIONS, tips: '显示在文字前面的符号。选「无」则只有文字（默认）' },
       { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '整条公告（图标+文字）的对齐方式；居中/居右时文字不再撑满整行' },
       { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '整条公告相对容器左边再平移。负数向左；不影响宽度' },
       { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
