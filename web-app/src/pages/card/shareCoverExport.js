@@ -31,8 +31,10 @@ export function exportShareCover(canvas, card, styleKey, colors, opts = {}) {
       return;
     }
     // #ifdef MP-WEIXIN
+    // 🔴 dpr 可调：分享出去的正图用 2（清晰度优先）；缩略图导出用 1 就够
+    //    （缩略图显示宽 ~148px，750×600 位图已是 5 倍超采样，2 只会白白慢 4 倍）
     renderShareCover(canvas, card, styleKey, colors, {
-      W: SHARE_COVER_W, H: SHARE_COVER_H, dpr: 2,
+      W: SHARE_COVER_W, H: SHARE_COVER_H, dpr: opts.dpr || 2,
       qrImage: opts.qrImage || '',
       avatarImage: opts.avatarImage || '',
     }).then(() => {

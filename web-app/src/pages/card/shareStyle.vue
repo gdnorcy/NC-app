@@ -34,7 +34,7 @@
                   id="shareCoverCanvas"
                   type="2d"
                   class="ps-canvas"
-                  :style="{ width: coverW + 'px', height: coverH + 'px' }"
+                  :style="previewW ? { width: previewW + 'px', height: previewH + 'px' } : null"
                 ></canvas>
               </view>
               <view class="ps-wxcard-foot">
@@ -78,7 +78,19 @@
                 @click="pickStyle(s.key)"
               >
                 <view class="ps-cover-thumb">
+                  <!-- 🔴 #328：缩略图必须是 <image>，不能直接放 canvas ——
+                       canvas 是原生组件，横向 scroll-view 里同层渲染一旦失效，
+                       滑动时文字（普通节点）跟着走、canvas 钉在屏幕上不动（用户实测）。
+                       正解：画到屏幕外的导出 canvas → 导出临时图片 → 用 <image> 展示。
+                       canvas 仅作导出失败时的兜底（v-else）。 -->
+                  <image
+                    v-if="thumbSrc[s.key]"
+                    class="ps-cover-img"
+                    :src="thumbSrc[s.key]"
+                    mode="aspectFill"
+                  />
                   <canvas
+                    v-else
                     :id="'coverThumb' + s.key.replace('-', '')"
                     type="2d"
                     class="ps-cover-canvas"
@@ -101,6 +113,11 @@
     <view class="ps-footer" v-if="!loadFailed">
       <view class="ps-save" :class="{ disabled: !canSave }" @click="save">保存</view>
     </view>
+
+    <!-- 🔴 #328 缩略图导出用的屏幕外画布（画 6 款风格 → 逐张导出临时图片给 <image>）。
+         ⚠️ 不能 display:none —— MP 端节点查不到（本项目 shareCoverExport.js 已踩过），
+         必须 position:fixed + 负偏移移出屏幕。 -->
+    <canvas id="coverExportCanvas" type="2d" class="ps-export-canvas"></canvas>
   </view>
 </template>
 
@@ -116,6 +133,7 @@ import {
   SHARE_STYLES, SHARE_COVER_W, SHARE_COVER_H, SHARE_TITLE_MAX,
   renderShareCover, resolveBrandColors, resolveShareTitle,
 } from './shareCover.js';
+import { exportShareCover } from './shareCoverExport.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
@@ -126,10 +144,33 @@ const { brandVars, brandPrimary } = useBrandOverride();
 const inst = getCurrentInstance();
 
 const styles = SHARE_STYLES;
+/** 位图绘制尺寸（设计稿像素，5:4）。⚠️ 只用于 renderShareCover 的 W/H，
+ *  **不能**拿来当 canvas 的 CSS 显示尺寸（#328 病根） */
 const coverW = SHARE_COVER_W;
 const coverH = SHARE_COVER_H;
 const thumbW = 148;
 const thumbH = Math.round((148 * SHARE_COVER_H) / SHARE_COVER_W);
+
+// 🔴 #328：预览画布的 **CSS 显示尺寸** 必须按容器缩放，不能直接用设计稿像素。
+//   病根：原来 `:style="{width: SHARE_COVER_W+'px'}"` = 750px 宽 —— 375 屏上宽被容器
+//   裁掉、高 600px 全保留 → 实际显示约 302×600（≈1:2），用户报「分享卡片预览比例不对」。
+//   位图仍由 renderShareCover 按 750×600 绘制（清晰度不变），这里只改**显示**尺寸。
+//   初值用屏宽推（避免首帧空），随后用 `.ps-wxcard-cover` 实测值校正。
+const previewW = ref(0);
+const previewH = computed(() =>
+  previewW.value ? Math.round((previewW.value * SHARE_COVER_H) / SHARE_COVER_W) : 0
+);
+function initPreviewW() {
+  let sysW = 375;
+  try { sysW = (uni.getSystemInfoSync() || {}).windowWidth || 375; } catch (e) { /* 保持默认 */ }
+  // 98rpx = ps-preview 左右 padding 24×2 + ps-chat 左右 padding 24×2 + wxcard 边框 1×2
+  previewW.value = Math.round((sysW * (750 - 98)) / 750);
+}
+initPreviewW();
+
+// 🔴 #328：缩略图导出结果（key → 临时图片路径/H5 dataURL）。有值就渲染 <image>，
+//   没值（导出失败）走 v-else 的 canvas 兜底直绘。
+const thumbSrc = ref({});
 
 const card = ref({});
 const styleKey = ref('cover-1');
@@ -191,25 +232,43 @@ function reloadPage() {
   load();
 }
 
+/** 通用节点查询（MP）：返回 { node, width, height } 或 null */
+function queryNode(sel) {
+  const q = uni.createSelectorQuery();
+  if (inst) q.in(inst.proxy);
+  return new Promise((resolve) => {
+    q.select(sel).fields({ node: true, size: true, rect: true }).exec((res) => {
+      resolve(res && res[0] ? res[0] : null);
+    });
+  });
+}
+
+/** H5 端拿真 canvas：uni 的 <canvas> 编译成包裹层，真 canvas 在里面 */
+function h5Canvas(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  return el.getContext ? el : el.querySelector('canvas');
+}
+
 /** 画当前封面到预览画布 */
 async function renderPreview() {
   const colors = resolveBrandColors(card.value, brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']));
+  // 🔴 #328：先实测容器宽校正显示尺寸（推算值可能差几像素）
+  const box = await queryNode('.ps-wxcard-cover');
+  if (box && box.width > 0) previewW.value = Math.round(box.width);
   // #ifdef MP-WEIXIN
-  const q = uni.createSelectorQuery();
-  if (inst) q.in(inst.proxy);
-  q.select('#shareCoverCanvas').fields({ node: true, size: true }).exec(async (res) => {
-    if (!res || !res[0] || !res[0].node) return;
-    const canvas = res[0].node;
-    await renderShareCover(canvas, card.value, styleKey.value, colors, {
+  const node = await queryNode('#shareCoverCanvas');
+  if (node && node.node) {
+    await renderShareCover(node.node, card.value, styleKey.value, colors, {
       W: coverW, H: coverH, dpr: 1,
       qrImage: qrImage.value,
       avatarImage: card.value.avatar || '',
     });
-  });
+  }
   // #endif
   // #ifndef MP-WEIXIN
-  const el = document.getElementById('shareCoverCanvas');
-  if (el && el.getContext) {
+  const el = h5Canvas('shareCoverCanvas');
+  if (el) {
     await renderShareCover(el, card.value, styleKey.value, colors, {
       W: coverW, H: coverH, dpr: 2,
       qrImage: qrImage.value,
@@ -219,18 +278,58 @@ async function renderPreview() {
   // #endif
 }
 
-/** 画 6 张缩略图（每张一个 canvas，MP 端按 id 逐个查） */
+/**
+ * 画 6 张缩略图（🔴 #328 重写）。
+ *
+ * 主路径：画到**屏幕外导出 canvas** → 导出临时图片 → `<image>` 展示。
+ *   为什么不直接画可见 canvas：canvas 是原生组件，横向 scroll-view 里同层渲染
+ *   一旦失效，滑动时普通节点（文字）跟手、canvas 钉在屏幕上不动（用户实测）。
+ *   <image> 是普通节点，滚动跟手，还把 6 个原生 canvas 降到 0 个（省性能）。
+ * 兜底：导出失败 → 退回老的「可见 canvas 直绘」（v-else 分支）。
+ */
 async function renderThumbs() {
   const colors = resolveBrandColors(card.value, brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']));
   for (const s of styles) {
+    let src = '';
     // #ifdef MP-WEIXIN
-    // eslint-disable-next-line no-await-in-loop
-    await drawThumbMP(s.key, colors);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const node = await queryNode('#coverExportCanvas');
+      if (node && node.node) {
+        // eslint-disable-next-line no-await-in-loop
+        src = await exportShareCover(node.node, card.value, s.key, colors, {
+          avatarImage: card.value.avatar || '',
+          dpr: 1,
+        });
+      }
+    } catch (e) { src = ''; }
     // #endif
     // #ifndef MP-WEIXIN
-    // eslint-disable-next-line no-await-in-loop
-    await drawThumbH5(s.key, colors);
+    try {
+      const el = h5Canvas('coverExportCanvas');
+      if (el) {
+        // eslint-disable-next-line no-await-in-loop
+        await renderShareCover(el, card.value, s.key, colors, {
+          W: SHARE_COVER_W, H: SHARE_COVER_H, dpr: 1,
+          qrImage: '', avatarImage: card.value.avatar || '',
+        });
+        src = el.toDataURL('image/png');
+      }
+    } catch (e) { src = ''; }
     // #endif
+    if (src) {
+      thumbSrc.value = { ...thumbSrc.value, [s.key]: src };
+    } else {
+      // 导出失败 → 可见 canvas 直绘兜底（滑动 bug 仅在此降级路径复现）
+      // #ifdef MP-WEIXIN
+      // eslint-disable-next-line no-await-in-loop
+      await drawThumbMP(s.key, colors);
+      // #endif
+      // #ifndef MP-WEIXIN
+      // eslint-disable-next-line no-await-in-loop
+      await drawThumbH5(s.key, colors);
+      // #endif
+    }
   }
 }
 
@@ -384,6 +483,14 @@ onShow(() => {
 }
 .ps-cover-item.on .ps-cover-thumb { border-color: var(--brand-orange); }
 .ps-cover-canvas { display: block; }
+/* 🔴 #328：缩略图优先用导出的临时图片（canvas 在横向 scroll-view 里不跟手） */
+.ps-cover-img { display: block; width: 100%; height: 100%; }
+/* 🔴 #328：缩略图导出用的屏幕外画布。
+   ⚠️ 禁 display:none（MP 节点查不到）→ 必须 fixed + 负偏移；禁 z-index（tokenAudit 零余量）。 */
+.ps-export-canvas {
+  position: fixed; left: -9999px; top: 0;
+  width: 148px; height: 118px; pointer-events: none;
+}
 .ps-cover-tick {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 60rpx; height: 60rpx; border-radius: 50%;
