@@ -1151,11 +1151,14 @@ export function createCardRouter(db, wxService) {
   });
 
   // 访客已读标记（红点消失）
-  router.post('/visitors/:visitorOpenid/read', auth, (req, res) => {
+  // 🔴 按行 id 标记，不是按 visitor_openid：列表里每条 = 一次访问会话（card_visitor 行），
+  //    而匿名访客的 openid 全是 'anonymous'——按 openid 更新会一次性清掉所有匿名访客红点
+  //    （用户反馈：只看一条、红点全没）。已读态须逐行独立，故用主键 id + card_id 双约束。
+  router.post('/visitors/:visitorId/read', auth, (req, res) => {
     const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    db.prepare('UPDATE card_visitor SET read_at = datetime(\'now\') WHERE card_id=? AND visitor_openid=?')
-      .run(card.id, req.params.visitorOpenid);
+    db.prepare('UPDATE card_visitor SET read_at = datetime(\'now\') WHERE id=? AND card_id=?')
+      .run(Number(req.params.visitorId) || 0, card.id);
     res.json({ ok: true });
   });
 
@@ -2032,7 +2035,7 @@ export function createCardRouter(db, wxService) {
   //   source='master' 租户母版（card_id=0 + customer_id），只读注入实现「企业母版锁定」。
   //   type/props 与 web-admin componentRegistry 对齐；母版 PC 管理页在 V1.1。
   // ============================================================
-  const COMP_TYPES = ['image', 'channel-video', 'notice', 'divider', 'spacer', 'button', 'rich-text'];
+  const COMP_TYPES = ['image', 'channel-video', 'notice', 'divider', 'spacer', 'button', 'rich-text', 'button-group'];
   const COMP_MAX = 20;
   const compProps = (raw) => { try { const p = JSON.parse(raw); return p && typeof p === 'object' ? p : {}; } catch { return {}; } };
 

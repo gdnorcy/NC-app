@@ -146,15 +146,34 @@ export const cardApi = {
       return data;
     }));
   },
-  // 用户头像上传（个人中心编辑资料；入参为本地临时路径，跨端走 uni.uploadFile）
-  uploadUserAvatar: (filePath) => {
+  // 用户头像上传（个人中心编辑资料 + 装修组件配图复用同一存储）：入参为本地临时路径。
+  // 🔴 跨端走两条路：
+  //   MP：uni.uploadFile 直接传 filePath（本地临时路径），服务端 multer 收到文件。
+  //   H5：window 环境存在。uni.uploadFile 在 H5 下会把 blob URL 字符串当文件内容发出去，
+  //       服务端收不到真正的 file →「未收到图片文件」。必须用 FormData 携带真实 File 对象 + fetch。
+  //       chooseMedia/chooseImage 在 H5 的 tempFiles[i] 上带 .file（File 对象），由调用方一并传入。
+  uploadUserAvatar: (filePath, file) => {
     const token = uni.getStorageSync('card_token');
+    const auth = token ? { Authorization: `Bearer ${token}` } : {};
+    if (typeof window !== 'undefined') {
+      const fd = new FormData();
+      fd.append('file', file || filePath, 'image');
+      return fetch(BASE_URL + '/user/avatar-upload', {
+        method: 'POST',
+        headers: auth,
+        body: fd,
+      }).then((r) => r.json().then((data) => {
+        if (!r.ok) throw new Error(data.error || '上传失败');
+        if (!data.url) throw new Error('上传失败');
+        return data;
+      }));
+    }
     return new Promise((resolve, reject) => {
       uni.uploadFile({
         url: BASE_URL + '/user/avatar-upload',
         filePath,
         name: 'file',
-        header: token ? { Authorization: `Bearer ${token}` } : {},
+        header: auth,
         success: (res) => {
           try {
             const data = JSON.parse(res.data || '{}');
@@ -222,7 +241,9 @@ export const cardApi = {
   distWithdraws: (params = {}) => request(`/distribution/withdraws?page=${params.page || 1}&pageSize=${params.pageSize || 20}&status=${params.status || ''}&identityType=${params.identityType || ''}`),
   distTeam: (identityType, scope) => request(`/distribution/team?identityType=${identityType || ''}${scope ? `&scope=${scope}` : ''}`),
   distTeamOrders: (page, identityType) => request(`/distribution/team-orders?page=${page || 1}&pageSize=20&identityType=${identityType || ''}`),
-  markVisitorRead: (openid) => request(`/visitors/${openid}/read`, 'POST'),
+  // 按 card_visitor 行 id 标记已读（不是按 openid：匿名访客 openid 都是 'anonymous'，
+  // 按 openid 会一次性清掉所有匿名访客红点）。入参为列表项的 v.id。
+  markVisitorRead: (id) => request(`/visitors/${id}/read`, 'POST'),
 
   // 客户管理
   getCustomers: (params) => request('/customers' + (params ? '?' + qsStringify(params) : '')),

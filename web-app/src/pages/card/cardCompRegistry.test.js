@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
 // admin 注册表是数据真源（PNG 图标由 vite 转 URL，测试环境可解析）
-import { componentRegistry } from '../../../../web-admin/src/views/customer/apps/design/componentRegistry.js';
+import { componentRegistry, COMP_ICONS } from '../../../../web-admin/src/views/customer/apps/design/componentRegistry.js';
+
+const basename = (x) => String(x).split('/').pop();
 
 const root = path.resolve(__dirname, '../../../..');
 
@@ -12,7 +14,7 @@ describe('移动端轻量注册表 ↔ admin componentRegistry 一致性', () =>
 
   test('移动端开放的 7 种组件必须存在于 admin 注册表', () => {
     const types = CARD_COMP_REGISTRY.map((c) => c.type);
-    expect(types.sort()).toEqual(['button', 'channel-video', 'divider', 'image', 'notice', 'rich-text', 'spacer']);
+    expect(types.sort()).toEqual(['button', 'button-group', 'channel-video', 'divider', 'image', 'notice', 'rich-text', 'spacer']);
     for (const t of types) expect(adminByType[t], `admin 缺少 ${t}`).toBeTruthy();
   });
 
@@ -35,6 +37,19 @@ describe('移动端轻量注册表 ↔ admin componentRegistry 一致性', () =>
     const allowed = new Set(['input', 'image', 'color', 'slider', 'radio', 'switch', 'link', 'richtext']);
     for (const c of CARD_COMP_REGISTRY) {
       for (const s of c.schema) expect(allowed.has(s.control), `${c.type}.${s.key} 控件 ${s.control} 未实现`).toBe(true);
+    }
+  });
+
+  test('反馈 #279：每个组件都有 icon，且与设计中心同类型用的是同一张 PNG', () => {
+    for (const c of CARD_COMP_REGISTRY) {
+      expect(c.icon, `${c.type} 缺少 icon 字段`).toBeTruthy();
+      const adminEntry = adminByType[c.type];
+      const adminPng = COMP_ICONS[adminEntry.icon];
+      expect(adminPng, `设计中心 ${c.type} 无对应图标`).toBeTruthy();
+      expect(
+        basename(c.icon),
+        `${c.type} 图标应与设计中心一致（设计中心用 ${basename(adminPng)}）`,
+      ).toBe(basename(adminPng));
     }
   });
 });

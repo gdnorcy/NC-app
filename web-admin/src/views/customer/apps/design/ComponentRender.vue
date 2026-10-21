@@ -40,6 +40,17 @@
     <template v-else-if="comp.type === 'button'">
       <div class="r-btn" :class="{ auto: comp.props.widthMode === 'auto' }" :style="btnStyle(comp.props)">{{ comp.props.text || '按钮' }}</div>
     </template>
+    <template v-else-if="comp.type === 'button-group'">
+      <div class="r-btngrp" :style="{ marginTop: (comp.props.marginTop||0)+'px', marginBottom: (comp.props.marginBottom||0)+'px', gap: (comp.props.gap||0)+'px' }">
+        <div
+          v-for="(b, bi) in (comp.props.buttons || [])"
+          :key="bi"
+          class="r-btngrp-btn"
+          :class="{ outline: b.btnStyle === 'outline' }"
+          :style="btnGrpItemStyle(b)"
+        >{{ b.text || '按钮' }}</div>
+      </div>
+    </template>
     <template v-else-if="comp.type === 'divider'">
       <div class="r-divider" :style="dividerStyle(comp.props)"><span v-if="comp.props.text" :style="{ color: comp.props.color || '#86909C' }">{{ comp.props.text }}</span></div>
     </template>
@@ -1384,6 +1395,18 @@ function btnStyle(p) {
   //   详见 web-app/src/utils/containerChildSize.js 顶部实测记录。
   return Object.assign(s, buttonSizeStyle(p, { unit: 'px' }));
 }
+function btnGrpItemStyle(b) {
+  const s = { borderRadius: '8px', flex: '1 1 0', minWidth: 0 };
+  if (b.btnStyle === 'outline') {
+    s.color = b.bgColor || '#165DFF';
+    s.border = '1px solid ' + (b.bgColor || '#165DFF');
+    s.background = 'transparent';
+  } else {
+    s.color = b.textColor || '#ffffff';
+    s.background = b.bgColor || '#165DFF';
+  }
+  return s;
+}
 function noticeList(p) {
   const arr = (p.items || []).filter((it) => it && it.text);
   return arr.slice(0, 10);
@@ -1889,6 +1912,8 @@ const nativeGridItems = [
 .r-image-row .r-image-empty { aspect-ratio: auto; height: 100%; border-radius: 0; }
 .r-btn { display: inline-block; height: 40px; line-height: 40px; padding: 0 24px; border-radius: 8px; font-size: 14px; text-align: center; box-sizing: border-box; }
 .r-btn.auto { height: 32px; line-height: 32px; padding: 0 12px; border-radius: 6px; font-size: 14px; }
+.r-btngrp { display: flex; width: 100%; }
+.r-btngrp-btn { height: 36px; line-height: 36px; font-size: 14px; font-weight: 500; text-align: center; border-radius: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .r-divider { height: 0; margin: 14px 0; position: relative; }
 .r-divider span { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }

@@ -55,6 +55,7 @@ export const COMP_ICONS = {
   text: iconText,
   image: iconImage,
   button: iconButton,
+  'button-group': iconButton,
   divider: iconDivider,
   notice: iconNotice,
   countdown: iconCountdown,
@@ -339,6 +340,37 @@ export const componentRegistry = [
       // 改回纯色即可（如 #165DFF），不是渲染 bug。
       { key: 'bgColor', label: '按钮色', control: 'color', section: 'style' },
       { key: 'radius', label: '按钮圆角', control: 'slider', section: 'style', min: 0, max: 24 },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
+    ],
+  },
+  {
+    type: 'button-group',
+    name: '按钮组',
+    group: 'basic',
+    icon: 'button-group',
+    // 与移动端 cardCompRegistry 的 button-group 逐字一致（一致性单测钉死 defaultProps）；
+    // 移动端装修页用专属编辑器维护 buttons，admin 这里走通用 list 控件（listMin/Max 约束 2-5 个）
+    defaultProps: {
+      buttons: [
+        { text: '按钮一', url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+        { text: '按钮二', url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+      ],
+      gap: 16,
+      marginTop: 6,
+      marginBottom: 0,
+      memberLevel: 'all',
+    },
+    schema: [
+      { key: 'buttons', label: '按钮（2-5 个）', control: 'list', section: 'content', listMin: 2, listMax: 5, itemFields: [
+        { key: 'text', label: '文字', control: 'input', maxlength: 8, inline: true },
+        { key: 'url', label: '跳转', control: 'link', inline: true },
+        { key: 'btnStyle', label: '样式', control: 'radio', inline: true, options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
+        { key: 'bgColor', label: '按钮色', control: 'color', inline: true },
+        { key: 'textColor', label: '文字色', control: 'color', inline: true },
+      ] },
+      { key: 'gap', label: '按钮间距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },

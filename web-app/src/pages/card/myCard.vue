@@ -163,11 +163,6 @@
         <view class="osr-main"><view class="osr-name">我的收藏</view><view class="osr-desc">收藏的名片，随时回访</view></view>
         <text class="osr-arrow">›</text>
       </view>
-      <view class="os-row" @click="saveCardInfo">
-        <view class="osr-icon"><SIcon name="storage" size="default" :color="themeColor" /></view>
-        <view class="osr-main"><view class="osr-name">保存名片</view><view class="osr-desc">一键写入手机通讯录</view></view>
-        <text class="osr-arrow">›</text>
-      </view>
       <view class="os-row" @click="exportData">
         <view class="osr-icon"><SIcon name="analytics" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">导出数据</view><view class="osr-desc">导出名片与访客数据为 CSV 文件</view></view>
@@ -730,44 +725,11 @@ function locateInMarket() {
 function goVisitors() { uni.navigateTo({ url: '/pages/card/visitors' }); }
 function goRadarConfig() { uni.navigateTo({ url: '/pages/card/radarConfig' }); }
 /* ===== 高级工具（2026-10-21 重做：原两行都只是「复制文本」，用户反馈功能不合理 =====
-   保存名片：小程序端直接调系统通讯录写入（wx.addPhoneContact），不再是复制后手动粘贴；
-             H5 无该 API，降级为复制 vCard 格式文本。
    导出数据：生成 CSV 文件——小程序端写用户目录后调 shareFileMessage 让用户发给
-             自己/电脑（文件可存档）；H5 直接触发浏览器下载。复制文本仅作失败降级。 */
-function saveCardInfo() {
-  const c = card.value;
-  // #ifdef MP-WEIXIN
-  uni.addPhoneContact({
-    firstName: c.name || '名片联系人',
-    mobilePhoneNumber: c.phone || '',
-    weChatNumber: c.wechat || '',
-    organization: c.company || '',
-    title: c.position || '',
-    email: c.email || '',
-    success: () => uni.showToast({ title: '已保存到手机通讯录', icon: 'success' }),
-    fail: (e) => {
-      // 用户取消不提示；授权拒绝/其他失败降级为复制
-      if (e && e.errMsg && e.errMsg.indexOf('cancel') >= 0) return;
-      copyCardText();
-    },
-  });
-  // #endif
-  // #ifndef MP-WEIXIN
-  copyCardText();
-  // #endif
-}
-function copyCardText() {
-  const c = card.value;
-  const lines = [
-    `姓名：${c.name || ''}`,
-    c.position ? `职位：${c.position}` : '',
-    c.company ? `公司：${c.company}` : '',
-    c.phone ? `电话：${c.phone}` : '',
-    c.wechat ? `微信：${c.wechat}` : '',
-    c.email ? `邮箱：${c.email}` : '',
-  ].filter(Boolean).join('\n');
-  uni.setClipboardData({ data: lines, success: () => uni.showToast({ title: '名片信息已复制', icon: 'none' }) });
-}
+             自己/电脑（文件可存档）；H5 直接触发浏览器下载。复制文本仅作失败降级。
+   （「保存名片」原是把**自己的**名片写入**自己的**手机通讯录，对名片主人无意义，
+    已下架；把别人名片存进通讯录的能力在名片详情页 cardDetail 的 saveContact 里，
+    那是给访客用的，语义才对。） */
 function buildExportCsv(visitors) {
   const c = card.value;
   const esc = (v) => {

@@ -52,7 +52,7 @@ describe('cardEdit.vue 装修编辑页', () => {
   });
 
   test('图片上传走通用上传（uploadUserAvatar），非自建上传链路', () => {
-    expect(cardEditSrc).toMatch(/cardApi\.uploadUserAvatar\(f\.tempFilePath\)/);
+    expect(cardEditSrc).toMatch(/cardApi\.uploadUserAvatar\(f\.tempFilePath(,\s*f\.file)?\)/);
   });
 });
 
@@ -106,7 +106,7 @@ describe('注册表与页面消费一致', () => {
     p.text = '改坏了';
     expect(compDefaultProps('notice').text).not.toBe('改坏了');
     expect(getCompDef('notice').defaultProps.text).not.toBe('改坏了');
-    expect(CARD_COMP_REGISTRY).toHaveLength(7);
+    expect(CARD_COMP_REGISTRY).toHaveLength(8);
   });
 });
 
@@ -179,6 +179,25 @@ describe('共享渲染组件 CardCompItem（详情页与装修页唯一渲染源
     for (const dead of ["v-if=\"c.type === 'image'", "v-else-if=\"c.type === 'button'", 'pvMarginStyle', 'pvBtnStyle', 'pvRichStyle', 'function sanitizeRichHtml(']) {
       expect(cardEditSrc, `cardEdit 仍残留 ${dead}`).not.toContain(dead);
     }
+  });
+});
+
+describe('图片上传修复（相对 /uploads 资源必须解析为绝对 URL）', () => {
+  test('上传返回的是相对 /uploads 路径，渲染层必须 resolveAssetUrl 转绝对（MP/H5 才能加载）', () => {
+    // 病根：服务端 avatar-upload 返回相对 URL `/uploads/xxx`；
+    //   MP 的 <image> 不支持相对路径（需完整 https）；H5 uni-app 会基于页面 base（/card/）解析 → 404。
+    //   两者都会导致「上传成功但图片不显示」= 用户感知的「上传图片不成功」。
+    expect(cardCompItemSrc).toMatch(/:src="resolveAssetUrl\(props\.url\)"/);
+    expect(cardCompItemSrc).toMatch(/:src="resolveAssetUrl\(props\.cover\)"/);
+    // 装修弹窗里的图片预览同样要走绝对化（否则点完上传仍显示「上传图片」空占位）
+    expect(cardEditSrc).toMatch(/:src="resolveAssetUrl\(editing\.props\[f\.key\]\)"/);
+    // 两个文件都须引入 resolveAssetUrl（单一事实来源 design.js，勿各自内联拼接）
+    expect(cardCompItemSrc).toMatch(/import \{ resolveAssetUrl \} from '\.\.\/utils\/design\.js'/);
+    expect(cardEditSrc).toMatch(/import \{ useDesignTheme, resolveAssetUrl \} from '\.\.\/\.\.\/utils\/design\.js'/);
+  });
+
+  test('H5 上传：chooseMedia 的 File 一并传给上传器（H5 的 uni.uploadFile 对 blob URL 无效）', () => {
+    expect(cardEditSrc).toMatch(/cardApi\.uploadUserAvatar\(f\.tempFilePath, f\.file\)/);
   });
 });
 

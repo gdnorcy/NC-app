@@ -91,7 +91,7 @@
       <view class="ce-panel-t">选择组件</view>
       <view class="ce-grid">
         <view v-for="t in CARD_COMP_REGISTRY" :key="t.type" class="ce-grid-item" @click="add(t.type)">
-          <text class="ce-grid-icon">{{ ICONS[t.type] }}</text>
+          <image class="ce-grid-icon" :src="t.icon" mode="aspectFit" />
           <text class="ce-grid-text">{{ t.name }}</text>
         </view>
       </view>
@@ -140,7 +140,7 @@
             <view v-else-if="f.control === 'image'" class="ce-img-row" @click="pickImage(f.key)">
               <image
                 v-if="editing.props[f.key] && !imgFailed.has(f.key)"
-                :src="editing.props[f.key]"
+                :src="resolveAssetUrl(editing.props[f.key])"
                 class="ce-img"
                 mode="aspectFill"
                 @error="onImgError(f.key)"
@@ -193,6 +193,51 @@
           </view>
           </view>
         </template>
+
+        <!-- 按钮组专属编辑器：移动端 schema 不支持 list 控件，按钮明细（2-5 个）走这里维护 -->
+        <view v-if="editing && editing.type === 'button-group'" class="ce-btns-editor">
+          <view class="ce-section-t">按钮（{{ editing.props.buttons.length }}/5）</view>
+          <view v-for="(b, bi) in editing.props.buttons" :key="bi" class="ce-btn-card">
+            <view class="ce-btn-card-head">
+              <text class="ce-btn-card-t">按钮 {{ bi + 1 }}</text>
+              <text v-if="editing.props.buttons.length > 2" class="ce-btn-del" @click="removeButton(bi)">删除</text>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">文字</text>
+              <view class="ce-input-wrap"><input class="ce-input" v-model="b.text" placeholder="按钮文字" placeholder-class="ph" /></view>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">跳转</text>
+              <view class="ce-input-wrap"><input class="ce-input" v-model="b.url" placeholder="如 /pages/card/market" placeholder-class="ph" /></view>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">样式</text>
+              <view class="ce-radios">
+                <view class="ce-radio" :class="{ on: b.btnStyle === 'fill' }" @click="b.btnStyle = 'fill'">填充</view>
+                <view class="ce-radio" :class="{ on: b.btnStyle === 'outline' }" @click="b.btnStyle = 'outline'">描边</view>
+              </view>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">按钮色</text>
+              <view class="ce-color-row">
+                <view class="ce-swatches">
+                  <view v-for="col in SWATCHES" :key="col.name" class="ce-sw" :class="{ on: (b.bgColor || '') === col.value, none: col.value === '' }" :style="{ background: col.value || '#fff' }" @click="b.bgColor = col.value"></view>
+                </view>
+                <view class="ce-input-wrap ce-hex-wrap"><input class="ce-hex" v-model="b.bgColor" placeholder="留空=透明，或 #RRGGBB" placeholder-class="ph" /></view>
+              </view>
+            </view>
+            <view class="ce-field">
+              <text class="ce-label">文字色</text>
+              <view class="ce-color-row">
+                <view class="ce-swatches">
+                  <view v-for="col in SWATCHES" :key="col.name" class="ce-sw" :class="{ on: (b.textColor || '') === col.value, none: col.value === '' }" :style="{ background: col.value || '#fff' }" @click="b.textColor = col.value"></view>
+                </view>
+                <view class="ce-input-wrap ce-hex-wrap"><input class="ce-hex" v-model="b.textColor" placeholder="如 #ffffff" placeholder-class="ph" /></view>
+              </view>
+            </view>
+          </view>
+          <view v-if="editing.props.buttons.length < 5" class="ce-btn-add" @click="addButton">+ 添加按钮</view>
+        </view>
         </view>
       </scroll-view>
       <view class="ce-modal-btns">
@@ -235,7 +280,7 @@ import CardCompItem from '../../components/CardCompItem.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onBackPress } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
-import { useDesignTheme } from '../../utils/design.js';
+import { useDesignTheme, resolveAssetUrl } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
@@ -248,7 +293,7 @@ const activeColor = computed(() => brandPrimary.value || themeStyle.value['--des
 // 服务端 card.js COMP_MAX 同源（超限 400）；单测钉两边一致
 const COMP_MAX = 20;
 
-const ICONS = { image: '🖼️', 'channel-video': '🎬', notice: '📝', divider: '➖', spacer: '▭', button: '🔘', 'rich-text': '📄' };
+// 组件图标直接取注册表 t.icon（设计中心同款 PNG，避免 emoji 与设计中心不一致，反馈 #279）
 const SWATCHES = [
   { name: 'transparent', value: '' },
   { name: 'white', value: '#FFFFFF' },
@@ -373,6 +418,18 @@ function add(type) {
   openEdit(item); // 新增后直接进配置，必填项（视频号ID/视频ID）当场补
 }
 
+// 按钮组：维护 2-5 个按钮（移动端 schema 无 list 控件，走专属编辑器）
+function addButton() {
+  const list = editing.value && editing.value.props && editing.value.props.buttons;
+  if (!list || list.length >= 5) return;
+  list.push({ text: '按钮' + (list.length + 1), url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' });
+}
+function removeButton(i) {
+  const list = editing.value && editing.value.props && editing.value.props.buttons;
+  if (!list || list.length <= 2) return;
+  list.splice(i, 1);
+}
+
 /**
  * 点卡片：手机没有 hover，用「点选」代替 PC 的 hover 浮现。
  * 已选中时再点一次 = 进配置（保留原来「点组件即编辑」的手感，只是先确认选中）。
@@ -488,8 +545,10 @@ async function pickImage(key) {
       if (!f.tempFilePath) return;
       uni.showLoading({ title: '上传中…', mask: true });
       try {
-        // 复用通用图片上传（/user/avatar-upload 只做存储，返回 URL）
-        const data = await cardApi.uploadUserAvatar(f.tempFilePath);
+        // 复用通用图片上传（/user/avatar-upload 只做存储，返回 URL）。
+        // 🔴 H5 端 chooseMedia 的 tempFiles[i] 同时带 file（File 对象），必须一并传给上传器——
+        //    H5 的 uni.uploadFile 对 blob URL 无效，要靠 FormData 携带真实 File 才能把图发出去。
+        const data = await cardApi.uploadUserAvatar(f.tempFilePath, f.file);
         uni.hideLoading();
         if (data && data.url && editing.value) {
           editing.value.props[key] = data.url;
@@ -648,7 +707,7 @@ onMounted(load);
 .ce-panel-t { text-align: center; font-size: var(--fs-6); font-weight: 500; color: var(--t1); margin-bottom: var(--space-r6); }
 .ce-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-r5); margin-bottom: var(--space-r5); }
 .ce-grid-item { display: flex; flex-direction: column; align-items: center; }
-.ce-grid-icon { font-size: var(--fs-8); margin-bottom: var(--space-r2); }
+.ce-grid-icon { width: 56rpx; height: 56rpx; margin-bottom: var(--space-r2); }
 .ce-grid-text { font-size: var(--fs-3); color: var(--t1); }
 .ce-cancel {
   text-align: center; height: 80rpx; line-height: 80rpx;
@@ -668,6 +727,13 @@ onMounted(load);
 .ce-modal-pad { padding: var(--space-r3) var(--space-r6) var(--space-r1); }
 .ce-field { margin-bottom: var(--space-r5); }
 .ce-label { display: block; font-size: var(--fs-4); color: var(--t1); margin-bottom: var(--space-r2); }
+/* 按钮组专属编辑器（移动端 schema 无 list 控件，按钮明细走这里） */
+.ce-btns-editor { margin-top: var(--space-r5); }
+.ce-btn-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-r4); margin-bottom: var(--space-r4); }
+.ce-btn-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-r3); }
+.ce-btn-card-t { font-size: var(--fs-4); font-weight: 600; color: var(--t1); }
+.ce-btn-del { font-size: var(--fs-3); color: var(--danger, #f53f3f); }
+.ce-btn-add { text-align: center; padding: var(--space-r4); border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--primary, #165dff); font-size: var(--fs-4); }
 /* 🔴 原生 input/textarea 不吃 box-sizing:border-box、也不吃「父 scroll-view 的 padding」，
    width:100% 或「不设宽」在 MP 上都溢出弹窗。解法是「视图包一层」：边框/背景/圆角/box-sizing
    落在普通 view（.ce-input-wrap，MP 对 view 的 box-sizing 可靠），原生控件本身去边框去 padding、
