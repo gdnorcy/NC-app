@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
-import { COMP_ICON_SOURCE_NAME } from '../../utils/compIconsBase64.js';
+import { COMP_ICON_SOURCE_NAME } from './compIconsBase64.js';
 // admin 注册表是数据真源（PNG 图标由 vite 转 URL，测试环境可解析）
 import { componentRegistry, COMP_ICONS } from '../../../../web-admin/src/views/customer/apps/design/componentRegistry.js';
 

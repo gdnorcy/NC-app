@@ -26,7 +26,10 @@
 import { sampleUrl } from '../../utils/sampleImages.js';
 // 设计中心同款组件图标（copy from web-admin/src/assets/comp-icons），与设计中心「添加组件」面板一致。
 // 🔴 base64 内联而非 vite import：见文件头「反馈 #294」说明（真机图标纯白根因与修法）。
-import { COMP_ICON_DATA_URI } from '../../utils/compIconsBase64.js';
+// 🔴 本文件放在 pages/card/（原 utils/）：唯一消费方是本分包（pages/card 共 29 页），
+//    放主包 utils/ 会被微信「主包内不应存在主包未使用的 JS 文件」判不合格。
+//    零依赖叶子模块，挪动不牵连任何 import。
+import { COMP_ICON_DATA_URI } from './compIconsBase64.js';
 // 🔴 #321 收尾：公告前置符号面板选项引用共享表（与两端渲染、admin 端同一份）
 import { NOTICE_SYMBOL_OPTIONS } from '../../utils/noticeSymbol.js';
 

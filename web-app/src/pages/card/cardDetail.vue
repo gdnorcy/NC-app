@@ -474,8 +474,10 @@ import CardCompItem from '../../components/CardCompItem.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { getNavMetrics, navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
-import { resolveShareTitle, resolveBrandColors } from '../../utils/shareCover.js';
-import { exportShareCover } from '../../utils/shareCoverExport.js';
+import { resolveShareTitle, resolveBrandColors } from './shareCover.js';
+// 🔴 本模块放在 pages/card/（原 utils/）：唯一消费方是本页面（pages/card 是分包），
+//    放主包 utils/ 会被微信「主包内不应存在主包未使用的 JS 文件」判不合格。
+import { exportShareCover } from './shareCoverExport.js';
 // 按钮宽度走共享实现（与 admin 画布 / C 端 DesignPage 同一份）：vw 视口基准，
 // 勿在本页私藏副本——项目已因各处私藏导致「设计器与真机不一致」多次
 

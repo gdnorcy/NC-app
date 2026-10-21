@@ -21,15 +21,19 @@
  *
  * 用法（改了图标 PNG 后需重跑）：
  *   node web-app/scripts/gen-comp-icons-base64.js
- * 生成物：web-app/src/utils/compIconsBase64.js（**入库**，不参与构建期生成，
- *         故不涉及 git checkout 还原那套流程）
+ * 生成物：web-app/src/pages/card/compIconsBase64.js（**入库**，不参与构建期生成，
+ *         故不涉及 git checkout 还原那套流程）。
+ *         ⚠️ 原先在 src/utils/，因「主包内不应存在主包未使用的 JS 文件」迁到分包目录。
  */
 const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
 const SRC_DIR = path.join(root, 'src', 'assets', 'comp-icons');
-const OUT_FILE = path.join(root, 'src', 'utils', 'compIconsBase64.js');
+// 🔴 输出到 pages/card/ 而非 src/utils/：唯一消费方 cardCompRegistry.js 在 pages/card 分包里，
+//   放主包会被微信「主包内不应存在主包未使用的 JS 文件」判不合格。
+//   改图标重跑本脚本时留意：输出路径已随之迁移，别改回 utils/。
+const OUT_FILE = path.join(root, 'src', 'pages', 'card', 'compIconsBase64.js');
 
 /** 组件类型 → PNG 文件名（与 web-admin componentRegistry 的 COMP_ICONS 对应关系一致） */
 const ICON_FILES = {
