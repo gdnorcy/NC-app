@@ -389,9 +389,6 @@ function linkDisplay(key) {
   const t = miniPageTitle(p.url);
   return t ? `${t}（${p.url}）` : p.url;
 }
-// 🔴 反馈 #298：链接选择器（移动端化）
-const showLinkPicker = ref(false);
-const linkPickerKey = ref('');   // 正在编辑的 link 字段名（如 'url'）
 // 页内实时预览（含未保存修改，不用退到名片详情页）
 const showPreview = ref(false);
 // 预览层导航度量：custom nav 页面的 fixed 层顶到屏幕物理原点，必须 JS 实测避让
