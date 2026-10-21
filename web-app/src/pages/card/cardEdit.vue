@@ -128,12 +128,16 @@
             <text class="ce-label">{{ f.label }}</text>
             <!-- 🔴 反馈 #298：link 控件改为「只读回显 + 点击打开移动端链接选择器」
                  （参考后台 LinkPicker 的目标类型/外部小程序能力，但按手机交互重做：
-                  横向胶囊分段 + 搜索 + 粘贴按钮；后台是 el-dialog 双栏，手机上放不下）。 -->
+                  横向胶囊分段 + 搜索 + 粘贴按钮；后台是 el-dialog 双栏，手机上放不下）。
+                 🔴 反馈 #301：① 去掉框末尾的箭头（整个框都可点，箭头是多余的视觉噪音）；
+                 ② 选外链类型时链接框**置灰**（此时 url 装的是网页/电话，不是内部路径）。 -->
             <view v-if="f.control === 'link'" class="ce-input-wrap" @click="openLinkPicker(f.key)">
-              <view class="ce-input ce-link-display" :class="{ ph: !linkDisplay(f.key) }">
+              <view
+                class="ce-input ce-link-display"
+                :class="{ ph: !linkDisplay(f.key), dim: linkIsExternal(f.key) }"
+              >
                 {{ linkDisplay(f.key) || (f.placeholder || '请选择跳转目标') }}
               </view>
-              <text class="ce-link-arrow">›</text>
             </view>
             <view v-else-if="f.control === 'input'" class="ce-input-wrap">
               <input
@@ -225,7 +229,17 @@
             </view>
             <view class="ce-field">
               <text class="ce-label">跳转</text>
-              <view class="ce-input-wrap"><input class="ce-input" v-model="b.url" placeholder="如 /pages/card/market" placeholder-class="ph" /></view>
+              <!-- 🔴 #301：按钮组同步外链能力（#298 只做了 button 组件）。
+                   每个按钮独立记录自己的 linkType/miniAppId/...，
+                   跳转框只读回显 + 点击开选择器（与 button 组件同一套交互）。 -->
+              <view class="ce-input-wrap" @click="openLinkPicker({ scope: 'btn', index: bi })">
+                <view
+                  class="ce-input ce-link-display"
+                  :class="{ ph: !btnLinkDisplay(b), dim: btnLinkIsExternal(b) }"
+                >
+                  {{ btnLinkDisplay(b) || '请选择跳转目标' }}
+                </view>
+              </view>
             </view>
             <view class="ce-field">
               <text class="ce-label">样式</text>
@@ -303,6 +317,8 @@ import { getNavMetrics } from '../../utils/navMetrics.js';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
 import CardLinkPicker from './CardLinkPicker.vue';
 import { miniPageTitle } from '../../utils/miniPages.js';
+// 🔴 链接模型单一事实来源（#301：内部页面降级为「链接框填路径」）
+import { normalizeLink, normalizeLinkType } from '../../utils/compLinkModel.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
@@ -339,55 +355,90 @@ const saving = ref(false);
 // 弹窗样式段折叠态（每次打开重置为收起，默认只露内容字段）
 const styleOpen = ref(false);
 // 🔴 反馈 #298：链接选择器（移动端化）
+// 🔴 #301：选择器目标从「字段名」升级为「目标对象」——
+//   button 组件本身（scope:'comp'）与 button-group 里的每个按钮（scope:'btn', index）共用一套。
 const showLinkPicker = ref(false);
-const linkPickerKey = ref('');   // 正在编辑的 link 字段名（如 'url'）
+const linkTarget = ref(null); // { scope: 'comp' } | { scope: 'btn', index: number }
+
+/** 取选择器当前对应的链接宿主对象（组件 props 或某个按钮对象） */
+function linkHost() {
+  const t = linkTarget.value;
+  if (!t || !editing.value) return null;
+  if (t.scope === 'btn') {
+    const list = editing.value.props && editing.value.props.buttons;
+    return list && list[t.index] ? list[t.index] : null;
+  }
+  return editing.value.props || null;
+}
 
 /** 当前 link 字段对应的完整链接配置（供选择器回显与编辑） */
 const linkPickerValue = computed(() => {
-  if (!editing.value || !linkPickerKey.value) return {};
-  const p = editing.value.props || {};
-  return {
-    url: p.url || '',
-    linkType: p.linkType || 'internal',
-    miniAppId: p.miniAppId || '',
-    miniAppPath: p.miniAppPath || '',
-    miniAppEnv: p.miniAppEnv || 'release',
-  };
+  const host = linkHost();
+  return host ? normalizeLink(host) : {};
 });
 
 /** 打开链接选择器 */
-function openLinkPicker(key) {
-  linkPickerKey.value = key;
+function openLinkPicker(target) {
+  // 兼容旧调用：传字符串（字段名）时按组件级处理
+  linkTarget.value = typeof target === 'string' ? { scope: 'comp', key: target } : target;
   showLinkPicker.value = true;
 }
 
-/** 选择器回填：把链接配置写回组件 props */
-function onLinkPicked(v) {
-  if (!editing.value) return;
-  const p = editing.value.props;
-  p.url = v.url || '';
-  p.linkType = v.linkType || 'internal';
-  p.miniAppId = v.miniAppId || '';
-  p.miniAppPath = v.miniAppPath || '';
-  p.miniAppEnv = v.miniAppEnv || 'release';
+/**
+ * 当前链接是否为外链类型（🔴 反馈 #301：外链时链接框置灰）。
+ * 内部页面已降级为「链接框填路径」，故 linkType 为空即内部页面。
+ */
+function linkIsExternal(key) {
+  const host = linkHost();
+  if (!host) return false;
+  return normalizeLinkType(host.linkType) !== '';
 }
 
-/** link 字段的只读回显文案（按跳转类型给出人能看懂的目标） */
+/** 按钮组里某个按钮的链接是否为外链类型 */
+function btnLinkIsExternal(b) {
+  return normalizeLinkType((b || {}).linkType) !== '';
+}
+
+/** 选择器回填：把链接配置写回宿主对象 */
+function onLinkPicked(v) {
+  const host = linkHost();
+  if (!host) return;
+  const l = normalizeLink(v);
+  host.url = l.url;
+  host.linkType = l.linkType;
+  host.miniAppId = l.miniAppId;
+  host.miniAppPath = l.miniAppPath;
+  host.miniAppEnv = l.miniAppEnv;
+}
+
+/**
+ * 链接的只读回显文案（按跳转类型给出人能看懂的目标）。
+ * 内部页面显示页面标题（找不到标题则回退路径）；外链显示类型化摘要。
+ */
+function linkTextOf(host) {
+  const l = normalizeLink(host || {});
+  if (l.linkType === 'miniapp') {
+    if (!l.miniAppId) return '';
+    const name = l.miniAppPath || '首页';
+    return `小程序 ${l.miniAppId} · ${name}`;
+  }
+  if (l.linkType === 'phone') return l.url ? `电话 ${l.url}` : '';
+  if (l.linkType === 'web') return l.url || '';
+  // 内部页面：显示页面标题（找不到标题则回退路径）
+  if (!l.url) return '';
+  const t = miniPageTitle(l.url);
+  return t ? `${t}（${l.url}）` : l.url;
+}
+
+/** link 字段的只读回显文案（组件级） */
 function linkDisplay(key) {
   if (!editing.value) return '';
-  const p = editing.value.props || {};
-  const type = p.linkType || 'internal';
-  if (type === 'miniapp') {
-    if (!p.miniAppId) return '';
-    const name = p.miniAppPath || '首页';
-    return `小程序 ${p.miniAppId} · ${name}`;
-  }
-  if (type === 'phone') return p.url ? `电话 ${p.url}` : '';
-  if (type === 'web') return p.url || '';
-  // internal：显示页面标题（找不到标题则回退路径）
-  if (!p.url) return '';
-  const t = miniPageTitle(p.url);
-  return t ? `${t}（${p.url}）` : p.url;
+  return linkTextOf(editing.value.props || {});
+}
+
+/** 按钮组里某个按钮的只读回显文案 */
+function btnLinkDisplay(b) {
+  return linkTextOf(b || {});
 }
 // 页内实时预览（含未保存修改，不用退到名片详情页）
 const showPreview = ref(false);
@@ -489,10 +540,22 @@ function add(type) {
 }
 
 // 按钮组：维护 2-5 个按钮（移动端 schema 无 list 控件，走专属编辑器）
+// 🔴 #301：新增按钮要带齐外链字段（linkType 等），否则新按钮没有 linkType，
+//   打开选择器时会被当成「未知类型」，回填后行为不一致。
 function addButton() {
   const list = editing.value && editing.value.props && editing.value.props.buttons;
   if (!list || list.length >= 5) return;
-  list.push({ text: '按钮' + (list.length + 1), url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' });
+  list.push({
+    text: '按钮' + (list.length + 1),
+    url: '',
+    linkType: '',
+    miniAppId: '',
+    miniAppPath: '',
+    miniAppEnv: 'release',
+    btnStyle: 'fill',
+    bgColor: '#165DFF',
+    textColor: '#ffffff',
+  });
 }
 function removeButton(i) {
   const list = editing.value && editing.value.props && editing.value.props.buttons;
@@ -818,6 +881,20 @@ onMounted(load);
   padding: 0 var(--space-r4); font-size: var(--fs-4); background: transparent; color: var(--t1);
 }
 .ph { color: var(--decor-2); }
+/* 🔴 链接回显框（#301）：
+   - 之前只有 class 名没有样式定义 → 回显文本其实用的是 .ce-input 的输入框样式，
+     看起来仍像个可输入的框，用户以为还能打字；这里改成明确的「只读摘要」外观；
+   - .dim = 选外链类型时置灰（此时 url 装的是网页/电话，不是内部路径）；
+   - 末尾不再有多余的箭头（整个框都可点，箭头是视觉噪音）。 */
+.ce-link-display {
+  flex: 1; width: 100%; box-sizing: border-box;
+  height: 80rpx; line-height: 80rpx;
+  padding: 0 var(--space-r4); font-size: var(--fs-4);
+  color: var(--t1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ce-link-display.ph { color: var(--decor-2); }
+.ce-link-display.dim { color: var(--decor-2); background: var(--bg-page); }
 
 .ce-rt-row { width: 100%; }
 .ce-textarea {

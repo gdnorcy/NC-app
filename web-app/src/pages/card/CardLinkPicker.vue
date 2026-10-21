@@ -1,11 +1,17 @@
 <template>
   <!-- 装修页链接选择器（移动端化）
-       🔴 反馈 #298：按钮组件要支持「跳转外部小程序」，默认仍是内部链接；
-          内部链接需要一个**可视化页面选择框**（参考后台 LinkPicker，但按手机交互重做）。
+       🔴 反馈 #298：按钮组件要支持「跳转外部小程序」；
+       🔴 反馈 #301：用户反馈「把内部页面取消」「跳转版本多余」「操作习惯不合理」→
+          - 内部页面**不再是一种类型**：linkType 只剩 miniapp/web/phone 三种，
+            内部页面靠「链接框填 /pages/xxx 路径」隐式表达（少一次「选类型再选页面」）；
+          - 选外部小程序/网页/电话时，**原链接框置灰**（它在这三种类型下不生效）；
+          - 网页链接加**注意事项说明**（小程序端不能直接开外链 → 会复制到剪贴板）；
+          - 跳转版本折叠进「高级选项」（日常不用改，开发者调试才用）；
+          - 链接框末尾不再有多余的箭头（那是「可点开」的暗示，但整个框都���点）。
        UX 取舍（移动端 vs 后台 el-dialog 双栏）：
          - 后台是「左分类 + 右列表」双栏 → 手机上横向空间不够，改成**顶部横向分类胶囊 + 下方列表**；
          - 列表加**搜索框**（48 个页面靠滚动找不动）；
-         - 外部小程序不用表单堆叠，而是**分段选择 + 三个输入项**（AppID/路径/版本），
+         - 外部小程序不用表单堆叠，而是**分段选择 + 输入项**，
            AppID 提供「粘贴读取剪贴板」快捷按钮（手机上粘贴是主要输入方式）；
          - 每次只能选一个目标（后台的 goods/cat 模式是多选，不适合此处）。 -->
   <view class="lp-mask" :style="[brandVars, brandInkVars]" @click="close">
@@ -15,21 +21,19 @@
         <text class="lp-close" @click="close">✕</text>
       </view>
 
-      <!-- 目标类型分段（移动端横向滚动的胶囊，比下拉更快） -->
-      <scroll-view scroll-x class="lp-types" :show-scrollbar="false">
-        <view class="lp-types-inner">
-          <view
-            v-for="t in TYPE_OPTIONS"
-            :key="t.value"
-            class="lp-type"
-            :class="{ on: form.linkType === t.value }"
-            @click="form.linkType = t.value"
-          >{{ t.label }}</view>
-        </view>
-      </scroll-view>
+      <!-- 目标类型分段：内部页面已降级为「链接框填路径」，故只剩三种外链类型 -->
+      <view class="lp-types">
+        <view
+          v-for="t in TYPE_OPTIONS"
+          :key="t.value"
+          class="lp-type"
+          :class="{ on: form.linkType === t.value }"
+          @click="pickType(t.value)"
+        >{{ t.label }}</view>
+      </view>
 
-      <!-- 内部页面：搜索 + 分组列表 -->
-      <template v-if="form.linkType === 'internal'">
+      <!-- 内部页面（linkType 为空）：搜索 + 分组列表 -->
+      <template v-if="!form.linkType">
         <view class="lp-search">
           <input
             class="lp-search-input"
@@ -58,7 +62,7 @@
         </scroll-view>
       </template>
 
-      <!-- 外部小程序：分段 + 三个输入项 -->
+      <!-- 外部小程序：AppID + 路径（跳转版本折叠进高级选项） -->
       <template v-else-if="form.linkType === 'miniapp'">
         <scroll-view scroll-y class="lp-list lp-list-form">
           <view class="lp-field">
@@ -72,7 +76,7 @@
               />
               <view class="lp-field-btn" @click="pasteAppId">粘贴</view>
             </view>
-            <view class="lp-field-tip">目标小程序须与当前小程序**属于同一微信开放平台**，否则无法跳转</view>
+            <view class="lp-field-tip">目标小程序须与当前小程序属于同一微信开放平台，否则无法跳转</view>
           </view>
           <view class="lp-field">
             <view class="lp-field-label">页面路径</view>
@@ -83,7 +87,16 @@
               placeholder-class="lp-ph"
             />
           </view>
-          <view class="lp-field">
+          <view class="lp-warn" v-if="form.miniAppId && !/^wx[0-9a-f]{16}$/i.test(form.miniAppId.trim())">
+            AppID 格式看起来不对（应以 wx 开头 + 16 位十六进制）
+          </view>
+
+          <!-- 高级选项：跳转版本（日常用正式版，开发者调试才改） -->
+          <view class="lp-adv" @click="advOpen = !advOpen">
+            <text class="lp-adv-t">{{ advOpen ? '收起高级选项' : '高级选项' }}</text>
+            <text class="lp-adv-arrow">{{ advOpen ? '▴' : '▾' }}</text>
+          </view>
+          <view v-if="advOpen" class="lp-field">
             <view class="lp-field-label">跳转版本</view>
             <view class="lp-radios">
               <view
@@ -94,9 +107,7 @@
                 @click="form.miniAppEnv = e.value"
               >{{ e.label }}</view>
             </view>
-          </view>
-          <view class="lp-warn" v-if="form.miniAppId && !/^wx[0-9a-f]{16}$/i.test(form.miniAppId.trim())">
-            AppID 格式看起来不对（应以 wx 开头 + 16 位十六进制）
+            <view class="lp-field-tip">仅开发者调试时使用；普通用户请保持正式版</view>
           </view>
         </scroll-view>
       </template>
@@ -112,7 +123,12 @@
               placeholder="https://example.com"
               placeholder-class="lp-ph"
             />
-            <view class="lp-field-tip">H5 端用内置浏览器打开；小程序端会复制到剪贴板并在微信中打开</view>
+          </view>
+          <view class="lp-note">
+            <text class="lp-note-t">注意事项</text>
+            <text class="lp-note-l">· 小程序端无法直接打开外部网页，点击后会把链接复制到剪贴板，需到微信里打开</text>
+            <text class="lp-note-l">· 业务域名需在小程序后台配置，否则在微信里也可能打不开</text>
+            <text class="lp-note-l">· H5 端（新标签打开）体验正常</text>
           </view>
         </scroll-view>
       </template>
@@ -144,7 +160,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { MINI_PAGES, MINI_PAGE_GROUPS, searchMiniPages } from '../../utils/miniPages.js';
+import { MINI_PAGES, searchMiniPages } from '../../utils/miniPages.js';
+import { LINK_TYPES, LINK_ENVS, normalizeLink, linkIssue } from '../../utils/compLinkModel.js';
 // 🔴 品牌色单一来源（brandCoverage.test.js 守护）：禁手搓 brandVars
 import { useBrandOverride } from '../../utils/brand.js';
 
@@ -155,38 +172,25 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:modelValue', 'change']);
 
-const TYPE_OPTIONS = [
-  { label: '内部页面', value: 'internal' },
-  { label: '外部小程序', value: 'miniapp' },
-  { label: '网页链接', value: 'web' },
-  { label: '拨打电话', value: 'phone' },
-];
-const ENV_OPTIONS = [
-  { label: '正式版', value: 'release' },
-  { label: '体验版', value: 'trial' },
-  { label: '开发版', value: 'develop' },
-];
+// 内部页面已降级为「链接框填路径」，故类型分段只剩三种外链
+const TYPE_OPTIONS = LINK_TYPES;
+const ENV_OPTIONS = LINK_ENVS;
 
 const { brandVars, brandInkVars } = useBrandOverride();
 
 const kw = ref('');
-const form = ref({ url: '', linkType: 'internal', miniAppId: '', miniAppPath: '', miniAppEnv: 'release' });
+const advOpen = ref(false);
+const form = ref({ url: '', linkType: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release' });
 
 // 打开时把外部值灌进本地表单（避免直接改 props）
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return;
-    const v = props.value || {};
-    form.value = {
-      url: v.url || '',
-      // 存量数据没有 linkType → 视为 internal（向后兼容）
-      linkType: v.linkType || 'internal',
-      miniAppId: v.miniAppId || '',
-      miniAppPath: v.miniAppPath || '',
-      miniAppEnv: v.miniAppEnv || 'release',
-    };
+    const v = normalizeLink(props.value || {});
+    form.value = { ...v };
     kw.value = '';
+    advOpen.value = false;
   }
 );
 
@@ -195,6 +199,26 @@ const filtered = computed(() => {
   if (!k) return MINI_PAGES;
   return searchMiniPages(k);
 });
+
+/**
+ * 切换类型。
+ * 🔴 反馈 #301：切到外链类型时，**原链接框要置灰**——
+ *   链接框（url）在 miniapp 下装的是 AppID 之外的东西，不该再显示/可编辑。
+ *   实现方式：切类型时清掉不属于该类型的 url 值，避免残留旧路径被误当网页地址。
+ */
+function pickType(type) {
+  const t = type || '';
+  if (t === form.value.linkType) return;
+  const prev = form.value.linkType;
+  form.value.linkType = t;
+  // 内部页面 ↔ 外链 互切时清 url（内部路径当网页地址/电话是错的）
+  if (t !== 'internal' && prev !== 'internal') {
+    // 保留（web/phone 之间切换时 url 语义相同：都是地址/号码）
+  } else {
+    form.value.url = '';
+  }
+  kw.value = '';
+}
 
 /** 选内部页面：直接写 url（保留原字段名，存量配置无需迁移） */
 function pickInternal(p) {
@@ -222,20 +246,10 @@ function close() {
 
 function confirm() {
   const f = form.value;
-  if (f.linkType === 'internal' && !f.url) {
-    return uni.showToast({ title: '请选择一个页面', icon: 'none' });
-  }
-  if (f.linkType === 'miniapp') {
-    if (!f.miniAppId) return uni.showToast({ title: '请填写小程序 AppID', icon: 'none' });
-    if (!/^wx[0-9a-f]{16}$/i.test(f.miniAppId.trim())) {
-      return uni.showToast({ title: 'AppID 格式不正确', icon: 'none' });
-    }
-  }
-  if (f.linkType === 'web' && !/^https?:\/\//i.test(f.url.trim())) {
-    return uni.showToast({ title: '请填写 http(s) 开头的地址', icon: 'none' });
-  }
-  if (f.linkType === 'phone' && !/^[\d\-+\s]{5,20}$/.test(f.url.trim())) {
-    return uni.showToast({ title: '请填写正确的电话号码', icon: 'none' });
+  // 统一校验口径（compLinkModel.linkIssue）：内部页面无 url 视为「纯展示按钮」，允许保存
+  if (f.linkType) {
+    const issue = linkIssue(f);
+    if (issue) return uni.showToast({ title: issue, icon: 'none' });
   }
   emit('change', { ...f });
   emit('update:modelValue', false);
@@ -263,9 +277,8 @@ function confirm() {
 }
 .lp-title { font-size: var(--fs-6); font-weight: 600; color: var(--t1); }
 .lp-close { font-size: var(--fs-6); color: var(--t3); padding: 0 8rpx; }
-/* 目标类型：横向滚动胶囊（手机端比下拉快） */
-.lp-types { white-space: nowrap; padding: 8rpx 24rpx 16rpx; }
-.lp-types-inner { display: inline-flex; gap: 12rpx; }
+/* 目标类型：胶囊（手机端比下拉快） */
+.lp-types { display: flex; gap: 12rpx; padding: 8rpx 24rpx 16rpx; }
 .lp-type {
   padding: 14rpx 28rpx;
   border-radius: 32rpx;
@@ -343,9 +356,27 @@ function confirm() {
 }
 .lp-warn {
   font-size: var(--fs-2); color: var(--danger);
-  background: rgba(var(--danger-rgb), 0.08);
+  background: var(--bg-card);
   padding: 16rpx 20rpx; border-radius: var(--radius-sm);
+  margin-bottom: 24rpx;
 }
+/* 注意事项（网页链接） */
+.lp-note {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 20rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+.lp-note-t { display: block; font-size: var(--fs-3); color: var(--t2); font-weight: 600; margin-bottom: 10rpx; }
+.lp-note-l { display: block; font-size: var(--fs-2); color: var(--t3); line-height: 1.7; }
+/* 高级选项折叠 */
+.lp-adv {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20rpx 0;
+  border-top: 1rpx solid var(--bg-hover);
+}
+.lp-adv-t { font-size: var(--fs-3); color: var(--t2); }
+.lp-adv-arrow { font-size: 22rpx; color: var(--t3); }
 .lp-footer {
   display: flex; gap: 16rpx;
   padding: 24rpx 32rpx 32rpx;

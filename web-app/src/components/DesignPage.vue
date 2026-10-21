@@ -770,6 +770,7 @@ import { buttonSizeStyle } from '../utils/btnSize.js';
 import { sampleUrl } from '../utils/sampleImages.js';
 // 🔴 反馈 #298：统一跳转执行（外部小程序/网页/电话）
 import { execCompLink } from '../utils/compLink.js';
+import { normalizeLink } from '../utils/compLinkModel.js';
 // 按钮组（menu-group）样式：与 admin 画布共用同一份实现（对标站实测数值的唯一事实来源），
 // 保证「画布看到的 = 真机渲染的」。改样式只改那份文件，不要在本文件另写一份。
 import {
@@ -1678,14 +1679,7 @@ function onPanoClick(p) {
  * 图片等子项的 link 仍是纯字符串路径（不含 linkType 体系），保持原行为。
  */
 function compLink(p) {
-  const o = p || {};
-  return {
-    url: o.url || '',
-    linkType: o.linkType || 'internal',
-    miniAppId: o.miniAppId || '',
-    miniAppPath: o.miniAppPath || '',
-    miniAppEnv: o.miniAppEnv || 'release',
-  };
+  return normalizeLink(p || {});
 }
 
 function onJump(target) {
