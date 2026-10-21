@@ -32,6 +32,7 @@
 
 ## 静默失败
 - 「空白/没反应」先抓运行时异常：watch/computed 引用须在声明后（TDZ→白屏）。
+- 🔴 **`getCurrentInstance()` 只能在 setup 顶层调**（Vue 3 隐式约束，靠 setup 栈里的 `currentInstance` 全局量）：在事件处理器里 / `await` 之后调**一律返回 null** → `q.in(null.proxy)` 抛 TypeError → 被外层 catch 吞成 toast（canvas 节点测量类需求全中）。编译器不报、单测不报、H5 分支不报，**只在真机 MP 炸成静默失败**。凡要 `.in(instance)`（canvas / createSelectorQuery / 节点实测）一律顶层取一次，正确写法见 `components/CardTabBar.vue`。
 - 🔴 整页空数据（静态在、数据全灭）：computed 用了未 import 函数→渲染函数首字段即抛。审计 `npm run audit:imports`；单测 toContain 钉 import 会锁死 bug→钉正确形态。
 - 🔴 冷启动 reLaunch 竞态：onShow 跳转须等本页 onReady（`scripts/sim-coldstart.cjs` 实证）。
 - 跳未注册页（grep `pages.json`）；登录丢上下文（`safeRedirect()` 排 `//`）。
