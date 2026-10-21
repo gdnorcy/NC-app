@@ -1030,7 +1030,9 @@ function migrate(db) {
       customer_id INTEGER,
       voice_url TEXT NOT NULL DEFAULT '',
       voice_name TEXT NOT NULL DEFAULT '',
-      industry TEXT NOT NULL DEFAULT ''
+      industry TEXT NOT NULL DEFAULT '',
+      share_style TEXT NOT NULL DEFAULT 'cover-1', -- 转发封面风格（cover-1..cover-6）
+      share_title TEXT NOT NULL DEFAULT '' -- 转发标题（≤30 字，空=自动取姓名·职位·公司）
     );
     CREATE INDEX IF NOT EXISTS idx_card_user ON card_profile(user_id);
     CREATE INDEX IF NOT EXISTS idx_card_enterprise ON card_profile(enterprise_id);
@@ -2213,6 +2215,17 @@ function migrate(db) {
   }
   if (!colExists(db, 'card_profile', 'address')) {
     db.exec("ALTER TABLE card_profile ADD COLUMN address TEXT NOT NULL DEFAULT ''");
+  }
+  // —— card_profile 加个性化分享设置（2026-10-21）——
+  //   share_style：转发封面风格 key（cover-1..cover-6，见 web-app/src/utils/shareCover.js）
+  //   share_title：转发标题（≤30 字），为空时 C 端回落「姓名 · 职位 · 公司」
+  // ⚠️ share_style 默认 'cover-1'（品牌渐变）而非空串：空串会让 C 端判据
+  //    `shareStyle !== 'cover-1'` 之外还要判空，逻辑分叉；DB 层就把默认定死。
+  if (!colExists(db, 'card_profile', 'share_style')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN share_style TEXT NOT NULL DEFAULT 'cover-1'");
+  }
+  if (!colExists(db, 'card_profile', 'share_title')) {
+    db.exec("ALTER TABLE card_profile ADD COLUMN share_title TEXT NOT NULL DEFAULT ''");
   }
 }
 

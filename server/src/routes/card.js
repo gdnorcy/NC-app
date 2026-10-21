@@ -29,6 +29,15 @@ const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
 const AUDIO_MIME = new Set(['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/x-m4a', 'audio/m4a', 'audio/webm', 'audio/x-mpeg']);
 
 /**
+ * 个性化分享封面风格 key 白名单（2026-10-21）。
+ * 单一事实来源在 web-app/src/utils/shareCover.js 的 SHARE_STYLES；
+ * 这里必须与之一致（server/test/card-share-style.test.js 钉死两端 key 集合相同）。
+ * ⚠️ 不做白名单校验的话，脏值会一路下发到 C 端 → 画不出对应封面 → 转发图空白。
+ */
+const SHARE_STYLES = ['cover-1', 'cover-2', 'cover-3', 'cover-4', 'cover-5', 'cover-6'];
+const SHARE_TITLE_MAX = 30;
+
+/**
  * 经纬度归一化（名片「导航到公司」）。
  * uni.openLocation 只吃有限数字的 latitude/longitude；传 undefined/'abc'/NaN 时
  * 小程序端不会报错、而是静默失败（点了没反应）——这类 bug 在真机上极难定位，
@@ -840,7 +849,7 @@ export function createCardRouter(db, wxService) {
   router.put('/cards/:id', auth, (req, res) => {
     const card = db.prepare('SELECT * FROM card_profile WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!card) return res.status(404).json({ error: '名片不存在' });
-    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName, worksLabel, latitude, longitude, address } = req.body;
+    const { name, position, city, industry, phone, wechat, email, company, companies, bio, businessField, needTags, avatar, isPublic, videoChannel, slogan, tags, templateId, voiceUrl, voiceName, worksLabel, latitude, longitude, address, shareStyle, shareTitle } = req.body;
     // 自定义作品标签名（白银+权益）：仅拦截「设非空值」；清空（''）一律放行——
     // 会员过期后仍允许把标签改回默认「作品」，不做能力降级惩罚。
     let effectiveWorksLabel = card.works_label;
@@ -869,9 +878,24 @@ export function createCardRouter(db, wxService) {
         }
       }
     }
+    // 个性化分享设置（2026-10-21）：转发封面风格 + 自定义标题
+    // ⚠️ PATCH 语义：字段没传就保持旧值（undefined 不写库），
+    //    否则前端只想改标题时会把风格清成默认、把标题清空。
+    // ⚠️ shareStyle 必须白名单校验：脏值下发到 C 端 → 画不出封面 → 转发图空白。
+    let effectiveShareStyle = card.share_style || 'cover-1';
+    if (shareStyle !== undefined && shareStyle !== null && shareStyle !== '') {
+      if (!SHARE_STYLES.includes(String(shareStyle))) {
+        return res.status(400).json({ error: '分享封面风格不存在' });
+      }
+      effectiveShareStyle = String(shareStyle);
+    }
+    let effectiveShareTitle = card.share_title || '';
+    if (shareTitle !== undefined && shareTitle !== null) {
+      effectiveShareTitle = String(shareTitle || '').trim().slice(0, SHARE_TITLE_MAX);
+    }
     db.prepare(
-      `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, works_label=?, latitude=?, longitude=?, address=?, updated_at=datetime('now') WHERE id=?`
-    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, effectiveWorksLabel,       ...coalesceLatLng(card, latitude, longitude), address !== undefined ? String(address || '').slice(0, 200) : card.address, card.id);
+      `UPDATE card_profile SET name=?, position=?, city=?, industry=?, phone=?, wechat=?, email=?, company=?, companies=?, bio=?, business_field=?, need_tags=?, avatar=?, is_public=?, video_channel=?, slogan=?, tags=?, template_id=?, voice_url=?, voice_name=?, works_label=?, latitude=?, longitude=?, address=?, share_style=?, share_title=?, updated_at=datetime('now') WHERE id=?`
+    ).run(name || card.name, position ?? card.position, city ?? card.city, industry ?? card.industry, phone ?? card.phone, wechat ?? card.wechat, email ?? card.email, company ?? card.company, companies !== undefined ? JSON.stringify(companies) : card.companies, bio ?? card.bio, businessField ?? card.business_field, needTags !== undefined ? (Array.isArray(needTags) ? JSON.stringify(needTags) : needTags) : card.need_tags, avatar ?? card.avatar, isPublic !== undefined ? (isPublic ? 1 : 0) : card.is_public, videoChannel ?? card.video_channel, slogan ?? card.slogan, tags ?? card.tags, templateId !== undefined ? effectiveTemplateId : card.template_id, voiceUrl !== undefined ? voiceUrl : card.voice_url, voiceName !== undefined ? voiceName : card.voice_name, effectiveWorksLabel,       ...coalesceLatLng(card, latitude, longitude), address !== undefined ? String(address || '').slice(0, 200) : card.address, effectiveShareStyle, effectiveShareTitle, card.id);
     // 🔴 姓名/手机号双表同步：名片是个人/企业主体在 C 端唯一可编辑入口，入驻个人档案
     // (tenant_individuals) 的 phone/name/position 必须随名片保持一致，否则后台「入驻个人」
     // 与「名片管理」同一人手机号对不上（2026-10-20 修复：原「一个有手机号一个没有」根因）。
@@ -2285,6 +2309,11 @@ export function createCardRouter(db, wxService) {
       slogan: row.slogan || '', tags: row.tags || '', needTags: row.need_tags || '',
       templateId: row.template_id, templateTheme, templateLayout: row.template_layout || 'card', videoChannel: row.video_channel, isPublic: !!row.is_public,
       worksLabel: row.works_label || '',
+      // 个性化分享设置（转发封面风格 + 自定义标题）
+      // 🔴 share_style 必须在此归一：库里可能是历史空串/脏值，C 端不该拿到非法 key
+      //    （画不出对应封面 → 转发图空白）。非法值一律回落 'cover-1'。
+      shareStyle: SHARE_STYLES.includes(row.share_style) ? row.share_style : 'cover-1',
+      shareTitle: String(row.share_title || '').slice(0, 30),
       collectCount: row.collectCount || 0, recentVisitors: row.recentVisitors || [],
       voiceUrl: row.voice_url || '', voiceName: row.voice_name || '',
       viewCount: row.view_count, exchangeCount: row.exchange_count, status: row.status,
