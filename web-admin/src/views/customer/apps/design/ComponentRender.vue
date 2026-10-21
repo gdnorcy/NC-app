@@ -8,7 +8,7 @@
         <!-- 高级(热区)模式：多图 + 热区框 -->
         <template v-if="comp.props.mode === 'hotzone' && comp.props.items?.length">
           <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-item" :class="imgFillCls(comp.props)" :style="{ marginBottom: ii < comp.props.items.length - 1 ? (comp.props.gap ?? 0) + 'px' : 0, borderRadius: imageRadius(comp.props) }">
-            <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
+            <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props, true)" />
             <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /></div>
             <div
               v-for="(h, hi) in it.hotspots || []" :key="hi"
@@ -23,7 +23,7 @@
         <template v-else-if="comp.props.style === 'double' && comp.props.items?.length">
           <div class="r-image-row" :style="{ gap: (comp.props.gap ?? 0) + 'px' }">
             <div v-for="(it, ii) in comp.props.items" :key="ii" class="r-image-row-item" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
-              <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props)" />
+              <img v-if="it.url" :src="resolveUrl(it.url)" :style="imgFillStyle(comp.props, true)" />
               <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /></div>
             </div>
           </div>
@@ -31,7 +31,7 @@
         <!-- 标准模式：单图 -->
         <template v-else>
           <div v-if="comp.props.url" class="r-image-single" :class="imgFillCls(comp.props)" :style="{ borderRadius: imageRadius(comp.props) }">
-            <img :src="resolveUrl(comp.props.url)" :style="imgFillStyle(comp.props)" />
+            <img :src="resolveUrl(comp.props.url)" :style="imgFillStyle(comp.props, true)" />
           </div>
           <div v-else class="r-image-empty"><img :src="IMAGE_SAMPLE" class="r-image-empty-img" alt="" /></div>
         </template>
@@ -53,6 +53,15 @@
     </template>
     <template v-else-if="comp.type === 'divider'">
       <div class="r-divider" :style="dividerStyle(comp.props)"><span v-if="comp.props.text" :style="{ color: comp.props.color || '#86909C' }">{{ comp.props.text }}</span></div>
+    </template>
+    <template v-else-if="comp.type === 'icon-menu'">
+      <!-- 图形按钮组（图标+文字横排，最多 5 个；🔴 反馈 #326 新增） -->
+      <div class="r-iconmenu" :style="rIconMenuStyle(comp.props)">
+        <div v-for="(it, ii) in (comp.props.items || [])" :key="ii" class="r-iconmenu-item">
+          <img v-if="it.iconUrl" :src="resolveUrl(it.iconUrl)" class="r-iconmenu-ico" :style="{ width: (comp.props.iconSize || 28) + 'px', height: (comp.props.iconSize || 28) + 'px' }" alt="" />
+          <span v-if="it.text" class="r-iconmenu-text" :style="{ fontSize: (comp.props.fontSize || 12) + 'px', color: comp.props.textColor || '#333333' }">{{ it.text }}</span>
+        </div>
+      </div>
     </template>
     <template v-else-if="comp.type === 'notice'">
       <div class="r-notice" :style="noticeStyle(comp.props)">
@@ -1422,6 +1431,14 @@ function noticeList(p) {
 function noticeSym(p) {
   return noticeSymbolParts(p && p.symbol);
 }
+/** 图形按钮组（🔴 #326 新增）：横排均布 + 间距，与 C 端同口径 */
+function rIconMenuStyle(p) {
+  return {
+    marginTop: ((p && p.marginTop) || 0) + 'px',
+    marginBottom: ((p && p.marginBottom) || 0) + 'px',
+    gap: ((p && p.gap) || 0) + 'px',
+  };
+}
 function hotWordsList(p) {
   return String(p.hotWordsText || '')
     .split(/[,，]/)
@@ -1666,15 +1683,21 @@ function imageTextRatio(p) {
   return { aspectRatio: map[p.ratio] || '100%', objectFit: 'cover', width: '100%' };
 }
 // 通用图片填充（推广自魔方：cover/contain/fill/none + 位置 top/center/bottom；none=原尺寸居中）
-function imgFillStyle(p) {
+function imgFillStyle(p, useMhDefault) {
   const fill = p.imgFill || 'cover';
   const pos = p.imgPos || 'center';
   // 🔴 反馈 #299：限高（按比例缩放到不超过该高度，不裁切不变形）
   //   maxHeight=0 → 不限制（保持存量行为）。设了限高则 objectFit 强制 contain，
   //   否则 cover 会裁掉超高部分、fill 会拉变形。
-  const mh = Number(p.maxHeight) || 0;
+  //   🔴 #326：与 C 端同口径改显式盒高（width:100% + height=限高）——画布是浏览器真 <img>
+  //   用 auto 也能撑开，但 C 端 uni image 会塌缩，三端不一致 = 所见非所得。
+  //   ⚠️ 「未设→350」只对图片组件生效（useMhDefault）：本函数被图文/轮播/图集共用，
+  //   它们没有 maxHeight 字段，误给默认会钉死高度破坏比例布局。
+  const mh = useMhDefault && (p.maxHeight == null || p.maxHeight === '')
+    ? 350
+    : Math.max(0, Number(p.maxHeight) || 0);
   if (mh > 0) {
-    return { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: mh + 'px', objectFit: 'contain', objectPosition: pos, display: 'block', margin: '0 auto' };
+    return { width: '100%', height: mh + 'px', objectFit: 'contain', objectPosition: pos, display: 'block', margin: '0 auto' };
   }
   if (fill === 'none') {
     return { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', objectPosition: pos, display: 'block', margin: '0 auto' };
@@ -1941,6 +1964,11 @@ const nativeGridItems = [
 .r-divider span { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .r-notice-ico { width: 18px; height: 18px; object-fit: contain; flex: none; }
+/* 图形按钮组（🔴 #326 新增）：横排均布，图标在上文字在下 */
+.r-iconmenu { display: flex; align-items: center; justify-content: space-around; }
+.r-iconmenu-item { display: flex; flex-direction: column; align-items: center; }
+.r-iconmenu-ico { display: block; object-fit: contain; }
+.r-iconmenu-text { margin-top: 3px; line-height: 1.3; }
 /* 🔴 #321 收尾：前置符号。类名来自共享表 utils/noticeSymbol.js；
    尺寸按「画布 375px 基准 = C 端 750rpx」折半（8rpx→4px），与 C 端同口径。 */
 .r-notice-sym { flex-shrink: 0; }

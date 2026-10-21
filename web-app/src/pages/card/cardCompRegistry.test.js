@@ -13,9 +13,9 @@ const root = path.resolve(__dirname, '../../../..');
 describe('移动端轻量注册表 ↔ admin componentRegistry 一致性', () => {
   const adminByType = Object.fromEntries(componentRegistry.map((c) => [c.type, c]));
 
-  test('移动端开放的 7 种组件必须存在于 admin 注册表', () => {
+  test('移动端开放的组件必须存在于 admin 注册表', () => {
     const types = CARD_COMP_REGISTRY.map((c) => c.type);
-    expect(types.sort()).toEqual(['button', 'button-group', 'channel-video', 'divider', 'image', 'notice', 'rich-text', 'spacer']);
+    expect(types.sort()).toEqual(['button', 'button-group', 'channel-video', 'divider', 'icon-menu', 'image', 'notice', 'rich-text', 'spacer']);
     for (const t of types) expect(adminByType[t], `admin 缺少 ${t}`).toBeTruthy();
   });
 

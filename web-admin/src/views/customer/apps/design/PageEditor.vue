@@ -260,7 +260,7 @@
                   <div v-else-if="f.control === 'radio' && f.graphic" class="pe-graphic" :class="{ 'pe-graphic-sm': f.graphicSmall }">
                     <div
                       v-for="o in f.options" :key="o.value"
-                      class="pe-graphic-item" :class="{ active: String(selectedComp.props[f.key]) === String(o.value) }"
+                      class="pe-graphic-item" :class="{ active: String(propVal(f)) === String(o.value) }"
                       @click="setProp(f.key, o.value)"
                     >
                       <img v-if="o.img" :src="thumbMap[o.img]" class="pe-graphic-svg" :style="f.thumbSize ? {objectFit:'contain',width:f.thumbSize+'px',height:f.thumbSize+'px'} : {objectFit:'contain'}" />
@@ -334,10 +334,10 @@
                     <span v-else class="pe-style-cur">当前：{{ styleName(f) }}</span>
                     <el-button size="small" type="primary" plain @click="openStylePicker(f)">修改风格</el-button>
                   </div>
-                  <el-radio-group v-else-if="f.control === 'radioButton'" v-model="selectedComp.props[f.key]" size="default">
+                  <el-radio-group v-else-if="f.control === 'radioButton'" :model-value="propVal(f)" @update:model-value="selectedComp.props[f.key] = $event" size="default">
                     <el-radio-button v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio-button>
                   </el-radio-group>
-                  <el-radio-group v-else-if="f.control === 'radio'" v-model="selectedComp.props[f.key]">
+                  <el-radio-group v-else-if="f.control === 'radio'" :model-value="propVal(f)" @update:model-value="selectedComp.props[f.key] = $event">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value" :disabled="o.disabled">{{ o.label }}</el-radio>
                   </el-radio-group>
                   <!-- 魔方：格子填充方式（属性区编辑，图形化：裁剪铺满/完整显示/拉伸填满/原尺寸） -->
@@ -2330,6 +2330,18 @@ function listVal(it, sf) {
     if (sf.default !== undefined) return sf.default;
     if (sf.control === 'radio' && sf.options?.length) return sf.options[0].value;
   }
+  return v;
+}
+/**
+ * 组件级字段的**显示值**：空/未设回落 schema default（与 listVal 同一纪律）。
+ * 🔴 #326：按钮 linkType 存量是 ''（#301 时期建的），裸 v-model 匹配不到任何选项
+ *   → radio 四项一个都不亮（用户报「默认是内部链接，默认是选中状态」）。
+ *   显示归一即可，不改存量数据；用户一旦点选就落真实值。
+ */
+function propVal(f) {
+  const v = selectedComp.props?.[f.key];
+  if ((v === undefined || v === null || v === '') && f.default !== undefined) return f.default;
+  if ((v === undefined || v === null || v === '') && f.control === 'radio' && f.options?.length) return f.options[0].value;
   return v;
 }
 function visibleItemFields(f, it) {

@@ -23,7 +23,7 @@
  * 🔴 新增组件类型时必须同步：admin componentRegistry + 本文件 + server card.js 的
  *    COMP_TYPES 白名单 + cardDetail.vue 渲染分支，五处一致（单测会抓漂移）。
  */
-import { sampleUrl } from '../../utils/sampleImages.js';
+import { sampleUrl, menuIconUrl } from '../../utils/sampleImages.js';
 // 设计中心同款组件图标（copy from web-admin/src/assets/comp-icons），与设计中心「添加组件」面板一致。
 // 🔴 base64 内联而非 vite import：见文件头「反馈 #294」说明（真机图标纯白根因与修法）。
 // 🔴 本文件放在 pages/card/（原 utils/）：唯一消费方是本分包（pages/card 共 29 页），
@@ -39,7 +39,7 @@ export const CARD_COMP_REGISTRY = [
     name: '图片',
     icon: COMP_ICON_DATA_URI.picture,
     iconKey: 'picture',
-    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all', maxHeight: 0 },
+    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all', maxHeight: 350 },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content' },
       { key: 'link', label: '跳转', control: 'link', section: 'content' },
@@ -179,6 +179,42 @@ export const CARD_COMP_REGISTRY = [
       memberLevel: 'all',
     },
     schema: [
+      { key: 'gap', label: '按钮间距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+    ],
+  },
+  {
+    type: 'icon-menu',
+    name: '图形按钮组',
+    icon: COMP_ICON_DATA_URI.menu,
+    iconKey: 'menu',
+    // 🔴 反馈 #326：图标+文字的横排按钮组，最多 5 个。明细（图标/文字/跳转）走 cardEdit
+    // 专属编辑器（同 button-group：移动端 schema 无 list 控件）。默认图标 = 设计中心
+    // 按钮组（menu-group）同款素材（menuIconUrl 网络图，不进包）。
+    // defaultProps 与 admin 逐字一致（一致性单测钉死）。
+    defaultProps: {
+      items: ['一', '二', '三', '四'].map((n, i) => ({
+        iconUrl: menuIconUrl(i + 1),
+        text: '按钮' + n,
+        url: '',
+        linkType: 'internal',
+        miniAppId: '',
+        miniAppPath: '',
+        miniAppEnv: 'release',
+      })),
+      iconSize: 28,
+      fontSize: 12,
+      textColor: '#333333',
+      gap: 16,
+      marginTop: 6,
+      marginBottom: 0,
+      memberLevel: 'all',
+    },
+    schema: [
+      { key: 'iconSize', label: '图标大小', control: 'slider', section: 'style', min: 20, max: 60 },
+      { key: 'fontSize', label: '字体设置', control: 'slider', section: 'style', min: 8, max: 17 },
+      { key: 'textColor', label: '文字颜色', control: 'color', section: 'style' },
       { key: 'gap', label: '按钮间距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },

@@ -57,6 +57,16 @@ describe('写死的圆点已移除', () => {
   test('cc-notice-dot 整个类名不再出现（旧实现已删）', () => {
     expect(item()).not.toContain('cc-notice-dot');
   });
+
+  test('🔴 禁止对 computed 返回值解构（#326 实测翻车）', () => {
+    // `const { shape, text } = computed(...)` 解构的是 ref 对象本身，
+    // ref 上没有 .shape/.text（要 .value 才有）→ 恒 undefined → v-if 永远为假。
+    // 这种 Vue 运行时语义错误真机才炸，源码正则是唯一能提前拦住它的手段。
+    for (const [name, readFn] of RENDERERS) {
+      expect(readFn(), `${name} 存在对 computed 解构（运行时必为 undefined）`)
+        .not.toMatch(/const\s*\{[^}]*\}\s*=\s*computed\(/);
+    }
+  });
 });
 
 describe('内置符号集合（共享表 utils/noticeSymbol.js）', () => {

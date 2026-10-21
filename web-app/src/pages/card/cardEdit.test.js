@@ -111,7 +111,7 @@ describe('注册表与页面消费一致', () => {
     p.text = '改坏了';
     expect(compDefaultProps('notice').text).not.toBe('改坏了');
     expect(getCompDef('notice').defaultProps.text).not.toBe('改坏了');
-    expect(CARD_COMP_REGISTRY).toHaveLength(8);
+    expect(CARD_COMP_REGISTRY).toHaveLength(9);
   });
 });
 

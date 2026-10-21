@@ -152,7 +152,7 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all', maxHeight: 0 },
+    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all', maxHeight: 350 },
     schema: [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
         { label: '单图', value: 'single' },
@@ -391,6 +391,51 @@ export const componentRegistry = [
         { key: 'bgColor', label: '按钮色', control: 'color', inline: true },
         { key: 'textColor', label: '文字色', control: 'color', inline: true },
       ] },
+      { key: 'gap', label: '按钮间距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'memberLevel', label: '会员等级浏览权限', control: 'radio', section: 'style', options: [{ label: '允许访问', value: 'allow' }, { label: '禁止访问', value: 'deny' }, { label: '全部允许', value: 'all' }] },
+    ],
+  },
+  {
+    type: 'icon-menu',
+    name: '图形按钮组',
+    group: 'basic',
+    icon: 'button-group',
+    // 🔴 反馈 #326：图标+文字横排按钮组，最多 5 个。与移动端 cardCompRegistry 的
+    // icon-menu 逐字一致（一致性单测钉死 defaultProps）。默认图标 = menu-group
+    // （设计中心「按钮组」）同款素材 menuIconUrl（网络图不进包）。
+    defaultProps: {
+      items: ['一', '二', '三', '四'].map((n, i) => ({
+        iconUrl: menuIconUrl(i + 1),
+        text: '按钮' + n,
+        url: '',
+        linkType: 'internal',
+        miniAppId: '',
+        miniAppPath: '',
+        miniAppEnv: 'release',
+      })),
+      iconSize: 28,
+      fontSize: 12,
+      textColor: '#333333',
+      gap: 16,
+      marginTop: 6,
+      marginBottom: 0,
+      memberLevel: 'all',
+    },
+    schema: [
+      { key: 'items', label: '图形按钮（最多 5 个）', control: 'list', section: 'content', listMax: 5, itemTitleKey: 'text', itemFields: [
+        { key: 'iconUrl', label: '图标', control: 'image', mini: true, inline: true },
+        { key: 'text', label: '文字', control: 'input', maxlength: 5, inline: true },
+        { key: 'url', label: '跳转', control: 'link', inline: true },
+        { key: 'linkType', label: '跳转类型', control: 'radio', default: 'internal', options: [{ label: '内部链接', value: 'internal' }, { label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }] },
+        { key: 'miniAppId', label: '小程序 AppID', control: 'input', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
+        { key: 'miniAppPath', label: '小程序页面路径', control: 'input', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
+        { key: 'miniAppEnv', label: '跳转版本（高级）', control: 'radio', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }] },
+      ] },
+      { key: 'iconSize', label: '图标大小', control: 'slider', section: 'style', min: 20, max: 60 },
+      { key: 'fontSize', label: '字体设置', control: 'slider', section: 'style', min: 8, max: 17 },
+      { key: 'textColor', label: '文字颜色', control: 'color', section: 'style' },
       { key: 'gap', label: '按钮间距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
