@@ -55,6 +55,7 @@
         "distShareArea",
         "distWallet",
         "dynamic",
+        "shareStyle",
         "radarConfig"
       ]
     },
