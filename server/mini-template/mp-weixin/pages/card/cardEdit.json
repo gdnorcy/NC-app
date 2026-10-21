@@ -3,7 +3,6 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "page-nav": "../../components/PageNav",
-    "card-comp-item": "../../components/CardCompItem",
-    "card-link-picker": "./CardLinkPicker"
+    "card-comp-item": "../../components/CardCompItem"
   }
 }
