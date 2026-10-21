@@ -12,6 +12,7 @@
 - 🔴 **WXSS 不支持通用选择器 `*`**（`error at token *`）：`uni build` 与 H5 全程不报，只有微信开发者工具编译才炸（「构建绿、真机编译红」）。穿透逐个类名 `pointer-events:auto`；`>`/`+` 可用；扫描先剥 CSS 注释，`calc(100% - 2*var(--x))` 的 `*` 是乘号合法。回归 `navTitleCenter.test.js`。
 - 🔴 **图标字符豆腐块**：`⧉`(U+29C9) PC 能显示、MP 大概率豆腐块；`↑↓✕` 正常。**SIcon 的 MP 端是预生成 PNG，颜色写死在文件名**（`show-ffffff`）→ 做不出白色变体，只能用真实 view 画（前块背景=容器底色）。禁 `::before/::after`。禁字形测试写**码点** `\u29C9`，写字面量会连注释一起命中。
 - 🔴 Vue 模板裸 hex：`:color="#ffffff"` 绑定式被当私有字段语法（`obj.#ffffff`）→ 整包 build failed。绑定传 hex 必须 `:color="'#ffffff'"`。
+- 🔴 **装修组件图标必须 base64 内联，禁 `import PNG`**（真机 5 格纯白 8649/8649 = 图片完全未加载，非渲染/裁切/遮挡）：vite 产物 `/assets/<name>.<hash>.png` 路径随包版本漂移，真机跑历史包即落空。判据：**按 PNG 资产粒度成对成败**（同源的 menu 与 richtext 正常）→ 必是资源层不是渲染层；再查服务器是否真上传过包（journal 零命中 + `channel_deploy_logs` 0 行 + `upload_key` 空 = 平台上是历史遗留包）。base64 后与包版本/资源目录/`/card/` 子路径 base 全部解耦。`/static/` 绝对路径方案两端不通用（H5 在 `/card/` 子路径，实测 `/static/x.png` 404 而 `/card/static/x.png` 200）。
 - H5 正常≠MP 正常，依次查：父 wxss 穿不透子组件根(`:deep()` 无效)→传 prop 出内联；MP 无 atob/Buffer→`uni.base64ToArrayBuffer`；内联 font-family 含双引号→setStyle 整条丢弃；明暗判据搞反。
 - 主题跟随：消费 `var(--design-` 的页面必绑 themeStyle；SIcon/canvas/showModal 不吃 var()→喂真实 hex。`import.meta.env` 直接访问在 MP 被垫片成 `require("url")` 崩 app.js。
 - 浮层定位禁写死百分比：`sticky` 元素底沿随版式浮动（实测 312~610px），必 JS 实测+内联 top。
@@ -39,8 +40,12 @@
 - 🔴 分支纪律：源码提交落 **main**，deploy 只做 `merge --no-ff main`+重建产物提交；上次部署后记得 `git checkout main`。误提交到 deploy 的纠正：main 上 `git checkout <误提交> -- server/src server/test web-admin/src`（server/test 不在 src 下，易漏）。
 - 🔴 产物必须 `git add -f`（限 `server/public/{card,mall}` 与 `server/mini-template/mp-weixin` 三目录，别用 `-A`）：普通 add **静默跳过所有新 chunk** → index.html 引用 404 主 chunk，/card/ 白屏。且 SPA 兜底让 404 也返 200，**验证必须比 chunk md5/内容，不能只看状态码**。
 - 🔴 构建顺序：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧）。干净做法：新产物先 `cp -a` 到 /tmp，main 只提源码，deploy 上整目录替换。
+- 🔴 **「产物挪到 /tmp → checkout main → 放回」这条纪律自带嵌套陷阱**：`git checkout` 会按索引把 `server/public/{card,mall,admin}`、`server/mini-template/mp-weixin` **恢复成旧版**，随后 `mv /tmp/新产物 server/public/card` 因目标已存在 → 变成 `card/card/`（外旧内新），症状像「部署没生效」（只看到旧 `assets/*.png`、新 `utils/compIconsBase64.js` 消失）。**放回前先 `mv` 走同名旧目录**；判据 `ls <产物目录>` 是否出现与自身同名的子目录。
 - 🔴 safe-delete 拦删 >50 文件：正解=先把旧产物 `mv` 到 /tmp 再构建；需挪 `dist/build/h5`、`server/public/{card,mall}/{assets,static}`、`server/mini-template/mp-weixin`、MP `static/{icons,sicons}`。推 deploy 用 `git push -f origin deploy`。
 - 🔴 TAT：`reset --hard origin/deploy` 前必须先 `fetch`；带外网域名的命令被 AccessDeny 拦→拆步+本地 curl。判构建成功禁用 `cmd | tail`（tail 的 exit 恒 0），用 `> log 2>&1; echo $?`。
+- 🔴 **外网校验按各站点自己的挂载前缀走**：card/mall 是 `/{prefix}/assets/`，**admin 是 `/admin-assets/assets/`**（`app.js` 里 admin 另有 `req.path.startsWith('/admin/')`→sendFile(admin.html) 兜底 680B）。用 `/admin/assets/x.js` 探测必得 680B HTML 且 HTTP 200 —— 又一张「SPA 兜底让 404 也返 200」的脸。
+- 🔴 **验接口是否上线要用正确的 HTTP 方法**：只支持 POST 的路由用 GET 探必返 404（正常！不是没部署），换 POST 得 401（鉴权生效）才算注册；另拿一个真不存在的路由确认 404 基准。**C 端 `/api/card/*` 用租户后台 token 一律 401**（鉴权不同域），返回条数 0 是鉴权失败不是没数据。
+- 🔴 **vitest 不编译 SFC → setup 里「同一标识符声明两次」只有 `uni build` 照得出**（994 例单测全绿 + `audit:imports` 过，`build:mobile` 仍报 "already been declared"）。改过 SFC 就必须跑完整构建，单测绿灯不能替代。
 - 🔴 server 全量单进程 `node --test` 会被 OOM kill（exit 137）：`awk 'NR%4==n'` 分 4 批跑。查库：`node:sqlite`+`server/data/panorama.db`。
 
 ## 令牌与产物
