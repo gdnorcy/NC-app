@@ -7,6 +7,8 @@
 - 🔴 **「间距/大小不真实」先数壳层数**：装修页曾三层壳（body 12px + card 10px + render 6px）把组件捏窄 32px+白底圆角，像装在盒子里；第四轮又抓出 `.ce-card{padding:4px;margin-bottom:6px}` 把组件间距撑到 20px（真实页 6px）。调参永远调不对，要**删壳**——间距 100% 由组件自身 marginTop 决定，容器只保留一层边距（ce-body 左右 28rpx = 真实页 `.cc-list`）。选中环禁画卡片边框（1rpx 各占 0.5px 破坏像素对齐）→ 独立绝对定位+`pointer-events:none`。**「A 和 B 不一致」先各测再改**：最小化测量页+headless 实测五场景，别三个一起瞎调；spec 记忆与实测冲突时信实测（flex column 子项并不吞子元素 margin）。
 - 🔴 同步需求要连机制一起搬：「对齐设计中心边条」= 浮在组件上不占空间+名字进条省标题行+hover 浮现**一整套**，只搬皮会做出更占地方的常驻大条（返工三次）。手机无 hover→`activeKey`+tapCard，选中再点=进配置；锁标记常驻不随浮条隐。
 - 背景两字段：bgColor=自身色/compBgColor=容器色（`containerStyle.js`）。显式 0 必须内联。
+- 🔴 **链接模型单一事实来源 `utils/compLinkModel.js`**：跳转类型只有 miniapp/web/phone 三种外链；「内部页面」不是**类型**而是**能力**（在「跳转」框直接填 `/pages/xxx`）——存量 `'internal'` 与新默认 `''` 用 `normalizeLinkType` 归一，旧配置不失效。凡「允许不选」的 radio，schema 必须显式 `default: ''`，否则 admin 的 `addListItem`/`listVal` 会取 `options[0].value` 顶成第一个外链类型。
+- 🔴 **子组件自身配置 ≠ 父级配置**：按钮组每个按钮有独立链接配置（在 `buttons[]` 里），组件级 props 上没有 `linkType`；渲染时只传组件级 → 外链永远跳空（静默失败）。判据：渲染层拿到的配置对象，必须和配置面板编辑的是同一层级。
 
 ## 真机与跨端
 - 🔴 **WXSS 不支持通用选择器 `*`**（`error at token *`）：`uni build` 与 H5 全程不报，只有微信开发者工具编译才炸（「构建绿、真机编译红」）。穿透逐个类名 `pointer-events:auto`；`>`/`+` 可用；扫描先剥 CSS 注释，`calc(100% - 2*var(--x))` 的 `*` 是乘号合法。回归 `navTitleCenter.test.js`。
@@ -39,7 +41,7 @@
 
 ## 构建与部署
 - 🔴 分支纪律：源码提交落 **main**，deploy 只做 `merge --no-ff main`+重建产物提交；上次部署后记得 `git checkout main`。误提交到 deploy 的纠正：main 上 `git checkout <误提交> -- server/src server/test web-admin/src`（server/test 不在 src 下，易漏）。
-- 🔴 产物必须 `git add -f`（限 `server/public/{card,mall}` 与 `server/mini-template/mp-weixin` 三目录，别用 `-A`）：普通 add **静默跳过所有新 chunk** → index.html 引用 404 主 chunk，/card/ 白屏。且 SPA 兜底让 404 也返 200，**验证必须比 chunk md5/内容，不能只看状态码**。
+- 🔴 **产物必须 `git add -f`**（限 `server/public/{card,mall}` 与 `server/mini-template/mp-weixin` 三目录，别用 `-A`）：普通 add **静默跳过所有新 chunk** → index.html 引用 404 主 chunk，/card/ 白屏。且 SPA 兜底让 404 也返 200，**验证必须比 chunk md5/内容，不能只看状态码**。🔴 **「未跟踪计数为 0」不等于没变**：被 gitignore 的目录下新增文件不出现在 `git status` 的 `??` 里 → 必须 `comm` 对比索引与磁盘清单再 `add -f`。
 - 🔴 构建顺序：**勿在 main 构建后切 deploy**（checkout 恢复旧产物→只加新不删旧）。干净做法：新产物先 `cp -a` 到 /tmp，main 只提源码，deploy 上整目录替换。
 - 🔴 **「产物挪到 /tmp → checkout main → 放回」这条纪律自带嵌套陷阱**：`git checkout` 会按索引把 `server/public/{card,mall,admin}`、`server/mini-template/mp-weixin` **恢复成旧版**，随后 `mv /tmp/新产物 server/public/card` 因目标已存在 → 变成 `card/card/`（外旧内新），症状像「部署没生效」（只看到旧 `assets/*.png`、新 `utils/compIconsBase64.js` 消失）。**放回前先 `mv` 走同名旧目录**；判据 `ls <产物目录>` 是否出现与自身同名的子目录。
 - 🔴 safe-delete 拦删 >50 文件：正解=先把旧产物 `mv` 到 /tmp 再构建；需挪 `dist/build/h5`、`server/public/{card,mall}/{assets,static}`、`server/mini-template/mp-weixin`、MP `static/{icons,sicons}`。推 deploy 用 `git push -f origin deploy`。
