@@ -133,18 +133,82 @@ export const cardApi = {
   getCardDynamics: (id) => request(`/cards/${id}/dynamics`),
   getCardVideos: (id) => request(`/cards/${id}/videos`),
   // 语音简介上传（阶段C：上传音频；克隆语音后续新增；H5 端 FormData，小程序端走 uni.uploadFile）
-  uploadVoiceFile: (file) => {
+  // 🔴 反馈 #297：原实现用 fetch + FormData → **MP 端 fetch/FormData 都不存在**，
+  //   必然抛 ReferenceError 被吞 → 用户点「上传音频」**没有任何反应**（事件其实触发了，
+  //   JS 第一行就抛异常被 MP 吞掉；WXML 事件绑定是正常的）。
+  //   现改为与 uploadUserAvatar 相同的双端范式：
+  //   H5 → FormData + fetch（携带真实 File 对象）；MP → uni.uploadFile（传临时文件路径）。
+  uploadVoiceFile: (filePath, file) => {
     const token = uni.getStorageSync('card_token');
-    const fd = new FormData();
-    fd.append('file', file);
-    return fetch(BASE_URL + '/voice-upload', {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: fd,
-    }).then((r) => r.json().then((data) => {
-      if (!r.ok) throw new Error(data.error || '上传失败');
-      return data;
-    }));
+    const auth = token ? { Authorization: `Bearer ${token}` } : {};
+    if (typeof window !== 'undefined') {
+      const fd = new FormData();
+      fd.append('file', file || filePath, 'audio');
+      return fetch(BASE_URL + '/voice-upload', {
+        method: 'POST',
+        headers: auth,
+        body: fd,
+      }).then((r) => r.json().then((data) => {
+        if (!r.ok) throw new Error(data.error || '上传失败');
+        return data;
+      }));
+    }
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE_URL + '/voice-upload',
+        filePath,
+        name: 'file',
+        header: auth,
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data || '{}');
+            if (res.statusCode >= 200 && res.statusCode < 300 && data.url) resolve(data);
+            else reject(new Error(data.error || '上传失败'));
+          } catch (e) { reject(new Error('上传失败')); }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '上传失败')),
+      });
+    });
+  },
+  // 语音简介历史记录（反馈 #297）
+  getVoiceHistory: () => request('/voice-history'),
+  deleteVoiceHistory: (id) => request(`/voice-history/${id}`, 'DELETE'),
+  // 在线录音上传（MP3）：MP 端 uni.uploadFile 传临时文件路径；H5 端用 MediaRecorder 产 Blob
+  uploadVoiceRecording: (filePath, file, { durationSec = 0, name = '' } = {}) => {
+    const token = uni.getStorageSync('card_token');
+    const auth = token ? { Authorization: `Bearer ${token}` } : {};
+    if (typeof window !== 'undefined' && file) {
+      const fd = new FormData();
+      fd.append('file', file, 'audio');
+      fd.append('durationSec', String(durationSec || 0));
+      if (name) fd.append('name', name);
+      return fetch(BASE_URL + '/voice-history', {
+        method: 'POST',
+        headers: auth,
+        body: fd,
+      }).then((r) => r.json().then((data) => {
+        if (!r.ok) throw new Error(data.error || '录音上传失败');
+        if (!data.voice || !data.voice.url) throw new Error('录音上传失败');
+        return data.voice;
+      }));
+    }
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE_URL + '/voice-history',
+        filePath,
+        name: 'file',
+        formData: { durationSec: String(durationSec || 0), name: name || '' },
+        header: auth,
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data || '{}');
+            if (res.statusCode >= 200 && res.statusCode < 300 && data.voice) resolve(data.voice);
+            else reject(new Error(data.error || '录音上传失败'));
+          } catch (e) { reject(new Error('录音上传失败')); }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '录音上传失败')),
+      });
+    });
   },
   // 用户头像上传（个人中心编辑资料 + 装修组件配图复用同一存储）：入参为本地临时路径。
   // 🔴 跨端走两条路：
@@ -320,6 +384,44 @@ export const cardApi = {
   // 动态
   getDynamics: () => request('/dynamics'),
   createDynamic: (data) => request('/dynamics', 'POST', data),
+  // 动态配图上传：入参为本地临时路径（uni.chooseMedia 产出）。
+  // 🔴 跨端两条路（同 uploadUserAvatar 的正确范式）：
+  //   MP：uni.uploadFile 直接传 filePath；H5：uni.uploadFile 会把 blob URL 字符串当文件内容发出去，
+  //       服务端收不到真 File → 必须 FormData + fetch 携带真实 File 对象。
+  //   H5 端 chooseMedia 的 tempFiles[i] 上带 .file（File 对象），由调用方一并传入。
+  uploadDynamicImage: (filePath, file) => {
+    const token = uni.getStorageSync('card_token');
+    const auth = token ? { Authorization: `Bearer ${token}` } : {};
+    if (typeof window !== 'undefined') {
+      const fd = new FormData();
+      fd.append('file', file || filePath, 'image');
+      return fetch(BASE_URL + '/dynamic/image-upload', {
+        method: 'POST',
+        headers: auth,
+        body: fd,
+      }).then((r) => r.json().then((data) => {
+        if (!r.ok) throw new Error(data.error || '图片上传失败');
+        if (!data.url) throw new Error('图片上传失败');
+        return data;
+      }));
+    }
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE_URL + '/dynamic/image-upload',
+        filePath,
+        name: 'file',
+        header: auth,
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data || '{}');
+            if (res.statusCode >= 200 && res.statusCode < 300 && data.url) resolve(data);
+            else reject(new Error(data.error || '图片上传失败'));
+          } catch (e) { reject(new Error('图片上传失败')); }
+        },
+        fail: (e) => reject(new Error((e && e.errMsg) || '图片上传失败')),
+      });
+    });
+  },
 
   // 设计中心：C 端读取租户发布配置（风格/底部导航/首页跳转）；pageType 指定 DIY 装修页面（首页跳转选择器）
   designConfig: (preview, pageType = '', tid = '') => {

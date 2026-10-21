@@ -58,7 +58,7 @@
       <div class="r-notice" :style="noticeStyle(comp.props)">
         <img v-if="comp.props.iconType === 'custom' && comp.props.iconImage" :src="resolveUrl(comp.props.iconImage)" class="r-notice-ico" alt="" />
         <span v-else-if="comp.props.iconType !== 'custom'" class="r-notice-tag">公告</span>
-        <span v-if="noticeList(comp.props).length" class="r-notice-text">{{ noticeList(comp.props)[0].text }}</span>
+        <span v-if="noticeList(comp.props).length" class="r-notice-text" :class="{ 'r-notice-text-inline': comp.props.align && comp.props.align !== 'left' }">{{ noticeList(comp.props)[0].text }}</span>
         <span v-else>{{ comp.props.text || '公告内容' }}</span>
       </div>
     </template>
@@ -1535,6 +1535,11 @@ function noticeStyle(p) {
   if (p.bold) s.fontWeight = '600';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  // 🔴 反馈 #299：对齐（整条公告）+ 左边偏移（与 C 端 CardCompItem/DesignPage 同语义）
+  if (p.align === 'center') s.justifyContent = 'center';
+  else if (p.align === 'right') s.justifyContent = 'flex-end';
+  const off = Number(p.offsetX) || 0;
+  if (off) s.marginLeft = off + 'px';
   return s;
 }
 // 名片搜索栏预览样式（native-search 自定义：高/圆角/背景/文字色/风格）
@@ -1653,6 +1658,13 @@ function imageTextRatio(p) {
 function imgFillStyle(p) {
   const fill = p.imgFill || 'cover';
   const pos = p.imgPos || 'center';
+  // 🔴 反馈 #299：限高（按比例缩放到不超过该高度，不裁切不变形）
+  //   maxHeight=0 → 不限制（保持存量行为）。设了限高则 objectFit 强制 contain，
+  //   否则 cover 会裁掉超高部分、fill 会拉变形。
+  const mh = Number(p.maxHeight) || 0;
+  if (mh > 0) {
+    return { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: mh + 'px', objectFit: 'contain', objectPosition: pos, display: 'block', margin: '0 auto' };
+  }
   if (fill === 'none') {
     return { width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', objectPosition: pos, display: 'block', margin: '0 auto' };
   }
@@ -1920,6 +1932,8 @@ const nativeGridItems = [
 .r-notice-ico { width: 18px; height: 18px; object-fit: contain; flex: none; }
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
 .r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 🔴 反馈 #299：居中/居右时文字不撑满（flex:1 会让文字永远贴左，等于没生效） */
+.r-notice-text-inline { flex: none; max-width: 100%; }
 .r-countdown { background: transparent; display: flex; flex-direction: column; position: relative; overflow: hidden; }
 .r-cd-mainimg { display: block; width: 100%; height: auto; }
 .r-cd-content { position: relative; padding: 9px 62px 9px 14px; }

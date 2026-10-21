@@ -150,7 +150,7 @@ export const componentRegistry = [
     name: '图片',
     group: 'basic',
     icon: 'image',
-    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all', maxHeight: 0 },
     schema: [
       { key: 'style', label: '选择风格', control: 'radio', graphic: true, section: 'content', options: [
         { label: '单图', value: 'single' },
@@ -184,6 +184,7 @@ export const componentRegistry = [
       { key: 'gap', label: '图片间距', control: 'slider', section: 'style', min: 0, max: 20 },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'maxHeight', label: '限高', control: 'slider', section: 'style', min: 0, max: 600, tips: '0 = 不限制。设置后图片按比例缩放到不超过该高度（不变形、不裁切），避免过长竖图撑爆版面' },
       { key: 'marginLR', label: '左右边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'radiusTop', label: '上圆角', control: 'slider', section: 'style', min: 0, max: 24 },
       { key: 'radiusBottom', label: '下圆角', control: 'slider', section: 'style', min: 0, max: 24 },
@@ -261,7 +262,7 @@ export const componentRegistry = [
         itemFields: [
           // ⚠️ `when` 只能读**项自身字段**（见 listFieldVisible），组件级联用 `whenProps`。
           // 对标站实测：图片/图标字段随「按钮类型」互斥出现，文字字段随「按钮样式」出现。
-          // 🔴 `mini: true` = 40px 缩略图（用户 2026-10-05 反馈 130px 大图 + 说明文字太占空间）；
+          // 🔴 `mini: true` = 40px 缩略图（用户 2026-10-05 反馈 #130px 大图 + 说明文字太占空间）；
           //    `help: ''` = 去掉「建议图片宽度750…」说明文字（list 控件里 undefined 才给默认文案）。
           // 🔴 `inline: true` = 参数名与参数左右排列（2026-10-06 用户反馈：上下排列太占高度）。
           { key: 'imgUrl', label: '图片', control: 'image', mini: true, inline: true, help: '', whenProps: { iconType: '1', navStyle: ['style1', 'style2'] } },
@@ -309,10 +310,14 @@ export const componentRegistry = [
     name: '按钮',
     group: 'basic',
     icon: 'button',
-    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', linkType: 'internal', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'linkType', label: '跳转类型', control: 'radio', section: 'content', options: [{ label: '内部页面', value: 'internal' }, { label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }], tips: '默认内部页面；外部小程序需填 AppID（同一开放平台下的小程序才能跳转）' },
+      { key: 'miniAppId', label: '小程序 AppID', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
+      { key: 'miniAppPath', label: '小程序页面路径', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
+      { key: 'miniAppEnv', label: '跳转版本', control: 'radio', section: 'content', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }] },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       // 🔴 宽度基准 = **整屏宽度**（视口单位），不是容器内容宽度。
@@ -397,7 +402,7 @@ export const componentRegistry = [
     name: '公告',
     group: 'basic',
     icon: 'notice',
-    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all' },
+    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all', align: 'left', offsetX: 0 },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
@@ -410,6 +415,8 @@ export const componentRegistry = [
       { key: 'dataSource', label: '数据显示', control: 'radio', section: 'content', options: [{ label: '读取系统', value: 'system' }, { label: '自定义', value: 'custom' }] },
       { key: 'fontSize', label: '字号', control: 'slider', section: 'style', min: 12, max: 20 },
       { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
+      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '整条公告（图标+文字）的对齐方式；居中/居右时文字不再撑满整行' },
+      { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '整条公告相对容器左边再平移。负数向左；不影响宽度' },
       { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'borderColor', label: '描边颜色', control: 'color', section: 'style', when: { style: 'border' } },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },

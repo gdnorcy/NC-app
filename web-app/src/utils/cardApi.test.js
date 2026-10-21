@@ -12,6 +12,7 @@ const uniMock = {
   removeStorageSync: vi.fn(),
   reLaunch: vi.fn(),
   request: vi.fn(),
+  uploadFile: vi.fn(),
 };
 vi.stubGlobal('uni', uniMock);
 
@@ -182,41 +183,85 @@ describe('阶段C 雷达/收藏方法', () => {
   });
 });
 
-describe('阶段C 语音简介上传', () => {
+describe('阶段C 语音简介上传（🔴 反馈 #297：改为 H5/MP 双端分流）', () => {
   const fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
 
   beforeEach(() => {
     fetchMock.mockReset();
+    uniMock.uploadFile = vi.fn();
   });
 
-  it('uploadVoiceFile → POST /voice-upload，FormData 含 file，带 Authorization', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ url: '/uploads/voice-a.mp3', name: 'intro.mp3' }),
-    });
-    const file = new Blob(['fake-audio'], { type: 'audio/mpeg' });
-    Object.assign(file, { name: 'intro.mp3' });
-    const res = await cardApi.uploadVoiceFile(file);
+  // —— MP 端（本测试环境无 window → 走 uni.uploadFile 分支）——
+  // 🔴 原实现只有 fetch + FormData → **MP 端 fetch/FormData 都不存在**，
+  //   点「上传音频」必然抛 ReferenceError 被吞 → 用户表现为「点击没反应」。
+  it('MP 端走 uni.uploadFile（不是 fetch）→ 传临时文件路径 + Authorization', async () => {
+    uniMock.uploadFile.mockImplementation(({ success }) =>
+      success({ statusCode: 200, data: JSON.stringify({ url: '/uploads/voice-a.mp3', name: 'intro.mp3' }) })
+    );
+    const res = await cardApi.uploadVoiceFile('/tmp/voice.mp3');
     expect(res.url).toBe('/uploads/voice-a.mp3');
     expect(res.name).toBe('intro.mp3');
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe(API_HOST + '/api/card/voice-upload');
-    expect(opts.method).toBe('POST');
-    expect(opts.headers.Authorization).toBe('Bearer test-token');
-    expect(opts.body).toBeInstanceOf(FormData);
-    const f = opts.body.get('file');
-    expect(f).toBeInstanceOf(Blob);
-    expect(f.type).toBe('audio/mpeg');
-    expect(f.size).toBeGreaterThan(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+    const args = uniMock.uploadFile.mock.calls[0][0];
+    expect(args.url).toBe(API_HOST + '/api/card/voice-upload');
+    expect(args.filePath).toBe('/tmp/voice.mp3');
+    expect(args.name).toBe('file');
+    expect(args.header.Authorization).toBe('Bearer test-token');
   });
 
-  it('uploadVoiceFile 非 2xx 抛错（error 文案）', async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: '音频大小不能超过 10MB' }),
-    });
-    await expect(cardApi.uploadVoiceFile({ name: 'big.mp3' })).rejects.toThrow('音频大小不能超过 10MB');
+  it('MP 端非 2xx 抛错（error 文案）', async () => {
+    uniMock.uploadFile.mockImplementation(({ success }) =>
+      success({ statusCode: 400, data: JSON.stringify({ error: '音频大小不能超过 10MB' }) })
+    );
+    await expect(cardApi.uploadVoiceFile('/tmp/big.mp3')).rejects.toThrow('音频大小不能超过 10MB');
+  });
+
+  // —— H5 端（stub window → 走 FormData + fetch）——
+  it('H5 端走 fetch + FormData（携带真实 File 对象）', async () => {
+    vi.stubGlobal('window', { location: { href: 'http://x/' } });
+    try {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({ url: '/uploads/voice-a.mp3', name: 'intro.mp3' }),
+      });
+      const file = new Blob(['fake-audio'], { type: 'audio/mpeg' });
+      Object.assign(file, { name: 'intro.mp3' });
+      const res = await cardApi.uploadVoiceFile(file, file);
+      expect(res.url).toBe('/uploads/voice-a.mp3');
+      expect(res.name).toBe('intro.mp3');
+      const [url, opts] = fetchMock.mock.calls[0];
+      expect(url).toBe(API_HOST + '/api/card/voice-upload');
+      expect(opts.method).toBe('POST');
+      expect(opts.headers.Authorization).toBe('Bearer test-token');
+      expect(opts.body).toBeInstanceOf(FormData);
+      const f = opts.body.get('file');
+      expect(f).toBeInstanceOf(Blob);
+      expect(f.type).toBe('audio/mpeg');
+      expect(f.size).toBeGreaterThan(0);
+    } finally {
+      // ⚠️ 不能用 vi.unstubAllGlobals()：它会连带清掉 fetch mock → 真实 fetch 报
+      //   "Failed to parse URL"。这里只清 window，fetch/uni mock 保持。
+      vi.stubGlobal('window', undefined);
+    }
+  });
+
+  it('H5 端非 2xx 抛错（error 文案）', async () => {
+    vi.stubGlobal('window', { location: { href: 'http://x/' } });
+    try {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: '音频大小不能超过 10MB' }),
+      });
+      // FormData.append 只接受 Blob/File/string → 传 Blob（不是普通对象）
+      const file = new Blob(['big'], { type: 'audio/mpeg' });
+      Object.assign(file, { name: 'big.mp3' });
+      await expect(cardApi.uploadVoiceFile(file, file)).rejects.toThrow('音频大小不能超过 10MB');
+    } finally {
+      // ⚠️ 不能用 vi.unstubAllGlobals()：它会连带清掉 fetch mock → 真实 fetch 报
+      //   "Failed to parse URL"。这里只清 window，fetch/uni mock 保持。
+      vi.stubGlobal('window', undefined);
+    }
   });
 
   it('designConfig：游客（无 token、无显式 tid）自动带默认租户，保证装修首页可见', async () => {

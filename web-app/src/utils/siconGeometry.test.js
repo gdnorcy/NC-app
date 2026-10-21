@@ -37,6 +37,8 @@ const ICON_NAMES = [
   'solutions', 'users', 'logs', 'crown', 'no-ads', 'shield', 'badge', 'voucher',
   'analytics', 'palette', 'delivery', 'verify', 'show', 'devices', 'wechat', 'alipay',
   'mobile', 'official', 'pc', 'location', 'doc', 'star', 'mail', 'bell', 'cart', 'search',
+  // 反馈 #297：在线录音按钮图标（语音简介）
+  'mic',
 ];
 // 同字形别名（正则不支持别名，只能重复字面量；改一处必须改另一处）
 const ALIAS_PAIRS = [['crown', 'badge'], ['chart', 'analytics']];

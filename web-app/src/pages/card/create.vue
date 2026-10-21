@@ -240,7 +240,24 @@
                   <text class="vf-re" @click="chooseVoice">重传</text>
                 </view>
               </view>
-              <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB</view>
+              <!-- 🔴 反馈 #297：新增「在线录音」与「历史音频」两个入口 -->
+              <view class="voice-extra">
+                <view class="voice-extra-btn" @click="startRecord">
+                  <SIcon name="mic" size="small" :color="themeColor" />
+                  <text class="voice-extra-text">{{ recording ? '停止录音' : '在线录音' }}</text>
+                </view>
+                <view class="voice-extra-btn" @click="openVoiceHistory">
+                  <SIcon name="dynamic" size="small" :color="themeColor" />
+                  <text class="voice-extra-text">历史音频</text>
+                </view>
+              </view>
+              <!-- 录音中的浮层提示 -->
+              <view class="rec-panel" v-if="recording">
+                <view class="rec-dot"></view>
+                <text class="rec-time">{{ recordSeconds }}s</text>
+                <text class="rec-tip">正在录音，再次点击「停止录音」结束</text>
+              </view>
+              <view class="avatar-hint">支持 mp3/wav/m4a/aac/ogg，≤10MB；录音自动存为 MP3</view>
             </view>
             <view class="voice-locked" v-else @click="goMember">
               <SIcon name="crown" size="small" :color="themeColor" />
@@ -275,6 +292,39 @@
             {{ submitting ? '提交中...' : '创建名片' }}
           </button>
         </template>
+      </view>
+    </view>
+
+    <!-- 🔴 反馈 #297：语音简介历史音频选择弹层 -->
+    <view class="vh-mask" v-if="showVoiceHistory" @click="showVoiceHistory = false">
+      <view class="vh-sheet" @click.stop>
+        <view class="vh-header">
+          <text class="vh-title">历史音频</text>
+          <text class="vh-close" @click="showVoiceHistory = false">✕</text>
+        </view>
+        <view class="vh-body">
+          <view class="vh-empty" v-if="!voiceHistory.length">
+            <text class="vh-empty-text">还没有历史音频</text>
+            <text class="vh-empty-hint">上传或录一条后会自动出现在这里</text>
+          </view>
+          <view class="vh-item" v-for="v in voiceHistory" :key="v.id">
+            <view class="vh-item-main" @click="useVoiceHistory(v)">
+              <SIcon name="dynamic" size="small" :color="themeColor" />
+              <view class="vh-item-info">
+                <view class="vh-item-name">{{ v.name }}</view>
+                <view class="vh-item-meta">
+                  <text>{{ v.source === 'record' ? '录音' : '上传' }}</text>
+                  <text v-if="v.durationSec"> · {{ v.durationSec }}秒</text>
+                  <text v-if="v.sizeBytes"> · {{ Math.round(v.sizeBytes / 1024) }}KB</text>
+                </view>
+              </view>
+            </view>
+            <view class="vh-item-actions">
+              <text class="vh-play" @click="previewVoice(v)">试听</text>
+              <text class="vh-del" @click="removeVoiceHistory(v)">删除</text>
+            </view>
+          </view>
+        </view>
       </view>
     </view>
   </view>
@@ -512,6 +562,9 @@ onMounted(async () => {
       form.latitude = Number(res.card.latitude) || 0;
       form.longitude = Number(res.card.longitude) || 0;
       form.address = res.card.address || '';
+      // 🔴 反馈 #297：Object.assign(form, res.card) 只同步了 form 上的字段，
+      //   voiceSrc 是独立的 ref → 编辑态名片**已有语音简介但播放器不显示**（像没传过）。
+      voiceSrc.value = res.card.voiceUrl || '';
       syncCityIndex();
     } catch (e) {}
   } else {
@@ -539,34 +592,217 @@ function chooseAvatar() {
   });
 }
 
-// 语音简介（H5 端原生 file 选择；小程序端后续按 uni.uploadFile 接入）
+// 🔴 反馈 #297：语音简介上传 —— 原来这段在 MP 端是**必崩**的：
+//   `document.createElement('input')` 原样编译进小程序产物，MP 端无 document →
+//   点「上传音频」第一行就抛 TypeError 被 MP 吞掉 → **用户表现为「点击没反应」**。
+//   （不是遮挡/不是 v-if/不是会员门控；WXML 事件绑定正常，JS 首行即抛。）
+//   现改为双端分流：H5 用原生 file input；MP 用 chooseMessageFile（微信可从聊天记录选音频）。
+//   录音功能与历史记录见 startRecord / openVoiceHistory。
 function chooseVoice() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'audio/*';
-  input.onchange = async () => {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    if (!/^(audio\/|.*\.(mp3|wav|m4a|aac|ogg|webm)$)/i.test(file.type)) {
-      return uni.showToast({ title: '仅支持 mp3/wav/m4a/aac/ogg 音频', icon: 'none' });
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      return uni.showToast({ title: '音频大小不能超过 10MB', icon: 'none' });
-    }
-    uni.showLoading({ title: '上传中…' });
+  if (typeof document !== 'undefined') {
+    // —— H5 端：原生 file 选择 ——
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (!/^(audio\/|.*\.(mp3|wav|m4a|aac|ogg|webm)$)/i.test(file.type)) {
+        return uni.showToast({ title: '仅支持 mp3/wav/m4a/aac/ogg 音频', icon: 'none' });
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        return uni.showToast({ title: '音频大小不能超过 10MB', icon: 'none' });
+      }
+      await doUploadVoice(file.name || '语音简介', file, file);
+    };
+    input.click();
+    return;
+  }
+  // —— MP 端：chooseMessageFile（微信聊天记录里的音频）→ uni.uploadFile ——
+  //    优先 chooseMessageFile（含 size 信息）；MP 端不能选本地文件的其他方式。
+  if (typeof uni.chooseMessageFile === 'function') {
+    uni.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      extension: ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.webm', '.amr'],
+      success: async (res) => {
+        const f = (res.tempFiles && res.tempFiles[0]) || null;
+        if (!f) return;
+        const path = f.path || f.tempFilePath;
+        if (!path) return uni.showToast({ title: '未选中音频文件', icon: 'none' });
+        if (f.size && f.size > 10 * 1024 * 1024) {
+          return uni.showToast({ title: '音频大小不能超过 10MB', icon: 'none' });
+        }
+        await doUploadVoice(f.name || '语音简介', null, path);
+      },
+      fail: () => {},
+    });
+    return;
+  }
+  uni.showToast({ title: '当前环境不支持选择音频，请用「在线录音」', icon: 'none' });
+}
+
+/** 统一的语音上传流程（H5 传 file 对象，MP 传临时路径） */
+async function doUploadVoice(name, file, filePath) {
+  uni.showLoading({ title: '上传中…' });
+  try {
+    const res = await cardApi.uploadVoiceFile(filePath, file);
+    form.voiceUrl = res.url;
+    form.voiceName = res.name || name || '语音简介';
+    voiceSrc.value = res.url;
+    uni.showToast({ title: '上传成功', icon: 'success' });
+    loadVoiceHistory();
+  } catch (e) {
+    uni.showToast({ title: e.message || '上传失败', icon: 'none' });
+  } finally {
+    uni.hideLoading();
+  }
+}
+
+// ================= 反馈 #297：在线录音（MP3）+ 历史音频 =================
+const recording = ref(false);
+const recordSeconds = ref(0);
+const showVoiceHistory = ref(false);
+const voiceHistory = ref([]);
+let recorder = null;      // MP: wx.getRecorderManager 实例；H5: MediaRecorder
+let recordTimer = null;   // 秒表
+let recordStartAt = 0;
+let h5Chunks = null;      // H5 MediaRecorder 数据块
+let h5MimeType = '';
+
+/** 在线录音：MP 端用 uni.getRecorderManager（透传 wx.getRecorderManager，format mp3），
+ *  H5 端用 MediaRecorder（浏览器不支持 mp3 时降级 webm/ogg，服务端按后缀放行）。 */
+function startRecord() {
+  if (recording.value) { stopRecord(); return; }
+  // —— H5 端 ——
+  if (typeof window !== 'undefined' && navigator.mediaDevices && window.MediaRecorder) {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const candidates = ['audio/mpeg', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
+      h5MimeType = candidates.find((t) => window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(t)) || '';
+      try {
+        recorder = new window.MediaRecorder(stream, h5MimeType ? { mimeType: h5MimeType } : undefined);
+      } catch (e) {
+        recorder = new window.MediaRecorder(stream);
+      }
+      h5Chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size) h5Chunks.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(h5Chunks || [], { type: h5MimeType || 'audio/webm' });
+        const ext = /mpeg/.test(blob.type) ? 'mp3' : /ogg/.test(blob.type) ? 'ogg' : 'webm';
+        const file = new File([blob], `录音-${Date.now()}.${ext}`, { type: blob.type });
+        uploadRecording(file, file, ext, Math.round((Date.now() - recordStartAt) / 1000));
+      };
+      recorder.start();
+      beginRecordingUI();
+    }).catch(() => {
+      uni.showToast({ title: '无法访问麦克风，请检查权限', icon: 'none' });
+    });
+    return;
+  }
+  // —— MP 端 ——
+  if (typeof uni.getRecorderManager === 'function') {
+    recorder = uni.getRecorderManager();
+    recorder.onStart(() => beginRecordingUI());
+    recorder.onStop((res) => {
+      const dur = Math.round((Date.now() - recordStartAt) / 1000);
+      uploadRecording(null, res.tempFilePath, 'mp3', dur);
+    });
+    recorder.onError((e) => {
+      stopRecordingUI();
+      uni.showToast({ title: (e && e.errMsg) || '录音失败', icon: 'none' });
+    });
     try {
-      const res = await cardApi.uploadVoiceFile(file);
-      form.voiceUrl = res.url;
-      form.voiceName = res.name || file.name || '语音简介';
-      voiceSrc.value = res.url;
-      uni.showToast({ title: '上传成功', icon: 'success' });
+      recorder.start({ format: 'mp3', duration: 60000, sampleRate: 16000, numberOfChannels: 1, encodeBitRate: 48000 });
     } catch (e) {
-      uni.showToast({ title: e.message || '上传失败', icon: 'none' });
-    } finally {
-      uni.hideLoading();
+      uni.showToast({ title: '录音启动失败', icon: 'none' });
     }
-  };
-  input.click();
+    return;
+  }
+  uni.showToast({ title: '当前环境不支持录音', icon: 'none' });
+}
+
+function beginRecordingUI() {
+  recording.value = true;
+  recordStartAt = Date.now();
+  recordSeconds.value = 0;
+  clearInterval(recordTimer);
+  recordTimer = setInterval(() => {
+    recordSeconds.value = Math.round((Date.now() - recordStartAt) / 1000);
+  }, 1000);
+}
+
+function stopRecordingUI() {
+  recording.value = false;
+  recordSeconds.value = 0;
+  clearInterval(recordTimer);
+  recordTimer = null;
+}
+
+function stopRecord() {
+  if (recorder && typeof recorder.stop === 'function') {
+    try { recorder.stop(); } catch (e) { /* 已停止 */ }
+  }
+  stopRecordingUI();
+}
+
+/** 录音产物上传（存 MP3 或浏览器可用的等价格式） */
+async function uploadRecording(file, filePath, ext, durationSec) {
+  uni.showLoading({ title: '保存中…' });
+  try {
+    const v = await cardApi.uploadVoiceRecording(filePath, file, { durationSec, name: `录音 ${new Date().toLocaleDateString()}` });
+    form.voiceUrl = v.url;
+    form.voiceName = v.name || '语音简介';
+    voiceSrc.value = v.url;
+    uni.showToast({ title: '录音已保存', icon: 'success' });
+    loadVoiceHistory();
+  } catch (e) {
+    uni.showToast({ title: e.message || '录音保存失败', icon: 'none' });
+  } finally {
+    uni.hideLoading();
+  }
+}
+
+/** 打开历史音频弹层 */
+async function openVoiceHistory() {
+  showVoiceHistory.value = true;
+  await loadVoiceHistory();
+}
+
+async function loadVoiceHistory() {
+  try {
+    const res = await cardApi.getVoiceHistory();
+    voiceHistory.value = res.voices || [];
+  } catch (e) {
+    voiceHistory.value = [];
+  }
+}
+
+/** 直接选用一条历史音频 */
+function useVoiceHistory(v) {
+  form.voiceUrl = v.url;
+  form.voiceName = v.name || '语音简介';
+  voiceSrc.value = v.url;
+  showVoiceHistory.value = false;
+  uni.showToast({ title: '已选用', icon: 'success' });
+}
+
+/** 试听历史音频（复用主播放器） */
+function previewVoice(v) {
+  voiceSrc.value = v.url;
+  uni.showToast({ title: '正在试听', icon: 'none' });
+}
+
+async function removeVoiceHistory(v) {
+  try {
+    await cardApi.deleteVoiceHistory(v.id);
+    voiceHistory.value = voiceHistory.value.filter((x) => x.id !== v.id);
+    // 正在用这条音频时清空当前选择，避免指向已删除文件
+    if (form.voiceUrl === v.url) clearVoice();
+    uni.showToast({ title: '已删除', icon: 'success' });
+  } catch (e) {
+    uni.showToast({ title: e.message || '删除失败', icon: 'none' });
+  }
 }
 
 function clearVoice() {
@@ -1156,6 +1392,59 @@ async function syncMarketAfterSave(isPublic) {
   border: 2rpx dashed var(--design-primary, #165dff); border-radius: var(--radius-md);
   padding: 24rpx; color: var(--design-primary, #165dff); font-size: var(--fs-4); margin-top: 16rpx;
 }
+
+/* ================= 反馈 #297：在线录音 + 历史音频 ================= */
+.voice-extra { display: flex; gap: 16rpx; margin-top: 16rpx; }
+.voice-extra-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx;
+  height: 88rpx; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 2rpx solid var(--border);
+}
+.voice-extra-text { font-size: var(--fs-4); color: var(--t2); }
+.rec-panel {
+  display: flex; align-items: center; gap: 12rpx;
+  margin-top: 16rpx; padding: 20rpx 24rpx;
+  background: rgba(var(--danger-rgb), 0.08);
+  border-radius: var(--radius-md);
+}
+.rec-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--danger); }
+.rec-time { font-size: var(--fs-4); font-weight: 600; color: var(--danger); }
+.rec-tip { font-size: var(--fs-2); color: var(--t3); flex: 1; }
+/* 历史音频弹层 */
+.vh-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg-mask); z-index: var(--z-popup);
+  display: flex; align-items: flex-end;
+}
+.vh-sheet {
+  width: 100%; background: var(--white);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  max-height: 70vh; display: flex; flex-direction: column;
+}
+.vh-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 32rpx; border-bottom: 1rpx solid var(--bg-hover);
+}
+.vh-title { font-size: var(--fs-6); font-weight: 600; color: var(--t1); }
+.vh-close { font-size: var(--fs-6); color: var(--t3); }
+.vh-body { padding: 24rpx 32rpx 48rpx; overflow-y: auto; }
+.vh-empty { padding: 80rpx 0; text-align: center; }
+.vh-empty-text { display: block; font-size: var(--fs-4); color: var(--t2); }
+.vh-empty-hint { display: block; font-size: var(--fs-2); color: var(--t3); margin-top: 8rpx; }
+.vh-item {
+  display: flex; align-items: center; gap: 16rpx;
+  padding: 24rpx 0; border-bottom: 1rpx solid var(--bg-hover);
+}
+.vh-item-main { flex: 1; display: flex; align-items: center; gap: 16rpx; min-width: 0; }
+.vh-item-info { flex: 1; min-width: 0; }
+.vh-item-name {
+  font-size: var(--fs-4); color: var(--t1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vh-item-meta { font-size: var(--fs-2); color: var(--t3); margin-top: 4rpx; }
+.vh-item-actions { display: flex; gap: 24rpx; }
+.vh-play { font-size: var(--fs-3); color: var(--design-primary); }
+.vh-del { font-size: var(--fs-3); color: var(--danger); }
 
 /* picker 容器与 .form-input 完全同高同内边距（此前 88rpx vs 96rpx，同一表单内出现两种高度） */
 .picker-value {

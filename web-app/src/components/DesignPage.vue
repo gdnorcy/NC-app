@@ -44,7 +44,7 @@
         </template>
       </view>
       <!-- 按钮 -->
-      <view v-else-if="c.type === 'button'" class="dp-btn" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpBtnStyle(c.props)" @click="onJump(c.props.url)">
+      <view v-else-if="c.type === 'button'" class="dp-btn" :class="{ auto: c.props.widthMode === 'auto' }" :style="dpBtnStyle(c.props)" @click="onJump(compLink(c.props))">
         <text>{{ c.props.text || '按钮' }}</text>
       </view>
       <!-- 分割线 -->
@@ -53,11 +53,11 @@
         <text v-if="c.props.text" class="dp-divider-text" :style="{ color: c.props.color || '#86909C' }">{{ c.props.text }}</text>
       </view>
       <!-- 公告 -->
-      <view v-else-if="c.type === 'notice'" class="dp-notice" :style="dpNoticeStyle(c.props)" @click="onJump(c.props.url)">
+      <view v-else-if="c.type === 'notice'" class="dp-notice" :style="dpNoticeStyle(c.props)" @click="onJump(compLink(c.props))">
         <image v-if="c.props.iconType === 'custom' && c.props.iconImage" :src="resolveUrl(c.props.iconImage)" mode="aspectFit" class="dp-notice-ico" />
         <text v-else-if="c.props.iconType !== 'custom'" class="dp-notice-tag">公告</text>
-        <text v-if="dpNoticeList(c.props).length" class="dp-notice-text">{{ dpNoticeList(c.props)[0].text }}</text>
-        <text v-else class="dp-notice-text">{{ c.props.text || '公告内容' }}</text>
+        <text v-if="dpNoticeList(c.props).length" class="dp-notice-text" :class="{ 'dp-notice-text-inline': c.props.align && c.props.align !== 'left' }">{{ dpNoticeList(c.props)[0].text }}</text>
+        <text v-else class="dp-notice-text" :class="{ 'dp-notice-text-inline': c.props.align && c.props.align !== 'left' }">{{ c.props.text || '公告内容' }}</text>
       </view>
       <!-- 倒计时 -->
       <view v-else-if="c.type === 'countdown'" class="dp-countdown" :class="'dp-cd-s' + (c.props.styleId || 1) + ' ' + dpCdStyleClass(c.props)" :style="cdBoxStyle(c.props)">
@@ -768,6 +768,8 @@ import SuperFormRender from './SuperFormRender.vue';
 import { containerStyle } from '../utils/containerStyle.js';
 import { buttonSizeStyle } from '../utils/btnSize.js';
 import { sampleUrl } from '../utils/sampleImages.js';
+// 🔴 反馈 #298：统一跳转执行（外部小程序/网页/电话）
+import { execCompLink } from '../utils/compLink.js';
 // 按钮组（menu-group）样式：与 admin 画布共用同一份实现（对标站实测数值的唯一事实来源），
 // 保证「画布看到的 = 真机渲染的」。改样式只改那份文件，不要在本文件另写一份。
 import {
@@ -1020,6 +1022,11 @@ function dpNoticeStyle(p) {
   if (p.bold) s.fontWeight = '600';
   if (p.style === 'shadow') s.boxShadow = '0 2px 8px rgba(31,35,41,0.1)';
   if (p.style === 'border') s.border = '1px solid ' + (p.borderColor || '#E5E6EB');
+  // 🔴 反馈 #299：对齐（整条公告）+ 左边偏移（与 CardCompItem 同语义，防两端漂移）
+  if (p.align === 'center') s.justifyContent = 'center';
+  else if (p.align === 'right') s.justifyContent = 'flex-end';
+  const off = Number(p.offsetX) || 0;
+  if (off) s.marginLeft = off + 'px';
   return s;
 }
 function dpNoticeList(p) {
@@ -1137,6 +1144,9 @@ function dpItBodyStyle(p) {
 }
 // 通用图片填充（C 端，推广自魔方）：cover→aspectFill / contain→aspectFit / fill→scaleToFill / none→aspectFit+原尺寸；位置仅 H5 生效
 function dpImgMode(p) {
+  // 🔴 反馈 #299：设了限高时强制 aspectFit（等比缩放、不裁切、不变形），
+  //   否则 aspectFill 会把超高的图裁掉，scaleToFill 会拉变形。
+  if (Number(p.maxHeight) > 0) return 'aspectFit';
   const fill = p.imgFill || 'cover';
   return { cover: 'aspectFill', contain: 'aspectFit', fill: 'scaleToFill', none: 'aspectFit' }[fill] || 'aspectFill';
 }
@@ -1146,6 +1156,16 @@ function dpImgStyle(p) {
   const s = { objectPosition: pos };
   if (fill === 'none') {
     s.width = 'auto'; s.height = 'auto'; s.maxWidth = '100%'; s.maxHeight = '100%'; s.margin = '0 auto';
+  }
+  // 🔴 反馈 #299：限高（按比例缩放到不超过该高度，不裁切不变形）
+  //   maxHeight=0 → 不限制（保持存量行为，向后兼容）
+  const mh = Number(p.maxHeight) || 0;
+  if (mh > 0) {
+    s.maxHeight = mh + 'px';
+    s.width = 'auto';
+    s.height = 'auto';
+    s.maxWidth = '100%';
+    s.margin = '0 auto';
   }
   return s;
 }
@@ -1647,8 +1667,35 @@ function onPanoClick(p) {
   uni.navigateTo({ url: '/pages/viewer/viewer?planId=' + p.id, fail: () => uni.showToast({ title: '打开全景失败', icon: 'none' }) });
 }
 
-function onJump(url) {
-  if (!url) return;
+/**
+ * 组件跳转（🔴 反馈 #298：支持外部小程序 / 网页 / 电话，默认内部页面）
+ * @param {string|object} target 字符串 = 内部页面路径（存量调用方）；
+ *        对象 = 完整链接配置 { url, linkType, miniAppId, miniAppPath, miniAppEnv }
+ */
+/**
+ * 从组件 props 构造链接配置（🔴 反馈 #298）
+ * 组件级跳转（按钮/文本）走完整链接对象 → 支持外部小程序/网页/电话；
+ * 图片等子项的 link 仍是纯字符串路径（不含 linkType 体系），保持原行为。
+ */
+function compLink(p) {
+  const o = p || {};
+  return {
+    url: o.url || '',
+    linkType: o.linkType || 'internal',
+    miniAppId: o.miniAppId || '',
+    miniAppPath: o.miniAppPath || '',
+    miniAppEnv: o.miniAppEnv || 'release',
+  };
+}
+
+function onJump(target) {
+  if (!target) return;
+  // 对象形式 → 交给统一跳转执行器（compLink.js），C 端两条路径共用同一套语义
+  if (typeof target === 'object') {
+    execCompLink(target);
+    return;
+  }
+  const url = String(target);
   if (/^https?:/.test(url)) {
     // #ifdef H5
     window.open(url, '_blank');
@@ -1912,6 +1959,8 @@ function openChannel(kind, p) {
 .dp-notice { padding: 20rpx 28rpx; border-radius: var(--radius-sm); font-size: 26rpx; display: flex; align-items: center; gap: 16rpx; }
 .dp-notice-tag { font-weight: 600; flex-shrink: 0; }
 .dp-notice-text { flex: 1; }
+/* 🔴 反馈 #299：居中/居右时文字不撑满（否则永远贴左） */
+.dp-notice-text-inline { flex: none; }
 .dp-countdown { background: transparent; display: flex; flex-direction: column; position: relative; overflow: hidden; }
 .dp-cd-mainimg { display: block; width: 100%; height: auto; }
 /* 🔴 倒计时内容区背景图层（替代原 background-image: url()，小程序端不支持包内本地路径）。
