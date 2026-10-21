@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个性化分享 · 360全景 名片</title>
+<style>
+  /* ============================================================
+     360全景「个性化分享」页 —— 可交互原型
+     参考菜鸟云同名页的范式：微信会话仿真预览 + 标题实时联动 + 封面风格库
+     配色取自 web-app/src/styles/token.scss（$primary #165dff 等）
+     ============================================================ */
+  :root {
+    --primary: #165dff;
+    --primary-deep: #1d4e8f;
+    --brand-orange: #ff7d00;
+    --t1: #1d2129;
+    --t2: #4e5969;
+    --t3: #5c6470;
+    --border: #e5e6eb;
+    --bg-page: #f5f6f7;
+    --bg-card: #f7f8fa;
+    --card-radius: 12px;
+    --card-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+    --wechat-green: #07c160;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #e9ecf0;
+    color: var(--t1);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 32px;
+    padding: 28px 20px 60px;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- 手机外壳 ---------- */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: #fff;
+    border-radius: 40px;
+    box-shadow: 0 24px 60px rgba(16, 24, 40, .18), 0 0 0 10px #1d2129;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .statusbar {
+    height: 44px; flex: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px 0 28px;
+    font-size: 14px; font-weight: 600;
+    color: #fff; background: var(--primary);
+  }
+  .statusbar .icons { display: flex; gap: 5px; align-items: center; font-size: 11px; }
+  .bat { border: 1.4px solid #fff; border-radius: 3px; padding: 0 3px; font-size: 9px; }
+
+  .navbar {
+    height: 44px; flex: none;
+    background: var(--primary); color: #fff;
+    display: flex; align-items: center; padding: 0 12px;
+    position: relative;
+  }
+  .navbar .back { font-size: 22px; width: 32px; line-height: 1; opacity: .95; cursor: pointer; }
+  .navbar .title {
+    position: absolute; left: 0; right: 0; text-align: center;
+    font-size: 17px; font-weight: 600; pointer-events: none;
+  }
+  .navbar .capsule {
+    margin-left: auto; display: flex; align-items: center; gap: 3px;
+    border: 1px solid rgba(255,255,255,.35); border-radius: 16px;
+    padding: 3px 9px; font-size: 12px; background: rgba(255,255,255,.12);
+  }
+  .navbar .capsule .dots { letter-spacing: 1px; font-weight: 700; }
+  .navbar .capsule .sep { width: 1px; height: 13px; background: rgba(255,255,255,.4); }
+  .navbar .capsule .target { width: 12px; height: 12px; border: 1.6px solid #fff; border-radius: 50%; position: relative; }
+  .navbar .capsule .target::after {
+    content: ''; position: absolute; inset: 2.6px; border-radius: 50%; background: #fff;
+  }
+
+  .body { flex: 1; overflow-y: auto; background: var(--bg-page); }
+  .body::-webkit-scrollbar { display: none; }
+
+  /* ---------- 微信会话仿真预览区 ---------- */
+  .preview {
+    background: #ededed;
+    padding: 14px 12px 18px;
+    position: relative;
+  }
+  .preview-label {
+    font-size: 11px; color: #8a8a8a; text-align: center;
+    margin-bottom: 10px; letter-spacing: .3px;
+  }
+  .chat {
+    background: #fff; border-radius: 10px;
+    padding: 12px 12px 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .chat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .chat-head .logo {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(135deg, #ffd21e, #ff9f1a);
+    color: #7a5200; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chat-head .org { font-size: 13px; color: var(--t1); font-weight: 500; }
+  .chat-head .mine {
+    margin-left: auto; width: 34px; height: 34px; border-radius: 5px;
+    background: linear-gradient(135deg, #4facfe, #00c6fb);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 13px; font-weight: 600;
+  }
+  /* 转发卡片（微信小程序卡片形态） */
+  .wx-card {
+    border: 1px solid #e6e6e6; border-radius: 8px; overflow: hidden;
+    background: #fff; margin-bottom: 0;
+  }
+  .wx-card .wx-title {
+    font-size: 14px; color: var(--t1); padding: 12px 12px 8px;
+    font-weight: 500; line-height: 1.4;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .wx-card .wx-title .arr { color: #c9cdd4; font-size: 13px; }
+  .wx-card .wx-cover {
+    width: 100%; aspect-ratio: 5 / 4; background: #f2f3f5 center/cover no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .wx-card .wx-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .wx-card .wx-foot {
+    display: flex; align-items: center; gap: 5px;
+    padding: 9px 12px; font-size: 12px; color: var(--t3);
+    border-top: 1px solid #f0f0f0;
+  }
+  .wx-card .wx-foot .mp {
+    width: 15px; height: 15px; border-radius: 3px;
+    background: var(--primary); color: #fff; font-size: 9px;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .chat-tail { height: 10px; background: #fff; }
+
+  /* ---------- 表单区 ---------- */
+  .form { padding: 16px 14px 0; }
+  .field { margin-bottom: 22px; }
+  .field-label {
+    font-size: 13px; color: var(--t3); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .field-label .req { color: #f53f3f; }
+  .field-label .hint { margin-left: auto; font-size: 11px; color: #a9aeb8; }
+  .input {
+    width: 100%; height: 46px; background: #fff; border-radius: 8px;
+    border: 1px solid var(--border); padding: 0 13px;
+    font-size: 15px; color: var(--t1); outline: none;
+    font-family: inherit; transition: border-color .15s;
+  }
+  .input:focus { border-color: var(--primary); }
+  .input::placeholder { color: #b8bcc4; }
+
+  /* 封面风格库：横向滚动 */
+  .covers {
+    display: flex; gap: 12px; overflow-x: auto; padding: 2px 0 12px;
+    scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  }
+  .covers::-webkit-scrollbar { height: 0; }
+  .cover-item {
+    flex: none; width: 148px; scroll-snap-align: start; cursor: pointer;
+    text-align: center; user-select: none;
+  }
+  .cover-thumb {
+    width: 148px; height: 118px; border-radius: 10px; overflow: hidden;
+    background: #fff center/cover no-repeat;
+    box-shadow: 0 1px 4px rgba(16,24,40,.08);
+    border: 2px solid transparent; position: relative;
+    transition: border-color .15s, transform .15s;
+  }
+  .cover-item:hover .cover-thumb { transform: translateY(-2px); }
+  .cover-item.on .cover-thumb { border-color: var(--brand-orange); }
+  .cover-item.on .cover-thumb::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(0,0,0,.34);
+  }
+  .cover-item .tick {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%) scale(.6);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--brand-orange); color: #fff; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .15s, transform .15s; z-index: 2;
+  }
+  .cover-item.on .tick { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  .cover-name {
+    font-size: 12px; margin-top: 8px; color: var(--t3);
+    transition: color .15s;
+  }
+  .cover-item.on .cover-name { color: var(--brand-orange); font-weight: 600; }
+
+  /* ---------- 底部保存 ---------- */
+  .footer {
+    flex: none; padding: 10px 14px 22px; background: #fff;
+    border-top: 1px solid #eee;
+  }
+  .btn-save {
+    width: 100%; height: 46px; border-radius: 23px; border: none;
+    background: var(--primary); color: #fff; font-size: 16px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: opacity .15s;
+  }
+  .btn-save:disabled { background: #c9cdd4; cursor: not-allowed; }
+
+  /* ---------- 右侧说明面板 ---------- */
+  .panel {
+    width: 460px; max-width: 100%;
+    background: #fff; border-radius: 14px; padding: 24px 26px;
+    box-shadow: 0 8px 30px rgba(16,24,40,.10);
+  }
+  .panel h1 { font-size: 20px; margin: 0 0 6px; letter-spacing: -.2px; }
+  .panel .sub { font-size: 13px; color: var(--t3); margin-bottom: 20px; line-height: 1.6; }
+  .panel h2 {
+    font-size: 13px; margin: 22px 0 10px; color: var(--t1);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .panel h2::before {
+    content: ''; width: 3px; height: 13px; background: var(--primary); border-radius: 2px;
+  }
+  .panel ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--t2); line-height: 1.85; }
+  .panel li { margin-bottom: 4px; }
+  .panel code {
+    background: #f2f3f5; padding: 1px 5px; border-radius: 4px;
+    font-size: 12px; color: #d4380d; font-family: ui-monospace, Menlo, monospace;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mini {
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    background: #fafbfc;
+  }
+  .mini img { width: 100%; display: block; aspect-ratio: 5/4; object-fit: cover; }
+  .mini .cap { font-size: 12px; padding: 7px 9px; color: var(--t2); font-weight: 500; }
+  .note {
+    background: #fff8e6; border-left: 3px solid #ffb800;
+    padding: 11px 13px; border-radius: 0 8px 8px 0;
+    font-size: 12.5px; color: #6b5320; line-height: 1.7; margin-top: 10px;
+  }
+  .tagline {
+    display: inline-block; font-size: 11px; color: var(--primary);
+    background: rgba(22,93,255,.08); padding: 2px 8px; border-radius: 10px; margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 手机原型 ============ -->
+<div class="phone">
+  <div class="statusbar">
+    <span>19:25</span>
+    <span class="icons">●●●● ⌁ <span class="bat">43</span></span>
+  </div>
+  <div class="navbar">
+    <span class="back">‹</span>
+    <span class="title">个性化分享</span>
+    <span class="capsule"><span class="dots">•••</span><span class="sep"></span><span class="target"></span></span>
+  </div>
+
+  <div class="body">
+    <!-- 微信会话仿真预览 -->
+    <div class="preview">
+      <div class="preview-label">↓ 转发到微信后，对方看到的效果</div>
+      <div class="chat">
+        <div class="chat-head">
+          <div class="logo">莞</div>
+          <div class="org">东莞市潮州商会</div>
+          <div class="mine">我</div>
+        </div>
+        <div class="wx-card">
+          <div class="wx-title">
+            <span id="pv-title">点击保存对方名片</span>
+            <span class="arr">›</span>
+          </div>
+          <div class="wx-cover"><img id="pv-img" src="cover-1.png" alt="分享封面预览"></div>
+          <div class="wx-foot"><span class="mp">小</span><span>名片</span></div>
+        </div>
+        <div class="chat-tail"></div>
+      </div>
+    </div>
+
+    <!-- 表单 -->
+    <div class="form">
+      <div class="field">
+        <div class="field-label">
+          <span>修改分享标题</span><span class="req">*</span>
+          <span class="hint" id="cnt">0/30</span>
+        </div>
+        <input class="input" id="title" maxlength="30" placeholder="请输入分享标题，不可为空" value="点击保存对方名片">
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <span>选择分享封面</span>
+          <span class="hint">共 6 款 · 可横向滑动</span>
+        </div>
+        <div class="covers" id="covers"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="btn-save" id="save">保存</button>
+  </div>
+</div>
+
+<!-- ============ 说明面板 ============ -->
+<div class="panel">
+  <h1>个性化分享 · 方案说明</h1>
+  <div class="sub">
+    参考菜鸟云「个性化分享」页的<b>范式</b>：不是让用户选一张死图，而是
+    <b>在微信会话仿真预览里实时看到效果</b>，再选封面风格、改标题。
+  </div>
+
+  <h2>借鉴了什么</h2>
+  <ul>
+    <li><b>会话仿真预览</b>——顶部不是孤立的一张图，而是「转发到微信长什么样」的真实模拟</li>
+    <li><b>标题实时联动</b>——改标题，预览区标题同步变，所见即所得</li>
+    <li><b>封面风格库</b>——横向滚动缩略图，选中态 = 橙色描边 + 居中勾选</li>
+    <li><b>保存置灰</b>——标题为空时保存按钮置灰（必填校验前置到按钮态）</li>
+  </ul>
+
+  <h2>我们和菜鸟云不一样的地方</h2>
+  <ul>
+    <li>菜鸟云封面是<b>「引流卡」</b>（"点击保存对方名片"），我们是<b>「身份卡」</b>——对方看到的是<b>这个人是谁</b>，不是一句广告</li>
+    <li>配色<b>跟随租户品牌 5 色</b>（<code>brandColors</code>），未配置才回落 <code>#165DFF</code></li>
+    <li>二维码是<b>真实小程序码</b>（<code>/card/wxacode</code> 带名片 id），不是静态图</li>
+    <li>标题默认取「姓名 · 职位 · 公司」，不强制用户手填</li>
+  </ul>
+
+  <h2>6 款封面风格</h2>
+  <div class="grid2" id="thumbs"></div>
+
+  <div class="note">
+    <b>技术关键点</b>：微信 <code>onShareAppMessage</code> 的 <code>imageUrl</code>
+    <b>支持本地临时文件路径</b>（不必服务端存图），但<b>显示比例固定 5:4</b>。
+    所以封面必须在客户端 canvas 按 5:4 绘制后走 <code>canvasToTempFilePath</code>，
+    再把临时路径塞进 <code>imageUrl</code>；<code>onShareAppMessage</code> 还支持返回
+    <code>promise</code>（3 秒内 resolve），可现场绘制后 resolve。
+  </div>
+</div>
+
+<script>
+const COVERS = [
+  { id: 'cover-1', name: '品牌渐变', desc: '最通用 · 品牌色铺满' },
+  { id: 'cover-2', name: '名片卡',   desc: '白底悬浮卡 · 信息清晰' },
+  { id: 'cover-3', name: '暗调商务', desc: '深色金边 · 高端稳重' },
+  { id: 'cover-4', name: '全幅人像', desc: '人像为主 · 视觉冲击' },
+  { id: 'cover-5', name: '极简白',   desc: '留白干净 · 打印友好' },
+  { id: 'cover-6', name: '通知卡',   desc: '社交感 · 强调新名片' },
+];
+
+const coversEl = document.getElementById('covers');
+const thumbsEl = document.getElementById('thumbs');
+const titleEl = document.getElementById('title');
+const cntEl = document.getElementById('cnt');
+const pvImg = document.getElementById('pv-img');
+const pvTitle = document.getElementById('pv-title');
+const saveBtn = document.getElementById('save');
+let cur = COVERS[0].id;
+
+// 风格库
+COVERS.forEach(c => {
+  const el = document.createElement('div');
+  el.className = 'cover-item';
+  el.dataset.id = c.id;
+  el.innerHTML = `<div class="cover-thumb" style="background-image:url('${c.id}.png')">
+      <span class="tick">✓</span>
+    </div><div class="cover-name">${c.name}</div>`;
+  el.onclick = () => select(c.id);
+  coversEl.appendChild(el);
+});
+
+// 右侧缩略图
+COVERS.forEach(c => {
+  const el = document.createElement('div');
+  el.className = 'mini';
+  el.innerHTML = `<img src="${c.id}.png" alt="${c.name}"><div class="cap">${c.name}<br><span style="color:#8a9099;font-weight:400;font-size:11px">${c.desc}</span></div>`;
+  thumbsEl.appendChild(el);
+});
+
+function select(id) {
+  cur = id;
+  [...coversEl.children].forEach(el => el.classList.toggle('on', el.dataset.id === id));
+  pvImg.src = id + '.png';
+}
+
+function syncTitle() {
+  const v = titleEl.value.trim();
+  pvTitle.textContent = v || '（未设置标题）';
+  cntEl.textContent = `${titleEl.value.length}/30`;
+  saveBtn.disabled = !v;
+}
+titleEl.addEventListener('input', syncTitle);
+
+saveBtn.onclick = () => {
+  const c = COVERS.find(x => x.id === cur);
+  alert(`已保存分享设置\n\n封面风格：${c.name}（${c.id}）\n分享标题：${titleEl.value.trim()}\n\n实际落地时这里会：\n1. PUT 存 card_profile.share_style / share_title\n2. 转发时按 style 用 canvas 现场绘制 5:4 封面\n3. onShareAppMessage 返回 { title, imageUrl: 临时文件路径 }`);
+};
+
+select(cur);
+syncTitle();
+</script>
+</body>
+</html>
