@@ -77,21 +77,30 @@ describe('containerChildSizeStyle 容器内子组件宽度', () => {
     }
   });
 
-  it('🔴 boxOffsetX 独立控制左边偏移（用户反馈「没法做到跟别的组件左边对齐」）', () => {
+  // 🔴 #327：偏移从「覆盖 marginLeft」改成「position:relative + left」——
+  //   覆盖会让对齐写好的 marginLeft:auto 失效（居中/居右当场变居左，切对齐毫无反应）。
+  it('🔴 #327 boxOffsetX 用 relative+left 表达，不碰 marginLeft', () => {
     // C 端 px 语义 → rpx（×2）；admin 直接 px
-    expect(searchBoxSizeStyle({ widthMode: 'full', boxOffsetX: 12 }).marginLeft).toBe('24rpx');
-    expect(searchBoxSizeStyle({ widthMode: 'full', boxOffsetX: 12 }, { unit: 'px' }).marginLeft).toBe('12px');
+    const c = searchBoxSizeStyle({ widthMode: 'full', boxOffsetX: 12 });
+    expect(c.position).toBe('relative');
+    expect(c.left).toBe('24rpx');
+    expect(searchBoxSizeStyle({ widthMode: 'full', boxOffsetX: 12 }, { unit: 'px' }).left).toBe('12px');
     // auto 分支同样要生效（曾漏掉，用户在自适应模式下就没法微调）
-    expect(searchBoxSizeStyle({ widthMode: 'auto', boxOffsetX: 12 }).marginLeft).toBe('24rpx');
-    // 设了偏移后不能被 auto 边距覆盖
-    expect(buttonSizeStyle({ widthMode: 'full', boxOffsetX: 10 }).marginLeft).toBe('20rpx');
-    expect(buttonSizeStyle({ widthMode: 'full', boxOffsetX: 10 }, { unit: 'px' }).marginLeft).toBe('10px');
+    expect(searchBoxSizeStyle({ widthMode: 'auto', boxOffsetX: 12 }).left).toBe('24rpx');
+    expect(buttonSizeStyle({ widthMode: 'full', boxOffsetX: 10 }).left).toBe('20rpx');
+    expect(buttonSizeStyle({ widthMode: 'full', boxOffsetX: 10 }, { unit: 'px' }).left).toBe('10px');
   });
 
-  it('boxOffsetX = 0 / 未设 时不改变原有边距策略', () => {
+  it('boxOffsetX = 0 / 未设 时不产生位移（保持 align 给的边距）', () => {
     for (const v of [0, undefined, null, '', NaN]) {
-      expect(searchBoxSizeStyle({ widthMode: 'full', boxOffsetX: v }).marginLeft, String(v)).toBe('0');
-      expect(buttonSizeStyle({ widthMode: 'full', boxOffsetX: v }).marginLeft, String(v)).toBe('auto');
+      const sb = searchBoxSizeStyle({ widthMode: 'full', boxOffsetX: v });
+      expect(sb.left, String(v)).toBeUndefined();
+      expect(sb.position, String(v)).toBeUndefined();
+      expect(sb.marginLeft, String(v)).toBe('0');
+      const b = buttonSizeStyle({ widthMode: 'full', boxOffsetX: v });
+      expect(b.left, String(v)).toBeUndefined();
+      expect(b.position, String(v)).toBeUndefined();
+      expect(b.marginLeft, String(v)).toBe('auto');
       // auto 模式也不受影响
       expect(buttonSizeStyle({ widthMode: 'auto', boxOffsetX: v }).marginLeft, String(v)).toBe('auto');
     }
@@ -230,16 +239,23 @@ describe('align：按钮横向对齐（#321）', () => {
     }
   });
 
-  it('🔴 与左边偏移联动：设了 boxOffsetX 时以偏移为准（align 让位）', () => {
-    // 用户调「左边偏移」就是为了精确对位，此时再被 align 拽回去 = 两个控件打架。
+  // 🔴🔴 这是 #327 的核心回归：旧口径「设了偏移就以偏移为准」= 偏移**覆盖**对齐，
+  //   后果是居中/居右失效（看起来都像居左），且偏移≠0 时切对齐界面毫无反应
+  //   —— 用户原话「居左、居右、居中三个参数感觉不太对」。
+  it('🔴 #327 偏移**叠加**在对齐基准上：两者必须同时生效', () => {
+    const basisLeft = { left: '0', center: 'auto', right: 'auto' };
+    const basisRight = { left: 'auto', center: 'auto', right: '0' };
     for (const align of ['left', 'center', 'right']) {
       const s = containerChildSizeStyle({ align, boxOffsetX: 12 });
-      expect(s.marginLeft, align).toBe('24rpx');   // C 端 px→rpx（×2）
-      expect(s.marginRight, align).toBe(align === 'right' ? '0' : 'auto');
+      expect(s.marginLeft, align).toBe(basisLeft[align]);   // 基准**仍在**，没被偏移吃掉
+      expect(s.marginRight, align).toBe(basisRight[align]);
+      expect(s.position, align).toBe('relative');
+      expect(s.left, align).toBe('24rpx');                  // 偏移叠加（C 端 px→rpx ×2）
     }
     // admin 侧用 px 基准
     const px = containerChildSizeStyle({ align: 'left', boxOffsetX: 12 }, { unit: 'px' });
-    expect(px.marginLeft).toBe('12px');
+    expect(px.left).toBe('12px');
+    expect(px.marginLeft).toBe('0');
   });
 
   it('boxOffsetX=0 或非法时不偏移（保持 align 给的边距）', () => {
@@ -263,10 +279,25 @@ describe('align：按钮横向对齐（#321）', () => {
     expect(l.marginLeft).toBe('0');
   });
 
-  it('buttonSizeStyle 与通用实现同口径（对齐 + 偏移都在）', () => {
+  it('buttonSizeStyle 与通用实现同口径（对齐基准 + 偏移叠加，两个都在）', () => {
     const s = buttonSizeStyle({ align: 'right', boxOffsetX: 8, widthMode: 'full' });
-    expect(s.marginLeft).toBe('16rpx');    // 偏移优先
-    expect(s.marginRight).toBe('0');       // align=right 仍生效
+    expect(s.marginLeft).toBe('auto');     // align=right 的基准（旧口径这里会被改成 16rpx）
+    expect(s.marginRight).toBe('0');
+    expect(s.position).toBe('relative');
+    expect(s.left).toBe('16rpx');          // 叠加的偏移
+  });
+
+  // 🔴 #327：搜索框新增 align 字段。此前渲染层写死「marginLeft:0; marginRight:auto」
+  //   （注释里已预告「将来加 align 时这行会把它拽回左边」）→ 那两行必须已删除。
+  it('🔴 #327 搜索框尊重 align（不再写死靠左），默认回落到 left', () => {
+    expect(searchBoxSizeStyle({}).marginLeft).toBe('0');
+    expect(searchBoxSizeStyle({}).marginRight).toBe('auto');
+    expect(searchBoxSizeStyle({ align: 'center' }).marginLeft).toBe('auto');
+    expect(searchBoxSizeStyle({ align: 'center' }).marginRight).toBe('auto');
+    expect(searchBoxSizeStyle({ align: 'right' }).marginLeft).toBe('auto');
+    expect(searchBoxSizeStyle({ align: 'right' }).marginRight).toBe('0');
+    // 未设 align 的存量数据 → 回落 left（存量视觉就是靠左、铃铛贴右）
+    expect(searchBoxSizeStyle({ align: undefined }).marginLeft).toBe('0');
   });
 
   it('宽度仍用视口单位（align 不许把解耦破坏掉）', () => {

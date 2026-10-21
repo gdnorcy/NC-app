@@ -88,8 +88,24 @@ describe('🔴 面板 radio：空值必须回落 schema default（存量 linkTyp
   test('admin 面板组件级 radio/radioButton/graphic 都用 propVal 兜底', () => {
     const s = adminEditor();
     expect(s).toMatch(/function propVal\(f\)/);
-    expect(s).toMatch(/:model-value="propVal\(f\)" @update:model-value="selectedComp\.props\[f\.key\] = \$event"/);
+    expect(s).toMatch(/:model-value="propVal\(f\)" @update:model-value="setProp\(f\.key, \$event\)"/);
     expect(s).toMatch(/:class="\{ active: String\(propVal\(f\)\) === String\(o\.value\) \}/);
+  });
+
+  // 🔴 #327：radio 的写入口统一收敛到 setProp / onRadioPick（对齐要顺带清偏移），
+  //   不许再直接 `selectedComp.props[f.key] = $event` —— 那样切对齐时偏移清不掉。
+  test('🔴 #327 radio 写入口走 setProp / onRadioPick（切对齐要能清零偏移）', () => {
+    const admin = adminEditor();
+    expect(admin).toMatch(/function setProp\(key, val\)/);
+    expect(admin).toMatch(/if \(key === ALIGN_KEY && String\(prev\) !== String\(val\)\)/);
+    // ⚠️ 只钉 radio 类控件：slider 等其它控件仍直接写值是正常且无需清偏移的
+    expect(admin).not.toMatch(/el-radio-group[^>]*selectedComp\.props\[f\.key\] = \$event/);
+
+    const mob = cardEdit();
+    expect(mob).toMatch(/@click="onRadioPick\(f, o\.value\)"/);
+    expect(mob).toMatch(/function onRadioPick\(f, val\)/);
+    expect(mob).toMatch(/if \(f\.key === ALIGN_KEY\)/);
+    expect(mob).not.toMatch(/@click="editing\.props\[f\.key\] = o\.value"/);
   });
 });
 

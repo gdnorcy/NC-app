@@ -334,10 +334,10 @@
                     <span v-else class="pe-style-cur">当前：{{ styleName(f) }}</span>
                     <el-button size="small" type="primary" plain @click="openStylePicker(f)">修改风格</el-button>
                   </div>
-                  <el-radio-group v-else-if="f.control === 'radioButton'" :model-value="propVal(f)" @update:model-value="selectedComp.props[f.key] = $event" size="default">
+                  <el-radio-group v-else-if="f.control === 'radioButton'" :model-value="propVal(f)" @update:model-value="setProp(f.key, $event)" size="default">
                     <el-radio-button v-for="o in f.options" :key="o.value" :value="o.value">{{ o.label }}</el-radio-button>
                   </el-radio-group>
-                  <el-radio-group v-else-if="f.control === 'radio'" :model-value="propVal(f)" @update:model-value="selectedComp.props[f.key] = $event">
+                  <el-radio-group v-else-if="f.control === 'radio'" :model-value="propVal(f)" @update:model-value="setProp(f.key, $event)">
                     <el-radio v-for="o in f.options" :key="o.value" :value="o.value" :disabled="o.disabled">{{ o.label }}</el-radio>
                   </el-radio-group>
                   <!-- 魔方：格子填充方式（属性区编辑，图形化：裁剪铺满/完整显示/拉伸填满/原尺寸） -->
@@ -1021,6 +1021,8 @@ import { componentStyleVars } from '../../../../../../web-app/src/utils/sfCompon
 // 容器层样式与 C 端共用同一份实现：此前画布 `.pe-comp` 完全不绑背景/圆角，
 // 导致「画布看不到容器底色、真机却有一层」→ 背景色改不动、分不清改的是哪一层。
 import { containerStyle as compContainerStyle, migrateLegacyBgColor } from '../../../../../../web-app/src/utils/containerStyle.js';
+// 🔴 #327：切「对齐」→ 配对的「左边偏移」清零（共享语义，与 C 端 cardEdit 同一份）
+import { ALIGN_KEY, clearedOffsetsFor } from '../../../../../../web-app/src/utils/boxAlignOffset.js';
 import { componentRegistry, componentGroups, COMP_ICONS, findComponent, commonStyleSchema, commonStyleProps } from './componentRegistry';
 import ComponentRender from './ComponentRender.vue';
 import MaterialPicker from './MaterialPicker.vue';
@@ -1548,7 +1550,14 @@ function setProp(key, val) {
   if (!selectedComp.value) return;
   const real = components.value.find((c) => c.id === selectedComp.value.id);
   if (real) {
+    const prev = real.props[key];
     real.props[key] = val;
+    // 🔴 #327：切「对齐」→ 配对的「左边偏移」清零。
+    //   用户口径：偏移是相对**当前对齐**调出来的，换基准后旧数值没有意义。
+    //   ⚠️ 只在值**真的变化**时才清：点已选中的那一项不该把用户调好的偏移清掉。
+    if (key === ALIGN_KEY && String(prev) !== String(val)) {
+      Object.assign(real.props, clearedOffsetsFor(real.props));
+    }
     selectedComp.value = real;
   }
 }

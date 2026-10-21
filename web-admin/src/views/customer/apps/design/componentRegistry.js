@@ -11,6 +11,8 @@ import { sampleUrl, menuIconUrl } from '../../../../../../web-app/src/utils/samp
 import { CONTAINER_BG_KEY } from '../../../../../../web-app/src/utils/containerStyle.js';
 // 🔴 #321 收尾：公告前置符号面板选项引用共享表（与两端渲染同一份，杜绝「配了没反应」）
 import { NOTICE_SYMBOL_OPTIONS } from '../../../../../../web-app/src/utils/noticeSymbol.js';
+// 🔴 #327：横向对齐三选项引用共享表（与 C 端同一份，防选项文案/取值漂移）
+import { ALIGN_OPTIONS } from '../../../../../../web-app/src/utils/boxAlignOffset.js';
 import iconTitle from '../../../../assets/comp-icons/title.png';
 import iconText from '../../../../assets/comp-icons/richtext.png';
 import iconImage from '../../../../assets/comp-icons/picture.png';
@@ -324,7 +326,9 @@ export const componentRegistry = [
       { key: 'miniAppId', label: '小程序 AppID', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
       { key: 'miniAppPath', label: '小程序页面路径', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
       { key: 'miniAppEnv', label: '跳转版本（高级）', control: 'radio', section: 'content', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }], tips: '仅开发者调试时使用，普通用户请保持正式版' },
-      { key: 'align', label: '按钮对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '按钮在容器内的横向位置。设了「左边偏移」时以偏移为准' },
+      // 🔴 #327：align=**基准**，boxOffsetX=叠加在基准上的微调；切换对齐会把偏移清零。
+      //   旧口径（「设了偏移就以偏移为准」）会让居中/居右失效、切对齐没反应，已废弃。
+      { key: 'align', label: '按钮对齐', control: 'radio', section: 'style', options: ALIGN_OPTIONS, tips: '按钮在容器内的横向位置，是**基准**。改这一项会把下面「左边偏移」清零' },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       // 🔴 宽度基准 = **整屏宽度**（视口单位），不是容器内容宽度。
@@ -340,7 +344,7 @@ export const componentRegistry = [
       { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对**整屏宽度**计算（不是相对容器），所以调容器边距不会影响它' },
       // 🔴 按钮自身左边偏移：宽度改成视口单位后，按钮左边 = 容器左边（跟容器边距走），
       //   没法单独微调去跟别的组件左边对齐。命名带 box 前缀：悬浮组件已有 `offsetX`（距右偏移）。
-      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '按钮相对容器左边再平移。用来跟其他组件左边对齐；不影响宽度' },
+      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '在「按钮对齐」这个基准上再平移：负数向左、正数向右。用来跟其他组件左边对齐；切换对齐会自动归零，不影响宽度' },
       { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
       // 🔴 这里是**按钮自身的填充色**，故label 是「按钮色」而不是「背景色」——
       // 组件**外层容器**的底色是另一个独立字段 `compBgColor`（见 commonStyleSchema
@@ -477,8 +481,8 @@ export const componentRegistry = [
       { key: 'fontSize', label: '字号', control: 'slider', section: 'style', min: 12, max: 20 },
       { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
       { key: 'symbol', label: '前置符号', control: 'radio', default: 'none', section: 'style', options: NOTICE_SYMBOL_OPTIONS, tips: '显示在文字前面的符号。选「无」则只有文字（默认）' },
-      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '整条公告（图标+文字）的对齐方式；居中/居右时文字不再撑满整行' },
-      { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '整条公告相对容器左边再平移。负数向左；不影响宽度' },
+      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: ALIGN_OPTIONS, tips: '整条公告（图标+文字）的对齐方式，居中/居右时文字不再撑满整行。这是**基准**：改这一项会把下面「左边偏移」清零' },
+      { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '在「对齐」这个基准上再平移：负数向左、正数向右。切换对齐会自动归零，不影响宽度' },
       { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },
       { key: 'borderColor', label: '描边颜色', control: 'color', section: 'style', when: { style: 'border' } },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
@@ -1618,7 +1622,9 @@ export const componentRegistry = [
     name: '名片搜索栏',
     group: 'card',
     icon: 'native-search',
-    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0, widthMode: 'full', widthPercent: 100, boxOffsetX: 0, textAlign: 'center' },
+    // 🔴 `align`（搜索框横向位置）与 `textAlign`（占位文案对齐）是两个字段，别混：
+    //    textAlign 管框内文字，align 管框本身在容器里的位置（#327 与按钮/公告同口径）。
+    defaultProps: { placeholder: '搜索名片、客户、人脉', height: 36, radius: 18, bgColor: '#f2f3f5', textColor: '#86909c', style: 'default', showMsg: true, marginTop: 0, marginBottom: 0, marginLR: 0, compBgColor: '', radiusContainer: 0, widthMode: 'full', widthPercent: 100, align: 'left', boxOffsetX: 0, textAlign: 'center' },
     schema: [
       { key: 'placeholder', label: '占位文案', control: 'input', section: 'content', placeholder: '如 搜索名片、客户、人脉' },
       // 🔴 占位文案对齐（2026-10-07 用户反馈「框中的文字没有垂直居中」+ 横向对齐不可调）。
@@ -1641,10 +1647,15 @@ export const componentRegistry = [
       //   ✅ 现在宽度用**视口单位**（admin 侧按 375px 设计稿换算成 px），与容器边距彻底无关。
       { key: 'widthMode', label: '搜索框宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }], tips: '与下方「容器左右边距」互不影响：那个只缩窗口，这个只改搜索框自身' },
       { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对**整屏宽度**计算（不是相对容器），所以调容器边距不会影响它' },
+      // 🔴 #327 新增：搜索框横向对齐（此前 schema 没有这个字段，渲染层只能写死靠左）。
+      //   与「文字对齐(textAlign)」是两个控件：那个管框内占位文案，这个管搜索框本身的位置。
+      //   ⚠️ 默认 left：存量视觉就是靠左（铃铛贴右），新增字段不能让存量页面跳位。
+      //   ⚠️ 铃铛始终贴右：align 只决定搜索框在「铃铛左侧那片空间」里的位置。
+      { key: 'align', label: '搜索框对齐', control: 'radio', section: 'style', options: ALIGN_OPTIONS, tips: '搜索框在容器内的横向位置，是**基准**。铃铛始终贴右；改这一项会把下面「左边偏移」清零' },
       // 🔴 搜索框自身左边偏移（用户反馈「宽度百分比调小时左边位置固定，没法跟别的组件左边对齐」）。
       //   宽度改成视口单位后，搜索框左边 = 容器左边（跟容器边距走），没法单独微调去跟宫格/卡片对齐。
       //   命名带 box 前缀：悬浮组件已有 `offsetX`（语义=距右偏移），不能同名不同义。
-      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '搜索框相对容器左边再平移。用来跟其他组件左边对齐；不影响宽度' },
+      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '在「搜索框对齐」这个基准上再平移：负数向左、正数向右。用来跟其他组件左边对齐；切换对齐会自动归零，不影响宽度' },
       // 🔴 只在**容器有底色**时显示（whenHas）：border-radius 只在绘制背景/边框时可见，
       //   容器透明（未设底色或显式 transparent）时圆角零视觉 → 显示出来等于「调了没反应」。
       //   ⚠️ 渲染层（两端 nativeMargin）照旧消费该值，隐藏只是面板层的引导，不删功能。

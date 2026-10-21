@@ -32,6 +32,8 @@ import { sampleUrl, menuIconUrl } from '../../utils/sampleImages.js';
 import { COMP_ICON_DATA_URI } from './compIconsBase64.js';
 // 🔴 #321 收尾：公告前置符号面板选项引用共享表（与两端渲染、admin 端同一份）
 import { NOTICE_SYMBOL_OPTIONS } from '../../utils/noticeSymbol.js';
+// 🔴 #327：横向对齐三选项引用共享表（与 admin 端同一份，防选项文案/取值漂移）
+import { ALIGN_OPTIONS } from '../../utils/boxAlignOffset.js';
 
 export const CARD_COMP_REGISTRY = [
   {
@@ -77,8 +79,8 @@ export const CARD_COMP_REGISTRY = [
       //   🔴 options 引用共享表 utils/noticeSymbol.js（与渲染层、admin 端同一份）——
       //   手抄一份迟早漂移成「配了没反应」，且加符号时会漏改面板。
       { key: 'symbol', label: '前置符号', control: 'radio', default: 'none', section: 'style', options: NOTICE_SYMBOL_OPTIONS, tips: '显示在文字前面的符号。选「无」则只有文字（默认）' },
-      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '整条公告（图标+文字）的对齐方式；居中/居右时文字不再撑满整行' },
-      { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '整条公告相对容器左边再平移。负数向左；不影响宽度' },
+      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: ALIGN_OPTIONS, tips: '整条公告（图标+文字）的对齐方式，居中/居右时文字不再撑满整行。这是**基准**：改这一项会把下面「左边偏移」清零' },
+      { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '在「对齐」这个基准上再平移：负数向左、正数向右。切换对齐会自动归零，不影响宽度' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'color', label: '文字色', control: 'color', section: 'style' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
@@ -104,15 +106,17 @@ export const CARD_COMP_REGISTRY = [
       { key: 'miniAppId', label: '小程序 AppID', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
       { key: 'miniAppPath', label: '小程序页面路径', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
       { key: 'miniAppEnv', label: '跳转版本（高级）', control: 'radio', section: 'content', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }], tips: '仅开发者调试时使用，普通用户请保持正式版' },
-      // 🔴 反馈 #321：按钮横向对齐。与 boxOffsetX（左边偏移）**联动**：
-      //   align 决定 auto 边距给哪边（left=左右空让右侧 / center=两边平分 / right=全给左侧），
-      //   boxOffsetX 是在这个基准上再平移（设了偏移就以偏移为准，与容器ChildSize 同一纪律）。
-      { key: 'align', label: '按钮对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '按钮在容器内的横向位置。设了「左边偏移」时以偏移为准' },
+      // 🔴 反馈 #321 加字段 / #327 改口径：按钮横向对齐。与 boxOffsetX（左边偏移）**联动**：
+      //   align 决定 auto 边距给哪边（left=空让右侧 / center=两边平分 / right=全给左侧）= **基准**；
+      //   boxOffsetX 是在这个基准上再平移（**叠加**，不是覆盖）。
+      //   🔴 #327 旧口径「设了偏移就以偏移为准」是错的：偏移当时用 margin-left 表达，
+      //      直接覆盖了 align 写好的 margin-left:auto → 居中/居右失效、切对齐毫无反应。
+      { key: 'align', label: '按钮对齐', control: 'radio', section: 'style', options: ALIGN_OPTIONS, tips: '按钮在容器内的横向位置，是**基准**。改这一项会把下面「左边偏移」清零' },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
       { key: 'widthPercent', label: '宽度百分比', control: 'slider', section: 'style', min: 20, max: 100, when: { widthMode: 'full' }, tips: '相对整屏宽度计算（不是相对容器），所以调容器边距不会影响它' },
-      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '按钮相对容器左边再平移。用来跟其他组件左边对齐；不影响宽度' },
+      { key: 'boxOffsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '在「按钮对齐」这个基准上再平移：负数向左、正数向右。用来跟其他组件左边对齐；切换对齐会自动归零，不影响宽度' },
       { key: 'bgColor', label: '按钮色', control: 'color', section: 'style' },
       { key: 'textColor', label: '文字色', control: 'color', section: 'style' },
       { key: 'radius', label: '按钮圆角', control: 'slider', section: 'style', min: 0, max: 24 },
