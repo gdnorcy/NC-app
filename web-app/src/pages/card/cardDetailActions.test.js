@@ -248,11 +248,13 @@ describe('cardDetail 转发分享配置', () => {
     expect(src).toMatch(/onShareAppMessage\(\(\) => \{/);
   });
 
-  // 🔴 2026-10-21 重做转发：标题抽到 utils/shareCover.resolveShareTitle（可被「个性化分享」页覆盖），
+  // 🔴 2026-10-21 重做转发：标题抽到 shareCover.resolveShareTitle（可被「个性化分享」页覆盖），
   //    imageUrl 改为 promise 模式现场 canvas 画 5:4 封面。旧断言钉死的是**本来就失效**的实现
   //    （imageUrl: /^https?:/.test(c.avatar) 在生产库必然落空，avatar 是 wxfile:// 临时路径）。
+  //    🔴 shareCover.js 原在 utils/，因「主包内不应存在主包未使用的 JS 文件」迁到
+  //       同目录 pages/card/（唯一消费方全在本分包），故 import 路径由 ../../utils/ 变 ./。
   test('转发标题走 resolveShareTitle（可被用户覆盖），路径带名片 id', () => {
-    expect(src).toMatch(/import \{[^}]*resolveShareTitle[^}]*\} from '\.\.\/\.\.\/utils\/shareCover\.js'/);
+    expect(src).toMatch(/import \{[^}]*resolveShareTitle[^}]*\} from '\.\/shareCover\.js'/);
     expect(src).toMatch(/title: resolveShareTitle\(c\)/);
     expect(src).toMatch(/path: `\/pages\/card\/cardDetail\?id=\$\{c\.id \|\| ''\}`/);
   });

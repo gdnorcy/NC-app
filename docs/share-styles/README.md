@@ -135,7 +135,7 @@ ALTER TABLE card_profile ADD COLUMN share_title TEXT DEFAULT '';
 - 底部：保存
 - 入口：`myCard.vue` 的「分享」按钮旁加一个「个性化分享」，或长按分享
 
-**④ 封面绘制**（新建 `web-app/src/utils/shareCover.js`）
+**④ 封面绘制**（新建 `web-app/src/pages/card/shareCover.js`）
 
 把 `scripts/gen-share-covers.py` 的 6 款版式翻译成 canvas 绘制代码。
 **这个文件必须两端通用**（MP + H5），所以：

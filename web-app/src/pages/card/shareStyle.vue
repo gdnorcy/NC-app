@@ -115,7 +115,7 @@ import { useBrandOverride } from '../../utils/brand.js';
 import {
   SHARE_STYLES, SHARE_COVER_W, SHARE_COVER_H, SHARE_TITLE_MAX,
   renderShareCover, resolveBrandColors, resolveShareTitle,
-} from '../../utils/shareCover.js';
+} from './shareCover.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
