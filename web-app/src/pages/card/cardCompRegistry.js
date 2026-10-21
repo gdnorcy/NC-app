@@ -82,14 +82,19 @@ export const CARD_COMP_REGISTRY = [
     iconKey: 'menu',
     // defaultProps 与 admin 逐字一致（含 widthPercent/boxOffsetX：C 端渲染走共享
     // buttonSizeStyle，宽度基准=视口，与 admin 画布同语义，防两端漂移）
-    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', linkType: 'internal', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', linkType: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
-      { key: 'linkType', label: '跳转类型', control: 'radio', section: 'content', options: [{ label: '内部页面', value: 'internal' }, { label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }], tips: '默认内部页面；外部小程序需填 AppID（同一开放平台下的小程序才能跳转）' },
+      // 🔴 反馈 #301：内部页面**不再是一种类型**——「跳转」框填 /pages/xxx 就是内部页面，
+      //   省掉「先选类型再选页面」两步。存量 linkType='internal' 由 compLinkModel 归一为空串，行为不变。
+      //   ⚠️ default:'' 必须显式给：admin 的表单引擎对 radio 控件在值为空时会取
+      //   options[0].value（见 PageEditor 的 listVal / addListItem）→
+      //   不给 default 的话 linkType 会被顶成第一个选项 'miniapp'，违背「不选 = 内部页面」。
+      { key: 'linkType', label: '跳转类型', control: 'radio', default: '', section: 'content', options: [{ label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }], tips: '不选 = 内部页面（在上面「跳转」框填页面路径，如 /pages/card/market）；外部小程序需填 AppID（须与当前小程序同一微信开放平台）' },
       { key: 'miniAppId', label: '小程序 AppID', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
       { key: 'miniAppPath', label: '小程序页面路径', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
-      { key: 'miniAppEnv', label: '跳转版本', control: 'radio', section: 'content', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }] },
+      { key: 'miniAppEnv', label: '跳转版本（高级）', control: 'radio', section: 'content', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }], tips: '仅开发者调试时使用，普通用户请保持正式版' },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
@@ -152,8 +157,8 @@ export const CARD_COMP_REGISTRY = [
     // 故按钮明细走 cardEdit 的专属编辑器，间距/边距走通用滑块）。defaultProps 与 admin 逐字一致。
     defaultProps: {
       buttons: [
-        { text: '按钮一', url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
-        { text: '按钮二', url: '', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+        { text: '按钮一', url: '', linkType: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+        { text: '按钮二', url: '', linkType: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
       ],
       gap: 16,
       marginTop: 6,

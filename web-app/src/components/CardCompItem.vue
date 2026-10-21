@@ -69,7 +69,7 @@
         class="cc-btngrp-btn"
         :class="{ outline: b.btnStyle === 'outline' }"
         :style="btnGrpItemStyle(b)"
-        @click="onTap('link', b.url)"
+        @click="onTap('link', b.url, b)"
       >{{ b.text || '按钮' }}</view>
     </view>
 
@@ -88,6 +88,7 @@
 import { ref, computed, watch } from 'vue';
 // 🔴 反馈 #298：统一跳转执行（外部小程序/网页/电话）
 import { execCompLink } from '../utils/compLink.js';
+import { normalizeLink } from '../utils/compLinkModel.js';
 import SIcon from './SIcon.vue';
 import { buttonSizeStyle } from '../utils/btnSize.js';
 import { resolveAssetUrl } from '../utils/design.js';
@@ -217,16 +218,9 @@ function jumpCompLink(link) {
   uni.navigateTo({ url: l, fail: () => {} });
 }
 
-/** 从组件 props 构造链接配置（🔴 反馈 #298） */
+/** 从组件 props 构造链接配置（🔴 反馈 #298/#301） */
 function compLinkOf(p) {
-  const o = p || {};
-  return {
-    url: o.url || '',
-    linkType: o.linkType || 'internal',
-    miniAppId: o.miniAppId || '',
-    miniAppPath: o.miniAppPath || '',
-    miniAppEnv: o.miniAppEnv || 'release',
-  };
+  return normalizeLink(p || {});
 }
 
 function openChannelVideo(v) {
@@ -238,7 +232,7 @@ function openChannelVideo(v) {
   // #endif
 }
 
-function onTap(kind, extra) {
+function onTap(kind, extra, linkCfg) {
   emit('tap', { kind, value: extra, comp: propsDef.comp });
   if (!propsDef.interactive) return; // 装修页：不跳转，交给列表处理选中/编辑
   if (kind === 'video') {
@@ -246,7 +240,11 @@ function onTap(kind, extra) {
     return;
   }
   // 🔴 反馈 #298：link 类跳转统一走 execCompLink（内部页面/外部小程序/网页/电话）
-  if (execCompLink(compLinkOf(props.value))) return;
+  // 🔴 #301：按钮组里每个按钮有**自己的**链接配置（linkCfg），
+  //   组件级 props 里没有 linkType（button-group 的类型在 buttons 数组里）
+  //   → 不传 linkCfg 时会退化成按组件级 internal 跳（= 永远跳不对）。
+  const cfg = linkCfg || compLinkOf(props.value);
+  if (execCompLink(cfg)) return;
   jumpCompLink(extra);
 }
 </script>

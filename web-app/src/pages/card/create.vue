@@ -1404,7 +1404,9 @@ async function syncMarketAfterSave(isPublic) {
 .rec-panel {
   display: flex; align-items: center; gap: 12rpx;
   margin-top: 16rpx; padding: 20rpx 24rpx;
-  background: rgba(var(--danger-rgb), 0.08);
+  /* 🔴 原写 rgba(var(--danger-rgb), 0.08)，但 --danger-rgb 这个 token 全工程不存在
+     （token.scss 只定义了 --danger 本身）→ 半透明底色失效，底色整个丢失。改用 --bg-card。 */
+  background: var(--bg-card);
   border-radius: var(--radius-md);
 }
 .rec-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--danger); }

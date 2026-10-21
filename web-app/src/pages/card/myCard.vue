@@ -239,6 +239,13 @@ const themeStyle = useDesignTheme();
 // 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
 const tabBarPad = useTabBarPadding();
 
+// 🔴 画布实例必须在 setup 顶层取，不能在事件处理器里调 getCurrentInstance()：
+//    Vue 3 的 getCurrentInstance() 依赖 setup 的调用栈上下文（currentInstance 全局量），
+//    事件回调 / await 之后调用一律返回 null → `q.in(null)` 静默查不到节点，
+//    `res[0].node` 为空 → 「海报绘制失败」toast（本页 2026-10-21 用户报障的根因）。
+//    同项目 components/CardTabBar.vue 的正确写法可对照。
+const posterInst = getCurrentInstance();
+
 const card = ref({});
 const loading = ref(true);
 const loadFailed = ref(false);
@@ -682,9 +689,14 @@ async function shareOwnerCard() {
     const ink = heroForeground(shadeHex(primary, -0.25), primary, { text: '#ffffff' }).text;
     const W = 600, H = 960;
     // #ifdef MP-WEIXIN
-    const inst = getCurrentInstance();
-    uni.createSelectorQuery().in(inst.proxy).select('#posterCanvas').fields({ node: true, size: true }).exec(async (res) => {
-      if (!res || !res[0] || !res[0].node) { uni.showToast({ title: '海报绘制失败', icon: 'none' }); return; }
+    const q = uni.createSelectorQuery();
+    if (posterInst) q.in(posterInst.proxy);
+    q.select('#posterCanvas').fields({ node: true, size: true }).exec(async (res) => {
+      if (!res || !res[0] || !res[0].node) {
+        showPoster.value = false;
+        uni.showToast({ title: '海报绘制失败', icon: 'none' });
+        return;
+      }
       const canvas = res[0].node;
       const dpr = (uni.getWindowInfo && uni.getWindowInfo().pixelRatio) || 2;
       canvas.width = W * dpr;
