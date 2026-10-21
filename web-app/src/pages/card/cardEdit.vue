@@ -12,6 +12,10 @@
         <text class="ce-nav-preview" @click="openPreview">预览</text>
       </template>
     </PageNav>
+    <!-- 🔴 #321：导航栏底沿实测锚点。PageNav 是 sticky/fixed 浮层，选不中；
+         这个零高度占位块随文档流，boundingClientRect().bottom 就是导航栏的视觉下沿，
+         用来判断「选中首组件时边条往上方翻会不会被导航栏压住」。 -->
+    <view class="ce-nav-anchor"></view>
 
     <view class="ce-body">
       <view class="ce-desc">
@@ -28,7 +32,12 @@
            改什么一眼看到什么，不再隔着一套「预览版」自己写的值 = 必然漂移 -->
       <view class="ce-list">
         <block v-for="(c, i) in comps" :key="c.key">
-          <view class="ce-card" :class="{ lock: c.isLock, off: c.props && c.props.hidden }">
+          <view
+            class="ce-card"
+            :data-key="c.key"
+            :class="{ lock: c.isLock, off: c.props && c.props.hidden }"
+            :style="activeKey === c.key ? toolsTopStyle : null"
+          >
             <!-- 选中环：独立绝对定位元素，**不画在卡片边框上**——
                  边框会各占 0.5px 把组件捏窄 1px，破坏与真实页的像素对齐 -->
             <view v-if="activeKey === c.key" class="ce-ring"></view>
@@ -43,12 +52,12 @@
               </view>
             </view>
             <!-- 操作条：1:1 对齐设计中心画布的 `.pe-comp-tools` —— 主色浮条 + 序号 + 组件名 + 图标，
-                 **浮在组件右上角**（不另占空间，渲染区不会被推走 = 真所见即所得），
+                 🔴 #321：改到组件**上方**（对齐设计中心 positionCompTools 的口径：
+                    「贴在组件上方；上方不够就翻到内侧顶」）。
+                    之前浮在组件右上角会**遮住组件内容**（用户反馈「挡到组件」）。
                  **选中才浮现**（PC 靠 hover，手机没有 hover，用点选代替）。
-                 🔴 为什么不贴组件外沿：组件间距只有 6px（组件自身 marginTop），
-                    浮条约 46rpx 高，贴外沿会压到上一张卡；也不放进 .ce-render（它有 overflow:hidden 会被裁）。
-                    浮条 4px 内嵌是「压角浮标」：与 PC 设计中心一样允许短暂遮住组件一角，
-                    这是选中态才有的临时态，不影响未选中时的所见即所得。
+                 🔴 上方位置由 toolsTopStyle 写 --tools-top（JS 实测），不写死：
+                    首组件上方是 sticky 的 PageNav，硬编码负值会被导航栏压住。
                  🔴 复制图标用两个真实 view 叠出，不用 U+29C9 那个「双联方框」字符：
                     它在小程序系统字体里大概率是豆腐块；SIcon 的 MP 端是预生成 PNG、
                     颜色写死在文件名里，做不出白色变体。（测试禁止本文件出现该字形，
@@ -98,14 +107,6 @@
       <view class="ce-cancel" @click="showPanel = false">取消</view>
     </view>
 
-    <!-- 🔴 反馈 #298：链接选择器（外部小程序 / 内部页面可视化选择） -->
-    <CardLinkPicker
-      v-if="showLinkPicker"
-      v-model="showLinkPicker"
-      :value="linkPickerValue"
-      @change="onLinkPicked"
-    />
-
     <!-- 组件配置弹窗（按注册表 schema 渲染控件子集） -->
     <view v-if="editing" class="ce-mask" @click="closeEdit"></view>
     <view v-if="editing" class="ce-modal">
@@ -126,19 +127,60 @@
           </view>
           <view v-else-if="fieldVisible(f) && (f.section !== 'style' || styleOpen)" class="ce-field">
             <text class="ce-label">{{ f.label }}</text>
-            <!-- 🔴 反馈 #298：link 控件改为「只读回显 + 点击打开移动端链接选择器」
-                 （参考后台 LinkPicker 的目标类型/外部小程序能力，但按手机交互重做：
-                  横向胶囊分段 + 搜索 + 粘贴按钮；后台是 el-dialog 双栏，手机上放不下）。
-                 🔴 反馈 #301：① 去掉框末尾的箭头（整个框都可点，箭头是多余的视觉噪音）；
-                 ② 选外链类型时链接框**置灰**（此时 url 装的是网页/电话，不是内部路径）。 -->
-            <view v-if="f.control === 'link'" class="ce-input-wrap" @click="openLinkPicker(f.key)">
-              <view
-                class="ce-input ce-link-display"
-                :class="{ ph: !linkDisplay(f.key), dim: linkIsExternal(f.key) }"
-              >
-                {{ linkDisplay(f.key) || (f.placeholder || '请选择跳转目标') }}
-              </view>
+            <!-- 🔴 反馈 #321：link 控件改为**可直接输入**（不再是只读回显+弹窗）。
+                 用户原话「点链接框会弹出内部链接的选择器，要求要去掉，手动填写就好了」
+                 → 链接框就是普通 input，直接填 /pages/xxx、网址或电话。
+                 🔴 修掉的 bug：之前外链类型时这个框是**置灰的**（.dim），
+                    切到网页/电话后又变成灰色 → 用户没法填网址/号码。
+                    现在任何类型都可编辑，只有 placeholder 随类型变。 -->
+            <view v-if="f.control === 'link'" class="ce-input-wrap">
+              <input
+                class="ce-input"
+                v-model="editing.props[f.key]"
+                :placeholder="linkPlaceholder()"
+                placeholder-class="ph"
+              />
             </view>
+            <!-- 🔴 #321：外部小程序专属输入（AppID/路径/版本）内联在此，
+                 不再藏进弹窗。与 linkType radio 同处content 段，紧邻可见。 -->
+            <template v-if="f.control === 'link'">
+              <view v-if="linkTypeOf() === 'miniapp'" class="ce-field">
+                <text class="ce-label">小程序 AppID</text>
+                <view class="ce-input-wrap">
+                  <input class="ce-input" v-model="editing.props.miniAppId" placeholder="wx1234567890abcdef" placeholder-class="ph" />
+                </view>
+                <text class="ce-tip">目标小程序须与当前小程序属于同一微信开放平台，否则无法跳转</text>
+              </view>
+              <view v-if="linkTypeOf() === 'miniapp'" class="ce-field">
+                <text class="ce-label">小程序页面路径</text>
+                <view class="ce-input-wrap">
+                  <input class="ce-input" v-model="editing.props.miniAppPath" placeholder="pages/index/index，可留空进首页" placeholder-class="ph" />
+                </view>
+              </view>
+              <!-- 高级选项：跳转版本（日常用正式版，开发者调试才改） -->
+              <view v-if="linkTypeOf() === 'miniapp'" class="ce-field" @click="advOpen = !advOpen">
+                <text class="ce-label">跳转版本（高级）</text>
+                <text class="ce-adv-arrow">{{ advOpen ? '▴' : '▾' }}</text>
+              </view>
+              <view v-if="linkTypeOf() === 'miniapp' && advOpen" class="ce-field">
+                <view class="ce-radios">
+                  <view
+                    v-for="e in LINK_ENVS"
+                    :key="e.value"
+                    class="ce-radio"
+                    :class="{ on: (editing.props.miniAppEnv || 'release') === e.value }"
+                    @click="editing.props.miniAppEnv = e.value"
+                  >{{ e.label }}</view>
+                </view>
+                <text class="ce-tip">仅开发者调试时使用；普通用户请保持正式版</text>
+              </view>
+              <view v-if="linkTypeOf() === 'web'" class="ce-note">
+                <text class="ce-note-t">网页链接注意事项</text>
+                <text class="ce-note-l">· 小程序端无法直接打开外部网页，点击后会把链接复制到剪贴板，需到微信里打开</text>
+                <text class="ce-note-l">· 业务域名需在小程序后台配置，否则在微信里也可能打不开</text>
+                <text class="ce-note-l">· H5 端（新标签打开）体验正常</text>
+              </view>
+            </template>
             <view v-else-if="f.control === 'input'" class="ce-input-wrap">
               <input
                 class="ce-input"
@@ -227,19 +269,52 @@
               <text class="ce-label">文字</text>
               <view class="ce-input-wrap"><input class="ce-input" v-model="b.text" placeholder="按钮文字" placeholder-class="ph" /></view>
             </view>
+            <!-- 🔴 #321：按钮组的跳转配置**与 button 组件完全同步**。
+                 用户原话「按钮组的配置的跳转类型你也理解错了，跳转类型跟按钮配置同步」
+                 → 之前这里只给一个「跳转」框（点开是同一个弹窗），**没有类型选择**，
+                    等于按钮组没法配网页/电话。现在每个按钮都有自己的类型 + 地址 + AppID。
+                 🔴 记忆规则「子组件自身配置 ≠ 父级配置」：这里改的是 buttons[bi]，
+                    不是组件级 props —— 两者是不同对象，渲染层拿的也是 buttons[bi]。 -->
+            <view class="ce-field">
+              <text class="ce-label">跳转类型</text>
+              <view class="ce-radios">
+                <view
+                  v-for="t in LINK_TYPES"
+                  :key="t.value"
+                  class="ce-radio"
+                  :class="{ on: linkTypeOf({ scope: 'btn', index: bi }) === t.value }"
+                  @click="onLinkTypeChange({ scope: 'btn', index: bi }, t.value)"
+                >{{ t.label }}</view>
+              </view>
+            </view>
             <view class="ce-field">
               <text class="ce-label">跳转</text>
-              <!-- 🔴 #301：按钮组同步外链能力（#298 只做了 button 组件）。
-                   每个按钮独立记录自己的 linkType/miniAppId/...，
-                   跳转框只读回显 + 点击开选择器（与 button 组件同一套交互）。 -->
-              <view class="ce-input-wrap" @click="openLinkPicker({ scope: 'btn', index: bi })">
-                <view
-                  class="ce-input ce-link-display"
-                  :class="{ ph: !btnLinkDisplay(b), dim: btnLinkIsExternal(b) }"
-                >
-                  {{ btnLinkDisplay(b) || '请选择跳转目标' }}
+              <view class="ce-input-wrap">
+                <input
+                  class="ce-input"
+                  v-model="b.url"
+                  :placeholder="linkPlaceholder({ scope: 'btn', index: bi })"
+                  placeholder-class="ph"
+                />
+              </view>
+            </view>
+            <template v-if="linkTypeOf({ scope: 'btn', index: bi }) === 'miniapp'">
+              <view class="ce-field">
+                <text class="ce-label">小程序 AppID</text>
+                <view class="ce-input-wrap">
+                  <input class="ce-input" v-model="b.miniAppId" placeholder="wx1234567890abcdef" placeholder-class="ph" />
                 </view>
               </view>
+              <view class="ce-field">
+                <text class="ce-label">小程序页面路径</text>
+                <view class="ce-input-wrap">
+                  <input class="ce-input" v-model="b.miniAppPath" placeholder="pages/index/index，可留空进首页" placeholder-class="ph" />
+                </view>
+              </view>
+            </template>
+            <view v-if="linkTypeOf({ scope: 'btn', index: bi }) === 'web'" class="ce-note">
+              <text class="ce-note-t">网页链接注意事项</text>
+              <text class="ce-note-l">· 小程序端无法直接打开外部网页，点击后会把链接复制到剪贴板，需到微信里打开</text>
             </view>
             <view class="ce-field">
               <text class="ce-label">样式</text>
@@ -308,22 +383,24 @@
 <script setup>
 import PageNav from '../../components/PageNav.vue';
 import CardCompItem from '../../components/CardCompItem.vue';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick, getCurrentInstance } from 'vue';
 import { onBackPress } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { useDesignTheme, resolveAssetUrl } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
-import CardLinkPicker from './CardLinkPicker.vue';
-import { miniPageTitle } from '../../utils/miniPages.js';
-// 🔴 链接模型单一事实来源（#301：内部页面降级为「链接框填路径」）
-import { normalizeLink, normalizeLinkType } from '../../utils/compLinkModel.js';
+// 🔴 链接模型单一事实来源（#321：内部链接恢复为一等类型 + 选择器下线）
+//   LINK_TYPES / LINK_ENVS 直接当 UI 选项渲染，禁在本文件另抄一份（会与模型漂移）。
+import { LINK_TYPES, LINK_ENVS, normalizeLinkType } from '../../utils/compLinkModel.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
 // slider/switch 的 color 不吃 var()（同 SIcon 纪律），喂真实 hex：品牌色优先，回落主题色
 const activeColor = computed(() => brandPrimary.value || themeStyle.value['--design-primary'] || '#FE0137');
+
+// 🔴 #321：外部小程序的「跳转版本」折叠开关（高级选项，日常用正式版）
+const advOpen = ref(false);
 
 // 服务端 card.js COMP_MAX 同源（超限 400）；单测钉两边一致
 const COMP_MAX = 20;
@@ -346,6 +423,50 @@ const cardId = ref(null);
 const comps = ref([]); // 合并列表：母版(isLock) 在前，个人组件随后（与服务端返回顺序一致）
 // 当前选中组件的 key：操作条只在选中时浮现（对齐 PC 的 hover 触发）
 const activeKey = ref(null);
+// 🔴 #321（实测纪律）：createSelectorQuery 要限定在当前组件实例内，.in(proxy) 的
+//   proxy 必须**在 setup 顶层**取一次——在事件处理器里 / await 之后调getCurrentInstance()
+//   一律返回 null → q.in(null.proxy) 抛 TypeError → 被外层吞成「边条位置算不出来」。
+const editInst = getCurrentInstance();
+// 🔴 #321：边条浮在组件**上方**，位置必须 JS 实测（记忆规则：浮层定位禁写死百分比）。
+//   实测两件事：① 卡片顶到视口的位置；② sticky 的 PageNav 底沿 ——
+//   首组件上方就是导航栏，边条翻上去会被压住（设计中心同一问题，解法也相同：
+//   「上方不够就翻到内侧顶」positionCompTools）。
+//   量到的是 px，直接写进 --tools-top（CSS 只认 px，写死 rpx 会在不同机型上偏）。
+const navBottomPx = ref(0);
+const toolsTopStyle = ref(null);
+
+/** 量一次导航栏底沿 + 视口高度（选中时再量卡片位置即可） */
+function measureNavBottom() {
+  return new Promise((resolve) => {
+    const q = uni.createSelectorQuery();
+    if (editInst) q.in(editInst.proxy);
+    q.select('.ce-nav-anchor').boundingClientRect((r) => {
+      navBottomPx.value = r && r.bottom ? r.bottom : 0;
+      resolve();
+    }).exec();
+  });
+}
+
+/**
+ * 重算选中卡片的边条位置。
+ * @param {string} key 选中组件的 key
+ */
+function updateToolsTop(key) {
+  if (!key) { toolsTopStyle.value = null; return; }
+  nextTick(() => {
+    const q = uni.createSelectorQuery();
+    if (editInst) q.in(editInst.proxy);
+    q.select(`.ce-card[data-key="${key}"]`).boundingClientRect((card) => {
+      if (!card) { toolsTopStyle.value = null; return; }
+      // 边条高度：与 CSS 同量级（46rpx ≈ 23px），多留 2px 缝，别贴死组件顶
+      const TOOLS_H = 24;
+      // 翻到上方所需的负值；上方不够（顶到导航栏）就退回「内侧顶」，与设计中心同策略
+      const above = navBottomPx.value - card.top;
+      const need = TOOLS_H + 2;
+      toolsTopStyle.value = above >= need ? { '--tools-top': `${-need}px` } : { '--tools-top': '2px' };
+    }).exec();
+  });
+}
 const loading = ref(false);
 const loadFailed = ref(false);
 const loadFailedMsg = ref('加载失败，请检查网络后重试');
@@ -354,16 +475,20 @@ const editing = ref(null); // { key, type, props } 编辑中的副本
 const saving = ref(false);
 // 弹窗样式段折叠态（每次打开重置为收起，默认只露内容字段）
 const styleOpen = ref(false);
-// 🔴 反馈 #298：链接选择器（移动端化）
-// 🔴 #301：选择器目标从「字段名」升级为「目标对象」——
-//   button 组件本身（scope:'comp'）与 button-group 里的每个按钮（scope:'btn', index）共用一套。
-const showLinkPicker = ref(false);
-const linkTarget = ref(null); // { scope: 'comp' } | { scope: 'btn', index: number }
 
-/** 取选择器当前对应的链接宿主对象（组件 props 或某个按钮对象） */
-function linkHost() {
-  const t = linkTarget.value;
-  if (!t || !editing.value) return null;
+// 🔴 反馈 #321：**链接选择器（CardLinkPicker）整体下线**。
+//   用户反馈「点链接框会弹出内部链接的选择器，要求要去掉，手动填写就好了」——
+//   弹窗是「选类型 → 再选页面」两步操作，用户只要手填。
+//   现在链接框就是普通 input，直接填路径/网址/电话；类型用下面的 radio 选。
+//   保留 linkHost/openLinkPicker 等函数会让「弹窗还在」被后人误当现行方案，故一并删除。
+
+/**
+ * 链接宿主的类型与取值（🔴 组件级与按钮组内单个按钮共用同一套）。
+ * @param {{scope:'comp'}|{scope:'btn',index:number}} target
+ */
+function linkHostOf(target) {
+  if (!editing.value) return null;
+  const t = target || { scope: 'comp' };
   if (t.scope === 'btn') {
     const list = editing.value.props && editing.value.props.buttons;
     return list && list[t.index] ? list[t.index] : null;
@@ -371,75 +496,38 @@ function linkHost() {
   return editing.value.props || null;
 }
 
-/** 当前 link 字段对应的完整链接配置（供选择器回显与编辑） */
-const linkPickerValue = computed(() => {
-  const host = linkHost();
-  return host ? normalizeLink(host) : {};
-});
-
-/** 打开链接选择器 */
-function openLinkPicker(target) {
-  // 兼容旧调用：传字符串（字段名）时按组件级处理
-  linkTarget.value = typeof target === 'string' ? { scope: 'comp', key: target } : target;
-  showLinkPicker.value = true;
+/** 链接类型当前值（归一后一定是四种之一，UI 不会「一个都不亮」） */
+function linkTypeOf(target) {
+  const host = linkHostOf(target);
+  return normalizeLinkType(host && host.linkType);
 }
 
 /**
- * 当前链接是否为外链类型（🔴 反馈 #301：外链时链接框置灰）。
- * 内部页面已降级为「链接框填路径」，故 linkType 为空即内部页面。
+ * 切换链接类型时**清掉不适用字段**，避免脏数据被误当另一种类型用。
+ * 🔴 只清「跨语义不兼容」的那一个：内部路径当网址/电话是错的；
+ *    但 web↔phone 之间 url 语义相同（都是地址/号码），切了不该清用户的输入。
  */
-function linkIsExternal(key) {
-  const host = linkHost();
-  if (!host) return false;
-  return normalizeLinkType(host.linkType) !== '';
-}
-
-/** 按钮组里某个按钮的链接是否为外链类型 */
-function btnLinkIsExternal(b) {
-  return normalizeLinkType((b || {}).linkType) !== '';
-}
-
-/** 选择器回填：把链接配置写回宿主对象 */
-function onLinkPicked(v) {
-  const host = linkHost();
+function onLinkTypeChange(target, value) {
+  const host = linkHostOf(target);
   if (!host) return;
-  const l = normalizeLink(v);
-  host.url = l.url;
-  host.linkType = l.linkType;
-  host.miniAppId = l.miniAppId;
-  host.miniAppPath = l.miniAppPath;
-  host.miniAppEnv = l.miniAppEnv;
+  const prev = normalizeLinkType(host.linkType);
+  const next = normalizeLinkType(value);
+  host.linkType = next;
+  // 内部页面 ↔ 外链、或小程序 ↔ 网页/电话：url 的语义变了，清掉旧值
+  const prevUrlMeaning = prev === 'internal' || prev === 'miniapp' ? 'path' : 'addr';
+  const nextUrlMeaning = next === 'internal' || next === 'miniapp' ? 'path' : 'addr';
+  if (prevUrlMeaning !== nextUrlMeaning) host.url = '';
+  if (next !== 'miniapp') { host.miniAppId = ''; host.miniAppPath = ''; }
 }
 
-/**
- * 链接的只读回显文案（按跳转类型给出人能看懂的目标）。
- * 内部页面显示页面标题（找不到标题则回退路径）；外链显示类型化摘要。
- */
-function linkTextOf(host) {
-  const l = normalizeLink(host || {});
-  if (l.linkType === 'miniapp') {
-    if (!l.miniAppId) return '';
-    const name = l.miniAppPath || '首页';
-    return `小程序 ${l.miniAppId} · ${name}`;
-  }
-  if (l.linkType === 'phone') return l.url ? `电话 ${l.url}` : '';
-  if (l.linkType === 'web') return l.url || '';
-  // 内部页面：显示页面标题（找不到标题则回退路径）
-  if (!l.url) return '';
-  const t = miniPageTitle(l.url);
-  return t ? `${t}（${l.url}）` : l.url;
+/** 链接框的 placeholder：随类型变，避免用户往电话框里填路径 */
+function linkPlaceholder(target) {
+  const t = linkTypeOf(target);
+  if (t === 'web') return 'https://example.com';
+  if (t === 'phone') return '如 13800138000';
+  return '如 /pages/card/market';
 }
 
-/** link 字段的只读回显文案（组件级） */
-function linkDisplay(key) {
-  if (!editing.value) return '';
-  return linkTextOf(editing.value.props || {});
-}
-
-/** 按钮组里某个按钮的只读回显文案 */
-function btnLinkDisplay(b) {
-  return linkTextOf(b || {});
-}
 // 页内实时预览（含未保存修改，不用退到名片详情页）
 const showPreview = ref(false);
 // 预览层导航度量：custom nav 页面的 fixed 层顶到屏幕物理原点，必须 JS 实测避让
@@ -571,6 +659,7 @@ function removeButton(i) {
 function tapCard(c) {
   if (activeKey.value === c.key) { openEdit(c); return; }
   activeKey.value = c.key;
+  updateToolsTop(c.key);
 }
 
 // 显示/隐藏开关：hidden 存 props（cardDetail 渲染过滤），母版不可切换
@@ -712,13 +801,20 @@ async function saveAll(okText) {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  load();
+  measureNavBottom();
+});
 </script>
 
 <style scoped>
 /* 设计令牌纪律：新页面一律 var(--token)（tokenAudit.test.js 扫裸值）；
    --design-primary 由页面根 themeStyle/brandVars 注入，无需 hex 兜底 */
 .ce-page { min-height: 100vh; background: var(--bg-page); }
+/* 🔴 #321：导航栏底沿实测锚点（零高度、零占位，纯给 boundingClientRect 用）。
+   边条要翻到组件上方，得先知道「上方哪里是导航栏」——PageNav 是浮层选不中，
+   这个随文档流的空块就是量尺。不设高度 → 不影响任何布局。 */
+.ce-nav-anchor { height: 0; }
 /* 🔴 间距口径（2026-10-21 三轮返工后定稿）：装修页 = 预览层 = 真实名片页，三者逐像素一致。
    真实页 `.cc-list { margin: 0 28rpx }`（14px）+ 组件自身 marginTop（默认 6px）就是全部间距。
    本页曾因 `.ce-card` 带 padding(4px)×2 + margin-bottom(6px)，组件间距被撑到 20px，
@@ -781,7 +877,14 @@ onMounted(load);
    🔴 整条只有 46rpx 高（PC 同款量级）：图标 26rpx、按钮 40rpx，
       比上一版 84rpx 的胶囊条小一半，手指点选时它是刻意交互而非常驻噪音。 */
 .ce-tools {
-  position: absolute; top: var(--space-r1); right: var(--space-r1); z-index: 3;
+  /* 🔴 反馈 #321：边条改到组件**上方**（对齐设计中心 `.pe-comp-tools` 的 positionCompTools：
+     「贴在组件上方；上方不够就翻到内侧顶」）。之前是 top:var(--space-r1) 压在组件**内部**，
+     组件本身的标题/图标被遮住。
+     🔴 为什么用负 top 而不是「排在组件前面」：负 top 不占布局 → 渲染区不会被推走，
+        仍是所见即所得；且 .ce-card 是 position:relative，负 top 以卡片为基准。
+     🔴 上方空间由 JS 实测后写进 --tools-top（见 toolsTopStyle）：首组件上方是
+        PageNav（sticky），硬编码负值会被导航栏压住，故必须量。 */
+  position: absolute; top: var(--tools-top, -56rpx); right: var(--space-r1); z-index: 3;
   display: flex; align-items: center; gap: var(--space-r1);
   background: var(--design-primary); color: #fff;
   border-radius: var(--radius-sm); padding: 3rpx 6rpx;
@@ -881,20 +984,26 @@ onMounted(load);
   padding: 0 var(--space-r4); font-size: var(--fs-4); background: transparent; color: var(--t1);
 }
 .ph { color: var(--decor-2); }
-/* 🔴 链接回显框（#301）：
-   - 之前只有 class 名没有样式定义 → 回显文本其实用的是 .ce-input 的输入框样式，
-     看起来仍像个可输入的框，用户以为还能打字；这里改成明确的「只读摘要」外观；
-   - .dim = 选外链类型时置灰（此时 url 装的是网页/电话，不是内部路径）；
-   - 末尾不再有多余的箭头（整个框都可点，箭头是视觉噪音）。 */
-.ce-link-display {
-  flex: 1; width: 100%; box-sizing: border-box;
-  height: 80rpx; line-height: 80rpx;
-  padding: 0 var(--space-r4); font-size: var(--fs-4);
-  color: var(--t1);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* 🔴 #321：链接框已是普通 input（.ce-input），只读摘要样式（.ce-link-display/.dim）随之下线。
+🔴 修掉的 bug：.dim 置灰是「外链类型下链接框变灰」的实现，用户反馈「切换成外部小程序后，
+   再点网页链接或是拨打电话，上面的输入框都是灰色的」→ 网页/电话恰恰要把网址/号码填进去，
+   置灰等于不让填。现已删掉：任何类型下链接框都可编辑，只有 placeholder 随类型变。 */
+
+.ce-tip {
+  display: block; font-size: var(--fs-2); color: var(--decor);
+  margin-top: var(--space-r1);
 }
-.ce-link-display.ph { color: var(--decor-2); }
-.ce-link-display.dim { color: var(--decor-2); background: var(--bg-page); }
+/* 网页链接注意事项（小程序端不能直接开外链 → 会复制到剪贴板） */
+.ce-note {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: var(--space-r3) var(--space-r4);
+  margin-bottom: var(--space-r3);
+}
+.ce-note-t { display: block; font-size: var(--fs-3); color: var(--t2); font-weight: 600; margin-bottom: var(--space-r1); }
+.ce-note-l { display: block; font-size: var(--fs-2); color: var(--t3); line-height: 1.7; }
+/* 高级选项折叠箭头（跳转版本那行） */
+.ce-adv-arrow { font-size: var(--fs-2); color: var(--t3); }
 
 .ce-rt-row { width: 100%; }
 .ce-textarea {

@@ -61,7 +61,14 @@ export const DESIGN_VIEWPORT_PX = 375;
  *   - `full` → **视口单位**（C 端 `vw`、admin 换算 px）
  *     ❌ 不用百分比：百分比参照容器内容宽，容器边距一变宽度就变（实测 20px 边距 → 少 24px 宽）。
  *
- * @param {object} p 组件 props（读 widthMode / widthPercent）
+ * 🔴 `align`（横向对齐，2026-10-21 反馈 #321）决定 auto 边距给哪边：
+ *   - `left`（默认）：左贴容器左边（marginLeft=0，右侧留白）
+ *   - `center`：两侧平分（marginLeft/Right=auto）
+ *   - `right`：右贴容器右边（marginRight=0，左侧留白）
+ *   ⚠️ **与 boxOffsetX 联动**：设了左边偏移时以偏移为准（align 让位）——
+ *     用户调「左边偏移」就是为了精确对位，此时再被 align 拽回去等于两个控件打架。
+ *
+ * @param {object} p 组件 props（读 widthMode / widthPercent / align / boxOffsetX）
  * @param {object} [opts]
  * @param {boolean} [opts.flexChild=false] 子项是否处于 flex 容器中（搜索框是）
  * @param {'vw'|'px'} [opts.unit='vw'] 宽度单位：'vw'=视口百分比（C 端）、
@@ -72,12 +79,13 @@ export function containerChildSizeStyle(p, opts = {}) {
   const props = p || {};
   const s = {};
 
-  // 自适应：内容宽 + 左右内边距 + 居中
+  // 自适应：内容宽 + 左右内边距 + 横向对齐
   if (props.widthMode === 'auto') {
     s.display = 'block';
     s.width = 'fit-content';
-    s.marginLeft = 'auto';
-    s.marginRight = 'auto';
+    applyAlign(s, props.align);
+    // 🔴 textAlign 管的是**按钮内部**文字居中，与 align（按钮在容器里的位置）是两件事。
+    //   删掉它会导致 align=left 时按钮内文字贴左（历史行为是居中，别改）。
     s.textAlign = 'center';
     if (opts.flexChild) {
       // 🔴 flex 子项必须显式 `flex:none`，否则 CSS 里的 `flex:1` 会把 width 压掉
@@ -93,8 +101,7 @@ export function containerChildSizeStyle(p, opts = {}) {
   const pct = clampPercent(props.widthPercent);
   s.display = 'block';
   s.width = opts.unit === 'px' ? `${(pct * DESIGN_VIEWPORT_PX) / 100}px` : `${pct}vw`;
-  s.marginLeft = 'auto';
-  s.marginRight = 'auto';
+  applyAlign(s, props.align);
   s.boxSizing = 'border-box';
   s.textAlign = 'center';
   if (opts.flexChild) {
@@ -113,13 +120,35 @@ export function containerChildSizeStyle(p, opts = {}) {
 }
 
 /**
+ * 按 `align` 写 auto 边距（横向对齐）。
+ * 🔴 未设/非法 → 居中（与 #321 之前的行为一致，存量视觉不变）。
+ * ⚠️ 只写需要「让出空间」的那一侧：另一侧必须显式 0，
+ *    否则残留的 auto 会与已写的 auto 打架（inline-block 的 auto 边距行为不可靠）。
+ */
+function applyAlign(s, align) {
+  const a = align === 'left' || align === 'right' ? align : 'center';
+  if (a === 'center') {
+    s.marginLeft = 'auto';
+    s.marginRight = 'auto';
+    return;
+  }
+  if (a === 'left') {
+    s.marginLeft = '0';
+    s.marginRight = 'auto';
+    return;
+  }
+  s.marginLeft = 'auto';
+  s.marginRight = '0';
+}
+
+/**
  * 把 `boxOffsetX`（组件左边偏移，px 语义）写进 `marginLeft`。
- * 🔴 与 auto 边距的优先级：设了 offsetX 就以它为准（auto 让位），
- *    否则保持调用方给的 marginLeft（按钮=auto 居中 / 搜索框=0 靠左）。
+ * 🔴 与 align 的优先级：设了 offsetX 就以它为准（align 让位），
+ *    否则保持 applyAlign 给的 marginLeft（left=0 / center=auto / right=auto）。
  */
 function applyOffsetX(s, boxOffsetX, unit) {
   const n = Number(boxOffsetX);
-  if (!Number.isFinite(n) || n === 0) return;   // 0 = 不偏移，保持调用方给的 auto/0
+  if (!Number.isFinite(n) || n === 0) return;   // 0 = 不偏移，保持调用方给的 align/auto/0
   s.marginLeft = unit === 'px' ? `${n}px` : `${n * 2}rpx`;
 }
 
@@ -165,6 +194,8 @@ export function searchBoxSizeStyle(p, opts = {}) {
   const s = containerChildSizeStyle(p, { flexChild: true, ...opts });
   // 🔴 覆盖通用实现的两侧 auto → 改成只有右侧 auto，把剩余空间全让给铃铛（贴右）
   // ⚠️ 但**不能**覆盖 boxOffsetX（用户设了左边偏移时以它为准），故只在未设时给默认 0。
+  // ⚠️ 搜索框 schema 里没有 align 字段，故这里固定靠左；
+  //    若将来给它加 align，上面这行会把它拽回左边 → 届时要改成尊重 align。
   if (!s.marginLeft || s.marginLeft === 'auto') s.marginLeft = '0';
   s.marginRight = 'auto';
   return s;

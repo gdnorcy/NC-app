@@ -2,18 +2,20 @@
  * 装修组件链接跳转执行（跨端统一入口）
  *
  * 🔴 反馈 #298：按钮组件支持「跳转外部小程序」。
- * 🔴 反馈 #301：内部页面**不再是一种类型**，改为「链接框直接填路径」→
- *   linkType: ''（默认=内部页面）| 'miniapp' | 'web' | 'phone'
- *   存量 props 里的 linkType='internal' 会被 normalizeLinkType 归一为 ''，行为不变。
+ * 🔴 反馈 #321：内部页面**恢复为一等类型**（'internal'）——
+ *   linkType: 'internal'（内部页面）| 'miniapp' | 'web' | 'phone'
+ *   ⚠️ 下方「内部页面」分支是**兜底**：前三个外链类型都在上面 return 了，
+ *   走到这里只可能是 internal。判据不要写成 `!type`（旧模型用空串表示内部页面，
+ *   #321 起内部页面有显式值，空串由 normalizeLinkType 吸收）。
  *
  *   链接模型（存组件 props 里，字段名保持向后兼容）：
- *     linkType: ''（默认，内部页面）| 'miniapp'（外部小程序）| 'web'（网页）| 'phone'（电话）
+ *     linkType: 'internal'（内部页面）| 'miniapp'（外部小程序）| 'web'（网页）| 'phone'（电话）
  *     url:        内部页面路径 / 网页地址 / 电话号码（按 linkType 复用同一字段）
  *     miniAppId:  外部小程序 AppID
  *     miniAppPath:外部小程序页面路径（可空 = 首页）
  *     miniAppEnv: 'release'（默认）| 'trial' | 'develop'（折叠在高级选项里）
  *
- * ⚠️ 存量数据没有 linkType → 一律按内部页面处理（向后兼容，不破坏已有配置）。
+ * ⚠️ 存量数据没有 linkType、或为 '' → 一律按内部页面处理（向后兼容，不破坏已有配置）。
  *
  * ⚠️ 两条 C 端渲染路径都要走这里（CardCompItem.vue 与 DesignPage.vue 各自有跳转逻辑），
  *   否则「详情页能跳、装修预览不跳」或反之 → 行为分裂。
@@ -117,7 +119,7 @@ export function execCompLink(link, opts = {}) {
     return true;
   }
 
-  // —— 内部页面（默认，linkType 为空）——
+  // —— 内部页面（linkType = 'internal'，normalizeLinkType 已把 '' 归一到这里）——
   if (!url) return false;
   if (!url.startsWith('/')) {
     // 存量数据可能存了不带斜杠的路径 → 补上再跳

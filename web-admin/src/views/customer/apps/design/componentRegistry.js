@@ -310,19 +310,19 @@ export const componentRegistry = [
     name: '按钮',
     group: 'basic',
     icon: 'button',
-    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', linkType: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', linkType: 'internal', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', align: 'center', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
-      // 🔴 反馈 #301：内部页面**不再是一种类型**——「跳转」框填 /pages/xxx 就是内部页面，
-      //   省掉「先选类型再选页面」两步。存量 linkType='internal' 由 compLinkModel 归一为空串，行为不变。
-      //   ⚠️ default:'' 必须显式给：admin 的表单引擎对 radio 控件在值为空时会取
-      //   options[0].value（见 PageEditor 的 listVal / addListItem）→
-      //   不给 default 的话 linkType 会被顶成第一个选项 'miniapp'，违背「不选 = 内部页面」。
-      { key: 'linkType', label: '跳转类型', control: 'radio', default: '', section: 'content', options: [{ label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }], tips: '不选 = 内部页面（在上面「跳转」框填页面路径，如 /pages/card/market）；外部小程序需填 AppID（须与当前小程序同一微信开放平台）' },
+      // 🔴 反馈 #321：内部链接**恢复为一等类型**（#321 推翻 #301 的做法）。
+      //   用户要的是「内联手填、不弹选择器」，不是「取消这一类型」——两件事不冲突。
+      //   ⚠️ default:'internal' 必须显式给：admin 表单引擎对 radio 在值为空时取 options[0].value
+      //   （见 PageEditor 的 listVal / addListItem）；default 与 options[0].value 同值才是真默认。
+      { key: 'linkType', label: '跳转类型', control: 'radio', default: 'internal', section: 'content', options: [{ label: '内部链接', value: 'internal' }, { label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }], tips: '内部链接：在上面「跳转」框直接填页面路径（如 /pages/card/market）；外部小程序需填 AppID（须与当前小程序同一微信开放平台）' },
       { key: 'miniAppId', label: '小程序 AppID', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
       { key: 'miniAppPath', label: '小程序页面路径', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
       { key: 'miniAppEnv', label: '跳转版本（高级）', control: 'radio', section: 'content', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }], tips: '仅开发者调试时使用，普通用户请保持正式版' },
+      { key: 'align', label: '按钮对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '按钮在容器内的横向位置。设了「左边偏移」时以偏移为准' },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       // 🔴 宽度基准 = **整屏宽度**（视口单位），不是容器内容宽度。
@@ -364,8 +364,8 @@ export const componentRegistry = [
     // 移动端装修页用专属编辑器维护 buttons，admin 这里走通用 list 控件（listMin/Max 约束 2-5 个）
     defaultProps: {
       buttons: [
-        { text: '按钮一', url: '', linkType: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
-        { text: '按钮二', url: '', linkType: '', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+        { text: '按钮一', url: '', linkType: 'internal', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
+        { text: '按钮二', url: '', linkType: 'internal', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', bgColor: '#165DFF', textColor: '#ffffff' },
       ],
       gap: 16,
       marginTop: 6,
@@ -377,11 +377,11 @@ export const componentRegistry = [
         { key: 'text', label: '文字', control: 'input', maxlength: 8, inline: true },
         { key: 'url', label: '跳转', control: 'link', inline: true },
         // 🔴 反馈 #301：按钮组同步外链能力（#298 只做了 button 组件）。
-        //   内部页面同样降级为「跳转框填路径」，故 linkType 选项里没有「内部页面」。
+        //   内部链接是一等类型（与移动端 cardEdit 同一套口径）。
         //   ⚠️ default:'' 必须显式给：admin 的 addListItem 对 radio 控件会取
         //   options[0].value 当默认值（无 default 时）→ 不给 default 的话
-        //   新增按钮的 linkType 会变成第一个选项 'miniapp'，违背「不选 = 内部页面」。
-        { key: 'linkType', label: '跳转类型', control: 'radio', default: '', options: [{ label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }] },
+        //   新增按钮的 linkType 会变成第一个选项；default 与 options[0].value 同值才是真默认。
+        { key: 'linkType', label: '跳转类型', control: 'radio', default: 'internal', options: [{ label: '内部链接', value: 'internal' }, { label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }] },
         { key: 'miniAppId', label: '小程序 AppID', control: 'input', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
         { key: 'miniAppPath', label: '小程序页面路径', control: 'input', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
         { key: 'miniAppEnv', label: '跳转版本（高级）', control: 'radio', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }] },
@@ -416,7 +416,7 @@ export const componentRegistry = [
     name: '公告',
     group: 'basic',
     icon: 'notice',
-    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all', align: 'left', offsetX: 0 },
+    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all', align: 'left', offsetX: 0, symbol: 'none' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
@@ -429,6 +429,7 @@ export const componentRegistry = [
       { key: 'dataSource', label: '数据显示', control: 'radio', section: 'content', options: [{ label: '读取系统', value: 'system' }, { label: '自定义', value: 'custom' }] },
       { key: 'fontSize', label: '字号', control: 'slider', section: 'style', min: 12, max: 20 },
       { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
+      { key: 'symbol', label: '前置符号', control: 'radio', default: 'none', section: 'style', options: [{ label: '无', value: 'none' }, { label: '圆点', value: 'dot' }, { label: '方块', value: 'square' }, { label: '箭头', value: 'arrow' }, { label: '菱形', value: 'diamond' }, { label: '对勾', value: 'check' }, { label: '星号', value: 'star' }, { label: '竖线', value: 'bar' }], tips: '显示在文字前面的符号。选「无」则只有文字（默认）' },
       { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '整条公告（图标+文字）的对齐方式；居中/居右时文字不再撑满整行' },
       { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '整条公告相对容器左边再平移。负数向左；不影响宽度' },
       { key: 'style', label: '样式', control: 'radio', section: 'style', options: [{ label: '默认', value: 'default' }, { label: '投影', value: 'shadow' }, { label: '描边', value: 'border' }] },

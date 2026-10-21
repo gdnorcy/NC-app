@@ -40,7 +40,12 @@
       :style="[ccStyle, noticeStyle]"
       @click="onTap('link', props.url)"
     >
-      <text class="cc-notice-dot"></text>
+      <!-- 🔴 #321：原来这里写死一个小圆点（用户输入文字后左边凭空多个点）。
+           现在按 symbol 配置渲染，'none'（默认）不渲染任何符号。
+           ⚠️ 用字符而非 CSS 伪元素：WXSS 伪元素在小程序普通 view 上不可靠；
+           ⚠️ 圆点/方块类符号仍用真实 view 画（形状可控），文字类用 <text>。 -->
+      <view v-if="noticeSymbolShape" class="cc-notice-sym" :class="noticeSymbolShape"></view>
+      <text v-else-if="noticeSymbolText" class="cc-notice-sym-text">{{ noticeSymbolText }}</text>
       <text class="cc-notice-text" :class="{ 'cc-notice-text-inline': noticeAlign !== 'left' }">{{ props.text }}</text>
     </view>
 
@@ -126,6 +131,22 @@ const noticeAlign = computed(() => {
   const a = props.value.align;
   return a === 'center' || a === 'right' ? a : 'left';
 });
+
+// 🔴 #321：前置符号（8 种+ 无）。分两类：
+//   - shape 类（dot/square/arrow/diamond/bar）：用真实 view 画，形状与尺寸可控；
+//   - 字符类（check/star）：直接输出字符（★ 在小程序字体里可显示，⧉ 那种才会豆腐块）。
+const NOTICE_SYMBOLS = {
+  dot: { shape: 'is-dot' },
+  square: { shape: 'is-square' },
+  arrow: { shape: 'is-arrow' },
+  diamond: { shape: 'is-diamond' },
+  bar: { shape: 'is-bar' },
+  check: { text: '\u2713' },
+  star: { text: '\u2605' },
+};
+const noticeSymbol = computed(() => NOTICE_SYMBOLS[props.value.symbol] || null);
+const noticeSymbolShape = computed(() => (noticeSymbol.value && noticeSymbol.value.shape) || '');
+const noticeSymbolText = computed(() => (noticeSymbol.value && noticeSymbol.value.text) || '');
 
 const noticeStyle = computed(() => {
   const p = props.value;
@@ -309,11 +330,24 @@ function onTap(kind, extra, linkCfg) {
   border-radius: var(--radius-xs);
   line-height: 1.5;
 }
-.cc-notice-dot {
-  width: 8rpx; height: 8rpx;
-  border-radius: var(--radius-pill);
-  background: currentColor;
-  flex-shrink: 0;
+/* 前置符号（🔴 #321：替代原来写死的 .cc-notice-dot 圆点）。
+   全部用 currentColor，跟随公告文字色；flex-shrink:0 防止被压扁。 */
+.cc-notice-sym { flex-shrink: 0; }
+.cc-notice-sym-text { flex-shrink: 0; }
+.cc-notice-sym.is-dot { width: 8rpx; height: 8rpx; border-radius: var(--radius-pill); background: currentColor; }
+.cc-notice-sym.is-square { width: 10rpx; height: 10rpx; background: currentColor; }
+.cc-notice-sym.is-bar { width: 4rpx; height: 20rpx; background: currentColor; }
+/* 菱形：45° 旋转的方块 */
+.cc-notice-sym.is-diamond {
+  width: 9rpx; height: 9rpx; background: currentColor;
+  transform: rotate(45deg);
+}
+/* 箭头：用两条边拼出的直角折角（border 画实心三角，WXSS 可靠） */
+.cc-notice-sym.is-arrow {
+  width: 0; height: 0;
+  border-top: 7rpx solid transparent;
+  border-bottom: 7rpx solid transparent;
+  border-left: 11rpx solid currentColor;
 }
 .cc-notice-text { flex: 1; }
 /* 🔴 反馈 #299：居中/居右时文字区不再 flex:1 撑满（否则文字永远贴左，等于没生效） */
