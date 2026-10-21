@@ -7,7 +7,11 @@
 - 🔴 **「间距/大小不真实」先数壳层数**：装修页曾三层壳（body 12px + card 10px + render 6px）把组件捏窄 32px+白底圆角，像装在盒子里；第四轮又抓出 `.ce-card{padding:4px;margin-bottom:6px}` 把组件间距撑到 20px（真实页 6px）。调参永远调不对，要**删壳**——间距 100% 由组件自身 marginTop 决定，容器只保留一层边距（ce-body 左右 28rpx = 真实页 `.cc-list`）。选中环禁画卡片边框（1rpx 各占 0.5px 破坏像素对齐）→ 独立绝对定位+`pointer-events:none`。**「A 和 B 不一致」先各测再改**：最小化测量页+headless 实测五场景，别三个一起瞎调；spec 记忆与实测冲突时信实测（flex column 子项并不吞子元素 margin）。
 - 🔴 同步需求要连机制一起搬：「对齐设计中心边条」= 浮在组件上不占空间+名字进条省标题行+hover 浮现**一整套**，只搬皮会做出更占地方的常驻大条（返工三次）。手机无 hover→`activeKey`+tapCard，选中再点=进配置；锁标记常驻不随浮条隐。
 - 背景两字段：bgColor=自身色/compBgColor=容器色（`containerStyle.js`）。显式 0 必须内联。
-- 🔴 **链接模型单一事实来源 `utils/compLinkModel.js`**：跳转类型只有 miniapp/web/phone 三种外链；「内部页面」不是**类型**而是**能力**（在「跳转」框直接填 `/pages/xxx`）——存量 `'internal'` 与新默认 `''` 用 `normalizeLinkType` 归一，旧配置不失效。凡「允许不选」的 radio，schema 必须显式 `default: ''`，否则 admin 的 `addListItem`/`listVal` 会取 `options[0].value` 顶成第一个外链类型。
+- 🔴 **链接模型单一事实来源 `utils/compLinkModel.js`**：「内部链接」是**一等类型**（#321 用户原话「类型那里还是增加一个内部链接吧」）——#301 我把它降级成「不是类型而是能力」是**误读用户意图**，用户要的是「内联手填、别弹选择器」而非取消该类型。`LINK_TYPES` 四项，schema `default` 必须与 `options[0].value` 同值；存量 `'internal'` 与 `''` 两种历史写法由 `normalizeLinkType` 全部归一（否则 UI 四选项一个都不亮）。**切类型只清「跨语义不兼容」字段**：web↔phone 同为地址不清，internal↔miniapp 同为路径不清，只有 path↔addr 才清 url。「取消 A 的实现方式」≠「取消 A 这个概念」——用户否的常是手段不是选项。
+- 🔴 **「置灰」先问灰掉的是哪个字段的语义**：网页/电话恰恰要把网址/号码填进去，灰掉=不让填（#321 报「输入框都是灰色的」）。别看到「切了类型就整块禁用」的现成写法就套。
+- 🔴 **「面板能配的字段，渲染必须三处同时认」**（#321 收尾自查）：symbol 进了两端 registry（面板能配）却只补了名片渲染 → admin 画布配了不显示（所见非所得）+ 首页/mall 配了 C 端不显示，**两端各自「配了不生效」**。正解抽 `utils/noticeSymbol.js` 共享纯函数（符号表+面板选项+解析），三处渲染全引用；禁三处各抄一份。教训：**只测被改的那一处 = 等于放任其余两处漂移**，测试要按渲染点参数化遍历。
+- 🔴 共享表里**形状类存完整类名**（`is-dot` 而非 `dot`）：让各端自己拼 `is-` 前缀就是漂移源。解析函数两个字段恒为字符串，调用方**按空串短路整个元素**——渲染空壳会白占一个 flex 槽位并抢走 gap。
+- 🔴 **新字段别和旧字段并列，要串进同一条 v-else-if 链**：symbol 与 iconType（公告标签/自定义图）同时存在时，不串起来会两个一起画。
 - 🔴 **子组件自身配置 ≠ 父级配置**：按钮组每个按钮有独立链接配置（在 `buttons[]` 里），组件级 props 上没有 `linkType`；渲染时只传组件级 → 外链永远跳空（静默失败）。判据：渲染层拿到的配置对象，必须和配置面板编辑的是同一层级。
 
 ## 真机与跨端
@@ -73,6 +77,7 @@
 
 ## 线上排查通道
 - 🔴 沙箱**能直连服务器 HTTPS**：`https://zero.nshop.mobi`（443 通）→「curl :3000 返 000」只是直连端口被拦。登录口 `POST /api/auth/login`（`admin/admin123`；**admin 无租户身份→客户后台 403**，要用 `tenant1/admin123`）。
+- 🔴 **服务器真实路径 = `/opt/app`（不是 /var/www/panorama）**：git 仓库根 `/opt/app`，分支 deploy，remote 走 `https://ghfast.top/https://github.com/gdnorcy/NC-app.git`；服务 cwd `/opt/app/server`，systemd `panorama.service`。探测法：`readlink -f /proc/<PID>/cwd`（PID 从 `systemctl show -p MainPID` 拿）。
 - 🔴 `mcp__lighthouse-ops__execute_command` 的 `toolName` 在**主代理调用链上会被丢弃**（报 "missing required parameter(s): toolName"）→ 改派 `general-purpose` 子代理执行，强调 Region=`ap-guangzhou`（写 ap-shanghai 返「暂无数据」）。
 - 公开只读免登录：`GET /api/card/cards/:id`、`/components`。后台租户接口：`/api/customer/card/manage`、`/employees`、`/overview`。
 
