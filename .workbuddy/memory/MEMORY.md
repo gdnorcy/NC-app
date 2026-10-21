@@ -10,6 +10,8 @@
 - 🔴 **链接模型单一事实来源 `utils/compLinkModel.js`**：「内部链接」是一等类型（用户要的是「内联手填、别弹选择器」，不是取消该类型）。`LINK_TYPES` 四项；schema `default` 必须与 `options[0].value` 同值；`'internal'` 与 `''` 两种历史写法都要归一（否则四选项一个都不亮）。切类型**只清跨语义不兼容字段**（path↔addr 才清 url）。
 - 🔴 **「面板能配的字段，渲染必须三处同时认」**：只测被改的一处＝放任其余两处漂移。共享逻辑抽 `utils/*.js` 纯函数，三处渲染全引用。→ `noticeSymbol.js`。
 - 🔴 **「对齐 + 左边偏移」= 基准 + 叠加**（#327）：对齐是基准、偏移是叠加在基准上的微调，**手动切对齐→偏移清零**。共享 `utils/boxAlignOffset.js`。病根：偏移原用 `margin-left`，会**覆盖**对齐写好的 `margin-left:auto` → 居中/居右失效、偏移≠0 时切对齐**毫无反应**；正解 `position:relative + left`（不碰 margin、不改宽度、不造层叠上下文；`transform` 会造层叠上下文，别用）。偏移字段两个历史 key 都要认：`boxOffsetX`（按钮/搜索框）、`offsetX`（文本公告）。
+- 🔴 **canvas 的 CSS 显示尺寸 ≠ 位图尺寸**（#328）：`renderShareCover` 按设计稿 750×600 设位图（canvas.width/height），但**显示**尺寸由 CSS 定。把 `width: SHARE_COVER_W+'px'`（750px）绑到 375 屏上 → 宽被容器 overflow 裁掉、高 600 全保留 → 实际 ≈302×600（1:2），用户报「比例不对」。正确：CSS 尺寸按**容器实测宽**推导（宽=容器宽、高=宽×H/W），位图不变（清晰度靠位图，比例靠 CSS）。
+- 🔴 **canvas 原生组件放进横向 scroll-view 不跟手**（#328）：同层渲染一旦失效，canvas 钉在屏幕上，普通节点（文字）跟着滚 → 「只有文字会动，上面的图不动」。缩略图/列表项一律**导出成 `<image>`**（屏幕外 canvas → `uni.canvasToTempFilePath` / H5 `toDataURL`），canvas 只留 v-else 兜底。⚠️ 屏幕外 canvas 禁 `display:none`（MP 节点查不到）→ `position:fixed + left:-9999px`。
 - 🔴 共享表**形状类存完整类名**（`is-dot` 非 `dot`）；解析结果恒为字符串，调用方**按空串短路整个元素**（空壳会白占 flex 槽位抢 gap）。
 - 🔴 写「两端不许内联某选项」这类断言**要按字段语义过滤**：`align`（组件横向位置，三选项）与 `textAlign`（占位文案对齐，同三选项但语义不同）、图文的「文字对齐」（只有左/中）会互相误伤，全文 `not.toMatch(/label:'居左'/)` 必然假失败。
 - 🔴 **新字段要串进同一条 v-else-if 链**，与旧字段并列会两个一起画。
@@ -57,6 +59,7 @@
 - 🔴 **产物必须 `git add -f`**（限 `server/public/{card,mall}`、`server/mini-template/mp-weixin`，别用 `-A`）：普通 add **静默跳过新 chunk** → 主 chunk 404 白屏。且 SPA 兜底让 404 也返 200，**验证必须比 md5/内容不能只看状态码**。「未跟踪计数 0」≠没变（gitignore 下新文件不进 `??`）。
 - 🔴 **搬产物三陷阱**：① 新产物先 `cp -a` 到 /tmp，main 只提源码；② `git checkout` 会按索引把产物**还原成旧版**，放回前**先 `mv` 走同名旧目录**，否则 `card/card/` 嵌套（症状＝部署没生效）；③ 只搬改过源码的那端产物，别把 card 产物放 mall。
 - 🔴 切 deploy 前必先 `git checkout -- server/mini-template/mp-weixin`（构建脚本写回工作区的未暂存改动会阻塞 checkout）。
+- 🔴 **「git checkout -- 产物目录」会先把新构建冲掉**：#328 实测——先构建、再 `git checkout -- server/public/card` 想"还原成源码态"，结果把刚构建的新产物按索引**还原成旧提交版本**，新构建只存在于 `web-app/dist`（gitignore，幸存）。**顺序必须是：构建 → `cp -a` 备份到 /tmp → 才能 checkout**。反过来（先 checkout 再构建）则会把 main 搞脏。另：`web-admin/dist` 不存在（admin 直出 `server/public/admin`），admin 必须整轮重建；card/mp 可只跑 `node scripts/sync-mobile-dist.mjs` + `node scripts/sync-mini-template.mjs` 从 `web-app/dist` 重同步。
 - 🔴 safe-delete 拦删 >50 文件：先 `mv` 旧产物到 /tmp 再构建。需挪 `dist/build/h5`、`server/public/{card,mall}/{assets,static}`、`server/mini-template/mp-weixin`、MP `static/{icons,sicons}`。
 - 🔴 **vitest 不编译 SFC → setup 里「同一标识符声明两次」只有 `uni build` 照得出**。改过 SFC 必须跑完整构建，单测绿灯不能替代。
 - 🔴 **vitest 报 "no tests" 不是通过**：文件用 `it` 却导入 `test` 时静默跳过该 describe。追加用例前先看它导的是哪个。
