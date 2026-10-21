@@ -27,6 +27,8 @@ import { sampleUrl } from '../../utils/sampleImages.js';
 // 设计中心同款组件图标（copy from web-admin/src/assets/comp-icons），与设计中心「添加组件」面板一致。
 // 🔴 base64 内联而非 vite import：见文件头「反馈 #294」说明（真机图标纯白根因与修法）。
 import { COMP_ICON_DATA_URI } from '../../utils/compIconsBase64.js';
+// 🔴 #321 收尾：公告前置符号面板选项引用共享表（与两端渲染、admin 端同一份）
+import { NOTICE_SYMBOL_OPTIONS } from '../../utils/noticeSymbol.js';
 
 export const CARD_COMP_REGISTRY = [
   {
@@ -69,7 +71,9 @@ export const CARD_COMP_REGISTRY = [
       { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
       // 🔴 反馈 #321：原来渲染里**写死**一个小圆点（.cc-notice-dot），用户输入文字后左边
       //   就凭空多个点。改成可选前置符号，默认「无」。
-      { key: 'symbol', label: '前置符号', control: 'radio', default: 'none', section: 'style', options: [{ label: '无', value: 'none' }, { label: '圆点', value: 'dot' }, { label: '方块', value: 'square' }, { label: '箭头', value: 'arrow' }, { label: '菱形', value: 'diamond' }, { label: '对勾', value: 'check' }, { label: '星号', value: 'star' }, { label: '竖线', value: 'bar' }], tips: '显示在文字前面的符号。选「无」则只有文字（默认）' },
+      //   🔴 options 引用共享表 utils/noticeSymbol.js（与渲染层、admin 端同一份）——
+      //   手抄一份迟早漂移成「配了没反应」，且加符号时会漏改面板。
+      { key: 'symbol', label: '前置符号', control: 'radio', default: 'none', section: 'style', options: NOTICE_SYMBOL_OPTIONS, tips: '显示在文字前面的符号。选「无」则只有文字（默认）' },
       { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '整条公告（图标+文字）的对齐方式；居中/居右时文字不再撑满整行' },
       { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '整条公告相对容器左边再平移。负数向左；不影响宽度' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },

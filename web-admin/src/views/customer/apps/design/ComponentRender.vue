@@ -56,7 +56,12 @@
     </template>
     <template v-else-if="comp.type === 'notice'">
       <div class="r-notice" :style="noticeStyle(comp.props)">
-        <img v-if="comp.props.iconType === 'custom' && comp.props.iconImage" :src="resolveUrl(comp.props.iconImage)" class="r-notice-ico" alt="" />
+        <!-- 🔴 #321 收尾：symbol 之前只有名片渲染认→ 画布配了符号预览不显示（所见非所得）。
+             符号表走 web-app 共享模块（跨包 import 模式沿用 containerStyle.js），
+             与 C 端 CardCompItem / DesignPage 同一份解析，杜绝三端各抄。 -->
+        <i v-if="noticeSym(comp.props).shape" class="r-notice-sym" :class="noticeSym(comp.props).shape" />
+        <span v-else-if="noticeSym(comp.props).text" class="r-notice-sym-text">{{ noticeSym(comp.props).text }}</span>
+        <img v-else-if="comp.props.iconType === 'custom' && comp.props.iconImage" :src="resolveUrl(comp.props.iconImage)" class="r-notice-ico" alt="" />
         <span v-else-if="comp.props.iconType !== 'custom'" class="r-notice-tag">公告</span>
         <span v-if="noticeList(comp.props).length" class="r-notice-text" :class="{ 'r-notice-text-inline': comp.props.align && comp.props.align !== 'left' }">{{ noticeList(comp.props)[0].text }}</span>
         <span v-else>{{ comp.props.text || '公告内容' }}</span>
@@ -831,6 +836,8 @@ import { containerStyle as sharedContainerStyle } from '../../../../../../web-ap
 import { buttonSizeStyle, searchBoxSizeStyle } from '../../../../../../web-app/src/utils/containerChildSize.js';
 // 示例图清单同样共用 C 端那份，避免两端各写死一个路径后悄悄漂移
 import { sampleUrl } from '../../../../../../web-app/src/utils/sampleImages.js';
+// 🔴 #321 收尾：公告前置符号共享表（与 C 端渲染同一份，避免三端各抄一套）
+import { noticeSymbolParts } from '../../../../../../web-app/src/utils/noticeSymbol.js';
 // 按钮组（menu-group）样式同样共用 C 端那份：数值全部来自对标站 CDP 实测，
 // 写在共享文件里才能保证「画布看到的 = 真机渲染的」。改任一端必须改这里。
 import {
@@ -1411,6 +1418,10 @@ function noticeList(p) {
   const arr = (p.items || []).filter((it) => it && it.text);
   return arr.slice(0, 10);
 }
+/** 🔴 #321 收尾：前置符号走共享表（与 C 端 CardCompItem / DesignPage 同一份解析） */
+function noticeSym(p) {
+  return noticeSymbolParts(p && p.symbol);
+}
 function hotWordsList(p) {
   return String(p.hotWordsText || '')
     .split(/[,，]/)
@@ -1930,6 +1941,20 @@ const nativeGridItems = [
 .r-divider span { position: absolute; left: 50%; top: -9px; transform: translateX(-50%); background: #fff; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .r-notice { padding: 10px 14px; border-radius: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
 .r-notice-ico { width: 18px; height: 18px; object-fit: contain; flex: none; }
+/* 🔴 #321 收尾：前置符号。类名来自共享表 utils/noticeSymbol.js；
+   尺寸按「画布 375px 基准 = C 端 750rpx」折半（8rpx→4px），与 C 端同口径。 */
+.r-notice-sym { flex-shrink: 0; }
+.r-notice-sym-text { flex-shrink: 0; }
+.r-notice-sym.is-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.r-notice-sym.is-square { width: 5px; height: 5px; background: currentColor; }
+.r-notice-sym.is-bar { width: 2px; height: 10px; background: currentColor; }
+.r-notice-sym.is-diamond { width: 4.5px; height: 4.5px; background: currentColor; transform: rotate(45deg); }
+.r-notice-sym.is-arrow {
+  width: 0; height: 0;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  border-left: 5.5px solid currentColor;
+}
 .r-notice-tag { flex-shrink: 0; font-weight: 600; }
 .r-notice-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 🔴 反馈 #299：居中/居右时文字不撑满（flex:1 会让文字永远贴左，等于没生效） */
