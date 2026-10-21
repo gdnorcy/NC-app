@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
+import { COMP_ICON_SOURCE_NAME } from '../../utils/compIconsBase64.js';
 // admin 注册表是数据真源（PNG 图标由 vite 转 URL，测试环境可解析）
 import { componentRegistry, COMP_ICONS } from '../../../../web-admin/src/views/customer/apps/design/componentRegistry.js';
 
@@ -46,10 +47,47 @@ describe('移动端轻量注册表 ↔ admin componentRegistry 一致性', () =>
       const adminEntry = adminByType[c.type];
       const adminPng = COMP_ICONS[adminEntry.icon];
       expect(adminPng, `设计中心 ${c.type} 无对应图标`).toBeTruthy();
+      // 🔴 反馈 #294 起移动端图标为 base64 内联（无文件名），改用「源 PNG 名映射」比对：
+      //   COMP_ICON_SOURCE_NAME 记录每个图标键对应的源 PNG 文件名，
+      //   断言移动端用的源文件名与设计中心一致（字节一致性由下一条测试钉死）。
+      const sourceName = COMP_ICON_SOURCE_NAME[c.iconKey];
+      expect(sourceName, `${c.type} 缺少图标源名映射`).toBeTruthy();
       expect(
-        basename(c.icon),
+        sourceName,
         `${c.type} 图标应与设计中心一致（设计中心用 ${basename(adminPng)}）`,
       ).toBe(basename(adminPng));
+    }
+  });
+
+  // 🔴 反馈 #294：移动端图标改为 base64 内联（真机小程序 4 个图标纯白不显示的根因是
+  //   vite import PNG 产生的 /assets/<name>.<hash>.png 路径随包版本漂移）。
+  //   「文件名一致」已不足以保证是同一张图 → 本测试升级为**字节级比对**：
+  //   移动端 base64 解码后的字节必须与 web-admin 设计中心同名 PNG 文件逐字节相同。
+  //   换图标时必须重跑 `node web-app/scripts/gen-comp-icons-base64.js`，否则本测试会红。
+  test('反馈 #294：移动端图标字节 === 设计中心同名 PNG 字节（base64 内联不漂移）', () => {
+    const adminIconDir = path.join(root, 'web-admin/src/assets/comp-icons');
+    for (const c of CARD_COMP_REGISTRY) {
+      const adminEntry = adminByType[c.type];
+      const adminPng = COMP_ICONS[adminEntry.icon];
+      const srcName = basename(adminPng);
+      // 移动端 base64 → Buffer
+      expect(String(c.icon).startsWith('data:image/png;base64,'), `${c.type} 图标未内联为 base64`).toBe(true);
+      const mobileBytes = Buffer.from(String(c.icon).split(',')[1], 'base64');
+      // 设计中心源 PNG → Buffer
+      const adminBytes = fs.readFileSync(path.join(adminIconDir, srcName));
+      expect(
+        mobileBytes.equals(adminBytes),
+        `${c.type} 图标字节与设计中心 ${srcName} 不一致（需重跑 gen-comp-icons-base64.js）`,
+      ).toBe(true);
+    }
+  });
+
+  test('反馈 #294：base64 图标数据可解码且为合法 PNG（非空、PNG 魔数正确）', () => {
+    for (const c of CARD_COMP_REGISTRY) {
+      const bytes = Buffer.from(String(c.icon).split(',')[1], 'base64');
+      expect(bytes.length, `${c.type} 图标字节为空`).toBeGreaterThan(100);
+      // PNG 魔数：89 50 4E 47
+      expect(bytes.subarray(0, 4).toString('hex'), `${c.type} 非 PNG 魔数`).toBe('89504e47');
     }
   });
 });

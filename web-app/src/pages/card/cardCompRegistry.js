@@ -8,38 +8,46 @@
  *   （单测同样钉死：mobile schema key ⊆ admin schema key）；`when` 条件显隐同 admin 语义。
  * - 图标复用设计中心（web-admin componentRegistry）同款 PNG 资产：反馈 #279 要求
  *   「添加组件」面板图标与设计中心一致，同类型直接取设计中心的图标。源 PNG 拷贝到
- *   web-app/src/assets/comp-icons/（非 admin 构建物，仅 6 个约 11KB，不进分包体积风险区），
- *   通过 import 以 URL 形式注入，渲染层用 <image> 呈现（不再用 emoji）。
+ *   web-app/src/assets/comp-icons/（非 admin 构建物，仅 6 个约 11KB，不进分包体积风险区）。
+ *
+ * 🔴 反馈 #294（真机小程序 4 个图标纯白不显示）——图标改为 base64 内联，**不用 vite import**：
+ *   import PNG → Vite 产物 `/assets/<name>.<hash>.png`（MP 端在主包根目录），该路径随构建
+ *   内容变化；真机跑的包一旦是历史版本（顶层无 assets/ 目录、图标还是 emoji <text> 机制），
+ *   新代码里的 /assets/*.png 必然落空 → <image> 加载失败**渲染纯白**（实测 8649/8649 像素
+ *   纯白 = 完全未加载，不是渲染错/被裁/被遮挡）。开发者工具能显示是因为它走当前工程目录，
+ *   不受「包版本」影响。
+ *   base64 内联后图标数据在 JS 里，与包版本、资源目录、/card/ 子路径 base 全部解耦
+ *   （MP 端 <image src="data:image/png;base64,..."> 原生支持，gen-mp-sicons.js 已验证）。
+ *   生成脚本：web-app/scripts/gen-comp-icons-base64.js（换图标须重跑，单测会验字节）。
  *
  * 🔴 新增组件类型时必须同步：admin componentRegistry + 本文件 + server card.js 的
  *    COMP_TYPES 白名单 + cardDetail.vue 渲染分支，五处一致（单测会抓漂移）。
  */
 import { sampleUrl } from '../../utils/sampleImages.js';
-// 设计中心同款组件图标（copy from web-admin/src/assets/comp-icons），与设计中心「添加组件」面板一致
-import iconPicture from '../../assets/comp-icons/picture.png';
-import iconChannelVideo from '../../assets/comp-icons/channelvideo.png';
-import iconNotice from '../../assets/comp-icons/notice.png';
-import iconMenu from '../../assets/comp-icons/menu.png';
-import iconRichtext from '../../assets/comp-icons/richtext.png';
-import iconLine from '../../assets/comp-icons/line.png';
+// 设计中心同款组件图标（copy from web-admin/src/assets/comp-icons），与设计中心「添加组件」面板一致。
+// 🔴 base64 内联而非 vite import：见文件头「反馈 #294」说明（真机图标纯白根因与修法）。
+import { COMP_ICON_DATA_URI } from '../../utils/compIconsBase64.js';
 
 export const CARD_COMP_REGISTRY = [
   {
     type: 'image',
     name: '图片',
-    icon: iconPicture,
-    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all' },
+    icon: COMP_ICON_DATA_URI.picture,
+    iconKey: 'picture',
+    defaultProps: { url: sampleUrl('banner'), link: '', widthMode: 'full', radius: 6, marginTop: 6, marginBottom: 0, mode: 'standard', style: 'single', items: [], bgColor: '', gap: 0, marginLR: 0, radiusTop: 0, radiusBottom: 0, cardStyle: 'default', borderColor: '#E5E6EB', imgFill: 'cover', imgPos: 'center', memberLevel: 'all', maxHeight: 0 },
     schema: [
       { key: 'url', label: '图片', control: 'image', section: 'content' },
       { key: 'link', label: '跳转', control: 'link', section: 'content' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
       { key: 'marginBottom', label: '下边距', control: 'slider', section: 'style', min: 0, max: 40 },
+      { key: 'maxHeight', label: '限高', control: 'slider', section: 'style', min: 0, max: 600, tips: '0 = 不限制。设置后图片按比例缩放到不超过该高度（不变形、不裁切），避免过长竖图撑爆版面' },
     ],
   },
   {
     type: 'channel-video',
     name: '视频号',
-    icon: iconChannelVideo,
+    icon: COMP_ICON_DATA_URI.channelVideo,
+    iconKey: 'channelVideo',
     defaultProps: { finderUserName: '', feedId: '', cover: sampleUrl('banner'), title: '', desc: '', bgColor: '#F7F8FA' },
     schema: [
       { key: 'finderUserName', label: '视频号ID', control: 'input', section: 'content', required: true, placeholder: '如 sPh7vD5...' },
@@ -52,12 +60,15 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'notice',
     name: '文本',
-    icon: iconNotice,
-    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all' },
+    icon: COMP_ICON_DATA_URI.notice,
+    iconKey: 'notice',
+    defaultProps: { text: '欢迎来到本店', bgColor: '#FFF7E8', color: '#FF7D00', url: '', items: [], iconType: 'system', iconImage: sampleUrl('square'), dataSource: 'custom', fontSize: 14, bold: false, style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all', align: 'left', offsetX: 0 },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'fontSize', label: '字号', control: 'slider', section: 'style', min: 12, max: 20 },
       { key: 'bold', label: '加粗', control: 'switch', section: 'style' },
+      { key: 'align', label: '对齐', control: 'radio', section: 'style', options: [{ label: '居左', value: 'left' }, { label: '居中', value: 'center' }, { label: '居右', value: 'right' }], tips: '整条公告（图标+文字）的对齐方式；居中/居右时文字不再撑满整行' },
+      { key: 'offsetX', label: '左边偏移', control: 'slider', section: 'style', min: -20, max: 60, tips: '整条公告相对容器左边再平移。负数向左；不影响宽度' },
       { key: 'bgColor', label: '背景色', control: 'color', section: 'style' },
       { key: 'color', label: '文字色', control: 'color', section: 'style' },
       { key: 'marginTop', label: '上边距', control: 'slider', section: 'style', min: 0, max: 40 },
@@ -67,13 +78,18 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'button',
     name: '按钮',
-    icon: iconMenu,
+    icon: COMP_ICON_DATA_URI.menu,
+    iconKey: 'menu',
     // defaultProps 与 admin 逐字一致（含 widthPercent/boxOffsetX：C 端渲染走共享
     // buttonSizeStyle，宽度基准=视口，与 admin 画布同语义，防两端漂移）
-    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
+    defaultProps: { text: '立即查看', textColor: '#ffffff', bgColor: '#165DFF', radius: 6, url: '', linkType: 'internal', miniAppId: '', miniAppPath: '', miniAppEnv: 'release', btnStyle: 'fill', strokeColor: '#165DFF', widthMode: 'full', widthPercent: 100, boxOffsetX: 0, marginTop: 6, marginBottom: 0, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', required: true },
       { key: 'url', label: '跳转', control: 'link', section: 'content', placeholder: '如 /pages/card/market' },
+      { key: 'linkType', label: '跳转类型', control: 'radio', section: 'content', options: [{ label: '内部页面', value: 'internal' }, { label: '外部小程序', value: 'miniapp' }, { label: '网页链接', value: 'web' }, { label: '拨打电话', value: 'phone' }], tips: '默认内部页面；外部小程序需填 AppID（同一开放平台下的小程序才能跳转）' },
+      { key: 'miniAppId', label: '小程序 AppID', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'wx1234567890abcdef' },
+      { key: 'miniAppPath', label: '小程序页面路径', control: 'input', section: 'content', when: { linkType: 'miniapp' }, placeholder: 'pages/index/index，可留空进首页' },
+      { key: 'miniAppEnv', label: '跳转版本', control: 'radio', section: 'content', when: { linkType: 'miniapp' }, options: [{ label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' }] },
       { key: 'btnStyle', label: '按钮样式', control: 'radio', section: 'style', options: [{ label: '填充', value: 'fill' }, { label: '描边', value: 'outline' }] },
       { key: 'strokeColor', label: '描边色', control: 'color', section: 'style', when: { btnStyle: 'outline' } },
       { key: 'widthMode', label: '按钮宽度', control: 'radio', section: 'style', options: [{ label: '整行', value: 'full' }, { label: '自适应', value: 'auto' }] },
@@ -89,7 +105,8 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'rich-text',
     name: '富文本',
-    icon: iconRichtext,
+    icon: COMP_ICON_DATA_URI.richtext,
+    iconKey: 'richtext',
     defaultProps: { html: '<p>富文本内容</p>', bottomBg: 'transparent', compBgColor: '#ffffff', style: 'default', borderColor: '#E5E6EB', marginTop: 6, marginBottom: 0, marginLR: 0, radiusTop: 6, radiusBottom: 6, memberLevel: 'all' },
     schema: [
       { key: 'html', label: '内容', control: 'richtext', section: 'content' },
@@ -103,7 +120,8 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'divider',
     name: '分割线',
-    icon: iconLine,
+    icon: COMP_ICON_DATA_URI.line,
+    iconKey: 'line',
     defaultProps: { text: '', color: '#E5E6EB', thickness: 1, lineStyle: 'solid', marginTop: 6, marginBottom: 14, memberLevel: 'all' },
     schema: [
       { key: 'text', label: '文字', control: 'input', section: 'content', placeholder: '选填，显示在分割线中间' },
@@ -117,7 +135,8 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'spacer',
     name: '空白占位',
-    icon: iconLine,
+    icon: COMP_ICON_DATA_URI.line,
+    iconKey: 'line',
     defaultProps: { height: 20, bgColor: '', memberLevel: 'all' },
     schema: [
       { key: 'height', label: '空白高度', control: 'slider', section: 'content', min: 4, max: 120 },
@@ -127,7 +146,8 @@ export const CARD_COMP_REGISTRY = [
   {
     type: 'button-group',
     name: '按钮组',
-    icon: iconMenu,
+    icon: COMP_ICON_DATA_URI.menu,
+    iconKey: 'menu',
     // 2-5 个按钮的横排操作组；buttons 由装修页自定义编辑器维护（移动端 schema 不含 list 控件，
     // 故按钮明细走 cardEdit 的专属编辑器，间距/边距走通用滑块）。defaultProps 与 admin 逐字一致。
     defaultProps: {

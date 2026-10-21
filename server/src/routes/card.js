@@ -568,6 +568,29 @@ export function createCardRouter(db, wxService) {
   // ============================================================
   // 语音简介上传（阶段C：上传音频；克隆语音后续新增）
   // ============================================================
+  /**
+   * 🔴 反馈 #297：MIME 白名单放宽。
+   *   原实现只认 AUDIO_MIME 白名单里的精确 MIME，**MP 端上传常带
+   *   `application/octet-stream`**（uni.uploadFile 不设置 fileType → multer 拿到 octet-stream）
+   *   → 直接 400「仅支持 mp3/wav/...」，用户表现为「点击上传没反应/失败」。
+   *   现在改为「MIME 命中 **或** 文件后缀是已知音频后缀」即放行，
+   *   并按后缀决定存储扩展名（录音产物 mp3 走这条路）。
+   */
+  function resolveAudioExt(file) {
+    const orig = String(file.originalname || '');
+    const ext = (path.extname(orig) || '').toLowerCase();
+    const known = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.webm', '.amr', '.silk', '.aiff'];
+    if (known.includes(ext)) return ext;
+    const mime = (file.mimetype || '').toLowerCase();
+    if (mime === 'audio/mpeg') return '.mp3';
+    if (mime === 'audio/wav' || mime === 'audio/x-wav') return '.wav';
+    if (mime === 'audio/mp4' || mime === 'audio/x-m4a' || mime === 'audio/m4a') return '.m4a';
+    if (mime === 'audio/aac') return '.aac';
+    if (mime === 'audio/ogg') return '.ogg';
+    if (mime === 'audio/webm') return '.webm';
+    return '';
+  }
+
   router.post('/voice-upload', auth, (req, res) => {
     voiceUpload.single('file')(req, res, async (err) => {
       if (err) {
@@ -576,19 +599,83 @@ export function createCardRouter(db, wxService) {
       }
       if (!req.file) return res.status(400).json({ error: '未收到音频文件' });
       const mime = (req.file.mimetype || '').toLowerCase();
-      if (!AUDIO_MIME.has(mime)) {
+      const ext = resolveAudioExt(req.file);
+      if (!AUDIO_MIME.has(mime) && !ext) {
         return res.status(400).json({ error: '仅支持 mp3/wav/m4a/aac/ogg 音频格式' });
       }
-      const ext = (path.extname(req.file.originalname || '') || '.mp3').toLowerCase().replace(/[^a-z0-9.]/g, '');
+      const safeExt = ext || '.mp3';
       try {
         const storage = await getStorage(db);
-        const url = await storage.put(req.file.buffer, `voice-card-${req.user.id}-${Date.now()}${ext}`);
-        res.status(201).json({ url, name: req.file.originalname || '语音简介' });
+        const url = await storage.put(req.file.buffer, `voice-card-${req.user.id}-${Date.now()}${safeExt}`);
+        // 🔴 顺手记入历史表（上传来源），用户可在「历史音频」里直接选用
+        const name = req.file.originalname || '语音简介';
+        try {
+          db.prepare('INSERT INTO card_voice_history (user_id, url, name, source, duration_sec, size_bytes) VALUES (?,?,?,?,?,?)')
+            .run(req.user.id, url, name, 'upload', 0, req.file.size || req.file.buffer.length || 0);
+        } catch (e2) { console.error('语音历史写入失败（不影响上传）:', e2?.message || e2); }
+        res.status(201).json({ url, name });
       } catch (e) {
         console.error('语音上传失败:', e);
         res.status(500).json({ error: '语音上传失败' });
       }
     });
+  });
+
+  // —— 语音简介历史记录（反馈 #297）——
+  // GET  列表（当前用户，按时间倒序）
+  // POST 录音上传（source='record'，前端在线录音产出的 mp3）
+  // DELETE /voice-history/:id 删除一条历史
+  router.get('/voice-history', auth, (req, res) => {
+    const rows = db.prepare('SELECT * FROM card_voice_history WHERE user_id = ? ORDER BY id DESC LIMIT 100').all(req.user.id);
+    res.json({
+      voices: rows.map((r) => ({
+        id: r.id, url: r.url, name: r.name || '语音简介',
+        source: r.source, durationSec: r.duration_sec || 0, sizeBytes: r.size_bytes || 0,
+        createdAt: r.created_at,
+      })),
+    });
+  });
+
+  router.post('/voice-history', auth, (req, res) => {
+    voiceUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? '音频大小不能超过 10MB' : err.message;
+        return res.status(400).json({ error: message });
+      }
+      if (!req.file) return res.status(400).json({ error: '未收到音频文件' });
+      const mime = (req.file.mimetype || '').toLowerCase();
+      const ext = resolveAudioExt(req.file);
+      if (!AUDIO_MIME.has(mime) && !ext) {
+        return res.status(400).json({ error: '仅支持 mp3/wav/m4a/aac/ogg 音频格式' });
+      }
+      const safeExt = ext || '.mp3';
+      const durationSec = Math.max(0, Math.min(600, Number(req.body?.durationSec) || 0));
+      try {
+        const storage = await getStorage(db);
+        const url = await storage.put(req.file.buffer, `voice-rec-${req.user.id}-${Date.now()}${safeExt}`);
+        const name = req.body?.name || `录音 ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
+        const info = db.prepare('INSERT INTO card_voice_history (user_id, url, name, source, duration_sec, size_bytes) VALUES (?,?,?,?,?,?)')
+          .run(req.user.id, url, name, 'record', durationSec, req.file.size || req.file.buffer.length || 0);
+        res.status(201).json({
+          voice: {
+            id: info.lastInsertRowid, url, name, source: 'record',
+            durationSec, sizeBytes: req.file.size || 0, createdAt: new Date().toISOString(),
+          },
+        });
+      } catch (e) {
+        console.error('录音上传失败:', e);
+        res.status(500).json({ error: '录音上传失败' });
+      }
+    });
+  });
+
+  router.delete('/voice-history/:id', auth, (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: '参数错误' });
+    // 🔴 严格按 user_id 限定，防跨用户删他人记录
+    const info = db.prepare('DELETE FROM card_voice_history WHERE id = ? AND user_id = ?').run(id, req.user.id);
+    if (!info.changes) return res.status(404).json({ error: '记录不存在' });
+    res.json({ ok: true });
   });
 
   // 用户头像上传（个人中心「编辑资料」）：图片 ≤5MB，存对象存储返回 URL
@@ -611,6 +698,38 @@ export function createCardRouter(db, wxService) {
       } catch (e) {
         console.error('头像上传失败:', e);
         res.status(500).json({ error: '头像上传失败' });
+      }
+    });
+  });
+
+  // 动态配图上传（发布动态时选图）→ 返回 URL 供 card_dynamic.images 使用
+  // 🔴 与头像上传同 multer 实例（voiceUpload），但单独走图片 MIME 白名单。
+  //   MP 端 chooseMedia 选出的临时文件后缀是 .jpg 但 contentType 常为 application/octet-stream，
+  //   这里按「后缀 + MIME 双判」放宽，避免小程序端上传直接 400（与语音上传同理）。
+  router.post('/dynamic/image-upload', auth, (req, res) => {
+    voiceUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? '图片不能超过 10MB' : err.message;
+        return res.status(400).json({ error: message });
+      }
+      if (!req.file) return res.status(400).json({ error: '未收到图片文件' });
+      const mime = (req.file.mimetype || '').toLowerCase();
+      const origName = String(req.file.originalname || '');
+      const ext = (path.extname(origName) || '').toLowerCase();
+      const mimeOk = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(mime);
+      // MP 端临时文件常无扩展名/带 octet-stream → 允许按已知图片后缀放行
+      const extOk = ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext);
+      if (!mimeOk && !extOk) {
+        return res.status(400).json({ error: '仅支持 png/jpg/webp 图片' });
+      }
+      const safeExt = extOk ? ext : (mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : '.jpg');
+      try {
+        const storage = await getStorage(db);
+        const url = await storage.put(req.file.buffer, `dynamic-u${req.user.id}-${Date.now()}${safeExt}`);
+        res.status(201).json({ url });
+      } catch (e) {
+        console.error('动态配图上传失败:', e);
+        res.status(500).json({ error: '图片上传失败' });
       }
     });
   });
@@ -1985,8 +2104,19 @@ export function createCardRouter(db, wxService) {
   router.post('/dynamics', auth, (req, res) => {
     const { content, images, visibility, title, cardId } = req.body;
     if (!content) return res.status(400).json({ error: '内容不能为空' });
+    // 🔴 反馈 #295：原实现 `cardId || null` → card_id=NULL，而名片页公开动态列表按
+    //    `card_id = ? AND visibility='public'` 过滤 → 公开动态永远不上名片页（发了没人看）。
+    //    现在未显式指定 cardId 时，自动挂到该用户名下**最近创建的名片**上。
+    let targetCardId = cardId ? Number(cardId) : null;
+    if (!targetCardId) {
+      const own = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
+      targetCardId = own ? own.id : null;
+    }
+    // 可见范围归一：只认 'private'，其余一律 'public'（与 toDynamic 的兜底一致）
+    const vis = visibility === 'private' ? 'private' : 'public';
+    const imgList = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u).slice(0, 9) : [];
     const result = db.prepare('INSERT INTO card_dynamic (user_id, card_id, title, content, images, visibility) VALUES (?,?,?,?,?,?)')
-      .run(req.user.id, cardId || null, title || '', content, JSON.stringify(images || []), visibility || 'public');
+      .run(req.user.id, targetCardId, title || '', content, JSON.stringify(imgList), vis);
     const dynamic = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d
       LEFT JOIN platform_user u ON d.user_id = u.id WHERE d.id = ?`).get(result.lastInsertRowid);
     res.json({ dynamic: toDynamic(dynamic) });
@@ -2179,6 +2309,11 @@ export function createCardRouter(db, wxService) {
       likedByMe: !!likedByMe,
       id: row.id, userId: row.user_id, cardId: row.card_id, title: row.title || '',
       content: row.content, images, likeCount: row.like_count || 0, commentCount: row.comment_count || 0,
+      // 🔴 反馈 #295：visibility 之前**漏在这里** → 序列化出口恒无该字段 →
+      //    前端 `d.visibility === 'public' ? '公开' : '仅自己'` 判据恒走「仅自己」，
+      //    即使用户在发布弹窗选了「公开」。这是「选公开却显示仅自己」的根因。
+      //    兜底 'public'：库里默认就是 public，老数据 visibility 为空也应显示「公开」。
+      visibility: row.visibility === 'private' ? 'private' : 'public',
       authorName: row.nickname || '', authorAvatar: row.avatar || '',
       createdAt: row.created_at,
     };

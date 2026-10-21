@@ -1145,6 +1145,23 @@ function migrate(db) {
     CREATE INDEX IF NOT EXISTS idx_dynamic_user ON card_dynamic(user_id);
     CREATE INDEX IF NOT EXISTS idx_dynamic_visibility ON card_dynamic(visibility, status);
 
+    -- 🔴 反馈 #297：语音简介历史记录（上传过的音频 / 在线录的 MP3 都进这里，可直接选用）
+    --   之前 card_profile.voice_url/voice_name 是**单值字段**（只有当前这一条），
+    --   换音频后旧的就没了 → 用户要求「上传过或录过的音频有历史记录，可直接选择使用」。
+    --   source: 'upload'（从文件/聊天选） | 'record'（在线录音）
+    --   duration_sec: 录音时长（秒）；上传的音频服务端解析不到时长则留 0
+    CREATE TABLE IF NOT EXISTS card_voice_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      url TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT 'upload',
+      duration_sec INTEGER NOT NULL DEFAULT 0,
+      size_bytes INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_voice_history_user ON card_voice_history(user_id, id DESC);
+
     -- 动态点赞（防重复）
     CREATE TABLE IF NOT EXISTS card_dynamic_like (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

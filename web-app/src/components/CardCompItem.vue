@@ -6,12 +6,15 @@
        interactive=false 时（装修页）不触发跳转/拉起视频号，只把点击冒泡给父级处理。 -->
   <view class="cci-root">
     <!-- 图片 -->
+    <!-- 图片：maxHeight>0 时改用 aspectFit + maxHeight 实现「按比例缩放到不超过限高」
+         （widthFix 是宽度固定、高度自适应，**无法限高**；aspectFit 等比缩放不裁切不变形）。
+         maxHeight=0 → 保持原 widthFix 行为（向后兼容存量配置）。 -->
     <image
       v-if="type === 'image' && props.url && !imgFailed"
       class="cc-img"
       :src="resolveAssetUrl(props.url)"
-      mode="widthFix"
-      :style="ccStyle"
+      :mode="imgMaxHeight > 0 ? 'aspectFit' : 'widthFix'"
+      :style="[ccStyle, imgMaxHeight > 0 ? { maxHeight: imgMaxHeight + 'px', width: 'auto', height: 'auto', maxWidth: '100%', margin: '0 auto' } : null]"
       @error="imgFailed = true"
       @click="onTap('link', props.link)"
     />
@@ -34,11 +37,11 @@
     <view
       v-else-if="type === 'notice'"
       class="cc-notice"
-      :style="[ccStyle, { background: props.bgColor || 'transparent', color: props.color || '#1d2129', fontSize: (props.fontSize || 14) + 'px', fontWeight: props.bold ? 600 : 400 }]"
+      :style="[ccStyle, noticeStyle]"
       @click="onTap('link', props.url)"
     >
       <text class="cc-notice-dot"></text>
-      <text class="cc-notice-text">{{ props.text }}</text>
+      <text class="cc-notice-text" :class="{ 'cc-notice-text-inline': noticeAlign !== 'left' }">{{ props.text }}</text>
     </view>
 
     <!-- 分割线 -->
@@ -83,6 +86,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+// 🔴 反馈 #298：统一跳转执行（外部小程序/网页/电话）
+import { execCompLink } from '../utils/compLink.js';
 import SIcon from './SIcon.vue';
 import { buttonSizeStyle } from '../utils/btnSize.js';
 import { resolveAssetUrl } from '../utils/design.js';
@@ -111,6 +116,37 @@ const ccStyle = computed(() => {
   if (type.value === 'image' && p.radius) st.borderRadius = p.radius + 'px';
   return st;
 });
+
+// 🔴 反馈 #299：文本组件「居中/居左/居右」+「左边偏移」
+//   语义判定（用户只说「居中」，需定死）：**整条公告（圆点 + 文字）的对齐方式**，
+//   而不是仅文字区——因为文字区是 flex:1 撑满整行的，只对齐文字等于「左对齐 + 后面留白」，
+//   视觉上等同于没生效。故居中/居右时改为 justify-content 对应值，且文字区不再 flex:1。
+const noticeAlign = computed(() => {
+  const a = props.value.align;
+  return a === 'center' || a === 'right' ? a : 'left';
+});
+
+const noticeStyle = computed(() => {
+  const p = props.value;
+  const st = {
+    background: p.bgColor || 'transparent',
+    color: p.color || '#1d2129',
+    fontSize: (p.fontSize || 14) + 'px',
+    fontWeight: p.bold ? 600 : 400,
+  };
+  if (noticeAlign.value === 'center') st.justifyContent = 'center';
+  else if (noticeAlign.value === 'right') st.justifyContent = 'flex-end';
+  // 左边偏移：整条公告相对容器左边平移（负数向左）。用 marginLeft 而非 transform，
+  // 避免 transform 造层叠上下文影响点击热区。
+  const off = Number(p.offsetX) || 0;
+  if (off) st.marginLeft = off + 'px';
+  return st;
+});
+
+// 🔴 反馈 #299：图片组件限高（按比例缩放）
+//   maxHeight = 0 → 不限制（保持原 mode="widthFix" 行为，向后兼容存量配置）
+//   maxHeight > 0 → 固定高容器 + aspectFit 等比缩放（不裁切、不变形）
+const imgMaxHeight = computed(() => Math.max(0, Number(props.value.maxHeight) || 0));
 
 const btnStyle = computed(() => {
   const p = props.value;
@@ -171,10 +207,26 @@ function sanitizeRichHtml(h) {
 }
 
 /** 组件内链接：站内页面路径跳转；外链/空值忽略 */
+/**
+ * 组件链接跳转（🔴 反馈 #298：支持外部小程序 / 网页 / 电话，默认内部页面）
+ * 与 DesignPage.vue 的 onJump 走同一套语义（utils/compLink.js）→ 两条 C 端路径不分裂。
+ */
 function jumpCompLink(link) {
   const l = String(link || '').trim();
   if (!l || !l.startsWith('/')) return;
   uni.navigateTo({ url: l, fail: () => {} });
+}
+
+/** 从组件 props 构造链接配置（🔴 反馈 #298） */
+function compLinkOf(p) {
+  const o = p || {};
+  return {
+    url: o.url || '',
+    linkType: o.linkType || 'internal',
+    miniAppId: o.miniAppId || '',
+    miniAppPath: o.miniAppPath || '',
+    miniAppEnv: o.miniAppEnv || 'release',
+  };
 }
 
 function openChannelVideo(v) {
@@ -189,8 +241,13 @@ function openChannelVideo(v) {
 function onTap(kind, extra) {
   emit('tap', { kind, value: extra, comp: propsDef.comp });
   if (!propsDef.interactive) return; // 装修页：不跳转，交给列表处理选中/编辑
-  if (kind === 'video') openChannelVideo(props.value);
-  else jumpCompLink(extra);
+  if (kind === 'video') {
+    openChannelVideo(props.value);
+    return;
+  }
+  // 🔴 反馈 #298：link 类跳转统一走 execCompLink（内部页面/外部小程序/网页/电话）
+  if (execCompLink(compLinkOf(props.value))) return;
+  jumpCompLink(extra);
 }
 </script>
 
@@ -261,6 +318,9 @@ function onTap(kind, extra) {
   flex-shrink: 0;
 }
 .cc-notice-text { flex: 1; }
+/* 🔴 反馈 #299：居中/居右时文字区不再 flex:1 撑满（否则文字永远贴左，等于没生效） */
+.cc-notice-text-inline { flex: none; }
+
 .cc-divider {
   display: flex;
   align-items: center;

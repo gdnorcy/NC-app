@@ -74,6 +74,9 @@ const svgMap = {
   dynamic: '<path d="M21 11.5c0 4.3-4 7.8-9 7.8-1.2 0-2.4-.2-3.4-.6L4 21l1.6-3.4C4.2 16.2 3 14.3 3 11.5 3 7.2 7 3.7 12 3.7s9 3.5 9 7.8z"/><circle cx="8.2" cy="11.5" r="0.9" fill="currentColor"/><circle cx="12" cy="11.5" r="0.9" fill="currentColor"/><circle cx="15.8" cy="11.5" r="0.9" fill="currentColor"/>',
   play: '<g transform="translate(12 12) scale(1.2) translate(-13.5 -12)"><path d="M8 5v14l11-7z"/></g>',
   pause: '<g transform="translate(12 12) scale(1.2) translate(-12 -12)"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></g>',
+  // mic：反馈 #297 在线录音按钮图标。值必须是单行单引号字面量（gen-mp-sicons.js 与
+  // server/src/routes/card.js 都用正则逐行解析本表，不能写成变量别名）。
+  mic: '<path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z"/><path d="M18 11a1 1 0 00-1 1 5 5 0 01-10 0 1 1 0 00-2 0 7 7 0 006 6.9V21a1 1 0 002 0v-2.1A7 7 0 0020 11a1 1 0 00-1 1z"/>',
   dashboard: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   apps: '<circle cx="6" cy="6" r="1.8" fill="currentColor"/><circle cx="12" cy="6" r="1.8" fill="currentColor"/><circle cx="18" cy="6" r="1.8" fill="currentColor"/><circle cx="6" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="18" cy="12" r="1.8" fill="currentColor"/><circle cx="6" cy="18" r="1.8" fill="currentColor"/><circle cx="12" cy="18" r="1.8" fill="currentColor"/><circle cx="18" cy="18" r="1.8" fill="currentColor"/>',
   orders: '<path d="M6 2h12l2 4v15a1 1 0 01-1 1H5a1 1 0 01-1-1V6l2-4z"/><path d="M6 6h12"/><path d="M9 12h6M9 16h4"/>',

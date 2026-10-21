@@ -98,6 +98,14 @@
       <view class="ce-cancel" @click="showPanel = false">取消</view>
     </view>
 
+    <!-- 🔴 反馈 #298：链接选择器（外部小程序 / 内部页面可视化选择） -->
+    <CardLinkPicker
+      v-if="showLinkPicker"
+      v-model="showLinkPicker"
+      :value="linkPickerValue"
+      @change="onLinkPicked"
+    />
+
     <!-- 组件配置弹窗（按注册表 schema 渲染控件子集） -->
     <view v-if="editing" class="ce-mask" @click="closeEdit"></view>
     <view v-if="editing" class="ce-modal">
@@ -118,7 +126,16 @@
           </view>
           <view v-else-if="fieldVisible(f) && (f.section !== 'style' || styleOpen)" class="ce-field">
             <text class="ce-label">{{ f.label }}</text>
-            <view v-if="f.control === 'input' || f.control === 'link'" class="ce-input-wrap">
+            <!-- 🔴 反馈 #298：link 控件改为「只读回显 + 点击打开移动端链接选择器」
+                 （参考后台 LinkPicker 的目标类型/外部小程序能力，但按手机交互重做：
+                  横向胶囊分段 + 搜索 + 粘贴按钮；后台是 el-dialog 双栏，手机上放不下）。 -->
+            <view v-if="f.control === 'link'" class="ce-input-wrap" @click="openLinkPicker(f.key)">
+              <view class="ce-input ce-link-display" :class="{ ph: !linkDisplay(f.key) }">
+                {{ linkDisplay(f.key) || (f.placeholder || '请选择跳转目标') }}
+              </view>
+              <text class="ce-link-arrow">›</text>
+            </view>
+            <view v-else-if="f.control === 'input'" class="ce-input-wrap">
               <input
                 class="ce-input"
                 v-model="editing.props[f.key]"
@@ -284,6 +301,8 @@ import { useDesignTheme, resolveAssetUrl } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 import { getNavMetrics } from '../../utils/navMetrics.js';
 import { CARD_COMP_REGISTRY, getCompDef, compDefaultProps } from './cardCompRegistry.js';
+import CardLinkPicker from './CardLinkPicker.vue';
+import { miniPageTitle } from '../../utils/miniPages.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
@@ -319,6 +338,60 @@ const editing = ref(null); // { key, type, props } 编辑中的副本
 const saving = ref(false);
 // 弹窗样式段折叠态（每次打开重置为收起，默认只露内容字段）
 const styleOpen = ref(false);
+// 🔴 反馈 #298：链接选择器（移动端化）
+const showLinkPicker = ref(false);
+const linkPickerKey = ref('');   // 正在编辑的 link 字段名（如 'url'）
+
+/** 当前 link 字段对应的完整链接配置（供选择器回显与编辑） */
+const linkPickerValue = computed(() => {
+  if (!editing.value || !linkPickerKey.value) return {};
+  const p = editing.value.props || {};
+  return {
+    url: p.url || '',
+    linkType: p.linkType || 'internal',
+    miniAppId: p.miniAppId || '',
+    miniAppPath: p.miniAppPath || '',
+    miniAppEnv: p.miniAppEnv || 'release',
+  };
+});
+
+/** 打开链接选择器 */
+function openLinkPicker(key) {
+  linkPickerKey.value = key;
+  showLinkPicker.value = true;
+}
+
+/** 选择器回填：把链接配置写回组件 props */
+function onLinkPicked(v) {
+  if (!editing.value) return;
+  const p = editing.value.props;
+  p.url = v.url || '';
+  p.linkType = v.linkType || 'internal';
+  p.miniAppId = v.miniAppId || '';
+  p.miniAppPath = v.miniAppPath || '';
+  p.miniAppEnv = v.miniAppEnv || 'release';
+}
+
+/** link 字段的只读回显文案（按跳转类型给出人能看懂的目标） */
+function linkDisplay(key) {
+  if (!editing.value) return '';
+  const p = editing.value.props || {};
+  const type = p.linkType || 'internal';
+  if (type === 'miniapp') {
+    if (!p.miniAppId) return '';
+    const name = p.miniAppPath || '首页';
+    return `小程序 ${p.miniAppId} · ${name}`;
+  }
+  if (type === 'phone') return p.url ? `电话 ${p.url}` : '';
+  if (type === 'web') return p.url || '';
+  // internal：显示页面标题（找不到标题则回退路径）
+  if (!p.url) return '';
+  const t = miniPageTitle(p.url);
+  return t ? `${t}（${p.url}）` : p.url;
+}
+// 🔴 反馈 #298：链接选择器（移动端化）
+const showLinkPicker = ref(false);
+const linkPickerKey = ref('');   // 正在编辑的 link 字段名（如 'url'）
 // 页内实时预览（含未保存修改，不用退到名片详情页）
 const showPreview = ref(false);
 // 预览层导航度量：custom nav 页面的 fixed 层顶到屏幕物理原点，必须 JS 实测避让
