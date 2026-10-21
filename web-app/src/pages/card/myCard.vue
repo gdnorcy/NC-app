@@ -107,6 +107,12 @@
         <view class="osr-main"><view class="osr-name">展示设置</view><view class="osr-desc">公开状态、模板样式</view></view>
         <text class="osr-arrow">›</text>
       </view>
+      <!-- 个性化分享（2026-10-21）：选转发封面风格 + 改分享标题，转发出去就是自己的样子 -->
+      <view class="os-row" @click="goShareStyle">
+        <view class="osr-icon"><SIcon name="channel" size="default" :color="themeColor" /></view>
+        <view class="osr-main"><view class="osr-name">个性化分享</view><view class="osr-desc">转发封面风格、分享标题</view></view>
+        <text class="osr-arrow">›</text>
+      </view>
       <view class="os-row" @click="goWorksEdit">
         <view class="osr-icon"><SIcon name="category" size="default" :color="themeColor" /></view>
         <view class="osr-main"><view class="osr-name">作品管理</view><view class="osr-desc">上传 / 排序作品图，展示在名片「作品」标签</view></view>
@@ -489,6 +495,11 @@ function goNeedTags() {
 function goDisplaySettings() {
   if (!pageCardId.value) return;
   uni.navigateTo({ url: `/pages/card/displaySettings?id=${pageCardId.value}` });
+}
+/** 个性化分享（转发封面风格 + 分享标题） */
+function goShareStyle() {
+  if (!pageCardId.value) return;
+  uni.navigateTo({ url: `/pages/card/shareStyle?id=${pageCardId.value}` });
 }
 function goWorksEdit() {
   if (!pageCardId.value) return;

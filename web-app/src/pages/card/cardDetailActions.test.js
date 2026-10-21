@@ -248,9 +248,38 @@ describe('cardDetail 转发分享配置', () => {
     expect(src).toMatch(/onShareAppMessage\(\(\) => \{/);
   });
 
-  test('转发标题=姓名·职位·公司，路径带名片 id，头像需完整 URL', () => {
-    expect(src).toMatch(/\[c\.name, c\.position, c\.company\]\.filter\(Boolean\)\.join\(' · '\)/);
+  // 🔴 2026-10-21 重做转发：标题抽到 utils/shareCover.resolveShareTitle（可被「个性化分享」页覆盖），
+  //    imageUrl 改为 promise 模式现场 canvas 画 5:4 封面。旧断言钉死的是**本来就失效**的实现
+  //    （imageUrl: /^https?:/.test(c.avatar) 在生产库必然落空，avatar 是 wxfile:// 临时路径）。
+  test('转发标题走 resolveShareTitle（可被用户覆盖），路径带名片 id', () => {
+    expect(src).toMatch(/import \{[^}]*resolveShareTitle[^}]*\} from '\.\.\/\.\.\/utils\/shareCover\.js'/);
+    expect(src).toMatch(/title: resolveShareTitle\(c\)/);
     expect(src).toMatch(/path: `\/pages\/card\/cardDetail\?id=\$\{c\.id \|\| ''\}`/);
-    expect(src).toMatch(/imageUrl: \/\^https\?:\/\.test\(c\.avatar \|\| ''\) \? c\.avatar : ''/);
+  });
+
+  test('转发封面用 promise 模式现场绘制，不再直接拿 avatar 当缩略图', () => {
+    expect(src).toMatch(/promise: buildShareImageUrl\(c\)/);
+    expect(src).toMatch(/function buildShareImageUrl\(c\)/);
+    // 旧实现（avatar 是 wxfile:// 临时路径，https 判据必然落空）必须已移除。
+    // ⚠️ 必须剥注释再断言：源码里那段「原实现如何如何」的说明注释含同样字面量。
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    expect(code).not.toMatch(/\^https\?:\/\.test\(c\.avatar/);
+    // 画失败降级为空串（微信回落默认截图），绝不 reject
+    expect(src).toMatch(/resolve\(''\)/);
+  });
+
+  test('canvas 不能 display:none（MP 端查不到节点），且 getCurrentInstance 在 setup 顶层取', () => {
+    expect(src).toMatch(/id="shareCoverCanvas"/);
+    const css = src.slice(src.indexOf('.share-cover-canvas {'));
+    const block = css.slice(0, css.indexOf('}'));
+    expect(block).not.toMatch(/display:\s*none/);
+    // 🔴 getCurrentInstance() 只能在 setup 顶层调用（事件处理器/await 之后一律返回 null）
+    expect(src).toMatch(/const detailInst = getCurrentInstance\(\)/);
+    expect(src).toMatch(/q\.in\(detailInst\.proxy\)/);
+  });
+
+  test('用户选的封面风格透传到绘制函数', () => {
+    expect(src).toMatch(/exportShareCover\(res\[0\]\.node, c, c\.shareStyle \|\| 'cover-1'/);
+    expect(src).toMatch(/resolveBrandColors\(/);
   });
 });

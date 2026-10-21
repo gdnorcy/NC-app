@@ -444,6 +444,13 @@
 
     <!-- 底部TabBar（公共组件：名片/雷达/集市/会员） -->
     <CardTabBar active="card" />
+
+    <!-- 转发封面画布（MP 端 onShareAppMessage 现场绘制用）
+         🔴 不能 display:none —— MP 端节点查不到，createSelectorQuery 拿不到 node。
+            用 position:fixed + 负偏移移出屏幕（与 myCard 的 posterCanvas 同法）。 -->
+    <!-- #ifdef MP-WEIXIN -->
+    <canvas id="shareCoverCanvas" type="2d" class="share-cover-canvas"></canvas>
+    <!-- #endif -->
   </view>
 </template>
 
@@ -451,7 +458,7 @@
 import { ICON_DECOR } from '../../utils/iconColor.js';
 import { useTabBarPadding, tabBarSpaceRpx, TAB_BAR_GAP_RPX } from '../../utils/cardTabBarSpace.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
 import { onUnload, onShow, onPageScroll as registerPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { track, trackPageView } from '../../utils/analytics.js';
@@ -467,6 +474,8 @@ import CardCompItem from '../../components/CardCompItem.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { getNavMetrics, navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
+import { resolveShareTitle, resolveBrandColors } from '../../utils/shareCover.js';
+import { exportShareCover } from '../../utils/shareCoverExport.js';
 // 按钮宽度走共享实现（与 admin 画布 / C 端 DesignPage 同一份）：vw 视口基准，
 // 勿在本页私藏副本——项目已因各处私藏导致「设计器与真机不一致」多次
 
@@ -478,6 +487,12 @@ const themeStyle = useDesignTheme();
 // 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
 const tabBarPad = useTabBarPadding();
 // SIcon 不能消费 var()（构建期烘焙 hex），需真实 hex 的图标/开关用这个。
+// 🔴 转发封面画布的实例必须**在 setup 顶层取一次**：
+//    Vue 3 的 getCurrentInstance() 依赖 setup 调用栈里的 currentInstance 全局量，
+//    在事件处理器里 / await 之后调一律返回 null → q.in(null.proxy) 抛 TypeError
+//    → 被 catch 吞成「无缩略图」。同项目 components/CardTabBar.vue 是正确写法。
+const detailInst = getCurrentInstance();
+
 // 品牌主色优先：与下面 brandVars 同源（取被查看名片自身的品牌色），保证同页不出现两种色。
 // ⚠️ brand 声明在下方，computed 惰性求值（首次渲染时已过 setup），不存在 TDZ。
 const themeColor = computed(() => (brand.value && brand.value.primary) || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
@@ -1175,19 +1190,63 @@ function copyCardText() {
   uni.setClipboardData({ data: lines, success: () => uni.showToast({ title: '名片信息已复制', icon: 'none' }) });
 }
 
-// 转发名片（MP 右上角菜单）：标题「姓名·职位·公司」+ 路径带名片 id，
-// 缩略图用头像（需完整 URL，相对路径 MP 会静默失败→不带）。
-// 🔴 2026-10-21 前本页没有 onShareAppMessage：转发走系统默认（无标题/无图），
-//    「分享出去的效果」不可控；补上之后转发卡片与名片详情页一致。
+// 转发名片（MP 右上角菜单）：标题「姓名·职位·公司」+ 路径带名片 id。
+//
+// 🔴 2026-10-21 重做：原实现把头像当缩略图（imageUrl: /^https?:/.test(c.avatar)），
+//    但生产库 card_profile.avatar 存的是 **wxfile:// 临时路径**（非 https）
+//    → 判据必然落空 → 分享出去一直是微信默认截图，没有缩略图。
+//    现在改为**现场 canvas 绘制 5:4 转发封面**（用户可在「个性化分享」页选风格 + 改标题）：
+//      · imageUrl 支持本地临时文件路径 → 不必服务端存图、不必图片 CDN
+//      · 显示比例固定 5:4 → 画布 750×600
+//      · 返回值支持 promise（3 秒内 resolve）→ 画完再 resolve
+//    画失败/超时一律降级为「不传 imageUrl」（微信用默认截图），不阻断转发。
 onShareAppMessage(() => {
   const c = card.value || {};
-  const title = [c.name, c.position, c.company].filter(Boolean).join(' · ') || '这是我的名片';
   return {
-    title,
+    title: resolveShareTitle(c),
     path: `/pages/card/cardDetail?id=${c.id || ''}`,
-    imageUrl: /^https?:/.test(c.avatar || '') ? c.avatar : '',
+    promise: buildShareImageUrl(c),
   };
 });
+
+/**
+ * 现场绘制转发封面 → 返回临时文件路径。
+ * 任何环节失败都 resolve 空串（微信回落默认截图），**绝不 reject**
+ * ——reject 会让微信 3 秒后用默认参数，但可能伴随控制台报错，且部分基础库行为不一致。
+ */
+function buildShareImageUrl(c) {
+  return new Promise((resolve) => {
+    // #ifdef MP-WEIXIN
+    if (!c || !c.id) { resolve(''); return; }
+    const q = uni.createSelectorQuery();
+    if (detailInst) q.in(detailInst.proxy);
+    q.select('#shareCoverCanvas').fields({ node: true, size: true }).exec(async (res) => {
+      if (!res || !res[0] || !res[0].node) { resolve(''); return; }
+      try {
+        const colors = resolveBrandColors(c, (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
+        // 二维码：/wxacode 需登录态，访客转发取不到 → 留空（封面其余部分照画）。
+        // ⚠️ 不要因为码取不到就整张放弃——那样访客转发永远没缩略图。
+        let qr = '';
+        try {
+          const q2 = await cardApi.getWxacode(c.id);
+          qr = (q2 && q2.image) || '';
+        } catch (e) { qr = ''; }
+        const url = await exportShareCover(res[0].node, c, c.shareStyle || 'cover-1', colors, {
+          qrImage: qr,
+          avatarImage: c.avatar || '',
+        });
+        resolve(url || '');
+      } catch (e) {
+        resolve('');
+      }
+    });
+    return;
+    // #endif
+    // #ifndef MP-WEIXIN
+    resolve('');
+    // #endif
+  });
+}
 
 // 交换名片：调 POST /exchange（对方自动进我的客户池）。与「收藏」是两件事——
 // 收藏=单向存进名片夹（可分组、有会员配额）；交换=双向建立连接。
@@ -1205,6 +1264,11 @@ async function followCard() {
 </script>
 
 <style scoped>
+/* 转发封面画布：移出屏幕但**不能 display:none**（MP 端节点查不到 → 拿不到 node） */
+.share-cover-canvas {
+  position: fixed; left: -9999rpx; top: 0;
+  width: 750px; height: 600px;
+}
 .profile-page {
   min-height: 100vh;
   background: var(--bg-page);

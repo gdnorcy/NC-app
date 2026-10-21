@@ -299,6 +299,13 @@
           }
         },
         {
+          "path": "shareStyle",
+          "style": {
+            "navigationBarTitleText": "个性化分享",
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "radarConfig",
           "style": {
             "navigationBarTitleText": "雷达配置",
