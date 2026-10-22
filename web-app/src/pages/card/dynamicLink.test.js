@@ -27,7 +27,7 @@ const dbInit = () => stripComments(read('../../../../server/src/db.js'));
 describe('#312-2 发布器：链接卡片表单与互斥', () => {
   test('newDynamic 初始含 link 对象（type 默认 page）', () => {
     const s = dynamicPage();
-    expect(s).toMatch(/newDynamic = ref\(\{ content: '', title: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \}\)/);
+    expect(s).toMatch(/newDynamic = ref\(\{ content: '', title: '', cover: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \}\)/);
   });
 
   test('发布弹窗出现「链接卡片」表单，含 page/url 两个 targetType 选项', () => {
@@ -66,7 +66,8 @@ describe('#312-2 发布器：链接卡片表单与互斥', () => {
     expect(s).toMatch(/linkUrl: newDynamic\.value\.link\.url \|\| ''/);
     expect(s).toMatch(/linkType: newDynamic\.value\.link\.type \|\| 'page'/);
     // 重置把 link 一并清掉（否则下次弹窗残留）
-    expect(s).toMatch(/newDynamic\.value = \{ content: '', title: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \};/);
+    expect(s).toMatch(/function emptyDynamic\(\) \{\s*return \{ content: '', title: '', cover: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \};\s*\}/);
+    expect(s).toMatch(/function resetForm\(\) \{[\s\S]*?newDynamic\.value = emptyDynamic\(\);/);
   });
 });
 
@@ -104,7 +105,7 @@ describe('#312-2 服务端链路（本次改动，钉死防回归）', () => {
 
   test('POST /dynamics INSERT 写 5 个 link 列', () => {
     const s = cardRoute();
-    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
+    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, cover, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
   });
 
   test('card_dynamic 表加 5 个 link 列（迁移幂等）', () => {

@@ -78,11 +78,15 @@ describe('② 链接卡片 / 引用名片模块：默认收缩', () => {
 
   test('关闭/发布成功后重置收缩态', () => {
     const s = src();
-    // closePublish 与 publish 成功路径各清一次（源码出现两处）
-    const hits = s.match(/linkOpen\.value = false;/g) || [];
-    expect(hits.length).toBeGreaterThanOrEqual(2);
-    const hits2 = s.match(/refOpen\.value = false;/g) || [];
-    expect(hits2.length).toBeGreaterThanOrEqual(2);
+    // 🔴 #312-7-2 后：三处（打开/关闭/发布成功）统一收敛到 resetForm()，
+    //   源码里 linkOpen/refOpen 的清零只在 resetForm 出现一次——这是**收敛**而非漏清。
+    //   所以这里改钉「resetForm 里清了 + 三个入口都调用了 resetForm」。
+    expect(s).toMatch(/function resetForm\(\) \{[\s\S]*?linkOpen\.value = false;[\s\S]*?refOpen\.value = false;/);
+    expect(s).toMatch(/function closePublish\(\) \{\s*showPublish\.value = false;\s*resetForm\(\);/);
+    // 发布成功路径也走 resetForm（不再单独手写一遍重置）
+    expect(s).toMatch(/showPublish\.value = false;[\s\S]{0,400}?resetForm\(\);/);
+    // 且发布成功路径不该再残留旧的内联重置字面量（防两套重置再次漂移）
+    expect(s).not.toMatch(/newDynamic\.value = \{ content: '', title: ''/);
   });
 });
 
@@ -138,7 +142,8 @@ describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验�
 
   test('发布入口走 openPublish（先守卫再开弹窗），不再直接置 showPublish', () => {
     const s = src();
-    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*showPublish\.value = true;/);
+    // 🔴 #312-7-2：开弹窗前先 resetForm()（否则上一条动态会被带进新页面）
+    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);\s*showPublish\.value = true;/);
     expect(s).toMatch(/<view class="publish-btn" @click="openPublish">\+ 发布<\/view>/);
     expect(s).not.toMatch(/class="publish-btn" @click="showPublish = true"/);
   });
@@ -188,8 +193,13 @@ describe('④ 封面图：拍照/上传 + 裁切 + 压缩（不再手填 URL）'
     expect(s).toMatch(/const COVER_QUALITY = 0\.85;/);
     expect(s).toMatch(/async function compressCover\(src\)/);
     expect(s).toMatch(/#coverCompressCanvas/);
-    expect(s).toMatch(/fileType: 'jpg', quality: COVER_QUALITY/);
-    expect(s).toMatch(/cv\.toBlob\(resolve, 'image\/jpeg', COVER_QUALITY\)/);
+    // 🔴 #312-7-1：压缩逻辑抽成通用 compressImage(src,{square,max,quality})，
+    //   compressCover 只是「square:true + COVER_MAX + COVER_QUALITY」的语义包装。
+    expect(s).toMatch(/async function compressImage\(src, \{ square = true, max = COVER_MAX, quality = COVER_QUALITY \} = \{\}\)/);
+    expect(s).toMatch(/return compressImage\(src, \{ square: true, max: COVER_MAX, quality: COVER_QUALITY \}\)/);
+    expect(s).toMatch(/fileType: 'jpg', quality,/);
+    expect(s).toMatch(/cv\.toBlob\(resolve, 'image\/jpeg', quality\)/);
+    expect(s).toMatch(/const COVER_MAX = 720;/);
     // 屏幕外 canvas 禁 display:none（MP 节点查不到）→ fixed 移出屏幕
     expect(css()).toMatch(/\.offscreen-canvas \{[\s\S]*?position: fixed;/);
     expect(css()).toMatch(/\.offscreen-canvas \{[\s\S]*?left: -9999px;/);

@@ -94,6 +94,6 @@ describe('#312-6 服务端：PUT / DELETE 仅本人 + 软删 + 列表过滤', ()
 
   test('PUT 复用归一逻辑：写同样的 15 列（含 scheduled_at + status）', () => {
     const s = cardRoute();
-    expect(s).toMatch(/UPDATE card_dynamic SET title=\?, content=\?, images=\?, visibility=\?, link_title=\?, link_img=\?, link_desc=\?, link_url=\?, link_type=\?, ref_type=\?, ref_id=\?, scheduled_at=\?, status=\?, updated_at=datetime\('now'\) WHERE id=\?/);
+    expect(s).toMatch(/UPDATE card_dynamic SET title=\?, content=\?, cover=\?, images=\?, visibility=\?, link_title=\?, link_img=\?, link_desc=\?, link_url=\?, link_type=\?, ref_type=\?, ref_id=\?, scheduled_at=\?, status=\?, updated_at=datetime\('now'\) WHERE id=\?/);
   });
 });

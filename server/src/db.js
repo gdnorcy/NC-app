@@ -1901,6 +1901,12 @@ function migrate(db) {
   if (!colExists(db, 'card_dynamic', 'scheduled_at')) {
     db.exec("ALTER TABLE card_dynamic ADD COLUMN scheduled_at TEXT NOT NULL DEFAULT ''");
   }
+  // —— card_dynamic 表加「动态封面（头图）」字段（#312-7：动态自己的封面，与 link_img 两码事）——
+  //   cover：动态头图 URL。空串表示不设头图（展示层回落到配图 images）。
+  //   注意与 link_img 区分：link_img 是**链接卡片**那张小方图，cover 是动态整条的大图。
+  if (!colExists(db, 'card_dynamic', 'cover')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN cover TEXT NOT NULL DEFAULT ''");
+  }
 
   // —— tenant_individuals表加 position/company 字段（入驻申请）——
   if (!colExists(db, 'tenant_individuals', 'position')) {
