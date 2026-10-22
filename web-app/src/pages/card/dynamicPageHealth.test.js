@@ -36,12 +36,14 @@ describe('dynamic.vue 页面健康锁（computed 漏 import 事故回归）', ()
     const s = src();
     expect(s).not.toMatch(/<view class="header">/);
     expect(s).not.toMatch(/\.title\s*\{/);
-    expect(s).toMatch(/<PageNav title="我的动态" back>/);
+    // 自闭合写法也算（<PageNav ... back />）
+    expect(s).toMatch(/<PageNav title="我的动态" back\s*\/?>/);
   });
 
-  test('发布入口在 PageNav #right 插槽（胶囊避让由 PageNav rightStyle 负责）', () => {
+  test('发布入口是右下角悬浮圆按钮（#312-8：PageNav #right 会被微信胶囊挤到标题左边）', () => {
     const s = src();
-    expect(s).toMatch(/<template #right>[\s\S]*?class="publish-btn"[\s\S]*?<\/template>/);
+    expect(s).toMatch(/<view class="fab-publish" @click="openPublish">＋<\/view>/);
+    expect(s).not.toMatch(/<template #right>[\s\S]*?class="publish-btn"[\s\S]*?<\/template>/);
   });
 
   test('无 antd 品红 fallback（#eb2f96/#f759ab 清零，品牌 fallback 统一 #165dff）', () => {

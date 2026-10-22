@@ -27,7 +27,7 @@ const dbInit = () => stripComments(read('../../../../server/src/db.js'));
 describe('#312-2 发布器：链接卡片表单与互斥', () => {
   test('newDynamic 初始含 link 对象（type 默认 page）', () => {
     const s = dynamicPage();
-    expect(s).toMatch(/newDynamic = ref\(\{ content: '', title: '', cover: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \}\)/);
+    expect(s).toMatch(/newDynamic = ref\(\{ content: '', title: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '' \}, ref: null \}\)/);
   });
 
   test('发布弹窗出现「链接卡片」表单，含 page/url 两个 targetType 选项', () => {
@@ -37,11 +37,10 @@ describe('#312-2 发布器：链接卡片表单与互斥', () => {
     expect(s).toMatch(/newDynamic\.link\.type='page'/);
     expect(s).toMatch(/newDynamic\.link\.type='url'/);
     expect(s).toMatch(/v-model="newDynamic\.link\.url"/);
-    expect(s).toMatch(/v-model="newDynamic\.link\.title"/);
-    expect(s).toMatch(/v-model="newDynamic\.link\.desc"/);
-    // 🔴 封面图改为拍照/上传（pickCover 上传后回填 URL），不再有手填 input
-    expect(s).not.toMatch(/<input[^>]*v-model="newDynamic\.link\.img"/);
-    expect(s).toMatch(/newDynamic\.value\.link\.img = absUrl\(data\.url\)/);
+    // 🔴 #312-8 精简：卡片标题跟随动态标题、描述与封面下线 → 这三个输入框都不该再存在
+    expect(s).not.toMatch(/v-model="newDynamic\.link\.title"/);
+    expect(s).not.toMatch(/v-model="newDynamic\.link\.desc"/);
+    expect(s).not.toMatch(/newDynamic\.link\.img/);
   });
 
   test('图片/链接卡片/引用 三者互斥：分区体内提示（展开后才按互斥态提示）', () => {
@@ -60,13 +59,14 @@ describe('#312-2 发布器：链接卡片表单与互斥', () => {
 
   test('publish 提交体带全部 link 字段；重置清空 link', () => {
     const s = dynamicPage();
-    expect(s).toMatch(/linkTitle: newDynamic\.value\.link\.title \|\| ''/);
-    expect(s).toMatch(/linkImg: newDynamic\.value\.link\.img \|\| ''/);
-    expect(s).toMatch(/linkDesc: newDynamic\.value\.link\.desc \|\| ''/);
+    // 🔴 #312-8：卡片标题**跟随动态标题**（不再让用户填第二遍），描述/封面留空
+    expect(s).toMatch(/linkTitle: newDynamic\.value\.title \|\| ''/);
+    expect(s).toMatch(/linkDesc: '',/);
+    expect(s).toMatch(/linkImg: '',/);
     expect(s).toMatch(/linkUrl: newDynamic\.value\.link\.url \|\| ''/);
     expect(s).toMatch(/linkType: newDynamic\.value\.link\.type \|\| 'page'/);
     // 重置把 link 一并清掉（否则下次弹窗残留）
-    expect(s).toMatch(/function emptyDynamic\(\) \{\s*return \{ content: '', title: '', cover: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \};\s*\}/);
+    expect(s).toMatch(/function emptyDynamic\(\) \{\s*return \{ content: '', title: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '' \}, ref: null \};\s*\}/);
     expect(s).toMatch(/function resetForm\(\) \{[\s\S]*?newDynamic\.value = emptyDynamic\(\);/);
   });
 });
@@ -105,7 +105,7 @@ describe('#312-2 服务端链路（本次改动，钉死防回归）', () => {
 
   test('POST /dynamics INSERT 写 5 个 link 列', () => {
     const s = cardRoute();
-    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, cover, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
+    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
   });
 
   test('card_dynamic 表加 5 个 link 列（迁移幂等）', () => {

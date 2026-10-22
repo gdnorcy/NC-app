@@ -2137,7 +2137,7 @@ export function createCardRouter(db, wxService) {
   });
 
   router.post('/dynamics', auth, (req, res) => {
-    const { content, images, visibility, title, cardId, cover: coverRaw,
+    const { content, images, visibility, title, cardId,
       linkTitle: linkTitleRaw, linkImg: linkImgRaw, linkDesc: linkDescRaw,
       linkUrl: linkUrlRaw, linkType: linkTypeRaw,
       refType: refTypeRaw, refId: refIdRaw,
@@ -2194,11 +2194,8 @@ export function createCardRouter(db, wxService) {
     //   到点由 promoteScheduled() 翻为 'active'；空/过去时间 → status='active'，scheduled_at 留空（立即发布）。
     //   定时与图片/链接/引用不冲突（同一动态既可挂图又可定时），故不参与三者互斥。
     const sched = normalizeScheduledAt(scheduledAtRaw);
-    // 🔴 #312-7：动态封面（头图）。与图片/链接/引用**不参与互斥**——头图是整条动态的门面，
-    //   挂了引用卡片也照样可以有头图。只做类型+长度归一，空值存 ''。
-    const normCover = typeof coverRaw === 'string' ? coverRaw.trim().slice(0, 500) : '';
-    const result = db.prepare('INSERT INTO card_dynamic (user_id, card_id, title, content, cover, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-      .run(req.user.id, targetCardId, title || '', content, normCover, effectiveImages, vis, storedLinkTitle, storedLinkImg, storedLinkDesc, storedLinkUrl, storedLinkType, normRefType, normRefId, sched.scheduledAt || '', sched.status);
+    const result = db.prepare('INSERT INTO card_dynamic (user_id, card_id, title, content, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(req.user.id, targetCardId, title || '', content, effectiveImages, vis, storedLinkTitle, storedLinkImg, storedLinkDesc, storedLinkUrl, storedLinkType, normRefType, normRefId, sched.scheduledAt || '', sched.status);
     const dynamic = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d
       LEFT JOIN platform_user u ON d.user_id = u.id WHERE d.id = ?`).get(result.lastInsertRowid);
     res.json({ dynamic: toDynamic(dynamic) });
@@ -2210,7 +2207,7 @@ export function createCardRouter(db, wxService) {
   router.put('/dynamics/:id', auth, (req, res) => {
     const dyn = db.prepare("SELECT * FROM card_dynamic WHERE id = ? AND user_id = ? AND status != 'deleted'").get(req.params.id, req.user.id);
     if (!dyn) return res.status(404).json({ error: '动态不存在或无权限' });
-    const { content, images, visibility, title, cover: coverRaw,
+    const { content, images, visibility, title,
       linkTitle: linkTitleRaw, linkImg: linkImgRaw, linkDesc: linkDescRaw,
       linkUrl: linkUrlRaw, linkType: linkTypeRaw,
       refType: refTypeRaw, refId: refIdRaw,
@@ -2246,10 +2243,8 @@ export function createCardRouter(db, wxService) {
     const storedLinkImg = hasRef ? '' : normLinkImg;
     const storedLinkDesc = hasRef ? '' : normLinkDesc;
     const sched = normalizeScheduledAt(scheduledAtRaw);
-    // 🔴 #312-7：动态封面（头图），与发布侧同一套归一（不参与三者互斥）
-    const normCover = typeof coverRaw === 'string' ? coverRaw.trim().slice(0, 500) : '';
-    db.prepare(`UPDATE card_dynamic SET title=?, content=?, cover=?, images=?, visibility=?, link_title=?, link_img=?, link_desc=?, link_url=?, link_type=?, ref_type=?, ref_id=?, scheduled_at=?, status=?, updated_at=datetime('now') WHERE id=?`)
-      .run(title || '', content, normCover, effectiveImages, vis, storedLinkTitle, storedLinkImg, storedLinkDesc, storedLinkUrl, storedLinkType, normRefType, normRefId, sched.scheduledAt || '', sched.status, dyn.id);
+    db.prepare(`UPDATE card_dynamic SET title=?, content=?, images=?, visibility=?, link_title=?, link_img=?, link_desc=?, link_url=?, link_type=?, ref_type=?, ref_id=?, scheduled_at=?, status=?, updated_at=datetime('now') WHERE id=?`)
+      .run(title || '', content, effectiveImages, vis, storedLinkTitle, storedLinkImg, storedLinkDesc, storedLinkUrl, storedLinkType, normRefType, normRefId, sched.scheduledAt || '', sched.status, dyn.id);
     const updated = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d LEFT JOIN platform_user u ON d.user_id = u.id WHERE d.id = ?`).get(dyn.id);
     res.json({ dynamic: toDynamic(updated) });
   });
@@ -2516,8 +2511,6 @@ export function createCardRouter(db, wxService) {
       likedByMe: !!likedByMe,
       id: row.id, userId: row.user_id, cardId: row.card_id, title: row.title || '',
       content: row.content, images, likeCount: row.like_count || 0, commentCount: row.comment_count || 0,
-      // 🔴 #312-7：动态封面（头图）。空串 → 展示层回落到 images。
-      cover: (row.cover || '').toString(),
       // 🔴 反馈 #295：visibility 之前**漏在这里** → 序列化出口恒无该字段 →
       //    前端 `d.visibility === 'public' ? '公开' : '仅自己'` 判据恒走「仅自己」，
       //    即使用户在发布弹窗选了「公开」。这是「选公开却显示仅自己」的根因。
