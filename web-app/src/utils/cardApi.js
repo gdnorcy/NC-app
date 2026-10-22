@@ -384,6 +384,9 @@ export const cardApi = {
   // 动态
   getDynamics: () => request('/dynamics'),
   createDynamic: (data) => request('/dynamics', 'POST', data),
+  // 🔴 #312-6：编辑 / 删除（仅本人）。update 走 PUT，delete 走软删（status='deleted'）。
+  updateDynamic: (id, data) => request(`/dynamics/${id}`, 'PUT', data),
+  deleteDynamic: (id) => request(`/dynamics/${id}`, 'DELETE'),
   // 动态配图上传：入参为本地临时路径（uni.chooseMedia 产出）。
   // 🔴 跨端两条路（同 uploadUserAvatar 的正确范式）：
   //   MP：uni.uploadFile 直接传 filePath；H5：uni.uploadFile 会把 blob URL 字符串当文件内容发出去，

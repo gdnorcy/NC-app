@@ -334,6 +334,8 @@
             <p>{{ d.content }}</p>
           </view>
           <image v-if="d.images && d.images.length" class="dyn-img" :src="d.images[0]" mode="aspectFill" @click="previewDyn(d)" />
+          <!-- 🔴 #312-2：链接预览卡片 + 小程序卡片；🔴 #312-3：名片模块引用。两者互斥，复用 DynamicLinkCard 避免两端漂移 -->
+          <DynamicLinkCard v-if="d.linkUrl || d.ref" :d="d" :refObj="d.ref || null" />
           <view class="dyn-meta">
             <text class="dyn-act" :class="{ liked: d.likedByMe }" @click.stop="toggleLike(d)">
               <SIcon name="like" size="small" :color="d.likedByMe ? themeColor : '#9a9a9a'" /> {{ d.likeCount || 0 }}
@@ -472,6 +474,7 @@ import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTab
 import SIcon from '../../components/SIcon.vue';
 import CardCompItem from '../../components/CardCompItem.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
+import DynamicLinkCard from '../../components/DynamicLinkCard.vue';
 import { getNavMetrics, navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme, brandThemeOverride } from '../../utils/design.js';
 import { resolveShareTitle, resolveBrandColors } from './shareCover.js';
