@@ -111,7 +111,7 @@ function open() {
 }
 .dyn-link-badge {
   font-size: 18rpx;
-  color: var(--design-primary, #165dff);
+  color: var(--design-primary, var(--primary));
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
   padding: 2rpx 10rpx;
   border-radius: 6rpx;

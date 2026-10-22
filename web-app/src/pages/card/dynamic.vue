@@ -1,11 +1,11 @@
 <template>
   <view class="dynamic-page" :style="[themeStyle, brandVars, brandInkVars]">
 <!-- PageNav -->
-<PageNav title="我的动态" back />
-    <view class="header">
-      <view class="title">我的动态</view>
-      <view class="publish-btn" @click="showPublish = true">+ 发布</view>
-    </view>
+<PageNav title="我的动态" back>
+      <template #right>
+        <view class="publish-btn" @click="showPublish = true">+ 发布</view>
+      </template>
+    </PageNav>
 
     <view class="dynamic-list" v-if="dynamics.length">
       <view class="dynamic-item" v-for="d in dynamics" :key="d.id">
@@ -156,7 +156,7 @@
 <script setup>
 import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { mallApi } from '../../utils/mallApi.js';
@@ -448,24 +448,17 @@ async function publish() {
   background: var(--bg-hover);
   padding-bottom: 40rpx;
 }
-.header {
-  background: linear-gradient(135deg, var(--design-primary, #eb2f96), var(--design-gradient, #f759ab));
-  padding: 32rpx 32rpx;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.title {
-  font-size: var(--fs-7);
-  font-weight: 700;
-  color: var(--white);
-}
+/* 🔴 发布入口进 PageNav #right 插槽（对齐 collects.vue 等全站子页约定）：
+   删掉自绘渐变头 + 重复标题（历史遗留：与 PageNav 标题重复，且 setup 抛错时
+   顶到状态栏与系统时间重叠）。胶囊避让由 PageNav rightStyle 负责，这里只管文字。
+   品牌色三通道：页面根已合 brandVars（--design-primary/-rgb）+ brandInkVars（--brand-ink）。 */
 .publish-btn {
-  background: rgba(255,255,255,0.2);
-  color: var(--white);
-  padding: 12rpx 28rpx;
-  border-radius: 32rpx;
+  color: var(--brand-ink, var(--design-primary, var(--primary)));
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  padding: 10rpx 24rpx;
+  border-radius: var(--radius-sm);
   font-size: var(--fs-4);
+  font-weight: 600;
 }
 .dynamic-list {
   padding: 24rpx;
@@ -488,9 +481,9 @@ async function publish() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--design-primary, #eb2f96), var(--design-gradient, #f759ab));
+  background: linear-gradient(135deg, var(--design-primary, var(--primary)), var(--design-gradient, var(--primary)));
   /* 同上：渐变圆上的首字母改走 --brand-hero-ink */
-  color: var(--brand-hero-ink, #fff);
+  color: var(--brand-hero-ink, var(--white));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -532,13 +525,13 @@ async function publish() {
 }
 .dyn-action {
   font-size: var(--fs-3);
-  color: var(--design-primary, #165dff);
+  color: var(--design-primary, var(--primary));
   padding: 8rpx 28rpx;
   border-radius: var(--radius-sm);
   background: var(--bg-hover);
 }
 .dyn-action.danger {
-  color: #e54545;
+  color: var(--danger);
 }
 /* 🔴 #312-1：列表页标题——加粗、单行、超长省略（对齐小红书/知乎「标题+正文」结构） */
 .dynamic-title {
@@ -673,8 +666,8 @@ async function publish() {
 }
 .link-type-opt.active {
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
-  color: var(--design-primary, #165dff);
-  border-color: var(--design-primary, #165dff);
+  color: var(--design-primary, var(--primary));
+  border-color: var(--design-primary, var(--primary));
 }
 .link-input {
   width: 100%;
@@ -702,8 +695,8 @@ async function publish() {
 }
 .ref-tab.active {
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
-  color: var(--design-primary, #165dff);
-  border-color: var(--design-primary, #165dff);
+  color: var(--design-primary, var(--primary));
+  border-color: var(--design-primary, var(--primary));
 }
 .ref-list { margin-bottom: 8rpx; }
 .ref-loading, .ref-empty { font-size: var(--fs-3); color: var(--t3); padding: 16rpx 0; }
@@ -741,7 +734,7 @@ async function publish() {
   background: var(--bg-card);
   border-radius: var(--radius-xs);
   font-size: var(--fs-4);
-  color: var(--design-primary, #165dff);
+  color: var(--design-primary, var(--primary));
   margin-bottom: 8rpx;
 }
 .ref-chip {
@@ -792,8 +785,8 @@ async function publish() {
 }
 .visibility-option.active {
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
-  color: var(--design-primary, #165dff);
-  border-color: var(--design-primary, #165dff);
+  color: var(--design-primary, var(--primary));
+  border-color: var(--design-primary, var(--primary));
 }
 /* 🔴 #312-5：定时发布控件 */
 .sched-label {
@@ -817,14 +810,14 @@ async function publish() {
 /* 🔴 #312-5：列表「定时发布中」徽标 */
 .sched-tag {
   font-size: var(--fs-1);
-  color: #fff;
-  background: var(--design-gradient, #f759ab);
+  color: var(--brand-hero-ink, var(--white));
+  background: var(--design-primary, var(--primary));
   padding: 6rpx 16rpx;
   border-radius: var(--radius-sm);
 }
 .sheet-footer { padding: 0 32rpx 72rpx; }
 .submit-btn {
-  background: var(--design-primary, #eb2f96);
+  background: var(--design-primary, var(--primary));
   color: var(--white);
   border-radius: 40rpx;
   height: 88rpx;

@@ -116,6 +116,16 @@ function localDecls(script) {
 const KEYWORDS = new Set(['if', 'else', 'return', 'const', 'let', 'var', 'function', 'class', 'new', 'typeof', 'instanceof', 'in', 'of', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'async', 'await', 'yield', 'import', 'export', 'from', 'this', 'super', 'null', 'true', 'false', 'undefined', 'void', 'delete', 'extends', 'static', 'get', 'set', 'void']);
 const GLOBALS = new Set(['uni', 'getApp', 'getCurrentPages', 'console', 'Math', 'JSON', 'Object', 'Array', 'String', 'Number', 'Boolean', 'Date', 'RegExp', 'Error', 'TypeError', 'RangeError', 'Promise', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval', 'parseInt', 'parseFloat', 'isNaN', 'encodeURIComponent', 'decodeURIComponent', 'window', 'document', 'localStorage', 'sessionStorage', 'navigator', 'location', 'fetch', 'FormData', 'Image', 'Blob', 'FileReader', 'URL', 'wx', 'require', 'module', 'exports', 'process', 'Buffer', 'globalThis', 'requestAnimationFrame', 'cancelAnimationFrame', 'atob', 'btoa', 'Vue', 'defineProps', 'defineEmits', 'defineExpose', 'withDefaults', 'Symbol', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Proxy', 'Reflect', 'Infinity', 'NaN']);
 
+// ③ 包名具名导入缺失（2026-10-22 dynamic.vue 事故）：#312-2 引入 computed 时漏 import，
+//    setup 里 ReferenceError → 整页绑定全灭（静态模板在、themeStyle/brandVars 失效露出
+//    粉色 fallback、PageNav 不挂载、自绘头部顶到状态栏）。单字母/高危词不入表（防误报）。
+const VUE_NAMED = new Set(['ref', 'computed', 'reactive', 'readonly', 'watch', 'watchEffect',
+  'watchPostEffect', 'watchSyncEffect', 'onMounted', 'onUnmounted', 'onBeforeMount', 'onBeforeUnmount',
+  'onUpdated', 'onBeforeUpdate', 'onActivated', 'onDeactivated', 'onErrorCaptured', 'nextTick',
+  'defineComponent', 'defineAsyncComponent', 'toRef', 'toRefs', 'toRaw', 'unref', 'isRef', 'isReactive',
+  'isProxy', 'isReadonly', 'shallowRef', 'shallowReactive', 'shallowReadonly', 'triggerRef', 'customRef',
+  'markRaw', 'provide', 'inject', 'effectScope']);
+
 const files = walk(SRC);
 // 本地模块导出总表：name → [files]
 const exportIndex = new Map();
@@ -132,10 +142,12 @@ for (const file of files) {
   const script = file.endsWith('.vue') ? (txt.match(/<script[^>]*>([\s\S]*?)<\/script>/)?.[1] || '') : txt;
   const imports = importsOf(file);
   const provided = new Set();
+  const vueProvided = new Set();
   for (const imp of imports) {
     if (imp.default) provided.add(imp.default);
     if (imp.ns) provided.add(imp.ns);
     for (const n of imp.named) provided.add(n.local);
+    if (imp.spec === 'vue') for (const n of imp.named) vueProvided.add(n.local);
   }
   const locals = localDecls(script);
   for (const n of provided) locals.add(n);
@@ -162,6 +174,13 @@ for (const file of files) {
     if (KEYWORDS.has(id) || GLOBALS.has(id) || locals.has(id)) continue;
     if (exportIndex.has(id)) {
       console.log(`❌ ${relative(SRC, file)} 用了 ${exportIndex.get(id).map((f) => relative(SRC, f)).join('/')} 导出的 ${id} 但未 import 也未本地声明`);
+      bad++;
+      locals.add(id); // 同文件同名字只报一次
+    } else if (VUE_NAMED.has(id) && !vueProvided.has(id)) {
+      // Options API 的 computed:/watch:/provide: 对象键不是使用——后跟 ':' 跳过（防误报）
+      const after = code.slice(m.index + id.length).match(/^\s*(.)/);
+      if (after && after[1] === ':') continue;
+      console.log(`❌ ${relative(SRC, file)} 用了 vue 导出的 ${id} 但未 import（computed 漏 import → setup 抛错 → 整页绑定全灭）`);
       bad++;
       locals.add(id); // 同文件同名字只报一次
     }
