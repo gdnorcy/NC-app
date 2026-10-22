@@ -3,7 +3,7 @@
 <!-- PageNav -->
 <PageNav title="我的动态" back>
       <template #right>
-        <view class="publish-btn" @click="showPublish = true">+ 发布</view>
+        <view class="publish-btn" @click="openPublish">+ 发布</view>
       </template>
     </PageNav>
 
@@ -80,6 +80,7 @@
               <text class="form-label">链接卡片（可选）</text>
               <view class="sec-head-right">
                 <text v-if="linkActive" class="sec-added">已添加</text>
+                <text class="sec-toggle">{{ linkOpen ? '收起' : '展开' }}</text>
                 <text class="sec-arrow" :class="{ open: linkOpen }">›</text>
               </view>
             </view>
@@ -117,6 +118,7 @@
               <text class="form-label">引用名片模块（可选）</text>
               <view class="sec-head-right">
                 <text v-if="refActive" class="sec-added">已添加</text>
+                <text class="sec-toggle">{{ refOpen ? '收起' : '展开' }}</text>
                 <text class="sec-arrow" :class="{ open: refOpen }">›</text>
               </view>
             </view>
@@ -194,7 +196,8 @@ import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { cardApi } from '../../utils/cardApi.js';
+import { cardApi, hasCardToken } from '../../utils/cardApi.js';
+import { API_HOST } from '../../utils/apiBase.js';
 import { mallApi } from '../../utils/mallApi.js';
 import { getTid } from '../../utils/mallUtil.js';
 import { trackPageView } from '../../utils/analytics.js';
@@ -245,6 +248,36 @@ const refItems = computed(() => (refTab.value === 'goods' ? goodsList.value : wo
 //   编辑带回内容时由 openEdit 自动展开。
 const linkOpen = ref(false);
 const refOpen = ref(false);
+
+/**
+ * 未登录守卫（mall orders/cart 同款范式，hasCardToken 即 cardApi 为此导出的）：
+ * 发布/编辑入口 + 页面进入都过一遍——否则未登录也能打开发布页，填完才 401。
+ */
+function ensureLogin() {
+  if (hasCardToken()) return true;
+  uni.showToast({ title: '请先登录', icon: 'none' });
+  uni.reLaunch({ url: '/pages/card/login' });
+  return false;
+}
+/** 导航栏「+ 发布」：先过登录守卫再开弹窗 */
+function openPublish() {
+  if (!ensureLogin()) return;
+  showPublish.value = true;
+}
+/**
+ * 🔴 存储回传的是 /uploads/ 相对路径（storage/local.js）：H5 同源可直接用，
+ * 但 MP 的 <image> 会把它当小程序包内路径解析 → 上传成功却显示空白（真机实测）。
+ * 按端补全基址：MP 的 API_HOST 是完整域名，H5 是空串（保持同源相对）。
+ */
+const absUrl = (u) => (typeof u === 'string' && u.startsWith('/') ? API_HOST + u : u);
+/** 列表加载/编辑回填统一过一遍：配图、链接封面、引用封面都可能存的是相对路径（含历史数据） */
+function hydrateUrls(d) {
+  const out = { ...d };
+  if (Array.isArray(d.images)) out.images = d.images.map(absUrl);
+  if (d.linkImg) out.linkImg = absUrl(d.linkImg);
+  if (d.ref && d.ref.cover) out.ref = { ...d.ref, cover: absUrl(d.ref.cover) };
+  return out;
+}
 
 /** 取本人名片 id（发布动态自动挂在最近一张卡上，引用作品也需要它） */
 async function getMyCardId() {
@@ -317,6 +350,7 @@ function schedLabel() {
 
 // 🔴 #312-6：编辑 / 删除（仅本人）。openEdit 把已有动态灌进表单（含定时还原）；removeDynamic 软删。
 function openEdit(d) {
+  if (!ensureLogin()) return;
   editingId.value = d.id;
   // 还原正文/标题/图片/可见范围
   newDynamic.value = {
@@ -412,7 +446,7 @@ async function pickImages() {
         if (!p) continue;
         const data = await cardApi.uploadDynamicImage(p, f.file);
         if (data && data.url) {
-          newDynamic.value.images.push(data.url);
+          newDynamic.value.images.push(absUrl(data.url));
           ok++;
         }
       }
@@ -535,7 +569,7 @@ async function pickCover() {
     path = await cropCoverSquare(path);
     const out = await compressCover(path);
     const data = await cardApi.uploadDynamicImage(out.path, out.file);
-    if (data && data.url) newDynamic.value.link.img = data.url;
+    if (data && data.url) newDynamic.value.link.img = absUrl(data.url);
   } catch (e) {
     uni.showToast({ title: e.message || '封面上传失败', icon: 'none' });
   } finally {
@@ -543,12 +577,17 @@ async function pickCover() {
   }
 }
 
-onShow(() => { trackPageView('/pages/card/dynamic'); });
+onShow(() => {
+  trackPageView('/pages/card/dynamic');
+  // 登录态可能在前台过期（token 清除/过期）→ 回前台时补一次守卫
+  if (!hasCardToken()) ensureLogin();
+});
 
 onMounted(async () => {
+  if (!ensureLogin()) return;
   try {
     const res = await cardApi.getDynamics();
-    dynamics.value = res.dynamics || [];
+    dynamics.value = (res.dynamics || []).map(hydrateUrls);
     const profile = await cardApi.getProfile();
     user.value = profile.user;
   } catch (e) {}
@@ -594,7 +633,7 @@ async function publish() {
     linkOpen.value = false;
     refOpen.value = false;
     const res = await cardApi.getDynamics();
-    dynamics.value = res.dynamics || [];
+    dynamics.value = (res.dynamics || []).map(hydrateUrls);
   } catch (e) {
     uni.showToast({ title: e.message || (editingId.value ? '保存失败' : '发布失败'), icon: 'none' });
   }
@@ -995,6 +1034,8 @@ async function publish() {
 }
 .sec-head .form-label { margin-bottom: 0; }
 .sec-head-right { display: flex; align-items: center; gap: 12rpx; }
+/* 🔴 反馈：箭头旁加「展开/收起」文字，比裸箭头直观 */
+.sec-toggle { font-size: var(--fs-2); color: var(--t3); }
 .sec-added {
   font-size: var(--fs-1);
   color: var(--design-primary, var(--primary));

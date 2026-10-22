@@ -94,6 +94,63 @@ describe('③ 定时开关配色跟品牌走', () => {
   });
 });
 
+describe('⑤ 分区头带「展开/收起」文字（比裸箭头直观）', () => {
+  test('链接/引用分区头都有 sec-toggle 文字', () => {
+    const s = src();
+    expect(s).toMatch(/<text class="sec-toggle">\{\{ linkOpen \? '收起' : '展开' \}\}<\/text>/);
+    expect(s).toMatch(/<text class="sec-toggle">\{\{ refOpen \? '收起' : '展开' \}\}<\/text>/);
+  });
+});
+
+describe('⑥ 上传图片 URL 补全（/uploads/ 相对路径在 MP 显示空白）', () => {
+  test('absUrl：相对路径按端补基址（MP 完整域名 / H5 空串保持同源）', () => {
+    const s = src();
+    expect(s).toMatch(/import \{ API_HOST \} from '\.\.\/\.\.\/utils\/apiBase\.js';/);
+    expect(s).toMatch(/const absUrl = \(u\) => \(typeof u === 'string' && u\.startsWith\('\/'\) \? API_HOST \+ u : u\);/);
+  });
+
+  test('hydrateUrls：列表加载/编辑回填统一过一遍（配图/链接封面/引用封面）', () => {
+    const s = src();
+    expect(s).toMatch(/function hydrateUrls\(d\)/);
+    expect(s).toMatch(/if \(Array\.isArray\(d\.images\)\) out\.images = d\.images\.map\(absUrl\);/);
+    expect(s).toMatch(/if \(d\.linkImg\) out\.linkImg = absUrl\(d\.linkImg\);/);
+    expect(s).toMatch(/if \(d\.ref && d\.ref\.cover\) out\.ref = \{ \.\.\.d\.ref, cover: absUrl\(d\.ref\.cover\) \};/);
+    // 两处列表加载都过水合（onMounted + publish 成功后刷新）
+    const hits = s.match(/dynamics\.value = \(res\.dynamics \|\| \[\]\)\.map\(hydrateUrls\);/g) || [];
+    expect(hits.length).toBe(2);
+  });
+
+  test('新上传的两条链路（配图/封面）都过 absUrl', () => {
+    const s = src();
+    expect(s).toMatch(/newDynamic\.value\.images\.push\(absUrl\(data\.url\)\);/);
+    expect(s).toMatch(/if \(data && data\.url\) newDynamic\.value\.link\.img = absUrl\(data\.url\);/);
+  });
+});
+
+describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验证是否已登录）', () => {
+  test('ensureLogin：hasCardToken + toast + reLaunch 登录页（mall 同款范式）', () => {
+    const s = src();
+    expect(s).toMatch(/import \{ cardApi, hasCardToken \} from '\.\.\/\.\.\/utils\/cardApi\.js';/);
+    expect(s).toMatch(/function ensureLogin\(\) \{/);
+    expect(s).toMatch(/if \(hasCardToken\(\)\) return true;/);
+    expect(s).toMatch(/uni\.reLaunch\(\{ url: '\/pages\/card\/login' \}\);/);
+  });
+
+  test('发布入口走 openPublish（先守卫再开弹窗），不再直接置 showPublish', () => {
+    const s = src();
+    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*showPublish\.value = true;/);
+    expect(s).toMatch(/<view class="publish-btn" @click="openPublish">\+ 发布<\/view>/);
+    expect(s).not.toMatch(/class="publish-btn" @click="showPublish = true"/);
+  });
+
+  test('openEdit 与页面进入（onShow/onMounted）都有守卫', () => {
+    const s = src();
+    expect(s).toMatch(/function openEdit\(d\) \{\s*if \(!ensureLogin\(\)\) return;/);
+    expect(s).toMatch(/onShow\(\(\) => \{[\s\S]*?if \(!hasCardToken\(\)\) ensureLogin\(\);/);
+    expect(s).toMatch(/onMounted\(async \(\) => \{\s*if \(!ensureLogin\(\)\) return;/);
+  });
+});
+
 describe('④ 封面图：拍照/上传 + 裁切 + 压缩（不再手填 URL）', () => {
   test('封面图 URL 输入框已删除（v-model link.img 不再出现在 input 上）', () => {
     const s = src();
@@ -115,7 +172,7 @@ describe('④ 封面图：拍照/上传 + 裁切 + 压缩（不再手填 URL）'
     expect(s).toMatch(/path = await cropCoverSquare\(path\);/);
     expect(s).toMatch(/const out = await compressCover\(path\);/);
     expect(s).toMatch(/await cardApi\.uploadDynamicImage\(out\.path, out\.file\)/);
-    expect(s).toMatch(/newDynamic\.value\.link\.img = data\.url/);
+    expect(s).toMatch(/newDynamic\.value\.link\.img = absUrl\(data\.url\)/);
   });
 
   test('MP 走 wx.cropImage 1:1 系统裁切（取消/低版本回原图，canvas 中心裁兜底）', () => {
