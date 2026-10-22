@@ -57,6 +57,8 @@
 <script setup>
 import { computed } from 'vue';
 import { parseTheme, heroRadius, heroTextureBg } from '../utils/templateTheme.js';
+// 🔴 #312-9：名片头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
+import { absUrl } from '../utils/apiBase.js';
 
 // 16 进制色转 rgba（带透明度）
 function hexA(color, alpha) {
@@ -127,7 +129,8 @@ const ruleStyle = computed(() => ({ background: theme.value.accent }));
 // ===== 真实名片数据（有 card 才渲染，让网格显示"用户自己的卡"）=====
 const hasReal = computed(() => !!(props.card && props.card.name));
 const realName = computed(() => props.card?.name || '');
-const realAvatar = computed(() => props.card?.avatar || '');
+// 🔴 #312-9：名片头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
+const realAvatar = computed(() => absUrl(props.card?.avatar || ''));
 const realInitial = computed(() => (props.card?.name || '名').trim().charAt(0) || '名');
 const realCompany = computed(() => {
   const c = props.card;

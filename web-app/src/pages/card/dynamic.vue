@@ -69,9 +69,9 @@
           <text class="sheet-close" @click="closePublish">✕</text>
         </view>
         <!-- 🔴 反馈 #312-8：链接卡片展开后内容变长却**滚不动**（只能看到一半）。
-             根因：微信小程序的普通 view 设 overflow-y:auto **不保证能滚**，
-             必须用 scroll-view scroll-y。H5 能滚、真机滚不动就是这个差异。
-             flex:1 + height:0 让高度由父级（max-height 92vh）分配，scroll-view 才能算出滚动区。 -->
+             根因一：微信小程序的普通 view 设 overflow-y:auto 真机不保证能滚，必须 scroll-view scroll-y；
+             根因二：scroll-view 必须有**确定高度**才滚——flex:1+height:0 指望父级分配在 MP 端不生效
+             （cardEdit.vue ce-modal-body 有真机实证），改用 .sheet-body 的 max-height 直接封顶。 -->
         <scroll-view scroll-y class="sheet-body">
           <!-- 🔴 #312-1：标题输入框。title 字段库里早有 + INSERT 早写，前端一直没入口。
                选填；maxlength 30——朋友圈分享卡片标题 48 字符截断，标题就是给转发用的一句话。 -->
@@ -222,7 +222,9 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, hasCardToken } from '../../utils/cardApi.js';
-import { API_HOST } from '../../utils/apiBase.js';
+// 🔴 #312-9：absUrl 收敛到 apiBase.js 单一实现（原来 dynamic/cardDetail 各写一份，
+//    新增的 profile/myCard/create 也需要 → 五份必然漂移）
+import { absUrl } from '../../utils/apiBase.js';
 import { mallApi } from '../../utils/mallApi.js';
 import { getTid } from '../../utils/mallUtil.js';
 import { trackPageView } from '../../utils/analytics.js';
@@ -318,12 +320,6 @@ function openPublish() {
   resetForm();
   showPublish.value = true;
 }
-/**
- * 🔴 存储回传的是 /uploads/ 相对路径（storage/local.js）：H5 同源可直接用，
- * 但 MP 的 <image> 会把它当小程序包内路径解析 → 上传成功却显示空白（真机实测）。
- * 按端补全基址：MP 的 API_HOST 是完整域名，H5 是空串（保持同源相对）。
- */
-const absUrl = (u) => (typeof u === 'string' && u.startsWith('/') ? API_HOST + u : u);
 /** 列表加载/编辑回填统一过一遍：配图、链接封面、引用封面都可能存的是相对路径（含历史数据） */
 function hydrateUrls(d) {
   const out = { ...d };
@@ -844,15 +840,16 @@ async function publish() {
 }
 .sheet-title { font-size: var(--fs-6); font-weight: 600; color: var(--t1); }
 .sheet-close { font-size: var(--fs-6); color: var(--t3); }
-/* 🔴 反馈 #312-8：body 区改成 scroll-view scroll-y（微信小程序的普通 view 设
-   overflow-y:auto 不保证能滚，展开链接卡片后内容变长就只能看到一半）。
-   height:0 + flex:1 让高度由父级 max-height 分配——scroll-view 需要**确定高度**才能算出滚动区，
-   只给 flex:1 不给 height:0 在 MP 端会被内容撑开、滚动失效。 */
+/* 🔴 反馈 #312-8「展开后还是滚不动」（前两轮都改错过）：
+   第一轮给普通 view 设 overflow-y:auto——MP 真机不滚；
+   第二轮改 scroll-view scroll-y + flex:1;height:0 指望父级 max-height 把高度分配下来——
+   **MP 端这个分配不生效**（同 cardEdit.vue .ce-modal-body 的真机实证注释：
+   flex:1+min-height:0 在 MP 端不定高，scroll-view 被内容撑高、压住 footer、滚不动）。
+   正解：max-height 直接给滚动区封顶（tl-scroll/rules-scroll 同款，真机验证过）。
+   内容短时弹窗自然矮；内容长时 body 封顶 62vh、内部滚动，header/footer 永不被顶出。 */
 .sheet-body {
   padding: 32rpx;
-  flex: 1;
-  height: 0;
-  min-height: 0;
+  max-height: 62vh;
   box-sizing: border-box;
 }
 .publish-input {

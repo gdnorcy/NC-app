@@ -52,7 +52,8 @@
       </view>
       <view class="team-list">
         <view v-for="m in team.list" :key="m.id" class="team-item">
-          <image v-if="m.avatar" class="team-avatar" :src="m.avatar" mode="aspectFill" />
+          <!-- 🔴 #312-9：m.avatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+          <image v-if="m.avatar" class="team-avatar" :src="absUrl(m.avatar)" mode="aspectFill" />
           <view v-else class="team-avatar placeholder">{{ (m.nickname || '微')[0] }}</view>
           <view class="team-info">
             <view class="team-name">{{ m.nickname || '微信用户' }}</view>
@@ -136,6 +137,8 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+// 🔴 #312-9：头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
+import { absUrl } from '../../utils/apiBase.js';
 import { heroGradient } from '../../utils/color.js';
 import { fetchBrandPalette, useBrandOverride } from '../../utils/brand.js';
 import { trackPageView } from '../../utils/analytics.js';

@@ -12,7 +12,7 @@
       <view v-if="!layoutFull && barTopStyle" class="hero-bartop" :style="barTopStyle"></view>
       <!-- tp2 全屏大图式 -->
       <template v-if="layoutFull">
-        <image class="hero-bg" :src="card.avatar" mode="aspectFill" :style="bgParallax" />
+        <image class="hero-bg" :src="cardAvatar" mode="aspectFill" :style="bgParallax" />
         <view class="hero-shade"></view>
         <view class="hero-full-info">
           <view class="hfi-name">{{ card.name || '您的姓名' }}</view>
@@ -29,7 +29,7 @@
       <!-- tp1-1 经典横排（cls）：头像左 · 信息右 -->
       <view class="row1" v-else-if="heroLayout === 'cls'">
         <view class="hero-avatar" :style="avatarStyle">
-          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
           <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
         </view>
         <view class="hero-id">
@@ -43,7 +43,7 @@
       <!-- tp1-2 居中展示（ctr）：大头像居中 · 信息居中 -->
       <view class="hero-ctr" v-else-if="heroLayout === 'ctr'">
         <view class="ctr-avatar" :style="avatarStyle">
-          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
           <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
         </view>
         <view class="ctr-name" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
@@ -65,7 +65,7 @@
       <view class="hero-royal" v-else-if="heroLayout === 'royal'">
         <view class="royal-top">
           <view class="royal-ava" :style="avatarStyle">
-            <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+            <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
             <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
           </view>
           <view class="royal-cos" v-if="cosList.length">
@@ -81,11 +81,11 @@
       </view>
       <!-- pano1 全幅晨光：形象照全幅 + 底部遮罩 + 信息贴底 -->
       <view class="hero-pano1" v-else-if="heroLayout === 'pano1'">
-        <image class="pano-bg" :src="card.avatar" mode="aspectFill" />
+        <image class="pano-bg" :src="cardAvatar" mode="aspectFill" />
         <view class="pano-mask-b"></view>
         <view class="pano-top">
           <view class="pano-ava" :style="avatarStyle">
-            <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+            <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
             <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
           </view>
           <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
@@ -99,7 +99,7 @@
       </view>
       <!-- pano2 黑金尊享：形象照全幅右移 + 左侧渐变蒙版 + 多公司 -->
       <view class="hero-pano2" v-else-if="heroLayout === 'pano2'">
-        <image class="pano-bg pano-bg-shift" :src="card.avatar" mode="aspectFill" />
+        <image class="pano-bg pano-bg-shift" :src="cardAvatar" mode="aspectFill" />
         <view class="pano-mask-l"></view>
         <view class="pano2-info">
           <view class="pano2-nm" :style="nmStyle">{{ card.name || '您的姓名' }}<text class="badge-inline" v-if="memberLevel !== 'free'" :style="badgeInlineStyle"><SIcon name="crown" size="small" :color="badgeInlineAccent" />{{ memberLevelText }}</text></view>
@@ -115,7 +115,7 @@
       <view class="hero-pano3" v-else-if="heroLayout === 'pano3'">
         <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
         <view class="p3-ava" :style="avatarStyle">
-          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
           <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
         </view>
         <view class="p3-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
@@ -127,7 +127,7 @@
       <view class="hero-pano4" v-else-if="heroLayout === 'pano4'">
         <view class="p4-hin">
           <view class="p4-ph">
-            <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+            <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
             <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
           </view>
           <view class="p4-rin">
@@ -149,7 +149,7 @@
           <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
         </view>
         <view class="p5-ph">
-          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
           <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
         </view>
       </view>
@@ -157,7 +157,7 @@
       <view class="hero-pano6" v-else-if="heroLayout === 'pano6'">
         <view class="hero-badge" v-if="memberLevel !== 'free'" :style="badgeStyle"><SIcon name="crown" size="small" :color="heroColor" /> {{ memberLevelText }}</view>
         <view class="p6-big" :style="avatarStyle">
-          <image v-if="card.avatar" :src="card.avatar" class="avatar-img" mode="aspectFill" />
+          <image v-if="cardAvatar" :src="cardAvatar" class="avatar-img" mode="aspectFill" />
           <view v-else class="avatar-txt" :style="{ color: heroColor }">{{ card.name?.[0] || '名' }}</view>
         </view>
         <view class="p6-nm" :style="nmStyle">{{ card.name || '您的姓名' }}</view>
@@ -326,7 +326,7 @@
                  再没有才画首字母（首字母用品牌色白字，不再是浅灰底浅字看不清）。 -->
             <view class="dyn-av">
               <image v-if="d.authorAvatar" :src="d.authorAvatar" mode="aspectFill" />
-              <image v-else-if="card.avatar" :src="card.avatar" mode="aspectFill" />
+              <image v-else-if="cardAvatar" :src="cardAvatar" mode="aspectFill" />
               <view v-else class="dyn-av-ph">{{ (d.authorName || card.name || '名')[0] }}</view>
             </view>
             <view class="dyn-who">
@@ -338,18 +338,18 @@
             <h4 v-if="d.title">{{ d.title }}</h4>
             <p>{{ d.content }}</p>
           </view>
-          <!-- 🔴 反馈 #312-8：多图要的是「在图上**左右滑动**看第二、第三…张，带滑动动效」，
-               点一下才是放大全屏看——上轮的「重叠堆叠 +N 角标」是静态的，滑不动，不是你要的。
-               现在改成 swiper 轮播：前后各露出 12px 露出下一张边缘（提示可滑），
-               非当前项缩放 0.94 + 降透明度，滑动时有 0.25s 过渡；右下角页码「2/4」。
-               只有 1 张时不进 swiper（没必要，也不会显示页码）。 -->
+          <!-- 🔴 反馈 #312-8「多图要的是在图上左右滑动看第二、第三…张，带滑动动效」+
+               反馈 #312-9「要有折叠的外观，也可以横向滚动」：
+               常规轮播（非当前项只露 12px 边）看不出「折叠」→ 非当前项向左缩进探入
+               可视区（下一张露出一缘，像一摞照片），当前项置顶层；滑动时各就各位、
+               0.25s 过渡。点图上任意一张都从该张起放大全屏看。 -->
           <view v-if="(d.images || []).length > 1" class="dyn-swiper-wrap">
             <swiper class="dyn-swiper" :indicator-dots="false" :circular="false"
                     previous-margin="12px" next-margin="12px"
                     :current="dynSwipeIdx(d)" @change="onDynSwipe(d, $event)">
               <swiper-item v-for="(im, k) in d.images" :key="im + k">
                 <view class="sw-item" :class="{ active: dynSwipeIdx(d) === k }">
-                  <image class="sw-img" :src="im" mode="aspectFill" @click="previewDyn(d)" />
+                  <image class="sw-img" :src="im" mode="aspectFill" @click="previewDyn(d, k)" />
                 </view>
               </swiper-item>
             </swiper>
@@ -387,7 +387,8 @@
       <scroll-view scroll-y class="cmt-list">
         <view v-if="commentPanel.list.length === 0" class="cmt-empty">还没有评论，快来抢沙发</view>
         <view class="cmt-item" v-for="c in commentPanel.list" :key="c.id">
-          <view class="cmt-av"><image v-if="c.avatar" :src="c.avatar" mode="aspectFill" /><text v-else>{{ (c.nickname || '客')[0] }}</text></view>
+          <!-- 🔴 #312-9：c.avatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+          <view class="cmt-av"><image v-if="c.avatar" :src="absUrl(c.avatar)" mode="aspectFill" /><text v-else>{{ (c.nickname || '客')[0] }}</text></view>
           <view class="cmt-body">
             <view class="cmt-name">{{ c.nickname || '访客' }}</view>
             <view class="cmt-text">{{ c.content }}</view>
@@ -488,7 +489,8 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
 import { onUnload, onShow, onPageScroll as registerPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
-import { API_HOST } from '../../utils/apiBase.js';
+// 🔴 #312-9：absUrl 收敛到 apiBase.js 单一实现
+import { absUrl } from '../../utils/apiBase.js';
 // 🔴 #312-8：时间文案与「我的动态」共用一份（服务端存 UTC，两端各写一份必然漂移）
 import { formatDynamicTime } from './utils/dynTime.js';
 import { track, trackPageView } from '../../utils/analytics.js';
@@ -531,6 +533,11 @@ const detailInst = getCurrentInstance();
 const themeColor = computed(() => (brand.value && brand.value.primary) || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 
 const card = ref({});
+// 🔴 #312-9：名片头像统一补基址。库里存的是 /uploads/xxx 相对路径——H5 同源能显示、
+//   MP 当包内路径 → 一片空白；且个人中心/编辑资料换过头像后同样存相对路径
+//   （create.vue 上传接口换 URL，见 #312-9）。所有展示点（hero 大图/圆形头像/
+//   分享封面）走这一个 computed，杜绝 11 处散写漂移。
+const cardAvatar = computed(() => absUrl(card.value.avatar || ''));
 const layoutFull = computed(() => card.value?.templateLayout === 'full');
 const bgParallax = ref({});
 registerPageScroll((e) => {
@@ -901,13 +908,6 @@ function previewWork(w) {
   if (w.imageUrl) uni.previewImage({ urls: works.value.map((x) => x.imageUrl), current: w.imageUrl });
 }
 /**
- * 🔴 存储回传的是 /uploads/ 相对路径（storage/local.js）：H5 同源可直接用，
- * 但 MP 的 <image> 会把它当小程序包内路径解析 → 上传成功却显示空白。
- * 与 dynamic.vue 的 absUrl 保持同一实现（两端漂移会表现为「一边能看一边空白」）。
- */
-const absUrl = (u) => (typeof u === 'string' && u.startsWith('/') ? API_HOST + u : u);
-
-/**
  * 🔴 反馈 #312-8：多图轮播。每张动态各自记一个当前下标（key = 动态 id），
  *   否则同一页里多条动态会共用一个下标、滑一条其余跟着跳。
  */
@@ -920,10 +920,14 @@ function onDynSwipe(d, e) {
   const i = Number(e && e.detail && e.detail.current) || 0;
   dynSwipeMap.value = { ...dynSwipeMap.value, [d.id]: i };
 }
-function previewDyn(d) {
+/**
+ * 🔴 反馈 #312-9：点图上哪一张就从哪一张开始放大。折叠堆叠下探出的也是可点的，
+ *   传 k（被点的下标）；滑动切当前张后不传 k，从当前张起。
+ */
+function previewDyn(d, k) {
   const urls = Array.isArray(d.images) ? d.images : [];
-  // 从当前滑到的那张开始放大（而不是永远第一张）
-  if (urls.length) uni.previewImage({ urls, current: urls[dynSwipeIdx(d)] || urls[0] });
+  const idx = typeof k === 'number' ? k : dynSwipeIdx(d);
+  if (urls.length) uni.previewImage({ urls, current: urls[idx] || urls[0] });
 }
 
 // ===== 动态互动：点赞 =====
@@ -2285,9 +2289,11 @@ async function followCard() {
   margin-top: 16rpx;
   display: block;
 }
-/* 🔴 反馈 #312-8：多图改 swiper 轮播（左右滑看第二三张 + 过渡动效，点击才放大）。
-   swiper 必须有**确定高度**（item 是绝对定位的，撑不高父容器），故容器高度写死。
-   previous/next-margin 让前后一张露出 12px 边缘，暗示「还能滑」。 */
+/* 🔴 反馈 #312-9：折叠外观 + 横向滚动。swiper 提供横滑与滑动动效；
+   折叠感来自 item 自身 transform——非当前项向左缩进探入可视区（下一张露出一缘，
+   像一摞照片），当前项 translateX(0) 置顶压住探出部分。
+   ⚠️ 这里改的是 swiper-item 内部 view 的 transform，与 swiper 滑块自身的 translateX
+   是两层，互不覆盖；z-index 让当前张永远在最上（swiper-item 为绝对定位兄弟节点）。 */
 .dyn-swiper-wrap { position: relative; margin-top: 16rpx; }
 .dyn-swiper { width: 100%; height: 340rpx; }
 .sw-item {
@@ -2295,12 +2301,18 @@ async function followCard() {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-hover);
-  /* 动效：非当前项缩小 + 降透明度，滑动时 0.25s 过渡（swiper 原生滑动 + 这层缩放 = 层次感） */
-  transform: scale(0.94);
-  opacity: 0.72;
+  /* 折叠态：向左缩进探入可视区约 30%（下一张露出一缘，像一摞照片）+ 缩小 + 沉到下层，
+     滑动时 0.25s 过渡归位。item1 左缘初始在 1.0 itemW（正好贴可视区右缘外），
+     -30% 后左缘落在 0.7 → 探入 0.7~1.0 这一条。 */
+  transform: translateX(-30%) scale(0.92);
+  opacity: 0.6;
   transition: transform 0.25s ease, opacity 0.25s ease;
 }
-.sw-item.active { transform: scale(1); opacity: 1; }
+.sw-item.active {
+  transform: translateX(0) scale(1);
+  opacity: 1;
+  z-index: 2;
+}
 .sw-img { width: 100%; height: 100%; display: block; }
 /* 页码「2/4」：swiper 自带 indicator-dots 是圆点，看不出共有几张；数字更明确 */
 .sw-page {

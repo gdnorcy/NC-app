@@ -46,7 +46,8 @@
     <view class="owner-card">
       <view class="oc-head">
         <view class="oc-avatar" :style="avatarStyle">
-          <image v-if="card.avatar" :src="card.avatar" class="oc-avatar-img" mode="aspectFill" />
+          <!-- 🔴 #312-9：card.avatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+          <image v-if="card.avatar" :src="absUrl(card.avatar)" class="oc-avatar-img" mode="aspectFill" />
           <view v-else>{{ card.name?.[0] || '名' }}</view>
         </view>
         <view class="oc-id">
@@ -231,6 +232,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { absUrl } from '../../utils/apiBase.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { shadeHex, brandPalette } from '../../utils/color.js';
 import { heroForeground } from '../../utils/templateTheme.js';

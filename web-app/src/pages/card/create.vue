@@ -195,10 +195,12 @@
         <view class="card-title" style="margin-top: 20rpx;">上传头像</view>
         <view class="avatar-row">
           <view class="avatar-upload" @click="chooseAvatar">
-            <image v-if="form.avatar" :src="form.avatar" class="avatar-img" mode="aspectFill" />
+            <!-- 🔴 #312-9：form.avatar 存的是服务端 URL（可能 /uploads/ 相对路径），
+                 显示前必须补基址，否则 MP 端加载失败（与动态配图同一个坑）。 -->
+            <image v-if="form.avatar" :src="absUrl(form.avatar)" class="avatar-img" mode="aspectFill" />
             <view v-else class="avatar-placeholder">
               <text class="avatar-plus">+</text>
-              <text class="avatar-text">上传</text>
+              <text class="avatar-text">{{ avatarUploading ? '上传中' : '上传' }}</text>
             </view>
           </view>
           <view class="avatar-hint">支持 JPG/PNG，建议正方形</view>
@@ -336,6 +338,8 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, paymentApi } from '../../utils/cardApi.js';
+// 🔴 #312-9：头像等服务端图片路径按端补全（MP 必须补域名，否则加载不出来）
+import { absUrl } from '../../utils/apiBase.js';
 import { syncMarketWithIsPublic } from './utils/marketLink.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
@@ -583,13 +587,37 @@ onMounted(async () => {
   }
 });
 
-function chooseAvatar() {
-  uni.chooseImage({
-    count: 1,
-    success: (res) => {
-      form.avatar = res.tempFilePaths[0];
-    },
+const avatarUploading = ref(false);
+
+/**
+ * 🔴 #312-9「更换头像后不会正确显示」——根因在这里：
+ *   原来选完图直接 `form.avatar = res.tempFilePaths[0]`，把**本地临时路径**
+ *   （MP 是 wxfile://tmp_xxx，H5 是 blob:http://...）当成头像 URL 存进库。
+ *   后果：① 换设备/他人访问这条名片永远加载不出头像；
+ *        ② 本机过一会儿临时文件被系统清理，连自己也看不到；
+ *        ③ 名片详情页拿到这个假 URL 也是空白（只有原来从微信头像带来的 https 链接才正常，
+ *           这就是「名片详情页有时能显示、自己换的就不行」的原因）。
+ *   修法：选完图**先上传换 URL**，成功后才写进 form.avatar（与 profile.vue 同范式）。
+ */
+async function chooseAvatar() {
+  if (avatarUploading.value) return;
+  const res = await new Promise((resolve) => {
+    uni.chooseImage({ count: 1, success: resolve, fail: () => resolve(null) });
   });
+  const path = res && res.tempFilePaths && res.tempFilePaths[0];
+  if (!path) return;
+  avatarUploading.value = true;
+  uni.showLoading({ title: '上传中…', mask: true });
+  try {
+    const data = await cardApi.uploadUserAvatar(path);
+    if (data && data.url) form.avatar = data.url;
+    else uni.showToast({ title: '头像上传失败', icon: 'none' });
+  } catch (e) {
+    uni.showToast({ title: e.message || '头像上传失败', icon: 'none' });
+  } finally {
+    avatarUploading.value = false;
+    uni.hideLoading();
+  }
 }
 
 // 🔴 反馈 #297：语音简介上传 —— 原来这段在 MP 端是**必崩**的：

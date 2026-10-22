@@ -14,7 +14,8 @@
       <!-- 用户信息 -->
       <view class="user-row">
         <view class="user-line">
-          <image v-if="summary.selfAvatar && !selfAvatarError" class="user-avatar" :src="summary.selfAvatar" mode="aspectFill" @error="selfAvatarError = true" />
+          <!-- 🔴 #312-9：selfAvatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+          <image v-if="summary.selfAvatar && !selfAvatarError" class="user-avatar" :src="absUrl(summary.selfAvatar)" mode="aspectFill" @error="selfAvatarError = true" />
           <view v-else class="user-avatar placeholder">{{ (summary.selfName || '我')[0] }}</view>
           <view class="user-name">{{ summary.selfName || '我' }}</view>
           <view class="user-level">{{ summary.currentLevelName || summary.defaultLevel || '默认等级' }}</view>
@@ -131,7 +132,8 @@
         <view v-else-if="!subs.length" class="sub-empty">还没有通过你的名片带来的客户，多多分享名片即可获得客户</view>
         <view v-else class="sub-list">
           <view v-for="s in subs" :key="s.userId" class="sub-item" @click="goSubCard(s.userId)">
-            <image v-if="s.avatar && !failedSubs.has(s.userId)" class="sub-avatar" :src="s.avatar" mode="aspectFill" @error="markSubFailed(s.userId)" />
+            <!-- 🔴 #312-9：s.avatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+            <image v-if="s.avatar && !failedSubs.has(s.userId)" class="sub-avatar" :src="absUrl(s.avatar)" mode="aspectFill" @error="markSubFailed(s.userId)" />
             <view v-else class="sub-avatar placeholder">{{ (s.nickname || '客')[0] }}</view>
             <view class="sub-info">
               <view class="sub-name">{{ s.nickname }}<text v-if="s.paid" class="sub-paid">已付费</text></view>
@@ -304,6 +306,8 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+// 🔴 #312-9：头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
+import { absUrl } from '../../utils/apiBase.js';
 import { heroGradient, brandPalette, shadeHex } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
