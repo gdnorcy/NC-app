@@ -25,11 +25,12 @@
 
 ## 静默失败
 - getCurrentInstance() 只能在 setup 顶层调（事件处理器/await 后调一律 null→真机 MP 炸），见 CardTabBar.vue。
-- 整页空数据：computed 用了未 import 函数→审计 audit:imports。冷启动 reLaunch 竞态：onShow 跳转须等 onReady。
+- 整页空数据：computed 用了未 import 函数（setup 抛错→静态模板在、数据全灭、themeStyle 失效露 fallback 色）→ audit:imports 现已覆盖 vue 具名导出（原只查本地模块）。冷启动 reLaunch 竞态：onShow 跳转须等 onReady。
 
 ## 构建与部署
 - 分支：源码落 main（不带产物）；deploy = merge --no-ff main + 重建产物；git push -f origin deploy；部署后 checkout main。
 - 产物必须 git add -f（限 server/public/{card,mall}、server/mini-template/mp-weixin，别用 -A）；普通 add 静默跳过新 chunk→主 chunk 404 白屏。SPA 兜底让 404 返 200→验证比 md5 不能只看状态码。
+- 🔴 **main HEAD 里跟踪着陈旧产物**（.gitignore 后补，管不住已跟踪文件；669 个，历次既有状态）：切 deploy 报「local changes would be overwritten」阻塞 → **mv 新产物到 /tmp → `checkout -f deploy` → merge → 从备份换回 → `add -f`**；不能从 main 移除跟踪（未来 merge 会 modify/delete 冲突破坏 deploy 产物）。回 main 后 `git checkout -- server/mini-template server/public/card server/public/mall` 恢复陈旧产物保持干净。
 - 顺序铁律：构建→cp -a 备份 /tmp→才能 git checkout（checkout 会把新产物还原成旧版，致 card/card/ 嵌套）。切 deploy 前先 git checkout -- server/mini-template/mp-weixin。
 - vitest 不编译 SFC（setup 同标识符声明两次只有 uni build 照得出）；报 "no tests" 非通过（文件用 it 却导 test 静默跳过）。server 全量 node --test 易 OOM(137)→awk 分 4 批。
 

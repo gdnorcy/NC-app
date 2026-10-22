@@ -24,7 +24,10 @@ describe('#312-5 前端发布器：定时发布开关 + 日期/时间选择', ()
   test('发布弹窗出现「定时发布」开关（switch）与日期/时间两个 picker', () => {
     const s = dynamicPage();
     expect(s).toMatch(/定时发布/);
-    expect(s).toMatch(/<switch :checked="schedEnabled" @change="onSchedToggle" color="#165dff" \/>/);
+    expect(s).toMatch(/<switch :checked="schedEnabled" @change="onSchedToggle" :color="schedSwitchColor" \/>/);
+    // 🔴 配色必须跟品牌走：禁硬编码 #165dff（绿色品牌租户下会露蓝，cardEntryThemeConsistency 同纪律）
+    expect(s).not.toMatch(/<switch[^>]*color="#165dff"/);
+    expect(s).toMatch(/const schedSwitchColor = computed\(\(\) => brandPrimary\.value \|\| \(themeStyle\.value && themeStyle\.value\['--design-primary'\]\) \|\| '#165dff'\);/);
     expect(s).toMatch(/<picker mode="date" :value="schedDate" @change="onSchedDate" class="sched-picker">/);
     expect(s).toMatch(/<picker mode="time" :value="schedTime" @change="onSchedTime" class="sched-picker">/);
   });
