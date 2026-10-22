@@ -333,7 +333,21 @@
             <h4 v-if="d.title">{{ d.title }}</h4>
             <p>{{ d.content }}</p>
           </view>
-          <image v-if="d.images && d.images.length" class="dyn-img" :src="d.images[0]" mode="aspectFill" @click="previewDyn(d)" />
+          <!-- 🔴 反馈 #312-7-7：原来写死 `d.images[0]`，传 4 张也只显示 1 张。
+               现在改「重叠堆叠 + 剩余角标」：最多叠 3 层（每层右移/缩一点点，像一摞照片），
+               总数 >3 时右下角给「+N」。整块可点 → 全屏预览全部（previewDyn 本就传全量 urls）。
+               有独立封面 cover 时优先展示封面（大图），配图数并入角标，不再重复铺两遍图。 -->
+          <view v-if="d.cover || (d.images && d.images.length)" class="dyn-stack" @click="previewDyn(d)">
+            <view v-if="d.cover" class="stack-single">
+              <image class="stack-img" :src="d.cover" mode="aspectFill" />
+            </view>
+            <template v-else>
+              <view class="stack-item" v-for="(im, k) in (d.images || []).slice(0, STACK_MAX)" :key="im + k" :style="stackStyle(k, d.images.length)">
+                <image class="stack-img" :src="im" mode="aspectFill" />
+              </view>
+            </template>
+            <view v-if="stackRest(d) > 0" class="stack-more">+{{ stackRest(d) }}</view>
+          </view>
           <!-- 🔴 #312-2：链接预览卡片 + 小程序卡片；🔴 #312-3：名片模块引用。两者互斥，复用 DynamicLinkCard 避免两端漂移 -->
           <DynamicLinkCard v-if="d.linkUrl || d.ref" :d="d" :refObj="d.ref || null" />
           <view class="dyn-meta">
@@ -463,6 +477,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
 import { onUnload, onShow, onPageScroll as registerPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
+import { API_HOST } from '../../utils/apiBase.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient, brandPalette, hexLuma, shadeHex } from '../../utils/color.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
@@ -790,7 +805,15 @@ onMounted(async () => {
       // 加载动态
       try {
         const d = await cardApi.getCardDynamics(id);
-        dynamics.value = d.dynamics || [];
+        // 🔴 与 dynamic.vue 同源的坑：存储回传 /uploads/ 相对路径，H5 同源能显示、
+        //   MP 会当包内路径 → 上传成功却空白。这里同样按端补全基址（含新增的封面 cover）。
+        dynamics.value = (d.dynamics || []).map((x) => ({
+          ...x,
+          images: Array.isArray(x.images) ? x.images.map(absUrl) : x.images,
+          cover: x.cover ? absUrl(x.cover) : '',
+          linkImg: x.linkImg ? absUrl(x.linkImg) : '',
+          ...(x.ref && x.ref.cover ? { ref: { ...x.ref, cover: absUrl(x.ref.cover) } } : {}),
+        }));
       } catch (e) {}
       // 加载视频
       try {
@@ -863,8 +886,42 @@ function navigateTo() {
 function previewWork(w) {
   if (w.imageUrl) uni.previewImage({ urls: works.value.map((x) => x.imageUrl), current: w.imageUrl });
 }
+/**
+ * 🔴 存储回传的是 /uploads/ 相对路径（storage/local.js）：H5 同源可直接用，
+ * 但 MP 的 <image> 会把它当小程序包内路径解析 → 上传成功却显示空白。
+ * 与 dynamic.vue 的 absUrl 保持同一实现（两端漂移会表现为「一边能看一边空白」）。
+ */
+const absUrl = (u) => (typeof u === 'string' && u.startsWith('/') ? API_HOST + u : u);
+
+/**
+ * 🔴 反馈 #312-7-7：多图堆叠常量与样式。最多叠 3 层（再多就看不出层次且白占高度），
+ *   剩余数量走角标「+N」。
+ *   纯百分比定位（不用 calc/rpx 混算）——MP 端对 calc() 与 rpx 混合支持不稳，百分比最安全。
+ */
+const STACK_MAX = 3;
+/** 每层：向右错开 4%、上移 2%、高度递减 4%、z-index 递减（最上面的在最前） */
+function stackStyle(k, total) {
+  const n = Math.min(total || 1, STACK_MAX);
+  if (n <= 1) return { left: '0%', width: '100%', height: '100%', top: '0%', zIndex: 1 };
+  return {
+    left: `${k * 4}%`,
+    width: `${100 - (n - 1) * 4}%`,
+    height: `${100 - k * 5}%`,
+    top: `${k * 2.5}%`,
+    zIndex: n - k,
+  };
+}
+/** 角标数字：有封面时封面占 1 个名额（它已作为大图铺满），其余配图都算「未露出」 */
+function stackRest(d) {
+  if (d.cover) return (d.images || []).length;
+  const total = (d.images || []).length;
+  return Math.max(0, total - STACK_MAX);
+}
 function previewDyn(d) {
-  if (d.images && d.images.length) uni.previewImage({ urls: d.images, current: d.images[0] });
+  const imgs = Array.isArray(d.images) ? d.images : [];
+  // 封面排第一，与展示顺序一致（点封面大图进预览时落在第 1 张）
+  const urls = d.cover ? [d.cover, ...imgs] : imgs;
+  if (urls.length) uni.previewImage({ urls });
 }
 
 // ===== 动态互动：点赞 =====
@@ -2223,6 +2280,57 @@ async function followCard() {
   border-radius: var(--radius-md);
   margin-top: 16rpx;
   display: block;
+}
+/* 🔴 反馈 #312-7-7：多图重叠堆叠容器。固定高度 + 相对定位，子层绝对定位错开叠放，
+   视觉上像一摞照片——比九宫格**省一半以上高度**，4 张图也不用铺满整屏。
+   高度定死是必须的：绝对定位子层不撑高父容器，父容器没高度就塌成 0。 */
+.dyn-stack {
+  position: relative;
+  width: 100%;
+  height: 320rpx;
+  margin-top: 16rpx;
+}
+.stack-single {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-hover);
+}
+.stack-item {
+  position: absolute;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-hover);
+  /* 白边当"纸片"边界：层与层之间靠它分开（不用 box-shadow——新增裸阴影会破 tokenAudit 基线） */
+  border: 4rpx solid var(--white);
+  box-sizing: border-box;
+}
+.stack-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.stack-more {
+  position: absolute;
+  right: 16rpx;
+  bottom: 16rpx;
+  /* 角标要压住最多 3 层堆叠（内联 zIndex 1..3），故取层级最高的既有令牌
+     ——不新增 z-index 裸值：tokenAudit 的 z-index 写法基线不许上调。 */
+  z-index: var(--z-popup);
+  min-width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  padding: 0 12rpx;
+  text-align: center;
+  border-radius: 28rpx;
+  background: var(--bg-mask);
+  color: var(--white);
+  font-size: var(--fs-3);
+  font-weight: 600;
 }
 .dyn-meta {
   display: flex;

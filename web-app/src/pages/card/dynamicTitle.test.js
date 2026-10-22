@@ -34,7 +34,7 @@ describe('#312-1 动态标题：发布弹窗必须能填标题', () => {
 
   test('newDynamic 初始值含 title，publish 提交带 title', () => {
     const s = dynamicPage();
-    expect(s).toMatch(/newDynamic = ref\(\{ content: '', title: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \}\)/);
+    expect(s).toMatch(/newDynamic = ref\(\{ content: '', title: '', cover: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \}\)/);
     // 提交体必须带 title（缺这项 = 前端填了也传不到后端）；publish 组装 payload 后交给 createDynamic
     expect(s).toMatch(/title: newDynamic\.value\.title \|\| ''/);
     expect(s).toMatch(/cardApi\.createDynamic\(payload\)/);
@@ -42,7 +42,10 @@ describe('#312-1 动态标题：发布弹窗必须能填标题', () => {
 
   test('发布成功后的重置必须清 title（与 images 同一个坑）', () => {
     const s = dynamicPage();
-    expect(s).toMatch(/newDynamic\.value = \{ content: '', title: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \};/);
+    // 🔴 #312-7-2 后：重置收敛成 resetForm()+emptyDynamic()（原来只在发布成功那条路径清，
+    //   取消/点遮罩关闭会残留）。断言「空壳工厂含 title/cover 且被 resetForm 赋值」。
+    expect(s).toMatch(/function emptyDynamic\(\) \{\s*return \{ content: '', title: '', cover: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \};\s*\}/);
+    expect(s).toMatch(/function resetForm\(\) \{[\s\S]*?newDynamic\.value = emptyDynamic\(\);/);
   });
 });
 
@@ -71,7 +74,7 @@ describe('#312-1 动态标题：服务端链路（本次未改，钉死防回归
 
   test('POST /dynamics INSERT 写 title', () => {
     const s = cardRoute();
-    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
+    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, cover, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
   });
 
   test('card_dynamic 表有 title 列', () => {

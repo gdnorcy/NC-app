@@ -67,7 +67,7 @@ describe('#312-5 前端发布器：定时发布开关 + 日期/时间选择', ()
 describe('#312-5 服务端链路（钉死防回归）', () => {
   test('POST /dynamics INSERT 写 scheduled_at + status 两列', () => {
     const s = cardRoute();
-    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
+    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, cover, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
   });
 
   test('toDynamic 序列化出口带 scheduledAt 与 status（前端管理/徽标用）', () => {

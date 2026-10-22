@@ -23,9 +23,12 @@
         <!-- 🔴 #312-1：title 字段早在库里（db.js card_dynamic.title）+ INSERT 已写入，
              只差前端输入框。列表页标题加粗单行，超长省略（给转发卡片用的一句话标题）。 -->
         <view class="dynamic-title" v-if="d.title">{{ d.title }}</view>
+        <!-- 🔴 反馈 #312-7：动态独立封面（头图）。有 cover 就只放头图，不再重复铺配图，
+             否则同一条动态「头图 + 九宫格」两套图挤在一起。点击统一走全量预览。 -->
+        <image v-if="d.cover" class="dynamic-cover" :src="d.cover" mode="aspectFill" @click="previewList(d)"/>
         <view class="dynamic-content">{{ d.content }}</view>
-        <view class="dynamic-images" v-if="d.images?.length">
-          <image v-for="(img, i) in d.images" :key="i" :src="img" mode="aspectFill" class="dynamic-img"/>
+        <view class="dynamic-images" v-if="!d.cover && d.images?.length">
+          <image v-for="(img, i) in d.images" :key="i" :src="img" mode="aspectFill" class="dynamic-img" @click="previewList(d)"/>
         </view>
         <!-- 🔴 #312-2：链接预览卡片 + 小程序卡片（linkUrl 非空即渲染）；
              🔴 #312-3：名片模块引用（d.ref 非空即渲染，优先于链接卡片）。两者互斥，不会同时出现。 -->
@@ -47,9 +50,13 @@
     <!-- 封面图压缩用屏幕外 canvas（MP type=2d；🔴 禁 display:none——MP 节点查不到 → fixed 移出屏幕） -->
     <canvas type="2d" id="coverCompressCanvas" class="offscreen-canvas" />
 
-    <!-- 发布弹窗 -->
-    <view class="modal-mask" v-if="showPublish" @click="closePublish">
-      <view class="bottom-sheet" @click.stop>
+    <!-- 发布弹窗
+         🔴 反馈 #312-7-6「点了定时发布后页面滚不动，变成滚动弹窗后面的页面」：
+         滚动穿透。mask 拦截 touchmove（.stop 阻止冒泡 + .prevent 阻止默认滚动），
+         sheet 侧再用 .stop 把内部滚动**截断在 sheet 内**——否则 sheet-body 的滚动会冒泡到
+         mask 被一起 preventDefault，表现为「弹窗内也滚不动」。两者必须成对出现。 -->
+    <view class="modal-mask" v-if="showPublish" @click="closePublish" @touchmove.stop.prevent="noopScroll">
+      <view class="bottom-sheet" @click.stop @touchmove.stop="noopScroll">
         <view class="sheet-header">
           <text class="sheet-title">{{ isEditing ? '编辑动态' : '发布动态' }}</text>
           <text class="sheet-close" @click="closePublish">✕</text>
@@ -57,17 +64,46 @@
         <view class="sheet-body">
           <!-- 🔴 #312-1：标题输入框。title 字段库里早有 + INSERT 早写，前端一直没入口。
                选填；maxlength 30——朋友圈分享卡片标题 48 字符截断，标题就是给转发用的一句话。 -->
+          <!-- 🔴 反馈 #312-7-3：动态自己的封面头图。与下面「链接卡片的封面图」是两个东西——
+               这张是动态列表/名片详情里的头图；链接卡片封面只用在链接卡片那张小图上。
+               放在最上面是因为它就是「头图」，视觉顺序应与最终展示一致。 -->
+          <view class="cover-block">
+            <view class="cover-block-head">
+              <text class="form-label">动态封面（选填）</text>
+              <text class="cover-block-tip">{{ newDynamic.cover ? '已压缩上传' : '不设则默认展示配图' }}</text>
+            </view>
+            <view class="cover-row">
+              <view class="cover-preview" v-if="newDynamic.cover">
+                <image :src="newDynamic.cover" mode="aspectFill" class="cover-img" @click="previewCover"/>
+                <view class="cover-del" @click="newDynamic.cover = ''">✕</view>
+              </view>
+              <view class="cover-add" v-else @click="pickDynCover">
+                <text class="cover-add-icon">＋</text>
+                <text class="cover-add-text">上传封面</text>
+              </view>
+            </view>
+          </view>
           <input class="title-input" v-model="newDynamic.title" placeholder="添加标题（选填）" placeholder-class="ph" :maxlength="30"/>
           <textarea class="publish-input" v-model="newDynamic.content" placeholder="分享你的想法..." placeholder-class="ph" :maxlength="500"/>
           <!-- 🔴 反馈 #295：动态发布原本**只能发纯文字**（表单里根本没有图片入口，
-               后端 images 字段与列表渲染其实早都支持）→ 补上选图入口 + 预览 + 删除。 -->
+               后端 images 字段与列表渲染其实早都支持）→ 补上选图入口 + 预览 + 删除。
+               🔴 反馈 #312-7-5：超过 IMG_SCROLL_THRESHOLD(3) 张改**横向滚动**，不再把 9 张全铺开
+               （弹窗高度有限，全铺会把下面的选项顶出屏外）；点任意一张进全屏预览。 -->
           <view class="img-picker" v-if="!linkActive">
-            <view class="img-grid" v-if="newDynamic.images.length">
+            <view class="img-grid" v-if="newDynamic.images.length && newDynamic.images.length <= IMG_SCROLL_THRESHOLD">
               <view class="img-cell" v-for="(img, i) in newDynamic.images" :key="img + i">
-                <image class="img-thumb" :src="img" mode="aspectFill"/>
-                <view class="img-del" @click="removeImage(i)">✕</view>
+                <image class="img-thumb" :src="img" mode="aspectFill" @click="previewPicked(i)"/>
+                <view class="img-del" @click.stop="removeImage(i)">✕</view>
               </view>
             </view>
+            <scroll-view scroll-x class="img-scroll" v-else-if="newDynamic.images.length" :show-scrollbar="false">
+              <view class="img-scroll-inner">
+                <view class="img-cell img-cell-fixed" v-for="(img, i) in newDynamic.images" :key="img + i">
+                  <image class="img-thumb" :src="img" mode="aspectFill" @click="previewPicked(i)"/>
+                  <view class="img-del" @click.stop="removeImage(i)">✕</view>
+                </view>
+              </view>
+            </scroll-view>
             <view class="img-add" v-if="newDynamic.images.length < MAX_DYNAMIC_IMAGES" @click="pickImages">
               <text class="img-add-icon">＋</text>
               <text class="img-add-text">{{ newDynamic.images.length }}/{{ MAX_DYNAMIC_IMAGES }}</text>
@@ -79,12 +115,21 @@
             <view class="sec-head" @click="linkOpen = !linkOpen">
               <text class="form-label">链接卡片（可选）</text>
               <view class="sec-head-right">
+                <!-- 🔴 反馈 #312-7-3「没有看到封面的入口」：封面原先深埋在**默认收缩**的分区里，
+                     折叠状态下完全找不到 → 在分区头右侧直接给出封面入口（有图显示缩略图，
+                     没图显示「＋封面」），不用展开也能一键上传。@click.stop 避免顺带切换展开态。 -->
+                <image v-if="newDynamic.link.img" :src="newDynamic.link.img" class="sec-thumb" mode="aspectFill" @click.stop="pickCover"/>
+                <!-- 复用 .sec-added 的既有徽标样式（不再新写一份 rgba 底：会破 tokenAudit 基线） -->
+                <text v-else class="sec-added" @click.stop="pickCover">＋封面</text>
                 <text v-if="linkActive" class="sec-added">已添加</text>
                 <text class="sec-toggle">{{ linkOpen ? '收起' : '展开' }}</text>
                 <text class="sec-arrow" :class="{ open: linkOpen }">›</text>
               </view>
             </view>
             <template v-if="linkOpen">
+              <!-- 🔴 反馈 #312-7-4「展开后的内容显得很拥挤」：展开体整块包进 sec-panel
+                   （浅底卡片 + 内边距 + 统一纵向间距），控件不再贴着分区头挤成一团。 -->
+              <view class="sec-panel">
               <view v-if="imagesActive || refActive" class="form-hint">图片与链接卡片互斥（先移除图片/引用）</view>
               <template v-else>
                 <view class="link-type">
@@ -109,6 +154,7 @@
                   <view v-if="newDynamic.link.img" class="cover-tip">已裁切压缩</view>
                 </view>
               </template>
+              </view>
             </template>
           </view>
 
@@ -123,6 +169,7 @@
               </view>
             </view>
             <template v-if="refOpen">
+              <view class="sec-panel">
               <view v-if="imagesActive || linkActive" class="form-hint">图片/链接与引用互斥（先移除图片或清空链接）</view>
               <template v-else>
                 <view v-if="newDynamic.ref" class="ref-chip" @click="clearRef">
@@ -153,6 +200,7 @@
                   <view v-if="!showRefPicker" class="ref-open" @click="openRefPicker">＋ 选择{{ refTab === 'goods' ? '产品' : '案例/作品' }}</view>
                 </template>
               </template>
+              </view>
             </template>
           </view>
 
@@ -216,8 +264,17 @@ const showPublish = ref(false);
 // 🔴 #312-1：补 title 字段（库里早有，前端一直没输入框）
 // 🔴 #312-2：补 link 字段（链接预览卡片 + 小程序卡片）。type: 'page' 跳内页 | 'url' 外链。
 // 🔴 #312-3：补 ref 字段（名片模块引用：{type:'works'|'goods', id, title, cover}）。与图片/链接互斥。
-const newDynamic = ref({ content: '', title: '', images: [], visibility: 'public', link: { type: 'page', url: '', title: '', desc: '', img: '' }, ref: null });
+// 🔴 #312-7：补 cover 字段（动态自己的封面头图，与 link.img 两码事）。
+const newDynamic = ref({ content: '', title: '', cover: '', images: [], visibility: 'public', link: { type: 'page', url: '', title: '', desc: '', img: '' }, ref: null });
 const MAX_DYNAMIC_IMAGES = 9;
+// 🔴 反馈 #312-7-5：已选图 ≤3 张走九宫格；超过 3 张改横向滚动，不再全铺占满弹窗。
+const IMG_SCROLL_THRESHOLD = 3;
+/** 空壳表单：发布成功 / 关闭弹窗 / 打开弹窗 三处共用，杜绝「上一条动态被带进新页面」 */
+function emptyDynamic() {
+  return { content: '', title: '', cover: '', images: [], visibility: 'public', link: { type: 'page', url: '', title: '', desc: '', img: '' }, ref: null };
+}
+/** 弹窗滚动穿透防护的空处理器（mask 与 sheet 上成对使用，见模板注释） */
+function noopScroll() {}
 // 🔴 #312-2 / #312-3：图片 / 链接卡片 / 名片模块引用 三者互斥（企微 attachments 三选一）。
 //   三 computed 驱动发布器禁用另外两项入口。
 const linkActive = computed(() => !!(newDynamic.value.link.url && newDynamic.value.link.url.trim()));
@@ -259,9 +316,27 @@ function ensureLogin() {
   uni.reLaunch({ url: '/pages/card/login' });
   return false;
 }
-/** 导航栏「+ 发布」：先过登录守卫再开弹窗 */
+/**
+ * 🔴 反馈 #312-7-2「发布新动态，会把最后一条动态的内容带到新页面」：
+ * 根因是 closePublish 只清了开关类状态（定时/展开态），**没清表单内容**——
+ * 只有发布成功那条路径才 reset，取消/点遮罩关闭就会把上次的 content/title/图 留到下次。
+ * 修法：抽 resetForm()，打开与关闭**都**调一次（幂等）。
+ */
+function resetForm() {
+  newDynamic.value = emptyDynamic();
+  editingId.value = null;
+  schedEnabled.value = false;
+  schedDate.value = '';
+  schedTime.value = '';
+  linkOpen.value = false;
+  refOpen.value = false;
+  showRefPicker.value = false;
+}
+
+/** 导航栏「+ 发布」：先过登录守卫，再重置表单后开弹窗 */
 function openPublish() {
   if (!ensureLogin()) return;
+  resetForm();
   showPublish.value = true;
 }
 /**
@@ -275,6 +350,7 @@ function hydrateUrls(d) {
   const out = { ...d };
   if (Array.isArray(d.images)) out.images = d.images.map(absUrl);
   if (d.linkImg) out.linkImg = absUrl(d.linkImg);
+  if (d.cover) out.cover = absUrl(d.cover);
   if (d.ref && d.ref.cover) out.ref = { ...d.ref, cover: absUrl(d.ref.cover) };
   return out;
 }
@@ -352,10 +428,11 @@ function schedLabel() {
 function openEdit(d) {
   if (!ensureLogin()) return;
   editingId.value = d.id;
-  // 还原正文/标题/图片/可见范围
+  // 还原正文/标题/图片/封面/可见范围
   newDynamic.value = {
     content: d.content || '',
     title: d.title || '',
+    cover: d.cover || '',
     images: Array.isArray(d.images) ? [...d.images] : [],
     visibility: d.visibility || 'public',
     // 还原链接卡片（有 linkUrl 才填，否则给空壳）
@@ -403,15 +480,10 @@ async function removeDynamic(d) {
   });
 }
 
-/** 关闭弹窗：重置编辑态与定时选择，避免下次「发布」误走「更新」 */
+/** 关闭弹窗：整表重置（含正文/标题/配图/封面），避免下次「发布」误走「更新」或带上旧内容 */
 function closePublish() {
   showPublish.value = false;
-  editingId.value = null;
-  schedEnabled.value = false;
-  schedDate.value = '';
-  schedTime.value = '';
-  linkOpen.value = false;
-  refOpen.value = false;
+  resetForm();
 }
 
 /** 选图：uni.chooseMedia 在 H5 端不保证可用，降级 chooseImage（MP 端 chooseMedia 更完整，支持压缩） */
@@ -438,13 +510,22 @@ async function pickImages() {
     const paths = res.tempFilePaths || [];
     const list = files.length ? files : paths.map((p) => ({ tempFilePath: p }));
     if (!list.length) return;
-    uni.showLoading({ title: '上传中…', mask: true });
+    uni.showLoading({ title: '处理中…', mask: true });
     let ok = 0;
     try {
       for (const f of list) {
         const p = f.tempFilePath || f;
         if (!p) continue;
-        const data = await cardApi.uploadDynamicImage(p, f.file);
+        // 🔴 反馈 #312-7-1「除了封面相片，其他上传的相片有加压缩吗」——原先**没有**：
+        //   正文图只靠 chooseMedia 的 sizeType:['compressed']（微信自己的二次压缩，H5 端等于没有），
+        //   原图直传既慢又占空间。现在与封面共用同一套 canvas 压缩，只是**保持原比例**、长边 1280。
+        let upPath = p;
+        let upFile = f.file;
+        try {
+          const out = await compressImage(p, { square: false, max: CONTENT_MAX, quality: CONTENT_QUALITY });
+          if (out && (out.path || out.file)) { upPath = out.path || ''; upFile = out.file; }
+        } catch { /* 压缩失败不阻塞发布：原图直传 */ }
+        const data = await cardApi.uploadDynamicImage(upPath, upFile);
         if (data && data.url) {
           newDynamic.value.images.push(absUrl(data.url));
           ok++;
@@ -473,6 +554,10 @@ function removeImage(i) {
 //   显示层中心裁掉——不如上传前裁好。服务端上传上限 10MB，压缩后（≤720px JPEG）远低于此。
 const COVER_MAX = 720;      // 封面最大边长 px（卡片显示仅 60pt，720 余量充足又不过大）
 const COVER_QUALITY = 0.85; // JPEG 压缩质量
+// 🔴 #312-7-1：正文配图压缩参数。保持**原比例**（不裁方形——正文图要完整构图），
+//   只把长边限到 1280：手机屏最宽 ~1170px，1280 已够看又显著小于原图（4000px 级直传太浪费）。
+const CONTENT_MAX = 1280;
+const CONTENT_QUALITY = 0.85;
 
 /** MP：微信系统裁切（基础库 2.22.0+）。用户取消 / 低版本不支持 → 返回原图（下一步 canvas 中心裁切兜底） */
 function cropCoverSquare(src) {
@@ -493,12 +578,15 @@ function cropCoverSquare(src) {
 }
 
 /**
- * 封面压缩：中心裁方形 + 限幅 COVER_MAX + JPEG。
+ * 🔴 #312-7-1：图片压缩**统一入口**（封面与正文图共用一套 canvas 实现，只是参数不同）。
+ *   square=true  → 中心裁方形（链接卡片封面 120rpx 见方，非方图会被显示层裁掉，不如上传前裁好）
+ *   square=false → 保持原比例，只按 max 限长边（正文图要保留完整构图）
+ * 限幅后的最大边长 = max；JPEG 质量 = quality。
  * MP：屏幕外 2d canvas（createImage → drawImage → toTempFilePath）。
  * H5：脱离文档的 canvas（Image → drawImage → toBlob → File）。
  * 返回 { path, file }：MP 给 path（uni.uploadFile 用）；H5 给 file（FormData 必须真 File）。
  */
-async function compressCover(src) {
+async function compressImage(src, { square = true, max = COVER_MAX, quality = COVER_QUALITY } = {}) {
   // #ifdef MP-WEIXIN
   const node = await new Promise((resolve) => {
     uni.createSelectorQuery().select('#coverCompressCanvas').fields({ node: true }).exec((r) => {
@@ -512,18 +600,26 @@ async function compressCover(src) {
     img.onerror = reject;
     img.src = src;
   });
-  const side = Math.min(img.width, img.height);
-  if (!side) return { path: src };
-  const out = Math.min(side, COVER_MAX);
-  node.width = out;
-  node.height = out;
+  const w = img.width;
+  const h = img.height;
+  // 取源区：方形取中心正方形，非方形取整图
+  const sw = square ? Math.min(w, h) : w;
+  const sh = square ? Math.min(w, h) : h;
+  if (!sw || !sh) return { path: src };
+  const sx = (w - sw) / 2;
+  const sy = (h - sh) / 2;
+  const scale = Math.min(1, max / Math.max(sw, sh));
+  const outW = Math.max(1, Math.round(sw * scale));
+  const outH = Math.max(1, Math.round(sh * scale));
+  node.width = outW;
+  node.height = outH;
   const ctx = node.getContext('2d');
-  ctx.clearRect(0, 0, out, out);
-  ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, out, out);
+  ctx.clearRect(0, 0, outW, outH);
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
   const path = await new Promise((resolve) => {
     node.toTempFilePath({
-      x: 0, y: 0, width: out, height: out, destWidth: out, destHeight: out,
-      fileType: 'jpg', quality: COVER_QUALITY,
+      x: 0, y: 0, width: outW, height: outH, destWidth: outW, destHeight: outH,
+      fileType: 'jpg', quality,
       success: (r) => resolve(r.tempFilePath),
       fail: () => resolve(src),
     });
@@ -537,20 +633,35 @@ async function compressCover(src) {
     im.onerror = reject;
     im.src = src;
   });
-  const side = Math.min(img.naturalWidth, img.naturalHeight);
-  if (!side) return { path: src };
-  const out = Math.min(side, COVER_MAX);
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const sw = square ? Math.min(w, h) : w;
+  const sh = square ? Math.min(w, h) : h;
+  if (!sw || !sh) return { path: src };
+  const sx = (w - sw) / 2;
+  const sy = (h - sh) / 2;
+  const scale = Math.min(1, max / Math.max(sw, sh));
+  const outW = Math.max(1, Math.round(sw * scale));
+  const outH = Math.max(1, Math.round(sh * scale));
   const cv = document.createElement('canvas');
-  cv.width = out;
-  cv.height = out;
-  cv.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
-  const blob = await new Promise((resolve) => cv.toBlob(resolve, 'image/jpeg', COVER_QUALITY));
+  cv.width = outW;
+  cv.height = outH;
+  cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+  const blob = await new Promise((resolve) => cv.toBlob(resolve, 'image/jpeg', quality));
   if (!blob) return { path: src };
-  return { path: '', file: new File([blob], 'cover.jpg', { type: 'image/jpeg' }) };
+  return { path: '', file: new File([blob], 'upload.jpg', { type: 'image/jpeg' }) };
   // #endif
 }
 
-/** 选封面：chooseMedia（MP 更完整，H5 降级 chooseImage）→ 裁切 → 压缩 → 上传 */
+/**
+ * 封面压缩：中心裁方形 + 限幅 COVER_MAX + JPEG。
+ * （保留独立函数名：链接卡片封面的方形语义与正文图不同，调用处一眼能分清。）
+ */
+async function compressCover(src) {
+  return compressImage(src, { square: true, max: COVER_MAX, quality: COVER_QUALITY });
+}
+
+/** 选链接卡片封面：chooseMedia（MP 更完整，H5 降级 chooseImage）→ 裁切 → 压缩 → 上传 */
 async function pickCover() {
   const res = await new Promise((resolve) => {
     const opts = { count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'], success: (r) => resolve(r), fail: () => resolve(null) };
@@ -575,6 +686,56 @@ async function pickCover() {
   } finally {
     uni.hideLoading();
   }
+}
+
+/**
+ * 🔴 #312-7-3：选「动态封面」（头图）。与 pickCover 的唯一差别是**不裁方形**——
+ * 头图是宽幅展示，裁成方的会把左右裁掉。限幅同样走 1280 长边。
+ */
+async function pickDynCover() {
+  const res = await new Promise((resolve) => {
+    const opts = { count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'], success: (r) => resolve(r), fail: () => resolve(null) };
+    if (typeof uni.chooseMedia === 'function') {
+      uni.chooseMedia({ ...opts, mediaType: ['image'] });
+    } else {
+      uni.chooseImage(opts);
+    }
+  });
+  if (!res) return;
+  const files = res.tempFiles || [];
+  const path = (res.tempFilePaths && res.tempFilePaths[0]) || (files[0] && files[0].tempFilePath);
+  if (!path) return;
+  uni.showLoading({ title: '处理中…', mask: true });
+  try {
+    const out = await compressImage(path, { square: false, max: CONTENT_MAX, quality: CONTENT_QUALITY });
+    const data = await cardApi.uploadDynamicImage(out.path, out.file);
+    if (data && data.url) newDynamic.value.cover = absUrl(data.url);
+  } catch (e) {
+    uni.showToast({ title: e.message || '封面上传失败', icon: 'none' });
+  } finally {
+    uni.hideLoading();
+  }
+}
+
+/** 🔴 #312-7-5：发布弹窗里点已选图 → 全屏预览（左右可滑看其余已选） */
+function previewPicked(i) {
+  const urls = newDynamic.value.images || [];
+  if (!urls.length) return;
+  uni.previewImage({ urls, current: urls[i] || urls[0] });
+}
+
+/** 发布弹窗里点头图 → 预览该封面 */
+function previewCover() {
+  if (!newDynamic.value.cover) return;
+  uni.previewImage({ urls: [newDynamic.value.cover], current: newDynamic.value.cover });
+}
+
+/** 列表页点图 → 预览整条动态的图（有封面时封面排第一，与展示顺序一致） */
+function previewList(d) {
+  const imgs = Array.isArray(d.images) ? d.images : [];
+  const urls = d.cover ? [d.cover, ...imgs] : imgs;
+  if (!urls.length) return;
+  uni.previewImage({ urls });
 }
 
 onShow(() => {
@@ -603,6 +764,8 @@ async function publish() {
     const payload = {
       title: newDynamic.value.title || '',
       content: newDynamic.value.content,
+      // 🔴 #312-7-3：动态封面头图（独立字段，服务端存 card_dynamic.cover）
+      cover: newDynamic.value.cover || '',
       images: newDynamic.value.images,
       visibility: newDynamic.value.visibility,
       // 🔴 #312-2：链接卡片四字段 + targetType。空 url 时服务端会归一为空（不渲染卡片）。
@@ -624,14 +787,9 @@ async function publish() {
     }
     uni.showToast({ title: editingId.value ? '已保存' : '发布成功', icon: 'success' });
     showPublish.value = false;
-    // 🔴 重置必须把 images、title、link、ref、编辑态、定时一并清空，否则下次打开弹窗还挂着上次状态
-    newDynamic.value = { content: '', title: '', images: [], visibility: 'public', link: { type: 'page', url: '', title: '', desc: '', img: '' }, ref: null };
-    schedEnabled.value = false;
-    schedDate.value = '';
-    schedTime.value = '';
-    editingId.value = null;
-    linkOpen.value = false;
-    refOpen.value = false;
+    // 🔴 重置走同一个 resetForm()：images/title/cover/link/ref/编辑态/定时一次清干净，
+    //   不再「发布成功才清、取消关闭不清」（反馈 #312-7-2 的根因）。
+    resetForm();
     const res = await cardApi.getDynamics();
     dynamics.value = (res.dynamics || []).map(hydrateUrls);
   } catch (e) {
@@ -860,7 +1018,50 @@ async function publish() {
 }
 .img-add-icon { font-size: 56rpx; color: var(--t3); line-height: 1; }
 .img-add-text { font-size: var(--fs-2); color: var(--t3); margin-top: 8rpx; }
+/* 🔴 反馈 #312-7-5：>3 张时横向滚动。scroll-view 内必须用**行内排布**的子容器，
+   否则 MP 端会折行（scroll-view 不继承 flex 布局语义）；img-cell-fixed 给固定宽，
+   横向滚动场景下 grid 的 1fr 宽度是算不出来的。 */
+.img-scroll { width: 100%; white-space: nowrap; margin-bottom: 12rpx; }
+.img-scroll-inner { display: inline-flex; gap: 12rpx; padding: 2rpx; }
+.img-cell-fixed { width: 200rpx; height: 200rpx; flex-shrink: 0; }
 .form-item { margin-bottom: 20rpx; }
+/* 🔴 反馈 #312-7-4：展开体包成浅底卡片，纵向统一间距，控件不再贴头挤成一团。
+   （margin-top 拉开与分区头的距离；gap 拉开控件彼此的距离） */
+.sec-panel {
+  margin-top: 20rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-xs);
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.sec-panel .form-label { margin-bottom: 0; }
+.sec-panel .link-input,
+.sec-panel .link-type,
+.sec-panel .ref-tabs { margin-bottom: 0; }
+/* 🔴 反馈 #312-7-3：分区头右侧的封面直达入口（折叠状态也能一眼看到）。
+   有封面 → 32rpx 缩略图；无封面 → 「＋封面」文字按钮。 */
+.sec-thumb {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+/* 🔴 #312-7-3：动态封面（头图）区块。放在标题输入框之上，与最终展示顺序一致。 */
+.cover-block { margin-bottom: 24rpx; }
+.cover-block-head { display: flex; align-items: baseline; justify-content: space-between; }
+.cover-block-head .form-label { margin-bottom: 12rpx; }
+.cover-block-tip { font-size: var(--fs-1); color: var(--t3); }
+/* 列表页动态封面头图：宽幅 16:9 观感，aspectFill 裁切居中 */
+.dynamic-cover {
+  width: 100%;
+  height: 320rpx;
+  border-radius: var(--radius-xs);
+  display: block;
+  margin-bottom: 16rpx;
+  background: var(--bg-hover);
+}
 .form-label { font-size: var(--fs-4); color: var(--t2); margin-bottom: 12rpx; }
 /* 🔴 #312-2：链接卡片表单控件 */
 .link-type { display: flex; gap: 16rpx; margin-bottom: 16rpx; }
