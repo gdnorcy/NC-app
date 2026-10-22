@@ -37,8 +37,8 @@ describe('#312-6 前端：发布弹窗复用为编辑态', () => {
   test('openEdit 回填表单（含链接/引用/定时还原）；closePublish 清编辑态', () => {
     const s = dynamicPage();
     expect(s).toMatch(/function openEdit\(d\) \{/);
-    // 回填链接卡片（有 linkUrl 才填）
-    expect(s).toMatch(/link: d\.linkUrl/);
+    // 回填链接卡片（🔴 #312-8：只回填 url + type，标题/描述/封面已下线）
+    expect(s).toMatch(/link: \{ type: d\.linkType \|\| 'page', url: d\.linkUrl \|\| '' \}/);
     // 回填引用
     expect(s).toMatch(/ref: d\.ref \|\| null/);
     // 定时还原
@@ -94,6 +94,6 @@ describe('#312-6 服务端：PUT / DELETE 仅本人 + 软删 + 列表过滤', ()
 
   test('PUT 复用归一逻辑：写同样的 15 列（含 scheduled_at + status）', () => {
     const s = cardRoute();
-    expect(s).toMatch(/UPDATE card_dynamic SET title=\?, content=\?, cover=\?, images=\?, visibility=\?, link_title=\?, link_img=\?, link_desc=\?, link_url=\?, link_type=\?, ref_type=\?, ref_id=\?, scheduled_at=\?, status=\?, updated_at=datetime\('now'\) WHERE id=\?/);
+    expect(s).toMatch(/UPDATE card_dynamic SET title=\?, content=\?, images=\?, visibility=\?, link_title=\?, link_img=\?, link_desc=\?, link_url=\?, link_type=\?, ref_type=\?, ref_id=\?, scheduled_at=\?, status=\?, updated_at=datetime\('now'\) WHERE id=\?/);
   });
 });

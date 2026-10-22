@@ -32,11 +32,16 @@ describe('① 弹窗滚动：sheet 限高 + body 区滚动（无法上下滚动�
     expect(c).toMatch(/\.bottom-sheet \{[\s\S]*?box-sizing: border-box;/);
   });
 
-  test('.sheet-body 可滚动且可被压缩（min-height:0 是关键，缺了 max-height 形同虚设）', () => {
+  test('.sheet-body 是 scroll-view 且高度可算（🔴 #312-8：普通 view 的 overflow-y:auto 在 MP 滚不动）', () => {
+    const s = src();
+    // 必须是 scroll-view scroll-y，不靠 CSS 的 overflow-y
+    expect(s).toMatch(/<scroll-view scroll-y class="sheet-body">/);
     const c = css();
+    // height:0 + flex:1：scroll-view 要有**确定高度**才能算出滚动区，
+    // 只给 flex:1 在 MP 会被内容撑开、滚动失效
     expect(c).toMatch(/\.sheet-body \{[\s\S]*?flex: 1;/);
+    expect(c).toMatch(/\.sheet-body \{[\s\S]*?height: 0;/);
     expect(c).toMatch(/\.sheet-body \{[\s\S]*?min-height: 0;/);
-    expect(c).toMatch(/\.sheet-body \{[\s\S]*?overflow-y: auto;/);
   });
 
   test('头/尾不参与滚动（flex-shrink:0）', () => {
@@ -124,10 +129,9 @@ describe('⑥ 上传图片 URL 补全（/uploads/ 相对路径在 MP 显示空�
     expect(hits.length).toBe(2);
   });
 
-  test('新上传的两条链路（配图/封面）都过 absUrl', () => {
+  test('新上传的配图过 absUrl（封面链路 #312-8 已下线，只剩配图一条）', () => {
     const s = src();
     expect(s).toMatch(/newDynamic\.value\.images\.push\(absUrl\(data\.url\)\);/);
-    expect(s).toMatch(/if \(data && data\.url\) newDynamic\.value\.link\.img = absUrl\(data\.url\);/);
   });
 });
 
@@ -144,8 +148,9 @@ describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验�
     const s = src();
     // 🔴 #312-7-2：开弹窗前先 resetForm()（否则上一条动态会被带进新页面）
     expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);\s*showPublish\.value = true;/);
-    expect(s).toMatch(/<view class="publish-btn" @click="openPublish">\+ 发布<\/view>/);
-    expect(s).not.toMatch(/class="publish-btn" @click="showPublish = true"/);
+    // 🔴 #312-8-3：入口从导航栏（被微信胶囊挤到标题左边）改到右下角悬浮圆按钮
+    expect(s).toMatch(/<view class="fab-publish" @click="openPublish">＋<\/view>/);
+    expect(s).not.toMatch(/class="publish-btn"/);
   });
 
   test('openEdit 与页面进入（onShow/onMounted）都有守卫', () => {
@@ -156,53 +161,33 @@ describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验�
   });
 });
 
-describe('④ 封面图：拍照/上传 + 裁切 + 压缩（不再手填 URL）', () => {
-  test('封面图 URL 输入框已删除（v-model link.img 不再出现在 input 上）', () => {
+describe('④ 配图压缩（不再手填 URL；#312-8 下线封面链路后只剩这一条）', () => {
+  test('配图压缩：compressImage 统一入口，默认保原比例 + 长边 1280', () => {
     const s = src();
-    expect(s).not.toMatch(/<input[^>]*v-model="newDynamic\.link\.img"/);
-    expect(s).not.toMatch(/封面图 URL/);
-  });
-
-  test('封面选择器：预览 + 删除 + 拍照/上传入口', () => {
-    const s = src();
-    expect(s).toMatch(/<view class="cover-add" v-else @click="pickCover">/);
-    expect(s).toMatch(/<view class="cover-del" @click="newDynamic\.link\.img = \'\'">✕<\/view>/);
-    expect(s).toMatch(/<image :src="newDynamic\.link\.img" mode="aspectFill" class="cover-img" \/>/);
-  });
-
-  test('pickCover：chooseMedia（album+camera）→ 裁切 → 压缩 → 上传', () => {
-    const s = src();
-    expect(s).toMatch(/async function pickCover\(\)/);
-    expect(s).toMatch(/sourceType: \['album', 'camera'\]/);
-    expect(s).toMatch(/path = await cropCoverSquare\(path\);/);
-    expect(s).toMatch(/const out = await compressCover\(path\);/);
-    expect(s).toMatch(/await cardApi\.uploadDynamicImage\(out\.path, out\.file\)/);
-    expect(s).toMatch(/newDynamic\.value\.link\.img = absUrl\(data\.url\)/);
-  });
-
-  test('MP 走 wx.cropImage 1:1 系统裁切（取消/低版本回原图，canvas 中心裁兜底）', () => {
-    const s = src();
-    expect(s).toMatch(/function cropCoverSquare\(src\)/);
-    expect(s).toMatch(/wx\.cropImage\(\{/);
-    expect(s).toMatch(/cropScale: '1:1'/);
-  });
-
-  test('compressCover：中心方裁 + 限幅 + JPEG，MP 屏幕外 canvas / H5 脱离文档 canvas', () => {
-    const s = src();
-    expect(s).toMatch(/const COVER_MAX = 720;/);
-    expect(s).toMatch(/const COVER_QUALITY = 0\.85;/);
-    expect(s).toMatch(/async function compressCover\(src\)/);
-    expect(s).toMatch(/#coverCompressCanvas/);
-    // 🔴 #312-7-1：压缩逻辑抽成通用 compressImage(src,{square,max,quality})，
-    //   compressCover 只是「square:true + COVER_MAX + COVER_QUALITY」的语义包装。
-    expect(s).toMatch(/async function compressImage\(src, \{ square = true, max = COVER_MAX, quality = COVER_QUALITY \} = \{\}\)/);
-    expect(s).toMatch(/return compressImage\(src, \{ square: true, max: COVER_MAX, quality: COVER_QUALITY \}\)/);
+    expect(s).toMatch(/const CONTENT_MAX = 1280;/);
+    expect(s).toMatch(/const CONTENT_QUALITY = 0\.85;/);
+    expect(s).toMatch(/async function compressImage\(src, \{ square = false, max = CONTENT_MAX, quality = CONTENT_QUALITY \} = \{\}\)/);
     expect(s).toMatch(/fileType: 'jpg', quality,/);
     expect(s).toMatch(/cv\.toBlob\(resolve, 'image\/jpeg', quality\)/);
-    expect(s).toMatch(/const COVER_MAX = 720;/);
-    // 屏幕外 canvas 禁 display:none（MP 节点查不到）→ fixed 移出屏幕
+  });
+
+  test('屏幕外 canvas 禁 display:none（MP 节点查不到）→ fixed 移出屏幕', () => {
+    expect(src()).toMatch(/#coverCompressCanvas/);
     expect(css()).toMatch(/\.offscreen-canvas \{[\s\S]*?position: fixed;/);
     expect(css()).toMatch(/\.offscreen-canvas \{[\s\S]*?left: -9999px;/);
     expect(css()).not.toMatch(/\.offscreen-canvas \{[\s\S]*?display: none/);
+  });
+
+  test('📌 回归护栏：封面链路已整体下线（pickCover / cropCoverSquare / compressCover 都不应存在）', () => {
+    const s = src();
+    expect(s).not.toMatch(/function pickCover/);
+    expect(s).not.toMatch(/function cropCoverSquare/);
+    expect(s).not.toMatch(/function compressCover/);
+    expect(s).not.toMatch(/wx\.cropImage/);
+    expect(s).not.toMatch(/动态封面/);
+    expect(s).not.toMatch(/＋封面/);
+    // 链接卡片不再有标题/描述/封面输入（#312-8 精简）
+    expect(s).not.toMatch(/v-model="newDynamic\.link\.title"/);
+    expect(s).not.toMatch(/v-model="newDynamic\.link\.desc"/);
   });
 });

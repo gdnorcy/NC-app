@@ -61,7 +61,7 @@ describe('#312-3 发布器：名片模块引用选择器', () => {
     const s = dynamicPage();
     expect(s).toMatch(/refType: newDynamic\.value\.ref \? newDynamic\.value\.ref\.type : ''/);
     expect(s).toMatch(/refId: newDynamic\.value\.ref \? newDynamic\.value\.ref\.id : 0/);
-    expect(s).toMatch(/function emptyDynamic\(\) \{\s*return \{ content: '', title: '', cover: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '', title: '', desc: '', img: '' \}, ref: null \};\s*\}/);
+    expect(s).toMatch(/function emptyDynamic\(\) \{\s*return \{ content: '', title: '', images: \[\], visibility: 'public', link: \{ type: 'page', url: '' \}, ref: null \};\s*\}/);
     expect(s).toMatch(/function resetForm\(\) \{[\s\S]*?newDynamic\.value = emptyDynamic\(\);/);
   });
 });
@@ -96,7 +96,7 @@ describe('#312-3 服务端链路（本次改动，钉死防回归）', () => {
 
   test('POST /dynamics INSERT 写 ref_type / ref_id 两列', () => {
     const s = cardRoute();
-    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, cover, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
+    expect(s).toMatch(/INSERT INTO card_dynamic \(user_id, card_id, title, content, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status\)/);
     // 引用校验：works 必须归属本人名片；goods 必须同租户
     expect(s).toMatch(/SELECT id FROM card_works WHERE id = \? AND card_id = \?/);
     expect(s).toMatch(/g\.customer_id === targetCard\.customer_id/);

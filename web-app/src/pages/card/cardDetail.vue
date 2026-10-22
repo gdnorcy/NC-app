@@ -320,9 +320,14 @@
       <view class="dyn-list" v-if="dynamics.length">
         <view class="dyn-card" v-for="d in dynamics" :key="d.id">
           <view class="dyn-head">
+            <!-- 🔴 反馈 #312-8「动态圆形头像没显示出来，是一片灰」：
+                 authorAvatar 存的是 /uploads/ 相对路径，MP 端 <image> 会当包内路径解析
+                 → 加载失败只剩 .dyn-av 的灰底。水合时补域名；仍为空则回落到名片头像，
+                 再没有才画首字母（首字母用品牌色白字，不再是浅灰底浅字看不清）。 -->
             <view class="dyn-av">
               <image v-if="d.authorAvatar" :src="d.authorAvatar" mode="aspectFill" />
-              <view v-else>{{ (d.authorName || card.name || '名')[0] }}</view>
+              <image v-else-if="card.avatar" :src="card.avatar" mode="aspectFill" />
+              <view v-else class="dyn-av-ph">{{ (d.authorName || card.name || '名')[0] }}</view>
             </view>
             <view class="dyn-who">
               <b>{{ d.authorName || card.name }}</b>
@@ -333,29 +338,35 @@
             <h4 v-if="d.title">{{ d.title }}</h4>
             <p>{{ d.content }}</p>
           </view>
-          <!-- 🔴 反馈 #312-7-7：原来写死 `d.images[0]`，传 4 张也只显示 1 张。
-               现在改「重叠堆叠 + 剩余角标」：最多叠 3 层（每层右移/缩一点点，像一摞照片），
-               总数 >3 时右下角给「+N」。整块可点 → 全屏预览全部（previewDyn 本就传全量 urls）。
-               有独立封面 cover 时优先展示封面（大图），配图数并入角标，不再重复铺两遍图。 -->
-          <view v-if="d.cover || (d.images && d.images.length)" class="dyn-stack" @click="previewDyn(d)">
-            <view v-if="d.cover" class="stack-single">
-              <image class="stack-img" :src="d.cover" mode="aspectFill" />
-            </view>
-            <template v-else>
-              <view class="stack-item" v-for="(im, k) in (d.images || []).slice(0, STACK_MAX)" :key="im + k" :style="stackStyle(k, d.images.length)">
-                <image class="stack-img" :src="im" mode="aspectFill" />
-              </view>
-            </template>
-            <view v-if="stackRest(d) > 0" class="stack-more">+{{ stackRest(d) }}</view>
+          <!-- 🔴 反馈 #312-8：多图要的是「在图上**左右滑动**看第二、第三…张，带滑动动效」，
+               点一下才是放大全屏看——上轮的「重叠堆叠 +N 角标」是静态的，滑不动，不是你要的。
+               现在改成 swiper 轮播：前后各露出 12px 露出下一张边缘（提示可滑），
+               非当前项缩放 0.94 + 降透明度，滑动时有 0.25s 过渡；右下角页码「2/4」。
+               只有 1 张时不进 swiper（没必要，也不会显示页码）。 -->
+          <view v-if="(d.images || []).length > 1" class="dyn-swiper-wrap">
+            <swiper class="dyn-swiper" :indicator-dots="false" :circular="false"
+                    previous-margin="12px" next-margin="12px"
+                    :current="dynSwipeIdx(d)" @change="onDynSwipe(d, $event)">
+              <swiper-item v-for="(im, k) in d.images" :key="im + k">
+                <view class="sw-item" :class="{ active: dynSwipeIdx(d) === k }">
+                  <image class="sw-img" :src="im" mode="aspectFill" @click="previewDyn(d)" />
+                </view>
+              </swiper-item>
+            </swiper>
+            <view class="sw-page">{{ dynSwipeIdx(d) + 1 }}/{{ d.images.length }}</view>
           </view>
+          <image v-else-if="(d.images || []).length === 1" class="dyn-img" :src="d.images[0]" mode="aspectFill" @click="previewDyn(d)" />
           <!-- 🔴 #312-2：链接预览卡片 + 小程序卡片；🔴 #312-3：名片模块引用。两者互斥，复用 DynamicLinkCard 避免两端漂移 -->
           <DynamicLinkCard v-if="d.linkUrl || d.ref" :d="d" :refObj="d.ref || null" />
           <view class="dyn-meta">
+            <!-- 🔴 反馈 #312-8「两个 0 究竟是什么，也不知道代表什么」：
+                 原来只有图标 + 数字，图标在 MP 端没渲染出来就剩两个裸 0。
+                 现在图标后面跟文字（赞 / 评论），图挂了也能看懂。 -->
             <text class="dyn-act" :class="{ liked: d.likedByMe }" @click.stop="toggleLike(d)">
-              <SIcon name="like" size="small" :color="d.likedByMe ? themeColor : '#9a9a9a'" /> {{ d.likeCount || 0 }}
+              <SIcon name="like" size="small" :color="d.likedByMe ? themeColor : '#9a9a9a'" /><text class="dyn-act-txt">赞 {{ d.likeCount || 0 }}</text>
             </text>
             <text class="dyn-act" @click.stop="openComments(d)">
-              <SIcon name="comment" size="small" :color="ICON_DECOR" /> {{ d.commentCount || 0 }}
+              <SIcon name="comment" size="small" :color="ICON_DECOR" /><text class="dyn-act-txt">评论 {{ d.commentCount || 0 }}</text>
             </text>
           </view>
         </view>
@@ -478,6 +489,8 @@ import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
 import { onUnload, onShow, onPageScroll as registerPageScroll, onShareAppMessage } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { API_HOST } from '../../utils/apiBase.js';
+// 🔴 #312-8：时间文案与「我的动态」共用一份（服务端存 UTC，两端各写一份必然漂移）
+import { formatDynamicTime } from './utils/dynTime.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient, brandPalette, hexLuma, shadeHex } from '../../utils/color.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
@@ -806,11 +819,12 @@ onMounted(async () => {
       try {
         const d = await cardApi.getCardDynamics(id);
         // 🔴 与 dynamic.vue 同源的坑：存储回传 /uploads/ 相对路径，H5 同源能显示、
-        //   MP 会当包内路径 → 上传成功却空白。这里同样按端补全基址（含新增的封面 cover）。
+        //   MP 会当包内路径 → 上传成功却空白。这里同样按端补全基址。
+        //   🔴 #312-8：authorAvatar 之前**漏在这里** → 圆形头像一片灰（反馈「没显示出来」）。
         dynamics.value = (d.dynamics || []).map((x) => ({
           ...x,
           images: Array.isArray(x.images) ? x.images.map(absUrl) : x.images,
-          cover: x.cover ? absUrl(x.cover) : '',
+          authorAvatar: x.authorAvatar ? absUrl(x.authorAvatar) : '',
           linkImg: x.linkImg ? absUrl(x.linkImg) : '',
           ...(x.ref && x.ref.cover ? { ref: { ...x.ref, cover: absUrl(x.ref.cover) } } : {}),
         }));
@@ -894,34 +908,22 @@ function previewWork(w) {
 const absUrl = (u) => (typeof u === 'string' && u.startsWith('/') ? API_HOST + u : u);
 
 /**
- * 🔴 反馈 #312-7-7：多图堆叠常量与样式。最多叠 3 层（再多就看不出层次且白占高度），
- *   剩余数量走角标「+N」。
- *   纯百分比定位（不用 calc/rpx 混算）——MP 端对 calc() 与 rpx 混合支持不稳，百分比最安全。
+ * 🔴 反馈 #312-8：多图轮播。每张动态各自记一个当前下标（key = 动态 id），
+ *   否则同一页里多条动态会共用一个下标、滑一条其余跟着跳。
  */
-const STACK_MAX = 3;
-/** 每层：向右错开 4%、上移 2%、高度递减 4%、z-index 递减（最上面的在最前） */
-function stackStyle(k, total) {
-  const n = Math.min(total || 1, STACK_MAX);
-  if (n <= 1) return { left: '0%', width: '100%', height: '100%', top: '0%', zIndex: 1 };
-  return {
-    left: `${k * 4}%`,
-    width: `${100 - (n - 1) * 4}%`,
-    height: `${100 - k * 5}%`,
-    top: `${k * 2.5}%`,
-    zIndex: n - k,
-  };
+const dynSwipeMap = ref({});
+function dynSwipeIdx(d) {
+  return dynSwipeMap.value[d && d.id] || 0;
 }
-/** 角标数字：有封面时封面占 1 个名额（它已作为大图铺满），其余配图都算「未露出」 */
-function stackRest(d) {
-  if (d.cover) return (d.images || []).length;
-  const total = (d.images || []).length;
-  return Math.max(0, total - STACK_MAX);
+function onDynSwipe(d, e) {
+  if (!d || !d.id) return;
+  const i = Number(e && e.detail && e.detail.current) || 0;
+  dynSwipeMap.value = { ...dynSwipeMap.value, [d.id]: i };
 }
 function previewDyn(d) {
-  const imgs = Array.isArray(d.images) ? d.images : [];
-  // 封面排第一，与展示顺序一致（点封面大图进预览时落在第 1 张）
-  const urls = d.cover ? [d.cover, ...imgs] : imgs;
-  if (urls.length) uni.previewImage({ urls });
+  const urls = Array.isArray(d.images) ? d.images : [];
+  // 从当前滑到的那张开始放大（而不是永远第一张）
+  if (urls.length) uni.previewImage({ urls, current: urls[dynSwipeIdx(d)] || urls[0] });
 }
 
 // ===== 动态互动：点赞 =====
@@ -1069,13 +1071,15 @@ function ensureLogin() {
   }
   return true;
 }
+/**
+ * 🔴 反馈 #312-8「发布时间是 9 个小时前，这个时间不对」：
+ *   根因——服务端 created_at 是 SQLite `datetime('now')` 的 **UTC** 串，
+ *   原来 `new Date(t.replace(' ','T'))` 被浏览器按**本地时区**解析 → 东八区凭空多 8 小时，
+ *   于是刚发的动态显示「8/9 个小时前」。
+ *   现在走公共实现（按 UTC 解析 + 本地时区显示），与「我的动态」列表同一份口径，避免两端漂移。
+ */
 function timeText(t) {
-  if (!t) return '';
-  const diff = (Date.now() - new Date(t.replace(' ', 'T')).getTime()) / 1000;
-  if (diff < 3600) return `${Math.max(1, Math.floor(diff / 60))}分钟前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
-  if (diff < 172800) return '昨天';
-  return new Date(t).toLocaleDateString('zh-CN');
+  return formatDynamicTime(t);
 }
 // 打开视频号主页：小程序端走微信原生 openChannelsUserProfile（与 DesignPage.openChannel 同口径），
 // 传 finderUserName=视频号ID，直接进主人视频号主页；失败给真原因提示 + H5 端降级复制 ID。
@@ -2281,55 +2285,54 @@ async function followCard() {
   margin-top: 16rpx;
   display: block;
 }
-/* 🔴 反馈 #312-7-7：多图重叠堆叠容器。固定高度 + 相对定位，子层绝对定位错开叠放，
-   视觉上像一摞照片——比九宫格**省一半以上高度**，4 张图也不用铺满整屏。
-   高度定死是必须的：绝对定位子层不撑高父容器，父容器没高度就塌成 0。 */
-.dyn-stack {
-  position: relative;
-  width: 100%;
-  height: 320rpx;
-  margin-top: 16rpx;
-}
-.stack-single {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
+/* 🔴 反馈 #312-8：多图改 swiper 轮播（左右滑看第二三张 + 过渡动效，点击才放大）。
+   swiper 必须有**确定高度**（item 是绝对定位的，撑不高父容器），故容器高度写死。
+   previous/next-margin 让前后一张露出 12px 边缘，暗示「还能滑」。 */
+.dyn-swiper-wrap { position: relative; margin-top: 16rpx; }
+.dyn-swiper { width: 100%; height: 340rpx; }
+.sw-item {
   height: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-hover);
+  /* 动效：非当前项缩小 + 降透明度，滑动时 0.25s 过渡（swiper 原生滑动 + 这层缩放 = 层次感） */
+  transform: scale(0.94);
+  opacity: 0.72;
+  transition: transform 0.25s ease, opacity 0.25s ease;
 }
-.stack-item {
-  position: absolute;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--bg-hover);
-  /* 白边当"纸片"边界：层与层之间靠它分开（不用 box-shadow——新增裸阴影会破 tokenAudit 基线） */
-  border: 4rpx solid var(--white);
-  box-sizing: border-box;
-}
-.stack-img {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.stack-more {
+.sw-item.active { transform: scale(1); opacity: 1; }
+.sw-img { width: 100%; height: 100%; display: block; }
+/* 页码「2/4」：swiper 自带 indicator-dots 是圆点，看不出共有几张；数字更明确 */
+.sw-page {
   position: absolute;
   right: 16rpx;
   bottom: 16rpx;
-  /* 角标要压住最多 3 层堆叠（内联 zIndex 1..3），故取层级最高的既有令牌
-     ——不新增 z-index 裸值：tokenAudit 的 z-index 写法基线不许上调。 */
   z-index: var(--z-popup);
-  min-width: 56rpx;
-  height: 56rpx;
-  line-height: 56rpx;
-  padding: 0 12rpx;
+  min-width: 64rpx;
+  height: 44rpx;
+  line-height: 44rpx;
+  padding: 0 14rpx;
   text-align: center;
-  border-radius: 28rpx;
+  border-radius: 22rpx;
   background: var(--bg-mask);
   color: var(--white);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
+  font-weight: 600;
+}
+/* 🔴 #312-8：头像兜底首字母——原来是浅灰底 + 浅灰字，远看就是「一片灰」。
+   改成品牌色实心底 + 白字，一眼能认出是头像区。 */
+.dyn-av-ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 🔴 只用 --design-primary 且**不带默认色兜底**：cardDetail 全文件禁漂移令牌
+     （cardDetailBrand 测试按整文件文本扫描，注释里也别写那个兜底令牌名），
+     带兜底会在租户主题未注入时露出平台默认蓝。 */
+  background: var(--design-primary);
+  color: var(--white);
+  font-size: var(--fs-4);
   font-weight: 600;
 }
 .dyn-meta {
@@ -2406,7 +2409,10 @@ async function followCard() {
 .cmt-input { flex: 1; height: 72rpx; background: var(--bg-card); border-radius: 36rpx; padding: 0 28rpx; font-size: var(--fs-5); }
 .cmt-send { width: 140rpx; height: 72rpx; line-height: 72rpx; background: var(--design-primary, #165dff); color: var(--white); font-size: var(--fs-5); border-radius: 36rpx; padding: 0; margin: 0; }
 .cmt-send[disabled] { opacity: 0.5; }
-.dyn-act { display: inline-flex; align-items: center; gap: 6rpx; padding: 8rpx 14rpx; border-radius: var(--radius-lg); }
+.dyn-act { display: inline-flex; align-items: center; gap: 8rpx; padding: 8rpx 16rpx; border-radius: var(--radius-lg); }
+/* 🔴 #312-8：图标后面跟文字（赞/评论）——只有图标 + 数字时，MP 端图标没渲染出来
+   就剩两个裸「0」，用户完全看不懂代表什么。文字是语义的兜底。 */
+.dyn-act-txt { font-size: var(--fs-3); }
 .dyn-act.liked { color: var(--design-primary, #165dff); font-weight: 600; background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06); }
 
 
