@@ -28,7 +28,8 @@
     <view class="col-list" v-if="shownCollects.length">
       <view class="col-item" v-for="c in shownCollects" :key="c.cardId" @click="openCard(c)" @longpress="moveGroup(c)">
         <view class="c-av">
-          <image v-if="c.avatar" :src="c.avatar" class="c-av-img" mode="aspectFill" />
+          <!-- 🔴 #312-9：c.avatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+          <image v-if="c.avatar" :src="absUrl(c.avatar)" class="c-av-img" mode="aspectFill" />
           <view v-else class="c-av-txt">{{ c.name[0] || '名' }}</view>
         </view>
         <view class="c-info">
@@ -55,6 +56,8 @@ import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
+// 🔴 #312-9：名片头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
+import { absUrl } from '../../utils/apiBase.js';
 
 const collects = ref([]);
 const groups = ref([]);

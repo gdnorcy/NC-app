@@ -5,7 +5,7 @@
     <!-- 用户信息头部 -->
     <view class="header">
         <view class="user-info">
-          <image v-if="user.avatar && !avatarError" class="avatar-img" :src="user.avatar" mode="aspectFill" @error="avatarError = true" />
+          <image v-if="user.avatar && !avatarError" class="avatar-img" :src="absUrl(user.avatar)" mode="aspectFill" @error="avatarError = true" />
           <view v-else class="avatar">{{ user.nickname?.[0] || '用' }}</view>
           <view class="info">
             <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
@@ -98,7 +98,9 @@
           @chooseavatar="onChooseAvatar"
           @click="h5ChooseAvatar"
         >
-          <image v-if="editForm.avatar && !editAvatarError" class="ac-img" :src="editForm.avatar" mode="aspectFill" @error="editAvatarError = true" />
+          <!-- 🔴 #312-9：editForm.avatar 可能是 /uploads/ 相对路径（库里存的头像），
+               MP 端不补域名就是空白；H5 空基址保持同源 -->
+          <image v-if="editForm.avatar && !editAvatarError" class="ac-img" :src="absUrl(editForm.avatar)" mode="aspectFill" @error="editAvatarError = true" />
           <view v-else class="ac-img ac-ph">{{ user.nickname?.[0] || '用' }}</view>
           <view class="ac-tip">点击更换头像</view>
         </button>
@@ -128,6 +130,8 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, hasCardToken } from '../../utils/cardApi.js';
+// 🔴 #312-9：头像存的是 /uploads/ 相对路径，MP 端必须补域名（与个人中心同一份实现）
+import { absUrl } from '../../utils/apiBase.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import SIcon from '../../components/SIcon.vue';

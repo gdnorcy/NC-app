@@ -2,8 +2,9 @@
  * 🔴 回归锁：发布弹窗体验四项反馈（2026-10-22 真机截图）
  *
  * 反馈与修法：
- *   ① 「编辑后/点发布后无法上下滚动」→ sheet 限高 + 纵向 flex，body 区 overflow-y:auto。
- *      min-height:0 是关键（flex 子项默认 min-height:auto 会被内容撑高，max-height 形同虚设）。
+ *   ① 「编辑后/点发布后无法上下滚动」→ sheet 限高 + body 区改 scroll-view scroll-y，
+ *      并用 max-height 显式封顶（MP scroll-view 需确定高度才滚动；flex:1+min-height:0
+ *      在 H5 有效、MP 端分配不到高度——cardEdit.vue 有同款真机实证）。
  *   ② 「链接和引用名片模块默认做成收缩的」→ linkOpen/refOpen 默认 false，一行头 + 箭头；
  *      编辑带回内容时 openEdit 自动展开（linkOpen = !!d.linkUrl / refOpen = !!d.ref）。
  *   ③ 「定时发布的按钮打开后的配色不对」→ switch 弃用硬编码 #165dff，改 schedSwitchColor
@@ -32,16 +33,22 @@ describe('① 弹窗滚动：sheet 限高 + body 区滚动（无法上下滚动�
     expect(c).toMatch(/\.bottom-sheet \{[\s\S]*?box-sizing: border-box;/);
   });
 
-  test('.sheet-body 是 scroll-view 且高度可算（🔴 #312-8：普通 view 的 overflow-y:auto 在 MP 滚不动）', () => {
+  test('.sheet-body 是 scroll-view 且显式定高（🔴 #312-8：普通 view 的 overflow-y:auto 在 MP 滚不动；flex:1+height:0 分配高度在 MP 端也不生效）', () => {
     const s = src();
     // 必须是 scroll-view scroll-y，不靠 CSS 的 overflow-y
     expect(s).toMatch(/<scroll-view scroll-y class="sheet-body">/);
     const c = css();
-    // height:0 + flex:1：scroll-view 要有**确定高度**才能算出滚动区，
-    // 只给 flex:1 在 MP 会被内容撑开、滚动失效
-    expect(c).toMatch(/\.sheet-body \{[\s\S]*?flex: 1;/);
-    expect(c).toMatch(/\.sheet-body \{[\s\S]*?height: 0;/);
-    expect(c).toMatch(/\.sheet-body \{[\s\S]*?min-height: 0;/);
+    // MP 的 scroll-view 必须有确定高度才滚动。三条路都试过：
+    //   ① 普通 view + overflow-y:auto —— 真机不滚；
+    //   ② flex:1 + height:0 + min-height:0 指望父级 max-height 分配 —— MP 端分配不生效，
+    //      scroll-view 被内容撑高、压住 footer、滚不动（cardEdit.vue ce-modal-body 同款实证）；
+    //   ③ max-height 直接给滚动区封顶（tl-scroll/rules-scroll 同款，真机验证过）。
+    expect(c).toMatch(/\.sheet-body \{[^}]*max-height: 62vh;/);
+    // 反向钉死：不得回到已被真机证伪的 flex 分配高度写法（[^}]* 锁在花括号内，防串到后续规则）
+    expect(c).not.toMatch(/\.sheet-body \{[^}]*flex: 1;/);
+    expect(c).not.toMatch(/\.sheet-body \{[^}]*height: 0;/);
+    // 也不得退回 overflow-y:auto
+    expect(c).not.toMatch(/\.sheet-body \{[^}]*overflow-y: auto;/);
   });
 
   test('头/尾不参与滚动（flex-shrink:0）', () => {
@@ -114,8 +121,10 @@ describe('⑤ 分区头带「展开/收起」文字（比裸箭头直观）', ()
 describe('⑥ 上传图片 URL 补全（/uploads/ 相对路径在 MP 显示空白）', () => {
   test('absUrl：相对路径按端补基址（MP 完整域名 / H5 空串保持同源）', () => {
     const s = src();
-    expect(s).toMatch(/import \{ API_HOST \} from '\.\.\/\.\.\/utils\/apiBase\.js';/);
-    expect(s).toMatch(/const absUrl = \(u\) => \(typeof u === 'string' && u\.startsWith\('\/'\) \? API_HOST \+ u : u\);/);
+    // absUrl 收敛到 utils/apiBase.js 单一实现（曾每页各写一份 → 漂移），页面只 import
+    expect(s).toMatch(/import \{ absUrl \} from '\.\.\/\.\.\/utils\/apiBase\.js';/);
+    const apiBase = stripComments(read('../../utils/apiBase.js'));
+    expect(apiBase).toMatch(/export const absUrl = \(u\) => \(typeof u === 'string' && u\.startsWith\('\/'\) \? API_HOST \+ u : u\);/);
   });
 
   test('hydrateUrls：列表加载/编辑回填统一过一遍（配图/链接封面/引用封面）', () => {

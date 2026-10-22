@@ -3,7 +3,8 @@
  *
  * 反馈 → 修法：
  *   1a 链接卡片展开后**滚不动**、内容显示不全 → 微信小程序的普通 view 设 overflow-y:auto
- *      **不保证能滚**，sheet-body 必须改成 `<scroll-view scroll-y>`（+ height:0 才能算出滚动区）。
+ *      **不保证能滚**，sheet-body 必须改成 `<scroll-view scroll-y>`；且 scroll-view 必须有
+ *      **确定高度**才滚——max-height 直接封顶（flex:1+height:0 指望父级分配在 MP 端不生效）。
  *   1b 「跳内页/外链」两个按钮样式奇怪 → 改一体化分段控件 .seg（灰底胶囊 + 白色滑块）。
  *   1c 卡片标题跟动态标题重复 → 卡片标题不再单独填，提交时直接用 newDynamic.title。
  *      描述与封面上传一并下线（用户看不出用途，只让弹窗更复杂）。
@@ -35,9 +36,11 @@ describe('1a 发布弹窗：链接卡片展开后必须能滚', () => {
   test('sheet-body 是 scroll-view scroll-y（MP 的普通 view 设 overflow-y:auto 滚不动）', () => {
     expect(dyn()).toMatch(/<scroll-view scroll-y class="sheet-body">/);
     const c = dynCss();
-    expect(c).toMatch(/\.sheet-body \{[\s\S]*?flex: 1;/);
-    expect(c).toMatch(/\.sheet-body \{[\s\S]*?height: 0;/);
-    expect(c).toMatch(/\.sheet-body \{[\s\S]*?min-height: 0;/);
+    // max-height 显式封顶（tl-scroll/rules-scroll 同款真机验证写法）；
+    // 反向钉死 flex:1+height:0——该写法在 MP 端分配不到高度，是「还是滚不动」的根因
+    expect(c).toMatch(/\.sheet-body \{[^}]*max-height: 62vh;/);
+    expect(c).not.toMatch(/\.sheet-body \{[^}]*flex: 1;/);
+    expect(c).not.toMatch(/\.sheet-body \{[^}]*height: 0;/);
   });
 
   test('不再靠 CSS overflow-y 撑滚动（这条正是真机滚不动的原因）', () => {
@@ -149,8 +152,16 @@ describe('4a 名片详情：动态头像不再是灰片', () => {
   test('头像三级兜底：作者头像 → 名片头像 → 品牌色首字母', () => {
     const s = detail();
     expect(s).toMatch(/<image v-if="d\.authorAvatar" :src="d\.authorAvatar" mode="aspectFill" \/>/);
-    expect(s).toMatch(/<image v-else-if="card\.avatar" :src="card\.avatar" mode="aspectFill" \/>/);
+    // 🔴 #312-9：名片头像走 cardAvatar computed（absUrl 补基址，MP 端相对路径不空白）
+    expect(s).toMatch(/<image v-else-if="cardAvatar" :src="cardAvatar" mode="aspectFill" \/>/);
     expect(s).toMatch(/<view v-else class="dyn-av-ph">/);
+  });
+
+  test('🔴 #312-9：名片头像展示点全部走 cardAvatar computed（absUrl 单一收口）', () => {
+    const s = detail();
+    // 模板里不允许再出现裸 card.avatar（相对路径在 MP 显示空白）
+    expect(s).not.toMatch(/card\.avatar/);
+    expect(s).toMatch(/const cardAvatar = computed\(\(\) => absUrl\(card\.value\.avatar \|\| ''\)\);/);
   });
 
   test('首字母占位改品牌色底 + 白字（原来是浅灰底浅灰字，远看就是一片灰）', () => {
@@ -209,11 +220,15 @@ describe('4d 名片详情多图：左右滑动看下一张（不是静态堆叠�
     expect(s).not.toMatch(/stackRest/);
   });
 
-  test('滑动动效：非当前项缩放 + 降透明度，0.25s 过渡', () => {
+  test('滑动动效：非当前项缩进探出 + 缩小 + 降透明度，0.25s 过渡', () => {
     const c = detailCss();
-    expect(c).toMatch(/\.sw-item \{[\s\S]*?transform: scale\(0\.94\);/);
+    // 🔴 #312-9「折叠的外观 + 横向滚动」：常规轮播（只露 12px 边）看不出折叠 →
+    //   非当前项 translateX(-30%) 向左探入可视区一缘（像一摞照片）
+    expect(c).toMatch(/\.sw-item \{[\s\S]*?transform: translateX\(-30%\) scale\(0\.92\);/);
     expect(c).toMatch(/\.sw-item \{[\s\S]*?transition: transform 0\.25s ease, opacity 0\.25s ease;/);
-    expect(c).toMatch(/\.sw-item\.active \{[\s\S]*?transform: scale\(1\);/);
+    // 当前项归位置顶（压住探出部分），折叠堆叠的"最上面一张"
+    expect(c).toMatch(/\.sw-item\.active \{[\s\S]*?transform: translateX\(0\) scale\(1\);/);
+    expect(c).toMatch(/\.sw-item\.active \{[\s\S]*?z-index: 2;/);
   });
 
   test('每条动态各自记下标（否则滑一条其余跟着跳）', () => {
@@ -226,10 +241,11 @@ describe('4d 名片详情多图：左右滑动看下一张（不是静态堆叠�
     expect(detail()).toMatch(/\{\{ dynSwipeIdx\(d\) \+ 1 \}\}\/\{\{ d\.images\.length \}\}/);
   });
 
-  test('点击才放大，且从当前那张开始（不是永远第一张）', () => {
+  test('点击才放大，且从被点的那张开始（折叠下探出的图也可点）', () => {
     const s = detail();
-    expect(s).toMatch(/@click="previewDyn\(d\)"/);
-    expect(s).toMatch(/uni\.previewImage\(\{ urls, current: urls\[dynSwipeIdx\(d\)\] \|\| urls\[0\] \}\);/);
+    expect(s).toMatch(/@click="previewDyn\(d, k\)"/);
+    expect(s).toMatch(/const idx = typeof k === 'number' \? k : dynSwipeIdx\(d\);/);
+    expect(s).toMatch(/uni\.previewImage\(\{ urls, current: urls\[idx\] \|\| urls\[0\] \}\);/);
   });
 
   test('只有 1 张时不进 swiper（没必要也不显示页码）', () => {

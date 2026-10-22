@@ -31,3 +31,16 @@ export const IS_MP_WEIXIN = typeof window === 'undefined' && typeof wx !== 'unde
 
 /** 当前平台 API 基址（不含 /api 路径段）：MP=完整域名，H5='' = 同源相对 */
 export const API_HOST = IS_MP_WEIXIN ? MP_API_BASE : H5_API_BASE;
+
+/**
+ * 🔴 存储回传的图片路径补全（2026-10-23 从 dynamic.vue / cardDetail.vue 收敛为单一来源）
+ *
+ * 服务端 storage/local.js 存的是 `/uploads/xxx` **相对路径**：
+ *   - H5 同源，<image src="/uploads/xxx"> 正常
+ *   - MP 会把 `/uploads/xxx` 当**小程序包内路径**解析 → 加载失败 → 图片空白 / 头像一片灰
+ * 所以 MP 必须补 API_HOST，H5 保持同源相对。
+ *
+ * ⚠️ 只补「以 / 开头」的相对路径：微信头像等 https:// 链接、以及本地临时路径
+ *    （wxfile:// / blob: / 本地 tmp）原样返回，不能误补。
+ */
+export const absUrl = (u) => (typeof u === 'string' && u.startsWith('/') ? API_HOST + u : u);

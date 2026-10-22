@@ -15,6 +15,7 @@
  */
 
 /** 封面风格单一事实来源（服务端 routes/card.js 的 SHARE_STYLES 必须与此一致） */
+import { absUrl } from '../../utils/apiBase.js';
 export const SHARE_STYLES = [
   { key: 'cover-1', name: '品牌渐变', desc: '最通用 · 品牌色铺满' },
   { key: 'cover-2', name: '名片卡', desc: '白底悬浮卡 · 信息清晰' },
@@ -498,6 +499,10 @@ function drawCover6(ctx, d) {
 function loadImage(canvas, src) {
   return new Promise((resolve, reject) => {
     if (!src) { reject(new Error('no src')); return; }
+    // 🔴 #312-9：库里存的是 /uploads/ 相对路径。MP 的 canvas.createImage 会把它当
+    //   **小程序包内路径**解析 → 加载失败 → 转发封面/缩略图里没有头像。
+    //   在取图入口单一收口补基址（H5 同源相对不变），调用方（cardDetail/shareStyle）无需各自补。
+    const url = absUrl(src);
     let img;
     // #ifdef MP-WEIXIN
     img = canvas.createImage();
@@ -507,7 +512,7 @@ function loadImage(canvas, src) {
     // #endif
     img.onload = () => resolve(img);
     img.onerror = reject;
-    img.src = src;
+    img.src = url;
   });
 }
 

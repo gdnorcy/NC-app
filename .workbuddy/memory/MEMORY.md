@@ -11,10 +11,14 @@
 ## 真机与跨端
 - WXSS 不支持 * 选择器（uni/H5 不报，微信开发者工具才炸）；图标必须 base64 内联禁 import PNG（hash 漂移真机落空）；SIcon MP 端预生成 PNG 颜色写死→用真实 view 画，禁 ::before/after。
 - uni image 非替换元素无内在尺寸→限高须给显式盒高（width/height:auto 塌缩成0）。
+- 🔴 **MP 端滚动必须用 scroll-view**：普通 view 设 overflow-y:auto 在 H5 能滚、**真机滚不动**。弹窗内容区默认就写 `<scroll-view scroll-y>`，CSS 用 `flex:1 + height:0`（只给 flex:1 会被内容撑开、滚动失效）。
+- 🔴 **服务端时间是 UTC**：SQLite `datetime('now')` 产出 UTC 串，前端 `new Date(t.replace(' ','T'))` 会被按本地时区解析 → 东八区凭空多 8 小时。解析必须补 'Z'（见 web-app/src/pages/card/utils/dynTime.js，两端共用一份）。
+- 小程序导航栏右侧会被微信**胶囊**吃掉大半宽度 → PageNav #right 里的按钮会被挤到标题左边，看着「放错位置」。单条主操作改右下角悬浮圆按钮 FAB。
 - H5 正常≠MP 正常：父 wxss 穿不透子组件根→传 prop 出内联；MP 无 atob/Buffer→uni.base64ToArrayBuffer；消费 var(--design- 的页必绑 themeStyle，SIcon/canvas 喂真实 hex。
 
 ## 配色/几何/令牌
 - 明暗唯一裁决口 templateTheme.js 的 heroForeground（品牌渐变→--brand-hero-ink；白卡浅底→--brand-ink），禁多判据并行。
+- cardDetail 全文件禁 --primary 漂移令牌，**注释里也不能写该令牌名**（品牌测试按整文件文本扫描）；品牌色一律 `var(--design-primary)` 不带兜底。
 - 新页面必过 tokenAudit：破基线靠映射既有令牌、不许上调；var(--primary,#165dff) 裸 hex fallback 去掉；tokenAudit 按「写法种类」计数（复用 --z-popup 靠 DOM 顺序定层级）。注意 rgba 计 **occurrences 不是 kinds**（同值复用也 +1）；常用映射：rgba(0,0,0,.55)→--bg-mask、z-index 裸值→--z-popup、#fff→--white、品牌 tint→复用既有 .sec-added 类而非新写一份。
 - 两端各写 CSS=必然漂移：parity 三纪律（正则提取/剥注释/比实际生效值）；单测全绿≠视觉正确，CSS 几何须无头实测。
 
@@ -36,7 +40,7 @@
 - 🔴 uni build 自身清理 dist/build 触发 safe-delete（assets chunk 数 >50 被拦整链失败）→ 构建前把 dist/build/{h5,mp-weixin} mv 到 /tmp（rename 非删除无守卫）；sync 脚本早已用同招免疫，uni build 自己的 dist clean 没有。
 - 🔴 **build:h5 不含同步步骤**：只产出 web-app/dist/build/h5，必须再跑 `node scripts/sync-mobile-dist.mjs` 才会进 server/public/{card,mall}（build:mp-weixin 则内联了 sync-mini-template）。漏跑＝构建 OK 但线上没变，grep 特征串全 0 是判据。
 - 🔴 **cp -a 回铺产物会嵌套**：`checkout -f deploy` 后产物目录已被还原成旧版，`cp -a /tmp/new/card server/public/card` 会得到 card/card/。正确做法：先把目标整个 mv 到 /tmp 再 cp -a 铺过去。
-- vitest 不编译 SFC（setup 同标识符声明两次只有 uni build 照得出）；报 "no tests" 非通过（文件用 it 却导 test 静默跳过）。server 全量 node --test 易 OOM(137)→awk 分 4 批。
+- vitest 不编译 SFC（setup 同标识符声明两次只有 uni build 照得出）；报 "no tests" 非通过（文件用 it 却导 test 静默跳过）。server 全量 node --test 易 OOM(137)→awk 分 4 批；🔴 前端 vitest 与 server node --test **不要并发跑**（资源竞争会让服务端 timeout 误报 cancelled 1）。
 
 ## 线上排查通道
 - 服务器 /opt/app（deploy 分支），systemd panorama.service，cwd /opt/app/server。Lighthouse lhins-bvw7p0gb（ap-guangzhou）；BT 1.12.250.126:8888。

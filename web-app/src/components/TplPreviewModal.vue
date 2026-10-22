@@ -5,7 +5,8 @@
     <view class="tpl-pv">
       <view class="pv-hero" :style="heroStyle" :class="'pv-' + family">
         <view class="pv-ava" :style="avaStyle">
-          <image v-if="card.avatar" :src="card.avatar" class="pv-ava-img" mode="aspectFill" />
+          <!-- 🔴 #312-9：card.avatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+          <image v-if="card.avatar" :src="absUrl(card.avatar)" class="pv-ava-img" mode="aspectFill" />
           <text v-else class="pv-ava-txt" :style="{ color: textColor }">{{ (card.name || '名').trim().charAt(0) || '名' }}</text>
         </view>
         <view class="pv-info">
@@ -33,6 +34,8 @@
 import { computed } from 'vue';
 import SIcon from './SIcon.vue';
 import { parseTheme, heroRadius, heroTextureBg } from '../utils/templateTheme.js';
+// 🔴 #312-9：名片头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
+import { absUrl } from '../utils/apiBase.js';
 
 const props = defineProps({
   template: { type: Object, default: null },

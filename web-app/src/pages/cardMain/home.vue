@@ -55,7 +55,8 @@
         </view>
         <view class="my-card" :style="myCardStyle(c.props)" v-if="myCard" @click="goMyCard">
           <view class="card-avatar" :style="avatarStyle">
-            <image v-if="myCard.avatar" :src="myCard.avatar" class="avatar-img" mode="aspectFill" />
+            <!-- 🔴 #312-9：myCard.avatar 可能是 /uploads/ 相对路径，MP 端不补域名就是空白 -->
+            <image v-if="myCard.avatar" :src="resolveAssetUrl(myCard.avatar)" class="avatar-img" mode="aspectFill" />
             <text v-else>{{ myCard.name?.[0] || '名' }}</text>
           </view>
           <view class="card-info">
