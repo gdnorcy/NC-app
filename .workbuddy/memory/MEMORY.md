@@ -32,6 +32,8 @@
 - 产物必须 git add -f（限 server/public/{card,mall}、server/mini-template/mp-weixin，别用 -A）；普通 add 静默跳过新 chunk→主 chunk 404 白屏。SPA 兜底让 404 返 200→验证比 md5 不能只看状态码。
 - 🔴 **main HEAD 里跟踪着陈旧产物**（.gitignore 后补，管不住已跟踪文件；669 个，历次既有状态）：切 deploy 报「local changes would be overwritten」阻塞 → **mv 新产物到 /tmp → `checkout -f deploy` → merge → 从备份换回 → `add -f`**；不能从 main 移除跟踪（未来 merge 会 modify/delete 冲突破坏 deploy 产物）。回 main 后 `git checkout -- server/mini-template server/public/card server/public/mall` 恢复陈旧产物保持干净。
 - 顺序铁律：构建→cp -a 备份 /tmp→才能 git checkout（checkout 会把新产物还原成旧版，致 card/card/ 嵌套）。切 deploy 前先 git checkout -- server/mini-template/mp-weixin。
+- 🔴 **备份≠本轮产物**：提交部署前必须 grep 本轮特征串验证（曾险把第三轮构建前的旧备份当新产物上线）；压缩产物里函数名被 minify 消失属正常，验证用用户可见串/API 名/wxml 结构三重交叉。
+- 🔴 uni build 自身清理 dist/build 触发 safe-delete（assets chunk 数 >50 被拦整链失败）→ 构建前把 dist/build/{h5,mp-weixin} mv 到 /tmp（rename 非删除无守卫）；sync 脚本早已用同招免疫，uni build 自己的 dist clean 没有。
 - vitest 不编译 SFC（setup 同标识符声明两次只有 uni build 照得出）；报 "no tests" 非通过（文件用 it 却导 test 静默跳过）。server 全量 node --test 易 OOM(137)→awk 分 4 批。
 
 ## 线上排查通道
