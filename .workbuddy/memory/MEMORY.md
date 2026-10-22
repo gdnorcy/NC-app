@@ -15,7 +15,7 @@
 
 ## 配色/几何/令牌
 - 明暗唯一裁决口 templateTheme.js 的 heroForeground（品牌渐变→--brand-hero-ink；白卡浅底→--brand-ink），禁多判据并行。
-- 新页面必过 tokenAudit：破基线靠映射既有令牌、不许上调；var(--primary,#165dff) 裸 hex fallback 去掉；tokenAudit 按「写法种类」计数（复用 --z-popup 靠 DOM 顺序定层级）。
+- 新页面必过 tokenAudit：破基线靠映射既有令牌、不许上调；var(--primary,#165dff) 裸 hex fallback 去掉；tokenAudit 按「写法种类」计数（复用 --z-popup 靠 DOM 顺序定层级）。注意 rgba 计 **occurrences 不是 kinds**（同值复用也 +1）；常用映射：rgba(0,0,0,.55)→--bg-mask、z-index 裸值→--z-popup、#fff→--white、品牌 tint→复用既有 .sec-added 类而非新写一份。
 - 两端各写 CSS=必然漂移：parity 三纪律（正则提取/剥注释/比实际生效值）；单测全绿≠视觉正确，CSS 几何须无头实测。
 
 ## 需求解读
@@ -34,6 +34,8 @@
 - 顺序铁律：构建→cp -a 备份 /tmp→才能 git checkout（checkout 会把新产物还原成旧版，致 card/card/ 嵌套）。切 deploy 前先 git checkout -- server/mini-template/mp-weixin。
 - 🔴 **备份≠本轮产物**：提交部署前必须 grep 本轮特征串验证（曾险把第三轮构建前的旧备份当新产物上线）；压缩产物里函数名被 minify 消失属正常，验证用用户可见串/API 名/wxml 结构三重交叉。
 - 🔴 uni build 自身清理 dist/build 触发 safe-delete（assets chunk 数 >50 被拦整链失败）→ 构建前把 dist/build/{h5,mp-weixin} mv 到 /tmp（rename 非删除无守卫）；sync 脚本早已用同招免疫，uni build 自己的 dist clean 没有。
+- 🔴 **build:h5 不含同步步骤**：只产出 web-app/dist/build/h5，必须再跑 `node scripts/sync-mobile-dist.mjs` 才会进 server/public/{card,mall}（build:mp-weixin 则内联了 sync-mini-template）。漏跑＝构建 OK 但线上没变，grep 特征串全 0 是判据。
+- 🔴 **cp -a 回铺产物会嵌套**：`checkout -f deploy` 后产物目录已被还原成旧版，`cp -a /tmp/new/card server/public/card` 会得到 card/card/。正确做法：先把目标整个 mv 到 /tmp 再 cp -a 铺过去。
 - vitest 不编译 SFC（setup 同标识符声明两次只有 uni build 照得出）；报 "no tests" 非通过（文件用 it 却导 test 静默跳过）。server 全量 node --test 易 OOM(137)→awk 分 4 批。
 
 ## 线上排查通道
@@ -53,3 +55,4 @@
 ## 业务口径 / 测试坑
 - 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照→留 admin 凭证→户口重置→ghfast 镜像传→停服换库。
 - openssl 生成证书须 stdio pipe+全程 -out+真 X.509；supertest 按字节签名须 .send(rawString)；node:sqlite 用 DatabaseSync。macOS grep BSD -E 裸 |、压缩 JS 单行 grep -c 恒1→grep -o|wc -l。
+- 源码文本钉子类测试：别钉「内联重置字面量」等具体写法（一收敛就红一片），改钉**语义**——空壳工厂内容 + 工厂被哪几处调用。新增字段会连带改 INSERT/UPDATE 列串与表单初值，改前先 grep 一遍所有 *.test.js。
