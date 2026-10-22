@@ -41,7 +41,7 @@ describe('#312-2 发布器：链接卡片表单与互斥', () => {
     expect(s).toMatch(/v-model="newDynamic\.link\.desc"/);
     // 🔴 封面图改为拍照/上传（pickCover 上传后回填 URL），不再有手填 input
     expect(s).not.toMatch(/<input[^>]*v-model="newDynamic\.link\.img"/);
-    expect(s).toMatch(/newDynamic\.value\.link\.img = data\.url/);
+    expect(s).toMatch(/newDynamic\.value\.link\.img = absUrl\(data\.url\)/);
   });
 
   test('图片/链接卡片/引用 三者互斥：分区体内提示（展开后才按互斥态提示）', () => {
