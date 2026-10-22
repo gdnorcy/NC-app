@@ -1866,6 +1866,41 @@ function migrate(db) {
   if (!colExists(db, 'card_dynamic', 'comment_count')) {
     db.exec("ALTER TABLE card_dynamic ADD COLUMN comment_count INTEGER NOT NULL DEFAULT 0");
   }
+  // —— card_dynamic 表加链接卡片字段（#312-2：链接预览卡片 + 小程序卡片）——
+  //   link_type：'page' 跳自家小程序内页 | 'url' 外链（web-view 需业务域名白名单，
+  //   一期未配置 → 前端走复制链接兜底）。仅当 link_url 非空时才视为链接卡片。
+  if (!colExists(db, 'card_dynamic', 'link_title')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN link_title TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_dynamic', 'link_img')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN link_img TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_dynamic', 'link_desc')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN link_desc TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_dynamic', 'link_url')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN link_url TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_dynamic', 'link_type')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN link_type TEXT NOT NULL DEFAULT 'page'");
+  }
+  // —— card_dynamic 表加「名片模块引用」字段（#312-3：动态挂名片上的结构化内容）——
+  //   ref_type：'works'(案例/作品) | 'goods'(产品)；ref_id：被引用行在对应表中的 id。
+  //   与链接卡片互斥（企微 attachments 三选一）：发布时若带了 ref，则忽略图片与链接。
+  //   服务端 toDynamic 会回查被引用行，拼出 {type,id,title,cover,url} 随动态下发，列表页直接渲染。
+  if (!colExists(db, 'card_dynamic', 'ref_type')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN ref_type TEXT NOT NULL DEFAULT ''");
+  }
+  if (!colExists(db, 'card_dynamic', 'ref_id')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN ref_id INTEGER NOT NULL DEFAULT 0");
+  }
+  // —— card_dynamic 表加「定时发布」字段（#312-5：内容写好先不发，到时间自动上架）——
+  //   scheduled_at：UTC 'YYYY-MM-DD HH:MM:SS'，空串表示立即发布。
+  //   发布时若给了未来时间 → status='pending'（待发布），到点由列表查询 promoteScheduled() 翻为 active。
+  //   详见 routes/card.js 的 normalizeScheduledAt / promoteScheduled。
+  if (!colExists(db, 'card_dynamic', 'scheduled_at')) {
+    db.exec("ALTER TABLE card_dynamic ADD COLUMN scheduled_at TEXT NOT NULL DEFAULT ''");
+  }
 
   // —— tenant_individuals表加 position/company 字段（入驻申请）——
   if (!colExists(db, 'tenant_individuals', 'position')) {

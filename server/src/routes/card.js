@@ -552,10 +552,18 @@ export function createCardRouter(db, wxService) {
         myUid = payload.uid || null;
       }
     } catch {}
+    // 🔴 #312-5：先把到点的待发布翻成 active，再按时间条件过滤，避免「定时未到点」却提前曝光
+    promoteScheduled();
+    // 🔴 #312-4：可见范围三态（公开 public / 仅自己 private / 仅登录可见 login）。
+    //   名片公开列表只放 public + 登录用户可见的 login；未登录(myUid 为空)时 login 不展示。
+    //   私有(private)仅本人「我的动态」可见，不进名片公开列表。
+    //   🔴 #312-5：定时发布 —— 必须叠加时间条件，scheduled_at 为空/已过期的才上架；未来时间一律不展示。
     const rows = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d
       LEFT JOIN platform_user u ON d.user_id = u.id
-      WHERE d.card_id = ? AND d.status='active' AND d.visibility='public'
-      ORDER BY d.created_at DESC LIMIT 20`).all(card.id);
+      WHERE d.card_id = ? AND d.status='active'
+        AND (d.scheduled_at = '' OR d.scheduled_at IS NULL OR d.scheduled_at <= datetime('now'))
+        AND (d.visibility='public' OR (d.visibility='login' AND ?))
+      ORDER BY d.created_at DESC LIMIT 20`).all(card.id, myUid ? 1 : 0);
     const liked = myUid ? new Set(db.prepare('SELECT dynamic_id FROM card_dynamic_like WHERE user_id = ?').all(myUid).map(r => r.dynamic_id)) : new Set();
     res.json({ dynamics: rows.map((d) => toDynamic(d, liked.has(d.id))) });
   });
@@ -2121,12 +2129,19 @@ export function createCardRouter(db, wxService) {
   // 动态
   // ============================================================
   router.get('/dynamics', auth, (req, res) => {
-    const dynamics = db.prepare('SELECT * FROM card_dynamic WHERE user_id=? ORDER BY created_at DESC').all(req.user.id);
+    // 🔴 #312-5：先把到点的待发布翻成 active，保证作者自己看到的「定时中」状态准确
+    promoteScheduled();
+    // 作者自己的列表：含待发布（pending）项，供其查看/管理；按创建时间倒序。
+    const dynamics = db.prepare("SELECT * FROM card_dynamic WHERE user_id=? AND status != 'deleted' ORDER BY created_at DESC").all(req.user.id);
     res.json({ dynamics: dynamics.map(toDynamic) });
   });
 
   router.post('/dynamics', auth, (req, res) => {
-    const { content, images, visibility, title, cardId } = req.body;
+    const { content, images, visibility, title, cardId,
+      linkTitle: linkTitleRaw, linkImg: linkImgRaw, linkDesc: linkDescRaw,
+      linkUrl: linkUrlRaw, linkType: linkTypeRaw,
+      refType: refTypeRaw, refId: refIdRaw,
+      scheduledAt: scheduledAtRaw } = req.body;
     if (!content) return res.status(400).json({ error: '内容不能为空' });
     // 🔴 反馈 #295：原实现 `cardId || null` → card_id=NULL，而名片页公开动态列表按
     //    `card_id = ? AND visibility='public'` 过滤 → 公开动态永远不上名片页（发了没人看）。
@@ -2136,14 +2151,110 @@ export function createCardRouter(db, wxService) {
       const own = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
       targetCardId = own ? own.id : null;
     }
-    // 可见范围归一：只认 'private'，其余一律 'public'（与 toDynamic 的兜底一致）
-    const vis = visibility === 'private' ? 'private' : 'public';
+    const targetCard = targetCardId ? db.prepare('SELECT id, customer_id FROM card_profile WHERE id = ?').get(targetCardId) : null;
+    // 🔴 #312-4：可见范围三态归一。只认 'private' / 'login' 两种特殊值，其余（含空串、'public'、任何脏值）一律 'public'。
+    const vis = (visibility === 'private' || visibility === 'login') ? visibility : 'public';
     const imgList = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u).slice(0, 9) : [];
-    const result = db.prepare('INSERT INTO card_dynamic (user_id, card_id, title, content, images, visibility) VALUES (?,?,?,?,?,?)')
-      .run(req.user.id, targetCardId, title || '', content, JSON.stringify(imgList), vis);
+    // 🔴 #312-2：链接预览卡片 + 小程序卡片（链接四字段 + targetType: 'page' | 'url'）。
+    //   仅当 linkUrl 非空才视为链接卡片；为空则链接字段全清，避免脏数据 / 误渲染。
+    //   linkType 只认 'url'（外链），其余一律 'page'（跳自家小程序内页）。
+    //   🔴 互斥：企微 attachments「9 图 / 1 视频 / 1 链接」三选一 —— 链接卡片与图片互斥，
+    //      有链接时清空图片（数据层强制），前端发布器同步禁用图片入口。
+    const rawLinkUrl = (typeof linkUrlRaw === 'string' ? linkUrlRaw.trim() : '');
+    const normLinkType = rawLinkUrl && linkTypeRaw === 'url' ? 'url' : 'page';
+    const normLinkTitle = rawLinkUrl ? (typeof linkTitleRaw === 'string' ? linkTitleRaw.trim().slice(0, 80) : '') : '';
+    const normLinkImg = rawLinkUrl ? (typeof linkImgRaw === 'string' ? linkImgRaw.trim() : '') : '';
+    const normLinkDesc = rawLinkUrl ? (typeof linkDescRaw === 'string' ? linkDescRaw.trim().slice(0, 120) : '') : '';
+    // 🔴 #312-3：名片模块引用（动态挂名片上的结构化内容：案例/作品 或 产品）。
+    //   与图片、链接卡片互斥（企微 attachments 三选一）：带了 ref 就清空图片与链接。
+    //   校验：refType 只认 'works' / 'goods'，refId 必须是正整数；且被引用行必须归属本人名片 /
+    //   本人租户商品，否则一律视为无效引用（不存，避免挂错别人的内容）。
+    const rawRefType = (typeof refTypeRaw === 'string') ? refTypeRaw : '';
+    const rawRefId = Number(refIdRaw) || 0;
+    let normRefType = '';
+    let normRefId = 0;
+    if ((rawRefType === 'works' || rawRefType === 'goods') && rawRefId > 0) {
+      if (rawRefType === 'works') {
+        const w = db.prepare('SELECT id FROM card_works WHERE id = ? AND card_id = ?').get(rawRefId, targetCardId || 0);
+        if (w) { normRefType = 'works'; normRefId = rawRefId; }
+      } else if (rawRefType === 'goods') {
+        const g = db.prepare('SELECT id, customer_id FROM goods WHERE id = ?').get(rawRefId);
+        if (g && targetCard && g.customer_id === targetCard.customer_id) { normRefType = 'goods'; normRefId = rawRefId; }
+      }
+    }
+    const hasRef = !!normRefType;
+    // 互斥强制：有 ref 或 有链接时清空图片；有 ref 时连链接也清空（三选一，ref 优先级最高）
+    const effectiveImages = (hasRef || rawLinkUrl) ? '[]' : JSON.stringify(imgList);
+    const storedLinkUrl = hasRef ? '' : rawLinkUrl;
+    const storedLinkType = hasRef ? 'page' : normLinkType;
+    const storedLinkTitle = hasRef ? '' : normLinkTitle;
+    const storedLinkImg = hasRef ? '' : normLinkImg;
+    const storedLinkDesc = hasRef ? '' : normLinkDesc;
+    // 🔴 #312-5：定时发布。给了未来时间 → status='pending'（待发布，不进公开列表），
+    //   到点由 promoteScheduled() 翻为 'active'；空/过去时间 → status='active'，scheduled_at 留空（立即发布）。
+    //   定时与图片/链接/引用不冲突（同一动态既可挂图又可定时），故不参与三者互斥。
+    const sched = normalizeScheduledAt(scheduledAtRaw);
+    const result = db.prepare('INSERT INTO card_dynamic (user_id, card_id, title, content, images, visibility, link_title, link_img, link_desc, link_url, link_type, ref_type, ref_id, scheduled_at, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(req.user.id, targetCardId, title || '', content, effectiveImages, vis, storedLinkTitle, storedLinkImg, storedLinkDesc, storedLinkUrl, storedLinkType, normRefType, normRefId, sched.scheduledAt || '', sched.status);
     const dynamic = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d
       LEFT JOIN platform_user u ON d.user_id = u.id WHERE d.id = ?`).get(result.lastInsertRowid);
     res.json({ dynamic: toDynamic(dynamic) });
+  });
+
+  // ============ 动态编辑 / 删除（仅本人，#312-6） ============
+  // 🔴 权限铁律：只能改/删自己的（user_id 匹配且未软删）。跨用户访问一律 404。
+  //   编辑复用与发布一致的归一逻辑（可见范围三态 / 图片·链接·引用三选一互斥 / 定时发布）。
+  router.put('/dynamics/:id', auth, (req, res) => {
+    const dyn = db.prepare("SELECT * FROM card_dynamic WHERE id = ? AND user_id = ? AND status != 'deleted'").get(req.params.id, req.user.id);
+    if (!dyn) return res.status(404).json({ error: '动态不存在或无权限' });
+    const { content, images, visibility, title,
+      linkTitle: linkTitleRaw, linkImg: linkImgRaw, linkDesc: linkDescRaw,
+      linkUrl: linkUrlRaw, linkType: linkTypeRaw,
+      refType: refTypeRaw, refId: refIdRaw,
+      scheduledAt: scheduledAtRaw } = req.body;
+    if (!content) return res.status(400).json({ error: '内容不能为空' });
+    const vis = (visibility === 'private' || visibility === 'login') ? visibility : 'public';
+    const imgList = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u).slice(0, 9) : [];
+    const rawLinkUrl = (typeof linkUrlRaw === 'string' ? linkUrlRaw.trim() : '');
+    const normLinkType = rawLinkUrl && linkTypeRaw === 'url' ? 'url' : 'page';
+    const normLinkTitle = rawLinkUrl ? (typeof linkTitleRaw === 'string' ? linkTitleRaw.trim().slice(0, 80) : '') : '';
+    const normLinkImg = rawLinkUrl ? (typeof linkImgRaw === 'string' ? linkImgRaw.trim() : '') : '';
+    const normLinkDesc = rawLinkUrl ? (typeof linkDescRaw === 'string' ? linkDescRaw.trim().slice(0, 120) : '') : '';
+    // 🔴 #312-3 引用归属校验（编辑沿用原动态已有的 card_id 作为归属基准）
+    const rawRefType = (typeof refTypeRaw === 'string') ? refTypeRaw : '';
+    const rawRefId = Number(refIdRaw) || 0;
+    let normRefType = '';
+    let normRefId = 0;
+    if ((rawRefType === 'works' || rawRefType === 'goods') && rawRefId > 0) {
+      if (rawRefType === 'works') {
+        const w = db.prepare('SELECT id FROM card_works WHERE id = ? AND card_id = ?').get(rawRefId, dyn.card_id || 0);
+        if (w) { normRefType = 'works'; normRefId = rawRefId; }
+      } else if (rawRefType === 'goods') {
+        const g = db.prepare('SELECT id, customer_id FROM goods WHERE id = ?').get(rawRefId);
+        const card = dyn.card_id ? db.prepare('SELECT id, customer_id FROM card_profile WHERE id = ?').get(dyn.card_id) : null;
+        if (g && card && g.customer_id === card.customer_id) { normRefType = 'goods'; normRefId = rawRefId; }
+      }
+    }
+    const hasRef = !!normRefType;
+    const effectiveImages = (hasRef || rawLinkUrl) ? '[]' : JSON.stringify(imgList);
+    const storedLinkUrl = hasRef ? '' : rawLinkUrl;
+    const storedLinkType = hasRef ? 'page' : normLinkType;
+    const storedLinkTitle = hasRef ? '' : normLinkTitle;
+    const storedLinkImg = hasRef ? '' : normLinkImg;
+    const storedLinkDesc = hasRef ? '' : normLinkDesc;
+    const sched = normalizeScheduledAt(scheduledAtRaw);
+    db.prepare(`UPDATE card_dynamic SET title=?, content=?, images=?, visibility=?, link_title=?, link_img=?, link_desc=?, link_url=?, link_type=?, ref_type=?, ref_id=?, scheduled_at=?, status=?, updated_at=datetime('now') WHERE id=?`)
+      .run(title || '', content, effectiveImages, vis, storedLinkTitle, storedLinkImg, storedLinkDesc, storedLinkUrl, storedLinkType, normRefType, normRefId, sched.scheduledAt || '', sched.status, dyn.id);
+    const updated = db.prepare(`SELECT d.*, u.nickname, u.avatar FROM card_dynamic d LEFT JOIN platform_user u ON d.user_id = u.id WHERE d.id = ?`).get(dyn.id);
+    res.json({ dynamic: toDynamic(updated) });
+  });
+
+  router.delete('/dynamics/:id', auth, (req, res) => {
+    const dyn = db.prepare("SELECT * FROM card_dynamic WHERE id = ? AND user_id = ? AND status != 'deleted'").get(req.params.id, req.user.id);
+    if (!dyn) return res.status(404).json({ error: '动态不存在或无权限' });
+    // 🔴 软删：status='deleted'，公开/自己列表都按 status 过滤，物理数据保留便于审计与误删恢复。
+    db.prepare("UPDATE card_dynamic SET status='deleted', updated_at=datetime('now') WHERE id=?").run(dyn.id);
+    res.json({ ok: true });
   });
 
   // ============ 动态点赞/取消点赞 ============
@@ -2330,10 +2441,72 @@ export function createCardRouter(db, wxService) {
     };
   }
 
+  // 🔴 #312-5：定时发布归一。把前端传来的各种时间表示统一成 UTC 'YYYY-MM-DD HH:MM:SS'，
+  //   并据此决定 status：未来 → 'pending'（待发布，不进公开列表）；空/过去 → 'active'（立即发布）。
+  //   入参支持：epoch 毫秒数 / epoch 秒数 / ISO 字符串（含时区）→ 一律先转 UTC 再格式化，
+  //   避免 SQLite datetime('now')（UTC）与本地时间比较错位导致提前/延后曝光。
+  function normalizeScheduledAt(raw) {
+    let t = null;
+    if (typeof raw === 'number' && !isNaN(raw)) {
+      t = raw > 1e12 ? raw : raw * 1000; // 毫秒 or 秒
+    } else if (typeof raw === 'string') {
+      const s = raw.trim();
+      if (!s) return { status: 'active', scheduledAt: '' };
+      if (/^\d+$/.test(s)) { t = s.length > 11 ? Number(s) : Number(s) * 1000; }
+      else { const d = new Date(s); if (!isNaN(d.getTime())) t = d.getTime(); }
+    }
+    if (t === null || isNaN(t)) return { status: 'active', scheduledAt: '' };
+    const d = new Date(t);
+    if (isNaN(d.getTime())) return { status: 'active', scheduledAt: '' };
+    const pad = (n) => String(n).padStart(2, '0');
+    const utc = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    const status = t > Date.now() ? 'pending' : 'active';
+    return { status, scheduledAt: utc };
+  }
+
+  // 🔴 #312-5：把到点的待发布动态翻为 active（幂等）。本项目无独立 cron，
+  //   故在列表查询入口统一收口——读者侧永远看不到「pending 且到点未翻」的窗口。
+  function promoteScheduled() {
+    try {
+      db.prepare(`UPDATE card_dynamic SET status='active', updated_at=datetime('now') WHERE status='pending' AND scheduled_at IS NOT NULL AND scheduled_at != '' AND scheduled_at <= datetime('now')`).run();
+    } catch (e) { /* 非致命：下一次列表查询会再补翻 */ }
+  }
+
   function toDynamic(row, likedByMe = false) {
     if (!row) return null;
     let images = [];
     try { images = JSON.parse(row.images || '[]'); } catch {}
+    // 🔴 #312-2：链接卡片字段回传。仅当 link_url 非空才视为链接卡片，否则全空（防误渲染）。
+    //   linkType 兜底 'page'（跳自家小程序内页）。
+    const rawLinkUrl = (row.link_url || '').toString().trim();
+    const link = rawLinkUrl
+      ? {
+          linkTitle: row.link_title || '',
+          linkImg: row.link_img || '',
+          linkDesc: row.link_desc || '',
+          linkUrl: rawLinkUrl,
+          linkType: row.link_type === 'url' ? 'url' : 'page',
+        }
+      : { linkTitle: '', linkImg: '', linkDesc: '', linkUrl: '', linkType: 'page' };
+    // 🔴 #312-3：名片模块引用回传。仅当 ref_type 非空且回查到被引用行时才下发 ref，否则空。
+    //   回查时取标题+封面，并拼好跳转内页路径（works→作品页 / goods→商品详情页）。
+    //   被引用行已删/查不到 → 不下发 ref（动态正文照常显示，只是不挂卡片）。
+    let ref = null;
+    const rawRefType = (row.ref_type || '').toString();
+    const rawRefId = Number(row.ref_id) || 0;
+    if (rawRefType && rawRefId) {
+      if (rawRefType === 'works') {
+        const w = db.prepare('SELECT id, image_url, title FROM card_works WHERE id = ? AND card_id = ?').get(rawRefId, row.card_id);
+        if (w) ref = { type: 'works', id: w.id, title: w.title || '案例', cover: w.image_url || '', url: `/pages/card/works?id=${row.card_id}` };
+      } else if (rawRefType === 'goods') {
+        const g = db.prepare('SELECT id, title, thumb, images FROM goods WHERE id = ?').get(rawRefId);
+        if (g) {
+          let cover = g.thumb || '';
+          if (!cover) { try { const arr = JSON.parse(g.images || '[]'); cover = Array.isArray(arr) ? (arr[0] || '') : ''; } catch {} }
+          ref = { type: 'goods', id: g.id, title: g.title || '产品', cover, url: `/pages/mall/goods?id=${g.id}` };
+        }
+      }
+    }
     return {
       likedByMe: !!likedByMe,
       id: row.id, userId: row.user_id, cardId: row.card_id, title: row.title || '',
@@ -2342,9 +2515,15 @@ export function createCardRouter(db, wxService) {
       //    前端 `d.visibility === 'public' ? '公开' : '仅自己'` 判据恒走「仅自己」，
       //    即使用户在发布弹窗选了「公开」。这是「选公开却显示仅自己」的根因。
       //    兜底 'public'：库里默认就是 public，老数据 visibility 为空也应显示「公开」。
-      visibility: row.visibility === 'private' ? 'private' : 'public',
+      // 🔴 #312-4：三态归一——'private'/'login' 原样回传，其余一律 'public'。
+      visibility: (row.visibility === 'private' || row.visibility === 'login') ? row.visibility : 'public',
       authorName: row.nickname || '', authorAvatar: row.avatar || '',
       createdAt: row.created_at,
+      // 🔴 #312-5：下发定时信息与当前状态，前端据此显示「定时发布中」徽标 / 作者端管理
+      scheduledAt: (row.scheduled_at || '').toString(),
+      status: (row.status || 'active').toString(),
+      ...link,
+      ref,
     };
   }
 
