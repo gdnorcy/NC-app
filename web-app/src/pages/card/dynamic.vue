@@ -44,6 +44,9 @@
       <view class="empty-hint">发布第一条动态吧</view>
     </view>
 
+    <!-- 封面图压缩用屏幕外 canvas（MP type=2d；🔴 禁 display:none——MP 节点查不到 → fixed 移出屏幕） -->
+    <canvas type="2d" id="coverCompressCanvas" class="offscreen-canvas" />
+
     <!-- 发布弹窗 -->
     <view class="modal-mask" v-if="showPublish" @click="closePublish">
       <view class="bottom-sheet" @click.stop>
@@ -70,53 +73,86 @@
               <text class="img-add-text">{{ newDynamic.images.length }}/{{ MAX_DYNAMIC_IMAGES }}</text>
             </view>
           </view>
-          <!-- 🔴 #312-2：链接预览卡片 + 小程序卡片（与图片/引用互斥，企微 attachments 三选一） -->
-          <view class="form-item" v-if="!imagesActive && !refActive">
-            <view class="form-label">链接卡片（可选）</view>
-            <view class="link-type">
-              <view class="link-type-opt" :class="{ active: newDynamic.link.type === 'page' }" @click="newDynamic.link.type='page'">跳内页</view>
-              <view class="link-type-opt" :class="{ active: newDynamic.link.type === 'url' }" @click="newDynamic.link.type='url'">外链</view>
-            </view>
-            <input class="link-input" v-model="newDynamic.link.url" @input="onLinkInput" :placeholder="newDynamic.link.type === 'url' ? '粘贴外链 https://...' : '内页路径 /pages/xxx'" placeholder-class="ph" />
-            <input class="link-input" v-model="newDynamic.link.title" placeholder="卡片标题（选填）" placeholder-class="ph" />
-            <input class="link-input" v-model="newDynamic.link.desc" placeholder="卡片描述（选填）" placeholder-class="ph" />
-            <input class="link-input" v-model="newDynamic.link.img" placeholder="封面图 URL（选填）" placeholder-class="ph" />
-          </view>
-          <view class="form-hint" v-if="linkActive">已添加链接卡片，图片与链接互斥</view>
-
-          <!-- 🔴 #312-3：名片模块引用（案例/作品 / 产品），与图片/链接卡片互斥（三选一） -->
-          <view class="form-item" v-if="!imagesActive && !linkActive">
-            <view class="form-label">引用名片模块（可选）</view>
-            <view v-if="newDynamic.ref" class="ref-chip" @click="clearRef">
-              <image v-if="newDynamic.ref.cover" :src="newDynamic.ref.cover" class="ref-chip-img" mode="aspectFill" />
-              <view v-else class="ref-chip-img ref-chip-ph">＋</view>
-              <view class="ref-chip-info">
-                <view class="ref-chip-title">{{ newDynamic.ref.title }}</view>
-                <view class="ref-chip-type">{{ newDynamic.ref.type === 'goods' ? '产品' : '案例/作品' }}</view>
+          <!-- 🔴 #312-2：链接预览卡片 + 小程序卡片（与图片/引用互斥，企微 attachments 三选一）。
+               反馈：默认收缩（否则一打开弹窗就是一面墙）；编辑带回链接时自动展开。 -->
+          <view class="form-item">
+            <view class="sec-head" @click="linkOpen = !linkOpen">
+              <text class="form-label">链接卡片（可选）</text>
+              <view class="sec-head-right">
+                <text v-if="linkActive" class="sec-added">已添加</text>
+                <text class="sec-arrow" :class="{ open: linkOpen }">›</text>
               </view>
-              <text class="ref-chip-del">✕</text>
             </view>
-            <template v-else>
-              <view class="ref-tabs">
-                <view class="ref-tab" :class="{ active: refTab === 'works' }" @click="refTab='works'">案例/作品</view>
-                <view class="ref-tab" :class="{ active: refTab === 'goods' }" @click="refTab='goods'">产品</view>
-              </view>
-              <view class="ref-list" v-if="showRefPicker">
-                <view v-if="refLoading" class="ref-loading">加载中…</view>
-                <view v-else-if="refItems.length === 0" class="ref-empty">暂无{{ refTab === 'goods' ? '产品' : '案例/作品' }}</view>
-                <scroll-view scroll-x class="ref-scroll" v-else>
-                  <view class="ref-item" v-for="item in refItems" :key="item.id" @click="selectRef(item)">
-                    <image v-if="item.cover" :src="item.cover" class="ref-item-img" mode="aspectFill" />
-                    <view v-else class="ref-item-img ref-item-ph">＋</view>
-                    <view class="ref-item-title">{{ item.title }}</view>
+            <template v-if="linkOpen">
+              <view v-if="imagesActive || refActive" class="form-hint">图片与链接卡片互斥（先移除图片/引用）</view>
+              <template v-else>
+                <view class="link-type">
+                  <view class="link-type-opt" :class="{ active: newDynamic.link.type === 'page' }" @click="newDynamic.link.type='page'">跳内页</view>
+                  <view class="link-type-opt" :class="{ active: newDynamic.link.type === 'url' }" @click="newDynamic.link.type='url'">外链</view>
+                </view>
+                <input class="link-input" v-model="newDynamic.link.url" @input="onLinkInput" :placeholder="newDynamic.link.type === 'url' ? '粘贴外链 https://...' : '内页路径 /pages/xxx'" placeholder-class="ph" />
+                <input class="link-input" v-model="newDynamic.link.title" placeholder="卡片标题（选填）" placeholder-class="ph" />
+                <input class="link-input" v-model="newDynamic.link.desc" placeholder="卡片描述（选填）" placeholder-class="ph" />
+                <!-- 🔴 封面图不再让用户手填 URL：拍照/相册 →（MP）系统裁切 1:1 → 压缩 → 上传换 URL。
+                     卡片封面是 120rpx 方形（DynamicLinkCard aspectFill），故按方形裁、限幅 720、JPEG 0.85。 -->
+                <view class="form-label">封面图（选填）</view>
+                <view class="cover-row">
+                  <view class="cover-preview" v-if="newDynamic.link.img">
+                    <image :src="newDynamic.link.img" mode="aspectFill" class="cover-img" />
+                    <view class="cover-del" @click="newDynamic.link.img = ''">✕</view>
                   </view>
-                </scroll-view>
-              </view>
-              <view v-if="!showRefPicker" class="ref-open" @click="openRefPicker">＋ 选择{{ refTab === 'goods' ? '产品' : '案例/作品' }}</view>
+                  <view class="cover-add" v-else @click="pickCover">
+                    <text class="cover-add-icon">＋</text>
+                    <text class="cover-add-text">拍照 / 上传</text>
+                  </view>
+                  <view v-if="newDynamic.link.img" class="cover-tip">已裁切压缩</view>
+                </view>
+              </template>
             </template>
           </view>
-          <view class="form-hint" v-else-if="imagesActive">已添加图片，引用与图片互斥（先移除图片）</view>
-          <view class="form-hint" v-else-if="linkActive">已添加链接卡片，引用与链接互斥</view>
+
+          <!-- 🔴 #312-3：名片模块引用（案例/作品 / 产品），与图片/链接卡片互斥（三选一）。默认收缩。 -->
+          <view class="form-item">
+            <view class="sec-head" @click="refOpen = !refOpen">
+              <text class="form-label">引用名片模块（可选）</text>
+              <view class="sec-head-right">
+                <text v-if="refActive" class="sec-added">已添加</text>
+                <text class="sec-arrow" :class="{ open: refOpen }">›</text>
+              </view>
+            </view>
+            <template v-if="refOpen">
+              <view v-if="imagesActive || linkActive" class="form-hint">图片/链接与引用互斥（先移除图片或清空链接）</view>
+              <template v-else>
+                <view v-if="newDynamic.ref" class="ref-chip" @click="clearRef">
+                  <image v-if="newDynamic.ref.cover" :src="newDynamic.ref.cover" class="ref-chip-img" mode="aspectFill" />
+                  <view v-else class="ref-chip-img ref-chip-ph">＋</view>
+                  <view class="ref-chip-info">
+                    <view class="ref-chip-title">{{ newDynamic.ref.title }}</view>
+                    <view class="ref-chip-type">{{ newDynamic.ref.type === 'goods' ? '产品' : '案例/作品' }}</view>
+                  </view>
+                  <text class="ref-chip-del">✕</text>
+                </view>
+                <template v-else>
+                  <view class="ref-tabs">
+                    <view class="ref-tab" :class="{ active: refTab === 'works' }" @click="refTab='works'">案例/作品</view>
+                    <view class="ref-tab" :class="{ active: refTab === 'goods' }" @click="refTab='goods'">产品</view>
+                  </view>
+                  <view class="ref-list" v-if="showRefPicker">
+                    <view v-if="refLoading" class="ref-loading">加载中…</view>
+                    <view v-else-if="refItems.length === 0" class="ref-empty">暂无{{ refTab === 'goods' ? '产品' : '案例/作品' }}</view>
+                    <scroll-view scroll-x class="ref-scroll" v-else>
+                      <view class="ref-item" v-for="item in refItems" :key="item.id" @click="selectRef(item)">
+                        <image v-if="item.cover" :src="item.cover" class="ref-item-img" mode="aspectFill" />
+                        <view v-else class="ref-item-img ref-item-ph">＋</view>
+                        <view class="ref-item-title">{{ item.title }}</view>
+                      </view>
+                    </scroll-view>
+                  </view>
+                  <view v-if="!showRefPicker" class="ref-open" @click="openRefPicker">＋ 选择{{ refTab === 'goods' ? '产品' : '案例/作品' }}</view>
+                </template>
+              </template>
+            </template>
+          </view>
 
           <view class="form-item">
             <view class="form-label">可见范围</view>
@@ -131,7 +167,7 @@
           <view class="form-item">
             <view class="sched-label">
               <text>定时发布</text>
-              <switch :checked="schedEnabled" @change="onSchedToggle" color="#165dff" />
+              <switch :checked="schedEnabled" @change="onSchedToggle" :color="schedSwitchColor" />
             </view>
             <block v-if="schedEnabled">
               <picker mode="date" :value="schedDate" @change="onSchedDate" class="sched-picker">
@@ -190,6 +226,9 @@ const schedEnabled = ref(false);
 const schedDate = ref('');
 const schedTime = ref('');
 const scheduledActive = computed(() => schedEnabled.value && !!schedDate.value && !!schedTime.value);
+// 🔴 定时开关配色必须跟品牌走：硬编码 #165dff 在绿色品牌租户下会露蓝（违反主题一致性纪律，
+//   cardEntryThemeConsistency 有禁硬编码断言）。取法同 market.vue：品牌主色 → 设计主题 → 兜底。
+const schedSwitchColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 // 🔴 #312-6：编辑模式。editingId 非空表示正在编辑已有动态；isEditing 驱动弹窗标题/按钮文案。
 const editingId = ref(null);
 const isEditing = computed(() => !!editingId.value);
@@ -202,6 +241,10 @@ const worksList = ref([]);
 const goodsList = ref([]);
 const myCardId = ref(null);
 const refItems = computed(() => (refTab.value === 'goods' ? goodsList.value : worksList.value));
+// 🔴 反馈：链接卡片 / 引用名片模块默认收缩（一打开弹窗不该是一面墙）；
+//   编辑带回内容时由 openEdit 自动展开。
+const linkOpen = ref(false);
+const refOpen = ref(false);
 
 /** 取本人名片 id（发布动态自动挂在最近一张卡上，引用作品也需要它） */
 async function getMyCardId() {
@@ -292,6 +335,9 @@ function openEdit(d) {
   schedDate.value = '';
   schedTime.value = '';
   if (d.status === 'pending' && d.scheduledAt) fillSchedFromUtc(d.scheduledAt);
+  // 链接/引用分区默认收缩，但编辑带回内容时要自动展开（否则用户看不到已配的链接/引用）
+  linkOpen.value = !!d.linkUrl;
+  refOpen.value = !!d.ref;
   showPublish.value = true;
 }
 
@@ -330,6 +376,8 @@ function closePublish() {
   schedEnabled.value = false;
   schedDate.value = '';
   schedTime.value = '';
+  linkOpen.value = false;
+  refOpen.value = false;
 }
 
 /** 选图：uni.chooseMedia 在 H5 端不保证可用，降级 chooseImage（MP 端 chooseMedia 更完整，支持压缩） */
@@ -386,6 +434,115 @@ function removeImage(i) {
   newDynamic.value.images.splice(i, 1);
 }
 
+// 🔴 封面图改造（反馈）：不再让用户手填 URL。拍照/相册选图 →（MP）系统裁切 1:1 → 压缩 → 上传换 URL。
+//   为什么按方形：链接卡片封面在 DynamicLinkCard 里是 120rpx 见方（aspectFill），非方形图会被
+//   显示层中心裁掉——不如上传前裁好。服务端上传上限 10MB，压缩后（≤720px JPEG）远低于此。
+const COVER_MAX = 720;      // 封面最大边长 px（卡片显示仅 60pt，720 余量充足又不过大）
+const COVER_QUALITY = 0.85; // JPEG 压缩质量
+
+/** MP：微信系统裁切（基础库 2.22.0+）。用户取消 / 低版本不支持 → 返回原图（下一步 canvas 中心裁切兜底） */
+function cropCoverSquare(src) {
+  return new Promise((resolve) => {
+    // #ifdef MP-WEIXIN
+    if (typeof wx !== 'undefined' && typeof wx.cropImage === 'function') {
+      wx.cropImage({
+        src,
+        cropScale: '1:1',
+        success: (r) => resolve(r.tempFilePath || src),
+        fail: () => resolve(src),
+      });
+      return;
+    }
+    // #endif
+    resolve(src);
+  });
+}
+
+/**
+ * 封面压缩：中心裁方形 + 限幅 COVER_MAX + JPEG。
+ * MP：屏幕外 2d canvas（createImage → drawImage → toTempFilePath）。
+ * H5：脱离文档的 canvas（Image → drawImage → toBlob → File）。
+ * 返回 { path, file }：MP 给 path（uni.uploadFile 用）；H5 给 file（FormData 必须真 File）。
+ */
+async function compressCover(src) {
+  // #ifdef MP-WEIXIN
+  const node = await new Promise((resolve) => {
+    uni.createSelectorQuery().select('#coverCompressCanvas').fields({ node: true }).exec((r) => {
+      resolve(r && r[0] ? r[0].node : null);
+    });
+  });
+  if (!node) return { path: src };
+  const img = node.createImage();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = src;
+  });
+  const side = Math.min(img.width, img.height);
+  if (!side) return { path: src };
+  const out = Math.min(side, COVER_MAX);
+  node.width = out;
+  node.height = out;
+  const ctx = node.getContext('2d');
+  ctx.clearRect(0, 0, out, out);
+  ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, out, out);
+  const path = await new Promise((resolve) => {
+    node.toTempFilePath({
+      x: 0, y: 0, width: out, height: out, destWidth: out, destHeight: out,
+      fileType: 'jpg', quality: COVER_QUALITY,
+      success: (r) => resolve(r.tempFilePath),
+      fail: () => resolve(src),
+    });
+  });
+  return { path };
+  // #endif
+  // #ifndef MP-WEIXIN
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = src;
+  });
+  const side = Math.min(img.naturalWidth, img.naturalHeight);
+  if (!side) return { path: src };
+  const out = Math.min(side, COVER_MAX);
+  const cv = document.createElement('canvas');
+  cv.width = out;
+  cv.height = out;
+  cv.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+  const blob = await new Promise((resolve) => cv.toBlob(resolve, 'image/jpeg', COVER_QUALITY));
+  if (!blob) return { path: src };
+  return { path: '', file: new File([blob], 'cover.jpg', { type: 'image/jpeg' }) };
+  // #endif
+}
+
+/** 选封面：chooseMedia（MP 更完整，H5 降级 chooseImage）→ 裁切 → 压缩 → 上传 */
+async function pickCover() {
+  const res = await new Promise((resolve) => {
+    const opts = { count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'], success: (r) => resolve(r), fail: () => resolve(null) };
+    if (typeof uni.chooseMedia === 'function') {
+      uni.chooseMedia({ ...opts, mediaType: ['image'] });
+    } else {
+      uni.chooseImage(opts);
+    }
+  });
+  if (!res) return;
+  const files = res.tempFiles || [];
+  let path = (res.tempFilePaths && res.tempFilePaths[0]) || (files[0] && files[0].tempFilePath);
+  if (!path) return;
+  uni.showLoading({ title: '处理中…', mask: true });
+  try {
+    path = await cropCoverSquare(path);
+    const out = await compressCover(path);
+    const data = await cardApi.uploadDynamicImage(out.path, out.file);
+    if (data && data.url) newDynamic.value.link.img = data.url;
+  } catch (e) {
+    uni.showToast({ title: e.message || '封面上传失败', icon: 'none' });
+  } finally {
+    uni.hideLoading();
+  }
+}
+
 onShow(() => { trackPageView('/pages/card/dynamic'); });
 
 onMounted(async () => {
@@ -434,6 +591,8 @@ async function publish() {
     schedDate.value = '';
     schedTime.value = '';
     editingId.value = null;
+    linkOpen.value = false;
+    refOpen.value = false;
     const res = await cardApi.getDynamics();
     dynamics.value = res.dynamics || [];
   } catch (e) {
@@ -568,8 +727,14 @@ async function publish() {
   display: flex;
   align-items: flex-end;
 }
+/* 🔴 反馈「弹窗无法上下滚动」：sheet 限高 + 纵向 flex，只有 body 区滚动。
+   min-height:0 是关键——flex 子项默认 min-height:auto 会被内容撑高，max-height 形同虚设。 */
 .bottom-sheet {
   width: 100%;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   background: var(--white);
   border-radius: 32rpx 32rpx 0 0;
 }
@@ -579,10 +744,16 @@ async function publish() {
   align-items: center;
   padding: 32rpx;
   border-bottom: 1px solid var(--bg-hover);
+  flex-shrink: 0;
 }
 .sheet-title { font-size: var(--fs-6); font-weight: 600; color: var(--t1); }
 .sheet-close { font-size: var(--fs-6); color: var(--t3); }
-.sheet-body { padding: 32rpx; }
+.sheet-body {
+  padding: 32rpx;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 .publish-input {
   width: 100%;
   height: 240rpx;
@@ -815,7 +986,76 @@ async function publish() {
   padding: 6rpx 16rpx;
   border-radius: var(--radius-sm);
 }
-.sheet-footer { padding: 0 32rpx 72rpx; }
+.sheet-footer { padding: 0 32rpx 72rpx; flex-shrink: 0; }
+/* 🔴 反馈：链接卡片 / 引用名片模块默认收缩——一行头 + 已添加徽标 + 箭头，点了才展开 */
+.sec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sec-head .form-label { margin-bottom: 0; }
+.sec-head-right { display: flex; align-items: center; gap: 12rpx; }
+.sec-added {
+  font-size: var(--fs-1);
+  color: var(--design-primary, var(--primary));
+  background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08);
+  padding: 4rpx 14rpx;
+  border-radius: var(--radius-sm);
+}
+.sec-arrow {
+  font-size: var(--fs-5);
+  color: var(--t3);
+  transition: transform 0.15s;
+}
+.sec-arrow.open { transform: rotate(90deg); }
+/* 🔴 封面图：拍照/上传 + 方形预览（不再手填 URL；上传前已系统裁切 1:1 + 压缩） */
+.cover-row { display: flex; align-items: center; gap: 20rpx; }
+.cover-preview {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: var(--bg-hover);
+  flex-shrink: 0;
+}
+.cover-img { width: 100%; height: 100%; display: block; }
+.cover-del {
+  position: absolute;
+  top: 6rpx;
+  right: 6rpx;
+  width: 40rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--white);
+  font-size: 22rpx;
+}
+.cover-add {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: var(--radius-xs);
+  border: 2rpx dashed var(--border);
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cover-add-icon { font-size: 48rpx; color: var(--t3); line-height: 1; }
+.cover-add-text { font-size: var(--fs-2); color: var(--t3); margin-top: 8rpx; }
+.cover-tip { font-size: var(--fs-2); color: var(--t3); }
+/* 封面压缩用屏幕外 canvas（禁 display:none——MP 节点查不到） */
+.offscreen-canvas {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 360px;
+  height: 360px;
+}
 .submit-btn {
   background: var(--design-primary, var(--primary));
   color: var(--white);

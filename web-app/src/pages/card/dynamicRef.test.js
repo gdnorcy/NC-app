@@ -40,9 +40,11 @@ describe('#312-3 发布器：名片模块引用选择器', () => {
     expect(s).toMatch(/@click="openRefPicker"/);
   });
 
-  test('引用与图片/链接互斥：引用表单 v-if 反向（!imagesActive && !linkActive）', () => {
+  test('引用与图片/链接互斥：分区默认收缩，展开后按互斥态提示', () => {
     const s = dynamicPage();
-    expect(s).toMatch(/<view class="form-item" v-if="!imagesActive && !linkActive">/);
+    // 🔴 2026-10-22 反馈后改默认收缩：分区头常驻（点击展开），互斥提示在展开体内
+    expect(s).toMatch(/<view class="sec-head" @click="refOpen = !refOpen">/);
+    expect(s).toMatch(/<view v-if="imagesActive \|\| linkActive" class="form-hint">图片\/链接与引用互斥/);
     expect(s).toMatch(/const refActive = computed\(/);
   });
 

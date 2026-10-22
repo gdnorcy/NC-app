@@ -32,23 +32,26 @@ describe('#312-2 发布器：链接卡片表单与互斥', () => {
 
   test('发布弹窗出现「链接卡片」表单，含 page/url 两个 targetType 选项', () => {
     const s = dynamicPage();
-    expect(s).toMatch(/<view class="form-item" v-if="!imagesActive && !refActive">/);
+    // 🔴 2026-10-22 反馈后改默认收缩：分区头常驻，表单在 linkOpen 展开体内
+    expect(s).toMatch(/<view class="sec-head" @click="linkOpen = !linkOpen">/);
     expect(s).toMatch(/newDynamic\.link\.type='page'/);
     expect(s).toMatch(/newDynamic\.link\.type='url'/);
     expect(s).toMatch(/v-model="newDynamic\.link\.url"/);
     expect(s).toMatch(/v-model="newDynamic\.link\.title"/);
     expect(s).toMatch(/v-model="newDynamic\.link\.desc"/);
-    expect(s).toMatch(/v-model="newDynamic\.link\.img"/);
+    // 🔴 封面图改为拍照/上传（pickCover 上传后回填 URL），不再有手填 input
+    expect(s).not.toMatch(/<input[^>]*v-model="newDynamic\.link\.img"/);
+    expect(s).toMatch(/newDynamic\.value\.link\.img = data\.url/);
   });
 
-  test('图片/链接卡片/引用 三者互斥：入口互禁（v-if 反向）', () => {
+  test('图片/链接卡片/引用 三者互斥：分区体内提示（展开后才按互斥态提示）', () => {
     const s = dynamicPage();
-    // 图片选择器：链接激活时隐藏
+    // 图片选择器：链接激活时隐藏（不变）
     expect(s).toMatch(/<view class="img-picker" v-if="!linkActive">/);
-    // 链接表单：图片或引用存在时隐藏（#312-3 新增 refActive 互斥）
-    expect(s).toMatch(/<view class="form-item" v-if="!imagesActive && !refActive">/);
-    // 引用表单：图片或链接存在时隐藏
-    expect(s).toMatch(/<view class="form-item" v-if="!imagesActive && !linkActive">/);
+    // 链接分区展开后：图片或引用存在 → 提示互斥（原「整段隐藏」改为提示，分区头仍可见可点）
+    expect(s).toMatch(/<view v-if="imagesActive \|\| refActive" class="form-hint">图片与链接卡片互斥/);
+    // 引用分区展开后：图片或链接存在 → 提示互斥
+    expect(s).toMatch(/<view v-if="imagesActive \|\| linkActive" class="form-hint">图片\/链接与引用互斥/);
     // 三个 computed 驱动互斥
     expect(s).toMatch(/const linkActive = computed\(/);
     expect(s).toMatch(/const imagesActive = computed\(/);
