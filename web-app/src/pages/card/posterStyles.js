@@ -179,6 +179,12 @@ function parseTags(raw) {
  */
 function drawClassic(ctx, d) {
   const { W, H, c, name, primary, gradient, ink, qr } = d;
+  // 🔴 #312-14 同类隐患修复：头部次级文字/标签原硬编码白色——浅色主色的租户
+  //   （heroForeground 裁决出深色 ink）会白底白字隐形。全部按 ink 自适应。
+  const darkInk = ink !== '#ffffff';
+  const sub = darkInk ? 'rgba(29,33,41,0.72)' : 'rgba(255,255,255,0.9)';
+  const faint = darkInk ? 'rgba(29,33,41,0.55)' : 'rgba(255,255,255,0.75)';
+  const chipBg = darkInk ? 'rgba(29,33,41,0.08)' : 'rgba(255,255,255,0.18)';
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
   const HEAD_H = 370;
@@ -189,13 +195,13 @@ function drawClassic(ctx, d) {
   ctx.fillRect(0, 0, W, HEAD_H);
 
   drawLine(ctx, name, 48, 130, 'bold 64px sans-serif', ink, W - 96);
-  drawLine(ctx, c.position || '', 48, 185, '30px sans-serif', alphaColor(ink === '#ffffff' ? '#ffffff' : '#ffffff', 0.9), W - 96);
-  drawLine(ctx, infoLine(c), 48, 235, '30px sans-serif', alphaColor('#ffffff', 0.9), W - 96);
+  drawLine(ctx, c.position || '', 48, 185, '30px sans-serif', sub, W - 96);
+  drawLine(ctx, infoLine(c), 48, 235, '30px sans-serif', sub, W - 96);
   // 经营领域行（y 258..282）：与 chips（296 起）不相交
-  drawLine(ctx, c.businessField || '', 48, 282, '24px sans-serif', alphaColor('#ffffff', 0.75), W - 96);
+  drawLine(ctx, c.businessField || '', 48, 282, '24px sans-serif', faint, W - 96);
   // 需求标签 chips（y 296..336）
   drawChips(ctx, d.tags, 48, 296, 40, {
-    font: '24px sans-serif', fg: '#ffffff', bg: alphaColor('#ffffff', 0.18),
+    font: '24px sans-serif', fg: ink, bg: chipBg,
     radius: 20, gap: 16, padX: 16, maxRight: W - 48,
   });
 
@@ -251,13 +257,17 @@ function drawDark(ctx, d) {
 
 /** 3 极简白：留白 + 细线 + 左文右码 */
 function drawMinimal(ctx, d) {
-  const { W, H, c, name, primary, ink, qr } = d;
+  // 🔴 #312-14「极简白没有名字，有个黑点」：白底风格**禁用主题 ink**——
+  //   ink 是给渐变/深色头部裁决的字色（深色模板算出白色），白底上白字=隐形
+  //   （名字只剩品牌方块看着像"黑点"）。本风格文字一律固定深色，主色只做点缀。
+  const { W, H, c, name, primary, qr } = d;
+  const INK = '#1d2129';
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
   // 顶部品牌方块
   ctx.fillStyle = primary;
   ctx.fillRect(48, 76, 16, 16);
-  drawLine(ctx, name, 48, 180, 'bold 72px sans-serif', ink, W - 96);
+  drawLine(ctx, name, 48, 180, 'bold 72px sans-serif', INK, W - 96);
   drawLine(ctx, c.position || '', 48, 232, '28px sans-serif', '#4e5969', W - 96);
   // 细分隔线（y 276）
   ctx.fillStyle = '#f0f1f3';
@@ -274,7 +284,7 @@ function drawMinimal(ctx, d) {
   // 二维码左置 + 右侧引导文案
   if (qr) ctx.drawImage(qr, 48, 560, 320, 320);
   ctx.font = 'bold 32px sans-serif';
-  ctx.fillStyle = ink;
+  ctx.fillStyle = INK;
   ctx.fillText('扫码查看', 408, 690);
   ctx.fillText('电子名片', 408, 734);
   ctx.font = '24px sans-serif';
@@ -288,7 +298,12 @@ function drawMinimal(ctx, d) {
 
 /** 4 渐变全屏：整页品牌渐变 + 居中头像 + 白垫二维码 */
 function drawGradient(ctx, d) {
-  const { W, H, c, name, primary, gradient, qr, av } = d;
+  const { W, H, c, name, primary, gradient, ink, qr, av } = d;
+  // 🔴 #312-14 同类隐患：浅色主色租户下白字隐形 → 文字/标签按 ink 自适应
+  const darkInk = ink !== '#ffffff';
+  const sub = darkInk ? 'rgba(29,33,41,0.78)' : 'rgba(255,255,255,0.85)';
+  const faint = darkInk ? 'rgba(29,33,41,0.55)' : 'rgba(255,255,255,0.66)';
+  const chipBg = darkInk ? 'rgba(29,33,41,0.08)' : 'rgba(255,255,255,0.18)';
   const g = ctx.createLinearGradient(0, 0, W * 0.3, H);
   g.addColorStop(0, primary);
   g.addColorStop(1, gradient);
@@ -296,17 +311,17 @@ function drawGradient(ctx, d) {
   ctx.fillRect(0, 0, W, H);
   ctx.save();
   ctx.globalAlpha = 0.08;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = darkInk ? '#1d2129' : '#ffffff';
   ctx.beginPath(); ctx.arc(W - 40, 80, 190, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(30, H - 60, 150, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 
-  drawAvatar(ctx, av, W / 2, 180, 72, name, 'rgba(255,255,255,0.9)', primary);
-  drawLine(ctx, name, W / 2, 306, 'bold 60px sans-serif', '#ffffff', W - 96, 'center');
-  drawLine(ctx, c.position || '', W / 2, 352, '28px sans-serif', 'rgba(255,255,255,0.85)', W - 96, 'center');
-  drawLine(ctx, infoLine(c), W / 2, 396, '26px sans-serif', 'rgba(255,255,255,0.72)', W - 96, 'center');
+  drawAvatar(ctx, av, W / 2, 180, 72, name, 'rgba(255,255,255,0.9)', darkInk ? '#1d2129' : primary);
+  drawLine(ctx, name, W / 2, 306, 'bold 60px sans-serif', ink, W - 96, 'center');
+  drawLine(ctx, c.position || '', W / 2, 352, '28px sans-serif', sub, W - 96, 'center');
+  drawLine(ctx, infoLine(c), W / 2, 396, '26px sans-serif', sub, W - 96, 'center');
   // 经营领域（居中，y 418..444）
-  drawLine(ctx, c.businessField || '', W / 2, 444, '24px sans-serif', 'rgba(255,255,255,0.66)', W - 96, 'center');
+  drawLine(ctx, c.businessField || '', W / 2, 444, '24px sans-serif', faint, W - 96, 'center');
 
   // chips 居中（y 470..510）：先算总宽再起点居中
   const tags = d.tags || [];
@@ -319,9 +334,9 @@ function drawGradient(ctx, d) {
     tags.forEach((t, i) => {
       const label = fitText(ctx, t, 160);
       const tw = widths[i];
-      fillRound(ctx, tx, 470, tw, 40, 20, 'rgba(255,255,255,0.18)');
+      fillRound(ctx, tx, 470, tw, 40, 20, chipBg);
       ctx.font = '24px sans-serif';
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = ink;
       ctx.textBaseline = 'middle';
       ctx.fillText(label, tx + padX, 470 + 21);
       ctx.textBaseline = 'alphabetic';
@@ -331,7 +346,7 @@ function drawGradient(ctx, d) {
 
   drawQrPanel(ctx, qr, W / 2 - 160, 580, 320, 24, 22);
   ctx.font = '24px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.fillStyle = faint;
   ctx.textAlign = 'center';
   ctx.fillText('长按或微信扫一扫，查看电子名片', W / 2, 942);
   ctx.textAlign = 'left';
