@@ -165,7 +165,12 @@ describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验�
     expect(s).toMatch(/import \{ cardApi, hasCardToken \} from '\.\.\/\.\.\/utils\/cardApi\.js';/);
     expect(s).toMatch(/function ensureLogin\(\) \{/);
     expect(s).toMatch(/if \(hasCardToken\(\)\) return true;/);
-    expect(s).toMatch(/uni\.reLaunch\(\{ url: '\/pages\/card\/login' \}\);/);
+    // 🔴 #312-11：必须走 loginEntryUrl(LOGIN_PATH, 回跳)——本页曾硬编码 '/pages/card/login'
+    //   （路径不存在，reLaunch 静默失败 = 只 toast 不跳转，真机反馈「提醒了但不跳转」），
+    //   且 manual=1 防冷启动首页联动把用户弹走
+    expect(s).toMatch(/import \{ loginEntryUrl, LOGIN_PATH \} from '\.\.\/\.\.\/utils\/loginEntry\.js';/);
+    expect(s).toMatch(/uni\.reLaunch\(\{ url: loginEntryUrl\(LOGIN_PATH, '\/pages\/card\/dynamic'\) \}\);/);
+    expect(s).not.toMatch(/url: '\/pages\/card\/login'/);
   });
 
   test('发布入口走 openPublish（先守卫再开弹窗），不再直接置 showPublish', () => {

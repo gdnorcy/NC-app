@@ -6,7 +6,7 @@
     <view class="header">
         <view class="user-info">
           <image v-if="user.avatar && !avatarError" class="avatar-img" :src="absUrl(user.avatar)" mode="aspectFill" @error="avatarError = true" />
-          <view v-else class="avatar">{{ user.nickname?.[0] || '用' }}</view>
+          <view v-else class="avatar">{{ userInitial }}</view>
           <view class="info">
             <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
             <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#ffffff" /><text>{{ memberLevelText }}</text></view>
@@ -80,9 +80,17 @@
           <view class="menu-label">关于我们</view>
           <view class="menu-arrow">›</view>
         </view>
-        <view class="menu-item logout" @click="logout">
+        <!-- 🔴 反馈 #312-11「没登录前还显示退出登录」：按实际登录态显示——
+             已登录 = 退出登录（弹确认 + 清凭证回登录页）；未登录 = 登录（引导去登录页）。
+             profile 的 onShow 会刷新登录态，token 过期/被清后这一项会跟着变。 -->
+        <view v-if="loggedIn" class="menu-item logout" @click="logout">
           <view class="menu-icon"><SIcon name="key" size="default" color="#f53f3f" /></view>
           <view class="menu-label">退出登录</view>
+        </view>
+        <view v-else class="menu-item" @click="goLogin">
+          <view class="menu-icon"><SIcon name="key" size="default" :color="ICON_T2" /></view>
+          <view class="menu-label">登录</view>
+          <view class="menu-arrow">›</view>
         </view>
       </view>
     </view>
@@ -101,7 +109,7 @@
           <!-- 🔴 #312-9：editForm.avatar 可能是 /uploads/ 相对路径（库里存的头像），
                MP 端不补域名就是空白；H5 空基址保持同源 -->
           <image v-if="editForm.avatar && !editAvatarError" class="ac-img" :src="absUrl(editForm.avatar)" mode="aspectFill" @error="editAvatarError = true" />
-          <view v-else class="ac-img ac-ph">{{ user.nickname?.[0] || '用' }}</view>
+          <view v-else class="ac-img ac-ph">{{ userInitial }}</view>
           <view class="ac-tip">点击更换头像</view>
         </button>
         <view class="field">
@@ -149,6 +157,9 @@ const user = ref({});
 // 加 @error 回落到 v-else 首字母占位（与分销中心 user-avatar 同源处理，2026-10-16 真机报修「头像全黄/无字」）。
 const avatarError = ref(false);
 watch(() => user.value && user.value.avatar, () => { avatarError.value = false; });
+// 🔴 #312-11：登录态驱动「退出登录 / 登录」菜单项。onShow 里随资料刷新同步
+//（token 在别处被清（401 踢出/手动清）后回个人中心要立刻变成「登录」）。
+const loggedIn = ref(hasCardToken());
 const isMember = ref(false);
 const memberLevel = ref('free');
 const stats = ref({ cardCount: 0, visitorCount: 0, customerCount: 0, exchangeCount: 0 });
@@ -158,6 +169,9 @@ const stats = ref({ cardCount: 0, visitorCount: 0, customerCount: 0, exchangeCou
 const myCardId = ref(null);
 
 const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
+// 🔴 反馈 #312-11：首字母占位。模板里 `user.nickname?.[0]` 在 MP 端被编译降级成整个
+//   昵称（与我的动态页 "objec" 同源），取首字母一律放 computed。
+const userInitial = computed(() => (user.value.nickname || '用').charAt(0));
 
 // 资料加载放 onShow：从「编辑名片」页返回时昵称/头像/名片数要跟着刷新，
 // 挂在 onMounted 上会导致本页只拉一次、回退后显示旧值。
@@ -185,12 +199,19 @@ onMounted(() => { loadProfile(); });
 
 onShow(() => {
   trackPageView('/pages/card/profile');
+  // 🔴 #312-11：每次回前台都同步登录态（别处 401 清凭证后，这一项要立刻从「退出登录」翻成「登录」）
+  loggedIn.value = hasCardToken();
   if (firstShow) { firstShow = false; return; }
   loadProfile();
 });
 
 function goPage(path) {
   uni.navigateTo({ url: path });
+}
+
+/** 未登录态的「登录」菜单项：引导去登录页（manual=1 防冷启动联动弹走，登录后回跳本页） */
+function goLogin() {
+  uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/profile') });
 }
 
 // 编辑名片：带 id 进编辑态（单页平铺全部资料）。
@@ -304,6 +325,8 @@ function showAbout() {
   });
 }
 function logout() {
+  // 双保险：未登录时不弹确认（菜单项已按登录态切换，这里防模板竞态/他处清凭证）
+  if (!hasCardToken()) return;
   uni.showModal({
     title: '提示',
     content: '确定退出登录吗？',
