@@ -189,8 +189,8 @@
     <view class="qr-sheet" v-if="showQr">
       <view class="grip"></view>
       <view class="qs-title">名片二维码</view>
-      <!-- 🔴 #312-16：小程序渠道已接入 → 真小程序码；文案不再声称「渠道未接入」 -->
-      <view class="qs-sub">{{ qrType === 'wxacode' ? '微信扫一扫，直达小程序名片' : '扫码打开网页版名片' }}</view>
+      <!-- 🔴 #312-16：文案跟着后端真实出码结果走，降级时说出原因（租户就是能去上传代码的人） -->
+      <view class="qs-sub">{{ qrSubText }}</view>
       <view class="qs-img-wrap">
         <image v-if="qrImage" class="qs-img" :src="qrImage" mode="aspectFit" show-menu-by-longpress />
         <view v-else class="qs-loading">生成中…</view>
@@ -542,6 +542,15 @@ function previewCard() {
 const showQr = ref(false);
 const qrImage = ref('');
 const qrType = ref('');
+const qrReason = ref('');
+// 🔴 文案一律走 computed：MP 模板里堆三元难读易错，且小程序码/网页码/未上传三种状态互斥
+const qrSubText = computed(() => {
+  if (qrType.value === 'wxacode') return '微信扫一扫，直达小程序名片';
+  if (qrReason.value === 'no_page') return '小程序还没上传代码，暂用网页链接码';
+  if (qrReason.value === 'no_channel') return '尚未配置小程序渠道，暂用网页链接码';
+  if (qrReason.value === 'failed') return '小程序码获取失败，暂用网页链接码';
+  return '扫码打开网页版名片';
+});
 const showPoster = ref(false);
 const posterPath = ref('');
 // 🔴 #312-15：海报风格（5 款可选）+ 选择持久化（下次打开沿用上次风格）
@@ -600,6 +609,7 @@ async function fetchCardQr() {
   const res = await cardApi.getWxacode(pageCardId.value);
   qrImage.value = res.image || '';
   qrType.value = res.type || 'h5';
+  qrReason.value = res.reason || '';
   qrForCard.value = pageCardId.value;
   return qrImage.value;
 }
