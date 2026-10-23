@@ -125,35 +125,35 @@ describe('myCard 风格选择接入（#312-15 折叠+横滑轮播，仿动态）
     expect(s).toMatch(/const posterStyles = POSTER_STYLES;/);
   });
 
-  test('风格选择器是 swiper 折叠轮播（非旧 scroll-view 文本条）', () => {
+  test('🔴 单张海报 + 自绘横滑（禁用 swiper：fixed 弹层内真机触摸失效）', () => {
     const s = read('./myCard.vue');
-    expect(s).toMatch(/class="ps-swiper"/);
-    expect(s).toMatch(/:current="currentStyleIndex"/);
-    expect(s).toMatch(/@change="onPosterSwipe"/);
-    expect(s).toMatch(/v-for="s in posterStyles"/);
-    expect(s).toMatch(/:class="\{ active: posterStyleKey === s\.key \}"/);
-    expect(s).toMatch(/@click="onPosterStyleChange\(s\.key\)"/);
+    expect(s).not.toMatch(/class="ps-swiper"/);
+    expect(s).toMatch(/class="ps-stage" @touchstart="onStageTouchStart" @touchend="onStageTouchEnd"/);
+    expect(s).toMatch(/class="ps-curname">\{\{ currentStyleLabel \}\}<\/view>/);
+    expect(s).toMatch(/:src="stagePosterSrc"/);
+    // 只有一张海报图：旧版「轮播小卡 + 下方大图」两张的结构必须清除
+    expect(s).not.toMatch(/qs-img poster/);
+    expect(s).not.toMatch(/poster-wrap/);
+    // 上方只显示当前主题名，不列出全部名称（不允许 v-for 渲染名称标签）
+    expect(s).not.toMatch(/class="ps-chip"/);
   });
 
-  test('swiper 使用折叠态 .sw-item（active 归位、非 active 缩进探出）', () => {
+  test('横滑手势 40px 阈值 + 折叠切换动画（out-* 退场 / reset-* 无过渡就位）', () => {
     const s = myCardSrc();
-    expect(s).toMatch(/\.sw-item \{/);
-    expect(s).toMatch(/transform: translateX\(-30%\) scale\(0\.92\)/);
-    expect(s).toMatch(/\.sw-item\.active \{ transform: translateX\(0\) scale\(1\)/);
+    expect(s).toMatch(/function onStageTouchStart\(e\) \{/);
+    expect(s).toMatch(/function onStageTouchEnd\(e\) \{/);
+    expect(s).toMatch(/if \(Math\.abs\(dx\) < 40\) return;/);
+    expect(s).toMatch(/function runStageSwitch\(nextIdx, dir\) \{/);
+    expect(s).toMatch(/\.ps-stage-img\.out-left \{ transform: translateX\(-30%\) scale\(0\.92\); opacity: 0; \}/);
+    expect(s).toMatch(/\.ps-stage-img\.reset-left, \.ps-stage-img\.reset-right \{ transition: none;/);
   });
 
-  test('🔴 滑块必须是竖版小卡片（previous/next-margin≈半宽 180rpx）——真机反馈：margin 过小会把竖版海报裁成中间一条放大的糊脸大图', () => {
-    const s = read('./myCard.vue');
-    expect(s).toMatch(/previous-margin="180rpx"/);
-    expect(s).toMatch(/next-margin="180rpx"/);
-    expect(s).toMatch(/\.ps-swiper \{ margin-top: 20rpx; width: 100%; height: 500rpx; \}/);
-  });
-
-  test('onPosterSwipe 切换风格并触发缩略图渲染', () => {
+  test('预渲染各风格全尺寸海报（buildPosterThumbs）供横滑零等待切换', () => {
     const s = myCardSrc();
-    expect(s).toMatch(/function onPosterSwipe\(e\) \{/);
     expect(s).toMatch(/function buildPosterThumbs\(\) \{/);
     expect(s).toMatch(/buildPosterThumbs\(\);/);
+    // 全尺寸导出：不允许再出现 240×384 小图导出
+    expect(s).not.toMatch(/destWidth: 240/);
   });
 
   test('切换风格走重绘而非重取码，且选择持久化 cardPosterStyle（默认 cream）', () => {
