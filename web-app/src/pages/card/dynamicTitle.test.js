@@ -62,7 +62,10 @@ describe('#312-1 动态标题：两处列表都要渲染', () => {
 
   test('名片详情页动态列表已渲染 title（v-if 判空，无标题不占位）', () => {
     const s = cardDetail();
-    expect(s).toMatch(/<h4 v-if="d\.title">\{\{ d\.title \}\}<\/h4>/);
+    // 🔴 #312-12：原钉 <h4 v-if>——MP 端 h4 编成无类名 view，.dyn-body h4 选择器落空，
+    // 改类名 .dyn-title（语义不变：v-if 判空 + 类名选择器 MP 安全）
+    expect(s).toMatch(/<view class="dyn-title" v-if="d\.title">\{\{ d\.title \}\}<\/view>/);
+    expect(s).not.toMatch(/<h4 v-if="d\.title">/);
   });
 });
 
