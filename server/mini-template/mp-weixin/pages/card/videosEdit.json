@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "视频管理",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav"
-  }
-}

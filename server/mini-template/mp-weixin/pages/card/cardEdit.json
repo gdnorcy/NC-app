@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "装修我的名片",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "page-nav": "../../components/PageNav",
-    "card-comp-item": "../../components/CardCompItem"
-  }
-}

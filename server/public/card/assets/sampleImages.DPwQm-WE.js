@@ -1,1 +1,0 @@
-const r="/card/static/sample/",a={banner:{url:r+"image-sample-710x388.jpg",w:710,h:388},square:{url:r+"image-sample-square-400x400.jpg",w:400,h:400},portrait:{url:r+"image-sample-600x800.jpg",w:600,h:800}};function e(r){return(a[r]||a.banner).url}function n(a){const e=((Number(a)||1)-1)%10+1;return r+"menu-icon-"+e+".jpg"}export{n as m,e as s};
