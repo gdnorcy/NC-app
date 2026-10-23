@@ -1,15 +1,13 @@
 /**
- * 🔴 回归锁：#312-13 分享海报「①文字叠在一起 ②要多款风格可选」
+ * 🔴 回归锁：#312-15 分享海报重构（删旧 4 款、换 5 款候选 v2）
  *
- * 反馈 → 修法：
- *  1  叠字根因：原 drawPoster 里「经营领域」文字基线 y=285，「需求标签 chips」矩形
- *     y=260..300（文字基线 288）——两行内容画进了同一区间。
- *     修复：绘制逻辑整体迁到 posterStyles.js，每款风格的行 y 区间两两不重叠
- *     （本文件按数值钉死），头部渐变高度 330 → 370。
- *  2  新增 4 款风格（classic 经典商务 / dark 曜石深色 / minimal 极简白 / gradient
- *     渐变全屏），弹层内风格条切换即重绘，选择持久化 cardPosterStyle。
- *  3  画布实例约束（getCurrentInstance 顶层取一次等）由 posterCanvas.test.js 继续把守，
- *     本次重构必须保持不破。
+ * 关键不变量：
+ *  1  风格注册表 = [cream, misty, sakura, mint, obsidian]（用户选的 5 款，原 4 款删除）。
+ *  2  名片不显示地区（东莞）：infoLine 只返回 company，全文不得出现 c.city。
+ *  3  cream / obsidian 顶部横线已去除（不得再 drawImage/fillRect 顶部小杠）。
+ *  4  电话改用高亮胶囊条 phonePill（不再有 footerPhone 页脚小灰字）。
+ *  5  行 y 区间两两不重叠（钉死常量顺序）。
+ *  6  chips 必须带溢出守卫。
  */
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -24,13 +22,22 @@ const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/
 const stylesSrc = () => stripComments(read('./posterStyles.js'));
 const myCardSrc = () => stripComments(read('./myCard.vue'));
 
-describe('海报风格注册表', () => {
-  test('4 款风格齐全且带中文标签', () => {
-    expect(POSTER_STYLES.map((s) => s.key)).toEqual(['classic', 'dark', 'minimal', 'gradient']);
-    expect(POSTER_STYLES.map((s) => s.label)).toEqual(['经典商务', '曜石深色', '极简白', '渐变全屏']);
+describe('海报风格注册表（#312-15：5 款候选 v2，原 4 款删除）', () => {
+  test('5 款风格齐全且带中文标签', () => {
+    expect(POSTER_STYLES.map((s) => s.key)).toEqual(['cream', 'misty', 'sakura', 'mint', 'obsidian']);
+    expect(POSTER_STYLES.map((s) => s.label)).toEqual(['奶油暖白', '晨雾蓝', '樱粉柔光', '薄荷清新', '曜石黑金']);
   });
 
-  test('drawPosterByStyle 未知风格回落 classic（不抛错）', () => {
+  test('旧 4 款 classic/dark/minimal/gradient 已彻底移除', () => {
+    const s = stylesSrc();
+    expect(s).not.toMatch(/function drawClassic/);
+    expect(s).not.toMatch(/function drawDark/);
+    expect(s).not.toMatch(/function drawMinimal/);
+    expect(s).not.toMatch(/function drawGradient/);
+    expect(s).not.toMatch(/drawClassic: drawClassic/);
+  });
+
+  test('drawPosterByStyle 未知风格回落 cream（不抛错）', () => {
     const calls = [];
     const ctx = new Proxy({}, {
       get(t, prop) {
@@ -45,36 +52,63 @@ describe('海报风格注册表', () => {
   });
 });
 
-describe('叠字修复：每款风格行 y 区间两两不重叠', () => {
-  test('classic：经营领域基线 282 < chips 顶 296（头部高度 370）', () => {
+describe('#312-15 名片不显示地区（东莞）+ 顶部横线去除 + 电话胶囊条', () => {
+  test('infoLine 只返回公司，全文不得出现 c.city', () => {
     const s = stylesSrc();
-    expect(s).toMatch(/const HEAD_H = 370;/);
-    expect(s).toMatch(/drawLine\(ctx, c\.businessField \|\| '', 48, 282,/);
-    expect(s).toMatch(/drawChips\(ctx, d\.tags, 48, 296, 40,/);
-    // chips 矩形顶 296 必须在经营领域基线 282 之下（留出行距）
-    expect(296).toBeGreaterThan(282);
+    expect(s).not.toMatch(/c\.city/);
+    expect(s).toMatch(/function infoLine\(c\) \{\s*return c\.company \|\| '';\s*\}/);
   });
 
-  test('dark：经营领域基线 372 < chips 顶 396；二维码白垫板存在', () => {
+  test('cream 顶部横线（原 fillRound 顶杠）已去除，仅保留阴影白卡', () => {
     const s = stylesSrc();
-    expect(s).toMatch(/drawLine\(ctx, c\.businessField \|\| '', 48, 372,/);
-    expect(s).toMatch(/drawChips\(ctx, d\.tags, 48, 396, 40,/);
-    expect(s).toMatch(/drawQrPanel\(ctx, qr, W \/ 2 - 170, 500, 340/);
-    expect(396).toBeGreaterThan(372);
+    const cream = s.slice(s.indexOf('function drawCream'), s.indexOf('function drawMisty'));
+    expect(cream).not.toMatch(/fillRound\(ctx, 50, 90, W - 100, 16, 8, '#B08968'\)/);
+    expect(cream).toMatch(/fillRound\(ctx, 50, 90, W - 100, 840, 36, '#FFFFFF'\)/);
   });
 
-  test('minimal：经营领域基线 380 < chips 顶 404', () => {
+  test('obsidian 顶部小金杠 fillRect(48, 96, 60, 8) 已去除，保留右上光晕', () => {
     const s = stylesSrc();
-    expect(s).toMatch(/drawLine\(ctx, c\.businessField \|\| '', 48, 380,/);
-    expect(s).toMatch(/drawChips\(ctx, d\.tags, 48, 404, 40,/);
-    expect(404).toBeGreaterThan(380);
+    const obsidian = s.slice(s.indexOf('function drawObsidian'), s.indexOf('const DRAWERS'));
+    expect(obsidian).not.toMatch(/fillRect\(48, 96, 60, 8\)/);
+    expect(obsidian).toMatch(/arc\(550, 40, 240/);
   });
 
-  test('gradient：经营领域基线 444 < chips 顶 470', () => {
+  test('电话用高亮胶囊条 phonePill，footerPhone 已删除', () => {
     const s = stylesSrc();
-    expect(s).toMatch(/drawLine\(ctx, c\.businessField \|\| '', W \/ 2, 444,/);
-    expect(s).toMatch(/fillRound\(ctx, tx, 470, tw, 40,/);
-    expect(470).toBeGreaterThan(444);
+    expect(s).toMatch(/function phonePill\(/);
+    expect(s).not.toMatch(/function footerPhone/);
+    expect(s).toMatch(/phonePill\(ctx, c, \{/);
+  });
+});
+
+describe('叠字修复：每行 y 区间两两不重叠（钉死常量顺序）', () => {
+  test('共用纵向节奏常量顺序正确', () => {
+    const s = stylesSrc();
+    expect(s).toMatch(/const NAME_Y = 360, POS_Y = 414, ORG_Y = 458, FIELD_Y = 502, CHIPS_Y = 530, PILL_Y = 606, QR_Y = 696/);
+    expect(502).toBeLessThan(530);
+    expect(530 + 40).toBeLessThan(606);
+    expect(606 + 56).toBeLessThan(696);
+  });
+
+  test('cream/mint 走 bodyCard：文本与 chips/胶囊/二维码各行不重叠', () => {
+    const s = stylesSrc();
+    const body = s.slice(s.indexOf('function bodyCard'), s.indexOf('function drawCream'));
+    // 领域 FIELD_Y=502 < chips CHIPS_Y=530；chips 540 末 < 胶囊 PILL_Y=606
+    expect(body).toMatch(/drawLine\(ctx, c\.businessField \|\| '', X, FIELD_Y,/);
+    expect(body).toMatch(/drawChips\(ctx, tags, X, CHIPS_Y, 40,/);
+    expect(body).toMatch(/phonePill\(ctx, c, \{ x: X, y: PILL_Y,/);
+    expect(body).toMatch(/qrWithGuide\(ctx, d, t, X, QR_Y, 200,/);
+  });
+
+  test('obsidian 各行不重叠（领域460 < chips492 < 胶囊562 < 二维码650）', () => {
+    const s = stylesSrc();
+    const obsidian = s.slice(s.indexOf('function drawObsidian'), s.indexOf('const DRAWERS'));
+    expect(obsidian).toMatch(/drawLine\(ctx, c\.businessField \|\| '', 48, 460,/);
+    expect(obsidian).toMatch(/drawChips\(ctx, tags, 48, 492, 40,/);
+    expect(obsidian).toMatch(/phonePill\(ctx, c, \{ x: 48, y: 562,/);
+    expect(obsidian).toMatch(/drawQrPanel\(ctx, qr, 48, 650, 280, 24, 22\)/);
+    expect(492).toBeLessThan(562);
+    expect(562 + 56).toBeLessThan(650);
   });
 
   test('chips 行必须带溢出守卫（fitText 截字 + 超 maxRight 停画），禁止无脑连排', () => {
@@ -84,47 +118,42 @@ describe('叠字修复：每款风格行 y 区间两两不重叠', () => {
   });
 });
 
-describe('#312-14 白底风格字色：禁白底白字（极简白没名字=主题 ink 是白色）', () => {
-  test('minimal 全段禁用主题 ink，文字固定深色 INK=#1d2129', () => {
-    const s = stylesSrc();
-    const minimal = s.slice(s.indexOf('function drawMinimal'), s.indexOf('function drawGradient'));
-    expect(minimal).toMatch(/const INK = '#1d2129';/);
-    expect(minimal).not.toMatch(/\bink\b/);
-  });
-
-  test('classic/gradient 头部文字与 chips 按主题 ink 自适应（darkInk 分支），禁止硬编码白字', () => {
-    const s = stylesSrc();
-    const classic = s.slice(s.indexOf('function drawClassic'), s.indexOf('function drawDark'));
-    const gradient = s.slice(s.indexOf('function drawGradient'), s.indexOf('const DRAWERS'));
-    for (const seg of [classic, gradient]) {
-      expect(seg).toMatch(/const darkInk = ink !== '#ffffff';/);
-      // 含白色 rgba 的行必须是 darkInk 三元定义行（按 ink 自适应），不允许在绘制调用里裸用
-      const whiteLines = seg.split('\n').filter((l) => /rgba\(255,255,255/.test(l));
-      expect(whiteLines.length).toBeGreaterThan(0);
-      whiteLines.forEach((l) => expect(l).toMatch(/darkInk \?/));
-    }
-  });
-});
-
-describe('myCard 风格选择接入', () => {
+describe('myCard 风格选择接入（#312-15 折叠+横滑轮播，仿动态）', () => {
   test('导入风格库并暴露给模板', () => {
     const s = myCardSrc();
     expect(s).toMatch(/import \{ POSTER_STYLES, drawPosterByStyle \} from '\.\/posterStyles\.js';/);
     expect(s).toMatch(/const posterStyles = POSTER_STYLES;/);
   });
 
-  test('弹层有风格条（v-for + active 态 + 点击切换）', () => {
+  test('风格选择器是 swiper 折叠轮播（非旧 scroll-view 文本条）', () => {
     const s = read('./myCard.vue');
+    expect(s).toMatch(/class="ps-swiper"/);
+    expect(s).toMatch(/:current="currentStyleIndex"/);
+    expect(s).toMatch(/@change="onPosterSwipe"/);
     expect(s).toMatch(/v-for="s in posterStyles"/);
     expect(s).toMatch(/:class="\{ active: posterStyleKey === s\.key \}"/);
     expect(s).toMatch(/@click="onPosterStyleChange\(s\.key\)"/);
   });
 
-  test('切换风格走重绘而非重取码，且选择持久化 cardPosterStyle', () => {
+  test('swiper 使用折叠态 .sw-item（active 归位、非 active 缩进探出）', () => {
+    const s = myCardSrc();
+    expect(s).toMatch(/\.sw-item \{/);
+    expect(s).toMatch(/transform: translateX\(-30%\) scale\(0\.92\)/);
+    expect(s).toMatch(/\.sw-item\.active \{ transform: translateX\(0\) scale\(1\)/);
+  });
+
+  test('onPosterSwipe 切换风格并触发缩略图渲染', () => {
+    const s = myCardSrc();
+    expect(s).toMatch(/function onPosterSwipe\(e\) \{/);
+    expect(s).toMatch(/function buildPosterThumbs\(\) \{/);
+    expect(s).toMatch(/buildPosterThumbs\(\);/);
+  });
+
+  test('切换风格走重绘而非重取码，且选择持久化 cardPosterStyle（默认 cream）', () => {
     const s = myCardSrc();
     expect(s).toMatch(/function onPosterStyleChange\(k\) \{/);
     expect(s).toMatch(/uni\.setStorageSync\('cardPosterStyle', k\)/);
-    expect(s).toMatch(/try \{ posterStyleSaved = uni\.getStorageSync\('cardPosterStyle'\) \|\| 'classic'; \} catch \(e\) \{\}/);
+    expect(s).toMatch(/try \{ posterStyleSaved = uni\.getStorageSync\('cardPosterStyle'\) \|\| 'cream'; \} catch \(e\) \{\}/);
   });
 
   test('renderPoster 按所选风格绘制（styleKey: posterStyleKey.value）且头像过 absUrl', () => {
@@ -133,13 +162,5 @@ describe('myCard 风格选择接入', () => {
     expect(s).toMatch(/loadImage\(canvas, absUrl\(c\.avatar\)\)/);
     expect(s).toMatch(/posterQrData = qrData;/);
     expect(s).toMatch(/posterDrawData = \{ c, primary, gradient, ink \};/);
-  });
-
-  test('二维码白垫板只用于深底风格，classic（浅底）直接铺码', () => {
-    const s = stylesSrc();
-    // classic 用裸 drawImage，dark/gradient 用 drawQrPanel；minimal 二维码画在白底上裸铺
-    const classic = s.slice(s.indexOf('function drawClassic'), s.indexOf('function drawDark'));
-    expect(classic).toMatch(/ctx\.drawImage\(qr, W \/ 2 - 190, 530, 380, 380\)/);
-    expect(classic).not.toMatch(/drawQrPanel/);
   });
 });

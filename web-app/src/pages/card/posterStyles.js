@@ -1,16 +1,19 @@
 /**
- * 名片分享海报风格库（2026-10-23 新增）
+ * 名片分享海报风格库（#312-15 重构）
  *
- * 背景：#312-13 用户反馈 ①原海报「经营领域文字与需求标签 chips 叠在一起」
- *  —— 原因：drawPoster 里经营领域基线 y=285，chips 矩形 y=260..300（文字基线 288），
- *     两行内容画进了同一区间；
- *  ②希望有几款不同风格的海报可选。
+ * 背景：
+ *  - #312-13 用户反馈「①文字叠在一起 ②要多款风格可选」→ 绘制逻辑迁此模块，每行 y 区间
+ *    两两不重叠，弹层内风格切换即重绘，选择持久化 cardPosterStyle。当时落地 4 款
+ *    （classic/dark/minimal/gradient）。
+ *  - #312-15 用户重新选了 8 款候选里的 5 款（奶油暖白/晨雾蓝/樱粉柔光/薄荷清新/曜石黑金），
+ *    并明确：①地名（东莞）不在名片上显示 → infoLine 只留公司；②各款顶部横线去掉；
+ *    ③电话从页脚小灰字改为高亮胶囊条（更醒目）。原 4 款删除，换成这 5 款各自固定配色。
  *
- * 本模块提供 4 款 600×960 竖版海报绘制函数，全部只依赖标准 Canvas 2D API
- * （H5 与微信小程序 canvas type="2d" 通用），无 MP 模板参与，不涉两端漂移。
+ * 本模块仅依赖标准 Canvas 2D API（H5 与微信小程序 canvas type="2d" 通用），无 MP 模板参与。
  *
- * 🔴 布局铁律（来自本次叠字反馈）：每个风格的**每一行内容 y 区间必须两两不重叠**，
- *    posterStyles.test.js 会按数值钉死各行的 y 断言，改 y 值须同步改测试。
+ * 🔴 布局铁律（来自 #312-13 叠字反馈）：每一款**每一行内容 y 区间必须两两不重叠**，
+ *   posterStyles.test.js 按数值钉死各行 y 断言，改 y 值须同步改测试。
+ * 🔴 各款用自身固定配色，不读用户模板 primary/gradient/ink（与「设计不同风格」意图一致）。
  */
 
 export const POSTER_W = 600;
@@ -18,10 +21,11 @@ export const POSTER_H = 960;
 
 /** 风格注册表（顺序即 UI 展示顺序） */
 export const POSTER_STYLES = [
-  { key: 'classic', label: '经典商务' },
-  { key: 'dark', label: '曜石深色' },
-  { key: 'minimal', label: '极简白' },
-  { key: 'gradient', label: '渐变全屏' },
+  { key: 'cream', label: '奶油暖白' },
+  { key: 'misty', label: '晨雾蓝' },
+  { key: 'sakura', label: '樱粉柔光' },
+  { key: 'mint', label: '薄荷清新' },
+  { key: 'obsidian', label: '曜石黑金' },
 ];
 
 // ---------------------------------------------------------------- 小工具
@@ -34,7 +38,7 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-/** hex → rgba() 字符串（画布半透明用；不支持透明度叠加错误的 fillStyle=hex+globalAlpha 混用） */
+/** hex → rgba() 字符串（画布半透明用） */
 function alphaColor(hex, a) {
   const rgb = hexToRgb(hex);
   if (!rgb) return `rgba(255,255,255,${a})`;
@@ -146,17 +150,55 @@ function drawQrPanel(ctx, qr, x, y, size, radius, pad) {
   if (qr) ctx.drawImage(qr, x + p, y + p, size - p * 2, size - p * 2);
 }
 
-function footerPhone(ctx, c, H, color) {
+/**
+ * 🔴 #312-15 电话胶囊条：放在标签下方、accent 高亮加粗（替代页脚小灰字，更醒目）。
+ * 结构：圆点 + 「电话」+ 号码，浅色胶囊底。
+ */
+function phonePill(ctx, c, opts) {
   if (!c.phone) return;
-  ctx.font = '22px sans-serif';
-  ctx.fillStyle = color;
-  ctx.textAlign = 'center';
-  ctx.fillText(`电话 ${c.phone}`, POSTER_W / 2, H - 40);
-  ctx.textAlign = 'left';
+  const { y, accent, tint, sub, x, cx } = opts;
+  ctx.font = '24px sans-serif';
+  const lw = ctx.measureText('电话').width;
+  ctx.font = 'bold 34px sans-serif';
+  const nw = ctx.measureText(c.phone).width;
+  const w = 24 * 2 + 14 + 20 + lw + 12 + nw;
+  const h = 56;
+  const px = cx != null ? cx - w / 2 : x;
+  fillRound(ctx, px, y, w, h, 28, tint);
+  ctx.beginPath();
+  ctx.arc(px + 24 + 7, y + h / 2, 7, 0, Math.PI * 2);
+  ctx.fillStyle = accent;
+  ctx.fill();
+  ctx.textBaseline = 'middle';
+  let tx = px + 24 + 20;
+  ctx.font = '24px sans-serif';
+  ctx.fillStyle = sub;
+  ctx.fillText('电话', tx, y + h / 2 + 1);
+  tx += lw + 12;
+  ctx.font = 'bold 34px sans-serif';
+  ctx.fillStyle = accent;
+  ctx.fillText(c.phone, tx, y + h / 2 + 1);
+  ctx.textBaseline = 'alphabetic';
 }
 
+/** 二维码 + 右侧两行引导文案（左对齐浅底风格共用） */
+function qrWithGuide(ctx, d, t, qrX, qrY, qrS, guideX) {
+  if (d.qr) ctx.drawImage(d.qr, qrX, qrY, qrS, qrS);
+  const cy = qrY + qrS / 2;
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillStyle = t.nameColor;
+  ctx.fillText('扫码查看', guideX, cy - 24);
+  ctx.fillText('电子名片', guideX, cy + 18);
+  ctx.font = '22px sans-serif';
+  ctx.fillStyle = t.subColor;
+  ctx.fillText('长按或微信扫一扫', guideX, cy + 62);
+  ctx.textBaseline = 'alphabetic';
+}
+
+// 🔴 #312-15：公司·城市 → 只留公司。用户明确「东莞这个区域不要在名片上显示」。
 function infoLine(c) {
-  return [c.company, c.city].filter(Boolean).join(' · ');
+  return c.company || '';
 }
 
 function parseTags(raw) {
@@ -168,207 +210,140 @@ function parseTags(raw) {
   }
 }
 
-// ---------------------------------------------------------------- 4 款风格
+// 纵向节奏（左对齐风格共用，行区间两两不重叠）：
+// 头像 144..256 / 名 360 / 职 414 / 组织 458 / 领域 502 / chips 530..570 /
+// 电话胶囊 606..662 / 二维码 696..916
+const NAME_Y = 360, POS_Y = 414, ORG_Y = 458, FIELD_Y = 502, CHIPS_Y = 530, PILL_Y = 606, QR_Y = 696, QR_S = 220;
 
-/**
- * 1 经典商务（原版式修复版）
- * 🔴 叠字修复：头部各行 y 区间严格分层——
- *    name 基线 130 / position 185 / 公司·城市 235 / 经营领域 282（24px 文字≈258..282）
- *    / chips 矩形 296..336（文字居中基线区）→ 任何两行区间不相交。
- *    头部渐变高度 330 → 370（给足 chips 行空间）。
- */
-function drawClassic(ctx, d) {
-  const { W, H, c, name, primary, gradient, ink, qr } = d;
-  // 🔴 #312-14 同类隐患修复：头部次级文字/标签原硬编码白色——浅色主色的租户
-  //   （heroForeground 裁决出深色 ink）会白底白字隐形。全部按 ink 自适应。
-  const darkInk = ink !== '#ffffff';
-  const sub = darkInk ? 'rgba(29,33,41,0.72)' : 'rgba(255,255,255,0.9)';
-  const faint = darkInk ? 'rgba(29,33,41,0.55)' : 'rgba(255,255,255,0.75)';
-  const chipBg = darkInk ? 'rgba(29,33,41,0.08)' : 'rgba(255,255,255,0.18)';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
-  const HEAD_H = 370;
-  const g = ctx.createLinearGradient(0, 0, W * 0.35, HEAD_H);
-  g.addColorStop(0, primary);
-  g.addColorStop(1, gradient);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, HEAD_H);
-
-  drawLine(ctx, name, 48, 130, 'bold 64px sans-serif', ink, W - 96);
-  drawLine(ctx, c.position || '', 48, 185, '30px sans-serif', sub, W - 96);
-  drawLine(ctx, infoLine(c), 48, 235, '30px sans-serif', sub, W - 96);
-  // 经营领域行（y 258..282）：与 chips（296 起）不相交
-  drawLine(ctx, c.businessField || '', 48, 282, '24px sans-serif', faint, W - 96);
-  // 需求标签 chips（y 296..336）
-  drawChips(ctx, d.tags, 48, 296, 40, {
-    font: '24px sans-serif', fg: ink, bg: chipBg,
-    radius: 20, gap: 16, padX: 16, maxRight: W - 48,
-  });
-
-  drawLine(ctx, '扫码查看电子名片', 48, 440, 'bold 34px sans-serif', '#1d2129');
-  drawLine(ctx, '长按或微信扫一扫', 48, 484, '24px sans-serif', '#86909c');
-  if (qr) ctx.drawImage(qr, W / 2 - 190, 530, 380, 380);
-  footerPhone(ctx, c, H, '#c9cdd4');
+/** 浅底无卡片风格共用主体（misty/sakura）：头像在左上，整页浅底渐变 */
+function bodyPlain(ctx, d, t) {
+  const { W, c, name, tags } = d;
+  drawAvatar(ctx, d.av, 110, 200, 56, name, t.discBg, t.discFg);
+  drawLine(ctx, name, 48, NAME_Y, 'bold 64px sans-serif', t.nameColor, W - 96);
+  drawLine(ctx, c.position || '', 48, POS_Y, '28px sans-serif', t.subColor, W - 96);
+  drawLine(ctx, infoLine(c), 48, ORG_Y, '26px sans-serif', t.subColor, W - 96);
+  drawLine(ctx, c.businessField || '', 48, FIELD_Y, '24px sans-serif', t.faint, W - 96);
+  drawChips(ctx, tags, 48, CHIPS_Y, 40, { font: '24px sans-serif', fg: t.chipFg, bg: t.chipBg, border: t.chipBorder, radius: 20, gap: 16, padX: 16, maxRight: W - 48 });
+  phonePill(ctx, c, { x: 48, y: PILL_Y, accent: t.accent, tint: t.pillTint, sub: t.subColor });
+  qrWithGuide(ctx, d, t, 48, QR_Y, QR_S, 300);
 }
 
-/** 2 曜石深色：深底 + 品牌色点缀 + 白垫二维码 */
-function drawDark(ctx, d) {
-  const { W, H, c, name, primary, qr, av } = d;
-  ctx.fillStyle = '#10141c';
-  ctx.fillRect(0, 0, W, H);
-  // 顶部品牌光晕
+/** 浅底白卡片风格共用主体（cream/mint）：内容内缩到卡片内 (x=98)，卡片 90..930 */
+function bodyCard(ctx, d, t) {
+  const { W, c, name, tags } = d;
+  const X = 98;
+  drawAvatar(ctx, d.av, X + 56, 200, 56, name, t.discBg, t.discFg);
+  drawLine(ctx, name, X, NAME_Y, 'bold 64px sans-serif', t.nameColor, W - X * 2);
+  drawLine(ctx, c.position || '', X, POS_Y, '28px sans-serif', t.subColor, W - X * 2);
+  drawLine(ctx, infoLine(c), X, ORG_Y, '26px sans-serif', t.subColor, W - X * 2);
+  drawLine(ctx, c.businessField || '', X, FIELD_Y, '24px sans-serif', t.faint, W - X * 2);
+  // 卡片右缘 = 50 + (W-100) = 550；chips 右界取卡片内缩 48 = 502（与文本行 maxWidth 终点一致）
+  drawChips(ctx, tags, X, CHIPS_Y, 40, { font: '24px sans-serif', fg: t.chipFg, bg: t.chipBg, border: t.chipBorder, radius: 20, gap: 16, padX: 16, maxRight: X + (W - X * 2) });
+  phonePill(ctx, c, { x: X, y: PILL_Y, accent: t.accent, tint: t.pillTint, sub: t.subColor });
+  qrWithGuide(ctx, d, t, X, QR_Y, 200, X + 220 + 24);
+}
+
+// ---------------------------------------------------------------- 5 款风格
+
+// 1 奶油暖白：米白底 + 暖棕描边卡片 + 柔和阴影（#312-15：去顶部横线）
+function drawCream(ctx, d) {
+  const { W, H } = d;
+  const t = {
+    discBg: '#B08968', discFg: '#fff', nameColor: '#3A2E25', subColor: '#7A6A5C',
+    faint: '#9A8A7C', chipFg: '#7A6A5C', chipBorder: '#D9C7B5', accent: '#B08968',
+    pillTint: 'rgba(176,137,104,0.12)',
+  };
+  ctx.fillStyle = '#FBF7F0'; ctx.fillRect(0, 0, W, H);
   ctx.save();
-  ctx.globalAlpha = 0.16;
-  ctx.fillStyle = primary;
-  ctx.beginPath();
-  ctx.arc(W - 60, -40, 260, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.shadowColor = 'rgba(120,90,60,0.18)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+  fillRound(ctx, 50, 90, W - 100, 840, 36, '#FFFFFF');
   ctx.restore();
-  // 品牌色小杠
-  ctx.fillStyle = primary;
-  ctx.fillRect(48, 96, 56, 8);
-
-  // 文字区右侧让开头像（头像圆心 W-108、半径 52 → 左缘约 440），maxWidth 收到 W-216
-  drawLine(ctx, name, 48, 200, 'bold 68px sans-serif', '#ffffff', W - 216);
-  drawLine(ctx, c.position || '', 48, 252, '26px sans-serif', 'rgba(255,255,255,0.72)', W - 216);
-  drawLine(ctx, infoLine(c), 48, 296, '26px sans-serif', 'rgba(255,255,255,0.55)', W - 216);
-  // 分隔线（y 330）
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fillRect(48, 330, W - 96, 2);
-  // 经营领域（y 344..372）
-  drawLine(ctx, c.businessField || '', 48, 372, '24px sans-serif', 'rgba(255,255,255,0.62)', W - 96);
-  // chips（y 396..436，描边款）
-  drawChips(ctx, d.tags, 48, 396, 40, {
-    font: '24px sans-serif', fg: '#ffffff', border: 'rgba(255,255,255,0.28)',
-    radius: 20, gap: 16, padX: 16, maxRight: W - 48,
-  });
-
-  // 头像（右上圆）
-  drawAvatar(ctx, av, W - 108, 176, 52, name, primary, '#ffffff');
-
-  drawQrPanel(ctx, qr, W / 2 - 170, 500, 340, 24, 24);
-  ctx.font = '26px sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.66)';
-  ctx.textAlign = 'center';
-  ctx.fillText('长按或微信扫一扫，查看电子名片', W / 2, 890);
-  ctx.textAlign = 'left';
-  footerPhone(ctx, c, H, 'rgba(255,255,255,0.4)');
+  bodyCard(ctx, d, t);
 }
 
-/** 3 极简白：留白 + 细线 + 左文右码 */
-function drawMinimal(ctx, d) {
-  // 🔴 #312-14「极简白没有名字，有个黑点」：白底风格**禁用主题 ink**——
-  //   ink 是给渐变/深色头部裁决的字色（深色模板算出白色），白底上白字=隐形
-  //   （名字只剩品牌方块看着像"黑点"）。本风格文字一律固定深色，主色只做点缀。
-  const { W, H, c, name, primary, qr } = d;
-  const INK = '#1d2129';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
-  // 顶部品牌方块
-  ctx.fillStyle = primary;
-  ctx.fillRect(48, 76, 16, 16);
-  drawLine(ctx, name, 48, 180, 'bold 72px sans-serif', INK, W - 96);
-  drawLine(ctx, c.position || '', 48, 232, '28px sans-serif', '#4e5969', W - 96);
-  // 细分隔线（y 276）
-  ctx.fillStyle = '#f0f1f3';
-  ctx.fillRect(48, 276, W - 96, 2);
-  drawLine(ctx, infoLine(c), 48, 330, '26px sans-serif', '#4e5969', W - 96);
-  // 经营领域（y 354..380）
-  drawLine(ctx, c.businessField || '', 48, 380, '24px sans-serif', '#86909c', W - 96);
-  // chips（y 404..444，浅灰底深字）
-  drawChips(ctx, d.tags, 48, 404, 40, {
-    font: '24px sans-serif', fg: '#1d2129', bg: '#f5f6f7',
-    radius: 20, gap: 16, padX: 16, maxRight: W - 48,
-  });
-
-  // 二维码左置 + 右侧引导文案
-  if (qr) ctx.drawImage(qr, 48, 560, 320, 320);
-  ctx.font = 'bold 32px sans-serif';
-  ctx.fillStyle = INK;
-  ctx.fillText('扫码查看', 408, 690);
-  ctx.fillText('电子名片', 408, 734);
-  ctx.font = '24px sans-serif';
-  ctx.fillStyle = '#86909c';
-  ctx.fillText('长按或扫一扫', 408, 776);
-  // 品牌色小点缀
-  ctx.fillStyle = primary;
-  ctx.fillRect(408, 820, 48, 6);
-  footerPhone(ctx, c, H, '#c9cdd4');
+// 2 晨雾蓝：浅蓝渐变 + 清爽科技
+function drawMisty(ctx, d) {
+  const { W, H } = d;
+  const t = {
+    discBg: '#3E7CB1', discFg: '#fff', nameColor: '#16324B', subColor: '#3E7CB1',
+    faint: '#6E92B0', chipFg: '#16324B', chipBorder: '#BBD3EA', accent: '#3E7CB1',
+    pillTint: 'rgba(62,124,177,0.1)',
+  };
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#EAF2FB'); g.addColorStop(1, '#D8E8F8');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  bodyPlain(ctx, d, t);
 }
 
-/** 4 渐变全屏：整页品牌渐变 + 居中头像 + 白垫二维码 */
-function drawGradient(ctx, d) {
-  const { W, H, c, name, primary, gradient, ink, qr, av } = d;
-  // 🔴 #312-14 同类隐患：浅色主色租户下白字隐形 → 文字/标签按 ink 自适应
-  const darkInk = ink !== '#ffffff';
-  const sub = darkInk ? 'rgba(29,33,41,0.78)' : 'rgba(255,255,255,0.85)';
-  const faint = darkInk ? 'rgba(29,33,41,0.55)' : 'rgba(255,255,255,0.66)';
-  const chipBg = darkInk ? 'rgba(29,33,41,0.08)' : 'rgba(255,255,255,0.18)';
-  const g = ctx.createLinearGradient(0, 0, W * 0.3, H);
-  g.addColorStop(0, primary);
-  g.addColorStop(1, gradient);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+// 3 樱粉柔光：极浅粉 + 珊瑚点缀 + 柔光圆
+function drawSakura(ctx, d) {
+  const { W, H } = d;
+  const t = {
+    discBg: '#E8738C', discFg: '#fff', nameColor: '#7A2E44', subColor: '#C25F79',
+    faint: '#D98FA0', chipFg: '#7A2E44', chipBorder: '#F3C2CE', accent: '#E8738C',
+    pillTint: 'rgba(232,115,140,0.1)',
+  };
+  ctx.fillStyle = '#FCEEF3'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#FBD0DC';
+  ctx.beginPath(); ctx.arc(W - 80, 120, 160, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  bodyPlain(ctx, d, t);
+}
+
+// 4 薄荷清新：白卡 + 浅薄荷底
+function drawMint(ctx, d) {
+  const { W, H } = d;
+  const t = {
+    discBg: '#2E9E6B', discFg: '#fff', nameColor: '#1E5C40', subColor: '#2E9E6B',
+    faint: '#5BA683', chipFg: '#1E5C40', chipBg: '#D6F0E3', chipBorder: '#A9DCC3',
+    accent: '#2E9E6B', pillTint: 'rgba(46,158,107,0.1)',
+  };
+  ctx.fillStyle = '#E6F7EE'; ctx.fillRect(0, 0, W, H);
   ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = darkInk ? '#1d2129' : '#ffffff';
-  ctx.beginPath(); ctx.arc(W - 40, 80, 190, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(30, H - 60, 150, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowColor = 'rgba(30,92,64,0.14)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 8;
+  fillRound(ctx, 50, 90, W - 100, 840, 36, '#FFFFFF');
   ctx.restore();
+  bodyCard(ctx, d, t);
+}
 
-  drawAvatar(ctx, av, W / 2, 180, 72, name, 'rgba(255,255,255,0.9)', darkInk ? '#1d2129' : primary);
-  drawLine(ctx, name, W / 2, 306, 'bold 60px sans-serif', ink, W - 96, 'center');
-  drawLine(ctx, c.position || '', W / 2, 352, '28px sans-serif', sub, W - 96, 'center');
-  drawLine(ctx, infoLine(c), W / 2, 396, '26px sans-serif', sub, W - 96, 'center');
-  // 经营领域（居中，y 418..444）
-  drawLine(ctx, c.businessField || '', W / 2, 444, '24px sans-serif', faint, W - 96, 'center');
-
-  // chips 居中（y 470..510）：先算总宽再起点居中
-  const tags = d.tags || [];
-  ctx.font = '24px sans-serif';
-  const gap = 16, padX = 16;
-  const widths = tags.map((t) => ctx.measureText(fitText(ctx, t, 160)).width + padX * 2);
-  const total = widths.reduce((s, w) => s + w, 0) + gap * Math.max(0, tags.length - 1);
-  if (total <= W - 96) {
-    let tx = (W - total) / 2;
-    tags.forEach((t, i) => {
-      const label = fitText(ctx, t, 160);
-      const tw = widths[i];
-      fillRound(ctx, tx, 470, tw, 40, 20, chipBg);
-      ctx.font = '24px sans-serif';
-      ctx.fillStyle = ink;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, tx + padX, 470 + 21);
-      ctx.textBaseline = 'alphabetic';
-      tx += tw + gap;
-    });
-  }
-
-  drawQrPanel(ctx, qr, W / 2 - 160, 580, 320, 24, 22);
-  ctx.font = '24px sans-serif';
-  ctx.fillStyle = faint;
-  ctx.textAlign = 'center';
-  ctx.fillText('长按或微信扫一扫，查看电子名片', W / 2, 942);
-  ctx.textAlign = 'left';
+// 5 曜石黑金：深黑底 + 金色点缀（#312-15：去顶部小金杠，保留右上角光晕）
+function drawObsidian(ctx, d) {
+  const { W, c, name, tags, qr, av } = d;
+  ctx.fillStyle = '#0E0F13'; ctx.fillRect(0, 0, 600, 960);
+  ctx.save(); ctx.globalAlpha = 0.16; ctx.fillStyle = '#C9A24B';
+  ctx.beginPath(); ctx.arc(550, 40, 240, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  drawAvatar(ctx, av, 110, 190, 56, name, 'rgba(201,162,75,0.18)', '#C9A24B');
+  drawLine(ctx, name, 48, 330, 'bold 64px sans-serif', '#F4ECD8', 600 - 96);
+  drawLine(ctx, c.position || '', 48, 382, '26px sans-serif', 'rgba(244,236,216,0.78)', 600 - 96);
+  drawLine(ctx, infoLine(c), 48, 422, '26px sans-serif', 'rgba(244,236,216,0.62)', 600 - 96);
+  drawLine(ctx, c.businessField || '', 48, 460, '24px sans-serif', 'rgba(244,236,216,0.5)', 600 - 96);
+  drawChips(ctx, tags, 48, 492, 40, { font: '24px sans-serif', fg: '#C9A24B', border: 'rgba(201,162,75,0.4)', radius: 20, gap: 16, padX: 16, maxRight: 600 - 48 });
+  phonePill(ctx, c, { x: 48, y: 562, accent: '#C9A24B', tint: 'rgba(201,162,75,0.12)', sub: 'rgba(244,236,216,0.66)' });
+  drawQrPanel(ctx, qr, 48, 650, 280, 24, 22);
+  ctx.font = 'bold 24px sans-serif'; ctx.fillStyle = '#C9A24B';
+  ctx.fillText('扫码查看电子名片', 344, 760);
+  ctx.font = '22px sans-serif'; ctx.fillStyle = 'rgba(244,236,216,0.6)';
+  ctx.fillText('长按或微信扫一扫', 344, 800);
 }
 
 const DRAWERS = {
-  classic: drawClassic,
-  dark: drawDark,
-  minimal: drawMinimal,
-  gradient: drawGradient,
+  cream: drawCream,
+  misty: drawMisty,
+  sakura: drawSakura,
+  mint: drawMint,
+  obsidian: drawObsidian,
 };
 
 /**
  * 按风格绘制海报。
  * @param {CanvasRenderingContext2D} ctx
  * @param {Object} opts { W, H, card, primary, gradient, ink, qrImg, avatarImg, styleKey }
+ *   primary/gradient/ink 仅保留签名兼容（本模块各款用自身固定配色，不读模板色）。
  */
 export function drawPosterByStyle(ctx, opts = {}) {
   const W = opts.W || POSTER_W;
   const H = opts.H || POSTER_H;
   const c = opts.card || {};
-  const key = DRAWERS[opts.styleKey] ? opts.styleKey : 'classic';
+  const key = DRAWERS[opts.styleKey] ? opts.styleKey : 'cream';
   DRAWERS[key](ctx, {
     W, H, c,
     name: c.name || '电子名片',

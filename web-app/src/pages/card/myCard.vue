@@ -204,15 +204,20 @@
       <view class="grip"></view>
       <view class="qs-title">名片分享海报</view>
       <view class="qs-sub">保存图片后可发朋友圈或印刷，扫码直达名片</view>
-      <!-- 🔴 #312-13：风格选择（选中即重绘；选择持久化到本地，下次打开沿用） -->
-      <scroll-view scroll-x class="ps-row" :show-scrollbar="false">
-        <view class="ps-row-inner">
-          <view v-for="s in posterStyles" :key="s.key" class="ps-chip"
-                :class="{ active: posterStyleKey === s.key }" @click="onPosterStyleChange(s.key)">
-            {{ s.label }}
+      <!-- 🔴 #312-15：风格选择改为「折叠 + 横向滑动」轮播，仿动态反馈 #312-9
+           （非当前项向左缩进探出、当前项置顶压住；滑动各就各位 0.25s 过渡）。
+           每项为对应风格的迷你预览图（打开弹层时按需渲染），回落为风格色卡。 -->
+      <swiper class="ps-swiper" :circular="false" :indicator-dots="false"
+              previous-margin="12px" next-margin="12px"
+              :current="currentStyleIndex" @change="onPosterSwipe">
+        <swiper-item v-for="s in posterStyles" :key="s.key">
+          <view class="sw-item" :class="{ active: posterStyleKey === s.key }" @click="onPosterStyleChange(s.key)">
+            <image v-if="posterThumbs[s.key]" class="sw-thumb" :src="posterThumbs[s.key]" mode="aspectFill" />
+            <view v-else class="sw-thumb sw-thumb-fallback" :style="posterThumbStyle(s.key)"></view>
+            <view class="sw-label">{{ s.label }}</view>
           </view>
-        </view>
-      </scroll-view>
+        </swiper-item>
+      </swiper>
       <view class="qs-img-wrap" :class="{ 'poster-wrap': true }">
         <image v-if="posterPath" class="qs-img poster" :src="posterPath" mode="aspectFit" show-menu-by-longpress />
         <view v-else class="qs-loading">海报生成中…</view>
@@ -223,6 +228,8 @@
     <!-- 离屏海报画布（移出屏幕；H5 不渲染，直接用内存 canvas） -->
     <!-- #ifdef MP-WEIXIN -->
     <canvas id="posterCanvas" type="2d" class="poster-canvas"></canvas>
+    <!-- 缩略图专用离屏画布（风格轮播用，避免覆盖主海报画布） -->
+    <canvas id="posterThumb" type="2d" class="poster-canvas"></canvas>
     <!-- #endif -->
 
     <!-- 雷达悬浮球 + 未读角标（脉冲圈动效 + 抬高避开底部Tab） -->
@@ -543,14 +550,37 @@ const qrImage = ref('');
 const qrType = ref('');
 const showPoster = ref(false);
 const posterPath = ref('');
-// 🔴 #312-13：海报风格（4 款可选）+ 选择持久化（下次打开沿用上次风格）
+// 🔴 #312-15：海报风格（5 款可选）+ 选择持久化（下次打开沿用上次风格）
 const posterStyles = POSTER_STYLES;
-let posterStyleSaved = 'classic';
-try { posterStyleSaved = uni.getStorageSync('cardPosterStyle') || 'classic'; } catch (e) {}
-const posterStyleKey = ref(posterStyles.some((s) => s.key === posterStyleSaved) ? posterStyleSaved : 'classic');
+let posterStyleSaved = 'cream';
+try { posterStyleSaved = uni.getStorageSync('cardPosterStyle') || 'cream'; } catch (e) {}
+const posterStyleKey = ref(posterStyles.some((s) => s.key === posterStyleSaved) ? posterStyleSaved : 'cream');
 // 同一次弹层会话内缓存的绘制素材（切风格只重绘，不重取二维码）
 let posterQrData = '';
 let posterDrawData = null;
+
+// 🔴 #312-15：风格轮播缩略图（折叠+横滑用）。打开弹层时按需渲染各风格迷你预览，
+// 渲染成功用图、失败/未完成回落风格色卡（posterThumbStyle）。
+const posterThumbs = ref({});
+const posterThumbBg = {
+  cream: 'linear-gradient(135deg,#FBF7F0,#FFFFFF)',
+  misty: 'linear-gradient(135deg,#EAF2FB,#D8E8F8)',
+  sakura: 'linear-gradient(135deg,#FCEEF3,#FBD0DC)',
+  mint: 'linear-gradient(135deg,#E6F7EE,#D6F0E3)',
+  obsidian: 'linear-gradient(135deg,#0E0F13,#1A1B20)',
+};
+function posterThumbStyle(key) { return { background: posterThumbBg[key] || '#e8eaed' }; }
+// 轮播当前项下标（跟随选中风格，与 swiper :current 双向）
+const currentStyleIndex = computed(() => {
+  const i = posterStyles.findIndex((s) => s.key === posterStyleKey.value);
+  return i < 0 ? 0 : i;
+});
+// 横滑切换：swiper @change → 选中对应风格并重绘大图
+function onPosterSwipe(e) {
+  const i = e && e.detail && e.detail.current;
+  const s = posterStyles[i];
+  if (s) onPosterStyleChange(s.key);
+}
 
 async function fetchCardQr() {
   // 已取过直接复用（同一张名片码不变；换名片时 pageCardId 变 → 缓存键不匹配就重取）
@@ -706,6 +736,65 @@ async function renderPoster() {
   posterPath.value = canvas.toDataURL('image/png');
   // #endif
 }
+/* 🔴 #312-15：渲染各风格的迷你预览图（折叠横滑轮播用）。
+   与 renderPoster 共用素材；MP 走专用离屏 #posterThumb 节点逐款绘制后导出缩放缩略图
+   （顺序 await 防竞态），H5 直接建小画布 toDataURL。渲染失败/不支持则回落风格色卡。 */
+async function buildPosterThumbs() {
+  if (!posterDrawData) return;
+  const { c, primary, gradient, ink } = posterDrawData;
+  const thumbs = {};
+  // #ifdef MP-WEIXIN
+  const q = uni.createSelectorQuery();
+  if (posterInst) q.in(posterInst.proxy);
+  q.select('#posterThumb').fields({ node: true, size: true }).exec((res) => {
+    if (!res || !res[0] || !res[0].node) return;
+    const canvas = res[0].node;
+    const dpr = (uni.getWindowInfo && uni.getWindowInfo().pixelRatio) || 2;
+    canvas.width = 600 * dpr;
+    canvas.height = 960 * dpr;
+    const ctx = canvas.getContext('2d');
+    (async () => {
+      for (const s of posterStyles) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(dpr, dpr);
+        try {
+          const qrImg = await loadImage(canvas, posterQrData);
+          let avatarImg = null;
+          if (c.avatar) { try { avatarImg = await loadImage(canvas, absUrl(c.avatar)); } catch (e) {} }
+          drawPosterByStyle(ctx, { W: 600, H: 960, card: c, primary, gradient, ink, qrImg, avatarImg, styleKey: s.key });
+        } catch (e) {
+          drawPosterByStyle(ctx, { W: 600, H: 960, card: c, primary, gradient, ink, qrImg: null, avatarImg: null, styleKey: s.key });
+        }
+        await new Promise((resolve) => {
+          uni.canvasToTempFilePath({
+            canvas, x: 0, y: 0, width: 600 * dpr, height: 960 * dpr,
+            destWidth: 240, destHeight: 384,
+            success: (r) => { thumbs[s.key] = r.tempFilePath; resolve(); },
+            fail: () => resolve(),
+          });
+        });
+      }
+      posterThumbs.value = { ...thumbs };
+    })();
+  });
+  // #endif
+  // #ifndef MP-WEIXIN
+  if (typeof document === 'undefined') return;
+  for (const s of posterStyles) {
+    try {
+      const cv = document.createElement('canvas'); cv.width = 240; cv.height = 384;
+      const ctx = cv.getContext('2d');
+      ctx.scale(240 / 600, 384 / 960);
+      let qrImg = null; try { qrImg = await loadImage(null, posterQrData); } catch (e) {}
+      let avatarImg = null; if (c.avatar) { try { avatarImg = await loadImage(null, absUrl(c.avatar)); } catch (e) {} }
+      drawPosterByStyle(ctx, { W: 600, H: 960, card: c, primary, gradient, ink, qrImg, avatarImg, styleKey: s.key });
+      thumbs[s.key] = cv.toDataURL('image/png');
+    } catch (e) {}
+  }
+  posterThumbs.value = { ...thumbs };
+  // #endif
+}
+
 async function shareOwnerCard() {
   if (!pageCardId.value) return;
   showPoster.value = true;
@@ -728,6 +817,8 @@ async function shareOwnerCard() {
     posterQrData = qrData;
     posterDrawData = { c, primary, gradient, ink };
     await renderPoster();
+    // 🔴 #312-15：并行渲染风格轮播缩略图（不阻塞大图展示，完成后自动刷新轮播）
+    buildPosterThumbs();
   } catch (e) {
     showPoster.value = false;
     uni.showToast({ title: '海报生成失败，请稍后重试', icon: 'none' });
@@ -959,17 +1050,27 @@ function leaveTenant() {
 .qs-img.poster { height: 640rpx; }
 .qs-img-wrap.poster-wrap { height: 660rpx; }
 .qs-loading { font-size: var(--fs-3); color: var(--t4); }
-/* 🔴 #312-13：海报风格选择条（横向滚动；选中态用品牌色描边+浅底） */
-.ps-row { margin-top: 20rpx; width: 100%; white-space: nowrap; }
-.ps-row-inner { display: inline-flex; gap: 16rpx; padding: 4rpx 8rpx; }
-.ps-chip {
-  display: inline-block; padding: 12rpx 30rpx; border-radius: 32rpx;
-  font-size: var(--fs-3); color: var(--t3);
-  background: var(--bg-hover); border: 2rpx solid transparent;
+/* 🔴 #312-15：海报风格选择改为折叠+横向滑动轮播（仿动态反馈 #312-9） */
+.ps-swiper { margin-top: 20rpx; width: 100%; height: 460rpx; }
+.sw-item {
+  height: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-hover);
+  /* 折叠态：向左缩进探入可视区（像一摞照片）+ 缩小 + 沉到下层，滑动时 0.25s 过渡归位 */
+  transform: translateX(-30%) scale(0.92);
+  opacity: 0.6;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  position: relative;
 }
-.ps-chip.active {
-  color: var(--design-primary, #165dff); font-weight: 600;
-  background: var(--bg-page); border-color: var(--design-primary, #165dff);
+.sw-item.active { transform: translateX(0) scale(1); opacity: 1; z-index: 2; }
+.sw-thumb { width: 100%; height: 100%; display: block; }
+.sw-thumb-fallback { width: 100%; height: 100%; }
+.sw-label {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  text-align: center; font-size: var(--fs-3); color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
+  padding: 28rpx 0 14rpx;
 }
 .qs-save {
   margin-top: 28rpx; width: 100%; height: 88rpx; line-height: 88rpx;
