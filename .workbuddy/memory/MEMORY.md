@@ -14,6 +14,7 @@
 - 🔴 **MP 端滚动必须用 scroll-view**：普通 view 设 overflow-y:auto 在 H5 能滚、**真机滚不动**。弹窗内容区默认就写 `<scroll-view scroll-y>`。**定高只有三条可靠路**（真机三次证伪）：①显式 height（cardEdit .ce-modal-body 46vh）②max-height 直接封顶且父级高度 auto 非 flex 分配（visitors .tl-scroll / dist* .rules-scroll）③父级有确定 height 时 flex:1。**`flex:1+height:0` 赌父级 max-height 分配 = 真机两次证伪不滚**；动 scroll-view 前先 grep 项目内其他弹窗写法（cardEdit.vue 早有实证注释，dynamic.vue 没查又踩一次）。
 - 🔴 **MP scroll-view 弹窗最终形态**（四轮反馈收敛）：sheet 普通块级堆叠（**不用 flex column**——flex 子项 max-height 与 scroll-view 真机交互异常）+ body `max-height:Nvh` 封顶 + `:scroll-top` 回顶。**内容动态增高后 scroll-view 会把可视位置停在用户注视的中段**（用户体感"上面被挡住/显示不全"）→ 展开/开关类状态变化时主动回顶（scroll-top 只在**值变化**时生效，0/0.1 交替强制触发，watch 用 flush:'post'）。
 - 🔴 **MP 模板禁写 `x?.[0]`（可选链后跟索引）**：编译降级成整体值（曾把整个昵称塞进 72rpx 头像圆溢出，用户看到灰圆里挤着 "objec"）。取首字符/下标一律放 computed，模板只消费结果。
+- 🔴 **MP 模板禁裸 b/h4/p/span 标签 + 禁标签选择器**（.dyn-who b 这类）：uni MP 编译把非 view/text 等标签收编成**无类名 view**，wxml 没有对应元素名 → wxss 标签选择器整条静默失效，H5 端却正常（text→span、b/h4/p 保留）→ 两端必漂移。样式一律类名选择器。**验证选择器要"配对验证"**：wxss 有规则 ≠ 生效，须确认编译后 wxml 里存在能被命中的元素（#312 第 7 轮"标题没加黑"修错目标、第 12 轮才定位真因）。
 - 🔴 **页面跳转目标路径写错 = 静默失败**：uni.reLaunch/navigateTo 到不存在的路径不报错也不跳（用户体感"只 toast 不跳转"）。跳转统一走 loginEntryUrl/常量，别手写字面量；新页面落地后 grep 全库旧硬编码路径。
 - 🔴 **MP 产物验证口径**：编译后变量名 mangle 成单字母（{{b}}）、v-if→wx:if、公共模块字符串抽到 common/vendor.js。验证用「用户可见串 + DOM 结构 + vendor 间接确认」，grep 源码标识符名一律无效。另外 **git push 网络抖动会假失败**（输出截断看不出错）——push 后必须 `git ls-remote origin <branch>` 校验远程 HEAD。
 - 🔴 **z-index 令牌分层**：--z-content(10)=卡片内浮层（页码/角标） / --z-sticky(100)=悬浮条 / --z-popup(1000)=全屏弹窗。卡片内浮层误用 --z-popup 会盖过 z-index 900+ 的全屏弹窗（swiper 页码透到评论窗上）。
