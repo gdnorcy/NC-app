@@ -208,7 +208,7 @@
            （非当前项向左缩进探出、当前项置顶压住；滑动各就各位 0.25s 过渡）。
            每项为对应风格的迷你预览图（打开弹层时按需渲染），回落为风格色卡。 -->
       <swiper class="ps-swiper" :circular="false" :indicator-dots="false"
-              previous-margin="12px" next-margin="12px"
+              previous-margin="180rpx" next-margin="180rpx"
               :current="currentStyleIndex" @change="onPosterSwipe">
         <swiper-item v-for="s in posterStyles" :key="s.key">
           <view class="sw-item" :class="{ active: posterStyleKey === s.key }" @click="onPosterStyleChange(s.key)">
@@ -1050,10 +1050,13 @@ function leaveTenant() {
 .qs-img.poster { height: 640rpx; }
 .qs-img-wrap.poster-wrap { height: 660rpx; }
 .qs-loading { font-size: var(--fs-3); color: var(--t4); }
-/* 🔴 #312-15：海报风格选择改为折叠+横向滑动轮播（仿动态反馈 #312-9） */
-.ps-swiper { margin-top: 20rpx; width: 100%; height: 460rpx; }
+/* 🔴 #312-15：海报风格选择改为折叠+横向滑动轮播（仿动态反馈 #312-9）
+   ⚠️ previous/next-margin 必须≈卡片半宽：滑块宽=750-360=390rpx（竖版小卡片），
+   相邻卡从两侧探出；之前 12px 时滑块≈全屏宽，竖版海报 aspectFill 被裁成
+   中间一条放大的「糊脸大图」（真机反馈：好奇怪）。 */
+.ps-swiper { margin-top: 20rpx; width: 100%; height: 500rpx; }
 .sw-item {
-  height: 100%;
+  height: 100%; width: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--bg-hover);
