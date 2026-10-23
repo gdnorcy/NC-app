@@ -72,9 +72,31 @@ describe('名片小程序码三级通道', () => {
     assert.match(member, /wxErrcode: json\.errcode/);
   });
 
-  test('前端文案不再声称「小程序渠道未接入」，且按 type 区分', () => {
+  test('🔴 降级必须把原因透出（原接口只回「网页码」，租户会一直以为是没接上）', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    // 线上实证：小程序从未上传代码 → release/trial/develop 三个版本全 41030
+    assert.match(seg, /if \(!makers\.length\) out\.reason = 'no_channel'/);
+    assert.match(seg, /else if \(\/\\\(41030\\\)\/\.test\(lastErr\)\)/);
+    assert.match(seg, /else out\.reason = 'failed'/);
+    assert.match(seg, /res\.json\(out\)/);
+  });
+
+  test('失败原因保留到最后一条（供 41030 判定），不能只 log 不留值', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    assert.match(seg, /lastErr = String\(\(e && e\.message\) \|\| e\);/);
+  });
+
+  test('前端按 type+reason 出文案，不再声称「小程序渠道未接入」', () => {
     const vue = read('../../web-app/src/pages/card/myCard.vue');
     assert.doesNotMatch(vue, /当前小程序渠道未接入/);
-    assert.match(vue, /qrType === 'wxacode' \? '微信扫一扫，直达小程序名片'/);
+    assert.doesNotMatch(vue, /qs-sub">\{\{ qrType === 'wxacode'/);
+    assert.match(vue, /qrType\.value === 'wxacode'\) return '微信扫一扫，直达小程序名片'/);
+    assert.match(vue, /qrReason\.value === 'no_page'\) return '小程序还没上传代码，暂用网页链接码'/);
+    assert.match(vue, /qrReason\.value = res\.reason \|\| '';/);
+    // 🔴 文案走 computed：MP 模板不堆三元
+    assert.match(vue, /const qrSubText = computed\(\(/);
+    assert.match(vue, /\{\{ qrSubText \}\}/);
   });
 });

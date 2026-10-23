@@ -1960,6 +1960,7 @@ export function createCardRouter(db, wxService) {
       } else if (channel && secret) {
         makers.push((env) => standaloneWxacode(channel.appid, secret, `id=${cardId}`, 'pages/card/cardDetail', env));
       }
+      let lastErr = '';
       for (const make of makers) {
         for (const env of envs) {
           try {
@@ -1967,11 +1968,19 @@ export function createCardRouter(db, wxService) {
             return res.json({ ok: true, type: 'wxacode', image: `data:image/png;base64,${buf.toString('base64')}` });
           } catch (e) {
             // 🔴 原先这里静默吞错，线上走的哪条路只能靠猜 —— 现在打日志留证据
+            lastErr = String((e && e.message) || e);
             console.warn(`[wxacode] card=${cardId} appid=${channel ? channel.appid : '-'} env=${env} 失败: ${e && e.message}`);
           }
         }
       }
-      res.json(await fallback());
+      // 🔴 降级时把原因透出（原接口只说「网页码」，租户会一直以为是没接上）：
+      // no_page = 小程序从未上传代码（微信 41030，release/trial/develop 全拒）→ 提示去上传；
+      // no_channel = 既没授权也没填 AppSecret；failed = 有凭据但微信侧报错（如密钥错）。
+      const out = await fallback();
+      if (!makers.length) out.reason = 'no_channel';
+      else if (/\(41030\)/.test(lastErr)) out.reason = 'no_page';
+      else out.reason = 'failed';
+      res.json(out);
     } catch (e) {
       res.status(500).json({ error: '二维码生成失败' });
     }
