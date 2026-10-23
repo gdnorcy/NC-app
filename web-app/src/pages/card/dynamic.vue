@@ -9,7 +9,14 @@
     <view class="dynamic-list" v-if="dynamics.length">
       <view class="dynamic-item" v-for="d in dynamics" :key="d.id">
         <view class="dynamic-header">
-          <view class="dynamic-avatar">{{ user.nickname?.[0] || '我' }}</view>
+          <!-- 🔴 反馈 #312-11「圆形头像显示错误」：原来只渲染首字母占位，且模板写
+               `user.nickname?.[0]` ——MP 端模板编译把可选链后跟索引降级成整体昵称，
+               整个昵称塞进 72rpx 的圆里溢出（截图里的 "objec"）。改为显示用户头像图片
+               （absUrl 补基址，破图回落首字母），首字母改由 computed 算、不在模板里取下标。 -->
+          <view class="dynamic-avatar">
+            <image v-if="user.avatar && !avatarError" :src="absUrl(user.avatar)" mode="aspectFill" @error="avatarError = true" />
+            <text v-else>{{ userInitial }}</text>
+          </view>
           <view class="dynamic-info">
             <view class="dynamic-name">{{ user.nickname || '我' }}</view>
             <!-- 🔴 #312-8：原来直接 slice 截 UTC 字符串（差 8 小时且格式粗糙），改走公共格式化 -->
@@ -222,6 +229,10 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, watch, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, hasCardToken } from '../../utils/cardApi.js';
+// 🔴 反馈 #312-11：登录入口必须走 loginEntryUrl——登录页实际在 /pages/cardMain/login
+//   （本页原来硬编码 '/pages/card/login' 不存在 → reLaunch 静默失败 = 只 toast 不跳转），
+//   且必须带 manual=1（登录页兼冷启动首页，不带会被首页联动立刻弹走）。
+import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 // 🔴 #312-9：absUrl 收敛到 apiBase.js 单一实现（原来 dynamic/cardDetail 各写一份，
 //    新增的 profile/myCard/create 也需要 → 五份必然漂移）
 import { absUrl } from '../../utils/apiBase.js';
@@ -240,6 +251,12 @@ const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
 
 const dynamics = ref([]);
 const user = ref({});
+// 🔴 #312-11：头像首字母。模板里写 `user.nickname?.[0]` 在 MP 端会被编译降级成整个
+//   昵称（塞进 72rpx 圆里溢出），取首字母一律放 computed。
+const userInitial = computed(() => (user.value.nickname || '我').charAt(0));
+// 头像破图兜底（破图后回落首字母，同 profile.vue 范式）
+const avatarError = ref(false);
+watch(() => user.value && user.value.avatar, () => { avatarError.value = false; });
 const showPublish = ref(false);
 // 🔴 反馈 #295：补 images 字段（原来只有 content + visibility，导致「不能加图」）
 // 🔴 #312-1：补 title 字段（库里早有，前端一直没输入框）
@@ -304,7 +321,9 @@ watch([linkOpen, refOpen, schedEnabled], resetSheetScroll, { flush: 'post' });
 function ensureLogin() {
   if (hasCardToken()) return true;
   uni.showToast({ title: '请先登录', icon: 'none' });
-  uni.reLaunch({ url: '/pages/card/login' });
+  // 🔴 #312-11：路径修正 + manual=1 + 登录成功回跳本页（原来写死的 /pages/card/login 不存在，
+  //   reLaunch 失败是静默的 → 用户只看到 toast、停在原页，反馈「提醒了但不跳转」）
+  uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/dynamic') });
   return false;
 }
 /**
@@ -741,6 +760,8 @@ async function publish() {
   align-items: center;
   margin-bottom: 20rpx;
 }
+/* 🔴 #312-11：头像容器。原来是「渐变圆 + 首字母」，现在图片与首字母两种形态共存：
+   图片 100% 填满（MP 的 image 不设显式宽高会塌缩），无图/破图回落首字母。 */
 .dynamic-avatar {
   width: 72rpx;
   height: 72rpx;
@@ -753,6 +774,13 @@ async function publish() {
   justify-content: center;
   font-size: var(--fs-5);
   margin-right: 16rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.dynamic-avatar image {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 .dynamic-info { flex: 1; }
 .dynamic-name {
