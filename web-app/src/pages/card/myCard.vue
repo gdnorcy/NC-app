@@ -204,6 +204,15 @@
       <view class="grip"></view>
       <view class="qs-title">名片分享海报</view>
       <view class="qs-sub">保存图片后可发朋友圈或印刷，扫码直达名片</view>
+      <!-- 🔴 #312-13：风格选择（选中即重绘；选择持久化到本地，下次打开沿用） -->
+      <scroll-view scroll-x class="ps-row" :show-scrollbar="false">
+        <view class="ps-row-inner">
+          <view v-for="s in posterStyles" :key="s.key" class="ps-chip"
+                :class="{ active: posterStyleKey === s.key }" @click="onPosterStyleChange(s.key)">
+            {{ s.label }}
+          </view>
+        </view>
+      </scroll-view>
       <view class="qs-img-wrap" :class="{ 'poster-wrap': true }">
         <image v-if="posterPath" class="qs-img poster" :src="posterPath" mode="aspectFit" show-menu-by-longpress />
         <view v-else class="qs-loading">海报生成中…</view>
@@ -236,6 +245,7 @@ import { absUrl } from '../../utils/apiBase.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { shadeHex, brandPalette } from '../../utils/color.js';
 import { heroForeground } from '../../utils/templateTheme.js';
+import { POSTER_STYLES, drawPosterByStyle } from './posterStyles.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
@@ -533,6 +543,14 @@ const qrImage = ref('');
 const qrType = ref('');
 const showPoster = ref(false);
 const posterPath = ref('');
+// 🔴 #312-13：海报风格（4 款可选）+ 选择持久化（下次打开沿用上次风格）
+const posterStyles = POSTER_STYLES;
+let posterStyleSaved = 'classic';
+try { posterStyleSaved = uni.getStorageSync('cardPosterStyle') || 'classic'; } catch (e) {}
+const posterStyleKey = ref(posterStyles.some((s) => s.key === posterStyleSaved) ? posterStyleSaved : 'classic');
+// 同一次弹层会话内缓存的绘制素材（切风格只重绘，不重取二维码）
+let posterQrData = '';
+let posterDrawData = null;
 
 async function fetchCardQr() {
   // 已取过直接复用（同一张名片码不变；换名片时 pageCardId 变 → 缓存键不匹配就重取）
@@ -629,58 +647,64 @@ function loadImage(canvas, src) {
     img.src = src;
   });
 }
-function drawPoster(ctx, W, H, c, primary, gradient, ink, qrImg) {
-  // 白底
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, W, H);
-  // 顶部品牌渐变头（当前模板/品牌主色）
-  const g = ctx.createLinearGradient(0, 0, W * 0.35, 330);
-  g.addColorStop(0, primary);
-  g.addColorStop(1, gradient);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, 330);
-  // 头部文字：颜色按渐变亮度裁决（亮主色转深字，与 heroForeground 同判据）
-  ctx.fillStyle = ink;
-  ctx.font = 'bold 64px sans-serif';
-  ctx.fillText(c.name || '电子名片', 48, 130);
-  ctx.globalAlpha = 0.9;
-  ctx.font = '30px sans-serif';
-  ctx.fillText(c.position || '', 48, 185);
-  ctx.fillText([c.company, c.city].filter(Boolean).join(' · '), 48, 235);
-  ctx.globalAlpha = 0.75;
-  ctx.fillText((c.businessField || ''), 48, 285);
-  ctx.globalAlpha = 1;
-  // 需求标签
-  let tags = [];
-  try { const a = JSON.parse(c.needTags || '[]'); tags = Array.isArray(a) ? a.slice(0, 3) : []; } catch (e) {}
-  if (tags.length) {
-    let tx = 48;
-    ctx.font = '24px sans-serif';
-    tags.forEach((t) => {
-      const tw = ctx.measureText(t).width + 32;
-      ctx.globalAlpha = 0.18;
-      ctx.fillStyle = ink;
-      ctx.fillRect(tx, 320 - 60, tw, 40);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = ink;
-      ctx.fillText(t, tx + 16, 320 - 32);
-      tx += tw + 16;
+/* 🔴 #312-13：绘制逻辑整体在 posterStyles.js（4 款风格统一出口 drawPosterByStyle），
+   本页只负责：配色裁决（当前模板 bgStart/bgEnd）+ 素材缓存 + 按所选风格重绘。 */
+
+/* 切风格：记录选择 → 持久化 → 用缓存素材重绘（不重取二维码） */
+function onPosterStyleChange(k) {
+  if (posterStyleKey.value === k) return;
+  posterStyleKey.value = k;
+  try { uni.setStorageSync('cardPosterStyle', k); } catch (e) {}
+  renderPoster();
+}
+
+async function renderPoster() {
+  if (!posterQrData || !posterDrawData) return;
+  const { c, primary, gradient, ink } = posterDrawData;
+  const W = 600, H = 960;
+  // #ifdef MP-WEIXIN
+  const q = uni.createSelectorQuery();
+  if (posterInst) q.in(posterInst.proxy);
+  q.select('#posterCanvas').fields({ node: true, size: true }).exec(async (res) => {
+    if (!res || !res[0] || !res[0].node) {
+      showPoster.value = false;
+      uni.showToast({ title: '海报绘制失败', icon: 'none' });
+      return;
+    }
+    const canvas = res[0].node;
+    const dpr = (uni.getWindowInfo && uni.getWindowInfo().pixelRatio) || 2;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    try {
+      const qrImg = await loadImage(canvas, posterQrData);
+      // 头像可选：有就裁圆进图（absUrl 补基址，MP 端不吃 /uploads 相对路径），失败回落首字母
+      let avatarImg = null;
+      if (c.avatar) { try { avatarImg = await loadImage(canvas, absUrl(c.avatar)); } catch (e) {} }
+      drawPosterByStyle(ctx, { W, H, card: c, primary, gradient, ink, qrImg, avatarImg, styleKey: posterStyleKey.value });
+    } catch (e) {
+      drawPosterByStyle(ctx, { W, H, card: c, primary, gradient, ink, qrImg: null, avatarImg: null, styleKey: posterStyleKey.value });
+    }
+    uni.canvasToTempFilePath({
+      canvas,
+      success: (r) => { posterPath.value = r.tempFilePath; },
+      fail: () => uni.showToast({ title: '海报导出失败', icon: 'none' }),
     });
-  }
-  // 引导语 + 二维码
-  ctx.fillStyle = '#1d2129';
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillText('扫码查看电子名片', 48, 430);
-  ctx.fillStyle = '#86909c';
-  ctx.font = '24px sans-serif';
-  ctx.fillText('长按或微信扫一扫', 48, 475);
-  if (qrImg) ctx.drawImage(qrImg, W / 2 - 190, 520, 380, 380);
-  // 底部署名
-  ctx.fillStyle = '#c9cdd4';
-  ctx.font = '22px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(c.phone ? `电话 ${c.phone}` : '', W / 2, H - 40);
-  ctx.textAlign = 'left';
+  });
+  // #endif
+  // #ifndef MP-WEIXIN
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  let qrImg = null;
+  try { qrImg = await loadImage(null, posterQrData); } catch (e) {}
+  let avatarImg = null;
+  if (c.avatar) { try { avatarImg = await loadImage(null, absUrl(c.avatar)); } catch (e) {} }
+  drawPosterByStyle(ctx, { W, H, card: c, primary, gradient, ink, qrImg, avatarImg, styleKey: posterStyleKey.value });
+  posterPath.value = canvas.toDataURL('image/png');
+  // #endif
 }
 async function shareOwnerCard() {
   if (!pageCardId.value) return;
@@ -700,45 +724,10 @@ async function shareOwnerCard() {
       ? tt.bgEnd
       : (brand.value.gradient || shadeHex(primary, -0.25));
     const ink = heroForeground(shadeHex(primary, -0.25), primary, { text: '#ffffff' }).text;
-    const W = 600, H = 960;
-    // #ifdef MP-WEIXIN
-    const q = uni.createSelectorQuery();
-    if (posterInst) q.in(posterInst.proxy);
-    q.select('#posterCanvas').fields({ node: true, size: true }).exec(async (res) => {
-      if (!res || !res[0] || !res[0].node) {
-        showPoster.value = false;
-        uni.showToast({ title: '海报绘制失败', icon: 'none' });
-        return;
-      }
-      const canvas = res[0].node;
-      const dpr = (uni.getWindowInfo && uni.getWindowInfo().pixelRatio) || 2;
-      canvas.width = W * dpr;
-      canvas.height = H * dpr;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-      try {
-        const qrImg = await loadImage(canvas, qrData);
-        drawPoster(ctx, W, H, c, primary, gradient, ink, qrImg);
-      } catch (e) {
-        drawPoster(ctx, W, H, c, primary, gradient, ink, null);
-      }
-      uni.canvasToTempFilePath({
-        canvas,
-        success: (r) => { posterPath.value = r.tempFilePath; },
-        fail: () => uni.showToast({ title: '海报导出失败', icon: 'none' }),
-      });
-    });
-    // #endif
-    // #ifndef MP-WEIXIN
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    let qrImg = null;
-    try { qrImg = await loadImage(null, qrData); } catch (e) {}
-    drawPoster(ctx, W, H, c, primary, gradient, ink, qrImg);
-    posterPath.value = canvas.toDataURL('image/png');
-    // #endif
+    // 缓存绘制素材：切风格时 renderPoster 只重绘、不重取二维码
+    posterQrData = qrData;
+    posterDrawData = { c, primary, gradient, ink };
+    await renderPoster();
   } catch (e) {
     showPoster.value = false;
     uni.showToast({ title: '海报生成失败，请稍后重试', icon: 'none' });
@@ -970,6 +959,18 @@ function leaveTenant() {
 .qs-img.poster { height: 640rpx; }
 .qs-img-wrap.poster-wrap { height: 660rpx; }
 .qs-loading { font-size: var(--fs-3); color: var(--t4); }
+/* 🔴 #312-13：海报风格选择条（横向滚动；选中态用品牌色描边+浅底） */
+.ps-row { margin-top: 20rpx; width: 100%; white-space: nowrap; }
+.ps-row-inner { display: inline-flex; gap: 16rpx; padding: 4rpx 8rpx; }
+.ps-chip {
+  display: inline-block; padding: 12rpx 30rpx; border-radius: 32rpx;
+  font-size: var(--fs-3); color: var(--t3);
+  background: var(--bg-hover); border: 2rpx solid transparent;
+}
+.ps-chip.active {
+  color: var(--design-primary, #165dff); font-weight: 600;
+  background: var(--bg-page); border-color: var(--design-primary, #165dff);
+}
 .qs-save {
   margin-top: 28rpx; width: 100%; height: 88rpx; line-height: 88rpx;
   border-radius: 44rpx; border: none;
