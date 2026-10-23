@@ -68,11 +68,11 @@
           <text class="sheet-title">{{ isEditing ? '编辑动态' : '发布动态' }}</text>
           <text class="sheet-close" @click="closePublish">✕</text>
         </view>
-        <!-- 🔴 反馈 #312-8：链接卡片展开后内容变长却**滚不动**（只能看到一半）。
-             根因一：微信小程序的普通 view 设 overflow-y:auto 真机不保证能滚，必须 scroll-view scroll-y；
-             根因二：scroll-view 必须有**确定高度**才滚——flex:1+height:0 指望父级分配在 MP 端不生效
-             （cardEdit.vue ce-modal-body 有真机实证），改用 .sheet-body 的 max-height 直接封顶。 -->
-        <scroll-view scroll-y class="sheet-body">
+        <!-- 🔴 反馈 #312-10「展开后显示不全、像被挡住」：除了 max-height 定高（#312-9），
+             MP 端 scroll-view 在**内容动态增高**（展开引用/开定时）后会把可视位置停在
+             用户当时注视的中段——上面的标题/正文/选图区被滚出可视区，用户以为表单就这些。
+             打开弹窗与内容变化时都用 :scroll-top 把它拽回顶部（值必须变化才触发，0/0.1 交替）。 -->
+        <scroll-view scroll-y class="sheet-body" :scroll-top="sheetScrollTop">
           <!-- 🔴 #312-1：标题输入框。title 字段库里早有 + INSERT 早写，前端一直没入口。
                选填；maxlength 30——朋友圈分享卡片标题 48 字符截断，标题就是给转发用的一句话。 -->
           <input class="title-input" v-model="newDynamic.title" placeholder="添加标题（选填）" placeholder-class="ph" :maxlength="30"/>
@@ -219,7 +219,7 @@
 <script setup>
 import { ICON_DECOR } from '../../utils/iconColor.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, hasCardToken } from '../../utils/cardApi.js';
 // 🔴 #312-9：absUrl 收敛到 apiBase.js 单一实现（原来 dynamic/cardDetail 各写一份，
@@ -256,6 +256,12 @@ function emptyDynamic() {
 }
 /** 弹窗滚动穿透防护的空处理器（mask 与 sheet 上成对使用，见模板注释） */
 function noopScroll() {}
+// 🔴 反馈 #312-10「展开后显示不全」：sheet-body 的 scroll-view 回顶控制值。
+//   MP 端 scroll-view 的 scroll-top **只在值变化时生效**，0/0.1 交替保证每次都触发。
+const sheetScrollTop = ref(0);
+function resetSheetScroll() {
+  sheetScrollTop.value = sheetScrollTop.value === 0 ? 0.1 : 0;
+}
 // 🔴 #312-2 / #312-3：图片 / 链接卡片 / 名片模块引用 三者互斥（企微 attachments 三选一）。
 //   三 computed 驱动发布器禁用另外两项入口。
 const linkActive = computed(() => !!(newDynamic.value.link.url && newDynamic.value.link.url.trim()));
@@ -286,6 +292,10 @@ const refItems = computed(() => (refTab.value === 'goods' ? goodsList.value : wo
 //   编辑带回内容时由 openEdit 自动展开。
 const linkOpen = ref(false);
 const refOpen = ref(false);
+// 🔴 反馈 #312-10「展开后显示不全、像被挡住」：分区展开 / 定时开关都会让 sheet-body 内容
+//   突然增高，MP 端 scroll-view 此时把可视位置停在原处（用户注视处）→ 上面的标题/正文/
+//   选图区被滚出可视区。内容一变就把 scroll-view 拽回顶部；flush:'post' 等 DOM 更新后再滚。
+watch([linkOpen, refOpen, schedEnabled], resetSheetScroll, { flush: 'post' });
 
 /**
  * 未登录守卫（mall orders/cart 同款范式，hasCardToken 即 cardApi 为此导出的）：
@@ -318,6 +328,8 @@ function resetForm() {
 function openPublish() {
   if (!ensureLogin()) return;
   resetForm();
+  // 🔴 #312-10：scroll-view 每次开弹窗都是新挂载（v-if），scroll-top 归 0 即从顶部开始
+  sheetScrollTop.value = 0;
   showPublish.value = true;
 }
 /** 列表加载/编辑回填统一过一遍：配图、链接封面、引用封面都可能存的是相对路径（含历史数据） */
@@ -456,6 +468,7 @@ async function removeDynamic(d) {
 function closePublish() {
   showPublish.value = false;
   resetForm();
+  sheetScrollTop.value = 0;
 }
 
 /** 选图：uni.chooseMedia 在 H5 端不保证可用，降级 chooseImage（MP 端 chooseMedia 更完整，支持压缩） */
@@ -748,8 +761,9 @@ async function publish() {
   color: var(--t1);
   margin-bottom: 4rpx;
 }
+/* 🔴 反馈 #312-10「发布时间字体太大」：与名片详情 .dyn-who span 同步降到 --fs-1(20rpx) */
 .dynamic-time {
-  font-size: var(--fs-2);
+  font-size: var(--fs-1);
   color: var(--border);
 }
 .visibility-tag {
@@ -819,13 +833,15 @@ async function publish() {
   display: flex;
   align-items: flex-end;
 }
-/* 🔴 反馈「弹窗无法上下滚动」：sheet 限高 + 纵向 flex，只有 body 区滚动。
-   min-height:0 是关键——flex 子项默认 min-height:auto 会被内容撑高，max-height 形同虚设。 */
+/* 🔴 反馈 #312-10「展开后显示不全」：sheet 不用 flex column 布局。
+   曾用 flex:1;height:0 让 body 承接父级高度分配——MP 端分配不生效（#312-9 已证伪）；
+   也曾是 flex column + body max-height 的组合——flex 子项的 max-height 与 scroll-view
+   高度计算在真机上交互异常（内容增高后可视位置停在半中段）。
+   现在改普通块级堆叠：header/body/footer 顺序排，body 靠自己的 max-height 封顶
+   （visitors.tl-scroll / dist*.rules-scroll 同款，真机验证），内容短时弹窗自然矮。 */
 .bottom-sheet {
   width: 100%;
   max-height: 92vh;
-  display: flex;
-  flex-direction: column;
   box-sizing: border-box;
   background: var(--white);
   border-radius: 32rpx 32rpx 0 0;

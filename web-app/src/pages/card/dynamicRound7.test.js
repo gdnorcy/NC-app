@@ -60,8 +60,11 @@ describe('② 表单残留：发布新动态不能带上一条的内容', () => 
 
   test('「打开 / 关闭 / 发布成功」三处都调 resetForm（缺一就会出现残留）', () => {
     const s = dyn();
-    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);\s*showPublish\.value = true;/);
-    expect(s).toMatch(/function closePublish\(\) \{\s*showPublish\.value = false;\s*resetForm\(\);\s*\}/);
+    // 🔴 #312-10：openPublish 里多了 sheetScrollTop 归零（scroll-view 回顶），
+    //    断言按语义钉「resetForm 在 showPublish=true 之前」，不逐字钉函数体
+    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);/);
+    expect(s).toMatch(/showPublish\.value = true;/);
+    expect(s).toMatch(/function closePublish\(\) \{\s*showPublish\.value = false;\s*resetForm\(\);/);
     expect(s).toMatch(/resetForm\(\);\s*const res = await cardApi\.getDynamics\(\);/);
   });
 

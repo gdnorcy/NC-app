@@ -25,18 +25,20 @@ const src = () => stripComments(read('./dynamic.vue'));
 const css = () => read('./dynamic.vue');
 
 describe('① 弹窗滚动：sheet 限高 + body 区滚动（无法上下滚动反馈）', () => {
-  test('.bottom-sheet 限高且纵向 flex', () => {
+  test('.bottom-sheet 限高且**不用 flex**（flex 子项的 max-height 与 scroll-view 真机交互异常，见 #312-10）', () => {
     const c = css();
     expect(c).toMatch(/\.bottom-sheet \{[\s\S]*?max-height: 92vh;/);
-    expect(c).toMatch(/\.bottom-sheet \{[\s\S]*?display: flex;/);
-    expect(c).toMatch(/\.bottom-sheet \{[\s\S]*?flex-direction: column;/);
     expect(c).toMatch(/\.bottom-sheet \{[\s\S]*?box-sizing: border-box;/);
+    // 块级堆叠：不得再用 flex column（曾因 flex 分配导致展开后可视位置停在半中段）
+    // 注意 [^}]* 锁死在本条规则的花括号内——[\s\S]*? 会串到 .sheet-header 的 display:flex 误报
+    expect(c).not.toMatch(/\.bottom-sheet \{[^}]*display: flex;/);
+    expect(c).not.toMatch(/\.bottom-sheet \{[^}]*flex-direction: column;/);
   });
 
   test('.sheet-body 是 scroll-view 且显式定高（🔴 #312-8：普通 view 的 overflow-y:auto 在 MP 滚不动；flex:1+height:0 分配高度在 MP 端也不生效）', () => {
     const s = src();
-    // 必须是 scroll-view scroll-y，不靠 CSS 的 overflow-y
-    expect(s).toMatch(/<scroll-view scroll-y class="sheet-body">/);
+    // 必须是 scroll-view scroll-y，不靠 CSS 的 overflow-y（:scroll-top 属性不影响这条匹配）
+    expect(s).toMatch(/<scroll-view scroll-y class="sheet-body"/);
     const c = css();
     // MP 的 scroll-view 必须有确定高度才滚动。三条路都试过：
     //   ① 普通 view + overflow-y:auto —— 真机不滚；
@@ -49,6 +51,19 @@ describe('① 弹窗滚动：sheet 限高 + body 区滚动（无法上下滚动�
     expect(c).not.toMatch(/\.sheet-body \{[^}]*height: 0;/);
     // 也不得退回 overflow-y:auto
     expect(c).not.toMatch(/\.sheet-body \{[^}]*overflow-y: auto;/);
+  });
+
+  test('🔴 #312-10：内容增高后 scroll-view 回顶（否则展开引用/定时后可视位置停在半中段，像被挡住）', () => {
+    const s = src();
+    // scroll-view 绑 scroll-top，值 0/0.1 交替强制变化（MP 端只在值变化时生效）
+    expect(s).toMatch(/<scroll-view scroll-y class="sheet-body" :scroll-top="sheetScrollTop">/);
+    expect(s).toMatch(/const sheetScrollTop = ref\(0\);/);
+    expect(s).toMatch(/function resetSheetScroll\(\) \{\s*sheetScrollTop\.value = sheetScrollTop\.value === 0 \? 0\.1 : 0;\s*\}/);
+    // 分区展开 / 定时开关都要回顶（post：等 DOM 更新后再滚）
+    expect(s).toMatch(/watch\(\[linkOpen, refOpen, schedEnabled\], resetSheetScroll, \{ flush: 'post' \}\);/);
+    // 开/关弹窗时归位（关闭时置 0，下次打开从顶部开始）
+    expect(s).toMatch(/sheetScrollTop\.value = 0;\s*\n\s*showPublish\.value = true;/);
+    expect(s).toMatch(/resetForm\(\);\s*\n\s*sheetScrollTop\.value = 0;/);
   });
 
   test('头/尾不参与滚动（flex-shrink:0）', () => {
@@ -156,7 +171,9 @@ describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验�
   test('发布入口走 openPublish（先守卫再开弹窗），不再直接置 showPublish', () => {
     const s = src();
     // 🔴 #312-7-2：开弹窗前先 resetForm()（否则上一条动态会被带进新页面）
-    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);\s*showPublish\.value = true;/);
+    // 🔴 #312-10：resetForm 后多了一步 sheetScrollTop 归零，断言按语义不逐字
+    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);/);
+    expect(s).toMatch(/sheetScrollTop\.value = 0;\s*\n\s*showPublish\.value = true;/);
     // 🔴 #312-8-3：入口从导航栏（被微信胶囊挤到标题左边）改到右下角悬浮圆按钮
     expect(s).toMatch(/<view class="fab-publish" @click="openPublish">＋<\/view>/);
     expect(s).not.toMatch(/class="publish-btn"/);
