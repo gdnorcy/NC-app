@@ -84,6 +84,28 @@ describe('叠字修复：每款风格行 y 区间两两不重叠', () => {
   });
 });
 
+describe('#312-14 白底风格字色：禁白底白字（极简白没名字=主题 ink 是白色）', () => {
+  test('minimal 全段禁用主题 ink，文字固定深色 INK=#1d2129', () => {
+    const s = stylesSrc();
+    const minimal = s.slice(s.indexOf('function drawMinimal'), s.indexOf('function drawGradient'));
+    expect(minimal).toMatch(/const INK = '#1d2129';/);
+    expect(minimal).not.toMatch(/\bink\b/);
+  });
+
+  test('classic/gradient 头部文字与 chips 按主题 ink 自适应（darkInk 分支），禁止硬编码白字', () => {
+    const s = stylesSrc();
+    const classic = s.slice(s.indexOf('function drawClassic'), s.indexOf('function drawDark'));
+    const gradient = s.slice(s.indexOf('function drawGradient'), s.indexOf('const DRAWERS'));
+    for (const seg of [classic, gradient]) {
+      expect(seg).toMatch(/const darkInk = ink !== '#ffffff';/);
+      // 含白色 rgba 的行必须是 darkInk 三元定义行（按 ink 自适应），不允许在绘制调用里裸用
+      const whiteLines = seg.split('\n').filter((l) => /rgba\(255,255,255/.test(l));
+      expect(whiteLines.length).toBeGreaterThan(0);
+      whiteLines.forEach((l) => expect(l).toMatch(/darkInk \?/));
+    }
+  });
+});
+
 describe('myCard 风格选择接入', () => {
   test('导入风格库并暴露给模板', () => {
     const s = myCardSrc();
