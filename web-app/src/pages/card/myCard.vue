@@ -189,7 +189,8 @@
     <view class="qr-sheet" v-if="showQr">
       <view class="grip"></view>
       <view class="qs-title">名片二维码</view>
-      <view class="qs-sub">{{ qrType === 'wxacode' ? '微信扫一扫，直达名片详情' : '扫码打开网页版名片（当前小程序渠道未接入，暂用网页链接码）' }}</view>
+      <!-- 🔴 #312-16：小程序渠道已接入 → 真小程序码；文案不再声称「渠道未接入」 -->
+      <view class="qs-sub">{{ qrType === 'wxacode' ? '微信扫一扫，直达小程序名片' : '扫码打开网页版名片' }}</view>
       <view class="qs-img-wrap">
         <image v-if="qrImage" class="qs-img" :src="qrImage" mode="aspectFit" show-menu-by-longpress />
         <view v-else class="qs-loading">生成中…</view>

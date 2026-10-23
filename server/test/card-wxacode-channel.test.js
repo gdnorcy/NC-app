@@ -1,0 +1,80 @@
+/**
+ * 🔴 回归锁：#312-16 名片二维码/分享海报升级为「真小程序码」
+ *
+ * 反馈 → 修法：
+ *  用户已接入小程序渠道，但弹层/海报里仍是普通网页二维码，文案还写着
+ *  「当前小程序渠道未接入」。根因：/wxacode 只认第三方平台已授权
+ *  （auth_status='authorized'）的租户，自运营租户（自己填 AppID+AppSecret）
+ *  被直接排除 → 全部落到 H5 兜底，且失败被静默吞掉、无从诊断。
+ *
+ * 本测试钉死：
+ *  1 渠道查询不再过滤 auth_status（自运营租户也要能查到）；
+ *  2 三级通道：授权 → 自运营直连 → H5 兜底；
+ *  3 env 级联 release→trial→develop（41030 = 该版本没这个页面）；
+ *  4 失败必须打日志（原实现静默吞错）；
+ *  5 密钥走 readSecret 解密后再送微信；
+ *  6 前端文案不再声称「小程序渠道未接入」。
+ */
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const read = (rel) => readFileSync(resolve(here, rel), 'utf8');
+
+describe('名片小程序码三级通道', () => {
+  test('渠道查询不得再过滤 auth_status（否则自运营租户永远拿不到小程序码）', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    assert.match(seg, /SELECT \* FROM channel_apps WHERE customer_id = \? AND channel_type = 'mini' ORDER BY id DESC LIMIT 1/);
+    assert.doesNotMatch(seg, /channel_type = 'mini' AND auth_status = 'authorized'/);
+  });
+
+  test('三级通道齐全：授权→自运营直连→H5 兜底', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    assert.match(seg, /auth_status === 'authorized'/);
+    assert.match(seg, /new WxComponentService\(db\)\.getWxacode\(/);
+    assert.match(seg, /standaloneWxacode\(channel\.appid, secret,/);
+    assert.match(seg, /type: 'h5'/);
+    assert.match(seg, /type: 'wxacode'/);
+  });
+
+  test('env 级联 release/trial/develop 且逐个版本尝试（41030 页面不存在）', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    assert.match(seg, /'release', 'trial', 'develop'|\ 'trial', 'develop', 'release'/);
+    assert.match(seg, /for \(const env of envs\)/);
+  });
+
+  test('🔴 失败必须打日志，禁止静默吞错（原来 catch{} 空转导致线上无从诊断）', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    assert.match(seg, /console\.warn\(`\[wxacode\] card=/);
+  });
+
+  test('自运营分支的密钥必须 readSecret 解密后再送微信（落库是密文）', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    assert.match(seg, /const secret = channel \? readSecret\(channel\.app_secret\) : '';/);
+    assert.doesNotMatch(seg, /standaloneWxacode\([^)]*channel\.app_secret/);
+  });
+
+  test('两个取码实现都抛出带 wxErrcode 的错误（供 env 级联判断）', () => {
+    const svc = read('../src/services/wx-component.js');
+    assert.match(svc, /export async function standaloneWxacode\(/);
+    // getWxacode 与 standaloneWxacode 都要带 wxErrcode
+    const standalone = svc.slice(svc.indexOf('export async function standaloneWxacode'));
+    assert.match(standalone, /wxErrcode: json\.errcode/);
+    const member = svc.slice(svc.indexOf('async getWxacode('), svc.indexOf('// —— 记录发布日志 ——'));
+    assert.match(member, /wxErrcode: json\.errcode/);
+  });
+
+  test('前端文案不再声称「小程序渠道未接入」，且按 type 区分', () => {
+    const vue = read('../../web-app/src/pages/card/myCard.vue');
+    assert.doesNotMatch(vue, /当前小程序渠道未接入/);
+    assert.match(vue, /qrType === 'wxacode' \? '微信扫一扫，直达小程序名片'/);
+  });
+});
