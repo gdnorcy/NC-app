@@ -7,6 +7,8 @@
 - 链接模型单一事实来源 utils/compLinkModel.js：'internal' 是一等类型；schema default 须=options[0].value；'internal' 与 '' 两写法都归一。
 - 「对齐+偏移」=基准+叠加：偏移用 position:relative+left（禁 margin-left 覆盖 auto、禁 transform 造层叠上下文）；boxOffsetX/offsetX 两 key 都认。
 - canvas 显示尺寸≠位图（CSS 按容器实测宽）；横向 scroll-view 内 canvas 不跟手→导出 <image>，屏外 canvas 用 fixed+left:-9999px（禁 display:none）。禁对 computed() 返回值解构；新字段串同一条 v-else-if 链；面板字段渲染三处同时认（共享 utils/*.js）。
+- 🔴 **canvas 变换矩阵跨轮累积**：canvas.width/height 在循环外只设一次时不会重置上下文，每轮 `ctx.scale(dpr,dpr)` 会叠成 dpr²/dpr³…把内容顶出画布（真机表现：第 2 张起只剩底色/头像孤圆）。每轮必须 `setTransform(1,0,0,1,0,0)`→clearRect→`setTransform(dpr,0,0,dpr,0,0)`。H5 分支每轮 `document.createElement('canvas')` 各建各的天然免疫——**别把两端的排查混为一谈**（H5 里 grep setTransform 是 uni 内部实现，别误判没构建进去）。
+- 🔴 **swiper 塞进 position:fixed 弹层 = 真机触摸失效**（开发者工具正常）。弹层内横滑一律自实现 @touchstart/@touchend + dx 阈值。swiper 的 previous-margin/next-margin 决定 slide 宽度：太小→slide≈满屏+aspectFill 把竖图裁成中间一条（"糊脸大图"），须 ≈(屏宽−卡宽)/2。
 
 ## 真机与跨端
 - WXSS 不支持 * 选择器（uni/H5 不报，微信开发者工具才炸）；图标必须 base64 内联禁 import PNG（hash 漂移真机落空）；SIcon MP 端预生成 PNG 颜色写死→用真实 view 画，禁 ::before/after。
@@ -63,7 +65,15 @@
 - 嵌套字段加密盲区：encryptConfigSecrets 只扫 section 顶层→payment.wechat.apiV3Key 会明文落库。脱敏占位符用 includes('****') 非 startsWith；语义统一 crypto.js mergeSecretInput，读密钥必 readSecret()。
 - 金额全链路单位「分」：建单 yuan2fen()，调微信前不得再×100。回调 URL 只 https://域名/api/payment/notify/wechat（一层 notify）；验签基于 rawBody。只有压根没配才回落 mock，配了真实 mchId 不全→直接报错，/mock-pay 必 403。真实支付前提：库里 openid 须真机登录产生。
 
+## 微信开放接口（小程序码 / 登录）
+- 🔴 **真小程序码的物理前提：小程序必须上传过代码**。微信对无页面小程序一律 41030（release/trial/develop 三版本全拒）→ 只能回落网页码。排查顺序固定两步：①先拿 token（appid+secret 对不对）②再对候选 page 发码（判定有没有代码）。「用户在后台填了 AppID+AppSecret」≠「小程序能出码」——用户常说的"渠道已接入"只到第①步。
+- 三级通道（与 code2session 同口径）：①第三方平台已授权(auth_status='authorized')→WxComponentService ②自运营（仅填了 AppID+AppSecret）→standalone 直连 ③都没有→H5 兜底。**渠道查询不得过滤 auth_status**，否则自运营租户永远出不来码。
+- env 级联 release→trial→develop（41030=该版本没这个页面）。因此用户只需「上传+设为体验版」即可生效，不必等审核发布。
+- 失败必须打日志并透出 reason，别静默吞错：租户就是能去上传代码的人，弹层要告诉他"没上传代码"而不是让他以为没接上。
+- 🔴 **TAT 连 base64 编码的外网域名也拦** → 联调微信 API 的姿势：TAT 只取密钥/状态，网络请求放沙箱本地发。微信 `wxa/get_page`（页面清单）**只限第三方平台调用**（自运营 appid 得 86000）→ 用"候选 page 逐个发码"试探法替代。
+
 ## 业务口径 / 测试坑
 - 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照→留 admin 凭证→户口重置→ghfast 镜像传→停服换库。
-- openssl 生成证书须 stdio pipe+全程 -out+真 X.509；supertest 按字节签名须 .send(rawString)；node:sqlite 用 DatabaseSync。macOS grep BSD -E 裸 |、压缩 JS 单行 grep -c 恒1→grep -o|wc -l。
+- openssl 生成证书须 stdio pipe+全程 -out+真 X.509；supertest 按字节签名须 .send(rawString)；node:sqlite 用 DatabaseSync。
+- 🔴 **macOS BSD grep 的 `\|` 交替一律不好使**（BRE 无此扩展，整串当字面量 → 0 匹配，且不报错，看着像"产物没构建进去"）。交替必须用 `grep -E "a|b"` 或分开跑；压缩 JS 单行 `grep -c` 恒 1 → 用 `grep -o … | wc -l`。这条已踩 5 次，每次先怀疑产物再怀疑 grep。
 - 源码文本钉子类测试：别钉「内联重置字面量」等具体写法（一收敛就红一片），改钉**语义**——空壳工厂内容 + 工厂被哪几处调用。新增字段会连带改 INSERT/UPDATE 列串与表单初值，改前先 grep 一遍所有 *.test.js。
