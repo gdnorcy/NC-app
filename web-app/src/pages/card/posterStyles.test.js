@@ -142,6 +142,13 @@ describe('myCard 风格选择接入（#312-15 折叠+横滑轮播，仿动态）
     expect(s).toMatch(/\.sw-item\.active \{ transform: translateX\(0\) scale\(1\)/);
   });
 
+  test('🔴 滑块必须是竖版小卡片（previous/next-margin≈半宽 180rpx）——真机反馈：margin 过小会把竖版海报裁成中间一条放大的糊脸大图', () => {
+    const s = read('./myCard.vue');
+    expect(s).toMatch(/previous-margin="180rpx"/);
+    expect(s).toMatch(/next-margin="180rpx"/);
+    expect(s).toMatch(/\.ps-swiper \{ margin-top: 20rpx; width: 100%; height: 500rpx; \}/);
+  });
+
   test('onPosterSwipe 切换风格并触发缩略图渲染', () => {
     const s = myCardSrc();
     expect(s).toMatch(/function onPosterSwipe\(e\) \{/);
