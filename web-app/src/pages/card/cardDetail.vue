@@ -330,13 +330,20 @@
               <view v-else class="dyn-av-ph">{{ (d.authorName || card.name || '名')[0] }}</view>
             </view>
             <view class="dyn-who">
-              <b>{{ d.authorName || card.name }}</b>
-              <text>{{ timeText(d.createdAt) }}</text>
+              <!-- 🔴 反馈 #312-12「名片详情的动态头部还是不对，和我的动态页不统一」：
+                   原来写裸 <b>/<text> 标签 + `.dyn-who b` / `.dyn-who span` 标签选择器——
+                   H5 端 uni 把 <text> 编成 <span>、<b> 保留，选择器能命中；
+                   **MP 端 <b> 被编译成无类名 <view>，wxml 里根本没有 span/b/h4/p 元素，
+                   标签选择器全部落空** → 时间继承默认字号变大、标题不加粗
+                   （第 7 轮「标题没加黑」的真因，当时修错了目标）。改类名选择器（MP 安全），
+                   字号层级与「我的动态」页 .dynamic-name/.dynamic-time 统一。 -->
+              <view class="dyn-name">{{ d.authorName || card.name }}</view>
+              <text class="dyn-time">{{ timeText(d.createdAt) }}</text>
             </view>
           </view>
           <view class="dyn-body">
-            <h4 v-if="d.title">{{ d.title }}</h4>
-            <p>{{ d.content }}</p>
+            <view class="dyn-title" v-if="d.title">{{ d.title }}</view>
+            <view class="dyn-content">{{ d.content }}</view>
           </view>
           <!-- 🔴 反馈 #312-8「多图要的是在图上左右滑动看第二、第三…张，带滑动动效」+
                反馈 #312-9「要有折叠的外观，也可以横向滚动」：
@@ -2260,32 +2267,35 @@ async function followCard() {
   flex-direction: column;
   gap: 4rpx;
 }
-/* 🔴 反馈 #312-10「标题没有加粗、发布时间字体太大不协调」：
-   昵称（作者名，卡片头部的"标题"位）显式 font-weight:600——<b> 标签默认加粗在 MP 端
-   会被 reset 吞掉；时间降到 --fs-1(20rpx)，与昵称 27rpx 拉开层级。
-   我的动态页 .dynamic-name/.dynamic-time 同步同值（两端各写一份必漂移）。 */
-.dyn-who b {
-  font-size: 27rpx;
+/* 🔴 反馈 #312-12：头部排版与「我的动态」页统一（字号层级同 .dynamic-name/.dynamic-time）。
+   选择器必须用类名——MP 端 wxml 没有 b/span 元素，标签选择器（.dyn-who b 等）整条失效。 */
+.dyn-name {
+  font-size: var(--fs-5);
   font-weight: 600;
   color: var(--t5);
 }
-.dyn-who span {
+.dyn-time {
   font-size: var(--fs-1);
   color: var(--t4);
 }
 .dyn-body {
   margin-top: 16rpx;
 }
-.dyn-body h4 {
-  font-size: var(--fs-5);
+/* 🔴 #312-12：标题/正文改类名选择器（原 .dyn-body h4/.dyn-body p 在 MP 端落空），
+   数值与「我的动态」页 .dynamic-title(fs-6/700)/.dynamic-content(fs-5/1.7) 统一。 */
+.dyn-body .dyn-title {
+  font-size: var(--fs-6);
+  font-weight: 700;
   color: var(--t5);
   margin-bottom: 8rpx;
-  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.dyn-body p {
-  font-size: 25rpx;
+.dyn-body .dyn-content {
+  font-size: var(--fs-5);
   color: var(--t2);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 .dyn-img {
   width: 100%;
