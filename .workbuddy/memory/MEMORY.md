@@ -12,6 +12,8 @@
 - WXSS 不支持 * 选择器（uni/H5 不报，微信开发者工具才炸）；图标必须 base64 内联禁 import PNG（hash 漂移真机落空）；SIcon MP 端预生成 PNG 颜色写死→用真实 view 画，禁 ::before/after。
 - uni image 非替换元素无内在尺寸→限高须给显式盒高（width/height:auto 塌缩成0）。
 - 🔴 **MP 端滚动必须用 scroll-view**：普通 view 设 overflow-y:auto 在 H5 能滚、**真机滚不动**。弹窗内容区默认就写 `<scroll-view scroll-y>`。**定高只有三条可靠路**（真机三次证伪）：①显式 height（cardEdit .ce-modal-body 46vh）②max-height 直接封顶且父级高度 auto 非 flex 分配（visitors .tl-scroll / dist* .rules-scroll）③父级有确定 height 时 flex:1。**`flex:1+height:0` 赌父级 max-height 分配 = 真机两次证伪不滚**；动 scroll-view 前先 grep 项目内其他弹窗写法（cardEdit.vue 早有实证注释，dynamic.vue 没查又踩一次）。
+- 🔴 **MP scroll-view 弹窗最终形态**（四轮反馈收敛）：sheet 普通块级堆叠（**不用 flex column**——flex 子项 max-height 与 scroll-view 真机交互异常）+ body `max-height:Nvh` 封顶 + `:scroll-top` 回顶。**内容动态增高后 scroll-view 会把可视位置停在用户注视的中段**（用户体感"上面被挡住/显示不全"）→ 展开/开关类状态变化时主动回顶（scroll-top 只在**值变化**时生效，0/0.1 交替强制触发，watch 用 flush:'post'）。
+- 🔴 **z-index 令牌分层**：--z-content(10)=卡片内浮层（页码/角标） / --z-sticky(100)=悬浮条 / --z-popup(1000)=全屏弹窗。卡片内浮层误用 --z-popup 会盖过 z-index 900+ 的全屏弹窗（swiper 页码透到评论窗上）。
 - 🔴 **服务端存的图片路径（/uploads/ 相对）MP 全链路断**：H5 同源能显示、MP 当包内路径 → 空白。展示点一律过 absUrl（utils/apiBase.js 单一实现）；**canvas.createImage 同样不吃相对路径**（shareCover.js loadImage 入口收口）；新上传入口必须"先 uploadUserAvatar 换 URL 再入库"（create.vue 曾直接存 wxfile:// 临时路径）。
 - 🔴 **服务端时间是 UTC**：SQLite `datetime('now')` 产出 UTC 串，前端 `new Date(t.replace(' ','T'))` 会被按本地时区解析 → 东八区凭空多 8 小时。解析必须补 'Z'（见 web-app/src/pages/card/utils/dynTime.js，两端共用一份）。
 - 小程序导航栏右侧会被微信**胶囊**吃掉大半宽度 → PageNav #right 里的按钮会被挤到标题左边，看着「放错位置」。单条主操作改右下角悬浮圆按钮 FAB。
