@@ -1,0 +1,1 @@
+import{G as n,E as t}from"./index-DQsuqbqn.js";const o=24,r=t(160);function s(n){const t=Number(n);Number.isFinite(t)&&t>=80&&t<=400&&(r.value=Math.round(t))}function u(t=0){return n(()=>function(n=0){return{paddingBottom:`${r.value+24+n}rpx`}}(t))}export{o as T,s,r as t,u};
