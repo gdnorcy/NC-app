@@ -34,7 +34,7 @@ const detailCss = () => read('./cardDetail.vue');
 
 describe('1a 发布弹窗：链接卡片展开后必须能滚', () => {
   test('sheet-body 是 scroll-view scroll-y（MP 的普通 view 设 overflow-y:auto 滚不动）', () => {
-    expect(dyn()).toMatch(/<scroll-view scroll-y class="sheet-body">/);
+    expect(dyn()).toMatch(/<scroll-view scroll-y class="sheet-body" :scroll-top="sheetScrollTop">/);
     const c = dynCss();
     // max-height 显式封顶（tl-scroll/rules-scroll 同款真机验证写法）；
     // 反向钉死 flex:1+height:0——该写法在 MP 端分配不到高度，是「还是滚不动」的根因

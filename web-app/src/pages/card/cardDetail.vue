@@ -2260,12 +2260,17 @@ async function followCard() {
   flex-direction: column;
   gap: 4rpx;
 }
+/* 🔴 反馈 #312-10「标题没有加粗、发布时间字体太大不协调」：
+   昵称（作者名，卡片头部的"标题"位）显式 font-weight:600——<b> 标签默认加粗在 MP 端
+   会被 reset 吞掉；时间降到 --fs-1(20rpx)，与昵称 27rpx 拉开层级。
+   我的动态页 .dynamic-name/.dynamic-time 同步同值（两端各写一份必漂移）。 */
 .dyn-who b {
   font-size: 27rpx;
+  font-weight: 600;
   color: var(--t5);
 }
 .dyn-who span {
-  font-size: var(--fs-2);
+  font-size: var(--fs-1);
   color: var(--t4);
 }
 .dyn-body {
@@ -2314,12 +2319,15 @@ async function followCard() {
   z-index: 2;
 }
 .sw-img { width: 100%; height: 100%; display: block; }
-/* 页码「2/4」：swiper 自带 indicator-dots 是圆点，看不出共有几张；数字更明确 */
+/* 页码「2/4」：swiper 自带 indicator-dots 是圆点，看不出共有几张；数字更明确。
+   🔴 反馈 #312-10「下面的图片数字透上来评论窗」：原来用 --z-popup(1000) 压图，
+   可评论弹窗 cmt-mask/panel 只有 900/901 → 页码浮在评论窗白面板上。
+   页码只需要压住卡片内的图片，降到 --z-content(10) 即可（复用既有令牌，不新增裸值）。 */
 .sw-page {
   position: absolute;
   right: 16rpx;
   bottom: 16rpx;
-  z-index: var(--z-popup);
+  z-index: var(--z-content);
   min-width: 64rpx;
   height: 44rpx;
   line-height: 44rpx;
