@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "个性化分享",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav"
+  }
+}

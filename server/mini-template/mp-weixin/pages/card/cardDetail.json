@@ -4,6 +4,8 @@
   "usingComponents": {
     "page-nav": "../../components/PageNav",
     "s-icon": "../../components/SIcon",
-    "card-tab-bar": "../../components/CardTabBar"
+    "card-comp-item": "../../components/CardCompItem",
+    "card-tab-bar": "../../components/CardTabBar",
+    "dynamic-link-card": "../../components/DynamicLinkCard"
   }
 }
