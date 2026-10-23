@@ -156,6 +156,14 @@ describe('myCard 风格选择接入（#312-15 折叠+横滑轮播，仿动态）
     expect(s).not.toMatch(/destWidth: 240/);
   });
 
+  test('🔴 buildPosterThumbs 循环内必须绝对重置变换矩阵——canvas.width 只设一次不重置上下文，ctx.scale 会跨轮累积（dpr²/dpr³）把内容画到画布外（真机：第 2 款起只剩底色）', () => {
+    const s = myCardSrc();
+    const seg = s.slice(s.indexOf('function buildPosterThumbs'), s.indexOf('async function shareOwnerCard'));
+    expect(seg).toMatch(/ctx\.setTransform\(1, 0, 0, 1, 0, 0\)/);
+    expect(seg).toMatch(/ctx\.setTransform\(dpr, 0, 0, dpr, 0, 0\)/);
+    expect(seg).not.toMatch(/ctx\.scale\(/);
+  });
+
   test('切换风格走重绘而非重取码，且选择持久化 cardPosterStyle（默认 cream）', () => {
     const s = myCardSrc();
     expect(s).toMatch(/function onPosterStyleChange\(k\) \{/);
