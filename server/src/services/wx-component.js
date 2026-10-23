@@ -336,9 +336,11 @@ export class WxComponentService {
     try {
       const text = buffer.toString('utf8');
       const json = JSON.parse(text);
-      if (json.errcode) throw new Error(`生成小程序码失败: ${json.errmsg}`);
+      if (json.errcode) {
+        throw Object.assign(new Error(`生成小程序码失败(${json.errcode}): ${json.errmsg}`), { wxErrcode: json.errcode });
+      }
     } catch (e) {
-      if (e.message.includes('生成小程序码失败')) throw e;
+      if (e && e.wxErrcode) throw e;
       // 不是JSON，说明是图片数据
     }
     return buffer;
@@ -397,4 +399,31 @@ export async function standaloneCode2Session(appid, secret, code) {
   const data = await resp.json();
   if (data.errcode) throw new Error(`微信code2session失败(${data.errcode}): ${data.errmsg}`);
   return { openid: data.openid, unionid: data.unionid || '' };
+}
+
+/**
+ * 自运营模式生成小程序码：租户自有小程序 appid + AppSecret 直连（不经过第三方平台授权）。
+ * 与 component 版共用 getwxacodeunlimit，只是 token 取自 cgi-bin/token。
+ * 🔴 抛出的错误带 wxErrcode（41030 = 该版本没有这个页面），调用方据此 release→trial→develop 级联。
+ */
+export async function standaloneWxacode(appid, secret, scene = '', page = 'pages/index/index', envVersion = 'release') {
+  if (!appid || !secret) throw new Error('缺少小程序 appid / AppSecret');
+  const turl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${encodeURIComponent(appid)}&secret=${encodeURIComponent(secret)}`;
+  const tres = await fetch(turl);
+  const tdata = await tres.json();
+  if (tdata.errcode) throw Object.assign(new Error(`获取access_token失败(${tdata.errcode}): ${tdata.errmsg}`), { wxErrcode: tdata.errcode });
+  const res = await fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${encodeURIComponent(tdata.access_token)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scene, page, width: 430, auto_color: false, line_color: { r: 0, g: 0, b: 0 }, env_version: envVersion }),
+  });
+  const buffer = Buffer.from(await res.arrayBuffer());
+  try {
+    const json = JSON.parse(buffer.toString('utf8'));
+    if (json.errcode) throw Object.assign(new Error(`生成小程序码失败(${json.errcode}): ${json.errmsg}`), { wxErrcode: json.errcode });
+  } catch (e) {
+    if (e && e.wxErrcode) throw e;
+    // 不是 JSON = 图片数据
+  }
+  return buffer;
 }

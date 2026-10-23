@@ -20,7 +20,7 @@ import { createRadarService } from '../services/radar.js';
 import { createQuotaService } from '../services/quota.js';
 import { createBenefitsService, WORKS_LABEL_MAX } from '../services/benefits.js';
 import { normalizeTabJson } from '../services/design.js';
-import { WxComponentService, standaloneCode2Session } from '../services/wx-component.js';
+import { WxComponentService, standaloneCode2Session, standaloneWxacode } from '../services/wx-component.js';
 import { readSecret } from '../crypto.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
@@ -1926,9 +1926,12 @@ export function createCardRouter(db, wxService) {
     }
   });
 
-  // 我的名片小程序码（2026-10-21 用户需求：二维码/链接 → 可生成单独的小程序码供下载印刷）
-  // 优先取当前租户已授权小程序的真·小程序码（scene 携带名片 id，扫码直达该名片详情）；
-  // 租户未授权小程序 / 小程序码生成失败（如页面未发布）时降级返回 H5 名片页二维码。
+  // 名片小程序码（#312-16：小程序渠道已接入 → 真小程序码；二维码弹层与分享海报共用此出口）
+  // 三级通道（与登录 code2session 口径一致）：
+  // ① 第三方平台已授权租户（channel_apps.mini + auth_status=authorized）→ WxComponentService.getWxacode；
+  // ② 自运营租户（未授权，但填了自己的 AppID+AppSecret）→ standalone 直连 getwxacodeunlimit；
+  // ③ 都没有 → 降级 H5 名片页二维码（文案不再声称「渠道未接入」，见 myCard 弹层）。
+  // env 级联 release→trial→develop：未发布/体验版页面会报 41030(page 不存在)，逐个版本试。
   router.get('/wxacode', auth, async (req, res) => {
     try {
       const cardId = Number(req.query.cardId || 0);
@@ -1944,15 +1947,28 @@ export function createCardRouter(db, wxService) {
       // 找当前租户的小程序渠道（SaaS：每客户一小程序，customer_id 挂 channel_apps）
       let channel = null;
       try {
-        channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mini' AND auth_status = 'authorized' ORDER BY id DESC LIMIT 1").get(req.customerId || 0);
+        channel = db.prepare("SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = 'mini' ORDER BY id DESC LIMIT 1").get(req.customerId || 0) || null;
       } catch (e) {}
-      if (channel && wxService) {
-        try {
-          const envVersion = channel.audit_status === 'released' ? 'release' : 'trial';
-          const buf = await wxService.getWxacode(channel.id, `id=${cardId}`, 'pages/card/cardDetail', envVersion);
-          return res.json({ ok: true, type: 'wxacode', image: `data:image/png;base64,${buf.toString('base64')}` });
-        } catch (e) {
-          // 小程序码失败（未发布/未配置等）→ 降级 H5 二维码，绝不让用户拿到空结果
+      // 🔴 app_secret 落库是密文，必须 readSecret 解密后再送微信
+      const secret = channel ? readSecret(channel.app_secret) : '';
+      const envs = channel && channel.audit_status === 'released'
+        ? ['release', 'trial', 'develop']
+        : ['trial', 'develop', 'release'];
+      const makers = [];
+      if (channel && channel.auth_status === 'authorized') {
+        makers.push((env) => new WxComponentService(db).getWxacode(channel.id, `id=${cardId}`, 'pages/card/cardDetail', env));
+      } else if (channel && secret) {
+        makers.push((env) => standaloneWxacode(channel.appid, secret, `id=${cardId}`, 'pages/card/cardDetail', env));
+      }
+      for (const make of makers) {
+        for (const env of envs) {
+          try {
+            const buf = await make(env);
+            return res.json({ ok: true, type: 'wxacode', image: `data:image/png;base64,${buf.toString('base64')}` });
+          } catch (e) {
+            // 🔴 原先这里静默吞错，线上走的哪条路只能靠猜 —— 现在打日志留证据
+            console.warn(`[wxacode] card=${cardId} appid=${channel ? channel.appid : '-'} env=${env} 失败: ${e && e.message}`);
+          }
         }
       }
       res.json(await fallback());
