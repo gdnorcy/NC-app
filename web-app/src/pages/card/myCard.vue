@@ -204,23 +204,16 @@
       <view class="grip"></view>
       <view class="qs-title">名片分享海报</view>
       <view class="qs-sub">保存图片后可发朋友圈或印刷，扫码直达名片</view>
-      <!-- 🔴 #312-15：风格选择改为「折叠 + 横向滑动」轮播，仿动态反馈 #312-9
-           （非当前项向左缩进探出、当前项置顶压住；滑动各就各位 0.25s 过渡）。
-           每项为对应风格的迷你预览图（打开弹层时按需渲染），回落为风格色卡。 -->
-      <swiper class="ps-swiper" :circular="false" :indicator-dots="false"
-              previous-margin="180rpx" next-margin="180rpx"
-              :current="currentStyleIndex" @change="onPosterSwipe">
-        <swiper-item v-for="s in posterStyles" :key="s.key">
-          <view class="sw-item" :class="{ active: posterStyleKey === s.key }" @click="onPosterStyleChange(s.key)">
-            <image v-if="posterThumbs[s.key]" class="sw-thumb" :src="posterThumbs[s.key]" mode="aspectFill" />
-            <view v-else class="sw-thumb sw-thumb-fallback" :style="posterThumbStyle(s.key)"></view>
-            <view class="sw-label">{{ s.label }}</view>
-          </view>
-        </swiper-item>
-      </swiper>
-      <view class="qs-img-wrap" :class="{ 'poster-wrap': true }">
-        <image v-if="posterPath" class="qs-img poster" :src="posterPath" mode="aspectFit" show-menu-by-longpress />
+      <!-- 🔴 #312-15：单张海报 + 自绘横滑切换。swiper 在 position:fixed 弹层内
+           真机触摸失效（开发者工具正常、真机滑不动）→ 改 touchstart/touchend 手势
+           + 折叠切换动画。上方只显示当前主题名（不列全部名称），不再上下两张图。 -->
+      <view class="ps-curname">{{ currentStyleLabel }}</view>
+      <view class="ps-stage" @touchstart="onStageTouchStart" @touchend="onStageTouchEnd">
+        <image v-if="stagePosterSrc" class="ps-stage-img" :class="stageAnim" :src="stagePosterSrc" mode="aspectFit" show-menu-by-longpress />
         <view v-else class="qs-loading">海报生成中…</view>
+      </view>
+      <view class="ps-dots">
+        <view v-for="(s, i) in posterStyles" :key="s.key" class="ps-dot" :class="{ on: i === currentStyleIndex }"></view>
       </view>
       <button class="qs-save" :disabled="!posterPath" @click="savePosterImage">保存到相册</button>
       <view class="qs-close" @click="showPoster = false">关闭</view>
@@ -559,27 +552,45 @@ const posterStyleKey = ref(posterStyles.some((s) => s.key === posterStyleSaved) 
 let posterQrData = '';
 let posterDrawData = null;
 
-// 🔴 #312-15：风格轮播缩略图（折叠+横滑用）。打开弹层时按需渲染各风格迷你预览，
-// 渲染成功用图、失败/未完成回落风格色卡（posterThumbStyle）。
+// 🔴 #312-15：单张海报 + 自绘横滑（swiper 在 fixed 弹层内真机触摸失效）。
+// posterThumbs：各风格全尺寸预览（打开弹层时后台渲染），未就绪回落 posterPath。
 const posterThumbs = ref({});
-const posterThumbBg = {
-  cream: 'linear-gradient(135deg,#FBF7F0,#FFFFFF)',
-  misty: 'linear-gradient(135deg,#EAF2FB,#D8E8F8)',
-  sakura: 'linear-gradient(135deg,#FCEEF3,#FBD0DC)',
-  mint: 'linear-gradient(135deg,#E6F7EE,#D6F0E3)',
-  obsidian: 'linear-gradient(135deg,#0E0F13,#1A1B20)',
-};
-function posterThumbStyle(key) { return { background: posterThumbBg[key] || '#e8eaed' }; }
-// 轮播当前项下标（跟随选中风格，与 swiper :current 双向）
+// 轮播当前项下标（跟随选中风格，供主题名/圆点指示用）
 const currentStyleIndex = computed(() => {
   const i = posterStyles.findIndex((s) => s.key === posterStyleKey.value);
   return i < 0 ? 0 : i;
 });
-// 横滑切换：swiper @change → 选中对应风格并重绘大图
-function onPosterSwipe(e) {
-  const i = e && e.detail && e.detail.current;
-  const s = posterStyles[i];
-  if (s) onPosterStyleChange(s.key);
+const currentStyleLabel = computed(() => {
+  const s = posterStyles[currentStyleIndex.value];
+  return s ? s.label : '';
+});
+const stagePosterSrc = computed(() => posterThumbs.value[posterStyleKey.value] || posterPath.value || '');
+// 切换动画：out-* 旧图折叠退场（200ms）→ 换图 → reset-* 新图从对侧无过渡就位
+// → 清掉类后 transition 生效滑入归位。dir = 内容移动方向（left=看下一个）。
+const stageAnim = ref('');
+let stageAnimTimer = null;
+let stageStartX = 0;
+function onStageTouchStart(e) {
+  const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+  stageStartX = t ? t.clientX : 0;
+}
+function onStageTouchEnd(e) {
+  const t = e.changedTouches && e.changedTouches[0];
+  const dx = (t ? t.clientX : 0) - stageStartX;
+  if (Math.abs(dx) < 40) return;
+  const idx = currentStyleIndex.value;
+  const next = dx < 0 ? idx + 1 : idx - 1; // 左滑=看下一个
+  if (next < 0 || next >= posterStyles.length) return;
+  runStageSwitch(next, dx < 0 ? 'left' : 'right');
+}
+function runStageSwitch(nextIdx, dir) {
+  if (stageAnimTimer) { clearTimeout(stageAnimTimer); stageAnimTimer = null; }
+  stageAnim.value = 'out-' + dir;
+  stageAnimTimer = setTimeout(() => {
+    onPosterStyleChange(posterStyles[nextIdx].key);
+    stageAnim.value = 'reset-' + (dir === 'left' ? 'right' : 'left');
+    stageAnimTimer = setTimeout(() => { stageAnim.value = ''; stageAnimTimer = null; }, 30);
+  }, 210);
 }
 
 async function fetchCardQr() {
@@ -736,9 +747,9 @@ async function renderPoster() {
   posterPath.value = canvas.toDataURL('image/png');
   // #endif
 }
-/* 🔴 #312-15：渲染各风格的迷你预览图（折叠横滑轮播用）。
-   与 renderPoster 共用素材；MP 走专用离屏 #posterThumb 节点逐款绘制后导出缩放缩略图
-   （顺序 await 防竞态），H5 直接建小画布 toDataURL。渲染失败/不支持则回落风格色卡。 */
+/* 🔴 #312-15：预渲染各风格的全尺寸海报（单图横滑切换用，切换零等待且清晰）。
+   与 renderPoster 共用素材；MP 走专用离屏 #posterThumb 节点逐款绘制后导出
+   （顺序 await 防竞态），H5 直接建 600×960 画布 toDataURL。失败则该款回落 posterPath。 */
 async function buildPosterThumbs() {
   if (!posterDrawData) return;
   const { c, primary, gradient, ink } = posterDrawData;
@@ -768,7 +779,6 @@ async function buildPosterThumbs() {
         await new Promise((resolve) => {
           uni.canvasToTempFilePath({
             canvas, x: 0, y: 0, width: 600 * dpr, height: 960 * dpr,
-            destWidth: 240, destHeight: 384,
             success: (r) => { thumbs[s.key] = r.tempFilePath; resolve(); },
             fail: () => resolve(),
           });
@@ -782,9 +792,8 @@ async function buildPosterThumbs() {
   if (typeof document === 'undefined') return;
   for (const s of posterStyles) {
     try {
-      const cv = document.createElement('canvas'); cv.width = 240; cv.height = 384;
+      const cv = document.createElement('canvas'); cv.width = 600; cv.height = 960;
       const ctx = cv.getContext('2d');
-      ctx.scale(240 / 600, 384 / 960);
       let qrImg = null; try { qrImg = await loadImage(null, posterQrData); } catch (e) {}
       let avatarImg = null; if (c.avatar) { try { avatarImg = await loadImage(null, absUrl(c.avatar)); } catch (e) {} }
       drawPosterByStyle(ctx, { W: 600, H: 960, card: c, primary, gradient, ink, qrImg, avatarImg, styleKey: s.key });
@@ -1047,34 +1056,29 @@ function leaveTenant() {
   background: var(--bg-page); border-radius: 20rpx; overflow: hidden;
 }
 .qs-img { width: 440rpx; height: 440rpx; }
-.qs-img.poster { height: 640rpx; }
-.qs-img-wrap.poster-wrap { height: 660rpx; }
 .qs-loading { font-size: var(--fs-3); color: var(--t4); }
-/* 🔴 #312-15：海报风格选择改为折叠+横向滑动轮播（仿动态反馈 #312-9）
-   ⚠️ previous/next-margin 必须≈卡片半宽：滑块宽=750-360=390rpx（竖版小卡片），
-   相邻卡从两侧探出；之前 12px 时滑块≈全屏宽，竖版海报 aspectFill 被裁成
-   中间一条放大的「糊脸大图」（真机反馈：好奇怪）。 */
-.ps-swiper { margin-top: 20rpx; width: 100%; height: 500rpx; }
-.sw-item {
-  height: 100%; width: 100%;
+/* 🔴 #312-15：单张海报 + 自绘横滑（swiper 在 fixed 弹层内真机触摸失效，
+   改 touchstart/touchend 手势 + 折叠切换动画；上方只显示当前主题名）。 */
+.ps-curname { margin-top: 24rpx; font-size: var(--fs-5); font-weight: 600; color: var(--t5); text-align: center; }
+.ps-stage {
+  margin-top: 16rpx; width: 100%; height: 720rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.ps-stage-img {
+  width: 450rpx; height: 720rpx; /* 600:960 同比例，aspectFit 无黑边 */
   border-radius: var(--radius-md);
-  overflow: hidden;
   background: var(--bg-hover);
-  /* 折叠态：向左缩进探入可视区（像一摞照片）+ 缩小 + 沉到下层，滑动时 0.25s 过渡归位 */
-  transform: translateX(-30%) scale(0.92);
-  opacity: 0.6;
-  transition: transform 0.25s ease, opacity 0.25s ease;
-  position: relative;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
-.sw-item.active { transform: translateX(0) scale(1); opacity: 1; z-index: 2; }
-.sw-thumb { width: 100%; height: 100%; display: block; }
-.sw-thumb-fallback { width: 100%; height: 100%; }
-.sw-label {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  text-align: center; font-size: var(--fs-3); color: #fff;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
-  padding: 28rpx 0 14rpx;
-}
+/* 折叠切换：旧图向滑动方向缩进退场；新图从对侧无过渡就位后滑入归位 */
+.ps-stage-img.out-left { transform: translateX(-30%) scale(0.92); opacity: 0; }
+.ps-stage-img.out-right { transform: translateX(30%) scale(0.92); opacity: 0; }
+.ps-stage-img.reset-left, .ps-stage-img.reset-right { transition: none; opacity: 0; }
+.ps-stage-img.reset-left { transform: translateX(-30%) scale(0.92); }
+.ps-stage-img.reset-right { transform: translateX(30%) scale(0.92); }
+.ps-dots { margin-top: 20rpx; display: flex; gap: 12rpx; justify-content: center; align-items: center; }
+.ps-dot { width: 12rpx; height: 12rpx; border-radius: 6rpx; background: var(--t4); transition: all 0.2s ease; }
+.ps-dot.on { width: 32rpx; background: var(--design-primary, #165dff); }
 .qs-save {
   margin-top: 28rpx; width: 100%; height: 88rpx; line-height: 88rpx;
   border-radius: 44rpx; border: none;
