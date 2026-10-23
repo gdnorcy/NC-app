@@ -766,8 +766,12 @@ async function buildPosterThumbs() {
     const ctx = canvas.getContext('2d');
     (async () => {
       for (const s of posterStyles) {
+        // 🔴 canvas.width 在循环外只设一次（不会重置上下文）→ 变换矩阵跨轮保留；
+        // 若用 ctx.scale(dpr,dpr) 会逐轮累积（dpr²、dpr³…）把内容画到画布外
+        // （真机表现：第 2 款起只剩底色，头像孤圆/半截名字）。必须每轮绝对重置。
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         try {
           const qrImg = await loadImage(canvas, posterQrData);
           let avatarImg = null;
