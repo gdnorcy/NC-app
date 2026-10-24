@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "加入企业",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav",
+    "login-gate-modal": "../../components/LoginGateModal"
+  }
+}
