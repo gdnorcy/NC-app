@@ -176,7 +176,7 @@ describe('profile.vue · ④「编辑名片」必须带 id 进编辑态', () => 
   });
 
   test('未登录入口守卫：编辑名片先校验 token', () => {
-    expect(profile).toMatch(/async function goEditCard\(\)\s*\{\s*if \(!hasCardToken\(\)\) return guideLogin\(\);/);
+    expect(profile).toMatch(/async function goEditCard\(\)\s*\{\s*if \(!\(await requireLogin\(\)\)\) return;/);
   });
 });
 

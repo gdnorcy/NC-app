@@ -40,6 +40,8 @@
         </view>
       </view>
     </view>
+    <!-- 🔴 #312-18c 页面内原地登录：未登录不再跳登录页，当页弹浮层（useInlineLogin 提供开关与回调） -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -50,7 +52,10 @@ import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { syncMarketWithIsPublic } from './utils/marketLink.js';
-import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { useInlineLogin } from '../../utils/loginGate.js';
+// 🔴 #312-18c 原地登录守卫：requireLogin 返回 Promise，登录成功自动继续被拦下的动作
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin();
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 const themeStyle = useDesignTheme();
@@ -103,14 +108,12 @@ async function load() {
 }
 
 // onShow 驱动：从 templateSelect 返回后自动刷新当前模板名
-onShow(() => {
-  const pages = getCurrentPages();
-  const opts = (pages[pages.length - 1] || {}).options || {};
+onShow(async () => {
+  // 🔴 #312-18c 登录门禁：判据与老版一致（card_user.id 或 token 任一即放行），
+  //   但未登录不再 redirectTo 登录页——当页弹浮层，登录成功后原地继续 load()
   const me = uni.getStorageSync('card_user') || {};
-  if (!me.id && !uni.getStorageSync('card_token')) {
-    uni.redirectTo({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/displaySettings' + (opts.id ? `?id=${opts.id}` : '')) });
-    return;
-  }
+  const needLogin = !me.id && !uni.getStorageSync('card_token');
+  if (needLogin && !(await requireLogin())) return;
   load();
 });
 

@@ -329,6 +329,8 @@
         </view>
       </view>
     </view>
+    <!-- 🔴 #312-18c 页面内原地登录：未登录不再跳登录页，当页弹浮层（useInlineLogin 提供开关与回调） -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -341,7 +343,10 @@ import { cardApi, paymentApi } from '../../utils/cardApi.js';
 // 🔴 #312-9：头像等服务端图片路径按端补全（MP 必须补域名，否则加载不出来）
 import { absUrl } from '../../utils/apiBase.js';
 import { syncMarketWithIsPublic } from './utils/marketLink.js';
-import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { useInlineLogin } from '../../utils/loginGate.js';
+// 🔴 #312-18c 原地登录守卫：requireLogin 返回 Promise，登录成功自动继续被拦下的动作
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin();
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { buildCreateSkinVars } from './utils/createSkin.js';
@@ -533,14 +538,12 @@ onShow(() => {
 
 onMounted(async () => {
   // 🔴 门禁：创建/编辑名片必须有登录态。游客可以浏览名片首页，但名片归属账号，
-  // 放开会导致「填完三步提交才 401 失败」。未登录统一跳登录页（manual=1 + redirect 回跳本页，
-  // 编辑场景必须带上 id，否则登录后会变成新建名片）。
-  const curOpts = (getCurrentPages()[getCurrentPages().length - 1] || {}).options || {};
+  // 放开会导致「填完三步提交才 401 失败」。
+  // 🔴 #312-18c：未登录不再 redirectTo 登录页（manual=1 + redirect 那套已废弃）——
+  // 当页弹浮层，登录成功后原地继续本 onMounted 余下逻辑（判据与老版一致）。
   const cachedMe = uni.getStorageSync('card_user') || {};
-  if (!cachedMe.id && !uni.getStorageSync('card_token')) {
-    uni.redirectTo({ url: loginEntryUrl(LOGIN_PATH, curOpts.id ? `/pages/card/create?id=${curOpts.id}` : '/pages/card/create') });
-    return;
-  }
+  const needLogin = !cachedMe.id && !uni.getStorageSync('card_token');
+  if (needLogin && !(await requireLogin())) return;
   // 语音简介会员权限（阶段C）
   if (uni.getStorageSync('card_token')) {
     try {

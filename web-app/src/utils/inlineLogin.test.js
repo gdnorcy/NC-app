@@ -91,31 +91,53 @@ describe('登录：原地化与单点实现', () => {
 });
 
 /**
- * 🔴 回归锁：#312-18b「动态」页一并原地化
+ * 🔴 回归锁：#312-18b「动态」页一并原地化 + #312-18c 守卫收编到共享基建
  *
  * 与 myCard 同款范式，但多了一层：动态页的「发布 / 编辑」是**动作**，
  * 老实现是点一下就被 reLaunch 弹走，登录完回来还得**再点一次**。
- * 新实现把守卫做成 Promise：登录成功自动放行继续原动作。
+ * 18c 起 Promise 守卫与浮层实现收编到 utils/loginGate.js + components/LoginGateModal.vue，
+ * 本组测试钉「dynamic 消费共享基建」与「共享基建自身的语义」两层。
  */
-describe('登录：动态页原地化（#312-18b）', () => {
+describe('登录：动态页原地化（#312-18b/18c）', () => {
   it('🔴 dynamic 不再把人送去登录页（含历史硬编码的不存在路径 /pages/card/login）', () => {
     const s = read('../pages/card/dynamic.vue');
     expect(s).not.toMatch(/loginEntryUrl\(LOGIN_PATH/);
     expect(s).not.toMatch(/\.\.\/utils\/loginEntry/);
-    // 页内唯一允许的跳转是「去建名片」
-    expect(s).toMatch(/uni\.reLaunch\(\{ url: '\/pages\/card\/create' \}\)/);
-    expect(s).toMatch(/import \{ mustCreateCard \} from '\.\.\/\.\.\/utils\/inlineLogin\.js'/);
-    expect(s).toMatch(/import LoginGate from '\.\.\/\.\.\/components\/LoginGate\.vue'/);
+    // 页内唯一允许的跳转是「去建名片」（由共享守卫的 mustCreateCard 分支执行）
+    expect(s).toMatch(/useInlineLogin\(\(\) => bootDynamic\(\)\)/);
+    expect(s).toMatch(/<LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" \/>/);
   });
 
-  it('守卫返回 Promise：动作调用方能 await 到「登录成功」并继续执行', () => {
-    const s = read('../pages/card/dynamic.vue');
-    expect(s).toMatch(/function requireLogin\(\) \{/);
+  it('🔴 守卫语义收敛在 utils/loginGate.js（唯一实现，禁页面再各抄一份）', () => {
+    const s = read('./loginGate.js');
+    expect(s).toMatch(/export function useInlineLogin\(onLoginSuccess\)/);
     expect(s).toMatch(/if \(hasCardToken\(\)\) return Promise\.resolve\(true\);/);
     expect(s).toMatch(/return new Promise\(\(resolve\) => \{ gateResolve = resolve; \}\);/);
     // 取消必须把 Promise 结掉（否则 await 永远挂住，按钮看着「点了没反应」）
-    expect(s).toMatch(/function cancelLogin\(\) \{/);
     expect(s).toMatch(/gateResolve\(false\)/);
+    // 新用户/没名片：跳一次 create 且不放行原动作
+    const cb = s.slice(s.indexOf('async function onLoginGateSuccess'));
+    expect(cb).toMatch(/if \(mustCreateCard\(result\)\)/);
+    expect(cb).toMatch(/uni\.reLaunch\(\{ url: '\/pages\/card\/create' \}\)/);
+    expect(cb.indexOf('if (mustCreateCard(result))')).toBeLessThan(cb.indexOf('if (onLoginSuccess)'));
+    // 成功回调：先原地重入 boot，再放行原动作（顺序不能反）
+    expect(cb).toMatch(/if \(onLoginSuccess\) await onLoginSuccess\(\);/);
+    expect(cb).toMatch(/if \(done\) done\(true\);/);
+    expect(cb.indexOf('if (onLoginSuccess) await onLoginSuccess();')).toBeLessThan(cb.indexOf('if (done) done(true);'));
+  });
+
+  it('浮层实现单点：LoginGateModal 走令牌（遮罩 --bg-mask、层级 --z-popup）', () => {
+    const s = read('../components/LoginGateModal.vue');
+    expect(s).toMatch(/background: var\(--bg-mask\);/);
+    expect(s).toMatch(/z-index: var\(--z-popup\);/);
+    expect(s).toMatch(/border-radius: var\(--radius-lg\);/);
+    expect(s).toMatch(/<LoginGate @success/);
+    // 滚动穿透防护：mask 与 sheet 成对出现
+    expect(s).toMatch(/class="lgm-mask"[^>]*@touchmove\.stop\.prevent/);
+    expect(s).toMatch(/class="lgm-sheet"[^>]*@touchmove\.stop/);
+    // dynamic 不得再留一份 lgmask 私有实现
+    const dyn = read('../pages/card/dynamic.vue');
+    expect(dyn).not.toMatch(/\.lgmask \{/);
   });
 
   it('发布/编辑：先过守卫，登录成功后**自动继续**（不用再点一次）', () => {
@@ -125,18 +147,7 @@ describe('登录：动态页原地化（#312-18b）', () => {
     expect(s).toMatch(/if \(!\(await requireLogin\(\)\)\) return;/);
   });
 
-  it('🔴 登录成功回调：原地重入 bootDynamic 后才放行 Promise（顺序不能反）', () => {
-    const s = read('../pages/card/dynamic.vue');
-    const cb = s.slice(s.indexOf('async function onLoginGateSuccess'));
-    expect(cb).toMatch(/await bootDynamic\(\);/);
-    expect(cb).toMatch(/if \(done\) done\(true\);/);
-    expect(cb.indexOf('await bootDynamic();')).toBeLessThan(cb.indexOf('if (done) done(true);'));
-    // 新用户/没名片：跳去建名片，且**不放行**原动作（落在空壳页没意义）
-    const untilBoot = cb.slice(0, cb.indexOf('await bootDynamic();'));
-    expect(untilBoot).toMatch(/if \(mustCreateCard\(result\)\)/);
-  });
-
-  it('取数流程抽成 bootDynamic，onMounted 与登录成功都调它（页面不销毁）', () => {
+  it('取数流程抽成 bootDynamic，onMounted 与登录成功（经守卫回调）都调它', () => {
     const s = read('../pages/card/dynamic.vue');
     expect(s).toMatch(/async function bootDynamic\(\) \{/);
     const onMounted = s.slice(s.indexOf('onMounted(async () => {'), s.indexOf('/\*\* 本页取数流程'));
@@ -151,16 +162,81 @@ describe('登录：动态页原地化（#312-18b）', () => {
     expect(onShow).toMatch(/if \(!hasCardToken\(\) && dynamics\.value\.length\) showLoginGate\.value = true;/);
     expect(onShow).not.toMatch(/uni\.reLaunch/);
   });
+});
 
-  it('浮层样式走令牌：遮罩 --bg-mask、层级 --z-popup（不新增裸 z-index 破 tokenAudit）', () => {
-    const s = read('../pages/card/dynamic.vue');
-    const css = s.slice(s.indexOf('.lgmask {'));
-    expect(css).toMatch(/background: var\(--bg-mask\);/);
-    expect(css).toMatch(/z-index: var\(--z-popup\);/);
-    expect(css).toMatch(/\.lgsheet \{/);
-    expect(css).toMatch(/border-radius: var\(--radius-lg\);/);
-    // 滚动穿透防护：mask 与 sheet 成对出现（否则点浮层会滚到后面的列表）
-    expect(s).toMatch(/class="lgmask"[^>]*@touchmove\.stop\.prevent/);
-    expect(s).toMatch(/class="lgsheet"[^>]*@touchmove\.stop/);
+/**
+ * 🔴 回归锁：#312-18c 老登录入口全量原地化
+ *
+ * 反馈：「为什么有时是原地登录白页，有时是蓝色品牌登录页？」——因为 myCard/dynamic 已原地化，
+ * 而个人中心/编辑页等 8 处老入口还跳 pages/cardMain/login（manual=1），两套并存。
+ * 本组钉死：这些页面一律消费共享基建（useInlineLogin + LoginGateModal），
+ * 不得再出现任何「跳登录页」的写法；蓝页只剩冷启动首页一闪这一条路。
+ */
+describe('登录：老入口全量原地化（#312-18c）', () => {
+  const PAGES = [
+    'profile.vue', 'worksEdit.vue', 'displaySettings.vue', 'videosEdit.vue',
+    'member.vue', 'create.vue', 'needTagsEdit.vue', 'cardDetail.vue', 'myCard.vue', 'dynamic.vue',
+  ];
+
+  it('🔴 card 包全部页面零登录跳转：loginEntryUrl / 蓝页路径一个不许剩', () => {
+    for (const p of PAGES) {
+      const s = read(`../pages/card/${p}`);
+      expect(s, `${p} 不得再引用 loginEntry`).not.toMatch(/loginEntryUrl|LOGIN_PATH/);
+      expect(s, `${p} 不得出现蓝页路径`).not.toMatch(/cardMain\/login/);
+    }
+  });
+
+  it('全部消费同一份共享基建（组件 + 守卫），禁再抄内联浮层', () => {
+    // myCard 例外：它的未登录态是**整页空态**里内联 LoginGate（18 轮设计，非弹层），登出原地重入见下
+    for (const p of PAGES.filter((x) => x !== 'myCard.vue')) {
+      const s = read(`../pages/card/${p}`);
+      expect(s, `${p} 应挂 LoginGateModal`).toMatch(
+        new RegExp(`<LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />`)
+      );
+      expect(s, `${p} 应解构 useInlineLogin`).toMatch(/useInlineLogin\(/);
+      expect(s, `${p} 不得有私有 lgmask 实现`).not.toMatch(/\.lgmask \{/);
+    }
+    // myCard：内联 LoginGate + 登出原地重入
+    const my = read('../pages/card/myCard.vue');
+    expect(my).toMatch(/<LoginGate @success="onInlineLogin" \/>/);
+    expect(my).toMatch(/async function bootOwner\(\)/);
+  });
+
+  it('动作守卫一律 await requireLogin()（登录成功自动继续，禁同步 return true/false 老形态）', () => {
+    expect(read('../pages/card/cardDetail.vue')).toMatch(/async function toggleLike\(d\) \{\s*if \(!\(await requireLogin\(\)\)\) return;/);
+    expect(read('../pages/card/cardDetail.vue')).toMatch(/async function openComments\(d\) \{\s*if \(!\(await requireLogin\(\)\)\) return;/);
+    expect(read('../pages/card/cardDetail.vue')).toMatch(/if \(!\(await requireLogin\(\)\)\) return;/);
+    expect(read('../pages/card/member.vue')).toMatch(/if \(!userInfo\.id && !\(await requireLogin\(\)\)\) return;/);
+    expect(read('../pages/card/profile.vue')).toMatch(/async function openEdit\(\) \{\s*if \(!\(await requireLogin\(\)\)\) return;/);
+  });
+
+  it('页面级门禁（worksEdit/displaySettings/videosEdit/create/needTagsEdit）改为当页浮层 + 原地 boot', () => {
+    for (const p of ['worksEdit.vue', 'videosEdit.vue', 'needTagsEdit.vue']) {
+      const s = read(`../pages/card/${p}`);
+      expect(s, `${p} 门禁判据保留（card_user.id 或 token）`).toMatch(
+        /const needLogin = !me\.id && !uni\.getStorageSync\('card_token'\);\s*if \(needLogin && !\(await requireLogin\(\)\)\) return;\s*load\(\);/
+      );
+    }
+    expect(read('../pages/card/displaySettings.vue')).toMatch(/const needLogin = !me\.id && !uni\.getStorageSync\('card_token'\);\s*if \(needLogin && !\(await requireLogin\(\)\)\) return;\s*load\(\);/);
+    expect(read('../pages/card/create.vue')).toMatch(/const needLogin = !cachedMe\.id && !uni\.getStorageSync\('card_token'\);\s*if \(needLogin && !\(await requireLogin\(\)\)\) return;/);
+  });
+
+  it('profile：登录菜单当页弹层 + 登录成功原地刷新；退出登录原地翻态（不再 reLaunch 蓝页）', () => {
+    const s = read('../pages/card/profile.vue');
+    expect(s).toMatch(/function goLogin\(\) \{\s*requireLogin\(\);\s*\}/);
+    expect(s).toMatch(/useInlineLogin\(onAfterLogin\)/);
+    expect(s).toMatch(/async function onAfterLogin\(\) \{\s*loggedIn\.value = hasCardToken\(\);\s*await loadProfile\(\);/);
+    // logout：清凭证后原地翻回未登录态（loggedIn=false + 数据清零），不跳任何页
+    const out = s.slice(s.indexOf('function logout()'));
+    expect(out).toMatch(/loggedIn\.value = false;/);
+    expect(out).not.toMatch(/uni\.reLaunch/);
+  });
+
+  it('myCard：退出平台同样原地重入 bootOwner（不再 reLaunch 蓝页）', () => {
+    const s = read('../pages/card/myCard.vue');
+    const leave = s.slice(s.indexOf('function leaveTenant()'));
+    expect(leave).toMatch(/notLogin\.value = true;/);
+    expect(leave).toMatch(/bootOwner\(\);/);
+    expect(leave).not.toMatch(/uni\.reLaunch/);
   });
 });

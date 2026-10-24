@@ -223,13 +223,8 @@
 
     <!-- 🔴 #312-18b 登录原地化：未登录不再 reLaunch 到登录页（去+回两次跳转、页面栈清空），
          改为当页弹登录浮层；发布/编辑这类动作等登录成功后自动继续，用户不用再点一遍。 -->
-    <view class="lgmask" v-if="showLoginGate" @click="cancelLogin" @touchmove.stop.prevent="noopScroll">
-      <view class="lgsheet" @click.stop @touchmove.stop="noopScroll">
-        <view class="lgsheet-title">登录后继续</view>
-        <LoginGate @success="onLoginGateSuccess" />
-        <view class="lgsheet-close" @click="cancelLogin">暂不登录</view>
-      </view>
-    </view>
+    <!-- 🔴 #312-18c 浮层收编到共享组件（样式/滚动穿透/文案单点实现，禁各页再抄一份） -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -242,8 +237,8 @@ import { cardApi, hasCardToken } from '../../utils/cardApi.js';
 // 🔴 #312-18b 登录原地化：登录请求统一走 utils/inlineLogin.js（与登录页、我的名片共用一份）。
 //   历史坑（#312-11）：本页曾硬编码 '/pages/card/login'——该页从未存在，reLaunch 到不存在的
 //   路径是**静默失败**（只 toast 不跳转）。现在不再跳转，这条风险一并消失。
-import { mustCreateCard } from '../../utils/inlineLogin.js';
-import LoginGate from '../../components/LoginGate.vue';
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { useInlineLogin } from '../../utils/loginGate.js';
 // 🔴 #312-9：absUrl 收敛到 apiBase.js 单一实现（原来 dynamic/cardDetail 各写一份，
 //    新增的 profile/myCard/create 也需要 → 五份必然漂移）
 import { absUrl } from '../../utils/apiBase.js';
@@ -331,34 +326,9 @@ watch([linkOpen, refOpen, schedEnabled], resetSheetScroll, { flush: 'post' });
  * 而且**动作被打断**：用户点「发布」被弹走，登录完回到本页还得再点一次「发布」。
  * 新实现返回 Promise：调用方 `if (!(await requireLogin())) return;` 即可在登录成功后
  * **继续执行原动作**，用户只点了一次。
+ * 🔴 #312-18c 守卫与浮层实现收编到共享的 useInlineLogin / LoginGateModal（本页只传 boot 回调）。
  */
-const showLoginGate = ref(false);
-let gateResolve = null;
-function requireLogin() {
-  if (hasCardToken()) return Promise.resolve(true);
-  showLoginGate.value = true;
-  return new Promise((resolve) => { gateResolve = resolve; });
-}
-function cancelLogin() {
-  showLoginGate.value = false;
-  if (gateResolve) {
-    gateResolve(false);
-    gateResolve = null;
-  }
-}
-async function onLoginGateSuccess(result) {
-  showLoginGate.value = false;
-  const done = gateResolve;
-  gateResolve = null;
-  if (mustCreateCard(result)) {
-    // 新用户/没名片：必须先建名片，动态页对他是个空壳
-    uni.reLaunch({ url: '/pages/card/create' });
-    if (done) done(false);
-    return;
-  }
-  await bootDynamic();   // 原地重入：页面不销毁，自己再拉一遍数据
-  if (done) done(true);  // 放行：发布/编辑等动作继续执行
-}
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin(() => bootDynamic());
 /**
  * 🔴 反馈 #312-7-2「发布新动态，会把最后一条动态的内容带到新页面」：
  * 根因是 closePublish 只清了开关类状态（定时/展开态），**没清表单内容**——
@@ -1255,38 +1225,5 @@ async function publish() {
   font-size: 30rpx;
   font-weight: 600;
 }
-/* 🔴 #312-18b 页面内登录浮层（替代「跳登录页→再跳回来」的两次跳转）。
-   - 居中白卡，与发布弹窗（底部 sheet）区分开：登录是**一次性阻断**，不该像表单那样从底部升起
-   - 遮罩走 --bg-mask 令牌（不是 rgba 字面量——rgba 计数会破 tokenAudit 基线）
-   - z-index 复用 --z-popup（全屏弹窗层）：本页 .modal-mask 用的是裸 999，历史遗留不动它，
-     但新写的浮层一律走令牌，避免再添一个裸值
-   - 普通块级堆叠、不给 lgsheet 设 max-height：内容就三行，定高反而引入 MP 端高度分配的老问题 */
-.lgmask {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: var(--bg-mask);
-  z-index: var(--z-popup);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.lgsheet {
-  width: 560rpx;
-  box-sizing: border-box;
-  background: var(--white);
-  border-radius: var(--radius-lg);
-  padding: 48rpx 32rpx 32rpx;
-}
-.lgsheet-title {
-  font-size: var(--fs-6);
-  font-weight: 600;
-  color: var(--t1);
-  text-align: center;
-}
-.lgsheet-close {
-  margin-top: 24rpx;
-  text-align: center;
-  font-size: var(--fs-3);
-  color: var(--t3);
-}
+/* 登录浮层样式在共享的 components/LoginGateModal.vue（#312-18c 收编，本页不再留副本） */
 </style>

@@ -40,15 +40,15 @@ describe('1a 登录守卫：本页原地登录，不再跳登录页', () => {
     const s = dyn();
     expect(s).not.toMatch(/url: '\/pages\/card\/login'/);
     expect(s).not.toMatch(/loginEntryUrl\(LOGIN_PATH/);
-    // 页内唯一保留的跳转：新用户/没名片 → 去建名片
-    expect(s).toMatch(/uni\.reLaunch\(\{ url: '\/pages\/card\/create' \}\)/);
+    // 「去建名片」的跳转也在共享守卫里（utils/loginGate.js 的 mustCreateCard 分支），本页不再手写
   });
 
-  test('未登录放登录浮层（LoginGate），登录成功原地重入取数', () => {
+  test('未登录放登录浮层（共享 LoginGateModal），登录成功原地重入取数', () => {
     const s = dyn();
-    expect(s).toMatch(/const showLoginGate = ref\(false\);/);
-    expect(s).toMatch(/<LoginGate @success="onLoginGateSuccess" \/>/);
-    expect(s).toMatch(/await bootDynamic\(\);/);
+    // 🔴 #312-18c：守卫/浮层收编共享基建，本页只传 boot 回调
+    expect(s).toMatch(/useInlineLogin\(\(\) => bootDynamic\(\)\)/);
+    expect(s).toMatch(/<LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" \/>/);
+    expect(s).toMatch(/async function bootDynamic\(\) \{/);
   });
 
   test('登录页真实路径是 /pages/cardMain/login（pages.json 第一个页面）', () => {
@@ -73,11 +73,15 @@ describe('1b 个人中心：退出登录按登录态显示', () => {
     expect(s).toMatch(/onShow\(\(\) => \{[\s\S]*?loggedIn\.value = hasCardToken\(\);/);
   });
 
-  test('goLogin 带 manual=1 + 回跳（防冷启动联动弹走）；logout 加 token 双保险', () => {
+  test('🔴 goLogin 当页弹浮层（#312-18c 不再跳登录页）；logout 加 token 双保险 + 原地翻态', () => {
     const s = prof();
-    expect(s).toMatch(/function goLogin\(\) \{\s*uni\.reLaunch\(\{ url: loginEntryUrl\(LOGIN_PATH, '\/pages\/card\/profile'\) \}\);\s*\}/);
+    expect(s).toMatch(/function goLogin\(\) \{\s*requireLogin\(\);\s*\}/);
     // src() 已剥注释，只钉语义：logout 第一件事就是 token 守卫
     expect(s).toMatch(/function logout\(\) \{\s*if \(!hasCardToken\(\)\) return;/);
+    // 退出后原地翻回未登录态（不再 reLaunch 蓝色登录页）
+    const out = s.slice(s.indexOf('function logout()'));
+    expect(out).toMatch(/loggedIn\.value = false;/);
+    expect(out).not.toMatch(/uni\.reLaunch/);
   });
 });
 

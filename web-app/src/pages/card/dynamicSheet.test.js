@@ -166,12 +166,14 @@ describe('⑥ 上传图片 URL 补全（/uploads/ 相对路径在 MP 显示空�
  *    （老实现登录完回来还要再点一次发布，这是用户抱怨「跳两次页面」的另一半）。
  */
 describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验证是否已登录）', () => {
-  test('🔴 守卫返回 Promise（requireLogin），已登录直接放行', () => {
+  test('🔴 守卫返回 Promise（requireLogin），已登录直接放行（#312-18c 收编到共享 loginGate.js）', () => {
     const s = src();
     expect(s).toMatch(/import \{ cardApi, hasCardToken \} from '\.\.\/\.\.\/utils\/cardApi\.js';/);
-    expect(s).toMatch(/function requireLogin\(\) \{/);
-    expect(s).toMatch(/if \(hasCardToken\(\)\) return Promise\.resolve\(true\);/);
-    expect(s).toMatch(/return new Promise\(\(resolve\) => \{ gateResolve = resolve; \}\);/);
+    // 守卫实现单点在 utils/loginGate.js；dynamic 只消费
+    const g = read('../../utils/loginGate.js');
+    expect(g).toMatch(/if \(hasCardToken\(\)\) return Promise\.resolve\(true\);/);
+    expect(g).toMatch(/return new Promise\(\(resolve\) => \{ gateResolve = resolve; \}\);/);
+    expect(s).toMatch(/useInlineLogin\(\(\) => bootDynamic\(\)\)/);
     // 反向钉死：不再跳登录页（#312-18b 原地化；原来的 loginEntryUrl 路径已废弃）
     expect(s).not.toMatch(/function ensureLogin/);
     expect(s).not.toMatch(/url: '\/pages\/card\/login'/);
