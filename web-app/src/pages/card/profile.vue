@@ -128,6 +128,8 @@
          active 留空：默认导航四键（名片/雷达/集市/会员）不含本页，不硬造高亮；
          设计配置模式下 CardTabBar 按路由匹配自动高亮。 -->
     <CardTabBar />
+    <!-- 🔴 #312-18c 页面内原地登录：「登录」菜单/编辑守卫都当页弹浮层，不再跳登录页 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -141,7 +143,8 @@ import { cardApi, hasCardToken } from '../../utils/cardApi.js';
 // 🔴 #312-9：头像存的是 /uploads/ 相对路径，MP 端必须补域名（与个人中心同一份实现）
 import { absUrl } from '../../utils/apiBase.js';
 import { trackPageView } from '../../utils/analytics.js';
-import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { useInlineLogin } from '../../utils/loginGate.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme } from '../../utils/design.js';
@@ -209,15 +212,15 @@ function goPage(path) {
   uni.navigateTo({ url: path });
 }
 
-/** 未登录态的「登录」菜单项：引导去登录页（manual=1 防冷启动联动弹走，登录后回跳本页） */
+/** 未登录态的「登录」菜单项：当页弹浮层（#312-18c 不再跳登录页），成功后由 onAfterLogin 原地刷新 */
 function goLogin() {
-  uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/profile') });
+  requireLogin();
 }
 
 // 编辑名片：带 id 进编辑态（单页平铺全部资料）。
 // onMounted 尚未拉到 profile 时会走懒加载补取；确实还没有名片才回落新建（走三步向导）。
 async function goEditCard() {
-  if (!hasCardToken()) return guideLogin();
+  if (!(await requireLogin())) return;
   if (!myCardId.value) {
     try {
       const res = await cardApi.getProfile();
@@ -236,25 +239,17 @@ const editForm = ref({ nickname: '', avatar: '', avatarTemp: '' });
 const editAvatarError = ref(false);
 watch(() => editForm.value && editForm.value.avatar, () => { editAvatarError.value = false; });
 
-// 未登录入口守卫（2026-10-18 报修：游客能一路编辑头像/昵称到「保存」才被后端 401 弹
-// 「未登录」——apiClient 对无 token 的 401 按游客模式只降级不跳登录，属有意设计，
-// 所以编辑入口必须在本页自行拦截）。
-function guideLogin() {
-  uni.showModal({
-    title: '尚未登录',
-    content: '登录后才能编辑头像和昵称',
-    confirmText: '去登录',
-    success: (r) => {
-      if (r.confirm) {
-        // manual=1 让登录页冷启动联动让路；redirect 登录成功后回跳本页
-        uni.navigateTo({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/profile') });
-      }
-    },
-  });
+// 🔴 #312-18c 原地登录（替代老 guideLogin 的 showModal + 跳登录页）：
+// 「登录」菜单 / 编辑资料守卫共用一份浮层；登录成功后原地刷新本页数据（onAfterLogin），
+// 被拦下的动作（goEditCard/openEdit/saveProfile）经 Promise 放行自动继续，不用再点一次。
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin(onAfterLogin);
+async function onAfterLogin() {
+  loggedIn.value = hasCardToken();
+  await loadProfile();
 }
 
-function openEdit() {
-  if (!hasCardToken()) return guideLogin();
+async function openEdit() {
+  if (!(await requireLogin())) return;
   editForm.value = { nickname: user.value.nickname || '', avatar: user.value.avatar || '', avatarTemp: '' };
   showEdit.value = true;
 }
@@ -282,10 +277,11 @@ function h5ChooseAvatar() {
 
 async function saveProfile() {
   if (saving.value) return;
-  // 双保险：弹层开着时 token 被清（如他页 401 清凭证）→ 关弹层引导登录，而不是让后端报「未登录」
-  if (!hasCardToken()) {
+  // 双保险：弹层开着时 token 被清（如他页 401 清凭证）→ 登录浮层原地接管，
+  // 登录成功后 requireLogin 放行，保存动作自动继续（不用重新打开弹层再点一次）
+  if (!(await requireLogin())) {
     closeEdit();
-    return guideLogin();
+    return;
   }
   const nickname = (editForm.value.nickname || '').trim();
   if (!nickname) return uni.showToast({ title: '请填写昵称', icon: 'none' });
@@ -334,8 +330,13 @@ function logout() {
       if (res.confirm) {
         uni.removeStorageSync('card_token');
         uni.removeStorageSync('card_user');
-        // manual=1：登录页同时是冷启动首页，不带这个标记会被 onShow 的首页联动立刻弹走
-        uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH) });
+        // 🔴 #312-18c：退出后不再 reLaunch 登录页（蓝色品牌页是冷启动首页兼任的，
+        // 被踢出去很突兀）——原地翻回未登录态，菜单自动从「退出登录」切成「登录」
+        loggedIn.value = false;
+        user.value = {};
+        stats.value = { cardCount: 0, visitorCount: 0, customerCount: 0, exchangeCount: 0 };
+        myCardId.value = null;
+        uni.showToast({ title: '已退出登录', icon: 'success' });
       }
     },
   });

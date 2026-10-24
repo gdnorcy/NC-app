@@ -177,6 +177,8 @@
       </view>
       <view class="wk-help-btn" @click="closeHelp">知道了</view>
     </view>
+    <!-- 🔴 #312-18c 页面内原地登录：未登录不再跳登录页，当页弹浮层（useInlineLogin 提供开关与回调） -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -184,7 +186,10 @@
 import PageNav from '../../components/PageNav.vue';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
-import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { useInlineLogin } from '../../utils/loginGate.js';
+// 🔴 #312-18c 原地登录守卫：requireLogin 返回 Promise，登录成功自动继续被拦下的动作
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin();
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
 const themeStyle = useDesignTheme();
@@ -491,15 +496,12 @@ function saveMeta(v) {
 
 function reloadPage() { load(); }
 
-onMounted(() => {
-  // 登录门禁：与 worksEdit 同款（未登录跳登录并回跳本页）
-  const pages = getCurrentPages();
-  const opts = (pages[pages.length - 1] || {}).options || {};
+onMounted(async () => {
+  // 🔴 #312-18c 登录门禁：判据与老版一致（card_user.id 或 token 任一即放行），
+  //   但未登录不再 redirectTo 登录页——当页弹浮层，登录成功后原地继续 load()
   const me = uni.getStorageSync('card_user') || {};
-  if (!me.id && !uni.getStorageSync('card_token')) {
-    uni.redirectTo({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/videosEdit' + (opts.id ? `?id=${opts.id}` : '')) });
-    return;
-  }
+  const needLogin = !me.id && !uni.getStorageSync('card_token');
+  if (needLogin && !(await requireLogin())) return;
   load();
 });
 </script>

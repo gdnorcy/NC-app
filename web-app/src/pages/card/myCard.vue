@@ -247,7 +247,6 @@ import { track, trackPageView } from '../../utils/analytics.js';
 import { shadeHex, brandPalette } from '../../utils/color.js';
 import { heroForeground } from '../../utils/templateTheme.js';
 import { POSTER_STYLES, drawPosterByStyle } from './posterStyles.js';
-import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
 // 🔴 #312-18 原地登录：登录请求与登录页共用一份实现（utils/inlineLogin.js）
 import { mustCreateCard } from '../../utils/inlineLogin.js';
 import LoginGate from '../../components/LoginGate.vue';
@@ -494,7 +493,7 @@ function reloadPage() {
 }
 /**
  * 🔴 #312-18 原地登录成功回调：不跳页，直接在当前页重新走一遍进入流程。
- * 旧实现是 reLaunch 到 pages/cardMain/login → 登录完再 reLaunch 回本页，
+ * 旧实现是 reLaunch 到登录页 → 登录完再 reLaunch 回本页，
  * 「去、回」两次跳转，用户看着两个页面闪一遍。
  * 新用户/没名片的人必须去建名片（落到本页会是个空壳），这种情况才跳一次。
  */
@@ -961,7 +960,10 @@ function leaveTenant() {
       if (r.confirm) {
         uni.removeStorageSync('card_token');
         uni.removeStorageSync('card_user');
-        uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH) });
+        // 🔴 #312-18c：退出平台不再 reLaunch 登录页（蓝页是冷启动首页兼任的，被踢出去很突兀）
+        // ——原地翻回未登录态并重入 bootOwner（当页浮层登录，0 跳转）
+        notLogin.value = true;
+        bootOwner();
       }
     },
   });

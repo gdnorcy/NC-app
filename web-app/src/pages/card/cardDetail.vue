@@ -486,6 +486,8 @@
     <!-- #ifdef MP-WEIXIN -->
     <canvas id="shareCoverCanvas" type="2d" class="share-cover-canvas"></canvas>
     <!-- #endif -->
+    <!-- 🔴 #312-18c 动作守卫改原地登录：点赞/评论/收藏未登录时当页弹浮层，登录成功自动继续原动作 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -502,7 +504,10 @@ import { absUrl } from '../../utils/apiBase.js';
 import { formatDynamicTime } from './utils/dynTime.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { heroGradient, brandPalette, hexLuma, shadeHex } from '../../utils/color.js';
-import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { useInlineLogin } from '../../utils/loginGate.js';
+// 🔴 #312-18c 原地登录守卫：requireLogin 返回 Promise，登录成功自动继续被拦下的动作
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin();
 import {
   parseTheme, heroBgStyle, heroTextStyle, heroText2Style, heroAccentStyle, heroForeground,
   heroBarTopStyle, heroTextureBg, heroLayoutClass, heroRadius, heroFontClass,
@@ -939,7 +944,7 @@ function previewDyn(d, k) {
 
 // ===== 动态互动：点赞 =====
 async function toggleLike(d) {
-  if (!ensureLogin()) return;
+  if (!(await requireLogin())) return;
   const prevLiked = d.likedByMe;
   const prevCount = d.likeCount || 0;
   d.likedByMe = !prevLiked;
@@ -958,7 +963,7 @@ async function toggleLike(d) {
 // ===== 动态互动：评论 =====
 const commentPanel = reactive({ show: false, dynamicId: null, list: [], count: 0, text: '', sending: false });
 async function openComments(d) {
-  if (!ensureLogin()) return;
+  if (!(await requireLogin())) return;
   commentPanel.dynamicId = d.id;
   commentPanel.count = d.commentCount || 0;
   commentPanel.show = true;
@@ -1072,16 +1077,8 @@ function goTemplateSelect() {
   uni.navigateTo({ url: `/pages/card/templateSelect?cardId=${card.value.id}` });
 }
 
-function ensureLogin() {
-  if (!uni.getStorageSync('card_token')) {
-    uni.showToast({ title: '请先登录', icon: 'none' });
-    // 与收藏同款：loginEntryUrl 必带 manual=1 + redirect 回跳本页（登录页兼任冷启动首页）
-    const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id || '';
-    uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, `/pages/card/cardDetail?id=${id}`) });
-    return false;
-  }
-  return true;
-}
+// 🔴 #312-18c：老 ensureLogin（toast + reLaunch 登录页）已删除——原地登录由
+// useInlineLogin 的 requireLogin 提供，调用方 `if (!(await requireLogin())) return;`。
 /**
  * 🔴 反馈 #312-8「发布时间是 9 个小时前，这个时间不对」：
  *   根因——服务端 created_at 是 SQLite `datetime('now')` 的 **UTC** 串，
@@ -1189,13 +1186,8 @@ function openVideoChannel() {
 async function toggleCollect() {
   const id = (getCurrentPages()[getCurrentPages().length - 1].options || {}).id;
   if (!id) return;
-  if (!uni.getStorageSync('card_token')) {
-    uni.showToast({ title: '请先登录后收藏', icon: 'none' });
-    // 走 loginEntryUrl：必带 manual=1（登录页同时是冷启动首页，不带会被 onShow 首页联动
-    // 立刻弹走，连登录按钮都点不到）+ redirect 回跳本页
-    uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, `/pages/card/cardDetail?id=${id}`) });
-    return;
-  }
+  // 🔴 #312-18c：未登录不再 toast+reLaunch 登录页——当页弹浮层，登录成功自动继续收藏
+  if (!(await requireLogin())) return;
   try {
     if (collected.value) {
       await cardApi.uncollectCard(id);
