@@ -877,6 +877,62 @@ export function createCardMarketRouter(db) {
     res.json({ success: true, message: '申请已提交，请等待管理员审核' });
   });
 
+  /**
+   * 员工凭企业口令自助加入企业（ENT######）
+   *
+   * 🔴 企业口令的设计意图从生成那一刻就存在（customer.js `/enterprise/invite-code`
+   *    生成/重置 + 后台企业仪表盘/设置两个展示位），但**兑换闭环一直没做**——
+   *    员工加入企业原来只有一条路：企业管理员在「企业员工」页从「未认证个人」池里添加。
+   *    本路由补齐自助加入，与后台添加落同两端、走同配额：
+   *      - platform_user.enterprise_id / enterprise_role='member'（后台员工管理读这端）
+   *      - tenant_enterprise_employees status='active'（名片身份判定读这端）
+   *      - employeeCount 方案配额；历史离职记录（left）复活而不是重复插
+   *    未落户租户的凭码一并落户（与入驻审核通过同行为：只填空、不覆盖），
+   *    已入驻其他客户项目的拒绝（跨租户不能拉人）。
+   */
+  router.post('/enterprise/join', (req, res) => {
+    const userId = currentUserId(req);
+    if (!userId) return res.status(401).json({ error: '未登录' });
+    const code = String((req.body || {}).inviteCode || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ error: '请输入企业口令' });
+    // 口令只按 tenant_enterprises.config.invite_code 精确匹配（JSON 解析，禁 LIKE 模糊匹配）
+    let ent = null;
+    for (const row of db.prepare("SELECT id, customer_id, name, status, config FROM tenant_enterprises WHERE status = 'active'").all()) {
+      try {
+        if (JSON.parse(row.config || '{}').invite_code === code) { ent = row; break; }
+      } catch (e) { /* 坏 JSON 跳过，不当成命中 */ }
+    }
+    if (!ent) return res.status(400).json({ error: '企业口令无效，请向企业管理员索取' });
+    // 租户生命周期/授权：到期冻结的租户不收新成员
+    const blocked = checkTenantAccess(db, ent.customer_id, 'card', 'mini');
+    if (blocked) return res.status(blocked.status || 403).json({ error: blocked.error || '该客户项目当前不可加入' });
+    const pu = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(userId);
+    if (!pu) return res.status(404).json({ error: '用户不存在' });
+    if (pu.enterprise_id) return res.status(400).json({ error: '你已加入企业，如需变更请联系企业管理员' });
+    if (pu.customer_id && pu.customer_id !== ent.customer_id) {
+      return res.status(400).json({ error: '你已入驻其他客户项目，不能加入该企业' });
+    }
+    // 企业员工人数配额（新体系 solution_quotas：card.employeeCount）
+    const eq = checkTenantSolutionQuota(db, ent.customer_id, 'card', 'employeeCount');
+    if (!eq.ok) return res.status(403).json({ error: `企业员工人数已达上限（${eq.used}/${eq.limit}），请联系企业管理员升级方案` });
+    // 姓名/职位取本人最新有效名片（与后台候选池同源），没有则回落昵称
+    const card = db.prepare("SELECT name, position FROM card_profile WHERE user_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1").get(userId);
+    db.prepare("UPDATE platform_user SET enterprise_id = ?, enterprise_role = 'member', customer_id = COALESCE(NULLIF(customer_id, ''), ?), updated_at = datetime('now') WHERE id = ?")
+      .run(ent.id, ent.customer_id, userId);
+    // 幂等：离职记录（status='left'）复活，不重复插（表上没有唯一约束，靠这里查重）
+    const exist = db.prepare('SELECT id FROM tenant_enterprise_employees WHERE enterprise_id = ? AND user_id = ?').get(ent.id, userId);
+    if (exist) {
+      db.prepare("UPDATE tenant_enterprise_employees SET status = 'active', role = 'member', name = ?, position = ?, updated_at = datetime('now') WHERE id = ?")
+        .run(card?.name || pu.nickname || '', card?.position || '', exist.id);
+    } else {
+      db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
+        VALUES (?, ?, ?, ?, ?, 'member', 'active')`)
+        .run(ent.id, ent.customer_id, userId, card?.name || pu.nickname || '', card?.position || '');
+    }
+    audit(db, req, 'enterprise_join', 'enterprise', ent.id, `凭企业口令加入企业「${ent.name}」`);
+    res.json({ ok: true, enterprise: { id: ent.id, name: ent.name } });
+  });
+
   // 入驻申请审核（租户管理员）：approve→active+绑定租户；reject→rejected
   router.post('/apply/audit', tenant, requireTenantAdmin, (req, res) => {
     const { type, id, action } = req.body; // type: individual/enterprise, action: approve/reject

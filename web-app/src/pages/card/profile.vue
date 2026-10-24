@@ -48,6 +48,13 @@
           <view class="menu-label">编辑名片</view>
           <view class="menu-arrow">›</view>
         </view>
+        <!-- 🔴 员工凭企业口令自助加入企业：企业口令（ENT######）后台可生成但长期没有兑换入口，
+             员工加入只能管理员从「未认证个人」池添加。仅未加入企业时显示这一项。 -->
+        <view v-if="loggedIn && !user.enterpriseId" class="menu-item" @click="goPage('/pages/card/joinEnterprise')">
+          <view class="menu-icon"><SIcon name="building" size="default" :color="ICON_T2" /></view>
+          <view class="menu-label">加入企业</view>
+          <view class="menu-arrow">›</view>
+        </view>
         <view class="menu-item" @click="goPage('/pages/card/distribution')">
           <view class="menu-icon"><SIcon name="wallet" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">分销中心</view>

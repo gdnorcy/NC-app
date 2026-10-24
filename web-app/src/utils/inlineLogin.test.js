@@ -176,6 +176,8 @@ describe('登录：老入口全量原地化（#312-18c）', () => {
   const PAGES = [
     'profile.vue', 'worksEdit.vue', 'displaySettings.vue', 'videosEdit.vue',
     'member.vue', 'create.vue', 'needTagsEdit.vue', 'cardDetail.vue', 'myCard.vue', 'dynamic.vue',
+    // #312-19：企业口令自助加入（新页面从第一版起就按共享基建写，不重复造浮层）
+    'joinEnterprise.vue',
   ];
 
   it('🔴 card 包全部页面零登录跳转：loginEntryUrl / 蓝页路径一个不许剩', () => {

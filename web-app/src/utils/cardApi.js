@@ -361,6 +361,8 @@ export const cardApi = {
     });
   }),
   getMyEnterprise: () => request(MARKET_BASE_URL + '/enterprise/my-data'),
+  // 🔴 员工凭企业口令（ENT######）自助加入企业：闭环补齐，原来只能管理员从池添加
+  joinEnterprise: (inviteCode) => request(MARKET_BASE_URL + '/enterprise/join', 'POST', { inviteCode }),
 
   // 公海池
   getPublicPool: () => request(MARKET_BASE_URL + '/public-pool'),
