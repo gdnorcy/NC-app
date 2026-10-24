@@ -95,6 +95,11 @@
             <view class="check"><SIcon name="badge" size="small" :color="themeColor" /></view>
             <text>名片模板 {{ Math.round(p.discount * 10) }} 折</text>
           </view>
+          <!-- 第20轮：含集市场席的套餐，仅在租户 purchase 模式展示（code 模式走口令，买了也不自动入场） -->
+          <view class="pf" v-if="p.market_subject === 1 && joinMode === 'purchase'">
+            <view class="check"><SIcon name="badge" size="small" :color="themeColor" /></view>
+            <text>含集市入驻资格——购买后自动入驻{{ tenantName || '本租户' }}，可上架至名片集市</text>
+          </view>
         </view>
         <view v-if="isCurrent(p.level) || p.level === 'free'" class="btn on" @click="p.level !== 'free' && openMember(p)">当前套餐</view>
         <view v-else class="btn buy" @click="openMember(p)">立即开通</view>
@@ -123,6 +128,8 @@ const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInli
 import { heroGradient, brandPalette } from '../../utils/color.js';
 import { trackPageView } from '../../utils/analytics.js';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
+import { getTid } from '../../utils/mallUtil.js';
+import { getIndividualJoinMode, getChannelTenantName } from './utils/joinMode.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { navVarsStyle } from '../../utils/navMetrics.js';
@@ -157,6 +164,9 @@ const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText:
 const heroInk = computed(() => heroStyle.value.color);
 const heroStyle = computed(() => heroBrandStyle(brand.value, 'linear-gradient(155deg, var(--design-primary, #165dff), var(--design-gradient, #4080ff))'));
 const paying = ref(false);
+// 第20轮：租户个人入驻双模 + 渠道租户名（套餐权益行/购买成功文案消费）
+const joinMode = computed(() => getIndividualJoinMode());
+const tenantName = computed(() => getChannelTenantName());
 
 // 会员卡背景：等级背景色 → 默认蓝渐变
 const cardBg = computed(() => {
@@ -351,9 +361,13 @@ async function openMember(pkg) {
 
   try {
     const userInfo = uni.getStorageSync('card_user') || {};
+    // 🔴 归属修复（第20轮）：原来 customerId 传 enterpriseId || 1——个人用户全被记到租户1，
+    //    钱进错租户、赠错场席。现在以渠道租户上下文（mall_tid/channel_config）为准，
+    //    取不到再回落账号企业绑定；都没有则不传，由服务端 comboAuth 兜底解析。
+    const tid = getTid() || userInfo.enterpriseId || '';
     const orderRes = await paymentApi.createOrder({
       payerType: 'tenant',
-      customerId: userInfo.enterpriseId || 1,
+      ...(tid ? { customerId: Number(tid) } : {}),
       userId: userInfo.id || 0,
       solution: 'card',
       productType: 'member',
@@ -395,6 +409,10 @@ async function openMember(pkg) {
           isMember.value = memberRes.isMember;
           memberLevel.value = memberRes.level;
           memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
+          // 第20轮：purchase 模式购买含场席套餐且授予成功 → 补一句场席说明
+          if (memberRes.marketSubject && memberRes.marketSubject.hasSeat) {
+            uni.showToast({ title: `已开通会员，并获得${tenantName.value || '本租户'}集市场席`, icon: 'none' });
+          }
         } catch (e) {}
       }, 500);
     } catch (e) {

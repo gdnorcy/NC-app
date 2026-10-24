@@ -188,9 +188,13 @@ describe('displaySettings.vue 开关联动', () => {
     expect(dsSrc).toMatch(/await syncMarket\(val\)/);
   });
 
-  test('无主体时回滚 is_public=false + 明确 toast（开关不说空话）', () => {
+  test('无主体时回滚 is_public=false + 双模引导话术（第20轮：purchase=去开通 / code=输口令）', () => {
     expect(dsSrc).toMatch(/await rollbackPublic\(false\)/);
-    expect(dsSrc).toMatch(/完成认证后才能上架集市/);
+    expect(dsSrc).toMatch(/开通会员套餐即可上架至名片集市/);
+    expect(dsSrc).toMatch(/入驻后可上架至名片集市，请向管理员获取入驻口令/);
+    // 两条引导都要落到动作：member 页 / 口令浮层
+    expect(dsSrc).toMatch(/\/pages\/card\/member/);
+    expect(dsSrc).toMatch(/showInviteSheet\.value = true/);
   });
 
   test('manual 审核模式 toast「已提交上架申请，等待审核」', () => {

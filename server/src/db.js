@@ -1350,6 +1350,13 @@ function migrate(db) {
   try { db.exec('ALTER TABLE member_package ADD COLUMN group_limit INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
   try { db.exec('ALTER TABLE member_package ADD COLUMN lead_quota INTEGER NOT NULL DEFAULT 0'); } catch (e) {} // 留资配额 0=不限（方案占位 50，运营确认后改后台套餐配置）
   try { db.exec('ALTER TABLE member_package ADD COLUMN push_quota INTEGER NOT NULL DEFAULT 0'); } catch (e) {} // 推送配额 0=不限（方案占位 100，阶段D联调消费）
+  // 集市场席开关（第20轮三层身份：购买会员套餐=获得集市场席）。0=不含 / 1=含。
+  // 仅在租户 individualJoinMode='purchase' 时生效；默认 code 模式下本列无行为影响。
+  try {
+    db.exec('ALTER TABLE member_package ADD COLUMN market_subject INTEGER NOT NULL DEFAULT 0');
+    // 首列种子：存量付费套餐默认含场席（产品模型「购买=认证」），免费版不含；后台可逐套餐改。
+    db.prepare('UPDATE member_package SET market_subject = 1 WHERE price > 0').run();
+  } catch (e) {}
 
   // features 枚举迁移（VIP权益扩展：修订五——silver 加 ai_report；gold 加 ai_report,ai_words,quota_lead；diamond 加全部+enterprise；幂等去重）
   // 配额数值迁移（占位值：gold/diamond 留资 50；diamond 推送 100；运营确认后可后台改，不硬编码）
@@ -1909,6 +1916,12 @@ function migrate(db) {
   if (!colExists(db, 'tenant_individuals', 'company')) {
     db.exec("ALTER TABLE tenant_individuals ADD COLUMN company TEXT NOT NULL DEFAULT ''");
   }
+  // —— tenant_individuals表加 source 字段（第20轮三层身份）——
+  //   'code'=口令+审核入驻（存量行默认值）；'purchase'=购买会员套餐自助获得。
+  //   集市资格判据：active 主体且 (source!='purchase' || 会员有效)；会员过期时 purchase 行懒铲除。
+  if (!colExists(db, 'tenant_individuals', 'source')) {
+    db.exec("ALTER TABLE tenant_individuals ADD COLUMN source TEXT NOT NULL DEFAULT 'code'");
+  }
 
   // —— projects表加 invite_code 字段（入驻口令）——
   if (!colExists(db, 'projects', 'invite_code')) {
@@ -2216,6 +2229,11 @@ function migrate(db) {
   // card_market_settings 补 banners（集市广告轮播 JSON:[{image,link}]）
   if (!colExists(db, 'card_market_settings', 'banners')) {
     db.exec("ALTER TABLE card_market_settings ADD COLUMN banners TEXT NOT NULL DEFAULT '[]'");
+  }
+  // card_market_settings 补 individual_join_mode（第20轮三层身份：个人入驻双模开关）
+  //   'code'=口令+审核（默认，存量行为）；'purchase'=购买会员套餐自助获得场席
+  if (!colExists(db, 'card_market_settings', 'individual_join_mode')) {
+    db.exec("ALTER TABLE card_market_settings ADD COLUMN individual_join_mode TEXT NOT NULL DEFAULT 'code'");
   }
 
   // —— 全端渠道 channel_apps 补列（租户小程序参数 + 审核链，幂等） ——

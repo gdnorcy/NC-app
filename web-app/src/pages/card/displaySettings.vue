@@ -42,6 +42,16 @@
     </view>
     <!-- 🔴 #312-18c 页面内原地登录：未登录不再跳登录页，当页弹浮层（useInlineLogin 提供开关与回调） -->
     <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
+
+    <!-- 第20轮：无主体引导——输入项目口令发起入驻申请（code 模式；已有名片不重复建卡） -->
+    <view v-if="showInviteSheet" class="ds-mask" @click="closeInviteSheet">
+      <view class="ds-sheet" @click.stop>
+        <view class="ds-sheet-title">输入入驻口令</view>
+        <view class="ds-sheet-sub">口令由管理员提供，提交后等待审核，通过后可上架至名片集市</view>
+        <input class="ds-sheet-input" v-model="inviteCode" placeholder="请输入入驻口令" placeholder-class="ph" maxlength="12" />
+        <view class="ds-sheet-btn" :class="{ busy: inviteBusy }" @click="submitInvite">{{ inviteBusy ? '提交中…' : '提交申请' }}</view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -52,6 +62,7 @@ import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { syncMarketWithIsPublic } from './utils/marketLink.js';
+import { getIndividualJoinMode } from './utils/joinMode.js';
 import LoginGateModal from '../../components/LoginGateModal.vue';
 import { useInlineLogin } from '../../utils/loginGate.js';
 // 🔴 #312-18c 原地登录守卫：requireLogin 返回 Promise，登录成功自动继续被拦下的动作
@@ -68,6 +79,12 @@ const isPublic = ref(true);
 const currentTemplateName = ref('加载中…');
 const loadFailed = ref(false);
 const loadFailedMsg = ref('加载失败，请检查网络后重试');
+// 第20轮：无主体时按租户双模给出两条引导（purchase=去开通会员 / code=输入口令）
+const cardName = ref('');
+const cardPhone = ref('');
+const showInviteSheet = ref(false);
+const inviteCode = ref('');
+const inviteBusy = ref(false);
 
 // 无显式 id 时按本人名片兜底（与 myCard 同款，绝不能用 cardLastViewId——可能是他人名片）
 async function resolveCardId() {
@@ -93,6 +110,8 @@ async function load() {
     if (cardRes.status !== 'fulfilled') throw cardRes.reason;
     const card = cardRes.value.card;
     isPublic.value = !!card.isPublic;
+    cardName.value = card.name || '';
+    cardPhone.value = card.phone || '';
     // 存量自愈：旧版开关只写 is_public、从不建 card_market_items → 存在一大批
     // 「开着开关却从未上架」的存量数据（真机表现：myCard 集市状态一直「未上架」）。
     // 本页加载时按同款联动逻辑补建一次（幂等，只补「开着但没上架」这一个方向）。
@@ -147,10 +166,27 @@ async function onPublicChange(e) {
 async function syncMarket(val) {
   const r = await syncMarketWithIsPublic(cardApi, val);
   if (r.reason === 'no-subject') {
-    // 无 active 主体（未认证/审核中）：开方向无法兑现承诺 → 回滚 is_public，开关保持关
+    // 无 active 主体（未入驻/审核中）：开方向无法兑现承诺 → 回滚 is_public，开关保持关。
+    // 第20轮：按租户双模给两条路——purchase 引导买会员（买即入场），code 引导输口令。
     if (val) {
       await rollbackPublic(false);
-      uni.showToast({ title: '完成认证后才能上架集市', icon: 'none' });
+      if (getIndividualJoinMode() === 'purchase') {
+        uni.showModal({
+          title: '上架名片集市',
+          content: '开通会员套餐即可上架至名片集市',
+          confirmText: '去开通',
+          cancelText: '稍后再说',
+          success: (m) => { if (m.confirm) uni.navigateTo({ url: '/pages/card/member' }); },
+        });
+      } else {
+        uni.showModal({
+          title: '上架名片集市',
+          content: '入驻后可上架至名片集市，请向管理员获取入驻口令',
+          confirmText: '输入口令',
+          cancelText: '稍后再说',
+          success: (m) => { if (m.confirm) showInviteSheet.value = true; },
+        });
+      }
     }
     // 关方向无记录可下架，is_public 已保存即可
     return;
@@ -179,9 +215,15 @@ async function healMarketLink() {
     return;
   }
   if (r.reason === 'no-subject') {
-    // 存量「开着但从未上架」且无 active 主体（未认证/审核中）→ 回滚成关并说明原因
+    // 存量「开着但从未上架」且无 active 主体（未入驻/审核中）→ 回滚成关并说明原因。
+    // 第20轮：加载时的静默自愈不弹模态（惊扰），按双模给一句轻 toast。
     await rollbackPublic(false);
-    uni.showToast({ title: '完成认证后才能上架集市', icon: 'none' });
+    uni.showToast({
+      title: getIndividualJoinMode() === 'purchase'
+        ? '开通会员套餐即可上架至名片集市'
+        : '入驻后可上架至名片集市，请向管理员获取入驻口令',
+      icon: 'none',
+    });
     return;
   }
   if (!r.ok && !r.soft) {
@@ -197,6 +239,38 @@ async function rollbackPublic(v) {
     try { await cardApi.updateCard(cardId.value, { isPublic: v }); } catch (e) { /* 本地态已回滚 */ }
   }
   isPublic.value = v;
+}
+
+/** 第20轮：凭项目口令发起入驻申请（POST /card-market/apply，个人类型） */
+async function submitInvite() {
+  const code = String(inviteCode.value || '').trim().toUpperCase();
+  if (!code) {
+    uni.showToast({ title: '请输入入驻口令', icon: 'none' });
+    return;
+  }
+  if (inviteBusy.value) return;
+  inviteBusy.value = true;
+  try {
+    if (!(await requireLogin())) return;
+    await cardApi.applyIndividual({
+      type: 'individual',
+      bindCode: code,
+      name: cardName.value || '未命名',
+      phone: cardPhone.value || '',
+      position: '',
+    });
+    closeInviteSheet();
+    uni.showToast({ title: '入驻申请已提交，审核通过后可上架集市', icon: 'none' });
+  } catch (e) {
+    uni.showToast({ title: e.message || '提交失败，请重试', icon: 'none' });
+  } finally {
+    inviteBusy.value = false;
+  }
+}
+
+function closeInviteSheet() {
+  showInviteSheet.value = false;
+  inviteCode.value = '';
 }
 
 function reloadPage() { load(); }
@@ -217,6 +291,30 @@ function reloadPage() { load(); }
 .dsr-desc { font-size: var(--fs-2); color: var(--t4); margin-top: 4rpx; }
 .dsr-arrow { font-size: var(--fs-6); color: var(--border-strong); }
 .ds-hint { font-size: var(--fs-2); color: var(--t4); padding: 8rpx 0 4rpx; }
+
+/* 第20轮：入驻口令浮层（MP 安全：fixed + 令牌，禁 transform 造层叠） */
+.ds-mask {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--bg-mask); z-index: var(--z-popup);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.ds-sheet {
+  width: 100%; background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+}
+.ds-sheet-title { font-size: var(--fs-4); font-weight: 600; color: var(--t5); }
+.ds-sheet-sub { font-size: var(--fs-2); color: var(--t4); margin: 12rpx 0 28rpx; }
+.ds-sheet-input {
+  height: 88rpx; background: var(--bg-page); border-radius: var(--radius-md);
+  padding: 0 24rpx; font-size: var(--fs-4); color: var(--t5);
+}
+.ph { color: var(--t4); }
+.ds-sheet-btn {
+  margin-top: 32rpx; height: 88rpx; line-height: 88rpx; text-align: center;
+  background: var(--design-primary); color: var(--white);
+  border-radius: var(--radius-md); font-size: var(--fs-4); font-weight: 600;
+}
+.ds-sheet-btn.busy { opacity: .6; }
 .ds-switch-row { display: flex; align-items: center; gap: 16rpx; padding: 8rpx 0 16rpx; }
 .pg-error { padding: 200rpx 60rpx; text-align: center; }
 .pg-err-text { font-size: var(--fs-4); color: var(--t3); }

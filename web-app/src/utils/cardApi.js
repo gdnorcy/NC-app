@@ -326,6 +326,8 @@ export const cardApi = {
   checkMarket: (params) => request(MARKET_BASE_URL + '/market/check' + (params ? '?' + qsStringify(params) : '')),
   getMarketMyStatus: () => request(MARKET_BASE_URL + '/market/my-status'),
   getMarketMyStats: () => request(MARKET_BASE_URL + '/market/my-stats'),
+  // 第20轮：凭项目口令发起入驻申请（已有名片用户的「仅申请」路径，不新建名片）
+  applyIndividual: (data) => request(MARKET_BASE_URL + '/apply', 'POST', data),
 
   // 名片交换
   exchange: (data) => request('/exchange', 'POST', data),
