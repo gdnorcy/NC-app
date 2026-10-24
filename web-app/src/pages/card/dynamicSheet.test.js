@@ -159,17 +159,21 @@ describe('⑥ 上传图片 URL 补全（/uploads/ 相对路径在 MP 显示空�
   });
 });
 
+/**
+ * 🔴 反馈原文：「没验证是否已登录」——未登录也能点发布。
+ *    #312-11 那一轮用 ensureLogin + 跳登录页补上；#312-18b 把它升级成**原地登录**：
+ *    守卫返回 Promise，调用方 await 到「已登录」后**自动继续执行原动作**
+ *    （老实现登录完回来还要再点一次发布，这是用户抱怨「跳两次页面」的另一半）。
+ */
 describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验证是否已登录）', () => {
-  test('ensureLogin：hasCardToken + toast + reLaunch 登录页（mall 同款范式）', () => {
+  test('🔴 守卫返回 Promise（requireLogin），已登录直接放行', () => {
     const s = src();
     expect(s).toMatch(/import \{ cardApi, hasCardToken \} from '\.\.\/\.\.\/utils\/cardApi\.js';/);
-    expect(s).toMatch(/function ensureLogin\(\) \{/);
-    expect(s).toMatch(/if \(hasCardToken\(\)\) return true;/);
-    // 🔴 #312-11：必须走 loginEntryUrl(LOGIN_PATH, 回跳)——本页曾硬编码 '/pages/card/login'
-    //   （路径不存在，reLaunch 静默失败 = 只 toast 不跳转，真机反馈「提醒了但不跳转」），
-    //   且 manual=1 防冷启动首页联动把用户弹走
-    expect(s).toMatch(/import \{ loginEntryUrl, LOGIN_PATH \} from '\.\.\/\.\.\/utils\/loginEntry\.js';/);
-    expect(s).toMatch(/uni\.reLaunch\(\{ url: loginEntryUrl\(LOGIN_PATH, '\/pages\/card\/dynamic'\) \}\);/);
+    expect(s).toMatch(/function requireLogin\(\) \{/);
+    expect(s).toMatch(/if \(hasCardToken\(\)\) return Promise\.resolve\(true\);/);
+    expect(s).toMatch(/return new Promise\(\(resolve\) => \{ gateResolve = resolve; \}\);/);
+    // 反向钉死：不再跳登录页（#312-18b 原地化；原来的 loginEntryUrl 路径已废弃）
+    expect(s).not.toMatch(/function ensureLogin/);
     expect(s).not.toMatch(/url: '\/pages\/card\/login'/);
   });
 
@@ -177,7 +181,8 @@ describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验�
     const s = src();
     // 🔴 #312-7-2：开弹窗前先 resetForm()（否则上一条动态会被带进新页面）
     // 🔴 #312-10：resetForm 后多了一步 sheetScrollTop 归零，断言按语义不逐字
-    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);/);
+    // 🔴 #312-18b：守卫异步化（async + await requireLogin），顺序语义不变
+    expect(s).toMatch(/async function openPublish\(\) \{\s*if \(!\(await requireLogin\(\)\)\) return;\s*resetForm\(\);/);
     expect(s).toMatch(/sheetScrollTop\.value = 0;\s*\n\s*showPublish\.value = true;/);
     // 🔴 #312-8-3：入口从导航栏（被微信胶囊挤到标题左边）改到右下角悬浮圆按钮
     expect(s).toMatch(/<view class="fab-publish" @click="openPublish">＋<\/view>/);
@@ -186,9 +191,11 @@ describe('⑦ 登录守卫：未登录不进发布/编辑页（反馈：没验�
 
   test('openEdit 与页面进入（onShow/onMounted）都有守卫', () => {
     const s = src();
-    expect(s).toMatch(/function openEdit\(d\) \{\s*if \(!ensureLogin\(\)\) return;/);
-    expect(s).toMatch(/onShow\(\(\) => \{[\s\S]*?if \(!hasCardToken\(\)\) ensureLogin\(\);/);
-    expect(s).toMatch(/onMounted\(async \(\) => \{\s*if \(!ensureLogin\(\)\) return;/);
+    expect(s).toMatch(/async function openEdit\(d\) \{\s*if \(!\(await requireLogin\(\)\)\) return;/);
+    // onShow 不无脑弹走：只在「已加载过内容且登录态掉了」时补弹浮层
+    expect(s).toMatch(/onShow\(\(\) => \{[\s\S]*?if \(!hasCardToken\(\) && dynamics\.value\.length\) showLoginGate\.value = true;/);
+    // onMounted 未登录：弹浮层并 return（不再 reLaunch）
+    expect(s).toMatch(/onMounted\(async \(\) => \{[\s\S]*?if \(!hasCardToken\(\)\) \{[\s\S]*?showLoginGate\.value = true;\s*return;/);
   });
 });
 

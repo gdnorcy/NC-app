@@ -31,6 +31,12 @@
 - 新页面必过 tokenAudit：破基线靠映射既有令牌、不许上调；var(--primary,#165dff) 裸 hex fallback 去掉；tokenAudit 按「写法种类」计数（复用 --z-popup 靠 DOM 顺序定层级）。注意 rgba 计 **occurrences 不是 kinds**（同值复用也 +1）；常用映射：rgba(0,0,0,.55)→--bg-mask、z-index 裸值→--z-popup、#fff→--white、品牌 tint→复用既有 .sec-added 类而非新写一份。
 - 两端各写 CSS=必然漂移：parity 三纪律（正则提取/剥注释/比实际生效值）；单测全绿≠视觉正确，CSS 几何须无头实测。
 
+## 登录与跳转体验
+- 🔴 **「登录要跳两次页面」这类反馈的通用解法**：不要在页面 A 跳到登录页再跳回来触发刷新，而是把「进入流程」抽成**可重入函数**（如 myCard 的 `bootOwner()`），未登录时在当页放登录浮层 `components/LoginGate.vue`，登录成功后原地重入 → **0 次跳转**。只有「新用户/没名片」才跳一次去建名片（否则落在空壳页）。
+- 登录请求**唯一出处 `utils/inlineLogin.js`**（`fetchLoginCode`/`performWxLogin`/`mustCreateCard`）：登录页 `pages/cardMain/login` 与浮层共用，两侧都不许再出现 `cardApi.wxLogin(`。三条易漏：H5 模拟码分支、默认租户兜底（新用户无租户→装修首页读不到）、登录后 `resetBrandCache`（未登录态已拉过品牌色）。
+- 登录页仍是**冷启动首页**（onShow 会按装修首页 reLaunch，人为进入必须带 `manual=1`）；reLaunch 要延到 `onReady` 之后（冷启动竞态会让目标页停在空白首帧）。
+- 模板里 ref 不带 `.value`（`busy ? …`），测试断言也要按模板形态写；MP 端新组件要查齐 `components/X.{js,json,wxml,wxss}` + 页面 json 的 `usingComponents` + wxml 标签三处。
+
 ## 需求解读
 - 「取消 A 的实现方式」≠「取消 A 这个概念」→先确认 X 是做法还是概念。
 - 「置灰」先问灰的是哪个字段语义；存量空值用「显示归一」不改数据。
