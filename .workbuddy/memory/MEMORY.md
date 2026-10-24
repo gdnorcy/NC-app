@@ -74,17 +74,17 @@
 
 ## 微信开放接口（小程序码 / 登录）
 - 🔴 真小程序码的物理前提：小程序必须上传过代码。微信对无页面小程序一律 41030（release/trial/develop 全拒）→ 只能回落网页码。排查固定两步：①先拿 token（appid+secret 对不对）②再对候选 page 发码。「后台填了 AppID+AppSecret」只到第①步，≠ 能出码。
-- 三级通道（与 code2session 同口径）：①第三方平台已授权(auth_status='authorized')→WxComponentService ②自运营（仅 AppID+AppSecret）→standalone 直连 ③都没有→H5 兜底。渠道查询不得过滤 auth_status。env 级联 release→trial→develop（41030=该版本没这个页面）；用户只需「上传+设为体验版」即生效。访客码必须 release（trial/develop 普通用户打不开）。
+- 三级通道（与 code2session 同口径）：第三方平台已授权→WxComponentService；自运营（仅 AppID+AppSecret）→standalone 直连；都没有→H5 兜底。**渠道查询不得过滤 auth_status**。env 级联 release→trial→develop；用户只需「上传+设为体验版」即生效。访客码必须 release（trial/develop 普通用户打不开）。
 - 失败必须打日志并透出 reason（no_page/no_channel/failed），别静默吞错：弹层要告诉租户"没上传代码"而不是让他以为没接上。
 - 🔴 TAT 连 base64 编码的外网域名也拦 → 联调微信：TAT 只取密钥/状态，网络请求放沙箱本地发。wxa/get_page 只限第三方平台调用（自运营 appid 得 86000）→ 用"候选 page 逐个发码"试探法替代。
-- 🔴 getwxacodeunlimit 的 check_path 逐页校验会对已发布账号整体失灵：任何显式 page 全 41030，但不带 page 的默认主页能过校验。修法两段式：首轮照常校验；全 41030 后先用「真实 scene + 无 page + 校验」探测账号是否真已发布（探测不过 = 真没代码 → 回落 H5 不发死码），通过才 check_path:false 补一枪 release。getwxacode 不校验 path（假路径也出图），不能用它验证页面存在。scene 必填非空（空 → 40169）。
-- 🔴 web-app/dist/build/mp-weixin（uni 原始产物）与 server/mini-template/mp-weixin（同步后的自运营工程目录）应当同源，但工作树那份常被部署末尾的 git checkout -- 还原成陈旧版本（sync 只 cpSync 不清旧文件）。交付给用户上传的包一律从 dist 取，用 BUILD.txt 的 built at + git HEAD 验新鲜度（曾把 10-18 旧包打包给用户）。运行时代码两边一致，差异只在 app.json 页数与 permission。
+- 🔴 getwxacodeunlimit 的 check_path 对已发布账号会整体失灵（显式 page 全 41030，无 page 默认主页却能过校验）。修法两段式：首轮照常；全 41030 后用「真实 scene + 无 page + 校验」探测是否真已发布（不过=真没代码→回落 H5 不发死码），通过才 check_path:false 补一枪 release。getwxacode 不校验 path（假路径也出图），不能用来验证页面存在；scene 必填非空（空→40169）。
+- 🔴 web-app/dist/build/mp-weixin（uni 原始产物）与 server/mini-template/mp-weixin（自运营工程目录）应同源，但后者常被部署末尾 git checkout -- 还原成陈旧版（sync 只 cpSync 不清旧文件）。**交付包一律从 dist 取**，用 BUILD.txt built at + git HEAD 验新鲜度（曾把 10-18 旧包打包给用户）。运行时代码两边一致，差异只在 app.json 页数与 permission。
 - 🔴 「devtools 模拟器空白、真机有内容」= 请求级失败（/api/channel/init 拿不到 tenant 就整页没数据）。排查：① devtools 勾「不校验合法域名/web-view/TLS/HTTPS 证书」（MP 端 API_HOST 硬编 https://zero.nshop.mobi）② 项目 AppID 别用测试号（touristappid → configured:false）。curl /api/channel/init?appid= 真 appid 应回 customerId>0。
 
 ## 业务口径 / 测试坑
-- 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照 → 留 admin 凭证 → 户口重置 → ghfast 镜像传 → 停服换库。
+- 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照→留 admin 凭证→户口重置→ghfast 镜像传→停服换库。
 - 两个口令别混：projects.invite_code（P 开头）= 租户绑定，个人/企业入驻共用；tenant_enterprises.config.invite_code（ENT######）= 企业员工凭码加入（server /enterprise/join 消费，与后台 candidates 同锁 customer_id 不跨租户）。
-- openssl 生成证书须 stdio pipe + 全程 -out + 真 X.509；supertest 按字节签名须 .send(rawString)；node:sqlite 用 DatabaseSync。
+- supertest 按字节签名须 .send(rawString)；node:sqlite 用 DatabaseSync；openssl 证书须 stdio pipe + 全程 -out。
 - 🔴 macOS BSD grep 的 `\|` 交替一律不好使（BRE 无此扩展，整串当字面量 → 0 匹配且不报错，看着像"产物没构建进去"）。交替必须 grep -E；压缩 JS 单行 grep -c 恒 1 → 用 grep -o … | wc -l。已踩 6 次，每次先怀疑 grep 再怀疑产物。
 - 集成测试里 mock wx-login 按 config.defaultTenantId 兜底给新用户绑租户 → 测「无租户」分支必须显式设 config.defaultTenantId=0（文档：多租户平台部署设为 0 即关闭兜底）。
 - card 端 token 不是 JWT：base64(JSON{uid,openid,ts}).randhex，解析用 split('.')[0] + 字段 uid。
