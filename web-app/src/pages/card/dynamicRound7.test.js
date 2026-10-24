@@ -62,7 +62,9 @@ describe('② 表单残留：发布新动态不能带上一条的内容', () => 
     const s = dyn();
     // 🔴 #312-10：openPublish 里多了 sheetScrollTop 归零（scroll-view 回顶），
     //    断言按语义钉「resetForm 在 showPublish=true 之前」，不逐字钉函数体
-    expect(s).toMatch(/function openPublish\(\) \{\s*if \(!ensureLogin\(\)\) return;\s*resetForm\(\);/);
+    // 🔴 #312-18b：守卫从同步 ensureLogin 改成 await requireLogin（登录后自动继续打开弹窗），
+    //    顺序语义不变：守卫 → resetForm → 归零 → 开弹窗
+    expect(s).toMatch(/async function openPublish\(\) \{\s*if \(!\(await requireLogin\(\)\)\) return;\s*resetForm\(\);/);
     expect(s).toMatch(/showPublish\.value = true;/);
     expect(s).toMatch(/function closePublish\(\) \{\s*showPublish\.value = false;\s*resetForm\(\);/);
     expect(s).toMatch(/resetForm\(\);\s*const res = await cardApi\.getDynamics\(\);/);

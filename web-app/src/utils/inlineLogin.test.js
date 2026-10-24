@@ -89,3 +89,78 @@ describe('登录：原地化与单点实现', () => {
     expect(s).toMatch(/result\.isNew \|\| !result\.hasCard/);
   });
 });
+
+/**
+ * 🔴 回归锁：#312-18b「动态」页一并原地化
+ *
+ * 与 myCard 同款范式，但多了一层：动态页的「发布 / 编辑」是**动作**，
+ * 老实现是点一下就被 reLaunch 弹走，登录完回来还得**再点一次**。
+ * 新实现把守卫做成 Promise：登录成功自动放行继续原动作。
+ */
+describe('登录：动态页原地化（#312-18b）', () => {
+  it('🔴 dynamic 不再把人送去登录页（含历史硬编码的不存在路径 /pages/card/login）', () => {
+    const s = read('../pages/card/dynamic.vue');
+    expect(s).not.toMatch(/loginEntryUrl\(LOGIN_PATH/);
+    expect(s).not.toMatch(/\.\.\/utils\/loginEntry/);
+    // 页内唯一允许的跳转是「去建名片」
+    expect(s).toMatch(/uni\.reLaunch\(\{ url: '\/pages\/card\/create' \}\)/);
+    expect(s).toMatch(/import \{ mustCreateCard \} from '\.\.\/\.\.\/utils\/inlineLogin\.js'/);
+    expect(s).toMatch(/import LoginGate from '\.\.\/\.\.\/components\/LoginGate\.vue'/);
+  });
+
+  it('守卫返回 Promise：动作调用方能 await 到「登录成功」并继续执行', () => {
+    const s = read('../pages/card/dynamic.vue');
+    expect(s).toMatch(/function requireLogin\(\) \{/);
+    expect(s).toMatch(/if \(hasCardToken\(\)\) return Promise\.resolve\(true\);/);
+    expect(s).toMatch(/return new Promise\(\(resolve\) => \{ gateResolve = resolve; \}\);/);
+    // 取消必须把 Promise 结掉（否则 await 永远挂住，按钮看着「点了没反应」）
+    expect(s).toMatch(/function cancelLogin\(\) \{/);
+    expect(s).toMatch(/gateResolve\(false\)/);
+  });
+
+  it('发布/编辑：先过守卫，登录成功后**自动继续**（不用再点一次）', () => {
+    const s = read('../pages/card/dynamic.vue');
+    expect(s).toMatch(/async function openPublish\(\) \{/);
+    expect(s).toMatch(/async function openEdit\(d\) \{/);
+    expect(s).toMatch(/if \(!\(await requireLogin\(\)\)\) return;/);
+  });
+
+  it('🔴 登录成功回调：原地重入 bootDynamic 后才放行 Promise（顺序不能反）', () => {
+    const s = read('../pages/card/dynamic.vue');
+    const cb = s.slice(s.indexOf('async function onLoginGateSuccess'));
+    expect(cb).toMatch(/await bootDynamic\(\);/);
+    expect(cb).toMatch(/if \(done\) done\(true\);/);
+    expect(cb.indexOf('await bootDynamic();')).toBeLessThan(cb.indexOf('if (done) done(true);'));
+    // 新用户/没名片：跳去建名片，且**不放行**原动作（落在空壳页没意义）
+    const untilBoot = cb.slice(0, cb.indexOf('await bootDynamic();'));
+    expect(untilBoot).toMatch(/if \(mustCreateCard\(result\)\)/);
+  });
+
+  it('取数流程抽成 bootDynamic，onMounted 与登录成功都调它（页面不销毁）', () => {
+    const s = read('../pages/card/dynamic.vue');
+    expect(s).toMatch(/async function bootDynamic\(\) \{/);
+    const onMounted = s.slice(s.indexOf('onMounted(async () => {'), s.indexOf('/\*\* 本页取数流程'));
+    expect(onMounted).toMatch(/if \(!hasCardToken\(\)\)/);
+    expect(onMounted).toMatch(/showLoginGate\.value = true;/);
+    expect(onMounted).toMatch(/await bootDynamic\(\);/);
+  });
+
+  it('🔴 onShow 不无脑弹走：只有「已加载过内容且登录态掉了」才补弹浮层', () => {
+    const s = read('../pages/card/dynamic.vue');
+    const onShow = s.slice(s.indexOf('onShow(() => {'), s.indexOf('onMounted(async () => {'));
+    expect(onShow).toMatch(/if \(!hasCardToken\(\) && dynamics\.value\.length\) showLoginGate\.value = true;/);
+    expect(onShow).not.toMatch(/uni\.reLaunch/);
+  });
+
+  it('浮层样式走令牌：遮罩 --bg-mask、层级 --z-popup（不新增裸 z-index 破 tokenAudit）', () => {
+    const s = read('../pages/card/dynamic.vue');
+    const css = s.slice(s.indexOf('.lgmask {'));
+    expect(css).toMatch(/background: var\(--bg-mask\);/);
+    expect(css).toMatch(/z-index: var\(--z-popup\);/);
+    expect(css).toMatch(/\.lgsheet \{/);
+    expect(css).toMatch(/border-radius: var\(--radius-lg\);/);
+    // 滚动穿透防护：mask 与 sheet 成对出现（否则点浮层会滚到后面的列表）
+    expect(s).toMatch(/class="lgmask"[^>]*@touchmove\.stop\.prevent/);
+    expect(s).toMatch(/class="lgsheet"[^>]*@touchmove\.stop/);
+  });
+});

@@ -220,6 +220,16 @@
         </view>
       </view>
     </view>
+
+    <!-- 🔴 #312-18b 登录原地化：未登录不再 reLaunch 到登录页（去+回两次跳转、页面栈清空），
+         改为当页弹登录浮层；发布/编辑这类动作等登录成功后自动继续，用户不用再点一遍。 -->
+    <view class="lgmask" v-if="showLoginGate" @click="cancelLogin" @touchmove.stop.prevent="noopScroll">
+      <view class="lgsheet" @click.stop @touchmove.stop="noopScroll">
+        <view class="lgsheet-title">登录后继续</view>
+        <LoginGate @success="onLoginGateSuccess" />
+        <view class="lgsheet-close" @click="cancelLogin">暂不登录</view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -229,10 +239,11 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, watch, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi, hasCardToken } from '../../utils/cardApi.js';
-// 🔴 反馈 #312-11：登录入口必须走 loginEntryUrl——登录页实际在 /pages/cardMain/login
-//   （本页原来硬编码 '/pages/card/login' 不存在 → reLaunch 静默失败 = 只 toast 不跳转），
-//   且必须带 manual=1（登录页兼冷启动首页，不带会被首页联动立刻弹走）。
-import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
+// 🔴 #312-18b 登录原地化：登录请求统一走 utils/inlineLogin.js（与登录页、我的名片共用一份）。
+//   历史坑（#312-11）：本页曾硬编码 '/pages/card/login'——该页从未存在，reLaunch 到不存在的
+//   路径是**静默失败**（只 toast 不跳转）。现在不再跳转，这条风险一并消失。
+import { mustCreateCard } from '../../utils/inlineLogin.js';
+import LoginGate from '../../components/LoginGate.vue';
 // 🔴 #312-9：absUrl 收敛到 apiBase.js 单一实现（原来 dynamic/cardDetail 各写一份，
 //    新增的 profile/myCard/create 也需要 → 五份必然漂移）
 import { absUrl } from '../../utils/apiBase.js';
@@ -315,16 +326,38 @@ const refOpen = ref(false);
 watch([linkOpen, refOpen, schedEnabled], resetSheetScroll, { flush: 'post' });
 
 /**
- * 未登录守卫（mall orders/cart 同款范式，hasCardToken 即 cardApi 为此导出的）：
- * 发布/编辑入口 + 页面进入都过一遍——否则未登录也能打开发布页，填完才 401。
+ * 🔴 #312-18b 未登录守卫（原地化版）：
+ * 老实现是 reLaunch 到登录页再跳回来——「去、回」两次跳转、页面栈清空重建，
+ * 而且**动作被打断**：用户点「发布」被弹走，登录完回到本页还得再点一次「发布」。
+ * 新实现返回 Promise：调用方 `if (!(await requireLogin())) return;` 即可在登录成功后
+ * **继续执行原动作**，用户只点了一次。
  */
-function ensureLogin() {
-  if (hasCardToken()) return true;
-  uni.showToast({ title: '请先登录', icon: 'none' });
-  // 🔴 #312-11：路径修正 + manual=1 + 登录成功回跳本页（原来写死的 /pages/card/login 不存在，
-  //   reLaunch 失败是静默的 → 用户只看到 toast、停在原页，反馈「提醒了但不跳转」）
-  uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/dynamic') });
-  return false;
+const showLoginGate = ref(false);
+let gateResolve = null;
+function requireLogin() {
+  if (hasCardToken()) return Promise.resolve(true);
+  showLoginGate.value = true;
+  return new Promise((resolve) => { gateResolve = resolve; });
+}
+function cancelLogin() {
+  showLoginGate.value = false;
+  if (gateResolve) {
+    gateResolve(false);
+    gateResolve = null;
+  }
+}
+async function onLoginGateSuccess(result) {
+  showLoginGate.value = false;
+  const done = gateResolve;
+  gateResolve = null;
+  if (mustCreateCard(result)) {
+    // 新用户/没名片：必须先建名片，动态页对他是个空壳
+    uni.reLaunch({ url: '/pages/card/create' });
+    if (done) done(false);
+    return;
+  }
+  await bootDynamic();   // 原地重入：页面不销毁，自己再拉一遍数据
+  if (done) done(true);  // 放行：发布/编辑等动作继续执行
 }
 /**
  * 🔴 反馈 #312-7-2「发布新动态，会把最后一条动态的内容带到新页面」：
@@ -343,9 +376,12 @@ function resetForm() {
   showRefPicker.value = false;
 }
 
-/** 导航栏「+ 发布」：先过登录守卫，再重置表单后开弹窗 */
-function openPublish() {
-  if (!ensureLogin()) return;
+/**
+ * 导航栏「+ 发布」：先过登录守卫，再重置表单后开弹窗。
+ * 🔴 守卫改成异步：登录成功后**自动继续**（用户不用再点一次「发布」）。
+ */
+async function openPublish() {
+  if (!(await requireLogin())) return;
   resetForm();
   // 🔴 #312-10：scroll-view 每次开弹窗都是新挂载（v-if），scroll-top 归 0 即从顶部开始
   sheetScrollTop.value = 0;
@@ -430,8 +466,9 @@ function schedLabel() {
 }
 
 // 🔴 #312-6：编辑 / 删除（仅本人）。openEdit 把已有动态灌进表单（含定时还原）；removeDynamic 软删。
-function openEdit(d) {
-  if (!ensureLogin()) return;
+// 同 openPublish：守卫异步化，登录成功后继续进入编辑
+async function openEdit(d) {
+  if (!(await requireLogin())) return;
   editingId.value = d.id;
   // 还原正文/标题/图片/可见范围
   newDynamic.value = {
@@ -654,19 +691,30 @@ function previewList(d) {
 
 onShow(() => {
   trackPageView('/pages/card/dynamic');
-  // 登录态可能在前台过期（token 清除/过期）→ 回前台时补一次守卫
-  if (!hasCardToken()) ensureLogin();
+  // 登录态可能在前台过期（token 清除/过期）→ 只在「本页已加载过内容」时补弹登录浮层。
+  // 🔴 老实现是未登录就 reLaunch 走：用户一进页面就被弹走（两次跳转），
+  //    而且无论看没看内容都强制打断。这里改为不打扰，动作发生时才由 requireLogin 兜。
+  if (!hasCardToken() && dynamics.value.length) showLoginGate.value = true;
 });
 
 onMounted(async () => {
-  if (!ensureLogin()) return;
+  if (!hasCardToken()) {
+    // 不跳登录页：原地弹浮层（可「暂不登录」关掉），登录后由 onLoginGateSuccess 重入取数
+    showLoginGate.value = true;
+    return;
+  }
+  await bootDynamic();
+});
+
+/** 本页取数流程：抽成可重入函数，登录成功后原地再跑一遍（页面不销毁，零跳转） */
+async function bootDynamic() {
   try {
     const res = await cardApi.getDynamics();
     dynamics.value = (res.dynamics || []).map(hydrateUrls);
     const profile = await cardApi.getProfile();
     user.value = profile.user;
   } catch (e) {}
-});
+}
 
 async function publish() {
   if (!newDynamic.value.content) {
@@ -1206,5 +1254,39 @@ async function publish() {
   line-height: 88rpx;
   font-size: 30rpx;
   font-weight: 600;
+}
+/* 🔴 #312-18b 页面内登录浮层（替代「跳登录页→再跳回来」的两次跳转）。
+   - 居中白卡，与发布弹窗（底部 sheet）区分开：登录是**一次性阻断**，不该像表单那样从底部升起
+   - 遮罩走 --bg-mask 令牌（不是 rgba 字面量——rgba 计数会破 tokenAudit 基线）
+   - z-index 复用 --z-popup（全屏弹窗层）：本页 .modal-mask 用的是裸 999，历史遗留不动它，
+     但新写的浮层一律走令牌，避免再添一个裸值
+   - 普通块级堆叠、不给 lgsheet 设 max-height：内容就三行，定高反而引入 MP 端高度分配的老问题 */
+.lgmask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg-mask);
+  z-index: var(--z-popup);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lgsheet {
+  width: 560rpx;
+  box-sizing: border-box;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 48rpx 32rpx 32rpx;
+}
+.lgsheet-title {
+  font-size: var(--fs-6);
+  font-weight: 600;
+  color: var(--t1);
+  text-align: center;
+}
+.lgsheet-close {
+  margin-top: 24rpx;
+  text-align: center;
+  font-size: var(--fs-3);
+  color: var(--t3);
 }
 </style>

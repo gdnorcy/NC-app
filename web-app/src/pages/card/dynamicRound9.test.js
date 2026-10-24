@@ -5,6 +5,7 @@
  *   1a 未登录进「我的动态」只 toast 不跳转 → ensureLogin 硬编码 '/pages/card/login'
  *       （**路径不存在**，reLaunch 静默失败）。改 loginEntryUrl(LOGIN_PATH, 回跳)——
  *       登录页实际在 /pages/cardMain/login，且必须带 manual=1（冷启动首页联动）。
+ *       🔴 #312-18b 再升级：本页改为**当页登录浮层**，一次都不跳（见 1a describe 注释）。
  *   1b 个人中心未登录还显示「退出登录」→ 菜单项按 loggedIn 切换：已登录=退出，
  *       未登录=登录（goLogin 引导登录页）；onShow 同步登录态；logout 加 token 守卫。
  *   2  「我的动态」圆形头像显示错误（灰色圆里溢出 "objec"）→ 两个根因：
@@ -26,11 +27,28 @@ const dyn = () => stripComments(read('./dynamic.vue'));
 const dynCss = () => read('./dynamic.vue');
 const prof = () => stripComments(read('./profile.vue'));
 
-describe('1a 登录守卫：跳转目标必须真实存在且带 manual=1', () => {
-  test('ensureLogin 走 loginEntryUrl（不再硬编码不存在的 /pages/card/login）', () => {
+/**
+ * 🔴 #312-11 原反馈：未登录进「我的动态」只 toast 不跳转——ensureLogin 硬编码
+ *    '/pages/card/login'（**路径不存在**，reLaunch 静默失败）。
+ *    那一轮的修法是改走 loginEntryUrl(LOGIN_PATH, 回跳)+manual=1；
+ * 🔴 #312-18b 再进一步：**本页不再跳转登录页**（去+回两次跳转太晃），改成当页登录浮层。
+ *    所以这里钉的语义从「跳转目标必须正确」升级成「根本不跳转」——
+ *    原风险（硬编码不存在路径）随之消失，但反向钉死仍保留，防后人把跳转加回来。
+ */
+describe('1a 登录守卫：本页原地登录，不再跳登录页', () => {
+  test('dynamic 里没有任何「跳登录页」的跳转（含历史硬编码的不存在路径）', () => {
     const s = dyn();
-    expect(s).toMatch(/uni\.reLaunch\(\{ url: loginEntryUrl\(LOGIN_PATH, '\/pages\/card\/dynamic'\) \}\);/);
     expect(s).not.toMatch(/url: '\/pages\/card\/login'/);
+    expect(s).not.toMatch(/loginEntryUrl\(LOGIN_PATH/);
+    // 页内唯一保留的跳转：新用户/没名片 → 去建名片
+    expect(s).toMatch(/uni\.reLaunch\(\{ url: '\/pages\/card\/create' \}\)/);
+  });
+
+  test('未登录放登录浮层（LoginGate），登录成功原地重入取数', () => {
+    const s = dyn();
+    expect(s).toMatch(/const showLoginGate = ref\(false\);/);
+    expect(s).toMatch(/<LoginGate @success="onLoginGateSuccess" \/>/);
+    expect(s).toMatch(/await bootDynamic\(\);/);
   });
 
   test('登录页真实路径是 /pages/cardMain/login（pages.json 第一个页面）', () => {
