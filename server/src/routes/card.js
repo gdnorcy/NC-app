@@ -1980,7 +1980,9 @@ export function createCardRouter(db, wxService) {
       // env 固定 release：二维码是给访客扫的，trial/develop 普通用户打不开。
       if (channel && secret && channel.auth_status !== 'authorized' && /\(41030\)/.test(lastErr)) {
         try {
-          await standaloneWxacode(channel.appid, secret, '', '', 'release');
+          // 🔴 探测也不能传空 scene：微信 40169 = scene 必须非空（≤32 字符）。复用真实 scene、
+          // 只是不带 page（微信默认主页）+ 保留校验，通过 = 账号确实已发布。
+          await standaloneWxacode(channel.appid, secret, `id=${cardId}`, '', 'release');
           const buf = await standaloneWxacode(channel.appid, secret, `id=${cardId}`, 'pages/card/cardDetail', 'release', { checkPath: false });
           return res.json({ ok: true, type: 'wxacode', image: `data:image/png;base64,${buf.toString('base64')}` });
         } catch (e) {
