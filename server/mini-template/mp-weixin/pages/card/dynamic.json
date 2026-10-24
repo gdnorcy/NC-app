@@ -3,6 +3,7 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "page-nav": "../../components/PageNav",
+    "login-gate": "../../components/LoginGate",
     "s-icon": "../../components/SIcon",
     "dynamic-link-card": "../../components/DynamicLinkCard"
   }
