@@ -71,6 +71,8 @@
 - env 级联 release→trial→develop（41030=该版本没这个页面）。因此用户只需「上传+设为体验版」即可生效，不必等审核发布。
 - 失败必须打日志并透出 reason，别静默吞错：租户就是能去上传代码的人，弹层要告诉他"没上传代码"而不是让他以为没接上。
 - 🔴 **TAT 连 base64 编码的外网域名也拦** → 联调微信 API 的姿势：TAT 只取密钥/状态，网络请求放沙箱本地发。微信 `wxa/get_page`（页面清单）**只限第三方平台调用**（自运营 appid 得 86000）→ 用"候选 page 逐个发码"试探法替代。
+- 🔴 **getwxacodeunlimit 的 `check_path` 逐页校验会对已发布账号整体失灵**：任何显式 page（主包/分包 × 三版本）全 41030，但不带 page 的默认主页能过校验。修法是**两段式二次机会**：首轮照常校验；全 41030 后先用「真实 scene + 无 page + 校验」探测账号是否真已发布（探测不过 = 真没代码，回落 H5 不发死码），通过才 `check_path:false` 补一枪 **release**——访客码必须 release，trial/develop 普通用户打不开。`getwxacode` **不校验 path**（假路径也出图），不能用它验证页面存在。**scene 必填非空**（空 → 40169）。
+- 🔴 **`web-app/dist/build/mp-weixin`（uni 原始产物）与 `server/mini-template/mp-weixin`（sync-mini-template strip/stamp 后的自运营工程目录）同源**：appid、页面路径一致，让「小程序里存在某页面」两者等效；差别在运行时登录/API 语义。排查「上传了还是不行」先实测微信接口，别先怀疑传错包。
 
 ## 业务口径 / 测试坑
 - 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照→留 admin 凭证→户口重置→ghfast 镜像传→停服换库。
