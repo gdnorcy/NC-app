@@ -1973,6 +1973,21 @@ export function createCardRouter(db, wxService) {
           }
         }
       }
+      // 🔴 #312-16c 二次机会：check_path 逐页校验对部分已发布账号失灵（线上实证：该账号
+      // 已发布、默认主页能过校验，但任何显式 page 都 41030）。先用「不带 page + 校验」探测
+      // 账号是否真的已发布——探测通过才敢跳过校验（check_path:false）补一枪 release；
+      // 探测不过 = 账号确实没有可用版本 → 维持 H5 兜底，不发扫不开的死码。
+      // env 固定 release：二维码是给访客扫的，trial/develop 普通用户打不开。
+      if (channel && secret && channel.auth_status !== 'authorized' && /\(41030\)/.test(lastErr)) {
+        try {
+          await standaloneWxacode(channel.appid, secret, '', '', 'release');
+          const buf = await standaloneWxacode(channel.appid, secret, `id=${cardId}`, 'pages/card/cardDetail', 'release', { checkPath: false });
+          return res.json({ ok: true, type: 'wxacode', image: `data:image/png;base64,${buf.toString('base64')}` });
+        } catch (e) {
+          lastErr = String((e && e.message) || e);
+          console.warn(`[wxacode] card=${cardId} 二次机会(check_path=false)也失败: ${e && e.message}`);
+        }
+      }
       // 🔴 降级时把原因透出（原接口只说「网页码」，租户会一直以为是没接上）：
       // no_page = 小程序从未上传代码（微信 41030，release/trial/develop 全拒）→ 提示去上传；
       // no_channel = 既没授权也没填 AppSecret；failed = 有凭据但微信侧报错（如密钥错）。

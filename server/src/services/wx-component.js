@@ -406,16 +406,23 @@ export async function standaloneCode2Session(appid, secret, code) {
  * 与 component 版共用 getwxacodeunlimit，只是 token 取自 cgi-bin/token。
  * 🔴 抛出的错误带 wxErrcode（41030 = 该版本没有这个页面），调用方据此 release→trial→develop 级联。
  */
-export async function standaloneWxacode(appid, secret, scene = '', page = 'pages/index/index', envVersion = 'release') {
+export async function standaloneWxacode(appid, secret, scene = '', page = '', envVersion = 'release', opts = {}) {
   if (!appid || !secret) throw new Error('缺少小程序 appid / AppSecret');
   const turl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${encodeURIComponent(appid)}&secret=${encodeURIComponent(secret)}`;
   const tres = await fetch(turl);
   const tdata = await tres.json();
   if (tdata.errcode) throw Object.assign(new Error(`获取access_token失败(${tdata.errcode}): ${tdata.errmsg}`), { wxErrcode: tdata.errcode });
+  // 🔴 #312-16c check_path：默认 true 时微信会校验「页面在该版本是否存在」，但实测部分
+  // 已发布账号对**任何显式 page** 都返回 41030（连主包首页都不过，默认主页却能过）——
+  // 微信侧逐页校验失灵，不是页面真不存在。调用方按「先校验、41030 后跳过校验补一枪」两段式。
+  // page 传空 = 不带 page 字段，微信默认用主页（用作「账号是否真已发布」的探测）。
+  const body = { scene, width: 430, auto_color: false, line_color: { r: 0, g: 0, b: 0 }, env_version: envVersion };
+  if (page) body.page = page;
+  if (opts.checkPath === false) body.check_path = false;
   const res = await fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${encodeURIComponent(tdata.access_token)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scene, page, width: 430, auto_color: false, line_color: { r: 0, g: 0, b: 0 }, env_version: envVersion }),
+    body: JSON.stringify(body),
   });
   const buffer = Buffer.from(await res.arrayBuffer());
   try {

@@ -88,6 +88,25 @@ describe('名片小程序码三级通道', () => {
     assert.match(seg, /lastErr = String\(\(e && e\.message\) \|\| e\);/);
   });
 
+  test('🔴 check_path 二次机会：逐页校验失灵的已发布账号（任何显式 page 都 41030），探测通过才跳过校验补 release', () => {
+    const s = read('../src/routes/card.js');
+    const seg = s.slice(s.indexOf("router.get('/wxacode'"), s.indexOf("router.get('/distribution/qrcode'"));
+    // 守卫：只对自运营 + 首轮确实是 41030 的账号做二次机会
+    assert.match(seg, /channel\.auth_status !== 'authorized' && \/\\\(41030\\\)\/\.test\(lastErr\)/);
+    // 先用「不带 page + 校验」探测账号是否真的已发布（探测不过就老实回落 H5，不发死码）
+    assert.match(seg, /standaloneWxacode\(channel\.appid, secret, '', '', 'release'\)/);
+    // 补枪固定 release：二维码是给访客扫的，trial/develop 普通用户打不开
+    assert.match(seg, /standaloneWxacode\(channel\.appid, secret, `id=\$\{cardId\}`, 'pages\/card\/cardDetail', 'release', \{ checkPath: false \}\)/);
+  });
+
+  test('standaloneWxacode 支持 checkPath:false 且 page 为空时不带 page 字段（探测用主页）', () => {
+    const svc = read('../src/services/wx-component.js');
+    const standalone = svc.slice(svc.indexOf('export async function standaloneWxacode'));
+    assert.match(standalone, /if \(opts\.checkPath === false\) body\.check_path = false;/);
+    assert.match(standalone, /if \(page\) body\.page = page;/);
+    assert.doesNotMatch(standalone, /page: page,/);
+  });
+
   test('前端按 type+reason 出文案，不再声称「小程序渠道未接入」', () => {
     const vue = read('../../web-app/src/pages/card/myCard.vue');
     assert.doesNotMatch(vue, /当前小程序渠道未接入/);
