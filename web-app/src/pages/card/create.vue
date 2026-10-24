@@ -184,6 +184,8 @@
               </picker>
             </view>
             <view class="bind-hint">口令由管理员提供，用于绑定到指定客户项目</view>
+            <!-- 第20轮：purchase 模式提示「买套餐也可自动入驻」，两条路都说清 -->
+            <view class="bind-hint" v-if="joinMode === 'purchase'">也可不开口令：开通会员套餐即可自动入驻{{ tenantName || '本租户' }}，可上架至名片集市</view>
           </view>
         </view>
 
@@ -348,6 +350,7 @@ import { useInlineLogin } from '../../utils/loginGate.js';
 // 🔴 #312-18c 原地登录守卫：requireLogin 返回 Promise，登录成功自动继续被拦下的动作
 const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin();
 import { INDUSTRIES, REGIONS } from './utils/cardOptions.js';
+import { getIndividualJoinMode, getChannelTenantName } from './utils/joinMode.js';
 import { track, trackPageView } from '../../utils/analytics.js';
 import { buildCreateSkinVars } from './utils/createSkin.js';
 import SIcon from '../../components/SIcon.vue';
@@ -363,6 +366,9 @@ const currentStep = ref(0);
 const cardType = ref('individual');
 const showBind = ref(false);
 const showAdv = ref(false);
+// 第20轮：租户个人入驻双模 + 渠道租户名（口令区文案消费）
+const joinMode = computed(() => getIndividualJoinMode());
+const tenantName = computed(() => getChannelTenantName());
 const steps = ['基本信息', '联系方式', '确认发布'];
 // 创建页皮肤（B1：租户后台配置，C 端无感）live 实时预览 / step 分步引导
 // （原第三档 split「沉浸双分区」从未实现布局、与 live 视觉无差，2026-10-16 移除）

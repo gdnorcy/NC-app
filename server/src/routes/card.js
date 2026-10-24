@@ -22,6 +22,7 @@ import { createBenefitsService, WORKS_LABEL_MAX } from '../services/benefits.js'
 import { normalizeTabJson } from '../services/design.js';
 import { WxComponentService, standaloneCode2Session, standaloneWxacode } from '../services/wx-component.js';
 import { readSecret } from '../crypto.js';
+import { readIndividualJoinMode, isMemberActive } from '../services/marketSubject.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -1753,12 +1754,27 @@ export function createCardRouter(db, wxService) {
 
   router.get('/member/status', auth, (req, res) => {
     const isMember = req.user.member_level !== 'free' && req.user.member_expire_at && new Date(req.user.member_expire_at) > new Date();
+    // 第20轮三层身份：集市场席状态（C 端购买引导/过期提示消费）。
+    // mode=租户个人入驻双模；hasSeat=本租户是否有 active 个人主体；
+    // purchase 来源主体的 memberActive 随会员有效期变化（过期=无席）。
+    let marketSubject = null;
+    if (req.customerId) {
+      const ind = db.prepare('SELECT id, status, source FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(req.customerId, req.user.id);
+      const source = ind?.source || null;
+      marketSubject = {
+        mode: readIndividualJoinMode(db, req.customerId),
+        hasSeat: !!ind && ind.status === 'active',
+        source,
+        memberActive: source === 'purchase' ? isMemberActive(db, req.user.id) : isMember,
+      };
+    }
     res.json({
       level: isMember ? req.user.member_level : 'free',
       expireAt: req.user.member_expire_at,
       isMember,
       // 会员分级权益快照（作品/视频数量上限 + 自定义标签名开关；C 端 worksEdit/videosEdit 消费）
       benefits: benefits.snapshot(req.user.id),
+      marketSubject,
     });
   });
 

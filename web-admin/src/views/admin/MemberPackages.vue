@@ -31,6 +31,9 @@
       <el-table-column label="语音" width="70" align="center">
         <template #default="{ row }"><el-tag :type="row.voice_enabled ? 'success' : 'info'" size="small">{{ row.voice_enabled ? '开' : '关' }}</el-tag></template>
       </el-table-column>
+      <el-table-column label="集市场席" width="90" align="center">
+        <template #default="{ row }"><el-tag :type="row.market_subject ? 'success' : 'info'" size="small">{{ row.market_subject ? '含' : '—' }}</el-tag></template>
+      </el-table-column>
       <el-table-column label="建群数" width="80" align="center">
         <template #default="{ row }">{{ row.group_limit === 0 ? '不限' : row.group_limit }}</template>
       </el-table-column>
@@ -91,6 +94,12 @@
         <el-form-item label="语音简介">
           <el-switch v-model="dialog.form.voiceEnabled" />
         </el-form-item>
+        <el-form-item label="含集市场席">
+          <el-switch v-model="dialog.form.marketSubject" />
+          <div class="inline-form">
+            <span class="hint">购买后自动入驻租户人脉集市（仅「购买会员套餐」入驻模式的租户生效）</span>
+          </div>
+        </el-form-item>
         <el-form-item label="建群数">
           <div class="inline-form">
             <el-input-number v-model="dialog.form.groupLimit" :min="0" />
@@ -144,13 +153,14 @@ const openDialog = (row) => {
         features: row.features || [], discount: row.discount, collectLimit: row.collect_limit,
         leadQuota: row.lead_quota, pushQuota: row.push_quota,
         voiceEnabled: !!row.voice_enabled, groupLimit: row.group_limit, sortOrder: row.sort_order,
+        marketSubject: !!row.market_subject,
         description: row.description, enabled: !!row.enabled,
       },
     };
   } else {
     dialog.value = {
       visible: true, id: null,
-      form: { level: '', name: '', price: 0, durationDays: 30, features: [], discount: 1.0, collectLimit: 0, leadQuota: 0, pushQuota: 0, voiceEnabled: false, groupLimit: 0, sortOrder: 0, description: '', enabled: true },
+      form: { level: '', name: '', price: 0, durationDays: 30, features: [], discount: 1.0, collectLimit: 0, leadQuota: 0, pushQuota: 0, voiceEnabled: false, groupLimit: 0, sortOrder: 0, marketSubject: false, description: '', enabled: true },
     };
   }
 };

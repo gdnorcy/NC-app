@@ -113,6 +113,13 @@
               <el-radio value="manual">需管理员审核上架</el-radio>
             </el-radio-group>
           </el-form-item>
+          <el-form-item label="个人入驻模式">
+            <el-radio-group v-model="settings.individualJoinMode">
+              <el-radio value="code">口令+审核（默认）</el-radio>
+              <el-radio value="purchase">购买会员套餐自助获得场席</el-radio>
+            </el-radio-group>
+            <div class="form-tip">口令模式：用户凭管理员提供的入驻口令申请，审核通过后入驻（存量行为）；购买模式：用户购买含「集市入驻资格」的会员套餐后自动入驻，会员过期将移出集市（主体保留）。切换只影响新入驻，存量主体不受影响。</div>
+          </el-form-item>
           <el-form-item label="联系方式可见">
             <el-radio-group v-model="settings.contactVisible">
               <el-radio value="after_exchange">交换名片后可见</el-radio>
@@ -199,6 +206,7 @@ const isTenantAdmin = computed(() => ['tenant_admin', 'admin'].includes(JSON.par
 const settings = ref({
   enabled: 1,
   auditMode: 'auto',
+  individualJoinMode: 'code',
   title: '人脉集市',
   showCompany: 1,
   showIndustry: 1,

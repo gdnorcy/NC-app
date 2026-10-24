@@ -3,6 +3,7 @@ import { checkTenantAccess } from '../tenant.js';
 import { addOperationLog } from '../db.js';
 import { checkTenantQuota, checkTenantSolutionQuota } from '../services/billing.js';
 import { getUserSubjects } from '../services/cardIdentity.js';
+import { readIndividualJoinMode, purgeExpiredPurchaseSubjects, isMemberActive } from '../services/marketSubject.js';
 
 /** 审计日志 helper：租户域操作统一带租户ID前缀，actor 兼容管理端 JWT 与 C 端 card_token */
 function audit(db, req, action, targetType, targetId, detail) {
@@ -205,6 +206,8 @@ export function createCardMarketRouter(db) {
   }
 
   router.get('/market/settings', tenant, (req, res) => {
+    // 第20轮：会员过期懒铲除（purchase 主体失效即移出集市，主体行保留）
+    purgeExpiredPurchaseSubjects(db, req.customerId);
     let settings = db.prepare('SELECT * FROM card_market_settings WHERE customer_id = ?').get(req.customerId);
     if (!settings) {
       db.prepare('INSERT INTO card_market_settings (customer_id) VALUES (?)').run(req.customerId);
@@ -225,6 +228,7 @@ export function createCardMarketRouter(db) {
         style: settings.style || 'A',
         notice: settings.notice || '',
         poolFloatMode: settings.pool_float_mode || 'soft',
+        individualJoinMode: settings.individual_join_mode || 'code',
         banners: (() => { try { return JSON.parse(settings.banners || '[]'); } catch { return []; } })(),
       },
       styles: styleAssets(req.customerId),
@@ -249,9 +253,13 @@ export function createCardMarketRouter(db) {
 
   // 更新集市配置（仅租户管理员）
   router.put('/market/settings', tenant, requireTenantAdmin, (req, res) => {
-    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice, poolFloatMode, banners } = req.body;
+    const { enabled, auditMode, title, cover, showCompany, showIndustry, showLocation, allowExchange, contactVisible, style, notice, poolFloatMode, individualJoinMode, banners } = req.body;
     if (poolFloatMode !== undefined && !['soft', 'recover', 'hard'].includes(poolFloatMode)) {
       return res.status(400).json({ error: '无效的上浮方式' });
+    }
+    // 第20轮：个人入驻双模开关（code=口令+审核默认 / purchase=购买套餐自助）
+    if (individualJoinMode !== undefined && !['code', 'purchase'].includes(individualJoinMode)) {
+      return res.status(400).json({ error: '无效的入驻模式' });
     }
     // 风格校验：启用且（默认风格 或 已购买/免费），未购付费风格禁止切换
     if (style !== undefined && style !== null) {
@@ -278,13 +286,14 @@ export function createCardMarketRouter(db) {
       style = COALESCE(?, style),
       notice = COALESCE(?, notice),
       pool_float_mode = COALESCE(?, pool_float_mode),
+      individual_join_mode = COALESCE(?, individual_join_mode),
       banners = COALESCE(?, banners),
       updated_at = datetime('now')
       WHERE customer_id = ?`).run(
-      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), S(poolFloatMode),
+      B(enabled), S(auditMode), S(title), S(cover), B(showCompany), B(showIndustry), B(showLocation), B(allowExchange), S(contactVisible), S(style), S(notice), S(poolFloatMode), S(individualJoinMode),
       banners === undefined ? null : (Array.isArray(banners) ? JSON.stringify(banners) : String(banners)), req.customerId
     );
-    audit(db, req, 'update_market_settings', 'market_settings', req.customerId, '更新人脉集市配置');
+    audit(db, req, 'update_market_settings', 'market_settings', req.customerId, `更新人脉集市配置（入驻模式=${individualJoinMode ?? '不变'}）`);
     res.json({ success: true, styles: styleAssets(req.customerId) });
   });
 
@@ -300,6 +309,8 @@ export function createCardMarketRouter(db) {
 
   // ===== 集市列表 =====
   router.get('/market/list', tenant, (req, res) => {
+    // 第20轮：会员过期懒铲除（先铲后查，过期 purchase 主体不出现）
+    purgeExpiredPurchaseSubjects(db, req.customerId);
     const { type, keyword, scope, need, industry, sort, city } = req.query;
     const sw = marketEnabled(req.customerId);
     if (!sw.enabled) return res.json({ items: [], message: '集市未开启' });
@@ -425,8 +436,16 @@ export function createCardMarketRouter(db) {
   // 我的名片：集市状态 + 位置定位（上架状态/审核态/置顶/NEW/集市内位置）
   router.get('/market/my-status', tenant, (req, res) => {
     const userId = req.user.id;
+    // 第20轮：会员过期懒铲除 + 主体来源标注（C 端区分口令/购买场席与会员有效期）
+    purgeExpiredPurchaseSubjects(db, req.customerId);
     // 名册主体（认证状态真值）：单一事实来源 services/cardIdentity.js
     const { subjects } = getUserSubjects(db, req.customerId, userId);
+    const enriched = subjects.map((s) => {
+      if (s.subjectType !== 'individual') return s;
+      const row = db.prepare('SELECT source FROM tenant_individuals WHERE id = ?').get(s.subjectId);
+      const source = row?.source || 'code';
+      return { ...s, source, memberActive: source === 'purchase' ? isMemberActive(db, userId) : true };
+    });
     const items = db.prepare(
       `SELECT mi.*, mi.is_top, mi.audit_status,
         CASE WHEN mi.created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END as is_new
@@ -444,7 +463,7 @@ export function createCardMarketRouter(db) {
       isTop: !!it.is_top,
       isNew: !!it.is_new,
       createdAt: it.created_at,
-    })), subjects });
+    })), subjects: enriched });
   });
 
   // 上架/下架集市（仅本人或租户管理员）
@@ -469,6 +488,14 @@ export function createCardMarketRouter(db) {
 
     const sw = marketEnabled(req.customerId);
     if (!sw.enabled) return res.status(400).json({ error: '集市未开启' });
+
+    // 第20轮：purchase 来源主体上架需会员有效（过期懒铲除在 list/settings/my-status 已跑，此处双保险）
+    if (subjectType === 'individual') {
+      const ind2 = db.prepare('SELECT source FROM tenant_individuals WHERE id = ? AND customer_id = ?').get(subjectId, req.customerId);
+      if (ind2?.source === 'purchase' && !isMemberActive(db, userId)) {
+        return res.status(403).json({ error: '会员已过期，请续费后再上架名片集市', code: 'memberExpired' });
+      }
+    }
 
     const existing = db.prepare('SELECT id FROM card_market_items WHERE customer_id = ? AND subject_type = ? AND subject_id = ?').get(req.customerId, subjectType, subjectId);
     if (existing) {

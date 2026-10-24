@@ -12,6 +12,7 @@ import { createMemberService } from './member.js';
 import { createGoodsOrderService } from './goodsOrder.js';
 import { readPlatformPaymentConfig, readTenantPaymentConfig } from './paymentConfig.js';
 import { buildClientConfig, createClientFromConfig } from './wechatpay.js';
+import { grantMarketSubjectByPurchase } from './marketSubject.js';
 
 export class PaymentService {
   constructor(db) {
@@ -234,6 +235,22 @@ export class PaymentService {
         UPDATE platform_user SET member_level = ?, member_expire_at = ?, updated_at = datetime('now')
         WHERE id = ?
       `).run(pkg.level, expireAt.toISOString().slice(0, 19).replace('T', ' '), order.userId);
+
+      // 第20轮三层身份：购买含场席套餐 → 租户 purchase 模式下自动获得集市场席。
+      // 不满足前置（套餐未勾选/口令模式/配额满/跨租户）时静默跳过——会员权益已正常开通，
+      // 场席引导由 C 端 /member/status 的 marketSubject 状态负责。
+      try {
+        const grant = grantMarketSubjectByPurchase(this.db, {
+          customerId: order.customerId,
+          userId: order.userId,
+          pkg,
+        });
+        if (grant.granted) {
+          console.log(`[payment] 订单 ${order.orderNo} 购买套餐获得集市场席（租户#${order.customerId} 用户#${order.userId}）`);
+        }
+      } catch (e) {
+        console.error('集市场席授予失败:', e?.message || e);
+      }
 
       // 分销分账已由 handlePaymentSuccess 统一调度（老简版 generateDistributionCommission 已废弃）
     } catch (e) {

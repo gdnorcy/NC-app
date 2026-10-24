@@ -242,6 +242,19 @@ test('/init 自运营渠道：返回 configured + customerId + 品牌配置', as
   assert.equal(res.body.configured, true);
   assert.equal(res.body.customerId, 2);
   assert.ok(res.body.primaryColor, '应带回主色（自运营行同样可配品牌）');
+  // 第20轮三层身份：个人入驻双模随渠道初始化下发；无设置行=默认 code（保守不改变存量行为）
+  assert.equal(res.body.individualJoinMode, 'code');
+});
+
+// —— 第20轮：租户后台切 purchase 模式后，C 端冷启动即可拿到（购买引导的唯一依据） ——
+test('/init purchase 模式：individualJoinMode 随渠道下发', async () => {
+  db.prepare(`INSERT INTO card_market_settings (customer_id, individual_join_mode) VALUES (2, 'purchase')
+    ON CONFLICT(customer_id) DO UPDATE SET individual_join_mode = 'purchase'`).run();
+  const res = await request(app).get('/api/channel/init').query({ appid: 'wxself001' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.individualJoinMode, 'purchase');
+  // 还原，避免影响同文件后续用例
+  db.prepare("UPDATE card_market_settings SET individual_join_mode = 'code' WHERE customer_id = 2").run();
 });
 
 // —— /init 未知 appid（平台自有小程序/未配置）：200 + configured:false，不制造红字错误 ——
