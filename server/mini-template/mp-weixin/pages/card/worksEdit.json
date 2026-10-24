@@ -2,6 +2,7 @@
   "navigationBarTitleText": "作品管理",
   "navigationStyle": "custom",
   "usingComponents": {
-    "page-nav": "../../components/PageNav"
+    "page-nav": "../../components/PageNav",
+    "login-gate-modal": "../../components/LoginGateModal"
   }
 }

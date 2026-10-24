@@ -3,6 +3,7 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "page-nav": "../../components/PageNav",
+    "login-gate-modal": "../../components/LoginGateModal",
     "s-icon": "../../components/SIcon",
     "card-comp-item": "../../components/CardCompItem",
     "card-tab-bar": "../../components/CardTabBar",
