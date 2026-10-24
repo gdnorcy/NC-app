@@ -20,11 +20,11 @@
     <view class="pe-text">{{ loadFailedMsg }}</view>
     <view class="pe-btn" @click="reloadPage">重新加载</view>
   </view>
-  <!-- 未登录引导 -->
+  <!-- 未登录引导（#312-18：原地登录，不再 reLaunch 到登录页再跳回来） -->
   <view class="page-error" v-else-if="notLogin" :style="[themeStyle, brandVars]">
     <view class="pe-icon"><SIcon name="user" size="xlarge" :color="ICON_DECOR" /></view>
     <view class="pe-text">登录后即可查看和管理你的名片</view>
-    <view class="pe-btn" @click="goApply">去登录</view>
+    <LoginGate @success="onInlineLogin" />
   </view>
 
   <view class="owner-page" v-else :style="[themeStyle, brandVars, tabBarPad]">
@@ -248,6 +248,9 @@ import { shadeHex, brandPalette } from '../../utils/color.js';
 import { heroForeground } from '../../utils/templateTheme.js';
 import { POSTER_STYLES, drawPosterByStyle } from './posterStyles.js';
 import { loginEntryUrl, LOGIN_PATH } from '../../utils/loginEntry.js';
+// 🔴 #312-18 原地登录：登录请求与登录页共用一份实现（utils/inlineLogin.js）
+import { mustCreateCard } from '../../utils/inlineLogin.js';
+import LoginGate from '../../components/LoginGate.vue';
 import Badge from '../../components/Badge.vue';
 import { saveCardTabState, restoreScrollTop, h5ScrollTop } from './utils/cardTabState.js';
 import SIcon from '../../components/SIcon.vue';
@@ -415,6 +418,15 @@ onMounted(async () => {
       } catch (e) {}
     }
   }
+  await bootOwner();
+});
+
+/**
+ * 进入本人名片区的完整流程：解析名片 id → 拉数据 → 商务数据/埋点。
+ * 🔴 抽成独立函数是为了「原地登录成功后可重入」——旧实现只有 onMounted 能跑一遍，
+ *    登录只能靠 reLaunch 回到本页（两次跳转）才能触发。
+ */
+async function bootOwner() {
   const pages = getCurrentPages();
   const opts = pages[pages.length - 1].options || {};
   const explicitId = opts.id || '';
@@ -472,7 +484,7 @@ onMounted(async () => {
   } else {
     loading.value = false;
   }
-});
+}
 
 // 失败重试：重进本页触发完整重新加载
 function reloadPage() {
@@ -480,12 +492,21 @@ function reloadPage() {
   const id = pages[pages.length - 1].options.id;
   if (id) uni.redirectTo({ url: `/pages/card/myCard?id=${id}` });
 }
-function goApply() {
-  // ⚠️ 旧实现跳 `/pages/card/apply`——该页从未存在（文件无、pages.json 未注册），
-  // reLaunch 到不存在的页会**静默失败**，表现为「点去登录没反应」。真实登录页是
-  // pages/cardMain/login，用 loginEntryUrl 统一拼（必带 manual=1 让冷启动首页联动让路，
-  // redirect 让登录后回到本页，而不是被丢到首页）。
-  uni.reLaunch({ url: loginEntryUrl(LOGIN_PATH, '/pages/card/myCard') });
+/**
+ * 🔴 #312-18 原地登录成功回调：不跳页，直接在当前页重新走一遍进入流程。
+ * 旧实现是 reLaunch 到 pages/cardMain/login → 登录完再 reLaunch 回本页，
+ * 「去、回」两次跳转，用户看着两个页面闪一遍。
+ * 新用户/没名片的人必须去建名片（落到本页会是个空壳），这种情况才跳一次。
+ */
+async function onInlineLogin(result) {
+  if (mustCreateCard(result)) {
+    uni.reLaunch({ url: '/pages/card/create' });
+    return;
+  }
+  notLogin.value = false;
+  loading.value = true;
+  loadFailed.value = false;
+  await bootOwner();
 }
 
 // 离开时保存滚动位置，切Tab返回后恢复

@@ -30,7 +30,7 @@ import { buildGlobalHomeRedirect } from '../../utils/globalHome.js';
 import { isManualEntry as isManual, safeRedirect } from '../../utils/loginEntry.js';
 import { JUMP_DONE_KEY } from '../../utils/design.js';
 import { DEFAULT_TENANT_ID } from '../../config.js';
-import { resetBrandCache } from '../../utils/brand.js';
+import { performWxLogin, mustCreateCard } from '../../utils/inlineLogin.js';
 
 // 🔴 冷启动 reLaunch 竞态防护（2026-10-21 真机报修「扫体验码打开是空白，要点左上角
 //   回首页才会加载出首页」）：onShow 里 designConfig 请求返回后立刻 reLaunch，可能
@@ -78,28 +78,26 @@ async function checkGlobalHome() {
   }
 }
 
-function handleWxLogin() {
-  // #ifdef H5
-  // H5端不支持微信登录，使用模拟code直接登录
-  doLogin('h5_mock_' + Date.now(), '');
-  // #endif
-  // #ifndef H5
-  uni.login({
-    provider: 'weixin',
-    success: (res) => {
-      // 携带小程序自身 appid：后端据此走第三方平台 component 模式按租户登录
-      // （该 appid 未在本平台授权时，后端自动回落平台单 appid 通道，行为不变）
-      let appid = '';
-      try {
-        appid = uni.getAccountInfoSync().miniProgram.appId || '';
-      } catch (e) {}
-      doLogin(res.code, appid);
-    },
-    fail: () => {
-      uni.showToast({ title: '微信登录失败', icon: 'none' });
-    },
-  });
-  // #endif
+async function handleWxLogin() {
+  // 🔴 登录实现收敛到 utils/inlineLogin.js（与页面内 LoginGate 浮层共用一份）：
+  // 取码（H5 模拟码 / MP wx.login + appid）、租户兜底、清品牌色缓存三件事只写一遍，
+  // 两边各写一份必然漂移（曾出现「能登录但装修首页空白」）。
+  try {
+    const result = await performWxLogin();
+    afterLogin(result);
+  } catch (e) {
+    uni.showToast({ title: (e && e.message) || '登录失败', icon: 'none' });
+  }
+}
+
+async function afterLogin(result) {
+  if (mustCreateCard(result)) {
+    // 新用户/没名片：必须先建名片，忽略 redirect（否则会跳回一个空壳页）
+    uni.reLaunch({ url: '/pages/card/create' });
+  } else {
+    const redirect = getRedirectTarget();
+    uni.reLaunch({ url: redirect || '/pages/cardMain/home' });
+  }
 }
 
 /** 读取当前页 query 参数 */
@@ -130,28 +128,6 @@ function getRedirectTarget() {
   return safeRedirect(pageOptions().redirect);
 }
 
-async function doLogin(code, appid = '') {
-  try {
-    const parentId = uni.getStorageSync('share_parent_id') || '';
-    // 带上部署默认租户：否则小程序登录的新用户没有租户归属 → 装修首页配置读不到 → 首页空白
-    const result = await cardApi.wxLogin(code, parentId, DEFAULT_TENANT_ID || '', appid);
-    uni.setStorageSync('card_token', result.token);
-    uni.setStorageSync('card_user', result.user);
-    // 🔴 冷启动时 useBrandOverride 可能已在未登录态拉过品牌色（401 失败不缓存但重试链有限），
-    //    登录成功必须清缓存，reLaunch 后各页才会带着新 token 重新拉取品牌色
-    resetBrandCache();
-    
-    if (result.isNew || !result.hasCard) {
-      // 新用户/没名片：必须先建名片，忽略 redirect（否则会跳回一个空壳页）
-      uni.reLaunch({ url: '/pages/card/create' });
-    } else {
-      const redirect = getRedirectTarget();
-      uni.reLaunch({ url: redirect || '/pages/cardMain/home' });
-    }
-  } catch (e) {
-    uni.showToast({ title: e.message || '登录失败', icon: 'none' });
-  }
-}
 </script>
 
 <style scoped>

@@ -123,9 +123,15 @@ describe('品牌主色跟随锁（home 首页 / CardTabBar 底部导航）', () 
     expect(inkOnLightBg('rgba(0,0,0,.5)')).toBe('#165dff');
   });
 
-  test('login.vue：登录成功后 resetBrandCache（reLaunch 后各页带新 token 重拉品牌色）', () => {
-    const s = src('../pages/cardMain/login.vue');
-    expect(s).toContain("import { resetBrandCache } from '../../utils/brand.js';");
-    expect(s).toContain('    resetBrandCache();');
+  // 🔴 #312-18：登录实现收敛到 utils/inlineLogin.js（登录页与页面内浮层共用），
+  // 这里钉的是**语义**（登录成功必须清缓存），不再钉它在哪个文件里 import。
+  test('登录成功后 resetBrandCache（登录页与页面内浮层共用同一份实现）', () => {
+    const s = src('./inlineLogin.js');
+    expect(s).toContain("import { resetBrandCache } from './brand.js';");
+    expect(s).toContain('  resetBrandCache();');
+    // 两条登录入口都必须走它，不能自己再写一份 wxLogin
+    expect(src('../pages/cardMain/login.vue')).toContain('performWxLogin');
+    expect(src('../components/LoginGate.vue')).toContain('performWxLogin');
+    expect(src('../pages/cardMain/login.vue')).not.toContain('cardApi.wxLogin(');
   });
 });
