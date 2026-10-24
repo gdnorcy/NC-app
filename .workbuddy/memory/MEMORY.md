@@ -1,5 +1,5 @@
 # 360全景 长期记忆（元规则）
-> 只放元规则与判据，细节在每日日志。2026-10-24 二轮精简（17.9KB→~13KB，每条规则保留、砍冗词）。
+> 只放元规则与判据，细节在每日日志。2026-10-24 精简（18.2KB→~15KB，合并同类条目）。
 > ⚠️ 改本文件必须在 deploy 往返 checkout **之后**做并随即提交——checkout -f deploy 会把工作区还原成 deploy 分支旧版，未提交修改被静默吞掉（18b 轮吞过一次精简稿）。
 
 ## 装修组件
@@ -7,23 +7,22 @@
 - 间距 100% 由组件自身 marginTop 决定 →「不真实」先数壳层数删壳；选中环独立绝对定位 + pointer-events:none。
 - 链接模型单一事实来源 utils/compLinkModel.js：'internal' 是一等类型；schema default 必须 = options[0].value；'internal' 与 '' 两写法都归一。
 - 「对齐+偏移」=基准+叠加：偏移用 position:relative+left（禁 margin-left 覆盖 auto、禁 transform 造层叠上下文）；boxOffsetX/offsetX 两 key 都认。
-- canvas 显示尺寸≠位图（CSS 按容器实测宽）；横向 scroll-view 内 canvas 不跟手 → 导出 `<image>`；屏外 canvas 用 fixed+left:-9999px（禁 display:none）。禁对 computed() 返回值解构；新字段串同一条 v-else-if 链；面板字段渲染三处同时认（共享 utils/*.js）。
-- 🔴 canvas 变换矩阵跨轮累积：循环外只设一次 width/height 不重置上下文，每轮 ctx.scale(dpr,dpr) 叠成 dpr²/dpr³…把内容顶出画布（第 2 张起只剩底色）。每轮必须 setTransform(1,0,0,1,0,0) → clearRect → setTransform(dpr,0,0,dpr,0,0)。H5 分支每轮 createElement('canvas') 天然免疫——两端排查别混为一谈（H5 里 grep 到的 setTransform 是 uni 内部实现）。
-- 🔴 swiper 塞进 position:fixed 弹层 = 真机触摸失效（devtools 正常）。弹层内横滑一律自实现 @touchstart/@touchend + dx 阈值。swiper 的 previous/next-margin 决定 slide 宽：太小 → slide≈满屏 + aspectFill 把竖图裁成一条（"糊脸大图"），须 ≈(屏宽−卡宽)/2。
+- canvas 显示尺寸≠位图；横向 scroll-view 内 canvas 不跟手 → 导出 `<image>`；屏外 canvas 用 fixed+left:-9999px（禁 display:none）。禁对 computed() 返回值解构；新字段串同一条 v-else-if 链。
+- 🔴 canvas 变换矩阵跨轮累积：循环外只设一次 width/height 不重置上下文，每轮 ctx.scale(dpr,dpr) 叠成 dpr²/dpr³…把内容顶出画布（第 2 张起只剩底色）。每轮必须 setTransform(1,0,0,1,0,0) → clearRect → setTransform(dpr,0,0,dpr,0,0)。H5 分支每轮 createElement('canvas') 天然免疫——两端排查别混为一谈。
+- 🔴 swiper 塞进 position:fixed 弹层 = 真机触摸失效（devtools 正常）。弹层内横滑一律自实现 @touchstart/@touchend + dx 阈值。swiper 的 previous/next-margin 决定 slide 宽：太小 → slide≈满屏 + aspectFill 把竖图裁成一条，须 ≈(屏宽−卡宽)/2。
 
 ## 真机与跨端
 - WXSS 不支持 `*` 选择器（uni/H5 不报，devtools 才炸）；图标必须 base64 内联禁 import PNG（hash 漂移真机落空）；SIcon MP 端预生成 PNG 颜色写死 → 用真实 view 画，禁 ::before/after。
-- uni image 非替换元素无内在尺寸 → 限高须给显式盒高（width/height:auto 塌缩成 0）。
+- uni image 非替换元素无内在尺寸 → 限高须给显式盒高（width/height:auto 塌缩成 0）；导航栏右侧被微信胶囊吃掉大半宽度 → 单条主操作改右下角 FAB。
 - 🔴 MP 端滚动必须用 scroll-view（普通 view overflow-y:auto，H5 能滚、真机滚不动）。定高只有三条可靠路（真机三次证伪）：①显式 height（cardEdit .ce-modal-body 46vh）②max-height 直接封顶且父级高度 auto 非 flex 分配（visitors .tl-scroll）③父级有确定 height 时 flex:1。flex:1+height:0 赌父级 max-height 分配 = 两次证伪不滚。动 scroll-view 前先 grep 项目内其他弹窗写法。
 - 🔴 MP scroll-view 弹窗最终形态（四轮收敛）：sheet 普通块级堆叠（不用 flex column）+ body max-height:Nvh 封顶 + :scroll-top 回顶。内容动态增高后可视位置停在中段（体感"上面被挡住"）→ 展开/开关状态变化时主动回顶（scroll-top 只在值变化时生效，0/0.1 交替；watch 用 flush:'post'）。
 - 🔴 MP 模板禁写 `x?.[0]`（可选链后跟索引）：编译降级成整体值（曾把整个昵称塞进 72rpx 头像圆）。取首字符/下标放 computed，模板只消费结果。
 - 🔴 MP 模板禁裸 b/h4/p/span + 禁标签选择器：uni MP 把非 view/text 标签收编成无类名 view → wxss 标签选择器整条静默失效，H5 却正常 → 两端必漂移。样式一律类名选择器。验证选择器要"配对验证"：wxss 有规则 ≠ 生效，须确认编译后 wxml 里存在能被命中的元素。
 - 🔴 跳转目标路径写错 = 静默失败（不报错也不跳，体感"只 toast 不跳转"）。跳转走常量/工具函数，别手写字面量。
-- 🔴 MP 产物验证口径：变量名 mangle 成单字母、v-if→wx:if、公共模块字符串抽到 common/vendor.js、局部函数名被 minify 消失。验证用「用户可见串 + DOM 结构 + vendor 间接确认」。app.json 分包 pages 是**纯字符串数组**（root 由分包承载，验证串用 "pageName" 不是全路径）；页面跳转路径在 page.js 不在 wxml。
+- 🔴 MP 产物验证口径：变量名 mangle 成单字母、v-if→wx:if、公共模块字符串抽到 common/vendor.js、局部函数名被 minify 消失。验证用「用户可见串 + DOM 结构 + vendor 间接确认」。app.json 分包 pages 是**纯字符串数组**（验证串用 "pageName" 不是全路径）；页面跳转路径在 page.js 不在 wxml。
 - 🔴 z-index 令牌分层：--z-content(10) 卡片内浮层 / --z-sticky(100) 悬浮条 / --z-popup(1000) 全屏弹窗。卡片内浮层误用 --z-popup 会盖过 900+ 的全屏弹窗。
 - 🔴 服务端存的图片路径（/uploads/ 相对）MP 全链路断：H5 同源能显示、MP 当包内路径 → 空白。展示点一律过 absUrl（utils/apiBase.js 单一实现）；canvas.createImage 同样不吃相对路径；新上传入口必须"先换 URL 再入库"。
 - 🔴 服务端时间是 UTC：SQLite datetime('now') 产出 UTC 串，前端 new Date(t.replace(' ','T')) 按本地时区解析 → 东八区多 8 小时。解析必须补 'Z'（pages/card/utils/dynTime.js 两端共用）。
-- 导航栏右侧会被微信胶囊吃掉大半宽度 → PageNav #right 按钮被挤到标题左边。单条主操作改右下角 FAB。
 - H5 正常≠MP 正常：父 wxss 穿不透子组件根 → 传 prop 出内联；MP 无 atob/Buffer → uni.base64ToArrayBuffer；消费 var(--design- 的页必绑 themeStyle，SIcon/canvas 喂真实 hex。
 
 ## 配色 / 几何 / 令牌
@@ -49,11 +48,8 @@
 - 整页空数据：computed 用了未 import 函数（setup 抛错 → 静态模板在、数据全灭、themeStyle 失效露 fallback 色）。audit:imports 已覆盖 vue 具名导出。
 
 ## 构建与部署
-- 分支：源码落 main（不带产物）；deploy = merge --no-ff main + 重建产物；git push -f origin deploy；部署后 checkout main。
-- 产物必须 git add -f（限 server/public/{card,mall}、server/mini-template/mp-weixin，别用 -A）；普通 add 静默跳过新 chunk → 主 chunk 404 白屏。SPA 兜底让 404 返 200 → 验证比 md5 不能只看状态码。
-- 🔴 main HEAD 里跟踪着陈旧产物（.gitignore 后补，管不住已跟踪文件）：切 deploy 报「local changes would be overwritten」→ mv 新产物到 /tmp → checkout -f deploy → merge → 从备份换回 → add -f。不能从 main 移除跟踪（未来 merge 会 modify/delete 冲突破坏 deploy 产物）。回 main 后 git checkout -- server/mini-template server/public/card server/public/mall 恢复。
-- 🔴 cp -a 回铺产物会嵌套：checkout -f deploy 后目标已是旧版，直接 cp -a 会得到 card/card/。必须先把目标整个 mv 到 /tmp 再铺过去。
-- 顺序铁律：构建 → 备份 /tmp → 才能 git checkout（checkout 会把新产物还原成旧版）。切 deploy 前先 git checkout -- server/mini-template/mp-weixin。
+- 分支：源码落 main（不带产物）；deploy = merge --no-ff main + 重建产物；git push -f origin deploy；部署后 checkout main。产物必须 git add -f（限 server/public/{card,mall}、server/mini-template/mp-weixin，别用 -A）；普通 add 静默跳过新 chunk → 主 chunk 404 白屏。SPA 兜底让 404 返 200 → 验证比 md5 不能只看状态码。
+- 🔴 main HEAD 里跟踪着陈旧产物（.gitignore 后补，管不住已跟踪文件）：切 deploy 报「local changes would be overwritten」→ mv 新产物到 /tmp → checkout -f deploy → merge → 从备份换回 → add -f。不能从 main 移除跟踪（未来 merge 会 modify/delete 冲突破坏 deploy 产物）。回 main 后 git checkout -- server/mini-template server/public/card server/public/mall 恢复。**cp -a 回铺会嵌套**（目标已是旧版 → card/card/），必须先把目标整个 mv 到 /tmp 再铺。
 - 🔴 checkout 往返会吞掉一切未提交修改（不止产物——.workbuddy/memory 等被跟踪文件同样还原）。改完的东西要么先提交、要么 checkout 回 main 后核对 git status 再动下一件事。
 - 🔴 备份≠本轮产物：提交前必须 grep 本轮特征串验证（曾险把旧备份当新产物上线）。压缩产物函数名被 minify 消失属正常，用「用户可见串/API 名/wxml 结构」三重交叉。terser 把 0.11 写成 .11；zsh 双引号里 $_ 会展开进正则 → 正则用单引号。
 - 🔴 uni build 自身清理 dist/build 触发 safe-delete（assets chunk >50 被拦整链失败）→ 构建前把 dist/build/{h5,mp-weixin} mv 到 /tmp（rename 非删除无守卫）。
@@ -63,7 +59,7 @@
 - 加页面必跑 node web-app/scripts/gen-mini-pages.js（pages.json 是唯一事实来源，miniPages.js 是生成物且被跟踪；漏跑=装修页页面选择框缺项）。
 
 ## 线上排查通道
-- 服务器 /opt/app（deploy 分支），systemd panorama.service，cwd /opt/app/server。Lighthouse lhins-bvw7p0gb（ap-guangzhou）；BT 1.12.250.126:8888。
+- 服务器 /opt/app（deploy 分支），systemd panorama.service，cwd /opt/app/server。Lighthouse lhins-bvw7p0gb（ap-guangzhou）。
 - 沙箱直连 HTTPS zero.nshop.mobi(443) 校验；:3000 直连被拦。远程部署：fetch → reset --hard origin/deploy（校验 HEAD）→ 重启。
 - TAT AccessDeny：命令含外网域名/IP 被拦 → 服务器侧运维用 TAT（git/systemctl/ps，禁 IP/网络），HTTP 校验走沙箱 HTTPS。describe_instances 用 InstanceIds 数组；execute_command 用 InstanceId 单数。判构建成功禁 cmd|tail → 用 echo $?。
 - C 端 /api/card/* 用租户后台 token 一律 401（鉴权不同域）；验接口用正确 HTTP 方法，拿真不存在路由确认 404 基准。公开只读免登录：GET /api/card/cards/:id。
@@ -81,9 +77,9 @@
 - 三级通道（与 code2session 同口径）：①第三方平台已授权(auth_status='authorized')→WxComponentService ②自运营（仅 AppID+AppSecret）→standalone 直连 ③都没有→H5 兜底。渠道查询不得过滤 auth_status。env 级联 release→trial→develop（41030=该版本没这个页面）；用户只需「上传+设为体验版」即生效。访客码必须 release（trial/develop 普通用户打不开）。
 - 失败必须打日志并透出 reason（no_page/no_channel/failed），别静默吞错：弹层要告诉租户"没上传代码"而不是让他以为没接上。
 - 🔴 TAT 连 base64 编码的外网域名也拦 → 联调微信：TAT 只取密钥/状态，网络请求放沙箱本地发。wxa/get_page 只限第三方平台调用（自运营 appid 得 86000）→ 用"候选 page 逐个发码"试探法替代。
-- 🔴 getwxacodeunlimit 的 check_path 逐页校验会对已发布账号整体失灵：任何显式 page（主包/分包 × 三版本）全 41030，但不带 page 的默认主页能过校验。修法两段式二次机会：首轮照常校验；全 41030 后先用「真实 scene + 无 page + 校验」探测账号是否真已发布（探测不过 = 真没代码 → 回落 H5 不发死码），通过才 check_path:false 补一枪 release。getwxacode 不校验 path（假路径也出图），不能用它验证页面存在。scene 必填非空（空 → 40169）。
+- 🔴 getwxacodeunlimit 的 check_path 逐页校验会对已发布账号整体失灵：任何显式 page 全 41030，但不带 page 的默认主页能过校验。修法两段式：首轮照常校验；全 41030 后先用「真实 scene + 无 page + 校验」探测账号是否真已发布（探测不过 = 真没代码 → 回落 H5 不发死码），通过才 check_path:false 补一枪 release。getwxacode 不校验 path（假路径也出图），不能用它验证页面存在。scene 必填非空（空 → 40169）。
 - 🔴 web-app/dist/build/mp-weixin（uni 原始产物）与 server/mini-template/mp-weixin（同步后的自运营工程目录）应当同源，但工作树那份常被部署末尾的 git checkout -- 还原成陈旧版本（sync 只 cpSync 不清旧文件）。交付给用户上传的包一律从 dist 取，用 BUILD.txt 的 built at + git HEAD 验新鲜度（曾把 10-18 旧包打包给用户）。运行时代码两边一致，差异只在 app.json 页数与 permission。
-- 🔴 「devtools 模拟器空白、真机有内容」= 请求级失败（/api/channel/init 拿不到 tenant 就整页没数据）。排查：① devtools 详情→本地设置→勾「不校验合法域名/web-view/TLS/HTTPS 证书」（MP 端 API_HOST 硬编 https://zero.nshop.mobi）② 项目 AppID 别用测试号（touristappid → configured:false）。curl /api/channel/init?appid= 真 appid 应回 customerId>0。
+- 🔴 「devtools 模拟器空白、真机有内容」= 请求级失败（/api/channel/init 拿不到 tenant 就整页没数据）。排查：① devtools 勾「不校验合法域名/web-view/TLS/HTTPS 证书」（MP 端 API_HOST 硬编 https://zero.nshop.mobi）② 项目 AppID 别用测试号（touristappid → configured:false）。curl /api/channel/init?appid= 真 appid 应回 customerId>0。
 
 ## 业务口径 / 测试坑
 - 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照 → 留 admin 凭证 → 户口重置 → ghfast 镜像传 → 停服换库。
