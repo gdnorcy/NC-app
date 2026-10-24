@@ -100,6 +100,24 @@ describe('叠字修复：每行 y 区间两两不重叠（钉死常量顺序）'
     expect(body).toMatch(/qrWithGuide\(ctx, d, t, X, QR_Y, 200,/);
   });
 
+  test('#312-17 浅款二维码不再裸贴：一律走圆角白板（半径≈边长11%，与深色款口径一致）', () => {
+    const s = stylesSrc();
+    const guide = s.slice(s.indexOf('function qrWithGuide'), s.indexOf('// 🔴 #312-15：公司'));
+    // 微信返回的码是 JPEG 纯白底，裸贴 = 硬白方块
+    expect(guide).not.toMatch(/ctx\.drawImage\(d\.qr/);
+    expect(guide).toMatch(/drawQrPanel\(ctx, d\.qr, qrX, qrY, qrS, Math\.round\(qrS \* QR_PLATE_RATIO\), QR_PLATE_PAD\)/);
+    expect(s).toMatch(/const QR_PLATE_RATIO = 0\.11;/);
+    expect(s).toMatch(/const QR_PLATE_PAD = 12;/);
+    // 深款（显式 24/22）口径不被改动
+    const obsidian = s.slice(s.indexOf('function drawObsidian'), s.indexOf('const DRAWERS'));
+    expect(obsidian).toMatch(/drawQrPanel\(ctx, qr, 48, 650, 280, 24, 22\)/);
+    // 没码时不该留下空白白底板块
+    const panel = s.slice(s.indexOf('function drawQrPanel'), s.indexOf('function phonePill'));
+    expect(panel).toMatch(/if \(!qr\) return;/);
+    // 内缩画码：底板比图片大一圈，静默区由底板白边保证
+    expect(panel).toMatch(/ctx\.drawImage\(qr, x \+ p, y \+ p, size - p \* 2, size - p \* 2\)/);
+  });
+
   test('obsidian 各行不重叠（领域460 < chips492 < 胶囊562 < 二维码650）', () => {
     const s = stylesSrc();
     const obsidian = s.slice(s.indexOf('function drawObsidian'), s.indexOf('const DRAWERS'));

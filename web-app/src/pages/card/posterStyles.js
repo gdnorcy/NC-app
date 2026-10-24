@@ -144,10 +144,17 @@ function drawChips(ctx, tags, x0, y, chipH, opts) {
 }
 
 /** 二维码白色圆角面板（深色底上的二维码必须垫白） */
+// 🔴 #312-17：微信返回的小程序码是 JPEG、底色纯白（实测四角像素 255,255,255），直接
+// drawImage 就是一块硬白方块，跟白卡 36px 圆角/电话胶囊完全不是一套语言。
+// 统一垫一层「白色圆角底板」：半径取边长 ~11%（220→24、200→22，与深色款 24 对齐），
+// 底板内缩 pad 再画码 —— 码本体一个像素都不裁不缩，静默区完整，识别率不变。
+const QR_PLATE_RATIO = 0.11;
+const QR_PLATE_PAD = 12;
 function drawQrPanel(ctx, qr, x, y, size, radius, pad) {
+  if (!qr) return;
   const p = pad == null ? 20 : pad;
   fillRound(ctx, x, y, size, size, radius == null ? 24 : radius, '#FFFFFF');
-  if (qr) ctx.drawImage(qr, x + p, y + p, size - p * 2, size - p * 2);
+  ctx.drawImage(qr, x + p, y + p, size - p * 2, size - p * 2);
 }
 
 /**
@@ -183,7 +190,8 @@ function phonePill(ctx, c, opts) {
 
 /** 二维码 + 右侧两行引导文案（左对齐浅底风格共用） */
 function qrWithGuide(ctx, d, t, qrX, qrY, qrS, guideX) {
-  if (d.qr) ctx.drawImage(d.qr, qrX, qrY, qrS, qrS);
+  // 走圆角白板，不再裸贴（二维码图片自带白底，底板圆角 = 看到的就是圆边矩形）
+  drawQrPanel(ctx, d.qr, qrX, qrY, qrS, Math.round(qrS * QR_PLATE_RATIO), QR_PLATE_PAD);
   const cy = qrY + qrS / 2;
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 26px sans-serif';
