@@ -17,10 +17,12 @@ import { checkTenantQuota, checkTenantSolutionQuota } from './billing.js';
 import { effectiveMembership } from './member.js';
 import { addOperationLog } from '../db.js';
 
-/** 读租户个人入驻模式（无设置行=默认 code，保守不改变存量行为） */
+/** 读租户个人入驻模式（无设置行=默认 code，保守不改变存量行为）
+ *  三值（第26轮起）：'code'=兑换码+审核 / 'apply'=自助申请认证（免码，仍走审核） / 'purchase'=购买套餐自助获得场席 */
 export function readIndividualJoinMode(db, customerId) {
   const row = db.prepare('SELECT individual_join_mode FROM card_market_settings WHERE customer_id = ?').get(customerId);
-  return row?.individual_join_mode === 'purchase' ? 'purchase' : 'code';
+  const m = row?.individual_join_mode;
+  return m === 'purchase' || m === 'apply' ? m : 'code';
 }
 
 /**

@@ -341,7 +341,8 @@ export function createChannelRouter(db) {
       brandName: channel.brand_name || customer?.customer_name || '',
       brandLogo: channel.brand_logo || customer?.logo_path || '',
       primaryColor: channel.primary_color || '#165DFF',
-      individualJoinMode: joinMode?.individual_join_mode === 'purchase' ? 'purchase' : 'code',
+      individualJoinMode: joinMode?.individual_join_mode === 'purchase' ? 'purchase'
+        : joinMode?.individual_join_mode === 'apply' ? 'apply' : 'code',
       apiBase: `${req.protocol}://${req.get('host')}`,
     });
   });

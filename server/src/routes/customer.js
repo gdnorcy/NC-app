@@ -9,7 +9,7 @@ import { transcodeImage } from './scenes.js';
 import { WxComponentService } from '../services/wx-component.js';
 import { ciUploadMini } from '../services/mini-ci.js';
 import { checkTenantAccess, tenantState } from '../tenant.js';
-import { checkTenantSolutionQuota } from '../services/billing.js';
+import { checkTenantQuota, checkTenantSolutionQuota } from '../services/billing.js';
 import { calcFunnel, trendSeries, eventDistribution, topTargets, calcHealthScore } from '../services/analytics.js';
 import { encryptSecret, decryptSecret, maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
 import { mergePaymentIntoConfig, maskConfigPayment } from '../services/paymentConfig.js';
@@ -1143,8 +1143,8 @@ router.get('/card/manage', requireTenant, (req, res) => {
   const cid = req.customerId;
   const { page = 1, pageSize = 20, keyword = '', identity = '', market = '', subject = 'person' } = req.query;
   const offset = (page - 1) * pageSize;
-  // SELECT 列表占位符：身份 CASE ×3 + 集市状态/记录ID/置顶 ×3
-  const selectParams = [...cardIdentityParams(cid), cid, cid, cid];
+  // SELECT 列表占位符：身份 CASE ×3 + 集市状态/记录ID/置顶 ×3 + 入驻申请行 id/状态 ×2
+  const selectParams = [...cardIdentityParams(cid), cid, cid, cid, cid, cid];
   let where = `WHERE ${TENANT_CARD_SCOPE_SQL} AND c.status = ?`;
   const params = [...tenantCardScopeParams(cid), 'active'];
   if (keyword) {
@@ -1183,7 +1183,9 @@ router.get('/card/manage', requireTenant, (req, res) => {
       (SELECT mi.is_top FROM card_market_items mi
         WHERE mi.customer_id = ? AND mi.user_id = c.user_id
         ORDER BY (mi.audit_status = 'approved') DESC, (mi.audit_status = 'pending') DESC, mi.id DESC
-        LIMIT 1) AS market_is_top
+        LIMIT 1) AS market_is_top,
+      (SELECT i.id FROM tenant_individuals i WHERE i.customer_id = ? AND i.user_id = c.user_id ORDER BY i.id DESC LIMIT 1) AS individual_id,
+      (SELECT i.status FROM tenant_individuals i WHERE i.customer_id = ? AND i.user_id = c.user_id ORDER BY i.id DESC LIMIT 1) AS individual_status
     FROM card_profile c
     LEFT JOIN platform_user u ON u.id = c.user_id
     ${where}
@@ -1226,6 +1228,8 @@ router.get('/card/manage', requireTenant, (req, res) => {
     marketItemId: c.market_item_id || null,
     marketStatus: c.market_status || '',   // '' 表示从未申请上架
     marketIsTop: !!c.market_is_top,
+    applyId: c.individual_id || null,      // 入驻名册行（认证状态真值）
+    applyStatus: c.individual_status || '', // active=已认证 / pending=待审核 / rejected=已拒绝 / disabled=已停用 / ''=未申请
   })), total, stats, page: Number(page), pageSize: Number(pageSize) });
 });
 
@@ -1237,12 +1241,24 @@ router.get('/card/manage/:id', requireTenant, (req, res) => {
     `SELECT c.* FROM card_profile c WHERE c.id = ? AND c.status = 'active' AND (${TENANT_CARD_SCOPE_SQL})`
   ).get(req.params.id, ...tenantCardScopeParams(cid));
   if (!card) return res.status(404).json({ error: '名片不存在或不属于本租户' });
+  // 第26轮：编辑弹窗双开关回填——认证状态（名册真值）+ 集市在市状态
+  const ind = db.prepare('SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1').get(cid, card.user_id);
+  const mi = db.prepare("SELECT id, audit_status FROM card_market_items WHERE customer_id = ? AND subject_type = 'individual' AND user_id = ? ORDER BY id DESC LIMIT 1").get(cid, card.user_id);
+  const identity = db.prepare(`SELECT ${CARD_IDENTITY_SQL} AS identity FROM card_profile c WHERE c.id = ?`)
+    .get(card.id, ...cardIdentityParams(cid))?.identity || 'personal';
   res.json({ card: {
     id: card.id, name: card.name, position: card.position, company: card.company,
     phone: card.phone, wechat: card.wechat, email: card.email, city: card.city,
     industry: card.industry, bio: card.bio, slogan: card.slogan, address: card.address,
     videoChannel: card.video_channel, isPublic: !!card.is_public,
     latitude: card.latitude, longitude: card.longitude,
+    cardType: card.card_type || 'personal',
+    identity,
+    certified: ind?.status === 'active',
+    individualId: ind?.id || null,
+    applyStatus: ind?.status || '',
+    marketItemId: mi?.id || null,
+    marketStatus: mi?.audit_status || '',
   } });
 });
 
@@ -1285,6 +1301,122 @@ router.put('/card/manage/:id', requireTenant, (req, res) => {
     id: updated.id, name: updated.name, position: updated.position,
     company: updated.company, phone: updated.phone, updatedAt: updated.updated_at,
   } });
+});
+
+// ============================================================
+// 第26轮：管理端认证/集市直操作（名片管理编辑弹窗双开关）
+// ------------------------------------------------------------
+// 认证 = 建/复活 tenant_individuals active 行（绑定行为镜像 apply/audit approve）；
+// 取消认证 = 行转 disabled + 移出集市 + 名片转私有——canListMarket 判据是名册 active，
+// 若只翻名册不清集市会出现「未认证却在市」的判据漂移，这里必须原子同步。
+// ============================================================
+function manageCardScope(req) {
+  return db.prepare(
+    `SELECT c.* FROM card_profile c WHERE c.id = ? AND c.status = 'active' AND (${TENANT_CARD_SCOPE_SQL})`
+  ).get(req.params.id, ...tenantCardScopeParams(req.customerId));
+}
+function manageAudit(req, action, targetId, detail) {
+  addOperationLog(db, {
+    userId: req.user?.uid ?? req.user?.id ?? null,
+    username: req.user?.username || '',
+    action,
+    targetType: 'card_manage',
+    targetId,
+    detail: `[租户#${req.customerId}] ${detail}`,
+    ip: req.ip,
+  });
+}
+function syncCardsPublicById(userId, isPublic) {
+  db.prepare('UPDATE card_profile SET is_public = ? WHERE user_id = ?').run(isPublic ? 1 : 0, userId);
+}
+
+// 认证 / 取消认证（仅租户管理员）
+router.post('/card/manage/:id/certify', requireTenant, requireTenantAdmin, (req, res) => {
+  const cid = req.customerId;
+  const card = manageCardScope(req);
+  if (!card) return res.status(404).json({ error: '名片不存在或不属于本租户' });
+  if (card.card_type !== 'personal') return res.status(400).json({ error: '仅个人名片支持认证操作' });
+  const emp = db.prepare("SELECT id FROM tenant_enterprise_employees WHERE customer_id = ? AND user_id = ? AND status = 'active'").get(cid, card.user_id);
+  if (emp) return res.status(400).json({ error: '企业员工身份由花名册管理，不在此认证' });
+  const certified = !!(req.body || {}).certified;
+  const row = db.prepare('SELECT * FROM tenant_individuals WHERE customer_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1').get(cid, card.user_id);
+  if (certified) {
+    // 跨租户保护：已绑定其他租户的用户不能抢人（与购买赠主体同口径）
+    const pu = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(card.user_id);
+    if (pu && pu.customer_id && Number(pu.customer_id) !== cid) {
+      return res.status(403).json({ error: '该用户已绑定其他客户项目，不能跨租户认证' });
+    }
+    if (!row || row.status !== 'active') {
+      const q = checkTenantQuota(db, cid, 'max_individuals');
+      if (!q.ok) return res.status(403).json({ error: `入驻个人数量已达上限（${q.used}/${q.limit}），请升级套餐后再认证` });
+      const iq = checkTenantSolutionQuota(db, cid, 'card', 'memberCount');
+      if (!iq.ok) return res.status(403).json({ error: `入驻个人数已达上限（${iq.used}/${iq.limit}），请升级方案后再认证` });
+    }
+    let individualId;
+    if (row) {
+      db.prepare("UPDATE tenant_individuals SET status = 'active', updated_at = datetime('now') WHERE id = ?").run(row.id);
+      individualId = row.id;
+    } else {
+      const ins = db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status, source)
+        VALUES (?, ?, ?, ?, ?, ?, 'active', 'admin')`)
+        .run(cid, card.user_id, card.name || '', card.phone || '', card.position || '', card.company || card.city || '');
+      individualId = ins.lastInsertRowid;
+    }
+    // 绑定镜像 apply/audit approve：customer_id 只填空不覆盖；名片归属只补空
+    db.prepare("UPDATE platform_user SET customer_id = COALESCE(customer_id, ?), identity_type = 'individual', updated_at = datetime('now') WHERE id = ?")
+      .run(cid, card.user_id);
+    db.prepare("UPDATE card_profile SET customer_id = ? WHERE user_id = ? AND (customer_id IS NULL OR customer_id = '')").run(cid, card.user_id);
+    manageAudit(req, 'admin_certify_individual', card.id, `管理员认证个人「${card.name}」（主体#${individualId}）`);
+    return res.json({ ok: true, certified: true });
+  }
+  if (!row) return res.status(400).json({ error: '该用户尚未入驻，无需取消认证' });
+  db.prepare("UPDATE tenant_individuals SET status = 'disabled', updated_at = datetime('now') WHERE id = ?").run(row.id);
+  db.prepare("DELETE FROM card_market_items WHERE customer_id = ? AND subject_type = 'individual' AND user_id = ?").run(cid, card.user_id);
+  syncCardsPublicById(card.user_id, false);
+  manageAudit(req, 'admin_uncertify_individual', card.id, `管理员取消认证「${card.name}」（主体#${row.id}，已同步下架集市）`);
+  res.json({ ok: true, certified: false });
+});
+
+// 上架 / 下架集市（仅租户管理员；上架前提=已认证，审核状态沿用集市配置 audit_mode）
+router.post('/card/manage/:id/market', requireTenant, requireTenantAdmin, (req, res) => {
+  const cid = req.customerId;
+  const card = manageCardScope(req);
+  if (!card) return res.status(404).json({ error: '名片不存在或不属于本租户' });
+  if (card.card_type !== 'personal') return res.status(400).json({ error: '仅个人名片支持集市操作' });
+  const inMarket = !!(req.body || {}).inMarket;
+  const ind = db.prepare("SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ? ORDER BY id DESC LIMIT 1").get(cid, card.user_id);
+  const existing = db.prepare("SELECT id FROM card_market_items WHERE customer_id = ? AND subject_type = 'individual' AND user_id = ?").get(cid, card.user_id);
+  if (inMarket) {
+    if (!ind || ind.status !== 'active') return res.status(400).json({ error: '该用户未认证，请先完成认证再上架集市' });
+    if (existing) return res.status(400).json({ error: '该名片已在集市中' });
+    const sw = db.prepare('SELECT enabled, audit_mode FROM card_market_settings WHERE customer_id = ?').get(cid);
+    // 无设置行 = 集市默认开启（与 cardMarket.marketEnabled 同语义，不能把未配置租户当成已关闭）
+    if (sw && !sw.enabled) return res.status(400).json({ error: '集市未开启，请先在集市管理中开启' });
+    const q = checkTenantQuota(db, cid, 'max_market_items');
+    if (!q.ok) return res.status(403).json({ error: `集市上架数量已达上限（${q.used}/${q.limit}），请升级套餐` });
+    const mq = checkTenantSolutionQuota(db, cid, 'card', 'marketItems');
+    if (!mq.ok) return res.status(403).json({ error: `集市上架数量已达上限（${mq.used}/${mq.limit}），请升级方案` });
+    const auditStatus = sw?.audit_mode === 'manual' ? 'pending' : 'approved';
+    db.prepare(`INSERT INTO card_market_items (customer_id, subject_type, subject_id, user_id, audit_status, city)
+      VALUES (?, 'individual', ?, ?, ?, ?)`).run(cid, ind.id, card.user_id, auditStatus, card.city || '');
+    syncCardsPublicById(card.user_id, true);
+    manageAudit(req, 'admin_market_list', card.id, `管理员上架集市「${card.name}」（审核=${auditStatus}）`);
+    return res.json({ ok: true, inMarket: true, auditStatus });
+  }
+  if (!existing) return res.status(400).json({ error: '该名片不在集市中' });
+  db.prepare('DELETE FROM card_market_items WHERE id = ?').run(existing.id);
+  syncCardsPublicById(card.user_id, false);
+  manageAudit(req, 'admin_market_delist', card.id, `管理员下架集市「${card.name}」`);
+  res.json({ ok: true, inMarket: false });
+});
+
+// 名片的认证/集市操作记录（编辑弹窗「操作记录」展示；平台 Logs 页同表可查）
+router.get('/card/manage/:id/oplogs', requireTenant, (req, res) => {
+  const card = manageCardScope(req);
+  if (!card) return res.status(404).json({ error: '名片不存在或不属于本租户' });
+  const logs = db.prepare("SELECT action, detail, created_at FROM operation_logs WHERE target_type = 'card_manage' AND target_id = ? ORDER BY id DESC LIMIT 30")
+    .all(card.id);
+  res.json({ logs });
 });
 
 // 企业客户列表

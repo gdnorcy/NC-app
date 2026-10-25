@@ -134,6 +134,9 @@
             <el-tag :type="identityGroup(row.identity).type" size="small" effect="plain" :title="row.identityHint || row.identityLabel">
               {{ row.identityLabel }}
             </el-tag>
+            <!-- 第26轮：入驻申请状态并入名片管理（与入驻管理页同一真值：tenant_individuals），待审核/已拒绝行内直审 -->
+            <el-tag v-if="row.applyStatus === 'pending'" type="warning" size="small" style="margin-left:4px">待审核</el-tag>
+            <el-tag v-else-if="row.applyStatus === 'rejected'" type="danger" size="small" effect="plain" style="margin-left:4px">已拒绝</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="会员套餐" width="160">
@@ -186,7 +189,12 @@
           <template #default="{ row }">
             <el-button type="primary" size="small" link @click="previewCard(row)">预览</el-button>
             <el-button type="primary" size="small" link @click="openEdit(row)">编辑</el-button>
-            <template v-if="row.marketStatus === 'pending'">
+            <!-- 第26轮：个人认证申请行内直审（并入原「入驻管理-入驻个人」职能） -->
+            <template v-if="row.applyStatus === 'pending' && row.applyId">
+              <el-button type="success" size="small" link @click="auditApply(row, 'approve')">认证</el-button>
+              <el-button type="danger" size="small" link @click="auditApply(row, 'reject')">拒绝</el-button>
+            </template>
+            <template v-else-if="row.marketStatus === 'pending'">
               <el-button type="success" size="small" link @click="auditItem(row, 'approve')">通过</el-button>
               <el-button type="danger" size="small" link @click="auditItem(row, 'reject')">拒绝</el-button>
             </template>
@@ -326,6 +334,28 @@ const editId = ref('');
 function openEdit(row) {
   editId.value = row.id;
   editVisible.value = true;
+}
+
+// 第26轮：个人认证申请行内直审——真值与「入驻管理」页完全一致（同一个 /card-market/apply/audit），
+// 只是入口前移到名片管理，免得管理员为审一个人跨两个页面
+async function auditApply(row, action) {
+  const t = action === 'approve' ? '通过' : '拒绝';
+  try {
+    await ElMessageBox.confirm(
+      `确定${t}「${row.name}」的认证申请吗？${action === 'approve' ? '通过后该用户立即成为认证个人。' : '拒绝后对方可修改资料重新申请，兑换码（如有）将归还。'}`,
+      `${t}认证申请`,
+      { type: action === 'approve' ? 'success' : 'warning' }
+    );
+  } catch {
+    return;
+  }
+  try {
+    await publicApi.post('/card-market/apply/audit', { type: 'individual', id: row.applyId, action });
+    ElMessage.success(`已${t}`);
+    loadCards();
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.error || '操作失败');
+  }
 }
 
 async function auditItem(row, action) {
