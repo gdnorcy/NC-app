@@ -1,0 +1,1 @@
+import{H as n}from"./index-BwoHXSoU.js";function c(){try{const c=n("channel_config");return c&&"purchase"===c.individualJoinMode?"purchase":"code"}catch{return"code"}}function r(){try{const c=n("channel_config");return c&&(c.brandName||c.customerName)||""}catch{return""}}export{r as a,c as g};
