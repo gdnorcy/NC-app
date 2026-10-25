@@ -74,10 +74,13 @@ describe('路由与导航注册', () => {
     expect(routerSrc).toContain('JoinCodeManage.vue');
   });
 
-  test('入驻兑换码入口收口到「入驻管理-入驻企业」工具栏（顶部分类导航不再单列）', () => {
-    // 入口已从 CardTabs 顶栏移入 TenantManage 的「入驻企业」工具栏
+  test('入驻兑换码入口收口到「入驻管理」页面级（tab 行右侧，不随 tab 切换隐藏）', () => {
+    // 入口为页面级操作：位于 tab-bar 行右侧（曾错放在「入驻企业」工具栏里，用户反馈后迁移）
     expect(tenantSrc).toContain("router.push('/apps/card/join-codes')");
     expect(tenantSrc).toContain('入驻兑换码');
+    // 位置锁：按钮在 tab-bar 块内（而非某个 tab 的 toolbar 内）——抽块断言防回归
+    const tabBarBlock = tenantSrc.slice(tenantSrc.indexOf('class="tab-bar"'), tenantSrc.indexOf('class="tab-content"'));
+    expect(tabBarBlock).toContain("router.push('/apps/card/join-codes')");
     // 顶部分类导航不再单列入驻兑换码 Tab
     expect(tabsSrc).not.toContain("label: '入驻兑换码'");
   });

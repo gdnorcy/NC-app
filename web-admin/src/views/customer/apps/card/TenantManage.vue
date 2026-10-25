@@ -19,6 +19,12 @@
           入驻企业
           <el-tag size="small" type="info">{{ enterprises.length }}</el-tag>
         </div>
+        <!-- 第21轮：入驻凭证改兑换码（当前仅个人入驻，见 JoinCodeManage）。入口是页面级操作，
+             放 tab 行右侧、不随「入驻个人/入驻企业」切换隐藏——曾错放在入驻企业工具栏里 -->
+        <el-button class="tab-bar-action" @click="router.push('/apps/card/join-codes')">
+          <SIcon name="voucher" size="small" color="#4e5969" />
+          入驻兑换码
+        </el-button>
       </div>
 
       <!-- 入驻个人列表 -->
@@ -75,11 +81,6 @@
           <el-button type="primary" @click="loadEnterprises">
             <SIcon name="dynamic" size="small" color="#fff" />
             刷新
-          </el-button>
-          <!-- 第21轮：企业入驻凭证改为兑换码，从入驻管理直达生成页 -->
-          <el-button @click="router.push('/apps/card/join-codes')">
-            <SIcon name="voucher" size="small" color="#4e5969" />
-            入驻兑换码
           </el-button>
         </div>
 
@@ -298,6 +299,8 @@ async function viewEmployees(row) {
 
 .content-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .tab-bar { display: flex; border-bottom: 1px solid #f2f3f5; padding: 0 20px; }
+/* 页面级操作按钮：靠 tab 行右侧（不随 tab 切换隐藏） */
+.tab-bar-action { margin-left: auto; align-self: center; }
 .tab { display: flex; align-items: center; gap: 8px; padding: 16px 20px; font-size: 14px; color: #4e5969; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
 .tab.active { color: #165dff; border-bottom-color: #165dff; font-weight: 500; }
 .tab-content { padding: 20px; }
