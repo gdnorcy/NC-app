@@ -21,7 +21,8 @@
 - 源码落 main（不带产物）；deploy = merge --no-ff main + 重建产物；push -f origin deploy；部署后 checkout main。产物必须 `git add -f`（限 server/public/{card,mall,admin}、server/mini-template/mp-weixin，禁 -A）——普通 add 静默跳过新 chunk → 主 chunk 404 白屏；SPA 兜底 404 返 200 → 验证比 md5 不能只看状态码。
 - 🔴 main 跟踪陈旧产物：切 deploy 前 mv 新产物到 /tmp → checkout -f deploy → merge → 旧版 mv 开再 cp -a 铺回（防 card/card/ 嵌套）→ add -f。不能从 main 移除跟踪（未来 merge 冲突破坏产物）；回 main 后 `git checkout --` 恢复。**checkout 往返吞一切未提交修改（.workbuddy/memory 同样还原）**。
 - 🔴 备份≠本轮产物：提交前 grep 本轮特征串验证（曾险把旧备份当新产物上线）。压缩产物函数名被 minify 消失属正常，用"用户可见串/API 名/wxml 结构"三重交叉。
-- 🔴 uni build 清 dist/build 触发 safe-delete（chunk>50 被拦整链失败）→ 构建前把 dist/build/{h5,mp-weixin} mv 到 /tmp。🔴 build:h5 不含同步：只产出 web-app/dist/build/h5，必须再跑 `node scripts/sync-mobile-dist.mjs` 才进 server/public/{card,mall}（build:mp-weixin 内联 sync-mini-template）；漏跑＝构建 OK 但线上没变，特征串全 0 是判据。
+- 🔴 uni build 清 dist/build 触发 safe-delete（chunk>50 被拦整链失败）→ 构建前把 dist/build/{h5,mp-weixin} mv 到 /tmp。**同理 `npm run build:admin` 内的 `rm -rf server/public/admin/*` 也会被拦（count 301）**→ 先把 admin/{assets,admin.html,customer.html} mv 到 /tmp 再跑 `npm run build -w web-admin`（顺便避免陈旧 chunk 堆积：干净集合应恒为 198 个 assets 文件）。
+- 🔴 build:h5 不含同步：只产出 web-app/dist/build/h5，必须再从仓库根跑 `node scripts/sync-mobile-dist.mjs`（脚本在**根** scripts/，不在 web-app/scripts/）才进 server/public/{card,mall}（build:mp-weixin 内联 sync-mini-template）；漏跑＝构建 OK 但线上没变，特征串全 0 是判据。
 - push 网络抖动会假失败 → push 后必须 `git ls-remote origin <branch>` 校验远程 HEAD。加页面必跑 `node web-app/scripts/gen-mini-pages.js`（漏跑＝装修页页面选择框缺项）。
 - 🔴 web-app/dist/build/mp-weixin（uni 原始产物）与 server/mini-template/mp-weixin（自运营工程）应同源，但后者常被部署末尾 checkout -- 还原成陈旧版（sync 只 cpSync 不清旧文件）。**交付包一律从 dist 取**，用 BUILD.txt built at + git HEAD 验新鲜度。
 
@@ -93,5 +94,6 @@
 ## 13 线上排查通道 / 主包质检
 - 服务器 /opt/app（deploy 分支），systemd panorama.service，cwd /opt/app/server，实际命令 `node --env-file-if-exists=.env src/index.js`（旧 grep 模式 'server/src/index.js' 恒 0 匹配害误判过）。Lighthouse lhins-bvw7p0gb（ap-guangzhou）。
 - 沙箱直连 HTTPS zero.nshop.mobi(443) 校验；:3000 直连被拦。远程部署：fetch → reset --hard origin/deploy（校验 HEAD）→ 重启。TAT AccessDeny：命令含外网域名/IP 被拦 → 服务器侧运维用 TAT（git/systemctl/ps），HTTP 校验走沙箱 HTTPS。describe_instances 用 InstanceIds 数组；execute_command 用 InstanceId 单数。
+- 🔴 **admin 线上资源路径是 `/admin-assets/assets/*` 不是 `/admin/assets/*`**（app.js `app.use('/admin-assets', express.static(publicDir/admin))`）。用错路径 SPA 兜底仍返 200、body 为空 → grep 全 0，伪装成"产物没上线"。card/mall H5 才是 `/card/assets/*`。
 - C 端 /api/card/* 用租户后台 token 一律 401（鉴权不同域）；公开只读免登录：GET /api/card/cards/:id。验接口用正确 HTTP 方法，拿真不存在路由确认 404 基准。
 - 「主包内不应有主包未用的 JS」= 只有分包用的模块进了主包 → 源文件挪进分包目录连带改 import。挪文件必查：①分包专属依赖一起挪 ②生成脚本 OUT_FILE 写死旧路径 ③测试断言钉死旧路径。查依赖别只 grep ^import → audit:imports。主包体积排除分包目录再算。
