@@ -662,8 +662,8 @@ async function openMember(pkg) {
 .de-left { display: flex; align-items: center; gap: 24rpx; }
 .de-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: rgba(var(--design-primary-rgb), 0.08); display: flex; align-items: center; justify-content: center; }
 .de-title { font-size: 30rpx; font-weight: 600; color: var(--t1); }
-.de-sub { font-size: 24rpx; color: var(--t3); margin-top: 4rpx; }
-.de-arrow { font-size: 44rpx; color: var(--border-strong); }
+.de-sub { font-size: var(--fs-3); color: var(--t3); margin-top: 4rpx; }
+.de-arrow { font-size: var(--fs-8); color: var(--border-strong); }
 
 /* ===== 租户会员卡 ===== */
 .tcard {

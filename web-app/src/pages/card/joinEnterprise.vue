@@ -89,7 +89,7 @@ async function submit() {
 .je-input {
   height: 92rpx;
   border: 2rpx solid var(--border-strong);
-  border-radius: 16rpx;
+  border-radius: var(--radius-md);
   padding: 0 24rpx;
   font-size: var(--fs-5);
   color: var(--t1);

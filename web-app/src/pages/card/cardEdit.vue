@@ -1031,7 +1031,7 @@ onMounted(() => {
   height: 40rpx; min-width: 40rpx; padding: 0 4rpx;
   display: flex; align-items: center; justify-content: center; border-radius: 6rpx;
 }
-.ce-tool-ico { font-size: 26rpx; color: var(--white); line-height: 1; }
+.ce-tool-ico { font-size: var(--fs-4); color: var(--white); line-height: 1; }
 .ce-tool-lbl { font-size: var(--fs-2); color: var(--white); }
 .ce-tool.del { background: var(--danger); }
 /* 置灰：母版组件整条不可操作（pointer-events 写法 MP 实测有效）

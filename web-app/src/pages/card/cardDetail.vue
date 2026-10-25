@@ -2415,7 +2415,7 @@ async function followCard() {
 
 /* ===== 动态评论面板 ===== */
 .cmt-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 900; }
-.cmt-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: 24rpx 24rpx 0 0; z-index: 901; display: flex; flex-direction: column; max-height: 60vh; }
+.cmt-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; z-index: 901; display: flex; flex-direction: column; max-height: 60vh; }
 .cmt-head { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 32rpx; border-bottom: 1rpx solid var(--border); font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .cmt-close { color: var(--t3); font-size: var(--fs-6); font-weight: 400; padding: 4rpx 12rpx; }
 .cmt-list { flex: 1; overflow: hidden; padding: 8rpx 32rpx; }
@@ -2446,7 +2446,7 @@ async function followCard() {
 .fe-desc { font-size: var(--fs-2); color: var(--t3); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fe-btn { flex-shrink: 0; font-size: var(--fs-3); color: var(--design-primary, #165dff); border: 1rpx solid var(--design-primary, #165dff); border-radius: 28rpx; padding: 8rpx 24rpx; }
 .form-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 920; }
-.form-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: 24rpx 24rpx 0 0; z-index: 921; display: flex; flex-direction: column; max-height: 72vh; }
+.form-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; z-index: 921; display: flex; flex-direction: column; max-height: 72vh; }
 .fp-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 28rpx 16rpx; border-bottom: 1rpx solid var(--bg-hover); }
 .fp-title { font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .fp-close { font-size: var(--fs-5); color: var(--t3); padding: 4rpx 8rpx; }

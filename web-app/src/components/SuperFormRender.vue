@@ -1465,8 +1465,8 @@ async function submit() {
    否则 8 + 10 = 18px 比对标图多 8px，且首卡设 0 时头部下方会留 8px 空隙。
    横向 10px 与卡片对齐（对标图：标题区 y1..44 满宽，卡片自 x25 起；此处按卡片外边距内缩）。 */
 .sf-form-head { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 20rpx 8rpx; }
-.sf-form-name { font-size: 36rpx; font-weight: 600; color: var(--t1); }
-.sf-form-tag { flex-shrink: 0; font-size: 20rpx; line-height: 1.2; color: #F2624E; background: #FFF1ED; border-radius: 6rpx; padding: 4rpx 10rpx; }
+.sf-form-name { font-size: var(--fs-7); font-weight: 600; color: var(--t1); }
+.sf-form-tag { flex-shrink: 0; font-size: var(--fs-1); line-height: 1.2; color: #F2624E; background: #FFF1ED; border-radius: 6rpx; padding: 4rpx 10rpx; }
 /* 所有组件样式均消费「组件样式 → CSS 变量」（ew 四段：背景/整体/风格/颜色），与设计器预览同一套语义 */
 /* margin 不设：卡片间距完全由 componentStyleVars 内联 marginTop(顶外边距) 控制 */
 /* margin/padding 横向不设：卡片左右内距完全由 componentStyleVars 内联 marginX 决定
@@ -1514,7 +1514,7 @@ async function submit() {
 .sf-form.horizontal .sf-t-image > .sf-label { display: none; }
 .sf-upload-tip { display: block; font-size: var(--c-prompt-size, 12px); color: var(--c-prompt-color, #999999); margin-top: 12rpx; }
 .sf-upload-list { display: flex; flex-direction: column; gap: 8rpx; margin-top: 12rpx; }
-.sf-upload-item { font-size: 24rpx; color: var(--c-input-color, #333333); }
+.sf-upload-item { font-size: var(--fs-3); color: var(--c-input-color, #333333); }
 .sf-id-row { display: flex; gap: 30rpx; flex-wrap: wrap; }
 /* ew boxStyle（id/license 槽与普通框共用）：边框=底框边框(直线/虚线)、背景=背景颜色、圆角=底框圆角 */
 .sf-id-box { width: 330rpx; padding: 30rpx 52rpx; position: relative; text-align: center; border-radius: var(--c-input-radius, 3px); background: var(--c-input-bg, #F7F9FA); border: 1px var(--c-img-border-style, solid) var(--c-border-color, #F5F2F2); box-sizing: border-box; }
@@ -1522,8 +1522,8 @@ async function submit() {
 .sf-id-bg { width: 100%; display: block; }
 .sf-camera-circle { position: absolute; width: 114rpx; height: 114rpx; line-height: 114rpx; text-align: center; background: rgba(0, 0, 0, 0.16); border-radius: 50%; top: 30rpx; left: 108rpx; color: var(--white); font-size: 54rpx; }
 .sf-license-box .sf-camera-circle { top: 60rpx; left: 64rpx; }
-.sf-id-face { position: absolute; right: 12rpx; top: 12rpx; font-size: 22rpx; color: #4385FF; background: rgba(255, 255, 255, 0.85); border-radius: 6rpx; padding: 1px 10rpx; z-index: 1; }
-.sf-id-text { display: block; font-size: 26rpx; font-weight: 500; color: var(--t3); line-height: 40rpx; }
+.sf-id-face { position: absolute; right: 12rpx; top: 12rpx; font-size: var(--fs-2); color: #4385FF; background: rgba(255, 255, 255, 0.85); border-radius: 6rpx; padding: 1px 10rpx; z-index: 1; }
+.sf-id-text { display: block; font-size: var(--fs-4); font-weight: 500; color: var(--t3); line-height: 40rpx; }
 /* 「组件风格」语义 class（值→语义的映射见 sfComponentStyle.styleVariant）：
      sfv-box   描边 + 浅底（= 基础样式，也是无风格时的默认）
      sfv-plain 白底 + **极淡描边**（弱框，边界仍可见）
@@ -1636,11 +1636,11 @@ async function submit() {
 .sf-plate-kb { margin-top: 20rpx; background: var(--c-input-bg, #F7F9FA); border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 3px); padding: 16rpx; }
 .sf-kb-row { display: flex; flex-wrap: wrap; gap: 10rpx; margin-bottom: 10rpx; justify-content: center; }
 .sf-kb-row.sf-kb-digits .sf-kb-key { flex: 1 1 0; min-width: 0; }
-.sf-kb-key { min-width: 60rpx; height: 76rpx; padding: 0 12rpx; display: flex; align-items: center; justify-content: center; background: var(--white); border: 1px solid var(--c-border-color, #EBEEF5); border-radius: 8rpx; font-size: 30rpx; color: var(--c-input-color, #333333); box-sizing: border-box; }
+.sf-kb-key { min-width: 60rpx; height: 76rpx; padding: 0 12rpx; display: flex; align-items: center; justify-content: center; background: var(--white); border: 1px solid var(--c-border-color, #EBEEF5); border-radius: var(--radius-sm); font-size: 30rpx; color: var(--c-input-color, #333333); box-sizing: border-box; }
 .sf-kb-prov .sf-kb-key { flex: 1 1 56rpx; }
 .sf-kb-key:active { background: var(--c-active-color, #0076F0); color: var(--white); border-color: var(--c-active-color, #0076F0); }
 .sf-kb-actions { display: flex; gap: 16rpx; margin-top: 8rpx; }
-.sf-kb-actions .sf-kb-key { flex: 1; font-size: 28rpx; }
+.sf-kb-actions .sf-kb-key { flex: 1; font-size: var(--fs-5); }
 .sf-kb-done { background: var(--c-active-color, #0076F0); color: var(--white); border-color: var(--c-active-color, #0076F0); }
 /* 选择类的三种风格作用在**选项区**（s1/s2/s3），与输入类的 box/line 语义不同：
      sfx-optbox   描边 + 浅底（整块一个框，行间有分隔线）
@@ -1666,12 +1666,12 @@ async function submit() {
    此前给它们加了 order:-1，会被推到选项行**之外**（浮在选项区顶部），故已移除。 */
 .sf-opt-img { width: var(--c-option-img-size, 40px); height: var(--c-option-img-size, 40px); border-radius: var(--c-option-img-radius, 3px); background: var(--c-input-bg, #F7F9FA); flex-shrink: 0; }
 /* 未配图的选项：灰色占位块 + 序号（空 src 的 <image> 会渲染破图） */
-.sf-opt-img-ph { display: flex; align-items: center; justify-content: center; font-size: 26rpx; color: #a8abb2; background: var(--bg-card-2); }
+.sf-opt-img-ph { display: flex; align-items: center; justify-content: center; font-size: var(--fs-4); color: #a8abb2; background: var(--bg-card-2); }
 .sf-opt-label { flex: 1; min-width: 0; }
 .sf-dot { width: 36rpx; height: 36rpx; border-radius: 50%; border: 1px solid var(--c-inactive-border, #dcdfe6); background: var(--white); position: relative; flex-shrink: 0; box-sizing: border-box; }
 .sf-dot.on { border-color: var(--c-active-color, #2667EC); }
 .sf-dot.on::after { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--c-active-color, #2667EC); }
-.sf-checkbox { width: 36rpx; height: 36rpx; border-radius: 6rpx; border: 1px solid var(--c-inactive-border, #dcdfe6); background: var(--white); text-align: center; line-height: 36rpx; font-size: 24rpx; color: var(--white); flex-shrink: 0; box-sizing: border-box; }
+.sf-checkbox { width: 36rpx; height: 36rpx; border-radius: 6rpx; border: 1px solid var(--c-inactive-border, #dcdfe6); background: var(--white); text-align: center; line-height: 36rpx; font-size: var(--fs-3); color: var(--white); flex-shrink: 0; box-sizing: border-box; }
 .sf-checkbox.on { background: var(--c-active-color, #2667EC); border-color: var(--c-active-color, #2667EC); }
 .sf-opt-other { align-items: center; }
 .sf-other { flex: 1; border: 1px solid var(--c-border-color, #dcdfe6); border-radius: var(--c-input-radius, 3px); padding: 12rpx 16rpx; font-size: var(--c-input-size, 14px); background: var(--white); box-sizing: border-box; }
@@ -1728,12 +1728,12 @@ async function submit() {
 .sf-empty { text-align: center; color: #c0c4cc; padding: 60rpx; }
 .sf-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px var(--c-input-pad-x, 10px); min-height: 76rpx; line-height: 32rpx; box-sizing: border-box; font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); text-align: center; }
 .sf-agree { display: flex; align-items: flex-start; gap: 16rpx; font-size: var(--c-input-size, 13px); color: var(--c-input-color, #333333); flex-wrap: wrap; }
-.sf-check { width: 36rpx; height: 36rpx; border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: 8rpx; text-align: center; line-height: 36rpx; color: var(--white); flex-shrink: 0; }
+.sf-check { width: 36rpx; height: 36rpx; border: 1px solid var(--c-inactive-border, #F5F2F2); border-radius: var(--radius-sm); text-align: center; line-height: 36rpx; color: var(--white); flex-shrink: 0; }
 .sf-check.on { background: var(--c-check-color, #4385FF); border-color: var(--c-check-color, #4385FF); }
 .sf-agree-text { flex: 1; }
 .sf-link { color: var(--c-agree-btn, #2667EC); }
 .sf-rate { display: flex; flex-direction: column; gap: 8rpx; }
-.sf-rate-desc { color: var(--c-desc-color, #999999); font-size: 24rpx; }
+.sf-rate-desc { color: var(--c-desc-color, #999999); font-size: var(--fs-3); }
 .sf-rate-icons { display: flex; gap: 8rpx; }
 .sf-star { font-size: 52rpx; color: var(--c-inactive-color, #C6D1DE); }
 .sf-star.on { color: var(--c-active-color, #F7BA2A); }
@@ -1744,68 +1744,68 @@ async function submit() {
 .sf-sms-row { display: flex; gap: var(--c-inner-margin, 8px); align-items: stretch; }
 .sf-sms-phone { flex: 1; }
 .sf-sms-code { width: 100%; }
-.sf-sms-btn { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 6px); padding: 0 28rpx; font-size: 26rpx; color: var(--c-msg-color, #4385FF); background: var(--white); display: flex; align-items: center; white-space: nowrap; flex-shrink: 0; }
+.sf-sms-btn { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 6px); padding: 0 28rpx; font-size: var(--fs-4); color: var(--c-msg-color, #4385FF); background: var(--white); display: flex; align-items: center; white-space: nowrap; flex-shrink: 0; }
 .sf-title { font-weight: 600; padding: 4px var(--c-input-pad-x, 10px); font-size: var(--c-title-size, 17px); color: var(--c-title-color, #000000); }
-.sf-richtext { font-size: 28rpx; color: var(--t1); line-height: 1.6; }
+.sf-richtext { font-size: var(--fs-5); color: var(--t1); line-height: 1.6; }
 .sf-line { border-top-width: var(--c-divider-height, 1px); border-top-color: var(--c-divider-color, #000000); margin: 8rpx 0; }
 .sf-swiper { width: 100%; border-radius: var(--c-img-radius, 0px); overflow: hidden; }
 .sf-swiper-img { width: 100%; height: 100%; display: block; }
-.sf-swiper-empty { background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--c-img-radius, 6px); padding: 48rpx; text-align: center; color: var(--decor); font-size: 26rpx; }
+.sf-swiper-empty { background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--c-img-radius, 6px); padding: 48rpx; text-align: center; color: var(--decor); font-size: var(--fs-4); }
 .sf-bigimage { width: 100%; border-radius: var(--c-img-radius, 8px); overflow: hidden; }
 .sf-bigimage-img { width: 100%; display: block; }
-.sf-bigimage-empty { background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--c-img-radius, 6px); padding: 60rpx; text-align: center; color: var(--decor); font-size: 26rpx; }
+.sf-bigimage-empty { background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--c-img-radius, 6px); padding: 60rpx; text-align: center; color: var(--decor); font-size: var(--fs-4); }
 .sf-video { width: 100%; border-radius: var(--c-input-radius, 8px); overflow: hidden; }
 .sf-video-el { width: 100%; display: block; }
-.sf-video-empty { background: var(--media-bg); color: var(--white); text-align: center; padding: 60rpx; font-size: 26rpx; }
+.sf-video-empty { background: var(--media-bg); color: var(--white); text-align: center; padding: 60rpx; font-size: var(--fs-4); }
 .sf-backdesc { font-size: var(--c-title-size, 14px); color: var(--c-input-color, #333333); line-height: 1.6; }
-.sf-realtime { display: flex; align-items: center; justify-content: space-between; font-size: 26rpx; color: var(--c-title-color, #000000); background: var(--c-input-bg, #F7F9FA); border-radius: var(--c-input-radius, 10px); padding: 20rpx 24rpx; }
+.sf-realtime { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-4); color: var(--c-title-color, #000000); background: var(--c-input-bg, #F7F9FA); border-radius: var(--c-input-radius, 10px); padding: 20rpx 24rpx; }
 .sf-realtime-label { font-weight: 600; }
 .sf-realtime-count { color: var(--c-active-color, #2667EC); }
-.sf-next { width: 100%; border: 1px solid var(--c-next-border, #0076F0); border-radius: var(--c-input-radius, 19px); padding: 24rpx; background: var(--c-next-bg, #0076F0); color: var(--c-next-color, #FFFFFF); font-size: 32rpx; text-align: center; margin-top: 12rpx; }
+.sf-next { width: 100%; border: 1px solid var(--c-next-border, #0076F0); border-radius: var(--c-input-radius, 19px); padding: 24rpx; background: var(--c-next-bg, #0076F0); color: var(--c-next-color, #FFFFFF); font-size: var(--fs-6); text-align: center; margin-top: 12rpx; }
 .sf-pay { border: 1px solid var(--c-border-color, #F7F9FA); border-radius: var(--c-input-radius, 3px); padding: var(--c-model-margin-y, 10px); background: var(--c-input-bg, #F7F9FA); }
 .sf-pay-label { font-size: var(--c-title-size, 16px); color: var(--c-title-color, #000000); font-weight: 600; margin-bottom: 16rpx; }
 .sf-pay-amt { color: var(--c-price-color, #FF1C1C); margin-left: 12rpx; }
 .sf-pay-specs { display: flex; flex-direction: column; gap: 16rpx; }
-.sf-pay-spec { display: flex; justify-content: space-between; border: 1px solid var(--c-border-color, #F7F9FA); border-radius: var(--c-input-radius, 3px); padding: 20rpx 24rpx; font-size: 28rpx; color: var(--c-spec-color, #000000); }
+.sf-pay-spec { display: flex; justify-content: space-between; border: 1px solid var(--c-border-color, #F7F9FA); border-radius: var(--c-input-radius, 3px); padding: 20rpx 24rpx; font-size: var(--fs-5); color: var(--c-spec-color, #000000); }
 .sf-pay-spec.on { border-color: var(--c-active-color, #2667EC); background: var(--c-input-bg, #F7F9FA); }
 .sf-pay-spec-price { color: var(--c-price-color, #FF1C1C); font-weight: 600; }
-.sf-pay-tip { font-size: 24rpx; color: var(--c-count-color, #79797B); }
+.sf-pay-tip { font-size: var(--fs-3); color: var(--c-count-color, #79797B); }
 .sf-realtime-main { display: flex; flex-direction: column; gap: 4rpx; }
-.sf-realtime-cd { color: var(--c-active-color, #2667EC); font-size: 26rpx; font-weight: 600; }
+.sf-realtime-cd { color: var(--c-active-color, #2667EC); font-size: var(--fs-4); font-weight: 600; }
 .sf-pay-date { display: flex; align-items: center; gap: 16rpx; margin-top: 16rpx; }
-.sf-pay-date-label { font-size: 26rpx; color: var(--c-input-color, #333); }
+.sf-pay-date-label { font-size: var(--fs-4); color: var(--c-input-color, #333); }
 .sf-pay-date .sf-input { flex: 1; }
-.sf-pay-stock { font-size: 24rpx; color: var(--c-count-color, #79797B); margin-top: 12rpx; }
+.sf-pay-stock { font-size: var(--fs-3); color: var(--c-count-color, #79797B); margin-top: 12rpx; }
 .sf-pay-stock.out { color: var(--c-error-color, #ED4F4F); }
 .sf-pay-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
-.sf-pay-tag { font-size: 22rpx; color: var(--c-active-color, #2667EC); background: rgba(38, 103, 236, 0.08); border-radius: 8rpx; padding: 4rpx 12rpx; }
+.sf-pay-tag { font-size: var(--fs-2); color: var(--c-active-color, #2667EC); background: rgba(38, 103, 236, 0.08); border-radius: var(--radius-sm); padding: 4rpx 12rpx; }
 /* 数字步进器（styleType=step）：operateBg/operateRadius/operateBorder 驱动按钮 */
 .sf-number { display: flex; align-items: stretch; gap: 16rpx; }
 .sf-number .sf-input { flex: 1; }
 .sf-slider { display: flex; align-items: center; gap: 24rpx; }
 .sf-slider-ctrl { flex: 1; margin: 0; }
 .sf-slider-val { min-width: 80rpx; text-align: right; font-size: var(--c-input-size, 14px); color: var(--c-title-color, #000000); font-weight: 600; }
-.sf-step-btn { width: 88rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 44rpx; line-height: 1; background: var(--c-operate-bg, #FFFFFF); color: var(--c-title-color, #333333); border: 1px solid var(--c-operate-border, #dcdfe6); border-radius: var(--c-operate-radius, 3px); user-select: none; }
+.sf-step-btn { width: 88rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: var(--fs-8); line-height: 1; background: var(--c-operate-bg, #FFFFFF); color: var(--c-title-color, #333333); border: 1px solid var(--c-operate-border, #dcdfe6); border-radius: var(--c-operate-radius, 3px); user-select: none; }
 .sf-step-btn:active { opacity: 0.8; }
 /* 文本扫码图标：scanCodeIcon 驱动颜色 */
 .sf-text { position: relative; display: flex; align-items: center; }
 .sf-text.scan .sf-input { padding-right: 76rpx; }
-.sf-scan { position: absolute; right: 20rpx; font-size: 44rpx; line-height: 1; }
+.sf-scan { position: absolute; right: 20rpx; font-size: var(--fs-8); line-height: 1; }
 /* 支付数量步进器 + 底部合计栏：operate 系列与 bottomColor 驱动 */
 .sf-pay-qty { display: flex; align-items: center; gap: 20rpx; margin-top: 20rpx; }
-.sf-pay-qty-label { font-size: 26rpx; color: var(--c-input-color, #333333); }
+.sf-pay-qty-label { font-size: var(--fs-4); color: var(--c-input-color, #333333); }
 .sf-pay-qty-val { min-width: 56rpx; text-align: center; font-size: 30rpx; font-weight: 600; color: var(--c-title-color, #000000); }
 .sf-pay-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 24rpx; padding-top: 20rpx; border-top: 1px solid var(--c-border-color, #F7F9FA); }
-.sf-pay-total { font-size: 32rpx; font-weight: 600; }
-.sf-pay-buy { background: var(--c-active-color, #2667EC); color: var(--white); padding: 16rpx 36rpx; border-radius: var(--c-input-radius, 19px); font-size: 28rpx; }
+.sf-pay-total { font-size: var(--fs-6); font-weight: 600; }
+.sf-pay-buy { background: var(--c-active-color, #2667EC); color: var(--white); padding: 16rpx 36rpx; border-radius: var(--c-input-radius, 19px); font-size: var(--fs-5); }
 /* 轮播自定义指示点：dotGap/dotBottom 驱动间距与底边距，activeColor 驱动高亮 */
 .sf-swiper-dots { position: absolute; left: 0; right: 0; display: flex; justify-content: center; align-items: center; pointer-events: none; }
 .sf-dot-item { width: 16rpx; height: 16rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.55); transition: all .2s; }
-.sf-dot-item.on { background: var(--c-active-color, #2667EC); width: 36rpx; border-radius: 8rpx; }
+.sf-dot-item.on { background: var(--c-active-color, #2667EC); width: 36rpx; border-radius: var(--radius-sm); }
 /* 标题分隔线：lineColor 驱动 */
 .sf-title-line { border-top: 1px solid var(--c-line-color, #434343); margin-top: 16rpx; }
 .sf-nav { display: flex; gap: 24rpx; margin-top: 12rpx; }
-.sf-prev { flex: 1; border: 1px solid var(--c-prev-border, #dcdfe6); border-radius: var(--c-input-radius, 19px); padding: 24rpx; background: var(--c-prev-bg, #fff); color: var(--c-prev-color, #303133); font-size: 32rpx; text-align: center; }
+.sf-prev { flex: 1; border: 1px solid var(--c-prev-border, #dcdfe6); border-radius: var(--c-input-radius, 19px); padding: 24rpx; background: var(--c-prev-bg, #fff); color: var(--c-prev-color, #303133); font-size: var(--fs-6); text-align: center; }
 .sf-prev.disabled { opacity: 0.5; pointer-events: none; }
 
 /* ===== P3 装修/协议/文件 组件样式 ===== */
@@ -1813,20 +1813,20 @@ async function submit() {
 .sf-agree-row .sf-check { margin-top: 1px; }
 .sf-title-main { display: block; font-weight: 600; }
 .sf-title-sub { display: block; font-size: var(--c-subtitle-size, 13px); color: var(--c-subtitle-color, #909399); margin-top: 8rpx; font-weight: 400; }
-.sf-title-tip { display: block; font-size: 24rpx; color: var(--c-desc-color, #999999); margin-top: 8rpx; }
-.sf-swiper-desc { display: block; font-size: 24rpx; color: var(--c-desc-color, #999999); margin-top: 12rpx; }
-.sf-bigimage-desc { display: block; font-size: 24rpx; color: var(--c-desc-color, #999999); margin-top: 12rpx; }
+.sf-title-tip { display: block; font-size: var(--fs-3); color: var(--c-desc-color, #999999); margin-top: 8rpx; }
+.sf-swiper-desc { display: block; font-size: var(--fs-3); color: var(--c-desc-color, #999999); margin-top: 12rpx; }
+.sf-bigimage-desc { display: block; font-size: var(--fs-3); color: var(--c-desc-color, #999999); margin-top: 12rpx; }
 .sf-download-wrap { display: flex; flex-direction: column; gap: 12rpx; }
-.sf-download-sample { font-size: 24rpx; color: var(--c-down-color, #4385FF); text-align: center; }
-.sf-download-tip { display: block; font-size: 24rpx; color: var(--c-desc-color, #999999); }
+.sf-download-sample { font-size: var(--fs-3); color: var(--c-down-color, #4385FF); text-align: center; }
+.sf-download-tip { display: block; font-size: var(--fs-3); color: var(--c-desc-color, #999999); }
 .sf-video-poster { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--media-bg); border-radius: var(--c-input-radius, 8px); overflow: hidden; }
 .sf-video-poster-img { width: 100%; height: 100%; }
 .sf-video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 96rpx; height: 96rpx; line-height: 96rpx; text-align: center; background: rgba(0, 0, 0, 0.5); border-radius: 50%; color: var(--white); font-size: 40rpx; }
 /* 弹层（协议正文 / 视频弹出） */
 .sf-mask { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.55); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 48rpx; box-sizing: border-box; }
 .sf-modal { width: 100%; max-width: 960rpx; max-height: 76vh; background: var(--white); border-radius: var(--radius-xs); display: flex; flex-direction: column; overflow: hidden; }
-.sf-modal-title { font-size: 32rpx; font-weight: 600; padding: 32rpx; border-bottom: 1px solid var(--border); }
-.sf-modal-body { flex: 1; padding: 32rpx; font-size: 28rpx; line-height: 1.7; color: var(--t1); white-space: pre-wrap; }
+.sf-modal-title { font-size: var(--fs-6); font-weight: 600; padding: 32rpx; border-bottom: 1px solid var(--border); }
+.sf-modal-body { flex: 1; padding: 32rpx; font-size: var(--fs-5); line-height: 1.7; color: var(--t1); white-space: pre-wrap; }
 .sf-modal-btn { padding: 28rpx; text-align: center; color: var(--white); background: var(--c-active-color, #2667EC); font-size: 30rpx; }
 .sf-video-modal { background: transparent; max-width: 1120rpx; }
 .sf-video-pop-el { width: 100%; border-radius: var(--radius-sm); }

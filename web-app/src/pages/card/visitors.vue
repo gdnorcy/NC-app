@@ -1032,7 +1032,7 @@ async function saveConvert() {
   color: var(--t3);
   background: var(--bg-hover);
   border: 1px solid var(--border);
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   padding: 14rpx 28rpx;
   line-height: 1;
 }

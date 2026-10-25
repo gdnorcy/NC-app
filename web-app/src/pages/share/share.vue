@@ -74,13 +74,13 @@ export default {
   margin: 0 auto 40rpx;
 }
 .share-title {
-  font-size: 36rpx;
+  font-size: var(--fs-7);
   font-weight: 600;
   color: var(--t5);
   display: block;
 }
 .share-desc {
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--decor);
   margin-top: 16rpx;
   display: block;

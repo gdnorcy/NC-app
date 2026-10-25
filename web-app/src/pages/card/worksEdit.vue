@@ -281,7 +281,7 @@ onMounted(async () => {
 .wk-list { display: flex; flex-direction: column; gap: 20rpx; }
 .wk-row { display: flex; align-items: center; gap: 18rpx; background: var(--white); border: 1rpx solid var(--border-strong); border-radius: 18rpx; padding: 20rpx; }
 .wk-idx { width: 36rpx; text-align: center; font-size: var(--fs-4); color: var(--t3); flex-shrink: 0; }
-.wk-img { width: 120rpx; height: 120rpx; border-radius: 12rpx; background: var(--bg-hover); flex-shrink: 0; }
+.wk-img { width: 120rpx; height: 120rpx; border-radius: var(--radius-xs); background: var(--bg-hover); flex-shrink: 0; }
 .wk-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14rpx; }
 .wk-title-input { font-size: var(--fs-4); color: var(--t1); border-bottom: 1rpx solid var(--border-strong); padding: 8rpx 0; }
 .ph { color: var(--t3); }

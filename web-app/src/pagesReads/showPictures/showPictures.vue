@@ -76,14 +76,14 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 
 <style scoped>
 .pic-detail-page { min-height: 100vh; background: var(--white); }
-.share-btn { font-size: 26rpx; color: var(--primary); }
+.share-btn { font-size: var(--fs-4); color: var(--primary); }
 .detail-body { padding: 32rpx; }
 .d-title { font-size: 38rpx; font-weight: 700; color: var(--t1); line-height: 1.4; }
-.d-meta { display: flex; align-items: center; margin-top: 16rpx; font-size: 24rpx; color: var(--decor); }
+.d-meta { display: flex; align-items: center; margin-top: 16rpx; font-size: var(--fs-3); color: var(--decor); }
 .dot { margin: 0 12rpx; }
-.d-intro { margin-top: 20rpx; font-size: 28rpx; color: var(--t2); line-height: 1.6; }
+.d-intro { margin-top: 20rpx; font-size: var(--fs-5); color: var(--t2); line-height: 1.6; }
 .pic-wall { margin-top: 28rpx; }
 .wall-img { width: 100%; border-radius: var(--radius-sm); margin-bottom: 20rpx; }
-.empty { padding: 200rpx 0; text-align: center; color: var(--decor); font-size: 26rpx; }
+.empty { padding: 200rpx 0; text-align: center; color: var(--decor); font-size: var(--fs-4); }
 .empty-icon { display: block; font-size: 72rpx; margin-bottom: 16rpx; }
 </style>

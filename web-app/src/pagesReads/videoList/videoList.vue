@@ -113,9 +113,9 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 .play-icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 96rpx; height: 96rpx; border-radius: 50%; background: rgba(0,0,0,0.45); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 40rpx; padding-left: 8rpx; }
 .video-info { padding: 20rpx 24rpx; }
 .v-title { font-size: 30rpx; font-weight: 600; color: var(--t1); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.v-meta { font-size: 22rpx; color: var(--decor); margin-top: 12rpx; }
+.v-meta { font-size: var(--fs-2); color: var(--decor); margin-top: 12rpx; }
 .dot { margin: 0 8rpx; }
-.empty { padding: 160rpx 0; text-align: center; color: var(--decor); font-size: 26rpx; }
+.empty { padding: 160rpx 0; text-align: center; color: var(--decor); font-size: var(--fs-4); }
 .empty-icon { display: block; font-size: 72rpx; margin-bottom: 16rpx; }
-.load-more { text-align: center; padding: 24rpx 0 48rpx; font-size: 24rpx; color: var(--decor); }
+.load-more { text-align: center; padding: 24rpx 0 48rpx; font-size: var(--fs-3); color: var(--decor); }
 </style>

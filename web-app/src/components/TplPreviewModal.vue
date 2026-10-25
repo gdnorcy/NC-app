@@ -105,13 +105,13 @@ const cityLine = computed(() => {
 .pv-hero.pv-ctr .pv-info { align-items: center; }
 .pv-name { font-size: 40rpx; font-weight: 500; }
 .pv-hero.pv-mag .pv-name { font-size: 52rpx; letter-spacing: 2rpx; }
-.pv-pos { font-size: 26rpx; opacity: 0.9; }
-.pv-co { font-size: 24rpx; opacity: 0.82; display: flex; align-items: center; gap: 8rpx; }
-.pv-city { font-size: 22rpx; opacity: 0.7; }
+.pv-pos { font-size: var(--fs-4); opacity: 0.9; }
+.pv-co { font-size: var(--fs-3); opacity: 0.82; display: flex; align-items: center; gap: 8rpx; }
+.pv-city { font-size: var(--fs-2); opacity: 0.7; }
 .pv-foot { padding: 28rpx 32rpx 36rpx; background: var(--white); }
 .pv-tplname { font-size: 30rpx; font-weight: 500; color: var(--t1); margin-bottom: 24rpx; }
 .pv-actions { display: flex; gap: 20rpx; }
-.pv-btn { flex: 1; height: 88rpx; border-radius: 44rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; }
+.pv-btn { flex: 1; height: 88rpx; border-radius: 44rpx; display: flex; align-items: center; justify-content: center; font-size: var(--fs-5); }
 .pv-cancel { background: var(--bg-hover); color: var(--t1); }
 .pv-apply { background: var(--design-primary, #165dff); color: var(--white); font-weight: 500; }
 </style>

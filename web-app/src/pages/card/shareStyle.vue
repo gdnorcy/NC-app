@@ -411,7 +411,7 @@ onShow(() => {
   padding: 24rpx 24rpx 30rpx;
 }
 .ps-preview-tip {
-  font-size: 22rpx; color: var(--decor-2); text-align: center; margin-bottom: 20rpx;
+  font-size: var(--fs-2); color: var(--decor-2); text-align: center; margin-bottom: 20rpx;
 }
 .ps-chat {
   background: var(--white); border-radius: 20rpx; padding: 24rpx 24rpx 0; overflow: hidden;
@@ -420,25 +420,25 @@ onShow(() => {
 .ps-chat-logo {
   width: 44rpx; height: 44rpx; border-radius: 50%;
   background: linear-gradient(135deg, var(--gold), var(--brand-orange));
-  color: var(--t1); font-size: 22rpx; font-weight: 700;
+  color: var(--t1); font-size: var(--fs-2); font-weight: 700;
   display: flex; align-items: center; justify-content: center; margin-right: 16rpx;
 }
-.ps-chat-org { font-size: 26rpx; color: var(--t1); font-weight: 500; }
+.ps-chat-org { font-size: var(--fs-4); color: var(--t1); font-weight: 500; }
 .ps-chat-me {
   margin-left: auto; width: 68rpx; height: 68rpx; border-radius: 10rpx;
   background: linear-gradient(135deg, var(--primary), var(--primary-deep));
-  color: var(--white); font-size: 26rpx; font-weight: 600;
+  color: var(--white); font-size: var(--fs-4); font-weight: 600;
   display: flex; align-items: center; justify-content: center;
 }
 .ps-wxcard {
-  border: 1rpx solid var(--border); border-radius: 16rpx; overflow: hidden; background: var(--white);
+  border: 1rpx solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--white);
 }
 .ps-wxcard-title {
   display: flex; align-items: center;
   padding: 24rpx 24rpx 16rpx;
 }
-.ps-wxcard-title-txt { font-size: 28rpx; color: var(--t1); font-weight: 500; }
-.ps-wxcard-arrow { font-size: 26rpx; color: var(--border); margin-left: 10rpx; }
+.ps-wxcard-title-txt { font-size: var(--fs-5); color: var(--t1); font-weight: 500; }
+.ps-wxcard-arrow { font-size: var(--fs-4); color: var(--border); margin-left: 10rpx; }
 .ps-wxcard-cover {
   width: 100%; background: var(--bg-hover); overflow: hidden;
   display: flex; justify-content: center;
@@ -453,7 +453,7 @@ onShow(() => {
   background: var(--design-primary, var(--primary)); color: var(--white); font-size: 18rpx;
   display: flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 10rpx;
 }
-.ps-wxcard-mp-txt { font-size: 24rpx; color: var(--t3); }
+.ps-wxcard-mp-txt { font-size: var(--fs-3); color: var(--t3); }
 
 /* ===== 卡片区块 ===== */
 .ps-card {
@@ -461,23 +461,23 @@ onShow(() => {
 }
 .ps-sec-title {
   display: flex; align-items: center;
-  font-size: 26rpx; color: var(--t1); margin-bottom: 20rpx;
+  font-size: var(--fs-4); color: var(--t1); margin-bottom: 20rpx;
 }
 .ps-req { color: var(--danger); margin-left: 6rpx; }
-.ps-count { margin-left: auto; font-size: 22rpx; color: var(--t3); }
+.ps-count { margin-left: auto; font-size: var(--fs-2); color: var(--t3); }
 .ps-input {
   width: 100%; height: 92rpx; background: var(--bg-card);
-  border-radius: 16rpx; padding: 0 24rpx; font-size: 30rpx; color: var(--t1);
+  border-radius: var(--radius-md); padding: 0 24rpx; font-size: 30rpx; color: var(--t1);
 }
 .ps-ph { color: var(--decor); }
-.ps-hint { font-size: 22rpx; color: var(--t3); margin-top: 14rpx; }
+.ps-hint { font-size: var(--fs-2); color: var(--t3); margin-top: 14rpx; }
 
 /* ===== 封面风格库 ===== */
 .ps-covers { width: 100%; white-space: nowrap; }
 .ps-covers-inner { display: inline-flex; padding: 2rpx 0 8rpx; }
 .ps-cover-item { width: 296rpx; margin-right: 24rpx; display: inline-block; }
 .ps-cover-thumb {
-  width: 296rpx; height: 236rpx; border-radius: 16rpx; overflow: hidden;
+  width: 296rpx; height: 236rpx; border-radius: var(--radius-md); overflow: hidden;
   background: var(--bg-card); position: relative;
   border: 4rpx solid transparent; box-sizing: border-box;
 }
@@ -494,11 +494,11 @@ onShow(() => {
 .ps-cover-tick {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 60rpx; height: 60rpx; border-radius: 50%;
-  background: var(--brand-orange); color: var(--white); font-size: 32rpx;
+  background: var(--brand-orange); color: var(--white); font-size: var(--fs-6);
   display: flex; align-items: center; justify-content: center;
 }
 .ps-cover-name {
-  display: block; text-align: center; font-size: 24rpx; color: var(--t3);
+  display: block; text-align: center; font-size: var(--fs-3); color: var(--t3);
   margin-top: 14rpx;
 }
 .ps-cover-item.on .ps-cover-name { color: var(--brand-orange); font-weight: 600; }
@@ -509,15 +509,15 @@ onShow(() => {
 }
 .ps-save {
   height: 92rpx; border-radius: 46rpx; background: var(--design-primary, var(--primary));
-  color: var(--white); font-size: 32rpx; display: flex; align-items: center; justify-content: center;
+  color: var(--white); font-size: var(--fs-6); display: flex; align-items: center; justify-content: center;
 }
 .ps-save.disabled { background: var(--border); }
 
 /* ===== 错误态 ===== */
 .pg-error { padding: 160rpx 48rpx; text-align: center; }
-.pg-err-text { font-size: 28rpx; color: var(--t3); margin-bottom: 32rpx; }
+.pg-err-text { font-size: var(--fs-5); color: var(--t3); margin-bottom: 32rpx; }
 .pg-btn {
   display: inline-block; padding: 20rpx 56rpx; border-radius: 40rpx;
-  background: var(--design-primary, var(--primary)); color: var(--white); font-size: 28rpx;
+  background: var(--design-primary, var(--primary)); color: var(--white); font-size: var(--fs-5);
 }
 </style>

@@ -966,7 +966,7 @@ async function publish() {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.55);
   color: var(--white);
-  font-size: 22rpx;
+  font-size: var(--fs-2);
 }
 .img-add {
   width: 200rpx;
@@ -1135,7 +1135,7 @@ async function publish() {
 .ref-chip-type { font-size: var(--fs-2); color: var(--t3); margin-top: 4rpx; }
 .ref-chip-del {
   color: var(--t3);
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   padding: 8rpx 12rpx;
 }
 .visibility-options {

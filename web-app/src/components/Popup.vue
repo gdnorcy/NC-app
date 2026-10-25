@@ -92,6 +92,6 @@ export default {
   transform: translate(-50%, -50%) scale(1);
 }
 .round {
-  border-radius: 24rpx 24rpx 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 </style>
