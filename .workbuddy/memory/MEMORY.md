@@ -90,3 +90,6 @@
 - 集成测试里 mock wx-login 按 config.defaultTenantId 兜底给新用户绑租户 → 测「无租户」分支必须显式设 config.defaultTenantId=0（文档：多租户平台部署设为 0 即关闭兜底）。
 - card 端 token 不是 JWT：base64(JSON{uid,openid,ts}).randhex，解析用 split('.')[0] + 字段 uid。
 - 源码文本钉子类测试：别钉具体写法（一收敛就红一片），改钉语义（工厂内容 + 被哪几处调用）。新增字段会连带改 INSERT/UPDATE 列串与表单初值，改前先 grep 一遍所有 *.test.js。
+- 🔴 写值播种必须留痕：`ALTER TABLE ADD COLUMN` 的「已存在则报错」天然表达「只跑一次」，但 UPDATE 写值播种没有——写成「某列当前是 0 就播种」，管理员把配置全关后重启又会被重开。一次性数据播种统一走 `schema_marks` 表 + `markApplied/setMark(db, key)`（db.js）。
+- 「空头权益」= 字段在后台表单与 C 端套餐卡有入口、服务端零消费点（配了等于没配）。排查法：对每个权益列 grep 服务端消费点（routes/services），0 命中即空头。member_package 的 voice_enabled/discount/push_quota 三例已修（门禁 403 / 购买折后取整 / 降级 reason）。雷达推送配额口径：数「已占用真实通道(1/2)的条数」而非 `status='sent'`（通道未联调时该列恒 pending 恒 0），下发成功与否都占额。
+- 测试基线比对禁 `git stash`：stash 含 server/test 会把测试回退成旧版（旧口令）→ 一堆假失败；只 stash server/src 又让依赖新模块的测试全挂 + OOM(137)。用「全量 stash 基线 + 逐个对照」确认存量失败。
