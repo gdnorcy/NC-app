@@ -4,6 +4,7 @@ import { addOperationLog } from '../db.js';
 import { checkTenantQuota, checkTenantSolutionQuota } from '../services/billing.js';
 import { getUserSubjects } from '../services/cardIdentity.js';
 import { readIndividualJoinMode, purgeExpiredPurchaseSubjects, isMemberActive } from '../services/marketSubject.js';
+import { resolveBindTarget, unoccupyJoinCode, linkJoinCodeToApply, consumeJoinCode, releaseJoinCode } from '../services/joinCode.js';
 
 /** 审计日志 helper：租户域操作统一带租户ID前缀，actor 兼容管理端 JWT 与 C 端 card_token */
 function audit(db, req, action, targetType, targetId, detail) {
@@ -837,71 +838,89 @@ export function createCardMarketRouter(db) {
       return res.status(400).json({ error: '缺少必填项' });
     }
 
-    // 口令安全：只匹配 invite_code（含纯数字字符串），禁止按 project id 猜测
-    const project = db.prepare('SELECT * FROM projects WHERE invite_code = ?').get(String(bindCode).trim());
-    if (!project) return res.status(400).json({ error: '入驻口令无效' });
-    if (project.status !== 'active') return res.status(400).json({ error: '该客户项目已停用，无法入驻' });
-    if (project.valid_until && project.valid_until < new Date().toISOString().slice(0, 10)) {
-      return res.status(400).json({ error: '该客户项目已过期，无法入驻' });
-    }
-    const customerId = project.id;
+    // 第21轮：绑定目标改为统一入口解析——个人走兑换码（一人一码、用完即废），
+    // 企业仍走旧 projects.invite_code（用户本轮明确只收编个人入驻）。
+    // 注意：个人分支内部已完成「原子占用」(status 0→1)，失败信息直接透出给用户。
+    const target = resolveBindTarget(db, { bindCode, applyType: type, userId });
+    if (!target.ok) return res.status(400).json({ error: target.error });
+    const customerId = target.customerId;
+    const project = target.project || db.prepare('SELECT * FROM projects WHERE id = ?').get(customerId);
 
     // 企业入驻必须提供企业名称（前置校验）
     if (type === 'enterprise' && !enterpriseName) {
       return res.status(400).json({ error: '企业名称不能为空' });
     }
 
-    // 重复/重新申请校验（双身份：个人+企业 允许并存；rejected 允许重新申请）
-    const already = type === 'enterprise'
-      ? db.prepare('SELECT id, status FROM tenant_enterprises WHERE customer_id = ? AND admin_user_id = ?').get(customerId, userId)
-      : db.prepare('SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, userId);
-    if (already && already.status !== 'rejected') {
-      return res.status(400).json({
-        error: already.status === 'pending' ? '申请审核中，请耐心等待管理员审核' : '已入驻该客户项目，请勿重复入驻'
-      });
-    }
-    if (already && already.status === 'rejected') {
-      // 拒绝后重新申请：更新为待审 + 更新资料
-      if (type === 'individual') {
-        db.prepare("UPDATE tenant_individuals SET status = 'pending', name = ?, phone = ?, position = ?, company = ?, updated_at = datetime('now') WHERE id = ?")
-          .run(name, phone, position || '', company || '', already.id);
-      } else {
-        db.prepare("UPDATE tenant_enterprises SET status = 'pending', name = ?, industry = ?, updated_at = datetime('now') WHERE id = ?")
-          .run(enterpriseName, industry || '', already.id);
-        db.prepare("UPDATE tenant_enterprise_employees SET name = ?, position = ?, status = 'pending', updated_at = datetime('now') WHERE enterprise_id = ? AND user_id = ?")
-          .run(name, position || '', already.id, userId);
+    // 🔴 从这里开始，任何提前 return 都必须先归还占住的码（仅个人分支需要），
+    //    否则一次「重复入驻」或「配额超限」就会让这个码永久卡在 status=1 用不掉。
+    //    统一收口到一个 try/catch 里，catch 负责归还。
+    const isCodeBased = type === 'individual';
+    const giveBackCode = () => { if (isCodeBased) unoccupyJoinCode(db, { code: bindCode }); };
+
+    try {
+      // 重复/重新申请校验（双身份：个人+企业 允许并存；rejected 允许重新申请）
+      const already = type === 'enterprise'
+        ? db.prepare('SELECT id, status FROM tenant_enterprises WHERE customer_id = ? AND admin_user_id = ?').get(customerId, userId)
+        : db.prepare('SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, userId);
+      if (already && already.status !== 'rejected') {
+        giveBackCode();
+        return res.status(400).json({
+          error: already.status === 'pending' ? '申请审核中，请耐心等待管理员审核' : '已入驻该客户项目，请勿重复入驻'
+        });
       }
+      if (already && already.status === 'rejected') {
+        // 拒绝后重新申请：更新为待审 + 更新资料
+        if (type === 'individual') {
+          db.prepare("UPDATE tenant_individuals SET status = 'pending', name = ?, phone = ?, position = ?, company = ?, updated_at = datetime('now') WHERE id = ?")
+            .run(name, phone, position || '', company || '', already.id);
+          linkJoinCodeToApply(db, { code: bindCode, applyId: already.id });
+        } else {
+          db.prepare("UPDATE tenant_enterprises SET status = 'pending', name = ?, industry = ?, updated_at = datetime('now') WHERE id = ?")
+            .run(enterpriseName, industry || '', already.id);
+          db.prepare("UPDATE tenant_enterprise_employees SET name = ?, position = ?, status = 'pending', updated_at = datetime('now') WHERE enterprise_id = ? AND user_id = ?")
+            .run(name, position || '', already.id, userId);
+        }
+        db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
+        return res.json({ success: true, message: '申请已重新提交，请等待管理员审核' });
+      }
+
+      // 配额校验
+      let quota = {};
+      try { quota = JSON.parse(project.quota || '{}'); } catch {}
+      if (type === 'individual' && quota.max_individuals) {
+        const cur = db.prepare("SELECT COUNT(*) as n FROM tenant_individuals WHERE customer_id = ? AND status != 'disabled'").get(customerId).n;
+        if (cur >= quota.max_individuals) {
+          giveBackCode();
+          return res.status(400).json({ error: '入驻个人数量已达上限' });
+        }
+      }
+      if (type === 'enterprise') {
+        const cur = db.prepare("SELECT COUNT(*) as n FROM tenant_enterprises WHERE customer_id = ? AND status != 'disabled'").get(customerId).n;
+        if (quota.max_enterprises && cur >= quota.max_enterprises) return res.status(400).json({ error: '入驻企业数量已达上限' });
+      }
+
+      // 口令使用审计
       db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
-      return res.json({ success: true, message: '申请已重新提交，请等待管理员审核' });
-    }
+      // 审核流：创建 pending，不绑定租户（审核通过后由 apply/audit 完成绑定）
 
-    // 配额校验
-    let quota = {};
-    try { quota = JSON.parse(project.quota || '{}'); } catch {}
-    if (type === 'individual' && quota.max_individuals) {
-      const cur = db.prepare("SELECT COUNT(*) as n FROM tenant_individuals WHERE customer_id = ? AND status != 'disabled'").get(customerId).n;
-      if (cur >= quota.max_individuals) return res.status(400).json({ error: '入驻个人数量已达上限' });
+      if (type === 'individual') {
+        const ins = db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, userId, name, phone, position || '', company || '');
+        // 把主体回写到码上，管理员侧能查到「这个码换成了哪条入驻主体」
+        linkJoinCodeToApply(db, { code: bindCode, applyId: ins.lastInsertRowid });
+      } else {
+        const result = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
+          VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', userId);
+        const enterpriseId = result.lastInsertRowid;
+        db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
+          VALUES (?, ?, ?, ?, ?, 'admin', 'pending')`).run(enterpriseId, customerId, userId, name, position || '');
+      }
+      return res.json({ success: true, message: '申请已提交，请等待管理员审核' });
+    } catch (e) {
+      giveBackCode();
+      console.error('[cardMarket] 入驻申请失败:', e?.message || e);
+      return res.status(500).json({ error: '入驻申请失败，请稍后重试' });
     }
-    if (type === 'enterprise') {
-      const cur = db.prepare("SELECT COUNT(*) as n FROM tenant_enterprises WHERE customer_id = ? AND status != 'disabled'").get(customerId).n;
-      if (quota.max_enterprises && cur >= quota.max_enterprises) return res.status(400).json({ error: '入驻企业数量已达上限' });
-    }
-
-    // 口令使用审计
-    db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
-    // 审核流：创建 pending，不绑定租户（审核通过后由 apply/audit 完成绑定）
-
-    if (type === 'individual') {
-      db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, userId, name, phone, position || '', company || '');
-    } else {
-      const result = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
-        VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', userId);
-      const enterpriseId = result.lastInsertRowid;
-      db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
-        VALUES (?, ?, ?, ?, ?, 'admin', 'pending')`).run(enterpriseId, customerId, userId, name, position || '');
-    }
-    res.json({ success: true, message: '申请已提交，请等待管理员审核' });
   });
 
   /**
@@ -978,10 +997,16 @@ export function createCardMarketRouter(db) {
       }
       db.prepare("UPDATE tenant_individuals SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
       if (action === 'approve') {
+        // 第21轮：兑换码落到终态「已核销」——用完即废
+        consumeJoinCode(db, { applyId: id });
         // 绑定租户 + 关联名下未关联名片
         db.prepare("UPDATE platform_user SET customer_id = ?, identity_type = 'individual', updated_at = datetime('now') WHERE id = ?")
           .run(req.customerId, row.user_id);
         db.prepare("UPDATE card_profile SET customer_id = ? WHERE user_id = ? AND (customer_id IS NULL OR customer_id = '')").run(req.customerId, row.user_id);
+      } else {
+        // 第21轮：拒绝要把兑换码归还成「未使用」，否则用户白瞎一个码、
+        //         重新申请还得再找管理员要（核销型资产最典型的漏账）
+        releaseJoinCode(db, { applyId: id });
       }
     } else {
       const row = belongsToTenant('tenant_enterprises', id, req.customerId);

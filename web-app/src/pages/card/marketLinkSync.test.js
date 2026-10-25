@@ -188,11 +188,12 @@ describe('displaySettings.vue 开关联动', () => {
     expect(dsSrc).toMatch(/await syncMarket\(val\)/);
   });
 
-  test('无主体时回滚 is_public=false + 双模引导话术（第20轮：purchase=去开通 / code=输口令）', () => {
+  test('无主体时回滚 is_public=false + 双模引导话术（第20轮：purchase=去开通 / code=输兑换码）', () => {
     expect(dsSrc).toMatch(/await rollbackPublic\(false\)/);
     expect(dsSrc).toMatch(/开通会员套餐即可上架至名片集市/);
-    expect(dsSrc).toMatch(/入驻后可上架至名片集市，请向管理员获取入驻口令/);
-    // 两条引导都要落到动作：member 页 / 口令浮层
+    // 第21轮：个人入驻凭证改为兑换码（一人一码），话术同步
+    expect(dsSrc).toMatch(/入驻后可上架至名片集市，请向管理员获取入驻兑换码/);
+    // 两条引导都要落到动作：member 页 / 兑换码浮层
     expect(dsSrc).toMatch(/\/pages\/card\/member/);
     expect(dsSrc).toMatch(/showInviteSheet\.value = true/);
   });

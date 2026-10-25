@@ -34,9 +34,6 @@
       <el-table-column label="集市场席" width="90" align="center">
         <template #default="{ row }"><el-tag :type="row.market_subject ? 'success' : 'info'" size="small">{{ row.market_subject ? '含' : '—' }}</el-tag></template>
       </el-table-column>
-      <el-table-column label="建群数" width="80" align="center">
-        <template #default="{ row }">{{ row.group_limit === 0 ? '不限' : row.group_limit }}</template>
-      </el-table-column>
       <el-table-column label="启用" width="70" align="center">
         <template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'" size="small">{{ row.enabled ? '是' : '否' }}</el-tag></template>
       </el-table-column>
@@ -100,12 +97,6 @@
             <span class="hint">购买后自动入驻租户人脉集市（仅「购买会员套餐」入驻模式的租户生效）</span>
           </div>
         </el-form-item>
-        <el-form-item label="建群数">
-          <div class="inline-form">
-            <el-input-number v-model="dialog.form.groupLimit" :min="0" />
-            <span class="hint">0=不限</span>
-          </div>
-        </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="dialog.form.sortOrder" :min="0" />
         </el-form-item>
@@ -152,7 +143,7 @@ const openDialog = (row) => {
         level: row.level, name: row.name, price: row.price, durationDays: row.duration_days,
         features: row.features || [], discount: row.discount, collectLimit: row.collect_limit,
         leadQuota: row.lead_quota, pushQuota: row.push_quota,
-        voiceEnabled: !!row.voice_enabled, groupLimit: row.group_limit, sortOrder: row.sort_order,
+        voiceEnabled: !!row.voice_enabled, sortOrder: row.sort_order,
         marketSubject: !!row.market_subject,
         description: row.description, enabled: !!row.enabled,
       },
@@ -160,7 +151,7 @@ const openDialog = (row) => {
   } else {
     dialog.value = {
       visible: true, id: null,
-      form: { level: '', name: '', price: 0, durationDays: 30, features: [], discount: 1.0, collectLimit: 0, leadQuota: 0, pushQuota: 0, voiceEnabled: false, groupLimit: 0, sortOrder: 0, marketSubject: false, description: '', enabled: true },
+      form: { level: '', name: '', price: 0, durationDays: 30, features: [], discount: 1.0, collectLimit: 0, leadQuota: 0, pushQuota: 0, voiceEnabled: false, sortOrder: 0, marketSubject: false, description: '', enabled: true },
     };
   }
 };

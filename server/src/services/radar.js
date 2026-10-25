@@ -9,6 +9,8 @@
  * - 租户：cardId → card_profile.user_id → tenant_individuals / tenant_enterprise_employees 反查
  */
 
+import { createQuotaService } from './quota.js';
+
 export function createRadarService(db) {
   const svc = {};
 
@@ -120,13 +122,18 @@ export function createRadarService(db) {
       visitor: visitor.name || '匿名访客',
       time: new Date().toLocaleString('zh-CN'),
     };
+    // 第21轮：推送配额真拦截（member_package.push_quota）。
+    // 此前该列只被统计、从不判断，配额配了等于没配；超限后降级为站内提醒而非硬失败——
+    // 雷达链路是访客行为驱动的旁路，抛错会污染上报主流程。
+    const overPushQuota = !createQuotaService(db).canPush(ownerUserId);
+
     // 订阅/公众号通道未配置 → 站内提醒
-    if (!cfg || cfg.switch !== 1 || channel === 0 ||
+    if (overPushQuota || !cfg || cfg.switch !== 1 || channel === 0 ||
         (channel === 1 && !cfg.xcx_tmpid) || (channel === 2 && (!cfg.gzh_appid || !cfg.gzh_tmpid))) {
       db.prepare(
         'INSERT INTO card_radar_notify (tenant_id, owner_user_id, event_name, title, visitor_name, channel, payload, status) VALUES (?,?,?,?,?,?,?,?)'
       ).run(tenantId, ownerUserId, event.name, event.title, payload.visitor, 0, JSON.stringify(payload), 'pending');
-      return { ok: true, channel: 0, degraded: true };
+      return { ok: true, channel: 0, degraded: true, reason: overPushQuota ? 'push_quota_exceeded' : 'channel_not_ready' };
     }
     // 通道配置齐备时，仍先落站内提醒；实际下发由阶段 D 通道封装（wx/公众号）接管
     db.prepare(

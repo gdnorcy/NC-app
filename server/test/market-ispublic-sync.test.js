@@ -8,6 +8,7 @@ import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { createDb, hashPassword } from '../src/db.js';
 import { issueToken } from '../src/auth.js';
+import { generateJoinCodes } from '../src/utils/codes.js';
 
 /**
  * 集市状态一致性回归（2026-10-15 真机报修）：
@@ -53,12 +54,15 @@ function approveApply(openid, customerId = 1) {
 }
 
 // 建卡 + 入驻 + 审核通过，返回 { token, userId, cardId, subjectId }
+// 🔴 第21轮：个人入驻凭证已从静态 projects.invite_code 换成「一人一码」的兑换码，
+//    这里改用 generateJoinCodes 现造一个码（旧 '1001' 对个人分支已失效）。
 async function setupActiveIndividual(code, name) {
   const token = await wxLogin(code);
+  const { codes } = generateJoinCodes(db, { customerId: 1, batchId: 0, count: 1 });
   const r = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(token))
-    .send({ name, bindCode: '1001', applyType: 'individual', isPublic: false });
+    .send({ name, bindCode: codes[0], applyType: 'individual', isPublic: false });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   const approved = approveApply(code, 1);
   return { token, userId: approved.userId, cardId: r.body.card.id, subjectId: approved.id };

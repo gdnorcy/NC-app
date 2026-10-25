@@ -8,6 +8,7 @@ import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { createDb, hashPassword } from '../src/db.js';
 import { issueToken } from '../src/auth.js';
+import { generateJoinCodes } from '../src/utils/codes.js';
 
 /**
  * 智能名片 SaaS 审计（P0-P2）回归测试
@@ -29,6 +30,14 @@ async function wxLogin(code) {
 
 function bearer(token) {
   return { Authorization: `Bearer ${token}` };
+}
+
+/**
+ * 生成一个个人入驻兑换码（第21轮起个人入驻不再用静态口令 projects.invite_code）。
+ * 企业入驻本轮仍走旧口令，故本文件里 applyType:'enterprise' 的 bindCode 保持 '1001' 不变。
+ */
+function joinCode(customerId = 1) {
+  return generateJoinCodes(db, { customerId, batchId: 0, count: 1 }).codes[0];
 }
 
 // 模拟租户管理员审核通过（等价 apply/audit approve 的最终状态：active + 绑定租户 + 关联名片）
@@ -91,41 +100,47 @@ test('P0-1 未入驻用户访问租户域接口返回403', async () => {
   assert.match(res.body.error, /未入驻/);
 });
 
-test('P0-2 口令防枚举：用 project id 猜测口令无效，且真实口令可入驻并写入审计', async () => {
+test('P0-2 入驻码防枚举：猜测的码无效，且真实兑换码可入驻并写入审计', async () => {
   const token = await wxLogin('invite_1');
-  // 默认租户 project id=1，invite_code='1001'；用 '1' 猜测必须失败
+  // 第21轮：个人入驻改用兑换码，project id '1' 去猜必然失败
+  // —— 兑换码是 10 位随机串（字母表剔除 0/O/1/I/L），不可枚举。
   const guess = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(token))
     .send({ name: '猜口令', bindCode: '1', applyType: 'individual' });
   assert.equal(guess.status, 400);
-  assert.match(guess.body.error, /口令无效/);
+  assert.match(guess.body.error, /兑换码无效/);
 
-  // 真实口令入驻成功
+  // 真实兑换码入驻成功
+  const code = joinCode(1);
   const ok = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(token))
-    .send({ name: '口令用户', bindCode: '1001', applyType: 'individual' });
-  assert.equal(ok.status, 200);
+    .send({ name: '口令用户', bindCode: code, applyType: 'individual' });
+  assert.equal(ok.status, 200, ok.body.error);
   assert.equal(ok.body.card.cardType, 'personal');
 
-  // 审计日志存在
+  // 审计日志存在，且记录的是本次使用的兑换码
   const log = db.prepare('SELECT * FROM tenant_invite_log WHERE customer_id = 1 AND user_id = ?').get(ok.body.card.userId);
-  assert.ok(log, '应写入口令使用审计');
-  assert.equal(log.invite_code, '1001');
+  assert.ok(log, '应写入入驻码使用审计');
+  assert.equal(log.invite_code, code);
+  // 核销侧留痕：码已占用且回写了入驻主体
+  const used = db.prepare('SELECT status, apply_id FROM tenant_join_code WHERE code = ?').get(code);
+  assert.equal(used.status, 1);
+  assert.ok(used.apply_id > 0, '兑换码应回写 apply_id');
 });
 
 test('P0-3 租户隔离：跨租户交换请求被拒，各自列表互不可见', async () => {
   // 租户1成员（申请→管理员审核通过）
   const p1 = await wxLogin('iso_p1');
-  await request(app).post('/api/card/cards/create-with-apply').set(bearer(p1)).send({ name: '租一甲', bindCode: '1001', applyType: 'individual' });
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(p1)).send({ name: '租一甲', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('iso_p1', 1);
   // 租户2成员（申请→管理员审核通过）
   const p2 = await wxLogin('iso_p2');
   const r2 = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(p2))
-    .send({ name: '租二乙', bindCode: '2002', applyType: 'individual' });
+    .send({ name: '租二乙', bindCode: joinCode(2), applyType: 'individual' });
   assert.equal(r2.status, 200);
   approveApply('iso_p2', 2);
 
@@ -161,7 +176,7 @@ test('P0-4 入驻个人列表电话不被同名列覆盖（u.phone 不得遮掉 
   await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(token))
-    .send({ name: '电话回归', phone: '13911112222', bindCode: '1001', applyType: 'individual' });
+    .send({ name: '电话回归', phone: '13911112222', bindCode: joinCode(1), applyType: 'individual' });
 
   const adm1 = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
   const list = await request(app).get('/api/card-market/individuals').set(bearer(makeJwt(adm1)));
@@ -179,10 +194,10 @@ test('P1-1 公海领取原子性：并发领取同一条客户仅一人成功', 
 
   // 租1两个活跃成员
   const a = await wxLogin('claim_a');
-  await request(app).post('/api/card/cards/create-with-apply').set(bearer(a)).send({ name: '甲', bindCode: '1001', applyType: 'individual' });
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(a)).send({ name: '甲', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('claim_a', 1);
   const b = await wxLogin('claim_b');
-  await request(app).post('/api/card/cards/create-with-apply').set(bearer(b)).send({ name: '乙', bindCode: '1001', applyType: 'individual' });
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(b)).send({ name: '乙', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('claim_b', 1);
 
   const poolRow = db.prepare("SELECT id FROM tenant_public_pool WHERE customer_id = 1 AND phone = '13900001111'").get();
@@ -203,7 +218,7 @@ test('P1-2 个人停用完整回收链：客户回收租户公海、集市移除
   const r = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(p))
-    .send({ name: '待停个人', bindCode: '1001', applyType: 'individual' });
+    .send({ name: '待停个人', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('disable_ind', 1);
   const uid = r.body.card.userId;
   const indId = db.prepare('SELECT id FROM tenant_individuals WHERE user_id = ? AND customer_id = 1').get(uid).id;
@@ -295,10 +310,10 @@ test('P1-6 管理员分配公海客户：指定成员归属 + 非管理员被拒
 
   // 租1两个活跃成员：甲（被分配人）、乙（普通成员）
   const a = await wxLogin('assign_a');
-  await request(app).post('/api/card/cards/create-with-apply').set(bearer(a)).send({ name: '甲', bindCode: '1001', applyType: 'individual' });
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(a)).send({ name: '甲', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('assign_a', 1);
   const b = await wxLogin('assign_b');
-  await request(app).post('/api/card/cards/create-with-apply').set(bearer(b)).send({ name: '乙', bindCode: '1001', applyType: 'individual' });
+  await request(app).post('/api/card/cards/create-with-apply').set(bearer(b)).send({ name: '乙', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('assign_b', 1);
   const ua = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_assign_a'").get();
   const ub = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_assign_b'").get();
@@ -354,10 +369,10 @@ test('P1-6 管理员分配公海客户：指定成员归属 + 非管理员被拒
 test('P1-5 交换快照：accept 后固化双方名片快照，人脉与客户线索分离', async () => {
   // 同租户两个个人
   const x = await wxLogin('swap_x');
-  const xr = await request(app).post('/api/card/cards/create-with-apply').set(bearer(x)).send({ name: '交换甲', bindCode: '1001', applyType: 'individual' });
+  const xr = await request(app).post('/api/card/cards/create-with-apply').set(bearer(x)).send({ name: '交换甲', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('swap_x', 1);
   const y = await wxLogin('swap_y');
-  const yr = await request(app).post('/api/card/cards/create-with-apply').set(bearer(y)).send({ name: '交换乙', bindCode: '1001', applyType: 'individual' });
+  const yr = await request(app).post('/api/card/cards/create-with-apply').set(bearer(y)).send({ name: '交换乙', bindCode: joinCode(1), applyType: 'individual' });
   approveApply('swap_y', 1);
   const yuser = db.prepare("SELECT * FROM platform_user WHERE openid = 'mock_swap_y'").get();
 
@@ -391,7 +406,7 @@ test('P1-5 交换快照：accept 后固化双方名片快照，人脉与客户�
 
 test('P2-1 双身份：个人入驻后仍可企业入驻，identity 返回双身份', async () => {
   const u = await wxLogin('dual_id');
-  const r1 = await request(app).post('/api/card/cards/create-with-apply').set(bearer(u)).send({ name: '双身份', bindCode: '1001', applyType: 'individual' });
+  const r1 = await request(app).post('/api/card/cards/create-with-apply').set(bearer(u)).send({ name: '双身份', bindCode: joinCode(1), applyType: 'individual' });
   assert.equal(r1.status, 200);
   approveApply('dual_id', 1);
   const r2 = await request(app)
@@ -507,7 +522,7 @@ test('P5 客户状态机：显式迁移表放行合法迁移，终态锁定，fo
   const u = db.prepare('SELECT id FROM platform_user WHERE openid = ?').get('mock_' + code);
   const uid = u.id;
   await request(app).post('/api/card/cards/create-with-apply').set(bearer(login.body.token))
-    .send({ name: '状态机用户', bindCode: '1001', applyType: 'individual' });
+    .send({ name: '状态机用户', bindCode: joinCode(1), applyType: 'individual' });
   approveApply(code, 1);
 
   // 造客户 + 公海 claimed 记录（模拟已领取且跟进中）
@@ -563,7 +578,7 @@ test('P0 收藏分组闭环：新建/移动/分组列表/删除回未分组', as
   const r2 = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(b))
-    .send({ name: '分组目标名片', bindCode: '1001', applyType: 'individual', city: '东莞', businessField: '互联网/IT' });
+    .send({ name: '分组目标名片', bindCode: joinCode(1), applyType: 'individual', city: '东莞', businessField: '互联网/IT' });
   approveApply('grp_b', 1);
   const targetId = r2.body.card.id;
 
@@ -613,7 +628,7 @@ test('P1 集市：上架冗余城市 + list?city 过滤 + settings banners 往�
   const r = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(a))
-    .send({ name: '同城名片', bindCode: '1001', applyType: 'individual', city: '东莞', businessField: '互联网/IT' });
+    .send({ name: '同城名片', bindCode: joinCode(1), applyType: 'individual', city: '东莞', businessField: '互联网/IT' });
   approveApply('city_a', 1);
   const uid = r.body.card.userId;
   const indId = db.prepare('SELECT id FROM tenant_individuals WHERE user_id = ? AND customer_id = 1').get(uid).id;

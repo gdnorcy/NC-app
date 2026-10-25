@@ -85,7 +85,8 @@
 - 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照→留 admin 凭证→户口重置→ghfast 镜像传→停服换库。
 - 两个口令别混：projects.invite_code（P 开头）= 租户绑定，个人/企业入驻共用；tenant_enterprises.config.invite_code（ENT######）= 企业员工凭码加入（server /enterprise/join 消费，与后台 candidates 同锁 customer_id 不跨租户）。
 - supertest 按字节签名须 .send(rawString)；node:sqlite 用 DatabaseSync；openssl 证书须 stdio pipe + 全程 -out。
-- 🔴 macOS BSD grep 的 `\|` 交替一律不好使（BRE 无此扩展，整串当字面量 → 0 匹配且不报错，看着像"产物没构建进去"）。交替必须 grep -E；压缩 JS 单行 grep -c 恒 1 → 用 grep -o … | wc -l。已踩 6 次，每次先怀疑 grep 再怀疑产物。
+- 🔴 macOS BSD grep 的 `\|` 交替一律不好使（BRE 无此扩展，整串当字面量 → 0 匹配且不报错，看着像"产物没构建进去"）。交替必须 grep -E；压缩 JS 单行 grep -c 恒 1 → 用 grep -o … | wc -l。已踩 8 次，每次先怀疑 grep 再怀疑产物。**同样适用于 `ls | grep -i "a\|b"`（目录列举也静默 0 匹配 → 会误判成"这个页面不存在"）**——查文件存在与否直接用 Glob/Grep 工具，别 shell 管道。
+- 🔴 前端 API 调用串别按「挂载点+路径」全串 grep：路由常挂 `/api/customer`，页面却写 `customerApiCall.get('/billing/plan')`，搜 `/api/customer/billing` 恒 0 → 误判「后端有前端无」。应 grep 路径末段（如 `'/billing/`）或封装名。
 - 集成测试里 mock wx-login 按 config.defaultTenantId 兜底给新用户绑租户 → 测「无租户」分支必须显式设 config.defaultTenantId=0（文档：多租户平台部署设为 0 即关闭兜底）。
 - card 端 token 不是 JWT：base64(JSON{uid,openid,ts}).randhex，解析用 split('.')[0] + 字段 uid。
 - 源码文本钉子类测试：别钉具体写法（一收敛就红一片），改钉语义（工厂内容 + 被哪几处调用）。新增字段会连带改 INSERT/UPDATE 列串与表单初值，改前先 grep 一遍所有 *.test.js。

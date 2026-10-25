@@ -34,6 +34,19 @@ async function wxLogin(code) {
   return res.body.token;
 }
 
+/**
+ * 第21轮：语音简介已变成真会员权益（member_package.voice_enabled，服务端 POST /voice-upload 门禁），
+ * 原来 free 用户也能传。语音相关用例必须先升到含该权益的档位（silver 由 db 播种 voice_enabled=1），
+ * 否则会 403 —— 这不是用例写错，是权益模型变了。
+ */
+async function loginAsVoiceMember(code) {
+  const token = await wxLogin(code);
+  const uid = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString()).uid;
+  const db = createDb(config.dbPath);
+  db.prepare("UPDATE platform_user SET member_level='silver', member_expire_at='2027-01-01 00:00:00' WHERE id=?").run(uid);
+  return token;
+}
+
 async function createCard(token, name) {
   const res = await request(app)
     .post('/api/card/cards/create-with-apply')
@@ -318,7 +331,7 @@ test('#295 动态配图上传：非图片文件被拒', async () => {
 // 反馈 #297：语音简介 —— 上传落历史表 + 录音上传 + 历史列表/删除 + 跨用户隔离
 // ============================================================
 test('#297 语音上传：成功后自动进历史表（source=upload）', async () => {
-  const token = await wxLogin('voice_a');
+  const token = await loginAsVoiceMember('voice_a');
   const res = await request(app)
     .post('/api/card/voice-upload')
     .set('Authorization', `Bearer ${token}`)
@@ -334,7 +347,7 @@ test('#297 语音上传：成功后自动进历史表（source=upload）', async
 });
 
 test('#297 录音上传：POST /voice-history 落库 source=record + 时长', async () => {
-  const token = await wxLogin('voice_rec_a');
+  const token = await loginAsVoiceMember('voice_rec_a');
   const res = await request(app)
     .post('/api/card/voice-history')
     .set('Authorization', `Bearer ${token}`)
@@ -348,7 +361,7 @@ test('#297 录音上传：POST /voice-history 落库 source=record + 时长', as
 });
 
 test('#297 录音上传：MP 端 octet-stream 也放行（按后缀），不再 400', async () => {
-  const token = await wxLogin('voice_rec_b');
+  const token = await loginAsVoiceMember('voice_rec_b');
   const res = await request(app)
     .post('/api/card/voice-history')
     .set('Authorization', `Bearer ${token}`)
@@ -357,7 +370,7 @@ test('#297 录音上传：MP 端 octet-stream 也放行（按后缀），不再 
 });
 
 test('#297 历史列表：跨用户隔离（只看得到自己的）', async () => {
-  const tokenA = await wxLogin('voice_iso_a');
+  const tokenA = await loginAsVoiceMember('voice_iso_a');
   const tokenB = await wxLogin('voice_iso_b');
   await request(app)
     .post('/api/card/voice-history')
@@ -370,7 +383,7 @@ test('#297 历史列表：跨用户隔离（只看得到自己的）', async () 
 });
 
 test('#297 历史删除：只能删自己的（别人的删不掉 → 404）', async () => {
-  const tokenA = await wxLogin('voice_del_a');
+  const tokenA = await loginAsVoiceMember('voice_del_a');
   const tokenB = await wxLogin('voice_del_b');
   const up = await request(app)
     .post('/api/card/voice-history')
@@ -393,7 +406,7 @@ test('#297 历史删除：只能删自己的（别人的删不掉 → 404）', a
 });
 
 test('#297 语音上传：非音频文件被拒', async () => {
-  const token = await wxLogin('voice_reject');
+  const token = await loginAsVoiceMember('voice_reject');
   const res = await request(app)
     .post('/api/card/voice-upload')
     .set('Authorization', `Bearer ${token}`)

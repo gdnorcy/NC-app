@@ -31,6 +31,7 @@ const routes = [
       { path: 'apps/card/customers', component: () => import('../views/customer/apps/card/CustomersManage.vue'), meta: { title: '企业客户', breadcrumbs: ['应用中心', '智能名片', '企业客户'] } },
       { path: 'apps/card/market', component: () => import('../views/customer/apps/card/MarketManage.vue'), meta: { title: '集市管理', breadcrumbs: ['应用中心', '智能名片', '集市管理'] } },
       { path: 'apps/card/tenant', component: () => import('../views/customer/apps/card/TenantManage.vue'), meta: { title: '入驻管理', breadcrumbs: ['应用中心', '智能名片', '入驻管理'] } },
+      { path: 'apps/card/join-codes', component: () => import('../views/customer/apps/card/JoinCodeManage.vue'), meta: { title: '入驻兑换码', breadcrumbs: ['应用中心', '智能名片', '入驻兑换码'] } },
       { path: 'apps/card/pool', component: () => import('../views/customer/apps/card/PublicPool.vue'), meta: { title: '公海池', breadcrumbs: ['应用中心', '智能名片', '公海池'] } },
       { path: 'apps/card/templates', component: () => import('../views/customer/apps/card/TemplateMarket.vue'), meta: { title: '模板市场', breadcrumbs: ['应用中心', '智能名片', '模板市场'] } },
       { path: 'apps/card/exchanges', component: () => import('../views/customer/apps/card/ExchangeRecords.vue'), meta: { title: '交换记录', breadcrumbs: ['应用中心', '智能名片', '交换记录'] } },

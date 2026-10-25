@@ -70,6 +70,25 @@
       </view>
     </block>
 
+    <!-- ===== 第21轮：我的权益（套餐里配的权益在这里对齐实况，避免「买了看不见、配了不生效」） ===== -->
+    <block v-if="entitlements">
+      <view class="sec-t">我的权益<small>{{ currentLevelText || '免费版' }}</small></view>
+      <view class="ent-card">
+        <view class="ent-row">
+          <text class="ent-k">语音简介</text>
+          <text class="ent-v" :class="{ off: !entitlements.voice }">{{ entitlements.voice ? '已开通' : '未开通' }}</text>
+        </view>
+        <view class="ent-row">
+          <text class="ent-k">名片模板折扣</text>
+          <text class="ent-v" :class="{ off: !(entitlements.discount < 1) }">{{ entitlements.discount < 1 ? discountText(entitlements.discount) : '无折扣' }}</text>
+        </view>
+        <view class="ent-row" v-for="q in quotaRows" :key="q.key">
+          <text class="ent-k">{{ q.label }}</text>
+          <text class="ent-v">{{ q.unlimited ? '不限' : q.used + ' / ' + q.limit }}</text>
+        </view>
+      </view>
+    </block>
+
     <!-- 选择套餐 -->
     <view class="sec-t">选择套餐<small>解锁更多能力</small></view>
     <view class="plan-grid">
@@ -81,7 +100,8 @@
           <text v-if="isCurrent(p.level)" class="cur-tag">· 当前</text>
           <text v-else-if="p.level === 'gold'" class="hot-tag">最受欢迎</text>
         </view>
-        <view class="price">¥{{ formatPrice(p.price) }}<text class="price-unit"> / 月</text></view>
+        <!-- 第21轮：单位按 duration_days 换算，不再一律写「/月」（年付套餐显示 /月 是错价） -->
+        <view class="price">¥{{ formatPrice(p.price) }}<text v-if="priceUnit(p)" class="price-unit"> / {{ priceUnit(p) }}</text></view>
         <view class="plan-features">
           <view class="pf" v-for="f in getFeatureTexts(p.features)" :key="f">
             <view class="check"><SIcon name="badge" size="small" :color="themeColor" /></view>
@@ -148,6 +168,8 @@ const packages = ref([]);
 const isMember = ref(false);
 const memberLevel = ref('free');
 const memberExpire = ref('');
+// 第21轮：套餐权益实况（/member/status 的 entitlements），让「买了什么」在会员中心对得上
+const entitlements = ref(null);
 // 套餐点选态（cur=真实会员等级，sel=点选高亮——用户反馈「选中状态不会变化」）
 const selectedLevel = ref('free');
 function selectPlan(level) { selectedLevel.value = level; }
@@ -216,6 +238,7 @@ onMounted(async () => {
     memberLevel.value = memberRes.level;
     selectedLevel.value = memberRes.level || 'free';
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
+    entitlements.value = memberRes.entitlements || null;
     // 租户会员卡：未入驻租户不展示区块
     if (tCardRes && !tCardRes.unbound) {
       memberCard.value = tCardRes.card;
@@ -328,6 +351,37 @@ async function doSign() {
 function formatPrice(price) {
   return Number(price).toFixed(price % 1 === 0 ? 0 : 1);
 }
+
+/**
+ * 价格单位按 duration_days 换算（第21轮）
+ * 原来硬编码「/月」：白银 29.9/30 天对，黄金 99/365 天显示成「99 / 月」就是错价。
+ * @returns {string} 空串=不展示单位（免费/永久）
+ */
+function priceUnit(p) {
+  const d = Number(p && p.duration_days) || 0;
+  if (!d) return '';
+  if (d <= 45) return '月';
+  if (d <= 135) return '季';
+  if (d <= 220) return '半年';
+  return '年';
+}
+
+/** 折扣数值 → 中文几折（0.85 → 8.5 折） */
+function discountText(d) {
+  const n = Math.round(Number(d) * 100) / 10;
+  return `${n} 折`;
+}
+
+/** 配额类权益行（推送/留资/收藏），未配置(0)展示为不限 */
+const quotaRows = computed(() => {
+  const e = entitlements.value;
+  if (!e) return [];
+  return [
+    { key: 'push', label: '雷达推送', ...e.push },
+    { key: 'lead', label: '无感留资', ...e.lead },
+    { key: 'collect', label: '名片收藏', ...e.collect },
+  ];
+});
 
 function getFeatureTexts(features) {
   const map = {
@@ -529,6 +583,36 @@ async function openMember(pkg) {
   font-weight: 400;
   color: var(--t4);
   margin-left: 4rpx;
+}
+/* 第21轮：我的权益（套餐实况） */
+.ent-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  padding: 8rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+.ent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18rpx 0;
+  border-bottom: 2rpx solid var(--bg-2);
+}
+.ent-row:last-child {
+  border-bottom: none;
+}
+.ent-k {
+  font-size: var(--fs-3);
+  color: var(--t2);
+}
+.ent-v {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--design-primary);
+}
+.ent-v.off {
+  font-weight: 400;
+  color: var(--t4);
 }
 .plan-features {
   list-style: none;

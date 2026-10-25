@@ -1,7 +1,10 @@
 /**
  * 会员套餐后台管理（阶段B：VIP权益扩展）
  * 路径：/api/admin/member-packages（requireAuth 外层保护）
- * 覆盖新增权益字段：discount / collect_limit / voice_enabled / group_limit + features 能力点勾选
+ * 覆盖新增权益字段：discount / collect_limit / voice_enabled / lead_quota / push_quota / market_subject + features 能力点勾选
+ *
+ * 🔴 第21轮：group_limit（建群数）下架——与智能名片业务无关且全仓零消费，后台表单与列已移除。
+ *    列保留不删（存量数据安全），但 INSERT/UPDATE 不再读写它，新套餐取列默认值 0。
  */
 import { Router } from 'express';
 import { addOperationLog } from '../db.js';
@@ -38,16 +41,17 @@ export function createMemberAdminRouter(db) {
         return res.status(400).json({ error: '等级标识已存在' });
       }
       const features = Array.isArray(b.features) ? b.features.filter((f) => FEATURE_OPTIONS.includes(f)) : [];
+      // group_limit 已下架（第21轮）：不再写入，走列默认值
       const r = db.prepare(
         `INSERT INTO member_package (level, name, price, duration_days, description, features, sort_order, enabled,
-          discount, collect_limit, voice_enabled, group_limit, lead_quota, push_quota, market_subject)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+          discount, collect_limit, voice_enabled, lead_quota, push_quota, market_subject)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).run(level, name, Number(b.price) || 0, Number(b.durationDays) || 30,
         String(b.description || '').slice(0, 200), JSON.stringify(features),
         Number(b.sortOrder) || 0, b.enabled === false ? 0 : 1,
         Number(b.discount) >= 0 ? Number(b.discount) : 1.0,
         Number(b.collectLimit) >= 0 ? Number(b.collectLimit) : 0,
-        b.voiceEnabled ? 1 : 0, Number(b.groupLimit) >= 0 ? Number(b.groupLimit) : 0,
+        b.voiceEnabled ? 1 : 0,
         Number(b.leadQuota) >= 0 ? Number(b.leadQuota) : 0,
         Number(b.pushQuota) >= 0 ? Number(b.pushQuota) : 0,
         b.marketSubject ? 1 : 0);
@@ -66,7 +70,7 @@ export function createMemberAdminRouter(db) {
       const features = Array.isArray(b.features) ? b.features.filter((f) => FEATURE_OPTIONS.includes(f)) : undefined;
       db.prepare(
         `UPDATE member_package SET level=?, name=?, price=?, duration_days=?, description=?, features=?, sort_order=?, enabled=?,
-          discount=?, collect_limit=?, voice_enabled=?, group_limit=?, lead_quota=?, push_quota=?, market_subject=?, updated_at=datetime('now') WHERE id=?`
+          discount=?, collect_limit=?, voice_enabled=?, lead_quota=?, push_quota=?, market_subject=?, updated_at=datetime('now') WHERE id=?`
       ).run(
         b.level !== undefined && String(b.level).trim() ? String(b.level).trim() : p.level,
         b.name !== undefined && String(b.name).trim() ? String(b.name).trim() : p.name,
@@ -79,7 +83,6 @@ export function createMemberAdminRouter(db) {
         b.discount !== undefined ? (Number(b.discount) >= 0 ? Number(b.discount) : 1.0) : p.discount,
         b.collectLimit !== undefined ? (Number(b.collectLimit) >= 0 ? Number(b.collectLimit) : 0) : p.collect_limit,
         b.voiceEnabled !== undefined ? (b.voiceEnabled ? 1 : 0) : p.voice_enabled,
-        b.groupLimit !== undefined ? (Number(b.groupLimit) >= 0 ? Number(b.groupLimit) : 0) : p.group_limit,
         b.leadQuota !== undefined ? (Number(b.leadQuota) >= 0 ? Number(b.leadQuota) : 0) : p.lead_quota,
         b.pushQuota !== undefined ? (Number(b.pushQuota) >= 0 ? Number(b.pushQuota) : 0) : p.push_quota,
         b.marketSubject !== undefined ? (b.marketSubject ? 1 : 0) : p.market_subject,
