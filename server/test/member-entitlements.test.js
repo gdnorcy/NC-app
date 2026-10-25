@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
-import path from 'node:path';
+import path from 'path';
 import request from 'supertest';
 import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
@@ -10,15 +10,15 @@ import { createDb, hashPassword } from '../src/db.js';
 import { createQuotaService } from '../src/services/quota.js';
 import { createRadarService } from '../src/services/radar.js';
 import { issueToken } from '../src/auth.js';
+import { grantTier } from './helpers/member-grant.js';
 
 /**
- * 第21轮：会员套餐「空头权益」回归锁
+ * 会员套餐「空头权益」回归锁（新模型：平台权益目录 + 租户套餐 × 应用 × member_user）
  *
- * member_package 有 6 个权益列，此前只有 collect_limit / lead_quota 真被服务端消费，
- * voice_enabled / discount / push_quota 三个是「后台能配、C 端能吹、服务端不认」的空头权益。
- * 本轮把它们接进真实链路，这里逐条钉死：
+ * 此前 voice_enabled / discount / push_quota 是「后台能配、C 端能吹、服务端不认」的空头权益。
+ * 本轮把它们接进真实链路（benefits.js / quota.js 统一消费 resolveAppBenefits），这里逐条钉死：
  *   ① voice_enabled → POST /voice-upload 与 POST /voice-history 真门禁
- *   ② discount     → POST /templates/:id/purchase 下单实付真的打折
+ *   ② discount     → POST /templates/:id/purchase 下单实付真打折（百分比：0=无折扣，80=打2折/实付20%）
  *   ③ push_quota   → radar.sendNotify 超限降级站内提醒（不再是只统计不拦截）
  *   ④ group_limit  → 下架：后台写入不再落库
  *   ⑤ /member/status 暴露 entitlements，C 端「我的权益」有数可依
@@ -61,10 +61,9 @@ async function login(code) {
   return { token, uid };
 }
 
-/** 升到指定等级（有效期放到一年后）并绑到租户 1（模板购买需要租户上下文） */
-function grantLevel(uid, level) {
-  const exp = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 19).replace('T', ' ');
-  db.prepare('UPDATE platform_user SET member_level=?, member_expire_at=?, customer_id=1 WHERE id=?').run(level, exp, uid);
+/** 升到指定档位（新模型：tenant 1 + member_user + 矩阵走 TIER_PKG 种子） */
+function grantLevel(uid, tier, matrixOverride = {}) {
+  grantTier(db, uid, 1, tier, matrixOverride);
 }
 
 const MP3 = Buffer.from('ID3-fake-audio-bytes-0001');
@@ -116,9 +115,9 @@ test('voice_enabled：录音上传 POST /voice-history 同一道门禁', async (
   assert.equal(ok.status, 201, JSON.stringify(ok.body));
 });
 
-// ---------------------------------------------------------------- ② 模板折扣
+// ---------------------------------------------------------------- ② 模板折扣（百分比）
 
-test('discount：会员买模板按折扣实付，非会员原价', async () => {
+test('discount：会员买模板按折扣实付，非会员原价（discount 为百分比 0~100）', async () => {
   // 造一个「平台付费模板 + 租户已买断」的组合，使 C 端可见且价 10 元
   const tpl = db.prepare(
     "INSERT INTO card_templates (name, tenant_id, price, enabled, sort_order) VALUES (?, 0, 10, 1, 0)"
@@ -128,8 +127,7 @@ test('discount：会员买模板按折扣实付，非会员原价', async () => 
     "INSERT INTO tenant_asset_purchases (tenant_id, asset_type, asset_key, c_price) VALUES (1, 'card_template', ?, 10)"
   ).run(String(tplId));
 
-  db.prepare('UPDATE member_package SET discount = 0.8 WHERE level = ?').run('silver');
-
+  // silver 套餐 mall.discount=80（即打 2 折，实付 20%）
   const plain = await login('ent_disc_plain');
   db.prepare('UPDATE platform_user SET customer_id = 1 WHERE id = ?').run(plain.uid);
   const r1 = await request(app)
@@ -138,20 +136,20 @@ test('discount：会员买模板按折扣实付，非会员原价', async () => 
     .send({});
   assert.equal(r1.status, 200, JSON.stringify(r1.body));
   assert.equal(r1.body.amount, 1000, '非会员应原价 10.00 元');
-  assert.equal(r1.body.discount, 1);
+  assert.equal(r1.body.discount, 0, '非会员折扣应为 0');
   assert.equal(r1.body.savedAmount, 0);
 
   const vip = await login('ent_disc_vip');
-  grantLevel(vip.uid, 'silver');
+  grantLevel(vip.uid, 'silver', { mall: { discount: 80 } });
   const r2 = await request(app)
     .post(`/api/card/templates/${tplId}/purchase`)
     .set('Authorization', `Bearer ${vip.token}`)
     .send({});
   assert.equal(r2.status, 200, JSON.stringify(r2.body));
-  assert.equal(r2.body.discount, 0.8);
+  assert.equal(r2.body.discount, 80, 'silver 折扣百分比应为 80');
   assert.equal(r2.body.originAmount, 1000);
-  assert.equal(r2.body.amount, 800, '8 折应实付 8.00 元');
-  assert.equal(r2.body.savedAmount, 200);
+  assert.equal(r2.body.amount, 200, '80 折扣应实付 2.00 元（原价 20%）');
+  assert.equal(r2.body.savedAmount, 800);
 
   // 重复购买会再下一单（解锁时机在支付成功回调写 user_template_purchases，
   // 未支付时 userOwnedTemplates 查不到记录）——这里只确认折扣口径稳定，不去重逻辑不变
@@ -161,15 +159,14 @@ test('discount：会员买模板按折扣实付，非会员原价', async () => 
     .send({});
   assert.equal(r3.status, 200, JSON.stringify(r3.body));
   assert.notEqual(r3.body.orderNo, r2.body.orderNo);
-  assert.equal(r3.body.amount, 800, '折扣应稳定可复现');
+  assert.equal(r3.body.amount, 200, '折扣应稳定可复现');
 });
 
 // ---------------------------------------------------------------- ③ 推送配额
 
 test('push_quota：radar 超限时降级为站内提醒（channel 0 + reason）', async () => {
   const { uid } = await login('ent_push_1');
-  grantLevel(uid, 'silver');
-  db.prepare('UPDATE member_package SET push_quota = 1 WHERE level = ?').run('silver');
+  grantLevel(uid, 'silver', { radar: { push_quota: 1 } });
 
   // 配齐推送通道，确保降级原因只能是配额而不是「通道未接通」
   db.prepare(
@@ -215,13 +212,13 @@ test('/member/status 暴露 entitlements（语音/折扣/三配额）', async ()
   const before = await request(app).get('/api/card/member/status').set('Authorization', `Bearer ${token}`);
   assert.equal(before.status, 200);
   assert.equal(before.body.entitlements.voice, false, 'free 用户 voice 应为 false');
-  assert.equal(before.body.entitlements.discount, 1);
+  assert.equal(before.body.entitlements.discount, 0, 'free 用户 discount 应为 0');
   assert.ok(before.body.entitlements.push, '应含 push 配额');
   assert.ok(before.body.entitlements.lead, '应含 lead 配额');
   assert.ok(before.body.entitlements.collect, '应含 collect 配额');
 
-  grantLevel(uid, 'silver');
+  grantLevel(uid, 'silver', { mall: { discount: 80 } });
   const after = await request(app).get('/api/card/member/status').set('Authorization', `Bearer ${token}`);
   assert.equal(after.body.entitlements.voice, true, 'silver 用户 voice 应为 true');
-  assert.equal(after.body.entitlements.discount, 0.8, 'silver 折扣应为 0.8（上一条用例设置）');
+  assert.equal(after.body.entitlements.discount, 80, 'silver 折扣百分比应为 80（上一条用例设置）');
 });

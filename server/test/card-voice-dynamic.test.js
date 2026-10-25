@@ -43,7 +43,8 @@ async function loginAsVoiceMember(code) {
   const token = await wxLogin(code);
   const uid = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString()).uid;
   const db = createDb(config.dbPath);
-  db.prepare("UPDATE platform_user SET member_level='silver', member_expire_at='2027-01-01 00:00:00' WHERE id=?").run(uid);
+  // 新模型：权益按租户解析，需先给用户挂租户（tenantId=1）+ 旧档位镜像，resolver 走 TIER_PKG 兜底给 silver 的 voice_enabled=1
+  db.prepare("UPDATE platform_user SET customer_id=1, member_level='silver', member_expire_at='2027-01-01 00:00:00' WHERE id=?").run(uid);
   return token;
 }
 

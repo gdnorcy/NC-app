@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { config } from './config.js';
+import { TIER_PKG } from './services/member.js';
 
 /**
  * 三层数据模型：
@@ -1433,6 +1434,48 @@ function migrate(db) {
     }
   }
 
+  // —— 平台权益目录（租户会员套餐 × 应用 的统一权益维度定义，schema 归属平台）——
+  // 租户只能配置已有 type 的值，不能自建 type。种子用 schema_marks 留痕防重启覆盖。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS benefit_catalog (
+      type          TEXT PRIMARY KEY,            -- 权益标识，全局唯一
+      app_scope     TEXT NOT NULL,              -- 归属应用 code（solutions.code）；多应用逗号分隔；'*' 表示全应用
+      kind          TEXT NOT NULL,              -- number | switch | text
+      unit          TEXT,                       -- 张/条/倍/%/天
+      default_value TEXT NOT NULL DEFAULT '0',  -- 新套餐/新应用时的默认值（按 kind 解析）
+      label         TEXT NOT NULL DEFAULT '',
+      sort_order    INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  if (!markApplied(db, 'benefit_catalog_seed_v1')) {
+    const catalog = [
+      // type, app_scope, kind, unit, default_value, label, sort_order
+      ['works_limit', 'card', 'number', '张', '3', '作品数上限', 10],
+      ['videos_limit', 'card', 'number', '条', '0', '视频号数上限', 11],
+      ['collect_limit', 'card', 'number', '条', '0', '收藏上限', 12],
+      ['custom_works_label', 'card', 'switch', '', '0', '自定义作品标签名', 13],
+      ['voice_enabled', 'card', 'switch', '', '0', '语音简介', 14],
+      ['no_ads', 'card', 'switch', '', '0', '去广告', 15],
+      ['all_template', 'card', 'switch', '', '0', '全部模板', 16],
+      ['badge', 'member', 'switch', '', '0', '等级徽章', 20],
+      ['advanced_stats', 'member', 'switch', '', '0', '高级数据', 21],
+      ['priority_support', 'member', 'switch', '', '0', '优先支持', 22],
+      ['enterprise', 'member', 'switch', '', '0', '企业认证', 23],
+      ['ai_report', 'member', 'switch', '', '0', 'AI 报告', 24],
+      ['ai_words', 'member', 'switch', '', '0', 'AI 话术', 25],
+      ['point_rate', 'member', 'number', '倍', '1', '积分倍率', 26],
+      ['rebate', 'member', 'number', '%', '0', '返比', 27],
+      ['discount', 'mall', 'number', '%', '0', '商城折扣百分比（0=无折扣，10=打9折）', 30],
+      ['price_visible', 'mall', 'switch', '', '0', '价格可见', 31],
+      ['market_subject', 'market', 'switch', '', '0', '集市场席', 40],
+      ['lead_quota', 'radar', 'number', '条', '0', '留资配额', 50],
+      ['push_quota', 'radar', 'number', '条', '0', '推送配额', 51],
+    ];
+    const ins = db.prepare('INSERT OR IGNORE INTO benefit_catalog (type, app_scope, kind, unit, default_value, label, sort_order) VALUES (?,?,?,?,?,?,?)');
+    for (const row of catalog) ins.run(...row);
+    setMark(db, 'benefit_catalog_seed_v1');
+  }
+
   // —— 名片模板表 ——
   db.exec(`
     CREATE TABLE IF NOT EXISTS card_template (
@@ -2187,6 +2230,10 @@ function migrate(db) {
 
   // —— 会员体系（租户级会员，1:1 复刻菜鸟云：等级/开卡/申请/积分/消费/标签/设置）——
   seedMember(db);
+
+  // —— 会员套餐 P1f：租户默认套餐（member_package 种子模板）→ member_levels + member_level_app_benefits；存量平台 VIP 迁移 ——
+  seedTenantMemberPackages(db);
+  migrateLegacyMemberVip(db);
 
   // —— 内容体系（1:1 复刻菜鸟云「东莞同城通」内容：文章/组图/视频/评论/基础设置）——
   seedContent(db);
@@ -3511,6 +3558,19 @@ function seedMember(db) {
     CREATE INDEX IF NOT EXISTS idx_member_user_tenant ON member_user (tenant_id);
     CREATE INDEX IF NOT EXISTS idx_member_user_card ON member_user (card_no);
 
+    -- —— 套餐 × 应用 权益矩阵（取代 member_levels.benefits 单一 JSON；每套餐每应用一份）——
+    CREATE TABLE IF NOT EXISTS member_level_app_benefits (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id   INTEGER NOT NULL,
+      level_id    INTEGER NOT NULL,              -- 对应 member_levels.id（即"套餐 A/B/C"档位）
+      app_code    TEXT NOT NULL,                 -- solutions.code
+      benefits    TEXT NOT NULL DEFAULT '{}',    -- JSON：{ type: value, ... }，仅存该应用 scope 内的 type
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(tenant_id, level_id, app_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_mlab_tenant ON member_level_app_benefits(tenant_id, level_id);
+
     -- —— 开卡记录 ——
     CREATE TABLE IF NOT EXISTS member_cards (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3593,6 +3653,73 @@ function seedMember(db) {
   }
   if (!colExists(db, 'member_levels', 'valid_days')) {
     db.exec("ALTER TABLE member_levels ADD COLUMN valid_days INTEGER NOT NULL DEFAULT 0");
+  }
+  // pkg_level：标记该行是源自 member_package 种子模板的默认档位（free/silver/gold/diamond），用户自建档位为 NULL。
+  // 用于迁移与运行时按旧档位反查租户默认等级。
+  if (!colExists(db, 'member_levels', 'pkg_level')) {
+    db.exec("ALTER TABLE member_levels ADD COLUMN pkg_level TEXT");
+  }
+}
+
+/**
+ * 租户会员套餐 P1f：把 member_package 的 free/silver/gold/diamond 四档作为种子模板，
+ * 落到指定租户（tenant_id）的 member_levels（pkg_level 标记）+ member_level_app_benefits（按应用拆分 TIER_PKG）。
+ * 幂等：该租户已有 member_levels 则跳过（不覆盖用户自定义）。
+ * 供：① 启动时为存量租户播种；② 新租户首次进入会员模块时懒加载调用。
+ */
+export function ensureTenantDefaultLevels(db, tenantId) {
+  if (!tableExists(db, 'member_level_app_benefits')) return;
+  const cnt = db.prepare('SELECT COUNT(*) AS c FROM member_levels WHERE tenant_id = ?').get(tenantId);
+  if (cnt.c > 0) return;
+  let sort = 0;
+  for (const tier of ['free', 'silver', 'gold', 'diamond']) {
+    const pkg = TIER_PKG[tier];
+    if (!pkg) continue;
+    const info = db.prepare(
+      `INSERT INTO member_levels (tenant_id, level_no, name, status, upgrade_mode, consume_amount, buy_price, benefits, sort_order, pkg_level, review_mode, valid_days)
+       VALUES (?,?,?,1,'consume',0,?, '{}', ?, ?, 'manual', 0)`
+    ).run(tenantId, sort + 1, pkg.name, Math.round((pkg.price || 0) * 100), sort + 1, tier);
+    const levelId = info.lastInsertRowid;
+    for (const [appCode, benefits] of Object.entries(pkg)) {
+      if (appCode === 'name' || appCode === 'price') continue; // 元字段跳过
+      db.prepare('INSERT OR IGNORE INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits) VALUES (?,?,?,?)')
+        .run(tenantId, levelId, appCode, JSON.stringify(benefits));
+    }
+    sort++;
+  }
+}
+
+/** 为所有存量租户（projects）播种默认套餐 */
+function seedTenantMemberPackages(db) {
+  if (!tableExists(db, 'member_level_app_benefits')) return;
+  const tenants = db.prepare('SELECT id FROM projects WHERE id IS NOT NULL AND id != 0').all();
+  for (const { id } of tenants) ensureTenantDefaultLevels(db, id);
+}
+
+/**
+ * 存量迁移：把 platform_user.member_level 旧平台 VIP 用户，按 customer_id 绑定到其租户对应档位的默认等级。
+ * 幂等：member_user 已存在则按最新 expire 修正，不重复建。
+ * 迁移后旧 VIP 走新模型（member_user + 矩阵），resolver 不再依赖兜底。
+ */
+function migrateLegacyMemberVip(db) {
+  if (!tableExists(db, 'member_level_app_benefits')) return;
+  const users = db.prepare("SELECT id, customer_id, member_level, member_expire_at FROM platform_user WHERE member_level IS NOT NULL AND member_level != 'free'").all();
+  for (const u of users) {
+    const tid = u.customer_id;
+    if (!tid) continue;
+    ensureTenantDefaultLevels(db, tid);
+    const lvl = db.prepare('SELECT id FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(tid, u.member_level);
+    if (!lvl) continue;
+    const expire = u.member_expire_at && u.member_expire_at !== '' ? u.member_expire_at : null;
+    const expired = expire && new Date(String(expire).replace(' ', 'T')).getTime() < Date.now();
+    const status = expired ? 'expired' : 'active';
+    const exist = db.prepare('SELECT id FROM member_user WHERE tenant_id = ? AND user_id = ?').get(tid, u.id);
+    if (exist) {
+      db.prepare('UPDATE member_user SET level_id = ?, status = ?, expire_at = ? WHERE id = ?').run(lvl.id, status, expire, exist.id);
+    } else {
+      db.prepare("INSERT INTO member_user (tenant_id, user_id, level_id, status, expire_at, updated_at) VALUES (?,?,?,?,?, datetime('now'))")
+        .run(tid, u.id, lvl.id, status, expire);
+    }
   }
 }
 

@@ -463,13 +463,10 @@ export function createCardRouter(db, wxService) {
       if (!t) return res.status(404).json({ error: '模板不存在或不可用' });
       if (Number(t.price) <= 0) return res.status(400).json({ error: '免费模板无需购买' });
       if (userOwnedTemplates(req.user.id).has(id)) return res.status(400).json({ error: '已购买该模板' });
-      // 第21轮：member_package.discount 真兑现——此前套餐里配的折扣只出现在 C 端文案，
-      // 下单时仍按原价 Math.round(price*100) 收款，属于空头权益。
-      // 🔴 先折后取整（Math.round(discountAmount) 而非 round(price)*discount），
-      //    否则 9.9×0.85 这类会出现 1 分误差，用户看到「8.5 折」却付了另一个数。
-      const discount = quota.discountOf(req.user.id);
+      // 🔴 会员折扣真兑现：discountOf 返回百分比（0=无折扣，10=打9折）。先折后取整，避免 1 分误差。
+      const discountPct = quota.discountOf(req.user.id); // 0..100
       const originAmount = Math.round(Number(t.price) * 100); // payment_orders.amount 单位为分
-      const amount = discount < 1 ? Math.round(originAmount * discount) : originAmount;
+      const amount = discountPct > 0 ? Math.round(originAmount * (1 - discountPct / 100)) : originAmount;
       const payment = new PaymentService(db);
       const order = payment.createOrder({
         payerType: 'tenant',
@@ -482,13 +479,13 @@ export function createCardRouter(db, wxService) {
         productName: t.name,
         amount,
         channel: req.body.channel || 'wechat',
-        remark: discount < 1
-          ? `购买名片模板（会员${Math.round(discount * 100) / 10}折，原价¥${(originAmount / 100).toFixed(2)}）`
+        remark: discountPct > 0
+          ? `购买名片模板（会员${discountPct}%折扣，原价¥${(originAmount / 100).toFixed(2)}）`
           : '购买名片模板',
       });
       res.json({
         orderNo: order.orderNo, amount: order.amount, templateName: t.name, templateId: id,
-        discount, originAmount, savedAmount: originAmount - amount,
+        discount: discountPct, originAmount, savedAmount: originAmount - amount,
       });
     } catch (e) { res.status(400).json({ error: e.message || '下单失败' }); }
   });
@@ -1358,12 +1355,14 @@ export function createCardRouter(db, wxService) {
 
   // 会员门槛判断（与 /visitors/summary 同口径：非 free 且未过期）
   function radarMember(req, res) {
-    const isMember = req.user.member_level !== 'free' && req.user.member_expire_at && new Date(req.user.member_expire_at) > new Date();
-    if (!isMember) {
+    // 会员判据统一走 effectiveMembership（member_user 事实来源 + 旧镜像兜底），
+    // 不再直读 platform_user.member_level：新购会员卡只写 member_user，直读镜像会误判为非会员。
+    const plan = quota.planOf(req.user.id);
+    if (!plan) {
       res.json({ locked: true, memberLevel: req.user.member_level || 'free', memberExpireAt: req.user.member_expire_at || null });
       return null;
     }
-    return isMember;
+    return plan;
   }
 
   // 高潜客户榜（会员内）
@@ -1372,7 +1371,7 @@ export function createCardRouter(db, wxService) {
       if (!radarMember(req, res)) return;
       const card = db.prepare('SELECT id, user_id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
       if (!card) return res.json({ leads: [], total: 0 });
-      const tenantId = radar.resolveTenant(card.id);
+      const tenantId = radarTenantOf(req);
       const leads = radar.topLeads(tenantId, req.user.id, Number(req.query.limit) || 20).map((r) => ({
         visitorOpenid: r.visitor_openid,
         visitorUserId: r.visitor_user_id,
@@ -1484,10 +1483,18 @@ export function createCardRouter(db, wxService) {
   });
 
   // 客户+意向导出 CSV（会员内；企微同步占位）
+  // 雷达数据的租户维度：统一按「本人最新名片的归属租户」解析。
+  // 🔴 之前 /radar/top-leads 用 radar.resolveTenant(card.id)（卡片归属租户），
+  //    /radar/export 却用 req.customerId（用户绑定租户）——两者不一致时导出的 CSV 与页面列表对不上。
+  function radarTenantOf(req) {
+    const card = db.prepare('SELECT id FROM card_profile WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.user.id);
+    return card ? radar.resolveTenant(card.id) : 0;
+  }
+
   router.get('/radar/export', auth, (req, res) => {
     try {
       if (!radarMember(req, res)) return;
-      const leads = radar.topLeads(req.customerId || 0, req.user.id, 500);
+      const leads = radar.topLeads(radarTenantOf(req), req.user.id, 500);
       const lines = ['访客openid,意向分,命中次数,最近计算时间'];
       for (const l of leads) {
         lines.push(`${l.visitor_openid},${l.score},${l.hit_count},${l.last_calc_at}`);
@@ -1503,7 +1510,7 @@ export function createCardRouter(db, wxService) {
     const lead = quota.quotaLeft(req.user.id, 'lead');
     const push = quota.quotaLeft(req.user.id, 'push');
     const collect = quota.quotaLeft(req.user.id, 'collect');
-    const all = ['ai_report', 'ai_words', 'quota_lead', 'quota_push', 'enterprise'];
+    const all = ['ai_report', 'ai_words', 'enterprise', 'badge', 'advanced_stats', 'priority_support', 'no_ads', 'all_template'];
     res.json({
       isMember: !!quota.planOf(req.user.id),
       features: all.filter((f) => quota.hasFeature(req.user.id, f)),
@@ -1517,7 +1524,8 @@ export function createCardRouter(db, wxService) {
 
   // 站内提醒列表（名片主消息页）
   router.get('/radar/notifies', auth, (req, res) => {
-    const notifies = radar.listNotifies(req.customerId || 0, req.user.id, Number(req.query.limit) || 50);
+    // 租户维度与写入侧一致（写入用卡片归属租户）：否则用户后续加入租户会看不到自己名下的提醒
+    const notifies = radar.listNotifies(radarTenantOf(req), req.user.id, Number(req.query.limit) || 50);
     res.json({ notifies: notifies.map((n) => ({ id: n.id, eventName: n.event_name, title: n.title, visitorName: n.visitor_name, channel: n.channel, status: n.status, readAt: n.read_at, createdAt: n.created_at })) });
   });
 
@@ -1791,7 +1799,12 @@ export function createCardRouter(db, wxService) {
   });
 
   router.get('/member/status', auth, (req, res) => {
-    const isMember = req.user.member_level !== 'free' && req.user.member_expire_at && new Date(req.user.member_expire_at) > new Date();
+    // 会员判据统一走 quota.planOf（effectiveMembership：member_user 事实来源 + 旧镜像兜底），
+    // 不再直读 platform_user.member_level——新购会员卡只写 member_user，直读镜像会误判非会员。
+    const plan = quota.planOf(req.user.id);
+    const isMember = !!plan;
+    const level = isMember ? (plan.level || 'free') : 'free';
+    const expireAt = isMember ? (plan.expireAt || req.user.member_expire_at || null) : (req.user.member_expire_at || null);
     // 第20轮三层身份：集市场席状态（C 端购买引导/过期提示消费）。
     // mode=租户个人入驻双模；hasSeat=本租户是否有 active 个人主体；
     // purchase 来源主体的 memberActive 随会员有效期变化（过期=无席）。
@@ -1807,8 +1820,8 @@ export function createCardRouter(db, wxService) {
       };
     }
     res.json({
-      level: isMember ? req.user.member_level : 'free',
-      expireAt: req.user.member_expire_at,
+      level,
+      expireAt,
       isMember,
       // 会员分级权益快照（作品/视频数量上限 + 自定义标签名开关；C 端 worksEdit/videosEdit 消费）
       benefits: benefits.snapshot(req.user.id),

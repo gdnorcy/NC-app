@@ -14,6 +14,7 @@ import { createApp } from '../src/app.js';
 import { createDb } from '../src/db.js';
 import { createRadarService } from '../src/services/radar.js';
 import { createQuotaService } from '../src/services/quota.js';
+import { grantTier } from './helpers/member-grant.js';
 
 let app, db, tmpDir;
 
@@ -49,8 +50,10 @@ async function createCard(token, name) {
   return res.body.card.id;
 }
 
-function setMember(userId, level, expireAt = '2027-01-01T00:00:00') {
-  db.prepare("UPDATE platform_user SET member_level=?, member_expire_at=? WHERE id=?").run(level, expireAt, userId);
+// 新模型：把用户开成某档（tenant 11 已播种四档）。第三个参数为该档某应用的权益覆盖，
+// 形如 { card: { collect_limit: 2 }, radar: { lead_quota: 1 } }。
+function setMember(userId, tier, override = {}) {
+  grantTier(db, userId, 11, tier, override);
 }
 
 function uidFromToken(token) {
@@ -146,16 +149,15 @@ test('quota：planOf / hasFeature / quotaLeft / canCollect 各等级', () => {
   const qFree = quota.quotaLeft(uidA, 'lead');
   assert.equal(qFree.limit, 0);
   assert.equal(quota.canCollect(uidA), true, 'collect_limit=0 不限');
-  // gold：套餐生效 + quota_lead 可用 + 留资配额 50
+  // gold：套餐生效 + lead_quota 可用 + 留资配额 50
   setMember(uidA, 'gold');
   assert.equal(quota.planOf(uidA).level, 'gold');
-  assert.equal(quota.hasFeature(uidA, 'quota_lead'), true);
+  assert.equal(quota.hasFeature(uidA, 'lead_quota'), true);
   const qGold = quota.quotaLeft(uidA, 'lead');
   assert.equal(qGold.limit, 50);
   assert.ok(qGold.unlimited === false);
   // silver + collect_limit=2：收藏限 2
-  db.prepare("UPDATE member_package SET collect_limit=2 WHERE level='silver'").run();
-  setMember(uidD, 'silver');
+  setMember(uidD, 'silver', { card: { collect_limit: 2 } });
   const qCollect = quota.quotaLeft(uidD, 'collect');
   assert.equal(qCollect.limit, 2);
   assert.equal(quota.canCollect(uidD), true);
@@ -221,14 +223,14 @@ test('留资配额拦截：free 名片不限；会员超限 403 引导升级', a
   assert.equal(freeLead.status, 200, 'free 名片主留资不应受限');
 
   // gold 名片主（tokA，quota 用例已 setMember gold 并留资 1 条）：lead_quota=1 → 第 2 条 403
-  db.prepare("UPDATE member_package SET lead_quota=1 WHERE level='gold'").run();
+  setMember(uidFromToken(tokA), 'gold', { radar: { lead_quota: 1 } });
   const blocked = await request(app).post('/api/card/leads').send({ cardId: cardA, name: '赵六', phone: '13700137000' });
   assert.equal(blocked.status, 403, 'gold 留资超限应 403');
   assert.equal(blocked.body.limitHit, true);
   assert.match(blocked.body.error, /升级会员/, '提示应引导升级');
   const blockedRow = db.prepare("SELECT id FROM card_lead WHERE owner_user_id=? AND phone='13700137000'").get(uidFromToken(tokA));
   assert.equal(blockedRow, undefined, '被拦截的留资不应落库');
-  db.prepare("UPDATE member_package SET lead_quota=50 WHERE level='gold'").run(); // 还原
+  setMember(uidFromToken(tokA), 'gold', { radar: { lead_quota: 50 } }); // 还原
 });
 
 test('高潜榜会员门槛：free locked / gold 数据；CSV 导出', async () => {

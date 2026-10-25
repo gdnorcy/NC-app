@@ -236,6 +236,32 @@ export class PaymentService {
         WHERE id = ?
       `).run(pkg.level, expireAt.toISOString().slice(0, 19).replace('T', ' '), order.userId);
 
+      // 新模型事实来源同步：member_package 档位 → 租户同名 pkg_level 档位 → member_user。
+      // 旧镜像（上面那行）只反映「档位名」，权益解析与会员判据已改走 member_user，
+      // 两者不写就会出现「已付费但 /member/status、雷达会员门槛显示非会员」。
+      // 租户没有同名档位（自建等级）时跳过——旧镜像仍能兜底权益。
+      try {
+        const tid = Number(order.customerId) || 0;
+        if (tid && this.member) {
+          const lvl = this.db.prepare('SELECT id FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(tid, pkg.level);
+          if (lvl) {
+            const expStr = expireAt.toISOString().slice(0, 19).replace('T', ' ');
+            const cardNo = String(Date.now()) + String(Math.floor(Math.random() * 100)).padStart(2, '0');
+            this.db.prepare(
+              `INSERT INTO member_user (tenant_id, user_id, card_no, level_id, status, expire_at, updated_at)
+               VALUES (?,?,?,?, 'active', ?, datetime('now'))
+               ON CONFLICT(tenant_id, user_id) DO UPDATE SET level_id = excluded.level_id, status = 'active', expire_at = excluded.expire_at, updated_at = datetime('now')`
+            ).run(tid, order.userId, cardNo, lvl.id, expStr);
+            this.db.prepare(
+              "INSERT INTO member_cards (tenant_id, user_id, card_no, level_id, source, opened_at) VALUES (?,?,?,?, 'buy', datetime('now'))"
+            ).run(tid, order.userId, cardNo, lvl.id);
+            console.log(`[payment] 订单 ${order.orderNo} 已同步开出租户级会员（租户#${tid} 档位 ${pkg.level}）`);
+          }
+        }
+      } catch (e) {
+        console.error('同步开租户级会员失败:', e?.message || e);
+      }
+
       // 第20轮三层身份：购买含场席套餐 → 租户 purchase 模式下自动获得集市场席。
       // 不满足前置（套餐未勾选/口令模式/配额满/跨租户）时静默跳过——会员权益已正常开通，
       // 场席引导由 C 端 /member/status 的 marketSubject 状态负责。

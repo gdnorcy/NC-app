@@ -1,97 +1,68 @@
 /**
  * 会员套餐与权益配额服务（智能名片 · 阶段B对齐：套餐有效期累计 + 成功才扣 + 超限引导升级）
- * - planOf：platform_user.member_level + member_package 取套餐（含会员有效期校验，过期视为无套餐）
- * - hasFeature：features 数组包含校验（会员卡能力点展示用）
- * - quotaLeft：留资配额（card_lead 计数）/ 推送配额（已占用真实推送通道的提醒条数）/ 收藏配额（card_collect 计数）
- *   配额数值来自套餐列 lead_quota / push_quota / collect_limit（0 = 不限），不硬编码；
- *   free（无有效套餐）不设限，维持基础能力；会员超限由调用方返回提示并引导升级。
  *
- * 🔴 第21轮：member_package 有 6 个权益列，此前只有 collect_limit / lead_quota 真被消费，
- *    voice_enabled / discount / push_quota 是「配了字段没人读」的空头权益——后台能配、
- *    C 端套餐卡能吹，服务端完全不认。本轮把三者接进真实链路：
- *      canVoice   → POST /voice-upload、POST /voice-history 门禁
- *      discountOf → POST /templates/:id/purchase 下单实付
- *      canPush    → radar.sendNotify 推送前拦截（超限降级站内提醒）
+ * 🔴 模型切换（租户会员套餐）：本服务不再读 platform_user.member_level + member_package，
+ *   改为消费 `resolveAppBenefits(db, tenantId, userId, <对应 app>)`（平台目录 + 租户套餐 × 应用）。
+ *   - canVoice  → card.voice_enabled
+ *   - discountOf → mall.discount（百分比，0=无折扣，10=打9折）
+ *   - quotaLeft(lead/push) → radar.lead_quota / radar.push_quota
+ *   - quotaLeft(collect)    → card.collect_limit
+ *   - hasFeature(type)      → 按 catalog type 反查 app_scope，取该应用下该开关
+ *   解析器已施加平台硬上限（HARD_CAPS）；free（无有效会员）取目录默认（配额类默认 0 = 不限）。
+ *
+ * 调用点签名不变（仅传 userId），tenantId 由 resolver 内部从 userId 反查 customer_id；
+ * 过渡期兜底：旧 platform_user.member_level 档位由 resolver 落到 TIER_PKG 模板。
  */
+
+import { resolveAppBenefits, tenantOfUser, effectiveMembership } from './member.js';
 
 export function createQuotaService(db) {
   const svc = {};
 
-  /** 用户当前有效套餐：非会员/过期返回 null */
-  svc.planOf = (userId) => {
-    if (!userId) return null;
-    const user = db.prepare('SELECT member_level, member_expire_at FROM platform_user WHERE id = ?').get(userId);
-    if (!user || !user.member_level || user.member_level === 'free') return null;
-    const pkg = db.prepare('SELECT * FROM member_package WHERE level = ? AND enabled = 1').get(user.member_level);
-    if (!pkg) return null;
-    if (user.member_expire_at && user.member_expire_at !== '') {
-      const exp = new Date(user.member_expire_at.replace(' ', 'T'));
-      if (Number.isNaN(exp.getTime()) || exp.getTime() < Date.now()) return null;
-    }
-    return pkg;
-  };
-
   /**
-   * 用户等级对应的套餐行（不校验有效期）
-   *
-   * 🔴 与 planOf 的区别：planOf 对 free / 过期返回 null（用于"是否享受会员权益"），
-   *    但有些权益列是**按等级配置**的（voice_enabled 免费档就是 0），
-   *    判定必须拿到 free 行本身，不能因为"不是会员"就跳过。
+   * 用户当前有效套餐（全库统一会员判据 effectiveMembership）：
+   *   事实来源 member_user(租户级) → 过渡期兜底 platform_user.member_level 旧镜像。
+   *   返回 { level, name } 或 null（free/过期/无）。
    */
-  svc.rowOf = (userId) => {
-    if (!userId) return null;
-    const user = db.prepare('SELECT member_level FROM platform_user WHERE id = ?').get(userId);
-    const level = user?.member_level || 'free';
-    return db.prepare('SELECT * FROM member_package WHERE level = ? AND enabled = 1').get(level) || null;
+  svc.planOf = (userId) => {
+    const m = effectiveMembership(db, userId);
+    if (!m) return null;
+    return { level: m.level, name: m.name, expireAt: m.expireAt };
   };
 
-  /** 语音简介权限：套餐列 voice_enabled（第21轮真门禁，原来谁都能传） */
-  svc.canVoice = (userId) => {
-    const row = svc.rowOf(userId);
-    return !!row && Number(row.voice_enabled ?? 0) === 1;
-  };
+  /** 语音简介权限：card.voice_enabled（0=关，1=开） */
+  svc.canVoice = (userId) => !!resolveAppBenefits(db, tenantOfUser(db, userId), userId, 'card').voice_enabled;
 
   /**
-   * 模板购买折扣：套餐列 discount（0<d<=1）；无有效套餐 / 值越界 → 1（不打折）
-   * 注意用 planOf（含有效期），会员过期后不再享受折扣。
+   * 模板购买折扣：mall.discount（百分比，0=无折扣，10=打9折，即实付 90%）。
+   * 无有效会员 / 未配置 → 0（不打折）。
    */
   svc.discountOf = (userId) => {
-    const pkg = svc.planOf(userId);
-    if (!pkg) return 1;
-    const d = Number(pkg.discount);
-    return d > 0 && d <= 1 ? d : 1;
+    const d = resolveAppBenefits(db, tenantOfUser(db, userId), userId, 'mall').discount;
+    const n = Number(d) || 0;
+    return n > 0 && n <= 100 ? n : 0;
   };
 
-  /** features 是否包含某能力 */
+  /** features 类型是否开启（type 即 catalog 的 switch 型权益标识） */
   svc.hasFeature = (userId, feature) => {
-    const pkg = svc.planOf(userId);
-    if (!pkg) return false;
-    try {
-      return (JSON.parse(pkg.features || '[]') || []).includes(feature);
-    } catch (e) {
-      return false;
-    }
+    const scope = db.prepare('SELECT app_scope FROM benefit_catalog WHERE type = ?').get(feature);
+    if (!scope) return false;
+    return !!resolveAppBenefits(db, tenantOfUser(db, userId), userId, scope.app_scope)[feature];
   };
 
   /** 配额余量：kind = lead（留资）/ push（推送）/ collect（收藏）；limit 0 = 不限 */
   svc.quotaLeft = (userId, kind) => {
-    const pkg = svc.planOf(userId);
+    const tid = tenantOfUser(db, userId);
     let limit = 0;
     let used = 0;
     if (kind === 'lead') {
-      // 留资配额：套餐列 lead_quota（0=不限）；无有效套餐（free）不限，维持无感留资基础能力
-      limit = pkg ? Number(pkg.lead_quota ?? 0) : 0;
+      limit = resolveAppBenefits(db, tid, userId, 'radar').lead_quota;
       used = db.prepare('SELECT COUNT(*) AS c FROM card_lead WHERE owner_user_id = ?').get(userId).c || 0;
     } else if (kind === 'push') {
-      // 推送配额：套餐列 push_quota（0=不限）。
-      // 🔴 第21轮口径修正：原来只数 status='sent'，但阶段D通道未联调时行永远是 'pending'，
-      //    used 恒为 0 → 配额永远用不完 = 完全没拦截。改为数「已占用真实推送通道(1/2)的条数」，
-      //    下发成功与否都占额，否则失败重试能把额度刷穿。
-      limit = pkg ? Number(pkg.push_quota ?? 0) : 0;
+      limit = resolveAppBenefits(db, tid, userId, 'radar').push_quota;
       used = db.prepare('SELECT COUNT(*) AS c FROM card_radar_notify WHERE owner_user_id = ? AND channel IN (1,2)').get(userId).c || 0;
     } else {
-      // 收藏配额：套餐列 collect_limit（0=不限）；无有效套餐（free）不限
-      limit = pkg ? Number(pkg.collect_limit ?? 0) : 0;
+      limit = resolveAppBenefits(db, tid, userId, 'card').collect_limit;
       used = db.prepare('SELECT COUNT(*) AS c FROM card_collect WHERE user_id = ?').get(userId).c || 0;
     }
     return { limit, used, left: limit === 0 ? Infinity : Math.max(0, limit - used), unlimited: limit === 0 };
