@@ -11,7 +11,7 @@ import { describe, test, expect } from 'vitest';
 const PAGE = fileURLToPath(new URL('./JoinCodeManage.vue', import.meta.url));
 const ROUTER = fileURLToPath(new URL('../../../../router/customer.js', import.meta.url));
 const TABS = fileURLToPath(new URL('./CardTabs.vue', import.meta.url));
-const TENANT = fileURLToPath(new URL('./TenantManage.vue', import.meta.url));
+const CARD_MANAGE = fileURLToPath(new URL('./CardManage.vue', import.meta.url));
 const SERVER_ROUTE = fileURLToPath(new URL('../../../../../../server/src/routes/joinCode.js', import.meta.url));
 const APP = fileURLToPath(new URL('../../../../../../server/src/app.js', import.meta.url));
 const MARKET = fileURLToPath(new URL('./MarketManage.vue', import.meta.url));
@@ -19,7 +19,7 @@ const MARKET = fileURLToPath(new URL('./MarketManage.vue', import.meta.url));
 const pageSrc = readFileSync(PAGE, 'utf8');
 const routerSrc = readFileSync(ROUTER, 'utf8');
 const tabsSrc = readFileSync(TABS, 'utf8');
-const tenantSrc = readFileSync(TENANT, 'utf8');
+const cardManageSrc = readFileSync(CARD_MANAGE, 'utf8');
 const routeSrc = readFileSync(SERVER_ROUTE, 'utf8');
 const appSrc = readFileSync(APP, 'utf8');
 const marketSrc = readFileSync(MARKET, 'utf8');
@@ -74,15 +74,20 @@ describe('路由与导航注册', () => {
     expect(routerSrc).toContain('JoinCodeManage.vue');
   });
 
-  test('入驻兑换码入口收口到「入驻管理」页面级（tab 行右侧，不随 tab 切换隐藏）', () => {
-    // 入口为页面级操作：位于 tab-bar 行右侧（曾错放在「入驻企业」工具栏里，用户反馈后迁移）
-    expect(tenantSrc).toContain("router.push('/apps/card/join-codes')");
-    expect(tenantSrc).toContain('入驻兑换码');
-    // 位置锁：按钮在 tab-bar 块内（而非某个 tab 的 toolbar 内）——抽块断言防回归
-    const tabBarBlock = tenantSrc.slice(tenantSrc.indexOf('class="tab-bar"'), tenantSrc.indexOf('class="tab-content"'));
+  test('入驻兑换码入口收口到名片管理页级（tab 行右侧，不随主 Tab 切换隐藏）', () => {
+    // 第26轮：「入驻管理」页已下线（企业入驻并入名片管理第二个主 Tab），
+    // 兑换码是个人入驻凭证，入口随之落到名片管理页，仍保持「页面级、tab 行右侧」的位置约定
+    // （历史坑：曾错放在「入驻企业」工具栏里，用户反馈后迁移）
+    expect(cardManageSrc).toContain("router.push('/apps/card/join-codes')");
+    expect(cardManageSrc).toContain('入驻兑换码');
+    // 位置锁：按钮在 tab-bar 块内（而非某个 Tab 的工具栏内）——抽块断言防回归
+    const tabBarBlock = cardManageSrc.slice(cardManageSrc.indexOf('class="tab-bar"'), cardManageSrc.indexOf('class="tab-content"'));
     expect(tabBarBlock).toContain("router.push('/apps/card/join-codes')");
-    // 顶部分类导航不再单列入驻兑换码 Tab
+    expect(tabBarBlock).toContain('企业入驻');
+    // 顶部分类导航不再单列入驻兑换码 Tab，也不再保留「入驻管理」入口
     expect(tabsSrc).not.toContain("label: '入驻兑换码'");
+    expect(tabsSrc).not.toContain("label: '入驻管理'");
+    expect(routerSrc).not.toContain('TenantManage.vue');
   });
 });
 
@@ -117,8 +122,9 @@ describe('服务端路由口径对齐', () => {
 });
 
 describe('集市管理页话术同步（第21轮：个人入驻不再用静态口令）', () => {
-  test('个人入驻模式 radio 文案改为兑换码', () => {
-    expect(marketSrc).toMatch(/<el-radio value="code">兑换码\+审核（默认）<\/el-radio>/);
+  test('个人入驻模式 radio 文案（第26轮后半：两位且与认证同源）', () => {
+    expect(marketSrc).toMatch(/<el-radio value="code">兑换码入驻\+获得认证<\/el-radio>/);
+    expect(marketSrc).toMatch(/<el-radio value="purchase">购买会员套餐自动获得场席和认证<\/el-radio>/);
   });
 
   test('说明里点明「入驻兑换码」页并保留两条模式差异', () => {

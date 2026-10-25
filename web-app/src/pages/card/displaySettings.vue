@@ -168,26 +168,17 @@ async function syncMarket(val) {
   const r = await syncMarketWithIsPublic(cardApi, val);
   if (r.reason === 'no-subject') {
     // 无 active 主体（未入驻/审核中）：开方向无法兑现承诺 → 回滚 is_public，开关保持关。
-    // 第20轮：按租户模式给三条路——purchase 引导买会员（买即入场），apply 免码直提认证申请，code 引导输兑换码。
+    // 第20轮：按租户模式给两条路——purchase 引导买会员（买即入场+认证），code 引导输兑换码。
     if (val) {
       await rollbackPublic(false);
       const mode = getIndividualJoinMode();
       if (mode === 'purchase') {
         uni.showModal({
           title: '上架名片集市',
-          content: '开通会员套餐即可上架至名片集市',
+          content: '开通会员套餐即可认证并上架至名片集市',
           confirmText: '去开通',
           cancelText: '稍后再说',
           success: (m) => { if (m.confirm) uni.navigateTo({ url: '/pages/card/member' }); },
-        });
-      } else if (mode === 'apply') {
-        // 第26轮：自助申请认证——免兑换码，确认后直接提交（仍走管理员审核）
-        uni.showModal({
-          title: '认证申请',
-          content: '提交认证申请？审核通过后即可上架至名片集市',
-          confirmText: '提交申请',
-          cancelText: '稍后再说',
-          success: (m) => { if (m.confirm) submitInvite(''); },
         });
       } else {
         uni.showModal({
@@ -231,8 +222,7 @@ async function healMarketLink() {
     await rollbackPublic(false);
     const mode = getIndividualJoinMode();
     uni.showToast({
-      title: mode === 'purchase' ? '开通会员套餐即可上架至名片集市'
-        : mode === 'apply' ? '可提交认证申请，审核通过后上架集市'
+      title: mode === 'purchase' ? '开通会员套餐即可认证并上架至名片集市'
         : '入驻后可上架至名片集市，请向管理员获取入驻兑换码',
       icon: 'none',
     });
@@ -253,11 +243,11 @@ async function rollbackPublic(v) {
   isPublic.value = v;
 }
 
-/** 第20轮：凭入驻兑换码发起入驻申请（POST /card-market/apply，个人类型）
- *  第26轮：兑换码改可选——apply 模式（自助申请认证）免码直接提交；code/purchase 模式仍须带码（服务端校验） */
+/** 第20轮：凭入驻兑换码发起入驻申请（POST /card-market/apply，个人类型）。
+ *  兑换码必填：由服务端 resolveBindTarget 解析租户并原子占用；审核通过即成为认证个人（同时获得集市场席）。 */
 async function submitInvite(code) {
   const c = String(code === undefined ? inviteCode.value : code).trim().toUpperCase();
-  if (!c && getIndividualJoinMode() !== 'apply') {
+  if (!c) {
     uni.showToast({ title: '请输入入驻兑换码', icon: 'none' });
     return;
   }
@@ -267,7 +257,7 @@ async function submitInvite(code) {
     if (!(await requireLogin())) return;
     await cardApi.applyIndividual({
       type: 'individual',
-      bindCode: c || undefined,
+      bindCode: c,
       name: cardName.value || '未命名',
       phone: cardPhone.value || '',
       position: '',

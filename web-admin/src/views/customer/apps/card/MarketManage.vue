@@ -115,14 +115,13 @@
           </el-form-item>
           <el-form-item label="个人入驻模式">
             <el-radio-group v-model="settings.individualJoinMode">
-              <el-radio value="code">兑换码+审核（默认）</el-radio>
-              <el-radio value="apply">自助申请认证（免兑换码）</el-radio>
-              <el-radio value="purchase">购买会员套餐自助获得场席</el-radio>
+              <el-radio value="code">兑换码入驻+获得认证</el-radio>
+              <el-radio value="purchase">购买会员套餐自动获得场席和认证</el-radio>
             </el-radio-group>
             <div class="form-tip">
-              兑换码模式：在「入驻兑换码」页批量生成一人一码的兑换码发给用户，用户输入后提交申请，审核通过后入驻且该码自动核销（第21轮起个人入驻不再使用静态口令）；
-              自助申请模式：用户在名片「展示设置」页免兑换码直接提交认证申请，审核通过后完成认证（第26轮新增）；
-              购买模式：用户购买含「集市入驻资格」的会员套餐后自动入驻，会员过期将移出集市（主体保留）。切换只影响新入驻，存量主体不受影响。
+              认证与场席同源：成为认证个人后即获得集市场席资格与个人身份标识，可上架集市、可被交换名片。
+              兑换码模式：在「入驻兑换码」页批量生成一人一码的兑换码发给用户，用户输入后提交申请，审核通过后完成认证且该码自动核销（第21轮起个人入驻不再使用静态口令）；
+              购买模式：用户购买含「集市入驻资格」的会员套餐后自动完成认证并入驻，会员过期将移出集市（主体保留）。切换只影响新入驻，存量主体不受影响。
             </div>
           </el-form-item>
           <el-form-item label="联系方式可见">

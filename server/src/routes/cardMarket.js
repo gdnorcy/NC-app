@@ -258,8 +258,8 @@ export function createCardMarketRouter(db) {
     if (poolFloatMode !== undefined && !['soft', 'recover', 'hard'].includes(poolFloatMode)) {
       return res.status(400).json({ error: '无效的上浮方式' });
     }
-    // 第20轮：个人入驻模式开关（第26轮起三值）code=兑换码+审核默认 / apply=自助申请认证（免码，仍走审核） / purchase=购买套餐自助
-    if (individualJoinMode !== undefined && !['code', 'apply', 'purchase'].includes(individualJoinMode)) {
+    // 第20轮：个人入驻双模开关（code=兑换码+审核默认 / purchase=购买会员套餐自动获得场席和认证）
+    if (individualJoinMode !== undefined && !['code', 'purchase'].includes(individualJoinMode)) {
       return res.status(400).json({ error: '无效的入驻模式' });
     }
     // 风格校验：启用且（默认风格 或 已购买/免费），未购付费风格禁止切换
@@ -834,45 +834,27 @@ export function createCardMarketRouter(db) {
     const { type, bindCode, name, phone, position, company, enterpriseName, industry } = req.body;
     const userId = req.user?.id || req.userId;
     if (!userId) return res.status(401).json({ error: '未登录' });
-    if (!type || !name || !phone) {
+    if (!type || !bindCode || !name || !phone) {
       return res.status(400).json({ error: '缺少必填项' });
     }
 
-    // 第26轮：兑换码改为可选——租户 individual_join_mode='apply'（自助申请认证）时
-    // 允许免码直接提交（绑定目标=认证上下文租户）；code/purchase 模式仍必须有码。
-    const hasCode = !!String(bindCode || '').trim();
-    let customerId;
-    let project;
-    if (hasCode) {
-      // 第21轮：绑定目标改为统一入口解析——个人走兑换码（一人一码、用完即废），
-      // 企业仍走旧 projects.invite_code（用户本轮明确只收编个人入驻）。
-      // 注意：个人分支内部已完成「原子占用」(status 0→1)，失败信息直接透出给用户。
-      const target = resolveBindTarget(db, { bindCode, applyType: type, userId });
-      if (!target.ok) return res.status(400).json({ error: target.error });
-      customerId = target.customerId;
-      project = target.project || db.prepare('SELECT * FROM projects WHERE id = ?').get(customerId);
-    } else {
-      if (type !== 'individual') return res.status(400).json({ error: '缺少必填项' });
-      const ctxCid = Number(req.customerId || req.user?.customerId) || 0;
-      if (!ctxCid) return res.status(403).json({ error: '当前未关联任何客户项目，无法申请认证' });
-      if (readIndividualJoinMode(db, ctxCid) !== 'apply') {
-        return res.status(400).json({ error: '当前未开启自助申请认证，请向管理员获取入驻兑换码' });
-      }
-      const blocked = checkTenantAccess(db, ctxCid, 'card', 'mini');
-      if (blocked) return res.status(blocked.status).json({ error: blocked.error });
-      customerId = ctxCid;
-      project = db.prepare('SELECT * FROM projects WHERE id = ?').get(customerId);
-    }
+    // 第21轮：绑定目标改为统一入口解析——个人走兑换码（一人一码、用完即废），
+    // 企业仍走旧 projects.invite_code（用户本轮明确只收编个人入驻）。
+    // 注意：个人分支内部已完成「原子占用」(status 0→1)，失败信息直接透出给用户。
+    const target = resolveBindTarget(db, { bindCode, applyType: type, userId });
+    if (!target.ok) return res.status(400).json({ error: target.error });
+    const customerId = target.customerId;
+    const project = target.project || db.prepare('SELECT * FROM projects WHERE id = ?').get(customerId);
 
     // 企业入驻必须提供企业名称（前置校验）
     if (type === 'enterprise' && !enterpriseName) {
       return res.status(400).json({ error: '企业名称不能为空' });
     }
 
-    // 🔴 从这里开始，任何提前 return 都必须先归还占住的码（仅个人带码分支需要），
+    // 🔴 从这里开始，任何提前 return 都必须先归还占住的码（仅个人分支需要），
     //    否则一次「重复入驻」或「配额超限」就会让这个码永久卡在 status=1 用不掉。
     //    统一收口到一个 try/catch 里，catch 负责归还。
-    const isCodeBased = hasCode && type === 'individual';
+    const isCodeBased = type === 'individual';
     const giveBackCode = () => { if (isCodeBased) unoccupyJoinCode(db, { code: bindCode }); };
 
     try {
@@ -891,7 +873,7 @@ export function createCardMarketRouter(db) {
         if (type === 'individual') {
           db.prepare("UPDATE tenant_individuals SET status = 'pending', name = ?, phone = ?, position = ?, company = ?, updated_at = datetime('now') WHERE id = ?")
             .run(name, phone, position || '', company || '', already.id);
-          if (hasCode) linkJoinCodeToApply(db, { code: bindCode, applyId: already.id });
+          linkJoinCodeToApply(db, { code: bindCode, applyId: already.id });
         } else {
           db.prepare("UPDATE tenant_enterprises SET status = 'pending', name = ?, industry = ?, updated_at = datetime('now') WHERE id = ?")
             .run(enterpriseName, industry || '', already.id);
@@ -917,17 +899,15 @@ export function createCardMarketRouter(db) {
         if (quota.max_enterprises && cur >= quota.max_enterprises) return res.status(400).json({ error: '入驻企业数量已达上限' });
       }
 
-      // 口令使用审计（免码申请无码可记，跳过）
-      if (hasCode) {
-        db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
-      }
+      // 口令使用审计
+      db.prepare('INSERT INTO tenant_invite_log (customer_id, invite_code, user_id) VALUES (?, ?, ?)').run(customerId, String(bindCode).trim(), userId);
       // 审核流：创建 pending，不绑定租户（审核通过后由 apply/audit 完成绑定）
 
       if (type === 'individual') {
-        const ins = db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status, source)
-          VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`).run(customerId, userId, name, phone, position || '', company || '', hasCode ? 'code' : 'apply');
+        const ins = db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, userId, name, phone, position || '', company || '');
         // 把主体回写到码上，管理员侧能查到「这个码换成了哪条入驻主体」
-        if (hasCode) linkJoinCodeToApply(db, { code: bindCode, applyId: ins.lastInsertRowid });
+        linkJoinCodeToApply(db, { code: bindCode, applyId: ins.lastInsertRowid });
       } else {
         const result = db.prepare(`INSERT INTO tenant_enterprises (customer_id, name, industry, admin_user_id, status)
           VALUES (?, ?, ?, ?, 'pending')`).run(customerId, enterpriseName, industry || '', userId);

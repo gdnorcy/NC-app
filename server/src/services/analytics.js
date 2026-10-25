@@ -300,7 +300,7 @@ export function calcHealthScore(db, tenantId, solution = 'card') {
   });
   const completeness = profiles.length ? fieldCompleteness.reduce((a, b) => a + b, 0) / CARD_FIELDS.length : 0;
   dims.push(Math.round(completeness * 20 * 10) / 10);
-  if (!profiles.length) advice.push('还没有认证个人名片：先在「入驻管理」创建个人或通过小程序入驻申请。');
+  if (!profiles.length) advice.push('还没有认证个人名片：先在「名片管理」认证个人或通过小程序提交入驻申请。');
   else if (completeness < 0.5) advice.push('部分名片资料不完整：补充公司、职位、头像、联系方式可显著提升访客信任。');
 
   // 2. 内容活跃度（近7天动态/视频）

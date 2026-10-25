@@ -190,9 +190,12 @@ describe('displaySettings.vue 开关联动', () => {
 
   test('无主体时回滚 is_public=false + 双模引导话术（第20轮：purchase=去开通 / code=输兑换码）', () => {
     expect(dsSrc).toMatch(/await rollbackPublic\(false\)/);
-    expect(dsSrc).toMatch(/开通会员套餐即可上架至名片集市/);
+    // 第26轮：purchase 文案补「认证」——买套餐同时给场席+认证
+    expect(dsSrc).toMatch(/开通会员套餐即可认证并上架至名片集市/);
     // 第21轮：个人入驻凭证改为兑换码（一人一码），话术同步
     expect(dsSrc).toMatch(/入驻后可上架至名片集市，请向管理员获取入驻兑换码/);
+    // 第26轮曾加第三值 apply（自助申请认证免码直提），已被用户否决并回退
+    expect(dsSrc).not.toMatch(/mode === 'apply'/);
     // 两条引导都要落到动作：member 页 / 兑换码浮层
     expect(dsSrc).toMatch(/\/pages\/card\/member/);
     expect(dsSrc).toMatch(/showInviteSheet\.value = true/);
