@@ -106,7 +106,7 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 .video-list-page { min-height: 100vh; background: var(--bg-card); }
 .list { padding: 24rpx; }
 .video-card { background: var(--white); border-radius: var(--radius-sm); margin-bottom: 24rpx; overflow: hidden; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04); }
-.video-player { width: 100%; background: #000; }
+.video-player { width: 100%; background: var(--media-bg); }
 .video-el { width: 100%; height: 400rpx; display: block; }
 .video-empty { position: relative; width: 100%; height: 400rpx; }
 .video-cover { width: 100%; height: 100%; }

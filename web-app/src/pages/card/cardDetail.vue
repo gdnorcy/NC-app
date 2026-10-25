@@ -1953,7 +1953,7 @@ async function followCard() {
 }
 .cos-t {
   font-size: var(--fs-3);
-  color: #8a8f99;
+  color: var(--decor);
   margin-bottom: 18rpx;
 }
 .coco {
@@ -1985,7 +1985,7 @@ async function followCard() {
 }
 .cp {
   font-size: var(--fs-2);
-  color: #8a8f99;
+  color: var(--decor);
 }
 /* ===== 暗夜极光增强（mag + quickSquare/nameBig/guideSolid） ===== */
 .hero-square .qb {
@@ -2057,7 +2057,7 @@ async function followCard() {
   z-index: 20;
   display: flex;
   background: var(--bg-page);
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 1px solid var(--border);
   padding: 0 12rpx;
 }
 .mp-tab {
@@ -2127,7 +2127,7 @@ async function followCard() {
   gap: 16rpx;
   align-items: flex-start;
   padding: 22rpx 0;
-  border-bottom: 1px dashed #eeeeee;
+  border-bottom: 1px dashed var(--border);
   font-size: var(--fs-4);
 }
 .intro-line:last-child {
@@ -2204,7 +2204,7 @@ async function followCard() {
 .video-cover {
   width: 120rpx;
   height: 120rpx;
-  background: #000;
+  background: var(--media-bg);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -2242,7 +2242,7 @@ async function followCard() {
   height: 72rpx;
   border-radius: 50%;
   overflow: hidden;
-  background: #f0f0f0;
+  background: var(--bg-card-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2382,7 +2382,7 @@ async function followCard() {
   border-radius: 26rpx;
   overflow: hidden;
   position: relative;
-  background: #000;
+  background: var(--media-bg);
 }
 .vid-cover {
   width: 100%;
@@ -2416,7 +2416,7 @@ async function followCard() {
 /* ===== 动态评论面板 ===== */
 .cmt-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 900; }
 .cmt-panel { position: fixed; left: 0; right: 0; bottom: 0; background: var(--white); border-radius: 24rpx 24rpx 0 0; z-index: 901; display: flex; flex-direction: column; max-height: 60vh; }
-.cmt-head { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 32rpx; border-bottom: 1rpx solid #f0f0f0; font-size: 30rpx; font-weight: 600; color: var(--t1); }
+.cmt-head { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 32rpx; border-bottom: 1rpx solid var(--border); font-size: 30rpx; font-weight: 600; color: var(--t1); }
 .cmt-close { color: var(--t3); font-size: var(--fs-6); font-weight: 400; padding: 4rpx 12rpx; }
 .cmt-list { flex: 1; overflow: hidden; padding: 8rpx 32rpx; }
 .cmt-empty { text-align: center; color: var(--t3); font-size: var(--fs-4); padding: 48rpx 0; }
@@ -2427,7 +2427,7 @@ async function followCard() {
 .cmt-name { font-size: var(--fs-4); color: var(--t2); font-weight: 500; }
 .cmt-text { font-size: var(--fs-5); color: var(--t1); margin-top: 4rpx; word-break: break-all; }
 .cmt-time { font-size: var(--fs-2); color: var(--border-strong); margin-top: 6rpx; }
-.cmt-input-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f0f0f0; background: var(--white); }
+.cmt-input-row { display: flex; gap: 16rpx; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--border); background: var(--white); }
 .cmt-input { flex: 1; height: 72rpx; background: var(--bg-card); border-radius: 36rpx; padding: 0 28rpx; font-size: var(--fs-5); }
 .cmt-send { width: 140rpx; height: 72rpx; line-height: 72rpx; background: var(--design-primary, #165dff); color: var(--white); font-size: var(--fs-5); border-radius: 36rpx; padding: 0; margin: 0; }
 .cmt-send[disabled] { opacity: 0.5; }

@@ -84,9 +84,9 @@ function goBack() {
 </script>
 
 <style>
-.live-page { min-height: 100vh; background: #000; }
+.live-page { min-height: 100vh; background: var(--media-bg); }
 .body { padding: 20rpx; }
-.player-wrap { background: #000; border-radius: var(--radius-md); overflow: hidden; }
+.player-wrap { background: var(--media-bg); border-radius: var(--radius-md); overflow: hidden; }
 .live-player { width: 100%; height: 840rpx; }
 .player-empty { display: flex; align-items: center; justify-content: center; height: 840rpx; color: var(--white); font-size: var(--fs-5); }
 .h5-cover { position: relative; height: 840rpx; border-radius: var(--radius-md); overflow: hidden; }

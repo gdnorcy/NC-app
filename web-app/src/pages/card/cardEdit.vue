@@ -1015,7 +1015,7 @@ onMounted(() => {
         PageNav（sticky），硬编码负值会被导航栏压住，故必须量。 */
   position: absolute; top: var(--tools-top, -56rpx); right: var(--space-r1); z-index: 3;
   display: flex; align-items: center; gap: var(--space-r1);
-  background: var(--design-primary); color: #fff;
+  background: var(--design-primary); color: var(--white);
   border-radius: var(--radius-sm); padding: 3rpx 6rpx;
   white-space: nowrap;
   /* 🔴 复用项目已有的「卡片浮起」投影写法（0 4rpx 16rpx rgba(0,0,0,.04)，白卡同款），
@@ -1031,8 +1031,8 @@ onMounted(() => {
   height: 40rpx; min-width: 40rpx; padding: 0 4rpx;
   display: flex; align-items: center; justify-content: center; border-radius: 6rpx;
 }
-.ce-tool-ico { font-size: 26rpx; color: #fff; line-height: 1; }
-.ce-tool-lbl { font-size: var(--fs-2); color: #fff; }
+.ce-tool-ico { font-size: 26rpx; color: var(--white); line-height: 1; }
+.ce-tool-lbl { font-size: var(--fs-2); color: var(--white); }
 .ce-tool.del { background: var(--danger); }
 /* 置灰：母版组件整条不可操作（pointer-events 写法 MP 实测有效）
    🔴 置灰时删除键退回透明底：否则 opacity 会把红底混成暗紫（红+蓝=脏色） */
@@ -1045,11 +1045,11 @@ onMounted(() => {
 .ce-ico-dup { position: relative; width: 24rpx; height: 24rpx; }
 .ce-dup-b {
   position: absolute; left: 0; top: 0; width: 16rpx; height: 16rpx;
-  border: 2rpx solid #fff; border-radius: 3rpx; box-sizing: border-box;
+  border: 2rpx solid var(--white); border-radius: 3rpx; box-sizing: border-box;
 }
 .ce-dup-f {
   position: absolute; left: 8rpx; top: 8rpx; width: 16rpx; height: 16rpx;
-  border: 2rpx solid #fff; border-radius: 3rpx; box-sizing: border-box;
+  border: 2rpx solid var(--white); border-radius: 3rpx; box-sizing: border-box;
   background: var(--design-primary);
 }
 .ce-lock-tip { font-size: var(--fs-2); color: var(--danger); margin-top: var(--space-r2); }

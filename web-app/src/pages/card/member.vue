@@ -656,7 +656,7 @@ async function openMember(pkg) {
 
 .dist-entry {
   display: flex; justify-content: space-between; align-items: center;
-  margin: 24rpx 40rpx 0; background: linear-gradient(90deg, var(--design-secondary), #fff);
+  margin: 24rpx 40rpx 0; background: linear-gradient(90deg, var(--design-secondary), var(--white));
   border: 1px solid rgba(var(--design-primary-rgb), 0.2); border-radius: var(--radius-xs); padding: 28rpx 32rpx;
 }
 .de-left { display: flex; align-items: center; gap: 24rpx; }

@@ -525,7 +525,7 @@ export default {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: #000;
+  background: var(--media-bg);
 }
 .panorama-canvas {
   width: 100%;

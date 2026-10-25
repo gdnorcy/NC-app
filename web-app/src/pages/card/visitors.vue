@@ -796,7 +796,7 @@ async function saveConvert() {
   color: var(--design-primary, #165dff);
 }
 .v-tag.gray {
-  background: #f0f0f0;
+  background: var(--bg-card-2);
   color: var(--t4);
 }
 .v-behav {
@@ -867,7 +867,7 @@ async function saveConvert() {
   width: 76rpx;
   height: 8rpx;
   border-radius: 4rpx;
-  background: #e2e2e2;
+  background: var(--border);
   margin: 0 auto 28rpx;
 }
 .sheet-title {

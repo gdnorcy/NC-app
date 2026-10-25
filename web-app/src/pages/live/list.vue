@@ -104,7 +104,7 @@ function goBack() {
 .live-card { background: var(--white); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 20rpx; }
 .live-cover { position: relative; }
 .cover-img { width: 100%; height: 360rpx; display: block; }
-.cover-empty { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #F2F3F5, #E5E6EB); color: var(--decor); font-size: 30rpx; }
+.cover-empty { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg-hover), var(--border)); color: var(--decor); font-size: 30rpx; }
 .live-tag { position: absolute; left: 16rpx; top: 16rpx; display: flex; align-items: center; gap: 8rpx; padding: 6rpx 16rpx; border-radius: var(--radius-pill); background: rgba(0,0,0,0.55); color: var(--white); font-size: var(--fs-2); }
 .live-tag.off { background: rgba(0,0,0,0.45); }
 .tag-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--danger); }

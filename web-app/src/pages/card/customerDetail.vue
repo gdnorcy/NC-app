@@ -150,7 +150,7 @@ async function addFollow() {
   padding-bottom: 140rpx;
 }
 .header {
-  background: linear-gradient(135deg, #ff7d00, #ff9a2e);
+  background: linear-gradient(135deg, var(--brand-orange), #ff9a2e);
   padding: 176rpx 32rpx 40rpx;
   display: flex;
   align-items: center;

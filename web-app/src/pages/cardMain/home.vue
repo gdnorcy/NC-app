@@ -660,7 +660,7 @@ function openVisitor(v) {
 .share-back-text { font-size: 26rpx; }
 .home-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-page);
   padding-bottom: 120rpx;
 }
 

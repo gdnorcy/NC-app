@@ -245,7 +245,7 @@ onMounted(load);
 .stat-label { font-size: var(--fs-2); color: var(--t3); margin-top: 4rpx; }
 
 .filter-tabs { display: flex; gap: 12rpx; padding: 20rpx 24rpx 4rpx; }
-.filter-tab { padding: 10rpx 30rpx; border-radius: var(--radius-pill); background: var(--white); font-size: var(--fs-3); color: var(--t2); border: 1rpx solid #eee; }
+.filter-tab { padding: 10rpx 30rpx; border-radius: var(--radius-pill); background: var(--white); font-size: var(--fs-3); color: var(--t2); border: 1rpx solid var(--border); }
 .filter-tab.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border-color: transparent; font-weight: 500; }
 
 .empty { padding: 120rpx 40rpx; text-align: center; }
@@ -278,7 +278,7 @@ onMounted(load);
 .field { margin-bottom: 24rpx; }
 .field-label { font-size: var(--fs-3); color: var(--t2); margin-bottom: 12rpx; }
 .group-options { display: flex; flex-wrap: wrap; gap: 14rpx; margin-bottom: 16rpx; }
-.group-opt { padding: 10rpx 28rpx; border-radius: var(--radius-pill); background: var(--bg-page); font-size: var(--fs-3); color: var(--t2); border: 1rpx solid #eee; }
+.group-opt { padding: 10rpx 28rpx; border-radius: var(--radius-pill); background: var(--bg-page); font-size: var(--fs-3); color: var(--t2); border: 1rpx solid var(--border); }
 .group-opt.on { background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); color: var(--design-primary, #165dff); border-color: transparent; }
 .field-input { background: var(--bg-page); border-radius: var(--radius-md); padding: 20rpx 24rpx; font-size: var(--fs-5); color: var(--t5); }
 .ph { color: var(--decor-2); }

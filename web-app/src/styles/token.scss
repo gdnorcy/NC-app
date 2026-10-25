@@ -133,6 +133,7 @@ $white: #ffffff;          // #fff（349 处）→ var(--white)
 $decor: #86909c;          // 非阅读装饰灰（#86909c 96 处，保持，不套 WCAG）
 $decor-2: #9a9a9a;        // 非阅读装饰灰（#9a9a9a，保持）
 $bg-card-2: #f0f1f3;      // 浅灰块第 4 种（#f0f1f3）→ 归并浅灰体系
+$media-bg: #000;          // 媒体面纯黑（视频/直播/全景查看器底色；B-2 收敛 14 处裸 #000）
 
 // ---------- 暴露为 CSS 自定义属性（全局可用） ----------
 // 微信小程序 wxss 不支持 :root（根选择器为 page），双挂 page 保证两端变量生效
@@ -181,6 +182,7 @@ $bg-card-2: #f0f1f3;      // 浅灰块第 4 种（#f0f1f3）→ 归并浅灰体�
   --decor: #{$decor};
   --decor-2: #{$decor-2};
   --bg-card-2: #{$bg-card-2};
+  --media-bg: #{$media-bg};
   --radius-xs: #{$radius-xs};
   --radius-pill: 999rpx;
   --space-r1: #{$space-r1};

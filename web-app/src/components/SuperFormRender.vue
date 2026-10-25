@@ -1485,7 +1485,7 @@ async function submit() {
 .sf-picker { display: flex; align-items: center; padding: 0; }
 /* 与 .sf-input 同高（38px：10px padding×2 + 16px 行高 + 2px 边框）—— 两者同屏出现必须等高 */
 .sf-picker-val { width: 100%; min-height: 76rpx; display: flex; align-items: center; padding: 10px var(--c-input-pad-x, 10px); font-size: var(--c-input-size, 14px); line-height: 32rpx; box-sizing: border-box; color: var(--c-input-color, #333333); }
-.sf-picker-val.ph { color: #999999; }
+.sf-picker-val.ph { color: var(--decor-2); }
 /* 多行文本：外层 relative 供右下角字数统计定位；高度走 --c-input-height（与预览端同源）。
    ⚠️ 计数必须自绘而非依赖 uni H5 <textarea> 的内置 confirm-bar：
    小程序端没有内置计数，且内置上限固定 140（不读 content.maxLength）。 */
@@ -1523,7 +1523,7 @@ async function submit() {
 .sf-camera-circle { position: absolute; width: 114rpx; height: 114rpx; line-height: 114rpx; text-align: center; background: rgba(0, 0, 0, 0.16); border-radius: 50%; top: 30rpx; left: 108rpx; color: var(--white); font-size: 54rpx; }
 .sf-license-box .sf-camera-circle { top: 60rpx; left: 64rpx; }
 .sf-id-face { position: absolute; right: 12rpx; top: 12rpx; font-size: 22rpx; color: #4385FF; background: rgba(255, 255, 255, 0.85); border-radius: 6rpx; padding: 1px 10rpx; z-index: 1; }
-.sf-id-text { display: block; font-size: 26rpx; font-weight: 500; color: #666666; line-height: 40rpx; }
+.sf-id-text { display: block; font-size: 26rpx; font-weight: 500; color: var(--t3); line-height: 40rpx; }
 /* 「组件风格」语义 class（值→语义的映射见 sfComponentStyle.styleVariant）：
      sfv-box   描边 + 浅底（= 基础样式，也是无风格时的默认）
      sfv-plain 白底 + **极淡描边**（弱框，边界仍可见）
@@ -1724,7 +1724,7 @@ async function submit() {
      所有存量表单。
    - 改高度/字号必须同步改 ComponentRender.vue 的 .r-sf-btn 与 sfBtnStyle()。 */
 .sf-submit { width: 100%; box-sizing: border-box; border: 1px solid var(--c-border-color, #0076F0); border-radius: var(--c-input-radius, 24px); padding: 0 24rpx; background: var(--c-input-bg, #0076F0); color: var(--c-title-color, #FFFFFF); height: 96rpx; font-size: 34rpx; display: flex; align-items: center; justify-content: center; line-height: 1.2; text-align: center; margin-top: 12rpx; }
-.sf-ended { text-align: center; color: #909399; padding: 60rpx; }
+.sf-ended { text-align: center; color: var(--decor); padding: 60rpx; }
 .sf-empty { text-align: center; color: #c0c4cc; padding: 60rpx; }
 .sf-loc { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, var(--g-input-radius, 6px)); padding: 10px var(--c-input-pad-x, 10px); min-height: 76rpx; line-height: 32rpx; box-sizing: border-box; font-size: var(--c-input-size, 14px); color: var(--c-icon-color, #000000); background: var(--c-input-bg, #F7F9FA); text-align: center; }
 .sf-agree { display: flex; align-items: flex-start; gap: 16rpx; font-size: var(--c-input-size, 13px); color: var(--c-input-color, #333333); flex-wrap: wrap; }
@@ -1746,17 +1746,17 @@ async function submit() {
 .sf-sms-code { width: 100%; }
 .sf-sms-btn { border: 1px solid var(--c-border-color, #F5F2F2); border-radius: var(--c-input-radius, 6px); padding: 0 28rpx; font-size: 26rpx; color: var(--c-msg-color, #4385FF); background: var(--white); display: flex; align-items: center; white-space: nowrap; flex-shrink: 0; }
 .sf-title { font-weight: 600; padding: 4px var(--c-input-pad-x, 10px); font-size: var(--c-title-size, 17px); color: var(--c-title-color, #000000); }
-.sf-richtext { font-size: 28rpx; color: #303133; line-height: 1.6; }
+.sf-richtext { font-size: 28rpx; color: var(--t1); line-height: 1.6; }
 .sf-line { border-top-width: var(--c-divider-height, 1px); border-top-color: var(--c-divider-color, #000000); margin: 8rpx 0; }
 .sf-swiper { width: 100%; border-radius: var(--c-img-radius, 0px); overflow: hidden; }
 .sf-swiper-img { width: 100%; height: 100%; display: block; }
-.sf-swiper-empty { background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: var(--c-img-radius, 6px); padding: 48rpx; text-align: center; color: #909399; font-size: 26rpx; }
+.sf-swiper-empty { background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--c-img-radius, 6px); padding: 48rpx; text-align: center; color: var(--decor); font-size: 26rpx; }
 .sf-bigimage { width: 100%; border-radius: var(--c-img-radius, 8px); overflow: hidden; }
 .sf-bigimage-img { width: 100%; display: block; }
-.sf-bigimage-empty { background: #f5f6f8; border: 1px dashed #dcdfe6; border-radius: var(--c-img-radius, 6px); padding: 60rpx; text-align: center; color: #909399; font-size: 26rpx; }
+.sf-bigimage-empty { background: var(--bg-card); border: 1px dashed var(--border); border-radius: var(--c-img-radius, 6px); padding: 60rpx; text-align: center; color: var(--decor); font-size: 26rpx; }
 .sf-video { width: 100%; border-radius: var(--c-input-radius, 8px); overflow: hidden; }
 .sf-video-el { width: 100%; display: block; }
-.sf-video-empty { background: #000; color: var(--white); text-align: center; padding: 60rpx; font-size: 26rpx; }
+.sf-video-empty { background: var(--media-bg); color: var(--white); text-align: center; padding: 60rpx; font-size: 26rpx; }
 .sf-backdesc { font-size: var(--c-title-size, 14px); color: var(--c-input-color, #333333); line-height: 1.6; }
 .sf-realtime { display: flex; align-items: center; justify-content: space-between; font-size: 26rpx; color: var(--c-title-color, #000000); background: var(--c-input-bg, #F7F9FA); border-radius: var(--c-input-radius, 10px); padding: 20rpx 24rpx; }
 .sf-realtime-label { font-weight: 600; }
@@ -1819,14 +1819,14 @@ async function submit() {
 .sf-download-wrap { display: flex; flex-direction: column; gap: 12rpx; }
 .sf-download-sample { font-size: 24rpx; color: var(--c-down-color, #4385FF); text-align: center; }
 .sf-download-tip { display: block; font-size: 24rpx; color: var(--c-desc-color, #999999); }
-.sf-video-poster { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: var(--c-input-radius, 8px); overflow: hidden; }
+.sf-video-poster { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--media-bg); border-radius: var(--c-input-radius, 8px); overflow: hidden; }
 .sf-video-poster-img { width: 100%; height: 100%; }
 .sf-video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 96rpx; height: 96rpx; line-height: 96rpx; text-align: center; background: rgba(0, 0, 0, 0.5); border-radius: 50%; color: var(--white); font-size: 40rpx; }
 /* 弹层（协议正文 / 视频弹出） */
 .sf-mask { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.55); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 48rpx; box-sizing: border-box; }
 .sf-modal { width: 100%; max-width: 960rpx; max-height: 76vh; background: var(--white); border-radius: var(--radius-xs); display: flex; flex-direction: column; overflow: hidden; }
-.sf-modal-title { font-size: 32rpx; font-weight: 600; padding: 32rpx; border-bottom: 1px solid #f0f0f0; }
-.sf-modal-body { flex: 1; padding: 32rpx; font-size: 28rpx; line-height: 1.7; color: #303133; white-space: pre-wrap; }
+.sf-modal-title { font-size: 32rpx; font-weight: 600; padding: 32rpx; border-bottom: 1px solid var(--border); }
+.sf-modal-body { flex: 1; padding: 32rpx; font-size: 28rpx; line-height: 1.7; color: var(--t1); white-space: pre-wrap; }
 .sf-modal-btn { padding: 28rpx; text-align: center; color: var(--white); background: var(--c-active-color, #2667EC); font-size: 30rpx; }
 .sf-video-modal { background: transparent; max-width: 1120rpx; }
 .sf-video-pop-el { width: 100%; border-radius: var(--radius-sm); }

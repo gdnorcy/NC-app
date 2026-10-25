@@ -76,12 +76,12 @@ export default {
 .share-title {
   font-size: 36rpx;
   font-weight: 600;
-  color: #1a1b1c;
+  color: var(--t5);
   display: block;
 }
 .share-desc {
   font-size: 28rpx;
-  color: #909399;
+  color: var(--decor);
   margin-top: 16rpx;
   display: block;
 }
@@ -99,7 +99,7 @@ export default {
   font-size: 30rpx;
 }
 .share-btn.secondary {
-  background: #f0f2f5;
-  color: #1a1b1c;
+  background: var(--bg-card-2);
+  color: var(--t5);
 }
 </style>

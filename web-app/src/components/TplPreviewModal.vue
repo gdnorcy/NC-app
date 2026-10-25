@@ -113,5 +113,5 @@ const cityLine = computed(() => {
 .pv-actions { display: flex; gap: 20rpx; }
 .pv-btn { flex: 1; height: 88rpx; border-radius: 44rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; }
 .pv-cancel { background: var(--bg-hover); color: var(--t1); }
-.pv-apply { background: var(--design-primary, #165dff); color: #fff; font-weight: 500; }
+.pv-apply { background: var(--design-primary, #165dff); color: var(--white); font-weight: 500; }
 </style>
