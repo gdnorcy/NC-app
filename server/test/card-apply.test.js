@@ -322,7 +322,7 @@ test('访客雷达summary增强（昵称/标签/行为/对比）', async () => {
   assert.ok(typeof res.body.diff === 'number');
 });
 
-test('访客标签按最近动作推断(video→观看视频, visit2次→高意向)', async () => {
+test('访客标签按最近动作推断(video→观看视频, visit2次→回访客; 意向强弱看score/level)', async () => {
   const token = await wxLogin('merge_radar_2');
   const created = await request(app)
     .post('/api/card/cards')
@@ -350,7 +350,9 @@ test('访客标签按最近动作推断(video→观看视频, visit2次→高意
     .run(cardId, 'mock_tag_v2', Number(u2.lastInsertRowid), today, 1, 18, '[]');
   db.prepare("INSERT INTO card_visitor_action (card_id, visitor_openid, action_type, action_detail, created_at) VALUES (?,?,?,?,datetime('now','-2 hour'))")
     .run(cardId, 'mock_tag_v2', 'exchange', '交换电子名片');
-  // 访客C：无动作但2次访问 → 高意向
+  // 访客C：无动作但2次访问 → 行为标签「回访客」；
+  // 🔴 2026-10-18 起意向强弱不再由标签表达（同屏自相矛盾），唯一看 score/level：
+  //    2次访问=30分+无动作+非跨日回访 → 低意向。标签与徽标各表一端，互不越界。
   const u3 = db.prepare('INSERT INTO platform_user (openid, nickname, created_at, updated_at) VALUES (?,?,?,?)')
     .run('mock_tag_v3', '张先生', new Date().toISOString(), new Date().toISOString());
   db.prepare(`INSERT INTO card_visitor (card_id, visitor_openid, visitor_user_id, visit_date, visit_count, duration, pages, last_visit_at)
@@ -363,7 +365,9 @@ test('访客标签按最近动作推断(video→观看视频, visit2次→高意
   const v3 = res.body.visitors.find((x) => x.visitorOpenid === 'mock_tag_v3');
   assert.equal(v1.tag, '观看视频');
   assert.equal(v2.tag, '已交换名片');
-  assert.equal(v3.tag, '高意向');
+  assert.equal(v3.tag, '回访客');
+  assert.equal(v3.level, '低意向');
+  assert.ok(v3.score >= 30 && v3.score < 40, `2次访问应得30分档，实际 ${v3.score}`);
 });
 
 test('访客已读标记：按行 id 标记，仅清该条红点（匿名访客 openid 相同也不能串）', async () => {

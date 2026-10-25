@@ -45,6 +45,9 @@ before(() => {
   config.webDistDir = path.join(tmpDir, 'dist');
   fs.mkdirSync(config.webDistDir, { recursive: true });
   fs.writeFileSync(path.join(config.webDistDir, 'index.html'), '<html>INDEX_ENTRY</html>');
+  // mock wx-login 通道按 config.defaultTenantId 兜底给新用户绑租户；
+  // 本文件断言「审核通过前不得绑定租户」，必须显式关掉兜底（多租户平台部署即设 0）
+  config.defaultTenantId = 0;
   db = createDb(config.dbPath);
   // 测试租户使用旗舰版配额（避免免费版上限拦截多主体审核流）
   db.prepare("UPDATE projects SET billing_plan_id = (SELECT id FROM billing_plans WHERE code = 'flagship') WHERE id = 1").run();

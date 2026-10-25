@@ -259,9 +259,8 @@ export const saveRadarPushConfig = (data) => adminApi.post('/radar/push-config',
 export const fetchAdminCollects = (params) => adminApi.get('/radar/collects', { params });
 export const deleteAdminCollect = (id) => adminApi.delete(`/radar/collects/${id}`);
 
-// 阶段B：会员套餐（VIP权益扩展）
+// 阶段B：会员套餐模板库（member_package：新租户标准档种子模板）
 export const fetchMemberPackages = () => adminApi.get('/member-packages');
-export const fetchMemberFeatureOptions = () => adminApi.get('/member-packages/feature-options');
 export const createMemberPackage = (data) => adminApi.post('/member-packages', data);
 export const updateMemberPackage = (id, data) => adminApi.put(`/member-packages/${id}`, data);
 export const deleteMemberPackage = (id) => adminApi.delete(`/member-packages/${id}`);

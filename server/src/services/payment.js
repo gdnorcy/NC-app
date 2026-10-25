@@ -154,7 +154,11 @@ export class PaymentService {
 
     // 租户级会员卡购买支付成功 → 开卡（1:1 复刻菜鸟云「直接购买」）
     if (order.solution === 'card' && order.productType === 'member_card' && this.member) {
-      this.member.openCardByOrder(order);
+      const opened = this.member.openCardByOrder(order);
+      // 1b：B 路对齐 A 路——等级权益矩阵 market.market_subject=1 时，purchase 模式租户自动授予集市场席。
+      // 判据只认矩阵（无行=不授予，与 resolver「无匹配回落目录默认」一致，catalog 默认 0）；
+      // 前置不满足（开关关/口令模式/配额满/跨租户）时静默跳过——会员已正常开通。
+      if (opened && opened.ok) this.grantMarketSubjectForMemberCard(order);
     }
 
     // 消费送积分：按会员档位 point_rate（倍率）+ rebate（返比%）结算（幂等，见方法内注释）
@@ -351,10 +355,47 @@ export class PaymentService {
     }
   }
 
+  /**
+   * B 路（会员卡购买）集市场席授予：与 A 路 activateCardMember 内的 grantMarketSubjectByPurchase 同规则。
+   *
+   * 判据 = 购买等级的权益矩阵 market 应用 market_subject 开关（租户后台矩阵/模板库播种的最终落点），
+   * 不读 member_package——1b 后模板库只供新租户播种，运行时判据的单一事实来源是矩阵；
+   * 无矩阵行 → 不授予（与 resolver「无匹配回落目录默认」一致，catalog 默认 market_subject=0）。
+   * 前置不满足（开关关/口令模式/配额满/跨租户）时由 grantMarketSubjectByPurchase 静默跳过。
+   */
+  grantMarketSubjectForMemberCard(order) {
+    try {
+      const tid = Number(order.customerId) || 0;
+      const levelId = Number(order.productId) || 0;
+      if (!tid || !levelId) return null;
+      const level = this.db.prepare('SELECT id, name, pkg_level FROM member_levels WHERE tenant_id = ? AND id = ?').get(tid, levelId);
+      if (!level) return null;
+      const row = this.db.prepare(
+        "SELECT benefits FROM member_level_app_benefits WHERE tenant_id = ? AND level_id = ? AND app_code = 'market'"
+      ).get(tid, levelId);
+      let marketSubject = 0;
+      if (row) {
+        try { marketSubject = JSON.parse(row.benefits || '{}').market_subject === 1 ? 1 : 0; } catch { marketSubject = 0; }
+      }
+      if (!marketSubject) return null;
+      const grant = grantMarketSubjectByPurchase(this.db, {
+        customerId: tid,
+        userId: order.userId,
+        pkg: { market_subject: 1, name: level.name, level: level.pkg_level || '', id: level.id },
+      });
+      if (grant.granted) {
+        console.log(`[payment] 订单 ${order.orderNo} 购买会员卡获得集市场席（租户#${tid} 用户#${order.userId}）`);
+      }
+      return grant;
+    } catch (e) {
+      console.error('集市场席授予失败:', e?.message || e);
+      return null;
+    }
+  }
+
   // ============================================================
   // 统一下单（返回前端调起支付所需参数）
   // ============================================================
-
   /**
    * 构造微信支付客户端。
    * @returns {{ok:true, client:object, cfg:object} | {ok:false, missing:string[]}}

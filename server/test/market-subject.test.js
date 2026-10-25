@@ -24,7 +24,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
-import { createDb, hashPassword } from '../src/db.js';
+import { createDb, hashPassword, ensureTenantDefaultLevels } from '../src/db.js';
 import { issueToken } from '../src/auth.js';
 import { PaymentService } from '../src/services/payment.js';
 
@@ -55,6 +55,10 @@ before(() => {
   // 租户3（code 模式对照：无设置行=默认 code）
   db.prepare(`INSERT INTO projects (customer_name, description, status, invite_code, solutions, billing_plan_id)
     VALUES ('code租户', '', 'active', 'PMSUBJ03', '["card"]', 3)`).run();
+  // 租户 2/3 是 createDb 之后裸插入的（启动播种只覆盖当时存在的租户）→ 显式补种标准档，
+  // 等价于「下一次服务重启」的效果（B 路测试的 gold 标准档 + 矩阵即来源于此）
+  ensureTenantDefaultLevels(db, 2);
+  ensureTenantDefaultLevels(db, 3);
 
   // 两个套餐：含/不含集市场席
   db.prepare(`INSERT INTO member_package (level, name, price, duration_days, description, features, sort_order, enabled, market_subject)
@@ -274,4 +278,89 @@ test('7 /member/status 回传 marketSubject（模式/场席/来源/会员态）'
   assert.equal(res.body.marketSubject.hasSeat, true);
   assert.equal(res.body.marketSubject.memberActive, false);
   assert.equal(res.body.isMember, false);
+});
+
+// ===== 1b：B 路（会员卡购买）场席授予对齐 A 路 =====
+/** 走 B 路真实链路：建单（member_card）→ markPaid → openCardByOrder + grantMarketSubjectForMemberCard */
+function buyMemberCard(customerId, userId, level) {
+  const payment = new PaymentService(db);
+  const order = payment.createOrder({
+    payerType: 'tenant',
+    customerId,
+    userId,
+    solution: 'card',
+    productType: 'member_card',
+    productId: String(level.id),
+    productName: level.name,
+    amount: level.buy_price,
+    channel: 'wechat',
+    remark: 'test-member-card',
+  });
+  return payment.markPaid(order.orderNo, 'TX_TEST_CARD');
+}
+const levelOf = (tid, tier) => db.prepare('SELECT id, name, buy_price FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(tid, tier);
+
+test('8a B 路 purchase 模式（租户2）购买 gold 标准档（矩阵 market_subject=1）→ 开卡 + 授予主体', async () => {
+  const gold = levelOf(2, 'gold');
+  assert.ok(gold && gold.buy_price > 0, '前提：租户2 已播种 gold 标准档且可购买');
+  const token = await wxLogin('mkt_card_yes');
+  const uid = uidOf(token);
+  buyMemberCard(2, uid, gold);
+
+  // 开卡（member_user 事实来源）
+  const mu = db.prepare('SELECT * FROM member_user WHERE tenant_id = ? AND user_id = ?').get(2, uid);
+  assert.ok(mu && mu.level_id === gold.id && mu.status === 'active', 'B 路应开出租户级会员');
+  // 授予场席（与 A 路同规则：active/purchase + 绑租户）
+  const ind = indOf(2, uid);
+  assert.ok(ind, '矩阵 market_subject=1 应授予主体');
+  assert.equal(ind.status, 'active');
+  assert.equal(ind.source, 'purchase');
+  const pu = db.prepare('SELECT * FROM platform_user WHERE id = ?').get(uid);
+  assert.equal(pu.customer_id, 2, '应绑定租户');
+});
+
+test('8b B 路 code 模式（租户3）购买 gold → 开卡但不授予主体', async () => {
+  const gold = levelOf(3, 'gold');
+  assert.ok(gold, '前提：租户3 已播种 gold 标准档');
+  const token = await wxLogin('mkt_card_code');
+  const uid = uidOf(token);
+  buyMemberCard(3, uid, gold);
+
+  const mu = db.prepare('SELECT * FROM member_user WHERE tenant_id = ? AND user_id = ?').get(3, uid);
+  assert.ok(mu && mu.level_id === gold.id, 'code 模式租户也能正常开卡');
+  assert.equal(indOf(3, uid), undefined, 'code 模式不得自动授予主体');
+  const pu = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(uid);
+  assert.equal(pu.customer_id, null, 'code 模式购买不绑定租户');
+});
+
+test('8c B 路矩阵 market_subject=0 的等级 → 开卡但不授予', async () => {
+  // 自建等级：upgrade_mode=consume + buy_price，矩阵 market 显式关
+  const lv = db.prepare(
+    `INSERT INTO member_levels (tenant_id, level_no, name, status, upgrade_mode, consume_amount, buy_price, benefits, sort_order, review_mode, valid_days)
+     VALUES (2, 90, '无场席等级', 1, 'consume', 0, 500, '{}', 90, 'manual', 0)`
+  ).run().lastInsertRowid;
+  db.prepare("INSERT INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits) VALUES (2, ?, 'market', ?)")
+    .run(lv, JSON.stringify({ market_subject: 0 }));
+  const token = await wxLogin('mkt_card_no_subject');
+  const uid = uidOf(token);
+  buyMemberCard(2, uid, { id: lv, name: '无场席等级', buy_price: 500 });
+
+  const mu = db.prepare('SELECT * FROM member_user WHERE tenant_id = ? AND user_id = ?').get(2, uid);
+  assert.ok(mu && mu.level_id === lv, '会员应正常开通');
+  assert.equal(indOf(2, uid), undefined, '矩阵关场席不得授予');
+});
+
+test('8d B 路无矩阵 market 行的自建等级 → 不授予（判据只认矩阵，回落目录默认 0）', async () => {
+  const lv = db.prepare(
+    `INSERT INTO member_levels (tenant_id, level_no, name, status, upgrade_mode, consume_amount, buy_price, benefits, sort_order, review_mode, valid_days)
+     VALUES (2, 91, '裸奔等级', 1, 'consume', 0, 500, '{}', 91, 'manual', 0)`
+  ).run().lastInsertRowid;
+  // 故意不插任何矩阵行
+  const token = await wxLogin('mkt_card_no_matrix');
+  const uid = uidOf(token);
+  buyMemberCard(2, uid, { id: lv, name: '裸奔等级', buy_price: 500 });
+
+  const mu = db.prepare('SELECT * FROM member_user WHERE tenant_id = ? AND user_id = ?').get(2, uid);
+  assert.ok(mu && mu.level_id === lv, '会员应正常开通');
+  assert.equal(indOf(2, uid), undefined, '无矩阵行不得授予（与 resolver 回落目录默认一致）');
 });

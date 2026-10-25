@@ -5,7 +5,7 @@ export const ADMIN_APP_CONFIGS = {
     entries: [
       { title: '名片模板', desc: '平台公共模板库，启停与主题配置', path: '/templates', icon: 'template' },
       { title: '雷达管理', desc: '访客雷达、足迹与运营数据', path: '/radar', icon: 'chart' },
-      { title: '会员套餐', desc: '名片会员套餐与权益定价', path: '/member-packages', icon: 'badge' },
+      { title: '套餐模板库', desc: '新租户标准会员档模板（名称/价格/场席）', path: '/member-packages', icon: 'badge' },
       { title: '收藏管理', desc: '名片收藏记录与数据分析', path: '/card-collects', icon: 'like' },
     ],
   },

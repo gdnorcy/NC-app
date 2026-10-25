@@ -7,7 +7,8 @@
  *
  * 覆盖：
  *  ① visitors.vue  convertFromIntent —— 关闭弹层后再读 leadIntent.value 必崩
- *  ② member.vue    openMember        —— 支付确认未 await，paying 锁提前释放可重复下单
+ *  ② member.vue    buyLevel         —— 支付确认未 await，paying 锁提前释放可重复下单
+ *      （1b 收敛：老 A 路 openMember 已下线，购买统一走租户等级 buyLevel，回归锁随迁）
  *
  * 设计要点：两个函数都依赖闭包内的 ref / uni API，这里用最小桩替换，
  * 只验证**控制流**（谁先关系、锁何时释放），不验证 UI。
@@ -79,9 +80,9 @@ describe('访客雷达 visitors.vue：意向转客户', () => {
   });
 });
 
-describe('会员中心 member.vue：支付并发锁', () => {
+describe('会员中心 member.vue：支付并发锁（唯一购买路径 buyLevel）', () => {
   it('🔴 支付确认必须被 await（否则 try/finally 提前解锁 → 重复下单）', () => {
-    const { body } = extractFn('member.vue', 'openMember');
+    const { body } = extractFn('member.vue', 'buyLevel');
     // showModal 是异步回调 API，只有包成 await 住的 Promise，锁才能覆盖到支付回调结束
     expect(body).toMatch(/await\s+new\s+Promise[\s\S]*showModal|await\s+confirmPay|await\s+payConfirm/);
     // 且不能在 try 里留下未被 await 的裸 showModal 回调
@@ -89,7 +90,7 @@ describe('会员中心 member.vue：支付并发锁', () => {
   });
 
   it('用户取消支付时直接 return，不再发起支付请求', () => {
-    const { body } = extractFn('member.vue', 'openMember');
+    const { body } = extractFn('member.vue', 'buyLevel');
     // 锚点用发起支付的调用（接入真实微信支付后是 payOrder，此前是 mockPay）
     const idx = Math.max(body.indexOf('payOrder'), body.indexOf('mockPay'));
     expect(idx).toBeGreaterThan(-1);

@@ -621,3 +621,33 @@ test('客户项目编辑：管理员指定 + 方案权限保存 + 详情返回',
     db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
   }
 });
+
+// —— 3a：新建租户即时播种标准会员档（旧行为只在下一次服务重启补种）——
+test('新租户即时播种：POST /projects 返回后四档标准套餐 + 20 行矩阵立即可用', async () => {
+  const { tmp, prev } = setupEnv();
+  const db = createDb();
+  const app = createApp({ db });
+  try {
+    const login = await request(app).post('/api/auth/login').send({ username: 'admin', password: 'admin123' }).expect(200);
+    const auth = { Authorization: `Bearer ${login.body.token}` };
+    const created = await request(app)
+      .post('/api/admin/projects')
+      .set(auth)
+      .send({ customerName: '即时播种租户' })
+      .expect(201);
+    const cid = created.body.project.id;
+    // 四档标准套餐（pkg_level 标记）+ 每档 5 个应用矩阵
+    const levels = db.prepare('SELECT pkg_level, buy_price FROM member_levels WHERE tenant_id = ? ORDER BY level_no').all(cid);
+    assert.deepEqual(levels.map((l) => l.pkg_level), ['free', 'silver', 'gold', 'diamond']);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM member_level_app_benefits WHERE tenant_id = ?').get(cid).n, 20);
+    // buy_price 由模板库 member_package.price 流入（silver=29.9/gold=99 元）
+    assert.equal(levels.find((l) => l.pkg_level === 'silver').buy_price, 2990);
+    assert.equal(levels.find((l) => l.pkg_level === 'gold').buy_price, 9900);
+    // 重启式补种幂等：再跑一次启动播种函数不新增
+    const { ensureTenantDefaultLevels } = await import('../src/db.js');
+    ensureTenantDefaultLevels(db, cid);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM member_levels WHERE tenant_id = ?').get(cid).n, 4);
+  } finally {
+    db.close(); fs.rmSync(tmp, { recursive: true, force: true }); restoreEnv(prev);
+  }
+});
