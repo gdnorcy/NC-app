@@ -382,7 +382,9 @@
     </section>
 
     <!-- ===== 等级编辑弹窗 ===== -->
-    <el-dialog v-model="levelDlg.show" :title="levelDlg.form.id ? '编辑等级' : '新建等级'" width="640px" top="4vh">
+    <el-dialog v-model="levelDlg.show" :title="levelDlg.form.id ? '编辑等级' : '新建等级'" width="880px" top="4vh">
+      <!-- 内容区独立滚动：等级字段会持续增长，固定头尾 + 内部滚动，避免弹窗越涨越高顶出视口 -->
+      <div class="level-dlg-body">
       <el-form label-width="120px" label-position="right">
         <el-divider content-position="left">基础信息</el-divider>
         <el-form-item label="等级状态" required>
@@ -450,28 +452,36 @@
         </el-form-item>
         <el-divider content-position="left">会员权益（按应用配置）</el-divider>
         <div v-if="!benefitGroups.length" class="form-tip">权益目录加载中…</div>
-        <template v-for="g in benefitGroups" :key="g.code">
-          <div class="benefit-app-title">{{ g.name }}</div>
-          <el-form-item v-for="item in g.items" :key="item.type" :label="item.label" label-width="130px">
-            <el-switch v-if="item.kind === 'switch'" v-model="levelBenefits[g.code][item.type]" />
-            <template v-else-if="item.kind === 'number'">
-              <el-input-number
-                v-model="levelBenefits[g.code][item.type]"
-                :min="0"
-                :max="benefitCatalog.hardCaps[item.type] ?? 99999"
-                size="small"
-                controls-position="right"
-              />
-              <span class="ml8">{{ item.unit }}</span>
-              <span v-if="benefitCatalog.hardCaps[item.type]" class="form-tip ml8">平台上限 {{ benefitCatalog.hardCaps[item.type] }}{{ item.unit }}</span>
-            </template>
-            <el-input v-else v-model="levelBenefits[g.code][item.type]" size="small" class="w200" />
-          </el-form-item>
-        </template>
+        <!-- 双列网格：应用标题通栏、其下权益项两列排布——字段会持续增长，横着长而非无限拉高 -->
+        <div v-else class="benefit-grid">
+          <template v-for="g in benefitGroups" :key="g.code">
+            <div class="benefit-app-title">{{ g.name }}</div>
+            <el-form-item v-for="item in g.items" :key="item.type" :label="benefitLabel(item)" label-width="130px">
+              <div class="benefit-ctl">
+                <el-switch v-if="item.kind === 'switch'" v-model="levelBenefits[g.code][item.type]" />
+                <template v-else-if="item.kind === 'number'">
+                  <el-input-number
+                    v-model="levelBenefits[g.code][item.type]"
+                    :min="0"
+                    :max="benefitCatalog.hardCaps[item.type] ?? 99999"
+                    size="small"
+                    controls-position="right"
+                  />
+                  <span class="ml8">{{ item.unit }}</span>
+                  <span v-if="benefitCatalog.hardCaps[item.type]" class="form-tip">平台上限 {{ benefitCatalog.hardCaps[item.type] }}{{ item.unit }}</span>
+                </template>
+                <el-input v-else v-model="levelBenefits[g.code][item.type]" size="small" class="w200" />
+                <!-- 目录 label 内嵌的「（…）」说明拆到行内提示：label 列 130px 放不下整串（曾溢出） -->
+                <span v-if="benefitHint(item)" class="form-tip">{{ benefitHint(item) }}</span>
+              </div>
+            </el-form-item>
+          </template>
+        </div>
         <el-form-item label="等级说明">
           <el-input v-model="levelDlg.form.description" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="最多 200 字" />
         </el-form-item>
       </el-form>
+      </div>
       <template #footer>
         <el-button @click="levelDlg.show = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="saveLevel">保存</el-button>
@@ -616,6 +626,22 @@ const benefitGroups = computed(() => {
     items: [...items, ...globals].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
   }));
 });
+
+/**
+ * 目录 label 拆分：'商城折扣百分比（0=无折扣，10=打9折）' → 标签 '商城折扣百分比' + 提示 '（0=无折扣，10=打9折）'。
+ * 🔴 整串塞进 130px label 列会溢出（截图红线处）；提示挪到行内 form-tip，label 列只放短名。
+ * 兼容无「（」的普通 label（原样返回、无提示），对存量库里的长 label 同样生效。
+ */
+function benefitLabel(item) {
+  const raw = String(item.label || '');
+  const i = raw.indexOf('（');
+  return i > 0 ? raw.slice(0, i) : raw;
+}
+function benefitHint(item) {
+  const raw = String(item.label || '');
+  const i = raw.indexOf('（');
+  return i > 0 ? raw.slice(i) : '';
+}
 async function loadBenefitCatalog() {
   try {
     const res = await customerApiCall.get('/member/benefits/catalog');
@@ -1000,5 +1026,11 @@ onMounted(() => {
 .empty-tip { text-align: center; color: #86909c; padding: 24px 0; }
 .label-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .form-tip { margin-left: 10px; color: #86909c; font-size: 12px; }
-.benefit-app-title { margin: 4px 0 10px; padding-left: 8px; border-left: 3px solid #165dff; font-size: 13px; font-weight: 600; color: #1d2129; }
+.benefit-app-title { grid-column: 1 / -1; margin: 4px 0 10px; padding-left: 8px; border-left: 3px solid #165dff; font-size: 13px; font-weight: 600; color: #1d2129; }
+/* 等级弹窗内容区：独立滚动（字段会持续增长，固定头尾避免弹窗顶出视口） */
+.level-dlg-body { max-height: 72vh; overflow-y: auto; padding-right: 4px; }
+/* 权益区双列网格：应用标题通栏、权益项两列——横着长而非无限拉高 */
+.benefit-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; align-items: start; }
+.benefit-ctl { display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px; }
+.benefit-ctl .form-tip { margin-left: 10px; }
 </style>
