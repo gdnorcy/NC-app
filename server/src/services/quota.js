@@ -110,6 +110,8 @@ export function createQuotaService(db) {
   svc.appBenefits = (userId) => {
     const tid = tenantOfUser(db, userId);
     const solNames = new Map(db.prepare('SELECT code, name FROM solutions').all().map((r) => [r.code, r.name]));
+    // solutions 表未必给每个权益应用都建行（生产曾只有 panorama/card/demo）→ 兜底映射防 C 端露出裸 code
+    const APP_NAME_FALLBACK = { card: '智能名片', member: '会员中心', mall: '商城', market: '集市', radar: '雷达拓客' };
     const rows = db.prepare('SELECT type, app_scope, kind, unit, label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all();
     const globals = rows.filter((r) => r.app_scope === '*');
     const byApp = new Map();
@@ -137,7 +139,7 @@ export function createQuotaService(db) {
       const resolved = resolveAppBenefits(db, tid, userId, code);
       apps.push({
         code,
-        name: solNames.get(code) || code,
+        name: solNames.get(code) || APP_NAME_FALLBACK[code] || code,
         items: [...items, ...globals]
           .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
           .map((r) => {
