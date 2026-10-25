@@ -233,6 +233,11 @@ test('/member/status 暴露 appBenefits：按应用分组 + 目录默认 ⊕ 矩
   assert.ok(Array.isArray(apps) && apps.length >= 4, '应按应用分组（至少 card/member/mall/radar）');
   const byCode = Object.fromEntries(apps.map((a) => [a.code, a]));
   assert.ok(byCode.card && byCode.card.name, '应用名应取自 solutions.name');
+  // solutions 表未必给每个权益应用建行（生产曾只有 panorama/card/demo）→ 兜底映射防裸 code
+  assert.equal(byCode.member.name, '会员中心');
+  assert.equal(byCode.mall.name, '商城');
+  assert.equal(byCode.market.name, '集市');
+  assert.equal(byCode.radar.name, '雷达拓客');
   // free：作品上限目录默认 3、折扣 0、倍率 1
   const works = byCode.card.items.find((i) => i.type === 'works_limit');
   assert.equal(works.value, 3, 'free 作品上限应为目录默认 3');
