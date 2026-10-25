@@ -42,6 +42,12 @@ describe('getIndividualJoinMode（channel_config 单一来源，取不到=code�
     uniMock.getStorageSync.mockReturnValue({ individualJoinMode: 'invite' });
     expect(getIndividualJoinMode()).toBe('code');
   });
+
+  // 第26轮曾引入第三值 apply（自助申请认证），已被用户否决并整体回退 → 必须视为脏值
+  test('回退后的 apply 值按脏值处理 → code', () => {
+    uniMock.getStorageSync.mockReturnValue({ individualJoinMode: 'apply' });
+    expect(getIndividualJoinMode()).toBe('code');
+  });
 });
 
 describe('getChannelTenantName', () => {
@@ -90,6 +96,8 @@ describe('create.vue（第20轮）', () => {
   test('口令区 purchase 模式提示（两条入驻路都说清）', () => {
     expect(createSrc).toMatch(/joinMode === 'purchase'/);
     expect(createSrc).toMatch(/开通会员套餐即可自动入驻/);
+    // 第26轮 apply 免码分支已回退：不得再出现 apply 提示
+    expect(createSrc).not.toMatch(/joinMode === 'apply'/);
   });
 
   test('双模来自共享 helper', () => {
@@ -100,19 +108,20 @@ describe('create.vue（第20轮）', () => {
 describe('displaySettings.vue（第20轮）', () => {
   const dsSrc = src('displaySettings.vue');
 
-  test('无主体引导按三模分流（第26轮）：purchase→member 页 / apply→免码直提 / code→口令浮层', () => {
+  test('无主体引导按双模分流：purchase→member 页（买套餐即认证）/ code→兑换码浮层', () => {
     expect(dsSrc).toMatch(/const mode = getIndividualJoinMode\(\)/);
     expect(dsSrc).toMatch(/mode === 'purchase'/);
-    expect(dsSrc).toMatch(/mode === 'apply'/);
     expect(dsSrc).toMatch(/uni\.navigateTo\(\{ url: '\/pages\/card\/member' \}\)/);
     expect(dsSrc).toMatch(/showInviteSheet\.value = true/);
+    // 第26轮 apply 免码直提分支已回退
+    expect(dsSrc).not.toMatch(/mode === 'apply'/);
   });
 
-  test('口令浮层提交走 cardApi.applyIndividual（POST /apply，不新建名片；兑换码可选）', () => {
+  test('兑换码浮层提交走 cardApi.applyIndividual（POST /apply，不新建名片；兑换码必填）', () => {
     expect(dsSrc).toMatch(/cardApi\.applyIndividual\(\{/);
     expect(dsSrc).toMatch(/type: 'individual'/);
-    // 第26轮：免码申请——code 为空传 undefined，服务端按租户 individual_join_mode 校验
-    expect(dsSrc).toMatch(/bindCode: c \|\| undefined/);
+    expect(dsSrc).toMatch(/bindCode: c,/);
+    expect(dsSrc).not.toMatch(/bindCode: c \|\| undefined/);
   });
 
   test('提交前过登录守卫（#312-18c 原地登录基建）', () => {

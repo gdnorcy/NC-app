@@ -186,9 +186,7 @@
             </view>
             <view class="bind-hint">{{ cardType === 'enterprise' ? '口令由管理员提供，用于绑定到指定客户项目' : '兑换码由管理员提供，一人一码，用于入驻到指定客户项目' }}</view>
             <!-- 第20轮：purchase 模式提示「买套餐也可自动入驻」，两条路都说清 -->
-            <view class="bind-hint" v-if="joinMode === 'purchase'">也可不用兑换码：开通会员套餐即可自动入驻{{ tenantName || '本租户' }}，可上架至名片集市</view>
-            <!-- 第26轮：apply 模式（自助申请认证）提示免码路径 -->
-            <view class="bind-hint" v-if="joinMode === 'apply'">也可不填兑换码：先创建名片，再在「展示设置」页提交认证申请</view>
+            <view class="bind-hint" v-if="joinMode === 'purchase'">也可不用兑换码：开通会员套餐即可自动入驻{{ tenantName || '本租户' }}并认证，可上架至名片集市</view>
           </view>
         </view>
 

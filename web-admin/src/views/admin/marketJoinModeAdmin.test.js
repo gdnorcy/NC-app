@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import { describe, test, expect } from 'vitest';
 
 // 第 20 轮「三层身份 + 租户双模开关」后台回归锁（2026-10-24）。
-// 背景：租户可在「口令+审核」与「购买会员套餐自助获得场席」两种个人入驻模式间切换，
+// 背景：租户可在「兑换码入驻+获得认证」与「购买会员套餐自动获得场席和认证」两种个人入驻模式间切换，
 // 平台侧 MemberPackages 用 market_subject 标记哪些套餐含集市场席。
 // 后台两处必须与 C 端 / 服务端口径一致：
 //   ① MarketManage.vue：个人入驻模式 radio 绑定 settings.individualJoinMode（code/purchase）
@@ -30,12 +30,16 @@ describe('MarketManage.vue 个人入驻模式', () => {
     expect(marketSrc).toMatch(/<el-radio value="purchase">[^<]*<\/el-radio>/);
   });
 
-  test('第26轮：radio 增加自助申请认证（apply）三值', () => {
-    expect(marketSrc).toMatch(/<el-radio value="apply">[^<]*<\/el-radio>/);
-    expect(marketSrc).toContain('免兑换码');
+  test('radio 文案：两项且 purchase 明确「场席和认证」', () => {
+    expect(marketSrc).toMatch(/<el-radio value="code">兑换码入驻\+获得认证<\/el-radio>/);
+    expect(marketSrc).toMatch(/<el-radio value="purchase">购买会员套餐自动获得场席和认证<\/el-radio>/);
+    // 第26轮曾误加第三项「自助申请认证」，已被用户否决并回退
+    expect(marketSrc).not.toMatch(/<el-radio value="apply">/);
+    expect(marketSrc).not.toContain('自助申请认证');
   });
 
-  test('form-tip 说明两种模式差异与会员过期行为', () => {
+  test('form-tip 说明认证与场席同源、两种模式差异与会员过期行为', () => {
+    expect(marketSrc).toContain('认证与场席同源');
     expect(marketSrc).toContain('会员过期将移出集市（主体保留）');
     expect(marketSrc).toContain('切换只影响新入驻，存量主体不受影响');
   });

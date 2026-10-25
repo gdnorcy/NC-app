@@ -25,7 +25,7 @@ const tabs = [
   { label: '名片管理', path: '/apps/card/manage', icon: 'card' },
   { label: '企业客户', path: '/apps/card/customers', icon: 'customer' },
   { label: '集市管理', path: '/apps/card/market', icon: 'market' },
-  { label: '入驻管理', path: '/apps/card/tenant', icon: 'audit' },
+  // 「入驻管理」已删（2026-10-26）：企业入驻并入名片管理第二个主 Tab，入驻兑换码挂名片管理页内
   { label: '公海池', path: '/apps/card/pool', icon: 'pool' },
   { label: '模板市场', path: '/apps/card/templates', icon: 'template' },
   { label: '交换记录', path: '/apps/card/exchanges', icon: 'exchange' },

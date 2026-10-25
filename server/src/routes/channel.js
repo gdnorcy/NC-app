@@ -330,8 +330,8 @@ export function createChannelRouter(db) {
     // 🔴 projects 列名是 customer_name / logo_path（曾误写 name/logo → no such column，/init 对授权租户也 500，
     //    被 App.vue try/catch 静默吞掉——「静默失败」又一例）
     const customer = db.prepare('SELECT id, customer_name, logo_path FROM projects WHERE id = ?').get(channel.customer_id);
-    // 第20轮三层身份：租户个人入驻双模（code=口令+审核 / purchase=购买套餐自助）。
-    // C 端据此给出「去开通 / 输入口令」两种引导；无设置行=默认 code（保守不改变存量行为）。
+    // 第20轮三层身份：租户个人入驻双模（code=兑换码+审核 / purchase=购买会员套餐自动获得场席和认证）。
+    // C 端据此给出「去开通 / 输入兑换码」两种引导；无设置行=默认 code（保守不改变存量行为）。
     const joinMode = db.prepare('SELECT individual_join_mode FROM card_market_settings WHERE customer_id = ?').get(channel.customer_id);
     res.json({
       configured: true,
@@ -341,8 +341,7 @@ export function createChannelRouter(db) {
       brandName: channel.brand_name || customer?.customer_name || '',
       brandLogo: channel.brand_logo || customer?.logo_path || '',
       primaryColor: channel.primary_color || '#165DFF',
-      individualJoinMode: joinMode?.individual_join_mode === 'purchase' ? 'purchase'
-        : joinMode?.individual_join_mode === 'apply' ? 'apply' : 'code',
+      individualJoinMode: joinMode?.individual_join_mode === 'purchase' ? 'purchase' : 'code',
       apiBase: `${req.protocol}://${req.get('host')}`,
     });
   });

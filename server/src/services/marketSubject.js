@@ -4,8 +4,10 @@
  * 产品模型（已拍板）：
  *   三层身份——普通用户（0 门槛建名片+分享）/ 集市场席 / 组织成员（ENT 码+企业审批）
  *   租户双模开关（card_market_settings.individual_join_mode）：
- *     'code'（默认）= 口令+审核入驻，存量行为不变；
- *     'purchase'    = 购买会员套餐即获得场席（pkg.market_subject=1），无需口令。
+ *     'code'（默认）= 兑换码+审核入驻：拿到码 → 提交申请 → 管理员审核通过后成为认证个人（同时获得集市场席资格与个人身份）；
+ *     'purchase'    = 购买会员套餐即获得场席+认证（pkg.market_subject=1），无需兑换码。
+ *   注：认证与场席同源——tenant_individuals.status='active' 一行同时决定集市上架、被交换资格、身份徽章；
+ *       两条入驻路径都只是「如何成为 active 成员」的入口差异。
  *   收入归属：进租户（payer_type='tenant'），除非平台级支付代收（'platform'）。
  *
  * 本模块是三个消费方的共享事实来源：
@@ -18,11 +20,10 @@ import { effectiveMembership } from './member.js';
 import { addOperationLog } from '../db.js';
 
 /** 读租户个人入驻模式（无设置行=默认 code，保守不改变存量行为）
- *  三值（第26轮起）：'code'=兑换码+审核 / 'apply'=自助申请认证（免码，仍走审核） / 'purchase'=购买套餐自助获得场席 */
+ *  二值：'code'=兑换码+审核 / 'purchase'=购买会员套餐自动获得场席和认证 */
 export function readIndividualJoinMode(db, customerId) {
   const row = db.prepare('SELECT individual_join_mode FROM card_market_settings WHERE customer_id = ?').get(customerId);
-  const m = row?.individual_join_mode;
-  return m === 'purchase' || m === 'apply' ? m : 'code';
+  return row?.individual_join_mode === 'purchase' ? 'purchase' : 'code';
 }
 
 /**

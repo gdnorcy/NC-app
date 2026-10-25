@@ -10,13 +10,14 @@ import { createApp } from '../src/app.js';
 import { issueToken } from '../src/auth.js';
 
 /**
- * 第26轮：认证/集市管理端直操作 + 自助申请认证（individual_join_mode='apply'）
+ * 第26轮：认证/集市管理端直操作（个人入驻模式为双值 code/purchase）
  * - POST /card/manage/:id/certify：认证（建/复活名册 active + 绑定镜像，幂等）、
  *   取消认证（disabled + 清集市 + is_public 回落）、跨租户 403
  * - POST /card/manage/:id/market：未认证 400；认证后上架（auto 模式 approved）+ is_public 同步；下架还原
  * - GET  /card/manage/:id/oplogs：操作记录（target_type=card_manage）
- * - POST /card-market/apply 免码分支：code 模式 400；apply 模式建 pending(source='apply')
- * - PUT  /card-market/market/settings：individualJoinMode 白名单含 'apply'、拒绝未知值
+ * - PUT  /card-market/market/settings：individualJoinMode 白名单只认 code/purchase
+ *   （第26轮曾加第三值 apply「自助申请认证」→ 用户否决已回退，必须保持拒绝）
+ * - POST /card-market/apply：兑换码必填（免码分支已一并拆除）
  */
 let app;
 let tmpDir;
@@ -147,30 +148,31 @@ test('oplogs：操作记录按 target_type=card_manage 可查', async () => {
   assert.ok(res.body.logs.some((l) => l.action === 'admin_market_list'));
 });
 
-test('apply 免码：code 模式 400 → settings 切 apply（白名单校验）→ pending(source=apply)', async () => {
+test('入驻模式只有双值：apply 已回退（白名单拒绝），/apply 必须带兑换码', async () => {
   const token = await wxLogin('cert_u5');
   // mock code2session 的 openid = 'mock_' + code（见 app.js createWxCode2Session）
   const uid = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_cert_u5'").get().id;
-  // 免码申请的租户上下文取认证上下文：mock 登录不绑租户（defaultTenantId=0），显式挂到租户1
-  db.prepare('UPDATE platform_user SET customer_id = 1 WHERE id = ?').run(uid);
 
-  const denied = await request(app).post('/api/card-market/apply').set({ Authorization: `Bearer ${token}` })
-    .send({ type: 'individual', name: '钱七', phone: '13900000001' });
-  assert.equal(denied.status, 400);
-
+  // 1) 白名单拒绝未知值与已废弃的 apply 值
   const bad = await request(app).put('/api/card-market/market/settings').set(bearer(adm1)).send({ individualJoinMode: 'open' });
   assert.equal(bad.status, 400);
-  const put = await request(app).put('/api/card-market/market/settings').set(bearer(adm1)).send({ individualJoinMode: 'apply' });
+  const badApply = await request(app).put('/api/card-market/market/settings').set(bearer(adm1)).send({ individualJoinMode: 'apply' });
+  assert.equal(badApply.status, 400);
+  const put = await request(app).put('/api/card-market/market/settings').set(bearer(adm1)).send({ individualJoinMode: 'purchase' });
   assert.equal(put.status, 200);
+  assert.equal(db.prepare('SELECT individual_join_mode FROM card_market_settings WHERE customer_id = 1').get().individual_join_mode, 'purchase');
 
-  const ok = await request(app).post('/api/card-market/apply').set({ Authorization: `Bearer ${token}` })
+  // 2) 购买模式下也不允许走免码 /apply —— 兑换码仍是 C 端提交申请的唯一凭证
+  const noCode = await request(app).post('/api/card-market/apply').set({ Authorization: `Bearer ${token}` })
     .send({ type: 'individual', name: '钱七', phone: '13900000001' });
-  assert.equal(ok.status, 200);
-  const row = db.prepare('SELECT * FROM tenant_individuals WHERE customer_id = 1 AND user_id = ?').get(uid);
-  assert.equal(row.status, 'pending');
-  assert.equal(row.source, 'apply');
-  // 重复提交 → 400「申请审核中」（复用既有防重逻辑）
-  const dup = await request(app).post('/api/card-market/apply').set({ Authorization: `Bearer ${token}` })
-    .send({ type: 'individual', name: '钱七', phone: '13900000001' });
-  assert.equal(dup.status, 400);
+  assert.equal(noCode.status, 400);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM tenant_individuals WHERE customer_id = 1 AND user_id = ?').get(uid).n, 0);
+
+  // 3) 兑错码同样被拒（未占用任何码，不会脏数据）
+  const badCode = await request(app).post('/api/card-market/apply').set({ Authorization: `Bearer ${token}` })
+    .send({ type: 'individual', bindCode: 'NOSUCHCODE', name: '钱七', phone: '13900000001' });
+  assert.equal(badCode.status, 400);
+
+  // 还原为默认 code，避免影响本文件后续用例
+  await request(app).put('/api/card-market/market/settings').set(bearer(adm1)).send({ individualJoinMode: 'code' });
 });
