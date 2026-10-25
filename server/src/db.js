@@ -146,6 +146,31 @@ function tableExists(db, name) {
   return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);
 }
 
+/**
+ * 一次性数据播种的留痕标记（第21轮）
+ *
+ * 🔴 为什么需要它：ALTER TABLE ADD COLUMN 的「已存在则报错」天然能表达"这段迁移只跑一次"，
+ *    但**写值**的播种没有这个保护——写成「某列当前是 0 就播种」，管理员把配置全关掉后
+ *    下次重启又会被重新打开（配置被静默覆盖，且无法关闭）。
+ *    所以播种类迁移必须显式留痕，判据与数据当前值解耦。
+ *
+ * @param {DatabaseSync} db
+ * @param {string} key 标记名，建议带 _v1 后缀便于后续迭代
+ * @returns {boolean} 是否已应用过
+ */
+export function markApplied(db, key) {
+  db.exec(`CREATE TABLE IF NOT EXISTS schema_marks (
+    key TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  return !!db.prepare('SELECT key FROM schema_marks WHERE key = ?').get(key);
+}
+
+/** 记录某个播种标记已完成（配合 markApplied 使用） */
+export function setMark(db, key) {
+  db.prepare('INSERT OR IGNORE INTO schema_marks (key) VALUES (?)').run(key);
+}
+
 function colExists(db, table, col) {
   // 表不存在时按“列已存在”处理（跳过 ALTER）：新库该表若在建表语句中已含目标列则无需补；
   // 否则直接对不存在表执行 PRAGMA/ALTER 会抛 no such table，破坏迁移幂等（content_comment 曾触发）
@@ -1254,6 +1279,21 @@ function migrate(db) {
   `);
   // 名片模板布局：card=卡片头式（默认） / full=全屏大图式
   try { db.exec("ALTER TABLE card_templates ADD COLUMN layout TEXT NOT NULL DEFAULT 'card'"); } catch (e) { /* 已存在则忽略 */ }
+  // 模板购买解锁记录（payment.js 支付成功回调写入；card.js userOwnedTemplates 读取）
+  // 🔴 第21轮补：这张表此前只有代码引用、没有建表语句——新库一旦走到模板列表/购买路径
+  //    就报 no such table（线上库是早期手工建过的，测试库一裸跑就露出来）。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_template_purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      template_id INTEGER NOT NULL,
+      order_no TEXT NOT NULL DEFAULT '',
+      amount INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(user_id, template_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_utp_user ON user_template_purchases(user_id);
+  `);
 
   // —— 名片视频表 ——
   db.exec(`
@@ -1357,6 +1397,17 @@ function migrate(db) {
     // 首列种子：存量付费套餐默认含场席（产品模型「购买=认证」），免费版不含；后台可逐套餐改。
     db.prepare('UPDATE member_package SET market_subject = 1 WHERE price > 0').run();
   } catch (e) {}
+
+  // 🔴 第21轮：voice_enabled 从「建了列没人消费」变成真门禁（POST /voice-upload 校验），
+  //    必须先给付费档播种，否则会出现「没有任何套餐承诺语音、但所有人都能传」的空头权益，
+  //    加门禁后直接变成「谁的套餐都不含语音」= 功能被误关。
+  //    播种只做一次（schema_marks 留痕），管理员后续在后台关掉不会被重启重播覆盖。
+  if (!markApplied(db, 'member_voice_seed_v1')) {
+    db.prepare("UPDATE member_package SET voice_enabled = 1 WHERE level IN ('silver','gold','diamond')").run();
+    setMark(db, 'member_voice_seed_v1');
+  }
+  // group_limit（建群数）第21轮下架：与智能名片业务无关且全仓零消费，后台与 C 端都已移除入口。
+  // 列保留不删（存量数据安全），但不再读写。
 
   // features 枚举迁移（VIP权益扩展：修订五——silver 加 ai_report；gold 加 ai_report,ai_words,quota_lead；diamond 加全部+enterprise；幂等去重）
   // 配额数值迁移（占位值：gold/diamond 留资 50；diamond 推送 100；运营确认后可后台改，不硬编码）
@@ -4336,6 +4387,55 @@ function seedMemberSystem(db) {
   }
   if (!colExists(db, 'goods_order', 'verify_by')) {
     db.exec('ALTER TABLE goods_order ADD COLUMN verify_by INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // —— 第21轮：入驻兑换码（一人一码、用完即废；替代裸静态口令 projects.invite_code） ——
+  // 旧痛点：projects.invite_code 是「一租户一个静态字符串」，全员共用、无使用上限、
+  //         用后不核销、无有效期，租户后台既看不到也重置不了（仅 tenant_invite_log 只增审计）。
+  // 新模型：批次(batch) 承载「批量生成」的追溯与整批停用；码本体(code) 承载生命周期。
+  //         status: 0未使用 / 1已占用(申请待审) / 2已核销(审核通过) / 3已作废(管理员停用)
+  //         🔴 UNIQUE(code) 是新旧两代最大的差别：旧 invite_code 列无唯一约束也无索引，
+  //            理论上两个租户可能撞码（生成用 Math.random base36）。
+  if (!tableExists(db, 'tenant_join_code_batch')) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS tenant_join_code_batch (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        remark TEXT NOT NULL DEFAULT '',
+        apply_type TEXT NOT NULL DEFAULT 'individual',
+        expires_at TEXT,
+        status INTEGER NOT NULL DEFAULT 1,
+        created_by INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_join_batch_customer ON tenant_join_code_batch(customer_id)');
+  }
+  if (!tableExists(db, 'tenant_join_code')) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS tenant_join_code (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        batch_id INTEGER NOT NULL DEFAULT 0,
+        code TEXT NOT NULL,
+        status INTEGER NOT NULL DEFAULT 0,
+        max_uses INTEGER NOT NULL DEFAULT 1,
+        used_count INTEGER NOT NULL DEFAULT 0,
+        used_by INTEGER NOT NULL DEFAULT 0,
+        used_at TEXT,
+        apply_id INTEGER NOT NULL DEFAULT 0,
+        apply_type TEXT NOT NULL DEFAULT 'individual',
+        expires_at TEXT,
+        remark TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(code)
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_join_code_tenant ON tenant_join_code(customer_id, status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_join_code_batch ON tenant_join_code(batch_id)');
   }
 
   // 历史脏数据清理：登录兜底造出的「H5演示用户_*」影子企业（见 cleanupDemoEnterprises）

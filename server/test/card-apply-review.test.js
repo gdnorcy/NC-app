@@ -8,6 +8,7 @@ import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { createDb, hashPassword } from '../src/db.js';
 import { issueToken } from '../src/auth.js';
+import { generateJoinCodes } from '../src/utils/codes.js';
 
 /**
  * 入驻申请审核流（P0-2 补充）专项测试
@@ -25,6 +26,14 @@ async function wxLogin(code) {
   const res = await request(app).post('/api/card/auth/wx-login').send({ code });
   assert.equal(res.status, 200);
   return res.body.token;
+}
+
+/**
+ * 生成一个个人入驻兑换码（第21轮起个人入驻不再用静态口令 projects.invite_code）。
+ * 企业入驻本轮仍是旧口令，见用例内 bindCode: '1001' 未改动的那些处。
+ */
+function newJoinCode(customerId = 1) {
+  return generateJoinCodes(db, { customerId, batchId: 0, count: 1 }).codes[0];
 }
 
 before(() => {
@@ -67,7 +76,7 @@ test('审核流-1 提交申请后为pending且不绑定租户，未审核前访�
   const r = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set(bearer(token))
-    .send({ name: '待审个人', bindCode: '1001', applyType: 'individual', phone: '13811110001' });
+    .send({ name: '待审个人', bindCode: newJoinCode(1), applyType: 'individual', phone: '13811110001' });
   assert.equal(r.status, 200);
   assert.equal(r.body.applyStatus, 'pending', '提交入驻申请应返回审核中状态');
 
@@ -128,10 +137,11 @@ test('审核流-4 非待审状态不可重复审核', async () => {
 test('审核流-5 拒绝后可重新提交申请', async () => {
   const token = await wxLogin('rev_p2');
   // 独立申请接口提交（非创建名片路径）
+  const code = newJoinCode(1);
   const apply = await request(app)
     .post('/api/card-market/apply')
     .set(bearer(token))
-    .send({ type: 'individual', bindCode: '1001', name: '待拒个人', phone: '13811110002', position: '销售' });
+    .send({ type: 'individual', bindCode: code, name: '待拒个人', phone: '13811110002', position: '销售' });
   assert.equal(apply.status, 200);
   assert.match(apply.body.message, /等待管理员审核/);
 
@@ -147,10 +157,13 @@ test('审核流-5 拒绝后可重新提交申请', async () => {
   assert.equal(db.prepare('SELECT status FROM tenant_individuals WHERE id = ?').get(indId).status, 'rejected');
 
   // 拒绝后重新申请：同类型不再报"已入驻"，恢复 pending
+  // 第21轮关键：拒绝会把兑换码归还成未使用，所以用户手里的同一个码还能再用一次
+  assert.equal(db.prepare('SELECT status FROM tenant_join_code WHERE code = ?').get(code).status, 0,
+    '拒绝后兑换码应归还为未使用，用户可凭原码重申请');
   const reapply = await request(app)
     .post('/api/card-market/apply')
     .set(bearer(token))
-    .send({ type: 'individual', bindCode: '1001', name: '待拒个人(改)', phone: '13811110002', position: '经理' });
+    .send({ type: 'individual', bindCode: code, name: '待拒个人(改)', phone: '13811110002', position: '经理' });
   assert.equal(reapply.status, 200);
   assert.match(reapply.body.message, /重新提交/);
   assert.equal(db.prepare('SELECT status FROM tenant_individuals WHERE id = ?').get(indId).status, 'pending');
@@ -163,7 +176,7 @@ test('审核流-6 跨租户管理员无法审核他租户申请', async () => {
   const apply = await request(app)
     .post('/api/card-market/apply')
     .set(bearer(token))
-    .send({ type: 'individual', bindCode: '2002', name: '租二个人', phone: '13811110003' });
+    .send({ type: 'individual', bindCode: newJoinCode(2), name: '租二个人', phone: '13811110003' });
   assert.equal(apply.status, 200);
   const uid = db.prepare("SELECT id FROM platform_user WHERE openid = 'mock_rev_t2'").get().id;
   const indId = db.prepare('SELECT id FROM tenant_individuals WHERE user_id = ? AND customer_id = 2').get(uid).id;

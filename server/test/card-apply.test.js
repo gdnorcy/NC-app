@@ -6,6 +6,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { config } from '../src/config.js';
 import { createApp } from '../src/app.js';
+import { issueToken } from '../src/auth.js';
 
 let app;
 let tmpDir;
@@ -32,6 +33,32 @@ async function wxLogin(code) {
   return res.body.token;
 }
 
+/** 以 customer_id=1 的租户管理员身份执行入驻审核（管理员不存在时按需创建） */
+async function reviewIndividual(db, applyId, action) {
+  let adm = db.prepare("SELECT * FROM users WHERE role = 'tenant_admin' AND customer_id = 1").get();
+  if (!adm) {
+    const { hashPassword } = await import('../src/db.js');
+    const { hash, salt } = hashPassword('Test@123');
+    const info = db.prepare('INSERT INTO users (username, phone, password_hash, password_salt, role, status, customer_id) VALUES (?,?,?,?,?,?,?)')
+      .run('card_apply_adm', '13800000999', hash, salt, 'tenant_admin', 'active', 1);
+    adm = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  }
+  const res = await request(app)
+    .post('/api/card-market/apply/audit')
+    .set('Authorization', `Bearer ${issueToken(adm)}`)
+    .send({ type: 'individual', id: applyId, action });
+  return res;
+}
+
+/**
+ * 放开入驻配额：默认库绑的是体验套餐(demo 方案)，memberCount 之类的上限会在审核通过时
+ * 403 拦截，与本轮兑换码逻辑无关。参照 card-apply-review.test.js 的做法放开。
+ */
+function unlockQuota(db) {
+  db.prepare("UPDATE projects SET billing_plan_id = (SELECT id FROM billing_plans WHERE code = 'flagship') WHERE id = 1").run();
+  db.prepare("UPDATE solution_quotas SET value = 100 WHERE key IN ('enterpriseCount','employeeCount','memberCount') AND solution_id = (SELECT id FROM solutions WHERE code = 'demo')").run();
+}
+
 test('创建名片+入驻申请合并流程', async () => {
   const token = await wxLogin('merge_flow_1');
 
@@ -46,12 +73,13 @@ test('创建名片+入驻申请合并流程', async () => {
   assert.equal(noBind.body.card.city, '广州');
 
   // 2. 数字口令不存在：返回400，不创建名片
+  //    第21轮：个人入驻已切换为兑换码，旧 projects.invite_code 不再通用于个人
   const badBind = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set('Authorization', `Bearer ${token}`)
     .send({ name: '坏口令', bindCode: '999999', applyType: 'individual' });
   assert.equal(badBind.status, 400);
-  assert.match(badBind.body.error, /口令无效/);
+  assert.match(badBind.body.error, /兑换码无效/);
 
   // 3. 无效字符串口令：返回400
   const badStr = await request(app)
@@ -72,16 +100,27 @@ test('创建名片+入驻申请合并流程', async () => {
 test('个人入驻+企业入驻', async () => {
   const token = await wxLogin('merge_flow_2');
 
-  // 预置一个客户项目（customer_id=1 由迁移默认创建）
+  // 第21轮：个人入驻改用「一人一码」的兑换码；企业入驻仍用旧 projects.invite_code('1001')。
+  // 生成兑换码走的就是租户后台管理页要用的同一 ...codes.js 工具，避免测试自己另造一套。
+  const { createDb } = await import('../src/db.js');
+  const { generateJoinCodes } = await import('../src/utils/codes.js');
+  const db = createDb(config.dbPath);
+  const { codes } = generateJoinCodes(db, { customerId: 1, batchId: 0, count: 1 });
+
   // 个人入驻
   const individual = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: '个人甲', position: '产品经理', phone: '13800138000', bindCode: '1001', applyType: 'individual', isPublic: true });
+    .send({ name: '个人甲', position: '产品经理', phone: '13800138000', bindCode: codes[0], applyType: 'individual', isPublic: true });
   assert.equal(individual.status, 200);
   assert.equal(individual.body.card.cardType, 'personal');
+  assert.equal(individual.body.applyStatus, 'pending');
+  // 码已被占用：status=1 且关联到刚建的入驻主体
+  const used = db.prepare('SELECT status, used_by, apply_id FROM tenant_join_code WHERE code = ?').get(codes[0]);
+  assert.equal(used.status, 1, '入驻后兑换码应处于已占用状态');
+  assert.ok(used.apply_id > 0, '兑换码应回写关联到入驻主体 apply_id');
 
-  // 企业入驻
+  // 企业入驻（本轮不动，仍走旧 invite_code，验证未被误伤）
   const enterprise = await request(app)
     .post('/api/card/cards/create-with-apply')
     .set('Authorization', `Bearer ${token}`)
@@ -101,6 +140,75 @@ test('个人入驻+企业入驻', async () => {
     .send({ name: '企业主2', bindCode: '1001', applyType: 'enterprise' });
   assert.equal(noEntName.status, 400);
   assert.match(noEntName.body.error, /企业名称/);
+});
+
+test('第21轮：兑换码一人一码 / 用完即废 / 拒绝归还', async () => {
+  const { createDb } = await import('../src/db.js');
+  const { generateJoinCodes } = await import('../src/utils/codes.js');
+  const db = createDb(config.dbPath);
+  unlockQuota(db);
+  const { codes } = generateJoinCodes(db, { customerId: 1, batchId: 0, count: 1 });
+  const code = codes[0];
+
+  // ① 甲用这个码入驻 → 成功，码被占用
+  const t1 = await wxLogin('joincode_user_a');
+  const a = await request(app)
+    .post('/api/card/cards/create-with-apply')
+    .set('Authorization', `Bearer ${t1}`)
+    .send({ name: '甲', phone: '13800000001', bindCode: code, applyType: 'individual' });
+  assert.equal(a.status, 200, a.body.error);
+
+  // ② 乙拿同一个码入驻 → 必须被拒，这正是「一人一码」的落点
+  //    （旧静态口令模型下这两人都会成功，就是用户要解决的痛点）
+  const t2 = await wxLogin('joincode_user_b');
+  const b = await request(app)
+    .post('/api/card/cards/create-with-apply')
+    .set('Authorization', `Bearer ${t2}`)
+    .send({ name: '乙', phone: '13800000002', bindCode: code, applyType: 'individual' });
+  assert.equal(b.status, 400);
+  assert.match(b.body.error, /已被/);
+
+  // ③ 管理员审核通过 → 码进入终态「已核销」(2)
+  const applyId = db.prepare('SELECT apply_id FROM tenant_join_code WHERE code = ?').get(code).apply_id;
+  db.prepare("UPDATE tenant_individuals SET status='pending' WHERE id = ?").run(applyId);
+  const ok = await reviewIndividual(db, applyId, 'approve');
+  assert.equal(ok.status, 200, ok.body.error);
+  const after = db.prepare('SELECT status FROM tenant_join_code WHERE code = ?').get(code);
+  assert.equal(after.status, 2, '审核通过后兑换码应为已核销');
+
+  // ④ 已核销的码再被使用 → 拒绝且提示已使用
+  const t3 = await wxLogin('joincode_user_c');
+  const c = await request(app)
+    .post('/api/card/cards/create-with-apply')
+    .set('Authorization', `Bearer ${t3}`)
+    .send({ name: '丙', phone: '13800000003', bindCode: code, applyType: 'individual' });
+  assert.equal(c.status, 400);
+  assert.match(c.body.error, /已被使用/);
+});
+
+test('第21轮：审核拒绝后兑换码归还为未使用（不白瞎一个码）', async () => {
+  const { createDb } = await import('../src/db.js');
+  const { generateJoinCodes } = await import('../src/utils/codes.js');
+  const db = createDb(config.dbPath);
+  unlockQuota(db);
+  const { codes } = generateJoinCodes(db, { customerId: 1, batchId: 0, count: 1 });
+  const code = codes[0];
+
+  const t = await wxLogin('joincode_reject_user');
+  const res = await request(app)
+    .post('/api/card/cards/create-with-apply')
+    .set('Authorization', `Bearer ${t}`)
+    .send({ name: '被拒者', phone: '13800000004', bindCode: code, applyType: 'individual' });
+  assert.equal(res.status, 200, res.body.error);
+  assert.equal(db.prepare('SELECT status FROM tenant_join_code WHERE code = ?').get(code).status, 1);
+
+  const applyId = db.prepare('SELECT apply_id FROM tenant_join_code WHERE code = ?').get(code).apply_id;
+  const reject = await reviewIndividual(db, applyId, 'reject');
+  assert.equal(reject.status, 200, reject.body.error);
+  const row = db.prepare('SELECT status, used_by, apply_id FROM tenant_join_code WHERE code = ?').get(code);
+  assert.equal(row.status, 0, '拒绝后应回滚成未使用，用户可凭原码重申请');
+  assert.equal(row.used_by, 0);
+  assert.equal(row.apply_id, 0);
 });
 
 test('名片作品集API', async () => {

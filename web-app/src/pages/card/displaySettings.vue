@@ -43,12 +43,13 @@
     <!-- 🔴 #312-18c 页面内原地登录：未登录不再跳登录页，当页弹浮层（useInlineLogin 提供开关与回调） -->
     <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
 
-    <!-- 第20轮：无主体引导——输入项目口令发起入驻申请（code 模式；已有名片不重复建卡） -->
+    <!-- 第20轮：无主体引导——输入入驻兑换码发起申请（code 模式；已有名片不重复建卡） -->
+    <!-- 第21轮：个人入驻凭证已从「一租户一个静态口令」换成「一人一码的兑换码」，文案同步 -->
     <view v-if="showInviteSheet" class="ds-mask" @click="closeInviteSheet">
       <view class="ds-sheet" @click.stop>
-        <view class="ds-sheet-title">输入入驻口令</view>
-        <view class="ds-sheet-sub">口令由管理员提供，提交后等待审核，通过后可上架至名片集市</view>
-        <input class="ds-sheet-input" v-model="inviteCode" placeholder="请输入入驻口令" placeholder-class="ph" maxlength="12" />
+        <view class="ds-sheet-title">输入入驻兑换码</view>
+        <view class="ds-sheet-sub">兑换码由管理员提供，一人一码；提交后等待审核，通过后可上架至名片集市</view>
+        <input class="ds-sheet-input" v-model="inviteCode" placeholder="请输入入驻兑换码" placeholder-class="ph" maxlength="24" />
         <view class="ds-sheet-btn" :class="{ busy: inviteBusy }" @click="submitInvite">{{ inviteBusy ? '提交中…' : '提交申请' }}</view>
       </view>
     </view>
@@ -79,7 +80,7 @@ const isPublic = ref(true);
 const currentTemplateName = ref('加载中…');
 const loadFailed = ref(false);
 const loadFailedMsg = ref('加载失败，请检查网络后重试');
-// 第20轮：无主体时按租户双模给出两条引导（purchase=去开通会员 / code=输入口令）
+// 第20轮：无主体时按租户双模给出两条引导（purchase=去开通会员 / code=输入兑换码）
 const cardName = ref('');
 const cardPhone = ref('');
 const showInviteSheet = ref(false);
@@ -167,7 +168,7 @@ async function syncMarket(val) {
   const r = await syncMarketWithIsPublic(cardApi, val);
   if (r.reason === 'no-subject') {
     // 无 active 主体（未入驻/审核中）：开方向无法兑现承诺 → 回滚 is_public，开关保持关。
-    // 第20轮：按租户双模给两条路——purchase 引导买会员（买即入场），code 引导输口令。
+    // 第20轮：按租户双模给两条路——purchase 引导买会员（买即入场），code 引导输兑换码。
     if (val) {
       await rollbackPublic(false);
       if (getIndividualJoinMode() === 'purchase') {
@@ -181,8 +182,8 @@ async function syncMarket(val) {
       } else {
         uni.showModal({
           title: '上架名片集市',
-          content: '入驻后可上架至名片集市，请向管理员获取入驻口令',
-          confirmText: '输入口令',
+          content: '入驻后可上架至名片集市，请向管理员获取入驻兑换码',
+          confirmText: '输入兑换码',
           cancelText: '稍后再说',
           success: (m) => { if (m.confirm) showInviteSheet.value = true; },
         });
@@ -221,7 +222,7 @@ async function healMarketLink() {
     uni.showToast({
       title: getIndividualJoinMode() === 'purchase'
         ? '开通会员套餐即可上架至名片集市'
-        : '入驻后可上架至名片集市，请向管理员获取入驻口令',
+        : '入驻后可上架至名片集市，请向管理员获取入驻兑换码',
       icon: 'none',
     });
     return;
@@ -241,11 +242,11 @@ async function rollbackPublic(v) {
   isPublic.value = v;
 }
 
-/** 第20轮：凭项目口令发起入驻申请（POST /card-market/apply，个人类型） */
+/** 第20轮：凭入驻兑换码发起入驻申请（POST /card-market/apply，个人类型） */
 async function submitInvite() {
   const code = String(inviteCode.value || '').trim().toUpperCase();
   if (!code) {
-    uni.showToast({ title: '请输入入驻口令', icon: 'none' });
+    uni.showToast({ title: '请输入入驻兑换码', icon: 'none' });
     return;
   }
   if (inviteBusy.value) return;

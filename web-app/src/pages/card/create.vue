@@ -170,8 +170,9 @@
           </view>
           <view v-if="showBind" class="bind-body">
             <view class="form-item">
-              <view class="form-label">入驻口令</view>
-              <input class="form-input" v-model="form.bindCode" placeholder="填入口令同时完成入驻，不填则仅创建名片" placeholder-class="ph" />
+              <!-- 第21轮：个人入驻凭证已换成「一人一码」的兑换码；企业入驻仍是旧口令 -->
+              <view class="form-label">{{ cardType === 'enterprise' ? '企业入驻口令' : '入驻兑换码' }}</view>
+              <input class="form-input" v-model="form.bindCode" :placeholder="cardType === 'enterprise' ? '填入企业入驻口令同时完成入驻，不填则仅创建名片' : '填入兑换码同时完成入驻，不填则仅创建名片'" placeholder-class="ph" />
             </view>
             <view class="form-item" v-if="cardType === 'enterprise'">
               <view class="form-label">企业名称</view>
@@ -183,9 +184,9 @@
                 <view class="form-input picker-value" :class="{ ph: !form.industry }">{{ form.industry || '请选择所属行业' }}</view>
               </picker>
             </view>
-            <view class="bind-hint">口令由管理员提供，用于绑定到指定客户项目</view>
+            <view class="bind-hint">{{ cardType === 'enterprise' ? '口令由管理员提供，用于绑定到指定客户项目' : '兑换码由管理员提供，一人一码，用于入驻到指定客户项目' }}</view>
             <!-- 第20轮：purchase 模式提示「买套餐也可自动入驻」，两条路都说清 -->
-            <view class="bind-hint" v-if="joinMode === 'purchase'">也可不开口令：开通会员套餐即可自动入驻{{ tenantName || '本租户' }}，可上架至名片集市</view>
+            <view class="bind-hint" v-if="joinMode === 'purchase'">也可不用兑换码：开通会员套餐即可自动入驻{{ tenantName || '本租户' }}，可上架至名片集市</view>
           </view>
         </view>
 
@@ -917,7 +918,7 @@ async function submit() {
     } else {
       // 表单字段 companyName → 后端列 company（同 edit 分支，缺映射则不保存）
       const payload = { ...form, company: form.companyName, companies: cleanCompanies, needTags: JSON.stringify(form.needTags) };
-      // 入驻绑定：填了口令才同时入驻
+      // 入驻绑定：填了兑换码/口令才同时入驻
       if (payload.bindCode) {
         payload.applyType = cardType.value;
         const res = await cardApi.createCardWithApply(payload);

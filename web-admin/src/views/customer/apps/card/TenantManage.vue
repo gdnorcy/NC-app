@@ -29,6 +29,11 @@
             <SIcon name="dynamic" size="small" color="#fff" />
             刷新
           </el-button>
+          <!-- 第21轮：个人入驻凭证改为兑换码，从入驻管理直达生成页 -->
+          <el-button @click="router.push('/apps/card/join-codes')">
+            <SIcon name="voucher" size="small" color="#4e5969" />
+            入驻兑换码
+          </el-button>
         </div>
 
         <el-table :data="filteredIndividuals" style="width: 100%" size="default">
@@ -154,10 +159,13 @@
 <script setup>
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
 import { publicApi } from '../../../../api';
 import CardTabs from './CardTabs.vue';
+
+const router = useRouter();
 
 const activeTab = ref('individuals');
 const individuals = ref([]);

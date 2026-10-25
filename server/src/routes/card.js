@@ -23,6 +23,7 @@ import { normalizeTabJson } from '../services/design.js';
 import { WxComponentService, standaloneCode2Session, standaloneWxacode } from '../services/wx-component.js';
 import { readSecret } from '../crypto.js';
 import { readIndividualJoinMode, isMemberActive } from '../services/marketSubject.js';
+import { resolveBindTarget, unoccupyJoinCode, linkJoinCodeToApply } from '../services/joinCode.js';
 
 // 设计中心「保存并预览」签名密钥（管理端/查看端共用，固定开发密钥；上线前可改为环境变量）
 const PREVIEW_SECRET = 'nuok-design-preview-secret-2026';
@@ -462,6 +463,13 @@ export function createCardRouter(db, wxService) {
       if (!t) return res.status(404).json({ error: '模板不存在或不可用' });
       if (Number(t.price) <= 0) return res.status(400).json({ error: '免费模板无需购买' });
       if (userOwnedTemplates(req.user.id).has(id)) return res.status(400).json({ error: '已购买该模板' });
+      // 第21轮：member_package.discount 真兑现——此前套餐里配的折扣只出现在 C 端文案，
+      // 下单时仍按原价 Math.round(price*100) 收款，属于空头权益。
+      // 🔴 先折后取整（Math.round(discountAmount) 而非 round(price)*discount），
+      //    否则 9.9×0.85 这类会出现 1 分误差，用户看到「8.5 折」却付了另一个数。
+      const discount = quota.discountOf(req.user.id);
+      const originAmount = Math.round(Number(t.price) * 100); // payment_orders.amount 单位为分
+      const amount = discount < 1 ? Math.round(originAmount * discount) : originAmount;
       const payment = new PaymentService(db);
       const order = payment.createOrder({
         payerType: 'tenant',
@@ -472,11 +480,16 @@ export function createCardRouter(db, wxService) {
         productType: 'template',
         productId: String(id),
         productName: t.name,
-        amount: Math.round(Number(t.price) * 100), // payment_orders.amount 单位为分
+        amount,
         channel: req.body.channel || 'wechat',
-        remark: '购买名片模板',
+        remark: discount < 1
+          ? `购买名片模板（会员${Math.round(discount * 100) / 10}折，原价¥${(originAmount / 100).toFixed(2)}）`
+          : '购买名片模板',
       });
-      res.json({ orderNo: order.orderNo, amount: order.amount, templateName: t.name, templateId: id });
+      res.json({
+        orderNo: order.orderNo, amount: order.amount, templateName: t.name, templateId: id,
+        discount, originAmount, savedAmount: originAmount - amount,
+      });
     } catch (e) { res.status(400).json({ error: e.message || '下单失败' }); }
   });
 
@@ -610,6 +623,11 @@ export function createCardRouter(db, wxService) {
   }
 
   router.post('/voice-upload', auth, (req, res) => {
+    // 第21轮：语音简介是会员权益（member_package.voice_enabled），此前服务端完全不认，
+    // 免费用户也能传 —— 套餐卡上写着的权益是空头支票。这里做门禁并给出升级引导。
+    if (!quota.canVoice(req.user.id)) {
+      return res.status(403).json({ error: '语音简介为会员权益，请升级套餐后使用', code: 'voiceNotEntitled' });
+    }
     voiceUpload.single('file')(req, res, async (err) => {
       if (err) {
         const message = err.code === 'LIMIT_FILE_SIZE' ? '音频大小不能超过 10MB' : err.message;
@@ -655,6 +673,10 @@ export function createCardRouter(db, wxService) {
   });
 
   router.post('/voice-history', auth, (req, res) => {
+    // 与 /voice-upload 同口径：录音也是语音简介权益，未开通同样拦（第21轮）
+    if (!quota.canVoice(req.user.id)) {
+      return res.status(403).json({ error: '语音简介为会员权益，请升级套餐后使用', code: 'voiceNotEntitled' });
+    }
     voiceUpload.single('file')(req, res, async (err) => {
       if (err) {
         const message = err.code === 'LIMIT_FILE_SIZE' ? '音频大小不能超过 10MB' : err.message;
@@ -788,21 +810,27 @@ export function createCardRouter(db, wxService) {
 
     // 2. 处理入驻申请（填了口令才入驻）
     if (bindCode) {
-      // 安全口令：只按 invite_code 匹配（含纯数字口令），禁止直接用 project id 猜测入驻
-      const project = db.prepare('SELECT * FROM projects WHERE invite_code = ?').get(String(bindCode).trim());
-      if (!project) {
-        return res.status(400).json({ error: '入驻口令无效' });
+      // 第21轮：绑目标解析统一走 joinCode 服务——个人用兑换码（一人一码，此处已原子占用），
+      // 企业维持旧 projects.invite_code。注意 cardMarket.js 的 /apply 是同一个模型，
+      // 两处必须共用 services/joinCode.js，否则会漂成两套核销口径。
+      const target = resolveBindTarget(db, { bindCode, applyType, userId: req.user.id });
+      if (!target.ok) {
+        // 🔴 名片已经在上面插进去了，绑码失败要回滚删掉，否则留下无主名片
+        db.prepare('DELETE FROM card_profile WHERE id = ?').run(cardId);
+        return res.status(400).json({ error: target.error });
       }
-      if (project.status !== 'active') {
-        return res.status(400).json({ error: '该客户项目已停用，无法入驻' });
-      }
-      if (project.valid_until && project.valid_until < new Date().toISOString().slice(0, 10)) {
-        return res.status(400).json({ error: '该客户项目已过期，无法入驻' });
-      }
-      const customerId = project.id;
+      const customerId = target.customerId;
+      const project = target.project || db.prepare('SELECT * FROM projects WHERE id = ?').get(customerId);
 
+      // 🔴 从这里开始每个提前 return 都必须归还占住的码，否则一次「重复入驻」就会
+      //    让这个码永久卡在 status=1 用不掉。统一收口到 try/catch 兜底。
+      const isCodeBased = applyType !== 'enterprise';
+      const giveBackCode = () => { if (isCodeBased) unoccupyJoinCode(db, { code: bindCode }); };
+
+      try {
       // 企业入驻必须提供企业名称（前置校验，先于重复入驻校验给出明确错误）
       if (applyType === 'enterprise' && !enterpriseName) {
+        giveBackCode();
         return res.status(400).json({ error: '企业名称不能为空' });
       }
 
@@ -811,6 +839,7 @@ export function createCardRouter(db, wxService) {
         ? db.prepare('SELECT id, status FROM tenant_enterprises WHERE customer_id = ? AND admin_user_id = ?').get(customerId, req.user.id)
         : db.prepare('SELECT id, status FROM tenant_individuals WHERE customer_id = ? AND user_id = ?').get(customerId, req.user.id);
       if (already && already.status !== 'rejected') {
+        giveBackCode();
         return res.status(400).json({
           error: already.status === 'pending' ? '申请审核中，请耐心等待管理员审核' : '已入驻该客户项目，请勿重复入驻'
         });
@@ -821,6 +850,8 @@ export function createCardRouter(db, wxService) {
         if (applyType === 'individual') {
           db.prepare("UPDATE tenant_individuals SET status = 'pending', name = ?, phone = ?, position = ?, company = ?, updated_at = datetime('now') WHERE id = ?")
             .run(name, phone || '', position || '', city || '', already.id);
+          // 第21轮：把码关联到这条既有主体，管理员侧可追溯「该码换成了哪条入驻」
+          linkJoinCodeToApply(db, { code: bindCode, applyId: already.id });
           // 🔴 拒绝后重申请：把最新 phone/name/position 同步回名片，防止名片与入驻个人手机号分叉（2026-10-20 修复）
           db.prepare("UPDATE card_profile SET phone=?, name=?, position=?, updated_at=datetime('now') WHERE user_id = ? AND status='active'")
             .run(phone || '', name, position || '', req.user.id);
@@ -846,8 +877,15 @@ export function createCardRouter(db, wxService) {
         db.prepare(`INSERT INTO tenant_enterprise_employees (enterprise_id, customer_id, user_id, name, position, role, status)
           VALUES (?, ?, ?, ?, ?, 'admin', 'pending')`).run(enterpriseId, customerId, req.user.id, name, position || '');
       } else {
-        db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
+        const ins = db.prepare(`INSERT INTO tenant_individuals (customer_id, user_id, name, phone, position, company, status)
           VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(customerId, req.user.id, name, phone || '', position || '', city || '');
+        linkJoinCodeToApply(db, { code: bindCode, applyId: ins.lastInsertRowid });
+      }
+      } catch (e) {
+        giveBackCode();
+        db.prepare('DELETE FROM card_profile WHERE id = ?').run(cardId);
+        console.error('[card] 建名片+入驻申请失败:', e?.message || e);
+        return res.status(500).json({ error: '创建失败，请稍后重试' });
       }
     }
 
@@ -1774,6 +1812,8 @@ export function createCardRouter(db, wxService) {
       isMember,
       // 会员分级权益快照（作品/视频数量上限 + 自定义标签名开关；C 端 worksEdit/videosEdit 消费）
       benefits: benefits.snapshot(req.user.id),
+      // 第21轮：套餐权益实况（语音/折扣/推送·留资·收藏配额），让会员套餐在 C 端看得见、对得上
+      entitlements: quota.entitlements(req.user.id),
       marketSubject,
     });
   });

@@ -19,6 +19,7 @@ import { createStoreRouter } from './routes/store.js';
 import { createGoodsRouter } from './routes/goods.js';
 import { createLiveRouter, createLivePublicRouter } from './routes/live.js';
 import { createCardKeyRouter } from './routes/cardKey.js';
+import { createJoinCodeRouter } from './routes/joinCode.js';
 import { createGiftCardRouter } from './routes/giftCard.js';
 import { createGiftRouter } from './routes/giftProduct.js';
 import { createContentRouter, createContentPublicRouter } from './routes/content.js';
@@ -182,6 +183,8 @@ app.use((req, res, next) => {
   // 商城 C 端公开 API（/api/mall 独立命名空间，方案C；requireGoodsApp C 端变体在 router 内）
   app.use('/api/mall', createMallRouter(database));
   app.use('/api/customer/card-key', requireAuth, createCardKeyRouter(database));
+  // 入驻兑换码（第21轮：替代裸静态口令，租户后台生成与管理）
+  app.use('/api/customer/join-code', requireAuth, createJoinCodeRouter(database));
   app.use('/api/customer/gift-card', requireAuth, createGiftCardRouter(database));
   app.use('/api/customer/gift', requireAuth, createGiftRouter(database));
 
