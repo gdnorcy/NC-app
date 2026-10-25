@@ -100,16 +100,19 @@ describe('create.vue（第20轮）', () => {
 describe('displaySettings.vue（第20轮）', () => {
   const dsSrc = src('displaySettings.vue');
 
-  test('无主体引导按双模分流：purchase→member 页 / code→口令浮层', () => {
-    expect(dsSrc).toMatch(/getIndividualJoinMode\(\) === 'purchase'/);
+  test('无主体引导按三模分流（第26轮）：purchase→member 页 / apply→免码直提 / code→口令浮层', () => {
+    expect(dsSrc).toMatch(/const mode = getIndividualJoinMode\(\)/);
+    expect(dsSrc).toMatch(/mode === 'purchase'/);
+    expect(dsSrc).toMatch(/mode === 'apply'/);
     expect(dsSrc).toMatch(/uni\.navigateTo\(\{ url: '\/pages\/card\/member' \}\)/);
     expect(dsSrc).toMatch(/showInviteSheet\.value = true/);
   });
 
-  test('口令浮层提交走 cardApi.applyIndividual（POST /apply，不新建名片）', () => {
+  test('口令浮层提交走 cardApi.applyIndividual（POST /apply，不新建名片；兑换码可选）', () => {
     expect(dsSrc).toMatch(/cardApi\.applyIndividual\(\{/);
     expect(dsSrc).toMatch(/type: 'individual'/);
-    expect(dsSrc).toMatch(/bindCode: code/);
+    // 第26轮：免码申请——code 为空传 undefined，服务端按租户 individual_join_mode 校验
+    expect(dsSrc).toMatch(/bindCode: c \|\| undefined/);
   });
 
   test('提交前过登录守卫（#312-18c 原地登录基建）', () => {

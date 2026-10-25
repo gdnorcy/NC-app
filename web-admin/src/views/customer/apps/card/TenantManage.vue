@@ -4,78 +4,27 @@
     <CardTabs />
 
     <!-- 页面标题 -->
-    <AppPageHeader title="入驻管理" desc="管理入驻个人和入驻企业单位" />
+    <AppPageHeader title="入驻管理" desc="管理入驻企业单位；个人认证与集市上下架已并入「名片管理」" />
 
     <!-- Tab切换 -->
     <div class="content-card">
       <div class="tab-bar">
-        <div class="tab" :class="{ active: activeTab === 'individuals' }" @click="activeTab = 'individuals'; loadIndividuals()">
-          <SIcon name="user" size="default" :color="activeTab === 'individuals' ? '#165dff' : '#4e5969'" />
-          入驻个人
-          <el-tag size="small" type="info">{{ individuals.length }}</el-tag>
-        </div>
-        <div class="tab" :class="{ active: activeTab === 'enterprises' }" @click="activeTab = 'enterprises'; loadEnterprises()">
-          <SIcon name="building" size="default" :color="activeTab === 'enterprises' ? '#165dff' : '#4e5969'" />
+        <div class="tab active" @click="loadEnterprises()">
+          <SIcon name="building" size="default" color="#165dff" />
           入驻企业
           <el-tag size="small" type="info">{{ enterprises.length }}</el-tag>
         </div>
         <!-- 第21轮：入驻凭证改兑换码（当前仅个人入驻，见 JoinCodeManage）。入口是页面级操作，
-             放 tab 行右侧、不随「入驻个人/入驻企业」切换隐藏——曾错放在入驻企业工具栏里 -->
+             放 tab 行右侧——曾错放在入驻企业工具栏里。第26轮起个人入驻审核并入名片管理，
+             本页只保留企业入驻，兑换码管理入口保留在页面级 -->
         <el-button class="tab-bar-action" @click="router.push('/apps/card/join-codes')">
           <SIcon name="voucher" size="small" color="#4e5969" />
           入驻兑换码
         </el-button>
       </div>
 
-      <!-- 入驻个人列表 -->
-      <div v-if="activeTab === 'individuals'" class="tab-content">
-        <div class="toolbar">
-          <el-input v-model="indKeyword" placeholder="搜索姓名/手机号" style="width: 240px;" clearable @keyup.enter="loadIndividuals" />
-          <el-button type="primary" @click="loadIndividuals">
-            <SIcon name="dynamic" size="small" color="#fff" />
-            刷新
-          </el-button>
-        </div>
-
-        <el-table :data="filteredIndividuals" style="width: 100%" size="default">
-          <el-table-column label="姓名" min-width="120">
-            <template #default="{ row }">
-              <div class="user-cell">
-                <div class="user-avatar">{{ row.name?.[0] || '用' }}</div>
-                <span>{{ row.name || '未设置' }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="phone" label="手机号" width="140" />
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <el-tag v-if="row.status === 'active'" type="success" size="small">正常</el-tag>
-              <el-tag v-else-if="row.status === 'pending'" type="warning" size="small">待审核</el-tag>
-              <el-tag v-else-if="row.status === 'rejected'" type="info" size="small">已拒绝</el-tag>
-              <el-tag v-else type="danger" size="small">已停用</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="created_at" label="入驻时间" width="180" />
-          <el-table-column label="操作" width="170" fixed="right">
-            <template #default="{ row }">
-              <template v-if="row.status === 'pending'">
-                <el-button type="success" size="small" link @click="auditIndividual(row, 'approve')">通过</el-button>
-                <el-button type="danger" size="small" link @click="auditIndividual(row, 'reject')">拒绝</el-button>
-              </template>
-              <el-button v-else-if="row.status === 'active'" type="danger" size="small" link @click="disableIndividual(row)">停用</el-button>
-              <el-button v-else type="success" size="small" link @click="enableIndividual(row)">启用</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <div class="empty-state" v-if="!individuals.length">
-          <SIcon name="user" size="xlarge" color="#c9cdd4" />
-          <div class="empty-text">暂无入驻个人</div>
-        </div>
-      </div>
-
       <!-- 入驻企业列表 -->
-      <div v-if="activeTab === 'enterprises'" class="tab-content">
+      <div class="tab-content">
         <div class="toolbar">
           <el-input v-model="entKeyword" placeholder="搜索企业名称" style="width: 240px;" clearable @keyup.enter="loadEnterprises" />
           <el-button type="primary" @click="loadEnterprises">
@@ -168,22 +117,13 @@ import CardTabs from './CardTabs.vue';
 
 const router = useRouter();
 
-const activeTab = ref('individuals');
-const individuals = ref([]);
+// 第26轮整合：入驻个人审核/启用停用已并入「名片管理」（身份列 + 行内直审 + 编辑弹窗认证开关），
+// 本页只剩企业入驻；activeTab 变量与 individuals 相关状态一并移除
 const enterprises = ref([]);
 const employees = ref([]);
-const indKeyword = ref('');
 const entKeyword = ref('');
 const showEmployees = ref(false);
 const currentEnterprise = ref(null);
-
-const filteredIndividuals = computed(() => {
-  if (!indKeyword.value) return individuals.value;
-  const kw = indKeyword.value.toLowerCase();
-  return individuals.value.filter(i =>
-    (i.name || '').toLowerCase().includes(kw) || (i.phone || '').includes(kw)
-  );
-});
 
 const filteredEnterprises = computed(() => {
   if (!entKeyword.value) return enterprises.value;
@@ -192,20 +132,8 @@ const filteredEnterprises = computed(() => {
 });
 
 onMounted(() => {
-  // 两个 Tab 的徽章数量进页面就要有数：旧实现只在点击 Tab 时才加载 enterprises，
-  // 导致「入驻企业 0」与实际不符（员工名片里明明有企业员工），看起来数据对不上。
-  loadIndividuals();
   loadEnterprises();
 });
-
-async function loadIndividuals() {
-  try {
-    const res = await publicApi.get('/card-market/individuals');
-    individuals.value = res.individuals || [];
-  } catch (e) {
-    console.error('加载入驻个人失败', e);
-  }
-}
 
 async function loadEnterprises() {
   try {
@@ -214,21 +142,6 @@ async function loadEnterprises() {
   } catch (e) {
     console.error('加载入驻企业失败', e);
   }
-}
-
-function auditIndividual(row, action) {
-  const t = action === 'approve' ? '通过' : '拒绝';
-  ElMessageBox.confirm(`确定${t}「${row.name}」的入驻申请吗？${action === 'approve' ? '通过后该用户立即获得平台内个人身份与名片权限。' : '拒绝后对方可修改资料重新申请。'}`, `${t}入驻申请`, {
-    type: action === 'approve' ? 'success' : 'warning',
-  }).then(async () => {
-    try {
-      await publicApi.post('/card-market/apply/audit', { type: 'individual', id: row.id, action });
-      ElMessage.success(`已${t}`);
-      loadIndividuals();
-    } catch (e) {
-      ElMessage.error(e.message || '操作失败');
-    }
-  }).catch(() => {});
 }
 
 function auditEnterprise(row, action) {
@@ -244,24 +157,6 @@ function auditEnterprise(row, action) {
       ElMessage.error(e.message || '操作失败');
     }
   }).catch(() => {});
-}
-
-async function disableIndividual(row) {
-  try {
-    await ElMessageBox.confirm(`确定停用「${row.name}」吗？停用后其客户将回收至公海池，并从人脉集市移除。`, '停用确认', { type: 'warning' });
-    await publicApi.post(`/card-market/individuals/${row.id}/disable`);
-    ElMessage.success('已停用');
-    loadIndividuals();
-  } catch {}
-}
-
-async function enableIndividual(row) {
-  try {
-    await ElMessageBox.confirm(`确定启用「${row.name}」吗？启用后该个人恢复名片与客户管理权限。`, '启用确认', { type: 'info' });
-    await publicApi.post(`/card-market/individuals/${row.id}/enable`);
-    ElMessage.success('已启用');
-    loadIndividuals();
-  } catch {}
 }
 
 async function disableEnterprise(row) {

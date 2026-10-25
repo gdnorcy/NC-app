@@ -30,6 +30,11 @@ describe('MarketManage.vue 个人入驻模式', () => {
     expect(marketSrc).toMatch(/<el-radio value="purchase">[^<]*<\/el-radio>/);
   });
 
+  test('第26轮：radio 增加自助申请认证（apply）三值', () => {
+    expect(marketSrc).toMatch(/<el-radio value="apply">[^<]*<\/el-radio>/);
+    expect(marketSrc).toContain('免兑换码');
+  });
+
   test('form-tip 说明两种模式差异与会员过期行为', () => {
     expect(marketSrc).toContain('会员过期将移出集市（主体保留）');
     expect(marketSrc).toContain('切换只影响新入驻，存量主体不受影响');
