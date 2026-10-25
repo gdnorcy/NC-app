@@ -222,3 +222,35 @@ test('/member/status 暴露 entitlements（语音/折扣/三配额）', async ()
   assert.equal(after.body.entitlements.voice, true, 'silver 用户 voice 应为 true');
   assert.equal(after.body.entitlements.discount, 80, 'silver 折扣百分比应为 80（上一条用例设置）');
 });
+
+// ---------------------------------------------------------------- ⑥ 按应用分区权益快照
+
+test('/member/status 暴露 appBenefits：按应用分组 + 目录默认 ⊕ 矩阵覆盖 + 已用量', async () => {
+  const { token, uid } = await login('ent_appben_1');
+  const before = await request(app).get('/api/card/member/status').set('Authorization', `Bearer ${token}`);
+  assert.equal(before.status, 200);
+  const apps = before.body.appBenefits;
+  assert.ok(Array.isArray(apps) && apps.length >= 4, '应按应用分组（至少 card/member/mall/radar）');
+  const byCode = Object.fromEntries(apps.map((a) => [a.code, a]));
+  assert.ok(byCode.card && byCode.card.name, '应用名应取自 solutions.name');
+  // free：作品上限目录默认 3、折扣 0、倍率 1
+  const works = byCode.card.items.find((i) => i.type === 'works_limit');
+  assert.equal(works.value, 3, 'free 作品上限应为目录默认 3');
+  assert.equal(works.kind, 'number');
+  assert.equal(typeof works.used, 'number', '可计数权益应带已用量');
+  const disc = byCode.mall.items.find((i) => i.type === 'discount');
+  assert.equal(disc.value, 0, 'free 折扣应为 0');
+  const rate = byCode.member.items.find((i) => i.type === 'point_rate');
+  assert.equal(rate.value, 1, 'free 积分倍率应为目录默认 1');
+  const voice = byCode.card.items.find((i) => i.type === 'voice_enabled');
+  assert.equal(voice.value, false, 'free 语音应为关');
+  assert.equal(voice.kind, 'switch');
+
+  // 升级 diamond 并覆盖 mall 折扣 80% → 快照跟上
+  grantLevel(uid, 'diamond', { mall: { discount: 80 } });
+  const after = await request(app).get('/api/card/member/status').set('Authorization', `Bearer ${token}`);
+  const byCode2 = Object.fromEntries(after.body.appBenefits.map((a) => [a.code, a]));
+  assert.equal(byCode2.mall.items.find((i) => i.type === 'discount').value, 80, '钻石折扣应为矩阵覆盖的 80');
+  assert.equal(byCode2.card.items.find((i) => i.type === 'works_limit').value, 120, '钻石作品上限应为 120');
+  assert.equal(byCode2.card.items.find((i) => i.type === 'voice_enabled').value, true, '钻石语音应为开');
+});

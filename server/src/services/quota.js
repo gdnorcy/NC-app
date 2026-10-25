@@ -100,5 +100,54 @@ export function createQuotaService(db) {
     };
   };
 
+  /**
+   * C 端「我的权益」按应用分区全量快照（/member/status 消费）：
+   *   平台目录 benefit_catalog 按 app_scope 分组（'*' 挂所有应用），值取 resolveAppBenefits
+   *   （目录默认 ⊕ 租户矩阵，已施硬上限）；可计数权益附带已用量（与 quotaLeft/benefits 同口径）。
+   *   应用名取自 solutions.name（自维护），租户无需在前端硬编码。
+   * @returns {Array<{code:string, name:string, items:Array<{type,label,unit,kind,value,used}>}>}
+   */
+  svc.appBenefits = (userId) => {
+    const tid = tenantOfUser(db, userId);
+    const solNames = new Map(db.prepare('SELECT code, name FROM solutions').all().map((r) => [r.code, r.name]));
+    const rows = db.prepare('SELECT type, app_scope, kind, unit, label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all();
+    const globals = rows.filter((r) => r.app_scope === '*');
+    const byApp = new Map();
+    for (const r of rows) {
+      if (r.app_scope === '*') continue;
+      for (const s of String(r.app_scope).split(',').map((x) => x.trim())) {
+        if (!byApp.has(s)) byApp.set(s, []);
+        byApp.get(s).push(r);
+      }
+    }
+    const usedOf = (type) => {
+      if (type === 'works_limit') return db.prepare(
+        `SELECT COUNT(*) AS c FROM card_works w JOIN card_profile cp ON cp.id = w.card_id
+         WHERE cp.user_id = ? AND (cp.status IS NULL OR cp.status != 'deleted')`).get(userId).c || 0;
+      if (type === 'videos_limit') return db.prepare(
+        `SELECT COUNT(*) AS c FROM card_videos v JOIN card_profile cp ON cp.id = v.card_id
+         WHERE cp.user_id = ? AND (cp.status IS NULL OR cp.status != 'deleted')`).get(userId).c || 0;
+      if (type === 'lead_quota') return svc.quotaLeft(userId, 'lead').used;
+      if (type === 'push_quota') return svc.quotaLeft(userId, 'push').used;
+      if (type === 'collect_limit') return svc.quotaLeft(userId, 'collect').used;
+      return null;
+    };
+    const apps = [];
+    for (const [code, items] of byApp) {
+      const resolved = resolveAppBenefits(db, tid, userId, code);
+      apps.push({
+        code,
+        name: solNames.get(code) || code,
+        items: [...items, ...globals]
+          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+          .map((r) => {
+            const used = usedOf(r.type);
+            return { type: r.type, label: r.label, unit: r.unit || '', kind: r.kind, value: resolved[r.type], used };
+          }),
+      });
+    }
+    return apps;
+  };
+
   return svc;
 }
