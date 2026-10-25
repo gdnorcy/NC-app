@@ -3688,17 +3688,45 @@ function levelHasEnabledBenefits(json) {
 }
 
 /**
+ * 读总后台套餐模板（member_package 单行）→ 播种时的档位身份与售卖要素来源。
+ *
+ * 1b 起 member_package 升级为「套餐模板库」：租户开通时拷成标准档，
+ * 修「总后台改价格/场席开关对新租户不生效」的旧不一致（旧播种读 TIER_PKG 硬编码）。
+ *
+ * @returns {{ok:true, name:string, price:number, market_subject:0|1}
+ *          | {ok:false, reason:'missing'|'disabled'}}
+ *   missing  = 无模板行（表被清空/行被删）→ 调用方回落 TIER_PKG 硬编码安全网
+ *   disabled = enabled=0 模板已停用 → 调用方跳过该档，不向新租户播种
+ */
+function readPackageTemplate(db, tier) {
+  if (!tableExists(db, 'member_package')) return { ok: false, reason: 'missing' };
+  const row = db.prepare('SELECT name, price, market_subject, enabled FROM member_package WHERE level = ?').get(tier);
+  if (!row) return { ok: false, reason: 'missing' };
+  if (Number(row.enabled) === 0) return { ok: false, reason: 'disabled' };
+  const name = String(row.name || '').trim();
+  if (!name) return { ok: false, reason: 'missing' }; // 名称是档位身份锚点（认领/避让都按它匹配），空名按缺行处理
+  return { ok: true, name, price: Number(row.price) || 0, market_subject: Number(row.market_subject) === 1 ? 1 : 0 };
+}
+
+/**
  * 租户会员套餐 P1f：把 member_package 的 free/silver/gold/diamond 四档作为种子模板，
  * 落到指定租户（tenant_id）的 member_levels（pkg_level 标记）+ member_level_app_benefits（按应用拆分 TIER_PKG）。
  *
  * 幂等：按 pkg_level 标记判重——已播种过的标准档不重复建、不覆盖其矩阵。
- * 存量租户若已有名为「免费版/白银会员/黄金会员/钻石会员」且未启用任何自定义权益的等级，
+ * 存量租户若已有名为模板名且未启用任何自定义权益的等级，
  *   → 认领为对应标准档（adopt）：既避免重复名，也让该档存量成员真正拿到该档权益
  *     （否则该等级无权益矩阵 = 名为黄金会员却只给 free 权益的空头套餐）。
  * 同名但启用过自定义权益的等级 → 不认领，另建标准档（名称加「（标准档）」后缀避让）。
  * 其它自建等级 → 一律不动（无矩阵 → resolver 回落到旧镜像兜底，存量权益不降权）。
  *
- * 供：① 启动时为存量租户播种；② 新租户首次进入会员模块时懒加载调用。
+ * 模板来源（1b：member_package = 套餐模板库）：
+ *   - 档位身份与售卖要素（name / price→buy_price / market_subject→矩阵 market 应用）以模板行为准；
+ *   - 权益矩阵仍取 TIER_PKG 硬编码种子（按 pkg_level 匹配），无匹配项由 resolver 回落 benefit_catalog 目录默认；
+ *   - 模板行缺失 → 回落 TIER_PKG（安全网：模板被删空也不影响新租户四档结构）；
+ *   - 模板 enabled=0 → 该档不向新租户播种（模板库停用开关；存量租户已有档不受影响）；
+ *   - 存量一律不覆盖：已播种档只补缺失矩阵行；认领档只打标记+补矩阵，不动 buy_price。
+ *
+ * 供：① 启动时为存量租户播种；② POST /projects 建租户即时播种；③ 会员模块懒加载。
  */
 export function ensureTenantDefaultLevels(db, tenantId) {
   if (!tableExists(db, 'member_level_app_benefits')) return;
@@ -3707,31 +3735,38 @@ export function ensureTenantDefaultLevels(db, tenantId) {
   for (const tier of ['free', 'silver', 'gold', 'diamond']) {
     const pkg = TIER_PKG[tier];
     if (!pkg) continue;
+    const t = readPackageTemplate(db, tier);
+    if (!t.ok && t.reason === 'disabled') continue; // 模板库已停用该档：不向新租户播种
+    const tmpl = t.ok
+      ? t
+      : { name: pkg.name, price: pkg.price || 0, market_subject: pkg.market && pkg.market.market_subject ? 1 : 0 };
     // 已播种过的标准档：只补齐缺失的矩阵行，不覆盖已有配置
     const seeded = db.prepare('SELECT id FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(tenantId, tier);
     let levelId = seeded ? seeded.id : null;
     if (!levelId) {
-      const same = db.prepare('SELECT id, benefits FROM member_levels WHERE tenant_id = ? AND name = ?').get(tenantId, pkg.name);
+      const same = db.prepare('SELECT id, benefits FROM member_levels WHERE tenant_id = ? AND name = ?').get(tenantId, tmpl.name);
       if (same && !levelHasEnabledBenefits(same.benefits)) {
         // 认领存量同名空壳等级
         db.prepare('UPDATE member_levels SET pkg_level = ? WHERE id = ?').run(tier, same.id);
         levelId = same.id;
       } else {
         // 同名但有自定义权益（或无同名）：另建标准档，名称避让
-        const name = same ? `${pkg.name}（标准档）` : pkg.name;
+        const name = same ? `${tmpl.name}（标准档）` : tmpl.name;
         sort += 1;
         levelNo += 1;
         const info = db.prepare(
           `INSERT INTO member_levels (tenant_id, level_no, name, status, upgrade_mode, consume_amount, buy_price, benefits, sort_order, pkg_level, review_mode, valid_days)
            VALUES (?,?,?,1,'consume',0,?, '{}', ?, ?, 'manual', 0)`
-        ).run(tenantId, levelNo, name, Math.round((pkg.price || 0) * 100), sort, tier);
+        ).run(tenantId, levelNo, name, Math.round((tmpl.price || 0) * 100), sort, tier);
         levelId = info.lastInsertRowid;
       }
     }
     for (const [appCode, benefits] of Object.entries(pkg)) {
       if (appCode === 'name' || appCode === 'price') continue; // 元字段跳过
+      // market 应用：市场席开关以模板库为准（总后台可逐档改；只影响新租户播种，存量矩阵不覆盖）
+      const seedBenefits = appCode === 'market' ? { market_subject: tmpl.market_subject } : benefits;
       db.prepare('INSERT OR IGNORE INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits) VALUES (?,?,?,?)')
-        .run(tenantId, levelId, appCode, JSON.stringify(benefits));
+        .run(tenantId, levelId, appCode, JSON.stringify(seedBenefits));
     }
   }
 }

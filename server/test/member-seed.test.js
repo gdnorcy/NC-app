@@ -113,4 +113,81 @@ describe('租户默认套餐播种', () => {
     const b = resolveAppBenefits(db, T5, 88051, 'card');
     assert.equal(b.works_limit, TIER_PKG.gold.card.works_limit, '无矩阵时应回落旧镜像档位权益');
   });
+
+  // ===== 1b：member_package 升级为「套餐模板库」后的播种规则 =====
+  const marketOf = (tid, tier) => db.prepare(
+    "SELECT benefits FROM member_level_app_benefits WHERE tenant_id = ? AND app_code = 'market' AND level_id = (SELECT id FROM member_levels WHERE tenant_id = ? AND pkg_level = ?)"
+  ).get(tid, tid, tier);
+
+  it('模板驱动：总后台改 member_package.price → 新租户 buy_price 跟随（修复旧不一致）', () => {
+    db.prepare("UPDATE member_package SET price = 199 WHERE level = 'gold'").run();
+    ensureTenantDefaultLevels(db, 88010);
+    const gold = db.prepare('SELECT name, buy_price FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(88010, 'gold');
+    assert.equal(gold.name, '黄金会员');
+    assert.equal(gold.buy_price, 19900, '新租户 buy_price 应取模板 price×100');
+    db.prepare("UPDATE member_package SET price = 99 WHERE level = 'gold'").run();
+  });
+
+  it('模板驱动：模板 market_subject=0 → 新租户矩阵 market 应用不授场席', () => {
+    db.prepare("UPDATE member_package SET market_subject = 0 WHERE level = 'silver'").run();
+    ensureTenantDefaultLevels(db, 88011);
+    assert.equal(JSON.parse(marketOf(88011, 'silver').benefits).market_subject, 0);
+    db.prepare("UPDATE member_package SET market_subject = 1 WHERE level = 'silver'").run();
+  });
+
+  it('模板停用（enabled=0）：该档不向新租户播种，其余档不受影响', () => {
+    db.prepare("UPDATE member_package SET enabled = 0 WHERE level = 'diamond'").run();
+    ensureTenantDefaultLevels(db, 88012);
+    assert.deepEqual(levels(88012).map((l) => l.pkg_level), ['free', 'silver', 'gold']);
+    db.prepare("UPDATE member_package SET enabled = 1 WHERE level = 'diamond'").run();
+  });
+
+  it('模板行缺失 → 回落 TIER_PKG 硬编码安全网（四档仍在，价格/名称取硬编码）', () => {
+    const saved = db.prepare("SELECT * FROM member_package WHERE level = 'gold'").get();
+    db.prepare("DELETE FROM member_package WHERE level = 'gold'").run();
+    ensureTenantDefaultLevels(db, 88013);
+    const ls = levels(88013);
+    assert.deepEqual(ls.map((l) => l.pkg_level), ['free', 'silver', 'gold', 'diamond']);
+    const gold = db.prepare('SELECT name, buy_price FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(88013, 'gold');
+    assert.equal(gold.name, TIER_PKG.gold.name);
+    assert.equal(gold.buy_price, Math.round(TIER_PKG.gold.price * 100));
+    // 还原被删模板行（按原值整行插回）
+    const cols = Object.keys(saved);
+    db.prepare(`INSERT INTO member_package (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`)
+      .run(...cols.map((c) => saved[c]));
+  });
+
+  it('模板改名 → 新租户标准档用新名（档位身份以模板为准）', () => {
+    db.prepare("UPDATE member_package SET name = '黄金会员Pro' WHERE level = 'gold'").run();
+    ensureTenantDefaultLevels(db, 88014);
+    assert.equal(db.prepare('SELECT name FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(88014, 'gold').name, '黄金会员Pro');
+    db.prepare("UPDATE member_package SET name = '黄金会员' WHERE level = 'gold'").run();
+  });
+
+  it('认领匹配按模板名：模板改名后，存量同名空壳按新名认领、不重名', () => {
+    db.prepare("UPDATE member_package SET name = '铂金会员' WHERE level = 'silver'").run();
+    const T = 88015;
+    db.prepare(
+      `INSERT INTO member_levels (tenant_id, level_no, name, status, upgrade_mode, consume_amount, buy_price, benefits, sort_order, review_mode, valid_days)
+       VALUES (?,1,'铂金会员',1,'consume',0,2990,'{}',1,'manual',0)`
+    ).run(T);
+    ensureTenantDefaultLevels(db, T);
+    const silver = db.prepare('SELECT id, name, pkg_level FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(T, 'silver');
+    assert.ok(silver, '应按模板新名认领空壳');
+    assert.equal(silver.name, '铂金会员');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM member_levels WHERE tenant_id = ? AND name = ?').get(T, '铂金会员').n, 1, '不得重名');
+    db.prepare("UPDATE member_package SET name = '白银会员' WHERE level = 'silver'").run();
+  });
+
+  it('存量不覆盖：模板改价/改场席不影响已播种租户（重启式补种幂等）', () => {
+    const T = 88016;
+    ensureTenantDefaultLevels(db, T); // 先按现模板播种
+    const before = db.prepare('SELECT buy_price FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(T, 'gold');
+    db.prepare("UPDATE member_package SET price = 5, market_subject = 0 WHERE level = 'gold'").run();
+    ensureTenantDefaultLevels(db, T); // 模拟重启补种
+    assert.equal(db.prepare('SELECT buy_price FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(T, 'gold').buy_price, before.buy_price,
+      '已播种档的 buy_price 不得被模板改动覆盖');
+    assert.equal(JSON.parse(marketOf(T, 'gold').benefits).market_subject, 1, '已播种档的矩阵不得被模板改动覆盖');
+    db.prepare("UPDATE member_package SET price = 99, market_subject = 1 WHERE level = 'gold'").run();
+  });
 });

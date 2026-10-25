@@ -1,40 +1,26 @@
 <template>
   <div>
     <div class="sec-title">
-      <span>会员套餐</span>
-      <el-button type="primary" size="small" @click="openDialog()">新建套餐</el-button>
+      <span>套餐模板库</span>
+      <el-button type="primary" size="small" @click="openDialog()">新建模板</el-button>
     </div>
+    <el-alert type="info" :closable="false" show-icon class="tmpl-tip">
+      <template #title>模板用途与权益去向</template>
+      <div class="tmpl-tip-body">
+        <p>新租户开通时，下列模板会拷贝为该租户的<b>标准会员档</b>（档位名 / 购买价 / 集市场席）；修改模板只影响之后开通的租户，<b>不影响存量租户</b>已拥有的等级。</p>
+        <p>原「能力点 / 模板折扣 / 收藏上限 / 留资配额 / 推送配额 / 语音简介」等权益字段已统一下移至「平台权益目录 + 租户套餐 × 应用矩阵」模型：由租户在自己后台的「会员套餐」页按应用配置，模板库不再重复配置。</p>
+      </div>
+    </el-alert>
     <el-table :data="packages" size="small" border>
-      <el-table-column prop="level" label="等级" width="110" />
-      <el-table-column prop="name" label="套餐名" min-width="120" />
-      <el-table-column label="价格" width="100" align="center">
+      <el-table-column prop="level" label="等级标识" width="120" />
+      <el-table-column prop="name" label="模板名" min-width="120" />
+      <el-table-column label="价格" width="110" align="center">
         <template #default="{ row }">¥{{ row.price }} / {{ row.duration_days }}天</template>
       </el-table-column>
-      <el-table-column label="能力点" min-width="240">
-        <template #default="{ row }">
-          <el-tag v-for="f in row.features" :key="f" size="small" class="feat-tag">{{ featureLabel(f) }}</el-tag>
-          <span v-if="!row.features?.length" class="muted">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="模板折扣" width="90" align="center">
-        <template #default="{ row }">{{ row.discount < 1 ? (row.discount * 10).toFixed(1) + ' 折' : '无折扣' }}</template>
-      </el-table-column>
-      <el-table-column label="收藏上限" width="90" align="center">
-        <template #default="{ row }">{{ row.collect_limit === 0 ? '不限' : row.collect_limit }}</template>
-      </el-table-column>
-      <el-table-column label="留资配额" width="90" align="center">
-        <template #default="{ row }">{{ row.lead_quota === 0 ? '不限' : row.lead_quota }}</template>
-      </el-table-column>
-      <el-table-column label="推送配额" width="90" align="center">
-        <template #default="{ row }">{{ row.push_quota === 0 ? '不限' : row.push_quota }}</template>
-      </el-table-column>
-      <el-table-column label="语音" width="70" align="center">
-        <template #default="{ row }"><el-tag :type="row.voice_enabled ? 'success' : 'info'" size="small">{{ row.voice_enabled ? '开' : '关' }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="集市场席" width="90" align="center">
+      <el-table-column label="集市场席" width="100" align="center">
         <template #default="{ row }"><el-tag :type="row.market_subject ? 'success' : 'info'" size="small">{{ row.market_subject ? '含' : '—' }}</el-tag></template>
       </el-table-column>
-      <el-table-column label="启用" width="70" align="center">
+      <el-table-column label="启用" width="80" align="center">
         <template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'info'" size="small">{{ row.enabled ? '是' : '否' }}</el-tag></template>
       </el-table-column>
       <el-table-column label="操作" width="120" fixed="right">
@@ -45,56 +31,30 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.id ? '编辑套餐' : '新建套餐'" width="560px">
+    <el-dialog v-model="dialog.visible" :title="dialog.id ? '编辑模板' : '新建模板'" width="560px">
       <el-form label-width="120px">
         <el-form-item label="等级标识" required>
-          <el-input v-model="dialog.form.level" placeholder="如 vip_plus（唯一）" :disabled="!!dialog.id" />
+          <el-input v-model="dialog.form.level" placeholder="如 vip_plus（唯一，对应标准档位）" :disabled="!!dialog.id" />
         </el-form-item>
-        <el-form-item label="套餐名称" required>
+        <el-form-item label="模板名称" required>
           <el-input v-model="dialog.form.name" placeholder="如 黄金会员" />
         </el-form-item>
         <el-form-item label="价格（元）">
           <el-input-number v-model="dialog.form.price" :min="0" :precision="2" />
+          <div class="inline-form">
+            <span class="hint">新租户开通时作为该标准档的购买价</span>
+          </div>
         </el-form-item>
         <el-form-item label="时长（天）">
           <el-input-number v-model="dialog.form.durationDays" :min="1" />
-        </el-form-item>
-        <el-form-item label="能力点">
-          <el-checkbox-group v-model="dialog.form.features">
-            <el-checkbox v-for="o in featureOptions" :key="o" :value="o">{{ featureLabel(o) }}</el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="模板折扣">
           <div class="inline-form">
-            <el-input-number v-model="dialog.form.discount" :min="0" :max="1" :step="0.05" :precision="2" />
-            <span class="hint">1.0=无折扣，0.8=8折</span>
+            <span class="hint">历史订单口径（老购买路径已下线，仅用于解析存量订单）；新租户播种的等级默认永久有效，租户可在自己后台调整</span>
           </div>
-        </el-form-item>
-        <el-form-item label="收藏上限">
-          <div class="inline-form">
-            <el-input-number v-model="dialog.form.collectLimit" :min="0" />
-            <span class="hint">0=不限</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="留资配额">
-          <div class="inline-form">
-            <el-input-number v-model="dialog.form.leadQuota" :min="0" />
-            <span class="hint">0=不限（有效线索累计）</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="推送配额">
-          <div class="inline-form">
-            <el-input-number v-model="dialog.form.pushQuota" :min="0" />
-            <span class="hint">0=不限（订阅/公众号消息，阶段D联调）</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="语音简介">
-          <el-switch v-model="dialog.form.voiceEnabled" />
         </el-form-item>
         <el-form-item label="含集市场席">
           <el-switch v-model="dialog.form.marketSubject" />
           <div class="inline-form">
-            <span class="hint">购买后自动入驻租户人脉集市（仅「购买会员套餐」入驻模式的租户生效）</span>
+            <span class="hint">购买后自动入驻租户人脉集市（仅「购买会员套餐」入驻模式的租户生效）；随模板播种进新租户的权益矩阵</span>
           </div>
         </el-form-item>
         <el-form-item label="排序">
@@ -105,6 +65,9 @@
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="dialog.form.enabled" />
+          <div class="inline-form">
+            <span class="hint">停用后不再向新租户播种该档；存量租户已有档位不受影响</span>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -118,19 +81,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { fetchMemberPackages, fetchMemberFeatureOptions, createMemberPackage, updateMemberPackage, deleteMemberPackage } from '../../api';
+import { fetchMemberPackages, createMemberPackage, updateMemberPackage, deleteMemberPackage } from '../../api';
 
 const packages = ref([]);
-const featureOptions = ref([]);
-const featureLabelMap = {
-  ai_report: 'AI意向报告', ai_words: 'AI个性化话术', quota_lead: '无感留资配额',
-  quota_push: '推送配额', enterprise: '企业席位/报表/CRM',
-};
-const featureLabel = (f) => featureLabelMap[f] || f;
 
 const load = async () => {
   packages.value = await fetchMemberPackages().then((r) => r.packages);
-  featureOptions.value = await fetchMemberFeatureOptions().then((r) => r.options);
 };
 onMounted(load);
 
@@ -141,9 +97,7 @@ const openDialog = (row) => {
       visible: true, id: row.id,
       form: {
         level: row.level, name: row.name, price: row.price, durationDays: row.duration_days,
-        features: row.features || [], discount: row.discount, collectLimit: row.collect_limit,
-        leadQuota: row.lead_quota, pushQuota: row.push_quota,
-        voiceEnabled: !!row.voice_enabled, sortOrder: row.sort_order,
+        sortOrder: row.sort_order,
         marketSubject: !!row.market_subject,
         description: row.description, enabled: !!row.enabled,
       },
@@ -151,7 +105,7 @@ const openDialog = (row) => {
   } else {
     dialog.value = {
       visible: true, id: null,
-      form: { level: '', name: '', price: 0, durationDays: 30, features: [], discount: 1.0, collectLimit: 0, leadQuota: 0, pushQuota: 0, voiceEnabled: false, sortOrder: 0, marketSubject: false, description: '', enabled: true },
+      form: { level: '', name: '', price: 0, durationDays: 30, sortOrder: 0, marketSubject: false, description: '', enabled: true },
     };
   }
 };
@@ -160,7 +114,7 @@ const saving = ref(false);
 const savePackage = async () => {
   const f = dialog.value.form;
   if (!f.level || !f.level.trim()) return ElMessage.warning('请填写等级标识');
-  if (!f.name || !f.name.trim()) return ElMessage.warning('请填写套餐名称');
+  if (!f.name || !f.name.trim()) return ElMessage.warning('请填写模板名称');
   saving.value = true;
   try {
     if (dialog.value.id) await updateMemberPackage(dialog.value.id, f);
@@ -173,7 +127,7 @@ const savePackage = async () => {
 
 const removePackage = async (row) => {
   try {
-    await ElMessageBox.confirm(`删除套餐「${row.name}」后，引用该等级的用户将降级为 free，确认删除？`, '删除确认', { type: 'warning' });
+    await ElMessageBox.confirm(`删除模板「${row.name}」后，之后开通的新租户将不再获得该标准档（存量租户不受影响），确认删除？`, '删除确认', { type: 'warning' });
     await deleteMemberPackage(row.id);
     ElMessage.success('已删除');
     await load();
@@ -183,8 +137,8 @@ const removePackage = async (row) => {
 
 <style scoped>
 .sec-title { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; font-weight: 600; font-size: 15px; }
-.feat-tag { margin-right: 4px; }
-.muted { color: #909399; }
+.tmpl-tip { margin-bottom: 12px; }
+.tmpl-tip-body p { margin: 4px 0; font-size: 12px; line-height: 1.6; color: #606266; }
 .inline-form { display: flex; align-items: center; gap: 8px; }
-.hint { color: #909399; font-size: 12px; }
+.hint { color: #909399; font-size: 12px; line-height: 1.5; }
 </style>

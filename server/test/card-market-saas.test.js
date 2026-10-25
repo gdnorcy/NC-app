@@ -73,6 +73,8 @@ before(() => {
   config.webDistDir = path.join(tmpDir, 'dist');
   fs.mkdirSync(config.webDistDir, { recursive: true });
   fs.writeFileSync(path.join(config.webDistDir, 'index.html'), '<html>INDEX_ENTRY</html>');
+  // mock wx-login 按 config.defaultTenantId 兜底绑租户；P0-1 断言「未入驻」必须显式关兜底
+  config.defaultTenantId = 0;
   db = createDb(config.dbPath);
   app = createApp({ db });
 

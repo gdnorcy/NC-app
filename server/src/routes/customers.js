@@ -3,7 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { config } from '../config.js';
-import { toCustomer, toPlan, genShareToken, addOperationLog } from '../db.js';
+import { toCustomer, toPlan, genShareToken, addOperationLog, ensureTenantDefaultLevels } from '../db.js';
 import { requireAuth, issueToken } from '../auth.js';
 import { getStorage } from '../storage/index.js';
 
@@ -233,6 +233,14 @@ export function createCustomersRouter(db) {
       .run(customerName, logoPath, description, validFrom || null, validUntil || null, isPinned, remark, status, solutions, config, inviteCode, adminUserId);
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
     saveProjectPermissions(db, info.lastInsertRowid, req.body);
+    // 3a：新租户即时播种标准会员档（与启动时 seedTenantMemberPackages 同一函数，幂等）。
+    // 旧行为只在下一次服务重启补种 → 窗口期内 C 端会员卡区无等级、租户后台等级列表空、
+    // 且老购买路径（member_package 档位）付费后同步不到 member_user。失败不阻断建租户（重启仍会补）。
+    try {
+      ensureTenantDefaultLevels(db, info.lastInsertRowid);
+    } catch (e) {
+      console.error('新租户会员档即时播种失败（重启后将重试）:', e?.message || e);
+    }
     addOperationLog(db, { userId: req.user?.uid, username: req.user?.username, action: 'create_customer', targetType: 'customer', targetId: info.lastInsertRowid, detail: `创建客户: ${customerName}`, ip: req.ip });
     res.status(201).json({ project: toCustomer(row) });
   });

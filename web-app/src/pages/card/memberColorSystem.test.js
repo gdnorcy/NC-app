@@ -10,6 +10,9 @@ import { describe, test, expect } from 'vitest';
 // （#0f766e/#14b8a6/#2f6bff/#5b8cff），与品牌蓝系兜底惯例不符。
 // 收敛后：单一主题色 + 中性承载 + 语义三态（待审/通过/驳回）克制。
 //
+// 1b 更新（购买路径收敛）：A 区「选择套餐」（plan-grid/plan/price/btn 系列）整体下线，
+// 购买统一走租户等级 tlv 系列，主题位断言随之改钉 tlv/sign/dist。
+//
 // 锁：① demo 青绿/蓝兜底清零；② themeColor 必须 --design-primary；
 //     ③ CTA/选中/徽章/卡片全部主题位；④ 语义三态与中性保留；
 //     ⑤ 根视图绑 themeStyle；⑥ 租户 levelBgColor（被展示对象）优先级不动。
@@ -73,15 +76,8 @@ describe('member themeColor 与其余四页对齐', () => {
 
 describe('member 平台 UI 强调位归主题', () => {
   const themed = [
-    '.btn.buy',        // 套餐购买 CTA（整页唯一强 CTA）
-    '.btn.on',         // 当前套餐态
-    '.price',          // 价格
-    '.cur-tag',        // 「· 当前」标签
-    '.hot-tag',        // 最受欢迎角标（实底白字）
-    '.plan.hot',       // 金牌套餐边框（用户 10acd56 主动改主题色）
-    '.plan.sel',       // 点选高亮
     '.sign-btn',       // 签到 CTA
-    '.tlv-btn.buy',    // 租户等级购买
+    '.tlv-btn.buy',    // 租户等级购买（1b 收敛后整页唯一强 CTA）
     '.tlv.cur',        // 当前租户等级
     '.tlv-no',         // Lv 徽章
     '.dist-entry',     // 分销入口卡
@@ -94,10 +90,6 @@ describe('member 平台 UI 强调位归主题', () => {
       expect(block).toMatch(/var\(--design-(primary|secondary)/);
     });
   }
-  test('plan 选中/热门阴影用主题 rgb（禁硬编码 rgba）', () => {
-    expect(ruleBlock(src, '.plan.hot')).toContain('rgba(var(--design-primary-rgb');
-    expect(ruleBlock(src, '.plan.sel')).toContain('rgba(var(--design-primary-rgb');
-  });
   test('tcard 阴影用主题 rgb', () => {
     expect(ruleBlock(src, '.tcard')).toContain('rgba(var(--design-primary-rgb');
   });

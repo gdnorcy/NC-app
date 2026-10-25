@@ -3,7 +3,7 @@
  *
  * 覆盖：
  *   1 utils/joinMode.js：双模读取（channel_config.individualJoinMode，取不到=code 保守默认）
- *   2 member.vue：订单归属修复（禁 enterpriseId||1 硬编码租户1）+ 场席权益行 + 购买成功文案
+ *   2 member.vue：1b 收敛后老 A 路全下线、唯一购买路径走 memberBuy、场席购买成功文案
  *   3 create.vue：口令区 purchase 模式提示
  *   4 displaySettings.vue：口令申请浮层接 /apply
  *   5 cardApi.applyIndividual → POST /card-market/apply
@@ -61,28 +61,26 @@ describe('getChannelTenantName', () => {
 // ===== 源码钉子（防回退） =====
 const src = (f) => readFileSync(new URL(`./${f}`, import.meta.url), 'utf8');
 
-describe('member.vue（第20轮）', () => {
+describe('member.vue（1b 收敛后）', () => {
   const memberSrc = src('member.vue');
 
-  test('订单归属修复：禁 customerId 硬编码租户1（个人购买原来全记到租户1）', () => {
+  test('老 A 路（member_package / productType=member / paymentApi 下单）全下线，禁回退', () => {
+    expect(memberSrc).not.toMatch(/productType:\s*'member'/);
+    expect(memberSrc).not.toMatch(/paymentApi\.createOrder/);
+    expect(memberSrc).not.toMatch(/cardApi\.getPackages/);
+    // 归属修复的旧形态（前端传 customerId）也不得复现：租户由服务端 req.customerId 单一裁定
     expect(memberSrc).not.toMatch(/customerId:\s*userInfo\.enterpriseId\s*\|\|\s*1/);
-    // 渠道上下文优先，账号企业绑定兜底，都没有则不传（服务端 comboAuth 解析）
-    expect(memberSrc).toMatch(/getTid\(\)\s*\|\|\s*userInfo\.enterpriseId/);
-    expect(memberSrc).toMatch(/\.\.\.\(tid \? \{ customerId: Number\(tid\) \} : \{\}\)/);
+    expect(memberSrc).not.toMatch(/getTid\(\)\s*\|\|\s*userInfo\.enterpriseId/);
   });
 
-  test('含场席套餐权益行：仅 purchase 模式展示，文案含租户名', () => {
-    expect(memberSrc).toMatch(/p\.market_subject === 1 && joinMode === 'purchase'/);
-    expect(memberSrc).toMatch(/含集市入驻资格——购买后自动入驻/);
+  test('唯一购买路径走租户等级：memberBuy（/member/buy，服务端按 req.customerId 定租户）', () => {
+    expect(memberSrc).toMatch(/cardApi\.memberBuy\(\{ levelId: lv\.id/);
   });
 
-  test('购买成功补场席说明（marketSubject.hasSeat）', () => {
+  test('购买成功补场席说明（marketSubject.hasSeat，租户名来自共享 helper）', () => {
     expect(memberSrc).toMatch(/marketSubject\.hasSeat/);
     expect(memberSrc).toMatch(/已开通会员，并获得/);
-  });
-
-  test('双模与租户名来自共享 helper（禁页面各写一份）', () => {
-    expect(memberSrc).toMatch(/import \{ getIndividualJoinMode, getChannelTenantName \} from '\.\/utils\/joinMode\.js'/);
+    expect(memberSrc).toMatch(/import \{ getChannelTenantName \} from '\.\/utils\/joinMode\.js'/);
   });
 });
 
