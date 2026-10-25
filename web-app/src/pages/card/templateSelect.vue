@@ -185,7 +185,7 @@ onLoad((options) => {
 </script>
 
 <style scoped>
-.tpl-select-page { min-height: 100vh; background: #f6f7fb; display: flex; flex-direction: column; padding-bottom: 40rpx; }
+.tpl-select-page { min-height: 100vh; background: var(--bg-page); display: flex; flex-direction: column; padding-bottom: 40rpx; }
 .cur-tpl { margin: 20rpx 24rpx 0; padding: 20rpx 24rpx; background: var(--white); border-radius: var(--radius-md); display: flex; align-items: center; gap: 16rpx; }
 .cur-label { font-size: var(--fs-4); color: var(--t3); }
 .cur-name { font-size: var(--fs-5); font-weight: 600; color: var(--design-primary, #165dff); }

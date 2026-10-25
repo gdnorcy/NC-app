@@ -11,6 +11,7 @@ import { describe, test, expect } from 'vitest';
 const PAGE = fileURLToPath(new URL('./JoinCodeManage.vue', import.meta.url));
 const ROUTER = fileURLToPath(new URL('../../../../router/customer.js', import.meta.url));
 const TABS = fileURLToPath(new URL('./CardTabs.vue', import.meta.url));
+const TENANT = fileURLToPath(new URL('./TenantManage.vue', import.meta.url));
 const SERVER_ROUTE = fileURLToPath(new URL('../../../../../../server/src/routes/joinCode.js', import.meta.url));
 const APP = fileURLToPath(new URL('../../../../../../server/src/app.js', import.meta.url));
 const MARKET = fileURLToPath(new URL('./MarketManage.vue', import.meta.url));
@@ -18,6 +19,7 @@ const MARKET = fileURLToPath(new URL('./MarketManage.vue', import.meta.url));
 const pageSrc = readFileSync(PAGE, 'utf8');
 const routerSrc = readFileSync(ROUTER, 'utf8');
 const tabsSrc = readFileSync(TABS, 'utf8');
+const tenantSrc = readFileSync(TENANT, 'utf8');
 const routeSrc = readFileSync(SERVER_ROUTE, 'utf8');
 const appSrc = readFileSync(APP, 'utf8');
 const marketSrc = readFileSync(MARKET, 'utf8');
@@ -72,9 +74,12 @@ describe('路由与导航注册', () => {
     expect(routerSrc).toContain('JoinCodeManage.vue');
   });
 
-  test('CardTabs 加「入驻兑换码」入口（与入驻管理相邻）', () => {
-    expect(tabsSrc).toContain("label: '入驻兑换码'");
-    expect(tabsSrc).toContain("path: '/apps/card/join-codes'");
+  test('入驻兑换码入口收口到「入驻管理-入驻企业」工具栏（顶部分类导航不再单列）', () => {
+    // 入口已从 CardTabs 顶栏移入 TenantManage 的「入驻企业」工具栏
+    expect(tenantSrc).toContain("router.push('/apps/card/join-codes')");
+    expect(tenantSrc).toContain('入驻兑换码');
+    // 顶部分类导航不再单列入驻兑换码 Tab
+    expect(tabsSrc).not.toContain("label: '入驻兑换码'");
   });
 });
 

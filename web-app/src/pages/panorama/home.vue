@@ -49,7 +49,7 @@ export default {
 <style scoped>
 .pano-home {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-page);
   padding-bottom: 160rpx;
   box-sizing: border-box;
 }
@@ -63,7 +63,7 @@ export default {
   height: 88rpx;
   padding: 0 24rpx;
   background: var(--white);
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid var(--border);
   box-sizing: border-box;
 }
 .ph-back {

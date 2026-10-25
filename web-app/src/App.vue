@@ -108,7 +108,7 @@ export default {
 <style>
 /* 全局样式 */
 page {
-  background-color: #f5f7fa;
+  background-color: var(--bg-page);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 

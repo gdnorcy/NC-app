@@ -173,11 +173,15 @@ export function createMemberService(db) {
     if (!settings.card_enabled) return { ok: false, error: '会员卡未启用' };
     const cardNo = genCardNo();
     const cur = getMemberUser(tenantId, userId);
+    // 有效期：valid_days>0 时按开卡日 +N 天写入 expire_at；0 视为永久（NULL）。
+    // 与 SQLite datetime('now') 保持一致用 UTC（Date.now()/toISOString 均为 UTC）。
+    const vd = Number(level.valid_days) || 0;
+    const expireAt = vd > 0 ? new Date(Date.now() + vd * 86400000).toISOString().slice(0, 19).replace('T', ' ') : null;
     db.prepare(
-      `INSERT INTO member_user (tenant_id, user_id, card_no, level_id, status, updated_at)
-       VALUES (?,?,?,?, 'active', datetime('now'))
-       ON CONFLICT(tenant_id, user_id) DO UPDATE SET level_id=excluded.level_id, card_no=CASE WHEN member_user.card_no='' THEN excluded.card_no ELSE member_user.card_no END, status='active', updated_at=datetime('now')`
-    ).run(tenantId, userId, cardNo, levelId);
+      `INSERT INTO member_user (tenant_id, user_id, card_no, level_id, status, expire_at, updated_at)
+       VALUES (?,?,?,?, 'active', ?, datetime('now'))
+       ON CONFLICT(tenant_id, user_id) DO UPDATE SET level_id=excluded.level_id, card_no=CASE WHEN member_user.card_no='' THEN excluded.card_no ELSE member_user.card_no END, status='active', expire_at=excluded.expire_at, updated_at=datetime('now')`
+    ).run(tenantId, userId, cardNo, levelId, expireAt);
     db.prepare(
       "INSERT INTO member_cards (tenant_id, user_id, card_no, level_id, source, opened_at) VALUES (?,?,?,?,?, datetime('now'))"
     ).run(tenantId, userId, cardNo, levelId, source);
@@ -231,10 +235,17 @@ export function createMemberService(db) {
     const level = getLevel(tenantId, Number(levelId));
     if (!level) return { ok: false, error: '会员等级不存在' };
     if (level.upgrade_mode !== 'apply') return { ok: false, error: '该等级不支持申请模式' };
-    const pending = db.prepare("SELECT id FROM member_apply WHERE tenant_id = ? AND user_id = ? AND status IN ('pending','approved')").get(tenantId, userId);
-    if (pending) return { ok: false, error: '已有待审核或已通过的申请' };
     const mu = getMemberUser(tenantId, userId);
     if (mu && mu.level_id === Number(levelId)) return { ok: false, error: '已是该等级会员' };
+    // 自动审核：直接开户，不落 pending 申请
+    if (level.review_mode === 'auto') {
+      const r = openCard(tenantId, userId, Number(levelId), 'apply');
+      if (!r.ok) return r;
+      return { ok: true, autoApproved: true, cardNo: r.cardNo };
+    }
+    // 人工审核：已有待审核或已通过的申请则拦截
+    const pending = db.prepare("SELECT id FROM member_apply WHERE tenant_id = ? AND user_id = ? AND status IN ('pending','approved')").get(tenantId, userId);
+    if (pending) return { ok: false, error: '已有待审核或已通过的申请' };
     const info = db.prepare(
       "INSERT INTO member_apply (tenant_id, user_id, name, phone, apply_level_id) VALUES (?,?,?,?,?)"
     ).run(tenantId, userId, String(name || '').slice(0, 32), String(phone || '').slice(0, 20), Number(levelId));

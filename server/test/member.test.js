@@ -215,4 +215,34 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
     assert.ok(order && order.orderNo && order.orderNo.startsWith('PAY'));
     assert.equal(order.order_no, undefined);
   });
+
+  it('P0 有效期：valid_days>0 开卡写入 expire_at，0 视为永久', () => {
+    const lv = member.addLevel(TENANT, { levelNo: 10, name: '时效会员', validDays: 30 });
+    assert.equal(lv.valid_days, 30);
+    const r = member.openCard(TENANT, 3000, lv.id, 'buy');
+    assert.ok(r.ok);
+    const mu = member.getMemberUser(TENANT, 3000);
+    assert.ok(mu.expire_at, '应写入 expire_at');
+    const exp = new Date(mu.expire_at.replace(' ', 'T') + 'Z').getTime();
+    const expectTs = Date.now() + 30 * 86400000;
+    assert.ok(Math.abs(exp - expectTs) < 86400000, 'expire_at 应为开卡日 +30 天，偏差过大: ' + mu.expire_at);
+    // valid_days=0 视为永久（NULL）
+    const lv2 = member.addLevel(TENANT, { levelNo: 11, name: '永久会员' });
+    const r2 = member.openCard(TENANT, 3002, lv2.id, 'auto');
+    assert.ok(r2.ok);
+    const mu2 = member.getMemberUser(TENANT, 3002);
+    assert.equal(mu2.expire_at, null, 'valid_days=0 应永久（NULL）');
+  });
+
+  it('P0 自动审核：review_mode=auto 时申请直接开户且不落 pending', () => {
+    const lv = member.addLevel(TENANT, { levelNo: 12, name: '免审会员', upgradeMode: 'apply', reviewMode: 'auto' });
+    const r = member.apply(TENANT, 3003, { name: '普通丁', phone: '', levelId: lv.id });
+    assert.ok(r.ok);
+    assert.equal(r.autoApproved, true);
+    const mu = member.getMemberUser(TENANT, 3003);
+    assert.equal(mu.level_id, lv.id, '应直接开户');
+    const applies = member.listApplies(TENANT, { status: 'pending' });
+    const hit = applies.applies.find((a) => a.apply_level_id === lv.id);
+    assert.equal(hit, undefined, '自动审核不应产生 pending 申请');
+  });
 });

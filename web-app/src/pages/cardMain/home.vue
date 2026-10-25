@@ -653,14 +653,14 @@ function openVisitor(v) {
   background: rgba(255, 255, 255, 0.94);
   border-radius: 36rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.12);
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t1);
 }
-.share-back-arrow { font-size: 36rpx; line-height: 1; margin-right: 4rpx; }
-.share-back-text { font-size: 26rpx; }
+.share-back-arrow { font-size: var(--fs-7); line-height: 1; margin-right: 4rpx; }
+.share-back-text { font-size: var(--fs-4); }
 .home-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-page);
   padding-bottom: 120rpx;
 }
 

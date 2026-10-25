@@ -525,7 +525,7 @@ onMounted(async () => {
 .wk-idx { width: 36rpx; text-align: center; font-size: var(--fs-4); color: var(--t3); flex-shrink: 0; }
 /* 默认封面：品牌渐变 + 居中播放键（CSS 三角，跨端稳定；不用 color-mix，MP 老版本不识别） */
 .wk-cover {
-  width: 120rpx; height: 120rpx; border-radius: 12rpx; flex-shrink: 0;
+  width: 120rpx; height: 120rpx; border-radius: var(--radius-xs); flex-shrink: 0;
   background: var(--design-primary);
   background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.32));
   display: flex; align-items: center; justify-content: center;
@@ -565,14 +565,14 @@ onMounted(async () => {
 .wk-mask { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: var(--bg-mask); z-index: var(--z-popup); }
 .wk-popup {
   position: fixed; left: 24rpx; right: 24rpx; top: 50%; transform: translateY(-50%);
-  background: var(--white); border-radius: 24rpx; padding: 36rpx 28rpx; z-index: var(--z-popup);
+  background: var(--white); border-radius: var(--radius-lg); padding: 36rpx 28rpx; z-index: var(--z-popup);
   max-height: 82vh; overflow-y: auto;
 }
 .wk-pop-title { font-size: var(--fs-5); font-weight: 600; color: var(--t1); text-align: center; margin-bottom: 28rpx; }
 .wk-mode { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
 .wk-mode-item {
   flex: 1; text-align: center; font-size: var(--fs-3); color: var(--t3);
-  border: 1rpx solid var(--border-strong); border-radius: 12rpx; padding: 14rpx 0;
+  border: 1rpx solid var(--border-strong); border-radius: var(--radius-xs); padding: 14rpx 0;
 }
 .wk-mode-item.on { color: var(--design-primary); border-color: var(--design-primary); background: rgba(0, 0, 0, 0.04); }
 /* 输入框对齐 customers.vue .form-input / customerDetail.vue .picker-value 规范：
@@ -597,11 +597,11 @@ onMounted(async () => {
 .wk-parse-row { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; }
 .wk-parse-btn {
   flex: 1; text-align: center; font-size: var(--fs-4); color: var(--design-primary);
-  border: 1rpx solid var(--design-primary); border-radius: 12rpx; padding: 18rpx 0;
+  border: 1rpx solid var(--design-primary); border-radius: var(--radius-xs); padding: 18rpx 0;
 }
 .wk-help-btn {
   flex-shrink: 0; font-size: var(--fs-3); color: var(--t3);
-  border: 1rpx solid var(--border-strong); border-radius: 12rpx; padding: 18rpx 28rpx;
+  border: 1rpx solid var(--border-strong); border-radius: var(--radius-xs); padding: 18rpx 28rpx;
 }
 /* 内联变体：说明文字块里的次级入口，做成下划线文字链而不是绿色实心块
    （实心块 + 上方灰底说明文字，视觉上会误读成「主操作按钮」，且挤在一起很重） */
@@ -629,7 +629,7 @@ onMounted(async () => {
 .wk-test { margin-top: 24rpx; text-align: center; font-size: var(--fs-3); color: var(--design-primary); text-decoration: underline; }
 .wk-agree { display: flex; align-items: flex-start; gap: 12rpx; margin-top: 28rpx; }
 .wk-checkbox {
-  width: 32rpx; height: 32rpx; border-radius: 8rpx; border: 2rpx solid var(--border-strong);
+  width: 32rpx; height: 32rpx; border-radius: var(--radius-sm); border: 2rpx solid var(--border-strong);
   flex-shrink: 0; margin-top: 4rpx; position: relative;
 }
 .wk-checkbox.on { background: var(--design-primary); border-color: var(--design-primary); }
@@ -658,7 +658,7 @@ onMounted(async () => {
    z-index 写法「种类」计数，新写法会顶破基线。 */
 .wk-help {
   position: fixed; left: 40rpx; right: 40rpx; top: 50%; transform: translateY(-50%);
-  background: var(--white); border-radius: 24rpx; padding: 36rpx 28rpx 28rpx;
+  background: var(--white); border-radius: var(--radius-lg); padding: 36rpx 28rpx 28rpx;
   z-index: var(--z-popup); max-height: 80vh; overflow-y: auto;
 }
 .wk-help-title { font-size: var(--fs-5); font-weight: 600; color: var(--t1); text-align: center; margin-bottom: 28rpx; }

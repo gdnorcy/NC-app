@@ -111,7 +111,7 @@ export default {
 .viewer-page {
   width: 100%;
   height: 100vh;
-  background: #000;
+  background: var(--media-bg);
   position: relative;
 }
 .scene-tabs {
@@ -131,7 +131,7 @@ export default {
   border-radius: 40rpx;
   margin-right: 16rpx;
   color: var(--white);
-  font-size: 26rpx;
+  font-size: var(--fs-4);
 }
 .tab-item.active {
   background: var(--primary);
@@ -148,6 +148,6 @@ export default {
   align-items: center;
   justify-content: center;
   color: var(--white);
-  font-size: 36rpx;
+  font-size: var(--fs-7);
 }
 </style>

@@ -560,7 +560,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .filter-bar { padding: 16rpx 0 4rpx; background: var(--bg-page); }
 .filter-scroll { white-space: nowrap; }
 .filter-inner { display: inline-flex; gap: 16rpx; padding: 0 24rpx; }
-.filter-chip { padding: 10rpx 26rpx; border-radius: var(--radius-pill); font-size: var(--fs-3); color: var(--t2); background: var(--white); border: 1rpx solid #eeeeee; }
+.filter-chip { padding: 10rpx 26rpx; border-radius: var(--radius-pill); font-size: var(--fs-3); color: var(--t2); background: var(--white); border: 1rpx solid var(--border); }
 /* 筛选激活态：跟随租户主题（收敛前绿 #07c160 / 藏蓝 #1d4e8f 双色相） */
 .filter-chip.on { color: var(--white); background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); font-weight: 500; }
 .filter-chip.has-need.on { background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); }
@@ -593,7 +593,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .need-tag { font-size: var(--fs-1); color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); padding: 4rpx 12rpx; border-radius: var(--radius-sm); }
 .m-tags { margin-top: 10rpx; }
 .m-industry { font-size: var(--fs-1); color: var(--t2); background: var(--bg-page); padding: 4rpx 12rpx; border-radius: var(--radius-sm); }
-.m-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid #f0f0f0; }
+.m-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid var(--border); }
 .m-views { font-size: var(--fs-1); color: var(--ink-3); }
 .m-exchange { font-size: var(--fs-2); color: var(--white); background: var(--design-primary, #165dff); padding: 8rpx 22rpx; border-radius: var(--radius-pill); font-weight: 500; }
 .m-exchange.done { background: var(--decor-2); }
@@ -603,7 +603,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .fold-title { display: flex; justify-content: space-between; font-size: var(--fs-4); font-weight: 600; color: var(--t5); }
 .fold-arrow { font-size: var(--fs-2); color: var(--ink-3); font-weight: 400; }
 .fold-body { margin-top: 16rpx; }
-.rank-row { display: flex; align-items: center; gap: 16rpx; padding: 14rpx 0; border-bottom: 1rpx solid #f0f0f0; }
+.rank-row { display: flex; align-items: center; gap: 16rpx; padding: 14rpx 0; border-bottom: 1rpx solid var(--border); }
 .rank-row:last-child { border-bottom: none; }
 .rank-no { width: 36rpx; height: 36rpx; border-radius: var(--radius-sm); background: var(--bg-page); color: var(--decor-2); font-size: var(--fs-2); display: flex; align-items: center; justify-content: center; font-weight: 600; }
 .rank-no.top { background: var(--design-primary, #165dff); color: var(--white); }
@@ -639,7 +639,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 .c-company { font-size: var(--fs-2); color: var(--ink-3); margin-top: 4rpx; }
 .c-tags { display: flex; gap: 8rpx; margin-top: 14rpx; flex-wrap: wrap; }
 .tag-need { font-size: var(--fs-1); color: var(--design-primary, #165dff); background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.08); padding: 4rpx 12rpx; border-radius: var(--radius-sm); }
-.c-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid #f0f0f0; }
+.c-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid var(--border); }
 .c-type { font-size: var(--fs-2); color: var(--ink-3); }
 .exchange-btn { font-size: var(--fs-2); color: var(--white); background: var(--design-primary, #165dff); padding: 10rpx 26rpx; border-radius: var(--radius-pill); font-weight: 500; }
 .exchange-btn.done { background: var(--decor-2); }
@@ -651,7 +651,7 @@ const goConnections = () => uni.navigateTo({ url: '/pages/card/connections' });
 
 .banner-swiper { height: 240rpx; margin: 16rpx 24rpx; border-radius: var(--radius-md); overflow: hidden; }
 .banner-img { width: 100%; height: 100%; border-radius: var(--radius-md); }
-.banner-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #eef1f5; color: var(--decor-2); font-size: var(--fs-4); border-radius: var(--radius-md); }
+.banner-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--bg-card-2); color: var(--decor-2); font-size: var(--fs-4); border-radius: var(--radius-md); }
 .samecity-row { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 24rpx 4rpx; }
 .sc-pill { display: inline-flex; align-items: center; gap: 6rpx; font-size: var(--fs-3); color: var(--ink-3); background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 10rpx 22rpx; }
 .sc-pill.on { color: var(--white); background: var(--design-primary, #165dff); border-color: var(--design-primary, #165dff); }

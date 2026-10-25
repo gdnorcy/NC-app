@@ -796,7 +796,7 @@ async function saveConvert() {
   color: var(--design-primary, #165dff);
 }
 .v-tag.gray {
-  background: #f0f0f0;
+  background: var(--bg-card-2);
   color: var(--t4);
 }
 .v-behav {
@@ -867,7 +867,7 @@ async function saveConvert() {
   width: 76rpx;
   height: 8rpx;
   border-radius: 4rpx;
-  background: #e2e2e2;
+  background: var(--border);
   margin: 0 auto 28rpx;
 }
 .sheet-title {
@@ -1032,7 +1032,7 @@ async function saveConvert() {
   color: var(--t3);
   background: var(--bg-hover);
   border: 1px solid var(--border);
-  border-radius: 999rpx;
+  border-radius: var(--radius-pill);
   padding: 14rpx 28rpx;
   line-height: 1;
 }

@@ -133,7 +133,7 @@ function getRedirectTarget() {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #165dff 0%, #4080ff 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #4080ff 100%);
   display: flex;
   align-items: center;
   justify-content: center;

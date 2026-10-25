@@ -94,7 +94,7 @@ export default {
 <style scoped>
 .index-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-page);
   padding: 40rpx 32rpx;
 }
 .header {
@@ -104,12 +104,12 @@ export default {
 .title {
   font-size: 56rpx;
   font-weight: 700;
-  color: #1a1b1c;
+  color: var(--t5);
   display: block;
 }
 .subtitle {
-  font-size: 28rpx;
-  color: #909399;
+  font-size: var(--fs-5);
+  color: var(--decor);
   margin-top: 8rpx;
   display: block;
 }
@@ -132,19 +132,19 @@ export default {
   padding: 32rpx;
 }
 .plan-name {
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   font-weight: 600;
-  color: #1a1b1c;
+  color: var(--t5);
   display: block;
 }
 .plan-desc {
-  font-size: 26rpx;
-  color: #909399;
+  font-size: var(--fs-4);
+  color: var(--decor);
   margin-top: 8rpx;
   display: block;
 }
 .plan-count {
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   color: var(--primary);
   margin-top: 16rpx;
   display: block;

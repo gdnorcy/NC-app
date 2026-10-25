@@ -90,17 +90,17 @@ function goBack() { uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/c
 <style scoped>
 .pic-list-page { min-height: 100vh; background: var(--bg-card); }
 .cate-tabs { white-space: nowrap; background: var(--white); padding: 16rpx 8rpx; border-bottom: 1px solid var(--bg-hover); }
-.cate-tab { display: inline-block; padding: 12rpx 28rpx; margin: 0 8rpx; font-size: 26rpx; color: var(--t2); background: var(--bg-card); border-radius: 32rpx; }
+.cate-tab { display: inline-block; padding: 12rpx 28rpx; margin: 0 8rpx; font-size: var(--fs-4); color: var(--t2); background: var(--bg-card); border-radius: 32rpx; }
 .cate-tab.on { color: var(--primary); background: #e8f3ff; font-weight: 500; }
 .list { padding: 24rpx; display: flex; flex-wrap: wrap; justify-content: space-between; }
 .pic-card { width: calc(50% - 12rpx); background: var(--white); border-radius: var(--radius-sm); margin-bottom: 24rpx; overflow: hidden; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04); }
 .pic-thumb { width: 100%; height: 320rpx; }
-.pic-thumb-empty { background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: 24rpx; }
+.pic-thumb-empty { background: var(--bg-hover); display: flex; align-items: center; justify-content: center; color: var(--border); font-size: var(--fs-3); }
 .pic-info { padding: 20rpx; }
-.pic-title { font-size: 28rpx; font-weight: 600; color: var(--t1); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.pic-meta { font-size: 22rpx; color: var(--decor); margin-top: 12rpx; }
+.pic-title { font-size: var(--fs-5); font-weight: 600; color: var(--t1); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pic-meta { font-size: var(--fs-2); color: var(--decor); margin-top: 12rpx; }
 .dot { margin: 0 8rpx; }
-.empty { padding: 160rpx 0; text-align: center; color: var(--decor); font-size: 26rpx; }
+.empty { padding: 160rpx 0; text-align: center; color: var(--decor); font-size: var(--fs-4); }
 .empty-icon { display: block; font-size: 72rpx; margin-bottom: 16rpx; }
-.load-more { text-align: center; padding: 24rpx 0 48rpx; font-size: 24rpx; color: var(--decor); }
+.load-more { text-align: center; padding: 24rpx 0 48rpx; font-size: var(--fs-3); color: var(--decor); }
 </style>

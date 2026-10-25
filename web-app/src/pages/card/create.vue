@@ -977,7 +977,7 @@ async function syncMarketAfterSave(isPublic) {
   margin: 32rpx 32rpx 0;
   padding: 20rpx 28rpx;
   border-radius: var(--radius-sm);
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   line-height: 1.6;
   color: var(--design-subtext, #165DFF);
   background: rgba(var(--design-primary-rgb, 22, 93, 255), 0.06);

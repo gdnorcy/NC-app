@@ -255,8 +255,8 @@ describe('装修 V1.1 增强（默认值 / 隐藏开关 / 页内预览）', () =
 
   test('操作条紧凑：整条 ≤ 48rpx（PC 量级），不是上一版 84rpx 的大胶囊', () => {
     expect(cardEditSrc).toMatch(/\.ce-tool \{[^}]*height: 40rpx/);
-    // 图标 26rpx、文字 fs-2，与 PC 的 18px 图标/11px 字同量级
-    expect(cardEditSrc).toMatch(/\.ce-tool-ico \{[^}]*font-size: 26rpx/);
+    // 图标 fs-4（=26rpx）、文字 fs-2，与 PC 的 18px 图标/11px 字同量级（B-3 后允许令牌写法）
+    expect(cardEditSrc).toMatch(/\.ce-tool-ico \{[^}]*font-size: (26rpx|var\(--fs-4\))/);
     expect(cardEditSrc).not.toMatch(/\.ce-tool \{[^}]*height: 64rpx/);
   });
 

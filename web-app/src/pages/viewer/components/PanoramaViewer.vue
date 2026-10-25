@@ -525,7 +525,7 @@ export default {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: #000;
+  background: var(--media-bg);
 }
 .panorama-canvas {
   width: 100%;
@@ -571,7 +571,7 @@ export default {
 }
 .dot-i {
   color: var(--white);
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   font-weight: 700;
   line-height: 1;
 }
@@ -621,7 +621,7 @@ export default {
   padding: 1px 14rpx;
   background: rgba(0, 0, 0, 0.6);
   color: var(--white);
-  font-size: 22rpx;
+  font-size: var(--fs-2);
   border-radius: var(--radius-sm);
   white-space: nowrap;
 }
@@ -647,7 +647,7 @@ export default {
 .loading-text {
   color: var(--white);
   margin-top: 24rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
 }
 .controls {
   position: absolute;
@@ -667,7 +667,7 @@ export default {
   align-items: center;
   justify-content: center;
   color: var(--white);
-  font-size: 32rpx;
+  font-size: var(--fs-6);
 }
 /* 热点信息弹窗 */
 .hotspot-popup {
@@ -682,13 +682,13 @@ export default {
   box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
 }
 .hotspot-title {
-  font-size: 32rpx;
+  font-size: var(--fs-6);
   font-weight: 600;
   color: var(--t1);
 }
 .hotspot-content {
   margin-top: 16rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   color: var(--t2);
   line-height: 1.6;
 }
@@ -705,7 +705,7 @@ export default {
 }
 .hotspot-form-label {
   display: block;
-  font-size: 26rpx;
+  font-size: var(--fs-4);
   color: var(--t2);
   margin-bottom: 8rpx;
 }
@@ -716,7 +716,7 @@ export default {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 0 24rpx;
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   background: var(--white);
 }
 .hotspot-form-field textarea.hotspot-form-input {
@@ -725,7 +725,7 @@ export default {
 }
 .hotspot-form-msg {
   margin-top: 16rpx;
-  font-size: 24rpx;
+  font-size: var(--fs-3);
   min-height: 32rpx;
 }
 .hotspot-form-submit {
@@ -734,7 +734,7 @@ export default {
   border-radius: var(--radius-sm);
   background: var(--primary);
   color: var(--white);
-  font-size: 28rpx;
+  font-size: var(--fs-5);
   font-weight: 500;
   display: flex;
   align-items: center;

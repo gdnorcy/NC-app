@@ -309,7 +309,7 @@ onLoad((o) => {
   background: rgba(0,0,0,0.5); z-index: 99; display: flex; align-items: flex-end;
 }
 .sku-panel {
-  width: 100%; background: var(--white); border-radius: 24rpx 24rpx 0 0;
+  width: 100%; background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 24rpx; box-sizing: border-box; max-height: 70vh; display: flex; flex-direction: column;
 }
 .sku-head { display: flex; align-items: center; }

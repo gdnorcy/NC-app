@@ -173,5 +173,5 @@ const realSub = computed(() => {
 .tt-bar-mid { width: 52%; }
 .tt-bar-dim { opacity: .55; }
 .tt-rule { height: 2rpx; width: 60%; margin-top: 3rpx; border-radius: 1rpx; }
-.tt-name-mag { font-size: 20rpx; }
+.tt-name-mag { font-size: var(--fs-1); }
 </style>
