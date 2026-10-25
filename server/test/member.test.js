@@ -12,6 +12,9 @@ import { PaymentService } from '../src/services/payment.js';
 
 describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
   let db, member;
+  // 等级 id 由 addLevel 返回（member_levels.id 是全局自增，播种默认档位后不再是 1/2，不能写死）
+  let lv1Id = 0;
+  let lv2Id = 0;
   const DB_PATH = path.join(os.tmpdir(), `member-test-${Date.now()}.db`);
   const TENANT = 99902;
 
@@ -36,12 +39,14 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
   it('等级：新增/列表/更新/默认值', () => {
     const lv = member.addLevel(TENANT, { levelNo: 1, name: '一级会员', buyPrice: 1000, consumeAmount: 0 });
     assert.ok(lv.id);
+    lv1Id = lv.id;
     assert.equal(lv.name, '一级会员');
     assert.equal(lv.status, 1);
     assert.equal(lv.upgrade_mode, 'consume');
     assert.deepEqual(lv.benefits, {});
     const lv2 = member.addLevel(TENANT, { levelNo: 2, name: '二级会员', upgradeMode: 'apply', benefits: { discount: 9 } });
     assert.equal(lv2.benefits.discount, 9);
+    lv2Id = lv2.id;
     const list = member.listLevels(TENANT);
     assert.equal(list.length, 2);
     assert.equal(list[0].level_no, 1);
@@ -52,8 +57,8 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
   });
 
   it('等级：有会员使用时禁止删除', () => {
-    member.openCard(TENANT, 3000, 1, 'auto');
-    const r = member.deleteLevel(TENANT, 1);
+    member.openCard(TENANT, 3000, lv1Id, 'auto');
+    const r = member.deleteLevel(TENANT, lv1Id);
     assert.equal(r.ok, false);
     assert.match(r.error, /禁止删除/);
   });
@@ -103,11 +108,11 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
   });
 
   it('开卡：生成卡号/写开卡记录/等级更新', () => {
-    const r = member.openCard(TENANT, 3001, 2, 'buy');
+    const r = member.openCard(TENANT, 3001, lv2Id, 'buy');
     assert.ok(r.ok);
     assert.ok(r.cardNo.length >= 10);
     const mu = member.getMemberUser(TENANT, 3001);
-    assert.equal(mu.level_id, 2);
+    assert.equal(mu.level_id, lv2Id);
     assert.ok(mu.card_no);
     const cards = member.listCards(TENANT, {});
     assert.ok(cards.total >= 1);
@@ -121,7 +126,7 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
     assert.equal(members.total, 2);
     const non = member.listUsers(TENANT, { identity: 'nonmember' });
     assert.equal(non.total, 2);
-    const lv1 = member.listUsers(TENANT, { identity: '1' });
+    const lv1 = member.listUsers(TENANT, { identity: String(lv1Id) });
     assert.equal(lv1.total, 1);
     assert.equal(lv1.users[0].id, 3000);
     const kw = member.listUsers(TENANT, { keyword: '13800000001' });
@@ -150,9 +155,9 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
   });
 
   it('申请：提交/重复拒绝/审核通过开卡/驳回必填原因', () => {
-    const ap = member.apply(TENANT, 3002, { name: '普通丙', phone: '13800000003', levelId: 2 });
+    const ap = member.apply(TENANT, 3002, { name: '普通丙', phone: '13800000003', levelId: lv2Id });
     assert.ok(ap.ok);
-    const dup = member.apply(TENANT, 3002, { name: '普通丙', levelId: 2 });
+    const dup = member.apply(TENANT, 3002, { name: '普通丙', levelId: lv2Id });
     assert.equal(dup.ok, false);
     // 驳回缺原因
     const rj = member.reviewApply(TENANT, ap.id, 'reject', '');
@@ -161,9 +166,9 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
     const rv = member.reviewApply(TENANT, ap.id, 'approve');
     assert.ok(rv.ok);
     const mu = member.getMemberUser(TENANT, 3002);
-    assert.equal(mu.level_id, 2);
+    assert.equal(mu.level_id, lv2Id);
     // 再次提交应拒绝（已通过）
-    const again = member.apply(TENANT, 3002, { name: '普通丙', levelId: 2 });
+    const again = member.apply(TENANT, 3002, { name: '普通丙', levelId: lv2Id });
     assert.equal(again.ok, false);
   });
 
@@ -200,10 +205,10 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
   });
 
   it('支付回调开卡：openCardByOrder 写入会员+消费流水', () => {
-    const r = member.openCardByOrder({ status: 'paid', customerId: TENANT, userId: 3003, productId: 1, amount: 2000, productName: '一级会员', orderNo: 'PAYM001' });
+    const r = member.openCardByOrder({ status: 'paid', customerId: TENANT, userId: 3003, productId: lv1Id, amount: 2000, productName: '一级会员', orderNo: 'PAYM001' });
     assert.ok(r && r.ok);
     const mu = member.getMemberUser(TENANT, 3003);
-    assert.equal(mu.level_id, 1);
+    assert.equal(mu.level_id, lv1Id);
     const logs = member.listLogs(TENANT, { keyword: 'PAYM001' });
     assert.equal(logs.total, 1);
     assert.equal(logs.logs[0].amount, -2000);

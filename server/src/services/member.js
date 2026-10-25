@@ -16,6 +16,170 @@ function parseJson(s, fallback) {
   try { return JSON.parse(s || '') || fallback; } catch { return fallback; }
 }
 
+/**
+ * 应用级会员权益解析（"平台权益目录 + 租户套餐 × 应用"模型的单一事实来源）。
+ *
+ * 设计要点：
+ * - 权益维度由平台统一定义在 `benefit_catalog`（type / app_scope / kind / default_value），
+ *   租户只能配已有 type 的值，不能自建 type。
+ * - 套餐 = `member_levels` 一行；每套餐在每个已开通应用上的权益存放于
+ *   `member_level_app_benefits`（UNIQUE(tenant_id, level_id, app_code)）。
+ * - 解析结果 = 目录默认 ⊕ 套餐在该应用的覆盖；非会员 / 过期 / 无等级 → 仅目录默认值。
+ * - 会员身份是租户级统一（`member_user(tenant_id, user_id)`），权益按应用兑现，不拆 per-app。
+ *
+ * 🔴 与旧 benefits.js / quota.js（读 platform_user.member_level + member_package）隔离：
+ *   本模块是新旧模型之间的桥。P1d/P1e 起，benefits.js / quota.js 改调本解析器。
+ */
+
+/** 权益值按 kind 还原为 JS 类型 */
+export function castBenefit(value, kind) {
+  if (kind === 'number') return Number(value ?? 0);
+  if (kind === 'switch') return Number(value ?? 0) === 1;
+  return value ?? ''; // text
+}
+
+/**
+ * 平台硬上限（绝对天花板，租户套餐权益取 min）。单位与 catalog 一致。
+ * 与租户套餐权益分层：租户配得再高也不超过这里。
+ */
+export const HARD_CAPS = {
+  works_limit: 500,
+  videos_limit: 50,
+  collect_limit: 500,
+  lead_quota: 1000,
+  push_quota: 5000,
+};
+
+/**
+ * 租户默认套餐档位（member_package 的「种子模板」）。
+ * 落地为：每个租户的 member_levels（pkg_level 标记）+ member_level_app_benefits（按应用拆分）。
+ * 同时作为过渡期兜底：platform_user.member_level 旧档 → 本模板（保证存量 VIP 权益不丢失，
+ * 直到 migrateLegacyMemberVip 把其转为 member_user）。
+ */
+export const TIER_PKG = {
+  free:    { name: '免费版', price: 0,   card: { works_limit: 3, videos_limit: 0,  collect_limit: 0, custom_works_label: 0, voice_enabled: 0, no_ads: 0, all_template: 0 },
+                       member: { badge: 0, advanced_stats: 0, priority_support: 0, enterprise: 0, ai_report: 0, ai_words: 0, point_rate: 1, rebate: 0 },
+                       mall: { discount: 0, price_visible: 0 }, market: { market_subject: 0 }, radar: { lead_quota: 0, push_quota: 0 } },
+  silver:  { name: '白银会员', price: 29.9, card: { works_limit: 15, videos_limit: 2, collect_limit: 0, custom_works_label: 1, voice_enabled: 1, no_ads: 1, all_template: 1 },
+                       member: { badge: 0, advanced_stats: 0, priority_support: 0, enterprise: 0, ai_report: 1, ai_words: 0, point_rate: 1, rebate: 0 },
+                       mall: { discount: 0, price_visible: 0 }, market: { market_subject: 1 }, radar: { lead_quota: 0, push_quota: 0 } },
+  gold:    { name: '黄金会员', price: 99,  card: { works_limit: 40, videos_limit: 6, collect_limit: 0, custom_works_label: 1, voice_enabled: 1, no_ads: 1, all_template: 1 },
+                       member: { badge: 1, advanced_stats: 0, priority_support: 0, enterprise: 0, ai_report: 1, ai_words: 1, point_rate: 1, rebate: 0 },
+                       mall: { discount: 0, price_visible: 0 }, market: { market_subject: 1 }, radar: { lead_quota: 50, push_quota: 0 } },
+  diamond: { name: '钻石会员', price: 299, card: { works_limit: 120, videos_limit: 20, collect_limit: 0, custom_works_label: 1, voice_enabled: 1, no_ads: 1, all_template: 1 },
+                       member: { badge: 1, advanced_stats: 1, priority_support: 1, enterprise: 1, ai_report: 1, ai_words: 1, point_rate: 1, rebate: 0 },
+                       mall: { discount: 0, price_visible: 0 }, market: { market_subject: 1 }, radar: { lead_quota: 50, push_quota: 100 } },
+};
+
+/** 从 userId 反查其所属租户（platform_user.customer_id）。无则 null。 */
+export function tenantOfUser(db, userId) {
+  if (!userId) return null;
+  const r = db.prepare('SELECT customer_id FROM platform_user WHERE id = ?').get(userId);
+  return r && r.customer_id ? r.customer_id : null;
+}
+
+/** 某应用的全量默认权益（来自 benefit_catalog 目录默认值） */
+export function defaultBenefits(db, appCode) {
+  const rows = db.prepare(
+    `SELECT type, default_value, kind FROM benefit_catalog
+     WHERE app_scope = '*' OR app_scope LIKE ?
+     ORDER BY sort_order ASC`
+  ).all(`%${appCode}%`);
+  const out = {};
+  for (const r of rows) out[r.type] = castBenefit(r.default_value, r.kind);
+  return out;
+}
+
+/** 把覆盖权益按 catalog kind 还原，并施加平台硬上限 */
+function applyBenefits(base, pkg, kinds) {
+  const out = { ...base };
+  for (const [k, v] of Object.entries(pkg || {})) out[k] = castBenefit(v, kinds[k] || 'number');
+  for (const k of Object.keys(HARD_CAPS)) if (typeof out[k] === 'number') out[k] = Math.min(out[k], HARD_CAPS[k]);
+  return out;
+}
+
+/**
+ * 有效会员身份解析（全库唯一会员判据，取代各处散读的 platform_user.member_level）。
+ *
+ * 事实来源顺序：
+ *   ① member_user(tenant_id, user_id) 有效（status='active' 且未过期）→ 新模型事实来源
+ *   ② 无 member_user 行 → 过渡期兜底 platform_user.member_level 旧镜像（存量 VIP 未迁完时）
+ *   ③ 有 member_user 行但已过期/停用 → 视为非会员（不再回落旧镜像，避免过期卡仍享权）
+ *
+ * @returns {null | {level:string, name:string, expireAt:string, source:'member_user'|'legacy_mirror'}}
+ */
+export function effectiveMembership(db, userId) {
+  if (!userId) return null;
+  const tid = tenantOfUser(db, userId);
+  if (tid) {
+    const mu = db.prepare(
+      `SELECT mu.level_id, mu.status, mu.expire_at, ml.name, ml.pkg_level
+       FROM member_user mu LEFT JOIN member_levels ml ON ml.id = mu.level_id
+       WHERE mu.tenant_id = ? AND mu.user_id = ?`
+    ).get(tid, userId);
+    if (mu && mu.level_id) {
+      const exp = mu.expire_at ? new Date(String(mu.expire_at).replace(' ', 'T')) : null;
+      const expired = exp && !Number.isNaN(exp.getTime()) && exp.getTime() < Date.now();
+      if (mu.status === 'active' && !expired) {
+        return { level: mu.pkg_level || 'custom', name: mu.name || '', expireAt: mu.expire_at || '', source: 'member_user' };
+      }
+      return null; // 已有会员身份行 → 以它为准（过期即失效）
+    }
+  }
+  // 过渡期兜底：旧 platform_user.member_level 镜像（存量 VIP 尚未迁到 member_user）
+  const u = db.prepare('SELECT member_level, member_expire_at FROM platform_user WHERE id = ?').get(userId);
+  if (u && u.member_level && u.member_level !== 'free') {
+    const exp = u.member_expire_at ? new Date(String(u.member_expire_at).replace(' ', 'T')) : null;
+    const expired = exp && !Number.isNaN(exp.getTime()) && exp.getTime() < Date.now();
+    if (!expired) {
+      const pkg = TIER_PKG[u.member_level];
+      return { level: u.member_level, name: pkg ? pkg.name : '', expireAt: u.member_expire_at || '', source: 'legacy_mirror' };
+    }
+  }
+  return null;
+}
+
+/**
+ * 解析用户在指定应用下的实际权益（"平台目录 + 租户套餐 × 应用"模型单一事实来源）。
+ * 优先级：member_user(有效) → 该应用权益矩阵；矩阵未配置该应用（存量自建等级）→ 回落旧档位模板；
+ *          无 member_user → 过渡期兜底 platform_user.member_level 旧档 → TIER_PKG；否则仅目录默认。
+ * @returns {object} 合并后的权益键值对（已施加平台硬上限）
+ */
+export function resolveAppBenefits(db, tenantId, userId, appCode) {
+  const base = defaultBenefits(db, appCode);
+  const kinds = Object.fromEntries(db.prepare('SELECT type, kind FROM benefit_catalog').all().map((r) => [r.type, r.kind]));
+  if (!userId) return applyBenefits(base, {}, kinds);
+
+  // 旧档位模板（存量自建等级未迁到矩阵时兜底；也让旧镜像在过渡期仍能兑现权益）
+  // ⚠️ 必须带有效期判定：旧 levelOf 口径是「过期 → free」，不能只看档位名。
+  const u = db.prepare('SELECT member_level, member_expire_at FROM platform_user WHERE id = ?').get(userId);
+  let legacy = null;
+  if (u && u.member_level && u.member_level !== 'free' && TIER_PKG[u.member_level] && TIER_PKG[u.member_level][appCode]) {
+    const exp = u.member_expire_at ? new Date(String(u.member_expire_at).replace(' ', 'T')) : null;
+    const expired = exp && !Number.isNaN(exp.getTime()) && exp.getTime() < Date.now();
+    if (!expired) legacy = TIER_PKG[u.member_level][appCode];
+  }
+
+  if (tenantId) {
+    const mu = db.prepare('SELECT level_id, status, expire_at FROM member_user WHERE tenant_id = ? AND user_id = ?').get(tenantId, userId);
+    if (mu && mu.level_id) {
+      const exp = mu.expire_at ? new Date(String(mu.expire_at).replace(' ', 'T')) : null;
+      if (mu.status === 'active' && (!exp || Number.isNaN(exp.getTime()) || exp.getTime() >= Date.now())) {
+        const row = db.prepare('SELECT benefits FROM member_level_app_benefits WHERE tenant_id = ? AND level_id = ? AND app_code = ?').get(tenantId, mu.level_id, appCode);
+        // 矩阵已配置 → 以租户配置为准
+        if (row) return applyBenefits(base, parseJson(row.benefits, {}), kinds);
+        // 矩阵未配置该应用（存量自建等级尚未迁到「套餐 × 应用」）→ 回落旧档位模板，避免存量用户降权
+        if (legacy) return applyBenefits(base, legacy, kinds);
+      }
+      // 有会员身份行但已过期/停用 → 不回落旧镜像（过期卡不再享权）
+      return applyBenefits(base, {}, kinds);
+    }
+  }
+  // 无 member_user（含未绑定租户的存量 VIP）→ 过渡期兜底：旧 platform_user.member_level 档位 → TIER_PKG 模板
+  if (legacy) return applyBenefits(base, legacy, kinds);
+  return applyBenefits(base, {}, kinds);
+}
+
 export function createMemberService(db) {
   // ---------------- 工具 ----------------
   function genCardNo() {
@@ -185,6 +349,14 @@ export function createMemberService(db) {
     db.prepare(
       "INSERT INTO member_cards (tenant_id, user_id, card_no, level_id, source, opened_at) VALUES (?,?,?,?,?, datetime('now'))"
     ).run(tenantId, userId, cardNo, levelId, source);
+    // 同步旧镜像 platform_user.member_level / member_expire_at：
+    // 新模型事实来源是 member_user，但仍有旧代码读这两个列（后台套餐降级、存量工具等），
+    // 不镜像会让「已开通会员」在旧读法里显示为 free。自建等级（pkg_level 为空）不镜像。
+    if (level.pkg_level) {
+      db.prepare(
+        "UPDATE platform_user SET member_level = ?, member_expire_at = ?, updated_at = datetime('now') WHERE id = ?"
+      ).run(level.pkg_level, expireAt, userId);
+    }
     return { ok: true, cardNo: cur && cur.card_no ? cur.card_no : cardNo };
   }
   /** 支付成功回调：会员卡购买开卡 */

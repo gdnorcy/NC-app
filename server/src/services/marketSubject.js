@@ -14,6 +14,7 @@
  *   - services/payment.js：activateCardMember 购买赠主体
  */
 import { checkTenantQuota, checkTenantSolutionQuota } from './billing.js';
+import { effectiveMembership } from './member.js';
 import { addOperationLog } from '../db.js';
 
 /** 读租户个人入驻模式（无设置行=默认 code，保守不改变存量行为） */
@@ -23,12 +24,11 @@ export function readIndividualJoinMode(db, customerId) {
 }
 
 /**
- * 会员是否有效（全库统一判据：member_level !== 'free' 且未过期）。
+ * 会员是否有效（全库统一判据：effectiveMembership —— member_user 事实来源 + 旧镜像兜底）。
  * 与 card.js /member/status 的 isMember 同口径（本地时区解析，避免两处偏差）。
  */
 export function isMemberActive(db, userId) {
-  const u = db.prepare('SELECT member_level, member_expire_at FROM platform_user WHERE id = ?').get(userId);
-  return !!u && u.member_level !== 'free' && !!u.member_expire_at && new Date(u.member_expire_at) > new Date();
+  return !!effectiveMembership(db, userId);
 }
 
 /**
