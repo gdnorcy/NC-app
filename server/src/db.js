@@ -3662,30 +3662,75 @@ function seedMember(db) {
 }
 
 /**
+ * 判断存量等级是否「未启用任何自定义权益」（member_levels.benefits 旧 JSON）。
+ * 全是 {enabled:false} / 空值 → 视为空壳等级，可被标准档位认领（adopt）。
+ * 有任何启用项 → 管理员自定义过，绝不覆盖，另建标准档。
+ */
+function levelHasEnabledBenefits(json) {
+  try {
+    const obj = JSON.parse(json || '{}');
+    if (!obj || typeof obj !== 'object') return false;
+    for (const v of Object.values(obj)) {
+      if (v && typeof v === 'object') {
+        if ('enabled' in v) { if (v.enabled) return true; continue; }
+        if (Array.isArray(v)) { if (v.length) return true; continue; }
+        if (Object.keys(v).length) return true;
+        continue;
+      }
+      if (v !== null && v !== undefined && v !== '' && v !== false && v !== 0) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 租户会员套餐 P1f：把 member_package 的 free/silver/gold/diamond 四档作为种子模板，
  * 落到指定租户（tenant_id）的 member_levels（pkg_level 标记）+ member_level_app_benefits（按应用拆分 TIER_PKG）。
- * 幂等：该租户已有 member_levels 则跳过（不覆盖用户自定义）。
+ *
+ * 幂等：按 pkg_level 标记判重——已播种过的标准档不重复建、不覆盖其矩阵。
+ * 存量租户若已有名为「免费版/白银会员/黄金会员/钻石会员」且未启用任何自定义权益的等级，
+ *   → 认领为对应标准档（adopt）：既避免重复名，也让该档存量成员真正拿到该档权益
+ *     （否则该等级无权益矩阵 = 名为黄金会员却只给 free 权益的空头套餐）。
+ * 同名但启用过自定义权益的等级 → 不认领，另建标准档（名称加「（标准档）」后缀避让）。
+ * 其它自建等级 → 一律不动（无矩阵 → resolver 回落到旧镜像兜底，存量权益不降权）。
+ *
  * 供：① 启动时为存量租户播种；② 新租户首次进入会员模块时懒加载调用。
  */
 export function ensureTenantDefaultLevels(db, tenantId) {
   if (!tableExists(db, 'member_level_app_benefits')) return;
-  const cnt = db.prepare('SELECT COUNT(*) AS c FROM member_levels WHERE tenant_id = ?').get(tenantId);
-  if (cnt.c > 0) return;
-  let sort = 0;
+  let sort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) AS s FROM member_levels WHERE tenant_id = ?').get(tenantId).s;
+  let levelNo = db.prepare('SELECT COALESCE(MAX(level_no), 0) AS n FROM member_levels WHERE tenant_id = ?').get(tenantId).n;
   for (const tier of ['free', 'silver', 'gold', 'diamond']) {
     const pkg = TIER_PKG[tier];
     if (!pkg) continue;
-    const info = db.prepare(
-      `INSERT INTO member_levels (tenant_id, level_no, name, status, upgrade_mode, consume_amount, buy_price, benefits, sort_order, pkg_level, review_mode, valid_days)
-       VALUES (?,?,?,1,'consume',0,?, '{}', ?, ?, 'manual', 0)`
-    ).run(tenantId, sort + 1, pkg.name, Math.round((pkg.price || 0) * 100), sort + 1, tier);
-    const levelId = info.lastInsertRowid;
+    // 已播种过的标准档：只补齐缺失的矩阵行，不覆盖已有配置
+    const seeded = db.prepare('SELECT id FROM member_levels WHERE tenant_id = ? AND pkg_level = ?').get(tenantId, tier);
+    let levelId = seeded ? seeded.id : null;
+    if (!levelId) {
+      const same = db.prepare('SELECT id, benefits FROM member_levels WHERE tenant_id = ? AND name = ?').get(tenantId, pkg.name);
+      if (same && !levelHasEnabledBenefits(same.benefits)) {
+        // 认领存量同名空壳等级
+        db.prepare('UPDATE member_levels SET pkg_level = ? WHERE id = ?').run(tier, same.id);
+        levelId = same.id;
+      } else {
+        // 同名但有自定义权益（或无同名）：另建标准档，名称避让
+        const name = same ? `${pkg.name}（标准档）` : pkg.name;
+        sort += 1;
+        levelNo += 1;
+        const info = db.prepare(
+          `INSERT INTO member_levels (tenant_id, level_no, name, status, upgrade_mode, consume_amount, buy_price, benefits, sort_order, pkg_level, review_mode, valid_days)
+           VALUES (?,?,?,1,'consume',0,?, '{}', ?, ?, 'manual', 0)`
+        ).run(tenantId, levelNo, name, Math.round((pkg.price || 0) * 100), sort, tier);
+        levelId = info.lastInsertRowid;
+      }
+    }
     for (const [appCode, benefits] of Object.entries(pkg)) {
       if (appCode === 'name' || appCode === 'price') continue; // 元字段跳过
       db.prepare('INSERT OR IGNORE INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits) VALUES (?,?,?,?)')
         .run(tenantId, levelId, appCode, JSON.stringify(benefits));
     }
-    sort++;
   }
 }
 
