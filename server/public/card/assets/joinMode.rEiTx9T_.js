@@ -1,0 +1,1 @@
+import{H as n}from"./index-Bk98BEp0.js";function c(){try{const c=n("channel_config"),r=c&&c.individualJoinMode;return"purchase"===r||"apply"===r?r:"code"}catch{return"code"}}function r(){try{const c=n("channel_config");return c&&(c.brandName||c.customerName)||""}catch{return""}}export{r as a,c as g};
