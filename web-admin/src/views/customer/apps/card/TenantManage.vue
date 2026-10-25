@@ -29,11 +29,6 @@
             <SIcon name="dynamic" size="small" color="#fff" />
             刷新
           </el-button>
-          <!-- 第21轮：个人入驻凭证改为兑换码，从入驻管理直达生成页 -->
-          <el-button @click="router.push('/apps/card/join-codes')">
-            <SIcon name="voucher" size="small" color="#4e5969" />
-            入驻兑换码
-          </el-button>
         </div>
 
         <el-table :data="filteredIndividuals" style="width: 100%" size="default">
@@ -80,6 +75,11 @@
           <el-button type="primary" @click="loadEnterprises">
             <SIcon name="dynamic" size="small" color="#fff" />
             刷新
+          </el-button>
+          <!-- 第21轮：企业入驻凭证改为兑换码，从入驻管理直达生成页 -->
+          <el-button @click="router.push('/apps/card/join-codes')">
+            <SIcon name="voucher" size="small" color="#4e5969" />
+            入驻兑换码
           </el-button>
         </div>
 

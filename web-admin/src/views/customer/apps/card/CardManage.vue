@@ -136,6 +136,19 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="会员套餐" width="160">
+          <template #default="{ row }">
+            <template v-if="row.memberLevel && row.memberLevel !== 'free' && packageMap[row.memberLevel]">
+              <el-tag size="small" effect="plain" :type="isMemberExpired(row) ? 'info' : 'warning'">
+                {{ packageMap[row.memberLevel].name }}
+              </el-tag>
+              <div class="pkg-sub" v-if="row.memberExpireAt">
+                {{ isMemberExpired(row) ? '已过期' : '有效至 ' + formatDate(row.memberExpireAt) }}
+              </div>
+            </template>
+            <span v-else class="muted">未开通</span>
+          </template>
+        </el-table-column>
         <el-table-column label="手机号" width="130">
           <template #default="{ row }">
             <span>{{ row.phone || '—' }}</span>
@@ -224,12 +237,32 @@ const market = ref('');
 const subject = ref('person');
 const loading = ref(false);
 const stats = ref({ cardCount: 0, personCardCount: 0, enterpriseCardCount: 0, publicCount: 0, marketApproved: 0, marketPending: 0 });
+// 会员套餐等级名映射（level → { name, ... }），用于「会员套餐」列展示
+const packageMap = ref({});
 
-onMounted(() => loadCards());
+onMounted(() => { loadCards(); loadPackages(); });
 
 function formatDate(d) {
   if (!d) return '-';
   return String(d).substring(0, 10);
+}
+
+// 会员套餐（名片主人账号级 VIP）：拉套餐等级名映射，用于表格「会员套餐」列
+async function loadPackages() {
+  try {
+    const res = await publicApi.get('/card/member/packages');
+    const m = {};
+    for (const p of (res.packages || [])) m[p.level] = p;
+    packageMap.value = m;
+  } catch (e) {
+    console.error('加载会员套餐失败', e);
+  }
+}
+
+// 会员是否过期：无过期时间视为有效（历史上部分账号仅置等级未置过期时间）
+function isMemberExpired(row) {
+  if (!row.memberExpireAt) return false;
+  return new Date(String(row.memberExpireAt).replace(' ', 'T')) < new Date();
 }
 
 // 身份三组配色（2026-10-20 重构后 identity 四值：employee/individual/enterprise/personal）
@@ -360,6 +393,7 @@ async function forceRemove(row) {
 .cell-name { font-size: 13px; color: #1d2129; }
 .cell-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
 .muted { color: #a9aeb8; font-size: 12px; }
+.pkg-sub { font-size: 12px; color: #86909c; margin-top: 2px; }
 .empty-state { display: flex; flex-direction: column; align-items: center; padding: 60px 0; }
 .empty-text { font-size: 14px; color: #4e5969; margin-top: 12px; }
 .empty-hint { font-size: 12px; color: #86909c; margin-top: 4px; }

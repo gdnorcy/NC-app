@@ -1173,7 +1173,7 @@ router.get('/card/manage', requireTenant, (req, res) => {
     params.push(cid, market);
   }
   const cards = db.prepare(`
-    SELECT c.*, u.nickname, u.avatar as user_avatar, u.member_level, u.enterprise_id as user_enterprise_id,
+    SELECT c.*, u.nickname, u.avatar as user_avatar, u.member_level, u.member_expire_at, u.enterprise_id as user_enterprise_id,
       ${CARD_IDENTITY_SQL} AS identity,
       ${MARKET_STATUS_SQL} AS market_status,
       (SELECT mi.id FROM card_market_items mi
@@ -1218,7 +1218,7 @@ router.get('/card/manage', requireTenant, (req, res) => {
   res.json({ cards: cards.map(c => ({
     id: c.id, userId: c.user_id, name: c.name, position: c.position, company: c.company,
     phone: c.phone, avatar: c.avatar, viewCount: c.view_count, exchangeCount: c.exchange_count,
-    isPublic: !!c.is_public, memberLevel: c.member_level, createdAt: c.created_at,
+    isPublic: !!c.is_public, memberLevel: c.member_level, memberExpireAt: c.member_expire_at, createdAt: c.created_at,
     identity: c.identity, identityLabel: IDENTITY_LABEL[c.identity] || '未认证个人',
     identityHint: IDENTITY_HINT[c.identity] || IDENTITY_HINT.personal,
     subjectType: subjectTypeOf(c.identity),
