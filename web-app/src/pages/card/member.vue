@@ -70,21 +70,14 @@
       </view>
     </block>
 
-    <!-- ===== 第21轮：我的权益（套餐里配的权益在这里对齐实况，避免「买了看不见、配了不生效」） ===== -->
-    <block v-if="entitlements">
+    <!-- ===== 第22轮：我的权益（按应用分区全量展示：平台目录 ⊕ 租户矩阵，含已用量） ===== -->
+    <block v-if="appBenefits.length">
       <view class="sec-t">我的权益<small>{{ currentLevelText || '免费版' }}</small></view>
-      <view class="ent-card">
-        <view class="ent-row">
-          <text class="ent-k">语音简介</text>
-          <text class="ent-v" :class="{ off: !entitlements.voice }">{{ entitlements.voice ? '已开通' : '未开通' }}</text>
-        </view>
-        <view class="ent-row">
-          <text class="ent-k">名片模板折扣</text>
-          <text class="ent-v" :class="{ off: !(entitlements.discount < 1) }">{{ entitlements.discount < 1 ? discountText(entitlements.discount) : '无折扣' }}</text>
-        </view>
-        <view class="ent-row" v-for="q in quotaRows" :key="q.key">
-          <text class="ent-k">{{ q.label }}</text>
-          <text class="ent-v">{{ q.unlimited ? '不限' : q.used + ' / ' + q.limit }}</text>
+      <view class="ent-card" v-for="app in appBenefits" :key="app.code">
+        <view class="ent-app">{{ app.name }}</view>
+        <view class="ent-row" v-for="it in app.items" :key="it.type">
+          <text class="ent-k">{{ it.label }}</text>
+          <text class="ent-v" :class="{ off: isEntOff(it) }">{{ entValueText(it) }}</text>
         </view>
       </view>
     </block>
@@ -170,6 +163,8 @@ const memberLevel = ref('free');
 const memberExpire = ref('');
 // 第21轮：套餐权益实况（/member/status 的 entitlements），让「买了什么」在会员中心对得上
 const entitlements = ref(null);
+// 第22轮：按应用分区的全量权益（/member/status 的 appBenefits），含目录/矩阵/已用量
+const appBenefits = ref([]);
 // 套餐点选态（cur=真实会员等级，sel=点选高亮——用户反馈「选中状态不会变化」）
 const selectedLevel = ref('free');
 function selectPlan(level) { selectedLevel.value = level; }
@@ -239,6 +234,7 @@ onMounted(async () => {
     selectedLevel.value = memberRes.level || 'free';
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
     entitlements.value = memberRes.entitlements || null;
+    appBenefits.value = memberRes.appBenefits || [];
     // 租户会员卡：未入驻租户不展示区块
     if (tCardRes && !tCardRes.unbound) {
       memberCard.value = tCardRes.card;
@@ -367,21 +363,31 @@ function priceUnit(p) {
 }
 
 /** 折扣数值 → 中文几折（0.85 → 8.5 折） */
-function discountText(d) {
-  const n = Math.round(Number(d) * 100) / 10;
-  return `${n} 折`;
+/**
+ * 折扣文案（第22轮起 mall.discount 为百分比口径：0=无折扣，10=打9折，80=打二折）。
+ * 🔴 旧版按小数口径（0.8→8折）已在百分比模型下彻底错乱，勿回退。
+ */
+function discountText(pct) {
+  const n = Number(pct) || 0;
+  if (n <= 0 || n >= 100) return n >= 100 ? '免单' : '无折扣';
+  const zhe = (100 - n) / 10;
+  return `${Number.isInteger(zhe) ? zhe : zhe.toFixed(1)} 折`;
 }
 
-/** 配额类权益行（推送/留资/收藏），未配置(0)展示为不限 */
-const quotaRows = computed(() => {
-  const e = entitlements.value;
-  if (!e) return [];
-  return [
-    { key: 'push', label: '雷达推送', ...e.push },
-    { key: 'lead', label: '无感留资', ...e.lead },
-    { key: 'collect', label: '名片收藏', ...e.collect },
-  ];
-});
+/** 权益行取值文案：switch→开通态；折扣→折数；配额→已用/上限（0=不限）；其余→值+单位 */
+function entValueText(it) {
+  if (it.kind === 'switch') return it.value ? '已开通' : '未开通';
+  if (it.type === 'discount') return discountText(it.value);
+  if (it.used != null) return Number(it.value) > 0 ? `${it.used} / ${it.value}${it.unit ? ' ' + it.unit : ''}` : '不限';
+  return `${it.value}${it.unit ? ' ' + it.unit : ''}`;
+}
+
+/** 权益行是否置灰（未开通/无折扣） */
+function isEntOff(it) {
+  if (it.kind === 'switch') return !it.value;
+  if (it.type === 'discount') return !(Number(it.value) > 0);
+  return false;
+}
 
 function getFeatureTexts(features) {
   const map = {
@@ -584,7 +590,13 @@ async function openMember(pkg) {
   color: var(--t4);
   margin-left: 4rpx;
 }
-/* 第21轮：我的权益（套餐实况） */
+/* 第21轮：我的权益（套餐实况）；第22轮改按应用分区（每应用一张卡） */
+.ent-app {
+  padding: 20rpx 0 6rpx;
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--t1);
+}
 .ent-card {
   background: var(--white);
   border-radius: var(--radius-md);

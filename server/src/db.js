@@ -2234,6 +2234,8 @@ function migrate(db) {
   // —— 会员套餐 P1f：租户默认套餐（member_package 种子模板）→ member_levels + member_level_app_benefits；存量平台 VIP 迁移 ——
   seedTenantMemberPackages(db);
   migrateLegacyMemberVip(db);
+  // P1g：存量旧 benefits JSON（4 字段）→ 权益矩阵；必须晚于上面的标准档播种（键级合并）
+  migrateLegacyLevelBenefits(db);
 
   // —— 内容体系（1:1 复刻菜鸟云「东莞同城通」内容：文章/组图/视频/评论/基础设置）——
   seedContent(db);
@@ -3522,7 +3524,7 @@ function seedMember(db) {
       buy_price INTEGER NOT NULL DEFAULT 0,         -- 直接购买价格（分）
       buy_product TEXT NOT NULL DEFAULT '',         -- 购买商品（待接入商城）
       form_id INTEGER DEFAULT 0,                    -- 升级表单（申请模式，预留）
-      benefits TEXT NOT NULL DEFAULT '{}',          -- 会员权益 JSON：{coupon:{...},post_free,discount,score_multiple,point_back,view_levels:[],custom:[]}
+      benefits TEXT NOT NULL DEFAULT '{}',          -- ⚠️ legacy：旧 4 字段 JSON（discount/scoreMultiple/pointBack/viewPrice），P1g 起不再消费，历史数据由 migrateLegacyLevelBenefits 迁入矩阵
       description TEXT NOT NULL DEFAULT '',         -- 等级说明（最多200字）
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -3766,6 +3768,62 @@ function migrateLegacyMemberVip(db) {
         .run(tid, u.id, lvl.id, status, expire);
     }
   }
+}
+
+/**
+ * 存量迁移：member_levels.benefits 旧 4 字段 JSON → member_level_app_benefits 权益矩阵。
+ *
+ * 旧 4 字段（租户后台「会员等级」弹窗历史形态，P1 起只写不读的死数据）→ 新目录键：
+ *   discount.{enabled,value}      折率（8=八折）     → mall.discount      百分比（80=打八折，×10）
+ *   viewPrice.{enabled}           开关                → mall.price_visible
+ *   scoreMultiple.{enabled,value} 倍                  → member.point_rate  倍（原值）
+ *   pointBack.{enabled,value}     %                   → member.rebate      %（原值）
+ *
+ * 规则：
+ *   - 只迁 enabled 且 value>0 的字段；全 disabled → 不建行、不动矩阵（标准档保持种子值）。
+ *   - 与已有矩阵行键级合并：标准档种子值保留，旧配置只覆盖同键（如 discount）。
+ *   - 折率→百分比换算后 clamp [0,100]（旧 UI 允许填到 100 折，×10 会爆表）。
+ *   - 幂等：schema_marks 留痕（member_level_benefits_migrate_v1），重启不重播；
+ *     旧 JSON 不清除（留作历史记录，resolver 不再消费）。
+ * ⚠️ 必须跑在 ensureTenantDefaultLevels（标准档播种）之后，才能与种子矩阵正确合并。
+ */
+export function migrateLegacyLevelBenefits(db) {
+  if (!tableExists(db, 'member_level_app_benefits')) return;
+  if (markApplied(db, 'member_level_benefits_migrate_v1')) return;
+  const levels = db.prepare('SELECT id, tenant_id, benefits FROM member_levels').all();
+  for (const lv of levels) {
+    let b;
+    try { b = JSON.parse(lv.benefits || '{}'); } catch { continue; }
+    if (!b || typeof b !== 'object') continue;
+    // 旧字段 → { appCode: { catalogKey: value } }（只收 enabled 且 value>0 的项）
+    const patch = { mall: {}, member: {} };
+    if (b.discount && b.discount.enabled && Number(b.discount.value) > 0) {
+      patch.mall.discount = Math.min(100, Math.max(0, Math.round(Number(b.discount.value) * 10)));
+    }
+    if (b.viewPrice && b.viewPrice.enabled) patch.mall.price_visible = 1;
+    if (b.scoreMultiple && b.scoreMultiple.enabled && Number(b.scoreMultiple.value) > 0) {
+      patch.member.point_rate = Math.round(Number(b.scoreMultiple.value) * 100) / 100;
+    }
+    if (b.pointBack && b.pointBack.enabled && Number(b.pointBack.value) > 0) {
+      patch.member.rebate = Math.min(100, Math.max(0, Math.round(Number(b.pointBack.value))));
+    }
+    for (const [appCode, kv] of Object.entries(patch)) {
+      if (!Object.keys(kv).length) continue;
+      const row = db.prepare('SELECT benefits FROM member_level_app_benefits WHERE tenant_id = ? AND level_id = ? AND app_code = ?')
+        .get(lv.tenant_id, lv.id, appCode);
+      let cur = {};
+      if (row) { try { cur = JSON.parse(row.benefits || '{}') || {}; } catch { /* 坏 JSON 当空 */ } }
+      const merged = { ...cur, ...kv };
+      if (row) {
+        db.prepare('UPDATE member_level_app_benefits SET benefits = ? WHERE tenant_id = ? AND level_id = ? AND app_code = ?')
+          .run(JSON.stringify(merged), lv.tenant_id, lv.id, appCode);
+      } else {
+        db.prepare('INSERT INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits) VALUES (?,?,?,?)')
+          .run(lv.tenant_id, lv.id, appCode, JSON.stringify(merged));
+      }
+    }
+  }
+  setMark(db, 'member_level_benefits_migrate_v1');
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */

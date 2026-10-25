@@ -1812,6 +1812,21 @@ router.get('/card/trends', requireTenant, (req, res) => {
     res.json(r);
   });
 
+  // —— 会员等级 × 应用 权益矩阵（P1g：目录默认 ⊕ 租户覆盖，替代旧 benefits JSON 4 字段）——
+  router.get('/member/benefits/catalog', requireTenant, (req, res) => {
+    res.json(member.benefitsCatalog());
+  });
+  router.get('/member/levels/:id/benefits', requireTenant, (req, res) => {
+    const lv = member.getLevel(req.customerId, Number(req.params.id));
+    if (!lv) return res.status(404).json({ error: '等级不存在' });
+    res.json({ benefits: member.getLevelBenefits(req.customerId, Number(req.params.id)) });
+  });
+  router.put('/member/levels/:id/benefits', requireTenant, requireTenantAdmin, (req, res) => {
+    const r = member.saveLevelBenefits(req.customerId, Number(req.params.id), req.body.appCode, req.body.benefits);
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    res.json(r);
+  });
+
   // —— 会员设置 ——
   router.get('/member/settings', requireTenant, (req, res) => res.json({ settings: member.getSettings(req.customerId) }));
   router.put('/member/settings', requireTenant, requireTenantAdmin, (req, res) => {

@@ -448,28 +448,26 @@
           <el-input-number v-model="levelDlg.form.buyPrice" :min="0" :step="100" />
           <span class="form-tip">0 表示不可直接购买；支付成功自动开卡（单位：分）</span>
         </el-form-item>
-        <el-divider content-position="left">会员权益</el-divider>
-        <el-form-item label="会员折扣">
-          <el-switch v-model="levelDlg.form.benefits.discount.enabled" />
-          <span v-if="levelDlg.form.benefits.discount.enabled" class="ml8">
-            <el-input-number v-model="levelDlg.form.benefits.discount.value" :min="0" :max="100" size="small" /> 折
-          </span>
-        </el-form-item>
-        <el-form-item label="买送积分">
-          <el-switch v-model="levelDlg.form.benefits.scoreMultiple.enabled" />
-          <span v-if="levelDlg.form.benefits.scoreMultiple.enabled" class="ml8">
-            <el-input-number v-model="levelDlg.form.benefits.scoreMultiple.value" :min="0" size="small" /> 倍
-          </span>
-        </el-form-item>
-        <el-form-item label="积分回馈">
-          <el-switch v-model="levelDlg.form.benefits.pointBack.enabled" />
-          <span v-if="levelDlg.form.benefits.pointBack.enabled" class="ml8">
-            <el-input-number v-model="levelDlg.form.benefits.pointBack.value" :min="0" :max="100" size="small" /> %
-          </span>
-        </el-form-item>
-        <el-form-item label="查看会员价">
-          <el-switch v-model="levelDlg.form.benefits.viewPrice.enabled" />
-        </el-form-item>
+        <el-divider content-position="left">会员权益（按应用配置）</el-divider>
+        <div v-if="!benefitGroups.length" class="form-tip">权益目录加载中…</div>
+        <template v-for="g in benefitGroups" :key="g.code">
+          <div class="benefit-app-title">{{ g.name }}</div>
+          <el-form-item v-for="item in g.items" :key="item.type" :label="item.label" label-width="130px">
+            <el-switch v-if="item.kind === 'switch'" v-model="levelBenefits[g.code][item.type]" />
+            <template v-else-if="item.kind === 'number'">
+              <el-input-number
+                v-model="levelBenefits[g.code][item.type]"
+                :min="0"
+                :max="benefitCatalog.hardCaps[item.type] ?? 99999"
+                size="small"
+                controls-position="right"
+              />
+              <span class="ml8">{{ item.unit }}</span>
+              <span v-if="benefitCatalog.hardCaps[item.type]" class="form-tip ml8">平台上限 {{ benefitCatalog.hardCaps[item.type] }}{{ item.unit }}</span>
+            </template>
+            <el-input v-else v-model="levelBenefits[g.code][item.type]" size="small" class="w200" />
+          </el-form-item>
+        </template>
         <el-form-item label="等级说明">
           <el-input v-model="levelDlg.form.description" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="最多 200 字" />
         </el-form-item>
@@ -595,7 +593,37 @@ async function exportUsers() {
 const levels = ref([]);
 const levelDlg = reactive({ show: false, form: {} });
 const formOptions = ref([]);
-const emptyBenefits = () => ({ discount: { enabled: false, value: 0 }, scoreMultiple: { enabled: false, value: 0 }, pointBack: { enabled: false, value: 0 }, viewPrice: { enabled: false } });
+
+// —— 权益矩阵（平台目录 benefit_catalog ⊕ 租户矩阵 member_level_app_benefits）——
+const APP_NAMES = { card: '智能名片', member: '会员中心', mall: '商城', market: '集市', radar: '雷达拓客' };
+const benefitCatalog = ref({ catalog: [], hardCaps: {} });
+const levelBenefits = reactive({}); // 编辑器状态：{ [appCode]: { type: value } }
+let benefitSnapshot = '{}'; // 打开弹窗时的矩阵快照（JSON 串），仅保存有变化的应用，避免把目录默认物化为覆盖
+const castDefault = (item) => (item.kind === 'switch' ? Number(item.default_value) === 1 : item.kind === 'number' ? Number(item.default_value) || 0 : String(item.default_value ?? ''));
+const benefitGroups = computed(() => {
+  const globals = benefitCatalog.value.catalog.filter((i) => String(i.app_scope).split(',').map((s) => s.trim()).includes('*'));
+  const byApp = new Map();
+  for (const item of benefitCatalog.value.catalog) {
+    for (const scope of String(item.app_scope).split(',').map((s) => s.trim())) {
+      if (scope === '*') continue;
+      if (!byApp.has(scope)) byApp.set(scope, []);
+      byApp.get(scope).push(item);
+    }
+  }
+  return [...byApp.entries()].map(([code, items]) => ({
+    code,
+    name: APP_NAMES[code] || code,
+    items: [...items, ...globals].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+  }));
+});
+async function loadBenefitCatalog() {
+  try {
+    const res = await customerApiCall.get('/member/benefits/catalog');
+    benefitCatalog.value = { catalog: res.catalog || [], hardCaps: res.hardCaps || {} };
+  } catch (e) {
+    console.warn('[MemberHome] loadBenefitCatalog fail', e);
+  }
+}
 async function loadFormOptions() {
   try {
     const res = await publicApi.get('/card-market/forms');
@@ -629,9 +657,25 @@ function openLevelEdit(lv) {
         reviewMode: lv.review_mode || 'manual',
         validDays: lv.valid_days ?? 0,
         description: lv.description || '',
-        benefits: { ...emptyBenefits(), ...(lv.benefits || {}) },
       }
-    : { id: null, name: '', status: 1, levelNo: Math.min(nextNo, 50), icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, buyProduct: '', formId: 0, reviewMode: 'manual', validDays: 0, description: '', benefits: emptyBenefits() };
+    : { id: null, name: '', status: 1, levelNo: Math.min(nextNo, 50), icon: '', bgColor: '', textColor: '#ffffff', textShow: 1, upgradeMode: 'consume', consumeAmount: 0, buyPrice: 0, buyProduct: '', formId: 0, reviewMode: 'manual', validDays: 0, description: '' };
+  // 权益编辑器：先铺目录默认，再用该等级已有矩阵行覆盖（目录默认 ⊕ 覆盖的编辑态）
+  for (const g of benefitGroups.value) {
+    levelBenefits[g.code] = {};
+    for (const item of g.items) levelBenefits[g.code][item.type] = castDefault(item);
+  }
+  if (lv && lv.id) {
+    customerApiCall.get(`/member/levels/${lv.id}/benefits`)
+      .then((res) => {
+        for (const [app, kv] of Object.entries(res.benefits || {})) {
+          if (!levelBenefits[app]) levelBenefits[app] = {};
+          Object.assign(levelBenefits[app], kv);
+        }
+        benefitSnapshot = JSON.stringify(levelBenefits);
+      })
+      .catch((e) => console.warn('[MemberHome] loadLevelBenefits fail', e));
+  }
+  benefitSnapshot = JSON.stringify(levelBenefits);
   levelDlg.show = true;
 }
 async function saveLevel() {
@@ -639,8 +683,22 @@ async function saveLevel() {
   if (!f.name) return ElMessage.warning('请填写等级名称');
   saving.value = true;
   try {
+    let levelId = f.id;
     if (f.id) await customerApiCall.put(`/member/levels/${f.id}`, f);
-    else await customerApiCall.post('/member/levels', f);
+    else {
+      const r = await customerApiCall.post('/member/levels', f);
+      levelId = r?.level?.id;
+    }
+    // 权益矩阵：仅保存相对打开时有变化的应用（未动过的应用不物化覆盖，保留「回落目录默认/旧镜像」语义）
+    if (levelId) {
+      const before = JSON.parse(benefitSnapshot || '{}');
+      for (const g of benefitGroups.value) {
+        const next = levelBenefits[g.code] || {};
+        if (JSON.stringify(before[g.code] || {}) === JSON.stringify(next)) continue;
+        const res = await customerApiCall.put(`/member/levels/${levelId}/benefits`, { appCode: g.code, benefits: next });
+        if (res && res.ok === false) throw new Error(`${g.name}：${res.error || '保存失败'}`);
+      }
+    }
     ElMessage.success('保存成功');
     levelDlg.show = false;
     await loadLevels();
@@ -897,6 +955,7 @@ onMounted(() => {
   loadLogs();
   loadScoreLogs();
   loadFormOptions();
+  loadBenefitCatalog();
 });
 </script>
 
@@ -941,4 +1000,5 @@ onMounted(() => {
 .empty-tip { text-align: center; color: #86909c; padding: 24px 0; }
 .label-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .form-tip { margin-left: 10px; color: #86909c; font-size: 12px; }
+.benefit-app-title { margin: 4px 0 10px; padding-left: 8px; border-left: 3px solid #165dff; font-size: 13px; font-weight: 600; color: #1d2129; }
 </style>

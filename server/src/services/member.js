@@ -99,6 +99,49 @@ function applyBenefits(base, pkg, kinds) {
 }
 
 /**
+ * 写入侧校验：租户在某应用上的权益配置（租户后台保存矩阵前调用）。
+ *
+ * 规则（与读取侧 applyBenefits 的「静默截断」互补，这里是「超出拒绝」）：
+ *   - key 必须存在于 benefit_catalog，且 app_scope 覆盖该应用（'*' 或逗号列表含 appCode）
+ *   - switch 仅接受 0/1；number 仅接受有限且 ≥0 的值
+ *   - HARD_CAPS 内的项超出上限 → 整体拒绝（返回可展示的错误文案）
+ *   - 未知 key / 跨应用 key / 旧字段名（discount 折率 8、viewPrice 等）一律拒绝
+ *
+ * @returns {{ok:true, value:Object<string,number|string>} | {ok:false, error:string}}
+ */
+export function validateAppBenefits(db, appCode, benefits) {
+  if (!appCode || typeof appCode !== 'string') return { ok: false, error: 'app_code 不合法' };
+  if (!benefits || typeof benefits !== 'object' || Array.isArray(benefits)) {
+    return { ok: false, error: '权益配置必须为对象' };
+  }
+  const scopes = new Map();
+  for (const r of db.prepare('SELECT type, app_scope, kind FROM benefit_catalog').all()) {
+    if (r.app_scope === '*' || String(r.app_scope).split(',').map((s) => s.trim()).includes(appCode)) {
+      scopes.set(r.type, r.kind);
+    }
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(benefits)) {
+    const kind = scopes.get(k);
+    if (!kind) return { ok: false, error: `权益项「${k}」不在平台权益目录，或不属于该应用` };
+    if (kind === 'switch') {
+      const n = Number(v);
+      if (n !== 0 && n !== 1) return { ok: false, error: `权益项「${k}」只能开启(1)或关闭(0)` };
+      out[k] = n;
+    } else if (kind === 'number') {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0) return { ok: false, error: `权益项「${k}」必须为不小于 0 的数字` };
+      const cap = HARD_CAPS[k];
+      if (cap !== undefined && n > cap) return { ok: false, error: `权益项「${k}」不能超过平台上限 ${cap}` };
+      out[k] = n;
+    } else {
+      out[k] = String(v ?? '');
+    }
+  }
+  return { ok: true, value: out };
+}
+
+/**
  * 有效会员身份解析（全库唯一会员判据，取代各处散读的 platform_user.member_level）。
  *
  * 事实来源顺序：
@@ -251,6 +294,43 @@ export function createMemberService(db) {
     if (used) return { ok: false, error: '该等级已有会员使用，禁止删除' };
     db.prepare('DELETE FROM member_levels WHERE id = ? AND tenant_id = ?').run(id, tenantId);
     return { ok: true };
+  }
+
+  /**
+   * 保存某等级在某应用上的权益矩阵（整行覆盖语义，前端按应用分组编辑器提交）。
+   * - 等级必须属于该租户
+   * - appCode + benefits 过 validateAppBenefits：未知键 / 跨应用键 / 超 HARD_CAPS → 拒绝
+   * - UPSERT：UNIQUE(tenant_id, level_id, app_code)；空对象 = 清空覆盖（回落目录默认）
+   * @returns {{ok:true, benefits:Object} | {ok:false, error:string}}
+   */
+  function saveLevelBenefits(tenantId, levelId, appCode, benefits) {
+    const lv = db.prepare('SELECT id FROM member_levels WHERE id = ? AND tenant_id = ?').get(levelId, tenantId);
+    if (!lv) return { ok: false, error: '等级不存在' };
+    const v = validateAppBenefits(db, appCode, benefits);
+    if (!v.ok) return { ok: false, error: v.error };
+    db.prepare(
+      `INSERT INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits)
+       VALUES (?,?,?,?)
+       ON CONFLICT(tenant_id, level_id, app_code) DO UPDATE SET benefits = excluded.benefits, updated_at = datetime('now')`
+    ).run(tenantId, levelId, appCode, JSON.stringify(v.value));
+    return { ok: true, benefits: v.value };
+  }
+
+  /** 某等级的全部矩阵行（前端编辑弹窗回显）：{ [appCode]: {type:value} } */
+  function getLevelBenefits(tenantId, levelId) {
+    const rows = db.prepare('SELECT app_code, benefits FROM member_level_app_benefits WHERE tenant_id = ? AND level_id = ?')
+      .all(tenantId, levelId);
+    const out = {};
+    for (const r of rows) out[r.app_code] = parseJson(r.benefits, {});
+    return out;
+  }
+
+  /** 平台权益目录全量 + 硬上限（前端按 app_scope 分组渲染编辑器；租户只能配已有 type） */
+  function benefitsCatalog() {
+    return {
+      catalog: db.prepare('SELECT type, app_scope, kind, unit, default_value, label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all(),
+      hardCaps: HARD_CAPS,
+    };
   }
 
   // ---------------- 会员设置 ----------------
@@ -650,6 +730,7 @@ export function createMemberService(db) {
 
   return {
     genCardNo, getLevel, listLevels, addLevel, updateLevel, deleteLevel,
+    saveLevelBenefits, getLevelBenefits, benefitsCatalog,
     getSettings, saveSettings,
     listLabels, addLabel, deleteLabel, renameLabel, setUserLabels, userLabels,
     getMemberUser, openCard, openCardByOrder,

@@ -68,6 +68,13 @@
 - 🔴 web-app/dist/build/mp-weixin（uni 原始产物）与 server/mini-template/mp-weixin（自运营工程目录）应同源，但后者常被部署末尾 git checkout -- 还原成陈旧版（sync 只 cpSync 不清旧文件）。**交付包一律从 dist 取**，用 BUILD.txt built at + git HEAD 验新鲜度（曾把 10-18 旧包打包给用户）。运行时代码两边一致，差异只在 app.json 页数与 permission。
 - 🔴「devtools 模拟器空白、真机有内容」= 请求级失败（/api/channel/init 拿不到 tenant 就整页没数据）。排查：① devtools 勾「不校验合法域名/web-view/TLS/HTTPS 证书」（MP 端 API_HOST 硬编 https://zero.nshop.mobi）② 项目 AppID 别用测试号（touristappid → configured:false）。curl /api/channel/init?appid= 真 appid 应回 customerId>0。
 
+## 租户会员套餐（权益矩阵模型）
+- 单一事实来源：`benefit_catalog`（平台目录 20 项：type/app_scope/kind/unit/default/label，租户只能配已有 type）+ `member_level_app_benefits`（套餐×应用矩阵，UNIQUE(tenant_id,level_id,app_code)）+ `member_user` 身份。`member_package` 已退化为新租户种子模板 + 售卖档位源（运行时近乎死表，仅 payment.js 读）；旧 `member_levels.benefits` JSON 是死数据（migrateLegacyLevelBenefits 迁过一次，禁再消费/禁回写）。
+- discount 归属=**租户定**（后台按档位×应用配）；语义=**百分比**（0=无折扣/10=打9折/80=打二折），旧折率×10 换算。HARD_CAPS（works500/videos50/collect500/lead1000/push5000）读取侧静默截断 + 写入侧 validateAppBenefits 整体拒绝，两层互补。
+- 积分公式（payment.js awardOrderPoints）：`⌊金额(元)×point_rate⌋ + ⌊金额(元)×rebate%⌋`（金额单位分）；note 带订单号幂等；refundOrder 同步 clawback（负向流水+幂等）；free 默认倍率 1 → 非会员也按 1 元 1 分。
+- 后台矩阵编辑器关键设计：编辑器=目录默认⊕矩阵覆盖，保存时**只 PUT 相对打开时有变化的应用**（快照脏比对）——未动过的应用不物化覆盖，否则自定义档被塞默认行会丢「回落旧镜像」兜底。
+- C 端 /member/status 的 appBenefits 按应用分组（catalog app_scope 分组，'*' 挂所有应用；应用名取 solutions.name）。
+
 ## 业务口径 / 测试坑
 - 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；名片身份 services/cardIdentity.js（四值，能力判据只读名册不读 identity）。SaaS 每客户一小程序走微信第三方平台代开发；库同步：backup 快照→留 admin 凭证→户口重置→ghfast 镜像传→停服换库。
 - 两个口令别混：projects.invite_code（P 开头）= 租户绑定，个人/企业入驻共用；tenant_enterprises.config.invite_code（ENT######）= 企业员工凭码加入（server /enterprise/join 消费，与后台 candidates 同锁 customer_id 不跨租户）。
@@ -79,3 +86,4 @@
 - 🔴 写值播种必须留痕：ALTER TABLE ADD COLUMN 报错幂等 ≠ UPDATE 写值幂等——写成「某列当前是 0 就播种」，管理员把配置全关后重启又会被重开。一次性数据播种统一走 schema_marks 表 + markApplied/setMark(db, key)（db.js）。
 - 「空头权益」= 字段在后台表单与 C 端套餐卡有入口、服务端零消费点（配了等于没配）。排查法：对每个权益列 grep 服务端消费点（routes/services），0 命中即空头。member_package 的 voice_enabled/discount/push_quota 三例已修（门禁 403 / 购买折后取整 / 降级 reason）。雷达推送配额口径：数「已占用真实通道(1/2)的条数」而非 status='sent'（通道未联调时该列恒 pending 恒 0），下发成功与否都占额。
 - 测试基线比对禁 git stash：stash 含 server/test 会把测试回退成旧版（旧口令）→ 一堆假失败；只 stash server/src 又让依赖新模块的测试全挂 + OOM(137)。用「全量 stash 基线 + 逐个对照」确认存量失败。
+- node:test 钩子三坑：① `createDb` 在 before() 已跑完整种子流水线（含迁移并打 schema_marks）→ 测「未迁移」场景必须 beforeEach 重置 mark；② `beforeEach(fn)` 直接传 const 函数引用会 TDZ（声明在后），包箭头 `beforeEach(() => fn())`；③ ESM 测试文件 after() 里写 `require` → "require is not defined"，表现为 suite 级 hookFailed 但所有 test 全过——看 suite 行别只看汇总。

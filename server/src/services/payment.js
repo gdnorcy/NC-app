@@ -8,7 +8,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { createDistributionService } from './distribution.js';
-import { createMemberService } from './member.js';
+import { createMemberService, resolveAppBenefits, tenantOfUser } from './member.js';
 import { createGoodsOrderService } from './goodsOrder.js';
 import { readPlatformPaymentConfig, readTenantPaymentConfig } from './paymentConfig.js';
 import { buildClientConfig, createClientFromConfig } from './wechatpay.js';
@@ -157,6 +157,9 @@ export class PaymentService {
       this.member.openCardByOrder(order);
     }
 
+    // 消费送积分：按会员档位 point_rate（倍率）+ rebate（返比%）结算（幂等，见方法内注释）
+    this.awardOrderPoints(order);
+
     // 名片模板购买支付成功 → 解锁（写 user_template_purchases，永久可用）
     if (order.solution === 'card' && order.productType === 'template' && order.userId) {
       const tplId = Number(order.productId);
@@ -203,7 +206,71 @@ export class PaymentService {
     } catch (e) {
       console.error('分销回滚失败:', e?.message || e);
     }
+    // 积分收回（退款则扣回该订单发放的积分；幂等）
+    this.clawbackOrderPoints(order);
     return this.getOrderByNo(orderNo);
+  }
+
+  /**
+   * 消费送积分（会员积分倍率真兑现）：
+   *   积分 = ⌊消费金额(元) × point_rate⌋ + ⌊消费金额(元) × rebate%⌋
+   *   - point_rate/rebate 来自 resolveAppBenefits(user, 'member')（目录默认 ⊕ 租户矩阵，
+   *     free 默认倍率 1、返比 0 → 非会员也按 1 元 1 分基础累计）
+   *   - 幂等：note 带订单号，重复回调/重复 markPaid 不重复发
+   *   - 任何异常只记日志不阻断支付主流程（积分是衍生权益，不能反向卡交易）
+   */
+  awardOrderPoints(order) {
+    try {
+      if (!order || order.status !== 'paid' || !order.userId) return;
+      const uid = order.userId;
+      const no = order.orderNo;
+      const done = this.db.prepare('SELECT id FROM member_score_logs WHERE user_id = ? AND note LIKE ?')
+        .get(uid, `消费送积分（订单${no}，%`);
+      if (done) return;
+      const tid = order.customerId || tenantOfUser(this.db, uid);
+      if (!tid) return;
+      const b = resolveAppBenefits(this.db, tid, uid, 'member');
+      const rate = Number(b.point_rate) || 0;
+      const rebate = Number(b.rebate) || 0;
+      const yuan = Math.floor((Number(order.amount) || 0) / 100); // 金额全链路单位为分
+      if (yuan <= 0) return;
+      const points = Math.floor(yuan * rate) + Math.floor((yuan * rebate) / 100);
+      if (points <= 0) return;
+      const note = `消费送积分（订单${no}，¥${yuan}，倍率${rate}${rebate > 0 ? `，返比${rebate}%` : ''}）`;
+      this.db.prepare(`INSERT INTO member_score_logs (tenant_id, user_id, type, score, note) VALUES (?,?, 'get', ?, ?)`)
+        .run(tid, uid, points, note);
+      this.db.prepare(
+        `INSERT INTO member_user (tenant_id, user_id, score, updated_at) VALUES (?,?,?, datetime('now'))
+         ON CONFLICT(tenant_id, user_id) DO UPDATE SET score = member_user.score + ?, updated_at = datetime('now')`
+      ).run(tid, uid, points, points);
+    } catch (e) {
+      console.error('消费送积分失败:', e?.message || e);
+    }
+  }
+
+  /** 退款积分收回：按该订单已发积分总额扣回（写负向流水；幂等） */
+  clawbackOrderPoints(order) {
+    try {
+      if (!order || !order.userId) return;
+      const uid = order.userId;
+      const no = order.orderNo;
+      const tid = order.customerId || tenantOfUser(this.db, uid);
+      if (!tid) return;
+      const awarded = this.db.prepare(
+        "SELECT COALESCE(SUM(score), 0) AS s FROM member_score_logs WHERE user_id = ? AND type = 'get' AND note LIKE ?"
+      ).get(uid, `消费送积分（订单${no}，%`).s;
+      if (awarded <= 0) return;
+      const done = this.db.prepare('SELECT id FROM member_score_logs WHERE user_id = ? AND note LIKE ?')
+        .get(uid, `订单${no} 退款，积分收回%`);
+      if (done) return;
+      this.db.prepare(`INSERT INTO member_score_logs (tenant_id, user_id, type, score, note) VALUES (?,?, 'use', ?, ?)`)
+        .run(tid, uid, -awarded, `订单${no} 退款，积分收回`);
+      this.db.prepare(
+        `UPDATE member_user SET score = MAX(0, score - ?), updated_at = datetime('now') WHERE tenant_id = ? AND user_id = ?`
+      ).run(awarded, tid, uid);
+    } catch (e) {
+      console.error('退款积分收回失败:', e?.message || e);
+    }
   }
 
   /** 开通智能名片会员 */

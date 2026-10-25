@@ -1827,6 +1827,8 @@ export function createCardRouter(db, wxService) {
       benefits: benefits.snapshot(req.user.id),
       // 第21轮：套餐权益实况（语音/折扣/推送·留资·收藏配额），让会员套餐在 C 端看得见、对得上
       entitlements: quota.entitlements(req.user.id),
+      // 第22轮：按应用分区的全量权益（平台目录 ⊕ 租户矩阵 + 已用量），取代前端零散权益行
+      appBenefits: quota.appBenefits(req.user.id),
       marketSubject,
     });
   });
