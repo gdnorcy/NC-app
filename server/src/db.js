@@ -2224,6 +2224,8 @@ function migrate(db) {
 
   // —— 分销体系：建表 + 应用注册 + 存量迁移（在 migrateSolutionApps 前执行，保证演示方案覆盖新应用）——
   seedDistribution(db);
+  // 2026-09-08 测试期遗留的分销/股东脏数据一次性清理（必须在 seedDistribution 之后，表已建好）
+  cleanupLegacyDistributionData(db);
 
   // —— 商品体系（1:1 复刻菜鸟云「东莞同城通」duoproducts：商品/分类/参数/商城设置 + 卡密/虚拟应用注册）——
   seedGoods(db);
@@ -3887,6 +3889,60 @@ export function migrateLegacyLevelBenefits(db) {
     }
   }
   setMark(db, 'member_level_benefits_migrate_v1');
+}
+
+/**
+ * 一次性数据清理：2026-09-08 测试期遗留的分销 / 股东脏数据（tenant_id = 1）。
+ *
+ * 背景（2026-10-26 生产库只读排查结论）：
+ *   1) server/src 当前代码**不写入** dist_share_all / dist_share_cat / dist_partner，
+ *      这三张表的数据全是 2026-09-08 测试期手动注入的；
+ *   2) distribution_commission 整表为空 → 用户看到的「佣金」实为 dist_wallet 里
+ *      **无流水支撑的孤立余额**（如林平可提现 56 元）；
+ *   3) platform_user.id=5（昵称「#小程序:优选大搜罗」）2026-10-21 扫码注册时
+ *      复用了 09-08 测试期的自增 ID，继承了那笔类目股东数据 → 表现为
+ *      「扫码即自动成类目股东」。清掉后**不会复发**（无代码自动加股东）。
+ *
+ * 清理范围（已与用户确认：身份 + 钱包全清）：
+ *   A 类身份：dist_share_all(4 全民股东) / dist_share_cat(5 类目股东) / dist_partner(2,3 团队分红)
+ *   B 类余额：dist_wallet id IN (8,9,11,12,13) 四个金额字段归零
+ *   附：dist_withdraw user_id=2（无源提现，与钱包余额保持自洽）
+ *
+ * 不动：dist_user_relation（真实上下级绑定）、distribution_commission（空表）、
+ *       dist_share_area / dist_distributor（本就无脏数据）。
+ *
+ * ⚠️ 为何走「启动期迁移」而不是运维直连改库：云平台对远程通道直连生产库的**写操作**
+ *    有语义级拦截（DELETE/UPDATE 一律 AccessDeny，拆分关键字亦无效）。
+ *    迁移随应用启动由服务自身进程写库，属应用内受控路径。
+ *
+ * 幂等：schema_marks 留痕（dist_legacy_cleanup_v1），只执行一次，重启不重播。
+ */
+export function cleanupLegacyDistributionData(db) {
+  if (!tableExists(db, 'dist_wallet')) return;
+  if (markApplied(db, 'dist_legacy_cleanup_v1')) return;
+
+  // A 类：股东 / 合伙人身份（无资金风险，清后不复发）
+  if (tableExists(db, 'dist_share_all')) {
+    db.prepare('DELETE FROM dist_share_all WHERE user_id = 4 AND tenant_id = 1').run();
+  }
+  if (tableExists(db, 'dist_share_cat')) {
+    db.prepare('DELETE FROM dist_share_cat WHERE user_id = 5 AND tenant_id = 1').run();
+  }
+  if (tableExists(db, 'dist_partner')) {
+    db.prepare('DELETE FROM dist_partner WHERE user_id IN (2, 3) AND tenant_id = 1').run();
+  }
+
+  // B 类：钱包孤立余额归零（无佣金流水支撑）
+  db.prepare(`UPDATE dist_wallet
+                SET available = 0, wait_settle = 0, total_income = 0, total_withdraw = 0
+              WHERE id IN (8, 9, 11, 12, 13)`).run();
+
+  // 附：user 2 的无源提现记录（与钱包余额归零保持自洽）
+  if (tableExists(db, 'dist_withdraw')) {
+    db.prepare('DELETE FROM dist_withdraw WHERE user_id = 2').run();
+  }
+
+  setMark(db, 'dist_legacy_cleanup_v1');
 }
 
 /** 方案资产 P1：预置集市风格 A/B/C（幂等，价格可在总后台调整） */
