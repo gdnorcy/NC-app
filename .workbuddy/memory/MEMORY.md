@@ -85,7 +85,7 @@
   - 只读排查走 TAT 正常，但**一条命令只能带一条 SELECT**（多语句拼一起被拦）→ 逐条查或 `&&` 串多个独立 sqlite3 调用。**拦比这更宽**：仅**单表简单 SELECT** 通过；`sqlite_master` 内省、子查询、`for`+curl 探端口 **全 Deny** → 查表结构直接查业务表。`ls`/`cat`/`git`/`systemctl`/`ps`/`journalctl` 正常。改库前先 `cp data/panorama.db data/panorama.db.bak_<日期>_<用途>`。
 
 ## 12 行业应用接入（trace 模式）
-- 规范唯一权威：`docs/规范/09-行业应用开发接入标准.md`，**§10 是「常见交付缺陷速查表」**。整合前先按速查表扫交付物，**一次性列全问题再改**。
+- 规范唯一权威：`docs/规范/09-行业应用开发接入标准.md`，**§10 是「常见交付缺陷速查表」**。整合前先按速查表扫交付物，**一次性列全问题再改**。🔴 **对标基准要核实它是不是真源**：`开发文档/*deliverable*` 常是**上一份 AI 整合交付物**（里面是我们自己栈路径），不是原系统 → 不能当基准；真源要么一手源码、要么对标站截图（注意后台页多是登录墙，拿不到 → 要向用户要源码/账号/截图）。🔴 **配置项的"归属层级"必须跟对标站对齐**（如同名"奖品"在对标站是租户级、我们做成批次级 → 不是补个编辑框，是层级就不同，补出来也不像）。
 - 🔴 `import.meta.env` 只能直接访问，禁 `typeof import.meta !== 'undefined' &&` 防御写法 —— vite 在 MP(CJS) 下会把裸 import.meta 垫成 require("url") → app.js 启动即崩。
 - 本项目口径：ESM（禁 require）；SQLite **禁 MySQL `COMMENT`** 等专有语法；租户标识唯一来源 = JWT 载荷 **`req.user.customerId`**（**不存在** req.user.tenant_id/tenantId → 恒 0）；后台 API 走 `customerApiCall`（baseURL `/api/customer`，禁裸 fetch）；C 端基址单一来源 `utils/apiBase.js` + `createApiClient`（禁硬编码 `/api/xxx`）。
 - 迁移必须**搬进 `db.js` 的 `migrate()` 尾部**（只交 .sql 不算生效）；`app_menus.app_id` 用 `SELECT id FROM apps WHERE code=?` 子查询禁硬编码 id；`solution_apps` 必须给可执行 INSERT（只给注释示例 = 看得见开不通）。
