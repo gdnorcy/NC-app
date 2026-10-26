@@ -1035,7 +1035,8 @@ async function loadConfig() {
   try {
     const p = await customerApiCall.get('/distribution/plugins');
     const dp = (p.list || []).find((x) => x.plugin_code === 'dist');
-    pluginOn.value = !!(dp && dp.is_install && dp.is_enable);
+    // 🔴 第28轮：安装/启用合并为单开关 → 只读 enabled（GET /plugins 已不再透出 is_install）
+    pluginOn.value = !!(dp && (dp.enabled ?? dp.is_enable));
     let sub = {};
     try { sub = (dp && dp.config && JSON.parse(dp.config)) || {}; sub = sub.subscribe || {}; } catch {}
     Object.assign(subForm, {
@@ -1054,7 +1055,8 @@ async function saveSubConfig() {
 
 async function onPluginChange(v) {
   try {
-    await customerApiCall.put('/distribution/plugins/dist', { enable: v, install: true });
+    // 🔴 第28轮：安装/启用合并 → 只传 enable（install 已由服务端派生）
+    await customerApiCall.put('/distribution/plugins/dist', { enable: v ? 1 : 0 });
     ElMessage.success(v ? '已启用分销插件' : '已停用分销插件');
   } catch (e) {
     pluginOn.value = !v;

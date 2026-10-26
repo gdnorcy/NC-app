@@ -2,7 +2,7 @@
   <div>
     <AppPageHeader title="区域股东" desc="按地域分红：各地区独立分红比例与独立股东列表（匹配买家名片城市）">
       <div class="hd-actions">
-        <el-tag v-if="plugin.is_enable" type="success">已启用</el-tag>
+        <el-tag v-if="pluginOn" type="success">已启用</el-tag>
         <el-tag v-else type="info">已停用</el-tag>
       </div>
     </AppPageHeader>
@@ -13,10 +13,8 @@
           <span>插件开关</span>
           <div class="switches">
             <span class="sw-item">
-              安装：<el-switch v-model="plugin.is_install" @change="savePlugin" />
-            </span>
-            <span class="sw-item">
-              启用：<el-switch v-model="plugin.is_enable" :disabled="!plugin.is_install" @change="savePlugin" />
+              启用：<el-switch v-model="pluginOn" @change="savePlugin" />
+              <span class="sw-tip">关闭后该角色不参与分红计算，历史收益与钱包保留</span>
             </span>
           </div>
         </div>
@@ -102,7 +100,8 @@ import { ElMessage } from 'element-plus';
 import { customerApiCall } from '../../../../api';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
 
-const plugin = ref({ is_install: 0, is_enable: 0 });
+const plugin = ref({ is_enable: 0 });
+const pluginOn = ref(false);
 const groups = ref([]);
 const members = ref([]);
 const currentGroup = ref('');
@@ -115,6 +114,7 @@ async function load() {
   const res = await customerApiCall.get('/distribution/plugins');
   const p = res.list.find((x) => x.plugin_code === 'share-area') || plugin.value;
   plugin.value = { ...p };
+  pluginOn.value = !!p.enabled;
   const d = await customerApiCall.get('/distribution/share-area');
   groups.value = d.groups || [];
   if (currentGroup.value) await loadMembers(currentGroup.value);
@@ -127,10 +127,14 @@ async function loadMembers(areaCode) {
 }
 async function savePlugin() {
   if (!loaded.value) return;
-  await customerApiCall.put('/distribution/plugins/share-area', {
-    install: plugin.value.is_install, enable: plugin.value.is_enable,
-  });
-  ElMessage.success('插件状态已保存');
+  try {
+    await customerApiCall.put('/distribution/plugins/share-area', { enable: pluginOn.value ? 1 : 0 });
+    plugin.value = { ...plugin.value, is_enable: pluginOn.value ? 1 : 0 };
+    ElMessage.success(pluginOn.value ? '已启用' : '已停用');
+  } catch (e) {
+    pluginOn.value = !pluginOn.value; // 回滚 UI 状态
+    ElMessage.error(e || '操作失败');
+  }
 }
 function selectGroup(row) { loadMembers(row.area_code); }
 function openAdd(areaCode) {
@@ -162,6 +166,7 @@ onMounted(load);
 .card-head { display: flex; justify-content: space-between; align-items: center; }
 .switches { display: flex; gap: 16px; align-items: center; }
 .sw-item { font-size: 13px; color: #4e5969; }
+.sw-tip { margin-left: 10px; font-size: 12px; color: #86909c; }
 .cfg-desc { margin: 8px 0 0; font-size: 12px; color: #86909c; }
 .mb12 { margin-bottom: 12px; }
 .form-help { margin-left: 12px; font-size: 12px; color: #86909c; }
