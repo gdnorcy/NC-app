@@ -208,6 +208,64 @@
             </el-form-item>
           </el-form>
         </el-card>
+
+        <!-- 首页展示位：C 端验真结果页下方的推广位（多展位，各配封面图+颜色+展示条件） -->
+        <el-card class="set-card" shadow="never">
+          <template #header>
+            <div class="slot-head">
+              <span class="card-title">首页展示位</span>
+              <span class="form-hint">最多 {{ SLOT_MAX }} 个（与公众号图文消息单条 1~8 图文的接口上限一致）</span>
+            </div>
+          </template>
+
+          <el-empty v-if="!s.displaySlots.length" description="还没有展示位，点下方「新增展示位」开始配置" :image-size="60" />
+
+          <div v-for="(it, i) in s.displaySlots" :key="i" class="slot-item">
+            <div class="slot-item-hd">
+              <span class="slot-idx">第 {{ i + 1 }} 位</span>
+              <el-tag v-if="it.when === 0" type="info" size="small" effect="plain">已关闭</el-tag>
+              <div class="slot-ops">
+                <el-button link size="small" :disabled="i === 0" @click="moveSlot(i, -1)">上移</el-button>
+                <el-button link size="small" :disabled="i === s.displaySlots.length - 1" @click="moveSlot(i, 1)">下移</el-button>
+                <el-button link size="small" type="danger" @click="removeSlot(i)">删除</el-button>
+              </div>
+            </div>
+            <el-form label-width="90px" class="slot-form">
+              <el-form-item label="封面图">
+                <el-upload :show-file-list="false" :http-request="(o) => uploadSlotCover(o, i)" accept="image/*">
+                  <img v-if="it.cover" :src="it.cover" class="slot-thumb" />
+                  <div v-else class="slot-add">+ 选择图片</div>
+                </el-upload>
+                <span class="form-hint">建议 240×180；未上传时 C 端显示占位底色</span>
+              </el-form-item>
+              <el-form-item label="标题">
+                <el-input v-model.trim="it.title" maxlength="32" placeholder="展示位标题" class="slot-in" />
+              </el-form-item>
+              <el-form-item label="颜色">
+                <el-color-picker v-model="it.color" />
+                <span class="form-hint">用于 C 端标题文字色；留空则跟随页面主文本色</span>
+              </el-form-item>
+              <el-form-item label="展示条件">
+                <el-select v-model="it.when" class="slot-when">
+                  <el-option v-for="w in SLOT_WHEN_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="跳转链接">
+                <el-input v-model.trim="it.link" placeholder="/pages/xxx 或 https://..." class="slot-in" />
+                <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转</span>
+              </el-form-item>
+              <el-form-item label="接口密钥">
+                <el-input v-model.trim="it.accessKey" show-password placeholder="用于代理外部接口调用" class="slot-in" />
+                <span class="form-hint">保存后仅回显脱敏串；原样提交表示不修改，输入新值才会覆盖。当前为预留字段，暂不影响展示位行为</span>
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <div class="slot-foot">
+            <el-button :disabled="s.displaySlots.length >= SLOT_MAX" @click="addSlot">+ 新增展示位</el-button>
+            <el-button type="primary" :loading="setSaving" @click="saveSettings">保存展示位</el-button>
+          </div>
+        </el-card>
       </section>
     </main>
 
@@ -497,8 +555,64 @@ async function saveRule() {
 
 /* ----------------- 系统设置 ----------------- */
 // 🔴 s 为 settings 单一事实来源；常用字段直接 v-model 到 s.xxx，高级模式编辑原始 JSON
-const s = reactive({ welcome: '', suc_one: '', suc_two: '', upperlimit: 0, con_msg: '', ftel: '', dtel: '', siteroot: '', history_limit: 10 });
+const s = reactive({ welcome: '', suc_one: '', suc_two: '', upperlimit: 0, con_msg: '', ftel: '', dtel: '', siteroot: '', history_limit: 10, displaySlots: [] });
 const advancedMode = ref(false);
+
+/* ----------------- 首页展示位 ----------------- */
+/**
+ * 展示位数量上限。
+ * 🔴 依据：当前公众号「上传图文消息素材」接口限制一个图文消息支持 1 到 8 条图文，
+ *   每条自带缩略图 + 标题 + 原文链接 —— 与展示位逐项对映。
+ *   （对标系统的固定 10 位对应的是较早的接口口径，已超出当前上限，不跟。）
+ */
+const SLOT_MAX = 8;
+const SLOT_WHEN_OPTIONS = [
+  { value: 0, label: '关闭（不显示）' },
+  { value: 1, label: '全部查询都显示' },
+  { value: 2, label: '仅首次查询显示' },
+  { value: 5, label: '首位查询人每次显示' },
+  { value: 4, label: '非首位查询人显示' },
+];
+const EMPTY_SLOT = () => ({ when: 1, title: '', cover: '', link: '', color: null, accessKey: '' });
+
+/**
+ * 服务端下发的展示位 → 表单形状。
+ * 🔴 两处必须归一：① el-color-picker 用 null 表示「未设置」，空串会渲染成黑色；
+ *   ② 服务端剥掉了 keyCipher 只给脱敏的 accessKey，这里补成空串避免 undefined 进输入框。
+ */
+function slotsForForm(list) {
+  return (Array.isArray(list) ? list : []).slice(0, SLOT_MAX).map((it) => ({
+    when: Number(it.when) || 0,
+    title: String(it.title || ''),
+    cover: String(it.cover || ''),
+    link: String(it.link || ''),
+    color: it.color || null,
+    accessKey: String(it.accessKey || ''),
+  }));
+}
+function addSlot() {
+  if (s.displaySlots.length >= SLOT_MAX) { ElMessage.warning(`展示位最多 ${SLOT_MAX} 个`); return; }
+  s.displaySlots.push(EMPTY_SLOT());
+}
+function removeSlot(i) { s.displaySlots.splice(i, 1); }
+function moveSlot(i, delta) {
+  const j = i + delta;
+  if (j < 0 || j >= s.displaySlots.length) return;
+  const a = s.displaySlots;
+  const tmp = a[i];
+  a[i] = a[j];
+  a[j] = tmp;
+}
+async function uploadSlotCover(options, i) {
+  try {
+    const fd = new FormData();
+    fd.append('file', options.file);
+    const res = await customerApiCall.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    s.displaySlots[i].cover = res.url;
+    ElMessage.success('上传成功');
+  } catch (e) { ElMessage.error(e); }
+}
+
 const rawJson = ref('');
 const rawError = ref('');
 const setSaving = ref(false);
@@ -507,8 +621,13 @@ const cocom = ref(0);
 function syncFormFromSettings(settings) {
   const src = settings || {};
   for (const key of Object.keys(s)) {
+    // 🔴 展示位单独走 slotsForForm：要补默认值、还要把空色转成 null（el-color-picker 口径）
+    if (key === 'displaySlots') continue;
     if (src[key] !== undefined && src[key] !== null) s[key] = src[key];
   }
+  s.displaySlots = slotsForForm(src.displaySlots);
+  // 高级模式原本是空的（读不到当前配置，只能盲打）→ 回填一次，编辑才有意义
+  rawJson.value = JSON.stringify(s, null, 2);
 }
 async function loadSettings() {
   try {
@@ -520,7 +639,10 @@ async function loadSettings() {
 function onRawInput(val) {
   try {
     const parsed = JSON.parse(val);
-    Object.keys(s).forEach((k) => { if (parsed[k] !== undefined) s[k] = parsed[k]; });
+    Object.keys(s).forEach((k) => {
+      if (parsed[k] === undefined) return;
+      s[k] = k === 'displaySlots' ? slotsForForm(parsed[k]) : parsed[k];
+    });
     rawError.value = '';
   } catch (err) {
     rawError.value = err.message;
@@ -528,10 +650,19 @@ function onRawInput(val) {
 }
 async function saveSettings() {
   if (advancedMode.value && rawError.value) { ElMessage.warning('高级设置 JSON 解析失败，请修正后再保存'); return; }
+  if (s.displaySlots.length > SLOT_MAX) { ElMessage.warning(`展示位最多 ${SLOT_MAX} 个，请删除多余项后再保存`); return; }
   setSaving.value = true;
   try {
     // 🔴 后端 PUT /settings 接收 { settings }，settings 为对象（非字符串）
-    await customerApiCall.put('/trace/settings', { settings: { ...s } });
+    const payload = {
+      ...s,
+      // 🔴 el-color-picker 的「未设置」是 null → 落库前转回空串（后端按「空 = 跟随主题色」处理）
+      displaySlots: (s.displaySlots || []).map((it) => ({ ...it, color: it.color || '' })),
+    };
+    await customerApiCall.put('/trace/settings', { settings: payload });
+    // 🔴 保存后必须回读：接口密钥提交的是明文、库里存的是密文，回读才能让输入框
+    //    显示成脱敏串 —— 否则用户以为「明文保存成功了」，其实界面和库里是两套东西。
+    await loadSettings();
     ElMessage.success('设置已保存');
   } catch (e) {
     ElMessage.error(e || '保存设置失败');
@@ -586,4 +717,20 @@ onMounted(() => {
 .raw-json { font-family: monospace; }
 .raw-err { color: #f53f3f; font-size: 12px; margin-top: 4px; }
 .rule-form :deep(.el-input-number), .set-form :deep(.el-input-number) { width: 160px; }
+
+/* 首页展示位编辑器 */
+.slot-head { display: flex; align-items: center; gap: 10px; }
+.slot-item { border: 1px solid #e5e6eb; border-radius: 8px; padding: 12px 16px 0; margin-bottom: 12px; background: #fafbfc; }
+.slot-item-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.slot-idx { font-size: 13px; font-weight: 600; color: #1d2129; }
+.slot-ops { margin-left: auto; display: flex; gap: 4px; }
+.slot-thumb { width: 90px; height: 68px; object-fit: cover; border-radius: 6px; display: block; border: 1px solid #e5e6eb; }
+.slot-add {
+  width: 90px; height: 68px; line-height: 68px; text-align: center; cursor: pointer;
+  border: 1px dashed #c9cdd4; border-radius: 6px; color: #86909c; font-size: 13px; background: #fff;
+}
+.slot-add:hover { border-color: #165dff; color: #165dff; }
+.slot-in { width: 420px; max-width: 100%; }
+.slot-when { width: 260px; }
+.slot-foot { display: flex; align-items: center; gap: 12px; }
 </style>

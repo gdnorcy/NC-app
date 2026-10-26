@@ -69,6 +69,24 @@
           <text class="tr-tip" v-if="successTip">{{ successTip }}</text>
         </view>
 
+        <!-- 首页展示位（后台配置的推广位，按展示条件由服务端挑好下发） -->
+        <view class="tr-card tr-slots" v-if="slotList.length">
+          <text class="tr-slots-title">推荐</text>
+          <scroll-view class="tr-slots-scroll" scroll-x :show-scrollbar="false">
+            <view class="tr-slots-row">
+              <view
+                class="tr-slot"
+                v-for="(s, i) in slotList"
+                :key="i"
+                @click="openSlot(s)"
+              >
+                <image class="tr-slot-cover" :src="slotCover(s.cover)" mode="aspectFill" />
+                <text class="tr-slot-name" :style="{ color: s.color || null }">{{ s.title }}</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
         <!-- 错误卡片 -->
         <view class="tr-card tr-card-err" v-if="errorMsg">
           <view class="tr-result-head">
@@ -91,6 +109,9 @@ import PageNav from '../../components/PageNav.vue';
 import SIcon from '../../components/SIcon.vue';
 import { getTid } from '../../utils/mallUtil.js';
 import { scanEntry, verifyTrace } from '../../utils/traceApi.js';
+import { execCompLink } from '../../utils/compLink.js';
+import { linkFromString } from '../../utils/compLinkModel.js';
+import { assetUrl } from '../../utils/assetUrl.js';
 
 // 🔴 SIcon 的 color 会被烘焙进产物（SVG data-URI / 预生成 PNG），var() 到不了
 //    → 必须传真实 hex。语义与 styles/token.scss 的 $success / $danger 对齐。
@@ -106,6 +127,28 @@ const form = reactive({ co: '', yzm: '' });
 const tid = ref('');
 
 const batchInfo = computed(() => (result.value && result.value.batch) || {});
+
+/**
+ * 首页展示位。
+ * 🔴 服务端已按「展示条件 + 本次查询态」挑好（只给本次该渲染的），
+ *    前端**不做二次筛选/排序** —— 再筛一次会让「后台配的和 C 端出来的不一致」无法定位。
+ * 🔴 服务端下发时已剥掉接口密钥，这里拿到的只有展示字段。
+ */
+const slotList = computed(() => {
+  const s = result.value && result.value.slots;
+  return Array.isArray(s) ? s : [];
+});
+
+// 🔴 服务端图片路径（/uploads/ 相对）在 MP 端全断 → 展示点一律过 assetUrl。
+function slotCover(u) {
+  return assetUrl(u);
+}
+
+/** 点击展示位：跳转基建复用 execCompLink（不在本页另写一套 navigateTo） */
+function openSlot(s) {
+  if (!s || !s.link) return;
+  execCompLink(linkFromString(s.link));
+}
 
 const regionText = computed(() => {
   const b = batchInfo.value;
@@ -265,6 +308,38 @@ onLoad((options) => {
   font-size: var(--fs-3);
   color: var(--t3);
   line-height: 1.6;
+}
+/* 首页展示位：横滑卡片（对映公众号图文消息的 1~8 条图文） */
+.tr-slots-title {
+  display: block;
+  font-size: var(--fs-5);
+  font-weight: 600;
+  color: var(--t1);
+  margin-bottom: 20rpx;
+}
+/* MP 端横向 scroll-view：父级需 nowrap/定宽，子项 flex-shrink:0 才不会被压扁 */
+.tr-slots-scroll { width: 100%; white-space: nowrap; }
+.tr-slots-row { display: inline-flex; flex-direction: row; }
+.tr-slot { width: 240rpx; flex-shrink: 0; margin-right: 20rpx; }
+.tr-slot:last-child { margin-right: 0; }
+/* 🔴 uni image 无内在尺寸 → 必须显式给宽高，否则 MP 端封面图高度为 0 */
+.tr-slot-cover {
+  width: 240rpx;
+  height: 180rpx;
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--bg-page);
+}
+.tr-slot-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 12rpx;
+  font-size: var(--fs-4);
+  line-height: 1.4;
+  color: var(--t1);
+  white-space: normal;
 }
 .tr-bottom-space { height: 60rpx; }
 </style>

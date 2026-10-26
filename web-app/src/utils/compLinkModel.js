@@ -123,6 +123,24 @@ export function linkIssue(link) {
 }
 
 /**
+ * 把「只有一个字符串」的链接目标包装成标准链接对象（展示位 / 简配场景）。
+ *
+ * 🔴 放这里的理由：判定是**模型层的事**，后台与 C 端都必须调它，
+ *   两处各写一份 `startsWith('http')` 迟早漂移（一端改了另一端没改 →
+ *   「后台能配、C 端跳不动」）。
+ *
+ * 🔴 只判两种，不做过度推断：
+ *   - http(s):// 开头 → 网页（MP 端由 execCompLink 降级为复制链接）
+ *   - 其余 → 内部页面路径
+ *   「外部小程序」单字符串表达不了（要 AppID + 页面路径两个值），不猜；
+ *   「电话」会把纯数字的内部参数误判成号码，也不猜。
+ */
+export function linkFromString(url) {
+  const u = String(url || '').trim();
+  return { url: u, linkType: /^https?:\/\//i.test(u) ? 'web' : LINK_INTERNAL };
+}
+
+/**
  * 链接的可读描述（用于「我的名片」等处的回显）
  */
 export function describeLink(link) {
