@@ -39,6 +39,7 @@ import { createCardRouter } from './routes/card.js';
 import { createMallRouter } from './routes/mall.js';
 import { createPaymentRouter } from './routes/payment.js';
 import { createDistributionRouter } from './routes/distribution.js';
+import { createTracePublicRouter, createTraceAdminRouter } from './routes/trace.js';
 import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';import { createSuperFormRouter } from './routes/superForm.js';
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 import { hasSolution, tenantState } from './tenant.js';
@@ -187,6 +188,13 @@ app.use((req, res, next) => {
   app.use('/api/customer/join-code', requireAuth, createJoinCodeRouter(database));
   app.use('/api/customer/gift-card', requireAuth, createGiftCardRouter(database));
   app.use('/api/customer/gift', requireAuth, createGiftRouter(database));
+
+  // 防伪溯源 trace（2026-10-26 接入）：两段分开挂载
+  // - 公开段 /api/trace/public/*：C 端扫码验真（不套 requireAuth；租户定位只认 ?tid= 或登录态）
+  // - 后台段 /api/customer/trace/*：租户后台管理（套 requireAuth；租户标识取 req.user.customerId）
+  //   挂 /api/customer 前缀是为了对齐 web-admin 的 customerApiCall（baseURL=/api/customer），URL 不重复前缀
+  app.use('/api/trace', createTracePublicRouter(database));
+  app.use('/api/customer/trace', requireAuth, createTraceAdminRouter(database));
 
   // 设计中心：素材中心 /api/material + 装修配置 /api/design（顶层前缀，租户中间件内部校验）
   const designRouters = createDesignRouter(database);

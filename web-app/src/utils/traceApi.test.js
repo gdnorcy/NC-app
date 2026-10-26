@@ -1,0 +1,91 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as traceApi from './traceApi.js';
+import { API_HOST } from './apiBase.js';
+
+// ============================================================
+// traceApi：C 端防伪溯源公开接口封装（/api/trace/public/*）
+// 每个方法必须映射到 server/src/routes/trace.js 的真实路由，
+// 且基址一律来自 apiBase.js（禁硬编码 '/api/trace'）。
+// 公开段租户只认 tid（URL ?tid=），前端必须透传。
+// ============================================================
+const uniMock = {
+  getStorageSync: vi.fn(),
+  removeStorageSync: vi.fn(),
+  reLaunch: vi.fn(),
+  request: vi.fn(),
+};
+vi.stubGlobal('uni', uniMock);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  uniMock.getStorageSync.mockReturnValue('test-token');
+});
+
+function mockResponse(statusCode, body) {
+  uniMock.request.mockImplementation(({ success }) => success({ statusCode, data: body }));
+}
+
+const BASE = API_HOST + '/api/trace/public';
+
+describe('traceApi 请求封装', () => {
+  it('scanEntry → GET /public/scan-entry?co=&tid=', async () => {
+    mockResponse(200, { ok: 1 });
+    await traceApi.scanEntry('ABC123', 't1');
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: BASE + '/scan-entry?co=ABC123&tid=t1',
+      method: 'GET',
+    }));
+  });
+
+  it('verifyTrace → POST /public/verify?tid= （带 body）', async () => {
+    mockResponse(200, { verified: true });
+    await traceApi.verifyTrace({ co: 'ABC123' }, 't1');
+    const args = uniMock.request.mock.calls[0][0];
+    expect(args.method).toBe('POST');
+    expect(args.url).toBe(BASE + '/verify?tid=t1');
+    expect(args.data).toEqual({ co: 'ABC123' });
+  });
+
+  it('traceHistory → GET /public/history?code=&tid=', async () => {
+    mockResponse(200, { list: [] });
+    await traceApi.traceHistory('ABC123', 't1');
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: BASE + '/history?code=ABC123&tid=t1',
+      method: 'GET',
+    }));
+  });
+
+  it('myGoods → GET /public/mygoods?tid= （需登录态）', async () => {
+    mockResponse(200, { list: [] });
+    await traceApi.myGoods({ page: 1 }, 't1');
+    expect(uniMock.request).toHaveBeenCalledWith(expect.objectContaining({
+      url: BASE + '/mygoods?page=1&tid=t1',
+      method: 'GET',
+    }));
+  });
+
+  it('claimReward → POST /public/claim?tid= （带 body）', async () => {
+    mockResponse(200, { claimed: true });
+    await traceApi.claimReward({ sj: '13800000000', rewardId: 5 }, 't1');
+    const args = uniMock.request.mock.calls[0][0];
+    expect(args.method).toBe('POST');
+    expect(args.url).toBe(BASE + '/claim?tid=t1');
+    expect(args.data).toEqual({ sj: '13800000000', rewardId: 5 });
+  });
+
+  it('所有方法都带 tid（公开段租户定位唯一来源）', async () => {
+    mockResponse(200, {});
+    const methods = [
+      () => traceApi.scanEntry('c', 'TID'),
+      () => traceApi.verifyTrace({}, 'TID'),
+      () => traceApi.traceHistory('c', 'TID'),
+      () => traceApi.myGoods({}, 'TID'),
+      () => traceApi.claimReward({}, 'TID'),
+    ];
+    for (const m of methods) {
+      uniMock.request.mockClear();
+      await m();
+      expect(uniMock.request.mock.calls[0][0].url).toContain('tid=TID');
+    }
+  });
+});

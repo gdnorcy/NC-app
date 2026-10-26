@@ -37,8 +37,18 @@ export function createDistributionRouter(db) {
   // ============================================================
   router.get('/plugins', tenant, (req, res) => {
     const codes = ['dist', 'partner', 'share-all', 'share-cat', 'share-area'];
-    const list = codes.map((code) => dist.getPlugin(req.customerId, code) || {
-      tenant_id: req.customerId, plugin_code: code, is_install: 0, is_enable: 0, config: '{}',
+    const list = codes.map((code) => {
+      const p = dist.getPlugin(req.customerId, code);
+      // 🔴 第28轮：安装/启用合并为「启用」单开关。
+      //    对外只暴露 enabled（= is_enable）；is_install 退化为内部派生字段不再透出，
+      //    避免前端再出现「装/启」双态。存量数据天然兼容（is_install 已与 is_enable 同步）。
+      return {
+        tenant_id: req.customerId,
+        plugin_code: code,
+        enabled: p ? !!p.is_enable : false,
+        is_enable: p ? (p.is_enable ? 1 : 0) : 0,
+        config: p ? p.config : '{}',
+      };
     });
     res.json({ list });
   });
@@ -48,9 +58,10 @@ export function createDistributionRouter(db) {
     if (!['dist', 'partner', 'share-all', 'share-cat', 'share-area'].includes(code)) {
       return res.status(400).json({ error: '未知插件' });
     }
-    const { install, enable, config } = req.body || {};
-    const plugin = dist.setPlugin(req.customerId, code, { install, enable, config });
-    res.json({ plugin });
+    // 🔴 第28轮：install 参数已废弃（由 enable 派生）；仍接受传入以兼容旧前端调用
+    const { enable, config } = req.body || {};
+    const plugin = dist.setPlugin(req.customerId, code, { enable, config });
+    res.json({ plugin: { ...plugin, enabled: !!(plugin && plugin.is_enable) } });
   });
 
   /** 插件配置（JSON，仅白名单字段可写） */

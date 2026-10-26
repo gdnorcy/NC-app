@@ -39,6 +39,8 @@ const routes = [
       { path: 'apps/card/exchanges', component: () => import('../views/customer/apps/card/ExchangeRecords.vue'), meta: { title: '交换记录', breadcrumbs: ['应用中心', '智能名片', '交换记录'] } },
       { path: 'apps/card/forms', component: () => import('../views/customer/apps/card/FormCollect.vue'), meta: { title: '表单收集', breadcrumbs: ['应用中心', '智能名片', '表单收集'] } },
       { path: 'apps/super-form', component: () => import('../views/customer/apps/superForm/SuperForm.vue'), meta: { title: '超级表单', breadcrumbs: ['应用中心', '高级功能', '超级表单'] } },
+      // 防伪溯源（应用中心「高级功能」：1:1 复刻防伪码制/批次/查询记录管理）
+      { path: 'apps/trace', component: () => import('../views/customer/apps/trace/index.vue'), meta: { title: '防伪溯源', breadcrumbs: ['应用中心', '高级功能', '防伪溯源'] } },
       { path: 'apps/card/brand', component: () => import('../views/customer/apps/card/BrandAppearance.vue'), meta: { title: '品牌外观', breadcrumbs: ['应用中心', '智能名片', '品牌外观'] } },
       // 分销体系（5 个独立应用；P0 已实现 dist 底座，其余 4 个为占位）
       { path: 'apps/dist', component: () => import('../views/customer/apps/dist/DistHome.vue'), meta: { title: '分销裂变', breadcrumbs: ['应用中心', '分销体系', '分销裂变'] } },

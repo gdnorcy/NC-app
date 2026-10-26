@@ -29,17 +29,33 @@ export function createDistributionService(db) {
   // 插件开关（租户维度）
   // ============================================================
 
-  /** 读取租户插件记录（不存在返回默认未安装） */
+  /**
+   * 读取租户插件记录（不存在返回 null）
+   * 🔴 is_install 已退化为**内部派生字段**（= is_enable），对外语义只有「启用」一个开关。
+   *    保留列是为了兼容存量数据（历史 install=1&enable=1 的行仍生效），不再独立读写。
+   */
   svc.getPlugin = (tenantId, code) => {
     return db.prepare('SELECT * FROM sys_tenant_plugin WHERE tenant_id = ? AND plugin_code = ?').get(tenantId, code) || null;
   };
 
-  /** 设置租户插件（install/enable/config），upsert */
+  /**
+   * 设置租户插件（enable/config），upsert
+   * 🔴 第28轮：安装/启用双开关合并为「启用」单开关。
+   *    旧语义：install && enable 同时为真才生效 → 用户要装再启，两步且可能出现
+   *    「装了但没启」的无意义中间态。新的 install 由 enable 派生（启用即隐含已安装）。
+   *    存量兼容：历史 install=1&enable=1 → 仍启用；install=1&enable=0 → 仍停用；无需数据迁移。
+   *    @param {number} [enable] 0/1，唯一开关；undefined 表示不改
+   *    @param {number} [install] 兼容旧调用方（传 true 视为启用），内部转为 enable
+   */
   svc.setPlugin = (tenantId, code, { install, enable, config } = {}) => {
     const exist = svc.getPlugin(tenantId, code);
+    // 旧调用方（DistHome 等）仍传 { enable, install: true } → 归一为单一 enable
+    const rawEnable = enable !== undefined ? enable : install;
+    const nextEnable = rawEnable !== undefined ? (rawEnable ? 1 : 0) : (exist ? exist.is_enable : 0);
     const cur = {
-      install: install !== undefined ? (install ? 1 : 0) : (exist ? exist.is_install : 0),
-      enable: enable !== undefined ? (enable ? 1 : 0) : (exist ? exist.is_enable : 0),
+      enable: nextEnable,
+      // install 恒等于 enable（启用即隐含已安装），消除「装了没启」中间态
+      install: nextEnable,
       config: config !== undefined ? JSON.stringify(config) : (exist ? exist.config : '{}'),
     };
     if (exist) {
@@ -716,7 +732,8 @@ export function createDistributionService(db) {
     const plugins = ['dist', 'partner', 'share-all', 'share-cat', 'share-area'];
     const active = plugins.filter((code) => {
       const p = svc.getPlugin(tenantId, code);
-      return p && p.is_install && p.is_enable;
+      // 🔴 第28轮：安装/启用合并 → 只看启用态（is_install 已由 is_enable 派生）
+      return p && !!p.is_enable;
     });
     if (!active.length) return null;
 
@@ -1406,9 +1423,10 @@ export function createDistributionService(db) {
       "SELECT COUNT(DISTINCT order_id) n FROM dist_user_log WHERE tenant_id = ? AND user_id = ? AND identity_type = ? AND type IN ('level1','level2') AND order_id > 0"
     ).get(tenantId, userId, identityType).n;
     // 插件启用状态（壳页卡片区渲染依据：租户开通哪个应用，C 端显示对应卡片）
-    const pluginRows = db.prepare('SELECT plugin_code, is_install, is_enable FROM sys_tenant_plugin WHERE tenant_id = ?').all(tenantId);
+    // 🔴 第28轮：安装/启用合并 → 只看启用态
+    const pluginRows = db.prepare('SELECT plugin_code, is_enable FROM sys_tenant_plugin WHERE tenant_id = ?').all(tenantId);
     const pMap = {};
-    for (const p of pluginRows) pMap[p.plugin_code] = !!(p.is_install && p.is_enable);
+    for (const p of pluginRows) pMap[p.plugin_code] = !!p.is_enable;
     // —— 今日业绩（借鉴推广中心布局）：今日佣金 / 今日分账订单 / 今日新增下线 ——
     const todayKey = new Date().toISOString().slice(0, 10);
     const todayCommission = db.prepare(

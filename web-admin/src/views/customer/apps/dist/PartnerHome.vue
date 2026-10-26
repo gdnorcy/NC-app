@@ -2,7 +2,7 @@
   <div>
     <AppPageHeader title="合伙人分红" desc="顶层运营 / 会长 / 秘书长团队分红：支持团队流水与租户全局流水两种模式">
       <div class="hd-actions">
-        <el-tag v-if="plugin.is_enable" type="success">已启用</el-tag>
+        <el-tag v-if="pluginOn" type="success">已启用</el-tag>
         <el-tag v-else type="info">已停用</el-tag>
       </div>
     </AppPageHeader>
@@ -13,10 +13,8 @@
           <span>插件开关</span>
           <div class="switches">
             <span class="sw-item">
-              安装：<el-switch v-model="plugin.is_install" @change="savePlugin" />
-            </span>
-            <span class="sw-item">
-              启用：<el-switch v-model="plugin.is_enable" :disabled="!plugin.is_install" @change="savePlugin" />
+              启用：<el-switch v-model="pluginOn" @change="savePlugin" />
+              <span class="sw-tip">关闭后该角色不参与分红计算，历史收益与钱包保留</span>
             </span>
           </div>
         </div>
@@ -103,7 +101,8 @@ import { ElMessage } from 'element-plus';
 import { customerApiCall } from '../../../../api';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
 
-const plugin = ref({ is_install: 0, is_enable: 0 });
+const plugin = ref({ is_enable: 0 });
+const pluginOn = ref(false);
 const config = ref({ mode: 1, poolRatio: 0.03 });
 const list = ref([]);
 const addVisible = ref(false);
@@ -115,6 +114,7 @@ async function load() {
   const res = await customerApiCall.get('/distribution/plugins');
   const p = res.list.find((x) => x.plugin_code === 'partner') || plugin.value;
   plugin.value = { ...p };
+  pluginOn.value = !!p.enabled;
   try { config.value = { ...config.value, ...JSON.parse(p.config || '{}') }; } catch {}
   const m = await customerApiCall.get('/distribution/partners');
   list.value = m.list || [];
@@ -122,10 +122,14 @@ async function load() {
 }
 async function savePlugin() {
   if (!loaded.value) return;
-  await customerApiCall.put('/distribution/plugins/partner', {
-    install: plugin.value.is_install, enable: plugin.value.is_enable,
-  });
-  ElMessage.success('插件状态已保存');
+  try {
+    await customerApiCall.put('/distribution/plugins/partner', { enable: pluginOn.value ? 1 : 0 });
+    plugin.value = { ...plugin.value, is_enable: pluginOn.value ? 1 : 0 };
+    ElMessage.success(pluginOn.value ? '已启用' : '已停用');
+  } catch (e) {
+    pluginOn.value = !pluginOn.value; // 回滚 UI 状态
+    ElMessage.error(e || '操作失败');
+  }
 }
 async function saveConfig() {
   if (!loaded.value) return;
@@ -157,6 +161,7 @@ onMounted(load);
 .card-head { display: flex; justify-content: space-between; align-items: center; }
 .switches { display: flex; gap: 16px; align-items: center; }
 .sw-item { font-size: 13px; color: #4e5969; }
+.sw-tip { margin-left: 10px; font-size: 12px; color: #86909c; }
 .cfg-form { max-width: 720px; padding-top: 8px; }
 .form-help { margin-left: 12px; font-size: 12px; color: #86909c; }
 .user-cell { display: flex; align-items: center; gap: 8px; }

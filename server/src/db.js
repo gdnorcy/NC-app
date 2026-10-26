@@ -2385,6 +2385,241 @@ function migrate(db) {
   if (!colExists(db, 'card_profile', 'share_title')) {
     db.exec("ALTER TABLE card_profile ADD COLUMN share_title TEXT NOT NULL DEFAULT ''");
   }
+
+  // —— 防伪溯源 trace 应用（2026-10-26 接入）——
+  // ⚠️ 位置纪律：必须在 migrateSolutionApps(db) 之后调用 —— 演示方案靠它把「全部应用」
+  //    纳入 solution_apps，trace 若先注册则当轮不会被演示方案收录（应用中心看不到）。
+  seedTrace(db);
+}
+
+/** —— 防伪溯源 trace 应用（行业应用 code=trace）——
+ *  来源：自有 PHP 防伪系统复刻（交付物 开发文档/trace-app-deliverable(4)）
+ *  组成：7 张业务表（全部带 tenant_id）+ apps 注册 + app_menus 权限点 + 演示方案纳入
+ *
+ *  🔴 SQLite 方言红线：交付物 .sql 用的是 MySQL 列级 COMMENT '...'，写进 SQLite 启动即报
+ *     `near "COMMENT": syntax error` → 字段说明一律改为独立行 `-- xxx` 注释。
+ *  🔴 列名口径（交付物 SQL 与其 JS 代码自相矛盾，此处以语义化列名为准并同步改 JS）：
+ *     JS 用 `isy` / `credittype`，交付物建表用 `is_rewarded` / `credit_type` → 直接跑必报
+ *     `no such column: isy`。本文件统一采用 `is_rewarded` / `credit_type`，
+ *     并同步改 server/src/routes/trace.js、server/src/services/traceReward.js。
+ *  🔴 app_menus.app_id 必须用子查询取（禁止硬编码 id —— 换库 id 会变）。
+ *  🔴 权限点 key 必须带 `trace:` 前缀：前端分配权限弹窗按 `${app_code}:${menu_key}` 拼接
+ *     （web-admin/src/views/customer/Roles.vue），无前缀会与 app_code 切分错位。
+ *  幂等：全部 CREATE TABLE IF NOT EXISTS / INSERT OR IGNORE，可重复执行。
+ */
+function seedTrace(db) {
+  // 业务表：全部带 tenant_id；字段说明用行注释（SQLite 无列级 COMMENT）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trace_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      -- 系统设置 JSON：展示文案、开关、API key、模板消息、红包配置等
+      settings_json TEXT NOT NULL DEFAULT '{}',
+      -- 积分/奖项配置 JSON
+      luck_json TEXT NOT NULL DEFAULT '{}',
+      -- 商城联动标记；原 PHP 有 -888/0 特殊值
+      cocom INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS trace_code_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      -- 防伪码前缀，原 codeset.m[1]，通常 2 位
+      m1 TEXT NOT NULL DEFAULT '',
+      -- 码制 JSON：{k:{1..5},m:{1..5},s:0,zdl:5}
+      rule_json TEXT NOT NULL DEFAULT '{}',
+      -- 替代原微擎 rid 的发布版本号/规则版本号
+      publish_no TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS trace_batches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      m1 TEXT NOT NULL DEFAULT '',
+      -- 批次号，长度由 trace_code_rules.rule_json.m[2] 控制
+      batch TEXT NOT NULL DEFAULT '',
+      product TEXT NOT NULL DEFAULT '',
+      factory TEXT NOT NULL DEFAULT '',
+      brand TEXT NOT NULL DEFAULT '',
+      -- 原产地/溯源信息，对应原 yuan
+      origin TEXT NOT NULL DEFAULT '',
+      logo TEXT NOT NULL DEFAULT '',
+      banner TEXT NOT NULL DEFAULT '',
+      video TEXT NOT NULL DEFAULT '',
+      buy_link TEXT NOT NULL DEFAULT '',
+      province TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      district TEXT NOT NULL DEFAULT '',
+      -- 已生成防伪码数量
+      num INTEGER NOT NULL DEFAULT 0,
+      -- 已生成套标数量
+      tnum INTEGER NOT NULL DEFAULT 0,
+      -- 有效查询次数
+      rcon INTEGER NOT NULL DEFAULT 0,
+      -- 生成/印刷配置快照，原字段推断
+      sint TEXT NOT NULL DEFAULT '',
+      -- 生成过程临时标记，原字段推断
+      leint TEXT NOT NULL DEFAULT '',
+      -- 箱规/箱码上限，推断
+      bbox INTEGER NOT NULL DEFAULT 0,
+      -- 盒规/盒码上限，推断
+      sbox INTEGER NOT NULL DEFAULT 0,
+      -- 活动类型；88 表示商品联动不发放活动
+      inttype INTEGER NOT NULL DEFAULT 0,
+      -- 窜货检测级别：0 关闭，2 省，3 市，4 区县
+      is_chuanhuo INTEGER NOT NULL DEFAULT 0,
+      integral INTEGER NOT NULL DEFAULT 0,
+      -- 红包预算（分），-1 不限；对应原 batch.hbzje 元与 -1234.56 哨兵
+      red_budget_cents INTEGER NOT NULL DEFAULT -1,
+      -- 活动/黑白名单/积分红包配置 JSON
+      caid_json TEXT NOT NULL DEFAULT '{}',
+      -- 商城跳转配置 JSON
+      toshop_json TEXT NOT NULL DEFAULT '{}',
+      -- 外链/文案/溯源链接配置 JSON
+      wailink_json TEXT NOT NULL DEFAULT '{}',
+      -- 自定义属性数组 JSON
+      params_json TEXT NOT NULL DEFAULT '[]',
+      -- 扫码公测二维码配置，原字段推断
+      fwqrsn TEXT NOT NULL DEFAULT '',
+      -- 有效期/激活配置，原字段推断
+      validity INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id, batch)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_batches_tenant_id ON trace_batches (tenant_id, id);
+    CREATE INDEX IF NOT EXISTS idx_trace_batches_product ON trace_batches (tenant_id, product);
+
+    CREATE TABLE IF NOT EXISTS trace_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      batch_id INTEGER NOT NULL,
+      -- 清洗后的防伪码
+      code TEXT NOT NULL,
+      -- 查询入口类型，对应原 ctapy
+      entry_type TEXT NOT NULL DEFAULT '',
+      -- 查询次数
+      num INTEGER NOT NULL DEFAULT 1,
+      -- 首次查询时间
+      queried_at TEXT NOT NULL DEFAULT (datetime('now')),
+      openid TEXT NOT NULL DEFAULT '',
+      user_id INTEGER NOT NULL DEFAULT 0,
+      ip TEXT NOT NULL DEFAULT '',
+      gender INTEGER NOT NULL DEFAULT 0,
+      province TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      district TEXT NOT NULL DEFAULT '',
+      town TEXT NOT NULL DEFAULT '',
+      street TEXT NOT NULL DEFAULT '',
+      street_number TEXT NOT NULL DEFAULT '',
+      os TEXT NOT NULL DEFAULT '',
+      container TEXT NOT NULL DEFAULT '',
+      hdtype INTEGER NOT NULL DEFAULT 0,
+      -- 奖励类型：credit1..credit9（credit9=红包 credit8=卡券 credit7=实物）
+      credit_type TEXT NOT NULL DEFAULT '',
+      -- 奖励数量/金额（红包单位=分）
+      fnum INTEGER NOT NULL DEFAULT 0,
+      -- 是否已发放奖励（对应原 isy）
+      is_rewarded INTEGER NOT NULL DEFAULT 0,
+      tx TEXT NOT NULL DEFAULT '',
+      is_valid INTEGER NOT NULL DEFAULT 1,
+      is_err INTEGER NOT NULL DEFAULT 0,
+      is_gz INTEGER NOT NULL DEFAULT 0,
+      agent_id INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tenant_id, code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_codes_batch ON trace_codes (tenant_id, batch_id);
+    CREATE INDEX IF NOT EXISTS idx_trace_codes_user ON trace_codes (tenant_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_trace_codes_region ON trace_codes (tenant_id, province, city);
+
+    CREATE TABLE IF NOT EXISTS trace_batch_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      batch_id INTEGER NOT NULL,
+      -- 8 溯源补充；9 经销商/代理码段；按原 zmcn_fw_basy 推断
+      type INTEGER NOT NULL DEFAULT 0,
+      -- 码或码段；原逻辑 code=:c1 OR instr(:c2, code)
+      code TEXT NOT NULL DEFAULT '',
+      -- 规则参数 JSON
+      param_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_batch_rules_batch ON trace_batch_rules (tenant_id, batch_id, type);
+    CREATE INDEX IF NOT EXISTS idx_trace_batch_rules_code ON trace_batch_rules (code);
+
+    CREATE TABLE IF NOT EXISTS trace_histories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      -- 0 查询历史；1 后台操作日志
+      type INTEGER NOT NULL DEFAULT 0,
+      -- 防伪码或操作对象
+      summary TEXT NOT NULL DEFAULT '',
+      uid INTEGER NOT NULL DEFAULT 0,
+      openid TEXT NOT NULL DEFAULT '',
+      ip TEXT NOT NULL DEFAULT '',
+      remark TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_histories_summary ON trace_histories (tenant_id, type, summary);
+    CREATE INDEX IF NOT EXISTS idx_trace_histories_openid ON trace_histories (tenant_id, openid, created_at);
+
+    CREATE TABLE IF NOT EXISTS trace_wrong_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      openid TEXT NOT NULL DEFAULT '',
+      ip TEXT NOT NULL DEFAULT '',
+      code TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_wrong_openid ON trace_wrong_attempts (tenant_id, openid, created_at);
+    CREATE INDEX IF NOT EXISTS idx_trace_wrong_ip ON trace_wrong_attempts (tenant_id, ip, created_at);
+  `);
+
+  // 应用注册（分类=高级功能；icon=verify 是 SIcon 体系既有图标名 —— 交付物写的 'trace' 无对应 SVG 会渲染空白）
+  db.exec("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('trace', '防伪溯源', '扫码验真、溯源码管理、批次流向、窜货预警', 'verify', '高级功能', 60, 1)");
+
+  // 权限点（app_id 用子查询取，禁止硬编码 id）
+  const traceMenus = [
+    ['trace:overview', '防伪概览', 10],
+    ['trace:batches', '批次管理', 20],
+    ['trace:codes', '防伪码记录', 30],
+    ['trace:stats', '查询统计', 40],
+    ['trace:settings', '防伪设置', 50],
+  ];
+  const traceApp = db.prepare("SELECT id FROM apps WHERE code = 'trace'").get();
+  if (traceApp) {
+    const menuIns = db.prepare('INSERT OR IGNORE INTO app_menus (app_id, module, module_label, key, label, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+    traceMenus.forEach(([key, label, order]) => menuIns.run(traceApp.id, '防伪溯源', '防伪溯源', key, label, order));
+  }
+
+  // 演示方案纳入（migrateSolutionApps 的「演示方案覆盖全部应用」只覆盖它自己那一轮注册的应用，
+  // trace 在其后注册，故此处显式补一条，保证应用中心当轮即可见 trace）
+  try {
+    const demoRow = db.prepare("SELECT id FROM solutions WHERE code = 'demo' OR is_demo = 1 ORDER BY is_demo DESC LIMIT 1").get();
+    if (demoRow && traceApp) {
+      const exists = db.prepare('SELECT id FROM solution_apps WHERE solution_id = ? AND app_id = ?').get(demoRow.id, traceApp.id);
+      if (!exists) {
+        db.prepare('INSERT INTO solution_apps (solution_id, app_id, enabled) VALUES (?, ?, 1)').run(demoRow.id, traceApp.id);
+      }
+      // 演示方案授权该应用的全部菜单权限点（权限点落在 solution_permissions，勾选标识=app_code:menu_key）
+      const menus = db.prepare('SELECT module, module_label, key, label, sort_order FROM app_menus WHERE app_id = ? ORDER BY sort_order ASC, id ASC').all(traceApp.id);
+      const permIns = db.prepare('INSERT INTO solution_permissions (solution_id, app_id, module, module_label, key, label, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, 1, ?)');
+      for (const m of menus) {
+        const has = db.prepare('SELECT id FROM solution_permissions WHERE solution_id = ? AND app_id = ? AND key = ?').get(demoRow.id, traceApp.id, m.key);
+        if (!has) permIns.run(demoRow.id, traceApp.id, m.module, m.module_label, m.key, m.label, m.sort_order || 0);
+      }
+    }
+  } catch { /* 方案表未就绪时跳过 */ }
 }
 
 /** 存量租户 solutions 规范化（见 createDb 调用处注释） */
