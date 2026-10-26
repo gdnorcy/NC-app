@@ -80,6 +80,9 @@
         </view>
       </view>
     </view>
+
+    <!-- 🔴 登录浮层：客户详情要 auth，未登录会显示空详情。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -90,6 +93,10 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
+// 🔴 页面级登录守卫（深链兜底）：客户详情要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑取数（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const customer = ref({});
 const follows = ref([]);
@@ -103,6 +110,11 @@ const sourceText = computed(() => ({ exchange: '名片交换', manual: '手动�
 onShow(() => { trackPageView('/pages/card/customerDetail'); });
 
 onMounted(async () => {
+  await guardPage();
+});
+
+/** 本页取数流程：抽成可重入函数，登录成功后原地再跑一遍（页面不销毁，零跳转） */
+async function bootCustomerDetail() {
   const pages = getCurrentPages();
   const id = pages[pages.length - 1].options.id;
   if (id) {
@@ -113,7 +125,10 @@ onMounted(async () => {
       follows.value = res.follows || [];
     } catch (e) {}
   }
-});
+}
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 bootCustomerDetail
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(bootCustomerDetail);
 
 function callPhone() {
   if (customer.value.phone) uni.makePhoneCall({ phoneNumber: customer.value.phone });

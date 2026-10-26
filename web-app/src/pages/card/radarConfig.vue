@@ -69,6 +69,9 @@
       </view>
       <view class="rc-share empty" v-else>暂无转发记录</view>
     </view>
+
+    <!-- 🔴 登录浮层：雷达配置接口要 auth，未登录会落到空配置态。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -77,6 +80,10 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 import SIcon from '../../components/SIcon.vue';
+// 🔴 页面级登录守卫（深链兜底）：雷达配置接口要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑 load（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const config = ref({ switch: 0 });
 const subscribed = ref(false);
@@ -89,7 +96,10 @@ const newEventName = ref('');
 const newWords = ref('');
 const groupNames = computed(() => groups.value.map((g) => g.title || g.name));
 
-onMounted(() => { load(); });
+onMounted(() => { guardPage(); });
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 load
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(load);
 
 async function load() {
   try {

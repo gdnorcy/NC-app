@@ -3,6 +3,7 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "page-nav": "../../components/PageNav",
-    "s-icon": "../../components/SIcon"
+    "s-icon": "../../components/SIcon",
+    "login-gate-modal": "../../components/LoginGateModal"
   }
 }

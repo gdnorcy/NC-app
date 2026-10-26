@@ -1443,35 +1443,38 @@ function migrate(db) {
       kind          TEXT NOT NULL,              -- number | switch | text
       unit          TEXT,                       -- 张/条/倍/%/天
       default_value TEXT NOT NULL DEFAULT '0',  -- 新套餐/新应用时的默认值（按 kind 解析）
-      label         TEXT NOT NULL DEFAULT '',
+      label         TEXT NOT NULL DEFAULT '',   -- 后台配置口径名（可含参数说明，如"商城折扣百分比（0=无折扣）"）
+      display_label TEXT NOT NULL DEFAULT '',   -- C 端展示名（消费感知型短词，如"商城会员价"）；空 → 回落 label
       sort_order    INTEGER NOT NULL DEFAULT 0
     );
   `);
   if (!markApplied(db, 'benefit_catalog_seed_v1')) {
     const catalog = [
-      // type, app_scope, kind, unit, default_value, label, sort_order
-      ['works_limit', 'card', 'number', '张', '3', '作品数上限', 10],
-      ['videos_limit', 'card', 'number', '条', '0', '视频号数上限', 11],
-      ['collect_limit', 'card', 'number', '条', '0', '收藏上限', 12],
-      ['custom_works_label', 'card', 'switch', '', '0', '自定义作品标签名', 13],
-      ['voice_enabled', 'card', 'switch', '', '0', '语音简介', 14],
-      ['no_ads', 'card', 'switch', '', '0', '去广告', 15],
-      ['all_template', 'card', 'switch', '', '0', '全部模板', 16],
-      ['badge', 'member', 'switch', '', '0', '等级徽章', 20],
-      ['advanced_stats', 'member', 'switch', '', '0', '高级数据', 21],
-      ['priority_support', 'member', 'switch', '', '0', '优先支持', 22],
-      ['enterprise', 'member', 'switch', '', '0', '企业认证', 23],
-      ['ai_report', 'member', 'switch', '', '0', 'AI 报告', 24],
-      ['ai_words', 'member', 'switch', '', '0', 'AI 话术', 25],
-      ['point_rate', 'member', 'number', '倍', '1', '积分倍率', 26],
-      ['rebate', 'member', 'number', '%', '0', '返比', 27],
-      ['discount', 'mall', 'number', '%', '0', '商城折扣百分比（0=无折扣，10=打9折）', 30],
-      ['price_visible', 'mall', 'switch', '', '0', '价格可见', 31],
-      ['market_subject', 'market', 'switch', '', '0', '集市场席', 40],
-      ['lead_quota', 'radar', 'number', '条', '0', '留资配额', 50],
-      ['push_quota', 'radar', 'number', '条', '0', '推送配额', 51],
+      // type, app_scope, kind, unit, default_value, label, display_label, sort_order
+      // 🔴 label = 后台配置口径（可含参数说明）；display_label = C 端展示名（消费感知型短词）
+      //    空 display_label → 回落 label（存量目录不迁也不会露裸配置口径）
+      ['works_limit', 'card', 'number', '张', '3', '作品数上限', '作品发布数', 10],
+      ['videos_limit', 'card', 'number', '条', '0', '视频号数上限', '视频号数', 11],
+      ['collect_limit', 'card', 'number', '条', '0', '收藏上限', '收藏数', 12],
+      ['custom_works_label', 'card', 'switch', '', '0', '自定义作品标签名', '自定义作品标签', 13],
+      ['voice_enabled', 'card', 'switch', '', '0', '语音简介', '语音简介', 14],
+      ['no_ads', 'card', 'switch', '', '0', '去广告', '无广告打扰', 15],
+      ['all_template', 'card', 'switch', '', '0', '全部模板', '全部模板库', 16],
+      ['badge', 'member', 'switch', '', '0', '等级徽章', '专属等级徽章', 20],
+      ['advanced_stats', 'member', 'switch', '', '0', '高级数据', '高级数据统计', 21],
+      ['priority_support', 'member', 'switch', '', '0', '优先支持', '优先客服支持', 22],
+      ['enterprise', 'member', 'switch', '', '0', '企业认证', '企业身份认证', 23],
+      ['ai_report', 'member', 'switch', '', '0', 'AI 报告', 'AI 数据报告', 24],
+      ['ai_words', 'member', 'switch', '', '0', 'AI 话术', 'AI 智能话术', 25],
+      ['point_rate', 'member', 'number', '倍', '1', '积分倍率', '积分获取倍率', 26],
+      ['rebate', 'member', 'number', '%', '0', '返比', '消费返积分比例', 27],
+      ['discount', 'mall', 'number', '%', '0', '商城折扣百分比（0=无折扣，10=打9折）', '商城会员价', 30],
+      ['price_visible', 'mall', 'switch', '', '0', '价格可见', '会员价公示', 31],
+      ['market_subject', 'market', 'switch', '', '0', '集市场席', '人脉集市上架席位', 40],
+      ['lead_quota', 'radar', 'number', '条', '0', '留资配额', '客户留资配额', 50],
+      ['push_quota', 'radar', 'number', '条', '0', '推送配额', '智能推送配额', 51],
     ];
-    const ins = db.prepare('INSERT OR IGNORE INTO benefit_catalog (type, app_scope, kind, unit, default_value, label, sort_order) VALUES (?,?,?,?,?,?,?)');
+    const ins = db.prepare('INSERT OR IGNORE INTO benefit_catalog (type, app_scope, kind, unit, default_value, label, display_label, sort_order) VALUES (?,?,?,?,?,?,?,?)');
     for (const row of catalog) ins.run(...row);
     setMark(db, 'benefit_catalog_seed_v1');
   }
@@ -2553,7 +2556,8 @@ function seedGoods(db) {
       title TEXT NOT NULL DEFAULT '',
       thumb TEXT NOT NULL DEFAULT '',
       spec_json TEXT NOT NULL DEFAULT '{}',
-      price INTEGER NOT NULL DEFAULT 0,            -- 成交单价（分）
+      price INTEGER NOT NULL DEFAULT 0,            -- 成交单价（分，**会员折扣后**）
+      origin_price INTEGER NOT NULL DEFAULT 0,      -- 折前单价（分）：无会员折扣时 = price；用于对账/展示「省了多少」
       num INTEGER NOT NULL DEFAULT 1
     );
     CREATE INDEX IF NOT EXISTS idx_goods_order_item ON goods_order_item(order_id);
@@ -3769,6 +3773,30 @@ export function ensureTenantDefaultLevels(db, tenantId) {
         .run(tenantId, levelId, appCode, JSON.stringify(seedBenefits));
     }
   }
+  // 🔴 2026-10-27 Lv 序号修复（用户报修「黄金会员 Lv1 排最前，高等级放前面了」）：
+  //    认领存量同名档时只打 pkg_level 标记、保留原 level_no —— 若管理员先自建「黄金会员」
+  //    （addLevel 默认 level_no=1），播种「免费版」顺延得 2 → 标准档相对序错乱，C 端档位条
+  //    与后台列表（都按 level_no ASC）高档反而排最前。
+  //    这里只在检测到「标准档之间不满足 free<silver<gold<diamond 相对序」时重编一次：
+  //    标准档按模板序优先连续编号，自建档按原 level_no 升序排其后（level_no 与 sort_order 同步）。
+  //    标准档相对序正确时一律不动 —— 管理员手动调档位序不会被每次启动的播种覆盖。
+  const TIER_RANK = { free: 1, silver: 2, gold: 3, diamond: 4 };
+  const allLv = db.prepare('SELECT id, level_no, pkg_level FROM member_levels WHERE tenant_id = ?').all(tenantId);
+  const stdLv = allLv
+    .filter((r) => r.pkg_level && TIER_RANK[r.pkg_level])
+    .sort((a, b) => TIER_RANK[a.pkg_level] - TIER_RANK[b.pkg_level]);
+  const nos = stdLv.map((r) => Number(r.level_no) || 0);
+  const stdOrdered = nos.every((n, i) => i === 0 || n > nos[i - 1]);
+  if (stdLv.length >= 2 && !stdOrdered) {
+    const customLv = allLv
+      .filter((r) => !r.pkg_level || !TIER_RANK[r.pkg_level])
+      .sort((a, b) => (Number(a.level_no) || 0) - (Number(b.level_no) || 0));
+    let no = 0;
+    for (const r of [...stdLv, ...customLv]) {
+      no += 1;
+      db.prepare('UPDATE member_levels SET level_no = ?, sort_order = ? WHERE id = ? AND tenant_id = ?').run(no, no, r.id, tenantId);
+    }
+  }
 }
 
 /** 为所有存量租户（projects）播种默认套餐 */
@@ -4652,6 +4680,38 @@ function seedMemberSystem(db) {
   }
   if (!colExists(db, 'goods_order', 'verify_by')) {
     db.exec('ALTER TABLE goods_order ADD COLUMN verify_by INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // —— 商城会员价（mall.discount 兑现）：明细记折前单价，用于「省了多少」展示与对账 ——
+  // 幂等：colExists 判定，存量库重启自动补列（新列默认 0 = 无折前价，读取侧回落 price）
+  if (!colExists(db, 'goods_order_item', 'origin_price')) {
+    db.exec('ALTER TABLE goods_order_item ADD COLUMN origin_price INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // —— 权益目录 C 端展示名（benefit_catalog.display_label）——
+  // 痛点：目录 label 是**后台配置口径**（如"商城折扣百分比（0=无折扣，10=打9折）"），
+  //   直接透给 C 端既不像消费语言、也很占位置（用户原话）。
+  // 解法：新增 display_label 列存 C 端展示短词（"商城会员价"），空值回落 label。
+  // 幂等：① 列缺失 → ALTER 补列；② 回填用独立 mark（不重播，存量目录只迁一次）。
+  // ⚠️ 与「benefit_catalog_seed_v1」分开留痕：seed 是 INSERT OR IGNORE（不会更新存量行），
+  //    存量库的 label 仍是旧值 → 必须靠本迁移回填 display_label。
+  if (!colExists(db, 'benefit_catalog', 'display_label')) {
+    db.exec("ALTER TABLE benefit_catalog ADD COLUMN display_label TEXT NOT NULL DEFAULT ''");
+  }
+  if (!markApplied(db, 'benefit_catalog_display_label_v1')) {
+    const DISPLAY_LABELS = {
+      works_limit: '作品发布数', videos_limit: '视频号数', collect_limit: '收藏数',
+      custom_works_label: '自定义作品标签', voice_enabled: '语音简介', no_ads: '无广告打扰', all_template: '全部模板库',
+      badge: '专属等级徽章', advanced_stats: '高级数据统计', priority_support: '优先客服支持',
+      enterprise: '企业身份认证', ai_report: 'AI 数据报告', ai_words: 'AI 智能话术',
+      point_rate: '积分获取倍率', rebate: '消费返积分比例',
+      discount: '商城会员价', price_visible: '会员价公示',
+      market_subject: '人脉集市上架席位',
+      lead_quota: '客户留资配额', push_quota: '智能推送配额',
+    };
+    const upd = db.prepare('UPDATE benefit_catalog SET display_label = ? WHERE type = ?');
+    for (const [type, dl] of Object.entries(DISPLAY_LABELS)) upd.run(dl, type);
+    setMark(db, 'benefit_catalog_display_label_v1');
   }
 
   // —— 第21轮：入驻兑换码（一人一码、用完即废；替代裸静态口令 projects.invite_code） ——

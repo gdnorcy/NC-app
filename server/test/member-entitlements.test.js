@@ -259,3 +259,40 @@ test('/member/status 暴露 appBenefits：按应用分组 + 目录默认 ⊕ 矩
   assert.equal(byCode2.card.items.find((i) => i.type === 'works_limit').value, 120, '钻石作品上限应为 120');
   assert.equal(byCode2.card.items.find((i) => i.type === 'voice_enabled').value, true, '钻石语音应为开');
 });
+
+test('/member/status 权益快照带 C 端展示字段（displayLabel / valueText / active / stats / appIcon）', async () => {
+  const { token, uid } = await login('ent_appben_2');
+  const res = await request(app).get('/api/card/member/status').set('Authorization', `Bearer ${token}`);
+  assert.equal(res.status, 200);
+  const apps = res.body.appBenefits;
+  const byCode = Object.fromEntries(apps.map((a) => [a.code, a]));
+
+  // 应用色标 + 分组统计（一眼分清归属应用 + 概览）
+  assert.equal(byCode.mall.appIcon, 'cart', '商城应用色标图标应为 cart');
+  assert.equal(byCode.card.appIcon, 'card');
+  assert.ok(byCode.card.stats && byCode.card.stats.total > 0, '应有分组统计');
+  assert.equal(typeof byCode.card.stats.active, 'number');
+
+  // 权益项：C 端展示名 + 服务端算好的展示值 + 生效标记
+  const disc = byCode.mall.items.find((i) => i.type === 'discount');
+  assert.equal(disc.displayLabel, '商城会员价', '商城折扣的 C 端展示名应是消费语言');
+  assert.ok(!disc.displayLabel.includes('百分比'), 'C 端展示名不得含后台配置口径');
+  assert.equal(disc.valueText, '无折扣', '折扣 0 → 展示「无折扣」');
+  assert.equal(disc.active, false, '折扣 0 → 未生效');
+
+  const works = byCode.card.items.find((i) => i.type === 'works_limit');
+  assert.equal(works.displayLabel, '作品发布数');
+  assert.equal(works.active, true, '配额类 0=不限 → 视为生效');
+
+  const voice = byCode.card.items.find((i) => i.type === 'voice_enabled');
+  assert.equal(voice.valueText, '未开通');
+  assert.equal(voice.active, false);
+
+  // 升级到有折扣的档位 → 商城组展示「X 折」+ 生效
+  grantLevel(uid, 'diamond', { mall: { discount: 10 } });
+  const after = await request(app).get('/api/card/member/status').set('Authorization', `Bearer ${token}`);
+  const mall2 = after.body.appBenefits.find((a) => a.code === 'mall');
+  const disc2 = mall2.items.find((i) => i.type === 'discount');
+  assert.equal(disc2.valueText, '9 折', '折扣 10（百分比）→ 展示「9 折」');
+  assert.equal(disc2.active, true);
+});

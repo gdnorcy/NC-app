@@ -175,6 +175,121 @@ describe('商城 C 端 API（/api/mall）', () => {
     assert.equal(afterCancel.total, 1);
   });
 
+  test('会员价端到端：套餐折扣 mall.discount → 列表/详情展示 + 下单实付一致', async () => {
+    // 给该用户一个黄金档会员身份（矩阵 mall.discount=10 → 打9折）
+    const lv = db.prepare(
+      "INSERT INTO member_levels (tenant_id, level_no, name, status, pkg_level, buy_price) VALUES (?, 2, '黄金会员', 1, 'gold', 9900)"
+    ).run(openId);
+    const levelId = Number(lv.lastInsertRowid);
+    db.prepare(
+      "INSERT INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits) VALUES (?, ?, 'mall', ?)"
+    ).run(openId, levelId, JSON.stringify({ discount: 10 }));
+    db.prepare(
+      "INSERT INTO member_user (tenant_id, user_id, level_id, status) VALUES (?, ?, ?, 'active')"
+    ).run(openId, user.id, levelId);
+
+    // 商品价 100 元 → 会员价 90 元
+    const g = db.prepare(
+      "INSERT INTO goods (customer_id, title, status, price, stock, spec_mode) VALUES (?, '会员折扣商品', 'sell', 100, 10, 'single')"
+    ).run(openId);
+    const goodsId = Number(g.lastInsertRowid);
+
+    // 列表：返回 memberPrice（分）= 9000、originPrice = 10000、hasMemberPrice=true
+    const list = await fetch(`${baseUrl}/api/mall/goods?tid=${openId}&pageSize=50`, { headers: auth() }).then(json);
+    const item = list.list.find((x) => x.id === goodsId);
+    assert.ok(item, '列表应含该商品');
+    assert.equal(item.memberPrice, 9000);
+    assert.equal(item.originPrice, 10000);
+    assert.equal(item.hasMemberPrice, true);
+    assert.equal(item.memberDiscount, 10);
+
+    // 详情：同口径
+    const detail = await fetch(`${baseUrl}/api/mall/goods/${goodsId}?tid=${openId}`, { headers: auth() }).then(json);
+    assert.equal(detail.memberPrice, 9000);
+    assert.equal(detail.hasMemberPrice, true);
+
+    // 下单：实付 = 90 元 = 9000 分（与展示价一致 → 显示价 = 实付价）
+    try {
+      const r = await fetch(`${baseUrl}/api/mall/orders`, {
+        method: 'POST', headers: auth(),
+        body: JSON.stringify({ items: [{ goodsId, quantity: 1 }], deliveryMode: 'express', receiverName: '李四', receiverPhone: '13900000001', receiverAddress: '东莞市南城' }),
+      });
+      const order = await json(r);
+      assert.equal(order.amount, 9000, '下单实付应等于展示的会员价 90 元');
+      assert.equal(order.total_amount, 10000, 'total_amount 记折前 100 元（对账口径）');
+      assert.equal(order.savedAmount, 1000, '省了 10 元');
+    } finally {
+      // 清理必须在 finally（断言失败也要清理，否则污染后续用例）
+      db.prepare('DELETE FROM member_user WHERE tenant_id = ? AND user_id = ?').run(openId, user.id);
+      db.prepare('DELETE FROM member_level_app_benefits WHERE tenant_id = ? AND level_id = ?').run(openId, levelId);
+      db.prepare('DELETE FROM member_levels WHERE id = ?').run(levelId);
+    }
+  });
+
+  test('会员价端到端：商品级会员价（goods.member_price 逐等级定价）优先于套餐折扣', async () => {
+    const lv = db.prepare(
+      "INSERT INTO member_levels (tenant_id, level_no, name, status, pkg_level, buy_price) VALUES (?, 2, '钻石会员', 1, 'diamond', 29900)"
+    ).run(openId);
+    const levelId = Number(lv.lastInsertRowid);
+    db.prepare(
+      "INSERT INTO member_level_app_benefits (tenant_id, level_id, app_code, benefits) VALUES (?, ?, 'mall', ?)"
+    ).run(openId, levelId, JSON.stringify({ discount: 10 }));
+    // 商品级固定会员价 80 元（单位元）→ 优先于套餐折扣 9 折（90 元）
+    const g = db.prepare(
+      "INSERT INTO goods (customer_id, title, status, price, stock, spec_mode, member_price) VALUES (?, '单品会员价', 'sell', 100, 10, 'single', ?)"
+    ).run(openId, JSON.stringify({ mode: 'custom', priceType: 'amount', priceMap: { [levelId]: 80 } }));
+    const goodsId = Number(g.lastInsertRowid);
+
+    try {
+      // 幂等插入会员身份（前面的用例可能已建过）
+      db.prepare('DELETE FROM member_user WHERE tenant_id = ? AND user_id = ?').run(openId, user.id);
+      db.prepare(
+        "INSERT INTO member_user (tenant_id, user_id, level_id, status) VALUES (?, ?, ?, 'active')"
+      ).run(openId, user.id, levelId);
+
+      const list = await fetch(`${baseUrl}/api/mall/goods?tid=${openId}&pageSize=50`, { headers: auth() }).then(json);
+      const item = list.list.find((x) => x.id === goodsId);
+      assert.equal(item.memberPrice, 8000, '商品级固定会员价 80 元应优先于套餐 9 折');
+      assert.equal(item.originPrice, 10000);
+
+      const r = await fetch(`${baseUrl}/api/mall/orders`, {
+        method: 'POST', headers: auth(),
+        body: JSON.stringify({ items: [{ goodsId, quantity: 1 }], deliveryMode: 'express', receiverName: '王五', receiverPhone: '13900000002', receiverAddress: '东莞市南城' }),
+      });
+      const order = await json(r);
+      assert.equal(order.amount, 8000, '下单实付 = 商品级会员价 80 元');
+    } finally {
+      db.prepare('DELETE FROM member_user WHERE tenant_id = ? AND user_id = ?').run(openId, user.id);
+      db.prepare('DELETE FROM member_level_app_benefits WHERE tenant_id = ? AND level_id = ?').run(openId, levelId);
+      db.prepare('DELETE FROM member_levels WHERE id = ?').run(levelId);
+    }
+  });
+
+  test('价格可见性：showVipPrice=2 且非会员 → priceHidden=true（显示「登录查看价格」）', async () => {
+    // 租户开启「非会员不可见价格」
+    const setting = db.prepare('SELECT config FROM goods_setting WHERE customer_id = ?').get(openId);
+    const cfg = JSON.parse(setting.config || '{}');
+    cfg.showVipPrice = 2;
+    db.prepare('UPDATE goods_setting SET config = ? WHERE customer_id = ?').run(JSON.stringify(cfg), openId);
+
+    // 游客（无 token）
+    const guest = await fetch(`${baseUrl}/api/mall/goods?tid=${openId}&pageSize=50`).then(json);
+    assert.equal(guest.list[0].priceHidden, true, '非会员游客应看不到价格');
+    assert.equal(guest.memberPricing.priceHidden, true);
+    assert.equal(guest.memberPricing.showVipPrice, 2);
+
+    // 登录用户但无会员身份 → 同样隐藏（先确保没有残留会员身份）
+    db.prepare('DELETE FROM member_user WHERE tenant_id = ? AND user_id = ?').run(openId, user.id);
+    const logged = await fetch(`${baseUrl}/api/mall/goods?tid=${openId}&pageSize=50`, { headers: auth() }).then(json);
+    assert.equal(logged.memberPricing.priceHidden, true, '非会员登录用户也应隐藏');
+
+    // 恢复
+    cfg.showVipPrice = 0;
+    db.prepare('UPDATE goods_setting SET config = ? WHERE customer_id = ?').run(JSON.stringify(cfg), openId);
+    const back = await fetch(`${baseUrl}/api/mall/goods?tid=${openId}&pageSize=50`).then(json);
+    assert.equal(back.memberPricing.priceHidden, false);
+  });
+
   test('下单（到店自提）→ 核销码+门店名；门店不存在 → 400', async () => {
     const apple = db.prepare("SELECT id FROM goods WHERE customer_id = ? AND title = '苹果'").get(openId);
     const store = db.prepare("SELECT id, name FROM store WHERE customer_id = ? AND status = 1").get(openId);

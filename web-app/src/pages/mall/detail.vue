@@ -25,9 +25,29 @@
       <!-- 价格/标题 -->
       <view class="info-card" v-if="goods">
         <view class="price-row">
-          <text class="price-symbol">¥</text>
-          <text class="price-num">{{ yuanFmt(curPrice) }}</text>
-          <text class="price-market" v-if="goods.marketPrice && Number(goods.marketPrice) > Number(goods.price)">¥{{ yuanFmt(goods.marketPrice) }}</text>
+          <!-- 🔴 会员价：有会员折扣时展示「会员价 + 原价划线」（传统商城表达） -->
+          <template v-if="hasMemberPrice">
+            <text class="price-member-tag">会员价</text>
+            <text class="price-symbol">¥</text>
+            <text class="price-num">{{ fen2yuan(curMemberPrice) }}</text>
+            <text class="price-origin">¥{{ fen2yuan(curOriginPrice) }}</text>
+          </template>
+          <template v-else-if="goods.priceHidden">
+            <!-- 租户开启「非会员不可见价格」→ 引导登录/开通会员 -->
+            <text class="price-hidden" @click.stop="goLogin">登录查看价格</text>
+          </template>
+          <template v-else-if="goods.pricePublic && curMemberPrice < curOriginPrice">
+            <!-- 会员价对访客公开 → 公示「会员价 + 原价划线」 -->
+            <text class="price-member-tag">会员价</text>
+            <text class="price-symbol">¥</text>
+            <text class="price-num">{{ fen2yuan(curMemberPrice) }}</text>
+            <text class="price-origin">¥{{ fen2yuan(curOriginPrice) }}</text>
+          </template>
+          <template v-else>
+            <text class="price-symbol">¥</text>
+            <text class="price-num">{{ yuanFmt(curPrice) }}</text>
+            <text class="price-market" v-if="goods.marketPrice && Number(goods.marketPrice) > Number(goods.price)">¥{{ yuanFmt(goods.marketPrice) }}</text>
+          </template>
           <text class="sales">已售{{ goods.sales || 0 }}</text>
         </view>
         <view class="title-row">
@@ -67,8 +87,16 @@
         <view class="sku-head">
           <image v-if="goods" :src="resolveUrl(goods.thumb)" class="sku-thumb" mode="aspectFill" />
           <view class="sku-price">
-            <text class="price-symbol">¥</text>
-            <text class="price-num">{{ yuanFmt(curPrice) }}</text>
+            <template v-if="hasMemberPrice || (goods && goods.pricePublic && curMemberPrice < curOriginPrice)">
+              <text class="price-member-tag">会员价</text>
+              <text class="price-symbol">¥</text>
+              <text class="price-num">{{ fen2yuan(curMemberPrice) }}</text>
+              <text class="price-origin">¥{{ fen2yuan(curOriginPrice) }}</text>
+            </template>
+            <template v-else>
+              <text class="price-symbol">¥</text>
+              <text class="price-num">{{ yuanFmt(curPrice) }}</text>
+            </template>
           </view>
           <view class="sku-close" @click="skuVisible = false">✕</view>
         </view>
@@ -109,7 +137,7 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
-import { yuanFmt, getTid, getToken } from '../../utils/mallUtil.js';
+import { yuanFmt, fen2yuan, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
 import { useDesignTheme } from '../../utils/design.js';
 
@@ -144,6 +172,25 @@ const deliveryTexts = computed(() => {
 const curPrice = computed(() => {
   if (goods.value?.specMode === 'multi' && selectedSku.value) return selectedSku.value.price;
   return goods.value?.price || 0;
+});
+
+// 🔴 会员价（单位：分，与服务端 memberPrice 一致，避免前端浮点误差）
+//   SKU 商品取选中 SKU 的会员价；非 SKU 取商品会员价。
+const hasMemberPrice = computed(() => {
+  if (goods.value?.hasMemberPrice) return true;
+  return !!(selectedSku.value && selectedSku.value.memberPrice < (selectedSku.value.originPrice || selectedSku.value.price));
+});
+const curMemberPrice = computed(() => {
+  if (goods.value?.specMode === 'multi' && selectedSku.value) {
+    return selectedSku.value.memberPrice ?? Math.round((selectedSku.value.price || 0) * 100);
+  }
+  return goods.value?.memberPrice ?? Math.round((goods.value?.price || 0) * 100);
+});
+const curOriginPrice = computed(() => {
+  if (goods.value?.specMode === 'multi' && selectedSku.value) {
+    return selectedSku.value.originPrice ?? Math.round((selectedSku.value.price || 0) * 100);
+  }
+  return goods.value?.originPrice ?? Math.round((goods.value?.price || 0) * 100);
 });
 
 const curStock = computed(() => {
@@ -185,6 +232,12 @@ function ensureLogin() {
   uni.showToast({ title: '请先登录', icon: 'none' });
   uni.reLaunch({ url: '/pages/card/login' });
   return false;
+}
+
+/** 点「登录查看价格」：未登录 → 去登录页；已登录 → 去会员中心开通会员 */
+function goLogin() {
+  if (!ensureLogin()) return;
+  uni.navigateTo({ url: '/pages/card/member' });
 }
 
 function confirmSku() {
@@ -277,6 +330,22 @@ onLoad((o) => {
 }
 .info-card { background: var(--white); padding: 24rpx; margin-top: 16rpx; }
 .price-row { display: flex; align-items: baseline; }
+.price-member-tag {
+  font-size: var(--fs-1);
+  color: var(--white);
+  background: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 2rpx 8rpx;
+  margin-right: 8rpx;
+  align-self: center;
+}
+.price-origin {
+  font-size: var(--fs-2);
+  color: var(--decor);
+  text-decoration: line-through;
+  margin-left: 8rpx;
+}
+.price-hidden { font-size: var(--fs-3); color: var(--t4); }
 .price-symbol { font-size: var(--fs-5); color: var(--danger); }
 .price-num { font-size: 48rpx; font-weight: 600; color: var(--danger); }
 .price-market { font-size: var(--fs-4); color: var(--decor); text-decoration: line-through; margin-left: 12rpx; }

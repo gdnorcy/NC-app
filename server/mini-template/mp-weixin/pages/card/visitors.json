@@ -5,6 +5,7 @@
     "page-nav": "../../components/PageNav",
     "s-icon": "../../components/SIcon",
     "card-tab-bar": "../../components/CardTabBar",
-    "skeleton": "../../components/Skeleton"
+    "skeleton": "../../components/Skeleton",
+    "login-gate-modal": "../../components/LoginGateModal"
   }
 }

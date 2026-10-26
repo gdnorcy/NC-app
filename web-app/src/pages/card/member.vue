@@ -11,18 +11,6 @@
       <view class="hero-sub">当前：{{ currentLevelText }}{{ isMember ? ' · 有效期至 ' + memberExpire : ' · 尚未开通' }}</view>
     </view>
 
-    <!-- 分销中心入口 -->
-    <view class="dist-entry" @click="goDistribution">
-      <view class="de-left">
-        <view class="de-icon"><SIcon name="dist" size="large" :color="themeColor" /></view>
-        <view>
-          <view class="de-title">分销中心</view>
-          <view class="de-sub">推广赚佣金 · 查看收益与提现</view>
-        </view>
-      </view>
-      <view class="de-arrow">›</view>
-    </view>
-
     <!-- ===== 租户会员卡（1:1 复刻菜鸟云会员中心） ===== -->
     <block v-if="showTenantMember">
       <!-- 会员卡 -->
@@ -39,27 +27,43 @@
         </view>
       </view>
 
-      <!-- 签到 -->
-      <view v-if="memberCard" class="sign-row">
-        <view class="sign-info">
-          <view class="si-title">每日签到</view>
-          <view class="si-sub">签到 +2 积分，积分可用于会员权益</view>
-        </view>
-        <view class="sign-btn" @click="doSign">签到</view>
-      </view>
-
       <!-- 等级购买/申请 -->
+      <!-- 🔴 2026-10-27 职责重划：租户等级档位改横向滑动（档位条 + 下方选中档详情）。
+           原实现 4 张大卡纵向堆叠 → 页面极长、对比档位要上下扫。
+           现在：横向 scroll-view 一条紧凑档位条（等级名 + 价格），选中后下方展开该档
+           权益说明与购买/申请按钮。MP 端必须用 scroll-view（裸 overflow 横向滚动在真机不跟手）。
+           ⚠️ 签到已迁至个人中心（日常动作），本页只留「等级 / 权益 / 购买」；分销入口同步移除。 -->
       <view class="sec-t">会员等级<small>升级解锁更多权益</small></view>
-      <view class="tlevels">
-        <view class="tlv" v-for="lv in tenantLevels" :key="lv.id" :class="{ cur: memberCard && memberCard.levelId === lv.id }">
-          <view class="tlv-head">
-            <view class="tlv-name">{{ lv.name }}</view>
-            <view class="tlv-no">Lv{{ lv.level_no }}</view>
+      <view v-if="tenantLevels.length" class="tlevels">
+        <!-- 档位条（横向滑动） -->
+        <scroll-view class="tlv-scroll" scroll-x :show-scrollbar="false" :scroll-into-view="curLevelAnchor">
+          <view class="tlv-track">
+            <view
+              v-for="lv in tenantLevels"
+              :key="lv.id"
+              class="tlv-chip"
+              :class="{ cur: lv.id === selLevelId }"
+              :id="'tlv-' + lv.id"
+              @click="selLevelId = lv.id"
+            >
+              <text class="tlc-name">{{ lv.name }}</text>
+              <text class="tlc-price" v-if="lv.buy_price > 0">¥{{ (lv.buy_price / 100).toFixed(0) }}</text>
+              <text class="tlc-price cur-tag" v-else-if="lv.id === memberCardLevelId">当前</text>
+              <text class="tlc-price" v-else>—</text>
+            </view>
           </view>
-          <view class="tlv-desc">{{ lv.description || (lv.upgrade_mode === 'apply' ? '申请模式：提交申请，审核通过后开通' : '消费模式：累计消费满额自动升级') }}</view>
-          <view v-if="memberCard && memberCard.levelId === lv.id" class="tlv-btn on">当前等级</view>
-          <view v-else-if="lv.upgrade_mode === 'consume' && lv.buy_price > 0" class="tlv-btn buy" @click="buyLevel(lv)">¥{{ (lv.buy_price / 100).toFixed(0) }} 购买</view>
-          <view v-else-if="lv.upgrade_mode === 'apply'" class="tlv-btn apply" @click="applyLevel(lv)">申请开通</view>
+        </scroll-view>
+
+        <!-- 选中档详情（纵向展开） -->
+        <view v-if="selLevel" class="tlv-detail">
+          <view class="td-head">
+            <view class="td-name">{{ selLevel.name }}</view>
+            <view class="td-no" v-if="selLevel.level_no">Lv{{ selLevel.level_no }}</view>
+          </view>
+          <view class="td-desc">{{ selLevel.description || (selLevel.upgrade_mode === 'apply' ? '申请模式：提交申请，审核通过后开通' : '消费模式：累计消费满额自动升级') }}</view>
+          <view v-if="memberCardLevelId === selLevel.id" class="tlv-btn on">当前等级</view>
+          <view v-else-if="selLevel.upgrade_mode === 'consume' && selLevel.buy_price > 0" class="tlv-btn buy" @click="buyLevel(selLevel)">¥{{ (selLevel.buy_price / 100).toFixed(0) }} 购买</view>
+          <view v-else-if="selLevel.upgrade_mode === 'apply'" class="tlv-btn apply" @click="applyLevel(selLevel)">申请开通</view>
           <view v-else class="tlv-btn disabled">满额自动升级</view>
         </view>
       </view>
@@ -70,23 +74,55 @@
       </view>
     </block>
 
-    <!-- ===== 第22轮：我的权益（按应用分区全量展示：平台目录 ⊕ 租户矩阵，含已用量） ===== -->
+    <!-- ===== 我的权益（按应用分区 + 应用色标 + 紧凑两列网格）=====
+         🔴 表达改造（用户诉求：不够高级美观 / 很占位置 / 难分清是哪个应用）：
+           - 应用名 → 带色标圆徽（appIcon），一眼分清归属应用
+           - 权益名 → 服务端 displayLabel（消费感知短词），不再直给后台配置口径
+           - 权益值 → 服务端 valueText（C 端零逻辑），未生效置灰
+           - 布局 → 两列网格（原为整行列表，20 项权益会拉出 20 行 → 页面极长）
+           - 卡片头 → 统计「已开通 N / 共 M 项」，替代逐条罗列 -->
     <block v-if="appBenefits.length">
       <view class="sec-t">我的权益<small>{{ currentLevelText || '免费版' }}</small></view>
       <view class="ent-card" v-for="app in appBenefits" :key="app.code">
-        <view class="ent-app">{{ app.name }}</view>
-        <view class="ent-row" v-for="it in app.items" :key="it.type">
-          <text class="ent-k">{{ it.label }}</text>
-          <text class="ent-v" :class="{ off: isEntOff(it) }">{{ entValueText(it) }}</text>
+        <view class="ent-head">
+          <view class="ent-badge">
+            <SIcon :name="app.appIcon" size="small" :color="appInk(app.code)" />
+          </view>
+          <view class="ent-head-main">
+            <text class="ent-app">{{ app.name }}</text>
+            <text class="ent-stat">已开通 {{ app.stats.active }} / {{ app.stats.total }} 项</text>
+          </view>
+        </view>
+        <view class="ent-grid">
+          <view class="ent-cell" v-for="it in app.items" :key="it.type" :class="{ off: !it.active }">
+            <text class="ent-k">{{ it.displayLabel }}</text>
+            <text class="ent-v">{{ it.valueText }}</text>
+          </view>
         </view>
       </view>
     </block>
 
-    <!-- 1b 收敛：购买统一走租户会员等级（/member/buy 需租户上下文）。
-         未入驻用户（platform_user.customer_id 为空）旧 A 路是唯一入口，现降级为引导文案，不做无声隐藏 -->
-    <view v-if="tenantUnbound && !showTenantMember" class="unbound-tip">
-      <view class="ut-title">会员开通</view>
-      <view class="ut-sub">你还未入驻任何客户，暂无法购买会员卡。入驻后即可开通会员，解锁全部权益。</view>
+    <!-- 🔴 2026-10-27 空白页修复：旧版本页有一张不受 v-if 控制的分销大卡垫底，
+         上轮迁走后暴露「游客 / 请求全失败时数据全空 → 页面只剩 hero+tabbar」的死寂空白
+         （Promise.all 任一 reject → catch 吞掉 → 三个内容区全隐藏，且 tenantUnbound 仍为 false
+         → 连未入驻引导也不显示）。这里给唯一兜底卡，按「未登录 / 未入驻 / 加载失败」三态给文案与动作，
+         不再无声空白。条件=三个内容区全空（showTenantMember 与 appBenefits 都为假）。 -->
+    <view v-if="!showTenantMember && !appBenefits.length" class="unbound-tip">
+      <!-- ⚠️ MP 模板用 view 承载 v-if/v-else-if 链（不用 <template>，规避 MP 编译坑） -->
+      <view v-if="!loggedIn">
+        <view class="ut-title">登录后查看会员权益</view>
+        <view class="ut-sub">登录并入驻后即可开通会员、每日签到领积分、按应用查看专属权益。</view>
+        <view class="ut-btn" @click="goLoginThenLoad">去登录</view>
+      </view>
+      <view v-else-if="tenantUnbound">
+        <view class="ut-title">会员开通</view>
+        <view class="ut-sub">你还未入驻任何客户，暂无法购买会员卡。入驻后即可开通会员，解锁全部权益。</view>
+      </view>
+      <view v-else>
+        <view class="ut-title">内容加载失败</view>
+        <view class="ut-sub">网络开小差了，请重试。</view>
+        <view class="ut-btn" @click="loadMemberData">重新加载</view>
+      </view>
     </view>
 
     <!-- 🔴 #312-18c 动作守卫改原地登录：购买/申请未登录时当页弹浮层，登录成功自动继续 -->
@@ -125,21 +161,38 @@ const tabBarPad = useTabBarPadding();
 const { brandVars, brandPrimary } = useBrandOverride();
 // SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
 // （勿改 --design-subtext：那是租户可配文字辅色，配了会与其他页图标色漂移）
+// 🔴 2026-10-27：分销入口大卡移除后 themeColor 暂无消费者，但**保留**——
+//    全站品牌色口径统一约定（brandCoverage.test.js 逐页扫这一行），删掉会破坏一致性契约；
+//    会员卡等级徽章等后续带色图标位直接复用。
 const themeColor = computed(() => brandPrimary.value || (themeStyle.value && themeStyle.value['--design-primary']) || '#165dff');
 const isMember = ref(false);
-const memberLevel = ref('free');
+// 🔴 2026-10-27：等级名统一走服务端 /member/status 的 levelName（租户档位真名）。
+//    旧版这里的 currentLevelText 用前端硬编码映射表 {free,silver,gold,diamond}，
+//    租户自建档位（pkg_level=NULL → level='custom'）查不到 → 显示空白；
+//    且与会员卡上的档位真名（memberCard.levelName）不同口径 → 同页两种等级名。
+//    现统一消费服务端一个字段，本页不再有等级名映射表。
+const memberLevelName = ref('');
 const memberExpire = ref('');
 // 第21轮：套餐权益实况（/member/status 的 entitlements），让「买了什么」在会员中心对得上
 const entitlements = ref(null);
 // 第22轮：按应用分区的全量权益（/member/status 的 appBenefits），含目录/矩阵/已用量
 const appBenefits = ref([]);
-// 套餐点选态（cur=真实会员等级，sel=点选高亮——用户反馈「选中状态不会变化」）
 // 租户会员卡（1:1 复刻菜鸟云）
 const memberCard = ref(null);
 const tenantLevels = ref([]);
 // 1b：未入驻租户（my-card 返回 unbound）→ 展示购买引导而非无声隐藏
 const tenantUnbound = ref(false);
-const signing = ref(false);
+// 🔴 2026-10-27：等级档位改横向滑动 —— 选中档位 id（点档位条切换下方详情）
+const selLevelId = ref(0);
+// 当前会员所在档位 id（memberCard.levelId，无会员卡时 0）
+const memberCardLevelId = computed(() => (memberCard.value && memberCard.value.levelId) || 0);
+// 选中档位详情对象
+const selLevel = computed(() => tenantLevels.value.find((l) => l.id === selLevelId.value) || null);
+// 档位条自动定位到当前会员档位（scroll-into-view 只能定位到某个 id；未选时用当前档位）
+const curLevelAnchor = computed(() => {
+  const id = selLevelId.value || memberCardLevelId.value;
+  return id ? 'tlv-' + id : '';
+});
 const applyStatus = ref(null);
 const showTenantMember = computed(() => !!memberCard.value || tenantLevels.value.length > 0);
 // 品牌 5 色 hero：本人名片优先，无则回退品牌蓝渐变（对象形式，与 cardDetail 一致）
@@ -168,17 +221,26 @@ const applyTipText = computed(() => {
 });
 
 
-function goDistribution() {
-  uni.navigateTo({ url: '/pages/card/distribution' });
-}
+// 🔴 2026-10-27：分销中心入口已从本页移除（与个人中心菜单重复；分销是独立业务线，
+//    放在会员中心会让人误以为「买会员才能做分销」）→ 统一只在个人中心入口。
+//    分销页本身不受影响，仍可从个人中心 / 首页宫格进入。
 
-const currentLevelText = computed(() => ({ free: '免费版', silver: '白银会员', gold: '黄金会员', diamond: '钻石会员' }[memberLevel.value] || ''));
+// 等级名：只用服务端统一口径（租户档位真名），本页不再有映射表
+const currentLevelText = computed(() => memberLevelName.value || (isMember.value ? '' : '免费版'));
 
-onShow(() => { trackPageView('/pages/card/member'); });
+onShow(() => {
+  trackPageView('/pages/card/member');
+  // 退出登录原地翻态（记忆 #8）：tab 切回本页时同步登录态，兜底卡按最新态渲染
+  loggedIn.value = !!(uni.getStorageSync('card_user') || {}).id;
+});
 
-onMounted(async () => {
-  console.log('[member] mounted start');
-  restoreScrollTop('member');
+// 登录态（兜底卡三态判定用；与 buyLevel 同判据：card_user 本地缓存）
+const loggedIn = ref(!!(uni.getStorageSync('card_user') || {}).id);
+
+// 🔴 2026-10-27 空白页修复：加载逻辑抽成可重入函数 ——
+//   「登录跳两次」通解（记忆 #8）：未登录当页弹登录浮层，登录成功原地重入 loadMemberData()，0 次跳转。
+//   旧版逻辑内联在 onMounted，请求全失败时页面死寂空白且无法重试。
+async function loadMemberData() {
   // 登录类数据：未登录/游客降级为默认态，不阻塞页面
   try {
     const [memberRes, cardsRes, tCardRes, tLevelsRes] = await Promise.all([
@@ -190,7 +252,8 @@ onMounted(async () => {
     const myCard0 = (cardsRes.cards || [])[0];
     if (myCard0) { const b = brandPalette(myCard0); if (b.primary) Object.assign(brand.value, b); }
     isMember.value = memberRes.isMember;
-    memberLevel.value = memberRes.level;
+    // 🔴 等级名统一口径（服务端出，租户档位真名；custom 自建档位不再空白）
+    memberLevelName.value = memberRes.levelName || '';
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
     entitlements.value = memberRes.entitlements || null;
     appBenefits.value = memberRes.appBenefits || [];
@@ -201,9 +264,29 @@ onMounted(async () => {
       tenantLevels.value = tCardRes.levels || [];
       applyStatus.value = tCardRes.applyStatus || null;
     }
+    // 🔴 档位条初始选中：优先当前会员档位；无会员卡则选第一档（别让详情区空着）
+    const lvList = tenantLevels.value.length ? tenantLevels.value : (tLevelsRes?.levels || []);
+    if (!tenantLevels.value.length) tenantLevels.value = lvList;
+    if (lvList.length) {
+      const cur = (tCardRes && tCardRes.card && tCardRes.card.levelId) || 0;
+      selLevelId.value = lvList.some((l) => l.id === cur) ? cur : lvList[0].id;
+    }
   } catch (e) {
     console.warn('会员信息加载失败（未登录或接口异常，保持默认态）', e);
   }
+}
+
+// 兜底卡「去登录」：原地登录浮层（requireLogin 返回 Promise），成功后原地重入加载 —— 不跳登录页
+async function goLoginThenLoad() {
+  if (await requireLogin()) {
+    loggedIn.value = true;
+    await loadMemberData();
+  }
+}
+
+onMounted(() => {
+  restoreScrollTop('member');
+  loadMemberData();
 });
 
 // 离开时保存滚动位置，切Tab返回后恢复
@@ -211,9 +294,11 @@ onUnload(() => {
   saveCardTabState('member', { scrollTop: h5ScrollTop() });
 });
 
-// ===== 租户会员卡：购买 / 申请 / 签到 =====
+// ===== 租户会员卡：购买 / 申请 =====
 // 🔴 #312-18c：老 gotoLogin（toast + reLaunch 登录页）已删除——原地登录由
 // useInlineLogin 的 requireLogin 提供，调用方 `if (!(await requireLogin())) return;`。
+// 🔴 2026-10-27：签到已迁至个人中心（日常动作），本页不再有签到逻辑；
+//    服务端 /member/my-card 的 signed 字段本页不再消费（签到事实统一走 /member/status）。
 
 async function refreshMemberCard() {
   try {
@@ -306,45 +391,28 @@ async function applyLevel(lv) {
   });
 }
 
-async function doSign() {
-  if (signing.value) return;
-  signing.value = true;
-  try {
-    const res = await cardApi.memberSign();
-    uni.showToast({ title: `签到成功 +${res.score || 2} 积分`, icon: 'success' });
-    setTimeout(refreshMemberCard, 600);
-  } catch (e) {
-    uni.showToast({ title: e.message || '签到失败', icon: 'none' });
-  } finally {
-    signing.value = false;
-  }
-}
+// 🔴 2026-10-27：doSign 已迁至个人中心（profile.vue）——签到是每天都要来一次的日常动作，
+//    会员中心只负责「等级 / 权益 / 购买」。本页不再有签到逻辑。
 
 /** 折扣数值 → 中文几折（0.85 → 8.5 折） */
 /**
  * 折扣文案（第22轮起 mall.discount 为百分比口径：0=无折扣，10=打9折，80=打二折）。
  * 🔴 旧版按小数口径（0.8→8折）已在百分比模型下彻底错乱，勿回退。
  */
-function discountText(pct) {
-  const n = Number(pct) || 0;
-  if (n <= 0 || n >= 100) return n >= 100 ? '免单' : '无折扣';
-  const zhe = (100 - n) / 10;
-  return `${Number.isInteger(zhe) ? zhe : zhe.toFixed(1)} 折`;
-}
-
 /** 权益行取值文案：switch→开通态；折扣→折数；配额→已用/上限（0=不限）；其余→值+单位 */
-function entValueText(it) {
-  if (it.kind === 'switch') return it.value ? '已开通' : '未开通';
-  if (it.type === 'discount') return discountText(it.value);
-  if (it.used != null) return Number(it.value) > 0 ? `${it.used} / ${it.value}${it.unit ? ' ' + it.unit : ''}` : '不限';
-  return `${it.value}${it.unit ? ' ' + it.unit : ''}`;
-}
+// 🔴 权益展示值改由服务端算好（valueText），C 端零逻辑 → 避免各处口径漂移。
+//    旧 entValueText / isEntOff 已删除（前端拼串必然与后台口径分叉）。
 
-/** 权益行是否置灰（未开通/无折扣） */
-function isEntOff(it) {
-  if (it.kind === 'switch') return !it.value;
-  if (it.type === 'discount') return !(Number(it.value) > 0);
-  return false;
+/** 应用色标的图标色（SIcon 不能消费 var()，必须喂真实 hex） */
+const APP_INK = {
+  card: '#165dff',
+  member: '#7c3aed',
+  mall: '#e8590c',
+  market: '#0ca678',
+  radar: '#0b7285',
+};
+function appInk(code) {
+  return APP_INK[code] || '#165dff';
 }
 </script>
 
@@ -399,54 +467,67 @@ function isEntOff(it) {
 }
 .ut-title { font-size: var(--fs-5); font-weight: 600; color: var(--t5); }
 .ut-sub { font-size: var(--fs-3); color: var(--t4); margin-top: 10rpx; line-height: 1.6; }
+/* 兜底卡动作按钮（去登录 / 重新加载）：整页唯一强 CTA 口径 = 主色实心 */
+.ut-btn {
+  margin-top: 24rpx; text-align: center; padding: 18rpx;
+  border-radius: var(--radius-md); font-size: var(--fs-4); font-weight: 600;
+  background: var(--design-primary); color: var(--design-text, #fff);
+}
+.ut-btn:active { opacity: 0.8; }
 
 /* 第21轮：我的权益（套餐实况）；第22轮改按应用分区（每应用一张卡） */
-.ent-app {
-  padding: 20rpx 0 6rpx;
-  font-size: var(--fs-3);
-  font-weight: 600;
-  color: var(--t1);
-}
+/* ===== 我的权益（紧凑卡片 + 两列网格）===== */
 .ent-card {
   background: var(--white);
   border-radius: var(--radius-md);
-  padding: 8rpx 24rpx;
-  margin-bottom: 24rpx;
+  padding: 24rpx;
+  margin: 0 28rpx 20rpx;
 }
-.ent-row {
+/* 应用色标：一眼分清权益归属哪个应用（用户原话「很难分清是哪个应用」）
+   ⚠️ 底色统一走令牌 --bg-hover（禁裸 rgba：memberColorSystem 锁死 rgba(22, 93, 255 等品牌蓝写法，
+      tokenAudit 也有 rgba 裸值基线）→ 靠**图标颜色**区分应用，而非底色。 */
+.ent-head { display: flex; align-items: center; margin-bottom: 20rpx; }
+.ent-badge {
+  width: 56rpx; height: 56rpx; border-radius: var(--radius-md); margin-right: 16rpx;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: var(--bg-hover);
+}
+.ent-head-main { display: flex; flex-direction: column; }
+.ent-app {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  color: var(--t1);
+  line-height: 1.3;
+}
+.ent-stat {
+  font-size: var(--fs-1);
+  color: var(--t4);
+  margin-top: 4rpx;
+}
+/* 两列网格：20 项权益从 20 行压到 10 行，页面长度砍半 */
+.ent-grid { display: flex; flex-wrap: wrap; }
+.ent-cell {
+  width: 50%;
+  box-sizing: border-box;
+  padding: 12rpx 8rpx 12rpx 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18rpx 0;
-  border-bottom: 2rpx solid var(--bg-2);
+  flex-direction: column;
 }
-.ent-row:last-child {
-  border-bottom: none;
-}
+.ent-cell.off { opacity: 0.55; }
 .ent-k {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--t2);
+  line-height: 1.4;
 }
 .ent-v {
-  font-size: var(--fs-3);
+  font-size: var(--fs-4);
   font-weight: 600;
   color: var(--design-primary);
-}
-.ent-v.off {
-  font-weight: 400;
-  color: var(--t4);
+  margin-top: 4rpx;
 }
 
-.dist-entry {
-  display: flex; justify-content: space-between; align-items: center;
-  margin: 24rpx 40rpx 0; background: linear-gradient(90deg, var(--design-secondary), var(--white));
-  border: 1px solid rgba(var(--design-primary-rgb), 0.2); border-radius: var(--radius-xs); padding: 28rpx 32rpx;
-}
-.de-left { display: flex; align-items: center; gap: 24rpx; }
-.de-icon { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: rgba(var(--design-primary-rgb), 0.08); display: flex; align-items: center; justify-content: center; }
-.de-title { font-size: 30rpx; font-weight: 600; color: var(--t1); }
-.de-sub { font-size: var(--fs-3); color: var(--t3); margin-top: 4rpx; }
-.de-arrow { font-size: var(--fs-8); color: var(--border-strong); }
+/* 🔴 2026-10-27：分销中心大卡（.dist-entry/.de-*）已从本页移除，
+   入口统一收敛到个人中心菜单（分销是独立业务线，不属于会员中心）。 */
 
 /* ===== 租户会员卡 ===== */
 .tcard {
@@ -465,23 +546,75 @@ function isEntOff(it) {
 .tc-cell { flex: 1; }
 .tc-label { display: block; font-size: 21rpx; opacity: 0.8; }
 .tc-val { display: block; font-size: var(--fs-5); font-weight: 600; margin-top: 6rpx; }
-.sign-row {
-  display: flex; align-items: center; justify-content: space-between;
-  margin: 24rpx 28rpx 0; background: var(--white); border-radius: 20rpx; padding: 26rpx 28rpx;
+/* 🔴 2026-10-27：签到行（sign-row / si-title / si-sub / sign-btn）已迁至个人中心 profile.vue，本页删除。
+   等级档位：纵向大卡（tlv / tlv-head / tlv-name / tlv-no / tlv-desc）→ 横向档位条 + 下方详情。 */
+
+/* ===== 横向档位条（scroll-view 承载横向滚动）=====
+   🔴 MP 端铁律：横向滚动必须用 scroll-view（裸 overflow-x 在真机不跟手）。
+   ⚠️ scroll-view 必须定高（否则内容被裁），这里给固定高度给内容留足空间。
+   ⚠️ 内部 track 用 inline-flex + nowrap：多个 chip 排一行，超出部分由 scroll-view 滚。 */
+.tlv-scroll {
+  width: 100%;
+  height: 132rpx;
+  white-space: nowrap;
+}
+.tlv-track {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: 132rpx;
+  padding: 0 28rpx;
+  box-sizing: border-box;
+}
+.tlv-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 168rpx;
+  height: 108rpx;
+  margin-right: 16rpx;
+  padding: 0 24rpx;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+}
+.tlv-chip.cur {
+  border-color: var(--design-primary);
+  background: var(--design-secondary);
+}
+.tlc-name {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  color: var(--t5);
+  line-height: 1.3;
+  max-width: 200rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tlc-price {
+  font-size: var(--fs-2);
+  color: var(--t4);
+  margin-top: 8rpx;
+}
+.tlc-price.cur-tag { color: var(--design-primary); }
+
+/* 选中档详情（纵向展开，与横向条配合） */
+.tlv-detail {
+  margin: 20rpx 28rpx 0;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28rpx;
   border: 1px solid var(--border);
 }
-.si-title { font-size: var(--fs-5); font-weight: 600; color: var(--t5); }
-.si-sub { font-size: var(--fs-2); color: var(--t4); margin-top: 6rpx; }
-.sign-btn { background: var(--design-primary); color: var(--design-text, #fff); font-size: var(--fs-4); font-weight: 600; padding: 16rpx 44rpx; border-radius: var(--radius-pill); }
-.sign-btn:active { opacity: 0.8; }
-.tlevels { margin: 0 28rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.tlv { background: var(--white); border-radius: 20rpx; padding: 28rpx; border: 1.5px solid var(--border); }
-.tlv.cur { border-color: var(--design-primary); background: var(--design-secondary); }
-.tlv-head { display: flex; align-items: center; justify-content: space-between; }
-.tlv-name { font-size: 30rpx; font-weight: 700; color: var(--t5); }
-.tlv-no { font-size: var(--fs-2); color: var(--design-primary); background: var(--design-secondary); padding: 4rpx 16rpx; border-radius: 10rpx; }
-.tlv-desc { font-size: 23rpx; color: var(--t4); margin-top: 10rpx; line-height: 1.5; }
-.tlv-btn { margin-top: 20rpx; text-align: center; padding: 18rpx; border-radius: var(--radius-md); font-size: 27rpx; font-weight: 600; }
+.td-head { display: flex; align-items: center; justify-content: space-between; }
+.td-name { font-size: var(--fs-6); font-weight: 700; color: var(--t5); }
+.td-no { font-size: var(--fs-2); color: var(--design-primary); background: var(--design-secondary); padding: 4rpx 16rpx; border-radius: var(--radius-xs); }
+.td-desc { font-size: var(--fs-3); color: var(--t4); margin-top: 12rpx; line-height: 1.6; }
+.tlv-btn { margin-top: 24rpx; text-align: center; padding: 18rpx; border-radius: var(--radius-md); font-size: var(--fs-4); font-weight: 600; }
 .tlv-btn.buy { background: var(--design-primary); color: var(--design-text, #fff); }
 /* b 案：申请开通改次级样式（辅助色底 + 主色字），实心主色为整页唯一强 CTA */
 .tlv-btn.apply { background: var(--design-secondary); color: var(--design-primary); border: 1px solid rgba(var(--design-primary-rgb), 0.35); }

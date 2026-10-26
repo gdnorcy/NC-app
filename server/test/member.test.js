@@ -189,6 +189,21 @@ describe('会员体系（租户级会员，1:1 复刻菜鸟云）', () => {
     member.saveSettings(TENANT, { permissions: { score_sign: 'all' } });
   });
 
+  it('myCard 返回今日签到状态（signed：C 端据此渲染「签到 / 已签到」）', () => {
+    // 3001 在上一个用例已签到 → signed 为 true
+    const c1 = member.myCard(TENANT, 3001);
+    assert.equal(c1.signed, true, '已签到的用户 myCard.signed 应为 true');
+    // 3002 未签到 → signed 为 false
+    const c2 = member.myCard(TENANT, 3002);
+    assert.equal(c2.signed, false, '未签到的用户 myCard.signed 应为 false');
+    // 签到后立即变 true（与 sign() 同一口径）
+    const r = member.sign(TENANT, 3002);
+    assert.ok(r.ok);
+    assert.equal(member.myCard(TENANT, 3002).signed, true, '签到后 myCard.signed 应立刻变 true');
+    // 字段恒存在（不能是 undefined）——C 端按布尔消费，undefined 会当 false 但掩盖问题
+    assert.equal(typeof member.myCard(TENANT, 3003).signed, 'boolean');
+  });
+
   it('流水：消费/积分流水查询与导出', () => {
     const logs = member.listLogs(TENANT, {});
     assert.ok(logs.total >= 0);

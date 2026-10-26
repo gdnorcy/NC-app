@@ -81,7 +81,18 @@
                 <span class="form-tip">元，累计实付达到该金额自动成为分销商</span>
               </el-form-item>
               <el-form-item v-if="cfg.becomeRule === 5" label="指定商品" required>
-                <el-input v-model="cfg.becomeProducts" placeholder="商品名称，多个用英文逗号分隔" class="w480" />
+                <!-- 2026-10-27 交互改造（用户反馈「点击之后选择商品才对，自己输入比较难匹配」）：
+                     手输名称改点选商品（弹窗多选）。存储口径不变：仍为逗号分隔商品名称串
+                     （服务端 become_rule=5 按 product_name includes 模糊匹配 paid 订单，distribution.js:515）。 -->
+                <div class="bp-picker">
+                  <div class="bp-tags">
+                    <template v-if="becomeProductList.length">
+                      <el-tag v-for="name in becomeProductList" :key="name" closable class="bp-tag" @close="removeProduct(name)">{{ name }}</el-tag>
+                    </template>
+                    <span v-else class="bp-empty">尚未选择商品</span>
+                  </div>
+                  <el-button type="primary" plain @click="openGoodsPicker">选择商品</el-button>
+                </div>
                 <span class="form-tip">购买以下任一商品（下单支付完成）即成为分销商</span>
               </el-form-item>
               <el-form-item label="分销内购">
@@ -904,11 +915,45 @@
         <div v-if="!ranking.length" class="text-muted mt16">暂无收益排行，订单分账后自动生成</div>
       </el-card>
     </section>
+
+    <!-- 指定商品选择器（becomeRule=5）：多选回填名称串；reserve-selection + row-key 跨页保留勾选 -->
+    <el-dialog v-model="goodsPicker.show" title="选择指定商品" width="620px" :close-on-click-modal="false">
+      <el-input v-model="goodsPicker.keyword" placeholder="搜索商品名称" clearable class="bp-search" @input="onGoodsSearch" />
+      <el-table
+        ref="goodsTableRef"
+        :data="goodsPicker.list"
+        v-loading="goodsPicker.loading"
+        height="380"
+        row-key="id"
+        @select="onGoodsSelect"
+        @select-all="onGoodsSelectAll"
+      >
+        <el-table-column type="selection" width="46" reserve-selection />
+        <el-table-column prop="title" label="商品名称" min-width="220" show-overflow-tooltip />
+        <el-table-column label="售价" width="110">
+          <template #default="{ row }">¥{{ Number(row.price || 0).toFixed(2) }}</template>
+        </el-table-column>
+      </el-table>
+      <div class="bp-foot">
+        <span class="bp-count">已选 {{ selectedNames.size }} 个商品</span>
+        <el-pagination
+          layout="prev, pager, next"
+          :total="goodsPicker.total"
+          :page-size="goodsPicker.pageSize"
+          :current-page="goodsPicker.page"
+          @current-change="onGoodsPageChange"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="goodsPicker.show = false">取消</el-button>
+        <el-button type="primary" @click="confirmGoodsPicker">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SIcon from '../../../../components/SIcon.vue';
 import AppPageHeader from '../../../../components/AppPageHeader.vue';
@@ -1015,6 +1060,78 @@ async function onPluginChange(v) {
     pluginOn.value = !v;
     ElMessage.error(e || '操作失败');
   }
+}
+
+// —— 指定商品选择器（becomeRule=5）——
+// 存储口径不变：cfg.becomeProducts = 逗号分隔商品名称串（服务端按名称模糊匹配 paid 订单）。
+// 交互：弹窗多选商品，selectedNames 为勾选集合；确认时回填名称串。
+const becomeProductList = computed(() => String(cfg.becomeProducts || '').split(',').map((s) => s.trim()).filter(Boolean));
+const goodsTableRef = ref(null);
+const selectedNames = ref(new Set());
+const goodsPicker = reactive({ show: false, loading: false, list: [], total: 0, page: 1, pageSize: 50, keyword: '' });
+
+function removeProduct(name) {
+  cfg.becomeProducts = becomeProductList.value.filter((n) => n !== name).join(',');
+}
+
+async function loadGoodsOptions() {
+  goodsPicker.loading = true;
+  try {
+    const data = await customerApiCall.get('/goods', { params: { page: goodsPicker.page, pageSize: goodsPicker.pageSize, keyword: goodsPicker.keyword.trim() } });
+    goodsPicker.list = data.list || [];
+    goodsPicker.total = data.total || 0;
+    // 回显勾选：先清空表格内部选择缓存（reserve-selection 跨弹窗会残留旧态），
+    // 再按 selectedNames（唯一事实来源）重挂当前页勾选 —— 翻页/搜索/重开弹窗都一致
+    await nextTick();
+    goodsTableRef.value?.clearSelection();
+    for (const row of goodsPicker.list) {
+      if (selectedNames.value.has(row.title)) goodsTableRef.value?.toggleRowSelection(row, true);
+    }
+  } catch (e) { ElMessage.error(e || '加载商品失败'); } finally { goodsPicker.loading = false; }
+}
+
+async function openGoodsPicker() {
+  selectedNames.value = new Set(becomeProductList.value);
+  goodsPicker.page = 1;
+  goodsPicker.keyword = '';
+  goodsPicker.show = true;
+  await loadGoodsOptions();
+}
+
+function onGoodsSelect(selection, row) {
+  // 商品名取 title（goods 表字段；存储口径=名称串）
+  const checked = selection.some((r) => r.id === row.id);
+  if (checked) selectedNames.value.add(row.title);
+  else selectedNames.value.delete(row.title);
+}
+
+function onGoodsSelectAll(selection) {
+  const ids = new Set(selection.map((r) => r.id));
+  for (const r of goodsPicker.list) {
+    if (ids.has(r.id)) selectedNames.value.add(r.title);
+    else selectedNames.value.delete(r.title);
+  }
+}
+
+async function onGoodsPageChange(p) {
+  goodsPicker.page = p;
+  await loadGoodsOptions();
+}
+
+// 搜索防抖（300ms）：逐字符触发会打出密集请求
+let goodsSearchTimer = null;
+function onGoodsSearch() {
+  clearTimeout(goodsSearchTimer);
+  goodsSearchTimer = setTimeout(() => {
+    goodsPicker.page = 1;
+    loadGoodsOptions();
+  }, 300);
+}
+
+function confirmGoodsPicker() {
+  if (!selectedNames.value.size) return ElMessage.warning('请至少选择一个商品');
+  cfg.becomeProducts = [...selectedNames.value].join(',');
+  goodsPicker.show = false;
 }
 
 async function saveConfig() {
@@ -1518,4 +1635,13 @@ onMounted(() => {
 .wl-ops { display: flex; align-items: center; gap: 8px; }
 .wl-tip { margin-bottom: 12px; font-size: 12px; color: #86909c; }
 .card-head { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+
+/* 指定商品选择器（becomeRule=5） */
+.bp-picker { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
+.bp-tags { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; padding: 4px 8px; border: 1px solid #e5e6eb; border-radius: 4px; background: #fff; }
+.bp-tag { max-width: 200px; }
+.bp-empty { font-size: 12px; color: #86909c; line-height: 24px; }
+.bp-search { margin-bottom: 12px; }
+.bp-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.bp-count { font-size: 13px; color: #4e5969; }
 </style>

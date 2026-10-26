@@ -48,6 +48,9 @@
       <view class="me-text">{{ activeGroup === 'all' ? '暂无收藏' : '该分组暂无名片' }}</view>
       <view class="me-hint" v-if="activeGroup === 'all'">浏览名片时点击"收藏"，会出现在这里；长按收藏可移动分组</view>
     </view>
+
+    <!-- 🔴 登录浮层：收藏接口要 auth，未登录会落到「暂无收藏」假空态。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -58,6 +61,10 @@ import { ref, computed, onMounted } from 'vue';
 import { cardApi } from '../../utils/cardApi.js';
 // 🔴 #312-9：名片头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
 import { absUrl } from '../../utils/apiBase.js';
+// 🔴 页面级登录守卫（深链兜底）：收藏接口要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑 load（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const collects = ref([]);
 const groups = ref([]);
@@ -68,7 +75,10 @@ const shownCollects = computed(() => {
   return collects.value.filter((c) => c.groupName === activeGroup.value);
 });
 
-onMounted(() => { load(); });
+onMounted(() => { guardPage(); });
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 load
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(load);
 
 async function load() {
   try {

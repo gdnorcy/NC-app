@@ -4,6 +4,7 @@
   "usingComponents": {
     "page-nav": "../../components/PageNav",
     "s-icon": "../../components/SIcon",
-    "badge": "../../components/Badge"
+    "badge": "../../components/Badge",
+    "login-gate-modal": "../../components/LoginGateModal"
   }
 }

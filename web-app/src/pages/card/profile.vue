@@ -9,7 +9,7 @@
           <view v-else class="avatar">{{ userInitial }}</view>
           <view class="info">
             <view class="nickname">{{ user.nickname || '未设置昵称' }}</view>
-            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#ffffff" /><text>{{ memberLevelText }}</text></view>
+            <view class="member-tag" v-if="isMember"><SIcon name="crown" size="small" color="#ffffff" /><text>{{ memberLevelName }}</text></view>
           </view>
           <view class="edit-btn" @click="openEdit">编辑</view>
         </view>
@@ -33,6 +33,18 @@
           <view class="stat-label">交换</view>
         </view>
       </view>
+    </view>
+
+    <!-- 每日签到（2026-10-27 职责重划：签到是「每天都要来一次」的日常动作，归属个人中心；
+         会员中心只留等级/权益/购买。签到事实来自服务端 /member/status（与 /member/sign 同一口径），
+         不在前端本地推算，避免两处判定漂移。）
+         🔴 三态：已签到 / 可签到 / 不可签到（未入驻租户 或 后台配「仅会员可签到」） -->
+    <view class="sign-card" v-if="loggedIn">
+      <view class="sc-left">
+        <view class="sc-title">每日签到</view>
+        <view class="sc-sub">{{ signSubText }}</view>
+      </view>
+      <view class="sc-btn" :class="{ done: signedToday, disabled: !canSign }" @click="doSign">{{ signBtnText }}</view>
     </view>
 
     <!-- 功能菜单 -->
@@ -66,7 +78,8 @@
         <view class="menu-item" @click="goPage('/pages/card/member')">
           <view class="menu-icon"><SIcon name="crown" size="default" :color="ICON_T2" /></view>
           <view class="menu-label">会员中心</view>
-          <view class="menu-value" v-if="isMember">{{ memberLevelText }}</view>
+          <!-- 🔴 2026-10-27 去重：原先这里显示等级名，与头部徽章同页重复两次；
+               现只保留箭头，等级身份由头部徽章唯一表达。 -->
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" @click="goPage('/pages/card/dynamic')">
@@ -171,17 +184,39 @@ watch(() => user.value && user.value.avatar, () => { avatarError.value = false; 
 //（token 在别处被清（401 踢出/手动清）后回个人中心要立刻变成「登录」）。
 const loggedIn = ref(hasCardToken());
 const isMember = ref(false);
-const memberLevel = ref('free');
+// 🔴 2026-10-27：等级名改由服务端统一出（/member/status 的 levelName）。
+//    旧版前端硬编码 {free,silver,gold,diamond} 映射表，租户自建档位（pkg_level=NULL → level='custom'）
+//    查不到 → 徽章显示空白；且与会员中心的档位真名不同口径 → 用户感觉"系统错乱"。
+//    现只消费服务端一个字段，本页不再有任何等级名映射。
+const memberLevelName = ref('');
+// 签到事实（服务端 /member/status，与 /member/sign 同一口径；前端不本地推算）
+const signedToday = ref(false);
+const canSign = ref(false);
+const signReason = ref('');
+const signScore = ref(0);
+const signing = ref(false);
 const stats = ref({ cardCount: 0, visitorCount: 0, customerCount: 0, exchangeCount: 0 });
 // 本人名片 id：/user/profile 已随 onMounted 拉回 res.card，「编辑名片」必须带 id 进编辑态
 // （2026-10-19 用户报「点编辑名片是新创建了一张名片？」——原菜单直接跳 create 无 id，
 //  落进新建向导；真编辑入口是 myCard:474 / home:606 的 create?id=xxx）
 const myCardId = ref(null);
 
-const memberLevelText = computed(() => ({ free: '', silver: '白银', gold: '黄金', diamond: '钻石' }[memberLevel.value]));
 // 🔴 反馈 #312-11：首字母占位。模板里 `user.nickname?.[0]` 在 MP 端被编译降级成整个
 //   昵称（与我的动态页 "objec" 同源），取首字母一律放 computed。
 const userInitial = computed(() => (user.value.nickname || '用').charAt(0));
+
+// ===== 每日签到（文案与状态全由服务端事实推导） =====
+// 🔴 按钮三态：已签到（done）/ 可签到（主色 CTA）/ 不可签到（置灰，reason 给原因）
+const signBtnText = computed(() => {
+  if (signedToday.value) return '已签到';
+  if (!canSign.value) return '不可签';
+  return '签到';
+});
+const signSubText = computed(() => {
+  if (signedToday.value) return `今日已签到，明天再来 · 当前积分 ${signScore.value}`;
+  if (!canSign.value) return signReason.value || '暂不可签到';
+  return `签到 +2 积分${signScore.value > 0 ? ` · 当前积分 ${signScore.value}` : ''}`;
+});
 
 // 资料加载放 onShow：从「编辑名片」页返回时昵称/头像/名片数要跟着刷新，
 // 挂在 onMounted 上会导致本页只拉一次、回退后显示旧值。
@@ -199,7 +234,13 @@ async function loadProfile() {
     }
     const member = await cardApi.getMemberStatus();
     isMember.value = member.isMember;
-    memberLevel.value = member.level;
+    // 🔴 等级名：只用服务端统一口径（租户档位真名），本页不再有映射表
+    memberLevelName.value = member.levelName || (member.isMember ? '' : '免费版');
+    // 签到事实（服务端权威）：signed/canSign/signReason/score
+    signedToday.value = !!member.signed;
+    canSign.value = !!member.canSign;
+    signReason.value = member.signReason || '';
+    signScore.value = Number(member.score || 0);
     const customers = await cardApi.getCustomers();
     stats.value.customerCount = customers.customers?.length || 0;
   } catch (e) {}
@@ -253,6 +294,45 @@ const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInli
 async function onAfterLogin() {
   loggedIn.value = hasCardToken();
   await loadProfile();
+}
+
+// ===== 每日签到 =====
+// 🔴 2026-10-27 迁入个人中心（签到是高频日常动作；会员中心只留等级/权益/购买）。
+//    状态一律以服务端为准：signed/canSign 来自 /member/status，签到成功后按响应就地翻转，
+//    不做本地"以为签成功了"的乐观更新（避免与服务端判定漂移）。
+async function doSign() {
+  if (signing.value) return;
+  // 已签到 → 不发请求（服务端也会拦「今日已签到」），给明确反馈
+  if (signedToday.value) {
+    uni.showToast({ title: '今日已签到，明天再来', icon: 'none' });
+    return;
+  }
+  // 不可签到（未入驻租户 / 仅会员可签到）→ 引导而非静默失败
+  if (!canSign.value) {
+    uni.showToast({ title: signReason.value || '暂不可签到', icon: 'none' });
+    return;
+  }
+  // 动作守卫：未登录当页弹登录浮层，登录成功后自动继续签到（不跳登录页、不用点两次）
+  if (!(await requireLogin())) return;
+  signing.value = true;
+  try {
+    const res = await cardApi.memberSign();
+    signedToday.value = true;
+    canSign.value = true;
+    if (typeof res.totalScore === 'number') signScore.value = res.totalScore;
+    else signScore.value += Number(res.score || 0);
+    uni.showToast({ title: `签到成功 +${res.score || 2} 积分`, icon: 'success' });
+  } catch (e) {
+    // 服务端说「今日已签到」（另一端已签 / 跨日重置竞态）→ 同步事实而不是只报错
+    const msg = e.message || '签到失败';
+    if (msg.includes('已签到')) {
+      signedToday.value = true;
+      loadProfile();
+    }
+    uni.showToast({ title: msg, icon: 'none' });
+  } finally {
+    signing.value = false;
+  }
 }
 
 async function openEdit() {
@@ -472,6 +552,56 @@ function logout() {
 .menu-item.logout .menu-label {
   color: #f5222d;
   text-align: center;
+}
+
+/* ===== 每日签到卡（2026-10-27 迁入个人中心）=====
+   放在头部渐变区之下、数据看板之上（页面第一屏可见）。
+   三态靠颜色/底色区分：可签到=主色实心 CTA；已签到=次级底+主色字（不再诱导点击）；
+   不可签到=中性底+弱文字。样式全走令牌，禁裸 rgba/hex（tokenAudit 有基线）。 */
+.sign-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24rpx 24rpx 0;
+  padding: 24rpx 28rpx;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.sc-left { flex: 1; min-width: 0; }
+.sc-title {
+  font-size: var(--fs-5);
+  font-weight: 600;
+  color: var(--t5);
+}
+.sc-sub {
+  font-size: var(--fs-2);
+  color: var(--t4);
+  margin-top: 6rpx;
+  line-height: 1.4;
+}
+.sc-btn {
+  flex-shrink: 0;
+  margin-left: 20rpx;
+  min-width: 132rpx;
+  text-align: center;
+  padding: 14rpx 32rpx;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-4);
+  font-weight: 600;
+  background: var(--design-primary);
+  color: var(--white);
+}
+.sc-btn:active { opacity: 0.8; }
+/* 已签到：次级底 + 主色字（与会员中心签到按钮同一范式：实心主色是页面唯一强 CTA） */
+.sc-btn.done {
+  background: var(--bg-hover);
+  color: var(--design-primary);
+}
+/* 不可签到：中性底 + 弱文字（未入驻租户 / 仅会员可签到） */
+.sc-btn.disabled {
+  background: var(--bg-hover);
+  color: var(--t4);
 }
 
 /* 头像（真实图片与文字占位同尺寸） */

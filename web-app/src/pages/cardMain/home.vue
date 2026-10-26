@@ -151,6 +151,10 @@
 
     <!-- 底部Tab：优先渲染设计中心发布的默认导航方案，未发布时兜底默认项 -->
     <CardTabBar active="home" page-type="home" />
+
+    <!-- 🔴 宫格入口登录浮层：需登录才有数据的入口（访客雷达/客户管理/人脉集市/名片交换/分销中心）
+         点击时先弹这个层，登录成功后自动继续原跳转（不跳两次、不让用户再点一次）。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -170,6 +174,11 @@ import CardTabBar from '../../components/CardTabBar.vue';
 import DesignPage from '../../components/DesignPage.vue';
 import DesignNav from '../../components/DesignNav.vue';
 import DesignNavEw from '../../components/DesignNavEw.vue';
+// 🔴 宫格入口登录守卫：需登录才有数据的入口，先弹原地登录浮层，登录成功自动继续跳转。
+//   判定表在 utils/pageAuth.js（依据后端接口鉴权中间件，非猜测）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { useInlineLogin } from '../../utils/loginGate.js';
+import { shouldGuardEntry } from '../../utils/pageAuth.js';
 
 const user = ref({});
 const myCard = ref(null);
@@ -470,6 +479,14 @@ function refreshLoginFlag() {
   hasLogin.value = !!me.id || !!uni.getStorageSync('card_token');
 }
 
+// 🔴 宫格入口登录守卫（原地浮层版）：requireLogin 返回 Promise，
+//   登录成功后**自动继续原跳转**（用户不用再点一次宫格），点「暂不登录」则不跳。
+//   登录成功后顺带刷新首页登录态（引导文案「登录后三步完成」要变）。
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin(() => {
+  refreshLoginFlag();
+  loadHomeData(false);
+});
+
 onMounted(() => { refreshLoginFlag(); loadHomeData(false); });
 
 // 下拉强刷新（复刻云菜鸟）：绕过 design.js 的 5 分钟本地缓存直连服务端，
@@ -592,7 +609,14 @@ function myCardStyle(p) {
   if (p.shadow !== false) s.boxShadow = '0 4rpx 16rpx rgba(31,35,41,0.06)';
   return s;
 }
-function goPage(path) {
+// 🔴 宫格/菜单统一跳转入口：需登录才有数据的页面先过登录守卫。
+//   守卫用 utils/loginGate.js 的 requireLogin()（返回 Promise）：
+//   登录成功**自动继续原跳转**；用户点「暂不登录」则 gateResolve(false) → 这里 return 不跳。
+//   公开页（人脉集市以外的公开浏览、名片详情、更多）直接放行。
+async function goPage(path) {
+  if (shouldGuardEntry(path)) {
+    if (!(await requireLogin())) return;
+  }
   uni.navigateTo({ url: path });
 }
 function goMyCard() {
@@ -611,16 +635,16 @@ function goCreate() {
   uni.navigateTo({ url: '/pages/card/create' });
 }
 function goVisitors() {
-  uni.navigateTo({ url: '/pages/card/visitors' });
+  goPage('/pages/card/visitors');
 }
 function goMarket() {
-  uni.navigateTo({ url: '/pages/card/market' });
+  goPage('/pages/card/market');
 }
 function goSearch() {
   uni.showToast({ title: '搜索功能开发中', icon: 'none' });
 }
 function goMessages() {
-  uni.navigateTo({ url: '/pages/card/messages' });
+  goPage('/pages/card/messages');
 }
 // 首页人脉集市卡片 → 名片详情页。🔴 必须用 cardId（对方名片的 id），不能传 userId：
 // 后端 card_market_items 同时有 userId 与 cardId，cardDetail 按 cardId 查名片。
@@ -633,9 +657,10 @@ function viewMarketCard(item) {
 }
 // 首页访客雷达列表项点击 → 进入访客雷达页，并带上 openid 让雷达页自动展开该访客轨迹。
 // 首页 summary 返回的访客字段是 nickname / visitorOpenid（后端 enriched 结构），与访客雷达页同源。
+// 🔴 走 goPage 过登录守卫：访客雷达数据要登录，未登录直接跳过去会看到「暂无访客记录」假空态。
 function openVisitor(v) {
   const openid = v.visitorOpenid || '';
-  uni.navigateTo({ url: `/pages/card/visitors?openid=${encodeURIComponent(openid)}` });
+  goPage(`/pages/card/visitors?openid=${encodeURIComponent(openid)}`);
 }
 </script>
 

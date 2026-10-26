@@ -41,6 +41,9 @@
         </view>
       </view>
     </view>
+
+    <!-- 🔴 登录浮层：交换申请接口走 comboAuth，未登录会落到空列表。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -51,6 +54,10 @@ import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
+// 🔴 页面级登录守卫（深链兜底）：交换申请接口走 comboAuth，未登录弹原地登录浮层，
+//   登录成功后自动重跑 load（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const requests = ref([]);
 const loading = ref(true);
@@ -139,9 +146,13 @@ const goMarket = () => uni.redirectTo({ url: '/pages/card/market' });
 
 onShow(() => {
   trackPageView('/pages/card/exchangeRequests');
-  load();
+  // 🔴 soft 模式：仅在「已取过数」时补弹（登录态中途掉了才提示），不反复打断首次浏览
+  guardPage({ soft: true });
 });
-onMounted(load);
+onMounted(() => { guardPage(); });
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 load
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(load);
 </script>
 
 <style scoped>
