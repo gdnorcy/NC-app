@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "防伪溯源",
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "page-nav": "../../components/PageNav",
+    "s-icon": "../../components/SIcon"
+  }
+}

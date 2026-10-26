@@ -81,6 +81,12 @@
       "pages": [
         "viewer"
       ]
+    },
+    {
+      "root": "pages/trace",
+      "pages": [
+        "index"
+      ]
     }
   ],
   "window": {

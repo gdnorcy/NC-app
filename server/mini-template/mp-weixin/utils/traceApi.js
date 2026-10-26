@@ -1,0 +1,1 @@
+"use strict";const e=require("./apiClient.js"),r=require("./apiBase.js").API_HOST+"/api/trace/public",{request:t}=e.createApiClient(r);exports.scanEntry=function(r,i){return t("/scan-entry"+e.qs({co:r,tid:i}))},exports.verifyTrace=function(r,i){return t("/verify"+e.qs({tid:i}),"POST",r)};
