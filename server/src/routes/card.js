@@ -13,7 +13,7 @@ import { getStorage } from '../storage/index.js';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
 import { createDistributionService, buildShareUrl } from '../services/distribution.js';
-import { createMemberService, resolveLevelName } from '../services/member.js';
+import { createMemberService, resolveLevelName, levelBenefitsPreview } from '../services/member.js';
 import { createGoodsOrderService } from '../services/goodsOrder.js';
 import { PaymentService } from '../services/payment.js';
 import { createRadarService } from '../services/radar.js';
@@ -1844,6 +1844,9 @@ export function createCardRouter(db, wxService) {
       entitlements: quota.entitlements(req.user.id),
       // 第22轮：按应用分区的全量权益（平台目录 ⊕ 租户矩阵 + 已用量），取代前端零散权益行
       appBenefits: quota.appBenefits(req.user.id),
+      // 🔴 2026-10-27 档位权益预览（用户报修「切档看不到其他级别权益」）：全档位 × 应用
+      //    的权益快照（无已用量），C 端切档即时切换显示。未入驻租户 → null（前端回落实况）
+      levelBenefits: req.customerId ? levelBenefitsPreview(db, req.customerId) : null,
       marketSubject,
     });
   });

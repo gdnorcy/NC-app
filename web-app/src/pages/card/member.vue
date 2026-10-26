@@ -80,9 +80,13 @@
            - 权益名 → 服务端 displayLabel（消费感知短词），不再直给后台配置口径
            - 权益值 → 服务端 valueText（C 端零逻辑），未生效置灰
            - 布局 → 两列网格（原为整行列表，20 项权益会拉出 20 行 → 页面极长）
-           - 卡片头 → 统计「已开通 N / 共 M 项」，替代逐条罗列 -->
-    <block v-if="appBenefits.length">
-      <view class="sec-t">我的权益<small>{{ currentLevelText || '免费版' }}</small></view>
+           - 卡片头 → 统计「已开通 N / 共 M 项」，替代逐条罗列
+         🔴 2026-10-27 切档跟随（用户报修「切换卡片看不到其他级别的权益」）：
+           选中当前档 → 我的权益实况（appBenefits，含已用量）；选中其他档 → 该档
+           权益预览（/member/status 的 levelBenefits[档位id]，开通后可享的值），
+           标题/统计文案同步切换，零请求即时响应。 -->
+    <block v-if="benefitsView.length">
+      <view class="sec-t">{{ benefitsTitle }}<small>{{ benefitsSub }}</small></view>
       <view class="ent-card" v-for="app in appBenefits" :key="app.code">
         <view class="ent-head">
           <view class="ent-badge">
@@ -90,7 +94,7 @@
           </view>
           <view class="ent-head-main">
             <text class="ent-app">{{ app.name }}</text>
-            <text class="ent-stat">已开通 {{ app.stats.active }} / {{ app.stats.total }} 项</text>
+            <text class="ent-stat">{{ (viewingCurLevel ? '已开通 ' : '可享 ') + app.stats.active }} / {{ app.stats.total }} 项</text>
           </view>
         </view>
         <view class="ent-grid">
@@ -177,6 +181,9 @@ const memberExpire = ref('');
 const entitlements = ref(null);
 // 第22轮：按应用分区的全量权益（/member/status 的 appBenefits），含目录/矩阵/已用量
 const appBenefits = ref([]);
+// 🔴 2026-10-27 切档跟随：全档位 × 应用的权益预览（/member/status 的 levelBenefits），
+//    key=档位 id；选中非当前档时权益区显示该档预览（开通后可享的值，无已用量）
+const levelBenefits = ref({});
 // 租户会员卡（1:1 复刻菜鸟云）
 const memberCard = ref(null);
 const tenantLevels = ref([]);
@@ -195,6 +202,22 @@ const curLevelAnchor = computed(() => {
 });
 const applyStatus = ref(null);
 const showTenantMember = computed(() => !!memberCard.value || tenantLevels.value.length > 0);
+// 🔴 2026-10-27 切档跟随：权益区视图 = 选中档位决定
+//   选中当前档（或无档位/预览数据缺失）→ 我的权益实况；选中其他档 → 该档预览。
+//   预览数据不带应用名/图标（服务端避免两处兜底），按 code 与实况合并。
+const viewingCurLevel = computed(() => !selLevel.value || selLevel.value.id === memberCardLevelId.value);
+const benefitsView = computed(() => {
+  if (viewingCurLevel.value) return appBenefits.value;
+  const list = levelBenefits.value[selLevelId.value] || [];
+  if (!list.length) return appBenefits.value;
+  const meta = new Map(appBenefits.value.map((a) => [a.code, a]));
+  return list.map((a) => {
+    const m = meta.get(a.code) || {};
+    return { ...a, name: m.name || a.code, appIcon: m.appIcon || 'star' };
+  });
+});
+const benefitsTitle = computed(() => (viewingCurLevel.value ? '我的权益' : selLevel.value ? selLevel.value.name + ' 权益' : '权益预览'));
+const benefitsSub = computed(() => (viewingCurLevel.value ? (currentLevelText.value || '免费版') : '开通后可享'));
 // 品牌 5 色 hero：本人名片优先，无则回退品牌蓝渐变（对象形式，与 cardDetail 一致）
 const brand = ref({ primary: '', gradient: '', secondary: '', text: '', subText: '' });
 // hero 前景（SIcon / PageNav 需要真实 hex，吃不了 var()）：与 heroStyle 同判据产出，
@@ -257,6 +280,8 @@ async function loadMemberData() {
     memberExpire.value = memberRes.expireAt?.slice(0, 10) || '';
     entitlements.value = memberRes.entitlements || null;
     appBenefits.value = memberRes.appBenefits || [];
+    // 🔴 2026-10-27 切档跟随：全档位权益预览（未入驻租户为 null → 前端回落实况）
+    levelBenefits.value = memberRes.levelBenefits || {};
     // 租户会员卡：未入驻租户不展示区块（降级为购买引导）
     tenantUnbound.value = !!(tCardRes && tCardRes.unbound);
     if (tCardRes && !tCardRes.unbound) {
