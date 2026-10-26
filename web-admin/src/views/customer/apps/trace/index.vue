@@ -88,184 +88,294 @@
         </div>
       </section>
 
-      <!-- ============ 防伪设置（码制 + 系统设置） ============ -->
+      <!-- ============ 防伪设置（7 子 Tab：码制 / 功能 / 回复 / 企业 / 快捷 / 通用 / 红包） ============ -->
       <section v-show="activeTab === 'settings'">
-        <el-card class="set-card" shadow="never">
-          <template #header><span class="card-title">码制配置</span></template>
-          <el-alert v-if="ruleSelfCheck !== ''" type="warning" :closable="false" show-icon :title="ruleSelfCheck" class="mb12" />
-          <el-form label-width="130px" class="rule-form">
-            <el-row :gutter="20">
-              <el-col :span="8">
-                <el-form-item label="码前缀 m1" required>
-                  <el-input v-model.trim="ruleForm.m1" maxlength="2" placeholder="2 位，如 FW" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="批次号长度 m2">
-                  <el-input-number v-model="ruleForm.m2" :min="1" :max="12" controls-position="right" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="流水号长度 m3">
-                  <el-input-number v-model="ruleForm.m3" :min="1" :max="12" controls-position="right" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="校验位长度 m4">
-                  <el-input-number v-model="ruleForm.m4" :min="1" :max="12" controls-position="right" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="防伪码总长 m5">
-                  <el-input-number v-model="ruleForm.m5" :min="6" :max="40" controls-position="right" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="错误次数上限">
-                  <el-input-number v-model="ruleForm.zdl" :min="1" :max="999" controls-position="right" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-form-item label="校验字符集 k1" required>
-              <el-input v-model.trim="ruleForm.k1" maxlength="10" placeholder="10 位" />
-            </el-form-item>
-            <el-form-item label="校验字符集 k2" required>
-              <el-input v-model.trim="ruleForm.k2" maxlength="10" placeholder="10 位" />
-            </el-form-item>
-            <el-form-item label="校验字符集 k3" required>
-              <el-input v-model.trim="ruleForm.k3" maxlength="10" placeholder="10 位" />
-            </el-form-item>
-            <el-form-item label="校验字符集 k4" required>
-              <el-input v-model.trim="ruleForm.k4" maxlength="10" placeholder="10 位" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" :loading="ruleSaving" @click="saveRule">保存码制</el-button>
-              <span class="form-hint">已生成过防伪码后，前缀/各长度参数将被锁定不可改，否则已印码全部失效</span>
-            </el-form-item>
-          </el-form>
-        </el-card>
+        <div class="card-tabs sub-tabs">
+          <div v-for="st in settingTabs" :key="st.key" class="ctab" :class="{ active: settingTab === st.key }" @click="settingTab = st.key">
+            <SIcon :name="st.icon" size="default" :color="settingTab === st.key ? '#165dff' : '#4e5969'" />
+            <span>{{ st.label }}</span>
+          </div>
+        </div>
 
-        <el-card class="set-card" shadow="never">
-          <template #header><span class="card-title">系统设置</span></template>
-          <el-form label-width="130px" class="set-form">
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="欢迎语">
-                  <el-input v-model.trim="s.welcome" placeholder="验真页欢迎语" />
+        <main class="set-content">
+          <!-- ===== 码制配置（独立存储，单独保存） ===== -->
+          <section v-show="settingTab === 'rule'">
+            <el-card class="set-card" shadow="never">
+              <template #header><span class="card-title">码制配置</span></template>
+              <el-alert v-if="ruleSelfCheck !== ''" type="warning" :closable="false" show-icon :title="ruleSelfCheck" class="mb12" />
+              <el-form label-width="130px" class="rule-form">
+                <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="码前缀 m1" required>
+                      <el-input v-model.trim="ruleForm.m1" maxlength="2" placeholder="2 位，如 FW" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="批次号长度 m2">
+                      <el-input-number v-model="ruleForm.m2" :min="1" :max="12" controls-position="right" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="流水号长度 m3">
+                      <el-input-number v-model="ruleForm.m3" :min="1" :max="12" controls-position="right" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="校验位长度 m4">
+                      <el-input-number v-model="ruleForm.m4" :min="1" :max="12" controls-position="right" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="防伪码总长 m5">
+                      <el-input-number v-model="ruleForm.m5" :min="6" :max="40" controls-position="right" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="错误次数上限">
+                      <el-input-number v-model="ruleForm.zdl" :min="1" :max="999" controls-position="right" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-form-item label="校验字符集 k1" required>
+                  <el-input v-model.trim="ruleForm.k1" maxlength="10" placeholder="10 位" />
                 </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="首次查询提示">
-                  <el-input v-model.trim="s.suc_one" placeholder="如：验证通过" />
+                <el-form-item label="校验字符集 k2" required>
+                  <el-input v-model.trim="ruleForm.k2" maxlength="10" placeholder="10 位" />
                 </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="二次查询提示">
-                  <el-input v-model.trim="s.suc_two" placeholder="如：请勿重复验证" />
+                <el-form-item label="校验字符集 k3" required>
+                  <el-input v-model.trim="ruleForm.k3" maxlength="10" placeholder="10 位" />
                 </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="查询次数上限">
-                  <el-input-number v-model="s.upperlimit" :min="0" :max="9999" controls-position="right" />
-                  <span class="form-hint">0 表示不限制</span>
+                <el-form-item label="校验字符集 k4" required>
+                  <el-input v-model.trim="ruleForm.k4" maxlength="10" placeholder="10 位" />
                 </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="超限提示">
-                  <el-input v-model.trim="s.con_msg" placeholder="达到上限时提示" />
+                <el-form-item>
+                  <el-button type="primary" :loading="ruleSaving" @click="saveRule">保存码制</el-button>
+                  <span class="form-hint">已生成过防伪码后，前缀/各长度参数将被锁定不可改，否则已印码全部失效</span>
                 </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="客服电话">
-                  <el-input v-model.trim="s.ftel" placeholder="400-xxx" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="厂家电话">
-                  <el-input v-model.trim="s.dtel" placeholder="厂家联系电话" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="溯源页域名">
-                  <el-input v-model.trim="s.siteroot" placeholder="留空则用当前站点域名" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="历史记录条数">
-                  <el-input-number v-model="s.history_limit" :min="1" :max="50" controls-position="right" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-form-item label="高级设置">
-              <el-switch v-model="advancedMode" active-text="编辑原始 JSON" />
-            </el-form-item>
-            <el-form-item v-if="advancedMode" label=" " label-width="0">
-              <el-input v-model="rawJson" type="textarea" :rows="10" class="raw-json" @input="onRawInput" />
-              <div v-if="rawError" class="raw-err">JSON 解析失败：{{ rawError }}</div>
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" :loading="setSaving" @click="saveSettings">保存设置</el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
+              </el-form>
+            </el-card>
+          </section>
 
-        <!-- 首页展示位：C 端验真结果页下方的推广位（多展位，各配封面图+颜色+展示条件） -->
-        <el-card class="set-card" shadow="never">
-          <template #header>
-            <div class="slot-head">
-              <span class="card-title">首页展示位</span>
-              <span class="form-hint">最多 {{ SLOT_MAX }} 个（与公众号图文消息单条 1~8 图文的接口上限一致）</span>
-            </div>
-          </template>
+          <!-- ===== 功能设置 ===== -->
+          <section v-show="settingTab === 'func'">
+            <el-card class="set-card" shadow="never">
+              <template #header><span class="card-title">功能设置</span></template>
+              <el-form label-width="140px" class="set-form">
+                <el-row :gutter="20">
+                  <el-col :span="12">
+                    <el-form-item label="查询次数上限">
+                      <el-input-number v-model="s.upperlimit" :min="0" :max="9999" controls-position="right" />
+                      <span class="form-hint">0 表示不限制</span>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="历史记录条数">
+                      <el-input-number v-model="s.history_limit" :min="1" :max="50" controls-position="right" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="溯源页域名">
+                      <el-input v-model.trim="s.siteroot" placeholder="留空则用当前站点域名" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
 
-          <el-empty v-if="!s.displaySlots.length" description="还没有展示位，点下方「新增展示位」开始配置" :image-size="60" />
+                <el-divider content-position="left">功能开关</el-divider>
+                <el-row :gutter="20" class="switch-grid">
+                  <el-col :span="8"><el-form-item label="开启历史查询"><el-switch v-model="s.ishistory" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="积分功能"><el-switch v-model="s.isint" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="外链跳转"><el-switch v-model="s.islink" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="码激活"><el-switch v-model="s.isjihuo" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="窜货检测"><el-switch v-model="s.ischuanhuo" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="生成习惯记录"><el-switch v-model="s.xiguang" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="防窜货提示"><el-switch v-model="s.istixe" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="验证码"><el-switch v-model="s.isccode" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="开放对外 API"><el-switch v-model="s.isapi" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="抽奖功能"><el-switch v-model="s.isluck" :active-value="1" :inactive-value="0" /></el-form-item></el-col>
+                </el-row>
+                <el-alert type="info" :closable="false" show-icon title="开关类字段已落库保存，但部分（积分/外链/抽奖/码激活等）的后端消费逻辑将在后续批次接入；当前保存不影响已有功能。" class="mt12" />
 
-          <div v-for="(it, i) in s.displaySlots" :key="i" class="slot-item">
-            <div class="slot-item-hd">
-              <span class="slot-idx">第 {{ i + 1 }} 位</span>
-              <el-tag v-if="it.when === 0" type="info" size="small" effect="plain">已关闭</el-tag>
-              <div class="slot-ops">
-                <el-button link size="small" :disabled="i === 0" @click="moveSlot(i, -1)">上移</el-button>
-                <el-button link size="small" :disabled="i === s.displaySlots.length - 1" @click="moveSlot(i, 1)">下移</el-button>
-                <el-button link size="small" type="danger" @click="removeSlot(i)">删除</el-button>
+                <el-form-item label="高级设置">
+                  <el-switch v-model="advancedMode" active-text="编辑原始 JSON" />
+                </el-form-item>
+                <el-form-item v-if="advancedMode" label=" " label-width="0">
+                  <el-input v-model="rawJson" type="textarea" :rows="10" class="raw-json" @input="onRawInput" />
+                  <div v-if="rawError" class="raw-err">JSON 解析失败：{{ rawError }}</div>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </section>
+
+          <!-- ===== 回复设置（文案） ===== -->
+          <section v-show="settingTab === 'reply'">
+            <el-card class="set-card" shadow="never">
+              <template #header><span class="card-title">回复设置（验真页文案）</span></template>
+              <el-form label-width="150px" class="set-form">
+                <el-divider content-position="left">商品模式文案</el-divider>
+                <el-row :gutter="20">
+                  <el-col :span="12"><el-form-item label="欢迎语"><el-input v-model.trim="s.welcome" placeholder="验真页欢迎语" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="欢迎副文案"><el-input v-model.trim="s.welcometxt" placeholder="欢迎语下方副文案" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="首次查询提示"><el-input v-model.trim="s.suc_one" placeholder="如：验证通过" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="二次查询提示"><el-input v-model.trim="s.suc_two" placeholder="如：请勿重复验证" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="三次查询提示"><el-input v-model.trim="s.suc_three" placeholder="第 3 次查询时提示" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="超限提示"><el-input v-model.trim="s.con_msg" placeholder="达到上限时提示" /></el-form-item></el-col>
+                </el-row>
+                <el-divider content-position="left">活动模式文案（现场活动场景变体）</el-divider>
+                <el-alert type="info" :closable="false" show-icon title="「活动」系列为现场活动模式的文案变体；当前 C 端验真页默认走商品模式，活动变体将在 C 端支持活动模式后生效。" class="mb12" />
+                <el-row :gutter="20">
+                  <el-col :span="12"><el-form-item label="活动欢迎语"><el-input v-model.trim="s.welcome1" placeholder="活动模式欢迎语" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="活动欢迎副文案"><el-input v-model.trim="s.welcometxt1" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="活动首次提示"><el-input v-model.trim="s.suc_one1" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="活动二次提示"><el-input v-model.trim="s.suc_two1" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="活动三次提示"><el-input v-model.trim="s.suc_three1" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="活动超限提示"><el-input v-model.trim="s.con_msg1" /></el-form-item></el-col>
+                </el-row>
+                <el-divider content-position="left">公众号关注回复</el-divider>
+                <el-row :gutter="20">
+                  <el-col :span="12"><el-form-item label="关注回复一"><el-input v-model.trim="s.myone" placeholder="关注后首条回复" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="关注回复二"><el-input v-model.trim="s.mytwo" placeholder="关注后第二条回复" /></el-form-item></el-col>
+                </el-row>
+              </el-form>
+            </el-card>
+          </section>
+
+          <!-- ===== 企业设置 ===== -->
+          <section v-show="settingTab === 'company'">
+            <el-card class="set-card" shadow="never">
+              <template #header><span class="card-title">企业设置</span></template>
+              <el-form label-width="130px" class="set-form">
+                <el-row :gutter="20">
+                  <el-col :span="12"><el-form-item label="企业名称"><el-input v-model.trim="s.factory" placeholder="厂家/企业名称" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="客服电话"><el-input v-model.trim="s.ftel" placeholder="400-xxx" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="厂家电话"><el-input v-model.trim="s.dtel" placeholder="厂家联系电话" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="常用快递"><el-input v-model.trim="s.kuaidi" placeholder="如：顺丰、圆通" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="联系链接"><el-input v-model.trim="s.link" placeholder="联系我们页 URL" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="官网"><el-input v-model.trim="s.website" placeholder="https://" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="企业简介"><el-input v-model.trim="s.profile" type="textarea" :rows="2" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="名片链接"><el-input v-model.trim="s.cardlink" placeholder="企业名片 URL" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="录入链接"><el-input v-model.trim="s.lurulink" placeholder="内部录入页 URL" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="Logo"><el-input v-model.trim="s.logo" placeholder="图片 URL" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="主图"><el-input v-model.trim="s.banner" placeholder="图片 URL" /></el-form-item></el-col>
+                </el-row>
+              </el-form>
+            </el-card>
+          </section>
+
+          <!-- ===== 快捷设置 ===== -->
+          <section v-show="settingTab === 'quick'">
+            <el-card class="set-card" shadow="never">
+              <template #header><span class="card-title">快捷设置（批次录入常用项）</span></template>
+              <el-form label-width="140px" class="set-form">
+                <el-row :gutter="20">
+                  <el-col :span="12"><el-form-item label="常用快递"><el-input v-model.trim="s.kuaidi" placeholder="一行一家，生成批次时可直接选用" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="常用溯源项目"><el-input v-model.trim="s.ttx_sy" placeholder="如：生产批号、生产日期" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="常用项目默认"><el-input v-model.trim="s.ttx_yd" placeholder="默认填充到溯源项目，如：生产批号" /></el-form-item></el-col>
+                </el-row>
+              </el-form>
+            </el-card>
+          </section>
+
+          <!-- ===== 通用设置（首页展示位） ===== -->
+          <section v-show="settingTab === 'general'">
+            <!-- 首页展示位：C 端验真结果页下方的推广位（多展位，各配封面图+颜色+展示条件） -->
+            <el-card class="set-card" shadow="never">
+              <template #header>
+                <div class="slot-head">
+                  <span class="card-title">首页展示位</span>
+                  <span class="form-hint">最多 {{ SLOT_MAX }} 个（与公众号图文消息单条 1~8 图文的接口上限一致）</span>
+                </div>
+              </template>
+
+              <el-empty v-if="!s.displaySlots.length" description="还没有展示位，点下方「新增展示位」开始配置" :image-size="60" />
+
+              <div v-for="(it, i) in s.displaySlots" :key="i" class="slot-item">
+                <div class="slot-item-hd">
+                  <span class="slot-idx">第 {{ i + 1 }} 位</span>
+                  <el-tag v-if="it.when === 0" type="info" size="small" effect="plain">已关闭</el-tag>
+                  <div class="slot-ops">
+                    <el-button link size="small" :disabled="i === 0" @click="moveSlot(i, -1)">上移</el-button>
+                    <el-button link size="small" :disabled="i === s.displaySlots.length - 1" @click="moveSlot(i, 1)">下移</el-button>
+                    <el-button link size="small" type="danger" @click="removeSlot(i)">删除</el-button>
+                  </div>
+                </div>
+                <el-form label-width="90px" class="slot-form">
+                  <el-form-item label="封面图">
+                    <el-upload :show-file-list="false" :http-request="(o) => uploadSlotCover(o, i)" accept="image/*">
+                      <img v-if="it.cover" :src="it.cover" class="slot-thumb" />
+                      <div v-else class="slot-add">+ 选择图片</div>
+                    </el-upload>
+                    <span class="form-hint">建议 240×180；未上传时 C 端显示占位底色</span>
+                  </el-form-item>
+                  <el-form-item label="标题">
+                    <el-input v-model.trim="it.title" maxlength="32" placeholder="展示位标题" class="slot-in" />
+                  </el-form-item>
+                  <el-form-item label="颜色">
+                    <el-color-picker v-model="it.color" />
+                    <span class="form-hint">用于 C 端标题文字色；留空则跟随页面主文本色</span>
+                  </el-form-item>
+                  <el-form-item label="展示条件">
+                    <el-select v-model="it.when" class="slot-when">
+                      <el-option v-for="w in SLOT_WHEN_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="跳转链接">
+                    <el-input v-model.trim="it.link" placeholder="/pages/xxx 或 https://..." class="slot-in" />
+                    <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转</span>
+                  </el-form-item>
+                  <el-form-item label="接口密钥">
+                    <el-input v-model.trim="it.accessKey" show-password placeholder="用于代理外部接口调用" class="slot-in" />
+                    <span class="form-hint">保存后仅回显脱敏串；原样提交表示不修改，输入新值才会覆盖。当前为预留字段，暂不影响展示位行为</span>
+                  </el-form-item>
+                </el-form>
               </div>
-            </div>
-            <el-form label-width="90px" class="slot-form">
-              <el-form-item label="封面图">
-                <el-upload :show-file-list="false" :http-request="(o) => uploadSlotCover(o, i)" accept="image/*">
-                  <img v-if="it.cover" :src="it.cover" class="slot-thumb" />
-                  <div v-else class="slot-add">+ 选择图片</div>
-                </el-upload>
-                <span class="form-hint">建议 240×180；未上传时 C 端显示占位底色</span>
-              </el-form-item>
-              <el-form-item label="标题">
-                <el-input v-model.trim="it.title" maxlength="32" placeholder="展示位标题" class="slot-in" />
-              </el-form-item>
-              <el-form-item label="颜色">
-                <el-color-picker v-model="it.color" />
-                <span class="form-hint">用于 C 端标题文字色；留空则跟随页面主文本色</span>
-              </el-form-item>
-              <el-form-item label="展示条件">
-                <el-select v-model="it.when" class="slot-when">
-                  <el-option v-for="w in SLOT_WHEN_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="跳转链接">
-                <el-input v-model.trim="it.link" placeholder="/pages/xxx 或 https://..." class="slot-in" />
-                <span class="form-hint">http(s) 开头按网页打开（小程序端降级为复制链接），其余按内部页面跳转</span>
-              </el-form-item>
-              <el-form-item label="接口密钥">
-                <el-input v-model.trim="it.accessKey" show-password placeholder="用于代理外部接口调用" class="slot-in" />
-                <span class="form-hint">保存后仅回显脱敏串；原样提交表示不修改，输入新值才会覆盖。当前为预留字段，暂不影响展示位行为</span>
-              </el-form-item>
-            </el-form>
-          </div>
 
-          <div class="slot-foot">
-            <el-button :disabled="s.displaySlots.length >= SLOT_MAX" @click="addSlot">+ 新增展示位</el-button>
-            <el-button type="primary" :loading="setSaving" @click="saveSettings">保存展示位</el-button>
-          </div>
-        </el-card>
+              <div class="slot-foot">
+                <el-button :disabled="s.displaySlots.length >= SLOT_MAX" @click="addSlot">+ 新增展示位</el-button>
+              </div>
+            </el-card>
+          </section>
+
+          <!-- ===== 红包设置（配置占位，待接入租户微信支付凭据） ===== -->
+          <section v-show="settingTab === 'redpack'">
+            <el-card class="set-card" shadow="never">
+              <template #header><span class="card-title">红包设置</span></template>
+              <el-alert type="warning" :closable="false" show-icon
+                title="当前为配置占位：红包真正发放需先接入租户级微信支付商户号与证书（apicert / apikey / rootca）。在凭据未提供前，本 Tab 仅保存文案与策略配置，不会实际发红包，避免建成「空头权益」。" class="mb12" />
+              <el-form label-width="140px" class="set-form">
+                <el-form-item label="启用红包">
+                  <el-switch v-model="s.isred" :active-value="1" :inactive-value="0" />
+                  <span class="form-hint">总开关；为 0 时不生效（对标站逻辑一致）</span>
+                </el-form-item>
+                <el-form-item label="红包类型">
+                  <el-select v-model="s.redtype" class="w260">
+                    <el-option :value="0" label="普通红包" />
+                    <el-option :value="1" label="裂变红包" />
+                  </el-select>
+                </el-form-item>
+                <el-row :gutter="20">
+                  <el-col :span="12"><el-form-item label="祝福语"><el-input v-model.trim="s.redwishing" placeholder="如：恭喜发财" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="错误提示"><el-input v-model.trim="s.rednotx" placeholder="领取失败提示" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="备注"><el-input v-model.trim="s.redremark" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="说明链接"><el-input v-model.trim="s.redlink" placeholder="活动说明页 URL" /></el-form-item></el-col>
+                  <el-col :span="12">
+                    <el-form-item label="补发策略">
+                      <el-select v-model="s.redbufa" class="w260">
+                        <el-option :value="0" label="补发给首位查询人" />
+                        <el-option :value="1" label="补发给当前查询人" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-form>
+            </el-card>
+          </section>
+        </main>
+
+        <!-- 数据类 Tab 的统一保存条（码制 Tab 走自身保存） -->
+        <div v-if="settingTab !== 'rule'" class="set-savebar">
+          <el-button type="primary" :loading="setSaving" @click="saveSettings">保存设置</el-button>
+          <span class="form-hint">所有子 Tab 的字段随本次保存一并提交</span>
+        </div>
       </section>
     </main>
 
@@ -357,6 +467,19 @@ const tabs = [
 ];
 const activeTab = ref('batches');
 function switchTab(key) { activeTab.value = key; }
+
+// 🔴 防伪设置从单卡片拆成 7 个子 Tab（对标站 8 Tab 去掉仅 founder 可见的「密码部署/站长专区」后，
+// 补回我们独有的「码制配置」），对齐 P0-1。
+const settingTabs = [
+  { key: 'rule', label: '码制配置', icon: 'lock' },
+  { key: 'func', label: '功能设置', icon: 'setting' },
+  { key: 'reply', label: '回复设置', icon: 'chat' },
+  { key: 'company', label: '企业设置', icon: 'shop' },
+  { key: 'quick', label: '快捷设置', icon: 'flash' },
+  { key: 'general', label: '通用设置', icon: 'image' },
+  { key: 'redpack', label: '红包设置', icon: 'gift' },
+];
+const settingTab = ref('rule');
 
 /* ----------------- 批次 ----------------- */
 const batchQuery = reactive({ page: 1, pageSize: 20, keyword: '' });
@@ -553,9 +676,30 @@ async function saveRule() {
   } finally { ruleSaving.value = false; }
 }
 
-/* ----------------- 系统设置 ----------------- */
-// 🔴 s 为 settings 单一事实来源；常用字段直接 v-model 到 s.xxx，高级模式编辑原始 JSON
-const s = reactive({ welcome: '', suc_one: '', suc_two: '', upperlimit: 0, con_msg: '', ftel: '', dtel: '', siteroot: '', history_limit: 10, displaySlots: [] });
+/* ----------------- 系统设置（多 Tab 共享的单一事实来源 s） ----------------- */
+// 🔴 s 为 settings 单一事实来源；常用字段直接 v-model 到 s.xxx，高级模式编辑原始 JSON。
+//    后端 settings 是泛型 JSON 列（saveSettings 整体 JSON.stringify 落库），新增字段无需改后端。
+// ⚠️ 部分开关/文案当前仅落库、后端消费逻辑待后续批次接入（已在界面对应位置标注），避免建成「空头入口」假象。
+const s = reactive({
+  // 文案（商品模式 + 活动模式变体 + 关注回复）
+  welcome: '', welcome1: '', welcometxt: '', welcometxt1: '',
+  suc_one: '', suc_two: '', suc_three: '',
+  suc_one1: '', suc_two1: '', suc_three1: '',
+  con_msg: '', con_msg1: '', myone: '', mytwo: '',
+  // 功能开关 + 限额
+  upperlimit: 0, history_limit: 10, siteroot: '',
+  ishistory: 0, isint: 0, islink: 0, isjihuo: 0, ischuanhuo: 0,
+  xiguang: 0, istixe: 0, isccode: 0, isapi: 0, isluck: 0,
+  // 企业/联系
+  factory: '', ftel: '', dtel: '', kuaidi: '', link: '',
+  logo: '', banner: '', website: '', profile: '', cardlink: '', lurulink: '',
+  // 快捷
+  ttx_yd: '生产批号', ttx_sy: '',
+  // 红包（配置占位，待接入租户微信支付凭据）
+  isred: 0, redtype: 0, redwishing: '', rednotx: '', redremark: '', redlink: '', redbufa: 0,
+  // 首页展示位
+  displaySlots: [],
+});
 const advancedMode = ref(false);
 
 /* ----------------- 首页展示位 ----------------- */
@@ -699,6 +843,8 @@ onMounted(() => {
   display: flex; gap: 8px; background: #fff; border-radius: 8px; padding: 8px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); overflow-x: auto; margin-bottom: 16px;
 }
+/* 🔴 设置子 Tab 视觉降一级，避免与一级 Tab 等高造成层级混乱 */
+.sub-tabs { background: #f7f8fa; box-shadow: none; padding: 6px; margin-bottom: 12px; }
 .ctab {
   display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 8px;
   font-size: 14px; color: #4e5969; cursor: pointer; white-space: nowrap; transition: all 0.2s;
@@ -706,6 +852,7 @@ onMounted(() => {
 .ctab:hover { background: #f2f3f5; color: #1d2129; }
 .ctab.active { background: #e8f3ff; color: #165dff; font-weight: 500; }
 .trace-content { min-height: 400px; }
+.set-content { min-height: 300px; }
 .filter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .list-total { font-size: 13px; color: #86909c; }
 .w260 { width: 260px; } .w200 { width: 200px; } .w240 { width: 240px; }
@@ -717,6 +864,7 @@ onMounted(() => {
 .raw-json { font-family: monospace; }
 .raw-err { color: #f53f3f; font-size: 12px; margin-top: 4px; }
 .rule-form :deep(.el-input-number), .set-form :deep(.el-input-number) { width: 160px; }
+.set-savebar { display: flex; align-items: center; gap: 12px; margin: 8px 0 20px; }
 
 /* 首页展示位编辑器 */
 .slot-head { display: flex; align-items: center; gap: 10px; }
