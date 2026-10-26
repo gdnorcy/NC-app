@@ -12,7 +12,7 @@
 import { describe, test, expect } from 'vitest';
 import {
   LINK_TYPES, LINK_ENVS, LINK_INTERNAL, normalizeLinkType, isExternalType,
-  normalizeLink, isValidLink, linkIssue, describeLink,
+  normalizeLink, isValidLink, linkIssue, describeLink, linkFromString,
 } from './compLinkModel.js';
 
 describe('normalizeLinkType：内部链接是一等类型', () => {
@@ -144,5 +144,29 @@ describe('describeLink：回显文案', () => {
     expect(describeLink({ linkType: 'miniapp', miniAppId: 'wx1234567890abcdef' })).toContain('小程序');
     expect(describeLink({ linkType: 'web', url: 'https://a.com' })).toBe('https://a.com');
     expect(describeLink({ linkType: 'phone', url: '13800138000' })).toBe('电话 13800138000');
+  });
+});
+
+describe('linkFromString：单字符串链接目标（展示位等简配场景）', () => {
+  test('http/https 开头 → 网页', () => {
+    expect(linkFromString('https://a.com').linkType).toBe('web');
+    expect(linkFromString('http://a.com').linkType).toBe('web');
+    expect(linkFromString('HTTPS://A.COM').linkType).toBe('web');
+  });
+
+  test('其余一律 internal（内部页面路径）', () => {
+    expect(linkFromString('/pages/mall/index').linkType).toBe('internal');
+    expect(linkFromString('pages/mall/index').linkType).toBe('internal');
+    expect(linkFromString('').linkType).toBe('internal');
+  });
+
+  test('🔴 纯数字不被误判成电话（内部参数串会中招）', () => {
+    expect(linkFromString('12345678').linkType).toBe('internal');
+  });
+
+  test('两端各写一份 startsWith 会漂移 → 判定结果必须能直接喂给 normalizeLink', () => {
+    const l = normalizeLink(linkFromString('https://a.com'));
+    expect(l.linkType).toBe('web');
+    expect(isValidLink(l)).toBe(true);
   });
 });

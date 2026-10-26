@@ -2431,7 +2431,7 @@ function seedTrace(db) {
       m1 TEXT NOT NULL DEFAULT '',
       -- 码制 JSON：{k:{1..5},m:{1..5},s:0,zdl:5}
       rule_json TEXT NOT NULL DEFAULT '{}',
-      -- 替代原微擎 rid 的发布版本号/规则版本号
+      -- 发布版本号/规则版本号（租户自定义；码制变更时用于区分新旧批次）
       publish_no TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -2545,7 +2545,7 @@ function seedTrace(db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tenant_id INTEGER NOT NULL,
       batch_id INTEGER NOT NULL,
-      -- 8 溯源补充；9 经销商/代理码段；按原 zmcn_fw_basy 推断
+      -- 8 溯源补充；9 经销商/代理码段
       type INTEGER NOT NULL DEFAULT 0,
       -- 码或码段；原逻辑 code=:c1 OR instr(:c2, code)
       code TEXT NOT NULL DEFAULT '',

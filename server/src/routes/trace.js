@@ -11,6 +11,8 @@ import { config } from '../config.js';
 import { hasSolution } from '../tenant.js';
 import { buildTraceCodeFromSerial, canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, parseTraceCode, verifyTraceCode } from '../services/traceCode.js';
 import { generateTracePackage } from '../services/traceGenerate.js';
+import { normalizeDisplaySlots, pickDisplaySlots } from '../services/traceSlots.js';
+import { maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
 import { applyTraceReward } from '../services/traceReward.js';
 
 function sendError(res, status, error) {
@@ -291,6 +293,9 @@ export function createTracePublicRouter(db) {
     // 🔴 事务口径 = 平台统一写法 db.exec('BEGIN'/'COMMIT'/'ROLLBACK')。
     //    交付物原版用 better-sqlite3 的 db.transaction(fn) —— 本平台是 node:sqlite，
     //    DatabaseSync 没有 transaction() 方法 → 调用即 TypeError → 验真接口 500。
+    // 🔴 本次是否「首查」必须在事务内定下来：下面的累加分支要靠它区分
+    //    「刚置 1 的首查」与「真正的复访」，否则 num 会算错（详见累加处注释）。
+    let isNewEntry = false;
     db.exec('BEGIN');
     try {
       if (!record) {
@@ -299,11 +304,13 @@ export function createTracePublicRouter(db) {
           .run(tenantId, batch.id, code, entryType, openid, userId, ip, Number(batch.inttype || 0));
         record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(info.lastInsertRowid);
         db.prepare('UPDATE trace_batches SET rcon = rcon + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, batch.id);
+        isNewEntry = true;
       } else if (Number(record.num || 0) === 0) {
         db.prepare(`UPDATE trace_codes SET num = 1, queried_at = datetime('now'), openid = ?, user_id = ?, ip = ?, updated_at = datetime('now')
           WHERE tenant_id = ? AND id = ?`).run(openid, userId, ip, tenantId, record.id);
         db.prepare('UPDATE trace_batches SET rcon = rcon + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, batch.id);
         record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(record.id);
+        isNewEntry = true;
       }
       const recent = db.prepare(`SELECT id FROM trace_histories WHERE tenant_id = ? AND type = 0 AND summary = ? AND openid = ? AND created_at > datetime('now', '-21 seconds')`)
         .get(tenantId, code, openid);
@@ -311,7 +318,10 @@ export function createTracePublicRouter(db) {
         db.prepare(`INSERT INTO trace_histories (tenant_id, type, summary, uid, openid, ip, remark, created_at)
           VALUES (?, 0, ?, ?, ?, ?, ?, datetime('now'))`)
           .run(tenantId, code, userId, openid, ip, `第${Number(record.num || 0)}次查询`);
-        if (Number(record.num || 0) > 1) {
+        // 🔴 只有「复访」才累加 num。原写法是 `if (num > 1)`：首查把 num 置 1 后不满足，
+        //    num 永远卡在 1 → first 恒 true → 「仅首次查询可见」的展示位永远显示、
+        //    首查奖励也会重复发。判据必须是「本次是不是首查」，不是「num 是否 > 1」。
+        if (!isNewEntry) {
           db.prepare('UPDATE trace_codes SET num = num + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, record.id);
         }
         record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(record.id);
@@ -338,6 +348,15 @@ export function createTracePublicRouter(db) {
       ok: true,
       code,
       first: Number(record.num || 0) <= 1,
+      // 🔴 首页展示位：按「展示条件」+ 本次查询态挑出本次该渲染的位。
+      //    数量上限 8（公众号当前图文消息接口口径），条件语义见 traceSlots.js。
+      //    isTopQueryer = 本次访问人是该码的首位查询人；游客（无 openid）恒判非首位。
+      // 🔴 必须在这里剥掉 keyCipher：展示位是公开接口下发的，密文一旦出网
+      //    等于把租户的接口凭据交给任何人（拿到密文 + 我们服务的解密能力即可还原）。
+      slots: pickDisplaySlots(settings.displaySlots || [], {
+        isFirstQuery: Number(record.num || 0) <= 1,
+        isTopQueryer: Boolean(record.openid) && record.openid === openid,
+      }).map(({ keyCipher, ...rest }) => rest),
       num: Number(record.num || 0),
       batch: {
         id: batch.id,
@@ -601,13 +620,43 @@ export function createTraceAdminRouter(db) {
     const { row, settings } = getSettings(db, req.traceTenantId);
     // 🔴 库存（cocom）是 trace_settings 的**独立列**，不在 settings_json 里 →
     //    必须取 row.cocom，否则前端永远看到 0。
-    return res.json({ settings, cocom: Number(row?.cocom ?? 0) });
+    // 🔴 展示位的「接口密钥」是租户自己的凭据：库里存密文，**永不把密文送回浏览器**，
+    //    只送 maskSecretValue 的脱敏串（前端原样回传 = 不修改，见 mergeSecretInput）。
+    const slots = Array.isArray(settings.displaySlots) ? settings.displaySlots : [];
+    const view = {
+      ...settings,
+      displaySlots: slots.map((s) => {
+        const { keyCipher, ...rest } = s || {};
+        return { ...rest, accessKey: maskSecretValue(readSecret(keyCipher)) };
+      }),
+    };
+    return res.json({ settings: view, cocom: Number(row?.cocom ?? 0) });
   });
 
   router.put('/settings', (req, res) => {
-    saveSettings(db, req.traceTenantId, req.body.settings || req.body || {});
-    addHistory(db, req.traceTenantId, 1, 'setting', req, '更新防伪溯源设置');
-    return res.json({ ok: true });
+    try {
+      const body = req.body?.settings || req.body || {};
+      const patch = { ...(body && typeof body === 'object' ? body : {}) };
+      const prev = getSettings(db, req.traceTenantId).settings || {};
+      const prevSlots = Array.isArray(prev.displaySlots) ? prev.displaySlots : [];
+      const submitted = Array.isArray(patch.displaySlots) ? patch.displaySlots : [];
+      // 🔴 顺序不能反：先归一化会让明文密钥被当普通字段透传进库（**明文落库**），
+      //    所以先把密钥轮成密文，再交给归一化（归一化对密文只做不透明透传）。
+      const staged = submitted.map((raw, i) => {
+        const one = raw && typeof raw === 'object' ? raw : {};
+        const cipher = mergeSecretInput(String(one.accessKey || ''), String(prevSlots[i]?.keyCipher || ''));
+        const { accessKey, ...rest } = one; // 明文不落库
+        return { ...rest, keyCipher: cipher };
+      });
+      // 🔴 必须**整批**归一化：逐个调用会让「最多 8 个」的上限校验永远不成立
+      //    （每次只看到 1 个），上限形同虚设。归一化也顺带剥掉多余字段。
+      patch.displaySlots = normalizeDisplaySlots(staged);
+      saveSettings(db, req.traceTenantId, patch);
+      addHistory(db, req.traceTenantId, 1, 'setting', req, '更新防伪溯源设置');
+      return res.json({ ok: true });
+    } catch (e) {
+      return sendError(res, 400, e.message || '设置保存失败');
+    }
   });
 
   router.get('/code-rule', (req, res) => {
@@ -852,22 +901,17 @@ export function createTraceAdminRouter(db) {
     return res.json({ ok: true, cocom: next });
   });
 
-  // 商城系统集成配置（原 isint）
+  // 商品关联配置（溯源页「查看商品」跳哪儿）。开关值落在 settings.isint，随 PUT /settings 保存。
+  // 🔴 只列本平台真实存在的来源：外部第三方商城的商品表在我们库里根本没有，
+  //    列进下拉 = 后台能选、服务端零消费的「空头权益」，不做。
   router.get('/shop-integration', (req, res) => {
     const { settings } = getSettings(db, req.traceTenantId);
-    const shopTypes = [
-      { value: 88, label: '自有商品', table: 'zmcn_goods' },
-      { value: 1, label: '微擎商城', table: 'shopping_goods' },
-      { value: 14, label: '人人商城', table: 'ewei_shop_goods' },
-      { value: 15, label: '芸众商城', table: 'yz_goods' },
-      { value: 2, label: '人人商城(旧)', table: 'ewei_shop_goods' },
-      { value: 3, label: '快捷店', table: 'quickshop_goods' },
-      { value: 4, label: '超级商城', table: 'surpershop_goods' },
-      { value: 5, label: '微联夺宝', table: 'weliam_indiana_goodslist' },
-      { value: 6, label: '超人商城', table: 'superman_mall_item' },
-      { value: 7, label: '团购商品', table: 'tg_goods' },
+    const sources = [
+      { value: 0, label: '不关联商品', table: '' },
+      { value: 1, label: '本平台商城商品', table: 'goods' },
+      { value: 2, label: '外部商品链接', table: '' },
     ];
-    return res.json({ current: Number(settings.isint || 0), shopTypes });
+    return res.json({ current: Number(settings.isint || 0), sources });
   });
 
   return router;
