@@ -14,7 +14,7 @@
  * 过渡期兜底：旧 platform_user.member_level 档位由 resolver 落到 TIER_PKG 模板。
  */
 
-import { resolveAppBenefits, tenantOfUser, effectiveMembership } from './member.js';
+import { resolveAppBenefits, tenantOfUser, effectiveMembership, mallDiscountText } from './member.js';
 
 export function createQuotaService(db) {
   const svc = {};
@@ -145,14 +145,8 @@ export function createQuotaService(db) {
       if (type === 'collect_limit') return svc.quotaLeft(userId, 'collect').used;
       return null;
     };
-    // 🔴 商城折扣：百分比口径（10 = 打9折）→ C 端展示「9 折」，避免暴露"10%"这种配置口径
-    const mallDiscountText = (v) => {
-      const pct = Number(v) || 0;
-      if (pct <= 0) return '无折扣';
-      if (pct >= 100) return '无折扣';
-      const zhe = (10 - pct / 10).toFixed(1).replace(/\.0$/, '');
-      return `${zhe} 折`;
-    };
+    // 🔴 商城折扣文案已提升到 member.js 共享导出（mallDiscountText）：appBenefits 实况
+    //    与 levelBenefitsPreview 档位预览共用同一段，防止两处口径漂移。
     const apps = [];
     for (const [code, items] of byApp) {
       const resolved = resolveAppBenefits(db, tid, userId, code);

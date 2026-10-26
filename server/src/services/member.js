@@ -262,6 +262,89 @@ export function resolveAppBenefits(db, tenantId, userId, appCode) {
   return applyBenefits(base, {}, kinds);
 }
 
+/**
+ * 折扣文案（第22轮起 mall.discount 为百分比口径：0=无折扣，10=打9折）。
+ * 🔴 2026-10-27 从 quota.js 提升为共享导出：quota.appBenefits（实况）与
+ *    levelBenefitsPreview（档位预览）共用同一段文案，避免两处口径漂移。
+ */
+export function mallDiscountText(v) {
+  const pct = Number(v) || 0;
+  if (pct <= 0) return '无折扣';
+  if (pct >= 100) return '无折扣';
+  const zhe = (10 - pct / 10).toFixed(1).replace(/\.0$/, '');
+  return `${zhe} 折`;
+}
+
+/**
+ * 档位权益预览（🔴 2026-10-27 用户报修「切换档位看不到其他级别的权益」）：
+ *   权益区此前只显示用户当前档实况（quota.appBenefits，含已用量），点黄金/钻石档
+ *   看不到升级能解锁什么。这里按租户全部启用档位各出一份「按应用分组」的权益快照，
+ *   /member/status 一并下发，C 端切档即时切换、零请求。
+ *
+ * 口径：与 resolveAppBenefits 的「矩阵命中分支」一致 —— 目录默认 ⊕ 矩阵覆盖
+ *   （applyBenefits 已施平台硬上限）；某档某应用矩阵未配置 → 目录默认。
+ *   🔴 预览**不回落** TIER_PKG 旧模板 / 旧镜像：那是「用户身份」的过渡兜底，不是档位配置。
+ *   预览项**无 used**（已用量无意义），valueText 即「开通该档后」的展示值。
+ *
+ * @returns {{[levelId:string]: Array<{code,stats,items}>}} 应用名/图标不在本函数出
+ *   （与 quota.appBenefits 同 code，前端按 code 合并，避免 APP_NAME/ICON 兜底两处维护）
+ */
+export function levelBenefitsPreview(db, tenantId) {
+  if (!tenantId) return null;
+  const levels = db.prepare('SELECT id FROM member_levels WHERE tenant_id = ? AND status = 1').all(tenantId);
+  if (!levels.length) return null;
+  const kinds = Object.fromEntries(db.prepare('SELECT type, kind FROM benefit_catalog').all().map((r) => [r.type, r.kind]));
+  const rows = db.prepare('SELECT type, app_scope, kind, unit, label, display_label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all();
+  const globals = rows.filter((r) => r.app_scope === '*');
+  const byApp = new Map();
+  for (const r of rows) {
+    if (r.app_scope === '*') continue;
+    for (const s of String(r.app_scope).split(',').map((x) => x.trim())) {
+      if (!byApp.has(s)) byApp.set(s, []);
+      byApp.get(s).push(r);
+    }
+  }
+  const out = {};
+  for (const lv of levels) {
+    const apps = [];
+    for (const [code, items] of byApp) {
+      const base = defaultBenefits(db, code);
+      const row = db.prepare('SELECT benefits FROM member_level_app_benefits WHERE tenant_id = ? AND level_id = ? AND app_code = ?').get(tenantId, lv.id, code);
+      const resolved = applyBenefits(base, row ? parseJson(row.benefits, {}) : {}, kinds);
+      const list = [...items, ...globals]
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((r) => {
+          const value = resolved[r.type];
+          const isSwitch = r.kind === 'switch';
+          const isDiscount = r.type === 'discount';
+          // valueText：开通该档后的展示值（无 used，配额直接出上限；0=不限）
+          let valueText;
+          if (isSwitch) valueText = value ? '已开通' : '未开通';
+          else if (isDiscount) valueText = mallDiscountText(value);
+          else valueText = Number(value) > 0 ? `${value}${r.unit ? ' ' + r.unit : ''}` : '不限';
+          const active = isSwitch ? !!value : Number(value) > 0;
+          return {
+            type: r.type,
+            label: r.label,
+            displayLabel: r.display_label || r.label,
+            unit: r.unit || '',
+            kind: r.kind,
+            value,
+            valueText,
+            active,
+          };
+        });
+      apps.push({
+        code,
+        stats: { active: list.filter((x) => x.active).length, total: list.length },
+        items: list,
+      });
+    }
+    out[lv.id] = apps;
+  }
+  return out;
+}
+
 export function createMemberService(db) {
   // ---------------- 工具 ----------------
   function genCardNo() {
