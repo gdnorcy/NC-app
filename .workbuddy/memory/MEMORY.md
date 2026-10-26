@@ -5,6 +5,7 @@
 - 0 匹配先怀疑工具：**BSD grep 的 `\|` 交替是字面量**（不报错、0 匹配，常伪装成"产物没构建进去"）→ 用 `grep -E`；压缩 JS 单行 `grep -c` 恒 1 → `grep -o|wc -l`；查文件用 Glob/Grep 不用 shell 管道；`cmd|tail` 丢退出码 → `echo $?`。
 - API 搜索别拼全路径（路由挂 /api/customer，页面写 get('/billing/plan') → 恒 0）→ grep 末段或封装名。「整页没数据」多为请求级失败。
 - 写值播种必须留痕：ADD COLUMN 幂等 ≠ UPDATE 幂等（"当前是 0 就播种"会被管理员关后重启重开）→ schema_marks。
+- **整批约束（数量上限/去重/总量）的校验函数必须整批传入**：`list.map(x => normalize([x]))` 逐个调 → 每次只看到 1 个 → 上限永不触发（真事故：展示位「最多 8 个」形同虚设）。纯函数单测全绿也照漏，只有路由层测试拦得住。
 - `node --test $FILES`（shell 变量含多文件）会被当单个路径 → 必须 `$(cat list.txt | tr '\n' ' ')` 展开。node:sqlite 的 run() 返回属性是 **lastInsertRowid（小写 d）**。
 
 ## 1 测试
@@ -17,7 +18,8 @@
 ## 2 构建与部署
 - 源码落 main（不带产物）；deploy = merge --no-ff main + 重建产物；push -f deploy；部署后 checkout main。产物必须 `git add -f`（限 server/public/{card,mall,admin}、server/mini-template/mp-weixin，禁 -A）——普通 add 静默跳过新 chunk → 白屏。**白屏判据查暂存集**：add -f 后复核「新 chunk 已暂存 + 旧 hash=0」（磁盘有 ≠ 暂存有）。源码按路径显式 add，`diff --cached --name-only` 复核零产物混入。
 - 🔴 main 跟踪陈旧产物：切 deploy 前 mv 新产物到 /tmp → checkout -f deploy → merge → 旧版 mv 开再 cp -a 铺回（防 card/card/ 嵌套）→ add -f；回 main 后 `git checkout --` 恢复。**往返吞未提交修改（含 memory）**。
-- 🔴 safe-delete 拦 >50 文件删除：`uni build` 清 dist/build、`build:admin` 清 server/public/admin 都会被拦 → 先把目标目录 mv 到 /tmp，目录空了再构建。
+- 🔴 safe-delete 拦 >50 文件删除：`uni build` 清 dist/build、`build:admin` 清 server/public/admin 都会被拦 → 先把目标目录 mv 到 /tmp，目录空了再构建。**H5 要 mv `assets` + `static` 两处**（只 mv assets 不够，static 还有 82 个）。
+- **只验 MP 编译不产跟踪产物**：`npx uni build -p mp-weixin`（不带 strip/gen-sicons/stamp/sync）→ 产物留在 gitignore 的 web-app/dist，main 零污染。
 - 🔴 build:h5 不含同步：再从**仓库根**跑 `node scripts/sync-mobile-dist.mjs` 才进 server/public/{card,mall}（build:mp-weixin 内联 sync-mini-template）。🔴 **MP 是第四个产物面**：新分包只有跑 `build:mp-weixin -w web-app`（stamp @提交）才进小程序；只跑 build:h5 只覆盖 card/mall。备份≠本轮产物：提交前 grep 特征串验证（压缩产物函数名 minify 消失属正常）。push 后必 `git ls-remote origin <branch>` 校验。
 
 ## 3 真机与跨端
@@ -89,3 +91,6 @@
 - 🔴 `import.meta.env` 只能直接访问，禁 `typeof import.meta !== 'undefined' &&` 防御写法 —— vite 在 MP(CJS) 下会把裸 import.meta 垫成 require("url") → app.js 启动即崩。
 - 本项目口径：ESM（禁 require）；SQLite **禁 MySQL `COMMENT`** 等专有语法；租户标识唯一来源 = JWT 载荷 **`req.user.customerId`**（**不存在** req.user.tenant_id/tenantId → 恒 0）；后台 API 走 `customerApiCall`（baseURL `/api/customer`，禁裸 fetch）；C 端基址单一来源 `utils/apiBase.js` + `createApiClient`（禁硬编码 `/api/xxx`）。
 - 迁移必须**搬进 `db.js` 的 `migrate()` 尾部**（只交 .sql 不算生效）；`app_menus.app_id` 用 `SELECT id FROM apps WHERE code=?` 子查询禁硬编码 id；`solution_apps` 必须给可执行 INSERT（只给注释示例 = 看得见开不通）。
+- 🔴 **复刻对标系统的两条硬规则（用户明令，不可违背）**：① **只复刻行为与字段语义，不搬一行它的代码**；② 代码与文档里**不得出现对标系统的名称/缩写/简称**（含其模块名、框架名）——范围包括注释、变量/函数名、测试用例名、**db.js 的 SQL 注释**、方案文档。交付前全项目 Grep 扫禁用词确认 0 命中（外部交付物目录属参考材料，不扫不改不入库）。
+- 🔴 **数量上限类参数别照抄对标系统的固定值**：先查当前平台/接口的实际口径（展示位上限 8 = 公众号当前「上传图文消息素材」一个消息 1~8 条图文；对标系统固定 10 位对应早期接口 → 不跟）。
+- 🔴 **公开接口下发含密钥的配置前必须剥 `keyCipher`**：`.map(({keyCipher, ...rest}) => rest)`（拿到密文 + 服务解密能力 = 还原租户凭据）。回显只给 `maskSecretValue`（**前 4 + `****` + 后 4**）。后台保存顺序：**先轮密文再归一化**（反了 = 明文落库）；保存后**回读一次**，否则输入框留明文、与库里脱敏态不一致。
