@@ -70,6 +70,7 @@ export const MINI_PAGES = [
   { path: '/pages/panorama/index', title: '360全景', group: 'panorama' },
   { path: '/pages/panorama/home', title: '全景首页', group: 'panorama' },
   { path: '/pages/superForm/fill', title: '超级表单', group: 'other' },
+  { path: '/pages/trace/index', title: '防伪溯源', group: 'other' },
   { path: '/pages/share/share', title: '分享', group: 'other' },
   { path: '/pages/viewer/viewer', title: '全景浏览', group: 'other' },
   { path: '/pagesReads/videoList/videoList', title: '视频列表', group: 'other' },

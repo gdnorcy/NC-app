@@ -384,6 +384,18 @@
           }
         }
       ]
+    },
+    {
+      "root": "pages/trace",
+      "pages": [
+        {
+          "path": "index",
+          "style": {
+            "navigationBarTitleText": "防伪溯源",
+            "navigationStyle": "custom"
+          }
+        }
+      ]
     }
   ],
   "globalStyle": {
