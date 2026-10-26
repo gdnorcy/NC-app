@@ -52,6 +52,8 @@
 - 两口令别混：projects.invite_code（P 开头）= 租户绑定；tenant_enterprises.config.invite_code（ENT######）= 员工凭码加入。
 - 名片归属 TENANT_CARD_SCOPE_SQL 6 通道；访客标签只表行为，意向强弱看 score/level。
 - 「空头权益」= 后台有表单、C 端有入口、服务端零消费点 → 对每个权益列 grep services/routes，0 命中即空头。雷达推送配额数＝"已占真实通道(1/2)条数"非 status='sent'。
+- 🔴 **插件「安装/启用」双开关是真门控不是摆设**（第27轮逐层验证）：表 `sys_tenant_plugin(is_install,is_enable)`，5 码 dist/partner/share-all/share-cat/share-area。**两层消费**：①`distribution.js computeOrderSplit` 716-721 行 `active = plugins.filter(p => p.is_install && p.is_enable)`，无 active 直接 return → **关掉＝该插件不参与真实分钱**（含 746 行 partner 分红、share_* 分红）；②C 端卡片显隐 `distribution.vue` 读 `summary.isEnablePartner/ShareAll/...`（v-if）。「安装」=占位授权、「启用」=实际生效，**两者都开才生效**（与运算）。
+
 
 ## 6 租户会员套餐（权益矩阵）
 - 单一事实来源：`benefit_catalog`（平台目录，租户只能配已有 type）+ `member_level_app_benefits`（套餐×应用矩阵）+ `member_user`。member_package 已退化为**套餐模板库**；旧 `member_levels.benefits` JSON 是死数据（禁消费/禁回写）。
