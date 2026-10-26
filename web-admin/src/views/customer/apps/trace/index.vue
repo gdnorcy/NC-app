@@ -256,7 +256,7 @@
               </el-form-item>
               <el-form-item label="接口密钥">
                 <el-input v-model.trim="it.accessKey" show-password placeholder="用于代理外部接口调用" class="slot-in" />
-                <span class="form-hint">保存后仅回显脱敏串；原样提交表示不修改，输入新值才会覆盖</span>
+                <span class="form-hint">保存后仅回显脱敏串；原样提交表示不修改，输入新值才会覆盖。当前为预留字段，暂不影响展示位行为</span>
               </el-form-item>
             </el-form>
           </div>
