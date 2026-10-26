@@ -60,9 +60,33 @@
             <text class="goods-title">{{ g.title }}</text>
             <view class="goods-bottom">
               <view class="goods-price">
-                <text class="price-symbol">¥</text>
-                <text class="price-num">{{ yuanFmt(g.price) }}</text>
-                <text class="price-market" v-if="g.market_price && Number(g.market_price) > Number(g.price)">¥{{ yuanFmt(g.market_price) }}</text>
+                <!-- 🔴 价格区四态（与传统商城一致）：
+                     ① 会员本人享折扣 → 「会员价 + 原价划线」
+                     ② 租户开启「非会员不可见价格」且当前非会员 → 「登录查看价格」
+                     ③ 会员价对访客公开（mall.price_visible） → 公示会员价 + 划线原价
+                     ④ 常规 → 原价 -->
+                <template v-if="g.hasMemberPrice">
+                  <text class="price-member-tag">会员价</text>
+                  <text class="price-symbol">¥</text>
+                  <text class="price-num">{{ fen2yuan(g.memberPrice) }}</text>
+                  <text class="price-origin">¥{{ fen2yuan(g.originPrice) }}</text>
+                </template>
+                <template v-else-if="g.priceHidden">
+                  <!-- 租户开启「非会员不可见价格」→ 引导登录/开通会员 -->
+                  <text class="price-hidden" @click.stop="goLogin">登录查看价格</text>
+                </template>
+                <template v-else-if="g.pricePublic && g.memberPrice < g.originPrice">
+                  <!-- 会员价对访客公开 → 公示「会员价 + 原价划线」+ 开通引导 -->
+                  <text class="price-member-tag">会员价</text>
+                  <text class="price-symbol">¥</text>
+                  <text class="price-num">{{ fen2yuan(g.memberPrice) }}</text>
+                  <text class="price-origin">¥{{ fen2yuan(g.originPrice) }}</text>
+                </template>
+                <template v-else>
+                  <text class="price-symbol">¥</text>
+                  <text class="price-num">{{ yuanFmt(g.price) }}</text>
+                  <text class="price-market" v-if="g.market_price && Number(g.market_price) > Number(g.price)">¥{{ yuanFmt(g.market_price) }}</text>
+                </template>
               </view>
               <text class="goods-sales">已售{{ g.sales || 0 }}</text>
             </view>
@@ -78,6 +102,8 @@
     </template>
     <CardTabBar active="mall" page-type="mall-home" />
     <view class="tabbar-space"></view>
+    <!-- 价格不可见（租户开启「非会员不可见价格」）→ 原地登录浮层，不跳页 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -87,8 +113,10 @@ import PageNav from '../../components/PageNav.vue';
 import { ref, computed, nextTick } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { mallApi } from '../../utils/mallApi.js';
-import { yuanFmt, getTid, getToken } from '../../utils/mallUtil.js';
+import { yuanFmt, fen2yuan, getTid, getToken } from '../../utils/mallUtil.js';
 import { resolveAssetUrl } from '../../utils/design.js';
+import { useInlineLogin } from '../../utils/loginGate.js';
+import LoginGateModal from '../../components/LoginGateModal.vue';
 import { useDesignTheme } from '../../utils/design.js';
 
 const themeStyle = useDesignTheme();
@@ -121,6 +149,19 @@ const pageType = ref('');
 const hasGoodsList = computed(() => designComps.value.some((c) => ['goods-group','goods-list','goods-all','goods-tabs','goods-rank','goods-like','goods-swiper','goods-show','goods-featured'].includes(c.type)));
 
 const resolveUrl = (u) => resolveAssetUrl(u, tid.value);
+
+// 🔴 价格不可见时：原地弹登录浮层（登录成功自动重入列表刷新价格）
+const { showLoginGate, requireLogin, cancelLogin, onLoginGateSuccess } = useInlineLogin(() => {
+  fetchGoods(true);
+});
+
+/** 点「登录查看价格」→ 弹登录浮层；已登录则跳会员中心开通会员 */
+async function goLogin() {
+  if (await requireLogin()) {
+    // 已登录但非会员 → 引导到会员中心
+    uni.navigateTo({ url: '/pages/card/member' });
+  }
+}
 
 function fetchCates() {
   return mallApi.getCates({ tid: tid.value })
@@ -384,6 +425,24 @@ onShow(() => {
   text-decoration: line-through;
   margin-left: 8rpx;
 }
+/* 🔴 会员价：标签 + 划线原价（传统商城表达）。
+   会员价数字沿用 --danger（与普通价同一价格语义），原价划线沿用 --decor（弱化）。 */
+.price-member-tag {
+  font-size: var(--fs-1);
+  color: var(--white);
+  background: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 2rpx 8rpx;
+  margin-right: 8rpx;
+  align-self: center;
+}
+.price-origin {
+  font-size: var(--fs-2);
+  color: var(--decor);
+  text-decoration: line-through;
+  margin-left: 8rpx;
+}
+.price-hidden { font-size: var(--fs-3); color: var(--t4); }
 .goods-sales { font-size: var(--fs-2); color: var(--decor); }
 .empty-box {
   padding: 160rpx 0;

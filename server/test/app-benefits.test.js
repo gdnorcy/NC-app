@@ -47,6 +47,20 @@ describe('应用级会员权益解析（平台目录 + 租户套餐 × 应用）
     assert.equal(map.lead_quota.app_scope, 'radar');
   });
 
+  it('权益目录带 C 端展示名 display_label（消费感知短词，非后台配置口径）', () => {
+    const rows = db.prepare('SELECT type, label, display_label FROM benefit_catalog ORDER BY sort_order').all();
+    assert.equal(rows.length, 20);
+    for (const r of rows) {
+      assert.ok(r.display_label, `${r.type} 应有 C 端展示名`);
+      // C 端展示名不得含后台配置口径的说明性括号
+      assert.ok(!/[（(].*[)）]/.test(r.display_label), `${r.type} 展示名不应带参数说明：${r.display_label}`);
+    }
+    const map = Object.fromEntries(rows.map((r) => [r.type, r]));
+    assert.equal(map.discount.display_label, '商城会员价');
+    assert.equal(map.discount.label, '商城折扣百分比（0=无折扣，10=打9折）');
+    assert.equal(map.price_visible.display_label, '会员价公示');
+  });
+
   it('castBenefit 按 kind 还原类型', () => {
     assert.equal(castBenefit('3', 'number'), 3);
     assert.equal(castBenefit('1', 'switch'), true);
@@ -140,5 +154,21 @@ describe('应用级会员权益解析（平台目录 + 租户套餐 × 应用）
     assert.ok(m);
     assert.equal(m.level, 'custom');
     assert.equal(m.source, 'member_user');
+  });
+
+  it('后台目录接口带 display_label（后台显示名必须 = C 端展示名，防止两端脱节）', () => {
+    // 🔴 2026-10-27：后台原来只能靠前端拆 label 的「（…）」取短名，拆出来的是配置口径
+    //    （「商城折扣百分比」），与 C 端真实显示的（「商城会员价」）对不上。
+    //    现在 display_label 是正式字段，后台目录接口必须带上 → 后台看到的名字 = 用户看到的名字。
+    const cat = member.benefitsCatalog();
+    assert.ok(Array.isArray(cat.catalog) && cat.catalog.length > 0);
+    const map = {};
+    for (const row of cat.catalog) {
+      assert.ok('display_label' in row, `目录项 ${row.type} 缺 display_label 字段`);
+      assert.ok(row.display_label, `${row.type} 的 display_label 不得为空`);
+      map[row.type] = row.display_label;
+    }
+    assert.equal(map.discount, '商城会员价');
+    assert.equal(map.price_visible, '会员价公示');
   });
 });

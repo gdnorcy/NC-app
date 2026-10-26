@@ -13,7 +13,7 @@ import { getStorage } from '../storage/index.js';
 import { checkTenantAccess } from '../tenant.js';
 import { trackEvents } from '../services/analytics.js';
 import { createDistributionService, buildShareUrl } from '../services/distribution.js';
-import { createMemberService } from '../services/member.js';
+import { createMemberService, resolveLevelName } from '../services/member.js';
 import { createGoodsOrderService } from '../services/goodsOrder.js';
 import { PaymentService } from '../services/payment.js';
 import { createRadarService } from '../services/radar.js';
@@ -1805,6 +1805,14 @@ export function createCardRouter(db, wxService) {
     const isMember = !!plan;
     const level = isMember ? (plan.level || 'free') : 'free';
     const expireAt = isMember ? (plan.expireAt || req.user.member_expire_at || null) : (req.user.member_expire_at || null);
+    // 🔴 等级名唯一口径（2026-10-27）：C 端改造前等级名散落 5 处、3 种口径（前端硬编码映射表 /
+    //    租户档位真名 / TIER_PKG 模板名），租户自建档位 pkg_level 为 NULL → level='custom'
+    //    → 前端查不到 → 徽章显示空白（用户「说不出感觉」的真因）。
+    //    统一由 resolveLevelName 出（永不返回空串），前端只消费本字段，删掉映射表。
+    const levelInfo = resolveLevelName(db, req.user.id, req.customerId);
+    // 签到事实（与 member.sign() 同一口径）：独立于「是否已开通会员卡」，
+    //    让 score_sign='all' 时非会员也能看到并签到（改造前 C 端把签到藏在会员卡内 → 空头）。
+    const signInfo = member.signSummary(req.customerId, req.user.id);
     // 第20轮三层身份：集市场席状态（C 端购买引导/过期提示消费）。
     // mode=租户个人入驻双模；hasSeat=本租户是否有 active 个人主体；
     // purchase 来源主体的 memberActive 随会员有效期变化（过期=无席）。
@@ -1821,8 +1829,15 @@ export function createCardRouter(db, wxService) {
     }
     res.json({
       level,
+      // 🔴 等级显示名（唯一口径，服务端出）：租户档位真名优先，旧镜像回落 TIER_PKG 名，非会员「免费版」
+      levelName: levelInfo.levelName,
       expireAt,
       isMember,
+      // 签到事实（与 /member/sign 同一判定口径）：signed=今日是否已签，canSign=当前能否签，reason=不能签的原因
+      signed: signInfo.signed,
+      canSign: signInfo.canSign,
+      signReason: signInfo.reason,
+      score: signInfo.score,
       // 会员分级权益快照（作品/视频数量上限 + 自定义标签名开关；C 端 worksEdit/videosEdit 消费）
       benefits: benefits.snapshot(req.user.id),
       // 第21轮：套餐权益实况（语音/折扣/推送·留资·收藏配额），让会员套餐在 C 端看得见、对得上
@@ -1837,9 +1852,10 @@ export function createCardRouter(db, wxService) {
   // 租户级会员卡（1:1 复刻菜鸟云：我的会员卡/等级列表/申请/签到/购买）
   // ============================================================
 
-  // 我的会员卡（等级卡/卡号/到期/积分/余额/设置/申请状态）
+  // 我的会员卡（等级卡/卡号/到期/积分/余额/设置/申请状态/今日签到状态）
   router.get('/member/my-card', auth, (req, res) => {
-    if (!req.customerId) return res.json({ card: null, levels: [], settings: null, applyStatus: null, unbound: true });
+    // 🔴 signed 与正常分支同形（false = 未签到），C 端不必判 unbound 分支缺字段
+    if (!req.customerId) return res.json({ card: null, levels: [], settings: null, applyStatus: null, unbound: true, signed: false });
     res.json(member.myCard(req.customerId, req.user.id));
   });
 
@@ -1859,9 +1875,15 @@ export function createCardRouter(db, wxService) {
 
   // 每日签到（积分）
   router.post('/member/sign', auth, (req, res) => {
-    if (!req.customerId) return res.status(403).json({ error: '未入驻任何客户' });
+    // 🔴 未入驻：返回 403 + code='NO_TENANT'（C 端据此显示「入驻后可签到」，
+    //    而不是笼统的"签到失败"——签到卡现在在个人中心，未入驻用户也会看到入口）
+    if (!req.customerId) return res.status(403).json({ error: '未入驻任何客户', code: 'NO_TENANT' });
     const r = member.sign(req.customerId, req.user.id);
-    if (!r.ok) return res.status(400).json({ error: r.error });
+    if (!r.ok) {
+      // 仅会员可签到 → 带上 code 让 C 端给准确引导
+      const code = r.error === '仅会员可签到' ? 'MEMBER_ONLY' : (r.error === '今日已签到' ? 'ALREADY_SIGNED' : '');
+      return res.status(400).json({ error: r.error, code });
+    }
     res.json(r);
   });
 

@@ -105,14 +105,25 @@ export function createQuotaService(db) {
    *   平台目录 benefit_catalog 按 app_scope 分组（'*' 挂所有应用），值取 resolveAppBenefits
    *   （目录默认 ⊕ 租户矩阵，已施硬上限）；可计数权益附带已用量（与 quotaLeft/benefits 同口径）。
    *   应用名取自 solutions.name（自维护），租户无需在前端硬编码。
-   * @returns {Array<{code:string, name:string, items:Array<{type,label,unit,kind,value,used}>}>}
+   *
+   * 🔴 表达层改造（用户诉求：「权益列表不够高级美观、很占位置、难分清是哪个应用」）：
+   *   - label      = 后台配置口径（如"商城折扣百分比（0=无折扣）"）→ **不再直给 C 端**
+   *   - displayLabel = C 端展示短词（如"商城会员价"）→ C 端首选；空则回落 label
+   *   - valueText  = 服务端算好的展示串（C 端零逻辑，避免各处口径漂移）
+   *   - active     = 该权益当前是否真正生效（C 端据此置灰/打标）
+   *   - appIcon / appColor = 应用色标（一眼分清归属应用）
+   *   - stats      = 分组统计（已开通 / 共 N 项），用于卡片头概览
+   * @returns {Array<{code,name,appIcon,appColor,stats:{active,total},items:Array}>}
    */
   svc.appBenefits = (userId) => {
     const tid = tenantOfUser(db, userId);
     const solNames = new Map(db.prepare('SELECT code, name FROM solutions').all().map((r) => [r.code, r.name]));
     // solutions 表未必给每个权益应用都建行（生产曾只有 panorama/card/demo）→ 兜底映射防 C 端露出裸 code
     const APP_NAME_FALLBACK = { card: '智能名片', member: '会员中心', mall: '商城', market: '集市', radar: '雷达拓客' };
-    const rows = db.prepare('SELECT type, app_scope, kind, unit, label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all();
+    // 🔴 应用色标：C 端一眼分清权益属于哪个应用（图标名走 SIcon，色值走主题令牌的前端映射）
+    // ⚠️ 图标名必须是 SIcon.vue svgMap 里真实存在的 key（mall 用 cart，shop 不存在）
+    const APP_ICON_FALLBACK = { card: 'card', member: 'crown', mall: 'cart', market: 'market', radar: 'radar' };
+    const rows = db.prepare('SELECT type, app_scope, kind, unit, label, display_label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all();
     const globals = rows.filter((r) => r.app_scope === '*');
     const byApp = new Map();
     for (const r of rows) {
@@ -134,18 +145,53 @@ export function createQuotaService(db) {
       if (type === 'collect_limit') return svc.quotaLeft(userId, 'collect').used;
       return null;
     };
+    // 🔴 商城折扣：百分比口径（10 = 打9折）→ C 端展示「9 折」，避免暴露"10%"这种配置口径
+    const mallDiscountText = (v) => {
+      const pct = Number(v) || 0;
+      if (pct <= 0) return '无折扣';
+      if (pct >= 100) return '无折扣';
+      const zhe = (10 - pct / 10).toFixed(1).replace(/\.0$/, '');
+      return `${zhe} 折`;
+    };
     const apps = [];
     for (const [code, items] of byApp) {
       const resolved = resolveAppBenefits(db, tid, userId, code);
+      const list = [...items, ...globals]
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((r) => {
+          const used = usedOf(r.type);
+          const value = resolved[r.type];
+          const isSwitch = r.kind === 'switch';
+          const isDiscount = r.type === 'discount';
+          // valueText：服务端算好，C 端零逻辑
+          let valueText;
+          if (isSwitch) valueText = value ? '已开通' : '未开通';
+          else if (isDiscount) valueText = mallDiscountText(value);
+          else if (used != null) valueText = Number(value) > 0 ? `${used} / ${value}${r.unit ? ' ' + r.unit : ''}` : '不限';
+          else valueText = `${value}${r.unit ? ' ' + r.unit : ''}`;
+          // active：是否真正生效（C 端据此置灰）
+          const active = isSwitch ? !!value
+            : isDiscount ? Number(value) > 0
+            : used != null ? !(Number(value) <= 0)     // 配额类：0 = 不限 → 视为生效
+            : Number(value) > 0;
+          return {
+            type: r.type,
+            label: r.label,                          // 后台口径（保留，管理端/调试用）
+            displayLabel: r.display_label || r.label, // C 端展示名（首选）
+            unit: r.unit || '',
+            kind: r.kind,
+            value,
+            used,
+            valueText,
+            active,
+          };
+        });
       apps.push({
         code,
         name: solNames.get(code) || APP_NAME_FALLBACK[code] || code,
-        items: [...items, ...globals]
-          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-          .map((r) => {
-            const used = usedOf(r.type);
-            return { type: r.type, label: r.label, unit: r.unit || '', kind: r.kind, value: resolved[r.type], used };
-          }),
+        appIcon: APP_ICON_FALLBACK[code] || 'star',
+        stats: { active: list.filter((x) => x.active).length, total: list.length },
+        items: list,
       });
     }
     return apps;

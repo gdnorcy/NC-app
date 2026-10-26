@@ -23,6 +23,9 @@
       <view class="empty-icon"><SIcon name="radar" size="xlarge" :color="ICON_DECOR" /></view>
       <view class="empty-text">暂无行为记录</view>
     </view>
+
+    <!-- 🔴 登录浮层：访客轨迹接口要 auth，未登录会落到「暂无行为记录」假空态。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -34,6 +37,10 @@ import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
+// 🔴 页面级登录守卫（深链兜底）：访客轨迹接口要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑取数（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const actions = ref([]);
 const visitorOpenid = ref('');
@@ -41,13 +48,21 @@ const visitorOpenid = ref('');
 onShow(() => { trackPageView('/pages/card/visitorTimeline'); });
 
 onMounted(async () => {
+  await guardPage();
+});
+
+/** 本页取数流程：抽成可重入函数，登录成功后原地再跑一遍（页面不销毁，零跳转） */
+async function bootTimeline() {
   const pages = getCurrentPages();
   visitorOpenid.value = pages[pages.length - 1].options.openid || 'anonymous';
   try {
     const res = await cardApi.getVisitorTimeline(visitorOpenid.value);
     actions.value = res.actions || [];
   } catch (e) {}
-});
+}
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 bootTimeline
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(bootTimeline);
 
 function actionText(type) {
   return { view: '浏览名片', dynamic: '查看动态', video: '观看视频', exchange: '交换名片', phone: '查看电话', wechat: '查看微信' }[type] || type;

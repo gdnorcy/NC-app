@@ -218,6 +218,10 @@
 
     <!-- 底部TabBar（公共组件） -->
     <CardTabBar active="radar" />
+
+    <!-- 🔴 登录浮层：访客数据接口要 auth，未登录时 401 被 catch 吞掉 → 渲染成
+         「暂无访客记录」假空态。登录成功后原地重入取数。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -235,6 +239,10 @@ import CardTabBar from '../../components/CardTabBar.vue';
 import Skeleton from '../../components/Skeleton.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
+// 🔴 页面级登录守卫（深链兜底）：访客数据要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑取数（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 // SIcon 不能消费 var()（构建期烘焙 hex），用真实 hex 喂图标：主题主色，回落品牌蓝
 const themeStyle = useDesignTheme();
@@ -263,6 +271,9 @@ const current = ref({});
 const convName = ref('');
 const convPhone = ref('');
 const convRemark = ref('');
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 bootVisitors（bootVisitors 是函数声明，会提升）
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(bootVisitors);
 // 客户阶段常用标签：转为客户时选择，写入客户 tags，便于在客户管理页识别阶段
 const STAGES = ['初步接触', '跟进中', '报价阶段', '已合作', '暂不跟进'];
 const convStage = ref('');
@@ -295,6 +306,15 @@ onLoad((o) => {
 
 onMounted(async () => {
   restoreScrollTop('visitors');
+  // 🔴 未登录 → 弹登录浮层并停住取数（登录成功后由 onLoginGateSuccess 自动重跑 bootVisitors）
+  await guardPage();
+});
+
+/**
+ * 本页取数流程：抽成可重入函数，登录成功后原地再跑一遍（页面不销毁，零跳转）。
+ * 🔴 原来 onMounted 内联的取数体整体搬进来，逻辑一字未改。
+ */
+async function bootVisitors() {
   try {
     const res = await cardApi.getVisitorSummary();
     if (res && res.locked) { locked.value = true; return; }
@@ -318,7 +338,7 @@ onMounted(async () => {
       leadLoading.value = false;
     }
   } catch (e) {}
-});
+}
 
 function goMember() {
   uni.navigateTo({ url: '/pages/card/member' });

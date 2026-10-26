@@ -13,6 +13,10 @@ import { describe, test, expect } from 'vitest';
 // 1b 更新（购买路径收敛）：A 区「选择套餐」（plan-grid/plan/price/btn 系列）整体下线，
 // 购买统一走租户等级 tlv 系列，主题位断言随之改钉 tlv/sign/dist。
 //
+// 1c 更新（2026-10-27 职责重划）：签到迁个人中心、分销入口收敛个人中心、
+// 租户等级改横向档位条 → 主题位断言改钉 tlv-chip/td-no/tlv-detail，
+// 并加一条「已迁走元素不得残留」的反向锁（防重复入口复辟）。
+//
 // 锁：① demo 青绿/蓝兜底清零；② themeColor 必须 --design-primary；
 //     ③ CTA/选中/徽章/卡片全部主题位；④ 语义三态与中性保留；
 //     ⑤ 根视图绑 themeStyle；⑥ 租户 levelBgColor（被展示对象）优先级不动。
@@ -75,13 +79,15 @@ describe('member themeColor 与其余四页对齐', () => {
 });
 
 describe('member 平台 UI 强调位归主题', () => {
+  // 🔴 2026-10-27 职责重划后本页元素有增删：
+  //    删：.sign-btn（签到迁个人中心）/.tlv.cur/.tlv-no（纵向大卡改横向档位条）/
+  //        .dist-entry/.de-icon（分销入口收敛到个人中心）
+  //    增：.tlv-chip.cur（选中档位）/.tlv-detail（选中档详情卡）/.td-no（Lv 徽章）
+  // 锁跟着实际结构走 —— 断言仍指向"主题位"，元素名随本次重构更新。
   const themed = [
-    '.sign-btn',       // 签到 CTA
-    '.tlv-btn.buy',    // 租户等级购买（1b 收敛后整页唯一强 CTA）
-    '.tlv.cur',        // 当前租户等级
-    '.tlv-no',         // Lv 徽章
-    '.dist-entry',     // 分销入口卡
-    '.de-icon',        // 分销图标底
+    '.tlv-btn.buy',    // 租户等级购买（整页唯一强 CTA）
+    '.tlv-chip.cur',   // 横向档位条当前选中档
+    '.td-no',          // Lv 徽章
   ];
   for (const sel of themed) {
     test(`${sel} 用主题变量`, () => {
@@ -90,6 +96,11 @@ describe('member 平台 UI 强调位归主题', () => {
       expect(block).toMatch(/var\(--design-(primary|secondary)/);
     });
   }
+  test('.tlv-detail 选中档详情卡走中性面（白卡 + 主题描边，不做主题色块）', () => {
+    const block = ruleBlock(src, '.tlv-detail');
+    expect(block).toContain('var(--white)');
+    expect(block).toContain('var(--border)');
+  });
   test('tcard 阴影用主题 rgb', () => {
     expect(ruleBlock(src, '.tcard')).toContain('rgba(var(--design-primary-rgb');
   });
@@ -98,6 +109,20 @@ describe('member 平台 UI 强调位归主题', () => {
     expect(block).toContain('var(--design-secondary)');
     expect(block).toContain('var(--design-primary)');
     expect(block).toContain('rgba(var(--design-primary-rgb');
+  });
+  test('🔴 已迁走/已删除的元素不得残留在本页（防重复入口复辟）', () => {
+    // 签到 → 个人中心；分销入口 → 个人中心；纵向大卡 → 横向档位条
+    // ⚠️ 只查「样式块（剥注释）+ 脚本区（剥注释）」：注释里会写"已删除 xxx"，
+    //    直接对整份 src 做 toContain 会把自己的注释判为残留。
+    const css = styleNoComments(src);
+    const js = src.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    expect(css).not.toContain('.sign-btn');
+    expect(css).not.toContain('.sign-row');
+    expect(css).not.toContain('.dist-entry');
+    expect(js).not.toContain('class="sign-row"');
+    expect(js).not.toContain('class="dist-entry"');
+    expect(js).not.toContain('goDistribution');
+    expect(js).not.toContain('class="tlv"');
   });
 });
 

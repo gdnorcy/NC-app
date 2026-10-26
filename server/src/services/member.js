@@ -151,8 +151,7 @@ export function validateAppBenefits(db, appCode, benefits) {
  *
  * @returns {null | {level:string, name:string, expireAt:string, source:'member_user'|'legacy_mirror'}}
  */
-export function effectiveMembership(db, userId) {
-  if (!userId) return null;
+export function effectiveMembership(db, userId) {  if (!userId) return null;
   const tid = tenantOfUser(db, userId);
   if (tid) {
     const mu = db.prepare(
@@ -180,6 +179,46 @@ export function effectiveMembership(db, userId) {
     }
   }
   return null;
+}
+
+/**
+ * 会员等级显示名（**全库唯一等级名口径**，C 端所有位置必须消费本函数的结果）。
+ *
+ * 🔴 为什么必须有这个函数（用户反馈「个人中心和会员中心重复，说不出的感觉」的真因）：
+ *   改造前等级名在 C 端出现 5 处、且有 3 种口径：
+ *     ① 前端硬编码映射表 {free,silver,gold,diamond}（profile.vue / member.vue / cardDetail.vue 各一份）
+ *     ② 租户档位真名（member_levels.name，如「铂金卡」）
+ *     ③ pkg_level 命中标准档时的 TIER_PKG 模板名（如「黄金会员」）
+ *   租户自建档位的 pkg_level 为 NULL → effectiveMembership 返回 level='custom'
+ *   → 前端映射表查不到 → **徽章显示空白**（用户看到的就是「说不出感觉」）。
+ *
+ * 口径（本函数为唯一裁决口）：
+ *   ① 有效会员身份来自 member_user → 取该档位的 member_levels.name（租户自己起的名，最准）
+ *   ② 旧镜像兜底（存量 VIP 未迁）→ 取 TIER_PKG[level].name
+ *   ③ 非会员 → '免费版'
+ *   ④ 任何环节取不到 → 回落 '免费版'（**永不返回空串**，避免徽章空白）
+ *
+ * @returns {{level:string, levelName:string, expireAt:string, isMember:boolean}}
+ */
+export function resolveLevelName(db, userId, tenantId) {
+  const mem = effectiveMembership(db, userId);
+  if (!mem) return { level: 'free', levelName: '免费版', expireAt: '', isMember: false };
+  // ① member_user 来源：effectiveMembership 已 JOIN member_levels 出 ml.name（租户档位真名）
+  let levelName = String(mem.name || '').trim();
+  // ② 旧镜像来源的 name 是 TIER_PKG 模板名，可用；若为空则按 level 回落模板名
+  if (!levelName && mem.level && TIER_PKG[mem.level]) levelName = TIER_PKG[mem.level].name;
+  // ③ 租户自建档位：pkg_level 为 NULL → mem.name 就是 member_levels.name，上面已取到；
+  //    若此处仍为空（历史脏数据），再按租户档位表捞一次真实名
+  if (!levelName && tenantId) {
+    const row = db.prepare(
+      `SELECT ml.name FROM member_user mu JOIN member_levels ml ON ml.id = mu.level_id
+       WHERE mu.tenant_id = ? AND mu.user_id = ? LIMIT 1`
+    ).get(tenantId, userId);
+    if (row && row.name) levelName = String(row.name).trim();
+  }
+  // ④ 兜底：永不返回空串
+  if (!levelName) levelName = '免费版';
+  return { level: mem.level || 'free', levelName, expireAt: mem.expireAt || '', isMember: true };
 }
 
 /**
@@ -251,7 +290,10 @@ export function createMemberService(db) {
     return db.prepare('SELECT * FROM member_levels WHERE tenant_id = ? ORDER BY level_no ASC').all(tenantId).map(fmtLevel);
   }
   function addLevel(tenantId, d) {
-    const levelNo = Number(d.levelNo) || 1;
+    // 🔴 2026-10-27：默认序号从写死的 1 改为 MAX+1 —— 旧默认会让首个自建档抢到 Lv1，
+    //    之后播种标准档顺延编号，档位高低序错乱（黄金 Lv1 / 免费版 Lv2 的成因之一）。
+    const maxNo = db.prepare('SELECT COALESCE(MAX(level_no), 0) AS n FROM member_levels WHERE tenant_id = ?').get(tenantId).n;
+    const levelNo = Number(d.levelNo) || (Number(maxNo) || 0) + 1;
     const info = db.prepare(
       `INSERT INTO member_levels (tenant_id, level_no, name, status, icon, bg_color, text_show, text_color, upgrade_mode, consume_amount, buy_price, buy_product, form_id, benefits, description, sort_order, review_mode, valid_days)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
@@ -328,7 +370,12 @@ export function createMemberService(db) {
   /** 平台权益目录全量 + 硬上限（前端按 app_scope 分组渲染编辑器；租户只能配已有 type） */
   function benefitsCatalog() {
     return {
-      catalog: db.prepare('SELECT type, app_scope, kind, unit, default_value, label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all(),
+      // 🔴 2026-10-27：补 display_label（C 端展示名）。
+      //    后台原来靠前端 benefitLabel() 拆 label 的「（…）」来显示短名 —— 拆出来的短名是
+      //    「商城折扣百分比」这种后台口径，跟 C 端实际显示的「商城会员价」对不上，
+      //    租户改配置也无法改 C 端展示名。现在 display_label 成为正式字段：
+      //    label = 配置口径（带参数说明，给人看），display_label = C 端展示名（给用户看）。
+      catalog: db.prepare('SELECT type, app_scope, kind, unit, default_value, label, display_label, sort_order FROM benefit_catalog ORDER BY sort_order ASC').all(),
       hardCaps: HARD_CAPS,
     };
   }
@@ -456,6 +503,53 @@ export function createMemberService(db) {
   }
 
   // ---------------- C端：我的会员卡 / 申请 / 签到 ----------------
+  /**
+   * 今日是否已签到（事实来源，唯一判定口径与 sign() 一致）。
+   * 🔴 为什么要单独查：之前 myCard 不返回签到状态 → C 端签到成功后按钮文案恒为「签到」，
+   *   用户看不出签到有没有生效（用户 2026-10-26 反馈「签到完之后这个签到状态不对」）。
+   */
+  function signedToday(tenantId, userId) {
+    const today = todayStr();
+    const row = db.prepare(
+      "SELECT id FROM member_score_logs WHERE tenant_id = ? AND user_id = ? AND note = ? AND substr(created_at,1,10) = ? LIMIT 1"
+    ).get(tenantId, userId, '签到增加积分', today);
+    return !!row;
+  }
+
+  /**
+   * 签到摘要（**C 端签到卡的唯一事实来源**，与 sign() 同一口径）。
+   *
+   * 🔴 为什么要独立于 myCard（用户 2026-10-26 反馈 + 后续「签到该放个人中心」的方案确认）：
+   *   myCard 的签到状态挂在 card 平级，而 card 只在「已开通会员卡（member_user.level_id 有值）」时才存在
+   *   → 非会员用户在 C 端根本看不到签到入口，但服务端 sign() 的默认权限是 score_sign='all'（全员可签）。
+   *   即「后台配了全员可签到，C 端却没人能签」的空头。
+   *   本函数把签到从「会员卡附属」提升为「租户级日常动作」，独立返回，C 端任何页面都可消费。
+   *
+   * @param {number} tenantId 租户 id（未入驻传 0/空）
+   * @param {number} userId 用户 id
+   * @returns {{signed:boolean, canSign:boolean, score:number, reason:string}}
+   *   signed  —— 今日是否已签到
+   *   canSign —— 当前是否允许签到（未入驻 / 仅会员可签到 → false）
+   *   reason  —— 不可签到的原因（用于 C 端提示文案，服务端给准确口径，C 端零猜测）
+   */
+  function signSummary(tenantId, userId) {
+    if (!tenantId) {
+      return { signed: false, canSign: false, score: 0, reason: '未入驻租户，暂不可签到' };
+    }
+    if (!userId) {
+      return { signed: false, canSign: false, score: 0, reason: '未登录，暂不可签到' };
+    }
+    const settings = getSettings(tenantId);
+    const perm = settings.permissions?.score_sign || 'all'; // all=全员可签 / member=仅会员可签
+    const mu = getMemberUser(tenantId, userId);
+    const isMember = !!(mu && mu.level_id);
+    const score = Number(mu?.score || 0);
+    if (perm === 'member' && !isMember) {
+      return { signed: false, canSign: false, score, reason: '仅会员可签到，开通会员后即可领取' };
+    }
+    return { signed: signedToday(tenantId, userId), canSign: true, score, reason: '' };
+  }
+
   function myCard(tenantId, userId) {
     const mu = getMemberUser(tenantId, userId);
     const levels = listLevels(tenantId);
@@ -481,7 +575,10 @@ export function createMemberService(db) {
         settings,
       };
     }
-    return { card, levels, settings, applyStatus };
+    // 签到状态：与 card 平级返回（C 端按此渲染「签到 / 已签到」）
+    // 注意：未登录（无 userId）时不算已签到，也**不查库**（避免无谓 IO 与跨租户串号）
+    const signed = userId ? signedToday(tenantId, userId) : false;
+    return { card, levels, settings, applyStatus, signed };
   }
   function apply(tenantId, userId, { name, phone, levelId }) {
     const level = getLevel(tenantId, Number(levelId));
@@ -510,9 +607,8 @@ export function createMemberService(db) {
       const mu = getMemberUser(tenantId, userId);
       if (!mu || !mu.level_id) return { ok: false, error: '仅会员可签到' };
     }
-    const today = todayStr();
-    const done = db.prepare("SELECT id FROM member_score_logs WHERE tenant_id = ? AND user_id = ? AND note = ? AND substr(created_at,1,10) = ?").get(tenantId, userId, '签到增加积分', today);
-    if (done) return { ok: false, error: '今日已签到' };
+    // 🔴 复用 signedToday()（与 myCard 返回的签到状态同一口径，避免两处判定漂移）
+    if (signedToday(tenantId, userId)) return { ok: false, error: '今日已签到' };
     db.prepare(
       `INSERT INTO member_score_logs (tenant_id, user_id, type, score, note) VALUES (?,?, 'get', 2, '签到增加积分')`
     ).run(tenantId, userId);
@@ -520,7 +616,10 @@ export function createMemberService(db) {
       `INSERT INTO member_user (tenant_id, user_id, score, updated_at) VALUES (?,?,2, datetime('now'))
        ON CONFLICT(tenant_id, user_id) DO UPDATE SET score = member_user.score + 2, updated_at = datetime('now')`
     ).run(tenantId, userId);
-    return { ok: true, score: 2 };
+    // 🔴 同时返回累计积分 totalScore（score=本次获得的 2 分）：
+    //    签到卡搬去个人中心后要显示「当前积分 N」，C 端不必再发一次请求查余额。
+    const after = db.prepare('SELECT score FROM member_user WHERE tenant_id = ? AND user_id = ?').get(tenantId, userId);
+    return { ok: true, score: 2, totalScore: Number(after?.score || 0) };
   }
 
   // ---------------- 会员列表（用户管理） ----------------
@@ -734,7 +833,7 @@ export function createMemberService(db) {
     getSettings, saveSettings,
     listLabels, addLabel, deleteLabel, renameLabel, setUserLabels, userLabels,
     getMemberUser, openCard, openCardByOrder,
-    myCard, apply, sign,
+    myCard, apply, sign, signSummary,
     listUsers, buildUsersCsv, summary,
     listApplies, reviewApply, listCards,
     listLogs, buildLogsCsv, listScoreLogs, buildScoreLogsCsv,

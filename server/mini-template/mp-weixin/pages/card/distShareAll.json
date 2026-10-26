@@ -4,6 +4,7 @@
   "usingComponents": {
     "page-nav": "../../components/PageNav",
     "s-icon": "../../components/SIcon",
-    "card-tab-bar": "../../components/CardTabBar"
+    "card-tab-bar": "../../components/CardTabBar",
+    "login-gate-modal": "../../components/LoginGateModal"
   }
 }

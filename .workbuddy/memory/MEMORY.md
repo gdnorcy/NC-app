@@ -6,12 +6,15 @@
 - API 搜索别拼全路径（路由挂 /api/customer，页面写 get('/billing/plan') → 恒 0）→ grep 末段或封装名。
 - 「整页没数据」多为请求级失败，先看网络/渠道，再怀疑渲染。
 - 写值播种必须留痕：ADD COLUMN 幂等 ≠ UPDATE 幂等（"当前是 0 就播种"会被管理员关后重启重开）→ schema_marks + markApplied。
+- `node --test $FILES`（shell 变量含多文件）会被当**单个路径** → "Could not find 'a.js b.js'"；必须 `$(cat list.txt | tr '\n' ' ')` 展开。node:sqlite 的 run() 返回属性是 **lastInsertRowid（小写 d）**，写 lastInsertRowId → undefined → "Provided value cannot be bound to SQLite parameter N"。
+- CSS 注释里出现 `*/`（如 `.si-*/`）会提前闭合注释 → 后半段变真 CSS → "样式块不含某选择器"类断言误判残留。断言前先剥注释再查。
 
 ## 1 测试
 - node:test 三坑：① before() 已跑完整种子打 mark → 测"未迁移"须 beforeEach 重置；② beforeEach 传 const 函数引用 TDZ → 包箭头；③ ESM after() 写 require → "require is not defined"，表现为 suite 级 hookFailed 但 test 全过（看 suite 行别只看汇总）。
 - 基线比对禁 git stash（含 server/test 会回退旧版→假失败）→ 全量 stash 基线 + 逐个对照。
 - 源码钉子测试别钉写法（一收敛红一片），钉语义（工厂内容 + 被哪几处调用）。**改用户可见串前必 grep 所有 *.test.js**（marketLinkSync 钉过旧文案）。
 - server 全量 node --test 易 OOM(137) → awk 分 4 批；**vitest 与 node --test 不并发跑**（资源竞争假失败，单独复跑必过）。
+- **配色回归锁锁的是元素名**：删/改页面元素必须同步改 memberColorSystem 等锁（本轮删 5 元素 → 6 项红），并顺手加「已迁走元素不得残留」反向锁。另：`themeColor` 看似死变量也别删（brandCoverage.test.js 逐页扫这一行 = 全站品牌色口径约定）。
 - vitest 不编译 SFC（setup 内重名声明只有 uni build 照得出）；"no tests" 非通过（用 it 却导 test 会跳过）。
 - supertest 按字节签名须 .send(rawString)；node:sqlite 用 DatabaseSync；card 端 token 非 JWT：base64(JSON{uid,openid,ts}).randhex → split('.')[0]。
 - mock wx-login 按 config.defaultTenantId 兜底绑租户 → 测"无租户"必须显式设 0；其 openid = 'mock_' + code。
@@ -56,6 +59,9 @@
 - 播种 ensureTenantDefaultLevels 模板驱动（name 作档位锚点、price×100→buy_price；缺失回落 TIER_PKG；enabled=0 不播种；存量不覆盖）。建租户 POST /projects 即时播种。
 - discount 语义=百分比（0 无折扣/10 九折/80 二折），旧折率×10。HARD_CAPS 读取侧截断 + 写入侧拒绝双层互补。积分 ⌊金额元×point_rate⌋+⌊金额元×rebate%⌋，note 带订单号幂等。
 - 后台矩阵编辑器 = 目录默认⊕矩阵覆盖，保存时**只 PUT 相对打开时有变化的应用**（快照脏比对）。C 端 /member/status 的 appBenefits 按应用分组。
+- 🔴 **等级名唯一口径 = resolveLevelName()**（member.js 服务层）：member_user→member_levels.name 优先 → 旧镜像回落 TIER_PKG → **永不返回空串**。前端禁再出现 {free,silver,gold,diamond} 映射表（租户自建档位 pkg_level=NULL → level='custom' → 查不到 → 徽章空白）。C 端消费 /member/status 的 levelName。
+- 🔴 **签到是租户级日常动作，不是会员卡附属**：`signSummary()` 独立出 signed/canSign/score/reason；不可用 `v-if="memberCard"` 藏入口（score_sign 默认 'all' = 全员可签）。签到卡在**个人中心**（高频），会员中心只留等级/权益/购买。分销入口只留个人中心（独立业务线）。
+- benefit_catalog 双名：label=后台配置口径（带参数说明）/ display_label=C 端展示名。后台 benefitLabel() 优先 display_label（目录是平台级，租户只读不可改）。
 
 ## 7 配色 / 令牌
 - 明暗唯一裁决口 templateTheme.js 的 heroForeground，禁多判据并行。cardDetail 全文件禁 --primary 漂移令牌（注释里也不能写，测试按整文件扫描）；品牌色一律 var(--design-primary) 不带兜底。

@@ -82,6 +82,10 @@
         </view>
       </view>
     </view>
+
+    <!-- 🔴 登录浮层：人脉列表接口走 comboAuth（无 token 直接 401），未登录会落到
+         「还没有人脉」假空态。登录成功后原地重入取数。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -95,6 +99,10 @@ import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
+// 🔴 页面级登录守卫（深链兜底）：人脉列表要 token，未登录弹原地登录浮层，
+//   登录成功后自动重跑 load（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 // showModal confirmColor 是 prop 不吃 var()，主题主色喂真实 hex：回落品牌蓝
 const themeStyle = useDesignTheme();
@@ -230,9 +238,13 @@ const goMarket = () => uni.redirectTo({ url: '/pages/card/market' });
 
 onShow(() => {
   trackPageView('/pages/card/connections');
-  load();
+  // 🔴 soft 模式：仅在「已取过数」时补弹（登录态中途掉了才提示），不反复打断首次浏览
+  guardPage({ soft: true });
 });
-onMounted(load);
+onMounted(() => { guardPage(); });
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 load
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(load);
 </script>
 
 <style scoped>

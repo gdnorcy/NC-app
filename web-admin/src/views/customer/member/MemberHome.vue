@@ -451,6 +451,7 @@
           <span class="form-tip">0 表示不可直接购买；支付成功自动开卡（单位：分）</span>
         </el-form-item>
         <el-divider content-position="left">会员权益（按应用配置）</el-divider>
+        <div class="form-tip">下列名称为 C 端展示名（用户在会员中心看到的文案），行尾提示为配置口径说明。</div>
         <div v-if="!benefitGroups.length" class="form-tip">权益目录加载中…</div>
         <!-- 双列网格：应用标题通栏、其下权益项两列排布——字段会持续增长，横着长而非无限拉高 -->
         <div v-else class="benefit-grid">
@@ -631,13 +632,24 @@ const benefitGroups = computed(() => {
  * 目录 label 拆分：'商城折扣百分比（0=无折扣，10=打9折）' → 标签 '商城折扣百分比' + 提示 '（0=无折扣，10=打9折）'。
  * 🔴 整串塞进 130px label 列会溢出（截图红线处）；提示挪到行内 form-tip，label 列只放短名。
  * 兼容无「（」的普通 label（原样返回、无提示），对存量库里的长 label 同样生效。
+ *
+ * 🔴 2026-10-27：优先用服务端 display_label（C 端展示名，如「商城会员价」）。
+ *    原先这里只能靠拆 label 的「（…）」得到短名 —— 拆出来的是后台口径（「商城折扣百分比」），
+ *    跟 C 端真实显示的「商城会员价」对不上，运营在这里看到的名字 ≠ 用户看到的名字。
+ *    现在 display_label 是正式字段（后台只读展示，不可改：benefit_catalog 是平台级目录，
+ *    租户只能配已有 type 的值，展示名由平台统一维护）。
  */
 function benefitLabel(item) {
+  const dl = String(item.display_label || '').trim();
+  if (dl) return dl;
   const raw = String(item.label || '');
   const i = raw.indexOf('（');
   return i > 0 ? raw.slice(0, i) : raw;
 }
 function benefitHint(item) {
+  const dl = String(item.display_label || '').trim();
+  // 已有 C 端展示名时，提示改显配置口径（原 label 全文），运营据此判断这个权益到底管什么
+  if (dl) return String(item.label || '');
   const raw = String(item.label || '');
   const i = raw.indexOf('（');
   return i > 0 ? raw.slice(i) : '';

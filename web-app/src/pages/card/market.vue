@@ -279,6 +279,10 @@
 
     <!-- 底部TabBar（公共组件） -->
     <CardTabBar active="market" />
+
+    <!-- 🔴 登录浮层：人脉集市的列表接口走 comboAuth（无 token 直接 401），
+         游客进来若无兜底会看到「暂无公开名片」假空态。登录成功后原地重入取数。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -296,6 +300,10 @@ import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
+// 🔴 页面级登录守卫（深链兜底）：集市列表需 token，游客进来弹原地登录浮层，
+//   登录成功后自动重跑 loadAll（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const themeStyle = useDesignTheme();
 // 底部导航条实测占位（高度随设计方案浮动，禁止写死 → 见 utils/cardTabBarSpace.js）
@@ -377,7 +385,8 @@ onMounted(() => {
     if (cached.filterType) filterType.value = cached.filterType;
     if (cached.items && cached.items.length) items.value = cached.items;
   }
-  loadAll();
+  // 🔴 未登录 → 弹登录浮层并停住取数（登录成功后自动重跑 loadAll）
+  guardPage();
   restoreScrollTop('market');
 });
 
@@ -389,6 +398,10 @@ onUnload(() => {
     items: items.value,
   });
 });
+
+// 🔴 页面级登录守卫：集市列表接口走 comboAuth（无 token 直接 401），
+//   未登录弹原地登录浮层并停住取数；登录成功后自动重跑 loadAll（零跳转）。
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(loadAll);
 
 async function loadAll() {
   loading.value = true;

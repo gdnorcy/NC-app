@@ -9,6 +9,7 @@
     "card-tab-bar": "../../components/CardTabBar",
     "design-page": "../../components/DesignPage",
     "design-nav": "../../components/DesignNav",
-    "design-nav-ew": "../../components/DesignNavEw"
+    "design-nav-ew": "../../components/DesignNavEw",
+    "login-gate-modal": "../../components/LoginGateModal"
   }
 }

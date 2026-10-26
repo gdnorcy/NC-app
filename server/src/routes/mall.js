@@ -6,9 +6,45 @@ import { Router } from 'express';
 import { hasSolution } from '../tenant.js';
 import { createGoodsOrderService } from '../services/goodsOrder.js';
 import { PaymentService } from '../services/payment.js';
+import { createGoodsPriceService } from '../services/goodsPrice.js';
+import { resolveAppBenefits, tenantOfUser } from '../services/member.js';
 
 export function createMallRouter(db) {
   const router = Router();
+  const priceSvc = createGoodsPriceService(db);
+
+  // ============================================================
+  // 会员价（mall 域权益兑现 + 商品级会员价打通）
+  // ============================================================
+  // 🔴 之前有三套并行配置，但**只有商品价格本身被消费**：
+  //   ① goods.member_price       —— 商品级会员价（按会员等级逐级定价，后台 GoodsEdit.vue 可配）
+  //                                → C 端列表/详情/下单链路**零消费**（空头）
+  //   ② mall.discount 权益       —— 套餐级折扣百分比（benefit_catalog，0=无折扣，10=打9折）
+  //                                → 同为零消费（空头权益）
+  //   ③ goods_setting.showVipPrice —— 租户级「价格展示」三态（后台 GoodsSettings.vue 可配）
+  //                                → C 端零消费（空头）
+  // 现在统一走 services/goodsPrice.js（列表 / 详情 / 下单同一口径）：
+  //   优先级 = 商品级会员价（custom 命中当前等级） > 套餐折扣（mall.discount） > 商品原价
+  //
+  // ⚠️ 语义边界（避免误伤全站）：
+  //   - mall.price_visible 权益 = 「会员价是否对全部访客公开」，**不**承担「非会员看不到价格」；
+  //     「非会员整体看不到价格」由租户级 goods_setting.showVipPrice=2 承担
+  //     （否则目录默认值 0 会被解读成"所有人都看不到价格" → 灾难性回归）。
+  //   - 会员价取「商品当前售价」为基准（含 SKU 价/新人价/门店价最终价），
+  //     与下单重算口径完全一致，避免列表显示与实付对不上。
+  const MEMBER_PRICE_MAX = 100;
+
+  /** 当前用户的商城权益快照：{ discountPct, pricePublic, isMember } */
+  function mallBenefits(userId, tenantId) {
+    if (!userId) return { discountPct: 0, pricePublic: false, isMember: false };
+    const tid = tenantId || tenantOfUser(db, userId);
+    const b = resolveAppBenefits(db, tid, userId, 'mall');
+    const pct = Number(b.discount) || 0;
+    const discountPct = pct > 0 && pct <= MEMBER_PRICE_MAX ? Math.round(pct) : 0;
+    // price_visible：目录默认 0 → 不公开（不公示会员价）；仅当租户显式配成 1 时才公开
+    const pricePublic = b.price_visible === true || b.price_visible === 1;
+    return { discountPct, pricePublic, isMember: discountPct > 0 };
+  }
 
   // ---- 认证（与 card.js authOptional/auth 同一协议）----
   function resolveUser(req) {
@@ -90,16 +126,49 @@ export function createMallRouter(db) {
         priceDesc: 'price DESC, id DESC',
       }[sortBy] || 'sort_order DESC, id DESC';
       const list = db.prepare(
-        `SELECT id, title, thumb, info, price, market_price, unit, stock, real_sales, fake_sales, type, spec_mode, title_tag FROM goods
+        `SELECT id, title, thumb, info, price, market_price, unit, stock, real_sales, fake_sales, type, spec_mode, title_tag, member_price FROM goods
          WHERE ${whereSql} ORDER BY ${orderSql} LIMIT ? OFFSET ?`
       ).all(...params, Number(pageSize), (Number(page) - 1) * Number(pageSize));
+      // 🔴 会员价：列表逐条算（统一走 goodsPrice，与详情/下单同口径）
+      //    列表基准价 = 商品价（SKU 商品的 min(SKU 价) 详情页才逐 SKU 算，列表沿用商品价）
+      const mb = mallBenefits(req.userId, cid);
+      const levelId = priceSvc.currentLevelId(cid, req.userId);
+      const policy = priceSvc.priceShowPolicy(cid, req.userId, levelId);
       res.json({
-        list: list.map((g) => ({
-          ...g,
-          sales: (g.real_sales || 0) + (g.fake_sales || 0),
-          soldout: Number(g.stock) <= 0,
-        })),
+        list: list.map((g) => {
+          const originFen = Math.round(Number(g.price) * 100);
+          const mp = priceSvc.resolveMemberPrice(g, {
+            basePriceFen: originFen,
+            userId: req.userId,
+            tenantId: cid,
+            levelId,
+            discountPct: mb.discountPct,
+          });
+          return {
+            ...g,
+            sales: (g.real_sales || 0) + (g.fake_sales || 0),
+            soldout: Number(g.stock) <= 0,
+            // 会员价（分）——C 端按「分」展示更准，避免前端浮点误差
+            memberPrice: mp.priceFen,
+            originPrice: mp.originFen,
+            hasMemberPrice: mp.hasMemberPrice,
+            memberDiscount: mb.discountPct,
+            // priceHidden=true → 该访客看不到价格（租户 showVipPrice=2 且非会员）
+            priceHidden: policy.priceHidden,
+            // pricePublic=true → 会员价对全部访客公开（mall.price_visible 权益）
+            pricePublic: mb.pricePublic,
+            priceVisible: !policy.priceHidden,
+          };
+        }),
         total, page: Number(page), pageSize: Number(pageSize),
+        memberPricing: {
+          discount: mb.discountPct,
+          priceVisible: !policy.priceHidden,
+          pricePublic: mb.pricePublic,
+          priceHidden: policy.priceHidden,
+          showVipPrice: policy.mode,
+          isMember: !!levelId,
+        },
       });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -124,12 +193,51 @@ export function createMallRouter(db) {
           takeSelf: Number(cfg.takeSelf) === 1,
         };
       } catch { /* 解析失败保持全关 */ }
+      // 🔴 会员价：SKU 商品按各 SKU 价分别算；非 SKU 按商品价（统一走 goodsPrice）
+      const mb = mallBenefits(req.userId, cid);
+      const levelId = priceSvc.currentLevelId(cid, req.userId);
+      const policy = priceSvc.priceShowPolicy(cid, req.userId, levelId);
+      const originFen = Math.round(Number(g.price) * 100);
+      const mp = priceSvc.resolveMemberPrice(g, {
+        basePriceFen: originFen,
+        userId: req.userId,
+        tenantId: cid,
+        levelId,
+        discountPct: mb.discountPct,
+      });
+      const skusWithPrice = skus.map((s) => {
+        const sOrigin = Math.round(Number(s.price) * 100);
+        const smp = priceSvc.resolveMemberPrice(g, {
+          basePriceFen: sOrigin,
+          userId: req.userId,
+          tenantId: cid,
+          levelId,
+          discountPct: mb.discountPct,
+        });
+        return { ...s, memberPrice: smp.priceFen, originPrice: smp.originFen, hasMemberPrice: smp.hasMemberPrice };
+      });
       res.json({
         id: g.id, title: g.title, type: g.type, images: parse(g.images, []), thumb: g.thumb, info: g.info,
         price: g.price, marketPrice: g.market_price, unit: g.unit, stock: g.stock, specMode: g.spec_mode,
         minBuy: g.min_buy, sales: (g.real_sales || 0) + (g.fake_sales || 0), soldout: Number(g.stock) <= 0,
         video: g.video, videoCover: g.video_cover,
-        skus, delivery,
+        skus: skusWithPrice, delivery,
+        // 会员价（分）+ 可见性（mall 域权益兑现 + 租户级价格展示策略）
+        memberPrice: mp.priceFen,
+        originPrice: mp.originFen,
+        hasMemberPrice: mp.hasMemberPrice,
+        memberDiscount: mb.discountPct,
+        priceHidden: policy.priceHidden,
+        pricePublic: mb.pricePublic,
+        priceVisible: !policy.priceHidden,
+        memberPricing: {
+          discount: mb.discountPct,
+          priceVisible: !policy.priceHidden,
+          pricePublic: mb.pricePublic,
+          priceHidden: policy.priceHidden,
+          showVipPrice: policy.mode,
+          isMember: !!levelId,
+        },
       });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -286,6 +394,9 @@ export function createMallRouter(db) {
       });
       res.json({
         orderNo: order.order_no, payOrderNo: payOrder.orderNo, amount: order.pay_amount,
+        // 🔴 会员价差额透明化：total_amount=折前总额（对账口径），savedAmount=本次省了多少
+        total_amount: order.total_amount,
+        savedAmount: Math.max(0, (order.total_amount || 0) - (order.pay_amount || 0)),
         id: order.id, pickupCode: order.pickup_code || '', storeName: order.store_name || '',
       });
     } catch (e) {

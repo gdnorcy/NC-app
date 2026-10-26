@@ -5,10 +5,19 @@
 // 消息通知：支付/发货/退款写 card_message（type=system），失败不阻断主流程。
 import { randomBytes } from 'node:crypto';
 import { createStoreGoodsService } from './storeGoods.js';
+import { createGoodsPriceService } from './goodsPrice.js';
 
 export function createGoodsOrderService(db) {
   const svc = {};
   const storeGoods = createStoreGoodsService(db);
+
+  // 🔴 会员价统一算价服务（列表 / 详情 / 下单同一口径 → 显示价 = 实付价）
+  //   优先级 = 商品级会员价（goods.member_price 命中当前等级） > 套餐折扣（mall.discount） > 原价
+  //   之前下单**完全不消费**任何会员价（grep discount/quota/member 零命中）→ 空头权益。
+  //   现在下单按会员价在**服务端**重算（前端传的价格一律不信，防篡改）。
+  const priceSvc = createGoodsPriceService(db);
+  // ⚠️ tenantId 必须显式传入（服务工厂层没有 customerId 作用域，闭包引用会 ReferenceError）
+  const discountPctOf = (userId, tenantId) => priceSvc.discountPctOf(userId, tenantId);
 
   function genOrderNo(prefix = 'G') {
     const now = new Date();
@@ -54,6 +63,9 @@ export function createGoodsOrderService(db) {
 
     const orderItems = [];
     let total = 0;
+    let originTotal = 0;
+    // 🔴 会员折扣：服务端按 mall.discount 重算（下单时以「最终成交价」为基准打折）
+    const memberPct = discountPctOf(userId, customerId);
 
     for (const it of items) {
       const gid = Number(it.goodsId || it.goods_id);
@@ -98,29 +110,45 @@ export function createGoodsOrderService(db) {
       if (num > stock) throw new Error(`商品「${row.title}」库存不足（剩余 ${stock}）`);
       if (price <= 0) throw new Error(`商品「${row.title}」价格异常`);
 
+      // 🔴 会员价在此施加（基准 = 上面已解析出的最终成交价：SKU 价/新人价/门店价）
+      //   统一走 priceSvc.resolveMemberPrice：商品级会员价优先 > 套餐折扣 > 原价
+      //   与列表/详情返回的 memberPrice 同一口径 → 显示价 = 实付价
+      const mp = priceSvc.resolveMemberPrice(row, {
+        basePriceFen: price,
+        userId,
+        tenantId: customerId,
+        discountPct: memberPct,
+      });
+      const originPrice = mp.originFen;
+      price = mp.priceFen;
+
       total += price * num;
+      originTotal += originPrice * num;
       orderItems.push({
         goodsId: gid, skuId, goodsType: row.type || 'normal', title: row.title,
         thumb: row.thumb || (Array.isArray(row.images) ? row.images[0] : ''),
         specJson: skuId ? (db.prepare('SELECT spec_json FROM goods_sku WHERE id = ?').get(skuId)?.spec_json || '{}') : '{}',
-        price, num,
+        price, num, originPrice,
       });
     }
 
     const orderNo = genOrderNo();
+    // 🔴 total_amount = 折前总额（对账口径，与商品原价一致）
+    //   pay_amount  = 折后实付（= total，有会员折扣时小于 total_amount → 用户看到「省了 X」）
+    //   无会员折扣时两者相等，与历史行为完全一致。
     const r = db.prepare(`
       INSERT INTO goods_order (order_no, customer_id, user_id, buyer_identity_type, status, total_amount, freight, pay_amount,
         delivery_mode, store_id, store_name, pickup_code, receiver_name, receiver_phone, receiver_address, remark)
       VALUES (?, ?, ?, ?, 'pending', ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(orderNo, customerId, userId, identityType, total, total, deliveryMode, storeId || 0, storeName || '', pickupCode, receiverName, receiverPhone, receiverAddress, remark);
+    `).run(orderNo, customerId, userId, identityType, originTotal, total, deliveryMode, storeId || 0, storeName || '', pickupCode, receiverName, receiverPhone, receiverAddress, remark);
     const orderId = r.lastInsertRowid;
 
     const insItem = db.prepare(`
-      INSERT INTO goods_order_item (order_id, goods_id, sku_id, goods_type, title, thumb, spec_json, price, num)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO goods_order_item (order_id, goods_id, sku_id, goods_type, title, thumb, spec_json, price, origin_price, num)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const oi of orderItems) {
-      insItem.run(orderId, oi.goodsId, oi.skuId, oi.goodsType, oi.title, oi.thumb, oi.specJson, oi.price, oi.num);
+      insItem.run(orderId, oi.goodsId, oi.skuId, oi.goodsType, oi.title, oi.thumb, oi.specJson, oi.price, oi.originPrice, oi.num);
     }
     pushLog(orderId, 'create', `创建订单，共${orderItems.length}种商品`);
     return svc.getOrder(orderId);
@@ -267,15 +295,25 @@ export function createGoodsOrderService(db) {
     const row = db.prepare('SELECT * FROM goods_order WHERE id = ?').get(Number(orderId));
     if (!row) return null;
     const buyer = db.prepare('SELECT nickname, avatar FROM platform_user WHERE id = ?').get(row.user_id) || {};
+    const items = db.prepare('SELECT * FROM goods_order_item WHERE order_id = ?').all(row.id);
+    // 🔴 会员优惠额：total_amount（折前）− pay_amount（折后）；无会员折扣时恒为 0
+    const savedAmount = Math.max(0, (row.total_amount || 0) - (row.pay_amount || 0));
     return {
       ...row,
-      items: db.prepare('SELECT * FROM goods_order_item WHERE order_id = ?').all(row.id),
+      items: items.map((it) => ({
+        ...it,
+        // 存量行 origin_price=0 → 回落 price（无会员折扣时两者本就相等）
+        originPrice: it.origin_price || it.price,
+        savedAmount: Math.max(0, (it.origin_price || it.price) - it.price),
+      })),
       logs: db.prepare('SELECT * FROM goods_order_log WHERE order_id = ? ORDER BY id DESC').all(row.id),
       buyerName: buyer.nickname || `用户${row.user_id}`,
       buyerAvatar: buyer.avatar || '',
       totalAmountY: yuan(row.total_amount),
       payAmountY: yuan(row.pay_amount),
       freightY: yuan(row.freight),
+      savedAmount,
+      savedAmountY: yuan(savedAmount),
     };
   };
 

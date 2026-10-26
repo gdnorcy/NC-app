@@ -90,6 +90,10 @@
         </view>
       </view>
     </view>
+
+    <!-- 🔴 登录浮层：客户列表接口要 auth，未登录时 401 被 catch 吞掉 → 渲染成
+         「暂无客户」假空态。登录成功后原地重入取数。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -103,6 +107,10 @@ import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
+// 🔴 页面级登录守卫（深链兜底）：客户数据要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑 loadCustomers（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary, brandInkVars } = useBrandOverride();
@@ -116,7 +124,7 @@ const tagInput = ref('');
 
 onShow(() => { trackPageView('/pages/card/customers'); });
 
-onMounted(() => loadCustomers());
+onMounted(() => { guardPage(); });
 
 async function loadCustomers() {
   try {
@@ -126,6 +134,9 @@ async function loadCustomers() {
     customers.value = res.customers || [];
   } catch (e) {}
 }
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 loadCustomers
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(loadCustomers);
 
 function setStatus(s) {
   statusFilter.value = s;

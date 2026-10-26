@@ -75,6 +75,9 @@
     </view>
 
     <CardTabBar active="member" />
+
+    <!-- 🔴 登录浮层：分销钱包接口要 auth，未登录会落到空态。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -82,7 +85,7 @@
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 import { heroGradient } from '../../utils/color.js';
@@ -91,6 +94,10 @@ import { trackPageView } from '../../utils/analytics.js';
 import SIcon from '../../components/SIcon.vue';
 import CardTabBar from '../../components/CardTabBar.vue';
 import { navVarsStyle } from '../../utils/navMetrics.js';
+// 🔴 页面级登录守卫（深链兜底）：分销钱包接口要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑 loadAll（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 import { useDesignTheme } from '../../utils/design.js';
 
 const navVars = navVarsStyle();
@@ -173,8 +180,16 @@ async function applyWithdraw() {
 onShow(() => {
   trackPageView('distribution_wallet');
   loadBrand();
-  loadAll();
+  // 🔴 soft 模式：仅在「已取过数」时补弹（登录态中途掉了才提示），不反复打断首次浏览
+  guardPage({ soft: true });
 });
+
+// 🔴 首次进入（onShow 首次也会跑，但 soft 模式下此时尚未取过数 → 不弹）：
+//   这里补一次硬守卫，保证游客首次进来就能看到登录提示。
+onMounted(() => { guardPage(); });
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 loadAll
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(loadAll);
 </script>
 
 <style scoped>

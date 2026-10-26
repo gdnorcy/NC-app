@@ -36,6 +36,10 @@
       <view class="me-text">暂无消息</view>
       <view class="me-hint">交换申请、访客动态等通知会显示在这里</view>
     </view>
+
+    <!-- 🔴 登录浮层：消息接口走 comboAuth（无 token 直接 401），未登录会落到
+         「暂无消息」假空态。登录成功后原地重入取数。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -50,6 +54,10 @@ import SIcon from '../../components/SIcon.vue';
 import Badge from '../../components/Badge.vue';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
+// 🔴 页面级登录守卫（深链兜底）：消息接口要 token，未登录弹原地登录浮层，
+//   登录成功后自动重跑 load（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const themeStyle = useDesignTheme();
 const { brandVars, brandPrimary } = useBrandOverride();
@@ -62,8 +70,11 @@ const tab = ref('');
 onShow(() => { trackPageView('/pages/card/messages'); });
 
 onMounted(async () => {
-  await load();
+  await guardPage();
 });
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 load
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(load);
 
 async function load() {
   if (tab.value === 'radar') {

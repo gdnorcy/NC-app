@@ -296,6 +296,10 @@
     </view>
 
     <CardTabBar active="member" />
+
+    <!-- 🔴 登录浮层：分销数据接口要 auth，未登录时 401 被 catch 吞掉 → 渲染成
+         「未入驻/暂无下级」假空态。登录成功后原地重入取数。 -->
+    <LoginGateModal :show="showLoginGate" @close="cancelLogin" @success="onLoginGateSuccess" />
   </view>
 </template>
 
@@ -303,7 +307,7 @@
 import { useTabBarPadding } from '../../utils/cardTabBarSpace.js';
 import { heroBrandStyle } from '../../utils/templateTheme.js';
 import PageNav from '../../components/PageNav.vue';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { cardApi } from '../../utils/cardApi.js';
 // 🔴 #312-9：头像可能是 /uploads/ 相对路径（MP 端不补域名显示空白），统一补基址
@@ -315,6 +319,10 @@ import CardTabBar from '../../components/CardTabBar.vue';
 import { navVarsStyle } from '../../utils/navMetrics.js';
 import { useDesignTheme } from '../../utils/design.js';
 import { useBrandOverride } from '../../utils/brand.js';
+// 🔴 页面级登录守卫（深链兜底）：分销数据要 auth，未登录弹原地登录浮层，
+//   登录成功后自动重跑 loadAll（守卫与浮层收编到共享实现，禁各页再抄一份）。
+import LoginGateModal from '../../components/LoginGateModal.vue';
+import { usePageGuard } from '../../utils/pageGuard.js';
 
 const navVars = navVarsStyle();
 const themeStyle = useDesignTheme();
@@ -667,8 +675,16 @@ function stCls(s) { return { pending: 'st-p', settled: 'st-s', charged_back: 'st
 
 onShow(() => {
   trackPageView('distribution');
-  loadAll();
+  // 🔴 soft 模式：仅在「已取过数」时补弹（登录态中途掉了才提示），不反复打断首次浏览
+  guardPage({ soft: true });
 });
+
+// 🔴 首次进入（onShow 首次也会跑，但 soft 模式下此时尚未取过数 → 不弹）：
+//   这里补一次硬守卫，保证游客首次进来就能看到登录提示。
+onMounted(() => { guardPage(); });
+
+// 🔴 页面级登录守卫：登录成功后自动重跑 loadAll
+const { showLoginGate, cancelLogin, onLoginGateSuccess, guardPage } = usePageGuard(loadAll);
 </script>
 
 <style scoped>
