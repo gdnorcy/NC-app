@@ -41,12 +41,13 @@
             </template>
           </el-table-column>
           <el-table-column label="操作" width="280" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="openGen(row)">生成</el-button>
-              <el-button link type="primary" size="small" @click="downloadCodes(row)">下载码包</el-button>
-              <el-button link type="primary" size="small" @click="openBatchEdit(row)">编辑</el-button>
-              <el-button link type="danger" size="small" @click="removeBatch(row)">删除</el-button>
-            </template>
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="openGen(row)">生成</el-button>
+                  <el-button link type="primary" size="small" @click="downloadCodes(row)">下载码包</el-button>
+                  <el-button v-if="!Number(row.is_active)" link type="success" size="small" @click="activateBatch(row)">激活</el-button>
+                  <el-button link type="primary" size="small" @click="openBatchEdit(row)">编辑</el-button>
+                  <el-button link type="danger" size="small" @click="removeBatch(row)">删除</el-button>
+                </template>
           </el-table-column>
         </el-table>
 
@@ -377,6 +378,125 @@
           <span class="form-hint">所有子 Tab 的字段随本次保存一并提交</span>
         </div>
       </section>
+
+      <!-- ============ 数据统计（数据魔方初版，P0-4 / P0-6 合并） ============ -->
+      <section v-show="activeTab === 'stats'">
+        <el-row :gutter="16" class="stat-cards">
+          <el-col :span="6"><el-card shadow="never" class="stat-card"><div class="stat-num">{{ stat.totalQueries }}</div><div class="stat-label">累计查询次数</div></el-card></el-col>
+          <el-col :span="6"><el-card shadow="never" class="stat-card"><div class="stat-num">{{ stat.totalCodes }}</div><div class="stat-label">防伪码总数</div></el-card></el-col>
+          <el-col :span="6"><el-card shadow="never" class="stat-card"><div class="stat-num">{{ stat.errorCodes }}</div><div class="stat-label">异常码数</div></el-card></el-col>
+          <el-col :span="6"><el-card shadow="never" class="stat-card"><div class="stat-num">{{ stat.batches }}</div><div class="stat-label">批次总数</div></el-card></el-col>
+        </el-row>
+
+        <el-row :gutter="16" style="margin-top:16px">
+          <el-col :span="12">
+            <el-card shadow="never">
+              <template #header>
+                <div class="slot-head">
+                  <span class="card-title">地域分布</span>
+                  <el-radio-group v-model="regionLevel" size="small" @change="loadStatsRegion">
+                    <el-radio-button value="province">按省</el-radio-button>
+                    <el-radio-button value="city">按市</el-radio-button>
+                  </el-radio-group>
+                </div>
+              </template>
+              <el-table :data="regionList" max-height="360" empty-text="暂无数据">
+                <el-table-column prop="name" label="地域" min-width="120" />
+                <el-table-column prop="value" label="查询次数" width="120" align="center" />
+              </el-table>
+            </el-card>
+          </el-col>
+          <el-col :span="12">
+            <el-card shadow="never">
+              <template #header><span class="card-title">查询趋势（按日）</span></template>
+              <el-table :data="trendList" max-height="360" empty-text="暂无数据">
+                <el-table-column prop="name" label="日期" min-width="140" />
+                <el-table-column prop="value" label="查询次数" width="120" align="center" />
+              </el-table>
+            </el-card>
+          </el-col>
+        </el-row>
+      </section>
+
+      <!-- ============ 查询历史 ============ -->
+      <section v-show="activeTab === 'histories'">
+        <div class="filter-bar">
+          <el-select v-model="histQuery.type" class="w200" @change="histQuery.page = 1; loadHistories()">
+            <el-option :value="-1" label="全部类型" />
+            <el-option :value="0" label="查询验真" />
+            <el-option :value="1" label="后台操作" />
+          </el-select>
+          <el-input v-model.trim="histQuery.summary" placeholder="摘要/码/OpenID" class="w260" clearable
+            @keyup.enter="histQuery.page = 1; loadHistories()" @clear="histQuery.page = 1; loadHistories()" />
+          <el-button type="primary" @click="histQuery.page = 1; loadHistories()"><el-icon><Search /></el-icon>查询</el-button>
+          <span class="list-total">共 {{ histTotal }} 条</span>
+        </div>
+        <el-table v-loading="histLoading" :data="histList" class="mt12" empty-text="暂无记录">
+          <el-table-column prop="created_at" label="时间" width="170" />
+          <el-table-column label="类型" width="110">
+            <template #default="{ row }"><el-tag size="small" :type="Number(row.type) === 0 ? 'success' : 'info'">{{ Number(row.type) === 0 ? '查询验真' : '后台操作' }}</el-tag></template>
+          </el-table-column>
+          <el-table-column prop="summary" label="摘要" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="openid" label="OpenID" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="ip" label="IP" width="130" />
+          <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+        </el-table>
+        <div class="pager"><el-pagination v-model:current-page="histQuery.page" :page-size="histQuery.pageSize" :total="histTotal" layout="total, prev, pager, next" @current-change="loadHistories" /></div>
+      </section>
+
+      <!-- ============ 错误码 ============ -->
+      <section v-show="activeTab === 'wrong'">
+        <div class="filter-bar">
+          <span class="list-total">共 {{ wrongTotal }} 条异常查询记录</span>
+          <el-button @click="loadWrong"><el-icon><Search /></el-icon>刷新</el-button>
+        </div>
+        <el-table v-loading="wrongLoading" :data="wrongList" class="mt12" empty-text="暂无错误码记录">
+          <el-table-column prop="created_at" label="时间" width="170" />
+          <el-table-column prop="code" label="防伪码" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="openid" label="OpenID" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="ip" label="IP" width="130" />
+        </el-table>
+        <div class="pager"><el-pagination v-model:current-page="wrongQuery.page" :page-size="wrongQuery.pageSize" :total="wrongTotal" layout="total, prev, pager, next" @current-change="loadWrong" /></div>
+      </section>
+
+      <!-- ============ 商城集成 ============ -->
+      <section v-show="activeTab === 'shop'">
+        <el-card class="set-card" shadow="never">
+          <template #header><span class="card-title">商城集成（溯源页「查看商品」跳转目标）</span></template>
+          <el-alert type="info" :closable="false" show-icon title="选择后点「保存设置」即生效（随防伪设置一并提交）。仅接入本平台真实存在的来源，避免「后台能选、服务端零消费」的空头配置。" class="mb12" />
+          <el-form label-width="140px" class="set-form">
+            <el-form-item label="商品来源">
+              <el-select v-model="s.isint" class="w320">
+                <el-option v-for="opt in shopSources" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+              <span class="form-hint">0 不关联 / 1 本平台商城商品 / 2 外部商品链接</span>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="setSaving" @click="saveSettings">保存设置</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+      </section>
+
+      <!-- ============ 使用说明（静态帮助页，P0-6 最便宜项） ============ -->
+      <section v-show="activeTab === 'help'">
+        <el-card class="set-card" shadow="never">
+          <template #header><span class="card-title">使用说明</span></template>
+          <div class="help-body">
+            <h4>一、溯源流程</h4>
+            <p>消费者扫描商品上的防伪码（或手动输入），在 C 端溯源页验真：首次查询显示验证通过，重复查询会提示查询次数与首次/上次查询时间。</p>
+            <h4>二、批次与码制</h4>
+            <p>在「批次管理」新增批次并生成防伪码；码制（前缀 / 各段长度 / 校验字符集）一旦生成过码将被锁定，请先规划好码制再生成。</p>
+            <h4>三、首页展示位</h4>
+            <p>在「防伪设置 → 通用设置」配置 C 端验真结果页下方的推广位，最多 8 个，可设置封面图、标题、颜色、展示条件与跳转链接。</p>
+            <h4>四、数据统计与排查</h4>
+            <p>在「数据统计」查看累计查询次数、地域分布与查询趋势；在「查询历史 / 错误码」排查异常查询。</p>
+            <h4>版本说明</h4>
+            <p>当前为防伪溯源模块 P0 版本。红包真发、客户管理、批次奖励四分区等能力将随后续版本接入（详见方案文档）。</p>
+          </div>
+        </el-card>
+      </section>
+
     </main>
 
     <!-- 新增/编辑批次弹窗 -->
@@ -464,9 +584,21 @@ const tabs = [
   { key: 'batches', label: '批次管理', icon: 'box' },
   { key: 'codes', label: '防伪码记录', icon: 'list' },
   { key: 'settings', label: '防伪设置', icon: 'setting' },
+  { key: 'stats', label: '数据统计', icon: 'chart' },
+  { key: 'histories', label: '查询历史', icon: 'clock' },
+  { key: 'wrong', label: '错误码', icon: 'warning' },
+  { key: 'shop', label: '商城集成', icon: 'link' },
+  { key: 'help', label: '使用说明', icon: 'doc' },
 ];
 const activeTab = ref('batches');
-function switchTab(key) { activeTab.value = key; }
+function switchTab(key) {
+  activeTab.value = key;
+  // 🔴 C 类 Tab 懒加载：进入时才拉数据，避免首页一次性打满后端
+  if (key === 'stats') loadStats();
+  else if (key === 'histories') loadHistories();
+  else if (key === 'wrong') loadWrong();
+  else if (key === 'shop') loadShop();
+}
 
 // 🔴 防伪设置从单卡片拆成 7 个子 Tab（对标站 8 Tab 去掉仅 founder 可见的「密码部署/站长专区」后，
 // 补回我们独有的「码制配置」），对齐 P0-1。
@@ -829,6 +961,90 @@ async function confirmRecharge() {
   finally { rechargeSaving.value = false; }
 }
 
+/* ----------------- 数据统计 / 查询历史 / 错误码 / 商城集成（C 类 7 项出面，P0-4） -----------------
+ * 后端路由均已存在（stats×3 / histories / wrong-attempts / shop-integration / batches/:id/activate），
+ * 本段只补后台 UI 入口，不新增任何后端契约。
+ */
+const stat = reactive({ totalQueries: 0, totalCodes: 0, errorCodes: 0, batches: 0 });
+const regionLevel = ref('province');
+const regionList = ref([]);
+const trendList = ref([]);
+async function loadStatsSummary() {
+  try {
+    const r = await customerApiCall.get('/trace/stats/summary');
+    stat.totalQueries = Number(r.totalQueries || 0);
+    stat.totalCodes = Number(r.totalCodes || 0);
+    stat.errorCodes = Number(r.errorCodes || 0);
+    stat.batches = Number(r.batches || 0);
+  } catch (e) { ElMessage.error(e || '加载统计失败'); }
+}
+async function loadStatsRegion() {
+  try {
+    const r = await customerApiCall.get('/trace/stats/region', { params: { level: regionLevel.value } });
+    regionList.value = r.list || [];
+  } catch (e) { ElMessage.error(e || '加载地域分布失败'); }
+}
+async function loadStatsTrend() {
+  try {
+    const r = await customerApiCall.get('/trace/stats/trend');
+    trendList.value = r.list || [];
+  } catch (e) { ElMessage.error(e || '加载趋势失败'); }
+}
+async function loadStats() {
+  await Promise.all([loadStatsSummary(), loadStatsRegion(), loadStatsTrend()]);
+}
+
+const histQuery = reactive({ page: 1, pageSize: 20, summary: '', type: -1 });
+const histList = ref([]);
+const histTotal = ref(0);
+const histLoading = ref(false);
+async function loadHistories() {
+  histLoading.value = true;
+  try {
+    const params = { page: histQuery.page, pageSize: histQuery.pageSize };
+    if (histQuery.summary) params.summary = histQuery.summary;
+    if (histQuery.type >= 0) params.type = histQuery.type;
+    const r = await customerApiCall.get('/trace/histories', { params });
+    histList.value = r.list || [];
+    histTotal.value = Number(r.total || 0);
+  } catch (e) { ElMessage.error(e || '加载历史失败'); }
+  finally { histLoading.value = false; }
+}
+
+const wrongQuery = reactive({ page: 1, pageSize: 20 });
+const wrongList = ref([]);
+const wrongTotal = ref(0);
+const wrongLoading = ref(false);
+async function loadWrong() {
+  wrongLoading.value = true;
+  try {
+    const r = await customerApiCall.get('/trace/wrong-attempts', { params: { page: wrongQuery.page, pageSize: wrongQuery.pageSize } });
+    wrongList.value = r.list || [];
+    wrongTotal.value = Number(r.total || 0);
+  } catch (e) { ElMessage.error(e || '加载错误码失败'); }
+  finally { wrongLoading.value = false; }
+}
+
+const shopSources = ref([]);
+async function loadShop() {
+  try {
+    const r = await customerApiCall.get('/trace/shop-integration');
+    shopSources.value = r.sources || [];
+    if (r.current !== undefined) s.isint = Number(r.current || 0);
+  } catch (e) { ElMessage.error(e || '加载商城集成失败'); }
+}
+
+async function activateBatch(row) {
+  try {
+    await ElMessageBox.confirm(`确认激活批次「${row.batch}」吗？`, '激活批次', { type: 'warning' });
+  } catch { return; }
+  try {
+    await customerApiCall.post(`/trace/batches/${row.id}/activate`);
+    ElMessage.success('已激活');
+    loadBatches();
+  } catch (e) { ElMessage.error(e || '激活失败'); }
+}
+
 onMounted(() => {
   loadBatches();
   loadCodes();
@@ -881,4 +1097,15 @@ onMounted(() => {
 .slot-in { width: 420px; max-width: 100%; }
 .slot-when { width: 260px; }
 .slot-foot { display: flex; align-items: center; gap: 12px; }
+
+/* 数据统计 */
+.stat-cards { margin-bottom: 4px; }
+.stat-card { text-align: center; }
+.stat-card .stat-num { font-size: 28px; font-weight: 700; color: #165dff; line-height: 1.2; }
+.stat-card .stat-label { font-size: 13px; color: #86909c; margin-top: 4px; }
+
+/* 使用说明 */
+.help-body h4 { margin: 14px 0 4px; font-size: 14px; color: #1d2129; }
+.help-body h4:first-child { margin-top: 0; }
+.help-body p { color: #4e5969; line-height: 1.7; margin: 0 0 8px; }
 </style>
