@@ -1,11 +1,11 @@
 # 360全景 元规则（长期记忆）
-> 只放判据与坑，细节在每日日志。⚠️ 改本文件必须在 deploy 往返 checkout 之后**当即提交**（checkout -f deploy 会还原工作区，未提交修改被吞）。目标 ≤ 9K 字符，涨了就合并删减而非加行。
+> 只放判据与坑，细节在每日日志。⚠️ 改本文件须在 deploy 往返 checkout 后**当即提交**（checkout -f deploy 还原工作区会吞未提交修改）。目标 ≤ 9K 字符，涨了就合并删减而非加行。
 
 ## 0 排查第一直觉
-- 0 匹配先怀疑工具：BSD grep 的 `\|` 是字面量（不报错、0 匹配，伪装成"产物没构建进去"）→ 用 `grep -E`；压缩 JS 单行 `grep -c` 恒 1 → `grep -o|wc -l`；查文件用 Glob/Grep 不用 shell 管道；`cmd|tail` 丢退出码 → `echo $?`。
+- 工具坑：grep `\|` 是字面量（不报错、0 匹配）→ 用 `grep -E`；压缩 JS `grep -c` 恒 1 → `grep -o|wc -l`；查文件用 Glob/Grep 不用 shell 管道；`cmd|tail` 丢退出码 → `echo $?`。
 - API 搜索别拼全路径（路由挂 /api/customer，页面写 get('/billing/plan') → 恒 0）→ grep 末段或封装名。整页没数据多为请求级失败。
-- 写值播种必须留痕：ADD COLUMN 幂等 ≠ UPDATE 幂等（"当前是 0 就播种"会被管理员关后重启重开）→ schema_marks。
-- **整批约束校验必须整批传入**：`list.map(x => normalize([x]))` 逐个调 → 每次只看到 1 个 → 上限永不触发（真事故：展示位「最多 8 个」形同虚设）。纯函数单测全绿也照漏，只有路由层测试拦得住。
+- 写值播种须留痕：ADD COLUMN 幂等 ≠ UPDATE 幂等（"当前是 0 就播种"会被管理员关后重启重开）→ schema_marks 标记。
+- **整批约束校验必须整批传入**：`list.map(x => normalize([x]))` 逐个调 → 每次只看 1 个 → 上限永不触发（真事故：展示位「最多 8 个」形同虚设）。纯函数单测全绿也照漏，路由层测试才拦得住。
 - `node --test $FILES` 多文件被当单路径 → `$(cat list.txt | tr '\n' ' ')` 展开。node:sqlite run() 返回 **lastInsertRowid（小写 d）**。
 
 ## 1 测试
@@ -17,7 +17,7 @@
 
 ## 2 构建与部署
 - 源码落 main（不带产物）；deploy = merge --no-ff main + 重建产物；push -f deploy；部署后 checkout main。产物必须 `git add -f`（限 server/public/{card,mall,admin}、server/mini-template/mp-weixin，禁 -A）——普通 add 静默跳过新 chunk → 白屏。白屏判据查暂存集：新 chunk 已暂存 + 旧 hash=0（磁盘有 ≠ 暂存有）。源码按路径显式 add，`diff --cached --name-only` 复核零产物混入。
-- main 跟踪陈旧产物：切 deploy 前 mv 新产物到 /tmp → checkout -f deploy → merge → 旧版 mv 开再 cp -a 铺回（防 card/card 嵌套）→ add -f；回 main 后 `git checkout --` 恢复。往返吞未提交修改（含 memory）。
+- main 跟踪陈旧产物：mv 新产物到 /tmp → checkout -f deploy → merge → 旧版 cp -a 铺回（防 card/card 嵌套）→ add -f；回 main 后 `git checkout --` 恢复。往返吞未提交修改（含 memory）。
 - safe-delete 拦 >50 文件删除：uni build / build:admin 清目录会被拦 → 先 mv 目标目录到 /tmp 再构建。H5 要 mv `assets` + `static` 两处（只 mv assets 不够）。
 - 只验 MP 编译不产跟踪产物：`npx uni build -p mp-weixin`（不带 strip/gen-sicons/stamp/sync）→ 产物留 gitignore 的 web-app/dist，main 零污染。
 - build:h5 不含同步：从仓库根跑 `node scripts/sync-mobile-dist.mjs` 才进 server/public/{card,mall}。MP 是第四产物面：新分包须跑 `build:mp-weixin -w web-app`（stamp @提交）才进小程序；只跑 build:h5 只覆盖 card/mall。提交前 grep 特征串验证；push 后 `git ls-remote origin <branch>` 校验。
@@ -28,7 +28,7 @@
 - MP scroll-view 弹窗：sheet 块级堆叠 + body max-height:Nvh + :scroll-top 回顶；内容增高时主动回顶（scroll-top 只在值变化时生效，0/0.1 交替）。
 - MP 模板禁 `x?.[0]`（编译降级成整体值），首字符放下标 computed；禁裸标签 + 禁标签选择器（uni MP 收编成无类名 view → wxss 静默失效）。样式一律类名；wxss 有规则 ≠ 生效。
 - 服务端图片路径（/uploads/ 相对）MP 全断：展示点过 absUrl（含 canvas.createImage）；新上传先换 URL 再入库。服务端时间 UTC：datetime('now') 产 UTC 串，前端解析补 'Z'（dynTime.js 共用）。
-- H5 正常≠MP 正常：父 wxss 穿不透子组件根 → 传 prop 出内联；MP 无 atob/Buffer → uni.base64ToArrayBuffer；消费 var(--design- 的页必绑 themeStyle；uni image 无内在尺寸 → 显式盒高。
+- H5≠MP：父 wxss 穿不透子组件根 → 传 prop 出内联；MP 无 atob/Buffer → uni.base64ToArrayBuffer；用 var(--design- 的页必绑 themeStyle；uni image 无内在尺寸 → 显式盒高。
 
 ## 4 装修组件
 - 改一处同步三处：componentRegistry.js → ComponentRender.vue → PageEditor.vue（schema+control）；C 端 DesignPage.vue 独立重复；server COMP_TYPES 白名单。间距由 marginTop 决定 →「不真实」先数壳层数删壳。
@@ -75,12 +75,12 @@
 - 金额全链路单位分：建单 yuan2fen()（调微信前不得再 ×100）。回调 URL 只 https://域名/api/payment/notify/wechat（一层 notify）；验签基于 rawBody。只有压根没配才回落 mock；配了真实 mchId 不全 → 报错。
 
 ## 11 线上通道 / 主包 / 生产库
-- 服务器 /opt/app（deploy 分支），systemd panorama.service，cwd /opt/app/server，命令 `node --env-file-if-exists=.env src/index.js`。Lighthouse lhins-bvw7p0gb。admin 线上路径 `/admin-assets/assets/*`（非 `/admin/assets/*`）；card/mall H5 `/card/assets/*`。路径错时 SPA 兜底返 200 而 body 空 → grep 全 0。
+- 服务器 /opt/app（deploy 分支），systemd panorama.service，cwd /opt/app/server，命令 `node --env-file-if-exists=.env src/index.js`。Lighthouse lhins-bvw7p0gb（**地域 ap-guangzhou**，非 beijing/shanghai）。admin 线上路径 `/admin-assets/assets/*`（非 `/admin/assets/*`）；card/mall H5 `/card/assets/*`。路径错时 SPA 兜底返 200 而 body 空 → grep 全 0。
 - 远程部署：git fetch → reset --hard origin/deploy（校验 HEAD）→ systemctl restart panorama。TAT 禁含外网域名/IP；describe_instances 用 InstanceIds 数组，execute_command 用单数。
 - 主包规则：主包内不应有主包未用的 JS = 只有分包用的模块进了主包 → 源文件挪进分包目录连带改 import。挪文件必查：①分包专属依赖一起挪 ②生成脚本 OUT_FILE 写死旧路径 ③测试断言钉旧路径。主包体积排除分包目录再算。
 - 🔴 TAT 直写生产库被平台 AccessDeny（DELETE/UPDATE、node 直连 sqlite 全拦；git reset / systemctl / cp / sqlite3 -readonly 单条 SELECT 可过）。平台语义级拦截（拆串/base64 绕过无效，勿尝试）。✅ 合规替代 = db.js 启动期一次性迁移：服务自身进程写库，TAT 只需 reset+restart 即触发，落点 migrate() 内、必须在建表种子之后。
   - ⚠️ 测试坑：createDb() 内部已跑 migrate() → 已留痕，插脏数据不会被清，须先 `DELETE FROM schema_marks WHERE key=?`。构造数据前先查表结构：dist_share_all/share_cat/partner 有 UNIQUE(tenant_id,user_id)；dist_user_relation 上级字段名 pid1；dist_wallet 二次插入撞主键（改用 UPDATE 模拟重播）。
-  - 只读排查：一条命令只能带一条 SELECT（多语句被拦）→ 逐条查或 && 串独立 sqlite3 调用。仅单表简单 SELECT 通过；sqlite_master 内省/子查询/for+curl 全 Deny → 查表结构直接查业务表。ls/cat/git/systemctl/ps/journalctl 正常。改库前先 `cp data/panorama.db data/panorama.db.bak_<日期>_<用途>`。
+  - 只读排查：一条命令只能带一条 SELECT（多语句被拦）→ 逐条查。仅单表简单 SELECT 通过；sqlite_master 内省/子查询/for+curl 全 Deny → 查表结构直接查业务表。ls/cat/git/systemctl/ps/journalctl 正常。改库前先 `cp data/panorama.db data/panorama.db.bak_<日期>_<用途>`。
 
 ## 12 行业应用接入（trace 模式）
 - 规范唯一权威：`docs/规范/09-行业应用开发接入标准.md`，§10 是常见交付缺陷速查表。整合前先按速查表扫交付物一次性列全问题再改。
