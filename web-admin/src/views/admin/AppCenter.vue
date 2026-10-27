@@ -89,8 +89,9 @@
               <el-button v-if="hasAdminManage(app.code)" size="small" type="primary" plain @click.stop="enterManage(app)">进入管理</el-button>
               <el-button size="small" @click="openMoveDialog(app)">修改分类</el-button>
               <el-button size="small" @click="openAppDialog(app)">编辑应用</el-button>
-              <el-button size="small" text class="drag-handle" @click="onHintDrag">拖拽位置</el-button>
             </div>
+            <!-- 拖动标识（代替原「拖拽位置」文字按钮）：整卡可拖，按住任意处拖到目标位释放即可调序 -->
+            <span class="drag-badge" title="拖动卡片可调整顺序"><el-icon :size="14"><Rank /></el-icon></span>
           </div>
         </template>
       </div>
@@ -167,7 +168,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { adminApi } from '../../api';
 import { hasAdminManage } from '../../config/adminAppConfigs';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Edit, Delete } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Rank } from '@element-plus/icons-vue';
 import SIcon from '../../components/SIcon.vue';
 
 const router = useRouter();
@@ -298,9 +299,6 @@ function onDragStart(app, idx, e) {
   draggingApp.value = { app, fromIdx: idx, fromCat: activeCat.value?.name };
   e.dataTransfer.effectAllowed = 'move';
 }
-function onHintDrag() {
-  ElMessage.info('直接按住卡片拖动到目标位置释放，即可调整顺序');
-}
 function onDrop(app, idx, e) {
   e.preventDefault();
   if (!draggingApp.value || draggingApp.value.fromCat !== activeCat.value?.name) return;
@@ -392,7 +390,11 @@ onMounted(async () => {
   display: flex; gap: 4px; border-top: 1px solid #f0f0f0; padding-top: 10px; margin-top: 10px;
 }
 .app-card-ops .el-button { margin-left: 0; }
-.drag-handle { cursor: grab; color: #86909c; }
+.drag-badge {
+  position: absolute; top: 10px; right: 10px; color: #c9cdd4;
+  cursor: grab; display: flex; transition: color 0.2s;
+}
+.app-card:hover .drag-badge { color: #86909c; }
 .drag-tip { margin-top: 12px; font-size: 12px; color: #165dff; }
 .move-app-name { font-size: 13px; color: #1d2129; }
 .icon-picker { display: flex; flex-wrap: wrap; gap: 8px; }
