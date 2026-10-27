@@ -265,6 +265,13 @@ export const createMemberPackage = (data) => adminApi.post('/member-packages', d
 export const updateMemberPackage = (id, data) => adminApi.put(`/member-packages/${id}`, data);
 export const deleteMemberPackage = (id) => adminApi.delete(`/member-packages/${id}`);
 
+// 防伪溯源 · 平台级设置（总后台）
+export const fetchTracePlatformSettings = () => adminApi.get('/trace/platform-settings');
+export const saveTracePlatformSettings = (data) => adminApi.put('/trace/platform-settings', data);
+export const fetchTraceCocomTenants = () => adminApi.get('/trace/cocom/tenants');
+export const adjustTraceCocom = (tenantId, data) => adminApi.put(`/trace/cocom/tenants/${tenantId}`, data);
+export const fetchTraceCocomLedger = (tenantId) => adminApi.get(`/trace/cocom/tenants/${tenantId}/ledger`);
+
 // 超级表单（挂载于 /api/card-market/super-form，使用 publicApi）
 export const fetchSuperForms = (params) => publicApi.get('/card-market/super-form', { params });
 export const createSuperForm = (data) => publicApi.post('/card-market/super-form', data);

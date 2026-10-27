@@ -40,6 +40,7 @@ import { createMallRouter } from './routes/mall.js';
 import { createPaymentRouter } from './routes/payment.js';
 import { createDistributionRouter } from './routes/distribution.js';
 import { createTracePublicRouter, createTraceAdminRouter } from './routes/trace.js';
+import { createTracePlatformRouter } from './routes/tracePlatform.js';
 import { default as createDesignRouter } from './routes/design.js';import { createCardMarketRouter } from './routes/cardMarket.js';import { createSuperFormRouter } from './routes/superForm.js';
 import { createBillingRouter, createCustomerBillingRouter } from './routes/billing.js';
 import { hasSolution, tenantState } from './tenant.js';
@@ -195,6 +196,8 @@ app.use((req, res, next) => {
   //   挂 /api/customer 前缀是为了对齐 web-admin 的 customerApiCall（baseURL=/api/customer），URL 不重复前缀
   app.use('/api/trace', createTracePublicRouter(database));
   app.use('/api/customer/trace', requireAuth, createTraceAdminRouter(database));
+  // 防伪溯源 · 平台级（总后台）设置（角色门控在 router 内部）
+  app.use('/api/admin/trace', requireAuth, createTracePlatformRouter(database));
 
   // 设计中心：素材中心 /api/material + 装修配置 /api/design（顶层前缀，租户中间件内部校验）
   const designRouters = createDesignRouter(database);

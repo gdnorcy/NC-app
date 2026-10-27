@@ -2585,6 +2585,28 @@ function seedTrace(db) {
     CREATE INDEX IF NOT EXISTS idx_trace_wrong_ip ON trace_wrong_attempts (tenant_id, ip, created_at);
   `);
 
+  // 防伪溯源 · 平台级设置（总后台 / 平台运营管控）
+  // 🔴 与租户 trace_settings 严格隔离：平台配置落此单行表（id=1），绝不混入租户数据，也不从前端直传 tenantId。
+  // 🔴 防伪码算法密钥（码制 k1–k5 / 码长 m1–m5）是平台常量，已在 services/traceCode.js 的 DEFAULT_CODESET
+  //    固化，故意不在此处开放编辑（改之会使所有已发码作废）。本表只承载运营类平台配置。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trace_platform_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      config_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS trace_cocom_recharges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER NOT NULL,
+      delta INTEGER NOT NULL DEFAULT 0,
+      balance_after INTEGER NOT NULL DEFAULT 0,
+      operator TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trace_cocom_tenant ON trace_cocom_recharges (tenant_id, created_at);
+  `);
+
   // 应用注册（分类=高级功能；icon=verify 是 SIcon 体系既有图标名 —— 交付物写的 'trace' 无对应 SVG 会渲染空白）
   db.exec("INSERT OR IGNORE INTO apps (code, name, description, icon, category, sort_order, enabled) VALUES ('trace', '防伪溯源', '扫码验真、溯源码管理、批次流向、窜货预警', 'verify', '高级功能', 60, 1)");
 

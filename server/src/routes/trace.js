@@ -14,6 +14,7 @@ import { generateTracePackage } from '../services/traceGenerate.js';
 import { normalizeDisplaySlots, pickDisplaySlots } from '../services/traceSlots.js';
 import { maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
 import { applyTraceReward } from '../services/traceReward.js';
+import { getPlatformSettings } from './tracePlatform.js';
 
 function sendError(res, status, error) {
   return res.status(status).json({ error });
@@ -397,11 +398,18 @@ export function createTracePublicRouter(db) {
     const { rule } = getRule(db, tenantId);
 
     // IP 白名单校验
-    const apiIp = String(settings.api?.ip || '');
-    const apiKey = String(settings.api?.key || '');
-    if (apiIp.length < 8 || apiKey.length < 20) return sendError(res, 403, '1888');
+    // 🔴 平台级 API 授权优先：平台在总后台配置的 IP 白名单 + 通信密钥；
+    //    平台未配置时回落到租户自有 settings.api（兼容历史租户自配，避免一刀切断掉已对接的第三方）。
+    const platform = getPlatformSettings(db);
+    const pApi = platform.config?.apiAuth || {};
+    const usePlatformApi = Array.isArray(pApi.allowedIps) && pApi.allowedIps.length > 0 && !!pApi.commKeyCipher;
+    const allowedIps = usePlatformApi
+      ? pApi.allowedIps
+      : String(settings.api?.ip || '').split(',').map((s) => s.trim()).filter(Boolean);
+    const apiKey = usePlatformApi ? readSecret(pApi.commKeyCipher) : String(settings.api?.key || '');
+    if (allowedIps.length < 1 || apiKey.length < 20) return sendError(res, 403, '1888');
     const clientIp = String(req.ip || req.body.ip || '');
-    if (clientIp !== apiIp) return sendError(res, 403, '1839');
+    if (!allowedIps.includes(clientIp)) return sendError(res, 403, '1839');
 
     const co = cleanTraceCode(req.body.co || '');
     const ke = String(req.body.ke || '').toUpperCase();
@@ -741,6 +749,10 @@ export function createTraceAdminRouter(db) {
     const id = Number(req.params.id);
     const batch = db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
     if (!batch) return sendError(res, 404, '批次不存在');
+    // 🔴 平台级生成权限门控（#472），与 generate-codes 同口径
+    const genMode = getPlatformSettings(db).config?.generation?.mode || 'open';
+    if (genMode === 'closed') return sendError(res, 403, '防伪码生成已全局关闭');
+    if (genMode === 'platformOnly') return sendError(res, 403, '生成权限未对租户开放，请联系平台运营');
     const { rule } = getRule(db, req.traceTenantId);
     const count = Math.min(100000, Math.max(1, Number(req.body.codeno || req.body.count || 1)));
     let created = 0;
@@ -768,8 +780,15 @@ export function createTraceAdminRouter(db) {
     const id = Number(req.params.id);
     const batch = db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
     if (!batch) return sendError(res, 404, '批次不存在');
+    // 🔴 平台级生成权限门控（#472）：open=租户可生成 / platformOnly=仅平台 / closed=全关。
+    //    在 tenant 路由里调用方必为租户，故 platformOnly/closed 直接拒绝。
+    const genMode = getPlatformSettings(db).config?.generation?.mode || 'open';
+    if (genMode === 'closed') return sendError(res, 403, '防伪码生成已全局关闭');
+    if (genMode === 'platformOnly') return sendError(res, 403, '生成权限未对租户开放，请联系平台运营');
     const { rule } = getRule(db, req.traceTenantId);
     const { settings } = getSettings(db, req.traceTenantId);
+    // 🔴 站点根域名优先取平台级配置（#474），平台未配时回落租户自有 siteroot。
+    const siteRoot = (getPlatformSettings(db).config?.siteRoot || '').trim() || settings.siteroot || '';
     try {
       const pkg = generateTracePackage({
         db,
@@ -780,7 +799,7 @@ export function createTraceAdminRouter(db) {
         codetype: req.body.codetype ?? req.query.codetype ?? 1,
         codeno: req.body.codeno ?? req.query.codeno ?? 1,
         codenot: req.body.codenot ?? req.query.codenot ?? 0,
-        siteRoot: req.body.siteRoot || settings.siteroot || '',
+        siteRoot,
         origin: `${req.protocol}://${req.get('host')}`,
       });
       addHistory(db, req.traceTenantId, 1, `${rule.m[1]}${batch.batch}`, req, `生成防伪码：(${req.body.codetype ?? req.query.codetype ?? 1}) 共 ${pkg.created} 条`);
@@ -797,6 +816,7 @@ export function createTraceAdminRouter(db) {
     if (String(req.query.format || 'txt') === 'zip') return sendError(res, 501, 'zip 导出需目标平台提供压缩适配器，当前先交付 txt/html 内容');
     const { rule } = getRule(db, req.traceTenantId);
     const { settings } = getSettings(db, req.traceTenantId);
+    const siteRoot = (getPlatformSettings(db).config?.siteRoot || '').trim() || settings.siteroot || '';
     try {
       const pkg = generateTracePackage({
         db,
@@ -807,7 +827,7 @@ export function createTraceAdminRouter(db) {
         codetype: req.query.codetype ?? 1,
         codeno: req.query.codeno ?? 100,
         codenot: req.query.codenot ?? 0,
-        siteRoot: settings.siteroot || '',
+        siteRoot,
         origin: `${req.protocol}://${req.get('host')}`,
       });
       addHistory(db, req.traceTenantId, 1, `${rule.m[1]}${batch.batch}`, req, `下载防伪码数据包：${pkg.filename}`);
