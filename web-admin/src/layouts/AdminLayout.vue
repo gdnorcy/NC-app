@@ -30,11 +30,12 @@
             <SIcon name="solutions" size="default" />
             <span>解决方案</span>
           </el-menu-item>
-          <el-menu-item index="/apps-center">
-            <SIcon name="apps" size="default" />
-            <span>应用中心</span>
-          </el-menu-item>
         </template>
+        <!-- 应用中心：operator 也可进（平台级应用配置入口，如 防伪溯源·平台设置，后端同为 admin/operator 门控） -->
+        <el-menu-item v-if="isAdmin || isOperator" index="/apps-center">
+          <SIcon name="apps" size="default" />
+          <span>应用中心</span>
+        </el-menu-item>
         <el-menu-item v-if="!isAdmin" index="/solutions">
           <SIcon name="solutions" size="default" />
           <span>解决方案</span>
@@ -52,13 +53,6 @@
           <el-menu-item index="/settings">
             <SIcon name="settings" size="default" />
             <span>系统设置</span>
-          </el-menu-item>
-        </template>
-        <template v-if="isAdmin || isOperator">
-          <div v-if="!collapsed" class="menu-group-title">防伪溯源</div>
-          <el-menu-item index="/trace-platform">
-            <SIcon name="verify" size="default" />
-            <span>平台设置</span>
           </el-menu-item>
         </template>
       </el-menu>

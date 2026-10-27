@@ -44,7 +44,7 @@ const routes = [
       { path: 'channel/h5', component: () => import('../views/admin/channel/ChannelH5.vue'), meta: { title: 'H5管理', breadcrumbs: ['应用中心', '全端渠道', 'H5管理'] } },
       { path: 'channel/mp', component: () => import('../views/admin/channel/ChannelH5.vue'), meta: { title: '公众号管理', breadcrumbs: ['应用中心', '全端渠道', '公众号管理'] } },
       { path: 'channel/pc', component: () => import('../views/admin/channel/ChannelH5.vue'), meta: { title: 'PC网站管理', breadcrumbs: ['应用中心', '全端渠道', 'PC网站管理'] } },
-      { path: 'trace-platform', component: () => import('../views/admin/TracePlatform.vue'), meta: { title: '防伪溯源平台设置', breadcrumbs: ['防伪溯源', '平台设置'] } },
+      { path: 'trace-platform', component: () => import('../views/admin/TracePlatform.vue'), meta: { title: '防伪溯源平台设置', breadcrumbs: ['应用中心', '平台设置'] } },
     ],
   },
 ];
