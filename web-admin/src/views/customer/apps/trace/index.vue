@@ -543,6 +543,64 @@
             <el-option :value="4" label="按区县" />
           </el-select>
         </el-form-item>
+
+        <el-form-item label="活动类型">
+          <el-select v-model="batchDlg.form.inttype" class="w240">
+            <el-option :value="0" label="无奖励" />
+            <el-option :value="1" label="积分奖励 1" />
+            <el-option :value="2" label="积分奖励 2" />
+            <el-option :value="3" label="积分奖励 3" />
+            <el-option :value="4" label="积分奖励 4" />
+            <el-option :value="5" label="积分奖励 5" />
+            <el-option :value="7" label="实物商品（邮寄）" />
+            <el-option :value="8" label="微信卡券" />
+            <el-option :value="9" label="微信红包" />
+            <el-option :value="99" label="专属抽奖" />
+            <el-option :value="88" label="商品联动不发放" />
+          </el-select>
+          <span class="form-hint">决定消费者扫码后获得的奖励类型</span>
+        </el-form-item>
+
+        <el-form-item label="套标箱规">
+          <el-input-number v-model="batchDlg.form.bbox" :min="0" :max="9999" controls-position="right" />
+          <span class="form-hint" style="margin-left:8px">每箱盒数（0 = 不启用套标）</span>
+        </el-form-item>
+        <el-form-item label="套标盒规">
+          <el-input-number v-model="batchDlg.form.sbox" :min="0" :max="9999" controls-position="right" />
+          <span class="form-hint" style="margin-left:8px">每盒码数（0 = 不启用套标）</span>
+        </el-form-item>
+
+        <el-card class="sub-card" shadow="never">
+          <template #header><span class="card-title">奖励配置（四分区）</span></template>
+          <el-alert type="info" :closable="false" show-icon title="随批次存入 caid_json，由验真奖励引擎按「活动类型」消费；红包真发需先接入租户微信支付凭据。" class="mb12" />
+          <el-form-item label="积分红包">
+            <el-switch v-model="batchDlg.form.caid.jfEnabled" />
+            <template v-if="batchDlg.form.caid.jfEnabled">
+              <span class="form-hint" style="margin:0 8px">下限</span>
+              <el-input-number v-model="batchDlg.form.caid.jf.do" :min="0" :max="999999" controls-position="right" />
+              <span class="form-hint" style="margin:0 8px">上限</span>
+              <el-input-number v-model="batchDlg.form.caid.jf.up" :min="0" :max="999999" controls-position="right" />
+            </template>
+          </el-form-item>
+          <el-form-item label="微信卡券">
+            <el-input v-model="batchDlg.form.caid.caidText" type="textarea" :rows="2" class="w360" placeholder="一行一个 cardId" />
+          </el-form-item>
+          <el-form-item label="红包参数">
+            <el-input v-model="batchDlg.form.caid.red.merchantId" class="w320" placeholder="商户号（需租户微信支付凭据）" />
+          </el-form-item>
+          <el-form-item label="专属抽奖">
+            <div class="cj-list">
+              <div v-for="(p, idx) in batchDlg.form.caid.cjList" :key="idx" class="cj-row">
+                <el-input v-model="p.tx" placeholder="奖项名称" class="w160" />
+                <el-input v-model="p.gl" placeholder="权重" class="w100" />
+                <el-input v-model="p.zz" placeholder="值(#分隔)" class="w160" />
+                <el-button link type="danger" @click="batchDlg.form.caid.cjList.splice(idx, 1)">删除</el-button>
+              </div>
+              <el-button @click="batchDlg.form.caid.cjList.push({ tx: '', gl: '', zz: '', is: '1' })">+ 添加奖项</el-button>
+            </div>
+          </el-form-item>
+        </el-card>
+
         <template v-if="batchDlg.isEdit">
           <el-form-item label="Logo"><el-input v-model.trim="batchDlg.form.logo" placeholder="图片 URL" /></el-form-item>
           <el-form-item label="主图"><el-input v-model.trim="batchDlg.form.banner" placeholder="图片 URL" /></el-form-item>
@@ -657,10 +715,21 @@ async function loadBatches() {
 const batchDlg = reactive({ visible: false, isEdit: false, form: {} });
 const batchSaving = ref(false);
 function emptyBatch() {
-  return { id: 0, batch: '', product: '', factory: '', brand: '', origin: '', province: '', city: '', district: '', isChuanhuo: 0, logo: '', banner: '', video: '', buyLink: '', isActive: true };
+  return {
+    id: 0, batch: '', product: '', factory: '', brand: '', origin: '', province: '', city: '', district: '', isChuanhuo: 0,
+    logo: '', banner: '', video: '', buyLink: '', isActive: true,
+    inttype: 0, bbox: 0, sbox: 0, integral: 0, redBudgetCents: -1, validity: 0,
+    caid: { jfEnabled: false, jf: { do: 0, up: 0 }, caidText: '', red: { merchantId: '' }, cjList: [] },
+  };
 }
 function openBatchCreate() { batchDlg.isEdit = false; batchDlg.form = emptyBatch(); batchDlg.visible = true; }
 function openBatchEdit(row) {
+  let hd = {};
+  try { hd = JSON.parse(row.caid_json || '{}'); } catch (e) { hd = {}; }
+  const cjSrc = hd.cj || {};
+  const cjList = Object.keys(cjSrc).filter(k => k !== '0').map(k => ({
+    tx: cjSrc[k].tx || '', gl: String(cjSrc[k].gl ?? ''), zz: cjSrc[k].zz || '', is: cjSrc[k].is || '1',
+  }));
   batchDlg.isEdit = true;
   batchDlg.form = {
     id: row.id,
@@ -678,6 +747,19 @@ function openBatchEdit(row) {
     video: row.video || '',
     buyLink: row.buy_link || '',
     isActive: !!Number(row.is_active),
+    inttype: Number(row.inttype || 0),
+    bbox: Number(row.bbox || 0),
+    sbox: Number(row.sbox || 0),
+    integral: Number(row.integral || 0),
+    redBudgetCents: Number(row.red_budget_cents ?? -1),
+    validity: Number(row.validity || 0),
+    caid: {
+      jfEnabled: String(hd.jf?.tp || '') === '1',
+      jf: { do: Number(hd.jf?.do || 0), up: Number(hd.jf?.up || 0) },
+      caidText: typeof hd.caid === 'string' ? hd.caid : '',
+      red: { merchantId: hd.red?.merchantId || '' },
+      cjList,
+    },
   };
   batchDlg.visible = true;
 }
@@ -685,19 +767,30 @@ async function saveBatch() {
   const f = batchDlg.form;
   if (!f.batch) { ElMessage.warning('批次号必填'); return; }
   batchSaving.value = true;
+  const caid = {
+    jf: f.caid.jfEnabled ? { tp: '1', do: Number(f.caid.jf.do || 0), up: Number(f.caid.jf.up || 0), gd: Number(f.caid.jf.do || 0) } : { tp: '0' },
+    caid: f.caid.caidText || '',
+    red: { merchantId: f.caid.red.merchantId || '' },
+    cj: {},
+  };
+  f.caid.cjList.forEach((p, i) => { caid.cj[i + 1] = { zz: p.zz || '', tx: p.tx || '', is: p.is || '1', gl: Number(p.gl || 0) }; });
+  const batchExtra = {
+    inttype: Number(f.inttype || 0), bbox: Number(f.bbox || 0), sbox: Number(f.sbox || 0),
+    integral: Number(f.integral || 0), redBudgetCents: Number(f.redBudgetCents ?? -1), validity: Number(f.validity || 0), caid,
+  };
   try {
     if (batchDlg.isEdit) {
       await customerApiCall.put(`/trace/batches/${f.id}`, {
         product: f.product, factory: f.factory, brand: f.brand, origin: f.origin,
         logo: f.logo, banner: f.banner, video: f.video, buyLink: f.buyLink,
         province: f.province, city: f.city, district: f.district,
-        isChuanhuo: Number(f.isChuanhuo || 0), isActive: f.isActive ? 1 : 0,
+        isChuanhuo: Number(f.isChuanhuo || 0), isActive: f.isActive ? 1 : 0, ...batchExtra,
       });
     } else {
       await customerApiCall.post('/trace/batches', {
         batch: f.batch, product: f.product, factory: f.factory, brand: f.brand,
         origin: f.origin, province: f.province, city: f.city, district: f.district,
-        isChuanhuo: Number(f.isChuanhuo || 0),
+        isChuanhuo: Number(f.isChuanhuo || 0), ...batchExtra,
       });
     }
     ElMessage.success('保存成功');
