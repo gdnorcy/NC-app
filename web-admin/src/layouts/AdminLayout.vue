@@ -54,6 +54,13 @@
             <span>系统设置</span>
           </el-menu-item>
         </template>
+        <template v-if="isAdmin || isOperator">
+          <div v-if="!collapsed" class="menu-group-title">防伪溯源</div>
+          <el-menu-item index="/trace-platform">
+            <SIcon name="verify" size="default" />
+            <span>平台设置</span>
+          </el-menu-item>
+        </template>
       </el-menu>
       <div class="sidebar-footer">
         <el-tooltip :disabled="!collapsed" content="退出登录" placement="right" :show-after="200">
@@ -126,6 +133,7 @@ const search = ref('');
 const logo = ref('');
 
 const isAdmin = computed(() => authStore.user?.role === 'admin');
+const isOperator = computed(() => authStore.user?.role === 'operator');
 const activeMenu = computed(() => (route.path.startsWith('/apps-center') ? '/apps-center' : route.path));
 const userInitial = computed(() => authStore.user?.username?.[0]?.toUpperCase() || 'U');
 const breadcrumbs = computed(() => route.meta?.breadcrumbs || [route.meta?.title || '']);
