@@ -165,6 +165,13 @@ app.use((req, res, next) => {
   app.use('/api/auth', createAuthRouter(database));
   app.use('/api', createPlansRouter(database));
   app.use('/api', createScenesRouter(database));
+
+  // 防伪溯源 · 平台级（总后台）设置（角色门控在 router 内部 requirePlatform：admin/operator）
+  // 🔴 必须排在所有 broad `/api/admin` 挂载之前：storage 路由以 router.use(requireRole('admin'))
+  //    挂在 broad 前缀 /api/admin 上，会优先拦截 /api/admin/trace/* 并把 operator 误判 403，
+  //    导致平台级能力对运营不可见。故此挂载置于 broad 挂载之前。
+  app.use('/api/admin/trace', requireAuth, createTracePlatformRouter(database));
+
   app.use('/api/admin', createCustomersRouter(database));
   app.use('/api/admin', createStorageRouter(database));
   app.use('/api/admin/users', createUsersRouter(database));
@@ -196,8 +203,6 @@ app.use((req, res, next) => {
   //   挂 /api/customer 前缀是为了对齐 web-admin 的 customerApiCall（baseURL=/api/customer），URL 不重复前缀
   app.use('/api/trace', createTracePublicRouter(database));
   app.use('/api/customer/trace', requireAuth, createTraceAdminRouter(database));
-  // 防伪溯源 · 平台级（总后台）设置（角色门控在 router 内部）
-  app.use('/api/admin/trace', requireAuth, createTracePlatformRouter(database));
 
   // 设计中心：素材中心 /api/material + 装修配置 /api/design（顶层前缀，租户中间件内部校验）
   const designRouters = createDesignRouter(database);

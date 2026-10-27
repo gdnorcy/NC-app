@@ -73,9 +73,11 @@ describe('防伪溯源 trace：接入回归锁', () => {
   // ── 1) 建表：SQLite 方言 + 表齐全 ──────────────────────────────────────
   it('7 张业务表建成且列名统一为 is_rewarded / credit_type', () => {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'trace_%'").all().map((r) => r.name).sort();
+    // #469 新增 trace_platform_settings / trace_cocom_recharges，故共 9 张 trace_ 业务表
     assert.deepEqual(tables, [
-      'trace_batch_rules', 'trace_batches', 'trace_code_rules',
-      'trace_codes', 'trace_histories', 'trace_settings', 'trace_wrong_attempts',
+      'trace_batch_rules', 'trace_batches', 'trace_cocom_recharges',
+      'trace_code_rules', 'trace_codes', 'trace_histories',
+      'trace_platform_settings', 'trace_settings', 'trace_wrong_attempts',
     ]);
     // 交付物的 isy / credittype 必须不存在（否则 JS 侧必然 no such column）
     const cols = db.prepare('PRAGMA table_info(trace_codes)').all().map((c) => c.name);
@@ -83,8 +85,11 @@ describe('防伪溯源 trace：接入回归锁', () => {
     assert.ok(cols.includes('credit_type'), 'trace_codes 缺 credit_type');
     assert.ok(!cols.includes('isy'), 'trace_codes 仍存在旧列 isy');
     assert.ok(!cols.includes('credittype'), 'trace_codes 仍存在旧列 credittype');
-    // 每张业务表都必须带 tenant_id
+    // 每张「租户级」业务表都必须带 tenant_id；平台级单例配置表（trace_platform_settings，单行 id=1）
+    // 刻意不带 tenant_id（见 tracePlatform.js 头部：与租户后台严格隔离，绝不混入 trace_settings）。
+    const PLATFORM_SINGLETONS = new Set(['trace_platform_settings']);
     for (const t of tables) {
+      if (PLATFORM_SINGLETONS.has(t)) continue;
       const tc = db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
       assert.ok(tc.includes('tenant_id'), `${t} 缺 tenant_id`);
     }
