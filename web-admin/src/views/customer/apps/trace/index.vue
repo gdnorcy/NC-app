@@ -379,7 +379,7 @@
         </div>
       </section>
 
-      <!-- ============ 数据统计（数据魔方初版，P0-4 / P0-6 合并） ============ -->
+      <!-- ============ 数据统计（数据魔方报表中心，Phase 3） ============ -->
       <section v-show="activeTab === 'stats'">
         <el-row :gutter="16" class="stat-cards">
           <el-col :span="6"><el-card shadow="never" class="stat-card"><div class="stat-num">{{ stat.totalQueries }}</div><div class="stat-label">累计查询次数</div></el-card></el-col>
@@ -389,7 +389,7 @@
         </el-row>
 
         <el-row :gutter="16" style="margin-top:16px">
-          <el-col :span="12">
+          <el-col :span="14">
             <el-card shadow="never">
               <template #header>
                 <div class="slot-head">
@@ -400,19 +400,42 @@
                   </el-radio-group>
                 </div>
               </template>
-              <el-table :data="regionList" max-height="360" empty-text="暂无数据">
-                <el-table-column prop="name" label="地域" min-width="120" />
-                <el-table-column prop="value" label="查询次数" width="120" align="center" />
-              </el-table>
+              <div class="bar-chart">
+                <div v-for="item in regionBars" :key="item.name" class="bar-row">
+                  <span class="bar-label" :title="item.name">{{ item.name }}</span>
+                  <div class="bar-track"><div class="bar-fill" :style="{ width: item.pct + '%' }"></div></div>
+                  <span class="bar-val">{{ item.value }}</span>
+                </div>
+                <div v-if="!regionBars.length" class="chart-empty">暂无数据</div>
+              </div>
             </el-card>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="10">
+            <el-card shadow="never">
+              <template #header><span class="card-title">查询健康度</span></template>
+              <div class="donut-wrap">
+                <div class="donut" :style="donutStyle"><div class="donut-center">{{ healthyCount + stat.errorCodes }}</div></div>
+                <div class="donut-legend">
+                  <div><i class="dot ok"></i>正常查询 <b>{{ healthyCount }}</b></div>
+                  <div><i class="dot bad"></i>异常查询 <b>{{ stat.errorCodes }}</b></div>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="16" style="margin-top:16px">
+          <el-col :span="24">
             <el-card shadow="never">
               <template #header><span class="card-title">查询趋势（按日）</span></template>
-              <el-table :data="trendList" max-height="360" empty-text="暂无数据">
-                <el-table-column prop="name" label="日期" min-width="140" />
-                <el-table-column prop="value" label="查询次数" width="120" align="center" />
-              </el-table>
+              <svg class="trend-svg" viewBox="0 0 600 220" preserveAspectRatio="none">
+                <path :d="trendGeom.area" class="trend-area" />
+                <path :d="trendGeom.line" class="trend-line" />
+              </svg>
+              <div class="trend-axis">
+                <span v-if="trendGeom.points.length">{{ trendGeom.points[0].name }} ~ {{ trendGeom.points[trendGeom.points.length - 1].name }}</span>
+                <span>峰值 {{ trendGeom.max }}</span>
+              </div>
             </el-card>
           </el-col>
         </el-row>
@@ -994,6 +1017,44 @@ async function loadStats() {
   await Promise.all([loadStatsSummary(), loadStatsRegion(), loadStatsTrend()]);
 }
 
+/* —— 数据魔方报表中心：纯 CSS/SVG 可视化（无第三方图表依赖）—— */
+const regionBars = computed(() => {
+  const list = (regionList.value || []).slice(0, 12);
+  const max = Math.max(1, ...list.map(d => Number(d.value || 0)));
+  return list.map(d => {
+    const v = Number(d.value || 0);
+    return { name: d.name, value: v, pct: Math.round((v / max) * 100) };
+  });
+});
+const healthyCount = computed(() => Math.max(0, stat.totalQueries - stat.errorCodes));
+const donutStyle = computed(() => {
+  const ok = healthyCount.value, bad = stat.errorCodes, total = ok + bad;
+  if (!total) return { background: 'conic-gradient(#e5e6eb 0% 100%)' };
+  const okPct = ((ok / total) * 100).toFixed(1);
+  return { background: `conic-gradient(#00b42a 0% ${okPct}%, #f53f3f ${okPct}% 100%)` };
+});
+
+const TPAD = { l: 36, r: 12, t: 16, b: 24 };
+const TREND_W = 600, TREND_H = 220;
+const trendGeom = computed(() => {
+  const list = trendList.value || [];
+  if (!list.length) return { line: '', area: '', max: 0, points: [] };
+  const vals = list.map(d => Number(d.value || 0));
+  const max = Math.max(1, ...vals);
+  const n = list.length;
+  const innerW = TREND_W - TPAD.l - TPAD.r;
+  const innerH = TREND_H - TPAD.t - TPAD.b;
+  const points = list.map((d, i) => {
+    const x = TPAD.l + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const y = TPAD.t + innerH - (Number(d.value || 0) / max) * innerH;
+    return { x, y, name: d.name, value: Number(d.value || 0) };
+  });
+  const line = points.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ');
+  const last = points[points.length - 1], first = points[0];
+  const area = line + ` L ${last.x.toFixed(1)} ${(TPAD.t + innerH).toFixed(1)} L ${first.x.toFixed(1)} ${(TPAD.t + innerH).toFixed(1)} Z`;
+  return { line, area, max, points };
+});
+
 const histQuery = reactive({ page: 1, pageSize: 20, summary: '', type: -1 });
 const histList = ref([]);
 const histTotal = ref(0);
@@ -1103,6 +1164,27 @@ onMounted(() => {
 .stat-card { text-align: center; }
 .stat-card .stat-num { font-size: 28px; font-weight: 700; color: #165dff; line-height: 1.2; }
 .stat-card .stat-label { font-size: 13px; color: #86909c; margin-top: 4px; }
+
+/* 数据魔方图表（CSS/SVG，无图表库依赖） */
+.bar-chart { max-height: 320px; overflow-y: auto; padding-right: 4px; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+.bar-label { width: 84px; flex-shrink: 0; color: #4e5969; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { flex: 1; height: 14px; background: #f2f3f5; border-radius: 7px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, #4080ff, #165dff); border-radius: 7px; transition: width .4s ease; }
+.bar-val { width: 54px; text-align: right; color: #1d2129; font-variant-numeric: tabular-nums; }
+.chart-empty { padding: 40px 0; text-align: center; color: #86909c; font-size: 12px; }
+.donut-wrap { display: flex; align-items: center; gap: 24px; padding: 10px 0; }
+.donut { width: 120px; height: 120px; border-radius: 50%; position: relative; flex-shrink: 0; }
+.donut::after { content: ''; position: absolute; inset: 30px; background: #fff; border-radius: 50%; }
+.donut-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #1d2129; z-index: 1; }
+.donut-legend { font-size: 13px; color: #4e5969; line-height: 2.2; }
+.donut-legend b { color: #1d2129; }
+.donut-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.dot.ok { background: #00b42a; } .dot.bad { background: #f53f3f; }
+.trend-svg { width: 100%; height: 220px; display: block; }
+.trend-line { fill: none; stroke: #165dff; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.trend-area { fill: rgba(22, 93, 255, 0.12); }
+.trend-axis { display: flex; justify-content: space-between; margin-top: 4px; color: #86909c; font-size: 12px; }
 
 /* 使用说明 */
 .help-body h4 { margin: 14px 0 4px; font-size: 14px; color: #1d2129; }
