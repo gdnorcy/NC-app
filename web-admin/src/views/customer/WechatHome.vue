@@ -117,8 +117,8 @@
           <div class="mi-row">
             <div class="mi-label">EncodingAESKey<span class="mi-sub">（消息加密密钥）</span></div>
             <div class="mi-value">
-              <el-input v-if="editing === 'aesKey'" v-model="msgCfg.aesKey" size="small" class="mi-input" maxlength="43" placeholder="安全/兼容模式必填，明文模式可留空" />
-              <span v-else class="mi-text" :class="{ 'mi-empty': !msgCfg.aesKey }">{{ msgCfg.aesKey || '未设置（明文模式）' }}</span>
+              <el-input v-if="editing === 'aesKey'" v-model="msgCfg.aesKey" size="small" class="mi-input" maxlength="43" placeholder="43 位字母数字，建议必填" />
+              <span v-else class="mi-text" :class="{ 'mi-empty': !msgCfg.aesKey }">{{ msgCfg.aesKey || '未设置（公众号后台改用安全/兼容模式时会丢消息）' }}</span>
             </div>
             <div class="mi-ops">
               <template v-if="editing === 'aesKey'">
@@ -138,6 +138,11 @@
             <div class="mi-value"><el-switch v-model="msgCfg.urlEnabled" @change="msgCfgDirty = true" /></div>
             <div class="mi-ops"></div>
           </div>
+        </div>
+        <div class="mi-note">
+          加解密方式（明文 / 兼容 / 安全）与数据格式都在「微信公众平台 → 设置与开发 → 基本配置 → 服务器配置」里选择，
+          本系统按推送内容自动识别三种模式，<b>无需在此重复选择</b>；公众号消息推送仅支持 XML 格式。
+          密钥留空时公众号后台必须保持明文模式，否则消息会被丢弃。
         </div>
         <div class="mpinfo-foot">
           <el-button type="primary" :loading="msgCfgSaving" @click="saveMsgCfg">保存配置</el-button>
@@ -1139,6 +1144,8 @@ async function saveMsgCfg() {
     callbackUrl.value = r.callbackUrl || callbackUrl.value;
     msgCfgDirty.value = false;
     ElMessage.success('已保存');
+    // 不阻断保存，但说清后果：公众号后台一旦选了安全/兼容模式而这里没密钥，消息会被整条丢弃且微信侧不报错
+    if (!msgCfg.aesKey) ElMessage.warning('未配置 EncodingAESKey：公众号后台请保持明文模式，否则粉丝消息会被丢弃');
   } catch (e) {
     ElMessage.error(e || '保存失败');
   } finally {
@@ -1438,6 +1445,8 @@ onMounted(async () => {
 .mpinfo-foot { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
 .mi-dirty { font-size: 13px; color: #e6a23c; }
 .mi-hint { font-size: 13px; color: #86909c; }
+.mi-note { margin-top: 14px; font-size: 13px; line-height: 1.7; color: #86909c; }
+.mi-note b { color: #4e5969; font-weight: 600; }
 .conn-desc { color: #4e5969; margin: 0 0 12px; font-size: 13px; }
 .conn-hint { color: #86909c; font-size: 12px; margin: 8px 0 0; }
 .bind-form { margin-top: 8px; max-width: 520px; }

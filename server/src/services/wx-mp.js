@@ -464,7 +464,23 @@ export class WxMpService {
   }
 
   /**
+   * 明文模式下的 URL 签名校验：把 token/timestamp/nonce 字典序排序后 sha1，与 signature 比对。
+   * 用于挡住"拿到回调 URL 就能伪造粉丝消息"的攻击面。
+   * 🔴 只在三个参数都齐时才校验：微信明文模式下这些参数可能为空（官方未承诺必带），
+   *    空值直接放行是为了不误杀合法请求，参数一旦带了就必须对得上。
+   * @returns true=通过或无法校验（缺参数），false=签名不匹配
+   */
+  verifyPlainSignature(token, { signature, timestamp, nonce } = {}) {
+    if (!token || !signature || !timestamp || !nonce) return true;
+    const sha = crypto.createHash('sha1').update([token, timestamp, nonce].sort().join('')).digest('hex');
+    return sha === signature;
+  }
+
+  /**
    * 处理来自微信的 inbound 消息（GET 验签由路由层做，这里处理 POST 正文）。
+   * 🔴 加密模式不在这里选——加解密方式是填在微信公众平台后台（基本配置 → 服务器配置）的，
+   *    这里按请求体有没有 Encrypt 节点自动识别（明文 / 兼容 / 安全三种都会走到正确分支），
+   *    避免"微信后台选A、我们这配成B"的两份真相。
    * 返回 { reply }：reply 为回复 XML 字符串（可能已加密）；无匹配返回 { reply: null }。
    */
   async handleInboundMessage({ appid, query, body }) {
@@ -478,7 +494,12 @@ export class WxMpService {
     const encMatch = (body || '').match(/<Encrypt><!\[CDATA\[([\s\S]+?)\]\]><\/Encrypt>/);
     if (encMatch) {
       encrypted = true;
-      if (!cfg.encoding_aes_key) return { reply: null };
+      // 🔴 公众号后台选了安全/兼容模式、这里却没配 EncodingAESKey：消息会被整条丢弃且毫无征兆
+      // （微信侧也不报错，表现为"粉丝发消息公众号没反应"），必须出声。
+      if (!cfg.encoding_aes_key) {
+        console.error('[wx-mp] 收到加密消息但未配置 EncodingAESKey，已丢弃：请在「消息服务器」补全密钥，或把公众号后台的加解密方式改回明文模式', { appid });
+        return { reply: null };
+      }
       const encrypt = encMatch[1];
       const wxc = new WxCrypto(cfg.msg_token, cfg.encoding_aes_key, appid);
       if (!wxc.verifySignature(query.msg_signature || query.signature, query.timestamp, query.nonce, encrypt)) {
@@ -487,8 +508,13 @@ export class WxMpService {
       try {
         xml = wxc.decrypt(encrypt).message;
       } catch (e) {
+        console.error('[wx-mp] 消息解密失败（EncodingAESKey 与公众号后台不一致？）:', e.message, { appid });
         return { reply: null };
       }
+    } else if (!this.verifyPlainSignature(cfg.msg_token, query)) {
+      // 明文模式：回调 URL 里带 appid，一旦泄漏，任何人都能伪造粉丝消息/关注事件
+      console.warn('[wx-mp] 明文消息签名校验失败，已丢弃', { appid });
+      return { reply: null };
     }
 
     const msg = this.parseMessageXml(xml);
