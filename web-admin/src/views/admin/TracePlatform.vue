@@ -112,13 +112,40 @@
           <span :class="{ unlimited: row.cocom === -888 }">{{ row.cocom === -888 ? '不限' : row.cocom }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200">
+      <el-table-column label="操作" width="220">
         <template #default="{ row }">
+          <el-button size="small" type="primary" :disabled="row.cocom === -888" @click="openRecharge(row)">充值</el-button>
           <el-button size="small" @click="openAdjust(row)">调整</el-button>
           <el-button size="small" @click="openLedger(row)">台账</el-button>
         </template>
       </el-table-column>
     </el-table>
+    <div class="hint">
+      库存由平台统一发放：「充值」为累加（+N）；「调整」为直接设为目标值，填 -888 表示该租户不限量。
+      当前为「不限」的租户无法充值（生成时不扣减），需先调整成限量。
+    </div>
+
+    <!-- 充值（累加） -->
+    <el-dialog v-model="rechargeVisible" title="充值防伪码库存" width="440px">
+      <el-form label-width="90px">
+        <el-form-item label="租户">
+          <span>{{ rechargeRow?.name }}（#{{ rechargeRow?.tenantId }}）</span>
+        </el-form-item>
+        <el-form-item label="当前库存">
+          <span>{{ rechargeRow?.cocom === -888 ? '不限' : rechargeRow?.cocom }}</span>
+        </el-form-item>
+        <el-form-item label="充值数量">
+          <el-input-number v-model="rechargeForm.amount" :min="1" :max="9999999" :step="1000" style="width: 200px" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="rechargeForm.note" placeholder="如：购买 10000 个防伪码（订单号 xxx）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="rechargeVisible = false">取消</el-button>
+        <el-button type="primary" :loading="rechargeSaving" @click="submitRecharge">确定</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 调整库存 -->
     <el-dialog v-model="adjustVisible" title="调整防伪码库存" width="420px">
@@ -130,8 +157,9 @@
           <span>{{ adjustRow?.cocom === -888 ? '不限' : adjustRow?.cocom }}</span>
         </el-form-item>
         <el-form-item label="目标库存">
-          <el-input-number v-model="adjustForm.cocom" :min="-888" style="width: 200px" />
-          <div class="hint">填 -888 表示不限量。</div>
+          <el-input-number v-model="adjustForm.cocom" :min="0" :max="99999999" style="width: 200px" />
+          <el-button style="margin-left: 8px" :type="adjustForm.cocom === -888 ? 'primary' : 'default'" @click="adjustForm.cocom = -888">设为不限（-888）</el-button>
+          <div class="hint">这是「直接设为目标值」，不是累加；要 +N 请用「充值」。</div>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="adjustForm.note" placeholder="如：平台充值 10000 个" />
@@ -168,6 +196,7 @@ import {
   fetchTracePlatformSettings,
   saveTracePlatformSettings,
   fetchTraceCocomTenants,
+  rechargeTraceCocom,
   adjustTraceCocom,
   fetchTraceCocomLedger,
 } from '../../api';
@@ -189,6 +218,10 @@ const adjustVisible = ref(false);
 const adjustSaving = ref(false);
 const adjustRow = ref(null);
 const adjustForm = reactive({ cocom: 0, note: '' });
+const rechargeVisible = ref(false);
+const rechargeSaving = ref(false);
+const rechargeRow = ref(null);
+const rechargeForm = reactive({ amount: 1000, note: '' });
 const ledgerVisible = ref(false);
 const ledgerList = ref([]);
 
@@ -250,13 +283,50 @@ function genCommKey() {
 
 function openAdjust(row) {
   adjustRow.value = row;
-  adjustForm.cocom = row.cocom;
+  adjustForm.cocom = row.cocom === -888 ? -888 : row.cocom;
   adjustForm.note = '';
   adjustVisible.value = true;
 }
 
+function openRecharge(row) {
+  // 「不限」的租户生成码时不扣减，充值毫无意义 → 入口直接禁用，这里再兜一次
+  if (row.cocom === -888) {
+    ElMessage.warning('该租户当前为「不限」库存，无需充值；如需改为限量请先点「调整」');
+    return;
+  }
+  rechargeRow.value = row;
+  rechargeForm.amount = 1000;
+  rechargeForm.note = '';
+  rechargeVisible.value = true;
+}
+
+async function submitRecharge() {
+  if (!rechargeRow.value) return;
+  const amount = Number(rechargeForm.amount);
+  if (!Number.isInteger(amount) || amount <= 0) {
+    ElMessage.warning('充值数量必须为正整数');
+    return;
+  }
+  rechargeSaving.value = true;
+  try {
+    const res = await rechargeTraceCocom(rechargeRow.value.tenantId, { amount, note: rechargeForm.note });
+    ElMessage.success(`已充值 +${amount}，当前 ${res.cocom}`);
+    rechargeVisible.value = false;
+    await loadCocom();
+  } catch (e) {
+    ElMessage.error(e || '充值失败');
+  } finally {
+    rechargeSaving.value = false;
+  }
+}
+
 async function submitAdjust() {
   if (!adjustRow.value) return;
+  // 合法取值只有两种：-888（不限）与 >=0 的余量；其他负数会造成「有库存却生成不了」的脏状态
+  if (adjustForm.cocom !== -888 && Number(adjustForm.cocom) < 0) {
+    ElMessage.warning('库存值只能填 >=0 的余量，或设为不限');
+    return;
+  }
   adjustSaving.value = true;
   try {
     await adjustTraceCocom(adjustRow.value.tenantId, { cocom: adjustForm.cocom, note: adjustForm.note });

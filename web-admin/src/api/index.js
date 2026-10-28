@@ -309,6 +309,9 @@ export const deleteMemberPackage = (id) => adminApi.delete(`/member-packages/${i
 export const fetchTracePlatformSettings = () => adminApi.get('/trace/platform-settings');
 export const saveTracePlatformSettings = (data) => adminApi.put('/trace/platform-settings', data);
 export const fetchTraceCocomTenants = () => adminApi.get('/trace/cocom/tenants');
+// 累加型充值（防伪码库存的唯一发放出口，租户侧没有入口）
+export const rechargeTraceCocom = (tenantId, data) => adminApi.post(`/trace/cocom/tenants/${tenantId}/recharge`, data);
+// 直接设为目标值（-888 = 不限），用于限量/改回不限，不用它做充值
 export const adjustTraceCocom = (tenantId, data) => adminApi.put(`/trace/cocom/tenants/${tenantId}`, data);
 export const fetchTraceCocomLedger = (tenantId) => adminApi.get(`/trace/cocom/tenants/${tenantId}/ledger`);
 

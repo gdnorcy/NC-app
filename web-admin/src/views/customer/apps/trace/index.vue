@@ -3,9 +3,11 @@
     <!-- 🔴 标准 §5.1/§5.3：后台页必须挂 AppPageHeader；禁止 el-tabs border-card，改用 CardTabs 范式 -->
     <AppPageHeader title="防伪溯源" desc="管理防伪码制、批次与查询记录，消费者扫码后可于 C 端溯源页验真领奖">
       <div class="hd-actions">
+        <!-- 🔴 库存是平台侧发放的计量口径，租户侧只展示余量，不提供自助充值入口 -->
         <el-tag v-if="cocom === -888" type="success" effect="plain">防伪码库存：不限</el-tag>
-        <el-tag v-else type="warning" effect="plain">防伪码库存：{{ cocom }}</el-tag>
-        <el-button @click="openRecharge">充值库存</el-button>
+        <el-tag v-else-if="cocom > 0" type="warning" effect="plain">防伪码库存：{{ cocom }}</el-tag>
+        <el-tag v-else type="danger" effect="plain">防伪码库存：已用尽</el-tag>
+        <span class="cocom-hint">库存不足时请联系平台管理员发放</span>
       </div>
     </AppPageHeader>
 
@@ -514,6 +516,8 @@
             <p>在「防伪设置 → 通用设置」配置 C 端验真结果页下方的推广位，最多 8 个，可设置封面图、标题、颜色、展示条件与跳转链接。</p>
             <h4>四、数据统计与排查</h4>
             <p>在「数据统计」查看累计查询次数、地域分布与查询趋势；在「查询历史 / 错误码」排查异常查询。</p>
+            <h4>五、防伪码库存</h4>
+            <p>防伪码库存由平台发放，租户侧只显示余量（「不限」或具体数量），<b>不提供自助充值入口</b>。生成批次时按量扣减，余量不足时请联系平台管理员发放后再生成。</p>
             <h4>版本说明</h4>
             <p>当前为防伪溯源模块 P0 版本。红包真发、客户管理、批次奖励四分区等能力将随后续版本接入（详见方案文档）。</p>
           </div>
@@ -637,18 +641,7 @@
       </template>
     </el-dialog>
 
-    <!-- 充值库存弹窗 -->
-    <el-dialog v-model="rechargeDlg.visible" title="充值防伪码库存" width="420px" :close-on-click-modal="false">
-      <el-form label-width="90px">
-        <el-form-item label="充值数量">
-          <el-input-number v-model="rechargeDlg.amount" :min="1" :max="9999999" controls-position="right" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="rechargeDlg.visible = false">取消</el-button>
-        <el-button type="primary" :loading="rechargeSaving" @click="confirmRecharge">确认充值</el-button>
-      </template>
-    </el-dialog>
+
   </div>
 </template>
 
@@ -1061,22 +1054,6 @@ async function saveSettings() {
   } finally { setSaving.value = false; }
 }
 
-/* ----------------- 充值库存 ----------------- */
-const rechargeDlg = reactive({ visible: false, amount: 1000 });
-const rechargeSaving = ref(false);
-function openRecharge() { rechargeDlg.amount = 1000; rechargeDlg.visible = true; }
-async function confirmRecharge() {
-  if (Number(rechargeDlg.amount) <= 0) { ElMessage.warning('充值数量必须大于 0'); return; }
-  rechargeSaving.value = true;
-  try {
-    const res = await customerApiCall.post('/trace/recharge', { amount: Number(rechargeDlg.amount) });
-    cocom.value = Number(res.cocom ?? 0);
-    ElMessage.success('充值成功');
-    rechargeDlg.visible = false;
-  } catch (e) { ElMessage.error(e || '充值失败'); }
-  finally { rechargeSaving.value = false; }
-}
-
 /* ----------------- 数据统计 / 查询历史 / 错误码 / 商城集成（C 类 7 项出面，P0-4） -----------------
  * 后端路由均已存在（stats×3 / histories / wrong-attempts / shop-integration / batches/:id/activate），
  * 本段只补后台 UI 入口，不新增任何后端契约。
@@ -1209,6 +1186,7 @@ onMounted(() => {
 
 <style scoped>
 .hd-actions { display: flex; align-items: center; gap: 12px; }
+.cocom-hint { font-size: 12px; color: #a9aeb8; }
 .card-tabs {
   display: flex; gap: 8px; background: #fff; border-radius: 8px; padding: 8px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); overflow-x: auto; margin-bottom: 16px;
