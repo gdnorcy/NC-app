@@ -55,8 +55,8 @@
         <template #header><span class="conn-title">已接入公众号</span></template>
         <el-descriptions :column="1" border>
           <el-descriptions-item label="接入方式">
-            <el-tag :type="status.bindMode === 'open' ? 'success' : 'warning'">
-              {{ status.bindMode === 'open' ? '开放平台授权' : '手动对接' }}
+            <el-tag :type="status.bindMode === 'open' ? 'success' : (status.bindMode === 'manual' ? 'warning' : 'info')">
+              {{ status.bindMode === 'open' ? '开放平台授权' : (status.bindMode === 'manual' ? '手动对接' : '未接入') }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="AppID">{{ status.appid }}</el-descriptions-item>

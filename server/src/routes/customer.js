@@ -68,6 +68,16 @@ function auditCust(db, req, action, targetType, targetId, detail) {
   });
 }
 
+// 纯函数：公众号接入状态。空记录（appid/app_secret/account_type 全空）视为未接入，
+// 避免「记录存在即 bound:true」导致绑定入口被永久隐藏、又同时灰掉服务号功能。
+export function computeMpBindState(ch) {
+  if (!ch) return { bound: false, bindMode: 'none' };
+  const hasOpen = ch.auth_status === 'authorized';
+  const hasManual = !!ch.app_secret;
+  const bindMode = hasOpen ? 'open' : (hasManual ? 'manual' : 'none');
+  return { bound: hasOpen || hasManual, bindMode };
+}
+
 export function createCustomerRouter(db) {
   const router = Router();
 
@@ -2280,17 +2290,20 @@ router.get('/card/trends', requireTenant, (req, res) => {
   const wxMp = new WxMpService(db, wxComponent);
 
   // 接入状态：是否绑定、绑定方式、账号类型、菜单/素材/粉丝/群发/统计等能力门控
+  // 纯函数：公众号接入状态。空记录（appid/app_secret/account_type 全空）视为未接入，
+  // 避免「记录存在即 bound:true」导致绑定入口被永久隐藏、又同时灰掉服务号功能。
+  // 具体实现见模块顶层 computeMpBindState（函数内不允许 export）。
   router.get('/mp/status', requireTenant, (req, res) => {
     const ch = wxMp.getChannel(req.customerId);
     if (!ch) return res.json({ bound: false, canMenu: false, canReply: false, canMaterial: false, canFans: false, canMass: false, canStats: false, accountType: '' });
     const accountType = ch.account_type || '';
-    const bindMode = ch.auth_status === 'authorized' ? 'open' : (ch.app_secret ? 'manual' : 'none');
+    const { bound, bindMode } = computeMpBindState(ch);
     const isService = accountType === 'service';
     // 自动回复：订阅号+服务号都支持（被动回复 5s 同步应答）；其余四块强依赖认证服务号
     const canMenu = isService;
     const saved = db.prepare('SELECT menu_json, synced_at FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
     res.json({
-      bound: true,
+      bound,
       bindMode,
       appid: ch.appid,
       accountType,
