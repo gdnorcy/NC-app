@@ -691,6 +691,7 @@
       <template #footer>
         <el-button @click="genDlg.visible = false">取消</el-button>
         <el-button :loading="genSaving" @click="confirmGen">生成</el-button>
+        <el-button v-if="genDlg.lastGen" type="success" :loading="genSaving" @click="downloadLastGen">下载此批</el-button>
         <el-button type="primary" :loading="genSaving" @click="confirmDownload">生成并下载</el-button>
       </template>
     </el-dialog>
@@ -870,9 +871,12 @@ async function removeBatch(row) {
 }
 
 /* ----------------- 生成 / 下载 ----------------- */
-const genDlg = reactive({ visible: false, row: null, codetype: 1, count: 100 });
+// 🔴 lastGen 持有「最近一次生成」的产物，用于「生成后再下载同一批」：
+//    系统生成码时不落库（只累加批次 num），所以二次请求必然是另一批新码。
+//    要「同一批」就必须复用同一次生成返回的内容，绝不能调两次生成接口。
+const genDlg = reactive({ visible: false, row: null, codetype: 1, count: 100, lastGen: null });
 const genSaving = ref(false);
-function openGen(row) { genDlg.row = row; genDlg.codetype = 1; genDlg.count = 100; genDlg.visible = true; }
+function openGen(row) { genDlg.row = row; genDlg.codetype = 1; genDlg.count = 100; genDlg.lastGen = null; genDlg.visible = true; }
 async function confirmGen() {
   if (!genDlg.row) return;
   genSaving.value = true;
@@ -881,42 +885,50 @@ async function confirmGen() {
       codetype: genDlg.codetype,
       codeno: Number(genDlg.count || 1),
     });
-    ElMessage.success(`已生成 ${res.created ?? 0} 个防伪码`);
-    genDlg.visible = false;
-    loadBatches();
+    // 🔴 不关弹窗、留住产物：让「下载此批」能下载这同一批，而不是重新生成
+    genDlg.lastGen = { content: res.content, contentType: res.contentType, filename: res.filename, created: res.created };
+    ElMessage.success(`已生成 ${res.created ?? 0} 个防伪码，可点「下载此批」获取同一批`);
   } catch (e) {
     ElMessage.error(e || '生成失败');
   } finally { genSaving.value = false; }
 }
+function saveBlob(content, contentType, filename) {
+  const blob = new Blob([String(content ?? '')], { type: contentType || 'text/plain; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `trace-${genDlg.row?.batch || ''}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+// 下载「生成」按钮刚产出的同一批（内容已在 lastGen，不二次生成）
+function downloadLastGen() {
+  if (!genDlg.lastGen) return;
+  saveBlob(genDlg.lastGen.content, genDlg.lastGen.contentType, genDlg.lastGen.filename);
+  ElMessage.success(`已下载 ${genDlg.lastGen.created ?? 0} 个防伪码（与刚生成的是同一批）`);
+}
 /**
- * 🔴 生成并下载：走 GET /export（attachment），数量与码型**全部取自弹窗**（genDlg.count / genDlg.codetype），
- *    不再写死 100。修复原「下载码包」按钮硬编码 codeno:100、完全无视弹窗「生成数量」的事故
- *    （用户设 1 却下载到 100 个）。
- *    注意：/export 与 /generate-codes 是两次独立生成（都会推进批次流水号并扣库存），
- *    所以「生成」后再「生成并下载」会得到两套不同的码，不是同一批码的文件版。
+ * 🔴 生成并下载 = 单次生成 + 当场落盘同一批。只调一次 generate-codes，
+ *    拿返回 content 直接下载 —— 不复用 /export（那会是第二次独立生成，得到不同流水号的另一批）。
+ *    数量与码型全部取自弹窗（genDlg.count / genDlg.codetype），不再写死 100。
  */
 async function confirmDownload() {
   if (!genDlg.row) return;
   genSaving.value = true;
   try {
-    const res = await customerApiCall.get(`/trace/batches/${genDlg.row.id}/export`, {
-      params: { codetype: genDlg.codetype, codeno: Number(genDlg.count || 1) },
-      responseType: 'blob',
+    const res = await customerApiCall.post(`/trace/batches/${genDlg.row.id}/generate-codes`, {
+      codetype: genDlg.codetype,
+      codeno: Number(genDlg.count || 1),
     });
-    const blob = res instanceof Blob ? res : new Blob([res]);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trace-${genDlg.row.batch}-${genDlg.count}.html`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    ElMessage.success(`已下载 ${genDlg.count} 个防伪码的码包`);
+    saveBlob(res.content, res.contentType, res.filename);
+    genDlg.lastGen = { content: res.content, contentType: res.contentType, filename: res.filename, created: res.created };
+    ElMessage.success(`已生成并下载 ${res.created ?? 0} 个防伪码（同一批）`);
     genDlg.visible = false;
     loadBatches();
   } catch (e) {
-    ElMessage.error(e || '下载失败');
+    ElMessage.error(e || '生成并下载失败');
   } finally { genSaving.value = false; }
 }
 

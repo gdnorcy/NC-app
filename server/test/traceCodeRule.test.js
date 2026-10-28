@@ -222,6 +222,23 @@ describe('防伪码制：随机密钥 + 停用批次禁生成 + 结构锁计数�
     assert.equal(cells.length, 7, `二维码码包 codeno=7 应含 7 个码格，实际 ${cells.length}`);
   });
 
+  // ── 9.6) 生成并下载走单次生成：generate-codes 返回 content 且行数= codeno（同一批，不复用 /export） ──
+  it('生成并下载是单次生成：generate-codes 返回 content 且行数等于 codeno', async () => {
+    // 🔴 「生成并下载」现在调一次 generate-codes 并拿返回 content 直接落盘，
+    //    绝不能调 /export（那会是第二次独立生成 → 不同流水号的另一批）。
+    //    锁死：generate-codes 必须返回与 codeno 等量的 content，否则前端拿不到「同一批」。
+    const created = await auth(request(app).post('/api/customer/trace/batches'))
+      .send({ batch: '951', product: '单次生成产品', factory: '厂', brand: '牌' });
+    assert.equal(created.status, 200, JSON.stringify(created.body));
+    const id = Number(created.body.id);
+    const res = await auth(request(app).post(`/api/customer/trace/batches/${id}/generate-codes`)).send({ codetype: 6, codeno: 4 });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.ok(res.body.content, 'generate-codes 未返回 content → 前端「生成并下载」无法拿到同一批码');
+    const lines = String(res.body.content).split('\n').filter(Boolean);
+    assert.equal(lines.length, 4, `返回的 content 行数应等于 codeno(4)，实际 ${lines.length}`);
+    assert.equal(Number(res.body.created), 4);
+  });
+
   // ── 10) activate 端点空 body = 激活 ──────────────────────────────────
   it('POST /batches/:id/activate 不传 body 时必须激活（不能反手停用）', async () => {
     const created = await auth(request(app).post('/api/customer/trace/batches'))
