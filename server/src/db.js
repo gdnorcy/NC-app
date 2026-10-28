@@ -4,6 +4,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { config } from './config.js';
 import { TIER_PKG } from './services/member.js';
+import { DEFAULT_CODESET, randomTraceKeys } from './services/traceCode.js';
 
 /**
  * 三层数据模型：
@@ -2530,6 +2531,67 @@ function migrate(db) {
   // ⚠️ 位置纪律：必须在 migrateSolutionApps(db) 之后调用 —— 演示方案靠它把「全部应用」
   //    纳入 solution_apps，trace 若先注册则当轮不会被演示方案收录（应用中心看不到）。
   seedTrace(db);
+  // ⚠️ 必须晚于 seedTrace：trace_code_rules / trace_codes 表要先存在。
+  seedTraceCodeRules(db);
+}
+
+/**
+ * 租户防伪码制播种（2026-10-29，幂等，可重复执行）。
+ *
+ * 🔴 为什么要每个租户一套随机 k1–k4：k 是防伪码校验位的运算密钥，共用默认码表等于
+ *    把算法公开（详见 services/traceCode.js 的 randomTraceKeys 注释）。新租户落库时
+ *    直接随机填充，别让他们长期跑在 DEFAULT_CODESET 上。
+ *
+ * 🔴 存量租户为什么分两种：已生成过码（trace_codes 有记录）的租户若换成随机 k，
+ *    旧码的校验位是按旧 k 算出来的 → 全部验真失败，等于把人家已印出去的码作废。
+ *    这批沿用默认 k，并直接标记为已确认（跳过后台软引导，他们本来就在用）。
+ */
+function seedTraceCodeRules(db) {
+  if (!tableExists(db, 'trace_code_rules')) return;
+  // 存量表先补列：is_confirmed=0 表示「系统播种过、用户还没确认」，1 表示用户主动保存过。
+  if (!colExists(db, 'trace_code_rules', 'is_confirmed')) {
+    db.exec('ALTER TABLE trace_code_rules ADD COLUMN is_confirmed INTEGER NOT NULL DEFAULT 0');
+  }
+  const tenants = db.prepare('SELECT id FROM projects WHERE id IS NOT NULL AND id != 0').all();
+  for (const { id } of tenants) ensureTenantTraceRule(db, id);
+}
+
+/**
+ * 🔴 租户「已发出去的防伪码数量」的唯一口径。
+ *
+ * 为什么不能只数 trace_codes：trace_codes 只存**消费者扫码查询过**的码（见
+ *   routes/trace.js /public/verify，首次扫码才 INSERT）。而生成防伪码
+ *   （services/traceGenerate.js generateTracePackage）**不逐条入库**，只在
+ *   trace_batches 上累加 num（单码数）/ tnum（套标套数）。
+ *   只数 trace_codes 的话：「生成 500 个码、一个都还没被扫」时计数为 0 →
+ *   以它为判据的码制结构锁与密钥轮换保护全部失效 —— 用户改完 m2，已印出去的 500 个码全废。
+ *
+ * 所以必须是两个来源相加：已扫的（trace_codes）+ 已生成未扫的（trace_batches.num/tnum）。
+ */
+export function countTraceCodesGenerated(db, tenantId) {
+  const scanned = Number(db.prepare('SELECT COUNT(*) AS c FROM trace_codes WHERE tenant_id = ?').get(tenantId)?.c || 0);
+  const printed = Number(db.prepare('SELECT COALESCE(SUM(num), 0) + COALESCE(SUM(tnum), 0) AS c FROM trace_batches WHERE tenant_id = ?').get(tenantId)?.c || 0);
+  return scanned + printed;
+}
+
+/**
+ * 单个租户的码制播种（建租户即时调用 + 启动期存量补齐，同一函数保证两路口径一致）。
+ * 幂等：已有码制行的租户直接跳过，绝不覆盖用户自己配的 k/m。
+ */
+export function ensureTenantTraceRule(db, tenantId) {
+  const tid = Number(tenantId);
+  if (!tid) return;
+  if (db.prepare('SELECT id FROM trace_code_rules WHERE tenant_id = ?').get(tid)) return;
+  const used = countTraceCodesGenerated(db, tid);
+  const keepLegacyKeys = used > 0;
+  const rand = randomTraceKeys();
+  const k = keepLegacyKeys
+    ? { 1: DEFAULT_CODESET.k[1], 2: DEFAULT_CODESET.k[2], 3: DEFAULT_CODESET.k[3], 4: DEFAULT_CODESET.k[4], 5: DEFAULT_CODESET.k[5] }
+    : { 1: rand[1], 2: rand[2], 3: rand[3], 4: rand[4], 5: DEFAULT_CODESET.k[5] };
+  const rule = { k, m: { 1: DEFAULT_CODESET.m[1], 2: DEFAULT_CODESET.m[2], 3: DEFAULT_CODESET.m[3], 4: DEFAULT_CODESET.m[4], 5: DEFAULT_CODESET.m[5] }, s: 0, zdl: DEFAULT_CODESET.zdl };
+  db.prepare(`INSERT OR IGNORE INTO trace_code_rules (tenant_id, m1, rule_json, publish_no, is_confirmed, created_at, updated_at)
+    VALUES (?, ?, ?, '', ?, datetime('now'), datetime('now'))`)
+    .run(tid, DEFAULT_CODESET.m[1], JSON.stringify(rule), keepLegacyKeys ? 1 : 0);
 }
 
 /** —— 防伪溯源 trace 应用（行业应用 code=trace）——

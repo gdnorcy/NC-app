@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto';
+
 const WI = [7, 19, 11, 5, 1, 2, 3, 7, 19, 13, 5, 3, 11, 2, 7, 13, 2, 5, 7, 3, 19, 17];
 const WU = [5, 7, 13, 19, 7, 3, 2, 17, 5, 3, 7, 19, 7, 11, 3, 7, 2, 13, 1, 7, 11, 5];
 const ZM = '38742938235627364287';
@@ -35,6 +37,31 @@ function digitAt(text, index) {
 
 function padLeftNumber(value, width, pad) {
   return (pad + String(value)).slice(-width);
+}
+
+/**
+ * 🔴 随机校验字符集 k1–k4 的**唯一出口**（后台「随机」按钮与租户播种共用）。
+ *
+ * 为什么必须随机：k 是防伪码校验位的运算密钥（见 DEFAULT_CODESET 注释）。
+ *  全部租户共用同一套默认 k 时，算法等于公开 —— 拿到 A 租户任意一个真码就能
+ *  反推出同流水号在 B 租户下的码，防伪强度退化成「只有校验位长度保密」。
+ *  所以每个租户必须有一套自己的 k，且不能由人随手敲（人会敲 1234567890）。
+ *
+ * 为什么用 randomInt 而不是 Math.random：这些是防伪密钥，不是展示用的随机串，
+ *  Math.random 的 V8 状态可被观察值反推 → 不能用。
+ *
+ * 固定 10 位纯数字：saveRule 校验 k1~k4 长度必须为 10，字符集无约束。
+ *  纯数字是为了与 DEFAULT_CODESET 保持同构（k 参与 digitAt 逐位数值运算，
+ *  混入字母会被 digitAt 当成 0，等价于把该位密钥清空）。
+ */
+export function randomTraceKeys() {
+  return { 1: randomTraceKey(), 2: randomTraceKey(), 3: randomTraceKey(), 4: randomTraceKey() };
+}
+
+function randomTraceKey(len = 10) {
+  let out = '';
+  for (let i = 0; i < len; i += 1) out += String(randomInt(0, 10));
+  return out;
 }
 
 export function cleanTraceCode(input) {

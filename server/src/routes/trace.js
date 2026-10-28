@@ -9,13 +9,14 @@ import crypto from 'crypto';
 import { softAuth } from '../auth.js';
 import { config } from '../config.js';
 import { hasSolution } from '../tenant.js';
-import { buildTraceCodeFromSerial, canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, parseTraceCode, verifyTraceCode } from '../services/traceCode.js';
+import { buildTraceCodeFromSerial, canonicalBatchSegment, cleanTraceCode, DEFAULT_CODESET, parseTraceCode, randomTraceKeys, verifyTraceCode } from '../services/traceCode.js';
 import { generateTracePackage } from '../services/traceGenerate.js';
 import { normalizeDisplaySlots, pickDisplaySlots } from '../services/traceSlots.js';
 import { maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
 import { applyTraceReward } from '../services/traceReward.js';
 import { getPlatformSettings } from './tracePlatform.js';
 import { publicBaseUrl } from '../utils/publicUrl.js';
+import { countTraceCodesGenerated } from '../db.js';
 
 function sendError(res, status, error) {
   return res.status(status).json({ error });
@@ -151,6 +152,10 @@ function getRule(db, tenantId) {
   }
   return {
     row,
+    // 🔴 码制「是否已由用户确认」：系统给新租户播种的随机 k1–k4 未经过用户确认（is_confirmed=0），
+    //    批次管理页据此显示软引导，提示用户去核一遍再生成。反馈值只从**码制行**读，
+    //    绝不从 settings 读 —— 那是另一张表，混读会读到别的租户的口径。
+    confirmed: Number(row?.is_confirmed ?? 0) === 1,
     rule: {
       ...rule,
       m: { 1: String(m[1] ?? 'FW'), 2: Number(m[2] ?? 7), 3: Number(m[3] ?? 6), 4: Number(m[4] ?? 5), 5: Number(m[5] ?? 20) },
@@ -186,8 +191,15 @@ function saveRule(db, tenantId, body) {
   if (m1.length !== 2) throw new Error('防伪码前缀 m1 必须为 2 位');
   const k = {};
   for (let i = 1; i <= 5; i += 1) {
+    // 🔴 k5 是系统保留位（1 位），租户不可改。body 若不传，回落到「已存的 k5」或默认 '7'，
+    //    绝不能用空串覆盖 —— 否则 k5 被清空会让已印码按 1 位 k5 算出来的校验位全错位。
+    if (i === 5) {
+      const prevK5 = getRule(db, tenantId).rule?.k?.[5];
+      k[5] = String(body.k5 || prevK5 || DEFAULT_CODESET.k[5] || '7');
+      continue;
+    }
     k[i] = String(body[`k${i}`] || '');
-    if (i <= 4 && k[i].length !== 10) throw new Error(`k${i} 必须为 10 位`);
+    if (k[i].length !== 10) throw new Error(`k${i} 必须为 10 位`);
   }
   const m = {
     1: m1,
@@ -211,8 +223,10 @@ function saveRule(db, tenantId, body) {
   const prev = getRule(db, tenantId).rule;
   const structuralChanged = ['1', '2', '3', '4', '5'].some((key) => String(prev.m[key]) !== String(m[key]));
   if (structuralChanged) {
-    const used = db.prepare('SELECT COUNT(*) AS c FROM trace_codes WHERE tenant_id = ?').get(tenantId).c;
-    if (Number(used) > 0) {
+    // 🔴 计数必须用 countTraceCodesGenerated：只数 trace_codes 的话「生成 500 个码、
+    //    一个都还没被扫」时计数为 0 → 锁不生效 → 用户改完 m2，已印出去的 500 个码全废。
+    const used = countTraceCodesGenerated(db, tenantId);
+    if (used > 0) {
       throw new Error(`该租户已生成 ${used} 个防伪码，不能再修改码制结构（前缀/批次号长度/流水号长度/校验位长度/总长）——改了会让已印出去的码全部失效。如需继续，请新建租户或先清理已有码`);
     }
   }
@@ -222,11 +236,34 @@ function saveRule(db, tenantId, body) {
     s: 0,
     zdl: Number(body.zdl || 10) || 10,
   };
-  db.prepare(`INSERT INTO trace_code_rules (tenant_id, m1, rule_json, publish_no, updated_at)
-    VALUES (?, ?, ?, ?, datetime('now'))
-    ON CONFLICT(tenant_id) DO UPDATE SET m1 = excluded.m1, rule_json = excluded.rule_json, publish_no = excluded.publish_no, updated_at = datetime('now')`)
+  // 🔴 保存即确认：is_confirmed=1 让批次管理的软引导消失。
+  //    之所以用独立标记而不是「行是否存在」：租户创建时就会播种一行随机码制，
+  //    行存在 ≠ 用户看过 ≠ 用户确认过，拿行存在当判据会让引导永远不出现。
+  db.prepare(`INSERT INTO trace_code_rules (tenant_id, m1, rule_json, publish_no, is_confirmed, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+    ON CONFLICT(tenant_id) DO UPDATE SET m1 = excluded.m1, rule_json = excluded.rule_json, publish_no = excluded.publish_no, is_confirmed = 1, updated_at = datetime('now')`)
     .run(tenantId, m1, JSON.stringify(rule), String(body.publishNo || nowIso()));
   return rule;
+}
+
+/**
+ * 🔴 生成防伪码前的批次可用性守卫（三条生成入口共用，禁止各写一套）。
+ *
+ * 为什么必须拦：C 端验真路径（/public/verify）对 is_active != 1 的批次直接判
+ *   「防伪码不存在或已失效」。而生成路径原本只查批次存在 → 停用批次照样能生成出一整批
+ *   消费者扫了必假的码：后台显示「生成成功 500 条」，客诉在扫码端才爆，且无法挽回
+ *   （码已经印出去了）。所以必须在生成入口就把这条堵死。
+ */
+function guardBatchGenerable(res, batch) {
+  if (!batch) {
+    sendError(res, 404, '批次不存在');
+    return false;
+  }
+  if (Number(batch.is_active) !== 1) {
+    sendError(res, 400, '该批次已停用，不能生成防伪码（停用批次的码消费者扫码会提示已失效）。请先激活批次');
+    return false;
+  }
+  return true;
 }
 
 function addHistory(db, tenantId, type, summary, req, remark = '') {
@@ -673,6 +710,13 @@ export function createTraceAdminRouter(db) {
     return res.json({ rule });
   });
 
+  // 🔴 随机 k1–k4 的取数口：只吐随机串，**不落库**。落库必须由用户点「保存码制」触发，
+  //    否则点一下按钮就把租户正在用的校验密钥换掉 → 已印出去的码全部验真失败。
+  router.get('/code-rule/random-keys', (req, res) => {
+    const k = randomTraceKeys();
+    return res.json({ k1: k[1], k2: k[2], k3: k[3], k4: k[4] });
+  });
+
   router.put('/code-rule', (req, res) => {
     try {
       const rule = saveRule(db, req.traceTenantId, req.body || {});
@@ -690,7 +734,7 @@ export function createTraceAdminRouter(db) {
       .get(req.traceTenantId, keyword, keyword, keyword, keyword).c;
     const list = db.prepare(`SELECT * FROM trace_batches WHERE tenant_id = ? AND (batch LIKE ? OR product LIKE ? OR factory LIKE ? OR brand LIKE ?)
       ORDER BY id DESC LIMIT ? OFFSET ?`).all(req.traceTenantId, keyword, keyword, keyword, keyword, pageSize, offset);
-    return res.json({ list, total, page, pageSize });
+    return res.json({ list, total, page, pageSize, ruleConfirmed: getRule(db, req.traceTenantId).confirmed });
   });
 
   router.post('/batches', (req, res) => {
@@ -749,7 +793,7 @@ export function createTraceAdminRouter(db) {
   router.post('/batches/:id/generate-codes-legacy', (req, res) => {
     const id = Number(req.params.id);
     const batch = db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
-    if (!batch) return sendError(res, 404, '批次不存在');
+    if (!guardBatchGenerable(res, batch)) return undefined;
     // 🔴 平台级生成权限门控（#472），与 generate-codes 同口径
     const genMode = getPlatformSettings(db).config?.generation?.mode || 'open';
     if (genMode === 'closed') return sendError(res, 403, '防伪码生成已全局关闭');
@@ -780,7 +824,7 @@ export function createTraceAdminRouter(db) {
   router.post('/batches/:id/generate-codes', (req, res) => {
     const id = Number(req.params.id);
     const batch = db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
-    if (!batch) return sendError(res, 404, '批次不存在');
+    if (!guardBatchGenerable(res, batch)) return undefined;
     // 🔴 平台级生成权限门控（#472）：open=租户可生成 / platformOnly=仅平台 / closed=全关。
     //    在 tenant 路由里调用方必为租户，故 platformOnly/closed 直接拒绝。
     const genMode = getPlatformSettings(db).config?.generation?.mode || 'open';
@@ -813,7 +857,9 @@ export function createTraceAdminRouter(db) {
   router.get('/batches/:id/export', (req, res) => {
     const id = Number(req.params.id);
     const batch = db.prepare('SELECT * FROM trace_batches WHERE tenant_id = ? AND id = ?').get(req.traceTenantId, id);
-    if (!batch) return sendError(res, 404, '批次不存在');
+    // 🔴 导出同样要过这条守卫：它内部走的还是 generateTracePackage，会扣库存并推进批次序号
+    //    （不是只读下载），停用批次导出等于白扣一批库存、拿到一包扫不出来的码。
+    if (!guardBatchGenerable(res, batch)) return undefined;
     if (String(req.query.format || 'txt') === 'zip') return sendError(res, 501, 'zip 导出需目标平台提供压缩适配器，当前先交付 txt/html 内容');
     const { rule } = getRule(db, req.traceTenantId);
     const { settings } = getSettings(db, req.traceTenantId);
@@ -842,9 +888,14 @@ export function createTraceAdminRouter(db) {
 
   router.post('/batches/:id/activate', (req, res) => {
     const id = Number(req.params.id);
+    // 🔴 端点名叫 activate，不传 isActive 时必须按「激活」处理。
+    //    原文 Number(req.body.isActive ? 1 : 0)：不传 body 时 isActive 是 undefined
+    //    → 写入 0（**停用**）—— 一个叫「激活」的接口反过来把批次停用了。
+    //    调用方（后台「激活」按钮）就是空 body 调的，等于点「激活」= 停用。
+    const want = req.body?.isActive === undefined ? 1 : (req.body.isActive ? 1 : 0);
     db.prepare('UPDATE trace_batches SET is_active = ?, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?')
-      .run(Number(req.body.isActive ? 1 : 0), req.traceTenantId, id);
-    return res.json({ ok: true });
+      .run(want, req.traceTenantId, id);
+    return res.json({ ok: true, isActive: want });
   });
 
   router.get('/codes', (req, res) => {

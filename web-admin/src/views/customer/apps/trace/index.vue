@@ -21,6 +21,14 @@
     <main class="trace-content">
       <!-- ============ 批次管理 ============ -->
       <section v-show="activeTab === 'batches'">
+        <!-- 🔴 码制软引导：只提示不阻断。硬拦会让「用默认码制直接干活」的租户一进来就卡死，
+             而真正不可逆的坑（生成后结构参数锁死）放在保存/生成接口上兜底。 -->
+        <el-alert v-if="!ruleConfirmed" type="warning" :closable="false" show-icon class="mb12">
+          <div class="guide-row">
+            <span>防伪码制（前缀 / 各段长度 / 校验字符集）由系统初始化，还没经你确认。<b>一旦生成过码，结构参数就永久锁定不可改</b>，请先核对再生成。</span>
+            <el-button size="small" type="primary" @click="gotoRuleTab">去核对码制</el-button>
+          </div>
+        </el-alert>
         <div class="filter-bar">
           <el-input v-model.trim="batchQuery.keyword" placeholder="批次号 / 产品 / 厂家 / 品牌" class="w260" clearable
             @keyup.enter="batchQuery.page = 1; loadBatches()" @clear="batchQuery.page = 1; loadBatches()" />
@@ -44,8 +52,8 @@
           </el-table-column>
           <el-table-column label="操作" width="280" fixed="right">
                 <template #default="{ row }">
-                  <el-button link type="primary" size="small" @click="openGen(row)">生成</el-button>
-                  <el-button link type="primary" size="small" @click="downloadCodes(row)">下载码包</el-button>
+                  <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="openGen(row)">生成</el-button>
+                  <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="downloadCodes(row)">下载码包</el-button>
                   <el-button v-if="!Number(row.is_active)" link type="success" size="small" @click="activateBatch(row)">激活</el-button>
                   <el-button link type="primary" size="small" @click="openBatchEdit(row)">编辑</el-button>
                   <el-button link type="danger" size="small" @click="removeBatch(row)">删除</el-button>
@@ -140,19 +148,63 @@
                   </el-col>
                 </el-row>
                 <el-form-item label="校验字符集 k1" required>
-                  <el-input v-model.trim="ruleForm.k1" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k1" maxlength="10" placeholder="10 位">
+                    <template #append><el-button :loading="kRandomizing === 1" @click="randomizeKey(1)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item label="校验字符集 k2" required>
-                  <el-input v-model.trim="ruleForm.k2" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k2" maxlength="10" placeholder="10 位">
+                    <template #append><el-button :loading="kRandomizing === 2" @click="randomizeKey(2)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item label="校验字符集 k3" required>
-                  <el-input v-model.trim="ruleForm.k3" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k3" maxlength="10" placeholder="10 位">
+                    <template #append><el-button :loading="kRandomizing === 3" @click="randomizeKey(3)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item label="校验字符集 k4" required>
-                  <el-input v-model.trim="ruleForm.k4" maxlength="10" placeholder="10 位" />
+                  <el-input v-model.trim="ruleForm.k4" maxlength="10" placeholder="10 位">
+                    <template #append><el-button :loading="kRandomizing === 4" @click="randomizeKey(4)">随机</el-button></template>
+                  </el-input>
                 </el-form-item>
+                <el-form-item label="系统保留位 k5">
+                  <el-input :model-value="ruleForm.k5" disabled placeholder="1 位">
+                    <template #append><el-tag size="small" type="info" effect="plain">不可修改</el-tag></template>
+                  </el-input>
+                  <span class="form-hint">k5 是算法保留盐位（1 位），由系统固定，不参与位运算校验字符集，租户不可更改</span>
+                </el-form-item>
+
+                <el-dialog v-model="downloadDlg.visible" title="下载码制配置备份" width="520px" append-to-body>
+                  <el-alert type="warning" :closable="false" show-icon class="mb12">
+                    本文件含防伪密钥（k1~k5），泄露可被用于伪造该租户的防伪码。请离线妥善保管，勿经微信 / 邮件 / 云盘明文传输。
+                  </el-alert>
+                  <el-form label-width="120px">
+                    <el-form-item label="备份方式">
+                      <el-radio-group v-model="downloadDlg.mode">
+                        <el-radio value="encrypted">加密（推荐）</el-radio>
+                        <el-radio value="plain">明文</el-radio>
+                      </el-radio-group>
+                    </el-form-item>
+                    <template v-if="downloadDlg.mode === 'encrypted'">
+                      <el-form-item label="加密密码" required>
+                        <el-input v-model="downloadDlg.password" type="password" show-password placeholder="设置解密密码" />
+                      </el-form-item>
+                      <el-form-item label="确认密码" required>
+                        <el-input v-model="downloadDlg.confirmPwd" type="password" show-password placeholder="再输一次" />
+                      </el-form-item>
+                      <el-alert type="error" :closable="false" class="mb12">
+                        平台不保存此密码，遗忘将无法恢复备份。
+                      </el-alert>
+                    </template>
+                  </el-form>
+                  <template #footer>
+                    <el-button @click="downloadDlg.visible = false">取消</el-button>
+                    <el-button type="primary" :loading="downloadPreparing" @click="doDownload">下载 .txt</el-button>
+                  </template>
+                </el-dialog>
                 <el-form-item>
                   <el-button type="primary" :loading="ruleSaving" @click="saveRule">保存码制</el-button>
+                  <el-button :loading="downloadPreparing" @click="openDownload">下载码制配置</el-button>
                   <span class="form-hint">已生成过防伪码后，前缀/各长度参数将被锁定不可改，否则已印码全部失效</span>
                 </el-form-item>
               </el-form>
@@ -692,6 +744,9 @@ const batchQuery = reactive({ page: 1, pageSize: 20, keyword: '' });
 const batchList = ref([]);
 const batchTotal = ref(0);
 const batchLoading = ref(false);
+// 🔴 码制是否已由用户确认：false 时批次管理显示软引导。默认给 true，
+//    避免接口没吐这个字段（旧版本服务端）时新用户一进来就被黄条糊脸。
+const ruleConfirmed = ref(true);
 async function loadBatches() {
   batchLoading.value = true;
   try {
@@ -700,9 +755,17 @@ async function loadBatches() {
     const res = await customerApiCall.get('/trace/batches', { params });
     batchList.value = res.list || [];
     batchTotal.value = Number(res.total || 0);
+    ruleConfirmed.value = res.ruleConfirmed !== false;
   } catch (e) {
     ElMessage.error(e || '加载批次失败');
   } finally { batchLoading.value = false; }
+}
+
+/** 从批次管理的软引导跳到「防伪设置 → 码制配置」 */
+function gotoRuleTab() {
+  activeTab.value = 'settings';
+  settingTab.value = 'rule';
+  loadRule();
 }
 
 const batchDlg = reactive({ visible: false, isEdit: false, form: {} });
@@ -871,8 +934,9 @@ async function markError(row) {
 }
 
 /* ----------------- 码制配置 ----------------- */
-const ruleForm = reactive({ m1: 'FW', m2: 7, m3: 6, m4: 5, m5: 20, k1: '', k2: '', k3: '', k4: '', zdl: 10 });
+const ruleForm = reactive({ m1: 'FW', m2: 7, m3: 6, m4: 5, m5: 20, k1: '', k2: '', k3: '', k4: '', k5: '', zdl: 10 });
 const ruleSaving = ref(false);
+const kRandomizing = ref(0);
 // 🔴 码长自洽校验：前缀长度 + m2 + m3 + m4 必须等于 m5，否则生成的码会被截断撞码
 const ruleSelfCheck = computed(() => {
   const expect = String(ruleForm.m1 || '').length + Number(ruleForm.m2) + Number(ruleForm.m3) + Number(ruleForm.m4);
@@ -899,9 +963,34 @@ async function loadRule() {
     ruleForm.k2 = String(k[2] || '');
     ruleForm.k3 = String(k[3] || '');
     ruleForm.k4 = String(k[4] || '');
+    // 🔴 k5 是服务端保留位（1 位，参与算法但不可由租户改），只读展示 + 备份下载用。
+    //    这里只取展示值，落库时随 k1~k4 一起回传，后端 saveRule 会原样保住它。
+    ruleForm.k5 = String(k[5] || '7');
     ruleForm.zdl = Number(r.zdl || 10);
   } catch (e) { ElMessage.error(e || '加载码制失败'); }
 }
+/**
+ * 随机填充单个校验字符集 k1~k4。
+ * 🔴 随机串必须向服务端取（/trace/code-rule/random-keys），不许在前端本地生成：
+ *    ① 密钥随机源单一出处，前端抄一份就是两端漂移；
+ *    ② 这些是防伪密钥，前端 Math.random 强度不够，服务端用的是 crypto.randomInt。
+ * 🔴 只填表单、**不落库**：换掉租户正在用的 k 会让已印出去的码全部验真失败，
+ *    落库必须由用户点「保存码制」显式确认。
+ */
+async function randomizeKey(n) {
+  kRandomizing.value = n;
+  try {
+    const res = await customerApiCall.get('/trace/code-rule/random-keys');
+    const v = String(res?.[`k${n}`] || '');
+    if (v.length !== 10) throw new Error('随机字符集返回异常');
+    ruleForm[`k${n}`] = v;
+  } catch (e) {
+    ElMessage.error(e || '随机字符集生成失败');
+  } finally {
+    kRandomizing.value = 0;
+  }
+}
+
 async function saveRule() {
   if (ruleSelfCheck.value) { ElMessage.warning(ruleSelfCheck.value); return; }
   ruleSaving.value = true;
@@ -909,12 +998,105 @@ async function saveRule() {
     // 🔴 后端 saveRule 接收扁平字段（m1..m5, k1..k4, zdl），不是整包 rule 对象
     await customerApiCall.put('/trace/code-rule', {
       m1: ruleForm.m1, m2: ruleForm.m2, m3: ruleForm.m3, m4: ruleForm.m4, m5: ruleForm.m5,
-      k1: ruleForm.k1, k2: ruleForm.k2, k3: ruleForm.k3, k4: ruleForm.k4, zdl: ruleForm.zdl,
+      k1: ruleForm.k1, k2: ruleForm.k2, k3: ruleForm.k3, k4: ruleForm.k4, k5: ruleForm.k5, zdl: ruleForm.zdl,
     });
     ElMessage.success('码制已保存');
+    // 保存即确认 → 批次管理的软引导当场消失，不用刷新页面
+    ruleConfirmed.value = true;
   } catch (e) {
     ElMessage.error(e || '保存码制失败');
   } finally { ruleSaving.value = false; }
+}
+
+/* ----------------- 码制配置下载备份 ----------------- */
+const downloadPreparing = ref(false);
+const downloadDlg = reactive({ visible: false, mode: 'encrypted', password: '', confirmPwd: '' });
+
+/** 拼出明文备份内容（独立于加密逻辑，便于单测与回读还原共用）。 */
+function buildBackupText() {
+  const f = ruleForm;
+  const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  return [
+    '防伪码制配置备份',
+    `生成时间: ${ts}`,
+    `前缀 m1: ${f.m1}`,
+    `批次号长度 m2: ${f.m2}`,
+    `流水号长度 m3: ${f.m3}`,
+    `校验位长度 m4: ${f.m4}`,
+    `防伪码总长 m5: ${f.m5}`,
+    `错误次数上限 zdl: ${f.zdl}`,
+    `系统保留位 k5: ${f.k5}（不可修改）`,
+    `校验字符集 k1: ${f.k1}`,
+    `校验字符集 k2: ${f.k2}`,
+    `校验字符集 k3: ${f.k3}`,
+    `校验字符集 k4: ${f.k4}`,
+    '【警告】本文件含防伪密钥，请勿通过微信 / 邮件 / 云盘明文传输，泄露可被用于伪造防伪码。',
+  ].join('\n');
+}
+
+function triggerDownload(filename, text, mime = 'text/plain;charset=utf-8') {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * 🔴 浏览器原生 Web Crypto 加密（AES-GCM + PBKDF2），不引第三方库。
+ * 输出格式：TRACEBCK1:<b64(salt)>.<b64(iv)>.<b64(ct)>，便于将来做回读还原时识别。
+ * 明文被 AES-GCM 整体加密，无密码不可恢复。
+ */
+async function encryptBackup(text, password) {
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const keyMat = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    keyMat,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt'],
+  );
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text)));
+  const b64 = (u8) => btoa(String.fromCharCode(...u8));
+  return `TRACEBCK1:${b64(salt)}.${b64(iv)}.${b64(ct)}`;
+}
+
+function openDownload() {
+  downloadDlg.visible = true;
+  downloadDlg.mode = 'encrypted';
+  downloadDlg.password = '';
+  downloadDlg.confirmPwd = '';
+}
+
+async function doDownload() {
+  if (downloadDlg.mode === 'encrypted') {
+    if (downloadDlg.password.length < 6) { ElMessage.warning('加密密码至少 6 位'); return; }
+    if (downloadDlg.password !== downloadDlg.confirmPwd) { ElMessage.warning('两次密码不一致'); return; }
+  }
+  downloadPreparing.value = true;
+  try {
+    const text = buildBackupText();
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (downloadDlg.mode === 'encrypted') {
+      const enc = await encryptBackup(text, downloadDlg.password);
+      triggerDownload(`trace-code-rule-${stamp}.txt`, enc);
+    } else {
+      triggerDownload(`trace-code-rule-${stamp}.txt`, text);
+    }
+    ElMessage.success('已下载码制配置备份');
+    downloadDlg.visible = false;
+  } catch (e) {
+    ElMessage.error(e || '下载失败');
+  } finally {
+    downloadPreparing.value = false;
+  }
 }
 
 /* ----------------- 系统设置（多 Tab 共享的单一事实来源 s） ----------------- */
@@ -1209,6 +1391,9 @@ onMounted(() => {
 .set-card { margin-bottom: 16px; }
 .card-title { font-size: 15px; font-weight: 600; color: #1d2129; }
 .form-hint { font-size: 12px; color: #86909c; margin-left: 8px; }
+.guide-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.guide-row span { font-size: 13px; line-height: 1.6; }
+.guide-row b { color: #d9821b; }
 .raw-json { font-family: monospace; }
 .raw-err { color: #f53f3f; font-size: 12px; margin-top: 4px; }
 .rule-form :deep(.el-input-number), .set-form :deep(.el-input-number) { width: 160px; }
