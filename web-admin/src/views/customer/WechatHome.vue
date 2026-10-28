@@ -395,94 +395,114 @@
 
     <!-- ============ 自定义菜单 ============ -->
     <GatedTab v-else-if="activeTab === 'menu'" :open="status.canMenu" title="自定义菜单" :reason="lockReason('service')" @goto="activeTab = 'connect'">
-      <div class="menu-head">
-        <h3 class="menu-page-title">自定义菜单</h3>
-        <el-link type="primary" href="https://mp.weixin.qq.com" target="_blank" :underline="false">菜单管理 ›</el-link>
+      <div class="wxm-head">
+        <h2 class="wxm-title">自定义菜单</h2>
+        <div class="wxm-ops">
+          <el-button link type="primary" :loading="menuLoading" @click="loadMenu">拉取菜单</el-button>
+          <el-link type="primary" href="https://mp.weixin.qq.com" target="_blank" :underline="false" class="wxm-link">菜单管理</el-link>
+        </div>
       </div>
-      <el-alert v-if="liveMenu" type="info" :closable="false" show-icon class="menu-alert">
+
+      <el-alert v-if="liveMenu" type="info" :closable="false" show-icon class="wxm-alert">
         <template #title>线上已存在菜单</template>
         <template #default>检测到微信侧已有菜单{{ status.syncedAt ? `（最近发布：${fmtTime(status.syncedAt)}）` : '' }}。「保存并发布」将覆盖现有菜单。</template>
       </el-alert>
 
-      <div class="menu-builder">
+      <div class="wxm-card">
         <!-- 左：手机预览 -->
-        <div class="phone">
-          <div class="phone-status"><span>1:21</span><span class="phone-icons">●●● ▪</span></div>
-          <div class="phone-bar"><span>‹</span><span>👤</span></div>
-          <div class="phone-body">
-            <div v-if="selectedTop != null && buttons[selectedTop] && buttons[selectedTop].hasSub" class="sub-pop">
-              <div v-for="(s, i) in buttons[selectedTop].sub" :key="i" class="sub-pop-item" :class="{ active: selectedSub === i }" @click="selectedSub = i">{{ s.name || '子菜单' + (i + 1) }}</div>
-              <div v-if="buttons[selectedTop].sub.length < 5" class="sub-pop-add" @click="addSubMenu(buttons[selectedTop])">+ 添加</div>
+        <div class="wxm-phone">
+          <div class="wp-frame">
+            <div class="wp-status"><span>1:21</span><span class="wp-signal">▮▮▮ ▪</span></div>
+            <div class="wp-top"><span class="wp-back">‹</span><span class="wp-user">👤</span></div>
+            <div class="wp-screen">
+              <div v-if="currentTop && currentTop.hasSub" class="wp-subpop">
+                <div v-for="(s, i) in currentTop.sub" :key="i" class="wp-subitem" :class="{ active: selectedSub === i }" @click="selectedSub = i">{{ s.name || '子菜单' + (i + 1) }}</div>
+                <div v-if="currentTop.sub.length < 5" class="wp-subadd" @click="addSubMenu(currentTop)">+ 添加</div>
+              </div>
             </div>
-          </div>
-          <div class="phone-foot">
-            <div v-if="buttons.length < 3" class="foot-add" @click="addTopMenu">+ 添加</div>
-            <div class="foot-tabs">
-              <div v-for="(b, i) in buttons" :key="i" class="foot-tab" :class="{ active: selectedTop === i && selectedSub == null }" @click="selectTop(i)">{{ b.name || '菜单' + (i + 1) }}</div>
+            <div class="wp-foot">
+              <span class="wp-emoji">☺</span>
+              <div class="wp-tabs">
+                <div v-for="(b, i) in buttons" :key="i" class="wp-tab" :class="{ active: selectedTop === i }" @click="selectTop(i)">{{ b.name || '菜单' + (i + 1) }}</div>
+                <div v-if="buttons.length < 3" class="wp-tab wp-tab-add" @click="addTopMenu">+</div>
+              </div>
             </div>
-          </div>
-          <div v-if="selectedTop != null" class="float-pill">
-            <span v-if="selectedSub != null" class="pill-back" @click="selectedSub = null">‹</span>
-            <span class="pill-del" @click="delSelected">🗑</span>
+            <div v-if="selectedTop != null" class="wp-float">
+              <span v-if="selectedSub != null" class="wf-btn" @click="selectedSub = null">↑</span>
+              <span class="wf-btn" @click="delSelected">🗑</span>
+            </div>
           </div>
         </div>
 
         <!-- 右：菜单信息 -->
-        <div class="menu-info">
-          <template v-if="currentMenu">
-            <h4 class="mi-title">菜单信息</h4>
-            <el-form label-width="84px">
-              <el-form-item label="名称">
-                <el-input v-model="currentMenu.name" maxlength="8" show-word-limit placeholder="菜单名称" />
-                <div class="menu-tip">仅支持中英文和数字，字数不超过 4 个汉字或 8 个字母。</div>
-              </el-form-item>
-              <el-form-item label="消息类型">
-                <el-radio-group v-model="currentMenu.type">
-                  <el-radio label="click" :disabled="isParent">发送消息</el-radio>
-                  <el-radio label="view" :disabled="isParent">跳转网页</el-radio>
-                  <el-radio label="miniprogram" :disabled="isParent">跳转小程序</el-radio>
-                  <el-radio label="shop" disabled>跳转小店</el-radio>
-                  <el-radio label="goods" disabled>跳转商品</el-radio>
-                  <el-radio label="home" disabled>跳转账号主页</el-radio>
-                </el-radio-group>
-              </el-form-item>
+        <div class="wxm-panel">
+          <div class="wp-panel-head">{{ panelTitle }}</div>
+          <div class="wp-panel-body">
+            <template v-if="currentMenu">
+              <el-form label-width="72px" class="wxm-form">
+                <el-form-item label="名称">
+                  <el-input v-model="currentMenu.name" maxlength="8" show-word-limit class="wxm-input" :placeholder="selectedSub != null ? '子菜单名称' : '菜单名称'" />
+                  <div class="wxm-tip">仅支持中英文和数字，字数不超过8个汉字或16个字母。</div>
+                </el-form-item>
 
-              <template v-if="!isParent">
-                <el-form-item v-if="currentMenu.type === 'view'" label="链接">
-                  <el-input v-model="currentMenu.url" placeholder="https://..." />
+                <el-form-item label="消息类型">
+                  <el-radio-group v-model="currentMenu.type" class="wxm-radios">
+                    <el-radio label="click" :disabled="isParent">发送消息</el-radio>
+                    <el-radio label="view" :disabled="isParent">跳转网页</el-radio>
+                    <el-radio label="miniprogram" :disabled="isParent">跳转小程序</el-radio>
+                    <el-radio label="shop" disabled>跳转小店</el-radio>
+                    <el-radio label="goods" disabled>跳转商品</el-radio>
+                    <el-radio label="home" disabled>跳转账号主页</el-radio>
+                  </el-radio-group>
                 </el-form-item>
-                <el-form-item v-else-if="currentMenu.type === 'click'" label="事件 Key">
-                  <el-input v-model="currentMenu.key" placeholder="如 NEWS_LATEST" />
-                  <div class="menu-tip">发送消息：粉丝点击后触发「自动回复」中对应 Key 的事件回复。富媒体内容请在「自动回复」配置。</div>
-                </el-form-item>
-                <el-form-item v-else-if="currentMenu.type === 'miniprogram'" label="AppID">
-                  <el-input v-model="currentMenu.appid" placeholder="小程序 AppID" />
-                </el-form-item>
-                <el-form-item v-else-if="currentMenu.type === 'miniprogram'" label="页面路径">
-                  <el-input v-model="currentMenu.pagepath" placeholder="pages/index/index" />
-                </el-form-item>
-                <el-form-item v-else-if="currentMenu.type === 'miniprogram'" label="备用网页">
-                  <el-input v-model="currentMenu.url" placeholder="https://...（旧版微信兜底）" />
-                </el-form-item>
-              </template>
 
-              <el-form-item v-if="isTopSelected">
-                <el-checkbox v-model="currentMenu.hasSub" @change="(v) => toggleParent(currentMenu, v)">设为含子菜单</el-checkbox>
-              </el-form-item>
+                <el-form-item v-if="!isParent && currentMenu.type === 'click'" label="菜单内容">
+                  <div class="wxm-chips">
+                    <span class="wxchip is-on" title="暂不支持直接编辑内容"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>已发表内容</span>
+                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M12 6v13M9 19h6"/></svg>文字</span>
+                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M4 17l4.5-4.5 3 3L15 12l5 5"/></svg>图片</span>
+                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>音频</span>
+                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="11" height="12" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>视频号动态</span>
+                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>视频</span>
+                    <span class="wxchip" title="暂不支持"><svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12"/></svg>卡券</span>
+                  </div>
+                  <div class="wxm-tip">本版本以「事件 Key」触发自动回复，富媒体内容请到「自动回复」中配置。</div>
+                </el-form-item>
 
-              <el-form-item>
-                <el-link type="danger" :underline="false" @click="delSelected">删除菜单</el-link>
-              </el-form-item>
-            </el-form>
-          </template>
-          <div v-else class="menu-empty">从左侧手机预览点击菜单进行编辑，或点「+ 添加」新建</div>
+                <el-form-item v-if="!isParent && currentMenu.type === 'view'" label="网页链接">
+                  <el-input v-model="currentMenu.url" class="wxm-input" placeholder="https://" />
+                </el-form-item>
+
+                <el-form-item v-if="!isParent && currentMenu.type === 'click'" label="事件 Key">
+                  <el-input v-model="currentMenu.key" class="wxm-input" placeholder="如 NEWS_LATEST" />
+                </el-form-item>
+
+                <el-form-item v-if="!isParent && currentMenu.type === 'miniprogram'" label="AppID">
+                  <el-input v-model="currentMenu.appid" class="wxm-input" placeholder="小程序 AppID" />
+                </el-form-item>
+                <el-form-item v-if="!isParent && currentMenu.type === 'miniprogram'" label="页面路径">
+                  <el-input v-model="currentMenu.pagepath" class="wxm-input" placeholder="pages/index/index" />
+                </el-form-item>
+                <el-form-item v-if="!isParent && currentMenu.type === 'miniprogram'" label="备用网页">
+                  <el-input v-model="currentMenu.url" class="wxm-input" placeholder="https://（旧版微信兜底）" />
+                </el-form-item>
+
+                <el-form-item v-if="isTopSelected">
+                  <el-checkbox v-model="currentMenu.hasSub" @change="(v) => toggleParent(currentMenu, v)">设为含子菜单</el-checkbox>
+                </el-form-item>
+
+                <el-form-item>
+                  <el-link type="primary" :underline="false" @click="delSelected">删除菜单</el-link>
+                </el-form-item>
+              </el-form>
+            </template>
+            <div v-else class="wxm-empty">从左侧手机预览点击菜单进行编辑，或点底部「+」新建一级菜单</div>
+          </div>
+          <div class="wp-panel-foot">
+            <el-button @click="previewMenu">预览</el-button>
+            <el-button type="primary" class="wxm-btn-green" :loading="saveBusy || pushBusy" @click="saveAndPush">保存并发布</el-button>
+          </div>
         </div>
-      </div>
-
-      <div class="menu-foot-actions">
-        <el-button :loading="menuLoading" @click="loadMenu">拉取菜单</el-button>
-        <el-button @click="previewMenu">预览</el-button>
-        <el-button type="primary" :loading="saveBusy || pushBusy" @click="saveAndPush">保存并发布</el-button>
       </div>
 
       <el-dialog v-model="previewVisible" title="菜单预览（当前草稿）" width="520px">
@@ -713,8 +733,9 @@ function onToggleSub(b) {
 async function loadMenu() {
   menuLoading.value = true;
   try {
-    const r = await mpGetMenu();
-      if (r.saved) buttons.value = deserialize(r.saved);
+      const r = await mpGetMenu();
+      // 无草稿时也给一个空一级菜单（对齐官方：编辑区始终有可编辑对象，不是一片空白）
+      buttons.value = deserialize(r.saved);
       selectedTop.value = buttons.value.length ? 0 : null;
       selectedSub.value = null;
       liveMenu.value = r.live && !r.live.error ? r.live : null;
@@ -793,6 +814,8 @@ async function pushMenu() {
   });
   const isParent = computed(() => !!currentMenu.value && !!currentMenu.value.hasSub);
   const isTopSelected = computed(() => selectedTop.value != null && selectedSub.value == null);
+  const currentTop = computed(() => (selectedTop.value == null ? null : buttons.value[selectedTop.value] || null));
+  const panelTitle = computed(() => (selectedSub.value != null ? '子菜单信息' : '菜单信息'));
   function selectTop(i) { selectedTop.value = i; selectedSub.value = null; }
   function addTopMenu() {
     if (buttons.value.length >= 3) return ElMessage.warning('最多 3 个一级菜单');
@@ -1185,31 +1208,56 @@ onMounted(async () => {
 .mass-h { margin: 18px 0 8px; font-size: 14px; color: #1d2129; }
 .stats-sub { margin-top: 8px; }
 
-.menu-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.menu-page-title { font-size: 16px; margin: 0; color: #1d2129; }
-.menu-alert { margin-bottom: 16px; }
-.menu-builder { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
-.phone { width: 300px; flex: 0 0 300px; border: 10px solid #1d2129; border-radius: 28px; background: #f2f3f5; overflow: hidden; position: relative; }
-.phone-status { display: flex; justify-content: space-between; align-items: center; padding: 6px 14px; font-size: 12px; color: #1d2129; background: #e5e6eb; }
-.phone-icons { letter-spacing: 1px; }
-.phone-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; color: #4e5969; }
-.phone-body { min-height: 320px; position: relative; padding: 12px; }
-.sub-pop { position: absolute; left: 12px; right: 12px; bottom: 64px; background: #4e5969; border-radius: 6px; padding: 4px; }
-.sub-pop-item { color: #fff; text-align: center; padding: 8px 6px; font-size: 13px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub-pop-item.active { background: #00b42a; }
-.sub-pop-add { color: #c9cdd4; text-align: center; padding: 8px; font-size: 13px; cursor: pointer; }
-.phone-foot { display: flex; align-items: stretch; border-top: 1px solid #e5e6eb; background: #f7f8fa; }
-.foot-add { flex: 0 0 64px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e5e6eb; color: #4e5969; cursor: pointer; font-size: 13px; }
-.foot-tabs { flex: 1; display: flex; }
-.foot-tab { flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px 4px; font-size: 13px; color: #4e5969; cursor: pointer; border-left: 1px solid #e5e6eb; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.foot-tab:first-child { border-left: none; }
-.foot-tab.active { color: #00b42a; background: #e8f7ec; }
-.float-pill { position: absolute; bottom: 80px; right: 18px; display: flex; gap: 8px; background: rgba(0,0,0,.55); border-radius: 16px; padding: 6px 10px; }
-.pill-back, .pill-del { color: #fff; cursor: pointer; font-size: 14px; }
-.menu-info { flex: 1; min-width: 320px; }
-.mi-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: #1d2129; }
-.menu-foot-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
-.menu-tip { color: #86909c; font-size: 12px; line-height: 1.5; }
-.menu-empty { color: #86909c; padding: 40px 0; text-align: center; }
+/* ===== 自定义菜单（对齐官方 mp.weixin.qq.com 版式） ===== */
+.wxm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.wxm-title { font-size: 18px; font-weight: 600; margin: 0; color: #1d2129; }
+.wxm-ops { display: flex; align-items: center; gap: 18px; }
+.wxm-link { font-size: 13px; }
+.wxm-alert { margin-bottom: 16px; }
+.wxm-card { display: flex; background: #fff; border: 1px solid #e5e6eb; border-radius: 6px; overflow: hidden; }
+
+/* 手机预览 */
+.wxm-phone { flex: 0 0 240px; width: 240px; padding: 18px 14px; border-right: 1px solid #f2f3f5; }
+.wp-frame { position: relative; display: flex; flex-direction: column; width: 205px; height: 380px; margin: 0 auto; border: 1px solid #dcdee0; border-radius: 6px; background: #fff; overflow: hidden; }
+.wp-status { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; font-size: 11px; color: #86909c; }
+.wp-signal { font-size: 9px; letter-spacing: 1px; }
+.wp-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 12px 8px; color: #4e5969; font-size: 16px; }
+.wp-screen { flex: 1; position: relative; }
+.wp-subpop { position: absolute; left: 88px; bottom: 8px; width: 70px; background: #fff; border: 1px solid #e5e6eb; border-radius: 3px; box-shadow: 0 1px 6px rgba(0,0,0,.08); overflow: hidden; }
+.wp-subitem { padding: 9px 4px; font-size: 11px; color: #4e5969; text-align: center; border-bottom: 1px solid #f2f3f5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.wp-subitem.active { color: #07C160; box-shadow: inset 0 0 0 1px #07C160; border-radius: 2px; }
+.wp-subadd { padding: 9px 4px; font-size: 11px; color: #86909c; text-align: center; cursor: pointer; }
+.wp-foot { display: flex; align-items: stretch; height: 38px; border-top: 1px solid #e5e6eb; background: #f7f8fa; }
+.wp-emoji { flex: 0 0 30px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #dcdee0; color: #4e5969; font-size: 13px; }
+.wp-tabs { flex: 1; display: flex; min-width: 0; }
+.wp-tab { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 0 3px; font-size: 11px; color: #4e5969; border-left: 1px solid #dcdee0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wp-tab.active { color: #07C160; background: #fff; }
+.wp-tab-add { flex: 0 0 22px; color: #86909c; }
+.wp-float { position: absolute; right: 14px; bottom: 126px; display: flex; flex-direction: column; background: #fff; border: 1px solid #e5e6eb; border-radius: 5px; box-shadow: 0 1px 6px rgba(0,0,0,.10); overflow: hidden; }
+.wf-btn { width: 28px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #4e5969; cursor: pointer; border-bottom: 1px solid #f2f3f5; }
+.wf-btn:last-child { border-bottom: none; }
+.wf-btn:hover { background: #f7f8fa; }
+
+/* 右侧信息面板 */
+.wxm-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wp-panel-head { padding: 16px 26px; font-size: 14px; font-weight: 600; color: #1d2129; border-bottom: 1px solid #f2f3f5; }
+.wp-panel-body { flex: 1; padding: 22px 26px; }
+.wxm-form :deep(.el-form-item) { margin-bottom: 22px; }
+.wxm-form :deep(.el-form-item__label) { white-space: nowrap; }
+.wxm-input { width: 233px; }
+.wxm-tip { color: #86909c; font-size: 12px; line-height: 1.6; margin-top: 4px; }
+.wxm-radios { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; }
+.wxm-radios :deep(.el-radio) { margin-right: 16px; font-size: 13px; height: 20px; }
+.wxm-radios :deep(.el-radio__input.is-checked .el-radio__inner) { border-color: #07C160; background-color: #07C160; }
+.wxm-radios :deep(.el-radio__input.is-checked + .el-radio__label) { color: #07C160; }
+.wxm-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.wxchip { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #86909c; cursor: default; }
+.wxchip.is-on { color: #4e5969; padding: 3px 8px; border: 1px solid #e5e6eb; border-radius: 3px; background: #f7f8fa; }
+.wxi { width: 14px; height: 14px; }
+.wxm-empty { color: #86909c; padding: 60px 0; text-align: center; }
+.wp-panel-foot { padding: 14px 26px; border-top: 1px solid #f2f3f5; display: flex; justify-content: flex-end; gap: 12px; }
+.wxm-btn-green { background-color: #07C160; border-color: #07C160; }
+.wxm-btn-green:hover, .wxm-btn-green:focus { background-color: #06AD56; border-color: #06AD56; }
+.wxm-btn-green.is-loading, .wxm-btn-green.is-loading:hover { background-color: #06AD56; border-color: #06AD56; }
 .preview-json { background: #1d2129; color: #e5e6eb; padding: 14px; border-radius: 6px; font-size: 12px; max-height: 360px; overflow: auto; white-space: pre-wrap; }
 </style>
