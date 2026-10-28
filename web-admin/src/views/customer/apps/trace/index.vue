@@ -53,7 +53,7 @@
           <el-table-column label="操作" width="280" fixed="right">
                 <template #default="{ row }">
                   <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="openGen(row)">生成</el-button>
-                  <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="downloadCodes(row)">下载码包</el-button>
+                  <el-button link type="primary" size="small" :disabled="!Number(row.is_active)" @click="openGen(row)">下载码包</el-button>
                   <el-button v-if="!Number(row.is_active)" link type="success" size="small" @click="activateBatch(row)">激活</el-button>
                   <el-button link type="primary" size="small" @click="openBatchEdit(row)">编辑</el-button>
                   <el-button link type="danger" size="small" @click="removeBatch(row)">删除</el-button>
@@ -679,6 +679,7 @@
         <el-form-item label="码型">
           <el-select v-model="genDlg.codetype" class="w240">
             <el-option :value="1" label="普通文本码（含校验位，可扫码/手输）" />
+            <el-option :value="2" label="二维码码包（HTML，可印刷）" />
             <el-option :value="6" label="纯数字码" />
           </el-select>
         </el-form-item>
@@ -689,7 +690,8 @@
       </el-form>
       <template #footer>
         <el-button @click="genDlg.visible = false">取消</el-button>
-        <el-button type="primary" :loading="genSaving" @click="confirmGen">生成</el-button>
+        <el-button :loading="genSaving" @click="confirmGen">生成</el-button>
+        <el-button type="primary" :loading="genSaving" @click="confirmDownload">生成并下载</el-button>
       </template>
     </el-dialog>
 
@@ -886,26 +888,36 @@ async function confirmGen() {
     ElMessage.error(e || '生成失败');
   } finally { genSaving.value = false; }
 }
-async function downloadCodes(row) {
+/**
+ * 🔴 生成并下载：走 GET /export（attachment），数量与码型**全部取自弹窗**（genDlg.count / genDlg.codetype），
+ *    不再写死 100。修复原「下载码包」按钮硬编码 codeno:100、完全无视弹窗「生成数量」的事故
+ *    （用户设 1 却下载到 100 个）。
+ *    注意：/export 与 /generate-codes 是两次独立生成（都会推进批次流水号并扣库存），
+ *    所以「生成」后再「生成并下载」会得到两套不同的码，不是同一批码的文件版。
+ */
+async function confirmDownload() {
+  if (!genDlg.row) return;
+  genSaving.value = true;
   try {
-    // 🔴 二维码/大批量码包走 GET 导出（attachment 下载），避免把大体积 HTML 拉进 JS 内存
-    const res = await customerApiCall.get(`/trace/batches/${row.id}/export`, {
-      params: { codetype: 2, codeno: 100 },
+    const res = await customerApiCall.get(`/trace/batches/${genDlg.row.id}/export`, {
+      params: { codetype: genDlg.codetype, codeno: Number(genDlg.count || 1) },
       responseType: 'blob',
     });
     const blob = res instanceof Blob ? res : new Blob([res]);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `securitycode_${row.batch}.html`;
+    a.download = `trace-${genDlg.row.batch}-${genDlg.count}.html`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
-    ElMessage.success('码包已开始下载');
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    ElMessage.success(`已下载 ${genDlg.count} 个防伪码的码包`);
+    genDlg.visible = false;
+    loadBatches();
   } catch (e) {
     ElMessage.error(e || '下载失败');
-  }
+  } finally { genSaving.value = false; }
 }
 
 /* ----------------- 防伪码记录 ----------------- */

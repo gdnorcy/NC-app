@@ -195,6 +195,33 @@ describe('防伪码制：随机密钥 + 停用批次禁生成 + 结构锁计数�
     assert.equal(Number(ok.body.created), 3);
   });
 
+  // ── 9.5) 导出数量严格按 codeno（修复「下载码包」硬编码 100 的事故） ──
+  it('导出数量严格按 codeno：设 1 给 1、设 50 给 50，不再静默给 100', async () => {
+    // 🔴 真实事故：原「下载码包」按钮写死 GET /export?codeno=100，完全无视弹窗里的「生成数量」，
+    //    用户设 1 却下载到 100 个码。现前端统一走弹窗的 genDlg.count / genDlg.codetype，
+    //    后端必须按传入的 codeno 精确产出。
+    const created = await auth(request(app).post('/api/customer/trace/batches'))
+      .send({ batch: '950', product: '数量产品', factory: '厂', brand: '牌' });
+    assert.equal(created.status, 200, JSON.stringify(created.body));
+    const id = Number(created.body.id);
+
+    const exp1 = await auth(request(app).get(`/api/customer/trace/batches/${id}/export`)).query({ codetype: 6, codeno: 1 });
+    assert.equal(exp1.status, 200, JSON.stringify(exp1.body));
+    const lines1 = String(exp1.text).split('\n').filter(Boolean);
+    assert.equal(lines1.length, 1, `codeno=1 应产出 1 个码，实际 ${lines1.length} 个：${exp1.text}`);
+
+    const exp50 = await auth(request(app).get(`/api/customer/trace/batches/${id}/export`)).query({ codetype: 6, codeno: 50 });
+    assert.equal(exp50.status, 200, JSON.stringify(exp50.body));
+    const lines50 = String(exp50.text).split('\n').filter(Boolean);
+    assert.equal(lines50.length, 50, `codeno=50 应产出 50 个码，实际 ${lines50.length} 个`);
+
+    // 二维码码包（HTML）同样按 codeno 产出：数 <div class="cell"> 个数
+    const expQr = await auth(request(app).get(`/api/customer/trace/batches/${id}/export`)).query({ codetype: 2, codeno: 7 });
+    assert.equal(expQr.status, 200);
+    const cells = String(expQr.text).match(/class="cell"/g) || [];
+    assert.equal(cells.length, 7, `二维码码包 codeno=7 应含 7 个码格，实际 ${cells.length}`);
+  });
+
   // ── 10) activate 端点空 body = 激活 ──────────────────────────────────
   it('POST /batches/:id/activate 不传 body 时必须激活（不能反手停用）', async () => {
     const created = await auth(request(app).post('/api/customer/trace/batches'))
