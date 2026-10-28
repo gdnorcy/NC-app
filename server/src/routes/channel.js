@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { WxComponentService, WxCrypto } from '../services/wx-component.js';
+import { WxComponentService, WxCrypto, classifyAuthorizer } from '../services/wx-component.js';
 import { requireAuth } from '../auth.js';
 import { addOperationLog } from '../db.js';
 
@@ -141,25 +141,45 @@ export function createChannelRouter(db) {
       const { authorizer_appid, authorizer_access_token, authorizer_refresh_token, expires_in: tokenExpires } = authInfo;
       const expiresAt = new Date(Date.now() + tokenExpires * 1000).toISOString();
 
-      // 查找或创建渠道记录
-      const existing = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(Number(customer_id), 'mini');
-      if (existing) {
-        db.prepare(`UPDATE channel_apps SET appid = ?, app_secret = '', auth_status = 'authorized',
-          authorizer_access_token = ?, authorizer_refresh_token = ?, token_expires_at = ?, updated_at = datetime('now') WHERE id = ?`)
-          .run(authorizer_appid, authorizer_access_token, authorizer_refresh_token, expiresAt, existing.id);
-      } else {
-        db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, appid, auth_status, authorizer_access_token, authorizer_refresh_token, token_expires_at)
-          VALUES (?, 'mini', ?, 'authorized', ?, ?, ?)`)
-          .run(Number(customer_id), authorizer_appid, authorizer_access_token, authorizer_refresh_token, expiresAt);
+      // 探测账号类型（公众号/小程序；服务号/订阅号）—— 决定 channel_type 与 account_type 回写
+      // scope 由授权入口透传：mp 授权链接带 scope=mp，即使探测临时失败也强制按公众号回写，避免丢失授权。
+      const scope = req.query.scope;
+      let channelType = 'mini';
+      let accountType = '';
+      try {
+        const info = await wxService.getAuthorizerInfo(authorizer_appid);
+        ({ channelType, accountType } = classifyAuthorizer(info));
+      } catch (e) {
+        console.error('[Channel] 授权账号信息探测失败:', e.message);
+        if (scope === 'mp') {
+          channelType = 'mp';
+          accountType = 'service'; // 兜底服务号（菜单接口运行时再按微信返回码降级）
+        } else {
+          channelType = 'mini';
+          accountType = '';
+        }
       }
 
+      // 查找或创建渠道记录（同一 (customer_id, channel_type) 唯一）
+      const existing = db.prepare('SELECT * FROM channel_apps WHERE customer_id = ? AND channel_type = ?').get(Number(customer_id), channelType);
+      if (existing) {
+        db.prepare(`UPDATE channel_apps SET appid = ?, app_secret = '', auth_status = 'authorized',
+          authorizer_access_token = ?, authorizer_refresh_token = ?, token_expires_at = ?, account_type = ?, updated_at = datetime('now') WHERE id = ?`)
+          .run(authorizer_appid, authorizer_access_token, authorizer_refresh_token, expiresAt, accountType, existing.id);
+      } else {
+        db.prepare(`INSERT INTO channel_apps (customer_id, channel_type, appid, auth_status, authorizer_access_token, authorizer_refresh_token, token_expires_at, account_type)
+          VALUES (?, ?, ?, 'authorized', ?, ?, ?, ?)`)
+          .run(Number(customer_id), channelType, authorizer_appid, authorizer_access_token, authorizer_refresh_token, expiresAt, accountType);
+      }
+
+      const label = channelType === 'mp' ? '公众号' : '小程序';
       // 返回成功页面（HTML）
       res.send(`
         <!DOCTYPE html><html><head><meta charset="utf-8"><title>授权成功</title>
         <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f5f7fa;}
         .card{background:#fff;padding:40px;border-radius:12px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.08);}
         .icon{font-size:48px;margin-bottom:16px;}h2{color:#165DFF;margin:0 0 8px;}p{color:#909399;margin:0;}</style></head>
-        <body><div class="card"><div class="icon">✅</div><h2>授权成功</h2><p>小程序 AppID: ${authorizer_appid}</p><p>可以关闭此页面，返回管理后台查看</p></div></body></html>
+        <body><div class="card"><div class="icon">✅</div><h2>授权成功</h2><p>${label} AppID: ${authorizer_appid}</p><p>可以关闭此页面，返回管理后台查看</p></div></body></html>
       `);
     } catch (e) {
       res.status(400).send(`授权失败: ${e.message}`);

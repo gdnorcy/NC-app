@@ -157,6 +157,54 @@ function drawText(ctx, text, x, y, font, color, maxWidth) {
   ctx.fillText(t, x, y);
 }
 
+/**
+ * 小程序码 / 二维码徽章：白底圆角卡片 + 极淡描边 + 柔和投影。
+ * 取代各封面里「近黑色实心方块」的重边框，视觉更轻、跨封面统一。
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Number} x,y,size 徽章位置与边长（设计稿像素，750×600 坐标系）
+ * @param {HTMLImageElement|null} qr 已加载的小程序码图片（白底/透明底均可）
+ * @param {Object} opts { pad, radius, label, labelColor }
+ */
+function drawQrBadge(ctx, x, y, size, qr, opts = {}) {
+  const pad = opts.pad != null ? opts.pad : 12;
+  const radius = opts.radius != null ? opts.radius : 16;
+  const label = opts.label || '';
+  const labelColor = opts.labelColor || '#86909C';
+
+  // 柔和投影：白卡浮起感，替代重黑框
+  ctx.save();
+  ctx.shadowColor = 'rgba(20,28,48,0.18)';
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+  fillRound(ctx, x, y, size, size, radius, '#FFFFFF');
+  ctx.restore();
+
+  // 极淡描边：白卡在浅色背景上也能分辨边界
+  ctx.save();
+  roundRect(ctx, x + 0.5, y + 0.5, size - 1, size - 1, radius);
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+
+  // 小程序码（留白，不贴边）
+  if (qr) {
+    const inner = size - pad * 2;
+    ctx.drawImage(qr, x + pad, y + pad, inner, inner);
+  }
+
+  // 标签（徽章下方，浅灰小字；与重黑框告别）
+  if (label) {
+    ctx.save();
+    ctx.font = '22px sans-serif';
+    ctx.fillStyle = labelColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(label, x + size / 2, y + size + 30);
+    ctx.restore();
+  }
+}
+
 // ---------------------------------------------------------------- 6 款版式
 
 /**
@@ -248,11 +296,7 @@ function drawCover1(ctx, d) {
   drawPhone(ctx, 56, H - 92, 26, '#FFFFFF');
   drawText(ctx, phone, 94, H - 70, '30px sans-serif', '#FFFFFF');
   drawText(ctx, slogan, 94, H - 30, '22px sans-serif', overWhite(shade(primary, -0.5), 0.78));
-  if (qr) {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(W - 142, H - 160, 110, 110);
-    ctx.drawImage(qr, W - 132, H - 150, 90, 90);
-  }
+  if (qr) drawQrBadge(ctx, W - 142, H - 160, 110, qr, { pad: 12 });
 }
 
 /** 2 名片卡 */
@@ -296,11 +340,7 @@ function drawCover2(ctx, d) {
   drawPin(ctx, 92, 340, 22, primary);
   drawText(ctx, `${city} · ${slogan}`, 128, 358, '26px sans-serif', '#4E5969', W - 300);
   // 二维码（卡内右下）
-  if (qr) {
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(W - 178, 366, 98, 98);
-    ctx.drawImage(qr, W - 172, 372, 86, 86);
-  }
+  if (qr) drawQrBadge(ctx, W - 178, 366, 98, qr, { pad: 10 });
   // 底部 CTA
   fillRound(ctx, 60, H - 96, W - 120, 52, 26, primary);
   drawText(ctx, '长按识别，查看完整电子名片', 104, H - 62, '30px sans-serif', '#FFFFFF');
@@ -345,16 +385,7 @@ function drawCover3(ctx, d) {
   drawPhone(ctx, 60, 384, 24, accent);
   drawText(ctx, phone, 96, 402, '30px sans-serif', overWhite('#1B212C', 0.88));
   drawText(ctx, city, 60, 450, '26px sans-serif', overWhite('#1B212C', 0.55));
-  if (qr) {
-    ctx.fillStyle = '#1B212C';
-    ctx.fillRect(W - 162, H - 188, 122, 122);
-    ctx.drawImage(qr, W - 156, H - 182, 110, 110);
-    ctx.strokeStyle = accent;
-    ctx.globalAlpha = 0.6;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(W - 162, H - 188, 122, 122);
-    ctx.globalAlpha = 1;
-  }
+  if (qr) drawQrBadge(ctx, W - 162, H - 188, 122, qr, { pad: 12 });
 }
 
 /** 4 全幅人像 */
@@ -403,11 +434,7 @@ function drawCover4(ctx, d) {
   const ctaW = ctx.measureText(ctaText).width + 72;
   fillRound(ctx, 56, H - 84, ctaW, 52, 26, '#FFFFFF');
   drawText(ctx, ctaText, 56 + 36, H - 48, '30px sans-serif', primary);
-  if (qr) {
-    ctx.fillStyle = mix(primary, '#0B1B4B', 0.5);
-    ctx.fillRect(W - 150, H - 228, 110, 110);
-    ctx.drawImage(qr, W - 140, H - 218, 90, 90);
-  }
+  if (qr) drawQrBadge(ctx, W - 150, H - 228, 110, qr, { pad: 12 });
 }
 
 /** 5 极简白 */
@@ -437,10 +464,7 @@ function drawCover5(ctx, d) {
   drawPin(ctx, 56, 448, 22, primary);
   drawText(ctx, city, 92, 466, '26px sans-serif', '#4E5969');
   if (qr) {
-    ctx.fillStyle = '#1D2129';
-    ctx.fillRect(W - 132, H - 152, 92, 92);
-    ctx.drawImage(qr, W - 127, H - 147, 82, 82);
-    drawText(ctx, '扫一扫', W - 132, H - 36, '22px sans-serif', '#5C6470');
+    drawQrBadge(ctx, W - 132, H - 152, 92, qr, { pad: 10, label: '扫一扫', labelColor: '#86909C' });
   }
 }
 
@@ -485,12 +509,7 @@ function drawCover6(ctx, d) {
   const bw = ctx.measureText(btnText).width + 76;
   fillRound(ctx, 106, 366, bw, 56, 28, primary);
   drawText(ctx, btnText, 144, 402, '30px sans-serif', '#FFFFFF');
-  if (qr) {
-    // 二维码：白卡内、渐变名片右侧的空白（不压名片信息）
-    ctx.fillStyle = '#1D2129';
-    ctx.fillRect(590, 208, 104, 104);
-    ctx.drawImage(qr, 595, 213, 94, 94);
-  }
+  if (qr) drawQrBadge(ctx, 590, 208, 104, qr, { pad: 12 });
 }
 
 // ---------------------------------------------------------------- 绘制入口

@@ -190,6 +190,15 @@ customerApi.interceptors.response.use(
 
 export const customerApiCall = customerApi;
 
+// 微信公众号（客户后台：手动对接 / 开放平台授权 / 自定义菜单）
+export const mpStatus = () => customerApi.get('/mp/status');
+export const mpBind = (data) => customerApi.post('/mp/bind', data);
+export const mpUnbind = () => customerApi.post('/mp/unbind');
+export const mpAuthUrl = () => customerApi.get('/mp/auth-url');
+export const mpGetMenu = () => customerApi.get('/mp/menu');
+export const mpSaveMenu = (menu) => customerApi.post('/mp/menu/save', { menu });
+export const mpPushMenu = () => customerApi.post('/mp/menu/push');
+
 // 客户后台 - 支付（接口挂在 /api/payment，需带 customer_token 的独立实例）
 const customerPaymentApi = axios.create({ baseURL: '/api' });
 customerPaymentApi.interceptors.request.use((config) => {
