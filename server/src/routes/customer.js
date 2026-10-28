@@ -2451,6 +2451,9 @@ router.get('/card/trends', requireTenant, (req, res) => {
     if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
     const cfg = wxMp.getMessageConfig(ch.id);
     const callbackUrl = `${publicBaseUrl(req)}/api/channel/wx-message/${ch.appid}`;
+    // 🔴 留痕：回调地址是 http 还是 https 直接决定公众号后台能否验证通过，
+    //    而那边的报错只有一句「HTTP 返回非 200」，从不提协议。这里每次下发都记一笔，排查时直接看 journal。
+    console.info(`[wx-mp] 下发回调地址 ${callbackUrl}（X-Forwarded-Proto=${req.get('x-forwarded-proto') || '无'}）`);
     res.json({
       config: cfg
         ? { msgToken: cfg.msg_token, encodingAESKey: cfg.encoding_aes_key, urlEnabled: !!cfg.url_enabled }
