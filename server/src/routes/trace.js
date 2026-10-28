@@ -335,6 +335,7 @@ export function createTracePublicRouter(db) {
     // 🔴 本次是否「首查」必须在事务内定下来：下面的累加分支要靠它区分
     //    「刚置 1 的首查」与「真正的复访」，否则 num 会算错（详见累加处注释）。
     let isNewEntry = false;
+    let queryNo = 0;
     db.exec('BEGIN');
     try {
       if (!record) {
@@ -344,19 +345,26 @@ export function createTracePublicRouter(db) {
         record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(info.lastInsertRowid);
         db.prepare('UPDATE trace_batches SET rcon = rcon + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, batch.id);
         isNewEntry = true;
+        queryNo = 1;
       } else if (Number(record.num || 0) === 0) {
         db.prepare(`UPDATE trace_codes SET num = 1, queried_at = datetime('now'), openid = ?, user_id = ?, ip = ?, updated_at = datetime('now')
           WHERE tenant_id = ? AND id = ?`).run(openid, userId, ip, tenantId, record.id);
         db.prepare('UPDATE trace_batches SET rcon = rcon + 1, updated_at = datetime(\'now\') WHERE tenant_id = ? AND id = ?').run(tenantId, batch.id);
         record = db.prepare('SELECT * FROM trace_codes WHERE id = ?').get(record.id);
         isNewEntry = true;
+        queryNo = 1;
+      } else {
+        // 🔴 复访已计数过的码：本次查询序号 = 当前 num + 1（下方 if(!isNewEntry) 会 num+1）。
+        //    原先 remark 用「未自增前的 record.num」拼，导致第 2、3…次查询的备注仍写「第1次查询」
+        //    （同码被两台手机扫、或同一人隔 21 秒后再扫，都中招）。
+        queryNo = Number(record.num || 0) + 1;
       }
       const recent = db.prepare(`SELECT id FROM trace_histories WHERE tenant_id = ? AND type = 0 AND summary = ? AND openid = ? AND created_at > datetime('now', '-21 seconds')`)
         .get(tenantId, code, openid);
       if (!recent) {
         db.prepare(`INSERT INTO trace_histories (tenant_id, type, summary, uid, openid, ip, remark, created_at)
           VALUES (?, 0, ?, ?, ?, ?, ?, datetime('now'))`)
-          .run(tenantId, code, userId, openid, ip, `第${Number(record.num || 0)}次查询`);
+          .run(tenantId, code, userId, openid, ip, `第${queryNo}次查询`);
         // 🔴 只有「复访」才累加 num。原写法是 `if (num > 1)`：首查把 num 置 1 后不满足，
         //    num 永远卡在 1 → first 恒 true → 「仅首次查询可见」的展示位永远显示、
         //    首查奖励也会重复发。判据必须是「本次是不是首查」，不是「num 是否 > 1」。
