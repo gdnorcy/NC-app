@@ -413,6 +413,26 @@ export class WxCrypto {
     const sha1 = crypto.createHash('sha1').update(arr.join('')).digest('hex');
     return sha1 === signature;
   }
+
+  /** 加密被动回复 XML（安全/兼容模式）：标准微信 AES-256-CBC + PKCS7(32) 填充。 */
+  encrypt(replyMsg, nonce, timestamp) {
+    const random16 = crypto.randomBytes(16);
+    const msgBuf = Buffer.from(replyMsg, 'utf8');
+    const lenBuf = Buffer.alloc(4);
+    lenBuf.writeUInt32BE(msgBuf.length, 0);
+    const appidBuf = Buffer.from(this.appid, 'utf8');
+    let raw = Buffer.concat([random16, lenBuf, msgBuf, appidBuf]);
+    const blockSize = 32;
+    const padLen = blockSize - (raw.length % blockSize);
+    raw = Buffer.concat([raw, Buffer.alloc(padLen, padLen)]);
+    const cipher = crypto.createCipheriv('aes-256-cbc', this.key, this.iv);
+    cipher.setAutoPadding(false);
+    const encrypted = Buffer.concat([cipher.update(raw), cipher.final()]);
+    const encryptBase64 = encrypted.toString('base64');
+    const arr = [this.token, timestamp, nonce, encryptBase64].sort();
+    const msgSignature = crypto.createHash('sha1').update(arr.join('')).digest('hex');
+    return `<xml><Encrypt><![CDATA[${encryptBase64}]]></Encrypt><MsgSignature><![CDATA[${msgSignature}]]></MsgSignature><TimeStamp>${timestamp}</TimeStamp><Nonce><![CDATA[${nonce}]]></Nonce></xml>`;
+  }
 }
 
 /**

@@ -2279,13 +2279,15 @@ router.get('/card/trends', requireTenant, (req, res) => {
   const wxComponent = new WxComponentService(db);
   const wxMp = new WxMpService(db, wxComponent);
 
-  // 接入状态：是否绑定、绑定方式、账号类型、菜单是否已存草稿/可编辑
+  // 接入状态：是否绑定、绑定方式、账号类型、菜单/素材/粉丝/群发/统计等能力门控
   router.get('/mp/status', requireTenant, (req, res) => {
     const ch = wxMp.getChannel(req.customerId);
-    if (!ch) return res.json({ bound: false, canMenu: false, accountType: '' });
+    if (!ch) return res.json({ bound: false, canMenu: false, canReply: false, canMaterial: false, canFans: false, canMass: false, canStats: false, accountType: '' });
     const accountType = ch.account_type || '';
     const bindMode = ch.auth_status === 'authorized' ? 'open' : (ch.app_secret ? 'manual' : 'none');
-    const canMenu = accountType === 'service';
+    const isService = accountType === 'service';
+    // 自动回复：订阅号+服务号都支持（被动回复 5s 同步应答）；其余四块强依赖认证服务号
+    const canMenu = isService;
     const saved = db.prepare('SELECT menu_json, synced_at FROM mp_menu WHERE channel_apps_id = ?').get(ch.id);
     res.json({
       bound: true,
@@ -2294,6 +2296,11 @@ router.get('/card/trends', requireTenant, (req, res) => {
       accountType,
       authStatus: ch.auth_status,
       canMenu,
+      canReply: true,
+      canMaterial: isService,
+      canFans: isService,
+      canMass: isService,
+      canStats: isService,
       menuSaved: !!saved,
       syncedAt: saved?.synced_at || null,
     });
@@ -2406,6 +2413,301 @@ router.get('/card/trends', requireTenant, (req, res) => {
       const syncedAt = new Date().toISOString();
       db.prepare('UPDATE mp_menu SET synced_at = ?, updated_at = datetime(\'now\') WHERE channel_apps_id = ?').run(syncedAt, ch.id);
       res.json({ success: true, syncedAt });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  // ================= 公众号消息服务器配置 + 自动回复/关键字规则 =================
+
+  // 消息服务器配置（Token / EncodingAESKey / 启用状态）+ 回调 URL
+  router.get('/mp/message-config', requireTenant, (req, res) => {
+    const ch = wxMp.getChannel(req.customerId);
+    if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+    const cfg = wxMp.getMessageConfig(ch.id);
+    const callbackUrl = `${req.protocol}://${req.get('host')}/api/channel/wx-message/${ch.appid}`;
+    res.json({
+      config: cfg
+        ? { msgToken: cfg.msg_token, encodingAESKey: cfg.encoding_aes_key, urlEnabled: !!cfg.url_enabled }
+        : { msgToken: '', encodingAESKey: '', urlEnabled: false },
+      callbackUrl,
+    });
+  });
+
+  router.post('/mp/message-config', requireTenant, requireTenantAdmin, (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      const { msgToken, encodingAESKey, urlEnabled } = req.body || {};
+      if (!msgToken) return res.status(400).json({ error: '请填写 Token' });
+      wxMp.saveMessageConfig({ channelAppsId: ch.id, customerId: req.customerId, msgToken, encodingAESKey: encodingAESKey || '', urlEnabled: !!urlEnabled });
+      const callbackUrl = `${req.protocol}://${req.get('host')}/api/channel/wx-message/${ch.appid}`;
+      auditCust(db, req, 'mp_message_config', 'channel', req.customerId, '保存消息服务器配置');
+      res.json({ success: true, callbackUrl });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // 自动回复/关键字规则列表
+  router.get('/mp/reply-rules', requireTenant, (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      const rules = wxMp.listReplyRules(req.customerId).map((r) => ({
+        id: r.id,
+        matchType: r.match_type,
+        keyword: r.keyword,
+        replyType: r.reply_type,
+        content: r.content,
+        mediaJson: r.media_json,
+        priority: r.priority,
+        enabled: !!r.enabled,
+      }));
+      res.json({ rules });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.post('/mp/reply-rules', requireTenant, requireTenantAdmin, (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      const { matchType, keyword, replyType, content, mediaJson, priority, enabled } = req.body || {};
+      if (!matchType) return res.status(400).json({ error: '请选择匹配类型' });
+      if ((matchType === 'exact' || matchType === 'fuzzy') && !keyword) return res.status(400).json({ error: '关键字匹配类型必须填写关键字' });
+      const id = wxMp.createReplyRule({
+        customerId: req.customerId,
+        channelAppsId: ch.id,
+        matchType,
+        keyword: keyword || '',
+        replyType: replyType || 'text',
+        content: content || '',
+        mediaJson: mediaJson || '[]',
+        priority: priority || 0,
+        enabled: enabled !== false ? 1 : 0,
+      });
+      auditCust(db, req, 'mp_reply_rule_create', 'channel', req.customerId, '新增自动回复规则');
+      res.json({ success: true, id });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.put('/mp/reply-rules/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      const id = Number(req.params.id);
+      if (!wxMp.getReplyRule(id, req.customerId)) return res.status(404).json({ error: '规则不存在' });
+      wxMp.updateReplyRule(id, req.customerId, req.body || {});
+      auditCust(db, req, 'mp_reply_rule_update', 'channel', req.customerId, '更新自动回复规则');
+      res.json({ success: true });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.delete('/mp/reply-rules/:id', requireTenant, requireTenantAdmin, (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!wxMp.getReplyRule(id, req.customerId)) return res.status(404).json({ error: '规则不存在' });
+      wxMp.deleteReplyRule(id, req.customerId);
+      auditCust(db, req, 'mp_reply_rule_delete', 'channel', req.customerId, '删除自动回复规则');
+      res.json({ success: true });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // ================= 素材管理（认证服务号） =================
+
+  // 本地镜像列表
+  router.get('/mp/material', requireTenant, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持素材管理', code: 'NEED_SERVICE' });
+      const type = req.query.type || 'image';
+      const rows = db.prepare(`SELECT id, media_id, media_type, title, url, wx_created_at, created_at FROM mp_material WHERE channel_apps_id = ? AND media_type = ? ORDER BY wx_created_at DESC, id DESC`).all(ch.id, type);
+      res.json({ items: rows });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // 从微信批量拉取并落库
+  router.get('/mp/material/sync', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持素材管理', code: 'NEED_SERVICE' });
+      const type = req.query.type || 'image';
+      const result = await wxMp.syncMaterials(ch, req.customerId, type, Number(req.query.limit) || 50);
+      res.json({ success: true, ...result });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  // 上传图片素材（multipart）
+  router.post('/mp/material/upload-image', requireTenant, requireTenantAdmin, upload.single('file'), async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持素材管理', code: 'NEED_SERVICE' });
+      if (!req.file) return res.status(400).json({ error: '请选择图片文件' });
+      const data = await wxMp.addMaterialImage(ch, req.file.buffer, req.file.originalname);
+      wxMp.upsertMaterial(ch.id, req.customerId, {
+        mediaId: data.media_id,
+        type: 'image',
+        url: data.url || '',
+        title: req.file.originalname || '',
+        newsJson: '[]',
+        wxCreated: Math.floor(Date.now() / 1000),
+      });
+      res.json({ success: true, mediaId: data.media_id, url: data.url || '' });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  // 新增图文素材
+  router.post('/mp/material/news', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持素材管理', code: 'NEED_SERVICE' });
+      const articles = req.body?.articles;
+      if (!Array.isArray(articles) || !articles.length) return res.status(400).json({ error: '请提交图文内容' });
+      const data = await wxMp.addNews(ch, articles);
+      wxMp.upsertMaterial(ch.id, req.customerId, {
+        mediaId: data.media_id,
+        type: 'news',
+        title: articles[0]?.title || '',
+        url: '',
+        newsJson: JSON.stringify(articles),
+        wxCreated: Math.floor(Date.now() / 1000),
+      });
+      res.json({ success: true, mediaId: data.media_id });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  // ================= 粉丝管理（认证服务号） =================
+
+  router.get('/mp/fans', requireTenant, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持粉丝管理', code: 'NEED_SERVICE' });
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const size = Math.min(200, Math.max(1, Number(req.query.size) || 20));
+      const rows = db.prepare(`SELECT id, openid, nickname, sex, city, province, country, headimgurl, subscribe, subscribe_time, remark, groupid, synced_at FROM mp_fans WHERE channel_apps_id = ? ORDER BY id DESC LIMIT ? OFFSET ?`).all(ch.id, size, (page - 1) * size);
+      const total = db.prepare('SELECT COUNT(*) AS c FROM mp_fans WHERE channel_apps_id = ?').get(ch.id).c;
+      res.json({ items: rows, total, page, size });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.get('/mp/fans/sync', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持粉丝管理', code: 'NEED_SERVICE' });
+      const result = await wxMp.syncFans(ch, req.customerId);
+      res.json({ success: true, ...result });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  // ================= 图文群发 / 预览（认证服务号） =================
+
+  router.post('/mp/mass/send', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持群发', code: 'NEED_SERVICE' });
+      const { articleMediaId, sendType, openids, tagId } = req.body || {};
+      if (!articleMediaId) return res.status(400).json({ error: '请选择图文素材' });
+      let wx;
+      if (sendType === 'openids') {
+        if (!Array.isArray(openids) || !openids.length) return res.status(400).json({ error: '请选择接收粉丝' });
+        wx = await wxMp.massSendOpenids(ch, openids, articleMediaId);
+      } else {
+        wx = await wxMp.massSendAll(ch, articleMediaId, { tagId: sendType === 'tag' ? tagId : undefined });
+      }
+      const info = db.prepare(`INSERT INTO mp_mass_task (channel_apps_id, customer_id, task_type, send_type, target_json, article_json, status, wx_msg_id, wx_errcode, wx_errmsg, sent_at)
+        VALUES (?, ?, 'mass', ?, ?, ?, 'sent', ?, ?, '', ?)`)
+        .run(ch.id, req.customerId, sendType || 'group', JSON.stringify({ openids: openids || [], tagId: tagId || null }), JSON.stringify({ media_id: articleMediaId }), wx.msg_id || '', wx.errcode || 0, new Date().toISOString());
+      auditCust(db, req, 'mp_mass_send', 'channel', req.customerId, '群发图文');
+      res.json({ success: true, wxMsgId: wx.msg_id, taskId: Number(info.lastInsertRowid) });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  router.post('/mp/mass/preview', requireTenant, requireTenantAdmin, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持群发', code: 'NEED_SERVICE' });
+      const { articleMediaId, openid } = req.body || {};
+      if (!articleMediaId || !openid) return res.status(400).json({ error: '请选择图文素材和预览微信号' });
+      const wx = await wxMp.massPreview(ch, openid, articleMediaId);
+      const info = db.prepare(`INSERT INTO mp_mass_task (channel_apps_id, customer_id, task_type, send_type, target_json, article_json, status, wx_msg_id, wx_errcode, wx_errmsg, sent_at)
+        VALUES (?, ?, 'preview', 'openids', ?, ?, 'sent', ?, ?, '', ?)`)
+        .run(ch.id, req.customerId, JSON.stringify({ openid }), JSON.stringify({ media_id: articleMediaId }), wx.msg_id || '', wx.errcode || 0, new Date().toISOString());
+      res.json({ success: true, wxMsgId: wx.msg_id, taskId: Number(info.lastInsertRowid) });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  router.get('/mp/mass/tasks', requireTenant, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持群发', code: 'NEED_SERVICE' });
+      const rows = db.prepare(`SELECT id, task_type, send_type, status, wx_msg_id, wx_errcode, wx_errmsg, target_json, article_json, sent_at, created_at FROM mp_mass_task WHERE channel_apps_id = ? ORDER BY id DESC LIMIT 50`).all(ch.id);
+      res.json({ items: rows });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // ================= 基础数据统计（认证服务号 + 接口分析权限） =================
+
+  router.get('/mp/stats/users', requireTenant, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持数据统计', code: 'NEED_SERVICE' });
+      const begin = req.query.begin || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+      const end = req.query.end || new Date().toISOString().slice(0, 10);
+      const [summary, cumulate] = await Promise.all([
+        wxMp.getUserSummary(ch, begin, end),
+        wxMp.getUserCumulate(ch, begin, end),
+      ]);
+      res.json({ summary: summary.list || [], cumulate: cumulate.list || [] });
+    } catch (e) {
+      res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
+    }
+  });
+
+  router.get('/mp/stats/articles', requireTenant, async (req, res) => {
+    try {
+      const ch = wxMp.getChannel(req.customerId);
+      if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
+      if ((ch.account_type || '') !== 'service') return res.status(400).json({ error: '仅认证服务号支持数据统计', code: 'NEED_SERVICE' });
+      const begin = req.query.begin || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+      const end = req.query.end || new Date().toISOString().slice(0, 10);
+      const data = await wxMp.getArticleSummary(ch, begin, end);
+      res.json({ articles: data.list || [] });
     } catch (e) {
       res.status(400).json({ error: e.message, wxErrcode: e.wxErrcode });
     }

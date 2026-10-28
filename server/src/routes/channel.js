@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { WxComponentService, WxCrypto, classifyAuthorizer } from '../services/wx-component.js';
+import { WxMpService } from '../services/wx-mp.js';
 import { requireAuth } from '../auth.js';
 import { addOperationLog } from '../db.js';
 
@@ -10,6 +11,7 @@ import { addOperationLog } from '../db.js';
 export function createChannelRouter(db) {
   const router = Router();
   const wxService = new WxComponentService(db);
+  const wxMp = new WxMpService(db, wxService);
 
   // ========== 第三方平台凭证管理 ==========
 
@@ -107,10 +109,32 @@ export function createChannelRouter(db) {
     }
   });
 
-  // 消息与事件接收URL（租户小程序的用户消息转发）
-  router.post('/wx-message/:appid', (req, res) => {
-    // 消息转发处理（预留，当前只返回success）
-    res.send('success');
+  // 消息与事件接收URL：GET 为微信消息服务器地址校验，POST 为粉丝消息/事件被动回复。
+  // 安全：按 appid 反查渠道与消息服务器配置，明文模式校验 token 签名、加密模式校验 AESKey 并解密，
+  // 杜绝伪造请求；任何校验失败一律回 success（微信重试风暴防护）。
+  router.get('/wx-message/:appid', async (req, res) => {
+    const { appid } = req.params;
+    const { signature, timestamp, nonce, echostr } = req.query;
+    try {
+      const echo = wxMp.verifyEcho({ appid, signature, timestamp, nonce, echostr });
+      if (!echo) return res.status(403).send('invalid');
+      res.send(echo);
+    } catch (e) {
+      res.status(403).send('invalid');
+    }
+  });
+
+  router.post('/wx-message/:appid', async (req, res) => {
+    const { appid } = req.params;
+    try {
+      const { reply } = await wxMp.handleInboundMessage({ appid, query: req.query, body: req.body });
+      if (!reply) return res.send('success');
+      res.set('Content-Type', 'text/xml');
+      res.send(reply);
+    } catch (e) {
+      console.error('[wx-message] 处理失败:', e.message);
+      res.send('success');
+    }
   });
 
   // ========== 租户授权流程 ==========

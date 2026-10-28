@@ -199,6 +199,37 @@ export const mpGetMenu = () => customerApi.get('/mp/menu');
 export const mpSaveMenu = (menu) => customerApi.post('/mp/menu/save', { menu });
 export const mpPushMenu = () => customerApi.post('/mp/menu/push');
 
+// 公众号消息服务器配置 + 自动回复/关键字规则
+export const mpGetMessageConfig = () => customerApi.get('/mp/message-config');
+export const mpSaveMessageConfig = (data) => customerApi.post('/mp/message-config', data);
+export const mpGetReplyRules = () => customerApi.get('/mp/reply-rules');
+export const mpCreateReplyRule = (data) => customerApi.post('/mp/reply-rules', data);
+export const mpUpdateReplyRule = (id, data) => customerApi.put(`/mp/reply-rules/${id}`, data);
+export const mpDeleteReplyRule = (id) => customerApi.delete(`/mp/reply-rules/${id}`);
+
+// 素材管理
+export const mpGetMaterial = (type) => customerApi.get('/mp/material', { params: { type } });
+export const mpSyncMaterial = (type, limit) => customerApi.get('/mp/material/sync', { params: { type, limit } });
+export const mpUploadImage = (file) => {
+  const form = new FormData();
+  form.append('file', file);
+  return customerApi.post('/mp/material/upload-image', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+};
+export const mpCreateNews = (articles) => customerApi.post('/mp/material/news', { articles });
+
+// 粉丝管理
+export const mpGetFans = (page, size) => customerApi.get('/mp/fans', { params: { page, size } });
+export const mpSyncFans = () => customerApi.get('/mp/fans/sync');
+
+// 图文群发 / 预览
+export const mpMassSend = (data) => customerApi.post('/mp/mass/send', data);
+export const mpMassPreview = (data) => customerApi.post('/mp/mass/preview', data);
+export const mpGetMassTasks = () => customerApi.get('/mp/mass/tasks');
+
+// 基础数据统计
+export const mpStatsUsers = (begin, end) => customerApi.get('/mp/stats/users', { params: { begin, end } });
+export const mpStatsArticles = (begin, end) => customerApi.get('/mp/stats/articles', { params: { begin, end } });
+
 // 客户后台 - 支付（接口挂在 /api/payment，需带 customer_token 的独立实例）
 const customerPaymentApi = axios.create({ baseURL: '/api' });
 customerPaymentApi.interceptors.request.use((config) => {

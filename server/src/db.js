@@ -1017,6 +1017,125 @@ function migrate(db) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_mp_menu_customer ON mp_menu(customer_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_mp_menu_channel ON mp_menu(channel_apps_id)');
 
+  // —— 全端渠道：公众号消息服务器配置（租户在自己公众号后台填的 Token/AESKey，用于校验/解密来自微信的回调）——
+  // 一个公众号（channel_apps_id）只有一套消息服务器配置；url_enabled=1 表示已启用消息接收。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mp_message_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_apps_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      msg_token TEXT NOT NULL DEFAULT '',
+      encoding_aes_key TEXT NOT NULL DEFAULT '',
+      url_enabled INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(channel_apps_id)
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_msg_cfg_customer ON mp_message_config(customer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_msg_cfg_channel ON mp_message_config(channel_apps_id)');
+
+  // —— 全端渠道：公众号自动回复 / 关键字规则 ——
+  // match_type: exact(全匹配) | fuzzy(包含) | subscribe(关注后) | default(未命中兜底)
+  // reply_type: text | news(图文) | image | voice | video | transfer(转客服)
+  // keyword 在 subscribe/default 时为空串；同渠道同名+同关键字唯一，确保兜底/关注规则各只有一条。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mp_reply_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_apps_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      match_type TEXT NOT NULL DEFAULT 'exact',
+      keyword TEXT NOT NULL DEFAULT '',
+      reply_type TEXT NOT NULL DEFAULT 'text',
+      content TEXT NOT NULL DEFAULT '',
+      media_json TEXT NOT NULL DEFAULT '[]',
+      priority INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(channel_apps_id, match_type, keyword)
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_reply_customer ON mp_reply_rules(customer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_reply_channel ON mp_reply_rules(channel_apps_id)');
+
+  // —— 全端渠道：公众号素材镜像（media_id 落库，便于群发/自动回复复用，不强制耦合本地文件）——
+  // media_type: image | voice | video | news
+  // local_path 仅在图片等可下载素材镜像时填充；news 图文结构存 news_json。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mp_material (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_apps_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      media_id TEXT NOT NULL DEFAULT '',
+      media_type TEXT NOT NULL DEFAULT 'image',
+      title TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      url TEXT NOT NULL DEFAULT '',
+      local_path TEXT NOT NULL DEFAULT '',
+      news_json TEXT NOT NULL DEFAULT '[]',
+      wx_created_at INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(channel_apps_id, media_id)
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_material_customer ON mp_material(customer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_material_channel ON mp_material(channel_apps_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_material_type ON mp_material(channel_apps_id, media_type)');
+
+  // —— 全端渠道：公众号粉丝快照（非实时，手动/定时同步 user/info 落库）——
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mp_fans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_apps_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      openid TEXT NOT NULL DEFAULT '',
+      nickname TEXT NOT NULL DEFAULT '',
+      sex INTEGER NOT NULL DEFAULT 0,
+      language TEXT NOT NULL DEFAULT '',
+      city TEXT NOT NULL DEFAULT '',
+      province TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT '',
+      headimgurl TEXT NOT NULL DEFAULT '',
+      subscribe INTEGER NOT NULL DEFAULT 0,
+      subscribe_time INTEGER NOT NULL DEFAULT 0,
+      remark TEXT NOT NULL DEFAULT '',
+      groupid INTEGER NOT NULL DEFAULT 0,
+      tagid_list TEXT NOT NULL DEFAULT '',
+      synced_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(channel_apps_id, openid)
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_fans_customer ON mp_fans(customer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_fans_channel ON mp_fans(channel_apps_id)');
+
+  // —— 全端渠道：公众号图文群发 / 预览任务 ——
+  // task_type: mass(群发) | preview(预览)
+  // send_type: group(全部/分组) | openids(指定 openid 列表) | tag(按标签)
+  // status: pending | sending | sent | failed
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS mp_mass_task (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_apps_id INTEGER NOT NULL,
+      customer_id INTEGER NOT NULL,
+      task_type TEXT NOT NULL DEFAULT 'mass',
+      send_type TEXT NOT NULL DEFAULT 'group',
+      target_json TEXT NOT NULL DEFAULT '[]',
+      article_json TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'pending',
+      wx_msg_id TEXT NOT NULL DEFAULT '',
+      wx_errcode INTEGER NOT NULL DEFAULT 0,
+      wx_errmsg TEXT NOT NULL DEFAULT '',
+      sent_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_mass_customer ON mp_mass_task(customer_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_mass_channel ON mp_mass_task(channel_apps_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_mp_mass_status ON mp_mass_task(channel_apps_id, status)');
+
   // ============================================================
   // 智能名片解决方案（card）
   // ============================================================
