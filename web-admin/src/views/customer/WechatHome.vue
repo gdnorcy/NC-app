@@ -2,12 +2,12 @@
   <div class="wechat-home">
     <el-tabs v-model="activeTab" class="wt-tabs">
       <el-tab-pane label="接入设置" name="connect" />
-      <el-tab-pane label="消息服务器" name="msgcfg" :disabled="!status.bound" />
-      <el-tab-pane label="自动回复" name="reply" :disabled="!status.bound" />
-      <el-tab-pane label="素材库" name="material" :disabled="!status.canMaterial" />
-      <el-tab-pane label="粉丝" name="fans" :disabled="!status.canFans" />
-      <el-tab-pane label="群发/预览" name="mass" :disabled="!status.canMass" />
-      <el-tab-pane label="数据统计" name="stats" :disabled="!status.canStats" />
+      <el-tab-pane label="消息服务器" name="msgcfg" />
+      <el-tab-pane label="自动回复" name="reply" />
+      <el-tab-pane label="素材库" name="material" />
+      <el-tab-pane label="粉丝" name="fans" />
+      <el-tab-pane label="群发/预览" name="mass" />
+      <el-tab-pane label="数据统计" name="stats" />
     </el-tabs>
 
     <!-- ============ 接入设置 ============ -->
@@ -82,7 +82,7 @@
     </div>
 
     <!-- ============ 消息服务器配置 ============ -->
-    <div v-else-if="activeTab === 'msgcfg'" class="conn-wrap">
+    <GatedTab v-else-if="activeTab === 'msgcfg'" :open="status.bound" title="消息服务器" :reason="lockReason('bind')" @goto="activeTab = 'connect'">
       <el-alert type="info" :closable="false" show-icon title="消息服务器配置"
         description="在公众号后台「设置与开发 → 基本配置 → 服务器配置」填写下方回调 URL 与 Token，并启用。启用后粉丝消息/事件将由本系统接收并按自动回复规则被动应答。" />
       <el-card class="conn-card" shadow="never">
@@ -107,10 +107,10 @@
           </el-form-item>
         </el-form>
       </el-card>
-    </div>
+    </GatedTab>
 
     <!-- ============ 自动回复 / 关键字规则 ============ -->
-    <div v-else-if="activeTab === 'reply'" class="conn-wrap">
+    <GatedTab v-else-if="activeTab === 'reply'" :open="status.bound" title="自动回复" :reason="lockReason('bind')" @goto="activeTab = 'connect'">
       <el-alert v-if="!msgEnabled" type="warning" :closable="false"
         title="尚未启用消息服务器，自动回复不会生效。请先在「消息服务器」标签页配置 Token 并启用，再到公众号后台启用服务器配置。" />
       <div class="menu-toolbar">
@@ -208,10 +208,10 @@
           <el-button type="primary" :loading="replySaving" @click="saveReply">保存</el-button>
         </template>
       </el-dialog>
-    </div>
+    </GatedTab>
 
     <!-- ============ 素材库 ============ -->
-    <div v-else-if="activeTab === 'material'" class="conn-wrap">
+    <GatedTab v-else-if="activeTab === 'material'" :open="status.canMaterial" title="素材库" :reason="lockReason('service')" @goto="activeTab = 'connect'">
       <el-alert type="info" :closable="false" show-icon title="素材管理（认证服务号）"
         description="图片/图文素材来自微信侧，可上传图片、新增图文，或一键从微信拉取已存在素材做本地镜像。群发需选用图文素材。" />
       <el-radio-group v-model="materialType" @change="loadMaterial" class="material-type">
@@ -269,10 +269,10 @@
           <el-button type="primary" :loading="newsSaving" @click="createNews">创建并保存</el-button>
         </template>
       </el-dialog>
-    </div>
+    </GatedTab>
 
     <!-- ============ 粉丝 ============ -->
-    <div v-else-if="activeTab === 'fans'" class="conn-wrap">
+    <GatedTab v-else-if="activeTab === 'fans'" :open="status.canFans" title="粉丝" :reason="lockReason('service')" @goto="activeTab = 'connect'">
       <el-alert type="info" :closable="false" show-icon title="粉丝管理（认证服务号）"
         description="粉丝数据非实时，需手动「从微信同步」拉取全量快照。同步量较大时请耐心等待。" />
       <div class="menu-toolbar">
@@ -298,10 +298,10 @@
         </el-table-column>
       </el-table>
       <el-pagination class="fan-page" layout="prev,pager,next" :total="fansTotal" :page-size="fansSize" :current-page="fansPage" @current-change="(p) => { fansPage = p; loadFans(); }" />
-    </div>
+    </GatedTab>
 
     <!-- ============ 群发 / 预览 ============ -->
-    <div v-else-if="activeTab === 'mass'" class="conn-wrap">
+    <GatedTab v-else-if="activeTab === 'mass'" :open="status.canMass" title="群发/预览" :reason="lockReason('service')" @goto="activeTab = 'connect'">
       <el-alert type="info" :closable="false" show-icon title="图文群发（认证服务号）"
         description="群发需选用「图文素材」的 media_id。群发为异步任务，微信处理完成后以模板消息通知粉丝；此处记录发送任务与微信返回 msg_id。" />
       <el-card class="conn-card" shadow="never">
@@ -350,10 +350,10 @@
           <template #default="{ row }">{{ row.sent_at ? new Date(row.sent_at).toLocaleString() : '-' }}</template>
         </el-table-column>
       </el-table>
-    </div>
+    </GatedTab>
 
     <!-- ============ 数据统计 ============ -->
-    <div v-else-if="activeTab === 'stats'" class="conn-wrap">
+    <GatedTab v-else-if="activeTab === 'stats'" :open="status.canStats" title="数据统计" :reason="lockReason('service')" @goto="activeTab = 'connect'">
       <el-alert type="info" :closable="false" show-icon title="基础数据统计（认证服务号 + 接口分析权限）"
         description="数据来自微信数据统计接口。若返回权限错误（如 48006），需公众号具备「接口分析权限」。" />
       <div class="menu-toolbar">
@@ -390,7 +390,7 @@
           <el-table-column prop="add_to_fav_user" label="收藏人数" width="100" />
         </el-table>
       </template>
-    </div>
+    </GatedTab>
   </div>
 </template>
 
@@ -406,6 +406,7 @@ import {
   mpMassSend, mpMassPreview, mpGetMassTasks,
   mpStatsUsers, mpStatsArticles,
 } from '../../api/index.js';
+import GatedTab from './GatedTab.vue';
 
 const activeTab = ref('connect');
 const loading = ref(false);
@@ -499,6 +500,15 @@ function disableFuture(d) { return d && d > new Date(); }
 function copyText(t) {
   if (!t) return;
   navigator.clipboard?.writeText(t).then(() => ElMessage.success('已复制')).catch(() => {});
+}
+// 锁定态原因文案：kind='bind' 用于消息服务器/自动回复（需先绑定）；'service' 用于素材/粉丝/群发/统计（需认证服务号）
+function lockReason(kind) {
+  if (kind === 'bind') {
+    return '请先在「接入设置」完成公众号绑定后，再使用此功能。';
+  }
+  if (!status.bound) return '请先在「接入设置」完成公众号绑定。';
+  const label = status.accountType === 'subscription' ? '订阅号' : (status.accountType === 'service' ? '服务号' : '未知类型');
+  return `此功能仅认证服务号可用。当前账号类型：${label}。完成微信认证后自动开启。`;
 }
 
 async function loadStatus() {
