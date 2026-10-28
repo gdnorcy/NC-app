@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { tenantState, hasSolution, checkTenantAccess } from '../tenant.js';
 import { addOperationLog } from '../db.js';
+import { publicBaseUrl } from '../utils/publicUrl.js';
 
 function parseJson(s, fallback) {
   try { return JSON.parse(s); } catch { return fallback; }
@@ -148,7 +149,7 @@ export function createContentRouter(db) {
       let QRCode;
       try { ({ default: QRCode } = await import('qrcode')); } catch { /* qrcode 库缺失时降级 */ }
       if (!QRCode) return res.status(200).json({ qr: '' });
-      const link = `${req.protocol}://${req.get('host')}/card/#/pagesReads/showArt/showArt?id=${a.id}`;
+      const link = `${publicBaseUrl(req)}/card/#/pagesReads/showArt/showArt?id=${a.id}`;
       const qr = await QRCode.toDataURL(link, { margin: 1, width: 320, errorCorrectionLevel: 'M' });
       res.json({ qr, link });
     } catch (e) { res.status(500).json({ error: e.message }); }

@@ -450,16 +450,29 @@ export class WxMpService {
     return null;
   }
 
-  /** GET 验签回显：微信消息服务器配置时的地址校验。成功返回 echostr，失败返回 null。 */
+  /**
+   * GET 验签回显：微信消息服务器配置时的地址校验。成功返回 echostr，失败返回 null。
+   * 🔴 失败必须出声：公众号后台只会笼统提示「请求失败，HTTP 返回非 200」，
+   *    真正原因（渠道不存在 / 没配 Token / Token 与后台填写的不一致）只能在我们这边的日志里看到。
+   */
   verifyEcho({ appid, signature, timestamp, nonce, echostr }) {
     const channel = this.db.prepare("SELECT * FROM channel_apps WHERE appid = ?").get(appid);
-    if (!channel) return null;
+    if (!channel) {
+      console.warn('[wx-mp] 地址校验失败：不存在该 appid 对应的渠道', { appid });
+      return null;
+    }
     const cfg = this.getMessageConfig(channel.id);
     const token = cfg?.msg_token || '';
-    if (!token) return null;
+    if (!token) {
+      console.warn('[wx-mp] 地址校验失败：渠道未配置 Token', { appid });
+      return null;
+    }
     const arr = [token, timestamp, nonce].sort();
     const sha = crypto.createHash('sha1').update(arr.join('')).digest('hex');
-    if (sha !== signature) return null;
+    if (sha !== signature) {
+      console.warn('[wx-mp] 地址校验失败：本系统 Token 与公众号后台填写的不一致', { appid });
+      return null;
+    }
     return echostr;
   }
 

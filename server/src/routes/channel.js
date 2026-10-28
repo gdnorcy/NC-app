@@ -3,6 +3,7 @@ import { WxComponentService, WxCrypto, classifyAuthorizer } from '../services/wx
 import { WxMpService } from '../services/wx-mp.js';
 import { requireAuth } from '../auth.js';
 import { addOperationLog } from '../db.js';
+import { publicBaseUrl } from '../utils/publicUrl.js';
 
 /**
  * 全端渠道管理路由
@@ -146,7 +147,7 @@ export function createChannelRouter(db) {
       if (!redirectUri || !customerId) return res.status(400).json({ error: '缺少参数' });
 
       // 构造回调地址，带上customerId
-      const callbackUrl = `${req.protocol}://${req.get('host')}/api/channel/auth-callback?customer_id=${customerId}`;
+      const callbackUrl = `${publicBaseUrl(req)}/api/channel/auth-callback?customer_id=${customerId}`;
       const authUrl = await wxService.getAuthUrl(callbackUrl, Number(authType));
       res.json({ authUrl });
     } catch (e) {
@@ -386,7 +387,7 @@ export function createChannelRouter(db) {
       brandLogo: channel.brand_logo || customer?.logo_path || '',
       primaryColor: channel.primary_color || '#165DFF',
       individualJoinMode: joinMode?.individual_join_mode === 'purchase' ? 'purchase' : 'code',
-      apiBase: `${req.protocol}://${req.get('host')}`,
+      apiBase: publicBaseUrl(req),
     });
   });
 
