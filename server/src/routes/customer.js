@@ -19,6 +19,7 @@ import { createMemberService } from '../services/member.js';
 import {
   CARD_IDENTITY_SQL, cardIdentityParams, IDENTITY_LABEL, IDENTITY_HINT, subjectTypeOf,
 } from '../services/cardIdentity.js';
+import { publicBaseUrl } from '../utils/publicUrl.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -489,7 +490,7 @@ router.post('/plans/:id/poster', requireTenant, requireTenantAdmin, async (req, 
     const plan = verifyPlanOwnership(req, res, id);
     if (!plan) return;
     if (!plan.share_enabled || !plan.share_token) return res.status(400).json({ error: '请先在方案中开启「分享」后再生成海报' });
-    const host = `${req.protocol}://${req.get('host')}`;
+    const host = publicBaseUrl(req);
     const sceneCount = db.prepare('SELECT COUNT(*) AS n FROM scenes WHERE plan_id = ? AND published = 1').get(id).n || 0;
     // 封面：本地 /uploads 转绝对地址拉取；拉取失败降级品牌底色
     let coverBuf = null;
@@ -941,7 +942,7 @@ router.post('/channels/mini/auth-url', requireTenant, requireTenantAdmin, async 
     const wxService = new WxComponentService(db);
     // 服务层签名：getAuthUrl(redirectUri, authType)；authType=2 仅小程序
     const authUrl = await wxService.getAuthUrl(
-      redirectUri || `${req.protocol}://${req.get('host')}/customer`,
+      redirectUri || `${publicBaseUrl(req)}/customer`,
       2
     );
     res.json({ authUrl });
@@ -2366,7 +2367,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
   // 开放平台授权链接（auth_type=1 仅公众号）
   router.get('/mp/auth-url', requireTenant, requireTenantAdmin, async (req, res) => {
     try {
-      const callbackUrl = `${req.protocol}://${req.get('host')}/api/channel/auth-callback?customer_id=${req.customerId}`;
+      const callbackUrl = `${publicBaseUrl(req)}/api/channel/auth-callback?customer_id=${req.customerId}`;
       const authUrl = await wxComponent.getAuthUrl(callbackUrl, 1);
       res.json({ authUrl });
     } catch (e) {
@@ -2449,7 +2450,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
     const ch = wxMp.getChannel(req.customerId);
     if (!ch) return res.status(400).json({ error: '请先绑定公众号' });
     const cfg = wxMp.getMessageConfig(ch.id);
-    const callbackUrl = `${req.protocol}://${req.get('host')}/api/channel/wx-message/${ch.appid}`;
+    const callbackUrl = `${publicBaseUrl(req)}/api/channel/wx-message/${ch.appid}`;
     res.json({
       config: cfg
         ? { msgToken: cfg.msg_token, encodingAESKey: cfg.encoding_aes_key, urlEnabled: !!cfg.url_enabled }
@@ -2465,7 +2466,7 @@ router.get('/card/trends', requireTenant, (req, res) => {
       const { msgToken, encodingAESKey, urlEnabled } = req.body || {};
       if (!msgToken) return res.status(400).json({ error: '请填写 Token' });
       wxMp.saveMessageConfig({ channelAppsId: ch.id, customerId: req.customerId, msgToken, encodingAESKey: encodingAESKey || '', urlEnabled: !!urlEnabled });
-      const callbackUrl = `${req.protocol}://${req.get('host')}/api/channel/wx-message/${ch.appid}`;
+      const callbackUrl = `${publicBaseUrl(req)}/api/channel/wx-message/${ch.appid}`;
       auditCust(db, req, 'mp_message_config', 'channel', req.customerId, '保存消息服务器配置');
       res.json({ success: true, callbackUrl });
     } catch (e) {

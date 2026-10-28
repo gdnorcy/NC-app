@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { requireOAuth } from './oauth.js';
 import { getStorage } from '../storage/index.js';
 import { toPlan, toScene } from '../db.js';
+import { publicBaseUrl } from '../utils/publicUrl.js';
 
 /**
  * 开放 API 路由
@@ -132,7 +133,7 @@ export function createOpenApiRouter(db) {
     const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(Number(planId));
     if (!plan) return res.status(404).json({ error: '方案不存在' });
 
-    const shareUrl = `${req.protocol}://${req.get('host')}/?plan=${planId}${sceneId ? `&scene=${sceneId}` : ''}`;
+    const shareUrl = `${publicBaseUrl(req)}/?plan=${planId}${sceneId ? `&scene=${sceneId}` : ''}`;
     res.json({ share_url: shareUrl, plan_id: planId, scene_id: sceneId || null });
   });
 

@@ -7,6 +7,7 @@ import { config } from '../config.js';
 import { toPlan, toScene, toCustomer, genShareToken, addOperationLog } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { getStorage } from '../storage/index.js';
+import { publicBaseUrl } from '../utils/publicUrl.js';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
@@ -38,7 +39,7 @@ function parsePlanBody(body) {
 
 function shareUrl(req, token) {
   if (!token) return '';
-  return `${req.protocol}://${req.get('host')}/s/${token}`;
+  return `${publicBaseUrl(req)}/s/${token}`;
 }
 
 /** 查方案所属客户项目 */

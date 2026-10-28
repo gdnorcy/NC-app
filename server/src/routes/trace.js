@@ -15,6 +15,7 @@ import { normalizeDisplaySlots, pickDisplaySlots } from '../services/traceSlots.
 import { maskSecretValue, mergeSecretInput, readSecret } from '../crypto.js';
 import { applyTraceReward } from '../services/traceReward.js';
 import { getPlatformSettings } from './tracePlatform.js';
+import { publicBaseUrl } from '../utils/publicUrl.js';
 
 function sendError(res, status, error) {
   return res.status(status).json({ error });
@@ -800,7 +801,7 @@ export function createTraceAdminRouter(db) {
         codeno: req.body.codeno ?? req.query.codeno ?? 1,
         codenot: req.body.codenot ?? req.query.codenot ?? 0,
         siteRoot,
-        origin: `${req.protocol}://${req.get('host')}`,
+        origin: publicBaseUrl(req),
       });
       addHistory(db, req.traceTenantId, 1, `${rule.m[1]}${batch.batch}`, req, `生成防伪码：(${req.body.codetype ?? req.query.codetype ?? 1}) 共 ${pkg.created} 条`);
       return res.json({ ok: true, created: pkg.created, sets: pkg.sets || 0, filename: pkg.filename, contentType: pkg.contentType, content: pkg.content });
@@ -828,7 +829,7 @@ export function createTraceAdminRouter(db) {
         codeno: req.query.codeno ?? 100,
         codenot: req.query.codenot ?? 0,
         siteRoot,
-        origin: `${req.protocol}://${req.get('host')}`,
+        origin: publicBaseUrl(req),
       });
       addHistory(db, req.traceTenantId, 1, `${rule.m[1]}${batch.batch}`, req, `下载防伪码数据包：${pkg.filename}`);
       res.setHeader('Content-Type', pkg.contentType);

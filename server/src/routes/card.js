@@ -3,6 +3,7 @@
  * 个人C端用户 + 企业租户 + 平台运营
  */
 import { Router } from 'express';
+import { publicBaseUrl } from '../utils/publicUrl.js';
 import { config } from '../config.js';
 import multer from 'multer';
 import fs from 'node:fs';
@@ -2032,9 +2033,7 @@ export function createCardRouter(db, wxService) {
     try {
       const cardId = Number(req.query.cardId || 0);
       if (!cardId) return res.status(400).json({ error: '缺少 cardId' });
-      const host = req.get('host') || `localhost:${process.env.PORT || 3000}`;
-      const proto = req.headers['x-forwarded-proto'] || 'http';
-      const h5Url = `${proto}://${host}/card/#/pages/card/cardDetail?id=${cardId}`;
+      const h5Url = `${publicBaseUrl(req)}/card/#/pages/card/cardDetail?id=${cardId}`;
       const fallback = async () => {
         const QRCode = (await import('qrcode')).default;
         const image = await QRCode.toDataURL(h5Url, { margin: 1, width: 600, errorCorrectionLevel: 'M' });
@@ -2103,9 +2102,7 @@ export function createCardRouter(db, wxService) {
   router.get('/distribution/qrcode', auth, async (req, res) => {
     try {
       if (!req.customerId) return res.json({ ok: false, error: '未入驻任何租户，暂无法生成推广码' });
-      const host = req.get('host') || `localhost:${process.env.PORT || 3000}`;
-      const proto = req.headers['x-forwarded-proto'] || 'http';
-      const shareUrl = buildShareUrl(req.user.id, `${proto}://${host}`);
+      const shareUrl = buildShareUrl(req.user.id, publicBaseUrl(req));
       const QRCode = (await import('qrcode')).default;
       const qrDataUrl = await QRCode.toDataURL(shareUrl, { margin: 1, width: 320, errorCorrectionLevel: 'M' });
       res.json({ ok: true, qrDataUrl, shareUrl, inviterId: req.user.id });
