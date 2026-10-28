@@ -7,6 +7,7 @@
 - 写值播种须留痕：ADD COLUMN 幂等 ≠ UPDATE 幂等（"当前是 0 就播种"会被管理员关后重启重开）→ schema_marks 标记。
 - **整批约束校验必须整批传入**：`list.map(x => normalize([x]))` 逐个调 → 每次只看 1 个 → 上限永不触发（真事故：展示位「最多 8 个」形同虚设）。纯函数单测全绿也照漏，路由层测试才拦得住。
 - `node --test $FILES` 多文件被当单路径 → `$(cat list.txt | tr '\n' ' ')` 展开。node:sqlite run() 返回 **lastInsertRowid（小写 d）**。
+- SIcon 图标名必须命中 `web-admin/src/assets/icons/svg/{name}.svg`，**缺失=静默渲染空白**（不报错）→ 守卫测试 `web-admin/src/components/SIcon.test.js`。
 
 ## 1 测试
 - node:test 三坑：① before() 已跑种子打 mark → 测"未迁移"须 beforeEach 重置；② beforeEach 传 const 函数引用 TDZ → 包箭头；③ ESM after() 写 require → hookFailed 但 test 全过（看 suite 行）。

@@ -8,6 +8,7 @@
       <el-tab-pane label="粉丝" name="fans" />
       <el-tab-pane label="群发/预览" name="mass" />
       <el-tab-pane label="数据统计" name="stats" />
+      <el-tab-pane label="自定义菜单" name="menu" />
     </el-tabs>
 
     <!-- ============ 接入设置 ============ -->
@@ -391,11 +392,108 @@
         </el-table>
       </template>
     </GatedTab>
+
+    <!-- ============ 自定义菜单 ============ -->
+    <GatedTab v-else-if="activeTab === 'menu'" :open="status.canMenu" title="自定义菜单" :reason="lockReason('service')" @goto="activeTab = 'connect'">
+      <div class="menu-head">
+        <h3 class="menu-page-title">自定义菜单</h3>
+        <el-link type="primary" href="https://mp.weixin.qq.com" target="_blank" :underline="false">菜单管理 ›</el-link>
+      </div>
+      <el-alert v-if="liveMenu" type="info" :closable="false" show-icon class="menu-alert">
+        <template #title>线上已存在菜单</template>
+        <template #default>检测到微信侧已有菜单{{ status.syncedAt ? `（最近发布：${fmtTime(status.syncedAt)}）` : '' }}。「保存并发布」将覆盖现有菜单。</template>
+      </el-alert>
+
+      <div class="menu-builder">
+        <!-- 左：手机预览 -->
+        <div class="phone">
+          <div class="phone-status"><span>1:21</span><span class="phone-icons">●●● ▪</span></div>
+          <div class="phone-bar"><span>‹</span><span>👤</span></div>
+          <div class="phone-body">
+            <div v-if="selectedTop != null && buttons[selectedTop] && buttons[selectedTop].hasSub" class="sub-pop">
+              <div v-for="(s, i) in buttons[selectedTop].sub" :key="i" class="sub-pop-item" :class="{ active: selectedSub === i }" @click="selectedSub = i">{{ s.name || '子菜单' + (i + 1) }}</div>
+              <div v-if="buttons[selectedTop].sub.length < 5" class="sub-pop-add" @click="addSubMenu(buttons[selectedTop])">+ 添加</div>
+            </div>
+          </div>
+          <div class="phone-foot">
+            <div v-if="buttons.length < 3" class="foot-add" @click="addTopMenu">+ 添加</div>
+            <div class="foot-tabs">
+              <div v-for="(b, i) in buttons" :key="i" class="foot-tab" :class="{ active: selectedTop === i && selectedSub == null }" @click="selectTop(i)">{{ b.name || '菜单' + (i + 1) }}</div>
+            </div>
+          </div>
+          <div v-if="selectedTop != null" class="float-pill">
+            <span v-if="selectedSub != null" class="pill-back" @click="selectedSub = null">‹</span>
+            <span class="pill-del" @click="delSelected">🗑</span>
+          </div>
+        </div>
+
+        <!-- 右：菜单信息 -->
+        <div class="menu-info">
+          <template v-if="currentMenu">
+            <h4 class="mi-title">菜单信息</h4>
+            <el-form label-width="84px">
+              <el-form-item label="名称">
+                <el-input v-model="currentMenu.name" maxlength="8" show-word-limit placeholder="菜单名称" />
+                <div class="menu-tip">仅支持中英文和数字，字数不超过 4 个汉字或 8 个字母。</div>
+              </el-form-item>
+              <el-form-item label="消息类型">
+                <el-radio-group v-model="currentMenu.type">
+                  <el-radio label="click" :disabled="isParent">发送消息</el-radio>
+                  <el-radio label="view" :disabled="isParent">跳转网页</el-radio>
+                  <el-radio label="miniprogram" :disabled="isParent">跳转小程序</el-radio>
+                  <el-radio label="shop" disabled>跳转小店</el-radio>
+                  <el-radio label="goods" disabled>跳转商品</el-radio>
+                  <el-radio label="home" disabled>跳转账号主页</el-radio>
+                </el-radio-group>
+              </el-form-item>
+
+              <template v-if="!isParent">
+                <el-form-item v-if="currentMenu.type === 'view'" label="链接">
+                  <el-input v-model="currentMenu.url" placeholder="https://..." />
+                </el-form-item>
+                <el-form-item v-else-if="currentMenu.type === 'click'" label="事件 Key">
+                  <el-input v-model="currentMenu.key" placeholder="如 NEWS_LATEST" />
+                  <div class="menu-tip">发送消息：粉丝点击后触发「自动回复」中对应 Key 的事件回复。富媒体内容请在「自动回复」配置。</div>
+                </el-form-item>
+                <el-form-item v-else-if="currentMenu.type === 'miniprogram'" label="AppID">
+                  <el-input v-model="currentMenu.appid" placeholder="小程序 AppID" />
+                </el-form-item>
+                <el-form-item v-else-if="currentMenu.type === 'miniprogram'" label="页面路径">
+                  <el-input v-model="currentMenu.pagepath" placeholder="pages/index/index" />
+                </el-form-item>
+                <el-form-item v-else-if="currentMenu.type === 'miniprogram'" label="备用网页">
+                  <el-input v-model="currentMenu.url" placeholder="https://...（旧版微信兜底）" />
+                </el-form-item>
+              </template>
+
+              <el-form-item v-if="isTopSelected">
+                <el-checkbox v-model="currentMenu.hasSub" @change="(v) => toggleParent(currentMenu, v)">设为含子菜单</el-checkbox>
+              </el-form-item>
+
+              <el-form-item>
+                <el-link type="danger" :underline="false" @click="delSelected">删除菜单</el-link>
+              </el-form-item>
+            </el-form>
+          </template>
+          <div v-else class="menu-empty">从左侧手机预览点击菜单进行编辑，或点「+ 添加」新建</div>
+        </div>
+      </div>
+
+      <div class="menu-foot-actions">
+        <el-button :loading="menuLoading" @click="loadMenu">拉取菜单</el-button>
+        <el-button @click="previewMenu">预览</el-button>
+        <el-button type="primary" :loading="saveBusy || pushBusy" @click="saveAndPush">保存并发布</el-button>
+      </div>
+
+      <el-dialog v-model="previewVisible" title="菜单预览（当前草稿）" width="520px">
+        <pre class="preview-json">{{ JSON.stringify(serialize(), null, 2) }}</pre>
+      </el-dialog>
+    </GatedTab>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   mpStatus, mpBind, mpUnbind, mpAuthUrl, mpGetMenu, mpSaveMenu, mpPushMenu,
@@ -616,8 +714,10 @@ async function loadMenu() {
   menuLoading.value = true;
   try {
     const r = await mpGetMenu();
-    if (r.saved) buttons.value = deserialize(r.saved);
-    liveMenu.value = r.live && !r.live.error ? r.live : null;
+      if (r.saved) buttons.value = deserialize(r.saved);
+      selectedTop.value = buttons.value.length ? 0 : null;
+      selectedSub.value = null;
+      liveMenu.value = r.live && !r.live.error ? r.live : null;
     if (r.syncedAt) status.syncedAt = r.syncedAt;
     ElMessage.success('已拉取菜单数据');
   } catch (e) {
@@ -676,11 +776,78 @@ async function pushMenu() {
   } catch (e) {
     ElMessage.error(e || '发布失败');
   } finally {
-    pushBusy.value = false;
+      pushBusy.value = false;
+    }
   }
-}
 
-// —— 消息服务器配置 ——
+  // 菜单选中态与发布
+  const selectedTop = ref(null);
+  const selectedSub = ref(null);
+  const previewVisible = ref(false);
+  const currentMenu = computed(() => {
+    if (selectedTop.value == null) return null;
+    const top = buttons.value[selectedTop.value];
+    if (!top) return null;
+    if (selectedSub.value != null) return top.sub[selectedSub.value] || null;
+    return top;
+  });
+  const isParent = computed(() => !!currentMenu.value && !!currentMenu.value.hasSub);
+  const isTopSelected = computed(() => selectedTop.value != null && selectedSub.value == null);
+  function selectTop(i) { selectedTop.value = i; selectedSub.value = null; }
+  function addTopMenu() {
+    if (buttons.value.length >= 3) return ElMessage.warning('最多 3 个一级菜单');
+    addTop();
+    selectedTop.value = buttons.value.length - 1;
+    selectedSub.value = null;
+  }
+  function addSubMenu(b) {
+    if (b.sub.length >= 5) return ElMessage.warning('最多 5 个子菜单');
+    addSub(b);
+    selectedSub.value = b.sub.length - 1;
+  }
+  function delSelected() {
+    if (selectedTop.value == null) return;
+    if (selectedSub.value != null) {
+      buttons.value[selectedTop.value].sub.splice(selectedSub.value, 1);
+      selectedSub.value = null;
+    } else {
+      buttons.value.splice(selectedTop.value, 1);
+      selectedSub.value = null;
+      if (selectedTop.value >= buttons.value.length) selectedTop.value = buttons.value.length - 1;
+    }
+  }
+  function toggleParent(b, val) {
+    b.hasSub = !!val;
+    if (b.hasSub && b.sub.length === 0) b.sub.push(emptyLeaf());
+    if (!b.hasSub) { b.sub = []; selectedSub.value = null; }
+  }
+  function fmtTime(s) {
+    if (!s) return '';
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? s : d.toLocaleString();
+  }
+  function previewMenu() { previewVisible.value = true; }
+  async function saveAndPush() {
+    const err = validate();
+    if (err) return ElMessage.warning(err);
+    saveBusy.value = true; pushBusy.value = true;
+    try {
+      await mpSaveMenu(serialize());
+      const r = await mpPushMenu();
+      status.syncedAt = r.syncedAt;
+      ElMessage.success('已保存并发布到微信');
+      await loadMenu();
+    } catch (e) {
+      ElMessage.error((e && e.error) || e || '保存并发布失败');
+    } finally {
+      saveBusy.value = false; pushBusy.value = false;
+    }
+  }
+  watch(activeTab, (t) => {
+    if (t === 'menu' && status.canMenu && !buttons.value.length && !menuLoading.value) loadMenu();
+  });
+
+  // —— 消息服务器配置 ——
 async function loadMsgCfg() {
   if (!status.bound) return;
   try {
@@ -1017,4 +1184,32 @@ onMounted(async () => {
 .fan-page { margin-top: 12px; justify-content: flex-end; }
 .mass-h { margin: 18px 0 8px; font-size: 14px; color: #1d2129; }
 .stats-sub { margin-top: 8px; }
+
+.menu-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.menu-page-title { font-size: 16px; margin: 0; color: #1d2129; }
+.menu-alert { margin-bottom: 16px; }
+.menu-builder { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+.phone { width: 300px; flex: 0 0 300px; border: 10px solid #1d2129; border-radius: 28px; background: #f2f3f5; overflow: hidden; position: relative; }
+.phone-status { display: flex; justify-content: space-between; align-items: center; padding: 6px 14px; font-size: 12px; color: #1d2129; background: #e5e6eb; }
+.phone-icons { letter-spacing: 1px; }
+.phone-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; color: #4e5969; }
+.phone-body { min-height: 320px; position: relative; padding: 12px; }
+.sub-pop { position: absolute; left: 12px; right: 12px; bottom: 64px; background: #4e5969; border-radius: 6px; padding: 4px; }
+.sub-pop-item { color: #fff; text-align: center; padding: 8px 6px; font-size: 13px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub-pop-item.active { background: #00b42a; }
+.sub-pop-add { color: #c9cdd4; text-align: center; padding: 8px; font-size: 13px; cursor: pointer; }
+.phone-foot { display: flex; align-items: stretch; border-top: 1px solid #e5e6eb; background: #f7f8fa; }
+.foot-add { flex: 0 0 64px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e5e6eb; color: #4e5969; cursor: pointer; font-size: 13px; }
+.foot-tabs { flex: 1; display: flex; }
+.foot-tab { flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px 4px; font-size: 13px; color: #4e5969; cursor: pointer; border-left: 1px solid #e5e6eb; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.foot-tab:first-child { border-left: none; }
+.foot-tab.active { color: #00b42a; background: #e8f7ec; }
+.float-pill { position: absolute; bottom: 80px; right: 18px; display: flex; gap: 8px; background: rgba(0,0,0,.55); border-radius: 16px; padding: 6px 10px; }
+.pill-back, .pill-del { color: #fff; cursor: pointer; font-size: 14px; }
+.menu-info { flex: 1; min-width: 320px; }
+.mi-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: #1d2129; }
+.menu-foot-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.menu-tip { color: #86909c; font-size: 12px; line-height: 1.5; }
+.menu-empty { color: #86909c; padding: 40px 0; text-align: center; }
+.preview-json { background: #1d2129; color: #e5e6eb; padding: 14px; border-radius: 6px; font-size: 12px; max-height: 360px; overflow: auto; white-space: pre-wrap; }
 </style>
